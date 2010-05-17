@@ -41,9 +41,13 @@ class CallContext{
 class TranscodeAgent : public Agent{
 	public:
 		TranscodeAgent(su_root_t *root, const char *locaddr, int port);
+		~TranscodeAgent();
 		virtual int onRequest(msg_t *msg, sip_t *sip);
 		virtual int onResponse(msg_t *msg, sip_t *sip);
 	private:
+		void processNewInvite(msg_t *msg, sip_t *sip);
+		void process200Ok(Transaction *t, msg_t *msg, sip_t *sip);
+		MSList *mSupportedAudioPayloads;
 		MSTicker *mTicker;
 };
 

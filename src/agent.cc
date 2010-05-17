@@ -63,45 +63,51 @@ Agent::~Agent(){
 }
 
 int Agent::onRequest(msg_t *msg, sip_t *sip){
-	sip_via_t *via;
 	su_home_t home;
-
 	su_home_init(&home);
 	switch(sip->sip_request->rq_method){
 		case sip_method_invite:
 			LOGD("This is an invite");
 			break;
+		default:
+			break;
 	}
-	//add on top of vias and forwards to destination
-	via=nta_agent_via(mAgent);
-	nta_msg_tsend (mAgent,msg,URL_STRING_MAKE(sip->sip_request->rq_url),SIPTAG_VIA(via),SIPTAG_END());
-	
+	nta_msg_tsend (mAgent,msg,(url_string_t*)sip->sip_request->rq_url,TAG_END());
 	su_home_deinit(&home);
+	return 0;
 }
 
 int Agent::onResponse(msg_t *msg, sip_t *sip){
-	sip_via_t*	via;
 	su_home_t home;
-	url_t *url;
+	char *buf;
+	size_t msg_size;
 	
 	su_home_init(&home);
 
-	/*remove top via and forwards to it*/
-	via=sip_via_remove (msg,sip);
-	url=url_format(&home,"sip:%s:%i",via->v_received ? via->v_received : via->v_host,
-	               via->v_rport ? via->v_rport : via->v_port);
-	nta_msg_tsend(mAgent,msg,(url_string_t*)url,SIPTAG_END());
+	buf=msg_as_string(&home, msg, NULL, 0,&msg_size);
+	LOGD("About to forward response:\n%s",buf);
+	
+	nta_msg_tsend(mAgent,msg,(url_string_t*)NULL,TAG_END());
 
 	su_home_deinit(&home);
+	return 0;
 }
 
 int Agent::onIncomingMessage(msg_t *msg, sip_t *sip){
-	LOGD("Receiving new SIP message: %s",(const char*)sip->sip_common[0].h_data);
+	su_home_t home;
+	size_t msg_size;
+	char *buf;
+	int err;
+	su_home_init(&home);
+	buf=msg_as_string(&home, msg, NULL, 0,&msg_size);
+	LOGD("Receiving new SIP message:\n%s",buf);
 	if (sip->sip_request)
-		return onRequest(msg,sip);
+		err=onRequest(msg,sip);
 	else{
-		return onResponse(msg,sip);
+		err=onResponse(msg,sip);
 	}
+	su_home_deinit(&home);
+	return err;
 }
 
 Transaction * Agent::createTransaction(sip_t *request){

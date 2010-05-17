@@ -1,5 +1,5 @@
 #include "transcodeagent.hh"
-
+#include "offeranswer.h"
 
 CallSide::CallSide(){
 	mSession=rtp_session_new(RTP_SESSION_SENDRECV);
@@ -76,6 +76,7 @@ void CallSide::disconnect(CallSide *recvSide){
 
 CallContext::CallContext(Transaction *t){
 	mTransaction=t;
+	t->setUserPointer(this);
 }
 
 void CallContext::join(MSTicker *t){
@@ -92,4 +93,62 @@ void CallContext::unjoin(){
 	mFrontSide.disconnect(&mBackSide);
 	mBackSide.disconnect(&mFrontSide);
 }
+
+static MSList *makeSupportedAudioPayloadList(){
+	payload_type_set_number(&payload_type_pcmu8000,0);
+	payload_type_set_number(&payload_type_pcma8000,8);
+	payload_type_set_number(&payload_type_gsm,3);
+	payload_type_set_number(&payload_type_speex_nb,-1);
+	payload_type_set_number(&payload_type_speex_wb,-1);
+	payload_type_set_number(&payload_type_amr,-1);
+	MSList *l=ms_list_append(NULL,&payload_type_pcmu8000);
+	l=ms_list_append(l,&payload_type_pcma8000);
+	l=ms_list_append(l,&payload_type_gsm);
+	l=ms_list_append(l,&payload_type_speex_nb);
+	l=ms_list_append(l,&payload_type_speex_wb);
+	l=ms_list_append(l,&payload_type_amr);
+	return l;
+}
+
+TranscodeAgent::TranscodeAgent(su_root_t *root, const char *locaddr, int port) :
+	Agent(root,locaddr,port){
+	mTicker=ms_ticker_new();
+	mSupportedAudioPayloads=makeSupportedAudioPayloadList();
+	
+}
+
+TranscodeAgent::~TranscodeAgent(){
+	ms_ticker_destroy(mTicker);
+}
+
+void TranscodeAgent::processNewInvite(msg_t *msg, sip_t *sip){
+}
+
+int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
+	if (sip->sip_request->rq_method==sip_method_invite){
+		if (findTransaction(sip)==NULL){
+			processNewInvite(msg,sip);
+		}else{
+			LOGD("Invite retransmission");
+		}
+	}
+	return Agent::onRequest(msg,sip);
+}
+
+void TranscodeAgent::process200Ok(Transaction *t,msg_t *msg, sip_t *sip){
+}
+
+int TranscodeAgent::onResponse(msg_t *msg, sip_t *sip){
+	if (sip->sip_status->st_status==200 && sip->sip_cseq 
+	    && sip->sip_cseq->cs_method==sip_method_invite){
+		Transaction *t=findTransaction(sip);
+		if (t){
+			process200Ok(t,msg,sip);
+		}else{
+			LOGW("Receiving 200Ok for unknown invite transaction !");
+		}
+	}
+	return Agent::onResponse(msg,sip);
+}
+
 

@@ -1,4 +1,4 @@
-#include "agent.hh"
+#include "transcodeagent.hh"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -11,7 +11,6 @@ static int get_local_ip_for_with_connect(int type, const char *dest, char *resul
 	struct addrinfo hints;
 	struct addrinfo *res=NULL;
 	struct sockaddr_storage addr;
-	struct sockaddr *p_addr=(struct sockaddr*)&addr;
 	int sock;
 	socklen_t s;
 
@@ -50,13 +49,7 @@ static int get_local_ip_for_with_connect(int type, const char *dest, char *resul
 		close(sock);
 		return -1;
 	}
-	if (p_addr->sa_family==AF_INET){
-		struct sockaddr_in *p_sin=(struct sockaddr_in*)p_addr;
-		if (p_sin->sin_addr.s_addr==0){
-			close(sock);
-			return -1;
-		}
-	}
+	
 	err=getnameinfo((struct sockaddr *)&addr,s,result,IPADDR_SIZE,NULL,0,NI_NUMERICHOST);
 	if (err!=0){
 		LOGE("getnameinfo error: %s",strerror(errno));
@@ -87,7 +80,7 @@ int main(int argc, char *argv[]){
 
 	get_local_ip_for_with_connect (AF_INET,"87.98.157.38",localip);
 	
-	a=new Agent(root,localip,port);
+	a=new TranscodeAgent(root,localip,port);
 	su_root_run(root);
 
 	delete a;

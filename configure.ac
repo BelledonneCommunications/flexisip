@@ -9,7 +9,16 @@ dnl AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE
 
 # Checks for programs.
+AC_PROG_CC
 AC_PROG_CXX
+
+CFLAGS="-ggdb"
+CXXFLAGS="-ggdb"
+
+if test x$GCC = xyes ; then
+	CFLAGS="$CFLAGS -Wall -Werror"
+	CXXFLAGS="$CXXFLAGS -Wall -Werror"
+fi
 
 # Checks for libraries.
 
