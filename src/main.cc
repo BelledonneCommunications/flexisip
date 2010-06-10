@@ -78,6 +78,12 @@ static int get_local_ip_for_with_connect(int type, const char *dest, char *resul
 	return 0;
 }
 
+static void usage(const char *arg0){
+	printf("%s \t [--port <port number to listen>]\n"
+	       "\t\t [--help]\n",arg0);
+	exit(-1);
+}
+
 int main(int argc, char *argv[]){
 	Agent *a;
 	int port=5060;
@@ -89,8 +95,10 @@ int main(int argc, char *argv[]){
 			i++;
 			if (i<argc){
 				port=atoi(argv[i]);
+				continue;
 			}
 		}
+		usage(argv[0]);
 	}
 
 	

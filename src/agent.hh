@@ -54,6 +54,7 @@ class Transaction{
 class Agent{
 	public:
 		Agent(su_root_t *root, const char *locaddr, int port);
+		void setDomain(const std::string &domain);
 		~Agent();
 		virtual int onIncomingMessage(msg_t *msg, sip_t *sip);
 		virtual int onRequest(msg_t *msg, sip_t *sip);
@@ -67,6 +68,7 @@ class Agent{
 	private:
 		nta_agent_t *mAgent;
 		std::string mLocAddr;
+		std::string mDomain;
 		int mPort;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);
 };

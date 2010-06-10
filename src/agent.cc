@@ -89,22 +89,37 @@ Agent::~Agent(){
 		nta_agent_destroy(mAgent);
 }
 
+void Agent::setDomain(const std::string &domain){
+	mDomain=domain;
+}
+
 int Agent::onRequest(msg_t *msg, sip_t *sip){
 	su_home_t home;
 	size_t msg_size;
 	char *buf;
-	
+	const char *domain;
+	url_string_t* dest=NULL;
+
+	dest=(url_string_t*)sip->sip_request->rq_url;
 	su_home_init(&home);
 	switch(sip->sip_request->rq_method){
 		case sip_method_invite:
 			LOGD("This is an invite");
+			break;
+		case sip_method_register:
+			LOGD("This is a register");
+			domain=sip->sip_to->a_url->url_host;
+			if (strcasecmp(domain,mDomain.c_str())!=0){
+				LOGD("This domain (%s) is not managed by us, forwarding.",domain);
+				dest=(url_string_t*)sip->sip_to->a_url;
+			}
 			break;
 		default:
 			break;
 	}
 	buf=msg_as_string(&home, msg, NULL, 0,&msg_size);
 	LOGD("About to forward request:\n%s",buf);
-	nta_msg_tsend (mAgent,msg,(url_string_t*)sip->sip_request->rq_url,TAG_END());
+	nta_msg_tsend (mAgent,msg,dest,TAG_END());
 	su_home_deinit(&home);
 	return 0;
 }
