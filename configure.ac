@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.65])
+AC_PREREQ([2.61])
 AC_INIT([flexisip], [0.0.1], [simon.morlat@linphone.org])
 AC_CONFIG_SRCDIR([src/agent.cc])
 dnl AC_CONFIG_HEADERS([config.h])

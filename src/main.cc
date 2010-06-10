@@ -88,6 +88,7 @@ int main(int argc, char *argv[]){
 	Agent *a;
 	int port=5060;
 	char localip[IPADDR_SIZE];
+	const char *domain=NULL;
 	int i;
 
 	for(i=1;i<argc;++i){
@@ -95,6 +96,12 @@ int main(int argc, char *argv[]){
 			i++;
 			if (i<argc){
 				port=atoi(argv[i]);
+				continue;
+			}
+		}else if (strcmp(argv[i],"--domain")==0){
+			i++;
+			if (i<argc){
+				domain=argv[i];
 				continue;
 			}
 		}
@@ -108,6 +115,7 @@ int main(int argc, char *argv[]){
 	get_local_ip_for_with_connect (AF_INET,"87.98.157.38",localip);
 	
 	a=new TranscodeAgent(root,localip,port);
+	if (domain) a->setDomain(domain);
 	su_root_run(root);
 
 	delete a;
