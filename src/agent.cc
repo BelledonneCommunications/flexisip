@@ -1,7 +1,25 @@
+/*
+	Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010  Belledonne Communications SARL.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+
 #include "agent.hh"
 
-#include <algorithm>
-#include <functional>
+
 
 using namespace::std;
 
@@ -34,12 +52,21 @@ static bool from_match(sip_from_t *f1, sip_from_t *f2){
 	return sip_addr_match(f1,f2)==0;
 }
 
+static bool to_match(sip_to_t *f1, sip_to_t *f2){
+	char a1[128];
+	char a2[128];
+	sip_to_e(a1,sizeof(a1)-1,(msg_header_t*)f1,0);
+	sip_to_e(a2,sizeof(a2)-1,(msg_header_t*)f2,0);
+	LOGD("Comparing %s and %s",a1,a2);
+	return sip_addr_match(f1,f2)==0;
+}
+
 bool Transaction::matches(sip_t *sip){
 	sip_from_t *from=sip->sip_from;
 	sip_from_t *to=sip->sip_to;
 	sip_cseq_t *cseq=sip->sip_cseq;
 	return 
-		from_match(mFrom,from) && from_match(mTo,to) 
+		from_match(mFrom,from) && to_match(mTo,to) 
 		&& mCseq->cs_seq==cseq->cs_seq && mCseq->cs_method==cseq->cs_method;
 }
 
@@ -64,6 +91,9 @@ Agent::~Agent(){
 
 int Agent::onRequest(msg_t *msg, sip_t *sip){
 	su_home_t home;
+	size_t msg_size;
+	char *buf;
+	
 	su_home_init(&home);
 	switch(sip->sip_request->rq_method){
 		case sip_method_invite:
@@ -72,6 +102,8 @@ int Agent::onRequest(msg_t *msg, sip_t *sip){
 		default:
 			break;
 	}
+	buf=msg_as_string(&home, msg, NULL, 0,&msg_size);
+	LOGD("About to forward request:\n%s",buf);
 	nta_msg_tsend (mAgent,msg,(url_string_t*)sip->sip_request->rq_url,TAG_END());
 	su_home_deinit(&home);
 	return 0;
@@ -108,25 +140,6 @@ int Agent::onIncomingMessage(msg_t *msg, sip_t *sip){
 	}
 	su_home_deinit(&home);
 	return err;
-}
-
-Transaction * Agent::createTransaction(sip_t *request){
-	Transaction *t=new Transaction(request);
-	mTransactions.push_back(t);
-	return t;
-}
-
-Transaction *Agent::findTransaction(sip_t *sip){
-	list<Transaction*>::iterator it;
-	it=find_if(mTransactions.begin(), mTransactions.end(), bind2nd(mem_fun(&Transaction::matches),sip));
-	if (it==mTransactions.end())
-		return NULL;
-	return *it;
-}
-
-void Agent::deleteTransaction (Transaction *t){
-	mTransactions.remove(t);
-	delete t;
 }
 
 int Agent::messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip){

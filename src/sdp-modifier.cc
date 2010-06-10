@@ -1,21 +1,20 @@
-/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*- */
 /*
- * bcproxy
- * Copyright (C) Simon Morlat 2010 <simon.morlat@linphone.org>
- * 
- * bcproxy is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- * bcproxy is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+	Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010  Belledonne Communications SARL.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "sdp-modifier.hh"
 
@@ -37,43 +36,38 @@ bool SdpModifier::initFromSipMsg(sip_t *sip){
 		LOGW("SIP message has no payload");
 		return false;
 	}
-	sdp_parser_t *parser = sdp_parse(mHome, payload->pl_data, payload->pl_len, 0);
-	mSession=sdp_session(parser);
+	mParser = sdp_parse(mHome, payload->pl_data, payload->pl_len, 0);
+	mSession=sdp_session(mParser);
 	if (mSession==NULL) {
-		LOGE("SDP parsing error: %s",sdp_parsing_error(parser));
+		LOGE("SDP parsing error: %s",sdp_parsing_error(mParser));
 	}
-	sdp_parser_free(parser);
+	
 	return mSession!=NULL;
 }
 
 SdpModifier::SdpModifier(su_home_t *home){
+	mParser=NULL;
 	mSip=NULL;
 	mHome=home;
 	mSession=NULL;
 }
 
 SdpModifier::~SdpModifier(){
-	
+	if (mParser) sdp_parser_free(mParser);
 }
 
+/*
 static sdp_list_t *sdp_list_append(su_home_t *home, sdp_list_t *l, char *text){
 	sdp_list_t *elem=(sdp_list_t*)su_zalloc(home,sizeof(sdp_list_t));
+	sdp_list_t *begin=l;
 	elem->l_size=sizeof(sdp_list_t);
 	elem->l_text=text;
 	if (l==NULL) return elem;
 	while(l->l_next!=NULL) l=l->l_next;
 	l->l_next=elem;
-	return l;
+	return begin;
 }
-
-static sdp_list_t * sdp_list_find(sdp_list_t *l, const char *text){
-	for(;l!=NULL;l=l->l_next){
-		if (l->l_text && strcmp(l->l_text,text)==0){
-			return l;
-		}
-	}
-	return NULL;
-}
+*/
 
 static sdp_rtpmap_t *sdp_rtpmap_make_from_payload_type(su_home_t *home, PayloadType *pt, int number){
 	sdp_rtpmap_t *map=(sdp_rtpmap_t*)su_zalloc(home,sizeof(sdp_rtpmap_t));
@@ -91,6 +85,15 @@ static sdp_rtpmap_t *sdp_rtpmap_append(sdp_rtpmap_t *rtpmaps, sdp_rtpmap_t *newm
 		elem=elem->rm_next;
 	elem->rm_next=newmap;
 	return rtpmaps;
+}
+
+static sdp_rtpmap_t *sdp_rtpmaps_find_ny_number(sdp_rtpmap_t *rtpmaps, int number){
+	sdp_rtpmap_t *elem;
+	for(elem=rtpmaps;elem!=NULL;elem=elem->rm_next){
+		if (elem->rm_pt==number)
+			return elem;
+	}
+	return NULL;
 }
 
 void SdpModifier::appendNewPayloads(const MSList *payloads){
@@ -112,9 +115,7 @@ void SdpModifier::appendNewPayloads(const MSList *payloads){
 			if (number==-1){
 				/* find a dynamic  payload type number */
 				for(int i=100;i<127;++i){
-					char tmp[10];
-					snprintf(tmp,sizeof(tmp),"%i",i);
-					if (sdp_list_find(mline->m_format,tmp)==NULL){
+					if (sdp_rtpmaps_find_ny_number(mline->m_rtpmaps,i)==NULL){
 						number=i;
 						break;
 					}
@@ -122,7 +123,6 @@ void SdpModifier::appendNewPayloads(const MSList *payloads){
 			}
 			sdp_rtpmap_t *map=sdp_rtpmap_make_from_payload_type (mHome,pt,number);
 			mline->m_rtpmaps=sdp_rtpmap_append(mline->m_rtpmaps,map);
-			sdp_list_append(mHome,mline->m_format,su_sprintf(mHome,"%i",number));
 		}
 	}
 }

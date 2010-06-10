@@ -1,5 +1,25 @@
+/*
+	Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010  Belledonne Communications SARL.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+
 #include "transcodeagent.hh"
 #include "offeranswer.h"
+#include "sdp-modifier.hh"
 
 CallSide::CallSide(){
 	mSession=rtp_session_new(RTP_SESSION_SENDRECV);
@@ -74,9 +94,8 @@ void CallSide::disconnect(CallSide *recvSide){
 	ms_connection_helper_unlink(&h,mSender,0,-1);
 }
 
-CallContext::CallContext(Transaction *t){
-	mTransaction=t;
-	t->setUserPointer(this);
+CallContext::CallContext(sip_t *sip) : CallContextBase(sip){
+	su_home_init(&mHome);
 }
 
 void CallContext::join(MSTicker *t){
@@ -92,6 +111,10 @@ void CallContext::unjoin(){
 	ms_ticker_detach(mTicker,mFrontSide.getRecvPoint().filter);
 	mFrontSide.disconnect(&mBackSide);
 	mBackSide.disconnect(&mFrontSide);
+}
+
+CallContext::~CallContext(){
+	su_home_deinit(&mHome);
 }
 
 static MSList *makeSupportedAudioPayloadList(){
@@ -112,41 +135,52 @@ static MSList *makeSupportedAudioPayloadList(){
 
 TranscodeAgent::TranscodeAgent(su_root_t *root, const char *locaddr, int port) :
 	Agent(root,locaddr,port){
+	ortp_init();
+	ms_init();
 	mTicker=ms_ticker_new();
 	mSupportedAudioPayloads=makeSupportedAudioPayloadList();
-	
 }
 
 TranscodeAgent::~TranscodeAgent(){
 	ms_ticker_destroy(mTicker);
 }
 
-void TranscodeAgent::processNewInvite(msg_t *msg, sip_t *sip){
+void TranscodeAgent::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
+	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
+	m->changeAudioIpPort (getLocAddr().c_str(),getPort());
+	m->appendNewPayloads (mSupportedAudioPayloads);
+	m->update(msg,sip);
+	delete m;
+	Agent::onRequest(msg,sip);
 }
 
 int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
+	CallContext *c;
 	if (sip->sip_request->rq_method==sip_method_invite){
-		if (findTransaction(sip)==NULL){
-			processNewInvite(msg,sip);
+		if ((c=static_cast<CallContext*>(mCalls.find(sip)))==NULL){
+			c=new CallContext(sip);
+			mCalls.store(c);
+			processNewInvite(c,msg,sip);
 		}else{
-			LOGD("Invite retransmission");
+			if (c->isNewInvite(sip)){
+				processNewInvite(c,msg,sip);
+			}else
+				LOGW("Invite retransmission, not handled yet");
 		}
+	}else{
+		//all other requests go through
+		Agent::onRequest(msg,sip);
 	}
-	return Agent::onRequest(msg,sip);
+	return 0;
 }
 
-void TranscodeAgent::process200Ok(Transaction *t,msg_t *msg, sip_t *sip){
+void TranscodeAgent::process200Ok(CallContext *c, msg_t *msg, sip_t *sip){
 }
 
 int TranscodeAgent::onResponse(msg_t *msg, sip_t *sip){
 	if (sip->sip_status->st_status==200 && sip->sip_cseq 
 	    && sip->sip_cseq->cs_method==sip_method_invite){
-		Transaction *t=findTransaction(sip);
-		if (t){
-			process200Ok(t,msg,sip);
-		}else{
-			LOGW("Receiving 200Ok for unknown invite transaction !");
-		}
+		
 	}
 	return Agent::onResponse(msg,sip);
 }

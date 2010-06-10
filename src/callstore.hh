@@ -16,28 +16,33 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <mediastreamer2/mscommon.h>
-#include "common.hh"
-#include <sofia-sip/sdp.h>
-#include <sofia-sip/sip.h>
 
-#ifndef _SDP_MODIFIER_HH_
-#define _SDP_MODIFIER_HH_
+#ifndef callstore_hh
+#define callstore_hh
 
-class SdpModifier{
+#include "agent.hh"
+#include <list>
+
+class CallContextBase{
 	public:
-		static SdpModifier *createFromSipMsg(su_home_t *home, sip_t *sip);
-		bool initFromSipMsg(sip_t *sip);
-		void appendNewPayloads(const MSList *payloads);
-		void changeAudioIpPort(const char *ip, int port);
-		void update(msg_t *msg, sip_t *sip);
-		~SdpModifier();
-		SdpModifier(su_home_t *home);
+		CallContextBase(sip_t *sip);
+		bool match(sip_t *sip);
+		bool isNewInvite(sip_t *sip);
 	private:
-		sdp_parser_t *mParser;
-		sip_t *mSip;
-		su_home_t *mHome;
-		sdp_session_t *mSession;
+		uint32_t mCallHash;
+		uint32_t mInvCseq;
+		
 };
 
-#endif // _SDP_MODIFIER_HH_
+class CallStore{
+	public:
+		CallStore();
+		void store(CallContextBase *ctx);
+		CallContextBase *find(sip_t *sip);
+		void remove(CallContextBase *ctx);
+	private:
+		std::list<CallContextBase*> mCalls;
+};
+
+
+#endif

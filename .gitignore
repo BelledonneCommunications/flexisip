@@ -15,4 +15,6 @@ config.status
 .deps
 .libs
 libtool
-
+depcomp
+missing
+install-sh

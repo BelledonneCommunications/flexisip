@@ -1,7 +1,26 @@
+/*
+	Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010  Belledonne Communications SARL.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+
 #ifndef agent_hh
 #define agent_hh
 
-#include <list>
+
 #include <string>
 
 #include <sofia-sip/sip.h>
@@ -21,6 +40,9 @@ class Transaction{
 		bool matches(sip_t *sip);
 		void setUserPointer(void *up);
 		void *getUserPointer()const;
+		su_home_t *getHome(){
+			return &mHome;
+		}
 	private:
 		su_home_t mHome;
 		sip_from_t *mFrom;
@@ -36,12 +58,14 @@ class Agent{
 		virtual int onIncomingMessage(msg_t *msg, sip_t *sip);
 		virtual int onRequest(msg_t *msg, sip_t *sip);
 		virtual int onResponse(msg_t *msg, sip_t *sip);
-		Transaction *createTransaction(sip_t *request);
-		Transaction *findTransaction(sip_t *sip);
-		void deleteTransaction(Transaction* t);
+		const std::string getLocAddr()const{
+			return mLocAddr;
+		}
+		int getPort()const{
+			return mPort;
+		}
 	private:
 		nta_agent_t *mAgent;
-		std::list<Transaction*> mTransactions;
 		std::string mLocAddr;
 		int mPort;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);

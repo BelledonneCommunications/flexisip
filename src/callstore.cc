@@ -16,28 +16,42 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <mediastreamer2/mscommon.h>
-#include "common.hh"
-#include <sofia-sip/sdp.h>
-#include <sofia-sip/sip.h>
 
-#ifndef _SDP_MODIFIER_HH_
-#define _SDP_MODIFIER_HH_
+#include <algorithm>
+#include <functional>
 
-class SdpModifier{
-	public:
-		static SdpModifier *createFromSipMsg(su_home_t *home, sip_t *sip);
-		bool initFromSipMsg(sip_t *sip);
-		void appendNewPayloads(const MSList *payloads);
-		void changeAudioIpPort(const char *ip, int port);
-		void update(msg_t *msg, sip_t *sip);
-		~SdpModifier();
-		SdpModifier(su_home_t *home);
-	private:
-		sdp_parser_t *mParser;
-		sip_t *mSip;
-		su_home_t *mHome;
-		sdp_session_t *mSession;
-};
+#include "callstore.hh"
 
-#endif // _SDP_MODIFIER_HH_
+using namespace::std;
+
+CallContextBase::CallContextBase(sip_t *sip){
+	mCallHash=sip->sip_call_id->i_hash;
+	mInvCseq=sip->sip_cseq->cs_seq;
+}
+
+bool CallContextBase::match(sip_t *sip){
+	return sip->sip_call_id->i_hash==mCallHash;
+}
+
+bool CallContextBase::isNewInvite (sip_t *invite){
+	return invite->sip_cseq->cs_seq!=mInvCseq;
+}
+
+CallStore::CallStore(){
+}
+
+void CallStore::store(CallContextBase *ctx){
+	mCalls.push_back(ctx);
+}
+
+CallContextBase *CallStore::find(sip_t *sip){
+	list<CallContextBase*>::iterator it;
+	it=find_if(mCalls.begin(),mCalls.end(),bind2nd(mem_fun(&CallContextBase::match),sip));
+	if (it!=mCalls.end())
+		return *it;
+	return NULL;
+}
+
+void CallStore::remove(CallContextBase *ctx){
+	mCalls.remove(ctx);
+}
