@@ -149,6 +149,7 @@ void CallContext::unjoin(){
 	ms_ticker_detach(mTicker,mFrontSide.getRecvPoint().filter);
 	mFrontSide.disconnect(&mBackSide);
 	mBackSide.disconnect(&mFrontSide);
+	mTicker=NULL;
 }
 
 void CallContext::redraw(CallSide *r){
@@ -167,6 +168,8 @@ const MSList *CallContext::getInitialOffer()const{
 }
 
 CallContext::~CallContext(){
+	if (mTicker!=NULL)
+		unjoin();
 	su_home_deinit(&mHome);
 	if (mInitialOffer){
 		ms_list_for_each(mInitialOffer,(void(*)(void*))payload_type_destroy);

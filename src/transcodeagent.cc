@@ -79,6 +79,13 @@ int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
 		}
 	}else{
 		//all other requests go through
+
+		if (sip->sip_request->rq_method==sip_method_bye){
+			if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
+				mCalls.remove(c);
+				delete c;
+			}
+		}
 		Agent::onRequest(msg,sip);
 	}
 	return 0;
@@ -96,17 +103,20 @@ void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *
 	m->changeAudioIpPort (getLocAddr().c_str(),ctx->getBackSide()->getAudioPort());
 
 	MSList *answer=m->readPayloads ();
-	MSList *common=SdpModifier::findCommon (ioffer,mSupportedAudioPayloads);
+	MSList *common=SdpModifier::findCommon (mSupportedAudioPayloads,ioffer);
 	if (common!=NULL){
 		m->appendNewPayloadsAndRemoveUnsupported(common);
 		ms_list_for_each(common,(void(*)(void*))payload_type_destroy);
 		ms_list_free(common);
 	}
+	m->update(msg,sip);
 	ctx->getBackSide ()->assignPayloads (answer);
 	ms_list_free(answer);
 	// read the modified answer to get payload list in right order:
 	answer=m->readPayloads ();
 	ctx->getFrontSide ()->assignPayloads (answer);
+	ms_list_free(answer);
+	ctx->join(mTicker);
 }
 
 int TranscodeAgent::onResponse(msg_t *msg, sip_t *sip){

@@ -40,6 +40,7 @@ void default_loghandler(int log_level, const char *str, va_list l){
 	fprintf(stdout,"%s:",levname);
 	vfprintf(stdout,str,l);
 	fprintf(stdout,"\n");
+	fflush(stdout);
 }
 
 LogHandler proxy_loghandler=default_loghandler;

@@ -111,8 +111,16 @@ int Agent::onRequest(msg_t *msg, sip_t *sip){
 			domain=sip->sip_to->a_url->url_host;
 			if (strcasecmp(domain,mDomain.c_str())!=0){
 				LOGD("This domain (%s) is not managed by us, forwarding.",domain);
-				dest=(url_string_t*)sip->sip_to->a_url;
+				//rewrite the request uri to the domain
+				//this assume the domain is also the proxy
+				sip->sip_request->rq_url->url_host=sip->sip_to->a_url->url_host;
+				sip->sip_request->rq_url->url_port=sip->sip_to->a_url->url_port;
 			}
+			break;
+		case sip_method_ack:
+			// sofia does not remove the route for acks, so do it
+			if (sip->sip_route!=NULL)
+				sip_route_remove(msg,sip);
 			break;
 		default:
 			break;
