@@ -61,6 +61,7 @@ void  CallSide::assignPayloads(const MSList *payloads){
 
 CallSide::~CallSide(){
 	rtp_session_destroy(mSession);
+	rtp_profile_destroy(mProfile);
 	ms_filter_destroy(mReceiver);
 	ms_filter_destroy(mSender);
 	if (mEncoder)

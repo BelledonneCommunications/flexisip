@@ -21,6 +21,8 @@
 #include <sofia-sip/sdp.h>
 #include <sofia-sip/sip.h>
 
+#include <string>
+
 #ifndef _SDP_MODIFIER_HH_
 #define _SDP_MODIFIER_HH_
 
@@ -36,6 +38,7 @@ class SdpModifier{
 		MSList *readPayloads();
 		void appendNewPayloadsAndRemoveUnsupported(const MSList *payloads);
 		void removeUnwantedPayloads(const MSList *tokeep);
+		void getAudioIpPort(std::string *ip, int *port);
 		void changeAudioIpPort(const char *ip, int port);
 		void update(msg_t *msg, sip_t *sip);
 		~SdpModifier();

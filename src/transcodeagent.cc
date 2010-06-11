@@ -50,9 +50,14 @@ TranscodeAgent::~TranscodeAgent(){
 }
 
 void TranscodeAgent::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
+	std::string addr;
+	int port;
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
 	c->setInitialOffer (m->readPayloads ());
-	m->changeAudioIpPort (getLocAddr().c_str(),getPort());
+	m->getAudioIpPort (&addr,&port);
+	c->getFrontSide()->setRemoteAddr(addr.c_str(),port);
+	port=c->getFrontSide()->getAudioPort();
+	m->changeAudioIpPort(getLocAddr().c_str(),port);
 	m->appendNewPayloadsAndRemoveUnsupported(mSupportedAudioPayloads);
 	m->update(msg,sip);
 	delete m;
@@ -82,7 +87,14 @@ int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
 void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip){
 	LOGD("Processing 200 Ok");
 	const MSList *ioffer=ctx->getInitialOffer ();
+	std::string addr;
+	int port;
 	SdpModifier *m=SdpModifier::createFromSipMsg(ctx->getHome(), sip);
+
+	m->getAudioIpPort (&addr,&port);
+	ctx->getBackSide()->setRemoteAddr(addr.c_str(),port);
+	m->changeAudioIpPort (getLocAddr().c_str(),ctx->getBackSide()->getAudioPort());
+
 	MSList *answer=m->readPayloads ();
 	MSList *common=SdpModifier::findCommon (ioffer,mSupportedAudioPayloads);
 	if (common!=NULL){
