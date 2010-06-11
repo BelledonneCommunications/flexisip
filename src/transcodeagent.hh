@@ -20,46 +20,7 @@
 #define transcodeagent_hh
 
 #include "agent.hh"
-#include "callstore.hh"
-
-#include <mediastreamer2/msfilter.h>
-#include <mediastreamer2/msticker.h>
-#include <mediastreamer2/msrtp.h>
-
-class CallSide{
-	public:
-		CallSide();
-		~CallSide();
-		MSConnectionPoint getRecvPoint();
-		PayloadType *getRecvFormat();
-		void connect(CallSide *recvSide);
-		void disconnect(CallSide *recvSide);
-	private:
-		RtpSession *mSession;
-		PayloadType *getSendFormat();
-		RtpSession *mRtpSession;
-		MSFilter *mReceiver;
-		MSFilter *mSender;
-		MSFilter *mDecoder;
-		MSFilter *mEncoder;
-};
-
-class CallContext : public CallContextBase{
-	public:
-		CallContext(sip_t *invite);
-		void join(MSTicker *ticker);
-		void unjoin();
-		su_home_t *getHome(){
-			return &mHome;
-		}
-		~CallContext();
-	private:
-		su_home_t mHome;
-		MSTicker *mTicker;
-		CallSide mFrontSide;
-		CallSide mBackSide;
-		
-};
+#include "callcontext.hh"
 
 class TranscodeAgent : public Agent{
 	public:
@@ -69,7 +30,7 @@ class TranscodeAgent : public Agent{
 		virtual int onResponse(msg_t *msg, sip_t *sip);
 	private:
 		void processNewInvite(CallContext *c, msg_t *msg, sip_t *sip);
-		void process200Ok(CallContext *ctx, msg_t *msg, sip_t *sip);
+		void process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip);
 		MSList *mSupportedAudioPayloads;
 		MSTicker *mTicker;
 		CallStore mCalls;

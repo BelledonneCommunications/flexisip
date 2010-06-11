@@ -24,15 +24,23 @@
 #ifndef _SDP_MODIFIER_HH_
 #define _SDP_MODIFIER_HH_
 
+
+#define payload_type_set_number(pt,n)	(pt)->user_data=(void*)(long)n
+#define payload_type_get_number(pt)		(int)(long)(pt)->user_data
+
+
 class SdpModifier{
 	public:
 		static SdpModifier *createFromSipMsg(su_home_t *home, sip_t *sip);
 		bool initFromSipMsg(sip_t *sip);
-		void appendNewPayloads(const MSList *payloads);
+		MSList *readPayloads();
+		void appendNewPayloadsAndRemoveUnsupported(const MSList *payloads);
+		void removeUnwantedPayloads(const MSList *tokeep);
 		void changeAudioIpPort(const char *ip, int port);
 		void update(msg_t *msg, sip_t *sip);
 		~SdpModifier();
 		SdpModifier(su_home_t *home);
+		static MSList *findCommon(const MSList *offer, const MSList *answer);
 	private:
 		sdp_parser_t *mParser;
 		sip_t *mSip;

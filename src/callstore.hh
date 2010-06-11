@@ -28,10 +28,10 @@ class CallContextBase{
 		CallContextBase(sip_t *sip);
 		bool match(sip_t *sip);
 		bool isNewInvite(sip_t *sip);
+		bool isNew200Ok(sip_t *sip);
 	private:
 		uint32_t mCallHash;
 		uint32_t mInvCseq;
-		
 };
 
 class CallStore{

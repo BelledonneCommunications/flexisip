@@ -37,6 +37,10 @@ bool CallContextBase::isNewInvite (sip_t *invite){
 	return invite->sip_cseq->cs_seq!=mInvCseq;
 }
 
+bool CallContextBase::isNew200Ok(sip_t *sip){
+	return sip->sip_cseq->cs_seq!=mInvCseq;
+}
+
 CallStore::CallStore(){
 }
 

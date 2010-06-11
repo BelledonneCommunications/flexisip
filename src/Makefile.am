@@ -4,9 +4,9 @@ flexisip_SOURCES=main.cc \
 			agent.cc agent.hh \
 			common.cc common.hh \
 			transcodeagent.cc transcodeagent.hh \
-			offeranswer.c offeranswer.h \
 			sdp-modifier.hh  sdp-modifier.cc \
-			callstore.hh  callstore.cc
+			callstore.hh  callstore.cc \
+			callcontext.cc callcontext.hh
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS)
 

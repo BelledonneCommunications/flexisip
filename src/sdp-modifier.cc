@@ -19,7 +19,7 @@
 #include "sdp-modifier.hh"
 
 #include <sofia-sip/sip_protos.h>
-#include "offeranswer.h"
+
 
 SdpModifier *SdpModifier::createFromSipMsg(su_home_t *home, sip_t *sip){
 	SdpModifier *sm=new SdpModifier(home);
@@ -69,6 +69,15 @@ static sdp_list_t *sdp_list_append(su_home_t *home, sdp_list_t *l, char *text){
 }
 */
 
+static PayloadType *payload_type_make_from_sdp_rtpmap(sdp_rtpmap_t *rtpmap){
+	PayloadType *pt=payload_type_new();
+	pt->type=PAYLOAD_AUDIO_PACKETIZED;
+	pt->mime_type=ms_strdup(rtpmap->rm_encoding);
+	pt->clock_rate=rtpmap->rm_rate;
+	payload_type_set_number(pt,rtpmap->rm_pt);
+	return pt;
+}
+
 static sdp_rtpmap_t *sdp_rtpmap_make_from_payload_type(su_home_t *home, PayloadType *pt, int number){
 	sdp_rtpmap_t *map=(sdp_rtpmap_t*)su_zalloc(home,sizeof(sdp_rtpmap_t));
 	map->rm_size=sizeof(sdp_rtpmap_t);
@@ -87,7 +96,7 @@ static sdp_rtpmap_t *sdp_rtpmap_append(sdp_rtpmap_t *rtpmaps, sdp_rtpmap_t *newm
 	return rtpmaps;
 }
 
-static sdp_rtpmap_t *sdp_rtpmaps_find_ny_number(sdp_rtpmap_t *rtpmaps, int number){
+static sdp_rtpmap_t *sdp_rtpmaps_find_by_number(sdp_rtpmap_t *rtpmaps, int number){
 	sdp_rtpmap_t *elem;
 	for(elem=rtpmaps;elem!=NULL;elem=elem->rm_next){
 		if (elem->rm_pt==number)
@@ -96,14 +105,45 @@ static sdp_rtpmap_t *sdp_rtpmaps_find_ny_number(sdp_rtpmap_t *rtpmaps, int numbe
 	return NULL;
 }
 
-void SdpModifier::appendNewPayloads(const MSList *payloads){
+MSList *SdpModifier::readPayloads(){
+	sdp_media_t *mline=mSession->sdp_media;
+	sdp_rtpmap_t *elem=mline->m_rtpmaps;
+	MSList *ret=NULL;
+	for(;elem->rm_next!=NULL;elem=elem->rm_next){
+		ret=ms_list_append(ret,payload_type_make_from_sdp_rtpmap (elem));
+	}
+	return ret;
+}
+
+MSList *SdpModifier::findCommon(const MSList *offer, const MSList *answer){
+	MSList *ret=NULL;
+	const MSList *e1,*e2;
+	for (e1=offer;e1!=NULL;e1=e1->next){
+		PayloadType *pt1=(PayloadType *)e1->data;
+		for(e2=answer;e2!=NULL;e2=e2->next){
+			PayloadType *pt2=(PayloadType *)e2->data;
+			if (strcasecmp(pt1->mime_type,pt2->mime_type)==0
+			    && pt1->clock_rate==pt2->clock_rate ){
+				PayloadType *found=payload_type_clone(pt2);
+				payload_type_set_number(found,payload_type_get_number(pt2));
+				ret=ms_list_append(ret,found);
+			}
+		}
+	}
+	return ret;
+}
+
+void SdpModifier::appendNewPayloadsAndRemoveUnsupported(const MSList *payloads){
 	const MSList *elem;
 	PayloadType *pt;
 	sdp_rtpmap_t ref;
-	sdp_media_t *mline=mSession->sdp_media;
-	sdp_rtpmap_t *rtpmaps=mline->m_rtpmaps;
 	memset(&ref,0,sizeof(ref));
 	ref.rm_size=sizeof(ref);
+
+	removeUnwantedPayloads(payloads); // payloads are the ones to keep
+
+	sdp_media_t *mline=mSession->sdp_media;
+	sdp_rtpmap_t *rtpmaps=mline->m_rtpmaps;
 	
 	for(elem=payloads;elem!=NULL;elem=elem->next){
 		pt=(PayloadType*)elem->data;
@@ -115,7 +155,7 @@ void SdpModifier::appendNewPayloads(const MSList *payloads){
 			if (number==-1){
 				/* find a dynamic  payload type number */
 				for(int i=100;i<127;++i){
-					if (sdp_rtpmaps_find_ny_number(mline->m_rtpmaps,i)==NULL){
+					if (sdp_rtpmaps_find_by_number(mline->m_rtpmaps,i)==NULL){
 						number=i;
 						break;
 					}
@@ -124,6 +164,34 @@ void SdpModifier::appendNewPayloads(const MSList *payloads){
 			sdp_rtpmap_t *map=sdp_rtpmap_make_from_payload_type (mHome,pt,number);
 			mline->m_rtpmaps=sdp_rtpmap_append(mline->m_rtpmaps,map);
 		}
+	}
+}
+
+static PayloadType *findPayload(const MSList *ref, const char *mime, int rate){
+	for(;ref!=NULL;ref=ref->next){
+		PayloadType *pt=(PayloadType*)ref->data;
+		if (strcasecmp(pt->mime_type,mime)==0 && pt->clock_rate==rate){
+			return pt;
+		}
+	}
+	return NULL;
+}
+
+void SdpModifier::removeUnwantedPayloads(const MSList *tokeep){
+	sdp_media_t *mline=mSession->sdp_media;
+	sdp_rtpmap_t *rtpmaps=mline->m_rtpmaps;
+	sdp_rtpmap_t *elem,*prev_elem;
+	
+	for(prev_elem=NULL,elem=rtpmaps;elem!=NULL;elem=elem->rm_next){
+		if (findPayload(tokeep,elem->rm_encoding,elem->rm_rate)==NULL){
+			sdp_rtpmap_t *next=elem->rm_next;
+			if (prev_elem==NULL){
+				mline->m_rtpmaps=next;
+			}else{
+				prev_elem->rm_next=next;
+			}
+		}
+		prev_elem=elem;
 	}
 }
 
