@@ -39,12 +39,12 @@ class CallSide{
 		int getAudioPort();
 		void setRemoteAddr(const char *addr, int port);
 		void assignPayloads(const MSList *payloads);
+		void dump();
 	private:
 		static void payloadTypeChanged(RtpSession *s, unsigned long data);
 		RtpSession *mSession;
 		RtpProfile *mProfile;
 		PayloadType *getSendFormat();
-		RtpSession *mRtpSession;
 		MSFilter *mReceiver;
 		MSFilter *mSender;
 		MSFilter *mDecoder;
@@ -69,6 +69,7 @@ class CallContext : public CallContextBase{
 			return &mBackSide;
 		}
 		~CallContext();
+		void dump();
 	private:
 		su_home_t mHome;
 		MSTicker *mTicker;

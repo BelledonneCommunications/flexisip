@@ -109,7 +109,7 @@ MSList *SdpModifier::readPayloads(){
 	sdp_media_t *mline=mSession->sdp_media;
 	sdp_rtpmap_t *elem=mline->m_rtpmaps;
 	MSList *ret=NULL;
-	for(;elem->rm_next!=NULL;elem=elem->rm_next){
+	for(;elem!=NULL;elem=elem->rm_next){
 		ret=ms_list_append(ret,payload_type_make_from_sdp_rtpmap (elem));
 	}
 	return ret;

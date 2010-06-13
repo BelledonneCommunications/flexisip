@@ -41,6 +41,10 @@ bool CallContextBase::isNew200Ok(sip_t *sip){
 	return sip->sip_cseq->cs_seq!=mInvCseq;
 }
 
+void CallContextBase::dump(){
+	LOGD("Call id %i",mCallHash);
+}
+
 CallStore::CallStore(){
 }
 
@@ -58,4 +62,8 @@ CallContextBase *CallStore::find(sip_t *sip){
 
 void CallStore::remove(CallContextBase *ctx){
 	mCalls.remove(ctx);
+}
+
+void CallStore::dump(){
+	for_each(mCalls.begin(),mCalls.end(),mem_fun(&CallContextBase::dump));
 }

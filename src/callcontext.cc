@@ -41,7 +41,13 @@ CallSide::CallSide(CallContext *ctx){
 }
 
 int CallSide::getAudioPort(){
-	return rtp_session_get_local_port(mSession);
+	int port=rtp_session_get_local_port(mSession);
+	if (port==-1){
+		/*request oRTP to bind randomly*/
+		rtp_session_set_local_addr(mSession,"0.0.0.0",-1);
+		port=rtp_session_get_local_port(mSession);
+	}
+	return port;
 }
 
 void  CallSide::setRemoteAddr(const char *addr, int port){
@@ -57,6 +63,8 @@ void  CallSide::assignPayloads(const MSList *payloads){
 			rtp_session_set_payload_type(mSession,payload_type_get_number(pt));
 		}
 	}
+	ms_filter_call_method(mReceiver,MS_RTP_RECV_SET_SESSION,mSession);
+	ms_filter_call_method(mSender,MS_RTP_SEND_SET_SESSION,mSession);
 }
 
 CallSide::~CallSide(){
@@ -68,6 +76,11 @@ CallSide::~CallSide(){
 		ms_filter_destroy(mEncoder);
 	if (mSender)
 		ms_filter_destroy(mDecoder);
+}
+
+void CallSide::dump(){
+	const rtp_stats_t *stats=rtp_session_get_stats(mSession);
+	rtp_stats_display(stats,"RTP Statistics:");
 }
 
 PayloadType *CallSide::getSendFormat(){
@@ -93,17 +106,24 @@ void CallSide::connect(CallSide *recvSide){
 	MSConnectionHelper h;
 	PayloadType *recvpt;
 	PayloadType *sendpt;
-
+	
 	recvpt=recvSide->getRecvFormat();
 	sendpt=getSendFormat();
 	ms_connection_helper_start(&h);
 	ms_connection_helper_link(&h,recvSide->getRecvPoint().filter,-1,
 	                          recvSide->getRecvPoint().pin);
-	
+
+	LOGD("recvside enc=%i %s/%i sendside enc=%i %s/%i",
+	     payload_type_get_number(recvpt), recvpt->mime_type,recvpt->clock_rate,
+	     payload_type_get_number(sendpt), sendpt->mime_type,sendpt->clock_rate);
 	if (strcasecmp(recvpt->mime_type,sendpt->mime_type)!=0
-	    && recvpt->clock_rate!=sendpt->clock_rate){
+	    || recvpt->clock_rate!=sendpt->clock_rate){
 		mDecoder=ms_filter_create_decoder(recvpt->mime_type);
+		if (mDecoder==NULL)
+			LOGE("Could not instanciate decoder for %s",recvpt->mime_type);
 		mEncoder=ms_filter_create_encoder(sendpt->mime_type);
+		if (mEncoder==NULL)
+			LOGE("Could not instanciate decoder for %s",sendpt->mime_type);
 	}
 	if (mDecoder)
 		ms_connection_helper_link(&h,mDecoder,0,0);
@@ -134,19 +154,23 @@ void CallSide::payloadTypeChanged(RtpSession *s, unsigned long data){
 CallContext::CallContext(sip_t *sip) : CallContextBase(sip), mFrontSide(this), mBackSide(this){
 	su_home_init(&mHome);
 	mInitialOffer=NULL;
+	mTicker=NULL;
 }
 
 void CallContext::join(MSTicker *t){
+	LOGD("Joining...");
 	mFrontSide.connect(&mBackSide);
 	mBackSide.connect(&mFrontSide);
 	ms_ticker_attach(t,mFrontSide.getRecvPoint().filter);
 	ms_ticker_attach(t,mBackSide.getRecvPoint().filter);
 	mTicker=t;
+	LOGD("Graphs now running");
 }
 
 void CallContext::unjoin(){
+	LOGD("Unjoining...");
 	ms_ticker_detach(mTicker,mFrontSide.getRecvPoint().filter);
-	ms_ticker_detach(mTicker,mFrontSide.getRecvPoint().filter);
+	ms_ticker_detach(mTicker,mBackSide.getRecvPoint().filter);
 	mFrontSide.disconnect(&mBackSide);
 	mBackSide.disconnect(&mFrontSide);
 	mTicker=NULL;
@@ -165,6 +189,16 @@ void CallContext::setInitialOffer(MSList *payloads){
 
 const MSList *CallContext::getInitialOffer()const{
 	return mInitialOffer;
+}
+
+void CallContext::dump(){
+	CallContextBase::dump();
+	if (mTicker!=NULL){
+		LOGD("Front side:");
+		mFrontSide.dump();
+		LOGD("Back side:");
+		mBackSide.dump();
+	}else LOGD("is inactive");
 }
 
 CallContext::~CallContext(){

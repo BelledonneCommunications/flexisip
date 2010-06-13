@@ -28,6 +28,7 @@ class TranscodeAgent : public Agent{
 		~TranscodeAgent();
 		virtual int onRequest(msg_t *msg, sip_t *sip);
 		virtual int onResponse(msg_t *msg, sip_t *sip);
+		virtual void idle();
 	private:
 		void processNewInvite(CallContext *c, msg_t *msg, sip_t *sip);
 		void process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip);

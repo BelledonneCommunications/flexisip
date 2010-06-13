@@ -170,3 +170,5 @@ int Agent::messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t 
 	return a->onIncomingMessage(msg,sip);
 }
 
+void Agent::idle(){
+}

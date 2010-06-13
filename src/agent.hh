@@ -65,6 +65,7 @@ class Agent{
 		int getPort()const{
 			return mPort;
 		}
+		virtual void idle();
 	private:
 		nta_agent_t *mAgent;
 		std::string mLocAddr;

@@ -108,7 +108,10 @@ int main(int argc, char *argv[]){
 		usage(argv[0]);
 	}
 
-	
+	ortp_init();
+	ms_init();
+	ortp_set_log_file(stdout);
+	ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR);
 	su_init();
 	su_root_t *root=su_root_create(NULL);
 
@@ -116,8 +119,11 @@ int main(int argc, char *argv[]){
 	
 	a=new TranscodeAgent(root,localip,port);
 	if (domain) a->setDomain(domain);
-	su_root_run(root);
-
+	do{
+		//su_root_run(root);
+		su_root_sleep(root,2000);
+		a->idle();
+	}while(1);
 	delete a;
     su_root_destroy(root);
 	

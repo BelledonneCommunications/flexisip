@@ -29,6 +29,7 @@ class CallContextBase{
 		bool match(sip_t *sip);
 		bool isNewInvite(sip_t *sip);
 		bool isNew200Ok(sip_t *sip);
+		virtual void dump();
 	private:
 		uint32_t mCallHash;
 		uint32_t mInvCseq;
@@ -40,6 +41,7 @@ class CallStore{
 		void store(CallContextBase *ctx);
 		CallContextBase *find(sip_t *sip);
 		void remove(CallContextBase *ctx);
+		void dump();
 	private:
 		std::list<CallContextBase*> mCalls;
 };

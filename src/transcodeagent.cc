@@ -39,8 +39,7 @@ static MSList *makeSupportedAudioPayloadList(){
 
 TranscodeAgent::TranscodeAgent(su_root_t *root, const char *locaddr, int port) :
 	Agent(root,locaddr,port){
-	ortp_init();
-	ms_init();
+	
 	mTicker=ms_ticker_new();
 	mSupportedAudioPayloads=makeSupportedAudioPayloadList();
 }
@@ -56,7 +55,7 @@ void TranscodeAgent::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 	c->setInitialOffer (m->readPayloads ());
 	m->getAudioIpPort (&addr,&port);
 	c->getFrontSide()->setRemoteAddr(addr.c_str(),port);
-	port=c->getFrontSide()->getAudioPort();
+	port=c->getBackSide()->getAudioPort();
 	m->changeAudioIpPort(getLocAddr().c_str(),port);
 	m->appendNewPayloadsAndRemoveUnsupported(mSupportedAudioPayloads);
 	m->update(msg,sip);
@@ -100,9 +99,14 @@ void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *
 
 	m->getAudioIpPort (&addr,&port);
 	ctx->getBackSide()->setRemoteAddr(addr.c_str(),port);
-	m->changeAudioIpPort (getLocAddr().c_str(),ctx->getBackSide()->getAudioPort());
+	m->changeAudioIpPort (getLocAddr().c_str(),ctx->getFrontSide()->getAudioPort());
 
 	MSList *answer=m->readPayloads ();
+	if (answer==NULL){
+		LOGE("No payloads in 200Ok");
+		delete m;
+		return;
+	}
 	MSList *common=SdpModifier::findCommon (mSupportedAudioPayloads,ioffer);
 	if (common!=NULL){
 		m->appendNewPayloadsAndRemoveUnsupported(common);
@@ -114,9 +118,16 @@ void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *
 	ms_list_free(answer);
 	// read the modified answer to get payload list in right order:
 	answer=m->readPayloads ();
+	if (answer==NULL){
+		LOGE("No payloads in forwarded 200Ok");
+		delete m;
+		return;
+	}
 	ctx->getFrontSide ()->assignPayloads (answer);
 	ms_list_free(answer);
 	ctx->join(mTicker);
+
+	delete m;
 }
 
 int TranscodeAgent::onResponse(msg_t *msg, sip_t *sip){
@@ -131,4 +142,6 @@ int TranscodeAgent::onResponse(msg_t *msg, sip_t *sip){
 	return Agent::onResponse(msg,sip);
 }
 
-
+void TranscodeAgent::idle(){
+	mCalls.dump();
+}
