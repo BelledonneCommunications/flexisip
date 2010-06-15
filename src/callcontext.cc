@@ -38,6 +38,7 @@ CallSide::CallSide(CallContext *ctx){
 	rtp_session_set_data(mSession,this);
 	rtp_session_signal_connect(mSession,"payload_type_changed",(RtpCallback)&CallSide::payloadTypeChanged,
 	                           reinterpret_cast<long>(ctx));
+	mLastCheck=0;
 }
 
 int CallSide::getAudioPort(){
@@ -81,6 +82,23 @@ CallSide::~CallSide(){
 void CallSide::dump(){
 	const rtp_stats_t *stats=rtp_session_get_stats(mSession);
 	rtp_stats_display(stats,"RTP Statistics:");
+}
+
+bool CallSide::isActive(time_t cur){
+	const rtp_stats_t *stats=rtp_session_get_stats(mSession);
+	if (mLastCheck==0){
+		mLastCheck=cur;
+		mLastRecvCount=stats->recv;
+	}else{
+		if (stats->recv!=mLastRecvCount){
+			mLastRecvCount=stats->recv;
+			mLastCheck=cur;
+		}else if (cur-mLastCheck>60){
+			ms_message("Inactive call for more than 60 seconds.");
+			return false;
+		}
+	}
+	return true;
 }
 
 PayloadType *CallSide::getSendFormat(){
@@ -181,6 +199,11 @@ void CallContext::redraw(CallSide *r){
 	CallSide *s=(r==&mFrontSide) ? &mBackSide : &mFrontSide;
 	s->disconnect(r);
 	s->connect(r);
+}
+
+bool CallContext::isInactive(time_t cur){
+	ms_message("isInactive()");
+	return !(mFrontSide.isActive(cur) || mBackSide.isActive(cur));
 }
 
 void CallContext::setInitialOffer(MSList *payloads){

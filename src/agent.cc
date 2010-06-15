@@ -116,7 +116,7 @@ int Agent::onRequest(msg_t *msg, sip_t *sip){
 				sip->sip_request->rq_url->url_host=sip->sip_to->a_url->url_host;
 				sip->sip_request->rq_url->url_port=sip->sip_to->a_url->url_port;
 			}
-			break;
+			/*also remove routes for REGISTER */
 		case sip_method_ack:
 			// sofia does not remove the route for acks, so do it
 			if (sip->sip_route!=NULL)

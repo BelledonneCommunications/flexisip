@@ -40,6 +40,7 @@ class CallSide{
 		void setRemoteAddr(const char *addr, int port);
 		void assignPayloads(const MSList *payloads);
 		void dump();
+		bool isActive(time_t cur);
 	private:
 		static void payloadTypeChanged(RtpSession *s, unsigned long data);
 		RtpSession *mSession;
@@ -49,6 +50,8 @@ class CallSide{
 		MSFilter *mSender;
 		MSFilter *mDecoder;
 		MSFilter *mEncoder;
+		time_t mLastCheck;
+		uint64_t mLastRecvCount;
 };
 
 class CallContext : public CallContextBase{
@@ -70,6 +73,7 @@ class CallContext : public CallContextBase{
 		}
 		~CallContext();
 		void dump();
+		virtual bool isInactive(time_t);
 	private:
 		su_home_t mHome;
 		MSTicker *mTicker;

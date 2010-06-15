@@ -144,4 +144,5 @@ int TranscodeAgent::onResponse(msg_t *msg, sip_t *sip){
 
 void TranscodeAgent::idle(){
 	mCalls.dump();
+	mCalls.removeInactives();
 }
