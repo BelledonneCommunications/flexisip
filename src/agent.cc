@@ -116,14 +116,14 @@ int Agent::onRequest(msg_t *msg, sip_t *sip){
 				sip->sip_request->rq_url->url_host=sip->sip_to->a_url->url_host;
 				sip->sip_request->rq_url->url_port=sip->sip_to->a_url->url_port;
 			}
-			/*also remove routes for REGISTER */
 		case sip_method_ack:
-			// sofia does not remove the route for acks, so do it
-			if (sip->sip_route!=NULL)
-				sip_route_remove(msg,sip);
-			break;
 		default:
 			break;
+	}
+	// sofia does not remove the route, so do it
+	if (sip->sip_route!=NULL){
+		sip_route_t *removed=sip_route_remove(msg,sip);
+		dest=(url_string_t*)removed->r_url;
 	}
 	buf=msg_as_string(&home, msg, NULL, 0,&msg_size);
 	LOGD("About to forward request:\n%s",buf);
