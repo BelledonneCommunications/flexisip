@@ -66,8 +66,10 @@ void CallStore::remove(CallContextBase *ctx){
 
 void  CallStore::removeInactives(){
 	list<CallContextBase*>::iterator it;
+	list <CallContextBase*>::iterator new_end;
 	time_t cur=time(NULL);
-	remove_if(mCalls.begin(),mCalls.end(),bind2nd(mem_fun(&CallContextBase::isInactive),cur));
+	new_end=remove_if(mCalls.begin(),mCalls.end(),bind2nd(mem_fun(&CallContextBase::isInactive),cur));
+	mCalls.erase(new_end,mCalls.end());
 }
 
 void CallStore::dump(){

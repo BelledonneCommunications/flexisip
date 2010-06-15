@@ -39,6 +39,7 @@ CallSide::CallSide(CallContext *ctx){
 	rtp_session_signal_connect(mSession,"payload_type_changed",(RtpCallback)&CallSide::payloadTypeChanged,
 	                           reinterpret_cast<long>(ctx));
 	mLastCheck=0;
+	mLastRecvCount=0;
 }
 
 int CallSide::getAudioPort(){
@@ -94,7 +95,7 @@ bool CallSide::isActive(time_t cur){
 			mLastRecvCount=stats->recv;
 			mLastCheck=cur;
 		}else if (cur-mLastCheck>60){
-			ms_message("Inactive call for more than 60 seconds.");
+			ms_message("Inactive callside for more than 60 seconds.");
 			return false;
 		}
 	}
