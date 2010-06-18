@@ -47,6 +47,7 @@ class CallContextBase{
 		msg_t *mResponse;
 		uint32_t mCallHash;
 		uint32_t mInvCseq;
+		uint32_t mResCseq;
 };
 
 class CallStore{

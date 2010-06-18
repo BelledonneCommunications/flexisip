@@ -27,6 +27,7 @@ using namespace::std;
 CallContextBase::CallContextBase(sip_t *sip){
 	mCallHash=sip->sip_call_id->i_hash;
 	mInvCseq=sip->sip_cseq->cs_seq;
+	mResCseq=(uint32_t)-1;
 	mInvite=NULL;
 	mResponse=NULL;
 	su_home_init(&mHome);
@@ -41,7 +42,7 @@ bool CallContextBase::isNewInvite (sip_t *invite){
 }
 
 bool CallContextBase::isNew200Ok(sip_t *sip){
-	return sip->sip_cseq->cs_seq!=mInvCseq;
+	return sip->sip_cseq->cs_seq!=mResCseq;
 }
 
 void CallContextBase::storeNewInvite(msg_t *msg){
@@ -51,7 +52,9 @@ void CallContextBase::storeNewInvite(msg_t *msg){
 }
 
 void CallContextBase::storeNewResponse(msg_t *msg){
+	sip_t *sip=(sip_t*)msg_object(msg);
 	mResponse=msg_copy(msg);
+	mResCseq=sip->sip_cseq->cs_seq;
 }
 
 msg_t *CallContextBase::getLastForwardedInvite()const{
