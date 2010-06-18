@@ -99,7 +99,7 @@ bool Agent::isUs(const url_t *url)const{
 	    && port==mPort;
 }
 
-int Agent::onRequest(msg_t *msg, sip_t *sip){
+int Agent::forwardRequest(msg_t *msg, sip_t *sip){
 	su_home_t home;
 	size_t msg_size;
 	char *buf;
@@ -142,7 +142,7 @@ int Agent::onRequest(msg_t *msg, sip_t *sip){
 	return 0;
 }
 
-int Agent::onResponse(msg_t *msg, sip_t *sip){
+int Agent::forwardResponse(msg_t *msg, sip_t *sip){
 	su_home_t home;
 	char *buf;
 	size_t msg_size;
@@ -156,6 +156,14 @@ int Agent::onResponse(msg_t *msg, sip_t *sip){
 
 	su_home_deinit(&home);
 	return 0;
+}
+
+int Agent::onRequest(msg_t *msg, sip_t *sip){
+	return forwardRequest (msg,sip);
+}
+
+int Agent::onResponse(msg_t *msg, sip_t *sip){
+	return forwardResponse (msg,sip);
 }
 
 int Agent::onIncomingMessage(msg_t *msg, sip_t *sip){

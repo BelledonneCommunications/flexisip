@@ -122,7 +122,7 @@ int main(int argc, char *argv[]){
 	if (domain) a->setDomain(domain);
 	do{
 		//su_root_run(root);
-		su_root_sleep(root,2000);
+		su_root_sleep(root,5000);
 		a->idle();
 	}while(1);
 	delete a;

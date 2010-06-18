@@ -51,7 +51,6 @@ TranscodeAgent::~TranscodeAgent(){
 void TranscodeAgent::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 	std::string addr;
 	int port;
-	c->storeNewInvite (msg);
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
 	c->setInitialOffer (m->readPayloads ());
 	m->getAudioIpPort (&addr,&port);
@@ -60,8 +59,8 @@ void TranscodeAgent::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 	m->changeAudioIpPort(getLocAddr().c_str(),port);
 	m->appendNewPayloadsAndRemoveUnsupported(mSupportedAudioPayloads);
 	m->update(msg,sip);
+	c->storeNewInvite (msg);
 	delete m;
-	Agent::onRequest(msg,sip);
 }
 
 int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
@@ -77,9 +76,10 @@ int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
 			}else{
 				msg=c->getLastForwardedInvite ();
 				sip=(sip_t*)msg_object(msg);
-				LOGD("Sending invite retransmission");
+				LOGD("Forwarding invite retransmission");
 			}
 		}
+		forwardRequest (msg,sip);
 	}else{
 		//all other requests go through
 
@@ -89,7 +89,7 @@ int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
 				delete c;
 			}
 		}
-		Agent::onRequest(msg,sip);
+		forwardRequest(msg,sip);
 	}
 	return 0;
 }
@@ -101,7 +101,6 @@ void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *
 	int port;
 	SdpModifier *m=SdpModifier::createFromSipMsg(ctx->getHome(), sip);
 
-	ctx->storeNewResponse (msg);
 	m->getAudioIpPort (&addr,&port);
 	ctx->getBackSide()->setRemoteAddr(addr.c_str(),port);
 	m->changeAudioIpPort (getLocAddr().c_str(),ctx->getFrontSide()->getAudioPort());
@@ -119,6 +118,7 @@ void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *
 		ms_list_free(common);
 	}
 	m->update(msg,sip);
+	ctx->storeNewResponse (msg);
 	ctx->getBackSide ()->assignPayloads (answer);
 	ms_list_free(answer);
 	// read the modified answer to get payload list in right order:
@@ -131,7 +131,7 @@ void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *
 	ctx->getFrontSide ()->assignPayloads (answer);
 	ms_list_free(answer);
 	ctx->join(mTicker);
-
+	
 	delete m;
 }
 
@@ -148,7 +148,7 @@ int TranscodeAgent::onResponse(msg_t *msg, sip_t *sip){
 			}
 		}
 	}
-	return Agent::onResponse(msg,sip);
+	return forwardResponse (msg,sip);
 }
 
 void TranscodeAgent::idle(){

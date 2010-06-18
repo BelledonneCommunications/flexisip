@@ -59,6 +59,8 @@ class Agent{
 		virtual int onIncomingMessage(msg_t *msg, sip_t *sip);
 		virtual int onRequest(msg_t *msg, sip_t *sip);
 		virtual int onResponse(msg_t *msg, sip_t *sip);
+		int forwardRequest(msg_t *msg, sip_t *sip);
+		int forwardResponse(msg_t *msg, sip_t *sip);
 		const std::string getLocAddr()const{
 			return mLocAddr;
 		}
