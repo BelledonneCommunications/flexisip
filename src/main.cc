@@ -109,9 +109,10 @@ int main(int argc, char *argv[]){
 	}
 
 	ortp_init();
-	ms_init();
 	ortp_set_log_file(stdout);
 	ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR);
+	ms_init();
+	
 	su_init();
 	su_root_t *root=su_root_create(NULL);
 
