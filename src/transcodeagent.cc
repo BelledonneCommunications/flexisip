@@ -74,7 +74,7 @@ int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
 			if (c->isNewInvite(sip)){
 				processNewInvite(c,msg,sip);
 			}else{
-				msg=c->getLastForwardedInvite ();
+				msg=msg_copy(c->getLastForwardedInvite ());
 				sip=(sip_t*)msg_object(msg);
 				LOGD("Forwarding invite retransmission");
 			}
@@ -143,7 +143,8 @@ int TranscodeAgent::onResponse(msg_t *msg, sip_t *sip){
 			if (c->isNew200Ok(sip)){
 				process200OkforInvite (c,msg,sip);
 			}else{
-				msg=c->getLastForwaredResponse ();
+				LOGD("This is a 200Ok retransmission");
+				msg=msg_copy(c->getLastForwaredResponse ());
 				sip=(sip_t*)msg_object (msg);
 			}
 		}
