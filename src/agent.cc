@@ -98,9 +98,9 @@ int Agent::onRequest(msg_t *msg, sip_t *sip){
 	size_t msg_size;
 	char *buf;
 	const char *domain;
-	url_string_t* dest=NULL;
+	url_t* dest=NULL;
 
-	dest=(url_string_t*)sip->sip_request->rq_url;
+	dest=sip->sip_request->rq_url;
 	su_home_init(&home);
 	switch(sip->sip_request->rq_method){
 		case sip_method_invite:
@@ -123,11 +123,14 @@ int Agent::onRequest(msg_t *msg, sip_t *sip){
 	// sofia does not remove the route, so do it
 	if (sip->sip_route!=NULL){
 		sip_route_t *removed=sip_route_remove(msg,sip);
-		dest=(url_string_t*)removed->r_url;
+		url_t *url=removed->r_url;
+		url->url_params=NULL;
+		url->url_headers=NULL;
+		dest=url;
 	}
 	buf=msg_as_string(&home, msg, NULL, 0,&msg_size);
-	LOGD("About to forward request:\n%s",buf);
-	nta_msg_tsend (mAgent,msg,dest,TAG_END());
+	LOGD("About to forward request to %s:\n%s",url_as_string(&home,dest),buf);
+	nta_msg_tsend (mAgent,msg,(url_string_t*)dest,TAG_END());
 	su_home_deinit(&home);
 	return 0;
 }
