@@ -203,7 +203,6 @@ void CallContext::redraw(CallSide *r){
 }
 
 bool CallContext::isInactive(time_t cur){
-	ms_message("isInactive()");
 	return !(mFrontSide.isActive(cur) || mBackSide.isActive(cur));
 }
 
@@ -233,5 +232,6 @@ CallContext::~CallContext(){
 		ms_list_for_each(mInitialOffer,(void(*)(void*))payload_type_destroy);
 		ms_list_free(mInitialOffer);
 	}
+	LOGD("CallContext %p is cleared.",this);
 }
 
