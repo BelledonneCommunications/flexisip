@@ -171,7 +171,6 @@ void CallSide::payloadTypeChanged(RtpSession *s, unsigned long data){
 }
 
 CallContext::CallContext(sip_t *sip) : CallContextBase(sip), mFrontSide(this), mBackSide(this){
-	su_home_init(&mHome);
 	mInitialOffer=NULL;
 	mTicker=NULL;
 }
@@ -227,7 +226,6 @@ void CallContext::dump(){
 CallContext::~CallContext(){
 	if (mTicker!=NULL)
 		unjoin();
-	su_home_deinit(&mHome);
 	if (mInitialOffer){
 		ms_list_for_each(mInitialOffer,(void(*)(void*))payload_type_destroy);
 		ms_list_free(mInitialOffer);

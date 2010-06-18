@@ -27,6 +27,9 @@ using namespace::std;
 CallContextBase::CallContextBase(sip_t *sip){
 	mCallHash=sip->sip_call_id->i_hash;
 	mInvCseq=sip->sip_cseq->cs_seq;
+	mInvite=NULL;
+	mResponse=NULL;
+	su_home_init(&mHome);
 }
 
 bool CallContextBase::match(sip_t *sip){
@@ -41,8 +44,30 @@ bool CallContextBase::isNew200Ok(sip_t *sip){
 	return sip->sip_cseq->cs_seq!=mInvCseq;
 }
 
+void CallContextBase::storeNewInvite(msg_t *msg){
+	sip_t *sip=(sip_t*)msg_object(msg);
+	mInvCseq=sip->sip_cseq->cs_seq;
+	mInvite=msg_copy(msg);
+}
+
+void CallContextBase::storeNewResponse(msg_t *msg){
+	mResponse=msg_copy(msg);
+}
+
+msg_t *CallContextBase::getLastForwardedInvite()const{
+	return mInvite;
+}
+
+msg_t *CallContextBase::getLastForwaredResponse()const{
+	return mResponse;
+}
+
 void CallContextBase::dump(){
-	LOGD("Call id %i",mCallHash);
+	LOGD("Call id %u",mCallHash);
+}
+
+CallContextBase::~CallContextBase(){
+	su_home_deinit(&mHome);
 }
 
 CallStore::CallStore(){

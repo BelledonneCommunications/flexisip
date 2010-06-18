@@ -60,9 +60,6 @@ class CallContext : public CallContextBase{
 		void join(MSTicker *ticker);
 		void unjoin();
 		void redraw(CallSide *receiver);
-		su_home_t *getHome(){
-			return &mHome;
-		}
 		void setInitialOffer(MSList *payloads);
 		const MSList *getInitialOffer()const;
 		CallSide *getFrontSide(){
@@ -75,7 +72,6 @@ class CallContext : public CallContextBase{
 		void dump();
 		virtual bool isInactive(time_t);
 	private:
-		su_home_t mHome;
 		MSTicker *mTicker;
 		CallSide mFrontSide;
 		CallSide mBackSide;

@@ -28,12 +28,23 @@ class CallContextBase{
 		CallContextBase(sip_t *sip);
 		bool match(sip_t *sip);
 		bool isNewInvite(sip_t *sip);
+		void storeNewInvite(msg_t *orig);
 		bool isNew200Ok(sip_t *sip);
+		void storeNewResponse(msg_t *msg);
+		msg_t *getLastForwardedInvite()const;
+		msg_t *getLastForwaredResponse()const;
 		virtual void dump();
 		virtual bool isInactive(time_t cur){
 			return false;
 		}
+		su_home_t *getHome(){
+			return &mHome;
+		}
+		virtual ~CallContextBase();
 	private:
+		su_home_t mHome;
+		msg_t *mInvite;
+		msg_t *mResponse;
 		uint32_t mCallHash;
 		uint32_t mInvCseq;
 };

@@ -51,6 +51,7 @@ TranscodeAgent::~TranscodeAgent(){
 void TranscodeAgent::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 	std::string addr;
 	int port;
+	c->storeNewInvite (msg);
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
 	c->setInitialOffer (m->readPayloads ());
 	m->getAudioIpPort (&addr,&port);
@@ -73,8 +74,11 @@ int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
 		}else{
 			if (c->isNewInvite(sip)){
 				processNewInvite(c,msg,sip);
-			}else
-				LOGW("Invite retransmission, not handled yet");
+			}else{
+				msg=c->getLastForwardedInvite ();
+				sip=(sip_t*)msg_object(msg);
+				LOGD("Sending invite retransmission");
+			}
 		}
 	}else{
 		//all other requests go through
@@ -97,6 +101,7 @@ void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *
 	int port;
 	SdpModifier *m=SdpModifier::createFromSipMsg(ctx->getHome(), sip);
 
+	ctx->storeNewResponse (msg);
 	m->getAudioIpPort (&addr,&port);
 	ctx->getBackSide()->setRemoteAddr(addr.c_str(),port);
 	m->changeAudioIpPort (getLocAddr().c_str(),ctx->getFrontSide()->getAudioPort());
@@ -135,8 +140,12 @@ int TranscodeAgent::onResponse(msg_t *msg, sip_t *sip){
 	if (sip->sip_status->st_status==200 && sip->sip_cseq 
 	    && sip->sip_cseq->cs_method==sip_method_invite){
 		if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
-			if (c->isNew200Ok(sip))
+			if (c->isNew200Ok(sip)){
 				process200OkforInvite (c,msg,sip);
+			}else{
+				msg=c->getLastForwaredResponse ();
+				sip=(sip_t*)msg_object (msg);
+			}
 		}
 	}
 	return Agent::onResponse(msg,sip);
