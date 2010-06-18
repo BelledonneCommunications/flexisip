@@ -66,6 +66,7 @@ class Agent{
 			return mPort;
 		}
 		virtual void idle();
+		bool isUs(const url_t *url)const;
 	private:
 		nta_agent_t *mAgent;
 		std::string mLocAddr;

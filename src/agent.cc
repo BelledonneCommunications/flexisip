@@ -19,7 +19,7 @@
 
 #include "agent.hh"
 
-
+#include <stdlib.h>
 
 using namespace::std;
 
@@ -93,6 +93,12 @@ void Agent::setDomain(const std::string &domain){
 	mDomain=domain;
 }
 
+bool Agent::isUs(const url_t *url)const{
+	int port=(url->url_port!=NULL) ? atoi(url->url_port) : 5060;
+	return strcmp(url->url_host,mLocAddr.c_str())==0
+	    && port==mPort;
+}
+
 int Agent::onRequest(msg_t *msg, sip_t *sip){
 	su_home_t home;
 	size_t msg_size;
@@ -120,13 +126,14 @@ int Agent::onRequest(msg_t *msg, sip_t *sip){
 		default:
 			break;
 	}
-	// sofia does not remove the route, so do it
+	// removes top route header if it maches us
 	if (sip->sip_route!=NULL){
-		sip_route_t *removed=sip_route_remove(msg,sip);
-		url_t *url=removed->r_url;
-		url->url_params=NULL;
-		url->url_headers=NULL;
-		dest=url;
+		if (isUs(sip->sip_route->r_url)){
+			sip_route_remove(msg,sip);
+		}else{
+			/*forward to this route*/
+			dest=sip->sip_route->r_url;
+		}
 	}
 	buf=msg_as_string(&home, msg, NULL, 0,&msg_size);
 	LOGD("About to forward request to %s:\n%s",url_as_string(&home,dest),buf);
