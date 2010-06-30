@@ -171,39 +171,56 @@ void CallSide::payloadTypeChanged(RtpSession *s, unsigned long data){
 	ctx->redraw(side);
 }
 
-CallContext::CallContext(sip_t *sip) : CallContextBase(sip), mFrontSide(this), mBackSide(this){
+CallContext::CallContext(sip_t *sip) : CallContextBase(sip), mFrontSide(0), mBackSide(0){
 	mInitialOffer=NULL;
 	mTicker=NULL;
 }
 
+void CallContext::prepare(){
+	if (mFrontSide){
+		if (isJoined())
+			unjoin();
+		delete mFrontSide;
+		delete mBackSide;
+	}
+	
+	mFrontSide=new CallSide(this);
+	mBackSide=new CallSide(this);
+}
+
 void CallContext::join(MSTicker *t){
 	LOGD("Joining...");
-	mFrontSide.connect(&mBackSide);
-	mBackSide.connect(&mFrontSide);
-	ms_ticker_attach(t,mFrontSide.getRecvPoint().filter);
-	ms_ticker_attach(t,mBackSide.getRecvPoint().filter);
+	mFrontSide->connect(mBackSide);
+	mBackSide->connect(mFrontSide);
+	ms_ticker_attach(t,mFrontSide->getRecvPoint().filter);
+	ms_ticker_attach(t,mBackSide->getRecvPoint().filter);
 	mTicker=t;
 	LOGD("Graphs now running");
 }
 
 void CallContext::unjoin(){
 	LOGD("Unjoining...");
-	ms_ticker_detach(mTicker,mFrontSide.getRecvPoint().filter);
-	ms_ticker_detach(mTicker,mBackSide.getRecvPoint().filter);
-	mFrontSide.disconnect(&mBackSide);
-	mBackSide.disconnect(&mFrontSide);
+	ms_ticker_detach(mTicker,mFrontSide->getRecvPoint().filter);
+	ms_ticker_detach(mTicker,mBackSide->getRecvPoint().filter);
+	mFrontSide->disconnect(mBackSide);
+	mBackSide->disconnect(mFrontSide);
 	mTicker=NULL;
+}
+
+bool CallContext::isJoined()const{
+	return mTicker!=NULL;
 }
 
 void CallContext::redraw(CallSide *r){
 	LOGI("Redrawing in context of MSTicker");
-	CallSide *s=(r==&mFrontSide) ? &mBackSide : &mFrontSide;
+	CallSide *s=(r==mFrontSide) ? mBackSide : mFrontSide;
 	s->disconnect(r);
 	s->connect(r);
 }
 
 bool CallContext::isInactive(time_t cur){
-	return !(mFrontSide.isActive(cur) || mBackSide.isActive(cur));
+	if (mFrontSide==NULL) return false;
+	return !(mFrontSide->isActive(cur) || mBackSide->isActive(cur));
 }
 
 void CallContext::setInitialOffer(MSList *payloads){
@@ -218,9 +235,9 @@ void CallContext::dump(){
 	CallContextBase::dump();
 	if (mTicker!=NULL){
 		LOGD("Front side:");
-		mFrontSide.dump();
+		mFrontSide->dump();
 		LOGD("Back side:");
-		mBackSide.dump();
+		mBackSide->dump();
 	}else LOGD("is inactive");
 }
 

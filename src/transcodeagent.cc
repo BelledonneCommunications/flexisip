@@ -52,6 +52,7 @@ void TranscodeAgent::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 	std::string addr;
 	int port;
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
+	c->prepare();
 	c->setInitialOffer (m->readPayloads ());
 	m->getAudioIpPort (&addr,&port);
 	c->getFrontSide()->setRemoteAddr(addr.c_str(),port);

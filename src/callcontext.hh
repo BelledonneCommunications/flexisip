@@ -57,24 +57,26 @@ class CallSide{
 class CallContext : public CallContextBase{
 	public:
 		CallContext(sip_t *invite);
+		void prepare();
 		void join(MSTicker *ticker);
 		void unjoin();
+		bool isJoined()const;
 		void redraw(CallSide *receiver);
 		void setInitialOffer(MSList *payloads);
 		const MSList *getInitialOffer()const;
 		CallSide *getFrontSide(){
-			return &mFrontSide;
+			return mFrontSide;
 		}
 		CallSide *getBackSide() {
-			return &mBackSide;
+			return mBackSide;
 		}
 		~CallContext();
 		void dump();
 		virtual bool isInactive(time_t);
 	private:
 		MSTicker *mTicker;
-		CallSide mFrontSide;
-		CallSide mBackSide;
+		CallSide *mFrontSide;
+		CallSide *mBackSide;
 		MSList *mInitialOffer;
 };
 
