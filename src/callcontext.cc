@@ -33,7 +33,8 @@ CallSide::CallSide(CallContext *ctx){
 	rtp_session_set_recv_buf_size(mSession,300);
 	rtp_session_set_scheduling_mode(mSession,0);
 	rtp_session_set_blocking_mode(mSession,0);
-	rtp_session_enable_adaptive_jitter_compensation(mSession,TRUE);
+	/*  no jitter buffer: we are just doing packet processing*/
+	rtp_session_enable_jitter_buffer(mSession,FALSE);
 	rtp_session_set_symmetric_rtp(mSession,TRUE);
 	rtp_session_set_data(mSession,this);
 	rtp_session_signal_connect(mSession,"payload_type_changed",(RtpCallback)&CallSide::payloadTypeChanged,
