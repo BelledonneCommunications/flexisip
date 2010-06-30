@@ -190,8 +190,9 @@ void SdpModifier::removeUnwantedPayloads(const MSList *tokeep){
 			}else{
 				prev_elem->rm_next=next;
 			}
+		}else{
+			prev_elem=elem;
 		}
-		prev_elem=elem;
 	}
 }
 

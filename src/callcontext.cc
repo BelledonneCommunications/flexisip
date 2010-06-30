@@ -183,7 +183,11 @@ void CallContext::prepare(){
 		delete mFrontSide;
 		delete mBackSide;
 	}
-	
+	if (mInitialOffer){
+		ms_list_for_each(mInitialOffer,(void(*)(void*))payload_type_destroy);
+		ms_list_free(mInitialOffer);
+		mInitialOffer=NULL;
+	}
 	mFrontSide=new CallSide(this);
 	mBackSide=new CallSide(this);
 }
