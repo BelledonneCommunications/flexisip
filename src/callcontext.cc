@@ -77,7 +77,7 @@ CallSide::~CallSide(){
 	ms_filter_destroy(mSender);
 	if (mEncoder)
 		ms_filter_destroy(mEncoder);
-	if (mSender)
+	if (mDecoder)
 		ms_filter_destroy(mDecoder);
 }
 
