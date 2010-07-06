@@ -41,8 +41,21 @@ bool CallContextBase::isNewInvite (sip_t *invite){
 	return invite->sip_cseq->cs_seq!=mInvCseq;
 }
 
+bool CallContextBase::isNewEarlyMedia(sip_t *sip){
+	if (mResponse){
+		sip_t *resp=(sip_t*)msg_object(mResponse);
+		return resp->sip_cseq->cs_seq!=sip->sip_cseq->cs_seq;
+	}
+	return true;
+}
+
 bool CallContextBase::isNew200Ok(sip_t *sip){
-	return sip->sip_cseq->cs_seq!=mResCseq;
+	if (mResponse){
+		sip_t *resp=(sip_t*)msg_object(mResponse);
+		return resp->sip_status->st_status!=200 ||
+		    resp->sip_cseq->cs_seq!=sip->sip_cseq->cs_seq;
+	}
+	return true;
 }
 
 void CallContextBase::storeNewInvite(msg_t *msg){

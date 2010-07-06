@@ -22,6 +22,10 @@
 #include "sdp-modifier.hh"
 
 static MSList *makeSupportedAudioPayloadList(){
+	/* in mediastreamer2, we use normal_bitrate as an IP bitrate, not codec bitrate*/
+	payload_type_speex_nb.normal_bitrate=25000;
+	payload_type_speex_wb.normal_bitrate=42000;
+	
 	payload_type_set_number(&payload_type_pcmu8000,0);
 	payload_type_set_number(&payload_type_pcma8000,8);
 	payload_type_set_number(&payload_type_gsm,3);
@@ -102,6 +106,8 @@ void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *
 	int port;
 	SdpModifier *m=SdpModifier::createFromSipMsg(ctx->getHome(), sip);
 
+	if (ctx->isJoined()) ctx->unjoin();
+	
 	m->getAudioIpPort (&addr,&port);
 	ctx->getBackSide()->setRemoteAddr(addr.c_str(),port);
 	m->changeAudioIpPort (getLocAddr().c_str(),ctx->getFrontSide()->getAudioPort());
@@ -136,15 +142,25 @@ void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *
 	delete m;
 }
 
+static bool isEarlyMedia(sip_t *sip){
+	if (sip->sip_status->st_status==180 || sip->sip_status->st_status==183){
+		sip_payload_t *payload=sip->sip_payload;
+		//TODO: should check if it is application/sdp
+		return payload!=NULL;
+	}
+	return false;
+}
+
 int TranscodeAgent::onResponse(msg_t *msg, sip_t *sip){
 	CallContext *c;
-	if (sip->sip_status->st_status==200 && sip->sip_cseq 
-	    && sip->sip_cseq->cs_method==sip_method_invite){
+	if (sip->sip_cseq && sip->sip_cseq->cs_method==sip_method_invite){
 		if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
-			if (c->isNew200Ok(sip)){
+			if (sip->sip_status->st_status==200 && c->isNew200Ok(sip)){
 				process200OkforInvite (c,msg,sip);
-			}else{
-				LOGD("This is a 200Ok retransmission");
+			}else if (isEarlyMedia(sip) && c->isNewEarlyMedia (sip)){
+				process200OkforInvite (c,msg,sip);
+			}else if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
+				LOGD("This is a 200 or 183  retransmission");
 				msg=msg_copy(c->getLastForwaredResponse ());
 				sip=(sip_t*)msg_object (msg);
 			}

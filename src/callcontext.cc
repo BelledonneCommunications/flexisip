@@ -61,6 +61,10 @@ void  CallSide::assignPayloads(const MSList *payloads){
 	const MSList *elem;
 	for (elem=payloads;elem!=NULL;elem=elem->next){
 		PayloadType *pt=(PayloadType*)elem->data;
+		PayloadType *oldpt=rtp_profile_get_payload(mProfile,payload_type_get_number(pt));
+		if (oldpt){
+			payload_type_destroy(oldpt);
+		}
 		rtp_profile_set_payload(mProfile, payload_type_get_number(pt),pt);
 		if (payloads==elem){
 			rtp_session_set_payload_type(mSession,payload_type_get_number(pt));

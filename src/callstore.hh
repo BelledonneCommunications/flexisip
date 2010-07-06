@@ -29,6 +29,7 @@ class CallContextBase{
 		bool match(sip_t *sip);
 		bool isNewInvite(sip_t *sip);
 		void storeNewInvite(msg_t *orig);
+		bool isNewEarlyMedia(sip_t *sip);
 		bool isNew200Ok(sip_t *sip);
 		void storeNewResponse(msg_t *msg);
 		msg_t *getLastForwardedInvite()const;
