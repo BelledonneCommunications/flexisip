@@ -75,6 +75,7 @@ static PayloadType *payload_type_make_from_sdp_rtpmap(sdp_rtpmap_t *rtpmap){
 	pt->mime_type=ms_strdup(rtpmap->rm_encoding);
 	pt->clock_rate=rtpmap->rm_rate;
 	payload_type_set_number(pt,rtpmap->rm_pt);
+	payload_type_set_send_fmtp(pt,rtpmap->rm_fmtp);
 	return pt;
 }
 
@@ -84,6 +85,7 @@ static sdp_rtpmap_t *sdp_rtpmap_make_from_payload_type(su_home_t *home, PayloadT
 	map->rm_encoding=su_strdup(home,pt->mime_type);
 	map->rm_rate=pt->clock_rate;
 	map->rm_pt=number;
+	map->rm_fmtp=su_strdup(home,pt->recv_fmtp);
 	return map;
 }
 

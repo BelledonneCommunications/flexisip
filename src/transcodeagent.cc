@@ -25,6 +25,7 @@ static MSList *makeSupportedAudioPayloadList(){
 	/* in mediastreamer2, we use normal_bitrate as an IP bitrate, not codec bitrate*/
 	payload_type_speex_nb.normal_bitrate=25000;
 	payload_type_speex_wb.normal_bitrate=42000;
+	payload_type_speex_nb.recv_fmtp=(char *)"vbr=1";
 	
 	payload_type_set_number(&payload_type_pcmu8000,0);
 	payload_type_set_number(&payload_type_pcma8000,8);

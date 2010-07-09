@@ -143,11 +143,17 @@ void CallSide::connect(CallSide *recvSide){
 	if (strcasecmp(recvpt->mime_type,sendpt->mime_type)!=0
 	    || recvpt->clock_rate!=sendpt->clock_rate){
 		mDecoder=ms_filter_create_decoder(recvpt->mime_type);
-		if (mDecoder==NULL)
+		if (mDecoder==NULL){
 			LOGE("Could not instanciate decoder for %s",recvpt->mime_type);
+		}else{
+			ms_filter_call_method(mDecoder,MS_FILTER_ADD_FMTP,(void*)"plc=0");
+		}
 		mEncoder=ms_filter_create_encoder(sendpt->mime_type);
-		if (mEncoder==NULL)
+		if (mEncoder==NULL){
 			LOGE("Could not instanciate decoder for %s",sendpt->mime_type);
+			if (sendpt->send_fmtp!=NULL)
+				ms_filter_call_method(mEncoder,MS_FILTER_ADD_FMTP,(void*)sendpt->send_fmtp);
+		}
 	}
 	if (mDecoder)
 		ms_connection_helper_link(&h,mDecoder,0,0);
