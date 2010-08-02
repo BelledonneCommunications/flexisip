@@ -27,6 +27,7 @@
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/sip_util.h>
 #include <sofia-sip/sip_tag.h>
+#include <sofia-sip/msg.h>
 #include <sofia-sip/nta.h>
 #include <sofia-sip/nta_stateless.h>
 #include <sofia-sip/msg.h>

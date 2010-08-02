@@ -20,6 +20,9 @@
 #ifndef PROXY_COMMON_H
 #define PROXY_COMMON_H
 
+#include <cstdlib>
+#include <cstdarg>
+
 #define PROXY_DEBUG (1)
 #define PROXY_INFO  (1<<1)
 #define PROXY_NOTICE (1<<2)

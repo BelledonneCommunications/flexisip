@@ -19,7 +19,7 @@
 
 #include "agent.hh"
 
-#include <stdlib.h>
+#include "etchosts.hh"
 
 using namespace::std;
 
@@ -82,6 +82,7 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr)
 	if (mAgent==NULL){
 		LOGE("Could not create sofia mta.");
 	}
+	EtcHostsResolver::get();
 }
 
 Agent::~Agent(){
@@ -134,6 +135,11 @@ int Agent::forwardRequest(msg_t *msg, sip_t *sip){
 			/*forward to this route*/
 			dest=sip->sip_route->r_url;
 		}
+	}
+	std::string ip;
+	if (EtcHostsResolver::get()->resolve(dest->url_host,&ip)){
+		LOGD("Found %s in /etc/hosts",dest->url_host);
+		dest->url_host=ip.c_str();
 	}
 	buf=msg_as_string(&home, msg, NULL, 0,&msg_size);
 	LOGD("About to forward request to %s:\n%s",url_as_string(&home,dest),buf);

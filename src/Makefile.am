@@ -7,7 +7,8 @@ flexisip_SOURCES=main.cc \
 			sdp-modifier.hh  sdp-modifier.cc \
 			callstore.hh  callstore.cc \
 			callcontext.cc callcontext.hh \
-			registrardb.cc registrardb.hh
+			registrardb.cc registrardb.hh \
+			etchosts.cc etchosts.hh
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS)
 
