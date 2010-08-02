@@ -31,6 +31,11 @@ PKG_CHECK_MODULES(SOFIA,[sofia-sip-ua >= 1.12.10])
 PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
 # Checks for library functions.
 
-AC_CONFIG_FILES([Makefile
-                 src/Makefile])
+AC_CONFIG_FILES(
+[
+Makefile
+scripts/Makefile
+scripts/debian/Makefile
+src/Makefile
+])
 AC_OUTPUT

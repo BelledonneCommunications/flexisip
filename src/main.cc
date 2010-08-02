@@ -16,6 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <syslog.h>
 
 #include "transcodeagent.hh"
 #include <sys/types.h>
@@ -79,9 +80,40 @@ static int get_local_ip_for_with_connect(int type, const char *dest, char *resul
 }
 
 static void usage(const char *arg0){
-	printf("%s \t [--port <port number to listen>]\n"
+	printf("%s\n"
+	       "\t\t [--port <port number to listen>]\n"
+	       "\t\t [--debug]\n"
+	       "\t\t [--daemon]\n"
 	       "\t\t [--help]\n",arg0);
 	exit(-1);
+}
+
+static void syslogHandler(OrtpLogLevel log_level, const char *str, va_list l){
+	int syslev=LOG_ALERT;
+	switch(log_level){
+		case ORTP_DEBUG:
+			syslev=LOG_DEBUG;
+			break;
+		case ORTP_MESSAGE:
+			syslev=LOG_INFO;
+			break;
+/*			
+		case ORTP_NOTICE:
+			syslev=LOG_NOTICE;
+			break;
+*/
+		 case ORTP_WARNING:
+			syslev=LOG_WARNING;
+			break;
+		case ORTP_ERROR:
+		case ORTP_FATAL:
+			syslev=LOG_ERR;
+			break;
+		default:
+			syslev=LOG_ERR;
+	}
+	vsyslog(syslev,str,l);
+	va_end(l);
 }
 
 int main(int argc, char *argv[]){
@@ -90,6 +122,10 @@ int main(int argc, char *argv[]){
 	char localip[IPADDR_SIZE];
 	const char *domain=NULL;
 	int i;
+	const char *pidfile=NULL;
+	bool debug=false;
+	bool daemon=false;
+	bool useSyslog=false;
 
 	for(i=1;i<argc;++i){
 		if (strcmp(argv[i],"--port")==0){
@@ -104,13 +140,70 @@ int main(int argc, char *argv[]){
 				domain=argv[i];
 				continue;
 			}
+		}else if (strcmp(argv[i],"--pidfile")==0){
+			i++;
+			if (i<argc){
+				pidfile=argv[i];
+				continue;
+			}
+		}else if (strcmp(argv[i],"--daemon")==0){
+			daemon=true;
+			continue;
+		}else if (strcmp(argv[i],"--syslog")==0){
+			useSyslog=true;
+			continue;
+		}else if (strcmp(argv[i],"--debug")==0){
+			debug=true;
+			continue;
 		}
+		fprintf(stderr,"Bad option %s\n",argv[i]);
 		usage(argv[0]);
 	}
 
+	if (daemon){
+		pid_t pid = fork();
+		int fd;
+		
+		if (pid < 0){
+			fprintf(stderr,"Could not fork\n");
+			exit(-1);
+		}
+		if (pid > 0) {
+			exit(0);
+		}
+		/*here we are the new process*/
+		setsid();
+		
+		fd = open("/dev/null", O_RDWR);
+		if (fd==-1){
+			fprintf(stderr,"Could not open /dev/null\n");
+			exit(-1);
+		}
+		dup2(fd, 0);
+		dup2(fd, 1);
+		dup2(fd, 2);
+		close(fd);
+	}
+
+	if (pidfile){
+		FILE *f=fopen(pidfile,"w");
+		fprintf(f,"%i",getpid());
+		fclose(f);
+	}
+	
+	if (useSyslog){
+		openlog("flexisip", 0, LOG_USER);
+		setlogmask(~0);
+		ortp_set_log_handler(syslogHandler);
+	}
+	ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR);
+	LOGN("Starting version %s", VERSION);
+	
 	ortp_init();
 	ortp_set_log_file(stdout);
-	ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR);
+	if (debug==false){
+		ortp_set_log_level_mask(ORTP_WARNING|ORTP_ERROR);
+	}
 	ms_init();
 	
 	su_init();
