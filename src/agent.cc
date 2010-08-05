@@ -101,7 +101,7 @@ bool Agent::isUs(const url_t *url)const{
 }
 
 void Agent::addRecordRoute(su_home_t *home, msg_t *msg, sip_t *sip){
-	sip_record_route_t *rr=sip_record_route_format(home,"<sip:%s:%i>",mLocAddr.c_str(),mPort);
+	sip_record_route_t *rr=sip_record_route_format(home,"<sip:%s:%i;lr>",mLocAddr.c_str(),mPort);
 	if (sip->sip_record_route==NULL){
 		sip->sip_record_route=rr;
 	}else{
