@@ -40,6 +40,7 @@ class CallSide{
 		void setRemoteAddr(const char *addr, int port);
 		void assignPayloads(const MSList *payloads);
 		void dump();
+		void playTone(int tone_name);
 		bool isActive(time_t cur);
 	private:
 		static void payloadTypeChanged(RtpSession *s, unsigned long data);
@@ -50,6 +51,7 @@ class CallSide{
 		MSFilter *mSender;
 		MSFilter *mDecoder;
 		MSFilter *mEncoder;
+		MSFilter *mToneGen;
 		time_t mLastCheck;
 		uint64_t mLastRecvCount;
 };
@@ -57,7 +59,7 @@ class CallSide{
 class CallContext : public CallContextBase{
 	public:
 		CallContext(sip_t *invite);
-		void prepare();
+		void prepare(sip_t *invite);
 		void join(MSTicker *ticker);
 		void unjoin();
 		bool isJoined()const;
@@ -70,6 +72,7 @@ class CallContext : public CallContextBase{
 		CallSide *getBackSide() {
 			return mBackSide;
 		}
+		void playTone(sip_t *info);
 		~CallContext();
 		void dump();
 		virtual bool isInactive(time_t);
@@ -78,6 +81,7 @@ class CallContext : public CallContextBase{
 		CallSide *mFrontSide;
 		CallSide *mBackSide;
 		MSList *mInitialOffer;
+		int mInfoCSeq;
 };
 
 

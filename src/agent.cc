@@ -100,6 +100,18 @@ bool Agent::isUs(const url_t *url)const{
 	    && port==mPort;
 }
 
+void Agent::addRecordRoute(su_home_t *home, msg_t *msg, sip_t *sip){
+	sip_record_route_t *rr=sip_record_route_format(home,"<sip:%s:%i>",mLocAddr.c_str(),mPort);
+	if (sip->sip_record_route==NULL){
+		sip->sip_record_route=rr;
+	}else{
+		sip_record_route_t *it;
+		for(it=sip->sip_record_route;it->r_next!=NULL;it=it->r_next){
+		}
+		it->r_next=rr;
+	}
+}
+
 int Agent::forwardRequest(msg_t *msg, sip_t *sip){
 	su_home_t home;
 	size_t msg_size;

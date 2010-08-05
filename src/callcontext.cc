@@ -19,6 +19,8 @@
 
 #include "callcontext.hh"
 
+#include <mediastreamer2/dtmfgen.h>
+
 #include "sdp-modifier.hh"
 
 CallSide::CallSide(CallContext *ctx){
@@ -28,6 +30,7 @@ CallSide::CallSide(CallContext *ctx){
 	mDecoder=NULL;
 	mReceiver=ms_filter_new(MS_RTP_RECV_ID);
 	mSender=ms_filter_new(MS_RTP_SEND_ID);
+	mToneGen=ms_filter_new(MS_DTMF_GEN_ID);
 
 	rtp_session_set_profile(mSession,mProfile);
 	rtp_session_set_recv_buf_size(mSession,300);
@@ -79,6 +82,7 @@ CallSide::~CallSide(){
 	rtp_profile_destroy(mProfile);
 	ms_filter_destroy(mReceiver);
 	ms_filter_destroy(mSender);
+	ms_filter_destroy(mToneGen);
 	if (mEncoder)
 		ms_filter_destroy(mEncoder);
 	if (mDecoder)
@@ -141,7 +145,7 @@ void CallSide::connect(CallSide *recvSide){
 	     payload_type_get_number(recvpt), recvpt->mime_type,recvpt->clock_rate,
 	     payload_type_get_number(sendpt), sendpt->mime_type,sendpt->clock_rate);
 	if (strcasecmp(recvpt->mime_type,sendpt->mime_type)!=0
-	    || recvpt->clock_rate!=sendpt->clock_rate){
+	    || recvpt->clock_rate!=sendpt->clock_rate || mToneGen!=0){
 		mDecoder=ms_filter_create_decoder(recvpt->mime_type);
 		if (mDecoder==NULL){
 			LOGE("Could not instanciate decoder for %s",recvpt->mime_type);
@@ -159,6 +163,8 @@ void CallSide::connect(CallSide *recvSide){
 	}
 	if (mDecoder)
 		ms_connection_helper_link(&h,mDecoder,0,0);
+	if (mToneGen)
+		ms_connection_helper_link(&h,mToneGen,0,0);
 	if (mEncoder)
 		ms_connection_helper_link(&h,mEncoder,0,0);
 	ms_connection_helper_link(&h,mSender,0,-1);
@@ -172,6 +178,8 @@ void CallSide::disconnect(CallSide *recvSide){
 	                            	recvSide->getRecvPoint().pin);
 	if (mDecoder)
 		ms_connection_helper_unlink(&h,mDecoder,0,0);
+	if (mToneGen)
+		ms_connection_helper_unlink(&h,mToneGen,0,0);
 	if (mEncoder)
 		ms_connection_helper_unlink(&h,mEncoder,0,0);
 	ms_connection_helper_unlink(&h,mSender,0,-1);
@@ -183,12 +191,23 @@ void CallSide::payloadTypeChanged(RtpSession *s, unsigned long data){
 	ctx->redraw(side);
 }
 
+void CallSide::playTone(int tone_name){
+	if (mEncoder && mToneGen){
+		const char *enc_fmt=mEncoder->desc->enc_fmt;
+		if (strcasecmp(enc_fmt,"pcmu")==0 || strcasecmp(enc_fmt,"pcma")==0){
+			LOGD("Modulating dtmf %c",tone_name);
+			ms_filter_call_method(mToneGen,MS_DTMF_GEN_PUT,&tone_name);
+		}
+	}
+}
+
 CallContext::CallContext(sip_t *sip) : CallContextBase(sip), mFrontSide(0), mBackSide(0){
 	mInitialOffer=NULL;
 	mTicker=NULL;
+	mInfoCSeq=-1;
 }
 
-void CallContext::prepare(){
+void CallContext::prepare(sip_t *invite){
 	if (mFrontSide){
 		if (isJoined())
 			unjoin();
@@ -255,6 +274,22 @@ void CallContext::dump(){
 		LOGD("Back side:");
 		mBackSide->dump();
 	}else LOGD("is inactive");
+}
+
+void CallContext::playTone(sip_t *info){
+	if (mInfoCSeq==-1 || ((unsigned int)mInfoCSeq)!=info->sip_cseq->cs_seq){
+		mInfoCSeq=info->sip_cseq->cs_seq;
+		const char *p=strstr(info->sip_payload->pl_data,"Signal=");
+		if (p){
+			int dtmf;
+			p+=strlen("Signal=");
+			dtmf=p[0];
+			if (dtmf!=0){
+				LOGD("Intercepting dtmf in SIP info");
+				getBackSide ()->playTone(dtmf);
+			}
+		}
+	}
 }
 
 CallContext::~CallContext(){

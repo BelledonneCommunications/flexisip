@@ -62,6 +62,7 @@ class Agent{
 		virtual int onResponse(msg_t *msg, sip_t *sip);
 		int forwardRequest(msg_t *msg, sip_t *sip);
 		int forwardResponse(msg_t *msg, sip_t *sip);
+		void addRecordRoute(su_home_t *home, msg_t *msg, sip_t *sip);
 		const std::string getLocAddr()const{
 			return mLocAddr;
 		}
@@ -70,8 +71,9 @@ class Agent{
 		}
 		virtual void idle();
 		bool isUs(const url_t *url)const;
-	private:
+	protected:
 		nta_agent_t *mAgent;
+	private:
 		std::string mLocAddr;
 		std::string mDomain;
 		int mPort;

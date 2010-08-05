@@ -34,6 +34,7 @@ CallContextBase::CallContextBase(sip_t *sip){
 }
 
 bool CallContextBase::match(sip_t *sip){
+	if (sip->sip_call_id==NULL) return false;
 	return sip->sip_call_id->i_hash==mCallHash;
 }
 

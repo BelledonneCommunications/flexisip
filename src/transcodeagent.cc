@@ -53,11 +53,24 @@ TranscodeAgent::~TranscodeAgent(){
 	ms_ticker_destroy(mTicker);
 }
 
+bool TranscodeAgent::processSipInfo(CallContext *c, msg_t *msg, sip_t *sip){
+	sip_payload_t *payload=sip->sip_payload;
+	if (payload!=NULL && payload->pl_data!=NULL) {
+		if (sip->sip_content_type!=NULL && 
+		    strcasecmp(sip->sip_content_type->c_subtype,"dtmf-relay")==0){
+			c->playTone (sip);
+			nta_msg_treply(mAgent,msg,200,NULL,TAG_END());
+			return true;
+		}
+	}
+	return false;
+}
+
 void TranscodeAgent::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 	std::string addr;
 	int port;
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
-	c->prepare();
+	c->prepare(sip);
 	c->setInitialOffer (m->readPayloads ());
 	m->getAudioIpPort (&addr,&port);
 	c->getFrontSide()->setRemoteAddr(addr.c_str(),port);
@@ -65,6 +78,8 @@ void TranscodeAgent::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 	m->changeAudioIpPort(getLocAddr().c_str(),port);
 	m->appendNewPayloadsAndRemoveUnsupported(mSupportedAudioPayloads);
 	m->update(msg,sip);
+	//be in the record-route
+	addRecordRoute(c->getHome(),msg,sip);
 	c->storeNewInvite (msg);
 	delete m;
 }
@@ -87,6 +102,13 @@ int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
 		}
 		forwardRequest (msg,sip);
 	}else{
+		 if (sip->sip_request->rq_method==sip_method_info){
+			 if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
+				if (processSipInfo(c,msg,sip))
+					 goto end;
+			}
+		 }
+		
 		//all other requests go through
 
 		if (sip->sip_request->rq_method==sip_method_bye){
@@ -97,6 +119,7 @@ int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
 		}
 		forwardRequest(msg,sip);
 	}
+	end:
 	return 0;
 }
 
