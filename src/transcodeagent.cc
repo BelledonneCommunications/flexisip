@@ -166,7 +166,7 @@ void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *
 		delete m;
 		return;
 	}
-	MSList *common=SdpModifier::findCommon (mSupportedAudioPayloads,ioffer);
+	MSList *common=SdpModifier::findCommon (ioffer,mSupportedAudioPayloads);
 	if (common!=NULL){
 		m->appendNewPayloadsAndRemoveUnsupported(common);
 		ms_list_for_each(common,(void(*)(void*))payload_type_destroy);
