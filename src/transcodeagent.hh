@@ -33,6 +33,7 @@ class TranscodeAgent : public Agent{
 		void processNewInvite(CallContext *c, msg_t *msg, sip_t *sip);
 		void process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip);
 		bool processSipInfo(CallContext *c, msg_t *msg, sip_t *sip);
+		MSList *normalizePayloads(MSList *l);
 		MSList *mSupportedAudioPayloads;
 		MSTicker *mTicker;
 		CallStore mCalls;

@@ -66,6 +66,30 @@ bool TranscodeAgent::processSipInfo(CallContext *c, msg_t *msg, sip_t *sip){
 	return false;
 }
 
+const PayloadType *findPt(const MSList *l, const char *mime, int rate){
+	for(;l!=NULL;l=l->next){
+		const PayloadType *pt=(PayloadType*)l->data;
+		if (pt->clock_rate==rate && strcasecmp(mime,pt->mime_type)==0)
+			return pt;
+	}
+	return NULL;
+}
+
+MSList *TranscodeAgent::normalizePayloads(MSList *l){
+	MSList *it;
+	for(it=l;it!=NULL;it=it->next){
+		PayloadType *pt=(PayloadType*)l->data;
+		if (pt->normal_bitrate==0){
+			const PayloadType *refpt=findPt(mSupportedAudioPayloads,pt->mime_type,pt->clock_rate);
+			if (refpt && refpt->normal_bitrate>0){
+				ms_message("Using %s at bitrate %i",pt->mime_type,refpt->normal_bitrate);
+				pt->normal_bitrate=refpt->normal_bitrate;
+			}
+		}
+	}
+	return l;
+}
+
 void TranscodeAgent::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 	std::string addr;
 	int port;
