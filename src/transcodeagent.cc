@@ -174,7 +174,7 @@ void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *
 	}
 	m->update(msg,sip);
 	ctx->storeNewResponse (msg);
-	ctx->getBackSide ()->assignPayloads (answer);
+	ctx->getBackSide ()->assignPayloads (normalizePayloads(answer));
 	ms_list_free(answer);
 	// read the modified answer to get payload list in right order:
 	answer=m->readPayloads ();
@@ -183,7 +183,7 @@ void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *
 		delete m;
 		return;
 	}
-	ctx->getFrontSide ()->assignPayloads (answer);
+	ctx->getFrontSide ()->assignPayloads (normalizePayloads(answer));
 	ms_list_free(answer);
 	ctx->join(mTicker);
 	
