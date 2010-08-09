@@ -143,7 +143,8 @@ int Agent::forwardRequest(msg_t *msg, sip_t *sip){
 	if (sip->sip_route!=NULL){
 		if (isUs(sip->sip_route->r_url)){
 			sip_route_remove(msg,sip);
-		}else{
+		}
+		if (sip->sip_route!=NULL){
 			/*forward to this route*/
 			dest=sip->sip_route->r_url;
 		}
