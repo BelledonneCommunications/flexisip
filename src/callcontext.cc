@@ -159,7 +159,7 @@ void CallSide::connect(CallSide *recvSide){
 			if (sendpt->send_fmtp!=NULL)
 				ms_filter_call_method(mEncoder,MS_FILTER_ADD_FMTP,(void*)sendpt->send_fmtp);
 			if (sendpt->normal_bitrate>0)
-				ms_filter_call_method(mEncoder,MS_FILTER_SET_BITRATE,(void*)sendpt->normal_bitrate);
+				ms_filter_call_method(mEncoder,MS_FILTER_SET_BITRATE,(void*)&sendpt->normal_bitrate);
 		}
 	}
 	if (mDecoder)
