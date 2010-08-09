@@ -155,6 +155,7 @@ void CallSide::connect(CallSide *recvSide){
 		mEncoder=ms_filter_create_encoder(sendpt->mime_type);
 		if (mEncoder==NULL){
 			LOGE("Could not instanciate encoder for %s",sendpt->mime_type);
+		}else{
 			if (sendpt->send_fmtp!=NULL)
 				ms_filter_call_method(mEncoder,MS_FILTER_ADD_FMTP,(void*)sendpt->send_fmtp);
 			if (sendpt->normal_bitrate>0)
