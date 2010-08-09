@@ -148,10 +148,11 @@ void SdpModifier::appendNewPayloadsAndRemoveUnsupported(const MSList *payloads){
 	sdp_rtpmap_t *rtpmaps=mline->m_rtpmaps;
 	
 	for(elem=payloads;elem!=NULL;elem=elem->next){
+		sdp_rtpmap_t *matching;
 		pt=(PayloadType*)elem->data;
 		ref.rm_encoding=pt->mime_type;
 		ref.rm_rate=pt->clock_rate;
-		if (sdp_rtpmap_find_matching(rtpmaps,&ref)==NULL){
+		if ((matching=sdp_rtpmap_find_matching(rtpmaps,&ref))==NULL){
 			LOGD("Adding new payload to sdp: %s/%i",pt->mime_type,pt->clock_rate);
 			int number=payload_type_get_number(pt);
 			if (number==-1){
@@ -165,6 +166,11 @@ void SdpModifier::appendNewPayloadsAndRemoveUnsupported(const MSList *payloads){
 			}
 			sdp_rtpmap_t *map=sdp_rtpmap_make_from_payload_type (mHome,pt,number);
 			mline->m_rtpmaps=sdp_rtpmap_append(mline->m_rtpmaps,map);
+		}else{
+			//eventually add our recv fmtp
+			if (matching->rm_fmtp==NULL && pt->recv_fmtp!=NULL){
+				matching->rm_fmtp=su_strdup(mHome,pt->recv_fmtp);
+			}
 		}
 	}
 }
