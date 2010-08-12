@@ -32,7 +32,8 @@
 #include <sofia-sip/nta_stateless.h>
 #include <sofia-sip/msg.h>
 
-#include <common.hh>
+#include "common.hh"
+#include "configmanager.hh"
 
 class Transaction{
 	public:
@@ -55,8 +56,9 @@ class Transaction{
 class Agent{
 	public:
 		Agent(su_root_t *root, const char *locaddr, int port);
+		virtual void loadConfig(ConfigManager *cm);
 		void setDomain(const std::string &domain);
-		~Agent();
+		virtual ~Agent();
 		virtual int onIncomingMessage(msg_t *msg, sip_t *sip);
 		virtual int onRequest(msg_t *msg, sip_t *sip);
 		virtual int onResponse(msg_t *msg, sip_t *sip);
@@ -74,6 +76,7 @@ class Agent{
 	protected:
 		nta_agent_t *mAgent;
 	private:
+		std::list<std::string> mAliases;
 		std::string mLocAddr;
 		std::string mDomain;
 		int mPort;

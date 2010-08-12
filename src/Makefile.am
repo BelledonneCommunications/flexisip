@@ -9,6 +9,8 @@ flexisip_SOURCES=main.cc \
 			callcontext.cc callcontext.hh \
 			registrardb.cc registrardb.hh \
 			etchosts.cc etchosts.hh \
+			lpconfig.c lpconfig.h \
+			configmanager.cc configmanager.hh\
 			module.hh
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS)

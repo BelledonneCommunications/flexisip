@@ -120,7 +120,6 @@ int main(int argc, char *argv[]){
 	Agent *a;
 	int port=5060;
 	char localip[IPADDR_SIZE];
-	const char *domain=NULL;
 	int i;
 	const char *pidfile=NULL;
 	bool debug=false;
@@ -132,12 +131,6 @@ int main(int argc, char *argv[]){
 			i++;
 			if (i<argc){
 				port=atoi(argv[i]);
-				continue;
-			}
-		}else if (strcmp(argv[i],"--domain")==0){
-			i++;
-			if (i<argc){
-				domain=argv[i];
 				continue;
 			}
 		}else if (strcmp(argv[i],"--pidfile")==0){
@@ -212,7 +205,7 @@ int main(int argc, char *argv[]){
 	get_local_ip_for_with_connect (AF_INET,"87.98.157.38",localip);
 	
 	a=new TranscodeAgent(root,localip,port);
-	if (domain) a->setDomain(domain);
+	a->loadConfig (ConfigManager::get());
 	do{
 		//su_root_run(root);
 		su_root_sleep(root,5000);

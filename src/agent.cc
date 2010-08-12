@@ -90,14 +90,27 @@ Agent::~Agent(){
 		nta_agent_destroy(mAgent);
 }
 
+void Agent::loadConfig(ConfigManager *cm){
+	mAliases=cm->getArea("global").get("aliases",list<string>());
+	LOGD("List of host aliases:");
+	for(list<string>::iterator it=mAliases.begin();it!=mAliases.end();++it){
+		LOGD("%s",(*it).c_str());
+	}
+}
+
 void Agent::setDomain(const std::string &domain){
 	mDomain=domain;
 }
 
 bool Agent::isUs(const url_t *url)const{
 	int port=(url->url_port!=NULL) ? atoi(url->url_port) : 5060;
-	return strcmp(url->url_host,mLocAddr.c_str())==0
-	    && port==mPort;
+	if (port!=mPort) return false;
+	if (strcmp(url->url_host,mLocAddr.c_str())==0) return true;
+	list<string>::const_iterator it;
+	for(it=mAliases.begin();it!=mAliases.end();++it){
+		if (strcasecmp(url->url_host,(*it).c_str())==0) return true;
+	}
+	return false;
 }
 
 void Agent::addRecordRoute(su_home_t *home, msg_t *msg, sip_t *sip){
