@@ -132,7 +132,6 @@ int Agent::forwardRequest(msg_t *msg, sip_t *sip){
 	const char *domain;
 	url_t* dest=NULL;
 
-	dest=sip->sip_request->rq_url;
 	su_home_init(&home);
 	switch(sip->sip_request->rq_method){
 		case sip_method_invite:
@@ -152,6 +151,7 @@ int Agent::forwardRequest(msg_t *msg, sip_t *sip){
 		default:
 			break;
 	}
+	dest=sip->sip_request->rq_url;
 	// removes top route header if it maches us
 	if (sip->sip_route!=NULL){
 		if (isUs(sip->sip_route->r_url)){
@@ -167,9 +167,14 @@ int Agent::forwardRequest(msg_t *msg, sip_t *sip){
 		LOGD("Found %s in /etc/hosts",dest->url_host);
 		dest->url_host=ip.c_str();
 	}
-	buf=msg_as_string(&home, msg, NULL, 0,&msg_size);
-	LOGD("About to forward request to %s:\n%s",url_as_string(&home,dest),buf);
-	nta_msg_tsend (mAgent,msg,(url_string_t*)dest,TAG_END());
+	if (isUs(dest)){
+		LOGD("This message has final destination this proxy, discarded...");
+		nta_msg_discard(mAgent,msg);
+	}else{
+		buf=msg_as_string(&home, msg, NULL, 0,&msg_size);
+		LOGD("About to forward request to %s:\n%s",url_as_string(&home,dest),buf);
+		nta_msg_tsend (mAgent,msg,(url_string_t*)dest,TAG_END());
+	}
 	su_home_deinit(&home);
 	return 0;
 }
