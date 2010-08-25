@@ -17,6 +17,9 @@
 */
 
 #include <syslog.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+
 
 #include "transcodeagent.hh"
 #include <sys/types.h>
@@ -191,6 +194,8 @@ int main(int argc, char *argv[]){
 	}
 	ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR);
 	LOGN("Starting version %s", VERSION);
+
+	
 	
 	ortp_init();
 	ortp_set_log_file(stdout);
@@ -198,6 +203,14 @@ int main(int argc, char *argv[]){
 		ortp_set_log_level_mask(ORTP_WARNING|ORTP_ERROR);
 	}
 	ms_init();
+
+	/*enable core dumps*/
+	struct rlimit lm;
+	lm.rlim_cur=RLIM_INFINITY;
+	lm.rlim_max=RLIM_INFINITY;
+	if (setrlimit(RLIMIT_CORE,&lm)==-1){
+		LOGE("Cannot enable core dump, setrlimit() failed: %s",strerror(errno));
+	}
 	
 	su_init();
 	su_root_t *root=su_root_create(NULL);
