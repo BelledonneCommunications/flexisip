@@ -121,7 +121,7 @@ int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
 		}else{
 			if (c->isNewInvite(sip)){
 				processNewInvite(c,msg,sip);
-			}else{
+			}else if (c->getLastForwardedInvite()!=NULL){
 				msg=msg_copy(c->getLastForwardedInvite ());
 				sip=(sip_t*)msg_object(msg);
 				LOGD("Forwarding invite retransmission");
@@ -214,8 +214,10 @@ int TranscodeAgent::onResponse(msg_t *msg, sip_t *sip){
 				process200OkforInvite (c,msg,sip);
 			}else if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
 				LOGD("This is a 200 or 183  retransmission");
-				msg=msg_copy(c->getLastForwaredResponse ());
-				sip=(sip_t*)msg_object (msg);
+				if (c->getLastForwaredResponse()!=NULL){
+					msg=msg_copy(c->getLastForwaredResponse ());
+					sip=(sip_t*)msg_object (msg);
+				}
 			}
 		}
 	}

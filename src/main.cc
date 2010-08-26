@@ -109,8 +109,9 @@ static void syslogHandler(OrtpLogLevel log_level, const char *str, va_list l){
 			syslev=LOG_WARNING;
 			break;
 		case ORTP_ERROR:
-		case ORTP_FATAL:
 			syslev=LOG_ERR;
+		case ORTP_FATAL:
+			syslev=LOG_ALERT;
 			break;
 		default:
 			syslev=LOG_ERR;

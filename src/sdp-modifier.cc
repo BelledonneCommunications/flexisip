@@ -33,7 +33,7 @@ SdpModifier *SdpModifier::createFromSipMsg(su_home_t *home, sip_t *sip){
 bool SdpModifier::initFromSipMsg(sip_t *sip){
 	sip_payload_t *payload=sip->sip_payload;
 	if (payload==NULL || payload->pl_data==NULL) {
-		LOGW("SIP message has no payload");
+		LOGE("SIP message has no payload");
 		return false;
 	}
 	mParser = sdp_parse(mHome, payload->pl_data, payload->pl_len, 0);
