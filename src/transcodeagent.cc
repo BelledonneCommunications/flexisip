@@ -94,18 +94,21 @@ void TranscodeAgent::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 	std::string addr;
 	int port;
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
-	c->prepare(sip);
-	c->setInitialOffer (m->readPayloads ());
-	m->getAudioIpPort (&addr,&port);
-	c->getFrontSide()->setRemoteAddr(addr.c_str(),port);
-	port=c->getBackSide()->getAudioPort();
-	m->changeAudioIpPort(getLocAddr().c_str(),port);
-	m->appendNewPayloadsAndRemoveUnsupported(mSupportedAudioPayloads);
-	m->update(msg,sip);
-	//be in the record-route
-	addRecordRoute(c->getHome(),msg,sip);
-	c->storeNewInvite (msg);
-	delete m;
+	if (m){
+		c->prepare(sip);
+		c->setInitialOffer (m->readPayloads ());
+		m->getAudioIpPort (&addr,&port);
+		c->getFrontSide()->setRemoteAddr(addr.c_str(),port);
+		port=c->getBackSide()->getAudioPort();
+		m->changeAudioIpPort(getLocAddr().c_str(),port);
+		m->appendNewPayloadsAndRemoveUnsupported(mSupportedAudioPayloads);
+		m->update(msg,sip);
+		//be in the record-route
+		addRecordRoute(c->getHome(),msg,sip);
+		c->storeNewInvite (msg);
+		delete m;
+	}
+	
 }
 
 int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
@@ -154,6 +157,8 @@ void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *
 	int port;
 	SdpModifier *m=SdpModifier::createFromSipMsg(ctx->getHome(), sip);
 
+	if (m==NULL) return;
+	
 	if (ctx->isJoined()) ctx->unjoin();
 	
 	m->getAudioIpPort (&addr,&port);
