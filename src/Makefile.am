@@ -3,7 +3,6 @@ bin_PROGRAMS=flexisip
 flexisip_SOURCES=main.cc \
 			agent.cc agent.hh \
 			common.cc common.hh \
-			transcodeagent.cc transcodeagent.hh \
 			sdp-modifier.hh  sdp-modifier.cc \
 			callstore.hh  callstore.cc \
 			callcontext.cc callcontext.hh \
@@ -11,7 +10,9 @@ flexisip_SOURCES=main.cc \
 			etchosts.cc etchosts.hh \
 			lpconfig.c lpconfig.h \
 			configmanager.cc configmanager.hh\
-			module.hh
+			module.cc module.hh \
+			module-forward.cc \
+			module-transcode.cc
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS)
 

@@ -16,14 +16,21 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef module_hh
+#define module_hh
+
+#include <list>
+
 class ModuleInfoBase;
+class Module;
+class Agent;
 
 class ModuleFactory{
 	public:
 		static ModuleFactory *get();
-		Module *createModule(const std::string &modname);
+		Module *createModuleInstance(Agent *ag, const std::string &modname);
 	private:
-		void registerModule(ModuleFactory *m);
+		void registerModule(ModuleInfoBase *m);
 		std::list<ModuleInfoBase*> mModules;
 		static ModuleFactory *sInstance;
 		friend class ModuleInfoBase;
@@ -31,10 +38,11 @@ class ModuleFactory{
 
 class ModuleInfoBase {
 	public:
-		virtual Module *create()=0;
+		virtual Module *create(Agent *ag)=0;
 		const std::string &getModuleName()const{
 			return mName;
 		}
+		
 	protected:
 		ModuleInfoBase(const char *modname) : mName(modname){
 			ModuleFactory::get()->registerModule(this);
@@ -49,28 +57,50 @@ class ModuleInfo : public ModuleInfoBase{
 		ModuleInfo(const char *modname) : ModuleInfoBase(modname){
 		}
 	protected:
-		virtual Module *create(){
+		virtual Module *create(Agent *ag){
 			return new _module_(ag);
 		}
-		virtual const std::string &getModuleName()const{
-			return mName;
+};
+
+class SipEvent{
+	public:
+		SipEvent(msg_t *msg, sip_t *sip){
+			mMsg=msg;
+			mSip=sip;
+			mStop=false;
+		}
+		msg_t *mMsg;
+		sip_t *mSip;
+		void stopProcessing(){
+			mStop=true;
+		}
+		bool finished()const{
+			return mStop;
 		}
 	private:
-		const std::string mName;
+		bool mStop;
 };
 
 class Module {
 	public:
-		Module();
+		Module(Agent *);
+		virtual ~Module();
 		Agent *getAgent()const;
-		const std::string &getName()const;
-		virtual bool onLoad(Agent *agent);
-		virtual bool onRequest(msg_t *msg, sip_t *sip)=0;
-		virtual bool onResponse(msg_t *msg, sip_t *sip)=0;
+		nta_agent_t *getSofiaAgent()const;
+		const std::string &getModuleName();
+		void setName(const std::string &name);
+		virtual void onLoad(Agent *agent){
+		}
+		virtual void onRequest(SipEvent *ev)=0;
+		virtual void onResponse(SipEvent *ev)=0;
+		virtual void onIdle(){
+		}
 		void enable(bool enabled);
 		bool isEnabled() const;
 	private:
+		std::string mName;
 		Agent *mAgent;
 		bool mEnabled;
-		
 };
+
+#endif

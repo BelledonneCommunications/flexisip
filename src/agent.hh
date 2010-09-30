@@ -34,6 +34,7 @@
 
 #include "common.hh"
 #include "configmanager.hh"
+#include "module.hh"
 
 class Transaction{
 	public:
@@ -59,27 +60,28 @@ class Agent{
 		virtual void loadConfig(ConfigManager *cm);
 		void setDomain(const std::string &domain);
 		virtual ~Agent();
-		virtual int onIncomingMessage(msg_t *msg, sip_t *sip);
-		virtual int onRequest(msg_t *msg, sip_t *sip);
-		virtual int onResponse(msg_t *msg, sip_t *sip);
-		int forwardRequest(msg_t *msg, sip_t *sip);
-		int forwardResponse(msg_t *msg, sip_t *sip);
-		void addRecordRoute(su_home_t *home, msg_t *msg, sip_t *sip);
 		const std::string getLocAddr()const{
 			return mLocAddr;
 		}
 		int getPort()const{
 			return mPort;
 		}
-		virtual void idle();
+		void idle();
 		bool isUs(const url_t *url)const;
+		nta_agent_t* getSofiaAgent()const{
+			return mAgent;
+		}
 	protected:
-		nta_agent_t *mAgent;
+		int onIncomingMessage(msg_t *msg, sip_t *sip);
+		void onRequest(msg_t *msg, sip_t *sip);
+		void onResponse(msg_t *msg, sip_t *sip);
 	private:
+		std::list<Module*> mModules;
 		std::list<std::string> mAliases;
 		std::string mLocAddr;
 		std::string mDomain;
 		int mPort;
+		nta_agent_t *mAgent;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);
 };
 

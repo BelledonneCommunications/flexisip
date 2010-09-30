@@ -16,10 +16,31 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
-#include "transcodeagent.hh"
-
+#include "agent.hh"
+#include "callcontext.hh"
 #include "sdp-modifier.hh"
+
+class TranscodeModule : public Module {
+	public:
+		TranscodeModule(Agent *ag);
+		~TranscodeModule();
+		virtual void onRequest(SipEvent *ev);
+		virtual void onResponse(SipEvent *ev);
+		virtual void onIdle();
+	private:
+		void addRecordRoute(su_home_t *home, msg_t *msg, sip_t *sip);
+		void processNewInvite(CallContext *c, msg_t *msg, sip_t *sip);
+		void process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip);
+		bool processSipInfo(CallContext *c, msg_t *msg, sip_t *sip);
+		MSList *normalizePayloads(MSList *l);
+		MSList *mSupportedAudioPayloads;
+		MSTicker *mTicker;
+		CallStore mCalls;
+		static ModuleInfo<TranscodeModule> sInfo;
+};
+
+ModuleInfo<TranscodeModule> TranscodeModule::sInfo("Transcoder");
+
 
 static MSList *makeSupportedAudioPayloadList(){
 	/* in mediastreamer2, we use normal_bitrate as an IP bitrate, not codec bitrate*/
@@ -42,31 +63,36 @@ static MSList *makeSupportedAudioPayloadList(){
 	return l;
 }
 
-TranscodeAgent::TranscodeAgent(su_root_t *root, const char *locaddr, int port) :
-	Agent(root,locaddr,port){
-	
+
+TranscodeModule::TranscodeModule(Agent *ag) : Module(ag){
 	mTicker=ms_ticker_new();
 	mSupportedAudioPayloads=makeSupportedAudioPayloadList();
 }
 
-TranscodeAgent::~TranscodeAgent(){
+TranscodeModule::~TranscodeModule(){
 	ms_ticker_destroy(mTicker);
+	ms_list_free(mSupportedAudioPayloads);
 }
 
-bool TranscodeAgent::processSipInfo(CallContext *c, msg_t *msg, sip_t *sip){
+void TranscodeModule::onIdle(){
+	mCalls.dump();
+	mCalls.removeInactives();
+}
+
+bool TranscodeModule::processSipInfo(CallContext *c, msg_t *msg, sip_t *sip){
 	sip_payload_t *payload=sip->sip_payload;
 	if (payload!=NULL && payload->pl_data!=NULL) {
 		if (sip->sip_content_type!=NULL && 
 		    strcasecmp(sip->sip_content_type->c_subtype,"dtmf-relay")==0){
 			c->playTone (sip);
-			nta_msg_treply(mAgent,msg,200,NULL,TAG_END());
+			nta_msg_treply(getSofiaAgent(),msg,200,NULL,TAG_END());
 			return true;
 		}
 	}
 	return false;
 }
 
-const PayloadType *findPt(const MSList *l, const char *mime, int rate){
+static const PayloadType *findPt(const MSList *l, const char *mime, int rate){
 	for(;l!=NULL;l=l->next){
 		const PayloadType *pt=(PayloadType*)l->data;
 		if (pt->clock_rate==rate && strcasecmp(mime,pt->mime_type)==0)
@@ -75,7 +101,7 @@ const PayloadType *findPt(const MSList *l, const char *mime, int rate){
 	return NULL;
 }
 
-MSList *TranscodeAgent::normalizePayloads(MSList *l){
+MSList *TranscodeModule::normalizePayloads(MSList *l){
 	MSList *it;
 	for(it=l;it!=NULL;it=it->next){
 		PayloadType *pt=(PayloadType*)l->data;
@@ -90,7 +116,19 @@ MSList *TranscodeAgent::normalizePayloads(MSList *l){
 	return l;
 }
 
-void TranscodeAgent::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
+void TranscodeModule::addRecordRoute(su_home_t *home, msg_t *msg, sip_t *sip){
+	sip_record_route_t *rr=sip_record_route_format(home,"<sip:%s:%i;lr>",getAgent()->getLocAddr().c_str(),getAgent()->getPort());
+	if (sip->sip_record_route==NULL){
+		sip->sip_record_route=rr;
+	}else{
+		sip_record_route_t *it;
+		for(it=sip->sip_record_route;it->r_next!=NULL;it=it->r_next){
+		}
+		it->r_next=rr;
+	}
+}
+
+void TranscodeModule::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 	std::string addr;
 	int port;
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
@@ -100,7 +138,7 @@ void TranscodeAgent::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 		m->getAudioIpPort (&addr,&port);
 		c->getFrontSide()->setRemoteAddr(addr.c_str(),port);
 		port=c->getBackSide()->getAudioPort();
-		m->changeAudioIpPort(getLocAddr().c_str(),port);
+		m->changeAudioIpPort(getAgent()->getLocAddr().c_str(),port);
 		m->appendNewPayloadsAndRemoveUnsupported(mSupportedAudioPayloads);
 		m->update(msg,sip);
 		//be in the record-route
@@ -111,8 +149,11 @@ void TranscodeAgent::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 	
 }
 
-int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
+void TranscodeModule::onRequest(SipEvent *ev){
 	CallContext *c;
+	msg_t *msg=ev->mMsg;
+	sip_t *sip=ev->mSip;
+	
 	if (sip->sip_request->rq_method==sip_method_invite){
 		if ((c=static_cast<CallContext*>(mCalls.find(sip)))==NULL){
 			c=new CallContext(sip);
@@ -127,12 +168,14 @@ int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
 				LOGD("Forwarding invite retransmission");
 			}
 		}
-		forwardRequest (msg,sip);
 	}else{
 		 if (sip->sip_request->rq_method==sip_method_info){
 			 if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
-				if (processSipInfo(c,msg,sip))
-					 goto end;
+				if (processSipInfo(c,msg,sip)){
+					ev->stopProcessing();
+					/*stop the processing */
+					return; 
+				}
 			}
 		 }
 		
@@ -144,13 +187,12 @@ int TranscodeAgent::onRequest(msg_t *msg, sip_t *sip){
 				delete c;
 			}
 		}
-		forwardRequest(msg,sip);
 	}
-	end:
-	return 0;
+	ev->mMsg=msg;
+	ev->mSip=sip;
 }
 
-void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip){
+void TranscodeModule::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip){
 	LOGD("Processing 200 Ok");
 	const MSList *ioffer=ctx->getInitialOffer ();
 	std::string addr;
@@ -163,7 +205,7 @@ void TranscodeAgent::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *
 	
 	m->getAudioIpPort (&addr,&port);
 	ctx->getBackSide()->setRemoteAddr(addr.c_str(),port);
-	m->changeAudioIpPort (getLocAddr().c_str(),ctx->getFrontSide()->getAudioPort());
+	m->changeAudioIpPort (getAgent()->getLocAddr().c_str(),ctx->getFrontSide()->getAudioPort());
 
 	MSList *answer=m->readPayloads ();
 	if (answer==NULL){
@@ -204,7 +246,9 @@ static bool isEarlyMedia(sip_t *sip){
 	return false;
 }
 
-int TranscodeAgent::onResponse(msg_t *msg, sip_t *sip){
+void TranscodeModule::onResponse(SipEvent *ev){
+	sip_t *sip=ev->mSip;
+	msg_t *msg=ev->mMsg;
 	CallContext *c;
 	if (sip->sip_cseq && sip->sip_cseq->cs_method==sip_method_invite){
 		if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
@@ -221,10 +265,5 @@ int TranscodeAgent::onResponse(msg_t *msg, sip_t *sip){
 			}
 		}
 	}
-	return forwardResponse (msg,sip);
 }
 
-void TranscodeAgent::idle(){
-	mCalls.dump();
-	mCalls.removeInactives();
-}

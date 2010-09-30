@@ -20,6 +20,7 @@
 #include "agent.hh"
 
 #include "etchosts.hh"
+#include <algorithm>
 
 using namespace::std;
 
@@ -83,6 +84,8 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr)
 		LOGE("Could not create sofia mta.");
 	}
 	EtcHostsResolver::get();
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Forward"));
 }
 
 Agent::~Agent(){
@@ -113,111 +116,41 @@ bool Agent::isUs(const url_t *url)const{
 	return false;
 }
 
-void Agent::addRecordRoute(su_home_t *home, msg_t *msg, sip_t *sip){
-	sip_record_route_t *rr=sip_record_route_format(home,"<sip:%s:%i;lr>",mLocAddr.c_str(),mPort);
-	if (sip->sip_record_route==NULL){
-		sip->sip_record_route=rr;
-	}else{
-		sip_record_route_t *it;
-		for(it=sip->sip_record_route;it->r_next!=NULL;it=it->r_next){
-		}
-		it->r_next=rr;
+void Agent::onRequest(msg_t *msg, sip_t *sip){
+	list<Module*>::iterator it;
+	SipEvent ev(msg,sip);
+	for(it=mModules.begin();it!=mModules.end();++it){
+		LOGD("Invoking onRequest() on module %s",(*it)->getModuleName().c_str());
+		(*it)->onRequest(&ev);
+		if (ev.finished()) break;
 	}
 }
 
-int Agent::forwardRequest(msg_t *msg, sip_t *sip){
-	su_home_t home;
-	size_t msg_size;
-	char *buf;
-	const char *domain;
-	url_t* dest=NULL;
-
-	su_home_init(&home);
-	switch(sip->sip_request->rq_method){
-		case sip_method_invite:
-			LOGD("This is an invite");
-			break;
-		case sip_method_register:
-			LOGD("This is a register");
-			domain=sip->sip_to->a_url->url_host;
-			if (strcasecmp(domain,mDomain.c_str())!=0){
-				LOGD("This domain (%s) is not managed by us, forwarding.",domain);
-				//rewrite the request uri to the domain
-				//this assume the domain is also the proxy
-				sip->sip_request->rq_url->url_host=sip->sip_to->a_url->url_host;
-				sip->sip_request->rq_url->url_port=sip->sip_to->a_url->url_port;
-			}
-		case sip_method_ack:
-		default:
-			break;
+void Agent::onResponse(msg_t *msg, sip_t *sip){
+	list<Module*>::iterator it;
+	SipEvent ev(msg,sip);
+	for(it=mModules.begin();it!=mModules.end();++it){
+		LOGD("Invoking onResponse() on module %s",(*it)->getModuleName().c_str());
+		(*it)->onResponse(&ev);
+		if (ev.finished()) break;
 	}
-	dest=sip->sip_request->rq_url;
-	// removes top route header if it maches us
-	if (sip->sip_route!=NULL){
-		if (isUs(sip->sip_route->r_url)){
-			sip_route_remove(msg,sip);
-		}
-		if (sip->sip_route!=NULL){
-			/*forward to this route*/
-			dest=sip->sip_route->r_url;
-		}
-	}
-	std::string ip;
-	if (EtcHostsResolver::get()->resolve(dest->url_host,&ip)){
-		LOGD("Found %s in /etc/hosts",dest->url_host);
-		dest->url_host=ip.c_str();
-	}
-	if (isUs(dest)){
-		LOGD("This message has final destination this proxy, discarded...");
-		nta_msg_discard(mAgent,msg);
-	}else{
-		buf=msg_as_string(&home, msg, NULL, 0,&msg_size);
-		LOGD("About to forward request to %s:\n%s",url_as_string(&home,dest),buf);
-		nta_msg_tsend (mAgent,msg,(url_string_t*)dest,TAG_END());
-	}
-	su_home_deinit(&home);
-	return 0;
-}
-
-int Agent::forwardResponse(msg_t *msg, sip_t *sip){
-	su_home_t home;
-	char *buf;
-	size_t msg_size;
-	
-	su_home_init(&home);
-
-	buf=msg_as_string(&home, msg, NULL, 0,&msg_size);
-	LOGD("About to forward response:\n%s",buf);
-	
-	nta_msg_tsend(mAgent,msg,(url_string_t*)NULL,TAG_END());
-
-	su_home_deinit(&home);
-	return 0;
-}
-
-int Agent::onRequest(msg_t *msg, sip_t *sip){
-	return forwardRequest (msg,sip);
-}
-
-int Agent::onResponse(msg_t *msg, sip_t *sip){
-	return forwardResponse (msg,sip);
 }
 
 int Agent::onIncomingMessage(msg_t *msg, sip_t *sip){
 	su_home_t home;
 	size_t msg_size;
 	char *buf;
-	int err;
+
 	su_home_init(&home);
 	buf=msg_as_string(&home, msg, NULL, 0,&msg_size);
 	LOGD("Receiving new SIP message:\n%s",buf);
 	if (sip->sip_request)
-		err=onRequest(msg,sip);
+		onRequest(msg,sip);
 	else{
-		err=onResponse(msg,sip);
+		onResponse(msg,sip);
 	}
 	su_home_deinit(&home);
-	return err;
+	return 0;
 }
 
 int Agent::messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip){
@@ -226,4 +159,5 @@ int Agent::messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t 
 }
 
 void Agent::idle(){
+	for_each(mModules.begin(),mModules.end(),mem_fun(&Module::onIdle));
 }

@@ -20,8 +20,8 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-
-#include "transcodeagent.hh"
+#include <mediastreamer2/mscommon.h>
+#include "agent.hh"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -218,7 +218,7 @@ int main(int argc, char *argv[]){
 
 	get_local_ip_for_with_connect (AF_INET,"87.98.157.38",localip);
 	
-	a=new TranscodeAgent(root,localip,port);
+	a=new Agent(root,localip,port);
 	a->loadConfig (ConfigManager::get());
 	do{
 		//su_root_run(root);
