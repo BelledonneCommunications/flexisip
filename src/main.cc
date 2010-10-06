@@ -26,7 +26,9 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <stdlib.h>
-
+#ifndef VERSION
+#define VERSION "DEVEL"
+#endif //VERSION
 #define IPADDR_SIZE 32
 
 static int get_local_ip_for_with_connect(int type, const char *dest, char *result){

@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <registrardb.hh>
+#include "registrardb.hh"
 
 #include <time.h>
 #include <cstdio>
