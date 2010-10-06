@@ -19,7 +19,7 @@
 #ifndef etchosts_hh
 #define etchosts_hh
 
-#include <common.hh>
+#include "common.hh"
 
 #include <map>
 #include <string>

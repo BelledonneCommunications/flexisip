@@ -22,6 +22,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <mediastreamer2/mscommon.h>
 
+#define payload_type_set_number(pt,n)	(pt)->user_data=(void*)((long)n);
+#define payload_type_get_number(pt)		((int)(long)(pt)->user_data)
+
 typedef enum {
 	SalTransportDatagram,
 	SalTransportStream
