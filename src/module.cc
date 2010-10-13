@@ -47,6 +47,7 @@ Module *ModuleFactory::createModuleInstance(Agent *ag, const std::string &modnam
 		ModuleInfoBase *i=*it;
 		m=i->create(ag);
 		m->setName(i->getModuleName());
+		LOGI("Creating module instance for [%s]",m->getModuleName().c_str());
 		return m;
 	}
 	LOGE("Could not find any registered module with name %s",modname.c_str());

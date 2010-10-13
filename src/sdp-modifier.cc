@@ -205,12 +205,14 @@ void SdpModifier::removeUnwantedPayloads(const MSList *tokeep){
 }
 
 void SdpModifier::getAudioIpPort(std::string *ip, int *port){
-	*ip=mSession->sdp_connection->c_address;
+	*ip=mSession->sdp_media->m_connections?mSession->sdp_media->m_connections->c_address:mSession->sdp_connection->c_address;
 	*port=mSession->sdp_media->m_port;
 }
 
 void SdpModifier::changeAudioIpPort(const char *ip, int port){
-	mSession->sdp_connection->c_address=su_strdup(mHome,ip);
+	mSession->sdp_media->m_connections
+			?mSession->sdp_media->m_connections->c_address=su_strdup(mHome,ip)
+			:mSession->sdp_connection->c_address=su_strdup(mHome,ip);
 	mSession->sdp_media->m_port=port;
 }
 

@@ -66,6 +66,10 @@ class Agent{
 		int getPort()const{
 			return mPort;
 		}
+		/**
+		 * return a network unique identifier for this Agent.
+		 */
+		const std::string& getUniqueId() const;
 		void idle();
 		bool isUs(const url_t *url)const;
 		nta_agent_t* getSofiaAgent()const{
@@ -78,9 +82,10 @@ class Agent{
 	private:
 		std::list<Module*> mModules;
 		std::list<std::string> mAliases;
-		std::string mLocAddr;
+		const std::string mLocAddr;
 		std::string mDomain;
-		int mPort;
+		const int mPort;
+		std::string mUniqueId;
 		nta_agent_t *mAgent;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);
 };

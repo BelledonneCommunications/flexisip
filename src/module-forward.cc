@@ -73,13 +73,29 @@ void ForwardModule::onRequest(SipEvent *ev){
 		LOGD("Found %s in /etc/hosts",dest->url_host);
 		dest->url_host=ip.c_str();
 	}
-	if (getAgent()->isUs(dest)){
-		LOGD("This message has final destination this proxy, discarded...");
-		nta_msg_discard(getSofiaAgent(),msg);
-	}else{
+
+	char contact_route_param[64];
+	// now need to check if request uri has special param inserted by contact-route-inserter module
+	if (url_param(dest->url_params,getAgent()->getUniqueId().c_str(),contact_route_param,sizeof(contact_route_param))) {
+		//first remove param
+		dest->url_params = url_strip_param_string(su_strdup(&home,dest->url_params),getAgent()->getUniqueId().c_str());
+		//test and remove maddr param
+		if (url_has_param(dest,"maddr")) {
+			dest->url_params = url_strip_param_string(su_strdup(&home,dest->url_params),"maddr");
+		}
+		//second change dest to
+		char* hostport_separator = strchr(contact_route_param, ':');
+		dest->url_host=su_strndup(&home, contact_route_param, (hostport_separator-contact_route_param) );
+		dest->url_port=su_strdup(&home, hostport_separator+1);
+	}
+
+	if (!getAgent()->isUs(dest)) {
 		buf=msg_as_string(&home, msg, NULL, 0,&msg_size);
 		LOGD("About to forward request to %s:\n%s",url_as_string(&home,dest),buf);
 		nta_msg_tsend (getSofiaAgent(),msg,(url_string_t*)dest,TAG_END());
+	}else{
+		LOGD("This message has final destination this proxy, discarded...");
+		nta_msg_discard(getSofiaAgent(),msg);
 	}
 	su_home_deinit(&home);
 }

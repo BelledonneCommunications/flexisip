@@ -68,6 +68,8 @@ class SipEvent{
 			mMsg=msg;
 			mSip=sip;
 			mStop=false;
+			su_home_init(&mHome);
+
 		}
 		msg_t *mMsg;
 		sip_t *mSip;
@@ -77,8 +79,15 @@ class SipEvent{
 		bool finished()const{
 			return mStop;
 		}
+		~SipEvent() {
+			su_home_deinit(&mHome);
+		}
+		su_home_t* getHome() {
+			return &mHome;
+		}
 	private:
 		bool mStop;
+		su_home_t mHome;
 };
 
 class Module {

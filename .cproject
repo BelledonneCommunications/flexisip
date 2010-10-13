@@ -24,8 +24,8 @@
 							<tool id="cdt.managedbuild.tool.macosx.c.linker.macosx.exe.debug.402241581" name="MacOS X C Linker" superClass="cdt.managedbuild.tool.macosx.c.linker.macosx.exe.debug"/>
 							<tool id="cdt.managedbuild.tool.macosx.cpp.linker.macosx.exe.debug.1138925625" name="MacOS X C++ Linker" superClass="cdt.managedbuild.tool.macosx.cpp.linker.macosx.exe.debug">
 								<option id="macosx.cpp.link.option.paths.940967224" name="Library search path (-L)" superClass="macosx.cpp.link.option.paths" valueType="libPaths">
-									<listOptionValue builtIn="false" value="/opt/local/lib"/>
 									<listOptionValue builtIn="false" value="&quot;${HOME}/opt/lib&quot;"/>
+									<listOptionValue builtIn="false" value="/opt/local/lib"/>
 								</option>
 								<option id="macosx.cpp.link.option.libs.1132847151" name="Libraries (-l)" superClass="macosx.cpp.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" value="ortp"/>
@@ -54,7 +54,7 @@
 									<listOptionValue builtIn="false" value="/opt/local/include/sofia-sip-1.12"/>
 									<listOptionValue builtIn="false" value="/opt/local/include"/>
 								</option>
-								<option id="gnu.cpp.compiler.option.preprocessor.def.459141537" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols"/>
+								<option id="gnu.cpp.compiler.option.preprocessor.def.459141537" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.543184242" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.c.compiler.macosx.exe.debug.1368756698" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.macosx.exe.debug">
@@ -65,7 +65,7 @@
 									<listOptionValue builtIn="false" value="/opt/local/include/sofia-sip-1.12"/>
 									<listOptionValue builtIn="false" value="/opt/local/include"/>
 								</option>
-								<option id="gnu.c.compiler.option.preprocessor.def.symbols.1499981244" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols"/>
+								<option id="gnu.c.compiler.option.preprocessor.def.symbols.1499981244" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols"/>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.2057592507" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
 						</toolChain>

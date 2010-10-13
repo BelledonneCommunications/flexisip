@@ -21,6 +21,7 @@
 
 #include "etchosts.hh"
 #include <algorithm>
+#include <sstream>
 
 using namespace::std;
 
@@ -74,6 +75,11 @@ bool Transaction::matches(sip_t *sip){
 
 Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr), mPort(port){
 	char sipuri[128]={0};
+	// compute a network wide unique id
+	std::ostringstream oss;
+	oss << locaddr << "_" << port;
+	mUniqueId = oss.str();
+
 	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i;transport=UDP",locaddr,port);
 	mAgent=nta_agent_create(root,
 		(url_string_t*)sipuri,
@@ -84,6 +90,7 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr)
 		LOGE("Could not create sofia mta.");
 	}
 	EtcHostsResolver::get();
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"ContactRouteInserter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Forward"));
 }
@@ -160,4 +167,7 @@ int Agent::messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t 
 
 void Agent::idle(){
 	for_each(mModules.begin(),mModules.end(),mem_fun(&Module::onIdle));
+}
+const std::string& Agent::getUniqueId() const{
+	return mUniqueId;
 }
