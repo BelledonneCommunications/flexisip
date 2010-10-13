@@ -12,8 +12,10 @@ flexisip_SOURCES=main.cc \
 			configmanager.cc configmanager.hh\
 			module.cc module.hh \
 			module-forward.cc \
-			module-transcode.cc
+			module-transcode.cc \
+			module-contact-route-inserter.cc
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS)
+AM_CFLAGS=$(MEDIASTREAMER_CFLAGS)
 
 AM_LDFLAGS=$(SOFIA_LIBS) $(MEDIASTREAMER_LIBS)
