@@ -101,7 +101,7 @@ static sdp_rtpmap_t *sdp_rtpmap_append(sdp_rtpmap_t *rtpmaps, sdp_rtpmap_t *newm
 static sdp_rtpmap_t *sdp_rtpmaps_find_by_number(sdp_rtpmap_t *rtpmaps, int number){
 	sdp_rtpmap_t *elem;
 	for(elem=rtpmaps;elem!=NULL;elem=elem->rm_next){
-		if (elem->rm_pt==number)
+		if (elem->rm_pt==(unsigned int)number)
 			return elem;
 	}
 	return NULL;

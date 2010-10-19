@@ -217,6 +217,7 @@ int main(int argc, char *argv[]){
 	if (!debug) debug=cfg->getArea(ConfigManager::sGlobalArea).get("debug",false);
 
 	signal(SIGTERM,flexisip_stop);
+	signal(SIGINT,flexisip_stop);
 	signal(SIGUSR1,flexisip_stat);
 	
 	ortp_init();

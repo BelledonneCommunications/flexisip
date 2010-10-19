@@ -42,7 +42,8 @@ class ModuleInfoBase {
 		const std::string &getModuleName()const{
 			return mName;
 		}
-		
+		virtual ~ModuleInfoBase(){
+		}
 	protected:
 		ModuleInfoBase(const char *modname) : mName(modname){
 			ModuleFactory::get()->registerModule(this);

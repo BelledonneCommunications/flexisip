@@ -85,7 +85,7 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr)
 		(url_string_t*)sipuri,
 			&Agent::messageCallback,
 			(nta_agent_magic_t*)this,
-			NULL,NULL);
+			TAG_END());
 	if (mAgent==NULL){
 		LOGE("Could not create sofia mta.");
 	}
@@ -101,7 +101,7 @@ Agent::~Agent(){
 }
 
 void Agent::loadConfig(ConfigManager *cm){
-	mAliases=cm->getArea("global").get("aliases",list<string>());
+	mAliases=cm->getArea(ConfigManager::sGlobalArea).get("aliases",list<string>());
 	LOGD("List of host aliases:");
 	for(list<string>::iterator it=mAliases.begin();it!=mAliases.end();++it){
 		LOGD("%s",(*it).c_str());

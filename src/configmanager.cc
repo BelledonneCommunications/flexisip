@@ -60,7 +60,7 @@ ConfigManager *ConfigManager::get(){
 }
 
 ConfigManager::ConfigManager(){
-	mConf=lp_config_new("/etc/flexisip.conf");
+	mConf=lp_config_new("/etc/flexisip/flexisip.conf");
 }
 
 ConfigArea ConfigManager::getArea(const char *name){
