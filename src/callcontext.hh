@@ -44,6 +44,7 @@ class CallSide{
 		bool isActive(time_t cur);
 	private:
 		static void payloadTypeChanged(RtpSession *s, unsigned long data);
+		static void onTelephoneEvent(RtpSession *s, int dtmf, void * user_data);
 		RtpSession *mSession;
 		RtpProfile *mProfile;
 		PayloadType *getSendFormat();
@@ -73,10 +74,12 @@ class CallContext : public CallContextBase{
 			return mBackSide;
 		}
 		void playTone(sip_t *info);
+		void playTone(CallSide *origin, int dtmf);
 		~CallContext();
 		void dump();
 		virtual bool isInactive(time_t);
 	private:
+		CallSide *getOther(CallSide *cs);
 		MSTicker *mTicker;
 		CallSide *mFrontSide;
 		CallSide *mBackSide;

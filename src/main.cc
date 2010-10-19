@@ -26,10 +26,15 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <stdlib.h>
+#include <signal.h>
+
 #ifndef VERSION
 #define VERSION "DEVEL"
 #endif //VERSION
 #define IPADDR_SIZE 32
+
+static int run=1;
+static su_root_t *root=NULL;
 
 static int get_local_ip_for_with_connect(int type, const char *dest, char *result){
 	int err,tmp;
@@ -91,6 +96,16 @@ static void usage(const char *arg0){
 	       "\t\t [--daemon]\n"
 	       "\t\t [--help]\n",arg0);
 	exit(-1);
+}
+
+static void flexisip_stop(int signum){
+	run=0;
+	if (root){
+		su_root_break (root);
+	}
+}
+
+static void flexisip_stat(int signum){
 }
 
 static void syslogHandler(OrtpLogLevel log_level, const char *str, va_list l){
@@ -198,7 +213,11 @@ int main(int argc, char *argv[]){
 	ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR);
 	LOGN("Starting version %s", VERSION);
 
-	
+	ConfigManager *cfg=ConfigManager::get();
+	if (!debug) debug=cfg->getArea(ConfigManager::sGlobalArea).get("debug",false);
+
+	signal(SIGTERM,flexisip_stop);
+	signal(SIGUSR1,flexisip_stat);
 	
 	ortp_init();
 	ortp_set_log_file(stdout);
@@ -216,19 +235,19 @@ int main(int argc, char *argv[]){
 	}
 	
 	su_init();
-	su_root_t *root=su_root_create(NULL);
+	root=su_root_create(NULL);
 
 	get_local_ip_for_with_connect (AF_INET,"87.98.157.38",localip);
 	
 	a=new Agent(root,localip,port);
-	a->loadConfig (ConfigManager::get());
+	a->loadConfig (cfg);
 	do{
 		//su_root_run(root);
 		su_root_sleep(root,5000);
 		a->idle();
-	}while(1);
+	}while(run);
 	delete a;
     su_root_destroy(root);
-	
+	return 0;
 }
 

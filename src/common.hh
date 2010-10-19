@@ -29,6 +29,7 @@
 #define LOGI ortp_message
 #define LOGW ortp_warning
 #define LOGE ortp_error
+#define LOGF ortp_fatal
 #define LOGN ortp_message
 
 #endif

@@ -50,6 +50,7 @@ std::list<std::string> ConfigArea::get(const char *key, const std::list<std::str
 }
 
 
+const char *ConfigManager::sGlobalArea="global";
 ConfigManager *ConfigManager::sInstance=0;
 
 ConfigManager *ConfigManager::get(){

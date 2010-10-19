@@ -1,0 +1,71 @@
+# -*- rpm-spec -*-
+# 
+# flexisip - SIP proxy with media capabilities
+# 
+
+Summary:	SIP proxy with media capabilities
+Name:		flexisip
+Version:	@PACKAGE_VERSION@
+Release:	1
+License:	AGPL
+Group:		Applications/Communications
+URL:		http://www.belledonne-communications.com
+Source0:	%{name}-@PACKAGE_VERSION@.tar.gz
+BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
+%ifarch %ix86
+BuildArch:	i686
+%endif
+Requires: bash >= 2.0
+Requires(post): /sbin/chkconfig coreutils
+Requires(preun): /sbin/chkconfig /sbin/chkconfig
+Requires(postun): /sbin/service
+
+%description
+Extensible SIP proxy with media capabilities. Designed for robustness and easy of use.
+
+%prep
+%setup -q
+
+%build
+%configure 
+%{__make} 
+
+# parallel build disabled due to automake libtool random errors
+#%{__make} -j$RPM_BUILD_NCPUS 
+
+%install
+rm -rf $RPM_BUILD_ROOT
+%makeinstall
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%post
+if [ $1 = 1 ]; then
+	/sbin/chkconfig --add flexisip
+	/sbin/chkconfig flexisip on
+	service flexisip start
+fi
+
+%preun
+if [ $1 = 0 ]; then
+	service flexisip stop >/dev/null 2>&1 ||:
+	/sbin/chkconfig --del flexisip
+fi
+
+%postun
+if [ "$1" -ge "1" ]; then
+	service flexisip condrestart > /dev/null 2>&1 ||:
+fi	
+
+%files
+%defattr(-,root,root,-)
+%doc AUTHORS COPYING ChangeLog INSTALL NEWS README
+%{_bindir}/*
+/etc/init.d/flexisip
+/etc/flexisip
+
+%changelog
+* Tue Oct 19 2010 Simon Morlat <simon.morlat@belledonne-communications.com>
+	- Initial specfile for first prototype release
+

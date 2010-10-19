@@ -45,6 +45,7 @@ class ConfigManager{
 	public:
 		static ConfigManager *get();
 		ConfigArea getArea(const char *name);
+		static const char *sGlobalArea;
 	private:
 		ConfigManager();
 		bool get(const char *area, const char *key, std::string *result);

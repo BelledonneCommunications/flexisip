@@ -42,6 +42,7 @@ CallSide::CallSide(CallContext *ctx){
 	rtp_session_set_data(mSession,this);
 	rtp_session_signal_connect(mSession,"payload_type_changed",(RtpCallback)&CallSide::payloadTypeChanged,
 	                           reinterpret_cast<long>(ctx));
+	rtp_session_signal_connect(mSession,"telephone-event",(RtpCallback)&CallSide::onTelephoneEvent,reinterpret_cast<long>(ctx));
 	mLastCheck=0;
 	mLastRecvCount=0;
 }
@@ -186,10 +187,24 @@ void CallSide::disconnect(CallSide *recvSide){
 	ms_connection_helper_unlink(&h,mSender,0,-1);
 }
 
-void CallSide::payloadTypeChanged(RtpSession *s, unsigned long data){
+void CallSide::payloadTypeChanged(RtpSession *session, unsigned long data){
+	CallContext *ctx=reinterpret_cast<CallContext*>(data);
+	CallSide *side=static_cast<CallSide*>(rtp_session_get_data(session));
+	int num=rtp_session_get_recv_payload_type(session);
+	RtpProfile *prof=rtp_session_get_profile(session);
+	PayloadType *pt=rtp_profile_get_payload(prof,num);
+	if (pt!=NULL){
+		ctx->redraw(side);
+	}else{
+		LOGW("Receiving unknown payload type %i",num);
+	}
+}
+
+void CallSide::onTelephoneEvent(RtpSession *s, int dtmf, void * data){
 	CallContext *ctx=reinterpret_cast<CallContext*>(data);
 	CallSide *side=static_cast<CallSide*>(rtp_session_get_data(s));
-	ctx->redraw(side);
+	LOGD("Receiving telephone event %c",dtmf);
+	ctx->playTone(side,dtmf);
 }
 
 void CallSide::playTone(int tone_name){
@@ -201,6 +216,7 @@ void CallSide::playTone(int tone_name){
 		}
 	}
 }
+
 
 CallContext::CallContext(sip_t *sip) : CallContextBase(sip), mFrontSide(0), mBackSide(0){
 	mInitialOffer=NULL;
@@ -291,6 +307,21 @@ void CallContext::playTone(sip_t *info){
 			}
 		}
 	}
+}
+
+CallSide *CallContext::getOther(CallSide *cs){
+	if (cs==mBackSide)
+		return mFrontSide;
+	else if (cs==mFrontSide)
+		return mBackSide;
+	else{
+		LOGF("Big problem.");
+		return NULL;
+	}
+}
+
+void CallContext::playTone(CallSide *origin, int dtmf){
+	getOther(origin)->playTone (dtmf);
 }
 
 CallContext::~CallContext(){
