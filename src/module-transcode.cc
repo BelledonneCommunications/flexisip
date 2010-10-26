@@ -46,7 +46,8 @@ static MSList *makeSupportedAudioPayloadList(){
 	/* in mediastreamer2, we use normal_bitrate as an IP bitrate, not codec bitrate*/
 	payload_type_speex_nb.normal_bitrate=32000;
 	payload_type_speex_wb.normal_bitrate=42000;
-	payload_type_speex_nb.recv_fmtp=(char *)"vbr=on";
+	payload_type_speex_nb.recv_fmtp=ms_strdup("vbr=on");
+	payload_type_amr.recv_fmtp=ms_strdup("octet-align=1");
 	
 	payload_type_set_number(&payload_type_pcmu8000,0);
 	payload_type_set_number(&payload_type_pcma8000,8);
@@ -213,7 +214,7 @@ void TranscodeModule::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t 
 		delete m;
 		return;
 	}
-	MSList *common=SdpModifier::findCommon (ioffer,mSupportedAudioPayloads);
+	MSList *common=SdpModifier::findCommon (ioffer,mSupportedAudioPayloads, true);
 	if (common!=NULL){
 		m->appendNewPayloadsAndRemoveUnsupported(common);
 		ms_list_for_each(common,(void(*)(void*))payload_type_destroy);

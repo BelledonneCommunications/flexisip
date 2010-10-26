@@ -117,7 +117,7 @@ MSList *SdpModifier::readPayloads(){
 	return ret;
 }
 
-MSList *SdpModifier::findCommon(const MSList *offer, const MSList *answer){
+MSList *SdpModifier::findCommon(const MSList *offer, const MSList *answer, bool use_offer_numbering){
 	MSList *ret=NULL;
 	const MSList *e1,*e2;
 	for (e1=offer;e1!=NULL;e1=e1->next){
@@ -127,7 +127,10 @@ MSList *SdpModifier::findCommon(const MSList *offer, const MSList *answer){
 			if (strcasecmp(pt1->mime_type,pt2->mime_type)==0
 			    && pt1->clock_rate==pt2->clock_rate ){
 				PayloadType *found=payload_type_clone(pt2);
-				payload_type_set_number(found,payload_type_get_number(pt2));
+				if (use_offer_numbering)
+					payload_type_set_number(found,payload_type_get_number(pt1));
+				else
+					payload_type_set_number(found,payload_type_get_number(pt2));
 				ret=ms_list_append(ret,found);
 			}
 		}

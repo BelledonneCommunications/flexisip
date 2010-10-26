@@ -43,7 +43,7 @@ class SdpModifier{
 		void update(msg_t *msg, sip_t *sip);
 		~SdpModifier();
 		SdpModifier(su_home_t *home);
-		static MSList *findCommon(const MSList *offer, const MSList *answer);
+		static MSList *findCommon(const MSList *offer, const MSList *answer, bool use_offer_numbering);
 	private:
 		sdp_parser_t *mParser;
 		sip_t *mSip;
