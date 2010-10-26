@@ -12,6 +12,12 @@ AM_INIT_AUTOMAKE
 AC_PROG_CC
 AC_PROG_CXX
 
+if test -f /etc/debian_version ; then
+	use_deb=true;
+else
+	use_rpm=true;
+fi
+
 CFLAGS="-g -O2"
 CXXFLAGS="-g -O2"
 
@@ -30,6 +36,9 @@ AC_HEADER_STDBOOL
 PKG_CHECK_MODULES(SOFIA,[sofia-sip-ua >= 1.12.10])
 PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
 # Checks for library functions.
+
+AM_CONDITIONAL(USE_DEB,test x$use_deb = xtrue)
+AM_CONDITIONAL(USE_RPM,test x$use_rpm = xtrue)
 
 AC_CONFIG_FILES(
 [
