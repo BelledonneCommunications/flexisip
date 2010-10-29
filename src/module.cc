@@ -109,13 +109,14 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, sip_t *sip){
 	if (sip->sip_record_route==NULL){
 		sip->sip_record_route=rr;
 	}else{
-		sip_record_route_t *it;
-		for(it=sip->sip_record_route;it->r_next!=NULL;it=it->r_next){
+		sip_record_route_t *it,*last_it=NULL;	
+		for(it=sip->sip_record_route;it!=NULL;it=it->r_next){
 			/*make sure we are not already in*/
 			if (strcmp(it->r_url->url_host,ag->getLocAddr().c_str())==0 
 			    && sipPortToInt(it->r_url->url_port)==ag->getPort())
 				return;
+			last_it=it;
 		}
-		it->r_next=rr;
+		last_it->r_next=rr;
 	}
 }
