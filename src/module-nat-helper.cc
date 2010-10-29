@@ -34,12 +34,16 @@ class NatHelper : public Module, protected ModuleToolbox{
 			}
 		}
 		void onResponse(SipEvent *ev){
-			sip_via_t *via,*lastvia=NULL;
-			for(via=ev->mSip->sip_via;via!=NULL;via=via->v_next){
-				lastvia=via;
+			sip_cseq_t *cseq=ev->mSip->sip_cseq;
+			// fix contact for answers to INVITE and SUBSCRIBES
+			if (cseq->cs_method==sip_method_invite || cseq->cs_method==sip_method_subscribe){
+				sip_via_t *via,*lastvia=NULL;
+				for(via=ev->mSip->sip_via;via!=NULL;via=via->v_next){
+					lastvia=via;
+				}
+				if (lastvia)
+					fixContactFromVia(ev->getHome(),ev->mSip,lastvia);
 			}
-			if (lastvia)
-				fixContactFromVia(ev->getHome(),ev->mSip,lastvia);
 		}
 	private:
 		bool empty(const char *value){
