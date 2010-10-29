@@ -115,9 +115,10 @@ class Module {
 
 class ModuleToolbox{
 	public:
-		void addRecordRoute(su_home_t *home, Agent *ag, sip_t *sip);
-		bool sipPortEquals(const char *p1, const char *p2);
-		int sipPortToInt(const char *port);
+		static void addRecordRoute(su_home_t *home, Agent *ag, sip_t *sip);
+		static bool sipPortEquals(const char *p1, const char *p2);
+		static int sipPortToInt(const char *port);
+		static bool fromMatch(const sip_from_t *from1, const sip_from_t *from2);
 };
 
 #endif

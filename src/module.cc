@@ -120,3 +120,12 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, sip_t *sip){
 		last_it->r_next=rr;
 	}
 }
+
+bool ModuleToolbox::fromMatch(const sip_from_t *from1, const sip_from_t *from2){
+	if (url_cmp(from1->a_url,from2->a_url)==0){
+		if (from1->a_tag && from2->a_tag && strcmp(from1->a_tag,from2->a_tag)==0)
+			return true;
+		if (from1->a_tag==NULL && from2->a_tag==NULL) return true;
+	}
+	return false;
+}
