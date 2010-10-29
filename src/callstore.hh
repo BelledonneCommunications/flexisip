@@ -44,6 +44,7 @@ class CallContextBase{
 		virtual ~CallContextBase();
 	private:
 		su_home_t mHome;
+		sip_from_t *mFrom;
 		msg_t *mInvite;
 		msg_t *mResponse;
 		uint32_t mCallHash;

@@ -20,7 +20,7 @@
 #include "callcontext.hh"
 #include "sdp-modifier.hh"
 
-class TranscodeModule : public Module {
+class TranscodeModule : public Module, protected ModuleToolbox {
 	public:
 		TranscodeModule(Agent *ag);
 		~TranscodeModule();
@@ -28,7 +28,6 @@ class TranscodeModule : public Module {
 		virtual void onResponse(SipEvent *ev);
 		virtual void onIdle();
 	private:
-		void addRecordRoute(su_home_t *home, msg_t *msg, sip_t *sip);
 		void processNewInvite(CallContext *c, msg_t *msg, sip_t *sip);
 		void process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip);
 		bool processSipInfo(CallContext *c, msg_t *msg, sip_t *sip);
@@ -117,18 +116,6 @@ MSList *TranscodeModule::normalizePayloads(MSList *l){
 	return l;
 }
 
-void TranscodeModule::addRecordRoute(su_home_t *home, msg_t *msg, sip_t *sip){
-	sip_record_route_t *rr=sip_record_route_format(home,"<sip:%s:%i;lr>",getAgent()->getLocAddr().c_str(),getAgent()->getPort());
-	if (sip->sip_record_route==NULL){
-		sip->sip_record_route=rr;
-	}else{
-		sip_record_route_t *it;
-		for(it=sip->sip_record_route;it->r_next!=NULL;it=it->r_next){
-		}
-		it->r_next=rr;
-	}
-}
-
 void TranscodeModule::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 	std::string addr;
 	int port;
@@ -143,7 +130,7 @@ void TranscodeModule::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 		m->appendNewPayloadsAndRemoveUnsupported(mSupportedAudioPayloads);
 		m->update(msg,sip);
 		//be in the record-route
-		addRecordRoute(c->getHome(),msg,sip);
+		addRecordRoute(c->getHome(),getAgent(),sip);
 		c->storeNewInvite (msg);
 		delete m;
 	}

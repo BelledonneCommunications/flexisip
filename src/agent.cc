@@ -90,6 +90,7 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr)
 		LOGE("Could not create sofia mta.");
 	}
 	EtcHostsResolver::get();
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"NatHelper"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"ContactRouteInserter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Forward"));

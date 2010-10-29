@@ -88,3 +88,34 @@ const std::string &Module::getModuleName(){
 void Module::setName(const std::string &name){
 	mName=name;
 }
+
+bool ModuleToolbox::sipPortEquals(const char *p1, const char *p2){
+	int n1,n2;
+	n1=n2=5060;
+	if (p1 && p1[0]!='\0')
+		n1=atoi(p1);
+	if (p2 && p2[0]!='\0')
+		n2=atoi(p2);
+	return n1==n2;
+}
+
+int ModuleToolbox::sipPortToInt(const char *port){
+	if (port==NULL || port[0]=='\0') return 5060;
+	else return atoi(port);
+}
+
+void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, sip_t *sip){
+	sip_record_route_t *rr=sip_record_route_format(home,"<sip:%s:%i;lr>",ag->getLocAddr().c_str(),ag->getPort());
+	if (sip->sip_record_route==NULL){
+		sip->sip_record_route=rr;
+	}else{
+		sip_record_route_t *it;
+		for(it=sip->sip_record_route;it->r_next!=NULL;it=it->r_next){
+			/*make sure we are not already in*/
+			if (strcmp(it->r_url->url_host,ag->getLocAddr().c_str())==0 
+			    && sipPortToInt(it->r_url->url_port)==ag->getPort())
+				return;
+		}
+		it->r_next=rr;
+	}
+}

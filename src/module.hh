@@ -113,4 +113,11 @@ class Module {
 		bool mEnabled;
 };
 
+class ModuleToolbox{
+	public:
+		void addRecordRoute(su_home_t *home, Agent *ag, sip_t *sip);
+		bool sipPortEquals(const char *p1, const char *p2);
+		int sipPortToInt(const char *port);
+};
+
 #endif
