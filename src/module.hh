@@ -69,8 +69,8 @@ class SipEvent{
 			mMsg=msg;
 			mSip=sip;
 			mStop=false;
-			su_home_init(&mHome);
-
+			/* apparently msg_t "inherits" from su_home_t*/
+			mHome=(su_home_t*)su_home_clone((su_home_t*)msg,sizeof(su_home_t));
 		}
 		msg_t *mMsg;
 		sip_t *mSip;
@@ -81,14 +81,14 @@ class SipEvent{
 			return mStop;
 		}
 		~SipEvent() {
-			su_home_deinit(&mHome);
+			su_home_unref(mHome);
 		}
 		su_home_t* getHome() {
-			return &mHome;
+			return mHome;
 		}
 	private:
 		bool mStop;
-		su_home_t mHome;
+		su_home_t *mHome;
 };
 
 class Module {
