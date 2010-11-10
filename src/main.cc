@@ -28,6 +28,8 @@
 #include <stdlib.h>
 #include <signal.h>
 
+#include <sofia-sip/su_log.h>
+
 #ifndef VERSION
 #define VERSION "DEVEL"
 #endif //VERSION
@@ -134,7 +136,14 @@ static void syslogHandler(OrtpLogLevel log_level, const char *str, va_list l){
 			syslev=LOG_ERR;
 	}
 	vsyslog(syslev,str,l);
-	va_end(l);
+}
+
+static void sofiaLogHandler(void *, char const *fmt, va_list ap){
+	vsyslog(LOG_INFO,fmt,ap);
+}
+
+static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *a){
+	a->idle();
 }
 
 int main(int argc, char *argv[]){
@@ -236,17 +245,18 @@ int main(int argc, char *argv[]){
 	}
 	
 	su_init();
+	su_log_redirect(NULL,sofiaLogHandler,NULL);
 	root=su_root_create(NULL);
 
 	get_local_ip_for_with_connect (AF_INET,"87.98.157.38",localip);
 	
 	a=new Agent(root,localip,port);
 	a->loadConfig (cfg);
-	do{
-		//su_root_run(root);
-		su_root_sleep(root,5000);
-		a->idle();
-	}while(run);
+
+	su_timer_t *timer=su_timer_create(su_root_task(root),5000);
+	su_timer_run(timer,(su_timer_f)timerfunc,a);
+	su_root_run(root);	
+	su_timer_destroy(timer);
 	delete a;
     su_root_destroy(root);
 	return 0;
