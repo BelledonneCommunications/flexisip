@@ -25,54 +25,6 @@
 
 using namespace::std;
 
-Transaction::Transaction(sip_t *request){
-	su_home_init(&mHome);
-	mFrom=sip_from_dup(&mHome,request->sip_from);
-	mTo=sip_from_dup(&mHome,request->sip_to);
-	mCseq=sip_cseq_dup(&mHome,request->sip_cseq);
-	mUser=NULL;
-}
-
-Transaction::~Transaction(){
-	su_home_deinit (&mHome);
-}
-
-void Transaction::setUserPointer(void *up){
-	mUser=up;
-}
-
-void *Transaction::getUserPointer()const{
-	return mUser;
-}
-
-static bool from_match(sip_from_t *f1, sip_from_t *f2){
-	char a1[128];
-	char a2[128];
-	sip_from_e(a1,sizeof(a1)-1,(msg_header_t*)f1,0);
-	sip_from_e(a2,sizeof(a2)-1,(msg_header_t*)f2,0);
-	LOGD("Comparing %s and %s",a1,a2);
-	return sip_addr_match(f1,f2)==0;
-}
-
-static bool to_match(sip_to_t *f1, sip_to_t *f2){
-	char a1[128];
-	char a2[128];
-	sip_to_e(a1,sizeof(a1)-1,(msg_header_t*)f1,0);
-	sip_to_e(a2,sizeof(a2)-1,(msg_header_t*)f2,0);
-	LOGD("Comparing %s and %s",a1,a2);
-	return sip_addr_match(f1,f2)==0;
-}
-
-bool Transaction::matches(sip_t *sip){
-	sip_from_t *from=sip->sip_from;
-	sip_from_t *to=sip->sip_to;
-	sip_cseq_t *cseq=sip->sip_cseq;
-	return 
-		from_match(mFrom,from) && to_match(mTo,to) 
-		&& mCseq->cs_seq==cseq->cs_seq && mCseq->cs_method==cseq->cs_method;
-}
-
-
 Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr), mPort(port){
 	char sipuri[128]={0};
 	// compute a network wide unique id
@@ -91,6 +43,7 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr)
 	}
 	EtcHostsResolver::get();
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"NatHelper"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Registrar"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"ContactRouteInserter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Forward"));
@@ -107,6 +60,9 @@ void Agent::loadConfig(ConfigManager *cm){
 	for(list<string>::iterator it=mAliases.begin();it!=mAliases.end();++it){
 		LOGD("%s",(*it).c_str());
 	}
+	list<Module*>::iterator it;
+	for(it=mModules.begin();it!=mModules.end();++it)
+		(*it)->onLoad(this);
 }
 
 void Agent::setDomain(const std::string &domain){

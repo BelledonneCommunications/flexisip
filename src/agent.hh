@@ -36,23 +36,7 @@
 #include "configmanager.hh"
 #include "module.hh"
 
-class Transaction{
-	public:
-		Transaction(sip_t *request);
-		~Transaction();
-		bool matches(sip_t *sip);
-		void setUserPointer(void *up);
-		void *getUserPointer()const;
-		su_home_t *getHome(){
-			return &mHome;
-		}
-	private:
-		su_home_t mHome;
-		sip_from_t *mFrom;
-		sip_from_t *mTo;
-		sip_cseq_t *mCseq;
-		void *mUser;
-};
+
 
 class Agent{
 	public:

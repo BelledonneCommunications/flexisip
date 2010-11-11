@@ -43,11 +43,13 @@ class Record{
 
 class RegistrarDb{
 	public:
-		RegistrarDb();
-		void addRecord(const sip_from_t *from, const sip_contact_t *contact, time_t expireTime);
-		const sip_contact_t* retrieve(const sip_from_t *from);
+		static RegistrarDb *get();
+		void addRecord(const sip_from_t *from, const sip_contact_t *contact, int expires);
+		const sip_contact_t* retrieveMostRecent(const sip_from_t *from);
 	private:
+		RegistrarDb();
 		std::map<std::string,Record*> mRecords;
+		static RegistrarDb *sUnique;
 };
 
 #endif

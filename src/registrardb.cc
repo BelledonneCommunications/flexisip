@@ -29,8 +29,8 @@ using namespace::std;
 Record::Record(const sip_from_t *from, const sip_contact_t *contact, time_t expireTime){
 	su_home_init(&mHome);
 	mExpireTime=expireTime;
-	mFrom=sip_from_copy (&mHome,from);
-	mContact=sip_contact_copy(&mHome,contact);
+	mFrom=sip_from_dup(&mHome,from);
+	mContact=sip_contact_dup(&mHome,contact);
 }
 
 Record::~Record(){
@@ -40,19 +40,19 @@ Record::~Record(){
 RegistrarDb::RegistrarDb(){
 }
 
-void RegistrarDb::addRecord(const sip_from_t *from, const sip_contact_t *contact, time_t expireTime){
+void RegistrarDb::addRecord(const sip_from_t *from, const sip_contact_t *contact, int expires){
 	char tmp[128]={0};
-	
+	time_t expireTime=time(NULL)+expires;
 	snprintf(tmp,sizeof(tmp)-1,"%s@%s",from->a_url->url_user,from->a_url->url_host);
 	Record * &ref_record=mRecords[tmp];
 	if (ref_record!=NULL){
 		delete ref_record;
 	}
-	ref_record=new Record(from,contact,expireTime);
-	
+	if (expires>0)
+		ref_record=new Record(from,contact,expireTime);
 }
 
-const sip_contact_t* RegistrarDb::retrieve(const sip_from_t *from){
+const sip_contact_t* RegistrarDb::retrieveMostRecent(const sip_from_t *from){
 	map<string,Record*>::iterator it;
 
 	char tmp[128]={0};
@@ -72,3 +72,10 @@ const sip_contact_t* RegistrarDb::retrieve(const sip_from_t *from){
 	return NULL;
 }
 
+RegistrarDb *RegistrarDb::sUnique=NULL;
+
+RegistrarDb *RegistrarDb::get(){
+	if (sUnique==NULL)
+		sUnique=new RegistrarDb ();
+	return sUnique;
+}

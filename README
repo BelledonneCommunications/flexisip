@@ -1,2 +1,20 @@
 Flexisip is general purpose SIP proxy with media capabilities.
 It is released under the AGPL v3. Please understand the terms of AGPL in COPYING before deploying it.
+
+
+
+
+
+
+Developer notes:
+---------------------
+
+With sofia-sip, you have the choice between msg_dup and msg_copy,
+sip_from_dup and sip_from_copy etc...
+The difference isn't well documented in sofia-sip documentation.
+However it is important to understand that
+*_copy() just makes a copy of the structure, not the strings pointed by it
+*_dup() makes a copy of structure plus all included strings inside.
+
+*_copy() versions can be thus dangerous. Use *_dup() in doubt.
+

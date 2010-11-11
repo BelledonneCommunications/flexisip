@@ -14,7 +14,8 @@ flexisip_SOURCES=main.cc \
 			module-forward.cc \
 			module-transcode.cc \
 			module-contact-route-inserter.cc \
-			module-nat-helper.cc
+			module-nat-helper.cc \
+			module-registrar.cc
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS)
 AM_CFLAGS=$(MEDIASTREAMER_CFLAGS)
