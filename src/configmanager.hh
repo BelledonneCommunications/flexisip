@@ -57,15 +57,15 @@ class ConfigArea{
 	friend class ConfigManager;
 	public:
 		template< typename _type_>
-		_type_ get(const char *key, _type_ default_value){
+		_type_ get(const char *key, _type_ default_value)const{
 			std::string result;
 			if (mManager->get(mArea.c_str(),key,&result)){
 				return result;
 			}
 			return default_value;
 		}
-		bool get(const char *key, bool default_value);
-		std::list<std::string> get(const char *key, const std::list<std::string> &default_value);
+		bool get(const char *key, bool default_value)const ;
+		std::list<std::string> get(const char *key, const std::list<std::string> &default_value)const;
 	private:
 		ConfigArea(ConfigManager *m, const char *area);
 		const std::string mArea;

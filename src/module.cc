@@ -17,6 +17,7 @@
 */
 
 #include "agent.hh"
+#include "entryfilter.hh"
 
 #include <algorithm>
 using namespace::std;
@@ -59,7 +60,8 @@ void ModuleFactory::registerModule(ModuleInfoBase *m){
 	mModules.push_back(m);
 }
 
-Module::Module(Agent *ag ) : mAgent(ag), mEnabled(true){
+Module::Module(Agent *ag ) : mAgent(ag){
+	mFilter=new ConfigEntryFilter();
 }
 
 Module::~Module(){
@@ -73,12 +75,29 @@ nta_agent_t *Module::getSofiaAgent()const{
 	return mAgent->getSofiaAgent();
 }
 
-void Module::enable(bool enabled){
-	mEnabled=enabled;
+void Module::load(Agent *agent){
+	string configName=string("module::"+getModuleName());
+	const ConfigArea &module_config=ConfigManager::get()->getArea(configName.c_str());
+	mFilter->loadConfig(module_config);
+	onLoad(agent,module_config);
 }
 
-bool Module::isEnabled()const{
-	return mEnabled;
+void Module::processRequest(SipEvent *ev){
+	if (mFilter->canEnter(ev->mSip)){
+		LOGD("Invoking onRequest() on module %s",getModuleName().c_str());
+		onRequest(ev);
+	}
+}
+
+void Module::processResponse(SipEvent *ev){
+	if (mFilter->canEnter(ev->mSip)){
+		LOGD("Invoking onResponse() on module %s",getModuleName().c_str());
+		onResponse(ev);
+	}
+}
+
+void Module::idle(){
+	onIdle();
 }
 
 const std::string &Module::getModuleName(){
@@ -126,6 +145,21 @@ bool ModuleToolbox::fromMatch(const sip_from_t *from1, const sip_from_t *from2){
 		if (from1->a_tag && from2->a_tag && strcmp(from1->a_tag,from2->a_tag)==0)
 			return true;
 		if (from1->a_tag==NULL && from2->a_tag==NULL) return true;
+	}
+	return false;
+}
+
+bool ModuleToolbox::matchesOneOf(const char *item, const std::list<std::string> &set){
+	list<string>::const_iterator it;
+	for(it=set.begin();it!=set.end();++it){
+		const char *tmp=(*it).c_str();
+		if (tmp[0]=='*'){
+			/*the wildcard matches everything*/
+			return true;
+		}else{
+			if (strcmp(item,tmp)==0)
+				return true;
+		}
 	}
 	return false;
 }

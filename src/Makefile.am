@@ -11,6 +11,7 @@ flexisip_SOURCES=main.cc \
 			lpconfig.c lpconfig.h \
 			configmanager.cc configmanager.hh\
 			module.cc module.hh \
+			entryfilter.cc entryfilter.hh \
 			module-forward.cc \
 			module-transcode.cc \
 			module-contact-route-inserter.cc \

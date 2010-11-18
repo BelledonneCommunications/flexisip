@@ -63,6 +63,7 @@ class ModuleInfo : public ModuleInfoBase{
 		}
 };
 
+
 class SipEvent{
 	public:
 		SipEvent(msg_t *msg, sip_t *sip){
@@ -92,6 +93,8 @@ class SipEvent{
 		su_home_t *mHome;
 };
 
+class EntryFilter;
+
 class Module {
 	public:
 		Module(Agent *);
@@ -100,18 +103,21 @@ class Module {
 		nta_agent_t *getSofiaAgent()const;
 		const std::string &getModuleName();
 		void setName(const std::string &name);
-		virtual void onLoad(Agent *agent){
+		void load(Agent *agent);
+		void processRequest(SipEvent *ev);
+		void processResponse(SipEvent *ev);
+		void idle();
+	protected:
+		virtual void onLoad(Agent *agent, const ConfigArea & module_config){
 		}
 		virtual void onRequest(SipEvent *ev)=0;
 		virtual void onResponse(SipEvent *ev)=0;
 		virtual void onIdle(){
 		}
-		void enable(bool enabled);
-		bool isEnabled() const;
 	private:
 		std::string mName;
 		Agent *mAgent;
-		bool mEnabled;
+		EntryFilter *mFilter;
 };
 
 class ModuleToolbox{
@@ -120,6 +126,7 @@ class ModuleToolbox{
 		static bool sipPortEquals(const char *p1, const char *p2);
 		static int sipPortToInt(const char *port);
 		static bool fromMatch(const sip_from_t *from1, const sip_from_t *from2);
+		static bool matchesOneOf(const char *item, const std::list<std::string> &set);
 };
 
 #endif

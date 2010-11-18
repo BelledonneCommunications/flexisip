@@ -62,7 +62,7 @@ void Agent::loadConfig(ConfigManager *cm){
 	}
 	list<Module*>::iterator it;
 	for(it=mModules.begin();it!=mModules.end();++it)
-		(*it)->onLoad(this);
+		(*it)->load(this);
 }
 
 void Agent::setDomain(const std::string &domain){
@@ -84,8 +84,7 @@ void Agent::onRequest(msg_t *msg, sip_t *sip){
 	list<Module*>::iterator it;
 	SipEvent ev(msg,sip);
 	for(it=mModules.begin();it!=mModules.end();++it){
-		LOGD("Invoking onRequest() on module %s",(*it)->getModuleName().c_str());
-		(*it)->onRequest(&ev);
+		(*it)->processRequest(&ev);
 		if (ev.finished()) break;
 	}
 }
@@ -94,8 +93,8 @@ void Agent::onResponse(msg_t *msg, sip_t *sip){
 	list<Module*>::iterator it;
 	SipEvent ev(msg,sip);
 	for(it=mModules.begin();it!=mModules.end();++it){
-		LOGD("Invoking onResponse() on module %s",(*it)->getModuleName().c_str());
-		(*it)->onResponse(&ev);
+		LOGD("Invoking processResponse() on module %s",(*it)->getModuleName().c_str());
+		(*it)->processResponse(&ev);
 		if (ev.finished()) break;
 	}
 }
@@ -123,7 +122,7 @@ int Agent::messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t 
 }
 
 void Agent::idle(){
-	for_each(mModules.begin(),mModules.end(),mem_fun(&Module::onIdle));
+	for_each(mModules.begin(),mModules.end(),mem_fun(&Module::idle));
 }
 const std::string& Agent::getUniqueId() const{
 	return mUniqueId;

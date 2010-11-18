@@ -26,9 +26,9 @@ class Registrar : public Module {
 		Registrar(Agent *ag) : Module(ag){
 		}
 		
-		virtual void onLoad(Agent *agent){
+		virtual void onLoad(Agent *agent, const ConfigArea & module_config){
 			list<string>::const_iterator it;
-			mDomains=ConfigManager::get()->getArea("module::Registrar").get("domains",list<string>());
+			mDomains=module_config.get("reg_domains",list<string>());
 			for (it=mDomains.begin();it!=mDomains.end();++it){
 				LOGD("Found registrar domain: %s",(*it).c_str());
 			}
@@ -82,12 +82,7 @@ class Registrar : public Module {
 
 	private:
 		bool isManagedDomain(const char *domain){
-			list<string>::const_iterator it;
-			for (it=mDomains.begin();it!=mDomains.end();++it){
-				if (strcmp((*it).c_str(),domain)==0)
-					return true;
-			}
-			return false;
+			return ModuleToolbox::matchesOneOf(domain,mDomains);
 		}
 		list<string> mDomains;
 		static ModuleInfo<Registrar> sInfo;

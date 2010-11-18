@@ -24,7 +24,7 @@
 ConfigArea::ConfigArea(ConfigManager *m, const char *area) :  mArea(area), mManager(m){
 }
 
-bool ConfigArea::get(const char *key, bool default_value){
+bool ConfigArea::get(const char *key, bool default_value)const{
 	std::string result;
 	if (mManager->get(mArea.c_str(),key,&result)){
 		return atoi(result.c_str());
@@ -32,7 +32,7 @@ bool ConfigArea::get(const char *key, bool default_value){
 	return default_value;
 }
 
-std::list<std::string> ConfigArea::get(const char *key, const std::list<std::string> & default_value){
+std::list<std::string> ConfigArea::get(const char *key, const std::list<std::string> & default_value)const{
 	std::string result;
 	if (mManager->get(mArea.c_str(),key,&result)){
 		std::list<std::string> retlist;
