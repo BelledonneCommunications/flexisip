@@ -22,6 +22,7 @@
 
 #include <mediastreamer2/mscommon.h>
 #include "agent.hh"
+#include "stun.hh"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -146,8 +147,43 @@ static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *a){
 	a->idle();
 }
 
+static void initialize(bool debug, bool useSyslog){
+	if (useSyslog){
+		openlog("flexisip", 0, LOG_USER);
+		setlogmask(~0);
+		ortp_set_log_handler(syslogHandler);
+	}
+	ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR);
+	LOGN("Starting version %s", VERSION);
+
+	ConfigManager *cfg=ConfigManager::get();
+	if (!debug) debug=cfg->getArea(ConfigManager::sGlobalArea).get("debug",false);
+
+	signal(SIGTERM,flexisip_stop);
+	signal(SIGINT,flexisip_stop);
+	signal(SIGUSR1,flexisip_stat);
+	
+	ortp_init();
+	ortp_set_log_file(stdout);
+	if (debug==false){
+		ortp_set_log_level_mask(ORTP_WARNING|ORTP_ERROR);
+	}
+	ms_init();
+
+	/*enable core dumps*/
+	struct rlimit lm;
+	lm.rlim_cur=RLIM_INFINITY;
+	lm.rlim_max=RLIM_INFINITY;
+	if (setrlimit(RLIMIT_CORE,&lm)==-1){
+		LOGE("Cannot enable core dump, setrlimit() failed: %s",strerror(errno));
+	}
+	
+	su_init();
+}
+
 int main(int argc, char *argv[]){
 	Agent *a;
+	StunServer *stun=NULL;
 	int port=5060;
 	char localip[IPADDR_SIZE];
 	int i;
@@ -214,37 +250,12 @@ int main(int argc, char *argv[]){
 		fclose(f);
 	}
 	
-	if (useSyslog){
-		openlog("flexisip", 0, LOG_USER);
-		setlogmask(~0);
-		ortp_set_log_handler(syslogHandler);
-	}
-	ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR);
-	LOGN("Starting version %s", VERSION);
-
+	initialize (debug,useSyslog);
 	ConfigManager *cfg=ConfigManager::get();
-	if (!debug) debug=cfg->getArea(ConfigManager::sGlobalArea).get("debug",false);
-
-	signal(SIGTERM,flexisip_stop);
-	signal(SIGINT,flexisip_stop);
-	signal(SIGUSR1,flexisip_stat);
-	
-	ortp_init();
-	ortp_set_log_file(stdout);
-	if (debug==false){
-		ortp_set_log_level_mask(ORTP_WARNING|ORTP_ERROR);
+	if (cfg->getArea("stun-server").get("enabled",true)){
+		stun=new StunServer(cfg->getArea("stun-server").get("port",3478));
+		stun->start();
 	}
-	ms_init();
-
-	/*enable core dumps*/
-	struct rlimit lm;
-	lm.rlim_cur=RLIM_INFINITY;
-	lm.rlim_max=RLIM_INFINITY;
-	if (setrlimit(RLIMIT_CORE,&lm)==-1){
-		LOGE("Cannot enable core dump, setrlimit() failed: %s",strerror(errno));
-	}
-	
-	su_init();
 	su_log_redirect(NULL,sofiaLogHandler,NULL);
 	root=su_root_create(NULL);
 
@@ -259,6 +270,8 @@ int main(int argc, char *argv[]){
 	su_timer_destroy(timer);
 	delete a;
     su_root_destroy(root);
+	stun->stop();
+	delete stun;
 	return 0;
 }
 

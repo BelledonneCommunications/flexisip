@@ -32,6 +32,14 @@ bool ConfigArea::get(const char *key, bool default_value)const{
 	return default_value;
 }
 
+int ConfigArea::get(const char *key, int default_value)const{
+	std::string result;
+	if (mManager->get(mArea.c_str(),key,&result)){
+		return atoi(result.c_str());
+	}
+	return default_value;
+}
+
 std::list<std::string> ConfigArea::get(const char *key, const std::list<std::string> & default_value)const{
 	std::string result;
 	if (mManager->get(mArea.c_str(),key,&result)){

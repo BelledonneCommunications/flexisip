@@ -65,6 +65,7 @@ class ConfigArea{
 			return default_value;
 		}
 		bool get(const char *key, bool default_value)const ;
+		int get(const char *key, int default_value)const;
 		std::list<std::string> get(const char *key, const std::list<std::string> &default_value)const;
 	private:
 		ConfigArea(ConfigManager *m, const char *area);

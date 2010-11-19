@@ -22,8 +22,8 @@ CFLAGS="-g -O2"
 CXXFLAGS="-g -O2"
 
 if test x$GCC = xyes ; then
-	CFLAGS="$CFLAGS -Wall -Werror"
-	CXXFLAGS="$CXXFLAGS -Wall -Werror"
+	CFLAGS="$CFLAGS -Wall -Werror -fno-strict-aliasing"
+	CXXFLAGS="$CXXFLAGS -Wall -Werror -fno-strict-aliasing"
 fi
 
 # Checks for libraries.

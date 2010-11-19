@@ -93,7 +93,6 @@ void Agent::onResponse(msg_t *msg, sip_t *sip){
 	list<Module*>::iterator it;
 	SipEvent ev(msg,sip);
 	for(it=mModules.begin();it!=mModules.end();++it){
-		LOGD("Invoking processResponse() on module %s",(*it)->getModuleName().c_str());
 		(*it)->processResponse(&ev);
 		if (ev.finished()) break;
 	}
