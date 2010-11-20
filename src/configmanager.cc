@@ -40,16 +40,18 @@ int ConfigArea::get(const char *key, int default_value)const{
 	return default_value;
 }
 
+#define DELIMITERS " \n,"
+
 std::list<std::string> ConfigArea::get(const char *key, const std::list<std::string> & default_value)const{
 	std::string result;
 	if (mManager->get(mArea.c_str(),key,&result)){
 		std::list<std::string> retlist;
 		char *res=strdup(result.c_str());
 		char *saveptr=NULL;
-		char *ret=strtok_r(res,",",&saveptr);
+		char *ret=strtok_r(res,DELIMITERS,&saveptr);
 		while(ret!=NULL){
 			retlist.push_back(std::string(ret));
-			ret=strtok_r(NULL,",",&saveptr);
+			ret=strtok_r(NULL,DELIMITERS,&saveptr);
 		}
 		free(res);
 		return retlist;
