@@ -41,7 +41,8 @@ class ConfigEntryFilter : public EntryFilter {
 		virtual void loadConfig(const ConfigArea &vmodule_config);
 		virtual bool canEnter(sip_t *sip);
 	private:
-		std::list<std::string> mDomains;
+		std::list<std::string> mFromDomains;
+		std::list <std::string> mToDomains;
 		bool mEnabled;
 };
 

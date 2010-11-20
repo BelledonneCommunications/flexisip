@@ -30,7 +30,8 @@ ConfigEntryFilter::~ConfigEntryFilter(){
 void ConfigEntryFilter::loadConfig(const ConfigArea &module_config){
 	list<string> defaultvalue;
 	defaultvalue.push_back("*");
-	mDomains=module_config.get("domains",defaultvalue);
+	mFromDomains=module_config.get("from-domains",defaultvalue);
+	mToDomains=module_config.get("to-domains",defaultvalue);
 	mEnabled=module_config.get("enabled",true);
 }
 
@@ -38,8 +39,11 @@ bool ConfigEntryFilter::canEnter(sip_t *sip){
 	if (!mEnabled) return false;
 	
 	url_t *sipuri=sip->sip_from->a_url;
-	if (sipuri && sipuri->url_host)
-		return ModuleToolbox::matchesOneOf(sipuri->url_host,mDomains);
+	if (sipuri && sipuri->url_host && !ModuleToolbox::matchesOneOf(sipuri->url_host,mFromDomains))
+		return false;
+	sipuri=sip->sip_to->a_url;
+	if (sipuri && sipuri->url_host && !ModuleToolbox::matchesOneOf(sipuri->url_host,mToDomains))
+		return false;
 	return true;
 }
 
