@@ -30,6 +30,10 @@
 #define payload_type_set_number(pt,n)	(pt)->user_data=(void*)(long)n
 #define payload_type_get_number(pt)		(int)(long)(pt)->user_data
 
+class Masquerader{
+	public:
+		virtual void onNewMedia(int mline, std::string *ip, int *port)=0;
+};
 
 class SdpModifier{
 	public:
@@ -40,6 +44,7 @@ class SdpModifier{
 		void removeUnwantedPayloads(const MSList *tokeep);
 		void getAudioIpPort(std::string *ip, int *port);
 		void changeAudioIpPort(const char *ip, int port);
+		void changeIpPort(Masquerader *m);
 		void update(msg_t *msg, sip_t *sip);
 		~SdpModifier();
 		SdpModifier(su_home_t *home);

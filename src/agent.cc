@@ -45,11 +45,13 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr)
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"NatHelper"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Registrar"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"ContactRouteInserter"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"MediaRelay"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Forward"));
 }
 
 Agent::~Agent(){
+	for_each(mModules.begin(),mModules.end(),delete_functor<Module>());
 	if (mAgent)
 		nta_agent_destroy(mAgent);
 }

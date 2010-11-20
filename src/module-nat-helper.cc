@@ -22,6 +22,8 @@ class NatHelper : public Module, protected ModuleToolbox{
 	public:
 		NatHelper(Agent *ag) : Module(ag){
 		}
+		~NatHelper(){
+		}
 		void onRequest(SipEvent *ev) {
 			sip_request_t *rq=ev->mSip->sip_request;
 			/* if we receive a request whose first via is wrong (received or rport parameters are present),

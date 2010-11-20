@@ -13,11 +13,13 @@ flexisip_SOURCES=main.cc \
 			module.cc module.hh \
 			entryfilter.cc entryfilter.hh \
 			stun.cc stun.hh \
+			mediarelay.cc mediarelay.hh \
 			module-forward.cc \
 			module-transcode.cc \
 			module-contact-route-inserter.cc \
 			module-nat-helper.cc \
-			module-registrar.cc
+			module-registrar.cc \
+			module-mediarelay.cc
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS)
 AM_CFLAGS=$(MEDIASTREAMER_CFLAGS)

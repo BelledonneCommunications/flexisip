@@ -249,6 +249,8 @@ void TranscodeModule::onResponse(SipEvent *ev){
 				if (c->getLastForwaredResponse()!=NULL){
 					msg=msg_copy(c->getLastForwaredResponse ());
 					sip=(sip_t*)msg_object (msg);
+					ev->mSip=sip;
+					ev->mMsg=msg;
 				}
 			}
 		}

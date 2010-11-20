@@ -32,4 +32,32 @@
 #define LOGF ortp_fatal
 #define LOGN ortp_message
 
+class Mutex{
+	public:
+		Mutex(){
+			pthread_mutex_init(&mMutex,NULL);
+		}
+		void lock(){
+			pthread_mutex_lock(&mMutex);
+		}
+		void unlock(){
+			pthread_mutex_unlock(&mMutex);
+		}
+		~Mutex(){
+			pthread_mutex_destroy(&mMutex);
+		}
+	private:
+		pthread_mutex_t mMutex;
+};
+
+template <typename _type>
+class delete_functor{
+	public:
+		void operator()(_type *obj){
+			delete obj;
+		}
+};
+
+
+
 #endif

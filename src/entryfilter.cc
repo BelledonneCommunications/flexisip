@@ -31,9 +31,12 @@ void ConfigEntryFilter::loadConfig(const ConfigArea &module_config){
 	list<string> defaultvalue;
 	defaultvalue.push_back("*");
 	mDomains=module_config.get("domains",defaultvalue);
+	mEnabled=module_config.get("enabled",true);
 }
 
 bool ConfigEntryFilter::canEnter(sip_t *sip){
+	if (!mEnabled) return false;
+	
 	url_t *sipuri=sip->sip_from->a_url;
 	if (sipuri && sipuri->url_host)
 		return ModuleToolbox::matchesOneOf(sipuri->url_host,mDomains);

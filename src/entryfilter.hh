@@ -42,6 +42,7 @@ class ConfigEntryFilter : public EntryFilter {
 		virtual bool canEnter(sip_t *sip);
 	private:
 		std::list<std::string> mDomains;
+		bool mEnabled;
 };
 
 
