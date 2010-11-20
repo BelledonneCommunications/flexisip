@@ -124,7 +124,8 @@ MediaRelayServer::MediaRelayServer(const std::string &localip) : mLocalIp(locali
 
 MediaRelayServer::~MediaRelayServer(){
 	mRunning=false;
-	write(mCtlPipe[1],"e",1);
+	if (write(mCtlPipe[1],"e",1)==-1)
+		LOGE("MediaRelayServer: Fail to write to control pipe.");
 	pthread_join(mThread,NULL);
 	for_each(mSessions.begin(),mSessions.end(),delete_functor<RelaySession>());
 	close(mCtlPipe[0]);
@@ -137,7 +138,8 @@ RelaySession *MediaRelayServer::createSession(){
 	mSessions.push_back(s);
 	mMutex.unlock();
 	/*write to the control pipe to wakeup the server thread */
-	write(mCtlPipe[1],"e",1);
+	if (write(mCtlPipe[1],"e",1)==-1)
+		LOGE("MediaRelayServer: fail to write to control pipe.");
 	return s;
 }
 
@@ -164,7 +166,9 @@ void MediaRelayServer::run(){
 		err=poll(pfds,(sessionCount*4 )+ 1,-1);
 		if (pfds[sessionCount*4].revents){
 			char tmp;
-			read(mCtlPipe[0],&tmp,1);
+			if (read(mCtlPipe[0],&tmp,1)==-1){
+				LOGE("Fail to read from control pipe.");
+			}
 		}
 		time_t curtime=time(NULL);
 		for(i=0,it=mSessions.begin();i<sessionCount;++i,++it){
