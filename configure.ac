@@ -18,8 +18,9 @@ else
 	use_rpm=true;
 fi
 
-CFLAGS="-g -O2"
-CXXFLAGS="-g -O2"
+CFLAGS="-g -O2 -pthread"
+CXXFLAGS="-g -O2 -pthread"
+LDFLAGS="$LDFLAGS -pthread"
 
 if test x$GCC = xyes ; then
 	CFLAGS="$CFLAGS -Wall -Werror -fno-strict-aliasing"
@@ -27,6 +28,7 @@ if test x$GCC = xyes ; then
 fi
 
 # Checks for libraries.
+
 
 # Checks for header files.
 
