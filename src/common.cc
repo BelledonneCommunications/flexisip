@@ -21,3 +21,31 @@
 
 #include "common.hh"
 
+Mutex::Mutex(){
+	int err;
+	if ((err=pthread_mutex_init(&mMutex,NULL))!=0){
+		LOGE("pthread_mutex_init(): %s",strerror(errno));
+	}
+}
+
+Mutex::~Mutex(){
+	int err;
+	if ((err=pthread_mutex_destroy(&mMutex))!=0){
+		LOGE("pthread_mutex_destroy(): %s",strerror(errno));
+	}
+}
+
+void Mutex::lock(){
+	int err;
+	if ((err=pthread_mutex_lock(&mMutex))!=0){
+		LOGE("pthread_mutex_lock(): %s",strerror(errno));
+	}
+}
+
+void Mutex::unlock(){
+	int err;
+	if ((err=pthread_mutex_unlock(&mMutex))!=0){
+		LOGE("pthread_mutex_unlock(): %s",strerror(errno));
+	}
+}
+

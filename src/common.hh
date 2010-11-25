@@ -34,18 +34,10 @@
 
 class Mutex{
 	public:
-		Mutex(){
-			pthread_mutex_init(&mMutex,NULL);
-		}
-		void lock(){
-			pthread_mutex_lock(&mMutex);
-		}
-		void unlock(){
-			pthread_mutex_unlock(&mMutex);
-		}
-		~Mutex(){
-			pthread_mutex_destroy(&mMutex);
-		}
+		Mutex();
+		void lock();
+		void unlock();
+		~Mutex();
 	private:
 		pthread_mutex_t mMutex;
 };
