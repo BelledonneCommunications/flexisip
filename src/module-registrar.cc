@@ -59,7 +59,7 @@ class Registrar : public Module {
 				}
 			}else{
 				/*see if we can route other requests */
-				url_t *sipurl=sip->sip_to->a_url;
+				url_t *sipurl=sip->sip_request->rq_url;
 				if (sipurl->url_host &&  isManagedDomain(sipurl->url_host)){
 					const sip_contact_t *ct=RegistrarDb::get()->retrieveMostRecent(sip->sip_to);
 					if (ct){
