@@ -134,9 +134,12 @@ MediaRelayServer::~MediaRelayServer(){
 
 RelaySession *MediaRelayServer::createSession(){
 	RelaySession *s=new RelaySession(mLocalIp);
+	int count;
 	mMutex.lock();
 	mSessions.push_back(s);
+	count=mSessions.size();
 	mMutex.unlock();
+	LOGD("There are now %i relay sessions running.",count);
 	/*write to the control pipe to wakeup the server thread */
 	if (write(mCtlPipe[1],"e",1)==-1)
 		LOGE("MediaRelayServer: fail to write to control pipe.");

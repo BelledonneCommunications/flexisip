@@ -76,7 +76,7 @@ TranscodeModule::~TranscodeModule(){
 
 void TranscodeModule::onIdle(){
 	mCalls.dump();
-	mCalls.removeInactives();
+	mCalls.removeAndDeleteInactives();
 }
 
 bool TranscodeModule::processSipInfo(CallContext *c, msg_t *msg, sip_t *sip){

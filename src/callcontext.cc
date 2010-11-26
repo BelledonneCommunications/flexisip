@@ -331,6 +331,5 @@ CallContext::~CallContext(){
 		ms_list_for_each(mInitialOffer,(void(*)(void*))payload_type_destroy);
 		ms_list_free(mInitialOffer);
 	}
-	LOGD("CallContext %p is cleared.",this);
 }
 

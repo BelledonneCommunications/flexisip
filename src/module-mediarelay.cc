@@ -46,42 +46,53 @@ class MediaRelay : public Module, protected ModuleToolbox{
 
 class RelayedCall : public CallContextBase, public Masquerader{
 	public:
+		static const int sMaxSessions=4;
 		RelayedCall(MediaRelayServer *server, sip_t *sip) : CallContextBase (sip), mServer(server){
+			memset(mSessions,0,sizeof(mSessions));
 		}
-		virtual void onNewMedia(int mline, std::string *ip, int *port){
+		virtual void onNewMedia(int mline, std::string *ip, int *port, bool isRequest){
 			int ports[2];
-			if (mline>=(int)mSessions.size())
-				mSessions.resize(mline+1);
+			if (mline>=sMaxSessions){
+				LOGE("Max sessions per relayed call is reached.");
+				return;
+			}
 			RelaySession *s=mSessions[mline];
-			if (s){
+			if (!isRequest){
 				/*we are processing a SDP answer since sessions are created */
 				 s->getPorts(ports);
 				*ip=s->getAddr();
 				*port=ports[1];
 			}else{
-				s=mServer->createSession();
-				 s->getPorts(ports);
+				if (s==NULL){
+					s=mServer->createSession();
+					mSessions[mline]=s;
+				}
+				s->getPorts(ports);
 				*ip=s->getAddr();
 				*port=ports[0];
-				mSessions[mline]=s;
 			}
 		}
 		virtual bool isInactive(time_t cur){
 			time_t maxtime=0;
-			vector<RelaySession*>::const_iterator it;
-			for (it=mSessions.begin();it!=mSessions.end();++it){
+			RelaySession *r;
+			for (int i=0;i<sMaxSessions;++i){
 				time_t tmp;
-				if ((tmp=(*it)->getLastActivityTime()) > maxtime)
+				r=mSessions[i];
+				if (r && ((tmp=r->getLastActivityTime()) > maxtime) )
 					maxtime=tmp;
 			}
 			if (cur-maxtime>30) return true;
 			return false;
 		}
 		virtual ~RelayedCall(){
-			for_each(mSessions.begin(),mSessions.end(),mem_fun(&RelaySession::unuse));
+			int i;
+			for(i=0;i<sMaxSessions;++i){
+				RelaySession *s=mSessions[i];
+				if (s) s->unuse();
+			}
 		}
 	private:
-		vector<RelaySession*> mSessions;
+		RelaySession * mSessions[sMaxSessions];
 		MediaRelayServer *mServer;
 };
 
@@ -100,7 +111,7 @@ void MediaRelay::onLoad(Agent *ag, const ConfigArea & modconf){
 void MediaRelay::processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip){
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
 	if (m){
-		m->changeIpPort(c);
+		m->changeIpPort(c,true);
 		m->update(msg,sip);
 		//be in the record-route
 		addRecordRoute(c->getHome(),getAgent(),sip);
@@ -156,7 +167,7 @@ void MediaRelay::process200OkforInvite(RelayedCall *ctx, msg_t *msg, sip_t *sip)
 
 	if (m==NULL) return;
 	
-	m->changeIpPort (ctx);
+	m->changeIpPort (ctx, false);
 	m->update(msg,sip);
 	ctx->storeNewResponse (msg);
 
@@ -191,5 +202,5 @@ void MediaRelay::onResponse(SipEvent *ev){
 
 void MediaRelay::onIdle(){
 	mCalls.dump();
-	mCalls.removeInactives();
+	mCalls.removeAndDeleteInactives();
 }

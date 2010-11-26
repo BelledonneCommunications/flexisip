@@ -58,7 +58,7 @@ class CallStore{
 		void store(CallContextBase *ctx);
 		CallContextBase *find(sip_t *sip);
 		void remove(CallContextBase *ctx);
-		void removeInactives();
+		void removeAndDeleteInactives();
 		void dump();
 	private:
 		std::list<CallContextBase*> mCalls;

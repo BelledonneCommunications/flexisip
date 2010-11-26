@@ -90,6 +90,7 @@ void CallContextBase::dump(){
 
 CallContextBase::~CallContextBase(){
 	su_home_deinit(&mHome);
+	LOGD("CallContext %p with id %u destroyed.",this,mCallHash);
 }
 
 CallStore::CallStore(){
@@ -111,11 +112,12 @@ void CallStore::remove(CallContextBase *ctx){
 	mCalls.remove(ctx);
 }
 
-void  CallStore::removeInactives(){
+void CallStore::removeAndDeleteInactives(){
 	list<CallContextBase*>::iterator it;
 	list <CallContextBase*>::iterator new_end;
 	time_t cur=time(NULL);
 	new_end=remove_if(mCalls.begin(),mCalls.end(),bind2nd(mem_fun(&CallContextBase::isInactive),cur));
+	for_each(new_end,mCalls.end(),delete_functor<CallContextBase>());
 	mCalls.erase(new_end,mCalls.end());
 }
 
