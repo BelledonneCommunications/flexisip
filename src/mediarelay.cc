@@ -160,7 +160,7 @@ void MediaRelayServer::run(){
 		mMutex.unlock();
 		pfds_size=(sessionCount*4)+1;
 		if (pfds_size>cur_pfds_size){
-			pfds=(struct pollfd*)realloc(pfds,pfds_size);
+			pfds=(struct pollfd*)realloc(pfds,pfds_size*sizeof(struct pollfd));
 			cur_pfds_size=pfds_size;
 		}
 		for(i=0,it=mSessions.begin();i<sessionCount;++i,++it){
