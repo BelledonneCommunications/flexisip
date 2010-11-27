@@ -149,15 +149,20 @@ RelaySession *MediaRelayServer::createSession(){
 void MediaRelayServer::run(){
 	int sessionCount;
 	int i;
-	struct pollfd *pfds;
+	struct pollfd *pfds=NULL;
 	list<RelaySession*>::iterator it;
 	int err;
+	int pfds_size=0,cur_pfds_size=0;
 	
 	while(mRunning){
 		mMutex.lock();
 		sessionCount=mSessions.size();
 		mMutex.unlock();
-		pfds=(struct pollfd*)alloca((sessionCount*4) + 1);
+		pfds_size=(sessionCount*4)+1;
+		if (pfds_size>cur_pfds_size){
+			pfds=(struct pollfd*)realloc(pfds,pfds_size);
+			cur_pfds_size=pfds_size;
+		}
 		for(i=0,it=mSessions.begin();i<sessionCount;++i,++it){
 			(*it)->fillPollFd(&pfds[i*4]);
 		}
@@ -192,6 +197,7 @@ void MediaRelayServer::run(){
 		}
 		mMutex.unlock();
 	}
+	if (pfds) free(pfds);
 }
 
 void *MediaRelayServer::threadFunc(void *arg){
