@@ -42,6 +42,16 @@ PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
 AM_CONDITIONAL(USE_DEB,test x$use_deb = xtrue)
 AM_CONDITIONAL(USE_RPM,test x$use_rpm = xtrue)
 
+
+# Export path to configuration directory
+if test "x${prefix}" = "xNONE"; then
+        CONFIG_DIR="${ac_default_prefix}/etc/flexisip"
+else
+        CONFIG_DIR="${prefix}/etc/flexisip"
+fi
+AC_SUBST(CONFIG_DIR)
+
+
 AC_CONFIG_FILES(
 [
 Makefile
