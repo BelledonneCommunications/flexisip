@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+
+<scenario name="Simple register UAC">
+  <send retrans="500" lost="3">
+    <![CDATA[
+    REGISTER sip:[remote_ip] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: sipp <sip:sipp@sip.example.org:[local_port]>;tag=[pid]SIPpTag00[call_number]
+	To: sipp <sip:sipp@sip.example.org:[local_port]>
+	Call-ID: [call_id]
+	CSeq: 3 REGISTER
+	Contact: <sip:sipp@client.sip.example.org:[local_port]>
+	Max-Forwards: 70
+	User-Agent: Linphone/Linphone-3.3.x (sipp/unknown)
+	Expires: 3600
+	Content-Length: 0
+    ]]>
+  </send>
+  <recv response="100" optional="true"/>
+  <recv response="180" optional="true"/>
+  <recv response="183" optional="true"/>
+  <recv response="200"/>
+
+  <send retrans="500" lost="3">
+    <![CDATA[
+    REGISTER sip:[remote_ip] SIP/2.0
+        Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+        From: sipp <sip:sipp@sip.example.org:[local_port]>;tag=[pid]SIPpTag00[call_number]
+        To: sipp <sip:sipp@sip.example.org:[local_port]>
+        Call-ID: [call_id]
+        CSeq: 3 REGISTER
+        Contact: <sip:sipp@client.sip.example.org:[local_port]>
+        Max-Forwards: 70
+        User-Agent: Linphone/Linphone-3.3.x (sipp/unknown)
+        Expires: 0
+        Content-Length: 0
+    ]]>
+  </send>
+
+  <recv response="100" optional="true"/>
+  <recv response="180" optional="true"/>
+  <recv response="183" optional="true"/>
+  <recv response="200"/>
+
+
+  <!-- definition of the response time repartition table (unit is ms)   -->
+  <ResponseTimeRepartition value="10, 20, 30, 40, 50, 100, 150, 200"/>
+  <!-- definition of the call length repartition table (unit is ms)     -->
+  <CallLengthRepartition value="10, 50, 100, 500, 1000, 5000, 10000"/>
+</scenario>
