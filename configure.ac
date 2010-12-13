@@ -44,11 +44,9 @@ AM_CONDITIONAL(USE_RPM,test x$use_rpm = xtrue)
 
 
 # Export path to configuration directory
-if test "x${prefix}" = "xNONE"; then
-        CONFIG_DIR="${ac_default_prefix}/etc/flexisip"
-else
-        CONFIG_DIR="${prefix}/etc/flexisip"
-fi
+
+CONFIG_DIR="\$(sysconfdir)/flexisip"
+
 AC_SUBST(CONFIG_DIR)
 
 
