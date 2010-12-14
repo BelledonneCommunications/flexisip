@@ -24,7 +24,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 		}
 		~NatHelper(){
 		}
-		void onRequest(SipEvent *ev) {
+		virtual void onRequest(SipEvent *ev) {
 			sip_request_t *rq=ev->mSip->sip_request;
 			/* if we receive a request whose first via is wrong (received or rport parameters are present),
 			fix any possible Contact headers with the same wrong ip address and ports */
@@ -35,17 +35,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 				addRecordRoute (ev->getHome(),getAgent(),ev->mSip);
 			}
 		}
-		void onResponse(SipEvent *ev){
-			sip_cseq_t *cseq=ev->mSip->sip_cseq;
-			// fix contact for answers to INVITE and SUBSCRIBES
-			if (cseq->cs_method==sip_method_invite || cseq->cs_method==sip_method_subscribe){
-				sip_via_t *via,*lastvia=NULL;
-				for(lastvia=via=ev->mSip->sip_via;via!=NULL;via=via->v_next){
-					lastvia=via;
-				}
-				if (lastvia)
-					fixContactFromVia(ev->getHome(),ev->mSip,lastvia);
-			}
+		virtual void onResponse(SipEvent *ev){
 		}
 	private:
 		bool empty(const char *value){

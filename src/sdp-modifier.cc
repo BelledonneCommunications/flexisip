@@ -228,9 +228,9 @@ void SdpModifier::changeIpPort(Masquerader *m, bool isOffer){
 
 		m->onNewMedia(i,&ip,&port, isOffer);
 		
-		if (mline->m_connections)
+		if (mline->m_connections){
 			mline->m_connections->c_address=su_strdup(mHome,ip.c_str());
-		else if (i==0){
+		}else if (i==0){
 			mSession->sdp_connection->c_address=su_strdup(mHome,ip.c_str());
 		}
 		mline->m_port=port;

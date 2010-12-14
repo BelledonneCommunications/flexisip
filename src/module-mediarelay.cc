@@ -193,7 +193,7 @@ void MediaRelay::onResponse(SipEvent *ev){
 					sip=(sip_t*)msg_object (msg);
 				}
 			}
-		}
+		}else LOGW("Receiving 200Ok for unknown call.");
 	}
 	ev->mSip=sip;
 	ev->mMsg=msg;
