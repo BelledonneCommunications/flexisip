@@ -44,7 +44,7 @@ int MediaSource::send(uint8_t *buf, size_t buflen){
 
 
 RelaySession::RelaySession(const std::string &localip) : mLocalIp(localip){
-	mLastActivityTime=0;
+	mLastActivityTime=time(NULL);
 	mSession[0]=rtp_session_new(RTP_SESSION_SENDRECV);
 	mSession[1]=rtp_session_new(RTP_SESSION_SENDRECV);
 	rtp_session_set_local_addr(mSession[0],mLocalIp.c_str(),-1);
@@ -92,16 +92,13 @@ void RelaySession::transfer(time_t curtime, struct pollfd *tab){
 	const int maxsize=sizeof(buf);
 	int len;
 	int i;
-
-	if (mLastActivityTime==0)
-		mLastActivityTime=curtime;
 	
 	for (i=0;i<4;i+=2){
 		if (tab[i].revents & POLLIN){
+			mLastActivityTime=curtime;
 			len=mSources[i].recv(buf,maxsize);
 			if (len>0)
 				mSources[i+1].send(buf,len);
-			mLastActivityTime=curtime;
 		}
 		if (tab[i+1].revents & POLLIN){
 			mLastActivityTime=curtime;
