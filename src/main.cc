@@ -269,9 +269,10 @@ int main(int argc, char *argv[]){
 	su_root_run(root);	
 	su_timer_destroy(timer);
 	delete a;
-    su_root_destroy(root);
 	stun->stop();
 	delete stun;
+    su_root_destroy(root);
+	
 	return 0;
 }
 
