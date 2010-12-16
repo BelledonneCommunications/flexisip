@@ -84,7 +84,7 @@
       CSeq: 1 ACK
       Contact: [$luserAdd]
       Max-Forwards: 70
-      Subject: Test invite from client
+      Subject: Ack user we have received the 200
       Content-Length: 0
 
     ]]>
@@ -106,7 +106,7 @@
       CSeq: 2 BYE
       Contact: [$luserAdd]
       Max-Forwards: 70
-      Subject: Performance Test
+      Subject: Teminate invite
       Content-Length: 0
 
     ]]>

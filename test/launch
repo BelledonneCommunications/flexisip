@@ -41,7 +41,7 @@ echo "" ; echo "Start inviting users"
 echo "" >  log/4-spp_simple_invites.log
 #while [ true ]
 #do
-  $SIPP $PROXY -sf simple_invites.xml -m $NB_USERS -i $IP -p $INVITER_PORT -trace_err 2>&1 >> log/4-spp_simple_invites.log
+  $SIPP $PROXY -sf simple_invites.xml -m $NB_USERS -i $IP -p $INVITER_PORT -trace_err
 #done
 
 onexit
