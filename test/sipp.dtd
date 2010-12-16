@@ -1,10 +1,15 @@
+<!ELEMENT Global (action)? >
+<!ATTLIST Global variables CDATA #IMPLIED >
+
+<!ELEMENT nop (action)+ >
+
 <!ELEMENT CallLengthRepartition EMPTY >
 <!ATTLIST CallLengthRepartition value CDATA #REQUIRED >
 
 <!ELEMENT ResponseTimeRepartition EMPTY >
 <!ATTLIST ResponseTimeRepartition value CDATA #REQUIRED >
 
-<!ELEMENT action ( ereg+ ) >
+<!ELEMENT action ( ereg | assign | add )+ >
 
 <!ELEMENT ereg EMPTY >
 <!ATTLIST ereg assign_to CDATA #REQUIRED >
@@ -26,7 +31,7 @@
 <!ATTLIST recv rrs (true|false) #IMPLIED >
 <!ATTLIST recv start_rtd (true|false) #IMPLIED >
 
-<!ELEMENT scenario ( CallLengthRepartition | ResponseTimeRepartition | pause | recv | send )* >
+<!ELEMENT scenario ( Global | nop | CallLengthRepartition | ResponseTimeRepartition | pause | recv | send )* >
 <!ATTLIST scenario name CDATA #REQUIRED >
 
 <!ELEMENT send ( #PCDATA ) >
