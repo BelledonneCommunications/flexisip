@@ -32,7 +32,7 @@
     <add assign_to="userId" value="1" />
     <assignstr assign_to="luserIpPort" value="[local_ip]:[local_port]" />   
     <assignstr assign_to="luserAdd" value="sip:[$luserIpPort]" />   
-    <assignstr assign_to="ruserAdd" value="sip:user[$userId]@sip.example.org:[remote_port]" /> 
+    <assignstr assign_to="ruserAdd" value="sip:user[$userId]@sip.example.org" /> 
   </action>
 </nop>
 
@@ -99,7 +99,7 @@
     <![CDATA[
 
       BYE [$ruserAdd] SIP/2.0
-      Via: SIP/2.0/[transport] [$luserAdd];branch=[branch]
+      Via: SIP/2.0/[transport] [$luserIpPort];branch=[branch]
       From: <[$luserAdd]>;tag=[pid]SIPpTag00[call_number]
       To: <[$ruserAdd]>[peer_tag_param]
       Call-ID: [call_id]
@@ -112,7 +112,7 @@
     ]]>
   </send>
 
-  
+
   <recv response="200" crlf="true"></recv>
 
   <!-- definition of the response time repartition table (unit is ms)   -->
