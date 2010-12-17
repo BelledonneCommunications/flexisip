@@ -140,7 +140,7 @@ static void syslogHandler(OrtpLogLevel log_level, const char *str, va_list l){
 }
 
 static void sofiaLogHandler(void *, char const *fmt, va_list ap){
-	vsyslog(LOG_INFO,fmt,ap);
+	ortp_logv(ORTP_MESSAGE,fmt,ap);
 }
 
 static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *a){
