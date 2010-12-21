@@ -1,0 +1,10 @@
+SIPP=/home/guillaume/dev/sipp/sipp/trunk/sipp
+FLEXISIP=/home/guillaume/dev/inst/bin/flexisip
+NB_USERS=10000
+export LD_LIBRARY_PATH=/home/guillaume/dev/inst/lib/
+#export SOFIA_DEBUG=9
+REG_OPTIONS="-r 10 -rp 1s -default_behaviors all,-bye --users 100"
+INV_OPTIONS="-r 550 -rp 1s -default_behaviors all,-bye -l 100000 -d 180s"
+
+FLEX_OPTIONS="--debug"
+INVITE_SCENARIO="simple_invites.xml"

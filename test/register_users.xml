@@ -33,14 +33,8 @@
 	Content-Length: 0
     ]]>
   </send>
-  <recv response="100" optional="true">
-  </recv>
-  <recv response="180" optional="true">
-  </recv>
-  <recv response="183" optional="true">
-  </recv>
-  <recv response="200">
-  </recv>
+  <recv response="100" optional="true"></recv>
+  <recv response="200"></recv>
 
 
   <!-- definition of the response time repartition table (unit is ms)   -->

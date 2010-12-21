@@ -3,14 +3,20 @@
 FLEXISIP=flexisip
 SIPP=sipp
 NB_USERS=10000
-IP=127.0.0.1
+IP=`cat /etc/hosts | grep sip.example.org |  awk -F'\t' '{print $1}'`
 PROXY=sip.example.org
+REGISTER_PORT=5070
 USERS_PORT=5063
 INVITER_PORT=5064
-SIPP_COMMONS=" -trace_err"
+
+echo "using invite scenario : $INVITE_SCENARIO"
 
 # Import configuration
-. launch.config
+. launch.config_$1
+SIPP_COMMONS="-i $IP -trace_err"
+REG_OPTIONS="$REG_OPTIONS -p 5070 -m $NB_USERS $SIPP_COMMONS"
+INV_OPTIONS="$INV_OPTIONS -m $NB_USERS -p 5064 $SIPP_COMMONS"
+UAS_OPTIONS="$UAS_OPTIONS -p 5063 -bg $SIPP_COMMONS -mi $IP -mp 15000 -rtp_echo"
 
 echo "Using FLEXISIP=$FLEXISIP,SIPP$SIPP,NB_USERS=$NB_USERS"
 echo "IP=$IP,PROXY=$PROXY"
@@ -19,19 +25,25 @@ echo "Sofia SIP log level: $SU_DEBUG, LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
 # Accept core dumps
 ulimit -c unlimited
 
+# Open many file descriptors
+ulimit -n 65000
+ulimit -n
 
-# clean logs
-rm -f *.log
 
-echo ""; echo "Start users listening"
-$SIPP -sf uas.xml -i $IP -p $USERS_PORT $SIPP_COMMONS 2>&1 > /dev/null &
+# save previous logs
+OLD_LOGS=old_logs/`date '+%s'`
+mkdir -p $OLD_LOGS
+mv *.log core $OLD_LOGS
 
-echo "Start flexisip"
-$FLEXISIP --debug  2>&1 > flexisip.log &
+echo ""; echo "Start users listening: $UAS_OPTIONS"
+$SIPP -sf uas.xml $UAS_OPTIONS 2>&1 > /dev/null
+
+echo "Start flexisip: $FLEX_OPTIONS"
+$FLEXISIP $FLEX_OPTIONS  2>&1 > flexisip.log &
 sleep 5s
 
-echo ""; echo "Register users"
-$SIPP $PROXY -sf register_users.xml -m $NB_USERS -i $IP -p 5070 $REG_OPTIONS $SIPP_COMMONS
+echo ""; echo "Register users $REG_OPTIONS"
+$SIPP $PROXY -sf register_users.xml $REG_OPTIONS
 
 
 
@@ -45,10 +57,10 @@ function onexit() {
 set -o errtrace 
 trap onexit 1 2 3 15 ERR
 
-echo "" ; echo "Start inviting users"
+echo "" ; echo "Start inviting users : $INV_OPTIONS"
 while [ true ]
 do
-  $SIPP $PROXY -sf simple_invites.xml -m $NB_USERS -i $IP -p $INVITER_PORT $INV_OPTIONS $SIPP_COMMONS
+  $SIPP $PROXY -sf $INVITE_SCENARIO $INV_OPTIONS
 done
 
 onexit 

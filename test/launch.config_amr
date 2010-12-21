@@ -1,0 +1,11 @@
+SIPP=/home/guillaume/dev/sipp/sipp/trunk/sipp
+FLEXISIP=/home/guillaume/dev/inst/bin/flexisip
+NB_USERS=22
+export LD_LIBRARY_PATH=/home/guillaume/dev/inst/lib/
+#export SOFIA_DEBUG=9
+REG_OPTIONS="-r 10 -rp 1s -default_behaviors all,-bye --users 100"
+FLEX_OPTIONS="--debug"
+INV_CALL_LENGTH=200
+INV_RATE=`echo $NB_USERS \* 1000 / $INV_CALL_LENGTH | bc`
+INV_OPTIONS="-r 10 -rp 1s -default_behaviors all,-bye -l $NB_USERS -d "$INV_CALL_LENGTH"s"
+INVITE_SCENARIO="simple_invites_amr.xml"
