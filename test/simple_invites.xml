@@ -70,7 +70,7 @@
 
   <recv response="183" optional="true"></recv>
 
-  <recv response="200" rtd="true"></recv>
+  <recv response="200" rtd="true" timeout="2000"></recv>
 
 
   <send>
@@ -113,7 +113,7 @@
   </send>
 
 
-  <recv response="200" crlf="true"></recv>
+  <recv response="200" crlf="true" timeout="2000"></recv>
 
   <!-- definition of the response time repartition table (unit is ms)   -->
   <ResponseTimeRepartition value="10, 20, 30, 40, 50, 100, 150, 200"/>
