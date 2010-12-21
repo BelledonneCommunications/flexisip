@@ -8,4 +8,6 @@ sipp sip.example.org -t un -sf register_then_bye_noauth.xml -rate_max 150 -rate_
 
 * launching a complete invite test
 Create a launch.config file to export your configuration
-./launch
+./launch code
+code is "simple" or "amr"
+For amr launch as root
