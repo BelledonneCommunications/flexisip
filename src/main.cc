@@ -214,6 +214,10 @@ int main(int argc, char *argv[]){
 		}else if (strcmp(argv[i],"--debug")==0){
 			debug=true;
 			continue;
+		}else if (strcmp(argv[i],"--configfile")==0){
+			ConfigManager::setConfigFile(argv[i+1]);
+			i++;
+			continue;
 		}
 		fprintf(stderr,"Bad option %s\n",argv[i]);
 		usage(argv[0]);

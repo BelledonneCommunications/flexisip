@@ -44,6 +44,7 @@ class ConfigManager{
 	friend class ConfigArea;
 	public:
 		static ConfigManager *get();
+		static void setConfigFile(char* configFile);
 		ConfigArea getArea(const char *name);
 		static const char *sGlobalArea;
 	private:
@@ -51,6 +52,7 @@ class ConfigManager{
 		bool get(const char *area, const char *key, std::string *result);
 		struct _LpConfig *mConf;
 		static ConfigManager *sInstance;
+		static char *mConfFile;
 };
 
 class ConfigArea{
