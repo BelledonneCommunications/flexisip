@@ -97,7 +97,7 @@
 
   <nop>
     <action>
-      <exec play_pcap_audio="one_way_amr_capture.pcap"/>
+      <exec play_pcap_audio="transcoding/one_way_amr_capture.pcap"/>
     </action>
   </nop>
 
