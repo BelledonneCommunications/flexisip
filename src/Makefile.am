@@ -19,7 +19,8 @@ flexisip_SOURCES=main.cc \
 			module-contact-route-inserter.cc \
 			module-nat-helper.cc \
 			module-registrar.cc \
-			module-mediarelay.cc
+			module-mediarelay.cc \
+			module-auth.cc
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS) \
 			-DCONFIG_DIR=\"$(CONFIG_DIR)\"

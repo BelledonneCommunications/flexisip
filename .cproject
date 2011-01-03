@@ -54,7 +54,9 @@
 									<listOptionValue builtIn="false" value="/opt/local/include/sofia-sip-1.12"/>
 									<listOptionValue builtIn="false" value="/opt/local/include"/>
 								</option>
-								<option id="gnu.cpp.compiler.option.preprocessor.def.459141537" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def"/>
+								<option id="gnu.cpp.compiler.option.preprocessor.def.459141537" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="CONFIG_DIR=&quot;\&quot;${HOME}/opt/etc/flexisip\&quot;&quot;"/>
+								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.543184242" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.c.compiler.macosx.exe.debug.1368756698" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.macosx.exe.debug">
