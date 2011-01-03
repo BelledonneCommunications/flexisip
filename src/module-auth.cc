@@ -61,7 +61,7 @@ public:
 									AUTHTAG_DB(mUsersDbFile.c_str()),
 									AUTHTAG_OPAQUE("+GNywA=="),
 									TAG_END());
-			LOGD("Found auth domain: %s",(*it).c_str());
+			LOGI("Found auth domain: %s",(*it).c_str());
 		}
 
 
@@ -85,7 +85,7 @@ public:
 		as = auth_status_new(ev->getHome());
 		as->as_method = sip->sip_request->rq_method_name;
 	    as->as_source = msg_addrinfo(ev->mMsg);
-		as->as_realm = "Realm";
+		as->as_realm = sip->sip_from->a_url[0].url_host;
 		as->as_user_uri = sip->sip_from->a_url;
 		as->as_display = sip->sip_from->a_display;
 		if (sip->sip_payload)
@@ -98,8 +98,10 @@ public:
 			 auth_mod_verify((*lAuthModuleIt).second, as, sip->sip_proxy_authorization,mProxyChallenger);
 		 }
 		 if (as->as_status) {
-				nta_msg_treply(getAgent()->getSofiaAgent (),ev->mMsg,as->as_status,as->as_phrase,
+			 nta_msg_treply(getAgent()->getSofiaAgent (),ev->mMsg,as->as_status,as->as_phrase,
 							               	   	   	   	   	   SIPTAG_CONTACT(sip->sip_contact),
+							               	   	   	   	   	   SIPTAG_HEADER((const sip_header_t*)as->as_info),
+							               	   	   	   	   	   SIPTAG_HEADER((const sip_header_t*)as->as_response),
 							               	   	   	   	   	   TAG_END());
 				ev->stopProcessing();
 				return;
