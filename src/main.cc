@@ -140,7 +140,7 @@ static void syslogHandler(OrtpLogLevel log_level, const char *str, va_list l){
 }
 
 static void sofiaLogHandler(void *, char const *fmt, va_list ap){
-	vsyslog(LOG_INFO,fmt,ap);
+	ortp_logv(ORTP_MESSAGE,fmt,ap);
 }
 
 static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *a){
@@ -213,6 +213,10 @@ int main(int argc, char *argv[]){
 			continue;
 		}else if (strcmp(argv[i],"--debug")==0){
 			debug=true;
+			continue;
+		}else if (strcmp(argv[i],"--configfile")==0){
+			ConfigManager::setConfigFile(argv[i+1]);
+			i++;
 			continue;
 		}
 		fprintf(stderr,"Bad option %s\n",argv[i]);

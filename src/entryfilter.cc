@@ -39,10 +39,11 @@ bool ConfigEntryFilter::canEnter(sip_t *sip){
 	if (!mEnabled) return false;
 	
 	url_t *sipuri=sip->sip_from->a_url;
-	if (sipuri && sipuri->url_host && !ModuleToolbox::matchesOneOf(sipuri->url_host,mFromDomains))
+	// Early fail if not the normal state
+	if (/*sipuri && sipuri->url_host && */!ModuleToolbox::matchesOneOf(sipuri->url_host,mFromDomains))
 		return false;
 	sipuri=sip->sip_to->a_url;
-	if (sipuri && sipuri->url_host && !ModuleToolbox::matchesOneOf(sipuri->url_host,mToDomains))
+	if (/*sipuri && sipuri->url_host && */!ModuleToolbox::matchesOneOf(sipuri->url_host,mToDomains))
 		return false;
 	return true;
 }

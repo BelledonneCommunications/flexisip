@@ -3,45 +3,71 @@
 FLEXISIP=flexisip
 SIPP=sipp
 NB_USERS=10000
-IP=$(/usr/sbin/arp $(hostname) | nawk -F'[()]' '{print $2}')
+IP=`cat /etc/hosts | grep sip.example.org |  awk -F'\t' '{print $1}'`
 PROXY=sip.example.org
+REGISTER_PORT=5070
 USERS_PORT=5063
 INVITER_PORT=5064
 
 # Import configuration
-. launch.config
+FOLDER=$1
+if [ -z $FOLDER ] 
+then
+ echo "Usage ./launch folder, where folder is "
+ ls */launch.config | sed 's/\/.*$//'
+ exit
+fi
+[ ! -f $FOLDER/launch.config ] && echo "config file not found : "$FOLDER/launch.config"" && exit
+. $FOLDER/launch.config
+
+SIPP_COMMONS="-i $IP -trace_err"
+REG_OPTIONS="$REG_OPTIONS -p 5070 -m $NB_USERS $SIPP_COMMONS"
+INV_OPTIONS="$INV_OPTIONS -m $NB_USERS -p 5064 $SIPP_COMMONS"
+UAS_OPTIONS="$UAS_OPTIONS -p 5063 -bg $SIPP_COMMONS -mi $IP -mp 15000 -rtp_echo"
 
 echo "Using FLEXISIP=$FLEXISIP,SIPP$SIPP,NB_USERS=$NB_USERS"
 echo "IP=$IP,PROXY=$PROXY"
+echo "Sofia SIP log level: $SU_DEBUG, LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+
+# Accept core dumps
+ulimit -c unlimited
+
+# Open many file descriptors
+ulimit -n 65000
+
+
+echo ""; echo "Start users listening: $UAS_OPTIONS"
+$SIPP -sf uas.xml $UAS_OPTIONS 2>&1 > /dev/null
+
+echo "Start flexisip: $FLEX_OPTIONS"
+$FLEXISIP $FLEX_OPTIONS --configfile $FOLDER/flexisip.conf 2>&1 > flexisip.log &
+sleep 5s
+
+echo ""; echo "Register users $REG_OPTIONS"
+$SIPP $PROXY -sf register_users.xml $REG_OPTIONS
+
 
 
 # Allow killing
 function onexit() {
  echo "Killing everyone"
- killall flexisip
- killall sipp
+ killall flexisip 2>/dev/null
+ killall sipp 2>/dev/null
+
+ LOGS=logs/"$FOLDER"_`date '+%s'`
+ LOGS_TO_SAVE=$FOLDER"/*.log *.log core"
+ mkdir -p $LOGS
+ mv $LOGS_TO_SAVE $LOGS
+
  exit
 }
 set -o errtrace 
 trap onexit 1 2 3 15 ERR
 
-mkdir -p log
+echo "" ; echo "Start inviting users : $INV_OPTIONS"
+while [ true ]
+do
+  $SIPP $PROXY -sf $FOLDER/invite.xml $INV_OPTIONS
+done
 
-echo "Start flexisip"
-$FLEXISIP --debug  2>&1 > log/1-flexisip.log &
-sleep 5s
-
-echo ""; echo "Register users"
-$SIPP $PROXY -sf register_users.xml -m $NB_USERS -i $IP -p $USERS_PORT -trace_err 2>&1 > log/2-spp_register_users.log
-
-echo ""; echo "Start users listening"
-$SIPP -sf uas.xml -m $NB_USERS -i $IP -p $USERS_PORT -trace_err 2>&1 > log/3-spp_uas.log &
-
-echo "" ; echo "Start inviting users"
-echo "" >  log/4-spp_simple_invites.log
-#while [ true ]
-#do
-  $SIPP $PROXY -sf simple_invites.xml -m $NB_USERS -i $IP -p $INVITER_PORT -trace_err 2>&1 >> log/4-spp_simple_invites.log
-#done
-
-onexit
+onexit 

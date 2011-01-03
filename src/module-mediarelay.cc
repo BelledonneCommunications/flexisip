@@ -59,6 +59,10 @@ class RelayedCall : public CallContextBase, public Masquerader{
 			RelaySession *s=mSessions[mline];
 			if (!isRequest){
 				/*we are processing a SDP answer since sessions are created */
+				if (s == NULL) {
+					LOGW("No session found for this mline %s:%i, ignoring", ip->c_str(), *port);
+					return;
+				}
 				 s->getPorts(ports);
 				*ip=s->getAddr();
 				*port=ports[1];

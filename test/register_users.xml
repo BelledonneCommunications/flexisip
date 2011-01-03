@@ -22,25 +22,19 @@
     <![CDATA[
     REGISTER sip:[remote_ip] SIP/2.0
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
-	From: [$user] <sip:[$user]@sip.example.org:[local_port]>;tag=[pid]SIPpTag00[call_number]
-	To: [$user] <sip:[$user]@sip.example.org:[local_port]>
+	From: [$user] <sip:[$user]@sip.example.org>;tag=[pid]SIPpTag00[call_number]
+	To: [$user] <sip:[$user]@sip.example.org>
 	Call-ID: [call_id]
 	CSeq: 3 REGISTER
-	Contact: <sip:[$user]@[local_ip]:[local_port]>
+	Contact: <sip:[$user]@[local_ip]:5063>
 	Max-Forwards: 70
 	User-Agent: Linphone/Linphone-3.3.x (sipp/unknown)
 	Expires: 3600
 	Content-Length: 0
     ]]>
   </send>
-  <recv response="100" optional="true">
-  </recv>
-  <recv response="180" optional="true">
-  </recv>
-  <recv response="183" optional="true">
-  </recv>
-  <recv response="200">
-  </recv>
+  <recv response="100" optional="true"></recv>
+  <recv response="200"></recv>
 
 
   <!-- definition of the response time repartition table (unit is ms)   -->

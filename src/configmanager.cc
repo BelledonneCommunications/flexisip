@@ -69,8 +69,18 @@ ConfigManager *ConfigManager::get(){
 	return sInstance;
 }
 
+char* ConfigManager::mConfFile = NULL;
+
 ConfigManager::ConfigManager(){
-	mConf=lp_config_new(CONFIG_DIR "/flexisip.conf");
+	if (mConfFile != NULL) {
+		mConf=lp_config_new(mConfFile);
+	} else {
+		mConf=lp_config_new(CONFIG_DIR "/flexisip.conf");
+	}
+}
+
+void ConfigManager::setConfigFile(char* configfile){
+	mConfFile=configfile;
 }
 
 ConfigArea ConfigManager::getArea(const char *name){

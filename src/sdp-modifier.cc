@@ -70,6 +70,10 @@ static sdp_list_t *sdp_list_append(su_home_t *home, sdp_list_t *l, char *text){
 */
 
 static PayloadType *payload_type_make_from_sdp_rtpmap(sdp_rtpmap_t *rtpmap){
+	if (rtpmap->rm_rate == 0 || rtpmap->rm_encoding == NULL) {
+		LOGE("Bad media description for payload type : %i", rtpmap->rm_pt);
+		return NULL;
+	}
 	PayloadType *pt=payload_type_new();
 	pt->type=PAYLOAD_AUDIO_PACKETIZED;
 	pt->mime_type=ms_strdup(rtpmap->rm_encoding);
@@ -112,7 +116,8 @@ MSList *SdpModifier::readPayloads(){
 	sdp_rtpmap_t *elem=mline->m_rtpmaps;
 	MSList *ret=NULL;
 	for(;elem!=NULL;elem=elem->rm_next){
-		ret=ms_list_append(ret,payload_type_make_from_sdp_rtpmap (elem));
+		PayloadType * pt = payload_type_make_from_sdp_rtpmap (elem);
+		if (pt != NULL) ret=ms_list_append(ret,pt);
 	}
 	return ret;
 }

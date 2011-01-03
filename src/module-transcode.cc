@@ -192,6 +192,7 @@ void TranscodeModule::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t 
 	if (ctx->isJoined()) ctx->unjoin();
 	
 	m->getAudioIpPort (&addr,&port);
+	LOGD("Backside remote address: %s:%i", addr.c_str(),port);
 	ctx->getBackSide()->setRemoteAddr(addr.c_str(),port);
 	m->changeAudioIpPort (getAgent()->getLocAddr().c_str(),ctx->getFrontSide()->getAudioPort());
 
