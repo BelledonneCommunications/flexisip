@@ -23,7 +23,212 @@
 #include "sofia-sip/auth_module.h"
 #include "sofia-sip/sip_status.h"
 #include "sofia-sip/msg_addr.h"
+#include "sofia-sip/auth_plugin.h"
+#include "sofia-sip/su_tagarg.h"
+
+
+
 using namespace std;
+
+/**************************************************
+ * code derivated from sofia sip auth_module.c begin
+ */
+/** ASCII-case-insensitive string match.
+ *
+ * Match two strings colliding upper case and lower case ASCII characters.
+ * Avoid using locale-dependent strncasecmp(). Accept NULL arguments: two
+ * NULL pointers match each other, but otherwise NULL pointer does not match
+ * anything else, not even empty string.
+ *
+ * @retval One if first @a n bytes of @a s1 matches @a s2
+ * @retval Zero if first @a n bytes of @a s1 do not match @a s2
+ */
+int
+su_casematch(char const *s1, char const *s2)
+{
+  if (s1 == s2)
+    return 1;
+
+  if (s1 == NULL || s2 == NULL)
+    return 0;
+
+  for (;;) {
+    unsigned char a = *s1++, b = *s2++;
+
+    if (b == 0)
+      return a == b;
+
+    if (a == b)
+      continue;
+
+    if ('A' <= a && a <= 'Z') {
+      if (a + 'a' - 'A' != b)
+	return 0;
+    }
+    else if ('A' <= b && b <= 'Z') {
+      if (a != b + 'a' - 'A')
+	return 0;
+    }
+    else
+      return 0;
+  }
+}
+
+/** Authenticate a request with @b Digest authentication scheme.
+ */
+void flexisip_auth_method_digest(auth_mod_t *am,
+			auth_status_t *as,
+			msg_auth_t *au,
+			auth_challenger_t const *ach)
+{
+  as->as_allow = as->as_allow || auth_allow_check(am, as) == 0;
+
+  if (as->as_realm)
+    au = auth_digest_credentials(au, as->as_realm, am->am_opaque);
+  else
+    au = NULL;
+
+  if (as->as_allow) {
+    LOGD("%s: allow unauthenticated %s\n", __func__, as->as_method);
+    as->as_status = 0, as->as_phrase = NULL;
+    as->as_match = (msg_header_t *)au;
+    return;
+  }
+
+  if (au) {
+    auth_response_t ar[1] = {{ sizeof(ar) }};
+    auth_digest_response_get(as->as_home, ar, au->au_params);
+    as->as_match = (msg_header_t *)au;
+    auth_check_digest(am, as, ar, ach);
+  }
+  else {
+    /* There was no matching credentials, send challenge */
+    LOGD("%s: no credentials matched\n", __func__);
+    auth_challenge_digest(am, as, ach);
+  }
+}
+
+/** Verify digest authentication */
+void flexisip_auth_check_digest(auth_mod_t *am,
+		       auth_status_t *as,
+		       auth_response_t *ar,
+		       auth_challenger_t const *ach)
+{
+  char const *a1;
+  auth_hexmd5_t a1buf, response;
+  auth_passwd_t *apw;
+  char const *phrase;
+  msg_time_t now = msg_now();
+
+  if (am == NULL || as == NULL || ar == NULL || ach == NULL) {
+    if (as) {
+      as->as_status = 500, as->as_phrase = "Internal Server Error";
+      as->as_response = NULL;
+    }
+    return;
+  }
+
+  phrase = "Bad authorization";
+
+#define PA "Authorization missing "
+
+  if ((!ar->ar_username && (phrase = PA "username")) ||
+      (!ar->ar_nonce && (phrase = PA "nonce")) ||
+      (!ar->ar_uri && (phrase = PA "URI")) ||
+      (!ar->ar_response && (phrase = PA "response")) ||
+      /* (!ar->ar_opaque && (phrase = PA "opaque")) || */
+      /* Check for qop */
+      (ar->ar_qop &&
+       ((ar->ar_auth &&
+	 !su_casematch(ar->ar_qop, "auth") &&
+	 !su_casematch(ar->ar_qop, "\"auth\"")) ||
+	(ar->ar_auth_int &&
+	 !su_casematch(ar->ar_qop, "auth-int") &&
+	 !su_casematch(ar->ar_qop, "\"auth-int\"")))
+       && (phrase = PA "has invalid qop"))) {
+    //assert(phrase);
+    LOGD("auth_method_digest: 400 %s\n", phrase);
+    as->as_status = 400, as->as_phrase = phrase;
+    as->as_response = NULL;
+    return;
+  }
+
+  if (as->as_nonce_issued == 0 /* Already validated nonce */ &&
+      auth_validate_digest_nonce(am, as, ar, now) < 0) {
+    as->as_blacklist = am->am_blacklist;
+    auth_challenge_digest(am, as, ach);
+    return;
+  }
+
+  if (as->as_stale) {
+    auth_challenge_digest(am, as, ach);
+    return;
+  }
+
+  apw = auth_mod_getpass(am, ar->ar_username, ar->ar_realm);
+
+  if (apw && apw->apw_hash)
+    a1 = apw->apw_hash;
+  else if (apw && apw->apw_pass)
+    auth_digest_a1(ar, a1buf, apw->apw_pass), a1 = a1buf;
+  else
+    auth_digest_a1(ar, a1buf, "xyzzy"), a1 = a1buf, apw = NULL;
+
+  if (ar->ar_md5sess)
+    auth_digest_a1sess(ar, a1buf, a1), a1 = a1buf;
+
+  auth_digest_response(ar, response, a1,
+		       as->as_method, as->as_body, as->as_bodylen);
+
+  if (!apw || strcmp(response, ar->ar_response)) {
+
+    if (am->am_forbidden) {
+      as->as_status = 403, as->as_phrase = "Forbidden";
+      as->as_response = NULL;
+      as->as_blacklist = am->am_blacklist;
+    }
+    else {
+      auth_challenge_digest(am, as, ach);
+      as->as_blacklist = am->am_blacklist;
+    }
+    LOGD(("auth_method_digest: response did not match\n"));
+
+    return;
+  }
+
+  //assert(apw);
+
+  as->as_user = apw->apw_user;
+  as->as_anonymous = apw == am->am_anon_user;
+  as->as_ident = apw->apw_ident;
+
+  if (am->am_nextnonce || am->am_mutual)
+    auth_info_digest(am, as, ach);
+
+  if (am->am_challenge)
+    auth_challenge_digest(am, as, ach);
+
+  LOGD(("auth_method_digest: successful authentication\n"));
+
+  as->as_status = 0;	/* Successful authentication! */
+  as->as_phrase = "";
+}
+
+/*
+ * code derivated from sofia sip begin end
+ ******************************************/
+
+struct auth_plugin_t
+{
+  su_root_t      *mRoot;
+  auth_scheme_t  *mBase;
+  auth_splugin_t *mlist;
+  auth_splugin_t**mTail;
+};
+/**
+ * to compute auth_mod size with plugin
+ */
+struct auth_mod_size { auth_mod_t mod[1]; auth_plugin_t plug[1]; };
 
 class Authentication : public Module {
 
@@ -32,23 +237,63 @@ private:
 	map<string,auth_mod_t *> mAuthModules;
 	list<string> mDomains;
 	static ModuleInfo<Authentication> sInfo;
-	auth_challenger_t mRegistrarChallenger[1];
-	auth_challenger_t mProxyChallenger[1];
+	auth_challenger_t mRegistrarChallenger;
+	auth_challenger_t mProxyChallenger;
+	auth_scheme_t* mOdbcAuthScheme ;
+	static int authPluginInit(auth_mod_t *am,
+				     auth_scheme_t *base,
+				     su_root_t *root,
+				     tag_type_t tag, tag_value_t value, ...) {
+	 auth_plugin_t *ap = AUTH_PLUGIN(am);
+	 int retval = -1;
+	 ta_list ta;
+	 ta_start(ta, tag, value);
+
+	  if (auth_init_default(am, base, root, ta_tags(ta)) != -1) {
+		    ap->mRoot = root;
+		    ap->mBase = base;
+		    ap->mTail = &ap->mlist;
+		    retval = 0;
+	  } else {
+		  LOGE("cannot init odbc plugin");
+	  }
+	  auth_readdb_if_needed(am);
+	  ta_end(ta);
+	  return retval;
+	}
+
+
+
 
 public:
+
 	Authentication(Agent *ag):Module(ag),mUsersDbFile(CONFIG_DIR "/userdb.conf"){
 
-		mProxyChallenger[0].ach_status=407;/*SIP_407_PROXY_AUTH_REQUIRED*/
-		mProxyChallenger[0].ach_phrase=sip_407_Proxy_auth_required;
-		mProxyChallenger[0].ach_header=sip_proxy_authenticate_class;
-		mProxyChallenger[0].ach_info=sip_proxy_authentication_info_class;
+		mProxyChallenger.ach_status=407;/*SIP_407_PROXY_AUTH_REQUIRED*/
+		mProxyChallenger.ach_phrase=sip_407_Proxy_auth_required;
+		mProxyChallenger.ach_header=sip_proxy_authenticate_class;
+		mProxyChallenger.ach_info=sip_proxy_authentication_info_class;
 
-		mRegistrarChallenger[0].ach_status=401;/*SIP_401_UNAUTHORIZED*/
-		mRegistrarChallenger[0].ach_phrase=sip_401_Unauthorized;
-		mRegistrarChallenger[0].ach_header=sip_www_authenticate_class;
-		mRegistrarChallenger[0].ach_info=sip_authentication_info_class;
+		mRegistrarChallenger.ach_status=401;/*SIP_401_UNAUTHORIZED*/
+		mRegistrarChallenger.ach_phrase=sip_401_Unauthorized;
+		mRegistrarChallenger.ach_header=sip_www_authenticate_class;
+		mRegistrarChallenger.ach_info=sip_authentication_info_class;
+		auth_scheme* lOdbcAuthScheme = new auth_scheme();
+		lOdbcAuthScheme->asch_method="odbc";
+		lOdbcAuthScheme->asch_size=sizeof (struct auth_mod_size);
+		lOdbcAuthScheme->asch_init=authPluginInit;
+		lOdbcAuthScheme->asch_check=flexisip_auth_method_digest;
+		lOdbcAuthScheme->asch_challenge=auth_challenge_digest;
+		lOdbcAuthScheme->asch_cancel=auth_cancel_default;
+		lOdbcAuthScheme->asch_destroy=auth_destroy_default;
+		mOdbcAuthScheme=lOdbcAuthScheme;
+		if (auth_mod_register_plugin(mOdbcAuthScheme)) {
+			LOGE("Cannot register auth plugin");
+		}
+	}
 
-
+	~Authentication(){
+		delete mOdbcAuthScheme;
 	}
 
 	void onLoad(Agent *agent, const ConfigArea & module_config){
@@ -56,12 +301,15 @@ public:
 		mDomains=module_config.get("auth_domains",list<string>());
 		for (it=mDomains.begin();it!=mDomains.end();++it){
 			mAuthModules[*it] = auth_mod_create(NULL,
-									AUTHTAG_METHOD("Digest"),
+									AUTHTAG_METHOD("odbc"),
 									AUTHTAG_REALM((*it).c_str()),
 									AUTHTAG_DB(mUsersDbFile.c_str()),
 									AUTHTAG_OPAQUE("+GNywA=="),
 									TAG_END());
 			LOGI("Found auth domain: %s",(*it).c_str());
+			if (mAuthModules[*it] == NULL) {
+				LOGE("Cannot create auth module odbc");
+			}
 		}
 
 
@@ -93,9 +341,9 @@ public:
 		as->as_bodylen = sip->sip_payload->pl_len;
 
 		 if(sip->sip_request->rq_method == sip_method_register) {
-			 auth_mod_verify((*lAuthModuleIt).second, as, sip->sip_authorization,mRegistrarChallenger);
+			 auth_mod_verify((*lAuthModuleIt).second, as, sip->sip_authorization,&mRegistrarChallenger);
 		 } else {
-			 auth_mod_verify((*lAuthModuleIt).second, as, sip->sip_proxy_authorization,mProxyChallenger);
+			 auth_mod_verify((*lAuthModuleIt).second, as, sip->sip_proxy_authorization,&mProxyChallenger);
 		 }
 		 if (as->as_status) {
 			 nta_msg_treply(getAgent()->getSofiaAgent (),ev->mMsg,as->as_status,as->as_phrase,
