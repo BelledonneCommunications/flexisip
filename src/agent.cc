@@ -43,6 +43,7 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr)
 	}
 	EtcHostsResolver::get();
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"NatHelper"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Authentication"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Registrar"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"ContactRouteInserter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"MediaRelay"));

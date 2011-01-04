@@ -10,5 +10,11 @@
 #Debug mode: outputs everything in stdout or syslog, possible values 0 or 1
 #debug=0
 #Tell the proxy its list of aliases separated by commas, that is domain names or IP address it can be reached with
-#aliases=somehost1.com, somehost2.com
+#aliases=sip.example.org somehost1.com, somehost2.com
 #
+#[module::Authentication]
+#auth_domains=sip.example.org
+
+#[module::Registrar]
+#reg_domains=sip.example.org
+

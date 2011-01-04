@@ -200,6 +200,7 @@ void lp_config_parse(LpConfig *lpconfig, FILE *file){
 LpConfig * lp_config_new(const char *filename){
 	LpConfig *lpconfig=lp_new0(LpConfig,1);
 	if (filename!=NULL){
+		ms_message("Loading configuration file from [%s]",filename);
 		lpconfig->filename=ortp_strdup(filename);
 		lpconfig->file=fopen(filename,"rw");
 		if (lpconfig->file!=NULL){
