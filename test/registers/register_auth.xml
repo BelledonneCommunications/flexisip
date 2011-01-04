@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+
+<scenario name="Register one user with authentication">
+
+<Global variables="userId,luserAdd,luserIpPort">
+  <action>
+    <assign assign_to="userId" value="0" />
+  </action>
+</Global>
+
+<nop>
+  <action>
+    <add assign_to="userId" value="1" />
+    <assignstr assign_to="luserIpPort" value="[local_ip]:[local_port]" />   
+    <assignstr assign_to="luserAdd" value="sip:[$luserIpPort]" />   
+    <assignstr assign_to="ruserAdd" value="sip:user[$userId]@sip.example.org" /> 
+  </action>
+</nop>
+  
+
+  <send retrans="500">
+    <![CDATA[
+    REGISTER sip:[remote_ip] SIP/2.0
+	Via: SIP/2.0/[transport] [$luserIpPort];branch=[branch]
+	From: [$ruserAdd];tag=[pid]SIPpTag00[call_number]
+	To: [$ruserAdd]
+	Call-ID: [call_id]
+	CSeq: 1 REGISTER
+	Contact: [$luserAdd]
+	Max-Forwards: 70
+	User-Agent: Linphone/Linphone-3.3.x (sipp/unknown)
+	Expires: 3600
+	Content-Length: 0
+    ]]>
+  </send>
+  <recv response="100" optional="true"></recv>
+  <recv response="401" optional="true" auth="true"></recv>
+  <recv response="407" optional="true" auth="true"></recv>
+
+
+  <send retrans="500">
+    <![CDATA[
+    REGISTER sip:[remote_ip] SIP/2.0
+        Via: SIP/2.0/[transport] [$luserIpPort];branch=[branch]
+        From: [$ruserAdd];tag=[pid]SIPpTag00[call_number]
+        To: [$ruserAdd]
+        Call-ID: [call_id]
+        CSeq: 2 REGISTER
+        Contact: [$luserAdd]
+        [authentication username=user[$userId] password=user[$userId]]
+        Max-Forwards: 70
+        User-Agent: Linphone/Linphone-3.3.x (sipp/unknown)
+        Expires: 3600
+        Content-Length: 0
+    ]]>
+  </send>
+
+  <recv response="100" optional="true"></recv>
+
+  <recv response="200"></recv>
+
+
+  <!-- definition of the response time repartition table (unit is ms)   -->
+  <ResponseTimeRepartition value="10, 20, 30, 40, 50, 100, 150, 200"/>
+  <!-- definition of the call length repartition table (unit is ms)     -->
+  <CallLengthRepartition value="10, 50, 100, 500, 1000, 5000, 10000"/>
+</scenario>

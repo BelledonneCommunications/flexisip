@@ -28,6 +28,9 @@ if test x$GCC = xyes ; then
 fi
 
 # Checks for libraries.
+AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],[ODBC_LIBS=-lodbc],[AC_MSG_ERROR("unixodbc headers missing.")])
+AC_CHECK_LIB(odbc, main, [], [AC_MSG_ERROR("Linking against odbc failed.")])
+AC_SUBST(ODBC_LIBS)
 
 
 # Checks for header files.

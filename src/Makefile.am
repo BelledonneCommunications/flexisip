@@ -19,10 +19,11 @@ flexisip_SOURCES=main.cc \
 			module-contact-route-inserter.cc \
 			module-nat-helper.cc \
 			module-registrar.cc \
-			module-mediarelay.cc
+			module-mediarelay.cc \
+			registrar-odbc.hh registrar-odbc.cc
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS) \
 			-DCONFIG_DIR=\"$(CONFIG_DIR)\"
 AM_CFLAGS=$(MEDIASTREAMER_CFLAGS)
 
-AM_LDFLAGS=$(SOFIA_LIBS) $(MEDIASTREAMER_LIBS)
+AM_LDFLAGS=$(SOFIA_LIBS) $(MEDIASTREAMER_LIBS) ${ODBC_LIBS}
