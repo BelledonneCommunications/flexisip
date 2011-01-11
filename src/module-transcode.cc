@@ -150,6 +150,9 @@ void TranscodeModule::onRequest(SipEvent *ev){
 		}else{
 			if (c->isNewInvite(sip)){
 				processNewInvite(c,msg,sip);
+			}else if (mAgent->countUsInVia(sip->sip_via)) {
+				LOGD("We are already in VIA headers of this request");
+				return;
 			}else if (c->getLastForwardedInvite()!=NULL){
 				msg=msg_copy(c->getLastForwardedInvite ());
 				sip=(sip_t*)msg_object(msg);
@@ -246,7 +249,11 @@ void TranscodeModule::onResponse(SipEvent *ev){
 			}else if (isEarlyMedia(sip) && c->isNewEarlyMedia (sip)){
 				process200OkforInvite (c,msg,sip);
 			}else if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
-				LOGD("This is a 200 or 183  retransmission");
+				if (mAgent->countUsInVia(sip->sip_via)) {
+					LOGD("We are already in VIA headers of this response");
+					return;
+				}
+				LOGD("This is a 200 or 183 retransmission");
 				if (c->getLastForwaredResponse()!=NULL){
 					msg=msg_copy(c->getLastForwaredResponse ());
 					sip=(sip_t*)msg_object (msg);

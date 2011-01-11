@@ -72,15 +72,28 @@ void Agent::setDomain(const std::string &domain){
 	mDomain=domain;
 }
 
-bool Agent::isUs(const url_t *url)const{
-	int port=(url->url_port!=NULL) ? atoi(url->url_port) : 5060;
-	if (port!=mPort) return false;
-	if (strcmp(url->url_host,mLocAddr.c_str())==0) return true;
+int Agent::countUsInVia(sip_via_t *via)const{
+	int count = 0;
+	for (sip_via_t *v = via;v!=NULL;v=v->v_next){
+		if (isUs(v->v_host, v->v_port)) ++count;
+	}
+
+	return count;
+}
+
+bool Agent::isUs(const char *host, const char *port)const{
+	int p=(port!=NULL) ? atoi(port) : 5060;
+	if (p!=mPort) return false;
+	if (strcmp(host,mLocAddr.c_str())==0) return true;
 	list<string>::const_iterator it;
 	for(it=mAliases.begin();it!=mAliases.end();++it){
-		if (strcasecmp(url->url_host,(*it).c_str())==0) return true;
+		if (strcasecmp(host,(*it).c_str())==0) return true;
 	}
 	return false;
+}
+
+bool Agent::isUs(const url_t *url)const{
+	return isUs(url->url_host, url->url_port);
 }
 
 void Agent::onRequest(msg_t *msg, sip_t *sip){

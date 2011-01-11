@@ -114,9 +114,9 @@ class Module {
 		virtual void onResponse(SipEvent *ev)=0;
 		virtual void onIdle(){
 		}
+		Agent *mAgent;
 	private:
 		std::string mName;
-		Agent *mAgent;
 		EntryFilter *mFilter;
 };
 
