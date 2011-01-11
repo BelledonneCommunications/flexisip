@@ -3,15 +3,15 @@
 
 <scenario name="Register one user with authentication">
 
-<Global variables="userId,luserAdd,luserIpPort">
+<Global variables="userId,luserAdd,luserIpPort,authentify">
   <action>
     <assign assign_to="userId" value="0" />
   </action>
 </Global>
 
-<nop>
+<nop hide="true">
   <action>
-    <add assign_to="userId" value="1" />
+    <add assign_to="userId" value="1" /> <!-- strangely, now userId=1.000000-->
     <assignstr assign_to="luserIpPort" value="[local_ip]:[local_port]" />   
     <assignstr assign_to="luserAdd" value="sip:[$luserIpPort]" />   
     <assignstr assign_to="ruserAdd" value="sip:user[$userId]@sip.example.org" /> 
@@ -19,7 +19,7 @@
 </nop>
   
 
-  <send retrans="500">
+  <send>
     <![CDATA[
     REGISTER sip:[remote_ip] SIP/2.0
 	Via: SIP/2.0/[transport] [$luserIpPort];branch=[branch]
@@ -34,12 +34,33 @@
 	Content-Length: 0
     ]]>
   </send>
+
   <recv response="100" optional="true"></recv>
-  <recv response="401" optional="true" auth="true"></recv>
-  <recv response="407" optional="true" auth="true"></recv>
+  <recv response="401" optional="true" auth="true" next="2"></recv>
+  <recv response="200"></recv>
+
+  <nop condexec="authentify" hide="true">
+   <action>
+    <log message="Scenario expecting authentication but server sent a 200 OK to an unauthenticated registrar (scn authentication = [$authentify])"/>
+    <!--<exec command="mplayer /usr/share/sounds/gnome/default/alerts/drip.ogg" />-->
+    <jump value="3"/> <!-- FIXME: jump doesn't seem to work ; tried workaround using next in the enclosing nop but it is called whatever the condexec -->
+   </action>
+  </nop>
+
+  <!--<nop next="3" hide="true" />-->
 
 
-  <send retrans="500">
+
+<label id="2"/>
+  <nop condexec="authentify" condexec_inverse="true" hide="true">
+   <action>
+    <log message="Scenario doesn't expect authentication but server sent a 401 to the unauthenticated registrar (scn authentication = [$authentify])"/>
+    <!--<exec command="mplayer /usr/share/sounds/gnome/default/alerts/bark.ogg" />-->
+    <jump value="3"/> <!-- FIXME: jump doesn't seem to work ; tried workaround using next in the enclosing nop but it is called whatever the condexec -->
+   </action>
+  </nop>
+
+  <send>
     <![CDATA[
     REGISTER sip:[remote_ip] SIP/2.0
         Via: SIP/2.0/[transport] [$luserIpPort];branch=[branch]
@@ -48,7 +69,7 @@
         Call-ID: [call_id]
         CSeq: 2 REGISTER
         Contact: [$luserAdd]
-        [authentication username=user[$userId] password=user[$userId]]
+        [field0]
         Max-Forwards: 70
         User-Agent: Linphone/Linphone-3.3.x (sipp/unknown)
         Expires: 3600
@@ -57,8 +78,18 @@
   </send>
 
   <recv response="100" optional="true"></recv>
-
   <recv response="200"></recv>
+ 
+
+
+  <label id="3"/>
+<!--
+  <nop>
+   <action>
+    <log message="Scenario doesn't expect authentication but server sent a 401 to the unauthenticated registrar (scn authentication = [$authentify])"/>
+    <exec command="mplayer /usr/share/sounds/gnome/default/alerts/bark.ogg" />
+   </action>
+  </nop>-->
 
 
   <!-- definition of the response time repartition table (unit is ms)   -->

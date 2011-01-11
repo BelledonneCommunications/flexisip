@@ -1,0 +1,13 @@
+Several scenarios testing simple cases of registration.
+With and without authentication.
+
+For populating Postgresql database with user information:
+- In a file, generate informations like "idx	passwordx"
+- In psql, "\copy accounts (id,password) from 'file_name'"
+
+Creating an index on id : create index id_index on accounts (id);
+
+
+for i in `seq 0 1000000`; do echo user$i.000000 user$i.000000 >> cred; done
+vim to change " " with tabs
+import

@@ -11,12 +11,13 @@
 
 <nop>
   <action>
-    <add assign_to="userId" value="1" />
     <assignstr assign_to="luserIpPort" value="[local_ip]:[local_port]" />   
     <assignstr assign_to="luserAdd" value="sip:user0.000000@sip.example.org" />   
+    <add assign_to="userId" value="1" />
     <assignstr assign_to="ruserAdd" value="sip:user[$userId]@sip.example.org" /> 
   </action>
 </nop>
+
 
 
   <send>
@@ -49,7 +50,6 @@
   <recv response="407" optional="true" auth="true" next="2"></recv>
   <recv response="180" optional="true"></recv>
   <recv response="183" optional="true"></recv>
-
   <recv response="200" rtd="true" timeout="2000"></recv>
 
   <nop condexec="authentify" hide="true">
@@ -121,10 +121,11 @@
     ]]>
   </send>
 
-  <label id="3"/>
-
+  <!-- This delay can be customized by the -d command-line option       -->
+  <!-- or by adding a 'milliseconds = "value"' option here.             -->
   <pause/>
 
+  <!-- The 'crlf' option inserts a blank line in the statistics report. -->
   <send>
     <![CDATA[
 
@@ -146,6 +147,7 @@
 
   <recv response="200" crlf="true" timeout="2000"></recv>
 
+  <label id="3"/>
 
 
 
