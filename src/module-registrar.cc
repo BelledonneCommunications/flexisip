@@ -18,7 +18,6 @@
 
 #include "agent.hh"
 #include "registrardb.hh"
-#include "registrar-odbc.hh"
 
 using namespace::std;
 
@@ -32,46 +31,6 @@ class Registrar : public Module {
 			mDomains=module_config.get("reg_domains",list<string>());
 			for (it=mDomains.begin();it!=mDomains.end();++it){
 				LOGD("Found registrar domain: %s",(*it).c_str());
-			}
-
-			string none = "none";
-			string dsn = module_config.get("datasource", none);
-			string request = module_config.get("request", none);
-			if (dsn != none && request != none) {
-				odbc = OdbcConnector::getInstance();
-
-				if (odbc->connect(dsn, request)) {
-					LOGD("Connection OK with datasource '%s' and request '%s'", dsn.c_str(), request.c_str());
-
-
-					string id = "guillaume";
-					string password = odbc->password(id);
-					LOGE("Retrieved password for %s : %s", id.c_str(), password.c_str());
-
-
-					for (int i=0; i < 50000; i++) {
-						id = "simon";
-						password = odbc->password(id);
-
-						id = "jehan";
-						password = odbc->password(id);
-
-						if (i % 10000 == 0) {
-							LOGE("10000 retrieved");
-						}
-					}
-
-					id = "doesn't exist";
-					LOGE("Retrieving %s", id.c_str());
-					password = odbc->password(id);
-					LOGE("Retrieved password for %s : %s", id.c_str(), password.c_str());
-
-				} else {
-					LOGE("Unable to connect to odbc database");
-				}
-			} else {
-				odbc = NULL;
-				LOGE("No odbc datasource or request defined: REGISTRAR USING OPEN AUTHENTICATION !!!");
 			}
 		}
 		
@@ -100,7 +59,7 @@ class Registrar : public Module {
 				}
 			}else{
 				/*see if we can route other requests */
-				url_t *sipurl=sip->sip_request->rq_url;
+				url_t *sipurl=sip->sip_to->a_url;
 				if (sipurl->url_host &&  isManagedDomain(sipurl->url_host)){
 					const sip_contact_t *ct=RegistrarDb::get()->retrieveMostRecent(sip->sip_to);
 					if (ct){
@@ -127,7 +86,6 @@ class Registrar : public Module {
 		}
 		list<string> mDomains;
 		static ModuleInfo<Registrar> sInfo;
-		OdbcConnector *odbc;
 };
 
 ModuleInfo<Registrar> Registrar::sInfo("Registrar");
