@@ -18,3 +18,7 @@
 #[module::Registrar]
 #reg_domains=sip.example.org
 
+#[module::Authentication]
+#auth_domains=sip.example.org
+#datasource=DSN=PostgreSQL test;
+#request=select password from accounts where id = ?
