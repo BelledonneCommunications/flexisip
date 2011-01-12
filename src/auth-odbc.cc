@@ -17,7 +17,7 @@
 */
 
 
-#include "registrar-odbc.hh"
+#include "auth-odbc.hh"
 
 
 OdbcConnector *OdbcConnector::instance = NULL;
@@ -151,7 +151,7 @@ static void closeCursor(SQLHSTMT &stmt) {
 	}
 }
 
-string OdbcConnector::password(string &id) throw (int) {
+string OdbcConnector::password(const string &id) throw (int) {
 	SQLCHAR password[50];
 	SQLLEN cbPass;
 

@@ -43,7 +43,7 @@ private:
 
 public:
 	virtual ~OdbcConnector();
-	virtual string password(string &id) throw (int);
+	virtual string password(const string &id) throw (int);
 	static OdbcConnector* getInstance();
 	static const int ERROR_PASSWORD_NOT_FOUND = 0;
 	static const int ERROR_LINK_FAILURE = 1;

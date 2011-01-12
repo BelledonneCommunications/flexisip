@@ -21,7 +21,7 @@ flexisip_SOURCES=main.cc \
 			module-registrar.cc \
 			module-mediarelay.cc \
 			module-auth.cc \
-			registrar-odbc.hh registrar-odbc.cc
+			auth-odbc.hh auth-odbc.cc
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS) \
 			-DCONFIG_DIR=\"$(CONFIG_DIR)\"

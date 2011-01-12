@@ -26,7 +26,7 @@
 #include "sofia-sip/auth_plugin.h"
 #include "sofia-sip/su_tagarg.h"
 
-
+#include "auth-odbc.hh"
 
 using namespace std;
 
@@ -74,39 +74,6 @@ su_casematch(char const *s1, char const *s2)
   }
 }
 
-/** Authenticate a request with @b Digest authentication scheme.
- */
-void flexisip_auth_method_digest(auth_mod_t *am,
-			auth_status_t *as,
-			msg_auth_t *au,
-			auth_challenger_t const *ach)
-{
-  as->as_allow = as->as_allow || auth_allow_check(am, as) == 0;
-
-  if (as->as_realm)
-    au = auth_digest_credentials(au, as->as_realm, am->am_opaque);
-  else
-    au = NULL;
-
-  if (as->as_allow) {
-    LOGD("%s: allow unauthenticated %s\n", __func__, as->as_method);
-    as->as_status = 0, as->as_phrase = NULL;
-    as->as_match = (msg_header_t *)au;
-    return;
-  }
-
-  if (au) {
-    auth_response_t ar[1] = {{ sizeof(ar) }};
-    auth_digest_response_get(as->as_home, ar, au->au_params);
-    as->as_match = (msg_header_t *)au;
-    auth_check_digest(am, as, ar, ach);
-  }
-  else {
-    /* There was no matching credentials, send challenge */
-    LOGD("%s: no credentials matched\n", __func__);
-    auth_challenge_digest(am, as, ach);
-  }
-}
 
 /** Verify digest authentication */
 void flexisip_auth_check_digest(auth_mod_t *am,
@@ -116,7 +83,6 @@ void flexisip_auth_check_digest(auth_mod_t *am,
 {
   char const *a1;
   auth_hexmd5_t a1buf, response;
-  auth_passwd_t *apw;
   char const *phrase;
   msg_time_t now = msg_now();
 
@@ -153,6 +119,15 @@ void flexisip_auth_check_digest(auth_mod_t *am,
     return;
   }
 
+  if (strcmp(ar->ar_username, as->as_user_uri->url_user) || strcmp(ar->ar_realm, as->as_user_uri->url_host)) {
+	  as->as_status = 403, as->as_phrase = "from and authentication data mismatch";
+	  LOGD("from and authentication usernames [%s/%s] or from and authentication hosts [%s/%s] mismatch",
+			  ar->ar_username, as->as_user_uri->url_user,
+			  ar->ar_realm, as->as_user_uri->url_host);
+	  as->as_response = NULL;
+	  return;
+  }
+
   if (as->as_nonce_issued == 0 /* Already validated nonce */ &&
       auth_validate_digest_nonce(am, as, ar, now) < 0) {
     as->as_blacklist = am->am_blacklist;
@@ -165,14 +140,26 @@ void flexisip_auth_check_digest(auth_mod_t *am,
     return;
   }
 
-  apw = auth_mod_getpass(am, ar->ar_username, ar->ar_realm);
+  const char* passwd = NULL;
+  const string id = ar->ar_username;
+  LOGW("Retrieving password of user %s", id.c_str());
+  try {
+	  passwd = OdbcConnector::getInstance()->password(id).c_str();
+  } catch (int error) {
+	  switch (error) {
+	  case OdbcConnector::ERROR_PASSWORD_NOT_FOUND:
+		  LOGW("Expected error while retrieving non existing user %s", id.c_str());
+		  break;
+	  default:
+		  LOGW("Unexpected error while retrieving non existing user %s");
+	  }
+  }
 
-  if (apw && apw->apw_hash)
-    a1 = apw->apw_hash;
-  else if (apw && apw->apw_pass)
-    auth_digest_a1(ar, a1buf, apw->apw_pass), a1 = a1buf;
+
+  if (passwd)
+    auth_digest_a1(ar, a1buf, passwd), a1 = a1buf;
   else
-    auth_digest_a1(ar, a1buf, "xyzzy"), a1 = a1buf, apw = NULL;
+    auth_digest_a1(ar, a1buf, "xyzzy"), a1 = a1buf;
 
   if (ar->ar_md5sess)
     auth_digest_a1sess(ar, a1buf, a1), a1 = a1buf;
@@ -180,7 +167,7 @@ void flexisip_auth_check_digest(auth_mod_t *am,
   auth_digest_response(ar, response, a1,
 		       as->as_method, as->as_body, as->as_bodylen);
 
-  if (!apw || strcmp(response, ar->ar_response)) {
+  if (!passwd || strcmp(response, ar->ar_response)) {
 
     if (am->am_forbidden) {
       as->as_status = 403, as->as_phrase = "Forbidden";
@@ -197,10 +184,8 @@ void flexisip_auth_check_digest(auth_mod_t *am,
   }
 
   //assert(apw);
-
-  as->as_user = apw->apw_user;
-  as->as_anonymous = apw == am->am_anon_user;
-  as->as_ident = apw->apw_ident;
+  as->as_user = ar->ar_username;
+  as->as_anonymous = false;
 
   if (am->am_nextnonce || am->am_mutual)
     auth_info_digest(am, as, ach);
@@ -213,6 +198,41 @@ void flexisip_auth_check_digest(auth_mod_t *am,
   as->as_status = 0;	/* Successful authentication! */
   as->as_phrase = "";
 }
+
+/** Authenticate a request with @b Digest authentication scheme.
+ */
+void flexisip_auth_method_digest(auth_mod_t *am,
+			auth_status_t *as,
+			msg_auth_t *au,
+			auth_challenger_t const *ach)
+{
+  as->as_allow = as->as_allow || auth_allow_check(am, as) == 0;
+
+  if (as->as_realm)
+    au = auth_digest_credentials(au, as->as_realm, am->am_opaque);
+  else
+    au = NULL;
+
+  if (as->as_allow) {
+    LOGD("%s: allow unauthenticated %s\n", __func__, as->as_method);
+    as->as_status = 0, as->as_phrase = NULL;
+    as->as_match = (msg_header_t *)au;
+    return;
+  }
+
+  if (au) {
+    auth_response_t ar[1] = {{ sizeof(ar) }};
+    auth_digest_response_get(as->as_home, ar, au->au_params);
+    as->as_match = (msg_header_t *)au;
+    flexisip_auth_check_digest(am, as, ar, ach);
+  }
+  else {
+    /* There was no matching credentials, send challenge */
+    LOGD("%s: no credentials matched\n", __func__);
+    auth_challenge_digest(am, as, ach);
+  }
+}
+
 
 /*
  * code derivated from sofia sip begin end
@@ -233,7 +253,6 @@ struct auth_mod_size { auth_mod_t mod[1]; auth_plugin_t plug[1]; };
 class Authentication : public Module {
 
 private:
-	string mUsersDbFile;
 	map<string,auth_mod_t *> mAuthModules;
 	list<string> mDomains;
 	static ModuleInfo<Authentication> sInfo;
@@ -263,11 +282,9 @@ private:
 	}
 
 
-
-
 public:
 
-	Authentication(Agent *ag):Module(ag),mUsersDbFile(CONFIG_DIR "/userdb.conf"){
+	Authentication(Agent *ag):Module(ag){
 
 		mProxyChallenger.ach_status=407;/*SIP_407_PROXY_AUTH_REQUIRED*/
 		mProxyChallenger.ach_phrase=sip_407_Proxy_auth_required;
@@ -290,6 +307,7 @@ public:
 		if (auth_mod_register_plugin(mOdbcAuthScheme)) {
 			LOGE("Cannot register auth plugin");
 		}
+
 	}
 
 	~Authentication(){
@@ -303,7 +321,6 @@ public:
 			mAuthModules[*it] = auth_mod_create(NULL,
 									AUTHTAG_METHOD("odbc"),
 									AUTHTAG_REALM((*it).c_str()),
-									AUTHTAG_DB(mUsersDbFile.c_str()),
 									AUTHTAG_OPAQUE("+GNywA=="),
 									TAG_END());
 			LOGI("Found auth domain: %s",(*it).c_str());
@@ -313,6 +330,20 @@ public:
 		}
 
 
+		string none = "none";
+		string dsn = module_config.get("datasource", none);
+		string request = module_config.get("request", none);
+		if (dsn != none && request != none) {
+			OdbcConnector *odbc = OdbcConnector::getInstance();
+
+			if (odbc->connect(dsn, request)) {
+				LOGD("Connection OK with datasource '%s' and request '%s'", dsn.c_str(), request.c_str());
+			} else {
+				LOGE("Unable to connect to odbc database");
+			}
+		} else {
+			LOGE("No odbc datasource and request defined: USING OPEN AUTHENTICATION !!!");
+		}
 	}
 
 	void onRequest(SipEvent *ev) {
@@ -362,3 +393,4 @@ public:
 };
 
 ModuleInfo<Authentication> Authentication::sInfo("Authentication");
+
