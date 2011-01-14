@@ -142,16 +142,41 @@ void flexisip_auth_check_digest(auth_mod_t *am,
 
   const char* passwd = NULL;
   const string id = ar->ar_username;
-  LOGW("Retrieving password of user %s", id.c_str());
+  //LOGD("Retrieving password of user %s", id.c_str());
   try {
 	  passwd = OdbcConnector::getInstance()->password(id).c_str();
   } catch (int error) {
 	  switch (error) {
 	  case OdbcConnector::ERROR_PASSWORD_NOT_FOUND:
-		  LOGW("Expected error while retrieving non existing user %s", id.c_str());
+		  LOGD("Authentication: password not found for username %s", id.c_str());
 		  break;
+	  case OdbcConnector::ERROR_ID_TOO_LONG:
+		  LOGD("Authentication: username '%s' too long %i", id.c_str(), id.length());
+		  break;
+	  case OdbcConnector::ERROR_LINK_FAILURE:
+	  case OdbcConnector::ERROR_NOT_CONNECTED:
+		  LOGW("Odbc link failed or not connected; trying reconnection");
+		  if (OdbcConnector::getInstance()->reconnect()) {
+			  LOGD("Odbc reconnection succeeded");
+			  try {
+				  passwd = OdbcConnector::getInstance()->password(id).c_str();
+				  break;
+			  } catch (int e) {}
+		  }
+		  LOGE("Authentication: failed to reconnect while searching for user %s", id.c_str());
+		  if (OdbcConnector::getInstance()->cachedPasswords.count(id) > 0) {
+			  passwd = OdbcConnector::getInstance()->cachedPasswords[id].c_str();
+			  LOGW("Using cached password found for user %s", id.c_str());
+			  break;
+		  }
+		  as->as_status = 500, as->as_phrase = "Internal error";
+		  as->as_response = NULL;
+		  return;
 	  default:
-		  LOGW("Unexpected error while retrieving non existing user %s");
+		  LOGE("Authentication: unexpected error while retrieving user %s", id.c_str());
+		  as->as_status = 500, as->as_phrase = "Internal error";
+		  as->as_response = NULL;
+		  return;
 	  }
   }
 
@@ -332,18 +357,29 @@ public:
 
 		string none = "none";
 		string dsn = module_config.get("datasource", none);
-		string request = module_config.get("request", none);
-		if (dsn != none && request != none) {
-			OdbcConnector *odbc = OdbcConnector::getInstance();
+		if (dsn == none) LOGF("Authentication is activated but no datasource found");
+		LOGD("Datasource found: %s", dsn.c_str());
 
-			if (odbc->connect(dsn, request)) {
-				LOGD("Connection OK with datasource '%s' and request '%s'", dsn.c_str(), request.c_str());
-			} else {
-				LOGE("Unable to connect to odbc database");
-			}
+		string request = module_config.get("request", none);
+		if (request == none) LOGF("Authentication is activated but no request found");
+		LOGD("request found: %s", request.c_str());
+
+		int maxIdLength = module_config.get("max_id_length", 0);
+		if (maxIdLength == 0) LOGF("Authentication is activated but no max_id_length found");
+		LOGD("maxIdLength found: %i", maxIdLength);
+
+		int maxPassLength = module_config.get("max_password_length", 0);
+		if (maxPassLength == 0) LOGF("Authentication is activated but no max_password_length found");
+		LOGD("maxPassLength found: %i", maxPassLength);
+
+
+		OdbcConnector *odbc = OdbcConnector::getInstance();
+		if (odbc->connect(dsn, request, maxIdLength, maxPassLength)) {
+			LOGD("Connection OK");
 		} else {
-			LOGE("No odbc datasource and request defined: USING OPEN AUTHENTICATION !!!");
+			LOGE("Unable to connect to odbc database");
 		}
+
 	}
 
 	void onRequest(SipEvent *ev) {

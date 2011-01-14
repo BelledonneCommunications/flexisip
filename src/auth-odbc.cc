@@ -19,7 +19,6 @@
 
 #include "auth-odbc.hh"
 
-
 OdbcConnector *OdbcConnector::instance = NULL;
 
 OdbcConnector* OdbcConnector::getInstance() {
@@ -30,6 +29,9 @@ OdbcConnector* OdbcConnector::getInstance() {
 	return instance;
 }
 
+void OdbcConnector::setExecuteDirect(const bool value) {
+	execDirect = value;
+}
 
 void showCB(SQLLEN cb)
 {
@@ -48,16 +50,15 @@ void showCB(SQLLEN cb)
 }
 
 static bool linkFailed(string fn, SQLHANDLE handle, SQLSMALLINT handleType) {
-	SQLINTEGER i=0;
 	SQLINTEGER errorNb;
 	SQLCHAR sqlState[7];
 	SQLCHAR msg[256];
 	SQLSMALLINT msgLen;
 
-
-	SQLRETURN ret = SQLGetDiagRec(handleType, handle, ++i, sqlState, &errorNb, msg, sizeof(msg), &msgLen);
-	if (SQL_SUCCEEDED(ret) && sqlState == (SQLCHAR*) "08S01") {
-		LOGE("Odbc link failure while doing %s : %s", fn.c_str(), (char*) msg);
+	SQLRETURN ret = SQLGetDiagRec(handleType, handle, 1, sqlState, &errorNb, msg, sizeof(msg), &msgLen);
+	if (SQL_SUCCEEDED(ret) && strcmp((char*)sqlState, "08S01") == 0) {
+		LOGE("Odbc link failure while doing %s : (%s) %s",
+				fn.c_str(), (unsigned char*) sqlState, (char*) msg);
 		return true;
 	}
 
@@ -81,7 +82,7 @@ static void logSqlError(string fn, SQLHANDLE handle, SQLSMALLINT handleType) {
 }
 
 
-OdbcConnector::OdbcConnector() {}
+OdbcConnector::OdbcConnector():idCBuffer(NULL),execDirect(false) {}
 
 OdbcConnector::~OdbcConnector() {
 	// Disconnect from database and close everything
@@ -98,10 +99,32 @@ void OdbcConnector::dbcError(const char* doing) {
 	disconnect();
 }
 
-bool OdbcConnector::connect(const string &d, const string &r) {
+bool OdbcConnector::connect(const string &d, const string &r, int maxIdLength, int maxPassLength) {
 	this->connectionString = d;
 	this->request = r;
+	this->maxIdLength = maxIdLength;
+	this->maxPassLength = maxPassLength;
 
+
+	return reconnect();
+}
+
+void OdbcConnector::disconnect() {
+	LOGD("disconnecting odbc connector");
+	if (idCBuffer != NULL) free(idCBuffer); idCBuffer = NULL;
+	if (stmt) SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+	if (dbc) {
+		SQLDisconnect(dbc);
+		SQLFreeHandle(SQL_HANDLE_DBC, dbc);
+	}
+	if (env) SQLFreeHandle(SQL_HANDLE_ENV, env);
+	connected = false;
+}
+
+bool OdbcConnector::reconnect() {
+	if (connected) disconnect();
+
+	LOGD("(re-)connecting odbc connector");
 	SQLRETURN retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
 
 	retcode = SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
@@ -123,26 +146,31 @@ bool OdbcConnector::connect(const string &d, const string &r) {
 	if (!SQL_SUCCEEDED(retcode)) {
 		logSqlError("SQLAllocHandle STMT", dbc, SQL_HANDLE_DBC);
 		disconnect();
-		return false;
+		return connected;
 	}
 
-	retcode = SQLPrepare(stmt, (SQLCHAR*) request.c_str(), SQL_NTS);
-	if (!SQL_SUCCEEDED(retcode)) {
-		logSqlError("SQLPrepare request", stmt, SQL_HANDLE_STMT);
-		disconnect();
-		return false;
+	if (!execDirect) {
+		retcode = SQLPrepare(stmt, (SQLCHAR*) request.c_str(), SQL_NTS);
+		if (!SQL_SUCCEEDED(retcode)) {
+			logSqlError("SQLPrepare request", stmt, SQL_HANDLE_STMT);
+			disconnect();
+			return connected;
+		}
+
+		idCBuffer = (char*) malloc(maxIdLength +1);
+		// Use isql dsn_name then "help table_name" (without ;) to get information on sql types
+		retcode = SQLBindParameter(stmt,1,SQL_PARAM_INPUT, SQL_C_CHAR,
+				SQL_CHAR, (SQLULEN) maxIdLength, 0,
+				idCBuffer, 0, NULL); // seems to work with 0 and/instead of id.length()
+		if (!SQL_SUCCEEDED(retcode)) {
+			logSqlError("SQLBindParameter", stmt, SQL_HANDLE_STMT);
+			throw ERROR;
+		}
+		LOGD("SQLBindParameter OK");
 	}
 
+	connected = true;
 	return true;
-}
-
-void OdbcConnector::disconnect() {
-	  if (stmt) SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-	  if (dbc) {
-		  SQLDisconnect(dbc);
-		  SQLFreeHandle(SQL_HANDLE_DBC, dbc);
-	  }
-	  if (env) SQLFreeHandle(SQL_HANDLE_ENV, env);
 }
 
 static void closeCursor(SQLHSTMT &stmt) {
@@ -151,27 +179,37 @@ static void closeCursor(SQLHSTMT &stmt) {
 	}
 }
 
+/* Neither this method nor the class is thread safe */
 string OdbcConnector::password(const string &id) throw (int) {
-	SQLCHAR password[50];
-	SQLLEN cbPass;
+	if (!connected) throw ERROR_NOT_CONNECTED;
 
-	char* cId = const_cast<char*>(id.c_str());
-	SQLRETURN retcode = SQLBindParameter(stmt,1,SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, (SQLULEN) 50, 0, cId, 0, &cbPass);
-	if (!SQL_SUCCEEDED(retcode)) {
-		logSqlError("SQLBindParameter", stmt, SQL_HANDLE_STMT);
-		throw ERROR;
-	}
-	LOGD("SQLBindParameter OK");
+	if (id.length() > maxIdLength) throw ERROR_ID_TOO_LONG;
+	strncpy(idCBuffer, id.c_str(), maxIdLength);
 
-	LOGD("Requesting password of user with id='%s'", id.c_str());
-	retcode = SQLExecute(stmt);
-	if (!SQL_SUCCEEDED(retcode)) {
-		showCB(cbPass);
-		logSqlError("SQLExecute", stmt, SQL_HANDLE_STMT);
-		if (linkFailed("SQLExecute", stmt, SQL_HANDLE_STMT)) throw ERROR_LINK_FAILURE;
-		throw ERROR;
+	SQLRETURN retcode;
+	if (execDirect) {
+		// execute direct
+		LOGD("Requesting password of user with id='%s'", idCBuffer);
+		retcode = SQLExecDirect(stmt, (SQLCHAR*) request.c_str(), SQL_NTS);
+		if (!SQL_SUCCEEDED(retcode)) {
+			logSqlError("SQLExecDirect", stmt, SQL_HANDLE_STMT);
+			if (linkFailed("SQLExecDirect", stmt, SQL_HANDLE_STMT)) throw ERROR_LINK_FAILURE;
+			throw ERROR;
+		}
+		LOGD("SQLExecDirect OK");
+	} else {
+		// Use prepared statement
+		LOGD("Requesting password of user with id='%s'", idCBuffer);
+		retcode = SQLExecute(stmt);
+		if (!SQL_SUCCEEDED(retcode)) {
+			logSqlError("SQLExecute", stmt, SQL_HANDLE_STMT);
+			if (linkFailed("SQLExecute", stmt, SQL_HANDLE_STMT)) throw ERROR_LINK_FAILURE;
+			throw ERROR;
+		}
+		LOGD("SQLExecute OK");
 	}
-	LOGD("SQLExecute OK");
+
+
 
 	if (retcode != SQL_SUCCESS) {
 		LOGE("SQLExecute returned no success");
@@ -182,17 +220,31 @@ string OdbcConnector::password(const string &id) throw (int) {
 	retcode = SQLFetch(stmt);
 	if (retcode == SQL_ERROR || retcode == SQL_SUCCESS_WITH_INFO) {
 		LOGE("Fetch error or success with info");
+		logSqlError("SQLFetch", stmt, SQL_HANDLE_STMT);
 		closeCursor(stmt);
 		throw ERROR;
 	}
 
-	retcode = SQLGetData(stmt, 1, SQL_C_CHAR, password, sizeof(password) -1, &cbPass);
+	if (retcode == SQL_NO_DATA) {
+		LOGE("No data fetched");
+		logSqlError("SQLFetch", stmt, SQL_HANDLE_STMT);
+		closeCursor(stmt);
+		throw ERROR_PASSWORD_NOT_FOUND;
+	}
+
+	SQLLEN cbPass;
+	SQLCHAR password[maxPassLength + 1];
+	retcode = SQLGetData(stmt, 1, SQL_C_CHAR, password, maxPassLength, &cbPass);
 	if (retcode == SQL_ERROR || retcode == SQL_SUCCESS_WITH_INFO) {
-		LOGE("SQLGetData error or success with info - user not found??");
+		if (retcode == SQL_SUCCESS_WITH_INFO) LOGE("SQLGetData success with info");
+		else LOGE("SQLGetData error or success with info - user not found??");
 		closeCursor(stmt);
 		throw ERROR_PASSWORD_NOT_FOUND;
 	}
 
 	closeCursor(stmt);
+
+	cachedPasswords[id] = string((char*)password);
+
 	return (char*) password;
 }

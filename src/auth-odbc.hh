@@ -26,7 +26,7 @@
 #include <stdio.h>
 #include <sql.h>
 #include <sqlext.h>
-
+#include <map>
 using namespace std;
 
 class OdbcConnector {
@@ -35,11 +35,16 @@ private:
 	OdbcConnector();
 	string connectionString;
 	string request;
+	int maxPassLength;
+	unsigned int maxIdLength;
+	char* idCBuffer;
+	bool connected;
 	SQLHENV env;
 	SQLHDBC dbc;
 	SQLHSTMT stmt;
 	void dbcError(const char* doing);
 	void envError(const char* doing);
+	bool execDirect;
 
 public:
 	virtual ~OdbcConnector();
@@ -48,7 +53,12 @@ public:
 	static const int ERROR_PASSWORD_NOT_FOUND = 0;
 	static const int ERROR_LINK_FAILURE = 1;
 	static const int ERROR = 2;
-	bool connect(const string &dsn, const string &request);
+	static const int ERROR_ID_TOO_LONG = 3;
+	static const int ERROR_NOT_CONNECTED = 4;
+	map<string,string> cachedPasswords;
+	void setExecuteDirect(const bool value);
+	bool connect(const string &dsn, const string &request, int maxIdLength, int maxPassLength);
+	bool reconnect();
 	void disconnect();
 	bool checkConnection();
 	OdbcConnector (const OdbcConnector &);
