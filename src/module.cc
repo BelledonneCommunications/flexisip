@@ -79,7 +79,7 @@ void Module::load(Agent *agent){
 	string configName=string("module::"+getModuleName());
 	const ConfigArea &module_config=ConfigManager::get()->getArea(configName.c_str());
 	mFilter->loadConfig(module_config);
-	onLoad(agent,module_config);
+	if (mFilter->isEnabled()) onLoad(agent,module_config);
 }
 
 void Module::processRequest(SipEvent *ev){

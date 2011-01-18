@@ -48,3 +48,7 @@ bool ConfigEntryFilter::canEnter(sip_t *sip){
 	return true;
 }
 
+bool ConfigEntryFilter::isEnabled(){
+	return mEnabled;
+}
+
