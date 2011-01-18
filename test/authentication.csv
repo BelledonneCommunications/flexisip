@@ -1,0 +1,3 @@
+SEQUENTIAL,PRINTF=1000001,PRINTFOFFSET=1
+[authentication username=user%d.000000 password=user%d.000000]
+

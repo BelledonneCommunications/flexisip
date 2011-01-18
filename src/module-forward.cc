@@ -67,11 +67,7 @@ void ForwardModule::onRequest(SipEvent *ev){
 			dest=sip->sip_route->r_url;
 		}
 	}
-	std::string ip;
-	if (EtcHostsResolver::get()->resolve(dest->url_host,&ip)){
-		LOGD("Found %s in /etc/hosts",dest->url_host);
-		dest->url_host=ip.c_str();
-	}
+
 
 	char contact_route_param[64];
 	// now need to check if request uri has special param inserted by contact-route-inserter module
@@ -87,6 +83,14 @@ void ForwardModule::onRequest(SipEvent *ev){
 		dest->url_host=su_strndup(ev->getHome(), contact_route_param, (hostport_separator-contact_route_param) );
 		dest->url_port=su_strdup(ev->getHome(), hostport_separator+1);
 	}
+
+
+	std::string ip;
+	if (EtcHostsResolver::get()->resolve(dest->url_host,&ip)){
+		LOGD("Found %s in /etc/hosts",dest->url_host);
+		dest->url_host=ip.c_str();
+	}
+
 
 	if (!getAgent()->isUs(dest)) {
 		buf=msg_as_string(ev->getHome(), msg, NULL, 0,&msg_size);

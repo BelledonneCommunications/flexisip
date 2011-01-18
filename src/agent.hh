@@ -59,6 +59,8 @@ class Agent{
 		nta_agent_t* getSofiaAgent()const{
 			return mAgent;
 		}
+		int countUsInVia(sip_via_t *via)const;
+		bool isUs(const char *host, const char *port)const;
 	protected:
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
 		void onRequest(msg_t *msg, sip_t *sip);

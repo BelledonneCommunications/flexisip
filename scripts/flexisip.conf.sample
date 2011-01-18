@@ -18,3 +18,10 @@
 #[module::Registrar]
 #reg_domains=sip.example.org
 
+#[module::Authentication]
+#auth_domains=sip.example.org
+#datasource=DSN=PostgreSQL test;
+#request=select password from accounts where id = ?
+#max_id_length=64
+#max_password_length=34
+#hashed_passwords=true

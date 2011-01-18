@@ -27,7 +27,11 @@ ConfigArea::ConfigArea(ConfigManager *m, const char *area) :  mArea(area), mMana
 bool ConfigArea::get(const char *key, bool default_value)const{
 	std::string result;
 	if (mManager->get(mArea.c_str(),key,&result)){
-		return atoi(result.c_str());
+		if (result == "false" || result == "0")	return false;
+		if (result == "true" || result == "1") return true;
+
+		// else
+		LOGF("Not a boolean: \"%s\" for key \"%s\" in \"%s\"", result.c_str(), key, mArea.c_str());
 	}
 	return default_value;
 }

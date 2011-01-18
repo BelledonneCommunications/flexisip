@@ -3,34 +3,21 @@
 
 <scenario name="Register one user with authentication">
 
-<Global variables="userId,luserAddContact,luserIpPort,authentify">
+<Global variables="userId,luserAdd,luserIpPort,authentify">
   <action>
     <assign assign_to="userId" value="0" />
   </action>
 </Global>
-<!--<init>
-	<nop>
-		<action>
-			<strcmp assign_to="empty" variable="authentify" value="" />
-			<test assign_to="empty" compare="equal" variable="empty" value="0" />
-		</action>
-	</nop>
-	<nop condexec="empty">
-		<action>
-			<assignstr assign_to="authentify" value="1" />
-		</action>
-	</nop>
-</init>-->
 
 <nop hide="true">
   <action>
     <add assign_to="userId" value="1" /> <!-- strangely, now userId=1.000000-->
-    <assignstr assign_to="luserIpPort" value="[local_ip]:[local_port]" />
-    <assignstr assign_to="luserAddContact" value="sip:user[$userId]@[local_ip]:5063" />
-    <assignstr assign_to="ruserAdd" value="sip:user[$userId]@sip.example.org" />
+    <assignstr assign_to="luserIpPort" value="[local_ip]:[local_port]" />   
+    <assignstr assign_to="luserAdd" value="sip:[$luserIpPort]" />   
+    <assignstr assign_to="ruserAdd" value="sip:user[$userId]@sip.example.org" /> 
   </action>
 </nop>
-
+  
 
   <send>
     <![CDATA[
@@ -40,7 +27,7 @@
 	To: [$ruserAdd]
 	Call-ID: [call_id]
 	CSeq: 1 REGISTER
-	Contact: [$luserAddContact]
+	Contact: [$luserAdd]
 	Max-Forwards: 70
 	User-Agent: Linphone/Linphone-3.3.x (sipp/unknown)
 	Expires: 3600
@@ -60,8 +47,8 @@
    </action>
   </nop>
 
+  <!--<nop next="3" hide="true" />-->
 
-  <nop next="3" hide="true" />
 
 
 <label id="2"/>
@@ -81,7 +68,7 @@
         To: [$ruserAdd]
         Call-ID: [call_id]
         CSeq: 2 REGISTER
-        Contact: [$luserAddContact]
+        Contact: [$luserAdd]
         [field0]
         Max-Forwards: 70
         User-Agent: Linphone/Linphone-3.3.x (sipp/unknown)
@@ -96,6 +83,13 @@
 
 
   <label id="3"/>
+<!--
+  <nop>
+   <action>
+    <log message="Scenario doesn't expect authentication but server sent a 401 to the unauthenticated registrar (scn authentication = [$authentify])"/>
+    <exec command="mplayer /usr/share/sounds/gnome/default/alerts/bark.ogg" />
+   </action>
+  </nop>-->
 
 
   <!-- definition of the response time repartition table (unit is ms)   -->

@@ -1,7 +1,13 @@
 Flexisip is general purpose SIP proxy with media capabilities.
 It is released under the AGPL v3. Please understand the terms of AGPL in COPYING before deploying it.
 
+Flexisip depends on the following externals:
+-oRTP
+-mediastreamer2
+-sofia-sip
 
+
+To configure Flexisip, copy and modify file flexisip.conf.sample to flexisip.conf in directory <prefix>/etc/flexisip
 
 
 

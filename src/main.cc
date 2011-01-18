@@ -153,7 +153,7 @@ static void initialize(bool debug, bool useSyslog){
 		setlogmask(~0);
 		ortp_set_log_handler(syslogHandler);
 	}
-	ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR);
+	ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
 	LOGN("Starting version %s", VERSION);
 
 	ConfigManager *cfg=ConfigManager::get();

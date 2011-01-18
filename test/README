@@ -7,7 +7,9 @@ You need to configure in your /etc/hosts
 sipp sip.example.org -t un -sf register_then_bye_noauth.xml -rate_max 150 -rate_increase 10 -fd 10s -r 100 -rp 1s
 
 * launching a complete invite test
-Create a launch.config file to export your configuration
-./launch code
-code is "simple" or "amr"
-For amr launch as root
+Create a launch.config file in each test directory.
+./launch $directory ; you may need root permission.
+
+
+* compile sipp with "make pcapplay_ossl"
+  see http://sipp.sourceforge.net/doc/reference.html#installing
