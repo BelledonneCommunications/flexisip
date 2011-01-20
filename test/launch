@@ -5,7 +5,7 @@
 FLEXISIP=flexisip
 SIPP=sipp
 NB_USERS=1000
-IP=`cat /etc/hosts | grep -e "^[^#].*sip.example.org" | egrep "sip-auth.example.org|sip.example.org|relayed-auth.example.org|relayed.example.org" | awk -F'\t' '{print $1}'`
+IP=`cat /etc/hosts | grep "sip.example.org" | grep "sip-auth.example.org" | grep "relayed-auth.example.org" | grep "relayed.example.org" | grep -e "^[^#]" | awk -F'\t' '{print $1}'`
 [ -z $IP ] && echo "ERROR: sip.example.org not found in /etc/hosts" && exit
 PROXY=sip.example.org
 REGISTER_PORT=5070
