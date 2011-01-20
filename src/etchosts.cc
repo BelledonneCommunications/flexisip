@@ -32,10 +32,14 @@ EtcHostsResolver::EtcHostsResolver(){
 	while(fgets(line,sizeof(line)-1,f)!=NULL){
 		char ip[256];
 		char name[256];
-		if (sscanf(line,"%s %s",ip,name)==2){
-			if (ip[0]!='#'){
+		int consumed;
+		char* subLine = line;
+		if (sscanf(subLine,"%s%n",ip,&consumed)==1 && ip[0]!='#'){
+			subLine+=consumed;
+			while (sscanf(subLine,"%s%n",name,&consumed)==1) {
 				LOGD("Read %s %s",ip,name);
 				mMap[name]=ip;
+				subLine+=consumed;
 			}
 		}
 	}
