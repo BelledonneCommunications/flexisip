@@ -13,11 +13,10 @@
   <action>
     <add assign_to="userId" value="1" />
     <assignstr assign_to="luserIpPort" value="[local_ip]:[local_port]" />   
-    <assignstr assign_to="luserAdd" value="sip:user0.000000@sip.example.org" />   
+    <assignstr assign_to="luserAdd" value="sip:user0.000000@sip-auth.example.org" />
     <assignstr assign_to="ruserAdd" value="sip:user[$userId]@sip.example.org" /> 
   </action>
 </nop>
-
 
   <send>
     <![CDATA[
@@ -36,11 +35,50 @@
 
       v=0
       o=user1 53655765 2353687637 IN IP[local_ip_type] [local_ip]
-      s=-
+      s=A conversation
       c=IN IP[media_ip_type] [media_ip]
       t=0 0
-      m=audio [media_port] RTP/AVP 0
-      a=rtpmap:0 PCMU/8000
+      m=audio [media_port] RTP/AVP 114 101
+      a=rtpmap:114 AMR/8000/1
+      a=fmtp:114 octet-align=1
+      a=rtpmap:101 telephone-event/8000/1
+      a=fmtp:101 0-11
+      a=sendrecv
+
+    ]]>
+  </send>
+
+  <recv response="100" optional="true"></recv>
+  <recv response="407" auth="true"></recv>
+
+
+  <send>
+    <![CDATA[
+
+      INVITE [$ruserAdd] SIP/2.0
+      Via: SIP/2.0/[transport] [$luserIpPort];branch=[branch]
+      From: <[$luserAdd]>;tag=[pid]SIPpTag00[call_number]
+      To: <[$ruserAdd]>
+      Call-ID: [call_id]
+      CSeq: 2 INVITE
+      Contact: [$luserAdd]
+      [authentication username=user0.000000 password=user0.000000]
+      Max-Forwards: 70
+      Subject: Test invite from client
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=user1 53655765 2353687637 IN IP[local_ip_type] [local_ip]
+      s=A conversation
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 114 101
+      a=rtpmap:114 AMR/8000/1
+      a=fmtp:114 octet-align=1
+      a=rtpmap:101 telephone-event/8000/1
+      a=fmtp:101 0-11
+      a=sendrecv
 
     ]]>
   </send>
@@ -48,6 +86,7 @@
   <recv response="100" optional="true"></recv>
   <recv response="180" optional="true"></recv>
   <recv response="183" optional="true"></recv>
+
   <recv response="200" rtd="true" timeout="2000"></recv>
 
 
@@ -61,6 +100,7 @@
       Call-ID: [call_id]
       CSeq: 1 ACK
       Contact: [$luserAdd]
+      [authentication username=user0.000000 password=user0.000000]
       Max-Forwards: 70
       Subject: Ack user we have received the 200
       Content-Length: 0
@@ -69,7 +109,14 @@
   </send>
 
 
-  <pause/>
+  <nop>
+    <action>
+      <exec play_pcap_audio="transcoding/one_way_amr_capture.pcap"/>
+    </action>
+  </nop>
+
+  <!-- Wait untill the pcap file is almost entirely played. -->
+  <pause milliseconds="180000"/>
 
   <send>
     <![CDATA[

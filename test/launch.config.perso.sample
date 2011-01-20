@@ -1,0 +1,13 @@
+# Personal base configuration
+
+export LD_LIBRARY_PATH=/home/guillaume/dev/inst/lib/
+SIPP=_path_to_sipp_application_compiled_with_openssl_and_pcap_
+FLEXISIP=_path_to_flexisip_application_
+
+NB_USERS=1
+
+CALL_LENGTH=180
+INV_RATE=`echo $NB_USERS / $CALL_LENGTH | bc`
+[ $NB_USERS -le $CALL_LENGTH ] && INV_RATE=1
+
+REG_OPTIONS="-r 10 -rp 1s -nd --users 100"

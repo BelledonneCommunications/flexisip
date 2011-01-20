@@ -10,7 +10,7 @@
   <action>
     <assignstr assign_to="luserIpPort" value="[local_ip]:[local_port]" />   
     <assignstr assign_to="luserAdd" value="sip:[$luserIpPort]" />   
-    <assignstr assign_to="ruserAdd" value="sip:user0.000000@sip.example.org" /> 
+    <assignstr assign_to="ruserAdd" value="sip:user0.000000@sip-auth.example.org" /> 
   </action>
 </nop>
   
@@ -32,8 +32,28 @@
   </send>
 
   <recv response="100" optional="true"></recv>
-  <recv response="200"></recv>
+  <recv response="401" auth="true"></recv>
 
+  <send>
+    <![CDATA[
+    REGISTER sip:[remote_ip] SIP/2.0
+        Via: SIP/2.0/[transport] [$luserIpPort];branch=[branch]
+        From: [$ruserAdd];tag=[pid]SIPpTag00[call_number]
+        To: [$ruserAdd]
+        Call-ID: [call_id]
+        CSeq: 2 REGISTER
+        Contact: [$luserAdd]
+        [authentication username=user0.000000 password=user0.000000]
+        Max-Forwards: 70
+        User-Agent: Linphone/Linphone-3.3.x (sipp/unknown)
+        Expires: 3600
+        Content-Length: 0
+    ]]>
+  </send>
+
+  <recv response="100" optional="true"></recv>
+  <recv response="200"></recv>
+ 
 
   <ResponseTimeRepartition value="10, 20, 30, 40, 50, 100, 150, 200"/>
   <CallLengthRepartition value="10, 50, 100, 500, 1000, 5000, 10000"/>

@@ -1,9 +1,12 @@
 #!/bin/bash
 
+[ ! -f launch.config.perso ] && echo "launch.config.perso not found" && exit 1
+
 FLEXISIP=flexisip
 SIPP=sipp
 NB_USERS=1000
-IP=`cat /etc/hosts | grep sip.example.org |  awk -F'\t' '{print $1}'`
+IP=`cat /etc/hosts | grep -e "^[^#].*sip.example.org" | egrep "sip-auth.example.org|sip.example.org|relayed-auth.example.org|relayed.example.org" | awk -F'\t' '{print $1}'`
+[ -z $IP ] && echo "ERROR: sip.example.org not found in /etc/hosts" && exit
 PROXY=sip.example.org
 REGISTER_PORT=5070
 USERS_PORT=5063
@@ -11,6 +14,14 @@ INVITER_PORT=5064
 
 # Import configuration
 FOLDER=$1
+if [ -n "$2" ]
+then
+ echo -e "\033[1mUsing authentication\033[0m"
+ USE_AUTH="-auth"
+else
+ echo -e "\033[1mNOT using authentication\033[0m"
+fi
+
 if [ -z $FOLDER ] 
 then
  echo "Usage ./launch folder, where folder is "
@@ -22,14 +33,13 @@ FLEX_OPTIONS="$FLEX_OPTIONS --configfile $FOLDER/flexisip.conf --port 5060"
 . $FOLDER/launch.config
 
 SIPP_COMMONS="$SIPP_COMMONS -i $IP -trace_err"
-REG_OPTIONS="$REG_OPTIONS -p 5070 -m `echo "1+$NB_USERS"|bc` $SIPP_COMMONS"
-REG_INVITER_OPTIONS="$REG_INVITER_OPTIONS -p 5064 -m 1 $SIPP_COMMONS"
+REG_OPTIONS="$REG_OPTIONS -p 5070 -m `echo "1+$NB_USERS"|bc` $SIPP_COMMONS -inf authentication.csv"
+REG_INVITER_OPTIONS="$REG_INVITER_OPTIONS -p 5064 -m 1 $SIPP_COMMONS -nd"
 INV_OPTIONS="$INV_OPTIONS -m $NB_USERS -p 5064 $SIPP_COMMONS"
 UAS_OPTIONS="$UAS_OPTIONS -p 5063 -bg $SIPP_COMMONS -mi $IP -mp 15000 -rtp_echo"
 
-echo "Using FLEXISIP=$FLEXISIP,SIPP$SIPP,NB_USERS=$NB_USERS"
-echo "IP=$IP,PROXY=$PROXY"
-echo "Sofia SIP log level: $SU_DEBUG, LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+echo "NB_USERS=$NB_USERS"
+echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
 
 # Accept core dumps
 ulimit -c unlimited
@@ -38,23 +48,28 @@ ulimit -c unlimited
 ulimit -n 65000
 
 
-echo ""; echo "Start users listening: $SIPP -sf uas.xml $UAS_OPTIONS"
-$SIPP -sf uas.xml $UAS_OPTIONS 2>&1 > /dev/null
+CMD_UAS="$SIPP -sf uas.xml $UAS_OPTIONS"
+echo -e "\n\033[1mStart users listening: $CMD_UAS \033[0m"
+$CMD_UAS 2>&1 > /dev/null
 
-echo ""; echo "Start flexisip: $FLEXISIP $FLEX_OPTIONS"
-$FLEXISIP $FLEX_OPTIONS 2>&1 > flexisip.log &
+CMD_FLEXISIP="$FLEXISIP $FLEX_OPTIONS"
+echo -e "\n\033[1mStart flexisip: $CMD_FLEXISIP \033[0m"
+$CMD_FLEXISIP 2>&1 > flexisip.log &
 sleep 2s
 
-echo ""; echo "Register users $SIPP $PROXY -sf register_users.xml $REG_OPTIONS"
-$SIPP $PROXY -sf register_users.xml $REG_OPTIONS
-echo ""; echo "Register inviter $SIPP $PROXY -sf register_inviter.xml $REG_INVITER_OPTIONS"
-$SIPP $PROXY -sf register_inviter.xml $REG_INVITER_OPTIONS
+CMD_REG_USERS="$SIPP $PROXY -sf register_users.xml $REG_OPTIONS"
+echo -e "\n\033[1mRegister users $CMD_REG_USERS \033[0m (never authenticated)"
+$CMD_REG_USERS
+
+CMD_REG_INVITER="$SIPP $PROXY -sf register_inviter$USE_AUTH.xml $REG_INVITER_OPTIONS"
+echo -e "\n\033[1mRegister inviter $CMD_REG_INVITER \033[0m"
+$CMD_REG_INVITER
 
 
 
 # Allow killing
 function onexit() {
- echo "Killing everyone"
+ echo -e "\e[0;31mKilling everyone \033[0m"
  killall flexisip 2>/dev/null
  killall sipp 2>/dev/null
 
@@ -68,10 +83,11 @@ function onexit() {
 set -o errtrace 
 trap onexit 1 2 3 15 ERR
 
-echo "" ; echo "Start inviting users : $INV_OPTIONS"
+CMD_INVITE_USERS="$SIPP $PROXY -sf $FOLDER/invite$USE_AUTH.xml $INV_OPTIONS"
+echo -e "\n\033[1mStart inviting users : $CMD_INVITE_USERS \033[0m"
 while [ true ]
 do
-  $SIPP $PROXY -sf $FOLDER/invite.xml $INV_OPTIONS
+  $CMD_INVITE_USERS
 done
 
 onexit 
