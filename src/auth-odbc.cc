@@ -227,7 +227,6 @@ string OdbcConnector::password(const string &id) throw (int) {
 
 	if (retcode == SQL_NO_DATA) {
 		LOGE("No data fetched");
-		logSqlError("SQLFetch", stmt, SQL_HANDLE_STMT);
 		closeCursor(stmt);
 		throw ERROR_PASSWORD_NOT_FOUND;
 	}
