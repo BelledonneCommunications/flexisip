@@ -124,6 +124,7 @@ public:
 									AUTHTAG_METHOD("odbc"),
 									AUTHTAG_REALM((*it).c_str()),
 									AUTHTAG_OPAQUE("+GNywA=="),
+									AUTHTAG_FORBIDDEN(1),
 									TAG_END());
 			auth_plugin_t *ap = AUTH_PLUGIN(mAuthModules[*it]);
 			ap->mModule = this;
@@ -243,147 +244,144 @@ static const char* passwordRetrievingFallback(auth_status_t *as, const string &i
 
 /** Verify digest authentication */
 void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
-		       auth_status_t *as,
-		       auth_response_t *ar,
-		       auth_challenger_t const *ach)
-{
+		auth_status_t *as,
+		auth_response_t *ar,
+		auth_challenger_t const *ach) {
 
-  char const *phrase;
-  msg_time_t now = msg_now();
+	if (am == NULL || as == NULL || ar == NULL || ach == NULL) {
+		if (as) {
+			as->as_status = 500, as->as_phrase = "Internal Server Error";
+			as->as_response = NULL;
+		}
+		return;
+	}
 
-  if (am == NULL || as == NULL || ar == NULL || ach == NULL) {
-    if (as) {
-      as->as_status = 500, as->as_phrase = "Internal Server Error";
-      as->as_response = NULL;
-    }
-    return;
-  }
-
-  phrase = "Bad authorization";
 
 #define PA "Authorization missing "
 
-  if ((!ar->ar_username && (phrase = PA "username")) ||
-      (!ar->ar_nonce && (phrase = PA "nonce")) ||
-      (!ar->ar_uri && (phrase = PA "URI")) ||
-      (!ar->ar_response && (phrase = PA "response")) ||
-      /* (!ar->ar_opaque && (phrase = PA "opaque")) || */
-      /* Check for qop */
-      (ar->ar_qop &&
-       ((ar->ar_auth &&
-	 !strcasecmp(ar->ar_qop, "auth") &&
-	 !strcasecmp(ar->ar_qop, "\"auth\"")) ||
-	(ar->ar_auth_int &&
-	 !strcasecmp(ar->ar_qop, "auth-int") &&
-	 !strcasecmp(ar->ar_qop, "\"auth-int\"")))
-       && (phrase = PA "has invalid qop"))) {
-    //assert(phrase);
-    LOGD("auth_method_digest: 400 %s\n", phrase);
-    as->as_status = 400, as->as_phrase = phrase;
-    as->as_response = NULL;
-    return;
-  }
+	char const *phrase = "Bad authorization";
+	if ((!ar->ar_username && (phrase = PA "username")) ||
+			(!ar->ar_nonce && (phrase = PA "nonce")) ||
+			(!ar->ar_uri && (phrase = PA "URI")) ||
+			(!ar->ar_response && (phrase = PA "response")) ||
+			/* (!ar->ar_opaque && (phrase = PA "opaque")) || */
+			/* Check for qop */
+			(ar->ar_qop &&
+					((ar->ar_auth &&
+							!strcasecmp(ar->ar_qop, "auth") &&
+							!strcasecmp(ar->ar_qop, "\"auth\"")) ||
+							(ar->ar_auth_int &&
+									!strcasecmp(ar->ar_qop, "auth-int") &&
+									!strcasecmp(ar->ar_qop, "\"auth-int\"")))
+									&& (phrase = PA "has invalid qop"))) {
+		//assert(phrase);
+		LOGD("auth_method_digest: 400 %s\n", phrase);
+		as->as_status = 400, as->as_phrase = phrase;
+		as->as_response = NULL;
+		return;
+	}
 
-  if (strcmp(ar->ar_username, as->as_user_uri->url_user) || strcmp(ar->ar_realm, as->as_user_uri->url_host)) {
-	  as->as_status = 403, as->as_phrase = "from and authentication data mismatch";
-	  LOGD("from and authentication usernames [%s/%s] or from and authentication hosts [%s/%s] mismatch",
-			  ar->ar_username, as->as_user_uri->url_user,
-			  ar->ar_realm, as->as_user_uri->url_host);
-	  as->as_response = NULL;
-	  return;
-  }
+	if (strcmp(ar->ar_username, as->as_user_uri->url_user) || strcmp(ar->ar_realm, as->as_user_uri->url_host)) {
+		as->as_status = 403, as->as_phrase = "from and authentication data mismatch";
+		LOGD("from and authentication usernames [%s/%s] or from and authentication hosts [%s/%s] mismatch",
+				ar->ar_username, as->as_user_uri->url_user,
+				ar->ar_realm, as->as_user_uri->url_host);
+		as->as_response = NULL;
+		return;
+	}
 
-  if (as->as_nonce_issued == 0 /* Already validated nonce */ &&
-      auth_validate_digest_nonce(am, as, ar, now) < 0) {
-    as->as_blacklist = am->am_blacklist;
-    auth_challenge_digest(am, as, ach);
-    return;
-  }
+	msg_time_t now = msg_now();
+	if (as->as_nonce_issued == 0 /* Already validated nonce */ &&
+			auth_validate_digest_nonce(am, as, ar,  now) < 0) {
+		as->as_blacklist = am->am_blacklist;
+		auth_challenge_digest(am, as, ach);
+		return;
+	}
 
-  if (as->as_stale) {
-    auth_challenge_digest(am, as, ach);
-    return;
-  }
+	if (as->as_stale) {
+		auth_challenge_digest(am, as, ach);
+		return;
+	}
 
-  const char* passwd = NULL;
-  const string id = ar->ar_username;
-  //LOGD("Retrieving password of user %s", id.c_str());
-  try {
-	  passwd = OdbcConnector::getInstance()->password(id).c_str();
-  } catch (int error) {
-	  switch (error) {
-	  case OdbcConnector::ERROR_PASSWORD_NOT_FOUND:
-		  LOGD("Authentication: password not found for username %s", id.c_str());
-		  break;
-	  case OdbcConnector::ERROR_ID_TOO_LONG:
-		  LOGD("Authentication: username '%s' too long %i", id.c_str(), id.length());
-		  break;
-	  case OdbcConnector::ERROR_LINK_FAILURE:
-		  LOGW("Odbc link failed ; trying reconnection");
-		  if ((passwd = passwordRetrievingFallback(as, id)) == NULL) return;
-		  break;
-	  case OdbcConnector::ERROR_NOT_CONNECTED:
-		  LOGW("Odbc not connected; trying reconnection");
-		  if ((passwd = passwordRetrievingFallback(as, id)) == NULL) return;
-		  break;
-	  default:
-		  if ((passwd = passwordRetrievingFallback(as, id)) == NULL) return;
-		  break;
-	  }
-  }
+	const char* passwd = NULL;
+	const string id = ar->ar_username;
+	//LOGD("Retrieving password of user %s", id.c_str());
+	try {
+		passwd = OdbcConnector::getInstance()->password(id).c_str();
+	} catch (int error) {
+		switch (error) {
+		case OdbcConnector::ERROR_PASSWORD_NOT_FOUND:
+			LOGD("Authentication: password not found for username %s", id.c_str());
+			break;
+		case OdbcConnector::ERROR_ID_TOO_LONG:
+			LOGD("Authentication: username '%s' too long %i", id.c_str(), id.length());
+			break;
+		case OdbcConnector::ERROR_LINK_FAILURE:
+			LOGW("Odbc link failed ; trying reconnection");
+			if ((passwd = passwordRetrievingFallback(as, id)) == NULL) return;
+			break;
+		case OdbcConnector::ERROR_NOT_CONNECTED:
+			LOGW("Odbc not connected; trying reconnection");
+			if ((passwd = passwordRetrievingFallback(as, id)) == NULL) return;
+			break;
+		default:
+			if ((passwd = passwordRetrievingFallback(as, id)) == NULL) return;
+			break;
+		}
+	}
 
-  char const *a1;
-  auth_hexmd5_t a1buf, response;
+	char const *a1;
+	auth_hexmd5_t a1buf, response;
 
-  if (passwd) {
-	  auth_plugin_t *ap = AUTH_PLUGIN(am);
-	  if (ap->mModule->databaseUseHashedPasswords) {
-		  strncpy(a1buf, passwd, 33); // remove trailing NULL character
-		  a1 = a1buf;
-	  } else {
-		  auth_digest_a1(ar, a1buf, passwd), a1 = a1buf;
-	  }
-  } else {
-    auth_digest_a1(ar, a1buf, "xyzzy"), a1 = a1buf;
-  }
+	if (passwd) {
+		auth_plugin_t *ap = AUTH_PLUGIN(am);
+		if (ap->mModule->databaseUseHashedPasswords) {
+			strncpy(a1buf, passwd, 33); // remove trailing NULL character
+			a1 = a1buf;
+		} else {
+			auth_digest_a1(ar, a1buf, passwd), a1 = a1buf;
+		}
+	} else {
+		auth_digest_a1(ar, a1buf, "xyzzy"), a1 = a1buf;
+	}
 
 
-  if (ar->ar_md5sess)
-    auth_digest_a1sess(ar, a1buf, a1), a1 = a1buf;
+	if (ar->ar_md5sess)
+		auth_digest_a1sess(ar, a1buf, a1), a1 = a1buf;
 
-  auth_digest_response(ar, response, a1,
-		       as->as_method, as->as_body, as->as_bodylen);
+	auth_digest_response(ar, response, a1,
+			as->as_method, as->as_body, as->as_bodylen);
 
-  if (!passwd || strcmp(response, ar->ar_response)) {
+	if (!passwd || strcmp(response, ar->ar_response)) {
 
-    if (am->am_forbidden) {
-      as->as_status = 403, as->as_phrase = "Forbidden";
-      as->as_response = NULL;
-      as->as_blacklist = am->am_blacklist;
-    }
-    else {
-      auth_challenge_digest(am, as, ach);
-      as->as_blacklist = am->am_blacklist;
-    }
-    LOGD(("auth_method_digest: response did not match\n"));
+		if (am->am_forbidden) {
+			as->as_status = 403, as->as_phrase = "Forbidden";
+			as->as_response = NULL;
+			as->as_blacklist = am->am_blacklist;
+		}
+		else {
+			auth_challenge_digest(am, as, ach);
+			as->as_blacklist = am->am_blacklist;
+		}
+		LOGD("auth_method_digest: response did not match\n");
 
-    return;
-  }
+		return;
+	}
 
-  //assert(apw);
-  as->as_user = ar->ar_username;
-  as->as_anonymous = false;
+	//assert(apw);
+	as->as_user = ar->ar_username;
+	as->as_anonymous = false;
 
-  if (am->am_nextnonce || am->am_mutual)
-    auth_info_digest(am, as, ach);
+	if (am->am_nextnonce || am->am_mutual)
+		auth_info_digest(am, as, ach);
 
-  if (am->am_challenge)
-    auth_challenge_digest(am, as, ach);
+	if (am->am_challenge)
+		auth_challenge_digest(am, as, ach);
 
-  LOGD(("auth_method_digest: successful authentication\n"));
+	LOGD("auth_method_digest: successful authentication\n");
 
-  as->as_status = 0;	/* Successful authentication! */
-  as->as_phrase = "";
+	as->as_status = 0;	/* Successful authentication! */
+	as->as_phrase = "";
 }
 
 /** Authenticate a request with @b Digest authentication scheme.
