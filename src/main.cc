@@ -166,7 +166,7 @@ static void initialize(bool debug, bool useSyslog){
 	ortp_init();
 	ortp_set_log_file(stdout);
 	if (debug==false){
-		ortp_set_log_level_mask(ORTP_WARNING|ORTP_ERROR);
+		ortp_set_log_level_mask(ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
 	}
 	ms_init();
 

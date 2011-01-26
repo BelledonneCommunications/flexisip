@@ -61,11 +61,13 @@ class Agent{
 		}
 		int countUsInVia(sip_via_t *via)const;
 		bool isUs(const char *host, const char *port)const;
+		const char *getServerString()const;
 	protected:
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
 		void onRequest(msg_t *msg, sip_t *sip);
 		void onResponse(msg_t *msg, sip_t *sip);
 	private:
+		std::string mServerString;
 		std::list<Module*> mModules;
 		std::list<std::string> mAliases;
 		const std::string mLocAddr;

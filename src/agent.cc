@@ -49,12 +49,18 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr)
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"MediaRelay"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Forward"));
+
+	mServerString="Flexisip/"VERSION " (sofia-sip-nta/" NTA_VERSION ")";
 }
 
 Agent::~Agent(){
 	for_each(mModules.begin(),mModules.end(),delete_functor<Module>());
 	if (mAgent)
 		nta_agent_destroy(mAgent);
+}
+
+const char *Agent::getServerString()const{
+	return mServerString.c_str();
 }
 
 void Agent::loadConfig(ConfigManager *cm){

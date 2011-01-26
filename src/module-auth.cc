@@ -172,6 +172,7 @@ public:
 			LOGI("unknown domain [%s]",sip->sip_from->a_url[0].url_host);
 			nta_msg_treply(getAgent()->getSofiaAgent (),ev->mMsg,SIP_488_NOT_ACCEPTABLE,
 									               SIPTAG_CONTACT(sip->sip_contact),
+			             							SIPTAG_SERVER_STR(getAgent()->getServerString()),
 									               TAG_END());
 			ev->stopProcessing();
 			return;
@@ -198,6 +199,7 @@ public:
 							               	   	   	   	   	   SIPTAG_CONTACT(sip->sip_contact),
 							               	   	   	   	   	   SIPTAG_HEADER((const sip_header_t*)as->as_info),
 							               	   	   	   	   	   SIPTAG_HEADER((const sip_header_t*)as->as_response),
+			                									SIPTAG_SERVER_STR(getAgent()->getServerString()),
 							               	   	   	   	   	   TAG_END());
 				ev->stopProcessing();
 				return;

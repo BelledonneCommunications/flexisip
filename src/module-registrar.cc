@@ -52,7 +52,7 @@ class Registrar : public Module {
 						LOGD("Added record to registrar database.");
 						/*we need to answer directly */
 						nta_msg_treply(getAgent()->getSofiaAgent (),ev->mMsg,200,"Registration succesful",
-						               SIPTAG_CONTACT(sip->sip_contact),
+						               SIPTAG_CONTACT(sip->sip_contact), SIPTAG_SERVER_STR(getAgent()->getServerString()),
 						               TAG_END());
 						ev->stopProcessing();
 					}
@@ -69,7 +69,7 @@ class Registrar : public Module {
 					}else{
 						if (sip->sip_request->rq_method!=sip_method_ack){
 							LOGD("This user isn't registered.");
-							nta_msg_treply(getAgent()->getSofiaAgent (),ev->mMsg,404,"User not found",
+							nta_msg_treply(getAgent()->getSofiaAgent (),ev->mMsg,404,"User not found",SIPTAG_SERVER_STR(getAgent()->getServerString()),
 						               TAG_END());
 						}
 						ev->stopProcessing();
