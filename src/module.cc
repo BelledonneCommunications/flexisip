@@ -123,8 +123,15 @@ int ModuleToolbox::sipPortToInt(const char *port){
 	else return atoi(port);
 }
 
+
+
 void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, sip_t *sip){
-	sip_record_route_t *rr=sip_record_route_format(home,"<sip:%s:%i;lr>",ag->getLocAddr().c_str(),ag->getPort());
+	sip_via_t *via=sip->sip_via;
+	sip_record_route_t *rr;
+
+	if (strcasecmp(sip_via_transport(via),"TCP"))
+		rr=sip_record_route_format(home,"<sip:%s:%i;lr;transport=TCP>",ag->getLocAddr().c_str(),ag->getPort());
+	else rr=sip_record_route_format(home,"<sip:%s:%i;lr>",ag->getLocAddr().c_str(),ag->getPort());
 	if (sip->sip_record_route==NULL){
 		sip->sip_record_route=rr;
 	}else{
