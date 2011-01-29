@@ -65,6 +65,7 @@ std::list<std::string> ConfigArea::get(const char *key, const std::list<std::str
 
 
 const char *ConfigManager::sGlobalArea="global";
+
 ConfigManager *ConfigManager::sInstance=0;
 
 ConfigManager *ConfigManager::get(){
@@ -73,18 +74,14 @@ ConfigManager *ConfigManager::get(){
 	return sInstance;
 }
 
-char* ConfigManager::mConfFile = NULL;
-
-ConfigManager::ConfigManager(){
-	if (mConfFile != NULL) {
-		mConf=lp_config_new(mConfFile);
-	} else {
-		mConf=lp_config_new(CONFIG_DIR "/flexisip.conf");
-	}
+ConfigManager::ConfigManager() : mConf(NULL){
 }
 
-void ConfigManager::setConfigFile(char* configfile){
-	mConfFile=configfile;
+void ConfigManager::load(const char* configfile){
+	if (configfile==NULL){
+		configfile=CONFIG_DIR "/flexisip.conf";
+	}
+	mConf=lp_config_new(configfile);
 }
 
 ConfigArea ConfigManager::getArea(const char *name){

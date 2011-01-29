@@ -241,6 +241,7 @@ int main(int argc, char *argv[]){
 	char localip[IPADDR_SIZE];
 	int i;
 	const char *pidfile=NULL;
+	const char *cfgfile=NULL;
 	bool debug=false;
 	bool daemon=false;
 	bool useSyslog=false;
@@ -268,7 +269,7 @@ int main(int argc, char *argv[]){
 			debug=true;
 			continue;
 		}else if (strcmp(argv[i],"--configfile")==0){
-			ConfigManager::setConfigFile(argv[i+1]);
+			cfgfile=argv[i+1];
 			i++;
 			continue;
 		}
@@ -277,6 +278,7 @@ int main(int argc, char *argv[]){
 	}
 
 	ConfigManager *cfg=ConfigManager::get();
+	cfg->load(cfgfile);
 	if (!debug) debug=cfg->getArea(ConfigManager::sGlobalArea).get("debug",false);
 	
 	initialize (debug,useSyslog);

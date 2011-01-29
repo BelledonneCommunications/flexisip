@@ -40,35 +40,44 @@ class Property{
 
 class ConfigArea;
 
+enum ConfigItemType{
+	Boolean,
+	Integer,
+	String,
+	StringList
+};
+
+struct ConfigItem {
+	ConfigItemType type;
+	const char *name;
+	const char *default_value;
+	const char *help;
+};
+
 class ConfigManager{
 	friend class ConfigArea;
 	public:
 		static ConfigManager *get();
-		static void setConfigFile(char* configFile);
-		ConfigArea getArea(const char *name);
+		void declareArea(const char *area_name, const char *help, ConfigItem *items);
+		
+		void load(const char* configFile);
 		static const char *sGlobalArea;
+		
+		ConfigArea getArea(const char *name);
+		
 	private:
 		ConfigManager();
 		bool get(const char *area, const char *key, std::string *result);
 		struct _LpConfig *mConf;
 		static ConfigManager *sInstance;
-		static char *mConfFile;
 };
 
 class ConfigArea{
 	friend class ConfigManager;
 	public:
-		template< typename _type_>
-		_type_ get(const char *key, _type_ default_value)const{
-			std::string result;
-			if (mManager->get(mArea.c_str(),key,&result)){
-				return result;
-			}
-			return default_value;
-		}
-		bool get(const char *key, bool default_value)const ;
-		int get(const char *key, int default_value)const;
-		std::list<std::string> get(const char *key, const std::list<std::string> &default_value)const;
+		void get(const char *key, bool *retval)const ;
+		void get(const char *key, int *retval)const;
+		void get(const char *key, std::list<std::string> * retval)const;
 	private:
 		ConfigArea(ConfigManager *m, const char *area);
 		const std::string mArea;
