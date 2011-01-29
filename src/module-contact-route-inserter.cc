@@ -27,6 +27,7 @@ class ContactRouteInserter : public Module {
 		sip_t *sip=ev->mSip;
 
 		if(sip->sip_request->rq_method == sip_method_register){
+			if (sip->sip_contact!=NULL && sip->sip_contact->m_url!=NULL){
 				//rewrite contact, put local host instead and store previous contact host in new parameter
 				char* lParam = su_sprintf (ev->getHome(),"%s=%s:%s",getAgent()->getUniqueId().c_str()
 														,sip->sip_contact->m_url[0].url_host
@@ -38,7 +39,7 @@ class ContactRouteInserter : public Module {
 
 				sip->sip_contact->m_url[0].url_host = getAgent()->getLocAddr().c_str();
 				sip->sip_contact->m_url[0].url_port = su_sprintf (ev->getHome(),"%i",getAgent()->getPort());
-
+			}
 		}
 	}
 	void onResponse(SipEvent *ev) {/*nop*/};

@@ -29,8 +29,12 @@
 #define LOGI ortp_message
 #define LOGW ortp_warning
 #define LOGE ortp_error
-#define LOGF ortp_fatal
+#define LOGA ortp_fatal
 #define LOGN ortp_message
+#define LOGF(args...) do{ \
+	ortp_error(args); \
+	exit(-1); \
+}while(0);
 
 class Mutex{
 	public:

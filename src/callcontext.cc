@@ -315,7 +315,7 @@ CallSide *CallContext::getOther(CallSide *cs){
 	else if (cs==mFrontSide)
 		return mBackSide;
 	else{
-		LOGF("Big problem.");
+		LOGA("Big problem.");
 		return NULL;
 	}
 }

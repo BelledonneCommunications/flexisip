@@ -139,6 +139,32 @@ static void syslogHandler(OrtpLogLevel log_level, const char *str, va_list l){
 	vsyslog(syslev,str,l);
 }
 
+static void defaultLogHandler(OrtpLogLevel log_level, const char *str, va_list l){
+	const char *levname="none";
+	switch(log_level){
+		case ORTP_DEBUG:
+			levname="D: ";
+		break;
+		case ORTP_MESSAGE:
+			levname="M: ";
+		break;
+		case ORTP_WARNING:
+			levname="W: ";
+		break;
+		case ORTP_ERROR:
+			levname="E: ";
+		break;
+		case ORTP_FATAL:
+			levname="F: ";
+		break;
+		default:
+			break;
+	}
+	fprintf(stdout,"%s",levname);
+	vfprintf(stdout,str,l);
+	fprintf(stdout,"\n");
+}
+
 static void sofiaLogHandler(void *, char const *fmt, va_list ap){
 	ortp_logv(ORTP_MESSAGE,fmt,ap);
 }
@@ -152,23 +178,22 @@ static void initialize(bool debug, bool useSyslog){
 		openlog("flexisip", 0, LOG_USER);
 		setlogmask(~0);
 		ortp_set_log_handler(syslogHandler);
+	}else{
+		ortp_set_log_handler(defaultLogHandler);
 	}
+	ortp_init();
+	ortp_set_log_file(stdout);
 	ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
 	LOGN("Starting version %s", VERSION);
+	if (debug==false){
+		ortp_set_log_level_mask(ORTP_ERROR|ORTP_FATAL);
+	}
 
-	ConfigManager *cfg=ConfigManager::get();
-	if (!debug) debug=cfg->getArea(ConfigManager::sGlobalArea).get("debug",false);
 
 	signal(SIGTERM,flexisip_stop);
 	signal(SIGINT,flexisip_stop);
 	signal(SIGUSR1,flexisip_stat);
 	
-	ortp_init();
-	ortp_set_log_file(stdout);
-	if (debug==false){
-		ortp_set_log_level_mask(ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
-	}
-	ms_init();
 
 	/*enable core dumps*/
 	struct rlimit lm;
@@ -179,6 +204,37 @@ static void initialize(bool debug, bool useSyslog){
 	}
 	
 	su_init();
+}
+
+static void forkAndDetach(const char *pidfile){
+	pid_t pid = fork();
+	int fd;
+	
+	if (pid < 0){
+		fprintf(stderr,"Could not fork\n");
+		exit(-1);
+	}
+	if (pid > 0) {
+		exit(0);
+	}
+	/*here we are the new process*/
+	setsid();
+	
+	fd = open("/dev/null", O_RDWR);
+	if (fd==-1){
+		fprintf(stderr,"Could not open /dev/null\n");
+		exit(-1);
+	}
+	dup2(fd, 0);
+	dup2(fd, 1);
+	dup2(fd, 2);
+	close(fd);
+	
+	if (pidfile){
+		FILE *f=fopen(pidfile,"w");
+		fprintf(f,"%i",getpid());
+		fclose(f);
+	}
 }
 
 int main(int argc, char *argv[]){
@@ -223,43 +279,11 @@ int main(int argc, char *argv[]){
 		usage(argv[0]);
 	}
 
-	if (daemon){
-		pid_t pid = fork();
-		int fd;
-		
-		if (pid < 0){
-			fprintf(stderr,"Could not fork\n");
-			exit(-1);
-		}
-		if (pid > 0) {
-			exit(0);
-		}
-		/*here we are the new process*/
-		setsid();
-		
-		fd = open("/dev/null", O_RDWR);
-		if (fd==-1){
-			fprintf(stderr,"Could not open /dev/null\n");
-			exit(-1);
-		}
-		dup2(fd, 0);
-		dup2(fd, 1);
-		dup2(fd, 2);
-		close(fd);
-	}
-
-	if (pidfile){
-		FILE *f=fopen(pidfile,"w");
-		fprintf(f,"%i",getpid());
-		fclose(f);
-	}
+	ConfigManager *cfg=ConfigManager::get();
+	if (!debug) debug=cfg->getArea(ConfigManager::sGlobalArea).get("debug",false);
 	
 	initialize (debug,useSyslog);
-	ConfigManager *cfg=ConfigManager::get();
-	if (cfg->getArea("stun-server").get("enabled",true)){
-		stun=new StunServer(cfg->getArea("stun-server").get("port",3478));
-		stun->start();
-	}
+	
 	su_log_redirect(NULL,sofiaLogHandler,NULL);
 	root=su_root_create(NULL);
 
@@ -267,6 +291,22 @@ int main(int argc, char *argv[]){
 	
 	a=new Agent(root,localip,port);
 	a->loadConfig (cfg);
+
+	/* because of alsa telling various "normal" errors we are forced to call ms_init() here,
+	not to hide any useful error message from the loadConfig() */
+	ms_init();
+	
+	if (daemon){
+		/*now that we have successfully loaded the config, there is nothing that can prevent us to start (normally).
+		So we can detach.*/
+		forkAndDetach(pidfile);
+	}
+	
+	
+	if (cfg->getArea("stun-server").get("enabled",true)){
+		stun=new StunServer(cfg->getArea("stun-server").get("port",3478));
+		stun->start();
+	}
 
 	su_timer_t *timer=su_timer_create(su_root_task(root),5000);
 	su_timer_run(timer,(su_timer_f)timerfunc,a);
