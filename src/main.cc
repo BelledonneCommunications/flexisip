@@ -102,6 +102,7 @@ static void usage(const char *arg0){
 }
 
 static void flexisip_stop(int signum){
+	LOGD("Received quit signal...");
 	run=0;
 	if (root){
 		su_root_break (root);
@@ -188,13 +189,9 @@ static void initialize(bool debug, bool useSyslog){
 	if (debug==false){
 		ortp_set_log_level_mask(ORTP_ERROR|ORTP_FATAL);
 	}
-
-
 	signal(SIGTERM,flexisip_stop);
 	signal(SIGINT,flexisip_stop);
 	signal(SIGUSR1,flexisip_stat);
-	
-
 	/*enable core dumps*/
 	struct rlimit lm;
 	lm.rlim_cur=RLIM_INFINITY;
@@ -292,16 +289,19 @@ int main(int argc, char *argv[]){
 	a=new Agent(root,localip,port);
 	a->loadConfig (cfg);
 
-	/* because of alsa telling various "normal" errors we are forced to call ms_init() here,
-	not to hide any useful error message from the loadConfig() */
-	ms_init();
+	/*
+	 NEVER NEVER create pthreads before this point : threads do not survive the fork below !!!!!!!!!!
+	*/
 	
 	if (daemon){
 		/*now that we have successfully loaded the config, there is nothing that can prevent us to start (normally).
 		So we can detach.*/
 		forkAndDetach(pidfile);
 	}
-	
+
+	/* because of alsa telling various "normal" errors we are forced to call ms_init() here,
+	not to hide any useful error message from the loadConfig() */
+	ms_init();
 	
 	if (cfg->getArea("stun-server").get("enabled",true)){
 		stun=new StunServer(cfg->getArea("stun-server").get("port",3478));

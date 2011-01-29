@@ -111,19 +111,25 @@ void RelaySession::transfer(time_t curtime, struct pollfd *tab){
 
 
 MediaRelayServer::MediaRelayServer(const std::string &localip) : mLocalIp(localip){
-	mRunning=true;
+	mRunning=false;
 	if (pipe(mCtlPipe)==-1){
 		LOGF("Could not create MediaRelayServer control pipe.");
 	}
-	pthread_create(&mThread,NULL,&MediaRelayServer::threadFunc,this);
 }
 
 
+void MediaRelayServer::start(){
+	mRunning=true;
+	pthread_create(&mThread,NULL,&MediaRelayServer::threadFunc,this);
+}
+
 MediaRelayServer::~MediaRelayServer(){
-	mRunning=false;
-	if (write(mCtlPipe[1],"e",1)==-1)
-		LOGE("MediaRelayServer: Fail to write to control pipe.");
-	pthread_join(mThread,NULL);
+	if (mRunning){
+		mRunning=false;
+		if (write(mCtlPipe[1],"e",1)==-1)
+			LOGE("MediaRelayServer: Fail to write to control pipe.");
+		pthread_join(mThread,NULL);
+	}
 	for_each(mSessions.begin(),mSessions.end(),delete_functor<RelaySession>());
 	close(mCtlPipe[0]);
 	close(mCtlPipe[1]);
@@ -136,6 +142,8 @@ RelaySession *MediaRelayServer::createSession(){
 	mSessions.push_back(s);
 	count=mSessions.size();
 	mMutex.unlock();
+	if (!mRunning) start();
+	
 	LOGD("There are now %i relay sessions running.",count);
 	/*write to the control pipe to wakeup the server thread */
 	if (write(mCtlPipe[1],"e",1)==-1)
