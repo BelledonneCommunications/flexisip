@@ -53,8 +53,10 @@ int StunServer::start(){
 }
 
 void StunServer::stop(){
-	mRunning=false;
-	pthread_join(mThread,NULL);
+	if (mRunning){
+		mRunning=false;
+		pthread_join(mThread,NULL);
+	}
 }
 
 void StunServer::run(){
