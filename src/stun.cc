@@ -23,6 +23,7 @@
 #include <poll.h>
 
 StunServer::StunServer(int port){
+	mRunning=false;
 	mPort=port;
 	mSock=-1;
 }
