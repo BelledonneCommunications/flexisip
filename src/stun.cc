@@ -23,6 +23,7 @@
 #include <poll.h>
 
 StunServer::StunServer(int port){
+	mRunning=false;
 	mPort=port;
 	mSock=-1;
 }
@@ -53,8 +54,10 @@ int StunServer::start(){
 }
 
 void StunServer::stop(){
-	mRunning=false;
-	pthread_join(mThread,NULL);
+	if (mRunning){
+		mRunning=false;
+		pthread_join(mThread,NULL);
+	}
 }
 
 void StunServer::run(){
