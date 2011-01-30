@@ -84,6 +84,10 @@ void ConfigManager::load(const char* configfile){
 	mConf=lp_config_new(configfile);
 }
 
+void ConfigManager::declareArea(const char *area_name, const char *help, ConfigItem *items){
+	mConfigMap[area_name]=items;
+}
+
 ConfigArea ConfigManager::getArea(const char *name){
 	return ConfigArea(this,name);
 }

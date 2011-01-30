@@ -24,30 +24,34 @@
 #include <list>
 #include <cstdlib>
 
-class Property{
-	public:
-		enum PropertyType{
-			Boolean,
-			String,
-			Integer,
-			Float
-		};
-		Property(){
-		}
-		const std::string & getName();
-		const std::string & getValue();
-};
-
 class ConfigArea;
 
-enum ConfigItemType{
+enum ConfigValueType{
 	Boolean,
 	Integer,
 	String,
 	StringList
 };
 
-struct ConfigItem {
+class ConfigEntry{
+	std::string mName;
+};
+
+class ConfigStruct : public ConfigEntry{
+	std::map<std::string, ConfigEntry*> mMap;
+}
+
+class ConfigValue : public ConfigEntry{
+	std::string mValue;
+	ConfigValueType mType;
+};
+
+class ConfigArray : public ConfigEntry{
+	ConfigValueType mType;
+	std::vector<ConfigValue*> mValues;
+};
+
+struct ConfigItemDescriptor {
 	ConfigItemType type;
 	const char *name;
 	const char *default_value;
@@ -58,16 +62,15 @@ class ConfigManager{
 	friend class ConfigArea;
 	public:
 		static ConfigManager *get();
-		void declareArea(const char *area_name, const char *help, ConfigItem *items);
-		
-		void load(const char* configFile);
 		static const char *sGlobalArea;
-		
+		void declareArea(const char *area_name, const char *help, ConfigItem *items);
+		void load(const char* configFile);
+		std::ostream &dumpConfig(std::ostream &str);
 		ConfigArea getArea(const char *name);
-		
 	private:
 		ConfigManager();
 		bool get(const char *area, const char *key, std::string *result);
+		std::map<std::string,ConfigItem *> mConfigMap;
 		struct _LpConfig *mConf;
 		static ConfigManager *sInstance;
 };
