@@ -91,6 +91,11 @@ void ForwardModule::onRequest(SipEvent *ev){
 		dest->url_host=ip.c_str();
 	}
 
+	/* workaround bad sip uris with two @ that results in host part being "something@somewhere" */
+	if (strchr(dest->url_host,'@')!=0){
+		nta_msg_treply (getSofiaAgent(),msg,400,"Bad request",SIPTAG_SERVER_STR(getAgent()->getServerString()),TAG_END());
+		return;
+	}
 
 	if (!getAgent()->isUs(dest)) {
 		buf=msg_as_string(ev->getHome(), msg, NULL, 0,&msg_size);
