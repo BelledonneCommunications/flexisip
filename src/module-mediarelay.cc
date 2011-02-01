@@ -50,30 +50,23 @@ class RelayedCall : public CallContextBase, public Masquerader{
 		RelayedCall(MediaRelayServer *server, sip_t *sip) : CallContextBase (sip), mServer(server){
 			memset(mSessions,0,sizeof(mSessions));
 		}
-		virtual void onNewMedia(int mline, std::string *ip, int *port, bool isRequest){
+		virtual void onNewMedia(int mline, std::string *ip, int *port, const char *party_tag){
 			int ports[2];
 			if (mline>=sMaxSessions){
 				LOGE("Max sessions per relayed call is reached.");
 				return;
 			}
 			RelaySession *s=mSessions[mline];
-			if (!isRequest){
-				/*we are processing a SDP answer since sessions are created */
-				if (s == NULL) {
-					LOGW("No session found for this mline %s:%i, ignoring", ip->c_str(), *port);
-					return;
-				}
-				 s->getPorts(ports);
-				*ip=s->getAddr();
-				*port=ports[1];
-			}else{
-				if (s==NULL){
-					s=mServer->createSession();
-					mSessions[mline]=s;
-				}
-				s->getPorts(ports);
-				*ip=s->getAddr();
+			if (s==NULL){
+				s=mServer->createSession();
+				mSessions[mline]=s;
+			}
+			s->getPorts(ports);
+			*ip=s->getAddr();
+			if (getCallerTag()==party_tag){
 				*port=ports[0];
+			}else{
+				*port=ports[1];
 			}
 		}
 		virtual bool isInactive(time_t cur){
@@ -115,7 +108,7 @@ void MediaRelay::onLoad(Agent *ag, const ConfigArea & modconf){
 void MediaRelay::processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip){
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
 	if (m){
-		m->changeIpPort(c,true);
+		m->changeIpPort(c,sip->sip_from->a_tag);
 		m->update(msg,sip);
 		//be in the record-route
 		addRecordRoute(c->getHome(),getAgent(),sip);
@@ -171,7 +164,7 @@ void MediaRelay::process200OkforInvite(RelayedCall *ctx, msg_t *msg, sip_t *sip)
 
 	if (m==NULL) return;
 	
-	m->changeIpPort (ctx, false);
+	m->changeIpPort (ctx, sip->sip_to->a_tag);
 	m->update(msg,sip);
 	ctx->storeNewResponse (msg);
 
@@ -185,19 +178,21 @@ void MediaRelay::onResponse(SipEvent *ev){
 	RelayedCall *c;
 	
 	if (sip->sip_cseq && sip->sip_cseq->cs_method==sip_method_invite){
-		if ((c=static_cast<RelayedCall*>(mCalls.find(sip)))!=NULL){
-			if (sip->sip_status->st_status==200 && c->isNew200Ok(sip)){
-				process200OkforInvite (c,msg,sip);
-			}else if (isEarlyMedia(sip) && c->isNewEarlyMedia (sip)){
-				process200OkforInvite (c,msg,sip);
-			}else if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
-				LOGD("This is a 200 or 183  retransmission");
-				if (c->getLastForwaredResponse()!=NULL){
-					msg=msg_copy(c->getLastForwaredResponse ());
-					sip=(sip_t*)msg_object (msg);
+		if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
+			if ((c=static_cast<RelayedCall*>(mCalls.find(sip)))!=NULL){
+				if (sip->sip_status->st_status==200 && c->isNew200Ok(sip)){
+					process200OkforInvite (c,msg,sip);
+				}else if (isEarlyMedia(sip) && c->isNewEarlyMedia (sip)){
+					process200OkforInvite (c,msg,sip);
+				}else if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
+					LOGD("This is a 200 or 183  retransmission");
+					if (c->getLastForwaredResponse()!=NULL){
+						msg=msg_copy(c->getLastForwaredResponse ());
+						sip=(sip_t*)msg_object (msg);
+					}
 				}
-			}
-		}else LOGW("Receiving 200Ok for unknown call.");
+			}else LOGW("Receiving 200Ok for unknown call.");
+		}
 	}
 	ev->mSip=sip;
 	ev->mMsg=msg;
