@@ -24,69 +24,93 @@
 #include <list>
 #include <cstdlib>
 
-class ConfigArea;
-
 enum ConfigValueType{
 	Boolean,
 	Integer,
 	String,
-	StringList
+	StringList,
+	Struct
 };
 
-class ConfigEntry{
-	std::string mName;
-};
-
-class ConfigStruct : public ConfigEntry{
-	std::map<std::string, ConfigEntry*> mMap;
-}
-
-class ConfigValue : public ConfigEntry{
-	std::string mValue;
-	ConfigValueType mType;
-};
-
-class ConfigArray : public ConfigEntry{
-	ConfigValueType mType;
-	std::vector<ConfigValue*> mValues;
-};
 
 struct ConfigItemDescriptor {
 	ConfigItemType type;
 	const char *name;
-	const char *default_value;
 	const char *help;
+	const char *default_value;
 };
+
+class ConfigEntry{
+	public:
+		const std::string & getName()const{
+			return mName;
+		}
+		ConfigValueType getType()const{
+			return mType;
+		}
+		const std::string &getHelp()const{
+			return mHelp;
+		}
+	protected:
+		ConfigEntry(const std::string &name, ConfigValueType type, const std::string &help);
+	private:
+		const std::string mName;
+		const std::string mHelp;
+		ConfigValueType mType;
+};
+
+class ConfigStruct : public ConfigEntry{
+	public:
+		ConfigStruct(const std::string &name, const std::string &help);
+		void addChild(ConfigEntry *c);
+		void addChildrenValues(ConfigItemDescriptor *items);
+		std::list<ConfigEntry*> &getChildren();
+	private:
+		std::list<ConfigEntry*> mEntries;
+}
+
+class ConfigValue : public ConfigEntry{
+	public:
+		ConfigValue(const std::string &name, ConfigValueType  vt, const std::string &help, const std::string &default_value);
+		void set(const char *value);
+		void get(bool *retval)const ;
+		void get(int *retval)const;
+		void get(std::list<std::string> * retval)const;
+	private:
+		std::string mValue;
+		const std::string mDefaultValue;
+};
+
+
 
 class ConfigManager{
 	friend class ConfigArea;
 	public:
 		static ConfigManager *get();
 		static const char *sGlobalArea;
-		void declareArea(const char *area_name, const char *help, ConfigItem *items);
+		void declareArea(const char *area_name, const char *help, ConfigItemDescriptor *items);
 		void load(const char* configFile);
-		std::ostream &dumpConfig(std::ostream &str);
-		ConfigArea getArea(const char *name);
+		ConfigStruct *getRoot();
 	private:
 		ConfigManager();
-		bool get(const char *area, const char *key, std::string *result);
-		std::map<std::string,ConfigItem *> mConfigMap;
+		ConfigStruct mConfigRoot;
 		struct _LpConfig *mConf;
 		static ConfigManager *sInstance;
 };
 
-class ConfigArea{
-	friend class ConfigManager;
+class FileConfigDumper{
 	public:
-		void get(const char *key, bool *retval)const ;
-		void get(const char *key, int *retval)const;
-		void get(const char *key, std::list<std::string> * retval)const;
+		FileConfigDumper(ConfigStruct *root){
+			mRoot=root;
+		}
+		std::ostream &dump(std::ostream & ostr);
 	private:
-		ConfigArea(ConfigManager *m, const char *area);
-		const std::string mArea;
-		ConfigManager *mManager;
+		std::ostream &dump2(std::ostream & ostr, ConfigEntry *entry, int level);
+		ConfigStruct *mRoot;
 };
 
-
+inline std::ostream & operator<<(std::ostream &ostr, FileConfigDumper &dumper){
+	return dumper.dump(ostr);
+}
 
 #endif

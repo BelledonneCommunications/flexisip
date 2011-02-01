@@ -21,48 +21,80 @@
 #include "configmanager.hh"
 #include "common.hh"
 
-ConfigArea::ConfigArea(ConfigManager *m, const char *area) :  mArea(area), mManager(m){
+ConfigValue::ConfigValue(const std::string &name, ConfigValueType  vt, const std::string &help, const std::string &default_value) 
+	:  ConfigEntry (name,vt,help), mDefaultValue(default_value){
+	
 }
 
-bool ConfigArea::get(const char *key, bool default_value)const{
-	std::string result;
-	if (mManager->get(mArea.c_str(),key,&result)){
-		if (result == "false" || result == "0")	return false;
-		if (result == "true" || result == "1") return true;
-
-		// else
-		LOGF("Not a boolean: \"%s\" for key \"%s\" in \"%s\"", result.c_str(), key, mArea.c_str());
+void ConfigValue::set(const std::string  &value){
+	if (getType()==Boolean){
+		if (value!="true" && value!="false" && value!="1" && value!="0"){
+			LOGF("Not a boolean: \"%s\" for key \"%s\" ", value, getName());
+		}
 	}
-	return default_value;
+	mValue=value;
 }
 
-int ConfigArea::get(const char *key, int default_value)const{
-	std::string result;
-	if (mManager->get(mArea.c_str(),key,&result)){
-		return atoi(result.c_str());
+void ConfigValue::setDefault(const char *value){
+	if (getType()==Boolean){
+		if (value!="true" && value!="false" && value!="1" && value!="0"){
+			LOGF("Not a boolean: \"%s\" for key \"%s\" ", value, getName());
+		}
 	}
-	return default_value;
+	mDefaultValue=value;
+}
+
+void ConfigValue::get(std::string *value)const{
+	if (getType()!=String) LOGF("Value %s is not a string !",getName().c_str());
+	*value=getValue();
+}
+
+void ConfigValue::get(int *value)const{
+	if (getType()!=Integer) LOGF("Value %s is not a integer !",getName().c_str());
+	*value=atoi(getValue().c_str());
+}
+
+void ConfigValue::get(bool *value)const{
+	if (getType()!=Boolean) LOGF("Value %s is not a boolean !",getName().c_str());
+	if (getValue()=="true" || getValue()=="1") *value=true;
+	else *value=false;
 }
 
 #define DELIMITERS " \n,"
 
-std::list<std::string> ConfigArea::get(const char *key, const std::list<std::string> & default_value)const{
-	std::string result;
-	if (mManager->get(mArea.c_str(),key,&result)){
-		std::list<std::string> retlist;
-		char *res=strdup(result.c_str());
-		char *saveptr=NULL;
-		char *ret=strtok_r(res,DELIMITERS,&saveptr);
-		while(ret!=NULL){
-			retlist.push_back(std::string(ret));
-			ret=strtok_r(NULL,DELIMITERS,&saveptr);
-		}
-		free(res);
-		return retlist;
+void ConfigValue::get(std::list<std::string> *retlist)const{
+	char *res=strdup(getValue().c_str());
+	char *saveptr=NULL;
+	char *ret=strtok_r(res,DELIMITERS,&saveptr);
+	while(ret!=NULL){
+		retlist->push_back(std::string(ret));
+		ret=strtok_r(NULL,DELIMITERS,&saveptr);
 	}
-	return default_value;
+	free(res);
 }
 
+
+ConfigEntry::ConfigEntry(const std::string &name, ConfigValueType type, const std::string &help) : 
+mName(name),mType(type),mHelp(help){
+}
+
+ConfigStruct::ConfigStruct(const std::string &name, const std::string &help) : ConfigEntry(name,Struct,help){
+	
+}
+
+void ConfigStruct::addChild(ConfigEntry *c){
+	mEntries.push_back(c);
+}
+
+void ConfigStruct::addChildrenValues(ConfigItemDescriptor *items){
+	for (;items.name!=NULL;items++){
+		mEntries.push_back(new ConfigValue(items->name,items->type,items->help,items->default_value));
+	}
+}
+
+std::list<ConfigEntry*> &ConfigStruct::getChildren(){
+	return mEntries;
+}
 
 const char *ConfigManager::sGlobalArea="global";
 
@@ -84,20 +116,32 @@ void ConfigManager::load(const char* configfile){
 	mConf=lp_config_new(configfile);
 }
 
-void ConfigManager::declareArea(const char *area_name, const char *help, ConfigItem *items){
-	mConfigMap[area_name]=items;
+ConfigStruct *ConfigStruct::getRoot(){
+	return mConfigRoot;
 }
 
-ConfigArea ConfigManager::getArea(const char *name){
-	return ConfigArea(this,name);
+std::ostream &FileConfigDumper::dump(std::ostream & ostr){
+	return dump2(ostr,0);
 }
 
-bool ConfigManager::get(const char *area, const char *key, std::string *result){
-	const char *res;
-	const char *undefined="undefined";
-	res=lp_config_get_string(mConf,area,key,undefined);
-	if (res==undefined) return false;
-	if (res!=NULL) result->assign(res);
-	return true;
+std::ostream &FileConfigDumper::dump2(std::ostream & ostr, ConfigEntry *entry, int level){
+	ConfigStruct *cs=dynamic_cast<ConfigStruct*>(entry);
+	ConfigValue *val;
+	ostr<<cs->getHelp()<<std::endl;
+	if (cs){
+		if (level>0){
+			ostr<<"["<<cs->getName()<<"]"<<std::endl;
+		}else ostr<<std::endl;
+		std::list<ConfigEntry*>::iterator it;
+		for(it=cs->getChildren().begin();it!=cs->getChildren().end();++it){
+			dump2(ostr,*it,level+1);
+			ostr<<std::endl;
+		}
+	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL){
+		ostr<<"Default value: "<<entry->getDefault()<<std::endl;
+		ostr<<entry->getName()<<"="<<entry->getValue()<<std::endl;
+		ostr<<std::endl;
+	}
+	return ostr;
 }
 
