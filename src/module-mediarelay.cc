@@ -49,31 +49,25 @@ class RelayedCall : public CallContextBase, public Masquerader{
 		static const int sMaxSessions=4;
 		RelayedCall(MediaRelayServer *server, sip_t *sip) : CallContextBase (sip), mServer(server){
 			memset(mSessions,0,sizeof(mSessions));
+			mOrigin=sip_from_dup(getHome(),sip->sip_from);
 		}
-		virtual void onNewMedia(int mline, std::string *ip, int *port, bool isRequest){
+		virtual void onNewMedia(int mline, std::string *ip, int *port, sip_addr_t *party){
 			int ports[2];
 			if (mline>=sMaxSessions){
 				LOGE("Max sessions per relayed call is reached.");
 				return;
 			}
 			RelaySession *s=mSessions[mline];
-			if (!isRequest){
-				/*we are processing a SDP answer since sessions are created */
-				if (s == NULL) {
-					LOGW("No session found for this mline %s:%i, ignoring", ip->c_str(), *port);
-					return;
-				}
-				 s->getPorts(ports);
-				*ip=s->getAddr();
-				*port=ports[1];
-			}else{
-				if (s==NULL){
-					s=mServer->createSession();
-					mSessions[mline]=s;
-				}
-				s->getPorts(ports);
-				*ip=s->getAddr();
+			if (s==NULL){
+				s=mServer->createSession();
+				mSessions[mline]=s;
+			}
+			s->getPorts(ports);
+			*ip=s->getAddr();
+			if (ModuleToolbox::fromMatch(party,mOrigin)){
 				*port=ports[0];
+			}else{
+				*port=ports[1];
 			}
 		}
 		virtual bool isInactive(time_t cur){
@@ -98,6 +92,7 @@ class RelayedCall : public CallContextBase, public Masquerader{
 	private:
 		RelaySession * mSessions[sMaxSessions];
 		MediaRelayServer *mServer;
+		sip_addr_t * mOrigin;
 };
 
 ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay");
@@ -115,7 +110,7 @@ void MediaRelay::onLoad(Agent *ag, const ConfigArea & modconf){
 void MediaRelay::processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip){
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
 	if (m){
-		m->changeIpPort(c,true);
+		m->changeIpPort(c,sip->sip_from);
 		m->update(msg,sip);
 		//be in the record-route
 		addRecordRoute(c->getHome(),getAgent(),sip);
@@ -171,7 +166,7 @@ void MediaRelay::process200OkforInvite(RelayedCall *ctx, msg_t *msg, sip_t *sip)
 
 	if (m==NULL) return;
 	
-	m->changeIpPort (ctx, false);
+	m->changeIpPort (ctx, sip->sip_to);
 	m->update(msg,sip);
 	ctx->storeNewResponse (msg);
 
