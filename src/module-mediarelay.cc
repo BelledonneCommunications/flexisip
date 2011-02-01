@@ -49,9 +49,8 @@ class RelayedCall : public CallContextBase, public Masquerader{
 		static const int sMaxSessions=4;
 		RelayedCall(MediaRelayServer *server, sip_t *sip) : CallContextBase (sip), mServer(server){
 			memset(mSessions,0,sizeof(mSessions));
-			mOrigin=sip_from_dup(getHome(),sip->sip_from);
 		}
-		virtual void onNewMedia(int mline, std::string *ip, int *port, sip_addr_t *party){
+		virtual void onNewMedia(int mline, std::string *ip, int *port, const char *party_tag){
 			int ports[2];
 			if (mline>=sMaxSessions){
 				LOGE("Max sessions per relayed call is reached.");
@@ -64,7 +63,7 @@ class RelayedCall : public CallContextBase, public Masquerader{
 			}
 			s->getPorts(ports);
 			*ip=s->getAddr();
-			if (ModuleToolbox::fromMatch(party,mOrigin)){
+			if (getCallerTag()==party_tag){
 				*port=ports[0];
 			}else{
 				*port=ports[1];
@@ -92,7 +91,6 @@ class RelayedCall : public CallContextBase, public Masquerader{
 	private:
 		RelaySession * mSessions[sMaxSessions];
 		MediaRelayServer *mServer;
-		sip_addr_t * mOrigin;
 };
 
 ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay");
@@ -110,7 +108,7 @@ void MediaRelay::onLoad(Agent *ag, const ConfigArea & modconf){
 void MediaRelay::processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip){
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
 	if (m){
-		m->changeIpPort(c,sip->sip_from);
+		m->changeIpPort(c,sip->sip_from->a_tag);
 		m->update(msg,sip);
 		//be in the record-route
 		addRecordRoute(c->getHome(),getAgent(),sip);
@@ -166,7 +164,7 @@ void MediaRelay::process200OkforInvite(RelayedCall *ctx, msg_t *msg, sip_t *sip)
 
 	if (m==NULL) return;
 	
-	m->changeIpPort (ctx, sip->sip_to);
+	m->changeIpPort (ctx, sip->sip_to->a_tag);
 	m->update(msg,sip);
 	ctx->storeNewResponse (msg);
 

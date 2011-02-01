@@ -224,14 +224,14 @@ void SdpModifier::changeAudioIpPort(const char *ip, int port){
 	mSession->sdp_media->m_port=port;
 }
 
-void SdpModifier::changeIpPort(Masquerader *m, sip_addr_t *party){
+void SdpModifier::changeIpPort(Masquerader *m, const char *party_tag){
 	sdp_media_t *mline=mSession->sdp_media;
 	int i;
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		std::string ip=mline->m_connections ? mline->m_connections->c_address : mSession->sdp_connection->c_address;
 		int port=mline->m_port;
 
-		m->onNewMedia(i,&ip,&port, party);
+		m->onNewMedia(i,&ip,&port, party_tag);
 		
 		if (mline->m_connections){
 			mline->m_connections->c_address=su_strdup(mHome,ip.c_str());

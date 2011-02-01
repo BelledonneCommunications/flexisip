@@ -42,6 +42,12 @@ class CallContextBase{
 			return &mHome;
 		}
 		virtual ~CallContextBase();
+		const std::string & getCallerTag()const{
+			return mTag1;
+		}
+		const std::string & getCalleeTag()const{
+			return mTag2;
+		}
 	private:
 		su_home_t mHome;
 		sip_from_t *mFrom;
@@ -50,6 +56,8 @@ class CallContextBase{
 		uint32_t mCallHash;
 		uint32_t mInvCseq;
 		uint32_t mResCseq;
+		std::string mTag1;
+		std::string mTag2;
 };
 
 class CallStore{
