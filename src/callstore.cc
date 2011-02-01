@@ -43,15 +43,17 @@ bool CallContextBase::match(sip_t *sip){
 		if (sip->sip_request==NULL){
 			/*this is a response, we might need to update the second tag*/
 			if (strcmp(mTag1.c_str(),sip->sip_from->a_tag)==0 && mTag2.size()==0){
-				mTag2=sip->sip_to->a_tag;
-				LOGD("Found exact dialog");
+				if (sip->sip_to->a_tag){
+					LOGD("Found early dialog, now established");
+					mTag2=sip->sip_to->a_tag;
+				}
 				return true;
 			}
 		}
 
 		if ((strcmp(mTag1.c_str(),sip->sip_from->a_tag)==0 && sip->sip_to->a_tag && strcmp(mTag2.c_str(),sip->sip_to->a_tag)==0) ||
 		   ( sip->sip_to->a_tag && strcmp(mTag1.c_str(),sip->sip_to->a_tag)==0 && strcmp(mTag2.c_str(),sip->sip_from->a_tag)==0)){
-			LOGD("Found early dialog, now established");
+			LOGD("Found exact dialog");
 			return true;
 		}
 	}

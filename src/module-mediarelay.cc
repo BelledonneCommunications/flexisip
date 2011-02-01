@@ -178,19 +178,21 @@ void MediaRelay::onResponse(SipEvent *ev){
 	RelayedCall *c;
 	
 	if (sip->sip_cseq && sip->sip_cseq->cs_method==sip_method_invite){
-		if ((c=static_cast<RelayedCall*>(mCalls.find(sip)))!=NULL){
-			if (sip->sip_status->st_status==200 && c->isNew200Ok(sip)){
-				process200OkforInvite (c,msg,sip);
-			}else if (isEarlyMedia(sip) && c->isNewEarlyMedia (sip)){
-				process200OkforInvite (c,msg,sip);
-			}else if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
-				LOGD("This is a 200 or 183  retransmission");
-				if (c->getLastForwaredResponse()!=NULL){
-					msg=msg_copy(c->getLastForwaredResponse ());
-					sip=(sip_t*)msg_object (msg);
+		if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
+			if ((c=static_cast<RelayedCall*>(mCalls.find(sip)))!=NULL){
+				if (sip->sip_status->st_status==200 && c->isNew200Ok(sip)){
+					process200OkforInvite (c,msg,sip);
+				}else if (isEarlyMedia(sip) && c->isNewEarlyMedia (sip)){
+					process200OkforInvite (c,msg,sip);
+				}else if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
+					LOGD("This is a 200 or 183  retransmission");
+					if (c->getLastForwaredResponse()!=NULL){
+						msg=msg_copy(c->getLastForwaredResponse ());
+						sip=(sip_t*)msg_object (msg);
+					}
 				}
-			}
-		}else LOGW("Receiving 200Ok for unknown call.");
+			}else LOGW("Receiving 200Ok for unknown call.");
+		}
 	}
 	ev->mSip=sip;
 	ev->mMsg=msg;
