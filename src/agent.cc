@@ -64,7 +64,7 @@ const char *Agent::getServerString()const{
 }
 
 void Agent::loadConfig(ConfigManager *cm){
-	mAliases=cm->getArea(ConfigManager::sGlobalArea).get("aliases",list<string>());
+	mAliases=cm->getGlobal()->get<ConfigStringList>("aliases")->read();
 	LOGD("List of host aliases:");
 	for(list<string>::iterator it=mAliases.begin();it!=mAliases.end();++it){
 		LOGD("%s",(*it).c_str());

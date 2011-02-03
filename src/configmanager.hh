@@ -24,6 +24,8 @@
 #include <list>
 #include <cstdlib>
 
+#include "common.hh"
+
 enum ConfigValueType{
 	Boolean,
 	Integer,
@@ -34,7 +36,7 @@ enum ConfigValueType{
 
 
 struct ConfigItemDescriptor {
-	ConfigItemType type;
+	ConfigValueType type;
 	const char *name;
 	const char *help;
 	const char *default_value;
@@ -51,50 +53,96 @@ class ConfigEntry{
 		const std::string &getHelp()const{
 			return mHelp;
 		}
+		ConfigEntry *getParent()const{
+			return mParent;
+		}
+		virtual ~ConfigEntry(){
+		}
 	protected:
 		ConfigEntry(const std::string &name, ConfigValueType type, const std::string &help);
+		void setParent(ConfigEntry *parent);
 	private:
 		const std::string mName;
 		const std::string mHelp;
 		ConfigValueType mType;
+		ConfigEntry *mParent;
 };
+
+class ConfigValue;
 
 class ConfigStruct : public ConfigEntry{
 	public:
 		ConfigStruct(const std::string &name, const std::string &help);
-		void addChild(ConfigEntry *c);
+		ConfigEntry * addChild(ConfigEntry *c);
 		void addChildrenValues(ConfigItemDescriptor *items);
 		std::list<ConfigEntry*> &getChildren();
+		template <typename _retType> 
+		_retType *get(const char *name)const;
 	private:
+		ConfigEntry *find(const char *name)const;
 		std::list<ConfigEntry*> mEntries;
-}
+};
 
 class ConfigValue : public ConfigEntry{
 	public:
 		ConfigValue(const std::string &name, ConfigValueType  vt, const std::string &help, const std::string &default_value);
 		void set(const char *value);
-		void get(bool *retval)const ;
-		void get(int *retval)const;
-		void get(std::list<std::string> * retval)const;
+		void setDefault(const char *value);
 	private:
 		std::string mValue;
 		const std::string mDefaultValue;
 };
 
+class ConfigBoolean : public ConfigValue{
+	public:
+		ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value);
+		bool read()const;
+};
 
+class ConfigInt : public ConfigValue{
+	public:
+		ConfigInt(const std::string &name, const std::string &help, const std::string &default_value);
+		int read()const;
+};
+
+class ConfigString : public ConfigValue{
+	public:
+		ConfigString(const std::string &name, const std::string &help, const std::string &default_value);
+		const std::string & read()const;
+};
+
+class ConfigStringList : public ConfigValue{
+	public:
+		ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value);
+		std::list<std::string> read()const;
+};
+
+template <typename _retType>
+_retType *ConfigStruct::get(const char *name)const{
+	ConfigEntry *e=find(name);
+	if (e==NULL) {
+		LOGA("No ConfigEntry with name %s in struct %s",name,getName().c_str());
+		return NULL;
+	}
+	_retType *ret=dynamic_cast<_retType *>(e);
+	if (ret==NULL){
+		LOGA("Config entry %s in struct %s does not have the expected type");
+		return NULL;
+	}
+	return ret;
+};
 
 class ConfigManager{
 	friend class ConfigArea;
 	public:
 		static ConfigManager *get();
-		static const char *sGlobalArea;
 		void declareArea(const char *area_name, const char *help, ConfigItemDescriptor *items);
 		void load(const char* configFile);
 		ConfigStruct *getRoot();
+		const ConfigStruct *getGlobal();
 	private:
 		ConfigManager();
 		ConfigStruct mConfigRoot;
-		struct _LpConfig *mConf;
 		static ConfigManager *sInstance;
 };
 
@@ -112,5 +160,19 @@ class FileConfigDumper{
 inline std::ostream & operator<<(std::ostream &ostr, FileConfigDumper &dumper){
 	return dumper.dump(ostr);
 }
+
+class FileConfigReader{
+	public:
+		FileConfigReader(ConfigStruct *root) : mRoot(root){
+		}
+		int read(const char *filename);
+		~FileConfigReader();
+	private:
+		int read2(ConfigEntry *entry, int level);
+		ConfigStruct *mRoot;
+		struct _LpConfig *mCfg;
+};
+
+
 
 #endif

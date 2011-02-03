@@ -103,12 +103,15 @@ class Module {
 		nta_agent_t *getSofiaAgent()const;
 		const std::string &getModuleName();
 		void setName(const std::string &name);
+		void declare(ConfigStruct *root);
 		void load(Agent *agent);
 		void processRequest(SipEvent *ev);
 		void processResponse(SipEvent *ev);
 		void idle();
 	protected:
-		virtual void onLoad(Agent *agent, const ConfigArea & module_config){
+		virtual void onDeclare(ConfigStruct *root){
+		}
+		virtual void onLoad(Agent *agent, const ConfigStruct *root){
 		}
 		virtual void onRequest(SipEvent *ev)=0;
 		virtual void onResponse(SipEvent *ev)=0;

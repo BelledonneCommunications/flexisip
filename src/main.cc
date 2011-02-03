@@ -279,7 +279,7 @@ int main(int argc, char *argv[]){
 
 	ConfigManager *cfg=ConfigManager::get();
 	cfg->load(cfgfile);
-	if (!debug) debug=cfg->getArea(ConfigManager::sGlobalArea).get("debug",false);
+	if (!debug) debug=cfg->getGlobal()->get<ConfigBoolean>("debug")->read();
 	
 	initialize (debug,useSyslog);
 	
@@ -305,8 +305,8 @@ int main(int argc, char *argv[]){
 	not to hide any useful error message from the loadConfig() */
 	ms_init();
 	
-	if (cfg->getArea("stun-server").get("enabled",true)){
-		stun=new StunServer(cfg->getArea("stun-server").get("port",3478));
+	if (cfg->getRoot()->get<ConfigStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()){
+		stun=new StunServer(cfg->getRoot()->get<ConfigStruct>("stun-server")->get<ConfigInt>("port")->read());
 		stun->start();
 	}
 

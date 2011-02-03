@@ -75,20 +75,62 @@ void ConfigValue::get(std::list<std::string> *retlist)const{
 
 
 ConfigEntry::ConfigEntry(const std::string &name, ConfigValueType type, const std::string &help) : 
-mName(name),mType(type),mHelp(help){
+mName(name),mHelp(help),mType(type),mParent(0){
+}
+
+void ConfigEntry::setParent(ConfigEntry *parent){
+	mParent=parent;
 }
 
 ConfigStruct::ConfigStruct(const std::string &name, const std::string &help) : ConfigEntry(name,Struct,help){
 	
 }
 
-void ConfigStruct::addChild(ConfigEntry *c){
+ConfigEntry * ConfigStruct::addChild(ConfigEntry *c){
 	mEntries.push_back(c);
+	c->setParent(this);
+	return c;
 }
 
 void ConfigStruct::addChildrenValues(ConfigItemDescriptor *items){
 	for (;items.name!=NULL;items++){
-		mEntries.push_back(new ConfigValue(items->name,items->type,items->help,items->default_value));
+		ConfigValue *val=new ConfigValue(items->name,items->type,items->help,items->default_value);
+		val.setParent(this);
+		mEntries.push_back(val);
+	}
+}
+
+ConfigEntry *ConfigStruct::get(const char *child_name)const{
+	struct findByName{
+		findByName(const char *name) : mName(name){
+		}
+		bool operator()(ConfigEntry *entry){
+			return strcmp(entry->getName().c_str(),name)==0;
+		}
+	}
+	list<ConfigEntry*>::const_terator it=find_if(mEntries.begin(),mEntries.end(),findByName(name));
+	if (it!=mEntries.end()) {
+		return val;
+	}
+	return NULL;
+}
+
+ConfigValue * ConfigStruct::getValue(const char *name){
+	ConfigEntry *e=get(name);	
+	if (e!=NULL)
+		ConfigValue *val=dynamic_cast<ConfigValue*>(e);
+		if (val==NULL) LOGA("%s is not a value.");
+		return val;
+	}
+	return NULL;
+}
+
+const ConfigValue * ConfigStruct::getValue(const char *name)const{
+	ConfigEntry *e=get(name);	
+	if (e!=NULL)
+		ConfigValue *val=dynamic_cast<ConfigValue*>(e);
+		if (val==NULL) LOGA("%s is not a value.");
+		return val;
 	}
 }
 
@@ -113,7 +155,8 @@ void ConfigManager::load(const char* configfile){
 	if (configfile==NULL){
 		configfile=CONFIG_DIR "/flexisip.conf";
 	}
-	mConf=lp_config_new(configfile);
+	FileConfigReader reader(&mRoot);
+	reader.read(configfile);
 }
 
 ConfigStruct *ConfigStruct::getRoot(){
@@ -145,3 +188,35 @@ std::ostream &FileConfigDumper::dump2(std::ostream & ostr, ConfigEntry *entry, i
 	return ostr;
 }
 
+
+int FileConfigReader::read(const char *filename){
+	mCfg=lp_config_new(NULL);
+	if (lp_config_read_file(mCfg,filename)==-1)
+		return -1;
+	read2(mRoot,0);
+}
+
+int FileConfigReader::read2(ConfigEntry *entry, int level){
+	ConfigStruct *cs=dynamic_cast<ConfigStruct*>(entry);
+	ConfigValue *cv;
+	if (cs){
+		list<ConfigEntry> & entries=cs->getChildren();
+		list<ConfigEntry::iterator it;
+		for(it=entries.begin();it!=entries.end();++it){
+			read2(*it,level+1);
+		}
+	}else if ((cv=dynamic_cast<ConfigValue*>(entry))){
+		if (level==0){
+			LOGF("ConfigValues at root is disallowed.");
+		}else if (level==1){
+			const char *val=lp_config_get_string(mCfg,cv->getParent()->getName(),cv->getName(),cv->getDefaultValue().c_str());
+			cv->setValue(val);
+		}else{
+			LOGF("The current file format doesn't support recursive subsections.");
+		}
+	}
+}
+
+FileConfigReader::~FileConfigReader(){
+	if (mCfg) lp_config_destroy(mCfg);
+}
