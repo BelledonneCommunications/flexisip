@@ -65,12 +65,12 @@ static MSList *makeSupportedAudioPayloadList(){
 
 
 TranscodeModule::TranscodeModule(Agent *ag) : Module(ag){
-	mTicker=ms_ticker_new();
+	mTicker=NULL;
 	mSupportedAudioPayloads=makeSupportedAudioPayloadList();
 }
 
 TranscodeModule::~TranscodeModule(){
-	ms_ticker_destroy(mTicker);
+	if (mTicker) ms_ticker_destroy(mTicker);
 	ms_list_free(mSupportedAudioPayloads);
 }
 
@@ -224,6 +224,8 @@ void TranscodeModule::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t 
 	}
 	ctx->getFrontSide ()->assignPayloads (normalizePayloads(answer));
 	ms_list_free(answer);
+	if (mTicker==NULL)
+		mTicker=ms_ticker_new();
 	ctx->join(mTicker);
 	
 	delete m;

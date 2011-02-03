@@ -65,6 +65,7 @@ class MediaRelayServer{
 		~MediaRelayServer();
 		RelaySession *createSession();
 	private:
+		void start();
 		void run();
 		static void *threadFunc(void *arg);
 		Mutex mMutex;
