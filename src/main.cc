@@ -289,7 +289,7 @@ int main(int argc, char *argv[]){
 	ConfigManager *cfg=ConfigManager::get();
 
 	if (dump_default_cfg){
-		a=new Agent(root,"127.0.0.1",port);
+		a=new Agent(root,"",port);
 		std::cout<<FileConfigDumper(cfg->getRoot());
 		return 0;
 	}
@@ -302,7 +302,7 @@ int main(int argc, char *argv[]){
 	su_log_redirect(NULL,sofiaLogHandler,NULL);
 	root=su_root_create(NULL);
 
-	get_local_ip_for_with_connect (AF_INET,"87.98.157.38",localip);
+	get_local_ip_for_with_connect (AF_INET,"209.85.229.147",localip);
 	
 	a=new Agent(root,localip,port);
 	a->loadConfig (cfg);

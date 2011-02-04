@@ -37,7 +37,15 @@
 #include "module.hh"
 
 
-
+/**
+ * The agent class represents a SIP agent.
+ * It listens on a UDP and TCP port, receives request and responses, 
+ * and injects them into the module chain.
+ * The module chain is :
+ * NatHelper => Authentication => Registrar => ContactRouteInserter => MediaRelay => Transcoder => Forward
+ * 
+ * Refer to the flexisip.conf.sample installed by "make install" for documentation about what each module does.
+**/
 class Agent{
 	public:
 		Agent(su_root_t *root, const char *locaddr, int port);

@@ -41,6 +41,10 @@ class Record{
 		int mExpireTime;
 };
 
+/**
+ * A singleton class which holds records contact addresses associated with a from.
+ * It is used by the Registrar module.
+**/
 class RegistrarDb{
 	public:
 		static RegistrarDb *get();

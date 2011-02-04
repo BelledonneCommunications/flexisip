@@ -27,6 +27,7 @@ class TranscodeModule : public Module, protected ModuleToolbox {
 		virtual void onRequest(SipEvent *ev);
 		virtual void onResponse(SipEvent *ev);
 		virtual void onIdle();
+		virtual void onDeclare(ConfigStruct *module_config);
 	private:
 		void processNewInvite(CallContext *c, msg_t *msg, sip_t *sip);
 		void process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip);
@@ -45,7 +46,9 @@ ModuleInfo<TranscodeModule> TranscodeModule::sInfo("Transcoder",
 	"Rtp ports and addresses are masqueraded so that the streams can be processed by the proxy. "
 	"The transcoding job is done in the background by the mediastreamer2 library, as consequence the set of "
 	"supported codecs is exactly the the same as the codec set supported by mediastreamer2, including "
-    "the possible plugins you may installed to extend mediastreamer2.");
+    "the possible plugins you may installed to extend mediastreamer2. "
+    "WARNING: this module can conflict with the MediaRelay module as both are changin the SDP. "
+    "Make sure to configure them with different to-domains or from-domains filter if you want to enable both of them." );
 
 
 static MSList *makeSupportedAudioPayloadList(){
@@ -79,6 +82,11 @@ TranscodeModule::TranscodeModule(Agent *ag) : Module(ag){
 TranscodeModule::~TranscodeModule(){
 	if (mTicker) ms_ticker_destroy(mTicker);
 	ms_list_free(mSupportedAudioPayloads);
+}
+
+void TranscodeModule::onDeclare(ConfigStruct *module_config){
+	/*we need to be disabled by default*/
+	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 }
 
 void TranscodeModule::onIdle(){

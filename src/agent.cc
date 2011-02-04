@@ -38,9 +38,11 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr)
 			&Agent::messageCallback,
 			(nta_agent_magic_t*)this,
 			TAG_END());
-	if (mAgent==NULL){
-		LOGE("Could not create sofia mta.");
+	/* we pass "" as localaddr when we just want to dump the default config. So don't report the error*/
+	if (strlen(locaddr)>0 && mAgent==NULL){
+		LOGF("Could not create sofia mta.");
 	}
+	
 	EtcHostsResolver::get();
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"NatHelper"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Authentication"));

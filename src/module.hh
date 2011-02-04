@@ -98,6 +98,13 @@ class SipEvent{
 
 class EntryFilter;
 
+/**
+ * Abstract base class for all Flexisip module.
+ * A module is an object that is able to process sip requests and sip responses.
+ * It must implements at least:
+ * virtual void onRequest(SipEvent *ev)=0;
+ * virtual void onResponse(SipEvent *ev)=0;
+**/
 class Module {
 	friend class ModuleInfoBase;
 	public:
@@ -134,6 +141,9 @@ Module * ModuleInfo<_modtype>::_create(Agent *ag){
 	return mod;
 }
 
+/**
+ * Some useful routines any module can use by derivating from this class.
+**/
 class ModuleToolbox{
 	public:
 		static void addRecordRoute(su_home_t *home, Agent *ag, sip_t *sip);

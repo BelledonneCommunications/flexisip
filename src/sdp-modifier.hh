@@ -35,6 +35,9 @@ class Masquerader{
 		virtual void onNewMedia(int mline, std::string *ip, int *port, const char* tag)=0;
 };
 
+/**
+ * Utility class used to do various changes in an existing SDP message.
+**/
 class SdpModifier{
 	public:
 		static SdpModifier *createFromSipMsg(su_home_t *home, sip_t *sip);
