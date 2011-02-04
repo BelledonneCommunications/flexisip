@@ -159,11 +159,11 @@ public:
 		if (request == none) LOGF("Authentication is activated but no request found");
 		LOGD("request found: %s", request.c_str());
 
-		int maxIdLength = module_config->get<ConfigInt>("max_id_length")->read();
+		int maxIdLength = module_config->get<ConfigInt>("max-id-length")->read();
 		if (maxIdLength == 0) LOGF("Authentication is activated but no max_id_length found");
 		LOGD("maxIdLength found: %i", maxIdLength);
 
-		int maxPassLength = module_config->get<ConfigInt>("max_password_length")->read();
+		int maxPassLength = module_config->get<ConfigInt>("max-password-length")->read();
 		if (maxPassLength == 0) LOGF("Authentication is activated but no max_password_length found");
 		LOGD("maxPassLength found: %i", maxPassLength);
 

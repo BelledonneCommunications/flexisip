@@ -21,7 +21,7 @@ if test -d /opt/local/share/aclocal ; then
 	ACLOCAL_ARGS="-I /opt/local/share/aclocal"
 fi
 
-echo "Generating build scripts in bcproxy..."
+echo "Generating build scripts in flexisip..."
 set -x
 #$LIBTOOLIZE --copy --force
 $ACLOCAL  $ACLOCAL_ARGS
