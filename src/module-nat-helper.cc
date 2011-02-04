@@ -70,4 +70,8 @@ class NatHelper : public Module, protected ModuleToolbox{
 		static ModuleInfo<NatHelper> sInfo;
 };
 
-ModuleInfo<NatHelper> NatHelper::sInfo("NatHelper");
+ModuleInfo<NatHelper> NatHelper::sInfo("NatHelper",
+	"The NatHelper module executes small tasks to make SIP work smoothly despite firewalls."
+    "It corrects the Contact headers that contain obviously inconsistent addresses, and adds "
+    "a Record-Route to ensure subsequent requests are routed also by the proxy, through the UDP or TCP "
+    "channel each client opened to the proxy.");

@@ -16,10 +16,16 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "lpconfig.h"
+
 #include <cstring>
+#include <algorithm>
+#include <iostream>
+
+#include "lpconfig.h"
 #include "configmanager.hh"
 #include "common.hh"
+
+using namespace::std;
 
 ConfigValue::ConfigValue(const std::string &name, ConfigValueType  vt, const std::string &help, const std::string &default_value) 
 	:  ConfigEntry (name,vt,help), mDefaultValue(default_value){
@@ -29,53 +35,33 @@ ConfigValue::ConfigValue(const std::string &name, ConfigValueType  vt, const std
 void ConfigValue::set(const std::string  &value){
 	if (getType()==Boolean){
 		if (value!="true" && value!="false" && value!="1" && value!="0"){
-			LOGF("Not a boolean: \"%s\" for key \"%s\" ", value, getName());
+			LOGF("Not a boolean: \"%s\" for key \"%s\" ", value.c_str(), getName().c_str());
 		}
 	}
 	mValue=value;
 }
 
-void ConfigValue::setDefault(const char *value){
+void ConfigValue::setDefault(const std::string & value){
 	if (getType()==Boolean){
 		if (value!="true" && value!="false" && value!="1" && value!="0"){
-			LOGF("Not a boolean: \"%s\" for key \"%s\" ", value, getName());
+			LOGF("Not a boolean: \"%s\" for key \"%s\" ", value.c_str(), getName().c_str());
 		}
 	}
 	mDefaultValue=value;
 }
 
-void ConfigValue::get(std::string *value)const{
-	if (getType()!=String) LOGF("Value %s is not a string !",getName().c_str());
-	*value=getValue();
+const std::string & ConfigValue::get()const{
+	return mValue;
 }
 
-void ConfigValue::get(int *value)const{
-	if (getType()!=Integer) LOGF("Value %s is not a integer !",getName().c_str());
-	*value=atoi(getValue().c_str());
+const std::string & ConfigValue::getDefault()const{
+	return mDefaultValue;
 }
-
-void ConfigValue::get(bool *value)const{
-	if (getType()!=Boolean) LOGF("Value %s is not a boolean !",getName().c_str());
-	if (getValue()=="true" || getValue()=="1") *value=true;
-	else *value=false;
-}
-
-#define DELIMITERS " \n,"
-
-void ConfigValue::get(std::list<std::string> *retlist)const{
-	char *res=strdup(getValue().c_str());
-	char *saveptr=NULL;
-	char *ret=strtok_r(res,DELIMITERS,&saveptr);
-	while(ret!=NULL){
-		retlist->push_back(std::string(ret));
-		ret=strtok_r(NULL,DELIMITERS,&saveptr);
-	}
-	free(res);
-}
-
 
 ConfigEntry::ConfigEntry(const std::string &name, ConfigValueType type, const std::string &help) : 
 mName(name),mHelp(help),mType(type),mParent(0){
+	if (strchr(name.c_str(),'_'))
+		LOGA("Underscores not allowed in config items, please use minus sign.");
 }
 
 void ConfigEntry::setParent(ConfigEntry *parent){
@@ -93,52 +79,133 @@ ConfigEntry * ConfigStruct::addChild(ConfigEntry *c){
 }
 
 void ConfigStruct::addChildrenValues(ConfigItemDescriptor *items){
-	for (;items.name!=NULL;items++){
-		ConfigValue *val=new ConfigValue(items->name,items->type,items->help,items->default_value);
-		val.setParent(this);
-		mEntries.push_back(val);
+	for (;items->name!=NULL;items++){
+		ConfigValue *val=NULL;
+		switch(items->type){
+			case Boolean:
+				val=new ConfigBoolean(items->name,items->help,items->default_value);
+			break;
+			case Integer:
+				val=new ConfigInt(items->name,items->help,items->default_value);
+			break;
+			case String:
+				val=new ConfigString(items->name,items->help,items->default_value);
+			break;
+			case StringList:
+				val=new ConfigStringList(items->name,items->help,items->default_value);
+			break;
+			default:
+				LOGA("Bad ConfigValue type !");
+			break;
+		}
+		addChild(val);
 	}
 }
 
-ConfigEntry *ConfigStruct::get(const char *child_name)const{
-	struct findByName{
-		findByName(const char *name) : mName(name){
-		}
-		bool operator()(ConfigEntry *entry){
-			return strcmp(entry->getName().c_str(),name)==0;
-		}
+struct matchEntryName{
+	matchEntryName(const char *name) : mName(name){};
+	bool operator()(ConfigEntry* e){
+		return strcmp(mName,e->getName().c_str())==0;
 	}
-	list<ConfigEntry*>::const_terator it=find_if(mEntries.begin(),mEntries.end(),findByName(name));
-	if (it!=mEntries.end()) {
-		return val;
-	}
+	const char *mName;
+};
+
+ConfigEntry *ConfigStruct::find(const char *name)const{
+	std::list<ConfigEntry*>::const_iterator it=find_if(mEntries.begin(),mEntries.end(),matchEntryName(name));
+	if (it!=mEntries.end()) return *it;
 	return NULL;
 }
 
-ConfigValue * ConfigStruct::getValue(const char *name){
-	ConfigEntry *e=get(name);	
-	if (e!=NULL)
-		ConfigValue *val=dynamic_cast<ConfigValue*>(e);
-		if (val==NULL) LOGA("%s is not a value.");
-		return val;
+struct matchEntryNameApprox{
+	matchEntryNameApprox(const char *name) : mName(name){};
+	bool operator()(ConfigEntry* e){
+		unsigned int i;
+		int count=0;
+		int min_required=mName.size()-2;
+		if (min_required<1) return false;
+		
+		for(i=0;i<mName.size();++i){
+			if (e->getName().find(mName[i])!=std::string::npos){
+				count++;
+			}
+		}
+		if (count>=min_required){
+			return true;
+		}
+		return false;
 	}
-	return NULL;
-}
+	const std::string mName;
+};
 
-const ConfigValue * ConfigStruct::getValue(const char *name)const{
-	ConfigEntry *e=get(name);	
-	if (e!=NULL)
-		ConfigValue *val=dynamic_cast<ConfigValue*>(e);
-		if (val==NULL) LOGA("%s is not a value.");
-		return val;
-	}
+ConfigEntry * ConfigStruct::findApproximate(const char *name)const{
+	std::list<ConfigEntry*>::const_iterator it=find_if(mEntries.begin(),mEntries.end(),matchEntryNameApprox(name));
+	if (it!=mEntries.end()) return *it;
+	return NULL;
 }
 
 std::list<ConfigEntry*> &ConfigStruct::getChildren(){
 	return mEntries;
 }
 
-const char *ConfigManager::sGlobalArea="global";
+struct destroy{
+	void operator()(ConfigEntry *e){
+		delete e;
+	}
+};
+
+ConfigStruct::~ConfigStruct(){
+	for_each(mEntries.begin(),mEntries.end(),destroy());
+}
+
+
+ConfigBoolean::ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value)
+	: ConfigValue(name, Boolean, help, default_value){
+}
+
+bool ConfigBoolean::read()const{
+	if (get()=="true" || get()=="1") return true;
+	else if (get()=="false" || get()=="0") return false;
+	LOGA("Bad boolean value %s",get().c_str());
+	return false;
+}
+
+
+ConfigInt::ConfigInt(const std::string &name, const std::string &help, const std::string &default_value)
+	:	ConfigValue(name,Integer,help,default_value){
+}
+
+int ConfigInt::read()const{
+	return atoi(get().c_str());
+}
+
+ConfigString::ConfigString(const std::string &name, const std::string &help, const std::string &default_value)
+	:	ConfigValue(name,String,help,default_value){
+}
+
+const std::string & ConfigString::read()const{
+	return get();
+}
+
+
+ConfigStringList::ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value)
+	:	ConfigValue(name,StringList,help,default_value){
+}
+
+#define DELIMITERS " \n,"
+
+std::list<std::string>  ConfigStringList::read()const{
+	std::list<std::string> retlist;
+	char *res=strdup(get().c_str());
+	char *saveptr=NULL;
+	char *ret=strtok_r(res,DELIMITERS,&saveptr);
+	while(ret!=NULL){
+		retlist.push_back(std::string(ret));
+		ret=strtok_r(NULL,DELIMITERS,&saveptr);
+	}
+	free(res);
+	return retlist;
+}
+
 
 ConfigManager *ConfigManager::sInstance=0;
 
@@ -148,30 +215,65 @@ ConfigManager *ConfigManager::get(){
 	return sInstance;
 }
 
-ConfigManager::ConfigManager() : mConf(NULL){
+static ConfigItemDescriptor global_conf[]={
+	{	Boolean	,	"debug"	,	"Outputs very detailed logs",	"false"	},
+	{	StringList	,	"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost" },
+	config_item_end
+};
+
+ConfigManager::ConfigManager() : mConfigRoot("root","This is the default Flexisip configuration file"), mReader(&mConfigRoot){
+	ConfigStruct *global=new ConfigStruct("global","Some global settings of the flexisip proxy.");
+	global->addChildrenValues(global_conf);
+	mConfigRoot.addChild(global);
 }
 
 void ConfigManager::load(const char* configfile){
 	if (configfile==NULL){
 		configfile=CONFIG_DIR "/flexisip.conf";
 	}
-	FileConfigReader reader(&mRoot);
-	reader.read(configfile);
+	mReader.read(configfile);
 }
 
-ConfigStruct *ConfigStruct::getRoot(){
-	return mConfigRoot;
+void ConfigManager::loadStrict(){
+	mReader.reload();
+	mReader.checkUnread();
 }
 
-std::ostream &FileConfigDumper::dump(std::ostream & ostr){
-	return dump2(ostr,0);
+ConfigStruct *ConfigManager::getRoot(){
+	return &mConfigRoot;
 }
 
-std::ostream &FileConfigDumper::dump2(std::ostream & ostr, ConfigEntry *entry, int level){
+const ConfigStruct *ConfigManager::getGlobal(){
+	return mConfigRoot.get<ConfigStruct>("global");
+}
+
+std::ostream &FileConfigDumper::dump(std::ostream & ostr)const {
+	return dump2(ostr,mRoot,0);
+}
+
+std::ostream & FileConfigDumper::printHelp(std::ostream &os, const std::string &help, const std::string &comment_prefix)const{
+	const char *p=help.c_str();
+	const char *begin=p;
+	const char *origin=help.c_str();
+	for(;*p!=0;++p){
+		if (p-begin>60 && *p==' '){
+			os<<comment_prefix<<" "<<help.substr(begin-origin,p-begin)<<endl;
+			p++;
+			begin=p;
+		}
+	}
+	os<<comment_prefix<<" "<<help.substr(begin-origin,p-origin)<<endl;
+	return os;
+}
+
+std::ostream &FileConfigDumper::dump2(std::ostream & ostr, ConfigEntry *entry, int level)const{
 	ConfigStruct *cs=dynamic_cast<ConfigStruct*>(entry);
 	ConfigValue *val;
-	ostr<<cs->getHelp()<<std::endl;
+	
 	if (cs){
+		ostr<<"##"<<endl;
+		printHelp(ostr,cs->getHelp(),"##");
+		ostr<<"##"<<endl;
 		if (level>0){
 			ostr<<"["<<cs->getName()<<"]"<<std::endl;
 		}else ostr<<std::endl;
@@ -181,9 +283,9 @@ std::ostream &FileConfigDumper::dump2(std::ostream & ostr, ConfigEntry *entry, i
 			ostr<<std::endl;
 		}
 	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL){
-		ostr<<"Default value: "<<entry->getDefault()<<std::endl;
-		ostr<<entry->getName()<<"="<<entry->getValue()<<std::endl;
-		ostr<<std::endl;
+		printHelp(ostr,entry->getHelp(),"#");
+		ostr<<"#  Default value: "<<val->getDefault()<<std::endl;
+		ostr<<entry->getName()<<"="<<val->getDefault()<<std::endl;
 	}
 	return ostr;
 }
@@ -194,27 +296,68 @@ int FileConfigReader::read(const char *filename){
 	if (lp_config_read_file(mCfg,filename)==-1)
 		return -1;
 	read2(mRoot,0);
+	return 0;
+}
+
+int FileConfigReader::reload(){
+	read2(mRoot,0);
+	return 0;
+}
+
+void FileConfigReader::onUnreadItem(void *p, const char *secname, const char *key, int lineno){
+	FileConfigReader *zis=(FileConfigReader*)p;
+	zis->onUnreadItem(secname,key,lineno);
+}
+
+void FileConfigReader::onUnreadItem(const char *secname, const char *key, int lineno){
+	LOGE("Unsupported parameter '%s' in section [%s] at line %i", key, secname, lineno);
+	mHaveUnreads=true;
+	ConfigEntry *sec=mRoot->find(secname);
+	if (sec==NULL){
+		sec=mRoot->findApproximate(secname);
+		if (sec!=NULL){
+			LOGE("Did you meant '[%s]' ?",sec->getName().c_str());
+		}
+		return;
+	}
+	ConfigStruct *st=dynamic_cast<ConfigStruct*>(sec);
+	if (st){
+		ConfigEntry *val=st->find(key);
+		if (val==NULL){
+			val=st->findApproximate(key);
+			if (val!=NULL){
+				LOGE("Did you meant '%s' ?",val->getName().c_str());
+			}
+		}
+	}
+}
+
+void FileConfigReader::checkUnread(){
+	lp_config_for_each_unread (mCfg,onUnreadItem,this);
+	if (mHaveUnreads)
+		LOGF("Please fix your configuration file.");
 }
 
 int FileConfigReader::read2(ConfigEntry *entry, int level){
 	ConfigStruct *cs=dynamic_cast<ConfigStruct*>(entry);
 	ConfigValue *cv;
 	if (cs){
-		list<ConfigEntry> & entries=cs->getChildren();
-		list<ConfigEntry::iterator it;
+		list<ConfigEntry*> & entries=cs->getChildren();
+		list<ConfigEntry*>::iterator it;
 		for(it=entries.begin();it!=entries.end();++it){
 			read2(*it,level+1);
 		}
 	}else if ((cv=dynamic_cast<ConfigValue*>(entry))){
-		if (level==0){
+		if (level<2){
 			LOGF("ConfigValues at root is disallowed.");
-		}else if (level==1){
-			const char *val=lp_config_get_string(mCfg,cv->getParent()->getName(),cv->getName(),cv->getDefaultValue().c_str());
-			cv->setValue(val);
+		}else if (level==2){
+			const char *val=lp_config_get_string(mCfg,cv->getParent()->getName().c_str(),cv->getName().c_str(),cv->getDefault().c_str());
+			cv->set(val);
 		}else{
 			LOGF("The current file format doesn't support recursive subsections.");
 		}
 	}
+	return 0;
 }
 
 FileConfigReader::~FileConfigReader(){

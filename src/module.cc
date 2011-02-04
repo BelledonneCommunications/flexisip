@@ -22,6 +22,12 @@
 #include <algorithm>
 using namespace::std;
 
+Module *ModuleInfoBase::create(Agent *ag){
+	Module *mod=_create(ag);
+	mod->setInfo(this);
+	return mod;
+}
+
 ModuleFactory * ModuleFactory::sInstance=NULL;
 
 ModuleFactory *ModuleFactory::get(){
@@ -47,7 +53,6 @@ Module *ModuleFactory::createModuleInstance(Agent *ag, const std::string &modnam
 		Module *m;
 		ModuleInfoBase *i=*it;
 		m=i->create(ag);
-		m->setName(i->getModuleName());
 		LOGI("Creating module instance for [%s]",m->getModuleName().c_str());
 		return m;
 	}
@@ -67,6 +72,10 @@ Module::Module(Agent *ag ) : mAgent(ag){
 Module::~Module(){
 }
 
+void Module::setInfo(ModuleInfoBase *i){
+	mInfo=i;
+}
+
 Agent *Module::getAgent()const{
 	return mAgent;
 }
@@ -75,11 +84,16 @@ nta_agent_t *Module::getSofiaAgent()const{
 	return mAgent->getSofiaAgent();
 }
 
+void Module::declare(ConfigStruct *root){
+	mModuleConfig=new ConfigStruct("module::"+getModuleName(),mInfo->getModuleHelp());
+	root->addChild(mModuleConfig);
+	mFilter->declareConfig(mModuleConfig);
+	onDeclare(mModuleConfig);
+}
+
 void Module::load(Agent *agent){
-	string configName=string("module::"+getModuleName());
-	const ConfigArea &module_config=ConfigManager::get()->getArea(configName.c_str());
-	mFilter->loadConfig(module_config);
-	if (mFilter->isEnabled()) onLoad(agent,module_config);
+	mFilter->loadConfig(mModuleConfig);
+	if (mFilter->isEnabled()) onLoad(agent,mModuleConfig);
 }
 
 void Module::processRequest(SipEvent *ev){
@@ -101,12 +115,9 @@ void Module::idle(){
 }
 
 const std::string &Module::getModuleName(){
-	return mName;
+	return mInfo->getModuleName();
 }
 
-void Module::setName(const std::string &name){
-	mName=name;
-}
 
 bool ModuleToolbox::sipPortEquals(const char *p1, const char *p2){
 	int n1,n2;

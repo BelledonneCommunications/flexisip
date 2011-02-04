@@ -38,29 +38,32 @@ class ModuleFactory{
 
 class ModuleInfoBase {
 	public:
-		virtual Module *create(Agent *ag)=0;
+		Module *create(Agent *ag);
+		virtual Module *_create(Agent *ag)=0;
 		const std::string &getModuleName()const{
 			return mName;
+		}
+		const std::string &getModuleHelp()const{
+			return mHelp;
 		}
 		virtual ~ModuleInfoBase(){
 		}
 	protected:
-		ModuleInfoBase(const char *modname) : mName(modname){
+		ModuleInfoBase(const char *modname, const char *help) : mName(modname), mHelp(help){
 			ModuleFactory::get()->registerModule(this);
 		}
 	private:
 		const std::string mName;
+		const std::string mHelp;
 };
 
 template <typename _module_>
 class ModuleInfo : public ModuleInfoBase{
 	public:
-		ModuleInfo(const char *modname) : ModuleInfoBase(modname){
+		ModuleInfo(const char *modname, const char *help) : ModuleInfoBase(modname,help){
 		}
 	protected:
-		virtual Module *create(Agent *ag){
-			return new _module_(ag);
-		}
+		virtual Module *_create(Agent *ag);
 };
 
 
@@ -96,13 +99,13 @@ class SipEvent{
 class EntryFilter;
 
 class Module {
+	friend class ModuleInfoBase;
 	public:
 		Module(Agent *);
 		virtual ~Module();
 		Agent *getAgent()const;
 		nta_agent_t *getSofiaAgent()const;
 		const std::string &getModuleName();
-		void setName(const std::string &name);
 		void declare(ConfigStruct *root);
 		void load(Agent *agent);
 		void processRequest(SipEvent *ev);
@@ -119,9 +122,17 @@ class Module {
 		}
 		Agent *mAgent;
 	private:
-		std::string mName;
+		void setInfo(ModuleInfoBase *i);
+		ModuleInfoBase *mInfo;
+		ConfigStruct *mModuleConfig;
 		EntryFilter *mFilter;
 };
+
+template <typename _modtype>
+Module * ModuleInfo<_modtype>::_create(Agent *ag){
+	Module *mod=new _modtype(ag);
+	return mod;
+}
 
 class ModuleToolbox{
 	public:

@@ -29,7 +29,9 @@
  **/
 class EntryFilter{
 	public:
-		virtual void loadConfig(const ConfigArea &vmodule_config){
+		virtual void declareConfig(ConfigStruct *module_config){
+		}
+		virtual void loadConfig(const ConfigStruct *module_config){
 		}
 		virtual bool canEnter(sip_t *sip)=0;
 		virtual bool isEnabled()=0;
@@ -39,7 +41,8 @@ class ConfigEntryFilter : public EntryFilter {
 	public:
 		ConfigEntryFilter();
 		virtual ~ConfigEntryFilter();
-		virtual void loadConfig(const ConfigArea &vmodule_config);
+		virtual void declareConfig(ConfigStruct *module_config);
+		virtual void loadConfig(const ConfigStruct * module_config);
 		virtual bool canEnter(sip_t *sip);
 		virtual bool isEnabled();
 	private:

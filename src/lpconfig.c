@@ -37,6 +37,8 @@
 typedef struct _LpItem{
 	char *key;
 	char *value;
+	int is_read;
+	int lineno;
 } LpItem;
 
 typedef struct _LpSection{
@@ -122,6 +124,7 @@ LpItem *lp_section_find_item(LpSection *sec, const char *name){
 		item=(LpItem*)elem->data;
 		if (strcmp(item->key,name)==0) {
 			/*printf("Item %s found\n",name);*/
+			item->is_read=TRUE;
 			return item;
 		}
 	}
@@ -131,11 +134,13 @@ LpItem *lp_section_find_item(LpSection *sec, const char *name){
 void lp_config_parse(LpConfig *lpconfig, FILE *file){
 	char tmp[MAX_LEN];
 	LpSection *cur=NULL;
+	int line=0;
 
 	if (file==NULL) return;
 
 	while(fgets(tmp,MAX_LEN,file)!=NULL){
 		char *pos1,*pos2;
+		line++;
 		pos1=strchr(tmp,'[');
 		if (pos1!=NULL && is_first_char(tmp,pos1) ){
 			pos2=strchr(pos1,']');
@@ -181,11 +186,13 @@ void lp_config_parse(LpConfig *lpconfig, FILE *file){
 						if (cur!=NULL){
 							LpItem *item=lp_section_find_item(cur,key);
 							if (item==NULL){
-								lp_section_add_item(cur,lp_item_new(key,pos1));
+								item=lp_item_new(key,pos1);
+								lp_section_add_item(cur,item);
 							}else{
 								ms_free(item->value);
 								item->value=strdup(pos1);
 							}
+							item->lineno=line;
 							/*printf("Found %s %s=%s\n",cur->name,key,pos1);*/
 						}else{
 							ms_warning("found key,item but no sections");
@@ -236,6 +243,19 @@ void lp_item_set_value(LpItem *item, const char *value){
 	item->value=ortp_strdup(value);
 }
 
+void lp_config_for_each_unread(LpConfig *lpconfig, LpConfigUnreadCallback cb, void *data){
+	const MSList *elem;
+	for(elem=lpconfig->sections;elem!=NULL;elem=elem->next){
+		const MSList *it;
+		LpSection *sec=(LpSection*)elem->data;
+		for(it=sec->items;it!=NULL;it=it->next){
+			LpItem *item=(LpItem*)it->data;
+			if (item->is_read==FALSE){
+				cb(data,sec->name,item->key,item->lineno);
+			}
+		}
+	}
+}
 
 void lp_config_destroy(LpConfig *lpconfig){
 	if (lpconfig->filename!=NULL) free(lpconfig->filename);

@@ -35,6 +35,11 @@ class StunServer{
 		pthread_t mThread;
 		int mPort;
 		int mSock;
+		class Init{
+			public:
+				Init();
+		};
+		static Init sStaticInit;
 };
 
 #endif

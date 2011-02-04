@@ -32,7 +32,7 @@ class MediaRelay : public Module, protected ModuleToolbox{
 	public:
 		MediaRelay(Agent *ag);
 		~MediaRelay();
-		virtual void onLoad(Agent *ag, const ConfigArea & modconf);
+		virtual void onLoad(Agent *ag, const ConfigStruct * modconf);
 		virtual void onRequest(SipEvent *ev);
 		virtual void onResponse(SipEvent *ev);
 		virtual void onIdle();
@@ -93,7 +93,10 @@ class RelayedCall : public CallContextBase, public Masquerader{
 		MediaRelayServer *mServer;
 };
 
-ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay");
+ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay",
+	"The MediaRelay module masquerades SDP message so that all RTP and RTCP streams go through the proxy. "
+	"The RTP and RTCP streams are then routed so that each client receives the stream of the other. "
+    "MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.");
 
 MediaRelay::MediaRelay(Agent *ag) : Module(ag), mServer(ag->getLocAddr ()){
 }
@@ -101,7 +104,7 @@ MediaRelay::MediaRelay(Agent *ag) : Module(ag), mServer(ag->getLocAddr ()){
 MediaRelay::~MediaRelay(){
 }
 
-void MediaRelay::onLoad(Agent *ag, const ConfigArea & modconf){
+void MediaRelay::onLoad(Agent *ag, const ConfigStruct * modconf){
 }
 
 

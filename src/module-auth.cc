@@ -116,9 +116,24 @@ public:
 		delete mOdbcAuthScheme;
 	}
 
-	void onLoad(Agent *agent, const ConfigArea & module_config){
+	virtual void onDeclare(ConfigStruct * module_config){
+		ConfigItemDescriptor items[]={
+			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	""	},
+			{	String		,	"datasource"		,	"Please document this.",		""	},
+			{	String		,	"request"				,	"The sql request to execute to obtain the password.",		""	},
+			{	Integer		,	"max-id-length"	,	"Please document this.",	""	},
+			{	Integer		,	"max-password-length"	,	"Please document this",	""	},
+			{	Boolean	,	"hashed-passwords"	,	"Please document this.", "false" },
+			config_item_end
+		};
+		module_config->addChildrenValues(items);
+		/* modify the default value for "enabled" */
+		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
+	}
+
+	void onLoad(Agent *agent, const ConfigStruct * module_config){
 		list<string>::const_iterator it;
-		mDomains=module_config.get("auth_domains",list<string>());
+		mDomains=module_config->get<ConfigStringList>("auth-domains")->read();
 		for (it=mDomains.begin();it!=mDomains.end();++it){
 			mAuthModules[*it] = auth_mod_create(NULL,
 									AUTHTAG_METHOD("odbc"),
@@ -136,19 +151,19 @@ public:
 
 
 		string none = "none";
-		string dsn = module_config.get("datasource", none);
+		string dsn = module_config->get<ConfigString>("datasource")->read();
 		if (dsn == none) LOGF("Authentication is activated but no datasource found");
 		LOGD("Datasource found: %s", dsn.c_str());
 
-		string request = module_config.get("request", none);
+		string request = module_config->get<ConfigString>("request")->read();
 		if (request == none) LOGF("Authentication is activated but no request found");
 		LOGD("request found: %s", request.c_str());
 
-		int maxIdLength = module_config.get("max_id_length", 0);
+		int maxIdLength = module_config->get<ConfigInt>("max_id_length")->read();
 		if (maxIdLength == 0) LOGF("Authentication is activated but no max_id_length found");
 		LOGD("maxIdLength found: %i", maxIdLength);
 
-		int maxPassLength = module_config.get("max_password_length", 0);
+		int maxPassLength = module_config->get<ConfigInt>("max_password_length")->read();
 		if (maxPassLength == 0) LOGF("Authentication is activated but no max_password_length found");
 		LOGD("maxPassLength found: %i", maxPassLength);
 
@@ -160,7 +175,7 @@ public:
 			LOGE("Unable to connect to odbc database");
 		}
 
-		databaseUseHashedPasswords = module_config.get("hashed_passwords", true);
+		databaseUseHashedPasswords = module_config->get<ConfigBoolean>("hashed-passwords")->read();
 	}
 
 	void onRequest(SipEvent *ev) {
@@ -211,7 +226,8 @@ public:
 
 };
 
-ModuleInfo<Authentication> Authentication::sInfo("Authentication");
+ModuleInfo<Authentication> Authentication::sInfo("Authentication",
+	"The authentication module challenges SIP requests according to a user/password database.");
 
 
 

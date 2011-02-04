@@ -51,6 +51,9 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr)
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Forward"));
 
 	mServerString="Flexisip/"VERSION " (sofia-sip-nta/" NTA_VERSION ")";
+
+	for_each(mModules.begin(),mModules.end(),bind2nd(mem_fun(&Module::declare),
+	                                                 ConfigManager::get()->getRoot()));
 }
 
 Agent::~Agent(){
@@ -64,6 +67,7 @@ const char *Agent::getServerString()const{
 }
 
 void Agent::loadConfig(ConfigManager *cm){
+	cm->loadStrict();//now that each module has declared its settings, we need to reload from the config file
 	mAliases=cm->getGlobal()->get<ConfigStringList>("aliases")->read();
 	LOGD("List of host aliases:");
 	for(list<string>::iterator it=mAliases.begin();it!=mAliases.end();++it){

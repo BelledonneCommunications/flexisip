@@ -25,10 +25,18 @@ class Registrar : public Module {
 	public:
 		Registrar(Agent *ag) : Module(ag){
 		}
+
+		virtual void onDeclare(ConfigStruct *module_config){
+			ConfigItemDescriptor items[]={
+				{	StringList	,	"reg-domains",	"List of whitelist separated domain names to be managed by the registrar.","localhost"},
+				config_item_end
+			};
+			module_config->addChildrenValues(items);
+		}
 		
-		virtual void onLoad(Agent *agent, const ConfigArea & module_config){
+		virtual void onLoad(Agent *agent, const ConfigStruct *module_config){
 			list<string>::const_iterator it;
-			mDomains=module_config.get("reg_domains",list<string>());
+			mDomains=module_config->get<ConfigStringList>("reg-domains")->read();
 			for (it=mDomains.begin();it!=mDomains.end();++it){
 				LOGD("Found registrar domain: %s",(*it).c_str());
 			}
@@ -88,5 +96,7 @@ class Registrar : public Module {
 		static ModuleInfo<Registrar> sInfo;
 };
 
-ModuleInfo<Registrar> Registrar::sInfo("Registrar");
+ModuleInfo<Registrar> Registrar::sInfo("Registrar",
+	"The Registrar module accepts REGISTERs for domains it manages, and store the address of record "
+    "in order to route other requests destinated to the client who registered.");
 

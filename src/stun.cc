@@ -18,9 +18,23 @@
 
 #include "stun.hh"
 #include "common.hh"
+#include "configmanager.hh"
 
 #include <arpa/inet.h>
 #include <poll.h>
+
+StunServer::Init StunServer::sStaticInit;
+
+StunServer::Init::Init(){
+	ConfigItemDescriptor items[]={
+		{	Boolean,		"enabled",		"Enable or disable stun server.",	"true"	},
+		{	Integer,		"port"		,	"STUN server port number.",	"3478"		},
+		config_item_end
+	};
+	ConfigStruct *s=new ConfigStruct("stun-server","STUN server parameters.");
+	s->addChildrenValues(items);
+	ConfigManager::get()->getRoot()->addChild(s);
+}
 
 StunServer::StunServer(int port){
 	mRunning=false;

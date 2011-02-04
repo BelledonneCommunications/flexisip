@@ -28,7 +28,9 @@ class ForwardModule : public Module {
 		static ModuleInfo<ForwardModule> sInfo;
 };
 
-ModuleInfo<ForwardModule> ForwardModule::sInfo("Forward");
+ModuleInfo<ForwardModule> ForwardModule::sInfo("Forward",
+   "This module executes the basic routing task of SIP requests and pass them to the transport layer. "
+	"It must always be enabled.");
 
 
 ForwardModule::ForwardModule(Agent *ag) : Module(ag){
@@ -109,16 +111,11 @@ void ForwardModule::onRequest(SipEvent *ev){
 
 
 void ForwardModule::onResponse(SipEvent *ev){
-	su_home_t home;
 	char *buf;
 	size_t msg_size;
-	
-	su_home_init(&home);
 
-	buf=msg_as_string(&home, ev->mMsg, NULL, 0,&msg_size);
+	buf=msg_as_string(ev->getHome(), ev->mMsg, NULL, 0,&msg_size);
 	LOGD("About to forward response:\n%s",buf);
 	
 	nta_msg_tsend(getSofiaAgent(),ev->mMsg,(url_string_t*)NULL,TAG_END());
-
-	su_home_deinit(&home);
 }

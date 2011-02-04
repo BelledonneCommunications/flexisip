@@ -20,6 +20,8 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#include <iostream>
+
 #include <mediastreamer2/mscommon.h>
 #include "agent.hh"
 #include "stun.hh"
@@ -97,6 +99,8 @@ static void usage(const char *arg0){
 	       "\t\t [--port <port number to listen>]\n"
 	       "\t\t [--debug]\n"
 	       "\t\t [--daemon]\n"
+	       "\t\t [--configfile <path>]\n"
+	       "\t\t [--dump-default-config]\n"
 	       "\t\t [--help]\n",arg0);
 	exit(-1);
 }
@@ -245,6 +249,7 @@ int main(int argc, char *argv[]){
 	bool debug=false;
 	bool daemon=false;
 	bool useSyslog=false;
+	bool dump_default_cfg=false;
 
 	for(i=1;i<argc;++i){
 		if (strcmp(argv[i],"--port")==0){
@@ -272,12 +277,23 @@ int main(int argc, char *argv[]){
 			cfgfile=argv[i+1];
 			i++;
 			continue;
+		}else if (strcmp(argv[i],"--dump-default-config")==0){
+			dump_default_cfg=true;
+			i++;
+			continue;
 		}
 		fprintf(stderr,"Bad option %s\n",argv[i]);
 		usage(argv[0]);
 	}
-
+	
 	ConfigManager *cfg=ConfigManager::get();
+
+	if (dump_default_cfg){
+		a=new Agent(root,"127.0.0.1",port);
+		std::cout<<FileConfigDumper(cfg->getRoot());
+		return 0;
+	}
+	
 	cfg->load(cfgfile);
 	if (!debug) debug=cfg->getGlobal()->get<ConfigBoolean>("debug")->read();
 	

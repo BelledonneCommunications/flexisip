@@ -27,12 +27,21 @@ ConfigEntryFilter::ConfigEntryFilter(){
 ConfigEntryFilter::~ConfigEntryFilter(){
 }
 
-void ConfigEntryFilter::loadConfig(const ConfigArea &module_config){
-	list<string> defaultvalue;
-	defaultvalue.push_back("*");
-	mFromDomains=module_config.get("from-domains",defaultvalue);
-	mToDomains=module_config.get("to-domains",defaultvalue);
-	mEnabled=module_config.get("enabled",true);
+static ConfigItemDescriptor config[]={
+	{	Boolean,			"enabled",					"Indicate whether the module is activated.",	"true"	},
+	{	StringList,		"from-domains",	"List of domain names in sip from allowed to enter the module.",	"*"	},
+	{	StringList,		"to-domains"	,		"List of domain names in sip to allowed to enter the module.",		"*"	},
+	config_item_end
+};
+
+void ConfigEntryFilter::declareConfig(ConfigStruct *module_config){
+	module_config->addChildrenValues(config);
+}
+
+void ConfigEntryFilter::loadConfig(const ConfigStruct  *module_config){
+	mFromDomains=module_config->get<ConfigStringList>("from-domains")->read();
+	mToDomains=module_config->get<ConfigStringList>("to-domains")->read();
+	mEnabled=module_config->get<ConfigBoolean>("enabled")->read();
 }
 
 bool ConfigEntryFilter::canEnter(sip_t *sip){

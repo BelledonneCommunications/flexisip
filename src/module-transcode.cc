@@ -38,7 +38,14 @@ class TranscodeModule : public Module, protected ModuleToolbox {
 		static ModuleInfo<TranscodeModule> sInfo;
 };
 
-ModuleInfo<TranscodeModule> TranscodeModule::sInfo("Transcoder");
+ModuleInfo<TranscodeModule> TranscodeModule::sInfo("Transcoder",
+	"The purpose of the Transcoder module is to transparently transcode from one audio codec to another to make "
+    "the communication possible between clients that do not share the same set of supported codecs. "
+    "Concretely it adds all missing codecs into the INVITEs it receives, and adds codecs matching the original INVITE into the 200Ok. "
+	"Rtp ports and addresses are masqueraded so that the streams can be processed by the proxy. "
+	"The transcoding job is done in the background by the mediastreamer2 library, as consequence the set of "
+	"supported codecs is exactly the the same as the codec set supported by mediastreamer2, including "
+    "the possible plugins you may installed to extend mediastreamer2.");
 
 
 static MSList *makeSupportedAudioPayloadList(){

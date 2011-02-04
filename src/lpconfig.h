@@ -104,6 +104,10 @@ int lp_config_has_section(LpConfig *lpconfig, const char *section);
  * @ingroup misc
 **/
 void lp_config_clean_section(LpConfig *lpconfig, const char *section);
+
+typedef void (*LpConfigUnreadCallback)(void *data, const char *section, const char *item, int lineno);
+void lp_config_for_each_unread(LpConfig *lpconfig, LpConfigUnreadCallback cb, void *data);
+
 /*tells whether uncommited (with lp_config_sync()) modifications exist*/
 int lp_config_needs_commit(const LpConfig *lpconfig);
 void lp_config_destroy(LpConfig *cfg);

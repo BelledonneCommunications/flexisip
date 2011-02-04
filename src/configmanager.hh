@@ -42,6 +42,8 @@ struct ConfigItemDescriptor {
 	const char *default_value;
 };
 
+static const ConfigItemDescriptor config_item_end={Boolean,NULL,NULL,NULL};
+
 class ConfigEntry{
 	public:
 		const std::string & getName()const{
@@ -58,9 +60,9 @@ class ConfigEntry{
 		}
 		virtual ~ConfigEntry(){
 		}
+		void setParent(ConfigEntry *parent);
 	protected:
 		ConfigEntry(const std::string &name, ConfigValueType type, const std::string &help);
-		void setParent(ConfigEntry *parent);
 	private:
 		const std::string mName;
 		const std::string mHelp;
@@ -78,19 +80,23 @@ class ConfigStruct : public ConfigEntry{
 		std::list<ConfigEntry*> &getChildren();
 		template <typename _retType> 
 		_retType *get(const char *name)const;
-	private:
+		~ConfigStruct();
 		ConfigEntry *find(const char *name)const;
+		ConfigEntry *findApproximate(const char *name)const;
+	private:
 		std::list<ConfigEntry*> mEntries;
 };
 
 class ConfigValue : public ConfigEntry{
 	public:
 		ConfigValue(const std::string &name, ConfigValueType  vt, const std::string &help, const std::string &default_value);
-		void set(const char *value);
-		void setDefault(const char *value);
+		void set(const std::string &value);
+		const std::string &get()const;
+		const std::string &getDefault()const;
+		void setDefault(const std::string &value);
 	private:
 		std::string mValue;
-		const std::string mDefaultValue;
+		std::string mDefaultValue;
 };
 
 class ConfigBoolean : public ConfigValue{
@@ -115,6 +121,7 @@ class ConfigStringList : public ConfigValue{
 	public:
 		ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value);
 		std::list<std::string> read()const;
+	private:
 };
 
 template <typename _retType>
@@ -126,10 +133,28 @@ _retType *ConfigStruct::get(const char *name)const{
 	}
 	_retType *ret=dynamic_cast<_retType *>(e);
 	if (ret==NULL){
-		LOGA("Config entry %s in struct %s does not have the expected type");
+		LOGA("Config entry %s in struct %s does not have the expected type",name,e->getParent()->getName().c_str());
 		return NULL;
 	}
 	return ret;
+};
+
+
+class FileConfigReader{
+	public:
+		FileConfigReader(ConfigStruct *root) : mRoot(root), mHaveUnreads(false){
+		}
+		int read(const char *filename);
+		int reload();
+		void checkUnread();
+		~FileConfigReader();
+	private:
+		int read2(ConfigEntry *entry, int level);
+		static void onUnreadItem(void *p, const char *secname, const char *key, int lineno);
+		void onUnreadItem(const char *secname, const char *key, int lineno);
+		ConfigStruct *mRoot;
+		struct _LpConfig *mCfg;
+		bool mHaveUnreads;
 };
 
 class ConfigManager{
@@ -140,9 +165,11 @@ class ConfigManager{
 		void load(const char* configFile);
 		ConfigStruct *getRoot();
 		const ConfigStruct *getGlobal();
+		void loadStrict();
 	private:
 		ConfigManager();
 		ConfigStruct mConfigRoot;
+		FileConfigReader mReader;
 		static ConfigManager *sInstance;
 };
 
@@ -151,27 +178,17 @@ class FileConfigDumper{
 		FileConfigDumper(ConfigStruct *root){
 			mRoot=root;
 		}
-		std::ostream &dump(std::ostream & ostr);
+		std::ostream &dump(std::ostream & ostr)const;
 	private:
-		std::ostream &dump2(std::ostream & ostr, ConfigEntry *entry, int level);
+		std::ostream & printHelp(std::ostream &os, const std::string &help, const std::string &comment_prefix)const;
+		std::ostream &dump2(std::ostream & ostr, ConfigEntry *entry, int level)const;
 		ConfigStruct *mRoot;
 };
 
-inline std::ostream & operator<<(std::ostream &ostr, FileConfigDumper &dumper){
+inline std::ostream & operator<<(std::ostream &ostr, const FileConfigDumper &dumper){
 	return dumper.dump(ostr);
 }
 
-class FileConfigReader{
-	public:
-		FileConfigReader(ConfigStruct *root) : mRoot(root){
-		}
-		int read(const char *filename);
-		~FileConfigReader();
-	private:
-		int read2(ConfigEntry *entry, int level);
-		ConfigStruct *mRoot;
-		struct _LpConfig *mCfg;
-};
 
 
 
