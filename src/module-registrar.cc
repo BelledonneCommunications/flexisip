@@ -48,22 +48,26 @@ class Registrar : public Module {
 				url_t *sipurl=sip->sip_from->a_url;
 				if (sipurl->url_host && isManagedDomain(sipurl->url_host)){
 					sip_expires_t *expires=sip->sip_expires;
+					int delta=3600;
+					char expires_str[16];
+					
 					if (expires){
-						int delta=expires->ex_delta;
+						delta=expires->ex_delta;
 						if (delta<30){
 							delta=30;
 						}
 						if (delta > 3600*24)
 							delta=3600*24;
-						
-						RegistrarDb::get()->addRecord(sip->sip_from,sip->sip_contact,delta);
-						LOGD("Added record to registrar database.");
-						/*we need to answer directly */
-						nta_msg_treply(getAgent()->getSofiaAgent (),ev->mMsg,200,"Registration succesful",
-						               SIPTAG_CONTACT(sip->sip_contact), SIPTAG_SERVER_STR(getAgent()->getServerString()),
-						               TAG_END());
-						ev->stopProcessing();
 					}
+					snprintf(expires_str,sizeof(expires_str),"%i",delta);
+					RegistrarDb::get()->addRecord(sip->sip_from,sip->sip_contact,delta);
+					LOGD("Added record to registrar database.");
+					/*we need to answer directly */
+					nta_msg_treply(getAgent()->getSofiaAgent (),ev->mMsg,200,"Registration successful",
+								   SIPTAG_CONTACT(sip->sip_contact), SIPTAG_SERVER_STR(getAgent()->getServerString()),
+					               SIPTAG_EXPIRES_STR(expires_str),
+								   TAG_END());
+					ev->stopProcessing();
 				}
 			}else{
 				/*see if we can route other requests */
