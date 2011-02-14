@@ -119,11 +119,11 @@ public:
 	virtual void onDeclare(ConfigStruct * module_config){
 		ConfigItemDescriptor items[]={
 			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	""	},
-			{	String		,	"datasource"		,	"Please document this.",		""	},
-			{	String		,	"request"				,	"The sql request to execute to obtain the password.",		""	},
-			{	Integer		,	"max-id-length"	,	"Please document this.",	""	},
-			{	Integer		,	"max-password-length"	,	"Please document this",	""	},
-			{	Boolean	,	"hashed-passwords"	,	"Please document this.", "false" },
+			{	String		,	"datasource"		,	"Name of the odbc datasource to be used to connect to the database.",		""	},
+			{	String		,	"request"				,	"The sql request to execute to obtain the password. Example: 'select password from accounts where id = ?'",		""	},
+			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
+			{	Integer		,	"max-password-length"	,	"Maximum length of the password column in database",	"100"	},
+			{	Boolean	,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed.", "false" },
 			config_item_end
 		};
 		module_config->addChildrenValues(items);
