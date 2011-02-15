@@ -131,6 +131,14 @@ LpItem *lp_section_find_item(LpSection *sec, const char *name){
 	return NULL;
 }
 
+static int is_a_comment(const char *str){
+	while (*str==' '){
+		str++;
+	}
+	if (*str=='#') return 1;
+	return 0;
+}
+
 void lp_config_parse(LpConfig *lpconfig, FILE *file){
 	char tmp[MAX_LEN];
 	LpSection *cur=NULL;
@@ -141,6 +149,7 @@ void lp_config_parse(LpConfig *lpconfig, FILE *file){
 	while(fgets(tmp,MAX_LEN,file)!=NULL){
 		char *pos1,*pos2;
 		line++;
+		if (is_a_comment(tmp)) continue;
 		pos1=strchr(tmp,'[');
 		if (pos1!=NULL && is_first_char(tmp,pos1) ){
 			pos2=strchr(pos1,']');

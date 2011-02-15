@@ -227,11 +227,8 @@ ConfigManager::ConfigManager() : mConfigRoot("root","This is the default Flexisi
 	mConfigRoot.addChild(global);
 }
 
-void ConfigManager::load(const char* configfile){
-	if (configfile==NULL){
-		configfile=CONFIG_DIR "/flexisip.conf";
-	}
-	mReader.read(configfile);
+int ConfigManager::load(const char* configfile){
+	return mReader.read(configfile);
 }
 
 void ConfigManager::loadStrict(){
@@ -292,11 +289,11 @@ std::ostream &FileConfigDumper::dump2(std::ostream & ostr, ConfigEntry *entry, i
 
 
 int FileConfigReader::read(const char *filename){
+	int err;
 	mCfg=lp_config_new(NULL);
-	if (lp_config_read_file(mCfg,filename)==-1)
-		return -1;
+	err=lp_config_read_file(mCfg,filename);
 	read2(mRoot,0);
-	return 0;
+	return err;
 }
 
 int FileConfigReader::reload(){

@@ -74,11 +74,15 @@ class Registrar : public Module {
 				url_t *sipurl=sip->sip_to->a_url;
 				if (sipurl->url_host &&  isManagedDomain(sipurl->url_host)){
 					const sip_contact_t *ct=RegistrarDb::get()->retrieveMostRecent(sip->sip_to);
-					if (ct){
+					/*sanity check on the contact address: might be '*' or whatever useless information*/
+					if (ct && ct->m_url->url_host!=NULL && ct->m_url->url_host[0]!='\0'){
 						LOGD("Registrar: found contact information in database, rewriting request uri");
 						/*rewrite request-uri */
-						sip->sip_request->rq_url[0]=*url_hdup(ev->getHome(),ct->m_url);             
+						sip->sip_request->rq_url[0]=*url_hdup(ev->getHome(),ct->m_url);
 					}else{
+						if (ct!=NULL){
+							LOGW("Unrouted request because of incorrect address of record.");
+						}
 						if (sip->sip_request->rq_method!=sip_method_ack){
 							LOGD("This user isn't registered.");
 							nta_msg_treply(getAgent()->getSofiaAgent (),ev->mMsg,404,"User not found",SIPTAG_SERVER_STR(getAgent()->getServerString()),

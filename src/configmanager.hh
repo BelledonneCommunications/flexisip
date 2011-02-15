@@ -162,7 +162,7 @@ class ConfigManager{
 	public:
 		static ConfigManager *get();
 		void declareArea(const char *area_name, const char *help, ConfigItemDescriptor *items);
-		void load(const char* configFile);
+		int load(const char* configFile);
 		ConfigStruct *getRoot();
 		const ConfigStruct *getGlobal();
 		void loadStrict();

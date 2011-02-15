@@ -42,14 +42,20 @@ RegistrarDb::RegistrarDb(){
 
 void RegistrarDb::addRecord(const sip_from_t *from, const sip_contact_t *contact, int expires){
 	char tmp[128]={0};
-	time_t expireTime=time(NULL)+expires;
+	map<string,Record*>::iterator it;
+	
 	snprintf(tmp,sizeof(tmp)-1,"%s@%s",from->a_url->url_user,from->a_url->url_host);
-	Record * &ref_record=mRecords[tmp];
-	if (ref_record!=NULL){
-		delete ref_record;
+	it=mRecords.find(tmp);
+	if (expires>0){
+		time_t expireTime=time(NULL)+expires;
+		Record *rec=new Record(from,contact,expireTime);
+		if (it!=mRecords.end()){
+			delete (*it).second;
+			(*it).second=rec;
+		}else mRecords.insert(make_pair(tmp,rec));
+	}else if (it!=mRecords.end()){
+		mRecords.erase(it);
 	}
-	if (expires>0)
-		ref_record=new Record(from,contact,expireTime);
 }
 
 const sip_contact_t* RegistrarDb::retrieveMostRecent(const sip_from_t *from){
