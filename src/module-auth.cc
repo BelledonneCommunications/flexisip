@@ -119,7 +119,7 @@ public:
 	virtual void onDeclare(ConfigStruct * module_config){
 		ConfigItemDescriptor items[]={
 			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	""	},
-			{	String		,	"datasource"		,	"Name of the odbc datasource to be used to connect to the database.",		""	},
+			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. ex: 'DSN=myodbc3;' where 'myodbc3' is the datasource name.",		""	},
 			{	String		,	"request"				,	"The sql request to execute to obtain the password. Example: 'select password from accounts where id = ?'",		""	},
 			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
 			{	Integer		,	"max-password-length"	,	"Maximum length of the password column in database",	"100"	},
