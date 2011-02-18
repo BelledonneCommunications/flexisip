@@ -34,7 +34,7 @@ class CallSide{
 		~CallSide();
 		MSConnectionPoint getRecvPoint();
 		PayloadType *getRecvFormat();
-		void connect(CallSide *recvSide);
+		void connect(CallSide *recvSide, MSTicker *t=NULL);
 		void disconnect(CallSide *recvSide);
 		int getAudioPort();
 		void setRemoteAddr(const char *addr, int port);

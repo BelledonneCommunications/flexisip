@@ -131,7 +131,7 @@ PayloadType * CallSide::getRecvFormat(){
 	return rtp_profile_get_payload(prof,pt);
 }
 
-void CallSide::connect(CallSide *recvSide){
+void CallSide::connect(CallSide *recvSide, MSTicker *t){
 	MSConnectionHelper h;
 	PayloadType *recvpt;
 	PayloadType *sendpt;
@@ -146,12 +146,24 @@ void CallSide::connect(CallSide *recvSide){
 	     payload_type_get_number(recvpt), recvpt->mime_type,recvpt->clock_rate,
 	     payload_type_get_number(sendpt), sendpt->mime_type,sendpt->clock_rate);
 	if (strcasecmp(recvpt->mime_type,sendpt->mime_type)!=0
-	    || recvpt->clock_rate!=sendpt->clock_rate || mToneGen!=0){
+	    || recvpt->clock_rate!=sendpt->clock_rate || mToneGen!=0){		
+
+		if (mDecoder){
+			if (t) ms_filter_postprocess(mDecoder);
+			ms_filter_destroy(mDecoder);
+		}
+			
 		mDecoder=ms_filter_create_decoder(recvpt->mime_type);
 		if (mDecoder==NULL){
 			LOGE("Could not instanciate decoder for %s",recvpt->mime_type);
 		}else{
 			ms_filter_call_method(mDecoder,MS_FILTER_ADD_FMTP,(void*)"plc=0");
+			if (t)
+				ms_filter_preprocess(mDecoder,t);
+		}
+		if (mEncoder){
+			if (t) ms_filter_postprocess(mEncoder);
+			ms_filter_destroy(mEncoder);
 		}
 		mEncoder=ms_filter_create_encoder(sendpt->mime_type);
 		if (mEncoder==NULL){
@@ -161,6 +173,8 @@ void CallSide::connect(CallSide *recvSide){
 				ms_filter_call_method(mEncoder,MS_FILTER_ADD_FMTP,(void*)sendpt->send_fmtp);
 			if (sendpt->normal_bitrate>0)
 				ms_filter_call_method(mEncoder,MS_FILTER_SET_BITRATE,(void*)&sendpt->normal_bitrate);
+			if (t)
+				ms_filter_preprocess(mEncoder,t);
 		}
 	}
 	if (mDecoder)
@@ -267,7 +281,7 @@ void CallContext::redraw(CallSide *r){
 	LOGI("Redrawing in context of MSTicker");
 	CallSide *s=(r==mFrontSide) ? mBackSide : mFrontSide;
 	s->disconnect(r);
-	s->connect(r);
+	s->connect(r,mTicker);
 }
 
 bool CallContext::isInactive(time_t cur){
