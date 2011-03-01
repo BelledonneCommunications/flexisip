@@ -22,7 +22,7 @@
 #include <string>
 #include "common.hh"
 
-
+#include <vector>
 #include <stdio.h>
 #include <sql.h>
 #include <sqlext.h>
@@ -36,6 +36,7 @@ private:
 	string connectionString;
 	string request;
 	int maxPassLength;
+	vector<string> parameters;
 	unsigned int maxIdLength;
 	char* idCBuffer;
 	bool connected;
@@ -57,7 +58,7 @@ public:
 	static const int ERROR_NOT_CONNECTED = 4;
 	map<string,string> cachedPasswords;
 	void setExecuteDirect(const bool value);
-	bool connect(const string &dsn, const string &request, int maxIdLength, int maxPassLength);
+	bool connect(const string &dsn, const string &request, const vector<string> &parameters, int maxIdLength, int maxPassLength);
 	bool reconnect();
 	void disconnect();
 	bool checkConnection();

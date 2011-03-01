@@ -20,6 +20,7 @@
 #include <string>
 #include <map>
 #include <list>
+#include <vector>
 #include "sofia-sip/auth_module.h"
 #include "sofia-sip/sip_status.h"
 #include "sofia-sip/msg_addr.h"
@@ -120,7 +121,7 @@ public:
 		ConfigItemDescriptor items[]={
 			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	""	},
 			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. ex: 'DSN=myodbc3;' where 'myodbc3' is the datasource name.",		""	},
-			{	String		,	"request"				,	"The sql request to execute to obtain the password. Example: 'select password from accounts where id = ?'",		""	},
+			{	String		,	"request"				,	"The sql request to execute to obtain the password. The only recognized parameter is the named parameter ':id'. Example: 'select password from accounts where id = :id'",		""	},
 			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
 			{	Integer		,	"max-password-length"	,	"Maximum length of the password column in database",	"100"	},
 			{	Boolean	,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed.", "false" },
@@ -129,6 +130,37 @@ public:
 		module_config->addChildrenValues(items);
 		/* modify the default value for "enabled" */
 		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
+	}
+
+	static vector<string> parseAndUpdateRequestConfig(string &request) {
+        vector<string> found_parameters;
+        bool hasIdParameter = false;
+
+        size_t j;
+        string pattern (":");
+        string space (" ");
+        string semicol (";");
+        while ((j = request.find(pattern)) != string::npos)
+        {
+                string token = request.substr(j + 1, request.length());
+                size_t size_token;
+                if ((size_token = token.find(space)) != string::npos
+                        || (size_token = token.find(semicol)) != string::npos)
+                        token = token.substr(0, size_token);
+
+                found_parameters.push_back(token);
+                if (token == "id") {
+                	hasIdParameter = true;
+                }
+                request.replace( j, token.length() + 1, "?" );
+        }
+
+
+        if (!hasIdParameter) {
+        	LOGF("Couldn't find an :id named parameter in provided request");
+        }
+
+        return found_parameters;
 	}
 
 	void onLoad(Agent *agent, const ConfigStruct * module_config){
@@ -158,6 +190,9 @@ public:
 		string request = module_config->get<ConfigString>("request")->read();
 		if (request == none) LOGF("Authentication is activated but no request found");
 		LOGD("request found: %s", request.c_str());
+		vector<string> requestParms = parseAndUpdateRequestConfig(request);
+		LOGD("request parsed: %s", request.c_str());
+
 
 		int maxIdLength = module_config->get<ConfigInt>("max-id-length")->read();
 		if (maxIdLength == 0) LOGF("Authentication is activated but no max_id_length found");
@@ -169,7 +204,7 @@ public:
 
 
 		OdbcConnector *odbc = OdbcConnector::getInstance();
-		if (odbc->connect(dsn, request, maxIdLength, maxPassLength)) {
+		if (odbc->connect(dsn, request, requestParms, maxIdLength, maxPassLength)) {
 			LOGD("Connection OK");
 		} else {
 			LOGE("Unable to connect to odbc database");

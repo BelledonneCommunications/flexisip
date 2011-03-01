@@ -99,12 +99,12 @@ void OdbcConnector::dbcError(const char* doing) {
 	disconnect();
 }
 
-bool OdbcConnector::connect(const string &d, const string &r, int maxIdLength, int maxPassLength) {
+bool OdbcConnector::connect(const string &d, const string &r, const vector<string> &parameters, int maxIdLength, int maxPassLength) {
 	this->connectionString = d;
 	this->request = r;
 	this->maxIdLength = maxIdLength;
 	this->maxPassLength = maxPassLength;
-
+	this->parameters = parameters;
 
 	return reconnect();
 }
@@ -159,12 +159,18 @@ bool OdbcConnector::reconnect() {
 
 		idCBuffer = (char*) malloc(maxIdLength +1);
 		// Use isql dsn_name then "help table_name" (without ;) to get information on sql types
-		retcode = SQLBindParameter(stmt,1,SQL_PARAM_INPUT, SQL_C_CHAR,
-				SQL_CHAR, (SQLULEN) maxIdLength, 0,
-				idCBuffer, 0, NULL); // seems to work with 0 and/instead of id.length()
-		if (!SQL_SUCCEEDED(retcode)) {
-			logSqlError("SQLBindParameter", stmt, SQL_HANDLE_STMT);
-			throw ERROR;
+
+		for (size_t i=0; i < parameters.size(); i++) {
+			if (parameters[i] != "id") {
+				LOGF("Unknown request parameter type : %s", parameters[i].c_str());
+			}
+			retcode = SQLBindParameter(stmt,i+1,SQL_PARAM_INPUT, SQL_C_CHAR,
+					SQL_CHAR, (SQLULEN) maxIdLength, 0,
+					idCBuffer, 0, NULL);
+			if (!SQL_SUCCEEDED(retcode)) {
+				logSqlError("SQLBindParameter", stmt, SQL_HANDLE_STMT);
+				throw ERROR;
+			}
 		}
 		LOGD("SQLBindParameter OK");
 	}
@@ -244,6 +250,8 @@ string OdbcConnector::password(const string &id) throw (int) {
 	closeCursor(stmt);
 
 	cachedPasswords[id] = string((char*)password);
+
+//	LOGD((char*)password);
 
 	return (char*) password;
 }
