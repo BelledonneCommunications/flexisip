@@ -32,7 +32,7 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr)
 	oss << locaddr << "_" << port;
 	mUniqueId = oss.str();
 
-	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i;transport=UDP",locaddr,port);
+	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i",locaddr,port);
 	mAgent=nta_agent_create(root,
 		(url_string_t*)sipuri,
 			&Agent::messageCallback,
