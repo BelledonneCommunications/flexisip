@@ -239,23 +239,25 @@ public:
 		    as->as_body = sip->sip_payload->pl_data,
 		as->as_bodylen = sip->sip_payload->pl_len;
 
-		 if(sip->sip_request->rq_method == sip_method_register) {
-			 auth_mod_verify((*lAuthModuleIt).second, as, sip->sip_authorization,&mRegistrarChallenger);
-		 } else {
-			 auth_mod_verify((*lAuthModuleIt).second, as, sip->sip_proxy_authorization,&mProxyChallenger);
-		 }
-		 if (as->as_status) {
-			 nta_msg_treply(getAgent()->getSofiaAgent (),ev->mMsg,as->as_status,as->as_phrase,
+		if(sip->sip_request->rq_method == sip_method_register) {
+			auth_mod_verify((*lAuthModuleIt).second, as, sip->sip_authorization,&mRegistrarChallenger);
+		} else {
+			auth_mod_verify((*lAuthModuleIt).second, as, sip->sip_proxy_authorization,&mProxyChallenger);
+		}
+		if (as->as_status) {
+			nta_msg_treply(getAgent()->getSofiaAgent (),ev->mMsg,as->as_status,as->as_phrase,
 							               	   	   	   	   	   SIPTAG_CONTACT(sip->sip_contact),
 							               	   	   	   	   	   SIPTAG_HEADER((const sip_header_t*)as->as_info),
 							               	   	   	   	   	   SIPTAG_HEADER((const sip_header_t*)as->as_response),
 			                									SIPTAG_SERVER_STR(getAgent()->getServerString()),
 							               	   	   	   	   	   TAG_END());
-				ev->stopProcessing();
-				return;
-	  	 }
-		 return;
-
+			ev->stopProcessing();
+			return;
+		}else{
+			sip_header_remove(ev->mMsg,sip,sip->sip_request->rq_method == sip_method_register ? 
+			                  (sip_header_t*)sip->sip_authorization : (sip_header_t*)sip->sip_proxy_authorization);
+		}
+		return;
 	}
 	void onResponse(SipEvent *ev) {/*nop*/};
 
