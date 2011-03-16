@@ -99,11 +99,6 @@ void ForwardModule::onRequest(SipEvent *ev){
 		return;
 	}
 
-	char transport[32];
-	if (!url_param(dest->url_params,"transport",transport,sizeof(transport)-1)){
-		url_param_add(ev->getHome(),dest,"transport=UDP");
-	}
-
 	if (!getAgent()->isUs(dest)) {
 		buf=msg_as_string(ev->getHome(), msg, NULL, 0,&msg_size);
 		LOGD("About to forward request to %s:\n%s",url_as_string(ev->getHome(),dest),buf);
