@@ -140,7 +140,7 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, sip_t *sip){
 	sip_via_t *via=sip->sip_via;
 	sip_record_route_t *rr;
 
-	if (strcasecmp(sip_via_transport(via),"TCP"))
+	if (strcasecmp(sip_via_transport(via),"TCP")==0)
 		rr=sip_record_route_format(home,"<sip:%s:%i;lr;transport=TCP>",ag->getLocAddr().c_str(),ag->getPort());
 	else rr=sip_record_route_format(home,"<sip:%s:%i;lr>",ag->getLocAddr().c_str(),ag->getPort());
 	if (sip->sip_record_route==NULL){
