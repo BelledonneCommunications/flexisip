@@ -49,7 +49,7 @@ class RegistrarDb{
 	public:
 		static RegistrarDb *get();
 		void addRecord(const sip_from_t *from, const sip_contact_t *contact, int expires);
-		const sip_contact_t* retrieveMostRecent(const sip_from_t *from);
+		const sip_contact_t* retrieveMostRecent(const url_t *from);
 	private:
 		RegistrarDb();
 		std::map<std::string,Record*> mRecords;

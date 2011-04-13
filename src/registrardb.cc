@@ -58,11 +58,11 @@ void RegistrarDb::addRecord(const sip_from_t *from, const sip_contact_t *contact
 	}
 }
 
-const sip_contact_t* RegistrarDb::retrieveMostRecent(const sip_from_t *from){
+const sip_contact_t* RegistrarDb::retrieveMostRecent(const url_t *a_url){
 	map<string,Record*>::iterator it;
 
 	char tmp[128]={0};
-	snprintf(tmp,sizeof(tmp)-1,"%s@%s",from->a_url->url_user,from->a_url->url_host);
+	snprintf(tmp,sizeof(tmp)-1,"%s@%s",a_url->url_user,a_url->url_host);
 	it=mRecords.find(tmp);
 	if (it!=mRecords.end()){
 		Record *r=(*it).second;

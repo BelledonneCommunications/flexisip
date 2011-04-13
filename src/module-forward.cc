@@ -90,6 +90,8 @@ void ForwardModule::onRequest(SipEvent *ev){
 	std::string ip;
 	if (EtcHostsResolver::get()->resolve(dest->url_host,&ip)){
 		LOGD("Found %s in /etc/hosts",dest->url_host);
+		/* duplication dest because we don't want to modify the message with our name resolution result*/
+		dest=url_hdup(ev->getHome(),dest);
 		dest->url_host=ip.c_str();
 	}
 

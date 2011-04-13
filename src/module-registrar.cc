@@ -71,9 +71,9 @@ class Registrar : public Module {
 				}
 			}else{
 				/*see if we can route other requests */
-				url_t *sipurl=sip->sip_to->a_url;
+				url_t *sipurl=sip->sip_request->rq_url;
 				if (sipurl->url_host &&  isManagedDomain(sipurl->url_host)){
-					const sip_contact_t *ct=RegistrarDb::get()->retrieveMostRecent(sip->sip_to);
+					const sip_contact_t *ct=RegistrarDb::get()->retrieveMostRecent(sipurl);
 					/*sanity check on the contact address: might be '*' or whatever useless information*/
 					if (ct && ct->m_url->url_host!=NULL && ct->m_url->url_host[0]!='\0'){
 						LOGD("Registrar: found contact information in database, rewriting request uri");
