@@ -94,8 +94,17 @@ int Agent::countUsInVia(sip_via_t *via)const{
 }
 
 bool Agent::isUs(const char *host, const char *port)const{
+	char *tmp=NULL;
+	int end;
 	int p=(port!=NULL) ? atoi(port) : 5060;
 	if (p!=mPort) return false;
+	//skip possibly trailling '.' at the end of host
+	if (host[end=(strlen(host)-1)]=='.'){
+		tmp=(char*)alloca(end+1);
+		memcpy(tmp,host,end);
+		tmp[end]='\0';
+		host=tmp;
+	}
 	if (strcmp(host,mLocAddr.c_str())==0) return true;
 	list<string>::const_iterator it;
 	for(it=mAliases.begin();it!=mAliases.end();++it){
