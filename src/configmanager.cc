@@ -218,6 +218,7 @@ ConfigManager *ConfigManager::get(){
 static ConfigItemDescriptor global_conf[]={
 	{	Boolean	,	"debug"	,	"Outputs very detailed logs",	"false"	},
 	{	StringList	,	"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost" },
+	{	String	,	"ip-address",	"The ip address to listen for incoming sip messages. This is useful if the machine is multi-homed and you want to explicitely specify the ip address.",	"guess"},
 	config_item_end
 };
 

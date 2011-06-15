@@ -90,7 +90,6 @@ static int get_local_ip_for_with_connect(int type, const char *dest, char *resul
 		LOGE("getnameinfo error: %s",strerror(errno));
 	}
 	close(sock);
-	LOGI("Local interface to reach %s is %s.",dest,result);
 	return 0;
 }
 
@@ -308,9 +307,12 @@ int main(int argc, char *argv[]){
 	su_log_redirect(NULL,sofiaLogHandler,NULL);
 	root=su_root_create(NULL);
 
-	get_local_ip_for_with_connect (AF_INET,"209.85.229.147",localip);
-	
-	a=new Agent(root,localip,port);
+	get_local_ip_for_with_connect(AF_INET,"209.85.229.147",localip);
+	std::string bind_ip=cfg->getGlobal()->get<ConfigString>("ip-address")->read();
+	if (bind_ip.empty() || bind_ip=="guess") bind_ip=localip;
+
+	LOGI("Listening to interface %s.",bind_ip.c_str());
+	a=new Agent(root,bind_ip.c_str(),port);
 	a->loadConfig (cfg);
 
 	/*
@@ -339,8 +341,7 @@ int main(int argc, char *argv[]){
 	delete a;
 	stun->stop();
 	delete stun;
-    su_root_destroy(root);
-	
+	su_root_destroy(root);	
 	return 0;
 }
 
