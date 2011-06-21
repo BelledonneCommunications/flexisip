@@ -114,7 +114,7 @@ void MediaRelay::processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip){
 		m->changeIpPort(c,sip->sip_from->a_tag);
 		m->update(msg,sip);
 		//be in the record-route
-		addRecordRoute(c->getHome(),getAgent(),sip);
+		addRecordRoute(c->getHome(),getAgent(),msg,sip);
 		c->storeNewInvite (msg);
 		delete m;
 	}

@@ -136,7 +136,7 @@ int ModuleToolbox::sipPortToInt(const char *port){
 
 
 
-void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, sip_t *sip){
+void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip){
 	sip_via_t *via=sip->sip_via;
 	sip_record_route_t *rr;
 
@@ -164,10 +164,7 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, sip_t *sip){
 				return;
 			last_it=it;
 		}
-		//last_it->r_next=rr;
-		//prepend a record-route
-		rr->r_next=sip->sip_record_route;
-		sip->sip_record_route=rr;
+		sip_header_insert(msg,sip,(sip_header_t*)rr);
 	}
 }
 

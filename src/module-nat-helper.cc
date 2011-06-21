@@ -32,7 +32,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 
 			if (rq->rq_method==sip_method_invite || rq->rq_method==sip_method_subscribe){
 				//be in the record route for all requests that can estabish a dialog
-				addRecordRoute (ev->getHome(),getAgent(),ev->mSip);
+				addRecordRoute (ev->getHome(),getAgent(),ev->mMsg,ev->mSip);
 			}
 		}
 		virtual void onResponse(SipEvent *ev){

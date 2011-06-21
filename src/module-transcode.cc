@@ -176,7 +176,7 @@ void TranscodeModule::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 		m->appendNewPayloadsAndRemoveUnsupported(mSupportedAudioPayloads);
 		m->update(msg,sip);
 		//be in the record-route
-		addRecordRoute(c->getHome(),getAgent(),sip);
+		addRecordRoute(c->getHome(),getAgent(),msg,sip);
 		c->storeNewInvite (msg);
 		if (canDoRateControl(sip)){
 			c->getFrontSide()->enableRc(true);
