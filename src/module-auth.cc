@@ -292,6 +292,11 @@ static const char* passwordRetrievingFallback(auth_status_t *as, const string &i
 }
 
 
+static int strcmpoknull(const char *str1, const char *str2) {
+	if (str1 == NULL || str2 == NULL) return -1;
+	return strcmp(str1,str2); 
+}
+
 /**************************************************
  * code derivated from sofia sip auth_module.c begin
  */
@@ -336,9 +341,9 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		return;
 	}
 
-	if (strcmp(ar->ar_username, as->as_user_uri->url_user) || strcmp(ar->ar_realm, as->as_user_uri->url_host)) {
-		as->as_status = 403, as->as_phrase = "from and authentication data mismatch";
-		LOGD("from and authentication usernames [%s/%s] or from and authentication hosts [%s/%s] mismatch",
+	if (strcmpoknull(ar->ar_username, as->as_user_uri->url_user) || strcmpoknull(ar->ar_realm, as->as_user_uri->url_host)) {
+		as->as_status = 403, as->as_phrase = "from and authentication data mismatch or empty";
+		LOGD("from and authentication usernames [%s/%s] or from and authentication hosts [%s/%s] mismatch or empty",
 				ar->ar_username, as->as_user_uri->url_user,
 				ar->ar_realm, as->as_user_uri->url_host);
 		as->as_response = NULL;
