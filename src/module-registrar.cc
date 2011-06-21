@@ -71,24 +71,29 @@ class Registrar : public Module {
 				}
 			}else{
 				/*see if we can route other requests */
-				url_t *sipurl=sip->sip_request->rq_url;
-				if (sipurl->url_host &&  isManagedDomain(sipurl->url_host)){
-					const sip_contact_t *ct=RegistrarDb::get()->retrieveMostRecent(sipurl);
-					/*sanity check on the contact address: might be '*' or whatever useless information*/
-					if (ct && ct->m_url->url_host!=NULL && ct->m_url->url_host[0]!='\0'){
-						LOGD("Registrar: found contact information in database, rewriting request uri");
-						/*rewrite request-uri */
-						sip->sip_request->rq_url[0]=*url_hdup(ev->getHome(),ct->m_url);
-					}else{
-						if (ct!=NULL){
-							LOGW("Unrouted request because of incorrect address of record.");
-						}
-						if (sip->sip_request->rq_method!=sip_method_ack){
+				/*acks shall not have their request uri rewritten:
+					- they can be for us (in response to a 407 for invite)
+					- they can be for the a remote peer, in which case they will have the correct contact address in the request uri
+				*/
+				if (sip->sip_request->rq_method!=sip_method_ack){
+					url_t *sipurl=sip->sip_request->rq_url;
+					if (sipurl->url_host &&  isManagedDomain(sipurl->url_host)){
+						const sip_contact_t *ct=RegistrarDb::get()->retrieveMostRecent(sipurl);
+						/*sanity check on the contact address: might be '*' or whatever useless information*/
+						if (ct && ct->m_url->url_host!=NULL && ct->m_url->url_host[0]!='\0'){
+							LOGD("Registrar: found contact information in database, rewriting request uri");
+							/*rewrite request-uri */
+							sip->sip_request->rq_url[0]=*url_hdup(ev->getHome(),ct->m_url);
+						}else{
+							if (ct!=NULL){
+								LOGW("Unrouted request because of incorrect address of record.");
+							}
+						
 							LOGD("This user isn't registered.");
 							nta_msg_treply(getAgent()->getSofiaAgent (),ev->mMsg,404,"User not found",SIPTAG_SERVER_STR(getAgent()->getServerString()),
-						               TAG_END());
+							       TAG_END());
+							ev->stopProcessing();
 						}
-						ev->stopProcessing();
 					}
 				}
 			}

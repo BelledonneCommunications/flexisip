@@ -28,6 +28,8 @@ CallSide::CallSide(CallContext *ctx){
 	mProfile=rtp_profile_new("Call profile");
 	mEncoder=NULL;
 	mDecoder=NULL;
+	mRc=NULL;
+	
 	mReceiver=ms_filter_new(MS_RTP_RECV_ID);
 	mSender=ms_filter_new(MS_RTP_SEND_ID);
 	mToneGen=ms_filter_new(MS_DTMF_GEN_ID);
@@ -43,8 +45,14 @@ CallSide::CallSide(CallContext *ctx){
 	rtp_session_signal_connect(mSession,"payload_type_changed",(RtpCallback)&CallSide::payloadTypeChanged,
 	                           reinterpret_cast<long>(ctx));
 	rtp_session_signal_connect(mSession,"telephone-event",(RtpCallback)&CallSide::onTelephoneEvent,reinterpret_cast<long>(ctx));
+	mRtpEvq=NULL;
 	mLastCheck=0;
 	mLastRecvCount=0;
+	mRcEnabled=false;
+}
+
+void CallSide::enableRc(bool enabled){
+	mRcEnabled=enabled;
 }
 
 int CallSide::getAudioPort(){
@@ -79,6 +87,10 @@ void  CallSide::assignPayloads(const MSList *payloads){
 }
 
 CallSide::~CallSide(){
+	if (mRtpEvq) {
+		ortp_ev_queue_destroy(mRtpEvq);
+		rtp_session_unregister_event_queue(mSession,mRtpEvq);
+	}
 	rtp_session_destroy(mSession);
 	rtp_profile_destroy(mProfile);
 	ms_filter_destroy(mReceiver);
@@ -88,6 +100,8 @@ CallSide::~CallSide(){
 		ms_filter_destroy(mEncoder);
 	if (mDecoder)
 		ms_filter_destroy(mDecoder);
+	if (mRc)
+		ms_audio_bitrate_controller_destroy(mRc);
 }
 
 void CallSide::dump(){
@@ -164,6 +178,10 @@ void CallSide::connect(CallSide *recvSide, MSTicker *t){
 		if (mEncoder){
 			if (t) ms_filter_postprocess(mEncoder);
 			ms_filter_destroy(mEncoder);
+			if (mRc) {
+				ms_audio_bitrate_controller_destroy(mRc);
+				mRc=NULL;
+			}
 		}
 		mEncoder=ms_filter_create_encoder(sendpt->mime_type);
 		if (mEncoder==NULL){
@@ -184,6 +202,13 @@ void CallSide::connect(CallSide *recvSide, MSTicker *t){
 	if (mEncoder)
 		ms_connection_helper_link(&h,mEncoder,0,0);
 	ms_connection_helper_link(&h,mSender,0,-1);
+	if (mRcEnabled && mRc==NULL && mEncoder){
+		if (mRtpEvq==NULL){
+			mRtpEvq=ortp_ev_queue_new();
+			rtp_session_register_event_queue(mSession,mRtpEvq);
+		}
+		mRc=ms_audio_bitrate_controller_new(mSession,mEncoder,0);
+	}
 }
 
 void CallSide::disconnect(CallSide *recvSide){
@@ -227,6 +252,20 @@ void CallSide::playTone(int tone_name){
 		if (strcasecmp(enc_fmt,"pcmu")==0 || strcasecmp(enc_fmt,"pcma")==0){
 			LOGD("Modulating dtmf %c",tone_name);
 			ms_filter_call_method(mToneGen,MS_DTMF_GEN_PUT,&tone_name);
+		}
+	}
+}
+
+void CallSide::doBgTasks(){
+	if (mRtpEvq){
+		LOGD("in CallSide::doBgTasks");
+		OrtpEvent *ev=ortp_ev_queue_get(mRtpEvq);
+		if (ev!=NULL){
+			OrtpEventType evt=ortp_event_get_type(ev);
+			if (evt==ORTP_EVENT_RTCP_PACKET_RECEIVED){
+				if (mRc) ms_audio_bitrate_controller_process_rtcp(mRc,ortp_event_get_data(ev)->packet);
+			}
+			ortp_event_destroy(ev);
 		}
 	}
 }
@@ -336,6 +375,11 @@ CallSide *CallContext::getOther(CallSide *cs){
 
 void CallContext::playTone(CallSide *origin, int dtmf){
 	getOther(origin)->playTone (dtmf);
+}
+
+void CallContext::doBgTasks(){
+	mFrontSide->doBgTasks();
+	mBackSide->doBgTasks();
 }
 
 CallContext::~CallContext(){

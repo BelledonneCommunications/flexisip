@@ -31,13 +31,13 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr)
 	std::ostringstream oss;
 	oss << locaddr << "_" << port;
 	mUniqueId = oss.str();
-
+	mRoot=root;
 	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i",locaddr,port);
 	mAgent=nta_agent_create(root,
 		(url_string_t*)sipuri,
 			&Agent::messageCallback,
 			(nta_agent_magic_t*)this,
-			TAG_END());
+			NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460),TAG_END());
 	/* we pass "" as localaddr when we just want to dump the default config. So don't report the error*/
 	if (strlen(locaddr)>0 && mAgent==NULL){
 		LOGF("Could not create sofia mta.");
@@ -164,4 +164,15 @@ void Agent::idle(){
 const std::string& Agent::getUniqueId() const{
 	return mUniqueId;
 }
+
+su_timer_t *Agent::createTimer(int milliseconds, timerCallback cb, void *data){
+	su_timer_t *timer=su_timer_create(su_root_task(mRoot),milliseconds);
+	su_timer_run(timer,(su_timer_f)cb,data);
+	return timer;
+}
+
+void Agent::stopTimer(su_timer_t *t){
+	su_timer_destroy(t);
+}
+
 

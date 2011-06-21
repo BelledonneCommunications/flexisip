@@ -140,9 +140,19 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, sip_t *sip){
 	sip_via_t *via=sip->sip_via;
 	sip_record_route_t *rr;
 
-	if (strcasecmp(sip_via_transport(via),"TCP")==0)
-		rr=sip_record_route_format(home,"<sip:%s:%i;lr;transport=TCP>",ag->getLocAddr().c_str(),ag->getPort());
-	else rr=sip_record_route_format(home,"<sip:%s:%i;lr>",ag->getLocAddr().c_str(),ag->getPort());
+	if (strcasecmp(sip_via_transport(via),"TCP")==0){
+		if (ag->getPort()!=5060){
+			rr=sip_record_route_format(home,"<sip:%s:%i;lr;transport=TCP>",ag->getLocAddr().c_str(),ag->getPort());
+		}else{
+			rr=sip_record_route_format(home,"<sip:%s;lr;transport=TCP>",ag->getLocAddr().c_str());
+		}
+	}else {
+		if (ag->getPort()!=5060){
+			rr=sip_record_route_format(home,"<sip:%s:%i;lr>",ag->getLocAddr().c_str(),ag->getPort());
+		}else{
+			rr=sip_record_route_format(home,"<sip:%s;lr>",ag->getLocAddr().c_str());
+		}
+	}
 	if (sip->sip_record_route==NULL){
 		sip->sip_record_route=rr;
 	}else{
@@ -154,7 +164,10 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, sip_t *sip){
 				return;
 			last_it=it;
 		}
-		last_it->r_next=rr;
+		//last_it->r_next=rr;
+		//prepend a record-route
+		rr->r_next=sip->sip_record_route;
+		sip->sip_record_route=rr;
 	}
 }
 
@@ -181,3 +194,4 @@ bool ModuleToolbox::matchesOneOf(const char *item, const std::list<std::string> 
 	}
 	return false;
 }
+

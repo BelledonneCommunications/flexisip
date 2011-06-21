@@ -25,6 +25,7 @@
 #include <mediastreamer2/msfilter.h>
 #include <mediastreamer2/msticker.h>
 #include <mediastreamer2/msrtp.h>
+#include <mediastreamer2/bitratecontrol.h>
 
 class CallContext;
 
@@ -34,6 +35,7 @@ class CallSide{
 		~CallSide();
 		MSConnectionPoint getRecvPoint();
 		PayloadType *getRecvFormat();
+		void enableRc(bool enabled);
 		void connect(CallSide *recvSide, MSTicker *t=NULL);
 		void disconnect(CallSide *recvSide);
 		int getAudioPort();
@@ -42,6 +44,7 @@ class CallSide{
 		void dump();
 		void playTone(int tone_name);
 		bool isActive(time_t cur);
+		void doBgTasks();
 	private:
 		static void payloadTypeChanged(RtpSession *s, unsigned long data);
 		static void onTelephoneEvent(RtpSession *s, int dtmf, void * user_data);
@@ -52,9 +55,12 @@ class CallSide{
 		MSFilter *mSender;
 		MSFilter *mDecoder;
 		MSFilter *mEncoder;
+		MSAudioBitrateController *mRc;
 		MSFilter *mToneGen;
 		time_t mLastCheck;
 		uint64_t mLastRecvCount;
+		OrtpEvQueue *mRtpEvq;
+		bool mRcEnabled;
 };
 
 class CallContext : public CallContextBase{
@@ -77,6 +83,7 @@ class CallContext : public CallContextBase{
 		void playTone(CallSide *origin, int dtmf);
 		~CallContext();
 		void dump();
+		void doBgTasks();
 		virtual bool isInactive(time_t);
 	private:
 		CallSide *getOther(CallSide *cs);

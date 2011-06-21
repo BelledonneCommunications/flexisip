@@ -70,6 +70,9 @@ class Agent{
 		int countUsInVia(sip_via_t *via)const;
 		bool isUs(const char *host, const char *port)const;
 		const char *getServerString()const;
+		typedef void (*timerCallback)(void *unused, su_timer_t *t, void *data);
+		su_timer_t *createTimer(int milliseconds, timerCallback cb, void *data);
+		void stopTimer(su_timer_t *t);
 	protected:
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
 		void onRequest(msg_t *msg, sip_t *sip);
@@ -83,6 +86,7 @@ class Agent{
 		const int mPort;
 		std::string mUniqueId;
 		nta_agent_t *mAgent;
+		su_root_t *mRoot;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);
 };
 

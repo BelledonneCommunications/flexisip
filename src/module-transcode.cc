@@ -24,6 +24,7 @@ class TranscodeModule : public Module, protected ModuleToolbox {
 	public:
 		TranscodeModule(Agent *ag);
 		~TranscodeModule();
+		virtual void onLoad(Agent *agent, const ConfigStruct *module_config);
 		virtual void onRequest(SipEvent *ev);
 		virtual void onResponse(SipEvent *ev);
 		virtual void onIdle();
@@ -32,10 +33,15 @@ class TranscodeModule : public Module, protected ModuleToolbox {
 		void processNewInvite(CallContext *c, msg_t *msg, sip_t *sip);
 		void process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip);
 		bool processSipInfo(CallContext *c, msg_t *msg, sip_t *sip);
+		void onTimer();		
+		static void sOnTimer(void *unused, su_timer_t *t, void *zis);
+		bool canDoRateControl(sip_t *sip);
 		MSList *normalizePayloads(MSList *l);
 		MSList *mSupportedAudioPayloads;
 		MSTicker *mTicker;
 		CallStore mCalls;
+		su_timer_t *mTimer;
+		std::list<std::string> mRcUserAgents;
 		static ModuleInfo<TranscodeModule> sInfo;
 };
 
@@ -76,22 +82,47 @@ static MSList *makeSupportedAudioPayloadList(){
 
 TranscodeModule::TranscodeModule(Agent *ag) : Module(ag){
 	mTicker=NULL;
+	mTimer=ag->createTimer(20,&sOnTimer,this);
 	mSupportedAudioPayloads=makeSupportedAudioPayloadList();
 }
 
 TranscodeModule::~TranscodeModule(){
 	if (mTicker) ms_ticker_destroy(mTicker);
+	if (mTimer)
+		getAgent()->stopTimer(mTimer);
 	ms_list_free(mSupportedAudioPayloads);
 }
 
 void TranscodeModule::onDeclare(ConfigStruct *module_config){
 	/*we need to be disabled by default*/
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
+	ConfigItemDescriptor items[]={
+		{	StringList	,	"rc-user-agents",	"List of whitelist separated user-agent string for which audio rate control is performed.",""},
+			config_item_end
+	};
+	module_config->addChildrenValues(items);
+}
+
+void TranscodeModule::onLoad(Agent *agent, const ConfigStruct *module_config){
+
+	mRcUserAgents=module_config->get<ConfigStringList>("rc-user-agents")->read();
 }
 
 void TranscodeModule::onIdle(){
 	mCalls.dump();
 	mCalls.removeAndDeleteInactives();
+}
+
+bool TranscodeModule::canDoRateControl(sip_t *sip){
+	if (sip->sip_user_agent!=NULL && sip->sip_user_agent->g_string!=NULL){
+		std::list<std::string>::const_iterator it;
+		for(it=mRcUserAgents.begin();it!=mRcUserAgents.end();++it){
+			if (strstr(sip->sip_user_agent->g_string,(*it).c_str())){
+				LOGD("Audio rate control supported for %s",sip->sip_user_agent->g_string);
+			}
+		}
+	}
+	return false;
 }
 
 bool TranscodeModule::processSipInfo(CallContext *c, msg_t *msg, sip_t *sip){
@@ -147,6 +178,9 @@ void TranscodeModule::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 		//be in the record-route
 		addRecordRoute(c->getHome(),getAgent(),sip);
 		c->storeNewInvite (msg);
+		if (canDoRateControl(sip)){
+			c->getFrontSide()->enableRc(true);
+		}
 		delete m;
 	}
 	
@@ -239,6 +273,11 @@ void TranscodeModule::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t 
 	}
 	ctx->getFrontSide ()->assignPayloads (normalizePayloads(answer));
 	ms_list_free(answer);
+
+	if (canDoRateControl(sip)){
+		ctx->getBackSide()->enableRc(true);
+	}
+
 	if (mTicker==NULL)
 		mTicker=ms_ticker_new();
 	ctx->join(mTicker);
@@ -280,5 +319,15 @@ void TranscodeModule::onResponse(SipEvent *ev){
 			}
 		}
 	}
+}
+
+void TranscodeModule::onTimer(){
+	for(std::list<CallContextBase*>::const_iterator it=mCalls.getList().begin();it!=mCalls.getList().end();++it){
+		static_cast<CallContext*>(*it)->doBgTasks();
+	}	
+}
+		
+void TranscodeModule::sOnTimer(void *unused, su_timer_t *t, void *zis){
+	((TranscodeModule*)zis)->onTimer();
 }
 

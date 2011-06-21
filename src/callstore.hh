@@ -68,6 +68,9 @@ class CallStore{
 		void remove(CallContextBase *ctx);
 		void removeAndDeleteInactives();
 		void dump();
+		const std::list<CallContextBase*> &getList()const{
+			return mCalls;
+		}
 	private:
 		std::list<CallContextBase*> mCalls;
 };

@@ -336,7 +336,7 @@ int main(int argc, char *argv[]){
 
 	su_timer_t *timer=su_timer_create(su_root_task(root),5000);
 	su_timer_run(timer,(su_timer_f)timerfunc,a);
-	su_root_run(root);	
+	su_root_run(root);
 	su_timer_destroy(timer);
 	delete a;
 	stun->stop();
