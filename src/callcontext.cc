@@ -258,7 +258,6 @@ void CallSide::playTone(int tone_name){
 
 void CallSide::doBgTasks(){
 	if (mRtpEvq){
-		LOGD("in CallSide::doBgTasks");
 		OrtpEvent *ev=ortp_ev_queue_get(mRtpEvq);
 		if (ev!=NULL){
 			OrtpEventType evt=ortp_event_get_type(ev);

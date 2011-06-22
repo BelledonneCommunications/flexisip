@@ -119,6 +119,7 @@ bool TranscodeModule::canDoRateControl(sip_t *sip){
 		for(it=mRcUserAgents.begin();it!=mRcUserAgents.end();++it){
 			if (strstr(sip->sip_user_agent->g_string,(*it).c_str())){
 				LOGD("Audio rate control supported for %s",sip->sip_user_agent->g_string);
+				return true;
 			}
 		}
 	}
