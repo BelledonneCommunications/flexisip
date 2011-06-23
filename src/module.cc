@@ -164,7 +164,10 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t
 				return;
 			last_it=it;
 		}
-		sip_header_insert(msg,sip,(sip_header_t*)rr);
+		rr->r_next=sip->sip_record_route;
+		msg_header_remove_all(msg,(msg_pub_t*)sip,(msg_header_t*)sip->sip_record_route);
+		msg_header_insert(msg,(msg_pub_t*)sip,(msg_header_t*)rr);
+		sip->sip_record_route=rr;
 	}
 }
 

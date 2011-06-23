@@ -20,6 +20,46 @@
 #include "callcontext.hh"
 #include "sdp-modifier.hh"
 
+#include <vector>
+#include <functional>
+#include <algorithm>
+
+class TickerManager{
+	public:
+		TickerManager(){
+			int cpucount=getCpuCount();
+			mLastTickerIndex=0;
+			for(int i=0;i<cpucount;++i){
+				mTickers.push_back(ms_ticker_new());
+			}
+		}
+		MSTicker *chooseOne(){
+			if (mLastTickerIndex>=mTickers.size()) mLastTickerIndex=0;
+			return mTickers[mLastTickerIndex++];
+			
+		}
+		~TickerManager(){
+			std::for_each(mTickers.begin(),mTickers.end(),std::ptr_fun(ms_ticker_destroy));
+		}
+	private:
+		int getCpuCount(){
+			char line[256]={0};
+			int count=0;
+			FILE *f=fopen("/proc/cpuinfo","r");
+			if (f!=NULL){
+				while(fgets(line,sizeof(line),f)){
+					if (strstr(line,"processor")==line)
+						count++;
+				}
+				LOGI("Found %i processors",count);
+				fclose(f);
+			}else count=1;
+			return count;
+		}
+		std::vector<MSTicker*> mTickers;
+		unsigned int mLastTickerIndex;
+};
+
 class TranscodeModule : public Module, protected ModuleToolbox {
 	public:
 		TranscodeModule(Agent *ag);
@@ -30,15 +70,15 @@ class TranscodeModule : public Module, protected ModuleToolbox {
 		virtual void onIdle();
 		virtual void onDeclare(ConfigStruct *module_config);
 	private:
+		TickerManager mTickerManager;
 		void processNewInvite(CallContext *c, msg_t *msg, sip_t *sip);
 		void process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip);
 		bool processSipInfo(CallContext *c, msg_t *msg, sip_t *sip);
-		void onTimer();		
+		void onTimer();	
 		static void sOnTimer(void *unused, su_timer_t *t, void *zis);
 		bool canDoRateControl(sip_t *sip);
 		MSList *normalizePayloads(MSList *l);
 		MSList *mSupportedAudioPayloads;
-		MSTicker *mTicker;
 		CallStore mCalls;
 		su_timer_t *mTimer;
 		std::list<std::string> mRcUserAgents;
@@ -81,13 +121,11 @@ static MSList *makeSupportedAudioPayloadList(){
 
 
 TranscodeModule::TranscodeModule(Agent *ag) : Module(ag){
-	mTicker=NULL;
 	mTimer=ag->createTimer(20,&sOnTimer,this);
 	mSupportedAudioPayloads=makeSupportedAudioPayloadList();
 }
 
 TranscodeModule::~TranscodeModule(){
-	if (mTicker) ms_ticker_destroy(mTicker);
 	if (mTimer)
 		getAgent()->stopTimer(mTimer);
 	ms_list_free(mSupportedAudioPayloads);
@@ -279,9 +317,7 @@ void TranscodeModule::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t 
 		ctx->getBackSide()->enableRc(true);
 	}
 
-	if (mTicker==NULL)
-		mTicker=ms_ticker_new();
-	ctx->join(mTicker);
+	ctx->join(mTickerManager.chooseOne());
 	
 	delete m;
 }
