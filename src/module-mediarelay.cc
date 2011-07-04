@@ -110,6 +110,10 @@ void MediaRelay::onLoad(Agent *ag, const ConfigStruct * modconf){
 
 void MediaRelay::processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip){
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
+	if (sip->sip_from==NULL || sip->sip_from->a_tag==NULL){
+		LOGW("No tag in from !");
+		return;
+	}	
 	if (m){
 		m->changeIpPort(c,sip->sip_from->a_tag);
 		m->update(msg,sip);
@@ -163,11 +167,15 @@ static bool isEarlyMedia(sip_t *sip){
 
 void MediaRelay::process200OkforInvite(RelayedCall *ctx, msg_t *msg, sip_t *sip){
 	LOGD("Processing 200 Ok");
-	SdpModifier *m=SdpModifier::createFromSipMsg(ctx->getHome(), sip);
 
+	if (sip->sip_to==NULL || sip->sip_to->a_tag==NULL){
+		LOGW("No tag in answer");
+		return;
+	}
+	SdpModifier *m=SdpModifier::createFromSipMsg(ctx->getHome(), sip);
 	if (m==NULL) return;
 	
-	m->changeIpPort (ctx, sip->sip_to->a_tag);
+	m->changeIpPort(ctx, sip->sip_to->a_tag);
 	m->update(msg,sip);
 	ctx->storeNewResponse (msg);
 
