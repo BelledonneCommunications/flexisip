@@ -30,7 +30,6 @@
 #include <sofia-sip/msg.h>
 #include <sofia-sip/nta.h>
 #include <sofia-sip/nta_stateless.h>
-#include <sofia-sip/msg.h>
 
 #include "common.hh"
 #include "configmanager.hh"

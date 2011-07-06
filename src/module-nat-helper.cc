@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTIC<ULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -17,6 +17,8 @@
 */
 
 #include "agent.hh"
+
+#include <sofia-sip/msg_addr.h>
 
 class NatHelper : public Module, protected ModuleToolbox{
 	public:
@@ -36,10 +38,38 @@ class NatHelper : public Module, protected ModuleToolbox{
 			}
 		}
 		virtual void onResponse(SipEvent *ev){
+			sip_status_t *st=ev->mSip->sip_status;
+			sip_cseq_t *cseq=ev->mSip->sip_cseq;
+			/*in responses that establish a dialog, masquerade Contact so that further requests (including the ACK) are routed in the same way*/
+			if (cseq && (cseq->cs_method==sip_method_invite || cseq->cs_method==sip_method_subscribe)){
+				if (st->st_status>=200 && st->st_status<=299){	
+					fixContactInResponse(ev->getHome(),ev->mMsg,ev->mSip);
+				}
+			}
 		}
 	private:
 		bool empty(const char *value){
 			return value==NULL || value[0]=='\0';
+		}
+		void fixContactInResponse(su_home_t *home, msg_t *msg, sip_t *sip){
+			const su_addrinfo_t *ai=msg_addrinfo(msg);
+			if (ai!=NULL){
+				char ip[NI_MAXHOST];
+				char port[NI_MAXSERV];
+				int err=getnameinfo(ai->ai_addr,ai->ai_addrlen,ip,sizeof(ip),port,sizeof(port),NI_NUMERICHOST|NI_NUMERICSERV);
+				if (err!=0){
+					LOGE("getnameinfo() error: %s",gai_strerror(err));
+				}else{
+					sip_contact_t *ctt=sip->sip_contact;
+					if (ctt && ctt->m_url && ctt->m_url->url_host){
+						if (strcmp(ip,ctt->m_url->url_host)!=0 || !sipPortEquals(ctt->m_url->url_port,port)){
+							LOGD("Response is coming from %s:%s, fixing contact",ip,port);
+							ctt->m_url->url_host=su_strdup(home,ip);
+							ctt->m_url->url_port=su_strdup(home,port);
+						}else LOGD("Contact in response is correct.");
+					}
+				}
+			}
 		}
 		void fixContactFromVia(su_home_t *home, sip_t *msg, const sip_via_t *via){
 			sip_contact_t *ctt=msg->sip_contact;
