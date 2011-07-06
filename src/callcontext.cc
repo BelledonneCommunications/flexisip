@@ -377,8 +377,10 @@ void CallContext::playTone(CallSide *origin, int dtmf){
 }
 
 void CallContext::doBgTasks(){
-	mFrontSide->doBgTasks();
-	mBackSide->doBgTasks();
+	if (mFrontSide && mBackSide){
+		mFrontSide->doBgTasks();
+		mBackSide->doBgTasks();
+	}
 }
 
 CallContext::~CallContext(){
