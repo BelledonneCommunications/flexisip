@@ -47,7 +47,7 @@
 **/
 class Agent{
 	public:
-		Agent(su_root_t *root, const char *locaddr, int port);
+		Agent(su_root_t *root, const char *locaddr, int port, int tlsport);
 		virtual void loadConfig(ConfigManager *cm);
 		void setDomain(const std::string &domain);
 		virtual ~Agent();
@@ -83,6 +83,7 @@ class Agent{
 		const std::string mLocAddr;
 		std::string mDomain;
 		const int mPort;
+		const int mTlsPort;
 		std::string mUniqueId;
 		nta_agent_t *mAgent;
 		su_root_t *mRoot;

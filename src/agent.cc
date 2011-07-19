@@ -22,23 +22,35 @@
 #include "etchosts.hh"
 #include <algorithm>
 #include <sstream>
+#include <sofia-sip/tport_tag.h>
 
 using namespace::std;
 
-Agent::Agent(su_root_t* root, const char *locaddr, int port) : mLocAddr(locaddr), mPort(port){
+Agent::Agent(su_root_t* root, const char *locaddr, int port, int tlsport) : mLocAddr(locaddr), mPort(port), mTlsPort(tlsport){
 	char sipuri[128]={0};
 	// compute a network wide unique id
 	std::ostringstream oss;
 	oss << locaddr << "_" << port;
 	mUniqueId = oss.str();
 	mRoot=root;
-	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i",locaddr,port);
+	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i", locaddr,port);
 	mAgent=nta_agent_create(root,
 		(url_string_t*)sipuri,
 			&Agent::messageCallback,
 			(nta_agent_magic_t*)this,
-			NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460),TAG_END());
+			NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), TAG_END());
 	/* we pass "" as localaddr when we just want to dump the default config. So don't report the error*/
+	if (mTlsPort > 0) {
+		char sipsuri[128]={0};
+		/* default folder FIXME */
+		const char* tlsPath = "~/.sip/auth/";
+		snprintf(sipsuri,sizeof(sipsuri)-1,"sips:%s:%i", locaddr,mTlsPort);
+		LOGD("Enabling sips uri ('%s')", sipsuri);
+		nta_agent_add_tport(mAgent,
+			(url_string_t*)sipsuri,
+				TPTAG_CERTIFICATE_REF(tlsPath), NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), NTATAG_TLS_RPORT(1), TAG_END());
+	}
+
 	if (strlen(locaddr)>0 && mAgent==NULL){
 		LOGF("Could not create sofia mta.");
 	}

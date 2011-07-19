@@ -96,6 +96,7 @@ static int get_local_ip_for_with_connect(int type, const char *dest, char *resul
 static void usage(const char *arg0){
 	printf("%s\n"
 	       "\t\t [--port <port number to listen>]\n"
+	       "\t\t [--tlsport <port number for sips>]\n"
 	       "\t\t [--debug]\n"
 	       "\t\t [--daemon]\n"
 	       "\t\t [--configfile <path>]\n"
@@ -240,7 +241,7 @@ static void forkAndDetach(const char *pidfile){
 int main(int argc, char *argv[]){
 	Agent *a;
 	StunServer *stun=NULL;
-	int port=5060;
+	int port=5060, tlsport=5061;
 	char localip[IPADDR_SIZE];
 	int i;
 	const char *pidfile=NULL;
@@ -255,6 +256,12 @@ int main(int argc, char *argv[]){
 			i++;
 			if (i<argc){
 				port=atoi(argv[i]);
+				continue;
+			}
+		} else if (strcmp(argv[i],"--tlsport")==0){
+			i++;
+			if (i<argc){
+				tlsport=atoi(argv[i]);
 				continue;
 			}
 		}else if (strcmp(argv[i],"--pidfile")==0){
@@ -288,7 +295,7 @@ int main(int argc, char *argv[]){
 	ConfigManager *cfg=ConfigManager::get();
 
 	if (dump_default_cfg){
-		a=new Agent(root,"",port);
+		a=new Agent(root,"",port,tlsport);
 		std::cout<<FileConfigDumper(cfg->getRoot());
 		return 0;
 	}
@@ -312,7 +319,7 @@ int main(int argc, char *argv[]){
 	if (bind_ip.empty() || bind_ip=="guess") bind_ip=localip;
 
 	LOGI("Listening to interface %s.",bind_ip.c_str());
-	a=new Agent(root,bind_ip.c_str(),port);
+	a=new Agent(root,bind_ip.c_str(),port,tlsport);
 	a->loadConfig (cfg);
 
 	/*
