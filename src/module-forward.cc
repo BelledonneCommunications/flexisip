@@ -22,9 +22,16 @@
 class ForwardModule : public Module {
 	public:
 		ForwardModule(Agent *ag);
+		virtual void onDeclare(ConfigStruct * module_config);
+		virtual void onLoad(Agent *agent, const ConfigStruct *root);
 		virtual void onRequest(SipEvent *ev);
 		virtual void onResponse(SipEvent *ev);
+		url_t* overrideDest(SipEvent *ev, url_t* dest);
+		~ForwardModule();
 	private:
+		su_home_t mHome;
+		sip_route_t *mOutRoute;
+		bool mRewriteReqUri;
 		static ModuleInfo<ForwardModule> sInfo;
 };
 
@@ -34,6 +41,43 @@ ModuleInfo<ForwardModule> ForwardModule::sInfo("Forward",
 
 
 ForwardModule::ForwardModule(Agent *ag) : Module(ag){
+	su_home_init(&mHome);
+	mOutRoute=NULL;
+}
+
+ForwardModule::~ForwardModule(){
+	su_home_deinit(&mHome);
+}
+
+void ForwardModule::onDeclare(ConfigStruct * module_config){
+	ConfigItemDescriptor items[]={
+			{	String	,	"route"	, 	"A sip uri where to send all requests",	""	},
+			{	Boolean	,	"rewrite-req-uri"	,	"Rewrite request-uri's host and port according to above route", "false"	},
+			config_item_end
+	};
+	module_config->addChildrenValues(items);
+}
+
+void ForwardModule::onLoad(Agent *agent, const ConfigStruct *module_config){
+	std::string route=module_config->get<ConfigString>("route")->read();
+	mRewriteReqUri=module_config->get<ConfigBoolean>("rewrite-req-uri")->read();
+	if (route.size()>0){
+		mOutRoute=sip_route_create(&mHome,(url_t*)route.c_str(),NULL);
+		if (mOutRoute==NULL){
+			LOGF("Bad route parameter '%s' in configuration of Forward module",route.c_str());
+		}
+	}
+}
+
+url_t* ForwardModule::overrideDest(SipEvent *ev, url_t *dest){
+	if (mOutRoute){
+		dest=mOutRoute->r_url;
+		if (mRewriteReqUri){
+			ev->mSip->sip_request->rq_url->url_host=mOutRoute->r_url->url_host;
+			ev->mSip->sip_request->rq_url->url_port=mOutRoute->r_url->url_port;
+		}
+	}
+	return dest;
 }
 
 void ForwardModule::onRequest(SipEvent *ev){
@@ -86,6 +130,13 @@ void ForwardModule::onRequest(SipEvent *ev){
 		dest->url_port=su_strdup(ev->getHome(), hostport_separator+1);
 	}
 
+	/* workaround bad sip uris with two @ that results in host part being "something@somewhere" */
+	if (strchr(dest->url_host,'@')!=0){
+		nta_msg_treply (getSofiaAgent(),msg,400,"Bad request",SIPTAG_SERVER_STR(getAgent()->getServerString()),TAG_END());
+		return;
+	}
+	
+	dest=overrideDest(ev,dest);
 
 	std::string ip;
 	if (EtcHostsResolver::get()->resolve(dest->url_host,&ip)){
@@ -93,12 +144,6 @@ void ForwardModule::onRequest(SipEvent *ev){
 		/* duplication dest because we don't want to modify the message with our name resolution result*/
 		dest=url_hdup(ev->getHome(),dest);
 		dest->url_host=ip.c_str();
-	}
-
-	/* workaround bad sip uris with two @ that results in host part being "something@somewhere" */
-	if (strchr(dest->url_host,'@')!=0){
-		nta_msg_treply (getSofiaAgent(),msg,400,"Bad request",SIPTAG_SERVER_STR(getAgent()->getServerString()),TAG_END());
-		return;
 	}
 
 	if (!getAgent()->isUs(dest)) {
