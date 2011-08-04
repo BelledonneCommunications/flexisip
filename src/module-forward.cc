@@ -94,10 +94,7 @@ void ForwardModule::onRequest(SipEvent *ev){
 			break;
 		case sip_method_register:
 			LOGD("This is a register");
-			//rewrite the request uri to the domain
-			//this assume the domain is also the proxy
-			sip->sip_request->rq_url->url_host=sip->sip_to->a_url->url_host;
-			sip->sip_request->rq_url->url_port=sip->sip_to->a_url->url_port;
+			
 		case sip_method_ack:
 		default:
 			break;
@@ -112,22 +109,6 @@ void ForwardModule::onRequest(SipEvent *ev){
 			/*forward to this route*/
 			dest=sip->sip_route->r_url;
 		}
-	}
-
-
-	char contact_route_param[64];
-	// now need to check if request uri has special param inserted by contact-route-inserter module
-	if (url_param(dest->url_params,getAgent()->getUniqueId().c_str(),contact_route_param,sizeof(contact_route_param))) {
-		//first remove param
-		dest->url_params = url_strip_param_string(su_strdup(ev->getHome(),dest->url_params),getAgent()->getUniqueId().c_str());
-		//test and remove maddr param
-		if (url_has_param(dest,"maddr")) {
-			dest->url_params = url_strip_param_string(su_strdup(ev->getHome(),dest->url_params),"maddr");
-		}
-		//second change dest to
-		char* hostport_separator = strchr(contact_route_param, ':');
-		dest->url_host=su_strndup(ev->getHome(), contact_route_param, (hostport_separator-contact_route_param) );
-		dest->url_port=su_strdup(ev->getHome(), hostport_separator+1);
 	}
 
 	/* workaround bad sip uris with two @ that results in host part being "something@somewhere" */

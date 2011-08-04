@@ -23,27 +23,77 @@ class ContactRouteInserter : public Module {
 	ContactRouteInserter(Agent *ag):Module(ag){
 
 	}
+	void onLoad(Agent *agent, const ConfigStruct *module_config){
+		mContactRouteParamName=std::string("CtRt")+getAgent()->getUniqueId();
+	}
 	void onRequest(SipEvent *ev) {
 		sip_t *sip=ev->mSip;
 
 		if(sip->sip_request->rq_method == sip_method_register){
+			//rewrite the request uri to the domain
+			//this assume the domain is also the proxy
+			sip->sip_request->rq_url->url_host=sip->sip_to->a_url->url_host;
+			sip->sip_request->rq_url->url_port=sip->sip_to->a_url->url_port;
+			
 			if (sip->sip_contact!=NULL && sip->sip_contact->m_url!=NULL){
 				//rewrite contact, put local host instead and store previous contact host in new parameter
-				char* lParam = su_sprintf (ev->getHome(),"%s=%s:%s",getAgent()->getUniqueId().c_str()
-														,sip->sip_contact->m_url[0].url_host
-														,sip->sip_contact->m_url[0].url_port);
+				char ct_tport[32]="udp";
+				char* lParam;
+				url_t *ct_url=sip->sip_contact->m_url;
+
+				//grab the transport of the contact uri
+				if (url_param(sip->sip_contact->m_url->url_params,"transport",ct_tport,sizeof(ct_tport))>0){
+					
+				}
+				/*add a parameter like "CtRt15.128.128.2=tcp:201.45.118.16:50025" in the contact, so that we know where is the client 
+				 when we later have to route an INVITE to him */
+				lParam=su_sprintf (ev->getHome(),"%s=%s:%s:%s",mContactRouteParamName.c_str()
+				                   						,ct_tport
+														,ct_url->url_host
+														,ct_url->url_port);
 				LOGD("Rewriting contact with param [%s]",lParam);
-				if (url_param_add (ev->getHome(), sip->sip_contact->m_url,lParam)) {
+				if (url_param_add (ev->getHome(),ct_url,lParam)) {
 					LOGE("Cannot insert url param [%s]",lParam);
 				}
-
-				sip->sip_contact->m_url[0].url_host = getAgent()->getLocAddr().c_str();
-				sip->sip_contact->m_url[0].url_port = su_sprintf (ev->getHome(),"%i",getAgent()->getPort());
+				/*masquerade the contact, so that later requests (INVITEs) come to us */
+				ct_url->url_host = getAgent()->getLocAddr().c_str();
+				ct_url->url_port = su_sprintf (ev->getHome(),"%i",getAgent()->getPort());
+				/*remove the transport, in most case further requests should come back to us in UDP*/
+				ct_url->url_params = url_strip_param_string(su_strdup(ev->getHome(),ct_url->url_params),"transport");
+			}
+		}else{
+			/* check if request-uri contains a contact-route parameter, so that we can route back to the client */
+			char contact_route_param[64];
+			url_t *dest=sip->sip_request->rq_url;
+			// now need to check if request uri has special param inserted by contact-route-inserter module
+			if (url_param(dest->url_params,mContactRouteParamName.c_str(),contact_route_param,sizeof(contact_route_param))) {
+				//first remove param
+				dest->url_params = url_strip_param_string(su_strdup(ev->getHome(),dest->url_params),mContactRouteParamName.c_str());
+				//test and remove maddr param
+				if (url_has_param(dest,"maddr")) {
+					dest->url_params = url_strip_param_string(su_strdup(ev->getHome(),dest->url_params),"maddr");
+				}
+				//second change dest to
+				char* tmp = strchr(contact_route_param, ':');
+				if (tmp){
+					char* transport=su_strndup(ev->getHome(),contact_route_param,tmp-contact_route_param);
+					char *tmp2=tmp+1;
+					tmp=strchr(tmp2, ':');
+					if (tmp){
+						dest->url_host=su_strndup(ev->getHome(), tmp2, tmp-tmp2 );
+						dest->url_port=su_strdup(ev->getHome(), tmp+1);
+						if (strcasecmp(transport,"udp")!=0){
+							char *t_param=su_sprintf (ev->getHome(),"transport=%s",transport);
+							url_param_add(ev->getHome(),dest,t_param);
+						}
+					}
+				}
 			}
 		}
 	}
 	void onResponse(SipEvent *ev) {/*nop*/};
 	private:
+		std::string mContactRouteParamName;
 		static ModuleInfo<ContactRouteInserter> sInfo;
 };
 
