@@ -115,12 +115,14 @@ static MSList *makeSupportedAudioPayloadList(){
 	payload_type_set_number(&payload_type_speex_nb,-1);
 	payload_type_set_number(&payload_type_speex_wb,-1);
 	payload_type_set_number(&payload_type_amr,-1);
-	MSList *l=ms_list_append(NULL,&payload_type_pcmu8000);
-	l=ms_list_append(l,&payload_type_pcma8000);
-	l=ms_list_append(l,&payload_type_gsm);
+	MSList *l=NULL;
 	l=ms_list_append(l,&payload_type_speex_nb);
-	//l=ms_list_append(l,&payload_type_speex_wb);
 	l=ms_list_append(l,&payload_type_amr);
+	l=ms_list_append(l,&payload_type_gsm);
+	l=ms_list_append(l,&payload_type_pcmu8000);
+	l=ms_list_append(l,&payload_type_pcma8000);
+	//l=ms_list_append(l,&payload_type_speex_wb);
+	
 	return l;
 }
 
