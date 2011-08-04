@@ -166,6 +166,7 @@ void CallSide::connect(CallSide *recvSide, MSTicker *t){
 			if (t) ms_filter_postprocess(mDecoder);
 			ms_filter_destroy(mDecoder);
 		}
+		rtp_session_flush_sockets(mSession);
 			
 		mDecoder=ms_filter_create_decoder(recvpt->mime_type);
 		if (mDecoder==NULL){

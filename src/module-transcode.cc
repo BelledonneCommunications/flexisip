@@ -27,13 +27,17 @@
 class TickerManager{
 	public:
 		TickerManager(){
-			int cpucount=getCpuCount();
-			mLastTickerIndex=0;
-			for(int i=0;i<cpucount;++i){
-				mTickers.push_back(ms_ticker_new());
-			}
+			mStarted=false;
 		}
 		MSTicker *chooseOne(){
+			if (!mStarted){
+				int cpucount=getCpuCount();
+				mLastTickerIndex=0;
+				for(int i=0;i<cpucount;++i){
+					mTickers.push_back(ms_ticker_new());
+				}
+				mStarted=true;
+			}
 			if (mLastTickerIndex>=mTickers.size()) mLastTickerIndex=0;
 			return mTickers[mLastTickerIndex++];
 			
@@ -58,6 +62,7 @@ class TickerManager{
 		}
 		std::vector<MSTicker*> mTickers;
 		unsigned int mLastTickerIndex;
+		bool mStarted;
 };
 
 class TranscodeModule : public Module, protected ModuleToolbox {
