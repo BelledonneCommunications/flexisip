@@ -127,7 +127,7 @@ void ForwardModule::onRequest(SipEvent *ev){
 	}
 	dest=sip->sip_request->rq_url;
 	// removes top route headers if they maches us
-	if (sip->sip_route!=NULL && getAgent()->isUs(sip->sip_route->r_url) ){
+	while (sip->sip_route!=NULL && getAgent()->isUs(sip->sip_route->r_url) ){
 		sip_route_remove(msg,sip);
 	}
 	if (sip->sip_route!=NULL){
