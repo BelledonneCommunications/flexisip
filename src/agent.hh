@@ -62,12 +62,12 @@ class Agent{
 		 */
 		const std::string& getUniqueId() const;
 		void idle();
-		bool isUs(const url_t *url)const;
+		bool isUs(const url_t *url, bool check_aliases=true)const;
 		nta_agent_t* getSofiaAgent()const{
 			return mAgent;
 		}
 		int countUsInVia(sip_via_t *via)const;
-		bool isUs(const char *host, const char *port)const;
+		bool isUs(const char *host, const char *port, bool check_aliases)const;
 		const char *getServerString()const;
 		typedef void (*timerCallback)(void *unused, su_timer_t *t, void *data);
 		su_timer_t *createTimer(int milliseconds, timerCallback cb, void *data);

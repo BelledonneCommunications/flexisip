@@ -19,16 +19,17 @@
 #include "agent.hh"
 #include "etchosts.hh"
 
-class ForwardModule : public Module {
+class ForwardModule : public Module, ModuleToolbox {
 	public:
 		ForwardModule(Agent *ag);
 		virtual void onDeclare(ConfigStruct * module_config);
 		virtual void onLoad(Agent *agent, const ConfigStruct *root);
 		virtual void onRequest(SipEvent *ev);
 		virtual void onResponse(SipEvent *ev);
-		url_t* overrideDest(SipEvent *ev, url_t* dest);
 		~ForwardModule();
 	private:
+		url_t* overrideDest(SipEvent *ev, url_t* dest);
+		void checkRecordRoutes(SipEvent *ev, url_t *dest);
 		su_home_t mHome;
 		sip_route_t *mOutRoute;
 		bool mRewriteReqUri;
@@ -80,6 +81,31 @@ url_t* ForwardModule::overrideDest(SipEvent *ev, url_t *dest){
 	return dest;
 }
 
+/* the goal of this method is to check whether we added ourself to the record route, and handle a possible
+ transport change by adding a new record-route with transport updated.
+ Typically, if we transfer an INVITE from TCP to UDP, we should find two consecutive record-route, first one with UDP, and second one with TCP
+ so that further request from both sides are sent to the appropriate transport of flexisip, and also we don't ask to a UDP only equipment to route to TCP.
+*/
+void ForwardModule::checkRecordRoutes(SipEvent *ev, url_t *dest){
+	sip_record_route_t *rr=ev->mSip->sip_record_route;
+	char last_transport[16]={0};
+	char next_transport[16]={0};
+	
+	if (rr){
+		if (getAgent()->isUs(rr->r_url,false)){
+			if (!url_param(rr->r_url->url_params,"transport",last_transport,sizeof(last_transport))){
+				strncpy(last_transport,"UDP",sizeof(last_transport));
+			}
+			if (!url_param(dest->url_params,"transport",next_transport,sizeof(next_transport))){
+				strncpy(next_transport,"UDP",sizeof(next_transport));
+			}
+			if (strcasecmp(next_transport,last_transport)!=0){
+				addRecordRoute(ev->getHome(),getAgent(),ev->mMsg,ev->mSip,next_transport);
+			}
+		}
+	}
+}
+
 void ForwardModule::onRequest(SipEvent *ev){
 	size_t msg_size;
 	char *buf;
@@ -100,15 +126,13 @@ void ForwardModule::onRequest(SipEvent *ev){
 			break;
 	}
 	dest=sip->sip_request->rq_url;
-	// removes top route header if it maches us
+	// removes top route headers if they maches us
+	if (sip->sip_route!=NULL && getAgent()->isUs(sip->sip_route->r_url) ){
+		sip_route_remove(msg,sip);
+	}
 	if (sip->sip_route!=NULL){
-		if (getAgent()->isUs(sip->sip_route->r_url)){
-			sip_route_remove(msg,sip);
-		}
-		if (sip->sip_route!=NULL){
-			/*forward to this route*/
-			dest=sip->sip_route->r_url;
-		}
+		/*forward to this route*/
+		dest=sip->sip_route->r_url;
 	}
 
 	/* workaround bad sip uris with two @ that results in host part being "something@somewhere" */
@@ -128,6 +152,7 @@ void ForwardModule::onRequest(SipEvent *ev){
 	}
 
 	if (!getAgent()->isUs(dest)) {
+		checkRecordRoutes(ev,dest);
 		buf=msg_as_string(ev->getHome(), msg, NULL, 0,&msg_size);
 		LOGD("About to forward request to %s:\n%s",url_as_string(ev->getHome(),dest),buf);
 		nta_msg_tsend (getSofiaAgent(),msg,(url_string_t*)dest,TAG_END());

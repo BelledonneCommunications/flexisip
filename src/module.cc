@@ -136,15 +136,18 @@ int ModuleToolbox::sipPortToInt(const char *port){
 
 
 
-void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip){
+void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *transport){
 	sip_via_t *via=sip->sip_via;
 	sip_record_route_t *rr;
+	bool transport_given=(transport!=NULL);
 
-	if (strcasecmp(sip_via_transport(via),"TCP")==0){
+	if (transport==NULL) transport=sip_via_transport(via);
+
+	if (strcasecmp(transport,"UDP")!=0){
 		if (ag->getPort()!=5060){
-			rr=sip_record_route_format(home,"<sip:%s:%i;lr;transport=TCP>",ag->getLocAddr().c_str(),ag->getPort());
+			rr=sip_record_route_format(home,"<sip:%s:%i;lr;transport=%s>",ag->getLocAddr().c_str(),ag->getPort(),transport);
 		}else{
-			rr=sip_record_route_format(home,"<sip:%s;lr;transport=TCP>",ag->getLocAddr().c_str());
+			rr=sip_record_route_format(home,"<sip:%s;lr;transport=%s>",ag->getLocAddr().c_str(),transport);
 		}
 	}else {
 		if (ag->getPort()!=5060){
@@ -156,14 +159,9 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t
 	if (sip->sip_record_route==NULL){
 		sip->sip_record_route=rr;
 	}else{
-		sip_record_route_t *it,*last_it=NULL;	
-		for(it=sip->sip_record_route;it!=NULL;it=it->r_next){
-			/*make sure we are not already in*/
-			if (strcmp(it->r_url->url_host,ag->getLocAddr().c_str())==0 
-			    && sipPortToInt(it->r_url->url_port)==ag->getPort())
-				return;
-			last_it=it;
-		}
+		/*make sure we are not already in*/
+		if (!transport_given && sip->sip_record_route && ag->isUs(sip->sip_record_route->r_url,false))
+			return;
 		rr->r_next=sip->sip_record_route;
 		msg_header_remove_all(msg,(msg_pub_t*)sip,(msg_header_t*)sip->sip_record_route);
 		msg_header_insert(msg,(msg_pub_t*)sip,(msg_header_t*)rr);

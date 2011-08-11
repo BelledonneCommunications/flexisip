@@ -99,13 +99,13 @@ void Agent::setDomain(const std::string &domain){
 int Agent::countUsInVia(sip_via_t *via)const{
 	int count = 0;
 	for (sip_via_t *v = via;v!=NULL;v=v->v_next){
-		if (isUs(v->v_host, v->v_port)) ++count;
+		if (isUs(v->v_host, v->v_port,true)) ++count;
 	}
 
 	return count;
 }
 
-bool Agent::isUs(const char *host, const char *port)const{
+bool Agent::isUs(const char *host, const char *port, bool check_aliases)const{
 	char *tmp=NULL;
 	int end;
 	int p=(port!=NULL) ? atoi(port) : 5060;
@@ -118,15 +118,17 @@ bool Agent::isUs(const char *host, const char *port)const{
 		host=tmp;
 	}
 	if (strcmp(host,mLocAddr.c_str())==0) return true;
-	list<string>::const_iterator it;
-	for(it=mAliases.begin();it!=mAliases.end();++it){
-		if (strcasecmp(host,(*it).c_str())==0) return true;
+	if (check_aliases){
+		list<string>::const_iterator it;
+		for(it=mAliases.begin();it!=mAliases.end();++it){
+			if (strcasecmp(host,(*it).c_str())==0) return true;
+		}
 	}
 	return false;
 }
 
-bool Agent::isUs(const url_t *url)const{
-	return isUs(url->url_host, url->url_port);
+bool Agent::isUs(const url_t *url,bool check_aliases)const{
+	return isUs(url->url_host, url->url_port,check_aliases);
 }
 
 void Agent::onRequest(msg_t *msg, sip_t *sip){
