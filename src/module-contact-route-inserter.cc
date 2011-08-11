@@ -23,13 +23,22 @@ class ContactRouteInserter : public Module {
 	ContactRouteInserter(Agent *ag):Module(ag){
 
 	}
+	void onDeclare(ConfigStruct *module_config){
+		ConfigItemDescriptor items[]={
+			{	Boolean	,	"masquerade-contacts-for-invites",	"Hack for workarounding Nortel CS2k gateways bug.","false"},
+			config_item_end
+		};
+		module_config->addChildrenValues(items);
+	}
 	void onLoad(Agent *agent, const ConfigStruct *module_config){
 		mContactRouteParamName=std::string("CtRt")+getAgent()->getUniqueId();
+		mMasqueradeInviteContacts=module_config->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
 	}
 	void onRequest(SipEvent *ev) {
 		sip_t *sip=ev->mSip;
 
-		if(sip->sip_request->rq_method == sip_method_register){
+		if(sip->sip_request->rq_method == sip_method_register || 
+		   ((sip->sip_request->rq_method == sip_method_invite ) && mMasqueradeInviteContacts)){
 			//rewrite the request uri to the domain
 			//this assume the domain is also the proxy
 			sip->sip_request->rq_url->url_host=sip->sip_to->a_url->url_host;
@@ -61,7 +70,8 @@ class ContactRouteInserter : public Module {
 				/*remove the transport, in most case further requests should come back to us in UDP*/
 				ct_url->url_params = url_strip_param_string(su_strdup(ev->getHome(),ct_url->url_params),"transport");
 			}
-		}else{
+		}
+		if (sip->sip_request->rq_method != sip_method_register){
 			/* check if request-uri contains a contact-route parameter, so that we can route back to the client */
 			char contact_route_param[64];
 			url_t *dest=sip->sip_request->rq_url;
@@ -94,6 +104,7 @@ class ContactRouteInserter : public Module {
 	void onResponse(SipEvent *ev) {/*nop*/};
 	private:
 		std::string mContactRouteParamName;
+		bool mMasqueradeInviteContacts;
 		static ModuleInfo<ContactRouteInserter> sInfo;
 };
 
