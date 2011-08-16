@@ -128,7 +128,6 @@ static MSList *makeSupportedAudioPayloadList(){
 
 
 TranscodeModule::TranscodeModule(Agent *ag) : Module(ag){
-	mTimer=ag->createTimer(20,&sOnTimer,this);
 	mSupportedAudioPayloads=makeSupportedAudioPayloadList();
 }
 
@@ -149,7 +148,7 @@ void TranscodeModule::onDeclare(ConfigStruct *module_config){
 }
 
 void TranscodeModule::onLoad(Agent *agent, const ConfigStruct *module_config){
-
+	mTimer=agent->createTimer(20,&sOnTimer,this);
 	mRcUserAgents=module_config->get<ConfigStringList>("rc-user-agents")->read();
 }
 
