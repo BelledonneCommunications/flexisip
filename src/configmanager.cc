@@ -219,6 +219,15 @@ static ConfigItemDescriptor global_conf[]={
 	{	Boolean	,	"debug"	,	"Outputs very detailed logs",	"false"	},
 	{	StringList	,	"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost" },
 	{	String	,	"ip-address",	"The ip address to listen for incoming sip messages. This is useful if the machine is multi-homed and you want to explicitely specify the ip address.",	"guess"},
+	{	Integer	,	"port"		,	"UDP port number to listen for sip messages.",	"5060"},
+	config_item_end
+};
+
+static ConfigItemDescriptor tls_conf[]={
+	{	Boolean	,	"enabled"	,	"Enable SIP/TLS (sips)",	"true"	},
+	{	Integer	,	"port",	"The port used for SIP/TLS",	"5061"},
+	{	String	,	"certificates-dir", "An absolute path of a directory where TLS certificate can be found. "
+		"The private key for TLS server must be in a agent.pem file within this directory" , "/etc/flexisip/tls"	},
 	config_item_end
 };
 
@@ -226,6 +235,9 @@ ConfigManager::ConfigManager() : mConfigRoot("root","This is the default Flexisi
 	ConfigStruct *global=new ConfigStruct("global","Some global settings of the flexisip proxy.");
 	global->addChildrenValues(global_conf);
 	mConfigRoot.addChild(global);
+	ConfigStruct *tls=new ConfigStruct("tls","TLS specific parameters.");
+	tls->addChildrenValues(tls_conf);
+	mConfigRoot.addChild(tls);
 }
 
 int ConfigManager::load(const char* configfile){

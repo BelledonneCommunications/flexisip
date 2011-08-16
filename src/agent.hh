@@ -82,8 +82,8 @@ class Agent{
 		std::list<std::string> mAliases;
 		const std::string mLocAddr;
 		std::string mDomain;
-		const int mPort;
-		const int mTlsPort;
+		int mPort;
+		int mTlsPort;
 		std::string mUniqueId;
 		nta_agent_t *mAgent;
 		su_root_t *mRoot;

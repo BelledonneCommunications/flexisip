@@ -28,33 +28,9 @@ using namespace::std;
 
 Agent::Agent(su_root_t* root, const char *locaddr, int port, int tlsport) : mLocAddr(locaddr), mPort(port), mTlsPort(tlsport){
 	char sipuri[128]={0};
-	// compute a network wide unique id
-	std::ostringstream oss;
-	oss << locaddr << "_" << port;
-	mUniqueId = oss.str();
-	mRoot=root;
-	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i", locaddr,port);
-	mAgent=nta_agent_create(root,
-		(url_string_t*)sipuri,
-			&Agent::messageCallback,
-			(nta_agent_magic_t*)this,
-			NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), TAG_END());
-	/* we pass "" as localaddr when we just want to dump the default config. So don't report the error*/
-	if (mTlsPort > 0) {
-		char sipsuri[128]={0};
-		/* default folder FIXME */
-		const char* tlsPath = "~/.sip/auth/";
-		snprintf(sipsuri,sizeof(sipsuri)-1,"sips:%s:%i", locaddr,mTlsPort);
-		LOGD("Enabling sips uri ('%s')", sipsuri);
-		nta_agent_add_tport(mAgent,
-			(url_string_t*)sipsuri,
-				TPTAG_CERTIFICATE_REF(tlsPath), NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), NTATAG_TLS_RPORT(1), TAG_END());
-	}
+	ConfigStruct *cr=ConfigManager::get()->getRoot();
+	ConfigStruct *tls=cr->get<ConfigStruct>("tls");
 
-	if (strlen(locaddr)>0 && mAgent==NULL){
-		LOGF("Could not create sofia mta.");
-	}
-	
 	EtcHostsResolver::get();
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"NatHelper"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Authentication"));
@@ -66,8 +42,41 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port, int tlsport) : mLoc
 
 	mServerString="Flexisip/"VERSION " (sofia-sip-nta/" NTA_VERSION ")";
 
-	for_each(mModules.begin(),mModules.end(),bind2nd(mem_fun(&Module::declare),
-	                                                 ConfigManager::get()->getRoot()));
+	for_each(mModules.begin(),mModules.end(),bind2nd(mem_fun(&Module::declare),cr));
+
+	/* we pass "" as localaddr when we just want to dump the default config. So don't go further*/
+	if (strlen(locaddr)==0) return;
+
+	if (mPort==-1) mPort=cr->get<ConfigStruct>("global")->get<ConfigInt>("port")->read();
+	if (mTlsPort==-1) mTlsPort=tls->get<ConfigInt>("port")->read();
+	// compute a network wide unique id
+	std::ostringstream oss;
+	oss << locaddr << "_" << mPort;
+	mUniqueId = oss.str();
+	mRoot=root;
+	
+	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i", locaddr,mPort);
+	mAgent=nta_agent_create(root,
+		(url_string_t*)sipuri,
+			&Agent::messageCallback,
+			(nta_agent_magic_t*)this,
+			NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), TAG_END());
+	
+	if (tls->get<ConfigBoolean>("enabled")->read()) {
+		char sipsuri[128]={0};
+		std::string keys=tls->get<ConfigString>("certificates-dir")->read();
+		snprintf(sipsuri,sizeof(sipsuri)-1,"sips:%s:%i", locaddr,mTlsPort);
+		LOGD("Enabling sips uri ('%s'), keys in %s", sipsuri,keys.c_str());
+		nta_agent_add_tport(mAgent,
+			(url_string_t*)sipsuri,
+				TPTAG_CERTIFICATE(keys.c_str()), NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), NTATAG_TLS_RPORT(1), TAG_END());
+	}
+
+	if (mAgent==NULL){
+		LOGF("Could not create sofia mta.");
+	}
+	
+	
 }
 
 Agent::~Agent(){

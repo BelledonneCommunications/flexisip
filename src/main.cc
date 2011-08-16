@@ -241,7 +241,7 @@ static void forkAndDetach(const char *pidfile){
 int main(int argc, char *argv[]){
 	Agent *a;
 	StunServer *stun=NULL;
-	int port=5060, tlsport=5061;
+	int port=-1, tlsport=-1;
 	char localip[IPADDR_SIZE];
 	int i;
 	const char *pidfile=NULL;
