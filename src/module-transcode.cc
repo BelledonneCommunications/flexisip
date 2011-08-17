@@ -83,6 +83,7 @@ class TranscodeModule : public Module, protected ModuleToolbox {
 		static void sOnTimer(void *unused, su_timer_t *t, void *zis);
 		bool canDoRateControl(sip_t *sip);
 		MSList *normalizePayloads(MSList *l);
+		MSList *orderList(const std::list<std::string> &config, const MSList *l);
 		MSList *mSupportedAudioPayloads;
 		CallStore mCalls;
 		su_timer_t *mTimer;
@@ -128,7 +129,7 @@ static MSList *makeSupportedAudioPayloadList(){
 
 
 TranscodeModule::TranscodeModule(Agent *ag) : Module(ag){
-	mSupportedAudioPayloads=makeSupportedAudioPayloadList();
+	mSupportedAudioPayloads=NULL;
 }
 
 TranscodeModule::~TranscodeModule(){
@@ -141,15 +142,49 @@ void TranscodeModule::onDeclare(ConfigStruct *module_config){
 	/*we need to be disabled by default*/
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[]={
-		{	StringList	,	"rc-user-agents",	"List of whitelist separated user-agent string for which audio rate control is performed.",""},
+		{	StringList	,	"rc-user-agents",	"Whitespace separated list of user-agent strings for which audio rate control is performed.",""},
+		{	StringList	,	"audio-codecs",	"Whitespace seprated list of audio codecs, in order of preference.",
+			"speex/8000 amr/8000 gsm/8000 pcmu/8000 pcma/8000"},
 			config_item_end
 	};
 	module_config->addChildrenValues(items);
 }
 
+MSList *TranscodeModule::orderList(const std::list<std::string> &config, const MSList *l){
+	int err;
+	int rate;
+	MSList *ret=NULL;
+	const MSList *it;
+	std::list<std::string>::const_iterator cfg_it;
+	
+	for(cfg_it=config.begin();cfg_it!=config.end();++cfg_it){
+		char name[(*cfg_it).size()+1];
+		char *p;
+
+		strcpy(name,(*cfg_it).c_str());
+		p=strchr(name,'/');
+		if (p) {
+			*p='\0';
+			p++;
+		}else LOGF("Error parsing audio codec list");
+		
+		err=sscanf(p,"%i",&rate);
+		for(it=l;it!=NULL;it=it->next){
+			PayloadType *pt=(PayloadType*)it->data;
+			if (strcasecmp(pt->mime_type,name)==0 && rate==pt->clock_rate){
+				ret=ms_list_append(ret,pt);
+			}
+		}
+	}
+	return ret;
+}
+
 void TranscodeModule::onLoad(Agent *agent, const ConfigStruct *module_config){
 	mTimer=agent->createTimer(20,&sOnTimer,this);
 	mRcUserAgents=module_config->get<ConfigStringList>("rc-user-agents")->read();
+	MSList *l=makeSupportedAudioPayloadList();
+	mSupportedAudioPayloads=orderList(module_config->get<ConfigStringList>("audio-codecs")->read(),l);
+	ms_list_free(l);
 }
 
 void TranscodeModule::onIdle(){
@@ -213,12 +248,12 @@ void TranscodeModule::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
 	if (m){
 		c->prepare(sip);
-		c->setInitialOffer (m->readPayloads ());
+		c->setInitialOffer(m->readPayloads());
 		m->getAudioIpPort (&addr,&port);
 		c->getFrontSide()->setRemoteAddr(addr.c_str(),port);
 		port=c->getBackSide()->getAudioPort();
 		m->changeAudioIpPort(getAgent()->getLocAddr().c_str(),port);
-		m->appendNewPayloadsAndRemoveUnsupported(mSupportedAudioPayloads);
+		m->replacePayloads(mSupportedAudioPayloads,c->getInitialOffer());
 		m->update(msg,sip);
 		//be in the record-route
 		addRecordRoute(c->getHome(),getAgent(),msg,sip);
@@ -279,7 +314,7 @@ void TranscodeModule::onRequest(SipEvent *ev){
 
 void TranscodeModule::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip){
 	LOGD("Processing 200 Ok");
-	const MSList *ioffer=ctx->getInitialOffer ();
+	const MSList *ioffer=ctx->getInitialOffer();
 	std::string addr;
 	int port;
 	SdpModifier *m=SdpModifier::createFromSipMsg(ctx->getHome(), sip);
@@ -293,31 +328,23 @@ void TranscodeModule::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t 
 	ctx->getBackSide()->setRemoteAddr(addr.c_str(),port);
 	m->changeAudioIpPort (getAgent()->getLocAddr().c_str(),ctx->getFrontSide()->getAudioPort());
 
-	MSList *answer=m->readPayloads ();
+	MSList *answer=m->readPayloads();
 	if (answer==NULL){
 		LOGE("No payloads in 200Ok");
 		delete m;
 		return;
 	}
-	MSList *common=SdpModifier::findCommon (ioffer,mSupportedAudioPayloads, true);
+	ctx->getBackSide()->assignPayloads(normalizePayloads(answer));
+	ms_list_free(answer);
+	
+	MSList *common=SdpModifier::findCommon(mSupportedAudioPayloads,ioffer,false);
 	if (common!=NULL){
-		m->appendNewPayloadsAndRemoveUnsupported(common);
-		ms_list_for_each(common,(void(*)(void*))payload_type_destroy);
-		ms_list_free(common);
+		m->replacePayloads(common,NULL);
 	}
 	m->update(msg,sip);
 	ctx->storeNewResponse (msg);
-	ctx->getBackSide ()->assignPayloads (normalizePayloads(answer));
-	ms_list_free(answer);
-	// read the modified answer to get payload list in right order:
-	answer=m->readPayloads ();
-	if (answer==NULL){
-		LOGE("No payloads in forwarded 200Ok");
-		delete m;
-		return;
-	}
-	ctx->getFrontSide ()->assignPayloads (normalizePayloads(answer));
-	ms_list_free(answer);
+	
+	ctx->getFrontSide()->assignPayloads(normalizePayloads(common));
 
 	if (canDoRateControl(sip)){
 		ctx->getBackSide()->enableRc(true);

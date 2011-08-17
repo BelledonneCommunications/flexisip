@@ -94,19 +94,39 @@ static sdp_rtpmap_t *sdp_rtpmap_make_from_payload_type(su_home_t *home, PayloadT
 }
 
 static sdp_rtpmap_t *sdp_rtpmap_append(sdp_rtpmap_t *rtpmaps, sdp_rtpmap_t *newmap){
-	sdp_rtpmap_t *elem=rtpmaps;
+	sdp_rtpmap_t *begin=rtpmaps;
 	if (rtpmaps==NULL) return newmap;
-	while(elem->rm_next!=NULL)
-		elem=elem->rm_next;
-	elem->rm_next=newmap;
-	return rtpmaps;
+	while(rtpmaps->rm_next){
+		rtpmaps=rtpmaps->rm_next;
+	}
+	rtpmaps->rm_next=newmap;
+	return begin;
 }
-
+/*
 static sdp_rtpmap_t *sdp_rtpmaps_find_by_number(sdp_rtpmap_t *rtpmaps, int number){
 	sdp_rtpmap_t *elem;
 	for(elem=rtpmaps;elem!=NULL;elem=elem->rm_next){
 		if (elem->rm_pt==(unsigned int)number)
 			return elem;
+	}
+	return NULL;
+}
+*/
+
+static PayloadType *find_by_number(const MSList *elem, int number){
+	for(;elem!=NULL;elem=elem->next){
+		PayloadType *pt=(PayloadType*)elem->data;
+		if (payload_type_get_number(pt)==number)
+			return pt;
+	}
+	return NULL;
+}
+
+static PayloadType *find_payload(const MSList *elem, const char *mime, int rate){
+	for(;elem!=NULL;elem=elem->next){
+		PayloadType *pt=(PayloadType*)elem->data;
+		if (strcasecmp(pt->mime_type,mime)==0 && rate==pt->clock_rate)
+			return pt;
 	}
 	return NULL;
 }
@@ -143,72 +163,41 @@ MSList *SdpModifier::findCommon(const MSList *offer, const MSList *answer, bool 
 	return ret;
 }
 
-void SdpModifier::appendNewPayloadsAndRemoveUnsupported(const MSList *payloads){
+void SdpModifier::replacePayloads(const MSList *payloads, const MSList *preserved_numbers){
 	const MSList *elem;
 	PayloadType *pt;
 	sdp_rtpmap_t ref;
+	int pt_index=100;
+	
 	memset(&ref,0,sizeof(ref));
 	ref.rm_size=sizeof(ref);
 
-	removeUnwantedPayloads(payloads); // payloads are the ones to keep
-
 	sdp_media_t *mline=mSession->sdp_media;
-	sdp_rtpmap_t *rtpmaps=mline->m_rtpmaps;
+	mline->m_rtpmaps=NULL;
 	
 	for(elem=payloads;elem!=NULL;elem=elem->next){
-		sdp_rtpmap_t *matching;
 		pt=(PayloadType*)elem->data;
 		ref.rm_encoding=pt->mime_type;
 		ref.rm_rate=pt->clock_rate;
-		if ((matching=sdp_rtpmap_find_matching(rtpmaps,&ref))==NULL){
-			LOGD("Adding new payload to sdp: %s/%i",pt->mime_type,pt->clock_rate);
-			int number=payload_type_get_number(pt);
-			if (number==-1){
+		LOGD("Adding new payload to sdp: %s/%i",pt->mime_type,pt->clock_rate);
+		int number=payload_type_get_number(pt);
+		if (number==-1){
+			/*see if it was numbered in the original offer*/
+			PayloadType *orig=find_payload(preserved_numbers,pt->mime_type,pt->clock_rate);
+			if (orig){
+				number=payload_type_get_number(orig);
+			}else{
 				/* find a dynamic  payload type number */
-				for(int i=100;i<127;++i){
-					if (sdp_rtpmaps_find_by_number(mline->m_rtpmaps,i)==NULL){
-						number=i;
+				for(;pt_index<127;++pt_index){
+					if (find_by_number(preserved_numbers,pt_index)==NULL){
+						number=pt_index;
 						break;
 					}
 				}
 			}
-			sdp_rtpmap_t *map=sdp_rtpmap_make_from_payload_type (mHome,pt,number);
-			mline->m_rtpmaps=sdp_rtpmap_append(mline->m_rtpmaps,map);
-		}else{
-			//eventually add our recv fmtp
-			if (matching->rm_fmtp==NULL && pt->recv_fmtp!=NULL){
-				matching->rm_fmtp=su_strdup(mHome,pt->recv_fmtp);
-			}
 		}
-	}
-}
-
-static PayloadType *findPayload(const MSList *ref, const char *mime, int rate){
-	for(;ref!=NULL;ref=ref->next){
-		PayloadType *pt=(PayloadType*)ref->data;
-		if (strcasecmp(pt->mime_type,mime)==0 && pt->clock_rate==rate){
-			return pt;
-		}
-	}
-	return NULL;
-}
-
-void SdpModifier::removeUnwantedPayloads(const MSList *tokeep){
-	sdp_media_t *mline=mSession->sdp_media;
-	sdp_rtpmap_t *rtpmaps=mline->m_rtpmaps;
-	sdp_rtpmap_t *elem,*prev_elem;
-	
-	for(prev_elem=NULL,elem=rtpmaps;elem!=NULL;elem=elem->rm_next){
-		if (findPayload(tokeep,elem->rm_encoding,elem->rm_rate)==NULL){
-			sdp_rtpmap_t *next=elem->rm_next;
-			if (prev_elem==NULL){
-				mline->m_rtpmaps=next;
-			}else{
-				prev_elem->rm_next=next;
-			}
-		}else{
-			prev_elem=elem;
-		}
+		sdp_rtpmap_t *map=sdp_rtpmap_make_from_payload_type(mHome,pt,number);
+		mline->m_rtpmaps=sdp_rtpmap_append(mline->m_rtpmaps,map);
 	}
 }
 

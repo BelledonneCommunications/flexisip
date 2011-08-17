@@ -43,8 +43,7 @@ class SdpModifier{
 		static SdpModifier *createFromSipMsg(su_home_t *home, sip_t *sip);
 		bool initFromSipMsg(sip_t *sip);
 		MSList *readPayloads();
-		void appendNewPayloadsAndRemoveUnsupported(const MSList *payloads);
-		void removeUnwantedPayloads(const MSList *tokeep);
+		void replacePayloads(const MSList *payloads, const MSList *preserved_numbers);
 		void getAudioIpPort(std::string *ip, int *port);
 		void changeAudioIpPort(const char *ip, int port);
 		void changeIpPort(Masquerader *m, const char *partytag);
