@@ -191,6 +191,7 @@ void SdpModifier::replacePayloads(const MSList *payloads, const MSList *preserve
 				for(;pt_index<127;++pt_index){
 					if (find_by_number(preserved_numbers,pt_index)==NULL){
 						number=pt_index;
+						++pt_index;
 						break;
 					}
 				}
