@@ -320,6 +320,7 @@ int main(int argc, char *argv[]){
 
 	LOGI("Listening to interface %s.",bind_ip.c_str());
 	a=new Agent(root,bind_ip.c_str(),port,tlsport);
+	ms_init();
 	a->loadConfig (cfg);
 
 	/*
@@ -331,10 +332,6 @@ int main(int argc, char *argv[]){
 		So we can detach.*/
 		forkAndDetach(pidfile);
 	}
-
-	/* because of alsa telling various "normal" errors we are forced to call ms_init() here,
-	not to hide any useful error message from the loadConfig() */
-	ms_init();
 	
 	if (cfg->getRoot()->get<ConfigStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()){
 		stun=new StunServer(cfg->getRoot()->get<ConfigStruct>("stun-server")->get<ConfigInt>("port")->read());

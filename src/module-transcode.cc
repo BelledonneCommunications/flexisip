@@ -76,12 +76,13 @@ class TranscodeModule : public Module, protected ModuleToolbox {
 		virtual void onDeclare(ConfigStruct *module_config);
 	private:
 		TickerManager mTickerManager;
-		void processNewInvite(CallContext *c, msg_t *msg, sip_t *sip);
+		int processNewInvite(CallContext *c, SipEvent *ev);
 		void process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip);
 		bool processSipInfo(CallContext *c, msg_t *msg, sip_t *sip);
 		void onTimer();	
 		static void sOnTimer(void *unused, su_timer_t *t, void *zis);
 		bool canDoRateControl(sip_t *sip);
+		bool isOneCodecSupported(const MSList *ioffer);
 		MSList *normalizePayloads(MSList *l);
 		MSList *orderList(const std::list<std::string> &config, const MSList *l);
 		MSList *mSupportedAudioPayloads;
@@ -116,8 +117,10 @@ static MSList *makeSupportedAudioPayloadList(){
 	payload_type_set_number(&payload_type_speex_nb,-1);
 	payload_type_set_number(&payload_type_speex_wb,-1);
 	payload_type_set_number(&payload_type_amr,-1);
+	payload_type_set_number(&payload_type_ilbc,-1);
 	MSList *l=NULL;
 	l=ms_list_append(l,&payload_type_speex_nb);
+	l=ms_list_append(l,&payload_type_ilbc);
 	l=ms_list_append(l,&payload_type_amr);
 	l=ms_list_append(l,&payload_type_gsm);
 	l=ms_list_append(l,&payload_type_pcmu8000);
@@ -127,6 +130,18 @@ static MSList *makeSupportedAudioPayloadList(){
 	return l;
 }
 
+bool TranscodeModule::isOneCodecSupported(const MSList *ioffer){
+	const MSList *e1,*e2;
+	for(e1=ioffer;e1!=NULL;e1=e1->next){
+		PayloadType *p1=(PayloadType*)e1->data;
+		for(e2=mSupportedAudioPayloads;e2!=NULL;e2=e2->next){
+			PayloadType *p2=(PayloadType*)e2->data;
+			if (strcasecmp(p1->mime_type,p2->mime_type)==0 && p1->clock_rate==p2->clock_rate)
+				return true;
+		}
+	}
+	return false;
+}
 
 TranscodeModule::TranscodeModule(Agent *ag) : Module(ag){
 	mSupportedAudioPayloads=NULL;
@@ -144,7 +159,7 @@ void TranscodeModule::onDeclare(ConfigStruct *module_config){
 	ConfigItemDescriptor items[]={
 		{	StringList	,	"rc-user-agents",	"Whitespace separated list of user-agent strings for which audio rate control is performed.",""},
 		{	StringList	,	"audio-codecs",	"Whitespace seprated list of audio codecs, in order of preference.",
-			"speex/8000 amr/8000 gsm/8000 pcmu/8000 pcma/8000"},
+			"speex/8000 amr/8000 iLBC/8000 gsm/8000 pcmu/8000 pcma/8000"},
 			config_item_end
 	};
 	module_config->addChildrenValues(items);
@@ -172,7 +187,11 @@ MSList *TranscodeModule::orderList(const std::list<std::string> &config, const M
 		for(it=l;it!=NULL;it=it->next){
 			PayloadType *pt=(PayloadType*)it->data;
 			if (strcasecmp(pt->mime_type,name)==0 && rate==pt->clock_rate){
-				ret=ms_list_append(ret,pt);
+				if (ms_filter_get_encoder(pt->mime_type)!=NULL){
+					ret=ms_list_append(ret,pt);
+				}else{
+					LOGE("Codec %s/%i is configured but is not supported (missing plugin ?)",name,rate);
+				}
 			}
 		}
 	}
@@ -242,28 +261,39 @@ MSList *TranscodeModule::normalizePayloads(MSList *l){
 	return l;
 }
 
-void TranscodeModule::processNewInvite(CallContext *c, msg_t *msg, sip_t *sip){
+int TranscodeModule::processNewInvite(CallContext *c,SipEvent *ev){
+	msg_t *msg=ev->mMsg;
+	sip_t *sip=ev->mSip;
 	std::string addr;
 	int port;
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
 	if (m){
-		c->prepare(sip);
-		c->setInitialOffer(m->readPayloads());
-		m->getAudioIpPort (&addr,&port);
-		c->getFrontSide()->setRemoteAddr(addr.c_str(),port);
-		port=c->getBackSide()->getAudioPort();
-		m->changeAudioIpPort(getAgent()->getLocAddr().c_str(),port);
-		m->replacePayloads(mSupportedAudioPayloads,c->getInitialOffer());
-		m->update(msg,sip);
-		//be in the record-route
-		addRecordRoute(c->getHome(),getAgent(),msg,sip);
-		c->storeNewInvite (msg);
-		if (canDoRateControl(sip)){
-			c->getFrontSide()->enableRc(true);
+		MSList *ioffer=m->readPayloads();
+		if (isOneCodecSupported(ioffer)){
+			c->prepare(sip);
+			c->setInitialOffer(ioffer);
+			m->getAudioIpPort (&addr,&port);
+			c->getFrontSide()->setRemoteAddr(addr.c_str(),port);
+			port=c->getBackSide()->getAudioPort();
+			m->changeAudioIpPort(getAgent()->getLocAddr().c_str(),port);
+			m->replacePayloads(mSupportedAudioPayloads,c->getInitialOffer());
+			m->update(msg,sip);
+			//be in the record-route
+			addRecordRoute(c->getHome(),getAgent(),msg,sip);
+			c->storeNewInvite (msg);
+			if (canDoRateControl(sip)){
+				c->getFrontSide()->enableRc(true);
+			}
+			delete m;
+			return 0;
+		}else{
+			ms_list_for_each(ioffer,(void (*)(void*))payload_type_destroy);
+			ms_list_free(ioffer);
+			nta_msg_treply(getSofiaAgent(),msg,415,"Unsupported codecs",TAG_END());
+			ev->stopProcessing();
 		}
-		delete m;
 	}
-	
+	return -1;
 }
 
 void TranscodeModule::onRequest(SipEvent *ev){
@@ -275,10 +305,10 @@ void TranscodeModule::onRequest(SipEvent *ev){
 		if ((c=static_cast<CallContext*>(mCalls.find(sip)))==NULL){
 			c=new CallContext(sip);
 			mCalls.store(c);
-			processNewInvite(c,msg,sip);
+			processNewInvite(c,ev);
 		}else{
 			if (c->isNewInvite(sip)){
-				processNewInvite(c,msg,sip);
+				processNewInvite(c,ev);
 			}else if (mAgent->countUsInVia(sip->sip_via)) {
 				LOGD("We are already in VIA headers of this request");
 				return;
