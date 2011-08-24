@@ -28,10 +28,15 @@
 #include <mediastreamer2/bitratecontrol.h>
 
 class CallContext;
+class CallContextParams{
+	public:
+		int mJbNomSize;
+};
+
 
 class CallSide{
 	public:
-		CallSide(CallContext *ctx);
+		CallSide(CallContext *ctx, const CallContextParams & params);
 		~CallSide();
 		MSConnectionPoint getRecvPoint();
 		PayloadType *getRecvFormat();
@@ -61,12 +66,15 @@ class CallSide{
 		uint64_t mLastRecvCount;
 		OrtpEvQueue *mRtpEvq;
 		bool mRcEnabled;
+		bool mUsePlc;
 };
+
+
 
 class CallContext : public CallContextBase{
 	public:
 		CallContext(sip_t *invite);
-		void prepare(sip_t *invite);
+		void prepare(sip_t *invite, const CallContextParams & params);
 		void join(MSTicker *ticker);
 		void unjoin();
 		bool isJoined()const;

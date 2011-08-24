@@ -89,6 +89,7 @@ class TranscodeModule : public Module, protected ModuleToolbox {
 		CallStore mCalls;
 		su_timer_t *mTimer;
 		std::list<std::string> mRcUserAgents;
+		CallContextParams mCallParams;
 		static ModuleInfo<TranscodeModule> sInfo;
 };
 
@@ -157,6 +158,8 @@ void TranscodeModule::onDeclare(ConfigStruct *module_config){
 	/*we need to be disabled by default*/
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[]={
+		{	Integer		,	"jb-nom-size"	,	"Nominal size of RTP jitter buffer, in milliseconds. A value of 0 means no jitter buffer (packet processing).",
+												"0" },
 		{	StringList	,	"rc-user-agents",	"Whitespace separated list of user-agent strings for which audio rate control is performed.",""},
 		{	StringList	,	"audio-codecs",	"Whitespace seprated list of audio codecs, in order of preference.",
 			"speex/8000 amr/8000 iLBC/8000 gsm/8000 pcmu/8000 pcma/8000"},
@@ -200,6 +203,7 @@ MSList *TranscodeModule::orderList(const std::list<std::string> &config, const M
 
 void TranscodeModule::onLoad(Agent *agent, const ConfigStruct *module_config){
 	mTimer=agent->createTimer(20,&sOnTimer,this);
+	mCallParams.mJbNomSize=module_config->get<ConfigInt>("jb-nom-size")->read();
 	mRcUserAgents=module_config->get<ConfigStringList>("rc-user-agents")->read();
 	MSList *l=makeSupportedAudioPayloadList();
 	mSupportedAudioPayloads=orderList(module_config->get<ConfigStringList>("audio-codecs")->read(),l);
@@ -270,7 +274,7 @@ int TranscodeModule::processNewInvite(CallContext *c,SipEvent *ev){
 	if (m){
 		MSList *ioffer=m->readPayloads();
 		if (isOneCodecSupported(ioffer)){
-			c->prepare(sip);
+			c->prepare(sip,mCallParams);
 			c->setInitialOffer(ioffer);
 			m->getAudioIpPort (&addr,&port);
 			c->getFrontSide()->setRemoteAddr(addr.c_str(),port);

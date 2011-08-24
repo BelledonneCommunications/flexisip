@@ -23,7 +23,7 @@
 
 #include "sdp-modifier.hh"
 
-CallSide::CallSide(CallContext *ctx){
+CallSide::CallSide(CallContext *ctx, const CallContextParams &params){
 	mSession=rtp_session_new(RTP_SESSION_SENDRECV);
 	mProfile=rtp_profile_new("Call profile");
 	mEncoder=NULL;
@@ -39,11 +39,21 @@ CallSide::CallSide(CallContext *ctx){
 	rtp_session_set_scheduling_mode(mSession,0);
 	rtp_session_set_blocking_mode(mSession,0);
 	/*  no jitter buffer: we are just doing packet processing*/
-	rtp_session_enable_jitter_buffer(mSession,FALSE);
+	mUsePlc=params.mJbNomSize==0 ? false : true;
+	JBParameters jbpar;
+	jbpar.min_size=jbpar.nom_size=params.mJbNomSize;
+	jbpar.max_size=200;
+	jbpar.adaptive=true;
+	jbpar.max_packets=100;
+	rtp_session_enable_jitter_buffer(mSession,params.mJbNomSize==0 ? FALSE : TRUE);
+	rtp_session_set_jitter_buffer_params(mSession, &jbpar);
+	LOGD("Jitter buffer nominal size: %i",params.mJbNomSize);
 	rtp_session_set_symmetric_rtp(mSession,TRUE);
 	rtp_session_set_data(mSession,this);
 	rtp_session_signal_connect(mSession,"payload_type_changed",(RtpCallback)&CallSide::payloadTypeChanged,
 	                           reinterpret_cast<long>(ctx));
+	rtp_session_signal_connect(mSession,"timestamp_jump",(RtpCallback)rtp_session_resync,(long)NULL);
+	rtp_session_signal_connect(mSession,"ssrc_changed",(RtpCallback)rtp_session_resync,(long)NULL);
 	rtp_session_signal_connect(mSession,"telephone-event",(RtpCallback)&CallSide::onTelephoneEvent,reinterpret_cast<long>(ctx));
 	mRtpEvq=NULL;
 	mLastCheck=0;
@@ -172,7 +182,7 @@ void CallSide::connect(CallSide *recvSide, MSTicker *t){
 		if (mDecoder==NULL){
 			LOGE("Could not instanciate decoder for %s",recvpt->mime_type);
 		}else{
-			ms_filter_call_method(mDecoder,MS_FILTER_ADD_FMTP,(void*)"plc=0");
+			if (!mUsePlc) ms_filter_call_method(mDecoder,MS_FILTER_ADD_FMTP,(void*)"plc=0");
 			if (t)
 				ms_filter_preprocess(mDecoder,t);
 		}
@@ -277,7 +287,7 @@ CallContext::CallContext(sip_t *sip) : CallContextBase(sip), mFrontSide(0), mBac
 	mInfoCSeq=-1;
 }
 
-void CallContext::prepare(sip_t *invite){
+void CallContext::prepare(sip_t *invite, const CallContextParams &params){
 	if (mFrontSide){
 		if (isJoined())
 			unjoin();
@@ -289,8 +299,8 @@ void CallContext::prepare(sip_t *invite){
 		ms_list_free(mInitialOffer);
 		mInitialOffer=NULL;
 	}
-	mFrontSide=new CallSide(this);
-	mBackSide=new CallSide(this);
+	mFrontSide=new CallSide(this,params);
+	mBackSide=new CallSide(this,params);
 }
 
 void CallContext::join(MSTicker *t){
