@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
++*/
 
 
 #include "agent.hh"
@@ -30,7 +30,7 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port, int tlsport) : mLoc
 	char sipuri[128]={0};
 	ConfigStruct *cr=ConfigManager::get()->getRoot();
 	ConfigStruct *tls=cr->get<ConfigStruct>("tls");
-
+	
 	EtcHostsResolver::get();
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"NatHelper"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Authentication"));
@@ -55,7 +55,7 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port, int tlsport) : mLoc
 	mUniqueId = oss.str();
 	mRoot=root;
 	
-	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i", locaddr,mPort);
+	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i;maddr=*", locaddr,mPort);
 	mAgent=nta_agent_create(root,
 		(url_string_t*)sipuri,
 			&Agent::messageCallback,
@@ -63,20 +63,16 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port, int tlsport) : mLoc
 			NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), TAG_END());
 	
 	if (tls->get<ConfigBoolean>("enabled")->read()) {
-		char sipsuri[128]={0};
 		std::string keys=tls->get<ConfigString>("certificates-dir")->read();
-		snprintf(sipsuri,sizeof(sipsuri)-1,"sips:%s:%i", locaddr,mTlsPort);
-		LOGD("Enabling sips uri ('%s'), keys in %s", sipsuri,keys.c_str());
+		snprintf(sipuri,sizeof(sipuri)-1,"sips:%s:%i;maddr=*", locaddr,mTlsPort);
+		LOGD("Enabling sips uri ('%s'), keys in %s", sipuri,keys.c_str());
 		nta_agent_add_tport(mAgent,
-			(url_string_t*)sipsuri,
+			(url_string_t*)sipuri,
 				TPTAG_CERTIFICATE(keys.c_str()), NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), NTATAG_TLS_RPORT(1), TAG_END());
 	}
-
 	if (mAgent==NULL){
 		LOGF("Could not create sofia mta.");
 	}
-	
-	
 }
 
 Agent::~Agent(){
