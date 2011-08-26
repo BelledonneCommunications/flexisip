@@ -24,6 +24,9 @@
 #include <sstream>
 #include <sofia-sip/tport_tag.h>
 
+#include <net/if.h>
+#include <ifaddrs.h>
+
 using namespace::std;
 
 Agent::Agent(su_root_t* root, const char *locaddr, int port, int tlsport) : mLocAddr(locaddr), mPort(port), mTlsPort(tlsport){
@@ -88,6 +91,7 @@ const char *Agent::getServerString()const{
 void Agent::loadConfig(ConfigManager *cm){
 	cm->loadStrict();//now that each module has declared its settings, we need to reload from the config file
 	mAliases=cm->getGlobal()->get<ConfigStringList>("aliases")->read();
+	discoverInterfaces();
 	LOGD("List of host aliases:");
 	for(list<string>::iterator it=mAliases.begin();it!=mAliases.end();++it){
 		LOGD("%s",(*it).c_str());
@@ -194,4 +198,27 @@ void Agent::stopTimer(su_timer_t *t){
 	su_timer_destroy(t);
 }
 
+void Agent::discoverInterfaces(){
+	struct ifaddrs *ifp;
+	struct ifaddrs *ifpstart;
+	char address[NI_MAXHOST];
+
+	if (getifaddrs(&ifpstart) < 0) {
+		return ;
+	}
+
+	for (ifp = ifpstart; ifp != NULL; ifp = ifp->ifa_next) {
+		if (ifp->ifa_addr && (ifp->ifa_flags & IFF_RUNNING) )
+		{
+			if (getnameinfo(ifp->ifa_addr,
+						sizeof(sockaddr_storage),
+						address, sizeof(address), NULL, 0, NI_NUMERICHOST)==0){
+				if (strchr(address, '%') == NULL) {	/*avoid ipv6 link-local addresses */
+							mAliases.push_back(std::string(address));					
+				}
+			}
+		}
+	}
+	freeifaddrs(ifpstart);
+}
 

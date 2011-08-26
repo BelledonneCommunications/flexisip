@@ -40,7 +40,7 @@ bool CallContextBase::match(sip_t *sip){
 	if (sip->sip_from->a_tag==NULL) return false;
 	
 	if (sip->sip_call_id->i_hash==mCallHash){
-		if (sip->sip_request==NULL){
+		if (sip->sip_request==NULL && (sip->sip_status->st_status>100 && sip->sip_status->st_status<300) ){
 			/*this is a response, we might need to update the second tag*/
 			if (strcmp(mTag1.c_str(),sip->sip_from->a_tag)==0 && mTag2.size()==0){
 				if (sip->sip_to->a_tag){
@@ -50,7 +50,10 @@ bool CallContextBase::match(sip_t *sip){
 				return true;
 			}
 		}
-
+		if (sip->sip_to->a_tag==NULL && strcmp(mTag1.c_str(),sip->sip_from->a_tag)==0){
+			LOGD("Found dialog for early request");
+			return true;
+		}
 		if ((strcmp(mTag1.c_str(),sip->sip_from->a_tag)==0 && sip->sip_to->a_tag && strcmp(mTag2.c_str(),sip->sip_to->a_tag)==0) ||
 		   ( sip->sip_to->a_tag && strcmp(mTag1.c_str(),sip->sip_to->a_tag)==0 && strcmp(mTag2.c_str(),sip->sip_from->a_tag)==0)){
 			LOGD("Found exact dialog");

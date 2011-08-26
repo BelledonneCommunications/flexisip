@@ -47,7 +47,7 @@
 **/
 class Agent{
 	public:
-		Agent(su_root_t *root, const char *locaddr, int port, int tlsport);
+		Agent(su_root_t *root, const char *public_ip, int port, int tlsport);
 		virtual void loadConfig(ConfigManager *cm);
 		void setDomain(const std::string &domain);
 		virtual ~Agent();
@@ -77,6 +77,7 @@ class Agent{
 		void onRequest(msg_t *msg, sip_t *sip);
 		void onResponse(msg_t *msg, sip_t *sip);
 	private:
+		void discoverInterfaces();
 		std::string mServerString;
 		std::list<Module*> mModules;
 		std::list<std::string> mAliases;
