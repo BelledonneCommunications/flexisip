@@ -54,7 +54,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 		void fixContactInResponse(su_home_t *home, msg_t *msg, sip_t *sip){
 			const su_addrinfo_t *ai=msg_addrinfo(msg);
 			const sip_via_t *via=sip->sip_via;
-			const char *via_transport=via->v_protocol;
+			const char *via_transport=sip_via_transport(via);
 			char ct_transport[20]={0};
 			if (ai!=NULL){
 				char ip[NI_MAXHOST];
