@@ -53,6 +53,9 @@ class NatHelper : public Module, protected ModuleToolbox{
 		}
 		void fixContactInResponse(su_home_t *home, msg_t *msg, sip_t *sip){
 			const su_addrinfo_t *ai=msg_addrinfo(msg);
+			const sip_via_t *via=sip->sip_via;
+			const char *via_transport=via->v_protocol;
+			char ct_transport[20]={0};
 			if (ai!=NULL){
 				char ip[NI_MAXHOST];
 				char port[NI_MAXSERV];
@@ -67,6 +70,19 @@ class NatHelper : public Module, protected ModuleToolbox{
 							ctt->m_url->url_host=su_strdup(home,ip);
 							ctt->m_url->url_port=su_strdup(home,port);
 						}else LOGD("Contact in response is correct.");
+						url_param(ctt->m_url->url_params,"transport",ct_transport,sizeof(ct_transport)-1);
+						if (strcasecmp(via_transport,"UDP")==0){
+							if (ct_transport[0]!='\0'){
+								LOGD("Contact in response has incorrect transport parameter, removing it");
+								ctt->m_url->url_params=url_strip_param_string(su_strdup(home,ctt->m_url->url_params),"transport");
+							}
+						}else if (strcasecmp(via_transport,ct_transport)!=0) {
+							char param[64];
+							snprintf(param,sizeof(param)-1,"transport=%s",via_transport);
+							LOGD("Contact in response has incorrect transport parameter, replacing by %s",via_transport);
+							ctt->m_url->url_params=url_strip_param_string(su_strdup(home,ctt->m_url->url_params),"transport");
+							url_param_add(home,ctt->m_url,param);
+						}
 					}
 				}
 			}
