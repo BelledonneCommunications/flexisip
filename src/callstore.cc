@@ -86,6 +86,8 @@ bool CallContextBase::isNew200Ok(sip_t *sip){
 
 void CallContextBase::storeNewInvite(msg_t *msg){
 	sip_t *sip=(sip_t*)msg_object(msg);
+	//serialize the message before copying it otherwise we might miss some content
+	msg_serialize(msg,(msg_pub_t*)sip);
 	mInvCseq=sip->sip_cseq->cs_seq;
 	mInvite=msg_copy(msg);
 }

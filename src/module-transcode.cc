@@ -284,7 +284,7 @@ int TranscodeModule::processNewInvite(CallContext *c,SipEvent *ev){
 			m->update(msg,sip);
 			//be in the record-route
 			addRecordRoute(c->getHome(),getAgent(),msg,sip);
-			c->storeNewInvite (msg);
+			c->storeNewInvite(msg);
 			if (canDoRateControl(sip)){
 				c->getFrontSide()->enableRc(true);
 			}
