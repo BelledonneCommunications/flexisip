@@ -37,39 +37,16 @@ class ContactRouteInserter : public Module {
 	void onRequest(SipEvent *ev) {
 		sip_t *sip=ev->mSip;
 
-		if(sip->sip_request->rq_method == sip_method_register || 
-		   ((sip->sip_request->rq_method == sip_method_invite ) && mMasqueradeInviteContacts)){
+		if(sip->sip_request->rq_method == sip_method_register){
 			//rewrite the request uri to the domain
 			//this assume the domain is also the proxy
 			sip->sip_request->rq_url->url_host=sip->sip_to->a_url->url_host;
 			sip->sip_request->rq_url->url_port=sip->sip_to->a_url->url_port;
-			
-			if (sip->sip_contact!=NULL && sip->sip_contact->m_url!=NULL){
-				//rewrite contact, put local host instead and store previous contact host in new parameter
-				char ct_tport[32]="udp";
-				char* lParam;
-				url_t *ct_url=sip->sip_contact->m_url;
-
-				//grab the transport of the contact uri
-				if (url_param(sip->sip_contact->m_url->url_params,"transport",ct_tport,sizeof(ct_tport))>0){
-					
-				}
-				/*add a parameter like "CtRt15.128.128.2=tcp:201.45.118.16:50025" in the contact, so that we know where is the client 
-				 when we later have to route an INVITE to him */
-				lParam=su_sprintf (ev->getHome(),"%s=%s:%s:%s",mContactRouteParamName.c_str()
-				                   						,ct_tport
-														,ct_url->url_host
-														,ct_url->url_port);
-				LOGD("Rewriting contact with param [%s]",lParam);
-				if (url_param_add (ev->getHome(),ct_url,lParam)) {
-					LOGE("Cannot insert url param [%s]",lParam);
-				}
-				/*masquerade the contact, so that later requests (INVITEs) come to us */
-				ct_url->url_host = getAgent()->getLocAddr().c_str();
-				ct_url->url_port = su_sprintf (ev->getHome(),"%i",getAgent()->getPort());
-				/*remove the transport, in most case further requests should come back to us in UDP*/
-				ct_url->url_params = url_strip_param_string(su_strdup(ev->getHome(),ct_url->url_params),"transport");
-			}
+		}
+		
+		if(sip->sip_request->rq_method == sip_method_register || 
+		   ((sip->sip_request->rq_method == sip_method_invite ) && mMasqueradeInviteContacts)){	
+			masqueradeContact(ev);
 		}
 		if (sip->sip_request->rq_method != sip_method_register){
 			/* check if request-uri contains a contact-route parameter, so that we can route back to the client */
@@ -101,8 +78,43 @@ class ContactRouteInserter : public Module {
 			}
 		}
 	}
-	void onResponse(SipEvent *ev) {/*nop*/};
+	void onResponse(SipEvent *ev) {
+		sip_t *sip=ev->mSip;
+		if (mMasqueradeInviteContacts && 
+		    (sip->sip_cseq->cs_method==sip_method_invite || sip->sip_cseq->cs_method==sip_method_subscribe)){
+			masqueradeContact(ev);
+		}
+	}
 	private:
+		void masqueradeContact(SipEvent *ev){
+			sip_t *sip=ev->mSip;
+			if (sip->sip_contact!=NULL && sip->sip_contact->m_url!=NULL){
+				//rewrite contact, put local host instead and store previous contact host in new parameter
+				char ct_tport[32]="udp";
+				char* lParam;
+				url_t *ct_url=sip->sip_contact->m_url;
+
+				//grab the transport of the contact uri
+				if (url_param(sip->sip_contact->m_url->url_params,"transport",ct_tport,sizeof(ct_tport))>0){
+					
+				}
+				/*add a parameter like "CtRt15.128.128.2=tcp:201.45.118.16:50025" in the contact, so that we know where is the client 
+				 when we later have to route an INVITE to him */
+				lParam=su_sprintf (ev->getHome(),"%s=%s:%s:%s",mContactRouteParamName.c_str()
+				                   						,ct_tport
+														,ct_url->url_host
+														,ct_url->url_port);
+				LOGD("Rewriting contact with param [%s]",lParam);
+				if (url_param_add (ev->getHome(),ct_url,lParam)) {
+					LOGE("Cannot insert url param [%s]",lParam);
+				}
+				/*masquerade the contact, so that later requests (INVITEs) come to us */
+				ct_url->url_host = getAgent()->getLocAddr().c_str();
+				ct_url->url_port = su_sprintf (ev->getHome(),"%i",getAgent()->getPort());
+				/*remove the transport, in most case further requests should come back to us in UDP*/
+				ct_url->url_params = url_strip_param_string(su_strdup(ev->getHome(),ct_url->url_params),"transport");
+			}				 
+		}
 		std::string mContactRouteParamName;
 		bool mMasqueradeInviteContacts;
 		static ModuleInfo<ContactRouteInserter> sInfo;
