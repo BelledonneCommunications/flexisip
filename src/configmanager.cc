@@ -219,6 +219,7 @@ static ConfigItemDescriptor global_conf[]={
 	{	Boolean	,	"debug"	,	"Outputs very detailed logs",	"false"	},
 	{	StringList	,	"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost" },
 	{	String	,	"ip-address",	"The public ip address of the proxy.",	"guess"},
+	{	String	,	"bind-address",	"The local interface's ip address where to listen. The wildcard (*) means all interfaces.",	"*"},
 	{	Integer	,	"port"		,	"UDP/TCP port number to listen for sip messages.",	"5060"},
 	config_item_end
 };

@@ -52,13 +52,15 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port, int tlsport) : mLoc
 
 	if (mPort==-1) mPort=cr->get<ConfigStruct>("global")->get<ConfigInt>("port")->read();
 	if (mTlsPort==-1) mTlsPort=tls->get<ConfigInt>("port")->read();
+	std::string bind_address=cr->get<ConfigStruct>("global")->get<ConfigString>("bind-address")->read();
 	// compute a network wide unique id
 	std::ostringstream oss;
 	oss << locaddr << "_" << mPort;
 	mUniqueId = oss.str();
 	mRoot=root;
 	
-	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i;maddr=*", locaddr,mPort);
+	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i;maddr=%s", locaddr,mPort,bind_address.c_str());
+	LOGD("Enabling 'sip' listening point with uri '%s'.",sipuri);
 	mAgent=nta_agent_create(root,
 		(url_string_t*)sipuri,
 			&Agent::messageCallback,
@@ -67,8 +69,8 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port, int tlsport) : mLoc
 	
 	if (tls->get<ConfigBoolean>("enabled")->read()) {
 		std::string keys=tls->get<ConfigString>("certificates-dir")->read();
-		snprintf(sipuri,sizeof(sipuri)-1,"sips:%s:%i;maddr=*", locaddr,mTlsPort);
-		LOGD("Enabling sips uri ('%s'), keys in %s", sipuri,keys.c_str());
+		snprintf(sipuri,sizeof(sipuri)-1,"sips:%s:%i;maddr=%s", locaddr,mTlsPort,bind_address.c_str());
+		LOGD("Enabling 'sips' listening point with uri '%s', keys in %s", sipuri,keys.c_str());
 		nta_agent_add_tport(mAgent,
 			(url_string_t*)sipuri,
 				TPTAG_CERTIFICATE(keys.c_str()), NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), NTATAG_TLS_RPORT(1), TAG_END());
