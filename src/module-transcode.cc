@@ -279,7 +279,7 @@ int TranscodeModule::processNewInvite(CallContext *c,SipEvent *ev){
 			m->getAudioIpPort (&addr,&port);
 			c->getFrontSide()->setRemoteAddr(addr.c_str(),port);
 			port=c->getBackSide()->getAudioPort();
-			m->changeAudioIpPort(getAgent()->getLocAddr().c_str(),port);
+			m->changeAudioIpPort(getAgent()->getPublicIp().c_str(),port);
 			m->replacePayloads(mSupportedAudioPayloads,c->getInitialOffer());
 			m->update(msg,sip);
 			//be in the record-route
@@ -360,7 +360,7 @@ void TranscodeModule::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t 
 	m->getAudioIpPort (&addr,&port);
 	LOGD("Backside remote address: %s:%i", addr.c_str(),port);
 	ctx->getBackSide()->setRemoteAddr(addr.c_str(),port);
-	m->changeAudioIpPort (getAgent()->getLocAddr().c_str(),ctx->getFrontSide()->getAudioPort());
+	m->changeAudioIpPort (getAgent()->getPublicIp().c_str(),ctx->getFrontSide()->getAudioPort());
 
 	MSList *answer=m->readPayloads();
 	if (answer==NULL){

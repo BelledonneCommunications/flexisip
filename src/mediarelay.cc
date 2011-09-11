@@ -43,12 +43,12 @@ int MediaSource::send(uint8_t *buf, size_t buflen){
 }
 
 
-RelaySession::RelaySession(const std::string &localip) : mLocalIp(localip){
+RelaySession::RelaySession(const std::string &bind_ip, const std::string & public_ip) : mBindIp(bind_ip), mPublicIp(public_ip){
 	mLastActivityTime=time(NULL);
 	mSession[0]=rtp_session_new(RTP_SESSION_SENDRECV);
 	mSession[1]=rtp_session_new(RTP_SESSION_SENDRECV);
-	rtp_session_set_local_addr(mSession[0],mLocalIp.c_str(),-1);
-	rtp_session_set_local_addr(mSession[1],mLocalIp.c_str(),-1);
+	rtp_session_set_local_addr(mSession[0],mBindIp.c_str(),-1);
+	rtp_session_set_local_addr(mSession[1],mBindIp.c_str(),-1);
 	mSources[0].fd=rtp_session_get_rtp_socket(mSession[0]);
 	mSources[1].fd=rtp_session_get_rtp_socket(mSession[1]);
 	mSources[2].fd=rtp_session_get_rtcp_socket(mSession[0]);
@@ -67,10 +67,6 @@ int RelaySession::getPorts(int ports[2])const{
 	if (ports[0]==-1 || ports[1]==-1)
 		return -1;
 	return 0;
-}
-
-const std::string & RelaySession::getAddr()const{
-	return mLocalIp;
 }
 
 void RelaySession::unuse(){
@@ -110,7 +106,7 @@ void RelaySession::transfer(time_t curtime, struct pollfd *tab){
 }
 
 
-MediaRelayServer::MediaRelayServer(const std::string &localip) : mLocalIp(localip){
+MediaRelayServer::MediaRelayServer(const std::string &bind_ip, const std::string &public_ip) : mBindIp(bind_ip), mPublicIp(public_ip){
 	mRunning=false;
 	if (pipe(mCtlPipe)==-1){
 		LOGF("Could not create MediaRelayServer control pipe.");
@@ -136,7 +132,7 @@ MediaRelayServer::~MediaRelayServer(){
 }
 
 RelaySession *MediaRelayServer::createSession(){
-	RelaySession *s=new RelaySession(mLocalIp);
+	RelaySession *s=new RelaySession(mBindIp,mPublicIp);
 	int count;
 	mMutex.lock();
 	mSessions.push_back(s);

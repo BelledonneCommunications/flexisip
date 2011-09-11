@@ -24,12 +24,71 @@
 #include <sstream>
 #include <sofia-sip/tport_tag.h>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
 #include <net/if.h>
 #include <ifaddrs.h>
 
+#define IPADDR_SIZE 64
+
 using namespace::std;
 
-Agent::Agent(su_root_t* root, const char *locaddr, int port, int tlsport) : mLocAddr(locaddr), mPort(port), mTlsPort(tlsport){
+
+static int get_local_ip_for_with_connect(int type, const char *dest, char *result){
+	int err,tmp;
+	struct addrinfo hints;
+	struct addrinfo *res=NULL;
+	struct sockaddr_storage addr;
+	int sock;
+	socklen_t s;
+
+	memset(&hints,0,sizeof(hints));
+	hints.ai_family=(type==AF_INET6) ? PF_INET6 : PF_INET;
+	hints.ai_socktype=SOCK_DGRAM;
+	/*hints.ai_flags=AI_NUMERICHOST|AI_CANONNAME;*/
+	err=getaddrinfo(dest,"5060",&hints,&res);
+	if (err!=0){
+		LOGE("getaddrinfo() error: %s",gai_strerror(err));
+		return -1;
+	}
+	if (res==NULL){
+		LOGE("bug: getaddrinfo returned nothing.");
+		return -1;
+	}
+	sock=socket(res->ai_family,SOCK_DGRAM,0);
+	tmp=1;
+	err=setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&tmp,sizeof(int));
+	if (err<0){
+		LOGW("Error in setsockopt: %s",strerror(errno));
+	}
+	err=connect(sock,res->ai_addr,res->ai_addrlen);
+	if (err<0) {
+		LOGE("Error in connect: %s",strerror(errno));
+ 		freeaddrinfo(res);
+ 		close(sock);
+		return -1;
+	}
+	freeaddrinfo(res);
+	res=NULL;
+	s=sizeof(addr);
+	err=getsockname(sock,(struct sockaddr*)&addr,&s);
+	if (err!=0) {
+		LOGE("Error in getsockname: %s",strerror(errno));
+		close(sock);
+		return -1;
+	}
+	
+	err=getnameinfo((struct sockaddr *)&addr,s,result,IPADDR_SIZE,NULL,0,NI_NUMERICHOST);
+	if (err!=0){
+		LOGE("getnameinfo error: %s",strerror(errno));
+	}
+	close(sock);
+	return 0;
+}
+
+Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tlsport){
 	char sipuri[128]={0};
 	ConfigStruct *cr=ConfigManager::get()->getRoot();
 	ConfigStruct *tls=cr->get<ConfigStruct>("tls");
@@ -48,18 +107,28 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port, int tlsport) : mLoc
 	for_each(mModules.begin(),mModules.end(),bind2nd(mem_fun(&Module::declare),cr));
 
 	/* we pass "" as localaddr when we just want to dump the default config. So don't go further*/
-	if (strlen(locaddr)==0) return;
+	if (mPort==0) return;
 
 	if (mPort==-1) mPort=cr->get<ConfigStruct>("global")->get<ConfigInt>("port")->read();
 	if (mTlsPort==-1) mTlsPort=tls->get<ConfigInt>("port")->read();
+
 	std::string bind_address=cr->get<ConfigStruct>("global")->get<ConfigString>("bind-address")->read();
-	// compute a network wide unique id
+	mPublicIp=cr->get<ConfigStruct>("global")->get<ConfigString>("ip-address")->read();
+	
+	if (mPublicIp.empty() || mPublicIp=="guess"){
+		char localip[128];
+		get_local_ip_for_with_connect(AF_INET,"209.85.229.147",localip);
+		mPublicIp=localip;
+	}
+	LOGI("Public IP address is %s, bind address is %s",mPublicIp.c_str(),bind_address.c_str());
+	
+	// compute a network wide unique id, REVISIT: compute a hash
 	std::ostringstream oss;
-	oss << locaddr << "_" << mPort;
+	oss << mPublicIp << "_" << mPort;
 	mUniqueId = oss.str();
 	mRoot=root;
 	
-	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i;maddr=%s", locaddr,mPort,bind_address.c_str());
+	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i;maddr=%s", mPublicIp.c_str(),mPort,bind_address.c_str());
 	LOGD("Enabling 'sip' listening point with uri '%s'.",sipuri);
 	mAgent=nta_agent_create(root,
 		(url_string_t*)sipuri,
@@ -69,7 +138,7 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port, int tlsport) : mLoc
 	
 	if (tls->get<ConfigBoolean>("enabled")->read()) {
 		std::string keys=tls->get<ConfigString>("certificates-dir")->read();
-		snprintf(sipuri,sizeof(sipuri)-1,"sips:%s:%i;maddr=%s", locaddr,mTlsPort,bind_address.c_str());
+		snprintf(sipuri,sizeof(sipuri)-1,"sips:%s:%i;maddr=%s", mPublicIp.c_str(),mTlsPort,bind_address.c_str());
 		LOGD("Enabling 'sips' listening point with uri '%s', keys in %s", sipuri,keys.c_str());
 		nta_agent_add_tport(mAgent,
 			(url_string_t*)sipuri,
@@ -77,6 +146,9 @@ Agent::Agent(su_root_t* root, const char *locaddr, int port, int tlsport) : mLoc
 	}
 	if (mAgent==NULL){
 		LOGF("Could not create sofia mta.");
+	}
+	if (bind_address=="*"){
+		bind_address="0.0.0.0";
 	}
 }
 
@@ -128,7 +200,7 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases)const{
 		tmp[end]='\0';
 		host=tmp;
 	}
-	if (strcmp(host,mLocAddr.c_str())==0) return true;
+	if (strcmp(host,mPublicIp.c_str())==0) return true;
 	if (check_aliases){
 		list<string>::const_iterator it;
 		for(it=mAliases.begin();it!=mAliases.end();++it){

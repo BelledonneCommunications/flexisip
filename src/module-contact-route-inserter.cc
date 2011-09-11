@@ -109,7 +109,7 @@ class ContactRouteInserter : public Module {
 					LOGE("Cannot insert url param [%s]",lParam);
 				}
 				/*masquerade the contact, so that later requests (INVITEs) come to us */
-				ct_url->url_host = getAgent()->getLocAddr().c_str();
+				ct_url->url_host = getAgent()->getPublicIp().c_str();
 				ct_url->url_port = su_sprintf (ev->getHome(),"%i",getAgent()->getPort());
 				/*remove the transport, in most case further requests should come back to us in UDP*/
 				ct_url->url_params = url_strip_param_string(su_strdup(ev->getHome(),ct_url->url_params),"transport");

@@ -47,12 +47,15 @@
 **/
 class Agent{
 	public:
-		Agent(su_root_t *root, const char *public_ip, int port, int tlsport);
+		Agent(su_root_t *root, int port, int tlsport);
 		virtual void loadConfig(ConfigManager *cm);
 		void setDomain(const std::string &domain);
 		virtual ~Agent();
-		const std::string getLocAddr()const{
-			return mLocAddr;
+		const std::string & getPublicIp()const{
+			return mPublicIp;
+		}
+		const std::string & getBindIp()const{
+			return mBindIp;
 		}
 		int getPort()const{
 			return mPort;
@@ -81,7 +84,8 @@ class Agent{
 		std::string mServerString;
 		std::list<Module*> mModules;
 		std::list<std::string> mAliases;
-		const std::string mLocAddr;
+		std::string mPublicIp;
+		std::string mBindIp;
 		std::string mDomain;
 		int mPort;
 		int mTlsPort;

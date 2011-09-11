@@ -145,15 +145,15 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t
 
 	if (strcasecmp(transport,"UDP")!=0){
 		if (ag->getPort()!=5060){
-			rr=sip_record_route_format(home,"<sip:%s:%i;lr;transport=%s>",ag->getLocAddr().c_str(),ag->getPort(),transport);
+			rr=sip_record_route_format(home,"<sip:%s:%i;lr;transport=%s>",ag->getPublicIp().c_str(),ag->getPort(),transport);
 		}else{
-			rr=sip_record_route_format(home,"<sip:%s;lr;transport=%s>",ag->getLocAddr().c_str(),transport);
+			rr=sip_record_route_format(home,"<sip:%s;lr;transport=%s>",ag->getPublicIp().c_str(),transport);
 		}
 	}else {
 		if (ag->getPort()!=5060){
-			rr=sip_record_route_format(home,"<sip:%s:%i;lr>",ag->getLocAddr().c_str(),ag->getPort());
+			rr=sip_record_route_format(home,"<sip:%s:%i;lr>",ag->getPublicIp().c_str(),ag->getPort());
 		}else{
-			rr=sip_record_route_format(home,"<sip:%s;lr>",ag->getLocAddr().c_str());
+			rr=sip_record_route_format(home,"<sip:%s;lr>",ag->getPublicIp().c_str());
 		}
 	}
 	if (sip->sip_record_route==NULL){

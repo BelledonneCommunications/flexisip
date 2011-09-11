@@ -25,9 +25,7 @@
 #include <mediastreamer2/mscommon.h>
 #include "agent.hh"
 #include "stun.hh"
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
+
 #include <stdlib.h>
 #include <signal.h>
 
@@ -36,62 +34,11 @@
 #ifndef VERSION
 #define VERSION "DEVEL"
 #endif //VERSION
-#define IPADDR_SIZE 32
+
 
 static int run=1;
 static su_root_t *root=NULL;
 
-static int get_local_ip_for_with_connect(int type, const char *dest, char *result){
-	int err,tmp;
-	struct addrinfo hints;
-	struct addrinfo *res=NULL;
-	struct sockaddr_storage addr;
-	int sock;
-	socklen_t s;
-
-	memset(&hints,0,sizeof(hints));
-	hints.ai_family=(type==AF_INET6) ? PF_INET6 : PF_INET;
-	hints.ai_socktype=SOCK_DGRAM;
-	/*hints.ai_flags=AI_NUMERICHOST|AI_CANONNAME;*/
-	err=getaddrinfo(dest,"5060",&hints,&res);
-	if (err!=0){
-		LOGE("getaddrinfo() error: %s",gai_strerror(err));
-		return -1;
-	}
-	if (res==NULL){
-		LOGE("bug: getaddrinfo returned nothing.");
-		return -1;
-	}
-	sock=socket(res->ai_family,SOCK_DGRAM,0);
-	tmp=1;
-	err=setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&tmp,sizeof(int));
-	if (err<0){
-		LOGW("Error in setsockopt: %s",strerror(errno));
-	}
-	err=connect(sock,res->ai_addr,res->ai_addrlen);
-	if (err<0) {
-		LOGE("Error in connect: %s",strerror(errno));
- 		freeaddrinfo(res);
- 		close(sock);
-		return -1;
-	}
-	freeaddrinfo(res);
-	res=NULL;
-	s=sizeof(addr);
-	err=getsockname(sock,(struct sockaddr*)&addr,&s);
-	if (err!=0) {
-		LOGE("Error in getsockname: %s",strerror(errno));
-		close(sock);
-		return -1;
-	}
-	
-	err=getnameinfo((struct sockaddr *)&addr,s,result,IPADDR_SIZE,NULL,0,NI_NUMERICHOST);
-	if (err!=0){
-		LOGE("getnameinfo error: %s",strerror(errno));
-	}
-	close(sock);
-	return 0;
-}
 
 static void usage(const char *arg0){
 	printf("%s\n"
@@ -242,7 +189,6 @@ int main(int argc, char *argv[]){
 	Agent *a;
 	StunServer *stun=NULL;
 	int port=-1, tlsport=-1;
-	char localip[IPADDR_SIZE];
 	int i;
 	const char *pidfile=NULL;
 	const char *cfgfile=CONFIG_DIR "/flexisip.conf";
@@ -295,7 +241,7 @@ int main(int argc, char *argv[]){
 	ConfigManager *cfg=ConfigManager::get();
 
 	if (dump_default_cfg){
-		a=new Agent(root,"",port,tlsport);
+		a=new Agent(root,0,0);
 		std::cout<<FileConfigDumper(cfg->getRoot());
 		return 0;
 	}
@@ -314,12 +260,8 @@ int main(int argc, char *argv[]){
 	su_log_redirect(NULL,sofiaLogHandler,NULL);
 	root=su_root_create(NULL);
 
-	get_local_ip_for_with_connect(AF_INET,"209.85.229.147",localip);
-	std::string bind_ip=cfg->getGlobal()->get<ConfigString>("ip-address")->read();
-	if (bind_ip.empty() || bind_ip=="guess") bind_ip=localip;
-
-	LOGI("Listening to interface %s.",bind_ip.c_str());
-	a=new Agent(root,bind_ip.c_str(),port,tlsport);
+	
+	a=new Agent(root,port,tlsport);
 	ms_init();
 	a->loadConfig (cfg);
 

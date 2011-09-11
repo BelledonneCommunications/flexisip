@@ -37,10 +37,13 @@ struct MediaSource{
 
 class RelaySession{
 	public:
-		RelaySession(const std::string &localip);
+		RelaySession(const std::string &bind_ip, const std::string & public_ip);
 		~RelaySession();
 		int getPorts(int ports[2])const;
-		const std::string & getAddr()const;
+		const std::string & getBindIp()const;
+		const std::string & getPublicIp()const{
+			return mPublicIp;
+		}
 		void fillPollFd(struct pollfd *tab);
 		void transfer(time_t current, struct pollfd *tab);
 		void unuse();
@@ -51,7 +54,8 @@ class RelaySession{
 			return mLastActivityTime;
 		}
 	private:
-		const std::string mLocalIp;
+		const std::string mBindIp;
+		const std::string mPublicIp;
 		RtpSession *mSession[2];
 		MediaSource mSources[4]; //2 RTP sockets, 2 RTCP sockets
 		time_t mLastActivityTime;
@@ -61,7 +65,7 @@ class RelaySession{
 
 class MediaRelayServer{
 	public:
-		MediaRelayServer(const std::string &local_ip);
+		MediaRelayServer(const std::string &bind_ip, const std::string &public_ip);
 		~MediaRelayServer();
 		RelaySession *createSession();
 	private:
@@ -70,7 +74,8 @@ class MediaRelayServer{
 		static void *threadFunc(void *arg);
 		Mutex mMutex;
 		std::list<RelaySession*> mSessions;
-		std::string mLocalIp;
+		std::string mBindIp;
+		std::string mPublicIp;
 		pthread_t mThread;
 		int mCtlPipe[2];
 		bool mRunning;

@@ -62,7 +62,7 @@ class RelayedCall : public CallContextBase, public Masquerader{
 				mSessions[mline]=s;
 			}
 			s->getPorts(ports);
-			*ip=s->getAddr();
+			*ip=s->getPublicIp();
 			if (getCallerTag()==party_tag){
 				*port=ports[0];
 			}else{
@@ -98,7 +98,7 @@ ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay",
 	"The RTP and RTCP streams are then routed so that each client receives the stream of the other. "
     "MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.");
 
-MediaRelay::MediaRelay(Agent *ag) : Module(ag), mServer(ag->getLocAddr ()){
+MediaRelay::MediaRelay(Agent *ag) : Module(ag), mServer(ag->getBindIp(),ag->getPublicIp()){
 }
 
 MediaRelay::~MediaRelay(){
