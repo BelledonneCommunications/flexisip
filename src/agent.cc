@@ -150,6 +150,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	if (bind_address=="*"){
 		bind_address="0.0.0.0";
 	}
+	mBindIp=bind_address;
 }
 
 Agent::~Agent(){
