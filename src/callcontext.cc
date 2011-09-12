@@ -23,7 +23,7 @@
 
 #include "sdp-modifier.hh"
 
-CallSide::CallSide(CallContext *ctx, const CallContextParams &params){
+CallSide::CallSide(CallContext *ctx, const CallContextParams &params) : mCallCtx(ctx){
 	mSession=rtp_session_new(RTP_SESSION_SENDRECV);
 	mProfile=rtp_profile_new("Call profile");
 	mEncoder=NULL;
@@ -69,7 +69,7 @@ int CallSide::getAudioPort(){
 	int port=rtp_session_get_local_port(mSession);
 	if (port==-1){
 		/*request oRTP to bind randomly*/
-		rtp_session_set_local_addr(mSession,"0.0.0.0",-1);
+		rtp_session_set_local_addr(mSession,mCallCtx->getBindAddress().c_str(),-1);
 		port=rtp_session_get_local_port(mSession);
 	}
 	return port;
@@ -281,7 +281,7 @@ void CallSide::doBgTasks(){
 }
 
 
-CallContext::CallContext(sip_t *sip) : CallContextBase(sip), mFrontSide(0), mBackSide(0){
+CallContext::CallContext(sip_t *sip, const std::string &bind_address) : CallContextBase(sip), mFrontSide(0), mBackSide(0),mBindAddress(bind_address){
 	mInitialOffer=NULL;
 	mTicker=NULL;
 	mInfoCSeq=-1;

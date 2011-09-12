@@ -307,7 +307,7 @@ void TranscodeModule::onRequest(SipEvent *ev){
 	
 	if (sip->sip_request->rq_method==sip_method_invite){
 		if ((c=static_cast<CallContext*>(mCalls.find(sip)))==NULL){
-			c=new CallContext(sip);
+			c=new CallContext(sip,getAgent()->getBindIp());
 			mCalls.store(c);
 			processNewInvite(c,ev);
 		}else{

@@ -53,6 +53,7 @@ class CallSide{
 	private:
 		static void payloadTypeChanged(RtpSession *s, unsigned long data);
 		static void onTelephoneEvent(RtpSession *s, int dtmf, void * user_data);
+		CallContext *mCallCtx;
 		RtpSession *mSession;
 		RtpProfile *mProfile;
 		PayloadType *getSendFormat();
@@ -73,7 +74,7 @@ class CallSide{
 
 class CallContext : public CallContextBase{
 	public:
-		CallContext(sip_t *invite);
+		CallContext(sip_t *invite, const std::string &bind_address);
 		void prepare(sip_t *invite, const CallContextParams & params);
 		void join(MSTicker *ticker);
 		void unjoin();
@@ -93,6 +94,9 @@ class CallContext : public CallContextBase{
 		void dump();
 		void doBgTasks();
 		virtual bool isInactive(time_t);
+		const std::string &getBindAddress()const{
+			return mBindAddress;
+		}
 	private:
 		CallSide *getOther(CallSide *cs);
 		MSTicker *mTicker;
@@ -100,6 +104,7 @@ class CallContext : public CallContextBase{
 		CallSide *mBackSide;
 		MSList *mInitialOffer;
 		int mInfoCSeq;
+		std::string mBindAddress;
 };
 
 
