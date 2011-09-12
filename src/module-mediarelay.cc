@@ -40,7 +40,7 @@ class MediaRelay : public Module, protected ModuleToolbox{
 		void processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip);
 		void process200OkforInvite(RelayedCall *ctx, msg_t *msg, sip_t *sip);
 		CallStore mCalls;
-		MediaRelayServer mServer;
+		MediaRelayServer *mServer;
 		static ModuleInfo <MediaRelay> sInfo;
 };
 
@@ -98,13 +98,15 @@ ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay",
 	"The RTP and RTCP streams are then routed so that each client receives the stream of the other. "
     "MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.");
 
-MediaRelay::MediaRelay(Agent *ag) : Module(ag), mServer(ag->getBindIp(),ag->getPublicIp()){
+MediaRelay::MediaRelay(Agent *ag) : Module(ag), mServer(0){
 }
 
 MediaRelay::~MediaRelay(){
+	if (mServer) delete mServer;
 }
 
 void MediaRelay::onLoad(Agent *ag, const ConfigStruct * modconf){
+	mServer=new MediaRelayServer(ag->getBindIp(),ag->getPublicIp());
 }
 
 
@@ -132,7 +134,7 @@ void MediaRelay::onRequest(SipEvent *ev){
 	
 	if (sip->sip_request->rq_method==sip_method_invite){
 		if ((c=static_cast<RelayedCall*>(mCalls.find(sip)))==NULL){
-			c=new RelayedCall(&mServer,sip);
+			c=new RelayedCall(mServer,sip);
 			mCalls.store(c);
 			processNewInvite(c,msg,sip);
 		}else{
