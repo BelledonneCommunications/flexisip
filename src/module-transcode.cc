@@ -276,7 +276,9 @@ int TranscodeModule::processNewInvite(CallContext *c,SipEvent *ev){
 		if (isOneCodecSupported(ioffer)){
 			c->prepare(sip,mCallParams);
 			c->setInitialOffer(ioffer);
-			m->getAudioIpPort (&addr,&port);
+			m->getAudioIpPort(&addr,&port);
+			/*forces the front side to bind and allocate a port immediately on the bind-address supplied in the config*/
+			c->getFrontSide()->getAudioPort();
 			c->getFrontSide()->setRemoteAddr(addr.c_str(),port);
 			port=c->getBackSide()->getAudioPort();
 			m->changeAudioIpPort(getAgent()->getPublicIp().c_str(),port);

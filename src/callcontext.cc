@@ -75,11 +75,11 @@ int CallSide::getAudioPort(){
 	return port;
 }
 
-void  CallSide::setRemoteAddr(const char *addr, int port){
+void CallSide::setRemoteAddr(const char *addr, int port){
 	rtp_session_set_remote_addr(mSession,addr,port);
 }
 
-void  CallSide::assignPayloads(const MSList *payloads){
+void CallSide::assignPayloads(const MSList *payloads){
 	const MSList *elem;
 	for (elem=payloads;elem!=NULL;elem=elem->next){
 		PayloadType *pt=(PayloadType*)elem->data;
