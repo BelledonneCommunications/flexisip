@@ -374,7 +374,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 			LOGD("Authentication: password not found for username %s", id.c_str());
 			break;
 		case OdbcConnector::ERROR_ID_TOO_LONG:
-			LOGD("Authentication: username '%s' too long %i", id.c_str(), id.length());
+			LOGD("Authentication: username '%s' too long %i", id.c_str(), (int)id.length());
 			break;
 		case OdbcConnector::ERROR_LINK_FAILURE:
 			LOGW("Odbc link failed ; trying reconnection");

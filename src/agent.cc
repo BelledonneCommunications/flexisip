@@ -98,6 +98,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Authentication"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Registrar"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"ContactRouteInserter"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"LoadBalancer"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"MediaRelay"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Forward"));

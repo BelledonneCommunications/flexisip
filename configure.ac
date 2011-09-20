@@ -23,7 +23,14 @@ CFLAGS="-g -O2 -pthread"
 CXXFLAGS="-g -O2 -pthread"
 LDFLAGS="$LDFLAGS -pthread"
 
-if test x$GCC = xyes ; then
+AC_ARG_ENABLE(strict,
+	AC_HELP_STRING([--enable-strict],
+		       [Build with stricter options (gcc only) @<:@yes@:>@]),[
+	strictness="${enableval}"],[strictness=yes]
+)
+
+
+if test x$GCC$strictness = xyesyes ; then
 	CFLAGS="$CFLAGS -Wall -Werror -fno-strict-aliasing"
 	CXXFLAGS="$CXXFLAGS -Wall -Werror -fno-strict-aliasing"
 fi

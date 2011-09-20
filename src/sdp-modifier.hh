@@ -48,7 +48,7 @@ class SdpModifier{
 		void changeAudioIpPort(const char *ip, int port);
 		void changeIpPort(Masquerader *m, const char *partytag);
 		void update(msg_t *msg, sip_t *sip);
-		~SdpModifier();
+		virtual ~SdpModifier();
 		SdpModifier(su_home_t *home);
 		static MSList *findCommon(const MSList *offer, const MSList *answer, bool use_offer_numbering);
 	private:
