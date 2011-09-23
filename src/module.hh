@@ -147,6 +147,7 @@ Module * ModuleInfo<_modtype>::_create(Agent *ag){
 class ModuleToolbox{
 	public:
 		static void addRecordRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *transport=NULL);
+		static void prependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *route);
 		static bool sipPortEquals(const char *p1, const char *p2);
 		static int sipPortToInt(const char *port);
 		static bool fromMatch(const sip_from_t *from1, const sip_from_t *from2);

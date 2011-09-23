@@ -134,7 +134,18 @@ int ModuleToolbox::sipPortToInt(const char *port){
 	else return atoi(port);
 }
 
-
+void ModuleToolbox::prependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *route){
+	// removes top route headers if they maches us
+	sip_route_t *r;
+	r=sip_route_format(home,"%s",route);
+	while (sip->sip_route!=NULL && ag->isUs(sip->sip_route->r_url) ){
+		sip_route_remove(msg,sip);
+	}
+	r->r_next=sip->sip_route;
+	msg_header_remove_all(msg,(msg_pub_t*)sip,(msg_header_t*)sip->sip_route);
+	msg_header_insert(msg,(msg_pub_t*)sip,(msg_header_t*)r);
+	sip->sip_route=r;
+}
 
 void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *transport){
 	sip_via_t *via=sip->sip_via;

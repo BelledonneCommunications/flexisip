@@ -19,8 +19,9 @@
 
 #include "agent.hh"
 
+#include <vector>
 
-class LoadBalancer : public Module{
+class LoadBalancer : public Module, public ModuleToolbox{
 	public:
 		LoadBalancer(Agent *ag);
 		virtual ~LoadBalancer();
@@ -29,6 +30,8 @@ class LoadBalancer : public Module{
 		virtual void onRequest(SipEvent *ev);
 		virtual void onResponse(SipEvent *ev);
 	private:
+		std::vector<std::string> mRoutes;
+		int mRoutesCount;
 		static ModuleInfo<LoadBalancer> sInfo;
 };
 
@@ -44,13 +47,44 @@ LoadBalancer::~LoadBalancer(){
 void LoadBalancer::onDeclare(ConfigStruct *module_config){
 	/*we need to be disabled by default*/
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
+	ConfigItemDescriptor items[]={
+		{	StringList	,	"routes",	"Whitespace separated list of sip routes to balance the requests. Example: <sip:192.168.0.22> <sip:192.168.0.23>", "" },
+		config_item_end
+	};
+	module_config->addChildrenValues(items);
 }
 
 void LoadBalancer::onLoad(Agent *ag, const ConfigStruct * modconf){
+	std::list<std::string> routes=modconf->get<ConfigStringList>("routes")->read();
+	std::list<std::string>::iterator it;
+	
+	LOGI("Load balancer configured to balance over:");
+	for(it=routes.begin();it!=routes.end();++it){
+		mRoutes.push_back(*it);
+		LOGI("%s",(*it).c_str());
+	}
+	mRoutesCount=mRoutes.size();
 }
 
 void LoadBalancer::onRequest(SipEvent *ev){
+	uint32_t call_hash;
+	sip_t *sip=ev->mSip;
+	int index;
+	
+	if (mRoutesCount==0) return;
+
+	/* very simple load sharing algorithm, based on randomness of call id*/
+	if (sip->sip_call_id){
+		const char *route;
+		call_hash=sip->sip_call_id->i_hash;
+		index=call_hash % mRoutesCount;
+		route=mRoutes[index].c_str();
+		prependRoute(ev->getHome(),getAgent(),ev->mMsg,sip,route);
+	}else{
+		LOGW("request has no call id");
+	}
 }
 
 void LoadBalancer::onResponse(SipEvent *ev){
+	/*nothing to do*/
 }
