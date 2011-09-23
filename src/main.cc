@@ -154,6 +154,52 @@ static void initialize(bool debug, bool useSyslog){
 	su_init();
 }
 
+
+static int getSystemFdLimit(){
+	static int max_sys_fd=-1;
+	if (max_sys_fd==-1){
+#ifdef __linux
+		char tmp[256];
+		int fd=open("/proc/sys/fs/file-max",O_RDONLY);
+		if (fd!=-1){
+			if (read(fd,tmp,sizeof(tmp))>0){
+				int val=0;
+				if (sscanf(tmp,"%i",&val)==1){
+					max_sys_fd=val;
+					LOGN("System wide maximum number of file descriptors is %i",max_sys_fd);
+				}
+			}
+			close(fd);
+		}
+#else
+	LOGW("Guessing of system wide fd limit is not implemented.");
+	max_sys_fd=2048;
+#endif
+	}
+	return max_sys_fd;
+}
+
+static void increase_fd_limit(void){
+	struct rlimit lm;
+	if (getrlimit(RLIMIT_NOFILE,&lm)==-1){
+		LOGE("getrlimit(RLIMIT_NOFILE) failed: %s",strerror(errno));
+	}else{
+		unsigned int new_limit=getSystemFdLimit();
+		LOGN("Maximum number of open file descriptors is %i, limit=%i, system wide limit=%i",
+		     (int)lm.rlim_cur,(int)lm.rlim_max,getSystemFdLimit());
+		
+		if (lm.rlim_cur<new_limit){
+			lm.rlim_cur=lm.rlim_max=new_limit;
+			if (setrlimit(RLIMIT_NOFILE,&lm)==-1){
+				LOGE("setrlimit(RLIMIT_NOFILE) failed: %s",strerror(errno));
+			}
+			if (getrlimit(RLIMIT_NOFILE,&lm)==0){
+				LOGN("Maximum number of file descriptor set to %i.",(int)lm.rlim_cur);
+			}
+		}
+	}
+}
+
 static void forkAndDetach(const char *pidfile){
 	pid_t pid = fork();
 	int fd;
@@ -274,6 +320,8 @@ int main(int argc, char *argv[]){
 		So we can detach.*/
 		forkAndDetach(pidfile);
 	}
+
+	increase_fd_limit();
 	
 	if (cfg->getRoot()->get<ConfigStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()){
 		stun=new StunServer(cfg->getRoot()->get<ConfigStruct>("stun-server")->get<ConfigInt>("port")->read());

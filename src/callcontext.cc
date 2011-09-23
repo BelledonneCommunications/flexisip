@@ -397,6 +397,8 @@ void CallContext::doBgTasks(){
 CallContext::~CallContext(){
 	if (mTicker!=NULL)
 		unjoin();
+	if (mFrontSide) delete mFrontSide;
+	if (mBackSide) delete mBackSide;
 	if (mInitialOffer){
 		ms_list_for_each(mInitialOffer,(void(*)(void*))payload_type_destroy);
 		ms_list_free(mInitialOffer);
