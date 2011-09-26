@@ -63,8 +63,8 @@ void ForwardModule::onLoad(Agent *agent, const ConfigStruct *module_config){
 	std::string route=module_config->get<ConfigString>("route")->read();
 	mRewriteReqUri=module_config->get<ConfigBoolean>("rewrite-req-uri")->read();
 	if (route.size()>0){
-		mOutRoute=sip_route_create(&mHome,(url_t*)route.c_str(),NULL);
-		if (mOutRoute==NULL){
+		mOutRoute=sip_route_make(&mHome,route.c_str());
+		if (mOutRoute==NULL || mOutRoute->r_url->url_host==NULL){
 			LOGF("Bad route parameter '%s' in configuration of Forward module",route.c_str());
 		}
 	}
