@@ -33,6 +33,7 @@
 class Masquerader{
 	public:
 		virtual void onNewMedia(int mline, std::string *ip, int *port, const char* tag)=0;
+		virtual ~Masquerader(){};
 };
 
 /**

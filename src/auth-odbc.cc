@@ -44,7 +44,7 @@ void showCB(SQLLEN cb)
 		printf("NO total\n");
 		break;
 	default:
-		printf("cb=%ld\n", cb);
+		printf("cb=%ld\n", (long int)cb);
 		break;
 	}
 }

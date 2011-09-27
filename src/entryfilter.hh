@@ -35,6 +35,7 @@ class EntryFilter{
 		}
 		virtual bool canEnter(sip_t *sip)=0;
 		virtual bool isEnabled()=0;
+		virtual ~EntryFilter(){};
 };
 
 class ConfigEntryFilter : public EntryFilter {

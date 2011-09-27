@@ -52,8 +52,8 @@ CallSide::CallSide(CallContext *ctx, const CallContextParams &params) : mCallCtx
 	rtp_session_set_data(mSession,this);
 	rtp_session_signal_connect(mSession,"payload_type_changed",(RtpCallback)&CallSide::payloadTypeChanged,
 	                           reinterpret_cast<long>(ctx));
-	rtp_session_signal_connect(mSession,"timestamp_jump",(RtpCallback)rtp_session_resync,(long)NULL);
-	rtp_session_signal_connect(mSession,"ssrc_changed",(RtpCallback)rtp_session_resync,(long)NULL);
+	rtp_session_signal_connect(mSession,"timestamp_jump",(RtpCallback)rtp_session_resync,(long unsigned int)NULL);
+	rtp_session_signal_connect(mSession,"ssrc_changed",(RtpCallback)rtp_session_resync,(long unsigned int)NULL);
 	rtp_session_signal_connect(mSession,"telephone-event",(RtpCallback)&CallSide::onTelephoneEvent,reinterpret_cast<long>(ctx));
 	mRtpEvq=NULL;
 	mLastCheck=0;
