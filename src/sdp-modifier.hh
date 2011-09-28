@@ -42,6 +42,7 @@ class Masquerader{
 class SdpModifier{
 	public:
 		static SdpModifier *createFromSipMsg(su_home_t *home, sip_t *sip);
+		static bool hasSdp(const sip_t *sip);
 		bool initFromSipMsg(sip_t *sip);
 		MSList *readPayloads();
 		void replacePayloads(const MSList *payloads, const MSList *preserved_numbers);

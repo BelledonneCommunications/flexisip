@@ -76,8 +76,11 @@ class TranscodeModule : public Module, protected ModuleToolbox {
 		virtual void onDeclare(ConfigStruct *module_config);
 	private:
 		TickerManager mTickerManager;
+		int handleOffer(CallContext *c, SipEvent *ev);
+		int handleAnswer(CallContext *c, SipEvent *ev);
 		int processNewInvite(CallContext *c, SipEvent *ev);
-		void process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip);
+		void process200OkforInvite(CallContext *ctx, SipEvent *ev);
+		void processNewAck(CallContext *ctx, SipEvent *ev);
 		bool processSipInfo(CallContext *c, msg_t *msg, sip_t *sip);
 		void onTimer();	
 		static void sOnTimer(void *unused, su_timer_t *t, void *zis);
@@ -265,41 +268,68 @@ MSList *TranscodeModule::normalizePayloads(MSList *l){
 	return l;
 }
 
-int TranscodeModule::processNewInvite(CallContext *c,SipEvent *ev){
+int TranscodeModule::handleOffer(CallContext *c, SipEvent *ev){
 	msg_t *msg=ev->mMsg;
 	sip_t *sip=ev->mSip;
 	std::string addr;
 	int port;
-	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
-	if (m){
-		MSList *ioffer=m->readPayloads();
-		if (isOneCodecSupported(ioffer)){
-			c->prepare(sip,mCallParams);
-			c->setInitialOffer(ioffer);
-			m->getAudioIpPort(&addr,&port);
-			/*forces the front side to bind and allocate a port immediately on the bind-address supplied in the config*/
-			c->getFrontSide()->getAudioPort();
-			c->getFrontSide()->setRemoteAddr(addr.c_str(),port);
-			port=c->getBackSide()->getAudioPort();
-			m->changeAudioIpPort(getAgent()->getPublicIp().c_str(),port);
-			m->replacePayloads(mSupportedAudioPayloads,c->getInitialOffer());
-			m->update(msg,sip);
-			//be in the record-route
-			addRecordRoute(c->getHome(),getAgent(),msg,sip);
-			c->storeNewInvite(msg);
-			if (canDoRateControl(sip)){
-				c->getFrontSide()->enableRc(true);
-			}
-			delete m;
-			return 0;
-		}else{
-			ms_list_for_each(ioffer,(void (*)(void*))payload_type_destroy);
-			ms_list_free(ioffer);
-			nta_msg_treply(getSofiaAgent(),msg,415,"Unsupported codecs",TAG_END());
-			ev->stopProcessing();
+	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), ev->mSip);
+
+	if (m==NULL) return -1;
+	
+	MSList *ioffer=m->readPayloads();
+		
+	if (isOneCodecSupported(ioffer)){
+		c->prepare(sip,mCallParams);
+		c->setInitialOffer(ioffer);
+		m->getAudioIpPort(&addr,&port);
+		/*forces the front side to bind and allocate a port immediately on the bind-address supplied in the config*/
+		LOGD("Front side remote address: %s:%i", addr.c_str(),port);
+		c->getFrontSide()->getAudioPort();
+		c->getFrontSide()->setRemoteAddr(addr.c_str(),port);
+		port=c->getBackSide()->getAudioPort();
+		m->changeAudioIpPort(getAgent()->getPublicIp().c_str(),port);
+		m->replacePayloads(mSupportedAudioPayloads,c->getInitialOffer());
+		m->update(msg,sip);
+		
+		if (canDoRateControl(sip)){
+			c->getFrontSide()->enableRc(true);
 		}
+		delete m;
+		return 0;
+	}else{
+		ms_list_for_each(ioffer,(void (*)(void*))payload_type_destroy);
+		ms_list_free(ioffer);
+		nta_msg_treply(getSofiaAgent(),msg,415,"Unsupported codecs",TAG_END());
+		ev->stopProcessing();
 	}
+	delete m;
 	return -1;
+}
+
+
+
+int TranscodeModule::processNewInvite(CallContext *c,SipEvent *ev){
+	int ret=0;
+	if (SdpModifier::hasSdp(ev->mSip)){
+		ret=handleOffer(c,ev);
+	}
+	if (ret==0){
+		//be in the record-route
+		addRecordRoute(c->getHome(),getAgent(),ev->mMsg,ev->mSip);
+		c->storeNewInvite(ev->mMsg);
+	}
+	return ret;
+}
+
+void TranscodeModule::processNewAck(CallContext *ctx, SipEvent *ev){
+	LOGD("Processing ACK");
+	const MSList *ioffer=ctx->getInitialOffer();
+	if (ioffer==NULL){
+		LOGE("Processing ACK with SDP but no offer was made");
+	}
+	handleAnswer(ctx,ev);
+	ctx->storeNewAck(ev->mMsg);
 }
 
 void TranscodeModule::onRequest(SipEvent *ev){
@@ -322,6 +352,21 @@ void TranscodeModule::onRequest(SipEvent *ev){
 				msg=msg_copy(c->getLastForwardedInvite ());
 				sip=(sip_t*)msg_object(msg);
 				LOGD("Forwarding invite retransmission");
+			}
+		}
+	}else if (sip->sip_request->rq_method==sip_method_ack && SdpModifier::hasSdp(sip)){
+		if ((c=static_cast<CallContext*>(mCalls.find(sip)))==NULL){
+			LOGD("Seeing ACK with no call reference");
+		}else{
+			if (c->isNewAck(sip)){
+				processNewAck(c,ev);
+			}else if (mAgent->countUsInVia(sip->sip_via)) {
+				LOGD("We are already in VIA headers of this request");
+				return;
+			}else if (c->getLastForwardedAck()!=NULL){
+				msg=msg_copy(c->getLastForwardedAck());
+				sip=(sip_t*)msg_object(msg);
+				LOGD("Forwarding ack retransmission");
 			}
 		}
 	}else{
@@ -348,15 +393,13 @@ void TranscodeModule::onRequest(SipEvent *ev){
 	ev->mSip=sip;
 }
 
-void TranscodeModule::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t *sip){
-	LOGD("Processing 200 Ok");
-	const MSList *ioffer=ctx->getInitialOffer();
+int TranscodeModule::handleAnswer(CallContext *ctx, SipEvent *ev){
 	std::string addr;
 	int port;
-	SdpModifier *m=SdpModifier::createFromSipMsg(ctx->getHome(), sip);
+	const MSList *ioffer=ctx->getInitialOffer();
+	SdpModifier *m=SdpModifier::createFromSipMsg(ctx->getHome(), ev->mSip);
 
-	if (m==NULL) return;
-	
+	if (m==NULL) return -1;
 	if (ctx->isJoined()) ctx->unjoin();
 	
 	m->getAudioIpPort (&addr,&port);
@@ -368,7 +411,7 @@ void TranscodeModule::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t 
 	if (answer==NULL){
 		LOGE("No payloads in 200Ok");
 		delete m;
-		return;
+		return -1;
 	}
 	ctx->getBackSide()->assignPayloads(normalizePayloads(answer));
 	ms_list_free(answer);
@@ -377,25 +420,33 @@ void TranscodeModule::process200OkforInvite(CallContext *ctx, msg_t *msg, sip_t 
 	if (common!=NULL){
 		m->replacePayloads(common,NULL);
 	}
-	m->update(msg,sip);
-	ctx->storeNewResponse (msg);
+	m->update(ev->mMsg,ev->mSip);
 	
 	ctx->getFrontSide()->assignPayloads(normalizePayloads(common));
 
-	if (canDoRateControl(sip)){
+	if (canDoRateControl(ev->mSip)){
 		ctx->getBackSide()->enableRc(true);
 	}
 
 	ctx->join(mTickerManager.chooseOne());
-	
 	delete m;
+	return 0;
+}
+
+void TranscodeModule::process200OkforInvite(CallContext *ctx, SipEvent *ev){
+	LOGD("Processing 200 Ok");
+	if (SdpModifier::hasSdp((sip_t*)msg_object(ctx->getLastForwardedInvite()))){
+		handleAnswer(ctx,ev);
+	}else{
+		handleOffer(ctx,ev);
+	}
+	ctx->storeNewResponse(ev->mMsg);
+	
 }
 
 static bool isEarlyMedia(sip_t *sip){
 	if (sip->sip_status->st_status==180 || sip->sip_status->st_status==183){
-		sip_payload_t *payload=sip->sip_payload;
-		//TODO: should check if it is application/sdp
-		return payload!=NULL;
+		return SdpModifier::hasSdp(sip);
 	}
 	return false;
 }
@@ -407,9 +458,9 @@ void TranscodeModule::onResponse(SipEvent *ev){
 	if (sip->sip_cseq && sip->sip_cseq->cs_method==sip_method_invite){
 		if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
 			if (sip->sip_status->st_status==200 && c->isNew200Ok(sip)){
-				process200OkforInvite (c,msg,sip);
+				process200OkforInvite(c,ev);
 			}else if (isEarlyMedia(sip) && c->isNewEarlyMedia (sip)){
-				process200OkforInvite (c,msg,sip);
+				process200OkforInvite(c,ev);
 			}else if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
 				if (mAgent->countUsInVia(sip->sip_via)) {
 					LOGD("We are already in VIA headers of this response");
@@ -418,7 +469,7 @@ void TranscodeModule::onResponse(SipEvent *ev){
 				LOGD("This is a 200 or 183 retransmission");
 				if (c->getLastForwaredResponse()!=NULL){
 					msg=msg_copy(c->getLastForwaredResponse ());
-					sip=(sip_t*)msg_object (msg);
+					sip=(sip_t*)msg_object(msg);
 					ev->mSip=sip;
 					ev->mMsg=msg;
 				}

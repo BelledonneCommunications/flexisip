@@ -30,6 +30,14 @@ SdpModifier *SdpModifier::createFromSipMsg(su_home_t *home, sip_t *sip){
 	return sm;
 }
 
+bool SdpModifier::hasSdp(const sip_t *sip){
+	sip_payload_t *payload=sip->sip_payload;
+	if (payload==NULL || payload->pl_data==NULL) {
+		return false;
+	}
+	return true;
+}
+
 bool SdpModifier::initFromSipMsg(sip_t *sip){
 	sip_payload_t *payload=sip->sip_payload;
 	if (payload==NULL || payload->pl_data==NULL) {

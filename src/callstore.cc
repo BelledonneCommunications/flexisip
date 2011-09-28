@@ -92,6 +92,18 @@ void CallContextBase::storeNewInvite(msg_t *msg){
 	mInvite=msg_copy(msg);
 }
 
+void CallContextBase::storeNewAck(msg_t *msg){
+	sip_t *sip=(sip_t*)msg_object(msg);
+	//serialize the message before copying it otherwise we might miss some content
+	msg_serialize(msg,(msg_pub_t*)sip);
+	mAckCseq=sip->sip_cseq->cs_seq;
+	mAck=msg_copy(msg);
+}
+
+bool CallContextBase::isNewAck(sip_t *ack){
+	return ack->sip_cseq->cs_seq!=mAckCseq;
+}
+
 void CallContextBase::storeNewResponse(msg_t *msg){
 	sip_t *sip=(sip_t*)msg_object(msg);
 	mResponse=msg_copy(msg);
@@ -104,6 +116,10 @@ msg_t *CallContextBase::getLastForwardedInvite()const{
 
 msg_t *CallContextBase::getLastForwaredResponse()const{
 	return mResponse;
+}
+
+msg_t *CallContextBase::getLastForwardedAck()const{
+	return mAck;
 }
 
 void CallContextBase::dump(){
