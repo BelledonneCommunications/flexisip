@@ -106,6 +106,8 @@ bool CallContextBase::isNewAck(sip_t *ack){
 
 void CallContextBase::storeNewResponse(msg_t *msg){
 	sip_t *sip=(sip_t*)msg_object(msg);
+	//serialize the message before copying it otherwise we might miss some content
+	msg_serialize(msg,(msg_pub_t*)sip);
 	mResponse=msg_copy(msg);
 	mResCseq=sip->sip_cseq->cs_seq;
 }
