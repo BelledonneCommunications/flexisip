@@ -150,6 +150,38 @@ MSList *SdpModifier::readPayloads(){
 	return ret;
 }
 
+int SdpModifier::readPtime(){
+	sdp_media_t *mline=mSession->sdp_media;
+	if (mline && mline->m_attributes){
+		sdp_attribute_t *at=sdp_attribute_find(mline->m_attributes,"ptime");
+		if (at && at->a_value){
+			return atoi(at->a_value);
+		}
+	}
+	return 0;
+}
+
+void SdpModifier::setPtime(int ptime){
+	sdp_media_t *mline=mSession->sdp_media;
+	if (mline && mline->m_attributes){
+		if (ptime>0){
+			sdp_attribute_t *at=sdp_attribute_find(mline->m_attributes,"ptime");
+			if (at){
+				at->a_value=su_sprintf(mHome,"%i",ptime);
+			}else{
+				sdp_attribute_t cat;
+				memset(&cat,0,sizeof(cat));
+				cat.a_size=sizeof(cat);
+				cat.a_name="ptime";
+				cat.a_value=su_sprintf(mHome,"%i",ptime);
+				sdp_attribute_append(&mline->m_attributes,&cat);
+			}
+		}else{
+			sdp_attribute_remove(&mline->m_attributes,"ptime");
+		}
+	}
+}
+
 MSList *SdpModifier::findCommon(const MSList *offer, const MSList *answer, bool use_offer_numbering){
 	MSList *ret=NULL;
 	const MSList *e1,*e2;

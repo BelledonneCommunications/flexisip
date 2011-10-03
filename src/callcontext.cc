@@ -58,6 +58,7 @@ CallSide::CallSide(CallContext *ctx, const CallContextParams &params) : mCallCtx
 	mRtpEvq=NULL;
 	mLastCheck=0;
 	mLastRecvCount=0;
+	mPtime=0;
 	mRcEnabled=false;
 }
 
@@ -77,6 +78,10 @@ int CallSide::getAudioPort(){
 
 void CallSide::setRemoteAddr(const char *addr, int port){
 	rtp_session_set_remote_addr(mSession,addr,port);
+}
+
+void CallSide::setPtime(int ptime){
+	mPtime=ptime;
 }
 
 void CallSide::assignPayloads(const MSList *payloads){
@@ -198,6 +203,11 @@ void CallSide::connect(CallSide *recvSide, MSTicker *t){
 		if (mEncoder==NULL){
 			LOGE("Could not instanciate encoder for %s",sendpt->mime_type);
 		}else{
+			if (mPtime>0){
+				char tmp[20];
+				snprintf(tmp,sizeof(tmp),"ptime=%i",mPtime);
+				ms_filter_call_method(mEncoder,MS_FILTER_ADD_FMTP,(void*)tmp);
+			}
 			if (sendpt->send_fmtp!=NULL)
 				ms_filter_call_method(mEncoder,MS_FILTER_ADD_FMTP,(void*)sendpt->send_fmtp);
 			if (sendpt->normal_bitrate>0)

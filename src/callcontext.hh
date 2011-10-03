@@ -46,6 +46,7 @@ class CallSide{
 		int getAudioPort();
 		void setRemoteAddr(const char *addr, int port);
 		void assignPayloads(const MSList *payloads);
+		void setPtime(int ptime);
 		void dump();
 		void playTone(int tone_name);
 		bool isActive(time_t cur);
@@ -66,6 +67,7 @@ class CallSide{
 		time_t mLastCheck;
 		uint64_t mLastRecvCount;
 		OrtpEvQueue *mRtpEvq;
+		int mPtime;
 		bool mRcEnabled;
 		bool mUsePlc;
 };

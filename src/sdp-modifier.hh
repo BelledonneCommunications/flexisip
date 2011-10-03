@@ -45,11 +45,13 @@ class SdpModifier{
 		static bool hasSdp(const sip_t *sip);
 		bool initFromSipMsg(sip_t *sip);
 		MSList *readPayloads();
+		int readPtime();
 		void replacePayloads(const MSList *payloads, const MSList *preserved_numbers);
 		void getAudioIpPort(std::string *ip, int *port);
 		void changeAudioIpPort(const char *ip, int port);
 		void changeIpPort(Masquerader *m, const char *partytag);
 		void update(msg_t *msg, sip_t *sip);
+		void setPtime(int ptime);
 		virtual ~SdpModifier();
 		SdpModifier(su_home_t *home);
 		static MSList *findCommon(const MSList *offer, const MSList *answer, bool use_offer_numbering);

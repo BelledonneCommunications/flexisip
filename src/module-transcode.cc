@@ -93,6 +93,7 @@ class TranscodeModule : public Module, protected ModuleToolbox {
 		su_timer_t *mTimer;
 		std::list<std::string> mRcUserAgents;
 		CallContextParams mCallParams;
+		bool mBlockRetrans;
 		static ModuleInfo<TranscodeModule> sInfo;
 };
 
@@ -166,6 +167,8 @@ void TranscodeModule::onDeclare(ConfigStruct *module_config){
 		{	StringList	,	"rc-user-agents",	"Whitespace separated list of user-agent strings for which audio rate control is performed.",""},
 		{	StringList	,	"audio-codecs",	"Whitespace seprated list of audio codecs, in order of preference.",
 			"speex/8000 amr/8000 iLBC/8000 gsm/8000 pcmu/8000 pcma/8000"},
+		{	Boolean , "block-retransmissions", "If true, retransmissions of INVITEs will be blocked. "
+			"The purpose of this option is to limit bandwidth usage and server load on reliable networks.","false" },
 			config_item_end
 	};
 	module_config->addChildrenValues(items);
@@ -210,6 +213,7 @@ void TranscodeModule::onLoad(Agent *agent, const ConfigStruct *module_config){
 	mRcUserAgents=module_config->get<ConfigStringList>("rc-user-agents")->read();
 	MSList *l=makeSupportedAudioPayloadList();
 	mSupportedAudioPayloads=orderList(module_config->get<ConfigStringList>("audio-codecs")->read(),l);
+	mBlockRetrans=module_config->get<ConfigBoolean>("block-retransmissions")->read();
 	ms_list_free(l);
 }
 
@@ -273,6 +277,7 @@ int TranscodeModule::handleOffer(CallContext *c, SipEvent *ev){
 	sip_t *sip=ev->mSip;
 	std::string addr;
 	int port;
+	int ptime;
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), ev->mSip);
 
 	if (m==NULL) return -1;
@@ -283,10 +288,15 @@ int TranscodeModule::handleOffer(CallContext *c, SipEvent *ev){
 		c->prepare(sip,mCallParams);
 		c->setInitialOffer(ioffer);
 		m->getAudioIpPort(&addr,&port);
+		ptime=m->readPtime();
 		/*forces the front side to bind and allocate a port immediately on the bind-address supplied in the config*/
 		LOGD("Front side remote address: %s:%i", addr.c_str(),port);
 		c->getFrontSide()->getAudioPort();
 		c->getFrontSide()->setRemoteAddr(addr.c_str(),port);
+		if (ptime>0){
+			c->getFrontSide()->setPtime(ptime);
+			m->setPtime(0);//remove the ptime attribute
+		}
 		port=c->getBackSide()->getAudioPort();
 		m->changeAudioIpPort(getAgent()->getPublicIp().c_str(),port);
 		m->replacePayloads(mSupportedAudioPayloads,c->getInitialOffer());
@@ -349,9 +359,14 @@ void TranscodeModule::onRequest(SipEvent *ev){
 				LOGD("We are already in VIA headers of this request");
 				return;
 			}else if (c->getLastForwardedInvite()!=NULL){
-				msg=msg_copy(c->getLastForwardedInvite ());
-				sip=(sip_t*)msg_object(msg);
-				LOGD("Forwarding invite retransmission");
+				if (!mBlockRetrans){
+					LOGD("This is an invite retransmission.");
+					msg=msg_copy(c->getLastForwardedInvite ());
+					sip=(sip_t*)msg_object(msg);	
+				}else{
+					LOGD("Retransmission ignored.");
+					ev->stopProcessing();
+				}
 			}
 		}
 	}else if (sip->sip_request->rq_method==sip_method_ack && SdpModifier::hasSdp(sip)){
@@ -379,7 +394,6 @@ void TranscodeModule::onRequest(SipEvent *ev){
 				}
 			}
 		 }
-		
 		//all other requests go through
 
 		if (sip->sip_request->rq_method==sip_method_bye){
@@ -398,13 +412,19 @@ int TranscodeModule::handleAnswer(CallContext *ctx, SipEvent *ev){
 	int port;
 	const MSList *ioffer=ctx->getInitialOffer();
 	SdpModifier *m=SdpModifier::createFromSipMsg(ctx->getHome(), ev->mSip);
-
+	int ptime;
+	
 	if (m==NULL) return -1;
 	if (ctx->isJoined()) ctx->unjoin();
 	
 	m->getAudioIpPort (&addr,&port);
+	ptime=m->readPtime();
 	LOGD("Backside remote address: %s:%i", addr.c_str(),port);
 	ctx->getBackSide()->setRemoteAddr(addr.c_str(),port);
+	if (ptime>0){
+		ctx->getBackSide()->setPtime(ptime);
+		m->setPtime(0);//remove the ptime attribute
+	}
 	m->changeAudioIpPort (getAgent()->getPublicIp().c_str(),ctx->getFrontSide()->getAudioPort());
 
 	MSList *answer=m->readPayloads();
