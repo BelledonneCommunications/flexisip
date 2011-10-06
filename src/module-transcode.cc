@@ -476,6 +476,7 @@ void TranscodeModule::onResponse(SipEvent *ev){
 	msg_t *msg=ev->mMsg;
 	CallContext *c;
 	if (sip->sip_cseq && sip->sip_cseq->cs_method==sip_method_invite){
+		fixAuthChallengeForSDP(ev->getHome(),msg,sip);
 		if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
 			if (sip->sip_status->st_status==200 && c->isNew200Ok(sip)){
 				process200OkforInvite(c,ev);

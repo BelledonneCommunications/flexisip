@@ -204,3 +204,21 @@ bool ModuleToolbox::matchesOneOf(const char *item, const std::list<std::string> 
 	return false;
 }
 
+bool ModuleToolbox::fixAuthChallengeForSDP(su_home_t *home, msg_t *msg, sip_t *sip){
+	sip_auth_t *auth;
+	msg_param_t *par;
+	auth=sip->sip_www_authenticate;
+	if (auth==NULL) auth=sip->sip_proxy_authenticate;
+	if (auth==NULL) return true;
+	if (auth->au_params==NULL) return true;
+	par=msg_params_find_slot((msg_param_t*)auth->au_params,"qop");
+	if (par!=NULL){
+		if (strstr(*par,"auth-int")){
+			LOGD("Authentication header has qop with 'auth-int', replacing by 'auth'");
+			//if the qop contains "auth-int", replace it by "auth" so that it allows to modify the SDP
+			*par=su_strdup(home,"qop=\"auth\"");
+		}
+	}
+	return true;
+}
+

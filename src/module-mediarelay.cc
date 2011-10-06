@@ -191,6 +191,7 @@ void MediaRelay::onResponse(SipEvent *ev){
 	RelayedCall *c;
 	
 	if (sip->sip_cseq && sip->sip_cseq->cs_method==sip_method_invite){
+		fixAuthChallengeForSDP(ev->getHome(),msg,sip);
 		if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
 			if ((c=static_cast<RelayedCall*>(mCalls.find(sip)))!=NULL){
 				if (sip->sip_status->st_status==200 && c->isNew200Ok(sip)){

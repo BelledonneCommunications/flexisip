@@ -152,6 +152,7 @@ class ModuleToolbox{
 		static int sipPortToInt(const char *port);
 		static bool fromMatch(const sip_from_t *from1, const sip_from_t *from2);
 		static bool matchesOneOf(const char *item, const std::list<std::string> &set);
+		static bool fixAuthChallengeForSDP(su_home_t *home, msg_t *msg, sip_t *sip);
 };
 
 #endif
