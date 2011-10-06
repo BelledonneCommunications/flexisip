@@ -28,7 +28,8 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 
 %build
 %configure \
-	--disable-strict
+	--disable-strict \
+	--sysconfdir=%{_sysconfdir}
 %{__make} 
 
 # parallel build disabled due to automake libtool random errors
