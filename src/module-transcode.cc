@@ -310,8 +310,7 @@ int TranscodeModule::handleOffer(CallContext *c, SipEvent *ev){
 	}else{
 		ms_list_for_each(ioffer,(void (*)(void*))payload_type_destroy);
 		ms_list_free(ioffer);
-		nta_msg_treply(getSofiaAgent(),msg,415,"Unsupported codecs",TAG_END());
-		ev->stopProcessing();
+		
 	}
 	delete m;
 	return -1;
@@ -328,6 +327,9 @@ int TranscodeModule::processNewInvite(CallContext *c,SipEvent *ev){
 		//be in the record-route
 		addRecordRoute(c->getHome(),getAgent(),ev->mMsg,ev->mSip);
 		c->storeNewInvite(ev->mMsg);
+	}else{
+		nta_msg_treply(getSofiaAgent(),ev->mMsg,415,"Unsupported codecs",TAG_END());		
+		ev->stopProcessing();
 	}
 	return ret;
 }
@@ -461,7 +463,6 @@ void TranscodeModule::process200OkforInvite(CallContext *ctx, SipEvent *ev){
 		handleOffer(ctx,ev);
 	}
 	ctx->storeNewResponse(ev->mMsg);
-	
 }
 
 static bool isEarlyMedia(sip_t *sip){
