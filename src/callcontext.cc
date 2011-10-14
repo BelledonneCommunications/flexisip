@@ -297,7 +297,7 @@ CallContext::CallContext(sip_t *sip, const std::string &bind_address) : CallCont
 	mInfoCSeq=-1;
 }
 
-void CallContext::prepare(sip_t *invite, const CallContextParams &params){
+void CallContext::prepare( const CallContextParams &params){
 	if (mFrontSide){
 		if (isJoined())
 			unjoin();

@@ -173,17 +173,19 @@ void MediaRelayServer::run(){
 		pfds[sessionCount*4].revents=0;
 		
 		err=poll(pfds,(sessionCount*4 )+ 1,-1);
-		if (pfds[sessionCount*4].revents){
-			char tmp;
-			if (read(mCtlPipe[0],&tmp,1)==-1){
-				LOGE("Fail to read from control pipe.");
+		if (err>0){
+			if (pfds[sessionCount*4].revents){
+				char tmp;
+				if (read(mCtlPipe[0],&tmp,1)==-1){
+					LOGE("Fail to read from control pipe.");
+				}
 			}
-		}
-		time_t curtime=time(NULL);
-		for(i=0,it=mSessions.begin();i<sessionCount;++i,++it){
-			RelaySession *s=(*it);
-			if (s->isUsed()){
-				s->transfer(curtime,&pfds[i*4]);
+			time_t curtime=time(NULL);
+			for(i=0,it=mSessions.begin();i<sessionCount;++i,++it){
+				RelaySession *s=(*it);
+				if (s->isUsed()){
+					s->transfer(curtime,&pfds[i*4]);
+				}
 			}
 		}
 		/*cleanup loop*/

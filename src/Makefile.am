@@ -24,8 +24,12 @@ flexisip_SOURCES=main.cc \
 			auth-odbc.hh auth-odbc.cc \
 			module-loadbalancer.cc
 
+flexisip_LDADD=$(SOFIA_LIBS) $(MEDIASTREAMER_LIBS) $(ODBC_LIBS)
+
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS) \
 			-DCONFIG_DIR=\"$(CONFIG_DIR)\"
 AM_CFLAGS=$(MEDIASTREAMER_CFLAGS)
 
-AM_LDFLAGS=$(SOFIA_LIBS) $(MEDIASTREAMER_LIBS) ${ODBC_LIBS}
+
+
+

@@ -193,6 +193,7 @@ MSList *TranscodeModule::orderList(const std::list<std::string> &config, const M
 		}else LOGF("Error parsing audio codec list");
 		
 		err=sscanf(p,"%i",&rate);
+		if (err!=1) LOGF("Error parsing audio codec list, missing rate information");
 		for(it=l;it!=NULL;it=it->next){
 			PayloadType *pt=(PayloadType*)it->data;
 			if (strcasecmp(pt->mime_type,name)==0 && rate==pt->clock_rate){
@@ -285,7 +286,7 @@ int TranscodeModule::handleOffer(CallContext *c, SipEvent *ev){
 	MSList *ioffer=m->readPayloads();
 		
 	if (isOneCodecSupported(ioffer)){
-		c->prepare(sip,mCallParams);
+		c->prepare(mCallParams);
 		c->setInitialOffer(ioffer);
 		m->getAudioIpPort(&addr,&port);
 		ptime=m->readPtime();
@@ -308,9 +309,9 @@ int TranscodeModule::handleOffer(CallContext *c, SipEvent *ev){
 		delete m;
 		return 0;
 	}else{
+		LOGW("No support for any of the codec offered by client, doing bypass.");
 		ms_list_for_each(ioffer,(void (*)(void*))payload_type_destroy);
 		ms_list_free(ioffer);
-		
 	}
 	delete m;
 	return -1;
@@ -338,10 +339,11 @@ void TranscodeModule::processNewAck(CallContext *ctx, SipEvent *ev){
 	LOGD("Processing ACK");
 	const MSList *ioffer=ctx->getInitialOffer();
 	if (ioffer==NULL){
-		LOGE("Processing ACK with SDP but no offer was made");
+		LOGE("Processing ACK with SDP but no offer was made or processed.");
+	}else{
+		handleAnswer(ctx,ev);
+		ctx->storeNewAck(ev->mMsg);
 	}
-	handleAnswer(ctx,ev);
-	ctx->storeNewAck(ev->mMsg);
 }
 
 void TranscodeModule::onRequest(SipEvent *ev){

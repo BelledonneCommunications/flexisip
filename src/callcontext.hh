@@ -77,7 +77,7 @@ class CallSide{
 class CallContext : public CallContextBase{
 	public:
 		CallContext(sip_t *invite, const std::string &bind_address);
-		void prepare(sip_t *invite, const CallContextParams & params);
+		void prepare(const CallContextParams & params);
 		void join(MSTicker *ticker);
 		void unjoin();
 		bool isJoined()const;
