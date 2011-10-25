@@ -62,7 +62,7 @@ class CallSide{
 		MSFilter *mSender;
 		MSFilter *mDecoder;
 		MSFilter *mEncoder;
-		MSAudioBitrateController *mRc;
+		MSBitrateController *mRc;
 		MSFilter *mToneGen;
 		time_t mLastCheck;
 		uint64_t mLastRecvCount;

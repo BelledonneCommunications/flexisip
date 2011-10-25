@@ -116,7 +116,7 @@ CallSide::~CallSide(){
 	if (mDecoder)
 		ms_filter_destroy(mDecoder);
 	if (mRc)
-		ms_audio_bitrate_controller_destroy(mRc);
+		ms_bitrate_controller_destroy(mRc);
 }
 
 void CallSide::dump(){
@@ -195,7 +195,7 @@ void CallSide::connect(CallSide *recvSide, MSTicker *t){
 			if (t) ms_filter_postprocess(mEncoder);
 			ms_filter_destroy(mEncoder);
 			if (mRc) {
-				ms_audio_bitrate_controller_destroy(mRc);
+				ms_bitrate_controller_destroy(mRc);
 				mRc=NULL;
 			}
 		}
@@ -283,7 +283,7 @@ void CallSide::doBgTasks(){
 		if (ev!=NULL){
 			OrtpEventType evt=ortp_event_get_type(ev);
 			if (evt==ORTP_EVENT_RTCP_PACKET_RECEIVED){
-				if (mRc) ms_audio_bitrate_controller_process_rtcp(mRc,ortp_event_get_data(ev)->packet);
+				if (mRc) ms_bitrate_controller_process_rtcp(mRc,ortp_event_get_data(ev)->packet);
 			}
 			ortp_event_destroy(ev);
 		}
