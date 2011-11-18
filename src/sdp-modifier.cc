@@ -48,9 +48,13 @@ bool SdpModifier::initFromSipMsg(sip_t *sip){
 	mSession=sdp_session(mParser);
 	if (mSession==NULL) {
 		LOGE("SDP parsing error: %s",sdp_parsing_error(mParser));
+		return false;
 	}
-	
-	return mSession!=NULL;
+	if (mSession->sdp_media==NULL){
+		LOGE("SDP with no mline.");
+		return false;
+	}
+	return true;
 }
 
 SdpModifier::SdpModifier(su_home_t *home){
