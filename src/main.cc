@@ -170,6 +170,19 @@ static int getSystemFdLimit(){
 				}
 			}
 			close(fd);
+			fd=open("/proc/sys/fs/nr_open",O_RDONLY);
+			if (fd!=-1){
+				if (read(fd,tmp,sizeof(tmp))>0){
+					int val=0;
+					if (sscanf(tmp,"%i",&val)==1){
+						LOGN("System wide maximum number open files is %i",val);
+						if (val<max_sys_fd){
+							max_sys_fd=val;
+						}
+					}
+				}
+				close(fd);
+			}
 		}
 #else
 	LOGW("Guessing of system wide fd limit is not implemented.");
@@ -185,13 +198,14 @@ static void increase_fd_limit(void){
 		LOGE("getrlimit(RLIMIT_NOFILE) failed: %s",strerror(errno));
 	}else{
 		unsigned int new_limit=getSystemFdLimit();
+		int old_lim=(int)lm.rlim_cur;
 		LOGN("Maximum number of open file descriptors is %i, limit=%i, system wide limit=%i",
 		     (int)lm.rlim_cur,(int)lm.rlim_max,getSystemFdLimit());
 		
 		if (lm.rlim_cur<new_limit){
 			lm.rlim_cur=lm.rlim_max=new_limit;
 			if (setrlimit(RLIMIT_NOFILE,&lm)==-1){
-				LOGE("setrlimit(RLIMIT_NOFILE) failed: %s",strerror(errno));
+				LOGE("setrlimit(RLIMIT_NOFILE) failed: %s. Limit of number of file descriptors is low (%i).",strerror(errno),old_lim);
 			}
 			if (getrlimit(RLIMIT_NOFILE,&lm)==0){
 				LOGN("Maximum number of file descriptor set to %i.",(int)lm.rlim_cur);
