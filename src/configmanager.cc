@@ -217,6 +217,7 @@ ConfigManager *ConfigManager::get(){
 
 static ConfigItemDescriptor global_conf[]={
 	{	Boolean	,	"debug"	,	"Outputs very detailed logs",	"false"	},
+	{	Boolean	,	"auto-respawn",	"Automatically respawn flexisip in case of abnormal termination (crashes)",	"true"	},
 	{	StringList	,	"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost" },
 	{	String	,	"ip-address",	"The public ip address of the proxy.",	"guess"},
 	{	String	,	"bind-address",	"The local interface's ip address where to listen. The wildcard (*) means all interfaces.",	"*"},

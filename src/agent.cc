@@ -136,7 +136,9 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 			&Agent::messageCallback,
 			(nta_agent_magic_t*)this,
 			NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), TAG_END());
-	
+	if (mAgent==NULL){
+		LOGF("Could not create sofia mta, certainly SIP ports already in use.");
+	}
 	if (tls->get<ConfigBoolean>("enabled")->read()) {
 		std::string keys=tls->get<ConfigString>("certificates-dir")->read();
 		snprintf(sipuri,sizeof(sipuri)-1,"sips:%s:%i;maddr=%s", mPublicIp.c_str(),mTlsPort,bind_address.c_str());
@@ -145,9 +147,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 			(url_string_t*)sipuri,
 				TPTAG_CERTIFICATE(keys.c_str()), NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), NTATAG_TLS_RPORT(1), TAG_END());
 	}
-	if (mAgent==NULL){
-		LOGF("Could not create sofia mta.");
-	}
+	
 	if (bind_address=="*"){
 		bind_address="0.0.0.0";
 	}

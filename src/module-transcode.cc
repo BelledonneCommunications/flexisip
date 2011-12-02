@@ -241,7 +241,7 @@ bool TranscodeModule::processSipInfo(CallContext *c, msg_t *msg, sip_t *sip){
 	if (payload!=NULL && payload->pl_data!=NULL) {
 		if (sip->sip_content_type!=NULL && 
 		    strcasecmp(sip->sip_content_type->c_subtype,"dtmf-relay")==0){
-			c->playTone (sip);
+			c->playTone(sip);
 			nta_msg_treply(getSofiaAgent(),msg,200,NULL,TAG_END());
 			return true;
 		}
