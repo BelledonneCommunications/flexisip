@@ -367,19 +367,21 @@ void CallContext::dump(){
 }
 
 void CallContext::playTone(sip_t *info){
-	if (mInfoCSeq==-1 || ((unsigned int)mInfoCSeq)!=info->sip_cseq->cs_seq){
-		mInfoCSeq=info->sip_cseq->cs_seq;
-		const char *p=strstr(info->sip_payload->pl_data,"Signal=");
-		if (p){
-			int dtmf;
-			p+=strlen("Signal=");
-			dtmf=p[0];
-			if (dtmf!=0){
-				LOGD("Intercepting dtmf in SIP info");
-				getBackSide ()->playTone(dtmf);
+	if (mFrontSide && mBackSide){
+		if (mInfoCSeq==-1 || ((unsigned int)mInfoCSeq)!=info->sip_cseq->cs_seq){
+			mInfoCSeq=info->sip_cseq->cs_seq;
+			const char *p=strstr(info->sip_payload->pl_data,"Signal=");
+			if (p){
+				int dtmf;
+				p+=strlen("Signal=");
+				dtmf=p[0];
+				if (dtmf!=0){
+					LOGD("Intercepting dtmf in SIP info");
+					getBackSide()->playTone(dtmf);
+				}
 			}
 		}
-	}
+	}else LOGW("Tone not played because graph is not ready.");
 }
 
 CallSide *CallContext::getOther(CallSide *cs){
