@@ -19,7 +19,8 @@
 
 #include "callcontext.hh"
 
-#include <mediastreamer2/dtmfgen.h>
+#include "mediastreamer2/dtmfgen.h"
+#include "ortp/telephonyevents.h"
 
 #include "sdp-modifier.hh"
 
@@ -95,6 +96,9 @@ void CallSide::assignPayloads(const MSList *payloads){
 		rtp_profile_set_payload(mProfile, payload_type_get_number(pt),pt);
 		if (payloads==elem){
 			rtp_session_set_payload_type(mSession,payload_type_get_number(pt));
+		}
+		if (strcmp("telephone-event",pt->mime_type)==0) {
+			rtp_session_telephone_events_supported(mSession);
 		}
 	}
 	ms_filter_call_method(mReceiver,MS_RTP_RECV_SET_SESSION,mSession);
@@ -268,12 +272,19 @@ void CallSide::onTelephoneEvent(RtpSession *s, int dtmf, void * data){
 }
 
 void CallSide::playTone(int tone_name){
-	if (mEncoder && mToneGen){
+	if (mSession && rtp_session_telephone_events_supported(mSession)) {
+		char dtmf[4];
+		snprintf(dtmf,4,"%i",tone_name);
+		LOGD("Sending dtmf signal %c",tone_name);
+		ms_filter_call_method(mSender,MS_RTP_SEND_SEND_DTMF,dtmf);
+	} else 	if (mEncoder && mToneGen){
 		const char *enc_fmt=mEncoder->desc->enc_fmt;
 		if (strcasecmp(enc_fmt,"pcmu")==0 || strcasecmp(enc_fmt,"pcma")==0){
 			LOGD("Modulating dtmf %c",tone_name);
 			ms_filter_call_method(mToneGen,MS_DTMF_GEN_PUT,&tone_name);
 		}
+	} else {
+		ms_warning("Cannot send tone [%i] because neither rfc2833 nor G711 codec selected",tone_name);
 	}
 }
 

@@ -123,6 +123,7 @@ static MSList *makeSupportedAudioPayloadList(){
 	payload_type_set_number(&payload_type_speex_wb,-1);
 	payload_type_set_number(&payload_type_amr,-1);
 	payload_type_set_number(&payload_type_ilbc,-1);
+	payload_type_set_number(&payload_type_telephone_event,-1);
 	MSList *l=NULL;
 	l=ms_list_append(l,&payload_type_speex_nb);
 	l=ms_list_append(l,&payload_type_ilbc);
@@ -130,6 +131,7 @@ static MSList *makeSupportedAudioPayloadList(){
 	l=ms_list_append(l,&payload_type_gsm);
 	l=ms_list_append(l,&payload_type_pcmu8000);
 	l=ms_list_append(l,&payload_type_pcma8000);
+	l=ms_list_append(l,&payload_type_telephone_event);
 	//l=ms_list_append(l,&payload_type_speex_wb);
 	
 	return l;
@@ -197,7 +199,7 @@ MSList *TranscodeModule::orderList(const std::list<std::string> &config, const M
 		for(it=l;it!=NULL;it=it->next){
 			PayloadType *pt=(PayloadType*)it->data;
 			if (strcasecmp(pt->mime_type,name)==0 && rate==pt->clock_rate){
-				if (ms_filter_get_encoder(pt->mime_type)!=NULL){
+				if (ms_filter_get_encoder(pt->mime_type)!=NULL || strcmp("telephone-event",pt->mime_type)==0 ){
 					ret=ms_list_append(ret,pt);
 				}else{
 					LOGE("Codec %s/%i is configured but is not supported (missing plugin ?)",name,rate);
