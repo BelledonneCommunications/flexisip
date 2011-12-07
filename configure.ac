@@ -4,7 +4,7 @@
 AC_PREREQ([2.61])
 AC_INIT([flexisip], [0.3.1], [simon.morlat@linphone.org])
 AC_CONFIG_SRCDIR([src/agent.cc])
-dnl AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_HEADERS([flexisip-config.h])
 
 AM_INIT_AUTOMAKE
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],)
@@ -39,7 +39,7 @@ fi
 AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],,[AC_MSG_ERROR("unixodbc headers missing.")])
 AC_CHECK_LIB(odbc, main,[ODBC_LIBS=-lodbc], [AC_MSG_ERROR("Linking against odbc failed.")])
 AC_SUBST(ODBC_LIBS)
-
+AC_CHECK_HEADERS(sys/prctl.h)
 
 # Checks for header files.
 

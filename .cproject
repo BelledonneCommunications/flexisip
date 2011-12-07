@@ -58,6 +58,7 @@
 									<listOptionValue builtIn="false" value="&quot;${HOME}/dev/inst/include&quot;"/>
 									<listOptionValue builtIn="false" value="/opt/local/include/sofia-sip-1.12"/>
 									<listOptionValue builtIn="false" value="/opt/local/include"/>
+									<listOptionValue builtIn="false" value="&quot;${HOME}/opt/include&quot;"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.preprocessor.def.459141537" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="CONFIG_DIR=&quot;\&quot;${HOME}/opt/etc/flexisip\&quot;&quot;"/>
@@ -548,6 +549,7 @@
 									<listOptionValue builtIn="false" value="/opt/local/include/sofia-sip-1.12"/>
 									<listOptionValue builtIn="false" value="/opt/local/include"/>
 									<listOptionValue builtIn="false" value="&quot;${HOME}/opt/include&quot;"/>
+									<listOptionValue builtIn="false" value="../$(HOME)/opt/include"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.370840768" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
@@ -559,6 +561,7 @@
 									<listOptionValue builtIn="false" value="/opt/local/include/sofia-sip-1.12"/>
 									<listOptionValue builtIn="false" value="/opt/local/include"/>
 									<listOptionValue builtIn="false" value="&quot;${HOME}/opt/include&quot;"/>
+									<listOptionValue builtIn="false" value="../$(HOME)/opt/include"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.preprocessor.def.95530576" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="VERSION=JEHAN-DEV"/>
@@ -572,6 +575,7 @@
 									<listOptionValue builtIn="false" value="/opt/local/include/sofia-sip-1.12"/>
 									<listOptionValue builtIn="false" value="/opt/local/include"/>
 									<listOptionValue builtIn="false" value="&quot;${HOME}/opt/include&quot;"/>
+									<listOptionValue builtIn="false" value="../$(HOME)/opt/include"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.2063626520" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="VERSION=JEHAN-DEV"/>
