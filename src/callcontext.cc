@@ -272,7 +272,7 @@ void CallSide::onTelephoneEvent(RtpSession *s, int dtmf, void * data){
 }
 
 void CallSide::playTone(char tone_name){
-	if (mSession && rtp_session_telephone_events_supported(mSession)) {
+	if (mSession && rtp_session_telephone_events_supported(mSession)!=-1) {
 		LOGD("Sending dtmf signal %c",tone_name);
 		ms_filter_call_method(mSender,MS_RTP_SEND_SEND_DTMF,&tone_name);
 	} else 	if (mEncoder && mToneGen){
