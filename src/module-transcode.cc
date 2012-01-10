@@ -480,7 +480,9 @@ void TranscodeModule::onResponse(SipEvent *ev){
 	sip_t *sip=ev->mSip;
 	msg_t *msg=ev->mMsg;
 	CallContext *c;
-	if (sip->sip_cseq && sip->sip_cseq->cs_method==sip_method_invite){
+	if (sip->sip_cseq
+			&& sip->sip_cseq->cs_method==sip_method_invite
+			&& mAgent->countUsInVia(sip->sip_via) < 2) { //If we are more than 1 time in via headers, wait until next time we receive this message for any processing
 		fixAuthChallengeForSDP(ev->getHome(),msg,sip);
 		if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
 			if (sip->sip_status->st_status==200 && c->isNew200Ok(sip)){
@@ -488,10 +490,6 @@ void TranscodeModule::onResponse(SipEvent *ev){
 			}else if (isEarlyMedia(sip) && c->isNewEarlyMedia (sip)){
 				process200OkforInvite(c,ev);
 			}else if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
-				if (mAgent->countUsInVia(sip->sip_via)) {
-					LOGD("We are already in VIA headers of this response");
-					return;
-				}
 				LOGD("This is a 200 or 183 retransmission");
 				if (c->getLastForwaredResponse()!=NULL){
 					msg=msg_copy(c->getLastForwaredResponse ());
