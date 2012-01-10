@@ -113,11 +113,13 @@ class NatHelper : public Module, protected ModuleToolbox{
 					if ( (is_frontend && single_contact)
 						|| (strcmp(host,via->v_host)==0 && sipPortEquals(ctt->m_url->url_port,via->v_port) && transportEquals(via_transport,ct_transport))){
 						
-						LOGD("Fixing contact header with %s:%s to %s:%s",
-						   ctt->m_url->url_host, ctt->m_url->url_port ? ctt->m_url->url_port :"" ,
-						   received, rport ? rport : "");
-						ctt->m_url->url_host=received;
-						ctt->m_url->url_port=rport;
+						if (strcmp(host,received)!=0 || !sipPortEquals(ctt->m_url->url_port,rport)){
+							LOGD("Fixing contact header with %s:%s to %s:%s",
+							   ctt->m_url->url_host, ctt->m_url->url_port ? ctt->m_url->url_port :"" ,
+							   received, rport ? rport : "");
+							ctt->m_url->url_host=received;
+							ctt->m_url->url_port=rport;
+						}
 						if (!transportEquals(via_transport,ct_transport)) {
 							char param[64];
 							snprintf(param,sizeof(param)-1,"transport=%s",via_transport);
