@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE scenario SYSTEM "sipp.dtd">
 
-<scenario name="Register one user with authentication">
+<scenario name="Register one user without authentication">
 
 <Global variables="userId,luserAddContact,luserIpPort">
   <action>
