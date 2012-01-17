@@ -124,7 +124,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	LOGI("Public IP address is %s, bind address is %s",mPublicIp.c_str(),bind_address.c_str());
 	
 	// compute a network wide unique id, REVISIT: compute a hash
-	std::ostringstream oss;
+	ostringstream oss;
 	oss << mPublicIp << "_" << mPort;
 	mUniqueId = oss.str();
 	mRoot=root;
@@ -152,6 +152,17 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 		bind_address="0.0.0.0";
 	}
 	mBindIp=bind_address;
+
+	oss.str(mPreferredRoute);
+	oss << "sip:";
+	if (!mBindIp.empty() && mBindIp != "0.0.0.0" && mBindIp != "::0") {
+		oss << mBindIp;
+	} else {
+		oss << mPublicIp;
+	}
+	oss << ":" << mPort;
+	mPreferredRoute=oss.str();
+	LOGD("Preferred route is %s", mPreferredRoute.c_str());
 }
 
 Agent::~Agent(){
@@ -218,19 +229,33 @@ bool Agent::isUs(const url_t *url,bool check_aliases)const{
 
 void Agent::onRequest(msg_t *msg, sip_t *sip){
 	list<Module*>::iterator it;
-	SipEvent ev(msg,sip);
+	shared_ptr<SipEvent> ev(new SipEvent(msg,sip));
 	for(it=mModules.begin();it!=mModules.end();++it){
-		(*it)->processRequest(&ev);
-		if (ev.finished()) break;
+		(*it)->processRequest(ev);
+		if (ev->finished()) break;
+	}
+}
+
+void Agent::injectEventAfter(shared_ptr<SipEvent> &ev, Module *module) {
+	bool found=false;
+	list<Module*>::iterator it;
+	ev->restartProcessing();
+	for(it=mModules.begin();it!=mModules.end();++it){
+		if (!found){
+			if (module == (*it)) found=true;
+			continue;
+		}
+		(*it)->processRequest(ev);
+		if (ev->finished()) break;
 	}
 }
 
 void Agent::onResponse(msg_t *msg, sip_t *sip){
 	list<Module*>::iterator it;
-	SipEvent ev(msg,sip);
+	shared_ptr<SipEvent> ev(new SipEvent(msg,sip));
 	for(it=mModules.begin();it!=mModules.end();++it){
-		(*it)->processResponse(&ev);
-		if (ev.finished()) break;
+		(*it)->processResponse(ev);
+		if (ev->finished()) break;
 	}
 }
 

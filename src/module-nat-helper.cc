@@ -26,7 +26,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 		}
 		~NatHelper(){
 		}
-		virtual void onRequest(SipEvent *ev) {
+		virtual void onRequest(std::shared_ptr<SipEvent> &ev) {
 			sip_request_t *rq=ev->mSip->sip_request;
 			/* if we receive a request whose first via is wrong (received or rport parameters are present),
 			fix any possible Contact headers with the same wrong ip address and ports */
@@ -37,17 +37,39 @@ class NatHelper : public Module, protected ModuleToolbox{
 				addRecordRoute (ev->getHome(),getAgent(),ev->mMsg,ev->mSip);
 			}
 		}
-		virtual void onResponse(SipEvent *ev){
+		virtual void onResponse(std::shared_ptr<SipEvent> &ev){
 			sip_status_t *st=ev->mSip->sip_status;
 			sip_cseq_t *cseq=ev->mSip->sip_cseq;
 			/*in responses that establish a dialog, masquerade Contact so that further requests (including the ACK) are routed in the same way*/
 			if (cseq && (cseq->cs_method==sip_method_invite || cseq->cs_method==sip_method_subscribe)){
-				if (st->st_status>=200 && st->st_status<=299){	
-					fixContactInResponse(ev->getHome(),ev->mMsg,ev->mSip);
+				if (st->st_status>=200 && st->st_status<=299){
+					sip_contact_t *ct=ev->mSip->sip_contact;
+					if (ct && ct->m_url) {
+						if (!url_has_param(ct->m_url, mContactVerifiedParam.c_str())) {
+							fixContactInResponse(ev->getHome(),ev->mMsg,ev->mSip);
+							url_param_add(ev->getHome(), ct->m_url, mContactVerifiedParam.c_str());
+						} else if (ev->mSip->sip_via && ev->mSip->sip_via->v_next && !ev->mSip->sip_via->v_next->v_next) {
+							// Via contains client and first proxy
+							LOGD("Removing verified param from response contact");
+							ct->m_url->url_params = url_strip_param_string(su_strdup(ev->getHome(),ct->m_url->url_params),mContactVerifiedParam.c_str());
+						}
+					}
 				}
 			}
 		}
+	protected:
+		virtual void onDeclare(ConfigStruct * module_config){
+			ConfigItemDescriptor items[]={
+				{	String		,	"contact-verified-param"		,	"Internal URI parameter added to response contact by first proxy and cleaned by last one.",		"verified"	},
+				config_item_end
+			};
+			module_config->addChildrenValues(items);
+		}
+		virtual void onLoad(Agent *agent, const ConfigStruct *root){
+			mContactVerifiedParam=root->get<ConfigString>("contact-verified-param")->read();
+		}
 	private:
+		std::string mContactVerifiedParam;
 		bool empty(const char *value){
 			return value==NULL || value[0]=='\0';
 		}

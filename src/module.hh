@@ -19,6 +19,7 @@
 #ifndef module_hh
 #define module_hh
 
+#include <memory>
 #include <list>
 
 class ModuleInfoBase;
@@ -81,6 +82,9 @@ class SipEvent{
 		void stopProcessing(){
 			mStop=true;
 		}
+		void restartProcessing(){
+			mStop=false;
+		}
 		bool finished()const{
 			return mStop;
 		}
@@ -115,16 +119,16 @@ class Module {
 		const std::string &getModuleName();
 		void declare(ConfigStruct *root);
 		void load(Agent *agent);
-		void processRequest(SipEvent *ev);
-		void processResponse(SipEvent *ev);
+		void processRequest(std::shared_ptr<SipEvent> &ev);
+		void processResponse(std::shared_ptr<SipEvent> &ev);
 		void idle();
 	protected:
 		virtual void onDeclare(ConfigStruct *root){
 		}
 		virtual void onLoad(Agent *agent, const ConfigStruct *root){
 		}
-		virtual void onRequest(SipEvent *ev)=0;
-		virtual void onResponse(SipEvent *ev)=0;
+		virtual void onRequest(std::shared_ptr<SipEvent> &ev)=0;
+		virtual void onResponse(std::shared_ptr<SipEvent> &ev)=0;
 		virtual void onIdle(){
 		}
 		Agent *mAgent;

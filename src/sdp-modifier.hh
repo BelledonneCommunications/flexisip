@@ -50,6 +50,8 @@ class SdpModifier{
 		void getAudioIpPort(std::string *ip, int *port);
 		void changeAudioIpPort(const char *ip, int port);
 		void changeIpPort(Masquerader *m, const char *partytag);
+		void addAttribute(const char *name, const char *value);
+		bool hasAttribute(const char *name);
 		void update(msg_t *msg, sip_t *sip);
 		void setPtime(int ptime);
 		virtual ~SdpModifier();

@@ -19,9 +19,9 @@ else
 	use_rpm=true;
 fi
 
-CFLAGS="-g -O2 -pthread"
-CXXFLAGS="-g -O2 -pthread"
-LDFLAGS="$LDFLAGS -pthread"
+CFLAGS="-g -O2 -pthread $CFLAGS"
+CXXFLAGS="-g -O2 -pthread -std=c++0x"
+LDFLAGS="-pthread $LDFLAGS"
 
 AC_ARG_ENABLE(strict,
 	AC_HELP_STRING([--enable-strict],
@@ -43,6 +43,28 @@ AC_SUBST(ODBC_LIBS)
 
 # Checks for header files.
 
+AC_ARG_ENABLE(redis,
+	AC_HELP_STRING([--enable-redis],
+	    [Build with redis key/value datastore @<:@yes@:>@]),
+        [redis="${enableval}"],[redis=yes]
+)
+if test x$redis = xyes ; then
+    PKG_CHECK_MODULES(HIREDIS,[hiredis >= 0.10.0])
+fi
+AM_CONDITIONAL(BUILD_REDIS,test x$redis = xyes)
+
+AC_ARG_ENABLE(protobuf,
+	AC_HELP_STRING([--enable-protobuf],
+	    [Build registrar contact serializer using protobuf @<:@yes@:>@]),
+        [protobuf="${enableval}"],[protobuf=yes]
+)
+if test x$protobuf = xyes ; then
+    PKG_CHECK_MODULES(PROTOBUF,[protobuf >= 2.3.0])
+fi
+AM_CONDITIONAL(BUILD_PROTOBUF,test x$protobuf = xyes)
+
+
+
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
 
@@ -52,6 +74,15 @@ PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
 
 AM_CONDITIONAL(USE_DEB,test x$use_deb = xtrue)
 AM_CONDITIONAL(USE_RPM,test x$use_rpm = xtrue)
+
+# Checks for programs
+
+if test x$protobuf = xyes ; then
+    AC_PATH_PROG([PROTOC],[protoc])
+    if test -z "$PROTOC"; then
+        AC_MSG_ERROR(['protoc' is required to generate protobuf serializer classes])
+    fi
+fi
 
 
 # Export path to configuration directory

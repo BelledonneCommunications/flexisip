@@ -173,12 +173,12 @@ void SdpModifier::setPtime(int ptime){
 			if (at){
 				at->a_value=su_sprintf(mHome,"%i",ptime);
 			}else{
-				sdp_attribute_t cat;
-				memset(&cat,0,sizeof(cat));
-				cat.a_size=sizeof(cat);
-				cat.a_name="ptime";
-				cat.a_value=su_sprintf(mHome,"%i",ptime);
-				sdp_attribute_append(&mline->m_attributes,&cat);
+				sdp_attribute_t *cat= (sdp_attribute_t *)su_alloc(mHome, sizeof(sdp_attribute_t));
+				memset(cat,0,sizeof(*cat));
+				cat->a_size=sizeof(*cat);
+				cat->a_name="ptime";
+				cat->a_value=su_sprintf(mHome,"%i",ptime);
+				sdp_attribute_append(&mline->m_attributes,cat);
 			}
 		}else{
 			sdp_attribute_remove(&mline->m_attributes,"ptime");
@@ -274,6 +274,19 @@ void SdpModifier::changeIpPort(Masquerader *m, const char *party_tag){
 		}
 		mline->m_port=port;
 	}
+}
+
+bool SdpModifier::hasAttribute(const char *name) {
+	return sdp_attribute_find(mSession->sdp_attributes,name);
+}
+
+void SdpModifier::addAttribute(const char *name, const char *value) {
+	sdp_attribute_t *a= (sdp_attribute_t *)su_alloc(mHome, sizeof(sdp_attribute_t));
+	memset(a,0,sizeof(*a));
+	a->a_size=sizeof(*a);
+	a->a_name=su_strdup(mHome, name);
+	a->a_value=su_strdup(mHome, value);
+	sdp_attribute_append(&mSession->sdp_attributes,a);
 }
 
 void SdpModifier::update(msg_t *msg, sip_t *sip){

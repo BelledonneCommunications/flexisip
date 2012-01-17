@@ -54,6 +54,7 @@ class Authentication : public Module {
 private:
 	map<string,auth_mod_t *> mAuthModules;
 	list<string> mDomains;
+	list<string> mTrustedHosts;
 	static ModuleInfo<Authentication> sInfo;
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
@@ -78,6 +79,9 @@ private:
 	  auth_readdb_if_needed(am);
 	  ta_end(ta);
 	  return retval;
+	}
+	bool empty(const char *value){
+		return value==NULL || value[0]=='\0';
 	}
 	bool databaseUseHashedPasswords;
 
@@ -120,6 +124,7 @@ public:
 	virtual void onDeclare(ConfigStruct * module_config){
 		ConfigItemDescriptor items[]={
 			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	""	},
+			{	StringList	,	"trusted-hosts"	, 	"List of whitespace separated IP which will not be challenged.",	""	},
 			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. ex: 'DSN=myodbc3;' where 'myodbc3' is the datasource name.",		""	},
 			{	String		,	"request"				,	"The sql request to execute to obtain the password. The only recognized parameter is the named parameter ':id'. Example: 'select password from accounts where id = :id'",		""	},
 			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
@@ -181,6 +186,7 @@ public:
 			}
 		}
 
+		mTrustedHosts=module_config->get<ConfigStringList>("trusted-hosts")->read();
 
 		string none = "none";
 		string dsn = module_config->get<ConfigString>("datasource")->read();
@@ -213,7 +219,7 @@ public:
 		databaseUseHashedPasswords = module_config->get<ConfigBoolean>("hashed-passwords")->read();
 	}
 
-	void onRequest(SipEvent *ev) {
+	void onRequest(std::shared_ptr<SipEvent> &ev) {
 		sip_t *sip=ev->mSip;
 		map<string,auth_mod_t *>::iterator lAuthModuleIt;
 		// first check for auth module for this domain
@@ -226,6 +232,16 @@ public:
 									               TAG_END());
 			ev->stopProcessing();
 			return;
+		}
+
+		sip_via_t *via=sip->sip_via;
+		list<string>::const_iterator trustedHostsIt=mTrustedHosts.begin();
+		const char *receivedHost=!empty(via->v_received) ? via->v_received : via->v_host;
+		for (;trustedHostsIt != mTrustedHosts.end(); ++trustedHostsIt) {
+			if (*trustedHostsIt == receivedHost) {
+				LOGD("Allowing message from trusted host");
+				return;
+			}
 		}
 
 		auth_status_t *as;
@@ -254,12 +270,12 @@ public:
 			ev->stopProcessing();
 			return;
 		}else{
-			sip_header_remove(ev->mMsg,sip,sip->sip_request->rq_method == sip_method_register ? 
+			sip_header_remove(ev->mMsg,sip,sip->sip_request->rq_method == sip_method_register ?
 			                  (sip_header_t*)sip->sip_authorization : (sip_header_t*)sip->sip_proxy_authorization);
 		}
 		return;
 	}
-	void onResponse(SipEvent *ev) {/*nop*/};
+	void onResponse(std::shared_ptr<SipEvent> &ev) {/*nop*/};
 
 };
 
@@ -367,7 +383,8 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 	const string id = ar->ar_username;
 	//LOGD("Retrieving password of user %s", id.c_str());
 	try {
-		passwd = OdbcConnector::getInstance()->password(id).c_str();
+		const string pwdString=OdbcConnector::getInstance()->password(id);
+		passwd = su_strdup(as->as_home,pwdString.c_str());
 	} catch (int error) {
 		switch (error) {
 		case OdbcConnector::ERROR_PASSWORD_NOT_FOUND:

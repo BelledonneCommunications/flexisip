@@ -24,12 +24,12 @@ class ForwardModule : public Module, ModuleToolbox {
 		ForwardModule(Agent *ag);
 		virtual void onDeclare(ConfigStruct * module_config);
 		virtual void onLoad(Agent *agent, const ConfigStruct *root);
-		virtual void onRequest(SipEvent *ev);
-		virtual void onResponse(SipEvent *ev);
+		virtual void onRequest(std::shared_ptr<SipEvent> &ev);
+		virtual void onResponse(std::shared_ptr<SipEvent> &ev);
 		~ForwardModule();
 	private:
-		url_t* overrideDest(SipEvent *ev, url_t* dest);
-		void checkRecordRoutes(SipEvent *ev, url_t *dest);
+		url_t* overrideDest(std::shared_ptr<SipEvent> &ev, url_t* dest);
+		void checkRecordRoutes(std::shared_ptr<SipEvent> &ev, url_t *dest);
 		su_home_t mHome;
 		sip_route_t *mOutRoute;
 		bool mRewriteReqUri;
@@ -70,7 +70,7 @@ void ForwardModule::onLoad(Agent *agent, const ConfigStruct *module_config){
 	}
 }
 
-url_t* ForwardModule::overrideDest(SipEvent *ev, url_t *dest){
+url_t* ForwardModule::overrideDest(std::shared_ptr<SipEvent> &ev, url_t *dest){
 	if (mOutRoute){
 		dest=mOutRoute->r_url;
 		if (mRewriteReqUri){
@@ -86,7 +86,7 @@ url_t* ForwardModule::overrideDest(SipEvent *ev, url_t *dest){
  Typically, if we transfer an INVITE from TCP to UDP, we should find two consecutive record-route, first one with UDP, and second one with TCP
  so that further request from both sides are sent to the appropriate transport of flexisip, and also we don't ask to a UDP only equipment to route to TCP.
 */
-void ForwardModule::checkRecordRoutes(SipEvent *ev, url_t *dest){
+void ForwardModule::checkRecordRoutes(std::shared_ptr<SipEvent> &ev, url_t *dest){
 	sip_record_route_t *rr=ev->mSip->sip_record_route;
 	char last_transport[16]={0};
 	char next_transport[16]={0};
@@ -106,7 +106,7 @@ void ForwardModule::checkRecordRoutes(SipEvent *ev, url_t *dest){
 	}
 }
 
-void ForwardModule::onRequest(SipEvent *ev){
+void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev){
 	size_t msg_size;
 	char *buf;
 	url_t* dest=NULL;
@@ -163,7 +163,7 @@ void ForwardModule::onRequest(SipEvent *ev){
 }
 
 
-void ForwardModule::onResponse(SipEvent *ev){
+void ForwardModule::onResponse(std::shared_ptr<SipEvent> &ev){
 	char *buf;
 	size_t msg_size;
 

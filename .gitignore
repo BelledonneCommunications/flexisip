@@ -18,3 +18,9 @@ libtool
 depcomp
 missing
 install-sh
+src/pb_generated_src_stamp
+Debug
+flexisip.spec
+*protobuf.pb.*
+*.rdb
+src/flexisip

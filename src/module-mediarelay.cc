@@ -33,14 +33,23 @@ class MediaRelay : public Module, protected ModuleToolbox{
 		MediaRelay(Agent *ag);
 		~MediaRelay();
 		virtual void onLoad(Agent *ag, const ConfigStruct * modconf);
-		virtual void onRequest(SipEvent *ev);
-		virtual void onResponse(SipEvent *ev);
+		virtual void onRequest(std::shared_ptr<SipEvent> &ev);
+		virtual void onResponse(std::shared_ptr<SipEvent> &ev);
 		virtual void onIdle();
+	protected:
+		virtual void onDeclare(ConfigStruct * module_config){
+			ConfigItemDescriptor items[]={
+				{	String		,	"nortpproxy"		,	"SDP attribute set by the first proxy to forbid subsequent proxies to provide relay.",		"nortpproxy"	},
+				config_item_end
+			};
+			module_config->addChildrenValues(items);
+		}
 	private:
-		void processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip);
+		bool processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip);
 		void process200OkforInvite(RelayedCall *ctx, msg_t *msg, sip_t *sip);
 		CallStore mCalls;
 		MediaRelayServer *mServer;
+		std::string mSdpMangledParam;
 		static ModuleInfo <MediaRelay> sInfo;
 };
 
@@ -107,27 +116,34 @@ MediaRelay::~MediaRelay(){
 
 void MediaRelay::onLoad(Agent *ag, const ConfigStruct * modconf){
 	mServer=new MediaRelayServer(ag->getBindIp(),ag->getPublicIp());
+	mSdpMangledParam=modconf->get<ConfigString>("nortpproxy")->read();
 }
 
 
-void MediaRelay::processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip){
-	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
+bool MediaRelay::processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip){
 	if (sip->sip_from==NULL || sip->sip_from->a_tag==NULL){
 		LOGW("No tag in from !");
-		return;
+		return false;
 	}	
+	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
+	if (m->hasAttribute(mSdpMangledParam.c_str())) {
+		LOGD("Invite is already relayed");
+		return false;
+	}
 	if (m){
 		m->changeIpPort(c,sip->sip_from->a_tag);
+		m->addAttribute(mSdpMangledParam.c_str(), "yes");
 		m->update(msg,sip);
 		//be in the record-route
 		addRecordRoute(c->getHome(),getAgent(),msg,sip);
 		c->storeNewInvite (msg);
 		delete m;
 	}
+	return true;
 }
 
 
-void MediaRelay::onRequest(SipEvent *ev){
+void MediaRelay::onRequest(std::shared_ptr<SipEvent> &ev){
 	RelayedCall *c;
 	msg_t *msg=ev->mMsg;
 	sip_t *sip=ev->mSip;
@@ -135,8 +151,9 @@ void MediaRelay::onRequest(SipEvent *ev){
 	if (sip->sip_request->rq_method==sip_method_invite){
 		if ((c=static_cast<RelayedCall*>(mCalls.find(sip)))==NULL){
 			c=new RelayedCall(mServer,sip);
-			mCalls.store(c);
-			processNewInvite(c,msg,sip);
+			if (processNewInvite(c,msg,sip)) {
+				mCalls.store(c);
+			}
 		}else{
 			if (c->isNewInvite(sip)){
 				processNewInvite(c,msg,sip);
@@ -185,7 +202,7 @@ void MediaRelay::process200OkforInvite(RelayedCall *ctx, msg_t *msg, sip_t *sip)
 }
 
 
-void MediaRelay::onResponse(SipEvent *ev){
+void MediaRelay::onResponse(std::shared_ptr<SipEvent> &ev){
 	sip_t *sip=ev->mSip;
 	msg_t *msg=ev->mMsg;
 	RelayedCall *c;
@@ -205,7 +222,7 @@ void MediaRelay::onResponse(SipEvent *ev){
 						sip=(sip_t*)msg_object (msg);
 					}
 				}
-			}else LOGW("Receiving 200Ok for unknown call.");
+			}else LOGD("Receiving 200Ok for unknown call.");
 		}
 	}
 	ev->mSip=sip;
