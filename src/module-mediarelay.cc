@@ -50,8 +50,8 @@ class RelayedCall : public CallContextBase, public Masquerader{
 		RelayedCall(MediaRelayServer *server, sip_t *sip) : CallContextBase (sip), mServer(server){
 			memset(mSessions,0,sizeof(mSessions));
 		}
+		/*this function is called to masquerade the SDP, for each mline*/
 		virtual void onNewMedia(int mline, std::string *ip, int *port, const char *party_tag){
-			int ports[2];
 			if (mline>=sMaxSessions){
 				LOGE("Max sessions per relayed call is reached.");
 				return;
@@ -61,13 +61,15 @@ class RelayedCall : public CallContextBase, public Masquerader{
 				s=mServer->createSession();
 				mSessions[mline]=s;
 			}
-			s->getPorts(ports);
-			*ip=s->getPublicIp();
+			
 			if (getCallerTag()==party_tag){
-				*port=ports[0];
+				s->setFrontDefaultSource(ip->c_str(),*port);
+				*port=s->getFrontPort();
 			}else{
-				*port=ports[1];
+				s->setBackDefaultSource(ip->c_str(),*port);
+				*port=s->getBackPort();
 			}
+			*ip=s->getPublicIp();
 		}
 		virtual bool isInactive(time_t cur){
 			time_t maxtime=0;

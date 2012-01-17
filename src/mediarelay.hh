@@ -28,6 +28,7 @@ struct MediaSource{
 		memset(&ss,0,sizeof(ss));
 		slen=0;
 	}
+	void setDefaultSource(const char *ip, int port);
 	int recv(uint8_t *buf, size_t buflen);
 	int send(uint8_t *buf, size_t buflen);
 	int fd;
@@ -39,7 +40,10 @@ class RelaySession{
 	public:
 		RelaySession(const std::string &bind_ip, const std::string & public_ip);
 		~RelaySession();
-		int getPorts(int ports[2])const;
+		int getFrontPort()const;
+		int getBackPort()const;
+		void setFrontDefaultSource(const char *ip, int port);
+		void setBackDefaultSource(const char *ip, int port);
 		const std::string & getBindIp()const;
 		const std::string & getPublicIp()const{
 			return mPublicIp;
