@@ -37,7 +37,7 @@
 #include <signal.h>
 
 #include <sofia-sip/su_log.h>
-
+#include "snmp-agent.h"
 #ifndef VERSION
 #define VERSION "DEVEL"
 #endif //VERSION
@@ -436,7 +436,9 @@ int main(int argc, char *argv[]){
 		stun=new StunServer(cfg->getRoot()->get<ConfigStruct>("stun-server")->get<ConfigInt>("port")->read());
 		stun->start();
 	}
-
+#ifdef ENABLE_SNMP
+	SnmpAgent lAgent;
+#endif
 	su_timer_t *timer=su_timer_create(su_root_task(root),5000);
 	su_timer_run(timer,(su_timer_f)timerfunc,a);
 	su_root_run(root);

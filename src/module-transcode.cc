@@ -182,9 +182,10 @@ MSList *TranscodeModule::orderList(const std::list<std::string> &config, const M
 	MSList *ret=NULL;
 	const MSList *it;
 	std::list<std::string>::const_iterator cfg_it;
-	
+
 	for(cfg_it=config.begin();cfg_it!=config.end();++cfg_it){
-		char name[(*cfg_it).size()+1];
+		size_t size = (*cfg_it).size();
+		char name[size+1];
 		char *p;
 
 		strcpy(name,(*cfg_it).c_str());
@@ -193,7 +194,7 @@ MSList *TranscodeModule::orderList(const std::list<std::string> &config, const M
 			*p='\0';
 			p++;
 		}else LOGF("Error parsing audio codec list");
-		
+
 		err=sscanf(p,"%i",&rate);
 		if (err!=1) LOGF("Error parsing audio codec list, missing rate information");
 		for(it=l;it!=NULL;it=it->next){

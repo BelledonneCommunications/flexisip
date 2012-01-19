@@ -23,12 +23,16 @@ flexisip_SOURCES=main.cc \
 			module-auth.cc \
 			auth-odbc.hh auth-odbc.cc \
 			module-loadbalancer.cc
+if BUILD_SNMP
+flexisip_SOURCES+=snmp-agent.cc
+endif
 
-flexisip_LDADD=$(SOFIA_LIBS) $(MEDIASTREAMER_LIBS) $(ODBC_LIBS)
+flexisip_LDADD=$(SOFIA_LIBS) $(MEDIASTREAMER_LIBS) $(ODBC_LIBS) $(NETSNMPAGENT_LIBS) 
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS) \
 			-DCONFIG_DIR=\"$(CONFIG_DIR)\"
-AM_CFLAGS=$(MEDIASTREAMER_CFLAGS)
+AM_CFLAGS=$(MEDIASTREAMER_CFLAGS) 
+
 
 
 
