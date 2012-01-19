@@ -64,10 +64,10 @@ class RelayedCall : public CallContextBase, public Masquerader{
 			
 			if (getCallerTag()==party_tag){
 				s->setFrontDefaultSource(ip->c_str(),*port);
-				*port=s->getFrontPort();
+				*port=s->getBackPort();
 			}else{
 				s->setBackDefaultSource(ip->c_str(),*port);
-				*port=s->getBackPort();
+				*port=s->getFrontPort();
 			}
 			*ip=s->getPublicIp();
 		}
