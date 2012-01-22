@@ -263,17 +263,17 @@ void SdpModifier::changeIpPort(Masquerader *m, const char *party_tag){
 	int i;
 	std::string global_c_address;
 
-	if (mSession->sdp_connection->c_address) global_c_address=mSession->sdp_connection->c_address;
+	if (mSession->sdp_connection && mSession->sdp_connection->c_address) global_c_address=mSession->sdp_connection->c_address;
 
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
-		std::string ip=mline->m_connections ? mline->m_connections->c_address : global_c_address;
+		std::string ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
 		int port=mline->m_port;
 
 		m->onNewMedia(i,&ip,&port, party_tag);
 		
 		if (mline->m_connections){
 			mline->m_connections->c_address=su_strdup(mHome,ip.c_str());
-		}else if (i==0){
+		}else if (i==0 && mSession->sdp_connection){
 			mSession->sdp_connection->c_address=su_strdup(mHome,ip.c_str());
 		}
 		mline->m_port=port;
