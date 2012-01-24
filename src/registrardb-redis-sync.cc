@@ -56,6 +56,7 @@ RecordSerializer *RecordSerializer::get() {
 
 
 string RegistrarDbRedisSync::sDomain="";
+string RegistrarDbRedisSync::sAuthPassword="";
 int RegistrarDbRedisSync::sPort=0;
 int RegistrarDbRedisSync::sTimeout=0;
 RegistrarDbRedisSync::RegistrarDbRedisSync():mContext(NULL){
@@ -64,7 +65,7 @@ RegistrarDbRedisSync::RegistrarDbRedisSync():mContext(NULL){
 	sDomain=registrar->get<ConfigString>("redis-server-domain")->read();
 	sPort=registrar->get<ConfigInt>("redis-server-port")->read();
 	sTimeout=registrar->get<ConfigInt>("redis-server-timeout")->read();
-	connect();
+	sAuthPassword=registrar->get<ConfigString>("redis-auth-password")->read();
 }
 
 RegistrarDbRedisSync::~RegistrarDbRedisSync(){
@@ -78,7 +79,10 @@ bool RegistrarDbRedisSync::isConnected() {
 }
 
 bool RegistrarDbRedisSync::connect(){
-	if (mContext) return true;
+	if (isConnected()) {
+		LOGW("Redis already connected");
+		return true;
+	}
 	int seconds=sTimeout/1000;
     struct timeval timeout = {seconds, sTimeout-seconds};
     mContext = redisConnectWithTimeout(sDomain.c_str(), sPort, timeout);
@@ -88,6 +92,18 @@ bool RegistrarDbRedisSync::connect(){
         mContext=NULL;
         return false;
     }
+
+    if (!sAuthPassword.empty()){
+
+    	redisReply *reply = (redisReply*) redisCommand(mContext, "AUTH %s", sAuthPassword.c_str());
+    	if (reply->type == REDIS_REPLY_ERROR) {
+    		LOGE("Could'nt authenticate with redis server");
+    	  	redisFree(mContext);
+    	  	mContext=NULL;
+    	   	return false;
+    	}
+    }
+
     return true;
 }
 
@@ -98,6 +114,11 @@ void RegistrarDbRedisSync::bind(const sip_t *sip, const char* route, int globalE
 	defineKeyFromUrl(key,AOR_KEY_SIZE-1, sip->sip_from->a_url);
 
 	if (errorOnTooMuchContactInBind(sip,key,listener)){
+		listener->onError();
+		return;
+	}
+
+	if (!isConnected() && !connect()) {
 		listener->onError();
 		return;
 	}
@@ -144,6 +165,11 @@ void RegistrarDbRedisSync::clear(const sip_t *sip, RegistrarDbListener *listener
 	char key[AOR_KEY_SIZE]={0};
 	defineKeyFromUrl(key,AOR_KEY_SIZE-1, sip->sip_from->a_url);
 
+	if (!isConnected() && !connect()) {
+		listener->onError();
+		return;
+	}
+
     redisReply *reply = (redisReply*) redisCommand(mContext,"GET aor:%s",key);
     if (reply->type == REDIS_REPLY_ERROR) {
     	LOGE("Redis error getting aor:%s - %s", key, reply->str);
@@ -181,6 +207,11 @@ void RegistrarDbRedisSync::clear(const sip_t *sip, RegistrarDbListener *listener
 void RegistrarDbRedisSync::fetch(const url_t *url, RegistrarDbListener *listener){
 	char key[AOR_KEY_SIZE]={0};
 	defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
+
+	if (!isConnected() && !connect()) {
+		listener->onError();
+		return;
+	}
 
     redisReply *reply = (redisReply*) redisCommand(mContext,"GET aor:%s",key);
     if (reply->type == REDIS_REPLY_ERROR) {

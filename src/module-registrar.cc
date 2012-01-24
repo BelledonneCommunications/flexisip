@@ -42,6 +42,7 @@ public:
 				{	String		,	"db-implementation",	"Implementation used for storing address of records contact uris. [redis-async, redis-sync, internal]","redis-async"},
 				{	String		,	"redis-server-domain",	"Domain of the redis server. ","localhost"},
 				{	Integer		,	"redis-server-port",	"Port of the redis server.","6379"},
+				{	String		,	"redis-auth-password",	"Authentication password for redis. Empty to disable.",""},
 				{	Integer		,	"redis-server-timeout",	"Timeout in milliseconds of the redis connection.","1500"},
 				{	String		,	"redis-record-serializer",	"Implementation of the contact serialiser to use. [C, protobuf]","protobuf"},
 #else

@@ -38,6 +38,7 @@ class RegistrarDbRedisSync : public RegistrarDb {
 	redisContext *mContext;
 	RecordSerializer *mSerializer;
 	static std::string sDomain;
+	static std::string sAuthPassword;
 	static int sPort;
 	static int sTimeout;
 	public:
@@ -64,6 +65,7 @@ private:
 	redisAsyncContext *mContext;
 	RecordSerializer *mSerializer;
 	static std::string sDomain;
+	static std::string sAuthPassword;
 	static int sPort;
 	static int sTimeout;
 	su_root_t *mRoot;

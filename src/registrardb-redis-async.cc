@@ -40,12 +40,15 @@ using namespace::std;
 string RegistrarDbRedisAsync::sDomain="";
 int RegistrarDbRedisAsync::sPort=0;
 int RegistrarDbRedisAsync::sTimeout=0;
+std::string RegistrarDbRedisAsync::sAuthPassword="";
+
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag):mContext(NULL),mRoot(ag->getRoot()){
 	mSerializer=RecordSerializer::get();
 	ConfigStruct *registrar=ConfigManager::get()->getRoot()->get<ConfigStruct>("module::Registrar");
 	sDomain=registrar->get<ConfigString>("redis-server-domain")->read();
 	sPort=registrar->get<ConfigInt>("redis-server-port")->read();
 	sTimeout=registrar->get<ConfigInt>("redis-server-timeout")->read();
+	sAuthPassword=registrar->get<ConfigString>("redis-auth-password")->read();
 }
 
 RegistrarDbRedisAsync::~RegistrarDbRedisAsync(){
@@ -79,6 +82,15 @@ bool RegistrarDbRedisAsync::isConnected() {
 	return mContext != NULL;
 }
 
+static void handleAuthReply(redisAsyncContext* ac, void *r, void *privdata){
+	redisReply *reply = (redisReply *)r;
+	if (!reply || reply->type == REDIS_REPLY_ERROR){
+		LOGE("Could'nt authenticate with redis server");
+		redisAsyncDisconnect(ac);
+	}
+}
+
+
 bool RegistrarDbRedisAsync::connect(){
 	if (isConnected()) {
 		LOGW("Redis already connected");
@@ -104,6 +116,9 @@ bool RegistrarDbRedisAsync::connect(){
     	return false;
     }
 
+    if (!sAuthPassword.empty()){
+    	redisAsyncCommand(mContext, handleAuthReply, NULL, "AUTH %s", sAuthPassword.c_str());
+    }
     return true;
 }
 
