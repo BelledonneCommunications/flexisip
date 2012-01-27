@@ -56,9 +56,17 @@ typedef struct extended_contact {
 
 		const url_t *url=sip_contact->m_url;
 		if (url->url_params){
-			mSipUri=su_sprintf(&home, "<sip:%s@%s:%s;%s>", url->url_user, url->url_host, url->url_port, url->url_params);
+			if (url->url_user) {
+				mSipUri=su_sprintf(&home, "<sip:%s@%s:%s;%s>", url->url_user, url->url_host, url->url_port, url->url_params);
+			} else {
+				mSipUri=su_sprintf(&home, "<sip:%s:%s;%s>", url->url_host, url->url_port, url->url_params);
+			}
 		} else {
-			mSipUri=su_sprintf(&home,"<sip:%s@%s:%s>", url->url_user, url->url_host, url->url_port);
+			if (url->url_user) {
+				mSipUri=su_sprintf(&home,"<sip:%s@%s:%s>", url->url_user, url->url_host, url->url_port);
+			} else {
+				mSipUri=su_sprintf(&home,"<sip:%s:%s>", url->url_host, url->url_port);
+			}
 		}
 
 		if (sip_contact->m_q){
