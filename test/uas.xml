@@ -26,7 +26,7 @@
   <!-- By adding rrs="true" (Record Route Sets), the route sets         -->
   <!-- are saved and used for following messages sent. Useful to test   -->
   <!-- against stateful SIP proxies/B2BUAs.                             -->
-  <recv request="INVITE" crlf="true">
+  <recv request="INVITE" crlf="true" rrs="true">
   </recv>
 
   <!-- The '[last_*]' keyword is replaced automatically by the          -->
@@ -60,6 +60,7 @@
 
       SIP/2.0 200 OK
       [last_Via:]
+      [last_Record-Route:]
       [last_From:]
       [last_To:];tag=[pid]SIPpTag01[call_number]
       [last_Call-ID:]

@@ -1,0 +1,43 @@
+#Global section
+[global]
+
+#Debug mode: outputs everything in stdout or syslog, possible values 0 or 1
+debug=1
+
+#Tell the proxy its list of aliases separated by commas, that is domain names or IP address it can be reached with
+aliases=SIP_DOMAIN
+port=5060
+
+[module::Registrar]
+#enabled=false
+reg-domains=SIP_DOMAIN
+db-implementation=redis-async
+redis-record-serializer=protobuf
+redis-auth-password=you_can_put_the_redis_password_here_if_any
+
+redis-server-port=6379
+
+[module::MediaRelay]
+enabled=true
+
+[module::Transcoder]
+enabled=false
+#from-domains=
+#to-domains=sip.example.org
+
+
+[stun-server]
+enabled=true
+port=3579
+
+[tls]
+enabled=false
+
+[module::Authentication]
+enabled=true
+trusted-hosts=space_separated_pair_of_flexisip_server_address
+auth-domains=SIP_DOMAIN
+from-domains=SIP_DOMAIN
+datasource=DSN=myodbc3;
+request=select password from accounts where login = :id
+hashed-passwords=true

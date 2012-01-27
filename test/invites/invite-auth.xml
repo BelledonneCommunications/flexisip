@@ -51,7 +51,7 @@
   <send>
     <![CDATA[
 
-      INVITE [$ruserAdd] SIP/2.0
+      INVITE [$ruserAdd]:5063 SIP/2.0
       Via: SIP/2.0/[transport] [$luserIpPort];branch=[branch]
       From: <[$luserAdd]>;tag=[pid]SIPpTag00[call_number]
       To: <[$ruserAdd]>
