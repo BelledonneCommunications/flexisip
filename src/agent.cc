@@ -206,7 +206,7 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases)const{
 	int end;
 	int p=(port!=NULL) ? atoi(port) : 5060;
 	if (p!=mPort) return false;
-	//skip possibly trailling '.' at the end of host
+	//skip possibly trailing '.' at the end of host
 	if (host[end=(strlen(host)-1)]=='.'){
 		tmp=(char*)alloca(end+1);
 		memcpy(tmp,host,end);
@@ -231,20 +231,24 @@ void Agent::onRequest(msg_t *msg, sip_t *sip){
 	list<Module*>::iterator it;
 	shared_ptr<SipEvent> ev(new SipEvent(msg,sip));
 	for(it=mModules.begin();it!=mModules.end();++it){
+		ev->mCurrModule=(*it);
 		(*it)->processRequest(ev);
 		if (ev->finished()) break;
 	}
 }
 
-void Agent::injectEventAfter(shared_ptr<SipEvent> &ev, Module *module) {
-	bool found=false;
+void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
 	list<Module*>::iterator it;
 	ev->restartProcessing();
+	LOGD("Injecting event after %s", ev->mCurrModule->getModuleName().c_str());
 	for(it=mModules.begin();it!=mModules.end();++it){
-		if (!found){
-			if (module == (*it)) found=true;
-			continue;
+		if (ev->mCurrModule == *it) {
+			++it;
+			break;
 		}
+	}
+	for(;it!=mModules.end();++it){
+		ev->mCurrModule=*it;
 		(*it)->processRequest(ev);
 		if (ev->finished()) break;
 	}
@@ -254,6 +258,7 @@ void Agent::onResponse(msg_t *msg, sip_t *sip){
 	list<Module*>::iterator it;
 	shared_ptr<SipEvent> ev(new SipEvent(msg,sip));
 	for(it=mModules.begin();it!=mModules.end();++it){
+		ev->mCurrModule=*it;
 		(*it)->processResponse(ev);
 		if (ev->finished()) break;
 	}

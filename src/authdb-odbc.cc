@@ -17,19 +17,80 @@
 */
 
 
-#include "auth-odbc.hh"
+#include "authdb.hh"
+#include <vector>
+#include <set>
 
-OdbcConnector *OdbcConnector::instance = NULL;
 
-OdbcConnector* OdbcConnector::getInstance() {
-	if (instance == NULL) {
-		instance = new OdbcConnector();
+static vector<string> parseAndUpdateRequestConfig(string &request) {
+	vector<string> found_parameters;
+	bool hasIdParameter = false;
+	static set<string> recognizedParameters={"id", "authid", "domain"};
+
+	size_t j=0;
+	string pattern (":");
+	string space (" ");
+	string semicol (";");
+	while ((j = request.find(pattern, j)) != string::npos)
+	{
+		string token = request.substr(j + 1, request.length());
+		size_t size_token;
+		if ((size_token = token.find(space)) != string::npos
+				|| (size_token = token.find(semicol)) != string::npos)
+			token = token.substr(0, size_token);
+
+		if (recognizedParameters.find(token) == recognizedParameters.end())  {
+			LOGF("Unrecognized parameter in SQL request %s", token.c_str());
+		}
+
+		found_parameters.push_back(token);
+		if (token == "id") {
+			hasIdParameter = true;
+		}
+		request.replace( j, token.length() + 1, "?" );
 	}
 
-	return instance;
+
+	if (!hasIdParameter) {
+		LOGF("Couldn't find an :id named parameter in provided request");
+	}
+
+	return found_parameters;
 }
 
-void OdbcConnector::setExecuteDirect(const bool value) {
+OdbcAuthDb::OdbcAuthDb():idCBuffer(NULL),authIdCBuffer(NULL),domainCBuffer(NULL),connected(false),env(NULL),dbc(NULL),stmt(NULL),execDirect(false) {
+	ConfigStruct *cr=ConfigManager::get()->getRoot();
+	ConfigStruct *ma=cr->get<ConfigStruct>("module::Authentication");
+
+	string none = "none";
+	string dsn = ma->get<ConfigString>("datasource")->read();
+	if (dsn == none) LOGF("Authentication is activated but no datasource found");
+	LOGD("Datasource found: %s", dsn.c_str());
+
+	string request = ma->get<ConfigString>("request")->read();
+	if (request == none) LOGF("Authentication is activated but no request found");
+	LOGD("request found: %s", request.c_str());
+	vector<string> requestParms = parseAndUpdateRequestConfig(request);
+	LOGD("request parsed: %s", request.c_str());
+
+
+	int maxIdLength = ma->get<ConfigInt>("max-id-length")->read();
+	if (maxIdLength == 0) LOGF("Authentication is activated but no max_id_length found");
+	LOGD("maxIdLength found: %i", maxIdLength);
+
+	int maxPassLength = ma->get<ConfigInt>("max-password-length")->read();
+	if (maxPassLength == 0) LOGF("Authentication is activated but no max_password_length found");
+	LOGD("maxPassLength found: %i", maxPassLength);
+
+
+	if (connect(dsn, request, requestParms, maxIdLength, maxPassLength)) {
+		LOGD("Connection OK");
+	} else {
+		LOGE("Unable to connect to odbc database");
+	}
+}
+
+void OdbcAuthDb::setExecuteDirect(const bool value) {
 	execDirect = value;
 }
 
@@ -82,34 +143,31 @@ static void logSqlError(string fn, SQLHANDLE handle, SQLSMALLINT handleType) {
 }
 
 
-OdbcConnector::OdbcConnector():idCBuffer(NULL),execDirect(false) {}
-
-OdbcConnector::~OdbcConnector() {
+OdbcAuthDb::~OdbcAuthDb() {
 	// Disconnect from database and close everything
 	disconnect();
 }
 
-void OdbcConnector::envError(const char* doing) {
+void OdbcAuthDb::envError(const char* doing) {
 	logSqlError(doing, env, SQL_HANDLE_ENV);
 	disconnect();
 }
 
-void OdbcConnector::dbcError(const char* doing) {
+void OdbcAuthDb::dbcError(const char* doing) {
 	logSqlError(doing, dbc, SQL_HANDLE_DBC);
 	disconnect();
 }
 
-bool OdbcConnector::connect(const string &d, const string &r, const vector<string> &parameters, int maxIdLength, int maxPassLength) {
+bool OdbcAuthDb::connect(const string &d, const string &r, const vector<string> &parameters, int maxIdLength, int maxPassLength) {
 	this->connectionString = d;
 	this->request = r;
-	this->maxIdLength = maxIdLength;
 	this->maxPassLength = maxPassLength;
 	this->parameters = parameters;
 
 	return reconnect();
 }
 
-void OdbcConnector::disconnect() {
+void OdbcAuthDb::disconnect() {
 	LOGD("disconnecting odbc connector");
 	if (idCBuffer != NULL) free(idCBuffer); idCBuffer = NULL;
 	if (stmt) SQLFreeHandle(SQL_HANDLE_STMT, stmt);
@@ -121,7 +179,7 @@ void OdbcConnector::disconnect() {
 	connected = false;
 }
 
-bool OdbcConnector::reconnect() {
+bool OdbcAuthDb::reconnect() {
 	if (connected) disconnect();
 
 	LOGD("(re-)connecting odbc connector");
@@ -157,16 +215,26 @@ bool OdbcConnector::reconnect() {
 			return connected;
 		}
 
-		idCBuffer = (char*) malloc(maxIdLength +1);
+		idCBuffer = (char*) malloc(fieldLength +1);
+		authIdCBuffer = (char*) malloc(fieldLength +1);
+		domainCBuffer = (char*) malloc(fieldLength +1);
 		// Use isql dsn_name then "help table_name" (without ;) to get information on sql types
 
+
 		for (size_t i=0; i < parameters.size(); i++) {
-			if (parameters[i] != "id") {
-				LOGF("Unknown request parameter type : %s", parameters[i].c_str());
+			char *fieldBuffer;
+			if (parameters[i] == "id") {
+				fieldBuffer=idCBuffer;
+			} else if (parameters[i] == "authid") {
+				fieldBuffer=authIdCBuffer;
+			} else if (parameters[i] == "domain") {
+				fieldBuffer=domainCBuffer;
+			} else {
+				LOGF("unhandled parameter %s", parameters[i].c_str());
 			}
 			retcode = SQLBindParameter(stmt,i+1,SQL_PARAM_INPUT, SQL_C_CHAR,
-					SQL_CHAR, (SQLULEN) maxIdLength, 0,
-					idCBuffer, 0, NULL);
+					SQL_CHAR, (SQLULEN) fieldLength, 0,
+					fieldBuffer, 0, NULL);
 			if (!SQL_SUCCEEDED(retcode)) {
 				logSqlError("SQLBindParameter", stmt, SQL_HANDLE_STMT);
 				throw ERROR;
@@ -186,11 +254,20 @@ static void closeCursor(SQLHSTMT &stmt) {
 }
 
 /* Neither this method nor the class is thread safe */
-string OdbcConnector::password(const string &id) throw (int) {
-	if (!connected) throw ERROR_NOT_CONNECTED;
+void OdbcAuthDb::password(const url_t *from, const char *auth_username, AuthDbListener *listener){
+	if (listener == NULL) return; // caching not handled
+	if (!connected) {
+		listener->onError();
+		return;
+	}
 
-	if (id.length() > maxIdLength) throw ERROR_ID_TOO_LONG;
-	strncpy(idCBuffer, id.c_str(), maxIdLength);
+	const char *id=from->url_user;
+	const char *domain=from->url_host;
+	const char *auth=auth_username;
+
+	strncpy(idCBuffer, id, fieldLength);
+	strncpy(domainCBuffer, domain, fieldLength);
+	strncpy(authIdCBuffer, auth, fieldLength);
 
 	SQLRETURN retcode;
 	if (execDirect) {
@@ -200,7 +277,8 @@ string OdbcConnector::password(const string &id) throw (int) {
 		if (!SQL_SUCCEEDED(retcode)) {
 			logSqlError("SQLExecDirect", stmt, SQL_HANDLE_STMT);
 			if (linkFailed("SQLExecDirect", stmt, SQL_HANDLE_STMT)) throw ERROR_LINK_FAILURE;
-			throw ERROR;
+			listener->onError();
+			return;
 		}
 		LOGD("SQLExecDirect OK");
 	} else {
@@ -210,7 +288,8 @@ string OdbcConnector::password(const string &id) throw (int) {
 		if (!SQL_SUCCEEDED(retcode)) {
 			logSqlError("SQLExecute", stmt, SQL_HANDLE_STMT);
 			if (linkFailed("SQLExecute", stmt, SQL_HANDLE_STMT)) throw ERROR_LINK_FAILURE;
-			throw ERROR;
+			listener->onError();
+			return;
 		}
 		LOGD("SQLExecute OK");
 	}
@@ -220,7 +299,8 @@ string OdbcConnector::password(const string &id) throw (int) {
 	if (retcode != SQL_SUCCESS) {
 		LOGE("SQLExecute returned no success");
 		closeCursor(stmt);
-		throw ERROR;
+		listener->onError();
+		return;
 	}
 
 	retcode = SQLFetch(stmt);
@@ -228,30 +308,32 @@ string OdbcConnector::password(const string &id) throw (int) {
 		LOGE("Fetch error or success with info");
 		logSqlError("SQLFetch", stmt, SQL_HANDLE_STMT);
 		closeCursor(stmt);
-		throw ERROR;
+		listener->onError();
+		return;
 	}
 
 	if (retcode == SQL_NO_DATA) {
 		LOGE("No data fetched");
 		closeCursor(stmt);
-		throw ERROR_PASSWORD_NOT_FOUND;
+		listener->onError();
+		return;
 	}
 
 	SQLLEN cbPass;
 	SQLCHAR password[maxPassLength + 1];
 	retcode = SQLGetData(stmt, 1, SQL_C_CHAR, password, maxPassLength, &cbPass);
 	if (retcode == SQL_ERROR || retcode == SQL_SUCCESS_WITH_INFO) {
-		if (retcode == SQL_SUCCESS_WITH_INFO) LOGE("SQLGetData success with info");
-		else LOGE("SQLGetData error or success with info - user not found??");
+		if (retcode == SQL_SUCCESS_WITH_INFO) LOGD("SQLGetData success with info");
+		else LOGD("SQLGetData error or success with info - user not found??");
 		closeCursor(stmt);
-		throw ERROR_PASSWORD_NOT_FOUND;
+		listener->onError();
+		return;
 	}
 
 	closeCursor(stmt);
 
-	cachedPasswords[id] = string((char*)password);
+	string cppPassword=string((char*)password);
+	cachePassword(from, auth, cppPassword);
 
-//	LOGD((char*)password);
-
-	return (char*) password;
+	listener->onSynchronousPasswordFound(cppPassword);
 }
