@@ -143,9 +143,16 @@ void MediaRelay::onRequest(SipEvent *ev){
 			if (c->isNewInvite(sip)){
 				processNewInvite(c,msg,sip);
 			}else if (c->getLastForwardedInvite()!=NULL){
-				msg=msg_copy(c->getLastForwardedInvite ());
-				sip=(sip_t*)msg_object(msg);
-				LOGD("Forwarding invite retransmission");
+                                uint32_t via_count = 0;
+                                for(sip_via_t *via = sip->sip_via; via != NULL; via = via->v_next) 
+                                        ++via_count;
+                                
+                                // Same vias?
+                                if(via_count == c->getViaCount()) {
+                                        msg=msg_copy(c->getLastForwardedInvite ());
+                                        sip=(sip_t*)msg_object(msg);
+                                        LOGD("Forwarding invite retransmission");
+                                }
 			}
 		}
 	}

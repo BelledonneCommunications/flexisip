@@ -33,6 +33,9 @@ CallContextBase::CallContextBase(sip_t *sip){
 	mInvite=NULL;
 	mResponse=NULL;
 	mTag1=sip->sip_from->a_tag;
+        mViaCount = 0;
+        for(sip_via_t *via = sip->sip_via; via != NULL; via = via->v_next) 
+            ++mViaCount;
 }
 
 bool CallContextBase::match(sip_t *sip){
