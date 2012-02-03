@@ -96,6 +96,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	EtcHostsResolver::get();
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"NatHelper"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Authentication"));
+        mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"GatewayAdapter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Registrar"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"ContactRouteInserter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"LoadBalancer"));

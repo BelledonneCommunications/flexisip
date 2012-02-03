@@ -15,6 +15,7 @@ flexisip_SOURCES=main.cc \
 			mediarelay.cc mediarelay.hh \
 			module-forward.cc \
 			module-transcode.cc \
+			module-gatewayadapter.cc \
 			module-contact-route-inserter.cc \
 			module-nat-helper.cc \
 			module-registrar.cc \
