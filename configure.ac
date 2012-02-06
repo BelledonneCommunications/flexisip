@@ -40,6 +40,7 @@ AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],,[AC_MSG_ERROR("unixodbc headers mi
 AC_CHECK_LIB(odbc, main,[ODBC_LIBS=-lodbc], [AC_MSG_ERROR("Linking against odbc failed.")])
 AC_SUBST(ODBC_LIBS)
 
+PKG_PROG_PKG_CONFIG()
 
 # Checks for header files.
 

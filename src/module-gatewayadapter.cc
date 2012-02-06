@@ -18,6 +18,8 @@
  */
 
 #include "agent.hh"
+#include "registrardb.hh"
+#include "auth-odbc.hh"
 #include <sofia-sip/nua.h>
 
 static void nua_callback(nua_event_t event,
@@ -49,11 +51,72 @@ public:
 
         virtual void onResponse(std::shared_ptr<SipEvent> &ev);
 
+        virtual void sendFork(sip_from_t *from, sip_to_t *to, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq);
+
 private:
         static ModuleInfo<GatewayAdapter> sInfo;
         su_home_t *mHome;
         nua_t *mNua;
         url_t *mDomain;
+
+
+
+        // Listener class NEED to copy the shared pointer
+
+        class OnFetchListener : public RegistrarDbListener {
+                friend class Registrar;
+                Agent *agent;
+                std::shared_ptr<SipEvent> ev;
+                GatewayAdapter* ga;
+                const char * calldId;
+                uint32_t csSeq;
+                sip_from_t *from;
+                sip_to_t *to;
+                const sip_contact_t *sipContact;
+        public:
+
+                OnFetchListener(Agent *agent, std::shared_ptr<SipEvent> ev, GatewayAdapter* ga, sip_from_t *from, sip_to_t *to,
+                        const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq) : agent(agent), ev(ev), ga(ga), calldId(calld_id), csSeq(cs_seq) {
+                };
+
+                ~OnFetchListener() {
+                }
+
+                void onRecordFound(Record *r) {
+                        if (r == NULL) {
+                                LOGD("Record doesn't exist. Fork");
+                                ga->sendFork(from, to, sipContact, calldId, csSeq);
+                        } else {
+                                LOGD("Record already exists. Not forked");
+                        }
+                        delete this;
+                }
+
+                void onError() {
+                        LOGE("Fetch error.");
+                        delete this;
+                }
+        };
+
+        // Listener class NEED to copy the shared pointer
+
+        class OnBindListener : public RegistrarDbListener {
+                friend class Registrar;
+        public:
+
+                OnBindListener() {
+                };
+
+                void onRecordFound(Record *r) {
+                        LOGE("Bind done.");
+                        delete this;
+                }
+
+                void onError() {
+                        LOGE("Bind error.");
+                        delete this;
+                }
+        };
 };
 
 GatewayAdapter::GatewayAdapter(Agent *ag) : Module(ag), mDomain(NULL) {
@@ -77,21 +140,36 @@ void GatewayAdapter::onRequest(std::shared_ptr<SipEvent> &ev) {
         sip_t *sip = ev->mSip;
         if (sip->sip_request->rq_method == sip_method_register) {
                 if (sip->sip_contact != NULL) {
-                        nua_handle_t *nh = nua_handle(mNua, NULL, TAG_END());
                         sip_from_t *from = sip_from_dup(ev->getHome(), sip->sip_from);
                         sip_to_t *to = sip_to_dup(ev->getHome(), sip->sip_to);
+                        const sip_contact_t *sipContact = sip_contact_dup(ev->getHome(), sip->sip_contact);
+
+                        // Override domains?
                         if (mDomain != NULL) {
                                 from->a_url->url_host = mDomain->url_host;
                                 from->a_url->url_port = mDomain->url_port;
                                 to->a_url->url_host = mDomain->url_host;
                                 to->a_url->url_port = mDomain->url_port;
                         }
-                        nua_register(nh,
-                                SIPTAG_FROM(from),
-                                SIPTAG_TO(to),
-                                TAG_END());
+
+                        OnFetchListener *listener = new OnFetchListener(getAgent(), ev, this, from, to, sipContact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq);
+                        LOGD("Fetching binding");
+                        RegistrarDb::get(mAgent)->fetch(from->a_url, listener);
                 }
         }
+}
+
+void GatewayAdapter::sendFork(sip_from_t *from, sip_to_t *to, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq) {
+        nua_handle_t *nh = nua_handle(mNua, NULL, TAG_END());
+        nua_register(nh,
+                SIPTAG_FROM(from),
+                SIPTAG_TO(to),
+                TAG_END());
+
+        OnBindListener *listener = new OnBindListener();
+        LOGD("Updating binding");
+
+        RegistrarDb::get(mAgent)->bind(from->a_url, sip_contact, calld_id, cs_seq, mAgent->getPreferredRoute().c_str(), 60000, listener);
 }
 
 void GatewayAdapter::onResponse(std::shared_ptr<SipEvent> &ev) {
@@ -101,8 +179,7 @@ void GatewayAdapter::onResponse(std::shared_ptr<SipEvent> &ev) {
 ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter",
         "...");
 
-static void
-nua_callback(nua_event_t event,
+static void nua_callback(nua_event_t event,
         int status, char const *phrase,
         nua_t *nua, nua_magic_t *_t,
         nua_handle_t *nh, nua_hmagic_t *hmagic,

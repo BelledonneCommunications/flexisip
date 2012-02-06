@@ -279,8 +279,8 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 
 
 
-void RegistrarDbRedisAsync::bind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * call_id, uint32_t cs_seq, const char *route, int global_expire, RegistrarDbListener *listener) {
-  	RegistrarUserData *data=new RegistrarUserData(this,fromUrl,sip_contact,call_id,cs_seq,route,listener,sHandleBind);
+void RegistrarDbRedisAsync::bind(const url_t* url, const sip_contact_t *sip_contact, const char * call_id, uint32_t cs_seq, const char *route, int global_expire, RegistrarDbListener *listener) {
+  	RegistrarUserData *data=new RegistrarUserData(this,url,sip_contact,call_id,cs_seq,route,listener,sHandleBind);
 	data->globalExpire=global_expire;
 	if (!isConnected() && !connect()) {
 		LOGE("Not connected to redis server");
