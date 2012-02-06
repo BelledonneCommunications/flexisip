@@ -1,5 +1,5 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
+        Flexisip, a flexible SIP proxy server with media capabilities.
     Copyright (C) 2012  Belledonne Communications SARL.
     Author: Guillaume Beraudo
 
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #ifndef registrardb_internal_hh
 #define registrardb_internal_hh
@@ -23,14 +23,14 @@
 #include "registrardb.hh"
 #include <sofia-sip/sip.h>
 
-
 class RegistrarDbInternal : public RegistrarDb {
-	RegistrarDbInternal();
-	friend class RegistrarDb;
-	public:
-		virtual void bind(const sip_t *sip, const char* route, int default_delta, RegistrarDbListener *listener);
-		virtual void clear(const sip_t *sip, RegistrarDbListener *listener);
-		virtual void fetch(const url_t *url, RegistrarDbListener *listener);
+        RegistrarDbInternal();
+        friend class RegistrarDb;
+public:
+        virtual void bind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, RegistrarDbListener *listener);
+        virtual void bind(const sip_t *sip, const char* route, int default_delta, RegistrarDbListener *listener);
+        virtual void clear(const sip_t *sip, RegistrarDbListener *listener);
+        virtual void fetch(const url_t *url, RegistrarDbListener *listener);
 };
 
 

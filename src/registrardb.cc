@@ -78,8 +78,9 @@ bool Record::isInvalidRegister(const char *call_id, uint32_t cseq){
 /**
  * Should first have checked the validity of the register with isValidRegister.
  */
-void Record::clean(sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t now){
-	const char *line_value= (sLineFieldName.size() > 0 && sip) ? msg_header_find_item(sip->m_common, sLineFieldName.c_str()) : NULL;
+void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t now){
+        sip_contact_t *s = (sip_contact_t *) sip;
+	const char *line_value= (sLineFieldName.size() > 0 && sip) ? msg_header_find_item(s->m_common, sLineFieldName.c_str()) : NULL;
 	list<extended_contact *>::iterator it=mContacts.begin();
 	while(it!=mContacts.end()){
 		extended_contact *ec=(*it);
@@ -253,11 +254,11 @@ void RegistrarDb::defineKeyFromUrl(char *key, int len, const url_t *url){
 	snprintf(key,len-1,"%s@%s",url->url_user,url->url_host);
 }
 
-bool RegistrarDb::errorOnTooMuchContactInBind(const sip_t *sip, const char *key, RegistrarDbListener *listener){
-	if (count_sip_contacts(sip->sip_contact) > Record::getMaxContacts()){
+bool RegistrarDb::errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const char *key, RegistrarDbListener *listener){
+	if (count_sip_contacts(sip_contact) > Record::getMaxContacts()){
 		LOGD("Too many contacts in register %s %i > %i",
 				key,
-				count_sip_contacts(sip->sip_contact),
+				count_sip_contacts(sip_contact),
 				Record::getMaxContacts());
 		return true;
 	}

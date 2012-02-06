@@ -1,5 +1,5 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
+        Flexisip, a flexible SIP proxy server with media capabilities.
     Copyright (C) 2012  Belledonne Communications SARL.
     Author: Guillaume Beraudo
 
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #ifndef registrardb_redis_hh
 #define registrardb_redis_hh
@@ -28,58 +28,58 @@
 #include <hiredis/async.h>
 #include "agent.hh"
 
-
-
 class RegistrarDbRedisSync : public RegistrarDb {
-	RegistrarDbRedisSync();
-	~RegistrarDbRedisSync();
-	bool isConnected();
-	friend class RegistrarDb;
-	redisContext *mContext;
-	RecordSerializer *mSerializer;
-	static std::string sDomain;
-	static std::string sAuthPassword;
-	static int sPort;
-	static int sTimeout;
-	public:
-		bool connect();
-		void bind(const sip_t *sip, const char* route, int default_delta, RegistrarDbListener *listener);
-		void clear(const sip_t *sip, RegistrarDbListener *listener);
-		void fetch(const url_t *url, RegistrarDbListener *listener);
+        RegistrarDbRedisSync();
+        ~RegistrarDbRedisSync();
+        bool isConnected();
+        friend class RegistrarDb;
+        redisContext *mContext;
+        RecordSerializer *mSerializer;
+        static std::string sDomain;
+        static std::string sAuthPassword;
+        static int sPort;
+        static int sTimeout;
+public:
+        bool connect();
+        void bind(const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, RegistrarDbListener *listener);
+        void bind(const sip_t *sip, const char* route, int default_delta, RegistrarDbListener *listener);
+        void clear(const sip_t *sip, RegistrarDbListener *listener);
+        void fetch(const url_t *url, RegistrarDbListener *listener);
 };
 
 class RegistrarDbRedisAsync : public RegistrarDb {
 public:
-	struct RegistrarUserData;
-	bool connect();
-	void bind(const sip_t *sip, const char* route, int default_delta, RegistrarDbListener *listener);
-	void clear(const sip_t *sip, RegistrarDbListener *listener);
-	void fetch(const url_t *url, RegistrarDbListener *listener);
+        struct RegistrarUserData;
+        bool connect();
+        void bind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, RegistrarDbListener *listener);
+        void bind(const sip_t *sip, const char* route, int default_delta, RegistrarDbListener *listener);
+        void clear(const sip_t *sip, RegistrarDbListener *listener);
+        void fetch(const url_t *url, RegistrarDbListener *listener);
 private:
-	RegistrarDbRedisAsync(Agent *ag);
-	~RegistrarDbRedisAsync();
-	static void connectCallback(const redisAsyncContext *c, int status);
-	static void disconnectCallback(const redisAsyncContext *c, int status);
-	bool isConnected();
-	friend class RegistrarDb;
-	redisAsyncContext *mContext;
-	RecordSerializer *mSerializer;
-	static std::string sDomain;
-	static std::string sAuthPassword;
-	static int sPort;
-	static int sTimeout;
-	su_root_t *mRoot;
-	unsigned long mToken;
-	unsigned long getToken();
-	static void sHandleSet(redisAsyncContext* ac, void *r, void *privdata);
-	static void sHandleAorGetReply(struct redisAsyncContext*, void *r, void *privdata);
-	static void sHandleBind(redisAsyncContext* ac, redisReply *reply, RegistrarUserData *data);
-	static void sHandleFetch(redisAsyncContext* ac, redisReply *reply, RegistrarUserData *data);
-	static void sHandleClear(redisAsyncContext* ac, redisReply *reply, RegistrarUserData *data);
-	void handleClear(redisReply *reply, RegistrarUserData *data);
-	void handleFetch(redisReply *reply, RegistrarUserData *data);
-	void handleBind(redisReply *reply, RegistrarUserData *data);
-	void onBindReplyAorSet(redisReply *reply, RegistrarUserData *data);
+        RegistrarDbRedisAsync(Agent *ag);
+        ~RegistrarDbRedisAsync();
+        static void connectCallback(const redisAsyncContext *c, int status);
+        static void disconnectCallback(const redisAsyncContext *c, int status);
+        bool isConnected();
+        friend class RegistrarDb;
+        redisAsyncContext *mContext;
+        RecordSerializer *mSerializer;
+        static std::string sDomain;
+        static std::string sAuthPassword;
+        static int sPort;
+        static int sTimeout;
+        su_root_t *mRoot;
+        unsigned long mToken;
+        unsigned long getToken();
+        static void sHandleSet(redisAsyncContext* ac, void *r, void *privdata);
+        static void sHandleAorGetReply(struct redisAsyncContext*, void *r, void *privdata);
+        static void sHandleBind(redisAsyncContext* ac, redisReply *reply, RegistrarUserData *data);
+        static void sHandleFetch(redisAsyncContext* ac, redisReply *reply, RegistrarUserData *data);
+        static void sHandleClear(redisAsyncContext* ac, redisReply *reply, RegistrarUserData *data);
+        void handleClear(redisReply *reply, RegistrarUserData *data);
+        void handleFetch(redisReply *reply, RegistrarUserData *data);
+        void handleBind(redisReply *reply, RegistrarUserData *data);
+        void onBindReplyAorSet(redisReply *reply, RegistrarUserData *data);
 
 };
 

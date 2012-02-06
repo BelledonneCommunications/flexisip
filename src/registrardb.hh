@@ -100,7 +100,7 @@ class Record{
 		static sip_contact_t *extendedContactToSofia(su_home_t *home, extended_contact *ec, time_t now);
 		const sip_contact_t * getContacts(su_home_t *home, time_t now);
 		bool isInvalidRegister(const char *call_id, uint32_t cseq);
-		void clean(sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t time);
+		void clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t time);
 		void clean(time_t time);
 		void bind(const sip_contact_t *contacts, const char* route, int globalExpire, const char *call_id, uint32_t cseq, time_t now);
 		void bind(const char *contact, const char* route, const char *transport, const char *lineValue, long expireAt, float q, const char *call_id, uint32_t cseq, time_t now);
@@ -130,12 +130,13 @@ public:
 class RegistrarDb{
 	public:
 		static RegistrarDb *get(Agent *ag);
+                virtual void bind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, RegistrarDbListener *listener)=0;
 		virtual void bind(const sip_t *sip, const char* route, int global_expire, RegistrarDbListener *listener)=0;
 		virtual void clear(const sip_t *sip, RegistrarDbListener *listener)=0;
 		virtual void fetch(const url_t *url, RegistrarDbListener *listener)=0;
 	protected:
 		int count_sip_contacts(const sip_contact_t *contact);
-		bool errorOnTooMuchContactInBind(const sip_t *sip, const char *key, RegistrarDbListener *listener);
+		bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const char *key, RegistrarDbListener *listener);
 		static void defineKeyFromUrl(char *key, int len, const url_t *url);
 		RegistrarDb();
 		std::map<std::string,Record*> mRecords;

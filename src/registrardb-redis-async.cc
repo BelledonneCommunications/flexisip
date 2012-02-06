@@ -137,23 +137,25 @@ typedef struct RegistrarDbRedisAsync::RegistrarUserData {
 	char key[AOR_KEY_SIZE];
 	forwardFn *fn;
 	unsigned long token;
-	const sip_t *sip;
+        const sip_contact_t * sipContact;
+	const char * calldId;
+        uint32_t csSeq;
 	RegistrarDbListener *listener;
 	Record record;
 	int globalExpire;
 	char *route;
 
-	RegistrarUserData(RegistrarDbRedisAsync *self, const sip_t *sip, const char *route, RegistrarDbListener *listener, forwardFn *fn):
-		self(self),fn(fn),token(0),sip(sip),listener(listener),globalExpire(0),route(NULL){
-		defineKeyFromUrl(key,AOR_KEY_SIZE-1, sip->sip_from->a_url);
+	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, RegistrarDbListener *listener, forwardFn *fn):
+		self(self),fn(fn),token(0),sipContact(sip_contact),calldId(calld_id),csSeq(cs_seq),listener(listener),globalExpire(0),route(NULL){
+		defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
 		if (route) this->route=strdup(route);
 	}
-	RegistrarUserData(RegistrarDbRedisAsync *self, const sip_t *sip, RegistrarDbListener *listener, forwardFn *fn):
-		self(self),fn(fn),token(0),sip(sip),listener(listener),globalExpire(0),route(NULL){
-		defineKeyFromUrl(key,AOR_KEY_SIZE-1, sip->sip_from->a_url);
+	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, RegistrarDbListener *listener, forwardFn *fn):
+		self(self),fn(fn),token(0),sipContact(sip_contact),calldId(calld_id),csSeq(cs_seq),listener(listener),globalExpire(0),route(NULL){
+		defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
 	}
 	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t *url, RegistrarDbListener *listener, forwardFn *fn):
-		self(self),fn(fn),token(0),sip(NULL),listener(listener),globalExpire(0),route(NULL){
+		self(self),fn(fn),token(0),sipContact(NULL),calldId(NULL),csSeq(-1),listener(listener),globalExpire(0),route(NULL){
 		defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
 	}
 	~RegistrarUserData(){
@@ -228,14 +230,12 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 
 
 void RegistrarDbRedisAsync::handleClear(redisReply *reply, RegistrarUserData *data){
-	const sip_t *sip=data->sip;
-
     if (reply->str > 0) {
     	if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
     		LOGE("Couldn't parse stored contacts for aor:%s : %i bytes", data->key, reply->len);
     		ERROR
     	}
-    	if (data->record.isInvalidRegister(sip->sip_call_id->i_id, sip->sip_cseq->cs_seq)){
+    	if (data->record.isInvalidRegister(data->calldId, data->csSeq)){
         	data->listener->onInvalid();
         	delete data;
         	return;
@@ -249,22 +249,21 @@ void RegistrarDbRedisAsync::handleClear(redisReply *reply, RegistrarUserData *da
 
 
 void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *data){
-	const sip_t *sip=data->sip;
 	if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
 		LOGE("Couldn't parse stored contacts for aor:%s : %u bytes", data->key, reply->len);
 		ERROR
 	}
 
 
-	if (data->record.isInvalidRegister(sip->sip_call_id->i_id, sip->sip_cseq->cs_seq)){
+	if (data->record.isInvalidRegister(data->calldId, data->csSeq)){
 		data->listener->onInvalid();
 		delete data;
 		return;
 	}
 
 	time_t now=time(NULL);
-	data->record.clean(sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, now);
-	data->record.bind(sip->sip_contact, data->route, data->globalExpire, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, now);
+	data->record.clean(data->sipContact, data->calldId, data->csSeq, now);
+	data->record.bind(data->sipContact, data->route, data->globalExpire, data->calldId, data->csSeq, now);
 
 	std::string serialized;
 	mSerializer->serialize(&data->record, serialized);
@@ -280,29 +279,28 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 
 
 
-
-
-
-
-
-void RegistrarDbRedisAsync::bind(const sip_t *sip, const char *route, int globalExpire, RegistrarDbListener *listener){
-	RegistrarUserData *data=new RegistrarUserData(this,sip,route,listener,sHandleBind);
-	data->globalExpire=globalExpire;
+void RegistrarDbRedisAsync::bind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * call_id, uint32_t cs_seq, const char *route, int global_expire, RegistrarDbListener *listener) {
+  	RegistrarUserData *data=new RegistrarUserData(this,fromUrl,sip_contact,call_id,cs_seq,route,listener,sHandleBind);
+	data->globalExpire=global_expire;
 	if (!isConnected() && !connect()) {
 		LOGE("Not connected to redis server");
 		ERROR
 	}
-	if (errorOnTooMuchContactInBind(sip,data->key,listener)){
+	if (errorOnTooMuchContactInBind(sip_contact,data->key,listener)){
 		ERROR
 	}
 
 	LOGD("Binding aor:%s [%lu]", data->key, data->token);
-	redisAsyncCommand(mContext, sHandleAorGetReply,data,"GET aor:%s",data->key);
+	redisAsyncCommand(mContext, sHandleAorGetReply,data,"GET aor:%s",data->key);      
 }
 
 
+void RegistrarDbRedisAsync::bind(const sip_t *sip, const char *route, int globalExpire, RegistrarDbListener *listener){
+        bind(sip->sip_from->a_url,sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, route, globalExpire, listener);
+}
+
 void RegistrarDbRedisAsync::clear(const sip_t *sip, RegistrarDbListener *listener){
-	RegistrarUserData *data=new RegistrarUserData(this,sip,listener,sHandleClear);
+	RegistrarUserData *data=new RegistrarUserData(this, sip->sip_from->a_url,sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, listener, sHandleClear);
 	if (!isConnected() && !connect()) {
 		LOGE("Not connected to redis server");
 		ERROR

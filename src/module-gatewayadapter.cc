@@ -99,7 +99,7 @@ void GatewayAdapter::onResponse(std::shared_ptr<SipEvent> &ev) {
 }
 
 ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter",
-        "....");
+        "...");
 
 static void
 nua_callback(nua_event_t event,
