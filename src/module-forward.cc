@@ -165,20 +165,15 @@ void ForwardModule::onRequest(SipEvent *ev){
 		dest->url_host=ip.c_str();
         }
         
-        // Init new via
-        sip_via_t via[1];
-        sip_via_init(via);
-        via->v_host = dest->url_host;
-        via->v_port = dest->url_port;
+        // Compute branch
         char const * branch = compute_branch(getSofiaAgent(), msg, sip, dest->url_host, dest->url_port);
-        sip_via_add_param(ev->getHome(), via, branch);
         
         // Check looping
         if (!isLooping(ev, branch)) {
                 checkRecordRoutes(ev, dest);
                 buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
                 LOGD("About to forward request to %s:\n%s", url_as_string(ev->getHome(), dest), buf);
-                nta_msg_tsend(getSofiaAgent(), msg, (url_string_t*) dest, NTATAG_USER_VIA(1), SIPTAG_VIA(via), TAG_END());
+                nta_msg_tsend(getSofiaAgent(), msg, (url_string_t*) dest, NTATAG_BRANCH_KEY(branch), TAG_END());
         } else {
                 nta_msg_treply(getSofiaAgent(), msg, 482, "Loop Detected", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
         }
