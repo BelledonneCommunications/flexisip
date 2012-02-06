@@ -130,6 +130,7 @@ public:
 					"select password from accounts where id = :id and domain = :domain and authid=:authid"	},
 			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
 			{	Integer		,	"max-password-length"	,	"Maximum length of the password column in database",	"100"	},
+			{	Boolean		,	"odbc-pooling"	,	"Use pooling in odbc",	"true"	},
 			{	Integer		,	"cache-expire"	,	"Duration of the validity of the credentials added to the cache in seconds.",	"1800"	},
 			{	Boolean	,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed (HA1).", "false" },
 			config_item_end
@@ -220,15 +221,13 @@ ModuleInfo<Authentication> Authentication::sInfo("Authentication",
 
 
 AuthDbListener::AuthDbListener(Agent *ag, std::shared_ptr<SipEvent> ev, bool hashedPasswords):
-		mAgent(ag),mEv(ev),mHashedPass(hashedPasswords),mAm(NULL),mAs(NULL),mAr(NULL),mAch(NULL) {
+		mAgent(ag),mEv(ev),mHashedPass(hashedPasswords),mAm(NULL),mAs(NULL),mAch(NULL) {
+	memset(&mAr, '\0', sizeof(mAr)), mAr.ar_size=sizeof(mAr);
 }
 void AuthDbListener::setData(auth_mod_t *am, auth_status_t *as,  auth_challenger_t const *ach){
 	this->mAm=am;
 	this->mAs=as;
 	this->mAch=ach;
-}
-void AuthDbListener::setAr(auth_response_t *ar) {
-	this->mAr=ar;
 }
 
 void AuthDbListener::sendReplyAndDestroy(){
@@ -257,7 +256,7 @@ void AuthDbListener::sendReply(){
 
 void AuthDbListener::checkFoundPassword(const string &password) {
 	const char* passwd = password.c_str();
-	const string id = mAr->ar_username;
+	const string id = mAr.ar_username;
 	//LOGD("Retrieving password of user %s", id.c_str());
 
 	char const *a1;
@@ -268,20 +267,20 @@ void AuthDbListener::checkFoundPassword(const string &password) {
 			strncpy(a1buf, passwd, 33); // remove trailing NULL character
 			a1 = a1buf;
 		} else {
-			auth_digest_a1(mAr, a1buf, passwd), a1 = a1buf;
+			auth_digest_a1(&mAr, a1buf, passwd), a1 = a1buf;
 		}
 	} else {
-		auth_digest_a1(mAr, a1buf, "xyzzy"), a1 = a1buf;
+		auth_digest_a1(&mAr, a1buf, "xyzzy"), a1 = a1buf;
 	}
 
 
-	if (mAr->ar_md5sess)
-		auth_digest_a1sess(mAr, a1buf, a1), a1 = a1buf;
+	if (mAr.ar_md5sess)
+		auth_digest_a1sess(&mAr, a1buf, a1), a1 = a1buf;
 
-	auth_digest_response(mAr, response, a1,
+	auth_digest_response(&mAr, response, a1,
 			mAs->as_method, mAs->as_body, mAs->as_bodylen);
 
-	if (!passwd || strcmp(response, mAr->ar_response)) {
+	if (!passwd || strcmp(response, mAr.ar_response)) {
 
 		if (mAm->am_forbidden) {
 			mAs->as_status = 403, mAs->as_phrase = "Forbidden";
@@ -298,7 +297,7 @@ void AuthDbListener::checkFoundPassword(const string &password) {
 	}
 
 	//assert(apw);
-	mAs->as_user = mAr->ar_username;
+	mAs->as_user = mAr.ar_username;
 	mAs->as_anonymous = false;
 
 	if (mAm->am_nextnonce || mAm->am_mutual)
@@ -331,6 +330,7 @@ void AuthDbListener::passwordRetrievingPending() {
 	// as SipEvent is held in the listener.
 	mAs->as_status=100, mAs->as_phrase="Authentication pending";
 	//as->as_callback=auth_callback; // should be set according to doc
+	msg_ref_create(mEv->mMsg); // Avoid temporary reference to make the message destroyed.
 	sendReply();
 }
 
@@ -423,7 +423,21 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 
 	// Synchronous or asynchronous retrieving of password depending
 	// on implementation and presence of valid credentials in the cache.
-	AuthDb::get()->password(as->as_user_uri, ar->ar_username, listener);
+	string foundPassword;
+	AuthDbResult res=AuthDb::get()->password(listener->getRoot(), as->as_user_uri, ar->ar_username, foundPassword, listener);
+	switch (res) {
+		case PENDING:
+			listener->passwordRetrievingPending();
+			break;
+		case PASSWORD_FOUND:
+			listener->onSynchronousPasswordFound(foundPassword);
+			break;
+		case AUTH_ERROR:
+			listener->onError();
+			break;
+		default:
+			break;
+	}
 }
 
 /** Authenticate a request with @b Digest authentication scheme.
@@ -452,11 +466,9 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 	}
 
 	if (au) {
-		auth_response_t ar[1] = {{ sizeof(ar) }};
-		auth_digest_response_get(as->as_home, ar, au->au_params);
+		auth_digest_response_get(as->as_home, &listener->mAr, au->au_params);
 		as->as_match = (msg_header_t *)au;
-		listener->setAr(ar);
-		flexisip_auth_check_digest(am, as, ar, ach);
+		flexisip_auth_check_digest(am, as, &listener->mAr, ach);
 	}
 	else {
 		/* There was no realm or credentials, send challenge */
@@ -465,8 +477,8 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 
 		// Asynchronously fetch the credentials so that they are present in the
 		// cache when a request with credentials comes back from client.
-		AuthDb::get()->password(as->as_user_uri, as->as_user_uri->url_user, NULL);
-
+		string foundPassword;
+		AuthDb::get()->password(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, foundPassword, NULL);
 		listener->sendReplyAndDestroy();
 	}
 }

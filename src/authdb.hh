@@ -20,6 +20,8 @@
 #define _AUTHDB_HH_
 
 #include <string>
+#include <mutex>
+
 #include "common.hh"
 #include "agent.hh"
 
@@ -28,11 +30,15 @@
 #include <sql.h>
 #include <sqlext.h>
 #include <map>
+#include <set>
+#include <thread>
 
 #include "sofia-sip/auth_module.h"
 #include "sofia-sip/auth_plugin.h"
 
 using namespace std;
+
+enum AuthDbResult {PENDING, PASSWORD_FOUND, PASSWORD_NOT_FOUND, AUTH_ERROR};
 
 class AuthDbListener {
 	Agent *mAgent;
@@ -40,33 +46,43 @@ class AuthDbListener {
 	bool mHashedPass;
 	auth_mod_t *mAm;
 	auth_status_t *mAs;
-	auth_response_t *mAr;
 	auth_challenger_t const *mAch;
 	void checkFoundPassword(const string &password);
 public:
+	auth_response_t mAr;
 	AuthDbListener(Agent *, shared_ptr<SipEvent>, bool);
 	void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
 	void passwordRetrievingPending();
-	void setAr(auth_response_t *ar);
 	~AuthDbListener(){};
 	void onAsynchronousPasswordFound(const string &password);
 	void onSynchronousPasswordFound(const string &password);
 	void onError();
 	void sendReplyAndDestroy();
 	void sendReply();
+	su_root_t *getRoot() {
+		return mAgent->getRoot();
+	}
 };
 
 class AuthDb {
 	static AuthDb *sUnique;
-	map<string, map<string,string>*> mCachedPasswords;
+	struct CachedPassword {
+		string pass;
+		time_t date;
+		CachedPassword(const string &pass, time_t date):pass(pass),date(date){};
+	} typedef CachedPassword;
+	map<string, map<string,CachedPassword*>*> mCachedPasswords;
+	std::mutex mCachedPasswordMutex;
 protected:
 	AuthDb();
-	void cachePassword(const url_t *from, const char *auth, string &pass);
-	string fallback(const url_t *from, const char *auth_username);
+	enum CacheResult {VALID_PASS_FOUND, EXPIRED_PASS_FOUND, NO_PASS_FOUND};
+	string createPasswordKey(const string &user, const string &host, const string &auth);
+	bool cachePassword(const string &key, const string &domain, const string &pass, time_t time);
+	CacheResult getCachedPassword(const string &key, const string &domain, string &pass, time_t now);
 	int mCacheExpire;
 public:
 	virtual ~AuthDb();
-	virtual void password(const url_t *from, const char *auth_username, AuthDbListener *listener)=0;
+	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *listener)=0;
 	static AuthDb* get();
 
 	AuthDb (const AuthDb &);
@@ -75,34 +91,41 @@ public:
 
 
 class OdbcAuthDb : public AuthDb {
+	mutex mCreateHandleMutex;
 	~OdbcAuthDb();
+	const static int fieldLength = 500;
+	struct ConnectionCtx {
+		char idCBuffer[fieldLength +1];
+		char domainCBuffer[fieldLength +1];
+		char authIdCBuffer[fieldLength +1];
+		SQLHANDLE stmt;
+		SQLHDBC dbc;
+		ConnectionCtx():stmt(NULL),dbc(NULL){};
+		~ConnectionCtx(){
+			if (dbc) {
+				SQLDisconnect(dbc);
+				SQLFreeHandle(SQL_HANDLE_DBC, dbc);
+			}
+			if (stmt) SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		}
+	} typedef ConnectionCtx;
 	string connectionString;
 	string request;
 	int maxPassLength;
 	vector<string> parameters;
-	char* idCBuffer;
-	char *authIdCBuffer;
-	char *domainCBuffer;
-	bool connected;
+	bool asPooling;
 	SQLHENV env;
-	SQLHDBC dbc;
-	SQLHSTMT stmt;
-	void dbcError(const char* doing);
+	void dbcError(ConnectionCtx &, const char* doing);
 	void envError(const char* doing);
 	bool execDirect;
-	const static int fieldLength = 500;
+	bool getConnection(ConnectionCtx &ctx);
+	AuthDbResult doRetrievePassword(const string &user, const string &host, const string &auth, string &foundPassword);
+	void doAsyncRetrievePassword(su_root_t *, string id, string domain, string auth, AuthDbListener *listener);
 public:
-	virtual void password(const url_t *from, const char *auth_username, AuthDbListener *listener);
-	static const int ERROR_PASSWORD_NOT_FOUND = 0;
-	static const int ERROR_LINK_FAILURE = 1;
-	static const int ERROR = 2;
-	static const int ERROR_ID_TOO_LONG = 3;
-	static const int ERROR_NOT_CONNECTED = 4;
+	virtual AuthDbResult password(su_root_t*, const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *);
 	map<string,string> cachedPasswords;
 	void setExecuteDirect(const bool value);
 	bool connect(const string &dsn, const string &request, const vector<string> &parameters, int maxIdLength, int maxPassLength);
-	bool reconnect();
-	void disconnect();
 	bool checkConnection();
 	OdbcAuthDb();
 };

@@ -43,62 +43,48 @@ AuthDb::AuthDb() {
 	list<string> domains=ma->get<ConfigStringList>("auth-domains")->read();
 	list<string>::const_iterator it;
 	for (it=domains.begin();it!=domains.end();++it){
-		mCachedPasswords.insert(make_pair(*it,new map<string,string>));
+		mCachedPasswords.insert(make_pair(*it,new map<string,CachedPassword *>));
 	}
 	mCacheExpire = ma->get<ConfigInt>("cache-expire")->read();
 }
 
 AuthDb::~AuthDb() {
-	map<string, map<string,string>*>::iterator it;
+	map<string, map<string,CachedPassword*>*>::iterator it;
 	for (it=mCachedPasswords.begin(); it != mCachedPasswords.end(); ++it) {
 		delete (*it).second;
 	}
 }
 
-
-/* Neither this method nor the class is thread safe */
-void AuthDb::password(const url_t *from, const char *auth_username, AuthDbListener *listener) {
-	const string &password=fallback(from, auth_username);
-	if (!password.empty()) {
-		listener->onSynchronousPasswordFound(password.c_str());
-	} else {
-		listener->onError();
-	}
+string AuthDb::createPasswordKey(const string &user, const string &host, const string &auth) {
+	string key(user);
+	return key.append("#").append(auth);
 }
 
-
-string AuthDb::fallback(const url_t *from, const char *auth_username) {
-	// assert not null
-	map<string,string> *passwords=mCachedPasswords[from->url_host];
-	if (passwords) {
-		string key(from->url_user);
-		key.append("#");
-		key.append(auth_username);
-		map<string,string>::iterator it=passwords->find(key);
-		if (it != passwords->end()) {
-			LOGD("Using password from fallback for %s@%s, %s",
-					from->url_user,
-					from->url_host,
-					auth_username
-					);
-			return (*it).second;
-		}
-	}
-	return "";
-}
-
-void AuthDb::cachePassword(const url_t *from, const char *auth_username, string &pass){
-	map<string,string> *passwords=mCachedPasswords[from->url_host];
-	if (passwords) {
-		string key(from->url_user);
-		key.append("#");
-		key.append(auth_username);
-		map<string,string>::iterator it=passwords->find(key);
-		if (it != passwords->end()) {
-			(*it).second=pass;
+AuthDb::CacheResult AuthDb::getCachedPassword(const string &key, const string &domain, string &pass, time_t now) {
+	map<string,CachedPassword*> *passwords=mCachedPasswords[domain];
+	unique_lock<mutex> lck(mCachedPasswordMutex);
+	map<string,CachedPassword*>::iterator it=passwords->find(key);
+	if (it != passwords->end()) {
+		pass.assign((*it).second->pass);
+		if (now < (*it).second->date + mCacheExpire) {
+			return VALID_PASS_FOUND;
 		} else {
-			passwords->insert(make_pair(key, pass));
+			return EXPIRED_PASS_FOUND;
 		}
 	}
+	return NO_PASS_FOUND;
+}
+
+bool AuthDb::cachePassword(const string &key, const string &domain, const string &pass, time_t time){
+	map<string,CachedPassword*> *passwords=mCachedPasswords[domain];
+	std::unique_lock<mutex> lck(mCachedPasswordMutex);
+	map<string,CachedPassword*>::iterator it=passwords->find(key);
+	if (it != passwords->end()) {
+		(*it).second->pass=pass;
+	} else {
+		passwords->insert(make_pair(key, new CachedPassword(pass,time)));
+	}
+
+	return true;
 }
 

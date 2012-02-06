@@ -16,10 +16,12 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#define SU_MSG_ARG_T struct auth_splugin_t
 
 #include "authdb.hh"
 #include <vector>
 #include <set>
+
 
 
 static vector<string> parseAndUpdateRequestConfig(string &request) {
@@ -58,35 +60,42 @@ static vector<string> parseAndUpdateRequestConfig(string &request) {
 	return found_parameters;
 }
 
-OdbcAuthDb::OdbcAuthDb():idCBuffer(NULL),authIdCBuffer(NULL),domainCBuffer(NULL),connected(false),env(NULL),dbc(NULL),stmt(NULL),execDirect(false) {
+OdbcAuthDb::OdbcAuthDb():env(NULL),execDirect(false) {
 	ConfigStruct *cr=ConfigManager::get()->getRoot();
 	ConfigStruct *ma=cr->get<ConfigStruct>("module::Authentication");
 
 	string none = "none";
-	string dsn = ma->get<ConfigString>("datasource")->read();
-	if (dsn == none) LOGF("Authentication is activated but no datasource found");
-	LOGD("Datasource found: %s", dsn.c_str());
+	connectionString = ma->get<ConfigString>("datasource")->read();
+	if (connectionString == none) LOGF("Authentication is activated but no datasource found");
+	LOGD("Datasource found: %s", connectionString.c_str());
 
-	string request = ma->get<ConfigString>("request")->read();
+	request = ma->get<ConfigString>("request")->read();
 	if (request == none) LOGF("Authentication is activated but no request found");
 	LOGD("request found: %s", request.c_str());
-	vector<string> requestParms = parseAndUpdateRequestConfig(request);
+	parameters = parseAndUpdateRequestConfig(request);
 	LOGD("request parsed: %s", request.c_str());
 
 
-	int maxIdLength = ma->get<ConfigInt>("max-id-length")->read();
-	if (maxIdLength == 0) LOGF("Authentication is activated but no max_id_length found");
-	LOGD("maxIdLength found: %i", maxIdLength);
-
-	int maxPassLength = ma->get<ConfigInt>("max-password-length")->read();
+	maxPassLength = ma->get<ConfigInt>("max-password-length")->read();
 	if (maxPassLength == 0) LOGF("Authentication is activated but no max_password_length found");
 	LOGD("maxPassLength found: %i", maxPassLength);
 
+	asPooling=ma->get<ConfigBoolean>("odbc-pooling")->read();
 
-	if (connect(dsn, request, requestParms, maxIdLength, maxPassLength)) {
-		LOGD("Connection OK");
-	} else {
-		LOGE("Unable to connect to odbc database");
+	SQLRETURN retcode;
+	if (asPooling) {
+		retcode = SQLSetEnvAttr(NULL, SQL_ATTR_CONNECTION_POOLING, (void*)SQL_CP_ONE_PER_HENV, 0);
+		if (!SQL_SUCCEEDED(retcode)) {
+			envError("SQLSetEnvAttr SQL_ATTR_CONNECTION_POOLING=SQL_CP_ONE_PER_HENV");
+			LOGF("odbc error");
+		}
+	}
+
+	retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
+	retcode = SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
+	if (!SQL_SUCCEEDED(retcode)) {
+		envError("SQLSetEnvAttr ODBCv3");
+		LOGF("odbc error");
 	}
 }
 
@@ -96,16 +105,16 @@ void OdbcAuthDb::setExecuteDirect(const bool value) {
 
 void showCB(SQLLEN cb)
 {
-	printf("showing CB : ");
+	LOGD("showing CB : ");
 	switch (cb) {
 	case SQL_NULL_DATA:
-		printf("NULL data\n");
+		LOGD("NULL data");
 		break;
 	case SQL_NO_TOTAL:
-		printf("NO total\n");
+		LOGD("NO total");
 		break;
 	default:
-		printf("cb=%ld\n", (long int)cb);
+		LOGD("cb=%ld", (long int)cb);
 		break;
 	}
 }
@@ -134,7 +143,7 @@ static void logSqlError(string fn, SQLHANDLE handle, SQLSMALLINT handleType) {
 	SQLSMALLINT msgLen;
 	SQLRETURN ret;
 
-	LOGE("Odbc driver errors while doing %s",	fn.c_str());
+	LOGE("Odbc driver errors while doing %s", fn.c_str());
 	do {
 		ret = SQLGetDiagRec(handleType, handle, ++i, sqlState, &errorNb, msg, sizeof(msg), &msgLen);
 		if (SQL_SUCCEEDED(ret))
@@ -145,105 +154,75 @@ static void logSqlError(string fn, SQLHANDLE handle, SQLSMALLINT handleType) {
 
 OdbcAuthDb::~OdbcAuthDb() {
 	// Disconnect from database and close everything
-	disconnect();
+	LOGD("disconnecting odbc connector");
+	if (env) SQLFreeHandle(SQL_HANDLE_ENV, env);
 }
 
 void OdbcAuthDb::envError(const char* doing) {
 	logSqlError(doing, env, SQL_HANDLE_ENV);
-	disconnect();
 }
 
-void OdbcAuthDb::dbcError(const char* doing) {
-	logSqlError(doing, dbc, SQL_HANDLE_DBC);
-	disconnect();
+void OdbcAuthDb::dbcError(ConnectionCtx &ctx, const char* doing) {
+	logSqlError(doing, ctx.dbc, SQL_HANDLE_DBC);
 }
 
-bool OdbcAuthDb::connect(const string &d, const string &r, const vector<string> &parameters, int maxIdLength, int maxPassLength) {
-	this->connectionString = d;
-	this->request = r;
-	this->maxPassLength = maxPassLength;
-	this->parameters = parameters;
 
-	return reconnect();
-}
 
-void OdbcAuthDb::disconnect() {
-	LOGD("disconnecting odbc connector");
-	if (idCBuffer != NULL) free(idCBuffer); idCBuffer = NULL;
-	if (stmt) SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-	if (dbc) {
-		SQLDisconnect(dbc);
-		SQLFreeHandle(SQL_HANDLE_DBC, dbc);
-	}
-	if (env) SQLFreeHandle(SQL_HANDLE_ENV, env);
-	connected = false;
-}
 
-bool OdbcAuthDb::reconnect() {
-	if (connected) disconnect();
+bool OdbcAuthDb::getConnection(ConnectionCtx &ctx) {
+	SQLHDBC &dbc=ctx.dbc;
+	SQLHSTMT &stmt=ctx.stmt;
 
-	LOGD("(re-)connecting odbc connector");
-	SQLRETURN retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
-
-	retcode = SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
-	if (!SQL_SUCCEEDED(retcode)) {envError("SQLSetEnvAttr ODBCv3"); return false;}
-
-	retcode = SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
+	SQLRETURN retcode = SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
 	if (!SQL_SUCCEEDED(retcode)) {envError("SQLAllocHandle DBC"); return false;}
 
 	retcode = SQLDriverConnect(dbc, NULL, (SQLCHAR*) connectionString.c_str(), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
-	if (!SQL_SUCCEEDED(retcode)) {dbcError("SQLDriverConnect");	return false;}
+	if (!SQL_SUCCEEDED(retcode)) {dbcError(ctx, "SQLDriverConnect"); return false;}
 
 	// Set connection to be read only
 	SQLSetConnectAttr(dbc, SQL_ATTR_ACCESS_MODE, (SQLPOINTER)SQL_MODE_READ_ONLY, 0);
-	if (!SQL_SUCCEEDED(retcode)) {dbcError("SQLSetConnectAttr"); return false;}
+	if (!SQL_SUCCEEDED(retcode)) {dbcError(ctx, "SQLSetConnectAttr"); return false;}
 	LOGD("SQLDriverConnect OK");
 
 
 	retcode = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
 	if (!SQL_SUCCEEDED(retcode)) {
 		logSqlError("SQLAllocHandle STMT", dbc, SQL_HANDLE_DBC);
-		disconnect();
-		return connected;
+		return false;
 	}
 
 	if (!execDirect) {
 		retcode = SQLPrepare(stmt, (SQLCHAR*) request.c_str(), SQL_NTS);
 		if (!SQL_SUCCEEDED(retcode)) {
 			logSqlError("SQLPrepare request", stmt, SQL_HANDLE_STMT);
-			disconnect();
-			return connected;
+			return false;
 		}
 
-		idCBuffer = (char*) malloc(fieldLength +1);
-		authIdCBuffer = (char*) malloc(fieldLength +1);
-		domainCBuffer = (char*) malloc(fieldLength +1);
 		// Use isql dsn_name then "help table_name" (without ;) to get information on sql types
-
 
 		for (size_t i=0; i < parameters.size(); i++) {
 			char *fieldBuffer;
 			if (parameters[i] == "id") {
-				fieldBuffer=idCBuffer;
+				fieldBuffer=(char*) &ctx.idCBuffer;
 			} else if (parameters[i] == "authid") {
-				fieldBuffer=authIdCBuffer;
+				fieldBuffer=(char*) &ctx.authIdCBuffer;
 			} else if (parameters[i] == "domain") {
-				fieldBuffer=domainCBuffer;
+				fieldBuffer=(char*) &ctx.domainCBuffer;
 			} else {
 				LOGF("unhandled parameter %s", parameters[i].c_str());
 			}
+			LOGD("SQLBindParameter %u -> %s", (unsigned int) i, parameters[i].c_str());
 			retcode = SQLBindParameter(stmt,i+1,SQL_PARAM_INPUT, SQL_C_CHAR,
 					SQL_CHAR, (SQLULEN) fieldLength, 0,
 					fieldBuffer, 0, NULL);
 			if (!SQL_SUCCEEDED(retcode)) {
 				logSqlError("SQLBindParameter", stmt, SQL_HANDLE_STMT);
-				throw ERROR;
+				LOGF("couldn't bind parameter");
 			}
 		}
-		LOGD("SQLBindParameter OK");
+		LOGD("SQLBindParameter bind OK [%u]", (unsigned int)parameters.size());
 	}
 
-	connected = true;
 	return true;
 }
 
@@ -253,43 +232,137 @@ static void closeCursor(SQLHSTMT &stmt) {
 	}
 }
 
-/* Neither this method nor the class is thread safe */
-void OdbcAuthDb::password(const url_t *from, const char *auth_username, AuthDbListener *listener){
-	if (listener == NULL) return; // caching not handled
-	if (!connected) {
-		listener->onError();
-		return;
+
+
+
+AuthDbResult OdbcAuthDb::password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *listener){
+	// Check for usable cached password
+	string id(from->url_user);
+	string domain(from->url_host);
+	string auth(auth_username);
+
+	time_t now=time(NULL);
+	string key(createPasswordKey(id, domain, auth));
+	switch(getCachedPassword(key, domain, foundPassword, now)) {
+	case VALID_PASS_FOUND:
+		return AuthDbResult::PASSWORD_FOUND;
+	case EXPIRED_PASS_FOUND:
+		// Check failing connection
+		//return AuthDbResult::PASSWORD_FOUND;
+		break;
+	case NO_PASS_FOUND:
+		break;
 	}
 
-	const char *id=from->url_user;
-	const char *domain=from->url_host;
-	const char *auth=auth_username;
+	LOGD("YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY");
+	// Retrieve password
+	thread t(std::bind(&OdbcAuthDb::doAsyncRetrievePassword, this, root, id, domain, auth, listener));
+	t.detach();	// Thread will continue running in detached mode
+	return PENDING;
+}
 
-	strncpy(idCBuffer, id, fieldLength);
-	strncpy(domainCBuffer, domain, fieldLength);
-	strncpy(authIdCBuffer, auth, fieldLength);
+struct auth_splugin_t
+{
+  AuthDbListener *listener;
+  char *pass;
+  int found;
+};
+
+
+static void main_thread_async_response(su_root_magic_t *rm,
+				     su_msg_r msg,
+				     auth_splugin_t *u) {
+	// Better to get cached password here
+
+	switch (u->found) {
+	case PASSWORD_FOUND:
+		LOGI("AAAAAAAAAAAAAAAAAAAAA");
+		if (u->listener) {
+			u->listener->onAsynchronousPasswordFound(u->pass);
+			free(u->pass);
+		}
+		return;
+	case PASSWORD_NOT_FOUND:
+		LOGI("BBBBBBBBBBBBBBBBBBBB");
+		break;
+	case AUTH_ERROR:
+		LOGI("CCCCCCCCCCCCCCCCCCCCCc");
+		break;
+	}
+	if (u->listener) {
+		u->listener->onError();
+	}
+}
+
+void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string domain, string auth, AuthDbListener *listener){
+	string foundPassword;
+
+	su_msg_r mamc = SU_MSG_R_INIT;
+	if (-1 == su_msg_create(mamc,
+			su_root_task(root),
+			su_root_task(root),
+			main_thread_async_response,
+			sizeof(auth_splugin_t))) {
+		LOGF("Couldn't create auth async message");
+	}
+
+	auth_splugin_t *asp = su_msg_data(mamc);
+	asp->listener = listener;
+	asp->pass = NULL;
+	unique_lock<mutex> lck(mCreateHandleMutex);
+	asp->found=doRetrievePassword(id, domain, auth, foundPassword);
+	lck.unlock();
+	switch (asp->found) {
+		case PASSWORD_FOUND:
+			LOGI("Found password %s for %s", foundPassword.c_str(), id.c_str());
+			asp->pass = strdup(foundPassword.c_str());
+			break;
+		case PASSWORD_NOT_FOUND:
+			LOGI("No password found for %s", id.c_str());
+			break;
+		case AUTH_ERROR:
+			LOGI("Error retrieving password for %s", id.c_str());
+			// TODO: use expired one
+			break;
+		default:
+			LOGF("Unhandled case");
+	}
+
+	if (-1 == su_msg_send(mamc)) {
+		LOGF("Couldn't send auth async message to main thread.");
+	}
+}
+
+AuthDbResult OdbcAuthDb::doRetrievePassword(const string &id, const string &domain, const string &auth, string &foundPassword){
+	ConnectionCtx ctx;
+	if (!getConnection(ctx)) {
+		return AUTH_ERROR;
+	}
+	SQLHANDLE stmt=ctx.stmt;
+
+	strncpy((char*)&ctx.idCBuffer, id.c_str(), fieldLength);
+	strncpy((char*)&ctx.domainCBuffer, domain.c_str(), fieldLength);
+	strncpy((char*)&ctx.authIdCBuffer, auth.c_str(), fieldLength);
 
 	SQLRETURN retcode;
 	if (execDirect) {
 		// execute direct
-		LOGD("Requesting password of user with id='%s'", idCBuffer);
+		LOGD("Requesting password of user with id='%s'", (char*)&ctx.idCBuffer);
 		retcode = SQLExecDirect(stmt, (SQLCHAR*) request.c_str(), SQL_NTS);
 		if (!SQL_SUCCEEDED(retcode)) {
 			logSqlError("SQLExecDirect", stmt, SQL_HANDLE_STMT);
-			if (linkFailed("SQLExecDirect", stmt, SQL_HANDLE_STMT)) throw ERROR_LINK_FAILURE;
-			listener->onError();
-			return;
+			linkFailed("SQLExecDirect", stmt, SQL_HANDLE_STMT);
+			return AUTH_ERROR;
 		}
 		LOGD("SQLExecDirect OK");
 	} else {
 		// Use prepared statement
-		LOGD("Requesting password of user with id='%s'", idCBuffer);
+		LOGD("Requesting password of user with id='%s'", (char*)&ctx.idCBuffer);
 		retcode = SQLExecute(stmt);
 		if (!SQL_SUCCEEDED(retcode)) {
 			logSqlError("SQLExecute", stmt, SQL_HANDLE_STMT);
-			if (linkFailed("SQLExecute", stmt, SQL_HANDLE_STMT)) throw ERROR_LINK_FAILURE;
-			listener->onError();
-			return;
+			linkFailed("SQLExecute", stmt, SQL_HANDLE_STMT);
+			return AUTH_ERROR;
 		}
 		LOGD("SQLExecute OK");
 	}
@@ -299,8 +372,7 @@ void OdbcAuthDb::password(const url_t *from, const char *auth_username, AuthDbLi
 	if (retcode != SQL_SUCCESS) {
 		LOGE("SQLExecute returned no success");
 		closeCursor(stmt);
-		listener->onError();
-		return;
+		return AUTH_ERROR;
 	}
 
 	retcode = SQLFetch(stmt);
@@ -308,15 +380,13 @@ void OdbcAuthDb::password(const url_t *from, const char *auth_username, AuthDbLi
 		LOGE("Fetch error or success with info");
 		logSqlError("SQLFetch", stmt, SQL_HANDLE_STMT);
 		closeCursor(stmt);
-		listener->onError();
-		return;
+		return AUTH_ERROR;
 	}
 
 	if (retcode == SQL_NO_DATA) {
 		LOGE("No data fetched");
 		closeCursor(stmt);
-		listener->onError();
-		return;
+		return AUTH_ERROR;
 	}
 
 	SQLLEN cbPass;
@@ -326,14 +396,13 @@ void OdbcAuthDb::password(const url_t *from, const char *auth_username, AuthDbLi
 		if (retcode == SQL_SUCCESS_WITH_INFO) LOGD("SQLGetData success with info");
 		else LOGD("SQLGetData error or success with info - user not found??");
 		closeCursor(stmt);
-		listener->onError();
-		return;
+		return PASSWORD_NOT_FOUND;
 	}
 
 	closeCursor(stmt);
 
-	string cppPassword=string((char*)password);
-	cachePassword(from, auth, cppPassword);
-
-	listener->onSynchronousPasswordFound(cppPassword);
+	foundPassword.assign((char*)password);
+	string key(createPasswordKey(id, domain, auth));
+	cachePassword(key, domain, foundPassword, time(NULL));
+	return PASSWORD_FOUND;
 }

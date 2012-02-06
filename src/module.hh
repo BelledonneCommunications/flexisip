@@ -75,10 +75,9 @@ class SipEvent{
 			mMsg=msg;
 			mSip=sip;
 			mStop=false;
-			/* apparently msg_t "inherits" from su_home_t*/
-			mHome=(su_home_t*)su_home_clone((su_home_t*)msg,sizeof(su_home_t));
+			/* msg_t internal implementation "inherits" from su_home_t*/
+			mHome=(su_home_t*)msg;
 			msg_ref_create(mMsg);
-			su_home_ref((su_home_t*)msg);
 		}
 		msg_t *mMsg;
 		sip_t *mSip;
@@ -93,9 +92,6 @@ class SipEvent{
 		}
 		~SipEvent() {
 			msg_ref_destroy(mMsg);
- 			su_home_unref((su_home_t*)mMsg);
-			mHome=NULL;
-			//mHome is freed by parent home of msg
 		}
 		su_home_t* getHome() {
 			return mHome;
