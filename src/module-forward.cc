@@ -122,7 +122,7 @@ void ForwardModule::onRequest(SipEvent *ev){
 	msg_t *msg=ev->mMsg;
         
         // Check max forwards
-        if(sip->sip_max_forwards->mf_count <= countVia(ev))
+        if(sip->sip_max_forwards != NULL && sip->sip_max_forwards->mf_count <= countVia(ev))
         {
                 nta_msg_treply(getSofiaAgent(), msg, 483, "Too Many Hops", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());   
                 return;
