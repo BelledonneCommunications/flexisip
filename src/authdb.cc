@@ -30,7 +30,9 @@ AuthDb* AuthDb::get() {
 			sUnique = new OdbcAuthDb();
 //		} else if (impl == "redis") {
 //			sUnique = new RedisAuthDb();
-		}
+		} else if (impl == "file") {
+                        sUnique = new FileAuthDb();
+                }
 	}
 
 	return sUnique;

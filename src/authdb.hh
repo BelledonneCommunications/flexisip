@@ -89,6 +89,19 @@ public:
 	void operator= (const AuthDb &);
 };
 
+class FileAuthDb : public AuthDb{
+private:
+        string mFileString;
+        time_t mLastSync;
+        
+protected:
+        void sync();
+        
+public:
+        FileAuthDb();
+	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *listener);
+};
+
 
 class OdbcAuthDb : public AuthDb {
 	mutex mCreateHandleMutex;
