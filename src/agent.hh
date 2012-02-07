@@ -84,7 +84,7 @@ class Agent{
 		typedef void (*timerCallback)(void *unused, su_timer_t *t, void *data);
 		su_timer_t *createTimer(int milliseconds, timerCallback cb, void *data);
 		void stopTimer(su_timer_t *t);
-		void injectEventAfter(std::shared_ptr<SipEvent> &ev, Module *module);
+		void injectRequestEvent(std::shared_ptr<SipEvent> &ev);
 	protected:
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
 		void onRequest(msg_t *msg, sip_t *sip);

@@ -141,7 +141,7 @@ static extended_contact *getFirstExtendedContact(Record *aor) {
 void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record *aor){
 	// here we would implement forking
 	time_t now=time(NULL);
-	extended_contact *ec=getFirstExtendedContact(aor);
+	extended_contact *ec=aor?getFirstExtendedContact(aor):NULL;
 	sip_contact_t *ct=NULL;
 	if (ec) ct=Record::extendedContactToSofia(ev->getHome(), ec, now);
 
@@ -156,7 +156,7 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 			prependRoute(ev->getHome(),agent,ev->mMsg,ev->mSip, ec->mRoute);
 		}
 		// Back to work
-		agent->injectEventAfter(ev, this);
+		agent->injectRequestEvent(ev);
 	}else{
 		if (ct!=NULL){
 			LOGW("Unrouted request because of incorrect address of record.");

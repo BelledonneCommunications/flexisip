@@ -21,7 +21,7 @@ flexisip_SOURCES=main.cc \
 			module-registrar.cc \
 			module-mediarelay.cc \
 			module-auth.cc \
-			auth-odbc.hh auth-odbc.cc \
+			authdb.hh authdb.cc authdb-odbc.cc authdb-file.cc \
 			module-loadbalancer.cc
 
 

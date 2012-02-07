@@ -1,0 +1,38 @@
+Test configuration: 2 active flexisip proxies
+
+Users userX@DOMAIN register on proxy 2
+user0.000000@DOMAIN invites userX@DOMAIN through proxy 1
+
+
+Expected result:
+
+    user 0         Proxy 1          Proxy 2           user X
+     |                |                |                |
+     |   INVITE F1    |                |                |
+     |--------------->|                |                |
+     |     407 F2     |                |                |
+     |<---------------|                |                |
+     |     ACK F3     |                |                |
+     |--------------->|                |                |
+     |   INVITE F4    |                |                |
+     |--------------->|   INVITE F5    |                |
+     |                |--------------->|   INVITE F7    |
+     |                |                |--------------->|
+     |                |                |                |
+     |                |                |     180 F9     |
+     |                |    180 F10     |<---------------|
+     |     180 F11    |<---------------|                |
+     |<---------------|                |     200 F12    |
+     |                |    200 F13     |<---------------|
+     |     200 F14    |<---------------|                |
+     |<---------------|                |                |
+     |     ACK F15    |                |                |
+     |--------------->|    ACK F16     |                |
+     |                |--------------->|     ACK F17    |
+     |                |                |--------------->|
+     |                Both Way RTP Media                |
+     |<================================================>|
+
+F1: P1 checks authentication through ODBC connector
+F4: P1 fetch AOR contacts and forward to proxy in charge of contact
+F15: user 0 use record-routes to send the ACK through the proxies
