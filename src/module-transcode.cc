@@ -466,6 +466,10 @@ void TranscodeModule::process200OkforInvite(CallContext *ctx, SipEvent *ev){
 	}else{
 		handleOffer(ctx,ev);
 	}
+	if (ctx->getCalleeTag().empty() && ev->mSip->sip_to->a_tag) {
+		ctx->setCalleeTag(ev->mSip->sip_to->a_tag);
+		LOGD("Establishing dialog");
+	}
 	ctx->storeNewResponse(ev->mMsg);
 }
 

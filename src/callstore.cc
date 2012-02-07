@@ -32,7 +32,7 @@ CallContextBase::CallContextBase(sip_t *sip){
 	mResCseq=(uint32_t)-1;
 	mInvite=NULL;
 	mResponse=NULL;
-	mTag1=sip->sip_from->a_tag;
+	mCallerTag=sip->sip_from->a_tag;
 }
 
 bool CallContextBase::match(sip_t *sip){
@@ -42,20 +42,17 @@ bool CallContextBase::match(sip_t *sip){
 	if (sip->sip_call_id->i_hash==mCallHash){
 		if (sip->sip_request==NULL && (sip->sip_status->st_status>100 && sip->sip_status->st_status<300) ){
 			/*this is a response, we might need to update the second tag*/
-			if (strcmp(mTag1.c_str(),sip->sip_from->a_tag)==0 && mTag2.size()==0){
-				if (sip->sip_to->a_tag){
-					LOGD("Found early dialog, now established");
-					mTag2=sip->sip_to->a_tag;
-				}
+			if (strcmp(mCallerTag.c_str(),sip->sip_from->a_tag)==0){
+				LOGD("Found call for this tag");
 				return true;
 			}
 		}
-		if (sip->sip_to->a_tag==NULL && strcmp(mTag1.c_str(),sip->sip_from->a_tag)==0){
+		if (sip->sip_to->a_tag==NULL && strcmp(mCallerTag.c_str(),sip->sip_from->a_tag)==0){
 			LOGD("Found dialog for early request");
 			return true;
 		}
-		if ((strcmp(mTag1.c_str(),sip->sip_from->a_tag)==0 && sip->sip_to->a_tag && strcmp(mTag2.c_str(),sip->sip_to->a_tag)==0) ||
-		   ( sip->sip_to->a_tag && strcmp(mTag1.c_str(),sip->sip_to->a_tag)==0 && strcmp(mTag2.c_str(),sip->sip_from->a_tag)==0)){
+		if ((strcmp(mCallerTag.c_str(),sip->sip_from->a_tag)==0 && sip->sip_to->a_tag && strcmp(mCalleeTag.c_str(),sip->sip_to->a_tag)==0) ||
+		   ( sip->sip_to->a_tag && strcmp(mCallerTag.c_str(),sip->sip_to->a_tag)==0 && strcmp(mCalleeTag.c_str(),sip->sip_from->a_tag)==0)){
 			LOGD("Found exact dialog");
 			return true;
 		}

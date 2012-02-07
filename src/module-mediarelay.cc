@@ -176,6 +176,10 @@ void MediaRelay::process200OkforInvite(RelayedCall *ctx, msg_t *msg, sip_t *sip)
 		LOGW("No tag in answer");
 		return;
 	}
+	if (ctx->getCalleeTag().empty() && sip->sip_to->a_tag) {
+		ctx->setCalleeTag(sip->sip_to->a_tag);
+		LOGD("Establishing dialog");
+	}
 	SdpModifier *m=SdpModifier::createFromSipMsg(ctx->getHome(), sip);
 	if (m==NULL) return;
 	
