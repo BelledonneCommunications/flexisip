@@ -70,6 +70,7 @@ Module::Module(Agent *ag ) : mAgent(ag){
 }
 
 Module::~Module(){
+	delete mFilter;
 }
 
 void Module::setInfo(ModuleInfoBase *i){
