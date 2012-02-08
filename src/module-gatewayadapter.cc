@@ -21,9 +21,16 @@
 #include "registrardb.hh"
 #include "authdb.hh"
 #include <sofia-sip/nua.h>
+#include <sofia-sip/sip_status.h>
 
 class GatewayRegister {
 private:
+	enum State {
+		INITIAL,
+		REGISTRING,
+		REGISTRED
+	};
+	State state;
 	Agent *agent;
 	su_home_t home;
 	nua_handle_t *nh;
@@ -32,11 +39,11 @@ private:
 	string password;
 
 public:
-	void sendRegister(const string &password = string());
+	void sendRegister(bool authentication = false);
 	GatewayRegister(Agent *ag, nua_t * nua, sip_from_t *from, sip_to_t *to);
 	~GatewayRegister();
-	void onMessage();
-	void onError(const string &message);
+	void onMessage(const sip_t *sip);
+	void onError(const char * message, ...);
 
 	void start();
 	sip_from_t* getFrom() const {
@@ -54,8 +61,8 @@ public:
 		return password;
 	}
 private:
-	// Listener class NEED to copy the shared pointer
 
+	// Listener class NEED to copy the shared pointer
 	class OnAuthListener: public AuthDbListener {
 	private:
 		GatewayRegister *gw;
@@ -67,13 +74,15 @@ private:
 
 		virtual void onAsynchronousPasswordFound(const string &password) {
 			LOGD("Found password");
-			gw->sendRegister(password);
+			gw->setPassword(password);
+			gw->sendRegister();
 			delete this;
 		}
 
 		virtual void onSynchronousPasswordFound(const string &password) {
 			LOGD("Found password");
-			gw->sendRegister(password);
+			gw->setPassword(password);
+			gw->sendRegister();
 			delete this;
 		}
 
@@ -106,6 +115,8 @@ private:
 				string password;
 				AuthDb *mAuthDb = AuthDb::get();
 				AuthDbResult result = mAuthDb->password(gw->getFrom()->a_url, gw->getFrom()->a_url->url_user, password, listener);
+
+				// Already a response?
 				if (result != AuthDbResult::PENDING) {
 					if (result == AuthDbResult::PASSWORD_FOUND) {
 						gw->setPassword(password);
@@ -145,17 +156,17 @@ public:
 	virtual void onRequest(std::shared_ptr<SipEvent> &ev);
 
 	virtual void onResponse(std::shared_ptr<SipEvent> &ev);
+
 private:
 	static void nua_callback(nua_event_t event, int status, char const *phrase, nua_t *nua, nua_magic_t *_t, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]);
 
 	static ModuleInfo<GatewayAdapter> sInfo;
 	su_home_t *mHome;
 	nua_t *mNua;
-	url_t *mDomain;
 };
 
 GatewayAdapter::GatewayAdapter(Agent *ag) :
-		Module(ag), mDomain(NULL) {
+		Module(ag) {
 	mHome = su_home_create();
 }
 
@@ -165,61 +176,71 @@ GatewayAdapter::~GatewayAdapter() {
 
 void GatewayAdapter::onLoad(Agent *agent, const ConfigStruct *module_config) {
 	std::string gateway = module_config->get<ConfigString>("gateway")->read();
-	std::string domain = module_config->get<ConfigString>("gateway-domain")->read();
-	if (!domain.empty()) {
-		mDomain = url_make(mHome, domain.c_str());
-	}
-	mNua = nua_create(agent->getRoot(), nua_callback, NULL, NUTAG_REGISTRAR(gateway.c_str()), TAG_END());
+	mNua = nua_create(agent->getRoot(), nua_callback, NULL, NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()), TAG_END());
 }
 
 void GatewayAdapter::onRequest(std::shared_ptr<SipEvent> &ev) {
 	sip_t *sip = ev->mSip;
 	if (sip->sip_request->rq_method == sip_method_register) {
 		if (sip->sip_contact != NULL) {
-			sip_from_t *from = sip_from_dup(ev->getHome(), sip->sip_from);
-			sip_to_t *to = sip_to_dup(ev->getHome(), sip->sip_to);
-
-			// Override domains?
-			if (mDomain != NULL) {
-				from->a_url->url_host = mDomain->url_host;
-				from->a_url->url_port = mDomain->url_port;
-				to->a_url->url_host = mDomain->url_host;
-				to->a_url->url_port = mDomain->url_port;
-			}
 
 			// Patch contacts
-			sip_contact_t *contact = sip->sip_contact;
-			if (contact == NULL) {
-				LOGE("Invalid contact");
+			sip_contact_t *contact = nta_agent_contact(getAgent()->getSofiaAgent());
+			if(contact == NULL) {
+				LOGE("Can't find a valid contact for the agent");
 				return;
 			}
-			while (contact->m_next != NULL)
-				contact = contact->m_next;
-			contact->m_next = nta_agent_contact(getAgent()->getSofiaAgent());
 
-			GatewayRegister *gr = new GatewayRegister(getAgent(), mNua, from, to);
+			contact = sip_contact_dup(ev->getHome(), contact);
+			contact->m_next = sip->sip_contact;
+			sip->sip_contact = contact;
+
+			GatewayRegister *gr = new GatewayRegister(getAgent(), mNua, sip->sip_from, sip->sip_to);
 			gr->start();
 		}
 	}
 }
 
-GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *from, sip_to_t *to) :
-		agent(ag), from(from), to(to) {
+GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, sip_to_t *sip_to) :
+		agent(ag) {
 	su_home_init(&home);
-	nh = nua_handle(nua, NULL, TAG_END());
+
+	url_t *domain = NULL;
+	ConfigStruct *cr = ConfigManager::get()->getRoot();
+	ConfigStruct *ma = cr->get<ConfigStruct>("module::GatewayAdapter");
+	std::string domainString = ma->get<ConfigString>("gateway-domain")->read();
+	if (!domainString.empty()) {
+		domain = url_make(&home, domainString.c_str());
+	}
+
+	from = sip_from_dup(&home, sip_from);
+	to = sip_to_dup(&home, sip_to);
+	// Override domains?
+	if (domain != NULL) {
+		from->a_url->url_host = domain->url_host;
+		from->a_url->url_port = domain->url_port;
+		to->a_url->url_host = domain->url_host;
+		to->a_url->url_port = domain->url_port;
+	}
+
+	state = INITIAL;
+
+	nh = nua_handle(nua, this, SIPTAG_FROM(from), SIPTAG_TO(to), TAG_END());
 }
 
 GatewayRegister::~GatewayRegister() {
+	nua_handle_destroy(nh);
 	su_home_deinit(&home);
 }
 
-void GatewayRegister::sendRegister(const string &password) {
-	char * digest = su_sprintf(&home, "Digest:\"%s\":%s:%s", from->a_url->url_host, from->a_url->url_user, password.c_str());
+void GatewayRegister::sendRegister(bool authentication) {
+	state = REGISTRING;
 
-	if (password.empty()) {
-		nua_register(nh, SIPTAG_FROM(from), SIPTAG_TO(to), TAG_END());
+	if (!authentication) {
+		nua_register(nh, TAG_END());
 	} else {
-		nua_register(nh, NUTAG_AUTH(digest), SIPTAG_FROM(from), SIPTAG_TO(to), TAG_END());
+		char * digest = su_sprintf(&home, "Digest:\"%s\":%s:%s", from->a_url->url_host, from->a_url->url_user, password.c_str());
+		nua_authenticate(nh, NUTAG_AUTH(digest), TAG_END());
 	}
 }
 
@@ -227,11 +248,33 @@ void GatewayAdapter::onResponse(std::shared_ptr<SipEvent> &ev) {
 
 }
 
-void GatewayRegister::onMessage() {
+void GatewayRegister::onMessage(const sip_t *sip) {
+switch (state) {
+case INITIAL:
+	onError("Can't receive message in this state");
+	break;
+
+case REGISTRING:
+	if(sip->sip_status->st_status == 401) {
+		sendRegister(true);
+	} else if(sip->sip_status->st_status == 200) {
+		state = REGISTRED;
+	} else {
+		onError("Invalid response:%i", sip->sip_status->st_status);
+	}
+	break;
+
+case REGISTRED:
+	LOGD("new message %i", sip->sip_status->st_status);
+	break;
+}
 }
 
-void GatewayRegister::onError(const string &message) {
-	LOGE("%s", message.c_str());
+void GatewayRegister::onError(const char *message, ...) {
+	va_list args;
+	va_start (args, message);
+	LOGE("%s", message);
+	va_end (args);
 	delete this;
 }
 
@@ -245,6 +288,10 @@ ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter", "...");
 
 void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phurase, nua_t *nua, nua_magic_t *_t, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]) {
 	GatewayRegister * gr = (GatewayRegister *) hmagic;
-	gr->onMessage();
+	if(gr == NULL) {
+		LOGE("NULL GatewayRegister");
+		return;
+	}
+	gr->onMessage(sip);
 }
 
