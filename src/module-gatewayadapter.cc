@@ -208,10 +208,15 @@ void GatewayRegister::onMessage(const sip_t *sip) {
 			}
 			sendRegister(true, realm);
 		} else if (sip->sip_status->st_status == 200) {
+			LOGD("REGISTER done");
 			state = State::REGISTRED;
 			end(); // TODO: stop the dialog?
+		} else if (sip->sip_status->st_status == 408) {
+			LOGD("REGISTER timeout");
+			end();
 		} else {
-			LOGD("not handled response:%i", sip->sip_status->st_status);
+			LOGD("REGISTER not handled response: %i", sip->sip_status->st_status);
+			end();
 		}
 		break;
 
