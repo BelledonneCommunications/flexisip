@@ -59,8 +59,8 @@ class RelayedCall : public CallContextBase, public Masquerader{
 		RelayedCall(MediaRelayServer *server, sip_t *sip) : CallContextBase (sip), mServer(server){
 			memset(mSessions,0,sizeof(mSessions));
 		}
+		/*this function is called to masquerade the SDP, for each mline*/
 		virtual void onNewMedia(int mline, std::string *ip, int *port, const char *party_tag){
-			int ports[2];
 			if (mline>=sMaxSessions){
 				LOGE("Max sessions per relayed call is reached.");
 				return;
@@ -70,13 +70,15 @@ class RelayedCall : public CallContextBase, public Masquerader{
 				s=mServer->createSession();
 				mSessions[mline]=s;
 			}
-			s->getPorts(ports);
-			*ip=s->getPublicIp();
+			
 			if (getCallerTag()==party_tag){
-				*port=ports[0];
+				s->setFrontDefaultSource(ip->c_str(),*port);
+				*port=s->getBackPort();
 			}else{
-				*port=ports[1];
+				s->setBackDefaultSource(ip->c_str(),*port);
+				*port=s->getFrontPort();
 			}
+			*ip=s->getPublicIp();
 		}
 		virtual bool isInactive(time_t cur){
 			time_t maxtime=0;
@@ -158,9 +160,16 @@ void MediaRelay::onRequest(std::shared_ptr<SipEvent> &ev){
 			if (c->isNewInvite(sip)){
 				processNewInvite(c,msg,sip);
 			}else if (c->getLastForwardedInvite()!=NULL){
-				msg=msg_copy(c->getLastForwardedInvite ());
-				sip=(sip_t*)msg_object(msg);
-				LOGD("Forwarding invite retransmission");
+                                uint32_t via_count = 0;
+                                for(sip_via_t *via = sip->sip_via; via != NULL; via = via->v_next) 
+                                        ++via_count;
+                                
+                                // Same vias?
+                                if(via_count == c->getViaCount()) {
+                                        msg=msg_copy(c->getLastForwardedInvite ());
+                                        sip=(sip_t*)msg_object(msg);
+                                        LOGD("Forwarding invite retransmission");
+                                }
 			}
 		}
 	}

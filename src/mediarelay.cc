@@ -26,6 +26,22 @@
 
 using namespace::std;
 
+void MediaSource::setDefaultSource(const char *ip, int port){
+	struct addrinfo *res=NULL;
+	struct addrinfo hints={0};
+	char portstr[20];
+	snprintf(portstr,sizeof(portstr),"%i",port);
+	hints.ai_flags=AI_NUMERICHOST|AI_NUMERICSERV;
+	int err=getaddrinfo(ip,portstr,&hints,&res);
+	if (err!=0){
+		LOGE("MediaSource::setDefaultSource() failed for %s:%i : %s",ip,port,gai_strerror(err));
+		return;
+	}
+	memcpy(&ss,res->ai_addr,res->ai_addrlen);
+	slen=res->ai_addrlen;
+	freeaddrinfo(res);
+}
+
 int MediaSource::recv(uint8_t *buf, size_t buflen){
 	slen=sizeof(ss);
 	int err=recvfrom(fd,buf,buflen,0,(struct sockaddr*)&ss,&slen);
@@ -61,12 +77,22 @@ RelaySession::~RelaySession(){
 	rtp_session_destroy(mSession[1]);
 }
 
-int RelaySession::getPorts(int ports[2])const{
-	ports[0]=rtp_session_get_local_port(mSession[0]);
-	ports[1]=rtp_session_get_local_port(mSession[1]);
-	if (ports[0]==-1 || ports[1]==-1)
-		return -1;
-	return 0;
+int RelaySession::getFrontPort()const{
+	return rtp_session_get_local_port(mSession[0]);
+}
+
+int RelaySession::getBackPort()const{
+	return rtp_session_get_local_port(mSession[1]);
+}
+
+void RelaySession::setFrontDefaultSource(const char *ip, int port){
+	mSources[0].setDefaultSource(ip,port);
+	mSources[2].setDefaultSource(ip,port+1);
+}
+
+void RelaySession::setBackDefaultSource(const char *ip, int port){
+	mSources[1].setDefaultSource(ip,port);
+	mSources[3].setDefaultSource(ip,port+1);
 }
 
 void RelaySession::unuse(){

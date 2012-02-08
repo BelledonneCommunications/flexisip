@@ -25,7 +25,7 @@ echo "Generating build scripts in flexisip..."
 set -x
 #$LIBTOOLIZE --copy --force
 $ACLOCAL  $ACLOCAL_ARGS
-#autoheader
+autoheader
 $AUTOMAKE --force-missing --add-missing --copy
 autoconf
 

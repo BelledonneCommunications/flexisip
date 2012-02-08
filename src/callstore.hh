@@ -51,6 +51,9 @@ class CallContextBase{
 		const std::string & getCalleeTag()const{
 			return mTag2;
 		}
+                uint32_t getViaCount() const {
+                        return mViaCount;
+                }
 	private:
 		su_home_t mHome;
 		sip_from_t *mFrom;
@@ -63,6 +66,7 @@ class CallContextBase{
 		uint32_t mAckCseq;
 		std::string mTag1;
 		std::string mTag2;
+                uint32_t mViaCount;
 };
 
 class CallStore{

@@ -15,14 +15,17 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
+#ifdef HAVE_CONFIG_H
+#include "flexisip-config.h"
+#endif
 #include <syslog.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#ifdef HAVE_SYS_PRCTL_H
 #include <sys/prctl.h>
-
+#endif
 
 #include <iostream>
 
@@ -301,7 +304,7 @@ static void forkAndDetach(const char *pidfile, bool auto_respawn){
 				/* This is the real flexisip process now.
 				 * We can proceed with real start
 				 */
-#ifdef PR_SET_NAME
+#ifdef HAVE_SYS_PRCTL_H
 				if (prctl(PR_SET_NAME,"flexisip",NULL,NULL,NULL)==-1){
 					LOGW("prctl() failed: %s",strerror(errno));
 				}

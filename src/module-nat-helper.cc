@@ -113,7 +113,10 @@ class NatHelper : public Module, protected ModuleToolbox{
 			sip_contact_t *ctt=msg->sip_contact;
 			const char *received=via->v_received;
 			const char *rport=via->v_rport;
-			
+			const char *via_transport=sip_via_transport(via);
+			bool is_frontend=(via->v_next==NULL); /*true if we are the first proxy the request is walking through*/
+			bool single_contact=(ctt!=NULL && ctt->m_next==NULL);
+
 			if (empty(received) && empty(rport))
 				return; /*nothing to do*/
 
@@ -123,15 +126,30 @@ class NatHelper : public Module, protected ModuleToolbox{
 			}
 			
 			for (;ctt!=NULL;ctt=ctt->m_next){
-				const char *host=ctt->m_url->url_host;
-				if (host && strcmp(host,via->v_host)==0 
-				    && sipPortEquals(ctt->m_url->url_port,via->v_port) ){
-					/*we have found a ip:port in a contact that seems incorrect, so fix it*/
-					LOGD("Fixing contact header with %s:%s to %s:%s",
-					   ctt->m_url->url_host, ctt->m_url->url_port ? ctt->m_url->url_port :"" ,
-					   received, rport ? rport : "");
-					ctt->m_url->url_host=received;
-					ctt->m_url->url_port=rport;
+				if (ctt->m_url && ctt->m_url->url_host){
+					const char *host=ctt->m_url->url_host;
+					char ct_transport[20]={0};
+					url_param(ctt->m_url->url_params,"transport",ct_transport,sizeof(ct_transport)-1);
+					/*If we have a single contact and we are the front-end proxy, or if we found a ip:port in a contact that seems incorrect
+						because the same appeared fixed in the via, then fix it*/
+					if ( (is_frontend && single_contact)
+						|| (strcmp(host,via->v_host)==0 && sipPortEquals(ctt->m_url->url_port,via->v_port) && transportEquals(via_transport,ct_transport))){
+						
+						if (strcmp(host,received)!=0 || !sipPortEquals(ctt->m_url->url_port,rport)){
+							LOGD("Fixing contact header with %s:%s to %s:%s",
+							   ctt->m_url->url_host, ctt->m_url->url_port ? ctt->m_url->url_port :"" ,
+							   received, rport ? rport : "");
+							ctt->m_url->url_host=received;
+							ctt->m_url->url_port=rport;
+						}
+						if (!transportEquals(via_transport,ct_transport)) {
+							char param[64];
+							snprintf(param,sizeof(param)-1,"transport=%s",via_transport);
+							LOGD("Contact in request has incorrect transport parameter, replacing by %s",via_transport);
+							ctt->m_url->url_params=url_strip_param_string(su_strdup(home,ctt->m_url->url_params),"transport");
+							url_param_add(home,ctt->m_url,param);
+						}
+					}
 				}
 			}
 		}

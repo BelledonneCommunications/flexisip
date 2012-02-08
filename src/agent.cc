@@ -16,7 +16,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 +*/
 
-
+#ifdef HAVE_CONFIG_H
+#include "flexisip-config.h"
+#endif
 #include "agent.hh"
 
 #include "etchosts.hh"
@@ -104,7 +106,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Forward"));
 
-	mServerString="Flexisip/"VERSION " (sofia-sip-nta/" NTA_VERSION ")";
+	mServerString="Flexisip/" VERSION " (sofia-sip-nta/" NTA_VERSION ")";
 
 	for_each(mModules.begin(),mModules.end(),bind2nd(mem_fun(&Module::declare),cr));
 
