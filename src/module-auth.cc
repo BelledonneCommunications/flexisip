@@ -50,7 +50,31 @@ struct auth_mod_size { auth_mod_t mod[1]; auth_plugin_t plug[1]; };
 
 
 class Authentication : public Module {
+private:
+	class AuthenticationListener : public AuthDbListener {
+		Agent *mAgent;
+		shared_ptr<SipEvent> mEv;
+		bool mHashedPass;
+		auth_mod_t *mAm;
+		auth_status_t *mAs;
+		auth_challenger_t const *mAch;
+		void checkFoundPassword(const string &password);
+	public:
+		auth_response_t mAr;
+		AuthenticationListener(Agent *, shared_ptr<SipEvent>, bool);
+		~AuthenticationListener(){};
 
+		void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
+		virtual void onAsynchronousPasswordFound(const string &password);
+		virtual void onSynchronousPasswordFound(const string &password);
+		virtual void onError();
+		void sendReplyAndDestroy();
+		void sendReply();
+		void passwordRetrievingPending();
+		su_root_t *getRoot() {
+			return mAgent->getRoot();
+		}
+	};
 private:
 	map<string,auth_mod_t *> mAuthModules;
 	list<string> mDomains;
@@ -198,7 +222,7 @@ public:
 		    as->as_body = sip->sip_payload->pl_data,
 		as->as_bodylen = sip->sip_payload->pl_len;
 
-		AuthDbListener *listener = new AuthDbListener(getAgent(), ev, dbUseHashedPasswords);
+		AuthDbListener *listener = new AuthenticationListener(getAgent(), ev, dbUseHashedPasswords);
 		as->as_magic=listener;
 
 
@@ -220,21 +244,21 @@ ModuleInfo<Authentication> Authentication::sInfo("Authentication",
 	"The authentication module challenges SIP requests according to a user/password database.");
 
 
-AuthDbListener::AuthDbListener(Agent *ag, std::shared_ptr<SipEvent> ev, bool hashedPasswords):
+Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, std::shared_ptr<SipEvent> ev, bool hashedPasswords):
 		mAgent(ag),mEv(ev),mHashedPass(hashedPasswords),mAm(NULL),mAs(NULL),mAch(NULL) {
 	memset(&mAr, '\0', sizeof(mAr)), mAr.ar_size=sizeof(mAr);
 }
-void AuthDbListener::setData(auth_mod_t *am, auth_status_t *as,  auth_challenger_t const *ach){
+void Authentication::AuthenticationListener::setData(auth_mod_t *am, auth_status_t *as,  auth_challenger_t const *ach){
 	this->mAm=am;
 	this->mAs=as;
 	this->mAch=ach;
 }
 
-void AuthDbListener::sendReplyAndDestroy(){
+void Authentication::AuthenticationListener::sendReplyAndDestroy(){
 	sendReply();
 	delete(this);
 }
-void AuthDbListener::sendReply(){
+void Authentication::AuthenticationListener::sendReply(){
 	sip_t *sip=mEv->mSip;
 	if (mAs->as_status) {
 		nta_msg_treply(mAgent->getSofiaAgent(),mEv->mMsg,mAs->as_status,mAs->as_phrase,
@@ -254,7 +278,7 @@ void AuthDbListener::sendReply(){
 	}
 }
 
-void AuthDbListener::checkFoundPassword(const string &password) {
+void Authentication::AuthenticationListener::checkFoundPassword(const string &password) {
 	const char* passwd = password.c_str();
 	const string id = mAr.ar_username;
 	//LOGD("Retrieving password of user %s", id.c_str());
@@ -312,12 +336,12 @@ void AuthDbListener::checkFoundPassword(const string &password) {
 	mAs->as_phrase = "";
 }
 
-void AuthDbListener::onSynchronousPasswordFound(const string &password) {
+void Authentication::AuthenticationListener::onSynchronousPasswordFound(const string &password) {
 	checkFoundPassword(password);
 	sendReplyAndDestroy();
 }
 
-void AuthDbListener::onAsynchronousPasswordFound(const string &password) {
+void Authentication::AuthenticationListener::onAsynchronousPasswordFound(const string &password) {
 	checkFoundPassword(password);
 	sendReply();
 	mAgent->injectRequestEvent(mEv);
@@ -325,7 +349,7 @@ void AuthDbListener::onAsynchronousPasswordFound(const string &password) {
 }
 
 // Called when starting asynchronous retrieving of password
-void AuthDbListener::passwordRetrievingPending() {
+void Authentication::AuthenticationListener::passwordRetrievingPending() {
 	// Send pending message, needed data will be kept as long
 	// as SipEvent is held in the listener.
 	mAs->as_status=100, mAs->as_phrase="Authentication pending";
@@ -334,7 +358,7 @@ void AuthDbListener::passwordRetrievingPending() {
 	sendReply();
 }
 
-void AuthDbListener::onError() {
+void Authentication::AuthenticationListener::onError() {
 	if (!mAs->as_status) {
 		mAs->as_status = 500, mAs->as_phrase = "Internal error";
 		mAs->as_response = NULL;
@@ -362,7 +386,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		auth_response_t *ar,
 		auth_challenger_t const *ach) {
 
-	AuthDbListener *listener=(AuthDbListener*) as->as_magic;
+	AuthenticationListener *listener=(AuthenticationListener*) as->as_magic;
 
 	if (am == NULL || as == NULL || ar == NULL || ach == NULL) {
 		if (as) {
@@ -424,7 +448,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 	// Synchronous or asynchronous retrieving of password depending
 	// on implementation and presence of valid credentials in the cache.
 	string foundPassword;
-	AuthDbResult res=AuthDb::get()->password(listener->getRoot(), as->as_user_uri, ar->ar_username, foundPassword, listener);
+	AuthDbResult res=AuthDb::get()->password( as->as_user_uri, ar->ar_username, foundPassword, listener);
 	switch (res) {
 		case PENDING:
 			listener->passwordRetrievingPending();
@@ -447,7 +471,7 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 		msg_auth_t *au,
 		auth_challenger_t const *ach)
 {
-	AuthDbListener *listener=(AuthDbListener*) as->as_magic;
+	AuthenticationListener *listener=(AuthenticationListener*) as->as_magic;
 	listener->setData(am, as, ach);
 
 	as->as_allow = as->as_allow || auth_allow_check(am, as) == 0;
@@ -478,7 +502,7 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 		// Asynchronously fetch the credentials so that they are present in the
 		// cache when a request with credentials comes back from client.
 		string foundPassword;
-		AuthDb::get()->password(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, foundPassword, NULL);
+		AuthDb::get()->password(as->as_user_uri, as->as_user_uri->url_user, foundPassword, NULL);
 		listener->sendReplyAndDestroy();
 	}
 }

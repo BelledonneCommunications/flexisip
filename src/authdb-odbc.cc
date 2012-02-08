@@ -235,7 +235,7 @@ static void closeCursor(SQLHSTMT &stmt) {
 
 
 
-AuthDbResult OdbcAuthDb::password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *listener){
+AuthDbResult OdbcAuthDb::password(const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *listener){
 	// Check for usable cached password
 	string id(from->url_user);
 	string domain(from->url_host);
@@ -256,7 +256,7 @@ AuthDbResult OdbcAuthDb::password(su_root_t *root, const url_t *from, const char
 
 	LOGD("YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY");
 	// Retrieve password
-	thread t(std::bind(&OdbcAuthDb::doAsyncRetrievePassword, this, root, id, domain, auth, listener));
+	thread t(std::bind(&OdbcAuthDb::doAsyncRetrievePassword, this, id, domain, auth, listener));
 	t.detach();	// Thread will continue running in detached mode
 	return PENDING;
 }
@@ -268,7 +268,7 @@ struct auth_splugin_t
   int found;
 };
 
-
+/*
 static void main_thread_async_response(su_root_magic_t *rm,
 				     su_msg_r msg,
 				     auth_splugin_t *u) {
@@ -293,10 +293,11 @@ static void main_thread_async_response(su_root_magic_t *rm,
 		u->listener->onError();
 	}
 }
-
-void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string domain, string auth, AuthDbListener *listener){
+*/
+void OdbcAuthDb::doAsyncRetrievePassword(string id, string domain, string auth, AuthDbListener *listener){
 	string foundPassword;
 
+	/*
 	su_msg_r mamc = SU_MSG_R_INIT;
 	if (-1 == su_msg_create(mamc,
 			su_root_task(root),
@@ -305,6 +306,7 @@ void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string doma
 			sizeof(auth_splugin_t))) {
 		LOGF("Couldn't create auth async message");
 	}
+
 
 	auth_splugin_t *asp = su_msg_data(mamc);
 	asp->listener = listener;
@@ -331,6 +333,7 @@ void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string doma
 	if (-1 == su_msg_send(mamc)) {
 		LOGF("Couldn't send auth async message to main thread.");
 	}
+	*/
 }
 
 AuthDbResult OdbcAuthDb::doRetrievePassword(const string &id, const string &domain, const string &auth, string &foundPassword){
