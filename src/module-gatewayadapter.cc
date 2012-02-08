@@ -60,6 +60,7 @@ public:
 	const string& getPassword() {
 		return password;
 	}
+
 private:
 
 	// Listener class NEED to copy the shared pointer
@@ -139,70 +140,6 @@ private:
 	};
 };
 
-class GatewayAdapter: public Module, public ModuleToolbox {
-
-public:
-	GatewayAdapter(Agent *ag);
-
-	~GatewayAdapter();
-
-	virtual void onDeclare(ConfigStruct *module_config) {
-		ConfigItemDescriptor items[] = { { String, "gateway", "A gateway uri where to send all requests", "" }, { String, "gateway-domain", "Force the domain of send all requests", "" }, config_item_end };
-		module_config->addChildrenValues(items);
-	}
-
-	virtual void onLoad(Agent *agent, const ConfigStruct *module_config);
-
-	virtual void onRequest(std::shared_ptr<SipEvent> &ev);
-
-	virtual void onResponse(std::shared_ptr<SipEvent> &ev);
-
-private:
-	static void nua_callback(nua_event_t event, int status, char const *phrase, nua_t *nua, nua_magic_t *_t, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]);
-
-	static ModuleInfo<GatewayAdapter> sInfo;
-	su_home_t *mHome;
-	nua_t *mNua;
-};
-
-GatewayAdapter::GatewayAdapter(Agent *ag) :
-		Module(ag) {
-	mHome = su_home_create();
-}
-
-GatewayAdapter::~GatewayAdapter() {
-	su_home_destroy(mHome);
-	if(mNua != NULL) {
-		nua_shutdown(mNua);
-		nua_destroy(mNua);
-	}
-}
-
-void GatewayAdapter::onLoad(Agent *agent, const ConfigStruct *module_config) {
-	std::string gateway = module_config->get<ConfigString>("gateway")->read();
-	mNua = nua_create(agent->getRoot(), nua_callback, NULL, NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()), TAG_END());
-}
-
-void GatewayAdapter::onRequest(std::shared_ptr<SipEvent> &ev) {
-	sip_t *sip = ev->mSip;
-	if (sip->sip_request->rq_method == sip_method_register) {
-		if (sip->sip_contact != NULL) {
-
-			// Patch contacts
-			sip_contact_t *contact = nta_agent_contact(getAgent()->getSofiaAgent());
-			if (contact == NULL) {
-				LOGE("Can't find a valid contact for the agent");
-				return;
-			}
-			contact = sip_contact_dup(ev->getHome(), contact);
-			contact->m_next = sip->sip_contact;
-			sip->sip_contact = contact;
-
-			GatewayRegister *gr = new GatewayRegister(getAgent(), mNua, sip->sip_from, sip->sip_to);
-			gr->start();
-		}
-	}
-}
 
 GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, sip_to_t *sip_to) :
 		agent(ag) {
@@ -252,10 +189,6 @@ void GatewayRegister::sendRegister(bool authentication, const char *realm) {
 
 		nua_authenticate(nh, NUTAG_AUTH(digest), TAG_END());
 	}
-}
-
-void GatewayAdapter::onResponse(std::shared_ptr<SipEvent> &ev) {
-
 }
 
 void GatewayRegister::onMessage(const sip_t *sip) {
@@ -308,18 +241,89 @@ void GatewayRegister::end() {
 	delete this;
 }
 
-ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter", "...");
+class GatewayAdapter: public Module, public ModuleToolbox {
 
-void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phurase, nua_t *nua, nua_magic_t *_t, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]) {
-	GatewayRegister * gr = (GatewayRegister *) hmagic;
-	if (gr == NULL) {
-		LOGE("NULL GatewayRegister");
+public:
+	GatewayAdapter(Agent *ag);
+
+	~GatewayAdapter();
+
+	virtual void onDeclare(ConfigStruct *module_config) {
+		ConfigItemDescriptor items[] = { { String, "gateway", "A gateway uri where to send all requests", "" }, { String, "gateway-domain", "Force the domain of send all requests", "" }, config_item_end };
+		module_config->addChildrenValues(items);
+	}
+
+	virtual void onLoad(Agent *agent, const ConfigStruct *module_config);
+
+	virtual void onRequest(std::shared_ptr<SipEvent> &ev);
+
+	virtual void onResponse(std::shared_ptr<SipEvent> &ev);
+
+private:
+	static void nua_callback(nua_event_t event, int status, char const *phrase, nua_t *nua, nua_magic_t *_t, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]);
+
+	static ModuleInfo<GatewayAdapter> sInfo;
+	nua_t *mNua;
+};
+
+GatewayAdapter::GatewayAdapter(Agent *ag) :
+		Module(ag) {
+}
+
+GatewayAdapter::~GatewayAdapter() {
+	if(mNua != NULL) {
+		nua_shutdown(mNua);
+		su_root_run(mAgent->getRoot()); // Correctly wait for nua_destroy
+	}
+}
+
+void GatewayAdapter::onLoad(Agent *agent, const ConfigStruct *module_config) {
+	std::string gateway = module_config->get<ConfigString>("gateway")->read();
+	mNua = nua_create(agent->getRoot(), nua_callback, this, NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()), TAG_END());
+}
+
+void GatewayAdapter::onRequest(std::shared_ptr<SipEvent> &ev) {
+	sip_t *sip = ev->mSip;
+	if (sip->sip_request->rq_method == sip_method_register) {
+		if (sip->sip_contact != NULL) {
+
+			// Patch contacts
+			sip_contact_t *contact = nta_agent_contact(getAgent()->getSofiaAgent());
+			if (contact == NULL) {
+				LOGE("Can't find a valid contact for the agent");
+				return;
+			}
+			contact = sip_contact_dup(ev->getHome(), contact);
+			contact->m_next = sip->sip_contact;
+			sip->sip_contact = contact;
+
+			GatewayRegister *gr = new GatewayRegister(getAgent(), mNua, sip->sip_from, sip->sip_to);
+			gr->start();
+		}
+	}
+}
+
+void GatewayAdapter::onResponse(std::shared_ptr<SipEvent> &ev) {
+
+}
+
+void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phurase, nua_t *nua, nua_magic_t *ctx, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]) {
+	GatewayRegister *gr = (GatewayRegister *) hmagic;
+
+	if(event == nua_r_shutdown && status >= 200) {
+		GatewayAdapter *ga = (GatewayAdapter*)ctx;
+		nua_destroy(ga->mNua);
+		su_root_break(ga->getAgent()->getRoot());
 		return;
 	}
+
 	if (sip != NULL) {
 		gr->onMessage(sip);
 	} else {
 		LOGD("nua_callback: No sip message %d -> %s", status, phurase);
 	}
 }
+
+
+ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter", "...");
 
