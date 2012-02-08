@@ -44,6 +44,8 @@ public:
 	void onError(const char * message, ...);
 
 	void start();
+	void end();
+
 	sip_from_t* getFrom() const {
 		return from;
 	}
@@ -212,6 +214,7 @@ GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, si
 
 	from = sip_from_dup(&home, sip_from);
 	to = sip_to_dup(&home, sip_to);
+
 	// Override domains?
 	if (domain != NULL) {
 		from->a_url->url_host = domain->url_host;
@@ -269,6 +272,7 @@ void GatewayRegister::onMessage(const sip_t *sip) {
 			sendRegister(true, realm);
 		} else if (sip->sip_status->st_status == 200) {
 			state = State::REGISTRED;
+			end(); // TODO: stop the dialog?
 		} else {
 			LOGD("not handled response:%i", sip->sip_status->st_status);
 		}
@@ -285,13 +289,19 @@ void GatewayRegister::onError(const char *message, ...) {
 	va_start(args, message);
 	LOGE("%s", message);
 	va_end(args);
-	delete this;
+	end();
 }
 
 void GatewayRegister::start() {
+	LOGD("GatewayRegister start");
 	OnFetchListener *listener = new OnFetchListener(this);
 	LOGD("Fetching binding");
 	RegistrarDb::get(agent)->fetch(from->a_url, listener);
+}
+
+void GatewayRegister::end() {
+	LOGD("GatewayRegister end");
+	delete this;
 }
 
 ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter", "...");
