@@ -172,6 +172,10 @@ GatewayAdapter::GatewayAdapter(Agent *ag) :
 
 GatewayAdapter::~GatewayAdapter() {
 	su_home_destroy(mHome);
+	if(mNua != NULL) {
+		nua_shutdown(mNua);
+		nua_destroy(mNua);
+	}
 }
 
 void GatewayAdapter::onLoad(Agent *agent, const ConfigStruct *module_config) {
