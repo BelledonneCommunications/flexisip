@@ -141,6 +141,10 @@ public:
 	}
 
 	~Authentication(){
+		for(map<string,auth_mod_t *>::iterator it = mAuthModules.begin(); it != mAuthModules.end(); it = mAuthModules.erase(it)) {
+			auth_mod_destroy(it->second);
+		}
+
 		delete mOdbcAuthScheme;
 	}
 
