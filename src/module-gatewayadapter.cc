@@ -25,11 +25,9 @@
 
 class GatewayRegister {
 private:
-	enum State {
-		INITIAL,
-		REGISTRING,
-		REGISTRED
-	};
+	typedef enum {
+		INITIAL, REGISTRING, REGISTRED
+	} State;
 	State state;
 	Agent *agent;
 	su_home_t home;
@@ -39,7 +37,7 @@ private:
 	string password;
 
 public:
-	void sendRegister(bool authentication = false);
+	void sendRegister(bool authentication = false, const char *realm = NULL);
 	GatewayRegister(Agent *ag, nua_t * nua, sip_from_t *from, sip_to_t *to);
 	~GatewayRegister();
 	void onMessage(const sip_t *sip);
@@ -186,11 +184,10 @@ void GatewayAdapter::onRequest(std::shared_ptr<SipEvent> &ev) {
 
 			// Patch contacts
 			sip_contact_t *contact = nta_agent_contact(getAgent()->getSofiaAgent());
-			if(contact == NULL) {
+			if (contact == NULL) {
 				LOGE("Can't find a valid contact for the agent");
 				return;
 			}
-
 			contact = sip_contact_dup(ev->getHome(), contact);
 			contact->m_next = sip->sip_contact;
 			sip->sip_contact = contact;
@@ -223,7 +220,7 @@ GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, si
 		to->a_url->url_port = domain->url_port;
 	}
 
-	state = INITIAL;
+	state = State::INITIAL;
 
 	nh = nua_handle(nua, this, SIPTAG_FROM(from), SIPTAG_TO(to), TAG_END());
 }
@@ -233,13 +230,19 @@ GatewayRegister::~GatewayRegister() {
 	su_home_deinit(&home);
 }
 
-void GatewayRegister::sendRegister(bool authentication) {
-	state = REGISTRING;
+void GatewayRegister::sendRegister(bool authentication, const char *realm) {
+	LOGD("Send REGISTER: auth %i", authentication);
+	state = State::REGISTRING;
 
 	if (!authentication) {
 		nua_register(nh, TAG_END());
 	} else {
-		char * digest = su_sprintf(&home, "Digest:\"%s\":%s:%s", from->a_url->url_host, from->a_url->url_user, password.c_str());
+		char * digest;
+		if (realm != NULL)
+			digest = su_sprintf(&home, "Digest:%s:%s:%s", realm, from->a_url->url_user, password.c_str());
+		else
+			digest = su_sprintf(&home, "Digest:\"%s\":%s:%s", from->a_url->url_host, from->a_url->url_user, password.c_str());
+
 		nua_authenticate(nh, NUTAG_AUTH(digest), TAG_END());
 	}
 }
@@ -249,32 +252,39 @@ void GatewayAdapter::onResponse(std::shared_ptr<SipEvent> &ev) {
 }
 
 void GatewayRegister::onMessage(const sip_t *sip) {
-switch (state) {
-case INITIAL:
-	onError("Can't receive message in this state");
-	break;
+	switch (state) {
+	case State::INITIAL:
+		onError("Can't receive message in this state");
+		break;
 
-case REGISTRING:
-	if(sip->sip_status->st_status == 401) {
-		sendRegister(true);
-	} else if(sip->sip_status->st_status == 200) {
-		state = REGISTRED;
-	} else {
-		onError("Invalid response:%i", sip->sip_status->st_status);
+	case State::REGISTRING:
+		if (sip->sip_status->st_status == 401) {
+			sendRegister(true);
+		} else if (sip->sip_status->st_status == 407) {
+			// Override realm
+			const char *realm = NULL;
+			if (sip->sip_proxy_authenticate != NULL && sip->sip_proxy_authenticate->au_params != NULL) {
+				realm = msg_params_find(sip->sip_proxy_authenticate->au_params, "realm=");
+			}
+			sendRegister(true, realm);
+		} else if (sip->sip_status->st_status == 200) {
+			state = State::REGISTRED;
+		} else {
+			LOGD("not handled response:%i", sip->sip_status->st_status);
+		}
+		break;
+
+	case State::REGISTRED:
+		LOGD("new message %i", sip->sip_status->st_status);
+		break;
 	}
-	break;
-
-case REGISTRED:
-	LOGD("new message %i", sip->sip_status->st_status);
-	break;
-}
 }
 
 void GatewayRegister::onError(const char *message, ...) {
 	va_list args;
-	va_start (args, message);
+	va_start(args, message);
 	LOGE("%s", message);
-	va_end (args);
+	va_end(args);
 	delete this;
 }
 
@@ -288,10 +298,14 @@ ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter", "...");
 
 void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phurase, nua_t *nua, nua_magic_t *_t, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]) {
 	GatewayRegister * gr = (GatewayRegister *) hmagic;
-	if(gr == NULL) {
+	if (gr == NULL) {
 		LOGE("NULL GatewayRegister");
 		return;
 	}
-	gr->onMessage(sip);
+	if (sip != NULL) {
+		gr->onMessage(sip);
+	} else {
+		LOGD("nua_callback: No sip message %d -> %s", status, phurase);
+	}
 }
 
