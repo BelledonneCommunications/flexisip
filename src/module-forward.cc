@@ -19,11 +19,7 @@
 #include "agent.hh"
 #include "etchosts.hh"
 
-static char const *compute_branch(nta_agent_t *sa,
-			     msg_t *msg,
-			     sip_t const *sip,
-			     char const * host,
-                             char const * port);
+static char const *compute_branch(nta_agent_t *sa,msg_t *msg,sip_t const *sip,char const * host,char const * port);
 
 class ForwardModule : public Module, ModuleToolbox {
 	public:
@@ -36,8 +32,8 @@ class ForwardModule : public Module, ModuleToolbox {
 	private:
 		url_t* overrideDest(SipEvent *ev, url_t* dest);
 		void checkRecordRoutes(SipEvent *ev, url_t *dest);
-                bool isLooping(SipEvent *ev, const char * branch);
-                unsigned int countVia(SipEvent *ev);
+		bool isLooping(SipEvent *ev, const char * branch);
+		unsigned int countVia(SipEvent *ev);
 		su_home_t mHome;
 		sip_route_t *mOutRoute;
 		bool mRewriteReqUri;
