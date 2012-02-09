@@ -67,7 +67,7 @@ public:
 			int delta=3600;
 			if (expires){
 				delta=expires->ex_delta;
-				if (delta>0  && delta<30){
+				if (delta<30){
 					delta=30;
 				}
 				if (delta > 3600*24)
