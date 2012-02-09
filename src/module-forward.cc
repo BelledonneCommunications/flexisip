@@ -19,7 +19,7 @@
 #include "agent.hh"
 #include "etchosts.hh"
 
-static char const *compute_branch(nta_agent_t *sa,msg_t *msg,sip_t const *sip,char const * host,char const * port);
+static char const *compute_branch(nta_agent_t *sa,msg_t *msg,sip_t const *sip,char const *string_server);
 
 class ForwardModule : public Module, ModuleToolbox {
 	public:
