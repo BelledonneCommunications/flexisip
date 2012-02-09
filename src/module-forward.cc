@@ -18,8 +18,9 @@
 
 #include "agent.hh"
 #include "etchosts.hh"
+#include <sstream>
 
-static char const *compute_branch(nta_agent_t *sa,msg_t *msg,sip_t const *sip,char const *string_server);
+static char const *compute_branch(nta_agent_t *sa,msg_t *msg,sip_t const *sip, char const *string_server);
 
 class ForwardModule : public Module, ModuleToolbox {
 	public:
@@ -38,6 +39,7 @@ class ForwardModule : public Module, ModuleToolbox {
 		su_home_t mHome;
 		sip_route_t *mOutRoute;
 		bool mRewriteReqUri;
+		std::string mPreferredRoute;
 		static ModuleInfo<ForwardModule> sInfo;
 };
 
@@ -73,6 +75,9 @@ void ForwardModule::onLoad(Agent *agent, const ConfigStruct *module_config){
 			LOGF("Bad route parameter '%s' in configuration of Forward module",route.c_str());
 		}
 	}
+	std::stringstream ss;
+	ss << agent->getPublicIp() << ":" << agent->getPort();
+	mPreferredRoute = ss.str();
 }
 
 url_t* ForwardModule::overrideDest(std::shared_ptr<SipEvent> &ev, url_t *dest){
@@ -163,7 +168,7 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev){
 	}
         
 	// Compute branch
-	char const * branch = compute_branch(getSofiaAgent(), msg, sip, getAgent()->getServerString());
+	char const * branch = compute_branch(getSofiaAgent(), msg, sip, mPreferredRoute.c_str());
 
 	// Check looping
 	if (!isLooping(ev, branch)) {
