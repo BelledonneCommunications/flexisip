@@ -186,12 +186,12 @@ unsigned int ForwardModule::countVia(std::shared_ptr<SipEvent> &ev) {
 bool ForwardModule::isLooping(std::shared_ptr<SipEvent> &ev, const char * branch){
         for (sip_via_t *via = ev->mSip->sip_via; via != NULL; via = via->v_next)
         {
-                if(strcmp(via->v_branch, branch + 7) == 0)
+                if(via->v_branch != NULL && strcmp(via->v_branch, branch + 7) == 0)
                 {
                     return true;
                 }
         }
-        
+
         return false;
 }
 
