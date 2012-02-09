@@ -46,10 +46,10 @@ class CallContextBase{
 		}
 		virtual ~CallContextBase();
 		const std::string & getCallerTag()const{
-			return mTag1;
+			return mCallerTag;
 		}
 		const std::string & getCalleeTag()const{
-			return mTag2;
+			return mCalleeTag;
 		}
 		uint32_t getViaCount() const {
 			return mViaCount;
@@ -64,8 +64,9 @@ class CallContextBase{
 		uint32_t mInvCseq;
 		uint32_t mResCseq;
 		uint32_t mAckCseq;
-		std::string mTag1;
-		std::string mTag2;
+		std::string mCallerTag;
+		std::string mCalleeTag;
+		std::string mBranch; /*of the via of the first Invite request*/
 		uint32_t mViaCount;
 };
 

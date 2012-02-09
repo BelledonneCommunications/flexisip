@@ -32,10 +32,15 @@ CallContextBase::CallContextBase(sip_t *sip){
 	mResCseq=(uint32_t)-1;
 	mInvite=NULL;
 	mResponse=NULL;
-	mTag1=sip->sip_from->a_tag;
+	mCallerTag=sip->sip_from->a_tag;
 	mViaCount = 0;
-	for(sip_via_t *via = sip->sip_via; via != NULL; via = via->v_next) 
+	sip_via_t *via;
+	for(via = sip->sip_via; via != NULL; via = via->v_next) 
 		++mViaCount;
+	via=sip->sip_via;
+	if (via && via->v_branch){
+		mBranch=via->v_branch;
+	}
 }
 
 bool CallContextBase::match(sip_t *sip){
@@ -44,23 +49,27 @@ bool CallContextBase::match(sip_t *sip){
 	
 	if (sip->sip_call_id->i_hash==mCallHash){
 		if (sip->sip_request==NULL && (sip->sip_status->st_status>100 && sip->sip_status->st_status<300) ){
-			/*this is a response, we might need to update the second tag*/
-			if (strcmp(mTag1.c_str(),sip->sip_from->a_tag)==0 && mTag2.size()==0){
-				if (sip->sip_to->a_tag){
-					LOGD("Found early dialog, now established");
-					mTag2=sip->sip_to->a_tag;
+			if (mCalleeTag.empty() && strcmp(mCallerTag.c_str(),sip->sip_from->a_tag)==0){
+				/*not yet established dialog*/
+				//check the via branch to know if that response can correspond to the original INVITE
+				//and possibly establish the dialog.
+				sip_via_t *respvia=sip->sip_via;
+				if (respvia && respvia->v_branch){
+					if (strcmp(respvia->v_branch,mBranch.c_str())==0){
+						LOGD("Found CallContext matching response");
+						return true;
+					}
 				}
-				return true;
 			}
 		}
-		if (sip->sip_to->a_tag==NULL && strcmp(mTag1.c_str(),sip->sip_from->a_tag)==0){
-			LOGD("Found dialog for early request");
-			return true;
-		}
-		if ((strcmp(mTag1.c_str(),sip->sip_from->a_tag)==0 && sip->sip_to->a_tag && strcmp(mTag2.c_str(),sip->sip_to->a_tag)==0) ||
-		   ( sip->sip_to->a_tag && strcmp(mTag1.c_str(),sip->sip_to->a_tag)==0 && strcmp(mTag2.c_str(),sip->sip_from->a_tag)==0)){
-			LOGD("Found exact dialog");
-			return true;
+		/*otherwise the to tag must be set (dialog established)*/
+		if (sip->sip_to && sip->sip_to->a_tag){
+			//note: in case of re-INVITE, from and to tags might be inverted with mCallerTag and mCalleeTag
+			if ( (strcmp(mCallerTag.c_str(),sip->sip_from->a_tag)==0 && strcmp(mCalleeTag.c_str(),sip->sip_to->a_tag)==0) ||
+			   (strcmp(mCallerTag.c_str(),sip->sip_to->a_tag)==0 && strcmp(mCalleeTag.c_str(),sip->sip_from->a_tag)==0)){
+				LOGD("Found exact dialog");
+				return true;
+			}
 		}
 	}
 	return false;
@@ -113,6 +122,12 @@ void CallContextBase::storeNewResponse(msg_t *msg){
 	msg_serialize(msg,(msg_pub_t*)sip);
 	mResponse=msg_copy(msg);
 	mResCseq=sip->sip_cseq->cs_seq;
+	if (mCalleeTag.empty()){
+		if (sip->sip_to && sip->sip_to->a_tag){
+			LOGD("Response establishes a dialog or early dialog.");
+			mCalleeTag=sip->sip_to->a_tag;
+		}
+	}
 }
 
 msg_t *CallContextBase::getLastForwardedInvite()const{
