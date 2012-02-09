@@ -43,7 +43,7 @@ CallContextBase::CallContextBase(sip_t *sip){
 	}
 }
 
-bool CallContextBase::match(sip_t *sip){
+bool CallContextBase::match(Agent *ag, sip_t *sip){
 	if (sip->sip_call_id==NULL) return false;
 	if (sip->sip_from->a_tag==NULL) return false;
 	
@@ -53,7 +53,7 @@ bool CallContextBase::match(sip_t *sip){
 				/*not yet established dialog*/
 				//check the via branch to know if that response can correspond to the original INVITE
 				//and possibly establish the dialog.
-				sip_via_t *respvia=sip->sip_via;
+				sip_via_t *respvia=ag->getNextVia(sip);
 				if (respvia && respvia->v_branch){
 					if (strcmp(respvia->v_branch,mBranch.c_str())==0){
 						LOGD("Found CallContext matching response");
@@ -158,11 +158,12 @@ void CallStore::store(CallContextBase *ctx){
 	mCalls.push_back(ctx);
 }
 
-CallContextBase *CallStore::find(sip_t *sip){
+CallContextBase *CallStore::find(Agent *ag, sip_t *sip){
 	list<CallContextBase*>::iterator it;
-	it=find_if(mCalls.begin(),mCalls.end(),bind2nd(mem_fun(&CallContextBase::match),sip));
-	if (it!=mCalls.end())
-		return *it;
+	for(it=mCalls.begin();it!=mCalls.end();++it){
+		if ((*it)->match(ag,sip))
+		    return *it;
+	}
 	return NULL;
 }
 

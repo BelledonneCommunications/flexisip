@@ -26,7 +26,7 @@
 class CallContextBase{
 	public:
 		CallContextBase(sip_t *sip);
-		bool match(sip_t *sip);
+		bool match(Agent *ag, sip_t *sip);
 		bool isNewInvite(sip_t *sip);
 		void storeNewInvite(msg_t *orig);
 		bool isNewEarlyMedia(sip_t *sip);
@@ -74,7 +74,7 @@ class CallStore{
 	public:
 		CallStore();
 		void store(CallContextBase *ctx);
-		CallContextBase *find(sip_t *sip);
+		CallContextBase *find(Agent *ag, sip_t *sip);
 		void remove(CallContextBase *ctx);
 		void removeAndDeleteInactives();
 		void dump();
