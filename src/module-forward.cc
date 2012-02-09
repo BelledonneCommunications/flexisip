@@ -163,7 +163,7 @@ void ForwardModule::onRequest(SipEvent *ev){
 	}
         
 	// Compute branch
-	char const * branch = compute_branch(getSofiaAgent(), msg, sip, dest->url_host, dest->url_port);
+	char const * branch = compute_branch(getSofiaAgent(), msg, sip, getAgent()->getServerString());
 
 	// Check looping
 	if (!isLooping(ev, branch)) {
@@ -209,8 +209,7 @@ void ForwardModule::onResponse(SipEvent *ev){
 static char const *compute_branch(nta_agent_t *sa,
 	msg_t *msg,
 	sip_t const *sip,
-	char const * host,
-	char const * port) {
+	char const  *string_server) {
 	su_md5_t md5[1];
 	uint8_t digest[SU_MD5_DIGEST_SIZE];
 	char branch[(SU_MD5_DIGEST_SIZE * 8 + 4) / 5 + 1];
@@ -218,8 +217,8 @@ static char const *compute_branch(nta_agent_t *sa,
 
 	su_md5_init(md5);
 
-	su_md5_str0update(md5, host);
-	su_md5_str0update(md5, port);
+	su_md5_str0update(md5, string_server);
+	//su_md5_str0update(md5, port);
 
 	url_update(md5, sip->sip_request->rq_url);
 	if (sip->sip_call_id) {
