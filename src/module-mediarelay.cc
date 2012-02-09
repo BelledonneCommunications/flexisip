@@ -151,7 +151,7 @@ void MediaRelay::onRequest(std::shared_ptr<SipEvent> &ev){
 	sip_t *sip=ev->mSip;
 	
 	if (sip->sip_request->rq_method==sip_method_invite){
-		if ((c=static_cast<RelayedCall*>(mCalls.find(sip)))==NULL){
+		if ((c=static_cast<RelayedCall*>(mCalls.find(getAgent(),sip)))==NULL){
 			c=new RelayedCall(mServer,sip);
 			if (processNewInvite(c,msg,sip)) {
 				mCalls.store(c);
@@ -174,7 +174,7 @@ void MediaRelay::onRequest(std::shared_ptr<SipEvent> &ev){
 		}
 	}
 	if (sip->sip_request->rq_method==sip_method_bye){
-		if ((c=static_cast<RelayedCall*>(mCalls.find(sip)))!=NULL){
+		if ((c=static_cast<RelayedCall*>(mCalls.find(getAgent(),sip)))!=NULL){
 			mCalls.remove(c);
 			delete c;
 		}
@@ -219,7 +219,7 @@ void MediaRelay::onResponse(std::shared_ptr<SipEvent> &ev){
 	if (sip->sip_cseq && sip->sip_cseq->cs_method==sip_method_invite){
 		fixAuthChallengeForSDP(ev->getHome(),msg,sip);
 		if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
-			if ((c=static_cast<RelayedCall*>(mCalls.find(sip)))!=NULL){
+			if ((c=static_cast<RelayedCall*>(mCalls.find(getAgent(),sip)))!=NULL){
 				if (sip->sip_status->st_status==200 && c->isNew200Ok(sip)){
 					process200OkforInvite (c,msg,sip);
 				}else if (isEarlyMedia(sip) && c->isNewEarlyMedia (sip)){

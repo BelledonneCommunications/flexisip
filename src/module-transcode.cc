@@ -354,7 +354,7 @@ void TranscodeModule::onRequest(std::shared_ptr<SipEvent> &ev){
 	sip_t *sip=ev->mSip;
 	
 	if (sip->sip_request->rq_method==sip_method_invite){
-		if ((c=static_cast<CallContext*>(mCalls.find(sip)))==NULL){
+		if ((c=static_cast<CallContext*>(mCalls.find(getAgent(),sip)))==NULL){
 			c=new CallContext(sip,getAgent()->getBindIp());
 			mCalls.store(c);
 			processNewInvite(c,ev);
@@ -376,7 +376,7 @@ void TranscodeModule::onRequest(std::shared_ptr<SipEvent> &ev){
 			}
 		}
 	}else if (sip->sip_request->rq_method==sip_method_ack && SdpModifier::hasSdp(sip)){
-		if ((c=static_cast<CallContext*>(mCalls.find(sip)))==NULL){
+		if ((c=static_cast<CallContext*>(mCalls.find(getAgent(),sip)))==NULL){
 			LOGD("Seeing ACK with no call reference");
 		}else{
 			if (c->isNewAck(sip)){
@@ -392,7 +392,7 @@ void TranscodeModule::onRequest(std::shared_ptr<SipEvent> &ev){
 		}
 	}else{
 		 if (sip->sip_request->rq_method==sip_method_info){
-			 if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
+			 if ((c=static_cast<CallContext*>(mCalls.find(getAgent(),sip)))!=NULL){
 				if (processSipInfo(c,msg,sip)){
 					ev->stopProcessing();
 					/*stop the processing */
@@ -403,7 +403,7 @@ void TranscodeModule::onRequest(std::shared_ptr<SipEvent> &ev){
 		//all other requests go through
 
 		if (sip->sip_request->rq_method==sip_method_bye){
-			if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
+			if ((c=static_cast<CallContext*>(mCalls.find(getAgent(),sip)))!=NULL){
 				mCalls.remove(c);
 				delete c;
 			}
@@ -484,7 +484,7 @@ void TranscodeModule::onResponse(std::shared_ptr<SipEvent> &ev){
 			&& sip->sip_cseq->cs_method==sip_method_invite
 			&& mAgent->countUsInVia(sip->sip_via) < 2) { //If we are more than 1 time in via headers, wait until next time we receive this message for any processing
 		fixAuthChallengeForSDP(ev->getHome(),msg,sip);
-		if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
+		if ((c=static_cast<CallContext*>(mCalls.find(getAgent(),sip)))!=NULL){
 			if (sip->sip_status->st_status==200 && c->isNew200Ok(sip)){
 				process200OkforInvite(c,ev);
 			}else if (isEarlyMedia(sip) && c->isNewEarlyMedia (sip)){
