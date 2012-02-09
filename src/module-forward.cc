@@ -19,7 +19,7 @@
 #include "agent.hh"
 #include "etchosts.hh"
 
-static char const *compute_branch(nta_agent_t *sa,msg_t *msg,sip_t const *sip,char const *string_server);
+static char const *compute_branch(nta_agent_t *sa,msg_t *msg,sip_t const *sip, char const *string_server);
 
 class ForwardModule : public Module, ModuleToolbox {
 	public:
@@ -163,7 +163,7 @@ void ForwardModule::onRequest(SipEvent *ev){
 	}
         
 	// Compute branch
-	char const * branch = compute_branch(getSofiaAgent(), msg, sip, getAgent()->getServerString());
+	char const * branch = compute_branch(getSofiaAgent(), msg, sip, getAgent()->getPreferredRoute());
 
 	// Check looping
 	if (!isLooping(ev, branch)) {
