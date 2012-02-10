@@ -43,6 +43,13 @@ AC_SUBST(ODBC_LIBS)
 
 # Checks for header files.
 
+AC_ARG_ENABLE(transcoder,
+	AC_HELP_STRING([--disable-transcoder],
+	    [Build transcoder support @<:@yes@:>@]),
+        [transcoder="${enableval}"],[transcoder=yes]
+)
+AM_CONDITIONAL(BUILD_TRANSCODER,test x$transcoder = xyes)
+
 AC_ARG_ENABLE(redis,
 	AC_HELP_STRING([--enable-redis],
 	    [Build with redis key/value datastore @<:@yes@:>@]),

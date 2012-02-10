@@ -100,7 +100,9 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"ContactRouteInserter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"LoadBalancer"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"MediaRelay"));
+#ifdef ENABLE_TRANSCODER
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
+#endif
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Forward"));
 
 	mServerString="Flexisip/"VERSION " (sofia-sip-nta/" NTA_VERSION ")";
