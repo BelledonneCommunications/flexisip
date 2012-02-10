@@ -117,9 +117,10 @@ public:
 	}
 
 	~Authentication(){
-		for(map<string,auth_mod_t *>::iterator it = mAuthModules.begin(); it != mAuthModules.end(); it = mAuthModules.erase(it)) {
+		for(auto it = mAuthModules.begin(); it != mAuthModules.end(); ++it) {
 			auth_mod_destroy(it->second);
 		}
+		mAuthModules.clear();
 
 		delete mOdbcAuthScheme;
 	}
