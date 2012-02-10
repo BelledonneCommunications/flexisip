@@ -131,6 +131,8 @@ public:
 			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
 			{	Integer		,	"max-password-length"	,	"Maximum length of the password column in database",	"100"	},
 			{	Boolean		,	"odbc-pooling"	,	"Use pooling in odbc",	"true"	},
+			{	Integer		,	"odbc-display-timings-interval"	,	"Display timing statistics after this count of seconds",	"10"	},
+			{	Integer		,	"odbc-display-timings-after-count"	,	"Display timing statistics once the number of samples reach",	"10000"	},
 			{	Integer		,	"cache-expire"	,	"Duration of the validity of the credentials added to the cache in seconds.",	"1800"	},
 			{	Boolean	,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed (HA1).", "false" },
 			config_item_end
@@ -254,11 +256,10 @@ void AuthDbListener::sendReply(){
 	}
 }
 
-void AuthDbListener::checkFoundPassword(const string &password) {
-	const char* passwd = password.c_str();
-	const string id = mAr.ar_username;
-	//LOGD("Retrieving password of user %s", id.c_str());
-
+/**
+ * NULL if passwd not found.
+ */
+void AuthDbListener::checkPassword(const char* passwd) {
 	char const *a1;
 	auth_hexmd5_t a1buf, response;
 
@@ -312,16 +313,23 @@ void AuthDbListener::checkFoundPassword(const string &password) {
 	mAs->as_phrase = "";
 }
 
-void AuthDbListener::onSynchronousPasswordFound(const string &password) {
-	checkFoundPassword(password);
-	sendReplyAndDestroy();
-}
 
-void AuthDbListener::onAsynchronousPasswordFound(const string &password) {
-	checkFoundPassword(password);
-	sendReply();
-	mAgent->injectRequestEvent(mEv);
-	delete this;
+void AuthDbListener::onAsynchronousResponse(AuthDbResult res, const char *password) {
+	switch (res) {
+	case PASSWORD_FOUND:
+	case PASSWORD_NOT_FOUND:
+		checkPassword(password);
+		sendReply();
+		mAgent->injectRequestEvent(mEv);
+		delete this;
+		break;
+	default:
+		LOGE("unhandled asynchronous response %u", res);
+		// error
+	case AUTH_ERROR:
+		onError();
+		break;
+	}
 }
 
 // Called when starting asynchronous retrieving of password
@@ -350,11 +358,6 @@ void AuthDbListener::onError() {
 
 
 #define PA "Authorization missing "
-
-/**************************************************
- * code derivated from sofia sip auth_module.c begin
- */
-
 
 /** Verify digest authentication */
 void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
@@ -421,19 +424,32 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		return;
 	}
 
-	// Synchronous or asynchronous retrieving of password depending
-	// on implementation and presence of valid credentials in the cache.
+	// Retrieve password. The result may be either synchronous OR asynchronous,
+	// on a case by case basis.
 	string foundPassword;
 	AuthDbResult res=AuthDb::get()->password(listener->getRoot(), as->as_user_uri, ar->ar_username, foundPassword, listener);
 	switch (res) {
 		case PENDING:
+			// The password couldn't be retrieved synchronously
+			// It will be retrieved asynchronously and the listener
+			// will be called with it.
+
+			// Not sending 100 trying as we are stateless
 			listener->passwordRetrievingPending();
 			break;
 		case PASSWORD_FOUND:
-			listener->onSynchronousPasswordFound(foundPassword);
+			listener->checkPassword(foundPassword.c_str());
+			listener->sendReply();
+			delete(listener);
+			break;
+		case PASSWORD_NOT_FOUND:
+			listener->checkPassword(NULL);
+			listener->sendReply();
+			delete(listener);
 			break;
 		case AUTH_ERROR:
 			listener->onError();
+			// on error deletes the listener
 			break;
 		default:
 			break;
@@ -475,16 +491,10 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 		LOGD("%s: no credentials matched realm or no realm", __func__);
 		auth_challenge_digest(am, as, ach);
 
-		// Asynchronously fetch the credentials so that they are present in the
-		// cache when a request with credentials comes back from client.
+		// Retrieve the password in the hope it will be in cache when the remote UAC
+		// sends back its request; this time with the expected authentication credentials.
 		string foundPassword;
 		AuthDb::get()->password(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, foundPassword, NULL);
 		listener->sendReplyAndDestroy();
 	}
 }
-
-
-/*
- * code derivated from sofia sip begin end
- ******************************************/
-

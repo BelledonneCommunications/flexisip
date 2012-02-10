@@ -40,6 +40,9 @@ using namespace std;
 
 enum AuthDbResult {PENDING, PASSWORD_FOUND, PASSWORD_NOT_FOUND, AUTH_ERROR};
 
+// Fw declaration
+struct AuthDbTimings;
+
 class AuthDbListener {
 	Agent *mAgent;
 	shared_ptr<SipEvent> mEv;
@@ -47,15 +50,14 @@ class AuthDbListener {
 	auth_mod_t *mAm;
 	auth_status_t *mAs;
 	auth_challenger_t const *mAch;
-	void checkFoundPassword(const string &password);
 public:
 	auth_response_t mAr;
 	AuthDbListener(Agent *, shared_ptr<SipEvent>, bool);
 	void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
 	void passwordRetrievingPending();
 	~AuthDbListener(){};
-	void onAsynchronousPasswordFound(const string &password);
-	void onSynchronousPasswordFound(const string &password);
+	void checkPassword(const char *password);
+	void onAsynchronousResponse(AuthDbResult ret, const char *password);
 	void onError();
 	void sendReplyAndDestroy();
 	void sendReply();
@@ -91,9 +93,9 @@ public:
 
 
 class OdbcAuthDb : public AuthDb {
-	mutex mCreateHandleMutex;
 	~OdbcAuthDb();
 	const static int fieldLength = 500;
+	bool mAsynchronousRetrieving;
 	struct ConnectionCtx {
 		char idCBuffer[fieldLength +1];
 		char domainCBuffer[fieldLength +1];
@@ -102,11 +104,12 @@ class OdbcAuthDb : public AuthDb {
 		SQLHDBC dbc;
 		ConnectionCtx():stmt(NULL),dbc(NULL){};
 		~ConnectionCtx(){
+			if (stmt) SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+
 			if (dbc) {
 				SQLDisconnect(dbc);
 				SQLFreeHandle(SQL_HANDLE_DBC, dbc);
 			}
-			if (stmt) SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		}
 	} typedef ConnectionCtx;
 	string connectionString;
@@ -116,11 +119,12 @@ class OdbcAuthDb : public AuthDb {
 	bool asPooling;
 	SQLHENV env;
 	void dbcError(ConnectionCtx &, const char* doing);
+	void stmtError(ConnectionCtx &ctx, const char* doing);
 	void envError(const char* doing);
 	bool execDirect;
-	bool getConnection(ConnectionCtx &ctx);
-	AuthDbResult doRetrievePassword(const string &user, const string &host, const string &auth, string &foundPassword);
-	void doAsyncRetrievePassword(su_root_t *, string id, string domain, string auth, AuthDbListener *listener);
+	bool getConnection(ConnectionCtx &ctx, AuthDbTimings &timings);
+	AuthDbResult doRetrievePassword(const string &user, const string &host, const string &auth, string &foundPassword, AuthDbTimings &timings);
+	void doAsyncRetrievePassword(su_root_t *, string id, string domain, string auth, string fallback, AuthDbListener *listener);
 public:
 	virtual AuthDbResult password(su_root_t*, const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *);
 	map<string,string> cachedPasswords;
