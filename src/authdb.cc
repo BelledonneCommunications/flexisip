@@ -30,7 +30,9 @@ AuthDb* AuthDb::get() {
 			sUnique = new OdbcAuthDb();
 //		} else if (impl == "redis") {
 //			sUnique = new RedisAuthDb();
-		}
+		} else if (impl == "file") {
+                        sUnique = new FileAuthDb();
+                }
 	}
 
 	return sUnique;
@@ -81,6 +83,7 @@ bool AuthDb::cachePassword(const string &key, const string &domain, const string
 	map<string,CachedPassword*>::iterator it=passwords->find(key);
 	if (it != passwords->end()) {
 		(*it).second->pass=pass;
+		(*it).second->date=time;
 	} else {
 		passwords->insert(make_pair(key, new CachedPassword(pass,time)));
 	}
