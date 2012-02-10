@@ -219,9 +219,11 @@ OdbcAuthDb::OdbcAuthDb():mAsynchronousRetrieving(true),env(NULL),execDirect(fals
 	if (maxPassLength == 0) LOGF("Authentication is activated but no max_password_length found");
 	LOGD("maxPassLength found: %i", maxPassLength);
 
-
 	AuthDbTimingsAnalyzer::displayStatsInterval = ma->get<ConfigInt>("odbc-display-timings-interval")->read();
 	AuthDbTimingsAnalyzer::displayStatsAfterCount = ma->get<ConfigInt>("odbc-display-timings-after-count")->read();
+
+	mAsynchronousRetrieving	= ma->get<ConfigBoolean>("odbc-asynchronous")->read();
+	LOGD("%s password retrieving", mAsynchronousRetrieving ? "Asynchronous" : "Synchronous");
 
 	asPooling=ma->get<ConfigBoolean>("odbc-pooling")->read();
 

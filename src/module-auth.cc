@@ -136,8 +136,9 @@ public:
 			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
 			{	Integer		,	"max-password-length"	,	"Maximum length of the password column in database",	"100"	},
 			{	Boolean		,	"odbc-pooling"	,	"Use pooling in odbc",	"true"	},
-			{	Integer		,	"odbc-display-timings-interval"	,	"Display timing statistics after this count of seconds",	"10"	},
-			{	Integer		,	"odbc-display-timings-after-count"	,	"Display timing statistics once the number of samples reach",	"10000"	},
+			{	Integer		,	"odbc-display-timings-interval"	,	"Display timing statistics after this count of seconds",	"0"	},
+			{	Integer		,	"odbc-display-timings-after-count"	,	"Display timing statistics once the number of samples reach this number.",	"0"	},
+			{	Boolean		,	"odbc-asynchronous"	,	"Retrieve passwords asynchronously.",	"false"	},
 			{	Integer		,	"cache-expire"	,	"Duration of the validity of the credentials added to the cache in seconds.",	"1800"	},
 			{	Boolean	,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed (HA1).", "false" },
 			config_item_end
