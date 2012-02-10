@@ -73,6 +73,7 @@ class CallContextBase{
 class CallStore{
 	public:
 		CallStore();
+		~CallStore();
 		void store(CallContextBase *ctx);
 		CallContextBase *find(Agent *ag, sip_t *sip);
 		void remove(CallContextBase *ctx);

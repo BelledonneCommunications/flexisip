@@ -47,7 +47,7 @@ class MediaRelay : public Module, protected ModuleToolbox{
 	private:
 		bool processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip);
 		void process200OkforInvite(RelayedCall *ctx, msg_t *msg, sip_t *sip);
-		CallStore mCalls;
+		CallStore *mCalls;
 		MediaRelayServer *mServer;
 		std::string mSdpMangledParam;
 		static ModuleInfo <MediaRelay> sInfo;
@@ -113,10 +113,12 @@ MediaRelay::MediaRelay(Agent *ag) : Module(ag), mServer(0){
 }
 
 MediaRelay::~MediaRelay(){
+	if (mCalls) delete mCalls;
 	if (mServer) delete mServer;
 }
 
 void MediaRelay::onLoad(Agent *ag, const ConfigStruct * modconf){
+	mCalls=new CallStore();
 	mServer=new MediaRelayServer(ag->getBindIp(),ag->getPublicIp());
 	mSdpMangledParam=modconf->get<ConfigString>("nortpproxy")->read();
 }
@@ -130,6 +132,7 @@ bool MediaRelay::processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip){
 	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), sip);
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
 		LOGD("Invite is already relayed");
+		delete m;
 		return false;
 	}
 	if (m){
@@ -151,10 +154,12 @@ void MediaRelay::onRequest(std::shared_ptr<SipEvent> &ev){
 	sip_t *sip=ev->mSip;
 	
 	if (sip->sip_request->rq_method==sip_method_invite){
-		if ((c=static_cast<RelayedCall*>(mCalls.find(getAgent(),sip)))==NULL){
+		if ((c=static_cast<RelayedCall*>(mCalls->find(getAgent(),sip)))==NULL){
 			c=new RelayedCall(mServer,sip);
 			if (processNewInvite(c,msg,sip)) {
-				mCalls.store(c);
+				mCalls->store(c);
+			} else {
+				delete c;
 			}
 		}else{
 			if (c->isNewInvite(sip)){
@@ -174,8 +179,8 @@ void MediaRelay::onRequest(std::shared_ptr<SipEvent> &ev){
 		}
 	}
 	if (sip->sip_request->rq_method==sip_method_bye){
-		if ((c=static_cast<RelayedCall*>(mCalls.find(getAgent(),sip)))!=NULL){
-			mCalls.remove(c);
+		if ((c=static_cast<RelayedCall*>(mCalls->find(getAgent(),sip)))!=NULL){
+			mCalls->remove(c);
 			delete c;
 		}
 	}
@@ -219,7 +224,7 @@ void MediaRelay::onResponse(std::shared_ptr<SipEvent> &ev){
 	if (sip->sip_cseq && sip->sip_cseq->cs_method==sip_method_invite){
 		fixAuthChallengeForSDP(ev->getHome(),msg,sip);
 		if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
-			if ((c=static_cast<RelayedCall*>(mCalls.find(getAgent(),sip)))!=NULL){
+			if ((c=static_cast<RelayedCall*>(mCalls->find(getAgent(),sip)))!=NULL){
 				if (sip->sip_status->st_status==200 && c->isNew200Ok(sip)){
 					process200OkforInvite (c,msg,sip);
 				}else if (isEarlyMedia(sip) && c->isNewEarlyMedia (sip)){
@@ -240,6 +245,6 @@ void MediaRelay::onResponse(std::shared_ptr<SipEvent> &ev){
 
 
 void MediaRelay::onIdle(){
-	mCalls.dump();
-	mCalls.removeAndDeleteInactives();
+	mCalls->dump();
+	mCalls->removeAndDeleteInactives();
 }

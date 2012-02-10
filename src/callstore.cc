@@ -32,6 +32,7 @@ CallContextBase::CallContextBase(sip_t *sip){
 	mResCseq=(uint32_t)-1;
 	mInvite=NULL;
 	mResponse=NULL;
+	mAck=NULL;
 	mCallerTag=sip->sip_from->a_tag;
 	mViaCount = 0;
 	sip_via_t *via;
@@ -152,6 +153,10 @@ CallContextBase::~CallContextBase(){
 }
 
 CallStore::CallStore(){
+}
+
+CallStore::~CallStore(){
+	for_each(mCalls.begin(),mCalls.end(),delete_functor<CallContextBase>());
 }
 
 void CallStore::store(CallContextBase *ctx){

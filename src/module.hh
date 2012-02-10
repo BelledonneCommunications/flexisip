@@ -91,7 +91,7 @@ class SipEvent{
 			return mStop;
 		}
 		~SipEvent() {
-			msg_ref_destroy(mMsg);
+			msg_destroy(mMsg);
 		}
 		su_home_t* getHome() {
 			return mHome;
