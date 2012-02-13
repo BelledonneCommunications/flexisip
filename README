@@ -13,6 +13,25 @@ To configure Flexisip, copy and modify file flexisip.conf.sample to flexisip.con
 ODBC
 --------------------
 Enable pooling in odbcinst.ini and use a thread safe driver.
+Use ODBCINI and ODBCSYSINI environement variable to override ini files location.
+The connection string defined in authentication section of flexisip.conf may use
+either a DSN or a DSN-less connection string.
+
+Example odbcinst.ini file:
+[MySQL]
+Description = MySQL driver
+Driver     = /usr/lib/odbc/libmyodbc.so
+Setup      = /usr/lib/odbc/libodbcmyS.so
+CPTimeout       = 120
+Debug       = 0
+Threading       = 1
+DontDLClose = 1
+[ODBC]
+#Trace      = Yes
+TraceFile       = /tmp/sql.log
+#ForceTrace     = Yes
+Pooling     = Yes
+
 
 
 Developer notes:

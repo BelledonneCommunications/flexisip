@@ -131,7 +131,9 @@ public:
 			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	""	},
 			{	StringList	,	"trusted-hosts"	, 	"List of whitespace separated IP which will not be challenged.",	""	},
 			{	String		,	"db-implementation"		,	"backend implementation [odbc, redis].",		"odbc"	},
-			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. ex: 'DSN=myodbc3;' where 'myodbc3' is the datasource name.",		""	},
+			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. " \
+					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. " \
+					"ex2: DRIVER={MySQL};SERVER=localhost;DATABASE=dbname;USER=username;PASSWORD=passname;OPTION=3; for a DSN-less connection.",		""	},
 			{	String		,	"request"				,	"Odbc SQL request to execute to obtain the password. Named parameters are :id, :domain and :authid.'",
 					"select password from accounts where id = :id and domain = :domain and authid=:authid"	},
 			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
