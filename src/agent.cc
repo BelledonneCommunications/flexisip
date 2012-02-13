@@ -234,6 +234,7 @@ void Agent::onRequest(msg_t *msg, sip_t *sip){
 		(*it)->processRequest(&ev);
 		if (ev.finished()) break;
 	}
+	ev->stopProcessing();
 }
 
 void Agent::onResponse(msg_t *msg, sip_t *sip){
