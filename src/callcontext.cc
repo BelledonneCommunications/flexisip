@@ -304,6 +304,7 @@ CallContext::CallContext(sip_t *sip, const std::string &bind_address) : CallCont
 	mInitialOffer=NULL;
 	mTicker=NULL;
 	mInfoCSeq=-1;
+	mCreateTime=time(NULL);
 }
 
 void CallContext::prepare( const CallContextParams &params){
@@ -353,7 +354,12 @@ void CallContext::redraw(CallSide *r){
 }
 
 bool CallContext::isInactive(time_t cur){
-	if (mFrontSide==NULL) return false;
+	if (mFrontSide==NULL) {
+		if (cur>mCreateTime+180){
+			LOGD("CallContext %p usage timeout expired",this);
+			return true;
+		}
+	}
 	return !(mFrontSide->isActive(cur) || mBackSide->isActive(cur));
 }
 
