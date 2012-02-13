@@ -106,7 +106,7 @@ ModuleInfo<TranscodeModule> TranscodeModule::sInfo("Transcoder",
 	"supported codecs is exactly the the same as the codec set supported by mediastreamer2, including "
     "the possible plugins you may installed to extend mediastreamer2. "
     "WARNING: this module can conflict with the MediaRelay module as both are changin the SDP. "
-    "Make sure to configure them with different to-domains or from-domains filter if you want to enable both of them." );
+    "Make sure to configure them with different to-domains or from-domains filter if you want to enable both of them.",TRANSCODER_OID_INDEX );
 
 
 static MSList *makeSupportedAudioPayloadList(){

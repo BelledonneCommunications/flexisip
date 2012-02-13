@@ -437,7 +437,7 @@ int main(int argc, char *argv[]){
 		stun->start();
 	}
 #ifdef ENABLE_SNMP
-	SnmpAgent lAgent;
+	SnmpAgent lAgent(*a,*cfg);
 #endif
 	su_timer_t *timer=su_timer_create(su_root_task(root),5000);
 	su_timer_run(timer,(su_timer_f)timerfunc,a);

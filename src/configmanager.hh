@@ -34,6 +34,20 @@ enum ConfigValueType{
 	Struct
 };
 
+// ids below the root levels
+#define GLOBAL_OID_INDEX 1
+#define TLS_OID_INDEX 2
+#define STUN_OID_INDEX 3
+#define FISRT_MODULE_OID_INDEX 10
+#define NATHELPER_OID_INDEX FISRT_MODULE_OID_INDEX
+#define AUTHENTICATION_OID_INDEX FISRT_MODULE_OID_INDEX+1
+#define REGISTRAR_OID_INDEX FISRT_MODULE_OID_INDEX+2
+#define CONTACTROUTEINSERTER_OID_INDEX FISRT_MODULE_OID_INDEX+3
+#define LOADBALANCER_OID_INDEX FISRT_MODULE_OID_INDEX+4
+#define MEDIARELAY_OID_INDEX FISRT_MODULE_OID_INDEX+5
+#define TRANSCODER_OID_INDEX FISRT_MODULE_OID_INDEX+6
+#define FORWARD_OID_INDEX FISRT_MODULE_OID_INDEX+7
+
 
 struct ConfigItemDescriptor {
 	ConfigValueType type;
@@ -42,11 +56,26 @@ struct ConfigItemDescriptor {
 	const char *default_value;
 };
 
+
+
 static const ConfigItemDescriptor config_item_end={Boolean,NULL,NULL,NULL};
 
+class Oid {
+	friend class ConfigEntry;
+	friend class RootConfigStruct;
+	protected:
+		Oid(unsigned int root[],unsigned int rootLength, unsigned int leaf);
+		unsigned int* getValue() {return mOid;}
+		unsigned int getLenght() {return mOidLength;}
+		virtual ~Oid();
+	private:
+		unsigned int* mOid;
+		unsigned int mOidLength;
+};
 class ConfigEntry{
 	public:
-		const std::string & getName()const{
+
+	const std::string & getName()const{
 			return mName;
 		}
 		ConfigValueType getType()const{
@@ -61,20 +90,29 @@ class ConfigEntry{
 		virtual ~ConfigEntry(){
 		}
 		void setParent(ConfigEntry *parent);
+
+		/*
+		* @returns entry oid built from parent & object oid index
+		*/
+		Oid& getOid() {return *mOid;};
+
 	protected:
-		ConfigEntry(const std::string &name, ConfigValueType type, const std::string &help);
-	private:
+		ConfigEntry(const std::string &name, ConfigValueType type, const std::string &help,unsigned int oid_index=0);
+		Oid* mOid;
+		private:
 		const std::string mName;
 		const std::string mHelp;
 		ConfigValueType mType;
 		ConfigEntry *mParent;
+
+		unsigned int mPartialOid;
 };
 
 class ConfigValue;
 
 class ConfigStruct : public ConfigEntry{
 	public:
-		ConfigStruct(const std::string &name, const std::string &help);
+		ConfigStruct(const std::string &name, const std::string &help,unsigned int oid_index);
 		ConfigEntry * addChild(ConfigEntry *c);
 		void addChildrenValues(ConfigItemDescriptor *items);
 		std::list<ConfigEntry*> &getChildren();
@@ -87,9 +125,14 @@ class ConfigStruct : public ConfigEntry{
 		std::list<ConfigEntry*> mEntries;
 };
 
+class RootConfigStruct : public ConfigStruct {
+public:
+	RootConfigStruct(const std::string &name, const std::string &help,unsigned int root_oid[],unsigned int root_oid_length);
+};
+
 class ConfigValue : public ConfigEntry{
 	public:
-		ConfigValue(const std::string &name, ConfigValueType  vt, const std::string &help, const std::string &default_value);
+		ConfigValue(const std::string &name, ConfigValueType  vt, const std::string &help, const std::string &default_value,unsigned int oid_index);
 		void set(const std::string &value);
 		const std::string &get()const;
 		const std::string &getDefault()const;
@@ -97,29 +140,30 @@ class ConfigValue : public ConfigEntry{
 	private:
 		std::string mValue;
 		std::string mDefaultValue;
+
 };
 
 class ConfigBoolean : public ConfigValue{
 	public:
-		ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value);
+		ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value,unsigned int oid_index);
 		bool read()const;
 };
 
 class ConfigInt : public ConfigValue{
 	public:
-		ConfigInt(const std::string &name, const std::string &help, const std::string &default_value);
+		ConfigInt(const std::string &name, const std::string &help, const std::string &default_value,unsigned int oid_index);
 		int read()const;
 };
 
 class ConfigString : public ConfigValue{
 	public:
-		ConfigString(const std::string &name, const std::string &help, const std::string &default_value);
+		ConfigString(const std::string &name, const std::string &help, const std::string &default_value,unsigned int oid_index);
 		const std::string & read()const;
 };
 
 class ConfigStringList : public ConfigValue{
 	public:
-		ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value);
+		ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value,unsigned int oid_index);
 		std::list<std::string> read()const;
 	private:
 };
@@ -168,7 +212,7 @@ class ConfigManager{
 		void loadStrict();
 	private:
 		ConfigManager();
-		ConfigStruct mConfigRoot;
+		RootConfigStruct mConfigRoot;
 		FileConfigReader mReader;
 		static ConfigManager *sInstance;
 };

@@ -22,7 +22,7 @@
 
 
 #include <string>
-
+#include <sstream>
 #include <sofia-sip/sip.h>
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/sip_util.h>
@@ -60,6 +60,10 @@ class Agent{
 		int getPort()const{
 			return mPort;
 		}
+		/*return listening uri separated by a comma*/
+		std::string& getTransportUri() {
+			return mTransportUri;
+		}
 		/**
 		 * return a network unique identifier for this Agent.
 		 */
@@ -75,6 +79,7 @@ class Agent{
 		typedef void (*timerCallback)(void *unused, su_timer_t *t, void *data);
 		su_timer_t *createTimer(int milliseconds, timerCallback cb, void *data);
 		void stopTimer(su_timer_t *t);
+		Module& getModuleByName(std::string name) throw (std::exception);
 	protected:
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
 		void onRequest(msg_t *msg, sip_t *sip);
@@ -92,6 +97,7 @@ class Agent{
 		std::string mUniqueId;
 		nta_agent_t *mAgent;
 		su_root_t *mRoot;
+		std::string mTransportUri;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);
 };
 

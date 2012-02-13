@@ -27,8 +27,8 @@
 
 using namespace::std;
 
-ConfigValue::ConfigValue(const std::string &name, ConfigValueType  vt, const std::string &help, const std::string &default_value) 
-	:  ConfigEntry (name,vt,help), mDefaultValue(default_value){
+ConfigValue::ConfigValue(const std::string &name, ConfigValueType  vt, const std::string &help, const std::string &default_value,unsigned int oid_index)
+	:  ConfigEntry (name,vt,help,oid_index), mDefaultValue(default_value){
 	
 }
 
@@ -58,17 +58,29 @@ const std::string & ConfigValue::getDefault()const{
 	return mDefaultValue;
 }
 
-ConfigEntry::ConfigEntry(const std::string &name, ConfigValueType type, const std::string &help) : 
-mName(name),mHelp(help),mType(type),mParent(0){
+Oid::Oid(unsigned int root[],unsigned int rootLength, unsigned int leaf) {
+	mOid= new unsigned int(rootLength+1);
+	mOid=root;
+	mOid[rootLength]=leaf;
+	mOidLength=sizeof(mOid);
+}
+ Oid::~Oid() {
+	delete mOid;
+}
+
+ConfigEntry::ConfigEntry(const std::string &name, ConfigValueType type, const std::string &help,unsigned int oid_index) :
+mOid(0),mName(name),mHelp(help),mType(type),mParent(0),mPartialOid(oid_index){
 	if (strchr(name.c_str(),'_'))
 		LOGA("Underscores not allowed in config items, please use minus sign.");
 }
 
 void ConfigEntry::setParent(ConfigEntry *parent){
 	mParent=parent;
+	if (mOid) delete mOid;
+	mOid = new Oid(	parent->getOid().getValue(),parent->getOid().getLenght(),mPartialOid);
 }
 
-ConfigStruct::ConfigStruct(const std::string &name, const std::string &help) : ConfigEntry(name,Struct,help){
+ConfigStruct::ConfigStruct(const std::string &name, const std::string &help,unsigned int oid_index) : ConfigEntry(name,Struct,help,oid_index){
 	
 }
 
@@ -79,23 +91,26 @@ ConfigEntry * ConfigStruct::addChild(ConfigEntry *c){
 }
 
 void ConfigStruct::addChildrenValues(ConfigItemDescriptor *items){
+	int oid_index=0;
 	for (;items->name!=NULL;items++){
 		ConfigValue *val=NULL;
+		oid_index++;
 		switch(items->type){
 			case Boolean:
-				val=new ConfigBoolean(items->name,items->help,items->default_value);
+				val=new ConfigBoolean(items->name,items->help,items->default_value,oid_index);
 			break;
 			case Integer:
-				val=new ConfigInt(items->name,items->help,items->default_value);
+				val=new ConfigInt(items->name,items->help,items->default_value,oid_index);
 			break;
 			case String:
-				val=new ConfigString(items->name,items->help,items->default_value);
+				val=new ConfigString(items->name,items->help,items->default_value,oid_index);
 			break;
 			case StringList:
-				val=new ConfigStringList(items->name,items->help,items->default_value);
+				val=new ConfigStringList(items->name,items->help,items->default_value,oid_index);
 			break;
 			default:
 				LOGA("Bad ConfigValue type !");
+				oid_index--;
 			break;
 		}
 		addChild(val);
@@ -158,8 +173,8 @@ ConfigStruct::~ConfigStruct(){
 }
 
 
-ConfigBoolean::ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value)
-	: ConfigValue(name, Boolean, help, default_value){
+ConfigBoolean::ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value,unsigned int oid_index)
+	: ConfigValue(name, Boolean, help, default_value,oid_index){
 }
 
 bool ConfigBoolean::read()const{
@@ -170,16 +185,16 @@ bool ConfigBoolean::read()const{
 }
 
 
-ConfigInt::ConfigInt(const std::string &name, const std::string &help, const std::string &default_value)
-	:	ConfigValue(name,Integer,help,default_value){
+ConfigInt::ConfigInt(const std::string &name, const std::string &help, const std::string &default_value,unsigned int oid_index)
+	:	ConfigValue(name,Integer,help,default_value,oid_index){
 }
 
 int ConfigInt::read()const{
 	return atoi(get().c_str());
 }
 
-ConfigString::ConfigString(const std::string &name, const std::string &help, const std::string &default_value)
-	:	ConfigValue(name,String,help,default_value){
+ConfigString::ConfigString(const std::string &name, const std::string &help, const std::string &default_value,unsigned int oid_index)
+	:	ConfigValue(name,String,help,default_value,oid_index){
 }
 
 const std::string & ConfigString::read()const{
@@ -187,8 +202,8 @@ const std::string & ConfigString::read()const{
 }
 
 
-ConfigStringList::ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value)
-	:	ConfigValue(name,StringList,help,default_value){
+ConfigStringList::ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value,unsigned int oid_index)
+	:	ConfigValue(name,StringList,help,default_value,oid_index){
 }
 
 #define DELIMITERS " \n,"
@@ -217,8 +232,8 @@ ConfigManager *ConfigManager::get(){
 
 static ConfigItemDescriptor global_conf[]={
 	{	Boolean	,	"debug"	,	"Outputs very detailed logs",	"false"	},
-	{	Boolean	,	"auto-respawn",	"Automatically respawn flexisip in case of abnormal termination (crashes)",	"true"	},
-	{	StringList	,	"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost" },
+	{	Boolean	,	"auto-respawn",	"Automatically respawn flexisip in case of abnormal termination (crashes)",	"true"},
+	{	StringList	,	"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost"},
 	{	String	,	"ip-address",	"The public ip address of the proxy.",	"guess"},
 	{	String	,	"bind-address",	"The local interface's ip address where to listen. The wildcard (*) means all interfaces.",	"*"},
 	{	Integer	,	"port"		,	"UDP/TCP port number to listen for sip messages.",	"5060"},
@@ -233,13 +248,19 @@ static ConfigItemDescriptor tls_conf[]={
 	config_item_end
 };
 
-ConfigManager::ConfigManager() : mConfigRoot("root","This is the default Flexisip configuration file"), mReader(&mConfigRoot){
-	ConfigStruct *global=new ConfigStruct("global","Some global settings of the flexisip proxy.");
-	global->addChildrenValues(global_conf);
+RootConfigStruct::RootConfigStruct(const std::string &name, const std::string &help,unsigned int root_oid[],unsigned int root_oid_length)
+	:	ConfigStruct(name,help,1) {
+	mOid = new Oid(	root_oid,root_oid_length,1);
+}
+
+static unsigned int root_oid[]={ 1,3,6,1,4,1,100000};
+ConfigManager::ConfigManager() : mConfigRoot("root","This is the default Flexisip configuration file",root_oid,sizeof(root_oid)), mReader(&mConfigRoot){
+	ConfigStruct *global=new ConfigStruct("global","Some global settings of the flexisip proxy.",GLOBAL_OID_INDEX);
 	mConfigRoot.addChild(global);
-	ConfigStruct *tls=new ConfigStruct("tls","TLS specific parameters.");
-	tls->addChildrenValues(tls_conf);
+	global->addChildrenValues(global_conf);
+	ConfigStruct *tls=new ConfigStruct("tls","TLS specific parameters.",TLS_OID_INDEX);
 	mConfigRoot.addChild(tls);
+	tls->addChildrenValues(tls_conf);
 }
 
 int ConfigManager::load(const char* configfile){

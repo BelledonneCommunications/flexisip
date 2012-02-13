@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010  Belledonne Communications SARL.
+    Copyright (C) 2012  Belledonne Communications SARL.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,32 +16,12 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef SNMP_AGENT_H_
-#define SNMP_AGENT_H_
-#include <thread>
-class ConfigManager;
-class Agent;
+#ifndef MODULE_REGISTRAR_HH_
+#define MODULE_REGISTRAR_HH_
 
-class SnmpAgent {
+class RegistrarMgt {
 public:
-	SnmpAgent(Agent& agent,ConfigManager& cm);
-	virtual ~SnmpAgent(){};
-
-private:
-	class SnmpAgentTask {
-	public:
-		SnmpAgentTask(Agent& agent, ConfigManager& cm);
-		~SnmpAgentTask();
-		void operator()() ;
-	private:
-		bool mKeepRunning;
-		 ConfigManager& mConfigmanager;
-		 Agent& mAgent;
-	};
-
-
-	SnmpAgentTask mTask;
-	std::thread mThread;
+	virtual unsigned long long int getTotalNumberOfAddedRecords()=0;
+	virtual unsigned long long int getTotalNumberOfExpiredRecords()=0;
 };
-
-#endif /* SNMP_AGENT_H_ */
+#endif /* MODULE_REGISTRAR_HH_ */

@@ -24,7 +24,9 @@ flexisip_SOURCES=main.cc \
 			auth-odbc.hh auth-odbc.cc \
 			module-loadbalancer.cc
 if BUILD_SNMP
-flexisip_SOURCES+=snmp-agent.cc
+flexisip_SOURCES+=snmp-agent.cc \
+			mib/flexisipMIB.cc
+INCLUDES=-Imib			
 endif
 
 flexisip_LDADD=$(SOFIA_LIBS) $(MEDIASTREAMER_LIBS) $(ODBC_LIBS) $(NETSNMPAGENT_LIBS) 

@@ -21,19 +21,14 @@
 #include <signal.h>
 #include <functional>
 #include "snmp-agent.h"
+#include "configmanager.hh"
+#include "flexisipMIB.h"
 
+SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent,ConfigManager& cm):mKeepRunning(true),mConfigmanager(cm),mAgent(agent) {
 
-bool SnmpAgent::sRunning=true;
-
-void SnmpAgent::run(void) {
-	while (sRunning) {
-		agent_check_and_process(1);
-	}
-	snmp_shutdown("flexisip");
-	SOCK_CLEANUP;
 }
+void SnmpAgent::SnmpAgentTask::operator()() {
 
-SnmpAgent::SnmpAgent(): mThread(SnmpAgent::run){
 	  int syslog = 0; /* change this if you want to use syslog */
 
 	  /* print log errors to syslog or stderr */
@@ -56,17 +51,21 @@ SnmpAgent::SnmpAgent(): mThread(SnmpAgent::run){
 	  /* initialize mib code here */
 
 	  /* mib code: init_nstAgentSubagentObject from nstAgentSubagentObject.C */
-//	  init_flexisipMIB();
+	  init_flexisipMIB(mAgent,mConfigmanager);
 
 
 	  /* example-demon will be used to read example-demon.conf files. */
 	  init_snmp("flexisip");
-
-
-	  return ;
-
+	while (mKeepRunning) {
+		agent_check_and_process(1);
+	}
+	snmp_shutdown("flexisip");
+	SOCK_CLEANUP;
+}
+SnmpAgent::SnmpAgentTask::~SnmpAgentTask() {
+	mKeepRunning=false;
 }
 
-SnmpAgent::~SnmpAgent() {
-	sRunning=false;
+SnmpAgent::SnmpAgent(Agent& agent,ConfigManager& cm): mTask(agent,cm),mThread(std::ref(mTask)){
 }
+

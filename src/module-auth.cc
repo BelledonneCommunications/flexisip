@@ -264,7 +264,7 @@ public:
 };
 
 ModuleInfo<Authentication> Authentication::sInfo("Authentication",
-	"The authentication module challenges SIP requests according to a user/password database.");
+	"The authentication module challenges SIP requests according to a user/password database.",AUTHENTICATION_OID_INDEX);
 
 
 

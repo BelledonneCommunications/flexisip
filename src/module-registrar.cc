@@ -18,10 +18,10 @@
 
 #include "agent.hh"
 #include "registrardb.hh"
-
+#include "module-registrar.hh"
 using namespace::std;
 
-class Registrar : public Module {
+class Registrar : public Module, public RegistrarMgt {
 	public:
 		Registrar(Agent *ag) : Module(ag){
 		}
@@ -100,7 +100,12 @@ class Registrar : public Module {
 		}
 		virtual void onResponse(SipEvent *ev){
 		}
-
+		unsigned long long int getTotalNumberOfAddedRecords() {
+			return RegistrarDb::get()->getTotalNumberOfAddedRecords();
+		}
+		virtual unsigned long long int getTotalNumberOfExpiredRecords() {
+			return RegistrarDb::get()->getTotalNumberOfExpiredRecords();
+		}
 	private:
 		bool isManagedDomain(const char *domain){
 			return ModuleToolbox::matchesOneOf(domain,mDomains);
@@ -111,5 +116,5 @@ class Registrar : public Module {
 
 ModuleInfo<Registrar> Registrar::sInfo("Registrar",
 	"The Registrar module accepts REGISTERs for domains it manages, and store the address of record "
-    "in order to route other requests destinated to the client who registered.");
+    "in order to route other requests destinated to the client who registered.",REGISTRAR_OID_INDEX);
 

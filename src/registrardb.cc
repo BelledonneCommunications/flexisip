@@ -37,7 +37,7 @@ Record::~Record(){
 	su_home_deinit(&mHome);
 }
 
-RegistrarDb::RegistrarDb(){
+RegistrarDb::RegistrarDb():mTotalNumberOfAddRecords(0),mTotalNumberOfExpiredRecords(0){
 }
 
 void RegistrarDb::addRecord(const sip_from_t *from, const sip_contact_t *contact, int expires){
@@ -52,9 +52,13 @@ void RegistrarDb::addRecord(const sip_from_t *from, const sip_contact_t *contact
 		if (it!=mRecords.end()){
 			delete (*it).second;
 			(*it).second=rec;
-		}else mRecords.insert(make_pair(tmp,rec));
+		}else {
+			mRecords.insert(make_pair(tmp,rec));
+			mTotalNumberOfAddRecords++;
+		}
 	}else if (it!=mRecords.end()){
 		mRecords.erase(it);
+		mTotalNumberOfExpiredRecords++;
 	}
 }
 

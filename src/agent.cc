@@ -90,7 +90,7 @@ static int get_local_ip_for_with_connect(int type, const char *dest, char *resul
 	return 0;
 }
 
-Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tlsport){
+Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tlsport) {
 	char sipuri[128]={0};
 	ConfigStruct *cr=ConfigManager::get()->getRoot();
 	ConfigStruct *tls=cr->get<ConfigStruct>("tls");
@@ -129,6 +129,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	std::ostringstream oss;
 	oss << mPublicIp << "_" << mPort;
 	mUniqueId = oss.str();
+	std::ostringstream transportUri;
 	mRoot=root;
 	
 	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i;maddr=%s", mPublicIp.c_str(),mPort,bind_address.c_str());
@@ -141,6 +142,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	if (mAgent==NULL){
 		LOGF("Could not create sofia mta, certainly SIP ports already in use.");
 	}
+	transportUri<<"<"<<sipuri<<">";
 	if (tls->get<ConfigBoolean>("enabled")->read()) {
 		std::string keys=tls->get<ConfigString>("certificates-dir")->read();
 		snprintf(sipuri,sizeof(sipuri)-1,"sips:%s:%i;maddr=%s", mPublicIp.c_str(),mTlsPort,bind_address.c_str());
@@ -148,7 +150,9 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 		nta_agent_add_tport(mAgent,
 			(url_string_t*)sipuri,
 				TPTAG_CERTIFICATE(keys.c_str()), NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), NTATAG_TLS_RPORT(1), TAG_END());
+		transportUri<<",<"<<sipuri<<">";
 	}
+	mTransportUri=transportUri.str();
 	
 	if (bind_address=="*"){
 		bind_address="0.0.0.0";
@@ -300,3 +304,13 @@ void Agent::discoverInterfaces(){
 	freeifaddrs(ifpstart);
 }
 
+Module&  Agent::getModuleByName(std::string name) throw (std::exception) {
+	for(Module* module:mModules) {
+
+		if (module->getModuleName().compare(name)==0) {
+			LOGD("module name [%s], found ",name.c_str());
+			return *module;
+		}
+	}
+	throw std::invalid_argument("module ["+name+"]not found");
+}

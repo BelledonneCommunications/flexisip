@@ -23,6 +23,7 @@
 #include <string>
 
 #include <sofia-sip/sip.h>
+#include "module-registrar.hh"
 
 class Record{
 	public:
@@ -45,15 +46,19 @@ class Record{
  * A singleton class which holds records contact addresses associated with a from.
  * It is used by the Registrar module.
 **/
-class RegistrarDb{
+class RegistrarDb :public RegistrarMgt {
 	public:
 		static RegistrarDb *get();
 		void addRecord(const sip_from_t *from, const sip_contact_t *contact, int expires);
 		const sip_contact_t* retrieveMostRecent(const url_t *from);
+		unsigned long long int getTotalNumberOfAddedRecords(){return mTotalNumberOfAddRecords;}
+		unsigned long long int getTotalNumberOfExpiredRecords(){return mTotalNumberOfExpiredRecords;}
 	private:
 		RegistrarDb();
 		std::map<std::string,Record*> mRecords;
 		static RegistrarDb *sUnique;
+		unsigned long long int mTotalNumberOfAddRecords;
+		unsigned long long int mTotalNumberOfExpiredRecords;
 };
 
 #endif

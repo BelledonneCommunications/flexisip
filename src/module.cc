@@ -85,7 +85,7 @@ nta_agent_t *Module::getSofiaAgent()const{
 }
 
 void Module::declare(ConfigStruct *root){
-	mModuleConfig=new ConfigStruct("module::"+getModuleName(),mInfo->getModuleHelp());
+	mModuleConfig=new ConfigStruct("module::"+getModuleName(),mInfo->getModuleHelp(),mInfo->getOidIndex());
 	root->addChild(mModuleConfig);
 	mFilter->declareConfig(mModuleConfig);
 	onDeclare(mModuleConfig);
