@@ -264,6 +264,7 @@ void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
 		(*it)->processRequest(ev);
 		if (ev->finished()) break;
 	}
+	ev->stopProcessing();
 }
 
 void Agent::onResponse(msg_t *msg, sip_t *sip){
