@@ -84,6 +84,7 @@ private:
 		return value==NULL || value[0]=='\0';
 	}
 	bool dbUseHashedPasswords;
+	bool mStateFullProxy;
 
 	void static flexisip_auth_method_digest(auth_mod_t *am,
 				auth_status_t *as, msg_auth_t *au, auth_challenger_t const *ach);
@@ -168,6 +169,7 @@ public:
 
 		mTrustedHosts=module_config->get<ConfigStringList>("trusted-hosts")->read();
 		dbUseHashedPasswords = module_config->get<ConfigBoolean>("hashed-passwords")->read();
+		mStateFullProxy=false;
 	}
 
 	void onRequest(std::shared_ptr<SipEvent> &ev) {
@@ -206,7 +208,7 @@ public:
 		    as->as_body = sip->sip_payload->pl_data,
 		as->as_bodylen = sip->sip_payload->pl_len;
 
-		AuthDbListener *listener = new AuthDbListener(getAgent(), ev, dbUseHashedPasswords);
+		AuthDbListener *listener = new AuthDbListener(getAgent(), ev, dbUseHashedPasswords, mStateFullProxy);
 		as->as_magic=listener;
 
 
@@ -228,8 +230,8 @@ ModuleInfo<Authentication> Authentication::sInfo("Authentication",
 	"The authentication module challenges SIP requests according to a user/password database.");
 
 
-AuthDbListener::AuthDbListener(Agent *ag, std::shared_ptr<SipEvent> ev, bool hashedPasswords):
-		mAgent(ag),mEv(ev),mHashedPass(hashedPasswords),mAm(NULL),mAs(NULL),mAch(NULL) {
+AuthDbListener::AuthDbListener(Agent *ag, std::shared_ptr<SipEvent> ev, bool hashedPasswords, bool stateFull):
+		mAgent(ag),mEv(ev),mHashedPass(hashedPasswords),mStateFullProxy(stateFull),mAm(NULL),mAs(NULL),mAch(NULL) {
 	memset(&mAr, '\0', sizeof(mAr)), mAr.ar_size=sizeof(mAr);
 }
 void AuthDbListener::setData(auth_mod_t *am, auth_status_t *as,  auth_challenger_t const *ach){
@@ -342,10 +344,14 @@ void AuthDbListener::onAsynchronousResponse(AuthDbResult res, const char *passwo
 void AuthDbListener::passwordRetrievingPending() {
 	// Send pending message, needed data will be kept as long
 	// as SipEvent is held in the listener.
-	mAs->as_status=100, mAs->as_phrase="Authentication pending";
-	//as->as_callback=auth_callback; // should be set according to doc
-	msg_ref_create(mEv->mMsg); // Avoid temporary reference to make the message destroyed.
-	sendReply();
+	if (mStateFullProxy) {
+		mAs->as_status=100, mAs->as_phrase="Authentication pending";
+		//as->as_callback=auth_callback; // should be set according to doc
+		msg_ref_create(mEv->mMsg); // Avoid temporary reference to make the message destroyed.
+		sendReply();
+	} else {
+		mEv->stopProcessing();
+	}
 }
 
 void AuthDbListener::onError() {
@@ -440,7 +446,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 			// It will be retrieved asynchronously and the listener
 			// will be called with it.
 
-			// Not sending 100 trying as we are stateless
+			// Send 100 trying if we are statefull
 			listener->passwordRetrievingPending();
 			break;
 		case PASSWORD_FOUND:

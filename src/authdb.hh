@@ -47,12 +47,13 @@ class AuthDbListener {
 	Agent *mAgent;
 	shared_ptr<SipEvent> mEv;
 	bool mHashedPass;
+	bool mStateFullProxy;
 	auth_mod_t *mAm;
 	auth_status_t *mAs;
 	auth_challenger_t const *mAch;
 public:
 	auth_response_t mAr;
-	AuthDbListener(Agent *, shared_ptr<SipEvent>, bool);
+	AuthDbListener(Agent *, shared_ptr<SipEvent>, bool HashedPass, bool stateFull);
 	void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
 	void passwordRetrievingPending();
 	~AuthDbListener(){};
