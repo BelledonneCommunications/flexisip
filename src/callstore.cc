@@ -102,6 +102,9 @@ void CallContextBase::storeNewInvite(msg_t *msg){
 	//serialize the message before copying it otherwise we might miss some content
 	msg_serialize(msg,(msg_pub_t*)sip);
 	mInvCseq=sip->sip_cseq->cs_seq;
+	if(mInvite != NULL){
+		msg_destroy(mInvite);
+	}
 	mInvite=msg_copy(msg);
 }
 
@@ -110,6 +113,9 @@ void CallContextBase::storeNewAck(msg_t *msg){
 	//serialize the message before copying it otherwise we might miss some content
 	msg_serialize(msg,(msg_pub_t*)sip);
 	mAckCseq=sip->sip_cseq->cs_seq;
+	if(mAck != NULL){
+		msg_destroy(mAck);
+	}
 	mAck=msg_copy(msg);
 }
 
@@ -121,6 +127,9 @@ void CallContextBase::storeNewResponse(msg_t *msg){
 	sip_t *sip=(sip_t*)msg_object(msg);
 	//serialize the message before copying it otherwise we might miss some content
 	msg_serialize(msg,(msg_pub_t*)sip);
+	if(mResponse != NULL){
+		msg_destroy(mResponse);
+	}
 	mResponse=msg_copy(msg);
 	mResCseq=sip->sip_cseq->cs_seq;
 	if (mCalleeTag.empty()){
@@ -150,6 +159,15 @@ void CallContextBase::dump(){
 CallContextBase::~CallContextBase(){
 	su_home_deinit(&mHome);
 	LOGD("CallContext %p with id %u destroyed.",this,mCallHash);
+	if(mInvite != NULL){
+		msg_destroy(mInvite);
+	}
+	if(mResponse != NULL){
+		msg_destroy(mResponse);
+	}
+	if(mAck != NULL){
+		msg_destroy(mAck);
+	}
 }
 
 CallStore::CallStore(){
