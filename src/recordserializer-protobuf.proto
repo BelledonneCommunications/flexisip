@@ -1,0 +1,18 @@
+//option optimize_for = LITE_RUNTIME;
+
+message RecordContactListPb {
+  repeated RecordContactPb contact = 1;
+}
+
+
+message RecordContactPb {
+  required string uri = 1;
+  optional string line_value_copy = 2;
+  required uint64 expires_at = 3;
+  optional float q = 4 [default = 0];
+  required uint64 update_time = 5;
+  required string call_id = 6;
+  required uint32 cseq = 7;
+  required string contact_id = 8;
+  optional string route = 9;
+}

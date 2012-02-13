@@ -70,17 +70,17 @@ class TranscodeModule : public Module, protected ModuleToolbox {
 		TranscodeModule(Agent *ag);
 		~TranscodeModule();
 		virtual void onLoad(Agent *agent, const ConfigStruct *module_config);
-		virtual void onRequest(SipEvent *ev);
-		virtual void onResponse(SipEvent *ev);
+		virtual void onRequest(std::shared_ptr<SipEvent> &ev);
+		virtual void onResponse(std::shared_ptr<SipEvent> &ev);
 		virtual void onIdle();
 		virtual void onDeclare(ConfigStruct *module_config);
 	private:
 		TickerManager mTickerManager;
-		int handleOffer(CallContext *c, SipEvent *ev);
-		int handleAnswer(CallContext *c, SipEvent *ev);
-		int processNewInvite(CallContext *c, SipEvent *ev);
-		void process200OkforInvite(CallContext *ctx, SipEvent *ev);
-		void processNewAck(CallContext *ctx, SipEvent *ev);
+		int handleOffer(CallContext *c, std::shared_ptr<SipEvent> &ev);
+		int handleAnswer(CallContext *c, std::shared_ptr<SipEvent> &ev);
+		int processNewInvite(CallContext *c, std::shared_ptr<SipEvent> &ev);
+		void process200OkforInvite(CallContext *ctx, std::shared_ptr<SipEvent> &ev);
+		void processNewAck(CallContext *ctx, std::shared_ptr<SipEvent> &ev);
 		bool processSipInfo(CallContext *c, msg_t *msg, sip_t *sip);
 		void onTimer();	
 		static void sOnTimer(void *unused, su_timer_t *t, void *zis);
@@ -150,7 +150,7 @@ bool TranscodeModule::isOneCodecSupported(const MSList *ioffer){
 	return false;
 }
 
-TranscodeModule::TranscodeModule(Agent *ag) : Module(ag){
+TranscodeModule::TranscodeModule(Agent *ag) : Module(ag),mTimer(0){
 	mSupportedAudioPayloads=NULL;
 }
 
@@ -275,7 +275,7 @@ MSList *TranscodeModule::normalizePayloads(MSList *l){
 	return l;
 }
 
-int TranscodeModule::handleOffer(CallContext *c, SipEvent *ev){
+int TranscodeModule::handleOffer(CallContext *c, std::shared_ptr<SipEvent> &ev){
 	msg_t *msg=ev->mMsg;
 	sip_t *sip=ev->mSip;
 	std::string addr;
@@ -321,7 +321,7 @@ int TranscodeModule::handleOffer(CallContext *c, SipEvent *ev){
 
 
 
-int TranscodeModule::processNewInvite(CallContext *c,SipEvent *ev){
+int TranscodeModule::processNewInvite(CallContext *c,std::shared_ptr<SipEvent> &ev){
 	int ret=0;
 	if (SdpModifier::hasSdp(ev->mSip)){
 		ret=handleOffer(c,ev);
@@ -331,13 +331,13 @@ int TranscodeModule::processNewInvite(CallContext *c,SipEvent *ev){
 		addRecordRoute(c->getHome(),getAgent(),ev->mMsg,ev->mSip);
 		c->storeNewInvite(ev->mMsg);
 	}else{
-		nta_msg_treply(getSofiaAgent(),ev->mMsg,415,"Unsupported codecs",TAG_END());		
+		nta_msg_treply(getSofiaAgent(),ev->mMsg,415,"Unsupported codecs",TAG_END());
 		ev->stopProcessing();
 	}
 	return ret;
 }
 
-void TranscodeModule::processNewAck(CallContext *ctx, SipEvent *ev){
+void TranscodeModule::processNewAck(CallContext *ctx, std::shared_ptr<SipEvent> &ev){
 	LOGD("Processing ACK");
 	const MSList *ioffer=ctx->getInitialOffer();
 	if (ioffer==NULL){
@@ -348,7 +348,7 @@ void TranscodeModule::processNewAck(CallContext *ctx, SipEvent *ev){
 	}
 }
 
-void TranscodeModule::onRequest(SipEvent *ev){
+void TranscodeModule::onRequest(std::shared_ptr<SipEvent> &ev){
 	CallContext *c;
 	msg_t *msg=ev->mMsg;
 	sip_t *sip=ev->mSip;
@@ -413,7 +413,7 @@ void TranscodeModule::onRequest(SipEvent *ev){
 	ev->mSip=sip;
 }
 
-int TranscodeModule::handleAnswer(CallContext *ctx, SipEvent *ev){
+int TranscodeModule::handleAnswer(CallContext *ctx, std::shared_ptr<SipEvent> &ev){
 	std::string addr;
 	int port;
 	const MSList *ioffer=ctx->getInitialOffer();
@@ -459,7 +459,7 @@ int TranscodeModule::handleAnswer(CallContext *ctx, SipEvent *ev){
 	return 0;
 }
 
-void TranscodeModule::process200OkforInvite(CallContext *ctx, SipEvent *ev){
+void TranscodeModule::process200OkforInvite(CallContext *ctx, std::shared_ptr<SipEvent> &ev){
 	LOGD("Processing 200 Ok");
 	if (SdpModifier::hasSdp((sip_t*)msg_object(ctx->getLastForwardedInvite()))){
 		handleAnswer(ctx,ev);
@@ -476,7 +476,7 @@ static bool isEarlyMedia(sip_t *sip){
 	return false;
 }
 
-void TranscodeModule::onResponse(SipEvent *ev){
+void TranscodeModule::onResponse(std::shared_ptr<SipEvent> &ev){
 	sip_t *sip=ev->mSip;
 	msg_t *msg=ev->mMsg;
 	CallContext *c;

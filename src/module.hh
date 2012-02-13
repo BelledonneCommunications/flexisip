@@ -19,6 +19,7 @@
 #ifndef module_hh
 #define module_hh
 
+#include <memory>
 #include <list>
 
 class ModuleInfoBase;
@@ -68,25 +69,29 @@ class ModuleInfo : public ModuleInfoBase{
 
 
 class SipEvent{
+	friend class Agent;
 	public:
-		SipEvent(msg_t *msg, sip_t *sip){
+		SipEvent(msg_t *msg, sip_t *sip):mCurrModule(NULL){
 			mMsg=msg;
 			mSip=sip;
 			mStop=false;
-			/* apparently msg_t "inherits" from su_home_t*/
-			mHome=(su_home_t*)su_home_clone((su_home_t*)msg,sizeof(su_home_t));
+			/* msg_t internal implementation "inherits" from su_home_t*/
+			mHome=(su_home_t*)msg;
+			msg_ref_create(mMsg);
 		}
 		msg_t *mMsg;
 		sip_t *mSip;
 		void stopProcessing(){
 			mStop=true;
 		}
+		void restartProcessing(){
+			mStop=false;
+		}
 		bool finished()const{
 			return mStop;
 		}
 		~SipEvent() {
-			mHome=NULL;
-			//mHome is freed by parent home of msg
+			msg_ref_destroy(mMsg);
 		}
 		su_home_t* getHome() {
 			return mHome;
@@ -94,6 +99,7 @@ class SipEvent{
 	private:
 		bool mStop;
 		su_home_t *mHome;
+		Module *mCurrModule;
 };
 
 class EntryFilter;
@@ -115,16 +121,16 @@ class Module {
 		const std::string &getModuleName();
 		void declare(ConfigStruct *root);
 		void load(Agent *agent);
-		void processRequest(SipEvent *ev);
-		void processResponse(SipEvent *ev);
+		void processRequest(std::shared_ptr<SipEvent> &ev);
+		void processResponse(std::shared_ptr<SipEvent> &ev);
 		void idle();
 	protected:
 		virtual void onDeclare(ConfigStruct *root){
 		}
 		virtual void onLoad(Agent *agent, const ConfigStruct *root){
 		}
-		virtual void onRequest(SipEvent *ev)=0;
-		virtual void onResponse(SipEvent *ev)=0;
+		virtual void onRequest(std::shared_ptr<SipEvent> &ev)=0;
+		virtual void onResponse(std::shared_ptr<SipEvent> &ev)=0;
 		virtual void onIdle(){
 		}
 		Agent *mAgent;

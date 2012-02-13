@@ -102,7 +102,9 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"ContactRouteInserter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"LoadBalancer"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"MediaRelay"));
+#ifdef ENABLE_TRANSCODER
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
+#endif
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Forward"));
 
 	mServerString="Flexisip/" VERSION " (sofia-sip-nta/" NTA_VERSION ")";
@@ -126,7 +128,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	LOGI("Public IP address is %s, bind address is %s",mPublicIp.c_str(),bind_address.c_str());
 	
 	// compute a network wide unique id, REVISIT: compute a hash
-	std::ostringstream oss;
+	ostringstream oss;
 	oss << mPublicIp << "_" << mPort;
 	mUniqueId = oss.str();
 	mRoot=root;
@@ -154,6 +156,17 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 		bind_address="0.0.0.0";
 	}
 	mBindIp=bind_address;
+
+	oss.str(mPreferredRoute);
+	oss << "sip:";
+	if (!mBindIp.empty() && mBindIp != "0.0.0.0" && mBindIp != "::0") {
+		oss << mBindIp;
+	} else {
+		oss << mPublicIp;
+	}
+	oss << ":" << mPort;
+	mPreferredRoute=oss.str();
+	LOGD("Preferred route is %s", mPreferredRoute.c_str());
 }
 
 Agent::~Agent(){
@@ -197,7 +210,7 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases)const{
 	int end;
 	int p=(port!=NULL) ? atoi(port) : 5060;
 	if (p!=mPort && p!=mTlsPort) return false;
-	//skip possibly trailling '.' at the end of host
+	//skip possibly trailing '.' at the end of host
 	if (host[end=(strlen(host)-1)]=='.'){
 		tmp=(char*)alloca(end+1);
 		memcpy(tmp,host,end);
@@ -229,19 +242,38 @@ bool Agent::isUs(const url_t *url,bool check_aliases)const{
 
 void Agent::onRequest(msg_t *msg, sip_t *sip){
 	list<Module*>::iterator it;
-	SipEvent ev(msg,sip);
+	shared_ptr<SipEvent> ev(new SipEvent(msg,sip));
 	for(it=mModules.begin();it!=mModules.end();++it){
-		(*it)->processRequest(&ev);
-		if (ev.finished()) break;
+		ev->mCurrModule=(*it);
+		(*it)->processRequest(ev);
+		if (ev->finished()) break;
+	}
+}
+
+void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
+	list<Module*>::iterator it;
+	ev->restartProcessing();
+	LOGD("Injecting event after %s", ev->mCurrModule->getModuleName().c_str());
+	for(it=mModules.begin();it!=mModules.end();++it){
+		if (ev->mCurrModule == *it) {
+			++it;
+			break;
+		}
+	}
+	for(;it!=mModules.end();++it){
+		ev->mCurrModule=*it;
+		(*it)->processRequest(ev);
+		if (ev->finished()) break;
 	}
 }
 
 void Agent::onResponse(msg_t *msg, sip_t *sip){
 	list<Module*>::iterator it;
-	SipEvent ev(msg,sip);
+	shared_ptr<SipEvent> ev(new SipEvent(msg,sip));
 	for(it=mModules.begin();it!=mModules.end();++it){
-		(*it)->processResponse(&ev);
-		if (ev.finished()) break;
+		ev->mCurrModule=*it;
+		(*it)->processResponse(ev);
+		if (ev->finished()) break;
 	}
 }
 

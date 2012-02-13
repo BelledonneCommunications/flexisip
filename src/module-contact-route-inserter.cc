@@ -34,7 +34,7 @@ class ContactRouteInserter : public Module {
 		mContactRouteParamName=std::string("CtRt")+getAgent()->getUniqueId();
 		mMasqueradeInviteContacts=module_config->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
 	}
-	void onRequest(SipEvent *ev) {
+	void onRequest(std::shared_ptr<SipEvent> &ev) {
 		sip_t *sip=ev->mSip;
 
 		if(sip->sip_request->rq_method == sip_method_register){
@@ -78,7 +78,7 @@ class ContactRouteInserter : public Module {
 			}
 		}
 	}
-	void onResponse(SipEvent *ev) {
+	void onResponse(std::shared_ptr<SipEvent> &ev) {
 		sip_t *sip=ev->mSip;
 		if (mMasqueradeInviteContacts && 
 		    (sip->sip_cseq->cs_method==sip_method_invite || sip->sip_cseq->cs_method==sip_method_subscribe)){
@@ -86,7 +86,7 @@ class ContactRouteInserter : public Module {
 		}
 	}
 	private:
-		void masqueradeContact(SipEvent *ev){
+		void masqueradeContact(std::shared_ptr<SipEvent> &ev){
 			sip_t *sip=ev->mSip;
 			if (sip->sip_contact!=NULL && sip->sip_contact->m_url!=NULL){
 				//rewrite contact, put local host instead and store previous contact host in new parameter

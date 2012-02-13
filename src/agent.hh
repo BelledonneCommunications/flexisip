@@ -22,6 +22,8 @@
 
 
 #include <string>
+#include <sstream>
+#include <memory>
 
 #include <sofia-sip/sip.h>
 #include <sofia-sip/sip_protos.h>
@@ -34,6 +36,7 @@
 #include "common.hh"
 #include "configmanager.hh"
 #include "module.hh"
+
 
 
 /**
@@ -60,6 +63,9 @@ class Agent{
 		int getPort()const{
 			return mPort;
 		}
+		const std::string &getPreferredRoute()const{
+			return mPreferredRoute;
+		}
 		/**
 		 * return a network unique identifier for this Agent.
 		 */
@@ -69,6 +75,9 @@ class Agent{
 		nta_agent_t* getSofiaAgent()const{
 			return mAgent;
 		}
+		su_root_t *getRoot() const{
+			return mRoot;
+		}
 		int countUsInVia(sip_via_t *via)const;
 		bool isUs(const char *host, const char *port, bool check_aliases)const;
 		sip_via_t *getNextVia(sip_t *response);
@@ -76,6 +85,7 @@ class Agent{
 		typedef void (*timerCallback)(void *unused, su_timer_t *t, void *data);
 		su_timer_t *createTimer(int milliseconds, timerCallback cb, void *data);
 		void stopTimer(su_timer_t *t);
+		void injectRequestEvent(std::shared_ptr<SipEvent> &ev);
 	protected:
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
 		void onRequest(msg_t *msg, sip_t *sip);
@@ -88,6 +98,7 @@ class Agent{
 		std::string mPublicIp;
 		std::string mBindIp;
 		std::string mDomain;
+		std::string mPreferredRoute;
 		int mPort;
 		int mTlsPort;
 		std::string mUniqueId;

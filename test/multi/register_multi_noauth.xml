@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+
+<scenario name="Register one user with 10 contacts without authentication">
+
+<Global variables="userId,luserIpPort,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10">
+  <action>
+    <assign assign_to="userId" value="0" />
+  </action>
+</Global>
+
+<nop hide="true">
+  <action>
+    <add assign_to="userId" value="1" /> <!-- strangely, now userId=1.000000-->
+    <assignstr assign_to="luserIpPort" value="[local_ip]:[local_port]" />
+    <assignstr assign_to="ruserAdd" value="sip:user[$userId]@sip.example.org" />
+    <assignstr assign_to="m1" value="<sip:user1@[local_ip]:5063;line=79654655646546;transport=udp>;expires=2000;q=1.5" />
+    <assignstr assign_to="m2" value="sip:user2@[local_ip]:5063" />
+    <assignstr assign_to="m3" value="sip:user3@[local_ip]:5063" />
+    <assignstr assign_to="m4" value="sip:user4@[local_ip]:5063" />
+    <assignstr assign_to="m5" value="sip:user5@[local_ip]:5063" />
+    <assignstr assign_to="m6" value="sip:user6@[local_ip]:5063" />
+    <assignstr assign_to="m7" value="sip:user7@[local_ip]:5063" />
+    <assignstr assign_to="m8" value="sip:user8@[local_ip]:5063" />
+    <assignstr assign_to="m9" value="sip:user9@[local_ip]:5063" />
+    <assignstr assign_to="m10" value="sip:user10@[local_ip]:5063" />
+  </action>
+</nop>
+
+
+  <send>
+    <![CDATA[
+    REGISTER sip:[remote_ip] SIP/2.0
+	Via: SIP/2.0/[transport] [$luserIpPort];branch=[branch]
+	From: [$ruserAdd];tag=[pid]SIPpTag00[call_number]
+	To: [$ruserAdd]
+	Call-ID: [call_id]
+	CSeq: 1 REGISTER
+	Contact: [$m1],[$m2],[$m3],[$m4],[$m5],[$m6],[$m7],[$m8],[$m9],[$m10]
+	Max-Forwards: 70
+	User-Agent: Linphone/Linphone-3.3.x (sipp/unknown)
+	Expires: 3600
+	Content-Length: 0
+    ]]>
+  </send>
+
+  <recv response="100" optional="true"></recv>
+  <recv response="200"></recv>
+
+  <ResponseTimeRepartition value="10, 20, 30, 40, 50, 100, 150, 200"/>
+  <CallLengthRepartition value="10, 50, 100, 500, 1000, 5000, 10000"/>
+</scenario>

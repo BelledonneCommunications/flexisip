@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# 
+
+# Accept core dumps
+ulimit -c unlimited
+
+# Open many file descriptors
+ulimit -n 65000
+
+function nice_div(){
+ ND_RESULT=`echo $1 / $2 | bc`
+[ $1 -le $2 ] && ND_RESULT=1
+ echo $ND_RESULT
+}
+
+function p_red() {
+ echo -e "\e[0;31m$* \033[0m"
+}
+function p_bold() {
+ echo -e "\033[1m$* \033[0m"
+}
+
+function sipp_do(){
+ TEXT=$1
+ shift
+ p_red $TEXT
+ p_bold $SIPP $* -trace_er
+ echo ""
+}
+
+function sipp_loop_do(){
+ TEXT=$1
+ shift
+ p_red $TEXT
+ p_bold "while [ true ]; do $SIPP $* -trace_err ; done"
+ echo ""
+}
+
+
+SIPP="sipp"
+EXPIRE=60
+. ./launch.config.perso
+
+[ -z "$LOCAL_IP" ] && p_red "Missing variable LOCAL_IP" && exit
+[ -z "$DOMAIN" ] && p_red "Missing variable DOMAIN" && exit
+[ -z "$FL1" ] && p_red "Missing variable FL1" && exit
+[ -z "$FL2" ] && p_red "Missing variable FL2" && exit
+
+POPULATION=300
+AUTH="-auth"
+AUTH_FILE="-inf ../authentication.csv"
+INTERFACE="-i $LOCAL_IP"
+MINTERFACE="-mi $LOCAL_IP"
+SDOMAIN="-set domain $DOMAIN"
+
+SEXPIRE="-set expire $EXPIRE"
+CALL_LENGTH=60
+INV_RATE="$(nice_div $POPULATION $CALL_LENGTH)"
+REG_RATE="$(nice_div $POPULATION $(($EXPIRE-6)))"
+
+
+
+
+echo "Computed RATES: INV=$INV_RATE REG=$REG_RATE"
+
+p_red "Copy/paste each of the following lines in a new terminal"
+
+sipp_do "Fake remote users registered through second flexisip" \
+"-sf ../uas.xml -p 5063 $INTERFACE $MINTERFACE -mp 15000 -rtp_echo"
+
+
+sipp_loop_do "Register remote users on second flexisip" \
+"$FL2 $DOMAIN -sf ../register_users$AUTH.xml -r $REG_RATE -rp 1s -users $REG_RATE -nd -p 5070 -m $POPULATION  $INTERFACE $AUTH_FILE -set expire $EXPIRE"
+
+
+sipp_loop_do "Invite users through first flexisip" \
+"$FL1 $DOMAIN -sf invite$AUTH.xml -r $INV_RATE -rp 1s -users $INV_RATE -default_behaviors all,-bye -d $CALL_LENGTH -m $POPULATION -p 5064  $INTERFACE $AUTH_FILE"
+

@@ -97,14 +97,14 @@ void Module::load(Agent *agent){
 	if (mFilter->isEnabled()) onLoad(agent,mModuleConfig);
 }
 
-void Module::processRequest(SipEvent *ev){
+void Module::processRequest(shared_ptr<SipEvent> &ev){
 	if (mFilter->canEnter(ev->mSip)){
 		LOGD("Invoking onRequest() on module %s",getModuleName().c_str());
 		onRequest(ev);
 	}
 }
 
-void Module::processResponse(SipEvent *ev){
+void Module::processResponse(std::shared_ptr<SipEvent> &ev){
 	if (mFilter->canEnter(ev->mSip)){
 		LOGD("Invoking onResponse() on module %s",getModuleName().c_str());
 		onResponse(ev);

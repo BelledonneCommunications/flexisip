@@ -5,6 +5,7 @@
 FLEXISIP=flexisip
 SIPP=sipp
 NB_USERS=1000
+EXPIRE=3600
 IP=`cat /etc/hosts | grep "sip.example.org" | grep "sip-auth.example.org" | grep "relayed-auth.example.org" | grep "relayed.example.org" | grep -e "^[^#]" | awk -F'\t' '{print $1}'`
 [ -z $IP ] && echo "ERROR: sip.example.org not found in /etc/hosts" && exit
 PROXY=sip.example.org
@@ -22,6 +23,9 @@ else
  echo -e "\033[1mNOT using authentication\033[0m"
 fi
 
+DOMAIN="sip.example.org$USE_AUTH"
+SDOMAIN="-set domain sip.example.org"
+SEXPIRE="-set expire $EXPIRE"
 if [ -z $FOLDER ] 
 then
  echo "Usage ./launch folder, where folder is "
@@ -33,7 +37,7 @@ FLEX_OPTIONS="$FLEX_OPTIONS --configfile $FOLDER/flexisip.conf --port 5060"
 . $FOLDER/launch.config
 
 SIPP_COMMONS="$SIPP_COMMONS -i $IP -trace_err"
-REG_OPTIONS="$REG_OPTIONS -p 5070 -m `echo "1+$NB_USERS"|bc` $SIPP_COMMONS -inf authentication.csv"
+REG_OPTIONS="$REG_OPTIONS -p 5070 -m `echo "1+$NB_USERS"|bc` $SIPP_COMMONS -inf authentication.csv $SDOMAIN $SEXPIRE"
 REG_INVITER_OPTIONS="$REG_INVITER_OPTIONS -p 5064 -m 1 $SIPP_COMMONS -nd"
 INV_OPTIONS="$INV_OPTIONS -m $NB_USERS -p 5064 $SIPP_COMMONS"
 UAS_OPTIONS="$UAS_OPTIONS -p 5063 -bg $SIPP_COMMONS -mi $IP -mp 15000 -rtp_echo"

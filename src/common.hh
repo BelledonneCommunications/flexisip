@@ -32,6 +32,7 @@ extern bool sUseSyslog;
 #define LOGE ortp_error
 #define LOGA ortp_fatal
 
+#define IS_LOGD ortp_log_level_enabled(ORTP_DEBUG)
 /* 
  *We want LOGN to output all the time: this is for startup notice.
  */

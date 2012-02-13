@@ -421,7 +421,9 @@ int main(int argc, char *argv[]){
 	LOGN("Starting version %s", VERSION);
 	root=su_root_create(NULL);
 	a=new Agent(root,port,tlsport);
+#ifdef ENABLE_TRANCODER
 	ms_init();
+#endif
 	a->loadConfig (cfg);
 
 	increase_fd_limit();
