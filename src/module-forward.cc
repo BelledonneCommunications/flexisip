@@ -18,6 +18,9 @@
 
 #include "agent.hh"
 #include "etchosts.hh"
+#include <sstream>
+
+static char const *compute_branch(nta_agent_t *sa,msg_t *msg,sip_t const *sip, char const *string_server);
 
 class ForwardModule : public Module, ModuleToolbox {
 	public:
@@ -30,9 +33,13 @@ class ForwardModule : public Module, ModuleToolbox {
 	private:
 		url_t* overrideDest(SipEvent *ev, url_t* dest);
 		void checkRecordRoutes(SipEvent *ev, url_t *dest);
+                bool isLooping(SipEvent *ev, const char * branch);
+                unsigned int countVia(SipEvent *ev);
+
 		su_home_t mHome;
 		sip_route_t *mOutRoute;
 		bool mRewriteReqUri;
+		std::string mPreferredRoute;
 		static ModuleInfo<ForwardModule> sInfo;
 };
 
@@ -68,6 +75,9 @@ void ForwardModule::onLoad(Agent *agent, const ConfigStruct *module_config){
 			LOGF("Bad route parameter '%s' in configuration of Forward module",route.c_str());
 		}
 	}
+	std::stringstream ss;
+	ss << agent->getPublicIp() << ":" << agent->getPort();
+	mPreferredRoute = ss.str();
 }
 
 url_t* ForwardModule::overrideDest(SipEvent *ev, url_t *dest){
@@ -112,7 +122,13 @@ void ForwardModule::onRequest(SipEvent *ev){
 	url_t* dest=NULL;
 	sip_t *sip=ev->mSip;
 	msg_t *msg=ev->mMsg;
-
+        
+	// Check max forwards
+	if(sip->sip_max_forwards != NULL && sip->sip_max_forwards->mf_count <= countVia(ev))
+	{
+		nta_msg_treply(getSofiaAgent(), msg, 483, "Too Many Hops", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());   
+		return;
+	}
 	
 	switch(sip->sip_request->rq_method){
 		case sip_method_invite:
@@ -150,25 +166,90 @@ void ForwardModule::onRequest(SipEvent *ev){
 		dest=url_hdup(ev->getHome(),dest);
 		dest->url_host=ip.c_str();
 	}
+        
+	// Compute branch
+	char const * branch = compute_branch(getSofiaAgent(), msg, sip, mPreferredRoute.c_str());
 
-	if (!getAgent()->isUs(dest)) {
-		checkRecordRoutes(ev,dest);
-		buf=msg_as_string(ev->getHome(), msg, NULL, 0,&msg_size);
-		LOGD("About to forward request to %s:\n%s",url_as_string(ev->getHome(),dest),buf);
-		nta_msg_tsend (getSofiaAgent(),msg,(url_string_t*)dest,TAG_END());
-	}else{
-		LOGD("This message has final destination this proxy, discarded...");
-		nta_msg_discard(getSofiaAgent(),msg);
+	// Check looping
+	if (!isLooping(ev, branch)) {
+		checkRecordRoutes(ev, dest);
+		buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
+		LOGD("About to forward request to %s:\n%s", url_as_string(ev->getHome(), dest), buf);
+		nta_msg_tsend(getSofiaAgent(), msg, (url_string_t*) dest, NTATAG_BRANCH_KEY(branch), TAG_END());
+	} else {
+		nta_msg_treply(getSofiaAgent(), msg, 482, "Loop Detected", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	}
 }
 
+unsigned int ForwardModule::countVia(SipEvent *ev) {
+        uint32_t via_count = 0;
+        for (sip_via_t *via = ev->mSip->sip_via; via != NULL; via = via->v_next)
+                ++via_count;
+        return via_count;
+}
+      
+bool ForwardModule::isLooping(SipEvent *ev, const char * branch){
+        for (sip_via_t *via = ev->mSip->sip_via; via != NULL; via = via->v_next)
+        {
+                if(via->v_branch != NULL && strcmp(via->v_branch, branch + 7) == 0)
+                {
+                    return true;
+                }
+        }
+
+        return false;
+}
 
 void ForwardModule::onResponse(SipEvent *ev){
 	char *buf;
 	size_t msg_size;
 
-	buf=msg_as_string(ev->getHome(), ev->mMsg, NULL, 0,&msg_size);
-	LOGD("About to forward response:\n%s",buf);
-	
-	nta_msg_tsend(getSofiaAgent(),ev->mMsg,(url_string_t*)NULL,TAG_END());
+	buf = msg_as_string(ev->getHome(), ev->mMsg, NULL, 0, &msg_size);
+	LOGD("About to forward response:\n%s", buf);
+
+	nta_msg_tsend(getSofiaAgent(), ev->mMsg, (url_string_t*) NULL, TAG_END());
 }
+
+#include <sofia-sip/su_md5.h>
+static char const *compute_branch(nta_agent_t *sa,
+	msg_t *msg,
+	sip_t const *sip,
+	char const  *string_server) {
+	su_md5_t md5[1];
+	uint8_t digest[SU_MD5_DIGEST_SIZE];
+	char branch[(SU_MD5_DIGEST_SIZE * 8 + 4) / 5 + 1];
+	sip_route_t const *r;
+
+	su_md5_init(md5);
+
+	su_md5_str0update(md5, string_server);
+	//su_md5_str0update(md5, port);
+
+	url_update(md5, sip->sip_request->rq_url);
+	if (sip->sip_call_id) {
+		su_md5_str0update(md5, sip->sip_call_id->i_id);
+	}
+	if (sip->sip_from) {
+		url_update(md5, sip->sip_from->a_url);
+		su_md5_stri0update(md5, sip->sip_from->a_tag);
+	}
+	if (sip->sip_to) {
+		url_update(md5, sip->sip_to->a_url);
+		/* XXX - some broken implementations include To tag in CANCEL */
+		/* su_md5_str0update(md5, sip->sip_to->a_tag); */
+	}
+	if (sip->sip_cseq) {
+		uint32_t cseq = htonl(sip->sip_cseq->cs_seq);
+		su_md5_update(md5, &cseq, sizeof (cseq));
+	}
+
+	for (r = sip->sip_route; r; r = r->r_next)
+		url_update(md5, r->r_url);
+
+	su_md5_digest(md5, digest);
+
+	msg_random_token(branch, sizeof (branch) - 1, digest, sizeof (digest));
+
+	return su_sprintf(msg_home(msg), "branch=z9hG4bK.%s", branch);
+}
+

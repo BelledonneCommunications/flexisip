@@ -16,7 +16,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 +*/
 
-
+#ifdef HAVE_CONFIG_H
+#include "flexisip-config.h"
+#endif
 #include "agent.hh"
 
 #include "etchosts.hh"
@@ -103,7 +105,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Forward"));
 
-	mServerString="Flexisip/"VERSION " (sofia-sip-nta/" NTA_VERSION ")";
+	mServerString="Flexisip/" VERSION " (sofia-sip-nta/" NTA_VERSION ")";
 
 	for_each(mModules.begin(),mModules.end(),bind2nd(mem_fun(&Module::declare),cr));
 
@@ -194,7 +196,7 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases)const{
 	char *tmp=NULL;
 	int end;
 	int p=(port!=NULL) ? atoi(port) : 5060;
-	if (p!=mPort) return false;
+	if (p!=mPort && p!=mTlsPort) return false;
 	//skip possibly trailling '.' at the end of host
 	if (host[end=(strlen(host)-1)]=='.'){
 		tmp=(char*)alloca(end+1);
@@ -210,6 +212,15 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases)const{
 		}
 	}
 	return false;
+}
+
+sip_via_t *Agent::getNextVia(sip_t *response){
+	sip_via_t *via;
+	for(via=response->sip_via;via!=NULL;via=via->v_next){
+		if (!isUs(via->v_host,via->v_port,FALSE))
+			return via;
+	}
+	return NULL;
 }
 
 bool Agent::isUs(const url_t *url,bool check_aliases)const{

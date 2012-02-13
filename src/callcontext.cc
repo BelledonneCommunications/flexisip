@@ -19,7 +19,8 @@
 
 #include "callcontext.hh"
 
-#include <mediastreamer2/dtmfgen.h>
+#include "mediastreamer2/dtmfgen.h"
+#include "ortp/telephonyevents.h"
 
 #include "sdp-modifier.hh"
 
@@ -95,6 +96,9 @@ void CallSide::assignPayloads(const MSList *payloads){
 		rtp_profile_set_payload(mProfile, payload_type_get_number(pt),pt);
 		if (payloads==elem){
 			rtp_session_set_payload_type(mSession,payload_type_get_number(pt));
+		}
+		if (strcmp("telephone-event",pt->mime_type)==0) {
+			rtp_session_telephone_events_supported(mSession);
 		}
 	}
 	ms_filter_call_method(mReceiver,MS_RTP_RECV_SET_SESSION,mSession);
@@ -267,13 +271,18 @@ void CallSide::onTelephoneEvent(RtpSession *s, int dtmf, void * data){
 	ctx->playTone(side,dtmf);
 }
 
-void CallSide::playTone(int tone_name){
-	if (mEncoder && mToneGen){
+void CallSide::playTone(char tone_name){
+	if (mSession && rtp_session_telephone_events_supported(mSession)!=-1) {
+		LOGD("Sending dtmf signal %c",tone_name);
+		ms_filter_call_method(mSender,MS_RTP_SEND_SEND_DTMF,&tone_name);
+	} else 	if (mEncoder && mToneGen){
 		const char *enc_fmt=mEncoder->desc->enc_fmt;
 		if (strcasecmp(enc_fmt,"pcmu")==0 || strcasecmp(enc_fmt,"pcma")==0){
 			LOGD("Modulating dtmf %c",tone_name);
 			ms_filter_call_method(mToneGen,MS_DTMF_GEN_PUT,&tone_name);
 		}
+	} else {
+		ms_warning("Cannot send tone [%i] because neither rfc2833 nor G711 codec selected",tone_name);
 	}
 }
 
@@ -295,6 +304,7 @@ CallContext::CallContext(sip_t *sip, const std::string &bind_address) : CallCont
 	mInitialOffer=NULL;
 	mTicker=NULL;
 	mInfoCSeq=-1;
+	mCreateTime=time(NULL);
 }
 
 void CallContext::prepare( const CallContextParams &params){
@@ -344,7 +354,12 @@ void CallContext::redraw(CallSide *r){
 }
 
 bool CallContext::isInactive(time_t cur){
-	if (mFrontSide==NULL) return false;
+	if (mFrontSide==NULL) {
+		if (cur>mCreateTime+180){
+			LOGD("CallContext %p usage timeout expired",this);
+			return true;
+		}
+	}
 	return !(mFrontSide->isActive(cur) || mBackSide->isActive(cur));
 }
 
@@ -372,7 +387,7 @@ void CallContext::playTone(sip_t *info){
 			mInfoCSeq=info->sip_cseq->cs_seq;
 			const char *p=strstr(info->sip_payload->pl_data,"Signal=");
 			if (p){
-				int dtmf;
+				char dtmf;
 				p+=strlen("Signal=");
 				dtmf=p[0];
 				if (dtmf!=0){
@@ -395,7 +410,7 @@ CallSide *CallContext::getOther(CallSide *cs){
 	}
 }
 
-void CallContext::playTone(CallSide *origin, int dtmf){
+void CallContext::playTone(CallSide *origin, const char dtmf){
 	getOther(origin)->playTone (dtmf);
 }
 

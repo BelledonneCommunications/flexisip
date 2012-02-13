@@ -70,6 +70,7 @@ Module::Module(Agent *ag ) : mAgent(ag){
 }
 
 Module::~Module(){
+	delete mFilter;
 }
 
 void Module::setInfo(ModuleInfoBase *i){
@@ -221,4 +222,11 @@ bool ModuleToolbox::fixAuthChallengeForSDP(su_home_t *home, msg_t *msg, sip_t *s
 	}
 	return true;
 }
+
+bool ModuleToolbox::transportEquals(const char *tr1, const char *tr2){
+	if (tr1==NULL || tr1[0]==0) tr1="UDP";
+	if (tr2==NULL || tr2[0]==0) tr2="UDP";
+	return strcasecmp(tr1,tr2)==0;
+}
+
 

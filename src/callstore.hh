@@ -26,7 +26,7 @@
 class CallContextBase{
 	public:
 		CallContextBase(sip_t *sip);
-		bool match(sip_t *sip);
+		bool match(Agent *ag, sip_t *sip);
 		bool isNewInvite(sip_t *sip);
 		void storeNewInvite(msg_t *orig);
 		bool isNewEarlyMedia(sip_t *sip);
@@ -46,10 +46,13 @@ class CallContextBase{
 		}
 		virtual ~CallContextBase();
 		const std::string & getCallerTag()const{
-			return mTag1;
+			return mCallerTag;
 		}
 		const std::string & getCalleeTag()const{
-			return mTag2;
+			return mCalleeTag;
+		}
+		uint32_t getViaCount() const {
+			return mViaCount;
 		}
 	private:
 		su_home_t mHome;
@@ -61,15 +64,17 @@ class CallContextBase{
 		uint32_t mInvCseq;
 		uint32_t mResCseq;
 		uint32_t mAckCseq;
-		std::string mTag1;
-		std::string mTag2;
+		std::string mCallerTag;
+		std::string mCalleeTag;
+		std::string mBranch; /*of the via of the first Invite request*/
+		uint32_t mViaCount;
 };
 
 class CallStore{
 	public:
 		CallStore();
 		void store(CallContextBase *ctx);
-		CallContextBase *find(sip_t *sip);
+		CallContextBase *find(Agent *ag, sip_t *sip);
 		void remove(CallContextBase *ctx);
 		void removeAndDeleteInactives();
 		void dump();

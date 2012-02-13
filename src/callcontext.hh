@@ -48,7 +48,7 @@ class CallSide{
 		void assignPayloads(const MSList *payloads);
 		void setPtime(int ptime);
 		void dump();
-		void playTone(int tone_name);
+		void playTone(char tone_name);
 		bool isActive(time_t cur);
 		void doBgTasks();
 	private:
@@ -91,7 +91,7 @@ class CallContext : public CallContextBase{
 			return mBackSide;
 		}
 		void playTone(sip_t *info);
-		void playTone(CallSide *origin, int dtmf);
+		void playTone(CallSide *origin, char dtmf);
 		~CallContext();
 		void dump();
 		void doBgTasks();
@@ -107,6 +107,7 @@ class CallContext : public CallContextBase{
 		MSList *mInitialOffer;
 		int mInfoCSeq;
 		std::string mBindAddress;
+		time_t mCreateTime;
 };
 
 

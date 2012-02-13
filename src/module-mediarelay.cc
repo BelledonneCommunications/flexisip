@@ -50,8 +50,8 @@ class RelayedCall : public CallContextBase, public Masquerader{
 		RelayedCall(MediaRelayServer *server, sip_t *sip) : CallContextBase (sip), mServer(server){
 			memset(mSessions,0,sizeof(mSessions));
 		}
+		/*this function is called to masquerade the SDP, for each mline*/
 		virtual void onNewMedia(int mline, std::string *ip, int *port, const char *party_tag){
-			int ports[2];
 			if (mline>=sMaxSessions){
 				LOGE("Max sessions per relayed call is reached.");
 				return;
@@ -61,13 +61,15 @@ class RelayedCall : public CallContextBase, public Masquerader{
 				s=mServer->createSession();
 				mSessions[mline]=s;
 			}
-			s->getPorts(ports);
-			*ip=s->getPublicIp();
+			
 			if (getCallerTag()==party_tag){
-				*port=ports[0];
+				s->setFrontDefaultSource(ip->c_str(),*port);
+				*port=s->getBackPort();
 			}else{
-				*port=ports[1];
+				s->setBackDefaultSource(ip->c_str(),*port);
+				*port=s->getFrontPort();
 			}
+			*ip=s->getPublicIp();
 		}
 		virtual bool isInactive(time_t cur){
 			time_t maxtime=0;
@@ -133,7 +135,7 @@ void MediaRelay::onRequest(SipEvent *ev){
 	sip_t *sip=ev->mSip;
 	
 	if (sip->sip_request->rq_method==sip_method_invite){
-		if ((c=static_cast<RelayedCall*>(mCalls.find(sip)))==NULL){
+		if ((c=static_cast<RelayedCall*>(mCalls.find(getAgent(),sip)))==NULL){
 			c=new RelayedCall(mServer,sip);
 			mCalls.store(c);
 			processNewInvite(c,msg,sip);
@@ -141,14 +143,21 @@ void MediaRelay::onRequest(SipEvent *ev){
 			if (c->isNewInvite(sip)){
 				processNewInvite(c,msg,sip);
 			}else if (c->getLastForwardedInvite()!=NULL){
-				msg=msg_copy(c->getLastForwardedInvite ());
-				sip=(sip_t*)msg_object(msg);
-				LOGD("Forwarding invite retransmission");
+                                uint32_t via_count = 0;
+                                for(sip_via_t *via = sip->sip_via; via != NULL; via = via->v_next) 
+                                        ++via_count;
+                                
+                                // Same vias?
+                                if(via_count == c->getViaCount()) {
+                                        msg=msg_copy(c->getLastForwardedInvite ());
+                                        sip=(sip_t*)msg_object(msg);
+                                        LOGD("Forwarding invite retransmission");
+                                }
 			}
 		}
 	}
 	if (sip->sip_request->rq_method==sip_method_bye){
-		if ((c=static_cast<RelayedCall*>(mCalls.find(sip)))!=NULL){
+		if ((c=static_cast<RelayedCall*>(mCalls.find(getAgent(),sip)))!=NULL){
 			mCalls.remove(c);
 			delete c;
 		}
@@ -193,7 +202,7 @@ void MediaRelay::onResponse(SipEvent *ev){
 	if (sip->sip_cseq && sip->sip_cseq->cs_method==sip_method_invite){
 		fixAuthChallengeForSDP(ev->getHome(),msg,sip);
 		if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
-			if ((c=static_cast<RelayedCall*>(mCalls.find(sip)))!=NULL){
+			if ((c=static_cast<RelayedCall*>(mCalls.find(getAgent(),sip)))!=NULL){
 				if (sip->sip_status->st_status==200 && c->isNew200Ok(sip)){
 					process200OkforInvite (c,msg,sip);
 				}else if (isEarlyMedia(sip) && c->isNewEarlyMedia (sip)){

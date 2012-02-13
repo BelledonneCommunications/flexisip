@@ -123,6 +123,7 @@ static MSList *makeSupportedAudioPayloadList(){
 	payload_type_set_number(&payload_type_speex_wb,-1);
 	payload_type_set_number(&payload_type_amr,-1);
 	payload_type_set_number(&payload_type_ilbc,-1);
+	payload_type_set_number(&payload_type_telephone_event,-1);
 	MSList *l=NULL;
 	l=ms_list_append(l,&payload_type_speex_nb);
 	l=ms_list_append(l,&payload_type_ilbc);
@@ -130,6 +131,7 @@ static MSList *makeSupportedAudioPayloadList(){
 	l=ms_list_append(l,&payload_type_gsm);
 	l=ms_list_append(l,&payload_type_pcmu8000);
 	l=ms_list_append(l,&payload_type_pcma8000);
+	l=ms_list_append(l,&payload_type_telephone_event);
 	//l=ms_list_append(l,&payload_type_speex_wb);
 	
 	return l;
@@ -197,7 +199,7 @@ MSList *TranscodeModule::orderList(const std::list<std::string> &config, const M
 		for(it=l;it!=NULL;it=it->next){
 			PayloadType *pt=(PayloadType*)it->data;
 			if (strcasecmp(pt->mime_type,name)==0 && rate==pt->clock_rate){
-				if (ms_filter_get_encoder(pt->mime_type)!=NULL){
+				if (ms_filter_get_encoder(pt->mime_type)!=NULL || strcmp("telephone-event",pt->mime_type)==0 ){
 					ret=ms_list_append(ret,pt);
 				}else{
 					LOGE("Codec %s/%i is configured but is not supported (missing plugin ?)",name,rate);
@@ -352,7 +354,7 @@ void TranscodeModule::onRequest(SipEvent *ev){
 	sip_t *sip=ev->mSip;
 	
 	if (sip->sip_request->rq_method==sip_method_invite){
-		if ((c=static_cast<CallContext*>(mCalls.find(sip)))==NULL){
+		if ((c=static_cast<CallContext*>(mCalls.find(getAgent(),sip)))==NULL){
 			c=new CallContext(sip,getAgent()->getBindIp());
 			mCalls.store(c);
 			processNewInvite(c,ev);
@@ -374,7 +376,7 @@ void TranscodeModule::onRequest(SipEvent *ev){
 			}
 		}
 	}else if (sip->sip_request->rq_method==sip_method_ack && SdpModifier::hasSdp(sip)){
-		if ((c=static_cast<CallContext*>(mCalls.find(sip)))==NULL){
+		if ((c=static_cast<CallContext*>(mCalls.find(getAgent(),sip)))==NULL){
 			LOGD("Seeing ACK with no call reference");
 		}else{
 			if (c->isNewAck(sip)){
@@ -390,7 +392,7 @@ void TranscodeModule::onRequest(SipEvent *ev){
 		}
 	}else{
 		 if (sip->sip_request->rq_method==sip_method_info){
-			 if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
+			 if ((c=static_cast<CallContext*>(mCalls.find(getAgent(),sip)))!=NULL){
 				if (processSipInfo(c,msg,sip)){
 					ev->stopProcessing();
 					/*stop the processing */
@@ -401,7 +403,7 @@ void TranscodeModule::onRequest(SipEvent *ev){
 		//all other requests go through
 
 		if (sip->sip_request->rq_method==sip_method_bye){
-			if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
+			if ((c=static_cast<CallContext*>(mCalls.find(getAgent(),sip)))!=NULL){
 				mCalls.remove(c);
 				delete c;
 			}
@@ -478,18 +480,16 @@ void TranscodeModule::onResponse(SipEvent *ev){
 	sip_t *sip=ev->mSip;
 	msg_t *msg=ev->mMsg;
 	CallContext *c;
-	if (sip->sip_cseq && sip->sip_cseq->cs_method==sip_method_invite){
+	if (sip->sip_cseq
+			&& sip->sip_cseq->cs_method==sip_method_invite
+			&& mAgent->countUsInVia(sip->sip_via) < 2) { //If we are more than 1 time in via headers, wait until next time we receive this message for any processing
 		fixAuthChallengeForSDP(ev->getHome(),msg,sip);
-		if ((c=static_cast<CallContext*>(mCalls.find(sip)))!=NULL){
+		if ((c=static_cast<CallContext*>(mCalls.find(getAgent(),sip)))!=NULL){
 			if (sip->sip_status->st_status==200 && c->isNew200Ok(sip)){
 				process200OkforInvite(c,ev);
 			}else if (isEarlyMedia(sip) && c->isNewEarlyMedia (sip)){
 				process200OkforInvite(c,ev);
 			}else if (sip->sip_status->st_status==200 || isEarlyMedia(sip)){
-				if (mAgent->countUsInVia(sip->sip_via)) {
-					LOGD("We are already in VIA headers of this response");
-					return;
-				}
 				LOGD("This is a 200 or 183 retransmission");
 				if (c->getLastForwaredResponse()!=NULL){
 					msg=msg_copy(c->getLastForwaredResponse ());
