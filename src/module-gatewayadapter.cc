@@ -140,7 +140,6 @@ private:
 	};
 };
 
-
 GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, sip_to_t *sip_to) :
 		agent(ag) {
 	su_home_init(&home);
@@ -179,7 +178,7 @@ void GatewayRegister::sendRegister(bool authentication, const char *realm) {
 	state = State::REGISTRING;
 
 	if (!authentication) {
-		nua_register(nh, TAG_END());
+		nua_register(nh, SIPTAG_CONTACT_STR(agent->getPreferredRoute().c_str()), TAG_END());
 	} else {
 		char * digest;
 		if (realm != NULL)
@@ -268,23 +267,23 @@ private:
 	static void nua_callback(nua_event_t event, int status, char const *phrase, nua_t *nua, nua_magic_t *_t, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]);
 
 	static ModuleInfo<GatewayAdapter> sInfo;
-	nua_t *mNua;
+	nua_t *nua;
 };
 
 GatewayAdapter::GatewayAdapter(Agent *ag) :
-		Module(ag) {
+		Module(ag), nua(NULL) {
 }
 
 GatewayAdapter::~GatewayAdapter() {
-	if(mNua != NULL) {
-		nua_shutdown(mNua);
+	if (nua != NULL) {
+		nua_shutdown(nua);
 		su_root_run(mAgent->getRoot()); // Correctly wait for nua_destroy
 	}
 }
 
 void GatewayAdapter::onLoad(Agent *agent, const ConfigStruct *module_config) {
 	std::string gateway = module_config->get<ConfigString>("gateway")->read();
-	mNua = nua_create(agent->getRoot(), nua_callback, this, NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()), TAG_END());
+	nua = nua_create(agent->getRoot(), nua_callback, this, NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()), TAG_END());
 }
 
 void GatewayAdapter::onRequest(std::shared_ptr<SipEvent> &ev) {
@@ -302,7 +301,7 @@ void GatewayAdapter::onRequest(std::shared_ptr<SipEvent> &ev) {
 			contact->m_next = sip->sip_contact;
 			sip->sip_contact = contact;
 
-			GatewayRegister *gr = new GatewayRegister(getAgent(), mNua, sip->sip_from, sip->sip_to);
+			GatewayRegister *gr = new GatewayRegister(getAgent(), nua, sip->sip_from, sip->sip_to);
 			gr->start();
 		}
 	}
@@ -315,20 +314,21 @@ void GatewayAdapter::onResponse(std::shared_ptr<SipEvent> &ev) {
 void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phurase, nua_t *nua, nua_magic_t *ctx, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]) {
 	GatewayRegister *gr = (GatewayRegister *) hmagic;
 
-	if(event == nua_r_shutdown && status >= 200) {
-		GatewayAdapter *ga = (GatewayAdapter*)ctx;
-		nua_destroy(ga->mNua);
-		su_root_break(ga->getAgent()->getRoot());
+	if (event == nua_r_shutdown && status >= 200) {
+		GatewayAdapter *ga = (GatewayAdapter*) ctx;
+		if (ga != NULL) {
+			nua_destroy(ga->nua);
+			su_root_break(ga->getAgent()->getRoot());
+		}
 		return;
 	}
 
-	if (sip != NULL) {
-		gr->onMessage(sip);
-	} else {
-		LOGD("nua_callback: No sip message %d -> %s", status, phurase);
+	if (gr != NULL) {
+		if (sip != NULL) {
+			gr->onMessage(sip);
+		}
 	}
 }
-
 
 ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter", "...");
 

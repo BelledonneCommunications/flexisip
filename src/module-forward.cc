@@ -126,6 +126,7 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev){
 	// Check max forwards
 	if(sip->sip_max_forwards != NULL && sip->sip_max_forwards->mf_count <= countVia(ev))
 	{
+		LOGD("Too Many Hops");
 		nta_msg_treply(getSofiaAgent(), msg, 483, "Too Many Hops", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());   
 		return;
 	}
@@ -177,6 +178,7 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev){
 		LOGD("About to forward request to %s:\n%s", url_as_string(ev->getHome(), dest), buf);
 		nta_msg_tsend(getSofiaAgent(), msg, (url_string_t*) dest, NTATAG_BRANCH_KEY(branch), TAG_END());
 	} else {
+		LOGD("Loop Detected");
 		nta_msg_treply(getSofiaAgent(), msg, 482, "Loop Detected", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	}
 }
