@@ -53,8 +53,8 @@ AM_CONDITIONAL(BUILD_TRANSCODER,test x$transcoder = xyes)
 
 AC_ARG_ENABLE(redis,
 	AC_HELP_STRING([--enable-redis],
-	    [Build with redis key/value datastore @<:@yes@:>@]),
-        [redis="${enableval}"],[redis=yes]
+	    [Build with redis key/value datastore @<:@no@:>@]),
+        [redis="${enableval}"],[redis=no]
 )
 if test x$redis = xyes ; then
     PKG_CHECK_MODULES(HIREDIS,[hiredis >= 0.10.0])
@@ -63,8 +63,8 @@ AM_CONDITIONAL(BUILD_REDIS,test x$redis = xyes)
 
 AC_ARG_ENABLE(protobuf,
 	AC_HELP_STRING([--enable-protobuf],
-	    [Build registrar contact serializer using protobuf @<:@yes@:>@]),
-        [protobuf="${enableval}"],[protobuf=yes]
+	    [Build registrar contact serializer using protobuf @<:@no@:>@]),
+        [protobuf="${enableval}"],[protobuf=no]
 )
 if test x$protobuf = xyes ; then
     PKG_CHECK_MODULES(PROTOBUF,[protobuf >= 2.3.0])
