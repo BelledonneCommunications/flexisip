@@ -51,7 +51,8 @@ $(builddir)/pb_generated_src_stamp : $(pb_files)
 
 BUILT_SOURCES=$(builddir)/pb_generated_src_stamp
 
-flexisip_SOURCES+=recordserializer-protobuf.cc recordserializer-protobuf.pb.cc recordserializer-protobuf.pb.h
+flexisip_SOURCES+=recordserializer-protobuf.cc
+nodist_flexisip_SOURCES=recordserializer-protobuf.pb.cc recordserializer-protobuf.pb.h
 AM_CXXFLAGS+="-DENABLE_PROTOBUF"
 AM_CFLAGS+="-DENABLE_PROTOBUF"
 EXTRA_DIST+=$(pb_files)
