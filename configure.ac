@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.61])
-AC_INIT([flexisip], [0.3.2], [simon.morlat@linphone.org])
+AC_INIT([flexisip], [0.4.0], [simon.morlat@linphone.org])
 AC_CONFIG_SRCDIR([src/agent.cc])
 AC_CONFIG_HEADERS([flexisip-config.h])
 
@@ -82,6 +82,7 @@ PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
 
 AM_CONDITIONAL(USE_DEB,test x$use_deb = xtrue)
 AM_CONDITIONAL(USE_RPM,test x$use_rpm = xtrue)
+AM_CONDITIONAL(CROSS_COMPILATION, test x$cross_compilation = xyes)
 
 # Checks for programs
 
