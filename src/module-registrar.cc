@@ -116,7 +116,7 @@ void Registrar::send480KO(Agent *agent, std::shared_ptr<SipEvent> &ev){
 			"Temporarily Unavailable",
 			SIPTAG_SERVER_STR(agent->getServerString()),
 			TAG_END());
-	ev->stopProcessing();
+	ev->terminateProcessing();
 }
 
 void Registrar::send200Ok(Agent *agent, std::shared_ptr<SipEvent> &ev, const sip_contact_t *contacts){
@@ -125,10 +125,12 @@ void Registrar::send200Ok(Agent *agent, std::shared_ptr<SipEvent> &ev, const sip
 				SIPTAG_CONTACT(contacts),
 				SIPTAG_SERVER_STR(agent->getServerString()),
 				TAG_END());
+		ev->terminateProcessing();
 	} else {
 		nta_msg_treply(agent->getSofiaAgent (),ev->mMsg,200,"Registration successful",
 				SIPTAG_SERVER_STR(agent->getServerString()),
 				TAG_END());
+		ev->terminateProcessing();
 	}
 }
 
@@ -166,7 +168,7 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 		nta_msg_treply(agent->getSofiaAgent (),ev->mMsg,404,"User not found",
 				SIPTAG_SERVER_STR(agent->getServerString()),
 		       TAG_END());
-		ev->stopProcessing();
+		ev->terminateProcessing();
 	}
 }
 
@@ -177,7 +179,7 @@ class OnBindListener : public RegistrarDbListener {
 	std::shared_ptr<SipEvent> ev;
 public:
 	OnBindListener(Agent *agent,std::shared_ptr<SipEvent> ev) : agent(agent),ev(ev){
-		ev->stopProcessing();
+		ev->suspendProcessing();
 	};
 	void onRecordFound(Record *r){
 		time_t now=time(NULL);
@@ -198,7 +200,7 @@ class OnBindForRoutingListener : public RegistrarDbListener {
 	std::shared_ptr<SipEvent> mEv;
 public:
 	OnBindForRoutingListener(Registrar *module, Agent *agent,std::shared_ptr<SipEvent> ev) : mModule(module),mAgent(agent),mEv(ev){
-		ev->stopProcessing();
+		ev->suspendProcessing();
 	};
 	void onRecordFound(Record *r){
 		mModule->routeRequest(mAgent, mEv, r);
@@ -225,7 +227,7 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev){
 							"Invalid Request",
 							SIPTAG_SERVER_STR(getAgent()->getServerString()),
 							TAG_END());
-					ev->stopProcessing();
+					ev->terminateProcessing();
 					return;
 				}
 				if ('*' == sip->sip_contact->m_url->url_scheme[0]){
@@ -249,7 +251,7 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev){
 
 			/*we need to answer directly */
 
-			ev->stopProcessing();
+			ev->terminateProcessing();
 		}
 	}else{
 		/*see if we can route other requests */

@@ -185,7 +185,7 @@ public:
 					SIPTAG_CONTACT(sip->sip_contact),
 					SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					TAG_END());
-			ev->stopProcessing();
+			ev->terminateProcessing();
 			return;
 		}
 
@@ -255,7 +255,7 @@ void AuthDbListener::sendReply(){
 				SIPTAG_HEADER((const sip_header_t*)mAs->as_response),
 				SIPTAG_SERVER_STR(mAgent->getServerString()),
 				TAG_END());
-		mEv->stopProcessing();
+		mEv->terminateProcessing();
 	}else{
 		// Success
 		if (sip->sip_request->rq_method == sip_method_register){
@@ -352,7 +352,7 @@ void AuthDbListener::passwordRetrievingPending() {
 		msg_ref_create(mEv->mMsg); // Avoid temporary reference to make the message destroyed.
 		sendReply();
 	} else {
-		mEv->stopProcessing();
+		mEv->suspendProcessing();
 	}
 }
 

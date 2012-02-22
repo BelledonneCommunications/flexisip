@@ -332,7 +332,7 @@ int TranscodeModule::processNewInvite(CallContext *c,std::shared_ptr<SipEvent> &
 		c->storeNewInvite(ev->mMsg);
 	}else{
 		nta_msg_treply(getSofiaAgent(),ev->mMsg,415,"Unsupported codecs",TAG_END());
-		ev->stopProcessing();
+		ev->terminateProcessing();
 	}
 	return ret;
 }
@@ -371,7 +371,7 @@ void TranscodeModule::onRequest(std::shared_ptr<SipEvent> &ev){
 					sip=(sip_t*)msg_object(msg);	
 				}else{
 					LOGD("Retransmission ignored.");
-					ev->stopProcessing();
+					ev->suspendProcessing();
 				}
 			}
 		}
@@ -394,7 +394,7 @@ void TranscodeModule::onRequest(std::shared_ptr<SipEvent> &ev){
 		 if (sip->sip_request->rq_method==sip_method_info){
 			 if ((c=static_cast<CallContext*>(mCalls.find(getAgent(),sip)))!=NULL){
 				if (processSipInfo(c,msg,sip)){
-					ev->stopProcessing();
+					ev->terminateProcessing();
 					/*stop the processing */
 					return; 
 				}

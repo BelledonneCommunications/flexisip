@@ -246,7 +246,7 @@ void Agent::onRequest(msg_t *msg, sip_t *sip){
 	for(it=mModules.begin();it!=mModules.end();++it){
 		ev->mCurrModule=(*it);
 		(*it)->processRequest(ev);
-		if (ev->finished()) break;
+		if (ev->terminated() || ev->suspended()) break;
 	}
 }
 
@@ -254,16 +254,17 @@ void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
 	list<Module*>::iterator it;
 	ev->restartProcessing();
 	LOGD("Injecting event after %s", ev->mCurrModule->getModuleName().c_str());
-	for(it=mModules.begin();it!=mModules.end();++it){
+	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		if (ev->mCurrModule == *it) {
 			++it;
 			break;
 		}
 	}
-	for(;it!=mModules.end();++it){
-		ev->mCurrModule=*it;
+	for (; it != mModules.end(); ++it) {
+		ev->mCurrModule = *it;
 		(*it)->processRequest(ev);
-		if (ev->finished()) break;
+		if (ev->terminated() || ev->suspended())
+			break;
 	}
 }
 
@@ -273,7 +274,7 @@ void Agent::onResponse(msg_t *msg, sip_t *sip){
 	for(it=mModules.begin();it!=mModules.end();++it){
 		ev->mCurrModule=*it;
 		(*it)->processResponse(ev);
-		if (ev->finished()) break;
+		if (ev->terminated() || ev->suspended()) break;
 	}
 }
 
