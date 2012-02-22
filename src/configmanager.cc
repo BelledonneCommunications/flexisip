@@ -209,9 +209,18 @@ std::list<std::string>  ConfigStringList::read()const{
 
 ConfigManager *ConfigManager::sInstance=0;
 
+void ConfigManager::atexit() {
+	if (sInstance!=NULL) {
+		delete sInstance;
+		sInstance = NULL;
+	}
+}
+
 ConfigManager *ConfigManager::get(){
-	if (sInstance==NULL)
+	if (sInstance==NULL) {
 		sInstance=new ConfigManager();
+		::atexit(ConfigManager::atexit);
+	}
 	return sInstance;
 }
 

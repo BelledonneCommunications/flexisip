@@ -168,6 +168,7 @@ class ConfigManager{
 		void loadStrict();
 	private:
 		ConfigManager();
+		static void atexit(); // Don't call directly!
 		ConfigStruct mConfigRoot;
 		FileConfigReader mReader;
 		static ConfigManager *sInstance;

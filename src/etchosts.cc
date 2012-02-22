@@ -46,9 +46,18 @@ EtcHostsResolver::EtcHostsResolver(){
 	fclose(f);
 }
 
+void EtcHostsResolver::atexit() {
+	if (sInstance!=NULL) {
+		delete sInstance;
+		sInstance = NULL;
+	}
+}
+
+
 EtcHostsResolver * EtcHostsResolver::get(){
 	if (sInstance==NULL){
 		sInstance=new EtcHostsResolver();
+		::atexit(EtcHostsResolver::atexit);
 	}
 	return sInstance;
 }

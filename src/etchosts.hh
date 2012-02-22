@@ -30,6 +30,7 @@ class EtcHostsResolver{
 		bool resolve(const std::string &name, std::string * result)const;
 	private:
 		EtcHostsResolver();
+		static void atexit(); // Don't call directly!
 		std::map<std::string,std::string> mMap;
 		static EtcHostsResolver *sInstance;
 };
