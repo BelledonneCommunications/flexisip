@@ -107,6 +107,7 @@ class CallContext : public CallContextBase{
 		MSList *mInitialOffer;
 		int mInfoCSeq;
 		std::string mBindAddress;
+		time_t mCreateTime;
 };
 
 

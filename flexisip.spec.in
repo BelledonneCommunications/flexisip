@@ -1,4 +1,12 @@
 # -*- rpm-spec -*-
+
+## rpmbuild options
+
+# default is to build with redis & protobuf support
+%define     redis       %{?_without_redis:0}%{!?_without_redis:1}
+%define     protobuf       %{?_without_protobuf:0}%{!?_without_protobuf:1}
+
+
 # 
 # flexisip - SIP proxy with media capabilities
 # 
@@ -29,7 +37,13 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 %build
 %configure \
 	--disable-strict \
-	--sysconfdir=%{_sysconfdir}
+%if %{redis}
+    --enable-redis \
+%endif
+%if %{protobuf}
+    --enable-protobuf \
+%endif
+	--sysconfdir=%{_sysconfdir} 
 %{__make} 
 
 # parallel build disabled due to automake libtool random errors

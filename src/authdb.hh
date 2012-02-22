@@ -40,12 +40,13 @@ using namespace std;
 
 enum AuthDbResult {PENDING, PASSWORD_FOUND, PASSWORD_NOT_FOUND, AUTH_ERROR};
 
+// Fw declaration
+struct AuthDbTimings;
+
 class AuthDbListener {
 public:
-	~AuthDbListener(){};
-
-	virtual void onAsynchronousPasswordFound(const string &password) = 0;
-	virtual void onSynchronousPasswordFound(const string &password) = 0;
+	virtual void checkPassword(const char *password) = 0;
+	virtual void onAsynchronousResponse(AuthDbResult ret, const char *password) = 0;
 	virtual void onError() = 0;
 };
 
@@ -67,7 +68,7 @@ protected:
 	int mCacheExpire;
 public:
 	virtual ~AuthDb();
-	virtual AuthDbResult password(const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *listener)=0;
+	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *listener)=0;
 	static AuthDb* get();
 
 	AuthDb (const AuthDb &);
@@ -84,13 +85,14 @@ protected:
         
 public:
         FileAuthDb();
-	virtual AuthDbResult password(const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *listener);
+	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *listener);
 };
 
 
 class OdbcAuthDb : public AuthDb {
-	mutex mCreateHandleMutex;
+	~OdbcAuthDb();
 	const static int fieldLength = 500;
+	bool mAsynchronousRetrieving;
 	struct ConnectionCtx {
 		char idCBuffer[fieldLength +1];
 		char domainCBuffer[fieldLength +1];
@@ -99,11 +101,12 @@ class OdbcAuthDb : public AuthDb {
 		SQLHDBC dbc;
 		ConnectionCtx():stmt(NULL),dbc(NULL){};
 		~ConnectionCtx(){
+			if (stmt) SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+
 			if (dbc) {
 				SQLDisconnect(dbc);
 				SQLFreeHandle(SQL_HANDLE_DBC, dbc);
 			}
-			if (stmt) SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		}
 	} typedef ConnectionCtx;
 	string connectionString;
@@ -113,14 +116,14 @@ class OdbcAuthDb : public AuthDb {
 	bool asPooling;
 	SQLHENV env;
 	void dbcError(ConnectionCtx &, const char* doing);
+	void stmtError(ConnectionCtx &ctx, const char* doing);
 	void envError(const char* doing);
 	bool execDirect;
-	bool getConnection(ConnectionCtx &ctx);
-	AuthDbResult doRetrievePassword(const string &user, const string &host, const string &auth, string &foundPassword);
-	void doAsyncRetrievePassword(string id, string domain, string auth, AuthDbListener *listener);
+	bool getConnection(ConnectionCtx &ctx, AuthDbTimings &timings);
+	AuthDbResult doRetrievePassword(const string &user, const string &host, const string &auth, string &foundPassword, AuthDbTimings &timings);
+	void doAsyncRetrievePassword(su_root_t *, string id, string domain, string auth, string fallback, AuthDbListener *listener);
 public:
-	virtual ~OdbcAuthDb();
-	virtual AuthDbResult password(const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *listener);
+	virtual AuthDbResult password(su_root_t*, const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *);
 	map<string,string> cachedPasswords;
 	void setExecuteDirect(const bool value);
 	bool connect(const string &dsn, const string &request, const vector<string> &parameters, int maxIdLength, int maxPassLength);

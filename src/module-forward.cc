@@ -33,9 +33,8 @@ class ForwardModule : public Module, ModuleToolbox {
 	private:
 		url_t* overrideDest(std::shared_ptr<SipEvent> &ev, url_t* dest);
 		void checkRecordRoutes(std::shared_ptr<SipEvent> &ev, url_t *dest);
-                bool isLooping(std::shared_ptr<SipEvent> &ev, const char * branch);
-                unsigned int countVia(std::shared_ptr<SipEvent> &ev);
-
+		bool isLooping(std::shared_ptr<SipEvent> &ev, const char * branch);
+		unsigned int countVia(std::shared_ptr<SipEvent> &ev);
 		su_home_t mHome;
 		sip_route_t *mOutRoute;
 		bool mRewriteReqUri;
@@ -128,6 +127,7 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev){
 	{
 		LOGD("Too Many Hops");
 		nta_msg_treply(getSofiaAgent(), msg, 483, "Too Many Hops", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());   
+		ev->terminateProcessing();
 		return;
 	}
 	
@@ -155,6 +155,7 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev){
 	/* workaround bad sip uris with two @ that results in host part being "something@somewhere" */
 	if (strchr(dest->url_host,'@')!=0){
 		nta_msg_treply (getSofiaAgent(),msg,400,"Bad request",SIPTAG_SERVER_STR(getAgent()->getServerString()),TAG_END());
+		ev->terminateProcessing();
 		return;
 	}
 	
@@ -177,9 +178,11 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev){
 		buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
 		LOGD("About to forward request to %s:\n%s", url_as_string(ev->getHome(), dest), buf);
 		nta_msg_tsend(getSofiaAgent(), msg, (url_string_t*) dest, NTATAG_BRANCH_KEY(branch), TAG_END());
+		ev->terminateProcessing();
 	} else {
 		LOGD("Loop Detected");
 		nta_msg_treply(getSofiaAgent(), msg, 482, "Loop Detected", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		ev->terminateProcessing();
 	}
 }
 
@@ -210,6 +213,7 @@ void ForwardModule::onResponse(std::shared_ptr<SipEvent> &ev){
 	LOGD("About to forward response:\n%s", buf);
 
 	nta_msg_tsend(getSofiaAgent(), ev->mMsg, (url_string_t*) NULL, TAG_END());
+	ev->terminateProcessing();
 }
 
 #include <sofia-sip/su_md5.h>

@@ -1,4 +1,5 @@
 bin_PROGRAMS=flexisip
+EXTRA_DIST=
 flexisip_SOURCES=main.cc \
 			agent.cc agent.hh \
 			common.cc common.hh \
@@ -31,6 +32,10 @@ AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) $(PROTOBUF
 			-DCONFIG_DIR=\"$(CONFIG_DIR)\"
 AM_CFLAGS=$(MEDIASTREAMER_CFLAGS)
 
+if BUILD_TRANSCODER
+AM_CFLAGS+="-DENABLE_TRANSCODER"
+AM_CXXFLAGS+="-DENABLE_TRANSCODER"
+endif
 
 if BUILD_REDIS
 flexisip_SOURCES+=registrardb-redis-sync.cc registrardb-redis-async.cc registrardb-redis.hh \
@@ -47,9 +52,11 @@ $(builddir)/pb_generated_src_stamp : $(pb_files)
 
 BUILT_SOURCES=$(builddir)/pb_generated_src_stamp
 
-flexisip_SOURCES+=recordserializer-protobuf.cc recordserializer-protobuf.pb.cc recordserializer-protobuf.pb.hh
+flexisip_SOURCES+=recordserializer-protobuf.cc
+nodist_flexisip_SOURCES=recordserializer-protobuf.pb.cc recordserializer-protobuf.pb.h
 AM_CXXFLAGS+="-DENABLE_PROTOBUF"
 AM_CFLAGS+="-DENABLE_PROTOBUF"
+EXTRA_DIST+=$(pb_files)
 endif
     
 

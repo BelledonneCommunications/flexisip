@@ -103,7 +103,9 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"ContactRouteInserter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"LoadBalancer"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"MediaRelay"));
+#ifdef ENABLE_TRANSCODER
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
+#endif
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Forward"));
 
 	mServerString="Flexisip/" VERSION " (sofia-sip-nta/" NTA_VERSION ")";
@@ -209,7 +211,7 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases)const{
 	int end;
 	int p=(port!=NULL) ? atoi(port) : 5060;
 	if (p!=mPort && p!=mTlsPort) return false;
-	//skip possibly trailling '.' at the end of host
+	//skip possibly trailing '.' at the end of host
 	if (host[end=(strlen(host)-1)]=='.'){
 		tmp=(char*)alloca(end+1);
 		memcpy(tmp,host,end);
@@ -245,7 +247,7 @@ void Agent::onRequest(msg_t *msg, sip_t *sip){
 	for(it=mModules.begin();it!=mModules.end();++it){
 		ev->mCurrModule=(*it);
 		(*it)->processRequest(ev);
-		if (ev->finished()) break;
+		if (ev->terminated() || ev->suspended()) break;
 	}
 }
 
@@ -253,18 +255,18 @@ void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
 	list<Module*>::iterator it;
 	ev->restartProcessing();
 	LOGD("Injecting event after %s", ev->mCurrModule->getModuleName().c_str());
-	for(it=mModules.begin();it!=mModules.end();++it){
+	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		if (ev->mCurrModule == *it) {
 			++it;
 			break;
 		}
 	}
-	for(;it!=mModules.end();++it){
-		ev->mCurrModule=*it;
+	for (; it != mModules.end(); ++it) {
+		ev->mCurrModule = *it;
 		(*it)->processRequest(ev);
-		if (ev->finished()) break;
+		if (ev->terminated() || ev->suspended())
+			break;
 	}
-	ev->stopProcessing();
 }
 
 void Agent::onResponse(msg_t *msg, sip_t *sip){
@@ -273,7 +275,7 @@ void Agent::onResponse(msg_t *msg, sip_t *sip){
 	for(it=mModules.begin();it!=mModules.end();++it){
 		ev->mCurrModule=*it;
 		(*it)->processResponse(ev);
-		if (ev->finished()) break;
+		if (ev->terminated() || ev->suspended()) break;
 	}
 }
 

@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.61])
-AC_INIT([flexisip], [0.3.2], [simon.morlat@linphone.org])
+AC_INIT([flexisip], [0.4.0], [simon.morlat@linphone.org])
 AC_CONFIG_SRCDIR([src/agent.cc])
 AC_CONFIG_HEADERS([flexisip-config.h])
 
@@ -45,10 +45,17 @@ PKG_PROG_PKG_CONFIG()
 
 # Checks for header files.
 
+AC_ARG_ENABLE(transcoder,
+	AC_HELP_STRING([--disable-transcoder],
+	    [Build transcoder support @<:@yes@:>@]),
+        [transcoder="${enableval}"],[transcoder=yes]
+)
+AM_CONDITIONAL(BUILD_TRANSCODER,test x$transcoder = xyes)
+
 AC_ARG_ENABLE(redis,
 	AC_HELP_STRING([--enable-redis],
-	    [Build with redis key/value datastore @<:@yes@:>@]),
-        [redis="${enableval}"],[redis=yes]
+	    [Build with redis key/value datastore @<:@no@:>@]),
+        [redis="${enableval}"],[redis=no]
 )
 if test x$redis = xyes ; then
     PKG_CHECK_MODULES(HIREDIS,[libhiredis >= 0.10.0])
@@ -57,8 +64,8 @@ AM_CONDITIONAL(BUILD_REDIS,test x$redis = xyes)
 
 AC_ARG_ENABLE(protobuf,
 	AC_HELP_STRING([--enable-protobuf],
-	    [Build registrar contact serializer using protobuf @<:@yes@:>@]),
-        [protobuf="${enableval}"],[protobuf=yes]
+	    [Build registrar contact serializer using protobuf @<:@no@:>@]),
+        [protobuf="${enableval}"],[protobuf=no]
 )
 if test x$protobuf = xyes ; then
     PKG_CHECK_MODULES(PROTOBUF,[protobuf >= 2.3.0])
@@ -76,6 +83,7 @@ PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
 
 AM_CONDITIONAL(USE_DEB,test x$use_deb = xtrue)
 AM_CONDITIONAL(USE_RPM,test x$use_rpm = xtrue)
+AM_CONDITIONAL(CROSS_COMPILATION, test x$cross_compilation = xyes)
 
 # Checks for programs
 

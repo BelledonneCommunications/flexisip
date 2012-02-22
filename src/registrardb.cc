@@ -203,7 +203,7 @@ void Record::bind(const char *c, const char *contactId, const char* route, const
 
 void Record::print(){
 	std::list<extended_contact *>::const_iterator it=mContacts.begin();
-	LOGD("Record contains %lu contacts", mContacts.size());
+	LOGD("Record contains %zu contacts", mContacts.size());
 	for (it=mContacts.begin(); it != mContacts.end(); ++it) {
 		extended_contact *ec=(*it);
 		LOGD("%s %lu route=%s", ec->mSipUri, ec->mExpireAt, ec->mRoute);

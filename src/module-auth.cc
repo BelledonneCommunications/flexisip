@@ -55,19 +55,19 @@ private:
 		Agent *mAgent;
 		shared_ptr<SipEvent> mEv;
 		bool mHashedPass;
+		bool mStateFullProxy;
 		auth_mod_t *mAm;
 		auth_status_t *mAs;
 		auth_challenger_t const *mAch;
-		void checkFoundPassword(const string &password);
 	public:
 		auth_response_t mAr;
-		AuthenticationListener(Agent *, shared_ptr<SipEvent>, bool);
+		AuthenticationListener(Agent *, shared_ptr<SipEvent>, bool, bool);
 		~AuthenticationListener(){};
 
 		void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
-		virtual void onAsynchronousPasswordFound(const string &password);
-		virtual void onSynchronousPasswordFound(const string &password);
-		virtual void onError();
+		void checkPassword(const char *password);
+		void onAsynchronousResponse(AuthDbResult ret, const char *password);
+		void onError();
 		void sendReplyAndDestroy();
 		void sendReply();
 		void passwordRetrievingPending();
@@ -108,6 +108,7 @@ private:
 		return value==NULL || value[0]=='\0';
 	}
 	bool dbUseHashedPasswords;
+	bool mStateFullProxy;
 
 	void static flexisip_auth_method_digest(auth_mod_t *am,
 				auth_status_t *as, msg_auth_t *au, auth_challenger_t const *ach);
@@ -141,9 +142,10 @@ public:
 	}
 
 	~Authentication(){
-		for(map<string,auth_mod_t *>::iterator it = mAuthModules.begin(); it != mAuthModules.end(); it = mAuthModules.erase(it)) {
+		for(auto it = mAuthModules.begin(); it != mAuthModules.end(); ++it) {
 			auth_mod_destroy(it->second);
 		}
+		mAuthModules.clear();
 
 		delete mOdbcAuthScheme;
 	}
@@ -152,13 +154,18 @@ public:
 		ConfigItemDescriptor items[]={
 			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	""	},
 			{	StringList	,	"trusted-hosts"	, 	"List of whitespace separated IP which will not be challenged.",	""	},
-			{	String		,	"db-implementation"		,	"backend implementation [odbc, redis].",		"odbc"	},
-			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. ex: 'DSN=myodbc3;' where 'myodbc3' is the datasource name.",		""	},
+			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file].",		"odbc"	},
+			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. " \
+					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. " \
+					"ex2: DRIVER={MySQL};SERVER=localhost;DATABASE=dbname;USER=username;PASSWORD=passname;OPTION=3; for a DSN-less connection.",		""	},
 			{	String		,	"request"				,	"Odbc SQL request to execute to obtain the password. Named parameters are :id, :domain and :authid.'",
 					"select password from accounts where id = :id and domain = :domain and authid=:authid"	},
 			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
 			{	Integer		,	"max-password-length"	,	"Maximum length of the password column in database",	"100"	},
 			{	Boolean		,	"odbc-pooling"	,	"Use pooling in odbc",	"true"	},
+			{	Integer		,	"odbc-display-timings-interval"	,	"Display timing statistics after this count of seconds",	"0"	},
+			{	Integer		,	"odbc-display-timings-after-count"	,	"Display timing statistics once the number of samples reach this number.",	"0"	},
+			{	Boolean		,	"odbc-asynchronous"	,	"Retrieve passwords asynchronously.",	"false"	},
 			{	Integer		,	"cache-expire"	,	"Duration of the validity of the credentials added to the cache in seconds.",	"1800"	},
 			{	Boolean	,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed (HA1).", "false" },
 			config_item_end
@@ -188,6 +195,7 @@ public:
 
 		mTrustedHosts=module_config->get<ConfigStringList>("trusted-hosts")->read();
 		dbUseHashedPasswords = module_config->get<ConfigBoolean>("hashed-passwords")->read();
+		mStateFullProxy=false;
 	}
 
 	void onRequest(std::shared_ptr<SipEvent> &ev) {
@@ -201,7 +209,7 @@ public:
 					SIPTAG_CONTACT(sip->sip_contact),
 					SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					TAG_END());
-			ev->stopProcessing();
+			ev->terminateProcessing();
 			return;
 		}
 
@@ -226,7 +234,7 @@ public:
 		    as->as_body = sip->sip_payload->pl_data,
 		as->as_bodylen = sip->sip_payload->pl_len;
 
-		AuthDbListener *listener = new AuthenticationListener(getAgent(), ev, dbUseHashedPasswords);
+		AuthDbListener *listener = new AuthenticationListener(getAgent(), ev, dbUseHashedPasswords, mStateFullProxy);
 		as->as_magic=listener;
 
 
@@ -248,10 +256,11 @@ ModuleInfo<Authentication> Authentication::sInfo("Authentication",
 	"The authentication module challenges SIP requests according to a user/password database.");
 
 
-Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, std::shared_ptr<SipEvent> ev, bool hashedPasswords):
-		mAgent(ag),mEv(ev),mHashedPass(hashedPasswords),mAm(NULL),mAs(NULL),mAch(NULL) {
+Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, std::shared_ptr<SipEvent> ev, bool hashedPasswords, bool stateFull):
+		mAgent(ag),mEv(ev),mHashedPass(hashedPasswords),mStateFullProxy(stateFull),mAm(NULL),mAs(NULL),mAch(NULL) {
 	memset(&mAr, '\0', sizeof(mAr)), mAr.ar_size=sizeof(mAr);
 }
+
 void Authentication::AuthenticationListener::setData(auth_mod_t *am, auth_status_t *as,  auth_challenger_t const *ach){
 	this->mAm=am;
 	this->mAs=as;
@@ -271,7 +280,7 @@ void Authentication::AuthenticationListener::sendReply(){
 				SIPTAG_HEADER((const sip_header_t*)mAs->as_response),
 				SIPTAG_SERVER_STR(mAgent->getServerString()),
 				TAG_END());
-		mEv->stopProcessing();
+		mEv->terminateProcessing();
 	}else{
 		// Success
 		if (sip->sip_request->rq_method == sip_method_register){
@@ -282,11 +291,10 @@ void Authentication::AuthenticationListener::sendReply(){
 	}
 }
 
-void Authentication::AuthenticationListener::checkFoundPassword(const string &password) {
-	const char* passwd = password.c_str();
-	const string id = mAr.ar_username;
-	//LOGD("Retrieving password of user %s", id.c_str());
-
+/**
+ * NULL if passwd not found.
+ */
+void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 	char const *a1;
 	auth_hexmd5_t a1buf, response;
 
@@ -340,26 +348,37 @@ void Authentication::AuthenticationListener::checkFoundPassword(const string &pa
 	mAs->as_phrase = "";
 }
 
-void Authentication::AuthenticationListener::onSynchronousPasswordFound(const string &password) {
-	checkFoundPassword(password);
-	sendReplyAndDestroy();
-}
 
-void Authentication::AuthenticationListener::onAsynchronousPasswordFound(const string &password) {
-	checkFoundPassword(password);
-	sendReply();
-	mAgent->injectRequestEvent(mEv);
-	delete this;
+void Authentication::AuthenticationListener::onAsynchronousResponse(AuthDbResult res, const char *password) {
+	switch (res) {
+	case PASSWORD_FOUND:
+	case PASSWORD_NOT_FOUND:
+		checkPassword(password);
+		sendReply();
+		mAgent->injectRequestEvent(mEv);
+		delete this;
+		break;
+	default:
+		LOGE("unhandled asynchronous response %u", res);
+		// error
+	case AUTH_ERROR:
+		onError();
+		break;
+	}
 }
 
 // Called when starting asynchronous retrieving of password
 void Authentication::AuthenticationListener::passwordRetrievingPending() {
 	// Send pending message, needed data will be kept as long
 	// as SipEvent is held in the listener.
-	mAs->as_status=100, mAs->as_phrase="Authentication pending";
-	//as->as_callback=auth_callback; // should be set according to doc
-	msg_ref_create(mEv->mMsg); // Avoid temporary reference to make the message destroyed.
-	sendReply();
+	if (mStateFullProxy) {
+		mAs->as_status=100, mAs->as_phrase="Authentication pending";
+		//as->as_callback=auth_callback; // should be set according to doc
+		msg_ref_create(mEv->mMsg); // Avoid temporary reference to make the message destroyed.
+		sendReply();
+	} else {
+		mEv->suspendProcessing();
+	}
 }
 
 void Authentication::AuthenticationListener::onError() {
@@ -378,11 +397,6 @@ void Authentication::AuthenticationListener::onError() {
 
 
 #define PA "Authorization missing "
-
-/**************************************************
- * code derivated from sofia sip auth_module.c begin
- */
-
 
 /** Verify digest authentication */
 void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
@@ -449,19 +463,32 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		return;
 	}
 
-	// Synchronous or asynchronous retrieving of password depending
-	// on implementation and presence of valid credentials in the cache.
+	// Retrieve password. The result may be either synchronous OR asynchronous,
+	// on a case by case basis.
 	string foundPassword;
-	AuthDbResult res=AuthDb::get()->password( as->as_user_uri, ar->ar_username, foundPassword, listener);
+	AuthDbResult res=AuthDb::get()->password(listener->getRoot(), as->as_user_uri, ar->ar_username, foundPassword, listener);
 	switch (res) {
 		case PENDING:
+			// The password couldn't be retrieved synchronously
+			// It will be retrieved asynchronously and the listener
+			// will be called with it.
+
+			// Send 100 trying if we are statefull
 			listener->passwordRetrievingPending();
 			break;
 		case PASSWORD_FOUND:
-			listener->onSynchronousPasswordFound(foundPassword);
+			listener->checkPassword(foundPassword.c_str());
+			listener->sendReply();
+			delete(listener);
+			break;
+		case PASSWORD_NOT_FOUND:
+			listener->checkPassword(NULL);
+			listener->sendReply();
+			delete(listener);
 			break;
 		case AUTH_ERROR:
 			listener->onError();
+			// on error deletes the listener
 			break;
 		default:
 			break;
@@ -503,16 +530,10 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 		LOGD("%s: no credentials matched realm or no realm", __func__);
 		auth_challenge_digest(am, as, ach);
 
-		// Asynchronously fetch the credentials so that they are present in the
-		// cache when a request with credentials comes back from client.
+		// Retrieve the password in the hope it will be in cache when the remote UAC
+		// sends back its request; this time with the expected authentication credentials.
 		string foundPassword;
-		AuthDb::get()->password(as->as_user_uri, as->as_user_uri->url_user, foundPassword, NULL);
+		AuthDb::get()->password(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, foundPassword, NULL);
 		listener->sendReplyAndDestroy();
 	}
 }
-
-
-/*
- * code derivated from sofia sip begin end
- ******************************************/
-

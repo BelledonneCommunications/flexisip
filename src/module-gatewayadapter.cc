@@ -75,18 +75,15 @@ private:
 				gw(gw) {
 		}
 
-		virtual void onAsynchronousPasswordFound(const string &password) {
+		virtual void checkPassword(const char *password) {
 			LOGD("Found password");
 			gw->setPassword(password);
 			gw->sendRegister();
 			delete this;
 		}
 
-		virtual void onSynchronousPasswordFound(const string &password) {
-			LOGD("Found password");
-			gw->setPassword(password);
-			gw->sendRegister();
-			delete this;
+		virtual void onAsynchronousResponse(AuthDbResult ret, const char *password) {
+			checkPassword(password);
 		}
 
 		virtual void onError() {
@@ -117,7 +114,7 @@ private:
 
 				string password;
 				AuthDb *mAuthDb = AuthDb::get();
-				AuthDbResult result = mAuthDb->password(gw->getFrom()->a_url, gw->getFrom()->a_url->url_user, password, listener);
+				AuthDbResult result = mAuthDb->password(gw->agent->getRoot(), gw->getFrom()->a_url, gw->getFrom()->a_url->url_user, password, listener);
 
 				// Already a response?
 				if (result != AuthDbResult::PENDING) {
@@ -285,6 +282,7 @@ GatewayAdapter::~GatewayAdapter() {
 
 void GatewayAdapter::onDeclare(ConfigStruct *module_config) {
 	GenericContactRouteInserter::onDeclare(module_config);
+	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = { { String, "gateway", "A gateway uri where to send all requests", "" }, { String, "gateway-domain", "Force the domain of send all requests", "" }, config_item_end };
 	module_config->addChildrenValues(items);
 }
