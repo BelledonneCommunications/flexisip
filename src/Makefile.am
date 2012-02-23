@@ -1,5 +1,4 @@
 bin_PROGRAMS=flexisip
-EXTRA_DIST=
 flexisip_SOURCES=main.cc \
 			agent.cc agent.hh \
 			common.cc common.hh \
@@ -46,8 +45,8 @@ flexisip_SOURCES+=registrardb-redis-sync.cc registrardb-redis-async.cc registrar
 AM_CXXFLAGS+="-DENABLE_REDIS"
 endif
 
-if BUILD_PROTOBUF
 pb_files=$(srcdir)/recordserializer-protobuf.proto
+if BUILD_PROTOBUF
 $(builddir)/pb_generated_src_stamp : $(pb_files)
 	protoc --proto_path=$(builddir) --cpp_out=$(builddir) $(pb_files)
 	touch $(builddir)/pb_generated_src_stamp
@@ -58,8 +57,8 @@ flexisip_SOURCES+=recordserializer-protobuf.cc
 nodist_flexisip_SOURCES=recordserializer-protobuf.pb.cc recordserializer-protobuf.pb.h
 AM_CXXFLAGS+="-DENABLE_PROTOBUF"
 AM_CFLAGS+="-DENABLE_PROTOBUF"
-EXTRA_DIST+=$(pb_files)
 endif
     
+EXTRA_DIST=$(pb_files)
 
 

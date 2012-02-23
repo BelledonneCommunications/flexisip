@@ -23,7 +23,7 @@ BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 %ifarch %ix86
 BuildArch:	i686
 %endif
-Requires: bash >= 2.0
+Requires: bash >= 2.0, unixODBC >= 2.3.0
 Requires(post): /sbin/chkconfig coreutils
 Requires(preun): /sbin/chkconfig /sbin/chkconfig
 Requires(postun): /sbin/service
@@ -52,6 +52,7 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 %install
 rm -rf $RPM_BUILD_ROOT
 %makeinstall
+install -p -m 0744 scripts/redhat/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -82,6 +83,7 @@ fi
 /etc/flexisip
 
 %changelog
+* Wed Feb 15 2015 Guillaume Beraudo <guillaume.beraudo@belledonne-communications.com>
+    - Force use of redhat init script
 * Tue Oct 19 2010 Simon Morlat <simon.morlat@belledonne-communications.com>
 	- Initial specfile for first prototype release
-

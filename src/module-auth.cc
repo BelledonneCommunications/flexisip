@@ -69,7 +69,7 @@ private:
 		void onAsynchronousResponse(AuthDbResult ret, const char *password);
 		void onError();
 		void sendReplyAndDestroy();
-		void sendReply();
+		bool sendReply();
 		void passwordRetrievingPending();
 		su_root_t *getRoot() {
 			return mAgent->getRoot();
@@ -167,7 +167,7 @@ public:
 			{	Integer		,	"odbc-display-timings-after-count"	,	"Display timing statistics once the number of samples reach this number.",	"0"	},
 			{	Boolean		,	"odbc-asynchronous"	,	"Retrieve passwords asynchronously.",	"false"	},
 			{	Integer		,	"cache-expire"	,	"Duration of the validity of the credentials added to the cache in seconds.",	"1800"	},
-			{	Boolean	,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed (HA1).", "false" },
+			{	Boolean	,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed (HA1=MD5(A1)=MD5(username:realm:password)).", "false" },
 			config_item_end
 		};
 		module_config->addChildrenValues(items);
@@ -271,7 +271,10 @@ void Authentication::AuthenticationListener::sendReplyAndDestroy(){
 	sendReply();
 	delete(this);
 }
-void Authentication::AuthenticationListener::sendReply(){
+/**
+ * return true if the event is terminated
+ */
+bool Authentication::AuthenticationListener::sendReply(){
 	sip_t *sip=mEv->mSip;
 	if (mAs->as_status) {
 		nta_msg_treply(mAgent->getSofiaAgent(),mEv->mMsg,mAs->as_status,mAs->as_phrase,
@@ -281,6 +284,7 @@ void Authentication::AuthenticationListener::sendReply(){
 				SIPTAG_SERVER_STR(mAgent->getServerString()),
 				TAG_END());
 		mEv->terminateProcessing();
+		return true;
 	}else{
 		// Success
 		if (sip->sip_request->rq_method == sip_method_register){
@@ -288,6 +292,7 @@ void Authentication::AuthenticationListener::sendReply(){
 		} else {
 			sip_header_remove(mEv->mMsg,sip, (sip_header_t*)sip->sip_proxy_authorization);
 		}
+		return false;
 	}
 }
 
@@ -327,7 +332,7 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 			auth_challenge_digest(mAm, mAs, mAch);
 			mAs->as_blacklist = mAm->am_blacklist;
 		}
-		LOGD("auth_method_digest: response did not match");
+		LOGD("auth_method_digest: no password or response did not match");
 
 		return;
 	}
@@ -354,8 +359,10 @@ void Authentication::AuthenticationListener::onAsynchronousResponse(AuthDbResult
 	case PASSWORD_FOUND:
 	case PASSWORD_NOT_FOUND:
 		checkPassword(password);
-		sendReply();
-		mAgent->injectRequestEvent(mEv);
+		if (!sendReply()) {
+			// The event is not terminated
+			mAgent->injectRequestEvent(mEv);
+		}
 		delete this;
 		break;
 	default:
