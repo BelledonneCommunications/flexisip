@@ -23,7 +23,7 @@ BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 %ifarch %ix86
 BuildArch:	i686
 %endif
-Requires: bash >= 2.0
+Requires: bash >= 2.0, unixODBC >= 2.3.0
 Requires(post): /sbin/chkconfig coreutils
 Requires(preun): /sbin/chkconfig /sbin/chkconfig
 Requires(postun): /sbin/service
