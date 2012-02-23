@@ -32,6 +32,7 @@
 #include <mediastreamer2/mscommon.h>
 #include "agent.hh"
 #include "stun.hh"
+#include "dos-protection.hh"
 
 #include <stdlib.h>
 #include <signal.h>
@@ -63,6 +64,7 @@ static void usage(const char *arg0){
 }
 
 static void flexisip_stop(int signum){
+	DosProtection::get()->stop();
 	if (flexisip_pid>0){
 		LOGD("Watchdog received quit signal...passing to child.");
 		/*we are the watchdog, pass the signal to our child*/
@@ -427,6 +429,10 @@ int main(int argc, char *argv[]){
 	a->loadConfig (cfg);
 
 	increase_fd_limit();
+
+	/* Install firewall rules to protect Flexisip for DOS attacks */
+	DosProtection *dos=DosProtection::get();
+	dos->start();
 
 	if (daemon){
 		if (write(pipe_fds[1],"ok",3)==-1){
