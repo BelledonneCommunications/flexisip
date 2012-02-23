@@ -142,7 +142,7 @@ _retType *ConfigStruct::get(const char *name)const{
 
 class FileConfigReader{
 	public:
-		FileConfigReader(ConfigStruct *root) : mRoot(root), mHaveUnreads(false){
+		FileConfigReader(ConfigStruct *root) : mRoot(root), mHaveUnreads(false), mCfg(NULL){
 		}
 		int read(const char *filename);
 		int reload();
