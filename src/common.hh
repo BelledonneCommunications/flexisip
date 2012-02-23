@@ -26,7 +26,7 @@
 
 extern bool sUseSyslog;
 
-#define LOGD ortp_message
+#define LOGD ortp_debug
 #define LOGI ortp_message
 #define LOGW ortp_warning
 #define LOGE ortp_error
