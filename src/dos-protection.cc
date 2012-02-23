@@ -23,7 +23,9 @@
 #include <iostream>
 #include <stdlib.h>
 
-DosProtection *DosProtection::sInstance=0;
+DosProtection *DosProtection::sInstance = NULL;
+
+using namespace::std;
 
 ConfigItemDescriptor items[] = {
 		{	Boolean,	"enabled",				"Enable or disable DOS protection using IPTables firewall.",								  "true"	},
@@ -38,10 +40,11 @@ DosProtection::DosProtection(){
 		ConfigStruct *s = new ConfigStruct("dos-protection","DOS protection parameters.");
 		s->addChildrenValues(items);
 		ConfigManager::get()->getRoot()->addChild(s);
-		isLoaded = false;
+		mLoaded = false;
 }
 
 DosProtection::~DosProtection(){
+	delete sInstance;
 }
 
 DosProtection *DosProtection::get(){
@@ -52,7 +55,7 @@ DosProtection *DosProtection::get(){
 }
 
 void DosProtection::load(){
-	ConfigStruct dosProtection = ConfigManager::get()->getRoot()->get<ConfigStruct>("dos-protection");
+	ConfigStruct *dosProtection = ConfigManager::get()->getRoot()->get<ConfigStruct>("dos-protection");
 	mEnabled = dosProtection->get<ConfigBoolean>("enabled")->read();
 	mAuthorizedIPs = dosProtection->get<ConfigStringList>("authorized-ip")->read();
 	mBanDuration = dosProtection->get<ConfigInt>("ban-duration")->read();
@@ -70,101 +73,116 @@ void DosProtection::load(){
 	mCounterlist = "FLEXISIP_COUNTER";
 	mPath = "/sbin/iptables";
 
-	isLoaded = true;
+	mLoaded = true;
 }
 
 /* Uninstall IPTables firewall rules */
 void DosProtection::stop(){
-	if (!isLoaded)
+	if (!mLoaded){
 		load();
+	}
 
-	/* Remove FLEXISIP chain and INPUT rule redirecting SIP traffic to FLEXISIP chain */
-	char cmd[100];
+	if (!mEnabled){
+		return;
+	}
 
-	/* Removing SIP packets routing to FLEXISIP chain's route */
-	sprintf(cmd, "%s -D %s -p %s --dport %i -j %s", mPath, mProtocol, mPort, mFlexisipChain);
-	system(cmd);
+	char cmd[100]={0};
+	int returnedValue;
 
-	/* Removing FLEXISIP chain */
-	sprintf(cmd, "%s -F %s ", mPath, mFlexisipChain);
-	system(cmd);
-	sprintf(cmd, "%s -X %s ", mPath, mFlexisipChain);
-	system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -F", mPath);
+	returnedValue = system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -X", mPath);
+	returnedValue = system(cmd);
 
-	/* Removing BLACKLIST chain */
-	sprintf(cmd, "%s -F %s ", mPath, mBlacklistChain);
-	system(cmd);
-	sprintf(cmd, "%s -X %s ", mPath, mBlacklistChain);
-	system(cmd);
+	/*
+	Removing SIP packets routing from INPUT to FLEXISIP chain's route
+	snprintf(cmd, sizeof(cmd)-1, "%s -D INPUT -p %s --dport %i -j %s", mPath, mProtocol, mPort, mFlexisipChain);
+	returnedValue = system(cmd);
 
-	free(cmd);
+	Removing FLEXISIP chain
+	snprintf(cmd, sizeof(cmd)-1, "%s -F %s ", mPath, mFlexisipChain);
+	returnedValue = system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -X %s ", mPath, mFlexisipChain);
+	returnedValue = system(cmd);
+
+	Removing BLACKLIST chain *
+	snprintf(cmd, sizeof(cmd)-1, "%s -F %s ", mPath, mBlacklistChain);
+	returnedValue = system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -X %s ", mPath, mBlacklistChain);
+	returnedValue = system(cmd);
+	*/
 }
 
 /* Install IPTables firewall rules */
 void DosProtection::start(){
-	if (!isLoaded)
+	if (!mLoaded){
 		load();
+	}
+
+	if (!mEnabled){
+		return;
+	}
 
 	/* Remove an already defined FLEXISIP chain  */
 	stop();
 
 	char cmd[300];
-
-	/* Allowing some IPs to not be filtered by this rules */
-	for (std::string ip : mAuthorizedIPs){
-		sprintf(cmd, "%s -A %s -s %s -j ACCEPT", mPath, mFlexisipChain, ip);
-		system(cmd);
-	}
+	int returnedValue;
 
 	/* FLEXISIP chain */
-	sprintf(cmd, "%s -N %s", mPath, mFlexisipChain);
-	system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -N %s", mPath, mFlexisipChain);
+	returnedValue = system(cmd);
+
+	/* Allowing some IPs to not be filtered by this rules */
+	for (list<string>::const_iterator iterator = mAuthorizedIPs.begin(); iterator != mAuthorizedIPs.end(); ++iterator){
+		const char* ip = (*iterator).c_str();
+		snprintf(cmd, sizeof(cmd)-1, "%s -A %s -s %s -j ACCEPT", mPath, mFlexisipChain, ip);
+		returnedValue = system(cmd);
+	}
 
 	/* BLACKLIST chain */
-	sprintf(cmd, "%s -N %s", mPath, mBlacklistChain);
-	system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -N %s", mPath, mBlacklistChain);
+	returnedValue = system(cmd);
 
 	/* Logging blacklisted IPs */
-	sprintf(cmd, "%s -A %s -j LOG --log-prefix %s --log-level %s", mPath, mBlacklistChain, mLogPrefix, mLogLevel);
-	system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -A %s -j LOG --log-prefix %s --log-level %s", mPath, mBlacklistChain, mLogPrefix, mLogLevel);
+	returnedValue = system(cmd);
 
 	/* Dropping packets from BLACKLIST chain and theirs IPs to BLACKLIST list */
-	sprintf(cmd, "%s -A %s -m recent --name %s --set -j DROP", mPath, mBlacklistChain, mBlacklistChain);
-	system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -A %s -m recent --name %s --set -j DROP", mPath, mBlacklistChain, mBlacklistChain);
+	returnedValue = system(cmd);
 
 	/* Limitting the amount of simultaneous connections */
-	sprintf(cmd, "%s -A %s -m connlimit --connlimit-above %i -j DROP", mPath, mFlexisipChain, mMaximumConnections);
-	system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -A %s -m connlimit --connlimit-above %i -j DROP", mPath, mFlexisipChain, mMaximumConnections);
+	returnedValue = system(cmd);
 
 	/*
 	 * We block all packets for a given duration
 	 * If a packet arrives during this time, timer is reset to 0
 	 * To change this behaviour to block packets for a duration without reseting timer to 0, replace --update by --rcheck
 	*/
-	sprintf(cmd, "%s -A %s -m recent --update --name %s --seconds %i --rttl -j DROP", mPath, mFlexisipChain, mBlacklistChain, mBanDuration);
-	system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -A %s -m recent --update --name %s --seconds %i --rttl -j DROP", mPath, mFlexisipChain, mBlacklistChain, mBanDuration);
+	returnedValue = system(cmd);
 
 	/* Adding all incoming packets to COUNTER list */
-	sprintf(cmd, "%s -A %s -m state --state NEW -m recent --name %s --set", mPath, mFlexisipChain, mCounterlist);
-	system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -A %s -m state --state NEW -m recent --name %s --set", mPath, mFlexisipChain, mCounterlist);
+	returnedValue = system(cmd);
 
 	/* If limit of packets/seconds is reached into COUNTER list, we move the packet to the BLACKLIST chain */
-	sprintf(cmd, "%s -A %s -m state --state NEW -m recent --name %s --update --seconds %i --hitcount %i --rttl -j %s", mPath, mFlexisipChain, mCounterlist, mPeriod, mPacketsLimit, mBlacklistChain);
-	system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -A %s -m state --state NEW -m recent --name %s --update --seconds %i --hitcount %i --rttl -j %s", mPath, mFlexisipChain, mCounterlist, mPeriod, mPacketsLimit, mBlacklistChain);
+	returnedValue = system(cmd);
 
 	/* If a packet purged it's sentence, we unblacklist it */
-	sprintf(cmd, "%s -A -m recent --name %s --remove -j ACCEPT", mPath, mFlexisipChain, mBlacklistChain);
-	system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -A %s -m recent --name %s --remove -j ACCEPT", mPath, mFlexisipChain, mBlacklistChain);
+	returnedValue = system(cmd);
 
 	/* Routing all SIP traffic to FLEXISIP chain */
-	sprintf(cmd, "%s -A INPUT -p %s --dport %i -j %s", mPath, mProtocol, mPort, mFlexisipChain);
-	system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -A INPUT -p %s --dport %i -j %s", mPath, mProtocol, mPort, mFlexisipChain);
+	returnedValue = system(cmd);
 
 	/* Increasing xt_recent default values */
-	sprintf(cmd, "chmod u+w /sys/module/xt_recent/parameters/ip_list_tot && echo %i > /sys/module/xt_recent/parameters/ip_list_tot && chmod u-w /sys/module/xt_recent/parameters/ip_list_tot", mMaximumConnections);
-	system(cmd);
-	sprintf(cmd, "chmod u+w /sys/module/xt_recent/parameters/ip_pkt_list_tot && echo %i > /sys/module/xt_recent/parameters/ip_pkt_list_tot && chmod u-w /sys/module/xt_recent/parameters/ip_pkt_list_tot", mBlacklistMax);
-	system(cmd);
-
-	free(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "chmod u+w /sys/module/xt_recent/parameters/ip_list_tot && echo %i > /sys/module/xt_recent/parameters/ip_list_tot && chmod u-w /sys/module/xt_recent/parameters/ip_list_tot", mMaximumConnections);
+	returnedValue = system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "chmod u+w /sys/module/xt_recent/parameters/ip_pkt_list_tot && echo %i > /sys/module/xt_recent/parameters/ip_pkt_list_tot && chmod u-w /sys/module/xt_recent/parameters/ip_pkt_list_tot", mBlacklistMax);
+	returnedValue = system(cmd);
 }

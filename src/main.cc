@@ -391,6 +391,7 @@ int main(int argc, char *argv[]){
 	}
 	ortp_set_log_handler(defaultLogHandler);
 	ConfigManager *cfg=ConfigManager::get();
+	DosProtection *dos=DosProtection::get();
 
 	if (dump_default_cfg){
 		a=new Agent(root,0,0);
@@ -431,7 +432,6 @@ int main(int argc, char *argv[]){
 	increase_fd_limit();
 
 	/* Install firewall rules to protect Flexisip for DOS attacks */
-	DosProtection *dos=DosProtection::get();
 	dos->start();
 
 	if (daemon){
