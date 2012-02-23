@@ -22,7 +22,8 @@ flexisip_SOURCES=main.cc \
 			module-mediarelay.cc \
 			module-auth.cc \
 			auth-odbc.hh auth-odbc.cc \
-			module-loadbalancer.cc
+			module-loadbalancer.cc \
+			dos-protection.cc dos-protection.hh
 
 flexisip_LDADD=$(SOFIA_LIBS) $(MEDIASTREAMER_LIBS) $(ODBC_LIBS)
 
