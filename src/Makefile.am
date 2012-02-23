@@ -17,6 +17,7 @@ flexisip_SOURCES=main.cc \
 			module-forward.cc \
 			module-transcode.cc \
 			module-gatewayadapter.cc \
+			generic-contact-route-inserter.hh \
 			module-contact-route-inserter.cc \
 			module-nat-helper.cc \
 			module-registrar.cc \
