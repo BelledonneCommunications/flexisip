@@ -58,7 +58,7 @@ AC_ARG_ENABLE(redis,
         [redis="${enableval}"],[redis=no]
 )
 if test x$redis = xyes ; then
-    PKG_CHECK_MODULES(HIREDIS,[libhiredis >= 0.10.0])
+    PKG_CHECK_MODULES(HIREDIS,[hiredis >= 0.10.0])
 fi
 AM_CONDITIONAL(BUILD_REDIS,test x$redis = xyes)
 
