@@ -31,21 +31,29 @@ class ForkCallContext {
 	IncomingTransaction *incoming;
 	std::list<OutgoingTransaction *> outgoings;
 
+	enum State {
+		INITIAL,
+		INVITED,
+		RINGING,
+	} state;
+
 public:
 	ForkCallContext(Agent * agent, Module *module);
 	~ForkCallContext();
 
 	void setIncomingTransaction(IncomingTransaction *transaction);
 	void addOutgoingTransaction(OutgoingTransaction *transaction);
-	void receiveInvite(Transaction *transaction);
-	void receiveOk(Transaction *transaction);
-	void receiveCancel(Transaction *transaction);
-	void receiveTimeout(Transaction *transaction);
-	void receiveTerminated(Transaction *transaction);
-	void receiveBye(Transaction *transaction);
+	void receiveInvite(IncomingTransaction *transaction);
+	void receiveOk(OutgoingTransaction *transaction);
+	void receiveCancel(IncomingTransaction *transaction);
+	void receiveTimeout(OutgoingTransaction *transaction);
+	void receiveTerminated(OutgoingTransaction *transaction);
+	void receiveDecline(OutgoingTransaction *transaction);
+	void receiveRinging(OutgoingTransaction *transaction);
+	void receiveBye(IncomingTransaction *transaction);
 private:
-	void deleteOutgoingTransaction(OutgoingTransaction *transaction);
-	void deleteIncomingTransaction(IncomingTransaction *transaction);
+	void deleteTransaction(OutgoingTransaction *transaction);
+	void deleteTransaction(IncomingTransaction *transaction);
 
 };
 

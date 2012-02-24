@@ -87,7 +87,7 @@ class Agent{
 		void stopTimer(su_timer_t *t);
 		void injectRequestEvent(std::shared_ptr<SipEvent> &ev, Module * module = NULL);
 		void injectResponseEvent(std::shared_ptr<SipEvent> &ev, Module * module = NULL);
-	protected:
+	//protected:
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
 		void onRequest(msg_t *msg, sip_t *sip);
 		void onResponse(msg_t *msg, sip_t *sip);

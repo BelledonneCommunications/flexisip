@@ -122,9 +122,10 @@ nta_outgoing_t *OutgoingTransaction::getOutgoing() {
 }
 
 IncomingTransaction::IncomingTransaction(nta_agent_t *agent, msg_t * msg, sip_t *sip, TransactionCallback callback, void *magic) :
-		Transaction(callback, magic), agent(agent) {
-	leg = nta_leg_tcreate(agent, IncomingTransaction::_callback, (nta_leg_magic_t*) this, SIPTAG_CALL_ID(sip->sip_call_id), SIPTAG_FROM(sip->sip_to), SIPTAG_TO(sip->sip_from), TAG_END());
-	incoming = nta_incoming_create(agent, leg, msg, sip, TAG_END());
+		Transaction(callback, magic), incoming(NULL), leg(NULL), agent(agent) {
+	//leg = nta_leg_tcreate(agent, IncomingTransaction::_callback, (nta_leg_magic_t*) this, SIPTAG_CALL_ID(sip->sip_call_id), SIPTAG_FROM(sip->sip_to), SIPTAG_TO(sip->sip_from), TAG_END());
+	incoming = nta_incoming_create(agent, NULL, msg, sip, TAG_END());
+	nta_incoming_bind(incoming, IncomingTransaction::_callback, (nta_incoming_magic_t*)this);
 	LOGD("New IncomingTransaction %p", this);
 }
 
@@ -147,7 +148,7 @@ void IncomingTransaction::send(StatefulSipEvent *ev) {
 	nta_incoming_mreply(incoming, ev->mMsg);
 }
 
-int IncomingTransaction::_callback(nta_leg_magic_t *magic, nta_leg_t *leg, nta_incoming_t *irq, const sip_t *sip) {
+int IncomingTransaction::_callback(nta_incoming_magic_t *magic, nta_incoming_t *irq, const sip_t *sip) {
 	IncomingTransaction * it = reinterpret_cast<IncomingTransaction *>(magic);
 	if (it->callback != NULL) {
 		it->callback(sip, it);

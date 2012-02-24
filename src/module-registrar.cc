@@ -131,15 +131,16 @@ static extended_contact *getFirstExtendedContact(Record *aor) {
 }
 
 static void incomingCallback(const sip_t *sip, Transaction * transaction) {
+	IncomingTransaction *incoming_transaction = dynamic_cast<IncomingTransaction *>(transaction);
 	if (sip != NULL && sip->sip_request != NULL) {
 		ForkCallContext *context = reinterpret_cast<ForkCallContext *>(transaction->getMagic());
 		if (sip->sip_request->rq_method == sip_method_cancel) {
 			LOGD("Fork: incomingCallback cancel");
-			context->receiveCancel(transaction);
+			context->receiveCancel(incoming_transaction);
 			return;
 		} else if (sip->sip_request->rq_method == sip_method_bye) {
 			LOGD("Fork: incomingCallback bye");
-			context->receiveBye(transaction);
+			context->receiveBye(incoming_transaction);
 			return;
 		}
 	}
@@ -147,15 +148,24 @@ static void incomingCallback(const sip_t *sip, Transaction * transaction) {
 }
 
 static void outgoingCallback(const sip_t *sip, Transaction * transaction) {
+	OutgoingTransaction *outgoing_transaction = dynamic_cast<OutgoingTransaction *>(transaction);
 	if (sip != NULL && sip->sip_status != NULL) {
 		ForkCallContext *context = reinterpret_cast<ForkCallContext *>(transaction->getMagic());
 		if (sip->sip_status->st_status == 200) {
 			LOGD("Fork: outgoingCallback 200");
-			context->receiveOk(transaction);
+			context->receiveOk(outgoing_transaction);
 			return;
 		} else if (sip->sip_status->st_status == 408 || sip->sip_status->st_status == 503) {
 			LOGD("Fork: outgoingCallback 408/503");
-			context->receiveTimeout(transaction);
+			context->receiveTimeout(outgoing_transaction);
+			return;
+		} else if (sip->sip_status->st_status == 603) {
+			LOGD("Fork: outgoingCallback 603");
+			context->receiveDecline(outgoing_transaction);
+			return;
+		}else if (sip->sip_status->st_status == 180) {
+			LOGD("Fork: outgoingCallback 180");
+			context->receiveRinging(outgoing_transaction);
 			return;
 		}
 	}

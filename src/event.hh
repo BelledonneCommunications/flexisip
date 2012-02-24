@@ -115,7 +115,7 @@ public:
 	nta_incoming_t* getIncoming();
 
 private:
-	static int _callback(nta_leg_magic_t *magic, nta_leg_t *leg, nta_incoming_t *irq, const sip_t *sip);
+	static int _callback(nta_incoming_magic_t *magic, nta_incoming_t *irq, const sip_t *sip);
 };
 
 #endif //event_hh

@@ -22,7 +22,7 @@
 #include <sofia-sip/sip_status.h>
 
 ForkCallContext::ForkCallContext(Agent *agent, Module *module) :
-		agent(agent), module(module) {
+		agent(agent), module(module), state(INITIAL) {
 	LOGD("New ForkCallContext %p", this);
 }
 
@@ -40,100 +40,82 @@ void ForkCallContext::addOutgoingTransaction(OutgoingTransaction *transaction) {
 	outgoings.push_back(transaction);
 }
 
-void ForkCallContext::receiveOk(Transaction *transaction) {
-	OutgoingTransaction *outgoing_transaction = dynamic_cast<OutgoingTransaction *>(transaction);
-	if (outgoing_transaction != NULL) {
-		LOGD("Ok from %p", outgoing_transaction);
-		msg_t *msg = msg_copy(nta_outgoing_getresponse(outgoing_transaction->getOutgoing()));
-		std::shared_ptr<SipEvent> ev(incoming->create(msg, sip_object(msg)));
-		ev->suspendProcessing();
-		agent->injectResponseEvent(ev, module);
+void ForkCallContext::receiveOk(OutgoingTransaction *transaction) {
+	LOGD("Ok from %p", transaction);
+	msg_t *msg = msg_copy(nta_outgoing_getresponse(transaction->getOutgoing()));
+	agent->onResponse(msg, sip_object(msg));
 
-		// Cancel others
-		for (std::list<OutgoingTransaction *>::iterator it = outgoings.begin(); it != outgoings.end();) {
-			std::list<OutgoingTransaction *>::iterator old_it = it;
-			++it;
-			if (*old_it != outgoing_transaction) {
-				OutgoingTransaction *ot = *old_it;
-				LOGD("Fork: cancel %p", ot->getOutgoing());
-				nta_outgoing_tcancel(ot->getOutgoing(), NULL, NULL, TAG_END());
-			}
-		}
-	} else {
-		LOGW("receiveOk only on Outgoing");
-	}
-}
-
-void ForkCallContext::receiveInvite(Transaction *transaction) {
-	IncomingTransaction *incoming_transaction = dynamic_cast<IncomingTransaction *>(transaction);
-	if (incoming_transaction != NULL) {
-		nta_incoming_treply(incoming_transaction->getIncoming(), SIP_100_TRYING, TAG_END());
-	} else {
-		LOGW("receiveInvite only on Incoming");
-	}
-}
-
-void ForkCallContext::receiveCancel(Transaction *transaction) {
-	IncomingTransaction *incoming_transaction = dynamic_cast<IncomingTransaction *>(transaction);
-	if (incoming_transaction != NULL) {
-		// Cancel all
-		for (std::list<OutgoingTransaction *>::iterator it = outgoings.begin(); it != outgoings.end();) {
-			std::list<OutgoingTransaction *>::iterator old_it = it;
-			++it;
+	// Cancel others
+	for (std::list<OutgoingTransaction *>::iterator it = outgoings.begin(); it != outgoings.end();) {
+		std::list<OutgoingTransaction *>::iterator old_it = it;
+		++it;
+		if (*old_it != transaction) {
 			OutgoingTransaction *ot = *old_it;
-			LOGD("Fork: Cancel %p", ot->getOutgoing());
+			LOGD("Fork: cancel %p", ot->getOutgoing());
 			nta_outgoing_tcancel(ot->getOutgoing(), NULL, NULL, TAG_END());
+			deleteTransaction(ot);
 		}
-		nta_incoming_treply(incoming_transaction->getIncoming(), SIP_200_OK, TAG_END());
-	} else {
-		LOGW("receiveCancel only on Incoming");
+	}
+
+	deleteTransaction(incoming);
+}
+
+void ForkCallContext::receiveInvite(IncomingTransaction *transaction) {
+	nta_incoming_treply(transaction->getIncoming(), SIP_100_TRYING, TAG_END());
+	state = INVITED;
+}
+
+void ForkCallContext::receiveCancel(IncomingTransaction *transaction) {
+	// transaction all
+	for (std::list<OutgoingTransaction *>::iterator it = outgoings.begin(); it != outgoings.end();) {
+		std::list<OutgoingTransaction *>::iterator old_it = it;
+		++it;
+		OutgoingTransaction *ot = *old_it;
+		LOGD("Fork: Cancel %p", ot->getOutgoing());
+		nta_outgoing_tcancel(ot->getOutgoing(), NULL, NULL, TAG_END());
+		deleteTransaction(ot);
+	}
+	nta_incoming_treply(transaction->getIncoming(), SIP_200_OK, TAG_END());
+	deleteTransaction(transaction);
+}
+
+void ForkCallContext::receiveTimeout(OutgoingTransaction *transaction) {
+	deleteTransaction(transaction);
+
+	if (outgoings.size() == 0) {
+		nta_incoming_treply(incoming->getIncoming(), SIP_408_REQUEST_TIMEOUT, TAG_END());
+		deleteTransaction(incoming);
 	}
 }
 
-void ForkCallContext::receiveTimeout(Transaction *transaction) {
-	OutgoingTransaction *outgoing_transaction = dynamic_cast<OutgoingTransaction *>(transaction);
-	if (outgoing_transaction != NULL) {
-		deleteOutgoingTransaction(outgoing_transaction);
-		return;
-	}
-
-	IncomingTransaction *incoming_transaction = dynamic_cast<IncomingTransaction *>(transaction);
-	if (incoming_transaction != NULL) {
-		deleteIncomingTransaction(incoming_transaction);
-		return;
-	}
-
-	LOGW("Fork: Invalid Transaction");
+void ForkCallContext::receiveBye(IncomingTransaction *transaction) {
+	deleteTransaction(transaction);
 }
 
-void ForkCallContext::receiveBye(Transaction *transaction) {
-	OutgoingTransaction *outgoing_transaction = dynamic_cast<OutgoingTransaction *>(transaction);
-	if (outgoing_transaction != NULL) {
-		deleteOutgoingTransaction(outgoing_transaction);
-		return;
-	}
+void ForkCallContext::receiveDecline(OutgoingTransaction *transaction) {
+	deleteTransaction(transaction);
 
-	IncomingTransaction *incoming_transaction = dynamic_cast<IncomingTransaction *>(transaction);
-	if (incoming_transaction != NULL) {
-		deleteIncomingTransaction(incoming_transaction);
-		return;
+	if (outgoings.size() == 0) {
+		nta_incoming_treply(incoming->getIncoming(), SIP_603_DECLINE, TAG_END());
+		deleteTransaction(incoming);
 	}
-
-	LOGW("Fork: Invalid Transaction");
 }
 
-void ForkCallContext::deleteOutgoingTransaction(OutgoingTransaction *transaction) {
+void ForkCallContext::receiveRinging(OutgoingTransaction *transaction) {
+	if (state == INVITED) {
+		nta_incoming_treply(incoming->getIncoming(), SIP_180_RINGING, TAG_END());
+		state = RINGING;
+	}
+}
+
+void ForkCallContext::deleteTransaction(OutgoingTransaction *transaction) {
 	if (transaction != NULL) {
 		delete transaction;
 		outgoings.remove(transaction);
-		if (outgoings.size() == 0) {
-			delete this;
-		}
 	}
-
 }
 
-void ForkCallContext::deleteIncomingTransaction(IncomingTransaction *transaction) {
+void ForkCallContext::deleteTransaction(IncomingTransaction *transaction) {
 	if (transaction != NULL) {
 		delete transaction;
 		incoming = NULL;
