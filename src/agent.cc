@@ -251,10 +251,12 @@ void Agent::onRequest(msg_t *msg, sip_t *sip){
 	}
 }
 
-void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
+void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev, Module * module) {
 	list<Module*>::iterator it;
 	ev->restartProcessing();
-	LOGD("Injecting event after %s", ev->mCurrModule->getModuleName().c_str());
+	if(module != NULL)
+		ev->mCurrModule = module;
+	LOGD("Injecting request event after %s", ev->mCurrModule->getModuleName().c_str());
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		if (ev->mCurrModule == *it) {
 			++it;
@@ -276,6 +278,26 @@ void Agent::onResponse(msg_t *msg, sip_t *sip){
 		ev->mCurrModule=*it;
 		(*it)->processResponse(ev);
 		if (ev->terminated() || ev->suspended()) break;
+	}
+}
+
+void Agent::injectResponseEvent(std::shared_ptr<SipEvent> &ev, Module * module) {
+	list<Module*>::iterator it;
+	ev->restartProcessing();
+	if(module != NULL)
+		ev->mCurrModule = module;
+	LOGD("Injecting response event after %s", ev->mCurrModule->getModuleName().c_str());
+	for (it = mModules.begin(); it != mModules.end(); ++it) {
+		if (ev->mCurrModule == *it) {
+			++it;
+			break;
+		}
+	}
+	for (; it != mModules.end(); ++it) {
+		ev->mCurrModule = *it;
+		(*it)->processResponse(ev);
+		if (ev->terminated() || ev->suspended())
+			break;
 	}
 }
 

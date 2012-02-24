@@ -21,6 +21,7 @@
 
 #include <memory>
 #include <list>
+#include "event.hh"
 
 class ModuleInfoBase;
 class Module;
@@ -65,69 +66,6 @@ class ModuleInfo : public ModuleInfoBase{
 		}
 	protected:
 		virtual Module *_create(Agent *ag);
-};
-
-
-class SipEvent{
-	friend class Agent;
-	public:
-		SipEvent(msg_t *msg, sip_t *sip):mCurrModule(NULL){
-			mMsg=msg;
-			mSip=sip;
-			mState=STARTED;
-			/* msg_t internal implementation "inherits" from su_home_t*/
-			mHome=(su_home_t*)msg;
-			msg_ref_create(mMsg);
-		}
-		msg_t *mMsg;
-		sip_t *mSip;
-
-		void terminateProcessing(){
-			if (mState == STARTED || mState == SUSPENDED) {
-				mState = TERMINATED;
-			} else {
-				LOGA("Can't terminateProcessing: wrong state");
-			}
-		}
-
-		void suspendProcessing(){
-			if (mState == STARTED) {
-				mState = SUSPENDED;
-			} else {
-				LOGA("Can't suspendProcessing: wrong state");
-			}
-		}
-
-		void restartProcessing() {
-			if (mState == SUSPENDED) {
-				mState = STARTED;
-			} else {
-				LOGA("Can't restartProcessing: wrong state");
-			}
-		}
-
-		bool suspended()const{
-			return mState == SUSPENDED;
-		}
-
-		bool terminated()const{
-			return mState == TERMINATED;
-		}
-
-		~SipEvent() {
-			msg_destroy(mMsg);
-		}
-		su_home_t* getHome() {
-			return mHome;
-		}
-	private:
-		enum {
-			STARTED,
-			SUSPENDED,
-			TERMINATED,
-		} mState;
-		su_home_t *mHome;
-		Module *mCurrModule;
 };
 
 class EntryFilter;

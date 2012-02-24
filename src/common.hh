@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <cstdarg>
 #include <ortp/ortp.h>
+#include <map>
 
 extern bool sUseSyslog;
 
@@ -72,6 +73,14 @@ class delete_functor{
 	public:
 		void operator()(_type *obj){
 			delete obj;
+		}
+};
+
+template <typename _first, typename _last>
+class map_delete_functor{
+	public:
+		void operator()(std::pair<_first, _last> obj){
+			delete obj.second;
 		}
 };
 

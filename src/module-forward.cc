@@ -121,7 +121,17 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev){
 	url_t* dest=NULL;
 	sip_t *sip=ev->mSip;
 	msg_t *msg=ev->mMsg;
-        
+
+	StatefulSipEvent *sse =  dynamic_cast<StatefulSipEvent *>(ev.get());
+	if(sse != NULL)
+	{
+		buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
+		LOGD("About to forward statefull request to %s:\n%s", url_as_string(ev->getHome(), dest), buf);
+		sse->getTransaction()->send(sse);
+		return;
+	}
+
+
 	// Check max forwards
 	if(sip->sip_max_forwards != NULL && sip->sip_max_forwards->mf_count <= countVia(ev))
 	{
@@ -207,7 +217,19 @@ bool ForwardModule::isLooping(std::shared_ptr<SipEvent> &ev, const char * branch
 
 void ForwardModule::onResponse(std::shared_ptr<SipEvent> &ev){
 	char *buf;
+	url_t* dest=NULL;
+	//sip_t *sip=ev->mSip;
+	msg_t *msg=ev->mMsg;
 	size_t msg_size;
+
+	StatefulSipEvent *sse =  dynamic_cast<StatefulSipEvent *>(ev.get());
+	if(sse != NULL)
+	{
+		buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
+		LOGD("About to forward statefull response to %s:\n%s", url_as_string(ev->getHome(), dest), buf);
+		sse->getTransaction()->send(sse);
+		return;
+	}
 
 	buf = msg_as_string(ev->getHome(), ev->mMsg, NULL, 0, &msg_size);
 	LOGD("About to forward response:\n%s", buf);
