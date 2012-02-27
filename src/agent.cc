@@ -242,8 +242,12 @@ bool Agent::isUs(const url_t *url,bool check_aliases)const{
 }
 
 void Agent::onRequest(msg_t *msg, sip_t *sip){
-	list<Module*>::iterator it;
 	shared_ptr<SipEvent> ev(new SipEvent(msg,sip));
+	sendRequestEvent(ev);
+}
+
+void Agent::sendRequestEvent(std::shared_ptr<SipEvent> &ev) {
+	list<Module*>::iterator it;
 	for(it=mModules.begin();it!=mModules.end();++it){
 		ev->mCurrModule=(*it);
 		(*it)->processRequest(ev);
@@ -251,11 +255,18 @@ void Agent::onRequest(msg_t *msg, sip_t *sip){
 	}
 }
 
-void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev, Module * module) {
+void Agent::sendResponseEvent(std::shared_ptr<SipEvent> &ev) {
+	list<Module*>::iterator it;
+	for(it=mModules.begin();it!=mModules.end();++it){
+		ev->mCurrModule=*it;
+		(*it)->processResponse(ev);
+		if (ev->terminated() || ev->suspended()) break;
+	}
+}
+
+void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
 	list<Module*>::iterator it;
 	ev->restartProcessing();
-	if(module != NULL)
-		ev->mCurrModule = module;
 	LOGD("Injecting request event after %s", ev->mCurrModule->getModuleName().c_str());
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		if (ev->mCurrModule == *it) {
@@ -272,20 +283,13 @@ void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev, Module * module) {
 }
 
 void Agent::onResponse(msg_t *msg, sip_t *sip){
-	list<Module*>::iterator it;
 	shared_ptr<SipEvent> ev(new SipEvent(msg,sip));
-	for(it=mModules.begin();it!=mModules.end();++it){
-		ev->mCurrModule=*it;
-		(*it)->processResponse(ev);
-		if (ev->terminated() || ev->suspended()) break;
-	}
+	sendResponseEvent(ev);
 }
 
-void Agent::injectResponseEvent(std::shared_ptr<SipEvent> &ev, Module * module) {
+void Agent::injectResponseEvent(std::shared_ptr<SipEvent> &ev) {
 	list<Module*>::iterator it;
 	ev->restartProcessing();
-	if(module != NULL)
-		ev->mCurrModule = module;
 	LOGD("Injecting response event after %s", ev->mCurrModule->getModuleName().c_str());
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		if (ev->mCurrModule == *it) {

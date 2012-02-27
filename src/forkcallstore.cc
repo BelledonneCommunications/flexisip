@@ -27,7 +27,8 @@ ForkCallContext::ForkCallContext(Agent *agent, Module *module) :
 }
 
 ForkCallContext::~ForkCallContext() {
-	delete incoming;
+	if (incoming != NULL)
+		delete incoming;
 	for_each(outgoings.begin(), outgoings.end(), delete_functor<OutgoingTransaction>());
 	LOGD("Destroy ForkCallContext %p", this);
 }
@@ -41,9 +42,10 @@ void ForkCallContext::addOutgoingTransaction(OutgoingTransaction *transaction) {
 }
 
 void ForkCallContext::receiveOk(OutgoingTransaction *transaction) {
-	LOGD("Ok from %p", transaction);
 	msg_t *msg = msg_copy(nta_outgoing_getresponse(transaction->getOutgoing()));
-	agent->onResponse(msg, sip_object(msg));
+	sip_via_remove(msg, sip_object(msg)); // remove via @see test_proxy.c from sofia
+	std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msg, sip_object(msg)));
+	agent->sendResponseEvent(ev);
 
 	// Cancel others
 	for (std::list<OutgoingTransaction *>::iterator it = outgoings.begin(); it != outgoings.end();) {
@@ -51,7 +53,7 @@ void ForkCallContext::receiveOk(OutgoingTransaction *transaction) {
 		++it;
 		if (*old_it != transaction) {
 			OutgoingTransaction *ot = *old_it;
-			LOGD("Fork: cancel %p", ot->getOutgoing());
+			LOGD("Fork: Cancel %p", ot->getOutgoing());
 			nta_outgoing_tcancel(ot->getOutgoing(), NULL, NULL, TAG_END());
 			deleteTransaction(ot);
 		}
@@ -61,12 +63,13 @@ void ForkCallContext::receiveOk(OutgoingTransaction *transaction) {
 }
 
 void ForkCallContext::receiveInvite(IncomingTransaction *transaction) {
-	nta_incoming_treply(transaction->getIncoming(), SIP_100_TRYING, TAG_END());
+	msg_t *msg = nta_incoming_create_response(transaction->getIncoming(), SIP_100_TRYING);
+	std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msg, sip_object(msg)));
+	agent->sendResponseEvent(ev);
 	state = INVITED;
 }
 
 void ForkCallContext::receiveCancel(IncomingTransaction *transaction) {
-	// transaction all
 	for (std::list<OutgoingTransaction *>::iterator it = outgoings.begin(); it != outgoings.end();) {
 		std::list<OutgoingTransaction *>::iterator old_it = it;
 		++it;
@@ -75,7 +78,9 @@ void ForkCallContext::receiveCancel(IncomingTransaction *transaction) {
 		nta_outgoing_tcancel(ot->getOutgoing(), NULL, NULL, TAG_END());
 		deleteTransaction(ot);
 	}
-	nta_incoming_treply(transaction->getIncoming(), SIP_200_OK, TAG_END());
+	msg_t *msg = nta_incoming_create_response(transaction->getIncoming(), SIP_200_OK);
+	std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msg, sip_object(msg)));
+	agent->sendResponseEvent(ev);
 	deleteTransaction(transaction);
 }
 
@@ -83,7 +88,9 @@ void ForkCallContext::receiveTimeout(OutgoingTransaction *transaction) {
 	deleteTransaction(transaction);
 
 	if (outgoings.size() == 0) {
-		nta_incoming_treply(incoming->getIncoming(), SIP_408_REQUEST_TIMEOUT, TAG_END());
+		msg_t *msg = nta_incoming_create_response(incoming->getIncoming(), SIP_408_REQUEST_TIMEOUT);
+		std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msg, sip_object(msg)));
+		agent->sendResponseEvent(ev);
 		deleteTransaction(incoming);
 	}
 }
@@ -96,14 +103,18 @@ void ForkCallContext::receiveDecline(OutgoingTransaction *transaction) {
 	deleteTransaction(transaction);
 
 	if (outgoings.size() == 0) {
-		nta_incoming_treply(incoming->getIncoming(), SIP_603_DECLINE, TAG_END());
+		msg_t *msg = nta_incoming_create_response(incoming->getIncoming(), SIP_603_DECLINE);
+		std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msg, sip_object(msg)));
+		agent->sendResponseEvent(ev);
 		deleteTransaction(incoming);
 	}
 }
 
 void ForkCallContext::receiveRinging(OutgoingTransaction *transaction) {
 	if (state == INVITED) {
-		nta_incoming_treply(incoming->getIncoming(), SIP_180_RINGING, TAG_END());
+		msg_t *msg = nta_incoming_create_response(incoming->getIncoming(), SIP_180_RINGING);
+		std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msg, sip_object(msg)));
+		agent->sendResponseEvent(ev);
 		state = RINGING;
 	}
 }
