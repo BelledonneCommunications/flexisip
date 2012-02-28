@@ -22,6 +22,7 @@
 
 #include "agent.hh"
 #include "event.hh"
+#include "transaction.hh"
 #include <list>
 #include <map>
 

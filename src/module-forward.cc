@@ -17,6 +17,7 @@
  */
 
 #include "agent.hh"
+#include "transaction.hh"
 #include "etchosts.hh"
 #include <sstream>
 

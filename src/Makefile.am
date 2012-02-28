@@ -12,6 +12,7 @@ flexisip_SOURCES=main.cc \
 			lpconfig.c lpconfig.h \
 			configmanager.cc configmanager.hh\
 			event.cc event.hh \
+			transaction.cc transaction.hh \
 			module.cc module.hh \
 			entryfilter.cc entryfilter.hh \
 			stun.cc stun.hh \

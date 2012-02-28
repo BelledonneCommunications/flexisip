@@ -53,7 +53,6 @@ void ForkCallContext::receiveOk(OutgoingTransaction *transaction) {
 		++it;
 		if (*old_it != transaction) {
 			OutgoingTransaction *ot = *old_it;
-			LOGD("Fork: Cancel %p", ot->getOutgoing());
 			nta_outgoing_tcancel(ot->getOutgoing(), NULL, NULL, TAG_END());
 			deleteTransaction(ot);
 		}
@@ -74,7 +73,6 @@ void ForkCallContext::receiveCancel(IncomingTransaction *transaction) {
 		std::list<OutgoingTransaction *>::iterator old_it = it;
 		++it;
 		OutgoingTransaction *ot = *old_it;
-		LOGD("Fork: Cancel %p", ot->getOutgoing());
 		nta_outgoing_tcancel(ot->getOutgoing(), NULL, NULL, TAG_END());
 		deleteTransaction(ot);
 	}

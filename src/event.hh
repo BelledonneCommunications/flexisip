@@ -52,8 +52,8 @@ private:
 	Module *mCurrModule;
 };
 
-class Transaction;
 
+class Transaction;
 class StatefulSipEvent: public SipEvent {
 private:
 	Transaction *transaction;
@@ -61,61 +61,6 @@ public:
 	StatefulSipEvent(Transaction *transaction, msg_t *msg, sip_t *sip);
 	Transaction *getTransaction();
 	~StatefulSipEvent();
-};
-
-class Transaction;
-typedef void (*TransactionCallback) (const sip_t *sip, Transaction *transaction);
-
-class Transaction {
-protected:
-	void* magic;
-	TransactionCallback callback;
-
-public:
-	Transaction(TransactionCallback callback, void *magic = NULL) :
-		magic(magic), callback(callback) {
-	};
-	void* getMagic() {
-		return magic;
-	}
-	virtual StatefulSipEvent *create(msg_t * msg, sip_t *sip) = 0;
-	virtual void send(StatefulSipEvent *) = 0;
-	virtual ~Transaction() {
-	}
-	;
-};
-
-class OutgoingTransaction: public Transaction {
-private:
-	nta_outgoing_t *outgoing;
-	nta_agent_t *agent;
-
-public:
-	OutgoingTransaction(nta_agent_t *agent, msg_t * msg, sip_t *sip, TransactionCallback callback, void *magic);
-	~OutgoingTransaction();
-	StatefulSipEvent *create(msg_t * msg, sip_t *sip);
-	void send(StatefulSipEvent *);
-	nta_outgoing_t* getOutgoing();
-
-private:
-	static int _callback(nta_outgoing_magic_t *magic, nta_outgoing_t *irq, const sip_t *sip);
-};
-
-class IncomingTransaction: public Transaction {
-private:
-	nta_incoming_t *incoming;
-	nta_leg_t *leg;
-	nta_agent_t *agent;
-
-public:
-	IncomingTransaction(nta_agent_t *agent, msg_t * msg, sip_t *sip, TransactionCallback callback, void *magic);
-	~IncomingTransaction();
-	StatefulSipEvent *create(msg_t * msg, sip_t *sip);
-	void send(StatefulSipEvent *);
-	nta_incoming_t* getIncoming();
-
-private:
-	static int _callback(nta_incoming_magic_t *magic, nta_incoming_t *irq, const sip_t *sip);
 };
 
 #endif //event_hh
