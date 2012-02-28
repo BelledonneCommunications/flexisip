@@ -242,8 +242,12 @@ bool Agent::isUs(const url_t *url,bool check_aliases)const{
 }
 
 void Agent::onRequest(msg_t *msg, sip_t *sip){
-	list<Module*>::iterator it;
 	shared_ptr<SipEvent> ev(new SipEvent(msg,sip));
+	sendRequestEvent(ev);
+}
+
+void Agent::sendRequestEvent(std::shared_ptr<SipEvent> &ev) {
+	list<Module*>::iterator it;
 	for(it=mModules.begin();it!=mModules.end();++it){
 		ev->mCurrModule=(*it);
 		(*it)->processRequest(ev);
@@ -251,10 +255,19 @@ void Agent::onRequest(msg_t *msg, sip_t *sip){
 	}
 }
 
+void Agent::sendResponseEvent(std::shared_ptr<SipEvent> &ev) {
+	list<Module*>::iterator it;
+	for(it=mModules.begin();it!=mModules.end();++it){
+		ev->mCurrModule=*it;
+		(*it)->processResponse(ev);
+		if (ev->terminated() || ev->suspended()) break;
+	}
+}
+
 void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
 	list<Module*>::iterator it;
 	ev->restartProcessing();
-	LOGD("Injecting event after %s", ev->mCurrModule->getModuleName().c_str());
+	LOGD("Injecting request event after %s", ev->mCurrModule->getModuleName().c_str());
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		if (ev->mCurrModule == *it) {
 			++it;
@@ -270,12 +283,25 @@ void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
 }
 
 void Agent::onResponse(msg_t *msg, sip_t *sip){
-	list<Module*>::iterator it;
 	shared_ptr<SipEvent> ev(new SipEvent(msg,sip));
-	for(it=mModules.begin();it!=mModules.end();++it){
-		ev->mCurrModule=*it;
+	sendResponseEvent(ev);
+}
+
+void Agent::injectResponseEvent(std::shared_ptr<SipEvent> &ev) {
+	list<Module*>::iterator it;
+	ev->restartProcessing();
+	LOGD("Injecting response event after %s", ev->mCurrModule->getModuleName().c_str());
+	for (it = mModules.begin(); it != mModules.end(); ++it) {
+		if (ev->mCurrModule == *it) {
+			++it;
+			break;
+		}
+	}
+	for (; it != mModules.end(); ++it) {
+		ev->mCurrModule = *it;
 		(*it)->processResponse(ev);
-		if (ev->terminated() || ev->suspended()) break;
+		if (ev->terminated() || ev->suspended())
+			break;
 	}
 }
 

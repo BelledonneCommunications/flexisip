@@ -4,11 +4,14 @@ flexisip_SOURCES=main.cc \
 			common.cc common.hh \
 			sdp-modifier.hh  sdp-modifier.cc \
 			callstore.hh  callstore.cc \
+			forkcallstore.hh  forkcallstore.cc \
 			callcontext.cc callcontext.hh \
 			registrardb-internal.cc registrardb-internal.hh registrardb.cc registrardb.hh \
 			etchosts.cc etchosts.hh \
 			lpconfig.c lpconfig.h \
 			configmanager.cc configmanager.hh\
+			event.cc event.hh \
+			transaction.cc transaction.hh \
 			module.cc module.hh \
 			entryfilter.cc entryfilter.hh \
 			stun.cc stun.hh \
