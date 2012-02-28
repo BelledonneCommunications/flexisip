@@ -23,6 +23,11 @@
 #include <iostream>
 #include <stdlib.h>
 
+#define CHECK_RETURN(return_val, cmd) 			\
+	if(return_val != 0) { 				\
+		LOGW("%s returns %d", cmd, return_val);	\
+	}
+
 DosProtection *DosProtection::sInstance = NULL;
 
 using namespace::std;
@@ -91,8 +96,11 @@ void DosProtection::stop(){
 
 	snprintf(cmd, sizeof(cmd)-1, "%s -F", mPath);
 	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
+	
 	snprintf(cmd, sizeof(cmd)-1, "%s -X", mPath);
 	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
 
 	/*
 	Removing SIP packets routing from INPUT to FLEXISIP chain's route
@@ -132,29 +140,35 @@ void DosProtection::start(){
 	/* FLEXISIP chain */
 	snprintf(cmd, sizeof(cmd)-1, "%s -N %s", mPath, mFlexisipChain);
 	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
 
 	/* Allowing some IPs to not be filtered by this rules */
 	for (list<string>::const_iterator iterator = mAuthorizedIPs.begin(); iterator != mAuthorizedIPs.end(); ++iterator){
 		const char* ip = (*iterator).c_str();
 		snprintf(cmd, sizeof(cmd)-1, "%s -A %s -s %s -j ACCEPT", mPath, mFlexisipChain, ip);
 		returnedValue = system(cmd);
+		CHECK_RETURN(returnedValue, cmd)
 	}
 
 	/* BLACKLIST chain */
 	snprintf(cmd, sizeof(cmd)-1, "%s -N %s", mPath, mBlacklistChain);
 	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
 
 	/* Logging blacklisted IPs */
 	snprintf(cmd, sizeof(cmd)-1, "%s -A %s -j LOG --log-prefix %s --log-level %s", mPath, mBlacklistChain, mLogPrefix, mLogLevel);
 	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
 
 	/* Dropping packets from BLACKLIST chain and theirs IPs to BLACKLIST list */
 	snprintf(cmd, sizeof(cmd)-1, "%s -A %s -m recent --name %s --set -j DROP", mPath, mBlacklistChain, mBlacklistChain);
 	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
 
 	/* Limitting the amount of simultaneous connections */
 	snprintf(cmd, sizeof(cmd)-1, "%s -A %s -m connlimit --connlimit-above %i -j DROP", mPath, mFlexisipChain, mMaximumConnections);
 	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
 
 	/*
 	 * We block all packets for a given duration
@@ -163,26 +177,33 @@ void DosProtection::start(){
 	*/
 	snprintf(cmd, sizeof(cmd)-1, "%s -A %s -m recent --update --name %s --seconds %i --rttl -j DROP", mPath, mFlexisipChain, mBlacklistChain, mBanDuration);
 	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
 
 	/* Adding all incoming packets to COUNTER list */
 	snprintf(cmd, sizeof(cmd)-1, "%s -A %s -m state --state NEW -m recent --name %s --set", mPath, mFlexisipChain, mCounterlist);
 	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
 
 	/* If limit of packets/seconds is reached into COUNTER list, we move the packet to the BLACKLIST chain */
 	snprintf(cmd, sizeof(cmd)-1, "%s -A %s -m state --state NEW -m recent --name %s --update --seconds %i --hitcount %i --rttl -j %s", mPath, mFlexisipChain, mCounterlist, mPeriod, mPacketsLimit, mBlacklistChain);
 	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
 
 	/* If a packet purged it's sentence, we unblacklist it */
 	snprintf(cmd, sizeof(cmd)-1, "%s -A %s -m recent --name %s --remove -j ACCEPT", mPath, mFlexisipChain, mBlacklistChain);
 	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
 
 	/* Routing all SIP traffic to FLEXISIP chain */
 	snprintf(cmd, sizeof(cmd)-1, "%s -A INPUT -p %s --dport %i -j %s", mPath, mProtocol, mPort, mFlexisipChain);
 	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
 
 	/* Increasing xt_recent default values */
 	snprintf(cmd, sizeof(cmd)-1, "chmod u+w /sys/module/xt_recent/parameters/ip_list_tot && echo %i > /sys/module/xt_recent/parameters/ip_list_tot && chmod u-w /sys/module/xt_recent/parameters/ip_list_tot", mMaximumConnections);
 	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
 	snprintf(cmd, sizeof(cmd)-1, "chmod u+w /sys/module/xt_recent/parameters/ip_pkt_list_tot && echo %i > /sys/module/xt_recent/parameters/ip_pkt_list_tot && chmod u-w /sys/module/xt_recent/parameters/ip_pkt_list_tot", mBlacklistMax);
 	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
 }
