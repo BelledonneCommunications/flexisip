@@ -68,7 +68,6 @@ void DosProtection::load(){
 	mMaximumConnections = dosProtection->get<ConfigInt>("maximum-connections")->read();
 
 	mPort = 5060;
-	mProtocol = "tcp";
 	mBlacklistMax = 200;
 	mPeriod = 1;
 	mLogLevel = "warning";
@@ -94,17 +93,16 @@ void DosProtection::stop(){
 	char cmd[100]={0};
 	int returnedValue;
 
-	snprintf(cmd, sizeof(cmd)-1, "%s -F", mPath);
-	returnedValue = system(cmd);
-	CHECK_RETURN(returnedValue, cmd)
-	
-	snprintf(cmd, sizeof(cmd)-1, "%s -X", mPath);
+	/* Restore previous state of IPtables */
+	snprintf(cmd, sizeof(cmd)-1, "%s-restore < /usr/local/etc/flexisip/iptables.bak", mPath);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
 	/*
 	Removing SIP packets routing from INPUT to FLEXISIP chain's route
-	snprintf(cmd, sizeof(cmd)-1, "%s -D INPUT -p %s --dport %i -j %s", mPath, mProtocol, mPort, mFlexisipChain);
+	snprintf(cmd, sizeof(cmd)-1, "%s -D INPUT -p tcp --dport %i -j %s", mPath, mPort, mFlexisipChain);
+	returnedValue = system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -D INPUT -p udp --dport %i -j %s", mPath, mPort, mFlexisipChain);
 	returnedValue = system(cmd);
 
 	Removing FLEXISIP chain
@@ -131,11 +129,13 @@ void DosProtection::start(){
 		return;
 	}
 
-	/* Remove an already defined FLEXISIP chain  */
-	stop();
-
 	char cmd[300];
 	int returnedValue;
+
+	/* Backup existing IPTables rules to restore this state after closing flexisip  */
+	snprintf(cmd, sizeof(cmd)-1, "%s-save > /usr/local/etc/flexisip/iptables.bak", mPath);
+	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
 
 	/* FLEXISIP chain */
 	snprintf(cmd, sizeof(cmd)-1, "%s -N %s", mPath, mFlexisipChain);
@@ -194,8 +194,11 @@ void DosProtection::start(){
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	/* Routing all SIP traffic to FLEXISIP chain */
-	snprintf(cmd, sizeof(cmd)-1, "%s -A INPUT -p %s --dport %i -j %s", mPath, mProtocol, mPort, mFlexisipChain);
+	/* Routing all tcp/udp SIP traffic to FLEXISIP chain */
+	snprintf(cmd, sizeof(cmd)-1, "%s -A INPUT -p tcp --dport %i -j %s", mPath, mPort, mFlexisipChain);
+	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
+	snprintf(cmd, sizeof(cmd)-1, "%s -A INPUT -p udp --dport %i -j %s", mPath, mPort, mFlexisipChain);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
