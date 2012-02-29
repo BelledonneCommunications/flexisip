@@ -32,7 +32,6 @@ class DosProtection{
 		int mPort;
 		int mBlacklistMax;
 		int mPeriod;
-		const char* mProtocol;
 		const char *mLogLevel;
 		const char *mLogPrefix;
 		const char *mFlexisipChain;
