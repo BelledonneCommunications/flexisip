@@ -104,6 +104,7 @@ private:
 	bool isManagedDomain(const char *domain) {
 		return ModuleToolbox::matchesOneOf(domain, mDomains);
 	}
+	bool contactinVia(sip_contact_t *ct, sip_via_t * via);
 	list<string> mDomains;
 	bool mFork;
 	static ModuleInfo<Registrar> sInfo;
@@ -163,7 +164,7 @@ static void outgoingCallback(const sip_t *sip, Transaction * transaction) {
 			LOGD("Fork: outgoingCallback 603");
 			context->receiveDecline(outgoing_transaction);
 			return;
-		}else if (sip->sip_status->st_status == 180) {
+		} else if (sip->sip_status->st_status == 180) {
 			LOGD("Fork: outgoingCallback 180");
 			context->receiveRinging(outgoing_transaction);
 			return;
@@ -172,7 +173,24 @@ static void outgoingCallback(const sip_t *sip, Transaction * transaction) {
 	LOGW("Outgoing transaction: ignore message");
 }
 
+bool Registrar::contactinVia(sip_contact_t *ct, sip_via_t * via) {
+
+	while (via != NULL) {
+		if (via->v_host && ct->m_url->url_host && !strcmp(via->v_host, ct->m_url->url_host)) {
+			const char *port1 = (via->v_port) ? via->v_port : "5060";
+			const char *port2 = (ct->m_url->url_port) ? ct->m_url->url_port : "5060";
+			if (!strcmp(port1, port2))
+				return true;
+		}
+		via = via->v_next;
+	}
+
+	return false;
+}
+
 void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record *aor, bool fork = false) {
+	sip_t *sip = ev->mSip;
+
 	// here we would implement forking
 	time_t now = time(NULL);
 	if (aor) {
@@ -182,21 +200,23 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 			if (ec)
 				ct = Record::extendedContactToSofia(ev->getHome(), ec, now);
 
-			/*sanity check on the contact address: might be '*' or whatever useless information*/
-			if (ct && ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
-				LOGD("Registrar: found contact information in database, rewriting request uri");
-				/*rewrite request-uri */
-				ev->mSip->sip_request->rq_url[0] = *url_hdup(ev->getHome(), ct->m_url);
-				if (0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
-					LOGD("This flexisip instance is not responsible for contact %s -> %s", ec->mSipUri, ec->mRoute);
-					prependRoute(ev->getHome(), agent, ev->mMsg, ev->mSip, ec->mRoute);
-				}
-				// Back to work
-				agent->injectRequestEvent(ev);
-				return;
-			} else {
-				if (ct != NULL) {
-					LOGW("Unrouted request because of incorrect address of record.");
+			if (!contactinVia(ct, sip->sip_via)) {
+				/*sanity check on the contact address: might be '*' or whatever useless information*/
+				if (ct && ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
+					LOGD("Registrar: found contact information in database, rewriting request uri");
+					/*rewrite request-uri */
+					ev->mSip->sip_request->rq_url[0] = *url_hdup(ev->getHome(), ct->m_url);
+					if (0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
+						LOGD("This flexisip instance is not responsible for contact %s -> %s", ec->mSipUri, ec->mRoute);
+						prependRoute(ev->getHome(), agent, ev->mMsg, ev->mSip, ec->mRoute);
+					}
+					// Back to work
+					agent->injectRequestEvent(ev);
+					return;
+				} else {
+					if (ct != NULL) {
+						LOGW("Unrouted request because of incorrect address of record.");
+					}
 				}
 			}
 		} else {
@@ -211,30 +231,32 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 					if (ec)
 						ct = Record::extendedContactToSofia(ev->getHome(), ec, now);
 
-					/*sanity check on the contact address: might be '*' or whatever useless information*/
-					if (ct && ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
-						LOGD("Registrar: found contact information in database, rewriting request uri");
+					if (!contactinVia(ct, sip->sip_via)) {
+						/*sanity check on the contact address: might be '*' or whatever useless information*/
+						if (ct && ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
+							LOGD("Registrar: found contact information in database, rewriting request uri");
 
-						msg_t *msg = msg_copy(ev->mMsg);
-						sip_t *sip = sip_object(msg);
+							msg_t *msg = msg_copy(ev->mMsg);
+							sip_t *sip = sip_object(msg);
 
-						/*rewrite request-uri */
-						sip->sip_request->rq_url[0] = *url_hdup(msg_home(msg), ct->m_url);
-						if (0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
-							LOGD("This flexisip instance is not responsible for contact %s -> %s", ec->mSipUri, ec->mRoute);
-							prependRoute(msg_home(msg), agent, msg, sip, ec->mRoute);
-						}
+							/*rewrite request-uri */
+							sip->sip_request->rq_url[0] = *url_hdup(msg_home(msg), ct->m_url);
+							if (0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
+								LOGD("This flexisip instance is not responsible for contact %s -> %s", ec->mSipUri, ec->mRoute);
+								prependRoute(msg_home(msg), agent, msg, sip, ec->mRoute);
+							}
 
-						LOGD("Fork to %s", ec->mSipUri);
-						OutgoingTransaction *transaction = new OutgoingTransaction(agent->getSofiaAgent(), msg, sip, outgoingCallback, context);
-						context->addOutgoingTransaction(transaction);
-						shared_ptr<SipEvent> new_ev(transaction->create(msg, sip));
-						transaction->send(dynamic_cast<StatefulSipEvent *>(new_ev.get()));
-						//new_ev->suspendProcessing();
-						//agent->injectRequestEvent(new_ev, this);
-					} else {
-						if (ct != NULL) {
-							LOGW("Unrouted request because of incorrect address of record.");
+							LOGD("Fork to %s", ec->mSipUri);
+							OutgoingTransaction *transaction = new OutgoingTransaction(agent->getSofiaAgent(), msg, sip, outgoingCallback, context);
+							context->addOutgoingTransaction(transaction);
+							shared_ptr<SipEvent> new_ev(transaction->create(msg, sip));
+							transaction->send(dynamic_cast<StatefulSipEvent *>(new_ev.get()));
+							//new_ev->suspendProcessing();
+							//agent->injectRequestEvent(new_ev, this);
+						} else {
+							if (ct != NULL) {
+								LOGW("Unrouted request because of incorrect address of record.");
+							}
 						}
 					}
 				}

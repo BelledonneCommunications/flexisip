@@ -20,9 +20,9 @@
 #include "agent.hh"
 #include "authdb.hh"
 #include "registrardb.hh"
-#include "generic-contact-route-inserter.hh"
 #include <sofia-sip/nua.h>
 #include <sofia-sip/sip_status.h>
+#include <limits.h>
 
 class GatewayRegister {
 private:
@@ -38,7 +38,7 @@ private:
 	string password;
 	sip_contact_t *contact;
 public:
-	void sendRegister(bool authentication = false, const char *realm = NULL);
+	void sendRegister();
 	GatewayRegister(Agent *ag, nua_t * nua, sip_from_t *from, sip_to_t *to, sip_contact_t *contact);
 	~GatewayRegister();
 	void onMessage(const sip_t *sip);
@@ -155,7 +155,7 @@ GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, si
 	to = sip_to_dup(&home, sip_to);
 
 	// Copy contact
-	contact = sip_contact_copy(&home, sip_contact);
+	contact = sip_contact_format(&home, "<sip:%s@%s:%i>;expires=%i", sip_contact->m_url->url_user, ag->getPublicIp().c_str(), ag->getPort(), INT_MAX);
 
 	// Override domains?
 	if (domain != NULL) {
@@ -175,21 +175,11 @@ GatewayRegister::~GatewayRegister() {
 	su_home_deinit(&home);
 }
 
-void GatewayRegister::sendRegister(bool authentication, const char *realm) {
-	LOGD("Send REGISTER: auth %i", authentication);
+void GatewayRegister::sendRegister() {
+	LOGD("Send REGISTER");
 	state = State::REGISTRING;
 
-	if (!authentication) {
-		nua_register(nh, SIPTAG_CONTACT(contact), TAG_END());
-	} else {
-		char * digest;
-		if (realm != NULL)
-			digest = su_sprintf(&home, "Digest:%s:%s:%s", realm, from->a_url->url_user, password.c_str());
-		else
-			digest = su_sprintf(&home, "Digest:\"%s\":%s:%s", from->a_url->url_host, from->a_url->url_user, password.c_str());
-
-		nua_authenticate(nh, NUTAG_AUTH(digest), TAG_END());
-	}
+	nua_register(nh, SIPTAG_CONTACT(contact), TAG_END());
 }
 
 void GatewayRegister::onMessage(const sip_t *sip) {
@@ -199,16 +189,7 @@ void GatewayRegister::onMessage(const sip_t *sip) {
 		break;
 
 	case State::REGISTRING:
-		if (sip->sip_status->st_status == 401) {
-			sendRegister(true);
-		} else if (sip->sip_status->st_status == 407) {
-			// Override realm
-			const char *realm = NULL;
-			if (sip->sip_proxy_authenticate != NULL && sip->sip_proxy_authenticate->au_params != NULL) {
-				realm = msg_params_find(sip->sip_proxy_authenticate->au_params, "realm=");
-			}
-			sendRegister(true, realm);
-		} else if (sip->sip_status->st_status == 200) {
+		if (sip->sip_status->st_status == 200) {
 			LOGD("REGISTER done");
 			state = State::REGISTRED;
 			end(); // TODO: stop the dialog?
@@ -247,7 +228,7 @@ void GatewayRegister::end() {
 	delete this;
 }
 
-class GatewayAdapter: public GenericContactRouteInserter {
+class GatewayAdapter: public Module {
 
 public:
 	GatewayAdapter(Agent *ag);
@@ -267,10 +248,13 @@ private:
 
 	static ModuleInfo<GatewayAdapter> sInfo;
 	nua_t *nua;
+	url_t *gateway_url;
+	su_home_t home;
 };
 
 GatewayAdapter::GatewayAdapter(Agent *ag) :
-		GenericContactRouteInserter(ag), nua(NULL) {
+		Module(ag), nua(NULL) {
+	su_home_init(&home);
 }
 
 GatewayAdapter::~GatewayAdapter() {
@@ -278,42 +262,32 @@ GatewayAdapter::~GatewayAdapter() {
 		nua_shutdown(nua);
 		su_root_run(mAgent->getRoot()); // Correctly wait for nua_destroy
 	}
+	su_home_deinit(&home);
 }
 
 void GatewayAdapter::onDeclare(ConfigStruct *module_config) {
-	GenericContactRouteInserter::onDeclare(module_config);
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = { { String, "gateway", "A gateway uri where to send all requests", "" }, { String, "gateway-domain", "Force the domain of send all requests", "" }, config_item_end };
 	module_config->addChildrenValues(items);
 }
 
 void GatewayAdapter::onLoad(Agent *agent, const ConfigStruct *module_config) {
-	GenericContactRouteInserter::onLoad(agent, module_config);
-
-	std::string gateway = module_config->get<ConfigString>("gateway")->read();
-	nua = nua_create(agent->getRoot(), nua_callback, this, NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()), TAG_END());
+	string gateway = module_config->get<ConfigString>("gateway")->read();
+	gateway_url = url_make(&home, gateway.c_str());
+	char *url = su_sprintf(&home, "sip:%s:*", agent->getPublicIp().c_str());
+	nua = nua_create(agent->getRoot(), nua_callback, this, NUTAG_URL(url), NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()), TAG_END());
 }
 
 void GatewayAdapter::onRequest(std::shared_ptr<SipEvent> &ev) {
 	sip_t *sip = ev->mSip;
-	sip_contact_t *contact = NULL;
-
-	// Copy original
-	if (sip->sip_request->rq_method == sip_method_register) {
-		if (sip->sip_contact != NULL) {
-			contact = sip_contact_copy(ev->getHome(), sip->sip_contact);
-		}
-	}
-
-	GenericContactRouteInserter::onRequest(ev);
 
 	if (sip->sip_request->rq_method == sip_method_register) {
 		if (sip->sip_contact != NULL) {
 			GatewayRegister *gr = new GatewayRegister(getAgent(), nua, sip->sip_from, sip->sip_to, sip->sip_contact);
-			if(contact != NULL) {
-				contact->m_next = sip->sip_contact;
-				sip->sip_contact = contact;
-			}
+			sip_contact_t *contact = sip_contact_format(&home, "<sip:%s@%s:%s>;expires=%i", sip->sip_contact->m_url->url_user, gateway_url->url_host, gateway_url->url_port, INT_MAX);
+
+			contact->m_next = sip->sip_contact;
+			sip->sip_contact = contact;
 
 			gr->start();
 		}
@@ -321,7 +295,6 @@ void GatewayAdapter::onRequest(std::shared_ptr<SipEvent> &ev) {
 }
 
 void GatewayAdapter::onResponse(std::shared_ptr<SipEvent> &ev) {
-	GenericContactRouteInserter::onResponse(ev);
 
 }
 

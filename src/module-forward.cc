@@ -20,6 +20,7 @@
 #include "transaction.hh"
 #include "etchosts.hh"
 #include <sstream>
+#include <sofia-sip/sip_status.h>
 
 static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip, char const *string_server);
 
@@ -121,7 +122,7 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev) {
 	// Check max forwards
 	if (sip->sip_max_forwards != NULL && sip->sip_max_forwards->mf_count <= countVia(ev)) {
 		LOGD("Too Many Hops");
-		nta_msg_treply(getSofiaAgent(), msg, 483, "Too Many Hops", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		nta_msg_treply(getSofiaAgent(), msg, SIP_483_TOO_MANY_HOPS, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		ev->terminateProcessing();
 		return;
 	}
@@ -149,7 +150,7 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev) {
 
 	/* workaround bad sip uris with two @ that results in host part being "something@somewhere" */
 	if (strchr(dest->url_host, '@') != 0) {
-		nta_msg_treply(getSofiaAgent(), msg, 400, "Bad request", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		nta_msg_treply(getSofiaAgent(), msg, SIP_400_BAD_REQUEST, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		ev->terminateProcessing();
 		return;
 	}
@@ -186,7 +187,7 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev) {
 		}
 	} else {
 		LOGD("Loop Detected");
-		nta_msg_treply(getSofiaAgent(), msg, 482, "Loop Detected", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		nta_msg_treply(getSofiaAgent(), msg, SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		ev->terminateProcessing();
 	}
 }
