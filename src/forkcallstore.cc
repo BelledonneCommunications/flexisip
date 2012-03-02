@@ -62,10 +62,17 @@ void ForkCallContext::receiveOk(OutgoingTransaction *transaction) {
 }
 
 void ForkCallContext::receiveInvite(IncomingTransaction *transaction) {
-	msg_t *msg = nta_incoming_create_response(transaction->getIncoming(), SIP_100_TRYING);
-	std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msg, sip_object(msg)));
-	agent->sendResponseEvent(ev);
-	state = INVITED;
+	if (outgoings.size()) {
+		msg_t *msg = nta_incoming_create_response(transaction->getIncoming(), SIP_100_TRYING);
+		std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msg, sip_object(msg)));
+		agent->sendResponseEvent(ev);
+		state = INVITED;
+	} else {
+		msg_t *msg = nta_incoming_create_response(transaction->getIncoming(), SIP_404_NOT_FOUND);
+		std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msg, sip_object(msg)));
+		agent->sendResponseEvent(ev);
+		deleteTransaction(transaction);
+	}
 }
 
 void ForkCallContext::receiveCancel(IncomingTransaction *transaction) {
