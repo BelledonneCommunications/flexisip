@@ -200,9 +200,9 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 			if (ec)
 				ct = Record::extendedContactToSofia(ev->getHome(), ec, now);
 
-			if (!contactinVia(ct, sip->sip_via)) {
+			if (ct && !contactinVia(ct, sip->sip_via)) {
 				/*sanity check on the contact address: might be '*' or whatever useless information*/
-				if (ct && ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
+				if (ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
 					LOGD("Registrar: found contact information in database, rewriting request uri");
 					/*rewrite request-uri */
 					ev->mSip->sip_request->rq_url[0] = *url_hdup(ev->getHome(), ct->m_url);
@@ -231,9 +231,9 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 					if (ec)
 						ct = Record::extendedContactToSofia(ev->getHome(), ec, now);
 
-					if (!contactinVia(ct, sip->sip_via)) {
+					if (ct && !contactinVia(ct, sip->sip_via)) {
 						/*sanity check on the contact address: might be '*' or whatever useless information*/
-						if (ct && ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
+						if (ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
 							LOGD("Registrar: found contact information in database, rewriting request uri");
 
 							msg_t *msg = msg_copy(ev->mMsg);
@@ -251,8 +251,6 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 							context->addOutgoingTransaction(transaction);
 							shared_ptr<SipEvent> new_ev(transaction->create(msg, sip));
 							transaction->send(dynamic_cast<StatefulSipEvent *>(new_ev.get()));
-							//new_ev->suspendProcessing();
-							//agent->injectRequestEvent(new_ev, this);
 						} else {
 							if (ct != NULL) {
 								LOGW("Unrouted request because of incorrect address of record.");
