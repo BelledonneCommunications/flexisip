@@ -16,6 +16,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <fstream>
 #include "agent.hh"
 #include "registrardb.hh"
 #include "forkcallstore.hh"
@@ -32,10 +33,12 @@ public:
 			Module(ag) {
 	}
 
+	~Registrar() {
+	}
+
 	virtual void onDeclare(ConfigStruct *module_config) {
 		ConfigItemDescriptor items[] = { { StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar.", "localhost" }, { Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "15" }, { String,
-				"line-field-name", "Name of the contact uri parameter used for identifying user's device. ", "line" },
-
+				"line-field-name", "Name of the contact uri parameter used for identifying user's device. ", "line" }, { String, "static-route-file", "File containing the static route to add to database at startup", "" },
 #ifdef ENABLE_REDIS
 				{	String , "db-implementation", "Implementation used for storing address of records contact uris. [redis-async, redis-sync, internal]","redis-async"},
 				{	String , "redis-server-domain", "Domain of the redis server. ","localhost"},
@@ -58,6 +61,9 @@ public:
 			LOGD("Found registrar domain: %s", (*it).c_str());
 		}
 		mFork = module_config->get<ConfigBoolean>("fork")->read();
+		static_route_file = module_config->get<ConfigString>("static-route-file")->read();
+		if (!static_route_file.empty())
+			readStaticRecord(static_route_file);
 	}
 
 	// Delta from expires header, normalized with custom rules.
@@ -97,18 +103,86 @@ public:
 
 	virtual void onRequest(std::shared_ptr<SipEvent> &ev);
 
-	virtual void onResponse(std::shared_ptr<SipEvent> &ev) {
-	}
+	virtual void onResponse(std::shared_ptr<SipEvent> &ev);
 
 private:
 	bool isManagedDomain(const char *domain) {
 		return ModuleToolbox::matchesOneOf(domain, mDomains);
 	}
+	void readStaticRecord(std::string file);
 	bool contactinVia(sip_contact_t *ct, sip_via_t * via);
 	list<string> mDomains;
 	bool mFork;
+	string static_route_file;
 	static ModuleInfo<Registrar> sInfo;
 };
+
+// Listener class NEED to copy the shared pointer
+class OnLogBindListener: public RegistrarDbListener {
+	friend class Registrar;
+	Agent *agent;
+	std::string line;
+public:
+	OnLogBindListener(Agent *agent, const std::string& line) :
+			agent(agent), line(line) {
+	}
+	void onRecordFound(Record *r) {
+		LOGD("Static route added: %s", line.c_str());
+		delete this;
+	}
+	void onError() {
+		LOGE("Can't add static route: %s", line.c_str());
+		delete this;
+	}
+};
+
+void Registrar::readStaticRecord(std::string file_path) {
+	LOGD("Read static recond file");
+
+	su_home_t home;
+
+	stringstream ss;
+	ss.exceptions(ifstream::failbit | ifstream::badbit);
+
+	string line;
+	string from;
+	string contact_header;
+
+	ifstream file;
+	file.open(file_path);
+	if (file.is_open()) {
+		su_home_init(&home);
+		while (file.good() && getline(file, line).good()) {
+			std::size_t start = line.find_first_of('<');
+			std::size_t pos = line.find_first_of('>');
+			if (start != string::npos && pos != string::npos && start < pos) {
+				if (line[pos + 1] == ' ') {
+					// Read from
+					from = line.substr(start + 1, pos - (start + 1));
+
+					// Read contacts
+					pos++;
+					contact_header = line.substr(pos, line.length() - pos);
+
+					// Create
+					url_t *url = url_make(&home, from.c_str());
+					sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
+
+					if (url != NULL && contact != NULL) {
+						OnLogBindListener *listener = new OnLogBindListener(getAgent(), line);
+						RegistrarDb::get(mAgent)->bind(url, contact, "", 0, NULL, INT32_MAX, listener);
+						continue;
+					}
+				}
+			}
+			LOGW("Incorrect line format: %s", line.c_str());
+		}
+		su_home_deinit(&home);
+	} else {
+		LOGE("Can't open file %s", file_path.c_str());
+	}
+
+}
 
 void Registrar::send480KO(Agent *agent, std::shared_ptr<SipEvent> &ev) {
 	nta_msg_treply(agent->getSofiaAgent(), ev->mMsg, 480, "Temporarily Unavailable", SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
@@ -206,7 +280,7 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 					LOGD("Registrar: found contact information in database, rewriting request uri");
 					/*rewrite request-uri */
 					ev->mSip->sip_request->rq_url[0] = *url_hdup(ev->getHome(), ct->m_url);
-					if (0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
+					if (ec->mRoute != NULL && 0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
 						LOGD("This flexisip instance is not responsible for contact %s -> %s", ec->mSipUri, ec->mRoute);
 						prependRoute(ev->getHome(), agent, ev->mMsg, ev->mSip, ec->mRoute);
 					}
@@ -241,7 +315,7 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 
 							/*rewrite request-uri */
 							sip->sip_request->rq_url[0] = *url_hdup(msg_home(msg), ct->m_url);
-							if (0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
+							if (ec->mRoute != NULL && 0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
 								LOGD("This flexisip instance is not responsible for contact %s -> %s", ec->mSipUri, ec->mRoute);
 								prependRoute(msg_home(msg), agent, msg, sip, ec->mRoute);
 							}
@@ -365,6 +439,9 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 			}
 		}
 	}
+}
+
+void Registrar::onResponse(std::shared_ptr<SipEvent> &ev) {
 }
 
 ModuleInfo<Registrar> Registrar::sInfo("Registrar", "The Registrar module accepts REGISTERs for domains it manages, and store the address of record "
