@@ -16,6 +16,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifdef HAVE_CONFIG_H
+#include "flexisip-config.h"
+#endif
 #include "dos-protection.hh"
 #include "configmanager.hh"
 
@@ -94,7 +97,7 @@ void DosProtection::stop(){
 	int returnedValue;
 
 	/* Restore previous state of IPtables */
-	snprintf(cmd, sizeof(cmd)-1, "%s-restore < /usr/local/etc/flexisip/iptables.bak", mPath);
+	snprintf(cmd, sizeof(cmd)-1, "%s-restore < "CONFIG_DIR"/iptables.bak", mPath);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
@@ -133,7 +136,7 @@ void DosProtection::start(){
 	int returnedValue;
 
 	/* Backup existing IPTables rules to restore this state after closing flexisip  */
-	snprintf(cmd, sizeof(cmd)-1, "%s-save > /usr/local/etc/flexisip/iptables.bak", mPath);
+	snprintf(cmd, sizeof(cmd)-1, "%s-save > "CONFIG_DIR"/iptables.bak", mPath);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
