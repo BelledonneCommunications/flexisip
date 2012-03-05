@@ -89,7 +89,7 @@ void DosProtection::stop() {
 	}
 
 	if (getuid() != 0) {
-		LOGE("Flexisip not started with root privileges! Can't add DOS protection iptables rules");
+		LOGE("Flexisip not started with root privileges! Can't remove DOS protection iptables rules");
 		return;
 	}
 
@@ -133,7 +133,7 @@ void DosProtection::start() {
 	}
 
 	if (getuid() != 0) {
-		LOGE("Flexisip not started with root privileges! Can't remove DOS protection iptables rules");
+		LOGE("Flexisip not started with root privileges! Can't add DOS protection iptables rules");
 		return;
 	}
 
