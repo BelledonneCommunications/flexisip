@@ -42,7 +42,7 @@ void ForkCallContext::addOutgoingTransaction(OutgoingTransaction *transaction) {
 }
 
 void ForkCallContext::receiveOk(OutgoingTransaction *transaction) {
-	msg_t *msg = msg_copy(nta_outgoing_getresponse(transaction->getOutgoing()));
+	msg_t *msg = nta_outgoing_getresponse(transaction->getOutgoing());
 	sip_via_remove(msg, sip_object(msg)); // remove via @see test_proxy.c from sofia
 	std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msg, sip_object(msg)));
 	agent->sendResponseEvent(ev);
