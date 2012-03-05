@@ -48,17 +48,15 @@
   </send>
 
 
- <recv response="100" >
+ <recv response="100" ontimeout="failed">
 	    <action>
 	      <ereg regexp=";branch=[^;]*" search_in="hdr" header="Via" check_it="false" assign_to="1"/>
 	    </action>
 	  </recv>
 	
   
-  <recv response="180" />
+  <recv response="180" ontimeout="failed"/>
   
-  <pause milliseconds="5000"/>
-
   <send retrans="500">
     <![CDATA[
 
@@ -74,7 +72,17 @@
     ]]>
   </send>
 
-  <recv response="200" />
+  <recv response="200" next="end" ontimeout="failed" />
+
+  <label id="failed"/>
+  <nop>
+  <action>
+  <exec int_cmd="stop_now"/>
+  </action>
+  </nop>
+
+  <label id="end" />
+
 
 </scenario>
 

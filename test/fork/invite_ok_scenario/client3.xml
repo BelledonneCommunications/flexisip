@@ -47,11 +47,19 @@
     ]]>
   </send>
 
-  <recv response="100" />
+  <recv response="100" ontimeout="failed" />
   
-  <recv response="180" />
+  <recv response="180" ontimeout="failed" />
 
-  <recv response="200" />
+  <recv response="200" next="end" ontimeout="failed" />
 
+  <label id="failed"/>
+  <nop>
+  <action>
+  <exec int_cmd="stop_now"/>
+  </action>
+  </nop>
+
+  <label id="end" />
 </scenario>
 
