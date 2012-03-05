@@ -112,7 +112,9 @@ void Module::processResponse(std::shared_ptr<SipEvent> &ev){
 }
 
 void Module::idle(){
-	onIdle();
+	if (mFilter->isEnabled()){
+		onIdle();
+	}
 }
 
 const std::string &Module::getModuleName(){
