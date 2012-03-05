@@ -29,6 +29,7 @@ class SipEvent {
 	friend class Agent;
 public:
 	SipEvent(msg_t *msg, sip_t *sip);
+	SipEvent(const SipEvent *sipEvent);
 	msg_t *mMsg;
 	sip_t *mSip;
 
@@ -59,6 +60,7 @@ private:
 	Transaction *transaction;
 public:
 	StatefulSipEvent(Transaction *transaction, msg_t *msg, sip_t *sip);
+	StatefulSipEvent(Transaction *transaction, const SipEvent *sipEvent);
 	Transaction *getTransaction();
 	~StatefulSipEvent();
 };

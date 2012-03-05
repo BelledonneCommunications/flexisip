@@ -34,7 +34,6 @@ class ForkCallContext {
 
 	enum State {
 		INITIAL,
-		INVITED,
 		RINGING,
 	} state;
 
@@ -44,7 +43,6 @@ public:
 
 	void setIncomingTransaction(IncomingTransaction *transaction);
 	void addOutgoingTransaction(OutgoingTransaction *transaction);
-	void receiveInvite(IncomingTransaction *transaction);
 	void receiveOk(OutgoingTransaction *transaction);
 	void receiveCancel(IncomingTransaction *transaction);
 	void receiveTimeout(OutgoingTransaction *transaction);
@@ -52,6 +50,10 @@ public:
 	void receiveDecline(OutgoingTransaction *transaction);
 	void receiveRinging(OutgoingTransaction *transaction);
 	void receiveBye(IncomingTransaction *transaction);
+
+	static void incomingCallback(const sip_t *sip, Transaction * transaction);
+	static void outgoingCallback(const sip_t *sip, Transaction * transaction);
+
 private:
 	void deleteTransaction(OutgoingTransaction *transaction);
 	void deleteTransaction(IncomingTransaction *transaction);

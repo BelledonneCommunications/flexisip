@@ -61,20 +61,6 @@ void ForkCallContext::receiveOk(OutgoingTransaction *transaction) {
 	deleteTransaction(incoming);
 }
 
-void ForkCallContext::receiveInvite(IncomingTransaction *transaction) {
-	if (outgoings.size()) {
-		msg_t *msg = nta_incoming_create_response(transaction->getIncoming(), SIP_100_TRYING);
-		std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msg, sip_object(msg)));
-		agent->sendResponseEvent(ev);
-		state = INVITED;
-	} else {
-		msg_t *msg = nta_incoming_create_response(transaction->getIncoming(), SIP_404_NOT_FOUND);
-		std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msg, sip_object(msg)));
-		agent->sendResponseEvent(ev);
-		deleteTransaction(transaction);
-	}
-}
-
 void ForkCallContext::receiveCancel(IncomingTransaction *transaction) {
 	for (std::list<OutgoingTransaction *>::iterator it = outgoings.begin(); it != outgoings.end();) {
 		std::list<OutgoingTransaction *>::iterator old_it = it;
@@ -116,7 +102,7 @@ void ForkCallContext::receiveDecline(OutgoingTransaction *transaction) {
 }
 
 void ForkCallContext::receiveRinging(OutgoingTransaction *transaction) {
-	if (state == INVITED) {
+	if (state == INITIAL) {
 		msg_t *msg = nta_incoming_create_response(incoming->getIncoming(), SIP_180_RINGING);
 		std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msg, sip_object(msg)));
 		agent->sendResponseEvent(ev);
@@ -139,6 +125,50 @@ void ForkCallContext::deleteTransaction(IncomingTransaction *transaction) {
 	}
 
 }
+
+
+void ForkCallContext::incomingCallback(const sip_t *sip, Transaction * transaction) {
+	IncomingTransaction *incoming_transaction = dynamic_cast<IncomingTransaction *>(transaction);
+	if (sip != NULL && sip->sip_request != NULL) {
+		ForkCallContext *context = reinterpret_cast<ForkCallContext *>(transaction->getMagic());
+		if (sip->sip_request->rq_method == sip_method_cancel) {
+			LOGD("Fork: incomingCallback cancel");
+			context->receiveCancel(incoming_transaction);
+			return;
+		} else if (sip->sip_request->rq_method == sip_method_bye) {
+			LOGD("Fork: incomingCallback bye");
+			context->receiveBye(incoming_transaction);
+			return;
+		}
+	}
+	LOGW("Incoming transaction: ignore message");
+}
+
+void ForkCallContext::outgoingCallback(const sip_t *sip, Transaction * transaction) {
+	OutgoingTransaction *outgoing_transaction = dynamic_cast<OutgoingTransaction *>(transaction);
+	if (sip != NULL && sip->sip_status != NULL) {
+		ForkCallContext *context = reinterpret_cast<ForkCallContext *>(transaction->getMagic());
+		if (sip->sip_status->st_status == 200) {
+			LOGD("Fork: outgoingCallback 200");
+			context->receiveOk(outgoing_transaction);
+			return;
+		} else if (sip->sip_status->st_status == 408 || sip->sip_status->st_status == 503) {
+			LOGD("Fork: outgoingCallback 408/503");
+			context->receiveTimeout(outgoing_transaction);
+			return;
+		} else if (sip->sip_status->st_status == 603) {
+			LOGD("Fork: outgoingCallback 603");
+			context->receiveDecline(outgoing_transaction);
+			return;
+		} else if (sip->sip_status->st_status == 180) {
+			LOGD("Fork: outgoingCallback 180");
+			context->receiveRinging(outgoing_transaction);
+			return;
+		}
+	}
+	LOGW("Outgoing transaction: ignore message");
+}
+
 
 void ForkCallStore::addForkCall(long id, ForkCallContext* forkcall) {
 	mForkCallContexts.insert(std::pair<long, ForkCallContext*>(id, forkcall));
@@ -167,4 +197,3 @@ ForkCallStore::ForkCallStore() {
 ForkCallStore::~ForkCallStore() {
 	for_each(mForkCallContexts.begin(), mForkCallContexts.end(), map_delete_functor<long, ForkCallContext*>());
 }
-

@@ -28,6 +28,7 @@ class Transaction;
 typedef void (*TransactionCallback) (const sip_t *sip, Transaction *transaction);
 
 class StatefulSipEvent;
+class SipEvent;
 class Transaction {
 protected:
 	void* magic;
@@ -41,6 +42,7 @@ public:
 		return magic;
 	}
 	virtual StatefulSipEvent *create(msg_t * msg, sip_t *sip) = 0;
+	virtual StatefulSipEvent *copy(const SipEvent *sipEvent) = 0;
 	virtual void send(StatefulSipEvent *) = 0;
 	virtual ~Transaction() {
 	}
@@ -53,9 +55,10 @@ private:
 	nta_agent_t *agent;
 
 public:
-	OutgoingTransaction(nta_agent_t *agent, msg_t * msg, sip_t *sip, TransactionCallback callback, void *magic);
+	OutgoingTransaction(nta_agent_t *agent, TransactionCallback callback, void *magic);
 	~OutgoingTransaction();
 	StatefulSipEvent *create(msg_t * msg, sip_t *sip);
+	StatefulSipEvent *copy(const SipEvent *sipEvent);
 	void send(StatefulSipEvent *);
 	nta_outgoing_t* getOutgoing();
 
@@ -72,6 +75,7 @@ public:
 	IncomingTransaction(nta_agent_t *agent, msg_t * msg, sip_t *sip, TransactionCallback callback, void *magic);
 	~IncomingTransaction();
 	StatefulSipEvent *create(msg_t * msg, sip_t *sip);
+	StatefulSipEvent *copy(const SipEvent *sipEvent);
 	void send(StatefulSipEvent *);
 	nta_incoming_t* getIncoming();
 

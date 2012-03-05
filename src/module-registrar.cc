@@ -20,6 +20,7 @@
 #include "agent.hh"
 #include "registrardb.hh"
 #include "forkcallstore.hh"
+#include <sofia-sip/sip_status.h>
 
 using namespace ::std;
 
@@ -205,48 +206,6 @@ static extended_contact *getFirstExtendedContact(Record *aor) {
 	return it != contacts.end() ? (*it) : NULL;
 }
 
-static void incomingCallback(const sip_t *sip, Transaction * transaction) {
-	IncomingTransaction *incoming_transaction = dynamic_cast<IncomingTransaction *>(transaction);
-	if (sip != NULL && sip->sip_request != NULL) {
-		ForkCallContext *context = reinterpret_cast<ForkCallContext *>(transaction->getMagic());
-		if (sip->sip_request->rq_method == sip_method_cancel) {
-			LOGD("Fork: incomingCallback cancel");
-			context->receiveCancel(incoming_transaction);
-			return;
-		} else if (sip->sip_request->rq_method == sip_method_bye) {
-			LOGD("Fork: incomingCallback bye");
-			context->receiveBye(incoming_transaction);
-			return;
-		}
-	}
-	LOGW("Incoming transaction: ignore message");
-}
-
-static void outgoingCallback(const sip_t *sip, Transaction * transaction) {
-	OutgoingTransaction *outgoing_transaction = dynamic_cast<OutgoingTransaction *>(transaction);
-	if (sip != NULL && sip->sip_status != NULL) {
-		ForkCallContext *context = reinterpret_cast<ForkCallContext *>(transaction->getMagic());
-		if (sip->sip_status->st_status == 200) {
-			LOGD("Fork: outgoingCallback 200");
-			context->receiveOk(outgoing_transaction);
-			return;
-		} else if (sip->sip_status->st_status == 408 || sip->sip_status->st_status == 503) {
-			LOGD("Fork: outgoingCallback 408/503");
-			context->receiveTimeout(outgoing_transaction);
-			return;
-		} else if (sip->sip_status->st_status == 603) {
-			LOGD("Fork: outgoingCallback 603");
-			context->receiveDecline(outgoing_transaction);
-			return;
-		} else if (sip->sip_status->st_status == 180) {
-			LOGD("Fork: outgoingCallback 180");
-			context->receiveRinging(outgoing_transaction);
-			return;
-		}
-	}
-	LOGW("Outgoing transaction: ignore message");
-}
-
 bool Registrar::contactinVia(sip_contact_t *ct, sip_via_t * via) {
 
 	while (via != NULL) {
@@ -268,7 +227,8 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 	// here we would implement forking
 	time_t now = time(NULL);
 	if (aor) {
-		if (!fork || ev->mSip->sip_request->rq_method != sip_method_invite) {
+		const list<extended_contact*> contacts = aor->getExtendedContacts();
+		if (contacts.size() <= 1 || !fork || ev->mSip->sip_request->rq_method != sip_method_invite) {
 			extended_contact *ec = getFirstExtendedContact(aor);
 			sip_contact_t *ct = NULL;
 			if (ec)
@@ -294,52 +254,54 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 				}
 			}
 		} else {
-			const list<extended_contact*> contacts = aor->getExtendedContacts();
 			ForkCallContext *context = new ForkCallContext(agent, this);
-			IncomingTransaction *incoming_transaction = new IncomingTransaction(agent->getSofiaAgent(), ev->mMsg, ev->mSip, incomingCallback, context);
+			IncomingTransaction *incoming_transaction = new IncomingTransaction(agent->getSofiaAgent(), ev->mMsg, ev->mSip, ForkCallContext::incomingCallback, context);
 			context->setIncomingTransaction(incoming_transaction);
-			if (contacts.size() != 0) {
-				for (list<extended_contact*>::const_iterator it = contacts.begin(); it != contacts.end(); ++it) {
-					extended_contact *ec = *it;
-					sip_contact_t *ct = NULL;
-					if (ec)
-						ct = Record::extendedContactToSofia(ev->getHome(), ec, now);
+			for (list<extended_contact*>::const_iterator it = contacts.begin(); it != contacts.end(); ++it) {
+				extended_contact *ec = *it;
+				sip_contact_t *ct = NULL;
+				if (ec)
+					ct = Record::extendedContactToSofia(ev->getHome(), ec, now);
 
-					if (ct && !contactinVia(ct, sip->sip_via)) {
-						/*sanity check on the contact address: might be '*' or whatever useless information*/
-						if (ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
-							LOGD("Registrar: found contact information in database, rewriting request uri");
+				if (ct && !contactinVia(ct, sip->sip_via)) {
+					/*sanity check on the contact address: might be '*' or whatever useless information*/
+					if (ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
+						LOGD("Registrar: found contact information in database, rewriting request uri");
 
-							msg_t *msg = msg_copy(ev->mMsg);
-							sip_t *sip = sip_object(msg);
+						OutgoingTransaction *transaction = new OutgoingTransaction(agent->getSofiaAgent(), ForkCallContext::outgoingCallback, context);
+						context->addOutgoingTransaction(transaction);
 
-							/*rewrite request-uri */
-							sip->sip_request->rq_url[0] = *url_hdup(msg_home(msg), ct->m_url);
-							if (ec->mRoute != NULL && 0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
-								LOGD("This flexisip instance is not responsible for contact %s -> %s", ec->mSipUri, ec->mRoute);
-								prependRoute(msg_home(msg), agent, msg, sip, ec->mRoute);
-							}
+						shared_ptr<SipEvent> new_ev(transaction->copy(ev.get()));
+						msg_t *new_msg = new_ev->mMsg;
+						sip_t *new_sip = new_ev->mSip;
 
-							LOGD("Fork to %s", ec->mSipUri);
-							OutgoingTransaction *transaction = new OutgoingTransaction(agent->getSofiaAgent(), msg, sip, outgoingCallback, context);
-							context->addOutgoingTransaction(transaction);
-							shared_ptr<SipEvent> new_ev(transaction->create(msg, sip));
-							transaction->send(dynamic_cast<StatefulSipEvent *>(new_ev.get()));
-						} else {
-							if (ct != NULL) {
-								LOGW("Unrouted request because of incorrect address of record.");
-							}
+						/*rewrite request-uri */
+						new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), ct->m_url);
+						if (ec->mRoute != NULL && 0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
+							LOGD("This flexisip instance is not responsible for contact %s -> %s", ec->mSipUri, ec->mRoute);
+							prependRoute(msg_home(new_msg), agent, new_msg, new_sip, ec->mRoute);
+						}
+
+						LOGD("Fork to %s", ec->mSipUri);
+						agent->injectRequestEvent(new_ev);
+					} else {
+						if (ct != NULL) {
+							LOGW("Unrouted request because of incorrect address of record.");
 						}
 					}
 				}
-				context->receiveInvite(incoming_transaction);
-				return;
 			}
+
+			msg_t *msg = nta_incoming_create_response(incoming_transaction->getIncoming(), SIP_100_TRYING);
+			std::shared_ptr<SipEvent> new_ev(incoming_transaction->create(msg, sip_object(msg)));
+			agent->sendResponseEvent(new_ev);
+			ev->terminateProcessing();
+			return;
 		}
 	}
 
 	LOGD("This user isn't registered.");
-	nta_msg_treply(agent->getSofiaAgent(), ev->mMsg, 404, "User not found", SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
+	nta_msg_treply(agent->getSofiaAgent(), ev->mMsg, SIP_404_NOT_FOUND, SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
 	ev->terminateProcessing();
 }
 

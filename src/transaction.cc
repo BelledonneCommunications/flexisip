@@ -20,7 +20,7 @@
 #include "event.hh"
 #include "common.hh"
 
-OutgoingTransaction::OutgoingTransaction(nta_agent_t *agent, msg_t * msg, sip_t *sip, TransactionCallback callback, void *magic) :
+OutgoingTransaction::OutgoingTransaction(nta_agent_t *agent, TransactionCallback callback, void *magic) :
 		Transaction(callback, magic), outgoing(NULL), agent(agent) {
 	LOGD("New OutgoingTransaction %p", this);
 
@@ -36,6 +36,10 @@ OutgoingTransaction::~OutgoingTransaction() {
 
 StatefulSipEvent *OutgoingTransaction::create(msg_t * msg, sip_t *sip) {
 	return new StatefulSipEvent(this, msg, sip);
+}
+
+StatefulSipEvent *OutgoingTransaction::copy(const SipEvent *sipEvent) {
+	return new StatefulSipEvent(this, sipEvent);
 }
 
 void OutgoingTransaction::send(StatefulSipEvent *ev) {
@@ -73,6 +77,10 @@ IncomingTransaction::~IncomingTransaction() {
 
 StatefulSipEvent *IncomingTransaction::create(msg_t * msg, sip_t *sip) {
 	return new StatefulSipEvent(this, msg, sip);
+}
+
+StatefulSipEvent *IncomingTransaction::copy(const SipEvent *sipEvent) {
+	return new StatefulSipEvent(this, sipEvent);
 }
 
 void IncomingTransaction::send(StatefulSipEvent *ev) {

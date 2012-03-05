@@ -18,6 +18,7 @@
 
 #include "event.hh"
 #include "common.hh"
+#include <sofia-sip/sip_protos.h>
 
 SipEvent::SipEvent(msg_t *msg, sip_t *sip) :
 		mCurrModule(NULL) {
@@ -26,6 +27,15 @@ SipEvent::SipEvent(msg_t *msg, sip_t *sip) :
 	mState = STARTED;
 	/* msg_t internal implementation "inherits" from su_home_t*/
 	mHome = (su_home_t*) msg;
+	msg_ref_create(mMsg);
+}
+
+SipEvent::SipEvent(const SipEvent *sipEvent) {
+	mMsg = msg_copy(sipEvent->mMsg);
+	mSip = sip_object(mMsg);
+	mState = sipEvent->mState;
+	mHome = msg_home(mMsg);
+	mCurrModule = sipEvent->mCurrModule;
 	msg_ref_create(mMsg);
 }
 
@@ -71,6 +81,11 @@ su_home_t* SipEvent::getHome() {
 
 StatefulSipEvent::StatefulSipEvent(Transaction *transaction, msg_t *msg, sip_t *sip) :
 		SipEvent(msg, sip), transaction(transaction) {
+
+}
+
+StatefulSipEvent::StatefulSipEvent(Transaction *transaction, const SipEvent *sipEvent) :
+		SipEvent(sipEvent), transaction(transaction) {
 
 }
 
