@@ -3,7 +3,7 @@
 
 <scenario name="Register one user with authentication">
 
-<Global variables="userId,luserAddContact,luserIpPort,domain,expire">
+<Global variables="userId,luserIpPort,domain,expire">
   <action>
     <assign assign_to="userId" value="0" />
   </action>
