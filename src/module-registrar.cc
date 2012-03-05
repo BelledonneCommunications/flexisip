@@ -48,8 +48,8 @@ public:
 				{	String , "redis-record-serializer", "Implementation of the contact serialiser to use. [C, protobuf]","protobuf"},
 #else
 				{ String, "db-implementation", "Implementation used for storing address of records contact uris. [internal,...]", "internal" },
-				{ Boolean, "fork", "Fork all incoming message", "false" },
 #endif
+				{ Boolean, "fork", "Fork all incoming message", "false" },
 				config_item_end };
 		module_config->addChildrenValues(items);
 	}
