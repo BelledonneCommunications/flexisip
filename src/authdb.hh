@@ -119,7 +119,7 @@ class OdbcAuthDb : public AuthDb {
 	void stmtError(ConnectionCtx &ctx, const char* doing);
 	void envError(const char* doing);
 	bool execDirect;
-	bool getConnection(ConnectionCtx &ctx, AuthDbTimings &timings);
+	bool getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimings &timings);
 	AuthDbResult doRetrievePassword(const string &user, const string &host, const string &auth, string &foundPassword, AuthDbTimings &timings);
 	void doAsyncRetrievePassword(su_root_t *, string id, string domain, string auth, string fallback, AuthDbListener *listener);
 public:

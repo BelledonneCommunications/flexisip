@@ -199,6 +199,10 @@ static vector<string> parseAndUpdateRequestConfig(string &request) {
 	return found_parameters;
 }
 
+/**
+ * See documentation on ODBC on Microsoft pages:
+ * http://msdn.microsoft.com/en-us/library/ms716319%28v=VS.85%29.aspx
+ */
 OdbcAuthDb::OdbcAuthDb():mAsynchronousRetrieving(true),env(NULL),execDirect(false) {
 	ConfigStruct *cr=ConfigManager::get()->getRoot();
 	ConfigStruct *ma=cr->get<ConfigStruct>("module::Authentication");
@@ -228,6 +232,8 @@ OdbcAuthDb::OdbcAuthDb():mAsynchronousRetrieving(true),env(NULL),execDirect(fals
 	asPooling=ma->get<ConfigBoolean>("odbc-pooling")->read();
 
 	SQLRETURN retcode;
+	// 1. Enable or disable connection pooling.
+	// It should be done BEFORE allocating the environment.
 	unsigned long poolingPtr = asPooling ? SQL_CP_ONE_PER_DRIVER : SQL_CP_OFF;
 	retcode = SQLSetEnvAttr(NULL, SQL_ATTR_CONNECTION_POOLING, (void*)poolingPtr, 0);
 	if (!SQL_SUCCEEDED(retcode)) {
@@ -235,21 +241,26 @@ OdbcAuthDb::OdbcAuthDb():mAsynchronousRetrieving(true),env(NULL),execDirect(fals
 		LOGF("odbc error");
 	}
 
+	// 2. Allocate environment
 	retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
 	if (!SQL_SUCCEEDED(retcode)) {
 		LOGF("Error allocating ENV");
 	}
+
+	// 3. Use ODBC version 3
 	retcode = SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
 	if (!SQL_SUCCEEDED(retcode)) {
 		envError("SQLSetEnvAttr ODBCv3");
 		LOGF("odbc error");
 	}
 
+
 	// Make sure the driver library is loaded.
 	// Workaround odbc errors while loading .so connector library.
 	AuthDbTimings timings;
 	ConnectionCtx ctx;
-	getConnection(ctx, timings);
+	string init="init";
+	getConnection(init, ctx, timings);
 }
 
 void OdbcAuthDb::setExecuteDirect(const bool value) {
@@ -325,16 +336,19 @@ void OdbcAuthDb::stmtError(ConnectionCtx &ctx, const char* doing) {
 }
 
 
-
-bool OdbcAuthDb::getConnection(ConnectionCtx &ctx, AuthDbTimings &timings) {
+bool OdbcAuthDb::getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimings &timings) {
+	monotonic_clock::time_point tp1=monotonic_clock::now();
 	SQLRETURN retcode = SQLAllocHandle(SQL_HANDLE_DBC, env, &ctx.dbc);
 	if (!SQL_SUCCEEDED(retcode)) {
 		envError("SQLAllocHandle DBC");
 		return false;
 	}
+	monotonic_clock::time_point tp2=monotonic_clock::now();
+	LOGD("SQLAllocHandle: %s : %lu ms", id.c_str(), duration_cast<milliseconds>(tp2-tp1).count());
 
 	retcode = SQLDriverConnect(ctx.dbc, NULL, (SQLCHAR*) connectionString.c_str(), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
 	if (!SQL_SUCCEEDED(retcode)) {dbcError(ctx, "SQLDriverConnect"); return false;}
+	LOGD("SQLDriverConnect %s : %lu ms", id.c_str(), duration_cast<milliseconds>(monotonic_clock::now()-tp2).count());
 
 	// Set connection to be read only
 	SQLSetConnectAttr(ctx.dbc, SQL_ATTR_ACCESS_MODE, (SQLPOINTER)SQL_MODE_READ_ONLY, 0);
@@ -447,7 +461,14 @@ static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg,
 }
 
 
+static unsigned long threadCount=0;
+static mutex threadCountMutex;
 void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string domain, string auth, string fallback, AuthDbListener *listener){
+	unsigned long localThreadCountCopy=0;
+	threadCountMutex.lock();
+	++threadCount;
+	localThreadCountCopy=threadCount;
+	threadCountMutex.unlock();
 	string foundPassword;
 	AuthDbTimings timings;
 	timings.tStart=monotonic_clock::now();
@@ -492,14 +513,20 @@ void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string doma
 			LOGF("Couldn't send auth async message to main thread.");
 		}
 	}
+
+	threadCountMutex.lock();
+	--threadCount;
+	localThreadCountCopy=threadCount;
+	threadCountMutex.unlock();
 }
 
 AuthDbResult OdbcAuthDb::doRetrievePassword(const string &id, const string &domain, const string &auth, string &foundPassword, AuthDbTimings &timings){
 	ConnectionCtx ctx;
-	if (!getConnection(ctx, timings)) {
+	if (!getConnection(id, ctx, timings)) {
 		LOGE("ConnectionCtx creation error");
 		return AUTH_ERROR;
 	}
+
 	timings.tGotConnection=monotonic_clock::now();
 	SQLHANDLE stmt=ctx.stmt;
 
@@ -569,6 +596,6 @@ AuthDbResult OdbcAuthDb::doRetrievePassword(const string &id, const string &doma
 	foundPassword.assign((char*)password);
 	string key(createPasswordKey(id, domain, auth));
 	cachePassword(key, domain, foundPassword, time(NULL));
-//	LOGE("Password found %s", foundPassword.c_str());
+	LOGD("Password found %s for %s", foundPassword.c_str(), id.c_str());
 	return PASSWORD_FOUND;
 }

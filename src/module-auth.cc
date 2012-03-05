@@ -481,6 +481,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 			// will be called with it.
 
 			// Send 100 trying if we are statefull
+			LOGD("authentication PENDING for %s", ar->ar_username);
 			listener->passwordRetrievingPending();
 			break;
 		case PASSWORD_FOUND:
@@ -539,6 +540,7 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 
 		// Retrieve the password in the hope it will be in cache when the remote UAC
 		// sends back its request; this time with the expected authentication credentials.
+		LOGD("Searching for %s password to have it when the authenticated request comes", as->as_user_uri->url_user);
 		string foundPassword;
 		AuthDb::get()->password(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, foundPassword, NULL);
 		listener->sendReplyAndDestroy();
