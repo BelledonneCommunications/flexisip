@@ -48,8 +48,6 @@
     ]]>
 </send>
 
-<pause milliseconds="1000" />
-
 <recv request="CANCEL"> </recv>
 
 <send>
