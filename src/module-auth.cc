@@ -60,6 +60,7 @@ private:
 		auth_status_t *mAs;
 		auth_challenger_t const *mAch;
 	public:
+		bool mImmediateRetrievePass;
 		auth_response_t mAr;
 		AuthenticationListener(Agent *, shared_ptr<SipEvent>, bool, bool);
 		~AuthenticationListener(){};
@@ -108,6 +109,7 @@ private:
 		return value==NULL || value[0]=='\0';
 	}
 	bool dbUseHashedPasswords;
+	bool mImmediateRetrievePassword;
 	bool mStateFullProxy;
 
 	void static flexisip_auth_method_digest(auth_mod_t *am,
@@ -167,6 +169,7 @@ public:
 			{	Integer		,	"odbc-display-timings-after-count"	,	"Display timing statistics once the number of samples reach this number.",	"0"	},
 			{	Boolean		,	"odbc-asynchronous"	,	"Retrieve passwords asynchronously.",	"false"	},
 			{	Integer		,	"cache-expire"	,	"Duration of the validity of the credentials added to the cache in seconds.",	"1800"	},
+			{	Boolean		,	"immediate-retrieve-password"	,	"Retrieve password immediately so that it is cached when an authenticated request arrives.",	"true"},
 			{	Boolean	,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed (HA1=MD5(A1)=MD5(username:realm:password)).", "false" },
 			config_item_end
 		};
@@ -195,6 +198,7 @@ public:
 
 		mTrustedHosts=module_config->get<ConfigStringList>("trusted-hosts")->read();
 		dbUseHashedPasswords = module_config->get<ConfigBoolean>("hashed-passwords")->read();
+		mImmediateRetrievePassword = module_config->get<ConfigBoolean>("immediate-retrieve-password")->read();
 		mStateFullProxy=false;
 	}
 
@@ -235,6 +239,7 @@ public:
 		as->as_bodylen = sip->sip_payload->pl_len;
 
 		AuthDbListener *listener = new AuthenticationListener(getAgent(), ev, dbUseHashedPasswords, mStateFullProxy);
+		listener->mImmediateRetrievePass = mImmediateRetrievePassword;
 		as->as_magic=listener;
 
 
@@ -540,9 +545,11 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 
 		// Retrieve the password in the hope it will be in cache when the remote UAC
 		// sends back its request; this time with the expected authentication credentials.
-		LOGD("Searching for %s password to have it when the authenticated request comes", as->as_user_uri->url_user);
-		string foundPassword;
-		AuthDb::get()->password(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, foundPassword, NULL);
+		if (listener->mImmediateRetrievePass) {
+			LOGD("Searching for %s password to have it when the authenticated request comes", as->as_user_uri->url_user);
+			string foundPassword;
+			AuthDb::get()->password(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, foundPassword, NULL);
+		}
 		listener->sendReplyAndDestroy();
 	}
 }
