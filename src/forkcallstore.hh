@@ -60,15 +60,4 @@ private:
 
 };
 
-class ForkCallStore {
-	std::map<long, ForkCallContext*> mForkCallContexts;
-
-public:
-	ForkCallStore();
-	~ForkCallStore();
-	void addForkCall(long id, ForkCallContext* forkcall);
-	ForkCallContext* getForkCall(long id);
-	void removeForkCall(long id);
-};
-
 #endif //forkcallstore_hh
