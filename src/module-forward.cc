@@ -173,18 +173,14 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev) {
 		checkRecordRoutes(ev, dest);
 
 		StatefulSipEvent *sse = dynamic_cast<StatefulSipEvent *>(ev.get());
+		buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
+		LOGD("About to forward %s request to %s:\n%s", sse?"stateful":"", url_as_string(ev->getHome(), dest), buf);
 		if (sse != NULL) {
-			buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
-			LOGD("About to forward statefull request to %s:\n%s", url_as_string(ev->getHome(), dest), buf);
 			sse->getTransaction()->send(sse);
-			ev->terminateProcessing();
 		} else {
-
-			buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
-			LOGD("About to forward request to %s:\n%s", url_as_string(ev->getHome(), dest), buf);
 			nta_msg_tsend(getSofiaAgent(), msg, (url_string_t*) dest, NTATAG_BRANCH_KEY(branch), TAG_END());
-			ev->terminateProcessing();
 		}
+		ev->terminateProcessing();
 	} else {
 		LOGD("Loop Detected");
 		nta_msg_treply(getSofiaAgent(), msg, SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
