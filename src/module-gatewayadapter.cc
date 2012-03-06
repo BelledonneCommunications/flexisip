@@ -75,6 +75,7 @@ private:
 				gw(gw) {
 		}
 
+		virtual void switchToAsynchronousMode(){LOGE("to implement");}
 		virtual void checkPassword(const char *password) {
 			LOGD("Found password");
 			gw->setPassword(password);

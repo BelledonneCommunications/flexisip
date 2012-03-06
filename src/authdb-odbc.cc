@@ -430,6 +430,9 @@ AuthDbResult OdbcAuthDb::password(su_root_t *root, const url_t *from, const char
 		// Asynchronously retrieve password in a new thread.
 		// Allocate on the stack and detach. It is lawful since:
 		// "When detach() returns, *this no longer represents the possibly continuing thread of execution."
+		if (listener) {
+			listener->switchToAsynchronousMode();
+		}
 		thread t=thread(std::bind(&OdbcAuthDb::doAsyncRetrievePassword, this, root, id, domain, auth, fallbackPassword, listener));
 		t.detach();	// Thread will continue running in detached mode
 		return PENDING;

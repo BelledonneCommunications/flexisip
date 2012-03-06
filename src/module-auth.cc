@@ -55,23 +55,22 @@ private:
 		Agent *mAgent;
 		shared_ptr<SipEvent> mEv;
 		bool mHashedPass;
-		bool mStateFullProxy;
 		auth_mod_t *mAm;
 		auth_status_t *mAs;
 		auth_challenger_t const *mAch;
 	public:
 		bool mImmediateRetrievePass;
 		auth_response_t mAr;
-		AuthenticationListener(Agent *, shared_ptr<SipEvent>, bool, bool);
+		AuthenticationListener(Agent *, shared_ptr<SipEvent>, bool);
 		~AuthenticationListener(){};
 
 		void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
 		void checkPassword(const char *password);
 		void onAsynchronousResponse(AuthDbResult ret, const char *password);
+		void switchToAsynchronousMode();
 		void onError();
 		void sendReplyAndDestroy();
 		bool sendReply();
-		void passwordRetrievingPending();
 		su_root_t *getRoot() {
 			return mAgent->getRoot();
 		}
@@ -110,7 +109,6 @@ private:
 	}
 	bool dbUseHashedPasswords;
 	bool mImmediateRetrievePassword;
-	bool mStateFullProxy;
 
 	void static flexisip_auth_method_digest(auth_mod_t *am,
 				auth_status_t *as, msg_auth_t *au, auth_challenger_t const *ach);
@@ -170,7 +168,7 @@ public:
 			{	Boolean		,	"odbc-asynchronous"	,	"Retrieve passwords asynchronously.",	"false"	},
 			{	Integer		,	"cache-expire"	,	"Duration of the validity of the credentials added to the cache in seconds.",	"1800"	},
 			{	Boolean		,	"immediate-retrieve-password"	,	"Retrieve password immediately so that it is cached when an authenticated request arrives.",	"true"},
-			{	Boolean	,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed (HA1=MD5(A1)=MD5(username:realm:password)).", "false" },
+			{	Boolean		,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed (HA1=MD5(A1)=MD5(username:realm:password)).", "false" },
 			config_item_end
 		};
 		module_config->addChildrenValues(items);
@@ -199,7 +197,6 @@ public:
 		mTrustedHosts=module_config->get<ConfigStringList>("trusted-hosts")->read();
 		dbUseHashedPasswords = module_config->get<ConfigBoolean>("hashed-passwords")->read();
 		mImmediateRetrievePassword = module_config->get<ConfigBoolean>("immediate-retrieve-password")->read();
-		mStateFullProxy=false;
 	}
 
 	void onRequest(std::shared_ptr<SipEvent> &ev) {
@@ -238,7 +235,7 @@ public:
 		    as->as_body = sip->sip_payload->pl_data,
 		as->as_bodylen = sip->sip_payload->pl_len;
 
-		AuthDbListener *listener = new AuthenticationListener(getAgent(), ev, dbUseHashedPasswords, mStateFullProxy);
+		AuthenticationListener *listener = new AuthenticationListener(getAgent(), ev, dbUseHashedPasswords);
 		listener->mImmediateRetrievePass = mImmediateRetrievePassword;
 		as->as_magic=listener;
 
@@ -261,8 +258,8 @@ ModuleInfo<Authentication> Authentication::sInfo("Authentication",
 	"The authentication module challenges SIP requests according to a user/password database.");
 
 
-Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, std::shared_ptr<SipEvent> ev, bool hashedPasswords, bool stateFull):
-		mAgent(ag),mEv(ev),mHashedPass(hashedPasswords),mStateFullProxy(stateFull),mAm(NULL),mAs(NULL),mAch(NULL) {
+Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, std::shared_ptr<SipEvent> ev, bool hashedPasswords):
+		mAgent(ag),mEv(ev),mHashedPass(hashedPasswords),mAm(NULL),mAs(NULL),mAch(NULL) {
 	memset(&mAr, '\0', sizeof(mAr)), mAr.ar_size=sizeof(mAr);
 }
 
@@ -380,17 +377,11 @@ void Authentication::AuthenticationListener::onAsynchronousResponse(AuthDbResult
 }
 
 // Called when starting asynchronous retrieving of password
-void Authentication::AuthenticationListener::passwordRetrievingPending() {
+void Authentication::AuthenticationListener::switchToAsynchronousMode() {
 	// Send pending message, needed data will be kept as long
 	// as SipEvent is held in the listener.
-	if (mStateFullProxy) {
-		mAs->as_status=100, mAs->as_phrase="Authentication pending";
-		//as->as_callback=auth_callback; // should be set according to doc
-		msg_ref_create(mEv->mMsg); // Avoid temporary reference to make the message destroyed.
-		sendReply();
-	} else {
-		mEv->suspendProcessing();
-	}
+	mEv->suspendProcessing();
+	LOGW("stateful asynchronous mode for AuthenticationListener not implemented");
 }
 
 void Authentication::AuthenticationListener::onError() {
@@ -487,7 +478,6 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 
 			// Send 100 trying if we are statefull
 			LOGD("authentication PENDING for %s", ar->ar_username);
-			listener->passwordRetrievingPending();
 			break;
 		case PASSWORD_FOUND:
 			listener->checkPassword(foundPassword.c_str());
