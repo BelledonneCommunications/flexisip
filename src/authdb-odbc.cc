@@ -461,12 +461,16 @@ static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg,
 }
 
 
+/*
 static unsigned long threadCount=0;
 static mutex threadCountMutex;
+*/
 void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string domain, string auth, string fallback, AuthDbListener *listener){
+/*	unsigned long localThreadCountCopy=0;
 	threadCountMutex.lock();
 	++threadCount;
-	threadCountMutex.unlock();
+	localThreadCountCopy=threadCount;
+	threadCountMutex.unlock();*/
 	string foundPassword;
 	AuthDbTimings timings;
 	timings.tStart=monotonic_clock::now();
@@ -512,9 +516,12 @@ void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string doma
 		}
 	}
 
+	/*
 	threadCountMutex.lock();
 	--threadCount;
+	localThreadCountCopy=threadCount;
 	threadCountMutex.unlock();
+	*/
 }
 
 AuthDbResult OdbcAuthDb::doRetrievePassword(const string &id, const string &domain, const string &auth, string &foundPassword, AuthDbTimings &timings){
