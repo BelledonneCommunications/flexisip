@@ -64,7 +64,6 @@ static void usage(const char *arg0){
 }
 
 static void flexisip_stop(int signum){
-	DosProtection::get()->stop();
 	if (flexisip_pid>0){
 		LOGD("Watchdog received quit signal...passing to child.");
 		/*we are the watchdog, pass the signal to our child*/
@@ -447,6 +446,7 @@ int main(int argc, char *argv[]){
 	su_timer_run(timer,(su_timer_f)timerfunc,a);
 	su_root_run(root);
 	su_timer_destroy(timer);
+	DosProtection::get()->stop();
 	delete a;
 	stun->stop();
 	delete stun;

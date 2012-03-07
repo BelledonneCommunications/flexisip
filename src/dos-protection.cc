@@ -57,6 +57,11 @@ DosProtection *DosProtection::get() {
 	return sInstance;
 }
 
+bool directoryExists(const char* path)
+{
+  return (access(path, 00) == 0);
+}
+
 void DosProtection::load() {
 	ConfigStruct *dosProtection = ConfigManager::get()->getRoot()->get<ConfigStruct>("dos-protection");
 	mEnabled = dosProtection->get<ConfigBoolean>("enabled")->read();
@@ -74,7 +79,7 @@ void DosProtection::load() {
 	mBlacklistChain = "FLEXISIP_BLACKLIST";
 	mCounterlist = "FLEXISIP_COUNTER";
 	mPath = "/sbin/iptables";
-
+	mRecentDirectoryName = NULL;
 	mLoaded = true;
 }
 
@@ -210,11 +215,21 @@ void DosProtection::start() {
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	/* Increasing xt_recent default values */
-	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/xt_recent/parameters/ip_list_tot && echo %i > /sys/module/xt_recent/parameters/ip_list_tot && chmod u-w /sys/module/xt_recent/parameters/ip_list_tot", mMaximumConnections);
+	/* Test recent module directory existence */
+	if (mRecentDirectoryName == NULL) {
+		const char* path_centos_5 = "/sys/module/xt_recent/";
+		const char* path_centos_6 = "/sys/module/ipt_recent/";
+		if (directoryExists(path_centos_5))
+			mRecentDirectoryName = "xt_recent";
+		else if (directoryExists(path_centos_6))
+			mRecentDirectoryName = "ipt_recent";
+	}
+
+	/* Increasing recent module default values */
+	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/%s/parameters/ip_list_tot && echo %i > /sys/module/%s/parameters/ip_list_tot && chmod u-w /sys/module/%s/parameters/ip_list_tot", mRecentDirectoryName, mMaximumConnections, mRecentDirectoryName, mRecentDirectoryName);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
-	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/xt_recent/parameters/ip_pkt_list_tot && echo %i > /sys/module/xt_recent/parameters/ip_pkt_list_tot && chmod u-w /sys/module/xt_recent/parameters/ip_pkt_list_tot", mBlacklistMax);
+	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/%s/parameters/ip_pkt_list_tot && echo %i > /sys/module/%s/parameters/ip_pkt_list_tot && chmod u-w /sys/module/%s/parameters/ip_pkt_list_tot", mRecentDirectoryName, mBlacklistMax, mRecentDirectoryName, mRecentDirectoryName);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 }
