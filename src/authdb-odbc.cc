@@ -344,11 +344,11 @@ bool OdbcAuthDb::getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimin
 		return false;
 	}
 	monotonic_clock::time_point tp2=monotonic_clock::now();
-	LOGD("SQLAllocHandle: %s : %lu ms", id.c_str(), duration_cast<milliseconds>(tp2-tp1).count());
+	LOGD("SQLAllocHandle: %s : %lu ms", id.c_str(), (unsigned long) duration_cast<milliseconds>(tp2-tp1).count());
 
 	retcode = SQLDriverConnect(ctx.dbc, NULL, (SQLCHAR*) connectionString.c_str(), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
 	if (!SQL_SUCCEEDED(retcode)) {dbcError(ctx, "SQLDriverConnect"); return false;}
-	LOGD("SQLDriverConnect %s : %lu ms", id.c_str(), duration_cast<milliseconds>(monotonic_clock::now()-tp2).count());
+	LOGD("SQLDriverConnect %s : %lu ms", id.c_str(), (unsigned long) duration_cast<milliseconds>(monotonic_clock::now()-tp2).count());
 
 	// Set connection to be read only
 	SQLSetConnectAttr(ctx.dbc, SQL_ATTR_ACCESS_MODE, (SQLPOINTER)SQL_MODE_READ_ONLY, 0);
