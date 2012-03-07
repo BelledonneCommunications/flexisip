@@ -165,11 +165,11 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev) {
 		dest->url_host = ip.c_str();
 	}
 
-	// Compute branch
-	char const * branch = compute_branch(getSofiaAgent(), msg, sip, mPreferredRoute.c_str());
+	// Compute branch, output branch=XXXXX
+	char const * branchStr = compute_branch(getSofiaAgent(), msg, sip, mPreferredRoute.c_str());
 
 	// Check looping
-	if (!isLooping(ev, branch)) {
+	if (!isLooping(ev, branchStr +7)) {
 		checkRecordRoutes(ev, dest);
 
 		StatefulSipEvent *sse = dynamic_cast<StatefulSipEvent *>(ev.get());
@@ -178,11 +178,10 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev) {
 		if (sse != NULL) {
 			sse->getTransaction()->send(sse);
 		} else {
-			nta_msg_tsend(getSofiaAgent(), msg, (url_string_t*) dest, NTATAG_BRANCH_KEY(branch), TAG_END());
+			nta_msg_tsend(getSofiaAgent(), msg, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), TAG_END());
 		}
 		ev->terminateProcessing();
 	} else {
-		LOGD("Loop Detected");
 		nta_msg_treply(getSofiaAgent(), msg, SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		ev->terminateProcessing();
 	}
@@ -197,7 +196,8 @@ unsigned int ForwardModule::countVia(std::shared_ptr<SipEvent> &ev) {
 
 bool ForwardModule::isLooping(std::shared_ptr<SipEvent> &ev, const char * branch) {
 	for (sip_via_t *via = ev->mSip->sip_via; via != NULL; via = via->v_next) {
-		if (via->v_branch != NULL && strcmp(via->v_branch, branch + 7) == 0) {
+		if (via->v_branch != NULL && strcmp(via->v_branch, branch) == 0) {
+			LOGD("Loop detected: %s", via->v_branch);
 			return true;
 		}
 	}

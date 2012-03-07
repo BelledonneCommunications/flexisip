@@ -334,7 +334,11 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 			auth_challenge_digest(mAm, mAs, mAch);
 			mAs->as_blacklist = mAm->am_blacklist;
 		}
-		LOGD("auth_method_digest: no password or response did not match");
+		if (passwd) {
+			LOGD("auth_method_digest: password %s did not match", passwd);
+		} else {
+			LOGD("auth_method_digest: no password");
+		}
 
 		return;
 	}
