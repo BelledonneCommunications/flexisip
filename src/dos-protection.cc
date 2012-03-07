@@ -220,9 +220,9 @@ void DosProtection::start() {
 		const char* path_centos_6 = "/sys/module/xt_recent/";
 		const char* path_centos_5 = "/sys/module/ipt_recent/";
 		if (directoryExists(path_centos_5))
-			mRecentDirectoryName = "xt_recent";
-		else if (directoryExists(path_centos_6))
 			mRecentDirectoryName = "ipt_recent";
+		else if (directoryExists(path_centos_6))
+			mRecentDirectoryName = "xt_recent";
 	}
 
 	/* Increasing recent module default values */
