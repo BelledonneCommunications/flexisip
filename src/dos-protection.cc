@@ -217,8 +217,8 @@ void DosProtection::start() {
 
 	/* Test recent module directory existence */
 	if (mRecentDirectoryName == NULL) {
-		const char* path_centos_5 = "/sys/module/xt_recent/";
-		const char* path_centos_6 = "/sys/module/ipt_recent/";
+		const char* path_centos_6 = "/sys/module/xt_recent/";
+		const char* path_centos_5 = "/sys/module/ipt_recent/";
 		if (directoryExists(path_centos_5))
 			mRecentDirectoryName = "xt_recent";
 		else if (directoryExists(path_centos_6))
