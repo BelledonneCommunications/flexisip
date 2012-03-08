@@ -210,15 +210,14 @@ bool ForwardModule::isLooping(std::shared_ptr<SipEvent> &ev, const char * branch
 
 void ForwardModule::onResponse(std::shared_ptr<SipEvent> &ev) {
 	char *buf;
-	url_t* dest = NULL;
-	//sip_t *sip=ev->mSip;
 	msg_t *msg = ev->getMsg();
 	size_t msg_size;
 
 	StatefulSipEvent *sse = dynamic_cast<StatefulSipEvent *>(ev.get());
 	if (sse != NULL) {
 		buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
-		LOGD("About to forward statefull response to %s:\n%s", url_as_string(ev->getHome(), dest), buf);
+		LOGD("About to forward statefull response:\n%s", buf);
+
 		sse->getTransaction()->send(sse);
 		ev->terminateProcessing();
 	} else {

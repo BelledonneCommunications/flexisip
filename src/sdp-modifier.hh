@@ -32,7 +32,8 @@
 
 class Masquerader{
 	public:
-		virtual void onNewMedia(int mline, std::string *ip, int *port, const char* tag)=0;
+		virtual void onNewMedia(int mline, url_t * from, const std::string &ip, int port)=0;
+		virtual void translate(int mline, url_t * to, std::string *ip, int *port)=0;
 		virtual ~Masquerader(){};
 };
 
@@ -49,7 +50,7 @@ class SdpModifier{
 		void replacePayloads(const MSList *payloads, const MSList *preserved_numbers);
 		void getAudioIpPort(std::string *ip, int *port);
 		void changeAudioIpPort(const char *ip, int port);
-		void changeIpPort(Masquerader *m, const char *partytag);
+		void changeIpPort(Masquerader *m, url_t *from, url_t *to);
 		void addAttribute(const char *name, const char *value);
 		bool hasAttribute(const char *name);
 		void update(msg_t *msg, sip_t *sip);
