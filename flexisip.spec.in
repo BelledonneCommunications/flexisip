@@ -6,7 +6,7 @@
 Summary:	SIP proxy with media capabilities
 Name:		flexisip
 Version:	@PACKAGE_VERSION@
-Release:	4
+Release:	5
 License:	AGPL
 Group:		Applications/Communications
 URL:		http://www.belledonne-communications.com
