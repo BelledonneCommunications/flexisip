@@ -20,7 +20,7 @@
 #include "common.hh"
 #include <sofia-sip/sdp.h>
 #include <sofia-sip/sip.h>
-
+#include <functional>
 #include <string>
 
 #ifndef _SDP_MODIFIER_HH_
@@ -29,13 +29,6 @@
 
 #define payload_type_set_number(pt,n)	(pt)->user_data=(void*)(long)n
 #define payload_type_get_number(pt)		(int)(long)(pt)->user_data
-
-class Masquerader{
-	public:
-		virtual void onNewMedia(int mline, url_t * from, const std::string &ip, int port)=0;
-		virtual void translate(int mline, url_t * to, std::string *ip, int *port)=0;
-		virtual ~Masquerader(){};
-};
 
 /**
  * Utility class used to do various changes in an existing SDP message.
@@ -50,7 +43,7 @@ class SdpModifier{
 		void replacePayloads(const MSList *payloads, const MSList *preserved_numbers);
 		void getAudioIpPort(std::string *ip, int *port);
 		void changeAudioIpPort(const char *ip, int port);
-		void changeIpPort(Masquerader *m, url_t *from, url_t *to);
+		void iterate(std::function<void(int, std::string *, int *)>);
 		void addAttribute(const char *name, const char *value);
 		bool hasAttribute(const char *name);
 		void update(msg_t *msg, sip_t *sip);

@@ -44,7 +44,7 @@ CallContextBase::CallContextBase(sip_t *sip){
 	}
 }
 
-bool CallContextBase::match(Agent *ag, sip_t *sip){
+bool CallContextBase::match(Agent *ag, sip_t *sip, bool stateful){
 	if (sip->sip_call_id==NULL) return false;
 	if (sip->sip_from->a_tag==NULL) return false;
 	
@@ -72,18 +72,9 @@ bool CallContextBase::match(Agent *ag, sip_t *sip){
 				return true;
 			}
 		}
+		if(stateful)
+			return true;
 	}
-	return false;
-}
-
-bool CallContextBase::similar(Agent *ag, sip_t *sip) {
-	if (sip->sip_call_id==NULL) return false;
-	if (sip->sip_from->a_tag==NULL) return false;
-
-	if (sip->sip_call_id->i_hash==mCallHash){
-		return true;
-	}
-
 	return false;
 }
 
@@ -192,24 +183,14 @@ void CallStore::store(CallContextBase *ctx){
 	mCalls.push_back(ctx);
 }
 
-CallContextBase *CallStore::find(Agent *ag, sip_t *sip){
+CallContextBase *CallStore::find(Agent *ag, sip_t *sip, bool stateful){
 	list<CallContextBase*>::iterator it;
 	for(it=mCalls.begin();it!=mCalls.end();++it){
-		if ((*it)->match(ag,sip))
+		if ((*it)->match(ag,sip, stateful))
 		    return *it;
 	}
 	return NULL;
 }
-
-CallContextBase *CallStore::similar(Agent *ag, sip_t *sip){
-	list<CallContextBase*>::iterator it;
-	for(it=mCalls.begin();it!=mCalls.end();++it){
-		if ((*it)->similar(ag,sip))
-		    return *it;
-	}
-	return NULL;
-}
-
 
 void CallStore::remove(CallContextBase *ctx){
 	mCalls.remove(ctx);
