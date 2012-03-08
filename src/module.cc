@@ -98,14 +98,14 @@ void Module::load(Agent *agent){
 }
 
 void Module::processRequest(shared_ptr<SipEvent> &ev){
-	if (mFilter->canEnter(ev->mSip)){
+	if (mFilter->canEnter(ev->getSip())){
 		LOGD("Invoking onRequest() on module %s",getModuleName().c_str());
 		onRequest(ev);
 	}
 }
 
 void Module::processResponse(std::shared_ptr<SipEvent> &ev){
-	if (mFilter->canEnter(ev->mSip)){
+	if (mFilter->canEnter(ev->getSip())){
 		LOGD("Invoking onResponse() on module %s",getModuleName().c_str());
 		onResponse(ev);
 	}

@@ -28,10 +28,8 @@ class Module;
 class SipEvent {
 	friend class Agent;
 public:
-	SipEvent(msg_t *msg, sip_t *sip);
+	SipEvent(msg_t *msg, sip_t *sip = NULL);
 	SipEvent(const SipEvent *sipEvent);
-	msg_t *mMsg;
-	sip_t *mSip;
 
 	void terminateProcessing();
 
@@ -43,16 +41,30 @@ public:
 
 	bool terminated() const;
 
+	inline msg_t* getMsg() const {
+		return mMsg;
+	}
+
+	inline sip_t* getSip() const {
+		return mSip;
+	}
+
+	inline su_home_t* getHome() const {
+		return mHome;
+	}
+
+	void setMsgSip(msg_t *msg, sip_t *sip = NULL);
+
 	virtual ~SipEvent();
-	su_home_t* getHome();
 private:
+	Module *mCurrModule;
 	enum {
 		STARTED, SUSPENDED, TERMINATED,
 	} mState;
 	su_home_t *mHome;
-	Module *mCurrModule;
+	msg_t *mMsg;
+	sip_t *mSip;
 };
-
 
 class Transaction;
 class StatefulSipEvent: public SipEvent {

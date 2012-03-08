@@ -80,8 +80,8 @@ url_t* ForwardModule::overrideDest(std::shared_ptr<SipEvent> &ev, url_t *dest) {
 	if (mOutRoute) {
 		dest = mOutRoute->r_url;
 		if (mRewriteReqUri) {
-			ev->mSip->sip_request->rq_url->url_host = mOutRoute->r_url->url_host;
-			ev->mSip->sip_request->rq_url->url_port = mOutRoute->r_url->url_port;
+			ev->getSip()->sip_request->rq_url->url_host = mOutRoute->r_url->url_host;
+			ev->getSip()->sip_request->rq_url->url_port = mOutRoute->r_url->url_port;
 		}
 	}
 	return dest;
@@ -93,7 +93,7 @@ url_t* ForwardModule::overrideDest(std::shared_ptr<SipEvent> &ev, url_t *dest) {
  so that further request from both sides are sent to the appropriate transport of flexisip, and also we don't ask to a UDP only equipment to route to TCP.
  */
 void ForwardModule::checkRecordRoutes(std::shared_ptr<SipEvent> &ev, url_t *dest) {
-	sip_record_route_t *rr = ev->mSip->sip_record_route;
+	sip_record_route_t *rr = ev->getSip()->sip_record_route;
 	char last_transport[16] = { 0 };
 	char next_transport[16] = { 0 };
 
@@ -106,7 +106,7 @@ void ForwardModule::checkRecordRoutes(std::shared_ptr<SipEvent> &ev, url_t *dest
 				strncpy(next_transport, "UDP", sizeof(next_transport));
 			}
 			if (strcasecmp(next_transport, last_transport) != 0) {
-				addRecordRoute(ev->getHome(), getAgent(), ev->mMsg, ev->mSip, next_transport);
+				addRecordRoute(ev->getHome(), getAgent(), ev->getMsg(), ev->getSip(), next_transport);
 			}
 		}
 	}
@@ -116,8 +116,8 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev) {
 	size_t msg_size;
 	char *buf;
 	url_t* dest = NULL;
-	sip_t *sip = ev->mSip;
-	msg_t *msg = ev->mMsg;
+	sip_t *sip = ev->getSip();
+	msg_t *msg = ev->getMsg();
 
 	// Check max forwards
 	if (sip->sip_max_forwards != NULL && sip->sip_max_forwards->mf_count <= countVia(ev)) {
@@ -194,13 +194,13 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev) {
 
 unsigned int ForwardModule::countVia(std::shared_ptr<SipEvent> &ev) {
 	uint32_t via_count = 0;
-	for (sip_via_t *via = ev->mSip->sip_via; via != NULL; via = via->v_next)
+	for (sip_via_t *via = ev->getSip()->sip_via; via != NULL; via = via->v_next)
 		++via_count;
 	return via_count;
 }
 
 bool ForwardModule::isLooping(std::shared_ptr<SipEvent> &ev, const char * branch) {
-	for (sip_via_t *via = ev->mSip->sip_via; via != NULL; via = via->v_next) {
+	for (sip_via_t *via = ev->getSip()->sip_via; via != NULL; via = via->v_next) {
 		if (via->v_branch != NULL && strcmp(via->v_branch, branch + 7) == 0) {
 			return true;
 		}
@@ -213,7 +213,7 @@ void ForwardModule::onResponse(std::shared_ptr<SipEvent> &ev) {
 	char *buf;
 	url_t* dest = NULL;
 	//sip_t *sip=ev->mSip;
-	msg_t *msg = ev->mMsg;
+	msg_t *msg = ev->getMsg();
 	size_t msg_size;
 
 	StatefulSipEvent *sse = dynamic_cast<StatefulSipEvent *>(ev.get());
@@ -223,10 +223,10 @@ void ForwardModule::onResponse(std::shared_ptr<SipEvent> &ev) {
 		sse->getTransaction()->send(sse);
 		ev->terminateProcessing();
 	} else {
-		buf = msg_as_string(ev->getHome(), ev->mMsg, NULL, 0, &msg_size);
+		buf = msg_as_string(ev->getHome(), ev->getMsg(), NULL, 0, &msg_size);
 		LOGD("About to forward response:\n%s", buf);
 
-		nta_msg_tsend(getSofiaAgent(), ev->mMsg, (url_string_t*) NULL, TAG_END());
+		nta_msg_tsend(getSofiaAgent(), ev->getMsg(), (url_string_t*) NULL, TAG_END());
 		ev->terminateProcessing();
 	}
 }

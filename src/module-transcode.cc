@@ -276,12 +276,12 @@ MSList *TranscodeModule::normalizePayloads(MSList *l){
 }
 
 int TranscodeModule::handleOffer(CallContext *c, std::shared_ptr<SipEvent> &ev){
-	msg_t *msg=ev->mMsg;
-	sip_t *sip=ev->mSip;
+	msg_t *msg=ev->getMsg();
+	sip_t *sip=ev->getSip();
 	std::string addr;
 	int port;
 	int ptime;
-	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), ev->mSip);
+	SdpModifier *m=SdpModifier::createFromSipMsg(c->getHome(), ev->getSip());
 
 	if (m==NULL) return -1;
 	
@@ -323,15 +323,15 @@ int TranscodeModule::handleOffer(CallContext *c, std::shared_ptr<SipEvent> &ev){
 
 int TranscodeModule::processNewInvite(CallContext *c,std::shared_ptr<SipEvent> &ev){
 	int ret=0;
-	if (SdpModifier::hasSdp(ev->mSip)){
+	if (SdpModifier::hasSdp(ev->getSip())){
 		ret=handleOffer(c,ev);
 	}
 	if (ret==0){
 		//be in the record-route
-		addRecordRoute(c->getHome(),getAgent(),ev->mMsg,ev->mSip);
-		c->storeNewInvite(ev->mMsg);
+		addRecordRoute(c->getHome(),getAgent(),ev->getMsg(),ev->getSip());
+		c->storeNewInvite(ev->getMsg());
 	}else{
-		nta_msg_treply(getSofiaAgent(),ev->mMsg,415,"Unsupported codecs",TAG_END());
+		nta_msg_treply(getSofiaAgent(),ev->getMsg(),415,"Unsupported codecs",TAG_END());
 		ev->terminateProcessing();
 	}
 	return ret;
@@ -344,14 +344,14 @@ void TranscodeModule::processNewAck(CallContext *ctx, std::shared_ptr<SipEvent> 
 		LOGE("Processing ACK with SDP but no offer was made or processed.");
 	}else{
 		handleAnswer(ctx,ev);
-		ctx->storeNewAck(ev->mMsg);
+		ctx->storeNewAck(ev->getMsg());
 	}
 }
 
 void TranscodeModule::onRequest(std::shared_ptr<SipEvent> &ev){
 	CallContext *c;
-	msg_t *msg=ev->mMsg;
-	sip_t *sip=ev->mSip;
+	msg_t *msg=ev->getMsg();
+	sip_t *sip=ev->getSip();
 	
 	if (sip->sip_request->rq_method==sip_method_invite){
 		if ((c=static_cast<CallContext*>(mCalls.find(getAgent(),sip)))==NULL){
@@ -409,15 +409,15 @@ void TranscodeModule::onRequest(std::shared_ptr<SipEvent> &ev){
 			}
 		}
 	}
-	ev->mMsg=msg;
-	ev->mSip=sip;
+
+	ev->setMsgSip(msg, sip);
 }
 
 int TranscodeModule::handleAnswer(CallContext *ctx, std::shared_ptr<SipEvent> &ev){
 	std::string addr;
 	int port;
 	const MSList *ioffer=ctx->getInitialOffer();
-	SdpModifier *m=SdpModifier::createFromSipMsg(ctx->getHome(), ev->mSip);
+	SdpModifier *m=SdpModifier::createFromSipMsg(ctx->getHome(), ev->getSip());
 	int ptime;
 	
 	if (m==NULL) return -1;
@@ -446,11 +446,11 @@ int TranscodeModule::handleAnswer(CallContext *ctx, std::shared_ptr<SipEvent> &e
 	if (common!=NULL){
 		m->replacePayloads(common,NULL);
 	}
-	m->update(ev->mMsg,ev->mSip);
+	m->update(ev->getMsg(),ev->getSip());
 	
 	ctx->getFrontSide()->assignPayloads(normalizePayloads(common));
 
-	if (canDoRateControl(ev->mSip)){
+	if (canDoRateControl(ev->getSip())){
 		ctx->getBackSide()->enableRc(true);
 	}
 
@@ -466,7 +466,7 @@ void TranscodeModule::process200OkforInvite(CallContext *ctx, std::shared_ptr<Si
 	}else{
 		handleOffer(ctx,ev);
 	}
-	ctx->storeNewResponse(ev->mMsg);
+	ctx->storeNewResponse(ev->getMsg());
 }
 
 static bool isEarlyMedia(sip_t *sip){
@@ -477,8 +477,8 @@ static bool isEarlyMedia(sip_t *sip){
 }
 
 void TranscodeModule::onResponse(std::shared_ptr<SipEvent> &ev){
-	sip_t *sip=ev->mSip;
-	msg_t *msg=ev->mMsg;
+	sip_t *sip=ev->getSip();
+	msg_t *msg=ev->getMsg();
 	CallContext *c;
 	if (sip->sip_cseq
 			&& sip->sip_cseq->cs_method==sip_method_invite
@@ -494,8 +494,7 @@ void TranscodeModule::onResponse(std::shared_ptr<SipEvent> &ev){
 				if (c->getLastForwaredResponse()!=NULL){
 					msg=msg_copy(c->getLastForwaredResponse ());
 					sip=(sip_t*)msg_object(msg);
-					ev->mSip=sip;
-					ev->mMsg=msg;
+					ev->setMsgSip(msg,sip);
 				}
 			}
 		}

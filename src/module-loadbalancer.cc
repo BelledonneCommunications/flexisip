@@ -68,7 +68,7 @@ void LoadBalancer::onLoad(Agent *ag, const ConfigStruct * modconf){
 
 void LoadBalancer::onRequest(std::shared_ptr<SipEvent> &ev){
 	uint32_t call_hash;
-	sip_t *sip=ev->mSip;
+	sip_t *sip=ev->getSip();
 	int index;
 	
 	if (mRoutesCount==0) return;
@@ -79,7 +79,7 @@ void LoadBalancer::onRequest(std::shared_ptr<SipEvent> &ev){
 		call_hash=sip->sip_call_id->i_hash;
 		index=call_hash % mRoutesCount;
 		route=mRoutes[index].c_str();
-		prependRoute(ev->getHome(),getAgent(),ev->mMsg,sip,route);
+		prependRoute(ev->getHome(),getAgent(),ev->getMsg(),sip,route);
 	}else{
 		LOGW("request has no call id");
 	}

@@ -27,28 +27,28 @@ class NatHelper : public Module, protected ModuleToolbox{
 		~NatHelper(){
 		}
 		virtual void onRequest(std::shared_ptr<SipEvent> &ev) {
-			sip_request_t *rq=ev->mSip->sip_request;
+			sip_request_t *rq=ev->getSip()->sip_request;
 			/* if we receive a request whose first via is wrong (received or rport parameters are present),
 			fix any possible Contact headers with the same wrong ip address and ports */
-			fixContactFromVia(ev->getHome(),ev->mSip,ev->mSip->sip_via);
+			fixContactFromVia(ev->getHome(),ev->getSip(),ev->getSip()->sip_via);
 
 			if (rq->rq_method==sip_method_invite || rq->rq_method==sip_method_subscribe){
 				//be in the record route for all requests that can estabish a dialog
-				addRecordRoute (ev->getHome(),getAgent(),ev->mMsg,ev->mSip);
+				addRecordRoute (ev->getHome(),getAgent(),ev->getMsg(),ev->getSip());
 			}
 		}
 		virtual void onResponse(std::shared_ptr<SipEvent> &ev){
-			sip_status_t *st=ev->mSip->sip_status;
-			sip_cseq_t *cseq=ev->mSip->sip_cseq;
+			sip_status_t *st=ev->getSip()->sip_status;
+			sip_cseq_t *cseq=ev->getSip()->sip_cseq;
 			/*in responses that establish a dialog, masquerade Contact so that further requests (including the ACK) are routed in the same way*/
 			if (cseq && (cseq->cs_method==sip_method_invite || cseq->cs_method==sip_method_subscribe)){
 				if (st->st_status>=200 && st->st_status<=299){
-					sip_contact_t *ct=ev->mSip->sip_contact;
+					sip_contact_t *ct=ev->getSip()->sip_contact;
 					if (ct && ct->m_url) {
 						if (!url_has_param(ct->m_url, mContactVerifiedParam.c_str())) {
-							fixContactInResponse(ev->getHome(),ev->mMsg,ev->mSip);
+							fixContactInResponse(ev->getHome(),ev->getMsg(),ev->getSip());
 							url_param_add(ev->getHome(), ct->m_url, mContactVerifiedParam.c_str());
-						} else if (ev->mSip->sip_via && ev->mSip->sip_via->v_next && !ev->mSip->sip_via->v_next->v_next) {
+						} else if (ev->getSip()->sip_via && ev->getSip()->sip_via->v_next && !ev->getSip()->sip_via->v_next->v_next) {
 							// Via contains client and first proxy
 							LOGD("Removing verified param from response contact");
 							ct->m_url->url_params = url_strip_param_string(su_strdup(ev->getHome(),ct->m_url->url_params),mContactVerifiedParam.c_str());

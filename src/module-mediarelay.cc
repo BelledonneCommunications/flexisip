@@ -150,8 +150,8 @@ bool MediaRelay::processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip){
 
 void MediaRelay::onRequest(std::shared_ptr<SipEvent> &ev){
 	RelayedCall *c;
-	msg_t *msg=ev->mMsg;
-	sip_t *sip=ev->mSip;
+	msg_t *msg=ev->getMsg();
+	sip_t *sip=ev->getSip();
 	
 	if (sip->sip_request->rq_method==sip_method_invite){
 		if ((c=static_cast<RelayedCall*>(mCalls->find(getAgent(),sip)))==NULL){
@@ -184,9 +184,9 @@ void MediaRelay::onRequest(std::shared_ptr<SipEvent> &ev){
 			delete c;
 		}
 	}
-	ev->mMsg=msg;
-	ev->mSip=sip;
 	
+	ev->setMsgSip(msg, sip);
+
 }
 
 static bool isEarlyMedia(sip_t *sip){
@@ -217,8 +217,8 @@ void MediaRelay::process200OkforInvite(RelayedCall *ctx, msg_t *msg, sip_t *sip)
 
 
 void MediaRelay::onResponse(std::shared_ptr<SipEvent> &ev){
-	sip_t *sip=ev->mSip;
-	msg_t *msg=ev->mMsg;
+	sip_t *sip=ev->getSip();
+	msg_t *msg=ev->getMsg();
 	RelayedCall *c;
 	
 	if (sip->sip_cseq && sip->sip_cseq->cs_method==sip_method_invite){
@@ -239,8 +239,8 @@ void MediaRelay::onResponse(std::shared_ptr<SipEvent> &ev){
 			}else LOGD("Receiving 200Ok for unknown call.");
 		}
 	}
-	ev->mSip=sip;
-	ev->mMsg=msg;
+
+	ev->setMsgSip(msg, sip);
 }
 
 

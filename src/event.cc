@@ -21,22 +21,28 @@
 #include <sofia-sip/sip_protos.h>
 
 SipEvent::SipEvent(msg_t *msg, sip_t *sip) :
-		mCurrModule(NULL) {
-	mMsg = msg;
-	mSip = sip;
-	mState = STARTED;
-	/* msg_t internal implementation "inherits" from su_home_t*/
-	mHome = (su_home_t*) msg;
-	msg_ref_create(mMsg);
+		mCurrModule(NULL), mState(STARTED), mHome(NULL), mMsg(NULL), mSip(NULL) {
+	setMsgSip(msg, sip);
 }
 
-SipEvent::SipEvent(const SipEvent *sipEvent) {
-	mMsg = msg_copy(sipEvent->mMsg);
-	mSip = sip_object(mMsg);
-	mState = sipEvent->mState;
-	mHome = msg_home(mMsg);
-	mCurrModule = sipEvent->mCurrModule;
-	msg_ref_create(mMsg);
+SipEvent::SipEvent(const SipEvent *sipEvent) :
+		mCurrModule(sipEvent->mCurrModule), mState(sipEvent->mState), mHome(NULL), mMsg(NULL), mSip(NULL) {
+	setMsgSip(msg_copy(sipEvent->mMsg));
+}
+
+void SipEvent::setMsgSip(msg_t *msg, sip_t *sip) {
+	msg_t* old_msg = mMsg;
+
+	mMsg = msg;
+	mSip = (sip != NULL) ? sip : sip_object(msg);
+	mHome = msg_home(msg);
+
+	if (mMsg != NULL)
+		msg_ref_create(mMsg);
+
+	if (old_msg != NULL) {
+		msg_ref_destroy(old_msg);
+	}
 }
 
 void SipEvent::terminateProcessing() {
@@ -73,10 +79,6 @@ bool SipEvent::terminated() const {
 
 SipEvent::~SipEvent() {
 	msg_destroy(mMsg);
-}
-
-su_home_t* SipEvent::getHome() {
-	return mHome;
 }
 
 StatefulSipEvent::StatefulSipEvent(Transaction *transaction, msg_t *msg, sip_t *sip) :

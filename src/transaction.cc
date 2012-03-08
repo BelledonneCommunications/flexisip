@@ -43,9 +43,9 @@ StatefulSipEvent *OutgoingTransaction::copy(const SipEvent *sipEvent) {
 }
 
 void OutgoingTransaction::send(StatefulSipEvent *ev) {
-	outgoing = nta_outgoing_mcreate(agent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, NULL, ev->mMsg, TAG_END());
+	outgoing = nta_outgoing_mcreate(agent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, NULL, ev->getMsg(), TAG_END());
 	if (outgoing == NULL) {
-		msg_destroy(ev->mMsg);
+		msg_destroy(ev->getMsg());
 	}
 }
 
@@ -85,7 +85,7 @@ StatefulSipEvent *IncomingTransaction::copy(const SipEvent *sipEvent) {
 }
 
 void IncomingTransaction::send(StatefulSipEvent *ev) {
-	nta_incoming_mreply(incoming, ev->mMsg);
+	nta_incoming_mreply(incoming, ev->getMsg());
 }
 
 int IncomingTransaction::_callback(nta_incoming_magic_t *magic, nta_incoming_t *irq, const sip_t *sip) {

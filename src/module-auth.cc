@@ -199,13 +199,13 @@ public:
 	}
 
 	void onRequest(std::shared_ptr<SipEvent> &ev) {
-		sip_t *sip=ev->mSip;
+		sip_t *sip=ev->getSip();
 		map<string,auth_mod_t *>::iterator authModuleIt;
 		// first check for auth module for this domain
 		authModuleIt = mAuthModules.find(sip->sip_from->a_url[0].url_host);
 		if (authModuleIt == mAuthModules.end()) {
 			LOGI("unknown domain [%s]",sip->sip_from->a_url[0].url_host);
-			nta_msg_treply(getAgent()->getSofiaAgent (),ev->mMsg,SIP_488_NOT_ACCEPTABLE,
+			nta_msg_treply(getAgent()->getSofiaAgent (),ev->getMsg(),SIP_488_NOT_ACCEPTABLE,
 					SIPTAG_CONTACT(sip->sip_contact),
 					SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					TAG_END());
@@ -226,7 +226,7 @@ public:
 		auth_status_t *as;
 		as = auth_status_new(ev->getHome());
 		as->as_method = sip->sip_request->rq_method_name;
-	    as->as_source = msg_addrinfo(ev->mMsg);
+	    as->as_source = msg_addrinfo(ev->getMsg());
 		as->as_realm = sip->sip_from->a_url[0].url_host;
 		as->as_user_uri = sip->sip_from->a_url;
 		as->as_display = sip->sip_from->a_display;
@@ -275,9 +275,9 @@ void Authentication::AuthenticationListener::sendReplyAndDestroy(){
  * return true if the event is terminated
  */
 bool Authentication::AuthenticationListener::sendReply(){
-	sip_t *sip=mEv->mSip;
+	sip_t *sip=mEv->getSip();
 	if (mAs->as_status) {
-		nta_msg_treply(mAgent->getSofiaAgent(),mEv->mMsg,mAs->as_status,mAs->as_phrase,
+		nta_msg_treply(mAgent->getSofiaAgent(),mEv->getMsg(),mAs->as_status,mAs->as_phrase,
 				SIPTAG_CONTACT(sip->sip_contact),
 				SIPTAG_HEADER((const sip_header_t*)mAs->as_info),
 				SIPTAG_HEADER((const sip_header_t*)mAs->as_response),
@@ -288,9 +288,9 @@ bool Authentication::AuthenticationListener::sendReply(){
 	}else{
 		// Success
 		if (sip->sip_request->rq_method == sip_method_register){
-			sip_header_remove(mEv->mMsg,sip,(sip_header_t*)sip->sip_authorization);
+			sip_header_remove(mEv->getMsg(),sip,(sip_header_t*)sip->sip_authorization);
 		} else {
-			sip_header_remove(mEv->mMsg,sip, (sip_header_t*)sip->sip_proxy_authorization);
+			sip_header_remove(mEv->getMsg(),sip, (sip_header_t*)sip->sip_proxy_authorization);
 		}
 		return false;
 	}
@@ -381,7 +381,7 @@ void Authentication::AuthenticationListener::passwordRetrievingPending() {
 	if (mStateFullProxy) {
 		mAs->as_status=100, mAs->as_phrase="Authentication pending";
 		//as->as_callback=auth_callback; // should be set according to doc
-		msg_ref_create(mEv->mMsg); // Avoid temporary reference to make the message destroyed.
+		msg_ref_create(mEv->getMsg()); // Avoid temporary reference to make the message destroyed.
 		sendReply();
 	} else {
 		mEv->suspendProcessing();

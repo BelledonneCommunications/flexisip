@@ -36,7 +36,7 @@ public:
 	}
 
 	void onRequest(std::shared_ptr<SipEvent> &ev) {
-		sip_t *sip = ev->mSip;
+		sip_t *sip = ev->getSip();
 
 		if (sip->sip_request->rq_method == sip_method_register) {
 			//rewrite the request uri to the domain
@@ -79,14 +79,14 @@ public:
 		}
 	}
 	virtual void onResponse(std::shared_ptr<SipEvent> &ev) {
-		sip_t *sip = ev->mSip;
+		sip_t *sip = ev->getSip();
 		if (mMasqueradeInviteContacts && (sip->sip_cseq->cs_method == sip_method_invite || sip->sip_cseq->cs_method == sip_method_subscribe)) {
 			masqueradeContact(ev);
 		}
 	}
 private:
 	void masqueradeContact(std::shared_ptr<SipEvent> &ev) {
-		sip_t *sip = ev->mSip;
+		sip_t *sip = ev->getSip();
 		if (sip->sip_contact != NULL && sip->sip_contact->m_url != NULL) {
 			//rewrite contact, put local host instead and store previous contact host in new parameter
 			char ct_tport[32] = "udp";
