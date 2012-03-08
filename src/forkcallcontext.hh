@@ -17,8 +17,8 @@
 */
 
 
-#ifndef forkcallstore_hh
-#define forkcallstore_hh
+#ifndef forkcallcontext_hh
+#define forkcallcontext_hh
 
 #include "agent.hh"
 #include "event.hh"
@@ -32,11 +32,6 @@ class ForkCallContext {
 	IncomingTransaction *incoming;
 	std::list<OutgoingTransaction *> outgoings;
 
-	enum State {
-		INITIAL,
-		RINGING,
-	} state;
-
 public:
 	ForkCallContext(Agent * agent, Module *module);
 	~ForkCallContext();
@@ -48,7 +43,7 @@ public:
 	void receiveTimeout(OutgoingTransaction *transaction);
 	void receiveTerminated(OutgoingTransaction *transaction);
 	void receiveDecline(OutgoingTransaction *transaction);
-	void receiveRinging(OutgoingTransaction *transaction);
+	void receiveOther(OutgoingTransaction *transaction);
 	void receiveBye(IncomingTransaction *transaction);
 
 	static void incomingCallback(const sip_t *sip, Transaction * transaction);
@@ -60,15 +55,4 @@ private:
 
 };
 
-class ForkCallStore {
-	std::map<long, ForkCallContext*> mForkCallContexts;
-
-public:
-	ForkCallStore();
-	~ForkCallStore();
-	void addForkCall(long id, ForkCallContext* forkcall);
-	ForkCallContext* getForkCall(long id);
-	void removeForkCall(long id);
-};
-
-#endif //forkcallstore_hh
+#endif //forkcallcontext_hh

@@ -19,7 +19,7 @@
 #include <fstream>
 #include "agent.hh"
 #include "registrardb.hh"
-#include "forkcallstore.hh"
+#include "forkcallcontext.hh"
 #include <sofia-sip/sip_status.h>
 
 using namespace ::std;
@@ -221,6 +221,38 @@ bool Registrar::contactinVia(sip_contact_t *ct, sip_via_t * via) {
 	return false;
 }
 
+class RegistrarIncomingTransaction: public IncomingTransaction {
+private:
+	bool mRinging;
+	bool mEarlymedia;
+
+public:
+	RegistrarIncomingTransaction(nta_agent_t *agent, msg_t * msg, sip_t *sip, TransactionCallback callback, void *magic) :
+			IncomingTransaction(agent, msg, sip, callback, magic), mRinging(false), mEarlymedia(false) {
+
+	}
+	virtual void send(StatefulSipEvent * ev) {
+		if (ev->mSip->sip_status) {
+			if (ev->mSip->sip_status->st_status == 180) {
+				if (!mRinging) {
+					IncomingTransaction::send(ev);
+					mRinging = true;
+				}
+			} else if (ev->mSip->sip_status->st_status == 183) {
+				if (!mEarlymedia) {
+					IncomingTransaction::send(ev);
+					mEarlymedia = true;
+				}
+			} else {
+				IncomingTransaction::send(ev);
+			}
+		} else {
+			IncomingTransaction::send(ev);
+		}
+	}
+
+};
+
 void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record *aor, bool fork = false) {
 	sip_t *sip = ev->mSip;
 
@@ -255,7 +287,7 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 			}
 		} else {
 			ForkCallContext *context = new ForkCallContext(agent, this);
-			IncomingTransaction *incoming_transaction = new IncomingTransaction(agent->getSofiaAgent(), ev->mMsg, ev->mSip, ForkCallContext::incomingCallback, context);
+			IncomingTransaction *incoming_transaction = new RegistrarIncomingTransaction(agent->getSofiaAgent(), ev->mMsg, ev->mSip, ForkCallContext::incomingCallback, context);
 			context->setIncomingTransaction(incoming_transaction);
 			for (list<extended_contact*>::const_iterator it = contacts.begin(); it != contacts.end(); ++it) {
 				extended_contact *ec = *it;

@@ -59,7 +59,7 @@ public:
 	~OutgoingTransaction();
 	StatefulSipEvent *create(msg_t * msg, sip_t *sip);
 	StatefulSipEvent *copy(const SipEvent *sipEvent);
-	void send(StatefulSipEvent *);
+	virtual void send(StatefulSipEvent *);
 	nta_outgoing_t* getOutgoing();
 
 private:
@@ -76,7 +76,7 @@ public:
 	~IncomingTransaction();
 	StatefulSipEvent *create(msg_t * msg, sip_t *sip);
 	StatefulSipEvent *copy(const SipEvent *sipEvent);
-	void send(StatefulSipEvent *);
+	virtual void send(StatefulSipEvent *);
 	nta_incoming_t* getIncoming();
 
 private:

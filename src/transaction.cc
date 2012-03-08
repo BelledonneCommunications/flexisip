@@ -70,6 +70,7 @@ IncomingTransaction::IncomingTransaction(nta_agent_t *agent, msg_t * msg, sip_t 
 
 IncomingTransaction::~IncomingTransaction() {
 	if (incoming != NULL) {
+		nta_incoming_bind(incoming, NULL, NULL); //avoid callbacks
 		nta_incoming_destroy(incoming);
 	}
 	LOGD("Destroy IncomingTransaction %p", this);
