@@ -46,6 +46,7 @@ struct AuthDbTimings;
 class AuthDbListener {
 public:
 	virtual void checkPassword(const char *password) = 0;
+	virtual void switchToAsynchronousMode() = 0;
 	virtual void onAsynchronousResponse(AuthDbResult ret, const char *password) = 0;
 	virtual void onError() = 0;
 };

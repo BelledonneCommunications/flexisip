@@ -6,7 +6,7 @@ FLEXISIP=flexisip
 SIPP=sipp
 NB_USERS=1000
 EXPIRE=3600
-IP=`cat /etc/hosts | grep "sip.example.org" | grep "sip-auth.example.org" | grep "relayed-auth.example.org" | grep "relayed.example.org" | grep -e "^[^#]" | awk -F'\t' '{print $1}'`
+IP=`cat /etc/hosts | grep "sip.example.org" | grep "sip-auth.example.org" | grep "relayed-auth.example.org" | grep "relayed.example.org" | grep -v "#" | awk -F'\t' '{print $1}'`
 [ -z $IP ] && echo "ERROR: sip.example.org not found in /etc/hosts" && exit
 PROXY=sip.example.org
 REGISTER_PORT=5070
@@ -53,20 +53,31 @@ ulimit -n 65000
 
 
 CMD_UAS="$SIPP -sf uas.xml $UAS_OPTIONS"
-echo -e "\n\033[1mStart users listening: $CMD_UAS \033[0m"
+echo -e "\n\033[1mStart users listening: \033[0m"
+echo $CMD_UAS
 $CMD_UAS 2>&1 > /dev/null
 
 CMD_FLEXISIP="$FLEXISIP $FLEX_OPTIONS"
-echo -e "\n\033[1mStart flexisip: $CMD_FLEXISIP \033[0m"
+echo -e "\n\033[1mStart flexisip: \033[0m"
+echo $CMD_FLEXISIP
 $CMD_FLEXISIP 2>&1 > flexisip.log &
 sleep 2s
+ps aux | grep flexisip | grep -v grep
+if [ $? -ne 0 ]; then
+  echo "Error launching flexisip"
+  cat flexisip.log
+  exit -1
+fi
+
 
 CMD_REG_USERS="$SIPP $PROXY -sf register_users.xml $REG_OPTIONS"
-echo -e "\n\033[1mRegister users $CMD_REG_USERS \033[0m (never authenticated)"
+echo -e "\n\033[1mRegister users (never authenticated): \033[0m"
+echo $CMD_REG_USERS
 $CMD_REG_USERS
 
 CMD_REG_INVITER="$SIPP $PROXY -sf register_inviter$USE_AUTH.xml $REG_INVITER_OPTIONS"
-echo -e "\n\033[1mRegister inviter $CMD_REG_INVITER \033[0m"
+echo -e "\n\033[1mRegister inviter \033[0m"
+echo $CMD_REG_INVITER
 $CMD_REG_INVITER
 
 
@@ -88,7 +99,8 @@ set -o errtrace
 trap onexit 1 2 3 15 ERR
 
 CMD_INVITE_USERS="$SIPP $PROXY -sf $FOLDER/invite$USE_AUTH.xml $INV_OPTIONS"
-echo -e "\n\033[1mStart inviting users : $CMD_INVITE_USERS \033[0m"
+echo -e "\n\033[1mStart inviting users : \033[0m"
+echo $CMD_INVITE_USERS
 while [ true ]
 do
   $CMD_INVITE_USERS

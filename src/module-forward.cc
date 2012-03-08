@@ -139,7 +139,7 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev) {
 		break;
 	}
 	dest = sip->sip_request->rq_url;
-	// removes top route headers if they maches us
+	// removes top route headers if they matches us
 	while (sip->sip_route != NULL && getAgent()->isUs(sip->sip_route->r_url)) {
 		sip_route_remove(msg, sip);
 	}
@@ -165,31 +165,29 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev) {
 		dest->url_host = ip.c_str();
 	}
 
-	// Compute branch
-	char const * branch = compute_branch(getSofiaAgent(), msg, sip, mPreferredRoute.c_str());
+	// Compute branch, output branch=XXXXX
+	char const * branchStr = compute_branch(getSofiaAgent(), msg, sip, mPreferredRoute.c_str());
+
 
 	// Check looping
-	if (!isLooping(ev, branch)) {
-		checkRecordRoutes(ev, dest);
-
-		StatefulSipEvent *sse = dynamic_cast<StatefulSipEvent *>(ev.get());
-		if (sse != NULL) {
-			buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
-			LOGD("About to forward statefull request to %s:\n%s", url_as_string(ev->getHome(), dest), buf);
-			sse->getTransaction()->send(sse);
-			ev->terminateProcessing();
-		} else {
-
-			buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
-			LOGD("About to forward request to %s:\n%s", url_as_string(ev->getHome(), dest), buf);
-			nta_msg_tsend(getSofiaAgent(), msg, (url_string_t*) dest, NTATAG_BRANCH_KEY(branch), TAG_END());
-			ev->terminateProcessing();
-		}
-	} else {
-		LOGD("Loop Detected");
+	if (isLooping(ev, branchStr +7)) {
 		nta_msg_treply(getSofiaAgent(), msg, SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		ev->terminateProcessing();
+	} else if (getAgent()->isUs(dest->url_host, dest->url_port, false)) {
+		buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
+		LOGD("Skipping forwarding of request to us %s:\n%s", url_as_string(ev->getHome(), dest), buf);
+	} else {
+		checkRecordRoutes(ev, dest);
+		StatefulSipEvent *sse = dynamic_cast<StatefulSipEvent *>(ev.get());
+		buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
+		LOGD("About to forward%s request to %s:\n%s", sse?" stateful":"", url_as_string(ev->getHome(), dest), buf);
+		if (sse != NULL) {
+			sse->getTransaction()->send(sse);
+		} else {
+			nta_msg_tsend(getSofiaAgent(), msg, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), TAG_END());
+		}
 	}
+
+	ev->terminateProcessing();
 }
 
 unsigned int ForwardModule::countVia(std::shared_ptr<SipEvent> &ev) {
@@ -201,7 +199,8 @@ unsigned int ForwardModule::countVia(std::shared_ptr<SipEvent> &ev) {
 
 bool ForwardModule::isLooping(std::shared_ptr<SipEvent> &ev, const char * branch) {
 	for (sip_via_t *via = ev->getSip()->sip_via; via != NULL; via = via->v_next) {
-		if (via->v_branch != NULL && strcmp(via->v_branch, branch + 7) == 0) {
+		if (via->v_branch != NULL && strcmp(via->v_branch, branch) == 0) {
+			LOGD("Loop detected: %s", via->v_branch);
 			return true;
 		}
 	}

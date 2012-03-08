@@ -38,6 +38,7 @@ class DosProtection{
 		const char *mBlacklistChain;
 		const char *mCounterlist;
 		const char *mPath;
+		const char* mRecentDirectoryName;
 		bool mLoaded;
 		bool mEnabled;
 		int mBanDuration;

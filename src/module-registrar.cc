@@ -50,7 +50,7 @@ public:
 #else
 				{ String, "db-implementation", "Implementation used for storing address of records contact uris. [internal,...]", "internal" },
 #endif
-				{ Boolean, "fork", "Fork all incoming message", "false" },
+				{ Boolean, "fork", "Fork messages to all registered devices", "true" },
 				config_item_end };
 		module_config->addChildrenValues(items);
 	}

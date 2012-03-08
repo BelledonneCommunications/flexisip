@@ -344,11 +344,11 @@ bool OdbcAuthDb::getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimin
 		return false;
 	}
 	monotonic_clock::time_point tp2=monotonic_clock::now();
-	LOGD("SQLAllocHandle: %s : %lu ms", id.c_str(), duration_cast<milliseconds>(tp2-tp1).count());
+	LOGD("SQLAllocHandle: %s : %lu ms", id.c_str(), (unsigned long) duration_cast<milliseconds>(tp2-tp1).count());
 
 	retcode = SQLDriverConnect(ctx.dbc, NULL, (SQLCHAR*) connectionString.c_str(), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
 	if (!SQL_SUCCEEDED(retcode)) {dbcError(ctx, "SQLDriverConnect"); return false;}
-	LOGD("SQLDriverConnect %s : %lu ms", id.c_str(), duration_cast<milliseconds>(monotonic_clock::now()-tp2).count());
+	LOGD("SQLDriverConnect %s : %lu ms", id.c_str(), (unsigned long) duration_cast<milliseconds>(monotonic_clock::now()-tp2).count());
 
 	// Set connection to be read only
 	SQLSetConnectAttr(ctx.dbc, SQL_ATTR_ACCESS_MODE, (SQLPOINTER)SQL_MODE_READ_ONLY, 0);
@@ -430,6 +430,9 @@ AuthDbResult OdbcAuthDb::password(su_root_t *root, const url_t *from, const char
 		// Asynchronously retrieve password in a new thread.
 		// Allocate on the stack and detach. It is lawful since:
 		// "When detach() returns, *this no longer represents the possibly continuing thread of execution."
+		if (listener) {
+			listener->switchToAsynchronousMode();
+		}
 		thread t=thread(std::bind(&OdbcAuthDb::doAsyncRetrievePassword, this, root, id, domain, auth, fallbackPassword, listener));
 		t.detach();	// Thread will continue running in detached mode
 		return PENDING;
@@ -461,12 +464,16 @@ static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg,
 }
 
 
+/*
 static unsigned long threadCount=0;
 static mutex threadCountMutex;
+*/
 void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string domain, string auth, string fallback, AuthDbListener *listener){
+/*	unsigned long localThreadCountCopy=0;
 	threadCountMutex.lock();
 	++threadCount;
-	threadCountMutex.unlock();
+	localThreadCountCopy=threadCount;
+	threadCountMutex.unlock();*/
 	string foundPassword;
 	AuthDbTimings timings;
 	timings.tStart=monotonic_clock::now();
@@ -512,9 +519,12 @@ void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string doma
 		}
 	}
 
+	/*
 	threadCountMutex.lock();
 	--threadCount;
+	localThreadCountCopy=threadCount;
 	threadCountMutex.unlock();
+	*/
 }
 
 AuthDbResult OdbcAuthDb::doRetrievePassword(const string &id, const string &domain, const string &auth, string &foundPassword, AuthDbTimings &timings){
