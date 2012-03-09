@@ -52,6 +52,10 @@ class RelayedCall : public CallContextBase, public Masquerader{
 		}
 		/*this function is called to masquerade the SDP, for each mline*/
 		virtual void onNewMedia(int mline, std::string *ip, int *port, const char *party_tag){
+			if (*port==0){
+				//case of declined mline.
+				return;
+			}
 			if (mline>=sMaxSessions){
 				LOGE("Max sessions per relayed call is reached.");
 				return;
