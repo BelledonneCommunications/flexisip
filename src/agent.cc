@@ -33,6 +33,8 @@
 #include <net/if.h>
 #include <ifaddrs.h>
 
+#include <stdexcept>
+
 #define IPADDR_SIZE 64
 
 using namespace::std;
@@ -305,8 +307,8 @@ void Agent::discoverInterfaces(){
 }
 
 Module&  Agent::getModuleByName(std::string name) throw (std::exception) {
-	for(Module* module:mModules) {
-
+	for(auto it=mModules.begin(); it!=mModules.end(); ++it) {
+		Module* module = *it;
 		if (module->getModuleName().compare(name)==0) {
 			LOGD("module name [%s], found ",name.c_str());
 			return *module;
