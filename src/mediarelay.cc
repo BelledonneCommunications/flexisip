@@ -148,7 +148,7 @@ void RelaySession::transfer(time_t curtime, struct pollfd *tab) {
 	uint8_t buf[1500];
 	const int maxsize = sizeof(buf);
 	struct sockaddr_storage ss;
-	socklen_t slen;
+	socklen_t slen = sizeof(struct sockaddr);
 	int recv_len;
 	int send_len;
 	int i;
