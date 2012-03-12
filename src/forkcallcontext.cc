@@ -24,7 +24,7 @@
 using namespace ::std;
 
 ForkCallContext::ForkCallContext(Agent *agent) :
-		agent(agent), mRinging(0), mEarlyMedia(0) {
+		mAgent(agent), mRinging(0), mEarlyMedia(0) {
 	LOGD("New ForkCallContext %p", this);
 }
 
@@ -34,26 +34,24 @@ ForkCallContext::~ForkCallContext() {
 
 void ForkCallContext::receiveOk(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
 	shared_ptr<MsgSip> ms = event->getMsgSip();
-	shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, ms));
-	agent->sendResponseEvent(ev);
+	shared_ptr<SipEvent> ev(new StatefulSipEvent(mIncoming, ms));
+	mAgent->sendResponseEvent(ev);
 
 	// Cancel others
-	for (list<shared_ptr<OutgoingTransaction>>::iterator it = outgoings.begin(); it != outgoings.end(); ++it) {
+	for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end(); ++it) {
 		if (*it != transaction) {
 			(*it)->cancel();
 		}
 	}
-
-	incoming.reset();
 }
 
 void ForkCallContext::receiveCancel(const std::shared_ptr<IncomingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
-	for (list<shared_ptr<OutgoingTransaction>>::iterator it = outgoings.begin(); it != outgoings.end(); ++it) {
+	for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end(); ++it) {
 		(*it)->cancel();
 	}
-	shared_ptr<MsgSip> msgsip(incoming->createResponse(SIP_200_OK));
-	shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msgsip));
-	agent->sendResponseEvent(ev);
+	shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_487_REQUEST_CANCELLED));
+	shared_ptr<SipEvent> ev(new StatefulSipEvent(mIncoming, msgsip));
+	mAgent->sendResponseEvent(ev);
 }
 
 void ForkCallContext::receiveTimeout(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
@@ -82,26 +80,32 @@ void ForkCallContext::receiveDecline(const std::shared_ptr<OutgoingTransaction> 
 }
 
 void ForkCallContext::receiveEarlyMedia(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
-	if (incoming.get()) {
+	if (mIncoming.get()) {
 		shared_ptr<SipEvent> ev;
 		if (mRinging)
 			ev = make_shared<NullSipEvent>(event->getMsgSip());
 		else
-			ev = make_shared<StatefulSipEvent>(incoming, event->getMsgSip());
+			ev = make_shared<StatefulSipEvent>(mIncoming, event->getMsgSip());
 		++mRinging;
-		agent->sendResponseEvent(ev);
+		mAgent->sendResponseEvent(ev);
 	}
 
 }
+
+void ForkCallContext::receiveCanceled(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
+	shared_ptr<SipEvent> ev = make_shared<NullSipEvent>(event->getMsgSip());
+	mAgent->sendResponseEvent(ev);
+}
+
 void ForkCallContext::receiveRinging(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
-	if (incoming.get()) {
+	if (mIncoming.get()) {
 		shared_ptr<SipEvent> ev;
 		if (mEarlyMedia)
 			ev = make_shared<NullSipEvent>(event->getMsgSip());
 		else
-			ev = make_shared<StatefulSipEvent>(incoming, event->getMsgSip());
+			ev = make_shared<StatefulSipEvent>(mIncoming, event->getMsgSip());
 		++mEarlyMedia;
-		agent->sendResponseEvent(ev);
+		mAgent->sendResponseEvent(ev);
 	}
 
 }
@@ -147,18 +151,18 @@ void ForkCallContext::onEvent(const shared_ptr<OutgoingTransaction> &transaction
 }
 
 void ForkCallContext::onNew(const std::shared_ptr<IncomingTransaction> &transaction) {
-	incoming = transaction;
+	mIncoming = transaction;
 
 }
 
 void ForkCallContext::onDestroy(const std::shared_ptr<IncomingTransaction> &transaction) {
-	incoming.reset();
+	mIncoming.reset();
 }
 
 void ForkCallContext::onNew(const std::shared_ptr<OutgoingTransaction> &transaction) {
-	outgoings.push_back(transaction);
+	mOutgoings.push_back(transaction);
 }
 
 void ForkCallContext::onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction) {
-	outgoings.remove(transaction);
+	mOutgoings.remove(transaction);
 }

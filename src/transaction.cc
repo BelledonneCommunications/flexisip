@@ -38,7 +38,7 @@ OutgoingTransaction::~OutgoingTransaction() {
 }
 
 void OutgoingTransaction::cancel() {
-	nta_outgoing_tcancel(outgoing, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, TAG_END());
+	nta_outgoing_cancel(outgoing);
 }
 
 void OutgoingTransaction::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
@@ -61,6 +61,8 @@ void OutgoingTransaction::send(const shared_ptr<MsgSip> &msg) {
 	if (outgoing == NULL) {
 		LOGE("Error during outgoing transaction creation");
 		msg_destroy(msg->getMsg());
+	} else {
+		handler->onNew(this->shared_from_this());
 	}
 }
 
@@ -92,6 +94,7 @@ IncomingTransaction::IncomingTransaction(Agent *agent, const shared_ptr<Incoming
 }
 
 void IncomingTransaction::handle(const std::shared_ptr<MsgSip> &ms) {
+	msg_ref_create(ms->getMsg());
 	incoming = nta_incoming_create(agent->mAgent, NULL, ms->getMsg(), ms->getSip(), TAG_END());
 	if (incoming != NULL) {
 		nta_incoming_bind(incoming, IncomingTransaction::_callback, (nta_incoming_magic_t*) this);

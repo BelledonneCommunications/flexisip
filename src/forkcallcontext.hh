@@ -26,9 +26,9 @@
 #include <map>
 
 class ForkCallContext: public IncomingTransactionHandler, public OutgoingTransactionHandler {
-	Agent *agent;
-	std::shared_ptr<IncomingTransaction> incoming;
-	std::list<std::shared_ptr<OutgoingTransaction>> outgoings;
+	Agent *mAgent;
+	std::shared_ptr<IncomingTransaction> mIncoming;
+	std::list<std::shared_ptr<OutgoingTransaction>> mOutgoings;
 	int mRinging;
 	int mEarlyMedia;
 
@@ -44,6 +44,7 @@ public:
 private:
 	void receiveOk(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
 	void receiveCancel(const std::shared_ptr<IncomingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
+	void receiveCanceled(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
 	void receiveTimeout(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
 	void receiveDecline(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
 	void receiveRinging(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
