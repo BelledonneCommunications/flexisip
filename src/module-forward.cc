@@ -77,11 +77,12 @@ void ForwardModule::onLoad(Agent *agent, const ConfigStruct *module_config) {
 }
 
 url_t* ForwardModule::overrideDest(std::shared_ptr<SipEvent> &ev, url_t *dest) {
+	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
 	if (mOutRoute) {
 		dest = mOutRoute->r_url;
 		if (mRewriteReqUri) {
-			ev->getSip()->sip_request->rq_url->url_host = mOutRoute->r_url->url_host;
-			ev->getSip()->sip_request->rq_url->url_port = mOutRoute->r_url->url_port;
+			ms->getSip()->sip_request->rq_url->url_host = mOutRoute->r_url->url_host;
+			ms->getSip()->sip_request->rq_url->url_port = mOutRoute->r_url->url_port;
 		}
 	}
 	return dest;
@@ -93,7 +94,8 @@ url_t* ForwardModule::overrideDest(std::shared_ptr<SipEvent> &ev, url_t *dest) {
  so that further request from both sides are sent to the appropriate transport of flexisip, and also we don't ask to a UDP only equipment to route to TCP.
  */
 void ForwardModule::checkRecordRoutes(std::shared_ptr<SipEvent> &ev, url_t *dest) {
-	sip_record_route_t *rr = ev->getSip()->sip_record_route;
+	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+	sip_record_route_t *rr = ms->getSip()->sip_record_route;
 	char last_transport[16] = { 0 };
 	char next_transport[16] = { 0 };
 
@@ -106,24 +108,24 @@ void ForwardModule::checkRecordRoutes(std::shared_ptr<SipEvent> &ev, url_t *dest
 				strncpy(next_transport, "UDP", sizeof(next_transport));
 			}
 			if (strcasecmp(next_transport, last_transport) != 0) {
-				addRecordRoute(ev->getHome(), getAgent(), ev->getMsg(), ev->getSip(), next_transport);
+				addRecordRoute(ms->getHome(), getAgent(), ms->getMsg(), ms->getSip(), next_transport);
 			}
 		}
 	}
 }
 
 void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev) {
+	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
 	size_t msg_size;
 	char *buf;
 	url_t* dest = NULL;
-	sip_t *sip = ev->getSip();
-	msg_t *msg = ev->getMsg();
+	sip_t *sip = ms->getSip();
+	msg_t *msg = ms->getMsg();
 
 	// Check max forwards
 	if (sip->sip_max_forwards != NULL && sip->sip_max_forwards->mf_count <= countVia(ev)) {
 		LOGD("Too Many Hops");
-		nta_msg_treply(getSofiaAgent(), msg, SIP_483_TOO_MANY_HOPS, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		ev->terminateProcessing();
+		ev->reply(ms, SIP_483_TOO_MANY_HOPS, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
 
@@ -150,8 +152,7 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev) {
 
 	/* workaround bad sip uris with two @ that results in host part being "something@somewhere" */
 	if (strchr(dest->url_host, '@') != 0) {
-		nta_msg_treply(getSofiaAgent(), msg, SIP_400_BAD_REQUEST, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		ev->terminateProcessing();
+		ev->reply(ms, SIP_400_BAD_REQUEST, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
 
@@ -161,44 +162,45 @@ void ForwardModule::onRequest(std::shared_ptr<SipEvent> &ev) {
 	if (EtcHostsResolver::get()->resolve(dest->url_host, &ip)) {
 		LOGD("Found %s in /etc/hosts", dest->url_host);
 		/* duplication dest because we don't want to modify the message with our name resolution result*/
-		dest = url_hdup(ev->getHome(), dest);
+		dest = url_hdup(ms->getHome(), dest);
 		dest->url_host = ip.c_str();
 	}
 
 	// Compute branch, output branch=XXXXX
 	char const * branchStr = compute_branch(getSofiaAgent(), msg, sip, mPreferredRoute.c_str());
 
-
 	// Check looping
-	if (isLooping(ev, branchStr +7)) {
-		nta_msg_treply(getSofiaAgent(), msg, SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	if (isLooping(ev, branchStr + 7)) {
+		ev->reply(ms, SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	} else if (getAgent()->isUs(dest->url_host, dest->url_port, false)) {
-		buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
-		LOGD("Skipping forwarding of request to us %s:\n%s", url_as_string(ev->getHome(), dest), buf);
+		buf = msg_as_string(ms->getHome(), msg, NULL, 0, &msg_size);
+		LOGD("Skipping forwarding of request to us %s:\n%s", url_as_string(ms->getHome(), dest), buf);
+		ev->terminateProcessing();
 	} else {
 		checkRecordRoutes(ev, dest);
 		StatefulSipEvent *sse = dynamic_cast<StatefulSipEvent *>(ev.get());
-		buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
-		LOGD("About to forward%s request to %s:\n%s", sse?" stateful":"", url_as_string(ev->getHome(), dest), buf);
+		buf = msg_as_string(ms->getHome(), msg, NULL, 0, &msg_size);
+		LOGD("About to forward%s request to %s:\n%s", sse ? " stateful" : "", url_as_string(ms->getHome(), dest), buf);
 		if (sse != NULL) {
 			sse->getTransaction()->send(sse);
 		} else {
-			nta_msg_tsend(getSofiaAgent(), msg, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), TAG_END());
+			ev->send(ms, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), TAG_END());
 		}
 	}
 
-	ev->terminateProcessing();
 }
 
 unsigned int ForwardModule::countVia(std::shared_ptr<SipEvent> &ev) {
+	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
 	uint32_t via_count = 0;
-	for (sip_via_t *via = ev->getSip()->sip_via; via != NULL; via = via->v_next)
+	for (sip_via_t *via = ms->getSip()->sip_via; via != NULL; via = via->v_next)
 		++via_count;
 	return via_count;
 }
 
 bool ForwardModule::isLooping(std::shared_ptr<SipEvent> &ev, const char * branch) {
-	for (sip_via_t *via = ev->getSip()->sip_via; via != NULL; via = via->v_next) {
+	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+	for (sip_via_t *via = ms->getSip()->sip_via; via != NULL; via = via->v_next) {
 		if (via->v_branch != NULL && strcmp(via->v_branch, branch) == 0) {
 			LOGD("Loop detected: %s", via->v_branch);
 			return true;
@@ -209,23 +211,18 @@ bool ForwardModule::isLooping(std::shared_ptr<SipEvent> &ev, const char * branch
 }
 
 void ForwardModule::onResponse(std::shared_ptr<SipEvent> &ev) {
+	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
 	char *buf;
-	msg_t *msg = ev->getMsg();
+	msg_t *msg = ms->getMsg();
 	size_t msg_size;
 
 	StatefulSipEvent *sse = dynamic_cast<StatefulSipEvent *>(ev.get());
+	buf = msg_as_string(ms->getHome(), msg, NULL, 0, &msg_size);
+	LOGD("About to forward%s response:\n%s", sse ? " stateful" : "", buf);
 	if (sse != NULL) {
-		buf = msg_as_string(ev->getHome(), msg, NULL, 0, &msg_size);
-		LOGD("About to forward statefull response:\n%s", buf);
-
 		sse->getTransaction()->send(sse);
-		ev->terminateProcessing();
 	} else {
-		buf = msg_as_string(ev->getHome(), ev->getMsg(), NULL, 0, &msg_size);
-		LOGD("About to forward response:\n%s", buf);
-
-		nta_msg_tsend(getSofiaAgent(), ev->getMsg(), (url_string_t*) NULL, TAG_END());
-		ev->terminateProcessing();
+		ev->send(ms, (url_string_t*) NULL, TAG_END());
 	}
 }
 

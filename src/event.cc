@@ -16,33 +16,36 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "agent.hh"
 #include "event.hh"
+#include "transaction.hh"
 #include "common.hh"
 #include <sofia-sip/sip_protos.h>
+#include <sofia-sip/su_tagarg.h>
 
-SipEvent::SipEvent(msg_t *msg, sip_t *sip) :
-		mCurrModule(NULL), mState(STARTED), mHome(NULL), mMsg(NULL), mSip(NULL) {
-	setMsgSip(msg, sip);
+MsgSip::MsgSip(msg_t *msg, sip_t *sip) {
+	mMsg = msg_copy(msg);
+	mSip = sip_object(mMsg);
+	mHome = msg_home(mMsg);
 }
 
-SipEvent::SipEvent(const SipEvent *sipEvent) :
-		mCurrModule(sipEvent->mCurrModule), mState(sipEvent->mState), mHome(NULL), mMsg(NULL), mSip(NULL) {
-	setMsgSip(msg_copy(sipEvent->mMsg));
+MsgSip::MsgSip(const MsgSip &msgSip) {
+	mMsg = msg_copy(msgSip.mMsg);
+	mSip = sip_object(mMsg);
+	mHome = msg_home(mMsg);
 }
 
-void SipEvent::setMsgSip(msg_t *msg, sip_t *sip) {
-	msg_t* old_msg = mMsg;
+MsgSip::~MsgSip() {
+	msg_destroy(mMsg);
+}
 
-	mMsg = msg;
-	mSip = (sip != NULL) ? sip : sip_object(msg);
-	mHome = msg_home(msg);
+SipEvent::SipEvent(const std::shared_ptr<SipEvent> &sipEvent) :
+		mAgent(sipEvent->mAgent), mCurrModule(sipEvent->mCurrModule), mMsgSip(sipEvent->mMsgSip), mState(sipEvent->mState) {
 
-	if (mMsg != NULL)
-		msg_ref_create(mMsg);
+}
 
-	if (old_msg != NULL) {
-		msg_ref_destroy(old_msg);
-	}
+SipEvent::SipEvent(Agent *agent, const std::shared_ptr<MsgSip> &msgSip) :
+		mAgent(agent), mCurrModule(NULL), mMsgSip(msgSip), mState(STARTED) {
 }
 
 void SipEvent::terminateProcessing() {
@@ -69,6 +72,24 @@ void SipEvent::restartProcessing() {
 	}
 }
 
+void SipEvent::send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
+	ta_list ta;
+	ta_start(ta, tag, value);
+	msg_ref_create(msg->getMsg());
+	nta_msg_tsend(mAgent->mAgent, msg->getMsg(), u, ta_tags(ta));
+	ta_end(ta);
+	terminateProcessing();
+}
+
+void SipEvent::reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+	ta_list ta;
+	ta_start(ta, tag, value);
+	msg_ref_create(msg->getMsg());
+	nta_msg_treply(mAgent->mAgent, msg->getMsg(), status, phrase, ta_tags(ta));
+	ta_end(ta);
+	terminateProcessing();
+}
+
 bool SipEvent::suspended() const {
 	return mState == SUSPENDED;
 }
@@ -78,16 +99,14 @@ bool SipEvent::terminated() const {
 }
 
 SipEvent::~SipEvent() {
-	msg_destroy(mMsg);
 }
 
-StatefulSipEvent::StatefulSipEvent(Transaction *transaction, msg_t *msg, sip_t *sip) :
-		SipEvent(msg, sip), transaction(transaction) {
-
-}
-
-StatefulSipEvent::StatefulSipEvent(Transaction *transaction, const SipEvent *sipEvent) :
+StatefulSipEvent::StatefulSipEvent(Transaction *transaction, const std::shared_ptr<SipEvent> &sipEvent) :
 		SipEvent(sipEvent), transaction(transaction) {
+
+}
+StatefulSipEvent::StatefulSipEvent(Transaction *transaction, const std::shared_ptr<MsgSip> &msgSip) :
+		SipEvent(transaction->getAgent(), msgSip), transaction(transaction) {
 
 }
 

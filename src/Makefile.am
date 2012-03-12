@@ -16,6 +16,7 @@ flexisip_SOURCES=main.cc \
 			entryfilter.cc entryfilter.hh \
 			stun.cc stun.hh \
 			mediarelay.cc mediarelay.hh \
+			authdb.hh authdb.cc authdb-odbc.cc authdb-file.cc \
 			module-forward.cc \
 			module-transcode.cc \
 			module-gatewayadapter.cc \
@@ -24,7 +25,6 @@ flexisip_SOURCES=main.cc \
 			module-registrar.cc \
 			module-mediarelay.cc \
 			module-auth.cc \
-			authdb.hh authdb.cc authdb-odbc.cc authdb-file.cc \
 			module-loadbalancer.cc \
 			dos-protection.cc dos-protection.hh
 

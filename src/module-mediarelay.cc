@@ -202,9 +202,10 @@ bool MediaRelay::processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip) {
 }
 
 void MediaRelay::onRequest(std::shared_ptr<SipEvent> &ev) {
+	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
 	RelayedCall *c;
-	msg_t *msg = ev->getMsg();
-	sip_t *sip = ev->getSip();
+	msg_t *msg = ms->getMsg();
+	sip_t *sip = ms->getSip();
 
 	StatefulSipEvent *sse = dynamic_cast<StatefulSipEvent *>(ev.get());
 	if (sse != NULL) {
@@ -260,7 +261,7 @@ void MediaRelay::onRequest(std::shared_ptr<SipEvent> &ev) {
 		}
 	}
 
-	ev->setMsgSip(msg, sip);
+	ev->setMsgSip(std::make_shared<MsgSip>(msg, sip));
 
 }
 
@@ -293,25 +294,27 @@ void MediaRelay::process200OkforInvite(RelayedCall *c, msg_t *msg, sip_t *sip) {
 }
 
 void MediaRelay::onResponse(std::shared_ptr<SipEvent> &ev) {
-	sip_t *sip = ev->getSip();
-	msg_t *msg = ev->getMsg();
+	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+	sip_t *sip = ms->getSip();
+	msg_t *msg = ms->getMsg();
 	RelayedCall *c;
 	StatefulSipEvent *sse = dynamic_cast<StatefulSipEvent *>(ev.get());
 	if (sse != NULL) {
 		//Stateful
 		if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
-			fixAuthChallengeForSDP(ev->getHome(), msg, sip);
+			fixAuthChallengeForSDP(ms->getHome(), msg, sip);
 			if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
 				if ((c = static_cast<RelayedCall*>(mCalls->find(getAgent(), sip, true))) != NULL) {
 					process200OkforInvite(c, msg, sip);
-				} else
+				} else {
 					LOGD("Receiving 200Ok for unknown call.");
+				}
 			}
 		}
 	} else {
 		//Stateless
 		if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
-			fixAuthChallengeForSDP(ev->getHome(), msg, sip);
+			fixAuthChallengeForSDP(ms->getHome(), msg, sip);
 			if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
 				if ((c = static_cast<RelayedCall*>(mCalls->find(getAgent(), sip))) != NULL) {
 					if (sip->sip_status->st_status == 200 && c->isNew200Ok(sip)) {
@@ -325,13 +328,14 @@ void MediaRelay::onResponse(std::shared_ptr<SipEvent> &ev) {
 							sip = (sip_t*) msg_object(msg);
 						}
 					}
-				} else
+				} else {
 					LOGD("Receiving 200Ok for unknown call.");
+				}
 			}
 		}
 	}
 
-	ev->setMsgSip(msg, sip);
+	ev->setMsgSip(make_shared<MsgSip>(msg, sip));
 }
 
 void MediaRelay::onIdle() {

@@ -280,7 +280,8 @@ void GatewayAdapter::onLoad(Agent *agent, const ConfigStruct *module_config) {
 }
 
 void GatewayAdapter::onRequest(std::shared_ptr<SipEvent> &ev) {
-	sip_t *sip = ev->getSip();
+	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+	sip_t *sip = ms->getSip();
 
 	if (sip->sip_request->rq_method == sip_method_register) {
 		if (sip->sip_contact != NULL) {

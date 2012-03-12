@@ -19,27 +19,19 @@
 #ifndef event_hh
 #define event_hh
 
+#include <memory>
 #include <sofia-sip/msg.h>
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nta.h>
 
+class Agent;
 class Module;
 
-class SipEvent {
-	friend class Agent;
+class MsgSip {
 public:
-	SipEvent(msg_t *msg, sip_t *sip = NULL);
-	SipEvent(const SipEvent *sipEvent);
-
-	void terminateProcessing();
-
-	void suspendProcessing();
-
-	void restartProcessing();
-
-	bool suspended() const;
-
-	bool terminated() const;
+	MsgSip(msg_t *msg, sip_t *sip);
+	MsgSip(const MsgSip &msgSip);
+	~MsgSip();
 
 	inline msg_t* getMsg() const {
 		return mMsg;
@@ -53,17 +45,53 @@ public:
 		return mHome;
 	}
 
-	void setMsgSip(msg_t *msg, sip_t *sip = NULL);
-
-	virtual ~SipEvent();
 private:
-	Module *mCurrModule;
-	enum {
-		STARTED, SUSPENDED, TERMINATED,
-	} mState;
 	su_home_t *mHome;
 	msg_t *mMsg;
 	sip_t *mSip;
+};
+
+class SipEvent {
+	friend class Agent;
+public:
+	SipEvent(const std::shared_ptr<SipEvent> &sipEvent);
+	SipEvent(Agent *agent, const std::shared_ptr<MsgSip> &msgSip);
+
+	void terminateProcessing();
+
+	void suspendProcessing();
+
+	void restartProcessing();
+
+	bool suspended() const;
+
+	bool terminated() const;
+
+	inline Agent* getAgent() const {
+		return mAgent;
+	}
+
+	void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
+
+	void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
+
+	inline std::shared_ptr<MsgSip> getMsgSip() const {
+		return mMsgSip;
+	}
+
+	inline void setMsgSip(std::shared_ptr<MsgSip> msgSip) {
+		mMsgSip = msgSip;
+	}
+
+	virtual ~SipEvent();
+private:
+	Agent *mAgent;
+	Module *mCurrModule;
+	std::shared_ptr<MsgSip> mMsgSip;
+
+	enum {
+		STARTED, SUSPENDED, TERMINATED,
+	} mState;
 };
 
 class Transaction;
@@ -71,8 +99,8 @@ class StatefulSipEvent: public SipEvent {
 private:
 	Transaction *transaction;
 public:
-	StatefulSipEvent(Transaction *transaction, msg_t *msg, sip_t *sip);
-	StatefulSipEvent(Transaction *transaction, const SipEvent *sipEvent);
+	StatefulSipEvent(Transaction *transaction, const std::shared_ptr<SipEvent> &sipEvent);
+	StatefulSipEvent(Transaction *transaction, const std::shared_ptr<MsgSip> &msgSip);
 	Transaction *getTransaction();
 	~StatefulSipEvent();
 };

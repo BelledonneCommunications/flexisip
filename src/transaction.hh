@@ -19,6 +19,8 @@
 #ifndef transaction_hh
 #define transaction_hh
 
+
+#include "agent.hh"
 #include <sofia-sip/msg.h>
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nta.h>
@@ -31,18 +33,22 @@ class StatefulSipEvent;
 class SipEvent;
 class Transaction {
 protected:
+	Agent *agent;
 	void* magic;
 	TransactionCallback callback;
 
 public:
-	Transaction(TransactionCallback callback, void *magic = NULL) :
-		magic(magic), callback(callback) {
+	Transaction(Agent *agent, TransactionCallback callback, void *magic = NULL) :
+		agent(agent), magic(magic), callback(callback) {
 	};
+
+	Agent * getAgent() {
+		return agent;
+	}
+
 	void* getMagic() {
 		return magic;
 	}
-	virtual StatefulSipEvent *create(msg_t * msg, sip_t *sip) = 0;
-	virtual StatefulSipEvent *copy(const SipEvent *sipEvent) = 0;
 	virtual void send(StatefulSipEvent *) = 0;
 	virtual ~Transaction() {
 	}
@@ -52,13 +58,10 @@ public:
 class OutgoingTransaction: public Transaction {
 private:
 	nta_outgoing_t *outgoing;
-	nta_agent_t *agent;
 
 public:
-	OutgoingTransaction(nta_agent_t *agent, TransactionCallback callback, void *magic);
+	OutgoingTransaction(Agent *agent, TransactionCallback callback, void *magic);
 	~OutgoingTransaction();
-	StatefulSipEvent *create(msg_t * msg, sip_t *sip);
-	StatefulSipEvent *copy(const SipEvent *sipEvent);
 	virtual void send(StatefulSipEvent *);
 	nta_outgoing_t* getOutgoing();
 
@@ -69,13 +72,10 @@ private:
 class IncomingTransaction: public Transaction {
 private:
 	nta_incoming_t *incoming;
-	nta_agent_t *agent;
 
 public:
-	IncomingTransaction(nta_agent_t *agent, msg_t * msg, sip_t *sip, TransactionCallback callback, void *magic);
+	IncomingTransaction(Agent *agent, msg_t * msg, sip_t *sip, TransactionCallback callback, void *magic);
 	~IncomingTransaction();
-	StatefulSipEvent *create(msg_t * msg, sip_t *sip);
-	StatefulSipEvent *copy(const SipEvent *sipEvent);
 	virtual void send(StatefulSipEvent *);
 	nta_incoming_t* getIncoming();
 

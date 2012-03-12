@@ -49,6 +49,10 @@
  * Refer to the flexisip.conf.sample installed by "make install" for documentation about what each module does.
 **/
 class Agent{
+	friend class IncomingTransaction;
+	friend class OutgoingTransaction;
+	friend class SipEvent;
+	friend class Module;
 	public:
 		Agent(su_root_t *root, int port, int tlsport);
 		virtual void loadConfig(ConfigManager *cm);
@@ -72,9 +76,6 @@ class Agent{
 		const std::string& getUniqueId() const;
 		void idle();
 		bool isUs(const url_t *url, bool check_aliases=true)const;
-		nta_agent_t* getSofiaAgent()const{
-			return mAgent;
-		}
 		su_root_t *getRoot() const{
 			return mRoot;
 		}

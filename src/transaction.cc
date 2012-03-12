@@ -20,8 +20,8 @@
 #include "event.hh"
 #include "common.hh"
 
-OutgoingTransaction::OutgoingTransaction(nta_agent_t *agent, TransactionCallback callback, void *magic) :
-		Transaction(callback, magic), outgoing(NULL), agent(agent) {
+OutgoingTransaction::OutgoingTransaction(Agent *agent, TransactionCallback callback, void *magic) :
+		Transaction(agent, callback, magic), outgoing(NULL) {
 	LOGD("New OutgoingTransaction %p", this);
 
 }
@@ -34,19 +34,13 @@ OutgoingTransaction::~OutgoingTransaction() {
 	LOGD("Destroy OutgoingTransaction %p", this);
 }
 
-StatefulSipEvent *OutgoingTransaction::create(msg_t * msg, sip_t *sip) {
-	return new StatefulSipEvent(this, msg, sip);
-}
-
-StatefulSipEvent *OutgoingTransaction::copy(const SipEvent *sipEvent) {
-	return new StatefulSipEvent(this, sipEvent);
-}
-
 void OutgoingTransaction::send(StatefulSipEvent *ev) {
-	outgoing = nta_outgoing_mcreate(agent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, NULL, ev->getMsg(), TAG_END());
+	msg_ref_create(ev->getMsgSip()->getMsg());
+	outgoing = nta_outgoing_mcreate(agent->mAgent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, NULL, ev->getMsgSip()->getMsg(), TAG_END());
 	if (outgoing == NULL) {
-		msg_destroy(ev->getMsg());
+		msg_destroy(ev->getMsgSip()->getMsg());
 	}
+	ev->terminateProcessing();
 }
 
 int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *irq, const sip_t *sip) {
@@ -61,10 +55,11 @@ nta_outgoing_t *OutgoingTransaction::getOutgoing() {
 	return outgoing;
 }
 
-IncomingTransaction::IncomingTransaction(nta_agent_t *agent, msg_t * msg, sip_t *sip, TransactionCallback callback, void *magic) :
-		Transaction(callback, magic), incoming(NULL), agent(agent) {
-	incoming = nta_incoming_create(agent, NULL, msg, sip, TAG_END());
-	nta_incoming_bind(incoming, IncomingTransaction::_callback, (nta_incoming_magic_t*)this);
+IncomingTransaction::IncomingTransaction(Agent *agent, msg_t * msg, sip_t *sip, TransactionCallback callback, void *magic) :
+		Transaction(agent, callback, magic), incoming(NULL) {
+	msg_ref_create(msg);
+	incoming = nta_incoming_create(agent->mAgent, NULL, msg, sip, TAG_END());
+	nta_incoming_bind(incoming, IncomingTransaction::_callback, (nta_incoming_magic_t*) this);
 	LOGD("New IncomingTransaction %p", this);
 }
 
@@ -76,16 +71,10 @@ IncomingTransaction::~IncomingTransaction() {
 	LOGD("Destroy IncomingTransaction %p", this);
 }
 
-StatefulSipEvent *IncomingTransaction::create(msg_t * msg, sip_t *sip) {
-	return new StatefulSipEvent(this, msg, sip);
-}
-
-StatefulSipEvent *IncomingTransaction::copy(const SipEvent *sipEvent) {
-	return new StatefulSipEvent(this, sipEvent);
-}
-
 void IncomingTransaction::send(StatefulSipEvent *ev) {
-	nta_incoming_mreply(incoming, ev->getMsg());
+	msg_ref_create(ev->getMsgSip()->getMsg());
+	nta_incoming_mreply(incoming, ev->getMsgSip()->getMsg());
+	ev->terminateProcessing();
 }
 
 int IncomingTransaction::_callback(nta_incoming_magic_t *magic, nta_incoming_t *irq, const sip_t *sip) {
