@@ -23,6 +23,8 @@
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/su_tagarg.h>
 
+using namespace ::std;
+
 MsgSip::MsgSip(msg_t *msg, sip_t *sip) {
 	mMsg = msg_copy(msg);
 	mSip = sip_object(mMsg);
@@ -39,12 +41,12 @@ MsgSip::~MsgSip() {
 	msg_destroy(mMsg);
 }
 
-SipEvent::SipEvent(const std::shared_ptr<SipEvent> &sipEvent) :
+SipEvent::SipEvent(const shared_ptr<SipEvent> &sipEvent) :
 		mAgent(sipEvent->mAgent), mCurrModule(sipEvent->mCurrModule), mMsgSip(sipEvent->mMsgSip), mState(sipEvent->mState) {
 
 }
 
-SipEvent::SipEvent(Agent *agent, const std::shared_ptr<MsgSip> &msgSip) :
+SipEvent::SipEvent(Agent *agent, const shared_ptr<MsgSip> &msgSip) :
 		mAgent(agent), mCurrModule(NULL), mMsgSip(msgSip), mState(STARTED) {
 }
 
@@ -72,7 +74,7 @@ void SipEvent::restartProcessing() {
 	}
 }
 
-void SipEvent::send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
+void SipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
 	ta_start(ta, tag, value);
 	msg_ref_create(msg->getMsg());
@@ -81,7 +83,7 @@ void SipEvent::send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, t
 	terminateProcessing();
 }
 
-void SipEvent::reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+void SipEvent::reply(const shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
 	ta_start(ta, tag, value);
 	msg_ref_create(msg->getMsg());
@@ -101,11 +103,11 @@ bool SipEvent::terminated() const {
 SipEvent::~SipEvent() {
 }
 
-StatefulSipEvent::StatefulSipEvent(Transaction *transaction, const std::shared_ptr<SipEvent> &sipEvent) :
+StatefulSipEvent::StatefulSipEvent(Transaction *transaction, const shared_ptr<SipEvent> &sipEvent) :
 		SipEvent(sipEvent), transaction(transaction) {
 
 }
-StatefulSipEvent::StatefulSipEvent(Transaction *transaction, const std::shared_ptr<MsgSip> &msgSip) :
+StatefulSipEvent::StatefulSipEvent(Transaction *transaction, const shared_ptr<MsgSip> &msgSip) :
 		SipEvent(transaction->getAgent(), msgSip), transaction(transaction) {
 
 }

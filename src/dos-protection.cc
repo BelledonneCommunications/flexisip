@@ -26,6 +26,8 @@
 #include <iostream>
 #include <stdlib.h>
 
+using namespace ::std;
+
 #define CHECK_RETURN(return_val, cmd) 			\
 	if(return_val != 0) { 				\
 		LOGW("%s returns %d", cmd, return_val);	\

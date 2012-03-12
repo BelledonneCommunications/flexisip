@@ -63,12 +63,12 @@ bool RecordSerializerC::parse(const char *str, int len, Record *r){
 }
 
 // #sipuri#expireAt#q#lineValue#updateTime#callId#cseq
-bool RecordSerializerC::serialize(Record *r, std::string &serialized){
+bool RecordSerializerC::serialize(Record *r, string &serialized){
 	if (!r) return true;
 
-	std::list<extended_contact *> contacts=r->getExtendedContacts();
-	std::list<extended_contact *>::iterator it;
-	std::ostringstream oss;
+	list<extended_contact *> contacts=r->getExtendedContacts();
+	list<extended_contact *>::iterator it;
+	ostringstream oss;
 
 	int i=0;
 	for (it=contacts.begin(); it != contacts.end(); ++it){

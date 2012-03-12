@@ -24,6 +24,8 @@
 #include <functional>
 #include <algorithm>
 
+using namespace ::std;
+
 class TickerManager {
 public:
 	TickerManager() {
@@ -44,7 +46,7 @@ public:
 
 	}
 	~TickerManager() {
-		std::for_each(mTickers.begin(), mTickers.end(), std::ptr_fun(ms_ticker_destroy));
+		for_each(mTickers.begin(), mTickers.end(), ptr_fun(ms_ticker_destroy));
 	}
 private:
 	int getCpuCount() {
@@ -62,7 +64,7 @@ private:
 			count = 1;
 		return count;
 	}
-	std::vector<MSTicker*> mTickers;
+	vector<MSTicker*> mTickers;
 	unsigned int mLastTickerIndex;
 	bool mStarted;
 };
@@ -72,28 +74,28 @@ public:
 	TranscodeModule(Agent *ag);
 	~TranscodeModule();
 	virtual void onLoad(Agent *agent, const ConfigStruct *module_config);
-	virtual void onRequest(std::shared_ptr<SipEvent> &ev);
-	virtual void onResponse(std::shared_ptr<SipEvent> &ev);
+	virtual void onRequest(shared_ptr<SipEvent> &ev);
+	virtual void onResponse(shared_ptr<SipEvent> &ev);
 	virtual void onIdle();
 	virtual void onDeclare(ConfigStruct *module_config);
 private:
 	TickerManager mTickerManager;
-	int handleOffer(CallContext *c, std::shared_ptr<SipEvent> &ev);
-	int handleAnswer(CallContext *c, std::shared_ptr<SipEvent> &ev);
-	int processNewInvite(CallContext *c, std::shared_ptr<SipEvent> &ev);
-	void process200OkforInvite(CallContext *ctx, std::shared_ptr<SipEvent> &ev);
-	void processNewAck(CallContext *ctx, std::shared_ptr<SipEvent> &ev);
-	bool processSipInfo(CallContext *c, std::shared_ptr<SipEvent> &ev);
+	int handleOffer(CallContext *c, shared_ptr<SipEvent> &ev);
+	int handleAnswer(CallContext *c, shared_ptr<SipEvent> &ev);
+	int processNewInvite(CallContext *c, shared_ptr<SipEvent> &ev);
+	void process200OkforInvite(CallContext *ctx, shared_ptr<SipEvent> &ev);
+	void processNewAck(CallContext *ctx, shared_ptr<SipEvent> &ev);
+	bool processSipInfo(CallContext *c, shared_ptr<SipEvent> &ev);
 	void onTimer();
 	static void sOnTimer(void *unused, su_timer_t *t, void *zis);
 	bool canDoRateControl(sip_t *sip);
 	bool isOneCodecSupported(const MSList *ioffer);
 	MSList *normalizePayloads(MSList *l);
-	MSList *orderList(const std::list<std::string> &config, const MSList *l);
+	MSList *orderList(const list<string> &config, const MSList *l);
 	MSList *mSupportedAudioPayloads;
 	CallStore mCalls;
 	su_timer_t *mTimer;
-	std::list<std::string> mRcUserAgents;
+	list<string> mRcUserAgents;
 	CallContextParams mCallParams;
 	bool mBlockRetrans;
 	static ModuleInfo<TranscodeModule> sInfo;
@@ -171,12 +173,12 @@ void TranscodeModule::onDeclare(ConfigStruct *module_config) {
 	module_config->addChildrenValues(items);
 }
 
-MSList *TranscodeModule::orderList(const std::list<std::string> &config, const MSList *l) {
+MSList *TranscodeModule::orderList(const list<string> &config, const MSList *l) {
 	int err;
 	int rate;
 	MSList *ret = NULL;
 	const MSList *it;
-	std::list<std::string>::const_iterator cfg_it;
+	list<string>::const_iterator cfg_it;
 
 	for (cfg_it = config.begin(); cfg_it != config.end(); ++cfg_it) {
 		char name[(*cfg_it).size() + 1];
@@ -224,7 +226,7 @@ void TranscodeModule::onIdle() {
 
 bool TranscodeModule::canDoRateControl(sip_t *sip) {
 	if (sip->sip_user_agent != NULL && sip->sip_user_agent->g_string != NULL) {
-		std::list<std::string>::const_iterator it;
+		list<string>::const_iterator it;
 		for (it = mRcUserAgents.begin(); it != mRcUserAgents.end(); ++it) {
 			if (strstr(sip->sip_user_agent->g_string, (*it).c_str())) {
 				LOGD("Audio rate control supported for %s", sip->sip_user_agent->g_string);
@@ -235,8 +237,8 @@ bool TranscodeModule::canDoRateControl(sip_t *sip) {
 	return false;
 }
 
-bool TranscodeModule::processSipInfo(CallContext *c, std::shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+bool TranscodeModule::processSipInfo(CallContext *c, shared_ptr<SipEvent> &ev) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	sip_payload_t *payload = sip->sip_payload;
 	if (payload != NULL && payload->pl_data != NULL) {
@@ -273,11 +275,11 @@ MSList *TranscodeModule::normalizePayloads(MSList *l) {
 	return l;
 }
 
-int TranscodeModule::handleOffer(CallContext *c, std::shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+int TranscodeModule::handleOffer(CallContext *c, shared_ptr<SipEvent> &ev) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
-	std::string addr;
+	string addr;
 	int port;
 	int ptime;
 	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), ms->getSip());
@@ -318,8 +320,8 @@ int TranscodeModule::handleOffer(CallContext *c, std::shared_ptr<SipEvent> &ev) 
 	return -1;
 }
 
-int TranscodeModule::processNewInvite(CallContext *c, std::shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+int TranscodeModule::processNewInvite(CallContext *c, shared_ptr<SipEvent> &ev) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	int ret = 0;
 	if (SdpModifier::hasSdp(ms->getSip())) {
 		ret = handleOffer(c, ev);
@@ -334,8 +336,8 @@ int TranscodeModule::processNewInvite(CallContext *c, std::shared_ptr<SipEvent> 
 	return ret;
 }
 
-void TranscodeModule::processNewAck(CallContext *ctx, std::shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+void TranscodeModule::processNewAck(CallContext *ctx, shared_ptr<SipEvent> &ev) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	LOGD("Processing ACK");
 	const MSList *ioffer = ctx->getInitialOffer();
 	if (ioffer == NULL) {
@@ -346,8 +348,8 @@ void TranscodeModule::processNewAck(CallContext *ctx, std::shared_ptr<SipEvent> 
 	}
 }
 
-void TranscodeModule::onRequest(std::shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+void TranscodeModule::onRequest(shared_ptr<SipEvent> &ev) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	CallContext *c;
 	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
@@ -408,12 +410,12 @@ void TranscodeModule::onRequest(std::shared_ptr<SipEvent> &ev) {
 		}
 	}
 
-	ev->setMsgSip(std::make_shared<MsgSip>(msg, sip));
+	ev->setMsgSip(make_shared<MsgSip>(msg, sip));
 }
 
-int TranscodeModule::handleAnswer(CallContext *ctx, std::shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
-	std::string addr;
+int TranscodeModule::handleAnswer(CallContext *ctx, shared_ptr<SipEvent> &ev) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	string addr;
 	int port;
 	const MSList *ioffer = ctx->getInitialOffer();
 	SdpModifier *m = SdpModifier::createFromSipMsg(ctx->getHome(), ms->getSip());
@@ -460,8 +462,8 @@ int TranscodeModule::handleAnswer(CallContext *ctx, std::shared_ptr<SipEvent> &e
 	return 0;
 }
 
-void TranscodeModule::process200OkforInvite(CallContext *ctx, std::shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+void TranscodeModule::process200OkforInvite(CallContext *ctx, shared_ptr<SipEvent> &ev) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	LOGD("Processing 200 Ok");
 	if (SdpModifier::hasSdp((sip_t*) msg_object(ctx->getLastForwardedInvite()))) {
 		handleAnswer(ctx, ev);
@@ -478,8 +480,8 @@ static bool isEarlyMedia(sip_t *sip) {
 	return false;
 }
 
-void TranscodeModule::onResponse(std::shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+void TranscodeModule::onResponse(shared_ptr<SipEvent> &ev) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
 	CallContext *c;
@@ -495,7 +497,7 @@ void TranscodeModule::onResponse(std::shared_ptr<SipEvent> &ev) {
 				if (c->getLastForwaredResponse() != NULL) {
 					msg = msg_copy(c->getLastForwaredResponse());
 					sip = (sip_t*) msg_object(msg);
-					ev->setMsgSip(std::make_shared<MsgSip>(msg, sip));
+					ev->setMsgSip(make_shared<MsgSip>(msg, sip));
 				}
 			}
 		}
@@ -503,7 +505,7 @@ void TranscodeModule::onResponse(std::shared_ptr<SipEvent> &ev) {
 }
 
 void TranscodeModule::onTimer() {
-	for (std::list<CallContextBase*>::const_iterator it = mCalls.getList().begin(); it != mCalls.getList().end(); ++it) {
+	for (list<CallContextBase*>::const_iterator it = mCalls.getList().begin(); it != mCalls.getList().end(); ++it) {
 		static_cast<CallContext*>(*it)->doBgTasks();
 	}
 }

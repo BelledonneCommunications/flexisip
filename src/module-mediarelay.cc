@@ -33,8 +33,8 @@ public:
 	MediaRelay(Agent *ag);
 	~MediaRelay();
 	virtual void onLoad(Agent *ag, const ConfigStruct * modconf);
-	virtual void onRequest(std::shared_ptr<SipEvent> &ev);
-	virtual void onResponse(std::shared_ptr<SipEvent> &ev);
+	virtual void onRequest(shared_ptr<SipEvent> &ev);
+	virtual void onResponse(shared_ptr<SipEvent> &ev);
 	virtual void onIdle();
 protected:
 	virtual void onDeclare(ConfigStruct * module_config) {
@@ -46,7 +46,7 @@ private:
 	void process200OkforInvite(RelayedCall *ctx, msg_t *msg, sip_t *sip);
 	CallStore *mCalls;
 	MediaRelayServer *mServer;
-	std::string mSdpMangledParam;
+	string mSdpMangledParam;
 	static ModuleInfo<MediaRelay> sInfo;
 };
 
@@ -57,11 +57,11 @@ public:
 			CallContextBase(sip), mServer(server) {
 		memset(mSessions, 0, sizeof(mSessions));
 	}
-	typedef std::tuple<std::string, int> addr_type;
-	std::map<std::string, addr_type> tagMap;
+	typedef tuple<string, int> addr_type;
+	map<string, addr_type> tagMap;
 
 	/*this function is called to masquerade the SDP, for each mline*/
-	void onNewMedia(int mline, std::string *ip, int *port, const char *party_tag) {
+	void onNewMedia(int mline, string *ip, int *port, const char *party_tag) {
 		if (mline >= sMaxSessions) {
 			LOGE("Max sessions per relayed call is reached.");
 			return;
@@ -73,7 +73,7 @@ public:
 		}
 	}
 
-	void onTranslate(int mline, std::string *ip, int *port, const char *party_tag) {
+	void onTranslate(int mline, string *ip, int *port, const char *party_tag) {
 		if (mline >= sMaxSessions) {
 			return;
 		}
@@ -88,7 +88,7 @@ public:
 		}
 	}
 
-	void onAdd(int mline, std::string *ip, int *port, const char *party_tag) {
+	void onAdd(int mline, string *ip, int *port, const char *party_tag) {
 		if (mline >= sMaxSessions) {
 			return;
 		}
@@ -100,20 +100,20 @@ public:
 				s->addBack(*ip, *port);
 			}
 			if (party_tag != NULL) {
-				addr_type addr = std::make_tuple(std::string(*ip), *port);
-				tagMap.insert(std::pair<std::string, addr_type>(std::string(party_tag), addr));
+				addr_type addr = make_tuple(string(*ip), *port);
+				tagMap.insert(pair<string, addr_type>(string(party_tag), addr));
 			}
 		}
 	}
 
 	void onRemove(const char *party_tag) {
 		if (party_tag != NULL) {
-			auto it = tagMap.find(std::string(party_tag));
+			auto it = tagMap.find(string(party_tag));
 			if (it != tagMap.end()) {
 				tagMap.erase(it);
 				addr_type &addr = it->second;
-				std::string &ip = std::get<0>(addr);
-				int port = std::get<1>(addr);
+				string &ip = get<0>(addr);
+				int port = get<1>(addr);
 				for (int mline = 0; mline < sMaxSessions; ++mline) {
 					RelaySession *s = mSessions[mline];
 					if (s != NULL) {
@@ -188,9 +188,9 @@ bool MediaRelay::processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip) {
 		return false;
 	}
 	if (m) {
-		m->iterate(std::bind(&RelayedCall::onNewMedia, c, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, sip->sip_from->a_tag));
-		m->iterate(std::bind(&RelayedCall::onAdd, c, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, sip->sip_from->a_tag));
-		m->iterate(std::bind(&RelayedCall::onTranslate, c, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, sip->sip_from->a_tag));
+		m->iterate(bind(&RelayedCall::onNewMedia, c, placeholders::_1, placeholders::_2, placeholders::_3, sip->sip_from->a_tag));
+		m->iterate(bind(&RelayedCall::onAdd, c, placeholders::_1, placeholders::_2, placeholders::_3, sip->sip_from->a_tag));
+		m->iterate(bind(&RelayedCall::onTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, sip->sip_from->a_tag));
 		m->addAttribute(mSdpMangledParam.c_str(), "yes");
 		m->update(msg, sip);
 		//be in the record-route
@@ -201,8 +201,8 @@ bool MediaRelay::processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip) {
 	return true;
 }
 
-void MediaRelay::onRequest(std::shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+void MediaRelay::onRequest(shared_ptr<SipEvent> &ev) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	RelayedCall *c;
 	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
@@ -261,7 +261,7 @@ void MediaRelay::onRequest(std::shared_ptr<SipEvent> &ev) {
 		}
 	}
 
-	ev->setMsgSip(std::make_shared<MsgSip>(msg, sip));
+	ev->setMsgSip(make_shared<MsgSip>(msg, sip));
 
 }
 
@@ -285,16 +285,16 @@ void MediaRelay::process200OkforInvite(RelayedCall *c, msg_t *msg, sip_t *sip) {
 	if (m == NULL)
 		return;
 
-	m->iterate(std::bind(&RelayedCall::onAdd, c, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, sip->sip_to->a_tag));
-	m->iterate(std::bind(&RelayedCall::onTranslate, c, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, sip->sip_to->a_tag));
+	m->iterate(bind(&RelayedCall::onAdd, c, placeholders::_1, placeholders::_2, placeholders::_3, sip->sip_to->a_tag));
+	m->iterate(bind(&RelayedCall::onTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, sip->sip_to->a_tag));
 	m->update(msg, sip);
 	c->storeNewResponse(msg);
 
 	delete m;
 }
 
-void MediaRelay::onResponse(std::shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+void MediaRelay::onResponse(shared_ptr<SipEvent> &ev) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
 	RelayedCall *c;

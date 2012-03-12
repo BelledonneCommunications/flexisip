@@ -23,7 +23,9 @@
 #include <set>
 #include <chrono>
 
-using namespace std::chrono;
+using namespace ::std;
+
+using namespace chrono;
 
 struct AuthDbTimingsAnalyzer;
 
@@ -433,7 +435,7 @@ AuthDbResult OdbcAuthDb::password(su_root_t *root, const url_t *from, const char
 		if (listener) {
 			listener->switchToAsynchronousMode();
 		}
-		thread t=thread(std::bind(&OdbcAuthDb::doAsyncRetrievePassword, this, root, id, domain, auth, fallbackPassword, listener));
+		thread t=thread(bind(&OdbcAuthDb::doAsyncRetrievePassword, this, root, id, domain, auth, fallbackPassword, listener));
 		t.detach();	// Thread will continue running in detached mode
 		return PENDING;
 	} else {

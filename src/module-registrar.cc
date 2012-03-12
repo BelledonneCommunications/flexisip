@@ -26,9 +26,9 @@ using namespace ::std;
 
 class Registrar: public Module, public ModuleToolbox {
 public:
-	static void send480KO(Agent *agent, std::shared_ptr<SipEvent> &ev);
-	static void send200Ok(Agent *agent, std::shared_ptr<SipEvent> &ev, const sip_contact_t *contacts);
-	void routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record *aorb, bool fork);
+	static void send480KO(Agent *agent, shared_ptr<SipEvent> &ev);
+	static void send200Ok(Agent *agent, shared_ptr<SipEvent> &ev, const sip_contact_t *contacts);
+	void routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aorb, bool fork);
 
 	Registrar(Agent *ag) :
 			Module(ag) {
@@ -102,15 +102,15 @@ public:
 		return true;
 	}
 
-	virtual void onRequest(std::shared_ptr<SipEvent> &ev);
+	virtual void onRequest(shared_ptr<SipEvent> &ev);
 
-	virtual void onResponse(std::shared_ptr<SipEvent> &ev);
+	virtual void onResponse(shared_ptr<SipEvent> &ev);
 
 private:
 	bool isManagedDomain(const char *domain) {
 		return ModuleToolbox::matchesOneOf(domain, mDomains);
 	}
-	void readStaticRecord(std::string file);
+	void readStaticRecord(string file);
 	bool contactinVia(sip_contact_t *ct, sip_via_t * via);
 	list<string> mDomains;
 	bool mFork;
@@ -122,9 +122,9 @@ private:
 class OnLogBindListener: public RegistrarDbListener {
 	friend class Registrar;
 	Agent *agent;
-	std::string line;
+	string line;
 public:
-	OnLogBindListener(Agent *agent, const std::string& line) :
+	OnLogBindListener(Agent *agent, const string& line) :
 			agent(agent), line(line) {
 	}
 	void onRecordFound(Record *r) {
@@ -137,7 +137,7 @@ public:
 	}
 };
 
-void Registrar::readStaticRecord(std::string file_path) {
+void Registrar::readStaticRecord(string file_path) {
 	LOGD("Read static recond file");
 
 	su_home_t home;
@@ -154,8 +154,8 @@ void Registrar::readStaticRecord(std::string file_path) {
 	if (file.is_open()) {
 		su_home_init(&home);
 		while (file.good() && getline(file, line).good()) {
-			std::size_t start = line.find_first_of('<');
-			std::size_t pos = line.find_first_of('>');
+			size_t start = line.find_first_of('<');
+			size_t pos = line.find_first_of('>');
 			if (start != string::npos && pos != string::npos && start < pos) {
 				if (line[pos + 1] == ' ') {
 					// Read from
@@ -185,13 +185,13 @@ void Registrar::readStaticRecord(std::string file_path) {
 
 }
 
-void Registrar::send480KO(Agent *agent, std::shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+void Registrar::send480KO(Agent *agent, shared_ptr<SipEvent> &ev) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	ev->reply(ms, 480, "Temporarily Unavailable", SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
 }
 
-void Registrar::send200Ok(Agent *agent, std::shared_ptr<SipEvent> &ev, const sip_contact_t *contacts) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+void Registrar::send200Ok(Agent *agent, shared_ptr<SipEvent> &ev, const sip_contact_t *contacts) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	if (contacts != NULL) {
 		ev->reply(ms, 200, "Registration successful", SIPTAG_CONTACT(contacts), SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
 	} else {
@@ -231,7 +231,7 @@ public:
 
 	}
 	virtual void send(StatefulSipEvent * ev) {
-		std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+		shared_ptr<MsgSip> ms = ev->getMsgSip();
 		if (ms->getSip()->sip_status) {
 			if (ms->getSip()->sip_status->st_status == 180) {
 				if (!mRinging) {
@@ -257,8 +257,8 @@ public:
 
 };
 
-void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record *aor, bool fork = false) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor, bool fork = false) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
 	// here we would implement forking
@@ -333,7 +333,7 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 
 			msg_t *msg = nta_incoming_create_response(incoming_transaction->getIncoming(), SIP_100_TRYING);
 			shared_ptr<MsgSip> new_msgsip = make_shared<MsgSip>(msg, sip_object(msg));
-			std::shared_ptr<SipEvent> new_ev = static_pointer_cast<SipEvent>(make_shared<StatefulSipEvent>(incoming_transaction, ev));
+			shared_ptr<SipEvent> new_ev = static_pointer_cast<SipEvent>(make_shared<StatefulSipEvent>(incoming_transaction, ev));
 			new_ev->setMsgSip(new_msgsip);
 			agent->sendResponseEvent(new_ev);
 			ev->terminateProcessing();
@@ -350,15 +350,15 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 class OnBindListener: public RegistrarDbListener {
 	friend class Registrar;
 	Agent *agent;
-	std::shared_ptr<SipEvent> ev;
+	shared_ptr<SipEvent> ev;
 public:
-	OnBindListener(Agent *agent, std::shared_ptr<SipEvent> ev) :
+	OnBindListener(Agent *agent, shared_ptr<SipEvent> ev) :
 			agent(agent), ev(ev) {
 		ev->suspendProcessing();
 	}
 	;
 	void onRecordFound(Record *r) {
-		std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+		shared_ptr<MsgSip> ms = ev->getMsgSip();
 		time_t now = time(NULL);
 		Registrar::send200Ok(agent, ev, r->getContacts(ms->getHome(), now));
 		delete this;
@@ -374,10 +374,10 @@ class OnBindForRoutingListener: public RegistrarDbListener {
 	friend class Registrar;
 	Registrar *mModule;
 	Agent *mAgent;
-	std::shared_ptr<SipEvent> mEv;
+	shared_ptr<SipEvent> mEv;
 	bool mFork;
 public:
-	OnBindForRoutingListener(Registrar *module, Agent *agent, std::shared_ptr<SipEvent> ev, bool fork) :
+	OnBindForRoutingListener(Registrar *module, Agent *agent, shared_ptr<SipEvent> ev, bool fork) :
 			mModule(module), mAgent(agent), mEv(ev), mFork(fork) {
 		ev->suspendProcessing();
 	}
@@ -393,7 +393,7 @@ public:
 };
 
 void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	if (sip->sip_request->rq_method == sip_method_register) {
 		url_t *sipurl = sip->sip_from->a_url;
@@ -441,7 +441,7 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 	}
 }
 
-void Registrar::onResponse(std::shared_ptr<SipEvent> &ev) {
+void Registrar::onResponse(shared_ptr<SipEvent> &ev) {
 }
 
 ModuleInfo<Registrar> Registrar::sInfo("Registrar", "The Registrar module accepts REGISTERs for domains it manages, and store the address of record "

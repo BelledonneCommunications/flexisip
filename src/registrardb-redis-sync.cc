@@ -141,7 +141,7 @@ void RegistrarDbRedisSync::bind(const url_t* url, const sip_contact_t *sip_conta
         r.clean(sip_contact, calld_id, cs_seq, now);
         r.bind(sip_contact, route, global_expire, calld_id, cs_seq, now);
 
-        std::string updatedAorString;
+        string updatedAorString;
         mSerializer->serialize(&r, updatedAorString);
 
         reply = (redisReply*) redisCommand(mContext, "SET aor:%s %s", key, updatedAorString.c_str());

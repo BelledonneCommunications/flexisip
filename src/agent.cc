@@ -123,7 +123,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) :
 	if (mTlsPort == -1)
 		mTlsPort = tls->get<ConfigInt>("port")->read();
 
-	std::string bind_address = cr->get<ConfigStruct>("global")->get<ConfigString>("bind-address")->read();
+	string bind_address = cr->get<ConfigStruct>("global")->get<ConfigString>("bind-address")->read();
 	mPublicIp = cr->get<ConfigStruct>("global")->get<ConfigString>("ip-address")->read();
 
 	if (mPublicIp.empty() || mPublicIp == "guess") {
@@ -146,7 +146,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) :
 		LOGF("Could not create sofia mta, certainly SIP ports already in use.");
 	}
 	if (tls->get<ConfigBoolean>("enabled")->read()) {
-		std::string keys = tls->get<ConfigString>("certificates-dir")->read();
+		string keys = tls->get<ConfigString>("certificates-dir")->read();
 		snprintf(sipuri, sizeof(sipuri) - 1, "sips:%s:%i;maddr=%s", mPublicIp.c_str(), mTlsPort, bind_address.c_str());
 		LOGD("Enabling 'sips' listening point with uri '%s', keys in %s", sipuri, keys.c_str());
 		nta_agent_add_tport(mAgent, (url_string_t*) sipuri, TPTAG_CERTIFICATE(keys.c_str()), NTATAG_CLIENT_RPORT(1), NTATAG_UDP_MTU(1460), NTATAG_TLS_RPORT(1), TAG_END());
@@ -192,7 +192,7 @@ void Agent::loadConfig(ConfigManager *cm) {
 		(*it)->load(this);
 }
 
-void Agent::setDomain(const std::string &domain) {
+void Agent::setDomain(const string &domain) {
 	mDomain = domain;
 }
 
@@ -245,11 +245,11 @@ bool Agent::isUs(const url_t *url, bool check_aliases) const {
 }
 
 void Agent::onRequest(msg_t *msg, sip_t *sip) {
-	shared_ptr<SipEvent> ev(new SipEvent(this, std::make_shared<MsgSip>(msg, sip)));
+	shared_ptr<SipEvent> ev(new SipEvent(this, make_shared<MsgSip>(msg, sip)));
 	sendRequestEvent(ev);
 }
 
-void Agent::sendRequestEvent(std::shared_ptr<SipEvent> &ev) {
+void Agent::sendRequestEvent(shared_ptr<SipEvent> &ev) {
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		ev->mCurrModule = (*it);
@@ -262,7 +262,7 @@ void Agent::sendRequestEvent(std::shared_ptr<SipEvent> &ev) {
 	}
 }
 
-void Agent::sendResponseEvent(std::shared_ptr<SipEvent> &ev) {
+void Agent::sendResponseEvent(shared_ptr<SipEvent> &ev) {
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		ev->mCurrModule = *it;
@@ -297,11 +297,11 @@ void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
 }
 
 void Agent::onResponse(msg_t *msg, sip_t *sip) {
-	shared_ptr<SipEvent> ev(new SipEvent(this, std::make_shared<MsgSip>(msg, sip)));
+	shared_ptr<SipEvent> ev(new SipEvent(this, make_shared<MsgSip>(msg, sip)));
 	sendResponseEvent(ev);
 }
 
-void Agent::injectResponseEvent(std::shared_ptr<SipEvent> &ev) {
+void Agent::injectResponseEvent(shared_ptr<SipEvent> &ev) {
 	list<Module*>::iterator it;
 	ev->restartProcessing();
 	LOGD("Injecting response event after %s", ev->mCurrModule->getModuleName().c_str());
@@ -349,7 +349,7 @@ void Agent::idle() {
 	for_each(mModules.begin(), mModules.end(), mem_fun(&Module::idle));
 }
 
-const std::string& Agent::getUniqueId() const {
+const string& Agent::getUniqueId() const {
 	return mUniqueId;
 }
 
@@ -376,7 +376,7 @@ void Agent::discoverInterfaces() {
 		if (ifp->ifa_addr && (ifp->ifa_flags & IFF_RUNNING)) {
 			if (getnameinfo(ifp->ifa_addr, sizeof(sockaddr_storage), address, sizeof(address), NULL, 0, NI_NUMERICHOST) == 0) {
 				if (strchr(address, '%') == NULL) { /*avoid ipv6 link-local addresses */
-					mAliases.push_back(std::string(address));
+					mAliases.push_back(string(address));
 				}
 			}
 		}

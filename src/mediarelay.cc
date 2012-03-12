@@ -26,7 +26,7 @@
 
 using namespace ::std;
 
-MediaSource::MediaSource(const std::string &ip, int port) :
+MediaSource::MediaSource(const string &ip, int port) :
 		mIp(ip), mPort(port) {
 	struct addrinfo *res = NULL;
 	struct addrinfo hints = { 0 };
@@ -51,12 +51,12 @@ MediaSource::MediaSource(const struct sockaddr_storage &sockaddr, socklen_t sock
 	if (ret == NULL) {
 		LOGE("MediaSource::MediaSource() failed for %p:", &sockaddr);
 	} else {
-		mIp = std::string(ret);
+		mIp = string(ret);
 		mPort = ntohs(((struct sockaddr_in *)&sockaddr)->sin_port);
 	}
 }
 
-RelaySession::RelaySession(const std::string &bind_ip, const std::string & public_ip) :
+RelaySession::RelaySession(const string &bind_ip, const string & public_ip) :
 		mBindIp(bind_ip), mPublicIp(public_ip) {
 	mLastActivityTime = time(NULL);
 	mSession[0] = rtp_session_new(RTP_SESSION_SENDRECV);
@@ -78,7 +78,7 @@ int RelaySession::getBackPort() const {
 	return rtp_session_get_local_port(mSession[1]);
 }
 
-void RelaySession::addFront(const std::string &ip, int port) {
+void RelaySession::addFront(const string &ip, int port) {
 	MediaSource src(ip, port);
 	LOGD("Add Front %s:%i", ip.c_str(), port);
 	mMutex.lock();
@@ -86,7 +86,7 @@ void RelaySession::addFront(const std::string &ip, int port) {
 	mMutex.unlock();
 }
 
-void RelaySession::addBack(const std::string &ip, int port) {
+void RelaySession::addBack(const string &ip, int port) {
 	MediaSource src(ip, port);
 	LOGD("Add Back %s:%i", ip.c_str(), port);
 	mMutex.lock();
@@ -95,32 +95,32 @@ void RelaySession::addBack(const std::string &ip, int port) {
 }
 
 void RelaySession::addFront(const MediaSource&src) {
-	auto it = std::find(mFront.begin(), mFront.end(), src);
+	auto it = find(mFront.begin(), mFront.end(), src);
 	if (it == mFront.end()) {
 		mFront.push_back(src);
 	}
 }
 
-void RelaySession::removeFront(const std::string &ip, int port) {
+void RelaySession::removeFront(const string &ip, int port) {
 	MediaSource src(ip, port);
 	LOGD("Remove Front %s:%i", ip.c_str(), port);
-	auto it = std::find(mFront.begin(), mFront.end(), src);
+	auto it = find(mFront.begin(), mFront.end(), src);
 	if (it != mFront.end()) {
 		mFront.erase(it);
 	}
 }
 
 void RelaySession::addBack(const MediaSource&src) {
-	auto it = std::find(mBack.begin(), mBack.end(), src);
+	auto it = find(mBack.begin(), mBack.end(), src);
 	if (it == mBack.end()) {
 		mBack.push_back(src);
 	}
 }
 
-void RelaySession::removeBack(const std::string &ip, int port) {
+void RelaySession::removeBack(const string &ip, int port) {
 	MediaSource src(ip, port);
 	LOGD("Remove Back %s:%i", ip.c_str(), port);
-	auto it = std::find(mBack.begin(), mBack.end(), src);
+	auto it = find(mBack.begin(), mBack.end(), src);
 	if (it != mBack.end()) {
 		mBack.erase(it);
 	}
@@ -161,7 +161,7 @@ void RelaySession::transfer(time_t curtime, struct pollfd *tab) {
 			if (recv_len > 0) {
 				MediaSource src(ss, slen);
 				addFront(src);
-				std::list<MediaSource>::iterator it = mBack.begin();
+				list<MediaSource>::iterator it = mBack.begin();
 				if (it != mBack.end()) {
 					while (it != mBack.end()) {
 						const MediaSource &dest = *it;
@@ -185,7 +185,7 @@ void RelaySession::transfer(time_t curtime, struct pollfd *tab) {
 			if (recv_len > 0) {
 				MediaSource src(ss, slen);
 				addBack(src);
-				std::list<MediaSource>::iterator it = mFront.begin();
+				list<MediaSource>::iterator it = mFront.begin();
 				if (it != mFront.end()) {
 					while (it != mFront.end()) {
 						const MediaSource &dest = *it;
@@ -207,7 +207,7 @@ void RelaySession::transfer(time_t curtime, struct pollfd *tab) {
 	mMutex.unlock();
 }
 
-MediaRelayServer::MediaRelayServer(const std::string &bind_ip, const std::string &public_ip) :
+MediaRelayServer::MediaRelayServer(const string &bind_ip, const string &public_ip) :
 		mBindIp(bind_ip), mPublicIp(public_ip) {
 	mRunning = false;
 	if (pipe(mCtlPipe) == -1) {

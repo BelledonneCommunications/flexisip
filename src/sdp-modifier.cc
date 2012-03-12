@@ -20,6 +20,7 @@
 
 #include <sofia-sip/sip_protos.h>
 
+using namespace ::std;
 
 SdpModifier *SdpModifier::createFromSipMsg(su_home_t *home, sip_t *sip){
 	SdpModifier *sm=new SdpModifier(home);
@@ -246,7 +247,7 @@ void SdpModifier::replacePayloads(const MSList *payloads, const MSList *preserve
 	}
 }
 
-void SdpModifier::getAudioIpPort(std::string *ip, int *port){
+void SdpModifier::getAudioIpPort(string *ip, int *port){
 	*ip=mSession->sdp_media->m_connections?mSession->sdp_media->m_connections->c_address:mSession->sdp_connection->c_address;
 	*port=mSession->sdp_media->m_port;
 }
@@ -258,15 +259,15 @@ void SdpModifier::changeAudioIpPort(const char *ip, int port){
 	mSession->sdp_media->m_port=port;
 }
 
-void SdpModifier::iterate(std::function<void(int, std::string *, int *)> fct){
+void SdpModifier::iterate(function<void(int, string *, int *)> fct){
 	sdp_media_t *mline=mSession->sdp_media;
 	int i;
-	std::string global_c_address;
+	string global_c_address;
 
 	if (mSession->sdp_connection && mSession->sdp_connection->c_address) global_c_address=mSession->sdp_connection->c_address;
 
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
-		std::string ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
+		string ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
 		int port=mline->m_port;
 
 		fct(i,&ip,&port);

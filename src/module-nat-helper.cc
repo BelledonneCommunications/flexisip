@@ -20,14 +20,16 @@
 
 #include <sofia-sip/msg_addr.h>
 
+using namespace ::std;
+
 class NatHelper : public Module, protected ModuleToolbox{
 	public:
 		NatHelper(Agent *ag) : Module(ag){
 		}
 		~NatHelper(){
 		}
-		virtual void onRequest(std::shared_ptr<SipEvent> &ev) {
-			std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+		virtual void onRequest(shared_ptr<SipEvent> &ev) {
+			shared_ptr<MsgSip> ms = ev->getMsgSip();
 			sip_request_t *rq = ms->getSip()->sip_request;
 			/* if we receive a request whose first via is wrong (received or rport parameters are present),
 			fix any possible Contact headers with the same wrong ip address and ports */
@@ -38,8 +40,8 @@ class NatHelper : public Module, protected ModuleToolbox{
 				addRecordRoute (ms->getHome(),getAgent(), ms->getMsg(), ms->getSip());
 			}
 		}
-		virtual void onResponse(std::shared_ptr<SipEvent> &ev){
-			std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+		virtual void onResponse(shared_ptr<SipEvent> &ev){
+			shared_ptr<MsgSip> ms = ev->getMsgSip();
 			sip_status_t *st = ms->getSip()->sip_status;
 			sip_cseq_t *cseq = ms->getSip()->sip_cseq;
 			/*in responses that establish a dialog, masquerade Contact so that further requests (including the ACK) are routed in the same way*/
@@ -71,7 +73,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 			mContactVerifiedParam=root->get<ConfigString>("contact-verified-param")->read();
 		}
 	private:
-		std::string mContactVerifiedParam;
+		string mContactVerifiedParam;
 		bool empty(const char *value){
 			return value==NULL || value[0]=='\0';
 		}

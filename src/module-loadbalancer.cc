@@ -21,16 +21,18 @@
 
 #include <vector>
 
+using namespace ::std;
+
 class LoadBalancer : public Module, public ModuleToolbox{
 	public:
 		LoadBalancer(Agent *ag);
 		virtual ~LoadBalancer();
 		virtual void onDeclare(ConfigStruct *module_config);
 		virtual void onLoad(Agent *ag, const ConfigStruct * modconf);
-		virtual void onRequest(std::shared_ptr<SipEvent> &ev);
-		virtual void onResponse(std::shared_ptr<SipEvent> &ev);
+		virtual void onRequest(shared_ptr<SipEvent> &ev);
+		virtual void onResponse(shared_ptr<SipEvent> &ev);
 	private:
-		std::vector<std::string> mRoutes;
+		vector<string> mRoutes;
 		int mRoutesCount;
 		static ModuleInfo<LoadBalancer> sInfo;
 };
@@ -55,8 +57,8 @@ void LoadBalancer::onDeclare(ConfigStruct *module_config){
 }
 
 void LoadBalancer::onLoad(Agent *ag, const ConfigStruct * modconf){
-	std::list<std::string> routes=modconf->get<ConfigStringList>("routes")->read();
-	std::list<std::string>::iterator it;
+	list<string> routes=modconf->get<ConfigStringList>("routes")->read();
+	list<string>::iterator it;
 	
 	LOGI("Load balancer configured to balance over:");
 	for(it=routes.begin();it!=routes.end();++it){
@@ -66,8 +68,8 @@ void LoadBalancer::onLoad(Agent *ag, const ConfigStruct * modconf){
 	mRoutesCount=mRoutes.size();
 }
 
-void LoadBalancer::onRequest(std::shared_ptr<SipEvent> &ev){
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+void LoadBalancer::onRequest(shared_ptr<SipEvent> &ev){
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	uint32_t call_hash;
 	sip_t *sip = ms->getSip();
 	int index;
@@ -86,6 +88,6 @@ void LoadBalancer::onRequest(std::shared_ptr<SipEvent> &ev){
 	}
 }
 
-void LoadBalancer::onResponse(std::shared_ptr<SipEvent> &ev){
+void LoadBalancer::onResponse(shared_ptr<SipEvent> &ev){
 	/*nothing to do*/
 }

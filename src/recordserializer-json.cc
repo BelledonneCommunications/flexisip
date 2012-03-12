@@ -66,11 +66,11 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r){
 	return true;
 }
 
-bool RecordSerializerJson::serialize(Record *r, std::string &serialized){
+bool RecordSerializerJson::serialize(Record *r, string &serialized){
 	if (!r) return true;
 
-	std::list<extended_contact *> ecs=r->getExtendedContacts();
-	std::list<extended_contact *>::iterator it;
+	list<extended_contact *> ecs=r->getExtendedContacts();
+	list<extended_contact *>::iterator it;
 	cJSON *root=cJSON_CreateObject();
 	cJSON *contacts=cJSON_CreateArray();
 	cJSON_AddItemToObject(root, "contacts", contacts);

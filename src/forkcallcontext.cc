@@ -21,6 +21,8 @@
 #include <algorithm>
 #include <sofia-sip/sip_status.h>
 
+using namespace ::std;
+
 ForkCallContext::ForkCallContext(Agent *agent, Module *module) :
 		agent(agent), module(module) {
 	LOGD("New ForkCallContext %p", this);
@@ -44,14 +46,14 @@ void ForkCallContext::addOutgoingTransaction(OutgoingTransaction *transaction) {
 void ForkCallContext::receiveOk(OutgoingTransaction *transaction) {
 	msg_t *msg = nta_outgoing_getresponse(transaction->getOutgoing());
 	sip_via_remove(msg, sip_object(msg)); // remove via @see test_proxy.c from sofia
-	std::shared_ptr<MsgSip> msgsip(new MsgSip (msg, sip_object(msg)));
+	shared_ptr<MsgSip> msgsip(new MsgSip (msg, sip_object(msg)));
 	msg_ref_destroy(msg);
-	std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msgsip));
+	shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msgsip));
 	agent->sendResponseEvent(ev);
 
 	// Cancel others
-	for (std::list<OutgoingTransaction *>::iterator it = outgoings.begin(); it != outgoings.end();) {
-		std::list<OutgoingTransaction *>::iterator old_it = it;
+	for (list<OutgoingTransaction *>::iterator it = outgoings.begin(); it != outgoings.end();) {
+		list<OutgoingTransaction *>::iterator old_it = it;
 		++it;
 		if (*old_it != transaction) {
 			OutgoingTransaction *ot = *old_it;
@@ -64,17 +66,17 @@ void ForkCallContext::receiveOk(OutgoingTransaction *transaction) {
 }
 
 void ForkCallContext::receiveCancel(IncomingTransaction *transaction) {
-	for (std::list<OutgoingTransaction *>::iterator it = outgoings.begin(); it != outgoings.end();) {
-		std::list<OutgoingTransaction *>::iterator old_it = it;
+	for (list<OutgoingTransaction *>::iterator it = outgoings.begin(); it != outgoings.end();) {
+		list<OutgoingTransaction *>::iterator old_it = it;
 		++it;
 		OutgoingTransaction *ot = *old_it;
 		nta_outgoing_tcancel(ot->getOutgoing(), NULL, NULL, TAG_END());
 		deleteTransaction(ot);
 	}
 	msg_t *msg = nta_incoming_create_response(transaction->getIncoming(), SIP_200_OK);
-	std::shared_ptr<MsgSip> msgsip(new MsgSip (msg, sip_object(msg)));
+	shared_ptr<MsgSip> msgsip(new MsgSip (msg, sip_object(msg)));
 	msg_ref_destroy(msg);
-	std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msgsip));
+	shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msgsip));
 	agent->sendResponseEvent(ev);
 	deleteTransaction(transaction);
 }
@@ -85,9 +87,9 @@ void ForkCallContext::receiveTimeout(OutgoingTransaction *transaction) {
 
 	if (outgoings.size() == 0) {
 		msg_t *msg = nta_incoming_create_response(incoming->getIncoming(), SIP_408_REQUEST_TIMEOUT);
-		std::shared_ptr<MsgSip> msgsip(new MsgSip (msg, sip_object(msg)));
+		shared_ptr<MsgSip> msgsip(new MsgSip (msg, sip_object(msg)));
 		msg_ref_destroy(msg);
-		std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msgsip));
+		shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msgsip));
 		agent->sendResponseEvent(ev);
 		deleteTransaction(incoming);
 	}
@@ -104,9 +106,9 @@ void ForkCallContext::receiveDecline(OutgoingTransaction *transaction) {
 
 	if (outgoings.size() == 0) {
 		msg_t *msg = nta_incoming_create_response(incoming->getIncoming(), SIP_603_DECLINE);
-		std::shared_ptr<MsgSip> msgsip(new MsgSip (msg, sip_object(msg)));
+		shared_ptr<MsgSip> msgsip(new MsgSip (msg, sip_object(msg)));
 		msg_ref_destroy(msg);
-		std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msgsip));
+		shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msgsip));
 		agent->sendResponseEvent(ev);
 		deleteTransaction(incoming);
 	}
@@ -117,9 +119,9 @@ void ForkCallContext::receiveOther(OutgoingTransaction *transaction) {
 
 	msg_t *msg = nta_outgoing_getresponse(transaction->getOutgoing());
 	sip_via_remove(msg, sip_object(msg)); // remove via @see test_proxy.c from sofia
-	std::shared_ptr<MsgSip> msgsip(new MsgSip (msg, sip_object(msg)));
+	shared_ptr<MsgSip> msgsip(new MsgSip (msg, sip_object(msg)));
 	msg_ref_destroy(msg);
-	std::shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msgsip));
+	shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msgsip));
 	agent->sendResponseEvent(ev);
 
 }

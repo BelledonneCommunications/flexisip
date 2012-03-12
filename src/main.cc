@@ -50,6 +50,7 @@ static pid_t flexisip_pid=0;
 static su_root_t *root=NULL;
 bool sUseSyslog=false;
 
+using namespace ::std;
 
 static void usage(const char *arg0){
 	printf("%s\n"
@@ -394,7 +395,7 @@ int main(int argc, char *argv[]){
 
 	if (dump_default_cfg){
 		a=new Agent(root,0,0);
-		std::cout<<FileConfigDumper(cfg->getRoot());
+		cout<<FileConfigDumper(cfg->getRoot());
 		return 0;
 	}
 	

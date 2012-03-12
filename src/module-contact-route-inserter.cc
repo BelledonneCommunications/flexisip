@@ -18,6 +18,8 @@
 
 #include "agent.hh"
 
+using namespace ::std;
+
 class ContactRouteInserter: public Module {
 public:
 	ContactRouteInserter(Agent *ag) :
@@ -31,12 +33,12 @@ public:
 	}
 
 	void onLoad(Agent *agent, const ConfigStruct *module_config) {
-		mContactRouteParamName = std::string("CtRt") + getAgent()->getUniqueId();
+		mContactRouteParamName = string("CtRt") + getAgent()->getUniqueId();
 		mMasqueradeInviteContacts = module_config->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
 	}
 
-	void onRequest(std::shared_ptr<SipEvent> &ev) {
-		std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+	void onRequest(shared_ptr<SipEvent> &ev) {
+		shared_ptr<MsgSip> ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 
 		if (sip->sip_request->rq_method == sip_method_register) {
@@ -79,16 +81,16 @@ public:
 			}
 		}
 	}
-	virtual void onResponse(std::shared_ptr<SipEvent> &ev) {
-		std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+	virtual void onResponse(shared_ptr<SipEvent> &ev) {
+		shared_ptr<MsgSip> ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		if (mMasqueradeInviteContacts && (sip->sip_cseq->cs_method == sip_method_invite || sip->sip_cseq->cs_method == sip_method_subscribe)) {
 			masqueradeContact(ev);
 		}
 	}
 private:
-	void masqueradeContact(std::shared_ptr<SipEvent> &ev) {
-		std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+	void masqueradeContact(shared_ptr<SipEvent> &ev) {
+		shared_ptr<MsgSip> ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		if (sip->sip_contact != NULL && sip->sip_contact->m_url != NULL) {
 			//rewrite contact, put local host instead and store previous contact host in new parameter
@@ -115,7 +117,7 @@ private:
 		}
 	}
 
-	std::string mContactRouteParamName;
+	string mContactRouteParamName;
 	bool mMasqueradeInviteContacts;
 	static ModuleInfo<ContactRouteInserter> sInfo;
 };

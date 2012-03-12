@@ -35,7 +35,7 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r){
 	if (!str) return true;
 
 	RecordContactListPb contacts;
-	const std::string container(str, len);
+	const string container(str, len);
 	if (!contacts.ParseFromString(container)){
 		return false;
 	}
@@ -56,13 +56,13 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r){
 }
 
 
-bool RecordSerializerPb::serialize(Record *r, std::string &serialized){
+bool RecordSerializerPb::serialize(Record *r, string &serialized){
 	if (!r)	return true;
 
 
 	RecordContactListPb pbContacts;
-	std::list<extended_contact *> contacts=r->getExtendedContacts();
-	std::list<extended_contact *>::iterator it;
+	list<extended_contact *> contacts=r->getExtendedContacts();
+	list<extended_contact *>::iterator it;
 	for (it=contacts.begin(); it != contacts.end(); ++it){
 		extended_contact *ec=(*it);
 		RecordContactPb *c = pbContacts.add_contact();

@@ -20,6 +20,7 @@
 #include "entryfilter.hh"
 
 #include <algorithm>
+
 using namespace ::std;
 
 Module *ModuleInfoBase::create(Agent *ag) {
@@ -38,16 +39,16 @@ ModuleFactory *ModuleFactory::get() {
 }
 
 struct hasName {
-	hasName(const std::string &ref) :
+	hasName(const string &ref) :
 			match(ref) {
 	}
 	bool operator()(ModuleInfoBase *info) {
 		return info->getModuleName() == match;
 	}
-	const std::string &match;
+	const string &match;
 };
 
-Module *ModuleFactory::createModuleInstance(Agent *ag, const std::string &modname) {
+Module *ModuleFactory::createModuleInstance(Agent *ag, const string &modname) {
 	list<ModuleInfoBase*>::iterator it;
 	it = find_if(mModules.begin(), mModules.end(), hasName(modname));
 	if (it != mModules.end()) {
@@ -101,15 +102,15 @@ void Module::load(Agent *agent) {
 }
 
 void Module::processRequest(shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	if (mFilter->canEnter(ms->getSip())) {
 		LOGD("Invoking onRequest() on module %s", getModuleName().c_str());
 		onRequest(ev);
 	}
 }
 
-void Module::processResponse(std::shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+void Module::processResponse(shared_ptr<SipEvent> &ev) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	if (mFilter->canEnter(ms->getSip())) {
 		LOGD("Invoking onResponse() on module %s", getModuleName().c_str());
 		onResponse(ev);
@@ -122,7 +123,7 @@ void Module::idle() {
 	}
 }
 
-const std::string &Module::getModuleName() {
+const string &Module::getModuleName() {
 	return mInfo->getModuleName();
 }
 
@@ -200,7 +201,7 @@ bool ModuleToolbox::fromMatch(const sip_from_t *from1, const sip_from_t *from2) 
 	return false;
 }
 
-bool ModuleToolbox::matchesOneOf(const char *item, const std::list<std::string> &set) {
+bool ModuleToolbox::matchesOneOf(const char *item, const list<string> &set) {
 	list<string>::const_iterator it;
 	for (it = set.begin(); it != set.end(); ++it) {
 		const char *tmp = (*it).c_str();

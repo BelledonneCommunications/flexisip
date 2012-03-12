@@ -40,7 +40,7 @@ using namespace::std;
 string RegistrarDbRedisAsync::sDomain="";
 int RegistrarDbRedisAsync::sPort=0;
 int RegistrarDbRedisAsync::sTimeout=0;
-std::string RegistrarDbRedisAsync::sAuthPassword="";
+string RegistrarDbRedisAsync::sAuthPassword="";
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag):mContext(NULL),mRoot(ag->getRoot()){
 	mSerializer=RecordSerializer::get();
@@ -265,7 +265,7 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 	data->record.clean(data->sipContact, data->calldId, data->csSeq, now);
 	data->record.bind(data->sipContact, data->route, data->globalExpire, data->calldId, data->csSeq, now);
 
-	std::string serialized;
+	string serialized;
 	mSerializer->serialize(&data->record, serialized);
 	LOGD("Sending updated aor:%s [%lu] --> %u bytes", data->key,data->token,(unsigned)serialized.length());
 	redisAsyncCommand(mContext, sHandleSet, data,"SET aor:%s %b",data->key, serialized.data(), serialized.length());

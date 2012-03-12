@@ -29,7 +29,7 @@
 
 #include "authdb.hh"
 
-using namespace std;
+using namespace ::std;
 
 class Authentication;
 
@@ -199,8 +199,8 @@ public:
 		mImmediateRetrievePassword = module_config->get<ConfigBoolean>("immediate-retrieve-password")->read();
 	}
 
-	void onRequest(std::shared_ptr<SipEvent> &ev) {
-		std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+	void onRequest(shared_ptr<SipEvent> &ev) {
+		shared_ptr<MsgSip> ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		map<string,auth_mod_t *>::iterator authModuleIt;
 		// first check for auth module for this domain
@@ -250,7 +250,7 @@ public:
 			auth_mod_verify((*authModuleIt).second, as, sip->sip_proxy_authorization,&mProxyChallenger);
 		}
 	}
-	void onResponse(std::shared_ptr<SipEvent> &ev) {/*nop*/};
+	void onResponse(shared_ptr<SipEvent> &ev) {/*nop*/};
 
 };
 
@@ -258,7 +258,7 @@ ModuleInfo<Authentication> Authentication::sInfo("Authentication",
 	"The authentication module challenges SIP requests according to a user/password database.");
 
 
-Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, std::shared_ptr<SipEvent> ev, bool hashedPasswords):
+Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, shared_ptr<SipEvent> ev, bool hashedPasswords):
 		mAgent(ag),mEv(ev),mHashedPass(hashedPasswords),mAm(NULL),mAs(NULL),mAch(NULL) {
 	memset(&mAr, '\0', sizeof(mAr)), mAr.ar_size=sizeof(mAr);
 }
@@ -277,7 +277,7 @@ void Authentication::AuthenticationListener::sendReplyAndDestroy(){
  * return true if the event is terminated
  */
 bool Authentication::AuthenticationListener::sendReply(){
-	std::shared_ptr<MsgSip> ms = mEv->getMsgSip();
+	shared_ptr<MsgSip> ms = mEv->getMsgSip();
 	sip_t *sip = ms->getSip();
 	if (mAs->as_status) {
 		mEv->reply(ms, mAs->as_status,mAs->as_phrase,

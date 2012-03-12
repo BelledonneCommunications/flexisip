@@ -24,6 +24,8 @@
 #include <sofia-sip/sip_status.h>
 #include <limits.h>
 
+using namespace ::std;
+
 class GatewayRegister {
 private:
 	typedef enum {
@@ -147,7 +149,7 @@ GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, si
 	url_t *domain = NULL;
 	ConfigStruct *cr = ConfigManager::get()->getRoot();
 	ConfigStruct *ma = cr->get<ConfigStruct>("module::GatewayAdapter");
-	std::string domainString = ma->get<ConfigString>("gateway-domain")->read();
+	string domainString = ma->get<ConfigString>("gateway-domain")->read();
 	if (!domainString.empty()) {
 		domain = url_make(&home, domainString.c_str());
 	}
@@ -240,9 +242,9 @@ public:
 
 	virtual void onLoad(Agent *agent, const ConfigStruct *module_config);
 
-	virtual void onRequest(std::shared_ptr<SipEvent> &ev);
+	virtual void onRequest(shared_ptr<SipEvent> &ev);
 
-	virtual void onResponse(std::shared_ptr<SipEvent> &ev);
+	virtual void onResponse(shared_ptr<SipEvent> &ev);
 
 private:
 	static void nua_callback(nua_event_t event, int status, char const *phrase, nua_t *nua, nua_magic_t *_t, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]);
@@ -279,8 +281,8 @@ void GatewayAdapter::onLoad(Agent *agent, const ConfigStruct *module_config) {
 	nua = nua_create(agent->getRoot(), nua_callback, this, NUTAG_URL(url), NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()), TAG_END());
 }
 
-void GatewayAdapter::onRequest(std::shared_ptr<SipEvent> &ev) {
-	std::shared_ptr<MsgSip> ms = ev->getMsgSip();
+void GatewayAdapter::onRequest(shared_ptr<SipEvent> &ev) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
 	if (sip->sip_request->rq_method == sip_method_register) {
@@ -296,7 +298,7 @@ void GatewayAdapter::onRequest(std::shared_ptr<SipEvent> &ev) {
 	}
 }
 
-void GatewayAdapter::onResponse(std::shared_ptr<SipEvent> &ev) {
+void GatewayAdapter::onResponse(shared_ptr<SipEvent> &ev) {
 
 }
 
