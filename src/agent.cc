@@ -245,7 +245,7 @@ bool Agent::isUs(const url_t *url, bool check_aliases) const {
 }
 
 void Agent::onRequest(msg_t *msg, sip_t *sip) {
-	shared_ptr<SipEvent> ev(new SipEvent(this, make_shared<MsgSip>(msg, sip)));
+	shared_ptr<SipEvent> ev(static_pointer_cast<SipEvent>(make_shared<StatelessSipEvent>(this, make_shared<MsgSip>(msg, sip))));
 	sendRequestEvent(ev);
 }
 
@@ -254,10 +254,10 @@ void Agent::sendRequestEvent(shared_ptr<SipEvent> &ev) {
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		ev->mCurrModule = (*it);
 		(*it)->processRequest(ev);
-		if (ev->terminated() || ev->suspended())
+		if (ev->isTerminated() || ev->isSuspended())
 			break;
 	}
-	if (!ev->terminated() && !ev->suspended()) {
+	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
 }
@@ -267,10 +267,10 @@ void Agent::sendResponseEvent(shared_ptr<SipEvent> &ev) {
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		ev->mCurrModule = *it;
 		(*it)->processResponse(ev);
-		if (ev->terminated() || ev->suspended())
+		if (ev->isTerminated() || ev->isSuspended())
 			break;
 	}
-	if (!ev->terminated() && !ev->suspended()) {
+	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
 }
@@ -288,16 +288,16 @@ void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
 	for (; it != mModules.end(); ++it) {
 		ev->mCurrModule = *it;
 		(*it)->processRequest(ev);
-		if (ev->terminated() || ev->suspended())
+		if (ev->isTerminated() || ev->isSuspended())
 			break;
 	}
-	if (!ev->terminated() && !ev->suspended()) {
+	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
 }
 
 void Agent::onResponse(msg_t *msg, sip_t *sip) {
-	shared_ptr<SipEvent> ev(new SipEvent(this, make_shared<MsgSip>(msg, sip)));
+	shared_ptr<SipEvent> ev(static_pointer_cast<SipEvent>(make_shared<StatelessSipEvent>(this, make_shared<MsgSip>(msg, sip))));
 	sendResponseEvent(ev);
 }
 
@@ -314,10 +314,10 @@ void Agent::injectResponseEvent(shared_ptr<SipEvent> &ev) {
 	for (; it != mModules.end(); ++it) {
 		ev->mCurrModule = *it;
 		(*it)->processResponse(ev);
-		if (ev->terminated() || ev->suspended())
+		if (ev->isTerminated() || ev->isSuspended())
 			break;
 	}
-	if (!ev->terminated() && !ev->suspended()) {
+	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
 }

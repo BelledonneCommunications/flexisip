@@ -51,7 +51,8 @@
 class Agent{
 	friend class IncomingTransaction;
 	friend class OutgoingTransaction;
-	friend class SipEvent;
+	friend class StatelessSipEvent;
+	friend class StatefulSipEvent;
 	friend class Module;
 	public:
 		Agent(su_root_t *root, int port, int tlsport);

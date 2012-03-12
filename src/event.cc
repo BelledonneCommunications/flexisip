@@ -41,15 +41,14 @@ MsgSip::~MsgSip() {
 	msg_destroy(mMsg);
 }
 
-SipEvent::SipEvent(const shared_ptr<SipEvent> &sipEvent) :
-		mAgent(sipEvent->mAgent), mCurrModule(sipEvent->mCurrModule), mMsgSip(sipEvent->mMsgSip), mState(sipEvent->mState) {
-
+SipEvent::SipEvent(std::shared_ptr<MsgSip> msgSip) :
+		mCurrModule(NULL), mMsgSip(msgSip), mState(STARTED) {
 }
 
-SipEvent::SipEvent(Agent *agent, const shared_ptr<MsgSip> &msgSip) :
-		mAgent(agent), mCurrModule(NULL), mMsgSip(msgSip), mState(STARTED) {
-}
+SipEvent::SipEvent(const SipEvent &sipEvent) :
+		mCurrModule(sipEvent.mCurrModule), mMsgSip(sipEvent.mMsgSip), mState(sipEvent.mState) {
 
+}
 void SipEvent::terminateProcessing() {
 	if (mState == STARTED || mState == SUSPENDED) {
 		mState = TERMINATED;
@@ -74,7 +73,11 @@ void SipEvent::restartProcessing() {
 	}
 }
 
-void SipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
+StatelessSipEvent::StatelessSipEvent(Agent *agent, const shared_ptr<MsgSip> &msgSip) :
+		SipEvent(msgSip), mAgent(agent) {
+}
+
+void StatelessSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
 	ta_start(ta, tag, value);
 	msg_ref_create(msg->getMsg());
@@ -83,7 +86,12 @@ void SipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_ty
 	terminateProcessing();
 }
 
-void SipEvent::reply(const shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+void StatelessSipEvent::send(const shared_ptr<MsgSip> &msg) {
+	msg_ref_create(msg->getMsg());
+	nta_msg_tsend(mAgent->mAgent, msg->getMsg(), NULL, TAG_END());
+}
+
+void StatelessSipEvent::reply(const shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
 	ta_start(ta, tag, value);
 	msg_ref_create(msg->getMsg());
@@ -92,30 +100,62 @@ void SipEvent::reply(const shared_ptr<MsgSip> &msg, int status, char const *phra
 	terminateProcessing();
 }
 
-bool SipEvent::suspended() const {
-	return mState == SUSPENDED;
+StatelessSipEvent::~StatelessSipEvent() {
 }
 
-bool SipEvent::terminated() const {
-	return mState == TERMINATED;
-}
-
-SipEvent::~SipEvent() {
-}
-
-StatefulSipEvent::StatefulSipEvent(Transaction *transaction, const shared_ptr<SipEvent> &sipEvent) :
-		SipEvent(sipEvent), transaction(transaction) {
+StatefulSipEvent::StatefulSipEvent(const std::shared_ptr<Transaction> &transaction, const shared_ptr<SipEvent> &sipEvent) :
+		SipEvent(*sipEvent), transaction(transaction) {
 
 }
-StatefulSipEvent::StatefulSipEvent(Transaction *transaction, const shared_ptr<MsgSip> &msgSip) :
-		SipEvent(transaction->getAgent(), msgSip), transaction(transaction) {
+StatefulSipEvent::StatefulSipEvent(const std::shared_ptr<Transaction> &transaction, const shared_ptr<MsgSip> &msgSip) :
+		SipEvent(msgSip), transaction(transaction) {
 
+}
+
+void StatefulSipEvent::send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
+	ta_list ta;
+	ta_start(ta, tag, value);
+	transaction->send(msg, u, ta_tags(ta));
+	ta_end(ta);
+	terminateProcessing();
+}
+
+void StatefulSipEvent::send(const std::shared_ptr<MsgSip> &msg) {
+	transaction->send(msg);
+	terminateProcessing();
+}
+
+void StatefulSipEvent::reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+	ta_list ta;
+	ta_start(ta, tag, value);
+	transaction->reply(msg, status, phrase, ta_tags(ta));
+	ta_end(ta);
+	terminateProcessing();
 }
 
 StatefulSipEvent::~StatefulSipEvent() {
 
 }
 
-Transaction* StatefulSipEvent::getTransaction() {
-	return transaction;
+NullSipEvent::NullSipEvent(const std::shared_ptr<SipEvent> &sipEvent) :
+		SipEvent(*sipEvent) {
+
+}
+NullSipEvent::NullSipEvent(const std::shared_ptr<MsgSip> &msgSip) :
+		SipEvent(msgSip) {
+
+}
+
+void NullSipEvent::send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
+	terminateProcessing();
+}
+void NullSipEvent::send(const std::shared_ptr<MsgSip> &msg) {
+	terminateProcessing();
+}
+void NullSipEvent::reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+	terminateProcessing();
+}
+
+NullSipEvent::~NullSipEvent() {
+
 }

@@ -180,14 +180,9 @@ void ForwardModule::onRequest(shared_ptr<SipEvent> &ev) {
 		ev->terminateProcessing();
 	} else {
 		checkRecordRoutes(ev, dest);
-		StatefulSipEvent *sse = dynamic_cast<StatefulSipEvent *>(ev.get());
 		buf = msg_as_string(ms->getHome(), msg, NULL, 0, &msg_size);
-		LOGD("About to forward%s request to %s:\n%s", sse ? " stateful" : "", url_as_string(ms->getHome(), dest), buf);
-		if (sse != NULL) {
-			sse->getTransaction()->send(sse);
-		} else {
-			ev->send(ms, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), TAG_END());
-		}
+		LOGD("About to forward request to %s:\n%s", url_as_string(ms->getHome(), dest), buf);
+		ev->send(ms, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), TAG_END());
 	}
 
 }
@@ -218,14 +213,9 @@ void ForwardModule::onResponse(shared_ptr<SipEvent> &ev) {
 	msg_t *msg = ms->getMsg();
 	size_t msg_size;
 
-	StatefulSipEvent *sse = dynamic_cast<StatefulSipEvent *>(ev.get());
 	buf = msg_as_string(ms->getHome(), msg, NULL, 0, &msg_size);
-	LOGD("About to forward%s response:\n%s", sse ? " stateful" : "", buf);
-	if (sse != NULL) {
-		sse->getTransaction()->send(sse);
-	} else {
-		ev->send(ms, (url_string_t*) NULL, TAG_END());
-	}
+	LOGD("About to forward response:\n%s", buf);
+	ev->send(ms, (url_string_t*) NULL, TAG_END());
 }
 
 #include <sofia-sip/su_md5.h>

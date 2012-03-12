@@ -26,10 +26,14 @@
 
 class Agent;
 class Module;
+class IncomingTransaction;
+class OutgoingTransaction;
+class IncomingTransactionHandler;
+class OutgoingTransactionHandler;
 
 class MsgSip {
 public:
-	MsgSip(msg_t *msg, sip_t *sip);
+	MsgSip(msg_t *msg, sip_t *sip = NULL);
 	MsgSip(const MsgSip &msgSip);
 	~MsgSip();
 
@@ -52,28 +56,13 @@ private:
 };
 
 class SipEvent {
+	friend class StatelessSipEvent;
+	friend class StatefulSipEvent;
 	friend class Agent;
 public:
-	SipEvent(const std::shared_ptr<SipEvent> &sipEvent);
-	SipEvent(Agent *agent, const std::shared_ptr<MsgSip> &msgSip);
 
-	void terminateProcessing();
-
-	void suspendProcessing();
-
-	void restartProcessing();
-
-	bool suspended() const;
-
-	bool terminated() const;
-
-	inline Agent* getAgent() const {
-		return mAgent;
-	}
-
-	void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
-
-	void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
+	SipEvent(std::shared_ptr<MsgSip> msgSip);
+	SipEvent(const SipEvent &sipEvent);
 
 	inline std::shared_ptr<MsgSip> getMsgSip() const {
 		return mMsgSip;
@@ -83,9 +72,30 @@ public:
 		mMsgSip = msgSip;
 	}
 
-	virtual ~SipEvent();
-private:
-	Agent *mAgent;
+	void terminateProcessing();
+
+	void suspendProcessing();
+
+	void restartProcessing();
+
+	inline bool isSuspended() const {
+		return mState == SUSPENDED;
+	}
+
+	inline bool isTerminated() const {
+		return mState == TERMINATED;
+	}
+
+	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) = 0;
+	virtual void send(const std::shared_ptr<MsgSip> &msg) = 0;
+
+	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) = 0;
+
+	virtual ~SipEvent() {
+
+	}
+
+protected:
 	Module *mCurrModule;
 	std::shared_ptr<MsgSip> mMsgSip;
 
@@ -94,15 +104,51 @@ private:
 	} mState;
 };
 
+class StatelessSipEvent: public SipEvent {
+public:
+	StatelessSipEvent(const std::shared_ptr<SipEvent> &SipEvent);
+	StatelessSipEvent(Agent *agent, const std::shared_ptr<MsgSip> &msgSip);
+
+	inline Agent* getAgent() const {
+		return mAgent;
+	}
+
+	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
+	virtual void send(const std::shared_ptr<MsgSip> &msg);
+
+	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
+
+	virtual ~StatelessSipEvent();
+private:
+	Agent *mAgent;
+};
+
 class Transaction;
 class StatefulSipEvent: public SipEvent {
-private:
-	Transaction *transaction;
 public:
-	StatefulSipEvent(Transaction *transaction, const std::shared_ptr<SipEvent> &sipEvent);
-	StatefulSipEvent(Transaction *transaction, const std::shared_ptr<MsgSip> &msgSip);
-	Transaction *getTransaction();
+	StatefulSipEvent(const std::shared_ptr<Transaction> &transaction, const std::shared_ptr<SipEvent> &sipEvent);
+	StatefulSipEvent(const std::shared_ptr<Transaction> &transaction, const std::shared_ptr<MsgSip> &msgSip);
+
+	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
+	virtual void send(const std::shared_ptr<MsgSip> &msg);
+
+	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
+
 	~StatefulSipEvent();
+private:
+	std::shared_ptr<Transaction> transaction;
+};
+
+class NullSipEvent: public SipEvent {
+public:
+	NullSipEvent(const std::shared_ptr<SipEvent> &sipEvent);
+	NullSipEvent(const std::shared_ptr<MsgSip> &msgSip);
+
+	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
+	virtual void send(const std::shared_ptr<MsgSip> &msg);
+
+	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
+	~NullSipEvent();
 };
 
 #endif //event_hh

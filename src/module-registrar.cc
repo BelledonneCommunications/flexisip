@@ -220,43 +220,6 @@ bool Registrar::contactinVia(sip_contact_t *ct, sip_via_t * via) {
 	return false;
 }
 
-class RegistrarIncomingTransaction: public IncomingTransaction {
-private:
-	bool mRinging;
-	bool mEarlymedia;
-
-public:
-	RegistrarIncomingTransaction(Agent *agent, msg_t * msg, sip_t *sip, TransactionCallback callback, void *magic) :
-			IncomingTransaction(agent, msg, sip, callback, magic), mRinging(false), mEarlymedia(false) {
-
-	}
-	virtual void send(StatefulSipEvent * ev) {
-		shared_ptr<MsgSip> ms = ev->getMsgSip();
-		if (ms->getSip()->sip_status) {
-			if (ms->getSip()->sip_status->st_status == 180) {
-				if (!mRinging) {
-					IncomingTransaction::send(ev);
-					mRinging = true;
-				} else {
-					ev->terminateProcessing();
-				}
-			} else if (ms->getSip()->sip_status->st_status == 183) {
-				if (!mEarlymedia) {
-					IncomingTransaction::send(ev);
-					mEarlymedia = true;
-				} else {
-					ev->terminateProcessing();
-				}
-			} else {
-				IncomingTransaction::send(ev);
-			}
-		} else {
-			IncomingTransaction::send(ev);
-		}
-	}
-
-};
-
 void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor, bool fork = false) {
 	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
@@ -291,9 +254,9 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 				}
 			}
 		} else {
-			ForkCallContext *context = new ForkCallContext(agent, this);
-			IncomingTransaction *incoming_transaction = new RegistrarIncomingTransaction(agent, ms->getMsg(), ms->getSip(), ForkCallContext::incomingCallback, context);
-			context->setIncomingTransaction(incoming_transaction);
+			shared_ptr<ForkCallContext> context(make_shared<ForkCallContext>(agent));
+			shared_ptr<IncomingTransaction> incoming_transaction(make_shared<IncomingTransaction>(agent, context));
+			incoming_transaction->handle(ms);
 			for (list<extended_contact*>::const_iterator it = contacts.begin(); it != contacts.end(); ++it) {
 				extended_contact *ec = *it;
 				sip_contact_t *ct = NULL;
@@ -305,8 +268,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 					if (ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
 						LOGD("Registrar: found contact information in database, rewriting request uri");
 
-						OutgoingTransaction *transaction = new OutgoingTransaction(agent, ForkCallContext::outgoingCallback, context);
-						context->addOutgoingTransaction(transaction);
+						shared_ptr<OutgoingTransaction> transaction(make_shared<OutgoingTransaction>(agent, context));
 
 						shared_ptr<MsgSip> new_msgsip = make_shared<MsgSip>(*ms);
 						msg_t *new_msg = new_msgsip->getMsg();
@@ -331,13 +293,9 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 				}
 			}
 
-			msg_t *msg = nta_incoming_create_response(incoming_transaction->getIncoming(), SIP_100_TRYING);
-			shared_ptr<MsgSip> new_msgsip = make_shared<MsgSip>(msg, sip_object(msg));
-			shared_ptr<SipEvent> new_ev = static_pointer_cast<SipEvent>(make_shared<StatefulSipEvent>(incoming_transaction, ev));
-			new_ev->setMsgSip(new_msgsip);
+			shared_ptr<SipEvent> new_ev = static_pointer_cast<SipEvent>(make_shared<StatefulSipEvent>(incoming_transaction, incoming_transaction->createResponse(SIP_100_TRYING)));
 			agent->sendResponseEvent(new_ev);
 			ev->terminateProcessing();
-			msg_destroy(msg);
 			return;
 		}
 	}

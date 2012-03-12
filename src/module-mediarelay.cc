@@ -47,6 +47,7 @@ private:
 	CallStore *mCalls;
 	MediaRelayServer *mServer;
 	string mSdpMangledParam;
+	bool mFork;
 	static ModuleInfo<MediaRelay> sInfo;
 };
 
@@ -160,7 +161,7 @@ ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay", "The MediaRelay module ma
 		"MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.");
 
 MediaRelay::MediaRelay(Agent *ag) :
-		Module(ag), mServer(0) {
+		Module(ag), mServer(0), mFork(false) {
 }
 
 MediaRelay::~MediaRelay() {
@@ -174,6 +175,11 @@ void MediaRelay::onLoad(Agent *ag, const ConfigStruct * modconf) {
 	mCalls = new CallStore();
 	mServer = new MediaRelayServer(ag->getBindIp(), ag->getPublicIp());
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
+
+	ConfigStruct *cr = ConfigManager::get()->getRoot();
+	ConfigStruct *ma = cr->get<ConfigStruct>("module::Registrar");
+
+	mFork = ma->get<ConfigBoolean>("fork")->read();
 }
 
 bool MediaRelay::processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip) {
@@ -207,8 +213,7 @@ void MediaRelay::onRequest(shared_ptr<SipEvent> &ev) {
 	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
 
-	StatefulSipEvent *sse = dynamic_cast<StatefulSipEvent *>(ev.get());
-	if (sse != NULL) {
+	if (mFork) {
 		//Stateful
 		if (sip->sip_request->rq_method == sip_method_invite) {
 			if ((c = static_cast<RelayedCall*>(mCalls->find(getAgent(), sip, true))) == NULL) {
@@ -298,8 +303,8 @@ void MediaRelay::onResponse(shared_ptr<SipEvent> &ev) {
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
 	RelayedCall *c;
-	StatefulSipEvent *sse = dynamic_cast<StatefulSipEvent *>(ev.get());
-	if (sse != NULL) {
+
+	if (mFork) {
 		//Stateful
 		if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
 			fixAuthChallengeForSDP(ms->getHome(), msg, sip);
