@@ -29,8 +29,9 @@ class ForkCallContext: public IncomingTransactionHandler, public OutgoingTransac
 	Agent *mAgent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
 	std::list<std::shared_ptr<OutgoingTransaction>> mOutgoings;
-	int mRinging;
-	int mEarlyMedia;
+	std::shared_ptr<MsgSip> mBestResponse;
+	int mFinal;
+	int m2xxMaxForwards;
 
 public:
 	ForkCallContext(Agent *agent);
@@ -42,13 +43,11 @@ public:
 	void onEvent(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
 	void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
 private:
-	void receiveOk(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
-	void receiveCancel(const std::shared_ptr<IncomingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
-	void receiveCanceled(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
-	void receiveTimeout(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
-	void receiveDecline(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
-	void receiveRinging(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
-	void receiveEarlyMedia(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
+	void cancel();
+	void closeOthers(const std::shared_ptr<OutgoingTransaction> &transaction);
+	void decline(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<MsgSip> &ms);
+	void forward(const std::shared_ptr<MsgSip> &ms, bool force = false);
+	void store(const std::shared_ptr<MsgSip> &ms);
 };
 
 #endif //forkcallcontext_hh

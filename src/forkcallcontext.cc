@@ -24,90 +24,53 @@
 using namespace ::std;
 
 ForkCallContext::ForkCallContext(Agent *agent) :
-		mAgent(agent), mRinging(0), mEarlyMedia(0) {
+		mAgent(agent), mFinal(0) {
 	LOGD("New ForkCallContext %p", this);
+	ConfigStruct *cr = ConfigManager::get()->getRoot();
+	ConfigStruct *ma = cr->get<ConfigStruct>("module::Registrar");
+	m2xxMaxForwards = ma->get<ConfigInt>("2xxMaxForwards")->read();
 }
 
 ForkCallContext::~ForkCallContext() {
 	LOGD("Destroy ForkCallContext %p", this);
 }
 
-void ForkCallContext::receiveOk(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
-	shared_ptr<MsgSip> ms = event->getMsgSip();
-	shared_ptr<SipEvent> ev(new StatefulSipEvent(mIncoming, ms));
-	mAgent->sendResponseEvent(ev);
-
-	// Cancel others
-	for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end(); ++it) {
-		if (*it != transaction) {
-			(*it)->cancel();
-		}
-	}
-}
-
-void ForkCallContext::receiveCancel(const std::shared_ptr<IncomingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
+void ForkCallContext::cancel() {
 	for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end(); ++it) {
 		(*it)->cancel();
 	}
-	shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_487_REQUEST_CANCELLED));
-	shared_ptr<SipEvent> ev(new StatefulSipEvent(mIncoming, msgsip));
-	mAgent->sendResponseEvent(ev);
+
+	forward(mIncoming->createResponse(SIP_487_REQUEST_CANCELLED));
 }
 
-void ForkCallContext::receiveTimeout(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
-	/*
-	 if (outgoings.size() == 0) {
-	 msg_t *msg = nta_incoming_create_response(incoming->getIncoming(), SIP_408_REQUEST_TIMEOUT);
-	 shared_ptr<MsgSip> msgsip(new MsgSip(msg, sip_object(msg)));
-	 msg_ref_destroy(msg);
-	 shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msgsip));
-	 agent->sendResponseEvent(ev);
-	 deleteTransaction(incoming);
-	 }
-	 */
-}
+void ForkCallContext::forward(const std::shared_ptr<MsgSip> &ms, bool force) {
+	sip_t *sip = ms->getSip();
+	shared_ptr<SipEvent> ev;
 
-void ForkCallContext::receiveDecline(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
-	/*	if (outgoings.size() == 0) {
-	 msg_t *msg = nta_incoming_create_response(incoming->getIncoming(), SIP_603_DECLINE);
-	 shared_ptr<MsgSip> msgsip(new MsgSip(msg, sip_object(msg)));
-	 msg_ref_destroy(msg);
-	 shared_ptr<SipEvent> ev(new StatefulSipEvent(incoming, msgsip));
-	 agent->sendResponseEvent(ev);
-	 deleteTransaction(incoming);
-	 }
-	 */
-}
-
-void ForkCallContext::receiveEarlyMedia(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
-	if (mIncoming.get()) {
-		shared_ptr<SipEvent> ev;
-		if (mRinging)
-			ev = make_shared<NullSipEvent>(event->getMsgSip());
-		else
-			ev = make_shared<StatefulSipEvent>(mIncoming, event->getMsgSip());
-		++mRinging;
-		mAgent->sendResponseEvent(ev);
+	if ((mFinal > 0 && !force) || mIncoming.get() == NULL) {
+		ev = make_shared<NullSipEvent>(ms);
+	} else {
+		ev = make_shared<StatefulSipEvent>(mIncoming, ms);
 	}
 
-}
-
-void ForkCallContext::receiveCanceled(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
-	shared_ptr<SipEvent> ev = make_shared<NullSipEvent>(event->getMsgSip());
 	mAgent->sendResponseEvent(ev);
+
+	if (sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 700) {
+		++mFinal;
+	}
 }
 
-void ForkCallContext::receiveRinging(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
-	if (mIncoming.get()) {
-		shared_ptr<SipEvent> ev;
-		if (mEarlyMedia)
-			ev = make_shared<NullSipEvent>(event->getMsgSip());
-		else
-			ev = make_shared<StatefulSipEvent>(mIncoming, event->getMsgSip());
-		++mEarlyMedia;
-		mAgent->sendResponseEvent(ev);
-	}
+void ForkCallContext::decline(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<MsgSip> &ms) {
+	closeOthers(transaction);
 
+	forward(ms);
+}
+
+void ForkCallContext::closeOthers(const shared_ptr<OutgoingTransaction> &transaction) {
+	for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end(); ++it) {
+		if (*it != transaction)
+			(*it)->cancel();
+	}
 }
 
 void ForkCallContext::onEvent(const shared_ptr<IncomingTransaction> &transaction, const shared_ptr<StatefulSipEvent> &event) {
@@ -116,33 +79,46 @@ void ForkCallContext::onEvent(const shared_ptr<IncomingTransaction> &transaction
 	if (sip != NULL && sip->sip_request != NULL) {
 		if (sip->sip_request->rq_method == sip_method_cancel) {
 			LOGD("Fork: incomingCallback cancel");
-			receiveCancel(transaction, event);
+			cancel();
 			return;
 		}
 	}
 	LOGW("Incoming transaction: ignore message");
 }
 
+void ForkCallContext::store(const std::shared_ptr<MsgSip> &ms) {
+	bool best = true;
+
+	if (mBestResponse.get() != NULL) {
+		if (mBestResponse->getSip()->sip_status->st_status < ms->getSip()->sip_status->st_status) {
+			best = false;
+		}
+	}
+
+	if (best) {
+		mBestResponse = ms;
+	}
+}
+
 void ForkCallContext::onEvent(const shared_ptr<OutgoingTransaction> &transaction, const shared_ptr<StatefulSipEvent> &event) {
 	shared_ptr<MsgSip> ms = event->getMsgSip();
-	sip_via_remove(ms->getMsg(), ms->getSip()); // remove via @see test_proxy.c from sofia
+	sip_via_remove(ms->getMsg(), ms->getSip()); // remove via
 	sip_t *sip = ms->getSip();
 	if (sip != NULL && sip->sip_status != NULL) {
 		LOGD("Fork: outgoingCallback %d", sip->sip_status->st_status);
-		if (sip->sip_status->st_status == 200) {
-			receiveOk(transaction, event);
+		if (sip->sip_status->st_status > 100 && sip->sip_status->st_status < 200) {
+			forward(event->getMsgSip());
 			return;
-		} else if (sip->sip_status->st_status == 408 || sip->sip_status->st_status == 503) {
-			receiveTimeout(transaction, event);
+		} else if (sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 300) {
+			if (mFinal == m2xxMaxForwards - 1) // RFC 3261 16.7.5
+				closeOthers(transaction);
+			forward(event->getMsgSip(), true);
 			return;
-		} else if (sip->sip_status->st_status == 603) {
-			receiveDecline(transaction, event);
+		} else if (sip->sip_status->st_status >= 600 && sip->sip_status->st_status < 700) {
+			decline(transaction, event->getMsgSip());
 			return;
-		} else if (sip->sip_status->st_status == 180) {
-			receiveRinging(transaction, event);
-			return;
-		} else if (sip->sip_status->st_status == 183) {
-			receiveEarlyMedia(transaction, event);
+		} else {
+			store(event->getMsgSip());
 			return;
 		}
 	}
@@ -152,7 +128,6 @@ void ForkCallContext::onEvent(const shared_ptr<OutgoingTransaction> &transaction
 
 void ForkCallContext::onNew(const std::shared_ptr<IncomingTransaction> &transaction) {
 	mIncoming = transaction;
-
 }
 
 void ForkCallContext::onDestroy(const std::shared_ptr<IncomingTransaction> &transaction) {
@@ -165,4 +140,17 @@ void ForkCallContext::onNew(const std::shared_ptr<OutgoingTransaction> &transact
 
 void ForkCallContext::onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction) {
 	mOutgoings.remove(transaction);
+	if (mOutgoings.size() == 0) {
+		if (mIncoming.get() != NULL) {
+			if (mBestResponse.get() == NULL) {
+				shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
+				shared_ptr<SipEvent> ev(new StatefulSipEvent(mIncoming, msgsip));
+				mAgent->sendResponseEvent(ev);
+			} else {
+				shared_ptr<SipEvent> ev(new StatefulSipEvent(mIncoming, mBestResponse));
+				mAgent->sendResponseEvent(ev);
+			}
+		}
+		mIncoming.reset();
+	}
 }

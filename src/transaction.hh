@@ -48,15 +48,15 @@ public:
 
 class Transaction {
 protected:
-	Agent *agent;
+	Agent *mAgent;
 
 public:
 	Transaction(Agent *agent) :
-			agent(agent) {
+		mAgent(agent) {
 	}
 
 	Agent * getAgent() {
-		return agent;
+		return mAgent;
 	}
 
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) = 0;
@@ -74,8 +74,8 @@ public:
 	void cancel();
 	~OutgoingTransaction();
 private:
-	nta_outgoing_t *outgoing;
-	std::shared_ptr<OutgoingTransactionHandler> handler;
+	nta_outgoing_t *mOutgoing;
+	std::shared_ptr<OutgoingTransactionHandler> mHandler;
 
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);
@@ -93,8 +93,8 @@ public:
 	std::shared_ptr<MsgSip> createResponse(int status, char const *phrase);
 	~IncomingTransaction();
 private:
-	nta_incoming_t *incoming;
-	std::shared_ptr<IncomingTransactionHandler> handler;
+	nta_incoming_t *mIncoming;
+	std::shared_ptr<IncomingTransactionHandler> mHandler;
 
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);

@@ -51,6 +51,7 @@ public:
 				{ String, "db-implementation", "Implementation used for storing address of records contact uris. [internal,...]", "internal" },
 #endif
 				{ Boolean, "fork", "Fork messages to all registered devices", "true" },
+				{ Integer, "2xxMaxForwards", "Only accept a certain number of 2xx responses before closing others (RFC 3261 16.7.5)", "1" },
 				config_item_end };
 		module_config->addChildrenValues(items);
 	}

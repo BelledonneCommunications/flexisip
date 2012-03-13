@@ -44,6 +44,7 @@ protected:
 private:
 	bool processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip);
 	void process200OkforInvite(RelayedCall *ctx, msg_t *msg, sip_t *sip);
+	void process487forInvite(RelayedCall *ctx, msg_t *msg, sip_t *sip);
 	CallStore *mCalls;
 	MediaRelayServer *mServer;
 	string mSdpMangledParam;
@@ -178,7 +179,6 @@ void MediaRelay::onLoad(Agent *ag, const ConfigStruct * modconf) {
 
 	ConfigStruct *cr = ConfigManager::get()->getRoot();
 	ConfigStruct *ma = cr->get<ConfigStruct>("module::Registrar");
-
 	mFork = ma->get<ConfigBoolean>("fork")->read();
 }
 
@@ -214,7 +214,6 @@ void MediaRelay::onRequest(shared_ptr<SipEvent> &ev) {
 	sip_t *sip = ms->getSip();
 
 	if (mFork) {
-		//Stateful
 		if (sip->sip_request->rq_method == sip_method_invite) {
 			if ((c = static_cast<RelayedCall*>(mCalls->find(getAgent(), sip, true))) == NULL) {
 				c = new RelayedCall(mServer, sip);
@@ -233,7 +232,6 @@ void MediaRelay::onRequest(shared_ptr<SipEvent> &ev) {
 			}
 		}
 	} else {
-		//Stateless
 		if (sip->sip_request->rq_method == sip_method_invite) {
 			if ((c = static_cast<RelayedCall*>(mCalls->find(getAgent(), sip))) == NULL) {
 				c = new RelayedCall(mServer, sip);
@@ -298,6 +296,17 @@ void MediaRelay::process200OkforInvite(RelayedCall *c, msg_t *msg, sip_t *sip) {
 	delete m;
 }
 
+void MediaRelay::process487forInvite(RelayedCall *c, msg_t *msg, sip_t *sip) {
+	LOGD("Processing 487 Request canceled");
+
+	if (sip->sip_to == NULL || sip->sip_to->a_tag == NULL) {
+		LOGW("No tag in answer");
+		return;
+	}
+
+	c->onRemove(sip->sip_to->a_tag);
+}
+
 void MediaRelay::onResponse(shared_ptr<SipEvent> &ev) {
 	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
@@ -305,7 +314,6 @@ void MediaRelay::onResponse(shared_ptr<SipEvent> &ev) {
 	RelayedCall *c;
 
 	if (mFork) {
-		//Stateful
 		if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
 			fixAuthChallengeForSDP(ms->getHome(), msg, sip);
 			if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
@@ -314,10 +322,15 @@ void MediaRelay::onResponse(shared_ptr<SipEvent> &ev) {
 				} else {
 					LOGD("Receiving 200Ok for unknown call.");
 				}
+			} else if (sip->sip_status->st_status == 487) {
+				if ((c = static_cast<RelayedCall*>(mCalls->find(getAgent(), sip, true))) != NULL) {
+					process487forInvite(c, msg, sip);
+				} else {
+					LOGD("Receiving 487 for unknown call.");
+				}
 			}
 		}
 	} else {
-		//Stateless
 		if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
 			fixAuthChallengeForSDP(ms->getHome(), msg, sip);
 			if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
