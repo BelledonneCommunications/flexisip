@@ -52,7 +52,7 @@ protected:
 
 public:
 	Transaction(Agent *agent) :
-		mAgent(agent) {
+			mAgent(agent) {
 	}
 
 	Agent * getAgent() {
@@ -70,12 +70,14 @@ public:
 
 class OutgoingTransaction: public Transaction, public std::enable_shared_from_this<OutgoingTransaction> {
 public:
-	OutgoingTransaction(Agent *agent, const std::shared_ptr<OutgoingTransactionHandler> &handler);
+	OutgoingTransaction(Agent *agent);
+	void addHandler(const std::shared_ptr<OutgoingTransactionHandler> &handler);
+	void removeHandler(const std::shared_ptr<OutgoingTransactionHandler> &handler);
 	void cancel();
 	~OutgoingTransaction();
 private:
 	nta_outgoing_t *mOutgoing;
-	std::shared_ptr<OutgoingTransactionHandler> mHandler;
+	std::list<std::shared_ptr<OutgoingTransactionHandler>> mHandlers;
 
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);

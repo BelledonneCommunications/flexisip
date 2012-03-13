@@ -269,7 +269,8 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 					if (ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
 						LOGD("Registrar: found contact information in database, rewriting request uri");
 
-						shared_ptr<OutgoingTransaction> transaction(make_shared<OutgoingTransaction>(agent, context));
+						shared_ptr<OutgoingTransaction> transaction(make_shared<OutgoingTransaction>(agent));
+						transaction->addHandler(context);
 
 						shared_ptr<MsgSip> new_msgsip = make_shared<MsgSip>(*ms);
 						msg_t *new_msg = new_msgsip->getMsg();

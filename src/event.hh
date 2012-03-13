@@ -129,6 +129,10 @@ public:
 	StatefulSipEvent(const std::shared_ptr<Transaction> &transaction, const std::shared_ptr<SipEvent> &sipEvent);
 	StatefulSipEvent(const std::shared_ptr<Transaction> &transaction, const std::shared_ptr<MsgSip> &msgSip);
 
+	inline std::shared_ptr<Transaction> getTransaction() const {
+		return transaction;
+	}
+
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);
 
