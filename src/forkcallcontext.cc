@@ -67,9 +67,11 @@ void ForkCallContext::decline(const std::shared_ptr<OutgoingTransaction> &transa
 }
 
 void ForkCallContext::closeOthers(const shared_ptr<OutgoingTransaction> &transaction) {
-	for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end(); ++it) {
-		if (*it != transaction)
-			(*it)->cancel();
+	if (mFinal == 0) {
+		for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end(); ++it) {
+			if (*it != transaction)
+				(*it)->cancel();
+		}
 	}
 }
 
@@ -96,7 +98,14 @@ void ForkCallContext::store(const std::shared_ptr<MsgSip> &ms) {
 	}
 
 	if (best) {
+		if (mBestResponse.get() != NULL) {
+			shared_ptr<SipEvent> ev = make_shared<NullSipEvent>(mBestResponse);
+			mAgent->sendResponseEvent(ev);
+		}
 		mBestResponse = ms;
+	} else {
+		shared_ptr<SipEvent> ev = make_shared<NullSipEvent>(ms);
+		mAgent->sendResponseEvent(ev);
 	}
 }
 
@@ -150,6 +159,7 @@ void ForkCallContext::onDestroy(const std::shared_ptr<OutgoingTransaction> &tran
 				shared_ptr<SipEvent> ev(new StatefulSipEvent(mIncoming, mBestResponse));
 				mAgent->sendResponseEvent(ev);
 			}
+			++mFinal;
 		}
 		mIncoming.reset();
 	}
