@@ -31,7 +31,8 @@ class ForkCallContext: public IncomingTransactionHandler, public OutgoingTransac
 	std::list<std::shared_ptr<OutgoingTransaction>> mOutgoings;
 	std::shared_ptr<MsgSip> mBestResponse;
 	int mFinal;
-	int m2xxMaxForwards;
+	bool mForkOneResponse;
+	std::list<int> mForwardResponses;
 
 public:
 	ForkCallContext(Agent *agent);

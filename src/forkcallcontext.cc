@@ -28,7 +28,7 @@ ForkCallContext::ForkCallContext(Agent *agent) :
 	LOGD("New ForkCallContext %p", this);
 	ConfigStruct *cr = ConfigManager::get()->getRoot();
 	ConfigStruct *ma = cr->get<ConfigStruct>("module::Registrar");
-	m2xxMaxForwards = ma->get<ConfigInt>("2xxMaxForwards")->read();
+	mForkOneResponse = ma->get<ConfigBoolean>("fork-one-response")->read();
 }
 
 ForkCallContext::~ForkCallContext() {
@@ -46,8 +46,20 @@ void ForkCallContext::cancel() {
 void ForkCallContext::forward(const std::shared_ptr<MsgSip> &ms, bool force) {
 	sip_t *sip = ms->getSip();
 	shared_ptr<SipEvent> ev;
+	bool fakeSipEvent = (mFinal > 0 && !force) || mIncoming.get() == NULL;
 
-	if ((mFinal > 0 && !force) || mIncoming.get() == NULL) {
+	if(mForkOneResponse) { // TODO: respect RFC 3261 16.7.5
+		if(sip->sip_status->st_status == 183 || sip->sip_status->st_status == 180) {
+			auto it = find(mForwardResponses.begin(), mForwardResponses.end(), sip->sip_status->st_status);
+			if(it != mForwardResponses.end()) {
+				fakeSipEvent = true;
+			} else {
+				mForwardResponses.push_back(sip->sip_status->st_status);
+			}
+		}
+	}
+
+	if (fakeSipEvent) {
 		ev = make_shared<NullSipEvent>(ms);
 	} else {
 		ev = make_shared<StatefulSipEvent>(mIncoming, ms);
@@ -119,7 +131,7 @@ void ForkCallContext::onEvent(const shared_ptr<OutgoingTransaction> &transaction
 			forward(event->getMsgSip());
 			return;
 		} else if (sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 300) {
-			if (mFinal == m2xxMaxForwards - 1) // RFC 3261 16.7.5
+			if (mFinal == 0 && mForkOneResponse) // TODO: respect RFC 3261 16.7.5
 				closeOthers(transaction);
 			forward(event->getMsgSip(), true);
 			return;
