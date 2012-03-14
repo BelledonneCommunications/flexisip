@@ -22,10 +22,16 @@
 #include "agent.hh"
 #include <ortp/rtpsession.h>
 
+class RelaySession;
+
 class MediaSource {
 public:
-	MediaSource(const std::string &ip, int port);
-	MediaSource(const struct sockaddr_storage &sockaddr, socklen_t sockaddr_size);
+	MediaSource(RelaySession * relaySession);
+	~MediaSource();
+
+	void set(const std::string &ip, int port);
+	void set(const struct sockaddr_storage &sockaddr, socklen_t sockaddr_size);
+
 	const std::string &getIp() const {
 		return mIp;
 	}
@@ -52,51 +58,76 @@ public:
 		return mIp < source.mIp;
 	}
 
+	int recv(int i, uint8_t *buf, size_t size);
+	int send(int i, uint8_t *buf, size_t size);
+
+	void fillPollFd(struct pollfd *tab);
+
+	int getRelayPort() const {
+		return rtp_session_get_local_port(mSession);
+	}
+
+	bool isInit() {
+		return mInit;
+	}
+
+	RelaySession *getRelaySession() {
+		return mRelaySession;
+	}
+
 private:
+	bool mInit;
 	std::string mIp;
 	int mPort;
+	RtpSession *mSession;
+	int mSources[2];
 	struct sockaddr_storage mSockAddr;
 	socklen_t mSockAddrSize;
+	RelaySession *mRelaySession;
 };
 
 class RelaySession {
+	friend class MediaRelayServer;
 public:
 	RelaySession(const std::string &bind_ip, const std::string & public_ip);
 	~RelaySession();
 
-        int getFrontPort()const;
-        int getBackPort()const;
 	void fillPollFd(struct pollfd *tab);
-	void transfer(time_t current, struct pollfd *tab);
+	void transfer(time_t current, const std::shared_ptr<MediaSource> &org);
 	void unuse();
 	const std::string & getPublicIp() const {
 		return mPublicIp;
 	}
+
+	const std::string & getBindIp() const {
+		return mBindIp;
+	}
+
+	const std::shared_ptr<MediaSource>& getFront() {
+		return mFront;
+	}
+
+	const std::list<std::shared_ptr<MediaSource>>& getBacks() {
+		return mBacks;
+	}
+
 	bool isUsed() const {
 		return mUsed;
 	}
 	time_t getLastActivityTime() const {
 		return mLastActivityTime;
 	}
+	std::shared_ptr<MediaSource> addBack();
+	void removeBack(const std::shared_ptr<MediaSource> &ms);
 
-
-	void addFront(const std::string &ip, int port);
-	void addBack(const std::string &ip, int port);
-	void removeFront(const std::string &ip, int port);
-	void removeBack(const std::string &ip, int port);
 private:
-	void addFront(const MediaSource&src);
-	void addBack(const MediaSource&src);
-
 	Mutex mMutex;
-	std::list<MediaSource> mFront;
-	std::list<MediaSource> mBack;
 	const std::string mBindIp;
 	const std::string mPublicIp;
-	RtpSession *mSession[2];
-	int mSources[4]; //2 RTP sockets, 2 RTCP sockets
 	time_t mLastActivityTime;
 	bool_t mUsed;
+	std::shared_ptr<MediaSource> mFront;
+	std::list<std::shared_ptr<MediaSource>> mBacks;
 };
 
 class MediaRelayServer {
@@ -104,6 +135,7 @@ public:
 	MediaRelayServer(const std::string &bind_ip, const std::string &public_ip);
 	~MediaRelayServer();
 	RelaySession *createSession();
+	void update();
 private:
 	void start();
 	void run();
