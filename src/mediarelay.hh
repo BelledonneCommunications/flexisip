@@ -30,7 +30,6 @@ public:
 	~MediaSource();
 
 	void set(const std::string &ip, int port);
-	void set(const struct sockaddr_storage &sockaddr, socklen_t sockaddr_size);
 
 	const std::string &getIp() const {
 		return mIp;
@@ -38,13 +37,6 @@ public:
 
 	int getPort() const {
 		return mPort;
-	}
-
-	const struct sockaddr_storage &getSockAddr() const {
-		return mSockAddr;
-	}
-	socklen_t getSockAddrSize() const {
-		return mSockAddrSize;
 	}
 
 	bool operator ==(const MediaSource &source) const {
@@ -81,8 +73,8 @@ private:
 	int mPort;
 	RtpSession *mSession;
 	int mSources[2];
-	struct sockaddr_storage mSockAddr;
-	socklen_t mSockAddrSize;
+	struct sockaddr_storage mSockAddr[2];
+	socklen_t mSockAddrSize[2];
 	RelaySession *mRelaySession;
 };
 
@@ -93,7 +85,7 @@ public:
 	~RelaySession();
 
 	void fillPollFd(struct pollfd *tab);
-	void transfer(time_t current, const std::shared_ptr<MediaSource> &org);
+	void transfer(time_t current, const std::shared_ptr<MediaSource> &org, int i);
 	void unuse();
 	const std::string & getPublicIp() const {
 		return mPublicIp;
