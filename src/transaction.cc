@@ -92,10 +92,11 @@ int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *
 		msg_t *msg = nta_outgoing_getresponse(it->mOutgoing);
 		MsgSip msgsip(msg);
 		msg_destroy(msg);
-		for(auto it2 = it->mHandlers.begin(); it2 != it->mHandlers.end(); ++it2) {
+		for_each(it->mHandlers.begin(), it->mHandlers.end(), [it,msgsip] (const std::shared_ptr<OutgoingTransactionHandler> &handler) {
 			auto sipevent = make_shared<StatefulSipEvent>(it->shared_from_this(), make_shared<MsgSip>(msgsip));
-			(*it2)->onEvent(it->shared_from_this(), sipevent);
-		}
+			handler->onEvent(it->shared_from_this(), sipevent);
+		});
+
 		if (sip->sip_status && sip->sip_status->st_status >= 200) {
 			for_each(it->mHandlers.begin(), it->mHandlers.end(), bind(&OutgoingTransactionHandler::onDestroy, placeholders::_1, it->shared_from_this()));
 		}

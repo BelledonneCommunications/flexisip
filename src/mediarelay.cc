@@ -26,8 +26,8 @@
 
 using namespace ::std;
 
-MediaSource::MediaSource(RelaySession * relaySession) :
-		mInit(false), mRelaySession(relaySession) {
+MediaSource::MediaSource(RelaySession * relaySession, bool front) :
+		mFront(front), mInit(false), mRelaySession(relaySession) {
 	mSession = rtp_session_new(RTP_SESSION_SENDRECV);
 	rtp_session_set_local_addr(mSession, relaySession->getBindIp().c_str(), -1);
 	mSources[0] = rtp_session_get_rtp_socket(mSession);
@@ -100,13 +100,29 @@ int MediaSource::send(int i, uint8_t *buf, size_t buflen) {
 }
 
 RelaySession::RelaySession(const string &bind_ip, const string & public_ip) :
-		mBindIp(bind_ip), mPublicIp(public_ip), mFront(make_shared<MediaSource>(this)) {
+		mType(All), mBindIp(bind_ip), mPublicIp(public_ip) {
 	mLastActivityTime = time(NULL);
 	mUsed = true;
 }
 
+std::shared_ptr<MediaSource> RelaySession::addFront() {
+	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this, true);
+
+	mMutex.lock();
+	mFronts.push_back(ms);
+	mMutex.unlock();
+
+	return ms;
+}
+
+void RelaySession::removeFront(const std::shared_ptr<MediaSource> &ms) {
+	mMutex.lock();
+	mFronts.remove(ms);
+	mMutex.unlock();
+}
+
 std::shared_ptr<MediaSource> RelaySession::addBack() {
-	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this);
+	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this, false);
 
 	mMutex.lock();
 	mBacks.push_back(ms);
@@ -134,44 +150,43 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<MediaSource> &org, 
 	int recv_len;
 	int send_len;
 
-	mMutex.lock();
-
 	if (org->isInit()) {
 		mLastActivityTime = curtime;
-		if (org == mFront) {
-			recv_len = mFront->recv(i, buf, maxsize);
-			if (recv_len > 0) {
-				auto it = mBacks.begin();
-				if (it != mBacks.end()) {
-					while (it != mBacks.end()) {
-						const shared_ptr<MediaSource> &dest = (*it);
-						if (dest->isInit()) {
-							//LOGD("%i %s:%i -> %i %s:%i", mFront->getRelayPort() + i, mFront->getIp().c_str(), mFront->getPort(), dest->getRelayPort(), dest->getIp().c_str(), dest->getPort());
-							send_len = dest->send(i, buf, recv_len);
-							if (send_len != recv_len) {
-								LOGW("Only %i bytes sent on %i bytes: %s", send_len, recv_len, strerror(errno));
-							}
+		recv_len = org->recv(i, buf, maxsize);
+		if (recv_len > 0) {
+			std::list<std::shared_ptr<MediaSource>> list;
+			if (mType == None)
+				return;
+			if (org->isFront()) {
+				list = mBacks;
+				if (!(mType == FrontToBack || mType == All))
+					return;
+			} else {
+				list = mFronts;
+				if (!(mType == BackToFront || mType == All))
+					return;
+			}
+
+			mMutex.lock();
+			auto it = list.begin();
+			if (it != list.end()) {
+				while (it != list.end()) {
+					const shared_ptr<MediaSource> &dest = (*it);
+					if (dest->isInit()) {
+						//LOGD("%i %s:%i -> %i %s:%i", mFront->getRelayPort() + i, mFront->getIp().c_str(), mFront->getPort(), dest->getRelayPort(), dest->getIp().c_str(), dest->getPort());
+						send_len = dest->send(i, buf, recv_len);
+						if (send_len != recv_len) {
+							LOGW("Only %i bytes sent on %i bytes Port=%i For=%s:%i Error=%s", send_len, recv_len, dest->getRelayPort() + i, dest->getIp().c_str(), dest->getPort(), strerror(errno));
 						}
-						++it;
 					}
+					++it;
 				}
-			} else if (recv_len < 0) {
-				LOGW("Error on read %i %s:%i: %s", mFront->getRelayPort() + i, mFront->getIp().c_str(), mFront->getPort(), strerror(errno));
 			}
-		} else if (mFront->isInit()) {
-			recv_len = org->recv(i, buf, maxsize);
-			if (recv_len > 0) {
-				//LOGD("%i %s:%i -> %i %s:%i", org->getRelayPort() + i, org->getIp().c_str(), org->getPort(), mFront->getRelayPort(), mFront->getIp().c_str(), mFront->getPort());
-				send_len = mFront->send(i, buf, recv_len);
-				if (send_len != recv_len) {
-					LOGW("Only %i bytes sent on %i bytes: %s", send_len, recv_len, strerror(errno));
-				}
-			} else if (recv_len < 0) {
-				LOGW("Error on read %i %s:%i: %s", org->getRelayPort() + i, org->getIp().c_str(), org->getPort(), strerror(errno));
-			}
+			mMutex.unlock();
+		} else if (recv_len < 0) {
+			LOGW("Error on read Port=%i For=%s:%i Error=%s", org->getRelayPort() + i, org->getIp().c_str(), org->getPort(), strerror(errno));
 		}
 	}
-	mMutex.unlock();
 }
 
 MediaRelayServer::MediaRelayServer(const string &bind_ip, const string &public_ip) :
@@ -235,14 +250,18 @@ void MediaRelayServer::run() {
 		for (auto it = mSessions.begin(); it != mSessions.end(); ++it) {
 			RelaySession *ptr = *it;
 			ptr->mMutex.lock();
-			list.push_back(ptr->getFront());
+
+			const std::list<std::shared_ptr<MediaSource>>& fronts = ptr->getFronts();
+			for (auto it2 = fronts.begin(); it2 != fronts.end(); ++it2) {
+				list.push_back(*it2);
+			}
 
 			const std::list<std::shared_ptr<MediaSource>>& backs = ptr->getBacks();
 			for (auto it2 = backs.begin(); it2 != backs.end(); ++it2) {
 				list.push_back(*it2);
 			}
 
-			pfds_size += 2 + backs.size() * 2;
+			pfds_size += (fronts.size() + backs.size()) * 2;
 			ptr->mMutex.unlock();
 		}
 		mMutex.unlock();

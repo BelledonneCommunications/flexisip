@@ -26,7 +26,7 @@ class RelaySession;
 
 class MediaSource {
 public:
-	MediaSource(RelaySession * relaySession);
+	MediaSource(RelaySession * relaySession, bool front);
 	~MediaSource();
 
 	void set(const std::string &ip, int port);
@@ -63,11 +63,16 @@ public:
 		return mInit;
 	}
 
+	bool isFront() {
+		return mFront;
+	}
+
 	RelaySession *getRelaySession() {
 		return mRelaySession;
 	}
 
 private:
+	const bool mFront;
 	bool mInit;
 	std::string mIp;
 	int mPort;
@@ -81,6 +86,10 @@ private:
 class RelaySession {
 	friend class MediaRelayServer;
 public:
+	typedef enum {
+		None, FrontToBack, BackToFront, All,
+	} ForwardType;
+
 	RelaySession(const std::string &bind_ip, const std::string & public_ip);
 	~RelaySession();
 
@@ -95,8 +104,8 @@ public:
 		return mBindIp;
 	}
 
-	const std::shared_ptr<MediaSource>& getFront() {
-		return mFront;
+	const std::list<std::shared_ptr<MediaSource>>& getFronts() {
+		return mFronts;
 	}
 
 	const std::list<std::shared_ptr<MediaSource>>& getBacks() {
@@ -106,19 +115,33 @@ public:
 	bool isUsed() const {
 		return mUsed;
 	}
+
 	time_t getLastActivityTime() const {
 		return mLastActivityTime;
 	}
+
+	const ForwardType& getType() {
+		return mType;
+	}
+
+	void setType(const ForwardType &type) {
+		mType = type;
+	}
+
+	std::shared_ptr<MediaSource> addFront();
+	void removeFront(const std::shared_ptr<MediaSource> &ms);
+
 	std::shared_ptr<MediaSource> addBack();
 	void removeBack(const std::shared_ptr<MediaSource> &ms);
 
 private:
+	ForwardType mType;
 	Mutex mMutex;
 	const std::string mBindIp;
 	const std::string mPublicIp;
 	time_t mLastActivityTime;
 	bool_t mUsed;
-	std::shared_ptr<MediaSource> mFront;
+	std::list<std::shared_ptr<MediaSource>> mFronts;
 	std::list<std::shared_ptr<MediaSource>> mBacks;
 };
 
@@ -128,6 +151,7 @@ public:
 	~MediaRelayServer();
 	RelaySession *createSession();
 	void update();
+
 private:
 	void start();
 	void run();

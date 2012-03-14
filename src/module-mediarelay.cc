@@ -55,14 +55,21 @@ private:
 class RelayCallHandler;
 
 class RelayedCall: public CallContextBase {
+	class RelaySessionTransaction {
+	public:
+		RelaySessionTransaction() :
+				mRelaySession(NULL) {
+
+		}
+
+		RelaySession *mRelaySession;
+		map<shared_ptr<Transaction>, shared_ptr<MediaSource>> mTransactions;
+	};
 public:
 	static const int sMaxSessions = 4;
 	RelayedCall(MediaRelayServer *server, sip_t *sip) :
 			CallContextBase(sip), mServer(server) {
-		memset(mSessions, 0, sizeof(mSessions));
 	}
-	typedef tuple<std::shared_ptr<Transaction>, int> key_type;
-	map<key_type, std::shared_ptr<MediaSource>> tagMap;
 
 	/*this function is called to masquerade the SDP, for each mline*/
 	void newMedia(int mline, string *ip, int *port) {
@@ -70,21 +77,22 @@ public:
 			LOGE("Max sessions per relayed call is reached.");
 			return;
 		}
-		RelaySession *s = mSessions[mline];
+		RelaySession *s = mSessions[mline].mRelaySession;
 		if (s == NULL) {
 			s = mServer->createSession();
-			mSessions[mline] = s;
+			mSessions[mline].mRelaySession = s;
+			s->addFront()->set(*ip, *port);
 		}
-		s->getFront()->set(*ip, *port);
+
 	}
 
 	void backwardTranslate(int mline, string *ip, int *port) {
 		if (mline >= sMaxSessions) {
 			return;
 		}
-		RelaySession *s = mSessions[mline];
+		RelaySession *s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
-			*port = s->getFront()->getRelayPort();
+			*port = s->getFronts().front()->getRelayPort();
 			*ip = s->getPublicIp();
 		}
 	}
@@ -93,14 +101,13 @@ public:
 		if (mline >= sMaxSessions) {
 			return;
 		}
-		RelaySession *s = mSessions[mline];
+		RelaySession *s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
-			key_type key = make_tuple(transaction, mline);
-			auto it = tagMap.find(key);
-			if (it != tagMap.end()) {
+			auto it = mSessions[mline].mTransactions.find(transaction);
+			if (it != mSessions[mline].mTransactions.end()) {
 				*port = it->second->getRelayPort();
 			} else {
-				LOGE("Can't find port associated with transaction");
+				LOGE("Can't find transaction %p", transaction.get());
 			}
 			*ip = s->getPublicIp();
 		}
@@ -110,11 +117,11 @@ public:
 		if (mline >= sMaxSessions) {
 			return;
 		}
-		RelaySession *s = mSessions[mline];
+		RelaySession *s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
-			std::shared_ptr<MediaSource> ms = s->addBack();
-			key_type type = make_tuple(transaction, mline);
-			tagMap.insert(pair<key_type, std::shared_ptr<MediaSource>>(type, ms));
+			mSessions[mline].mTransactions.insert(pair<shared_ptr<Transaction>, shared_ptr<MediaSource>>(transaction, s->addBack()));
+
+			s->setType((mSessions[mline].mTransactions.size() > 1) ? RelaySession::FrontToBack : RelaySession::All);
 		}
 	}
 
@@ -122,28 +129,44 @@ public:
 		if (mline >= sMaxSessions) {
 			return;
 		}
-		RelaySession *s = mSessions[mline];
+		RelaySession *s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
-			key_type key = make_tuple(transaction, mline);
-			auto it = tagMap.find(key);
-			if (it != tagMap.end()) {
+			auto it = mSessions[mline].mTransactions.find(transaction);
+			if (it != mSessions[mline].mTransactions.end()) {
 				std::shared_ptr<MediaSource> ms = it->second;
 				ms->set(*ip, *port);
+			} else {
+				LOGE("Can't find transaction %p", transaction.get());
 			}
 		}
 	}
 
-	void onRemove(const std::shared_ptr<OutgoingTransaction> transaction) {
+	void removeBack(const std::shared_ptr<OutgoingTransaction> transaction) {
 		for (int mline = 0; mline < sMaxSessions; ++mline) {
-			key_type key = make_tuple(transaction, mline);
-			auto it = tagMap.find(key);
-			if (it != tagMap.end()) {
-				std::shared_ptr<MediaSource> ms = it->second;
-				RelaySession *s = mSessions[mline];
-				if (s != NULL) {
+			RelaySession *s = mSessions[mline].mRelaySession;
+			if (s != NULL) {
+				auto it = mSessions[mline].mTransactions.find(transaction);
+				if (it != mSessions[mline].mTransactions.end()) {
+					std::shared_ptr<MediaSource> ms = it->second;
 					s->removeBack(ms);
+					s->setType((mSessions[mline].mTransactions.size() > 1) ? RelaySession::FrontToBack : RelaySession::All);
+				} else {
+					LOGE("Can't find transaction %p", transaction.get());
 				}
-				tagMap.erase(it);
+			}
+		}
+	}
+
+	void freeBack(const std::shared_ptr<OutgoingTransaction> transaction) {
+		for (int mline = 0; mline < sMaxSessions; ++mline) {
+			RelaySession *s = mSessions[mline].mRelaySession;
+			if (s != NULL) {
+				auto it = mSessions[mline].mTransactions.find(transaction);
+				if (it != mSessions[mline].mTransactions.end()) {
+					mSessions[mline].mTransactions.erase(it);
+				} else {
+					LOGE("Can't find transaction %p", transaction.get());
+				}
 			}
 		}
 	}
@@ -157,7 +180,7 @@ public:
 		RelaySession *r;
 		for (int i = 0; i < sMaxSessions; ++i) {
 			time_t tmp;
-			r = mSessions[i];
+			r = mSessions[i].mRelaySession;
 			if (r && ((tmp = r->getLastActivityTime()) > maxtime))
 				maxtime = tmp;
 		}
@@ -169,16 +192,16 @@ public:
 	~RelayedCall() {
 		int i;
 		for (i = 0; i < sMaxSessions; ++i) {
-			RelaySession *s = mSessions[i];
+			RelaySession *s = mSessions[i].mRelaySession;
 			if (s)
 				s->unuse();
 		}
 	}
+
 private:
-	RelaySession * mSessions[sMaxSessions];
+	RelaySessionTransaction mSessions[sMaxSessions];
 	MediaRelayServer *mServer;
 };
-
 
 static bool isEarlyMedia(sip_t *sip) {
 	if (sip->sip_status->st_status == 180 || sip->sip_status->st_status == 183) {
@@ -189,22 +212,23 @@ static bool isEarlyMedia(sip_t *sip) {
 	return false;
 }
 
-
 class RelayCallHandler: public OutgoingTransactionHandler {
 public:
 	RelayCallHandler(RelayedCall *relayedCall) :
 			mRelayedCall(relayedCall) {
 
 	}
+
 	void onNew(const std::shared_ptr<OutgoingTransaction> &transaction) {
 
 	}
+
 	void onEvent(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
 		shared_ptr<MsgSip> ms = event->getMsgSip();
 		sip_t *sip = ms->getSip();
 		if (sip != NULL && sip->sip_status != NULL) {
 			if (sip->sip_status->st_status == 487) {
-				mRelayedCall->onRemove(transaction);
+				mRelayedCall->removeBack(transaction);
 			} else if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
 				SdpModifier *m = SdpModifier::createFromSipMsg(mRelayedCall->getHome(), sip);
 				if (m == NULL)
@@ -215,8 +239,9 @@ public:
 			}
 		}
 	}
-	void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction) {
 
+	void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction) {
+		mRelayedCall->freeBack(transaction); //Free transaction reference
 	}
 private:
 	RelayedCall *mRelayedCall;
@@ -272,7 +297,6 @@ bool MediaRelay::processNewInvite(RelayedCall *c, const shared_ptr<StatefulSipEv
 
 		// Translate
 		m->iterate(bind(&RelayedCall::forwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, ref(transaction)));
-
 
 		m->addAttribute(mSdpMangledParam.c_str(), "yes");
 		m->update(msg, sip);
