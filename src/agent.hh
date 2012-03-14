@@ -95,6 +95,7 @@ class Agent{
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
 		void onRequest(msg_t *msg, sip_t *sip);
 		void onResponse(msg_t *msg, sip_t *sip);
+		void dump(msg_t *msg, sip_t *sip, const char * header = NULL);
 	private:
 		void discoverInterfaces();
 		std::string mServerString;

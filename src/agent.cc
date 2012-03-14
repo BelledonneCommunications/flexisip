@@ -250,6 +250,7 @@ void Agent::onRequest(msg_t *msg, sip_t *sip) {
 }
 
 void Agent::sendRequestEvent(shared_ptr<SipEvent> &ev) {
+	dump(ev->getMsgSip()->getMsg(), ev->getMsgSip()->getSip(), "Receiving new Request SIP message:");
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		ev->mCurrModule = (*it);
@@ -263,6 +264,7 @@ void Agent::sendRequestEvent(shared_ptr<SipEvent> &ev) {
 }
 
 void Agent::sendResponseEvent(shared_ptr<SipEvent> &ev) {
+	dump(ev->getMsgSip()->getMsg(), ev->getMsgSip()->getSip(), "Receiving new Response SIP message:");
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		ev->mCurrModule = *it;
@@ -276,6 +278,7 @@ void Agent::sendResponseEvent(shared_ptr<SipEvent> &ev) {
 }
 
 void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
+	dump(ev->getMsgSip()->getMsg(), ev->getMsgSip()->getSip(), "Inject Request SIP message:");
 	list<Module*>::iterator it;
 	ev->restartProcessing();
 	LOGD("Injecting request event after %s", ev->mCurrModule->getModuleName().c_str());
@@ -302,6 +305,7 @@ void Agent::onResponse(msg_t *msg, sip_t *sip) {
 }
 
 void Agent::injectResponseEvent(shared_ptr<SipEvent> &ev) {
+	dump(ev->getMsgSip()->getMsg(), ev->getMsgSip()->getSip(), "Inject Response SIP message:");
 	list<Module*>::iterator it;
 	ev->restartProcessing();
 	LOGD("Injecting response event after %s", ev->mCurrModule->getModuleName().c_str());
@@ -322,21 +326,24 @@ void Agent::injectResponseEvent(shared_ptr<SipEvent> &ev) {
 	}
 }
 
-int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
+void Agent::dump(msg_t *msg, sip_t *sip, const char * header) {
 	su_home_t home;
 	size_t msg_size;
 	char *buf;
 
 	su_home_init(&home);
 	buf = msg_as_string(&home, msg, NULL, 0, &msg_size);
-	LOGD("Receiving new SIP message:\n%s", buf);
+	LOGD("%s%s%s", (header) ? header : "", (header) ? "\n" : "", buf);
+	su_home_deinit(&home);
+}
+
+int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
 	if (sip->sip_request)
 		onRequest(msg, sip);
 	else {
 		onResponse(msg, sip);
 	}
 	msg_destroy(msg);
-	su_home_deinit(&home);
 	return 0;
 }
 
