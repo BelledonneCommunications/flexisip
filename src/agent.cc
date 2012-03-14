@@ -327,14 +327,16 @@ void Agent::injectResponseEvent(shared_ptr<SipEvent> &ev) {
 }
 
 void Agent::dump(msg_t *msg, sip_t *sip, const char * header) {
-	su_home_t home;
-	size_t msg_size;
-	char *buf;
+	if (IS_LOGD) {
+		su_home_t home;
+		size_t msg_size;
+		char *buf;
 
-	su_home_init(&home);
-	buf = msg_as_string(&home, msg, NULL, 0, &msg_size);
-	LOGD("%s%s%s", (header) ? header : "", (header) ? "\n" : "", buf);
-	su_home_deinit(&home);
+		su_home_init(&home);
+		buf = msg_as_string(&home, msg, NULL, 0, &msg_size);
+		LOGD("%s%s%s", (header) ? header : "", (header) ? "\n" : "", buf);
+		su_home_deinit(&home);
+	}
 }
 
 int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
