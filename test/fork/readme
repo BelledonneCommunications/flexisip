@@ -7,7 +7,7 @@ Terminal 2 (from invite_cancel_scenario or invite_ok_scenario dir):
 sipp -sf client1-register.xml 127.0.0.1 -i 127.0.0.1 -l 1 -m 1 -p 5000 && sipp -sf client1-ringing.xml 127.0.0.1 -i 127.0.0.1 -p 5000
 
 Terminal 3 (from invite_cancel_scenario or invite_ok_scenario dir):
-sipp -sf client1-register.xml 127.0.0.1 -i 127.0.0.1 -l 1 -m 1 -p 5001 && sipp -sf client1-ringing.xml 127.0.0.1 -i 127.0.0.1 -p 5001
+sipp -sf client2-register.xml 127.0.0.1 -i 127.0.0.1 -l 1 -m 1 -p 5001 && sipp -sf client2-ringing.xml 127.0.0.1 -i 127.0.0.1 -p 5001
 
 Terminal 4 (from invite_cancel_scenario or invite_ok_scenario dir):
 sipp -sf client3.xml 127.0.0.1 -i 127.0.0.1 -p 5002 -rate_increase 10 -fd 1s -recv_timeout 2000
