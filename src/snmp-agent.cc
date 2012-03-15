@@ -22,40 +22,23 @@
 #include <functional>
 #include "snmp-agent.h"
 #include "configmanager.hh"
-#include "flexisipMIB.h"
+//#include "flexisipMIB.h"
 
 SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent,ConfigManager& cm):mKeepRunning(true),mConfigmanager(cm),mAgent(agent) {
 
 }
+
+
 void SnmpAgent::SnmpAgentTask::operator()() {
-
-	  int syslog = 0; /* change this if you want to use syslog */
-
-	  /* print log errors to syslog or stderr */
-	  if (syslog)
-	    snmp_enable_calllog();
-	  else
-	    snmp_enable_stderrlog();
-
-	    /* make us a agentx client. */
-	    netsnmp_ds_set_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_AGENT_ROLE, 1);
-	    //netsnmp_ds_set_string(NETSNMP_DS_APPLICATION_ID,NETSNMP_DS_AGENT_X_SOCKET,"udp:localhost:1161");
-	    netsnmp_ds_set_boolean(NETSNMP_DS_APPLICATION_ID,NETSNMP_DS_AGENT_VERBOSE,1);
-
-	  /* initialize tcpip, if necessary */
-	  SOCK_STARTUP;
-
-	  /* initialize the agent library */
-	  init_agent("flexisip");
 
 	  /* initialize mib code here */
 
 	  /* mib code: init_nstAgentSubagentObject from nstAgentSubagentObject.C */
-	  init_flexisipMIB(mAgent,mConfigmanager);
+//	  init_flexisipMIB(mAgent,mConfigmanager);
 
 
-	  /* example-demon will be used to read example-demon.conf files. */
-	  init_snmp("flexisip");
+    init_snmp("flexisip");
+
 	while (mKeepRunning) {
 		agent_check_and_process(1);
 	}

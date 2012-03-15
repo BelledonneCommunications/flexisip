@@ -36,7 +36,7 @@ class LoadBalancer : public Module, public ModuleToolbox{
 };
 
 ModuleInfo<LoadBalancer> LoadBalancer::sInfo("LoadBalancer",
-                                             "This module performs load balancing between a set of configured destination proxies.",LOADBALANCER_OID_INDEX);
+                                             "This module performs load balancing between a set of configured destination proxies.",0);
 
 LoadBalancer::LoadBalancer(Agent *ag) : Module(ag){
 }

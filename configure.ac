@@ -48,6 +48,8 @@ else
 	fi
 fi
 AM_CONDITIONAL(BUILD_SNMP,test x$build_snmp = xtrue)
+AC_DEFINE(SNMP_COMPANY_OID,100000,[Company OID to used for prefixing felxisip MIB])
+
 
 if test -f /etc/debian_version ; then
 	use_deb=true;

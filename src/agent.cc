@@ -16,8 +16,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 +*/
 
-#ifdef HAVE_CONFIG_H
+#if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
 #include "flexisip-config.h"
+#define FLEXISIP_INCLUDED
 #endif
 #include "agent.hh"
 
@@ -98,6 +99,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	ConfigStruct *tls=cr->get<ConfigStruct>("tls");
 	
 	EtcHostsResolver::get();
+
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"NatHelper"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Authentication"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Registrar"));

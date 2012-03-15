@@ -85,7 +85,22 @@ private:
 				auth_status_t *as, msg_auth_t *au, auth_challenger_t const *ach);
 	void static flexisip_auth_check_digest(auth_mod_t *am,
 		       auth_status_t *as, auth_response_t *ar, auth_challenger_t const *ach);
+
 public:
+	virtual void onDeclare(ConfigStruct * module_config){
+		ConfigItemDescriptor items[]={
+			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	"",	11},
+			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. ex: 'DSN=myodbc3;' where 'myodbc3' is the datasource name.",		""	, 12},
+			{	String		,	"request"				,	"The sql request to execute to obtain the password. The only recognized parameter is the named parameter ':id'. Example: 'select password from accounts where id = :id'",		"", 13},
+			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	,14},
+			{	Integer		,	"max-password-length"	,	"Maximum length of the password column in database",	"100"	,15},
+			{	Boolean	,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed.", "false" ,16},
+			config_item_end
+		};
+		module_config->addChildrenValues(items);
+		/* modify the default value for "enabled" */
+		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
+	}
 
 	Authentication(Agent *ag):Module(ag){
 
@@ -117,20 +132,6 @@ public:
 		delete mOdbcAuthScheme;
 	}
 
-	virtual void onDeclare(ConfigStruct * module_config){
-		ConfigItemDescriptor items[]={
-			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	""	},
-			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. ex: 'DSN=myodbc3;' where 'myodbc3' is the datasource name.",		""	},
-			{	String		,	"request"				,	"The sql request to execute to obtain the password. The only recognized parameter is the named parameter ':id'. Example: 'select password from accounts where id = :id'",		""	},
-			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
-			{	Integer		,	"max-password-length"	,	"Maximum length of the password column in database",	"100"	},
-			{	Boolean	,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed.", "false" },
-			config_item_end
-		};
-		module_config->addChildrenValues(items);
-		/* modify the default value for "enabled" */
-		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
-	}
 
 	static vector<string> parseAndUpdateRequestConfig(string &request) {
         vector<string> found_parameters;
@@ -264,7 +265,7 @@ public:
 };
 
 ModuleInfo<Authentication> Authentication::sInfo("Authentication",
-	"The authentication module challenges SIP requests according to a user/password database.",AUTHENTICATION_OID_INDEX);
+	"The authentication module challenges SIP requests according to a user/password database.",0);
 
 
 

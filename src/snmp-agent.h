@@ -25,7 +25,7 @@ class Agent;
 class SnmpAgent {
 public:
 	SnmpAgent(Agent& agent,ConfigManager& cm);
-	virtual ~SnmpAgent(){};
+	virtual ~SnmpAgent(){mThread.detach();};
 
 private:
 	class SnmpAgentTask {

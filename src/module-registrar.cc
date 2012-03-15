@@ -116,5 +116,5 @@ class Registrar : public Module, public RegistrarMgt {
 
 ModuleInfo<Registrar> Registrar::sInfo("Registrar",
 	"The Registrar module accepts REGISTERs for domains it manages, and store the address of record "
-    "in order to route other requests destinated to the client who registered.",REGISTRAR_OID_INDEX);
+    "in order to route other requests destinated to the client who registered.",0);
 

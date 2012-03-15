@@ -22,6 +22,9 @@
 #include <algorithm>
 using namespace::std;
 
+
+oid ModuleInfoBase:: indexCount = 10;
+
 Module *ModuleInfoBase::create(Agent *ag){
 	Module *mod=_create(ag);
 	mod->setInfo(this);

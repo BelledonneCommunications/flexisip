@@ -98,7 +98,7 @@ class RelayedCall : public CallContextBase, public Masquerader{
 ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay",
 	"The MediaRelay module masquerades SDP message so that all RTP and RTCP streams go through the proxy. "
 	"The RTP and RTCP streams are then routed so that each client receives the stream of the other. "
-    "MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.",MEDIARELAY_OID_INDEX);
+    "MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.",0);
 
 MediaRelay::MediaRelay(Agent *ag) : Module(ag), mServer(0){
 }

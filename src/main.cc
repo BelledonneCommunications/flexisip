@@ -15,8 +15,9 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifdef HAVE_CONFIG_H
+#if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
 #include "flexisip-config.h"
+#define FLEXISIP_INCLUDED
 #endif
 #include <syslog.h>
 #include <sys/time.h>
@@ -37,7 +38,9 @@
 #include <signal.h>
 
 #include <sofia-sip/su_log.h>
+#ifdef ENABLE_SNMP
 #include "snmp-agent.h"
+#endif
 #ifndef VERSION
 #define VERSION "DEVEL"
 #endif //VERSION
@@ -58,6 +61,7 @@ static void usage(const char *arg0){
 	       "\t\t [--daemon]\n"
 	       "\t\t [--configfile <path>]\n"
 	       "\t\t [--dump-default-config]\n"
+	       "\t\t [--dump-snmp-mib]\n"
 	       "\t\t [--help]\n",arg0);
 	exit(-1);
 }
@@ -128,9 +132,9 @@ static void defaultLogHandler(OrtpLogLevel log_level, const char *str, va_list l
 		default:
 			break;
 	}
-	fprintf(stdout,"%s",levname);
-	vfprintf(stdout,str,l);
-	fprintf(stdout,"\n");
+	fprintf(stderr,"%s",levname);
+	vfprintf(stderr,str,l);
+	fprintf(stderr,"\n");
 }
 
 static void sofiaLogHandler(void *, char const *fmt, va_list ap){
@@ -335,6 +339,7 @@ static void forkAndDetach(const char *pidfile, bool auto_respawn){
 	}
 }
 
+
 int main(int argc, char *argv[]){
 	Agent *a;
 	StunServer *stun=NULL;
@@ -346,6 +351,7 @@ int main(int argc, char *argv[]){
 	bool daemon=false;
 	bool useSyslog=false;
 	bool dump_default_cfg=false;
+	bool dump_snmp_mib=false;
 
 	for(i=1;i<argc;++i){
 		if (strcmp(argv[i],"--port")==0){
@@ -383,19 +389,35 @@ int main(int argc, char *argv[]){
 			dump_default_cfg=true;
 			i++;
 			continue;
+		}else if (strcmp(argv[i],"--dump-snmp-mib")==0){
+			dump_snmp_mib=true;
+			i++;
+			continue;
+		} else if (strcmp(argv[i],"--help")==0 || strcmp(argv[i],"-h")==0){
+			// nothing
+		} else {
+			fprintf(stderr,"Bad option %s\n",argv[i]);
 		}
-		fprintf(stderr,"Bad option %s\n",argv[i]);
 		usage(argv[0]);
 	}
 	ortp_set_log_handler(defaultLogHandler);
-	ConfigManager *cfg=ConfigManager::get();
 
 	if (dump_default_cfg){
 		a=new Agent(root,0,0);
-		std::cout<<FileConfigDumper(cfg->getRoot());
+		std::cout<<FileConfigDumper(ConfigManager::get()->getRoot());
 		return 0;
 	}
-	
+
+	if (dump_snmp_mib) {
+		a=new Agent(root,0,0);
+		std::cout<<MibDumper(ConfigManager::get()->getRoot());
+		return 0;
+	}
+
+
+	ConfigManager *cfg=ConfigManager::get();
+
+
 	if (cfg->load(cfgfile)==-1){
 		fprintf(stderr,"No configuration file found at %s.\nPlease specify a valid configuration file.\n"
 		        "A default flexisip.conf.sample configuration file should be installed in "CONFIG_DIR"\n"
@@ -403,6 +425,8 @@ int main(int argc, char *argv[]){
 		        "Alternatively a default configuration sample file can be generated at any time using --dump-default-config option.\n",cfgfile);
 		return -1;
 	}
+
+
 	if (!debug) debug=cfg->getGlobal()->get<ConfigBoolean>("debug")->read();
 
 	initialize (debug,useSyslog);
@@ -436,9 +460,11 @@ int main(int argc, char *argv[]){
 		stun=new StunServer(cfg->getRoot()->get<ConfigStruct>("stun-server")->get<ConfigInt>("port")->read());
 		stun->start();
 	}
+
 #ifdef ENABLE_SNMP
 	SnmpAgent lAgent(*a,*cfg);
 #endif
+
 	su_timer_t *timer=su_timer_create(su_root_task(root),5000);
 	su_timer_run(timer,(su_timer_f)timerfunc,a);
 	su_root_run(root);

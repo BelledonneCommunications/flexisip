@@ -38,7 +38,7 @@ class ForwardModule : public Module, ModuleToolbox {
 
 ModuleInfo<ForwardModule> ForwardModule::sInfo("Forward",
    "This module executes the basic routing task of SIP requests and pass them to the transport layer. "
-	"It must always be enabled.",FORWARD_OID_INDEX);
+	"It must always be enabled.",0);
 
 
 ForwardModule::ForwardModule(Agent *ag) : Module(ag){
