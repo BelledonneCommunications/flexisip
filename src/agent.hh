@@ -100,9 +100,6 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 	protected:
 		void sendTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
-		void onRequest(msg_t *msg, sip_t *sip);
-		void onResponse(msg_t *msg, sip_t *sip);
-		void dump(msg_t *msg, sip_t *sip, const char * header = NULL);
 	private:
 		virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 		virtual void send(const std::shared_ptr<MsgSip> &msg);

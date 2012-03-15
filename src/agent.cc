@@ -246,13 +246,8 @@ bool Agent::isUs(const url_t *url, bool check_aliases) const {
 	return isUs(url->url_host, url->url_port, check_aliases);
 }
 
-void Agent::onRequest(msg_t *msg, sip_t *sip) {
-	shared_ptr<SipEvent> ev(new RequestSipEvent(shared_from_this(), make_shared<MsgSip>(msg, sip)));
-	sendRequestEvent(ev);
-}
-
 void Agent::sendRequestEvent(shared_ptr<SipEvent> &ev) {
-	dump(ev->getMsgSip()->getMsg(), ev->getMsgSip()->getSip(), "Receiving new Request SIP message:");
+	ev->getMsgSip()->log("Receiving new Request SIP message:");
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		ev->mCurrModule = (*it);
@@ -266,7 +261,7 @@ void Agent::sendRequestEvent(shared_ptr<SipEvent> &ev) {
 }
 
 void Agent::sendResponseEvent(shared_ptr<SipEvent> &ev) {
-	dump(ev->getMsgSip()->getMsg(), ev->getMsgSip()->getSip(), "Receiving new Response SIP message:");
+	ev->getMsgSip()->log("Receiving new Response SIP message:");
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		ev->mCurrModule = *it;
@@ -280,7 +275,7 @@ void Agent::sendResponseEvent(shared_ptr<SipEvent> &ev) {
 }
 
 void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
-	dump(ev->getMsgSip()->getMsg(), ev->getMsgSip()->getSip(), "Inject Request SIP message:");
+	ev->getMsgSip()->log("Inject Request SIP message:");
 	list<Module*>::iterator it;
 	ev->restartProcessing();
 	LOGD("Injecting request event after %s", ev->mCurrModule->getModuleName().c_str());
@@ -301,13 +296,8 @@ void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
 	}
 }
 
-void Agent::onResponse(msg_t *msg, sip_t *sip) {
-	shared_ptr<SipEvent> ev(new ResponseSipEvent(shared_from_this(), make_shared<MsgSip>(msg, sip)));
-	sendResponseEvent(ev);
-}
-
 void Agent::injectResponseEvent(shared_ptr<SipEvent> &ev) {
-	dump(ev->getMsgSip()->getMsg(), ev->getMsgSip()->getSip(), "Inject Response SIP message:");
+	ev->getMsgSip()->log("Inject Response SIP message:");
 	list<Module*>::iterator it;
 	ev->restartProcessing();
 	LOGD("Injecting response event after %s", ev->mCurrModule->getModuleName().c_str());
@@ -329,33 +319,24 @@ void Agent::injectResponseEvent(shared_ptr<SipEvent> &ev) {
 }
 
 void Agent::sendTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
-	LOGD("Receiving new Transaction Event");
+	LOGD("Receiving new Transaction Event %p %i", transaction.get(), event);
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		(*it)->processTransactionEvent(transaction, event);
 	}
 }
 
-void Agent::dump(msg_t *msg, sip_t *sip, const char * header) {
-	if (IS_LOGD) {
-		su_home_t home;
-		size_t msg_size;
-		char *buf;
-
-		su_home_init(&home);
-		buf = msg_as_string(&home, msg, NULL, 0, &msg_size);
-		LOGD("%s%s%s", (header) ? header : "", (header) ? "\n" : "", buf);
-		su_home_deinit(&home);
-	}
-}
-
 int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
-	if (sip->sip_request)
-		onRequest(msg, sip);
-	else {
-		onResponse(msg, sip);
-	}
+	shared_ptr<MsgSip> ms(make_shared<MsgSip>(msg, sip));
 	msg_destroy(msg);
+	if (sip->sip_request) {
+		shared_ptr<SipEvent> ev(new RequestSipEvent(shared_from_this(), ms));
+		sendRequestEvent(ev);
+	}
+	else {
+		shared_ptr<SipEvent> ev(new ResponseSipEvent(shared_from_this(), ms));
+		sendResponseEvent(ev);
+	}
 	return 0;
 }
 
@@ -403,24 +384,24 @@ void Agent::discoverInterfaces() {
 	freeifaddrs(ifpstart);
 }
 
-void Agent::send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
+void Agent::send(const std::shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
 	ta_start(ta, tag, value);
-	msg_ref_create(msg->getMsg());
-	nta_msg_tsend(mAgent, msg->getMsg(), u, ta_tags(ta));
+	msg_t* msg = msg_dup(ms->getMsg());
+	nta_msg_tsend(mAgent, msg, u, ta_tags(ta));
 	ta_end(ta);
 }
 
-void Agent::send(const std::shared_ptr<MsgSip> &msg) {
-	msg_ref_create(msg->getMsg());
-	nta_msg_tsend(mAgent, msg->getMsg(), NULL, TAG_END());
+void Agent::send(const std::shared_ptr<MsgSip> &ms) {
+	msg_t* msg = msg_dup(ms->getMsg());
+	nta_msg_tsend(mAgent, msg, NULL, TAG_END());
 }
 
-void Agent::reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+void Agent::reply(const std::shared_ptr<MsgSip> &ms, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
 	ta_start(ta, tag, value);
-	msg_ref_create(msg->getMsg());
-	nta_msg_treply(mAgent, msg->getMsg(), status, phrase, ta_tags(ta));
+	msg_t* msg = msg_dup(ms->getMsg());
+	nta_msg_treply(mAgent, msg, status, phrase, ta_tags(ta));
 	ta_end(ta);
 }
 

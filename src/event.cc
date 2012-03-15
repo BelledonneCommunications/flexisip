@@ -26,18 +26,34 @@
 using namespace ::std;
 
 MsgSip::MsgSip(msg_t *msg, sip_t *sip) {
+	LOGD("New MsgSip %p", this);
 	mMsg = msg_copy(msg);
 	mSip = sip_object(mMsg);
 	mHome = msg_home(mMsg);
 }
 
 MsgSip::MsgSip(const MsgSip &msgSip) {
+	LOGD("New MsgSip %p", this);
 	mMsg = msg_copy(msgSip.mMsg);
 	mSip = sip_object(mMsg);
 	mHome = msg_home(mMsg);
 }
 
+void MsgSip::log(const char * header) {
+	if (IS_LOGD) {
+		su_home_t home;
+		size_t msg_size;
+		char *buf;
+
+		su_home_init(&home);
+		buf = msg_as_string(&home, mMsg, NULL, 0, &msg_size);
+		LOGD("%s%s%s", (header) ? header : "", (header) ? "\n" : "", buf);
+		su_home_deinit(&home);
+	}
+}
+
 MsgSip::~MsgSip() {
+	LOGD("Destroy MsgSip %p", this);
 	msg_destroy(mMsg);
 }
 
@@ -105,6 +121,7 @@ RequestSipEvent::RequestSipEvent(const std::shared_ptr<SipEvent> &sipEvent, cons
 
 void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	if (mOutgoingAgent != NULL) {
+		msg->log("Sending Request SIP message:");
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mOutgoingAgent->send(msg, u, ta_tags(ta));
@@ -115,6 +132,7 @@ void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u,
 
 void RequestSipEvent::send(const shared_ptr<MsgSip> &msg) {
 	if (mOutgoingAgent != NULL) {
+		msg->log("Sending Request SIP message:");
 		mOutgoingAgent->send(msg);
 	}
 	terminateProcessing();
@@ -122,6 +140,7 @@ void RequestSipEvent::send(const shared_ptr<MsgSip> &msg) {
 
 void RequestSipEvent::reply(const shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
+		msg->log("Replying Request SIP message:");
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mIncomingAgent->reply(msg, status, phrase, ta_tags(ta));
@@ -150,6 +169,7 @@ ResponseSipEvent::ResponseSipEvent(const std::shared_ptr<SipEvent> &sipEvent, co
 
 void ResponseSipEvent::send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
+		msg->log("Sending Response SIP message:");
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mIncomingAgent->send(msg, u, ta_tags(ta));
@@ -160,6 +180,7 @@ void ResponseSipEvent::send(const std::shared_ptr<MsgSip> &msg, url_string_t con
 
 void ResponseSipEvent::send(const std::shared_ptr<MsgSip> &msg) {
 	if (mIncomingAgent != NULL) {
+		msg->log("Sending Response SIP message:");
 		mIncomingAgent->send(msg);
 	}
 	terminateProcessing();

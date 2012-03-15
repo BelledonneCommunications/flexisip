@@ -20,7 +20,12 @@
 <!--                                                                    -->
 
 <scenario name="Basic Sipstone UAC">
-<recv request="INVITE"> </recv>
+      <recv request="INVITE" rrs="true">
+          <action>
+                <ereg regexp=".*" search_in="hdr" header="CSeq:" check_it="true" assign_to="1" /> 
+          </action>
+        </recv>
+
 <send>
 <![CDATA[
       SIP/2.0 100 Trying
@@ -48,8 +53,9 @@
     ]]>
 </send>
 
-<recv request="CANCEL"> </recv>
 
+<recv request="CANCEL"> </recv>
+ 
 <send>
 <![CDATA[
       SIP/2.0 200 Ok
@@ -57,12 +63,14 @@
       [last_From:]
       [last_To:];tag=[call_number]
       [last_Call-ID:]
+      [last_Record-Route:] 
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Content-Length: 0
 
     ]]>
 </send>
+
 
 <send>
 <![CDATA[
@@ -71,12 +79,15 @@
       [last_From:]
       [last_To:];tag=[call_number]
       [last_Call-ID:]
-      [last_CSeq:]
+      [last_Record-Route:]
+      CSeq:[$1]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Content-Length: 0
 
     ]]>
 </send>
+
+<recv request="ACK" />
 
 </scenario>
 

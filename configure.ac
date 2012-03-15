@@ -19,8 +19,8 @@ else
 	use_rpm=true;
 fi
 
-CFLAGS="-g -O0 -pthread $CFLAGS"
-CXXFLAGS="-g -O0 -pthread -std=c++0x"
+CFLAGS="-g -O2 -pthread $CFLAGS"
+CXXFLAGS="-g -O2 -pthread -std=c++0x"
 LDFLAGS="-pthread $LDFLAGS"
 
 AC_ARG_ENABLE(strict,

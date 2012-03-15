@@ -49,6 +49,8 @@ public:
 		return mHome;
 	}
 
+	void log(const char * header);
+
 private:
 	su_home_t *mHome;
 	msg_t *mMsg;
