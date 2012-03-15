@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
+#include "module.hh"
 #include "agent.hh"
 
 #include <vector>
@@ -69,7 +69,7 @@ void LoadBalancer::onLoad(Agent *ag, const ConfigStruct * modconf){
 }
 
 void LoadBalancer::onRequest(shared_ptr<SipEvent> &ev){
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	uint32_t call_hash;
 	sip_t *sip = ms->getSip();
 	int index;

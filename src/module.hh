@@ -19,9 +19,12 @@
 #ifndef module_hh
 #define module_hh
 
+#include <string>
 #include <memory>
 #include <list>
+#include "configmanager.hh"
 #include "event.hh"
+#include "transaction.hh"
 
 class ModuleInfoBase;
 class Module;
@@ -89,6 +92,7 @@ class Module {
 		void load(Agent *agent);
 		void processRequest(std::shared_ptr<SipEvent> &ev);
 		void processResponse(std::shared_ptr<SipEvent> &ev);
+		void processTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
 		void idle();
 	protected:
 		virtual void onDeclare(ConfigStruct *root){
@@ -97,6 +101,9 @@ class Module {
 		}
 		virtual void onRequest(std::shared_ptr<SipEvent> &ev)=0;
 		virtual void onResponse(std::shared_ptr<SipEvent> &ev)=0;
+		virtual void onTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
+
+		}
 		virtual void onIdle(){
 		}
 		Agent *mAgent;

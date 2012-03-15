@@ -25,11 +25,11 @@
 #include <list>
 #include <map>
 
-class ForkCallContext: public IncomingTransactionHandler, public OutgoingTransactionHandler {
-	Agent *mAgent;
+class ForkCallContext {
+	Agent * mAgent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
 	std::list<std::shared_ptr<OutgoingTransaction>> mOutgoings;
-	std::shared_ptr<MsgSip> mBestResponse;
+	std::shared_ptr<SipEvent> mBestResponse;
 	int mFinal;
 	bool mForkOneResponse;
 	std::list<int> mForwardResponses;
@@ -38,17 +38,17 @@ public:
 	ForkCallContext(Agent *agent);
 	~ForkCallContext();
 	void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
-	void onEvent(const std::shared_ptr<IncomingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
+	void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<SipEvent> &event);
 	void onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
 	void onNew(const std::shared_ptr<OutgoingTransaction> &transaction);
-	void onEvent(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event);
+	void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<SipEvent> &event);
 	void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
 private:
 	void cancel();
 	void closeOthers(const std::shared_ptr<OutgoingTransaction> &transaction);
-	void decline(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<MsgSip> &ms);
-	void forward(const std::shared_ptr<MsgSip> &ms, bool force = false);
-	void store(const std::shared_ptr<MsgSip> &ms);
+	void decline(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<SipEvent> &ev);
+	void forward(const std::shared_ptr<SipEvent> &ev, bool force = false);
+	void store(std::shared_ptr<SipEvent> &ev);
 };
 
 #endif //forkcallcontext_hh

@@ -176,37 +176,33 @@ CallStore::CallStore(){
 }
 
 CallStore::~CallStore(){
-	for_each(mCalls.begin(),mCalls.end(),delete_functor<CallContextBase>());
 }
 
-void CallStore::store(CallContextBase *ctx){
+void CallStore::store(const std::shared_ptr<CallContextBase> &ctx){
 	mCalls.push_back(ctx);
 }
 
-CallContextBase *CallStore::find(Agent *ag, sip_t *sip, bool stateful){
-	list<CallContextBase*>::iterator it;
-	for(it=mCalls.begin();it!=mCalls.end();++it){
+std::shared_ptr<CallContextBase> CallStore::find(Agent *ag, sip_t *sip, bool stateful){
+	for(auto it=mCalls.begin();it!=mCalls.end();++it){
 		if ((*it)->match(ag,sip, stateful))
 		    return *it;
 	}
-	return NULL;
+	return std::shared_ptr<CallContextBase>();
 }
 
-void CallStore::remove(CallContextBase *ctx){
+void CallStore::remove(const std::shared_ptr<CallContextBase> &ctx){
 	mCalls.remove(ctx);
 }
 
 void CallStore::removeAndDeleteInactives(){
-	list<CallContextBase*>::iterator it;
 	time_t cur=time(NULL);
-	for(it=mCalls.begin();it!=mCalls.end();){
+	for(auto it=mCalls.begin();it!=mCalls.end();){
 		if ((*it)->isInactive (cur)){
-			delete *it;
 			it=mCalls.erase(it);
 		}else ++it;
 	}
 }
 
 void CallStore::dump(){
-	for_each(mCalls.begin(),mCalls.end(),mem_fun(&CallContextBase::dump));
+	for_each(mCalls.begin(),mCalls.end(),bind(&CallContextBase::dump, placeholders::_1));
 }

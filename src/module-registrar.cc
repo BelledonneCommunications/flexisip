@@ -16,11 +16,13 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <fstream>
+#include "module.hh"
 #include "agent.hh"
 #include "registrardb.hh"
 #include "forkcallcontext.hh"
+
 #include <sofia-sip/sip_status.h>
+#include <fstream>
 
 using namespace ::std;
 
@@ -107,6 +109,8 @@ public:
 
 	virtual void onResponse(shared_ptr<SipEvent> &ev);
 
+	virtual void onTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
+
 private:
 	bool isManagedDomain(const char *domain) {
 		return ModuleToolbox::matchesOneOf(domain, mDomains);
@@ -187,12 +191,12 @@ void Registrar::readStaticRecord(string file_path) {
 }
 
 void Registrar::send480KO(Agent *agent, shared_ptr<SipEvent> &ev) {
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	ev->reply(ms, 480, "Temporarily Unavailable", SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
 }
 
 void Registrar::send200Ok(Agent *agent, shared_ptr<SipEvent> &ev, const sip_contact_t *contacts) {
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	if (contacts != NULL) {
 		ev->reply(ms, 200, "Registration successful", SIPTAG_CONTACT(contacts), SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
 	} else {
@@ -222,7 +226,7 @@ bool Registrar::contactinVia(sip_contact_t *ct, sip_via_t * via) {
 }
 
 void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor, bool fork = false) {
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
 	// here we would implement forking
@@ -256,8 +260,10 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 			}
 		} else {
 			shared_ptr<ForkCallContext> context(make_shared<ForkCallContext>(agent));
-			shared_ptr<IncomingTransaction> incoming_transaction(make_shared<IncomingTransaction>(agent, context));
-			incoming_transaction->handle(ms);
+			shared_ptr<IncomingTransaction> incoming_transaction = ev->createIncomingTransaction();
+			context->onNew(incoming_transaction);
+			incoming_transaction->setProperty(Registrar::sInfo.getModuleName(), context);
+
 			for (list<extended_contact*>::const_iterator it = contacts.begin(); it != contacts.end(); ++it) {
 				extended_contact *ec = *it;
 				sip_contact_t *ct = NULL;
@@ -268,10 +274,6 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 					/*sanity check on the contact address: might be '*' or whatever useless information*/
 					if (ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
 						LOGD("Registrar: found contact information in database, rewriting request uri");
-
-						shared_ptr<OutgoingTransaction> transaction(make_shared<OutgoingTransaction>(agent));
-						transaction->addHandler(context);
-
 						shared_ptr<MsgSip> new_msgsip = make_shared<MsgSip>(*ms);
 						msg_t *new_msg = new_msgsip->getMsg();
 						sip_t *new_sip = new_msgsip->getSip();
@@ -284,8 +286,10 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 						}
 
 						LOGD("Fork to %s", ec->mSipUri);
-						shared_ptr<SipEvent> new_ev = static_pointer_cast<SipEvent>(make_shared<StatefulSipEvent>(transaction, ev));
-						new_ev->setMsgSip(new_msgsip);
+						shared_ptr<SipEvent> new_ev(make_shared<RequestSipEvent>(ev, new_msgsip));
+						shared_ptr<OutgoingTransaction> transaction = new_ev->createOutgoingTransaction();
+						transaction->setProperty(Registrar::sInfo.getModuleName(), context);
+
 						agent->injectRequestEvent(new_ev);
 					} else {
 						if (ct != NULL) {
@@ -295,7 +299,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 				}
 			}
 
-			shared_ptr<SipEvent> new_ev = static_pointer_cast<SipEvent>(make_shared<StatefulSipEvent>(incoming_transaction, incoming_transaction->createResponse(SIP_100_TRYING)));
+			shared_ptr<SipEvent> new_ev(make_shared<ResponseSipEvent>(ev->getOutgoingAgent(), incoming_transaction->createResponse(SIP_100_TRYING)));
 			agent->sendResponseEvent(new_ev);
 			ev->terminateProcessing();
 			return;
@@ -318,7 +322,7 @@ public:
 	}
 	;
 	void onRecordFound(Record *r) {
-		shared_ptr<MsgSip> ms = ev->getMsgSip();
+		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		time_t now = time(NULL);
 		Registrar::send200Ok(agent, ev, r->getContacts(ms->getHome(), now));
 		delete this;
@@ -353,8 +357,18 @@ public:
 };
 
 void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
+
+	// Handle SipEvent associated with a Stateful transaction
+	std::shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
+	if (transaction != NULL) {
+		shared_ptr<ForkCallContext> ptr = transaction->getProperty<ForkCallContext>(getModuleName());
+		if (ptr != NULL) {
+			ptr->onRequest(transaction, ev);
+		}
+	}
+
 	if (sip->sip_request->rq_method == sip_method_register) {
 		url_t *sipurl = sip->sip_from->a_url;
 		if (sipurl->url_host && isManagedDomain(sipurl->url_host)) {
@@ -402,6 +416,43 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 }
 
 void Registrar::onResponse(shared_ptr<SipEvent> &ev) {
+	// Handle SipEvent associated with a Stateful transaction
+	std::shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+	if (transaction != NULL) {
+		shared_ptr<ForkCallContext> ptr = transaction->getProperty<ForkCallContext>(getModuleName());
+		if (ptr != NULL) {
+			ptr->onResponse(transaction, ev);
+		}
+	}
+}
+
+void Registrar::onTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
+	shared_ptr<ForkCallContext> ptr = transaction->getProperty<ForkCallContext>(getModuleName());
+	if (ptr != NULL) {
+		std::shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(transaction);
+		if (ot != NULL) {
+			switch (event) {
+			case Transaction::Destroy:
+				ptr->onDestroy(ot);
+				break;
+
+			case Transaction::Create:
+				ptr->onNew(ot);
+				break;
+			}
+		}
+		std::shared_ptr<IncomingTransaction> it = dynamic_pointer_cast<IncomingTransaction>(transaction);
+		if (it != NULL) {
+			switch (event) {
+			case Transaction::Destroy:
+				ptr->onDestroy(it);
+				break;
+
+			default:
+				break;
+			}
+		}
+	}
 }
 
 ModuleInfo<Registrar> Registrar::sInfo("Registrar", "The Registrar module accepts REGISTERs for domains it manages, and store the address of record "

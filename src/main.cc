@@ -338,7 +338,7 @@ static void forkAndDetach(const char *pidfile, bool auto_respawn){
 }
 
 int main(int argc, char *argv[]){
-	Agent *a;
+	shared_ptr<Agent> a;
 	StunServer *stun=NULL;
 	int port=-1, tlsport=-1;
 	int i;
@@ -394,7 +394,7 @@ int main(int argc, char *argv[]){
 	DosProtection *dos=DosProtection::get();
 
 	if (dump_default_cfg){
-		a=new Agent(root,0,0);
+		a=make_shared<Agent>(root,0,0);
 		cout<<FileConfigDumper(cfg->getRoot());
 		return 0;
 	}
@@ -423,7 +423,7 @@ int main(int argc, char *argv[]){
 	}
 	LOGN("Starting version %s", VERSION);
 	root=su_root_create(NULL);
-	a=new Agent(root,port,tlsport);
+	a=make_shared<Agent>(root,port,tlsport);
 #ifdef ENABLE_TRANCODER
 	ms_init();
 #endif
@@ -446,11 +446,11 @@ int main(int argc, char *argv[]){
 	}
 
 	su_timer_t *timer=su_timer_create(su_root_task(root),5000);
-	su_timer_run(timer,(su_timer_f)timerfunc,a);
+	su_timer_run(timer,(su_timer_f)timerfunc,a.get());
 	su_root_run(root);
 	su_timer_destroy(timer);
 	DosProtection::get()->stop();
-	delete a;
+	a.reset();
 	stun->stop();
 	delete stun;
 	su_root_destroy(root);

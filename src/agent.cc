@@ -20,11 +20,13 @@
 #include "flexisip-config.h"
 #endif
 #include "agent.hh"
+#include "module.hh"
 
 #include "etchosts.hh"
 #include <algorithm>
 #include <sstream>
 #include <sofia-sip/tport_tag.h>
+#include <sofia-sip/su_tagarg.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -245,7 +247,7 @@ bool Agent::isUs(const url_t *url, bool check_aliases) const {
 }
 
 void Agent::onRequest(msg_t *msg, sip_t *sip) {
-	shared_ptr<SipEvent> ev(static_pointer_cast<SipEvent>(make_shared<StatelessSipEvent>(this, make_shared<MsgSip>(msg, sip))));
+	shared_ptr<SipEvent> ev(new RequestSipEvent(shared_from_this(), make_shared<MsgSip>(msg, sip)));
 	sendRequestEvent(ev);
 }
 
@@ -300,7 +302,7 @@ void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
 }
 
 void Agent::onResponse(msg_t *msg, sip_t *sip) {
-	shared_ptr<SipEvent> ev(static_pointer_cast<SipEvent>(make_shared<StatelessSipEvent>(this, make_shared<MsgSip>(msg, sip))));
+	shared_ptr<SipEvent> ev(new ResponseSipEvent(shared_from_this(), make_shared<MsgSip>(msg, sip)));
 	sendResponseEvent(ev);
 }
 
@@ -323,6 +325,14 @@ void Agent::injectResponseEvent(shared_ptr<SipEvent> &ev) {
 	}
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
+	}
+}
+
+void Agent::sendTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
+	LOGD("Receiving new Transaction Event");
+	list<Module*>::iterator it;
+	for (it = mModules.begin(); it != mModules.end(); ++it) {
+		(*it)->processTransactionEvent(transaction, event);
 	}
 }
 
@@ -391,5 +401,26 @@ void Agent::discoverInterfaces() {
 		}
 	}
 	freeifaddrs(ifpstart);
+}
+
+void Agent::send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
+	ta_list ta;
+	ta_start(ta, tag, value);
+	msg_ref_create(msg->getMsg());
+	nta_msg_tsend(mAgent, msg->getMsg(), u, ta_tags(ta));
+	ta_end(ta);
+}
+
+void Agent::send(const std::shared_ptr<MsgSip> &msg) {
+	msg_ref_create(msg->getMsg());
+	nta_msg_tsend(mAgent, msg->getMsg(), NULL, TAG_END());
+}
+
+void Agent::reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+	ta_list ta;
+	ta_start(ta, tag, value);
+	msg_ref_create(msg->getMsg());
+	nta_msg_treply(mAgent, msg->getMsg(), status, phrase, ta_tags(ta));
+	ta_end(ta);
 }
 

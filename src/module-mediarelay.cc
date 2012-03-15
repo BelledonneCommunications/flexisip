@@ -16,6 +16,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "module.hh"
 #include "agent.hh"
 #include "mediarelay.hh"
 #include "callstore.hh"
@@ -36,6 +37,7 @@ public:
 	virtual void onLoad(Agent *ag, const ConfigStruct * modconf);
 	virtual void onRequest(shared_ptr<SipEvent> &ev);
 	virtual void onResponse(shared_ptr<SipEvent> &ev);
+	virtual void onTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
 	virtual void onIdle();
 protected:
 	virtual void onDeclare(ConfigStruct * module_config) {
@@ -43,16 +45,13 @@ protected:
 		module_config->addChildrenValues(items);
 	}
 private:
-	bool processNewInvite(RelayedCall *c, const shared_ptr<StatefulSipEvent> &ev);
-	void process200OkforInvite(RelayedCall *c, msg_t *msg, sip_t *sip);
+	bool processNewInvite(const shared_ptr<RelayedCall> &c, const std::shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
+	void process200OkforInvite(const shared_ptr<RelayedCall> &c, const std::shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
 	CallStore *mCalls;
 	MediaRelayServer *mServer;
 	string mSdpMangledParam;
-	bool mFork;
 	static ModuleInfo<MediaRelay> sInfo;
 };
-
-class RelayCallHandler;
 
 class RelayedCall: public CallContextBase {
 	class RelaySessionTransaction {
@@ -69,6 +68,7 @@ public:
 	static const int sMaxSessions = 4;
 	RelayedCall(MediaRelayServer *server, sip_t *sip) :
 			CallContextBase(sip), mServer(server) {
+		LOGD("New RelayedCall %p", this);
 	}
 
 	/*this function is called to masquerade the SDP, for each mline*/
@@ -141,7 +141,7 @@ public:
 		}
 	}
 
-	void removeBack(const std::shared_ptr<OutgoingTransaction> transaction) {
+	void removeBack(const std::shared_ptr<Transaction> transaction) {
 		for (int mline = 0; mline < sMaxSessions; ++mline) {
 			RelaySession *s = mSessions[mline].mRelaySession;
 			if (s != NULL) {
@@ -157,7 +157,7 @@ public:
 		}
 	}
 
-	void freeBack(const std::shared_ptr<OutgoingTransaction> transaction) {
+	void freeBack(const std::shared_ptr<Transaction> transaction) {
 		for (int mline = 0; mline < sMaxSessions; ++mline) {
 			RelaySession *s = mSessions[mline].mRelaySession;
 			if (s != NULL) {
@@ -190,11 +190,13 @@ public:
 	}
 
 	~RelayedCall() {
+		LOGD("Destroy RelayedCall %p", this);
 		int i;
 		for (i = 0; i < sMaxSessions; ++i) {
 			RelaySession *s = mSessions[i].mRelaySession;
-			if (s)
+			if (s) {
 				s->unuse();
+			}
 		}
 	}
 
@@ -212,47 +214,12 @@ static bool isEarlyMedia(sip_t *sip) {
 	return false;
 }
 
-class RelayCallHandler: public OutgoingTransactionHandler {
-public:
-	RelayCallHandler(RelayedCall *relayedCall) :
-			mRelayedCall(relayedCall) {
-
-	}
-
-	void onNew(const std::shared_ptr<OutgoingTransaction> &transaction) {
-
-	}
-
-	void onEvent(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) {
-		shared_ptr<MsgSip> ms = event->getMsgSip();
-		sip_t *sip = ms->getSip();
-		if (sip != NULL && sip->sip_status != NULL) {
-			if (sip->sip_status->st_status == 487) {
-				mRelayedCall->removeBack(transaction);
-			} else if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
-				SdpModifier *m = SdpModifier::createFromSipMsg(mRelayedCall->getHome(), sip);
-				if (m == NULL)
-					return;
-
-				m->iterate(bind(&RelayedCall::setBack, mRelayedCall, placeholders::_1, placeholders::_2, placeholders::_3, ref(transaction)));
-				delete m;
-			}
-		}
-	}
-
-	void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction) {
-		mRelayedCall->freeBack(transaction); //Free transaction reference
-	}
-private:
-	RelayedCall *mRelayedCall;
-};
-
 ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay", "The MediaRelay module masquerades SDP message so that all RTP and RTCP streams go through the proxy. "
 		"The RTP and RTCP streams are then routed so that each client receives the stream of the other. "
 		"MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.");
 
 MediaRelay::MediaRelay(Agent *ag) :
-		Module(ag), mServer(0), mFork(false) {
+		Module(ag), mServer(0) {
 }
 
 MediaRelay::~MediaRelay() {
@@ -266,15 +233,11 @@ void MediaRelay::onLoad(Agent *ag, const ConfigStruct * modconf) {
 	mCalls = new CallStore();
 	mServer = new MediaRelayServer(ag->getBindIp(), ag->getPublicIp());
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
-
-	ConfigStruct *cr = ConfigManager::get()->getRoot();
-	ConfigStruct *ma = cr->get<ConfigStruct>("module::Registrar");
-	mFork = ma->get<ConfigBoolean>("fork")->read();
 }
 
-bool MediaRelay::processNewInvite(RelayedCall *c, const shared_ptr<StatefulSipEvent> &ev) {
-	sip_t *sip = ev->getMsgSip()->getSip();
-	msg_t *msg = ev->getMsgSip()->getMsg();
+bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const std::shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
+	sip_t *sip = msgSip->getSip();
+	msg_t *msg = msgSip->getMsg();
 
 	if (sip->sip_from == NULL || sip->sip_from->a_tag == NULL) {
 		LOGW("No tag in from !");
@@ -287,8 +250,6 @@ bool MediaRelay::processNewInvite(RelayedCall *c, const shared_ptr<StatefulSipEv
 		return false;
 	}
 	if (m) {
-		shared_ptr<Transaction> transaction = ev->getTransaction();
-
 		// Create Media
 		m->iterate(bind(&RelayedCall::newMedia, c, placeholders::_1, placeholders::_2, placeholders::_3));
 
@@ -304,81 +265,44 @@ bool MediaRelay::processNewInvite(RelayedCall *c, const shared_ptr<StatefulSipEv
 
 		//be in the record-route
 		addRecordRoute(c->getHome(), getAgent(), msg, sip);
-		c->storeNewInvite(msg);
 		delete m;
 	}
 	return true;
 }
 
 void MediaRelay::onRequest(shared_ptr<SipEvent> &ev) {
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
-	msg_t *msg = ms->getMsg();
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
-	RelayedCall *c;
+	shared_ptr<RelayedCall> c;
 
 	if (sip->sip_request->rq_method == sip_method_invite) {
-		//Create transaction
-		shared_ptr<StatefulSipEvent> sev = dynamic_pointer_cast<StatefulSipEvent>(ev);
-		shared_ptr<OutgoingTransaction> ot;
-		if (sev == NULL) {
-			ot = make_shared<OutgoingTransaction>(mAgent);
-			sev = make_shared<StatefulSipEvent>(ot, ev->getMsgSip());
-			ev = dynamic_pointer_cast<SipEvent>(sev);
-		} else {
-			ot = dynamic_pointer_cast<OutgoingTransaction>(sev->getTransaction());
-		}
-		if (mFork) {
-			if ((c = static_cast<RelayedCall*>(mCalls->find(getAgent(), sip, true))) == NULL) {
-				c = new RelayedCall(mServer, sip);
-				if (processNewInvite(c, sev)) {
-					mCalls->store(c);
-					ot->addHandler(make_shared<RelayCallHandler>(c));
-				} else {
-					delete c;
-				}
-			} else {
-				processNewInvite(c, sev);
-				ot->addHandler(make_shared<RelayCallHandler>(c));
+		ev->createIncomingTransaction();
+		shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
+		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) == NULL) {
+			c = make_shared<RelayedCall>(mServer, sip);
+			if (processNewInvite(c, ot, ev->getMsgSip())) {
+				mCalls->store(c);
+				ot->setProperty(getModuleName(), c);
 			}
 		} else {
-			if ((c = static_cast<RelayedCall*>(mCalls->find(getAgent(), sip))) == NULL) {
-				c = new RelayedCall(mServer, sip);
-				if (processNewInvite(c, sev)) {
-					mCalls->store(c);
-					ot->addHandler(make_shared<RelayCallHandler>(c));
-				} else {
-					delete c;
-				}
-			} else {
-				if (c->isNewInvite(sip)) {
-					processNewInvite(c, sev);
-					ot->addHandler(make_shared<RelayCallHandler>(c));
-				} else if (c->getLastForwardedInvite() != NULL) {
-					uint32_t via_count = 0;
-					for (sip_via_t *via = sip->sip_via; via != NULL; via = via->v_next)
-						++via_count;
-
-					// Same vias?
-					if (via_count == c->getViaCount()) {
-						msg = msg_copy(c->getLastForwardedInvite());
-						sip = (sip_t*) msg_object(msg);
-						LOGD("Forwarding invite retransmission");
-					}
-				}
-			}
+			processNewInvite(c, ot, ev->getMsgSip());
+			ot->setProperty(getModuleName(), c);
 		}
 	} else if (sip->sip_request->rq_method == sip_method_bye) {
-		if ((c = static_cast<RelayedCall*>(mCalls->find(getAgent(), sip, mFork))) != NULL) {
+		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) != NULL) {
 			mCalls->remove(c);
-			delete c;
+		}
+	} else if (sip->sip_request->rq_method == sip_method_cancel) {
+		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) != NULL) {
+			mCalls->remove(c);
 		}
 	}
-
-	ev->setMsgSip(make_shared<MsgSip>(msg, sip));
 }
 
-void MediaRelay::process200OkforInvite(RelayedCall *c, msg_t *msg, sip_t *sip) {
+void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const std::shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
+	sip_t *sip = msgSip->getSip();
+	msg_t *msg = msgSip->getMsg();
 	LOGD("Processing 200 Ok");
 
 	if (sip->sip_to == NULL || sip->sip_to->a_tag == NULL) {
@@ -389,9 +313,9 @@ void MediaRelay::process200OkforInvite(RelayedCall *c, msg_t *msg, sip_t *sip) {
 	if (m == NULL)
 		return;
 
+	m->iterate(bind(&RelayedCall::setBack, c, placeholders::_1, placeholders::_2, placeholders::_3, ref(transaction)));
 	m->iterate(bind(&RelayedCall::backwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3));
 	m->update(msg, sip);
-	c->storeNewResponse(msg);
 
 	delete m;
 }
@@ -400,44 +324,41 @@ void MediaRelay::onResponse(shared_ptr<SipEvent> &ev) {
 	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
-	RelayedCall *c;
 
-	if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
-		if (mFork) {
-			fixAuthChallengeForSDP(ms->getHome(), msg, sip);
-			if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
-				if ((c = static_cast<RelayedCall*>(mCalls->find(getAgent(), sip, true))) != NULL) {
-					process200OkforInvite(c, msg, sip);
-				} else {
-					LOGD("Receiving 200Ok for unknown call.");
-				}
-			}
-		} else {
+	// Handle SipEvent associated with a Stateful transaction
+	std::shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+	if (transaction != NULL) {
+		shared_ptr<RelayedCall> ptr = transaction->getProperty<RelayedCall>(getModuleName());
+		if (ptr != NULL) {
 			if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
 				fixAuthChallengeForSDP(ms->getHome(), msg, sip);
 				if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
-					if ((c = static_cast<RelayedCall*>(mCalls->find(getAgent(), sip))) != NULL) {
-						if (sip->sip_status->st_status == 200 && c->isNew200Ok(sip)) {
-							process200OkforInvite(c, msg, sip);
-						} else if (isEarlyMedia(sip) && c->isNewEarlyMedia(sip)) {
-							process200OkforInvite(c, msg, sip);
-						} else if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
-							LOGD("This is a 200 or 183  retransmission");
-							if (c->getLastForwaredResponse() != NULL) {
-								msg = msg_copy(c->getLastForwaredResponse());
-								sip = (sip_t*) msg_object(msg);
-							}
-						}
-					} else {
-						LOGD("Receiving 200Ok for unknown call.");
-					}
+					process200OkforInvite(ptr, transaction, ev->getMsgSip());
+				} else if (sip->sip_status->st_status == 487) {
+					ptr->removeBack(transaction);
 				}
 			}
+			return;
 		}
-
 	}
+}
 
-	ev->setMsgSip(make_shared<MsgSip>(msg, sip));
+void MediaRelay::onTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
+	shared_ptr<RelayedCall> ptr = transaction->getProperty<RelayedCall>(getModuleName());
+	if (ptr != NULL) {
+		std::shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(transaction);
+		if (ot != NULL) {
+			switch (event) {
+			case Transaction::Destroy:
+				ptr->freeBack(transaction); //Free transaction reference
+				mCalls->remove(ptr);
+				break;
+
+			default:
+				break;
+			}
+		}
+	}
 }
 
 void MediaRelay::onIdle() {

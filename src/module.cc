@@ -16,6 +16,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "module.hh"
 #include "agent.hh"
 #include "entryfilter.hh"
 
@@ -102,7 +103,7 @@ void Module::load(Agent *agent) {
 }
 
 void Module::processRequest(shared_ptr<SipEvent> &ev) {
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	if (mFilter->canEnter(ms->getSip())) {
 		LOGD("Invoking onRequest() on module %s", getModuleName().c_str());
 		onRequest(ev);
@@ -110,11 +111,16 @@ void Module::processRequest(shared_ptr<SipEvent> &ev) {
 }
 
 void Module::processResponse(shared_ptr<SipEvent> &ev) {
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	if (mFilter->canEnter(ms->getSip())) {
 		LOGD("Invoking onResponse() on module %s", getModuleName().c_str());
 		onResponse(ev);
 	}
+}
+
+void Module::processTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
+	LOGD("Invoking onTransactionEvent() on module %s", getModuleName().c_str());
+	onTransactionEvent(transaction, event);
 }
 
 void Module::idle() {

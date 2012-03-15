@@ -19,90 +19,136 @@
 #ifndef transaction_hh
 #define transaction_hh
 
-#include "agent.hh"
 #include "event.hh"
 #include <sofia-sip/msg.h>
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nta.h>
+#include <string>
+#include <map>
 
 class OutgoingTransaction;
 class IncomingTransaction;
+class Agent;
 
-class IncomingTransactionHandler {
+class IncomingAgent {
 public:
-	virtual void onNew(const std::shared_ptr<IncomingTransaction> &transaction) = 0;
-	virtual void onEvent(const std::shared_ptr<IncomingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) = 0;
-	virtual void onDestroy(const std::shared_ptr<IncomingTransaction> &transaction) = 0;
-	virtual ~IncomingTransactionHandler() {
+	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) = 0;
+	virtual void send(const std::shared_ptr<MsgSip> &msg) = 0;
+
+	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) = 0;
+
+	virtual Agent *getAgent() = 0;
+
+	virtual ~IncomingAgent() {
+
 	}
 };
 
-class OutgoingTransactionHandler {
+class OutgoingAgent {
 public:
-	virtual void onNew(const std::shared_ptr<OutgoingTransaction> &transaction) = 0;
-	virtual void onEvent(const std::shared_ptr<OutgoingTransaction> &transaction, const std::shared_ptr<StatefulSipEvent> &event) = 0;
-	virtual void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction) = 0;
-	virtual ~OutgoingTransactionHandler() {
+	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) = 0;
+	virtual void send(const std::shared_ptr<MsgSip> &msg) = 0;
+
+	virtual Agent *getAgent() = 0;
+
+	virtual ~OutgoingAgent() {
+
 	}
 };
 
 class Transaction {
 protected:
 	Agent *mAgent;
-
+	typedef std::tuple<std::shared_ptr<void>, std::string> property_type;
+	std::map<std::string, property_type> mProperties;
 public:
 	Transaction(Agent *agent) :
 			mAgent(agent) {
+	}
+
+	virtual ~Transaction() {
+
 	}
 
 	Agent * getAgent() {
 		return mAgent;
 	}
 
-	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) = 0;
-	virtual void send(const std::shared_ptr<MsgSip> &msg) = 0;
-
-	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) = 0;
-	virtual ~Transaction() {
-
+	template<typename T>
+	void setProperty(const std::string &name, std::shared_ptr<T> value) {
+		std::string type_name = typeid(T).name();
+		property_type prop = make_tuple(value, type_name);
+		mProperties.insert(std::pair<std::string, property_type>(name, prop));
 	}
+
+	template<typename T>
+	std::shared_ptr<T> getProperty(const std::string &name) {
+		auto it = mProperties.find(name);
+		if (it != mProperties.end()) {
+			property_type &prop = it->second;
+			if (std::get<1>(prop) == typeid(T).name()) {
+				std::shared_ptr<T> tran = std::static_pointer_cast<T>(std::get<0>(prop));
+				return tran;
+			}
+		}
+		return NULL;
+	}
+
+	void removeProperty(const std::string &name) {
+		auto it = mProperties.find(name);
+		if (it != mProperties.end()) {
+			mProperties.erase(it);
+		}
+	}
+
+	typedef enum {
+		Create, Destroy
+	} Event;
 };
 
-class OutgoingTransaction: public Transaction, public std::enable_shared_from_this<OutgoingTransaction> {
+class OutgoingTransaction: public Transaction, public OutgoingAgent, public std::enable_shared_from_this<OutgoingTransaction> {
 public:
-	OutgoingTransaction(Agent *agent);
-	void addHandler(const std::shared_ptr<OutgoingTransactionHandler> &handler);
-	void removeHandler(const std::shared_ptr<OutgoingTransactionHandler> &handler);
 	void cancel();
 	~OutgoingTransaction();
 private:
+	friend class SipEvent;
+	OutgoingTransaction(Agent *agent);
+	std::shared_ptr<OutgoingTransaction> mSofiaRef;
 	nta_outgoing_t *mOutgoing;
-	std::list<std::shared_ptr<OutgoingTransactionHandler>> mHandlers;
 
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);
 
-	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
+	inline virtual Agent *getAgent() {
+		return mAgent;
+	}
 
+	void destroy();
 private:
 	static int _callback(nta_outgoing_magic_t *magic, nta_outgoing_t *irq, const sip_t *sip);
 };
 
-class IncomingTransaction: public Transaction, public std::enable_shared_from_this<IncomingTransaction> {
+class IncomingTransaction: public Transaction, public IncomingAgent, public std::enable_shared_from_this<IncomingTransaction> {
 public:
-	IncomingTransaction(Agent *agent, const std::shared_ptr<IncomingTransactionHandler> &handler);
+
 	void handle(const std::shared_ptr<MsgSip> &ms);
 	std::shared_ptr<MsgSip> createResponse(int status, char const *phrase);
 	~IncomingTransaction();
 private:
+	friend class SipEvent;
+	IncomingTransaction(Agent *agent);
+	std::shared_ptr<IncomingTransaction> mSofiaRef;
 	nta_incoming_t *mIncoming;
-	std::shared_ptr<IncomingTransactionHandler> mHandler;
 
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);
-
 	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 
+	inline virtual Agent *getAgent() {
+		return mAgent;
+	}
+
+	void destroy();
 private:
 	static int _callback(nta_incoming_magic_t *magic, nta_incoming_t *irq, const sip_t *sip);
 };

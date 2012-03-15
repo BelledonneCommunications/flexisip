@@ -35,9 +35,10 @@
 
 #include "common.hh"
 #include "configmanager.hh"
-#include "module.hh"
+#include "event.hh"
+#include "transaction.hh"
 
-
+class Module;
 
 /**
  * The agent class represents a SIP agent.
@@ -48,7 +49,7 @@
  * 
  * Refer to the flexisip.conf.sample installed by "make install" for documentation about what each module does.
 **/
-class Agent{
+class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shared_from_this<Agent>{
 	friend class IncomingTransaction;
 	friend class OutgoingTransaction;
 	friend class StatelessSipEvent;
@@ -65,6 +66,11 @@ class Agent{
 		const std::string & getBindIp()const{
 			return mBindIp;
 		}
+
+		virtual inline  Agent *getAgent() {
+			return this;
+		}
+
 		int getPort()const{
 			return mPort;
 		}
@@ -87,16 +93,20 @@ class Agent{
 		typedef void (*timerCallback)(void *unused, su_timer_t *t, void *data);
 		su_timer_t *createTimer(int milliseconds, timerCallback cb, void *data);
 		void stopTimer(su_timer_t *t);
-		void sendRequestEvent(std::shared_ptr<SipEvent> &ev);
-		void sendResponseEvent(std::shared_ptr<SipEvent> &ev);
 		void injectRequestEvent(std::shared_ptr<SipEvent> &ev);
 		void injectResponseEvent(std::shared_ptr<SipEvent> &ev);
-	//protected:
+		void sendRequestEvent(std::shared_ptr<SipEvent> &ev);
+		void sendResponseEvent(std::shared_ptr<SipEvent> &ev);
+	protected:
+		void sendTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
 		void onRequest(msg_t *msg, sip_t *sip);
 		void onResponse(msg_t *msg, sip_t *sip);
 		void dump(msg_t *msg, sip_t *sip, const char * header = NULL);
 	private:
+		virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
+		virtual void send(const std::shared_ptr<MsgSip> &msg);
+		virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 		void discoverInterfaces();
 		std::string mServerString;
 		std::list<Module*> mModules;

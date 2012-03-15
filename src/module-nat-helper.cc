@@ -16,6 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "module.hh"
 #include "agent.hh"
 
 #include <sofia-sip/msg_addr.h>
@@ -29,7 +30,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 		~NatHelper(){
 		}
 		virtual void onRequest(shared_ptr<SipEvent> &ev) {
-			shared_ptr<MsgSip> ms = ev->getMsgSip();
+			const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 			sip_request_t *rq = ms->getSip()->sip_request;
 			/* if we receive a request whose first via is wrong (received or rport parameters are present),
 			fix any possible Contact headers with the same wrong ip address and ports */
@@ -41,7 +42,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 			}
 		}
 		virtual void onResponse(shared_ptr<SipEvent> &ev){
-			shared_ptr<MsgSip> ms = ev->getMsgSip();
+			const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 			sip_status_t *st = ms->getSip()->sip_status;
 			sip_cseq_t *cseq = ms->getSip()->sip_cseq;
 			/*in responses that establish a dialog, masquerade Contact so that further requests (including the ACK) are routed in the same way*/

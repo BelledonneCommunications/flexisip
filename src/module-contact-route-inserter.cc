@@ -16,6 +16,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "module.hh"
 #include "agent.hh"
 
 using namespace ::std;
@@ -38,7 +39,7 @@ public:
 	}
 
 	void onRequest(shared_ptr<SipEvent> &ev) {
-		shared_ptr<MsgSip> ms = ev->getMsgSip();
+		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 
 		if (sip->sip_request->rq_method == sip_method_register) {
@@ -82,7 +83,7 @@ public:
 		}
 	}
 	virtual void onResponse(shared_ptr<SipEvent> &ev) {
-		shared_ptr<MsgSip> ms = ev->getMsgSip();
+		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		if (mMasqueradeInviteContacts && (sip->sip_cseq->cs_method == sip_method_invite || sip->sip_cseq->cs_method == sip_method_subscribe)) {
 			masqueradeContact(ev);
@@ -90,7 +91,7 @@ public:
 	}
 private:
 	void masqueradeContact(shared_ptr<SipEvent> &ev) {
-		shared_ptr<MsgSip> ms = ev->getMsgSip();
+		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		if (sip->sip_contact != NULL && sip->sip_contact->m_url != NULL) {
 			//rewrite contact, put local host instead and store previous contact host in new parameter

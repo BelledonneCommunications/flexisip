@@ -16,6 +16,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "module.hh"
 #include "agent.hh"
 #include "transaction.hh"
 #include "etchosts.hh"
@@ -79,7 +80,7 @@ void ForwardModule::onLoad(Agent *agent, const ConfigStruct *module_config) {
 }
 
 url_t* ForwardModule::overrideDest(shared_ptr<SipEvent> &ev, url_t *dest) {
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	if (mOutRoute) {
 		dest = mOutRoute->r_url;
 		if (mRewriteReqUri) {
@@ -96,7 +97,7 @@ url_t* ForwardModule::overrideDest(shared_ptr<SipEvent> &ev, url_t *dest) {
  so that further request from both sides are sent to the appropriate transport of flexisip, and also we don't ask to a UDP only equipment to route to TCP.
  */
 void ForwardModule::checkRecordRoutes(shared_ptr<SipEvent> &ev, url_t *dest) {
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_record_route_t *rr = ms->getSip()->sip_record_route;
 	char last_transport[16] = { 0 };
 	char next_transport[16] = { 0 };
@@ -117,7 +118,7 @@ void ForwardModule::checkRecordRoutes(shared_ptr<SipEvent> &ev, url_t *dest) {
 }
 
 void ForwardModule::onRequest(shared_ptr<SipEvent> &ev) {
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	size_t msg_size;
 	char *buf;
 	url_t* dest = NULL;
@@ -188,7 +189,7 @@ void ForwardModule::onRequest(shared_ptr<SipEvent> &ev) {
 }
 
 unsigned int ForwardModule::countVia(shared_ptr<SipEvent> &ev) {
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	uint32_t via_count = 0;
 	for (sip_via_t *via = ms->getSip()->sip_via; via != NULL; via = via->v_next)
 		++via_count;
@@ -196,7 +197,7 @@ unsigned int ForwardModule::countVia(shared_ptr<SipEvent> &ev) {
 }
 
 bool ForwardModule::isLooping(shared_ptr<SipEvent> &ev, const char * branch) {
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	for (sip_via_t *via = ms->getSip()->sip_via; via != NULL; via = via->v_next) {
 		if (via->v_branch != NULL && strcmp(via->v_branch, branch) == 0) {
 			LOGD("Loop detected: %s", via->v_branch);
@@ -208,7 +209,7 @@ bool ForwardModule::isLooping(shared_ptr<SipEvent> &ev, const char * branch) {
 }
 
 void ForwardModule::onResponse(shared_ptr<SipEvent> &ev) {
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	char *buf;
 	msg_t *msg = ms->getMsg();
 	size_t msg_size;

@@ -19,6 +19,7 @@
 #include "transaction.hh"
 #include "event.hh"
 #include "common.hh"
+#include "agent.hh"
 #include <algorithm>
 #include <sofia-sip/su_tagarg.h>
 
@@ -38,16 +39,6 @@ OutgoingTransaction::~OutgoingTransaction() {
 	LOGD("Delete OutgoingTransaction %p", this);
 }
 
-void OutgoingTransaction::addHandler(const shared_ptr<OutgoingTransactionHandler> &handler) {
-	mHandlers.push_back(handler);
-}
-
-void OutgoingTransaction::removeHandler(const shared_ptr<OutgoingTransactionHandler> &handler) {
-	auto it = find(mHandlers.begin(), mHandlers.end(), handler);
-	if (it != mHandlers.end())
-		mHandlers.erase(it);
-}
-
 void OutgoingTransaction::cancel() {
 	nta_outgoing_cancel(mOutgoing);
 }
@@ -62,7 +53,8 @@ void OutgoingTransaction::send(const shared_ptr<MsgSip> &msg, url_string_t const
 		LOGE("Error during outgoing transaction creation");
 		msg_destroy(msg->getMsg());
 	} else {
-		for_each(mHandlers.begin(), mHandlers.end(), bind(&OutgoingTransactionHandler::onNew, placeholders::_1, this->shared_from_this()));
+		mSofiaRef = shared_from_this();
+		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Create);
 	}
 }
 
@@ -73,52 +65,48 @@ void OutgoingTransaction::send(const shared_ptr<MsgSip> &msg) {
 		LOGE("Error during outgoing transaction creation");
 		msg_destroy(msg->getMsg());
 	} else {
-		for_each(mHandlers.begin(), mHandlers.end(), bind(&OutgoingTransactionHandler::onNew, placeholders::_1, this->shared_from_this()));
+		mSofiaRef = shared_from_this();
+		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Create);
 	}
-}
-
-void OutgoingTransaction::reply(const shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
-	LOGW("Can't reply on Outgoing transaction: use agent");
-	ta_list ta;
-	ta_start(ta, tag, value);
-	msg_ref_create(msg->getMsg());
-	nta_msg_treply(mAgent->mAgent, msg->getMsg(), status, phrase, ta_tags(ta));
-	ta_end(ta);
 }
 
 int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *irq, const sip_t *sip) {
 	OutgoingTransaction * it = reinterpret_cast<OutgoingTransaction *>(magic);
 	if (sip != NULL) {
 		msg_t *msg = nta_outgoing_getresponse(it->mOutgoing);
-		for_each(it->mHandlers.begin(), it->mHandlers.end(), [it,msg] (const std::shared_ptr<OutgoingTransactionHandler> &handler) {
-			auto sipevent = make_shared<StatefulSipEvent>(it->shared_from_this(), make_shared<MsgSip>(msg));
-			handler->onEvent(it->shared_from_this(), sipevent);
-		});
+		shared_ptr<SipEvent> sipevent(new ResponseSipEvent(it->shared_from_this(), make_shared<MsgSip>(msg)));
 		msg_destroy(msg);
+		it->mAgent->sendResponseEvent(sipevent);
 		if (sip->sip_status && sip->sip_status->st_status >= 200) {
-			for_each(it->mHandlers.begin(), it->mHandlers.end(), bind(&OutgoingTransactionHandler::onDestroy, placeholders::_1, it->shared_from_this()));
+			it->destroy();
 		}
 	} else {
-		for_each(it->mHandlers.begin(), it->mHandlers.end(), bind(&OutgoingTransactionHandler::onDestroy, placeholders::_1, it->shared_from_this()));
+		it->destroy();
 	}
 	return 0;
 }
 
-IncomingTransaction::IncomingTransaction(Agent *agent, const std::shared_ptr<IncomingTransactionHandler> &handler) :
-		Transaction(agent), mIncoming(NULL), mHandler(handler) {
+void OutgoingTransaction::destroy() {
+	mAgent->sendTransactionEvent(shared_from_this(), Transaction::Destroy);
+	mSofiaRef.reset();
+}
+
+IncomingTransaction::IncomingTransaction(Agent *agent) :
+		Transaction(agent), mIncoming(NULL) {
 	LOGD("New IncomingTransaction %p", this);
 }
 
-void IncomingTransaction::handle(const shared_ptr<MsgSip> &ms) {
+void IncomingTransaction::handle(const std::shared_ptr<MsgSip> &ms) {
 	msg_ref_create(ms->getMsg());
 	mIncoming = nta_incoming_create(mAgent->mAgent, NULL, ms->getMsg(), ms->getSip(), TAG_END());
 	if (mIncoming != NULL) {
 		nta_incoming_bind(mIncoming, IncomingTransaction::_callback, (nta_incoming_magic_t*) this);
-		mHandler->onNew(this->shared_from_this());
+		mSofiaRef = shared_from_this();
 	} else {
 		LOGE("Error during incoming transaction creation");
 	}
 }
+
 IncomingTransaction::~IncomingTransaction() {
 	if (mIncoming != NULL) {
 		nta_incoming_bind(mIncoming, NULL, NULL); //avoid callbacks
@@ -137,11 +125,17 @@ shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const *p
 void IncomingTransaction::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	msg_ref_create(msg->getMsg());
 	nta_incoming_mreply(mIncoming, msg->getMsg());
+	if (msg->getSip()->sip_status != NULL && msg->getSip()->sip_status->st_status >= 200) {
+		destroy();
+	}
 }
 
 void IncomingTransaction::send(const shared_ptr<MsgSip> &msg) {
 	msg_ref_create(msg->getMsg());
 	nta_incoming_mreply(mIncoming, msg->getMsg());
+	if (msg->getSip()->sip_status != NULL && msg->getSip()->sip_status->st_status >= 200) {
+		destroy();
+	}
 }
 
 void IncomingTransaction::reply(const shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
@@ -149,22 +143,28 @@ void IncomingTransaction::reply(const shared_ptr<MsgSip> &msg, int status, char 
 	ta_start(ta, tag, value);
 	nta_incoming_treply(mIncoming, status, phrase, ta_tags(ta));
 	ta_end(ta);
+	if (status >= 200) {
+		destroy();
+	}
 }
 
 int IncomingTransaction::_callback(nta_incoming_magic_t *magic, nta_incoming_t *irq, const sip_t *sip) {
 	IncomingTransaction * it = reinterpret_cast<IncomingTransaction *>(magic);
-	if (it->mHandler != NULL) {
-		if (sip != NULL) {
-			msg_t *msg = nta_incoming_getrequest_ackcancel(it->mIncoming);
-			shared_ptr<MsgSip> msgsip(new MsgSip(msg));
-			msg_destroy(msg);
-			it->mHandler->onEvent(it->shared_from_this(), make_shared<StatefulSipEvent>(it->shared_from_this(), msgsip));
-			if (sip->sip_request && sip->sip_request->rq_method == sip_method_cancel) {
-				it->mHandler->onDestroy(it->shared_from_this());
-			}
-		} else {
-			it->mHandler->onDestroy(it->shared_from_this());
+	if (sip != NULL) {
+		msg_t *msg = nta_incoming_getrequest_ackcancel(it->mIncoming);
+		shared_ptr<SipEvent> sipevent(new RequestSipEvent(it->shared_from_this(), make_shared<MsgSip>(msg)));
+		msg_destroy(msg);
+		it->mAgent->sendRequestEvent(sipevent);
+		if (sip->sip_request && sip->sip_request->rq_method == sip_method_cancel) {
+			it->destroy();
 		}
+	} else {
+		it->destroy();
 	}
 	return 0;
+}
+
+void IncomingTransaction::destroy() {
+	mAgent->sendTransactionEvent(shared_from_this(), Transaction::Destroy);
+	mSofiaRef.reset();
 }
