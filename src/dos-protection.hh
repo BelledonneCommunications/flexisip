@@ -26,6 +26,7 @@ class DosProtection{
 		void stop();
 	private:
 		DosProtection();
+		static void atexit(); // Don't call directly!
 		~DosProtection();
 		void load();
 		static DosProtection *sInstance;

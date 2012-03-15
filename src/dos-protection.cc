@@ -49,12 +49,19 @@ DosProtection::DosProtection() {
 }
 
 DosProtection::~DosProtection() {
-	delete sInstance;
+}
+
+void DosProtection::atexit() {
+	if (sInstance!=NULL) {
+		delete sInstance;
+		sInstance = NULL;
+	}
 }
 
 DosProtection *DosProtection::get() {
 	if (sInstance == NULL) {
 		sInstance = new DosProtection();
+		::atexit(DosProtection::atexit);
 	}
 	return sInstance;
 }
