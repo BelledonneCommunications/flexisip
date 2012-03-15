@@ -92,24 +92,26 @@ void ForkCallContext::onRequest(const shared_ptr<IncomingTransaction> &transacti
 	}
 }
 
-void ForkCallContext::store(std::shared_ptr<SipEvent> &ms) {
+void ForkCallContext::store(std::shared_ptr<SipEvent> &event) {
 	bool best = true;
 
 	if (mBestResponse != NULL) {
-		if (mBestResponse->getMsgSip()->getSip()->sip_status->st_status < ms->getMsgSip()->getSip()->sip_status->st_status) {
+		if (mBestResponse->getMsgSip()->getSip()->sip_status->st_status < event->getMsgSip()->getSip()->sip_status->st_status) {
 			best = false;
 		}
 	}
 
 	if (!best || mIncoming == NULL) {
 		// Don't forward
-		ms->setIncomingAgent(shared_ptr<IncomingAgent>());
+		event->setIncomingAgent(shared_ptr<IncomingAgent>());
 	} else {
 		// Swap
 		if (mBestResponse != NULL) {
-			ms = mBestResponse;
+			event = mBestResponse;
+		} else {
+			event->suspendProcessing();
 		}
-		mBestResponse = ms;
+		mBestResponse = event;
 
 	}
 }
@@ -164,7 +166,7 @@ void ForkCallContext::onDestroy(const std::shared_ptr<OutgoingTransaction> &tran
 				ev->setIncomingAgent(mIncoming);
 				mAgent->sendResponseEvent(ev);
 			} else {
-				mAgent->sendResponseEvent(mBestResponse);
+				mAgent->injectResponseEvent(mBestResponse);
 			}
 			++mFinal;
 		}

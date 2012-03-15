@@ -300,6 +300,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 			}
 
 			shared_ptr<SipEvent> new_ev(make_shared<ResponseSipEvent>(ev->getOutgoingAgent(), incoming_transaction->createResponse(SIP_100_TRYING)));
+			new_ev->setIncomingAgent(incoming_transaction);
 			agent->sendResponseEvent(new_ev);
 			ev->terminateProcessing();
 			return;
