@@ -136,7 +136,7 @@ public:
  * Both local and remote storage implementations exist.
  * It is used by the Registrar module.
 **/
-class RegistrarDb{
+class RegistrarDb {
 	public:
 		static RegistrarDb *get(Agent *ag);
                 virtual void bind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, RegistrarDbListener *listener)=0;
@@ -150,6 +150,8 @@ class RegistrarDb{
 		RegistrarDb();
 		std::map<std::string,Record*> mRecords;
 		static RegistrarDb *sUnique;
+		unsigned long long int mTotalNumberOfAddRecords;
+		unsigned long long int mTotalNumberOfExpiredRecords;
 };
 
 

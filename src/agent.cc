@@ -16,8 +16,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 +*/
 
-#ifdef HAVE_CONFIG_H
+#if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
 #include "flexisip-config.h"
+#define FLEXISIP_INCLUDED
 #endif
 #include "agent.hh"
 
@@ -90,12 +91,13 @@ static int get_local_ip_for_with_connect(int type, const char *dest, char *resul
 	return 0;
 }
 
-Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tlsport){
+Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tlsport) {
 	char sipuri[128]={0};
 	ConfigStruct *cr=ConfigManager::get()->getRoot();
 	ConfigStruct *tls=cr->get<ConfigStruct>("tls");
 	
 	EtcHostsResolver::get();
+
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"NatHelper"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Authentication"));
         mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"GatewayAdapter"));
@@ -132,6 +134,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	ostringstream oss;
 	oss << mPublicIp << "_" << mPort;
 	mUniqueId = oss.str();
+	std::ostringstream transportUri;
 	mRoot=root;
 	
 	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i;maddr=%s", mPublicIp.c_str(),mPort,bind_address.c_str());
@@ -144,6 +147,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	if (mAgent==NULL){
 		LOGF("Could not create sofia mta, certainly SIP ports already in use.");
 	}
+	transportUri<<"<"<<sipuri<<">";
 	if (tls->get<ConfigBoolean>("enabled")->read()) {
 		std::string keys=tls->get<ConfigString>("certificates-dir")->read();
 		snprintf(sipuri,sizeof(sipuri)-1,"sips:%s:%i;maddr=%s", mPublicIp.c_str(),mTlsPort,bind_address.c_str());
@@ -151,7 +155,9 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 		nta_agent_add_tport(mAgent,
 			(url_string_t*)sipuri,
 				TPTAG_CERTIFICATE(keys.c_str()), NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), NTATAG_TLS_RPORT(1), TAG_END());
+		transportUri<<",<"<<sipuri<<">";
 	}
+	mTransportUri=transportUri.str();
 	
 	if (bind_address=="*"){
 		bind_address="0.0.0.0";
@@ -368,4 +374,3 @@ void Agent::discoverInterfaces(){
 	}
 	freeifaddrs(ifpstart);
 }
-

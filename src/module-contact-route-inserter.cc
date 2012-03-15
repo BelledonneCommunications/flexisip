@@ -119,4 +119,4 @@ private:
 
 ModuleInfo<ContactRouteInserter> ContactRouteInserter::sInfo("ContactRouteInserter", "The purpose of the ContactRouteInserter module is to masquerade the contact header of incoming registers that are not handled locally "
 		"(think about flexisip used as a SBC gateway) in such a way that it is then possible to route back outgoing invites to the original address. "
-		"It is a kind of similar mechanism as Record-Route, but for REGISTER.");
+		"It is a kind of similar mechanism as Record-Route, but for REGISTER.", 0);

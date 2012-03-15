@@ -318,5 +318,5 @@ void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phu
 	}
 }
 
-ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter", "...");
+ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter", "...",0);
 

@@ -1,0 +1,99 @@
+FLEXISIP-MIB DEFINITIONS ::= BEGIN
+
+-- A Comment!
+
+-- IMPORTS: Include definitions from other mibs here, which is always
+-- the first item in a MIB file.
+IMPORTS
+	OBJECT-TYPE, Integer32, MODULE-IDENTITY, enterprises,Counter64  	FROM SNMPv2-SMI
+	MODULE-COMPLIANCE, OBJECT-GROUP       					FROM SNMPv2-CONF;
+
+--
+-- A brief description and update information about this mib.
+--
+flexisipMIB MODULE-IDENTITY
+    LAST-UPDATED "201201160000Z"            -- January 16 2012, midnight
+    ORGANIZATION "belledonne-communications"
+    CONTACT-INFO "postal:   34 Avenue de L'europe
+                            38 100 Grenoble 
+                            France
+
+		  email:    contact@belledonne-communications.com
+                 "
+    DESCRIPTION  "A Flexisip management tree.
+                 "
+    ::= { enterprises 100000 }
+
+flexisip     OBJECT IDENTIFIER ::= { flexisipMIB 1 }
+	config     OBJECT IDENTIFIER ::= { flexisip 1 }
+		global     OBJECT IDENTIFIER ::= { config 1 }
+ 
+		autoRespawn OBJECT-TYPE
+        	SYNTAX      INTEGER {
+        		true(1),false(0)
+        	}
+        	MAX-ACCESS  read-only
+        	STATUS      current
+        	DESCRIPTION
+        	"Automatically respawn flexisip in case of abnormal termination (crashes)"
+        	::= { global 1 }
+        
+        aliases OBJECT-TYPE
+        	SYNTAX      OCTET STRING
+        	MAX-ACCESS  read-only
+        	STATUS      current
+        	DESCRIPTION
+        	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages."
+        	::= { global 2 }
+        
+        ipAddress OBJECT-TYPE
+        	SYNTAX      OCTET STRING
+        	MAX-ACCESS  read-only
+        	STATUS      current
+        	DESCRIPTION
+        	"The public ip address of the proxy."
+        	::= { global 3 }
+        
+        bindAddress OBJECT-TYPE
+        	SYNTAX      OCTET STRING
+        	MAX-ACCESS  read-only
+        	STATUS      current
+        	DESCRIPTION
+        	"The local interface's ip address where to listen. The wildcard (*) means all interfaces."
+        	::= { global 4 }
+        port OBJECT-TYPE
+        	SYNTAX      INTEGER
+        	MAX-ACCESS  read-only
+        	STATUS      current
+        	DESCRIPTION
+        	"UDP/TCP port number to listen for sip messages."
+        	::= { global 5 }
+
+	runtime     OBJECT IDENTIFIER ::= { flexisip 2 }
+		agent     OBJECT IDENTIFIER ::= { runtime 1 }
+
+		transportUris OBJECT-TYPE
+          SYNTAX      OCTET STRING
+          MAX-ACCESS  read-only
+          STATUS      current
+          DESCRIPTION
+          "The listening sip uris."
+          ::= { agent 1 }
+		modules     OBJECT IDENTIFIER ::= { runtime 2 }
+			registrar     OBJECT IDENTIFIER ::= { modules 1 }
+	        
+			totalNumberOfAddedRecords OBJECT-TYPE
+             	SYNTAX      Counter64
+             	MAX-ACCESS  read-only
+             	STATUS      current
+             	DESCRIPTION
+             	"Total number of records added."
+             	::= { registrar 1 }
+			totalNumberOfExpiredRecords OBJECT-TYPE
+            	SYNTAX      Counter64
+            	MAX-ACCESS  read-only
+            	STATUS      current
+            	DESCRIPTION
+            	"Total number of experired records."
+            	::= { registrar 2 }	        
+END

@@ -13,6 +13,30 @@ m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],)
 AC_PROG_CC
 AC_PROG_CXX
 
+
+AC_PATH_PROG([NET_SNMP_CONFIG],[net-snmp-config])
+if test -z "$NET_SNMP_CONFIG"; then
+   build_snmp=false;
+   AC_MSG_WARN(['net-snmp-config' is required to build snmp management])
+else
+	AC_CHECK_HEADERS([net-snmp/net-snmp-config.h]
+					,[build_snmp=true]
+					,[AC_MSG_WARN("netsnmp headers missing.")])
+	if test $build_snmp = true; then
+		build_snmp=false;
+		AC_CHECK_LIB(netsnmpagent, init_agent,[build_snmp=true], [AC_MSG_WARN("Linking against netsnmpagent failed.")], -lnetsnmphelpers)
+	fi
+	if test $build_snmp = true; then
+		NETSNMPAGENT_LIBS=`${NET_SNMP_CONFIG} --agent-libs`;
+		AC_SUBST(NETSNMPAGENT_LIBS)
+		AC_DEFINE(ENABLE_SNMP,1,[Tells whether snmp is usable])
+		AC_MSG_NOTICE([snmp support enabled])
+	fi
+fi
+AM_CONDITIONAL(BUILD_SNMP,test x$build_snmp = xtrue)
+AC_DEFINE(SNMP_COMPANY_OID,100000,[Company OID to used for prefixing felxisip MIB])
+
+
 if test -f /etc/debian_version ; then
 	use_deb=true;
 else

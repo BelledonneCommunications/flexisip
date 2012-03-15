@@ -40,9 +40,9 @@ ConfigItemDescriptor items[] = { { Boolean, "enabled", "Enable or disable DOS pr
 		"Maximal amount of simultaneous connections to accept.", "1000" }, config_item_end };
 
 DosProtection::DosProtection() {
-	ConfigStruct *s = new ConfigStruct("dos-protection", "DOS protection parameters.");
-	s->addChildrenValues(items);
+	ConfigStruct *s = new ConfigStruct("dos-protection", "DOS protection parameters.",0);
 	ConfigManager::get()->getRoot()->addChild(s);
+	s->addChildrenValues(items);
 	mLoaded = false;
 }
 

@@ -19,12 +19,32 @@
 
 #ifndef configmanager_hh
 #define configmanager_hh
-
+#if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
+#undef PACKAGE_BUGREPORT
+#undef PACKAGE_NAME
+#undef PACKAGE_STRING
+#undef PACKAGE_TARNAME
+#undef PACKAGE_VERSION
+#include "flexisip-config.h"
+#define FLEXISIP_INCLUDED
+#endif
 #include <string>
+#include <sstream>
 #include <list>
 #include <cstdlib>
+#include <vector>
+
+#include <algorithm>
 
 #include "common.hh"
+
+#ifdef ENABLE_SNMP
+#include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-includes.h>
+#include <net-snmp/agent/net-snmp-agent-includes.h>
+#else
+typedef unsigned long oid;
+#endif
 
 enum ConfigValueType{
 	Boolean,
@@ -34,47 +54,91 @@ enum ConfigValueType{
 	Struct
 };
 
+// ids below the root levels
+#define GLOBAL_OID_INDEX 1
+#define TLS_OID_INDEX 2
+#define STUN_OID_INDEX 3
+
 
 struct ConfigItemDescriptor {
 	ConfigValueType type;
 	const char *name;
 	const char *help;
 	const char *default_value;
+	unsigned int oid_leaf;
 };
 
-static const ConfigItemDescriptor config_item_end={Boolean,NULL,NULL,NULL};
 
-class ConfigEntry{
-	public:
-		const std::string & getName()const{
-			return mName;
-		}
-		ConfigValueType getType()const{
-			return mType;
-		}
-		const std::string &getHelp()const{
-			return mHelp;
-		}
-		ConfigEntry *getParent()const{
-			return mParent;
-		}
-		virtual ~ConfigEntry(){
-		}
-		void setParent(ConfigEntry *parent);
+
+static const ConfigItemDescriptor config_item_end={Boolean,NULL,NULL,NULL, 0};
+
+class Oid {
+	friend class ConfigEntry;
+	friend class ConfigValue;
+	friend class ConfigStruct;
+	friend class RootConfigStruct;
 	protected:
-		ConfigEntry(const std::string &name, ConfigValueType type, const std::string &help);
+		Oid(Oid &parent, oid leaf);
+		Oid(std::vector<oid> path);
+		Oid(std::vector<oid> path, oid leaf);
+		std::vector<oid> &getValue() {return mOidPath;}
+		std::string getValueAsString(){
+			std::ostringstream oss (std::ostringstream::out);
+			for (oid i=0; i < mOidPath.size(); ++i) {
+				if (i != 0) oss << ".";
+				oss << mOidPath[i];
+			}
+			return oss.str();
+		}
+		virtual ~Oid();
 	private:
-		const std::string mName;
-		const std::string mHelp;
-		ConfigValueType mType;
-		ConfigEntry *mParent;
+		std::vector<oid> mOidPath;
+	public:
+		oid getLeaf() { return mOidPath[mOidPath.size()-1]; }
+};
+
+class ConfigEntry {
+public:
+	static std::string sanitize(const std::string &str);
+
+	const std::string & getName()const{
+		return mName;
+	}
+	ConfigValueType getType()const{
+		return mType;
+	}
+	const std::string &getHelp()const{
+		return mHelp;
+	}
+	ConfigEntry *getParent()const{
+		return mParent;
+	}
+	virtual ~ConfigEntry(){
+	}
+	virtual void setParent(ConfigEntry *parent);
+	/*
+	 * @returns entry oid built from parent & object oid index
+	 */
+	Oid& getOid() {return *mOid;};
+	virtual void mibFragment(std::ostream &ostr, std::string spacing)const=0;
+protected:
+	void doMibFragment(std::ostream &ostr, std::string &syntax, std::string spacing) const;
+	ConfigEntry(const std::string &name, ConfigValueType type, const std::string &help,oid oid_index=0);
+	Oid *mOid;
+	const std::string mName;
+private:
+	const std::string mHelp;
+	ConfigValueType mType;
+	ConfigEntry *mParent;
+
+	unsigned int mOidLeaf;
 };
 
 class ConfigValue;
 
 class ConfigStruct : public ConfigEntry{
 	public:
-		ConfigStruct(const std::string &name, const std::string &help);
+		ConfigStruct(const std::string &name, const std::string &help,oid oid_index);
 		ConfigEntry * addChild(ConfigEntry *c);
 		void addChildrenValues(ConfigItemDescriptor *items);
 		std::list<ConfigEntry*> &getChildren();
@@ -83,44 +147,73 @@ class ConfigStruct : public ConfigEntry{
 		~ConfigStruct();
 		ConfigEntry *find(const char *name)const;
 		ConfigEntry *findApproximate(const char *name)const;
+		void mibFragment(std::ostream & ost, std::string spacing) const;
+		virtual void setParent(ConfigEntry *parent);
 	private:
 		std::list<ConfigEntry*> mEntries;
 };
 
+class RootConfigStruct : public ConfigStruct {
+public:
+	RootConfigStruct(const std::string &name, const std::string &help, std::vector<oid> oid_root_prefix);
+};
+
 class ConfigValue : public ConfigEntry{
 	public:
-		ConfigValue(const std::string &name, ConfigValueType  vt, const std::string &help, const std::string &default_value);
+		ConfigValue(const std::string &name, ConfigValueType  vt, const std::string &help, const std::string &default_value,oid oid_index);
 		void set(const std::string &value);
 		const std::string &get()const;
 		const std::string &getDefault()const;
 		void setDefault(const std::string &value);
+#ifdef ENABLE_SNMP
+		static int sHandleSnmpRequest(netsnmp_mib_handler *handler,
+				netsnmp_handler_registration *reginfo,
+				netsnmp_agent_request_info   *reqinfo,
+				netsnmp_request_info         *requests);
+		virtual int handleSnmpRequest(netsnmp_mib_handler *,
+				netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
+#endif
+		virtual void setParent(ConfigEntry *parent);
 	private:
 		std::string mValue;
 		std::string mDefaultValue;
+
 };
 
 class ConfigBoolean : public ConfigValue{
 	public:
-		ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value);
+		ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
 		bool read()const;
+#ifdef ENABLE_SNMP
+		virtual int handleSnmpRequest(netsnmp_mib_handler *,
+				netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
+#endif
+		void mibFragment(std::ostream & ost, std::string spacing)const;
 };
 
 class ConfigInt : public ConfigValue{
 	public:
-		ConfigInt(const std::string &name, const std::string &help, const std::string &default_value);
+#ifdef ENABLE_SNMP
+		virtual int handleSnmpRequest(netsnmp_mib_handler *,
+				netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
+#endif
+		ConfigInt(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
+		void mibFragment(std::ostream & ost, std::string spacing) const;
 		int read()const;
 };
 
 class ConfigString : public ConfigValue{
 	public:
-		ConfigString(const std::string &name, const std::string &help, const std::string &default_value);
+		ConfigString(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
 		const std::string & read()const;
+		void mibFragment(std::ostream & ost, std::string spacing) const;
 };
 
 class ConfigStringList : public ConfigValue{
 	public:
-		ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value);
+		ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
 		std::list<std::string> read()const;
+		void mibFragment(std::ostream & ost, std::string spacing) const;
 	private:
 };
 
@@ -169,7 +262,7 @@ class ConfigManager{
 	private:
 		ConfigManager();
 		static void atexit(); // Don't call directly!
-		ConfigStruct mConfigRoot;
+		RootConfigStruct mConfigRoot;
 		FileConfigReader mReader;
 		static ConfigManager *sInstance;
 };
@@ -190,6 +283,20 @@ inline std::ostream & operator<<(std::ostream &ostr, const FileConfigDumper &dum
 	return dumper.dump(ostr);
 }
 
+class MibDumper{
+public:
+	MibDumper(ConfigStruct *root){
+		mRoot=root;
+	}
+	std::ostream &dump(std::ostream & ostr)const;
+private:
+	std::ostream &dump2(std::ostream & ostr, ConfigEntry *entry, int level)const;
+	ConfigStruct *mRoot;
+};
+
+inline std::ostream & operator<<(std::ostream &ostr, const MibDumper &dumper){
+	return dumper.dump(ostr);
+}
 
 
 

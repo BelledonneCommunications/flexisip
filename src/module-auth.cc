@@ -114,8 +114,8 @@ private:
 				auth_status_t *as, msg_auth_t *au, auth_challenger_t const *ach);
 	void static flexisip_auth_check_digest(auth_mod_t *am,
 		       auth_status_t *as, auth_response_t *ar, auth_challenger_t const *ach);
-public:
 
+public:
 	Authentication(Agent *ag):Module(ag){
 		mProxyChallenger.ach_status=407;/*SIP_407_PROXY_AUTH_REQUIRED*/
 		mProxyChallenger.ach_phrase=sip_407_Proxy_auth_required;
@@ -255,7 +255,7 @@ public:
 };
 
 ModuleInfo<Authentication> Authentication::sInfo("Authentication",
-	"The authentication module challenges SIP requests according to a user/password database.");
+	"The authentication module challenges SIP requests according to a user/password database.",0);
 
 
 Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, std::shared_ptr<SipEvent> ev, bool hashedPasswords):

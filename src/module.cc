@@ -22,6 +22,9 @@
 #include <algorithm>
 using namespace::std;
 
+
+oid ModuleInfoBase:: indexCount = 10;
+
 Module *ModuleInfoBase::create(Agent *ag){
 	Module *mod=_create(ag);
 	mod->setInfo(this);
@@ -86,7 +89,7 @@ nta_agent_t *Module::getSofiaAgent()const{
 }
 
 void Module::declare(ConfigStruct *root){
-	mModuleConfig=new ConfigStruct("module::"+getModuleName(),mInfo->getModuleHelp());
+	mModuleConfig=new ConfigStruct("module::"+getModuleName(),mInfo->getModuleHelp(),mInfo->getOidIndex());
 	root->addChild(mModuleConfig);
 	mFilter->declareConfig(mModuleConfig);
 	onDeclare(mModuleConfig);

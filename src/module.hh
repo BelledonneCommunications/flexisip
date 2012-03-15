@@ -39,6 +39,10 @@ class ModuleFactory{
 };
 
 class ModuleInfoBase {
+	const std::string mName;
+	const std::string mHelp;
+	const oid mOidIndex;
+	static oid indexCount;
 	public:
 		Module *create(Agent *ag);
 		virtual Module *_create(Agent *ag)=0;
@@ -48,21 +52,20 @@ class ModuleInfoBase {
 		const std::string &getModuleHelp()const{
 			return mHelp;
 		}
+		const  unsigned int getOidIndex() {return mOidIndex;}
 		virtual ~ModuleInfoBase(){
 		}
 	protected:
-		ModuleInfoBase(const char *modname, const char *help) : mName(modname), mHelp(help){
+		ModuleInfoBase(const char *modname, const char *help,unsigned int oid_index) : mName(modname), mHelp(help),
+		mOidIndex(oid_index == 0 ? ++indexCount : oid_index){
 			ModuleFactory::get()->registerModule(this);
 		}
-	private:
-		const std::string mName;
-		const std::string mHelp;
 };
 
 template <typename _module_>
 class ModuleInfo : public ModuleInfoBase{
 	public:
-		ModuleInfo(const char *modname, const char *help) : ModuleInfoBase(modname,help){
+		ModuleInfo(const char *modname, const char *help,oid oid_index) : ModuleInfoBase(modname,help,oid_index){
 		}
 	protected:
 		virtual Module *_create(Agent *ag);
