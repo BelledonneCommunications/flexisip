@@ -157,7 +157,7 @@ public:
 		}
 	}
 
-	void freeBack(const std::shared_ptr<Transaction> transaction) {
+	void cleanTransaction(const std::shared_ptr<Transaction> transaction) {
 		for (int mline = 0; mline < sMaxSessions; ++mline) {
 			RelaySession *s = mSessions[mline].mRelaySession;
 			if (s != NULL) {
@@ -350,8 +350,7 @@ void MediaRelay::onTransactionEvent(const std::shared_ptr<Transaction> &transact
 		if (ot != NULL) {
 			switch (event) {
 			case Transaction::Destroy:
-				ptr->freeBack(transaction); //Free transaction reference
-				mCalls->remove(ptr);
+				ptr->cleanTransaction(transaction); //Free transaction reference
 				break;
 
 			default:

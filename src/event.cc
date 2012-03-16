@@ -140,7 +140,7 @@ void RequestSipEvent::send(const shared_ptr<MsgSip> &msg) {
 
 void RequestSipEvent::reply(const shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
-		msg->log("Replying Request SIP message:");
+		LOGD("Replying Request SIP message: %i %s\n\n", status, phrase);
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mIncomingAgent->reply(msg, status, phrase, ta_tags(ta));
