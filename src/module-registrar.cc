@@ -262,7 +262,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 			shared_ptr<ForkCallContext> context(make_shared<ForkCallContext>(agent));
 			shared_ptr<IncomingTransaction> incoming_transaction = ev->createIncomingTransaction();
 			context->onNew(incoming_transaction);
-			incoming_transaction->setProperty(Registrar::sInfo.getModuleName(), context);
+			incoming_transaction->setProperty<ForkCallContext>(Registrar::sInfo.getModuleName(), context);
 
 			for (list<extended_contact*>::const_iterator it = contacts.begin(); it != contacts.end(); ++it) {
 				extended_contact *ec = *it;

@@ -505,9 +505,9 @@ void TranscodeModule::onResponse(shared_ptr<SipEvent> &ev) {
 }
 
 void TranscodeModule::onTimer() {
-	for_each(mCalls.getList().begin(), mCalls.getList().end(), [] (const shared_ptr<CallContextBase> &obj) {
-		dynamic_pointer_cast<CallContext>(obj)->doBgTasks();
-	});
+	for(auto it = mCalls.getList().begin(); it != mCalls.getList().end(); ++it) {
+		dynamic_pointer_cast<CallContext>(*it)->doBgTasks();
+	}
 }
 
 void TranscodeModule::sOnTimer(void *unused, su_timer_t *t, void *zis) {

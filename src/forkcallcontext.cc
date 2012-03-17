@@ -162,7 +162,7 @@ void ForkCallContext::onDestroy(const std::shared_ptr<OutgoingTransaction> &tran
 			if (mBestResponse == NULL) {
 				// Create response
 				shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
-				shared_ptr<SipEvent> ev(new ResponseSipEvent(mAgent->shared_from_this(), msgsip));
+				shared_ptr<SipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 				ev->setIncomingAgent(mIncoming);
 				mAgent->sendResponseEvent(ev);
 			} else {

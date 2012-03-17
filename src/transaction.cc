@@ -74,7 +74,7 @@ int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *
 	OutgoingTransaction * it = reinterpret_cast<OutgoingTransaction *>(magic);
 	if (sip != NULL) {
 		msg_t *msg = nta_outgoing_getresponse(it->mOutgoing);
-		shared_ptr<SipEvent> sipevent(new ResponseSipEvent(it->shared_from_this(), make_shared<MsgSip>(msg)));
+		shared_ptr<SipEvent> sipevent(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(it->shared_from_this()), make_shared<MsgSip>(msg)));
 		msg_destroy(msg);
 		it->mAgent->sendResponseEvent(sipevent);
 		if (sip->sip_status && sip->sip_status->st_status >= 200) {
@@ -152,7 +152,7 @@ int IncomingTransaction::_callback(nta_incoming_magic_t *magic, nta_incoming_t *
 	IncomingTransaction * it = reinterpret_cast<IncomingTransaction *>(magic);
 	if (sip != NULL) {
 		msg_t *msg = nta_incoming_getrequest_ackcancel(it->mIncoming);
-		shared_ptr<SipEvent> sipevent(new RequestSipEvent(it->shared_from_this(), make_shared<MsgSip>(msg)));
+		shared_ptr<SipEvent> sipevent(new RequestSipEvent(dynamic_pointer_cast<IncomingAgent>(it->shared_from_this()), make_shared<MsgSip>(msg)));
 		msg_destroy(msg);
 		it->mAgent->sendRequestEvent(sipevent);
 		if (sip->sip_request && sip->sip_request->rq_method == sip_method_cancel) {

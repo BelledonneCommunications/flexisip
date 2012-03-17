@@ -283,7 +283,7 @@ void MediaRelay::onRequest(shared_ptr<SipEvent> &ev) {
 			c = make_shared<RelayedCall>(mServer, sip);
 			if (processNewInvite(c, ot, ev->getMsgSip())) {
 				mCalls->store(c);
-				ot->setProperty(getModuleName(), c);
+				ot->setProperty<RelayedCall>(MediaRelay::sInfo.getModuleName(), c);
 			}
 		} else {
 			processNewInvite(c, ot, ev->getMsgSip());

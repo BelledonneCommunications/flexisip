@@ -330,11 +330,11 @@ int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
 	shared_ptr<MsgSip> ms(make_shared<MsgSip>(msg, sip));
 	msg_destroy(msg);
 	if (sip->sip_request) {
-		shared_ptr<SipEvent> ev(new RequestSipEvent(shared_from_this(), ms));
+		shared_ptr<SipEvent> ev(new RequestSipEvent(dynamic_pointer_cast<IncomingAgent>(shared_from_this()), ms));
 		sendRequestEvent(ev);
 	}
 	else {
-		shared_ptr<SipEvent> ev(new ResponseSipEvent(shared_from_this(), ms));
+		shared_ptr<SipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(shared_from_this()), ms));
 		sendResponseEvent(ev);
 	}
 	return 0;

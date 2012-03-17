@@ -77,7 +77,7 @@ public:
 	template<typename T>
 	void setProperty(const std::string &name, std::shared_ptr<T> value) {
 		std::string type_name = typeid(T).name();
-		property_type prop = make_tuple(value, type_name);
+		property_type prop = make_tuple(std::static_pointer_cast<void>(value), type_name);
 		mProperties.insert(std::pair<std::string, property_type>(name, prop));
 	}
 
@@ -91,7 +91,7 @@ public:
 				return tran;
 			}
 		}
-		return NULL;
+		return std::shared_ptr<T>();
 	}
 
 	void removeProperty(const std::string &name) {
