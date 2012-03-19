@@ -402,18 +402,18 @@ int main(int argc, char *argv[]){
 		usage(argv[0]);
 	}
 	ortp_set_log_handler(defaultLogHandler);
-	ConfigManager *cfg=ConfigManager::get();
+	GenericManager *cfg=GenericManager::get();
 	DosProtection *dos=DosProtection::get();
 
 	if (dump_default_cfg){
 		a=new Agent(root,0,0);
-		std::cout<<FileConfigDumper(ConfigManager::get()->getRoot());
+		std::cout<<FileConfigDumper(GenericManager::get()->getRoot());
 		return 0;
 	}
 
 	if (dump_snmp_mib) {
 		a=new Agent(root,0,0);
-		std::cout<<MibDumper(ConfigManager::get()->getRoot());
+		std::cout<<MibDumper(GenericManager::get()->getRoot());
 		return 0;
 	}
 
@@ -461,8 +461,8 @@ int main(int argc, char *argv[]){
 		}
 	}
 	
-	if (cfg->getRoot()->get<ConfigStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()){
-		stun=new StunServer(cfg->getRoot()->get<ConfigStruct>("stun-server")->get<ConfigInt>("port")->read());
+	if (cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()){
+		stun=new StunServer(cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigInt>("port")->read());
 		stun->start();
 	}
 

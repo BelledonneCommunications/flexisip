@@ -31,8 +31,8 @@ StunServer::Init::Init(){
 		{	Integer,		"port"		,	"STUN server port number.",	"3478"		},
 		config_item_end
 	};
-	ConfigStruct *s=new ConfigStruct("stun-server","STUN server parameters.",STUN_OID_INDEX);
-	ConfigManager::get()->getRoot()->addChild(s);
+	GenericStruct *s=new GenericStruct("stun-server","STUN server parameters.",0);
+	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
 
 }

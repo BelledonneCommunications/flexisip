@@ -38,7 +38,7 @@ RecordSerializer *RecordSerializer::sInstance = NULL;
 
 RecordSerializer *RecordSerializer::get() {
         if (!sInstance) {
-                ConfigStruct *registrar = ConfigManager::get()->getRoot()->get<ConfigStruct > ("module::Registrar");
+                GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct > ("module::Registrar");
                 string name = registrar->get<ConfigString > ("redis-record-serializer")->read();
                 if (name == "c") {
                         sInstance = new RecordSerializerC();
@@ -63,7 +63,7 @@ int RegistrarDbRedisSync::sTimeout = 0;
 
 RegistrarDbRedisSync::RegistrarDbRedisSync() : mContext(NULL) {
         mSerializer = RecordSerializer::get();
-        ConfigStruct *registrar = ConfigManager::get()->getRoot()->get<ConfigStruct > ("module::Registrar");
+        GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct > ("module::Registrar");
         sDomain = registrar->get<ConfigString > ("redis-server-domain")->read();
         sPort = registrar->get<ConfigInt > ("redis-server-port")->read();
         sTimeout = registrar->get<ConfigInt > ("redis-server-timeout")->read();

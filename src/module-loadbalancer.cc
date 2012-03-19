@@ -25,8 +25,8 @@ class LoadBalancer : public Module, public ModuleToolbox{
 	public:
 		LoadBalancer(Agent *ag);
 		virtual ~LoadBalancer();
-		virtual void onDeclare(ConfigStruct *module_config);
-		virtual void onLoad(Agent *ag, const ConfigStruct * modconf);
+		virtual void onDeclare(GenericStruct *module_config);
+		virtual void onLoad(Agent *ag, const GenericStruct * modconf);
 		virtual void onRequest(std::shared_ptr<SipEvent> &ev);
 		virtual void onResponse(std::shared_ptr<SipEvent> &ev);
 	private:
@@ -36,7 +36,7 @@ class LoadBalancer : public Module, public ModuleToolbox{
 };
 
 ModuleInfo<LoadBalancer> LoadBalancer::sInfo("LoadBalancer",
-                                             "This module performs load balancing between a set of configured destination proxies.",0);
+                                             "This module performs load balancing between a set of configured destination proxies.");
 
 LoadBalancer::LoadBalancer(Agent *ag) : Module(ag){
 }
@@ -44,7 +44,7 @@ LoadBalancer::LoadBalancer(Agent *ag) : Module(ag){
 LoadBalancer::~LoadBalancer(){
 }
 
-void LoadBalancer::onDeclare(ConfigStruct *module_config){
+void LoadBalancer::onDeclare(GenericStruct *module_config){
 	/*we need to be disabled by default*/
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[]={
@@ -54,7 +54,7 @@ void LoadBalancer::onDeclare(ConfigStruct *module_config){
 	module_config->addChildrenValues(items);
 }
 
-void LoadBalancer::onLoad(Agent *ag, const ConfigStruct * modconf){
+void LoadBalancer::onLoad(Agent *ag, const GenericStruct * modconf){
 	std::list<std::string> routes=modconf->get<ConfigStringList>("routes")->read();
 	std::list<std::string>::iterator it;
 	

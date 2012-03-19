@@ -24,6 +24,14 @@
 
 using namespace ::std;
 
+const static char* sCountBindStr = "count-bind";
+const static char* sCountBindFinishedStr = "count-bind-finished";
+const static char* sCountForksStr = "count-forks";
+const static char* sCountForksFinishedStr = "count-forks-finished";
+const static char* sCountNonForkedStr = "count-non-forked";
+const static char* sCountClearStr = "count-clear";
+const static char* sCountClearFinishedStr = "count-clear-finished";
+
 class Registrar: public Module, public ModuleToolbox {
 public:
 	static void send480KO(Agent *agent, std::shared_ptr<SipEvent> &ev);
@@ -37,8 +45,8 @@ public:
 	~Registrar() {
 	}
 
-	virtual void onDeclare(ConfigStruct *module_config) {
-		ConfigItemDescriptor items[] = { { StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar.", "localhost" }, { Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "15" }, { String,
+	virtual void onDeclare(GenericStruct *module_config) {
+		ConfigItemDescriptor configs[] = { { StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar.", "localhost" }, { Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "15" }, { String,
 				"line-field-name", "Name of the contact uri parameter used for identifying user's device. ", "line" }, { String, "static-route-file", "File containing the static route to add to database at startup", "" },
 #ifdef ENABLE_REDIS
 				{	String , "db-implementation", "Implementation used for storing address of records contact uris. [redis-async, redis-sync, internal]","redis-async"},
@@ -48,14 +56,25 @@ public:
 				{	Integer , "redis-server-timeout", "Timeout in milliseconds of the redis connection.","1500"},
 				{	String , "redis-record-serializer", "Implementation of the contact serialiser to use. [C, protobuf]","protobuf"},
 #else
-				{ String, "db-implementation", "Implementation used for storing address of records contact uris. [internal,...]", "internal" },
+				{	String, "db-implementation", "Implementation used for storing address of records contact uris. [internal,...]", "internal" },
 #endif
-				{ Boolean, "fork", "Fork messages to all registered devices", "true" },
+				{	Boolean, "fork", "Fork messages to all registered devices", "true" },
 				config_item_end };
-		module_config->addChildrenValues(items);
+		module_config->addChildrenValues(configs);
+
+		StatItemDescriptor stats[] = {
+				{	Counter64,	sCountBindStr, "Number of registers."},
+				{	Counter64,	sCountBindFinishedStr, "Number of registers finished."},
+				{	Counter64,	sCountForksStr, "Number of forks."},
+				{	Counter64,	sCountForksFinishedStr,  "Number of forks finished."},
+				{	Counter64,	sCountNonForkedStr, "Number of non forked."},
+				{	Counter64,	sCountClearStr, "Number of cleared registrations."},
+				{	Counter64,	sCountClearFinishedStr, "Number of cleared registrations finished."},
+				stat_item_end };
+		module_config->addChildrenValues(stats);
 	}
 
-	virtual void onLoad(Agent *agent, const ConfigStruct *module_config) {
+	virtual void onLoad(Agent *agent, const GenericStruct *module_config) {
 		list<string>::const_iterator it;
 		mDomains = module_config->get<ConfigStringList>("reg-domains")->read();
 		for (it = mDomains.begin(); it != mDomains.end(); ++it) {
@@ -261,6 +280,7 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 	if (aor) {
 		const list<extended_contact*> contacts = aor->getExtendedContacts();
 		if (contacts.size() <= 1 || !fork || ev->getSip()->sip_request->rq_method != sip_method_invite) {
+			++findStat(sCountNonForkedStr);
 			extended_contact *ec = getFirstExtendedContact(aor);
 			sip_contact_t *ct = NULL;
 			if (ec)
@@ -286,6 +306,7 @@ void Registrar::routeRequest(Agent *agent, std::shared_ptr<SipEvent> &ev, Record
 				}
 			}
 		} else {
+			++findStat(sCountForksStr);
 			ForkCallContext *context = new ForkCallContext(agent, this);
 			IncomingTransaction *incoming_transaction = new RegistrarIncomingTransaction(agent->getSofiaAgent(), ev->getMsg(), ev->getSip(), ForkCallContext::incomingCallback, context);
 			context->setIncomingTransaction(incoming_transaction);
@@ -398,19 +419,23 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 				}
 				if ('*' == sip->sip_contact->m_url->url_scheme[0]) {
 					OnBindListener *listener = new OnBindListener(getAgent(), ev);
+					++findStat(sCountClearStr);
 					LOGD("Clearing bindings");
+					listener->addStatCounter(findStat(sCountClearFinishedStr));
 					RegistrarDb::get(mAgent)->clear(sip, listener);
 					return;
 				} else {
 					OnBindListener *listener = new OnBindListener(getAgent(), ev);
+					++findStat(sCountBindStr);
 					LOGD("Updating binding");
-					RegistrarDb::get(mAgent)->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, listener);
+					listener->addStatCounter(findStat(sCountBindFinishedStr));
+					RegistrarDb::get(mAgent)->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, listener);;
 					return;
 				}
 				LOGD("Records binded to registrar database.");
 			} else {
 				OnBindListener *listener = new OnBindListener(getAgent(), ev);
-				LOGD("No sip contact, it is a fetch only.");
+				LOGD("No sip contact, it is a fetch only request.");
 				RegistrarDb::get(mAgent)->fetch(sipurl, listener);
 				return;
 			}
@@ -439,5 +464,5 @@ void Registrar::onResponse(std::shared_ptr<SipEvent> &ev) {
 }
 
 ModuleInfo<Registrar> Registrar::sInfo("Registrar", "The Registrar module accepts REGISTERs for domains it manages, and store the address of record "
-		"in order to route other requests destinated to the client who registered.",0);
+		"in order to route other requests destinated to the client who registered.");
 

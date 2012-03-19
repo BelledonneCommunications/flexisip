@@ -54,6 +54,7 @@ public:
 	}
 
 	void setMsgSip(msg_t *msg, sip_t *sip = NULL);
+	const Module *getCurrentModule() { return mCurrModule;}
 
 	virtual ~SipEvent();
 private:

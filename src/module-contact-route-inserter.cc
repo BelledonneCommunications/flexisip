@@ -25,12 +25,12 @@ public:
 
 	}
 
-	void onDeclare(ConfigStruct *module_config) {
+	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor items[] = { { Boolean, "masquerade-contacts-for-invites", "Hack for workarounding Nortel CS2k gateways bug.", "false" }, config_item_end };
 		module_config->addChildrenValues(items);
 	}
 
-	void onLoad(Agent *agent, const ConfigStruct *module_config) {
+	void onLoad(Agent *agent, const GenericStruct *module_config) {
 		mContactRouteParamName = std::string("CtRt") + getAgent()->getUniqueId();
 		mMasqueradeInviteContacts = module_config->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
 	}
@@ -119,4 +119,4 @@ private:
 
 ModuleInfo<ContactRouteInserter> ContactRouteInserter::sInfo("ContactRouteInserter", "The purpose of the ContactRouteInserter module is to masquerade the contact header of incoming registers that are not handled locally "
 		"(think about flexisip used as a SBC gateway) in such a way that it is then possible to route back outgoing invites to the original address. "
-		"It is a kind of similar mechanism as Record-Route, but for REGISTER.", 0);
+		"It is a kind of similar mechanism as Record-Route, but for REGISTER.");

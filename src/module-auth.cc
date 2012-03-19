@@ -31,6 +31,11 @@
 
 using namespace std;
 
+const static char* countPasswordFound = "count-password-found";
+const static char* countPasswordNotFound = "count-password-not-found";
+const static char* countAsyncRetrieve = "count-async-retrieve";
+const static char* countSyncRetrieve = "count-sync-retrieve";
+
 class Authentication;
 
 struct auth_plugin_t
@@ -73,6 +78,9 @@ private:
 		bool sendReply();
 		su_root_t *getRoot() {
 			return mAgent->getRoot();
+		}
+		const Authentication *getModule() {
+			return dynamic_cast<const Authentication *>(mEv->getCurrentModule());
 		}
 	};
 private:
@@ -150,7 +158,7 @@ public:
 		delete mOdbcAuthScheme;
 	}
 
-	virtual void onDeclare(ConfigStruct * module_config){
+	virtual void onDeclare(GenericStruct * module_config){
 		ConfigItemDescriptor items[]={
 			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	""	},
 			{	StringList	,	"trusted-hosts"	, 	"List of whitespace separated IP which will not be challenged.",	""	},
@@ -174,9 +182,18 @@ public:
 		module_config->addChildrenValues(items);
 		/* modify the default value for "enabled" */
 		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
+
+
+		StatItemDescriptor stats[] = {
+				{	Counter64,	countPasswordFound, "Number of passwords found."},
+				{	Counter64,	countPasswordNotFound, "Number of passwords not found."},
+				{	Counter64,	countAsyncRetrieve, "Number of asynchronous retrieves."},
+				{	Counter64,	countSyncRetrieve, "Number of synchronous retrieves."},
+				stat_item_end };
+		module_config->addChildrenValues(stats);
 	}
 
-	void onLoad(Agent *agent, const ConfigStruct * module_config){
+	void onLoad(Agent *agent, const GenericStruct * module_config){
 		list<string>::const_iterator it;
 		mDomains=module_config->get<ConfigStringList>("auth-domains")->read();
 		for (it=mDomains.begin();it!=mDomains.end();++it){
@@ -255,7 +272,7 @@ public:
 };
 
 ModuleInfo<Authentication> Authentication::sInfo("Authentication",
-	"The authentication module challenges SIP requests according to a user/password database.",0);
+	"The authentication module challenges SIP requests according to a user/password database.");
 
 
 Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, std::shared_ptr<SipEvent> ev, bool hashedPasswords):
@@ -306,6 +323,7 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 	auth_hexmd5_t a1buf, response;
 
 	if (passwd) {
+		++mEv->getCurrentModule()->findStat(countPasswordFound);
 		if (mHashedPass) {
 			strncpy(a1buf, passwd, 33); // remove trailing NULL character
 			a1 = a1buf;
@@ -313,6 +331,7 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 			auth_digest_a1(&mAr, a1buf, passwd), a1 = a1buf;
 		}
 	} else {
+		++mEv->getCurrentModule()->findStat(countPasswordNotFound);
 		auth_digest_a1(&mAr, a1buf, "xyzzy"), a1 = a1buf;
 	}
 
@@ -474,21 +493,23 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 	// on a case by case basis.
 	string foundPassword;
 	AuthDbResult res=AuthDb::get()->password(listener->getRoot(), as->as_user_uri, ar->ar_username, foundPassword, listener);
+	const Authentication *module=listener->getModule();
 	switch (res) {
 		case PENDING:
 			// The password couldn't be retrieved synchronously
 			// It will be retrieved asynchronously and the listener
 			// will be called with it.
-
-			// Send 100 trying if we are statefull
+			++module->findStat(countAsyncRetrieve);
 			LOGD("authentication PENDING for %s", ar->ar_username);
 			break;
 		case PASSWORD_FOUND:
+			++module->findStat(countSyncRetrieve);
 			listener->checkPassword(foundPassword.c_str());
 			listener->sendReply();
 			delete(listener);
 			break;
 		case PASSWORD_NOT_FOUND:
+			++module->findStat(countSyncRetrieve);
 			listener->checkPassword(NULL);
 			listener->sendReply();
 			delete(listener);
@@ -496,8 +517,6 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		case AUTH_ERROR:
 			listener->onError();
 			// on error deletes the listener
-			break;
-		default:
 			break;
 	}
 }

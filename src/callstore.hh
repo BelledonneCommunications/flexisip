@@ -78,12 +78,18 @@ class CallStore{
 		CallContextBase *find(Agent *ag, sip_t *sip);
 		void remove(CallContextBase *ctx);
 		void removeAndDeleteInactives();
+		void setInviteStatCounters(StatCounter64 *invCount, StatCounter64 *invFinishedCount) {
+			mCountInvites=invCount;
+			mCountInvitesFinished=invFinishedCount;
+		}
 		void dump();
 		const std::list<CallContextBase*> &getList()const{
 			return mCalls;
 		}
 	private:
 		std::list<CallContextBase*> mCalls;
+		StatCounter64 *mCountInvites;
+		StatCounter64 *mCountInvitesFinished;
 };
 
 

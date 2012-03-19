@@ -170,7 +170,7 @@ CallContextBase::~CallContextBase(){
 	}
 }
 
-CallStore::CallStore(){
+CallStore::CallStore() : mCountInvites(NULL),mCountInvitesFinished(NULL){
 }
 
 CallStore::~CallStore(){
@@ -178,6 +178,7 @@ CallStore::~CallStore(){
 }
 
 void CallStore::store(CallContextBase *ctx){
+	if (mCountInvites) ++(*mCountInvites);
 	mCalls.push_back(ctx);
 }
 
@@ -191,6 +192,7 @@ CallContextBase *CallStore::find(Agent *ag, sip_t *sip){
 }
 
 void CallStore::remove(CallContextBase *ctx){
+	if (mCountInvitesFinished) ++(*mCountInvitesFinished);
 	mCalls.remove(ctx);
 }
 
@@ -199,6 +201,7 @@ void CallStore::removeAndDeleteInactives(){
 	time_t cur=time(NULL);
 	for(it=mCalls.begin();it!=mCalls.end();){
 		if ((*it)->isInactive (cur)){
+			if (mCountInvitesFinished) ++(*mCountInvitesFinished);
 			delete *it;
 			it=mCalls.erase(it);
 		}else ++it;

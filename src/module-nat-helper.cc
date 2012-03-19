@@ -58,14 +58,14 @@ class NatHelper : public Module, protected ModuleToolbox{
 			}
 		}
 	protected:
-		virtual void onDeclare(ConfigStruct * module_config){
+		virtual void onDeclare(GenericStruct * module_config){
 			ConfigItemDescriptor items[]={
 				{	String		,	"contact-verified-param"		,	"Internal URI parameter added to response contact by first proxy and cleaned by last one.",		"verified"	},
 				config_item_end
 			};
 			module_config->addChildrenValues(items);
 		}
-		virtual void onLoad(Agent *agent, const ConfigStruct *root){
+		virtual void onLoad(Agent *agent, const GenericStruct *root){
 			mContactVerifiedParam=root->get<ConfigString>("contact-verified-param")->read();
 		}
 	private:
@@ -160,4 +160,4 @@ ModuleInfo<NatHelper> NatHelper::sInfo("NatHelper",
 	"The NatHelper module executes small tasks to make SIP work smoothly despite firewalls."
     "It corrects the Contact headers that contain obviously inconsistent addresses, and adds "
     "a Record-Route to ensure subsequent requests are routed also by the proxy, through the UDP or TCP "
-    "channel each client opened to the proxy.",0);
+    "channel each client opened to the proxy.");

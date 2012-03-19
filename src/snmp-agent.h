@@ -19,23 +19,23 @@
 #ifndef SNMP_AGENT_H_
 #define SNMP_AGENT_H_
 #include <thread>
-class ConfigManager;
+class GenericManager;
 class Agent;
 
 class SnmpAgent {
 public:
-	SnmpAgent(Agent& agent,ConfigManager& cm);
+	SnmpAgent(Agent& agent,GenericManager& cm);
 	virtual ~SnmpAgent(){mThread.detach();};
 
 private:
 	class SnmpAgentTask {
 	public:
-		SnmpAgentTask(Agent& agent, ConfigManager& cm);
+		SnmpAgentTask(Agent& agent, GenericManager& cm);
 		~SnmpAgentTask();
 		void operator()() ;
 	private:
 		bool mKeepRunning;
-		 ConfigManager& mConfigmanager;
+		 GenericManager& mConfigmanager;
 		 Agent& mAgent;
 	};
 

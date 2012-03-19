@@ -24,7 +24,7 @@
 #include "configmanager.hh"
 //#include "flexisipMIB.h"
 
-SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent,ConfigManager& cm):mKeepRunning(true),mConfigmanager(cm),mAgent(agent) {
+SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent,GenericManager& cm):mKeepRunning(true),mConfigmanager(cm),mAgent(agent) {
 
 }
 
@@ -49,6 +49,6 @@ SnmpAgent::SnmpAgentTask::~SnmpAgentTask() {
 	mKeepRunning=false;
 }
 
-SnmpAgent::SnmpAgent(Agent& agent,ConfigManager& cm): mTask(agent,cm),mThread(std::ref(mTask)){
+SnmpAgent::SnmpAgent(Agent& agent,GenericManager& cm): mTask(agent,cm),mThread(std::ref(mTask)){
 }
 

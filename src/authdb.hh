@@ -43,7 +43,7 @@ enum AuthDbResult {PENDING, PASSWORD_FOUND, PASSWORD_NOT_FOUND, AUTH_ERROR};
 // Fw declaration
 struct AuthDbTimings;
 
-class AuthDbListener {
+class AuthDbListener : StatFinishListener {
 public:
 	virtual void checkPassword(const char *password) = 0;
 	virtual void switchToAsynchronousMode() = 0;

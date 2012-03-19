@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 
 #ifndef configmanager_hh
@@ -33,10 +33,12 @@
 #include <list>
 #include <cstdlib>
 #include <vector>
+#include <unordered_set>
 
 #include <algorithm>
 
 #include "common.hh"
+#include <typeinfo>
 
 #ifdef ENABLE_SNMP
 #include <net-snmp/net-snmp-config.h>
@@ -46,180 +48,270 @@
 typedef unsigned long oid;
 #endif
 
-enum ConfigValueType{
+enum GenericValueType{
 	Boolean,
 	Integer,
+	Counter64,
 	String,
 	StringList,
 	Struct
 };
 
-// ids below the root levels
-#define GLOBAL_OID_INDEX 1
-#define TLS_OID_INDEX 2
-#define STUN_OID_INDEX 3
-
 
 struct ConfigItemDescriptor {
-	ConfigValueType type;
+	GenericValueType type;
 	const char *name;
 	const char *help;
 	const char *default_value;
-	unsigned int oid_leaf;
 };
+static const ConfigItemDescriptor config_item_end={Boolean,NULL,NULL,NULL};
 
-
-
-static const ConfigItemDescriptor config_item_end={Boolean,NULL,NULL,NULL, 0};
+struct StatItemDescriptor {
+	GenericValueType type;
+	const char *name;
+	const char *help;
+};
+static const StatItemDescriptor stat_item_end={Boolean,NULL,NULL};
 
 class Oid {
-	friend class ConfigEntry;
+	friend class GenericEntry;
+	friend class StatCounter64;
 	friend class ConfigValue;
-	friend class ConfigStruct;
+	friend class GenericStruct;
 	friend class RootConfigStruct;
-	protected:
-		Oid(Oid &parent, oid leaf);
-		Oid(std::vector<oid> path);
-		Oid(std::vector<oid> path, oid leaf);
-		std::vector<oid> &getValue() {return mOidPath;}
-		std::string getValueAsString(){
-			std::ostringstream oss (std::ostringstream::out);
-			for (oid i=0; i < mOidPath.size(); ++i) {
-				if (i != 0) oss << ".";
-				oss << mOidPath[i];
-			}
-			return oss.str();
+protected:
+	Oid(Oid &parent, oid leaf);
+	Oid(std::vector<oid> path);
+	Oid(std::vector<oid> path, oid leaf);
+	std::vector<oid> &getValue() {return mOidPath;}
+	virtual ~Oid();
+private:
+	std::vector<oid> mOidPath;
+public:
+	std::string getValueAsString(){
+		std::ostringstream oss (std::ostringstream::out);
+		for (oid i=0; i < mOidPath.size(); ++i) {
+			if (i != 0) oss << ".";
+			oss << mOidPath[i];
 		}
-		virtual ~Oid();
-	private:
-		std::vector<oid> mOidPath;
-	public:
-		oid getLeaf() { return mOidPath[mOidPath.size()-1]; }
+		return oss.str();
+	}
+	oid getLeaf() { return mOidPath[mOidPath.size()-1]; }
+	static oid oidFromHashedString(const std::string &str);
 };
 
-class ConfigEntry {
+
+class GenericEntry;
+class GenericEntriesGetter {
+	static GenericEntriesGetter *sInstance;
+	std::map<std::string, GenericEntry *> mEntries;
+	std::unordered_set<std::string> mKeys;
+public:
+	static GenericEntriesGetter &get() {
+		if (!sInstance) sInstance = new GenericEntriesGetter();
+		return *sInstance;
+	};
+	void registerWithKey(const std::string &key, GenericEntry *stat) {
+		if (mKeys.find(key) != mKeys.end()) {
+			LOGA("Duplicate entry key %s", key.c_str());
+		}
+//		LOGD("Register with key %s", key.c_str());
+		mEntries.insert(make_pair(key, stat));
+	}
+	template <typename _retType>
+	_retType &find(const std::string &key)const;
+};
+
+
+class GenericEntry {
 public:
 	static std::string sanitize(const std::string &str);
 
 	const std::string & getName()const{
 		return mName;
 	}
-	ConfigValueType getType()const{
+	GenericValueType getType()const{
 		return mType;
 	}
 	const std::string &getHelp()const{
 		return mHelp;
 	}
-	ConfigEntry *getParent()const{
+	GenericEntry *getParent()const{
 		return mParent;
 	}
-	virtual ~ConfigEntry(){
+	virtual ~GenericEntry(){
 	}
-	virtual void setParent(ConfigEntry *parent);
+	virtual void setParent(GenericEntry *parent);
 	/*
 	 * @returns entry oid built from parent & object oid index
 	 */
 	Oid& getOid() {return *mOid;};
+#ifdef ENABLE_SNMP
+	static int sHandleSnmpRequest(netsnmp_mib_handler *handler,
+			netsnmp_handler_registration *reginfo,
+			netsnmp_agent_request_info   *reqinfo,
+			netsnmp_request_info         *requests);
+	virtual int handleSnmpRequest(netsnmp_mib_handler *,
+			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*){return -1;};
+#endif
 	virtual void mibFragment(std::ostream &ostr, std::string spacing)const=0;
+	void registerWithKey(const std::string &key) {
+		GenericEntriesGetter::get().registerWithKey(key, this);
+	}
 protected:
 	void doMibFragment(std::ostream &ostr, std::string &syntax, std::string spacing) const;
-	ConfigEntry(const std::string &name, ConfigValueType type, const std::string &help,oid oid_index=0);
+	GenericEntry(const std::string &name, GenericValueType type, const std::string &help,oid oid_index=0);
 	Oid *mOid;
 	const std::string mName;
 private:
 	const std::string mHelp;
-	ConfigValueType mType;
-	ConfigEntry *mParent;
+	GenericValueType mType;
+	GenericEntry *mParent;
 
-	unsigned int mOidLeaf;
+	oid mOidLeaf;
 };
+
+
+template <typename _retType>
+_retType &GenericEntriesGetter::find(const std::string &key)const{
+	auto it=mEntries.find(key);
+	if (it == mEntries.end()) {
+		LOGA("Entry not found %s", key.c_str());
+	}
+
+	GenericEntry *ge=(*it).second;
+	_retType *ret=dynamic_cast<_retType *>(ge);
+	if (!ret) {
+		LOGA("%s - bad entry type %s", key.c_str(), typeid(*ge).name());
+	}
+
+	return *ret;
+};
+
+
 
 class ConfigValue;
 
-class ConfigStruct : public ConfigEntry{
-	public:
-		ConfigStruct(const std::string &name, const std::string &help,oid oid_index);
-		ConfigEntry * addChild(ConfigEntry *c);
-		void addChildrenValues(ConfigItemDescriptor *items);
-		std::list<ConfigEntry*> &getChildren();
-		template <typename _retType> 
-		_retType *get(const char *name)const;
-		~ConfigStruct();
-		ConfigEntry *find(const char *name)const;
-		ConfigEntry *findApproximate(const char *name)const;
-		void mibFragment(std::ostream & ost, std::string spacing) const;
-		virtual void setParent(ConfigEntry *parent);
-	private:
-		std::list<ConfigEntry*> mEntries;
+class GenericStruct : public GenericEntry{
+public:
+	GenericStruct(const std::string &name, const std::string &help,oid oid_index);
+	GenericEntry * addChild(GenericEntry *c);
+	void addChildrenValues(ConfigItemDescriptor *items);
+	void addChildrenValues(StatItemDescriptor *items);
+	std::list<GenericEntry*> &getChildren();
+	template <typename _retType>
+	_retType *get(const char *name)const;
+	~GenericStruct();
+	GenericEntry *find(const char *name)const;
+	GenericEntry *findApproximate(const char *name)const;
+	void mibFragment(std::ostream & ost, std::string spacing) const;
+	virtual void setParent(GenericEntry *parent);
+private:
+	std::list<GenericEntry*> mEntries;
 };
 
-class RootConfigStruct : public ConfigStruct {
+class RootConfigStruct : public GenericStruct {
 public:
 	RootConfigStruct(const std::string &name, const std::string &help, std::vector<oid> oid_root_prefix);
 };
 
-class ConfigValue : public ConfigEntry{
-	public:
-		ConfigValue(const std::string &name, ConfigValueType  vt, const std::string &help, const std::string &default_value,oid oid_index);
-		void set(const std::string &value);
-		const std::string &get()const;
-		const std::string &getDefault()const;
-		void setDefault(const std::string &value);
+
+class StatCounter64 : public GenericEntry{
+public:
+	StatCounter64(const std::string &name, const std::string &help, oid oid_index);
 #ifdef ENABLE_SNMP
-		static int sHandleSnmpRequest(netsnmp_mib_handler *handler,
-				netsnmp_handler_registration *reginfo,
-				netsnmp_agent_request_info   *reqinfo,
-				netsnmp_request_info         *requests);
-		virtual int handleSnmpRequest(netsnmp_mib_handler *,
-				netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
+	virtual int handleSnmpRequest(netsnmp_mib_handler *,
+			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
 #endif
-		virtual void setParent(ConfigEntry *parent);
-	private:
-		std::string mValue;
-		std::string mDefaultValue;
+	void mibFragment(std::ostream & ost, std::string spacing) const;
+	static StatCounter64 &find(const std::string &key) {
+		return GenericEntriesGetter::get().find<StatCounter64>(key);
+	}
+	void setParent(GenericEntry *parent);
+	uint64_t read() { return mValue; }
+	void set(uint64_t val) { mValue=val; }
+	void operator++() {++mValue;};
+	void operator++(int count) {mValue+=count;};
+	void operator--() {--mValue;};
+	void operator--(int count) {mValue-=count;};
+private:
+	uint64_t mValue;
+};
+
+
+
+class StatFinishListener {
+	std::unordered_set<StatCounter64*> mStatList;
+public:
+	void addStatCounter(StatCounter64 &stat) {
+		mStatList.insert(&stat);
+	}
+	~StatFinishListener(){
+		for(auto it=mStatList.begin(); it != mStatList.end(); ++it) {
+			StatCounter64 &s = **it;
+			++s;
+		}
+	}
+};
+
+class ConfigValue : public GenericEntry{
+public:
+	ConfigValue(const std::string &name, GenericValueType  vt, const std::string &help, const std::string &default_value,oid oid_index);
+	void set(const std::string &value);
+	const std::string &get()const;
+	const std::string &getDefault()const;
+	void setDefault(const std::string &value);
+#ifdef ENABLE_SNMP
+	virtual int handleSnmpRequest(netsnmp_mib_handler *,
+			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
+#endif
+	virtual void setParent(GenericEntry *parent);
+private:
+	std::string mValue;
+	std::string mDefaultValue;
 
 };
 
 class ConfigBoolean : public ConfigValue{
-	public:
-		ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
-		bool read()const;
+public:
+	ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
+	bool read()const;
 #ifdef ENABLE_SNMP
-		virtual int handleSnmpRequest(netsnmp_mib_handler *,
-				netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
+	virtual int handleSnmpRequest(netsnmp_mib_handler *,
+			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
 #endif
-		void mibFragment(std::ostream & ost, std::string spacing)const;
+	void mibFragment(std::ostream & ost, std::string spacing)const;
 };
 
 class ConfigInt : public ConfigValue{
-	public:
+public:
 #ifdef ENABLE_SNMP
-		virtual int handleSnmpRequest(netsnmp_mib_handler *,
-				netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
+	virtual int handleSnmpRequest(netsnmp_mib_handler *,
+			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
 #endif
-		ConfigInt(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
-		void mibFragment(std::ostream & ost, std::string spacing) const;
-		int read()const;
+	ConfigInt(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
+	void mibFragment(std::ostream & ost, std::string spacing) const;
+	int read()const;
 };
 
 class ConfigString : public ConfigValue{
-	public:
-		ConfigString(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
-		const std::string & read()const;
-		void mibFragment(std::ostream & ost, std::string spacing) const;
+public:
+	ConfigString(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
+	const std::string & read()const;
+	void mibFragment(std::ostream & ost, std::string spacing) const;
 };
 
 class ConfigStringList : public ConfigValue{
-	public:
-		ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
-		std::list<std::string> read()const;
-		void mibFragment(std::ostream & ost, std::string spacing) const;
-	private:
+public:
+	ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
+	std::list<std::string> read()const;
+	void mibFragment(std::ostream & ost, std::string spacing) const;
+private:
 };
 
 template <typename _retType>
-_retType *ConfigStruct::get(const char *name)const{
-	ConfigEntry *e=find(name);
+_retType *GenericStruct::get(const char *name)const{
+	GenericEntry *e=find(name);
 	if (e==NULL) {
 		LOGA("No ConfigEntry with name %s in struct %s",name,getName().c_str());
 		return NULL;
@@ -234,49 +326,53 @@ _retType *ConfigStruct::get(const char *name)const{
 
 
 class FileConfigReader{
-	public:
-		FileConfigReader(ConfigStruct *root) : mRoot(root),mCfg(NULL),mHaveUnreads(false){
-		}
-		int read(const char *filename);
-		int reload();
-		void checkUnread();
-		~FileConfigReader();
-	private:
-		int read2(ConfigEntry *entry, int level);
-		static void onUnreadItem(void *p, const char *secname, const char *key, int lineno);
-		void onUnreadItem(const char *secname, const char *key, int lineno);
-		ConfigStruct *mRoot;
-		struct _LpConfig *mCfg;
-		bool mHaveUnreads;
+public:
+	FileConfigReader(GenericStruct *root) : mRoot(root),mCfg(NULL),mHaveUnreads(false){
+	}
+	int read(const char *filename);
+	int reload();
+	void checkUnread();
+	~FileConfigReader();
+private:
+	int read2(GenericEntry *entry, int level);
+	static void onUnreadItem(void *p, const char *secname, const char *key, int lineno);
+	void onUnreadItem(const char *secname, const char *key, int lineno);
+	GenericStruct *mRoot;
+	struct _LpConfig *mCfg;
+	bool mHaveUnreads;
 };
 
-class ConfigManager{
+class GenericManager{
 	friend class ConfigArea;
-	public:
-		static ConfigManager *get();
-		void declareArea(const char *area_name, const char *help, ConfigItemDescriptor *items);
-		int load(const char* configFile);
-		ConfigStruct *getRoot();
-		const ConfigStruct *getGlobal();
-		void loadStrict();
-	private:
-		ConfigManager();
-		static void atexit(); // Don't call directly!
-		RootConfigStruct mConfigRoot;
-		FileConfigReader mReader;
-		static ConfigManager *sInstance;
+public:
+	static GenericManager *get();
+	void declareArea(const char *area_name, const char *help, ConfigItemDescriptor *items);
+	int load(const char* configFile);
+	GenericStruct *getRoot();
+	const GenericStruct *getGlobal();
+	void loadStrict();
+	StatCounter64 &findStat(const std::string &key);
+	void addStat(const std::string &key, StatCounter64 &stat);
+private:
+	GenericManager();
+	static void atexit(); // Don't call directly!
+	RootConfigStruct mConfigRoot;
+	FileConfigReader mReader;
+	static GenericManager *sInstance;
+	std::map<std::string,StatCounter64*> mStatMap;
+	std::unordered_set<std::string> mStatOids;
 };
 
 class FileConfigDumper{
-	public:
-		FileConfigDumper(ConfigStruct *root){
-			mRoot=root;
-		}
-		std::ostream &dump(std::ostream & ostr)const;
-	private:
-		std::ostream & printHelp(std::ostream &os, const std::string &help, const std::string &comment_prefix)const;
-		std::ostream &dump2(std::ostream & ostr, ConfigEntry *entry, int level)const;
-		ConfigStruct *mRoot;
+public:
+	FileConfigDumper(GenericStruct *root){
+		mRoot=root;
+	}
+	std::ostream &dump(std::ostream & ostr)const;
+private:
+	std::ostream & printHelp(std::ostream &os, const std::string &help, const std::string &comment_prefix)const;
+	std::ostream &dump2(std::ostream & ostr, GenericEntry *entry, int level)const;
+	GenericStruct *mRoot;
 };
 
 inline std::ostream & operator<<(std::ostream &ostr, const FileConfigDumper &dumper){
@@ -285,13 +381,13 @@ inline std::ostream & operator<<(std::ostream &ostr, const FileConfigDumper &dum
 
 class MibDumper{
 public:
-	MibDumper(ConfigStruct *root){
+	MibDumper(GenericStruct *root){
 		mRoot=root;
 	}
 	std::ostream &dump(std::ostream & ostr)const;
 private:
-	std::ostream &dump2(std::ostream & ostr, ConfigEntry *entry, int level)const;
-	ConfigStruct *mRoot;
+	std::ostream &dump2(std::ostream & ostr, GenericEntry *entry, int level)const;
+	GenericStruct *mRoot;
 };
 
 inline std::ostream & operator<<(std::ostream &ostr, const MibDumper &dumper){

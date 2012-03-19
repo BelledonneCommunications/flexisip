@@ -145,8 +145,8 @@ GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, si
 	su_home_init(&home);
 
 	url_t *domain = NULL;
-	ConfigStruct *cr = ConfigManager::get()->getRoot();
-	ConfigStruct *ma = cr->get<ConfigStruct>("module::GatewayAdapter");
+	GenericStruct *cr = GenericManager::get()->getRoot();
+	GenericStruct *ma = cr->get<GenericStruct>("module::GatewayAdapter");
 	std::string domainString = ma->get<ConfigString>("gateway-domain")->read();
 	if (!domainString.empty()) {
 		domain = url_make(&home, domainString.c_str());
@@ -236,9 +236,9 @@ public:
 
 	~GatewayAdapter();
 
-	virtual void onDeclare(ConfigStruct *module_config);
+	virtual void onDeclare(GenericStruct *module_config);
 
-	virtual void onLoad(Agent *agent, const ConfigStruct *module_config);
+	virtual void onLoad(Agent *agent, const GenericStruct *module_config);
 
 	virtual void onRequest(std::shared_ptr<SipEvent> &ev);
 
@@ -266,13 +266,13 @@ GatewayAdapter::~GatewayAdapter() {
 	su_home_deinit(&home);
 }
 
-void GatewayAdapter::onDeclare(ConfigStruct *module_config) {
+void GatewayAdapter::onDeclare(GenericStruct *module_config) {
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = { { String, "gateway", "A gateway uri where to send all requests", "" }, { String, "gateway-domain", "Force the domain of send all requests", "" }, config_item_end };
 	module_config->addChildrenValues(items);
 }
 
-void GatewayAdapter::onLoad(Agent *agent, const ConfigStruct *module_config) {
+void GatewayAdapter::onLoad(Agent *agent, const GenericStruct *module_config) {
 	string gateway = module_config->get<ConfigString>("gateway")->read();
 	gateway_url = url_make(&home, gateway.c_str());
 	char *url = su_sprintf(&home, "sip:%s:*", agent->getPublicIp().c_str());
@@ -318,5 +318,5 @@ void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phu
 	}
 }
 
-ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter", "...",0);
+ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter", "...");
 

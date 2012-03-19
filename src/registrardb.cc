@@ -228,7 +228,7 @@ Record::~Record(){
 }
 
 void Record::init(){
-	ConfigStruct *registrar=ConfigManager::get()->getRoot()->get<ConfigStruct>("module::Registrar");
+	GenericStruct *registrar=GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
 	sMaxContacts=registrar->get<ConfigInt>("max-contacts-by-aor")->read();
 	sLineFieldName=registrar->get<ConfigString>("line-field-name")->read();
 }
@@ -271,8 +271,8 @@ RegistrarDb *RegistrarDb::sUnique=NULL;
 
 RegistrarDb *RegistrarDb::get(Agent *ag){
 	if (sUnique==NULL) {
-		ConfigStruct *cr=ConfigManager::get()->getRoot();
-		ConfigStruct *mr=cr->get<ConfigStruct>("module::Registrar");
+		GenericStruct *cr=GenericManager::get()->getRoot();
+		GenericStruct *mr=cr->get<GenericStruct>("module::Registrar");
 		string dbImplementation=mr->get<ConfigString>("db-implementation")->read();
 		if ("internal"==dbImplementation){
 			LOGI("RegistrarDB implementation is internal");

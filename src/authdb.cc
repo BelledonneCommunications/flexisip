@@ -23,8 +23,8 @@ AuthDb *AuthDb::sUnique = NULL;
 
 AuthDb* AuthDb::get() {
 	if (sUnique == NULL) {
-		ConfigStruct *cr=ConfigManager::get()->getRoot();
-		ConfigStruct *ma=cr->get<ConfigStruct>("module::Authentication");
+		GenericStruct *cr=GenericManager::get()->getRoot();
+		GenericStruct *ma=cr->get<GenericStruct>("module::Authentication");
 		const string &impl=ma->get<ConfigString>("db-implementation")->read();
 		if (impl == "odbc") {
 			sUnique = new OdbcAuthDb();
@@ -40,8 +40,8 @@ AuthDb* AuthDb::get() {
 
 
 AuthDb::AuthDb() {
-	ConfigStruct *cr=ConfigManager::get()->getRoot();
-	ConfigStruct *ma=cr->get<ConfigStruct>("module::Authentication");
+	GenericStruct *cr=GenericManager::get()->getRoot();
+	GenericStruct *ma=cr->get<GenericStruct>("module::Authentication");
 	list<string> domains=ma->get<ConfigStringList>("auth-domains")->read();
 	list<string>::const_iterator it;
 	for (it=domains.begin();it!=domains.end();++it){

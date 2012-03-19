@@ -30,6 +30,8 @@
 #include <ctime>
 #include <sstream>
 
+#include <sofia-sip/su_md5.h>
+
 using namespace::std;
 
 
@@ -45,14 +47,14 @@ static void camelFindAndReplace(const string &needle, string &haystack) {
 	}
 }
 
-string ConfigEntry::sanitize(const string &str){
+string GenericEntry::sanitize(const string &str){
 	string strnew=str;
 	camelFindAndReplace("::", strnew);
 	camelFindAndReplace("-", strnew);
 	return strnew;
 }
 
-void ConfigEntry::mibFragment(ostream & ost, string spacing) const{
+void GenericEntry::mibFragment(ostream & ost, string spacing) const{
 	string s("OCTET STRING");
 	doMibFragment(ost, s, spacing);
 }
@@ -65,13 +67,17 @@ void ConfigInt::mibFragment(ostream & ost, string spacing) const{
 	string s("Integer32");
 	doMibFragment(ost, s, spacing);
 }
+void StatCounter64::mibFragment(ostream & ost, string spacing) const{
+	string s("Counter64");
+	doMibFragment(ost, s, spacing);
+}
 void ConfigString::mibFragment(ostream & ost, string spacing) const{
 	ConfigValue::mibFragment(ost, spacing);
 }
 void ConfigStringList::mibFragment(ostream & ost, string spacing) const{
 	ConfigValue::mibFragment(ost, spacing);
 }
-void ConfigStruct::mibFragment(ostream & ost, string spacing) const{
+void GenericStruct::mibFragment(ostream & ost, string spacing) const{
 	string parent = getParent() ? getParent()->getName() : "flexisipMIB";
 	ost << spacing << sanitize(getName()) << "	"
 			<< "OBJECT IDENTIFIER ::= { "
@@ -81,7 +87,7 @@ void ConfigStruct::mibFragment(ostream & ost, string spacing) const{
 
 
 
-void ConfigEntry::doMibFragment(ostream & ostr, string &syntax, string spacing) const{
+void GenericEntry::doMibFragment(ostream & ostr, string &syntax, string spacing) const{
 	if (!getParent()) LOGA("no parent found for %s", getName().c_str());
 	ostr << spacing << sanitize(getName()) << " OBJECT-TYPE" << endl
 			<< spacing << "	SYNTAX" << "	" << syntax << endl
@@ -92,8 +98,8 @@ void ConfigEntry::doMibFragment(ostream & ostr, string &syntax, string spacing) 
 			<< spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
-ConfigValue::ConfigValue(const std::string &name, ConfigValueType  vt, const std::string &help, const std::string &default_value,oid oid_index)
-:  ConfigEntry (name,vt,help,oid_index), mDefaultValue(default_value){
+ConfigValue::ConfigValue(const std::string &name, GenericValueType  vt, const std::string &help, const std::string &default_value,oid oid_index)
+:  GenericEntry (name,vt,help,oid_index), mDefaultValue(default_value){
 
 }
 
@@ -140,26 +146,47 @@ Oid::Oid(vector<oid> path) {
 Oid::~Oid() {
 }
 
-ConfigEntry::ConfigEntry(const std::string &name, ConfigValueType type, const std::string &help,oid oid_index) :
+oid Oid::oidFromHashedString(const string &str) {
+	  su_md5_t md5[1];
+	  su_md5_init(md5);
+	  su_md5_update(md5, str.c_str(), str.size());
+	  uint8_t  digest[SU_MD5_DIGEST_SIZE];
+	  su_md5_digest(md5, digest);
+	  oid oidValue=0;
+	  for (int i=0; i < 4; ++i) { // limit to half 32 bits [1]
+		  oidValue <<= 8;
+		  oidValue += digest[i];
+	  }
+	  return oidValue /2; // takes only half the 32 bit size [1]
+	  // 1: snmpwalk cannot associate oid to name otherwise
+}
+
+GenericEntry::GenericEntry(const std::string &name, GenericValueType type, const std::string &help,oid oid_index) :
 				mOid(0),mName(name),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
 	if (strchr(name.c_str(),'_'))
 		LOGA("Underscores not allowed in config items, please use minus sign.");
+	if (oid_index == 0) {
+		mOidLeaf = Oid::oidFromHashedString(name);
+	}
 }
 
 
-void ConfigEntry::setParent(ConfigEntry *parent){
+void GenericEntry::setParent(GenericEntry *parent){
 	mParent=parent;
 	if (mOid) delete mOid;
 	mOid = new Oid(parent->getOid(),mOidLeaf);
+
+	string key=parent->getName() + "::" + mName;
+	registerWithKey(key);
 }
 
-void ConfigValue::setParent(ConfigEntry *parent){
-	ConfigEntry::setParent(parent);
+void ConfigValue::setParent(GenericEntry *parent){
+	GenericEntry::setParent(parent);
 #ifdef ENABLE_SNMP
 	LOGD("SNMP registering %s %s (as %s)",mOid->getValueAsString().c_str(), mName.c_str(), sanitize(mName).c_str());
 	netsnmp_handler_registration *reginfo=netsnmp_create_handler_registration(
-			sanitize(mName).c_str(), &ConfigValue::sHandleSnmpRequest,
-			(oid *) &mOid->getValue()[0], mOid->getValue().size(),
+			sanitize(mName).c_str(), &GenericEntry::sHandleSnmpRequest,
+			(oid *) mOid->getValue().data(), mOid->getValue().size(),
 			HANDLER_CAN_RONLY);
 	reginfo->my_reg_void=this;
 	int res=netsnmp_register_scalar(reginfo);
@@ -173,50 +200,81 @@ void ConfigValue::setParent(ConfigEntry *parent){
 #endif
 }
 
-ConfigStruct::ConfigStruct(const std::string &name, const std::string &help,oid oid_index) : ConfigEntry(name,Struct,help,oid_index){
+void StatCounter64::setParent(GenericEntry *parent){
+	GenericEntry::setParent(parent);
 
+#ifdef ENABLE_SNMP
+	LOGD("SNMP registering %s %s (as %s)",mOid->getValueAsString().c_str(), mName.c_str(), sanitize(mName).c_str());
+	netsnmp_handler_registration *reginfo=netsnmp_create_handler_registration(
+			sanitize(mName).c_str(), &GenericEntry::sHandleSnmpRequest,
+			(oid *) mOid->getValue().data(), mOid->getValue().size(),
+			HANDLER_CAN_RONLY);
+	reginfo->my_reg_void=this;
+	int res=netsnmp_register_scalar(reginfo);
+	if (res != MIB_REGISTERED_OK) {
+		if (res == MIB_DUPLICATE_REGISTRATION) {
+			LOGE("Duplicate registration of SNMP %s", mName.c_str());
+		} else {
+			LOGE("Couldn't register SNMP %s", mName.c_str());
+		}
+	}
+#endif
 }
 
-void ConfigStruct::setParent(ConfigEntry *parent){
-	ConfigEntry::setParent(parent);
+GenericStruct::GenericStruct(const std::string &name, const std::string &help,oid oid_index) : GenericEntry(name,Struct,help,oid_index){
+}
+
+void GenericStruct::setParent(GenericEntry *parent){
+	GenericEntry::setParent(parent);
 #ifdef ENABLE_SNMP
 	LOGD("SNMP node %s %s",mOid->getValueAsString().c_str(), mName.c_str());
 #endif
 }
 
-ConfigEntry * ConfigStruct::addChild(ConfigEntry *c){
+GenericEntry * GenericStruct::addChild(GenericEntry *c){
 	mEntries.push_back(c);
 	c->setParent(this);
 	return c;
 }
 
-void ConfigStruct::addChildrenValues(ConfigItemDescriptor *items){
-	int oid_index=10;
-	int actual_index;
+
+void GenericStruct::addChildrenValues(ConfigItemDescriptor *items){
 	for (;items->name!=NULL;items++){
 		ConfigValue *val=NULL;
-		if (items->oid_leaf == 0) {
-			++oid_index;
-			actual_index=oid_index;
-		} else {
-			actual_index=items->oid_leaf;
-		}
+		oid cOid=Oid::oidFromHashedString(items->name);
 		switch(items->type){
 		case Boolean:
-			val=new ConfigBoolean(items->name,items->help,items->default_value,actual_index);
+			val=new ConfigBoolean(items->name,items->help,items->default_value,cOid);
 			break;
 		case Integer:
-			val=new ConfigInt(items->name,items->help,items->default_value,actual_index);
+			val=new ConfigInt(items->name,items->help,items->default_value,cOid);
 			break;
 		case String:
-			val=new ConfigString(items->name,items->help,items->default_value,actual_index);
+			val=new ConfigString(items->name,items->help,items->default_value,cOid);
 			break;
 		case StringList:
-			val=new ConfigStringList(items->name,items->help,items->default_value,actual_index);
+			val=new ConfigStringList(items->name,items->help,items->default_value,cOid);
 			break;
 		default:
 			LOGA("Bad ConfigValue type %u for %s!", items->type, items->name);
-			if (items->oid_leaf == 0) --oid_index;
+			break;
+		}
+		addChild(val);
+	}
+}
+
+
+void GenericStruct::addChildrenValues(StatItemDescriptor *items){
+	for (;items->name!=NULL;items++){
+		GenericEntry *val=NULL;
+		oid cOid=Oid::oidFromHashedString(items->name);
+		switch(items->type){
+		case Counter64:
+			LOGD("StatItemDescriptor: %s %lu", items->name, cOid);
+			val=new StatCounter64(items->name,items->help,cOid);
+			break;
+		default:
+			LOGA("Bad ConfigValue type %u for %s!", items->type, items->name);
 			break;
 		}
 		addChild(val);
@@ -225,21 +283,21 @@ void ConfigStruct::addChildrenValues(ConfigItemDescriptor *items){
 
 struct matchEntryName{
 	matchEntryName(const char *name) : mName(name){};
-	bool operator()(ConfigEntry* e){
+	bool operator()(GenericEntry* e){
 		return strcmp(mName,e->getName().c_str())==0;
 	}
 	const char *mName;
 };
 
-ConfigEntry *ConfigStruct::find(const char *name)const{
-	std::list<ConfigEntry*>::const_iterator it=find_if(mEntries.begin(),mEntries.end(),matchEntryName(name));
+GenericEntry *GenericStruct::find(const char *name)const{
+	std::list<GenericEntry*>::const_iterator it=find_if(mEntries.begin(),mEntries.end(),matchEntryName(name));
 	if (it!=mEntries.end()) return *it;
 	return NULL;
 }
 
 struct matchEntryNameApprox{
 	matchEntryNameApprox(const char *name) : mName(name){};
-	bool operator()(ConfigEntry* e){
+	bool operator()(GenericEntry* e){
 		unsigned int i;
 		int count=0;
 		int min_required=mName.size()-2;
@@ -258,23 +316,23 @@ struct matchEntryNameApprox{
 	const std::string mName;
 };
 
-ConfigEntry * ConfigStruct::findApproximate(const char *name)const{
-	std::list<ConfigEntry*>::const_iterator it=find_if(mEntries.begin(),mEntries.end(),matchEntryNameApprox(name));
+GenericEntry * GenericStruct::findApproximate(const char *name)const{
+	std::list<GenericEntry*>::const_iterator it=find_if(mEntries.begin(),mEntries.end(),matchEntryNameApprox(name));
 	if (it!=mEntries.end()) return *it;
 	return NULL;
 }
 
-std::list<ConfigEntry*> &ConfigStruct::getChildren(){
+std::list<GenericEntry*> &GenericStruct::getChildren(){
 	return mEntries;
 }
 
 struct destroy{
-	void operator()(ConfigEntry *e){
+	void operator()(GenericEntry *e){
 		delete e;
 	}
 };
 
-ConfigStruct::~ConfigStruct(){
+GenericStruct::~GenericStruct(){
 	for_each(mEntries.begin(),mEntries.end(),destroy());
 }
 
@@ -282,6 +340,7 @@ ConfigStruct::~ConfigStruct(){
 ConfigBoolean::ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index)
 : ConfigValue(name, Boolean, help, default_value,oid_index){
 }
+
 
 bool ConfigBoolean::read()const{
 	if (get()=="true" || get()=="1") return true;
@@ -297,6 +356,11 @@ ConfigInt::ConfigInt(const std::string &name, const std::string &help, const std
 
 int ConfigInt::read()const{
 	return atoi(get().c_str());
+}
+
+StatCounter64::StatCounter64(const std::string &name, const std::string &help, oid oid_index)
+:	GenericEntry(name,Counter64,help,oid_index){
+	mValue=0;
 }
 
 ConfigString::ConfigString(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index)
@@ -328,12 +392,10 @@ std::list<std::string>  ConfigStringList::read()const{
 }
 
 
-ConfigManager *ConfigManager::sInstance=0;
+GenericManager *GenericManager::sInstance=0;
 
 static void init_flexisip_snmp() {
 #ifdef ENABLE_SNMP
-	LOGE("Initializing snmp");
-
 	int syslog = 0; /* change this if you want to use syslog */
 
 	//snmp_set_do_debugging(1);
@@ -354,23 +416,23 @@ static void init_flexisip_snmp() {
 	/* initialize the agent library */
 	int err=init_agent("flexisip");
 	if (err !=0 ) {
-		LOGF("error init snmp agent %d", errno);
+		LOGA("error init snmp agent %d", errno);
 	}
 #endif
 }
 
-void ConfigManager::atexit() {
+void GenericManager::atexit() {
 	if (sInstance!=NULL) {
 		delete sInstance;
 		sInstance = NULL;
 	}
 }
 
-ConfigManager *ConfigManager::get(){
+GenericManager *GenericManager::get(){
 	if (sInstance==NULL) {
 		init_flexisip_snmp();
-		sInstance=new ConfigManager();
-		::atexit(ConfigManager::atexit);
+		sInstance=new GenericManager();
+		::atexit(GenericManager::atexit);
 	}
 	return sInstance;
 }
@@ -385,43 +447,51 @@ static ConfigItemDescriptor global_conf[]={
 		config_item_end
 };
 
+static StatItemDescriptor global_stat[]={
+		{	Counter64	,	"count-snmp-request"		,	"Count number of received snmp requests"},
+		{	Counter64	,	"count-snmp-request-error"		,	"Count number of received snmp requests which are errors"},
+		stat_item_end
+};
+
 static ConfigItemDescriptor tls_conf[]={
 		{	Boolean	,	"enabled"	,	"Enable SIP/TLS (sips)",	"true"	},
 		{	Integer	,	"port",	"The port used for SIP/TLS",	"5061"},
 		{	String	,	"certificates-dir", "An absolute path of a directory where TLS certificate can be found. "
 				"The private key for TLS server must be in a agent.pem file within this directory" , "/etc/flexisip/tls"	},
-				config_item_end
+		config_item_end
 };
 
+
 RootConfigStruct::RootConfigStruct(const std::string &name, const std::string &help,vector<oid> oid_root_path)
-: ConfigStruct(name,help,1) {
+: GenericStruct(name,help,1) {
 	mOid = new Oid(oid_root_path,1);
 }
 static oid company_id = SNMP_COMPANY_OID;
-ConfigManager::ConfigManager() : mConfigRoot("flexisip","This is the default Flexisip configuration file",{1,3,6,1,4,1,company_id}), mReader(&mConfigRoot){
-	ConfigStruct *global=new ConfigStruct("global","Some global settings of the flexisip proxy.",GLOBAL_OID_INDEX);
+GenericManager::GenericManager() : mConfigRoot("flexisip","This is the default Flexisip configuration file",{1,3,6,1,4,1,company_id}), mReader(&mConfigRoot){
+	GenericStruct *global=new GenericStruct("global","Some global settings of the flexisip proxy.",0);
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
-	ConfigStruct *tls=new ConfigStruct("tls","TLS specific parameters.",TLS_OID_INDEX);
+	global->addChildrenValues(global_stat);
+	GenericStruct *tls=new GenericStruct("tls","TLS specific parameters.",0);
 	mConfigRoot.addChild(tls);
 	tls->addChildrenValues(tls_conf);
 }
 
-int ConfigManager::load(const char* configfile){
+int GenericManager::load(const char* configfile){
 	return mReader.read(configfile);
 }
 
-void ConfigManager::loadStrict(){
+void GenericManager::loadStrict(){
 	mReader.reload();
 	mReader.checkUnread();
 }
 
-ConfigStruct *ConfigManager::getRoot(){
+GenericStruct *GenericManager::getRoot(){
 	return &mConfigRoot;
 }
 
-const ConfigStruct *ConfigManager::getGlobal(){
-	return mConfigRoot.get<ConfigStruct>("global");
+const GenericStruct *GenericManager::getGlobal(){
+	return mConfigRoot.get<GenericStruct>("global");
 }
 
 std::ostream &FileConfigDumper::dump(std::ostream & ostr)const {
@@ -443,8 +513,8 @@ std::ostream & FileConfigDumper::printHelp(std::ostream &os, const std::string &
 	return os;
 }
 
-std::ostream &FileConfigDumper::dump2(std::ostream & ostr, ConfigEntry *entry, int level)const{
-	ConfigStruct *cs=dynamic_cast<ConfigStruct*>(entry);
+std::ostream &FileConfigDumper::dump2(std::ostream & ostr, GenericEntry *entry, int level)const{
+	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
 	ConfigValue *val;
 
 	if (cs){
@@ -454,7 +524,7 @@ std::ostream &FileConfigDumper::dump2(std::ostream & ostr, ConfigEntry *entry, i
 		if (level>0){
 			ostr<<"["<<cs->getName()<<"]"<<std::endl;
 		}else ostr<<std::endl;
-		std::list<ConfigEntry*>::iterator it;
+		std::list<GenericEntry*>::iterator it;
 		for(it=cs->getChildren().begin();it!=cs->getChildren().end();++it){
 			dump2(ostr,*it,level+1);
 			ostr<<std::endl;
@@ -492,23 +562,26 @@ std::ostream &MibDumper::dump(std::ostream & ostr)const {
 	return ostr;
 }
 
-std::ostream &MibDumper::dump2(std::ostream & ostr, ConfigEntry *entry, int level)const{
-	ConfigStruct *cs=dynamic_cast<ConfigStruct*>(entry);
-	ConfigValue *val;
+std::ostream &MibDumper::dump2(std::ostream & ostr, GenericEntry *entry, int level)const{
+	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
+	ConfigValue *cVal;
+	StatCounter64 *sVal;
 	string spacing="";
 	while (level > 0) {
 		spacing += "	";
 		--level;
 	}
 	if (cs){
-		std::list<ConfigEntry*>::iterator it;
+		std::list<GenericEntry*>::iterator it;
 		cs->mibFragment(ostr, spacing);
 		for(it=cs->getChildren().begin();it!=cs->getChildren().end();++it){
 			dump2(ostr,*it,level+1);
 			ostr<<std::endl;
 		}
-	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL){
-		val->mibFragment(ostr, spacing);
+	}else if ((cVal=dynamic_cast<ConfigValue*>(entry))!=NULL){
+		cVal->mibFragment(ostr, spacing);
+	}else if ((sVal=dynamic_cast<StatCounter64*>(entry))!=NULL){
+		sVal->mibFragment(ostr, spacing);
 	}
 	return ostr;
 }
@@ -534,7 +607,7 @@ void FileConfigReader::onUnreadItem(void *p, const char *secname, const char *ke
 void FileConfigReader::onUnreadItem(const char *secname, const char *key, int lineno){
 	LOGE("Unsupported parameter '%s' in section [%s] at line %i", key, secname, lineno);
 	mHaveUnreads=true;
-	ConfigEntry *sec=mRoot->find(secname);
+	GenericEntry *sec=mRoot->find(secname);
 	if (sec==NULL){
 		sec=mRoot->findApproximate(secname);
 		if (sec!=NULL){
@@ -542,9 +615,9 @@ void FileConfigReader::onUnreadItem(const char *secname, const char *key, int li
 		}
 		return;
 	}
-	ConfigStruct *st=dynamic_cast<ConfigStruct*>(sec);
+	GenericStruct *st=dynamic_cast<GenericStruct*>(sec);
 	if (st){
-		ConfigEntry *val=st->find(key);
+		GenericEntry *val=st->find(key);
 		if (val==NULL){
 			val=st->findApproximate(key);
 			if (val!=NULL){
@@ -560,12 +633,12 @@ void FileConfigReader::checkUnread(){
 		LOGF("Please fix your configuration file.");
 }
 
-int FileConfigReader::read2(ConfigEntry *entry, int level){
-	ConfigStruct *cs=dynamic_cast<ConfigStruct*>(entry);
+int FileConfigReader::read2(GenericEntry *entry, int level){
+	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
 	ConfigValue *cv;
 	if (cs){
-		list<ConfigEntry*> & entries=cs->getChildren();
-		list<ConfigEntry*>::iterator it;
+		list<GenericEntry*> & entries=cs->getChildren();
+		list<GenericEntry*>::iterator it;
 		for(it=entries.begin();it!=entries.end();++it){
 			read2(*it,level+1);
 		}
@@ -587,20 +660,22 @@ FileConfigReader::~FileConfigReader(){
 }
 
 
+GenericEntriesGetter *GenericEntriesGetter::sInstance=NULL;
 
 #ifdef ENABLE_SNMP
-int ConfigValue::sHandleSnmpRequest(netsnmp_mib_handler *handler,
+int GenericEntry::sHandleSnmpRequest(netsnmp_mib_handler *handler,
 		netsnmp_handler_registration *reginfo,
 		netsnmp_agent_request_info   *reqinfo,
 		netsnmp_request_info         *requests)
 {
+	++StatCounter64::find("global::count-snmp-request");
 	if (!reginfo->my_reg_void) {
 		LOGE("no reg");
+		++StatCounter64::find("global::count-snmp-request-error");
 		return SNMP_ERR_GENERR;
 	}
 	else {
-		//LOGD("got something for %s", reginfo->handlerName);
-		ConfigValue *cv=static_cast<ConfigValue*>(reginfo->my_reg_void);
+		GenericEntry *cv=static_cast<GenericEntry*>(reginfo->my_reg_void);
 		return cv->handleSnmpRequest(handler, reginfo, reqinfo, requests);
 	}
 }
@@ -658,6 +733,28 @@ int ConfigInt::handleSnmpRequest(netsnmp_mib_handler *handler,
 	switch(reqinfo->mode) {
 	case MODE_GET:
 		snmp_set_var_typed_integer(requests->requestvb, ASN_INTEGER, read());
+		break;
+	default:
+		/* we should never get here, so this is a really bad error */
+		snmp_log(LOG_ERR, "unknown mode (%d)\n", reqinfo->mode );
+		return SNMP_ERR_GENERR;
+	}
+
+	return SNMP_ERR_NOERROR;
+}
+int StatCounter64::handleSnmpRequest(netsnmp_mib_handler *handler,
+		netsnmp_handler_registration *reginfo,
+		netsnmp_agent_request_info   *reqinfo,
+		netsnmp_request_info         *requests)
+{
+	LOGD("counter64 handleSnmpRequest %s -> %lu", reginfo->handlerName, read());
+
+	switch(reqinfo->mode) {
+	case MODE_GET:
+		struct counter64 counter;
+		counter.high=read()>>32;
+		counter.low=read()&0x00000000FFFFFFFF;
+		snmp_set_var_typed_value(requests->requestvb, ASN_COUNTER64, (const u_char*)&counter, sizeof(counter));
 		break;
 	default:
 		/* we should never get here, so this is a really bad error */

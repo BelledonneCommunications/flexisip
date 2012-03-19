@@ -25,8 +25,8 @@
 #include <algorithm>
 
 FileAuthDb::FileAuthDb() {
-	ConfigStruct *cr = ConfigManager::get()->getRoot();
-	ConfigStruct *ma = cr->get<ConfigStruct>("module::Authentication");
+	GenericStruct *cr = GenericManager::get()->getRoot();
+	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 
 	mFileString = ma->get<ConfigString>("datasource")->read();
 
@@ -60,8 +60,8 @@ AuthDbResult FileAuthDb::password(su_root_t *root, const url_t *from, const char
 void FileAuthDb::sync() {
 	LOGD("Syncing password file");
 
-	ConfigStruct *cr = ConfigManager::get()->getRoot();
-	ConfigStruct *ma = cr->get<ConfigStruct>("module::Authentication");
+	GenericStruct *cr = GenericManager::get()->getRoot();
+	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
 
 	mLastSync = time(NULL);

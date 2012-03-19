@@ -40,8 +40,8 @@ ConfigItemDescriptor items[] = { { Boolean, "enabled", "Enable or disable DOS pr
 		"Maximal amount of simultaneous connections to accept.", "1000" }, config_item_end };
 
 DosProtection::DosProtection() {
-	ConfigStruct *s = new ConfigStruct("dos-protection", "DOS protection parameters.",0);
-	ConfigManager::get()->getRoot()->addChild(s);
+	GenericStruct *s = new GenericStruct("dos-protection", "DOS protection parameters.",0);
+	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
 	mLoaded = false;
 }
@@ -63,7 +63,7 @@ bool directoryExists(const char* path)
 }
 
 void DosProtection::load() {
-	ConfigStruct *dosProtection = ConfigManager::get()->getRoot()->get<ConfigStruct>("dos-protection");
+	GenericStruct *dosProtection = GenericManager::get()->getRoot()->get<GenericStruct>("dos-protection");
 	mEnabled = dosProtection->get<ConfigBoolean>("enabled")->read();
 	mAuthorizedIPs = dosProtection->get<ConfigStringList>("authorized-ip")->read();
 	mBanDuration = dosProtection->get<ConfigInt>("ban-duration")->read();

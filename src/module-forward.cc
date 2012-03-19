@@ -27,8 +27,8 @@ static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip,
 class ForwardModule: public Module, ModuleToolbox {
 public:
 	ForwardModule(Agent *ag);
-	virtual void onDeclare(ConfigStruct * module_config);
-	virtual void onLoad(Agent *agent, const ConfigStruct *root);
+	virtual void onDeclare(GenericStruct * module_config);
+	virtual void onLoad(Agent *agent, const GenericStruct *root);
 	virtual void onRequest(std::shared_ptr<SipEvent> &ev);
 	virtual void onResponse(std::shared_ptr<SipEvent> &ev);
 	~ForwardModule();
@@ -45,7 +45,7 @@ private:
 };
 
 ModuleInfo<ForwardModule> ForwardModule::sInfo("Forward", "This module executes the basic routing task of SIP requests and pass them to the transport layer. "
-		"It must always be enabled.",0);
+		"It must always be enabled.");
 
 ForwardModule::ForwardModule(Agent *ag) :
 		Module(ag) {
@@ -57,12 +57,12 @@ ForwardModule::~ForwardModule() {
 	su_home_deinit(&mHome);
 }
 
-void ForwardModule::onDeclare(ConfigStruct * module_config) {
+void ForwardModule::onDeclare(GenericStruct * module_config) {
 	ConfigItemDescriptor items[] = { { String, "route", "A sip uri where to send all requests", "" }, { Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to above route", "false" }, config_item_end };
 	module_config->addChildrenValues(items);
 }
 
-void ForwardModule::onLoad(Agent *agent, const ConfigStruct *module_config) {
+void ForwardModule::onLoad(Agent *agent, const GenericStruct *module_config) {
 	std::string route = module_config->get<ConfigString>("route")->read();
 	mRewriteReqUri = module_config->get<ConfigBoolean>("rewrite-req-uri")->read();
 	if (route.size() > 0) {

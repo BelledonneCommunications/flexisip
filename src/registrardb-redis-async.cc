@@ -44,7 +44,7 @@ std::string RegistrarDbRedisAsync::sAuthPassword="";
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag):mContext(NULL),mRoot(ag->getRoot()){
 	mSerializer=RecordSerializer::get();
-	ConfigStruct *registrar=ConfigManager::get()->getRoot()->get<ConfigStruct>("module::Registrar");
+	GenericStruct *registrar=GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
 	sDomain=registrar->get<ConfigString>("redis-server-domain")->read();
 	sPort=registrar->get<ConfigInt>("redis-server-port")->read();
 	sTimeout=registrar->get<ConfigInt>("redis-server-timeout")->read();

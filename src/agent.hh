@@ -51,7 +51,7 @@
 class Agent{
 	public:
 		Agent(su_root_t *root, int port, int tlsport);
-		virtual void loadConfig(ConfigManager *cm);
+		virtual void loadConfig(GenericManager *cm);
 		void setDomain(const std::string &domain);
 		virtual ~Agent();
 		const std::string & getPublicIp()const{

@@ -123,7 +123,7 @@ class Record{
 };
 
 
-class RegistrarDbListener {
+class RegistrarDbListener : public StatFinishListener {
 public:
 	~RegistrarDbListener(){}
 	virtual void onRecordFound(Record *r)=0;

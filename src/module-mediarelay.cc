@@ -26,23 +26,32 @@
 
 using namespace::std;
 
+const static char* countInvitesStr = "count-invites";
+const static char* countInvitesFinishedStr = "count-invites-finished";
+
 class RelayedCall;
 
 class MediaRelay : public Module, protected ModuleToolbox{
 	public:
 		MediaRelay(Agent *ag);
 		~MediaRelay();
-		virtual void onLoad(Agent *ag, const ConfigStruct * modconf);
+		virtual void onLoad(Agent *ag, const GenericStruct * modconf);
 		virtual void onRequest(std::shared_ptr<SipEvent> &ev);
 		virtual void onResponse(std::shared_ptr<SipEvent> &ev);
 		virtual void onIdle();
 	protected:
-		virtual void onDeclare(ConfigStruct * module_config){
-			ConfigItemDescriptor items[]={
+		virtual void onDeclare(GenericStruct * module_config){
+			ConfigItemDescriptor configs[]={
 				{	String		,	"nortpproxy"		,	"SDP attribute set by the first proxy to forbid subsequent proxies to provide relay.",		"nortpproxy"	},
 				config_item_end
 			};
-			module_config->addChildrenValues(items);
+			module_config->addChildrenValues(configs);
+
+			StatItemDescriptor stats[] = {
+				{	Counter64,	countInvitesStr, "Number of calls."},
+				{	Counter64,	countInvitesFinishedStr, "Number of calls finished."},
+				stat_item_end };
+			module_config->addChildrenValues(stats);
 		}
 	private:
 		bool processNewInvite(RelayedCall *c, msg_t *msg, sip_t *sip);
@@ -107,7 +116,7 @@ class RelayedCall : public CallContextBase, public Masquerader{
 ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay",
 	"The MediaRelay module masquerades SDP message so that all RTP and RTCP streams go through the proxy. "
 	"The RTP and RTCP streams are then routed so that each client receives the stream of the other. "
-    "MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.",0);
+    "MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.");
 
 MediaRelay::MediaRelay(Agent *ag) : Module(ag), mServer(0){
 }
@@ -117,8 +126,9 @@ MediaRelay::~MediaRelay(){
 	if (mServer) delete mServer;
 }
 
-void MediaRelay::onLoad(Agent *ag, const ConfigStruct * modconf){
+void MediaRelay::onLoad(Agent *ag, const GenericStruct * modconf){
 	mCalls=new CallStore();
+	mCalls->setInviteStatCounters(&findStat(countInvitesStr), &findStat(countInvitesFinishedStr));
 	mServer=new MediaRelayServer(ag->getBindIp(),ag->getPublicIp());
 	mSdpMangledParam=modconf->get<ConfigString>("nortpproxy")->read();
 }

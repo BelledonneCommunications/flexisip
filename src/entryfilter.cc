@@ -28,17 +28,17 @@ ConfigEntryFilter::~ConfigEntryFilter(){
 }
 
 ConfigItemDescriptor configaaa[]={
-	{	Boolean,			"enabled",					"Indicate whether the module is activated.",	"true"	, 1},
-	{	StringList,		"from-domains",	"List of domain names in sip from allowed to enter the module.",	"*"	, 2},
-	{	StringList,		"to-domains"	,		"List of domain names in sip to allowed to enter the module.",		"*", 3},
+	{	Boolean,		"enabled",					"Indicate whether the module is activated.",	"true"},
+	{	StringList,		"from-domains",	"List of domain names in sip from allowed to enter the module.",	"*"},
+	{	StringList,		"to-domains"	,		"List of domain names in sip to allowed to enter the module.",		"*"},
 	config_item_end
 };
 
-void ConfigEntryFilter::declareConfig(ConfigStruct *module_config){
+void ConfigEntryFilter::declareConfig(GenericStruct *module_config){
 	module_config->addChildrenValues(configaaa);
 }
 
-void ConfigEntryFilter::loadConfig(const ConfigStruct  *module_config){
+void ConfigEntryFilter::loadConfig(const GenericStruct  *module_config){
 	mFromDomains=module_config->get<ConfigStringList>("from-domains")->read();
 	mToDomains=module_config->get<ConfigStringList>("to-domains")->read();
 	mEnabled=module_config->get<ConfigBoolean>("enabled")->read();

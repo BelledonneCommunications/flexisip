@@ -69,11 +69,11 @@ class TranscodeModule : public Module, protected ModuleToolbox {
 	public:
 		TranscodeModule(Agent *ag);
 		~TranscodeModule();
-		virtual void onLoad(Agent *agent, const ConfigStruct *module_config);
+		virtual void onLoad(Agent *agent, const GenericStruct *module_config);
 		virtual void onRequest(std::shared_ptr<SipEvent> &ev);
 		virtual void onResponse(std::shared_ptr<SipEvent> &ev);
 		virtual void onIdle();
-		virtual void onDeclare(ConfigStruct *module_config);
+		virtual void onDeclare(GenericStruct *module_config);
 	private:
 		TickerManager mTickerManager;
 		int handleOffer(CallContext *c, std::shared_ptr<SipEvent> &ev);
@@ -106,7 +106,7 @@ ModuleInfo<TranscodeModule> TranscodeModule::sInfo("Transcoder",
 	"supported codecs is exactly the the same as the codec set supported by mediastreamer2, including "
     "the possible plugins you may installed to extend mediastreamer2. "
     "WARNING: this module can conflict with the MediaRelay module as both are changin the SDP. "
-    "Make sure to configure them with different to-domains or from-domains filter if you want to enable both of them.",0 );
+    "Make sure to configure them with different to-domains or from-domains filter if you want to enable both of them.");
 
 
 static MSList *makeSupportedAudioPayloadList(){
@@ -160,7 +160,7 @@ TranscodeModule::~TranscodeModule(){
 	ms_list_free(mSupportedAudioPayloads);
 }
 
-void TranscodeModule::onDeclare(ConfigStruct *module_config){
+void TranscodeModule::onDeclare(GenericStruct *module_config){
 	/*we need to be disabled by default*/
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[]={
@@ -211,7 +211,7 @@ MSList *TranscodeModule::orderList(const std::list<std::string> &config, const M
 	return ret;
 }
 
-void TranscodeModule::onLoad(Agent *agent, const ConfigStruct *module_config){
+void TranscodeModule::onLoad(Agent *agent, const GenericStruct *module_config){
 	mTimer=agent->createTimer(20,&sOnTimer,this);
 	mCallParams.mJbNomSize=module_config->get<ConfigInt>("jb-nom-size")->read();
 	mRcUserAgents=module_config->get<ConfigStringList>("rc-user-agents")->read();

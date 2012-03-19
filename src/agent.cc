@@ -93,8 +93,8 @@ static int get_local_ip_for_with_connect(int type, const char *dest, char *resul
 
 Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tlsport) {
 	char sipuri[128]={0};
-	ConfigStruct *cr=ConfigManager::get()->getRoot();
-	ConfigStruct *tls=cr->get<ConfigStruct>("tls");
+	GenericStruct *cr=GenericManager::get()->getRoot();
+	GenericStruct *tls=cr->get<GenericStruct>("tls");
 	
 	EtcHostsResolver::get();
 
@@ -117,11 +117,11 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	/* we pass "" as localaddr when we just want to dump the default config. So don't go further*/
 	if (mPort==0) return;
 
-	if (mPort==-1) mPort=cr->get<ConfigStruct>("global")->get<ConfigInt>("port")->read();
+	if (mPort==-1) mPort=cr->get<GenericStruct>("global")->get<ConfigInt>("port")->read();
 	if (mTlsPort==-1) mTlsPort=tls->get<ConfigInt>("port")->read();
 
-	std::string bind_address=cr->get<ConfigStruct>("global")->get<ConfigString>("bind-address")->read();
-	mPublicIp=cr->get<ConfigStruct>("global")->get<ConfigString>("ip-address")->read();
+	std::string bind_address=cr->get<GenericStruct>("global")->get<ConfigString>("bind-address")->read();
+	mPublicIp=cr->get<GenericStruct>("global")->get<ConfigString>("ip-address")->read();
 	
 	if (mPublicIp.empty() || mPublicIp=="guess"){
 		char localip[128];
@@ -186,7 +186,7 @@ const char *Agent::getServerString()const{
 	return mServerString.c_str();
 }
 
-void Agent::loadConfig(ConfigManager *cm){
+void Agent::loadConfig(GenericManager *cm){
 	cm->loadStrict();//now that each module has declared its settings, we need to reload from the config file
 	mAliases=cm->getGlobal()->get<ConfigStringList>("aliases")->read();
 	discoverInterfaces();

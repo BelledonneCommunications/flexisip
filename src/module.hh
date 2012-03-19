@@ -26,6 +26,7 @@
 class ModuleInfoBase;
 class Module;
 class Agent;
+class StatCounter64;
 
 class ModuleFactory{
 	public:
@@ -56,8 +57,8 @@ class ModuleInfoBase {
 		virtual ~ModuleInfoBase(){
 		}
 	protected:
-		ModuleInfoBase(const char *modname, const char *help,unsigned int oid_index) : mName(modname), mHelp(help),
-		mOidIndex(oid_index == 0 ? ++indexCount : oid_index){
+		ModuleInfoBase(const char *modname, const char *help) : mName(modname), mHelp(help),
+		mOidIndex(Oid::oidFromHashedString(modname)){
 			ModuleFactory::get()->registerModule(this);
 		}
 };
@@ -65,7 +66,7 @@ class ModuleInfoBase {
 template <typename _module_>
 class ModuleInfo : public ModuleInfoBase{
 	public:
-		ModuleInfo(const char *modname, const char *help,oid oid_index) : ModuleInfoBase(modname,help,oid_index){
+		ModuleInfo(const char *modname, const char *help) : ModuleInfoBase(modname,help){
 		}
 	protected:
 		virtual Module *_create(Agent *ag);
@@ -87,16 +88,17 @@ class Module {
 		virtual ~Module();
 		Agent *getAgent()const;
 		nta_agent_t *getSofiaAgent()const;
-		const std::string &getModuleName();
-		void declare(ConfigStruct *root);
+		const std::string &getModuleName()const;
+		void declare(GenericStruct *root);
 		void load(Agent *agent);
 		void processRequest(std::shared_ptr<SipEvent> &ev);
 		void processResponse(std::shared_ptr<SipEvent> &ev);
+		StatCounter64 &findStat(const std::string &statName) const;
 		void idle();
 	protected:
-		virtual void onDeclare(ConfigStruct *root){
+		virtual void onDeclare(GenericStruct *root){
 		}
-		virtual void onLoad(Agent *agent, const ConfigStruct *root){
+		virtual void onLoad(Agent *agent, const GenericStruct *root){
 		}
 		virtual void onRequest(std::shared_ptr<SipEvent> &ev)=0;
 		virtual void onResponse(std::shared_ptr<SipEvent> &ev)=0;
@@ -106,7 +108,7 @@ class Module {
 	private:
 		void setInfo(ModuleInfoBase *i);
 		ModuleInfoBase *mInfo;
-		ConfigStruct *mModuleConfig;
+		GenericStruct *mModuleConfig;
 		EntryFilter *mFilter;
 };
 

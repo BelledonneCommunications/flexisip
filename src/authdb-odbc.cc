@@ -204,8 +204,8 @@ static vector<string> parseAndUpdateRequestConfig(string &request) {
  * http://msdn.microsoft.com/en-us/library/ms716319%28v=VS.85%29.aspx
  */
 OdbcAuthDb::OdbcAuthDb():mAsynchronousRetrieving(true),env(NULL),execDirect(false) {
-	ConfigStruct *cr=ConfigManager::get()->getRoot();
-	ConfigStruct *ma=cr->get<ConfigStruct>("module::Authentication");
+	GenericStruct *cr=GenericManager::get()->getRoot();
+	GenericStruct *ma=cr->get<GenericStruct>("module::Authentication");
 
 	string none = "none";
 	connectionString = ma->get<ConfigString>("datasource")->read();
