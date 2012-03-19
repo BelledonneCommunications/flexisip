@@ -16,6 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "module.hh"
 #include "agent.hh"
 #include <string>
 #include <map>
@@ -29,7 +30,7 @@
 
 #include "authdb.hh"
 
-using namespace std;
+using namespace ::std;
 
 const static char* countPasswordFound = "count-password-found";
 const static char* countPasswordNotFound = "count-password-not-found";
@@ -165,7 +166,8 @@ public:
 			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file].",		"odbc"	},
 			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. " \
 					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. " \
-					"ex2: DRIVER={MySQL};SERVER=localhost;DATABASE=dbname;USER=username;PASSWORD=passname;OPTION=3; for a DSN-less connection.",		""	},
+					"ex2: DRIVER={MySQL};SERVER=localhost;DATABASE=dbname;USER=username;PASSWORD=passname;OPTION=3; for a DSN-less connection. " \
+					"ex3: /etc/flexisip/passwd; for a file containing one 'user@domain password' by line.",		""	},
 			{	String		,	"request"				,	"Odbc SQL request to execute to obtain the password. Named parameters are :id, :domain and :authid.'",
 					"select password from accounts where id = :id and domain = :domain and authid=:authid"	},
 			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
@@ -216,18 +218,18 @@ public:
 		mImmediateRetrievePassword = module_config->get<ConfigBoolean>("immediate-retrieve-password")->read();
 	}
 
-	void onRequest(std::shared_ptr<SipEvent> &ev) {
-		sip_t *sip=ev->getSip();
+	void onRequest(shared_ptr<SipEvent> &ev) {
+		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
+		sip_t *sip = ms->getSip();
 		map<string,auth_mod_t *>::iterator authModuleIt;
 		// first check for auth module for this domain
 		authModuleIt = mAuthModules.find(sip->sip_from->a_url[0].url_host);
 		if (authModuleIt == mAuthModules.end()) {
 			LOGI("unknown domain [%s]",sip->sip_from->a_url[0].url_host);
-			nta_msg_treply(getAgent()->getSofiaAgent (),ev->getMsg(),SIP_488_NOT_ACCEPTABLE,
+			ev->reply(ms, SIP_488_NOT_ACCEPTABLE,
 					SIPTAG_CONTACT(sip->sip_contact),
 					SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					TAG_END());
-			ev->terminateProcessing();
 			return;
 		}
 
@@ -242,9 +244,9 @@ public:
 		}
 
 		auth_status_t *as;
-		as = auth_status_new(ev->getHome());
+		as = auth_status_new(ms->getHome());
 		as->as_method = sip->sip_request->rq_method_name;
-	    as->as_source = msg_addrinfo(ev->getMsg());
+		as->as_source = msg_addrinfo(ms->getMsg());
 		as->as_realm = sip->sip_from->a_url[0].url_host;
 		as->as_user_uri = sip->sip_from->a_url;
 		as->as_display = sip->sip_from->a_display;
@@ -267,7 +269,7 @@ public:
 			auth_mod_verify((*authModuleIt).second, as, sip->sip_proxy_authorization,&mProxyChallenger);
 		}
 	}
-	void onResponse(std::shared_ptr<SipEvent> &ev) {/*nop*/};
+	void onResponse(shared_ptr<SipEvent> &ev) {/*nop*/};
 
 };
 
@@ -275,7 +277,7 @@ ModuleInfo<Authentication> Authentication::sInfo("Authentication",
 	"The authentication module challenges SIP requests according to a user/password database.");
 
 
-Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, std::shared_ptr<SipEvent> ev, bool hashedPasswords):
+Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, shared_ptr<SipEvent> ev, bool hashedPasswords):
 		mAgent(ag),mEv(ev),mHashedPass(hashedPasswords),mAm(NULL),mAs(NULL),mAch(NULL) {
 	memset(&mAr, '\0', sizeof(mAr)), mAr.ar_size=sizeof(mAr);
 }
@@ -294,22 +296,22 @@ void Authentication::AuthenticationListener::sendReplyAndDestroy(){
  * return true if the event is terminated
  */
 bool Authentication::AuthenticationListener::sendReply(){
-	sip_t *sip=mEv->getSip();
+	const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
+	sip_t *sip = ms->getSip();
 	if (mAs->as_status) {
-		nta_msg_treply(mAgent->getSofiaAgent(),mEv->getMsg(),mAs->as_status,mAs->as_phrase,
+		mEv->reply(ms, mAs->as_status,mAs->as_phrase,
 				SIPTAG_CONTACT(sip->sip_contact),
 				SIPTAG_HEADER((const sip_header_t*)mAs->as_info),
 				SIPTAG_HEADER((const sip_header_t*)mAs->as_response),
 				SIPTAG_SERVER_STR(mAgent->getServerString()),
 				TAG_END());
-		mEv->terminateProcessing();
 		return true;
 	}else{
 		// Success
 		if (sip->sip_request->rq_method == sip_method_register){
-			sip_header_remove(mEv->getMsg(),sip,(sip_header_t*)sip->sip_authorization);
+			sip_header_remove(ms->getMsg(),sip,(sip_header_t*)sip->sip_authorization);
 		} else {
-			sip_header_remove(mEv->getMsg(),sip, (sip_header_t*)sip->sip_proxy_authorization);
+			sip_header_remove(ms->getMsg(),sip, (sip_header_t*)sip->sip_proxy_authorization);
 		}
 		return false;
 	}

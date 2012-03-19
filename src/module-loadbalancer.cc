@@ -16,10 +16,12 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
+#include "module.hh"
 #include "agent.hh"
 
 #include <vector>
+
+using namespace ::std;
 
 class LoadBalancer : public Module, public ModuleToolbox{
 	public:
@@ -27,10 +29,10 @@ class LoadBalancer : public Module, public ModuleToolbox{
 		virtual ~LoadBalancer();
 		virtual void onDeclare(GenericStruct *module_config);
 		virtual void onLoad(Agent *ag, const GenericStruct * modconf);
-		virtual void onRequest(std::shared_ptr<SipEvent> &ev);
-		virtual void onResponse(std::shared_ptr<SipEvent> &ev);
+		virtual void onRequest(shared_ptr<SipEvent> &ev);
+		virtual void onResponse(shared_ptr<SipEvent> &ev);
 	private:
-		std::vector<std::string> mRoutes;
+		vector<string> mRoutes;
 		int mRoutesCount;
 		static ModuleInfo<LoadBalancer> sInfo;
 };
@@ -55,8 +57,8 @@ void LoadBalancer::onDeclare(GenericStruct *module_config){
 }
 
 void LoadBalancer::onLoad(Agent *ag, const GenericStruct * modconf){
-	std::list<std::string> routes=modconf->get<ConfigStringList>("routes")->read();
-	std::list<std::string>::iterator it;
+	list<string> routes=modconf->get<ConfigStringList>("routes")->read();
+	list<string>::iterator it;
 	
 	LOGI("Load balancer configured to balance over:");
 	for(it=routes.begin();it!=routes.end();++it){
@@ -66,9 +68,10 @@ void LoadBalancer::onLoad(Agent *ag, const GenericStruct * modconf){
 	mRoutesCount=mRoutes.size();
 }
 
-void LoadBalancer::onRequest(std::shared_ptr<SipEvent> &ev){
+void LoadBalancer::onRequest(shared_ptr<SipEvent> &ev){
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	uint32_t call_hash;
-	sip_t *sip=ev->getSip();
+	sip_t *sip = ms->getSip();
 	int index;
 	
 	if (mRoutesCount==0) return;
@@ -79,12 +82,12 @@ void LoadBalancer::onRequest(std::shared_ptr<SipEvent> &ev){
 		call_hash=sip->sip_call_id->i_hash;
 		index=call_hash % mRoutesCount;
 		route=mRoutes[index].c_str();
-		prependRoute(ev->getHome(),getAgent(),ev->getMsg(),sip,route);
+		prependRoute(ms->getHome(),getAgent(),ms->getMsg(),sip,route);
 	}else{
 		LOGW("request has no call id");
 	}
 }
 
-void LoadBalancer::onResponse(std::shared_ptr<SipEvent> &ev){
+void LoadBalancer::onResponse(shared_ptr<SipEvent> &ev){
 	/*nothing to do*/
 }

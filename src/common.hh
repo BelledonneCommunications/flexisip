@@ -60,12 +60,16 @@ extern bool sUseSyslog;
 
 class Mutex{
 	public:
-		Mutex();
+		Mutex(bool reentrant = false);
 		void lock();
 		void unlock();
 		~Mutex();
 	private:
+		const bool mReentrant;
+		pthread_t mThread;
+		int mCount;
 		pthread_mutex_t mMutex;
+		pthread_mutex_t mInternalMutex;
 };
 
 template <typename _type>

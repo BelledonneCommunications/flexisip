@@ -30,11 +30,9 @@
 #include <cstdio>
 #include <algorithm>
 
-
 #include <sofia-sip/sip_protos.h>
 
-using namespace::std;
-
+using namespace ::std;
 
 sip_contact_t *Record::extendedContactToSofia(su_home_t *home, extended_contact *ec, time_t now){
 	sip_contact_t *contact=NULL;
@@ -50,16 +48,16 @@ sip_contact_t *Record::extendedContactToSofia(su_home_t *home, extended_contact 
 }
 
 const sip_contact_t *Record::getContacts(su_home_t *home, time_t now){
-	sip_contact_t *list=NULL;
-	std::list<extended_contact *>::iterator it;
+	sip_contact_t *alist=NULL;
+	list<extended_contact *>::iterator it;
 	for (it=mContacts.begin(); it != mContacts.end(); ++it){
 		sip_contact_t *current=extendedContactToSofia(home,(*it), now);
-		if (current && list){
-			current->m_next=list;
+		if (current && alist){
+			current->m_next=alist;
 		}
-		list=current;
+		alist=current;
 	}
-	return list;
+	return alist;
 }
 
 
@@ -123,7 +121,7 @@ void Record::makeSpace(int slots) {
 	sort (mContacts.begin(), mContacts.end(), ec_sort);
 	print();
 
-	std::list<extended_contact *>::iterator it;
+	list<extended_contact *>::iterator it;
 	for (it=mContacts.begin(); spaceLeft == 0; ++it) {
 		it=mContacts.erase(it);
 		++spaceLeft;
@@ -174,7 +172,7 @@ void Record::insertOrUpdateBinding(extended_contact *ec) {
 	}
 }
 
-static void defineContactId(std::ostringstream &oss, const url_t *url, const char *transport) {
+static void defineContactId(ostringstream &oss, const url_t *url, const char *transport) {
 	if (transport) oss << transport << ":";
 	if (url->url_user) oss << url->url_user << ":";
 	oss << url->url_host;
@@ -202,7 +200,7 @@ void Record::bind(const char *c, const char *contactId, const char* route, const
 }
 
 void Record::print(){
-	std::list<extended_contact *>::const_iterator it=mContacts.begin();
+	list<extended_contact *>::const_iterator it=mContacts.begin();
 	LOGD("Record contains %zu contacts", mContacts.size());
 	for (it=mContacts.begin(); it != mContacts.end(); ++it) {
 		extended_contact *ec=(*it);
@@ -213,7 +211,7 @@ void Record::print(){
 
 
 int Record::sMaxContacts=-1;
-std::string Record::sLineFieldName="";
+string Record::sLineFieldName="";
 
 
 Record::Record(){
@@ -221,7 +219,7 @@ Record::Record(){
 }
 
 Record::~Record(){
-	std::list<extended_contact*>::iterator it;
+	list<extended_contact*>::iterator it;
 	for (it=mContacts.begin(); it != mContacts.end(); ++it){
 		delete(*it);
 	}

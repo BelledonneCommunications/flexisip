@@ -1,20 +1,20 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010  Belledonne Communications SARL.
+ Flexisip, a flexible SIP proxy server with media capabilities.
+ Copyright (C) 2010  Belledonne Communications SARL.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as
+ published by the Free Software Foundation, either version 3 of the
+ License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ You should have received a copy of the GNU Affero General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "agent.hh"
 #include "mediarelay.hh"
@@ -24,213 +24,308 @@
 #include <algorithm>
 #include <list>
 
-using namespace::std;
+using namespace ::std;
 
-void MediaSource::setDefaultSource(const char *ip, int port){
-	struct addrinfo *res=NULL;
-	struct addrinfo hints={0};
+MediaSource::MediaSource(RelaySession * relaySession, bool front) :
+		mFront(front), mInit(false), mRelaySession(relaySession) {
+	mSession = rtp_session_new(RTP_SESSION_SENDRECV);
+	rtp_session_set_local_addr(mSession, relaySession->getBindIp().c_str(), -1);
+	mSources[0] = rtp_session_get_rtp_socket(mSession);
+	mSources[1] = rtp_session_get_rtcp_socket(mSession);
+}
+
+MediaSource::~MediaSource() {
+	rtp_session_destroy(mSession);
+}
+
+void MediaSource::set(const string &ip, int port) {
+	mPort = port;
+	mIp = ip;
+	struct addrinfo *res = NULL;
+	struct addrinfo hints = { 0 };
 	char portstr[20];
-	snprintf(portstr,sizeof(portstr),"%i",port);
-	hints.ai_flags=AI_NUMERICHOST|AI_NUMERICSERV;
-	int err=getaddrinfo(ip,portstr,&hints,&res);
-	if (err!=0){
-		LOGE("MediaSource::setDefaultSource() failed for %s:%i : %s",ip,port,gai_strerror(err));
-		return;
-	}
-	memcpy(&ss,res->ai_addr,res->ai_addrlen);
-	slen=res->ai_addrlen;
-	freeaddrinfo(res);
-}
-
-int MediaSource::recv(uint8_t *buf, size_t buflen){
-	slen=sizeof(ss);
-	int err=recvfrom(fd,buf,buflen,0,(struct sockaddr*)&ss,&slen);
-	if (err==-1) slen=0;
-	return err;
-}
-
-int MediaSource::send(uint8_t *buf, size_t buflen){
 	int err;
-	if (slen>0){
-		err=sendto(fd,buf,buflen,0,(struct sockaddr*)&ss,slen);
+
+	snprintf(portstr, sizeof(portstr), "%i", port);
+	hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
+	err = getaddrinfo(ip.c_str(), portstr, &hints, &res);
+	if (err != 0) {
+		LOGE("MediaSource::MediaSource() failed for %s:%i : %s", ip.c_str(), port, gai_strerror(err));
+	} else {
+		memcpy(&mSockAddr[0], res->ai_addr, res->ai_addrlen);
+		mSockAddrSize[0] = res->ai_addrlen;
+		freeaddrinfo(res);
+	}
+
+	snprintf(portstr, sizeof(portstr), "%i", port + 1);
+	hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
+	err = getaddrinfo(ip.c_str(), portstr, &hints, &res);
+	if (err != 0) {
+		LOGE("MediaSource::MediaSource() failed for %s:%i : %s", ip.c_str(), port, gai_strerror(err));
+	} else {
+		memcpy(&mSockAddr[1], res->ai_addr, res->ai_addrlen);
+		mSockAddrSize[1] = res->ai_addrlen;
+		freeaddrinfo(res);
+	}
+
+	mInit = true;
+}
+
+void MediaSource::fillPollFd(struct pollfd *tab) {
+	for (int i = 0; i < 2; ++i) {
+		tab[i].fd = mSources[i];
+		tab[i].events = POLLIN;
+		tab[i].revents = 0;
+	}
+}
+
+int MediaSource::recv(int i, uint8_t *buf, size_t buflen) {
+	mSockAddrSize[i] = sizeof(mSockAddr[i]);
+	int err = recvfrom(mSources[i], buf, buflen, 0, (struct sockaddr*) &mSockAddr[i], &mSockAddrSize[i]);
+	if (err == -1) {
+		mSockAddrSize[i] = 0;
+	}
+	return err;
+
+}
+
+int MediaSource::send(int i, uint8_t *buf, size_t buflen) {
+	int err;
+	if (mSockAddrSize[i] > 0) {
+		err = sendto(mSources[i], buf, buflen, 0, (struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]);
 		return err;
 	}
 	return 0;
+
 }
 
-
-RelaySession::RelaySession(const std::string &bind_ip, const std::string & public_ip) : mBindIp(bind_ip), mPublicIp(public_ip){
-	mLastActivityTime=time(NULL);
-	mSession[0]=rtp_session_new(RTP_SESSION_SENDRECV);
-	mSession[1]=rtp_session_new(RTP_SESSION_SENDRECV);
-	rtp_session_set_local_addr(mSession[0],mBindIp.c_str(),-1);
-	rtp_session_set_local_addr(mSession[1],mBindIp.c_str(),-1);
-	mSources[0].fd=rtp_session_get_rtp_socket(mSession[0]);
-	mSources[1].fd=rtp_session_get_rtp_socket(mSession[1]);
-	mSources[2].fd=rtp_session_get_rtcp_socket(mSession[0]);
-	mSources[3].fd=rtp_session_get_rtcp_socket(mSession[1]);
-	mUsed=true;
+RelaySession::RelaySession(const string &bind_ip, const string & public_ip) :
+		mType(All), mBindIp(bind_ip), mPublicIp(public_ip) {
+	mLastActivityTime = time(NULL);
+	mUsed = true;
 }
 
-RelaySession::~RelaySession(){
-	rtp_session_destroy(mSession[0]);
-	rtp_session_destroy(mSession[1]);
+std::shared_ptr<MediaSource> RelaySession::addFront() {
+	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this, true);
+
+	mMutex.lock();
+	mFronts.push_back(ms);
+	mMutex.unlock();
+
+	return ms;
 }
 
-int RelaySession::getFrontPort()const{
-	return rtp_session_get_local_port(mSession[0]);
+void RelaySession::removeFront(const std::shared_ptr<MediaSource> &ms) {
+	mMutex.lock();
+	mFronts.remove(ms);
+	mMutex.unlock();
 }
 
-int RelaySession::getBackPort()const{
-	return rtp_session_get_local_port(mSession[1]);
+std::shared_ptr<MediaSource> RelaySession::addBack() {
+	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this, false);
+
+	mMutex.lock();
+	mBacks.push_back(ms);
+	mMutex.unlock();
+
+	return ms;
 }
 
-void RelaySession::setFrontDefaultSource(const char *ip, int port){
-	mSources[0].setDefaultSource(ip,port);
-	mSources[2].setDefaultSource(ip,port+1);
+void RelaySession::removeBack(const std::shared_ptr<MediaSource> &ms) {
+	mMutex.lock();
+	mBacks.remove(ms);
+	mMutex.unlock();
 }
 
-void RelaySession::setBackDefaultSource(const char *ip, int port){
-	mSources[1].setDefaultSource(ip,port);
-	mSources[3].setDefaultSource(ip,port+1);
+RelaySession::~RelaySession() {
 }
 
-void RelaySession::unuse(){
-	mUsed=false;
+void RelaySession::unuse() {
+	mUsed = false;
 }
 
-void RelaySession::fillPollFd(struct pollfd *tab){
-	int i;
-	for(i=0;i<4;++i){
-		tab[i].fd=mSources[i].fd;
-		tab[i].events=POLLIN;
-		tab[i].revents=0;
-	}
-}
-
-
-void RelaySession::transfer(time_t curtime, struct pollfd *tab){
+void RelaySession::transfer(time_t curtime, const shared_ptr<MediaSource> &org, int i) {
 	uint8_t buf[1500];
-	const int maxsize=sizeof(buf);
-	int len;
-	int i;
-	
-	for (i=0;i<4;i+=2){
-		if (tab[i].revents & POLLIN){
-			mLastActivityTime=curtime;
-			len=mSources[i].recv(buf,maxsize);
-			if (len>0)
-				mSources[i+1].send(buf,len);
-		}
-		if (tab[i+1].revents & POLLIN){
-			mLastActivityTime=curtime;
-			len=mSources[i+1].recv(buf,maxsize);
-			if (len>0)
-				mSources[i].send(buf,len);
+	const int maxsize = sizeof(buf);
+	int recv_len;
+	int send_len;
+
+	if (org->isInit()) {
+		mLastActivityTime = curtime;
+		recv_len = org->recv(i, buf, maxsize);
+		if (recv_len > 0) {
+			std::list<std::shared_ptr<MediaSource>> list;
+			if (mType == None)
+				return;
+			if (org->isFront()) {
+				list = mBacks;
+				if (!(mType == FrontToBack || mType == All))
+					return;
+			} else {
+				list = mFronts;
+				if (!(mType == BackToFront || mType == All))
+					return;
+			}
+
+			mMutex.lock();
+			auto it = list.begin();
+			if (it != list.end()) {
+				while (it != list.end()) {
+					const shared_ptr<MediaSource> &dest = (*it);
+					if (dest->isInit()) {
+						//LOGD("%i %s:%i -> %i %s:%i", mFront->getRelayPort() + i, mFront->getIp().c_str(), mFront->getPort(), dest->getRelayPort(), dest->getIp().c_str(), dest->getPort());
+						send_len = dest->send(i, buf, recv_len);
+						if (send_len != recv_len) {
+							LOGW("Only %i bytes sent on %i bytes Port=%i For=%s:%i Error=%s", send_len, recv_len, dest->getRelayPort() + i, dest->getIp().c_str(), dest->getPort(), strerror(errno));
+						}
+					}
+					++it;
+				}
+			}
+			mMutex.unlock();
+		} else if (recv_len < 0) {
+			LOGW("Error on read Port=%i For=%s:%i Error=%s", org->getRelayPort() + i, org->getIp().c_str(), org->getPort(), strerror(errno));
 		}
 	}
 }
 
-
-MediaRelayServer::MediaRelayServer(const std::string &bind_ip, const std::string &public_ip) : mBindIp(bind_ip), mPublicIp(public_ip){
-	mRunning=false;
-	if (pipe(mCtlPipe)==-1){
+MediaRelayServer::MediaRelayServer(const string &bind_ip, const string &public_ip) :
+		mBindIp(bind_ip), mPublicIp(public_ip) {
+	mRunning = false;
+	if (pipe(mCtlPipe) == -1) {
 		LOGF("Could not create MediaRelayServer control pipe.");
 	}
 }
 
-
-void MediaRelayServer::start(){
-	mRunning=true;
-	pthread_create(&mThread,NULL,&MediaRelayServer::threadFunc,this);
+void MediaRelayServer::start() {
+	mRunning = true;
+	pthread_create(&mThread, NULL, &MediaRelayServer::threadFunc, this);
 }
 
-MediaRelayServer::~MediaRelayServer(){
-	if (mRunning){
-		mRunning=false;
-		if (write(mCtlPipe[1],"e",1)==-1)
+MediaRelayServer::~MediaRelayServer() {
+	if (mRunning) {
+		mRunning = false;
+		if (write(mCtlPipe[1], "e", 1) == -1)
 			LOGE("MediaRelayServer: Fail to write to control pipe.");
-		pthread_join(mThread,NULL);
+		pthread_join(mThread, NULL);
 	}
-	for_each(mSessions.begin(),mSessions.end(),delete_functor<RelaySession>());
+	for_each(mSessions.begin(), mSessions.end(), delete_functor<RelaySession>());
 	close(mCtlPipe[0]);
 	close(mCtlPipe[1]);
 }
 
-RelaySession *MediaRelayServer::createSession(){
-	RelaySession *s=new RelaySession(mBindIp,mPublicIp);
+RelaySession *MediaRelayServer::createSession() {
+	RelaySession *s = new RelaySession(mBindIp, mPublicIp);
 	int count;
 	mMutex.lock();
 	mSessions.push_back(s);
-	count=mSessions.size();
+	count = mSessions.size();
 	mMutex.unlock();
-	if (!mRunning) start();
-	
-	LOGD("There are now %i relay sessions running.",count);
+	if (!mRunning)
+		start();
+
+	LOGD("There are now %i relay sessions running.", count);
 	/*write to the control pipe to wakeup the server thread */
-	if (write(mCtlPipe[1],"e",1)==-1)
+	if (write(mCtlPipe[1], "e", 1) == -1)
 		LOGE("MediaRelayServer: fail to write to control pipe.");
 	return s;
 }
 
-void MediaRelayServer::run(){
-	int sessionCount;
-	int i;
-	struct pollfd *pfds=NULL;
-	list<RelaySession*>::iterator it;
+void MediaRelayServer::update() {
+	/*write to the control pipe to wakeup the server thread */
+	if (write(mCtlPipe[1], "e", 1) == -1)
+		LOGE("MediaRelayServer: fail to write to control pipe.");
+}
+
+void MediaRelayServer::run() {
+	struct pollfd *pfds = NULL;
 	int err;
-	int pfds_size=0,cur_pfds_size=0;
-	
-	while(mRunning){
+	int pfds_size = 0, cur_pfds_size = 0;
+	list<shared_ptr<MediaSource>> list;
+
+	while (mRunning) {
 		mMutex.lock();
-		sessionCount=mSessions.size();
+		list.clear();
+		pfds_size = 1;
+		for (auto it = mSessions.begin(); it != mSessions.end(); ++it) {
+			RelaySession *ptr = *it;
+			ptr->mMutex.lock();
+
+			const std::list<std::shared_ptr<MediaSource>>& fronts = ptr->getFronts();
+			for (auto it2 = fronts.begin(); it2 != fronts.end(); ++it2) {
+				list.push_back(*it2);
+			}
+
+			const std::list<std::shared_ptr<MediaSource>>& backs = ptr->getBacks();
+			for (auto it2 = backs.begin(); it2 != backs.end(); ++it2) {
+				list.push_back(*it2);
+			}
+
+			pfds_size += (fronts.size() + backs.size()) * 2;
+			ptr->mMutex.unlock();
+		}
 		mMutex.unlock();
-		pfds_size=(sessionCount*4)+1;
-		if (pfds_size>cur_pfds_size){
-			pfds=(struct pollfd*)realloc(pfds,pfds_size*sizeof(struct pollfd));
-			cur_pfds_size=pfds_size;
+
+		if (pfds_size > cur_pfds_size) {
+			pfds = (struct pollfd*) realloc(pfds, pfds_size * sizeof(struct pollfd));
+			cur_pfds_size = pfds_size;
 		}
-		for(i=0,it=mSessions.begin();i<sessionCount;++i,++it){
-			(*it)->fillPollFd(&pfds[i*4]);
+
+		int i = 0;
+		for (auto it = list.begin(); it != list.end(); ++it) {
+			(*it)->fillPollFd(&pfds[i]);
+			i += 2;
 		}
-		
-		pfds[sessionCount*4].fd=mCtlPipe[0];
-		pfds[sessionCount*4].events=POLLIN;
-		pfds[sessionCount*4].revents=0;
-		
-		err=poll(pfds,(sessionCount*4 )+ 1,-1);
-		if (err>0){
-			if (pfds[sessionCount*4].revents){
+
+		pfds[pfds_size - 1].fd = mCtlPipe[0];
+		pfds[pfds_size - 1].events = POLLIN;
+		pfds[pfds_size - 1].revents = 0;
+
+		err = poll(pfds, pfds_size, -1);
+		if (err > 0) {
+			if (pfds[pfds_size - 1].revents) {
 				char tmp;
-				if (read(mCtlPipe[0],&tmp,1)==-1){
+				if (read(mCtlPipe[0], &tmp, 1) == -1) {
 					LOGE("Fail to read from control pipe.");
 				}
 			}
-			time_t curtime=time(NULL);
-			for(i=0,it=mSessions.begin();i<sessionCount;++i,++it){
-				RelaySession *s=(*it);
-				if (s->isUsed()){
-					s->transfer(curtime,&pfds[i*4]);
+			time_t curtime = time(NULL);
+			int i = 0;
+			for (auto it = list.begin(); it != list.end(); ++it) {
+				if (pfds[i].revents & POLLIN) {
+					RelaySession *s = (*it)->getRelaySession();
+					if (s->isUsed()) {
+						s->transfer(curtime, (*it), 0);
+					}
 				}
+				if (pfds[i + 1].revents & POLLIN) {
+					RelaySession *s = (*it)->getRelaySession();
+					if (s->isUsed()) {
+						s->transfer(curtime, (*it), 1);
+					}
+				}
+
+				i += 2;
 			}
 		}
 		/*cleanup loop*/
 		mMutex.lock();
-		for(it=mSessions.begin();it!=mSessions.end();){
-			if (!(*it)->isUsed()){
+		for (auto it = mSessions.begin(); it != mSessions.end();) {
+			if (!(*it)->isUsed()) {
 				delete *it;
-				it=mSessions.erase(it);
-			}else{
+				it = mSessions.erase(it);
+			} else {
 				++it;
 			}
 		}
 		mMutex.unlock();
 	}
-	if (pfds) free(pfds);
+	if (pfds)
+		free(pfds);
 }
 
-void *MediaRelayServer::threadFunc(void *arg){
-	MediaRelayServer *zis=(MediaRelayServer*)arg;
+void *MediaRelayServer::threadFunc(void *arg) {
+	MediaRelayServer *zis = (MediaRelayServer*) arg;
 	zis->run();
 	return NULL;
 }

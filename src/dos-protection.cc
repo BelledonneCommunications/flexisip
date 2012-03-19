@@ -26,6 +26,8 @@
 #include <iostream>
 #include <stdlib.h>
 
+using namespace ::std;
+
 #define CHECK_RETURN(return_val, cmd) 			\
 	if(return_val != 0) { 				\
 		LOGW("%s returns %d", cmd, return_val);	\
@@ -47,12 +49,19 @@ DosProtection::DosProtection() {
 }
 
 DosProtection::~DosProtection() {
-	delete sInstance;
+}
+
+void DosProtection::atexit() {
+	if (sInstance!=NULL) {
+		delete sInstance;
+		sInstance = NULL;
+	}
 }
 
 DosProtection *DosProtection::get() {
 	if (sInstance == NULL) {
 		sInstance = new DosProtection();
+		::atexit(DosProtection::atexit);
 	}
 	return sInstance;
 }

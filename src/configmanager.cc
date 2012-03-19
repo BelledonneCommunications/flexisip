@@ -98,12 +98,12 @@ void GenericEntry::doMibFragment(ostream & ostr, string &syntax, string spacing)
 			<< spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
-ConfigValue::ConfigValue(const std::string &name, GenericValueType  vt, const std::string &help, const std::string &default_value,oid oid_index)
+ConfigValue::ConfigValue(const string &name, GenericValueType  vt, const string &help, const string &default_value,oid oid_index)
 :  GenericEntry (name,vt,help,oid_index), mDefaultValue(default_value){
 
 }
 
-void ConfigValue::set(const std::string  &value){
+void ConfigValue::set(const string  &value){
 	if (getType()==Boolean){
 		if (value!="true" && value!="false" && value!="1" && value!="0"){
 			LOGF("Not a boolean: \"%s\" for key \"%s\" ", value.c_str(), getName().c_str());
@@ -112,7 +112,7 @@ void ConfigValue::set(const std::string  &value){
 	mValue=value;
 }
 
-void ConfigValue::setDefault(const std::string & value){
+void ConfigValue::setDefault(const string & value){
 	if (getType()==Boolean){
 		if (value!="true" && value!="false" && value!="1" && value!="0"){
 			LOGF("Not a boolean: \"%s\" for key \"%s\" ", value.c_str(), getName().c_str());
@@ -121,11 +121,11 @@ void ConfigValue::setDefault(const std::string & value){
 	mDefaultValue=value;
 }
 
-const std::string & ConfigValue::get()const{
+const string & ConfigValue::get()const{
 	return mValue;
 }
 
-const std::string & ConfigValue::getDefault()const{
+const string & ConfigValue::getDefault()const{
 	return mDefaultValue;
 }
 
@@ -161,7 +161,7 @@ oid Oid::oidFromHashedString(const string &str) {
 	  // 1: snmpwalk cannot associate oid to name otherwise
 }
 
-GenericEntry::GenericEntry(const std::string &name, GenericValueType type, const std::string &help,oid oid_index) :
+GenericEntry::GenericEntry(const string &name, GenericValueType type, const string &help,oid oid_index) :
 				mOid(0),mName(name),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
 	if (strchr(name.c_str(),'_'))
 		LOGA("Underscores not allowed in config items, please use minus sign.");
@@ -290,7 +290,7 @@ struct matchEntryName{
 };
 
 GenericEntry *GenericStruct::find(const char *name)const{
-	std::list<GenericEntry*>::const_iterator it=find_if(mEntries.begin(),mEntries.end(),matchEntryName(name));
+	list<GenericEntry*>::const_iterator it=find_if(mEntries.begin(),mEntries.end(),matchEntryName(name));
 	if (it!=mEntries.end()) return *it;
 	return NULL;
 }
@@ -304,7 +304,7 @@ struct matchEntryNameApprox{
 		if (min_required<1) return false;
 
 		for(i=0;i<mName.size();++i){
-			if (e->getName().find(mName[i])!=std::string::npos){
+			if (e->getName().find(mName[i])!=string::npos){
 				count++;
 			}
 		}
@@ -313,7 +313,7 @@ struct matchEntryNameApprox{
 		}
 		return false;
 	}
-	const std::string mName;
+	const string mName;
 };
 
 GenericEntry * GenericStruct::findApproximate(const char *name)const{
@@ -378,13 +378,13 @@ ConfigStringList::ConfigStringList(const std::string &name, const std::string &h
 
 #define DELIMITERS " \n,"
 
-std::list<std::string>  ConfigStringList::read()const{
-	std::list<std::string> retlist;
+list<string>  ConfigStringList::read()const{
+	list<string> retlist;
 	char *res=strdup(get().c_str());
 	char *saveptr=NULL;
 	char *ret=strtok_r(res,DELIMITERS,&saveptr);
 	while(ret!=NULL){
-		retlist.push_back(std::string(ret));
+		retlist.push_back(string(ret));
 		ret=strtok_r(NULL,DELIMITERS,&saveptr);
 	}
 	free(res);
@@ -494,11 +494,11 @@ const GenericStruct *GenericManager::getGlobal(){
 	return mConfigRoot.get<GenericStruct>("global");
 }
 
-std::ostream &FileConfigDumper::dump(std::ostream & ostr)const {
+ostream &FileConfigDumper::dump(ostream & ostr)const {
 	return dump2(ostr,mRoot,0);
 }
 
-std::ostream & FileConfigDumper::printHelp(std::ostream &os, const std::string &help, const std::string &comment_prefix)const{
+ostream & FileConfigDumper::printHelp(ostream &os, const string &help, const string &comment_prefix)const{
 	const char *p=help.c_str();
 	const char *begin=p;
 	const char *origin=help.c_str();
@@ -513,7 +513,7 @@ std::ostream & FileConfigDumper::printHelp(std::ostream &os, const std::string &
 	return os;
 }
 
-std::ostream &FileConfigDumper::dump2(std::ostream & ostr, GenericEntry *entry, int level)const{
+std::ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
 	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
 	ConfigValue *val;
 
@@ -522,17 +522,17 @@ std::ostream &FileConfigDumper::dump2(std::ostream & ostr, GenericEntry *entry, 
 		printHelp(ostr,cs->getHelp(),"##");
 		ostr<<"##"<<endl;
 		if (level>0){
-			ostr<<"["<<cs->getName()<<"]"<<std::endl;
-		}else ostr<<std::endl;
-		std::list<GenericEntry*>::iterator it;
+			ostr<<"["<<cs->getName()<<"]"<<endl;
+		}else ostr<<endl;
+		list<GenericEntry*>::iterator it;
 		for(it=cs->getChildren().begin();it!=cs->getChildren().end();++it){
 			dump2(ostr,*it,level+1);
-			ostr<<std::endl;
+			ostr<<endl;
 		}
 	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL){
 		printHelp(ostr,entry->getHelp(),"#");
-		ostr<<"#  Default value: "<<val->getDefault()<<std::endl;
-		ostr<<entry->getName()<<"="<<val->getDefault()<<std::endl;
+		ostr<<"#  Default value: "<<val->getDefault()<<endl;
+		ostr<<entry->getName()<<"="<<val->getDefault()<<endl;
 	}
 	return ostr;
 }

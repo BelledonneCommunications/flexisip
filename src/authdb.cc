@@ -19,6 +19,8 @@
 
 #include "authdb.hh"
 
+using namespace ::std;
+
 AuthDb *AuthDb::sUnique = NULL;
 
 AuthDb* AuthDb::get() {
@@ -79,7 +81,7 @@ AuthDb::CacheResult AuthDb::getCachedPassword(const string &key, const string &d
 
 bool AuthDb::cachePassword(const string &key, const string &domain, const string &pass, time_t time){
 	map<string,CachedPassword*> *passwords=mCachedPasswords[domain];
-	std::unique_lock<mutex> lck(mCachedPasswordMutex);
+	unique_lock<mutex> lck(mCachedPasswordMutex);
 	map<string,CachedPassword*>::iterator it=passwords->find(key);
 	if (it != passwords->end()) {
 		(*it).second->pass=pass;

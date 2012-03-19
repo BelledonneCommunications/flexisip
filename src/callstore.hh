@@ -26,7 +26,7 @@
 class CallContextBase{
 	public:
 		CallContextBase(sip_t *sip);
-		bool match(Agent *ag, sip_t *sip);
+		bool match(Agent *ag, sip_t *sip, bool stateful = false);
 		bool isNewInvite(sip_t *sip);
 		void storeNewInvite(msg_t *orig);
 		bool isNewEarlyMedia(sip_t *sip);
@@ -74,20 +74,20 @@ class CallStore{
 	public:
 		CallStore();
 		~CallStore();
-		void store(CallContextBase *ctx);
-		CallContextBase *find(Agent *ag, sip_t *sip);
-		void remove(CallContextBase *ctx);
+		void store(const std::shared_ptr<CallContextBase> &ctx);
+		std::shared_ptr<CallContextBase> find(Agent *ag, sip_t *sip, bool stateful = false);
+		void remove(const std::shared_ptr<CallContextBase> &ctx);
 		void removeAndDeleteInactives();
 		void setInviteStatCounters(StatCounter64 *invCount, StatCounter64 *invFinishedCount) {
 			mCountInvites=invCount;
 			mCountInvitesFinished=invFinishedCount;
 		}
 		void dump();
-		const std::list<CallContextBase*> &getList()const{
+		const std::list<std::shared_ptr<CallContextBase>> &getList()const{
 			return mCalls;
 		}
 	private:
-		std::list<CallContextBase*> mCalls;
+		std::list<std::shared_ptr<CallContextBase>> mCalls;
 		StatCounter64 *mCountInvites;
 		StatCounter64 *mCountInvitesFinished;
 };

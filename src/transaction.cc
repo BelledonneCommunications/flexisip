@@ -19,83 +19,152 @@
 #include "transaction.hh"
 #include "event.hh"
 #include "common.hh"
+#include "agent.hh"
+#include <algorithm>
+#include <sofia-sip/su_tagarg.h>
 
-OutgoingTransaction::OutgoingTransaction(nta_agent_t *agent, TransactionCallback callback, void *magic) :
-		Transaction(callback, magic), outgoing(NULL), agent(agent) {
+using namespace ::std;
+
+OutgoingTransaction::OutgoingTransaction(Agent *agent) :
+		Transaction(agent), mOutgoing(NULL) {
 	LOGD("New OutgoingTransaction %p", this);
 
 }
 
 OutgoingTransaction::~OutgoingTransaction() {
-	if (outgoing != NULL) {
-		nta_outgoing_bind(outgoing, NULL, NULL); //avoid callbacks
-		nta_outgoing_destroy(outgoing);
+	if (mOutgoing != NULL) {
+		nta_outgoing_bind(mOutgoing, NULL, NULL); //avoid callbacks
+		nta_outgoing_destroy(mOutgoing);
 	}
-	LOGD("Destroy OutgoingTransaction %p", this);
+	LOGD("Delete OutgoingTransaction %p", this);
 }
 
-StatefulSipEvent *OutgoingTransaction::create(msg_t * msg, sip_t *sip) {
-	return new StatefulSipEvent(this, msg, sip);
+void OutgoingTransaction::cancel() {
+	nta_outgoing_cancel(mOutgoing);
 }
 
-StatefulSipEvent *OutgoingTransaction::copy(const SipEvent *sipEvent) {
-	return new StatefulSipEvent(this, sipEvent);
+void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
+	msg_t* msg = msg_dup(ms->getMsg());
+	ta_list ta;
+	ta_start(ta, tag, value);
+	mOutgoing = nta_outgoing_mcreate(mAgent->mAgent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, u, msg, ta_tags(ta));
+	ta_end(ta);
+	if (mOutgoing == NULL) {
+		LOGE("Error during outgoing transaction creation");
+		msg_destroy(msg);
+	} else {
+		mSofiaRef = shared_from_this();
+		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Create);
+	}
 }
 
-void OutgoingTransaction::send(StatefulSipEvent *ev) {
-	outgoing = nta_outgoing_mcreate(agent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, NULL, ev->getMsg(), TAG_END());
-	if (outgoing == NULL) {
-		msg_destroy(ev->getMsg());
+void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms) {
+	msg_t* msg = msg_dup(ms->getMsg());
+	mOutgoing = nta_outgoing_mcreate(mAgent->mAgent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, NULL, msg, TAG_END());
+	if (mOutgoing == NULL) {
+		LOGE("Error during outgoing transaction creation");
+		msg_destroy(msg);
+	} else {
+		mSofiaRef = shared_from_this();
+		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Create);
 	}
 }
 
 int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *irq, const sip_t *sip) {
 	OutgoingTransaction * it = reinterpret_cast<OutgoingTransaction *>(magic);
-	if (it->callback != NULL) {
-		it->callback(sip, it);
+	if (sip != NULL) {
+		msg_t *msg = nta_outgoing_getresponse(it->mOutgoing);
+		shared_ptr<SipEvent> sipevent(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(it->shared_from_this()), make_shared<MsgSip>(msg)));
+		msg_destroy(msg);
+		it->mAgent->sendResponseEvent(sipevent);
+		if (sip->sip_status && sip->sip_status->st_status >= 200) {
+			it->destroy();
+		}
+	} else {
+		it->destroy();
 	}
 	return 0;
 }
 
-nta_outgoing_t *OutgoingTransaction::getOutgoing() {
-	return outgoing;
+void OutgoingTransaction::destroy() {
+	mAgent->sendTransactionEvent(shared_from_this(), Transaction::Destroy);
+	mSofiaRef.reset();
 }
 
-IncomingTransaction::IncomingTransaction(nta_agent_t *agent, msg_t * msg, sip_t *sip, TransactionCallback callback, void *magic) :
-		Transaction(callback, magic), incoming(NULL), agent(agent) {
-	incoming = nta_incoming_create(agent, NULL, msg, sip, TAG_END());
-	nta_incoming_bind(incoming, IncomingTransaction::_callback, (nta_incoming_magic_t*)this);
+IncomingTransaction::IncomingTransaction(Agent *agent) :
+		Transaction(agent), mIncoming(NULL) {
 	LOGD("New IncomingTransaction %p", this);
 }
 
-IncomingTransaction::~IncomingTransaction() {
-	if (incoming != NULL) {
-		nta_incoming_bind(incoming, NULL, NULL); //avoid callbacks
-		nta_incoming_destroy(incoming);
+void IncomingTransaction::handle(const std::shared_ptr<MsgSip> &ms) {
+	msg_t* msg = msg_dup(ms->getMsg());
+	mIncoming = nta_incoming_create(mAgent->mAgent, NULL, msg, sip_object(msg), TAG_END());
+	if (mIncoming != NULL) {
+		nta_incoming_bind(mIncoming, IncomingTransaction::_callback, (nta_incoming_magic_t*) this);
+		mSofiaRef = shared_from_this();
+	} else {
+		LOGE("Error during incoming transaction creation");
 	}
-	LOGD("Destroy IncomingTransaction %p", this);
 }
 
-StatefulSipEvent *IncomingTransaction::create(msg_t * msg, sip_t *sip) {
-	return new StatefulSipEvent(this, msg, sip);
+IncomingTransaction::~IncomingTransaction() {
+	if (mIncoming != NULL) {
+		nta_incoming_bind(mIncoming, NULL, NULL); //avoid callbacks
+		nta_incoming_destroy(mIncoming);
+	}
+	LOGD("Delete IncomingTransaction %p", this);
 }
 
-StatefulSipEvent *IncomingTransaction::copy(const SipEvent *sipEvent) {
-	return new StatefulSipEvent(this, sipEvent);
+shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const *phrase) {
+	msg_t *msg = nta_incoming_create_response(mIncoming, status, phrase);
+	shared_ptr<MsgSip> ms(make_shared<MsgSip>(msg));
+	msg_destroy(msg);
+	return ms;
 }
 
-void IncomingTransaction::send(StatefulSipEvent *ev) {
-	nta_incoming_mreply(incoming, ev->getMsg());
+void IncomingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
+	msg_t* msg = msg_dup(ms->getMsg());
+	nta_incoming_mreply(mIncoming, msg);
+	if (ms->getSip()->sip_status != NULL && ms->getSip()->sip_status->st_status >= 200) {
+		destroy();
+	}
+}
+
+void IncomingTransaction::send(const shared_ptr<MsgSip> &ms) {
+	msg_t* msg = msg_dup(ms->getMsg());
+	nta_incoming_mreply(mIncoming, msg);
+	if (ms->getSip()->sip_status != NULL && ms->getSip()->sip_status->st_status >= 200) {
+		destroy();
+	}
+}
+
+void IncomingTransaction::reply(const shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+	ta_list ta;
+	ta_start(ta, tag, value);
+	nta_incoming_treply(mIncoming, status, phrase, ta_tags(ta));
+	ta_end(ta);
+	if (status >= 200) {
+		destroy();
+	}
 }
 
 int IncomingTransaction::_callback(nta_incoming_magic_t *magic, nta_incoming_t *irq, const sip_t *sip) {
 	IncomingTransaction * it = reinterpret_cast<IncomingTransaction *>(magic);
-	if (it->callback != NULL) {
-		it->callback(sip, it);
+	if (sip != NULL) {
+		msg_t *msg = nta_incoming_getrequest_ackcancel(it->mIncoming);
+		shared_ptr<SipEvent> sipevent(new RequestSipEvent(dynamic_pointer_cast<IncomingAgent>(it->shared_from_this()), make_shared<MsgSip>(msg)));
+		msg_destroy(msg);
+		it->mAgent->sendRequestEvent(sipevent);
+		if (sip->sip_request && sip->sip_request->rq_method == sip_method_cancel) {
+			it->destroy();
+		}
+	} else {
+		it->destroy();
 	}
 	return 0;
 }
 
-nta_incoming_t *IncomingTransaction::getIncoming() {
-	return incoming;
+void IncomingTransaction::destroy() {
+	mAgent->sendTransactionEvent(shared_from_this(), Transaction::Destroy);
+	mSofiaRef.reset();
 }

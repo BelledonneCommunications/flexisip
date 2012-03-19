@@ -24,6 +24,8 @@
 #include <sstream>
 #include <algorithm>
 
+using namespace ::std;
+
 FileAuthDb::FileAuthDb() {
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
@@ -97,7 +99,7 @@ void FileAuthDb::sync() {
 					userid = user;
 				}
 
-				if (std::find(domains.begin(), domains.end(), domain) != domains.end()) {
+				if (find(domains.begin(), domains.end(), domain) != domains.end()) {
 					string key(createPasswordKey(user, domain, userid));
 					cachePassword(key, domain, password, mLastSync);
 				} else {

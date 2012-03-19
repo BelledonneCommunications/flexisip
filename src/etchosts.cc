@@ -20,6 +20,8 @@
 
 #include <cstdio>
 
+using namespace ::std;
+
 EtcHostsResolver *EtcHostsResolver::sInstance=NULL;
 
 EtcHostsResolver::EtcHostsResolver(){
@@ -62,8 +64,8 @@ EtcHostsResolver * EtcHostsResolver::get(){
 	return sInstance;
 }
 
-bool EtcHostsResolver::resolve(const std::string &name, std::string *result)const{
-	std::map<std::string,std::string>::const_iterator it;
+bool EtcHostsResolver::resolve(const string &name, string *result)const{
+	map<string,string>::const_iterator it;
 	it=mMap.find(name);
 	if (it!=mMap.end()) {
 		*result=(*it).second;

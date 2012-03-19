@@ -24,6 +24,8 @@
 
 #include "sdp-modifier.hh"
 
+using namespace ::std;
+
 CallSide::CallSide(CallContext *ctx, const CallContextParams &params) : mCallCtx(ctx){
 	mSession=rtp_session_new(RTP_SESSION_SENDRECV);
 	mProfile=rtp_profile_new("Call profile");
@@ -300,7 +302,7 @@ void CallSide::doBgTasks(){
 }
 
 
-CallContext::CallContext(sip_t *sip, const std::string &bind_address) : CallContextBase(sip), mFrontSide(0), mBackSide(0),mBindAddress(bind_address){
+CallContext::CallContext(sip_t *sip, const string &bind_address) : CallContextBase(sip), mFrontSide(0), mBackSide(0),mBindAddress(bind_address){
 	mInitialOffer=NULL;
 	mTicker=NULL;
 	mInfoCSeq=-1;
