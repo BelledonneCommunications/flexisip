@@ -40,8 +40,12 @@ public:
 	}
 
 	virtual void onDeclare(ConfigStruct *module_config) {
-		ConfigItemDescriptor items[] = { { StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar.", "localhost" }, { Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "15" }, { String,
-				"line-field-name", "Name of the contact uri parameter used for identifying user's device. ", "line" }, { String, "static-route-file", "File containing the static route to add to database at startup", "" },
+		ConfigItemDescriptor items[] = { { StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar.", "localhost" },
+				{ Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "15" },
+				{ String, "line-field-name", "Name of the contact uri parameter used for identifying user's device. ", "line" },
+				{ String, "static-records-file", "File containing the static records to add to database at startup. " \
+					"Format: one \"sip_uri contact_header\" by line. " \
+					"Ex1: <sip:contact@domain> <sip:127.0.0.1:5460>,<sip:192.168.0.1:5160>", "" },
 #ifdef ENABLE_REDIS
 				{	String , "db-implementation", "Implementation used for storing address of records contact uris. [redis-async, redis-sync, internal]","redis-async"},
 				{	String , "redis-server-domain", "Domain of the redis server. ","localhost"},
@@ -65,7 +69,7 @@ public:
 			LOGD("Found registrar domain: %s", (*it).c_str());
 		}
 		mFork = module_config->get<ConfigBoolean>("fork")->read();
-		static_route_file = module_config->get<ConfigString>("static-route-file")->read();
+		static_route_file = module_config->get<ConfigString>("static-records-file")->read();
 		if (!static_route_file.empty())
 			readStaticRecord(static_route_file);
 	}

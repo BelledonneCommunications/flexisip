@@ -158,7 +158,8 @@ public:
 			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file].",		"odbc"	},
 			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. " \
 					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. " \
-					"ex2: DRIVER={MySQL};SERVER=localhost;DATABASE=dbname;USER=username;PASSWORD=passname;OPTION=3; for a DSN-less connection.",		""	},
+					"ex2: DRIVER={MySQL};SERVER=localhost;DATABASE=dbname;USER=username;PASSWORD=passname;OPTION=3; for a DSN-less connection. " \
+					"ex3: /etc/flexisip/passwd; for a file containing one \"user@domain password\" by line.",		""	},
 			{	String		,	"request"				,	"Odbc SQL request to execute to obtain the password. Named parameters are :id, :domain and :authid.'",
 					"select password from accounts where id = :id and domain = :domain and authid=:authid"	},
 			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
