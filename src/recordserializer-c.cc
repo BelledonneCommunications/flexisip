@@ -23,6 +23,7 @@
 #include "recordserializer.hh"
 #include <sofia-sip/sip_protos.h>
 
+using namespace std;
 
 /**
  * 	#<sip:guillaume@domain:port;transport=toto;e=titi>#45#q=1#45646#1325691167#ci=call_id#5

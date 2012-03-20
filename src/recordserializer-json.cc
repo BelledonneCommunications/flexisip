@@ -23,6 +23,8 @@
 #include <sofia-sip/sip_protos.h>
 #include "cJSON.h"
 
+using namespace std;
+
 static inline char *parseOptionalField(const cJSON *json, const char *field){
 	cJSON *cObj=cJSON_GetObjectItem(json->child,field);
 	return cObj?cObj->valuestring:NULL;

@@ -34,7 +34,7 @@ else
 	fi
 fi
 AM_CONDITIONAL(BUILD_SNMP,test x$build_snmp = xtrue)
-AC_DEFINE(SNMP_COMPANY_OID,100000,[Company OID to used for prefixing felxisip MIB])
+AC_DEFINE(SNMP_COMPANY_OID,100000,[Company OID used for prefixing flexisip MIB])
 
 
 if test -f /etc/debian_version ; then
@@ -43,8 +43,9 @@ else
 	use_rpm=true;
 fi
 
+# Use only -O1 due to a compile-time bug in gcc 4.4.6 from centos6.
 CFLAGS="-g -O2 -pthread $CFLAGS"
-CXXFLAGS="-g -O2 -pthread -std=c++0x"
+CXXFLAGS="-g -O1 -pthread -std=c++0x"
 LDFLAGS="-pthread $LDFLAGS"
 
 AC_ARG_ENABLE(strict,

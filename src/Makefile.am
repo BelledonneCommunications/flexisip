@@ -30,7 +30,7 @@ flexisip_SOURCES=main.cc \
 
 
 if BUILD_SNMP
-flexisip_SOURCES+=snmp-agent.cc
+flexisip_SOURCES+=snmp-agent.cc snmp-agent.h
 INCLUDES=-Imib			
 endif
 

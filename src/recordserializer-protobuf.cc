@@ -23,6 +23,7 @@
 #include "recordserializer-protobuf.pb.h"
 #include <sofia-sip/sip_protos.h>
 
+using namespace std;
 
 // See .proto file for description of the format.
 
