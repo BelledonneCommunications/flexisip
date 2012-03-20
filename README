@@ -6,6 +6,12 @@ Flexisip depends on the following externals:
 -mediastreamer2
 -sofia-sip
 
+Optionally it also depends on:
+- net-snmp
+- odbc
+- hiredis
+- protobuf
+
 
 To configure Flexisip, copy and modify file flexisip.conf.sample to flexisip.conf in directory <prefix>/etc/flexisip
 
