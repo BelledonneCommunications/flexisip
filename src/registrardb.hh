@@ -150,8 +150,6 @@ class RegistrarDb {
 		RegistrarDb();
 		std::map<std::string,Record*> mRecords;
 		static RegistrarDb *sUnique;
-		unsigned long long int mTotalNumberOfAddRecords;
-		unsigned long long int mTotalNumberOfExpiredRecords;
 };
 
 
