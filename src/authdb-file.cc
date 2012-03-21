@@ -35,7 +35,7 @@ FileAuthDb::FileAuthDb() {
 	sync();
 }
 
-AuthDbResult FileAuthDb::password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *listener) {
+AuthDbResult FileAuthDb::password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener) {
 	time_t now = time(NULL);
 
 	if (difftime(now, mLastSync) >= mCacheExpire) {

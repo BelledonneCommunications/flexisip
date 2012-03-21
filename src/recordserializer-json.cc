@@ -52,6 +52,7 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r){
 		time_t update_time=cJSON_GetObjectItem(contact->child,"update_time")->valuedouble;
 		char *call_id=cJSON_GetObjectItem(contact->child,"call_id")->valuestring;
 		int cseq=cJSON_GetObjectItem(contact->child,"cseq")->valueint;
+		bool alias=cJSON_GetObjectItem(contact->child,"alias")->valueint != 0;
 
 		if (!sip_contact || sip_contact[0] != '<' || !expire || !update_time || !call_id || !cseq){
 			LOGE("Invalid redis contact %i %s",i, str);
@@ -59,7 +60,7 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r){
 			return false;
 		}
 
-		r->bind(sip_contact, contactId, route, lineValue, q, expire, call_id, cseq, update_time);
+		r->bind(sip_contact, contactId, route, lineValue, q, expire, call_id, cseq, update_time, alias);
 		contact=contact->next;
 		++i;
 	}
@@ -71,15 +72,14 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r){
 bool RecordSerializerJson::serialize(Record *r, string &serialized){
 	if (!r) return true;
 
-	list<extended_contact *> ecs=r->getExtendedContacts();
-	list<extended_contact *>::iterator it;
+	auto ecs=r->getExtendedContacts();
 	cJSON *root=cJSON_CreateObject();
 	cJSON *contacts=cJSON_CreateArray();
 	cJSON_AddItemToObject(root, "contacts", contacts);
-	for (it=ecs.begin(); it != ecs.end(); ++it){
+	for (auto it=ecs.begin(); it != ecs.end(); ++it){
 		cJSON *c=cJSON_CreateObject();
 		cJSON_AddItemToArray(contacts,c);
-		extended_contact *ec=(*it);
+		shared_ptr<ExtendedContact> ec=(*it);
 		cJSON_AddStringToObject(c,"uri",ec->mSipUri);
 		cJSON_AddNumberToObject(c,"expires_at",ec->mExpireAt);
 		cJSON_AddNumberToObject(c,"q",ec->mQ?ec->mQ : 0);
@@ -89,6 +89,7 @@ bool RecordSerializerJson::serialize(Record *r, string &serialized){
 		cJSON_AddNumberToObject(c,"update_time",ec->mUpdatedTime);
 		cJSON_AddStringToObject(c,"call_id",ec->mCallId);
 		cJSON_AddNumberToObject(c,"cseq",ec->mCSeq);
+		cJSON_AddNumberToObject(c,"alias",ec->mAlias? 1: 0);
 	}
 
 	char *contacts_str=cJSON_PrintUnformatted(root);

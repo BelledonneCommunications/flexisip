@@ -69,7 +69,7 @@ protected:
 	int mCacheExpire;
 public:
 	virtual ~AuthDb();
-	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *listener)=0;
+	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener)=0;
 	static AuthDb* get();
 
 	AuthDb (const AuthDb &);
@@ -86,7 +86,7 @@ protected:
         
 public:
         FileAuthDb();
-	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *listener);
+	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener);
 };
 
 
@@ -122,9 +122,9 @@ class OdbcAuthDb : public AuthDb {
 	bool execDirect;
 	bool getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimings &timings);
 	AuthDbResult doRetrievePassword(const string &user, const string &host, const string &auth, string &foundPassword, AuthDbTimings &timings);
-	void doAsyncRetrievePassword(su_root_t *, string id, string domain, string auth, string fallback, AuthDbListener *listener);
+	void doAsyncRetrievePassword(su_root_t *, string id, string domain, string auth, string fallback, const shared_ptr<AuthDbListener> &listener);
 public:
-	virtual AuthDbResult password(su_root_t*, const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *);
+	virtual AuthDbResult password(su_root_t*, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener);
 	map<string,string> cachedPasswords;
 	void setExecuteDirect(const bool value);
 	bool connect(const string &dsn, const string &request, const vector<string> &parameters, int maxIdLength, int maxPassLength);

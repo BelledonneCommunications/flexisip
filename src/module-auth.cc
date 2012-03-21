@@ -290,8 +290,8 @@ void Authentication::AuthenticationListener::setData(auth_mod_t *am, auth_status
 
 void Authentication::AuthenticationListener::sendReplyAndDestroy(){
 	sendReply();
-	delete(this);
 }
+
 /**
  * return true if the event is terminated
  */
@@ -390,7 +390,6 @@ void Authentication::AuthenticationListener::onAsynchronousResponse(AuthDbResult
 			// The event is not terminated
 			mAgent->injectRequestEvent(mEv);
 		}
-		delete this;
 		break;
 	default:
 		LOGE("unhandled asynchronous response %u", res);
@@ -432,7 +431,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		auth_response_t *ar,
 		auth_challenger_t const *ach) {
 
-	AuthenticationListener *listener=(AuthenticationListener*) as->as_magic;
+	shared_ptr<AuthenticationListener> listener((AuthenticationListener*) as->as_magic);
 
 	if (am == NULL || as == NULL || ar == NULL || ach == NULL) {
 		if (as) {
@@ -508,13 +507,11 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 			++module->findStat(countSyncRetrieve);
 			listener->checkPassword(foundPassword.c_str());
 			listener->sendReply();
-			delete(listener);
 			break;
 		case PASSWORD_NOT_FOUND:
 			++module->findStat(countSyncRetrieve);
 			listener->checkPassword(NULL);
 			listener->sendReply();
-			delete(listener);
 			break;
 		case AUTH_ERROR:
 			listener->onError();

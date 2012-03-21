@@ -140,21 +140,22 @@ typedef struct RegistrarDbRedisAsync::RegistrarUserData {
         const sip_contact_t * sipContact;
 	const char * calldId;
         uint32_t csSeq;
-	RegistrarDbListener *listener;
+	shared_ptr<RegistrarDbListener>listener;
 	Record record;
 	int globalExpire;
 	char *route;
+	bool alias;
 
-	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, RegistrarDbListener *listener, forwardFn *fn):
-		self(self),fn(fn),token(0),sipContact(sip_contact),calldId(calld_id),csSeq(cs_seq),listener(listener),globalExpire(0),route(NULL){
+	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, bool alias, shared_ptr<RegistrarDbListener>listener, forwardFn *fn):
+		self(self),fn(fn),token(0),sipContact(sip_contact),calldId(calld_id),csSeq(cs_seq),listener(listener),globalExpire(0),route(NULL),alias(alias){
 		defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
 		if (route) this->route=strdup(route);
 	}
-	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, RegistrarDbListener *listener, forwardFn *fn):
+	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, shared_ptr<RegistrarDbListener>listener, forwardFn *fn):
 		self(self),fn(fn),token(0),sipContact(sip_contact),calldId(calld_id),csSeq(cs_seq),listener(listener),globalExpire(0),route(NULL){
 		defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
 	}
-	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t *url, RegistrarDbListener *listener, forwardFn *fn):
+	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t *url, shared_ptr<RegistrarDbListener>listener, forwardFn *fn):
 		self(self),fn(fn),token(0),sipContact(NULL),calldId(NULL),csSeq(-1),listener(listener),globalExpire(0),route(NULL){
 		defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
 	}
@@ -263,7 +264,7 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 
 	time_t now=time(NULL);
 	data->record.clean(data->sipContact, data->calldId, data->csSeq, now);
-	data->record.bind(data->sipContact, data->route, data->globalExpire, data->calldId, data->csSeq, now);
+	data->record.bind(data->sipContact, data->route, data->globalExpire, data->calldId, data->csSeq, now, data->alias);
 
 	string serialized;
 	mSerializer->serialize(&data->record, serialized);
@@ -273,14 +274,8 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 
 
 
-
-
-
-
-
-
-void RegistrarDbRedisAsync::bind(const url_t* url, const sip_contact_t *sip_contact, const char * call_id, uint32_t cs_seq, const char *route, int global_expire, RegistrarDbListener *listener) {
-  	RegistrarUserData *data=new RegistrarUserData(this,url,sip_contact,call_id,cs_seq,route,listener,sHandleBind);
+void RegistrarDbRedisAsync::doBind(const url_t* url, const sip_contact_t *sip_contact, const char * call_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
+  	RegistrarUserData *data=new RegistrarUserData(this,url,sip_contact,call_id,cs_seq,route,alias,listener,sHandleBind);
 	data->globalExpire=global_expire;
 	if (!isConnected() && !connect()) {
 		LOGE("Not connected to redis server");
@@ -294,12 +289,7 @@ void RegistrarDbRedisAsync::bind(const url_t* url, const sip_contact_t *sip_cont
 	redisAsyncCommand(mContext, sHandleAorGetReply,data,"GET aor:%s",data->key);      
 }
 
-
-void RegistrarDbRedisAsync::bind(const sip_t *sip, const char *route, int globalExpire, RegistrarDbListener *listener){
-        bind(sip->sip_from->a_url,sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, route, globalExpire, listener);
-}
-
-void RegistrarDbRedisAsync::clear(const sip_t *sip, RegistrarDbListener *listener){
+void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<RegistrarDbListener> &listener){
 	RegistrarUserData *data=new RegistrarUserData(this, sip->sip_from->a_url,sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, listener, sHandleClear);
 	if (!isConnected() && !connect()) {
 		LOGE("Not connected to redis server");
@@ -312,7 +302,7 @@ void RegistrarDbRedisAsync::clear(const sip_t *sip, RegistrarDbListener *listene
 
 
 
-void RegistrarDbRedisAsync::fetch(const url_t *url, RegistrarDbListener *listener){
+void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<RegistrarDbListener> &listener){
 	RegistrarUserData *data=new RegistrarUserData(this,url,listener,sHandleFetch);
 	if (!isConnected() && !connect()) {
 		LOGE("Not connected to redis server");

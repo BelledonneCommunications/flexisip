@@ -62,10 +62,10 @@ bool RecordSerializerPb::serialize(Record *r, string &serialized){
 
 
 	RecordContactListPb pbContacts;
-	list<extended_contact *> contacts=r->getExtendedContacts();
-	list<extended_contact *>::iterator it;
+	list<ExtendedContact *> contacts=r->getExtendedContacts();
+	list<ExtendedContact *>::iterator it;
 	for (it=contacts.begin(); it != contacts.end(); ++it){
-		extended_contact *ec=(*it);
+		ExtendedContact *ec=(*it);
 		RecordContactPb *c = pbContacts.add_contact();
 		c->set_uri(ec->mSipUri);
 		c->set_contact_id(ec->mContactId);

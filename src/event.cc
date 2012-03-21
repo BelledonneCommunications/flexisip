@@ -74,6 +74,7 @@ void SipEvent::terminateProcessing() {
 }
 
 void SipEvent::suspendProcessing() {
+	LOGD("Suspend SipEvent");
 	if (mState == STARTED) {
 		mState = SUSPENDED;
 	} else {

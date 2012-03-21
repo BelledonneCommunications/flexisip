@@ -107,7 +107,7 @@ bool RegistrarDbRedisSync::connect() {
         return true;
 }
 
-void RegistrarDbRedisSync::bind(const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, RegistrarDbListener *listener) {
+void RegistrarDbRedisSync::doBind(const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
         char key[AOR_KEY_SIZE] = {0};
         defineKeyFromUrl(key, AOR_KEY_SIZE - 1, url);
 
@@ -139,7 +139,7 @@ void RegistrarDbRedisSync::bind(const url_t* url, const sip_contact_t *sip_conta
 
         time_t now = time(NULL);
         r.clean(sip_contact, calld_id, cs_seq, now);
-        r.bind(sip_contact, route, global_expire, calld_id, cs_seq, now);
+        r.bind(sip_contact, route, global_expire, calld_id, cs_seq, now, alias);
 
         string updatedAorString;
         mSerializer->serialize(&r, updatedAorString);
@@ -158,11 +158,7 @@ void RegistrarDbRedisSync::bind(const url_t* url, const sip_contact_t *sip_conta
         listener->onRecordFound(&r);
 }
 
-void RegistrarDbRedisSync::bind(const sip_t *sip, const char* route, int globalExpire, RegistrarDbListener *listener) {
-        bind(sip->sip_from->a_url, sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, route, globalExpire, listener);
-}
-
-void RegistrarDbRedisSync::clear(const sip_t *sip, RegistrarDbListener *listener) {
+void RegistrarDbRedisSync::doClear(const sip_t *sip, const shared_ptr<RegistrarDbListener> &listener) {
         char key[AOR_KEY_SIZE] = {0};
         defineKeyFromUrl(key, AOR_KEY_SIZE - 1, sip->sip_from->a_url);
 
@@ -205,7 +201,7 @@ void RegistrarDbRedisSync::clear(const sip_t *sip, RegistrarDbListener *listener
         listener->onRecordFound(NULL);
 }
 
-void RegistrarDbRedisSync::fetch(const url_t *url, RegistrarDbListener *listener) {
+void RegistrarDbRedisSync::doFetch(const url_t *url, const shared_ptr<RegistrarDbListener> &listener) {
         char key[AOR_KEY_SIZE] = {0};
         defineKeyFromUrl(key, AOR_KEY_SIZE - 1, url);
 

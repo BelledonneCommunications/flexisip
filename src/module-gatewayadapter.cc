@@ -83,7 +83,6 @@ private:
 			LOGD("Found password");
 			gw->setPassword(password);
 			gw->sendRegister();
-			delete this;
 		}
 
 		virtual void onAsynchronousResponse(AuthDbResult ret, const char *password) {
@@ -92,7 +91,6 @@ private:
 
 		virtual void onError() {
 			gw->onError("Error on password retrieval");
-			delete this;
 		}
 
 	};
@@ -114,11 +112,9 @@ private:
 		void onRecordFound(Record *r) {
 			if (r == NULL) {
 				LOGD("Record doesn't exist. Fork");
-				OnAuthListener * listener = new OnAuthListener(gw);
-
 				string password;
 				AuthDb *mAuthDb = AuthDb::get();
-				AuthDbResult result = mAuthDb->password(gw->agent->getRoot(), gw->getFrom()->a_url, gw->getFrom()->a_url->url_user, password, listener);
+				AuthDbResult result = mAuthDb->password(gw->agent->getRoot(), gw->getFrom()->a_url, gw->getFrom()->a_url->url_user, password, make_shared<OnAuthListener>(gw));
 
 				// Already a response?
 				if (result != AuthDbResult::PENDING) {
@@ -128,17 +124,14 @@ private:
 					} else {
 						LOGE("Can't find user password. Abort.");
 					}
-					delete listener;
 				}
 			} else {
 				LOGD("Record already exists. Not forked");
 			}
-			delete this;
 		}
 
 		void onError() {
 			gw->onError("Fetch error.");
-			delete this;
 		}
 	};
 };
@@ -222,14 +215,12 @@ void GatewayRegister::onError(const char *message, ...) {
 
 void GatewayRegister::start() {
 	LOGD("GatewayRegister start");
-	OnFetchListener *listener = new OnFetchListener(this);
 	LOGD("Fetching binding");
-	RegistrarDb::get(agent)->fetch(from->a_url, listener);
+	RegistrarDb::get(agent)->fetch(from->a_url, make_shared<OnFetchListener>(this));
 }
 
 void GatewayRegister::end() {
 	LOGD("GatewayRegister end");
-	delete this;
 }
 
 class GatewayAdapter: public Module {

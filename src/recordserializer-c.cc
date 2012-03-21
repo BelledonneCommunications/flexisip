@@ -48,6 +48,7 @@ bool RecordSerializerC::parse(const char *str, int len, Record *r){
 		char *update_time=strsep(&rc, "#");
 		char *call_id=strsep(&rc, "#");
 		char *cseq=strsep(&rc, "#");
+		char *alias=strsep(&rc, "#");
 
 		if (empty[0] != '\0' || !sip_contact || sip_contact[0] != '<' || !expire || !update_time || !call_id || !cseq){
 			LOGE("Invalid serialized contact %i %s",i, str);
@@ -55,7 +56,7 @@ bool RecordSerializerC::parse(const char *str, int len, Record *r){
 			return false;
 		}
 
-		r->bind(sip_contact, contactId, route, lineValue, q?atof(q):0, atol(expire), call_id, atoi(cseq), atol(update_time));
+		r->bind(sip_contact, contactId, route, lineValue, q?atof(q):0, atol(expire), call_id, atoi(cseq), atol(update_time), strcmp(alias, "true") == 0);
 		++i;
 	}
 
@@ -67,20 +68,19 @@ bool RecordSerializerC::parse(const char *str, int len, Record *r){
 bool RecordSerializerC::serialize(Record *r, string &serialized){
 	if (!r) return true;
 
-	list<extended_contact *> contacts=r->getExtendedContacts();
-	list<extended_contact *>::iterator it;
+	auto contacts=r->getExtendedContacts();
 	ostringstream oss;
 
 	int i=0;
-	for (it=contacts.begin(); it != contacts.end(); ++it){
-		extended_contact *ec=(*it);
+	for (auto it=contacts.begin(); it != contacts.end(); ++it){
+		shared_ptr<ExtendedContact> ec=(*it);
 		if (i != 0) oss << "#";
 		oss << "#" << ec->mSipUri << "#" << ec->mExpireAt << "#" <<ec->mQ;
 		oss << "#" << ec->mContactId;
 		oss << "#"; if (ec->mRoute) oss << ec->mRoute;
 		oss << "#"; if (ec->mLineValueCopy) oss << ec->mLineValueCopy;
 		oss << "#" << ec->mUpdatedTime;
-		oss << "#" << ec->mCallId << "#" << ec->mCSeq;
+		oss << "#" << ec->mCallId << "#" << ec->mCSeq << "#" << (ec->mAlias? "true": "false");
 		++i;
 	}
 

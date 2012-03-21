@@ -406,7 +406,7 @@ static void closeCursor(SQLHSTMT &stmt) {
 
 
 
-AuthDbResult OdbcAuthDb::password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, AuthDbListener *listener){
+AuthDbResult OdbcAuthDb::password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener){
 	// Check for usable cached password
 	string id(from->url_user);
 	string domain(from->url_host);
@@ -453,7 +453,7 @@ AuthDbResult OdbcAuthDb::password(su_root_t *root, const url_t *from, const char
 
 struct auth_splugin_t
 {
-  AuthDbListener *listener;
+  shared_ptr<AuthDbListener>listener;
   AuthDbResult result;
   char *password;
 };
@@ -470,7 +470,7 @@ static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg,
 static unsigned long threadCount=0;
 static mutex threadCountMutex;
 */
-void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string domain, string auth, string fallback, AuthDbListener *listener){
+void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string domain, string auth, string fallback, const shared_ptr<AuthDbListener> &listener){
 /*	unsigned long localThreadCountCopy=0;
 	threadCountMutex.lock();
 	++threadCount;

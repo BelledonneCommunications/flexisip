@@ -39,22 +39,23 @@ class RegistrarDbRedisSync : public RegistrarDb {
         static std::string sAuthPassword;
         static int sPort;
         static int sTimeout;
-public:
+protected:
         bool connect();
-        void bind(const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, RegistrarDbListener *listener);
-        void bind(const sip_t *sip, const char* route, int default_delta, RegistrarDbListener *listener);
-        void clear(const sip_t *sip, RegistrarDbListener *listener);
-        void fetch(const url_t *url, RegistrarDbListener *listener);
+        virtual void doBind(const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener);
+        virtual void doClear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
+        virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener);
 };
 
 class RegistrarDbRedisAsync : public RegistrarDb {
 public:
         struct RegistrarUserData;
+
+protected:
         bool connect();
-        void bind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, RegistrarDbListener *listener);
-        void bind(const sip_t *sip, const char* route, int default_delta, RegistrarDbListener *listener);
-        void clear(const sip_t *sip, RegistrarDbListener *listener);
-        void fetch(const url_t *url, RegistrarDbListener *listener);
+        virtual void doBind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener);
+        virtual void doClear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
+        virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener);
+
 private:
         RegistrarDbRedisAsync(Agent *ag);
         ~RegistrarDbRedisAsync();

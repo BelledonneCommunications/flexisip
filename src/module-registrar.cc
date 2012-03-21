@@ -157,11 +157,9 @@ public:
 	}
 	void onRecordFound(Record *r) {
 		LOGD("Static route added: %s", line.c_str());
-		delete this;
 	}
 	void onError() {
 		LOGE("Can't add static route: %s", line.c_str());
-		delete this;
 	}
 };
 
@@ -198,8 +196,7 @@ void Registrar::readStaticRecord(string file_path) {
 					sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
 
 					if (url != NULL && contact != NULL) {
-						OnLogBindListener *listener = new OnLogBindListener(getAgent(), line);
-						RegistrarDb::get(mAgent)->bind(url, contact, "", 0, NULL, INT32_MAX, listener);
+						RegistrarDb::get(mAgent)->bind(url, contact, "", 0, NULL, INT32_MAX, isManagedDomain(url->url_host), make_shared<OnLogBindListener>(getAgent(), line));
 						continue;
 					}
 				}
@@ -227,9 +224,9 @@ void Registrar::send200Ok(Agent *agent, shared_ptr<SipEvent> &ev, const sip_cont
 	}
 }
 
-static extended_contact *getFirstExtendedContact(Record *aor) {
-	const list<extended_contact*> contacts = aor->getExtendedContacts();
-	list<extended_contact*>::const_iterator it = contacts.begin();
+static shared_ptr<ExtendedContact> getFirstExtendedContact(Record *aor) {
+	auto contacts = aor->getExtendedContacts();
+	auto it = contacts.begin();
 	return it != contacts.end() ? (*it) : NULL;
 }
 
@@ -255,13 +252,13 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 	// here we would implement forking
 	time_t now = time(NULL);
 	if (aor) {
-		const list<extended_contact*> contacts = aor->getExtendedContacts();
+		const auto contacts = aor->getExtendedContacts();
 		if (contacts.size() <= 1 || !fork || ms->getSip()->sip_request->rq_method != sip_method_invite) {
 			++findStat(sCountNonForkedStr);
-			extended_contact *ec = getFirstExtendedContact(aor);
+			shared_ptr<ExtendedContact> ec = getFirstExtendedContact(aor);
 			sip_contact_t *ct = NULL;
 			if (ec)
-				ct = Record::extendedContactToSofia(ms->getHome(), ec, now);
+				ct = Record::extendedContactToSofia(ms->getHome(), *ec, now);
 
 			if (ct && !contactinVia(ct, sip->sip_via)) {
 				/*sanity check on the contact address: might be '*' or whatever useless information*/
@@ -289,11 +286,11 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 			context->onNew(incoming_transaction);
 			incoming_transaction->setProperty<ForkCallContext>(Registrar::sInfo.getModuleName(), context);
 
-			for (list<extended_contact*>::const_iterator it = contacts.begin(); it != contacts.end(); ++it) {
-				extended_contact *ec = *it;
+			for (auto it = contacts.begin(); it != contacts.end(); ++it) {
+				shared_ptr<ExtendedContact> ec = *it;
 				sip_contact_t *ct = NULL;
 				if (ec)
-					ct = Record::extendedContactToSofia(ms->getHome(), ec, now);
+					ct = Record::extendedContactToSofia(ms->getHome(), *ec, now);
 
 				if (ct && !contactinVia(ct, sip->sip_via)) {
 					/*sanity check on the contact address: might be '*' or whatever useless information*/
@@ -351,11 +348,9 @@ public:
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		time_t now = time(NULL);
 		Registrar::send200Ok(agent, ev, r->getContacts(ms->getHome(), now));
-		delete this;
 	}
 	void onError() {
 		Registrar::send480KO(agent, ev);
-		delete this;
 	}
 };
 
@@ -374,11 +369,9 @@ public:
 	;
 	void onRecordFound(Record *r) {
 		mModule->routeRequest(mAgent, mEv, r, mFork);
-		delete this;
 	}
 	void onError() {
 		Registrar::send480KO(mAgent, mEv);
-		delete this;
 	}
 };
 
@@ -407,25 +400,24 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 					return;
 				}
 				if ('*' == sip->sip_contact->m_url->url_scheme[0]) {
-					OnBindListener *listener = new OnBindListener(getAgent(), ev);
+					shared_ptr<OnBindListener> listener(make_shared<OnBindListener>(getAgent(), ev));
 					++findStat(sCountClearStr);
 					LOGD("Clearing bindings");
 					listener->addStatCounter(findStat(sCountClearFinishedStr));
 					RegistrarDb::get(mAgent)->clear(sip, listener);
 					return;
 				} else {
-					OnBindListener *listener = new OnBindListener(getAgent(), ev);
+					shared_ptr<OnBindListener> listener(make_shared<OnBindListener>(getAgent(), ev));
 					++findStat(sCountBindStr);
 					LOGD("Updating binding");
 					listener->addStatCounter(findStat(sCountBindFinishedStr));
-					RegistrarDb::get(mAgent)->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, listener);;
+					RegistrarDb::get(mAgent)->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, false, listener);;
 					return;
 				}
 				LOGD("Records binded to registrar database.");
 			} else {
-				OnBindListener *listener = new OnBindListener(getAgent(), ev);
 				LOGD("No sip contact, it is a fetch only request.");
-				RegistrarDb::get(mAgent)->fetch(sipurl, listener);
+				RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnBindListener>(getAgent(), ev));
 				return;
 			}
 		}
@@ -438,8 +430,7 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 		if (sip->sip_request->rq_method != sip_method_ack) {
 			url_t *sipurl = sip->sip_request->rq_url;
 			if (sipurl->url_host && isManagedDomain(sipurl->url_host)) {
-				RegistrarDbListener *listener = new OnBindForRoutingListener(this, getAgent(), ev, mFork);
-				RegistrarDb::get(mAgent)->fetch(sipurl, listener);
+				RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnBindForRoutingListener>(this, getAgent(), ev, mFork), true);
 			}
 		}
 	}
