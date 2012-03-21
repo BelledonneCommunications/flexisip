@@ -140,6 +140,7 @@ public:
 		return mParent;
 	}
 	virtual ~GenericEntry(){
+		if (mOid) delete mOid;
 	}
 	virtual void setParent(GenericEntry *parent);
 	/*
