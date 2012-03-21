@@ -28,8 +28,8 @@
 
 using namespace ::std;
 
-const static char* countInvitesStr = "count-invites";
-const static char* countInvitesFinishedStr = "count-invites-finished";
+const static char* countCallsStr = "count-calls";
+const static char* countCallsFinishedStr = "count-calls-finished";
 
 class RelayedCall;
 
@@ -48,8 +48,8 @@ protected:
 		module_config->addChildrenValues(items);
 
 		StatItemDescriptor stats[] = {
-			{	Counter64,	countInvitesStr, "Number of calls."},
-			{	Counter64,	countInvitesFinishedStr, "Number of calls finished."},
+			{	Counter64,	countCallsStr, "Number of calls."},
+			{	Counter64,	countCallsFinishedStr, "Number of calls finished."},
 			stat_item_end };
 		module_config->addChildrenValues(stats);
 	}
@@ -240,6 +240,7 @@ MediaRelay::~MediaRelay() {
 
 void MediaRelay::onLoad(Agent *ag, const GenericStruct * modconf) {
 	mCalls = new CallStore();
+	mCalls->setCallStatCounters(&findStat(countCallsStr), &findStat(countCallsFinishedStr));
 	mServer = new MediaRelayServer(ag->getBindIp(), ag->getPublicIp());
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
 }

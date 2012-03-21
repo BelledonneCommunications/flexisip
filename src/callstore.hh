@@ -78,9 +78,9 @@ class CallStore{
 		std::shared_ptr<CallContextBase> find(Agent *ag, sip_t *sip, bool stateful = false);
 		void remove(const std::shared_ptr<CallContextBase> &ctx);
 		void removeAndDeleteInactives();
-		void setInviteStatCounters(StatCounter64 *invCount, StatCounter64 *invFinishedCount) {
-			mCountInvites=invCount;
-			mCountInvitesFinished=invFinishedCount;
+		void setCallStatCounters(StatCounter64 *invCount, StatCounter64 *invFinishedCount) {
+			mCountCalls=invCount;
+			mCountCallsFinished=invFinishedCount;
 		}
 		void dump();
 		const std::list<std::shared_ptr<CallContextBase>> &getList()const{
@@ -88,8 +88,8 @@ class CallStore{
 		}
 	private:
 		std::list<std::shared_ptr<CallContextBase>> mCalls;
-		StatCounter64 *mCountInvites;
-		StatCounter64 *mCountInvitesFinished;
+		StatCounter64 *mCountCalls;
+		StatCounter64 *mCountCallsFinished;
 };
 
 

@@ -172,14 +172,14 @@ CallContextBase::~CallContextBase(){
 	}
 }
 
-CallStore::CallStore() : mCountInvites(NULL),mCountInvitesFinished(NULL){
+CallStore::CallStore() : mCountCalls(NULL),mCountCallsFinished(NULL){
 }
 
 CallStore::~CallStore(){
 }
 
 void CallStore::store(const std::shared_ptr<CallContextBase> &ctx){
-	if (mCountInvites) ++(*mCountInvites);
+	if (mCountCalls) ++(*mCountCalls);
 	mCalls.push_back(ctx);
 }
 
@@ -192,7 +192,7 @@ std::shared_ptr<CallContextBase> CallStore::find(Agent *ag, sip_t *sip, bool sta
 }
 
 void CallStore::remove(const std::shared_ptr<CallContextBase> &ctx){
-	if (mCountInvitesFinished) ++(*mCountInvitesFinished);
+	if (mCountCallsFinished) ++(*mCountCallsFinished);
 	mCalls.remove(ctx);
 }
 
@@ -200,7 +200,7 @@ void CallStore::removeAndDeleteInactives(){
 	time_t cur=time(NULL);
 	for(auto it=mCalls.begin();it!=mCalls.end();){
 		if ((*it)->isInactive (cur)){
-			if (mCountInvitesFinished) ++(*mCountInvitesFinished);
+			if (mCountCallsFinished) ++(*mCountCallsFinished);
 			it=mCalls.erase(it);
 		}else ++it;
 	}
