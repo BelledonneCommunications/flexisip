@@ -185,7 +185,7 @@ MSList *TranscodeModule::orderList(const list<string> &config, const MSList *l) 
 	int rate;
 	MSList *ret = NULL;
 	const MSList *it;
-	std::list<std::string>::const_iterator cfg_it;
+	list<string>::const_iterator cfg_it;
 
 	for (cfg_it = config.begin(); cfg_it != config.end(); ++cfg_it) {
 		char name[(*cfg_it).size() + 1];

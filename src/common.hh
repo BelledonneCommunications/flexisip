@@ -24,6 +24,7 @@
 #include <cstdarg>
 #include <ortp/ortp.h>
 #include <map>
+#include <sys/timeb.h>
 
 extern bool sUseSyslog;
 
@@ -57,6 +58,30 @@ extern bool sUseSyslog;
 	}\
 	exit(-1); \
 }while(0);
+
+#define LOG_START { \
+	if(IS_LOGD) { \
+		char ___buffer[32]; \
+		struct timeb ___rawtime; \
+		struct tm *___gmtime; \
+		ftime ( &___rawtime ); \
+		___gmtime = gmtime ( &___rawtime.time ); \
+		strftime(___buffer, 64, "%x %X", ___gmtime); \
+		LOGD(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>%s.%03d>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", ___buffer, ___rawtime.millitm); \
+	} \
+}
+
+#define LOG_END { \
+	if(IS_LOGD) { \
+		char ___buffer[32]; \
+		struct timeb ___rawtime; \
+		struct tm *___gmtime; \
+		ftime ( &___rawtime ); \
+		___gmtime = gmtime ( &___rawtime.time ); \
+		strftime(___buffer, 64, "%x %X", ___gmtime); \
+		LOGD("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<%s.%03d<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<", ___buffer, ___rawtime.millitm); \
+	} \
+}
 
 class Mutex{
 	public:

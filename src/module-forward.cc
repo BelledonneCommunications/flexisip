@@ -119,8 +119,6 @@ void ForwardModule::checkRecordRoutes(shared_ptr<SipEvent> &ev, url_t *dest) {
 
 void ForwardModule::onRequest(shared_ptr<SipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	size_t msg_size;
-	char *buf;
 	url_t* dest = NULL;
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
@@ -176,13 +174,9 @@ void ForwardModule::onRequest(shared_ptr<SipEvent> &ev) {
 	if (isLooping(ev, branchStr + 7)) {
 		ev->reply(ms, SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	} else if (getAgent()->isUs(dest->url_host, dest->url_port, false)) {
-		buf = msg_as_string(ms->getHome(), msg, NULL, 0, &msg_size);
-		LOGD("Skipping forwarding of request to us %s:\n%s", url_as_string(ms->getHome(), dest), buf);
 		ev->terminateProcessing();
 	} else {
 		checkRecordRoutes(ev, dest);
-		buf = msg_as_string(ms->getHome(), msg, NULL, 0, &msg_size);
-		LOGD("About to forward request to %s:\n%s", url_as_string(ms->getHome(), dest), buf);
 		ev->send(ms, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), TAG_END());
 	}
 

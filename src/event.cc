@@ -57,15 +57,22 @@ MsgSip::~MsgSip() {
 	msg_destroy(mMsg);
 }
 
-SipEvent::SipEvent(const std::shared_ptr<MsgSip> msgSip) :
+SipEvent::SipEvent(const shared_ptr<MsgSip> msgSip) :
 		mCurrModule(NULL), mMsgSip(msgSip), mState(STARTED) {
+	LOGD("New SipEvent %p", this);
 }
 
 SipEvent::SipEvent(const SipEvent &sipEvent) :
 		mCurrModule(sipEvent.mCurrModule), mMsgSip(sipEvent.mMsgSip), mIncomingAgent(sipEvent.mIncomingAgent), mOutgoingAgent(sipEvent.mOutgoingAgent), mState(sipEvent.mState) {
-
+	LOGD("New SipEvent %p", this);
 }
+
+SipEvent::~SipEvent() {
+	LOGD("Destroy SipEvent %p", this);
+}
+
 void SipEvent::terminateProcessing() {
+	LOGD("Terminate SipEvent %p", this);
 	if (mState == STARTED || mState == SUSPENDED) {
 		mState = TERMINATED;
 	} else {
@@ -74,7 +81,7 @@ void SipEvent::terminateProcessing() {
 }
 
 void SipEvent::suspendProcessing() {
-	LOGD("Suspend SipEvent");
+	LOGD("Suspend SipEvent %p", this);
 	if (mState == STARTED) {
 		mState = SUSPENDED;
 	} else {
@@ -83,6 +90,7 @@ void SipEvent::suspendProcessing() {
 }
 
 void SipEvent::restartProcessing() {
+	LOGD("Restart SipEvent %p", this);
 	if (mState == SUSPENDED) {
 		mState = STARTED;
 	} else {
@@ -115,9 +123,8 @@ RequestSipEvent::RequestSipEvent(const shared_ptr<IncomingAgent> &incomingAgent,
 	mOutgoingAgent = incomingAgent->getAgent()->shared_from_this();
 }
 
-RequestSipEvent::RequestSipEvent(const std::shared_ptr<SipEvent> &sipEvent, const std::shared_ptr<MsgSip> &msgSip) :
+RequestSipEvent::RequestSipEvent(const shared_ptr<SipEvent> &sipEvent) :
 		SipEvent(*sipEvent) {
-	mMsgSip = msgSip;
 }
 
 void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
@@ -127,6 +134,8 @@ void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u,
 		ta_start(ta, tag, value);
 		mOutgoingAgent->send(msg, u, ta_tags(ta));
 		ta_end(ta);
+	} else {
+		LOGD("The Request SIP message is not send");
 	}
 	terminateProcessing();
 }
@@ -135,6 +144,8 @@ void RequestSipEvent::send(const shared_ptr<MsgSip> &msg) {
 	if (mOutgoingAgent != NULL) {
 		msg->log("Sending Request SIP message:");
 		mOutgoingAgent->send(msg);
+	} else {
+		LOGD("The Request SIP message is not send");
 	}
 	terminateProcessing();
 }
@@ -146,11 +157,13 @@ void RequestSipEvent::reply(const shared_ptr<MsgSip> &msg, int status, char cons
 		ta_start(ta, tag, value);
 		mIncomingAgent->reply(msg, status, phrase, ta_tags(ta));
 		ta_end(ta);
+	} else {
+		LOGD("The Request SIP message is not reply");
 	}
 	terminateProcessing();
 }
 
-void RequestSipEvent::setIncomingAgent(const std::shared_ptr<IncomingAgent> &agent) {
+void RequestSipEvent::setIncomingAgent(const shared_ptr<IncomingAgent> &agent) {
 	LOGA("Can't change incoming agent in request sip event");
 }
 
@@ -163,35 +176,38 @@ ResponseSipEvent::ResponseSipEvent(const shared_ptr<OutgoingAgent> &outgoingAgen
 	mIncomingAgent = outgoingAgent->getAgent()->shared_from_this();
 }
 
-ResponseSipEvent::ResponseSipEvent(const std::shared_ptr<SipEvent> &sipEvent, const std::shared_ptr<MsgSip> &msgSip) :
+ResponseSipEvent::ResponseSipEvent(const shared_ptr<SipEvent> &sipEvent) :
 		SipEvent(*sipEvent) {
-	mMsgSip = msgSip;
 }
 
-void ResponseSipEvent::send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
+void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
 		msg->log("Sending Response SIP message:");
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mIncomingAgent->send(msg, u, ta_tags(ta));
 		ta_end(ta);
+	} else {
+		LOGD("The Response SIP message is not send");
 	}
 	terminateProcessing();
 }
 
-void ResponseSipEvent::send(const std::shared_ptr<MsgSip> &msg) {
+void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg) {
 	if (mIncomingAgent != NULL) {
 		msg->log("Sending Response SIP message:");
 		mIncomingAgent->send(msg);
+	} else {
+		LOGD("The Response SIP message is not send");
 	}
 	terminateProcessing();
 }
 
-void ResponseSipEvent::reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+void ResponseSipEvent::reply(const shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	LOGA("Can't reply to an response sip event");
 }
 
-void ResponseSipEvent::setOutgoingAgent(const std::shared_ptr<OutgoingAgent> &agent) {
+void ResponseSipEvent::setOutgoingAgent(const shared_ptr<OutgoingAgent> &agent) {
 	LOGA("Can't change outgoing agent in response sip event");
 }
 

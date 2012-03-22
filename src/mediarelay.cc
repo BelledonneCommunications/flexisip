@@ -27,7 +27,7 @@
 using namespace ::std;
 
 MediaSource::MediaSource(RelaySession * relaySession, bool front) :
-		mFront(front), mInit(false), mRelaySession(relaySession) {
+		mFront(front), mBehaviour(BehaviourType::All), mIp("undefined"), mPort(-1), mRelaySession(relaySession) {
 	mSession = rtp_session_new(RTP_SESSION_SENDRECV);
 	rtp_session_set_local_addr(mSession, relaySession->getBindIp().c_str(), -1);
 	mSources[0] = rtp_session_get_rtp_socket(mSession);
@@ -39,6 +39,10 @@ MediaSource::~MediaSource() {
 }
 
 void MediaSource::set(const string &ip, int port) {
+	if (isFront())
+		LOGD("MediaSource %p | Set | %s:%i <-> %i", this, ip.c_str(), port, getRelayPort());
+	else
+		LOGD("MediaSource %p | Set | %i <-> %s:%i", this, getRelayPort(), ip.c_str(), port);
 	mPort = port;
 	mIp = ip;
 	struct addrinfo *res = NULL;
@@ -67,8 +71,35 @@ void MediaSource::set(const string &ip, int port) {
 		mSockAddrSize[1] = res->ai_addrlen;
 		freeaddrinfo(res);
 	}
+}
 
-	mInit = true;
+void MediaSource::setBehaviour(const BehaviourType &behaviour) {
+	mBehaviour = behaviour;
+	if (IS_LOGD) {
+		const char *typeStr;
+		switch (mBehaviour) {
+		case None:
+			typeStr = "None";
+			break;
+
+		case Send:
+			typeStr = "Send";
+			break;
+
+		case Receive:
+			typeStr = "Receive";
+			break;
+
+		case All:
+			typeStr = "All";
+			break;
+
+		default:
+			typeStr = "INVALID";
+			break;
+		}
+		LOGD("MediaSource %p | %s", this, typeStr);
+	}
 }
 
 void MediaSource::fillPollFd(struct pollfd *tab) {
@@ -100,14 +131,14 @@ int MediaSource::send(int i, uint8_t *buf, size_t buflen) {
 }
 
 RelaySession::RelaySession(const string &bind_ip, const string & public_ip) :
-		mType(All), mBindIp(bind_ip), mPublicIp(public_ip) {
+		mBindIp(bind_ip), mPublicIp(public_ip) {
 	mLastActivityTime = time(NULL);
 	mUsed = true;
 }
 
-std::shared_ptr<MediaSource> RelaySession::addFront() {
+shared_ptr<MediaSource> RelaySession::addFront() {
 	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this, true);
-
+	LOGD("MediaSource %p | Add | %s:%i <-> %i", this, ms->getIp().c_str(), ms->getPort(), ms->getRelayPort());
 	mMutex.lock();
 	mFronts.push_back(ms);
 	mMutex.unlock();
@@ -115,15 +146,16 @@ std::shared_ptr<MediaSource> RelaySession::addFront() {
 	return ms;
 }
 
-void RelaySession::removeFront(const std::shared_ptr<MediaSource> &ms) {
+void RelaySession::removeFront(const shared_ptr<MediaSource> &ms) {
+	LOGD("MediaSource %p | Remove |  %s:%i <-> %i", this, ms->getIp().c_str(), ms->getPort(), ms->getRelayPort());
 	mMutex.lock();
 	mFronts.remove(ms);
 	mMutex.unlock();
 }
 
-std::shared_ptr<MediaSource> RelaySession::addBack() {
+shared_ptr<MediaSource> RelaySession::addBack() {
 	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this, false);
-
+	LOGD("MediaSource %p | Add | %i <-> %s:%i", this, ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
 	mMutex.lock();
 	mBacks.push_back(ms);
 	mMutex.unlock();
@@ -131,7 +163,8 @@ std::shared_ptr<MediaSource> RelaySession::addBack() {
 	return ms;
 }
 
-void RelaySession::removeBack(const std::shared_ptr<MediaSource> &ms) {
+void RelaySession::removeBack(const shared_ptr<MediaSource> &ms) {
+	LOGD("MediaSource %p | Remove | %i <-> %s:%i", this, ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
 	mMutex.lock();
 	mBacks.remove(ms);
 	mMutex.unlock();
@@ -150,30 +183,23 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<MediaSource> &org, 
 	int recv_len;
 	int send_len;
 
-	if (org->isInit()) {
-		mLastActivityTime = curtime;
-		recv_len = org->recv(i, buf, maxsize);
-		if (recv_len > 0) {
-			std::list<std::shared_ptr<MediaSource>> list;
-			if (mType == None)
-				return;
+	mLastActivityTime = curtime;
+	recv_len = org->recv(i, buf, maxsize);
+	if (recv_len > 0) {
+		if (org->getBehaviour() & MediaSource::Send) {
+			list<shared_ptr<MediaSource>> list;
 			if (org->isFront()) {
 				list = mBacks;
-				if (!(mType == FrontToBack || mType == All))
-					return;
 			} else {
 				list = mFronts;
-				if (!(mType == BackToFront || mType == All))
-					return;
 			}
-
 			mMutex.lock();
 			auto it = list.begin();
 			if (it != list.end()) {
 				while (it != list.end()) {
 					const shared_ptr<MediaSource> &dest = (*it);
-					if (dest->isInit()) {
-						//LOGD("%i %s:%i -> %i %s:%i", mFront->getRelayPort() + i, mFront->getIp().c_str(), mFront->getPort(), dest->getRelayPort(), dest->getIp().c_str(), dest->getPort());
+					if (dest->getBehaviour() & MediaSource::Receive) {
+						//LOGD("%s:%i -> %i | size = %i | %i -> %s:%i", org->getIp().c_str(), org->getPort(), org->getRelayPort() + i, recv_len, dest->getRelayPort() +i, dest->getIp().c_str(), dest->getPort());
 						send_len = dest->send(i, buf, recv_len);
 						if (send_len != recv_len) {
 							LOGW("Only %i bytes sent on %i bytes Port=%i For=%s:%i Error=%s", send_len, recv_len, dest->getRelayPort() + i, dest->getIp().c_str(), dest->getPort(), strerror(errno));
@@ -183,9 +209,9 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<MediaSource> &org, 
 				}
 			}
 			mMutex.unlock();
-		} else if (recv_len < 0) {
-			LOGW("Error on read Port=%i For=%s:%i Error=%s", org->getRelayPort() + i, org->getIp().c_str(), org->getPort(), strerror(errno));
 		}
+	} else if (recv_len < 0) {
+		LOGW("Error on read Port=%i For=%s:%i Error=%s", org->getRelayPort() + i, org->getIp().c_str(), org->getPort(), strerror(errno));
 	}
 }
 
@@ -241,24 +267,24 @@ void MediaRelayServer::run() {
 	struct pollfd *pfds = NULL;
 	int err;
 	int pfds_size = 0, cur_pfds_size = 0;
-	list<shared_ptr<MediaSource>> list;
+	list<shared_ptr<MediaSource>> mediaSources;
 
 	while (mRunning) {
 		mMutex.lock();
-		list.clear();
+		mediaSources.clear();
 		pfds_size = 1;
 		for (auto it = mSessions.begin(); it != mSessions.end(); ++it) {
 			RelaySession *ptr = *it;
 			ptr->mMutex.lock();
 
-			const std::list<std::shared_ptr<MediaSource>>& fronts = ptr->getFronts();
+			const list<shared_ptr<MediaSource>>& fronts = ptr->getFronts();
 			for (auto it2 = fronts.begin(); it2 != fronts.end(); ++it2) {
-				list.push_back(*it2);
+				mediaSources.push_back(*it2);
 			}
 
-			const std::list<std::shared_ptr<MediaSource>>& backs = ptr->getBacks();
+			const list<shared_ptr<MediaSource>>& backs = ptr->getBacks();
 			for (auto it2 = backs.begin(); it2 != backs.end(); ++it2) {
-				list.push_back(*it2);
+				mediaSources.push_back(*it2);
 			}
 
 			pfds_size += (fronts.size() + backs.size()) * 2;
@@ -272,7 +298,7 @@ void MediaRelayServer::run() {
 		}
 
 		int i = 0;
-		for (auto it = list.begin(); it != list.end(); ++it) {
+		for (auto it = mediaSources.begin(); it != mediaSources.end(); ++it) {
 			(*it)->fillPollFd(&pfds[i]);
 			i += 2;
 		}
@@ -291,7 +317,7 @@ void MediaRelayServer::run() {
 			}
 			time_t curtime = time(NULL);
 			int i = 0;
-			for (auto it = list.begin(); it != list.end(); ++it) {
+			for (auto it = mediaSources.begin(); it != mediaSources.end(); ++it) {
 				if (pfds[i].revents & POLLIN) {
 					RelaySession *s = (*it)->getRelaySession();
 					if (s->isUsed()) {

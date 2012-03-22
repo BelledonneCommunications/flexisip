@@ -408,13 +408,13 @@ int main(int argc, char *argv[]){
 
 	if (dump_default_cfg){
 		a=make_shared<Agent>(root,0,0);
-		std::cout<<FileConfigDumper(GenericManager::get()->getRoot());
+		cout<<FileConfigDumper(GenericManager::get()->getRoot());
 		return 0;
 	}
 
 	if (dump_snmp_mib) {
 		a=make_shared<Agent>(root,0,0);
-		std::cout<<MibDumper(GenericManager::get()->getRoot());
+		cout<<MibDumper(GenericManager::get()->getRoot());
 		return 0;
 	}
 

@@ -92,20 +92,21 @@ static int get_local_ip_for_with_connect(int type, const char *dest, char *resul
 	return 0;
 }
 
-Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tlsport) {
-	char sipuri[128]={0};
-	GenericStruct *cr=GenericManager::get()->getRoot();
-	GenericStruct *tls=cr->get<GenericStruct>("tls");
-	
+Agent::Agent(su_root_t* root, int port, int tlsport) :
+		mPort(port), mTlsPort(tlsport) {
+	char sipuri[128] = { 0 };
+	GenericStruct *cr = GenericManager::get()->getRoot();
+	GenericStruct *tls = cr->get<GenericStruct>("tls");
+
 	EtcHostsResolver::get();
 
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"NatHelper"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Authentication"));
-    mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"GatewayAdapter"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Registrar"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"ContactRouteInserter"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"LoadBalancer"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"MediaRelay"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "NatHelper"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Authentication"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GatewayAdapter"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Registrar"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "ContactRouteInserter"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "LoadBalancer"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "MediaRelay"));
 #ifdef ENABLE_TRANSCODER
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
 #endif
@@ -118,15 +119,18 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	for_each(mModules.begin(), mModules.end(), bind2nd(mem_fun(&Module::declare), cr));
 
 	/* we pass "" as localaddr when we just want to dump the default config. So don't go further*/
-	if (mPort==0) return;
+	if (mPort == 0)
+		return;
 
-	if (mPort==-1) mPort=cr->get<GenericStruct>("global")->get<ConfigInt>("port")->read();
-	if (mTlsPort==-1) mTlsPort=tls->get<ConfigInt>("port")->read();
+	if (mPort == -1)
+		mPort = cr->get<GenericStruct>("global")->get<ConfigInt>("port")->read();
+	if (mTlsPort == -1)
+		mTlsPort = tls->get<ConfigInt>("port")->read();
 
-	std::string bind_address=cr->get<GenericStruct>("global")->get<ConfigString>("bind-address")->read();
-	mPublicIp=cr->get<GenericStruct>("global")->get<ConfigString>("ip-address")->read();
-	
-	if (mPublicIp.empty() || mPublicIp=="guess"){
+	string bind_address = cr->get<GenericStruct>("global")->get<ConfigString>("bind-address")->read();
+	mPublicIp = cr->get<GenericStruct>("global")->get<ConfigString>("ip-address")->read();
+
+	if (mPublicIp.empty() || mPublicIp == "guess") {
 		char localip[128];
 		get_local_ip_for_with_connect(AF_INET, "209.85.229.147", localip);
 		mPublicIp = localip;
@@ -138,34 +142,28 @@ Agent::Agent(su_root_t* root, int port, int tlsport) : mPort(port), mTlsPort(tls
 	oss << mPublicIp << "_" << mPort;
 	mUniqueId = oss.str();
 	ostringstream transportUri;
-	mRoot=root;
-	
-	snprintf(sipuri,sizeof(sipuri)-1,"sip:%s:%i;maddr=%s", mPublicIp.c_str(),mPort,bind_address.c_str());
-	LOGD("Enabling 'sip' listening point with uri '%s'.",sipuri);
-	mAgent=nta_agent_create(root,
-		(url_string_t*)sipuri,
-			&Agent::messageCallback,
-			(nta_agent_magic_t*)this,
-			NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), TAG_END());
-	if (mAgent==NULL){
+	mRoot = root;
+
+	snprintf(sipuri, sizeof(sipuri) - 1, "sip:%s:%i;maddr=%s", mPublicIp.c_str(), mPort, bind_address.c_str());
+	LOGD("Enabling 'sip' listening point with uri '%s'.", sipuri);
+	mAgent = nta_agent_create(root, (url_string_t*) sipuri, &Agent::messageCallback, (nta_agent_magic_t*) this, NTATAG_CLIENT_RPORT(1), NTATAG_UDP_MTU(1460), TAG_END());
+	if (mAgent == NULL) {
 		LOGF("Could not create sofia mta, certainly SIP ports already in use.");
 	}
-	transportUri<<"<"<<sipuri<<">";
+	transportUri << "<" << sipuri << ">";
 	if (tls->get<ConfigBoolean>("enabled")->read()) {
-		string keys=tls->get<ConfigString>("certificates-dir")->read();
-		snprintf(sipuri,sizeof(sipuri)-1,"sips:%s:%i;maddr=%s", mPublicIp.c_str(),mTlsPort,bind_address.c_str());
-		LOGD("Enabling 'sips' listening point with uri '%s', keys in %s", sipuri,keys.c_str());
-		nta_agent_add_tport(mAgent,
-			(url_string_t*)sipuri,
-				TPTAG_CERTIFICATE(keys.c_str()), NTATAG_CLIENT_RPORT(1),NTATAG_UDP_MTU(1460), NTATAG_TLS_RPORT(1), TAG_END());
-		transportUri<<",<"<<sipuri<<">";
+		string keys = tls->get<ConfigString>("certificates-dir")->read();
+		snprintf(sipuri, sizeof(sipuri) - 1, "sips:%s:%i;maddr=%s", mPublicIp.c_str(), mTlsPort, bind_address.c_str());
+		LOGD("Enabling 'sips' listening point with uri '%s', keys in %s", sipuri, keys.c_str());
+		nta_agent_add_tport(mAgent, (url_string_t*) sipuri, TPTAG_CERTIFICATE(keys.c_str()), NTATAG_CLIENT_RPORT(1), NTATAG_UDP_MTU(1460), NTATAG_TLS_RPORT(1), TAG_END());
+		transportUri << ",<" << sipuri << ">";
 	}
-	mTransportUri=transportUri.str();
-	
-	if (bind_address=="*"){
-		bind_address="0.0.0.0";
+	mTransportUri = transportUri.str();
+
+	if (bind_address == "*") {
+		bind_address = "0.0.0.0";
 	}
-	mBindIp=bind_address;
+	mBindIp = bind_address;
 
 	oss.str(mPreferredRoute);
 	oss << "sip:";
@@ -189,9 +187,9 @@ const char *Agent::getServerString() const {
 	return mServerString.c_str();
 }
 
-void Agent::loadConfig(GenericManager *cm){
-	cm->loadStrict();//now that each module has declared its settings, we need to reload from the config file
-	mAliases=cm->getGlobal()->get<ConfigStringList>("aliases")->read();
+void Agent::loadConfig(GenericManager *cm) {
+	cm->loadStrict(); //now that each module has declared its settings, we need to reload from the config file
+	mAliases = cm->getGlobal()->get<ConfigStringList>("aliases")->read();
 	discoverInterfaces();
 	LOGD("List of host aliases:");
 	for (list<string>::iterator it = mAliases.begin(); it != mAliases.end(); ++it) {
@@ -255,6 +253,7 @@ bool Agent::isUs(const url_t *url, bool check_aliases) const {
 }
 
 void Agent::sendRequestEvent(shared_ptr<SipEvent> &ev) {
+	LOG_START
 	ev->getMsgSip()->log("Receiving new Request SIP message:");
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
@@ -266,9 +265,11 @@ void Agent::sendRequestEvent(shared_ptr<SipEvent> &ev) {
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
+	LOG_END
 }
 
 void Agent::sendResponseEvent(shared_ptr<SipEvent> &ev) {
+	LOG_START
 	ev->getMsgSip()->log("Receiving new Response SIP message:");
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
@@ -280,9 +281,11 @@ void Agent::sendResponseEvent(shared_ptr<SipEvent> &ev) {
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
+	LOG_END
 }
 
 void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
+	LOG_START
 	ev->getMsgSip()->log("Inject Request SIP message:");
 	list<Module*>::iterator it;
 	ev->restartProcessing();
@@ -302,9 +305,11 @@ void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
+	LOG_END
 }
 
 void Agent::injectResponseEvent(shared_ptr<SipEvent> &ev) {
+	LOG_START
 	ev->getMsgSip()->log("Inject Response SIP message:");
 	list<Module*>::iterator it;
 	ev->restartProcessing();
@@ -324,14 +329,17 @@ void Agent::injectResponseEvent(shared_ptr<SipEvent> &ev) {
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
+	LOG_END
 }
 
-void Agent::sendTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
+void Agent::sendTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
+	LOG_START
 	LOGD("Receiving new Transaction Event %p %i", transaction.get(), event);
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		(*it)->processTransactionEvent(transaction, event);
 	}
+	LOG_END
 }
 
 int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
@@ -340,8 +348,7 @@ int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
 	if (sip->sip_request) {
 		shared_ptr<SipEvent> ev(new RequestSipEvent(dynamic_pointer_cast<IncomingAgent>(shared_from_this()), ms));
 		sendRequestEvent(ev);
-	}
-	else {
+	} else {
 		shared_ptr<SipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(shared_from_this()), ms));
 		sendResponseEvent(ev);
 	}
@@ -392,7 +399,7 @@ void Agent::discoverInterfaces() {
 	freeifaddrs(ifpstart);
 }
 
-void Agent::send(const std::shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
+void Agent::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
 	ta_start(ta, tag, value);
 	msg_t* msg = msg_dup(ms->getMsg());
@@ -400,12 +407,12 @@ void Agent::send(const std::shared_ptr<MsgSip> &ms, url_string_t const *u, tag_t
 	ta_end(ta);
 }
 
-void Agent::send(const std::shared_ptr<MsgSip> &ms) {
+void Agent::send(const shared_ptr<MsgSip> &ms) {
 	msg_t* msg = msg_dup(ms->getMsg());
 	nta_msg_tsend(mAgent, msg, NULL, TAG_END());
 }
 
-void Agent::reply(const std::shared_ptr<MsgSip> &ms, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+void Agent::reply(const shared_ptr<MsgSip> &ms, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
 	ta_start(ta, tag, value);
 	msg_t* msg = msg_dup(ms->getMsg());

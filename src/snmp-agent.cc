@@ -49,6 +49,6 @@ SnmpAgent::SnmpAgentTask::~SnmpAgentTask() {
 	mKeepRunning=false;
 }
 
-SnmpAgent::SnmpAgent(Agent& agent,GenericManager& cm): mTask(agent,cm),mThread(std::ref(mTask)){
+SnmpAgent::SnmpAgent(Agent& agent,GenericManager& cm): mTask(agent,cm),mThread(ref(mTask)){
 }
 

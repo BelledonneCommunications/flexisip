@@ -34,7 +34,7 @@ public:
 	}
 
 	void onLoad(Agent *agent, const GenericStruct *module_config) {
-		mContactRouteParamName = std::string("CtRt") + getAgent()->getUniqueId();
+		mContactRouteParamName = string("CtRt") + getAgent()->getUniqueId();
 		mMasqueradeInviteContacts = module_config->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
 	}
 

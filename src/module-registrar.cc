@@ -133,7 +133,7 @@ public:
 
 	virtual void onResponse(shared_ptr<SipEvent> &ev);
 
-	virtual void onTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
+	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
 
 private:
 	bool isManagedDomain(const char *domain) {
@@ -309,7 +309,8 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 						}
 
 						LOGD("Fork to %s", ec->mSipUri);
-						shared_ptr<SipEvent> new_ev(make_shared<RequestSipEvent>(ev, new_msgsip));
+						shared_ptr<SipEvent> new_ev(make_shared<RequestSipEvent>(ev));
+						new_ev->setMsgSip(new_msgsip);
 						shared_ptr<OutgoingTransaction> transaction = new_ev->createOutgoingTransaction();
 						transaction->setProperty(Registrar::sInfo.getModuleName(), context);
 
@@ -381,7 +382,7 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 	sip_t *sip = ms->getSip();
 
 	// Handle SipEvent associated with a Stateful transaction
-	std::shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
+	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
 	if (transaction != NULL) {
 		shared_ptr<ForkCallContext> ptr = transaction->getProperty<ForkCallContext>(getModuleName());
 		if (ptr != NULL) {
@@ -439,7 +440,7 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 
 void Registrar::onResponse(shared_ptr<SipEvent> &ev) {
 	// Handle SipEvent associated with a Stateful transaction
-	std::shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 	if (transaction != NULL) {
 		shared_ptr<ForkCallContext> ptr = transaction->getProperty<ForkCallContext>(getModuleName());
 		if (ptr != NULL) {
@@ -448,10 +449,10 @@ void Registrar::onResponse(shared_ptr<SipEvent> &ev) {
 	}
 }
 
-void Registrar::onTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
+void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
 	shared_ptr<ForkCallContext> ptr = transaction->getProperty<ForkCallContext>(getModuleName());
 	if (ptr != NULL) {
-		std::shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(transaction);
+		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(transaction);
 		if (ot != NULL) {
 			switch (event) {
 			case Transaction::Destroy:
@@ -463,7 +464,7 @@ void Registrar::onTransactionEvent(const std::shared_ptr<Transaction> &transacti
 				break;
 			}
 		}
-		std::shared_ptr<IncomingTransaction> it = dynamic_pointer_cast<IncomingTransaction>(transaction);
+		shared_ptr<IncomingTransaction> it = dynamic_pointer_cast<IncomingTransaction>(transaction);
 		if (it != NULL) {
 			switch (event) {
 			case Transaction::Destroy:

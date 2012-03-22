@@ -86,10 +86,10 @@ int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *
 
 void OutgoingTransaction::destroy() {
 	if (mSofiaRef != NULL) {
+		mSofiaRef.reset();
 		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Destroy);
 		nta_outgoing_bind(mOutgoing, NULL, NULL); //avoid callbacks
 		nta_outgoing_destroy(mOutgoing);
-		mSofiaRef.reset();
 	}
 }
 
@@ -98,7 +98,7 @@ IncomingTransaction::IncomingTransaction(Agent *agent) :
 	LOGD("New IncomingTransaction %p", this);
 }
 
-void IncomingTransaction::handle(const std::shared_ptr<MsgSip> &ms) {
+void IncomingTransaction::handle(const shared_ptr<MsgSip> &ms) {
 	msg_t* msg = msg_dup(ms->getMsg());
 	mIncoming = nta_incoming_create(mAgent->mAgent, NULL, msg, sip_object(msg), TAG_END());
 	if (mIncoming != NULL) {
@@ -177,9 +177,9 @@ int IncomingTransaction::_callback(nta_incoming_magic_t *magic, nta_incoming_t *
 
 void IncomingTransaction::destroy() {
 	if (mSofiaRef != NULL) {
+		mSofiaRef.reset();
 		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Destroy);
 		nta_incoming_bind(mIncoming, NULL, NULL); //avoid callbacks
 		nta_incoming_destroy(mIncoming);
-		mSofiaRef.reset();
 	}
 }

@@ -40,7 +40,7 @@ void ForkCallContext::cancel() {
 	cancelOthers();
 }
 
-void ForkCallContext::forward(const std::shared_ptr<SipEvent> &ev, bool force) {
+void ForkCallContext::forward(const shared_ptr<SipEvent> &ev, bool force) {
 	sip_t *sip = ev->getMsgSip()->getSip();
 	bool fakeSipEvent = (mFinal > 0 && !force) || mIncoming == NULL;
 
@@ -56,7 +56,6 @@ void ForkCallContext::forward(const std::shared_ptr<SipEvent> &ev, bool force) {
 	}
 
 	if (fakeSipEvent) {
-		LOGD("Don't forward message");
 		ev->setIncomingAgent(shared_ptr<IncomingAgent>());
 	}
 
@@ -65,14 +64,13 @@ void ForkCallContext::forward(const std::shared_ptr<SipEvent> &ev, bool force) {
 	}
 }
 
-void ForkCallContext::decline(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<SipEvent> &ev) {
+void ForkCallContext::decline(const shared_ptr<OutgoingTransaction> &transaction, shared_ptr<SipEvent> &ev) {
 	if (!mForkNoGlobalDecline) {
 		cancelOthers(transaction);
 
 		forward(ev);
 	} else {
 		if (mOutgoings.size() != 1) {
-			LOGD("Don't forward message");
 			ev->setIncomingAgent(shared_ptr<IncomingAgent>());
 		} else {
 			forward(ev);
@@ -80,7 +78,7 @@ void ForkCallContext::decline(const std::shared_ptr<OutgoingTransaction> &transa
 	}
 }
 
-void ForkCallContext::cancelOthers(const std::shared_ptr<OutgoingTransaction> &transaction) {
+void ForkCallContext::cancelOthers(const shared_ptr<OutgoingTransaction> &transaction) {
 	if (mFinal == 0) {
 		for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end();) {
 			if (*it != transaction) {
@@ -107,7 +105,7 @@ void ForkCallContext::onRequest(const shared_ptr<IncomingTransaction> &transacti
 	}
 }
 
-void ForkCallContext::store(std::shared_ptr<SipEvent> &event) {
+void ForkCallContext::store(shared_ptr<SipEvent> &event) {
 	bool best = true;
 
 	if (mBestResponse != NULL) {
@@ -116,19 +114,14 @@ void ForkCallContext::store(std::shared_ptr<SipEvent> &event) {
 		}
 	}
 
-	if (!best || mIncoming == NULL) {
-		// Don't forward
-		event->setIncomingAgent(shared_ptr<IncomingAgent>());
-	} else {
-		// Swap
-		if (mBestResponse != NULL) {
-			event = mBestResponse;
-		} else {
-			event->suspendProcessing();
-		}
-		mBestResponse = event;
-
+	// Save
+	if (best) {
+		mBestResponse = make_shared<ResponseSipEvent>(event); // Copy event
+		mBestResponse->suspendProcessing();
 	}
+
+	// Don't forward
+	event->setIncomingAgent(shared_ptr<IncomingAgent>());
 }
 
 void ForkCallContext::onResponse(const shared_ptr<OutgoingTransaction> &transaction, shared_ptr<SipEvent> &event) {
@@ -158,22 +151,22 @@ void ForkCallContext::onResponse(const shared_ptr<OutgoingTransaction> &transact
 	LOGW("Outgoing transaction: ignore message");
 }
 
-void ForkCallContext::onNew(const std::shared_ptr<IncomingTransaction> &transaction) {
+void ForkCallContext::onNew(const shared_ptr<IncomingTransaction> &transaction) {
 	mIncoming = transaction;
 }
 
-void ForkCallContext::onDestroy(const std::shared_ptr<IncomingTransaction> &transaction) {
+void ForkCallContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) {
 	mIncoming.reset();
 }
 
-void ForkCallContext::onNew(const std::shared_ptr<OutgoingTransaction> &transaction) {
+void ForkCallContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) {
 	mOutgoings.push_back(transaction);
 }
 
-void ForkCallContext::onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction) {
+void ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
 	mOutgoings.remove(transaction);
 	if (mOutgoings.size() == 0) {
-		if (mIncoming != NULL) {
+		if (mIncoming != NULL && mFinal == 0) {
 			if (mBestResponse == NULL) {
 				// Create response
 				shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
@@ -181,7 +174,7 @@ void ForkCallContext::onDestroy(const std::shared_ptr<OutgoingTransaction> &tran
 				ev->setIncomingAgent(mIncoming);
 				mAgent->sendResponseEvent(ev);
 			} else {
-				mAgent->injectResponseEvent(mBestResponse);
+				mAgent->injectResponseEvent(mBestResponse); // Reply
 			}
 			++mFinal;
 		}

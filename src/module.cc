@@ -118,7 +118,7 @@ void Module::processResponse(shared_ptr<SipEvent> &ev) {
 	}
 }
 
-void Module::processTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
+void Module::processTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
 	LOGD("Invoking onTransactionEvent() on module %s", getModuleName().c_str());
 	onTransactionEvent(transaction, event);
 }
@@ -129,11 +129,11 @@ void Module::idle() {
 	}
 }
 
-const std::string &Module::getModuleName() const {
+const string &Module::getModuleName() const {
 	return mInfo->getModuleName();
 }
 
-StatCounter64 &Module::findStat(const std::string &statName) const {
+StatCounter64 &Module::findStat(const string &statName) const {
 	return StatCounter64::find("module::"+getModuleName()+"::"+statName);
 }
 

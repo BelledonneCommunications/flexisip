@@ -29,6 +29,13 @@ public:
 	MediaSource(RelaySession * relaySession, bool front);
 	~MediaSource();
 
+	typedef enum {
+		None = 0,
+		Receive = 1,
+		Send = 2,
+		All = 3,
+	} BehaviourType;
+
 	void set(const std::string &ip, int port);
 
 	const std::string &getIp() const {
@@ -59,9 +66,11 @@ public:
 		return rtp_session_get_local_port(mSession);
 	}
 
-	bool isInit() {
-		return mInit;
+	const BehaviourType &getBehaviour() const{
+		return mBehaviour;
 	}
+
+	void setBehaviour(const BehaviourType &behaviour);
 
 	bool isFront() {
 		return mFront;
@@ -73,7 +82,7 @@ public:
 
 private:
 	const bool mFront;
-	bool mInit;
+	BehaviourType mBehaviour;
 	std::string mIp;
 	int mPort;
 	RtpSession *mSession;
@@ -86,9 +95,6 @@ private:
 class RelaySession {
 	friend class MediaRelayServer;
 public:
-	typedef enum {
-		None, FrontToBack, BackToFront, All,
-	} ForwardType;
 
 	RelaySession(const std::string &bind_ip, const std::string & public_ip);
 	~RelaySession();
@@ -120,14 +126,6 @@ public:
 		return mLastActivityTime;
 	}
 
-	const ForwardType& getType() {
-		return mType;
-	}
-
-	void setType(const ForwardType &type) {
-		mType = type;
-	}
-
 	std::shared_ptr<MediaSource> addFront();
 	void removeFront(const std::shared_ptr<MediaSource> &ms);
 
@@ -135,7 +133,6 @@ public:
 	void removeBack(const std::shared_ptr<MediaSource> &ms);
 
 private:
-	ForwardType mType;
 	Mutex mMutex;
 	const std::string mBindIp;
 	const std::string mPublicIp;
