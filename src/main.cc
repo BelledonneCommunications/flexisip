@@ -62,7 +62,7 @@ static void usage(const char *arg0){
 	       "\t\t [--debug]\n"
 	       "\t\t [--daemon]\n"
 	       "\t\t [--configfile <path>]\n"
-	       "\t\t [--dump-default-config]\n"
+	       "\t\t [--dump-default-config [node name]]\n"
 	       "\t\t [--dump-snmp-mib]\n"
 	       "\t\t [--help]\n",arg0);
 	exit(-1);
@@ -353,6 +353,7 @@ int main(int argc, char *argv[]){
 	bool daemon=false;
 	bool useSyslog=false;
 	bool dump_default_cfg=false;
+	char *dump_cfg_part=NULL;
 	bool dump_snmp_mib=false;
 
 	for(i=1;i<argc;++i){
@@ -390,6 +391,10 @@ int main(int argc, char *argv[]){
 		}else if (strcmp(argv[i],"--dump-default-config")==0){
 			dump_default_cfg=true;
 			i++;
+			if (argc > i && argv[i][0]!='-') {
+				dump_cfg_part=argv[i];
+				i++;
+			}
 			continue;
 		}else if (strcmp(argv[i],"--dump-snmp-mib")==0){
 			dump_snmp_mib=true;
@@ -408,7 +413,12 @@ int main(int argc, char *argv[]){
 
 	if (dump_default_cfg){
 		a=make_shared<Agent>(root,0,0);
-		std::cout<<FileConfigDumper(GenericManager::get()->getRoot());
+		GenericStruct *rootStruct=GenericManager::get()->getRoot();
+		if (dump_cfg_part && !(rootStruct=dynamic_cast<GenericStruct *>(rootStruct->find(dump_cfg_part)))) {
+			std::cerr<<"Couldn't find node " << dump_cfg_part << std::endl;
+			return -1;
+		}
+		std::cout<<FileConfigDumper(rootStruct);
 		return 0;
 	}
 
