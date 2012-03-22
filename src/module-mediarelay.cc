@@ -228,7 +228,7 @@ ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay", "The MediaRelay module ma
 		"MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.");
 
 MediaRelay::MediaRelay(Agent *ag) :
-		Module(ag), mServer(0) {
+		Module(ag), mCalls(NULL), mServer(NULL) {
 }
 
 MediaRelay::~MediaRelay() {
