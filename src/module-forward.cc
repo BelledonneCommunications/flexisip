@@ -210,12 +210,6 @@ bool ForwardModule::isLooping(shared_ptr<SipEvent> &ev, const char * branch) {
 
 void ForwardModule::onResponse(shared_ptr<SipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	char *buf;
-	msg_t *msg = ms->getMsg();
-	size_t msg_size;
-
-	buf = msg_as_string(ms->getHome(), msg, NULL, 0, &msg_size);
-	LOGD("About to forward response:\n%s", buf);
 	ev->send(ms, (url_string_t*) NULL, TAG_END());
 }
 

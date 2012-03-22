@@ -75,7 +75,6 @@ private:
 		void onAsynchronousResponse(AuthDbResult ret, const char *password);
 		void switchToAsynchronousMode();
 		void onError();
-		void sendReplyAndDestroy();
 		bool sendReply();
 		su_root_t *getRoot() {
 			return mAgent->getRoot();
@@ -288,10 +287,6 @@ void Authentication::AuthenticationListener::setData(auth_mod_t *am, auth_status
 	this->mAch=ach;
 }
 
-void Authentication::AuthenticationListener::sendReplyAndDestroy(){
-	sendReply();
-}
-
 /**
  * return true if the event is terminated
  */
@@ -398,6 +393,7 @@ void Authentication::AuthenticationListener::onAsynchronousResponse(AuthDbResult
 		onError();
 		break;
 	}
+	delete this;
 }
 
 // Called when starting asynchronous retrieving of password
@@ -414,7 +410,7 @@ void Authentication::AuthenticationListener::onError() {
 		mAs->as_response = NULL;
 	}
 
-	sendReplyAndDestroy();
+	sendReply();
 }
 
 
@@ -438,7 +434,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 			as->as_status = 500, as->as_phrase = "Internal Server Error";
 			as->as_response = NULL;
 		}
-		listener->sendReplyAndDestroy();
+		listener->sendReply();
 		return;
 	}
 
@@ -461,7 +457,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		LOGD("auth_method_digest: 400 %s", phrase);
 		as->as_status = 400, as->as_phrase = phrase;
 		as->as_response = NULL;
-		listener->sendReplyAndDestroy();
+		listener->sendReply();
 		return;
 	}
 
@@ -471,7 +467,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 				ar->ar_username, as->as_user_uri->url_user,
 				ar->ar_realm, as->as_user_uri->url_host);
 		as->as_response = NULL;
-		listener->sendReplyAndDestroy();
+		listener->sendReply();
 		return;
 	}
 
@@ -480,13 +476,13 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 			auth_validate_digest_nonce(am, as, ar,  now) < 0) {
 		as->as_blacklist = am->am_blacklist;
 		auth_challenge_digest(am, as, ach);
-		listener->sendReplyAndDestroy();
+		listener->sendReply();
 		return;
 	}
 
 	if (as->as_stale) {
 		auth_challenge_digest(am, as, ach);
-		listener->sendReplyAndDestroy();
+		listener->sendReply();
 		return;
 	}
 
@@ -562,6 +558,8 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 			string foundPassword;
 			AuthDb::get()->password(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, foundPassword, NULL);
 		}
-		listener->sendReplyAndDestroy();
+		listener->sendReply();
+		delete listener;
+		return;
 	}
 }
