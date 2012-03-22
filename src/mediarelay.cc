@@ -304,16 +304,17 @@ void MediaRelayServer::run() {
 						s->transfer(curtime, (*it), 1);
 					}
 				}
-
 				i += 2;
 			}
 		}
+
 		/*cleanup loop*/
 		mMutex.lock();
 		for (auto it = mSessions.begin(); it != mSessions.end();) {
 			if (!(*it)->isUsed()) {
 				delete *it;
 				it = mSessions.erase(it);
+				LOGD("There are now %i relay sessions running.", (int) mSessions.size());
 			} else {
 				++it;
 			}

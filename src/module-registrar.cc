@@ -65,7 +65,8 @@ public:
 				{	String, "db-implementation", "Implementation used for storing address of records contact uris. [internal,...]", "internal" },
 #endif
 				{	Boolean, "fork", "Fork messages to all registered devices", "true" },
-				{	Boolean, "fork-one-response", "Only forward one response of forked invite to the caller", "true" },
+				{	Boolean, "fork-one-response", "Only forward one response of forked invite to the caller", "true"},
+				{	Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite", "false"},
 				config_item_end };
 		module_config->addChildrenValues(configs);
 

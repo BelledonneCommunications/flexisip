@@ -32,6 +32,7 @@ class ForkCallContext {
 	std::shared_ptr<SipEvent> mBestResponse;
 	int mFinal;
 	bool mForkOneResponse;
+	bool mForkNoGlobalDecline;
 	std::list<int> mForwardResponses;
 
 public:

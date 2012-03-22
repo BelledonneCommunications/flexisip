@@ -29,6 +29,7 @@ ForkCallContext::ForkCallContext(Agent *agent) :
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Registrar");
 	mForkOneResponse = ma->get<ConfigBoolean>("fork-one-response")->read();
+	mForkNoGlobalDecline = ma->get<ConfigBoolean>("fork-no-global-decline")->read();
 }
 
 ForkCallContext::~ForkCallContext() {
@@ -67,9 +68,18 @@ void ForkCallContext::forward(const std::shared_ptr<SipEvent> &ev, bool force) {
 }
 
 void ForkCallContext::decline(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<SipEvent> &ev) {
-	closeOthers(transaction);
+	if (!mForkNoGlobalDecline) {
+		closeOthers(transaction);
 
-	forward(ev);
+		forward(ev);
+	} else {
+		if (mOutgoings.size() != 1) {
+			LOGD("Don't forward message");
+			ev->setIncomingAgent(shared_ptr<IncomingAgent>());
+		} else {
+			forward(ev);
+		}
+	}
 }
 
 void ForkCallContext::closeOthers(const shared_ptr<OutgoingTransaction> &transaction) {
