@@ -556,7 +556,7 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 		if (listener->mImmediateRetrievePass) {
 			LOGD("Searching for %s password to have it when the authenticated request comes", as->as_user_uri->url_user);
 			string foundPassword;
-			AuthDb::get()->password(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, foundPassword, NULL);
+			AuthDb::get()->password(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, foundPassword, shared_ptr<AuthDbListener>());
 		}
 		listener->sendReply();
 		delete listener;
