@@ -90,7 +90,9 @@ public:
 		if (s == NULL) {
 			s = mServer->createSession();
 			mSessions[mline].mRelaySession = s;
-			s->addFront()->set(*ip, *port);
+			std::shared_ptr<MediaSource> ms = s->addFront();
+			ms->set(*ip, *port);
+			LOGD("RelayedCall %p | %s:%i <-> %i", this, ip->c_str(), *port, ms->getRelayPort());
 		}
 
 	}
@@ -144,6 +146,7 @@ public:
 			if (it != mSessions[mline].mTransactions.end()) {
 				std::shared_ptr<MediaSource> ms = it->second;
 				ms->set(*ip, *port);
+				LOGD("RelayedCall %p | %i <-> %s:%i", this, ms->getRelayPort(), ip->c_str(), *port);
 			} else {
 				LOGE("Can't find transaction %p", transaction.get());
 			}
