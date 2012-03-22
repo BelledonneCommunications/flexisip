@@ -46,7 +46,7 @@ public:
 	void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
 private:
 	void cancel();
-	void closeOthers(const std::shared_ptr<OutgoingTransaction> &transaction);
+	void cancelOthers(const std::shared_ptr<OutgoingTransaction> &transaction = std::shared_ptr<OutgoingTransaction>());
 	void decline(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<SipEvent> &ev);
 	void forward(const std::shared_ptr<SipEvent> &ev, bool force = false);
 	void store(std::shared_ptr<SipEvent> &ev);

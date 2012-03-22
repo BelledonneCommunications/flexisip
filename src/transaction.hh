@@ -119,11 +119,11 @@ private:
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);
 
+	void destroy();
+
 	inline virtual Agent *getAgent() {
 		return mAgent;
 	}
-
-	void destroy();
 private:
 	static int _callback(nta_outgoing_magic_t *magic, nta_outgoing_t *irq, const sip_t *sip);
 };
@@ -144,11 +144,11 @@ private:
 	virtual void send(const std::shared_ptr<MsgSip> &msg);
 	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 
+	void destroy();
+
 	inline virtual Agent *getAgent() {
 		return mAgent;
 	}
-
-	void destroy();
 private:
 	static int _callback(nta_incoming_magic_t *magic, nta_incoming_t *irq, const sip_t *sip);
 };

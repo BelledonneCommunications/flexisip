@@ -37,9 +37,7 @@ ForkCallContext::~ForkCallContext() {
 }
 
 void ForkCallContext::cancel() {
-	for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end(); ++it) {
-		(*it)->cancel();
-	}
+	cancelOthers();
 }
 
 void ForkCallContext::forward(const std::shared_ptr<SipEvent> &ev, bool force) {
@@ -69,7 +67,7 @@ void ForkCallContext::forward(const std::shared_ptr<SipEvent> &ev, bool force) {
 
 void ForkCallContext::decline(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<SipEvent> &ev) {
 	if (!mForkNoGlobalDecline) {
-		closeOthers(transaction);
+		cancelOthers(transaction);
 
 		forward(ev);
 	} else {
@@ -82,16 +80,23 @@ void ForkCallContext::decline(const std::shared_ptr<OutgoingTransaction> &transa
 	}
 }
 
-void ForkCallContext::closeOthers(const shared_ptr<OutgoingTransaction> &transaction) {
+void ForkCallContext::cancelOthers(const std::shared_ptr<OutgoingTransaction> &transaction) {
 	if (mFinal == 0) {
-		for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end(); ++it) {
-			if (*it != transaction)
-				(*it)->cancel();
+		for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end();) {
+			if (*it != transaction) {
+				shared_ptr<OutgoingTransaction> tr = (*it);
+				it = mOutgoings.erase(it);
+				tr->cancel();
+			}
+			else {
+				 ++it;
+			}
 		}
 	}
 }
 
 void ForkCallContext::onRequest(const shared_ptr<IncomingTransaction> &transaction, shared_ptr<SipEvent> &event) {
+	event->setOutgoingAgent(shared_ptr<OutgoingAgent>());
 	const shared_ptr<MsgSip> &ms = event->getMsgSip();
 	sip_t *sip = ms->getSip();
 	if (sip != NULL && sip->sip_request != NULL) {
@@ -138,7 +143,7 @@ void ForkCallContext::onResponse(const shared_ptr<OutgoingTransaction> &transact
 			return;
 		} else if (sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 300) {
 			if (mFinal == 0 && mForkOneResponse) // TODO: respect RFC 3261 16.7.5
-				closeOthers(transaction);
+				cancelOthers(transaction);
 			forward(event, true);
 			return;
 		} else if (sip->sip_status->st_status >= 600 && sip->sip_status->st_status < 700) {
