@@ -228,7 +228,7 @@ void Registrar::send200Ok(Agent *agent, shared_ptr<SipEvent> &ev, const sip_cont
 static shared_ptr<ExtendedContact> getFirstExtendedContact(Record *aor) {
 	auto contacts = aor->getExtendedContacts();
 	auto it = contacts.begin();
-	return it != contacts.end() ? (*it) : NULL;
+	return it != contacts.end() ? (*it) : shared_ptr<ExtendedContact>();
 }
 
 bool Registrar::contactinVia(sip_contact_t *ct, sip_via_t * via) {
