@@ -73,12 +73,22 @@ bool Record::isInvalidRegister(const char *call_id, uint32_t cseq) {
  * Should first have checked the validity of the register with isValidRegister.
  */
 void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t now) {
-	sip_contact_t *s = (sip_contact_t *) sip;
-	const char *line_value = (sLineFieldName.size() > 0 && sip) ? msg_header_find_item(s->m_common, sLineFieldName.c_str()) : NULL;
+	char lineValue [20];
+	char *lineValuePtr=lineValue;
+	if (!url_param(sip->m_url->url_params,sLineFieldName.c_str(),lineValue,sizeof(lineValue)-1)) {
+		lineValuePtr=NULL;
+	}
 	auto it = mContacts.begin();
 	while (it != mContacts.end()) {
 		shared_ptr<ExtendedContact> ec = (*it);
-		if ((now >= ec->mExpireAt) || (ec->mLineValueCopy && line_value && 0 == strcmp(ec->mLineValueCopy, line_value)) || (0 == strcmp(ec->mCallId, call_id))) {
+		if (now >= ec->mExpireAt) {
+			LOGD("Cleaning expired contact %s", ec->mContactId);
+			it = mContacts.erase(it);
+		} else if (ec->mLineValueCopy && lineValuePtr != NULL && 0 == strcmp(ec->mLineValueCopy, lineValuePtr)) {
+			LOGD("Cleaning older line '%s' for contact %s", lineValuePtr, ec->mContactId);
+			it = mContacts.erase(it);
+		} else if (0 == strcmp(ec->mCallId, call_id)) {
+			LOGD("Cleaning same call id contact %s", ec->mContactId);
 			it = mContacts.erase(it);
 		} else {
 			++it;
@@ -144,6 +154,7 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec) {
 	shared_ptr<ExtendedContact> olderEc;
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		if (0 == strcmp(ec->mContactId, (*it)->mContactId)) {
+			LOGD("Removing older contact with same id %s", (*it)->mContactId);
 			mContacts.erase(it);
 			mContacts.push_back(ec);
 			return;
@@ -163,23 +174,32 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec) {
 }
 
 static void defineContactId(ostringstream &oss, const url_t *url, const char *transport) {
-	if (transport)
+	if (transport!=NULL)
 		oss << transport << ":";
-	if (url->url_user)
+	if (url->url_user != NULL)
 		oss << url->url_user << ":";
 	oss << url->url_host;
 	if (url->url_port)
 		oss << ":" << url->url_port;
 }
 
+
 void Record::bind(const sip_contact_t *contacts, const char* route, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias) {
 	sip_contact_t *c = (sip_contact_t *) contacts;
 	while (c) {
-		const char *lineValue = msg_header_find_item(c->m_common, sLineFieldName.c_str());
-		const char *transport = msg_header_find_item(c->m_common, "transport");
+		char lineValue [20];
+		char *lineValuePtr=lineValue;
+		if (!url_param(c->m_url->url_params,sLineFieldName.c_str(),lineValue,sizeof(lineValue)-1)) {
+			lineValuePtr=NULL;
+		}
+		char transport [20];
+		char *transportPtr=transport;
+		if (!url_param(c->m_url->url_params,"transport",transport,sizeof(transport)-1)) {
+			transportPtr=NULL;
+		}
 		ostringstream contactId;
-		defineContactId(contactId, c->m_url, transport);
-		insertOrUpdateBinding(make_shared<ExtendedContact>(c, contactId.str().c_str(), route, lineValue, globalExpire, call_id, cseq, now, alias));
+		defineContactId(contactId, c->m_url, transportPtr);
+		insertOrUpdateBinding(make_shared<ExtendedContact>(c, contactId.str().c_str(), route, lineValuePtr, globalExpire, call_id, cseq, now, alias));
 		c = c->m_next;
 	}
 
@@ -195,7 +215,9 @@ void Record::print() {
 	LOGD("Record contains %zu contacts", mContacts.size());
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		shared_ptr<ExtendedContact> ec = (*it);
-		LOGD("%s %lu route=%s", ec->mSipUri, ec->mExpireAt, ec->mRoute);
+		struct tm *ptm=localtime(&ec->mExpireAt);
+		LOGD("%s route=%s expire=%2d:%02d (%lu)", ec->mSipUri, ec->mRoute,
+				ptm->tm_hour%24, ptm->tm_min, ec->mExpireAt);
 	}
 	LOGD("==========================");
 }
