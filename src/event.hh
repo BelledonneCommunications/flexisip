@@ -111,9 +111,8 @@ public:
 
 	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) = 0;
 
-	virtual ~SipEvent() {
+	virtual ~SipEvent();
 
-	}
 	Module *getCurrentModule() { return mCurrModule; }
 
 protected:
@@ -130,7 +129,7 @@ protected:
 class RequestSipEvent: public SipEvent {
 public:
 	RequestSipEvent(const std::shared_ptr<IncomingAgent> &incomingAgent, const std::shared_ptr<MsgSip> &msgSip);
-	RequestSipEvent(const std::shared_ptr<SipEvent> &sipEvent, const std::shared_ptr<MsgSip> &msgSip);
+	RequestSipEvent(const std::shared_ptr<SipEvent> &sipEvent);
 
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);
@@ -145,7 +144,7 @@ public:
 class ResponseSipEvent: public SipEvent {
 public:
 	ResponseSipEvent(const std::shared_ptr<OutgoingAgent> &outgoingAgent, const std::shared_ptr<MsgSip> &msgSip);
-	ResponseSipEvent(const std::shared_ptr<SipEvent> &sipEvent, const std::shared_ptr<MsgSip> &msgSip);
+	ResponseSipEvent(const std::shared_ptr<SipEvent> &sipEvent);
 
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);

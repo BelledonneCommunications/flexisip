@@ -40,22 +40,19 @@ public:
 	virtual void onLoad(Agent *ag, const GenericStruct * modconf);
 	virtual void onRequest(shared_ptr<SipEvent> &ev);
 	virtual void onResponse(shared_ptr<SipEvent> &ev);
-	virtual void onTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
+	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
 	virtual void onIdle();
 protected:
 	virtual void onDeclare(GenericStruct * module_config) {
 		ConfigItemDescriptor items[] = { { String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay.", "nortpproxy" }, config_item_end };
 		module_config->addChildrenValues(items);
 
-		StatItemDescriptor stats[] = {
-			{	Counter64,	countCallsStr, "Number of calls."},
-			{	Counter64,	countCallsFinishedStr, "Number of calls finished."},
-			stat_item_end };
+		StatItemDescriptor stats[] = { { Counter64, countCallsStr, "Number of calls." }, { Counter64, countCallsFinishedStr, "Number of calls finished." }, stat_item_end };
 		module_config->addChildrenValues(stats);
 	}
 private:
-	bool processNewInvite(const shared_ptr<RelayedCall> &c, const std::shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
-	void process200OkforInvite(const shared_ptr<RelayedCall> &c, const std::shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
+	bool processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
+	void process200OkforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
 	CallStore *mCalls;
 	MediaRelayServer *mServer;
 	string mSdpMangledParam;
@@ -73,10 +70,13 @@ class RelayedCall: public CallContextBase {
 		RelaySession *mRelaySession;
 		map<shared_ptr<Transaction>, shared_ptr<MediaSource>> mTransactions;
 	};
+	typedef enum {
+		Idle, Initialized, Running
+	} State;
 public:
 	static const int sMaxSessions = 4;
 	RelayedCall(MediaRelayServer *server, sip_t *sip) :
-			CallContextBase(sip), mServer(server) {
+			CallContextBase(sip), mServer(server), mState(Idle) {
 		LOGD("New RelayedCall %p", this);
 	}
 
@@ -90,9 +90,9 @@ public:
 		if (s == NULL) {
 			s = mServer->createSession();
 			mSessions[mline].mRelaySession = s;
-			std::shared_ptr<MediaSource> ms = s->addFront();
+			shared_ptr<MediaSource> ms = s->addFront();
 			ms->set(*ip, *port);
-			LOGD("RelayedCall %p | %s:%i <-> %i", this, ip->c_str(), *port, ms->getRelayPort());
+			ms->setBehaviour(MediaSource::All);
 		}
 
 	}
@@ -108,7 +108,7 @@ public:
 		}
 	}
 
-	void forwardTranslate(int mline, string *ip, int *port, const std::shared_ptr<Transaction> &transaction) {
+	void forwardTranslate(int mline, string *ip, int *port, const shared_ptr<Transaction> &transaction) {
 		if (mline >= sMaxSessions) {
 			return;
 		}
@@ -118,25 +118,24 @@ public:
 			if (it != mSessions[mline].mTransactions.end()) {
 				*port = it->second->getRelayPort();
 			} else {
-				LOGE("Can't find transaction %p", transaction.get());
+				*port = -1;
 			}
 			*ip = s->getPublicIp();
 		}
 	}
 
-	void addBack(int mline, string *ip, int *port, const std::shared_ptr<Transaction> &transaction) {
-		if (mline >= sMaxSessions) {
-			return;
-		}
-		RelaySession *s = mSessions[mline].mRelaySession;
-		if (s != NULL) {
-			mSessions[mline].mTransactions.insert(pair<shared_ptr<Transaction>, shared_ptr<MediaSource>>(transaction, s->addBack()));
-
-			s->setType((mSessions[mline].mTransactions.size() > 1) ? RelaySession::FrontToBack : RelaySession::All);
+	void addBack(const shared_ptr<Transaction> &transaction) {
+		for (int mline = 0; mline < sMaxSessions; ++mline) {
+			RelaySession *s = mSessions[mline].mRelaySession;
+			if (s != NULL) {
+				shared_ptr<MediaSource> ms = s->addBack();
+				ms->setBehaviour(MediaSource::Receive);
+				mSessions[mline].mTransactions.insert(pair<shared_ptr<Transaction>, shared_ptr<MediaSource>>(transaction, ms));
+			}
 		}
 	}
 
-	void setBack(int mline, string *ip, int *port, const std::shared_ptr<Transaction> &transaction) {
+	void setBack(int mline, string *ip, int *port, const shared_ptr<Transaction> &transaction) {
 		if (mline >= sMaxSessions) {
 			return;
 		}
@@ -144,47 +143,80 @@ public:
 		if (s != NULL) {
 			auto it = mSessions[mline].mTransactions.find(transaction);
 			if (it != mSessions[mline].mTransactions.end()) {
-				std::shared_ptr<MediaSource> ms = it->second;
+				shared_ptr<MediaSource> &ms = it->second;
 				ms->set(*ip, *port);
-				LOGD("RelayedCall %p | %i <-> %s:%i", this, ms->getRelayPort(), ip->c_str(), *port);
-			} else {
-				LOGE("Can't find transaction %p", transaction.get());
 			}
 		}
 	}
 
-	void removeBack(const std::shared_ptr<Transaction> transaction) {
+	void update(const shared_ptr<Transaction> &transaction = shared_ptr<Transaction>()) {
+		if (mState == Idle)
+			mState = Initialized;
+
+		// Only one feed from back to front
+		bool isSendingFeed = false;
+		for (int mline = 0; mline < sMaxSessions; ++mline) {
+			RelaySession *s = mSessions[mline].mRelaySession;
+			if (s != NULL) {
+				for (auto it = mSessions[mline].mTransactions.begin(); it != mSessions[mline].mTransactions.end(); ++it) {
+					shared_ptr<MediaSource> &ms = it->second;
+					isSendingFeed |= (ms->getBehaviour() & MediaSource::Send);
+				}
+				break;
+			}
+		}
+		if (!isSendingFeed) {
+			for (int mline = 0; mline < sMaxSessions; ++mline) {
+				RelaySession *s = mSessions[mline].mRelaySession;
+				if (s != NULL) {
+					auto it = mSessions[mline].mTransactions.begin();
+					if (it != mSessions[mline].mTransactions.end()) {
+						shared_ptr<MediaSource> &ms = it->second;
+						ms->setBehaviour(MediaSource::All);
+					}
+				}
+			}
+		}
+	}
+
+	bool removeBack(const shared_ptr<Transaction> &transaction) {
+		bool remove = (mState != Running);
 		for (int mline = 0; mline < sMaxSessions; ++mline) {
 			RelaySession *s = mSessions[mline].mRelaySession;
 			if (s != NULL) {
 				auto it = mSessions[mline].mTransactions.find(transaction);
 				if (it != mSessions[mline].mTransactions.end()) {
-					std::shared_ptr<MediaSource> ms = it->second;
+					shared_ptr<MediaSource> &ms = it->second;
 					s->removeBack(ms);
-					s->setType((mSessions[mline].mTransactions.size() > 1) ? RelaySession::FrontToBack : RelaySession::All);
-				} else {
-					LOGE("Can't find transaction %p", transaction.get());
+					mSessions[mline].mTransactions.erase(it);
 				}
+				if (!mSessions[mline].mTransactions.empty())
+					remove = false;
 			}
 		}
+		update();
+		return remove;
 	}
 
-	void cleanTransaction(const std::shared_ptr<Transaction> transaction) {
+	void validBack(const shared_ptr<Transaction> &transaction) {
 		for (int mline = 0; mline < sMaxSessions; ++mline) {
 			RelaySession *s = mSessions[mline].mRelaySession;
 			if (s != NULL) {
 				auto it = mSessions[mline].mTransactions.find(transaction);
 				if (it != mSessions[mline].mTransactions.end()) {
+					shared_ptr<MediaSource> &ms = it->second;
 					mSessions[mline].mTransactions.erase(it);
-				} else {
-					LOGE("Can't find transaction %p", transaction.get());
+					ms->setBehaviour(MediaSource::BehaviourType::All);
+				}
+				it = mSessions[mline].mTransactions.begin();
+				while (it != mSessions[mline].mTransactions.end()) {
+					shared_ptr<MediaSource> &ms = it->second;
+					s->removeBack(ms);
+					it = mSessions[mline].mTransactions.erase(it);
 				}
 			}
 		}
-	}
-
-	void update() {
-		mServer->update();
+		mState = Running;
 	}
 
 	bool isInactive(time_t cur) {
@@ -215,6 +247,7 @@ public:
 private:
 	RelaySessionTransaction mSessions[sMaxSessions];
 	MediaRelayServer *mServer;
+	State mState;
 };
 
 static bool isEarlyMedia(sip_t *sip) {
@@ -248,7 +281,7 @@ void MediaRelay::onLoad(Agent *ag, const GenericStruct * modconf) {
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
 }
 
-bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const std::shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
+bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
 	sip_t *sip = msgSip->getSip();
 	msg_t *msg = msgSip->getMsg();
 
@@ -267,14 +300,15 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const std::s
 		m->iterate(bind(&RelayedCall::newMedia, c, placeholders::_1, placeholders::_2, placeholders::_3));
 
 		// Add back
-		m->iterate(bind(&RelayedCall::addBack, c, placeholders::_1, placeholders::_2, placeholders::_3, ref(transaction)));
+		c->addBack(transaction);
 
 		// Translate
 		m->iterate(bind(&RelayedCall::forwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, ref(transaction)));
 
 		m->addAttribute(mSdpMangledParam.c_str(), "yes");
 		m->update(msg, sip);
-		c->update();
+
+		mServer->update();
 
 		//be in the record-route
 		addRecordRoute(c->getHome(), getAgent(), msg, sip);
@@ -313,7 +347,7 @@ void MediaRelay::onRequest(shared_ptr<SipEvent> &ev) {
 	}
 }
 
-void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const std::shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
+void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
 	sip_t *sip = msgSip->getSip();
 	msg_t *msg = msgSip->getMsg();
 	LOGD("Processing 200 Ok");
@@ -327,7 +361,11 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 		return;
 
 	m->iterate(bind(&RelayedCall::setBack, c, placeholders::_1, placeholders::_2, placeholders::_3, ref(transaction)));
+
+	c->update(transaction);
+
 	m->iterate(bind(&RelayedCall::backwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3));
+
 	m->update(msg, sip);
 
 	delete m;
@@ -339,16 +377,16 @@ void MediaRelay::onResponse(shared_ptr<SipEvent> &ev) {
 	msg_t *msg = ms->getMsg();
 
 	// Handle SipEvent associated with a Stateful transaction
-	std::shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 	if (transaction != NULL) {
-		shared_ptr<RelayedCall> ptr = transaction->getProperty<RelayedCall>(getModuleName());
-		if (ptr != NULL) {
+		shared_ptr<RelayedCall> c = transaction->getProperty<RelayedCall>(getModuleName());
+		if (c != NULL) {
 			if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
 				fixAuthChallengeForSDP(ms->getHome(), msg, sip);
 				if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
-					process200OkforInvite(ptr, transaction, ev->getMsgSip());
-				} else if (sip->sip_status->st_status == 487) {
-					ptr->removeBack(transaction);
+					process200OkforInvite(c, transaction, ev->getMsgSip());
+					if (sip->sip_status->st_status == 200)
+						c->validBack(transaction);
 				}
 			}
 			return;
@@ -356,14 +394,16 @@ void MediaRelay::onResponse(shared_ptr<SipEvent> &ev) {
 	}
 }
 
-void MediaRelay::onTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
-	shared_ptr<RelayedCall> ptr = transaction->getProperty<RelayedCall>(getModuleName());
-	if (ptr != NULL) {
-		std::shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(transaction);
+void MediaRelay::onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
+	shared_ptr<RelayedCall> c = transaction->getProperty<RelayedCall>(getModuleName());
+	if (c != NULL) {
+		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(transaction);
 		if (ot != NULL) {
 			switch (event) {
 			case Transaction::Destroy:
-				ptr->cleanTransaction(transaction); //Free transaction reference
+				if (c->removeBack(transaction)) {
+					mCalls->remove(c);
+				}
 				break;
 
 			default:

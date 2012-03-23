@@ -221,7 +221,7 @@ void StatCounter64::setParent(GenericEntry *parent){
 #endif
 }
 
-GenericStruct::GenericStruct(const std::string &name, const std::string &help,oid oid_index) : GenericEntry(name,Struct,help,oid_index){
+GenericStruct::GenericStruct(const string &name, const string &help,oid oid_index) : GenericEntry(name,Struct,help,oid_index){
 }
 
 void GenericStruct::setParent(GenericEntry *parent){
@@ -317,12 +317,12 @@ struct matchEntryNameApprox{
 };
 
 GenericEntry * GenericStruct::findApproximate(const char *name)const{
-	std::list<GenericEntry*>::const_iterator it=find_if(mEntries.begin(),mEntries.end(),matchEntryNameApprox(name));
+	list<GenericEntry*>::const_iterator it=find_if(mEntries.begin(),mEntries.end(),matchEntryNameApprox(name));
 	if (it!=mEntries.end()) return *it;
 	return NULL;
 }
 
-std::list<GenericEntry*> &GenericStruct::getChildren(){
+list<GenericEntry*> &GenericStruct::getChildren(){
 	return mEntries;
 }
 
@@ -337,7 +337,7 @@ GenericStruct::~GenericStruct(){
 }
 
 
-ConfigBoolean::ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index)
+ConfigBoolean::ConfigBoolean(const string &name, const string &help, const string &default_value,oid oid_index)
 : ConfigValue(name, Boolean, help, default_value,oid_index){
 }
 
@@ -350,7 +350,7 @@ bool ConfigBoolean::read()const{
 }
 
 
-ConfigInt::ConfigInt(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index)
+ConfigInt::ConfigInt(const string &name, const string &help, const string &default_value,oid oid_index)
 :	ConfigValue(name,Integer,help,default_value,oid_index){
 }
 
@@ -358,21 +358,21 @@ int ConfigInt::read()const{
 	return atoi(get().c_str());
 }
 
-StatCounter64::StatCounter64(const std::string &name, const std::string &help, oid oid_index)
+StatCounter64::StatCounter64(const string &name, const string &help, oid oid_index)
 :	GenericEntry(name,Counter64,help,oid_index){
 	mValue=0;
 }
 
-ConfigString::ConfigString(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index)
+ConfigString::ConfigString(const string &name, const string &help, const string &default_value,oid oid_index)
 :	ConfigValue(name,String,help,default_value,oid_index){
 }
 
-const std::string & ConfigString::read()const{
+const string & ConfigString::read()const{
 	return get();
 }
 
 
-ConfigStringList::ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index)
+ConfigStringList::ConfigStringList(const string &name, const string &help, const string &default_value,oid oid_index)
 :	ConfigValue(name,StringList,help,default_value,oid_index){
 }
 
@@ -462,7 +462,7 @@ static ConfigItemDescriptor tls_conf[]={
 };
 
 
-RootConfigStruct::RootConfigStruct(const std::string &name, const std::string &help,vector<oid> oid_root_path)
+RootConfigStruct::RootConfigStruct(const string &name, const string &help,vector<oid> oid_root_path)
 : GenericStruct(name,help,1) {
 	mOid = new Oid(oid_root_path,1);
 }
@@ -513,7 +513,7 @@ ostream & FileConfigDumper::printHelp(ostream &os, const string &help, const str
 	return os;
 }
 
-std::ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
+ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
 	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
 	ConfigValue *val;
 
@@ -537,10 +537,10 @@ std::ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int l
 	return ostr;
 }
 
-std::ostream &MibDumper::dump(std::ostream & ostr)const {
-	const std::time_t t = std::time(NULL);
+ostream &MibDumper::dump(ostream & ostr)const {
+	const time_t t = time(NULL);
 	char mbstr[100];
-	strftime(mbstr, sizeof(mbstr), "%Y%m%d0000Z", std::localtime(&t));
+	strftime(mbstr, sizeof(mbstr), "%Y%m%d0000Z", localtime(&t));
 
 	ostr << "FLEXISIP-MIB DEFINITIONS ::= BEGIN" << endl
 			<< "IMPORTS" << endl
@@ -562,7 +562,7 @@ std::ostream &MibDumper::dump(std::ostream & ostr)const {
 	return ostr;
 }
 
-std::ostream &MibDumper::dump2(std::ostream & ostr, GenericEntry *entry, int level)const{
+ostream &MibDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
 	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
 	ConfigValue *cVal;
 	StatCounter64 *sVal;
@@ -572,11 +572,11 @@ std::ostream &MibDumper::dump2(std::ostream & ostr, GenericEntry *entry, int lev
 		--level;
 	}
 	if (cs){
-		std::list<GenericEntry*>::iterator it;
+		list<GenericEntry*>::iterator it;
 		cs->mibFragment(ostr, spacing);
 		for(it=cs->getChildren().begin();it!=cs->getChildren().end();++it){
 			dump2(ostr,*it,level+1);
-			ostr<<std::endl;
+			ostr<<endl;
 		}
 	}else if ((cVal=dynamic_cast<ConfigValue*>(entry))!=NULL){
 		cVal->mibFragment(ostr, spacing);

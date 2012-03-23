@@ -178,20 +178,20 @@ CallStore::CallStore() : mCountCalls(NULL),mCountCallsFinished(NULL){
 CallStore::~CallStore(){
 }
 
-void CallStore::store(const std::shared_ptr<CallContextBase> &ctx){
+void CallStore::store(const shared_ptr<CallContextBase> &ctx){
 	if (mCountCalls) ++(*mCountCalls);
 	mCalls.push_back(ctx);
 }
 
-std::shared_ptr<CallContextBase> CallStore::find(Agent *ag, sip_t *sip, bool stateful){
+shared_ptr<CallContextBase> CallStore::find(Agent *ag, sip_t *sip, bool stateful){
 	for(auto it=mCalls.begin();it!=mCalls.end();++it){
 		if ((*it)->match(ag,sip, stateful))
 		    return *it;
 	}
-	return std::shared_ptr<CallContextBase>();
+	return shared_ptr<CallContextBase>();
 }
 
-void CallStore::remove(const std::shared_ptr<CallContextBase> &ctx){
+void CallStore::remove(const shared_ptr<CallContextBase> &ctx){
 	if (mCountCallsFinished) ++(*mCountCallsFinished);
 	mCalls.remove(ctx);
 }

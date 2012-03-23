@@ -415,16 +415,16 @@ int main(int argc, char *argv[]){
 		a=make_shared<Agent>(root,0,0);
 		GenericStruct *rootStruct=GenericManager::get()->getRoot();
 		if (dump_cfg_part && !(rootStruct=dynamic_cast<GenericStruct *>(rootStruct->find(dump_cfg_part)))) {
-			std::cerr<<"Couldn't find node " << dump_cfg_part << std::endl;
+			cerr<<"Couldn't find node " << dump_cfg_part << endl;
 			return -1;
 		}
-		std::cout<<FileConfigDumper(rootStruct);
+		cout<<FileConfigDumper(rootStruct);
 		return 0;
 	}
 
 	if (dump_snmp_mib) {
 		a=make_shared<Agent>(root,0,0);
-		std::cout<<MibDumper(GenericManager::get()->getRoot());
+		cout<<MibDumper(GenericManager::get()->getRoot());
 		return 0;
 	}
 
