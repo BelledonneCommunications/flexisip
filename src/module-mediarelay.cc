@@ -212,7 +212,7 @@ public:
 				while (it != mSessions[mline].mTransactions.end()) {
 					shared_ptr<MediaSource> &ms = it->second;
 					s->removeBack(ms);
-					it = mSessions[mline].mTransactions.erase(it);
+					mSessions[mline].mTransactions.erase(it++);
 				}
 			}
 		}
