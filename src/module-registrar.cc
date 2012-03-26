@@ -51,9 +51,9 @@ public:
 		ConfigItemDescriptor configs[] = { { StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar.", "localhost" },
 				{ Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "15" },
 				{ String, "line-field-name", "Name of the contact uri parameter used for identifying user's device. ", "line" },
-				{ String, "static-records-file", "File containing the static records to add to database at startup. " \
-					"Format: one 'sip_uri contact_header' by line. " \
-					"Ex1: <sip:contact@domain> <sip:127.0.0.1:5460>,<sip:192.168.0.1:5160>", "" },
+				{ String, "static-records-file", "File containing the static records to add to database at startup. "
+				"Format: one 'sip_uri contact_header' by line. "
+				"Ex1: <sip:contact@domain> <sip:127.0.0.1:5460>,<sip:192.168.0.1:5160>", "" },
 #ifdef ENABLE_REDIS
 				{	String , "db-implementation", "Implementation used for storing address of records contact uris. [redis-async, redis-sync, internal]","redis-async"},
 				{	String , "redis-server-domain", "Domain of the redis server. ","localhost"},
@@ -62,23 +62,16 @@ public:
 				{	Integer , "redis-server-timeout", "Timeout in milliseconds of the redis connection.","1500"},
 				{	String , "redis-record-serializer", "Implementation of the contact serialiser to use. [C, protobuf]","protobuf"},
 #else
-				{	String, "db-implementation", "Implementation used for storing address of records contact uris. [internal,...]", "internal" },
+				{ String, "db-implementation", "Implementation used for storing address of records contact uris. [internal,...]", "internal" },
 #endif
-				{	Boolean, "fork", "Fork messages to all registered devices", "true" },
-				{	Boolean, "fork-one-response", "Only forward one response of forked invite to the caller", "true"},
-				{	Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite", "false"},
+				{ Boolean, "fork", "Fork messages to all registered devices", "true" },
+				{ Boolean, "fork-one-response", "Only forward one response of forked invite to the caller", "true" },
+				{ Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite", "false" },
 				config_item_end };
 		module_config->addChildrenValues(configs);
 
-		StatItemDescriptor stats[] = {
-				{	Counter64,	sCountBindStr, "Number of registers."},
-				{	Counter64,	sCountBindFinishedStr, "Number of registers finished."},
-				{	Counter64,	sCountForksStr, "Number of forks."},
-				{	Counter64,	sCountForksFinishedStr,  "Number of forks finished."},
-				{	Counter64,	sCountNonForkedStr, "Number of non forked."},
-				{	Counter64,	sCountClearStr, "Number of cleared registrations."},
-				{	Counter64,	sCountClearFinishedStr, "Number of cleared registrations finished."},
-				stat_item_end };
+		StatItemDescriptor stats[] = { { Counter64, sCountBindStr, "Number of registers." }, { Counter64, sCountBindFinishedStr, "Number of registers finished." }, { Counter64, sCountForksStr, "Number of forks." }, { Counter64, sCountForksFinishedStr, "Number of forks finished." }, {
+				Counter64, sCountNonForkedStr, "Number of non forked." }, { Counter64, sCountClearStr, "Number of cleared registrations." }, { Counter64, sCountClearFinishedStr, "Number of cleared registrations finished." }, stat_item_end };
 		module_config->addChildrenValues(stats);
 	}
 
@@ -225,12 +218,10 @@ void Registrar::send200Ok(Agent *agent, shared_ptr<SipEvent> &ev, const sip_cont
 	}
 }
 
-static shared_ptr<ExtendedContact> getFirstExtendedContact(Record *aor) {
-	auto contacts = aor->getExtendedContacts();
-	auto it = contacts.begin();
-	return it != contacts.end() ? (*it) : shared_ptr<ExtendedContact>();
-}
-
+/**
+ * Check if the contact is in one via.
+ * Avoid to check a contact information that already known
+ */
 bool Registrar::contactinVia(sip_contact_t *ct, sip_via_t * via) {
 
 	while (via != NULL) {
@@ -250,88 +241,110 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
-	// here we would implement forking
 	time_t now = time(NULL);
 	if (aor) {
 		const auto contacts = aor->getExtendedContacts();
-		if (contacts.size() <= 1 || !fork || ms->getSip()->sip_request->rq_method != sip_method_invite) {
-			++findStat(sCountNonForkedStr);
-			shared_ptr<ExtendedContact> ec = getFirstExtendedContact(aor);
-			sip_contact_t *ct = NULL;
-			if (ec)
-				ct = Record::extendedContactToSofia(ms->getHome(), *ec, now);
-
-			if (ct && !contactinVia(ct, sip->sip_via)) {
-				/*sanity check on the contact address: might be '*' or whatever useless information*/
-				if (ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
-					LOGD("Registrar: found contact information in database, rewriting request uri");
-					/*rewrite request-uri */
-					ms->getSip()->sip_request->rq_url[0] = *url_hdup(ms->getHome(), ct->m_url);
-					if (ec->mRoute != NULL && 0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
-						LOGD("This flexisip instance is not responsible for contact %s -> %s", ec->mSipUri, ec->mRoute);
-						prependRoute(ms->getHome(), agent, ms->getMsg(), ms->getSip(), ec->mRoute);
-					}
-					// Back to work
-					agent->injectRequestEvent(ev);
-					return;
-				} else {
-					if (ct != NULL) {
-						LOGW("Unrouted request because of incorrect address of record.");
-					}
-				}
-			}
-		} else {
-			++findStat(sCountForksStr);
-			shared_ptr<ForkCallContext> context(make_shared<ForkCallContext>(agent));
-			shared_ptr<IncomingTransaction> incoming_transaction = ev->createIncomingTransaction();
-			context->onNew(incoming_transaction);
-			incoming_transaction->setProperty<ForkCallContext>(Registrar::sInfo.getModuleName(), context);
-
-			for (auto it = contacts.begin(); it != contacts.end(); ++it) {
-				shared_ptr<ExtendedContact> ec = *it;
+		if (contacts.size() > 0) {
+			if (contacts.size() <= 1 || !fork || ms->getSip()->sip_request->rq_method != sip_method_invite) {
+				++findStat(sCountNonForkedStr);
+				const shared_ptr<ExtendedContact> &ec = contacts.front();
 				sip_contact_t *ct = NULL;
 				if (ec)
 					ct = Record::extendedContactToSofia(ms->getHome(), *ec, now);
 
-				if (ct && !contactinVia(ct, sip->sip_via)) {
-					/*sanity check on the contact address: might be '*' or whatever useless information*/
-					if (ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
-						LOGD("Registrar: found contact information in database, rewriting request uri");
-						shared_ptr<MsgSip> new_msgsip = make_shared<MsgSip>(*ms);
-						msg_t *new_msg = new_msgsip->getMsg();
-						sip_t *new_sip = new_msgsip->getSip();
-
-						/*rewrite request-uri */
-						new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), ct->m_url);
-						if (ec->mRoute != NULL && 0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
-							LOGD("This flexisip instance is not responsible for contact %s -> %s", ec->mSipUri, ec->mRoute);
-							prependRoute(msg_home(new_msg), agent, new_msg, new_sip, ec->mRoute);
+				if (ct) {
+					if (!contactinVia(ct, sip->sip_via)) {
+						/*sanity check on the contact address: might be '*' or whatever useless information*/
+						if (ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
+							LOGD("Registrar: found contact information in database, rewriting request uri");
+							/*rewrite request-uri */
+							ms->getSip()->sip_request->rq_url[0] = *url_hdup(ms->getHome(), ct->m_url);
+							if (ec->mRoute != NULL && 0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
+								LOGD("This flexisip instance is not responsible for contact %s -> %s", ec->mSipUri, ec->mRoute);
+								prependRoute(ms->getHome(), agent, ms->getMsg(), ms->getSip(), ec->mRoute);
+							}
+							// Back to work
+							agent->injectRequestEvent(ev);
+							return;
+						} else {
+							if (ct != NULL) {
+								LOGW("Unrouted request because of incorrect address of record.");
+							}
 						}
-
-						LOGD("Fork to %s", ec->mSipUri);
-						shared_ptr<SipEvent> new_ev(make_shared<RequestSipEvent>(ev));
-						new_ev->setMsgSip(new_msgsip);
-						shared_ptr<OutgoingTransaction> transaction = new_ev->createOutgoingTransaction();
-						transaction->setProperty(Registrar::sInfo.getModuleName(), context);
-
-						agent->injectRequestEvent(new_ev);
 					} else {
-						if (ct != NULL) {
-							LOGW("Unrouted request because of incorrect address of record.");
+						LOGW("Contact is already routed");
+					}
+				} else {
+					LOGW("Can't create sip_contact of %s.", ec->mSipUri);
+				}
+			} else {
+				++findStat(sCountForksStr);
+				bool handled = false;
+				shared_ptr<ForkCallContext> context(make_shared<ForkCallContext>(agent));
+				shared_ptr<IncomingTransaction> incoming_transaction = ev->createIncomingTransaction();
+				context->onNew(incoming_transaction);
+				incoming_transaction->setProperty<ForkCallContext>(Registrar::sInfo.getModuleName(), context);
+
+				for (auto it = contacts.begin(); it != contacts.end(); ++it) {
+					const shared_ptr<ExtendedContact> ec = *it;
+					sip_contact_t *ct = NULL;
+					if (ec)
+						ct = Record::extendedContactToSofia(ms->getHome(), *ec, now);
+
+					if (ct) {
+						if (!contactinVia(ct, sip->sip_via)) {
+							/*sanity check on the contact address: might be '*' or whatever useless information*/
+							if (ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
+								LOGD("Registrar: found contact information in database, rewriting request uri");
+								shared_ptr<MsgSip> new_msgsip = make_shared<MsgSip>(*ms);
+								msg_t *new_msg = new_msgsip->getMsg();
+								sip_t *new_sip = new_msgsip->getSip();
+
+								/*rewrite request-uri */
+								new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), ct->m_url);
+								if (ec->mRoute != NULL && 0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
+									LOGD("This flexisip instance is not responsible for contact %s -> %s", ec->mSipUri, ec->mRoute);
+									prependRoute(msg_home(new_msg), agent, new_msg, new_sip, ec->mRoute);
+								}
+
+								LOGD("Fork to %s.", ec->mSipUri);
+								shared_ptr<SipEvent> new_ev(make_shared<RequestSipEvent>(ev));
+								new_ev->setMsgSip(new_msgsip);
+								shared_ptr<OutgoingTransaction> transaction = new_ev->createOutgoingTransaction();
+								transaction->setProperty(Registrar::sInfo.getModuleName(), context);
+
+								agent->injectRequestEvent(new_ev);
+								handled++;
+							} else {
+								if (ct != NULL) {
+									LOGW("Unrouted request because of incorrect address of record.");
+								}
+							}
+						} else {
+							LOGD("Contact is already routed");
 						}
+					} else {
+						LOGD("Can't create sip_contact of %s.", ec->mSipUri);
 					}
 				}
-			}
 
-			shared_ptr<SipEvent> new_ev(make_shared<ResponseSipEvent>(ev->getOutgoingAgent(), incoming_transaction->createResponse(SIP_100_TRYING)));
-			new_ev->setIncomingAgent(incoming_transaction);
-			agent->sendResponseEvent(new_ev);
-			ev->terminateProcessing();
-			return;
+				if (handled > 0) {
+					shared_ptr<SipEvent> new_ev(make_shared<ResponseSipEvent>(ev->getOutgoingAgent(), incoming_transaction->createResponse(SIP_100_TRYING)));
+					new_ev->setIncomingAgent(incoming_transaction);
+					agent->sendResponseEvent(new_ev);
+					ev->terminateProcessing();
+					return;
+				} else {
+					LOGD("This user isn't registered (no valid contact).");
+				}
+			}
+		} else {
+			LOGD("This user isn't registered (no contact).");
 		}
+	} else {
+		LOGD("This user isn't registered (no aor).");
 	}
 
-	LOGD("This user isn't registered.");
 	ev->reply(ms, SIP_404_NOT_FOUND, SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
 }
 
@@ -413,12 +426,13 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 					++findStat(sCountBindStr);
 					LOGD("Updating binding");
 					listener->addStatCounter(findStat(sCountBindFinishedStr));
-					RegistrarDb::get(mAgent)->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, false, listener);;
+					RegistrarDb::get(mAgent)->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, false, listener);
+					;
 					return;
 				}
 				LOGD("Records binded to registrar database.");
 			} else {
-				LOGD("No sip contact, it is a fetch only request.");
+				LOGD("No sip contact, it is a fetch only request for %s.", url_as_string(ms->getHome(), sipurl));
 				RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnBindListener>(getAgent(), ev));
 				return;
 			}
@@ -432,6 +446,7 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 		if (sip->sip_request->rq_method != sip_method_ack && sip->sip_to != NULL && sip->sip_to->a_tag == NULL) {
 			url_t *sipurl = sip->sip_request->rq_url;
 			if (sipurl->url_host && isManagedDomain(sipurl->url_host)) {
+				LOGD("Fetch %s.", url_as_string(ms->getHome(), sipurl));
 				RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnBindForRoutingListener>(this, getAgent(), ev, mFork), true);
 			}
 		}

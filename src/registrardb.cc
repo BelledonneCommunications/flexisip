@@ -73,10 +73,10 @@ bool Record::isInvalidRegister(const char *call_id, uint32_t cseq) {
  * Should first have checked the validity of the register with isValidRegister.
  */
 void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t now) {
-	char lineValue [20];
-	char *lineValuePtr=lineValue;
-	if (!url_param(sip->m_url->url_params,sLineFieldName.c_str(),lineValue,sizeof(lineValue)-1)) {
-		lineValuePtr=NULL;
+	char lineValue[20];
+	char *lineValuePtr = lineValue;
+	if (!url_param(sip->m_url->url_params, sLineFieldName.c_str(), lineValue, sizeof(lineValue) - 1)) {
+		lineValuePtr = NULL;
 	}
 	auto it = mContacts.begin();
 	while (it != mContacts.end()) {
@@ -174,7 +174,7 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec) {
 }
 
 static void defineContactId(ostringstream &oss, const url_t *url, const char *transport) {
-	if (transport!=NULL)
+	if (transport != NULL)
 		oss << transport << ":";
 	if (url->url_user != NULL)
 		oss << url->url_user << ":";
@@ -183,19 +183,18 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 		oss << ":" << url->url_port;
 }
 
-
 void Record::bind(const sip_contact_t *contacts, const char* route, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias) {
 	sip_contact_t *c = (sip_contact_t *) contacts;
 	while (c) {
-		char lineValue [20];
-		char *lineValuePtr=lineValue;
-		if (!url_param(c->m_url->url_params,sLineFieldName.c_str(),lineValue,sizeof(lineValue)-1)) {
-			lineValuePtr=NULL;
+		char lineValue[20];
+		char *lineValuePtr = lineValue;
+		if (!url_param(c->m_url->url_params, sLineFieldName.c_str(), lineValue, sizeof(lineValue) - 1)) {
+			lineValuePtr = NULL;
 		}
-		char transport [20];
-		char *transportPtr=transport;
-		if (!url_param(c->m_url->url_params,"transport",transport,sizeof(transport)-1)) {
-			transportPtr=NULL;
+		char transport[20];
+		char *transportPtr = transport;
+		if (!url_param(c->m_url->url_params, "transport", transport, sizeof(transport) - 1)) {
+			transportPtr = NULL;
 		}
 		ostringstream contactId;
 		defineContactId(contactId, c->m_url, transportPtr);
@@ -215,9 +214,8 @@ void Record::print() {
 	LOGD("Record contains %zu contacts", mContacts.size());
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		shared_ptr<ExtendedContact> ec = (*it);
-		struct tm *ptm=localtime(&ec->mExpireAt);
-		LOGD("%s route=%s expire=%2d:%02d (%lu)", ec->mSipUri, ec->mRoute,
-				ptm->tm_hour%24, ptm->tm_min, ec->mExpireAt);
+		struct tm *ptm = localtime(&ec->mExpireAt);
+		LOGD("%s route=%s expire=%2d:%02d (%lu)", ec->mSipUri, ec->mRoute, ptm->tm_hour % 24, ptm->tm_min, ec->mExpireAt);
 	}
 	LOGD("==========================");
 }
@@ -307,11 +305,13 @@ private:
 	su_home_t m_home;
 	int m_request;
 	int m_step;
+	const char *m_url;
 	static int sMaxStep;
 public:
-	RecursiveRegistrarDbListener(RegistrarDb *database, const shared_ptr<RegistrarDbListener> &original_listerner, int step = sMaxStep) :
+	RecursiveRegistrarDbListener(RegistrarDb *database, const shared_ptr<RegistrarDbListener> &original_listerner, const url_t *url, int step = sMaxStep) :
 			m_database(database), m_original_listerner(original_listerner), m_record(new Record()), m_request(1), m_step(step) {
 		su_home_init(&m_home);
+		m_url = url_as_string(&m_home, url);
 	}
 
 	~RecursiveRegistrarDbListener() {
@@ -323,33 +323,36 @@ public:
 		if (r != NULL) {
 			for (auto it = r->mContacts.begin(); it != r->mContacts.end(); ++it) {
 				shared_ptr<ExtendedContact> ec = *it;
-				if (!ec->mAlias) {
+				if (!ec->mAlias || m_step == 0) {
+					LOGD("Step: %d\tFind contact %s for %s.", m_step, ec->mSipUri, m_url);
 					m_record->mContacts.push_back(ec);
 				} else {
-					if (m_step > 0) {
-						sip_contact_t *contact = sip_contact_format(&m_home, "%s", ec->mSipUri);
-						if (contact != NULL) {
-							++m_request;
-							m_database->fetch(contact->m_url, make_shared<RecursiveRegistrarDbListener>(m_database, this->shared_from_this(), m_step - 1), false);
-						}
+					LOGD("Step: %d\tFind alias %s for %s. Try to fetch it.", m_step, ec->mSipUri, m_url);
+					sip_contact_t *contact = sip_contact_format(&m_home, "%s", ec->mSipUri);
+					if (contact != NULL) {
+						++m_request;
+						m_database->fetch(contact->m_url, make_shared<RecursiveRegistrarDbListener>(m_database, this->shared_from_this(), contact->m_url, m_step - 1), false);
 					} else {
-						m_record->mContacts.push_back(ec);
+						LOGW("Can't create sip_contact of %s.", ec->mSipUri);
 					}
 				}
 			}
 		}
 		if (check()) {
+			LOGD("Step: %d\tNo contact found for %s", m_step, m_url);
 			m_original_listerner->onRecordFound(NULL);
 		}
 	}
 
 	void onError() {
+		LOGW("Step: %d\tError during recursive fetch of %s", m_step, m_url);
 		if (check()) {
 			m_original_listerner->onError();
 		}
 	}
 
 	void onInvalid() {
+		LOGW("Step: %d\tInvalid during recursive fetch of %s", m_step, m_url);
 		if (check()) {
 			m_original_listerner->onInvalid();
 		}
@@ -366,13 +369,16 @@ private:
 		return false;
 	}
 };
+
+// Max recursive step
 int RecursiveRegistrarDbListener::sMaxStep = 1;
 
 void RegistrarDb::fetch(const url_t *url, const shared_ptr<RegistrarDbListener> &listener, bool recursive) {
-	if (recursive)
-		doFetch(url, make_shared<RecursiveRegistrarDbListener>(this, listener));
-	else
+	if (recursive) {
+		doFetch(url, make_shared<RecursiveRegistrarDbListener>(this, listener, url));
+	} else {
 		doFetch(url, listener);
+	}
 }
 
 void RegistrarDb::bind(const sip_t *sip, const char* route, int globalExpire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
