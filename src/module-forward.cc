@@ -174,6 +174,7 @@ void ForwardModule::onRequest(shared_ptr<SipEvent> &ev) {
 	if (isLooping(ev, branchStr + 7)) {
 		ev->reply(ms, SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	} else if (getAgent()->isUs(dest->url_host, dest->url_port, false)) {
+		ms->log("Skipping forwarding of request to us %s:\n%s", url_as_string(ms->getHome(), dest));
 		ev->terminateProcessing();
 	} else {
 		checkRecordRoutes(ev, dest);
