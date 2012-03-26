@@ -39,16 +39,19 @@ MsgSip::MsgSip(const MsgSip &msgSip) {
 	mHome = msg_home(mMsg);
 }
 
-void MsgSip::log(const char * header) {
+void MsgSip::log(const char *fmt, ...) {
 	if (IS_LOGD) {
-		su_home_t home;
 		size_t msg_size;
-		char *buf;
-
-		su_home_init(&home);
-		buf = msg_as_string(&home, mMsg, NULL, 0, &msg_size);
+		char *header = NULL;
+		char *buf = NULL;
+		if (fmt) {
+			va_list args;
+			va_start(args, fmt);
+			header = su_vsprintf(mHome, fmt, args);
+			va_end(args);
+		}
+		buf = msg_as_string(mHome, mMsg, NULL, 0, &msg_size);
 		LOGD("%s%s%s", (header) ? header : "", (header) ? "\n" : "", buf);
-		su_home_deinit(&home);
 	}
 }
 
@@ -129,7 +132,9 @@ RequestSipEvent::RequestSipEvent(const shared_ptr<SipEvent> &sipEvent) :
 
 void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	if (mOutgoingAgent != NULL) {
-		msg->log("Sending Request SIP message:");
+		if (IS_LOGD) {
+			msg->log("Sending Request SIP message to=%s:", u ? url_as_string(msg->getHome(), (url_t const *) u) : NULL);
+		}
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mOutgoingAgent->send(msg, u, ta_tags(ta));
@@ -142,7 +147,9 @@ void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u,
 
 void RequestSipEvent::send(const shared_ptr<MsgSip> &msg) {
 	if (mOutgoingAgent != NULL) {
-		msg->log("Sending Request SIP message:");
+		if (IS_LOGD) {
+			msg->log("Sending Request SIP message:");
+		}
 		mOutgoingAgent->send(msg);
 	} else {
 		LOGD("The Request SIP message is not send");
@@ -152,7 +159,9 @@ void RequestSipEvent::send(const shared_ptr<MsgSip> &msg) {
 
 void RequestSipEvent::reply(const shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
-		LOGD("Replying Request SIP message: %i %s\n\n", status, phrase);
+		if (IS_LOGD) {
+			LOGD("Replying Request SIP message: %i %s\n\n", status, phrase);
+		}
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mIncomingAgent->reply(msg, status, phrase, ta_tags(ta));
@@ -182,7 +191,9 @@ ResponseSipEvent::ResponseSipEvent(const shared_ptr<SipEvent> &sipEvent) :
 
 void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
-		msg->log("Sending Response SIP message:");
+		if (IS_LOGD) {
+			msg->log("Sending Response SIP message to=%s:", u ? url_as_string(msg->getHome(), (url_t const *) u) : NULL);
+		}
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mIncomingAgent->send(msg, u, ta_tags(ta));
@@ -195,7 +206,9 @@ void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u
 
 void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg) {
 	if (mIncomingAgent != NULL) {
-		msg->log("Sending Response SIP message:");
+		if (IS_LOGD) {
+			msg->log("Sending Response SIP message:");
+		}
 		mIncomingAgent->send(msg);
 	} else {
 		LOGD("The Response SIP message is not send");

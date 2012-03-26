@@ -429,7 +429,7 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 		 - they can be for us (in response to a 407 for invite)
 		 - they can be for the a remote peer, in which case they will have the correct contact address in the request uri
 		 */
-		if (sip->sip_request->rq_method != sip_method_ack) {
+		if (sip->sip_request->rq_method != sip_method_ack && sip->sip_to != NULL && sip->sip_to->a_tag == NULL) {
 			url_t *sipurl = sip->sip_request->rq_url;
 			if (sipurl->url_host && isManagedDomain(sipurl->url_host)) {
 				RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnBindForRoutingListener>(this, getAgent(), ev, mFork), true);

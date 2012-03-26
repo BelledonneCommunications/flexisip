@@ -49,7 +49,7 @@ public:
 		return mHome;
 	}
 
-	void log(const char * header);
+	void log(const char * header = NULL, ...) ;//__attribute__((format(printf,2,3)));
 
 private:
 	su_home_t *mHome;
