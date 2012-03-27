@@ -190,7 +190,7 @@ void Registrar::readStaticRecord(string file_path) {
 					sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
 
 					if (url != NULL && contact != NULL) {
-						RegistrarDb::get(mAgent)->bind(url, contact, "", 0, NULL, INT32_MAX, isManagedDomain(url->url_host), make_shared<OnLogBindListener>(getAgent(), line));
+						RegistrarDb::get(mAgent)->bind(url, contact, "", 0, NULL, -1, isManagedDomain(url->url_host), make_shared<OnLogBindListener>(getAgent(), line));
 						continue;
 					}
 				}

@@ -36,12 +36,12 @@ using namespace ::std;
 
 sip_contact_t *Record::extendedContactToSofia(su_home_t *home, const ExtendedContact &ec, time_t now) {
 	sip_contact_t *contact = NULL;
-	int expire = ec.mExpireAt - now;
+	time_t expire = ec.mExpireAt - now;
 	if (expire > 0) {
 		if (ec.mQ == 0) {
-			contact = sip_contact_format(home, "%s;expires=%i", ec.mSipUri, expire);
+			contact = sip_contact_format(home, "%s;expires=%lu", ec.mSipUri, expire);
 		} else {
-			contact = sip_contact_format(home, "%s;q=%4.2f;expires=%i", ec.mSipUri, ec.mQ, expire);
+			contact = sip_contact_format(home, "%s;q=%4.2f;expires=%lu", ec.mSipUri, ec.mQ, expire);
 		}
 	}
 	return contact;
@@ -214,8 +214,11 @@ void Record::print() {
 	LOGD("Record contains %zu contacts", mContacts.size());
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		shared_ptr<ExtendedContact> ec = (*it);
+		char buffer[256] = "UNDETERMINED";
 		struct tm *ptm = localtime(&ec->mExpireAt);
-		LOGD("%s route=%s expire=%2d:%02d (%lu)", ec->mSipUri, ec->mRoute, ptm->tm_hour % 24, ptm->tm_min, ec->mExpireAt);
+		if (ptm != NULL)
+			strftime(buffer, sizeof(buffer) - 1, "%c", ptm);
+		LOGD("%s route=%s alias=%s expire=%s (%lu)", ec->mSipUri, ec->mRoute, ec->mAlias ? "yes" : "no", buffer, ec->mExpireAt);
 	}
 	LOGD("==========================");
 }

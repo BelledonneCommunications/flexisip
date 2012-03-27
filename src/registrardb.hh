@@ -80,7 +80,11 @@ public:
 		if (sip_contact->m_expires) {
 			mExpireAt = updateTime + atoi(sip_contact->m_expires);
 		} else {
-			mExpireAt = updateTime + global_expire;
+			if(global_expire >= 0) {
+				mExpireAt = updateTime + global_expire;
+			} else {
+				mExpireAt = std::numeric_limits<time_t>::max();
+			}
 		}
 
 		common_init(contactId, route, callId, lineValue);
