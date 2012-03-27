@@ -47,11 +47,11 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r){
 				c.contact_id().c_str(),
 				c.has_route()? c.route().c_str() : NULL,
 				c.has_line_value_copy()? c.line_value_copy().c_str() : NULL,
-				c.expires_at(),
+				(time_t)c.expires_at(),
 				c.q(),
 				c.call_id().c_str(),
-				c.cseq(),
-				c.update_time());
+				(uint32_t)c.cseq(),
+				c.update_time(),false);
 	}
 	return true;
 }
@@ -62,10 +62,10 @@ bool RecordSerializerPb::serialize(Record *r, string &serialized){
 
 
 	RecordContactListPb pbContacts;
-	list<ExtendedContact *> contacts=r->getExtendedContacts();
-	list<ExtendedContact *>::iterator it;
+	auto contacts=r->getExtendedContacts();
+	auto it=contacts.begin();
 	for (it=contacts.begin(); it != contacts.end(); ++it){
-		ExtendedContact *ec=(*it);
+		auto ec=(*it);
 		RecordContactPb *c = pbContacts.add_contact();
 		c->set_uri(ec->mSipUri);
 		c->set_contact_id(ec->mContactId);
