@@ -25,6 +25,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <algorithm>
+#include <limits>
 
 #include <sofia-sip/sip.h>
 #include "agent.hh"
