@@ -30,7 +30,6 @@ class DosProtection{
 		void load();
 		static DosProtection *sInstance;
 		int mPort;
-		int mBlacklistMax;
 		int mPeriod;
 		const char *mLogLevel;
 		const char *mLogPrefix;
