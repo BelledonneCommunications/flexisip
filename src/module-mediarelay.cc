@@ -102,6 +102,10 @@ public:
 	}
 
 	void backwardTranslate(int mline, string *ip, int *port) {
+		if (*port == 0) {
+			//case of declined mline.
+			return;
+		}
 		if (mline >= sMaxSessions) {
 			return;
 		}
