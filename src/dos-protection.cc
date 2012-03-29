@@ -80,7 +80,6 @@ void DosProtection::load() {
 	mMaximumConnections = dosProtection->get<ConfigInt>("maximum-connections")->read();
 
 	mPort = 5060;
-	mBlacklistMax = 200;
 	mPeriod = 1;
 	mLogLevel = "warning";
 	mLogPrefix = "Flexisip-DOS";
@@ -238,7 +237,7 @@ void DosProtection::start() {
 	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/%s/parameters/ip_list_tot && echo %i > /sys/module/%s/parameters/ip_list_tot && chmod u-w /sys/module/%s/parameters/ip_list_tot", mRecentDirectoryName, mMaximumConnections, mRecentDirectoryName, mRecentDirectoryName);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
-	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/%s/parameters/ip_pkt_list_tot && echo %i > /sys/module/%s/parameters/ip_pkt_list_tot && chmod u-w /sys/module/%s/parameters/ip_pkt_list_tot", mRecentDirectoryName, mBlacklistMax, mRecentDirectoryName, mRecentDirectoryName);
+	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/%s/parameters/ip_pkt_list_tot && echo %i > /sys/module/%s/parameters/ip_pkt_list_tot && chmod u-w /sys/module/%s/parameters/ip_pkt_list_tot", mRecentDirectoryName, mPacketsLimit, mRecentDirectoryName, mRecentDirectoryName);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 }
