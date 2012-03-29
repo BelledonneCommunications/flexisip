@@ -82,6 +82,10 @@ public:
 
 	/*this function is called to masquerade the SDP, for each mline*/
 	void newMedia(int mline, string *ip, int *port) {
+		if (*port == 0) {
+			//case of declined mline.
+			return;
+		}
 		if (mline >= sMaxSessions) {
 			LOGE("Max sessions per relayed call is reached.");
 			return;
