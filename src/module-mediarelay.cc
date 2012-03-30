@@ -35,6 +35,9 @@ class RelayedCall;
 
 class MediaRelay: public Module, protected ModuleToolbox {
 public:
+	typedef enum {
+		DUPLEX, FORWARD
+	} RTPDir;
 	MediaRelay(Agent *ag);
 	~MediaRelay();
 	virtual void onLoad(Agent *ag, const GenericStruct * modconf);
@@ -44,7 +47,8 @@ public:
 	virtual void onIdle();
 protected:
 	virtual void onDeclare(GenericStruct * module_config) {
-		ConfigItemDescriptor items[] = { { String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay.", "nortpproxy" }, config_item_end };
+		ConfigItemDescriptor items[] = { { String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay.", "nortpproxy" },
+						 { String, "early_media_rtp_dir", "Set the RTP direction during early media state (duplex, forward)", "duplex" }, config_item_end };
 		module_config->addChildrenValues(items);
 
 		StatItemDescriptor stats[] = { { Counter64, countCallsStr, "Number of calls." }, { Counter64, countCallsFinishedStr, "Number of calls finished." }, stat_item_end };
@@ -56,6 +60,7 @@ private:
 	CallStore *mCalls;
 	MediaRelayServer *mServer;
 	string mSdpMangledParam;
+	RTPDir mEarlymediaRTPDir;
 	static ModuleInfo<MediaRelay> sInfo;
 };
 
@@ -75,8 +80,8 @@ class RelayedCall: public CallContextBase {
 	} State;
 public:
 	static const int sMaxSessions = 4;
-	RelayedCall(MediaRelayServer *server, sip_t *sip) :
-			CallContextBase(sip), mServer(server), mState(Idle) {
+	RelayedCall(MediaRelayServer *server, sip_t *sip, MediaRelay::RTPDir dir) :
+			CallContextBase(sip), mServer(server), mState(Idle), mEarlymediaRTPDir(dir) {
 		LOGD("New RelayedCall %p", this);
 	}
 
@@ -157,9 +162,13 @@ public:
 		}
 	}
 
+	// Set only one sender to the caller
 	void update(const shared_ptr<Transaction> &transaction = shared_ptr<Transaction>()) {
 		if (mState == Idle)
 			mState = Initialized;
+
+		if (mEarlymediaRTPDir != MediaRelay::DUPLEX)
+			return;
 
 		// Only one feed from back to front
 		bool isSendingFeed = false;
@@ -256,6 +265,7 @@ private:
 	RelaySessionTransaction mSessions[sMaxSessions];
 	MediaRelayServer *mServer;
 	State mState;
+	MediaRelay::RTPDir mEarlymediaRTPDir;
 };
 
 static bool isEarlyMedia(sip_t *sip) {
@@ -287,6 +297,15 @@ void MediaRelay::onLoad(Agent *ag, const GenericStruct * modconf) {
 	mCalls->setCallStatCounters(&findStat(countCallsStr), &findStat(countCallsFinishedStr));
 	mServer = new MediaRelayServer(ag->getBindIp(), ag->getPublicIp());
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
+	string rtpdir = modconf->get<ConfigString>("early_media_rtp_dir")->read();
+	mEarlymediaRTPDir = DUPLEX;
+	if(rtpdir == "duplex") {
+		mEarlymediaRTPDir = DUPLEX;
+	} else if(rtpdir == "forward") {
+		mEarlymediaRTPDir = FORWARD;
+	} else {
+		LOGW("Wrong value %s for early_media_rtp_dir entry; switch to duplex.", rtpdir.c_str());
+	}
 }
 
 bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
@@ -335,7 +354,7 @@ void MediaRelay::onRequest(shared_ptr<SipEvent> &ev) {
 		ev->createIncomingTransaction();
 		shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) == NULL) {
-			c = make_shared<RelayedCall>(mServer, sip);
+			c = make_shared<RelayedCall>(mServer, sip, mEarlymediaRTPDir);
 			if (processNewInvite(c, ot, ev->getMsgSip())) {
 				mCalls->store(c);
 				ot->setProperty<RelayedCall>(getModuleName(), c);
