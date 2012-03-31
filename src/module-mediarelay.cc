@@ -48,7 +48,7 @@ public:
 protected:
 	virtual void onDeclare(GenericStruct * module_config) {
 		ConfigItemDescriptor items[] = { { String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay.", "nortpproxy" },
-						 { String, "early_media_rtp_dir", "Set the RTP direction during early media state (duplex, forward)", "duplex" }, config_item_end };
+						 { String, "early-media-rtp-dir", "Set the RTP direction during early media state (duplex, forward)", "duplex" }, config_item_end };
 		module_config->addChildrenValues(items);
 
 		StatItemDescriptor stats[] = { { Counter64, countCallsStr, "Number of calls." }, { Counter64, countCallsFinishedStr, "Number of calls finished." }, stat_item_end };

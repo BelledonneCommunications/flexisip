@@ -13,7 +13,7 @@ m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],)
 AC_PROG_CC
 AC_PROG_CXX
 
-
+build_snmp=true
 AC_PATH_PROG([NET_SNMP_CONFIG],[net-snmp-config])
 if test -z "$NET_SNMP_CONFIG"; then
    build_snmp=false;
