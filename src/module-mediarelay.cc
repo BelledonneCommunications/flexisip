@@ -297,14 +297,14 @@ void MediaRelay::onLoad(Agent *ag, const GenericStruct * modconf) {
 	mCalls->setCallStatCounters(&findStat(countCallsStr), &findStat(countCallsFinishedStr));
 	mServer = new MediaRelayServer(ag->getBindIp(), ag->getPublicIp());
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
-	string rtpdir = modconf->get<ConfigString>("early_media_rtp_dir")->read();
+	string rtpdir = modconf->get<ConfigString>("early-media-rtp-dir")->read();
 	mEarlymediaRTPDir = DUPLEX;
 	if(rtpdir == "duplex") {
 		mEarlymediaRTPDir = DUPLEX;
 	} else if(rtpdir == "forward") {
 		mEarlymediaRTPDir = FORWARD;
 	} else {
-		LOGW("Wrong value %s for early_media_rtp_dir entry; switch to duplex.", rtpdir.c_str());
+		LOGW("Wrong value %s for early-media-rtp-dir entry; switch to duplex.", rtpdir.c_str());
 	}
 }
 
