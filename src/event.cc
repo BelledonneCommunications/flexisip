@@ -26,14 +26,14 @@
 using namespace ::std;
 
 MsgSip::MsgSip(msg_t *msg, sip_t *sip) {
-	LOGD("New MsgSip %p", this);
+	//LOGD("New MsgSip %p", this);
 	mMsg = msg_copy(msg);
 	mSip = sip_object(mMsg);
 	mHome = msg_home(mMsg);
 }
 
 MsgSip::MsgSip(const MsgSip &msgSip) {
-	LOGD("New MsgSip %p", this);
+	//LOGD("New MsgSip %p", this);
 	mMsg = msg_copy(msgSip.mMsg);
 	mSip = sip_object(mMsg);
 	mHome = msg_home(mMsg);
@@ -56,7 +56,7 @@ void MsgSip::log(const char *fmt, ...) {
 }
 
 MsgSip::~MsgSip() {
-	LOGD("Destroy MsgSip %p", this);
+	//LOGD("Destroy MsgSip %p", this);
 	msg_destroy(mMsg);
 }
 
@@ -71,7 +71,7 @@ SipEvent::SipEvent(const SipEvent &sipEvent) :
 }
 
 SipEvent::~SipEvent() {
-	LOGD("Destroy SipEvent %p", this);
+	//LOGD("Destroy SipEvent %p", this);
 }
 
 void SipEvent::terminateProcessing() {
