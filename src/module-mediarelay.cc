@@ -47,8 +47,8 @@ public:
 	virtual void onIdle();
 protected:
 	virtual void onDeclare(GenericStruct * module_config) {
-		ConfigItemDescriptor items[] = { { String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay.", "nortpproxy" },
-						 { String, "early-media-rtp-dir", "Set the RTP direction during early media state (duplex, forward)", "duplex" }, config_item_end };
+		ConfigItemDescriptor items[] = { { String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay.", "nortpproxy" }, { String, "early-media-rtp-dir", "Set the RTP direction during early media state (duplex, forward)", "duplex" },
+				config_item_end };
 		module_config->addChildrenValues(items);
 
 		StatItemDescriptor stats[] = { { Counter64, countCallsStr, "Number of calls." }, { Counter64, countCallsFinishedStr, "Number of calls finished." }, stat_item_end };
@@ -299,9 +299,9 @@ void MediaRelay::onLoad(Agent *ag, const GenericStruct * modconf) {
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
 	string rtpdir = modconf->get<ConfigString>("early-media-rtp-dir")->read();
 	mEarlymediaRTPDir = DUPLEX;
-	if(rtpdir == "duplex") {
+	if (rtpdir == "duplex") {
 		mEarlymediaRTPDir = DUPLEX;
-	} else if(rtpdir == "forward") {
+	} else if (rtpdir == "forward") {
 		mEarlymediaRTPDir = FORWARD;
 	} else {
 		LOGW("Wrong value %s for early-media-rtp-dir entry; switch to duplex.", rtpdir.c_str());
@@ -317,12 +317,13 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		return false;
 	}
 	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), sip);
-	if (m->hasAttribute(mSdpMangledParam.c_str())) {
-		LOGD("Invite is already relayed");
-		delete m;
-		return false;
-	}
 	if (m) {
+		if (m->hasAttribute(mSdpMangledParam.c_str())) {
+			LOGD("Invite is already relayed");
+			delete m;
+			return false;
+		}
+
 		// Create Media
 		m->iterate(bind(&RelayedCall::newMedia, c, placeholders::_1, placeholders::_2, placeholders::_3));
 
@@ -340,8 +341,9 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		//be in the record-route
 		addRecordRoute(c->getHome(), getAgent(), msg, sip);
 		delete m;
+		return true;
 	}
-	return true;
+	return false;
 }
 
 void MediaRelay::onRequest(shared_ptr<SipEvent> &ev) {
@@ -360,8 +362,9 @@ void MediaRelay::onRequest(shared_ptr<SipEvent> &ev) {
 				ot->setProperty<RelayedCall>(getModuleName(), c);
 			}
 		} else {
-			processNewInvite(c, ot, ev->getMsgSip());
-			ot->setProperty(getModuleName(), c);
+			if (processNewInvite(c, ot, ev->getMsgSip())) {
+				ot->setProperty(getModuleName(), c);
+			}
 		}
 	} else if (sip->sip_request->rq_method == sip_method_bye) {
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) != NULL) {
