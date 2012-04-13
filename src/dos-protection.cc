@@ -153,6 +153,24 @@ void DosProtection::start() {
 	char cmd[300];
 	int returnedValue;
 
+	/* Test recent module directory existence */
+	if (mRecentDirectoryName == NULL) {
+		const char* path_centos_6 = "/sys/module/xt_recent/";
+		const char* path_centos_5 = "/sys/module/ipt_recent/";
+		if (directoryExists(path_centos_5))
+			mRecentDirectoryName = "ipt_recent";
+		else if (directoryExists(path_centos_6))
+			mRecentDirectoryName = "xt_recent";
+	}
+
+	/* Increasing recent module default values */
+	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/%s/parameters/ip_list_tot && echo %i > /sys/module/%s/parameters/ip_list_tot && chmod u-w /sys/module/%s/parameters/ip_list_tot", mRecentDirectoryName, mMaximumConnections, mRecentDirectoryName, mRecentDirectoryName);
+	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
+	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/%s/parameters/ip_pkt_list_tot && echo %i > /sys/module/%s/parameters/ip_pkt_list_tot && chmod u-w /sys/module/%s/parameters/ip_pkt_list_tot", mRecentDirectoryName, mPacketsLimit, mRecentDirectoryName, mRecentDirectoryName);
+	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd)
+
 	/* Backup existing IPTables rules to restore this state after closing flexisip  */
 	snprintf(cmd, sizeof(cmd)-1, "%s-save > "CONFIG_DIR"/iptables.bak", mPath);
 	returnedValue = system(cmd);
@@ -220,24 +238,6 @@ void DosProtection::start() {
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 	snprintf(cmd, sizeof(cmd) - 1, "%s -A INPUT -p udp --dport %i -j %s", mPath, mPort, mFlexisipChain);
-	returnedValue = system(cmd);
-	CHECK_RETURN(returnedValue, cmd)
-
-	/* Test recent module directory existence */
-	if (mRecentDirectoryName == NULL) {
-		const char* path_centos_6 = "/sys/module/xt_recent/";
-		const char* path_centos_5 = "/sys/module/ipt_recent/";
-		if (directoryExists(path_centos_5))
-			mRecentDirectoryName = "ipt_recent";
-		else if (directoryExists(path_centos_6))
-			mRecentDirectoryName = "xt_recent";
-	}
-
-	/* Increasing recent module default values */
-	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/%s/parameters/ip_list_tot && echo %i > /sys/module/%s/parameters/ip_list_tot && chmod u-w /sys/module/%s/parameters/ip_list_tot", mRecentDirectoryName, mMaximumConnections, mRecentDirectoryName, mRecentDirectoryName);
-	returnedValue = system(cmd);
-	CHECK_RETURN(returnedValue, cmd)
-	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/%s/parameters/ip_pkt_list_tot && echo %i > /sys/module/%s/parameters/ip_pkt_list_tot && chmod u-w /sys/module/%s/parameters/ip_pkt_list_tot", mRecentDirectoryName, mPacketsLimit, mRecentDirectoryName, mRecentDirectoryName);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 }
