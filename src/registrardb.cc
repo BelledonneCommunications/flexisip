@@ -75,7 +75,7 @@ bool Record::isInvalidRegister(const char *call_id, uint32_t cseq) {
 void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t now) {
 	char lineValue[20];
 	char *lineValuePtr = lineValue;
-	if (!url_param(sip->m_url->url_params, sLineFieldName.c_str(), lineValue, sizeof(lineValue) - 1)) {
+	if (!url_param(sip->m_url[0].url_params, sLineFieldName.c_str(), lineValue, sizeof(lineValue) - 1)) {
 		lineValuePtr = NULL;
 	}
 	auto it = mContacts.begin();
@@ -188,12 +188,12 @@ void Record::bind(const sip_contact_t *contacts, const char* route, int globalEx
 	while (c) {
 		char lineValue[20];
 		char *lineValuePtr = lineValue;
-		if (!url_param(c->m_url->url_params, sLineFieldName.c_str(), lineValue, sizeof(lineValue) - 1)) {
+		if (!url_param(c->m_url[0].url_params, sLineFieldName.c_str(), lineValue, sizeof(lineValue) - 1)) {
 			lineValuePtr = NULL;
 		}
 		char transport[20];
 		char *transportPtr = transport;
-		if (!url_param(c->m_url->url_params, "transport", transport, sizeof(transport) - 1)) {
+		if (!url_param(c->m_url[0].url_params, "transport", transport, sizeof(transport) - 1)) {
 			transportPtr = NULL;
 		}
 		ostringstream contactId;

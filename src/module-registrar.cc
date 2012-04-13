@@ -113,7 +113,7 @@ public:
 			}
 
 			++count;
-			if ('*' == contact->m_url->url_scheme[0]) {
+			if ('*' == contact->m_url[0].url_scheme[0]) {
 				if (count > 1 || 0 != expires)
 					return false;
 				starFound = true;
@@ -225,9 +225,9 @@ void Registrar::send200Ok(Agent *agent, shared_ptr<SipEvent> &ev, const sip_cont
 bool Registrar::contactinVia(sip_contact_t *ct, sip_via_t * via) {
 
 	while (via != NULL) {
-		if (via->v_host && ct->m_url->url_host && !strcmp(via->v_host, ct->m_url->url_host)) {
+		if (via->v_host && ct->m_url[0].url_host && !strcmp(via->v_host, ct->m_url[0].url_host)) {
 			const char *port1 = (via->v_port) ? via->v_port : "5060";
-			const char *port2 = (ct->m_url->url_port) ? ct->m_url->url_port : "5060";
+			const char *port2 = (ct->m_url[0].url_port) ? ct->m_url[0].url_port : "5060";
 			if (!strcmp(port1, port2))
 				return true;
 		}
@@ -255,7 +255,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 				if (ct) {
 					if (!contactinVia(ct, sip->sip_via)) {
 						/*sanity check on the contact address: might be '*' or whatever useless information*/
-						if (ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
+						if (ct->m_url[0].url_host != NULL && ct->m_url[0].url_host[0] != '\0') {
 							LOGD("Registrar: found contact information in database, rewriting request uri");
 							/*rewrite request-uri */
 							ms->getSip()->sip_request->rq_url[0] = *url_hdup(ms->getHome(), ct->m_url);
@@ -294,7 +294,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 					if (ct) {
 						if (!contactinVia(ct, sip->sip_via)) {
 							/*sanity check on the contact address: might be '*' or whatever useless information*/
-							if (ct->m_url->url_host != NULL && ct->m_url->url_host[0] != '\0') {
+							if (ct->m_url[0].url_host != NULL && ct->m_url[0].url_host[0] != '\0') {
 								LOGD("Registrar: found contact information in database, rewriting request uri");
 								shared_ptr<MsgSip> new_msgsip = make_shared<MsgSip>(*ms);
 								msg_t *new_msg = new_msgsip->getMsg();
@@ -414,7 +414,7 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 					ev->reply(ms, 400, "Invalid Request", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 					return;
 				}
-				if ('*' == sip->sip_contact->m_url->url_scheme[0]) {
+				if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
 					shared_ptr<OnBindListener> listener(make_shared<OnBindListener>(getAgent(), ev));
 					++findStat(sCountClearStr);
 					LOGD("Clearing bindings");

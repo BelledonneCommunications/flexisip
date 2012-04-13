@@ -515,6 +515,7 @@ void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string doma
 			break;
 		case PENDING:
 			LOGF("unhandled case PENDING");
+			break;
 		}
 		if (-1 == su_msg_send(mamc)) {
 			LOGF("Couldn't send auth async message to main thread.");
