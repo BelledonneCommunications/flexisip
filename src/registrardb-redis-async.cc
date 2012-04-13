@@ -42,7 +42,7 @@ int RegistrarDbRedisAsync::sPort=0;
 int RegistrarDbRedisAsync::sTimeout=0;
 string RegistrarDbRedisAsync::sAuthPassword="";
 
-RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag):mContext(NULL),mRoot(ag->getRoot()){
+RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag):RegistrarDb(ag),mContext(NULL),mRoot(ag->getRoot()){
 	mSerializer=RecordSerializer::get();
 	GenericStruct *registrar=GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
 	sDomain=registrar->get<ConfigString>("redis-server-domain")->read();
@@ -147,17 +147,20 @@ typedef struct RegistrarDbRedisAsync::RegistrarUserData {
 	bool alias;
 
 	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, bool alias, shared_ptr<RegistrarDbListener>listener, forwardFn *fn):
-		self(self),fn(fn),token(0),sipContact(sip_contact),calldId(calld_id),csSeq(cs_seq),listener(listener),globalExpire(0),route(NULL),alias(alias){
+		self(self),fn(fn),token(0),sipContact(sip_contact),calldId(calld_id),csSeq(cs_seq),listener(listener),record(""),globalExpire(0),route(NULL),alias(alias){
 		defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
+		record.setKey(key);
 		if (route) this->route=strdup(route);
 	}
 	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, shared_ptr<RegistrarDbListener>listener, forwardFn *fn):
-		self(self),fn(fn),token(0),sipContact(sip_contact),calldId(calld_id),csSeq(cs_seq),listener(listener),globalExpire(0),route(NULL){
+		self(self),fn(fn),token(0),sipContact(sip_contact),calldId(calld_id),csSeq(cs_seq),listener(listener),record(""),globalExpire(0),route(NULL){
 		defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
+		record.setKey(key);
 	}
 	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t *url, shared_ptr<RegistrarDbListener>listener, forwardFn *fn):
-		self(self),fn(fn),token(0),sipContact(NULL),calldId(NULL),csSeq(-1),listener(listener),globalExpire(0),route(NULL){
+		self(self),fn(fn),token(0),sipContact(NULL),calldId(NULL),csSeq(-1),listener(listener),record(""),globalExpire(0),route(NULL){
 		defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
+		record.setKey(key);
 	}
 	~RegistrarUserData(){
 		if (route) free(route);
@@ -243,7 +246,7 @@ void RegistrarDbRedisAsync::handleClear(redisReply *reply, RegistrarUserData *da
         }
     }
 
-	redisAsyncCommand(mContext, sHandleSet, data,"SET aor:%s %s",data->key, "");
+	redisAsyncCommand(mContext, sHandleSet, data,"DEL aor:%s",data->key);
 }
 
 
@@ -265,11 +268,15 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 	time_t now=time(NULL);
 	data->record.clean(data->sipContact, data->calldId, data->csSeq, now);
 	data->record.bind(data->sipContact, data->route, data->globalExpire, data->calldId, data->csSeq, now, data->alias);
+	mLocalRegExpire->update(data->record);
 
 	string serialized;
 	mSerializer->serialize(&data->record, serialized);
 	LOGD("Sending updated aor:%s [%lu] --> %u bytes", data->key,data->token,(unsigned)serialized.length());
 	redisAsyncCommand(mContext, sHandleSet, data,"SET aor:%s %b",data->key, serialized.data(), serialized.length());
+
+	time_t expireat=data->record.latestExpire();
+	redisAsyncCommand(data->self->mContext, NULL, NULL,"EXPIREAT aor:%s %lu",data->key, expireat);
 }
 
 
@@ -296,6 +303,7 @@ void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<Registrar
 		ERROR
 	}
 	LOGD("Clearing aor:%s [%lu]", data->key, data->token);
+	mLocalRegExpire->remove(data->key);
 	redisAsyncCommand(mContext, sHandleAorGetReply,data,"GET aor:%s",data->key);
 }
 

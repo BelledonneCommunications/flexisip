@@ -31,7 +31,7 @@
 
 using namespace::std;
 
-RegistrarDbInternal::RegistrarDbInternal() {
+RegistrarDbInternal::RegistrarDbInternal(Agent *ag) : RegistrarDb(ag){
 }
 
 void RegistrarDbInternal::doBind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
@@ -53,7 +53,7 @@ void RegistrarDbInternal::doBind(const url_t* fromUrl, const sip_contact_t *sip_
         map<string, Record*>::iterator it = mRecords.find(key);
         Record *r;
         if (it == mRecords.end()) {
-                r = new Record();
+                r = new Record(key);
                 mRecords.insert(make_pair(key, r));
                 LOGD("Creating AOR %s association", key);
         } else {
@@ -68,6 +68,8 @@ void RegistrarDbInternal::doBind(const url_t* fromUrl, const sip_contact_t *sip_
 
         r->clean(sip_contact, calld_id, cs_seq, now);
         r->bind(sip_contact, route, global_expire, calld_id, cs_seq, now, alias);
+
+        mLocalRegExpire->update(*r);
         listener->onRecordFound(r);
 }
 
@@ -109,5 +111,6 @@ void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<RegistrarDb
         }
 
         mRecords.erase(it);
+        mLocalRegExpire->remove(key);
         listener->onRecordFound(NULL);
 }

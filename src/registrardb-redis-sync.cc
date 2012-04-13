@@ -61,7 +61,7 @@ string RegistrarDbRedisSync::sAuthPassword = "";
 int RegistrarDbRedisSync::sPort = 0;
 int RegistrarDbRedisSync::sTimeout = 0;
 
-RegistrarDbRedisSync::RegistrarDbRedisSync() : mContext(NULL) {
+RegistrarDbRedisSync::RegistrarDbRedisSync(Agent *ag) : RegistrarDb(ag), mContext(NULL) {
         mSerializer = RecordSerializer::get();
         GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct > ("module::Registrar");
         sDomain = registrar->get<ConfigString > ("redis-server-domain")->read();
@@ -107,6 +107,7 @@ bool RegistrarDbRedisSync::connect() {
         return true;
 }
 
+
 void RegistrarDbRedisSync::doBind(const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
         char key[AOR_KEY_SIZE] = {0};
         defineKeyFromUrl(key, AOR_KEY_SIZE - 1, url);
@@ -128,7 +129,7 @@ void RegistrarDbRedisSync::doBind(const url_t* url, const sip_contact_t *sip_con
                 return;
         }
         LOGD("GOT aor:%s --> %s", key, reply->str);
-        Record r;
+        Record r(key);
         mSerializer->parse(reply->str, reply->len, &r);
         freeReplyObject(reply);
 
@@ -140,6 +141,7 @@ void RegistrarDbRedisSync::doBind(const url_t* url, const sip_contact_t *sip_con
         time_t now = time(NULL);
         r.clean(sip_contact, calld_id, cs_seq, now);
         r.bind(sip_contact, route, global_expire, calld_id, cs_seq, now, alias);
+        mLocalRegExpire->update(r);
 
         string updatedAorString;
         mSerializer->serialize(&r, updatedAorString);
@@ -154,9 +156,10 @@ void RegistrarDbRedisSync::doBind(const url_t* url, const sip_contact_t *sip_con
         LOGD("Sent updated aor:%s --> %s", key, updatedAorString.c_str());
         freeReplyObject(reply);
 
-
+   		redisCommand(mContext,"EXPIREAT aor:%s %lu",key, r.latestExpire());
         listener->onRecordFound(&r);
 }
+
 
 void RegistrarDbRedisSync::doClear(const sip_t *sip, const shared_ptr<RegistrarDbListener> &listener) {
         char key[AOR_KEY_SIZE] = {0};
@@ -176,7 +179,7 @@ void RegistrarDbRedisSync::doClear(const sip_t *sip, const shared_ptr<RegistrarD
         LOGD("GOT aor:%s --> %s", key, reply->str);
 
         if (reply->str > 0) {
-                Record r;
+                Record r(key);
                 mSerializer->parse(reply->str, reply->len, &r);
                 if (r.isInvalidRegister(sip->sip_call_id->i_id, sip->sip_cseq->cs_seq)) {
                         listener->onInvalid();
@@ -188,16 +191,17 @@ void RegistrarDbRedisSync::doClear(const sip_t *sip, const shared_ptr<RegistrarD
         freeReplyObject(reply);
 
 
-        reply = (redisReply*) redisCommand(mContext, "SET aor:%s %s", key, "");
+        reply = (redisReply*) redisCommand(mContext, "DEL aor:%s", key);
         if (reply->type == REDIS_REPLY_ERROR) {
-                LOGE("Redis error clearing aor:%s - %s", key, reply->str);
+                LOGE("Redis error removing aor:%s - %s", key, reply->str);
                 listener->onError();
                 freeReplyObject(reply);
                 return;
         }
-        LOGD("Cleared aor:%s", key);
+        LOGD("Removed aor:%s", key);
         freeReplyObject(reply);
 
+    	mLocalRegExpire->remove(key);
         listener->onRecordFound(NULL);
 }
 
@@ -217,7 +221,7 @@ void RegistrarDbRedisSync::doFetch(const url_t *url, const shared_ptr<RegistrarD
                 return;
         }
         LOGD("GOT aor:%s --> %s", key, reply->str);
-        Record r;
+        Record r(key);
         mSerializer->parse(reply->str, reply->len, &r);
         freeReplyObject(reply);
 

@@ -29,7 +29,7 @@
 #include "agent.hh"
 
 class RegistrarDbRedisSync : public RegistrarDb {
-        RegistrarDbRedisSync();
+        RegistrarDbRedisSync(Agent *ag);
         ~RegistrarDbRedisSync();
         bool isConnected();
         friend class RegistrarDb;

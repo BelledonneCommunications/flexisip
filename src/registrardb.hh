@@ -21,11 +21,13 @@
 
 #include <map>
 #include <list>
+#include <set>
 #include <string>
 #include <cstdio>
 #include <cstdlib>
 #include <algorithm>
 #include <limits>
+#include <mutex>
 
 #include <sofia-sip/sip.h>
 #include "agent.hh"
@@ -105,14 +107,16 @@ public:
 
 class Record {
 	friend class RecursiveRegistrarDbListener;
+	friend class RegistrarDb;
 private:
 	static void init();
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec);
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
 	static std::string sLineFieldName;
 	static int sMaxContacts;
+	std::string mKey;
 public:
-	Record();
+	Record(std::string key);
 	static sip_contact_t *extendedContactToSofia(su_home_t *home, const ExtendedContact &ec, time_t now);
 	const sip_contact_t * getContacts(su_home_t *home, time_t now);
 	bool isInvalidRegister(const char *call_id, uint32_t cseq);
@@ -121,6 +125,12 @@ public:
 	void bind(const sip_contact_t *contacts, const char* route, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias);
 	void bind(const char *contact, const char* route, const char *transport, const char *lineValue, long expireAt, float q, const char *call_id, uint32_t cseq, time_t now, bool alias);
 	void print();
+	const std::string &getKey() const {
+		return mKey;
+	}
+	void setKey(const char *key) {
+		mKey=key;
+	}
 	int count() {
 		return mContacts.size();
 	}
@@ -132,6 +142,7 @@ public:
 			init();
 		return sMaxContacts;
 	}
+	time_t latestExpire() const;
 	~Record();
 };
 
@@ -146,19 +157,38 @@ public:
 	}
 };
 
+
 /**
  * A singleton class which holds records contact addresses associated with a from.
  * Both local and remote storage implementations exist.
  * It is used by the Registrar module.
  **/
 class RegistrarDb {
+	friend class Registrar;
 public:
 	static RegistrarDb *get(Agent *ag);
 	void bind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener);
 	void bind(const sip_t *sip, const char* route, int global_expire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener);
 	void clear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
 	void fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool recursive = false);
+	void updateRemoteExpireTime(const std::string &key, time_t expireat);
+	unsigned long countLocalActiveRecords() {
+		return mLocalRegExpire->countActives();
+	}
 protected:
+	class LocalRegExpire {
+		std::map<std::string, std::shared_ptr<std::set<time_t>>> mRegMap;
+		std::mutex mMutex;
+		std::string mPreferedRoute;
+	public:
+		void remove(const std::string key) {
+			mRegMap.erase(key);
+		}
+		void update(const Record &record);
+		size_t countActives();
+		void removeExpiredBefore(time_t before);
+		LocalRegExpire(std::string preferedRoute);
+	};
 	virtual void doBind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener)=0;
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener)=0;
 	virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener)=0;
@@ -166,8 +196,10 @@ protected:
 	int count_sip_contacts(const sip_contact_t *contact);
 	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const char *key, const std::shared_ptr<RegistrarDbListener> &listener);
 	static void defineKeyFromUrl(char *key, int len, const url_t *url);
-	RegistrarDb();
+	RegistrarDb(Agent *ag);
+	virtual ~RegistrarDb();
 	std::map<std::string, Record*> mRecords;
+	LocalRegExpire *mLocalRegExpire;
 	static RegistrarDb *sUnique;
 };
 

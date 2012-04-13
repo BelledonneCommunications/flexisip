@@ -149,6 +149,14 @@ void Record::clean(time_t now) {
 	}
 }
 
+time_t Record::latestExpire() const {
+	time_t latest=0;
+	for (auto it=mContacts.begin(); it != mContacts.end(); ++it) {
+		if ((*it)->mExpireAt > latest) latest=(*it)->mExpireAt;
+	}
+	return latest;
+}
+
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec) {
 	// Try to locate an existing contact
 	shared_ptr<ExtendedContact> olderEc;
@@ -226,7 +234,7 @@ void Record::print() {
 int Record::sMaxContacts = -1;
 string Record::sLineFieldName = "";
 
-Record::Record() {
+Record::Record(string key):mKey(key) {
 	if (sMaxContacts == -1)
 		init();
 }
@@ -240,8 +248,69 @@ void Record::init() {
 	sLineFieldName = registrar->get<ConfigString>("line-field-name")->read();
 }
 
-RegistrarDb::RegistrarDb() {
+RegistrarDb::LocalRegExpire::LocalRegExpire(string preferedRoute) {
+	mPreferedRoute=preferedRoute;
 }
+
+RegistrarDb::RegistrarDb(Agent *ag) : mLocalRegExpire(new LocalRegExpire(ag->getPreferredRoute())) {
+}
+
+RegistrarDb::~RegistrarDb() {
+	delete mLocalRegExpire;
+}
+
+void RegistrarDb::LocalRegExpire::update(const Record &record) {
+	unique_lock<mutex> lock(mMutex);
+	shared_ptr<set<time_t>> timeset(new set<time_t>);
+	for (auto recIt=record.mContacts.begin(); recIt != record.mContacts.end(); ++recIt) {
+		if (0 == strcmp((*recIt)->mRoute, mPreferedRoute.c_str())) {
+			timeset->insert((*recIt)->mExpireAt);
+		}
+	}
+
+	auto it = mRegMap.find(record.getKey());
+	if (timeset->size() != 0) {
+		if (it != mRegMap.end()) {
+			(*it).second = timeset;
+		} else {
+			mRegMap.insert(make_pair(record.getKey(), timeset));
+		}
+	} else {
+		if (it != mRegMap.end()) {
+			mRegMap.erase(it);
+		}
+	}
+}
+
+size_t RegistrarDb::LocalRegExpire::countActives() {
+	return mRegMap.size();
+}
+void RegistrarDb::LocalRegExpire::removeExpiredBefore(time_t before) {
+	unique_lock<mutex> lock(mMutex);
+
+	for (auto it=mRegMap.begin(); it!=mRegMap.end(); ) {
+		shared_ptr<set<time_t>> timeset=(*it).second;
+		//LOGE("> %s [%lu]", (*it).first.c_str(), timeset->size());
+		for (auto tit=timeset->begin(); tit!=timeset->end(); ) {
+			//LOGE("--> %lu", (*tit)-before);
+			if ((*tit) <= before) {
+				auto expiredTimeIt=tit;
+				++tit;
+				timeset->erase(expiredTimeIt);
+			} else {
+				++tit;
+			}
+		}
+		if (timeset->size() == 0) {
+			auto prevIt = it;
+			++it;
+			mRegMap.erase(prevIt);
+		} else {
+			++it;
+		}
+	}
+}
+
 
 int RegistrarDb::count_sip_contacts(const sip_contact_t *contact) {
 	int count = 0;
@@ -275,11 +344,11 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 		string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
 		if ("internal" == dbImplementation) {
 			LOGI("RegistrarDB implementation is internal");
-			sUnique = new RegistrarDbInternal();
+			sUnique = new RegistrarDbInternal(ag);
 #ifdef ENABLE_REDIS
 		} else if ("redis-sync"==dbImplementation) {
 			LOGI("RegistrarDB implementation is synchronous REDIS");
-			sUnique=new RegistrarDbRedisSync();
+			sUnique=new RegistrarDbRedisSync(ag);
 		} else if ("redis-async"==dbImplementation) {
 			LOGI("RegistrarDB implementation is asynchronous REDIS");
 			sUnique=new RegistrarDbRedisAsync(ag);
@@ -312,7 +381,7 @@ private:
 	static int sMaxStep;
 public:
 	RecursiveRegistrarDbListener(RegistrarDb *database, const shared_ptr<RegistrarDbListener> &original_listerner, const url_t *url, int step = sMaxStep) :
-			m_database(database), m_original_listerner(original_listerner), m_record(new Record()), m_request(1), m_step(step) {
+			m_database(database), m_original_listerner(original_listerner), m_record(new Record("virtual_record")), m_request(1), m_step(step) {
 		su_home_init(&m_home);
 		m_url = url_as_string(&m_home, url);
 	}

@@ -20,6 +20,7 @@
 #include "agent.hh"
 #include "registrardb.hh"
 #include "forkcallcontext.hh"
+#include <thread>
 
 #include <sofia-sip/sip_status.h>
 #include <fstream>
@@ -70,9 +71,18 @@ public:
 				config_item_end };
 		module_config->addChildrenValues(configs);
 
-		StatItemDescriptor stats[] = { { Counter64, sCountBindStr, "Number of registers." }, { Counter64, sCountBindFinishedStr, "Number of registers finished." }, { Counter64, sCountForksStr, "Number of forks." }, { Counter64, sCountForksFinishedStr, "Number of forks finished." }, {
-				Counter64, sCountNonForkedStr, "Number of non forked." }, { Counter64, sCountClearStr, "Number of cleared registrations." }, { Counter64, sCountClearFinishedStr, "Number of cleared registrations finished." }, stat_item_end };
+		StatItemDescriptor stats[] = {
+				{ Counter64, sCountBindStr, "Number of registers." },
+				{ Counter64, sCountBindFinishedStr, "Number of registers finished." },
+				{ Counter64, sCountForksStr, "Number of forks." },
+				{ Counter64, sCountForksFinishedStr, "Number of forks finished." },
+				{ Counter64, sCountNonForkedStr, "Number of non forked." },
+				{ Counter64, sCountClearStr, "Number of cleared registrations." },
+				{ Counter64, sCountClearFinishedStr, "Number of cleared registrations finished." },
+				{ Counter64, "count-local-registered-users", "Number of users currently registered through this server." },
+				stat_item_end };
 		module_config->addChildrenValues(stats);
+		mCountLocalActives = &findStat("count-local-registered-users");
 	}
 
 	virtual void onLoad(Agent *agent, const GenericStruct *module_config) {
@@ -85,6 +95,8 @@ public:
 		static_route_file = module_config->get<ConfigString>("static-records-file")->read();
 		if (!static_route_file.empty())
 			readStaticRecord(static_route_file);
+		thread t=thread(bind(&Registrar::updateLocalRegExpire, this, 1));
+		t.detach();	// Thread will continue running in detached mode
 	}
 
 	// Delta from expires header, normalized with custom rules.
@@ -129,6 +141,14 @@ public:
 	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
 
 private:
+	StatCounter64 *mCountLocalActives;
+	void updateLocalRegExpire(int delay) {
+		while(1) {
+			RegistrarDb::get(mAgent)->mLocalRegExpire->removeExpiredBefore(time(NULL));
+			mCountLocalActives->set(RegistrarDb::get(mAgent)->mLocalRegExpire->countActives());
+			sleep(delay);
+		}
+	}
 	bool isManagedDomain(const char *domain) {
 		return ModuleToolbox::matchesOneOf(domain, mDomains);
 	}

@@ -24,7 +24,7 @@
 #include <sofia-sip/sip.h>
 
 class RegistrarDbInternal : public RegistrarDb {
-        RegistrarDbInternal();
+        RegistrarDbInternal(Agent *ag);
         friend class RegistrarDb;
 private:
         virtual void doBind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener);

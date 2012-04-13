@@ -32,11 +32,6 @@
 
 using namespace ::std;
 
-const static char* countPasswordFound = "count-password-found";
-const static char* countPasswordNotFound = "count-password-not-found";
-const static char* countAsyncRetrieve = "count-async-retrieve";
-const static char* countSyncRetrieve = "count-sync-retrieve";
-
 class Authentication;
 
 struct auth_plugin_t
@@ -79,8 +74,8 @@ private:
 		su_root_t *getRoot() {
 			return mAgent->getRoot();
 		}
-		const Authentication *getModule() {
-			return dynamic_cast<const Authentication *>(mEv->getCurrentModule());
+		Authentication *getModule() {
+			return static_cast<Authentication *>(mEv->getCurrentModule());
 		}
 	};
 private:
@@ -124,7 +119,11 @@ private:
 		       auth_status_t *as, auth_response_t *ar, auth_challenger_t const *ach);
 
 public:
-	Authentication(Agent *ag):Module(ag){
+	StatCounter64 *mCountAsyncRetrieve;
+	StatCounter64 *mCountSyncRetrieve;
+	StatCounter64 *mCountPassFound;
+	StatCounter64 *mCountPassNotFound;
+	Authentication(Agent *ag):Module(ag),mCountAsyncRetrieve(NULL),mCountSyncRetrieve(NULL){
 		mProxyChallenger.ach_status=407;/*SIP_407_PROXY_AUTH_REQUIRED*/
 		mProxyChallenger.ach_phrase=sip_407_Proxy_auth_required;
 		mProxyChallenger.ach_header=sip_proxy_authenticate_class;
@@ -184,14 +183,18 @@ public:
 		/* modify the default value for "enabled" */
 		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 
-
 		StatItemDescriptor stats[] = {
-				{	Counter64,	countPasswordFound, "Number of passwords found."},
-				{	Counter64,	countPasswordNotFound, "Number of passwords not found."},
-				{	Counter64,	countAsyncRetrieve, "Number of asynchronous retrieves."},
-				{	Counter64,	countSyncRetrieve, "Number of synchronous retrieves."},
+				{	Counter64,	 "count-password-found", "Number of passwords found."},
+				{	Counter64,	"count-password-not-found", "Number of passwords not found."},
+				{	Counter64,	"count-async-retrieve", "Number of asynchronous retrieves."},
+				{	Counter64,	"count-sync-retrieve", "Number of synchronous retrieves."},
 				stat_item_end };
 		module_config->addChildrenValues(stats);
+		mCountAsyncRetrieve=&findStat("count-async-retrieve");
+		mCountSyncRetrieve=&findStat("count-sync-retrieve");
+		mCountPassFound=&findStat("count-password-found");
+		mCountPassNotFound=&findStat("count-password-not-found");
+
 	}
 
 	void onLoad(Agent *agent, const GenericStruct * module_config){
@@ -320,7 +323,7 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 	auth_hexmd5_t a1buf, response;
 
 	if (passwd) {
-		++mEv->getCurrentModule()->findStat(countPasswordFound);
+		++getModule()->mCountPassFound;
 		if (mHashedPass) {
 			strncpy(a1buf, passwd, 33); // remove trailing NULL character
 			a1 = a1buf;
@@ -328,7 +331,7 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 			auth_digest_a1(&mAr, a1buf, passwd), a1 = a1buf;
 		}
 	} else {
-		++mEv->getCurrentModule()->findStat(countPasswordNotFound);
+		++getModule()->mCountPassFound;
 		auth_digest_a1(&mAr, a1buf, "xyzzy"), a1 = a1buf;
 	}
 
@@ -490,22 +493,22 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 	// on a case by case basis.
 	string foundPassword;
 	AuthDbResult res=AuthDb::get()->password(listener->getRoot(), as->as_user_uri, ar->ar_username, foundPassword, listener);
-	const Authentication *module=listener->getModule();
+	Authentication *module=listener->getModule();
 	switch (res) {
 		case PENDING:
 			// The password couldn't be retrieved synchronously
 			// It will be retrieved asynchronously and the listener
 			// will be called with it.
-			++module->findStat(countAsyncRetrieve);
+			++module->mCountAsyncRetrieve;
 			LOGD("authentication PENDING for %s", ar->ar_username);
 			break;
 		case PASSWORD_FOUND:
-			++module->findStat(countSyncRetrieve);
+			++module->mCountSyncRetrieve;
 			listener->checkPassword(foundPassword.c_str());
 			listener->sendReply();
 			break;
 		case PASSWORD_NOT_FOUND:
-			++module->findStat(countSyncRetrieve);
+			++module->mCountSyncRetrieve;
 			listener->checkPassword(NULL);
 			listener->sendReply();
 			break;
