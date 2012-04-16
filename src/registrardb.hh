@@ -143,6 +143,7 @@ public:
 		return sMaxContacts;
 	}
 	time_t latestExpire() const;
+	time_t latestExpire(const std::string &route) const;
 	~Record();
 };
 
@@ -177,7 +178,7 @@ public:
 	}
 protected:
 	class LocalRegExpire {
-		std::map<std::string, std::shared_ptr<std::set<time_t>>> mRegMap;
+		std::map<std::string, time_t> mRegMap;
 		std::mutex mMutex;
 		std::string mPreferedRoute;
 	public:

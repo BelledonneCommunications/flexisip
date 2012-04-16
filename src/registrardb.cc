@@ -157,6 +157,15 @@ time_t Record::latestExpire() const {
 	return latest;
 }
 
+time_t Record::latestExpire(const std::string &route) const {
+	time_t latest=0;
+	for (auto it=mContacts.begin(); it != mContacts.end(); ++it) {
+		if ((*it)->mExpireAt > latest && 0 == strcmp((*it)->mRoute, route.c_str()))
+			latest=(*it)->mExpireAt;
+	}
+	return latest;
+}
+
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec) {
 	// Try to locate an existing contact
 	shared_ptr<ExtendedContact> olderEc;
@@ -261,24 +270,16 @@ RegistrarDb::~RegistrarDb() {
 
 void RegistrarDb::LocalRegExpire::update(const Record &record) {
 	unique_lock<mutex> lock(mMutex);
-	shared_ptr<set<time_t>> timeset(new set<time_t>);
-	for (auto recIt=record.mContacts.begin(); recIt != record.mContacts.end(); ++recIt) {
-		if (0 == strcmp((*recIt)->mRoute, mPreferedRoute.c_str())) {
-			timeset->insert((*recIt)->mExpireAt);
-		}
-	}
-
-	auto it = mRegMap.find(record.getKey());
-	if (timeset->size() != 0) {
+	time_t latest=record.latestExpire(mPreferedRoute);
+	if (latest > 0) {
+		auto it = mRegMap.find(record.getKey());
 		if (it != mRegMap.end()) {
-			(*it).second = timeset;
+			(*it).second = latest;
 		} else {
-			mRegMap.insert(make_pair(record.getKey(), timeset));
+			mRegMap.insert(make_pair(record.getKey(), latest));
 		}
 	} else {
-		if (it != mRegMap.end()) {
-			mRegMap.erase(it);
-		}
+		mRegMap.erase(record.getKey());
 	}
 }
 
@@ -289,19 +290,8 @@ void RegistrarDb::LocalRegExpire::removeExpiredBefore(time_t before) {
 	unique_lock<mutex> lock(mMutex);
 
 	for (auto it=mRegMap.begin(); it!=mRegMap.end(); ) {
-		shared_ptr<set<time_t>> timeset=(*it).second;
-		//LOGE("> %s [%lu]", (*it).first.c_str(), timeset->size());
-		for (auto tit=timeset->begin(); tit!=timeset->end(); ) {
-			//LOGE("--> %lu", (*tit)-before);
-			if ((*tit) <= before) {
-				auto expiredTimeIt=tit;
-				++tit;
-				timeset->erase(expiredTimeIt);
-			} else {
-				++tit;
-			}
-		}
-		if (timeset->size() == 0) {
+		//LOGE("> %s [%lu]", (*it).first.c_str(), (*it).second-before);
+		if ((*it).second <= before) {
 			auto prevIt = it;
 			++it;
 			mRegMap.erase(prevIt);
