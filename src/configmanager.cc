@@ -56,20 +56,20 @@ string GenericEntry::sanitize(const string &str){
 
 void GenericEntry::mibFragment(ostream & ost, string spacing) const{
 	string s("OCTET STRING");
-	doMibFragment(ost, s, spacing);
+	doMibFragment(ost, false, s, spacing);
 }
 
 void ConfigBoolean::mibFragment(ostream & ost, string spacing) const{
 	string s("INTEGER { true(1),false(0) }");
-	doMibFragment(ost, s, spacing);
+	doMibFragment(ost, true, s, spacing);
 }
 void ConfigInt::mibFragment(ostream & ost, string spacing) const{
 	string s("Integer32");
-	doMibFragment(ost, s, spacing);
+	doMibFragment(ost, true, s, spacing);
 }
 void StatCounter64::mibFragment(ostream & ost, string spacing) const{
 	string s("Counter64");
-	doMibFragment(ost, s, spacing);
+	doMibFragment(ost, false, s, spacing);
 }
 void ConfigString::mibFragment(ostream & ost, string spacing) const{
 	ConfigValue::mibFragment(ost, spacing);
@@ -87,11 +87,12 @@ void GenericStruct::mibFragment(ostream & ost, string spacing) const{
 
 
 
-void GenericEntry::doMibFragment(ostream & ostr, string &syntax, string spacing) const{
+
+void GenericEntry::doMibFragment(ostream & ostr, bool rw, string &syntax, string spacing) const{
 	if (!getParent()) LOGA("no parent found for %s", getName().c_str());
 	ostr << spacing << sanitize(getName()) << " OBJECT-TYPE" << endl
 			<< spacing << "	SYNTAX" << "	" << syntax << endl
-			<< spacing << "	MAX-ACCESS	read-only" << endl
+			<< spacing << "	MAX-ACCESS	" << (rw ? "read-write": "read-only") << endl
 			<< spacing << "	STATUS	current" << endl
 			<< spacing << "	DESCRIPTION" << endl
 			<< spacing << "	\"" << getHelp() << "\"" << endl
@@ -187,7 +188,7 @@ void ConfigValue::setParent(GenericEntry *parent){
 	netsnmp_handler_registration *reginfo=netsnmp_create_handler_registration(
 			sanitize(mName).c_str(), &GenericEntry::sHandleSnmpRequest,
 			(oid *) mOid->getValue().data(), mOid->getValue().size(),
-			HANDLER_CAN_RONLY);
+			HANDLER_CAN_RWRITE);
 	reginfo->my_reg_void=this;
 	int res=netsnmp_register_scalar(reginfo);
 	if (res != MIB_REGISTERED_OK) {
@@ -349,6 +350,10 @@ bool ConfigBoolean::read()const{
 	return false;
 }
 
+void ConfigBoolean::write(bool value){
+	set(value?"1":"0");
+}
+
 
 ConfigInt::ConfigInt(const string &name, const string &help, const string &default_value,oid oid_index)
 :	ConfigValue(name,Integer,help,default_value,oid_index){
@@ -356,6 +361,11 @@ ConfigInt::ConfigInt(const string &name, const string &help, const string &defau
 
 int ConfigInt::read()const{
 	return atoi(get().c_str());
+}
+void ConfigInt::write(int value){
+	std::ostringstream oss;
+	oss << value;
+	set(oss.str());
 }
 
 StatCounter64::StatCounter64(const string &name, const string &help, oid oid_index)
@@ -685,20 +695,52 @@ int ConfigValue::handleSnmpRequest(netsnmp_mib_handler *handler,
 		netsnmp_agent_request_info   *reqinfo,
 		netsnmp_request_info         *requests)
 {
-	LOGD("str handleSnmpRequest %s -> %s", reginfo->handlerName, get().c_str());
+	char *old_value;
+	int ret;
+	string newValue;
 
 	switch(reqinfo->mode) {
 	case MODE_GET:
+		LOGD("str handleSnmpRequest %s -> %s", reginfo->handlerName, get().c_str());
 		return snmp_set_var_typed_value(requests->requestvb, ASN_OCTET_STR,
 				(const u_char*) get().c_str(), get().size());
 		break;
-
+	case MODE_SET_RESERVE1:
+		ret = netsnmp_check_vb_type(requests->requestvb, ASN_OCTET_STR);
+		if ( ret != SNMP_ERR_NOERROR ) {
+			netsnmp_set_request_error(reqinfo, requests, ret );
+		}
+		break;
+	case MODE_SET_RESERVE2:
+		old_value=netsnmp_strdup_and_null((const u_char*) get().c_str() , get().size());
+		if (!old_value) {
+			netsnmp_set_request_error(reqinfo, requests,
+					SNMP_ERR_RESOURCEUNAVAILABLE);
+			return SNMP_ERR_NOERROR;
+		}
+		netsnmp_request_add_list_data(requests,
+				netsnmp_create_data_list("old_value", old_value, free));
+		break;
+	case MODE_SET_ACTION:
+		newValue.assign((char*)requests->requestvb->val.string,
+				requests->requestvb->val_len);
+		set(newValue);
+		break;
+	case MODE_SET_COMMIT:
+		LOGD("str handleSnmpRequest %s <- %s", reginfo->handlerName, get().c_str());
+		break;
+	case MODE_SET_FREE:
+		// Nothing to do
+		break;
+	case MODE_SET_UNDO:
+		old_value=(char *) netsnmp_request_get_list_data(requests, "old_value");
+		set(old_value);
+		break;
 	default:
 		/* we should never get here, so this is a really bad error */
 		snmp_log(LOG_ERR, "unknown mode (%d) in handleSnmpRequest\n", reqinfo->mode );
 		return SNMP_ERR_GENERR;
 	}
-
 	return SNMP_ERR_NOERROR;
 }
 
@@ -708,11 +750,42 @@ int ConfigBoolean::handleSnmpRequest(netsnmp_mib_handler *handler,
 		netsnmp_agent_request_info   *reqinfo,
 		netsnmp_request_info         *requests)
 {
-	LOGD("bool handleSnmpRequest %s -> %d", reginfo->handlerName, read()?1:0);
-
+	int ret;
+	u_short *old_value;
 	switch(reqinfo->mode) {
 	case MODE_GET:
+		LOGD("bool handleSnmpRequest %s -> %d", reginfo->handlerName, read()?1:0);
 		snmp_set_var_typed_integer(requests->requestvb, ASN_INTEGER, read()?1:0);
+		break;
+	case MODE_SET_RESERVE1:
+		ret = netsnmp_check_vb_int_range(requests->requestvb, 0, 1);
+		if ( ret != SNMP_ERR_NOERROR ) {
+			netsnmp_set_request_error(reqinfo, requests, ret );
+		}
+		break;
+	case MODE_SET_RESERVE2:
+		old_value=(u_short*)malloc(sizeof(u_short));
+		if (!old_value) {
+			netsnmp_set_request_error(reqinfo, requests,
+					SNMP_ERR_RESOURCEUNAVAILABLE);
+			return SNMP_ERR_NOERROR;
+		}
+		*old_value=read()?1:0;
+		netsnmp_request_add_list_data(requests,
+				netsnmp_create_data_list("old_value", old_value, free));
+		break;
+	case MODE_SET_ACTION:
+		write(*requests->requestvb->val.integer == 1);
+		break;
+	case MODE_SET_COMMIT:
+		LOGD("bool handleSnmpRequest %s <- %d", reginfo->handlerName, read()?1:0);
+		break;
+	case MODE_SET_FREE:
+		// Nothing to do
+		break;
+	case MODE_SET_UNDO:
+		old_value=(u_short *) netsnmp_request_get_list_data(requests, "old_value");
+		write(*old_value);
 		break;
 	default:
 		/* we should never get here, so this is a really bad error */
@@ -728,11 +801,43 @@ int ConfigInt::handleSnmpRequest(netsnmp_mib_handler *handler,
 		netsnmp_agent_request_info   *reqinfo,
 		netsnmp_request_info         *requests)
 {
-	LOGD("int handleSnmpRequest %s -> %d", reginfo->handlerName, read());
+	int *old_value;
+	int ret;
 
 	switch(reqinfo->mode) {
 	case MODE_GET:
+		LOGD("int handleSnmpRequest %s -> %d", reginfo->handlerName, read());
 		snmp_set_var_typed_integer(requests->requestvb, ASN_INTEGER, read());
+		break;
+	case MODE_SET_RESERVE1:
+		ret = netsnmp_check_vb_type(requests->requestvb, ASN_INTEGER);
+		if ( ret != SNMP_ERR_NOERROR ) {
+			netsnmp_set_request_error(reqinfo, requests, ret );
+		}
+		break;
+	case MODE_SET_RESERVE2:
+		old_value=(int*)malloc(sizeof(int));
+		if (!old_value) {
+			netsnmp_set_request_error(reqinfo, requests,
+					SNMP_ERR_RESOURCEUNAVAILABLE);
+			return SNMP_ERR_NOERROR;
+		}
+		*old_value=read();
+		netsnmp_request_add_list_data(requests,
+				netsnmp_create_data_list("old_value", old_value, free));
+		break;
+	case MODE_SET_ACTION:
+		write(*requests->requestvb->val.integer);
+		break;
+	case MODE_SET_COMMIT:
+		LOGD("int handleSnmpRequest %s <- %d", reginfo->handlerName, read());
+		break;
+	case MODE_SET_FREE:
+		// Nothing to do
+		break;
+	case MODE_SET_UNDO:
+		old_value=(int *) netsnmp_request_get_list_data(requests, "old_value");
+		write(*old_value);
 		break;
 	default:
 		/* we should never get here, so this is a really bad error */
@@ -742,6 +847,8 @@ int ConfigInt::handleSnmpRequest(netsnmp_mib_handler *handler,
 
 	return SNMP_ERR_NOERROR;
 }
+
+
 int StatCounter64::handleSnmpRequest(netsnmp_mib_handler *handler,
 		netsnmp_handler_registration *reginfo,
 		netsnmp_agent_request_info   *reqinfo,

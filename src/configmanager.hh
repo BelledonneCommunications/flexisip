@@ -160,7 +160,7 @@ public:
 		GenericEntriesGetter::get().registerWithKey(key, this);
 	}
 protected:
-	void doMibFragment(std::ostream &ostr, std::string &syntax, std::string spacing) const;
+	void doMibFragment(std::ostream &ostr, bool rw, std::string &syntax, std::string spacing) const;
 	GenericEntry(const std::string &name, GenericValueType type, const std::string &help,oid oid_index=0);
 	Oid *mOid;
 	const std::string mName;
@@ -277,6 +277,7 @@ class ConfigBoolean : public ConfigValue{
 public:
 	ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
 	bool read()const;
+	void write(bool value);
 #ifdef ENABLE_SNMP
 	virtual int handleSnmpRequest(netsnmp_mib_handler *,
 			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
@@ -293,6 +294,7 @@ public:
 	ConfigInt(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
 	void mibFragment(std::ostream & ost, std::string spacing) const;
 	int read()const;
+	void write(int value);
 };
 
 class ConfigString : public ConfigValue{
