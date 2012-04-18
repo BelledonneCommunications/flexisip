@@ -15,7 +15,17 @@ flexisip.conf.sample:	$(top_builddir)/src/flexisip
 	$(top_builddir)/src/flexisip --dump-default-config > $@
 #endif
 
+#if BUILD_SNMP
+	OTHER_FLAGS=-DENABLE_SNMP
+#endif
+#if BUILD_REDIS
+	OTHER_FLAGS="$(OTHER_FLAGS) -DENABLE_REDIS"
+#endif
+#if BUILD_PROTOBUF
+	OTHER_FLAGS="$(OTHER_FLAGS) -DENABLE_PROTOBUF"
+#endif
+	
 discovery:
-	$(CXX) $(CXXFLAGS) $(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS) -E -P -v -dD specs.cpp
+	$(CXX) $(CXXFLAGS) $(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(OTHER_FLAGS) -E -P -v -dD specs.cpp
 
 CLEANFILES=flexisip.conf.sample
