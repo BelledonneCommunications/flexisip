@@ -33,7 +33,7 @@ public:
 		module_config->addChildrenValues(items);
 	}
 
-	void onLoad(Agent *agent, const GenericStruct *module_config) {
+	void onLoad(const GenericStruct *module_config) {
 		mContactRouteParamName = string("CtRt") + getAgent()->getUniqueId();
 		mMasqueradeInviteContacts = module_config->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
 	}

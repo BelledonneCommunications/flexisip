@@ -28,7 +28,7 @@ class LoadBalancer : public Module, public ModuleToolbox{
 		LoadBalancer(Agent *ag);
 		virtual ~LoadBalancer();
 		virtual void onDeclare(GenericStruct *module_config);
-		virtual void onLoad(Agent *ag, const GenericStruct * modconf);
+		virtual void onLoad(const GenericStruct * modconf);
 		virtual void onRequest(shared_ptr<SipEvent> &ev);
 		virtual void onResponse(shared_ptr<SipEvent> &ev);
 	private:
@@ -56,7 +56,7 @@ void LoadBalancer::onDeclare(GenericStruct *module_config){
 	module_config->addChildrenValues(items);
 }
 
-void LoadBalancer::onLoad(Agent *ag, const GenericStruct * modconf){
+void LoadBalancer::onLoad(const GenericStruct * modconf){
 	list<string> routes=modconf->get<ConfigStringList>("routes")->read();
 	list<string>::iterator it;
 	

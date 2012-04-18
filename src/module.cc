@@ -77,6 +77,26 @@ Module::~Module() {
 	delete mFilter;
 }
 
+void Module::onDelayedReloadTimeout(void *unused, su_timer_t *t, void *data) {
+	su_timer_reset(t);
+	Module *m=(Module*)data;
+	LOGD("Triggering reload of module %s", m->getModuleName().c_str());
+	m->reload();
+}
+
+void Module::onConfigValueChanged(const std::string &key, const std::string &value) {
+//	LOGD("Configuration of module %s changed for key %s to %s", mInfo->getModuleName().c_str(),
+//			key.c_str(), value.c_str());
+	time_t now = time(NULL);
+	if (now > mLastReload) {
+		mAgent->createTimer(1100, onDelayedReloadTimeout, this);
+//		LOGI("Scheduling module %s reload in 1s", mInfo->getModuleName().c_str());
+		mLastReload=now+1;
+//	} else {
+//		LOGI("A reload of module %s is already pending", mInfo->getModuleName().c_str());
+	}
+}
+
 void Module::setInfo(ModuleInfoBase *i) {
 	mInfo = i;
 }
@@ -91,15 +111,21 @@ nta_agent_t *Module::getSofiaAgent()const{
 
 void Module::declare(GenericStruct *root){
 	mModuleConfig=new GenericStruct("module::"+getModuleName(),mInfo->getModuleHelp(),mInfo->getOidIndex());
+	mModuleConfig->setConfigListener(this);
 	root->addChild(mModuleConfig);
 	mFilter->declareConfig(mModuleConfig);
 	onDeclare(mModuleConfig);
 }
 
-void Module::load(Agent *agent) {
+void Module::load() {
 	mFilter->loadConfig(mModuleConfig);
 	if (mFilter->isEnabled())
-		onLoad(agent, mModuleConfig);
+		onLoad(mModuleConfig);
+}
+
+void Module::reload() {
+	onUnload();
+	load();
 }
 
 void Module::processRequest(shared_ptr<SipEvent> &ev) {

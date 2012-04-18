@@ -70,7 +70,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 			};
 			module_config->addChildrenValues(items);
 		}
-		virtual void onLoad(Agent *agent, const GenericStruct *root){
+		virtual void onLoad(const GenericStruct *root){
 			mContactVerifiedParam=root->get<ConfigString>("contact-verified-param")->read();
 		}
 	private:

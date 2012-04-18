@@ -31,7 +31,7 @@ class ForwardModule: public Module, ModuleToolbox {
 public:
 	ForwardModule(Agent *ag);
 	virtual void onDeclare(GenericStruct * module_config);
-	virtual void onLoad(Agent *agent, const GenericStruct *root);
+	virtual void onLoad(const GenericStruct *root);
 	virtual void onRequest(shared_ptr<SipEvent> &ev);
 	virtual void onResponse(shared_ptr<SipEvent> &ev);
 	~ForwardModule();
@@ -65,7 +65,7 @@ void ForwardModule::onDeclare(GenericStruct * module_config) {
 	module_config->addChildrenValues(items);
 }
 
-void ForwardModule::onLoad(Agent *agent, const GenericStruct *module_config) {
+void ForwardModule::onLoad(const GenericStruct *module_config) {
 	string route = module_config->get<ConfigString>("route")->read();
 	mRewriteReqUri = module_config->get<ConfigBoolean>("rewrite-req-uri")->read();
 	if (route.size() > 0) {
@@ -75,7 +75,7 @@ void ForwardModule::onLoad(Agent *agent, const GenericStruct *module_config) {
 		}
 	}
 	stringstream ss;
-	ss << agent->getPublicIp() << ":" << agent->getPort();
+	ss << mAgent->getPublicIp() << ":" << mAgent->getPort();
 	mPreferredRoute = ss.str();
 }
 

@@ -232,7 +232,7 @@ public:
 
 	virtual void onDeclare(GenericStruct *module_config);
 
-	virtual void onLoad(Agent *agent, const GenericStruct *module_config);
+	virtual void onLoad(const GenericStruct *module_config);
 
 	virtual void onRequest(shared_ptr<SipEvent> &ev);
 
@@ -266,11 +266,11 @@ void GatewayAdapter::onDeclare(GenericStruct *module_config) {
 	module_config->addChildrenValues(items);
 }
 
-void GatewayAdapter::onLoad(Agent *agent, const GenericStruct *module_config) {
+void GatewayAdapter::onLoad(const GenericStruct *module_config) {
 	string gateway = module_config->get<ConfigString>("gateway")->read();
 	gateway_url = url_make(&home, gateway.c_str());
-	char *url = su_sprintf(&home, "sip:%s:*", agent->getPublicIp().c_str());
-	nua = nua_create(agent->getRoot(), nua_callback, this, NUTAG_URL(url), NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()), TAG_END());
+	char *url = su_sprintf(&home, "sip:%s:*", mAgent->getPublicIp().c_str());
+	nua = nua_create(mAgent->getRoot(), nua_callback, this, NUTAG_URL(url), NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()), TAG_END());
 }
 
 void GatewayAdapter::onRequest(shared_ptr<SipEvent> &ev) {

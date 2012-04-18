@@ -48,6 +48,12 @@
 typedef unsigned long oid;
 #endif
 
+class ConfigValueListener {
+public:
+	~ConfigValueListener(){};
+	virtual void onConfigValueChanged(const std::string &key, const std::string &value)=0;
+};
+
 enum GenericValueType{
 	Boolean,
 	Integer,
@@ -159,6 +165,12 @@ public:
 	void registerWithKey(const std::string &key) {
 		GenericEntriesGetter::get().registerWithKey(key, this);
 	}
+	void setConfigListener(ConfigValueListener *listener) {
+		mConfigListener=listener;
+	}
+	ConfigValueListener *getConfigListener() const {
+		return mConfigListener;
+	}
 protected:
 	void doMibFragment(std::ostream &ostr, bool rw, std::string &syntax, std::string spacing) const;
 	GenericEntry(const std::string &name, GenericValueType type, const std::string &help,oid oid_index=0);
@@ -168,7 +180,7 @@ private:
 	const std::string mHelp;
 	GenericValueType mType;
 	GenericEntry *mParent;
-
+	ConfigValueListener *mConfigListener;
 	oid mOidLeaf;
 };
 
@@ -267,6 +279,13 @@ public:
 			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
 #endif
 	virtual void setParent(GenericEntry *parent);
+protected:
+	void invokeConfigValueChanged() {
+		if (getParent() && getParent()->getType() == Struct) {
+			ConfigValueListener *listener = getParent()->getConfigListener();
+			if (listener) listener->onConfigValueChanged(getName(), mValue);
+		}
+	}
 private:
 	std::string mValue;
 	std::string mDefaultValue;

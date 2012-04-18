@@ -85,7 +85,7 @@ public:
 		mCountLocalActives = &findStat("count-local-registered-users");
 	}
 
-	virtual void onLoad(Agent *agent, const GenericStruct *module_config) {
+	virtual void onLoad(const GenericStruct *module_config) {
 		list<string>::const_iterator it;
 		mDomains = module_config->get<ConfigStringList>("reg-domains")->read();
 		for (it = mDomains.begin(); it != mDomains.end(); ++it) {

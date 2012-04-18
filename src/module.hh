@@ -84,7 +84,7 @@ class EntryFilter;
  * virtual void onRequest(SipEvent *ev)=0;
  * virtual void onResponse(SipEvent *ev)=0;
 **/
-class Module {
+class Module : protected ConfigValueListener {
 	friend class ModuleInfoBase;
 	public:
 		Module(Agent *);
@@ -93,7 +93,8 @@ class Module {
 		nta_agent_t *getSofiaAgent()const;
 		const std::string &getModuleName()const;
 		void declare(GenericStruct *root);
-		void load(Agent *agent);
+		void load();
+		void reload();
 		void processRequest(std::shared_ptr<SipEvent> &ev);
 		void processResponse(std::shared_ptr<SipEvent> &ev);
 		void processTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
@@ -102,21 +103,26 @@ class Module {
 	protected:
 		virtual void onDeclare(GenericStruct *root){
 		}
-		virtual void onLoad(Agent *agent, const GenericStruct *root){
+		virtual void onLoad(const GenericStruct *root){
+		}
+		virtual void onUnload(){
 		}
 		virtual void onRequest(std::shared_ptr<SipEvent> &ev)=0;
 		virtual void onResponse(std::shared_ptr<SipEvent> &ev)=0;
 		virtual void onTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
 
 		}
+		virtual void onConfigValueChanged(const std::string &key, const std::string &value);
 		virtual void onIdle(){
 		}
 		Agent *mAgent;
 	private:
+		static void onDelayedReloadTimeout(void *unused, su_timer_t *t, void *data);
 		void setInfo(ModuleInfoBase *i);
 		ModuleInfoBase *mInfo;
 		GenericStruct *mModuleConfig;
 		EntryFilter *mFilter;
+		time_t mLastReload;
 };
 
 template <typename _modtype>

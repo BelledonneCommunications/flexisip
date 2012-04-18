@@ -74,7 +74,7 @@ class TranscodeModule: public Module, protected ModuleToolbox {
 public:
 	TranscodeModule(Agent *ag);
 	~TranscodeModule();
-	virtual void onLoad(Agent *agent, const GenericStruct *module_config);
+	virtual void onLoad(const GenericStruct *module_config);
 	virtual void onRequest(shared_ptr<SipEvent> &ev);
 	virtual void onResponse(shared_ptr<SipEvent> &ev);
 	virtual void onIdle();
@@ -216,8 +216,8 @@ MSList *TranscodeModule::orderList(const list<string> &config, const MSList *l) 
 	return ret;
 }
 
-void TranscodeModule::onLoad(Agent *agent, const GenericStruct *module_config){
-	mTimer=agent->createTimer(20,&sOnTimer,this);
+void TranscodeModule::onLoad(const GenericStruct *module_config){
+	mTimer=mAgent->createTimer(20,&sOnTimer,this);
 	mCallParams.mJbNomSize=module_config->get<ConfigInt>("jb-nom-size")->read();
 	mRcUserAgents=module_config->get<ConfigStringList>("rc-user-agents")->read();
 	MSList *l=makeSupportedAudioPayloadList();

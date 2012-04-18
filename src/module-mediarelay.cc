@@ -40,7 +40,8 @@ public:
 	} RTPDir;
 	MediaRelay(Agent *ag);
 	~MediaRelay();
-	virtual void onLoad(Agent *ag, const GenericStruct * modconf);
+	virtual void onLoad(const GenericStruct * modconf);
+	virtual void onUnload();
 	virtual void onRequest(shared_ptr<SipEvent> &ev);
 	virtual void onResponse(shared_ptr<SipEvent> &ev);
 	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
@@ -292,10 +293,10 @@ MediaRelay::~MediaRelay() {
 		delete mServer;
 }
 
-void MediaRelay::onLoad(Agent *ag, const GenericStruct * modconf) {
+void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mCalls = new CallStore();
 	mCalls->setCallStatCounters(&findStat(countCallsStr), &findStat(countCallsFinishedStr));
-	mServer = new MediaRelayServer(ag->getBindIp(), ag->getPublicIp());
+	mServer = new MediaRelayServer(mAgent->getBindIp(), mAgent->getPublicIp());
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
 	string rtpdir = modconf->get<ConfigString>("early-media-rtp-dir")->read();
 	mEarlymediaRTPDir = DUPLEX;
@@ -306,6 +307,11 @@ void MediaRelay::onLoad(Agent *ag, const GenericStruct * modconf) {
 	} else {
 		LOGW("Wrong value %s for early-media-rtp-dir entry; switch to duplex.", rtpdir.c_str());
 	}
+}
+
+void MediaRelay::onUnload() {
+	if (mCalls) delete mCalls;
+	if (mServer) delete mServer;
 }
 
 bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {

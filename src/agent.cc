@@ -197,7 +197,7 @@ void Agent::loadConfig(GenericManager *cm) {
 	}
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it)
-		(*it)->load(this);
+		(*it)->load();
 }
 
 void Agent::setDomain(const string &domain) {
