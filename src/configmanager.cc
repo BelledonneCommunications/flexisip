@@ -101,7 +101,6 @@ void GenericEntry::doMibFragment(ostream & ostr, bool rw, string &syntax, string
 
 ConfigValue::ConfigValue(const string &name, GenericValueType  vt, const string &help, const string &default_value,oid oid_index)
 :  GenericEntry (name,vt,help,oid_index), mDefaultValue(default_value){
-
 }
 
 void ConfigValue::set(const string  &value){
@@ -185,7 +184,7 @@ void GenericEntry::setParent(GenericEntry *parent){
 void ConfigValue::setParent(GenericEntry *parent){
 	GenericEntry::setParent(parent);
 #ifdef ENABLE_SNMP
-	LOGD("SNMP registering %s %s (as %s)",mOid->getValueAsString().c_str(), mName.c_str(), sanitize(mName).c_str());
+//	LOGD("SNMP registering %s %s (as %s)",mOid->getValueAsString().c_str(), mName.c_str(), sanitize(mName).c_str());
 	netsnmp_handler_registration *reginfo=netsnmp_create_handler_registration(
 			sanitize(mName).c_str(), &GenericEntry::sHandleSnmpRequest,
 			(oid *) mOid->getValue().data(), mOid->getValue().size(),
@@ -206,13 +205,13 @@ void StatCounter64::setParent(GenericEntry *parent){
 	GenericEntry::setParent(parent);
 
 #ifdef ENABLE_SNMP
-	LOGD("SNMP registering %s %s (as %s)",mOid->getValueAsString().c_str(), mName.c_str(), sanitize(mName).c_str());
+//	LOGD("SNMP registering %s %s (as %s)",mOid->getValueAsString().c_str(), mName.c_str(), sanitize(mName).c_str());
 	netsnmp_handler_registration *reginfo=netsnmp_create_handler_registration(
 			sanitize(mName).c_str(), &GenericEntry::sHandleSnmpRequest,
 			(oid *) mOid->getValue().data(), mOid->getValue().size(),
 			HANDLER_CAN_RONLY);
 	reginfo->my_reg_void=this;
-	int res=netsnmp_register_scalar(reginfo);
+	int res=netsnmp_register_read_only_scalar(reginfo);
 	if (res != MIB_REGISTERED_OK) {
 		if (res == MIB_DUPLICATE_REGISTRATION) {
 			LOGE("Duplicate registration of SNMP %s", mName.c_str());
@@ -229,7 +228,7 @@ GenericStruct::GenericStruct(const string &name, const string &help,oid oid_inde
 void GenericStruct::setParent(GenericEntry *parent){
 	GenericEntry::setParent(parent);
 #ifdef ENABLE_SNMP
-	LOGD("SNMP node %s %s",mOid->getValueAsString().c_str(), mName.c_str());
+//	LOGD("SNMP node %s %s",mOid->getValueAsString().c_str(), mName.c_str());
 #endif
 }
 
@@ -238,7 +237,6 @@ GenericEntry * GenericStruct::addChild(GenericEntry *c){
 	c->setParent(this);
 	return c;
 }
-
 
 void GenericStruct::addChildrenValues(ConfigItemDescriptor *items){
 	for (;items->name!=NULL;items++){
@@ -264,7 +262,6 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor *items){
 		addChild(val);
 	}
 }
-
 
 void GenericStruct::addChildrenValues(StatItemDescriptor *items){
 	for (;items->name!=NULL;items++){
@@ -622,7 +619,7 @@ void FileConfigReader::onUnreadItem(const char *secname, const char *key, int li
 	if (sec==NULL){
 		sec=mRoot->findApproximate(secname);
 		if (sec!=NULL){
-			LOGE("Did you meant '[%s]' ?",sec->getName().c_str());
+			LOGE("Did you mean '[%s]' ?",sec->getName().c_str());
 		}
 		return;
 	}
@@ -632,7 +629,7 @@ void FileConfigReader::onUnreadItem(const char *secname, const char *key, int li
 		if (val==NULL){
 			val=st->findApproximate(key);
 			if (val!=NULL){
-				LOGE("Did you meant '%s' ?",val->getName().c_str());
+				LOGE("Did you mean '%s' ?",val->getName().c_str());
 			}
 		}
 	}
@@ -702,7 +699,7 @@ int ConfigValue::handleSnmpRequest(netsnmp_mib_handler *handler,
 
 	switch(reqinfo->mode) {
 	case MODE_GET:
-		LOGD("str handleSnmpRequest %s -> %s", reginfo->handlerName, get().c_str());
+//		LOGD("str handleSnmpRequest %s -> %s", reginfo->handlerName, get().c_str());
 		return snmp_set_var_typed_value(requests->requestvb, ASN_OCTET_STR,
 				(const u_char*) get().c_str(), get().size());
 		break;
@@ -728,7 +725,8 @@ int ConfigValue::handleSnmpRequest(netsnmp_mib_handler *handler,
 		set(newValue);
 		break;
 	case MODE_SET_COMMIT:
-		LOGD("str handleSnmpRequest %s <- %s", reginfo->handlerName, get().c_str());
+//		LOGD("str handleSnmpRequest %s <- %s", reginfo->handlerName, get().c_str());
+		invokeConfigValueChanged();
 		break;
 	case MODE_SET_FREE:
 		// Nothing to do
@@ -755,7 +753,7 @@ int ConfigBoolean::handleSnmpRequest(netsnmp_mib_handler *handler,
 	u_short *old_value;
 	switch(reqinfo->mode) {
 	case MODE_GET:
-		LOGD("bool handleSnmpRequest %s -> %d", reginfo->handlerName, read()?1:0);
+//		LOGD("bool handleSnmpRequest %s -> %d", reginfo->handlerName, read()?1:0);
 		snmp_set_var_typed_integer(requests->requestvb, ASN_INTEGER, read()?1:0);
 		break;
 	case MODE_SET_RESERVE1:
@@ -779,7 +777,8 @@ int ConfigBoolean::handleSnmpRequest(netsnmp_mib_handler *handler,
 		write(*requests->requestvb->val.integer == 1);
 		break;
 	case MODE_SET_COMMIT:
-		LOGD("bool handleSnmpRequest %s <- %d", reginfo->handlerName, read()?1:0);
+//		LOGD("bool handleSnmpRequest %s <- %d", reginfo->handlerName, read()?1:0);
+		invokeConfigValueChanged();
 		break;
 	case MODE_SET_FREE:
 		// Nothing to do
@@ -807,7 +806,7 @@ int ConfigInt::handleSnmpRequest(netsnmp_mib_handler *handler,
 
 	switch(reqinfo->mode) {
 	case MODE_GET:
-		LOGD("int handleSnmpRequest %s -> %d", reginfo->handlerName, read());
+//		LOGD("int handleSnmpRequest %s -> %d", reginfo->handlerName, read());
 		snmp_set_var_typed_integer(requests->requestvb, ASN_INTEGER, read());
 		break;
 	case MODE_SET_RESERVE1:
@@ -831,7 +830,8 @@ int ConfigInt::handleSnmpRequest(netsnmp_mib_handler *handler,
 		write(*requests->requestvb->val.integer);
 		break;
 	case MODE_SET_COMMIT:
-		LOGD("int handleSnmpRequest %s <- %d", reginfo->handlerName, read());
+//		LOGD("int handleSnmpRequest %s <- %d", reginfo->handlerName, read());
+		invokeConfigValueChanged();
 		break;
 	case MODE_SET_FREE:
 		// Nothing to do
@@ -855,7 +855,7 @@ int StatCounter64::handleSnmpRequest(netsnmp_mib_handler *handler,
 		netsnmp_agent_request_info   *reqinfo,
 		netsnmp_request_info         *requests)
 {
-	LOGD("counter64 handleSnmpRequest %s -> %lu", reginfo->handlerName, read());
+//	LOGD("counter64 handleSnmpRequest %s -> %lu", reginfo->handlerName, read());
 
 	switch(reqinfo->mode) {
 	case MODE_GET:
