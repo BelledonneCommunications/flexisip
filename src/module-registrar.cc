@@ -301,7 +301,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 					LOGW("Can't create sip_contact of %s.", ec->mSipUri);
 				}
 			} else {
-				mCountForks;
+				++mCountForks;
 				bool handled = false;
 				shared_ptr<ForkCallContext> context(make_shared<ForkCallContext>(agent));
 				shared_ptr<IncomingTransaction> incoming_transaction = ev->createIncomingTransaction();
