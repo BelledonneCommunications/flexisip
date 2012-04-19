@@ -113,6 +113,6 @@ class map_delete_functor{
 		}
 };
 
-
+#define RESTART_EXIT_CODE 5
 
 #endif

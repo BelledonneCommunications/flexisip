@@ -29,11 +29,40 @@
 
 #include <ctime>
 #include <sstream>
+#include <fstream>
 
 #include <sofia-sip/su_md5.h>
 
 using namespace::std;
 
+bool ConfigValueListener::sDirty=false;
+void ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigState state) {
+	switch (state) {
+	case ConfigState::Commited:
+		if (sDirty) {
+			// Write to disk
+			GenericStruct *rootStruct=GenericManager::get()->getRoot();
+			ofstream cfgfile;
+			cfgfile.open(GenericManager::get()->getConfigFile());
+			FileConfigDumper dumper(rootStruct);
+			dumper.setDumpDefaultValues(false);
+			cfgfile << dumper;
+			cfgfile.close();
+			LOGI("New configuration wrote to %s .", GenericManager::get()->getConfigFile().c_str());
+			sDirty=false;
+		}
+		break;
+	case ConfigState::Changed:
+		sDirty=true;
+		break;
+	case ConfigState::Reset:
+		sDirty=false;
+		break;
+	default:
+		break;
+	}
+	doOnConfigStateChanged(conf, state);
+}
 
 static void camelFindAndReplace(const string &needle, string &haystack) {
 	size_t pos;
@@ -476,16 +505,41 @@ RootConfigStruct::RootConfigStruct(const string &name, const string &help,vector
 }
 static oid company_id = SNMP_COMPANY_OID;
 GenericManager::GenericManager() : mConfigRoot("flexisip","This is the default Flexisip configuration file",{1,3,6,1,4,1,company_id}), mReader(&mConfigRoot){
+	mNeedRestart=false;
+	mDirtyConfig=false;
 	GenericStruct *global=new GenericStruct("global","Some global settings of the flexisip proxy.",0);
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
 	global->addChildrenValues(global_stat);
+	global->setConfigListener(this);
 	GenericStruct *tls=new GenericStruct("tls","TLS specific parameters.",0);
 	mConfigRoot.addChild(tls);
 	tls->addChildrenValues(tls_conf);
+	tls->setConfigListener(this);
+}
+
+void GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state){
+	switch (state) {
+		case ConfigState::Changed:
+			mDirtyConfig=true;
+			break;
+		case ConfigState::Reset:
+			mDirtyConfig=false;
+			break;
+		case ConfigState::Commited:
+			if (mDirtyConfig) {
+				LOGI("Scheduling server restart to apply new config.");
+				mDirtyConfig=false;
+				mNeedRestart=true;
+			}
+			break;
+		default:
+			break;
+	}
 }
 
 int GenericManager::load(const char* configfile){
+	mConfigFile = configfile;
 	return mReader.read(configfile);
 }
 
@@ -540,7 +594,11 @@ ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)
 	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL){
 		printHelp(ostr,entry->getHelp(),"#");
 		ostr<<"#  Default value: "<<val->getDefault()<<endl;
-		ostr<<entry->getName()<<"="<<val->getDefault()<<endl;
+		if (mDumpDefault) {
+			ostr<<entry->getName()<<"="<<val->getDefault()<<endl;
+		} else {
+			ostr<<entry->getName()<<"="<<val->get()<<endl;
+		}
 	}
 	return ostr;
 }
@@ -723,10 +781,11 @@ int ConfigValue::handleSnmpRequest(netsnmp_mib_handler *handler,
 		newValue.assign((char*)requests->requestvb->val.string,
 				requests->requestvb->val_len);
 		set(newValue);
+		invokeConfigStateChanged(ConfigState::Changed);
 		break;
 	case MODE_SET_COMMIT:
 //		LOGD("str handleSnmpRequest %s <- %s", reginfo->handlerName, get().c_str());
-		invokeConfigValueChanged();
+		invokeConfigStateChanged(ConfigState::Commited);
 		break;
 	case MODE_SET_FREE:
 		// Nothing to do
@@ -734,6 +793,7 @@ int ConfigValue::handleSnmpRequest(netsnmp_mib_handler *handler,
 	case MODE_SET_UNDO:
 		old_value=(char *) netsnmp_request_get_list_data(requests, "old_value");
 		set(old_value);
+		invokeConfigStateChanged(ConfigState::Reset);
 		break;
 	default:
 		/* we should never get here, so this is a really bad error */
@@ -775,10 +835,11 @@ int ConfigBoolean::handleSnmpRequest(netsnmp_mib_handler *handler,
 		break;
 	case MODE_SET_ACTION:
 		write(*requests->requestvb->val.integer == 1);
+		invokeConfigStateChanged(ConfigState::Changed);
 		break;
 	case MODE_SET_COMMIT:
 //		LOGD("bool handleSnmpRequest %s <- %d", reginfo->handlerName, read()?1:0);
-		invokeConfigValueChanged();
+		invokeConfigStateChanged(ConfigState::Commited);
 		break;
 	case MODE_SET_FREE:
 		// Nothing to do
@@ -786,6 +847,7 @@ int ConfigBoolean::handleSnmpRequest(netsnmp_mib_handler *handler,
 	case MODE_SET_UNDO:
 		old_value=(u_short *) netsnmp_request_get_list_data(requests, "old_value");
 		write(*old_value);
+		invokeConfigStateChanged(ConfigState::Reset);
 		break;
 	default:
 		/* we should never get here, so this is a really bad error */
@@ -828,10 +890,11 @@ int ConfigInt::handleSnmpRequest(netsnmp_mib_handler *handler,
 		break;
 	case MODE_SET_ACTION:
 		write(*requests->requestvb->val.integer);
+		invokeConfigStateChanged(ConfigState::Changed);
 		break;
 	case MODE_SET_COMMIT:
 //		LOGD("int handleSnmpRequest %s <- %d", reginfo->handlerName, read());
-		invokeConfigValueChanged();
+		invokeConfigStateChanged(ConfigState::Commited);
 		break;
 	case MODE_SET_FREE:
 		// Nothing to do
@@ -839,6 +902,7 @@ int ConfigInt::handleSnmpRequest(netsnmp_mib_handler *handler,
 	case MODE_SET_UNDO:
 		old_value=(int *) netsnmp_request_get_list_data(requests, "old_value");
 		write(*old_value);
+		invokeConfigStateChanged(ConfigState::Reset);
 		break;
 	default:
 		/* we should never get here, so this is a really bad error */

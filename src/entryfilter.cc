@@ -27,7 +27,7 @@ ConfigEntryFilter::ConfigEntryFilter(){
 ConfigEntryFilter::~ConfigEntryFilter(){
 }
 
-ConfigItemDescriptor configaaa[]={
+ConfigItemDescriptor config[]={
 	{	Boolean,		"enabled",					"Indicate whether the module is activated.",	"true"},
 	{	StringList,		"from-domains",	"List of domain names in sip from allowed to enter the module.",	"*"},
 	{	StringList,		"to-domains"	,		"List of domain names in sip to allowed to enter the module.",		"*"},
@@ -35,7 +35,7 @@ ConfigItemDescriptor configaaa[]={
 };
 
 void ConfigEntryFilter::declareConfig(GenericStruct *module_config){
-	module_config->addChildrenValues(configaaa);
+	module_config->addChildrenValues(config);
 }
 
 void ConfigEntryFilter::loadConfig(const GenericStruct  *module_config){

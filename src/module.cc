@@ -77,23 +77,25 @@ Module::~Module() {
 	delete mFilter;
 }
 
-void Module::onDelayedReloadTimeout(void *unused, su_timer_t *t, void *data) {
-	su_timer_reset(t);
-	Module *m=(Module*)data;
-	LOGD("Triggering reload of module %s", m->getModuleName().c_str());
-	m->reload();
-}
-
-void Module::onConfigValueChanged(const std::string &key, const std::string &value) {
+void Module::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 //	LOGD("Configuration of module %s changed for key %s to %s", mInfo->getModuleName().c_str(),
 //			key.c_str(), value.c_str());
-	time_t now = time(NULL);
-	if (now > mLastReload) {
-		mAgent->createTimer(1100, onDelayedReloadTimeout, this);
-//		LOGI("Scheduling module %s reload in 1s", mInfo->getModuleName().c_str());
-		mLastReload=now+1;
-//	} else {
-//		LOGI("A reload of module %s is already pending", mInfo->getModuleName().c_str());
+	switch (state) {
+		case ConfigState::Changed:
+			mDirtyConfig=true;
+			break;
+		case ConfigState::Reset:
+			mDirtyConfig=false;
+			break;
+		case ConfigState::Commited:
+			if (mDirtyConfig) {
+				LOGI("Reloading config of module %s", mInfo->getModuleName().c_str());
+				reload();
+				mDirtyConfig=false;
+			}
+			break;
+		default:
+			break;
 	}
 }
 

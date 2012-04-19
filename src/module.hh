@@ -112,17 +112,16 @@ class Module : protected ConfigValueListener {
 		virtual void onTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
 
 		}
-		virtual void onConfigValueChanged(const std::string &key, const std::string &value);
+		virtual void doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 		virtual void onIdle(){
 		}
 		Agent *mAgent;
 	private:
-		static void onDelayedReloadTimeout(void *unused, su_timer_t *t, void *data);
 		void setInfo(ModuleInfoBase *i);
 		ModuleInfoBase *mInfo;
 		GenericStruct *mModuleConfig;
 		EntryFilter *mFilter;
-		time_t mLastReload;
+		bool mDirtyConfig;
 };
 
 template <typename _modtype>

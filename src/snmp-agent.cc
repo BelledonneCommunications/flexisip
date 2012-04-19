@@ -24,8 +24,8 @@
 #include "configmanager.hh"
 //#include "flexisipMIB.h"
 
-SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent,GenericManager& cm):mKeepRunning(true),mConfigmanager(cm),mAgent(agent) {
-
+SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent,GenericManager& cm):mConfigmanager(cm),mAgent(agent) {
+	mKeepRunning=true;
 }
 
 
@@ -41,6 +41,7 @@ void SnmpAgent::SnmpAgentTask::operator()() {
 
 	while (mKeepRunning) {
 		agent_check_and_process(1);
+		if (mConfigmanager.mNeedRestart) mKeepRunning=false;
 	}
 	snmp_shutdown("flexisip");
 	SOCK_CLEANUP;

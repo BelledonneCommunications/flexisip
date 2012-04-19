@@ -275,7 +275,7 @@ static void forkAndDetach(const char *pidfile, bool auto_respawn){
 	}
 
 	if (pid==0){
-		while(auto_respawn){		
+		while(1){
 			/*fork a second time for the flexisip real process*/
 			flexisip_pid = fork();
 			if (flexisip_pid < 0){
@@ -291,21 +291,25 @@ static void forkAndDetach(const char *pidfile, bool auto_respawn){
 				}
 				#endif
 			do_wait:
-				int status=0;
-				pid_t retpid=wait(&status);
-				if (retpid>0){
-					if (WIFEXITED(status)){
+			int status=0;
+			pid_t retpid=wait(&status);
+			if (retpid>0){
+				if (WIFEXITED(status)) {
+					if (WEXITSTATUS(status) == RESTART_EXIT_CODE) {
+						LOGI("Flexisip restart to apply new config...");
+					} else {
 						LOGD("Flexisip exited normally");
 						exit(0);
-					}else{
-						LOGE("Flexisip apparently crashed, respawning now...");
-						sleep(1);
-						continue;
 					}
-				}else if (errno!=EINTR){
-					LOGE("waitpid() error: %s",strerror(errno));
-					exit(-1);
-				}else goto do_wait;
+				}else if (auto_respawn){
+					LOGE("Flexisip apparently crashed, respawning now...");
+					sleep(1);
+					continue;
+				}
+			}else if (errno!=EINTR){
+				LOGE("waitpid() error: %s",strerror(errno));
+				exit(-1);
+			}else goto do_wait;
 			}else{
 				/* This is the real flexisip process now.
 				 * We can proceed with real start

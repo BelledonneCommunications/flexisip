@@ -48,10 +48,15 @@
 typedef unsigned long oid;
 #endif
 
+enum class ConfigState {Changed, Reset, Commited};
+class ConfigValue;
 class ConfigValueListener {
+	static bool sDirty;
 public:
 	~ConfigValueListener(){};
-	virtual void onConfigValueChanged(const std::string &key, const std::string &value)=0;
+	void onConfigStateChanged(const ConfigValue &conf, ConfigState state);
+protected:
+	virtual void doOnConfigStateChanged(const ConfigValue &conf, ConfigState state)=0;
 };
 
 enum GenericValueType{
@@ -280,10 +285,10 @@ public:
 #endif
 	virtual void setParent(GenericEntry *parent);
 protected:
-	void invokeConfigValueChanged() {
+	void invokeConfigStateChanged(ConfigState state) {
 		if (getParent() && getParent()->getType() == Struct) {
 			ConfigValueListener *listener = getParent()->getConfigListener();
-			if (listener) listener->onConfigValueChanged(getName(), mValue);
+			 listener->onConfigStateChanged(*this, state);
 		}
 	}
 private:
@@ -364,22 +369,27 @@ private:
 	bool mHaveUnreads;
 };
 
-class GenericManager{
+class GenericManager : protected ConfigValueListener {
 	friend class ConfigArea;
 public:
 	static GenericManager *get();
 	void declareArea(const char *area_name, const char *help, ConfigItemDescriptor *items);
 	int load(const char* configFile);
 	GenericStruct *getRoot();
+	std::string &getConfigFile() { return mConfigFile; }
 	const GenericStruct *getGlobal();
 	void loadStrict();
 	StatCounter64 &findStat(const std::string &key);
 	void addStat(const std::string &key, StatCounter64 &stat);
+	bool mNeedRestart;
+	bool mDirtyConfig;
 private:
 	GenericManager();
+	void doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 	static void atexit(); // Don't call directly!
 	RootConfigStruct mConfigRoot;
 	FileConfigReader mReader;
+	std::string mConfigFile;
 	static GenericManager *sInstance;
 	std::map<std::string,StatCounter64*> mStatMap;
 	std::unordered_set<std::string> mStatOids;
@@ -389,9 +399,12 @@ class FileConfigDumper{
 public:
 	FileConfigDumper(GenericStruct *root){
 		mRoot=root;
+		mDumpDefault=true;
 	}
 	std::ostream &dump(std::ostream & ostr)const;
+	void setDumpDefaultValues(bool value) {mDumpDefault=value;}
 private:
+	bool mDumpDefault;
 	std::ostream & printHelp(std::ostream &os, const std::string &help, const std::string &comment_prefix)const;
 	std::ostream &dump2(std::ostream & ostr, GenericEntry *entry, int level)const;
 	GenericStruct *mRoot;
