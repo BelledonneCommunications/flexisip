@@ -28,12 +28,11 @@
 
 using namespace ::std;
 
-const static char* countCallsStr = "count-calls";
-const static char* countCallsFinishedStr = "count-calls-finished";
-
 class RelayedCall;
 
 class MediaRelay: public Module, protected ModuleToolbox {
+	StatCounter64 *mCountCalls;
+	StatCounter64 *mCountCallsFinished;
 public:
 	typedef enum {
 		DUPLEX, FORWARD
@@ -47,13 +46,14 @@ public:
 	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
 	virtual void onIdle();
 protected:
-	virtual void onDeclare(GenericStruct * module_config) {
+	virtual void onDeclare(GenericStruct * mc) {
 		ConfigItemDescriptor items[] = { { String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay.", "nortpproxy" }, { String, "early-media-rtp-dir", "Set the RTP direction during early media state (duplex, forward)", "duplex" },
 				config_item_end };
-		module_config->addChildrenValues(items);
+		mc->addChildrenValues(items);
 
-		StatItemDescriptor stats[] = { { Counter64, countCallsStr, "Number of calls." }, { Counter64, countCallsFinishedStr, "Number of calls finished." }, stat_item_end };
-		module_config->addChildrenValues(stats);
+		auto p=mc->createStatPair("count-calls", "Number of calls.");
+		mCountCalls=p.first;
+		mCountCallsFinished=p.second;
 	}
 private:
 	bool processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
@@ -295,7 +295,7 @@ MediaRelay::~MediaRelay() {
 
 void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mCalls = new CallStore();
-	mCalls->setCallStatCounters(&findStat(countCallsStr), &findStat(countCallsFinishedStr));
+	mCalls->setCallStatCounters(mCountCalls, mCountCallsFinished);
 	mServer = new MediaRelayServer(mAgent->getBindIp(), mAgent->getPublicIp());
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
 	string rtpdir = modconf->get<ConfigString>("early-media-rtp-dir")->read();

@@ -27,15 +27,15 @@
 
 using namespace ::std;
 
-const static char* sCountBindStr = "count-bind";
-const static char* sCountBindFinishedStr = "count-bind-finished";
-const static char* sCountForksStr = "count-forks";
-const static char* sCountForksFinishedStr = "count-forks-finished";
-const static char* sCountNonForkedStr = "count-non-forked";
-const static char* sCountClearStr = "count-clear";
-const static char* sCountClearFinishedStr = "count-clear-finished";
-
 class Registrar: public Module, public ModuleToolbox {
+	StatCounter64 *mCountBind;
+	StatCounter64 *mCountBindFinished;
+	StatCounter64 *mCountForks;
+	StatCounter64 *mCountForksFinished;
+	StatCounter64 *mCountNonForks;
+	StatCounter64 *mCountClear;
+	StatCounter64 *mCountClearFinished;
+	StatCounter64 *mCountLocalActives;
 public:
 	static void send480KO(Agent *agent, shared_ptr<SipEvent> &ev);
 	static void send200Ok(Agent *agent, shared_ptr<SipEvent> &ev, const sip_contact_t *contacts);
@@ -48,7 +48,7 @@ public:
 	~Registrar() {
 	}
 
-	virtual void onDeclare(GenericStruct *module_config) {
+	virtual void onDeclare(GenericStruct *mc) {
 		ConfigItemDescriptor configs[] = { { StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar.", "localhost" },
 				{ Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "15" },
 				{ String, "line-field-name", "Name of the contact uri parameter used for identifying user's device. ", "line" },
@@ -69,20 +69,22 @@ public:
 				{ Boolean, "fork-one-response", "Only forward one response of forked invite to the caller", "true" },
 				{ Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite", "false" },
 				config_item_end };
-		module_config->addChildrenValues(configs);
+		mc->addChildrenValues(configs);
 
-		StatItemDescriptor stats[] = {
-				{ Counter64, sCountBindStr, "Number of registers." },
-				{ Counter64, sCountBindFinishedStr, "Number of registers finished." },
-				{ Counter64, sCountForksStr, "Number of forks." },
-				{ Counter64, sCountForksFinishedStr, "Number of forks finished." },
-				{ Counter64, sCountNonForkedStr, "Number of non forked." },
-				{ Counter64, sCountClearStr, "Number of cleared registrations." },
-				{ Counter64, sCountClearFinishedStr, "Number of cleared registrations finished." },
-				{ Counter64, "count-local-registered-users", "Number of users currently registered through this server." },
-				stat_item_end };
-		module_config->addChildrenValues(stats);
-		mCountLocalActives = &findStat("count-local-registered-users");
+		auto p=mc->createStatPair("count-clear", "Number of cleared registrations.");
+		mCountClear=p.first;
+		mCountClearFinished=p.second;
+
+		p=mc->createStatPair("count-bind", "Number of registers.");
+		mCountBind=p.first;
+		mCountBindFinished=p.second;
+
+		p=mc->createStatPair("count-forks", "Number of forks");
+		mCountForks=p.first;
+		mCountForksFinished=p.second;
+
+		mCountNonForks=mc->createStat("count-non-forked", "Number of non forked invites.");
+		mCountLocalActives=mc->createStat("count-local-registered-users", "Number of users currently registered through this server.");
 	}
 
 	virtual void onLoad(const GenericStruct *module_config) {
@@ -141,12 +143,13 @@ public:
 	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
 
 private:
-	StatCounter64 *mCountLocalActives;
 	void updateLocalRegExpire(int delay) {
+		time_t now=time(NULL);
 		while(1) {
-			RegistrarDb::get(mAgent)->mLocalRegExpire->removeExpiredBefore(time(NULL));
+			RegistrarDb::get(mAgent)->mLocalRegExpire->removeExpiredBefore(now);
 			mCountLocalActives->set(RegistrarDb::get(mAgent)->mLocalRegExpire->countActives());
 			sleep(delay);
+			now+=delay;
 		}
 	}
 	bool isManagedDomain(const char *domain) {
@@ -266,7 +269,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 		const auto contacts = aor->getExtendedContacts();
 		if (contacts.size() > 0) {
 			if (contacts.size() <= 1 || !fork || ms->getSip()->sip_request->rq_method != sip_method_invite) {
-				++findStat(sCountNonForkedStr);
+				++mCountNonForks;
 				const shared_ptr<ExtendedContact> &ec = contacts.front();
 				sip_contact_t *ct = NULL;
 				if (ec)
@@ -298,7 +301,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 					LOGW("Can't create sip_contact of %s.", ec->mSipUri);
 				}
 			} else {
-				++findStat(sCountForksStr);
+				mCountForks;
 				bool handled = false;
 				shared_ptr<ForkCallContext> context(make_shared<ForkCallContext>(agent));
 				shared_ptr<IncomingTransaction> incoming_transaction = ev->createIncomingTransaction();
@@ -436,16 +439,16 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 				}
 				if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
 					shared_ptr<OnBindListener> listener(make_shared<OnBindListener>(getAgent(), ev));
-					++findStat(sCountClearStr);
+					++mCountClear;
 					LOGD("Clearing bindings");
-					listener->addStatCounter(findStat(sCountClearFinishedStr));
+					listener->addStatCounter(mCountClearFinished);
 					RegistrarDb::get(mAgent)->clear(sip, listener);
 					return;
 				} else {
 					shared_ptr<OnBindListener> listener(make_shared<OnBindListener>(getAgent(), ev));
-					++findStat(sCountBindStr);
+					++mCountBind;
 					LOGD("Updating binding");
-					listener->addStatCounter(findStat(sCountBindFinishedStr));
+					listener->addStatCounter(mCountBindFinished);
 					RegistrarDb::get(mAgent)->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, false, listener);
 					;
 					return;

@@ -157,7 +157,7 @@ public:
 		delete mOdbcAuthScheme;
 	}
 
-	virtual void onDeclare(GenericStruct * module_config){
+	virtual void onDeclare(GenericStruct * mc){
 		ConfigItemDescriptor items[]={
 			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	""	},
 			{	StringList	,	"trusted-hosts"	, 	"List of whitespace separated IP which will not be challenged.",	""	},
@@ -179,22 +179,14 @@ public:
 			{	Boolean		,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed (HA1=MD5(A1)=MD5(username:realm:password)).", "false" },
 			config_item_end
 		};
-		module_config->addChildrenValues(items);
+		mc->addChildrenValues(items);
 		/* modify the default value for "enabled" */
-		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
+		mc->get<ConfigBoolean>("enabled")->setDefault("false");
 
-		StatItemDescriptor stats[] = {
-				{	Counter64,	 "count-password-found", "Number of passwords found."},
-				{	Counter64,	"count-password-not-found", "Number of passwords not found."},
-				{	Counter64,	"count-async-retrieve", "Number of asynchronous retrieves."},
-				{	Counter64,	"count-sync-retrieve", "Number of synchronous retrieves."},
-				stat_item_end };
-		module_config->addChildrenValues(stats);
-		mCountAsyncRetrieve=&findStat("count-async-retrieve");
-		mCountSyncRetrieve=&findStat("count-sync-retrieve");
-		mCountPassFound=&findStat("count-password-found");
-		mCountPassNotFound=&findStat("count-password-not-found");
-
+		mCountAsyncRetrieve=mc->createStat("count-async-retrieve",  "Number of asynchronous retrieves.");
+		mCountSyncRetrieve=mc->createStat("count-sync-retrieve",  "Number of synchronous retrieves.");
+		mCountPassFound=mc->createStat("count-password-found",   "Number of passwords found.");
+		mCountPassNotFound=mc->createStat("count-password-not-found",   "Number of passwords not found.");
 	}
 
 	void onLoad(const GenericStruct * module_config){

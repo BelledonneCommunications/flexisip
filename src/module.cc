@@ -161,11 +161,6 @@ const string &Module::getModuleName() const {
 	return mInfo->getModuleName();
 }
 
-StatCounter64 &Module::findStat(const string &statName) const {
-	return StatCounter64::find("module::"+getModuleName()+"::"+statName);
-}
-
-
 bool ModuleToolbox::sipPortEquals(const char *p1, const char *p2){
 	int n1,n2;
 	n1=n2=5060;

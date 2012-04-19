@@ -209,13 +209,15 @@ _retType &GenericEntriesGetter::find(const std::string &key)const{
 
 
 class ConfigValue;
-
+class StatCounter64;
 class GenericStruct : public GenericEntry{
 public:
 	GenericStruct(const std::string &name, const std::string &help,oid oid_index);
 	GenericEntry * addChild(GenericEntry *c);
+	StatCounter64 *createStat(const std::string &name, const std::string &help);
+	std::pair<StatCounter64 *, StatCounter64 *> createStatPair(const std::string &name, const std::string &help);
 	void addChildrenValues(ConfigItemDescriptor *items);
-	void addChildrenValues(StatItemDescriptor *items);
+	//void addChildrenValues(StatItemDescriptor *items);
 	std::list<GenericEntry*> &getChildren();
 	template <typename _retType>
 	_retType *get(const char *name)const;
@@ -242,9 +244,6 @@ public:
 			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
 #endif
 	void mibFragment(std::ostream & ost, std::string spacing) const;
-	static StatCounter64 &find(const std::string &key) {
-		return GenericEntriesGetter::get().find<StatCounter64>(key);
-	}
 	void setParent(GenericEntry *parent);
 	uint64_t read() { return mValue; }
 	void set(uint64_t val) { mValue=val; }
@@ -261,8 +260,8 @@ private:
 class StatFinishListener {
 	std::unordered_set<StatCounter64*> mStatList;
 public:
-	void addStatCounter(StatCounter64 &stat) {
-		mStatList.insert(&stat);
+	void addStatCounter(StatCounter64 *stat) {
+		mStatList.insert(stat);
 	}
 	~StatFinishListener(){
 		for(auto it=mStatList.begin(); it != mStatList.end(); ++it) {

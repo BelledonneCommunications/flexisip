@@ -292,13 +292,23 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor *items){
 	}
 }
 
+StatCounter64 *GenericStruct::createStat(const string &name, const string &help){
+	oid cOid=Oid::oidFromHashedString(name);
+	StatCounter64 *val=new StatCounter64(name,help,cOid);
+	addChild(val);
+	return val;
+}
+pair<StatCounter64 *, StatCounter64*> GenericStruct::createStatPair(const string &name, const string &help){
+	return make_pair(createStat(name, help), createStat(name+"-finished", help + " Finished."));
+}
+/*
 void GenericStruct::addChildrenValues(StatItemDescriptor *items){
 	for (;items->name!=NULL;items++){
 		GenericEntry *val=NULL;
 		oid cOid=Oid::oidFromHashedString(items->name);
 		switch(items->type){
 		case Counter64:
-			LOGD("StatItemDescriptor: %s %lu", items->name, cOid);
+			//LOGD("StatItemDescriptor: %s %lu", items->name, cOid);
 			val=new StatCounter64(items->name,items->help,cOid);
 			break;
 		default:
@@ -308,7 +318,7 @@ void GenericStruct::addChildrenValues(StatItemDescriptor *items){
 		addChild(val);
 	}
 }
-
+*/
 struct matchEntryName{
 	matchEntryName(const char *name) : mName(name){};
 	bool operator()(GenericEntry* e){
@@ -484,12 +494,6 @@ static ConfigItemDescriptor global_conf[]={
 		config_item_end
 };
 
-static StatItemDescriptor global_stat[]={
-		{	Counter64	,	"count-snmp-request"		,	"Count number of received snmp requests"},
-		{	Counter64	,	"count-snmp-request-error"		,	"Count number of received snmp requests which are errors"},
-		stat_item_end
-};
-
 static ConfigItemDescriptor tls_conf[]={
 		{	Boolean	,	"enabled"	,	"Enable SIP/TLS (sips)",	"true"	},
 		{	Integer	,	"port",	"The port used for SIP/TLS",	"5061"},
@@ -510,7 +514,6 @@ GenericManager::GenericManager() : mConfigRoot("flexisip","This is the default F
 	GenericStruct *global=new GenericStruct("global","Some global settings of the flexisip proxy.",0);
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
-	global->addChildrenValues(global_stat);
 	global->setConfigListener(this);
 	GenericStruct *tls=new GenericStruct("tls","TLS specific parameters.",0);
 	mConfigRoot.addChild(tls);
@@ -734,10 +737,8 @@ int GenericEntry::sHandleSnmpRequest(netsnmp_mib_handler *handler,
 		netsnmp_agent_request_info   *reqinfo,
 		netsnmp_request_info         *requests)
 {
-	++StatCounter64::find("global::count-snmp-request");
 	if (!reginfo->my_reg_void) {
 		LOGE("no reg");
-		++StatCounter64::find("global::count-snmp-request-error");
 		return SNMP_ERR_GENERR;
 	}
 	else {
