@@ -315,7 +315,7 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 	auth_hexmd5_t a1buf, response;
 
 	if (passwd) {
-		++getModule()->mCountPassFound;
+		++*getModule()->mCountPassFound;
 		if (mHashedPass) {
 			strncpy(a1buf, passwd, 33); // remove trailing NULL character
 			a1 = a1buf;
@@ -323,7 +323,7 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 			auth_digest_a1(&mAr, a1buf, passwd), a1 = a1buf;
 		}
 	} else {
-		++getModule()->mCountPassFound;
+		++*getModule()->mCountPassFound;
 		auth_digest_a1(&mAr, a1buf, "xyzzy"), a1 = a1buf;
 	}
 
@@ -491,16 +491,16 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 			// The password couldn't be retrieved synchronously
 			// It will be retrieved asynchronously and the listener
 			// will be called with it.
-			++module->mCountAsyncRetrieve;
+			++*module->mCountAsyncRetrieve;
 			LOGD("authentication PENDING for %s", ar->ar_username);
 			break;
 		case PASSWORD_FOUND:
-			++module->mCountSyncRetrieve;
+			++*module->mCountSyncRetrieve;
 			listener->checkPassword(foundPassword.c_str());
 			listener->sendReply();
 			break;
 		case PASSWORD_NOT_FOUND:
-			++module->mCountSyncRetrieve;
+			++*module->mCountSyncRetrieve;
 			listener->checkPassword(NULL);
 			listener->sendReply();
 			break;

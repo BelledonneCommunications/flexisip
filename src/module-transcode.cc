@@ -78,7 +78,7 @@ public:
 	virtual void onRequest(shared_ptr<SipEvent> &ev);
 	virtual void onResponse(shared_ptr<SipEvent> &ev);
 	virtual void onIdle();
-	virtual void onDeclare(GenericStruct *module_config);
+	virtual void onDeclare(GenericStruct *mc);
 private:
 	TickerManager mTickerManager;
 	int handleOffer(CallContext *c, shared_ptr<SipEvent> &ev);
@@ -164,9 +164,9 @@ TranscodeModule::~TranscodeModule() {
 	ms_list_free(mSupportedAudioPayloads);
 }
 
-void TranscodeModule::onDeclare(GenericStruct *module_config) {
+void TranscodeModule::onDeclare(GenericStruct *mc) {
 	/*we need to be disabled by default*/
-	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
+	mc->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[]={
 		{	Integer		,	"jb-nom-size"	,	"Nominal size of RTP jitter buffer, in milliseconds. A value of 0 means no jitter buffer (packet processing).",
 												"0" },
@@ -177,7 +177,10 @@ void TranscodeModule::onDeclare(GenericStruct *module_config) {
 			"The purpose of this option is to limit bandwidth usage and server load on reliable networks.","false" },
 			config_item_end
 	};
-	module_config->addChildrenValues(items);
+	mc->addChildrenValues(items);
+
+	auto p=mc->createStatPair("count-calls", "Number of transcoded calls.");
+	mCalls.setCallStatCounters(p.first, p.second);
 }
 
 MSList *TranscodeModule::orderList(const list<string> &config, const MSList *l) {

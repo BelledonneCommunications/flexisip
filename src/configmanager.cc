@@ -511,10 +511,12 @@ static oid company_id = SNMP_COMPANY_OID;
 GenericManager::GenericManager() : mConfigRoot("flexisip","This is the default Flexisip configuration file",{1,3,6,1,4,1,company_id}), mReader(&mConfigRoot){
 	mNeedRestart=false;
 	mDirtyConfig=false;
+
 	GenericStruct *global=new GenericStruct("global","Some global settings of the flexisip proxy.",0);
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
 	global->setConfigListener(this);
+
 	GenericStruct *tls=new GenericStruct("tls","TLS specific parameters.",0);
 	mConfigRoot.addChild(tls);
 	tls->addChildrenValues(tls_conf);

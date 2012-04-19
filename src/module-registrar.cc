@@ -269,7 +269,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 		const auto contacts = aor->getExtendedContacts();
 		if (contacts.size() > 0) {
 			if (contacts.size() <= 1 || !fork || ms->getSip()->sip_request->rq_method != sip_method_invite) {
-				++mCountNonForks;
+				++*mCountNonForks;
 				const shared_ptr<ExtendedContact> &ec = contacts.front();
 				sip_contact_t *ct = NULL;
 				if (ec)
@@ -301,7 +301,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 					LOGW("Can't create sip_contact of %s.", ec->mSipUri);
 				}
 			} else {
-				++mCountForks;
+				++*mCountForks;
 				bool handled = false;
 				shared_ptr<ForkCallContext> context(make_shared<ForkCallContext>(agent));
 				shared_ptr<IncomingTransaction> incoming_transaction = ev->createIncomingTransaction();
@@ -439,14 +439,14 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 				}
 				if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
 					shared_ptr<OnBindListener> listener(make_shared<OnBindListener>(getAgent(), ev));
-					++mCountClear;
+					++*mCountClear;
 					LOGD("Clearing bindings");
 					listener->addStatCounter(mCountClearFinished);
 					RegistrarDb::get(mAgent)->clear(sip, listener);
 					return;
 				} else {
 					shared_ptr<OnBindListener> listener(make_shared<OnBindListener>(getAgent(), ev));
-					++mCountBind;
+					++*mCountBind;
 					LOGD("Updating binding");
 					listener->addStatCounter(mCountBindFinished);
 					RegistrarDb::get(mAgent)->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, false, listener);

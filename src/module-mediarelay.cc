@@ -51,7 +51,7 @@ protected:
 				config_item_end };
 		mc->addChildrenValues(items);
 
-		auto p=mc->createStatPair("count-calls", "Number of calls.");
+		auto p=mc->createStatPair("count-calls", "Number of relayed calls.");
 		mCountCalls=p.first;
 		mCountCallsFinished=p.second;
 	}
