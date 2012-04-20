@@ -43,7 +43,8 @@ class SdpModifier{
 		void replacePayloads(const MSList *payloads, const MSList *preserved_numbers);
 		void getAudioIpPort(std::string *ip, int *port);
 		void changeAudioIpPort(const char *ip, int port);
-		void iterate(std::function<void(int, std::string *, int *)>);
+		void iterate(std::function<void(int, const std::string &, int)>);
+		void translate(std::function<void(int, std::string *, int *)>);
 		void addAttribute(const char *name, const char *value);
 		bool hasAttribute(const char *name);
 		void update(msg_t *msg, sip_t *sip);
@@ -51,11 +52,11 @@ class SdpModifier{
 		virtual ~SdpModifier();
 		SdpModifier(su_home_t *home);
 		static MSList *findCommon(const MSList *offer, const MSList *answer, bool use_offer_numbering);
+		sdp_session_t *mSession;
 	private:
 		sdp_parser_t *mParser;
 		sip_t *mSip;
 		su_home_t *mHome;
-		sdp_session_t *mSession;
 };
 
 #endif // _SDP_MODIFIER_HH_

@@ -258,8 +258,22 @@ void SdpModifier::changeAudioIpPort(const char *ip, int port){
 			:mSession->sdp_connection->c_address=su_strdup(mHome,ip);
 	mSession->sdp_media->m_port=port;
 }
+void SdpModifier::iterate(function<void(int, const string &, int )> fct){
+	sdp_media_t *mline=mSession->sdp_media;
+	int i;
+	string global_c_address;
 
-void SdpModifier::iterate(function<void(int, string *, int *)> fct){
+	if (mSession->sdp_connection && mSession->sdp_connection->c_address) global_c_address=mSession->sdp_connection->c_address;
+
+	for(i=0;mline!=NULL;mline=mline->m_next,++i){
+		string ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
+		int port=mline->m_port;
+
+		fct(i, ip, port);
+	}
+}
+
+void SdpModifier::translate(function<void(int, string *, int *)> fct){
 	sdp_media_t *mline=mSession->sdp_media;
 	int i;
 	string global_c_address;
