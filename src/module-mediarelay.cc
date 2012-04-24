@@ -492,7 +492,6 @@ void MediaRelay::onRequest(shared_ptr<SipEvent> &ev) {
 }
 void MediaRelay::processOtherforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
 	sip_t *sip = msgSip->getSip();
-	msg_t *msg = msgSip->getMsg();
 	LOGD("Processing Other");
 	if (sip->sip_to == NULL || sip->sip_to->a_tag == NULL) {
 		LOGW("No tag in answer");
