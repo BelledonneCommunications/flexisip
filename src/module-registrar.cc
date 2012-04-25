@@ -20,7 +20,6 @@
 #include "agent.hh"
 #include "registrardb.hh"
 #include "forkcallcontext.hh"
-#include <thread>
 
 #include <sofia-sip/sip_status.h>
 #include <fstream>
@@ -97,8 +96,6 @@ public:
 		static_route_file = module_config->get<ConfigString>("static-records-file")->read();
 		if (!static_route_file.empty())
 			readStaticRecord(static_route_file);
-		thread t=thread(bind(&Registrar::updateLocalRegExpire, this, 1));
-		t.detach();	// Thread will continue running in detached mode
 	}
 
 	// Delta from expires header, normalized with custom rules.
@@ -142,15 +139,13 @@ public:
 
 	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
 
+	void idle() { updateLocalRegExpire(); }
+
 private:
-	void updateLocalRegExpire(int delay) {
-		time_t now=time(NULL);
-		while(1) {
-			RegistrarDb::get(mAgent)->mLocalRegExpire->removeExpiredBefore(now);
-			mCountLocalActives->set(RegistrarDb::get(mAgent)->mLocalRegExpire->countActives());
-			sleep(delay);
-			now+=delay;
-		}
+	void updateLocalRegExpire() {
+		RegistrarDb *db=RegistrarDb::get(mAgent);
+		db->mLocalRegExpire->removeExpiredBefore(time(NULL));
+		mCountLocalActives->set(db->mLocalRegExpire->countActives());
 	}
 	bool isManagedDomain(const char *domain) {
 		return ModuleToolbox::matchesOneOf(domain, mDomains);
