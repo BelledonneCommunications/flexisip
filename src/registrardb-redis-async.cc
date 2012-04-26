@@ -36,6 +36,7 @@
 using namespace::std;
 
 #define ERROR data->listener->onError(); delete data; return;
+#define chk_redis_err(cmd)  if (REDIS_ERR == (cmd)) { LOGD("Redis error") ; ERROR }
 
 string RegistrarDbRedisAsync::sDomain="";
 int RegistrarDbRedisAsync::sPort=0;
@@ -63,6 +64,8 @@ RegistrarDbRedisAsync::~RegistrarDbRedisAsync(){
 void RegistrarDbRedisAsync::connectCallback(const redisAsyncContext *c, int status) {
     if (status != REDIS_OK) {
         LOGE("Couldn't connect to redis: %s", c->errstr);
+        RegistrarDbRedisAsync *zis=(RegistrarDbRedisAsync *) c->data;
+        zis->mContext=NULL;
         return;
     }
     LOGD("Connected... %p", c);
@@ -246,7 +249,7 @@ void RegistrarDbRedisAsync::handleClear(redisReply *reply, RegistrarUserData *da
         }
     }
 
-	redisAsyncCommand(mContext, sHandleSet, data,"DEL aor:%s",data->key);
+    chk_redis_err(redisAsyncCommand(mContext, sHandleSet, data,"DEL aor:%s",data->key));
 }
 
 
@@ -273,10 +276,10 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 	string serialized;
 	mSerializer->serialize(&data->record, serialized);
 	LOGD("Sending updated aor:%s [%lu] --> %u bytes", data->key,data->token,(unsigned)serialized.length());
-	redisAsyncCommand(mContext, sHandleSet, data,"SET aor:%s %b",data->key, serialized.data(), serialized.length());
+	chk_redis_err(redisAsyncCommand(mContext, sHandleSet, data,"SET aor:%s %b",data->key, serialized.data(), serialized.length()));
 
 	time_t expireat=data->record.latestExpire();
-	redisAsyncCommand(data->self->mContext, NULL, NULL,"EXPIREAT aor:%s %lu",data->key, expireat);
+	chk_redis_err(redisAsyncCommand(data->self->mContext, NULL, NULL,"EXPIREAT aor:%s %lu",data->key, expireat));
 }
 
 
@@ -293,7 +296,7 @@ void RegistrarDbRedisAsync::doBind(const url_t* url, const sip_contact_t *sip_co
 	}
 
 	LOGD("Binding aor:%s [%lu]", data->key, data->token);
-	redisAsyncCommand(mContext, sHandleAorGetReply,data,"GET aor:%s",data->key);      
+	chk_redis_err(redisAsyncCommand(mContext, sHandleAorGetReply,data,"GET aor:%s",data->key));
 }
 
 void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<RegistrarDbListener> &listener){
@@ -304,7 +307,7 @@ void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<Registrar
 	}
 	LOGD("Clearing aor:%s [%lu]", data->key, data->token);
 	mLocalRegExpire->remove(data->key);
-	redisAsyncCommand(mContext, sHandleAorGetReply,data,"GET aor:%s",data->key);
+	chk_redis_err(redisAsyncCommand(mContext, sHandleAorGetReply,data,"GET aor:%s",data->key));
 }
 
 
@@ -317,5 +320,5 @@ void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<Registrar
 		ERROR
 	}
 	LOGD("Fetching aor:%s [%lu]", data->key, data->token);
-	redisAsyncCommand(mContext, sHandleAorGetReply,data,"GET aor:%s",data->key);
+	chk_redis_err(redisAsyncCommand(mContext, sHandleAorGetReply,data,"GET aor:%s",data->key));
 }
