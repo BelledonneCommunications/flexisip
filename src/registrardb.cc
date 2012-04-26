@@ -160,7 +160,7 @@ time_t Record::latestExpire() const {
 time_t Record::latestExpire(const std::string &route) const {
 	time_t latest=0;
 	for (auto it=mContacts.begin(); it != mContacts.end(); ++it) {
-		if ((*it)->mExpireAt > latest && 0 == strcmp((*it)->mRoute, route.c_str()))
+		if ((*it)->mRoute && (*it)->mExpireAt > latest && 0 == strcmp((*it)->mRoute, route.c_str()))
 			latest=(*it)->mExpireAt;
 	}
 	return latest;
