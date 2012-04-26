@@ -138,7 +138,7 @@ RelaySession::RelaySession(const string &bind_ip, const string & public_ip) :
 
 shared_ptr<MediaSource> RelaySession::addFront() {
 	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this, true);
-	LOGD("MediaSource %p | Add | %s:%i <-> %i", this, ms->getIp().c_str(), ms->getPort(), ms->getRelayPort());
+	LOGD("MediaSource %p | Add | %s:%i <-> %i", ms.get(), ms->getIp().c_str(), ms->getPort(), ms->getRelayPort());
 	mMutex.lock();
 	mFronts.push_back(ms);
 	mMutex.unlock();
@@ -147,7 +147,7 @@ shared_ptr<MediaSource> RelaySession::addFront() {
 }
 
 void RelaySession::removeFront(const shared_ptr<MediaSource> &ms) {
-	LOGD("MediaSource %p | Remove |  %s:%i <-> %i", this, ms->getIp().c_str(), ms->getPort(), ms->getRelayPort());
+	LOGD("MediaSource %p | Remove |  %s:%i <-> %i", ms.get(), ms->getIp().c_str(), ms->getPort(), ms->getRelayPort());
 	mMutex.lock();
 	mFronts.remove(ms);
 	mMutex.unlock();
@@ -155,7 +155,7 @@ void RelaySession::removeFront(const shared_ptr<MediaSource> &ms) {
 
 shared_ptr<MediaSource> RelaySession::addBack() {
 	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this, false);
-	LOGD("MediaSource %p | Add | %i <-> %s:%i", this, ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
+	LOGD("MediaSource %p | Add | %i <-> %s:%i", ms.get(), ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
 	mMutex.lock();
 	mBacks.push_back(ms);
 	mMutex.unlock();
@@ -164,7 +164,7 @@ shared_ptr<MediaSource> RelaySession::addBack() {
 }
 
 void RelaySession::removeBack(const shared_ptr<MediaSource> &ms) {
-	LOGD("MediaSource %p | Remove | %i <-> %s:%i", this, ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
+	LOGD("MediaSource %p | Remove | %i <-> %s:%i", ms.get(), ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
 	mMutex.lock();
 	mBacks.remove(ms);
 	mMutex.unlock();
