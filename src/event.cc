@@ -22,12 +22,14 @@
 #include "common.hh"
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/su_tagarg.h>
+#include <sofia-sip/msg_addr.h>
 
 using namespace ::std;
 
 MsgSip::MsgSip(msg_t *msg, sip_t *sip) {
 	//LOGD("New MsgSip %p", this);
 	mMsg = msg_copy(msg);
+	msg_addr_copy(mMsg,msg);
 	mSip = sip_object(mMsg);
 	mHome = msg_home(mMsg);
 }
@@ -35,6 +37,7 @@ MsgSip::MsgSip(msg_t *msg, sip_t *sip) {
 MsgSip::MsgSip(const MsgSip &msgSip) {
 	//LOGD("New MsgSip %p", this);
 	mMsg = msg_copy(msgSip.mMsg);
+	msg_addr_copy(mMsg,msgSip.mMsg);
 	mSip = sip_object(mMsg);
 	mHome = msg_home(mMsg);
 }
