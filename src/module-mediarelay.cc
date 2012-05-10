@@ -47,7 +47,11 @@ public:
 	virtual void onIdle();
 protected:
 	virtual void onDeclare(GenericStruct * mc) {
-		ConfigItemDescriptor items[] = { { String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay.", "nortpproxy" }, { String, "early-media-rtp-dir", "Set the RTP direction during early media state (duplex, forward)", "duplex" },
+		ConfigItemDescriptor items[] = {
+				{ String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay.", "nortpproxy" },
+				{ String, "early-media-rtp-dir", "Set the RTP direction during early media state (duplex, forward)", "duplex" },
+				{ Integer, "sdp-port-range-min", "The minimal value of SDP port range", "1024" },
+				{ Integer, "sdp-port-range-max", "The maximal value of SDP port range", "65535" },
 				config_item_end };
 		mc->addChildrenValues(items);
 

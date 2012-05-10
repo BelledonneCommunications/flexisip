@@ -28,8 +28,7 @@ using namespace ::std;
 
 MediaSource::MediaSource(RelaySession * relaySession, bool front) :
 		mFront(front), mBehaviour(BehaviourType::All), mIp("undefined"), mPort(-1), mRelaySession(relaySession) {
-	mSession = rtp_session_new(RTP_SESSION_SENDRECV);
-	rtp_session_set_local_addr(mSession, relaySession->getBindIp().c_str(), -1);
+	mSession = mRelaySession->getRelayServer()->createRtpSession();
 	mSources[0] = rtp_session_get_rtp_socket(mSession);
 	mSources[1] = rtp_session_get_rtcp_socket(mSession);
 }
@@ -130,8 +129,8 @@ int MediaSource::send(int i, uint8_t *buf, size_t buflen) {
 
 }
 
-RelaySession::RelaySession(const string &bind_ip, const string & public_ip) :
-		mBindIp(bind_ip), mPublicIp(public_ip) {
+RelaySession::RelaySession(MediaRelayServer *server) :
+		mServer(server) {
 	mLastActivityTime = time(NULL);
 	mUsed = true;
 }
@@ -218,9 +217,29 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<MediaSource> &org, 
 MediaRelayServer::MediaRelayServer(const string &bind_ip, const string &public_ip) :
 		mBindIp(bind_ip), mPublicIp(public_ip) {
 	mRunning = false;
+
+	GenericStruct *cr = GenericManager::get()->getRoot();
+	GenericStruct *ma = cr->get<GenericStruct>("module::MediaRelay");
+	mMinPort = ma->get<ConfigInt>("sdp-port-range-min")->read();
+	mMaxPort = ma->get<ConfigInt>("sdp-port-range-max")->read();
+
 	if (pipe(mCtlPipe) == -1) {
 		LOGF("Could not create MediaRelayServer control pipe.");
 	}
+}
+
+RtpSession *MediaRelayServer::createRtpSession() {
+	RtpSession *session = rtp_session_new(RTP_SESSION_SENDRECV);
+	for (int i = 0; i < 100; ++i) {
+		int port = ((rand() % (mMaxPort - mMinPort)) + mMinPort) & 0xfffe;
+
+		if(rtp_session_set_local_addr(session, mBindIp.c_str(), port) == 0) {
+			return session;
+		}
+	}
+
+	LOGW("Could not find a random port for %s !", mBindIp.c_str());
+	return session;
 }
 
 void MediaRelayServer::start() {
@@ -241,7 +260,7 @@ MediaRelayServer::~MediaRelayServer() {
 }
 
 RelaySession *MediaRelayServer::createSession() {
-	RelaySession *s = new RelaySession(mBindIp, mPublicIp);
+	RelaySession *s = new RelaySession(this);
 	int count;
 	mMutex.lock();
 	mSessions.push_back(s);
@@ -275,7 +294,7 @@ void MediaRelayServer::run() {
 		pfds_size = 1;
 		for (auto it = mSessions.begin(); it != mSessions.end(); ++it) {
 			RelaySession *ptr = *it;
-			ptr->mMutex.lock();
+			ptr->getMutex().lock();
 
 			const list<shared_ptr<MediaSource>>& fronts = ptr->getFronts();
 			for (auto it2 = fronts.begin(); it2 != fronts.end(); ++it2) {
@@ -288,7 +307,7 @@ void MediaRelayServer::run() {
 			}
 
 			pfds_size += (fronts.size() + backs.size()) * 2;
-			ptr->mMutex.unlock();
+			ptr->getMutex().unlock();
 		}
 		mMutex.unlock();
 

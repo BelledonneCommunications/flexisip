@@ -92,22 +92,57 @@ private:
 	RelaySession *mRelaySession;
 };
 
-class RelaySession {
-	friend class MediaRelayServer;
+class RelaySession;
+
+class MediaRelayServer {
 public:
-
-	RelaySession(const std::string &bind_ip, const std::string & public_ip);
-	~RelaySession();
-
-	void fillPollFd(struct pollfd *tab);
-	void transfer(time_t current, const std::shared_ptr<MediaSource> &org, int i);
-	void unuse();
+	MediaRelayServer(const std::string &bind_ip, const std::string &public_ip);
+	~MediaRelayServer();
+	RelaySession *createSession();
+	void update();
 	const std::string & getPublicIp() const {
 		return mPublicIp;
 	}
 
 	const std::string & getBindIp() const {
 		return mBindIp;
+	}
+
+	RtpSession *createRtpSession();
+private:
+	void start();
+	void run();
+	static void *threadFunc(void *arg);
+	Mutex mMutex;
+	std::list<RelaySession*> mSessions;
+	std::string mBindIp;
+	std::string mPublicIp;
+	int mMinPort;
+	int mMaxPort;
+
+	pthread_t mThread;
+	int mCtlPipe[2];
+	bool mRunning;
+
+	friend class MediaSource;
+	//int ,
+};
+
+class RelaySession {
+public:
+
+	RelaySession(MediaRelayServer *server);
+	~RelaySession();
+
+	void fillPollFd(struct pollfd *tab);
+	void transfer(time_t current, const std::shared_ptr<MediaSource> &org, int i);
+	void unuse();
+	const std::string & getPublicIp() const {
+		return mServer->getPublicIp();
+	}
+
+	const std::string & getBindIp() const {
+		return mServer->getBindIp();
 	}
 
 	const std::list<std::shared_ptr<MediaSource>>& getFronts() {
@@ -132,34 +167,21 @@ public:
 	std::shared_ptr<MediaSource> addBack();
 	void removeBack(const std::shared_ptr<MediaSource> &ms);
 
+	Mutex &getMutex() {
+		return mMutex;
+	}
+
+	MediaRelayServer *getRelayServer() {
+		return mServer;
+	}
+
 private:
 	Mutex mMutex;
-	const std::string mBindIp;
-	const std::string mPublicIp;
+	MediaRelayServer *mServer;
 	time_t mLastActivityTime;
 	bool_t mUsed;
 	std::list<std::shared_ptr<MediaSource>> mFronts;
 	std::list<std::shared_ptr<MediaSource>> mBacks;
-};
-
-class MediaRelayServer {
-public:
-	MediaRelayServer(const std::string &bind_ip, const std::string &public_ip);
-	~MediaRelayServer();
-	RelaySession *createSession();
-	void update();
-
-private:
-	void start();
-	void run();
-	static void *threadFunc(void *arg);
-	Mutex mMutex;
-	std::list<RelaySession*> mSessions;
-	std::string mBindIp;
-	std::string mPublicIp;
-	pthread_t mThread;
-	int mCtlPipe[2];
-	bool mRunning;
 };
 
 #endif
