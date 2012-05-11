@@ -43,7 +43,6 @@ private:
 	su_home_t mHome;
 	sip_route_t *mOutRoute;
 	bool mRewriteReqUri;
-	string mPreferredRoute;
 	static ModuleInfo<ForwardModule> sInfo;
 };
 
@@ -74,9 +73,6 @@ void ForwardModule::onLoad(const GenericStruct *module_config) {
 			LOGF("Bad route parameter '%s' in configuration of Forward module", route.c_str());
 		}
 	}
-	stringstream ss;
-	ss << mAgent->getPublicIp() << ":" << mAgent->getPort();
-	mPreferredRoute = ss.str();
 }
 
 url_t* ForwardModule::overrideDest(shared_ptr<SipEvent> &ev, url_t *dest) {
@@ -168,7 +164,7 @@ void ForwardModule::onRequest(shared_ptr<SipEvent> &ev) {
 	}
 
 	// Compute branch, output branch=XXXXX
-	char const * branchStr = compute_branch(getSofiaAgent(), msg, sip, mPreferredRoute.c_str());
+	char const * branchStr = compute_branch(getSofiaAgent(), msg, sip, mAgent->getUniqueId().c_str());
 
 	// Check looping
 	if (isLooping(ev, branchStr + 7)) {

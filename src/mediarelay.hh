@@ -24,9 +24,86 @@
 
 class RelaySession;
 
+class MediaRelayServer {
+public:
+	MediaRelayServer(Agent *agent);
+	~MediaRelayServer();
+	RelaySession *createSession();
+	void update();
+	Agent *getAgent();
+	RtpSession *createRtpSession();
+private:
+	void start();
+	void run();
+	static void *threadFunc(void *arg);
+	Mutex mMutex;
+	std::list<RelaySession*> mSessions;
+	Agent *mAgent;
+	int mMinPort;
+	int mMaxPort;
+
+	pthread_t mThread;
+	int mCtlPipe[2];
+	bool mRunning;
+
+	friend class MediaSource;
+	//int ,
+};
+
+class MediaSource;
+
+class RelaySession {
+public:
+
+	RelaySession(MediaRelayServer *server);
+	~RelaySession();
+
+	void fillPollFd(struct pollfd *tab);
+	void transfer(time_t current, const std::shared_ptr<MediaSource> &org, int i);
+	void unuse();
+
+	const std::list<std::shared_ptr<MediaSource>>& getFronts() {
+		return mFronts;
+	}
+
+	const std::list<std::shared_ptr<MediaSource>>& getBacks() {
+		return mBacks;
+	}
+
+	bool isUsed() const {
+		return mUsed;
+	}
+
+	time_t getLastActivityTime() const {
+		return mLastActivityTime;
+	}
+
+	std::shared_ptr<MediaSource> addFront(const std::string &default_ip = std::string("undefined"));
+	void removeFront(const std::shared_ptr<MediaSource> &ms);
+
+	std::shared_ptr<MediaSource> addBack(const std::string &default_ip = std::string("undefined"));
+	void removeBack(const std::shared_ptr<MediaSource> &ms);
+
+	Mutex &getMutex() {
+		return mMutex;
+	}
+
+	MediaRelayServer *getRelayServer() {
+		return mServer;
+	}
+
+private:
+	Mutex mMutex;
+	MediaRelayServer *mServer;
+	time_t mLastActivityTime;
+	bool_t mUsed;
+	std::list<std::shared_ptr<MediaSource>> mFronts;
+	std::list<std::shared_ptr<MediaSource>> mBacks;
+};
+
 class MediaSource {
 public:
-	MediaSource(RelaySession * relaySession, bool front);
+	MediaSource(RelaySession * relaySession, bool front, const std::string &default_ip = std::string("undefined"));
 	~MediaSource();
 
 	typedef enum {
@@ -40,6 +117,10 @@ public:
 
 	const std::string &getIp() const {
 		return mIp;
+	}
+
+	const std::string getPublicIp() const {
+		return mRelaySession->getRelayServer()->getAgent()->getPreferredIp(mIp);
 	}
 
 	int getPort() const {
@@ -90,98 +171,6 @@ private:
 	struct sockaddr_storage mSockAddr[2];
 	socklen_t mSockAddrSize[2];
 	RelaySession *mRelaySession;
-};
-
-class RelaySession;
-
-class MediaRelayServer {
-public:
-	MediaRelayServer(const std::string &bind_ip, const std::string &public_ip);
-	~MediaRelayServer();
-	RelaySession *createSession();
-	void update();
-	const std::string & getPublicIp() const {
-		return mPublicIp;
-	}
-
-	const std::string & getBindIp() const {
-		return mBindIp;
-	}
-
-	RtpSession *createRtpSession();
-private:
-	void start();
-	void run();
-	static void *threadFunc(void *arg);
-	Mutex mMutex;
-	std::list<RelaySession*> mSessions;
-	std::string mBindIp;
-	std::string mPublicIp;
-	int mMinPort;
-	int mMaxPort;
-
-	pthread_t mThread;
-	int mCtlPipe[2];
-	bool mRunning;
-
-	friend class MediaSource;
-	//int ,
-};
-
-class RelaySession {
-public:
-
-	RelaySession(MediaRelayServer *server);
-	~RelaySession();
-
-	void fillPollFd(struct pollfd *tab);
-	void transfer(time_t current, const std::shared_ptr<MediaSource> &org, int i);
-	void unuse();
-	const std::string & getPublicIp() const {
-		return mServer->getPublicIp();
-	}
-
-	const std::string & getBindIp() const {
-		return mServer->getBindIp();
-	}
-
-	const std::list<std::shared_ptr<MediaSource>>& getFronts() {
-		return mFronts;
-	}
-
-	const std::list<std::shared_ptr<MediaSource>>& getBacks() {
-		return mBacks;
-	}
-
-	bool isUsed() const {
-		return mUsed;
-	}
-
-	time_t getLastActivityTime() const {
-		return mLastActivityTime;
-	}
-
-	std::shared_ptr<MediaSource> addFront();
-	void removeFront(const std::shared_ptr<MediaSource> &ms);
-
-	std::shared_ptr<MediaSource> addBack();
-	void removeBack(const std::shared_ptr<MediaSource> &ms);
-
-	Mutex &getMutex() {
-		return mMutex;
-	}
-
-	MediaRelayServer *getRelayServer() {
-		return mServer;
-	}
-
-private:
-	Mutex mMutex;
-	MediaRelayServer *mServer;
-	time_t mLastActivityTime;
-	bool_t mUsed;
-	std::list<std::shared_ptr<MediaSource>> mFronts;
-	std::list<std::shared_ptr<MediaSource>> mBacks;
 };
 
 #endif

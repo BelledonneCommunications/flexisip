@@ -26,8 +26,8 @@
 
 using namespace ::std;
 
-MediaSource::MediaSource(RelaySession * relaySession, bool front) :
-		mFront(front), mBehaviour(BehaviourType::All), mIp("undefined"), mPort(-1), mRelaySession(relaySession) {
+MediaSource::MediaSource(RelaySession * relaySession, bool front, const string &default_ip) :
+		mFront(front), mBehaviour(BehaviourType::All), mIp(default_ip), mPort(-1), mRelaySession(relaySession) {
 	mSession = mRelaySession->getRelayServer()->createRtpSession();
 	mSources[0] = rtp_session_get_rtp_socket(mSession);
 	mSources[1] = rtp_session_get_rtcp_socket(mSession);
@@ -135,8 +135,8 @@ RelaySession::RelaySession(MediaRelayServer *server) :
 	mUsed = true;
 }
 
-shared_ptr<MediaSource> RelaySession::addFront() {
-	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this, true);
+shared_ptr<MediaSource> RelaySession::addFront(const string &default_ip) {
+	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this, true, default_ip);
 	LOGD("MediaSource %p | Add | %s:%i <-> %i", ms.get(), ms->getIp().c_str(), ms->getPort(), ms->getRelayPort());
 	mMutex.lock();
 	mFronts.push_back(ms);
@@ -152,8 +152,8 @@ void RelaySession::removeFront(const shared_ptr<MediaSource> &ms) {
 	mMutex.unlock();
 }
 
-shared_ptr<MediaSource> RelaySession::addBack() {
-	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this, false);
+shared_ptr<MediaSource> RelaySession::addBack(const string &default_ip) {
+	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this, false, default_ip);
 	LOGD("MediaSource %p | Add | %i <-> %s:%i", ms.get(), ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
 	mMutex.lock();
 	mBacks.push_back(ms);
@@ -214,8 +214,8 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<MediaSource> &org, 
 	}
 }
 
-MediaRelayServer::MediaRelayServer(const string &bind_ip, const string &public_ip) :
-		mBindIp(bind_ip), mPublicIp(public_ip) {
+MediaRelayServer::MediaRelayServer(Agent *agent) :
+		mAgent(agent) {
 	mRunning = false;
 
 	GenericStruct *cr = GenericManager::get()->getRoot();
@@ -227,18 +227,20 @@ MediaRelayServer::MediaRelayServer(const string &bind_ip, const string &public_i
 		LOGF("Could not create MediaRelayServer control pipe.");
 	}
 }
-
+Agent *MediaRelayServer::getAgent() {
+	return mAgent;
+}
 RtpSession *MediaRelayServer::createRtpSession() {
 	RtpSession *session = rtp_session_new(RTP_SESSION_SENDRECV);
 	for (int i = 0; i < 100; ++i) {
 		int port = ((rand() % (mMaxPort - mMinPort)) + mMinPort) & 0xfffe;
 
-		if(rtp_session_set_local_addr(session, mBindIp.c_str(), port) == 0) {
+		if (rtp_session_set_local_addr(session, mAgent->getBindIp().c_str(), port) == 0) {
 			return session;
 		}
 	}
 
-	LOGW("Could not find a random port for %s !", mBindIp.c_str());
+	LOGW("Could not find a random port for %s !", mAgent->getBindIp().c_str());
 	return session;
 }
 

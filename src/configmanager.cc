@@ -485,11 +485,14 @@ GenericManager *GenericManager::get(){
 }
 
 static ConfigItemDescriptor global_conf[]={
-		{	Boolean	,	"debug"	,	"Outputs very detailed logs",	"false"	},
-		{	Boolean	,	"auto-respawn",	"Automatically respawn flexisip in case of abnormal termination (crashes)",	"true"},
-		{	StringList	,	"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost"},
-		{	String	,	"ip-address",	"The public ip address of the proxy.",	"guess"},
-		{	String	,	"bind-address",	"The local interface's ip address where to listen. The wildcard (*) means all interfaces.",	"*"},
+		{	Boolean	,	"debug"	        ,	"Outputs very detailed logs",	"false"	},
+		{	Boolean	,	"auto-respawn"  ,	"Automatically respawn flexisip in case of abnormal termination (crashes)",	"true"},
+		{	StringList	,"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost"},
+		{	String	,	"ip-address"	,	"The public ip of the proxy.(DEPRECATED use public-address)",		""},
+		{	String	,	"public-address",	"The public address of the proxy.",	"guess"},
+		{	Boolean	,	"dynamic-address",	"Enable updating of the ip associated with public address",	"false"},
+		{	Boolean	,	"adaptive-address",	"Try to use the more suitable public address",	"false"},
+		{	String	,	"bind-address"  ,	"The local interface's address where to listen. The wildcard (*) means all interfaces.",	"*"},
 		{	Integer	,	"port"		,	"UDP/TCP port number to listen for sip messages.",	"5060"},
 		config_item_end
 };

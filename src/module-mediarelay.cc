@@ -95,7 +95,7 @@ public:
 	}
 
 	/*this function is called to masquerade the SDP, for each mline*/
-	void setMedia(SdpModifier *m, const string &tag, const shared_ptr<Transaction> &transaction) {
+	void setMedia(SdpModifier *m, const string &tag, const shared_ptr<Transaction> &transaction, const string &frontIp, const string&backIp) {
 		sdp_media_t *mline = m->mSession->sdp_media;
 		int i = 0;
 		for (i = 0; mline != NULL && i < sMaxSessions; mline = mline->m_next, ++i) {
@@ -111,17 +111,17 @@ public:
 			if (s == NULL) {
 				s = mServer->createSession();
 				mSessions[i].mRelaySession = s;
-				s->addFront();
+				s->addFront(frontIp);
 			}
 			if (!tag.empty()) {
 				if (mSessions[i].mMediaSources.find(tag) == mSessions[i].mMediaSources.end()) {
-					shared_ptr<MediaSource> ms = s->addBack();
+					shared_ptr<MediaSource> ms = s->addBack(backIp);
 					ms->setBehaviour(MediaSource::Receive);
 					mSessions[i].mMediaSources.insert(pair<string, shared_ptr<MediaSource>>(tag, ms));
 				}
 			} else {
 				if (mSessions[i].mTransactions.find(transaction) == mSessions[i].mTransactions.end()) {
-					shared_ptr<MediaSource> ms = s->addBack();
+					shared_ptr<MediaSource> ms = s->addBack(backIp);
 					ms->setBehaviour(MediaSource::Receive);
 					mSessions[i].mTransactions.insert(pair<shared_ptr<Transaction>, shared_ptr<MediaSource>>(transaction, ms));
 				}
@@ -155,7 +155,7 @@ public:
 		RelaySession *s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
 			*port = s->getFronts().front()->getRelayPort();
-			*ip = s->getPublicIp();
+			*ip = s->getFronts().front()->getPublicIp();
 		}
 	}
 
@@ -183,10 +183,12 @@ public:
 			auto ms = getMS(mline, tag, transaction);
 			if (ms != NULL) {
 				*port = ms->getRelayPort();
+				*ip = ms->getPublicIp();
 			} else {
 				*port = -1;
+				*ip = mServer->getAgent()->getPublicIp();
 			}
-			*ip = s->getPublicIp();
+
 		}
 	}
 
@@ -388,7 +390,7 @@ MediaRelay::~MediaRelay() {
 void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mCalls = new CallStore();
 	mCalls->setCallStatCounters(mCountCalls, mCountCallsFinished);
-	mServer = new MediaRelayServer(mAgent->getBindIp(), mAgent->getPublicIp());
+	mServer = new MediaRelayServer(mAgent);
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
 	string rtpdir = modconf->get<ConfigString>("early-media-rtp-dir")->read();
 	mEarlymediaRTPDir = DUPLEX;
@@ -425,9 +427,15 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	string from_tag;
 	if (sip->sip_from != NULL && sip->sip_from->a_tag != NULL)
 		from_tag = sip->sip_from->a_tag;
+	string from_host;
+	if (sip->sip_from != NULL && sip->sip_from->a_url != NULL && sip->sip_from->a_url->url_host != NULL)
+		from_host = sip->sip_from->a_url->url_host;
 	string to_tag;
 	if (sip->sip_to != NULL && sip->sip_to->a_tag != NULL)
 		to_tag = sip->sip_to->a_tag;
+	string invite_host;
+	if (sip->sip_request != NULL && sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_host != NULL)
+		invite_host = sip->sip_request->rq_url->url_host;
 
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
 		LOGD("Invite is already relayed");
@@ -437,9 +445,9 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 
 	// Create Media
 	if (c->getCallerTag() == from_tag)
-		c->setMedia(m, to_tag, transaction);
+		c->setMedia(m, to_tag, transaction, from_host, invite_host);
 	else
-		c->setMedia(m, from_tag, transaction);
+		c->setMedia(m, from_tag, transaction, invite_host, from_host);
 
 	// Set
 	if (c->getCallerTag() == from_tag)
