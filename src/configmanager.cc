@@ -85,7 +85,7 @@ string GenericEntry::sanitize(const string &str){
 
 void GenericEntry::mibFragment(ostream & ost, string spacing) const{
 	string s("OCTET STRING");
-	doMibFragment(ost, false, s, spacing);
+	doMibFragment(ost, true, s, spacing);
 }
 
 void ConfigBoolean::mibFragment(ostream & ost, string spacing) const{
