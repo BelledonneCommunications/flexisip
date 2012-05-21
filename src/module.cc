@@ -78,8 +78,8 @@ Module::~Module() {
 }
 
 void Module::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
-//	LOGD("Configuration of module %s changed for key %s to %s", mInfo->getModuleName().c_str(),
-//			key.c_str(), value.c_str());
+	LOGD("Configuration of module %s changed for key %s to %s", mInfo->getModuleName().c_str(),
+			conf.getName().c_str(), conf.get().c_str());
 	switch (state) {
 		case ConfigState::Changed:
 			mDirtyConfig=true;

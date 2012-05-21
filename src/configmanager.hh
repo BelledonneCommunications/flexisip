@@ -287,7 +287,14 @@ protected:
 	void invokeConfigStateChanged(ConfigState state) {
 		if (getParent() && getParent()->getType() == Struct) {
 			ConfigValueListener *listener = getParent()->getConfigListener();
-			 listener->onConfigStateChanged(*this, state);
+//			LOGD("invokeConfigStateChanged to %d on %s/%s", state,
+//					getParent()->getName().c_str(), mName.c_str());
+			if (listener) {
+				listener->onConfigStateChanged(*this, state);
+			} else {
+				LOGE("%s doesn't implement a config change listener.",
+						getParent()->getName().c_str());
+			}
 		}
 	}
 private:

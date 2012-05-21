@@ -18,10 +18,13 @@
 
 #include <string>
 #include <list>
+#include "configmanager.hh"
 
-class DosProtection{
+
+class DosProtection : protected ConfigValueListener {
 	public:
 		static DosProtection *get();
+		void doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 		void start();
 		void stop();
 	private:

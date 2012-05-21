@@ -45,6 +45,7 @@ DosProtection::DosProtection() {
 	GenericStruct *s = new GenericStruct("dos-protection", "DOS protection parameters.",0);
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
+	s->setConfigListener(this);
 	mLoaded = false;
 }
 
@@ -57,6 +58,11 @@ void DosProtection::atexit() {
 		sInstance = NULL;
 	}
 }
+
+void DosProtection::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
+	LOGE("config change in dos protection is not implemented");
+}
+
 
 DosProtection *DosProtection::get() {
 	if (sInstance == NULL) {
