@@ -315,16 +315,21 @@ std::string Agent::getPreferredIp(const std::string &destination) const {
 	return getPublicIp();
 }
 
+Agent::Network::Network(const Network &net): mIP(net.mIP) {
+	memcpy(&mNetwork, &net.mNetwork, sizeof(mNetwork));
+}
+
 Agent::Network::Network(const struct ifaddrs *ifaddr) {
-	int err;
+	int err = 0;
 	char ipAddress[IPADDR_SIZE];
 	memset(&mNetwork, 0, sizeof(mNetwork));
 	if (ifaddr->ifa_addr->sa_family == AF_INET) {
 		struct sockaddr_in *network = (struct sockaddr_in *) &mNetwork;
 		struct sockaddr_in *if_addr = (struct sockaddr_in *) ifaddr->ifa_addr;
 		struct sockaddr_in *if_mask = (struct sockaddr_in *) ifaddr->ifa_netmask;
-		mNetwork.sa_family = AF_INET;
+		mNetwork.ss_family = AF_INET;
 		network->sin_addr.s_addr = if_addr->sin_addr.s_addr & if_mask->sin_addr.s_addr;
+		err = getnameinfo(ifaddr->ifa_addr, sizeof(struct sockaddr_in), ipAddress, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	} else if (ifaddr->ifa_addr->sa_family == AF_INET6) {
 		struct sockaddr_in6 *network = (struct sockaddr_in6 *) &mNetwork;
 		struct sockaddr_in6 *if_addr = (struct sockaddr_in6 *) ifaddr->ifa_addr;
@@ -332,9 +337,9 @@ Agent::Network::Network(const struct ifaddrs *ifaddr) {
 		for (int i = 0; i < 4; ++i) {
 			network->sin6_addr.__in6_u.__u6_addr32[i] = if_addr->sin6_addr.__in6_u.__u6_addr32[i] & if_mask->sin6_addr.__in6_u.__u6_addr32[i];
 		}
-		mNetwork.sa_family = AF_INET6;
+		mNetwork.ss_family = AF_INET6;
+		err = getnameinfo(ifaddr->ifa_addr, sizeof(struct sockaddr_in6), ipAddress, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	}
-	err = getnameinfo(ifaddr->ifa_addr, sizeof(struct sockaddr), ipAddress, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	if (err == 0) {
 		mIP = string(ipAddress);
 	} else {
@@ -348,7 +353,7 @@ const string Agent::Network::getIP() const {
 }
 
 bool Agent::Network::isInNetwork(const struct sockaddr *addr) const {
-	if (addr->sa_family != mNetwork.sa_family) {
+	if (addr->sa_family != mNetwork.ss_family) {
 		return false;
 	}
 	if (addr->sa_family == AF_INET) {
@@ -369,16 +374,17 @@ bool Agent::Network::isInNetwork(const struct sockaddr *addr) const {
 string Agent::Network::print(const struct ifaddrs *ifaddr) {
 	stringstream ss;
 	int err;
+	int size = (ifaddr->ifa_addr->sa_family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
 	char result[IPADDR_SIZE];
 	ss << "Name: " << ifaddr->ifa_name;
 
-	err = getnameinfo(ifaddr->ifa_addr, sizeof(struct sockaddr), result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
+	err = getnameinfo(ifaddr->ifa_addr, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	if (err != 0) {
 		ss << "\tAddress: " << "(Error)";
 	} else {
 		ss << "\tAddress: " << result;
 	}
-	err = getnameinfo(ifaddr->ifa_netmask, sizeof(struct sockaddr), result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
+	err = getnameinfo(ifaddr->ifa_netmask, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	if (err != 0) {
 		ss << "\tMask: " << "(Error)";
 	} else {

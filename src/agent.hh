@@ -112,9 +112,10 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		int mPort;
 		int mTlsPort;
 		class Network {
-			struct sockaddr mNetwork;
+			struct sockaddr_storage mNetwork;
 			std::string mIP;
 		public:
+			Network(const Network &net);
 			Network(const struct ifaddrs *ifaddr);
 			bool isInNetwork(const struct sockaddr *addr) const;
 			const std::string getIP() const;
