@@ -335,7 +335,7 @@ Agent::Network::Network(const struct ifaddrs *ifaddr) {
 		struct sockaddr_in6 *if_addr = (struct sockaddr_in6 *) ifaddr->ifa_addr;
 		struct sockaddr_in6 *if_mask = (struct sockaddr_in6 *) ifaddr->ifa_netmask;
 		for (int i = 0; i < 4; ++i) {
-			network->sin6_addr.__in6_u.__u6_addr32[i] = if_addr->sin6_addr.__in6_u.__u6_addr32[i] & if_mask->sin6_addr.__in6_u.__u6_addr32[i];
+			network->sin6_addr.s6_addr32[i] = if_addr->sin6_addr.s6_addr32[i] & if_mask->sin6_addr.s6_addr32[i];
 		}
 		mNetwork.ss_family = AF_INET6;
 		err = getnameinfo(ifaddr->ifa_addr, sizeof(struct sockaddr_in6), ipAddress, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
@@ -364,7 +364,7 @@ bool Agent::Network::isInNetwork(const struct sockaddr *addr) const {
 		struct sockaddr_in6 *network = (struct sockaddr_in6 *) &mNetwork;
 		struct sockaddr_in6 *if_addr = (struct sockaddr_in6 *) addr;
 		for (int i = 0; i < 4; ++i) {
-			if ((network->sin6_addr.__in6_u.__u6_addr32[i] & if_addr->sin6_addr.__in6_u.__u6_addr32[i]) != network->sin6_addr.__in6_u.__u6_addr32[i])
+			if ((network->sin6_addr.s6_addr32[i] & if_addr->sin6_addr.s6_addr32[i]) != network->sin6_addr.s6_addr32[i])
 				return false;
 		}
 	}
