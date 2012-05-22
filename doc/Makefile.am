@@ -2,7 +2,6 @@ guide=flexisip_guide
 docfiles =${guide}.tex
 
 if GENERATE_DOC
-docfiles += ${guide}.pdf
 
 CLEANFILES = *.log *.toc *.out *.log *.tmp ${guide}.pdf *.aux *.tmp.tex
 
