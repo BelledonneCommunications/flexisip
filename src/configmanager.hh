@@ -423,6 +423,25 @@ inline std::ostream & operator<<(std::ostream &ostr, const FileConfigDumper &dum
 	return dumper.dump(ostr);
 }
 
+class TexFileConfigDumper{
+public:
+	TexFileConfigDumper(GenericStruct *root){
+		mRoot=root;
+	}
+	std::ostream &dump(std::ostream & ostr)const;
+private:
+	std::string formatTitle(const std::string &strc) const;
+
+	std::string escape(const std::string &strc) const;
+
+	std::ostream &dump2(std::ostream & ostr, GenericEntry *entry, int level)const;
+	GenericStruct *mRoot;
+};
+
+inline std::ostream & operator<<(std::ostream &ostr, const TexFileConfigDumper &dumper){
+	return dumper.dump(ostr);
+}
+
 class MibDumper{
 public:
 	MibDumper(GenericStruct *root){

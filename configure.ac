@@ -127,6 +127,11 @@ if test x$protobuf = xyes ; then
 fi
 
 
+# Generates documentation pdf only if pdflatex is found
+AC_CHECK_PROG([pdflatex], [pdflatex], [yes], [no])
+AM_CONDITIONAL([GENERATE_DOC], [test "x$pdflatex" = xyes])
+
+
 # Export path to configuration directory
 
 CONFIG_DIR="\$(sysconfdir)/flexisip"
@@ -141,6 +146,7 @@ scripts/Makefile
 scripts/debian/Makefile
 scripts/redhat/Makefile
 src/Makefile
+doc/Makefile
 flexisip.spec
 ])
 AC_OUTPUT

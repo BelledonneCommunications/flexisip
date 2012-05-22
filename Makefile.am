@@ -1,6 +1,6 @@
 EXTRA_DIST=flexisip.spec.in flexisip.spec
 
-SUBDIRS=src scripts
+SUBDIRS=src scripts doc
 
 
 # `make rpm'

@@ -635,6 +635,56 @@ ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)
 	return ostr;
 }
 
+
+ostream &TexFileConfigDumper::dump(ostream & ostr)const {
+	return dump2(ostr,mRoot,0);
+}
+
+
+
+static void escaper(string &str, char c, const string &replaced) {
+	size_t i=0;
+	while(string::npos != (i=str.find_first_of(c, i))) {
+		str.erase(i, 1);
+		str.insert(i, replaced);
+		i+=replaced.length();
+	}
+}
+string TexFileConfigDumper::escape(const string &strc) const{
+	std::string str(strc);
+	escaper(str, '_', "\\_");
+	escaper(str, '<', "\\textless{}");
+	escaper(str, '>', "\\textgreater{}");
+
+	return str;
+}
+
+ostream &TexFileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
+	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
+	ConfigValue *val;
+
+	if (cs){
+		if (cs->getParent()) {
+			string pn=escape(cs->getPrettyName());
+			ostr<<"\\section{"<< pn << "}" << endl << endl;
+			ostr<<"\\label{" << cs->getName() << "}" << endl;
+			ostr<<"\\subsection{Description}"<< endl <<endl;
+			ostr<<escape(cs->getHelp())<< endl <<endl;
+			ostr<<"\\subsection{Parameters}"<< endl <<endl;
+		}
+		list<GenericEntry*>::iterator it;
+		for(it=cs->getChildren().begin();it!=cs->getChildren().end();++it){
+			dump2(ostr,*it,level+1);
+			ostr<<endl;
+		}
+	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL){
+		ostr<<"\\subsubsection{"<<escape(entry->getName())<<"}"<<endl;
+		ostr<<escape(entry->getHelp())<<endl;
+		ostr<<"The default value is ``"<<escape(val->getDefault())<<"''."<<endl;
+	}
+	return ostr;
+}
+
 ostream &MibDumper::dump(ostream & ostr)const {
 	const time_t t = time(NULL);
 	char mbstr[100];
