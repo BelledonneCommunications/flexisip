@@ -64,7 +64,7 @@ static void usage(const char *arg0){
 	       "\t\t [--configfile <path>]\n"
 	       "\t\t [--dump-default-config [node name]]\n"
 	       "\t\t [--dump-snmp-mib]\n"
-//			"\t\t [--set <option[=value]>]\n"
+           "\t\t [--set <[node/]option[=value]>]\n"
 	       "\t\t [--help]\n",arg0);
 	exit(-1);
 }
