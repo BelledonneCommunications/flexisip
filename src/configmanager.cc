@@ -64,7 +64,7 @@ void ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigSt
 	doOnConfigStateChanged(conf, state);
 }
 
-static void camelFindAndReplace(const string &needle, string &haystack) {
+static void camelFindAndReplace(string &haystack, const string &needle) {
 	size_t pos;
 	while ((pos=haystack.find(needle)) != string::npos) {
 		haystack.replace(pos, needle.length(), "");
@@ -78,9 +78,27 @@ static void camelFindAndReplace(const string &needle, string &haystack) {
 
 string GenericEntry::sanitize(const string &str){
 	string strnew=str;
-	camelFindAndReplace("::", strnew);
-	camelFindAndReplace("-", strnew);
+	camelFindAndReplace(strnew, "::");
+	camelFindAndReplace(strnew, "-");
 	return strnew;
+}
+
+string GenericEntry::getPrettyName()const{
+	string pn(mName);
+	char upper=char(toupper(::toupper(pn.at(0))));
+	pn.erase(0, 1);
+	pn.insert(0, 1, upper);
+	size_t i=pn.find_first_of("::");
+	if (string::npos != i) {
+		pn.replace(i, 1, " ");
+		pn.erase(i+1, 1);
+	}
+
+	i=0;
+	while(string::npos != (i=pn.find_first_of('-', i))) {
+		pn.replace(i, 1, " ");
+	}
+	return pn;
 }
 
 void GenericEntry::mibFragment(ostream & ost, string spacing) const{
@@ -124,7 +142,8 @@ void GenericEntry::doMibFragment(ostream & ostr, bool rw, string &syntax, string
 			<< spacing << "	MAX-ACCESS	" << (rw ? "read-write": "read-only") << endl
 			<< spacing << "	STATUS	current" << endl
 			<< spacing << "	DESCRIPTION" << endl
-			<< spacing << "	\"" << getHelp() << "\"" << endl
+			<< spacing << "	\"" << " PN:" << getPrettyName() << endl
+			<< spacing << "	" << getHelp() << "\"" << endl
 			<< spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
@@ -268,9 +287,13 @@ GenericEntry * GenericStruct::addChild(GenericEntry *c){
 }
 
 void GenericStruct::addChildrenValues(ConfigItemDescriptor *items){
+	addChildrenValues(items,true);
+}
+void GenericStruct::addChildrenValues(ConfigItemDescriptor *items, bool hashed){
+	oid cOid=1;
 	for (;items->name!=NULL;items++){
 		ConfigValue *val=NULL;
-		oid cOid=Oid::oidFromHashedString(items->name);
+		if (hashed) cOid=Oid::oidFromHashedString(items->name);
 		switch(items->type){
 		case Boolean:
 			val=new ConfigBoolean(items->name,items->help,items->default_value,cOid);
@@ -289,6 +312,7 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor *items){
 			break;
 		}
 		addChild(val);
+		if (!hashed) ++cOid;
 	}
 }
 

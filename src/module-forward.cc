@@ -46,8 +46,10 @@ private:
 	static ModuleInfo<ForwardModule> sInfo;
 };
 
-ModuleInfo<ForwardModule> ForwardModule::sInfo("Forward", "This module executes the basic routing task of SIP requests and pass them to the transport layer. "
-		"It must always be enabled.");
+ModuleInfo<ForwardModule> ForwardModule::sInfo("Forward",
+		"This module executes the basic routing task of SIP requests and pass them to the transport layer. "
+		"It must always be enabled.",
+		ModuleInfoBase::ModuleOid::Forward);
 
 ForwardModule::ForwardModule(Agent *ag) :
 		Module(ag) {

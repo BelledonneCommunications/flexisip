@@ -374,7 +374,8 @@ static bool isEarlyMedia(sip_t *sip) {
 
 ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay", "The MediaRelay module masquerades SDP message so that all RTP and RTCP streams go through the proxy. "
 		"The RTP and RTCP streams are then routed so that each client receives the stream of the other. "
-		"MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.");
+		"MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.",
+		ModuleInfoBase::ModuleOid::MediaRelay);
 
 MediaRelay::MediaRelay(Agent * ag) :
 		Module(ag), mCalls(NULL), mServer(NULL) {

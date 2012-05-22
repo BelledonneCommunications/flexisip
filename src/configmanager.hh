@@ -141,6 +141,8 @@ public:
 	const std::string & getName()const{
 		return mName;
 	}
+	std::string getPrettyName()const;
+
 	GenericValueType getType()const{
 		return mType;
 	}
@@ -217,6 +219,7 @@ public:
 	StatCounter64 *createStat(const std::string &name, const std::string &help);
 	std::pair<StatCounter64 *, StatCounter64 *> createStatPair(const std::string &name, const std::string &help);
 	void addChildrenValues(ConfigItemDescriptor *items);
+	void addChildrenValues(ConfigItemDescriptor *items, bool hashed);
 	//void addChildrenValues(StatItemDescriptor *items);
 	std::list<GenericEntry*> &getChildren();
 	template <typename _retType>

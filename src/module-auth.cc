@@ -164,7 +164,7 @@ public:
 			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file].",		"odbc"	},
 			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. " \
 					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. " \
-					"ex2: DRIVER={MySQL};SERVER=localhost;DATABASE=dbname;USER=username;PASSWORD=passname;OPTION=3; for a DSN-less connection. " \
+					"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. " \
 					"ex3: /etc/flexisip/passwd; for a file containing one 'user@domain password' by line.",		""	},
 			{	String		,	"request"				,	"Odbc SQL request to execute to obtain the password. Named parameters are :id, :domain and :authid.'",
 					"select password from accounts where id = :id and domain = :domain and authid=:authid"	},
@@ -176,7 +176,7 @@ public:
 			{	Boolean		,	"odbc-asynchronous"	,	"Retrieve passwords asynchronously.",	"false"	},
 			{	Integer		,	"cache-expire"	,	"Duration of the validity of the credentials added to the cache in seconds.",	"1800"	},
 			{	Boolean		,	"immediate-retrieve-password"	,	"Retrieve password immediately so that it is cached when an authenticated request arrives.",	"true"},
-			{	Boolean		,	"hashed-passwords"	,	"True if the passwords retrieved from the database are already SIP hashed (HA1=MD5(A1)=MD5(username:realm:password)).", "false" },
+			{	Boolean		,	"hashed-passwords"	,	"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).", "false" },
 			config_item_end
 		};
 		mc->addChildrenValues(items);
@@ -268,7 +268,8 @@ public:
 };
 
 ModuleInfo<Authentication> Authentication::sInfo("Authentication",
-	"The authentication module challenges SIP requests according to a user/password database.");
+	"The authentication module challenges SIP requests according to a user/password database.",
+	ModuleInfoBase::ModuleOid::Authentication);
 
 
 Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, shared_ptr<SipEvent> ev, bool hashedPasswords):
