@@ -1,19 +1,24 @@
 guide=flexisip_guide
-docfiles =${guide}.tex
+guide_tex=$(srcdir)/${guide}.tex
+guide_pdf=$(top_builddir)/doc/${guide}.pdf
+
+docfiles=$(guide_tex)
 
 if GENERATE_DOC
+docfiles +=$(guide_pdf)
 
-CLEANFILES = *.log *.toc *.out *.log *.tmp ${guide}.pdf *.aux *.tmp.tex
+CLEANFILES = *.log *.toc *.out *.log *.tmp ${guide_pdf} *.aux *.tmp.tex
 
-BASE_DIR=$(shell pwd)/..
-
-${guide}.pdf: $(srcdir)/${guide}.tex $(BASE_DIR)/src/flexisip
+${guide_pdf}: $(srcdir)/${guide}.tex $(top_builddir)/src/flexisip
 	sh latex_include_generator.sh
-# Several times to get sure the TOC is up-to-date
+# Several times to make sure the TOC is up-to-date
 	pdflatex   "\newcommand\flexisipversion{ ${VERSION}}\input{${guide}}"
 	pdflatex   "\newcommand\flexisipversion{ ${VERSION}}\input{${guide}}"
 	pdflatex   "\newcommand\flexisipversion{ ${VERSION}}\input{${guide}}"
 
-dist_doc_DATA = $(docfiles)
+docdir=$(datadir)/doc/$(PACKAGE)-$(VERSION)
+doc_DATA = $(docfiles) $(srcdir)/schem*.pdf $(srcdir)/latex_include_generator.sh $(srcdir)/schem*.svg $(srcdir)/*.png
 
 endif
+
+dist_doc_DATA=$(guide_tex) $(srcdir)/schem*.pdf $(srcdir)/latex_include_generator.sh $(srcdir)/schem*.svg $(srcdir)/*.png

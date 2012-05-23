@@ -44,10 +44,10 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
     --enable-protobuf \
 %endif
 	--sysconfdir=%{_sysconfdir} 
-%{__make} 
+#%{__make} 
 
 # parallel build disabled due to automake libtool random errors
-#%{__make} -j$RPM_BUILD_NCPUS 
+%{__make} -j$RPM_BUILD_NCPUS 
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -77,7 +77,8 @@ fi
 
 %files
 %defattr(-,root,root,-)
-%doc AUTHORS COPYING ChangeLog INSTALL NEWS README
+%doc AUTHORS COPYING ChangeLog INSTALL NEWS README doc/flexisip_guide.tex doc/*.pdf doc/*.tmp.tex
+%exclude /usr/share/doc/flexisip
 %{_bindir}/*
 /etc/init.d/flexisip
 /etc/flexisip
