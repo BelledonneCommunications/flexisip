@@ -473,6 +473,7 @@ int main(int argc, char *argv[]){
 		return 0;
 	}
 
+	GenericManager::get()->setOverrideMap(oset);
 
 	if (cfg->load(cfgfile)==-1){
 		fprintf(stderr,"No configuration file found at %s.\nPlease specify a valid configuration file.\n"
@@ -482,26 +483,7 @@ int main(int argc, char *argv[]){
 		return -1;
 	}
 
-	for (auto keyValIt=oset.begin(); keyValIt != oset.end(); ++keyValIt){
-		string key((*keyValIt).first);
-		string &value((*keyValIt).second);
-		if (value.empty()) continue;
-		size_t slash=key.find_first_of('/', 0);
-		GenericStruct *gs=cfg->getRoot();
-		if (slash != string::npos) {
-			string gskey=key.substr(0, slash);
-			gs=dynamic_cast<GenericStruct*>(gs->find(gskey.c_str()));
-			if (!gs) continue;
-			key=key.substr(slash+1, key.length());
-		}
-		ConfigValue *val=dynamic_cast<ConfigValue*>(gs->find(key.c_str()));
-		if (val) {
-			cout << "Overriding config with " << key << ":" << value << endl;
-			val->set(value);
-		} else {
-			cout << "Skipping config override " << key << ":" << value << endl;
-		}
-	}
+
 
 	if (!debug) debug=cfg->getGlobal()->get<ConfigBoolean>("debug")->read();
 

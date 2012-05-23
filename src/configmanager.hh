@@ -30,6 +30,7 @@
 #endif
 #include <string>
 #include <sstream>
+#include <iostream>
 #include <list>
 #include <cstdlib>
 #include <vector>
@@ -224,6 +225,8 @@ public:
 	std::list<GenericEntry*> &getChildren();
 	template <typename _retType>
 	_retType *get(const char *name)const;
+	template <typename _retType>
+	_retType *getDeep(const char *name)const;
 	~GenericStruct();
 	GenericEntry *find(const char *name)const;
 	GenericEntry *findApproximate(const char *name)const;
@@ -361,6 +364,27 @@ _retType *GenericStruct::get(const char *name)const{
 };
 
 
+template <typename _retType>
+_retType *GenericStruct::getDeep(const char *name)const{
+	if (!name) return NULL;
+	std::string sname(name);
+
+	size_t len=sname.length();
+	size_t next,prev=0;
+	const GenericStruct *next_node,*prev_node=this;
+	while (std::string::npos != (next=sname.find('/', prev))) {
+		std::string next_node_name=sname.substr(prev, next-prev);
+//		LOGE("Searching for node %s", next_node_name.c_str());
+		next_node=prev_node->get<GenericStruct>(next_node_name.c_str());
+		prev_node=next_node;
+		prev=next+1;
+	}
+
+	std::string leaf(sname.substr(prev, len-prev));
+//	LOGE("Searching for leaf %s", leaf.c_str());
+	return prev_node->get<_retType>(leaf.c_str());
+};
+
 class FileConfigReader{
 public:
 	FileConfigReader(GenericStruct *root) : mRoot(root),mCfg(NULL),mHaveUnreads(false){
@@ -386,6 +410,7 @@ public:
 	int load(const char* configFile);
 	GenericStruct *getRoot();
 	std::string &getConfigFile() { return mConfigFile; }
+	void setOverrideMap(const std::map<std::string,std::string> overrides) { mOverrides=overrides;}
 	const GenericStruct *getGlobal();
 	void loadStrict();
 	StatCounter64 &findStat(const std::string &key);
@@ -395,10 +420,25 @@ public:
 private:
 	GenericManager();
 	void doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
+	void applyOverrides(GenericStruct *root) {
+		for (auto it=mOverrides.begin(); it != mOverrides.end(); ++it){
+			const std::string &key((*it).first);
+			const std::string &value((*it).second);
+			if (value.empty()) continue;
+			ConfigValue *val=root->getDeep<ConfigValue>(key.c_str());
+			if (val) {
+				std::cout << "Overriding config with " << key << ":" << value << std::endl;
+				val->set(value);
+			} else {
+				std::cout << "Skipping config override " << key << ":" << value << std::endl;
+			}
+		}
+	}
 	static void atexit(); // Don't call directly!
 	RootConfigStruct mConfigRoot;
 	FileConfigReader mReader;
 	std::string mConfigFile;
+	std::map<std::string,std::string> mOverrides;
 	static GenericManager *sInstance;
 	std::map<std::string,StatCounter64*> mStatMap;
 	std::unordered_set<std::string> mStatOids;

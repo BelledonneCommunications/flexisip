@@ -572,12 +572,15 @@ void GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 
 int GenericManager::load(const char* configfile){
 	mConfigFile = configfile;
-	return mReader.read(configfile);
+	int res=mReader.read(configfile);
+	applyOverrides(&mConfigRoot);
+	return res;
 }
 
 void GenericManager::loadStrict(){
 	mReader.reload();
 	mReader.checkUnread();
+	applyOverrides(&mConfigRoot);
 }
 
 GenericStruct *GenericManager::getRoot(){
