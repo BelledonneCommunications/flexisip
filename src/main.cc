@@ -353,7 +353,7 @@ static int parse_key_value(int argc, char *argv[], const char **key, const char 
 	*shift=0;
 	char *equal_sign=strchr(argv[i],'=');
 	if (equal_sign) {
-		*equal_sign=NULL;
+		*equal_sign='\0';
 		*value=equal_sign+1;
 		return 0;
 	}
@@ -503,7 +503,7 @@ int main(int argc, char *argv[]){
 	LOGN("Starting version %s", VERSION);
 	root=su_root_create(NULL);
 	a=make_shared<Agent>(root,port,tlsport);
-#ifdef ENABLE_TRANCODER
+#ifdef ENABLE_TRANSCODER
 	ms_init();
 #endif
 	a->loadConfig (cfg);
