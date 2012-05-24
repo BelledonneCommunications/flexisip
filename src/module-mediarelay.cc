@@ -405,10 +405,14 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 }
 
 void MediaRelay::onUnload() {
-	if (mCalls)
+	if (mCalls) {
 		delete mCalls;
-	if (mServer)
+		mCalls=NULL;
+	}
+	if (mServer) {
 		delete mServer;
+		mServer=NULL;
+	}
 }
 
 bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
