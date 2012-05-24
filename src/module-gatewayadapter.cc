@@ -268,6 +268,10 @@ void GatewayAdapter::onDeclare(GenericStruct *module_config) {
 
 void GatewayAdapter::onLoad(const GenericStruct *module_config) {
 	string gateway = module_config->get<ConfigString>("gateway")->read();
+	if (gateway.empty()) {
+		LOGE("GatewayAdapter bad configuration: empty gateway");
+		return;
+	}
 	gateway_url = url_make(&home, gateway.c_str());
 	char *url = su_sprintf(&home, "sip:%s:*", mAgent->getPublicIp().c_str());
 	nua = nua_create(mAgent->getRoot(), nua_callback, this, NUTAG_URL(url), NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()), TAG_END());
