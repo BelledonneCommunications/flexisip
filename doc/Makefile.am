@@ -16,8 +16,8 @@ ${guide_pdf}: $(srcdir)/${guide}.tex $(top_builddir)/src/flexisip
 	- pdflatex   "\newcommand\flexisipversion{ ${VERSION}}\input{${guide}}"
 	- pdflatex   "\newcommand\flexisipversion{ ${VERSION}}\input{${guide}}"
 
-docdir=$(datadir)/doc/$(PACKAGE)-$(VERSION)
-doc_DATA = $(docfiles) $(srcdir)/schem*.pdf $(srcdir)/latex_include_generator.sh $(srcdir)/schem*.svg $(srcdir)/*.png
+fldocdir=$(datadir)/doc/$(PACKAGE)-$(VERSION)
+fldoc_DATA = $(docfiles) $(srcdir)/schem*.pdf $(srcdir)/latex_include_generator.sh $(srcdir)/schem*.svg $(srcdir)/*.png
 
 endif
 
