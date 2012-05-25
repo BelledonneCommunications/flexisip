@@ -534,8 +534,10 @@ int main(int argc, char *argv[]){
 	su_timer_destroy(timer);
 	DosProtection::get()->stop();
 	a.reset();
-	stun->stop();
-	delete stun;
+	if (stun) {
+		stun->stop();
+		delete stun;
+	}
 	su_root_destroy(root);
 	LOGN("Flexisip exiting normally.");
 	return 0;
