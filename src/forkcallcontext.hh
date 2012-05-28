@@ -27,6 +27,7 @@
 
 class ForkCallContext {
 	Agent * mAgent;
+	std::shared_ptr<SipEvent> mEvent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
 	std::list<std::shared_ptr<OutgoingTransaction>> mOutgoings;
 	std::shared_ptr<SipEvent> mBestResponse;
@@ -34,16 +35,21 @@ class ForkCallContext {
 	bool mForkOneResponse;
 	bool mForkNoGlobalDecline;
 	std::list<int> mForwardResponses;
+	std::list<std::string> mCallees;
 
 public:
-	ForkCallContext(Agent *agent);
+	ForkCallContext(Agent *agent, const std::shared_ptr<SipEvent> &event);
 	~ForkCallContext();
 	void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
 	void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<SipEvent> &event);
-	void onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
+	bool onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
 	void onNew(const std::shared_ptr<OutgoingTransaction> &transaction);
 	void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<SipEvent> &event);
-	void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
+	bool onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
+	const std::shared_ptr<SipEvent> &getEvent();
+	void addCallee(const std::string &callee);
+	bool isAlreadyCalled(const std::string &callee);
+
 private:
 	void cancel();
 	void cancelOthers(const std::shared_ptr<OutgoingTransaction> &transaction = std::shared_ptr<OutgoingTransaction>());

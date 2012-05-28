@@ -23,8 +23,8 @@
 
 using namespace ::std;
 
-ForkCallContext::ForkCallContext(Agent *agent) :
-		mAgent(agent), mFinal(0) {
+ForkCallContext::ForkCallContext(Agent *agent, const std::shared_ptr<SipEvent> &event) :
+		mAgent(agent), mEvent(make_shared<RequestSipEvent>(event)), mFinal(0) {
 	LOGD("New ForkCallContext %p", this);
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Registrar");
@@ -85,9 +85,8 @@ void ForkCallContext::cancelOthers(const shared_ptr<OutgoingTransaction> &transa
 				shared_ptr<OutgoingTransaction> tr = (*it);
 				it = mOutgoings.erase(it);
 				tr->cancel();
-			}
-			else {
-				 ++it;
+			} else {
+				++it;
 			}
 		}
 	}
@@ -155,15 +154,16 @@ void ForkCallContext::onNew(const shared_ptr<IncomingTransaction> &transaction) 
 	mIncoming = transaction;
 }
 
-void ForkCallContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) {
+bool ForkCallContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) {
 	mIncoming.reset();
+	return mIncoming == NULL && mOutgoings.size() == 0;
 }
 
 void ForkCallContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) {
 	mOutgoings.push_back(transaction);
 }
 
-void ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
+bool ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
 	mOutgoings.remove(transaction);
 	if (mOutgoings.size() == 0) {
 		if (mIncoming != NULL && mFinal == 0) {
@@ -181,4 +181,16 @@ void ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transacti
 		mBestResponse.reset();
 		mIncoming.reset();
 	}
+	return mIncoming == NULL && mOutgoings.size() == 0;
+}
+
+const shared_ptr<SipEvent> &ForkCallContext::getEvent() {
+	return mEvent;
+}
+
+void ForkCallContext::addCallee(const std::string &callee) {
+	mCallees.push_back(callee);
+}
+bool ForkCallContext::isAlreadyCalled(const std::string &callee) {
+	return find(mCallees.begin(), mCallees.end(), callee) != mCallees.end();
 }
