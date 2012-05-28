@@ -15,16 +15,17 @@ flexisip.conf.sample:	$(top_builddir)/src/flexisip
 	$(top_builddir)/src/flexisip --dump-default-config > $@
 #endif
 
-#if BUILD_SNMP
-	OTHER_FLAGS=-DENABLE_SNMP
-#endif
-#if BUILD_REDIS
-	OTHER_FLAGS="$(OTHER_FLAGS) -DENABLE_REDIS"
-#endif
-#if BUILD_PROTOBUF
-	OTHER_FLAGS="$(OTHER_FLAGS) -DENABLE_PROTOBUF"
-#endif
-	
+OTHER_FLAGS=
+if BUILD_SNMP
+OTHER_FLAGS += -DENABLE_SNMP $(shell net-snmp-config --cflags)
+endif
+if BUILD_REDIS
+OTHER_FLAGS += -DENABLE_REDIS $(HIREDIS_CFLAGS)
+endif
+if BUILD_PROTOBUF
+OTHER_FLAGS+= -DENABLE_PROTOBUF $(PROTOBUF_CFLAGS)
+endif
+
 discovery:
 	$(CXX) $(CXXFLAGS) $(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(OTHER_FLAGS) -E -P -v -dD specs.cpp
 
