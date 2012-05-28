@@ -24,7 +24,7 @@
 class DosProtection : protected ConfigValueListener {
 	public:
 		static DosProtection *get();
-		void doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
+		bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 		void start();
 		void stop();
 	private:

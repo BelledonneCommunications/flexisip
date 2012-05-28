@@ -35,8 +35,9 @@
 #include "stun.hh"
 #include "dos-protection.hh"
 
-#include <stdlib.h>
-#include <signal.h>
+#include <cstdlib>
+#include <cstdio>
+#include <csignal>
 
 #include <sofia-sip/su_log.h>
 #ifdef ENABLE_SNMP

@@ -272,8 +272,12 @@ void Agent::loadConfig(GenericManager *cm) {
 		LOGD("%s", (*it).c_str());
 	}
 	list<Module*>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it)
+	for (it = mModules.begin(); it != mModules.end(); ++it) {
+		// Check in all cases, even if not enabled,
+		// to allow safe dynamic activation of the module
+		(*it)->checkConfig();
 		(*it)->load();
+	}
 }
 
 std::string Agent::getPublicIp() const {

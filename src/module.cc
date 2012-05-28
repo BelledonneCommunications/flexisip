@@ -77,10 +77,13 @@ Module::~Module() {
 	delete mFilter;
 }
 
-void Module::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
+bool Module::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 	LOGD("Configuration of module %s changed for key %s to %s", mInfo->getModuleName().c_str(),
 			conf.getName().c_str(), conf.get().c_str());
 	switch (state) {
+		case ConfigState::Check:
+			return isValidConfig(conf.getName(), conf.getNextValue());
+		break;
 		case ConfigState::Changed:
 			mDirtyConfig=true;
 			break;
@@ -97,6 +100,7 @@ void Module::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) 
 		default:
 			break;
 	}
+	return true;
 }
 
 void Module::setInfo(ModuleInfoBase *i) {
@@ -117,6 +121,23 @@ void Module::declare(GenericStruct *root){
 	root->addChild(mModuleConfig);
 	mFilter->declareConfig(mModuleConfig);
 	onDeclare(mModuleConfig);
+}
+
+void Module::checkConfig() {
+	bool enable=mModuleConfig->get<ConfigBoolean>("enabled")->read();
+	if (enable) {
+		list<GenericEntry *> children=mModuleConfig->getChildren();
+		for (auto it=children.begin(); it != children.end(); ++it) {
+			ConfigValue *cv=dynamic_cast<ConfigValue *>(*it);
+			if (!cv) continue;
+			if (!isValidConfig(cv->getName(), cv->get())) {
+				LOGF("Invalid config %s:%s=%s",
+						getModuleName().c_str(),
+						cv->getName().c_str(),
+						cv->get().c_str());
+			}
+		}
+	}
 }
 
 void Module::load() {

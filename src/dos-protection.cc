@@ -59,8 +59,11 @@ void DosProtection::atexit() {
 	}
 }
 
-void DosProtection::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
+bool DosProtection::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 	switch (state) {
+		case ConfigState::Check:
+			LOGD("DosProtection:: no check implemented");
+			break;
 		case ConfigState::Changed:
 			LOGD("DosProtection::doOnConfigStateChanged:changed");
 			stop();
@@ -77,7 +80,9 @@ void DosProtection::doOnConfigStateChanged(const ConfigValue &conf, ConfigState 
 		default:
 			LOGE("Unknown state in DosProtection::doOnConfigStateChanged %d", state);
 			break;
-	}}
+	}
+	return true;
+}
 
 
 DosProtection *DosProtection::get() {

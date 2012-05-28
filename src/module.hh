@@ -104,6 +104,7 @@ class Module : protected ConfigValueListener {
 		nta_agent_t *getSofiaAgent()const;
 		const std::string &getModuleName()const;
 		void declare(GenericStruct *root);
+		void checkConfig();
 		void load();
 		void reload();
 		void processRequest(std::shared_ptr<SipEvent> &ev);
@@ -123,9 +124,11 @@ class Module : protected ConfigValueListener {
 		virtual void onTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
 
 		}
-		virtual void doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
+		virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 		virtual void onIdle(){
 		}
+		virtual bool onCheckValidConfig() {return true;}
+		virtual bool isValidConfig(const std::string &key, const std::string &value) {return true;}
 		Agent *mAgent;
 	private:
 		void setInfo(ModuleInfoBase *i);

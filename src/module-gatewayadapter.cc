@@ -238,6 +238,8 @@ public:
 
 	virtual void onResponse(shared_ptr<SipEvent> &ev);
 
+	virtual bool isValidConfig(const std::string &key, const std::string &value);
+
 private:
 	static void nua_callback(nua_event_t event, int status, char const *phrase, nua_t *nua, nua_magic_t *_t, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]);
 
@@ -266,12 +268,18 @@ void GatewayAdapter::onDeclare(GenericStruct *module_config) {
 	module_config->addChildrenValues(items);
 }
 
+bool GatewayAdapter::isValidConfig(const std::string &key, const std::string &value) {
+	if (0==strcmp(key.c_str(), "gateway")) {
+		if (value.empty()) {
+			LOGE("Empty value GatewayAdapter::%s=%s", key.c_str(), value.c_str());
+			return false;
+		}
+	}
+	return true;
+}
+
 void GatewayAdapter::onLoad(const GenericStruct *module_config) {
 	string gateway = module_config->get<ConfigString>("gateway")->read();
-	if (gateway.empty()) {
-		LOGE("GatewayAdapter bad configuration: empty gateway");
-		return;
-	}
 	gateway_url = url_make(&home, gateway.c_str());
 	char *url = su_sprintf(&home, "sip:%s:*", mAgent->getPublicIp().c_str());
 	nua = nua_create(mAgent->getRoot(), nua_callback, this, NUTAG_URL(url), NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()), TAG_END());

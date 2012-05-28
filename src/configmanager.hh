@@ -49,15 +49,15 @@
 typedef unsigned long oid;
 #endif
 
-enum class ConfigState {Changed, Reset, Commited};
+enum class ConfigState {Check, Changed, Reset, Commited};
 class ConfigValue;
 class ConfigValueListener {
 	static bool sDirty;
 public:
 	~ConfigValueListener(){};
-	void onConfigStateChanged(const ConfigValue &conf, ConfigState state);
+	bool onConfigStateChanged(const ConfigValue &conf, ConfigState state);
 protected:
-	virtual void doOnConfigStateChanged(const ConfigValue &conf, ConfigState state)=0;
+	virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state)=0;
 };
 
 enum GenericValueType{
@@ -282,6 +282,7 @@ public:
 	ConfigValue(const std::string &name, GenericValueType  vt, const std::string &help, const std::string &default_value,oid oid_index);
 	void set(const std::string &value);
 	const std::string &get()const;
+	const std::string &getNextValue()const { return mNextValue; }
 	const std::string &getDefault()const;
 	void setDefault(const std::string &value);
 #ifdef ENABLE_SNMP
@@ -290,19 +291,21 @@ public:
 #endif
 	virtual void setParent(GenericEntry *parent);
 protected:
-	void invokeConfigStateChanged(ConfigState state) {
+	bool invokeConfigStateChanged(ConfigState state) {
 		if (getParent() && getParent()->getType() == Struct) {
 			ConfigValueListener *listener = getParent()->getConfigListener();
 //			LOGD("invokeConfigStateChanged to %d on %s/%s", state,
 //					getParent()->getName().c_str(), mName.c_str());
 			if (listener) {
-				listener->onConfigStateChanged(*this, state);
+				return listener->onConfigStateChanged(*this, state);
 			} else {
 				LOGE("%s doesn't implement a config change listener.",
 						getParent()->getName().c_str());
 			}
 		}
+		return true;
 	}
+	std::string mNextValue;
 private:
 	std::string mValue;
 	std::string mDefaultValue;
@@ -419,7 +422,8 @@ public:
 	bool mDirtyConfig;
 private:
 	GenericManager();
-	void doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
+	bool doIsValidConfig(const std::string &key, const std::string &value);
+	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 	void applyOverrides(GenericStruct *root) {
 		for (auto it=mOverrides.begin(); it != mOverrides.end(); ++it){
 			const std::string &key((*it).first);

@@ -36,7 +36,7 @@
 using namespace::std;
 
 bool ConfigValueListener::sDirty=false;
-void ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigState state) {
+bool ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 	switch (state) {
 	case ConfigState::Commited:
 		if (sDirty) {
@@ -61,7 +61,7 @@ void ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigSt
 	default:
 		break;
 	}
-	doOnConfigStateChanged(conf, state);
+	return doOnConfigStateChanged(conf, state);
 }
 
 static void camelFindAndReplace(string &haystack, const string &needle) {
@@ -550,8 +550,15 @@ GenericManager::GenericManager() : mConfigRoot("flexisip","This is the default F
 	tls->setConfigListener(this);
 }
 
-void GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state){
+bool GenericManager::doIsValidConfig(const string &key, const string &value) {
+	return true;
+}
+
+bool GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state){
 	switch (state) {
+		case ConfigState::Check:
+			return doIsValidConfig(conf.getName(), conf.get());
+			break;
 		case ConfigState::Changed:
 			mDirtyConfig=true;
 			break;
@@ -568,6 +575,7 @@ void GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 		default:
 			break;
 	}
+	return true;
 }
 
 int GenericManager::load(const char* configfile){
@@ -848,6 +856,12 @@ int ConfigValue::handleSnmpRequest(netsnmp_mib_handler *handler,
 		ret = netsnmp_check_vb_type(requests->requestvb, ASN_OCTET_STR);
 		if ( ret != SNMP_ERR_NOERROR ) {
 			netsnmp_set_request_error(reqinfo, requests, ret );
+		}
+
+		mNextValue.assign((char*)requests->requestvb->val.string,
+						requests->requestvb->val_len);
+		if (!invokeConfigStateChanged(ConfigState::Check)) {
+			netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_WRONGVALUE);
 		}
 		break;
 	case MODE_SET_RESERVE2:
