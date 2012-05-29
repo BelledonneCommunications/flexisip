@@ -127,8 +127,8 @@ class Module : protected ConfigValueListener {
 		virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 		virtual void onIdle(){
 		}
-		virtual bool onCheckValidConfig() {return true;}
-		virtual bool isValidConfig(const std::string &key, const std::string &value) {return true;}
+		virtual bool onCheckValidNextConfig() {return true;}
+		virtual bool isValidNextConfig(const ConfigValue &cv) {return true;}
 		Agent *mAgent;
 	private:
 		void setInfo(ModuleInfoBase *i);

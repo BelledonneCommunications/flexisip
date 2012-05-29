@@ -160,6 +160,15 @@ void ConfigValue::set(const string  &value){
 	mValue=value;
 }
 
+void ConfigValue::setNextValue(const string  &value){
+	if (getType()==Boolean){
+		if (value!="true" && value!="false" && value!="1" && value!="0"){
+			LOGF("Not a boolean: \"%s\" for key \"%s\" ", value.c_str(), getName().c_str());
+		}
+	}
+	mNextValue=value;
+}
+
 void ConfigValue::setDefault(const string & value){
 	if (getType()==Boolean){
 		if (value!="true" && value!="false" && value!="1" && value!="0"){
@@ -410,6 +419,12 @@ bool ConfigBoolean::read()const{
 	LOGA("Bad boolean value %s",get().c_str());
 	return false;
 }
+bool ConfigBoolean::readNext()const{
+	if (getNextValue()=="true" || getNextValue()=="1") return true;
+	else if (getNextValue()=="false" || getNextValue()=="0") return false;
+	LOGA("Bad boolean value %s",getNextValue().c_str());
+	return false;
+}
 
 void ConfigBoolean::write(bool value){
 	set(value?"1":"0");
@@ -422,6 +437,9 @@ ConfigInt::ConfigInt(const string &name, const string &help, const string &defau
 
 int ConfigInt::read()const{
 	return atoi(get().c_str());
+}
+int ConfigInt::readNext()const{
+	return atoi(getNextValue().c_str());
 }
 void ConfigInt::write(int value){
 	std::ostringstream oss;
@@ -555,14 +573,14 @@ GenericManager::GenericManager() : mConfigRoot("flexisip","This is the default F
 	tls->setConfigListener(this);
 }
 
-bool GenericManager::doIsValidConfig(const string &key, const string &value) {
+bool GenericManager::doIsValidNextConfig(const ConfigValue &cv) {
 	return true;
 }
 
 bool GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state){
 	switch (state) {
 		case ConfigState::Check:
-			return doIsValidConfig(conf.getName(), conf.get());
+			return doIsValidNextConfig(conf);
 			break;
 		case ConfigState::Changed:
 			mDirtyConfig=true;
@@ -815,6 +833,7 @@ int FileConfigReader::read2(GenericEntry *entry, int level){
 		}else if (level==2){
 			const char *val=lp_config_get_string(mCfg,cv->getParent()->getName().c_str(),cv->getName().c_str(),cv->getDefault().c_str());
 			cv->set(val);
+			cv->setNextValue(val);
 		}else{
 			LOGF("The current file format doesn't support recursive subsections.");
 		}

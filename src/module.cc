@@ -82,7 +82,7 @@ bool Module::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) 
 			conf.getName().c_str(), conf.get().c_str());
 	switch (state) {
 		case ConfigState::Check:
-			return isValidConfig(conf.getName(), conf.getNextValue());
+			return isValidNextConfig(conf);
 		break;
 		case ConfigState::Changed:
 			mDirtyConfig=true;
@@ -126,9 +126,8 @@ void Module::declare(GenericStruct *root){
 void Module::checkConfig() {
 	list<GenericEntry *> children=mModuleConfig->getChildren();
 	for (auto it=children.begin(); it != children.end(); ++it) {
-		ConfigValue *cv=dynamic_cast<ConfigValue *>(*it);
-		if (!cv) continue;
-		if (!isValidConfig(cv->getName(), cv->get())) {
+		const ConfigValue *cv=dynamic_cast<ConfigValue *>(*it);
+		if (cv && !isValidNextConfig(*cv)) {
 			LOGF("Invalid config %s:%s=%s",
 					getModuleName().c_str(),
 					cv->getName().c_str(),

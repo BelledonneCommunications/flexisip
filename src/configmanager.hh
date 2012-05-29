@@ -283,6 +283,7 @@ class ConfigValue : public GenericEntry{
 public:
 	ConfigValue(const std::string &name, GenericValueType  vt, const std::string &help, const std::string &default_value,oid oid_index);
 	void set(const std::string &value);
+	void setNextValue(const std::string &value);
 	const std::string &get()const;
 	const std::string &getNextValue()const { return mNextValue; }
 	const std::string &getDefault()const;
@@ -318,6 +319,7 @@ class ConfigBoolean : public ConfigValue{
 public:
 	ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
 	bool read()const;
+	bool readNext()const;
 	void write(bool value);
 #ifdef ENABLE_SNMP
 	virtual int handleSnmpRequest(netsnmp_mib_handler *,
@@ -335,6 +337,7 @@ public:
 	ConfigInt(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
 	virtual void mibFragment(std::ostream & ost, std::string spacing) const;
 	int read()const;
+	int readNext()const;
 	void write(int value);
 };
 
@@ -436,7 +439,7 @@ public:
 	bool mDirtyConfig;
 private:
 	GenericManager();
-	bool doIsValidConfig(const std::string &key, const std::string &value);
+	bool doIsValidNextConfig(const ConfigValue &cv);
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 	void applyOverrides(GenericStruct *root, bool strict) {
 		for (auto it=mOverrides.begin(); it != mOverrides.end(); ++it){

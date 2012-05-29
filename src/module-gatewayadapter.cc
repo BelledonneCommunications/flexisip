@@ -238,7 +238,7 @@ public:
 
 	virtual void onResponse(shared_ptr<SipEvent> &ev);
 
-	virtual bool isValidConfig(const std::string &key, const std::string &value);
+	virtual bool isValidNextConfig(const ConfigValue &cv);
 
 private:
 	static void nua_callback(nua_event_t event, int status, char const *phrase, nua_t *nua, nua_magic_t *_t, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]);
@@ -268,10 +268,11 @@ void GatewayAdapter::onDeclare(GenericStruct *module_config) {
 	module_config->addChildrenValues(items);
 }
 
-bool GatewayAdapter::isValidConfig(const std::string &key, const std::string &value) {
-	if (0==strcmp(key.c_str(), "gateway")) {
-		if (value.empty()) {
-			LOGE("Empty value GatewayAdapter::%s=%s", key.c_str(), value.c_str());
+bool GatewayAdapter::isValidNextConfig(const ConfigValue &cv) {
+	if (cv.getName() == "gateway") {
+		const ConfigString *cs=dynamic_cast<const ConfigString *>(&cv);
+		if (cv.getNextValue().empty()) {
+			LOGE("Empty value GatewayAdapter::%s=%s", cv.getName().c_str(), cv.getNextValue().c_str());
 			return false;
 		}
 	}
