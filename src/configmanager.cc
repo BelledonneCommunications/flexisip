@@ -103,26 +103,25 @@ string GenericEntry::getPrettyName()const{
 
 void GenericEntry::mibFragment(ostream & ost, string spacing) const{
 	string s("OCTET STRING");
-	doMibFragment(ost, true, s, spacing);
+	doMibFragment(ost, "", true, s, spacing);
+}
+
+void ConfigValue::mibFragment(ostream & ost, string spacing) const{
+	string s("OCTET STRING");
+	doMibFragment(ost, getDefault(), !mReadOnly, s, spacing);
 }
 
 void ConfigBoolean::mibFragment(ostream & ost, string spacing) const{
 	string s("INTEGER { true(1),false(0) }");
-	doMibFragment(ost, true, s, spacing);
+	doMibFragment(ost, getDefault(), !mReadOnly, s, spacing);
 }
 void ConfigInt::mibFragment(ostream & ost, string spacing) const{
 	string s("Integer32");
-	doMibFragment(ost, true, s, spacing);
+	doMibFragment(ost, getDefault(), !mReadOnly, s, spacing);
 }
 void StatCounter64::mibFragment(ostream & ost, string spacing) const{
 	string s("Counter64");
-	doMibFragment(ost, false, s, spacing);
-}
-void ConfigString::mibFragment(ostream & ost, string spacing) const{
-	ConfigValue::mibFragment(ost, spacing);
-}
-void ConfigStringList::mibFragment(ostream & ost, string spacing) const{
-	ConfigValue::mibFragment(ost, spacing);
+	doMibFragment(ost, "", false, s, spacing);
 }
 void GenericStruct::mibFragment(ostream & ost, string spacing) const{
 	string parent = getParent() ? getParent()->getName() : "flexisipMIB";
@@ -135,15 +134,16 @@ void GenericStruct::mibFragment(ostream & ost, string spacing) const{
 
 
 
-void GenericEntry::doMibFragment(ostream & ostr, bool rw, string &syntax, string spacing) const{
+void GenericEntry::doMibFragment(ostream & ostr, const string &def, bool rw, const string &syntax, const string &spacing) const{
 	if (!getParent()) LOGA("no parent found for %s", getName().c_str());
 	ostr << spacing << sanitize(getName()) << " OBJECT-TYPE" << endl
 			<< spacing << "	SYNTAX" << "	" << syntax << endl
 			<< spacing << "	MAX-ACCESS	" << (rw ? "read-write": "read-only") << endl
 			<< spacing << "	STATUS	current" << endl
 			<< spacing << "	DESCRIPTION" << endl
-			<< spacing << "	\"" << " PN:" << getPrettyName() << endl
-			<< spacing << "	" << getHelp() << "\"" << endl
+			<< spacing << "	\"" << getHelp() << endl
+			<< spacing << "	"<< " Default:" << def << endl
+			<< spacing << "	" << " PN:" << getPrettyName() << "\"" << endl
 			<< spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
@@ -210,7 +210,7 @@ oid Oid::oidFromHashedString(const string &str) {
 }
 
 GenericEntry::GenericEntry(const string &name, GenericValueType type, const string &help,oid oid_index) :
-				mOid(0),mName(name),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
+				mOid(0),mName(name),mReadOnly(false),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
 	mConfigListener=NULL;
 	if (strchr(name.c_str(),'_'))
 		LOGA("Underscores not allowed in config items, please use minus sign.");
@@ -544,6 +544,11 @@ GenericManager::GenericManager() : mConfigRoot("flexisip","This is the default F
 	global->addChildrenValues(global_conf);
 	global->setConfigListener(this);
 
+	// Don't rename, will not be exported to flexisip.conf
+	ConfigString *version=new ConfigString("versionNumber", "Flexisip version.", PACKAGE_VERSION, 0);
+	version->setReadOnly(true);
+	global->addChild(version);
+
 	GenericStruct *tls=new GenericStruct("tls","TLS specific parameters.",0);
 	mConfigRoot.addChild(tls);
 	tls->addChildrenValues(tls_conf);
@@ -635,6 +640,7 @@ ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)
 			ostr<<endl;
 		}
 	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL){
+		if (0==strcmp(entry->getName().c_str(),"versionNumber")) return ostr;
 		printHelp(ostr,entry->getHelp(),"#");
 		ostr<<"#  Default value: "<<val->getDefault()<<endl;
 		if (mDumpDefault) {
@@ -712,7 +718,9 @@ ostream &MibDumper::dump(ostream & ostr)const {
 			<< "	ORGANIZATION \"belledonne-communications\"" << endl
 			<< "	CONTACT-INFO \"postal:   34 Avenue de L'europe 38 100 Grenoble France" << endl
 			<< "		email:    contact@belledonne-communications.com\"" << endl
-			<< "DESCRIPTION  \"A Flexisip management tree.\"" << endl
+			<< "	DESCRIPTION  \"A Flexisip management tree.\"" << endl
+			<< "	REVISION     \"" <<mbstr <<"\""<<endl
+			<< "    DESCRIPTION  \"" PACKAGE_VERSION << "\"" << endl
 			<< "::={ enterprises "<< company_id << " }" << endl
 			<< endl;
 

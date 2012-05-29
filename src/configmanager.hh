@@ -161,6 +161,7 @@ public:
 	 * @returns entry oid built from parent & object oid index
 	 */
 	Oid& getOid() {return *mOid;};
+	void setReadOnly(bool ro) {mReadOnly=ro;};
 #ifdef ENABLE_SNMP
 	static int sHandleSnmpRequest(netsnmp_mib_handler *handler,
 			netsnmp_handler_registration *reginfo,
@@ -180,10 +181,11 @@ public:
 		return mConfigListener;
 	}
 protected:
-	void doMibFragment(std::ostream &ostr, bool rw, std::string &syntax, std::string spacing) const;
+	void doMibFragment(std::ostream &ostr, const std::string &def, bool rw, const std::string &syntax, const std::string &spacing) const;
 	GenericEntry(const std::string &name, GenericValueType type, const std::string &help,oid oid_index=0);
 	Oid *mOid;
 	const std::string mName;
+	bool mReadOnly;
 private:
 	const std::string mHelp;
 	GenericValueType mType;
@@ -230,7 +232,7 @@ public:
 	~GenericStruct();
 	GenericEntry *find(const char *name)const;
 	GenericEntry *findApproximate(const char *name)const;
-	void mibFragment(std::ostream & ost, std::string spacing) const;
+	virtual void mibFragment(std::ostream & ost, std::string spacing) const;
 	virtual void setParent(GenericEntry *parent);
 private:
 	std::list<GenericEntry*> mEntries;
@@ -249,7 +251,7 @@ public:
 	virtual int handleSnmpRequest(netsnmp_mib_handler *,
 			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
 #endif
-	void mibFragment(std::ostream & ost, std::string spacing) const;
+	virtual void mibFragment(std::ostream & ost, std::string spacing) const;
 	void setParent(GenericEntry *parent);
 	uint64_t read() { return mValue; }
 	void set(uint64_t val) { mValue=val; }
@@ -290,6 +292,7 @@ public:
 			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
 #endif
 	virtual void setParent(GenericEntry *parent);
+	virtual void mibFragment(std::ostream & ost, std::string spacing) const;
 protected:
 	bool invokeConfigStateChanged(ConfigState state) {
 		if (getParent() && getParent()->getType() == Struct) {
@@ -309,7 +312,6 @@ protected:
 private:
 	std::string mValue;
 	std::string mDefaultValue;
-
 };
 
 class ConfigBoolean : public ConfigValue{
@@ -321,7 +323,7 @@ public:
 	virtual int handleSnmpRequest(netsnmp_mib_handler *,
 			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
 #endif
-	void mibFragment(std::ostream & ost, std::string spacing)const;
+	virtual void mibFragment(std::ostream & ost, std::string spacing)const;
 };
 
 class ConfigInt : public ConfigValue{
@@ -331,7 +333,7 @@ public:
 			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
 #endif
 	ConfigInt(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
-	void mibFragment(std::ostream & ost, std::string spacing) const;
+	virtual void mibFragment(std::ostream & ost, std::string spacing) const;
 	int read()const;
 	void write(int value);
 };
@@ -340,14 +342,12 @@ class ConfigString : public ConfigValue{
 public:
 	ConfigString(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
 	const std::string & read()const;
-	void mibFragment(std::ostream & ost, std::string spacing) const;
 };
 
 class ConfigStringList : public ConfigValue{
 public:
 	ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
 	std::list<std::string> read()const;
-	void mibFragment(std::ostream & ost, std::string spacing) const;
 private:
 };
 
