@@ -226,7 +226,7 @@ public:
 	template <typename _retType>
 	_retType *get(const char *name)const;
 	template <typename _retType>
-	_retType *getDeep(const char *name)const;
+	_retType *getDeep(const char *name, bool strict)const;
 	~GenericStruct();
 	GenericEntry *find(const char *name)const;
 	GenericEntry *findApproximate(const char *name)const;
@@ -368,7 +368,7 @@ _retType *GenericStruct::get(const char *name)const{
 
 
 template <typename _retType>
-_retType *GenericStruct::getDeep(const char *name)const{
+_retType *GenericStruct::getDeep(const char *name, bool strict)const{
 	if (!name) return NULL;
 	std::string sname(name);
 
@@ -378,7 +378,21 @@ _retType *GenericStruct::getDeep(const char *name)const{
 	while (std::string::npos != (next=sname.find('/', prev))) {
 		std::string next_node_name=sname.substr(prev, next-prev);
 //		LOGE("Searching for node %s", next_node_name.c_str());
-		next_node=prev_node->get<GenericStruct>(next_node_name.c_str());
+		GenericEntry *e=find(next_node_name.c_str());
+		if (!e) {
+			if (!strict) return NULL;
+			LOGE("No ConfigEntry with name %s in struct %s",name,prev_node->getName().c_str());
+			for (auto it=prev_node->mEntries.begin(); it != prev_node->mEntries.end(); ++it) {
+				LOGE("-> %s", (*it)->getName().c_str());
+			}
+			LOGF("end");
+			return NULL;
+		}
+		next_node=dynamic_cast<GenericStruct *>(e);
+		if (!next_node){
+			LOGA("Config entry %s in struct %s does not have the expected type",name,e->getParent()->getName().c_str());
+			return NULL;
+		}
 		prev_node=next_node;
 		prev=next+1;
 	}
@@ -424,12 +438,12 @@ private:
 	GenericManager();
 	bool doIsValidConfig(const std::string &key, const std::string &value);
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
-	void applyOverrides(GenericStruct *root) {
+	void applyOverrides(GenericStruct *root, bool strict) {
 		for (auto it=mOverrides.begin(); it != mOverrides.end(); ++it){
 			const std::string &key((*it).first);
 			const std::string &value((*it).second);
 			if (value.empty()) continue;
-			ConfigValue *val=root->getDeep<ConfigValue>(key.c_str());
+			ConfigValue *val=root->getDeep<ConfigValue>(key.c_str(), strict);
 			if (val) {
 				std::cout << "Overriding config with " << key << ":" << value << std::endl;
 				val->set(value);
