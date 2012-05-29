@@ -86,6 +86,28 @@ void DosProtection::load() {
 	mLoaded = true;
 }
 
+void DosProtection::clean() {
+	char cmd[300] = { 0 };
+	int returnedValue;
+
+	/* Removing INPUT rule to redirect SIP packets to FLEXISIP chain */
+	snprintf(cmd, sizeof(cmd)-1, "rules=`%s --line-numbers -L INPUT | sort -r | egrep '^[0-9]+[[:space:]]+%s[[:space:]]+*' | cut -d ' ' -f1` && for rule in ${rules}; do %s -D INPUT ${rule}; done", mPath, mFlexisipChain, mPath);
+	returnedValue = system(cmd);
+	CHECK_RETURN(returnedValue, cmd);
+
+	/* Removing FLEXISIP chain */
+	snprintf(cmd, sizeof(cmd)-1, "%s -F %s ", mPath, mFlexisipChain);
+	returnedValue = system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -X %s ", mPath, mFlexisipChain);
+	returnedValue = system(cmd);
+
+	/* Removing BLACKLIST chain */
+	snprintf(cmd, sizeof(cmd)-1, "%s -F %s ", mPath, mBlacklistChain);
+	returnedValue = system(cmd);
+	snprintf(cmd, sizeof(cmd)-1, "%s -X %s ", mPath, mBlacklistChain);
+	returnedValue = system(cmd);
+}
+
 /* Uninstall IPTables firewall rules */
 void DosProtection::stop() {
 	if (!mLoaded) {
@@ -97,37 +119,11 @@ void DosProtection::stop() {
 	}
 
 	if (getuid() != 0) {
-		LOGE("Flexisip not started with root privileges! Can't add DOS protection iptables rules");
+		LOGE("Flexisip not started with root privileges! Can't remove DOS protection iptables rules");
 		return;
 	}
 
-	char cmd[100] = { 0 };
-	int returnedValue;
-
-	/* Restore previous state of IPtables */
-	snprintf(cmd, sizeof(cmd)-1, "%s-restore < "CONFIG_DIR"/iptables.bak", mPath);
-	returnedValue = system(cmd);
-	CHECK_RETURN(returnedValue, cmd)
-
-	/*
-	 Removing SIP packets routing from INPUT to FLEXISIP chain's route
-	 snprintf(cmd, sizeof(cmd)-1, "%s -D INPUT -p tcp --dport %i -j %s", mPath, mPort, mFlexisipChain);
-	 returnedValue = system(cmd);
-	 snprintf(cmd, sizeof(cmd)-1, "%s -D INPUT -p udp --dport %i -j %s", mPath, mPort, mFlexisipChain);
-	 returnedValue = system(cmd);
-
-	 Removing FLEXISIP chain
-	 snprintf(cmd, sizeof(cmd)-1, "%s -F %s ", mPath, mFlexisipChain);
-	 returnedValue = system(cmd);
-	 snprintf(cmd, sizeof(cmd)-1, "%s -X %s ", mPath, mFlexisipChain);
-	 returnedValue = system(cmd);
-
-	 Removing BLACKLIST chain *
-	 snprintf(cmd, sizeof(cmd)-1, "%s -F %s ", mPath, mBlacklistChain);
-	 returnedValue = system(cmd);
-	 snprintf(cmd, sizeof(cmd)-1, "%s -X %s ", mPath, mBlacklistChain);
-	 returnedValue = system(cmd);
-	 */
+	clean();
 }
 
 /* Install IPTables firewall rules */
@@ -150,12 +146,11 @@ void DosProtection::start() {
 
 	/* Test recent module directory existence */
 	if (mRecentDirectoryName == NULL) {
-		const char* path_centos_6 = "/sys/module/xt_recent/";
+		mRecentDirectoryName = "xt_recent";
+
 		const char* path_centos_5 = "/sys/module/ipt_recent/";
 		if (directoryExists(path_centos_5))
 			mRecentDirectoryName = "ipt_recent";
-		else if (directoryExists(path_centos_6))
-			mRecentDirectoryName = "xt_recent";
 	}
 
 	/* Increasing recent module default values */
@@ -166,10 +161,7 @@ void DosProtection::start() {
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	/* Backup existing IPTables rules to restore this state after closing flexisip  */
-	snprintf(cmd, sizeof(cmd)-1, "%s-save > "CONFIG_DIR"/iptables.bak", mPath);
-	returnedValue = system(cmd);
-	CHECK_RETURN(returnedValue, cmd)
+	clean();
 
 	/* FLEXISIP chain */
 	snprintf(cmd, sizeof(cmd) - 1, "%s -N %s", mPath, mFlexisipChain);

@@ -24,6 +24,7 @@ class DosProtection{
 		static DosProtection *get();
 		void start();
 		void stop();
+		void clean();
 	private:
 		DosProtection();
 		~DosProtection();
