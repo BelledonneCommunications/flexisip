@@ -19,6 +19,7 @@
 #include "module.hh"
 #include "agent.hh"
 #include <string>
+#include <ctime>
 #include <map>
 #include <list>
 #include <vector>
@@ -31,6 +32,9 @@
 #include "authdb.hh"
 
 using namespace ::std;
+
+const static int NONCE_EXPIRES=100;
+const static int NEXT_NONCE_EXPIRES=100;
 
 class Authentication;
 
@@ -48,6 +52,80 @@ struct auth_plugin_t
 struct auth_mod_size { auth_mod_t mod[1]; auth_plugin_t plug[1]; };
 
 
+class NonceStore {
+	map<string,int> nc;
+	map<string, time_t> expires;
+	mutex mut;
+public:
+	int getNc(const string &nonce) {
+		unique_lock<mutex> lck(mut);
+		auto it=nc.find(nonce);
+		if (it!=nc.end()) return (*it).second;
+		return -1;
+	}
+
+	void insert(msg_header_t *response) {
+		const char *nonce=msg_header_find_param((msg_common_t const *) response, "nonce");
+		string snonce(nonce);
+		snonce=snonce.substr(1, snonce.length()-2);
+		LOGD("New nonce %s", snonce.c_str());
+		insert(snonce);
+	}
+	void insert(const string &nonce) {
+		unique_lock<mutex> lck(mut);
+		auto it=nc.find(nonce);
+		if (it!=nc.end()) {
+			LOGE("Replacing nonce count for %s", nonce.c_str());
+			it->second=0;
+		} else {
+			nc.insert(make_pair(nonce,0));
+		}
+
+		auto itE=expires.find(nonce);
+		time_t expiration=time(NULL)+NONCE_EXPIRES;
+		if (itE!=expires.end()) {
+			LOGE("Replacing nonce expiration for %s", nonce.c_str());
+			itE->second=expiration;
+		} else {
+			expires.insert(make_pair(nonce,expiration));
+		}
+	}
+
+	void updateNc(const string &nonce, int newnc) {
+		unique_lock<mutex> lck(mut);
+		auto it=nc.find(nonce);
+		if (it!=nc.end()) {
+			LOGD("Updating nonce %s with nc=%d", nonce.c_str(), newnc);
+			(*it).second=newnc;
+		} else {
+			LOGE("Couldn't update nonce %s: not found", nonce.c_str());
+		}
+	}
+
+	void erase(const string &nonce) {
+		unique_lock<mutex> lck(mut);
+		LOGD("Erasing nonce %s", nonce.c_str());
+		nc.erase(nonce);
+		expires.erase(nonce);
+	}
+
+	void cleanExpired() {
+		unique_lock<mutex> lck(mut);
+		int count=0;
+		time_t now =time(NULL);
+		for (auto it=expires.begin(); it != expires.end(); ) {
+			if (now > it->second) {
+				LOGD("Cleaning expired nonce %s", it->first.c_str());
+				auto eraseIt=it;
+				++it;
+				nc.erase(eraseIt->first);
+				expires.erase(eraseIt);
+				++count;
+			} else 	++it;
+		}
+		if (count) LOGD("Cleaned %d expired nonces, %zd remaining", count, nc.size());
+	}
+};
 
 
 class Authentication : public Module {
@@ -123,6 +201,8 @@ public:
 	StatCounter64 *mCountSyncRetrieve;
 	StatCounter64 *mCountPassFound;
 	StatCounter64 *mCountPassNotFound;
+	NonceStore mNonceStore;
+
 	Authentication(Agent *ag):Module(ag),mCountAsyncRetrieve(NULL),mCountSyncRetrieve(NULL){
 		mProxyChallenger.ach_status=407;/*SIP_407_PROXY_AUTH_REQUIRED*/
 		mProxyChallenger.ach_phrase=sip_407_Proxy_auth_required;
@@ -197,6 +277,9 @@ public:
 									AUTHTAG_METHOD("odbc"),
 									AUTHTAG_REALM((*it).c_str()),
 									AUTHTAG_OPAQUE("+GNywA=="),
+									AUTHTAG_QOP("auth"),
+									AUTHTAG_EXPIRES(NONCE_EXPIRES), // in seconds
+									AUTHTAG_NEXT_EXPIRES(NEXT_NONCE_EXPIRES), // in seconds
 									AUTHTAG_FORBIDDEN(1),
 									TAG_END());
 			auth_plugin_t *ap = AUTH_PLUGIN(mAuthModules[*it]);
@@ -265,7 +348,11 @@ public:
 	}
 	void onResponse(shared_ptr<SipEvent> &ev) {/*nop*/};
 
+	void onIdle() {
+		mNonceStore.cleanExpired();
+	}
 };
+
 
 ModuleInfo<Authentication> Authentication::sInfo("Authentication",
 	"The authentication module challenges SIP requests according to a user/password database.",
@@ -344,6 +431,7 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 		}
 		else {
 			auth_challenge_digest(mAm, mAs, mAch);
+			getModule()->mNonceStore.insert(mAs->as_response);
 			mAs->as_blacklist = mAm->am_blacklist;
 		}
 		if (passwd) {
@@ -467,26 +555,40 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		return;
 	}
 
+	Authentication *module=listener->getModule();
 	msg_time_t now = msg_now();
 	if (as->as_nonce_issued == 0 /* Already validated nonce */ &&
 			auth_validate_digest_nonce(am, as, ar,  now) < 0) {
 		as->as_blacklist = am->am_blacklist;
 		auth_challenge_digest(am, as, ach);
+		module->mNonceStore.insert(as->as_response);
 		listener->sendReply();
 		return;
 	}
 
 	if (as->as_stale) {
 		auth_challenge_digest(am, as, ach);
+		module->mNonceStore.insert(as->as_response);
 		listener->sendReply();
 		return;
+	}
+
+	int pnc=module->mNonceStore.getNc(ar->ar_nonce);
+	int nnc = (int) strtoul(ar->ar_nc, NULL, 10);
+	if (pnc == -1 || pnc >= nnc) {
+		LOGE("Bad nonce count %d -> %d for %s", pnc, nnc, ar->ar_nonce);
+		as->as_blacklist = am->am_blacklist;
+		auth_challenge_digest(am, as, ach);
+		module->mNonceStore.insert(as->as_response);
+		listener->sendReply();
+	} else {
+		module->mNonceStore.updateNc(ar->ar_nonce, nnc);
 	}
 
 	// Retrieve password. The result may be either synchronous OR asynchronous,
 	// on a case by case basis.
 	string foundPassword;
 	AuthDbResult res=AuthDb::get()->password(listener->getRoot(), as->as_user_uri, ar->ar_username, foundPassword, listener);
-	Authentication *module=listener->getModule();
 	switch (res) {
 		case PENDING:
 			// The password couldn't be retrieved synchronously
@@ -546,6 +648,7 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 		/* There was no realm or credentials, send challenge */
 		LOGD("%s: no credentials matched realm or no realm", __func__);
 		auth_challenge_digest(am, as, ach);
+		listener->getModule()->mNonceStore.insert(as->as_response);
 
 		// Retrieve the password in the hope it will be in cache when the remote UAC
 		// sends back its request; this time with the expected authentication credentials.
