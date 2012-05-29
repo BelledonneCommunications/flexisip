@@ -918,6 +918,10 @@ int ConfigBoolean::handleSnmpRequest(netsnmp_mib_handler *handler,
 		if ( ret != SNMP_ERR_NOERROR ) {
 			netsnmp_set_request_error(reqinfo, requests, ret );
 		}
+		mNextValue= requests->requestvb->val.integer == 0 ? "0":"1";
+		if (!invokeConfigStateChanged(ConfigState::Check)) {
+			netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_WRONGVALUE);
+		}
 		break;
 	case MODE_SET_RESERVE2:
 		old_value=(u_short*)malloc(sizeof(u_short));
@@ -962,6 +966,7 @@ int ConfigInt::handleSnmpRequest(netsnmp_mib_handler *handler,
 {
 	int *old_value;
 	int ret;
+	std::ostringstream oss;
 
 	switch(reqinfo->mode) {
 	case MODE_GET:
@@ -972,6 +977,11 @@ int ConfigInt::handleSnmpRequest(netsnmp_mib_handler *handler,
 		ret = netsnmp_check_vb_type(requests->requestvb, ASN_INTEGER);
 		if ( ret != SNMP_ERR_NOERROR ) {
 			netsnmp_set_request_error(reqinfo, requests, ret );
+		}
+		oss << *requests->requestvb->val.integer;
+		mNextValue=oss.str();
+		if (!invokeConfigStateChanged(ConfigState::Check)) {
+			netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_WRONGVALUE);
 		}
 		break;
 	case MODE_SET_RESERVE2:
