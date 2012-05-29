@@ -124,18 +124,15 @@ void Module::declare(GenericStruct *root){
 }
 
 void Module::checkConfig() {
-	bool enable=mModuleConfig->get<ConfigBoolean>("enabled")->read();
-	if (enable) {
-		list<GenericEntry *> children=mModuleConfig->getChildren();
-		for (auto it=children.begin(); it != children.end(); ++it) {
-			ConfigValue *cv=dynamic_cast<ConfigValue *>(*it);
-			if (!cv) continue;
-			if (!isValidConfig(cv->getName(), cv->get())) {
-				LOGF("Invalid config %s:%s=%s",
-						getModuleName().c_str(),
-						cv->getName().c_str(),
-						cv->get().c_str());
-			}
+	list<GenericEntry *> children=mModuleConfig->getChildren();
+	for (auto it=children.begin(); it != children.end(); ++it) {
+		ConfigValue *cv=dynamic_cast<ConfigValue *>(*it);
+		if (!cv) continue;
+		if (!isValidConfig(cv->getName(), cv->get())) {
+			LOGF("Invalid config %s:%s=%s",
+					getModuleName().c_str(),
+					cv->getName().c_str(),
+					cv->get().c_str());
 		}
 	}
 }

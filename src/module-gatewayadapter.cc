@@ -264,7 +264,7 @@ GatewayAdapter::~GatewayAdapter() {
 
 void GatewayAdapter::onDeclare(GenericStruct *module_config) {
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
-	ConfigItemDescriptor items[] = { { String, "gateway", "A gateway uri where to send all requests", "" }, { String, "gateway-domain", "Force the domain of send all requests", "" }, config_item_end };
+	ConfigItemDescriptor items[] = { { String, "gateway", "A gateway uri where to send all requests", "sip:localhost:0" }, { String, "gateway-domain", "Force the domain of send all requests", "" }, config_item_end };
 	module_config->addChildrenValues(items);
 }
 
