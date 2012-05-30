@@ -270,7 +270,6 @@ void GatewayAdapter::onDeclare(GenericStruct *module_config) {
 
 bool GatewayAdapter::isValidNextConfig(const ConfigValue &cv) {
 	if (cv.getName() == "gateway") {
-		const ConfigString *cs=dynamic_cast<const ConfigString *>(&cv);
 		if (cv.getNextValue().empty()) {
 			LOGE("Empty value GatewayAdapter::%s=%s", cv.getName().c_str(), cv.getNextValue().c_str());
 			return false;
