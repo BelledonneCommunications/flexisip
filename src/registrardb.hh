@@ -35,22 +35,6 @@
 #define AOR_KEY_SIZE 128
 
 class ExtendedContact {
-	char *make_sip_uri(const url_t *url) {
-		const char * port = (url->url_port) ? url->url_port : "5060";
-		if (url->url_params) {
-			if (url->url_user) {
-				return su_sprintf(&home, "<sip:%s@%s:%s;%s>", url->url_user, url->url_host, port, url->url_params);
-			} else {
-				return su_sprintf(&home, "<sip:%s:%s;%s>", url->url_host, port, url->url_params);
-			}
-		} else {
-			if (url->url_user) {
-				return su_sprintf(&home, "<sip:%s@%s:%s>", url->url_user, url->url_host, port);
-			} else {
-				return su_sprintf(&home, "<sip:%s:%s>", url->url_host, port);
-			}
-		}
-	}
 public:
 	su_home_t home;
 	char *mSipUri;
@@ -71,13 +55,11 @@ public:
 
 	}
 
-
 	ExtendedContact(const sip_contact_t *sip_contact, const char *contactId, const char *route, const char *lineValue, int global_expire, const char *callId, uint32_t cseq, time_t updateTime, bool alias) :
 			mQ(0), mUpdatedTime(updateTime), mCallId(NULL), mCSeq(cseq), mLineValueCopy(NULL), mRoute(NULL), mContactId(NULL), mAlias(alias) {
 		su_home_init(&home);
 
-		const url_t *url = sip_contact->m_url;
-		mSipUri=make_sip_uri(url);
+		mSipUri = ExtendedContact::format_url(&home, sip_contact->m_url);
 
 		if (sip_contact->m_q) {
 			mQ = atof(sip_contact->m_q);
@@ -102,12 +84,31 @@ public:
 		mSipUri = su_strdup(&home, sip_contact);
 		common_init(contactId, route, callId, lineValue);
 	}
+
 	ExtendedContact(const url_t *url, const char *route) :
 			mSipUri(NULL), mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0), mCallId(NULL), mCSeq(0), mLineValueCopy(NULL), mRoute(NULL), mContactId(NULL), mAlias(false){
 		su_home_init(&home);
-		mSipUri=make_sip_uri(url);
+		mSipUri = ExtendedContact::format_url(&home, url);
 		if (route) mRoute = su_strdup(&home, route);
 	}
+
+	static char* format_url(su_home_t *home, const url_t *url) {
+		const char * port = (url->url_port) ? url->url_port : "5060";
+		if (url->url_params) {
+			if (url->url_user) {
+				return su_sprintf(home, "<sip:%s@%s:%s;%s>", url->url_user, url->url_host, port, url->url_params);
+			} else {
+				return su_sprintf(home, "<sip:%s:%s;%s>", url->url_host, port, url->url_params);
+			}
+		} else {
+			if (url->url_user) {
+				return su_sprintf(home, "<sip:%s@%s:%s>", url->url_user, url->url_host, port);
+			} else {
+				return su_sprintf(home, "<sip:%s:%s>", url->url_host, port);
+			}
+		}
+	}
+
 	~ExtendedContact() {
 		su_home_destroy(&home);
 	}

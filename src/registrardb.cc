@@ -396,6 +396,7 @@ public:
 					m_record->mContacts.push_back(ec);
 				} else {
 					LOGD("Step: %d\tFind alias %s for %s. Try to fetch it.", m_step, ec->mSipUri, m_url);
+					m_record->mContacts.push_back(ec);
 					sip_contact_t *contact = sip_contact_format(&m_home, "%s", ec->mSipUri);
 					if (contact != NULL) {
 						++m_request;

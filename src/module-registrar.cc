@@ -41,7 +41,7 @@ public:
 	static void send480KO(Agent *agent, shared_ptr<SipEvent> &ev);
 	static void send200Ok(Agent *agent, shared_ptr<SipEvent> &ev, const sip_contact_t *contacts);
 	void routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aorb, const string &sipUri);
-	void onRegister(Agent *agent, shared_ptr<SipEvent> &ev, sip_contact_t *ct, const string &sipUri);
+	void onRegister(Agent *agent, shared_ptr<SipEvent> &ev, sip_contact_t *ct, Record *aorb, const string &sipUri);
 
 	Registrar(Agent *ag) :
 			Module(ag) {
@@ -68,6 +68,7 @@ public:
 				{ String, "db-implementation", "Implementation used for storing address of records contact uris. [internal,...]", "internal" },
 #endif
 				{ Boolean, "fork", "Fork messages to all registered devices", "true" },
+				{ Boolean, "fork-late", "Fork invites to late registers", "false" },
 				{ Boolean, "fork-one-response", "Only forward one response of forked invite to the caller", "true" },
 				{ Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite", "false" },
 				{	String, "generated-contact-route" , "Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
@@ -75,20 +76,20 @@ public:
 				config_item_end };
 		mc->addChildrenValues(configs);
 
-		auto p=mc->createStatPair("count-clear", "Number of cleared registrations.");
-		mCountClear=p.first;
-		mCountClearFinished=p.second;
+		auto p = mc->createStatPair("count-clear", "Number of cleared registrations.");
+		mCountClear = p.first;
+		mCountClearFinished = p.second;
 
-		p=mc->createStatPair("count-bind", "Number of registers.");
-		mCountBind=p.first;
-		mCountBindFinished=p.second;
+		p = mc->createStatPair("count-bind", "Number of registers.");
+		mCountBind = p.first;
+		mCountBindFinished = p.second;
 
-		p=mc->createStatPair("count-forks", "Number of forks");
-		mCountForks=p.first;
-		mCountForksFinished=p.second;
+		p = mc->createStatPair("count-forks", "Number of forks");
+		mCountForks = p.first;
+		mCountForksFinished = p.second;
 
-		mCountNonForks=mc->createStat("count-non-forked", "Number of non forked invites.");
-		mCountLocalActives=mc->createStat("count-local-registered-users", "Number of users currently registered through this server.");
+		mCountNonForks = mc->createStat("count-non-forked", "Number of non forked invites.");
+		mCountLocalActives = mc->createStat("count-local-registered-users", "Number of users currently registered through this server.");
 	}
 
 	virtual void onLoad(const GenericStruct *mc) {
@@ -160,7 +161,7 @@ private:
 	}
 	void readStaticRecord(string file);
 	bool contactUrlInVia(const url_t *ct_url, sip_via_t * via);
-	bool dispatch(Agent *agent, const shared_ptr<SipEvent> &ev, sip_contact_t *ct, const char *sipUri, const char *route, shared_ptr<ForkCallContext> context = shared_ptr<ForkCallContext>());
+		bool dispatch(Agent *agent, const shared_ptr<SipEvent> &ev, sip_contact_t *ct, const char *route, shared_ptr<ForkCallContext> context = shared_ptr<ForkCallContext>());
 	list<string> mDomains;
 	bool mFork;
 	bool mForkLate;
@@ -172,12 +173,12 @@ private:
 };
 
 // Listener class NEED to copy the shared pointer
-class OnLogBindListener: public RegistrarDbListener {
+class OnStaticBindListener: public RegistrarDbListener {
 	friend class Registrar;
 	Agent *agent;
 	string line;
 public:
-	OnLogBindListener(Agent *agent, const string& line) :
+	OnStaticBindListener(Agent *agent, const string& line) :
 			agent(agent), line(line) {
 	}
 	void onRecordFound(Record *r) {
@@ -221,7 +222,7 @@ void Registrar::readStaticRecord(string file_path) {
 					sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
 
 					if (url != NULL && contact != NULL) {
-						RegistrarDb::get(mAgent)->bind(url, contact, "", 0, NULL, -1, isManagedDomain(url->url_host), make_shared<OnLogBindListener>(getAgent(), line));
+						RegistrarDb::get(mAgent)->bind(url, contact, "", 0, NULL, -1, isManagedDomain(url->url_host), make_shared<OnStaticBindListener>(getAgent(), line));
 						continue;
 					}
 				}
@@ -297,7 +298,7 @@ bool Registrar::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *ct_
 	return false;
 }
 
-bool Registrar::dispatch(Agent *agent, const shared_ptr<SipEvent> &ev, sip_contact_t *ct, const char *sipUri, const char *route, shared_ptr<ForkCallContext> context) {
+bool Registrar::dispatch(Agent *agent, const shared_ptr<SipEvent> &ev, sip_contact_t *ct, const char *route, shared_ptr<ForkCallContext> context) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
@@ -322,7 +323,7 @@ bool Registrar::dispatch(Agent *agent, const shared_ptr<SipEvent> &ev, sip_conta
 			/* Rewrite request-uri */
 			new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), ct->m_url);
 			if (route != NULL) {
-				LOGD("This flexisip instance is not responsible for contact %s -> %s", sipUri, route);
+				LOGD("This flexisip instance is not responsible for contact %s -> %s", url_as_string(ms->getHome(), ct->m_url), route);
 				prependRoute(msg_home(new_msg), agent, new_msg, new_sip, route);
 			}
 
@@ -350,20 +351,38 @@ bool Registrar::dispatch(Agent *agent, const shared_ptr<SipEvent> &ev, sip_conta
 	return false;
 }
 
-void Registrar::onRegister(Agent *agent, shared_ptr<SipEvent> &ev, sip_contact_t *ct, const string &sipUri) {
-	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	sip_t *sip = ms->getSip();
-
-	if (mForkLate && ct != NULL) {
+void Registrar::onRegister(Agent *agent, shared_ptr<SipEvent> &ev, sip_contact_t *ct, Record *aor, const string &sipUri) {
+	if (mForkLate) {
+		// First use sipURI
 		auto it = mForks.find(sipUri);
 		if (it != mForks.end()) {
 			shared_ptr<ForkCallContext> context = it->second;
 			LOGD("Found a pending call for contact %s: %p", sipUri.c_str(), context.get());
-			dispatch(agent, context->getEvent(), ct, sipUri.c_str(), NULL, context);
-		} else {
-			LOGD("No pending call found for contact %s", sipUri.c_str());
+			dispatch(agent, context->getEvent(), ct, NULL, context);
+			return;
+		}
+
+		// If not found find in aliases
+		if (aor != NULL) {
+			const auto contacts = aor->getExtendedContacts();
+			for (auto it = contacts.begin(); it != contacts.end(); ++it) {
+				const shared_ptr<ExtendedContact> ec = *it;
+				if (ec) {
+					if (ec->mAlias) {
+						const std::string uri = ec->mSipUri;
+						auto it = mForks.find(uri);
+						if (it != mForks.end()) {
+							shared_ptr<ForkCallContext> context = it->second;
+							LOGD("Found a pending call for contact %s: %p", uri.c_str(), context.get());
+							dispatch(agent, context->getEvent(), ct, NULL, context);
+							return;
+						}
+					}
+				}
+			}
 		}
 	}
+	LOGD("No pending call found for contact %s", sipUri.c_str());
 }
 
 void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor, const string &sipUri) {
@@ -408,67 +427,72 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 	}
 
 
-	if (contacts.size() > 0) {
-		if (!mFork || (contacts.size() <= 1 && !mForkLate) || ms->getSip()->sip_request->rq_method != sip_method_invite) {
-			++*mCountNonForks;
-			const shared_ptr<ExtendedContact> &ec = contacts.front();
-			sip_contact_t *ct = NULL;
-			if (ec)
-				ct = Record::extendedContactToSofia(ms->getHome(), *ec, now);
-
-			if (ct) {
-				if (ec->mRoute != NULL && 0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
-					if (dispatch(agent, ev, ct, ec->mSipUri, ec->mRoute))
-						return;
-				} else {
-					if (dispatch(agent, ev, ct, ec->mSipUri, NULL))
-						return;
-				}
-			} else {
-				LOGW("Can't create sip_contact of %s.", ec->mSipUri);
-			}
-		} else {
-			++*mCountForks;
+if (contacts.size() > 0) {
 			bool handled = false;
-			shared_ptr<ForkCallContext> context(make_shared<ForkCallContext>(agent, ev));
-			mForks.insert(pair<string, shared_ptr<ForkCallContext>>(sipUri, context));
-			LOGD("Add fork %s to store", sipUri.c_str());
-			shared_ptr<IncomingTransaction> incoming_transaction = ev->createIncomingTransaction();
-			context->onNew(incoming_transaction);
-			incoming_transaction->setProperty<ForkCallContext>(Registrar::sInfo.getModuleName(), context);
+			bool fork = !(!mFork || (contacts.size() <= 1 && !mForkLate) || ms->getSip()->sip_request->rq_method != sip_method_invite);
+			if (fork) {
+				++*mCountForks;
+			} else {
+				++*mCountNonForks;
+			}
+
+			// Init context if needed
+			shared_ptr<ForkCallContext> context;
+			shared_ptr<IncomingTransaction> incoming_transaction;
+			if (fork) {
+				context = make_shared<ForkCallContext>(agent, ev);
+				mForks.insert(pair<string, shared_ptr<ForkCallContext>>(sipUri, context));
+				LOGD("Add fork %p to store %s", context.get(), sipUri.c_str());
+				incoming_transaction = ev->createIncomingTransaction();
+				context->onNew(incoming_transaction);
+				incoming_transaction->setProperty<ForkCallContext>(Registrar::sInfo.getModuleName(), context);
+			}
 
 			for (auto it = contacts.begin(); it != contacts.end(); ++it) {
 				const shared_ptr<ExtendedContact> ec = *it;
 				sip_contact_t *ct = NULL;
 				if (ec)
 					ct = Record::extendedContactToSofia(ms->getHome(), *ec, now);
-
-				if (ct) {
-					if (ec->mRoute != NULL && 0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
-						if (dispatch(agent, ev, ct, ec->mSipUri, ec->mRoute, context))
-							handled++;
+				if (!ec->mAlias) {
+					if (ct) {
+						if (ec->mRoute != NULL && 0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
+							if (dispatch(agent, ev, ct, ec->mRoute, context)) {
+								handled++;
+								if (!fork)
+									break;
+							}
+						} else {
+							if (dispatch(agent, ev, ct, NULL, context)) {
+								handled++;
+								if (!fork)
+									break;
+							}
+						}
 					} else {
-						if (dispatch(agent, ev, ct, ec->mSipUri, NULL, context))
-							handled++;
+						LOGW("Can't create sip_contact of %s.", ec->mSipUri);
 					}
 				} else {
-					LOGW("Can't create sip_contact of %s.", ec->mSipUri);
+					if (fork) {
+						mForks.insert(pair<string, shared_ptr<ForkCallContext>>(ec->mSipUri, context));
+						LOGD("Add fork %p to store %s", context.get(), ec->mSipUri);
+					}
 				}
 			}
 
 			if (handled > 0) {
-				shared_ptr<SipEvent> new_ev(make_shared<ResponseSipEvent>(ev->getOutgoingAgent(), incoming_transaction->createResponse(SIP_100_TRYING)));
-				new_ev->setIncomingAgent(incoming_transaction);
-				agent->sendResponseEvent(new_ev);
-				ev->terminateProcessing();
+				if (fork) {
+					shared_ptr<SipEvent> new_ev(make_shared<ResponseSipEvent>(ev->getOutgoingAgent(), incoming_transaction->createResponse(SIP_100_TRYING)));
+					new_ev->setIncomingAgent(incoming_transaction);
+					agent->sendResponseEvent(new_ev);
+					ev->terminateProcessing();
+				}
 				return;
 			} else {
 				LOGD("This user isn't registered (no valid contact).");
 			}
+		} else {
+			LOGD("This user isn't registered (no contact).");
 		}
-	} else {
-		LOGD("This user isn't registered (no contact).");
-	}
 
 	ev->reply(ms, SIP_404_NOT_FOUND, SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
 }
@@ -494,7 +518,7 @@ public:
 		const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
 		time_t now = time(NULL);
 		Registrar::send200Ok(mModule->getAgent(), mEv, r->getContacts(ms->getHome(), now));
-		mModule->onRegister(mModule->getAgent(), mEv, mContact, mSipUri);
+		mModule->onRegister(mModule->getAgent(), mEv, mContact, r, mSipUri);
 	}
 	void onError() {
 		Registrar::send480KO(mModule->getAgent(), mEv);
