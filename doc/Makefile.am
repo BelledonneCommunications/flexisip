@@ -12,9 +12,9 @@ CLEANFILES = *.log *.toc *.out *.log *.tmp ${guide_pdf} *.aux *.tmp.tex
 ${guide_pdf}: $(srcdir)/${guide}.tex $(top_builddir)/src/flexisip
 	sh latex_include_generator.sh
 # Several times to make sure the TOC is up-to-date
-	- pdflatex   "\newcommand\flexisipversion{ ${VERSION}}\input{${guide}}"
-	- pdflatex   "\newcommand\flexisipversion{ ${VERSION}}\input{${guide}}"
-	- pdflatex   "\newcommand\flexisipversion{ ${VERSION}}\input{${guide}}"
+	pdflatex --interaction=nonstopmode  "\newcommand\flexisipversion{ ${VERSION}}\input{${guide}}"
+	pdflatex --interaction=nonstopmode  "\newcommand\flexisipversion{ ${VERSION}}\input{${guide}}"
+	pdflatex --interaction=nonstopmode  "\newcommand\flexisipversion{ ${VERSION}}\input{${guide}}"
 
 fldocdir=$(datadir)/doc/$(PACKAGE)-$(VERSION)
 fldoc_DATA = $(docfiles) $(srcdir)/schem*.pdf $(srcdir)/latex_include_generator.sh $(srcdir)/schem*.svg $(srcdir)/*.png
