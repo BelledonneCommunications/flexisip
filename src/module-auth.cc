@@ -246,7 +246,9 @@ public:
 					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. " \
 					"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. " \
 					"ex3: /etc/flexisip/passwd; for a file containing one 'user@domain password' by line.",		""	},
-			{	String		,	"request"				,	"Odbc SQL request to execute to obtain the password. Named parameters are :id, :domain and :authid.'",
+			{	String		,	"request"				,	"Odbc SQL request to execute to obtain the password \n. "
+					"Named parameters are :id (the user found in the from header), :domain (the authorization realm) and :authid (the authorization username). "
+					"The use of the :id parameter is mandatory.",
 					"select password from accounts where id = :id and domain = :domain and authid=:authid"	},
 			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
 			{	Integer		,	"max-password-length"	,	"Maximum length of the password column in database",	"100"	},
@@ -298,9 +300,9 @@ public:
 	void onRequest(shared_ptr<SipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
-		map<string,auth_mod_t *>::iterator authModuleIt;
 		// first check for auth module for this domain
-		authModuleIt = mAuthModules.find(sip->sip_from->a_url[0].url_host);
+		auto authModuleIt = mAuthModules.find(sip->sip_from->a_url[0].url_host);
+		if (authModuleIt == mAuthModules.end()) authModuleIt=mAuthModules.find("*");
 		if (authModuleIt == mAuthModules.end()) {
 			LOGI("unknown domain [%s]",sip->sip_from->a_url[0].url_host);
 			ev->reply(ms, SIP_488_NOT_ACCEPTABLE,
