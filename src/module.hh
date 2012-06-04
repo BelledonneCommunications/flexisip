@@ -129,6 +129,9 @@ class Module : protected ConfigValueListener {
 		}
 		virtual bool onCheckValidNextConfig() {return true;}
 		virtual bool isValidNextConfig(const ConfigValue &cv) {return true;}
+		void sendTrap(const std::string &msg) {
+			GenericManager::get()->sendTrap(mModuleConfig, msg);
+		}
 		Agent *mAgent;
 	private:
 		void setInfo(ModuleInfoBase *i);

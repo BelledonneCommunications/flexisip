@@ -103,25 +103,31 @@ string GenericEntry::getPrettyName()const{
 
 void GenericEntry::mibFragment(ostream & ost, string spacing) const{
 	string s("OCTET STRING");
-	doMibFragment(ost, "", true, s, spacing);
+	doMibFragment(ost, "", "read-write", s, spacing);
 }
 
 void ConfigValue::mibFragment(ostream & ost, string spacing) const{
 	string s("OCTET STRING");
-	doMibFragment(ost, getDefault(), !mReadOnly, s, spacing);
+	doMibFragment(ost, s, spacing);
 }
+
+void ConfigValue::doMibFragment(ostream &ostr, const string &syntax, const string &spacing) const {
+	string access(mNotifPayload?"accessible-for-notify":mReadOnly ? "read-only":"read-write");
+	GenericEntry::doMibFragment(ostr,getDefault(),access,syntax,spacing);
+}
+
 
 void ConfigBoolean::mibFragment(ostream & ost, string spacing) const{
 	string s("INTEGER { true(1),false(0) }");
-	doMibFragment(ost, getDefault(), !mReadOnly, s, spacing);
+	doMibFragment(ost, s, spacing);
 }
 void ConfigInt::mibFragment(ostream & ost, string spacing) const{
 	string s("Integer32");
-	doMibFragment(ost, getDefault(), !mReadOnly, s, spacing);
+	doMibFragment(ost, s, spacing);
 }
 void StatCounter64::mibFragment(ostream & ost, string spacing) const{
 	string s("Counter64");
-	doMibFragment(ost, "", false, s, spacing);
+	doMibFragment(ost, "", "read-only", s, spacing);
 }
 void GenericStruct::mibFragment(ostream & ost, string spacing) const{
 	string parent = getParent() ? getParent()->getName() : "flexisipMIB";
@@ -131,14 +137,97 @@ void GenericStruct::mibFragment(ostream & ost, string spacing) const{
 			<< mOid->getLeaf() << " }" << endl;
 }
 
+void NotificationEntry::mibFragment(ostream & ost, string spacing) const{
+	if (!getParent()) LOGA("no parent found for %s", getName().c_str());
+	ost << spacing << sanitize(getName()) << " NOTIFICATION-TYPE" << endl
+			<< spacing << "	OBJECTS	{	flNotifString	} "<< endl
+			<< spacing << "	STATUS	current" << endl
+			<< spacing << "	DESCRIPTION" << endl
+			<< spacing << "	\"" << getHelp() << endl
+			<< spacing << "	" << " PN:" << getPrettyName() << "\"" << endl
+			<< spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
+}
 
+NotificationEntry::NotificationEntry(const std::string &name, const std::string &help, oid oid_index):
+		GenericEntry(name,Notification,help,oid_index), mInitialized(false){
+}
 
+void NotificationEntry::setInitialized(bool status) {
+	mInitialized=status;
+	if (status) {
+		const GenericEntry *source;
+		string msg;
+		if (!mPendingTraps.empty()) {
+			LOGD("Sending %zd pending notifications", mPendingTraps.size());
+		}
+		while(!mPendingTraps.empty()) {
+			tie(source,msg)=mPendingTraps.front();
+			mPendingTraps.pop();
+			send(source,msg);
+		}
+	}
+}
 
-void GenericEntry::doMibFragment(ostream & ostr, const string &def, bool rw, const string &syntax, const string &spacing) const{
+void NotificationEntry::send(const string &msg){
+	send(NULL,msg);
+}
+void NotificationEntry::send(const GenericEntry *source, const string &msg){
+	LOGD("Sending trap %s: %s", source? source->getName().c_str():"", msg.c_str());
+
+#ifdef ENABLE_SNMP
+	if (!mInitialized) {
+		mPendingTraps.push(make_tuple(source,msg));
+		LOGD("Pending trap: SNMP not initialized");
+		return;
+	}
+
+	static Oid &sMsgTemplateOid=GenericManager::get()->getRoot()
+			->getDeep<GenericEntry>("notif/msg", true)->getOid();
+	static Oid &sSourceTemplateOid=GenericManager::get()->getRoot()
+			->getDeep<GenericEntry>("notif/source", true)->getOid();
+
+	/*
+	 * See:
+	 * http://net-snmp.sourceforge.net/dev/agent/notification_8c-example.html
+	 * In the notification, we have to assign our notification OID to
+	 * the snmpTrapOID.0 object. Here is it's definition.
+	 */
+	oid objid_snmptrap[] = { 1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0 };
+	size_t objid_snmptrap_len = OID_LENGTH(objid_snmptrap);
+
+	netsnmp_variable_list *notification_vars = NULL;
+
+	snmp_varlist_add_variable(&notification_vars,
+			objid_snmptrap, objid_snmptrap_len,
+			ASN_OBJECT_ID,
+			(u_char *) mOid->mOidPath.data(),
+			mOid->mOidPath.size() * sizeof(oid));
+
+	snmp_varlist_add_variable(&notification_vars,
+			(const oid*)sMsgTemplateOid.getValue().data(),
+			sMsgTemplateOid.getValue().size(),
+			ASN_OCTET_STR,
+			(u_char *)msg.data(),msg.length());
+
+	if (source) {
+		string oidstr(source->getOidAsString());
+		snmp_varlist_add_variable(&notification_vars,
+				(const oid*)sSourceTemplateOid.getValue().data(),
+				sSourceTemplateOid.getValue().size(),
+				ASN_OCTET_STR,
+				(u_char *)oidstr.data(),oidstr.length());
+	}
+
+	send_v2trap(notification_vars);
+	snmp_free_varbind(notification_vars);
+#endif
+}
+
+void GenericEntry::doMibFragment(ostream & ostr, const string &def, const string &access, const string &syntax, const string &spacing) const{
 	if (!getParent()) LOGA("no parent found for %s", getName().c_str());
 	ostr << spacing << sanitize(getName()) << " OBJECT-TYPE" << endl
 			<< spacing << "	SYNTAX" << "	" << syntax << endl
-			<< spacing << "	MAX-ACCESS	" << (rw ? "read-write": "read-only") << endl
+			<< spacing << "	MAX-ACCESS	" << access << endl
 			<< spacing << "	STATUS	current" << endl
 			<< spacing << "	DESCRIPTION" << endl
 			<< spacing << "	\"" << getHelp() << endl
@@ -557,6 +646,18 @@ GenericManager::GenericManager() : mConfigRoot("flexisip","This is the default F
 	mNeedRestart=false;
 	mDirtyConfig=false;
 
+	GenericStruct *notifObjs=new GenericStruct("notif","Templates for notifications.",0);
+	mConfigRoot.addChild(notifObjs);
+	ConfigString *nmsg=new ConfigString("msg", "Notification message payload.", "", 0);
+	nmsg->setNotifPayload(true);
+	notifObjs->addChild(nmsg);
+	ConfigString *nsoid=new ConfigString("source", "Notification source payload.", "", 0);
+	nsoid->setNotifPayload(true);
+	notifObjs->addChild(nsoid);
+
+	mNotifier=new NotificationEntry("sender","Send notifications",0);
+	notifObjs->addChild(mNotifier);
+
 	GenericStruct *global=new GenericStruct("global","Some global settings of the flexisip proxy.",0);
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
@@ -727,7 +828,8 @@ ostream &MibDumper::dump(ostream & ostr)const {
 
 	ostr << "FLEXISIP-MIB DEFINITIONS ::= BEGIN" << endl
 			<< "IMPORTS" << endl
-			<< "	OBJECT-TYPE, Integer32, MODULE-IDENTITY, enterprises,Counter64  	FROM SNMPv2-SMI" << endl
+			<< "	OBJECT-TYPE, Integer32, MODULE-IDENTITY, enterprises," << endl
+			<< "	Counter64,NOTIFICATION-TYPE							  	FROM SNMPv2-SMI" << endl
 			<< "	MODULE-COMPLIANCE, OBJECT-GROUP       					FROM SNMPv2-CONF;" << endl
 			<< endl
 
@@ -751,6 +853,7 @@ ostream &MibDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
 	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
 	ConfigValue *cVal;
 	StatCounter64 *sVal;
+	NotificationEntry *ne;
 	string spacing="";
 	while (level > 0) {
 		spacing += "	";
@@ -767,6 +870,8 @@ ostream &MibDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
 		cVal->mibFragment(ostr, spacing);
 	}else if ((sVal=dynamic_cast<StatCounter64*>(entry))!=NULL){
 		sVal->mibFragment(ostr, spacing);
+	}else if ((ne=dynamic_cast<NotificationEntry*>(entry))!=NULL){
+		ne->mibFragment(ostr,spacing);
 	}
 	return ostr;
 }

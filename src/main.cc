@@ -501,9 +501,14 @@ int main(int argc, char *argv[]){
 		So we can detach.*/
 		forkAndDetach(pidfile,cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read());
 	}
-	LOGN("Starting version %s", VERSION);
+
+	LOGN("Starting flexisip version %s", VERSION);
+	GenericManager::get()->sendTrap("Flexisip starting");
 	root=su_root_create(NULL);
 	a=make_shared<Agent>(root,port,tlsport);
+#ifdef ENABLE_SNMP
+	SnmpAgent lAgent(*a,*cfg);
+#endif
 #ifdef ENABLE_TRANSCODER
 	ms_init();
 #endif
@@ -525,9 +530,6 @@ int main(int argc, char *argv[]){
 		stun->start();
 	}
 
-#ifdef ENABLE_SNMP
-	SnmpAgent lAgent(*a,*cfg);
-#endif
 
 	su_timer_t *timer=su_timer_create(su_root_task(root),5000);
 	su_timer_run(timer,(su_timer_f)timerfunc,a.get());
@@ -541,6 +543,7 @@ int main(int argc, char *argv[]){
 	}
 	su_root_destroy(root);
 	LOGN("Flexisip exiting normally.");
+	GenericManager::get()->sendTrap("Flexisip exiting normally");
 	return 0;
 }
 

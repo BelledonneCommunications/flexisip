@@ -31,18 +31,13 @@ SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent,GenericManager& cm):mConfig
 
 void SnmpAgent::SnmpAgentTask::operator()() {
 
-	  /* initialize mib code here */
-
-	  /* mib code: init_nstAgentSubagentObject from nstAgentSubagentObject.C */
-//	  init_flexisipMIB(mAgent,mConfigmanager);
-
-
-    init_snmp("flexisip");
-
+	init_snmp("flexisip");
+	GenericManager::get()->getSnmpNotifier()->setInitialized(true);
 	while (mKeepRunning) {
 		agent_check_and_process(1);
 		if (mConfigmanager.mNeedRestart) mKeepRunning=false;
 	}
+	GenericManager::get()->getSnmpNotifier()->setInitialized(false);
 	snmp_shutdown("flexisip");
 	SOCK_CLEANUP;
 }

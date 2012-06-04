@@ -35,16 +35,20 @@
 #include <cstdlib>
 #include <vector>
 #include <unordered_set>
+#include <tuple>
+#include <queue>
 
 #include <algorithm>
 
 #include "common.hh"
 #include <typeinfo>
 
+
 #ifdef ENABLE_SNMP
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
+#include <net-snmp/agent/agent_trap.h>
 #else
 typedef unsigned long oid;
 #endif
@@ -66,7 +70,8 @@ enum GenericValueType{
 	Counter64,
 	String,
 	StringList,
-	Struct
+	Struct,
+	Notification
 };
 
 
@@ -91,6 +96,7 @@ class Oid {
 	friend class ConfigValue;
 	friend class GenericStruct;
 	friend class RootConfigStruct;
+	friend class NotificationEntry;
 protected:
 	Oid(Oid &parent, oid leaf);
 	Oid(std::vector<oid> path);
@@ -100,7 +106,7 @@ protected:
 private:
 	std::vector<oid> mOidPath;
 public:
-	std::string getValueAsString(){
+	std::string getValueAsString() const{
 		std::ostringstream oss (std::ostringstream::out);
 		for (oid i=0; i < mOidPath.size(); ++i) {
 			if (i != 0) oss << ".";
@@ -161,6 +167,9 @@ public:
 	 * @returns entry oid built from parent & object oid index
 	 */
 	Oid& getOid() {return *mOid;};
+	std::string getOidAsString() const {
+		return mOid->getValueAsString();
+	}
 	void setReadOnly(bool ro) {mReadOnly=ro;};
 #ifdef ENABLE_SNMP
 	static int sHandleSnmpRequest(netsnmp_mib_handler *handler,
@@ -181,7 +190,7 @@ public:
 		return mConfigListener;
 	}
 protected:
-	void doMibFragment(std::ostream &ostr, const std::string &def, bool rw, const std::string &syntax, const std::string &spacing) const;
+	virtual void doMibFragment(std::ostream &ostr, const std::string &def, const std::string &access, const std::string &syntax, const std::string &spacing) const;
 	GenericEntry(const std::string &name, GenericValueType type, const std::string &help,oid oid_index=0);
 	Oid *mOid;
 	const std::string mName;
@@ -288,12 +297,14 @@ public:
 	const std::string &getNextValue()const { return mNextValue; }
 	const std::string &getDefault()const;
 	void setDefault(const std::string &value);
+	void setNotifPayload(bool b) { mNotifPayload=b;}
 #ifdef ENABLE_SNMP
 	virtual int handleSnmpRequest(netsnmp_mib_handler *,
 			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
 #endif
 	virtual void setParent(GenericEntry *parent);
 	virtual void mibFragment(std::ostream & ost, std::string spacing) const;
+	virtual void doMibFragment(std::ostream &ostr, const std::string &syntax, const std::string &spacing) const;
 protected:
 	bool invokeConfigStateChanged(ConfigState state) {
 		if (getParent() && getParent()->getType() == Struct) {
@@ -313,6 +324,7 @@ protected:
 private:
 	std::string mValue;
 	std::string mDefaultValue;
+	bool mNotifPayload;
 };
 
 class ConfigBoolean : public ConfigValue{
@@ -422,6 +434,18 @@ private:
 	bool mHaveUnreads;
 };
 
+class NotificationEntry : public GenericEntry{
+	Oid &getStringOid();
+	bool mInitialized;
+	std::queue<std::tuple<const GenericEntry *,std::string>> mPendingTraps;
+public:
+	NotificationEntry(const std::string &name, const std::string &help, oid oid_index);
+	virtual void mibFragment(std::ostream & ost, std::string spacing) const;
+	void send(const std::string &msg);
+	void send(const GenericEntry *source, const std::string &msg);
+	void setInitialized(bool status);
+};
+
 class GenericManager : protected ConfigValueListener {
 	friend class ConfigArea;
 public:
@@ -435,6 +459,13 @@ public:
 	void loadStrict();
 	StatCounter64 &findStat(const std::string &key);
 	void addStat(const std::string &key, StatCounter64 &stat);
+	NotificationEntry *getSnmpNotifier() { return mNotifier; }
+	void sendTrap(const GenericEntry *source, const std::string &msg) {
+		mNotifier->send(source, msg);
+	}
+	void sendTrap(const std::string &msg) {
+		mNotifier->send(&mConfigRoot,msg);
+	}
 	bool mNeedRestart;
 	bool mDirtyConfig;
 private:
@@ -463,7 +494,9 @@ private:
 	static GenericManager *sInstance;
 	std::map<std::string,StatCounter64*> mStatMap;
 	std::unordered_set<std::string> mStatOids;
+	NotificationEntry *mNotifier;
 };
+
 
 class FileConfigDumper{
 public:

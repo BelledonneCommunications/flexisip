@@ -28,7 +28,6 @@
 using namespace ::std;
 
 class GatewayRegister {
-private:
 	typedef enum {
 		INITIAL, REGISTRING, REGISTRED
 	} State;
@@ -224,7 +223,6 @@ void GatewayRegister::end() {
 }
 
 class GatewayAdapter: public Module {
-
 public:
 	GatewayAdapter(Agent *ag);
 
@@ -279,6 +277,7 @@ bool GatewayAdapter::isValidNextConfig(const ConfigValue &cv) {
 }
 
 void GatewayAdapter::onLoad(const GenericStruct *module_config) {
+	//sendTrap("Error loading module Gateway adaptor");
 	string gateway = module_config->get<ConfigString>("gateway")->read();
 	gateway_url = url_make(&home, gateway.c_str());
 	char *url = su_sprintf(&home, "sip:%s:*", mAgent->getPublicIp().c_str());
