@@ -58,16 +58,12 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 	public:
 		Agent(su_root_t *root, int port, int tlsport);
 		virtual void loadConfig(GenericManager *cm);
-		void setDomain(const std::string &domain);
 		virtual ~Agent();
-		const std::string & getPublicIp()const{
-			return mPublicIp;
-		}
-		const std::string & getBindIp()const{
-			return mBindIp;
-		}
+		std::string getPublicIp() const;
+		std::string getBindIp() const;
+		std::string getPreferredIp(const std::string &destination) const;
 
-		virtual inline  Agent *getAgent() {
+		virtual Agent *getAgent() {
 			return this;
 		}
 
@@ -108,12 +104,24 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		std::string mServerString;
 		std::list<Module*> mModules;
 		std::list<std::string> mAliases;
-		std::string mPublicIp;
-		std::string mBindIp;
-		std::string mDomain;
+		bool mDynamicAddress;
+		bool mAdaptiveAddress;
+		std::string mPublicAddress;
+		std::string mBindAddress;
 		std::string mPreferredRoute;
 		int mPort;
 		int mTlsPort;
+		class Network {
+			struct sockaddr_storage mNetwork;
+			std::string mIP;
+		public:
+			Network(const Network &net);
+			Network(const struct ifaddrs *ifaddr);
+			bool isInNetwork(const struct sockaddr *addr) const;
+			const std::string getIP() const;
+			static std::string print(const struct ifaddrs *ifaddr);
+		};
+		std::list<Network> mNetworks;
 		std::string mUniqueId;
 		nta_agent_t *mAgent;
 		su_root_t *mRoot;

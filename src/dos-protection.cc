@@ -45,6 +45,7 @@ DosProtection::DosProtection() {
 	GenericStruct *s = new GenericStruct("dos-protection", "DOS protection parameters.",0);
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
+	s->setConfigListener(this);
 	mLoaded = false;
 }
 
@@ -57,6 +58,32 @@ void DosProtection::atexit() {
 		sInstance = NULL;
 	}
 }
+
+bool DosProtection::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
+	switch (state) {
+		case ConfigState::Check:
+			LOGD("DosProtection:: no check implemented");
+			break;
+		case ConfigState::Changed:
+			LOGD("DosProtection::doOnConfigStateChanged:changed");
+			stop();
+			break;
+		case ConfigState::Reset:
+			LOGD("DosProtection::doOnConfigStateChanged:reset");
+			start();
+			break;
+		case ConfigState::Commited:
+			LOGD("DosProtection::doOnConfigStateChanged:commited");
+			load();
+			start();
+			break;
+		default:
+			LOGE("Unknown state in DosProtection::doOnConfigStateChanged %d", state);
+			break;
+	}
+	return true;
+}
+
 
 DosProtection *DosProtection::get() {
 	if (sInstance == NULL) {
@@ -109,7 +136,7 @@ void DosProtection::stop() {
 	char cmd[100] = { 0 };
 	int returnedValue;
 
-	/* Restore previous state of IPtables */
+	LOGD("Restore previous state of IPtables");
 	snprintf(cmd, sizeof(cmd)-1, "%s-restore < "CONFIG_DIR"/iptables.bak", mPath);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
@@ -163,6 +190,7 @@ void DosProtection::start() {
 			mRecentDirectoryName = "xt_recent";
 	}
 
+	LOGD("Setting dos protection");
 	/* Increasing recent module default values */
 	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/%s/parameters/ip_list_tot && echo %i > /sys/module/%s/parameters/ip_list_tot && chmod u-w /sys/module/%s/parameters/ip_list_tot", mRecentDirectoryName, mMaximumConnections, mRecentDirectoryName, mRecentDirectoryName);
 	returnedValue = system(cmd);

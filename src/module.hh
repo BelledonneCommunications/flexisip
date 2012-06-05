@@ -59,9 +59,20 @@ class ModuleInfoBase {
 		const  unsigned int getOidIndex() {return mOidIndex;}
 		virtual ~ModuleInfoBase(){
 		}
+		enum ModuleOid {
+			NatHelper=30,
+			Authentication=60,
+			GatewayAdapter=90,
+			Registrar=120,
+			ContactRouteInserter=150,
+			LoadBalancer=180,
+			MediaRelay=210,
+			Transcoder=240,
+			Forward=270
+		};
 	protected:
-		ModuleInfoBase(const char *modname, const char *help) : mName(modname), mHelp(help),
-		mOidIndex(Oid::oidFromHashedString(modname)){
+		ModuleInfoBase(const char *modname, const char *help, enum ModuleOid oid) : mName(modname), mHelp(help),
+		mOidIndex(oid){ // Oid::oidFromHashedString(modname)
 			ModuleFactory::get()->registerModule(this);
 		}
 };
@@ -69,7 +80,7 @@ class ModuleInfoBase {
 template <typename _module_>
 class ModuleInfo : public ModuleInfoBase{
 	public:
-		ModuleInfo(const char *modname, const char *help) : ModuleInfoBase(modname,help){
+		ModuleInfo(const char *modname, const char *help, ModuleOid oid) : ModuleInfoBase(modname,help,oid){
 		}
 	protected:
 		virtual Module *_create(Agent *ag);
@@ -93,6 +104,7 @@ class Module : protected ConfigValueListener {
 		nta_agent_t *getSofiaAgent()const;
 		const std::string &getModuleName()const;
 		void declare(GenericStruct *root);
+		void checkConfig();
 		void load();
 		void reload();
 		void processRequest(std::shared_ptr<SipEvent> &ev);
@@ -112,8 +124,13 @@ class Module : protected ConfigValueListener {
 		virtual void onTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
 
 		}
-		virtual void doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
+		virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 		virtual void onIdle(){
+		}
+		virtual bool onCheckValidNextConfig() {return true;}
+		virtual bool isValidNextConfig(const ConfigValue &cv) {return true;}
+		void sendTrap(const std::string &msg) {
+			GenericManager::get()->sendTrap(mModuleConfig, msg);
 		}
 		Agent *mAgent;
 	private:

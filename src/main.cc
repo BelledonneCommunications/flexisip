@@ -35,8 +35,9 @@
 #include "stun.hh"
 #include "dos-protection.hh"
 
-#include <stdlib.h>
-#include <signal.h>
+#include <cstdlib>
+#include <cstdio>
+#include <csignal>
 
 #include <sofia-sip/su_log.h>
 #ifdef ENABLE_SNMP
@@ -64,6 +65,7 @@ static void usage(const char *arg0){
 	       "\t\t [--configfile <path>]\n"
 	       "\t\t [--dump-default-config [node name]]\n"
 	       "\t\t [--dump-snmp-mib]\n"
+           "\t\t [--set <[node/]option[=value]>]\n"
 	       "\t\t [--help]\n",arg0);
 	exit(-1);
 }
@@ -345,6 +347,30 @@ static void forkAndDetach(const char *pidfile, bool auto_respawn){
 	}
 }
 
+static int parse_key_value(int argc, char *argv[], const char **key, const char **value, int *shift) {
+	int i=0;
+	if (argc == 0 || argv[i][0]=='-') return -1;
+	*key=argv[i];
+	*shift=0;
+	char *equal_sign=strchr(argv[i],'=');
+	if (equal_sign) {
+		*equal_sign='\0';
+		*value=equal_sign+1;
+		return 0;
+	}
+
+	++i;
+	if (i < argc && argv[i][0]=='=') {
+		++i;
+		if (i>= argc || argv[i][0]=='-') return -1;
+	}
+
+	if (i < argc && argv[i][0]!='-') {
+		*value=argv[i];
+		*shift=i;
+	}
+	return 0;
+}
 
 int main(int argc, char *argv[]){
 	shared_ptr<Agent> a;
@@ -359,6 +385,7 @@ int main(int argc, char *argv[]){
 	bool dump_default_cfg=false;
 	char *dump_cfg_part=NULL;
 	bool dump_snmp_mib=false;
+	map<string,string> oset;
 
 	for(i=1;i<argc;++i){
 		if (strcmp(argv[i],"--port")==0){
@@ -394,15 +421,26 @@ int main(int argc, char *argv[]){
 			continue;
 		}else if (strcmp(argv[i],"--dump-default-config")==0){
 			dump_default_cfg=true;
-			i++;
-			if (argc > i && argv[i][0]!='-') {
-				dump_cfg_part=argv[i];
+			if ((i+1) < argc && argv[i+1][0]!='-') {
 				i++;
+				dump_cfg_part=argv[i];
 			}
 			continue;
 		}else if (strcmp(argv[i],"--dump-snmp-mib")==0){
 			dump_snmp_mib=true;
 			i++;
+			continue;
+		}else if (strcmp(argv[i],"--set")==0){
+			i++;
+			const char* skey="";
+			const char* svalue="";
+			int shift=0;
+			if (!parse_key_value(argc-i, &argv[i], &skey, &svalue, &shift)) {
+				oset.insert(make_pair(skey,svalue));
+				i +=shift;
+			} else {
+				fprintf(stderr,"Bad option --set %s\n",argv[i]);
+			}
 			continue;
 		} else if (strcmp(argv[i],"--help")==0 || strcmp(argv[i],"-h")==0){
 			// nothing
@@ -422,7 +460,11 @@ int main(int argc, char *argv[]){
 			cerr<<"Couldn't find node " << dump_cfg_part << endl;
 			return -1;
 		}
-		cout<<FileConfigDumper(rootStruct);
+		if (oset.find("tex") != oset.end()) {
+			cout<<TexFileConfigDumper(rootStruct);
+		} else {
+			cout<<FileConfigDumper(rootStruct);
+		}
 		return 0;
 	}
 
@@ -432,6 +474,7 @@ int main(int argc, char *argv[]){
 		return 0;
 	}
 
+	GenericManager::get()->setOverrideMap(oset);
 
 	if (cfg->load(cfgfile)==-1){
 		fprintf(stderr,"No configuration file found at %s.\nPlease specify a valid configuration file.\n"
@@ -440,6 +483,7 @@ int main(int argc, char *argv[]){
 		        "Alternatively a default configuration sample file can be generated at any time using --dump-default-config option.\n",cfgfile);
 		return -1;
 	}
+
 
 
 	if (!debug) debug=cfg->getGlobal()->get<ConfigBoolean>("debug")->read();
@@ -457,10 +501,15 @@ int main(int argc, char *argv[]){
 		So we can detach.*/
 		forkAndDetach(pidfile,cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read());
 	}
-	LOGN("Starting version %s", VERSION);
+
+	LOGN("Starting flexisip version %s", VERSION);
+	GenericManager::get()->sendTrap("Flexisip starting");
 	root=su_root_create(NULL);
 	a=make_shared<Agent>(root,port,tlsport);
-#ifdef ENABLE_TRANCODER
+#ifdef ENABLE_SNMP
+	SnmpAgent lAgent(*a,*cfg);
+#endif
+#ifdef ENABLE_TRANSCODER
 	ms_init();
 #endif
 	a->loadConfig (cfg);
@@ -481,9 +530,6 @@ int main(int argc, char *argv[]){
 		stun->start();
 	}
 
-#ifdef ENABLE_SNMP
-	SnmpAgent lAgent(*a,*cfg);
-#endif
 
 	su_timer_t *timer=su_timer_create(su_root_task(root),5000);
 	su_timer_run(timer,(su_timer_f)timerfunc,a.get());
@@ -491,10 +537,13 @@ int main(int argc, char *argv[]){
 	su_timer_destroy(timer);
 	DosProtection::get()->stop();
 	a.reset();
-	stun->stop();
-	delete stun;
+	if (stun) {
+		stun->stop();
+		delete stun;
+	}
 	su_root_destroy(root);
 	LOGN("Flexisip exiting normally.");
+	GenericManager::get()->sendTrap("Flexisip exiting normally");
 	return 0;
 }
 

@@ -24,3 +24,14 @@ flexisip.spec
 *protobuf.pb.*
 *.rdb
 src/flexisip
+*.aux
+*.tmp.tex
+*.toc
+tests/logs
+doc/flexisip_guide.log
+doc/flexisip_guide.out
+doc/flexisip_guide.pdf
+vgcore.*
+core
+core.*
+*.backup

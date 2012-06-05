@@ -28,7 +28,6 @@
 using namespace ::std;
 
 class GatewayRegister {
-private:
 	typedef enum {
 		INITIAL, REGISTRING, REGISTRED
 	} State;
@@ -224,7 +223,6 @@ void GatewayRegister::end() {
 }
 
 class GatewayAdapter: public Module {
-
 public:
 	GatewayAdapter(Agent *ag);
 
@@ -237,6 +235,8 @@ public:
 	virtual void onRequest(shared_ptr<SipEvent> &ev);
 
 	virtual void onResponse(shared_ptr<SipEvent> &ev);
+
+	virtual bool isValidNextConfig(const ConfigValue &cv);
 
 private:
 	static void nua_callback(nua_event_t event, int status, char const *phrase, nua_t *nua, nua_magic_t *_t, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]);
@@ -262,11 +262,22 @@ GatewayAdapter::~GatewayAdapter() {
 
 void GatewayAdapter::onDeclare(GenericStruct *module_config) {
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
-	ConfigItemDescriptor items[] = { { String, "gateway", "A gateway uri where to send all requests", "" }, { String, "gateway-domain", "Force the domain of send all requests", "" }, config_item_end };
+	ConfigItemDescriptor items[] = { { String, "gateway", "A gateway uri where to send all requests", "sip:localhost:0" }, { String, "gateway-domain", "Force the domain of send all requests", "" }, config_item_end };
 	module_config->addChildrenValues(items);
 }
 
+bool GatewayAdapter::isValidNextConfig(const ConfigValue &cv) {
+	if (cv.getName() == "gateway") {
+		if (cv.getNextValue().empty()) {
+			LOGE("Empty value GatewayAdapter::%s=%s", cv.getName().c_str(), cv.getNextValue().c_str());
+			return false;
+		}
+	}
+	return true;
+}
+
 void GatewayAdapter::onLoad(const GenericStruct *module_config) {
+	//sendTrap("Error loading module Gateway adaptor");
 	string gateway = module_config->get<ConfigString>("gateway")->read();
 	gateway_url = url_make(&home, gateway.c_str());
 	char *url = su_sprintf(&home, "sip:%s:*", mAgent->getPublicIp().c_str());
@@ -313,5 +324,6 @@ void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phu
 	}
 }
 
-ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter", "...");
+ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter", "...",
+		ModuleInfoBase::ModuleOid::GatewayAdapter);
 

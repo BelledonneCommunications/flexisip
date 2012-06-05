@@ -512,5 +512,6 @@ void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, T
 }
 
 ModuleInfo<Registrar> Registrar::sInfo("Registrar", "The Registrar module accepts REGISTERs for domains it manages, and store the address of record "
-		"in order to route other requests destinated to the client who registered.");
+		"in order to route other requests destinated to the client who registered.",
+		ModuleInfoBase::ModuleOid::Registrar);
 

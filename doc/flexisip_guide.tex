@@ -1,0 +1,628 @@
+\documentclass[a4paper,10pt]{article}
+
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[utf8x]{inputenc}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{fullpage}
+\usepackage{mdwlist}
+
+\usepackage[unicode,pdftitle={Flexisip guide},pdfauthor={Guillaume Beraudo}]{hyperref}
+
+
+
+\hypersetup{
+    colorlinks,
+    citecolor=black,
+    filecolor=black,
+    linkcolor=black,
+    urlcolor=black
+}
+
+% use /pdflatex "\newcommand\flexisipversion{the_version}\input{tex_filename}"
+\providecommand{\flexisipversion}{undefined}% fallback definition
+
+
+% to enter subsripts use
+\newcommand{\subs}[1]{$_{\textup{#1}}$}
+%  or enter unicode characters ₁₂₃₄₅₆₇₈₉₀
+
+% < \textless   and > \textgreater
+
+% Black magic to have the bc footer
+\setlength{\footskip}{50pt}
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancyhead[]{}
+\fancyfoot[C]{}
+\fancyfoot[R]{\thepage}
+\fancyfoot[L]{
+ \includegraphics[height=0.53in]{./bc_logo.png}
+}
+
+
+% Apply custom footer style
+\pagestyle{fancy}
+
+
+% Black magic to have verbatim respect the ' characters.
+\makeatletter
+\let \@sverbatim \@verbatim
+\def \@verbatim {\@sverbatim \verbatimplus}
+{\catcode`'=13 \gdef \verbatimplus{\catcode`'=13 \chardef '=13 }} 
+\makeatother
+
+
+% Narrower layout
+% \setlength{\marginparwidth}{20pt}
+% \setlength{\hoffset}{3pt}
+
+
+%opening
+\title{Flexisip Operation Guide v\flexisipversion}
+\author{Belledonne Communications}
+
+
+
+\begin{document}
+
+
+\maketitle
+\newpage
+
+
+\tableofcontents
+\newpage
+
+
+\phantomsection
+\addcontentsline{toc}{section}{Introduction}
+\section*{Introduction}
+\paragraph{Licence}
+Flexisip is a general purpose SIP proxy with media capabilities.
+It is released under the Affero GPL v3, which you should understand and agree on before deployment.
+
+\paragraph{Modules}
+Requests and responses are processed through a chain of modules. Each module beeing responsible of a particular task.
+There are notably a module for authentication, user registration, transcoding, media relay...
+The reference documentation of the modules is available in appendix.
+
+\paragraph{Configuration}
+In addition to the configuration file, both an SNMP and a web interface are available, allowing remote administration 
+or reconfiguration of the server.
+
+\paragraph{Statistics}
+As the proxy processes requests and responses, several counters are incremented and exposed through the SNMP and web interfaces.
+It helps understand the internal state of the proxy and makes troubleshooting easier.
+
+\paragraph{Clustering}
+Several proxies can be used together in order to scale and tolerate faults.
+In this configuration, the proxies communicate with each other on a dedicated subnetwork.
+An example of active-active configuration is included in this guide.
+
+
+
+\section{Installation}
+\subsection{Hardware and OS}
+This guide is to be used on Debian6 or Centos6 servers.
+
+
+\subsection{Network configuration}
+The server requires two IP addresses:
+\begin{itemize*}
+ \item a public IP address;
+ \item a local IP address on the 172.16.0.0 subnet for inter-flexisip communication.
+\end{itemize*}
+
+Note that the 172.16.0.1 address is reserved for the registration database (redis server).
+
+
+\subsection{Installation on Centos}
+\subsubsection{Tarball - yum}
+Copy flexisip-server-ha*.rpm and  bcrepo.tar.* on the target server.
+Uncompress the tarball and copy the flexisip-server-ha rpm to the bcrepo directory then install the packages with “yum install *”.
+
+
+To update, use the command “yum reinstall” on the components you wish to upgrade.
+
+
+\subsubsection{yum repository}
+Copy flexisip-server-ha*.rpm and  bcrepo.tar.* on the target server.
+Uncompress the bcrepo.tar.* yum repository archive in / directory.
+Create local yum repository.
+\begin{verbatim}
+cat > /etc/yum.repos.d/Belledonne.repo <<EOF
+[belledonne]
+name=Belledonne
+baseurl=file:///var/bcrepo
+gpgcheck=0
+enabled=1
+EOF
+\end{verbatim}
+
+Install
+\begin{verbatim}
+yum --disablerepo='*' --enablerepo='belledonne' clean
+yum install flexisip-server-ha*.rpm
+\end{verbatim}
+
+
+\subsection{Installation on Debian}
+\subsubsection{Belledonne repository - apt}
+\begin{verbatim}
+cat /etc/apt/sources.list.d/bc.list <<EOF
+# Up-to-date flexisip dependencies
+deb ftp://repo:reporepo@linphone.org/debian squeeze main
+
+
+# Needed for mibs description
+deb http://ftp.fr.debian.org/debian/ squeeze non-free
+
+
+# Needed for current corosync and pacemaker
+deb http://backports.debian.org/debian-backports squeeze-backports main non-free contrib
+deb-src http://backports.debian.org/debian-backports squeeze-backports main non-free contrib
+EOF
+\end{verbatim} 
+
+\begin{verbatim}
+aptitude update
+aptitude install -t squeeze-backports flexisip-ha
+\end{verbatim}
+
+
+Then define /etc/flexisip.conf and restart flexisip daemon.
+
+
+\subsection{Startup options}
+By default, flexisip uses the /etc/flexisip/flexisip.conf configuration file.
+Use the configfile option to force flexisip to use another configuration file.
+
+An init script /etc/init.d/flexisip managing the automatic start/stop of the service during the machine boot is installed.
+This script reads into /etc/default/flexisip to read command line options. “\verb|--daemon|” and “\verb|--syslog|” options are always added when the flexisip is run from init scripts in order to comply with boot system requirements.
+It is though possible to pass it additional command line options by creating or editing a file \verb|/etc/default/flexisip| with a single line:
+\begin{verbatim}
+flexisip_OPTIONS=”<some command line option>” 
+\end{verbatim}
+
+
+The supported options are:
+\input{flexisip-help.tmp}
+
+
+
+
+\subsection{TLS certificates}
+An administrator may want to configure the TLS certificates used to accept SSL connections.
+They are stored in \verb|/etc/flexisip/tls|. You will need at least the agent.pem file.
+
+\subsection{SNMP}
+\subsubsection{Configuration}
+Make sure the \verb|/etc/snmp/snmpd.conf| file contains the following lines:
+\begin{verbatim}
+agentAddress  udp:127.0.0.1:161
+master agentx
+agentXPerms  0660 0550 root root
+rocommunity public localhost
+rwcommunity private localhost
+\end{verbatim}
+
+
+
+
+\subsubsection{Access statistics and configuration}
+When the flexisip server is running, you can monitor it using :
+\begin{verbatim}
+mkdir -p ~/.snmp/mibs/fleximib.txt
+flexisip --dump-snmp-mib > ~/.snmp/mibs/fleximib.txt
+snmpwalk -m FLEXISIP-MIB  -v 2c -c public -Of localhost FLEXISIP-MIB::flexisipMIB
+or
+snmpget -m FLEXISIP-MIB -v 2c -c public -Of localhost \
+FLEXISIP-MIB::flexisipMIB.flexisip.global.debug.0
+\end{verbatim}
+
+Note that the statistics all start with “count” prefix.
+
+
+\subsubsection{Update configuration}
+When the server is running, you can update its configuration using:
+\begin{verbatim}
+mkdir -p  ~/.snmp/mibs/fleximib.txt
+flexisip --dump-snmp-mib > ~/.snmp/mibs/fleximib.txt
+snmpset -m FLEXISIP-MIB  -v 2c -c private localhost \
+FLEXISIP-MIB::flexisipMIB.flexisip.global.debug.0 i 1
+\end{verbatim}
+
+You can update several configuration values at the same time.
+When the configuration of a module is updated the module is reloaded.
+When other configuration is updated the flexisip is automatically restarted.
+
+Note that the configuration file is updated with the new configuration.
+
+
+\subsection{Flexisip default configuration}
+When launched, flexisip read its configuration from the file \verb|/etc/flexisip/flexisip.conf|.
+The full list of supported options can be printed with the command flexisip \verb|--dump-default-config|.
+
+
+\section{Module backends}
+
+
+\subsection{ODBC backend}
+In the purpose of connecting to the user database, flexisip uses ODBC through the unixODBC library.
+This requires requires the proper configuration of an ODBC database connector.
+As an example, to configure a mysql odbc authentication backend, install the mysql connector with \verb|yum install mysql-connector-odbc|
+and update the flexisip.conf file as follows:
+
+
+\begin{verbatim} 
+[module::Authentication]
+enabled=true
+from-domains=*
+to-domains=*
+db-implementation=odbc
+#Definition of ODBC datasource.
+datasource=DRIVER={MySQL};SERVER=localhost;DATABASE=dbname;USER=username;PASSWORD=passname;OPTION=3;
+#This is the SQL query to execute to retrieve the password. “:id” is substituted at runtime by the 
+# SIP URI to authenticate.
+request=select password from accounts where id = :id
+#these two parameters are for better performance
+odbc-pooling=true
+odbc-asynchronous=true
+\end{verbatim} 
+
+For details, see the \nameref{module::Authentication} on page \pageref{module::Authentication}.
+
+
+\subsection{Redis backend}
+This backend allows several flexisip servers to share the same user contacts.
+The contacts are serialized in the Redis server as protobuf binary strings.
+A simple configuration is:
+
+\begin{verbatim}
+[module::Registrar]
+enabled=true
+from-domains=*
+to-domains=*
+db-implementation=redis-async
+redis-record-serializer=protobuf
+\end{verbatim}
+
+For details, see the \nameref{module::Registrar} on page \pageref{module::Registrar}.
+
+
+\section{Example configurations}
+\subsection{Minimal transcoder}
+\begin{verbatim}
+[global]
+aliases=localhost
+[tls]
+enabled=false
+[module::MediaRelay]
+enabled=false
+[module::Transcoder]
+enabled=true
+from-domains=*
+to-domains=*
+\end{verbatim}
+
+For details, see the \nameref{module::Transcoder} on page \pageref{module::Transcoder}.
+
+
+\subsection{Minimal registrar}
+\begin{verbatim}
+[global]
+debug=0
+aliases=sip.example.org
+
+
+[module::Registrar]
+reg-domains=sip.example.org
+redis-record-serializer=protobuf
+db-implementation=redis-async
+
+
+[tls]
+enabled=false
+\end{verbatim}
+
+For details, see the \nameref{module::Registrar} on page \pageref{module::Registrar}.
+
+
+
+\subsection{Minimal registrar authenticated}
+\begin{verbatim}
+[global]
+debug=0
+aliases=sip.example.org
+
+
+[module::Registrar]
+reg-domains=sip.example.org
+redis-record-serializer=protobuf
+db-implementation=redis-async
+
+
+[tls]
+enabled=false
+
+
+[module::Authentication]
+enabled=true
+auth-domains=sip.example.org
+from-domains=sip.example.org
+datasource=DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3;
+request=select password from accounts where id = :id
+\end{verbatim}
+
+For details, see the \nameref{module::Registrar} on page \pageref{module::Registrar}
+and the \nameref{module::Authentication} on page \pageref{module::Authentication}.
+
+
+
+\subsection{Registrar, Transcoder, Gateway adapter and authentication}
+
+\begin{verbatim} 
+[global]
+aliases=sip.example.org
+debug=1
+port=5060
+
+
+[tls]
+enabled=true
+port=5061
+certificates-dir=/etc/flexisip/tls
+
+
+[module::Transcoder]
+enabled=true
+to-domains=sip.example.org
+
+
+[module::Registrar]
+reg-domains=sip.example.org
+db-implementation=redis-async
+redis-server-domain=172.16.0.1
+redis-server-port=6379
+redis-record-serializer=protobuf
+redis-auth-password=the_random_very_long_string_also_defined_in_redis.conf_83cb1dfd2e3617
+
+
+[module::MediaRelay]
+to-domains=sip.example.org
+
+
+[module::Authentication]
+enabled=true
+from-domains=sip.example.org
+auth-domains=siip.example.org
+odbc-asynchronous=true
+request=select password from accounts_plain where login = :id
+datasource=DRIVER={MySQL};SERVER=host;DATABASE=flexisip_test;USER=user;PASSWORD=pass;OPTION=3;
+hashed-passwords=false
+odbc-display-timings-interval=10
+odbc-display-timings-after-count=10000
+
+
+[module::ContactRouteInserter]
+enabled=true
+#masquerade-contacts-for-invites=true
+
+
+[dos-protection]
+enabled=false
+
+
+[module::GatewayAdapter]
+enabled=true
+from-domains=*
+to-domains=*
+gateway=sip:10.0.0.1:5060
+gateway-domain=sip:10.0.0.1:5060
+\end{verbatim}
+
+
+For details, see the \nameref{module::Registrar} on page \pageref{module::Registrar},
+the \nameref{module::Authentication} on page \pageref{module::Authentication}
+and the \nameref{module::GatewayAdapter} on page \pageref{module::GatewayAdapter}.
+
+
+
+\section{Active-active cluster with PSTN gateway}
+
+\subsection{Introduction}
+Several instances of flexisip can work together in and active-active cluster, with each node handling a fraction of the requests.
+The goals of an active-active cluster are horizontal scalability and fault recovery.
+
+In order to achieve these goals, the authentication and registration databases are externalized and shared between the instances.
+Moreover, new mechanisms are introduced to loadbalance the requests and to manage the cluster.
+
+
+
+The figure \ref{fig:archi_active-active} illustrates a simple 2-nodes active-active cluster with a PSTN component.
+The figure \ref{fig:archi_dead-active} illustrates a simple case of failure where a node completely fails.
+
+
+\begin{figure}[ht!]
+ \centering
+ \includegraphics[keepaspectratio=true, scale=0.7]{./schema_archi_flexisip_active-active.pdf}
+ % schema_archi_flexisip_active-active.pdf: 596x842 pixel, 72dpi, 21.03x29.70 cm, bb=0 0 596 842
+ \caption{Active-active}
+ \label{fig:archi_active-active}
+\end{figure}
+
+
+\subsection{Components}
+
+\subsubsection{Redis - Contact addresses storage}
+It is possible to register several contact adresses (several devices) with the same SIP address.
+It allows the forking of a call to all the devices of a user.
+
+A unique ``Redis'' key/value store is used by all the instances of flexisip to store the associations.
+It is called the master ; a dedicated IP address is attributed to the server hosting the ``Redis'' master.
+
+``Redis slaves'' are synchronised with the ``master''; in the event of a failure of the master,
+one of the slaves would become the new master and get the dedicated IP address.
+
+
+
+\subsubsection{Pacemaker/Corosync - Cluster HA}
+The cluster High Availability is managed by the ``Pacemaker/Corosync'' pair.
+``Corosync'' is the cluster engine and ``Pacemaker'' is the conductor.
+
+An instance of the ``Pacemaker/Corosync'' pair is active on each node of the cluster.
+They communicate on a dedicated local subnetwork, either using broadcasts or multicasts.
+
+
+\subsubsection{PSTN gateway}
+The PSTN gateway is in charge of linking the PSTN and the SIP network.
+
+The flexisip instances register themselves on the gateway on SIP account registration.
+The PSTN gateway notifies the registered flexisips on incoming calls on their PSTN leg.
+
+
+\subsubsection{Flexisip - SIP proxy}
+An instance of flexisip is available on each node ; each instance handles a fraction of the requests.
+The loadbalancing is done on the client side based on the IP addresses found in the DNS response.
+
+Once a device is starting to use a flexisip server it should stay with it until a failure on the server occurs.
+The devices have to use TCP transport.
+
+
+\subsection{Scenarii active-active}
+
+\subsubsection{Register A}
+\begin{enumerate}
+ \item A uses DNS information to choose a Flexisip IP address;
+ \item A sends registers to Flexisip₁ (unauthenticated then authenticated);
+ \item Flexisip₁ registers A on the PSTN gateway using its own IP as contact address;
+ \item Flexisip₁ updates ''Redis`` store with two contact addresses associated to A's SIP address:
+    \begin{itemize}
+      \item A's contact address routed through Flexisip₁;
+      \item The contact address of the PSTN gateway, without any route.
+    \end{itemize}
+\end{enumerate}
+
+%texorpdfstring
+\subsubsection{Register B₁ - B's first device}
+\begin{enumerate}
+ \item B₁ uses DNS information to choose a Flexisip IP address;
+ \item B₁ sends registers to Flexisip₂ (unauthenticated then authenticated);
+ \item Flexisip₂ registers B₁ on the PSTN gateway using its own IP as contact address;
+ \item Flexisip₁ updates ''Redis`` store with two contact addresses associated to B's SIP address:
+    \begin{itemize}
+      \item B₁'s contact address routed through Flexisip₂;
+      \item The contact address of the PSTN gateway, without any route.
+    \end{itemize}
+\end{enumerate}
+
+
+\subsubsection{Invite from A to B}
+\begin{enumerate}
+ \item A reuses its TCP connection to Flexisip₁;
+ \item A sends invite to Flexisip₁ (unauthenticated then authenticated);
+ \item Flexisip₁ requests the list of contact addresses associated with B's SIP address; the contacts found are:
+    \begin{itemize}
+      \item B₁'s contact address routed through Flexisip₂;
+      \item The contact address of the PSTN gateway, without any route.
+    \end{itemize}
+ \item Flexisip₁ fork the call to all found contacts;
+ \item B₂ and B₁ are ringing;
+ \item The call is established with either B₂ or B₁.
+\end{enumerate}
+
+
+
+
+
+\subsection{Reaction to node failure - dead-active}
+
+\begin{figure}[ht!]
+ \centering
+ \includegraphics[keepaspectratio=true, scale=0.7]{./schema_archi_flexisip_dead-active.pdf}
+ % schema_archi_flexisip_active-active.pdf: 596x842 pixel, 72dpi, 21.03x29.70 cm, bb=0 0 596 842
+ \caption{Dead-active}
+ \label{fig:archi_dead-active}
+\end{figure}
+
+In case of a global failure of a node, the remaining node will host all the services and handle all the traffic.
+If the failed node was hosting the ``Redis'' master service, the cluster will affect the master role to one of the slaves;
+the other slaves will synchronise with this new master.
+
+The calls in progress and registrations which were going through the dead node will be broken.
+
+The affected devices should automatically re-register to Flexisip₂ as it will be the only one accepting TCP connections.
+As a consequence the obsolete contacts will be quickly overwritten on the ''Redis`` registration store.
+
+Affected users can place new calls.
+
+
+
+\section{Backup}
+
+
+Backup should include all files in /etc/flexisip and /etc/default/flexisip.
+
+
+
+
+\section{Troubleshooting}
+\subsection{Checking mediastreamer initialization during flexisip startup}
+The system log should contain a trace like the following.
+
+\begin{verbatim}
+M: Creating module instance for [Transcoder]
+...
+M: Mediastreamer2 2.7.3 (git: 2.7.3-467-g698cadf) starting.
+M: Registering all soundcard handlers
+...
+M: Registering all webcam handlers
+...
+M: Loading plugins
+M: Loading plugin /home/guillaume/dev/inst/lib/mediastreamer/plugins/libmsamr.so.0.0.0...
+M: libmsamr 0.0.1 plugin loaded
+M: Plugin loaded (/home/guillaume/dev/inst/lib/mediastreamer/plugins/libmsamr.so.0.0.0)
+\end{verbatim}
+
+
+\section{Appendix}
+
+\appendix
+% \section{Modules}
+
+\include{moduleNatHelper.tmp}
+
+
+\include{moduleAuthentication.tmp}
+% Purpose
+% The authentication module challenges SIP requests according to a user/password database.
+
+
+\include{moduleGatewayAdapter.tmp}
+% Purpose
+% The purpose of the Gateway adapter module is to act as a front end of a PSTN gateway.
+% When an invite arrives on flexisip, the invite is forked to the PSTN gateway. On the other side, when a PSTN call comes to the PSTN gateway it is routed back to flexisip which forks it to all registered devices associated to the user id.
+
+
+\include{moduleTranscoder.tmp}
+% Purpose
+% The purpose of the Transcoder module is to transparently transcode from one audio codec to another to make the communication possible between clients that do not share the same set of supported codecs. In prtactical terms, it adds all missing codecs into the INVITEs it receives, and adds codecs matching the original INVITE into the 200Ok. Rtp ports and addresses are masqueraded so that the streams can be processed by the proxy. The transcoding job is done in the background by the mediastreamer2 library, as a consequence the set of supported codecs is exactly the same as the codec set supported by mediastreamer2, including the possible plugins you may install to extend mediastreamer2.
+% WARNING: this module can conflict with the MediaRelay module as both are changing the SDP. Make sure to configure them with different to-domains or from-domains filter if you want to enable both of them.
+
+
+
+\include{moduleRegistrar.tmp}
+% Purpose
+% The purpose of the Registrar module is to maintain the association between a user and the way to contact her. Usually a contact is the nuplet (ip, transport, port, expiration).
+
+
+\include{moduleForward.tmp}
+%\include{flexisip.tmp}
+
+
+
+\end{document}

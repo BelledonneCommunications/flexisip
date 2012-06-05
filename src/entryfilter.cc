@@ -35,7 +35,7 @@ ConfigItemDescriptor config[]={
 };
 
 void ConfigEntryFilter::declareConfig(GenericStruct *module_config){
-	module_config->addChildrenValues(config);
+	module_config->addChildrenValues(config, FALSE);
 }
 
 void ConfigEntryFilter::loadConfig(const GenericStruct  *module_config){

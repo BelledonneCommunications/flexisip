@@ -36,7 +36,7 @@
 using namespace::std;
 
 bool ConfigValueListener::sDirty=false;
-void ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigState state) {
+bool ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 	switch (state) {
 	case ConfigState::Commited:
 		if (sDirty) {
@@ -61,10 +61,10 @@ void ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigSt
 	default:
 		break;
 	}
-	doOnConfigStateChanged(conf, state);
+	return doOnConfigStateChanged(conf, state);
 }
 
-static void camelFindAndReplace(const string &needle, string &haystack) {
+static void camelFindAndReplace(string &haystack, const string &needle) {
 	size_t pos;
 	while ((pos=haystack.find(needle)) != string::npos) {
 		haystack.replace(pos, needle.length(), "");
@@ -78,33 +78,56 @@ static void camelFindAndReplace(const string &needle, string &haystack) {
 
 string GenericEntry::sanitize(const string &str){
 	string strnew=str;
-	camelFindAndReplace("::", strnew);
-	camelFindAndReplace("-", strnew);
+	camelFindAndReplace(strnew, "::");
+	camelFindAndReplace(strnew, "-");
 	return strnew;
+}
+
+string GenericEntry::getPrettyName()const{
+	string pn(mName);
+	char upper=char(toupper(::toupper(pn.at(0))));
+	pn.erase(0, 1);
+	pn.insert(0, 1, upper);
+	size_t i=pn.find_first_of("::");
+	if (string::npos != i) {
+		pn.replace(i, 1, " ");
+		pn.erase(i+1, 1);
+	}
+
+	i=0;
+	while(string::npos != (i=pn.find_first_of('-', i))) {
+		pn.replace(i, 1, " ");
+	}
+	return pn;
 }
 
 void GenericEntry::mibFragment(ostream & ost, string spacing) const{
 	string s("OCTET STRING");
-	doMibFragment(ost, false, s, spacing);
+	doMibFragment(ost, "", "read-write", s, spacing);
 }
+
+void ConfigValue::mibFragment(ostream & ost, string spacing) const{
+	string s("OCTET STRING");
+	doMibFragment(ost, s, spacing);
+}
+
+void ConfigValue::doMibFragment(ostream &ostr, const string &syntax, const string &spacing) const {
+	string access(mNotifPayload?"accessible-for-notify":mReadOnly ? "read-only":"read-write");
+	GenericEntry::doMibFragment(ostr,getDefault(),access,syntax,spacing);
+}
+
 
 void ConfigBoolean::mibFragment(ostream & ost, string spacing) const{
 	string s("INTEGER { true(1),false(0) }");
-	doMibFragment(ost, true, s, spacing);
+	doMibFragment(ost, s, spacing);
 }
 void ConfigInt::mibFragment(ostream & ost, string spacing) const{
 	string s("Integer32");
-	doMibFragment(ost, true, s, spacing);
+	doMibFragment(ost, s, spacing);
 }
 void StatCounter64::mibFragment(ostream & ost, string spacing) const{
 	string s("Counter64");
-	doMibFragment(ost, false, s, spacing);
-}
-void ConfigString::mibFragment(ostream & ost, string spacing) const{
-	ConfigValue::mibFragment(ost, spacing);
-}
-void ConfigStringList::mibFragment(ostream & ost, string spacing) const{
-	ConfigValue::mibFragment(ost, spacing);
+	doMibFragment(ost, "", "read-only", s, spacing);
 }
 void GenericStruct::mibFragment(ostream & ost, string spacing) const{
 	string parent = getParent() ? getParent()->getName() : "flexisipMIB";
@@ -114,17 +137,102 @@ void GenericStruct::mibFragment(ostream & ost, string spacing) const{
 			<< mOid->getLeaf() << " }" << endl;
 }
 
+void NotificationEntry::mibFragment(ostream & ost, string spacing) const{
+	if (!getParent()) LOGA("no parent found for %s", getName().c_str());
+	ost << spacing << sanitize(getName()) << " NOTIFICATION-TYPE" << endl
+			<< spacing << "	OBJECTS	{	flNotifString	} "<< endl
+			<< spacing << "	STATUS	current" << endl
+			<< spacing << "	DESCRIPTION" << endl
+			<< spacing << "	\"" << getHelp() << endl
+			<< spacing << "	" << " PN:" << getPrettyName() << "\"" << endl
+			<< spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
+}
 
+NotificationEntry::NotificationEntry(const std::string &name, const std::string &help, oid oid_index):
+		GenericEntry(name,Notification,help,oid_index), mInitialized(false){
+}
 
+void NotificationEntry::setInitialized(bool status) {
+	mInitialized=status;
+	if (status) {
+		const GenericEntry *source;
+		string msg;
+		if (!mPendingTraps.empty()) {
+			LOGD("Sending %zd pending notifications", mPendingTraps.size());
+		}
+		while(!mPendingTraps.empty()) {
+			tie(source,msg)=mPendingTraps.front();
+			mPendingTraps.pop();
+			send(source,msg);
+		}
+	}
+}
 
-void GenericEntry::doMibFragment(ostream & ostr, bool rw, string &syntax, string spacing) const{
+void NotificationEntry::send(const string &msg){
+	send(NULL,msg);
+}
+void NotificationEntry::send(const GenericEntry *source, const string &msg){
+	LOGD("Sending trap %s: %s", source? source->getName().c_str():"", msg.c_str());
+
+#ifdef ENABLE_SNMP
+	if (!mInitialized) {
+		mPendingTraps.push(make_tuple(source,msg));
+		LOGD("Pending trap: SNMP not initialized");
+		return;
+	}
+
+	static Oid &sMsgTemplateOid=GenericManager::get()->getRoot()
+			->getDeep<GenericEntry>("notif/msg", true)->getOid();
+	static Oid &sSourceTemplateOid=GenericManager::get()->getRoot()
+			->getDeep<GenericEntry>("notif/source", true)->getOid();
+
+	/*
+	 * See:
+	 * http://net-snmp.sourceforge.net/dev/agent/notification_8c-example.html
+	 * In the notification, we have to assign our notification OID to
+	 * the snmpTrapOID.0 object. Here is it's definition.
+	 */
+	oid objid_snmptrap[] = { 1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0 };
+	size_t objid_snmptrap_len = OID_LENGTH(objid_snmptrap);
+
+	netsnmp_variable_list *notification_vars = NULL;
+
+	snmp_varlist_add_variable(&notification_vars,
+			objid_snmptrap, objid_snmptrap_len,
+			ASN_OBJECT_ID,
+			(u_char *) mOid->mOidPath.data(),
+			mOid->mOidPath.size() * sizeof(oid));
+
+	snmp_varlist_add_variable(&notification_vars,
+			(const oid*)sMsgTemplateOid.getValue().data(),
+			sMsgTemplateOid.getValue().size(),
+			ASN_OCTET_STR,
+			(u_char *)msg.data(),msg.length());
+
+	if (source) {
+		string oidstr(source->getOidAsString());
+		snmp_varlist_add_variable(&notification_vars,
+				(const oid*)sSourceTemplateOid.getValue().data(),
+				sSourceTemplateOid.getValue().size(),
+				ASN_OCTET_STR,
+				(u_char *)oidstr.data(),oidstr.length());
+	}
+
+	send_v2trap(notification_vars);
+	snmp_free_varbind(notification_vars);
+#endif
+}
+
+void GenericEntry::doMibFragment(ostream & ostr, const string &def, const string &access, const string &syntax, const string &spacing) const{
 	if (!getParent()) LOGA("no parent found for %s", getName().c_str());
 	ostr << spacing << sanitize(getName()) << " OBJECT-TYPE" << endl
 			<< spacing << "	SYNTAX" << "	" << syntax << endl
-			<< spacing << "	MAX-ACCESS	" << (rw ? "read-write": "read-only") << endl
+			<< spacing << "	MAX-ACCESS	" << access << endl
 			<< spacing << "	STATUS	current" << endl
 			<< spacing << "	DESCRIPTION" << endl
-			<< spacing << "	\"" << getHelp() << "\"" << endl
+			<< spacing << "	\"" << getHelp() << endl
+			<< spacing << "	"<< " Default:" << def << endl
+			<< spacing << "	" << " PN:" << getPrettyName() << "\"" << endl
 			<< spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
@@ -139,6 +247,15 @@ void ConfigValue::set(const string  &value){
 		}
 	}
 	mValue=value;
+}
+
+void ConfigValue::setNextValue(const string  &value){
+	if (getType()==Boolean){
+		if (value!="true" && value!="false" && value!="1" && value!="0"){
+			LOGF("Not a boolean: \"%s\" for key \"%s\" ", value.c_str(), getName().c_str());
+		}
+	}
+	mNextValue=value;
 }
 
 void ConfigValue::setDefault(const string & value){
@@ -191,7 +308,7 @@ oid Oid::oidFromHashedString(const string &str) {
 }
 
 GenericEntry::GenericEntry(const string &name, GenericValueType type, const string &help,oid oid_index) :
-				mOid(0),mName(name),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
+				mOid(0),mName(name),mReadOnly(false),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
 	mConfigListener=NULL;
 	if (strchr(name.c_str(),'_'))
 		LOGA("Underscores not allowed in config items, please use minus sign.");
@@ -268,9 +385,13 @@ GenericEntry * GenericStruct::addChild(GenericEntry *c){
 }
 
 void GenericStruct::addChildrenValues(ConfigItemDescriptor *items){
+	addChildrenValues(items,true);
+}
+void GenericStruct::addChildrenValues(ConfigItemDescriptor *items, bool hashed){
+	oid cOid=1;
 	for (;items->name!=NULL;items++){
 		ConfigValue *val=NULL;
-		oid cOid=Oid::oidFromHashedString(items->name);
+		if (hashed) cOid=Oid::oidFromHashedString(items->name);
 		switch(items->type){
 		case Boolean:
 			val=new ConfigBoolean(items->name,items->help,items->default_value,cOid);
@@ -289,6 +410,7 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor *items){
 			break;
 		}
 		addChild(val);
+		if (!hashed) ++cOid;
 	}
 }
 
@@ -386,6 +508,12 @@ bool ConfigBoolean::read()const{
 	LOGA("Bad boolean value %s",get().c_str());
 	return false;
 }
+bool ConfigBoolean::readNext()const{
+	if (getNextValue()=="true" || getNextValue()=="1") return true;
+	else if (getNextValue()=="false" || getNextValue()=="0") return false;
+	LOGA("Bad boolean value %s",getNextValue().c_str());
+	return false;
+}
 
 void ConfigBoolean::write(bool value){
 	set(value?"1":"0");
@@ -398,6 +526,9 @@ ConfigInt::ConfigInt(const string &name, const string &help, const string &defau
 
 int ConfigInt::read()const{
 	return atoi(get().c_str());
+}
+int ConfigInt::readNext()const{
+	return atoi(getNextValue().c_str());
 }
 void ConfigInt::write(int value){
 	std::ostringstream oss;
@@ -485,11 +616,14 @@ GenericManager *GenericManager::get(){
 }
 
 static ConfigItemDescriptor global_conf[]={
-		{	Boolean	,	"debug"	,	"Outputs very detailed logs",	"false"	},
-		{	Boolean	,	"auto-respawn",	"Automatically respawn flexisip in case of abnormal termination (crashes)",	"true"},
-		{	StringList	,	"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost"},
-		{	String	,	"ip-address",	"The public ip address of the proxy.",	"guess"},
-		{	String	,	"bind-address",	"The local interface's ip address where to listen. The wildcard (*) means all interfaces.",	"*"},
+		{	Boolean	,	"debug"	        ,	"Outputs very detailed logs",	"false"	},
+		{	Boolean	,	"auto-respawn"  ,	"Automatically respawn flexisip in case of abnormal termination (crashes)",	"true"},
+		{	StringList	,"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost"},
+		{	String	,	"ip-address"	,	"The public ip of the proxy.(DEPRECATED use public-address)",		""},
+		{	String	,	"public-address",	"The public address of the proxy.",	"guess"},
+		{	Boolean	,	"dynamic-address",	"Enable updating of the ip associated with public address",	"false"},
+		{	Boolean	,	"adaptive-address",	"Try to use the more suitable public address",	"false"},
+		{	String	,	"bind-address"  ,	"The local interface's address where to listen. The wildcard (*) means all interfaces.",	"*"},
 		{	Integer	,	"port"		,	"UDP/TCP port number to listen for sip messages.",	"5060"},
 		config_item_end
 };
@@ -512,10 +646,27 @@ GenericManager::GenericManager() : mConfigRoot("flexisip","This is the default F
 	mNeedRestart=false;
 	mDirtyConfig=false;
 
+	GenericStruct *notifObjs=new GenericStruct("notif","Templates for notifications.",0);
+	mConfigRoot.addChild(notifObjs);
+	ConfigString *nmsg=new ConfigString("msg", "Notification message payload.", "", 0);
+	nmsg->setNotifPayload(true);
+	notifObjs->addChild(nmsg);
+	ConfigString *nsoid=new ConfigString("source", "Notification source payload.", "", 0);
+	nsoid->setNotifPayload(true);
+	notifObjs->addChild(nsoid);
+
+	mNotifier=new NotificationEntry("sender","Send notifications",0);
+	notifObjs->addChild(mNotifier);
+
 	GenericStruct *global=new GenericStruct("global","Some global settings of the flexisip proxy.",0);
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
 	global->setConfigListener(this);
+
+	// Don't rename, will not be exported to flexisip.conf
+	ConfigString *version=new ConfigString("versionNumber", "Flexisip version.", PACKAGE_VERSION, 0);
+	version->setReadOnly(true);
+	global->addChild(version);
 
 	GenericStruct *tls=new GenericStruct("tls","TLS specific parameters.",0);
 	mConfigRoot.addChild(tls);
@@ -523,8 +674,15 @@ GenericManager::GenericManager() : mConfigRoot("flexisip","This is the default F
 	tls->setConfigListener(this);
 }
 
-void GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state){
+bool GenericManager::doIsValidNextConfig(const ConfigValue &cv) {
+	return true;
+}
+
+bool GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state){
 	switch (state) {
+		case ConfigState::Check:
+			return doIsValidNextConfig(conf);
+			break;
 		case ConfigState::Changed:
 			mDirtyConfig=true;
 			break;
@@ -541,16 +699,20 @@ void GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 		default:
 			break;
 	}
+	return true;
 }
 
 int GenericManager::load(const char* configfile){
 	mConfigFile = configfile;
-	return mReader.read(configfile);
+	int res=mReader.read(configfile);
+	applyOverrides(&mConfigRoot, false);
+	return res;
 }
 
 void GenericManager::loadStrict(){
 	mReader.reload();
 	mReader.checkUnread();
+	applyOverrides(&mConfigRoot, true);
 }
 
 GenericStruct *GenericManager::getRoot(){
@@ -597,6 +759,7 @@ ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)
 			ostr<<endl;
 		}
 	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL){
+		if (0==strcmp(entry->getName().c_str(),"versionNumber")) return ostr;
 		printHelp(ostr,entry->getHelp(),"#");
 		ostr<<"#  Default value: "<<val->getDefault()<<endl;
 		if (mDumpDefault) {
@@ -608,6 +771,56 @@ ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)
 	return ostr;
 }
 
+
+ostream &TexFileConfigDumper::dump(ostream & ostr)const {
+	return dump2(ostr,mRoot,0);
+}
+
+
+
+static void escaper(string &str, char c, const string &replaced) {
+	size_t i=0;
+	while(string::npos != (i=str.find_first_of(c, i))) {
+		str.erase(i, 1);
+		str.insert(i, replaced);
+		i+=replaced.length();
+	}
+}
+string TexFileConfigDumper::escape(const string &strc) const{
+	std::string str(strc);
+	escaper(str, '_', "\\_");
+	escaper(str, '<', "\\textless{}");
+	escaper(str, '>', "\\textgreater{}");
+
+	return str;
+}
+
+ostream &TexFileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
+	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
+	ConfigValue *val;
+
+	if (cs){
+		if (cs->getParent()) {
+			string pn=escape(cs->getPrettyName());
+			ostr<<"\\section{"<< pn << "}" << endl << endl;
+			ostr<<"\\label{" << cs->getName() << "}" << endl;
+			ostr<<"\\subsection{Description}"<< endl <<endl;
+			ostr<<escape(cs->getHelp())<< endl <<endl;
+			ostr<<"\\subsection{Parameters}"<< endl <<endl;
+		}
+		list<GenericEntry*>::iterator it;
+		for(it=cs->getChildren().begin();it!=cs->getChildren().end();++it){
+			dump2(ostr,*it,level+1);
+			ostr<<endl;
+		}
+	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL){
+		ostr<<"\\subsubsection{"<<escape(entry->getName())<<"}"<<endl;
+		ostr<<escape(entry->getHelp())<<endl;
+		ostr<<"The default value is ``"<<escape(val->getDefault())<<"''."<<endl;
+	}
+	return ostr;
+}
+
 ostream &MibDumper::dump(ostream & ostr)const {
 	const time_t t = time(NULL);
 	char mbstr[100];
@@ -615,7 +828,8 @@ ostream &MibDumper::dump(ostream & ostr)const {
 
 	ostr << "FLEXISIP-MIB DEFINITIONS ::= BEGIN" << endl
 			<< "IMPORTS" << endl
-			<< "	OBJECT-TYPE, Integer32, MODULE-IDENTITY, enterprises,Counter64  	FROM SNMPv2-SMI" << endl
+			<< "	OBJECT-TYPE, Integer32, MODULE-IDENTITY, enterprises," << endl
+			<< "	Counter64,NOTIFICATION-TYPE							  	FROM SNMPv2-SMI" << endl
 			<< "	MODULE-COMPLIANCE, OBJECT-GROUP       					FROM SNMPv2-CONF;" << endl
 			<< endl
 
@@ -624,7 +838,9 @@ ostream &MibDumper::dump(ostream & ostr)const {
 			<< "	ORGANIZATION \"belledonne-communications\"" << endl
 			<< "	CONTACT-INFO \"postal:   34 Avenue de L'europe 38 100 Grenoble France" << endl
 			<< "		email:    contact@belledonne-communications.com\"" << endl
-			<< "DESCRIPTION  \"A Flexisip management tree.\"" << endl
+			<< "	DESCRIPTION  \"A Flexisip management tree.\"" << endl
+			<< "	REVISION     \"" <<mbstr <<"\""<<endl
+			<< "    DESCRIPTION  \"" PACKAGE_VERSION << "\"" << endl
 			<< "::={ enterprises "<< company_id << " }" << endl
 			<< endl;
 
@@ -637,6 +853,7 @@ ostream &MibDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
 	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
 	ConfigValue *cVal;
 	StatCounter64 *sVal;
+	NotificationEntry *ne;
 	string spacing="";
 	while (level > 0) {
 		spacing += "	";
@@ -653,6 +870,8 @@ ostream &MibDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
 		cVal->mibFragment(ostr, spacing);
 	}else if ((sVal=dynamic_cast<StatCounter64*>(entry))!=NULL){
 		sVal->mibFragment(ostr, spacing);
+	}else if ((ne=dynamic_cast<NotificationEntry*>(entry))!=NULL){
+		ne->mibFragment(ostr,spacing);
 	}
 	return ostr;
 }
@@ -719,6 +938,7 @@ int FileConfigReader::read2(GenericEntry *entry, int level){
 		}else if (level==2){
 			const char *val=lp_config_get_string(mCfg,cv->getParent()->getName().c_str(),cv->getName().c_str(),cv->getDefault().c_str());
 			cv->set(val);
+			cv->setNextValue(val);
 		}else{
 			LOGF("The current file format doesn't support recursive subsections.");
 		}
@@ -768,6 +988,12 @@ int ConfigValue::handleSnmpRequest(netsnmp_mib_handler *handler,
 		ret = netsnmp_check_vb_type(requests->requestvb, ASN_OCTET_STR);
 		if ( ret != SNMP_ERR_NOERROR ) {
 			netsnmp_set_request_error(reqinfo, requests, ret );
+		}
+
+		mNextValue.assign((char*)requests->requestvb->val.string,
+						requests->requestvb->val_len);
+		if (!invokeConfigStateChanged(ConfigState::Check)) {
+			netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_WRONGVALUE);
 		}
 		break;
 	case MODE_SET_RESERVE2:
@@ -824,6 +1050,10 @@ int ConfigBoolean::handleSnmpRequest(netsnmp_mib_handler *handler,
 		if ( ret != SNMP_ERR_NOERROR ) {
 			netsnmp_set_request_error(reqinfo, requests, ret );
 		}
+		mNextValue= requests->requestvb->val.integer == 0 ? "0":"1";
+		if (!invokeConfigStateChanged(ConfigState::Check)) {
+			netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_WRONGVALUE);
+		}
 		break;
 	case MODE_SET_RESERVE2:
 		old_value=(u_short*)malloc(sizeof(u_short));
@@ -868,6 +1098,7 @@ int ConfigInt::handleSnmpRequest(netsnmp_mib_handler *handler,
 {
 	int *old_value;
 	int ret;
+	std::ostringstream oss;
 
 	switch(reqinfo->mode) {
 	case MODE_GET:
@@ -878,6 +1109,11 @@ int ConfigInt::handleSnmpRequest(netsnmp_mib_handler *handler,
 		ret = netsnmp_check_vb_type(requests->requestvb, ASN_INTEGER);
 		if ( ret != SNMP_ERR_NOERROR ) {
 			netsnmp_set_request_error(reqinfo, requests, ret );
+		}
+		oss << *requests->requestvb->val.integer;
+		mNextValue=oss.str();
+		if (!invokeConfigStateChanged(ConfigState::Check)) {
+			netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_WRONGVALUE);
 		}
 		break;
 	case MODE_SET_RESERVE2:

@@ -70,6 +70,12 @@ PKG_PROG_PKG_CONFIG()
 
 # Checks for header files.
 
+AC_ARG_ENABLE(doc,
+    AC_HELP_STRING([--disable-doc],
+        [Build documentation @<:@yes@:>@]),
+        [doc="${enableval}"],[doc=yes]
+)
+
 AC_ARG_ENABLE(transcoder,
 	AC_HELP_STRING([--disable-transcoder],
 	    [Build transcoder support @<:@yes@:>@]),
@@ -127,6 +133,11 @@ if test x$protobuf = xyes ; then
 fi
 
 
+# Generates documentation pdf only if pdflatex is found
+AC_CHECK_PROG([pdflatex], [pdflatex], [yes], [no])
+AM_CONDITIONAL([GENERATE_DOC], [test "x$pdflatex$doc" = xyesyes])
+
+
 # Export path to configuration directory
 
 CONFIG_DIR="\$(sysconfdir)/flexisip"
@@ -141,6 +152,7 @@ scripts/Makefile
 scripts/debian/Makefile
 scripts/redhat/Makefile
 src/Makefile
+doc/Makefile
 flexisip.spec
 ])
 AC_OUTPUT
