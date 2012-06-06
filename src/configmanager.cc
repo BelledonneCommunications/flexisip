@@ -646,25 +646,26 @@ GenericManager::GenericManager() : mConfigRoot("flexisip","This is the default F
 	mNeedRestart=false;
 	mDirtyConfig=false;
 
-	GenericStruct *notifObjs=new GenericStruct("notif","Templates for notifications.",0);
+	GenericStruct *notifObjs=new GenericStruct("notif","Templates for notifications.",1);
 	mConfigRoot.addChild(notifObjs);
-	ConfigString *nmsg=new ConfigString("msg", "Notification message payload.", "", 0);
+	mNotifier=new NotificationEntry("sender","Send notifications",1);
+	notifObjs->addChild(mNotifier);
+	ConfigString *nmsg=new ConfigString("msg", "Notification message payload.", "", 10);
 	nmsg->setNotifPayload(true);
 	notifObjs->addChild(nmsg);
-	ConfigString *nsoid=new ConfigString("source", "Notification source payload.", "", 0);
+	ConfigString *nsoid=new ConfigString("source", "Notification source payload.", "", 11);
 	nsoid->setNotifPayload(true);
 	notifObjs->addChild(nsoid);
 
-	mNotifier=new NotificationEntry("sender","Send notifications",0);
-	notifObjs->addChild(mNotifier);
 
-	GenericStruct *global=new GenericStruct("global","Some global settings of the flexisip proxy.",0);
+
+	GenericStruct *global=new GenericStruct("global","Some global settings of the flexisip proxy.",2);
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
 	global->setConfigListener(this);
 
 	// Don't rename, will not be exported to flexisip.conf
-	ConfigString *version=new ConfigString("versionNumber", "Flexisip version.", PACKAGE_VERSION, 0);
+	ConfigString *version=new ConfigString("versionNumber", "Flexisip version.", PACKAGE_VERSION, 999);
 	version->setReadOnly(true);
 	global->addChild(version);
 
