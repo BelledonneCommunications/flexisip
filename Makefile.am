@@ -5,9 +5,14 @@ SUBDIRS=src scripts doc
 
 # `make rpm'
 
-.phony: rpm
+.phony: rpm deb
 
 rpm:
 	$(MAKE) dist
 # <https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=206841>
 	TAR_OPTIONS=--wildcards rpmbuild -ta --clean --rmsource --rmspec $(PACKAGE)-$(VERSION).tar.gz
+
+deb:
+	$(MAKE) dist
+	mv $(distdir).tar.gz ../$(PACKAGE)_$(VERSION).orig.tar.gz
+	dpkg-buildpackage -us -uc

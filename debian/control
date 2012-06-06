@@ -1,0 +1,27 @@
+Source: flexisip
+Section: net
+Priority: optional
+Maintainer: Guillaume BERAUDO <gberaudo@linphone.org>
+Build-Depends: debhelper (>= 7.0.50~), autotools-dev, unixodbc-dev, libhiredis-dev (>= 0.10.2), libprotobuf-dev, libsnmp-dev, libsofia-sip-ua-dev (>= 1.12.11), protobuf-compiler
+Standards-Version: 3.8.4
+Homepage: http://linphone.org
+Vcs-Git: gitosis@git.linphone.org:flexisip.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/flexisip.git;a=summary
+
+Package: flexisip
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Flexible SIP proxy
+ Extensible SIP proxy with media capabilities. Designed for robustness and ease of use.
+
+
+#Package: flexisip-dbg
+#Architecture: any
+#Section: debug
+#Priority: extra
+#Depends:
+#    flexisip (= ${binary:Version}),
+#    ${misc:Depends}
+#Description: debugging symbols for flexisip
+# .
+# This package contains the debugging symbols for flexisip.

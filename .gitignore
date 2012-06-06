@@ -35,3 +35,4 @@ vgcore.*
 core
 core.*
 *.backup
+debian/flexisip
