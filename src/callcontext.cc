@@ -360,7 +360,7 @@ bool CallContext::isInactive(time_t cur){
 		if (cur>mCreateTime+180){
 			LOGD("CallContext %p usage timeout expired",this);
 			return true;
-		}
+		}else return false;
 	}
 	return !(mFrontSide->isActive(cur) || mBackSide->isActive(cur));
 }
