@@ -45,18 +45,10 @@ AuthDb::AuthDb() {
 	GenericStruct *cr=GenericManager::get()->getRoot();
 	GenericStruct *ma=cr->get<GenericStruct>("module::Authentication");
 	list<string> domains=ma->get<ConfigStringList>("auth-domains")->read();
-	list<string>::const_iterator it;
-	for (it=domains.begin();it!=domains.end();++it){
-		mCachedPasswords.insert(make_pair(*it,new map<string,CachedPassword *>));
-	}
 	mCacheExpire = ma->get<ConfigInt>("cache-expire")->read();
 }
 
 AuthDb::~AuthDb() {
-	map<string, map<string,CachedPassword*>*>::iterator it;
-	for (it=mCachedPasswords.begin(); it != mCachedPasswords.end(); ++it) {
-		delete (*it).second;
-	}
 }
 
 string AuthDb::createPasswordKey(const string &user, const string &host, const string &auth) {
@@ -65,10 +57,10 @@ string AuthDb::createPasswordKey(const string &user, const string &host, const s
 }
 
 AuthDb::CacheResult AuthDb::getCachedPassword(const string &key, const string &domain, string &pass, time_t now) {
-	map<string,CachedPassword*> *passwords=mCachedPasswords[domain];
+	map<string,CachedPassword*> &passwords=mCachedPasswords[domain];
 	unique_lock<mutex> lck(mCachedPasswordMutex);
-	map<string,CachedPassword*>::iterator it=passwords->find(key);
-	if (it != passwords->end()) {
+	map<string,CachedPassword*>::iterator it=passwords.find(key);
+	if (it != passwords.end()) {
 		pass.assign((*it).second->pass);
 		if (now < (*it).second->date + mCacheExpire) {
 			return VALID_PASS_FOUND;
@@ -80,14 +72,14 @@ AuthDb::CacheResult AuthDb::getCachedPassword(const string &key, const string &d
 }
 
 bool AuthDb::cachePassword(const string &key, const string &domain, const string &pass, time_t time){
-	map<string,CachedPassword*> *passwords=mCachedPasswords[domain];
+	map<string,CachedPassword*> &passwords=mCachedPasswords[domain];
 	unique_lock<mutex> lck(mCachedPasswordMutex);
-	map<string,CachedPassword*>::iterator it=passwords->find(key);
-	if (it != passwords->end()) {
+	map<string,CachedPassword*>::iterator it=passwords.find(key);
+	if (it != passwords.end()) {
 		(*it).second->pass=pass;
 		(*it).second->date=time;
 	} else {
-		passwords->insert(make_pair(key, new CachedPassword(pass,time)));
+		passwords.insert(make_pair(key, new CachedPassword(pass,time)));
 	}
 
 	return true;

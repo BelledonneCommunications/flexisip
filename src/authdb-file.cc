@@ -102,6 +102,9 @@ void FileAuthDb::sync() {
 				if (find(domains.begin(), domains.end(), domain) != domains.end()) {
 					string key(createPasswordKey(user, domain, userid));
 					cachePassword(key, domain, password, mLastSync);
+				} else if (find(domains.begin(), domains.end(), "*") != domains.end()) {
+					string key(createPasswordKey(user, domain, userid));
+					cachePassword(key, domain, password, mLastSync);
 				} else {
 					LOGW("Not handled domain: %s", domain.c_str());
 				}
