@@ -19,6 +19,7 @@
 #include "module.hh"
 #include "agent.hh"
 #include "entryfilter.hh"
+#include "sofia-sip/auth_digest.h"
 
 #include <algorithm>
 using namespace::std;
@@ -176,6 +177,23 @@ void Module::idle() {
 
 const string &Module::getModuleName() const {
 	return mInfo->getModuleName();
+}
+
+msg_auth_t *ModuleToolbox::findAuthHeaderFoRealm(su_home_t *home, msg_auth_t *au, const char *realm) {
+	while (au!= NULL) {
+		auth_response_t r;
+		memset(&r, 0, sizeof(r));
+		r.ar_size=sizeof(r);
+		auth_digest_response_get(home, &r, au->au_params);
+		LOGD("Examining auth digest response %s %s", r.ar_username, r.ar_realm);
+		if (strcasecmp(r.ar_realm, realm) ==0) {
+			LOGD("Right realm found : %s", r.ar_realm);
+			return au;
+		}
+		au=au->au_next;
+	}
+	LOGD("authorization with right realm not found");
+	return NULL;
 }
 
 bool ModuleToolbox::sipPortEquals(const char *p1, const char *p2){

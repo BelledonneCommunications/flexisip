@@ -152,6 +152,7 @@ Module * ModuleInfo<_modtype>::_create(Agent *ag){
 **/
 class ModuleToolbox{
 	public:
+		static msg_auth_t *findAuthHeaderFoRealm(su_home_t *home, msg_auth_t *au, const char *realm);
 		static void addRecordRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *transport=NULL);
 		static void prependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *route);
 		static bool sipPortEquals(const char *p1, const char *p2);

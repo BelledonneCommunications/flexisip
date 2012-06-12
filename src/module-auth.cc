@@ -163,7 +163,7 @@ private:
 	static ModuleInfo<Authentication> sInfo;
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
-	auth_scheme_t* mOdbcAuthScheme ;
+	auth_scheme_t* mOdbcAuthScheme;
 	static int authPluginInit(auth_mod_t *am,
 				     auth_scheme_t *base,
 				     su_root_t *root,
@@ -190,6 +190,7 @@ private:
 	}
 	bool dbUseHashedPasswords;
 	bool mImmediateRetrievePassword;
+	bool mNewAuthOn407;
 
 	void static flexisip_auth_method_digest(auth_mod_t *am,
 				auth_status_t *as, msg_auth_t *au, auth_challenger_t const *ach);
@@ -204,6 +205,7 @@ public:
 	NonceStore mNonceStore;
 
 	Authentication(Agent *ag):Module(ag),mCountAsyncRetrieve(NULL),mCountSyncRetrieve(NULL){
+		mNewAuthOn407=false;
 		mProxyChallenger.ach_status=407;/*SIP_407_PROXY_AUTH_REQUIRED*/
 		mProxyChallenger.ach_phrase=sip_407_Proxy_auth_required;
 		mProxyChallenger.ach_header=sip_proxy_authenticate_class;
@@ -259,6 +261,7 @@ public:
 			{	Integer		,	"cache-expire"	,	"Duration of the validity of the credentials added to the cache in seconds.",	"1800"	},
 			{	Boolean		,	"immediate-retrieve-password"	,	"Retrieve password immediately so that it is cached when an authenticated request arrives.",	"true"},
 			{	Boolean		,	"hashed-passwords"	,	"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).", "false" },
+			{	Boolean		,	"newAuth-on-407"	,	"When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false" },
 			config_item_end
 		};
 		mc->addChildrenValues(items);
@@ -271,9 +274,9 @@ public:
 		mCountPassNotFound=mc->createStat("count-password-not-found",   "Number of passwords not found.");
 	}
 
-	void onLoad(const GenericStruct * module_config){
+	void onLoad(const GenericStruct * mc){
 		list<string>::const_iterator it;
-		mDomains=module_config->get<ConfigStringList>("auth-domains")->read();
+		mDomains=mc->get<ConfigStringList>("auth-domains")->read();
 		for (it=mDomains.begin();it!=mDomains.end();++it){
 			mAuthModules[*it] = auth_mod_create(NULL,
 									AUTHTAG_METHOD("odbc"),
@@ -292,18 +295,27 @@ public:
 			}
 		}
 
-		mTrustedHosts=module_config->get<ConfigStringList>("trusted-hosts")->read();
-		dbUseHashedPasswords = module_config->get<ConfigBoolean>("hashed-passwords")->read();
-		mImmediateRetrievePassword = module_config->get<ConfigBoolean>("immediate-retrieve-password")->read();
+		mTrustedHosts=mc->get<ConfigStringList>("trusted-hosts")->read();
+		dbUseHashedPasswords = mc->get<ConfigBoolean>("hashed-passwords")->read();
+		mImmediateRetrievePassword = mc->get<ConfigBoolean>("immediate-retrieve-password")->read();
+		mNewAuthOn407 = mc->get<ConfigBoolean>("newAuth-on-407")->read();
 	}
 
-	void onRequest(shared_ptr<SipEvent> &ev) {
+	auth_mod_t *findAuthModule(const char *name) {
+		auto it = mAuthModules.find(name);
+		if (it == mAuthModules.end()) it=mAuthModules.find("*");
+		if (it == mAuthModules.end()) {
+			return NULL;
+		}
+		return it->second;
+	}
+
+void onRequest(shared_ptr<SipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		// first check for auth module for this domain
-		auto authModuleIt = mAuthModules.find(sip->sip_from->a_url[0].url_host);
-		if (authModuleIt == mAuthModules.end()) authModuleIt=mAuthModules.find("*");
-		if (authModuleIt == mAuthModules.end()) {
+		auth_mod_t *am=findAuthModule(sip->sip_from->a_url[0].url_host);
+		if (am==NULL) {
 			LOGI("unknown domain [%s]",sip->sip_from->a_url[0].url_host);
 			ev->reply(ms, SIP_488_NOT_ACCEPTABLE,
 					SIPTAG_CONTACT(sip->sip_contact),
@@ -343,12 +355,33 @@ public:
 		// Another point in asynchronous mode is that the asynchronous callbacks MUST be called
 		// AFTER the nta_msg_treply bellow. Otherwise the as would be already destroyed.
 		if(sip->sip_request->rq_method == sip_method_register) {
-			auth_mod_verify((*authModuleIt).second, as, sip->sip_authorization,&mRegistrarChallenger);
+			auth_mod_verify(am, as, sip->sip_authorization,&mRegistrarChallenger);
 		} else {
-			auth_mod_verify((*authModuleIt).second, as, sip->sip_proxy_authorization,&mProxyChallenger);
+			auth_mod_verify(am, as, sip->sip_proxy_authorization,&mProxyChallenger);
 		}
 	}
-	void onResponse(shared_ptr<SipEvent> &ev) {/*nop*/};
+	void onResponse(shared_ptr<SipEvent> &ev) {
+		if (!mNewAuthOn407) return; /*nop*/
+
+		sip_t *sip=ev->getMsgSip()->getSip();
+		if (sip->sip_status->st_status == 407 && sip->sip_proxy_authenticate) {
+			msg_t *msg=ev->getMsgSip()->getMsg();
+			auth_status_t *as = auth_status_new(ev->getMsgSip()->getHome());
+			as->as_realm = sip->sip_from->a_url[0].url_host;
+			as->as_user_uri = sip->sip_from->a_url;
+			auth_mod_t *am=findAuthModule(as->as_realm);
+			if (am) {
+				msg_header_t *auth_method=(msg_header_t*)sip->sip_proxy_authenticate;
+				auth_challenge_digest(am, as, &mProxyChallenger);
+				mNonceStore.insert(as->as_response);
+				((msg_auth_t *) as->as_response)->au_next=(msg_auth_t*)auth_method;
+				msg_header_remove_all(msg, (msg_pub_t*) sip, auth_method);
+				msg_header_insert(msg, (msg_pub_t*) sip, as->as_response);
+			}
+		} else {
+			// Maybe handle case with 401
+		}
+	};
 
 	void onIdle() {
 		mNonceStore.cleanExpired();
@@ -389,9 +422,11 @@ bool Authentication::AuthenticationListener::sendReply(){
 	}else{
 		// Success
 		if (sip->sip_request->rq_method == sip_method_register){
-			sip_header_remove(ms->getMsg(),sip,(sip_header_t*)sip->sip_authorization);
+			msg_auth_t *au=ModuleToolbox::findAuthHeaderFoRealm(ms->getHome(), sip->sip_authorization, mAs->as_realm);
+			if (au) msg_header_remove(ms->getMsg(), (msg_pub_t*)sip, (msg_header_t *)au);
 		} else {
-			sip_header_remove(ms->getMsg(),sip, (sip_header_t*)sip->sip_proxy_authorization);
+			msg_auth_t *au=ModuleToolbox::findAuthHeaderFoRealm(ms->getHome(), sip->sip_proxy_authorization, mAs->as_realm);
+			if (au) msg_header_remove(ms->getMsg(), (msg_pub_t*)sip, (msg_header_t *)au);
 		}
 		return false;
 	}
@@ -616,6 +651,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 	}
 }
 
+
 /** Authenticate a request with @b Digest authentication scheme.
  */
 void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
@@ -642,7 +678,11 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 	}
 
 	if (au) {
+		LOGD("Searching for auth digest response for this proxy");
+		msg_auth_t *matched_au=ModuleToolbox::findAuthHeaderFoRealm(as->as_home, au, as->as_realm);
+		if (matched_au) au=matched_au;
 		auth_digest_response_get(as->as_home, &listener->mAr, au->au_params);
+		LOGD("Using auth digest response for realm %s", listener->mAr.ar_realm);
 		as->as_match = (msg_header_t *)au;
 		flexisip_auth_check_digest(am, as, &listener->mAr, ach);
 	}
