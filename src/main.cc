@@ -415,7 +415,7 @@ int main(int argc, char *argv[]){
 		}else if (strcmp(argv[i],"--debug")==0){
 			debug=true;
 			continue;
-		}else if (strcmp(argv[i],"--configfile")==0){
+		}else if (strcmp(argv[i],"--configfile")==0 || strcmp(argv[i],"-c")==0){
 			cfgfile=argv[i+1];
 			i++;
 			continue;
