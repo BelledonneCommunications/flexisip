@@ -244,6 +244,7 @@ private:
 	static ModuleInfo<GatewayAdapter> sInfo;
 	nua_t *nua;
 	url_t *gateway_url;
+	bool mRegisterOnGateway;
 	su_home_t home;
 };
 
@@ -262,7 +263,12 @@ GatewayAdapter::~GatewayAdapter() {
 
 void GatewayAdapter::onDeclare(GenericStruct *module_config) {
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
-	ConfigItemDescriptor items[] = { { String, "gateway", "A gateway uri where to send all requests", "sip:localhost:0" }, { String, "gateway-domain", "Force the domain of send all requests", "" }, config_item_end };
+	ConfigItemDescriptor items[] = {
+			{ String, "gateway", "A gateway uri where to send all requests.", "sip:localhost:0" },
+			{ String, "gateway-domain", "Force the domain of send all requests", "" },
+			{ Boolean, "register-on-gateway", "Register the server on the gateway in order to get incoming calls.", "true" },
+			config_item_end
+	};
 	module_config->addChildrenValues(items);
 }
 
@@ -279,9 +285,12 @@ bool GatewayAdapter::isValidNextConfig(const ConfigValue &cv) {
 void GatewayAdapter::onLoad(const GenericStruct *module_config) {
 	//sendTrap("Error loading module Gateway adaptor");
 	string gateway = module_config->get<ConfigString>("gateway")->read();
+	mRegisterOnGateway=module_config->get<ConfigBoolean>("register-on-gateway")->read();
 	gateway_url = url_make(&home, gateway.c_str());
-	char *url = su_sprintf(&home, "sip:%s:*", mAgent->getPublicIp().c_str());
-	nua = nua_create(mAgent->getRoot(), nua_callback, this, NUTAG_URL(url), NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()), TAG_END());
+	if (mRegisterOnGateway) {
+		char *url = su_sprintf(&home, "sip:%s:*", mAgent->getPublicIp().c_str());
+		nua = nua_create(mAgent->getRoot(), nua_callback, this, NUTAG_URL(url), NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()), TAG_END());
+	}
 }
 
 void GatewayAdapter::onRequest(shared_ptr<SipEvent> &ev) {
@@ -290,13 +299,21 @@ void GatewayAdapter::onRequest(shared_ptr<SipEvent> &ev) {
 
 	if (sip->sip_request->rq_method == sip_method_register) {
 		if (sip->sip_contact != NULL) {
-			GatewayRegister *gr = new GatewayRegister(getAgent(), nua, sip->sip_from, sip->sip_to, sip->sip_contact);
-			sip_contact_t *contact = sip_contact_format(&home, "<sip:%s@%s:%s>;expires=%i", sip->sip_contact->m_url->url_user, gateway_url->url_host, gateway_url->url_port, INT_MAX);
+			GatewayRegister *gr = NULL;
+			if (mRegisterOnGateway) {
+				gr=new GatewayRegister(getAgent(), nua, sip->sip_from, sip->sip_to, sip->sip_contact);
+			}
 
+			sip_contact_t *contact = sip_contact_format(&home,
+					"<sip:%s@%s:%s>;expires=%i",
+					sip->sip_contact->m_url->url_user,
+					gateway_url->url_host,
+					gateway_url->url_port,
+					INT_MAX);
 			contact->m_next = sip->sip_contact;
 			sip->sip_contact = contact;
 
-			gr->start();
+			if (mRegisterOnGateway) gr->start();
 		}
 	}
 }
