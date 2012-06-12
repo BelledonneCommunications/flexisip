@@ -468,6 +468,23 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 				RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnBindForRoutingListener>(this, getAgent(), ev, mFork), true);
 			}
 		}
+		if (sip->sip_request->rq_method == sip_method_ack) {
+			const shared_ptr<MsgSip> &ms = ev->getMsgSip();
+			sip_route_t *route = ms->getSip()->sip_route;
+			bool forwardAck=false;
+			while (route) {
+				if (!mAgent->isUs(route->r_url, true)) {
+					forwardAck=true;
+					break;
+				}
+				route=route->r_next;
+			}
+			if (!forwardAck) {
+				LOGD("We are the destination of this ACK, stopped.");
+				ev->terminateProcessing();
+				return;
+			}
+		}
 	}
 }
 
