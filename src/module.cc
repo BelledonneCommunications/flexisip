@@ -179,7 +179,7 @@ const string &Module::getModuleName() const {
 	return mInfo->getModuleName();
 }
 
-msg_auth_t *ModuleToolbox::findAuthHeaderFoRealm(su_home_t *home, msg_auth_t *au, const char *realm) {
+msg_auth_t *ModuleToolbox::findAuthorizationForRealm(su_home_t *home, msg_auth_t *au, const char *realm) {
 	while (au!= NULL) {
 		auth_response_t r;
 		memset(&r, 0, sizeof(r));
@@ -212,7 +212,7 @@ int ModuleToolbox::sipPortToInt(const char *port){
 }
 
 void ModuleToolbox::prependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *route){
-	// removes top route headers if they maches us
+	// removes top route headers if they matches us
 	sip_route_t *r;
 	r = sip_route_format(home, "%s", route);
 	while (sip->sip_route != NULL && ag->isUs(sip->sip_route->r_url)) {

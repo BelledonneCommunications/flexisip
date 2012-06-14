@@ -363,23 +363,27 @@ void onRequest(shared_ptr<SipEvent> &ev) {
 	void onResponse(shared_ptr<SipEvent> &ev) {
 		if (!mNewAuthOn407) return; /*nop*/
 
+		shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+		if (transaction == NULL) return;
+
+		shared_ptr<string> proxyRealm = transaction->getProperty<string>("this_proxy_realm");
+		if (proxyRealm == NULL) return;
+
 		sip_t *sip=ev->getMsgSip()->getSip();
 		if (sip->sip_status->st_status == 407 && sip->sip_proxy_authenticate) {
-			msg_t *msg=ev->getMsgSip()->getMsg();
 			auth_status_t *as = auth_status_new(ev->getMsgSip()->getHome());
-			as->as_realm = sip->sip_from->a_url[0].url_host;
+			as->as_realm = proxyRealm.get()->c_str();
 			as->as_user_uri = sip->sip_from->a_url;
 			auth_mod_t *am=findAuthModule(as->as_realm);
 			if (am) {
-				msg_header_t *auth_method=(msg_header_t*)sip->sip_proxy_authenticate;
 				auth_challenge_digest(am, as, &mProxyChallenger);
 				mNonceStore.insert(as->as_response);
-				((msg_auth_t *) as->as_response)->au_next=(msg_auth_t*)auth_method;
-				msg_header_remove_all(msg, (msg_pub_t*) sip, auth_method);
-				msg_header_insert(msg, (msg_pub_t*) sip, as->as_response);
+				msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t*) sip,  (msg_header_t*) as->as_response);
+			} else {
+				LOGD("Authentication module for %s not found", as->as_realm);
 			}
 		} else {
-			// Maybe handle case with 401
+			LOGD("not handled newauthon401");
 		}
 	};
 
@@ -387,7 +391,6 @@ void onRequest(shared_ptr<SipEvent> &ev) {
 		mNonceStore.cleanExpired();
 	}
 };
-
 
 ModuleInfo<Authentication> Authentication::sInfo("Authentication",
 	"The authentication module challenges SIP requests according to a user/password database.",
@@ -422,10 +425,10 @@ bool Authentication::AuthenticationListener::sendReply(){
 	}else{
 		// Success
 		if (sip->sip_request->rq_method == sip_method_register){
-			msg_auth_t *au=ModuleToolbox::findAuthHeaderFoRealm(ms->getHome(), sip->sip_authorization, mAs->as_realm);
+			msg_auth_t *au=ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_authorization, mAs->as_realm);
 			if (au) msg_header_remove(ms->getMsg(), (msg_pub_t*)sip, (msg_header_t *)au);
 		} else {
-			msg_auth_t *au=ModuleToolbox::findAuthHeaderFoRealm(ms->getHome(), sip->sip_proxy_authorization, mAs->as_realm);
+			msg_auth_t *au=ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_proxy_authorization, mAs->as_realm);
 			if (au) msg_header_remove(ms->getMsg(), (msg_pub_t*)sip, (msg_header_t *)au);
 		}
 		return false;
@@ -679,7 +682,7 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 
 	if (au) {
 		LOGD("Searching for auth digest response for this proxy");
-		msg_auth_t *matched_au=ModuleToolbox::findAuthHeaderFoRealm(as->as_home, au, as->as_realm);
+		msg_auth_t *matched_au=ModuleToolbox::findAuthorizationForRealm(as->as_home, au, as->as_realm);
 		if (matched_au) au=matched_au;
 		auth_digest_response_get(as->as_home, &listener->mAr, au->au_params);
 		LOGD("Using auth digest response for realm %s", listener->mAr.ar_realm);
