@@ -437,6 +437,28 @@ public:
 	}
 };
 
+static bool isIpv6(const char *c) {
+	if (!c) return false;
+	while (*c != '\0') {
+		if (*c == ':' || (*c >= 'a' && *c <= 'f') || (*c >= '0' && *c<='9'))
+			++c;
+		else
+			return false;
+	}
+	return true;
+}
+
+static bool isIpv4(const char *c) {
+	if (!c) return false;
+	while (*c != '\0') {
+		if (*c == '.' || (*c >= '0' && *c<='9'))
+			++c;
+		else
+			return false;
+	}
+	return true;
+}
+
 void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
@@ -500,15 +522,16 @@ void Registrar::onRequest(shared_ptr<SipEvent> &ev) {
 		if (sip->sip_request->rq_method == sip_method_ack) {
 			const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 			sip_route_t *route = ms->getSip()->sip_route;
-			bool forwardAck=false;
+			bool routeAck=false;
 			while (route) {
 				if (!mAgent->isUs(route->r_url, true)) {
-					forwardAck=true;
+					routeAck=true;
 					break;
 				}
 				route=route->r_next;
 			}
-			if (!forwardAck) {
+			const char *req_host = sip->sip_request->rq_url->url_host;
+			if (!routeAck && !isIpv4(req_host) && !isIpv6(req_host)) {
 				LOGD("We are the destination of this ACK, stopped.");
 				ev->terminateProcessing();
 				return;
