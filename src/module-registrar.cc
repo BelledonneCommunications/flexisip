@@ -339,6 +339,26 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 		return;
 	}
 
+	if (ms->getSip()->sip_request->rq_method == sip_method_message && contacts.size() >= 2) {
+		for (auto it = contacts.begin(); it != contacts.end(); ++it) {
+			const shared_ptr<ExtendedContact> ec = *it;
+			sip_contact_t *ct = NULL;
+			if (ec)
+				ct = Record::extendedContactToSofia(ms->getHome(), *ec, now);
+
+			shared_ptr<MsgSip> new_ms = make_shared<MsgSip>(*ms);
+			if (ct && ct->m_url && rewriteContactUrl(new_ms, ct->m_url, ec->mRoute)) {
+				LOGD("Fork message to %s.", ec->mSipUri);
+				shared_ptr<SipEvent> new_ev(make_shared<RequestSipEvent>(ev));
+				new_ev->setMsgSip(new_ms);
+				agent->injectRequestEvent(new_ev);
+			} else {
+				LOGD("Can't create sip_contact of %s.", ec->mSipUri);
+			}
+		}
+		return;
+	}
+
 	if (contacts.size() <= 1 || !fork || ms->getSip()->sip_request->rq_method != sip_method_invite) {
 		++*mCountNonForks;
 		const shared_ptr<ExtendedContact> &ec = contacts.front();
