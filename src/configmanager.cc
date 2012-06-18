@@ -748,6 +748,7 @@ ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)
 	ConfigValue *val;
 
 	if (cs){
+		if (cs->getName()=="notif") return ostr;
 		ostr<<"##"<<endl;
 		printHelp(ostr,cs->getHelp(),"##");
 		ostr<<"##"<<endl;
@@ -760,7 +761,7 @@ ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)
 			ostr<<endl;
 		}
 	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL){
-		if (0==strcmp(entry->getName().c_str(),"versionNumber")) return ostr;
+		if (entry->getName()=="versionNumber") return ostr;
 		printHelp(ostr,entry->getHelp(),"#");
 		ostr<<"#  Default value: "<<val->getDefault()<<endl;
 		if (mDumpDefault) {
