@@ -104,6 +104,16 @@ public:
 	typedef enum {
 		Create, Destroy
 	} Event;
+	static const char *eventStr(Event e) {
+		switch (e) {
+			case Create:
+				return "create";
+			case Destroy:
+				return "destroy";
+			default:
+				return "unkown";
+		}
+	}
 };
 
 class OutgoingTransaction: public Transaction, public OutgoingAgent, public std::enable_shared_from_this<OutgoingTransaction> {
