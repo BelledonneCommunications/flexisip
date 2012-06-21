@@ -185,7 +185,7 @@ static int getSystemFdLimit(){
 	static int max_sys_fd=-1;
 	if (max_sys_fd==-1){
 #ifdef __linux
-		char tmp[256];
+		char tmp[256]={0}; //make valgrind happy
 		int fd=open("/proc/sys/fs/file-max",O_RDONLY);
 		if (fd!=-1){
 			if (read(fd,tmp,sizeof(tmp))>0){
