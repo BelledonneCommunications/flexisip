@@ -149,7 +149,10 @@ Agent::Agent(su_root_t* root, int port, int tlsport) :
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "LoadBalancer"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "MediaRelay"));
 #ifdef ENABLE_TRANSCODER
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
+	const auto &overrideMap=GenericManager::get()->getOverrideMap();
+	if (overrideMap.find("notrans") == overrideMap.end()) {
+		mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
+	}
 #endif
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Forward"));
 

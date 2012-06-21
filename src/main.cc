@@ -510,7 +510,7 @@ int main(int argc, char *argv[]){
 	SnmpAgent lAgent(*a,*cfg);
 #endif
 #ifdef ENABLE_TRANSCODER
-	ms_init();
+	if (oset.find("notrans") == oset.end()) ms_init();
 #endif
 	a->loadConfig (cfg);
 

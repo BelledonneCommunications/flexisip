@@ -455,6 +455,7 @@ public:
 	GenericStruct *getRoot();
 	std::string &getConfigFile() { return mConfigFile; }
 	void setOverrideMap(const std::map<std::string,std::string> overrides) { mOverrides=overrides;}
+	std::map<std::string,std::string> &getOverrideMap() { return mOverrides; }
 	const GenericStruct *getGlobal();
 	void loadStrict();
 	StatCounter64 &findStat(const std::string &key);

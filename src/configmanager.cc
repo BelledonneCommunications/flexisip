@@ -896,7 +896,19 @@ void FileConfigReader::onUnreadItem(void *p, const char *secname, const char *ke
 	zis->onUnreadItem(secname,key,lineno);
 }
 
+static bool checkTranscoder(const std::map<std::string,std::string> &override) {
+#ifdef ENABLE_TRANSCODER
+	if (override.find("notrans") != override.end()) {
+		return true;
+	}
+#else
+	return true;
+#endif
+	return false;
+}
 void FileConfigReader::onUnreadItem(const char *secname, const char *key, int lineno){
+	static bool dontCheckTranscoder=checkTranscoder(GenericManager::get()->getOverrideMap());
+	if (dontCheckTranscoder && 0==strcmp(secname,"module::Transcoder")) return;
 	LOGE("Unsupported parameter '%s' in section [%s] at line %i", key, secname, lineno);
 	mHaveUnreads=true;
 	GenericEntry *sec=mRoot->find(secname);
