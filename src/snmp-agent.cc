@@ -22,29 +22,30 @@
 #include <functional>
 #include "snmp-agent.h"
 #include "configmanager.hh"
-//#include "flexisipMIB.h"
+
+SnmpAgent::~SnmpAgent() {
+	mTask.mKeepRunning=false;
+	LOGD("Waiting for the SNMP agent task to terminate");
+	mThread.join();
+}
 
 SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent,GenericManager& cm):mConfigmanager(cm),mAgent(agent) {
 	mKeepRunning=true;
 }
 
-
 void SnmpAgent::SnmpAgentTask::operator()() {
-
 	init_snmp("flexisip");
-	GenericManager::get()->getSnmpNotifier()->setInitialized(true);
+	mConfigmanager.getSnmpNotifier()->setInitialized(true);
 	while (mKeepRunning) {
-		agent_check_and_process(1);
 		if (mConfigmanager.mNeedRestart) mKeepRunning=false;
+		agent_check_and_process(1);
 	}
-	GenericManager::get()->getSnmpNotifier()->setInitialized(false);
+	mConfigmanager.getSnmpNotifier()->setInitialized(false);
 	snmp_shutdown("flexisip");
 	SOCK_CLEANUP;
 }
-SnmpAgent::SnmpAgentTask::~SnmpAgentTask() {
-	mKeepRunning=false;
+
+SnmpAgent::SnmpAgent(Agent& agent,GenericManager &cm): mTask(agent,cm),mThread(std::ref(mTask)){
 }
 
-SnmpAgent::SnmpAgent(Agent& agent,GenericManager& cm): mTask(agent,cm),mThread(std::ref(mTask)){
-}
 
