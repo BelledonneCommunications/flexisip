@@ -238,6 +238,7 @@ void GenericEntry::doMibFragment(ostream & ostr, const string &def, const string
 
 ConfigValue::ConfigValue(const string &name, GenericValueType  vt, const string &help, const string &default_value,oid oid_index)
 :  GenericEntry (name,vt,help,oid_index), mDefaultValue(default_value){
+	mExportToConfigFile=true;
 }
 
 void ConfigValue::set(const string  &value){
@@ -545,9 +546,37 @@ ConfigString::ConfigString(const string &name, const string &help, const string 
 :	ConfigValue(name,String,help,default_value,oid_index){
 }
 
+ConfigRuntimeError::ConfigRuntimeError(const string &name, const string &help,oid oid_index)
+:	ConfigValue(name,RuntimeError,help,"",oid_index){
+	this->setReadOnly(true);
+	this->mExportToConfigFile=false;
+}
+
 const string & ConfigString::read()const{
 	return get();
 }
+
+const void ConfigRuntimeError::writeErrors(GenericEntry *entry, ostringstream &oss) const{
+	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
+	if (cs) {
+		const auto &children=cs->getChildren();
+		for (auto it=children.begin(); it != children.end(); ++it) {
+			writeErrors(*it, oss);
+		}
+	}
+
+	if (!entry->getErrorMessage().empty()) {
+		if (oss.tellp() > 0) oss << "|";
+		oss << entry->getOidAsString() << ":" << entry->getErrorMessage();
+	}
+}
+
+string ConfigRuntimeError::generateErrors()const{
+	ostringstream oss;
+	writeErrors(GenericManager::get()->getRoot(), oss);
+	return oss.str();
+}
+
 
 
 ConfigStringList::ConfigStringList(const string &name, const string &help, const string &default_value,oid oid_index)
@@ -642,11 +671,11 @@ RootConfigStruct::RootConfigStruct(const string &name, const string &help,vector
 	mOid = new Oid(oid_root_path,1);
 }
 static oid company_id = SNMP_COMPANY_OID;
-GenericManager::GenericManager() : mConfigRoot("flexisip","This is the default Flexisip configuration file",{1,3,6,1,4,1,company_id}), mReader(&mConfigRoot){
-	mNeedRestart=false;
-	mDirtyConfig=false;
-
+GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
+		mConfigRoot("flexisip","This is the default Flexisip configuration file",{1,3,6,1,4,1,company_id}),
+		mReader(&mConfigRoot), mNotifier(NULL){
 	GenericStruct *notifObjs=new GenericStruct("notif","Templates for notifications.",1);
+	notifObjs->setExportToConfigFile(false);
 	mConfigRoot.addChild(notifObjs);
 	mNotifier=new NotificationEntry("sender","Send notifications",1);
 	notifObjs->addChild(mNotifier);
@@ -664,10 +693,15 @@ GenericManager::GenericManager() : mConfigRoot("flexisip","This is the default F
 	global->addChildrenValues(global_conf);
 	global->setConfigListener(this);
 
-	// Don't rename, will not be exported to flexisip.conf
 	ConfigString *version=new ConfigString("versionNumber", "Flexisip version.", PACKAGE_VERSION, 999);
 	version->setReadOnly(true);
+	version->setExportToConfigFile(false);
 	global->addChild(version);
+
+	ConfigValue *runtimeError=new ConfigRuntimeError("runtimeError", "Retrieve current runtime error state", 998);
+	runtimeError->setExportToConfigFile(false);
+	runtimeError->setReadOnly(true);
+	global->addChild(runtimeError);
 
 	GenericStruct *tls=new GenericStruct("tls","TLS specific parameters.",0);
 	mConfigRoot.addChild(tls);
@@ -744,11 +778,12 @@ ostream & FileConfigDumper::printHelp(ostream &os, const string &help, const str
 }
 
 ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
+	if (entry && !entry->getExportToConfigFile()) return ostr;
+
 	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
 	ConfigValue *val;
 
 	if (cs){
-		if (cs->getName()=="notif") return ostr;
 		ostr<<"##"<<endl;
 		printHelp(ostr,cs->getHelp(),"##");
 		ostr<<"##"<<endl;
@@ -761,7 +796,6 @@ ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)
 			ostr<<endl;
 		}
 	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL){
-		if (entry->getName()=="versionNumber") return ostr;
 		printHelp(ostr,entry->getHelp(),"#");
 		ostr<<"#  Default value: "<<val->getDefault()<<endl;
 		if (mDumpDefault) {
@@ -981,6 +1015,20 @@ int GenericEntry::sHandleSnmpRequest(netsnmp_mib_handler *handler,
 		GenericEntry *cv=static_cast<GenericEntry*>(reginfo->my_reg_void);
 		return cv->handleSnmpRequest(handler, reginfo, reqinfo, requests);
 	}
+}
+
+
+int ConfigRuntimeError::handleSnmpRequest(netsnmp_mib_handler *handler,
+		netsnmp_handler_registration *reginfo,
+		netsnmp_agent_request_info   *reqinfo,
+		netsnmp_request_info         *requests)
+{
+	if (reqinfo->mode != MODE_GET) return SNMP_ERR_GENERR;
+
+	const string errors=generateErrors();
+//	LOGD("runtime error handleSnmpRequest %s -> %s", reginfo->handlerName, errors.c_str());
+	return snmp_set_var_typed_value(requests->requestvb, ASN_OCTET_STR,
+			(const u_char*) errors.c_str(), errors.size());
 }
 
 int ConfigValue::handleSnmpRequest(netsnmp_mib_handler *handler,

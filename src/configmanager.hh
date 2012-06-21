@@ -71,7 +71,8 @@ enum GenericValueType{
 	String,
 	StringList,
 	Struct,
-	Notification
+	Notification,
+	RuntimeError
 };
 
 
@@ -170,7 +171,14 @@ public:
 	std::string getOidAsString() const {
 		return mOid->getValueAsString();
 	}
+	void setErrorMessage(const std::string &msg) {mErrorMessage=msg;}
+	std::string &getErrorMessage() {
+		return mErrorMessage;
+	}
+
 	void setReadOnly(bool ro) {mReadOnly=ro;};
+	bool getExportToConfigFile() {return mExportToConfigFile;}
+	void setExportToConfigFile(bool val) { mExportToConfigFile=val;}
 #ifdef ENABLE_SNMP
 	static int sHandleSnmpRequest(netsnmp_mib_handler *handler,
 			netsnmp_handler_registration *reginfo,
@@ -195,6 +203,8 @@ protected:
 	Oid *mOid;
 	const std::string mName;
 	bool mReadOnly;
+	bool mExportToConfigFile;
+	std::string mErrorMessage;
 private:
 	const std::string mHelp;
 	GenericValueType mType;
@@ -293,7 +303,7 @@ public:
 	ConfigValue(const std::string &name, GenericValueType  vt, const std::string &help, const std::string &default_value,oid oid_index);
 	void set(const std::string &value);
 	void setNextValue(const std::string &value);
-	const std::string &get()const;
+	virtual const std::string &get()const;
 	const std::string &getNextValue()const { return mNextValue; }
 	const std::string &getDefault()const;
 	void setDefault(const std::string &value);
@@ -351,6 +361,20 @@ public:
 	int read()const;
 	int readNext()const;
 	void write(int value);
+};
+
+
+class ConfigRuntimeError : public ConfigValue {
+	mutable std::string mErrorStr;
+public:
+	ConfigRuntimeError(const std::string &name, const std::string &help, oid oid_index);
+	std::string generateErrors()const;
+#ifdef ENABLE_SNMP
+	virtual int handleSnmpRequest(netsnmp_mib_handler *,
+			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
+#endif
+//	std::string &read()const { return get(); }
+	const void writeErrors(GenericEntry *entry, std::ostringstream &oss) const;
 };
 
 class ConfigString : public ConfigValue{
