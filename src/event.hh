@@ -20,6 +20,7 @@
 #define event_hh
 
 #include <memory>
+#include <string>
 #include <sofia-sip/msg.h>
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nta.h>
@@ -121,9 +122,21 @@ protected:
 	std::shared_ptr<IncomingAgent> mIncomingAgent;
 	std::shared_ptr<OutgoingAgent> mOutgoingAgent;
 
-	enum {
+	enum State {
 		STARTED, SUSPENDED, TERMINATED,
 	} mState;
+	static std::string stateStr(State s) {
+		switch (s) {
+		case STARTED:
+			return "STARTED";
+		case SUSPENDED:
+			return "SUSPENDED";
+		case TERMINATED:
+			return "TERMINATED";
+		default:
+			return "unknown";
+		}
+	}
 };
 
 class RequestSipEvent: public SipEvent {

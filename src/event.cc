@@ -70,7 +70,7 @@ SipEvent::SipEvent(const shared_ptr<MsgSip> msgSip) :
 
 SipEvent::SipEvent(const SipEvent &sipEvent) :
 		mCurrModule(sipEvent.mCurrModule), mMsgSip(sipEvent.mMsgSip), mIncomingAgent(sipEvent.mIncomingAgent), mOutgoingAgent(sipEvent.mOutgoingAgent), mState(sipEvent.mState) {
-	LOGD("New SipEvent %p", this);
+	LOGD("New SipEvent %p with state %s", this, stateStr(mState).c_str());
 }
 
 SipEvent::~SipEvent() {
@@ -82,7 +82,7 @@ void SipEvent::terminateProcessing() {
 	if (mState == STARTED || mState == SUSPENDED) {
 		mState = TERMINATED;
 	} else {
-		LOGA("Can't terminateProcessing: wrong state");
+		LOGA("Can't terminateProcessing: wrong state %s", stateStr(mState).c_str());
 	}
 }
 
@@ -91,7 +91,7 @@ void SipEvent::suspendProcessing() {
 	if (mState == STARTED) {
 		mState = SUSPENDED;
 	} else {
-		LOGA("Can't suspendProcessing: wrong state");
+		LOGA("Can't suspendProcessing: wrong state %s", stateStr(mState).c_str());
 	}
 }
 
@@ -100,7 +100,7 @@ void SipEvent::restartProcessing() {
 	if (mState == SUSPENDED) {
 		mState = STARTED;
 	} else {
-		LOGA("Can't restartProcessing: wrong state");
+		LOGA("Can't restartProcessing: wrong state %s", stateStr(mState).c_str());
 	}
 }
 
@@ -202,7 +202,7 @@ void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u
 		mIncomingAgent->send(msg, u, ta_tags(ta));
 		ta_end(ta);
 	} else {
-		LOGD("The Response SIP message is not send");
+		LOGD("The Response SIP message is not sent");
 	}
 	terminateProcessing();
 }
@@ -214,7 +214,7 @@ void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg) {
 		}
 		mIncomingAgent->send(msg);
 	} else {
-		LOGD("The Response SIP message is not send");
+		LOGD("The Response SIP message is not sent");
 	}
 	terminateProcessing();
 }
