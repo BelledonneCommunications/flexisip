@@ -621,6 +621,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		auth_challenge_digest(am, as, ach);
 		module->mNonceStore.insert(as->as_response);
 		listener->sendReply();
+		return;
 	} else {
 		module->mNonceStore.updateNc(ar->ar_nonce, nnc);
 	}
