@@ -562,9 +562,10 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		return;
 	}
 
-	char const *phrase = "Bad authorization";
+	char const *phrase = "Bad authorization ";
 	if ((!ar->ar_username && (phrase = PA "username")) ||
 			(!ar->ar_nonce && (phrase = PA "nonce")) ||
+			(!ar->ar_nc && (phrase = PA "nonce count")) ||
 			(!ar->ar_uri && (phrase = PA "URI")) ||
 			(!ar->ar_response && (phrase = PA "response")) ||
 			/* (!ar->ar_opaque && (phrase = PA "opaque")) || */
