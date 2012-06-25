@@ -229,13 +229,19 @@ void Record::bind(const char *c, const char *contactId, const char* route, const
 
 void Record::print() {
 	LOGD("Record contains %zu contacts", mContacts.size());
+	time_t now=time(NULL);
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		shared_ptr<ExtendedContact> ec = (*it);
 		char buffer[256] = "UNDETERMINED";
 		struct tm *ptm = localtime(&ec->mExpireAt);
-		if (ptm != NULL)
+		if (ptm != NULL) {
 			strftime(buffer, sizeof(buffer) - 1, "%c", ptm);
-		LOGD("%s route=%s alias=%s expire=%s (%lu)", ec->mSipUri, ec->mRoute, ec->mAlias ? "yes" : "no", buffer, ec->mExpireAt);
+		}
+		int expireAfter=ec->mExpireAt-now;
+		LOGD("%s route=%s alias=%s expire=%d s (%s)",
+				ec->mSipUri, ec->mRoute,
+				ec->mAlias ? "yes" : "no",
+				expireAfter, buffer);
 	}
 	LOGD("==========================");
 }
