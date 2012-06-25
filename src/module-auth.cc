@@ -531,7 +531,9 @@ void Authentication::AuthenticationListener::switchToAsynchronousMode() {
 	// Send pending message, needed data will be kept as long
 	// as SipEvent is held in the listener.
 	mEv->suspendProcessing();
-	LOGW("stateful asynchronous mode for AuthenticationListener not implemented");
+
+	// Become stateful if not already the case.
+	mEv->createIncomingTransaction();
 }
 
 void Authentication::AuthenticationListener::onError() {
