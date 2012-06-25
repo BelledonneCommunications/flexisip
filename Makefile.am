@@ -15,4 +15,4 @@ rpm:
 deb:
 	$(MAKE) dist
 	mv $(distdir).tar.gz ../$(PACKAGE)_$(VERSION).orig.tar.gz
-	dpkg-buildpackage -us -uc
+	DEB_BUILD_OPTIONS="nostrip debug" dpkg-buildpackage -us -uc
