@@ -310,7 +310,7 @@ public:
 		return it->second;
 	}
 
-void onRequest(shared_ptr<SipEvent> &ev) {
+	void onRequest(shared_ptr<SipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		// first check for auth module for this domain
@@ -333,6 +333,12 @@ void onRequest(shared_ptr<SipEvent> &ev) {
 				return;
 			}
 		}
+
+		// Create incoming transaction if not already exists
+		// Necessary in qop=auth to prevent nonce count chaos
+		// with retransmissions.
+		ev->createIncomingTransaction();
+
 
 		auth_status_t *as;
 		as = auth_status_new(ms->getHome());
