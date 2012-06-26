@@ -541,8 +541,9 @@ void Agent::sendTransactionEvent(const shared_ptr<Transaction> &transaction, Tra
 }
 
 int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
-	shared_ptr<MsgSip> ms(make_shared<MsgSip>(msg, sip));
-	msg_destroy(msg);
+	// Assuming sip is derived from msg
+	shared_ptr<MsgSip> ms(make_shared<MsgSip>(msg));
+//	msg_destroy(msg);
 	if (sip->sip_request) {
 		shared_ptr<SipEvent> ev(new RequestSipEvent(dynamic_pointer_cast<IncomingAgent>(shared_from_this()), ms));
 		sendRequestEvent(ev);

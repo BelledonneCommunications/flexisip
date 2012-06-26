@@ -33,9 +33,12 @@ class IncomingTransaction;
 class OutgoingTransaction;
 
 class MsgSip {
+	friend class SipEvent;
+	friend class IncomingTransaction;
 public:
-	MsgSip(msg_t *msg, sip_t *sip = NULL);
+	MsgSip(msg_t *msg);
 	MsgSip(const MsgSip &msgSip);
+	MsgSip(const MsgSip &msgSip, msg_t *msg);
 	~MsgSip();
 
 	inline msg_t* getMsg() const {
@@ -53,9 +56,13 @@ public:
 	void log(const char * header = NULL, ...) ;//__attribute__((format(printf,2,3)));
 
 private:
+	//MsgSip(const MsgSip &msgSip); // disable default
+	void defineMsg(msg_t *msg);
 	su_home_t *mHome;
+	msg_t *mOriginalMsg;
 	msg_t *mMsg;
 	sip_t *mSip;
+	bool mCanCreateIncomingTransaction;
 };
 
 class SipEvent {
@@ -69,8 +76,10 @@ public:
 		return mMsgSip;
 	}
 
+
 	inline void setMsgSip(std::shared_ptr<MsgSip> msgSip) {
 		mMsgSip = msgSip;
+		mMsgSip->mCanCreateIncomingTransaction=false;
 	}
 
 	void terminateProcessing();

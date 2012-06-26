@@ -26,21 +26,32 @@
 
 using namespace ::std;
 
-MsgSip::MsgSip(msg_t *msg, sip_t *sip) {
-	//LOGD("New MsgSip %p", this);
+void MsgSip::defineMsg(msg_t *msg) {
 	mMsg = msg_copy(msg);
 	msg_addr_copy(mMsg,msg);
 	mSip = sip_object(mMsg);
 	mHome = msg_home(mMsg);
+	mCanCreateIncomingTransaction=false;
+}
+MsgSip::MsgSip(msg_t *msg) {
+	LOGD("New MsgSip %p with reference to msg %p", this, msg);
+	mOriginalMsg = msg_ref_create(msg);
+	defineMsg(mOriginalMsg);
+	mCanCreateIncomingTransaction=true;
 }
 
+
 MsgSip::MsgSip(const MsgSip &msgSip) {
-	//LOGD("New MsgSip %p", this);
-	mMsg = msg_copy(msgSip.mMsg);
-	msg_addr_copy(mMsg,msgSip.mMsg);
-	mSip = sip_object(mMsg);
-	mHome = msg_home(mMsg);
+//	LOGD("New MsgSip %p with swallow copy %p of msg %p", this, mMsg, msgSip.mMsg);
+	defineMsg(msgSip.mMsg);
+	mOriginalMsg=msg_ref_create(msgSip.mOriginalMsg);
 }
+
+MsgSip::MsgSip(const MsgSip &msgSip, msg_t *msg) {
+	defineMsg(msg);
+	mOriginalMsg=msg_ref_create(msgSip.mOriginalMsg);
+}
+
 
 void MsgSip::log(const char *fmt, ...) {
 	if (IS_LOGD) {
@@ -61,6 +72,7 @@ void MsgSip::log(const char *fmt, ...) {
 MsgSip::~MsgSip() {
 	//LOGD("Destroy MsgSip %p", this);
 	msg_destroy(mMsg);
+	msg_destroy(mOriginalMsg);
 }
 
 SipEvent::SipEvent(const shared_ptr<MsgSip> msgSip) :
@@ -90,6 +102,8 @@ void SipEvent::suspendProcessing() {
 	LOGD("Suspend SipEvent %p", this);
 	if (mState == STARTED) {
 		mState = SUSPENDED;
+		// Become stateful if not already the case.
+		createIncomingTransaction();
 	} else {
 		LOGA("Can't suspendProcessing: wrong state %s", stateStr(mState).c_str());
 	}
@@ -107,6 +121,7 @@ void SipEvent::restartProcessing() {
 shared_ptr<IncomingTransaction> SipEvent::createIncomingTransaction() {
 	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent);
 	if (transaction == NULL) {
+		if (!mMsgSip->mCanCreateIncomingTransaction) LOGA("It is too late to create an incoming transaction");
 		transaction = shared_ptr<IncomingTransaction>(new IncomingTransaction(mIncomingAgent->getAgent()));
 		transaction->handle(mMsgSip);
 		mIncomingAgent = transaction;

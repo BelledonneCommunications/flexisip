@@ -420,7 +420,7 @@ void TranscodeModule::onRequest(shared_ptr<SipEvent> &ev) {
 		}
 	}
 
-	ev->setMsgSip(make_shared<MsgSip>(msg, sip));
+	ev->setMsgSip(make_shared<MsgSip>(*ms,msg));
 }
 
 int TranscodeModule::handleAnswer(CallContext *ctx, shared_ptr<SipEvent> &ev) {
@@ -507,7 +507,7 @@ void TranscodeModule::onResponse(shared_ptr<SipEvent> &ev) {
 				if (c->getLastForwaredResponse() != NULL) {
 					msg = msg_copy(c->getLastForwaredResponse());
 					sip = (sip_t*) msg_object(msg);
-					ev->setMsgSip(make_shared<MsgSip>(msg, sip));
+					ev->setMsgSip(make_shared<MsgSip>(*ms, msg));
 				}
 			}
 		}
