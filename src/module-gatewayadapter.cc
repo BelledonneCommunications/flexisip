@@ -192,6 +192,11 @@ void GatewayRegister::onMessage(const sip_t *sip) {
 		} else if (sip->sip_status->st_status == 408) {
 			LOGD("REGISTER timeout");
 			end();
+		} else if (sip->sip_status->st_status == 401){
+			LOGD("REGISTER challenged ");
+			ostringstream auth;
+			auth << "Digest:\"" << getFrom()->a_url->url_host << "\":" << getFrom()->a_url->url_user << ":" << getPassword() << endl;
+			nua_authenticate(nh, NUTAG_AUTH(auth.str().c_str()),TAG_END());
 		} else {
 			LOGD("REGISTER not handled response: %i", sip->sip_status->st_status);
 			end();
