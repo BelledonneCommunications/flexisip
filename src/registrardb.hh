@@ -103,7 +103,7 @@ public:
 		common_init(contactId, route, callId, lineValue);
 	}
 	ExtendedContact(const url_t *url, const char *route) :
-			mSipUri(NULL), mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0), mCallId(NULL), mCSeq(NULL), mLineValueCopy(NULL), mRoute(NULL), mContactId(NULL), mAlias(false){
+			mSipUri(NULL), mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0), mCallId(NULL), mCSeq(0), mLineValueCopy(NULL), mRoute(NULL), mContactId(NULL), mAlias(false){
 		su_home_init(&home);
 		mSipUri=make_sip_uri(url);
 		if (route) mRoute = su_strdup(&home, route);

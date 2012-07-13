@@ -199,7 +199,9 @@ public:
 		RelaySession *s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
 			shared_ptr<MediaSource> ms = s->getFronts().front();
-			ms->set(ip, port);
+			if(ms->getPort() == -1) {
+				ms->set(ip, port);
+			}
 			ms->setBehaviour(MediaSource::All);
 		}
 	}
@@ -211,7 +213,7 @@ public:
 		RelaySession *s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
 			auto ms = getMS(mline, tag, transaction);
-			if (ms != NULL) {
+			if (ms != NULL && ms->getPort() == -1) {
 				ms->set(ip, port);
 			}
 		}
