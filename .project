@@ -23,11 +23,11 @@
 				</dictionary>
 				<dictionary>
 					<key>org.eclipse.cdt.make.core.buildArguments</key>
-					<value>CLFAGS=&quot;-g -pthread&quot; CXXFLAGS=&quot;-g -pthread -std=c++0x&quot;</value>
+					<value>root@centos &quot;cd /media/sf_workspaces/workspace-centos6/flexisip ;make V=1&quot;</value>
 				</dictionary>
 				<dictionary>
 					<key>org.eclipse.cdt.make.core.buildCommand</key>
-					<value>make</value>
+					<value>ssh</value>
 				</dictionary>
 				<dictionary>
 					<key>org.eclipse.cdt.make.core.cleanBuildTarget</key>

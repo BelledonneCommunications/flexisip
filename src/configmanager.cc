@@ -309,7 +309,7 @@ oid Oid::oidFromHashedString(const string &str) {
 }
 
 GenericEntry::GenericEntry(const string &name, GenericValueType type, const string &help,oid oid_index) :
-				mOid(0),mName(name),mReadOnly(false),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
+				mOid(0),mName(name),mReadOnly(false),mExportToConfigFile(true),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
 	mConfigListener=NULL;
 	if (strchr(name.c_str(),'_'))
 		LOGA("Underscores not allowed in config items, please use minus sign.");

@@ -126,17 +126,27 @@ static MSList *makeSupportedAudioPayloadList() {
 	payload_type_set_number(&payload_type_speex_nb, -1);
 	payload_type_set_number(&payload_type_speex_wb, -1);
 	payload_type_set_number(&payload_type_amr, -1);
+	payload_type_set_number(&payload_type_amrwb, -1);
 	payload_type_set_number(&payload_type_ilbc, -1);
+	payload_type_set_number(&payload_type_silk_nb, -1);
+	payload_type_set_number(&payload_type_silk_mb, -1);
+	payload_type_set_number(&payload_type_silk_wb, -1);
+	payload_type_set_number(&payload_type_silk_swb, -1);
 	payload_type_set_number(&payload_type_telephone_event, -1);
 	MSList *l = NULL;
 	l = ms_list_append(l, &payload_type_speex_nb);
 	l = ms_list_append(l, &payload_type_ilbc);
 	l = ms_list_append(l, &payload_type_amr);
+	l = ms_list_append(l, &payload_type_amrwb);
 	l = ms_list_append(l, &payload_type_gsm);
 	l = ms_list_append(l, &payload_type_pcmu8000);
 	l = ms_list_append(l, &payload_type_pcma8000);
 	l = ms_list_append(l, &payload_type_telephone_event);
-	//l=ms_list_append(l,&payload_type_speex_wb);
+	l = ms_list_append(l,&payload_type_silk_nb);
+	l = ms_list_append(l,&payload_type_silk_mb);
+	l = ms_list_append(l,&payload_type_silk_wb);
+	l = ms_list_append(l,&payload_type_silk_swb);
+
 
 	return l;
 }

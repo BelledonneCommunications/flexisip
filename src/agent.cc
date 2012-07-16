@@ -450,7 +450,6 @@ bool Agent::isUs(const url_t *url, bool check_aliases) const {
 }
 
 void Agent::sendRequestEvent(shared_ptr<SipEvent> &ev) {
-	LOG_START
 	ev->getMsgSip()->log("Receiving new Request SIP message:");
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
@@ -462,11 +461,9 @@ void Agent::sendRequestEvent(shared_ptr<SipEvent> &ev) {
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
-	LOG_END
 }
 
 void Agent::sendResponseEvent(shared_ptr<SipEvent> &ev) {
-	LOG_START
 	ev->getMsgSip()->log("Receiving new Response SIP message:");
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
@@ -478,7 +475,6 @@ void Agent::sendResponseEvent(shared_ptr<SipEvent> &ev) {
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
-	LOG_END
 }
 
 void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
