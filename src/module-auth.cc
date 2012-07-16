@@ -457,7 +457,7 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 			auth_digest_a1(&mAr, a1buf, passwd), a1 = a1buf;
 		}
 	} else {
-		++*getModule()->mCountPassFound;
+		++*getModule()->mCountPassNotFound;
 		auth_digest_a1(&mAr, a1buf, "xyzzy"), a1 = a1buf;
 	}
 
