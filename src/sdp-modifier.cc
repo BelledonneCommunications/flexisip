@@ -309,7 +309,7 @@ void SdpModifier::addAttribute(const char *name, const char *value) {
 }
 
 void SdpModifier::update(msg_t *msg, sip_t *sip){
-	char buf[1024];
+	char buf[2048];
 	sdp_printer_t *printer = sdp_print(mHome, mSession, buf, sizeof(buf), 0);
 
 	if (sdp_message(printer)) {
