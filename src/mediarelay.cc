@@ -235,7 +235,7 @@ RtpSession *MediaRelayServer::createRtpSession() {
 	for (int i = 0; i < 100; ++i) {
 		int port = ((rand() % (mMaxPort - mMinPort)) + mMinPort) & 0xfffe;
 
-		if (rtp_session_set_local_addr(session, mAgent->getBindIp().c_str(), port) == 0) {
+		if (rtp_session_set_local_addr(session, mAgent->getBindIp().c_str(), port, port+1) == 0) {
 			return session;
 		}
 	}

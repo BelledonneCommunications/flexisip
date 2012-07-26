@@ -73,7 +73,7 @@ int CallSide::getAudioPort(){
 	int port=rtp_session_get_local_port(mSession);
 	if (port==-1){
 		/*request oRTP to bind randomly*/
-		rtp_session_set_local_addr(mSession,mCallCtx->getBindAddress().c_str(),-1);
+		rtp_session_set_local_addr(mSession,mCallCtx->getBindAddress().c_str(),-1,-1);
 		port=rtp_session_get_local_port(mSession);
 	}
 	return port;
