@@ -258,6 +258,41 @@ void SdpModifier::changeAudioIpPort(const char *ip, int port){
 			:mSession->sdp_connection->c_address=su_strdup(mHome,ip);
 	mSession->sdp_media->m_port=port;
 }
+
+void SdpModifier::addIceCandidate(function<void(int, string *, int *)> forward_fct, function<void(int, string *, int *)> backward_fct)
+{
+	char foundation[32];
+	sdp_media_t *mline=mSession->sdp_media;
+	uint64_t r;
+	int i;
+	string global_c_address;
+
+	if (mSession->sdp_connection && mSession->sdp_connection->c_address) global_c_address=mSession->sdp_connection->c_address;
+
+	r = (((uint64_t)random()) << 32) | (((uint64_t)random()) & 0xffffffff);
+	snprintf(foundation, sizeof(foundation), "%llx", (long long unsigned int)r);
+	for(i=0;mline!=NULL;mline=mline->m_next,++i){
+		if (hasMediaAttribute(mline,"candidate")) {
+			char candidate_line[256];
+			string relay_ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
+			int relay_port=mline->m_port;
+			string source_ip=relay_ip;
+			int source_port=relay_port;
+			uint32_t priority;
+
+			forward_fct(i,&relay_ip,&relay_port);
+			backward_fct(i,&source_ip,&source_port);
+
+			for (uint16_t componentID=1; componentID<=2; componentID++) {
+				priority = (65535 << 8) | (256 - componentID);
+				snprintf(candidate_line, sizeof(candidate_line), "%s %d UDP %d %s %d typ relay raddr %s rport %d",
+					foundation, componentID, priority, relay_ip.c_str(), relay_port + componentID - 1, source_ip.c_str(), source_port + componentID - 1);
+				addMediaAttribute(mline, "candidate", candidate_line);
+			}
+		}
+	}
+}
+
 void SdpModifier::iterate(function<void(int, const string &, int )> fct){
 	sdp_media_t *mline=mSession->sdp_media;
 	int i;
@@ -299,6 +334,11 @@ bool SdpModifier::hasAttribute(const char *name) {
 	return sdp_attribute_find(mSession->sdp_attributes,name);
 }
 
+bool SdpModifier::hasMediaAttribute(sdp_media_t *mline, const char *name)
+{
+	return sdp_attribute_find(mline->m_attributes,name);
+}
+
 void SdpModifier::addAttribute(const char *name, const char *value) {
 	sdp_attribute_t *a= (sdp_attribute_t *)su_alloc(mHome, sizeof(sdp_attribute_t));
 	memset(a,0,sizeof(*a));
@@ -306,6 +346,16 @@ void SdpModifier::addAttribute(const char *name, const char *value) {
 	a->a_name=su_strdup(mHome, name);
 	a->a_value=su_strdup(mHome, value);
 	sdp_attribute_append(&mSession->sdp_attributes,a);
+}
+
+void SdpModifier::addMediaAttribute(sdp_media_t *mline, const char *name, const char *value)
+{
+	sdp_attribute_t *a=(sdp_attribute_t *)su_alloc(mHome, sizeof(sdp_attribute_t));
+	memset(a,0,sizeof(*a));
+	a->a_size=sizeof(*a);
+	a->a_name=su_strdup(mHome, name);
+	a->a_value=su_strdup(mHome, value);
+	sdp_attribute_append(&mline->m_attributes,a);
 }
 
 void SdpModifier::update(msg_t *msg, sip_t *sip){
