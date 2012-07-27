@@ -310,6 +310,7 @@ void SdpModifier::iterate(function<void(int, const string &, int )> fct){
 
 void SdpModifier::translate(function<void(int, string *, int *)> fct){
 	sdp_media_t *mline=mSession->sdp_media;
+	sdp_attribute_t *rtcp_attribute;
 	int i;
 	string global_c_address;
 
@@ -327,6 +328,26 @@ void SdpModifier::translate(function<void(int, string *, int *)> fct){
 			mSession->sdp_connection->c_address=su_strdup(mHome,ip.c_str());
 		}
 		mline->m_port=port;
+		rtcp_attribute = sdp_attribute_find(mline->m_attributes,"rtcp");
+		if (rtcp_attribute) {
+			char port_str[256];
+			char rtcp_ip[128];
+			char ip_version[2];
+			int previous_port;
+			int nb;
+			nb = sscanf(rtcp_attribute->a_value, "%d IN IP%[46] %s", &previous_port, ip_version, rtcp_ip);
+			if (nb == 1) {
+				snprintf(port_str, sizeof(port_str), "%d", port+1);
+			} else if (nb == 3) {
+				snprintf(port_str, sizeof(port_str), "%d IN IP%s %s", port+1, ip_version, ip.c_str());
+			} else continue;
+			sdp_attribute_t *a=(sdp_attribute_t *)su_alloc(mHome, sizeof(sdp_attribute_t));
+			memset(a,0,sizeof(*a));
+			a->a_size=sizeof(*a);
+			a->a_name=su_strdup(mHome, "rtcp");
+			a->a_value=su_strdup(mHome, port_str);
+			sdp_attribute_replace(&mline->m_attributes, a, 0);
+		}
 	}
 }
 
