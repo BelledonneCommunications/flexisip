@@ -70,6 +70,9 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		int getPort()const{
 			return mPort;
 		}
+		int getTlsPort()const{
+			return mTlsPort;		
+		}
 		const std::string &getPreferredRoute()const{
 			return mPreferredRoute;
 		}

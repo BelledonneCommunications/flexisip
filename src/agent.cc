@@ -67,7 +67,7 @@ static bool isIPAddress(const string &address) {
 	int err;
 	struct addrinfo addr;
 	memset(&addr, 0, sizeof(addr));
-	addr.ai_family = PF_INET;
+	addr.ai_family = AF_UNSPEC;
 	addr.ai_flags = AI_NUMERICHOST;
 
 	struct addrinfo *result;
@@ -203,26 +203,34 @@ Agent::Agent(su_root_t* root, int port, int tlsport) :
 
 	// compute a network wide unique id, REVISIT: compute a hash
 	ostringstream oss;
-	oss << mPublicAddress << "_" << mPort;
+	oss << mPublicAddress << "_" << ((mPort > 0) ? mPort : mTlsPort);
 	mUniqueId = oss.str();
 	ostringstream transportUri;
 	mRoot = root;
 
-	snprintf(sipuri, sizeof(sipuri) - 1, "sip:%s:%i;maddr=%s", mPublicAddress.c_str(), mPort, bind_address.c_str());
-	LOGD("Enabling 'sip' listening point with uri '%s'.", sipuri);
-	mAgent = nta_agent_create(root, (url_string_t*) sipuri, &Agent::messageCallback, (nta_agent_magic_t*) this, NTATAG_CLIENT_RPORT(1), NTATAG_UDP_MTU(1460), TAG_END());
-	if (mAgent == NULL) {
-		LOGF("Could not create sofia mta, certainly SIP ports already in use.");
+	mAgent=NULL;
+	if (mPort>0){
+		snprintf(sipuri, sizeof(sipuri) - 1, "sip:%s:%i;maddr=%s", mPublicAddress.c_str(), mPort, bind_address.c_str());
+		LOGD("Enabling 'sip' listening point with uri '%s'.", sipuri);
+		mAgent = nta_agent_create(root, (url_string_t*) sipuri, &Agent::messageCallback, (nta_agent_magic_t*) this, NTATAG_CLIENT_RPORT(1), NTATAG_UDP_MTU(1460), TAG_END());
 	}
 	transportUri << "<" << sipuri << ">";
 	if (tls->get<ConfigBoolean>("enabled")->read()) {
 		string keys = tls->get<ConfigString>("certificates-dir")->read();
 		snprintf(sipuri, sizeof(sipuri) - 1, "sips:%s:%i;maddr=%s", mPublicAddress.c_str(), mTlsPort, bind_address.c_str());
 		LOGD("Enabling 'sips' listening point with uri '%s', keys in %s", sipuri, keys.c_str());
-		nta_agent_add_tport(mAgent, (url_string_t*) sipuri, TPTAG_CERTIFICATE(keys.c_str()), NTATAG_CLIENT_RPORT(1), NTATAG_UDP_MTU(1460), NTATAG_TLS_RPORT(1), TAG_END());
+		if (mAgent==NULL){
+			mAgent = nta_agent_create(root, (url_string_t*) sipuri, &Agent::messageCallback, (nta_agent_magic_t*) this, TPTAG_CERTIFICATE(keys.c_str()), NTATAG_TLS_RPORT(1), TAG_END());
+		}else{
+			nta_agent_add_tport(mAgent, (url_string_t*) sipuri, TPTAG_CERTIFICATE(keys.c_str()), NTATAG_TLS_RPORT(1), TAG_END());
+		}
 		transportUri << ",<" << sipuri << ">";
 	}
 	mTransportUri = transportUri.str();
+
+	if (mAgent == NULL) {
+		LOGF("Could not create sofia mta, certainly SIP ports already in use.");
+	}
 
 	if (bind_address == "*") {
 		bind_address = "0.0.0.0";

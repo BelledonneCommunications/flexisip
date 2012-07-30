@@ -37,11 +37,15 @@ DosProtection *DosProtection::sInstance = NULL;
 
 using namespace ::std;
 
-ConfigItemDescriptor items[] = { { Boolean, "enabled", "Enable or disable DOS protection using IPTables firewall.", "true" }, { StringList, "authorized-ip", "List of whitelist IPs which won't be affected by DOS protection.", "127.0.0.1" }, { Integer, "ban-duration",
-		"Time (in seconds) while an IP have to not send any packet in order to leave the blacklist.", "60" }, { Integer, "packets-limit", "Number of packets authorized in 1sec before considering them as DOS attack.", "20" }, { Integer, "maximum-connections",
-		"Maximal amount of simultaneous connections to accept.", "1000" }, config_item_end };
-
 DosProtection::DosProtection() {
+	ConfigItemDescriptor items[] = { 
+		{ Boolean, "enabled", "Enable or disable DOS protection using IPTables firewall.", "false" }, { StringList, "authorized-ip", "List of whitelist IPs which won't be affected by DOS protection.", "127.0.0.1" },
+		{ Integer, "ban-duration",
+		"Time (in seconds) while an IP have to not send any packet in order to leave the blacklist.", "60" }, { Integer, "packets-limit", "Number of packets authorized in 1sec before considering them as DOS attack.", "20" },
+		{ Integer, "maximum-connections",
+		"Maximal amount of simultaneous connections to accept.", "1000" }, config_item_end 
+	};
+
 	GenericStruct *s = new GenericStruct("dos-protection", "DOS protection parameters.",0);
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
@@ -106,7 +110,9 @@ void DosProtection::load() {
 	mPacketsLimit = dosProtection->get<ConfigInt>("packets-limit")->read();
 	mMaximumConnections = dosProtection->get<ConfigInt>("maximum-connections")->read();
 
-	mPort = 5060;
+	mPort = GenericManager::get()->getGlobal()->get<ConfigInt>("port")->read();
+	if (mPort<=0)
+		mPort=GenericManager::get()->getRoot()->get<GenericStruct>("tls")->get<ConfigInt>("port")->read();
 	mPeriod = 1;
 	mLogLevel = "warning";
 	mLogPrefix = "Flexisip-DOS";

@@ -227,16 +227,30 @@ void ModuleToolbox::prependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *
 void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *transport) {
 	sip_via_t *via = sip->sip_via;
 	sip_record_route_t *rr;
+	char lower_tport[16]={0};
 	bool transport_given = (transport != NULL);
 
 	if (transport == NULL)
 		transport = sip_via_transport(via);
 
-	if (strcasecmp(transport, "UDP") != 0) {
-		if (ag->getPort() != 5060) {
-			rr = sip_record_route_format(home, "<sip:%s:%i;lr;transport=%s>", ag->getPublicIp().c_str(), ag->getPort(), transport);
+	for(int i=0;transport[i]!='\0';i++){
+		lower_tport[i]=tolower(transport[i]);
+	}
+
+	if (strcasecmp(transport,"TLS")==0){
+		int port = ag->getTlsPort();
+		if (port != 5061) {
+			rr = sip_record_route_format(home, "<sips:%s:%i;lr;transport=%s>", ag->getPublicIp().c_str(), port, lower_tport);
 		} else {
-			rr = sip_record_route_format(home, "<sip:%s;lr;transport=%s>", ag->getPublicIp().c_str(), transport);
+			rr = sip_record_route_format(home, "<sips:%s;lr;transport=%s>", ag->getPublicIp().c_str(), lower_tport);
+		}
+	}
+	else if (strcasecmp(transport, "UDP") != 0) {
+		int port = ag->getPort();
+		if (port != 5060) {
+			rr = sip_record_route_format(home, "<sip:%s:%i;lr;transport=%s>", ag->getPublicIp().c_str(), port, lower_tport);
+		} else {
+			rr = sip_record_route_format(home, "<sip:%s;lr;transport=%s>", ag->getPublicIp().c_str(), lower_tport);
 		}
 	} else {
 		if (ag->getPort() != 5060) {
