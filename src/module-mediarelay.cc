@@ -594,6 +594,12 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 	if (c->getCallerTag() == from_tag)
 		c->validTransaction(to_tag, transaction);
 
+	if (m->hasAttribute(mSdpMangledParam.c_str())) {
+		LOGD("200 OK is already relayed");
+		delete m;
+		return;
+	}
+
 	// Set
 	if (c->getCallerTag() == from_tag)
 		m->iterate(bind(&RelayedCall::setBack, c, placeholders::_1, placeholders::_2, placeholders::_3, to_tag, ref(transaction)));
