@@ -46,6 +46,7 @@ StunServer::StunServer(int port){
 int StunServer::start(){
 	int err;
 	struct sockaddr_in laddr;
+	std::string bind_address = GenericManager::get()->getGlobal()->get<ConfigString>("bind-address")->read();
 
 	mSock=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
 	if (mSock==-1){
@@ -54,7 +55,7 @@ int StunServer::start(){
 	}
 
 	laddr.sin_family=AF_INET;
-	laddr.sin_addr.s_addr=INADDR_ANY;
+	laddr.sin_addr.s_addr=inet_addr(bind_address.c_str());
 	laddr.sin_port=htons(mPort);
 	
 	err=bind(mSock,(struct sockaddr*)&laddr,sizeof(laddr));
