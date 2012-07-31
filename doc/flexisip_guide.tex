@@ -198,7 +198,7 @@ The supported options are:
 \subsection{TLS certificates}
 An administrator may want to configure the TLS certificates used to accept SSL connections.
 They are stored in \verb|/etc/flexisip/tls|. You will need at least the agent.pem file, which consists of the concatenation of the server certificate
-(that you obtained from a certificate authority) and the private key that you used to obtain the certificate, both in .pem format. Possible intermediate chain certificates delivered by the certificate authority should be placed in this directory, in a .pem or .crt format.
+(that you obtained from a certificate authority) and the private key that you used to obtain the certificate, both in .pem format. Possible intermediate chain certificates delivered by the certificate authority should be placed in this directory in a file named "cafile.pem". Missing intermediate certificates can cause some clients to fail to connect.
 
 \subsection{SNMP}
 \subsubsection{Configuration}
