@@ -374,11 +374,11 @@ bool OdbcAuthDb::getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimin
 		for (size_t i=0; i < parameters.size(); i++) {
 			char *fieldBuffer;
 			if (parameters[i] == "id") {
-				fieldBuffer=(char*) &ctx.idCBuffer;
+				fieldBuffer=ctx.idCBuffer;
 			} else if (parameters[i] == "authid") {
-				fieldBuffer=(char*) &ctx.authIdCBuffer;
+				fieldBuffer=ctx.authIdCBuffer;
 			} else if (parameters[i] == "domain") {
-				fieldBuffer=(char*) &ctx.domainCBuffer;
+				fieldBuffer=ctx.domainCBuffer;
 			} else {
 				LOGF("unhandled parameter %s", parameters[i].c_str());
 			}
@@ -540,14 +540,14 @@ AuthDbResult OdbcAuthDb::doRetrievePassword(const string &id, const string &doma
 	timings.tGotConnection=monotonic_clock::now();
 	SQLHANDLE stmt=ctx.stmt;
 
-	strncpy((char*)&ctx.idCBuffer, id.c_str(), fieldLength), ctx.idCBuffer[fieldLength]=0;
-	strncpy((char*)&ctx.domainCBuffer, domain.c_str(), fieldLength), ctx.domainCBuffer[fieldLength]=0;
-	strncpy((char*)&ctx.authIdCBuffer, auth.c_str(), fieldLength), ctx.authIdCBuffer[fieldLength]=0;
+	strncpy(ctx.idCBuffer, id.c_str(), fieldLength), ctx.idCBuffer[fieldLength]=0;
+	strncpy(ctx.domainCBuffer, domain.c_str(), fieldLength), ctx.domainCBuffer[fieldLength]=0;
+	strncpy(ctx.authIdCBuffer, auth.c_str(), fieldLength), ctx.authIdCBuffer[fieldLength]=0;
 
 	SQLRETURN retcode;
 	if (execDirect) {
 		// execute direct
-		LOGD("Requesting password of user with id='%s'", (char*)&ctx.idCBuffer);
+		LOGD("Requesting password of user with id='%s'", ctx.idCBuffer);
 		retcode = SQLExecDirect(stmt, (SQLCHAR*) request.c_str(), SQL_NTS);
 		if (!SQL_SUCCEEDED(retcode)) {
 			stmtError(ctx, "SQLExecDirect");
@@ -557,7 +557,7 @@ AuthDbResult OdbcAuthDb::doRetrievePassword(const string &id, const string &doma
 		LOGD("SQLExecDirect OK");
 	} else {
 		// Use prepared statement
-		LOGD("Requesting password of user with id='%s'", (char*)&ctx.idCBuffer);
+		LOGD("Requesting password of user with id='%s'", ctx.idCBuffer);
 		retcode = SQLExecute(stmt);
 		if (!SQL_SUCCEEDED(retcode)) {
 			stmtError(ctx, "SQLExecute");
