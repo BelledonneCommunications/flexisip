@@ -16,6 +16,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "flexisip-config.h"
 #include "agent.hh"
 #include "mediarelay.hh"
 
@@ -235,7 +236,11 @@ RtpSession *MediaRelayServer::createRtpSession() {
 	for (int i = 0; i < 100; ++i) {
 		int port = ((rand() % (mMaxPort - mMinPort)) + mMinPort) & 0xfffe;
 
+#if ORTP_ABI_VERSION >= 9
 		if (rtp_session_set_local_addr(session, mAgent->getBindIp().c_str(), port, port+1) == 0) {
+#else
+		if (rtp_session_set_local_addr(session, mAgent->getBindIp().c_str(), port) == 0) {
+#endif
 			return session;
 		}
 	}

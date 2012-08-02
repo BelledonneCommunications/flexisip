@@ -117,6 +117,10 @@ AC_HEADER_STDBOOL
 
 PKG_CHECK_MODULES(SOFIA,[sofia-sip-ua >= 1.12.10])
 PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
+PKG_CHECK_MODULES(ORTP,[ortp >= 0.21.0],ORTP_ABI_VERSION=">=9",ORTP_ABI_VERSION="<9")
+if test "x$ORTP_ABI_VERSION" = "x>=9"; then
+	AC_DEFINE([ORTP_ABI_VERSION],9,[oRTP ABI version])
+fi
 # Checks for library functions.
 
 AM_CONDITIONAL(USE_DEB,test x$use_deb = xtrue)
