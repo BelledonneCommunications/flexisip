@@ -289,6 +289,7 @@ void SdpModifier::addIceCandidate(function<void(int, string *, int *)> forward_f
 					foundation, componentID, priority, relay_ip.c_str(), relay_port + componentID - 1, source_ip.c_str(), source_port + componentID - 1);
 				addMediaAttribute(mline, "candidate", candidate_line);
 			}
+			addMediaAttribute(mline, "nortpproxy", "yes");
 		}
 	}
 }
