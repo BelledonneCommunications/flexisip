@@ -272,7 +272,7 @@ void SdpModifier::addIceCandidate(function<void(int, string *, int *)> forward_f
 	r = (((uint64_t)random()) << 32) | (((uint64_t)random()) & 0xffffffff);
 	snprintf(foundation, sizeof(foundation), "%llx", (long long unsigned int)r);
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
-		if (hasMediaAttribute(mline,"candidate") && !hasMediaAttribute(mline,"remote-candidates")) {
+		if (hasMediaAttribute(mline,"candidate") && !hasMediaAttribute(mline,"remote-candidates") && !hasMediaAttribute(mline,"nortpproxy")) {
 			char candidate_line[256];
 			string relay_ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
 			int relay_port=mline->m_port;
@@ -320,6 +320,7 @@ void SdpModifier::translate(function<void(int, string *, int *)> fct){
 		string ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
 		int port=mline->m_port;
 
+		if (hasMediaAttribute(mline,"nortpproxy")) continue;
 		fct(i,&ip,&port);
 		
 		if (mline->m_connections){
