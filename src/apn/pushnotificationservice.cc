@@ -122,7 +122,6 @@ PushNotificationService::~PushNotificationService() {
 
 int PushNotificationService::run() {
 	LOGD("PushNotificationService Start");
-	cout << "PushNotificationService Start" << endl;
 	asio::io_service::work work(mIOService);
 	mIOService.run();
 	LOGD("PushNotificationService End");
