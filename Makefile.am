@@ -1,3 +1,6 @@
+
+ACLOCAL_AMFLAGS = -I m4
+
 EXTRA_DIST=flexisip.spec.in flexisip.spec
 
 SUBDIRS=src scripts doc

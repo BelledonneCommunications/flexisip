@@ -145,6 +145,9 @@ Agent::Agent(su_root_t* root, int port, int tlsport) :
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Authentication"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GatewayAdapter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Registrar"));
+#ifdef ENABLE_PUSHNOTIFICATION
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "PushNotification"));
+#endif
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "ContactRouteInserter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "LoadBalancer"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "MediaRelay"));

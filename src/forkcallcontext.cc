@@ -191,6 +191,7 @@ const shared_ptr<SipEvent> &ForkCallContext::getEvent() {
 void ForkCallContext::addCallee(const std::string &callee) {
 	mCallees.push_back(callee);
 }
+
 bool ForkCallContext::isAlreadyCalled(const std::string &callee) {
 	return find(mCallees.begin(), mCallees.end(), callee) != mCallees.end();
 }

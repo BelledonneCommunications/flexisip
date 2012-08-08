@@ -7,11 +7,13 @@ AC_CONFIG_SRCDIR([src/agent.cc])
 AC_CONFIG_HEADERS([flexisip-config.h])
 
 AM_INIT_AUTOMAKE
+AC_CONFIG_MACRO_DIR([m4])
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],)
 
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_CXX
+AC_PROG_LIBTOOL
 
 build_snmp=true
 AC_PATH_PROG([NET_SNMP_CONFIG],[net-snmp-config])
@@ -82,6 +84,32 @@ AC_ARG_ENABLE(transcoder,
         [transcoder="${enableval}"],[transcoder=yes]
 )
 AM_CONDITIONAL(BUILD_TRANSCODER,test x$transcoder = xyes)
+
+AC_DEFUN([CHECK_BOOST],[$1
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[[
+        #ifndef $2
+            fail
+        #endif
+        return 0;
+    ]])], [$3], [$4])
+])
+
+AC_ARG_ENABLE(pushnotification,
+	AC_HELP_STRING([--disable-pushnotification],
+	    [Build pushnotification support @<:@yes@:>@]),
+        [pushnotification="${enableval}"],[pushnotification=yes]
+)
+
+if test x$pushnotification = xyes ; then
+	AX_BOOST_BASE([1.48],[pushnotification=yes],[pushnotification=no])
+	if test "$pushnotification" = "no" ; then
+		AC_MSG_ERROR([boost not found.])
+	fi
+	CHECK_BOOST([AX_BOOST_SYSTEM], [HAVE_BOOST_SYSTEM], [], [AC_MSG_ERROR([boost system not found.])])
+	CHECK_BOOST([AX_BOOST_ASIO], [HAVE_BOOST_ASIO], [], [AC_MSG_ERROR([boost asio not found.])])
+fi
+
+AM_CONDITIONAL(BUILD_PUSHNOTIFICATION,test x$pushnotification = xyes)
 
 AC_ARG_ENABLE(redis,
 	AC_HELP_STRING([--enable-redis],

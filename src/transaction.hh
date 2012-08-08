@@ -61,6 +61,7 @@ protected:
 	Agent *mAgent;
 	typedef std::tuple<std::shared_ptr<void>, std::string> property_type;
 	std::map<std::string, property_type> mProperties;
+
 public:
 	Transaction(Agent *agent) :
 			mAgent(agent) {
@@ -120,6 +121,11 @@ class OutgoingTransaction: public Transaction, public OutgoingAgent, public std:
 public:
 	void cancel();
 	~OutgoingTransaction();
+
+	inline virtual Agent *getAgent() {
+		return Transaction::getAgent();
+	}
+
 private:
 	friend class SipEvent;
 	OutgoingTransaction(Agent *agent);
@@ -131,9 +137,6 @@ private:
 
 	void destroy();
 
-	inline virtual Agent *getAgent() {
-		return mAgent;
-	}
 private:
 	static int _callback(nta_outgoing_magic_t *magic, nta_outgoing_t *irq, const sip_t *sip);
 };
@@ -144,6 +147,10 @@ public:
 	void handle(const std::shared_ptr<MsgSip> &ms);
 	std::shared_ptr<MsgSip> createResponse(int status, char const *phrase);
 	~IncomingTransaction();
+	inline virtual Agent *getAgent() {
+		return Transaction::getAgent();
+	}
+
 private:
 	friend class SipEvent;
 	IncomingTransaction(Agent *agent);
@@ -156,9 +163,6 @@ private:
 
 	void destroy();
 
-	inline virtual Agent *getAgent() {
-		return mAgent;
-	}
 private:
 	static int _callback(nta_incoming_magic_t *magic, nta_incoming_t *irq, const sip_t *sip);
 };

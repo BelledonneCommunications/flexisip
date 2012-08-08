@@ -64,6 +64,7 @@ class ModuleInfoBase {
 			Authentication=60,
 			GatewayAdapter=90,
 			Registrar=120,
+			PushNotification=130,
 			ContactRouteInserter=150,
 			LoadBalancer=180,
 			MediaRelay=210,

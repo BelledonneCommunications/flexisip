@@ -46,11 +46,20 @@ AM_CFLAGS+="-DENABLE_TRANSCODER"
 AM_CXXFLAGS+="-DENABLE_TRANSCODER"
 endif
 
+if BUILD_PUSHNOTIFICATION
+flexisip_SOURCES+=module-pushnotification.cc \
+			apn/pushnotification.cc apn/pushnotification.h \
+			apn/pushnotificationservice.cc apn/pushnotificationservice.h \
+			apn/pushnotificationclient.cc apn/pushnotificationclient.h 
+AM_CXXFLAGS+=-DENABLE_PUSHNOTIFICATION $(BOOST_CPPFLAGS)
+flexisip_LDADD+=$(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB)
+endif
+
 if BUILD_REDIS
 flexisip_SOURCES+=registrardb-redis-sync.cc registrardb-redis-async.cc registrardb-redis.hh \
         recordserializer-c.cc recordserializer.hh registrardb-redis-sofia-event.h \
         recordserializer-json.cc cJSON.c cJSON.h
-AM_CXXFLAGS+="-DENABLE_REDIS"
+AM_CXXFLAGS+=-DENABLE_REDIS
 endif
 
 pb_files=$(srcdir)/recordserializer-protobuf.proto
