@@ -303,10 +303,12 @@ void SdpModifier::addIceCandidate(function<void(int, string *, int *)> forward_f
 					/* Fix the connection line if needed */
 					changeMediaConnection(mline, relay_ip.c_str());
 				}
-				priority = (65535 << 8) | (256 - componentID);
-				snprintf(candidate_line, sizeof(candidate_line), "%s %d UDP %d %s %d typ relay raddr %s rport %d",
-					foundation, componentID, priority, relay_ip.c_str(), relay_port + componentID - 1, source_ip.c_str(), source_port + componentID - 1);
-				addMediaAttribute(mline, "candidate", candidate_line);
+				if (!hasIceCandidate(mline, relay_ip.c_str(), relay_port + componentID - 1)) {
+					priority = (65535 << 8) | (256 - componentID);
+					snprintf(candidate_line, sizeof(candidate_line), "%s %d UDP %d %s %d typ relay raddr %s rport %d",
+						foundation, componentID, priority, relay_ip.c_str(), relay_port + componentID - 1, source_ip.c_str(), source_port + componentID - 1);
+					addMediaAttribute(mline, "candidate", candidate_line);
+				}
 			}
 			addMediaAttribute(mline, "nortpproxy", "yes");
 		}
@@ -379,6 +381,28 @@ bool SdpModifier::hasAttribute(const char *name) {
 bool SdpModifier::hasMediaAttribute(sdp_media_t *mline, const char *name)
 {
 	return sdp_attribute_find(mline->m_attributes,name);
+}
+
+bool SdpModifier::hasIceCandidate(sdp_media_t *mline, const char *addr, int port)
+{
+	sdp_attribute_t *candidate = mline->m_attributes;
+
+	while ((candidate = sdp_attribute_find(candidate,"candidate")) != NULL) {
+		char foundation[32];
+		char candidate_addr[64];
+		char raddr[64];
+		char type[6];
+		int componentID;
+		uint32_t priority;
+		int candidate_port;
+		int rport;
+		int nb = sscanf(candidate->a_value, "%s %d UDP %d %s %d typ %s raddr %s rport %d", foundation, &componentID, &priority, candidate_addr, &candidate_port, type, raddr, &rport);
+		if ((nb == 6) || (nb == 8)) {
+			if ((candidate_port == port) && (strlen(candidate_addr) == strlen(addr)) && (strcmp(candidate_addr, addr) == 0)) return true;
+		}
+		candidate = candidate->a_next;
+	}
+	return false;
 }
 
 void SdpModifier::addAttribute(const char *name, const char *value) {
