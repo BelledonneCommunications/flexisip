@@ -23,8 +23,28 @@
 
 #include <sofia-sip/sip_status.h>
 #include <fstream>
+#include <csignal>
 
 using namespace ::std;
+
+class Registrar;
+static Registrar *sRegistrarInstanceForSigAction=NULL;
+
+class FakeFetchListener: public RegistrarDbListener {
+	friend class Registrar;
+public:
+	FakeFetchListener() {
+	}
+	void onRecordFound(Record *r) {
+		if (r!=NULL) {
+			r->print();
+		} else {
+			LOGD("No record found");
+		}
+	}
+	void onError() {
+	}
+};
 
 class Registrar: public Module, public ModuleToolbox {
 	friend class OnBindListener;
@@ -37,14 +57,19 @@ class Registrar: public Module, public ModuleToolbox {
 	StatCounter64 *mCountClearFinished;
 	StatCounter64 *mCountLocalActives;
 	bool rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *ct_url, const char *route);
+	static void staticRoutesRereadTimerfunc(su_root_magic_t *magic, su_timer_t *t, void *data){
+		Registrar *r=(Registrar *)data;
+		r->readStaticRecords();
+	}
 public:
 	static void send480KO(Agent *agent, shared_ptr<SipEvent> &ev);
 	static void send200Ok(Agent *agent, shared_ptr<SipEvent> &ev, const sip_contact_t *contacts);
 	void routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aorb, const string &sipUri);
 	void onRegister(Agent *agent, shared_ptr<SipEvent> &ev, sip_contact_t *ct, Record *aorb, const string &sipUri);
 
-	Registrar(Agent *ag) :
-			Module(ag) {
+	Registrar(Agent *ag) : Module(ag),mStaticRecordsTimer(NULL) {
+		sRegistrarInstanceForSigAction=this;
+		memset(&mSigaction, 0, sizeof(mSigaction));
 	}
 
 	~Registrar() {
@@ -57,15 +82,15 @@ public:
 				{ String, "static-records-file", "File containing the static records to add to database at startup. "
 				"Format: one 'sip_uri contact_header' by line. "
 				"Ex1: <sip:contact@domain> <sip:127.0.0.1:5460>,<sip:192.168.0.1:5160>", "" },
+				{ Integer, "static-records-timeout", "Timeout in seconds after which the static records file is re-read and the contacts updated.", "600" },
+
+				{	String , "db-implementation", "Implementation used for storing address of records contact uris. [redis-async, redis-sync, internal]","internal"},
 #ifdef ENABLE_REDIS
-				{	String , "db-implementation", "Implementation used for storing address of records contact uris. [redis-async, redis-sync, internal]","redis-async"},
 				{	String , "redis-server-domain", "Domain of the redis server. ","localhost"},
 				{	Integer , "redis-server-port", "Port of the redis server.","6379"},
 				{	String , "redis-auth-password", "Authentication password for redis. Empty to disable.",""},
 				{	Integer , "redis-server-timeout", "Timeout in milliseconds of the redis connection.","1500"},
 				{	String , "redis-record-serializer", "Implementation of the contact serialiser to use. [C, protobuf]","protobuf"},
-#else
-				{ String, "db-implementation", "Implementation used for storing address of records contact uris. [internal,...]", "internal" },
 #endif
 				{ Boolean, "fork", "Fork messages to all registered devices", "true" },
 				{ Boolean, "fork-late", "Fork invites to late registers", "false" },
@@ -102,9 +127,24 @@ public:
 		mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
 		mGeneratedContactRoute = mc->get<ConfigString>("generated-contact-route")->read();
 		mExpectedRealm = mc->get<ConfigString>("generated-contact-expected-realm")->read();
-		static_route_file = mc->get<ConfigString>("static-records-file")->read();
-		if (!static_route_file.empty())
-			readStaticRecord(static_route_file);
+		mStaticRecordsFile = mc->get<ConfigString>("static-records-file")->read();
+		mStaticRecordsTimeout = mc->get<ConfigInt>("static-records-timeout")->read();
+		if (!mStaticRecordsFile.empty()) {
+			readStaticRecords();
+			mStaticRecordsTimer=mAgent->createTimer(mStaticRecordsTimeout*1000, &staticRoutesRereadTimerfunc,this);
+		}
+
+		mSigaction.sa_sigaction = Registrar::sighandler;
+		mSigaction.sa_flags = SA_SIGINFO;
+		sigaction(SIGUSR1, &mSigaction, NULL);
+		sigaction(SIGUSR2, &mSigaction, NULL);
+	}
+
+	virtual void onUnload() {
+		if (mStaticRecordsTimer) {
+			su_timer_destroy(mStaticRecordsTimer);
+		}
+		Record::setStaticRecordsVersion(0);
 	}
 
 	// Delta from expires header, normalized with custom rules.
@@ -159,7 +199,7 @@ private:
 	bool isManagedDomain(const char *domain) {
 		return ModuleToolbox::matchesOneOf(domain, mDomains);
 	}
-	void readStaticRecord(string file);
+	void readStaticRecords();
 	bool contactUrlInVia(const url_t *ct_url, sip_via_t * via);
 		bool dispatch(Agent *agent, const shared_ptr<SipEvent> &ev, sip_contact_t *ct, const char *route, shared_ptr<ForkCallContext> context = shared_ptr<ForkCallContext>());
 	list<string> mDomains;
@@ -168,7 +208,25 @@ private:
 	map<string, shared_ptr<ForkCallContext>> mForks;
 	string mGeneratedContactRoute;
 	string mExpectedRealm;
-	string static_route_file;
+	string mStaticRecordsFile;
+	su_timer_t *mStaticRecordsTimer;
+	int mStaticRecordsTimeout;
+	struct sigaction mSigaction;
+	static void sighandler(int signum, siginfo_t *info, void *ptr) {
+		if (signum == SIGUSR1) {
+			LOGI("Received signal triggering static records file re-read");
+			sRegistrarInstanceForSigAction->readStaticRecords();
+		} else if (signum == SIGUSR2) {
+			LOGI("Received signal triggering fake fetch");
+			su_home_t home;
+			su_home_init(&home);
+			url_t *url=url_make(&home, "sip:contact@domain");
+
+			auto listener=make_shared<FakeFetchListener>();
+			RegistrarDb::get(sRegistrarInstanceForSigAction->getAgent())->fetch(url, listener, false);
+		}
+	}
+
 	static ModuleInfo<Registrar> sInfo;
 };
 
@@ -189,8 +247,10 @@ public:
 	}
 };
 
-void Registrar::readStaticRecord(string file_path) {
-	LOGD("Read static recond file");
+void Registrar::readStaticRecords() {
+	static int version=0;
+	if (mStaticRecordsFile.empty()) return;
+	LOGD("Reading static records file");
 
 	su_home_t home;
 
@@ -202,9 +262,12 @@ void Registrar::readStaticRecord(string file_path) {
 	string contact_header;
 
 	ifstream file;
-	file.open(file_path);
+	file.open(mStaticRecordsFile);
 	if (file.is_open()) {
 		su_home_init(&home);
+		++version;
+		const char *fakeCallId=su_sprintf(&home,"static-record-v%d",version);
+		Record::setStaticRecordsVersion(version);
 		while (file.good() && getline(file, line).good()) {
 			size_t start = line.find_first_of('<');
 			size_t pos = line.find_first_of('>');
@@ -220,9 +283,12 @@ void Registrar::readStaticRecord(string file_path) {
 					// Create
 					url_t *url = url_make(&home, from.c_str());
 					sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
+					int expire=mStaticRecordsTimeout+5; // 5s to avoid race conditions
 
 					if (url != NULL && contact != NULL) {
-						RegistrarDb::get(mAgent)->bind(url, contact, "", 0, NULL, -1, isManagedDomain(url->url_host), make_shared<OnStaticBindListener>(getAgent(), line));
+						auto listener=make_shared<OnStaticBindListener>(getAgent(), line);
+						bool alias=isManagedDomain(url->url_host);
+						RegistrarDb::get(mAgent)->bind(url, contact, fakeCallId, version, NULL, expire, alias, listener);
 						continue;
 					}
 				}
@@ -231,7 +297,7 @@ void Registrar::readStaticRecord(string file_path) {
 		}
 		su_home_deinit(&home);
 	} else {
-		LOGE("Can't open file %s", file_path.c_str());
+		LOGE("Can't open file %s", mStaticRecordsFile.c_str());
 	}
 
 }
@@ -405,7 +471,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<SipEvent> &ev, Record *aor
 	// Generate a fake contact for a proxy
 	if (!mGeneratedContactRoute.empty()) {
 		const url_t *to=ms->getSip()->sip_to->a_url;
-		auto gwECt(make_shared<ExtendedContact>(to, mGeneratedContactRoute.c_str()));
+		const std::shared_ptr<ExtendedContact> gwECt(make_shared<ExtendedContact>(to, mGeneratedContactRoute.c_str()));
 
 		// This contact is a proxy which will challenge us with a known Realm
 		const char *nextProxyRealm=mExpectedRealm.empty()?to->url_host : mExpectedRealm.c_str();

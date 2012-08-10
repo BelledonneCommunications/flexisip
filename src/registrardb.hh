@@ -125,6 +125,8 @@ private:
 	static std::string sLineFieldName;
 	static int sMaxContacts;
 	std::string mKey;
+protected:
+	static char sStaticRecordVersion[100];
 public:
 	Record(std::string key);
 	static sip_contact_t *extendedContactToSofia(su_home_t *home, const ExtendedContact &ec, time_t now);
@@ -135,6 +137,7 @@ public:
 	void bind(const sip_contact_t *contacts, const char* route, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias);
 	void bind(const char *contact, const char* route, const char *transport, const char *lineValue, long expireAt, float q, const char *call_id, uint32_t cseq, time_t now, bool alias);
 	void print();
+	bool isEmpty() { return mContacts.empty(); };
 	const std::string &getKey() const {
 		return mKey;
 	}
@@ -154,6 +157,14 @@ public:
 	}
 	time_t latestExpire() const;
 	time_t latestExpire(const std::string &route) const;
+	static void setStaticRecordsVersion(int version) {
+		static int maxlen=sizeof(sStaticRecordVersion);
+		memset(sStaticRecordVersion, 0, maxlen);
+		if (version != 0) {
+			snprintf(sStaticRecordVersion, maxlen, "static-record-v%d", version);
+		}
+	}
+
 	~Record();
 };
 

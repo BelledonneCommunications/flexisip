@@ -34,6 +34,9 @@
 
 using namespace ::std;
 
+
+char Record::sStaticRecordVersion[100]={0};
+
 sip_contact_t *Record::extendedContactToSofia(su_home_t *home, const ExtendedContact &ec, time_t now) {
 	sip_contact_t *contact = NULL;
 	time_t expire = ec.mExpireAt - now;
@@ -69,26 +72,42 @@ bool Record::isInvalidRegister(const char *call_id, uint32_t cseq) {
 	return false;
 }
 
+static bool isMismatchingStaticRecord(shared_ptr<ExtendedContact> &ec, const char* version) {
+	static char staticRecordPrefix[]="static-record-v";
+	static size_t srpLen=strlen(staticRecordPrefix);
+
+	size_t callIdLen=strlen(ec->mCallId);
+	if (callIdLen <= srpLen) return false;
+
+	bool isStaticRecordContact=0==memcmp(ec->mCallId, staticRecordPrefix, srpLen);
+	if (!isStaticRecordContact) return false;
+
+	return 0!=strcmp(ec->mCallId, version);
+}
 /**
  * Should first have checked the validity of the register with isValidRegister.
  */
 void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t now) {
 	char lineValue[20];
 	char *lineValuePtr = lineValue;
+
 	if (!url_param(sip->m_url[0].url_params, sLineFieldName.c_str(), lineValue, sizeof(lineValue) - 1)) {
 		lineValuePtr = NULL;
 	}
 	auto it = mContacts.begin();
 	while (it != mContacts.end()) {
 		shared_ptr<ExtendedContact> ec = (*it);
-		if (now >= ec->mExpireAt) {
+		if (isMismatchingStaticRecord(ec, sStaticRecordVersion)) {
+			LOGD("Cleaning mismatching static record for %s", ec->mContactId);
+			it = mContacts.erase(it);
+		} else if (now >= ec->mExpireAt) {
 			LOGD("Cleaning expired contact %s", ec->mContactId);
 			it = mContacts.erase(it);
 		} else if (ec->mLineValueCopy && lineValuePtr != NULL && 0 == strcmp(ec->mLineValueCopy, lineValuePtr)) {
 			LOGD("Cleaning older line '%s' for contact %s", lineValuePtr, ec->mContactId);
 			it = mContacts.erase(it);
 		} else if (0 == strcmp(ec->mCallId, call_id)) {
-			LOGD("Cleaning same call id contact %s", ec->mContactId);
+			LOGD("Cleaning same call id contact %s (%s)", ec->mContactId, call_id);
 			it = mContacts.erase(it);
 		} else {
 			++it;
@@ -142,6 +161,9 @@ void Record::clean(time_t now) {
 	while (it != mContacts.end()) {
 		shared_ptr<ExtendedContact> ec = (*it);
 		if (now >= ec->mExpireAt) {
+			it = mContacts.erase(it);
+		} else if (isMismatchingStaticRecord(ec, sStaticRecordVersion)) {
+			LOGD("Cleaning mismatching static record for %s", ec->mContactId);
 			it = mContacts.erase(it);
 		} else {
 			++it;

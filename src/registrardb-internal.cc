@@ -62,8 +62,9 @@ void RegistrarDbInternal::doBind(const url_t* fromUrl, const sip_contact_t *sip_
         }
 
         if (r->isInvalidRegister(calld_id, cs_seq)) {
-                listener->onInvalid();
-                return;
+        	LOGD("Invalid register");
+        	listener->onInvalid();
+        	return;
         }
 
         r->clean(sip_contact, calld_id, cs_seq, now);
@@ -81,6 +82,10 @@ void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<RegistrarDb
         if (it != mRecords.end()) {
                 r = (*it).second;
                 r->clean(time(NULL));
+                if (r->isEmpty()) {
+                	mRecords.erase(it);
+                	r=NULL;
+                }
         }
 
         listener->onRecordFound(r);
