@@ -19,6 +19,7 @@
 #include "sdp-modifier.hh"
 
 #include <sofia-sip/sip_protos.h>
+#include <sstream>
 
 using namespace ::std;
 
@@ -288,7 +289,6 @@ void SdpModifier::addIceCandidate(function<void(int, string *, int *)> forward_f
 	snprintf(foundation, sizeof(foundation), "%llx", (long long unsigned int)r);
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		if (hasMediaAttribute(mline,"candidate") && !hasMediaAttribute(mline,"remote-candidates") && !hasMediaAttribute(mline,"nortpproxy")) {
-			char candidate_line[256];
 			string relay_ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
 			int relay_port=mline->m_port;
 			string source_ip=relay_ip;
@@ -303,11 +303,12 @@ void SdpModifier::addIceCandidate(function<void(int, string *, int *)> forward_f
 					/* Fix the connection line if needed */
 					changeMediaConnection(mline, relay_ip.c_str());
 				}
-				if (!hasIceCandidate(mline, relay_ip.c_str(), relay_port + componentID - 1)) {
+				if (!hasIceCandidate(mline, relay_ip, relay_port + componentID - 1)) {
 					priority = (65535 << 8) | (256 - componentID);
-					snprintf(candidate_line, sizeof(candidate_line), "%s %d UDP %d %s %d typ relay raddr %s rport %d",
-						foundation, componentID, priority, relay_ip.c_str(), relay_port + componentID - 1, source_ip.c_str(), source_port + componentID - 1);
-					addMediaAttribute(mline, "candidate", candidate_line);
+					ostringstream candidate_line;
+					candidate_line << foundation << ' ' << componentID << " UDP " << priority << ' ' << relay_ip << ' ' << relay_port + componentID - 1
+						<< " typ relay raddr " << source_ip << " rport " << source_port + componentID - 1;
+					addMediaAttribute(mline, "candidate", candidate_line.str().c_str());
 				}
 			}
 			addMediaAttribute(mline, "nortpproxy", "yes");
@@ -353,22 +354,23 @@ void SdpModifier::translate(function<void(int, string *, int *)> fct){
 		mline->m_port=port;
 		rtcp_attribute = sdp_attribute_find(mline->m_attributes,"rtcp");
 		if (rtcp_attribute) {
-			char port_str[256];
-			char rtcp_ip[128];
-			char ip_version[2];
 			int previous_port;
-			int nb;
-			nb = sscanf(rtcp_attribute->a_value, "%d IN IP%[46] %s", &previous_port, ip_version, rtcp_ip);
-			if (nb == 1) {
-				snprintf(port_str, sizeof(port_str), "%d", port+1);
-			} else if (nb == 3) {
-				snprintf(port_str, sizeof(port_str), "%d IN IP%s %s", port+1, ip_version, ip.c_str());
-			} else continue;
+			string ip_version, network_family, protocol, rtcp_addr;
+			ostringstream ost;
+			ost << port + 1;
+			istringstream ist(string(rtcp_attribute->a_value));
+			ist >> previous_port;
+			if (!ist.eof()) ist >> network_family;
+			if (!ist.fail() && !ist.eof()) ist >> protocol;
+			if (!ist.fail() && !ist.eof()) ist >> rtcp_addr;
+			if (!ist.fail() && !ist.eof()) {
+				ost << ' ' << network_family << ' ' << protocol << ' ' << ip;
+			}
 			sdp_attribute_t *a=(sdp_attribute_t *)su_alloc(mHome, sizeof(sdp_attribute_t));
 			memset(a,0,sizeof(*a));
 			a->a_size=sizeof(*a);
 			a->a_name=su_strdup(mHome, "rtcp");
-			a->a_value=su_strdup(mHome, port_str);
+			a->a_value=su_strdup(mHome, ost.str().c_str());
 			sdp_attribute_replace(&mline->m_attributes, a, 0);
 		}
 	}
@@ -383,23 +385,23 @@ bool SdpModifier::hasMediaAttribute(sdp_media_t *mline, const char *name)
 	return sdp_attribute_find(mline->m_attributes,name);
 }
 
-bool SdpModifier::hasIceCandidate(sdp_media_t *mline, const char *addr, int port)
+bool SdpModifier::hasIceCandidate(sdp_media_t *mline, const string &addr, int port)
 {
 	sdp_attribute_t *candidate = mline->m_attributes;
 
 	while ((candidate = sdp_attribute_find(candidate,"candidate")) != NULL) {
-		char foundation[32];
-		char candidate_addr[64];
-		char raddr[64];
-		char type[6];
-		int componentID;
+		string foundation, protocol, candidate_addr, type;
+		int componentID, candidate_port;
 		uint32_t priority;
-		int candidate_port;
-		int rport;
-		int nb = sscanf(candidate->a_value, "%s %d UDP %d %s %d typ %s raddr %s rport %d", foundation, &componentID, &priority, candidate_addr, &candidate_port, type, raddr, &rport);
-		if ((nb == 6) || (nb == 8)) {
-			if ((candidate_port == port) && (strlen(candidate_addr) == strlen(addr)) && (strcmp(candidate_addr, addr) == 0)) return true;
-		}
+		istringstream stream(string(candidate->a_value));
+		stream >> foundation;
+		stream >> componentID;
+		stream >> protocol;
+		stream >> priority;
+		stream >> candidate_addr;
+		stream >> candidate_port;
+		stream >> type;
+		if ((candidate_port == port) && (addr.compare(candidate_addr) == 0)) return true;
 		candidate = candidate->a_next;
 	}
 	return false;

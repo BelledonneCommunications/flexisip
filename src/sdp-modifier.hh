@@ -51,7 +51,7 @@ class SdpModifier{
 		bool hasAttribute(const char *name);
 		void addMediaAttribute(sdp_media_t *mline, const char *name, const char *value);
 		bool hasMediaAttribute(sdp_media_t *mline, const char *name);
-		bool hasIceCandidate(sdp_media_t *mline, const char *addr, int port);
+		bool hasIceCandidate(sdp_media_t *mline, const std::string &addr, int port);
 		void update(msg_t *msg, sip_t *sip);
 		void setPtime(int ptime);
 		virtual ~SdpModifier();
