@@ -259,6 +259,21 @@ void SdpModifier::changeAudioIpPort(const char *ip, int port){
 	mSession->sdp_media->m_port=port;
 }
 
+void SdpModifier::changeMediaConnection(sdp_media_t *mline, const char *relay_ip){
+	sdp_connection_t *c;
+
+	if (mline->m_connections) {
+		su_free(mHome,mline->m_connections);
+	}
+	c=sdp_connection_dup(mHome,mSession->sdp_connection);
+	c->c_address=su_strdup(mHome,relay_ip);
+	if (sdp_connection_cmp(mSession->sdp_connection, c)) {
+		mline->m_connections=c;
+	} else {
+		su_free(mHome,c);
+	}
+}
+
 void SdpModifier::addIceCandidate(function<void(int, string *, int *)> forward_fct, function<void(int, string *, int *)> backward_fct)
 {
 	char foundation[32];
@@ -284,6 +299,10 @@ void SdpModifier::addIceCandidate(function<void(int, string *, int *)> forward_f
 			backward_fct(i,&source_ip,&source_port);
 
 			for (uint16_t componentID=1; componentID<=2; componentID++) {
+				if (componentID == 1) {
+					/* Fix the connection line if needed */
+					changeMediaConnection(mline, relay_ip.c_str());
+				}
 				priority = (65535 << 8) | (256 - componentID);
 				snprintf(candidate_line, sizeof(candidate_line), "%s %d UDP %d %s %d typ relay raddr %s rport %d",
 					foundation, componentID, priority, relay_ip.c_str(), relay_port + componentID - 1, source_ip.c_str(), source_port + componentID - 1);

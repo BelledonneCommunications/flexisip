@@ -43,6 +43,7 @@ class SdpModifier{
 		void replacePayloads(const MSList *payloads, const MSList *preserved_numbers);
 		void getAudioIpPort(std::string *ip, int *port);
 		void changeAudioIpPort(const char *ip, int port);
+		void changeMediaConnection(sdp_media_t *mline, const char *relay_ip);
 		void addIceCandidate(std::function<void(int, std::string *, int *)>, std::function<void(int, std::string *, int*)>);
 		void iterate(std::function<void(int, const std::string &, int)>);
 		void translate(std::function<void(int, std::string *, int *)>);
