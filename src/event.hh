@@ -33,10 +33,13 @@ class IncomingTransaction;
 class OutgoingTransaction;
 
 class MsgSip {
+	friend class Agent;
 	friend class SipEvent;
+	friend class RequestSipEvent;
+	friend class ResponseSipEvent;
 	friend class IncomingTransaction;
+	friend class OutgoingTransaction;
 public:
-	MsgSip(msg_t *msg);
 	MsgSip(const MsgSip &msgSip);
 	MsgSip(const MsgSip &msgSip, msg_t *msg);
 	~MsgSip();
@@ -56,13 +59,13 @@ public:
 	void log(const char * header = NULL, ...) ;//__attribute__((format(printf,2,3)));
 
 private:
-	//MsgSip(const MsgSip &msgSip); // disable default
+	MsgSip(msg_t *msg);
 	void defineMsg(msg_t *msg);
 	su_home_t *mHome;
 	msg_t *mOriginalMsg;
 	msg_t *mMsg;
 	sip_t *mSip;
-	bool mCanCreateIncomingTransaction;
+	bool mOriginal;
 };
 
 class SipEvent {
@@ -79,14 +82,14 @@ public:
 
 	inline void setMsgSip(std::shared_ptr<MsgSip> msgSip) {
 		mMsgSip = msgSip;
-		mMsgSip->mCanCreateIncomingTransaction=false;
+		mMsgSip->mOriginal = false;
 	}
 
-	void terminateProcessing();
+	virtual void terminateProcessing();
 
-	void suspendProcessing();
+	virtual void suspendProcessing();
 
-	void restartProcessing();
+	virtual void restartProcessing();
 
 	inline bool isSuspended() const {
 		return mState == SUSPENDED;
@@ -103,10 +106,6 @@ public:
 	inline const std::shared_ptr<OutgoingAgent>& getOutgoingAgent() {
 		return mOutgoingAgent;
 	}
-
-	std::shared_ptr<IncomingTransaction> createIncomingTransaction();
-
-	std::shared_ptr<OutgoingTransaction> createOutgoingTransaction();
 
 	virtual inline void setIncomingAgent(const std::shared_ptr<IncomingAgent> &agent) {
 		mIncomingAgent = agent;
@@ -152,6 +151,10 @@ class RequestSipEvent: public SipEvent {
 public:
 	RequestSipEvent(const std::shared_ptr<IncomingAgent> &incomingAgent, const std::shared_ptr<MsgSip> &msgSip);
 	RequestSipEvent(const std::shared_ptr<SipEvent> &sipEvent);
+
+	virtual void suspendProcessing();
+	std::shared_ptr<IncomingTransaction> createIncomingTransaction();
+	std::shared_ptr<OutgoingTransaction> createOutgoingTransaction();
 
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);

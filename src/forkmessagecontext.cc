@@ -16,31 +16,31 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "forkcallcontext.hh"
+#include "forkmessagecontext.hh"
 #include "common.hh"
 #include <algorithm>
 #include <sofia-sip/sip_status.h>
 
 using namespace ::std;
 
-ForkCallContext::ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event) :
+ForkMessageContext::ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event) :
 		ForkContext(agent, event), mFinal(0) {
-	LOGD("New ForkCallContext %p", this);
+	LOGD("New ForkMessageContext %p", this);
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Registrar");
 	mForkOneResponse = ma->get<ConfigBoolean>("fork-one-response")->read();
 	mForkNoGlobalDecline = ma->get<ConfigBoolean>("fork-no-global-decline")->read();
 }
 
-ForkCallContext::~ForkCallContext() {
-	LOGD("Destroy ForkCallContext %p", this);
+ForkMessageContext::~ForkMessageContext() {
+	LOGD("Destroy ForkMessageContext %p", this);
 }
 
-void ForkCallContext::cancel() {
+void ForkMessageContext::cancel() {
 	cancelOthers();
 }
 
-void ForkCallContext::forward(const shared_ptr<SipEvent> &ev, bool force) {
+void ForkMessageContext::forward(const shared_ptr<SipEvent> &ev, bool force) {
 	sip_t *sip = ev->getMsgSip()->getSip();
 	bool fakeSipEvent = (mFinal > 0 && !force) || mIncoming == NULL;
 
@@ -64,7 +64,7 @@ void ForkCallContext::forward(const shared_ptr<SipEvent> &ev, bool force) {
 	}
 }
 
-void ForkCallContext::decline(const shared_ptr<OutgoingTransaction> &transaction, shared_ptr<ResponseSipEvent> &ev) {
+void ForkMessageContext::decline(const shared_ptr<OutgoingTransaction> &transaction, shared_ptr<ResponseSipEvent> &ev) {
 	if (!mForkNoGlobalDecline) {
 		cancelOthers(transaction);
 
@@ -78,7 +78,7 @@ void ForkCallContext::decline(const shared_ptr<OutgoingTransaction> &transaction
 	}
 }
 
-void ForkCallContext::cancelOthers(const shared_ptr<OutgoingTransaction> &transaction) {
+void ForkMessageContext::cancelOthers(const shared_ptr<OutgoingTransaction> &transaction) {
 	if (mFinal == 0) {
 		for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end();) {
 			if (*it != transaction) {
@@ -92,7 +92,7 @@ void ForkCallContext::cancelOthers(const shared_ptr<OutgoingTransaction> &transa
 	}
 }
 
-void ForkCallContext::onRequest(const shared_ptr<IncomingTransaction> &transaction, shared_ptr<RequestSipEvent> &event) {
+void ForkMessageContext::onRequest(const shared_ptr<IncomingTransaction> &transaction, shared_ptr<RequestSipEvent> &event) {
 	event->setOutgoingAgent(shared_ptr<OutgoingAgent>());
 	const shared_ptr<MsgSip> &ms = event->getMsgSip();
 	sip_t *sip = ms->getSip();
@@ -104,7 +104,7 @@ void ForkCallContext::onRequest(const shared_ptr<IncomingTransaction> &transacti
 	}
 }
 
-void ForkCallContext::store(shared_ptr<ResponseSipEvent> &event) {
+void ForkMessageContext::store(shared_ptr<ResponseSipEvent> &event) {
 	bool best = true;
 
 	if (mBestResponse != NULL) {
@@ -123,7 +123,7 @@ void ForkCallContext::store(shared_ptr<ResponseSipEvent> &event) {
 	event->setIncomingAgent(shared_ptr<IncomingAgent>());
 }
 
-void ForkCallContext::onResponse(const shared_ptr<OutgoingTransaction> &transaction, shared_ptr<ResponseSipEvent> &event) {
+void ForkMessageContext::onResponse(const shared_ptr<OutgoingTransaction> &transaction, shared_ptr<ResponseSipEvent> &event) {
 	event->setIncomingAgent(mIncoming);
 	const shared_ptr<MsgSip> &ms = event->getMsgSip();
 	sip_via_remove(ms->getMsg(), ms->getSip()); // remove via
@@ -150,19 +150,19 @@ void ForkCallContext::onResponse(const shared_ptr<OutgoingTransaction> &transact
 	LOGW("Outgoing transaction: ignore message");
 }
 
-void ForkCallContext::onNew(const shared_ptr<IncomingTransaction> &transaction) {
+void ForkMessageContext::onNew(const shared_ptr<IncomingTransaction> &transaction) {
 	ForkContext::onNew(transaction);
 }
 
-bool ForkCallContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) {
+bool ForkMessageContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) {
 	return ForkContext::onDestroy(transaction);
 }
 
-void ForkCallContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) {
+void ForkMessageContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) {
 	ForkContext::onNew(transaction);
 }
 
-bool ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
+bool ForkMessageContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
 	ForkContext::onDestroy(transaction);
 	if (mOutgoings.size() == 0) {
 		if (mIncoming != NULL && mFinal == 0) {

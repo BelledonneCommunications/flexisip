@@ -132,7 +132,7 @@ class Authentication : public Module {
 private:
 	class AuthenticationListener : public AuthDbListener {
 		Agent *mAgent;
-		shared_ptr<SipEvent> mEv;
+		shared_ptr<RequestSipEvent> mEv;
 		bool mHashedPass;
 		auth_mod_t *mAm;
 		auth_status_t *mAs;
@@ -140,7 +140,7 @@ private:
 	public:
 		bool mImmediateRetrievePass;
 		auth_response_t mAr;
-		AuthenticationListener(Agent *, shared_ptr<SipEvent>, bool);
+		AuthenticationListener(Agent *, shared_ptr<RequestSipEvent>, bool);
 		~AuthenticationListener(){};
 
 		void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
@@ -310,7 +310,7 @@ public:
 		return it->second;
 	}
 
-	void onRequest(shared_ptr<SipEvent> &ev) {
+	void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		// first check for auth module for this domain
@@ -366,7 +366,7 @@ public:
 			auth_mod_verify(am, as, sip->sip_proxy_authorization,&mProxyChallenger);
 		}
 	}
-	void onResponse(shared_ptr<SipEvent> &ev) {
+	void onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		if (!mNewAuthOn407) return; /*nop*/
 
 		shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
@@ -403,7 +403,7 @@ ModuleInfo<Authentication> Authentication::sInfo("Authentication",
 	ModuleInfoBase::ModuleOid::Authentication);
 
 
-Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, shared_ptr<SipEvent> ev, bool hashedPasswords):
+Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, shared_ptr<RequestSipEvent> ev, bool hashedPasswords):
 		mAgent(ag),mEv(ev),mHashedPass(hashedPasswords),mAm(NULL),mAs(NULL),mAch(NULL) {
 	memset(&mAr, '\0', sizeof(mAr)), mAr.ar_size=sizeof(mAr);
 }

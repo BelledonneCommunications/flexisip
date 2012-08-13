@@ -108,8 +108,8 @@ class Module : protected ConfigValueListener {
 		void checkConfig();
 		void load();
 		void reload();
-		void processRequest(std::shared_ptr<SipEvent> &ev);
-		void processResponse(std::shared_ptr<SipEvent> &ev);
+		void processRequest(std::shared_ptr<RequestSipEvent> &ev);
+		void processResponse(std::shared_ptr<ResponseSipEvent> &ev);
 		void processTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
 		StatCounter64 &findStat(const std::string &statName) const;
 		void idle();
@@ -120,8 +120,8 @@ class Module : protected ConfigValueListener {
 		}
 		virtual void onUnload(){
 		}
-		virtual void onRequest(std::shared_ptr<SipEvent> &ev)=0;
-		virtual void onResponse(std::shared_ptr<SipEvent> &ev)=0;
+		virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev)=0;
+		virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev)=0;
 		virtual void onTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event) {
 
 		}

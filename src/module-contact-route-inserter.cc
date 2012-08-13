@@ -38,7 +38,7 @@ public:
 		mMasqueradeInviteContacts = module_config->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
 	}
 
-	void onRequest(shared_ptr<SipEvent> &ev) {
+	void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 
@@ -82,7 +82,7 @@ public:
 			}
 		}
 	}
-	virtual void onResponse(shared_ptr<SipEvent> &ev) {
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		if (mMasqueradeInviteContacts && (sip->sip_cseq->cs_method == sip_method_invite || sip->sip_cseq->cs_method == sip_method_subscribe)) {
@@ -90,7 +90,7 @@ public:
 		}
 	}
 private:
-	void masqueradeContact(shared_ptr<SipEvent> &ev) {
+	void masqueradeContact(shared_ptr<SipEvent> &&ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		if (sip->sip_contact != NULL && sip->sip_contact->m_url != NULL) {

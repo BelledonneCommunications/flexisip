@@ -72,8 +72,8 @@ public:
 	virtual ~PushNotification();
 	void onDeclare(GenericStruct *module_config);
 	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
-	virtual void onRequest(std::shared_ptr<SipEvent> &ev);
-	virtual void onResponse(std::shared_ptr<SipEvent> &ev);
+	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev);
+	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev);
 	virtual void onLoad(const GenericStruct *mc);
 
 private:
@@ -124,9 +124,10 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	mAPNS->start();
 }
 
-void PushNotification::onRequest(std::shared_ptr<SipEvent> &ev) {
+void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	if (ms->getSip()->sip_request->rq_method == sip_method_invite) {
+	if (ms->getSip()->sip_request->rq_method == sip_method_invite ||
+	    ms->getSip()->sip_request->rq_method == sip_method_message) {
 		shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 		if (transaction != NULL) {
 			sip_t *sip = ms->getSip();
@@ -135,8 +136,16 @@ void PushNotification::onRequest(std::shared_ptr<SipEvent> &ev) {
 				if (url_param(sip->sip_request->rq_url->url_params, "APN-TOK", deviceToken, sizeof(deviceToken)) == sizeof(deviceToken)) {
 					string data = mMessage;
 					{
-						char apnMessageId[64] = "INCOMING-CALL";
-						url_param(sip->sip_request->rq_url->url_params, "APN-MSG", apnMessageId, sizeof(apnMessageId));
+						char apnMessageId[64];
+						if(ms->getSip()->sip_request->rq_method == sip_method_invite) {
+							if (!url_param(sip->sip_request->rq_url->url_params, "APN-CAL", apnMessageId, sizeof(apnMessageId))) {
+								strcpy(apnMessageId, "INCOMING-CALL");
+							}
+						} else {
+							if (!url_param(sip->sip_request->rq_url->url_params, "APN-MSG", apnMessageId, sizeof(apnMessageId))) {
+								strcpy(apnMessageId, "INCOMING-MSG");
+							}
+						}
 
 						// Replace all instances of %1
 						int pos = 0;
@@ -146,8 +155,16 @@ void PushNotification::onRequest(std::shared_ptr<SipEvent> &ev) {
 						}
 					}
 					{
-						char apnSound[64] = "";
-						url_param(sip->sip_request->rq_url->url_params, "APN-SND", apnSound, sizeof(apnSound));
+						char apnSound[64];
+						if (ms->getSip()->sip_request->rq_method == sip_method_invite) {
+							if (!url_param(sip->sip_request->rq_url->url_params, "APN-CAL-SND", apnSound, sizeof(apnSound))) {
+								strcpy(apnSound, "");
+							}
+						} else {
+							if (!url_param(sip->sip_request->rq_url->url_params, "APN-MSG-SND", apnSound, sizeof(apnSound))) {
+								strcpy(apnSound, "");
+							}
+						}
 
 						// Replace all instances of %3
 						int pos = 0;
@@ -187,7 +204,7 @@ void PushNotification::onRequest(std::shared_ptr<SipEvent> &ev) {
 	}
 }
 
-void PushNotification::onResponse(std::shared_ptr<SipEvent> &ev) {
+void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
 	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 	if (transaction != NULL) {
 		transaction->removeProperty(getModuleName());

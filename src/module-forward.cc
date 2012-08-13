@@ -32,14 +32,14 @@ public:
 	ForwardModule(Agent *ag);
 	virtual void onDeclare(GenericStruct * module_config);
 	virtual void onLoad(const GenericStruct *root);
-	virtual void onRequest(shared_ptr<SipEvent> &ev);
-	virtual void onResponse(shared_ptr<SipEvent> &ev);
+	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 	~ForwardModule();
 private:
-	url_t* overrideDest(shared_ptr<SipEvent> &ev, url_t* dest);
-	void checkRecordRoutes(shared_ptr<SipEvent> &ev, url_t *dest);
-	bool isLooping(shared_ptr<SipEvent> &ev, const char * branch);
-	unsigned int countVia(shared_ptr<SipEvent> &ev);
+	url_t* overrideDest(shared_ptr<RequestSipEvent> &ev, url_t* dest);
+	void checkRecordRoutes(shared_ptr<RequestSipEvent> &ev, url_t *dest);
+	bool isLooping(shared_ptr<RequestSipEvent> &ev, const char * branch);
+	unsigned int countVia(shared_ptr<RequestSipEvent> &ev);
 	su_home_t mHome;
 	sip_route_t *mOutRoute;
 	bool mRewriteReqUri;
@@ -77,7 +77,7 @@ void ForwardModule::onLoad(const GenericStruct *module_config) {
 	}
 }
 
-url_t* ForwardModule::overrideDest(shared_ptr<SipEvent> &ev, url_t *dest) {
+url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	if (mOutRoute) {
 		dest = mOutRoute->r_url;
@@ -94,7 +94,7 @@ url_t* ForwardModule::overrideDest(shared_ptr<SipEvent> &ev, url_t *dest) {
  Typically, if we transfer an INVITE from TCP to UDP, we should find two consecutive record-route, first one with UDP, and second one with TCP
  so that further request from both sides are sent to the appropriate transport of flexisip, and also we don't ask to a UDP only equipment to route to TCP.
  */
-void ForwardModule::checkRecordRoutes(shared_ptr<SipEvent> &ev, url_t *dest) {
+void ForwardModule::checkRecordRoutes(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_record_route_t *rr = ms->getSip()->sip_record_route;
 	char last_transport[16] = { 0 };
@@ -115,7 +115,7 @@ void ForwardModule::checkRecordRoutes(shared_ptr<SipEvent> &ev, url_t *dest) {
 	}
 }
 
-void ForwardModule::onRequest(shared_ptr<SipEvent> &ev) {
+void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	url_t* dest = NULL;
 	sip_t *sip = ms->getSip();
@@ -181,7 +181,7 @@ void ForwardModule::onRequest(shared_ptr<SipEvent> &ev) {
 
 }
 
-unsigned int ForwardModule::countVia(shared_ptr<SipEvent> &ev) {
+unsigned int ForwardModule::countVia(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	uint32_t via_count = 0;
 	for (sip_via_t *via = ms->getSip()->sip_via; via != NULL; via = via->v_next)
@@ -189,7 +189,7 @@ unsigned int ForwardModule::countVia(shared_ptr<SipEvent> &ev) {
 	return via_count;
 }
 
-bool ForwardModule::isLooping(shared_ptr<SipEvent> &ev, const char * branch) {
+bool ForwardModule::isLooping(shared_ptr<RequestSipEvent> &ev, const char * branch) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	for (sip_via_t *via = ms->getSip()->sip_via; via != NULL; via = via->v_next) {
 		if (via->v_branch != NULL && strcmp(via->v_branch, branch) == 0) {
@@ -201,7 +201,7 @@ bool ForwardModule::isLooping(shared_ptr<SipEvent> &ev, const char * branch) {
 	return false;
 }
 
-void ForwardModule::onResponse(shared_ptr<SipEvent> &ev) {
+void ForwardModule::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	ev->send(ms, (url_string_t*) NULL, TAG_END());
 }

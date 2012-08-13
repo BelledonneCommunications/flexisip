@@ -75,18 +75,18 @@ public:
 	TranscodeModule(Agent *ag);
 	~TranscodeModule();
 	virtual void onLoad(const GenericStruct *module_config);
-	virtual void onRequest(shared_ptr<SipEvent> &ev);
-	virtual void onResponse(shared_ptr<SipEvent> &ev);
+	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 	virtual void onIdle();
 	virtual void onDeclare(GenericStruct *mc);
 private:
 	TickerManager mTickerManager;
-	int handleOffer(CallContext *c, shared_ptr<SipEvent> &ev);
-	int handleAnswer(CallContext *c, shared_ptr<SipEvent> &ev);
-	int processNewInvite(CallContext *c, shared_ptr<SipEvent> &ev);
-	void process200OkforInvite(CallContext *ctx, shared_ptr<SipEvent> &ev);
-	void processNewAck(CallContext *ctx, shared_ptr<SipEvent> &ev);
-	bool processSipInfo(CallContext *c, shared_ptr<SipEvent> &ev);
+	int handleOffer(CallContext *c, shared_ptr<SipEvent> &&ev);
+	int handleAnswer(CallContext *c, shared_ptr<SipEvent> &&ev);
+	int processNewInvite(CallContext *c, shared_ptr<RequestSipEvent> &ev);
+	void process200OkforInvite(CallContext *ctx, shared_ptr<ResponseSipEvent> &ev);
+	void processNewAck(CallContext *ctx, shared_ptr<RequestSipEvent> &ev);
+	bool processSipInfo(CallContext *c, shared_ptr<RequestSipEvent> &ev);
 	void onTimer();
 	static void sOnTimer(void *unused, su_timer_t *t, void *zis);
 	bool canDoRateControl(sip_t *sip);
@@ -258,7 +258,7 @@ bool TranscodeModule::canDoRateControl(sip_t *sip) {
 	return false;
 }
 
-bool TranscodeModule::processSipInfo(CallContext *c, shared_ptr<SipEvent> &ev) {
+bool TranscodeModule::processSipInfo(CallContext *c, shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	sip_payload_t *payload = sip->sip_payload;
@@ -296,7 +296,7 @@ MSList *TranscodeModule::normalizePayloads(MSList *l) {
 	return l;
 }
 
-int TranscodeModule::handleOffer(CallContext *c, shared_ptr<SipEvent> &ev) {
+int TranscodeModule::handleOffer(CallContext *c, shared_ptr<SipEvent> &&ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
@@ -341,7 +341,7 @@ int TranscodeModule::handleOffer(CallContext *c, shared_ptr<SipEvent> &ev) {
 	return -1;
 }
 
-int TranscodeModule::processNewInvite(CallContext *c, shared_ptr<SipEvent> &ev) {
+int TranscodeModule::processNewInvite(CallContext *c, shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	int ret = 0;
 	if (SdpModifier::hasSdp(ms->getSip())) {
@@ -357,7 +357,7 @@ int TranscodeModule::processNewInvite(CallContext *c, shared_ptr<SipEvent> &ev) 
 	return ret;
 }
 
-void TranscodeModule::processNewAck(CallContext *ctx, shared_ptr<SipEvent> &ev) {
+void TranscodeModule::processNewAck(CallContext *ctx, shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	LOGD("Processing ACK");
 	const MSList *ioffer = ctx->getInitialOffer();
@@ -369,7 +369,7 @@ void TranscodeModule::processNewAck(CallContext *ctx, shared_ptr<SipEvent> &ev) 
 	}
 }
 
-void TranscodeModule::onRequest(shared_ptr<SipEvent> &ev) {
+void TranscodeModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	shared_ptr<CallContext> c;
 	msg_t *msg = ms->getMsg();
@@ -433,7 +433,7 @@ void TranscodeModule::onRequest(shared_ptr<SipEvent> &ev) {
 	ev->setMsgSip(make_shared<MsgSip>(*ms,msg));
 }
 
-int TranscodeModule::handleAnswer(CallContext *ctx, shared_ptr<SipEvent> &ev) {
+int TranscodeModule::handleAnswer(CallContext *ctx, shared_ptr<SipEvent> &&ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	string addr;
 	int port;
@@ -482,7 +482,7 @@ int TranscodeModule::handleAnswer(CallContext *ctx, shared_ptr<SipEvent> &ev) {
 	return 0;
 }
 
-void TranscodeModule::process200OkforInvite(CallContext *ctx, shared_ptr<SipEvent> &ev) {
+void TranscodeModule::process200OkforInvite(CallContext *ctx, shared_ptr<ResponseSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	LOGD("Processing 200 Ok");
 	if (SdpModifier::hasSdp((sip_t*) msg_object(ctx->getLastForwardedInvite()))) {
@@ -500,7 +500,7 @@ static bool isEarlyMedia(sip_t *sip) {
 	return false;
 }
 
-void TranscodeModule::onResponse(shared_ptr<SipEvent> &ev) {
+void TranscodeModule::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();

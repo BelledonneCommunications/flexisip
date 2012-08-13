@@ -28,28 +28,28 @@ using namespace ::std;
 
 void MsgSip::defineMsg(msg_t *msg) {
 	mMsg = msg_copy(msg);
-	msg_addr_copy(mMsg,msg);
+	msg_addr_copy(mMsg, msg);
 	mSip = sip_object(mMsg);
 	mHome = msg_home(mMsg);
-	mCanCreateIncomingTransaction=false;
-}
-MsgSip::MsgSip(msg_t *msg) {
-	LOGD("New MsgSip %p with reference to msg %p", this, msg);
-	mOriginalMsg = msg_ref_create(msg);
-	defineMsg(mOriginalMsg);
-	mCanCreateIncomingTransaction=true;
+	mOriginal = false;
 }
 
+MsgSip::MsgSip(msg_t *msg) {
+//	LOGD("New MsgSip %p with reference to msg %p", this, msg);
+	mOriginalMsg = msg_ref_create(msg);
+	defineMsg(mOriginalMsg);
+	mOriginal = true;
+}
 
 MsgSip::MsgSip(const MsgSip &msgSip) {
 //	LOGD("New MsgSip %p with swallow copy %p of msg %p", this, mMsg, msgSip.mMsg);
 	defineMsg(msgSip.mMsg);
-	mOriginalMsg=msg_ref_create(msgSip.mOriginalMsg);
+	mOriginalMsg = msg_ref_create(msgSip.mOriginalMsg);
 }
 
 MsgSip::MsgSip(const MsgSip &msgSip, msg_t *msg) {
 	defineMsg(msg);
-	mOriginalMsg=msg_ref_create(msgSip.mOriginalMsg);
+	mOriginalMsg = msg_ref_create(msgSip.mOriginalMsg);
 }
 
 
@@ -102,8 +102,6 @@ void SipEvent::suspendProcessing() {
 	LOGD("Suspend SipEvent %p", this);
 	if (mState == STARTED) {
 		mState = SUSPENDED;
-		// Become stateful if not already the case.
-		createIncomingTransaction();
 	} else {
 		LOGA("Can't suspendProcessing: wrong state %s", stateStr(mState).c_str());
 	}
@@ -116,26 +114,6 @@ void SipEvent::restartProcessing() {
 	} else {
 		LOGA("Can't restartProcessing: wrong state %s", stateStr(mState).c_str());
 	}
-}
-
-shared_ptr<IncomingTransaction> SipEvent::createIncomingTransaction() {
-	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent);
-	if (transaction == NULL) {
-		if (!mMsgSip->mCanCreateIncomingTransaction) LOGA("It is too late to create an incoming transaction");
-		transaction = shared_ptr<IncomingTransaction>(new IncomingTransaction(mIncomingAgent->getAgent()));
-		transaction->handle(mMsgSip);
-		mIncomingAgent = transaction;
-	}
-	return transaction;
-}
-
-shared_ptr<OutgoingTransaction> SipEvent::createOutgoingTransaction() {
-	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent);
-	if (transaction == NULL) {
-		transaction = shared_ptr<OutgoingTransaction>(new OutgoingTransaction(mOutgoingAgent->getAgent()));
-		mOutgoingAgent = transaction;
-	}
-	return transaction;
 }
 
 RequestSipEvent::RequestSipEvent(const shared_ptr<IncomingAgent> &incomingAgent, const shared_ptr<MsgSip> &msgSip) :
@@ -192,6 +170,33 @@ void RequestSipEvent::reply(const shared_ptr<MsgSip> &msg, int status, char cons
 
 void RequestSipEvent::setIncomingAgent(const shared_ptr<IncomingAgent> &agent) {
 	LOGA("Can't change incoming agent in request sip event");
+}
+
+shared_ptr<IncomingTransaction> RequestSipEvent::createIncomingTransaction() {
+	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent);
+	if (transaction == NULL) {
+		if (!mMsgSip->mOriginal) LOGA("It is too late to create an incoming transaction");
+		transaction = shared_ptr<IncomingTransaction>(new IncomingTransaction(mIncomingAgent->getAgent()));
+		transaction->handle(mMsgSip);
+		mIncomingAgent = transaction;
+	}
+	return transaction;
+}
+
+shared_ptr<OutgoingTransaction> RequestSipEvent::createOutgoingTransaction() {
+	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent);
+	if (transaction == NULL) {
+		transaction = shared_ptr<OutgoingTransaction>(new OutgoingTransaction(mOutgoingAgent->getAgent()));
+		mOutgoingAgent = transaction;
+	}
+	return transaction;
+}
+
+void RequestSipEvent::suspendProcessing() {
+	SipEvent::suspendProcessing();
+
+	// Become stateful if not already the case.
+	createIncomingTransaction();
 }
 
 RequestSipEvent::~RequestSipEvent() {

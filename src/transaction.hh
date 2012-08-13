@@ -127,7 +127,7 @@ public:
 	}
 
 private:
-	friend class SipEvent;
+	friend class RequestSipEvent;
 	OutgoingTransaction(Agent *agent);
 	std::shared_ptr<OutgoingTransaction> mSofiaRef;
 	nta_outgoing_t *mOutgoing;
@@ -152,7 +152,7 @@ public:
 	}
 
 private:
-	friend class SipEvent;
+	friend class RequestSipEvent;
 	IncomingTransaction(Agent *agent);
 	std::shared_ptr<IncomingTransaction> mSofiaRef;
 	nta_incoming_t *mIncoming;

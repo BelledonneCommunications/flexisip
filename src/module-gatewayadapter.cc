@@ -237,9 +237,9 @@ public:
 
 	virtual void onLoad(const GenericStruct *module_config);
 
-	virtual void onRequest(shared_ptr<SipEvent> &ev);
+	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
 
-	virtual void onResponse(shared_ptr<SipEvent> &ev);
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 
 	virtual bool isValidNextConfig(const ConfigValue &cv);
 
@@ -298,7 +298,7 @@ void GatewayAdapter::onLoad(const GenericStruct *module_config) {
 	}
 }
 
-void GatewayAdapter::onRequest(shared_ptr<SipEvent> &ev) {
+void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
@@ -323,7 +323,7 @@ void GatewayAdapter::onRequest(shared_ptr<SipEvent> &ev) {
 	}
 }
 
-void GatewayAdapter::onResponse(shared_ptr<SipEvent> &ev) {
+void GatewayAdapter::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 
 }
 

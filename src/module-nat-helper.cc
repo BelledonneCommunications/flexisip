@@ -29,7 +29,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 		}
 		~NatHelper(){
 		}
-		virtual void onRequest(shared_ptr<SipEvent> &ev) {
+		virtual void onRequest(shared_ptr<RequestSipEvent> &ev) {
 			const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 			sip_request_t *rq = ms->getSip()->sip_request;
 			/* if we receive a request whose first via is wrong (received or rport parameters are present),
@@ -41,7 +41,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 				addRecordRoute (ms->getHome(),getAgent(), ms->getMsg(), ms->getSip());
 			}
 		}
-		virtual void onResponse(shared_ptr<SipEvent> &ev){
+		virtual void onResponse(shared_ptr<ResponseSipEvent> &ev){
 			const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 			sip_status_t *st = ms->getSip()->sip_status;
 			sip_cseq_t *cseq = ms->getSip()->sip_cseq;

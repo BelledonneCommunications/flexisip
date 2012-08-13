@@ -41,8 +41,8 @@ public:
 	~MediaRelay();
 	virtual void onLoad(const GenericStruct * modconf);
 	virtual void onUnload();
-	virtual void onRequest(shared_ptr<SipEvent> &ev);
-	virtual void onResponse(shared_ptr<SipEvent> &ev);
+	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
 	virtual void onIdle();
 protected:
@@ -479,7 +479,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	return true;
 }
 
-void MediaRelay::onRequest(shared_ptr<SipEvent> &ev) {
+void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
@@ -580,7 +580,7 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 	delete m;
 }
 
-void MediaRelay::onResponse(shared_ptr<SipEvent> &ev) {
+void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();

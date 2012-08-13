@@ -148,7 +148,7 @@ void Module::reload() {
 	load();
 }
 
-void Module::processRequest(shared_ptr<SipEvent> &ev) {
+void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	if (mFilter->canEnter(ms->getSip())) {
 		LOGD("Invoking onRequest() on module %s", getModuleName().c_str());
@@ -156,7 +156,7 @@ void Module::processRequest(shared_ptr<SipEvent> &ev) {
 	}
 }
 
-void Module::processResponse(shared_ptr<SipEvent> &ev) {
+void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	if (mFilter->canEnter(ms->getSip())) {
 		LOGD("Invoking onResponse() on module %s", getModuleName().c_str());

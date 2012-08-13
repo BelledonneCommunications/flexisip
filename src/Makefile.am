@@ -4,7 +4,9 @@ flexisip_SOURCES=main.cc \
 			common.cc common.hh \
 			sdp-modifier.hh  sdp-modifier.cc \
 			callstore.hh  callstore.cc \
+			forkcontext.hh forkcontext.cc \
 			forkcallcontext.hh  forkcallcontext.cc \
+			forkmessagecontext.hh  forkmessagecontext.cc \
 			callcontext.cc callcontext.hh \
 			registrardb-internal.cc registrardb-internal.hh registrardb.cc registrardb.hh \
 			etchosts.cc etchosts.hh \

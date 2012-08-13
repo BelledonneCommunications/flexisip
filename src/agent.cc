@@ -460,7 +460,7 @@ bool Agent::isUs(const url_t *url, bool check_aliases) const {
 	return isUs(url->url_host, url->url_port, check_aliases);
 }
 
-void Agent::sendRequestEvent(shared_ptr<SipEvent> &ev) {
+void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> &ev) {
 	ev->getMsgSip()->log("Receiving new Request SIP message:");
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
@@ -474,7 +474,7 @@ void Agent::sendRequestEvent(shared_ptr<SipEvent> &ev) {
 	}
 }
 
-void Agent::sendResponseEvent(shared_ptr<SipEvent> &ev) {
+void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> &ev) {
 	ev->getMsgSip()->log("Receiving new Response SIP message:");
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
@@ -488,7 +488,7 @@ void Agent::sendResponseEvent(shared_ptr<SipEvent> &ev) {
 	}
 }
 
-void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
+void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> &ev) {
 	LOG_START
 	ev->getMsgSip()->log("Inject Request SIP message:");
 	list<Module*>::iterator it;
@@ -512,7 +512,7 @@ void Agent::injectRequestEvent(shared_ptr<SipEvent> &ev) {
 	LOG_END
 }
 
-void Agent::injectResponseEvent(shared_ptr<SipEvent> &ev) {
+void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> &ev) {
 	LOG_START
 	ev->getMsgSip()->log("Inject Response SIP message:");
 	list<Module*>::iterator it;
@@ -549,13 +549,13 @@ void Agent::sendTransactionEvent(const shared_ptr<Transaction> &transaction, Tra
 
 int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
 	// Assuming sip is derived from msg
-	shared_ptr<MsgSip> ms(make_shared<MsgSip>(msg));
+	shared_ptr<MsgSip> ms(new MsgSip(msg));
 //	msg_destroy(msg);
 	if (sip->sip_request) {
-		shared_ptr<SipEvent> ev(new RequestSipEvent(dynamic_pointer_cast<IncomingAgent>(shared_from_this()), ms));
+		shared_ptr<RequestSipEvent> ev(new RequestSipEvent(dynamic_pointer_cast<IncomingAgent>(shared_from_this()), ms));
 		sendRequestEvent(ev);
 	} else {
-		shared_ptr<SipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(shared_from_this()), ms));
+		shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(shared_from_this()), ms));
 		sendResponseEvent(ev);
 	}
 	return 0;

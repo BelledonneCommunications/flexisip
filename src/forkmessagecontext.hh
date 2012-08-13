@@ -16,8 +16,8 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef forkcallcontext_hh
-#define forkcallcontext_hh
+#ifndef forkmessagecontext_hh
+#define forkmessagecontext_hh
 
 #include "agent.hh"
 #include "event.hh"
@@ -25,7 +25,7 @@
 #include "forkcontext.hh"
 #include <list>
 
-class ForkCallContext: public ForkContext {
+class ForkMessageContext: public ForkContext {
 private:
 	std::shared_ptr<ResponseSipEvent> mBestResponse;
 	int mFinal;
@@ -34,8 +34,8 @@ private:
 	std::list<int> mForwardResponses;
 
 public:
-	ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event);
-	~ForkCallContext();
+	ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event);
+	~ForkMessageContext();
 	void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
 	void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event);
 	bool onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
@@ -51,4 +51,5 @@ private:
 	void store(std::shared_ptr<ResponseSipEvent> &ev);
 };
 
-#endif //forkcallcontext_hh
+
+#endif /* forkmessagecontext_hh */
