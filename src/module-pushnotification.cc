@@ -148,7 +148,7 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 						}
 
 						// Replace all instances of %1
-						int pos = 0;
+						size_t pos = 0;
 						while ((pos = data.find("%1", pos)) != string::npos) {
 							data.replace(pos, 2, apnMessageId);
 							pos += 2;
@@ -167,7 +167,7 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 						}
 
 						// Replace all instances of %3
-						int pos = 0;
+						size_t pos = 0;
 						while ((pos = data.find("%3", pos)) != string::npos) {
 							data.replace(pos, 2, apnSound);
 							pos += 2;
@@ -184,7 +184,7 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 						contact = contact.substr(0, ApplePushNotificationRequest::MAXPAYLOAD_SIZE - (data.length() - 2));
 
 						// Replace all instances of %2
-						int pos = 0;
+						size_t pos = 0;
 						while ((pos = data.find("%2", pos)) != string::npos) {
 							data.replace(pos, 2, contact);
 							pos += 2;

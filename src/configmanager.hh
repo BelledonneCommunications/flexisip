@@ -495,6 +495,7 @@ public:
 	bool mDirtyConfig;
 private:
 	GenericManager();
+	virtual ~GenericManager(){}
 	bool doIsValidNextConfig(const ConfigValue &cv);
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 	void applyOverrides(GenericStruct *root, bool strict) {

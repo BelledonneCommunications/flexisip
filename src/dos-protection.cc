@@ -143,7 +143,7 @@ void DosProtection::stop() {
 	int returnedValue;
 
 	LOGD("Restore previous state of IPtables");
-	snprintf(cmd, sizeof(cmd)-1, "%s-restore < "CONFIG_DIR"/iptables.bak", mPath);
+	snprintf(cmd, sizeof(cmd)-1, "%s-restore < " CONFIG_DIR "/iptables.bak", mPath);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
@@ -206,7 +206,7 @@ void DosProtection::start() {
 	CHECK_RETURN(returnedValue, cmd)
 
 	/* Backup existing IPTables rules to restore this state after closing flexisip  */
-	snprintf(cmd, sizeof(cmd)-1, "%s-save > "CONFIG_DIR"/iptables.bak", mPath);
+	snprintf(cmd, sizeof(cmd)-1, "%s-save > " CONFIG_DIR "/iptables.bak", mPath);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 

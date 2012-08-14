@@ -478,7 +478,7 @@ int main(int argc, char *argv[]){
 
 	if (cfg->load(cfgfile)==-1){
 		fprintf(stderr,"No configuration file found at %s.\nPlease specify a valid configuration file.\n"
-		        "A default flexisip.conf.sample configuration file should be installed in "CONFIG_DIR"\n"
+		        "A default flexisip.conf.sample configuration file should be installed in " CONFIG_DIR "\n"
 		        "Please edit it and restart flexisip when ready.\n"
 		        "Alternatively a default configuration sample file can be generated at any time using --dump-default-config option.\n",cfgfile);
 		return -1;
