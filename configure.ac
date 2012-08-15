@@ -103,7 +103,7 @@ AC_ARG_ENABLE(pushnotification,
 if test x$pushnotification = xyes ; then
 	AX_BOOST_BASE([1.48],[pushnotification=yes],[pushnotification=no])
 	if test "$pushnotification" = "no" ; then
-		AC_MSG_ERROR([boost not found.])
+		AC_MSG_ERROR([boost not found. This is required for push notification. Use --disable-pushnotification if you don't need this feature.])
 	fi
 	CHECK_BOOST([AX_BOOST_SYSTEM], [HAVE_BOOST_SYSTEM], [], [AC_MSG_ERROR([boost system not found.])])
 	CHECK_BOOST([AX_BOOST_ASIO], [HAVE_BOOST_ASIO], [], [AC_MSG_ERROR([boost asio not found.])])
@@ -149,7 +149,8 @@ PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
 
 AM_CONDITIONAL(USE_DEB,test x$use_deb = xtrue)
 AM_CONDITIONAL(USE_RPM,test x$use_rpm = xtrue)
-AM_CONDITIONAL(CROSS_COMPILATION, test x$cross_compilation = xyes)
+dnl $cross_compiling is set by autoconf if we are in a cross-compile environment.
+AM_CONDITIONAL(CROSS_COMPILING, test x$cross_compiling = xyes)
 
 # Checks for programs
 
