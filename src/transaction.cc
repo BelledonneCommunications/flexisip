@@ -145,7 +145,7 @@ void IncomingTransaction::send(const shared_ptr<MsgSip> &ms) {
 	}
 }
 
-void IncomingTransaction::reply(const shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+void IncomingTransaction::reply(const shared_ptr<MsgSip> &msgIgnored, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncoming) {
 		ta_list ta;
 		ta_start(ta, tag, value);
