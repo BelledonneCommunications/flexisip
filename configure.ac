@@ -94,6 +94,24 @@ AC_DEFUN([CHECK_BOOST],[$1
     ]])], [$3], [$4])
 ])
 
+
+# Monotonic clock was not included in c++11x
+AC_LANG_PUSH([C++])
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([
+    #include <chrono>
+    using namespace ::std;
+    using namespace chrono;
+    steady_clock::time_point test;
+    ],[return 0;]
+  )],
+  [use_monotonic_clock=no],
+  [use_monotonic_clock=yes]
+)
+AC_LANG_POP([C++])
+AM_CONDITIONAL(USE_MONOTONIC_CLOCK,test x$use_monotonic_clock = xyes)
+
+
 AC_ARG_ENABLE(pushnotification,
 	AC_HELP_STRING([--disable-pushnotification],
 	    [Build pushnotification support @<:@yes@:>@]),

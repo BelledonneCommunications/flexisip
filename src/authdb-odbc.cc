@@ -24,8 +24,13 @@
 #include <chrono>
 
 using namespace ::std;
-
 using namespace chrono;
+
+#ifdef USE_MONOTONIC_CLOCK
+namespace std {
+	typedef monotonic_clock steady_clock;
+}
+#endif
 
 struct AuthDbTimingsAnalyzer;
 
