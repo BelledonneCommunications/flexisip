@@ -159,6 +159,21 @@ public:
 		}
 	}
 
+	void backwardIceTranslate(int mline, string *ip, int *port) {
+		if (*port == 0) {
+			//case of declined mline.
+			return;
+		}
+		if (mline >= sMaxSessions) {
+			return;
+		}
+		RelaySession *s = mSessions[mline].mRelaySession;
+		if (s != NULL) {
+			*port = s->getFronts().front()->getPort();
+			*ip = s->getFronts().front()->getIp();
+		}
+	}
+
 	shared_ptr<MediaSource> getMS(int mline, string tag, const shared_ptr<Transaction> &transaction) {
 		if (tag.empty()) {
 			auto it = mSessions[mline].mTransactions.find(transaction);
@@ -184,6 +199,24 @@ public:
 			if (ms != NULL) {
 				*port = ms->getRelayPort();
 				*ip = ms->getPublicIp();
+			} else {
+				*port = -1;
+				*ip = mServer->getAgent()->getPublicIp();
+			}
+
+		}
+	}
+
+	void forwardIceTranslate(int mline, string *ip, int *port, const string &tag, const shared_ptr<Transaction> &transaction) {
+		if (mline >= sMaxSessions) {
+			return;
+		}
+		RelaySession *s = mSessions[mline].mRelaySession;
+		if (s != NULL) {
+			auto ms = getMS(mline, tag, transaction);
+			if (ms != NULL) {
+				*port = ms->getPort();
+				*ip = ms->getIp();
 			} else {
 				*port = -1;
 				*ip = mServer->getAgent()->getPublicIp();
@@ -468,6 +501,9 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	else
 		m->translate(bind(&RelayedCall::backwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3));
 
+	if (c->getCallerTag() == from_tag)
+		m->addIceCandidate(bind(&RelayedCall::forwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, to_tag, ref(transaction)),
+			bind(&RelayedCall::backwardIceTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3));
 	m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	m->update(msg, sip);
 
@@ -558,6 +594,12 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 	if (c->getCallerTag() == from_tag)
 		c->validTransaction(to_tag, transaction);
 
+	if (m->hasAttribute(mSdpMangledParam.c_str())) {
+		LOGD("200 OK is already relayed");
+		delete m;
+		return;
+	}
+
 	// Set
 	if (c->getCallerTag() == from_tag)
 		m->iterate(bind(&RelayedCall::setBack, c, placeholders::_1, placeholders::_2, placeholders::_3, to_tag, ref(transaction)));
@@ -575,6 +617,9 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 	else
 		m->translate(bind(&RelayedCall::forwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, from_tag, ref(transaction)));
 
+	if (c->getCallerTag() == from_tag)
+		m->addIceCandidate(bind(&RelayedCall::backwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3),
+			bind(&RelayedCall::forwardIceTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, to_tag, ref(transaction)));
 	m->update(msg, sip);
 
 	delete m;

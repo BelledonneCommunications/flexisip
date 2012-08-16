@@ -19,6 +19,7 @@
 #include "sdp-modifier.hh"
 
 #include <sofia-sip/sip_protos.h>
+#include <sstream>
 
 using namespace ::std;
 
@@ -258,6 +259,63 @@ void SdpModifier::changeAudioIpPort(const char *ip, int port){
 			:mSession->sdp_connection->c_address=su_strdup(mHome,ip);
 	mSession->sdp_media->m_port=port;
 }
+
+void SdpModifier::changeMediaConnection(sdp_media_t *mline, const char *relay_ip){
+	sdp_connection_t *c;
+
+	if (mline->m_connections) {
+		su_free(mHome,mline->m_connections);
+	}
+	c=sdp_connection_dup(mHome,mSession->sdp_connection);
+	c->c_address=su_strdup(mHome,relay_ip);
+	if (sdp_connection_cmp(mSession->sdp_connection, c)) {
+		mline->m_connections=c;
+	} else {
+		su_free(mHome,c);
+	}
+}
+
+void SdpModifier::addIceCandidate(function<void(int, string *, int *)> forward_fct, function<void(int, string *, int *)> backward_fct)
+{
+	char foundation[32];
+	sdp_media_t *mline=mSession->sdp_media;
+	uint64_t r;
+	int i;
+	string global_c_address;
+
+	if (mSession->sdp_connection && mSession->sdp_connection->c_address) global_c_address=mSession->sdp_connection->c_address;
+
+	r = (((uint64_t)random()) << 32) | (((uint64_t)random()) & 0xffffffff);
+	snprintf(foundation, sizeof(foundation), "%llx", (long long unsigned int)r);
+	for(i=0;mline!=NULL;mline=mline->m_next,++i){
+		if (hasMediaAttribute(mline,"candidate") && !hasMediaAttribute(mline,"remote-candidates") && !hasMediaAttribute(mline,"nortpproxy")) {
+			string relay_ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
+			int relay_port=mline->m_port;
+			string source_ip=relay_ip;
+			int source_port=relay_port;
+			uint32_t priority;
+
+			forward_fct(i,&relay_ip,&relay_port);
+			backward_fct(i,&source_ip,&source_port);
+
+			for (uint16_t componentID=1; componentID<=2; componentID++) {
+				if (componentID == 1) {
+					/* Fix the connection line if needed */
+					changeMediaConnection(mline, relay_ip.c_str());
+				}
+				if (!hasIceCandidate(mline, relay_ip, relay_port + componentID - 1)) {
+					priority = (65535 << 8) | (256 - componentID);
+					ostringstream candidate_line;
+					candidate_line << foundation << ' ' << componentID << " UDP " << priority << ' ' << relay_ip << ' ' << relay_port + componentID - 1
+						<< " typ relay raddr " << source_ip << " rport " << source_port + componentID - 1;
+					addMediaAttribute(mline, "candidate", candidate_line.str().c_str());
+				}
+			}
+			addMediaAttribute(mline, "nortpproxy", "yes");
+		}
+	}
+}
+
 void SdpModifier::iterate(function<void(int, const string &, int )> fct){
 	sdp_media_t *mline=mSession->sdp_media;
 	int i;
@@ -275,6 +333,7 @@ void SdpModifier::iterate(function<void(int, const string &, int )> fct){
 
 void SdpModifier::translate(function<void(int, string *, int *)> fct){
 	sdp_media_t *mline=mSession->sdp_media;
+	sdp_attribute_t *rtcp_attribute;
 	int i;
 	string global_c_address;
 
@@ -284,6 +343,7 @@ void SdpModifier::translate(function<void(int, string *, int *)> fct){
 		string ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
 		int port=mline->m_port;
 
+		if (hasMediaAttribute(mline,"nortpproxy")) continue;
 		fct(i,&ip,&port);
 		
 		if (mline->m_connections){
@@ -292,11 +352,59 @@ void SdpModifier::translate(function<void(int, string *, int *)> fct){
 			mSession->sdp_connection->c_address=su_strdup(mHome,ip.c_str());
 		}
 		mline->m_port=port;
+		rtcp_attribute = sdp_attribute_find(mline->m_attributes,"rtcp");
+		if (rtcp_attribute) {
+			int previous_port;
+			string ip_version, network_family, protocol, rtcp_addr;
+			ostringstream ost;
+			ost << port + 1;
+			istringstream ist(string(rtcp_attribute->a_value));
+			ist >> previous_port;
+			if (!ist.eof()) ist >> network_family;
+			if (!ist.fail() && !ist.eof()) ist >> protocol;
+			if (!ist.fail() && !ist.eof()) ist >> rtcp_addr;
+			if (!ist.fail() && !ist.eof()) {
+				ost << ' ' << network_family << ' ' << protocol << ' ' << ip;
+			}
+			sdp_attribute_t *a=(sdp_attribute_t *)su_alloc(mHome, sizeof(sdp_attribute_t));
+			memset(a,0,sizeof(*a));
+			a->a_size=sizeof(*a);
+			a->a_name=su_strdup(mHome, "rtcp");
+			a->a_value=su_strdup(mHome, ost.str().c_str());
+			sdp_attribute_replace(&mline->m_attributes, a, 0);
+		}
 	}
 }
 
 bool SdpModifier::hasAttribute(const char *name) {
 	return sdp_attribute_find(mSession->sdp_attributes,name);
+}
+
+bool SdpModifier::hasMediaAttribute(sdp_media_t *mline, const char *name)
+{
+	return sdp_attribute_find(mline->m_attributes,name);
+}
+
+bool SdpModifier::hasIceCandidate(sdp_media_t *mline, const string &addr, int port)
+{
+	sdp_attribute_t *candidate = mline->m_attributes;
+
+	while ((candidate = sdp_attribute_find(candidate,"candidate")) != NULL) {
+		string foundation, protocol, candidate_addr, type;
+		int componentID, candidate_port;
+		uint32_t priority;
+		istringstream stream(string(candidate->a_value));
+		stream >> foundation;
+		stream >> componentID;
+		stream >> protocol;
+		stream >> priority;
+		stream >> candidate_addr;
+		stream >> candidate_port;
+		stream >> type;
+		if ((candidate_port == port) && (addr.compare(candidate_addr) == 0)) return true;
+		candidate = candidate->a_next;
+	}
+	return false;
 }
 
 void SdpModifier::addAttribute(const char *name, const char *value) {
@@ -308,8 +416,18 @@ void SdpModifier::addAttribute(const char *name, const char *value) {
 	sdp_attribute_append(&mSession->sdp_attributes,a);
 }
 
+void SdpModifier::addMediaAttribute(sdp_media_t *mline, const char *name, const char *value)
+{
+	sdp_attribute_t *a=(sdp_attribute_t *)su_alloc(mHome, sizeof(sdp_attribute_t));
+	memset(a,0,sizeof(*a));
+	a->a_size=sizeof(*a);
+	a->a_name=su_strdup(mHome, name);
+	a->a_value=su_strdup(mHome, value);
+	sdp_attribute_append(&mline->m_attributes,a);
+}
+
 void SdpModifier::update(msg_t *msg, sip_t *sip){
-	char buf[1024];
+	char buf[2048];
 	sdp_printer_t *printer = sdp_print(mHome, mSession, buf, sizeof(buf), 0);
 
 	if (sdp_message(printer)) {
