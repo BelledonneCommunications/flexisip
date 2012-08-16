@@ -105,6 +105,8 @@ void IncomingTransaction::handle(const shared_ptr<MsgSip> &ms) {
 	if (mIncoming != NULL) {
 		nta_incoming_bind(mIncoming, IncomingTransaction::_callback, (nta_incoming_magic_t*) this);
 		mSofiaRef = shared_from_this();
+
+		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Create);
 	} else {
 		LOGE("Error during incoming transaction creation");
 	}

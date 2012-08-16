@@ -177,8 +177,9 @@ shared_ptr<IncomingTransaction> RequestSipEvent::createIncomingTransaction() {
 	if (transaction == NULL) {
 		if (!mMsgSip->mOriginal) LOGA("It is too late to create an incoming transaction");
 		transaction = shared_ptr<IncomingTransaction>(new IncomingTransaction(mIncomingAgent->getAgent()));
-		transaction->handle(mMsgSip);
 		mIncomingAgent = transaction;
+
+		transaction->handle(mMsgSip);
 	}
 	return transaction;
 }

@@ -516,6 +516,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 				LOGD("Add fork %p to store %s", context.get(), sipUri.c_str());
 				incoming_transaction = ev->createIncomingTransaction();
 				incoming_transaction->setProperty<ForkContext>(Registrar::sInfo.getModuleName(), context);
+				context->onNew(incoming_transaction);
 			} else {
 				LOGW("Can't create fork for method %s", sip->sip_request->rq_method_name);
 				fork = false;
@@ -748,8 +749,7 @@ void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, T
 				remove = ptr->onDestroy(ot);
 				break;
 
-			case Transaction::Create:
-				ptr->onNew(ot);
+			case Transaction::Create: // Can't happen because property is set after this event
 				break;
 			}
 		}
