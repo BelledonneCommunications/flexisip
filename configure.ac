@@ -94,6 +94,24 @@ AC_DEFUN([CHECK_BOOST],[$1
     ]])], [$3], [$4])
 ])
 
+
+# Monotonic clock was not included in c++11x
+AC_LANG_PUSH([C++])
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([
+    #include <chrono>
+    using namespace ::std;
+    using namespace chrono;
+    steady_clock::time_point test;
+    ],[return 0;]
+  )],
+  [use_monotonic_clock=no],
+  [use_monotonic_clock=yes]
+)
+AC_LANG_POP([C++])
+AM_CONDITIONAL(USE_MONOTONIC_CLOCK,test x$use_monotonic_clock = xyes)
+
+
 AC_ARG_ENABLE(pushnotification,
 	AC_HELP_STRING([--disable-pushnotification],
 	    [Build pushnotification support @<:@yes@:>@]),
@@ -103,7 +121,7 @@ AC_ARG_ENABLE(pushnotification,
 if test x$pushnotification = xyes ; then
 	AX_BOOST_BASE([1.48],[pushnotification=yes],[pushnotification=no])
 	if test "$pushnotification" = "no" ; then
-		AC_MSG_ERROR([boost not found.])
+		AC_MSG_ERROR([boost not found. This is required for push notification. Use --disable-pushnotification if you don't need this feature.])
 	fi
 	CHECK_BOOST([AX_BOOST_SYSTEM], [HAVE_BOOST_SYSTEM], [], [AC_MSG_ERROR([boost system not found.])])
 	CHECK_BOOST([AX_BOOST_ASIO], [HAVE_BOOST_ASIO], [], [AC_MSG_ERROR([boost asio not found.])])
@@ -149,7 +167,8 @@ PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
 
 AM_CONDITIONAL(USE_DEB,test x$use_deb = xtrue)
 AM_CONDITIONAL(USE_RPM,test x$use_rpm = xtrue)
-AM_CONDITIONAL(CROSS_COMPILATION, test x$cross_compilation = xyes)
+dnl $cross_compiling is set by autoconf if we are in a cross-compile environment.
+AM_CONDITIONAL(CROSS_COMPILING, test x$cross_compiling = xyes)
 
 # Checks for programs
 

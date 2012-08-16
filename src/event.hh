@@ -57,7 +57,7 @@ public:
 	}
 
 	void log(const char * header = NULL, ...) ;//__attribute__((format(printf,2,3)));
-
+	msg_t *createOrigMsgRef() { return msg_ref_create(mOriginalMsg); }
 private:
 	MsgSip(msg_t *msg);
 	void defineMsg(msg_t *msg);

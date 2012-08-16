@@ -6,6 +6,8 @@ Flexisip depends on the following externals:
 -mediastreamer2
 -sofia-sip
 
+- autotools, libtool
+
 Optionally it also depends on:
 - net-snmp
 - odbc

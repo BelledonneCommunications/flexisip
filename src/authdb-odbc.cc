@@ -24,8 +24,13 @@
 #include <chrono>
 
 using namespace ::std;
-
 using namespace chrono;
+
+#ifdef USE_MONOTONIC_CLOCK
+namespace std {
+	typedef monotonic_clock steady_clock;
+}
+#endif
 
 struct AuthDbTimingsAnalyzer;
 
@@ -35,10 +40,10 @@ struct AuthDbTimings {
 	bool error;
 	AuthDbTimings():error(false){};
 
-	monotonic_clock::time_point tStart;
-	monotonic_clock::time_point tGotConnection;
-	monotonic_clock::time_point tGotResult;
-	monotonic_clock::time_point tEnd;
+	steady_clock::time_point tStart;
+	steady_clock::time_point tGotConnection;
+	steady_clock::time_point tGotResult;
+	steady_clock::time_point tEnd;
 
 	void done();
 };
@@ -58,7 +63,7 @@ struct AuthDbTimingsAnalyzer {
 	static int displayStatsInterval;
 	static int displayStatsAfterCount;
 
-	monotonic_clock::time_point lastDisplay;
+	steady_clock::time_point lastDisplay;
 	long errorCount;
 
 	long count;
@@ -73,7 +78,7 @@ struct AuthDbTimingsAnalyzer {
 	float durations[steps +1];
 
 	void reset() {
-		lastDisplay=monotonic_clock::now();
+		lastDisplay=steady_clock::now();
 		count=0;
 		errorCount=0;
 		slowCount=0;
@@ -89,7 +94,7 @@ struct AuthDbTimingsAnalyzer {
 		reset();
 	};
 
-	void compute(const char *name, monotonic_clock::time_point &t1, monotonic_clock::time_point &t2, bool error) {
+	void compute(const char *name, steady_clock::time_point &t1, steady_clock::time_point &t2, bool error) {
 		if (error) {
 			tMutex.lock();
 			++errorCount;
@@ -339,18 +344,18 @@ void OdbcAuthDb::stmtError(ConnectionCtx &ctx, const char* doing) {
 
 
 bool OdbcAuthDb::getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimings &timings) {
-	monotonic_clock::time_point tp1=monotonic_clock::now();
+	steady_clock::time_point tp1=steady_clock::now();
 	SQLRETURN retcode = SQLAllocHandle(SQL_HANDLE_DBC, env, &ctx.dbc);
 	if (!SQL_SUCCEEDED(retcode)) {
 		envError("SQLAllocHandle DBC");
 		return false;
 	}
-	monotonic_clock::time_point tp2=monotonic_clock::now();
+	steady_clock::time_point tp2=steady_clock::now();
 	LOGD("SQLAllocHandle: %s : %lu ms", id.c_str(), (unsigned long) duration_cast<milliseconds>(tp2-tp1).count());
 
 	retcode = SQLDriverConnect(ctx.dbc, NULL, (SQLCHAR*) connectionString.c_str(), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
 	if (!SQL_SUCCEEDED(retcode)) {dbcError(ctx, "SQLDriverConnect"); return false;}
-	LOGD("SQLDriverConnect %s : %lu ms", id.c_str(), (unsigned long) duration_cast<milliseconds>(monotonic_clock::now()-tp2).count());
+	LOGD("SQLDriverConnect %s : %lu ms", id.c_str(), (unsigned long) duration_cast<milliseconds>(steady_clock::now()-tp2).count());
 
 	// Set connection to be read only
 	SQLSetConnectAttr(ctx.dbc, SQL_ATTR_ACCESS_MODE, (SQLPOINTER)SQL_MODE_READ_ONLY, 0);
@@ -440,9 +445,9 @@ AuthDbResult OdbcAuthDb::password(su_root_t *root, const url_t *from, const char
 		return PENDING;
 	} else {
 		AuthDbTimings timings;
-		timings.tStart=monotonic_clock::now();
+		timings.tStart=steady_clock::now();
 		AuthDbResult ret = doRetrievePassword(id, domain, auth, foundPassword, timings);
-		timings.tEnd=monotonic_clock::now();
+		timings.tEnd=steady_clock::now();
 		if (ret == AUTH_ERROR) {
 			timings.error = true;
 		}
@@ -478,9 +483,9 @@ void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string doma
 	threadCountMutex.unlock();*/
 	string foundPassword;
 	AuthDbTimings timings;
-	timings.tStart=monotonic_clock::now();
+	timings.tStart=steady_clock::now();
 	AuthDbResult ret = doRetrievePassword(id, domain, auth, foundPassword, timings);
-	timings.tEnd=monotonic_clock::now();
+	timings.tEnd=steady_clock::now();
 	if (ret == AUTH_ERROR) {
 		timings.error = true;
 	}
@@ -537,7 +542,7 @@ AuthDbResult OdbcAuthDb::doRetrievePassword(const string &id, const string &doma
 		return AUTH_ERROR;
 	}
 
-	timings.tGotConnection=monotonic_clock::now();
+	timings.tGotConnection=steady_clock::now();
 	SQLHANDLE stmt=ctx.stmt;
 
 	strncpy(ctx.idCBuffer, id.c_str(), fieldLength), ctx.idCBuffer[fieldLength]=0;
@@ -587,7 +592,7 @@ AuthDbResult OdbcAuthDb::doRetrievePassword(const string &id, const string &doma
 		LOGD("No data fetched");
 		// Seems to be valid
 		closeCursor(stmt);
-		timings.tGotResult=monotonic_clock::now();
+		timings.tGotResult=steady_clock::now();
 		return PASSWORD_NOT_FOUND;
 	}
 
@@ -598,13 +603,13 @@ AuthDbResult OdbcAuthDb::doRetrievePassword(const string &id, const string &doma
 		if (retcode == SQL_SUCCESS_WITH_INFO) LOGD("SQLGetData success with info");
 		else LOGD("SQLGetData error or success with info - user not found??");
 		closeCursor(stmt);
-		timings.tGotResult=monotonic_clock::now();
+		timings.tGotResult=steady_clock::now();
 		return PASSWORD_NOT_FOUND;
 	}
 
 	closeCursor(stmt);
 
-	timings.tGotResult=monotonic_clock::now();
+	timings.tGotResult=steady_clock::now();
 	foundPassword.assign((char*)password);
 	string key(createPasswordKey(id, domain, auth));
 	cachePassword(key, domain, foundPassword, time(NULL));

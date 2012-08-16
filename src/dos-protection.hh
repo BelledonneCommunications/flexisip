@@ -30,7 +30,7 @@ class DosProtection : protected ConfigValueListener {
 	private:
 		DosProtection();
 		static void atexit(); // Don't call directly!
-		~DosProtection();
+		virtual ~DosProtection();
 		void load();
 		static DosProtection *sInstance;
 		int mPort;

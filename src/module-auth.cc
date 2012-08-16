@@ -141,7 +141,7 @@ private:
 		bool mImmediateRetrievePass;
 		auth_response_t mAr;
 		AuthenticationListener(Agent *, shared_ptr<RequestSipEvent>, bool);
-		~AuthenticationListener(){};
+		virtual ~AuthenticationListener(){};
 
 		void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
 		void checkPassword(const char *password);

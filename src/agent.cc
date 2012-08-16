@@ -624,7 +624,7 @@ void Agent::send(const shared_ptr<MsgSip> &ms) {
 void Agent::reply(const shared_ptr<MsgSip> &ms, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
 	ta_start(ta, tag, value);
-	msg_t* msg = msg_dup(ms->getMsg());
+	msg_t* msg = ms->createOrigMsgRef();
 	nta_msg_treply(mAgent, msg, status, phrase, ta_tags(ta));
 	ta_end(ta);
 }
