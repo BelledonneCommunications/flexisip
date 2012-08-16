@@ -749,7 +749,8 @@ void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, T
 				remove = ptr->onDestroy(ot);
 				break;
 
-			case Transaction::Create: // Can't happen because property is set after this event
+			case Transaction::Create:
+				ptr->onNew(ot);
 				break;
 			}
 		}
@@ -760,8 +761,7 @@ void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, T
 				remove = ptr->onDestroy(it);
 				break;
 
-			case Transaction::Create:
-				ptr->onNew(it);
+			case Transaction::Create: // Can't happen because property is set after this event
 				break;
 			}
 		}
