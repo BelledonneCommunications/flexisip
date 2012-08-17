@@ -30,6 +30,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
+#include <boost/version.hpp>
 
 class PushNotificationClient;
 
@@ -47,7 +48,9 @@ public:
 	~PushNotificationService();
 
 	std::string handle_password_callback(std::size_t max_length, boost::asio::ssl::context_base::password_purpose purpose) const;
+#if BOOST_VERSION >= 104800
 	bool handle_verify_callback(bool preverified, boost::asio::ssl::verify_context &ctx) const;
+#endif
 
 private:
 
@@ -60,8 +63,8 @@ private:
 	void clientEnded();
 
 private:
-	boost::asio::ssl::context mContext;
 	boost::asio::io_service mIOService;
+	boost::asio::ssl::context mContext;
 
 	std::thread *mThread;
 

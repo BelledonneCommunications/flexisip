@@ -71,14 +71,16 @@ void PushNotificationService::stop() {
 }
 
 PushNotificationService::PushNotificationService(int max_client, const string &ca, const string &cert, const string &key, const string &password) :
-		mContext(asio::ssl::context::sslv23_client), mIOService(), mThread(NULL), mPassword(password) {
+		mIOService(), mContext(mIOService, asio::ssl::context::sslv23_client), mThread(NULL), mPassword(password) {
 	system::error_code err;
 	mContext.set_options(asio::ssl::context::default_workarounds, err);
 	mContext.set_password_callback(bind(&PushNotificationService::handle_password_callback, this, _1, _2));
 
 	if (!ca.empty()) {
 		mContext.set_verify_mode(asio::ssl::context::verify_peer);
+#if BOOST_VERSION >= 104800
 		mContext.set_verify_callback(bind(&PushNotificationService::handle_verify_callback, this, _1, _2));
+#endif
 		mContext.load_verify_file(ca, err);
 		if (err) {
 			cerr << err << endl;
@@ -145,11 +147,14 @@ string PushNotificationService::handle_password_callback(size_t max_length, asio
 	return mPassword;
 }
 
+#if BOOST_VERSION >= 104800
 bool PushNotificationService::handle_verify_callback(bool preverified, asio::ssl::verify_context& ctx) const {
-	/*char subject_name[256];
-	 X509* cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
-	 X509_NAME_oneline(X509_get_subject_name(cert), subject_name, 256);
-	 cout << "Verifying " << subject_name << endl;*/
-
+	if (IS_LOGD) {
+		char subject_name[256];
+		X509* cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
+		X509_NAME_oneline(X509_get_subject_name(cert), subject_name, 256);
+		LOGD("Verifying %s", subject_name);
+	}
 	return preverified;
 }
+#endif
