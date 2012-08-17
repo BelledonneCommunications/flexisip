@@ -7,13 +7,13 @@ config_DATA=flexisip.conf.sample
 
 all-local:	flexisip.conf.sample
 
-#if CROSS_COMPILING
+if CROSS_COMPILING
 flexisip.conf.sample:
 	echo "#Empty config file due to cross compilation. Use flexisip --dump-default-config > flexisip.conf.sample on the target machine." > $@
-#else
+else
 flexisip.conf.sample:	$(top_builddir)/src/flexisip
 	$(top_builddir)/src/flexisip --dump-default-config > $@
-#endif
+endif
 
 OTHER_FLAGS=
 if BUILD_SNMP
