@@ -83,7 +83,7 @@ PushNotificationService::PushNotificationService(int max_client, const string &c
 #endif
 		mContext.load_verify_file(ca, err);
 		if (err) {
-			cerr << err << endl;
+			LOGE("load_verify_file: %s",err.message().c_str());
 		}
 	} else {
 		mContext.set_verify_mode(asio::ssl::context::verify_none);
@@ -92,14 +92,14 @@ PushNotificationService::PushNotificationService(int max_client, const string &c
 	if (!cert.empty()) {
 		mContext.use_certificate_file(cert, asio::ssl::context::file_format::pem, err);
 		if (err) {
-			cerr << err << endl;
+			LOGE("use_certificate_file: %s",err.message().c_str());
 		}
 	}
 
 	if (!key.empty()) {
 		mContext.use_private_key_file(key, asio::ssl::context::file_format::pem, err);
 		if (err) {
-			cerr << err << endl;
+			LOGE("use_private_key_file: %s",err.message().c_str());
 		}
 	}
 

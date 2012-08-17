@@ -57,11 +57,6 @@ AC_ARG_ENABLE(strict,
 )
 
 
-if test x$GCC$strictness = xyesyes ; then
-	CFLAGS="$CFLAGS -Wall -Werror -fno-strict-aliasing"
-	CXXFLAGS="$CXXFLAGS -Wall -Werror -fno-strict-aliasing"
-fi
-
 # Checks for libraries.
 AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],,[AC_MSG_ERROR("unixodbc headers missing.")])
 AC_CHECK_LIB(odbc, main,[ODBC_LIBS="-lodbc -lltdl"], [AC_MSG_ERROR("Linking against odbc failed.")])
@@ -119,7 +114,7 @@ AC_ARG_ENABLE(pushnotification,
 )
 
 if test x$pushnotification = xyes ; then
-	AX_BOOST_BASE([1.48],[pushnotification=yes],[pushnotification=no])
+	AX_BOOST_BASE([1.42],[pushnotification=yes],[pushnotification=no])
 	if test "$pushnotification" = "no" ; then
 		AC_MSG_ERROR([boost not found. This is required for push notification. Use --disable-pushnotification if you don't need this feature.])
 	fi
@@ -194,6 +189,12 @@ AM_CONDITIONAL([GENERATE_DOC], [test "x$pdflatex$doc" = xyesyes])
 CONFIG_DIR="\$(sysconfdir)/flexisip"
 
 AC_SUBST(CONFIG_DIR)
+
+#Keep this at the end
+if test x$GCC$strictness = xyesyes ; then
+        CFLAGS="$CFLAGS -Wall -Werror -fno-strict-aliasing"
+        CXXFLAGS="$CXXFLAGS -Wall -Werror -fno-strict-aliasing"
+fi
 
 
 AC_CONFIG_FILES(
