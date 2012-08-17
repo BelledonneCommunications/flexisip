@@ -11,8 +11,10 @@ AC_CONFIG_MACRO_DIR([m4])
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],)
 
 # Checks for programs.
+# Favor g++ 4.4 as (the one in Debian and centos stable versions).
+# Use ./configure CXX=path to override.
 AC_PROG_CC
-AC_PROG_CXX
+AC_PROG_CXX([g++-4.4 g++])
 AC_PROG_LIBTOOL
 
 build_snmp=true

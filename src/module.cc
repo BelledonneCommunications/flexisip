@@ -21,6 +21,8 @@
 #include "entryfilter.hh"
 #include "sofia-sip/auth_digest.h"
 
+#include "expressionparser.hh"
+
 #include <algorithm>
 using namespace::std;
 

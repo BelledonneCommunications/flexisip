@@ -21,6 +21,8 @@
 
 #include <list>
 #include <string>
+#include <memory>
+#include "expressionparser.hh"
 
 #include "agent.hh"
 
@@ -47,9 +49,8 @@ class ConfigEntryFilter : public EntryFilter {
 		virtual bool canEnter(sip_t *sip);
 		virtual bool isEnabled();
 	private:
-		std::list<std::string> mFromDomains;
-		std::list <std::string> mToDomains;
 		bool mEnabled;
+		std::shared_ptr<BooleanExpression> mBooleanExprFilter;
 };
 
 

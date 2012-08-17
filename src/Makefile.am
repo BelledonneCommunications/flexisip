@@ -28,7 +28,8 @@ flexisip_SOURCES=main.cc \
 			module-mediarelay.cc \
 			module-auth.cc \
 			module-loadbalancer.cc \
-			dos-protection.cc dos-protection.hh
+			dos-protection.cc dos-protection.hh \
+			expressionparser.cc expressionparser.hh
 
 
 if BUILD_SNMP
