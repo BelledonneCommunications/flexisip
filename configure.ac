@@ -100,13 +100,27 @@ AC_COMPILE_IFELSE(
     using namespace ::std;
     using namespace chrono;
     steady_clock::time_point test;
-    ],[return 0;]
+    ],[]
   )],
   [use_monotonic_clock=no],
   [use_monotonic_clock=yes]
 )
 AC_LANG_POP([C++])
 AM_CONDITIONAL(USE_MONOTONIC_CLOCK,test x$use_monotonic_clock = xyes)
+
+
+#AC_COMPILE_IFELSE(
+#  [AC_LANG_PROGRAM([
+#    #include "hiredis/async.h"
+#    void connectCb(const struct redisAsyncContext* ctx, int status){};
+#    ], [redisConnectCallback *cbNewUi=connectCb]
+#   )],
+#   [use_old_hiredis=no],
+#   [use_old_hiredis=yes]
+#)
+#AM_CONDITIONAL(WITHOUT_HIREDIS_CONNECT_CALLBACK,test x$use_old_hiredis = xyes)
+
+
 
 
 AC_ARG_ENABLE(pushnotification,
@@ -118,7 +132,7 @@ AC_ARG_ENABLE(pushnotification,
 if test x$pushnotification = xyes ; then
 	AX_BOOST_BASE([1.42],[pushnotification=yes],[pushnotification=no])
 	if test "$pushnotification" = "no" ; then
-		AC_MSG_ERROR([boost not found. This is required for push notification. Use --disable-pushnotification if you don't need this feature.])
+		AC_MSG_ERROR([boost not found. This is required for push notification. Use --disable-pushnotification if you don''t need this feature.])
 	fi
 	CHECK_BOOST([AX_BOOST_SYSTEM], [HAVE_BOOST_SYSTEM], [], [AC_MSG_ERROR([boost system not found.])])
 	CHECK_BOOST([AX_BOOST_ASIO], [HAVE_BOOST_ASIO], [], [AC_MSG_ERROR([boost asio not found.])])
@@ -142,6 +156,13 @@ if test x$redis = xyes ; then
 	fi
 fi
 AM_CONDITIONAL(BUILD_REDIS,test x$redis = xyes)
+
+PKG_CHECK_MODULES(HIREDISNEW,[hiredis >= 0.10.2],[use_old_hiredis=no],[use_old_hiredis=yes])
+AM_CONDITIONAL(WITHOUT_HIREDIS_CONNECT_CALLBACK,test x$use_old_hiredis = xyes)
+if test x$use_old_hiredis = xyes ; then
+    AC_MSG_WARN([Using hiredis without connect callback!])
+fi
+
 
 AC_ARG_ENABLE(protobuf,
 	AC_HELP_STRING([--enable-protobuf],

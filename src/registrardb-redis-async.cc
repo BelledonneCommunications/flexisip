@@ -59,8 +59,7 @@ RegistrarDbRedisAsync::~RegistrarDbRedisAsync(){
 }
 
 
-
-
+#ifndef WITHOUT_HIREDIS_CONNECT_CALLBACK
 void RegistrarDbRedisAsync::connectCallback(const redisAsyncContext *c, int status) {
     if (status != REDIS_OK) {
         LOGE("Couldn't connect to redis: %s", c->errstr);
@@ -70,6 +69,7 @@ void RegistrarDbRedisAsync::connectCallback(const redisAsyncContext *c, int stat
     }
     LOGD("Connected... %p", c);
 }
+#endif
 
 void RegistrarDbRedisAsync::disconnectCallback(const redisAsyncContext *c, int status) {
 	RegistrarDbRedisAsync *zis=(RegistrarDbRedisAsync *) c->data;
@@ -109,7 +109,10 @@ bool RegistrarDbRedisAsync::connect(){
         return false;
     }
 
+#ifndef WITHOUT_HIREDIS_CONNECT_CALLBACK
     redisAsyncSetConnectCallback(mContext, connectCallback);
+#endif
+
     redisAsyncSetDisconnectCallback(mContext, disconnectCallback);
 
     if (REDIS_OK != redisSofiaAttach(mContext, mRoot)){
