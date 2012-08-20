@@ -97,8 +97,8 @@ bool ConfigEntryFilter::canEnter(sip_t *sip){
 	SipArguments arguments(sip);
 	try {
 		return mBooleanExprFilter->eval(&arguments);
-	} catch (invalid_argument &e) {
-		LOGD("Entry forbidden on filtering error %s", e.what());
+	} catch (const invalid_argument *e) {
+		LOGD("Entry forbidden on filtering error %s", e->what());
 	}
 
 	return false;

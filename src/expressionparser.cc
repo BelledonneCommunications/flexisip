@@ -1,6 +1,7 @@
 
 #include <memory>
 #include <string>
+#include <cstring>
 #include <sstream>
 #include <iostream>
 #include <map>
@@ -67,7 +68,7 @@ public:
 
 		size_t pos1=0;
 		size_t pos2=0;
-		for (size_t pos2=0; pos2 < s.size(); ++pos2) {
+		for (pos2=0; pos2 < s.size(); ++pos2) {
 			if (s[pos2] != ' ') {
 				if (s[pos1] == ' ') pos1=pos2;
 				continue;
@@ -149,14 +150,30 @@ private:
 	shared_ptr<BooleanExpression> mExp;
 };
 
+
 class EqualsOp : public BooleanExpression{
 public:
 	EqualsOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2) : mVar1(var1), mVar2(var2){
 		log({"Creating EqualsOperator"});
 	};
 	virtual bool eval(const Arguments *args){
-		if (logEval) log({"evaluating ", mVar1->get(args), " and ", mVar2->get(args)});
+		if (logEval) log({"evaluating ", mVar1->get(args), " == ", mVar2->get(args)});
 		return mVar1->get(args)==mVar2->get(args);
+	}
+private:
+	shared_ptr<VariableOrConstant> mVar1,mVar2;
+};
+
+
+class UnEqualsOp : public BooleanExpression {
+public:
+	UnEqualsOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2)
+	: mVar1(var1), mVar2(var2){
+		log({"Creating UnEqualsOperator"});
+	};
+	virtual bool eval(const Arguments *args){
+		if (logEval) log({"evaluating ", mVar1->get(args), " != ", mVar2->get(args)});
+		return mVar1->get(args)!=mVar2->get(args);
 	}
 private:
 	shared_ptr<VariableOrConstant> mVar1,mVar2;
@@ -180,7 +197,7 @@ public:
 		const list<string> &values=mVar2->getAsList(args);
 		const string &varValue=mVar1->get(args);
 
-		if (logEval) log({"Evaluating '", varValue, "' IN ..."});
+		if (logEval) log({"Evaluating '", varValue, "' IN {", mVar2->get(args), "}"});
 		for (auto it=values.begin(); it != values.end(); ++it) {
 			if (logEval) log({"Trying '",  *it, "'"});
 			if (varValue == *it) return true;
@@ -280,7 +297,7 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 		{
 			size_t end=find_matching_closing_parenthesis(expr,i+1);
 			if (end!=string::npos){
-				cur_exp=parseExpression(expr.substr(i+1,end-i-1),&i);
+				cur_exp=parseExpression(expr.substr(i+1,end-i-1),&j);
 				i=end+1;
 			}else {
 				throw new invalid_argument("Missing parenthesis around " + expr);
@@ -312,11 +329,20 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 			}
 			break;
 		case '!':
-			i++;
-			if (cur_exp){
-				throw new invalid_argument("Parsing error around '!'");
+			if (expr[i+1]=='='){
+				if (!cur_var){
+					throw new invalid_argument("!= operator expects first variable or const operand.");
+				}
+				i+=2;
+				cur_exp=make_shared<UnEqualsOp>(cur_var,buildVariableOrConstant(expr.substr(i),&j));
 			}
-			cur_exp=make_shared<LogicalNot>(parseExpression(expr.substr(i),&j));
+			else {
+				if (cur_exp){
+					throw new invalid_argument("Parsing error around '!'");
+				}
+				i++;
+				cur_exp=make_shared<LogicalNot>(parseExpression(expr.substr(i),&j));
+			}
 			i+=j;
 			break;
 		case '=':
@@ -372,13 +398,31 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 class FakeArguments : public Arguments {
 	map<string,string> sArgs;
 
-public:
-	FakeArguments() {
-		sArgs= {
-				{"from","sip:guillaume.beraudo@linphone.org"},
-				{"ua","Linphone audio"},
-		};
+	void insertArg(char *keyval) {
+		cout << "Parsing keyval arg " << keyval << endl;
+		int i=0;
+		while(true) {
+			if (!keyval[i]) {
+				throw new invalid_argument("No character '=' in the string " + string(keyval));
+			} else if (keyval[i] == '=') {
+				keyval[i]=0;
+				sArgs.insert(make_pair(keyval, keyval+i+1));
+				return;
+			}
+			++i;
+		}
 	}
+public:
+	FakeArguments(const char *s) {
+		char *dup=strdup(s);
+		char *p = strtok(dup, "|");
+		while (p) {
+			insertArg(p);
+		    p = strtok(NULL, "|");
+		}
+		free(dup);
+	}
+
 	virtual string get(const std::string &arg) const {
 		auto it=sArgs.find(arg);
 		if (it != sArgs.end()) return (*it).second;
@@ -390,11 +434,22 @@ public:
 #ifdef TEST_BOOL_EXPR
 
 int main(int argc, char *argv[]){
-	shared_ptr<BooleanExpression> expr=BooleanExpression::parse(argv[1]);
-	if (expr){
-		FakeArguments args;
-		cout<<"Result: " << (expr->eval(&args) ? "true" : "false" )<< endl;
+	if (argc != 3 || argv[1] == "-h" || argv[1] =="--help") {
+		cout << argv[0] << " \"bool expr\" \"key1=val1|key2=val2\"" <<endl;
+		return 0;
 	}
+
+	try {
+		shared_ptr<BooleanExpression> expr=BooleanExpression::parse(argv[1]);
+		if (expr){
+			FakeArguments args(argv[2]);
+			cout<<"Result: " << (expr->eval(&args) ? "true" : "false" )<< endl;
+		}
+	} catch(invalid_argument *e){
+		std::cerr << "Invalid argument " << e->what() << std::endl;
+		throw;
+	}
+
 	return 0;
 }
 
