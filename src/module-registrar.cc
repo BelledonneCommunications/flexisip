@@ -707,8 +707,7 @@ void Registrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			}
 		}
 		if (sip->sip_request->rq_method == sip_method_ack) {
-			const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-			sip_route_t *route = ms->getSip()->sip_route;
+			sip_route_t *route = sip->sip_route;
 			bool routeAck=false;
 			while (route) {
 				if (!mAgent->isUs(route->r_url, true)) {

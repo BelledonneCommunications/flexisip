@@ -6,12 +6,13 @@ FLEXISIP=flexisip
 SIPP=sipp
 NB_USERS=1000
 EXPIRE=3600
-IP=`cat /etc/hosts | grep "sip.example.org" | grep "sip-auth.example.org" | grep "relayed-auth.example.org" | grep "relayed.example.org" | grep -v "#" | awk -F'\t' '{print $1}'`
-[ -z $IP ] && echo "ERROR: sip.example.org not found in /etc/hosts" && exit
-PROXY=sip.example.org
+IP=127.0.0.1
+DOMAIN=localhost
+PROXY=localhost
 REGISTER_PORT=5070
 USERS_PORT=5063
 INVITER_PORT=5064
+UA="Linphone/Linphone-3.3.x_(sipp/unknown)"
 
 # Import configuration
 FOLDER=$1
@@ -23,9 +24,12 @@ else
  echo -e "\033[1mNOT using authentication\033[0m"
 fi
 
-DOMAIN="sip.example.org$USE_AUTH"
-SDOMAIN="-set domain sip.example.org"
+DOMAIN="localhost"
+SDOMAIN="-set domain $DOMAIN"
 SEXPIRE="-set expire $EXPIRE"
+SUA="-set ua $UA"
+PWD="`pwd`"
+
 if [ -z $FOLDER ] 
 then
  echo "Usage ./launch folder, where folder is "
@@ -33,14 +37,15 @@ then
  exit
 fi
 [ ! -f $FOLDER/launch.config ] && echo "config file not found : "$FOLDER/launch.config"" && exit
-FLEX_OPTIONS="$FLEX_OPTIONS --configfile $FOLDER/flexisip.conf --port 5060"
+FLEX_OPTIONS="$FLEX_OPTIONS --configfile $FOLDER/flexisip.conf --port 5060 --set module::Authentication/datasource=$PWD/passwords"
+[ -z "$2" ] && FLEX_OPTIONS="$FLEX_OPTIONS --set module::Authentication/enabled=false"
 . $FOLDER/launch.config
 
 SIPP_COMMONS="$SIPP_COMMONS -i $IP -trace_err"
 REG_OPTIONS="$REG_OPTIONS -p 5070 -m `echo "1+$NB_USERS"|bc` $SIPP_COMMONS -inf authentication.csv $SDOMAIN $SEXPIRE"
-REG_INVITER_OPTIONS="$REG_INVITER_OPTIONS -p 5064 -m 1 $SIPP_COMMONS -nd"
-INV_OPTIONS="$INV_OPTIONS -m $NB_USERS -p 5064 $SIPP_COMMONS"
-UAS_OPTIONS="$UAS_OPTIONS -p 5063 -bg $SIPP_COMMONS -mi $IP -mp 15000 -rtp_echo"
+REG_INVITER_OPTIONS="$REG_INVITER_OPTIONS -p 5064 -m 1 $SIPP_COMMONS -nd $SDOMAIN $SEXPIRE $SUA"
+INV_OPTIONS="$INV_OPTIONS -m $NB_USERS -p 5064 $SIPP_COMMONS $SDOMAIN $SUA"
+UAS_OPTIONS="$UAS_OPTIONS -p 5063 $SIPP_COMMONS -mi $IP -mp 15000 -rtp_echo -bg"
 
 echo "NB_USERS=$NB_USERS"
 echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
@@ -60,7 +65,7 @@ $CMD_UAS 2>&1 > /dev/null
 CMD_FLEXISIP="$FLEXISIP $FLEX_OPTIONS"
 echo -e "\n\033[1mStart flexisip: \033[0m"
 echo $CMD_FLEXISIP
-$CMD_FLEXISIP 2>&1 > flexisip.log &
+$CMD_FLEXISIP &> flexisip.log &
 sleep 2s
 ps aux | grep flexisip | grep -v grep
 if [ $? -ne 0 ]; then
@@ -70,8 +75,8 @@ if [ $? -ne 0 ]; then
 fi
 
 
-CMD_REG_USERS="$SIPP $PROXY -sf register_users.xml $REG_OPTIONS"
-echo -e "\n\033[1mRegister users (never authenticated): \033[0m"
+CMD_REG_USERS="$SIPP $PROXY -sf register_users.xml $REG_OPTIONS -set ua noauth"
+echo -e "\n\033[1mRegister users: \033[0m"
 echo $CMD_REG_USERS
 $CMD_REG_USERS
 

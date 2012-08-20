@@ -3,7 +3,7 @@
 
 <scenario name="Register one user with authentication">
 
-<Global variables="userId,luserIpPort,domain,expire">
+<Global variables="userId,luserIpPort,domain,ua,expire">
   <action>
     <assign assign_to="userId" value="0" />
   </action>
@@ -29,7 +29,7 @@
 	CSeq: 1 REGISTER
 	Contact: [$luserAddContact]
 	Max-Forwards: 70
-	User-Agent: Linphone/Linphone-3.3.x (sipp/unknown)
+	User-Agent: [$ua]
 	Expires: [$expire]
 	Content-Length: 0
     ]]>
@@ -50,7 +50,7 @@
         Contact: [$luserAddContact]
         [field0]
         Max-Forwards: 70
-        User-Agent: Linphone/Linphone-3.3.x (sipp/unknown)
+        User-Agent: [$ua]
         Expires: [$expire]
         Content-Length: 0
     ]]>

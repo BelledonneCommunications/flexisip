@@ -3,7 +3,7 @@
 
 <scenario name="Register one user without authentication">
 
-<Global variables="userId,domain,expire">
+<Global variables="userId,domain,ua,expire">
   <action>
     <assign assign_to="userId" value="0" />
   </action>
@@ -29,7 +29,7 @@
 	CSeq: 1 REGISTER
 	Contact: [$luserAddContact]
 	Max-Forwards: 70
-	User-Agent: Linphone/Linphone-3.3.x (sipp/unknown)
+	User-Agent: [$ua]
 	Expires: [$expire]
 	Content-Length: 0
     ]]>

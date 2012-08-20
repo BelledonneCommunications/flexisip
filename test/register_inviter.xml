@@ -3,14 +3,14 @@
 
 <scenario>
 
-<Global variables="luserAdd,luserIpPort">
+<Global variables="luserAdd,domain,ua,expire,luserIpPort">
 </Global>
 
 <nop hide="true">
   <action>
     <assignstr assign_to="luserIpPort" value="[local_ip]:[local_port]" />   
     <assignstr assign_to="luserAdd" value="sip:[$luserIpPort]" />   
-    <assignstr assign_to="ruserAdd" value="sip:user0.000000@sip.example.org" /> 
+    <assignstr assign_to="ruserAdd" value="sip:user0.000000@[$domain]" /> 
   </action>
 </nop>
   
@@ -25,8 +25,8 @@
 	CSeq: 1 REGISTER
 	Contact: [$luserAdd]
 	Max-Forwards: 70
-	User-Agent: Linphone/Linphone-3.3.x (sipp/unknown)
-	Expires: 3600
+	User-Agent: [$ua]
+	Expires: [$expire]
 	Content-Length: 0
     ]]>
   </send>
