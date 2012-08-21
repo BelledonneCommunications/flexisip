@@ -261,12 +261,7 @@ void SdpModifier::changeAudioIpPort(const char *ip, int port){
 }
 
 void SdpModifier::changeMediaConnection(sdp_media_t *mline, const char *relay_ip){
-	sdp_connection_t *c;
-
-	if (mline->m_connections) {
-		su_free(mHome,mline->m_connections);
-	}
-	c=sdp_connection_dup(mHome,mSession->sdp_connection);
+	sdp_connection_t *c=sdp_connection_dup(mHome,mSession->sdp_connection);
 	c->c_address=su_strdup(mHome,relay_ip);
 	if (sdp_connection_cmp(mSession->sdp_connection, c)) {
 		mline->m_connections=c;
