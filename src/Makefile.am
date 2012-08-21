@@ -89,3 +89,5 @@ endif
 EXTRA_DIST=$(pb_files)
 
 
+clean-local:
+	rm $(builddir)/recordserializer-protobuf.pb* $(builddir)/pb_generated_src_stamp
