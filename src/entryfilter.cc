@@ -59,6 +59,7 @@ void ConfigEntryFilter::loadConfig(const GenericStruct  *mc){
 	}
 	mEnabled=mc->get<ConfigBoolean>("enabled")->read();
 	mBooleanExprFilter=BooleanExpression::parse(filter);
+	mEntryName=mc->getName();
 }
 
 class SipArguments : public Arguments {
@@ -107,7 +108,7 @@ bool ConfigEntryFilter::canEnter(sip_t *sip){
 	try {
 		return mBooleanExprFilter->eval(&arguments);
 	} catch (const invalid_argument *e) {
-		LOGD("Entry forbidden on filtering error %s", e->what());
+		LOGD("Entry to %s forbidden on filtering error %s", mEntryName.c_str(), e->what());
 	}
 
 	return false;
