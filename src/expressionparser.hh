@@ -23,6 +23,7 @@ class Arguments {
 public:
 	virtual ~Arguments(){};
 	virtual std::string get(const std::string &arg) const =0;
+	virtual bool isTrue(const std::string &arg) const =0;
 };
 
 class BooleanExpression{

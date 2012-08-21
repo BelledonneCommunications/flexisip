@@ -112,6 +112,16 @@ public:
 	}
 };
 
+class TrueFalseExpression : public BooleanExpression {
+	string mId;
+public:
+	TrueFalseExpression(const string &value) : mId(value){}
+	virtual bool eval(const Arguments *args){
+		if (mId == "true") return true;
+		if (mId == "false") return false;
+		return args->isTrue(mId);
+	}
+};
 
 class LogicalAnd : public BooleanExpression{
 public:
@@ -268,6 +278,7 @@ bool isKeyword(const string &expr, size_t *newpos, const string &keyword) {
 	if (availableLen > keyLen && isalnum(expr[pos+keyLen])) return false;
 
 	*newpos+=keyLen;
+	log({"Recognized keyword '", keyword, "'"});
 	return true;
 }
 
@@ -363,7 +374,6 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 			break;
 		case 'c':
 			if (isKeyword(expr.substr(i), &j, "contains")) {
-				log({"Recognized keyword 'contains'"});
 				i+=j;
 				j=0;
 				auto rightVar= buildVariableOrConstant(expr.substr(i),&j);
@@ -375,12 +385,32 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 			break;
 		case 'i':
 			if (isKeyword(expr.substr(i), &j, "in")) {
-				log({"Recognized keyword 'in'"});
-				i+=j;
-				j=0;
+				i+=j; j=0;
 				auto rightVar= buildVariableOrConstant(expr.substr(i),&j);
 				cur_exp=make_shared<InOp>(cur_var, rightVar);
 				i+=j;
+			} else if (isKeyword(expr.substr(i), &j, "is_request")) {
+				i+=j; j=0;
+				cur_exp=make_shared<TrueFalseExpression>("is_request");
+			} else if (isKeyword(expr.substr(i), &j, "is_response")) {
+				i+=j; j=0;
+				cur_exp=make_shared<TrueFalseExpression>("is_response");
+			} else {
+				cur_var=buildVariableOrConstant(expr.substr(i),&i);
+			}
+			break;
+		case 't':
+			if (isKeyword(expr.substr(i), &j, "true")) {
+				i+=j; j=0;
+				cur_exp=make_shared<TrueFalseExpression>("true");
+			} else {
+				cur_var=buildVariableOrConstant(expr.substr(i),&i);
+			}
+			break;
+		case 'f':
+			if (isKeyword(expr.substr(i), &j, "false")) {
+				i+=j; j=0;
+				cur_exp=make_shared<TrueFalseExpression>("false");
 			} else {
 				cur_var=buildVariableOrConstant(expr.substr(i),&i);
 			}
@@ -396,7 +426,8 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 
 
 class FakeArguments : public Arguments {
-	map<string,string> sArgs;
+	map<string,string> mStringArgs;
+	map<string,bool> mBoolArgs;
 
 	void insertArg(char *keyval) {
 		cout << "Parsing keyval arg " << keyval << endl;
@@ -406,7 +437,14 @@ class FakeArguments : public Arguments {
 				throw new invalid_argument("No character '=' in the string " + string(keyval));
 			} else if (keyval[i] == '=') {
 				keyval[i]=0;
-				sArgs.insert(make_pair(keyval, keyval+i+1));
+				char firstValueChar=keyval[i+1];
+				if (firstValueChar == '0') {
+					mBoolArgs.insert(make_pair(keyval, false));
+				} else if (firstValueChar == '1') {
+					mBoolArgs.insert(make_pair(keyval, true));
+				} else {
+					mStringArgs.insert(make_pair(keyval, keyval+i+1));
+				}
 				return;
 			}
 			++i;
@@ -423,19 +461,24 @@ public:
 		free(dup);
 	}
 
-	virtual string get(const std::string &arg) const {
-		auto it=sArgs.find(arg);
-		if (it != sArgs.end()) return (*it).second;
-		throw new runtime_error("unknown argument " + arg);
+	virtual string get(const std::string &id) const {
+		auto it=mStringArgs.find(id);
+		if (it != mStringArgs.end()) return (*it).second;
+		throw new runtime_error("unknown argument " + id);
 	}
 
+	virtual bool isTrue(const string &id) const {
+		auto it=mBoolArgs.find(id);
+		if (it != mBoolArgs.end()) return (*it).second;
+		throw new runtime_error("unknown argument " + id);
+	}
 };
 
 #ifdef TEST_BOOL_EXPR
 
 int main(int argc, char *argv[]){
 	if (argc != 3 || argv[1] == "-h" || argv[1] =="--help") {
-		cout << argv[0] << " \"bool expr\" \"key1=val1|key2=val2\"" <<endl;
+		cout << argv[0] << " \"bool expr\" \"key1=val1|key2=val2|key3=0|key4=1\"" <<endl;
 		return 0;
 	}
 

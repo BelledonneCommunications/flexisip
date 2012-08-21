@@ -48,13 +48,13 @@ void ConfigEntryFilter::loadConfig(const GenericStruct  *mc){
 	if (filter.empty()) {
 		string fromDomains=mc->get<ConfigString>("from-domains")->read();
 		if (!fromDomains.empty() && fromDomains != "*") {
-			filter = "fromdomain in '" + fromDomains + "'";
+			filter = "(from.uri.domain in '" + fromDomains + "')";
 		}
 
 		string toDomains=mc->get<ConfigString>("to-domains")->read();
 		if (!toDomains.empty() && toDomains != "*") {
 			if (!filter.empty()) filter += " && ";
-			filter += "todomain in '" + toDomains + "'";
+			filter += "(to.uri.domain in '" + toDomains + "')";
 		}
 	}
 	mEnabled=mc->get<ConfigBoolean>("enabled")->read();
@@ -62,32 +62,41 @@ void ConfigEntryFilter::loadConfig(const GenericStruct  *mc){
 }
 
 class SipArguments : public Arguments {
-	sip_t *mSip;
+	sip_t *sip;
 public:
-	SipArguments(sip_t *sip) : mSip(sip){};
-	virtual std::string get(const std::string &arg) const {
-		if (arg == "fromdomain") {
-			if (!mSip->sip_from || !mSip->sip_from->a_url || !mSip->sip_from->a_url[0].url_host) {
-				throw new invalid_argument("from domain not found in sip msg");
+	SipArguments(sip_t *sip) : sip(sip){};
+	virtual std::string get(const std::string &key) const {
+		if (key == "from.uri.domain") {
+			if (!sip->sip_from || !sip->sip_from->a_url || !sip->sip_from->a_url[0].url_host) {
+				throw new invalid_argument(key + " not found in sip msg");
 			}
-			return mSip->sip_from->a_url[0].url_host;
+			return sip->sip_from->a_url[0].url_host;
 		}
 
-		if (arg == "todomain") {
-			if (!mSip->sip_to || !mSip->sip_to->a_url || !mSip->sip_to->a_url[0].url_host) {
-				throw new invalid_argument("to domain not found in sip msg");
+		if (key == "to.uri.domain") {
+			if (!sip->sip_to || !sip->sip_to->a_url || !sip->sip_to->a_url[0].url_host) {
+				throw new invalid_argument(key + " not found in sip msg");
 			}
-			return mSip->sip_to->a_url[0].url_host;
+			return sip->sip_to->a_url[0].url_host;
 		}
 
-		if (arg == "ua" || arg == "useragent") {
-			if (!mSip->sip_user_agent || !mSip->sip_user_agent->g_string) {
-				throw new invalid_argument("ua not found in sip msg");
+		if (key == "ua" || key == "user-agent") {
+			if (!sip->sip_user_agent || !sip->sip_user_agent->g_string) {
+				throw new invalid_argument(key + " not found in sip msg");
 			}
-			return mSip->sip_user_agent->g_string;
+			return sip->sip_user_agent->g_string;
 		}
 
-		throw new runtime_error("unhandled arg " + arg);
+		throw new runtime_error("unhandled arg " + key);
+	}
+
+	virtual bool isTrue(const string &key) const {
+		if (key == "is_request") {
+			return sip_is_request((sip_header_t *)sip->sip_request);
+		} else if (key == "is_response") {
+			return !sip_is_request((sip_header_t *)sip->sip_request);
+		}
+		throw new runtime_error("unhandled true/false " + key);
 	}
 };
 
