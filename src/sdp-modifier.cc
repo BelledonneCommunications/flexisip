@@ -331,6 +331,7 @@ void SdpModifier::translate(function<void(int, string *, int *)> fct){
 	sdp_attribute_t *rtcp_attribute;
 	int i;
 	string global_c_address;
+	bool sdp_connection_translated = false;
 
 	if (mSession->sdp_connection && mSession->sdp_connection->c_address) global_c_address=mSession->sdp_connection->c_address;
 
@@ -343,8 +344,14 @@ void SdpModifier::translate(function<void(int, string *, int *)> fct){
 		
 		if (mline->m_connections){
 			mline->m_connections->c_address=su_strdup(mHome,ip.c_str());
-		}else if (i==0 && mSession->sdp_connection){
-			mSession->sdp_connection->c_address=su_strdup(mHome,ip.c_str());
+		}else if (mSession->sdp_connection){
+			if (sdp_connection_translated){
+				// If the global connection has already been translated, add a media specific connection if needed
+				changeMediaConnection(mline,ip.c_str());
+			}else{
+				mSession->sdp_connection->c_address=su_strdup(mHome,ip.c_str());
+				sdp_connection_translated = true;
+			}
 		}
 		mline->m_port=port;
 		rtcp_attribute = sdp_attribute_find(mline->m_attributes,"rtcp");
