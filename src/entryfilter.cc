@@ -64,38 +64,78 @@ void ConfigEntryFilter::loadConfig(const GenericStruct  *mc){
 
 class SipArguments : public Arguments {
 	sip_t *sip;
+
+	static string subKey(const string &key, size_t *pos) {
+		size_t dot=key.find('.', *pos)-*pos;
+		if (dot != string::npos) {
+			string id=key.substr(*pos, dot);
+//			LOGD("SUBKEY '%s' from '%s'", id.c_str(), key.c_str());
+			*pos+=dot+1;
+			return id;
+		}
+
+		if (key.size() != *pos) {
+//			LOGD("SUBKEY '%s'", key.c_str());
+			*pos=key.size();
+			return key;
+		}
+		return "";
+	}
+
+	static string cstring_get(const string &key, size_t pos, const char *str) {
+		if (!str) throw new invalid_argument("Null string found in sip msg for " + key);
+		return std::string(str);
+	}
+
+	static string url_get(const string &key, size_t pos, const url_t *url) {
+		string id=subKey(key, &pos);
+		if (!url) throw new invalid_argument("No url found in sip msg for " + key);
+		if (id == "domain") return cstring_get(key, pos, url->url_host);
+		if (id == "user") return cstring_get(key, pos, url->url_user);
+		throw new runtime_error("url_get: unhandled arg '" + id + "' in " + key);
+	}
+
+	static string addr_get(const string &key, size_t pos, const sip_addr_s *addr) {
+		string id=subKey(key, &pos);
+		if (!addr) throw new invalid_argument("No address found in sip msg for " + key);
+		if (id == "uri") return url_get(key, pos, addr->a_url);
+		throw new runtime_error("addr_get: unhandled arg '" + id + "' in " + key);
+	}
+
+	static string request_get(const string &key, size_t pos, const sip_request_t *req) {
+		string id=subKey(key, &pos);
+		if (!req) throw new invalid_argument("No request found in sip msg for " + key);
+		if (id == "uri") return url_get(key, pos, req->rq_url);
+		throw new runtime_error("request_get: unhandled arg '" + id + "' in " + key);
+	}
+
+	static string ua_get(const string &key, size_t pos, const sip_user_agent_t *ua)  {
+		if (!ua) throw new invalid_argument("No user-agent found in sip msg for " + key);
+		return cstring_get(key, pos, ua->g_string);
+	}
+
+	static bool is_request(sip_t *sip) {
+		return sip_is_request((sip_header_t *)sip->sip_request);
+	}
 public:
 	SipArguments(sip_t *sip) : sip(sip){};
 	virtual std::string get(const std::string &key) const {
-		if (key == "from.uri.domain") {
-			if (!sip->sip_from || !sip->sip_from->a_url || !sip->sip_from->a_url[0].url_host) {
-				throw new invalid_argument(key + " not found in sip msg");
-			}
-			return sip->sip_from->a_url[0].url_host;
-		}
+		size_t pos=0;
+		string id=subKey(key, &pos);
 
-		if (key == "to.uri.domain") {
-			if (!sip->sip_to || !sip->sip_to->a_url || !sip->sip_to->a_url[0].url_host) {
-				throw new invalid_argument(key + " not found in sip msg");
-			}
-			return sip->sip_to->a_url[0].url_host;
-		}
+		if (id == "from") return addr_get(key, pos, (sip_addr_s *)sip->sip_from);
+		if (id == "to") return addr_get(key, pos, (sip_addr_s *)sip->sip_to);
+		if (id == "request") return request_get(key, pos, sip->sip_request);
+		if (id == "ua" || id == "user-agent") return ua_get(key, pos, sip->sip_user_agent);
 
-		if (key == "ua" || key == "user-agent") {
-			if (!sip->sip_user_agent || !sip->sip_user_agent->g_string) {
-				throw new invalid_argument(key + " not found in sip msg");
-			}
-			return sip->sip_user_agent->g_string;
-		}
-
-		throw new runtime_error("unhandled arg " + key);
+		throw new runtime_error("unhandled arg '" + id + "' in '" + key+ "'");
 	}
 
 	virtual bool isTrue(const string &key) const {
 		if (key == "is_request") {
-			return sip_is_request((sip_header_t *)sip->sip_request);
+			return is_request(sip);
 		} else if (key == "is_response") {
-			return !sip_is_request((sip_header_t *)sip->sip_request);
+			return !is_request(sip);
 		}
 		throw new runtime_error("unhandled true/false " + key);
 	}

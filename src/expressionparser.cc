@@ -107,7 +107,12 @@ public:
 		log({"Creating variable ", val});
 	}
 	virtual const std::string &get(const Arguments *args) {
-		mVal=args->get(mId);
+		try {
+			mVal=args->get(mId);
+		} catch (exception *e) {
+			log({"GET ", mId, " : ", e->what()});
+			throw;
+		}
 		return mVal;
 	}
 };
