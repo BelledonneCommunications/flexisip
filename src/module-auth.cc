@@ -313,6 +313,13 @@ public:
 	void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
+
+		// Do it first to make sure no transaction is created which
+		// would send an unappropriate 100 trying response.
+		if (sip->sip_request->rq_method == sip_method_ack) {
+			LOGD("ACK are never challenged");
+			return;
+		}
 		// first check for auth module for this domain
 		auth_mod_t *am=findAuthModule(sip->sip_from->a_url[0].url_host);
 		if (am==NULL) {
