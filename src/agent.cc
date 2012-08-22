@@ -538,7 +538,7 @@ void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> &ev) {
 
 void Agent::sendTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
 	LOG_START
-	LOGD("Receiving new Transaction Event %p %s", transaction.get(),
+	LOGD("Propagating new Transaction Event %p %s", transaction.get(),
 			Transaction::eventStr(event));
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
