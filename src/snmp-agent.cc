@@ -23,17 +23,25 @@
 #include "snmp-agent.h"
 #include "configmanager.hh"
 
+using namespace std;
+
 SnmpAgent::~SnmpAgent() {
 	mTask.mKeepRunning=false;
 	LOGD("Waiting for the SNMP agent task to terminate");
 	mThread.join();
 }
 
-SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent,GenericManager& cm):mConfigmanager(cm),mAgent(agent) {
-	mKeepRunning=true;
+SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent,GenericManager& cm, map<string,string> &oset)
+:mConfigmanager(cm),mAgent(agent) {
+	bool disabled=oset.find("nosnmp") != oset.end();
+	mKeepRunning=!disabled;
 }
 
 void SnmpAgent::SnmpAgentTask::operator()() {
+	if (!mKeepRunning) {
+		LOGD("SNMP has been disabled");
+		return;
+	}
 	init_snmp("flexisip");
 	mConfigmanager.getSnmpNotifier()->setInitialized(true);
 	while (mKeepRunning) {
@@ -45,7 +53,8 @@ void SnmpAgent::SnmpAgentTask::operator()() {
 	SOCK_CLEANUP;
 }
 
-SnmpAgent::SnmpAgent(Agent& agent,GenericManager &cm): mTask(agent,cm),mThread(std::ref(mTask)){
+SnmpAgent::SnmpAgent(Agent& agent,GenericManager &cm, map<string,string> &oset)
+: mTask(agent,cm, oset),mThread(std::ref(mTask)){
 }
 
 

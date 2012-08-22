@@ -507,7 +507,7 @@ int main(int argc, char *argv[]){
 	root=su_root_create(NULL);
 	a=make_shared<Agent>(root,port,tlsport);
 #ifdef ENABLE_SNMP
-	SnmpAgent lAgent(*a,*cfg);
+	SnmpAgent lAgent(*a,*cfg, oset);
 #endif
 #ifdef ENABLE_TRANSCODER
 	if (oset.find("notrans") == oset.end()) ms_init();

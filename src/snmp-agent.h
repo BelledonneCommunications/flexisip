@@ -19,6 +19,7 @@
 #ifndef SNMP_AGENT_H_
 #define SNMP_AGENT_H_
 #include <thread>
+#include <map>
 #include "common.hh"
 
 class GenericManager;
@@ -26,14 +27,14 @@ class Agent;
 
 class SnmpAgent {
 public:
-	SnmpAgent(Agent& agent,GenericManager &cm);
+	SnmpAgent(Agent& agent,GenericManager &cm, std::map<std::string,std::string> &oset);
 	virtual ~SnmpAgent();
 
 private:
 	class SnmpAgentTask {
 		friend class SnmpAgent;
 	public:
-		SnmpAgentTask(Agent& agent, GenericManager &cm);
+		SnmpAgentTask(Agent& agent, GenericManager &cm, std::map<std::string,std::string> &oset);
 		void operator()() ;
 	private:
 		bool mKeepRunning;
