@@ -222,7 +222,7 @@ static size_t find_first_non_word(const string &expr, size_t offset) {
 	size_t i;
 	for(i=offset;i<expr.size();++i){
 		char c=expr[i];
-		if (!isalnum(c)) return i;
+		if (c != '.' && !isalnum(c)) return i;
 	}
 	return i;
 }
