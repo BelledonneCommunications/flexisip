@@ -104,7 +104,7 @@ class Variable : public VariableOrConstant {
 	string mVal;
 public:
 	Variable(const std::string &val): mId(val) {
-		log({"Creating variable ", val});
+		log({"Creating variable XX", val, "XX"});
 	}
 	virtual const std::string &get(const Arguments *args) {
 		try {
@@ -227,16 +227,17 @@ static size_t find_first_non_word(const string &expr, size_t offset) {
 	size_t i;
 	for(i=offset;i<expr.size();++i){
 		char c=expr[i];
-		if (c != '.' && !isalnum(c)) return i;
+		if (c != '-' && c != '.' && !isalnum(c)) return i;
 	}
 	return i;
 }
 
 shared_ptr<VariableOrConstant> buildVariableOrConstant(const string & expr, size_t *newpos){
-	log({"buildVariableOrConstant working on ", expr});
+	log({"buildVariableOrConstant working on XX", expr, "XX"});
 	int i;
 	for (i=0;expr[i]==' ';++i);
 	if (expr[i]=='\''){
+		// constant
 		size_t end=expr.find_first_of('\'',i+1);
 		if (end!=string::npos){
 			*newpos+=end+1;
@@ -246,9 +247,10 @@ shared_ptr<VariableOrConstant> buildVariableOrConstant(const string & expr, size
 			throw new invalid_argument("Missing quote around " + expr);
 		}
 	}else{
+		// variable
 		size_t eow=find_first_non_word(expr, *newpos);
 		if (eow <= *newpos) {
-			throw new invalid_argument("Unrecognized variable " + expr.substr(i,string::npos));
+			throw new invalid_argument("no variable recognized" + expr.substr(i,string::npos));
 		}
 		*newpos=eow;
 		auto identifier=expr.substr(i, eow);
@@ -385,7 +387,8 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 				cur_exp=make_shared<ContainsOp>(cur_var, rightVar);
 				i+=j;
 			} else {
-				cur_var=buildVariableOrConstant(expr.substr(i),&i);
+				cur_var=buildVariableOrConstant(expr.substr(i),&j);
+				i+=j;j=0;
 			}
 			break;
 		case 'i':
@@ -401,7 +404,8 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 				i+=j; j=0;
 				cur_exp=make_shared<TrueFalseExpression>("is_response");
 			} else {
-				cur_var=buildVariableOrConstant(expr.substr(i),&i);
+				cur_var=buildVariableOrConstant(expr.substr(i),&j);
+				i+=j;j=0;
 			}
 			break;
 		case 't':
@@ -409,7 +413,8 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 				i+=j; j=0;
 				cur_exp=make_shared<TrueFalseExpression>("true");
 			} else {
-				cur_var=buildVariableOrConstant(expr.substr(i),&i);
+				cur_var=buildVariableOrConstant(expr.substr(i),&j);
+				i+=j;j=0;
 			}
 			break;
 		case 'f':
@@ -417,11 +422,13 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 				i+=j; j=0;
 				cur_exp=make_shared<TrueFalseExpression>("false");
 			} else {
-				cur_var=buildVariableOrConstant(expr.substr(i),&i);
+				cur_var=buildVariableOrConstant(expr.substr(i),&j);
+				i+=j;j=0;
 			}
 			break;
 		default:
-			cur_var=buildVariableOrConstant(expr.substr(i),&i);
+			cur_var=buildVariableOrConstant(expr.substr(i),&j);
+			i+=j;j=0;
 			break;
 		}
 	}
@@ -457,11 +464,12 @@ class FakeArguments : public Arguments {
 	}
 public:
 	FakeArguments(const char *s) {
+		const char *sep = "|";
 		char *dup=strdup(s);
-		char *p = strtok(dup, "|");
+		char *p = strtok(dup, sep);
 		while (p) {
 			insertArg(p);
-		    p = strtok(NULL, "|");
+		    p = strtok(NULL, sep);
 		}
 		free(dup);
 	}

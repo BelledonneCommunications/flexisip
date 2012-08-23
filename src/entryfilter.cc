@@ -106,6 +106,7 @@ class SipArguments : public Arguments {
 		string id=subKey(key, &pos);
 		if (!req) throw new invalid_argument("No request found in sip msg for " + key);
 		if (id == "uri") return url_get(key, pos, req->rq_url);
+		if (id == "mn" || id == "method-name") return cstring_get(key, pos, req->rq_method_name);
 		throw new runtime_error("request_get: unhandled arg '" + id + "' in " + key);
 	}
 
