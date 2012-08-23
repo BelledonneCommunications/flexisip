@@ -172,8 +172,9 @@ public:
 		log({"Creating EqualsOperator"});
 	};
 	virtual bool eval(const Arguments *args){
-		if (logEval) log({"evaluating ", mVar1->get(args), " == ", mVar2->get(args)});
-		return mVar1->get(args)==mVar2->get(args);
+		bool res=mVar1->get(args)==mVar2->get(args);
+		if (logEval) log({"evaluating ", mVar1->get(args), " == ", mVar2->get(args), " : ", res?"true":"false"});
+		return res;
 	}
 private:
 	shared_ptr<VariableOrConstant> mVar1,mVar2;
@@ -187,8 +188,9 @@ public:
 		log({"Creating UnEqualsOperator"});
 	};
 	virtual bool eval(const Arguments *args){
-		if (logEval) log({"evaluating ", mVar1->get(args), " != ", mVar2->get(args)});
-		return mVar1->get(args)!=mVar2->get(args);
+		bool res=mVar1->get(args)!=mVar2->get(args);
+		if (logEval) log({"evaluating ", mVar1->get(args), " != ", mVar2->get(args), " : ", res?"true":"false"});
+		return res;
 	}
 private:
 	shared_ptr<VariableOrConstant> mVar1,mVar2;
@@ -198,7 +200,9 @@ class ContainsOp : public BooleanExpression{
 public:
 	ContainsOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2) : mVar1(var1), mVar2(var2){};
 	virtual bool eval(const Arguments *args){
-		return mVar1->get(args).find(mVar2->get(args))!=std::string::npos;
+		bool res=mVar1->get(args).find(mVar2->get(args))!=std::string::npos;
+		if (logEval) log({"evaluating ", mVar1->get(args), " contains ", mVar2->get(args), " : ", res?"true":"false"});
+		return res;
 	}
 private:
 	shared_ptr<VariableOrConstant> mVar1,mVar2;
@@ -209,15 +213,20 @@ class InOp : public BooleanExpression{
 public:
 	InOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2) : mVar1(var1), mVar2(var2){};
 	virtual bool eval(const Arguments *args){
+		bool res=false;
 		const list<string> &values=mVar2->getAsList(args);
 		const string &varValue=mVar1->get(args);
 
 		if (logEval) log({"Evaluating '", varValue, "' IN {", mVar2->get(args), "}"});
 		for (auto it=values.begin(); it != values.end(); ++it) {
 			if (logEval) log({"Trying '",  *it, "'"});
-			if (varValue == *it) return true;
+			if (varValue == *it) {
+				res=true;
+				break;
+			}
 		}
-		return false;
+		if (logEval) log({"->", res?"true":"false"});
+		return res;
 	}
 private:
 	shared_ptr<VariableOrConstant> mVar1,mVar2;
