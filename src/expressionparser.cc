@@ -32,7 +32,7 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
  */
 std::shared_ptr<BooleanExpression> BooleanExpression::parse(const std::string &str) {
 	if (str.empty()) return make_shared<EmptyBooleanExpression>();
-	unsigned long pos=0;
+	size_t pos=0;
 	auto expr = parseExpression(str, &pos);
 	return expr;
 }
