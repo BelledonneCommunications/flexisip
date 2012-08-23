@@ -155,6 +155,8 @@ void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 	if (mFilter->canEnter(ms->getSip())) {
 		LOGD("Invoking onRequest() on module %s", getModuleName().c_str());
 		onRequest(ev);
+	} else {
+		LOGD("Skipping onRequest() on module %s", getModuleName().c_str());
 	}
 }
 
@@ -163,6 +165,8 @@ void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 	if (mFilter->canEnter(ms->getSip())) {
 		LOGD("Invoking onResponse() on module %s", getModuleName().c_str());
 		onResponse(ev);
+	} else {
+		LOGD("Skipping onResponse() on module %s", getModuleName().c_str());
 	}
 }
 
