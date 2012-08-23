@@ -130,7 +130,7 @@ AC_ARG_ENABLE(pushnotification,
 )
 
 if test x$pushnotification = xyes ; then
-	AX_BOOST_BASE([1.42],[pushnotification=yes],[pushnotification=no])
+	AX_BOOST_BASE([1.41],[pushnotification=yes],[pushnotification=no])
 	if test "$pushnotification" = "no" ; then
 		AC_MSG_ERROR([boost not found. This is required for push notification. Use --disable-pushnotification if you don''t need this feature.])
 	fi
