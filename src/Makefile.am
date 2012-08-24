@@ -1,3 +1,5 @@
+SUBDIRS=test
+
 bin_PROGRAMS=flexisip
 flexisip_SOURCES=main.cc \
 			agent.cc agent.hh \

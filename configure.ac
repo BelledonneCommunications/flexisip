@@ -227,6 +227,7 @@ scripts/Makefile
 scripts/debian/Makefile
 scripts/redhat/Makefile
 src/Makefile
+src/test/Makefile
 doc/Makefile
 flexisip.spec
 ])

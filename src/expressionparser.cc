@@ -19,8 +19,18 @@
 using namespace::std;
 
 
+static string tf(bool value) {
+	return value?"true":"false";
+}
+
+string BooleanExpression::ptr() {
+	ostringstream oss;
+	oss << (long)this;
+	return oss.str();
+}
+
 class EmptyBooleanExpression : public BooleanExpression {
-	public:
+public:
 	EmptyBooleanExpression() {}
 	bool eval(const Arguments *args) { return true; }
 };
@@ -40,7 +50,9 @@ std::shared_ptr<BooleanExpression> BooleanExpression::parse(const std::string &s
 static bool logEval=true;
 static void log(initializer_list<string> tuple) {
 #ifdef TEST_BOOL_EXPR
-	for (string str : tuple) cout << str;
+	for (auto it=tuple.begin(); it != tuple.end(); ++it) {
+		cout << *it;
+	}
 	cout << endl;
 #else
 	if (IS_LOGD) {
@@ -129,15 +141,19 @@ public:
 };
 
 class LogicalAnd : public BooleanExpression{
+	shared_ptr<BooleanExpression> mExp1,mExp2;
 public:
 	LogicalAnd(shared_ptr<BooleanExpression> exp1, shared_ptr<BooleanExpression> exp2): mExp1(exp1), mExp2(exp2){
 		log({"Creating LogicalAnd"});
 	}
 	virtual bool eval(const Arguments *args){
-		return mExp1->eval(args) && mExp2->eval(args);
+		if (logEval) log({"eval && : ", ptr()});
+		bool e1=mExp1->eval(args);
+		if (logEval) log({"eval && : ", ptr(), "left exp =", tf(e1)});
+		bool res=e1 && mExp2->eval(args);
+		if (logEval) log({"eval && : ", ptr(), tf(res)});
+		return res;
 	}
-private:
-	shared_ptr<BooleanExpression> mExp1,mExp2;
 };
 
 
@@ -147,7 +163,13 @@ public:
 		log({"Creating LogicalOr"});
 	}
 	virtual bool eval(const Arguments *args){
-		return mExp1->eval(args) || mExp2->eval(args);
+		if (logEval) log({"eval || : ", ptr()});
+		bool e1=mExp1->eval(args);
+		if (logEval) log({"eval || : ", ptr(), "left exp =", tf(e1)});
+
+		bool res=e1 || mExp2->eval(args);
+		if (logEval) log({"eval || : ", tf(res)});
+		return res;
 	}
 private:
 	shared_ptr<BooleanExpression> mExp1,mExp2;
@@ -159,7 +181,9 @@ public:
 		log({"Creating LogicalNot"});
 	}
 	virtual bool eval(const Arguments *args){
-		return !mExp->eval(args);
+		bool res=!mExp->eval(args);
+		if (logEval) log({"evaluating logicalnot : ", res?"true":"false"});
+		return res;
 	}
 private:
 	shared_ptr<BooleanExpression> mExp;
@@ -194,6 +218,29 @@ public:
 	}
 private:
 	shared_ptr<VariableOrConstant> mVar1,mVar2;
+};
+
+
+class NumericOp : public BooleanExpression{
+	shared_ptr<VariableOrConstant> mVar;
+public:
+	NumericOp(shared_ptr<VariableOrConstant> var) : mVar(var){
+		log({"Creating NumericOperator"});
+	};
+	virtual bool eval(const Arguments *args){
+		string var=mVar->get(args);
+		bool res=true;
+		for (auto it=var.begin(); it != var.end(); ++it) {
+			if (!isdigit(*it)) {
+				res=false;
+				break;
+			}
+		}
+		if (logEval) log({"evaluating ", var, " is numeric : ", res?"true":"false"});
+		return res;
+	}
+private:
+
 };
 
 class ContainsOp : public BooleanExpression{
@@ -243,8 +290,9 @@ static size_t find_first_non_word(const string &expr, size_t offset) {
 
 shared_ptr<VariableOrConstant> buildVariableOrConstant(const string & expr, size_t *newpos){
 	log({"buildVariableOrConstant working on XX", expr, "XX"});
-	int i;
+	size_t i;
 	for (i=0;expr[i]==' ';++i);
+	*newpos+=i;
 	if (expr[i]=='\''){
 		// constant
 		size_t end=expr.find_first_of('\'',i+1);
@@ -258,8 +306,8 @@ shared_ptr<VariableOrConstant> buildVariableOrConstant(const string & expr, size
 	}else{
 		// variable
 		size_t eow=find_first_non_word(expr, *newpos);
-		if (eow <= *newpos) {
-			throw new invalid_argument("no variable recognized" + expr.substr(i,string::npos));
+		if (eow <= *newpos && expr.size() > eow) {
+			throw new invalid_argument("no variable recognized in X" + expr.substr(i,string::npos)+"XX");
 		}
 		*newpos=eow;
 		auto identifier=expr.substr(i, eow);
@@ -368,7 +416,33 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 					throw new invalid_argument("Parsing error around '!'");
 				}
 				i++;
-				cur_exp=make_shared<LogicalNot>(parseExpression(expr.substr(i),&j));
+				for (;expr[i]==' ';++i); //skip spaces (we are fair)
+
+				if (isKeyword(expr.substr(i), &(j=0), "true")) {
+					i+=j; j=0;
+					cur_exp=make_shared<TrueFalseExpression>("true");
+				} else if (isKeyword(expr.substr(i), &(j=0), "false")) {
+					i+=j; j=0;
+					cur_exp=make_shared<TrueFalseExpression>("false");
+				} else if (expr[i]=='(') {
+					size_t end=find_matching_closing_parenthesis(expr,i+1);
+					if (end!=string::npos){
+						cur_exp=parseExpression(expr.substr((i+1),end-(i+1)),&j);
+						i=end+1;
+						j=0; // no use
+					}else {
+						throw new invalid_argument("Missing parenthesis around " + expr);
+					}
+				} else {
+					ostringstream oss; oss << expr[i];
+					log({">", oss.str(), ""});
+					throw new invalid_argument("! operator expects boolean value or () expression.");
+
+				}
+
+				// Take the negation!
+				cur_exp=make_shared<LogicalNot>(cur_exp);
+
 			}
 			i+=j;
 			break;
@@ -435,6 +509,21 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 				i+=j;j=0;
 			}
 			break;
+		case 'n':
+			if (isKeyword(expr.substr(i), &j, "numeric")) {
+				if (cur_exp || cur_var){
+					throw new invalid_argument("Parsing error around 'numeric'");
+				}
+				i+=j; j=0;
+				auto var=buildVariableOrConstant(expr.substr(i),&j);
+				cur_exp=make_shared<NumericOp>(var);
+				i+=j; j=0;
+				// fixme should check all is finished now
+			} else {
+				cur_var=buildVariableOrConstant(expr.substr(i),&j);
+				i+=j;j=0;
+			}
+			break;
 		default:
 			cur_var=buildVariableOrConstant(expr.substr(i),&j);
 			i+=j;j=0;
@@ -445,79 +534,5 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 	return cur_exp;
 };
 
-
-class FakeArguments : public Arguments {
-	map<string,string> mStringArgs;
-	map<string,bool> mBoolArgs;
-
-	void insertArg(char *keyval) {
-		cout << "Parsing keyval arg " << keyval << endl;
-		int i=0;
-		while(true) {
-			if (!keyval[i]) {
-				throw new invalid_argument("No character '=' in the string " + string(keyval));
-			} else if (keyval[i] == '=') {
-				keyval[i]=0;
-				char firstValueChar=keyval[i+1];
-				if (firstValueChar == '0') {
-					mBoolArgs.insert(make_pair(keyval, false));
-				} else if (firstValueChar == '1') {
-					mBoolArgs.insert(make_pair(keyval, true));
-				} else {
-					mStringArgs.insert(make_pair(keyval, keyval+i+1));
-				}
-				return;
-			}
-			++i;
-		}
-	}
-public:
-	FakeArguments(const char *s) {
-		const char *sep = "|";
-		char *dup=strdup(s);
-		char *p = strtok(dup, sep);
-		while (p) {
-			insertArg(p);
-		    p = strtok(NULL, sep);
-		}
-		free(dup);
-	}
-
-	virtual string get(const std::string &id) const {
-		auto it=mStringArgs.find(id);
-		if (it != mStringArgs.end()) return (*it).second;
-		throw new runtime_error("unknown argument " + id);
-	}
-
-	virtual bool isTrue(const string &id) const {
-		auto it=mBoolArgs.find(id);
-		if (it != mBoolArgs.end()) return (*it).second;
-		throw new runtime_error("unknown argument " + id);
-	}
-};
-
-#ifdef TEST_BOOL_EXPR
-
-int main(int argc, char *argv[]){
-	if (argc != 3 || argv[1] == "-h" || argv[1] =="--help") {
-		cout << argv[0] << " \"bool expr\" \"key1=val1|key2=val2|key3=0|key4=1\"" <<endl;
-		return 0;
-	}
-
-	try {
-		shared_ptr<BooleanExpression> expr=BooleanExpression::parse(argv[1]);
-		if (expr){
-			FakeArguments args(argv[2]);
-			cout<<"Result: " << (expr->eval(&args) ? "true" : "false" )<< endl;
-		}
-	} catch(invalid_argument *e){
-		std::cerr << "Invalid argument " << e->what() << std::endl;
-		throw;
-	}
-
-	return 0;
-}
-
-#endif
 
 

@@ -19,12 +19,16 @@
 #ifndef expressionparser_hh
 #define expressionparser_hh
 
+#include <string>
+#include <memory>
+
 class Arguments {
 public:
 	virtual ~Arguments(){};
 	virtual std::string get(const std::string &arg) const =0;
 	virtual bool isTrue(const std::string &arg) const =0;
 };
+
 
 class BooleanExpression{
 protected:
@@ -33,6 +37,7 @@ public:
 		virtual bool eval(const Arguments *args)=0;
 		virtual ~BooleanExpression(){};
 		static std::shared_ptr<BooleanExpression> parse(const std::string &str);
+		std::string ptr();
 };
 
 
