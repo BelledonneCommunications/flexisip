@@ -47,7 +47,8 @@ std::shared_ptr<BooleanExpression> BooleanExpression::parse(const std::string &s
 	return expr;
 }
 
-static bool logEval=true;
+static bool logEval=false;
+void log_boolean_expression_evaluations(bool value) { logEval=value; }
 static void log(initializer_list<string> tuple) {
 #ifdef TEST_BOOL_EXPR
 	for (auto it=tuple.begin(); it != tuple.end(); ++it) {

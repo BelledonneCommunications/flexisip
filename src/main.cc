@@ -39,6 +39,8 @@
 #include <cstdio>
 #include <csignal>
 
+#include "expressionparser.hh"
+
 #include <sofia-sip/su_log.h>
 #ifdef ENABLE_SNMP
 #include "snmp-agent.h"
@@ -489,7 +491,9 @@ int main(int argc, char *argv[]){
 	if (!debug) debug=cfg->getGlobal()->get<ConfigBoolean>("debug")->read();
 
 	initialize (debug,useSyslog);
-	
+
+	log_boolean_expression_evaluations(oset.find("bee") != oset.end());
+
 	su_log_redirect(NULL,sofiaLogHandler,NULL);
 
 	/*
