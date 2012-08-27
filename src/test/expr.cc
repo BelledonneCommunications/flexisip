@@ -9,6 +9,7 @@
 using namespace std;
 
 static size_t count=0;
+static bool error_occured=false;
 
 
 class FakeArguments : public Arguments {
@@ -69,6 +70,7 @@ static void print_test_value(size_t nb, const char *expr, const char* args, bool
 	if (!success) {
 		cerr << " expected " << (expected ? string("true"):string("false")); 
 		cerr << " = " << string(expr) << endl << "[" << string(args) << "]";
+		error_occured=true;
 	}
 	cerr << endl;
 
@@ -184,15 +186,15 @@ int main(int argc, char *argv[]){
 	log_boolean_expression_evaluations(true);
 	if (argc == 1) {
 		do_predefined_tests();
-		return 0;
+		return error_occured;
 	} 
 
 	if (argc != 3 || string(argv[1]) == "-h" || string(argv[1]) =="--help") {
 		cout << argv[0] << " \"bool expr\" \"key1=val1|key2=val2|key3=0|key4=1\"" <<endl;
-		return 0;
+		return -1;
 	}
 
 	do_cmd_test(argc, argv);
-	return 0;
+	return error_occured;
 }
 
