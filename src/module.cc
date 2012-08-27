@@ -193,12 +193,12 @@ msg_auth_t *ModuleToolbox::findAuthorizationForRealm(su_home_t *home, msg_auth_t
 		auth_digest_response_get(home, &r, au->au_params);
 		LOGD("Examining auth digest response %s %s", r.ar_username, r.ar_realm);
 		if (strcasecmp(r.ar_realm, realm) ==0) {
-			LOGD("Right realm found : %s", r.ar_realm);
+			LOGD("Expected realm found : %s", r.ar_realm);
 			return au;
 		}
 		au=au->au_next;
 	}
-	LOGD("authorization with right realm not found");
+	LOGD("authorization with expected realm '%s' not found", realm);
 	return NULL;
 }
 
