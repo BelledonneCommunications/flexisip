@@ -25,11 +25,15 @@ class FakeArguments : public Arguments {
 			} else if (keyval[i] == '=') {
 				keyval[i]=0;
 				char firstValueChar=keyval[i+1];
-				if (firstValueChar == '0') {
+				char next=keyval[i+2];
+				if (firstValueChar == '0' && !next) {
+					cout << "Inserting bool " << keyval << "->" << "false" <<endl;
 					mBoolArgs.insert(make_pair(keyval, false));
-				} else if (firstValueChar == '1') {
+				} else if (firstValueChar == '1' && !next) {
+					cout << "Inserting bool " << keyval << "->" << "true" <<endl;
 					mBoolArgs.insert(make_pair(keyval, true));
 				} else {
+					cout << "Inserting string " << keyval << "->" << keyval+i+1 <<endl;
 					mStringArgs.insert(make_pair(keyval, keyval+i+1));
 				}
 				return;
@@ -153,6 +157,12 @@ void do_regex(void) {
 	btest_false("a regex 'toto'","a=titi");
 }
 
+void do_numeric(void) {
+	count=0; cerr << "Suite numeric" << endl;
+	btest_true("numeric aa","aa=12345");
+	btest_false("numeric a","a=123ip");
+}
+
 void do_predefined_tests(void) {
 	do_true_false();
 	do_or();
@@ -164,6 +174,7 @@ void do_predefined_tests(void) {
 	btest_false("false||(a=='toto')||false","a=titi");
 	btest_true("!(true) || true", "");
 
+	do_numeric();
 	do_regex();
 
 	do_interceptor_tests();

@@ -479,6 +479,10 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 				} else if (isKeyword(expr.substr(i), &(j=0), "false")) {
 					i+=j; j=0;
 					cur_exp=make_shared<TrueFalseExpression>("false");
+				} else if (isKeyword(expr.substr(i), &(j=0), "numeric")) {
+					i+=j; j=0;
+					auto var=buildVariableOrConstant(expr.substr(i),&j);
+					cur_exp=make_shared<NumericOp>(var);
 				} else if (expr[i]=='(') {
 					size_t end=find_matching_closing_parenthesis(expr,i+1);
 					if (end!=string::npos){
