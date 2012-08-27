@@ -142,7 +142,7 @@ public:
 	}
 };
 
-bool ConfigEntryFilter::canEnter(sip_t *sip){
+bool ConfigEntryFilter::canEnter(sip_t *sip) {
 	if (!mEnabled) return false;
 
 	SipArguments arguments(sip);
@@ -150,9 +150,8 @@ bool ConfigEntryFilter::canEnter(sip_t *sip){
 		return mBooleanExprFilter->eval(&arguments);
 	} catch (const invalid_argument *e) {
 		LOGD("Entry to %s forbidden on filtering error %s", mEntryName.c_str(), e->what());
+		throw;
 	}
-
-	return false;
 }
 
 bool ConfigEntryFilter::isEnabled(){

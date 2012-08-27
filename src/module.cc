@@ -152,21 +152,29 @@ void Module::reload() {
 
 void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	if (mFilter->canEnter(ms->getSip())) {
-		LOGD("Invoking onRequest() on module %s", getModuleName().c_str());
-		onRequest(ev);
-	} else {
-		LOGD("Skipping onRequest() on module %s", getModuleName().c_str());
+	try {
+		if(mFilter->canEnter(ms->getSip())) {
+			LOGD("Invoking onRequest() on module %s", getModuleName().c_str());
+			onRequest(ev);
+		} else {
+			LOGD("Skipping onRequest() on module %s", getModuleName().c_str());
+		}
+	} catch (const exception *e) {
+		LOGD("Skipping onRequest() on module %s (error)", getModuleName().c_str());
 	}
 }
 
 void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	if (mFilter->canEnter(ms->getSip())) {
-		LOGD("Invoking onResponse() on module %s", getModuleName().c_str());
-		onResponse(ev);
-	} else {
-		LOGD("Skipping onResponse() on module %s", getModuleName().c_str());
+	try {
+		if(mFilter->canEnter(ms->getSip())) {
+			LOGD("Invoking onResponse() on module %s", getModuleName().c_str());
+			onResponse(ev);
+		} else {
+			LOGD("Skipping onResponse() on module %s", getModuleName().c_str());
+		}
+	} catch (const exception *e) {
+		LOGD("Skipping onResponse() on module %s (error)", getModuleName().c_str());
 	}
 }
 
