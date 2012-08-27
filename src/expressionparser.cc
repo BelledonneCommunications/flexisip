@@ -11,6 +11,8 @@
 #include <algorithm>
 #include "expressionparser.hh"
 
+#include <regex.h>
+
 #ifndef TEST_BOOL_EXPR
 #include "common.hh"
 #endif
@@ -105,7 +107,7 @@ class Constant : public VariableOrConstant {
 	string mVal;
 public:
 	Constant(const std::string &val): mVal(val) {
-		log({"Creating constant ", val});
+		log({"Creating constant XX", val, "XX"});
 	}
 	virtual const std::string &get(const Arguments *args) {
 		return mVal;
@@ -240,11 +242,47 @@ public:
 		if (logEval) log({"evaluating ", var, " is numeric : ", res?"true":"false"});
 		return res;
 	}
-private:
+};
 
+class Regex : public BooleanExpression{
+	shared_ptr<VariableOrConstant> mInput;
+	shared_ptr<Constant> mPattern;
+	regex_t preg;
+	char error_msg_buff[100];
+public:
+	Regex(shared_ptr<VariableOrConstant> input, shared_ptr<Constant> pattern) : mInput(input),mPattern(pattern){
+		log({"Creating Regular Expression"});
+		string p= pattern->get(NULL);
+		int err = regcomp(&preg,p.c_str(), REG_NOSUB | REG_EXTENDED);
+		if (err !=0) throw new invalid_argument("couldn't compile regex " + p);
+	};
+	~Regex() {
+		regfree(&preg);
+	}
+	virtual bool eval(const Arguments *args){
+		string input=mInput->get(args);
+		int match = regexec(&preg, input.c_str(), 0, NULL, 0);
+		bool res;
+		switch (match) {
+		case 0:
+			res=true;
+			break;
+		case REG_NOMATCH:
+			res=false;
+			break;
+		default:
+			regerror (match, &preg, error_msg_buff, sizeof(error_msg_buff));
+			throw new invalid_argument("Error evaluating regex " + string(error_msg_buff));
+			break;
+		}
+
+		if (logEval) log({"evaluating ", input, " is regex  " , mPattern->get(NULL), " : ", res?"true":"false"});
+		return res;
+	}
 };
 
 class ContainsOp : public BooleanExpression{
+	shared_ptr<VariableOrConstant> mVar1,mVar2;
 public:
 	ContainsOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2) : mVar1(var1), mVar2(var2){};
 	virtual bool eval(const Arguments *args){
@@ -252,8 +290,6 @@ public:
 		if (logEval) log({"evaluating ", mVar1->get(args), " contains ", mVar2->get(args), " : ", res?"true":"false"});
 		return res;
 	}
-private:
-	shared_ptr<VariableOrConstant> mVar1,mVar2;
 };
 
 
@@ -289,30 +325,48 @@ static size_t find_first_non_word(const string &expr, size_t offset) {
 	return i;
 }
 
+
+shared_ptr<Variable> buildVariable(const string & expr, size_t *newpos){
+	log({"buildVariable working on XX", expr, "XX"});
+	while (expr[*newpos]==' ') *newpos+=1;
+
+	size_t eow=find_first_non_word(expr, *newpos);
+	if (eow <= *newpos && expr.size() > eow) {
+		throw new invalid_argument("no variable recognized in X" + expr.substr(*newpos,string::npos)+"XX");
+	}
+	size_t len=eow-*newpos;
+	auto var=expr.substr(*newpos, len);
+	*newpos+=len;
+	return make_shared<Variable>(var);
+}
+
+shared_ptr<Constant> buildConstant(const string & expr, size_t *newpos){
+	log({"buildConstant working on XX", expr, "XX"});
+	while (expr[*newpos]==' ') *newpos+=1;
+
+	if (expr[*newpos]!='\'')
+		throw new invalid_argument("Missing quote at start of " + expr);
+
+	size_t end=expr.find_first_of('\'',*newpos+1);
+	if (end!=string::npos){
+		size_t len=end-*newpos-1;
+		auto cons=expr.substr(*newpos+1,len);
+		*newpos+=len +2; // remove the two '
+		return make_shared<Constant>(cons);
+	}else {
+		throw new invalid_argument("Missing quote around " + expr);
+	}
+}
+
 shared_ptr<VariableOrConstant> buildVariableOrConstant(const string & expr, size_t *newpos){
 	log({"buildVariableOrConstant working on XX", expr, "XX"});
-	size_t i;
-	for (i=0;expr[i]==' ';++i);
-	*newpos+=i;
-	if (expr[i]=='\''){
-		// constant
-		size_t end=expr.find_first_of('\'',i+1);
-		if (end!=string::npos){
-			*newpos+=end+1;
-			auto constant=make_shared<Constant>(expr.substr(i+1,end-i-1));
-			return dynamic_pointer_cast<VariableOrConstant>(constant);
-		}else {
-			throw new invalid_argument("Missing quote around " + expr);
-		}
+	while (expr[*newpos]==' ') *newpos+=1;
+
+	if (expr[*newpos]=='\''){
+		auto constant=buildConstant(expr, newpos);
+		return dynamic_pointer_cast<VariableOrConstant>(constant);
 	}else{
-		// variable
-		size_t eow=find_first_non_word(expr, *newpos);
-		if (eow <= *newpos && expr.size() > eow) {
-			throw new invalid_argument("no variable recognized in X" + expr.substr(i,string::npos)+"XX");
-		}
-		*newpos=eow;
-		auto identifier=expr.substr(i, eow);
-		auto variable=make_shared<Variable>(identifier);
+		auto variable=buildVariable(expr, newpos);
 		return dynamic_pointer_cast<VariableOrConstant>(variable);
 
 	}
@@ -469,6 +523,18 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 				j=0;
 				auto rightVar= buildVariableOrConstant(expr.substr(i),&j);
 				cur_exp=make_shared<ContainsOp>(cur_var, rightVar);
+				i+=j;
+			} else {
+				cur_var=buildVariableOrConstant(expr.substr(i),&j);
+				i+=j;j=0;
+			}
+			break;
+		case 'r':
+			if (isKeyword(expr.substr(i), &j, "regex")) {
+				i+=j;
+				j=0;
+				auto pattern= buildConstant(expr.substr(i),&j);
+				cur_exp=make_shared<Regex>(cur_var, pattern);
 				i+=j;
 			} else {
 				cur_var=buildVariableOrConstant(expr.substr(i),&j);
