@@ -33,8 +33,8 @@ ConfigItemDescriptor config[]={
 	{	String,		"from-domains",	"Deprecated: List of domain names in sip from allowed to enter the module.",	"*"},
 	{	String,		"to-domains",	"Deprecated: List of domain names in sip to allowed to enter the module.",		"*"},
 	{	String,		"filter",		"A request/response enters module if the boolean filter evaluates to true. Ex:"
-			" from contains 'sip.linphone.org', fromdomains in 'a.org b.org c.org',"
-			" todomains in 'a.org b.org c.org', ua = 'Linphone v2'",
+			" from.uri.domain contains 'sip.linphone.org', from.uri.domain in 'a.org b.org c.org',"
+			" (to.uri.domain in 'a.org b.org c.org') && (user-agent == 'Linphone v2')",
 			""},
 	config_item_end
 };
