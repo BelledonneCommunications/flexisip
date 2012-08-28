@@ -423,8 +423,10 @@ void Registrar::onRegister(Agent *agent, shared_ptr<RequestSipEvent> &ev, sip_co
 		// First use sipURI
 		for(auto it = range.first; it != range.second; ++it) {
 			shared_ptr<ForkContext> context = it->second;
-			LOGD("Found a pending context for contact %s: %p", sipUri.c_str(), context.get());
-			dispatch(agent, context->getEvent(), ct, NULL, context);
+			if (!context->hasFinalResponse()){
+				LOGD("Found a pending context for contact %s: %p", sipUri.c_str(), context.get());
+				dispatch(agent, context->getEvent(), ct, NULL, context);
+			}
 		}
 
 		// If not found find in aliases
@@ -439,8 +441,10 @@ void Registrar::onRegister(Agent *agent, shared_ptr<RequestSipEvent> &ev, sip_co
 						pair<ForkMap::iterator, ForkMap::iterator> range = mForks.equal_range(uri);
 						for(auto it = range.first; it != range.second; ++it) {
 							shared_ptr<ForkContext> context = it->second;
-							LOGD("Found a pending context for contact %s: %p", uri.c_str(), context.get());
-							dispatch(agent, context->getEvent(), ct, NULL, context);
+							if (!context->hasFinalResponse()){
+								LOGD("Found a pending context for contact %s: %p", uri.c_str(), context.get());
+								dispatch(agent, context->getEvent(), ct, NULL, context);
+							}
 						}
 					}
 				}

@@ -36,6 +36,10 @@ ForkMessageContext::~ForkMessageContext() {
 	LOGD("Destroy ForkMessageContext %p", this);
 }
 
+bool ForkMessageContext::hasFinalResponse(){
+	return false;
+}
+
 void ForkMessageContext::cancel() {
 	cancelOthers();
 }

@@ -116,7 +116,7 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 
 shared_ptr<PushNotificationRequest> PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms){
 	sip_t *sip=ms->getSip();
-	shared_ptr<PushNotificationRequest> nullptr;
+	shared_ptr<PushNotificationRequest> zero;
 	if (sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_params != NULL){
 		char type[12];
 		char deviceToken[65];
@@ -129,22 +129,22 @@ shared_ptr<PushNotificationRequest> PushNotification::makePushNotification(const
 		char const *params=sip->sip_request->rq_url->url_params;
 		/*extract all parameters required to make the push notification */
 		if (!url_param(params, "pn-type", type, sizeof(type)))
-			return nullptr;
+			return zero;
 		if (!url_param(params, "app-id", appId, sizeof(appId)))
-			return nullptr;
+			return zero;
 		if (url_param(params, "pn-tok", deviceToken, sizeof(deviceToken)) != sizeof(deviceToken))
-			return nullptr;
+			return zero;
 		if (!url_param(params, "pn-msg-str", msg_str, sizeof(msg_str))) {
-			return nullptr;
+			return zero;
 		}
 		if (!url_param(params, "pn-call-str", call_str, sizeof(call_str))){
-			return nullptr;
+			return zero;
 		}
 		if (!url_param(params, "pn-call-snd", call_snd, sizeof(call_snd))){
-			return nullptr;
+			return zero;
 		}
 		if (!url_param(params, "pn-msg-snd", msg_snd, sizeof(msg_snd))){
-			return nullptr;
+			return zero;
 		}
 		string contact;
 		if(sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
@@ -161,7 +161,7 @@ shared_ptr<PushNotificationRequest> PushNotification::makePushNotification(const
 			//TODO
 		}
 	}
-	return nullptr;
+	return zero;
 }
 
 void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {

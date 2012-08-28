@@ -29,9 +29,10 @@ protected:
 	std::shared_ptr<RequestSipEvent> mEvent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
 	std::list<std::shared_ptr<OutgoingTransaction>> mOutgoings;
-
+	
 public:
 	ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event);
+	virtual bool hasFinalResponse(){return false;};
 	virtual ~ForkContext();
 	virtual void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
 	virtual void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event) = 0;

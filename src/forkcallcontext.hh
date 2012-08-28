@@ -35,6 +35,9 @@ private:
 
 public:
 	ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event);
+	bool hasFinalResponse()const{
+		return mFinal>0;
+	}
 	~ForkCallContext();
 	void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
 	void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event);

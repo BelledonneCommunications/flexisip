@@ -36,6 +36,7 @@ private:
 public:
 	ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event);
 	~ForkMessageContext();
+	virtual bool hasFinalResponse();
 	void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
 	void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event);
 	bool onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
