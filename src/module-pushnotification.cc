@@ -109,9 +109,8 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 
 void PushNotification::onLoad(const GenericStruct *mc) {
 	mTimeout = mc->get<ConfigInt>("timeout")->read();
-	string cafile = mc->get<ConfigString>("apple-ca")->read();
 	string certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
-	mAPNS = new PushNotificationService( certdir, cafile);
+	mAPNS = new PushNotificationService( certdir, "");
 	mAPNS->start();
 }
 
