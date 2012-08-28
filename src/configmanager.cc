@@ -311,8 +311,15 @@ oid Oid::oidFromHashedString(const string &str) {
 GenericEntry::GenericEntry(const string &name, GenericValueType type, const string &help,oid oid_index) :
 				mOid(0),mName(name),mReadOnly(false),mExportToConfigFile(true),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
 	mConfigListener=NULL;
-	if (strchr(name.c_str(),'_'))
-		LOGA("Underscores not allowed in config items, please use minus sign.");
+	size_t idx;
+	for(idx=0;idx<name.size();idx++){
+		if (name[idx]=='_')
+			LOGA("Underscores not allowed in config items, please use minus sign (while checking generic entry name '%s').",name.c_str());
+		if (type!= Struct && isupper(name[idx])){
+			LOGA("Uppercase characters not allowed in config items, please use lowercase characters only (while checking generic entry name '%s').",name.c_str());
+		}
+	}
+		
 	if (oid_index == 0) {
 		mOidLeaf = Oid::oidFromHashedString(name);
 	}
@@ -693,12 +700,12 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 	global->addChildrenValues(global_conf);
 	global->setConfigListener(this);
 
-	ConfigString *version=new ConfigString("versionNumber", "Flexisip version.", PACKAGE_VERSION, 999);
+	ConfigString *version=new ConfigString("version-number", "Flexisip version.", PACKAGE_VERSION, 999);
 	version->setReadOnly(true);
 	version->setExportToConfigFile(false);
 	global->addChild(version);
 
-	ConfigValue *runtimeError=new ConfigRuntimeError("runtimeError", "Retrieve current runtime error state", 998);
+	ConfigValue *runtimeError=new ConfigRuntimeError("runtime-error", "Retrieve current runtime error state", 998);
 	runtimeError->setExportToConfigFile(false);
 	runtimeError->setReadOnly(true);
 	global->addChild(runtimeError);

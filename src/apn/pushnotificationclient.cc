@@ -24,22 +24,23 @@
 using namespace ::std;
 using namespace ::boost;
 
-PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService *service) :
-		mService(service), mResolver(mService->getService()), mSocket(mService->getService(), mService->getContext()), mReady(true), mName(name) {
+PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService *service, std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host, const std::string &port) :
+		mService(service), mResolver(mService->getService()), mSocket(mService->getService(), *ctx), mContext(ctx), mReady(true), mName(name), mHost(host),mPort(port) {
 }
 
-void PushNotificationClient::start(const string &host, const string &port) {
+void PushNotificationClient::send(const vector<char> &data) {
+	mData = data;
 	LOGD("PushNotificationClient(%s) started", mName.c_str());
 	mReady = false;
 	if (!mSocket.lowest_layer().is_open()) {
-		connect(host, port);
+		connect();
 	} else {
 		send();
 	}
 }
 
-void PushNotificationClient::connect(const string &host, const string &port) {
-	asio::ip::tcp::resolver::query query(host, port);
+void PushNotificationClient::connect() {
+	asio::ip::tcp::resolver::query query(mHost, mPort);
 	mResolver.async_resolve(query, bind(&PushNotificationClient::handle_resolve, this, asio::placeholders::error, asio::placeholders::iterator));
 }
 
@@ -87,6 +88,8 @@ void PushNotificationClient::send() {
 void PushNotificationClient::handle_write(const system::error_code& error, size_t bytes_transferred) {
 	if (!error) {
 		LOGD("PushNotificationClient(%s) write done", mName.c_str());
+		mResponse.resize(512);
+		asio::async_read(mSocket,asio::buffer(mResponse),bind(&PushNotificationClient::handle_read, this, asio::placeholders::error, asio::placeholders::bytes_transferred));
 		onEnd();
 	} else {
 		LOGE("PushNotificationClient(%s) write failed", mName.c_str());
@@ -94,12 +97,16 @@ void PushNotificationClient::handle_write(const system::error_code& error, size_
 	}
 }
 
-void PushNotificationClient::setData(const vector<char> &data) {
-	mData = data;
-}
-
-const vector<char> &PushNotificationClient::getData() {
-	return mData;
+void PushNotificationClient::handle_read(const boost::system::error_code& error, size_t bytes_transferred){
+	if (!error) {
+		ostringstream response;
+		response<<(&mResponse[0]);
+		LOGD("PushNotificationClient(%s) read done: %s", mName.c_str(),response.str().c_str());
+		onEnd();
+	} else {
+		LOGE("PushNotificationClient(%s) read failed", mName.c_str());
+		onError();
+	}
 }
 
 bool PushNotificationClient::isReady() const {

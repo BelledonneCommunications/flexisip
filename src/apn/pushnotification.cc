@@ -21,24 +21,23 @@
 #include <string.h>
 #include <stdexcept>
 #include <boost/asio.hpp>
+#include <common.hh>
 
 using namespace ::std;
 
-
-ApplePushNotificationRequest::ApplePushNotificationRequest(const std::vector<char> &data) : mData(data) {
-
-}
-
 const int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 256;
 
-ApplePushNotificationRequest::ApplePushNotificationRequest(const std::string &deviceToken, const std::string &payload) {
+ApplePushNotificationRequest::ApplePushNotificationRequest(const string & appid, const std::string &deviceToken, const std::string &msg_id, const std::string &arg, const std::string &sound) : PushNotificationRequest(appid) {
 	std::vector<char> deviceData;
+	std::ostringstream payload;
 	int ret = formatDeviceToken(deviceToken, deviceData);
 	if (ret != 0) {
 		throw runtime_error("ApplePushNotification: Invalid deviceToken");
 		return;
 	}
-	ret = createPushNotification(deviceData, payload, mData);
+	payload<<"{\"aps\":{\"alert\":{\"loc-key\":\""<<msg_id<<"\",\"loc-args\":[\""<<arg<<"\"]},\"sound\":\""<<sound<<"\"}}";
+	LOGD("Push notification payload is %s",payload.str().c_str());
+	ret = createPushNotification(deviceData, payload.str(), mData);
 	if (ret != 0) {
 		if (ret == -1) {
 			throw runtime_error("ApplePushNotification: Invalid deviceToken");

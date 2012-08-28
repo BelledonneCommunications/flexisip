@@ -77,9 +77,9 @@ public:
 	virtual void onLoad(const GenericStruct *mc);
 
 private:
+	shared_ptr<PushNotificationRequest> makePushNotification(const shared_ptr<MsgSip> &ms);
 	static ModuleInfo<PushNotification> sInfo;
 	int mTimeout;
-	string mMessage;
 	PushNotificationService *mAPNS;
 };
 
@@ -101,103 +101,88 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 	ConfigItemDescriptor items[] = {
 			{ Integer, "timeout", "Number of second to wait before sending a push notification to device(if <=0 then disabled)", "5" },
 			{ Boolean, "apple", "Enable push notificaction for apple devices", "true" },
-			{ Integer, "apple-max-clients", "Number of maximum connexion to Apple Push Notification service", "5" },
-			{ String, "apple-message", "Template of message sended to device",
-			"{\"aps\":{\"alert\":{\"loc-key\":\"%1\",\"loc-args\":[\"%2\"]},\"sound\":\"%3\"}}"},
-			{ String, "apple-ca", "Path to Apple CA certificate", "" },
-			{ String, "apple-certificate", "Path to Apple Push Notificiation service certificate", "" },
-			{ String, "apple-private-key", "Path to Apple Push Notificiation service private key", "" },
-			{ String, "apple-password", "Private key password", "" },
+			{ String, "apple-certificate-dir", "Path to directory where to find Apple Push Notification service certificates. They should bear the appid of the application, suffixed by the release mode and .pem extension. For example: org.linphone.dev.pem org.linphone.prod.pem com.somephone.dev.pem etc..."
+			" The files should be .pem format, and made of certificate followed by private key." , "/etc/flexisip/apn" },
 			config_item_end };
 	module_config->addChildrenValues(items);
 }
 
 void PushNotification::onLoad(const GenericStruct *mc) {
 	mTimeout = mc->get<ConfigInt>("timeout")->read();
-	int max_client = mc->get<ConfigInt>("apple-max-clients")->read();
-	mMessage = mc->get<ConfigString>("apple-message")->read();
-	string ca = mc->get<ConfigString>("apple-ca")->read();
-	string cert = mc->get<ConfigString>("apple-certificate")->read();
-	string key = mc->get<ConfigString>("apple-private-key")->read();
-	string password = mc->get<ConfigString>("apple-password")->read();
-	mAPNS = new PushNotificationService(max_client, ca, cert, key, password);
+	string cafile = mc->get<ConfigString>("apple-ca")->read();
+	string certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
+	mAPNS = new PushNotificationService( certdir, cafile);
 	mAPNS->start();
+}
+
+shared_ptr<PushNotificationRequest> PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms){
+	sip_t *sip=ms->getSip();
+	if (sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_params != NULL){
+		char type[12];
+		char deviceToken[65];
+		char appId[256]={0};
+		char msg_str[64];
+		char call_str[64];
+		char call_snd[64];
+		char msg_snd[64];
+		
+		char const *params=sip->sip_request->rq_url->url_params;
+		/*extract all parameters required to make the push notification */
+		if (!url_param(params, "pn-type", type, sizeof(type)))
+			return 0;
+		if (!url_param(params, "app-id", appId, sizeof(appId)))
+			return 0;
+		if (url_param(params, "pn-tok", deviceToken, sizeof(deviceToken)) != sizeof(deviceToken))
+			return 0;
+		if (!url_param(params, "pn-msg-str", msg_str, sizeof(msg_str))) {
+			return 0;
+		}
+		if (!url_param(params, "pn-call-str", call_str, sizeof(call_str))){
+			return 0;
+		}
+		if (!url_param(params, "pn-call-snd", call_snd, sizeof(call_snd))){
+			return 0;
+		}
+		if (!url_param(params, "pn-msg-snd", msg_snd, sizeof(msg_snd))){
+			return 0;
+		}
+		string contact;
+		if(sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
+			contact = sip->sip_from->a_display;
+		} else {
+			contact = url_as_string(ms->getHome(), sip->sip_from->a_url);
+		}
+		if (strcmp(type,"apple")==0){
+			return make_shared<ApplePushNotificationRequest>(appId,deviceToken, 
+					(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
+					contact,
+					(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd);
+		}else if (strcmp(type,"google")==0){
+			//TODO
+		}
+	}
+	return 0;
 }
 
 void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	if (ms->getSip()->sip_request->rq_method == sip_method_invite ||
-	    ms->getSip()->sip_request->rq_method == sip_method_message) {
+	sip_t *sip=ms->getSip();
+	if ((sip->sip_request->rq_method == sip_method_invite ||
+		sip->sip_request->rq_method == sip_method_message) &&
+		sip->sip_to && sip->sip_to->a_tag==NULL){
 		shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 		if (transaction != NULL) {
 			sip_t *sip = ms->getSip();
 			if (sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_params != NULL) {
-				char deviceToken[65];
-				if (url_param(sip->sip_request->rq_url->url_params, "APN-TOK", deviceToken, sizeof(deviceToken)) == sizeof(deviceToken)) {
-					string data = mMessage;
-					{
-						char apnMessageId[64];
-						if(ms->getSip()->sip_request->rq_method == sip_method_invite) {
-							if (!url_param(sip->sip_request->rq_url->url_params, "APN-CAL", apnMessageId, sizeof(apnMessageId))) {
-								strcpy(apnMessageId, "INCOMING-CALL");
-							}
-						} else {
-							if (!url_param(sip->sip_request->rq_url->url_params, "APN-MSG", apnMessageId, sizeof(apnMessageId))) {
-								strcpy(apnMessageId, "INCOMING-MSG");
-							}
-						}
-
-						// Replace all instances of %1
-						size_t pos = 0;
-						while ((pos = data.find("%1", pos)) != string::npos) {
-							data.replace(pos, 2, apnMessageId);
-							pos += 2;
-						}
-					}
-					{
-						char apnSound[64];
-						if (ms->getSip()->sip_request->rq_method == sip_method_invite) {
-							if (!url_param(sip->sip_request->rq_url->url_params, "APN-CAL-SND", apnSound, sizeof(apnSound))) {
-								strcpy(apnSound, "");
-							}
-						} else {
-							if (!url_param(sip->sip_request->rq_url->url_params, "APN-MSG-SND", apnSound, sizeof(apnSound))) {
-								strcpy(apnSound, "");
-							}
-						}
-
-						// Replace all instances of %3
-						size_t pos = 0;
-						while ((pos = data.find("%3", pos)) != string::npos) {
-							data.replace(pos, 2, apnSound);
-							pos += 2;
-						}
-					}
-					{
-						string contact;
-						if(sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
-							contact = sip->sip_from->a_display;
-						} else {
-							contact = url_as_string(ms->getHome(), sip->sip_from->a_url);
-						}
-						// shrink data
-						contact = contact.substr(0, ApplePushNotificationRequest::MAXPAYLOAD_SIZE - (data.length() - 2));
-
-						// Replace all instances of %2
-						size_t pos = 0;
-						while ((pos = data.find("%2", pos)) != string::npos) {
-							data.replace(pos, 2, contact);
-							pos += 2;
-						}
-					}
-					try {
-						shared_ptr<PushNotificationRequest> request = make_shared<ApplePushNotificationRequest>(deviceToken, data);
+				try{
+					shared_ptr<PushNotificationRequest> request = makePushNotification(ms);
+					if (request){
 						shared_ptr<PushNotificationContext> context = make_shared<PushNotificationContext>(transaction, mAPNS, request);
 						context->start(mTimeout);
 						transaction->setProperty(getModuleName(), context);
-					} catch (exception &ex) {
-						LOGE("PushNotification: Can't create context %s", ex.what());
 					}
+				}catch(exception &e){
+					LOGE("Could not create push notification.");
 				}
 			}
 		}
