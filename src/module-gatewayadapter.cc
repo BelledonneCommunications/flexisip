@@ -249,7 +249,7 @@ private:
 	static ModuleInfo<GatewayAdapter> sInfo;
 	nua_t *nua;
 	url_t *gateway_url;
-	bool mRegisterOnGateway;
+	bool mRegisterOnGateway,mForkToGateway;
 	su_home_t home;
 };
 
@@ -270,8 +270,10 @@ void GatewayAdapter::onDeclare(GenericStruct *module_config) {
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = {
 			{ String, "gateway", "A gateway uri where to send all requests.", "sip:localhost:0" },
-			{ String, "gateway-domain", "Force the domain of send all requests", "" },
-			{ Boolean, "register-on-gateway", "Register the server on the gateway in order to get incoming calls.", "true" },
+			{ String, "gateway-domain", "Modify the from and to domains of incoming register", "" },
+			{ Boolean, "fork-to-gateway", "The gateway will be added to the incoming register contacts.", "true" },
+			{ Boolean, "register-on-gateway", "Send a REGISTER to the gateway using "
+					"this server as a contact in order to be notified on incoming calls by the gateway.", "true" },
 			config_item_end
 	};
 	module_config->addChildrenValues(items);
@@ -291,6 +293,7 @@ void GatewayAdapter::onLoad(const GenericStruct *module_config) {
 	//sendTrap("Error loading module Gateway adaptor");
 	string gateway = module_config->get<ConfigString>("gateway")->read();
 	mRegisterOnGateway=module_config->get<ConfigBoolean>("register-on-gateway")->read();
+	mForkToGateway=module_config->get<ConfigBoolean>("fork-to-gateway")->read();
 	gateway_url = url_make(&home, gateway.c_str());
 	if (mRegisterOnGateway) {
 		char *url = su_sprintf(&home, "sip:%s:*", mAgent->getPublicIp().c_str());
@@ -309,14 +312,16 @@ void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 				gr=new GatewayRegister(getAgent(), nua, sip->sip_from, sip->sip_to, sip->sip_contact);
 			}
 
-			sip_contact_t *contact = sip_contact_format(&home,
-					"<sip:%s@%s:%s>;expires=%i",
-					sip->sip_contact->m_url->url_user,
-					gateway_url->url_host,
-					gateway_url->url_port,
-					INT_MAX);
-			contact->m_next = sip->sip_contact;
-			sip->sip_contact = contact;
+			if (mForkToGateway) {
+				sip_contact_t *contact = sip_contact_format(&home,
+						"<sip:%s@%s:%s>;expires=%i",
+						sip->sip_contact->m_url->url_user,
+						gateway_url->url_host,
+						gateway_url->url_port,
+						INT_MAX);
+				contact->m_next = sip->sip_contact;
+				sip->sip_contact = contact;
+			}
 
 			if (mRegisterOnGateway) gr->start();
 		}
