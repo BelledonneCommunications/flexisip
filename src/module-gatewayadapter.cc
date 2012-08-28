@@ -38,6 +38,7 @@ class GatewayRegister {
 	sip_from_t *from;
 	sip_to_t *to;
 	string password;
+	string routingParam;
 	sip_contact_t *contact;
 public:
 	void sendRegister();
@@ -143,6 +144,7 @@ GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, si
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::GatewayAdapter");
 	string domainString = ma->get<ConfigString>("gateway-domain")->read();
+	routingParam = ma->get<ConfigString>("routing-param")->read();
 	if (!domainString.empty()) {
 		domain = url_make(&home, domainString.c_str());
 	}
@@ -175,6 +177,12 @@ void GatewayRegister::sendRegister() {
 	LOGD("Send REGISTER");
 	state = State::REGISTRING;
 
+	// Add a parameter with the domain so that when the gateway sends an INVITE
+	// to us we know where to route it.
+	ostringstream oss;
+	oss << routingParam << "=" << from->a_url->url_host;
+	string routing_param(oss.str());
+	url_param_add(&home, contact->m_url, routing_param.c_str());
 	nua_register(nh, SIPTAG_CONTACT(contact), TAG_END());
 }
 
@@ -250,6 +258,7 @@ private:
 	nua_t *nua;
 	url_t *gateway_url;
 	bool mRegisterOnGateway,mForkToGateway;
+	string mRoutingParam;
 	su_home_t home;
 };
 
@@ -274,6 +283,7 @@ void GatewayAdapter::onDeclare(GenericStruct *module_config) {
 			{ Boolean, "fork-to-gateway", "The gateway will be added to the incoming register contacts.", "true" },
 			{ Boolean, "register-on-gateway", "Send a REGISTER to the gateway using "
 					"this server as a contact in order to be notified on incoming calls by the gateway.", "true" },
+			{ String, "routing-param", "Parameter name hosting the incoming domain that will be sent in the register to the gateway.", "routing-domain" },
 			config_item_end
 	};
 	module_config->addChildrenValues(items);
@@ -294,6 +304,7 @@ void GatewayAdapter::onLoad(const GenericStruct *module_config) {
 	string gateway = module_config->get<ConfigString>("gateway")->read();
 	mRegisterOnGateway=module_config->get<ConfigBoolean>("register-on-gateway")->read();
 	mForkToGateway=module_config->get<ConfigBoolean>("fork-to-gateway")->read();
+	mRoutingParam= module_config->get<ConfigString>("routing-param")->read();
 	gateway_url = url_make(&home, gateway.c_str());
 	if (mRegisterOnGateway) {
 		char *url = su_sprintf(&home, "sip:%s:*", mAgent->getPublicIp().c_str());
@@ -324,6 +335,15 @@ void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			}
 
 			if (mRegisterOnGateway) gr->start();
+		}
+	} else {
+		/* check if request-uri contains a routing-domain parameter, so that we can route back to the client */
+		char routing_param[64];
+		url_t *dest = sip->sip_request->rq_url;
+		if (url_param(dest->url_params, mRoutingParam.c_str(), routing_param, sizeof(routing_param))) {
+			LOGD("Rewriting request uri and to with domain %s", routing_param);
+			dest->url_host=su_strdup(ms->getHome(), routing_param);
+			sip->sip_to->a_url[0].url_host=su_strdup(ms->getHome(), routing_param);
 		}
 	}
 }
