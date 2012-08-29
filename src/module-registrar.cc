@@ -778,7 +778,7 @@ void Registrar::onForkContextFinished(shared_ptr<ForkContext> ctx){
 	for (auto it = mForks.begin(); it != mForks.end(); ++it) {
 		if (it->second == ctx) {
 			LOGD("Remove fork %s from store", it->first.c_str());
-			it=mForks.erase(it);
+			mForks.erase(it);
 			break;
 		}
 	}
