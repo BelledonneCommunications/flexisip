@@ -23,13 +23,10 @@
 
 using namespace ::std;
 
-ForkCallContext::ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event) :
-		ForkContext(agent, event), mFinal(0) {
+ForkCallContext::ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
+		ForkContext(agent, event,cfg, listener), mFinal(0) {
 	LOGD("New ForkCallContext %p", this);
-	GenericStruct *cr = GenericManager::get()->getRoot();
-	GenericStruct *ma = cr->get<GenericStruct>("module::Registrar");
-	mForkOneResponse = ma->get<ConfigBoolean>("fork-one-response")->read();
-	mForkNoGlobalDecline = ma->get<ConfigBoolean>("fork-no-global-decline")->read();
+	
 }
 
 ForkCallContext::~ForkCallContext() {
@@ -154,7 +151,7 @@ void ForkCallContext::onNew(const shared_ptr<IncomingTransaction> &transaction) 
 	ForkContext::onNew(transaction);
 }
 
-bool ForkCallContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) {
+void ForkCallContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) {
 	return ForkContext::onDestroy(transaction);
 }
 
@@ -162,9 +159,8 @@ void ForkCallContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) 
 	ForkContext::onNew(transaction);
 }
 
-bool ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
-	ForkContext::onDestroy(transaction);
-	if (mOutgoings.size() == 0) {
+void ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
+	if (mOutgoings.size() == 1) {
 		if (mIncoming != NULL && mFinal == 0) {
 			if (mBestResponse == NULL) {
 				// Create response
@@ -180,5 +176,5 @@ bool ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transacti
 		mBestResponse.reset();
 		mIncoming.reset();
 	}
-	return mIncoming == NULL && mOutgoings.size() == 0;
+	ForkContext::onDestroy(transaction);
 }

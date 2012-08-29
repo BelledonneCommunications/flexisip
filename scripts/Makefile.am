@@ -1,6 +1,7 @@
 SUBDIRS=debian redhat
 
 
+OTHER_FLAGS=
 configdir=$(sysconfdir)/flexisip
 
 config_DATA=flexisip.conf.sample
@@ -15,7 +16,6 @@ flexisip.conf.sample:	$(top_builddir)/src/flexisip
 	$(top_builddir)/src/flexisip --dump-default-config > $@
 endif
 
-OTHER_FLAGS=
 if BUILD_SNMP
 OTHER_FLAGS += -DENABLE_SNMP $(shell net-snmp-config --cflags)
 endif

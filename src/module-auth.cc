@@ -261,7 +261,7 @@ public:
 			{	Integer		,	"cache-expire"	,	"Duration of the validity of the credentials added to the cache in seconds.",	"1800"	},
 			{	Boolean		,	"immediate-retrieve-password"	,	"Retrieve password immediately so that it is cached when an authenticated request arrives.",	"true"},
 			{	Boolean		,	"hashed-passwords"	,	"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).", "false" },
-			{	Boolean		,	"newAuth-on-407"	,	"When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false" },
+			{	Boolean		,	"new-auth-on-407"	,	"When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false" },
 			config_item_end
 		};
 		mc->addChildrenValues(items);
@@ -298,7 +298,7 @@ public:
 		mTrustedHosts=mc->get<ConfigStringList>("trusted-hosts")->read();
 		dbUseHashedPasswords = mc->get<ConfigBoolean>("hashed-passwords")->read();
 		mImmediateRetrievePassword = mc->get<ConfigBoolean>("immediate-retrieve-password")->read();
-		mNewAuthOn407 = mc->get<ConfigBoolean>("newAuth-on-407")->read();
+		mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
 	}
 
 	auth_mod_t *findAuthModule(const char *name) {

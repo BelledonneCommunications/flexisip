@@ -23,17 +23,17 @@
 
 using namespace ::std;
 
-ForkMessageContext::ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event) :
-		ForkContext(agent, event), mFinal(0) {
+ForkMessageContext::ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
+		ForkContext(agent, event,cfg,listener), mFinal(0) {
 	LOGD("New ForkMessageContext %p", this);
-	GenericStruct *cr = GenericManager::get()->getRoot();
-	GenericStruct *ma = cr->get<GenericStruct>("module::Registrar");
-	mForkOneResponse = ma->get<ConfigBoolean>("fork-one-response")->read();
-	mForkNoGlobalDecline = ma->get<ConfigBoolean>("fork-no-global-decline")->read();
 }
 
 ForkMessageContext::~ForkMessageContext() {
 	LOGD("Destroy ForkMessageContext %p", this);
+}
+
+bool ForkMessageContext::hasFinalResponse(){
+	return false;
 }
 
 void ForkMessageContext::cancel() {
@@ -44,7 +44,7 @@ void ForkMessageContext::forward(const shared_ptr<SipEvent> &ev, bool force) {
 	sip_t *sip = ev->getMsgSip()->getSip();
 	bool fakeSipEvent = (mFinal > 0 && !force) || mIncoming == NULL;
 
-	if (mForkOneResponse) { // TODO: respect RFC 3261 16.7.5
+	if (mCfg->mForkOneResponse) { // TODO: respect RFC 3261 16.7.5
 		if (sip->sip_status->st_status == 183 || sip->sip_status->st_status == 180) {
 			auto it = find(mForwardResponses.begin(), mForwardResponses.end(), sip->sip_status->st_status);
 			if (it != mForwardResponses.end()) {
@@ -65,7 +65,7 @@ void ForkMessageContext::forward(const shared_ptr<SipEvent> &ev, bool force) {
 }
 
 void ForkMessageContext::decline(const shared_ptr<OutgoingTransaction> &transaction, shared_ptr<ResponseSipEvent> &ev) {
-	if (!mForkNoGlobalDecline) {
+	if (!mCfg->mForkNoGlobalDecline) {
 		cancelOthers(transaction);
 
 		forward(ev);
@@ -134,7 +134,7 @@ void ForkMessageContext::onResponse(const shared_ptr<OutgoingTransaction> &trans
 			forward(event);
 			return;
 		} else if (sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 300) {
-			if (mForkOneResponse) // TODO: respect RFC 3261 16.7.5
+			if (mCfg->mForkOneResponse) // TODO: respect RFC 3261 16.7.5
 				cancelOthers(transaction);
 			forward(event, true);
 			return;
@@ -154,17 +154,16 @@ void ForkMessageContext::onNew(const shared_ptr<IncomingTransaction> &transactio
 	ForkContext::onNew(transaction);
 }
 
-bool ForkMessageContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) {
-	return ForkContext::onDestroy(transaction);
+void ForkMessageContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) {
+	ForkContext::onDestroy(transaction);
 }
 
 void ForkMessageContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) {
 	ForkContext::onNew(transaction);
 }
 
-bool ForkMessageContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
-	ForkContext::onDestroy(transaction);
-	if (mOutgoings.size() == 0) {
+void ForkMessageContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
+	if (mOutgoings.size() == 1) {
 		if (mIncoming != NULL && mFinal == 0) {
 			if (mBestResponse == NULL) {
 				// Create response
@@ -180,5 +179,5 @@ bool ForkMessageContext::onDestroy(const shared_ptr<OutgoingTransaction> &transa
 		mBestResponse.reset();
 		mIncoming.reset();
 	}
-	return mIncoming == NULL && mOutgoings.size() == 0;
+	ForkContext::onDestroy(transaction);
 }

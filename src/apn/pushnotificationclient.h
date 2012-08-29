@@ -28,34 +28,30 @@
 
 class PushNotificationClient {
 public:
-	PushNotificationClient(const std::string &name, PushNotificationService *service);
-
-	void setData(const std::vector<char> &data);
-	const std::vector<char> &getData();
-
-	void start(const std::string &host, const std::string &port);
-
+	PushNotificationClient(const std::string &name, PushNotificationService *service, std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host, const std::string &port);
+	void send(const std::vector<char> &data);
+	bool isReady() const;
+protected:
 	void handle_resolve(const boost::system::error_code& error, boost::asio::ip::tcp::resolver::iterator endpoint_iterator);
 	void handle_connect(const boost::system::error_code& error, boost::asio::ip::tcp::resolver::iterator endpoint_iterator);
 	void handle_handshake(const boost::system::error_code& error);
 	void handle_write(const boost::system::error_code& error, size_t bytes_transferred);
 	void handle_read(const boost::system::error_code& error, size_t bytes_transferred);
-	bool isReady() const;
-
 private:
-	void connect(const std::string &host, const std::string &port);
 	void send();
 	void onEnd();
 	void onError();
-
+	void connect();
 private:
 	PushNotificationService *mService;
 	boost::asio::ip::tcp::resolver mResolver;
 	boost::asio::ssl::stream<boost::asio::ip::tcp::socket> mSocket;
+	std::shared_ptr<boost::asio::ssl::context> mContext;
 	bool mReady;
 	std::vector<char> mData;
-	boost::asio::streambuf mResponse;
+	std::vector<char> mResponse;
 	std::string mName;
+	std::string mHost,mPort;
 };
 
 #endif //PUSH_NOTIFICATION_CLIENT_H

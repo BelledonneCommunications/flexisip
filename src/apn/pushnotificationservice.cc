@@ -15,6 +15,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <sys/types.h>
+#include <dirent.h>
 
 #include "pushnotificationservice.h"
 #include "pushnotificationclient.h"
@@ -30,19 +32,19 @@ using namespace ::std;
 using namespace ::boost;
 
 void PushNotificationService::sendRequest(const std::shared_ptr<PushNotificationRequest> &pn) {
-	while (1) {
-		for (list<PushNotificationClient*>::iterator it = mClients.begin(); it != mClients.end(); ++it) {
-			if ((*it)->isReady()) {
-				(*it)->setData(pn->getData());
-				(*it)->start(APN_ADDRESS, APN_PORT);
-				return;
-			}
-		}
-		// Wait for free thread
-		LOGD("No ready Client... Waiting");
-		unique_lock<mutex> lock(mMutex);
-		mClientCondition.wait(lock);
+	std::shared_ptr<PushNotificationClient> client=mClients[pn->getAppIdentifier()+string(".pem")];
+	if (client==0){
+		LOGE("No push notification certificate for client %s",pn->getAppIdentifier().c_str());
+		return;
 	}
+	
+	if (client->isReady()) {
+		client->send(pn->getData());
+		return;
+	}
+	// Wait for free thread
+	LOGE("Client is not ready ! push notification is lost.");
+		
 }
 
 void PushNotificationService::start() {
@@ -70,56 +72,63 @@ void PushNotificationService::stop() {
 	}
 }
 
-PushNotificationService::PushNotificationService(int max_client, const string &ca, const string &cert, const string &key, const string &password) :
-		mIOService(), mContext(mIOService, asio::ssl::context::sslv23_client), mThread(NULL), mPassword(password) {
-	system::error_code err;
-	mContext.set_options(asio::ssl::context::default_workarounds, err);
-	mContext.set_password_callback(bind(&PushNotificationService::handle_password_callback, this, _1, _2));
+void PushNotificationService::setupClients(const string &certdir, const string &ca){
+	struct dirent *dirent;
+	DIR *dirp;
+	
+	dirp=opendir(certdir.c_str());
+	if (dirp==NULL){
+		LOGE("Could not open push notification certificates directory (%s): %s",certdir.c_str(),strerror(errno));
+		return;
+	}
+	while((dirent=readdir(dirp))!=NULL){
+		if (dirent->d_type!=DT_REG && dirent->d_type!=DT_LNK) continue;
+		string cert=string(dirent->d_name);
+		string certpath= string(certdir)+"/"+cert;
+		std::shared_ptr<boost::asio::ssl::context> ctx(new boost::asio::ssl::context(mIOService, asio::ssl::context::sslv23_client));
+		system::error_code err;
+		ctx->set_options(asio::ssl::context::default_workarounds, err);
+		ctx->set_password_callback(bind(&PushNotificationService::handle_password_callback, this, _1, _2));
 
-	if (!ca.empty()) {
-		mContext.set_verify_mode(asio::ssl::context::verify_peer);
-#if BOOST_VERSION >= 104800
-		mContext.set_verify_callback(bind(&PushNotificationService::handle_verify_callback, this, _1, _2));
-#endif
-		mContext.load_verify_file(ca, err);
-		if (err) {
-			LOGE("load_verify_file: %s",err.message().c_str());
+		if (!ca.empty()) {
+			ctx->set_verify_mode(asio::ssl::context::verify_peer);
+	#if BOOST_VERSION >= 104800
+			ctx->set_verify_callback(bind(&PushNotificationService::handle_verify_callback, this, _1, _2));
+	#endif
+			ctx->load_verify_file(ca, err);
+			if (err) {
+				LOGE("load_verify_file: %s",err.message().c_str());
+			}
+		} else {
+			ctx->set_verify_mode(asio::ssl::context::verify_none);
 		}
-	} else {
-		mContext.set_verify_mode(asio::ssl::context::verify_none);
-	}
+		ctx->add_verify_path("/etc/ssl/certs");
 
-	if (!cert.empty()) {
-		mContext.use_certificate_file(cert, asio::ssl::context::file_format::pem, err);
-		if (err) {
-			LOGE("use_certificate_file: %s",err.message().c_str());
+		if (!cert.empty()) {
+			ctx->use_certificate_file(certpath, asio::ssl::context::file_format::pem, err);
+			if (err) {
+				LOGE("use_certificate_file %s: %s",certpath.c_str(), err.message().c_str());
+			}
 		}
-	}
-
-	if (!key.empty()) {
-		mContext.use_private_key_file(key, asio::ssl::context::file_format::pem, err);
-		if (err) {
-			LOGE("use_private_key_file: %s",err.message().c_str());
+		string key=certpath;
+		if (!key.empty()) {
+			ctx->use_private_key_file(key, asio::ssl::context::file_format::pem, err);
+			if (err) {
+				LOGE("use_private_key_file: %s",err.message().c_str());
+			}
 		}
+		mClients[cert]=make_shared<PushNotificationClient>(cert, this,ctx,APN_ADDRESS,APN_PORT);
 	}
+	closedir(dirp);
+}
 
-	// Create clients
-	for (int i = 0; i < max_client; ++i) {
-		stringstream ss;
-		ss << "Client " << i;
-		mClients.push_back(new PushNotificationClient(ss.str(), this));
-	}
+PushNotificationService::PushNotificationService(const std::string &certdir, const std::string &cafile) :
+		mIOService(), mThread(NULL) {
+	setupClients(certdir,cafile);
 }
 
 PushNotificationService::~PushNotificationService() {
 	stop();
-
-	// Delete clients
-	while (!mClients.empty()) {
-		PushNotificationClient *client = mClients.front();
-		mClients.pop_front();
-		delete client;
-	}
 }
 
 int PushNotificationService::run() {
@@ -137,10 +146,6 @@ void PushNotificationService::clientEnded() {
 
 asio::io_service &PushNotificationService::getService() {
 	return mIOService;
-}
-
-asio::ssl::context &PushNotificationService::getContext() {
-	return mContext;
 }
 
 string PushNotificationService::handle_password_callback(size_t max_length, asio::ssl::context_base::password_purpose purpose) const {

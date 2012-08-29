@@ -138,6 +138,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) :
 	char sipuri[128] = { 0 };
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *tls = cr->get<GenericStruct>("tls");
+	static const int timer_b=20000;/*ms*/
 
 	EtcHostsResolver::get();
 
@@ -215,7 +216,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) :
 	if (mPort>0){
 		snprintf(sipuri, sizeof(sipuri) - 1, "sip:%s:%i;maddr=%s", mPublicAddress.c_str(), mPort, bind_address.c_str());
 		LOGD("Enabling 'sip' listening point with uri '%s'.", sipuri);
-		mAgent = nta_agent_create(root, (url_string_t*) sipuri, &Agent::messageCallback, (nta_agent_magic_t*) this, NTATAG_CLIENT_RPORT(1), NTATAG_UDP_MTU(1460), TAG_END());
+		mAgent = nta_agent_create(root, (url_string_t*) sipuri, &Agent::messageCallback, (nta_agent_magic_t*) this, NTATAG_CLIENT_RPORT(1), NTATAG_UDP_MTU(1460), NTATAG_SIP_T1X64(timer_b), TAG_END());
 	}
 	transportUri << "<" << sipuri << ">";
 	if (tls->get<ConfigBoolean>("enabled")->read()) {
@@ -223,7 +224,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) :
 		snprintf(sipuri, sizeof(sipuri) - 1, "sips:%s:%i;maddr=%s", mPublicAddress.c_str(), mTlsPort, bind_address.c_str());
 		LOGD("Enabling 'sips' listening point with uri '%s', keys in %s", sipuri, keys.c_str());
 		if (mAgent==NULL){
-			mAgent = nta_agent_create(root, (url_string_t*) sipuri, &Agent::messageCallback, (nta_agent_magic_t*) this, TPTAG_CERTIFICATE(keys.c_str()), NTATAG_TLS_RPORT(1), TAG_END());
+			mAgent = nta_agent_create(root, (url_string_t*) sipuri, &Agent::messageCallback, (nta_agent_magic_t*) this, TPTAG_CERTIFICATE(keys.c_str()), NTATAG_TLS_RPORT(1),NTATAG_SIP_T1X64(timer_b), TAG_END());
 		}else{
 			nta_agent_add_tport(mAgent, (url_string_t*) sipuri, TPTAG_CERTIFICATE(keys.c_str()), NTATAG_TLS_RPORT(1), TAG_END());
 		}

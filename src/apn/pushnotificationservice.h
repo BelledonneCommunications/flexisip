@@ -43,7 +43,7 @@ public:
 
 	void stop();
 
-	PushNotificationService(int max_client, const std::string &ca, const std::string &cert, const std::string &key, const std::string &password);
+	PushNotificationService(const std::string &certdir, const std::string &cafile);
 
 	~PushNotificationService();
 
@@ -53,18 +53,17 @@ public:
 #endif
 
 private:
-
+	void setupClients(const std::string & certdir, const std::string& ca);
+  
 	int run();
 
 	boost::asio::io_service &getService();
-
-	boost::asio::ssl::context &getContext();
 
 	void clientEnded();
 
 private:
 	boost::asio::io_service mIOService;
-	boost::asio::ssl::context mContext;
+	
 
 	std::thread *mThread;
 
@@ -72,7 +71,7 @@ private:
 	std::condition_variable mClientCondition;
 
 	bool mHaveToStop;
-	std::list<PushNotificationClient *> mClients;
+	std::map<std::string,std::shared_ptr<PushNotificationClient> > mClients;
 	std::string mPassword;
 };
 

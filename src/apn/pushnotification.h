@@ -24,8 +24,15 @@
 
 class PushNotificationRequest {
 public:
+	const std::string &getAppIdentifier(){
+		return mAppId;
+	}
 	virtual const std::vector<char> getData() const = 0;
 	virtual ~PushNotificationRequest() = 0;
+private:
+	const std::string mAppId;
+protected:
+	PushNotificationRequest(const std::string &appid) : mAppId(appid){};
 };
 inline PushNotificationRequest::~PushNotificationRequest() {
 }
@@ -34,8 +41,7 @@ class ApplePushNotificationRequest: public PushNotificationRequest {
 public:
 	static const int MAXPAYLOAD_SIZE;
 	virtual const std::vector<char> getData() const;
-	ApplePushNotificationRequest(const std::vector<char> &data);
-	ApplePushNotificationRequest(const std::string &deviceToken, const std::string &payload);
+	ApplePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &msg_id, const std::string &arg, const std::string &sound);
 	~ApplePushNotificationRequest() {};
 private:
 

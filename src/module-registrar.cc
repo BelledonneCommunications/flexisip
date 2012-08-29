@@ -47,7 +47,7 @@ public:
 	}
 };
 
-class Registrar: public Module, public ModuleToolbox {
+class Registrar: public Module, public ModuleToolbox, public ForkContextListener{
 	friend class OnBindListener;
 	StatCounter64 *mCountBind;
 	StatCounter64 *mCountBindFinished;
@@ -125,11 +125,14 @@ public:
 			LOGD("Found registrar domain: %s", (*it).c_str());
 		}
 		mFork = mc->get<ConfigBoolean>("fork")->read();
-		mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
 		mGeneratedContactRoute = mc->get<ConfigString>("generated-contact-route")->read();
 		mExpectedRealm = mc->get<ConfigString>("generated-contact-expected-realm")->read();
 		mStaticRecordsFile = mc->get<ConfigString>("static-records-file")->read();
 		mStaticRecordsTimeout = mc->get<ConfigInt>("static-records-timeout")->read();
+		mForkCfg=make_shared<ForkContextConfig>();
+		mForkCfg->mForkOneResponse = mc->get<ConfigBoolean>("fork-one-response")->read();
+		mForkCfg->mForkNoGlobalDecline = mc->get<ConfigBoolean>("fork-no-global-decline")->read();
+		mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
 		if (!mStaticRecordsFile.empty()) {
 			readStaticRecords();
 			mStaticRecordsTimer=mAgent->createTimer(mStaticRecordsTimeout*1000, &staticRoutesRereadTimerfunc,this);
@@ -190,6 +193,8 @@ public:
 	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
 
 	void idle() { updateLocalRegExpire(); }
+	
+	virtual void onForkContextFinished(shared_ptr<ForkContext> ctx);
 
 private:
 	void updateLocalRegExpire() {
@@ -205,7 +210,7 @@ private:
 	bool dispatch(Agent *agent, const shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, const char *route, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
 	list<string> mDomains;
 	bool mFork;
-	bool mForkLate;
+	shared_ptr<ForkContextConfig> mForkCfg;
 	typedef multimap<string, shared_ptr<ForkContext>> ForkMap;
 	ForkMap mForks;
 	string mGeneratedContactRoute;
@@ -416,15 +421,17 @@ bool Registrar::dispatch(Agent *agent, const shared_ptr<RequestSipEvent> &ev, si
 }
 
 void Registrar::onRegister(Agent *agent, shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, Record *aor, const string &sipUri) {
-	if (mForkLate) {
+	if (mForkCfg->mForkLate) {
 		// Find all contexts
 		pair<ForkMap::iterator, ForkMap::iterator> range = mForks.equal_range(sipUri);
 
 		// First use sipURI
 		for(auto it = range.first; it != range.second; ++it) {
 			shared_ptr<ForkContext> context = it->second;
-			LOGD("Found a pending context for contact %s: %p", sipUri.c_str(), context.get());
-			dispatch(agent, context->getEvent(), ct, NULL, context);
+			if (!context->hasFinalResponse()){
+				LOGD("Found a pending context for contact %s: %p", sipUri.c_str(), context.get());
+				dispatch(agent, context->getEvent(), ct, NULL, context);
+			}
 		}
 
 		// If not found find in aliases
@@ -439,8 +446,10 @@ void Registrar::onRegister(Agent *agent, shared_ptr<RequestSipEvent> &ev, sip_co
 						pair<ForkMap::iterator, ForkMap::iterator> range = mForks.equal_range(uri);
 						for(auto it = range.first; it != range.second; ++it) {
 							shared_ptr<ForkContext> context = it->second;
-							LOGD("Found a pending context for contact %s: %p", uri.c_str(), context.get());
-							dispatch(agent, context->getEvent(), ct, NULL, context);
+							if (!context->hasFinalResponse()){
+								LOGD("Found a pending context for contact %s: %p", uri.c_str(), context.get());
+								dispatch(agent, context->getEvent(), ct, NULL, context);
+							}
 						}
 					}
 				}
@@ -492,7 +501,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 
 	if (contacts.size() > 0) {
 		bool handled = false;
-		bool fork = !(!mFork || (contacts.size() <= 1 && !mForkLate) || (
+		bool fork = !(!mFork || (contacts.size() <= 1 && !mForkCfg->mForkLate) || (
 				ms->getSip()->sip_request->rq_method != sip_method_invite &&
 				ms->getSip()->sip_request->rq_method != sip_method_message
 				));
@@ -507,9 +516,9 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 		shared_ptr<IncomingTransaction> incoming_transaction;
 		if (fork) {
 			if (sip->sip_request->rq_method == sip_method_invite) {
-				context = make_shared<ForkCallContext>(agent, ev);
+				context = make_shared<ForkCallContext>(agent, ev, mForkCfg, this);
 			} else if (sip->sip_request->rq_method == sip_method_message) {
-				context = make_shared<ForkMessageContext>(agent, ev);
+				context = make_shared<ForkMessageContext>(agent, ev, mForkCfg, this);
 			}
 			if (context.get() != NULL) {
 				mForks.insert(pair<string, shared_ptr<ForkContext>>(sipUri, context));
@@ -605,8 +614,6 @@ class OnBindForRoutingListener: public RegistrarDbListener {
 	friend class Registrar;
 	Registrar *mModule;
 	shared_ptr<RequestSipEvent> mEv;
-	bool mFork;
-	bool mForkLate;
 	string mSipUri;
 public:
 	OnBindForRoutingListener(Registrar *module, shared_ptr<RequestSipEvent> ev, const string &sipuri) :
@@ -740,12 +747,11 @@ void Registrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
 	shared_ptr<ForkContext> ptr = transaction->getProperty<ForkContext>(getModuleName());
 	if (ptr != NULL) {
-		bool remove = false;
 		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(transaction);
 		if (ot != NULL) {
 			switch (event) {
 			case Transaction::Destroy:
-				remove = ptr->onDestroy(ot);
+				ptr->onDestroy(ot);
 				break;
 
 			case Transaction::Create:
@@ -757,22 +763,26 @@ void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, T
 		if (it != NULL) {
 			switch (event) {
 			case Transaction::Destroy:
-				remove = ptr->onDestroy(it);
+				ptr->onDestroy(it);
 				break;
 
 			case Transaction::Create: // Can't happen because property is set after this event
 				break;
 			}
 		}
-		if (remove) {
-			for (auto it = mForks.begin(); it != mForks.end(); ++it) {
-				if (it->second == ptr) {
-					LOGD("Remove fork %s from store", it->first.c_str());
-					mForks.erase(it);
-				}
-			}
+		
+	}
+}
+
+void Registrar::onForkContextFinished(shared_ptr<ForkContext> ctx){
+	for (auto it = mForks.begin(); it != mForks.end(); ++it) {
+		if (it->second == ctx) {
+			LOGD("Remove fork %s from store", it->first.c_str());
+			mForks.erase(it);
+			break;
 		}
 	}
+	
 }
 
 ModuleInfo<Registrar> Registrar::sInfo("Registrar", "The Registrar module accepts REGISTERs for domains it manages, and store the address of record "
