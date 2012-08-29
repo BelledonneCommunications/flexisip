@@ -29,20 +29,18 @@ class ForkMessageContext: public ForkContext {
 private:
 	std::shared_ptr<ResponseSipEvent> mBestResponse;
 	int mFinal;
-	bool mForkOneResponse;
-	bool mForkNoGlobalDecline;
 	std::list<int> mForwardResponses;
 
 public:
-	ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event);
+	ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
 	~ForkMessageContext();
 	virtual bool hasFinalResponse();
 	void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
 	void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event);
-	bool onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
+	void onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
 	void onNew(const std::shared_ptr<OutgoingTransaction> &transaction);
 	void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &event);
-	bool onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
+	void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
 
 private:
 	void cancel();

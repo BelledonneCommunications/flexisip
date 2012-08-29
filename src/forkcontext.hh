@@ -23,23 +23,44 @@
 #include "event.hh"
 #include "transaction.hh"
 
-class ForkContext {
+class ForkContextConfig{
+public:
+	bool mForkLate;
+	bool mForkOneResponse;
+	bool mForkNoGlobalDecline;
+};
+
+class ForkContext;
+
+class ForkContextListener{
+public:
+	virtual void onForkContextFinished(std::shared_ptr<ForkContext> ctx)=0; 
+};
+
+class ForkContext : public std::enable_shared_from_this<ForkContext>{
+private:
+	static void __timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 protected:
 	Agent * mAgent;
 	std::shared_ptr<RequestSipEvent> mEvent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
 	std::list<std::shared_ptr<OutgoingTransaction>> mOutgoings;
-	
+	std::shared_ptr<ForkContextConfig> mCfg;
+	su_timer_t *mLateTimer;
+	ForkContextListener * mListener;
+	bool mLateTimerExpired;
 public:
-	ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event);
-	virtual bool hasFinalResponse(){return false;};
+	ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
+	virtual bool hasFinalResponse()=0;
 	virtual ~ForkContext();
 	virtual void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
 	virtual void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event) = 0;
-	virtual bool onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
+	virtual void onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
 	virtual void onNew(const std::shared_ptr<OutgoingTransaction> &transaction);
 	virtual void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &event) = 0;
-	virtual bool onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
+	virtual void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
+	virtual void onLateTimeout();
+	virtual void checkFinished();
 	const std::shared_ptr<RequestSipEvent> &getEvent();
 };
 
