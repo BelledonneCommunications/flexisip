@@ -461,7 +461,7 @@ bool Agent::isUs(const url_t *url, bool check_aliases) const {
 	return isUs(url->url_host, url->url_port, check_aliases);
 }
 
-void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> &ev) {
+void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	ev->getMsgSip()->log("Receiving new Request SIP message:");
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
@@ -475,7 +475,7 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> &ev) {
 	}
 }
 
-void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> &ev) {
+void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	ev->getMsgSip()->log("Receiving new Response SIP message:");
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
@@ -489,7 +489,7 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> &ev) {
 	}
 }
 
-void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> &ev) {
+void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	LOG_START
 	ev->getMsgSip()->log("Inject Request SIP message:");
 	list<Module*>::iterator it;
@@ -513,7 +513,7 @@ void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> &ev) {
 	LOG_END
 }
 
-void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> &ev) {
+void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	LOG_START
 	ev->getMsgSip()->log("Inject Response SIP message:");
 	list<Module*>::iterator it;

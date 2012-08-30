@@ -92,10 +92,10 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		typedef void (*timerCallback)(void *unused, su_timer_t *t, void *data);
 		su_timer_t *createTimer(int milliseconds, timerCallback cb, void *data);
 		void stopTimer(su_timer_t *t);
-		void injectRequestEvent(std::shared_ptr<RequestSipEvent> &ev);
-		void injectResponseEvent(std::shared_ptr<ResponseSipEvent> &ev);
-		void sendRequestEvent(std::shared_ptr<RequestSipEvent> &ev);
-		void sendResponseEvent(std::shared_ptr<ResponseSipEvent> &ev);
+		void injectRequestEvent(std::shared_ptr<RequestSipEvent> ev);
+		void injectResponseEvent(std::shared_ptr<ResponseSipEvent> ev);
+		void sendRequestEvent(std::shared_ptr<RequestSipEvent> ev);
+		void sendResponseEvent(std::shared_ptr<ResponseSipEvent> ev);
 	protected:
 		void sendTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
