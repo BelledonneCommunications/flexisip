@@ -705,9 +705,10 @@ void Registrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		 - they can be for us (in response to a 407 for invite)
 		 - they can be for the a remote peer, in which case they will have the correct contact address in the request uri
 		 */
+		/* When we accept * as domain we need to test ip4/ipv6 */
 		if (sip->sip_request->rq_method != sip_method_ack && sip->sip_to != NULL && sip->sip_to->a_tag == NULL) {
 			url_t *sipurl = sip->sip_request->rq_url;
-			if (sipurl->url_host && isManagedDomain(sipurl->url_host)) {
+			if (sipurl->url_host  && !(isIpv4(sipurl->url_host)||isIpv6(sipurl->url_host)) && isManagedDomain(sipurl->url_host)) {
 				char *url = url_as_string(ms->getHome(), sipurl);
 				LOGD("Fetch %s.", url);
 				RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnBindForRoutingListener>(this, ev, url), true);
