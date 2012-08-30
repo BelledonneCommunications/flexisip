@@ -50,8 +50,13 @@ std::shared_ptr<BooleanExpression> BooleanExpression::parse(const std::string &s
 }
 
 static bool logEval=false;
-void log_boolean_expression_evaluations(bool value) { logEval=value; }
+void log_boolean_expression_evaluation(bool value) { logEval=value; }
+
+static bool logParse=false;
+void log_boolean_expression_parsing(bool value) { logParse=value; }
+
 static void log(initializer_list<string> tuple) {
+	if (!logParse) return;
 #ifdef TEST_BOOL_EXPR
 	for (auto it=tuple.begin(); it != tuple.end(); ++it) {
 		cout << *it;

@@ -492,7 +492,8 @@ int main(int argc, char *argv[]){
 
 	initialize (debug,useSyslog);
 
-	log_boolean_expression_evaluations(oset.find("bee") != oset.end());
+	log_boolean_expression_evaluation(oset.find("bee") != oset.end());
+	log_boolean_expression_parsing(oset.find("bep") != oset.end());
 
 	su_log_redirect(NULL,sofiaLogHandler,NULL);
 

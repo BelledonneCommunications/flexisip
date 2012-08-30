@@ -194,7 +194,8 @@ void do_cmd_test(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]){
-	log_boolean_expression_evaluations(true);
+	log_boolean_expression_evaluation(true);
+	log_boolean_expression_parsing(true);
 	if (argc == 1) {
 		do_predefined_tests();
 		return error_occured;

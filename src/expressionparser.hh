@@ -30,7 +30,8 @@ public:
 };
 
 
-void log_boolean_expression_evaluations(bool value);
+void log_boolean_expression_evaluation(bool value);
+void log_boolean_expression_parsing(bool value);
 
 class BooleanExpression{
 protected:
