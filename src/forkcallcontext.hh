@@ -39,13 +39,13 @@ public:
 		return mFinal>0;
 	}
 	~ForkCallContext();
-	void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
-	void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event);
-	void onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
-	void onNew(const std::shared_ptr<OutgoingTransaction> &transaction);
-	void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &event);
-	void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
-
+	virtual void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
+	virtual void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event);
+	virtual void onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
+	virtual void onNew(const std::shared_ptr<OutgoingTransaction> &transaction);
+	virtual void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &event);
+	virtual void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
+	virtual void checkFinished();
 private:
 	void cancel();
 	void cancelOthers(const std::shared_ptr<OutgoingTransaction> &transaction = std::shared_ptr<OutgoingTransaction>());

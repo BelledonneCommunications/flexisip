@@ -159,8 +159,8 @@ void ForkCallContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) 
 	ForkContext::onNew(transaction);
 }
 
-void ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
-	if (mOutgoings.size() == 1) {
+void ForkCallContext::checkFinished(){
+	if (mOutgoings.size() == 0 && (mLateTimerExpired || mLateTimer==NULL)) {
 		if (mIncoming != NULL && mFinal == 0) {
 			if (mBestResponse == NULL) {
 				// Create response
@@ -175,6 +175,11 @@ void ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transacti
 		}
 		mBestResponse.reset();
 		mIncoming.reset();
+		mListener->onForkContextFinished(shared_from_this());
 	}
+}
+
+void ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
+	
 	ForkContext::onDestroy(transaction);
 }
