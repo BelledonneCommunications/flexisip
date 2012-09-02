@@ -33,16 +33,20 @@ private:
 	su_timer_t *mEndTimer;
 	PushNotification *mModule;
 	shared_ptr<PushNotificationRequest> mPushNotificationRequest;
+	string mToken;
 	void onTimeout();
 	void onEnd();
 
 	static void __timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	static void __end_timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 public:
-	PushNotificationContext(shared_ptr<OutgoingTransaction> &transaction, PushNotification * module, const shared_ptr<PushNotificationRequest> &pnr);
+	PushNotificationContext(const shared_ptr<OutgoingTransaction> &transaction, PushNotification * module, const shared_ptr<PushNotificationRequest> &pnr, const string& token);
 	~PushNotificationContext();
 	void start(int seconds);
 	void cancel();
+	const string &getToken()const{
+		return mToken;
+	}
 };
 
 
@@ -59,18 +63,17 @@ public:
 	PushNotificationService *getService()const{
 		return mAPNS;
 	}
-	void clearNotification(shared_ptr<PushNotificationContext> ctx);
+	void clearNotification(const shared_ptr<PushNotificationContext>& ctx);
 private:
-	shared_ptr<PushNotificationRequest> makePushNotification(const shared_ptr<MsgSip> &ms, string *token);
+	void makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction);
 	map<string,shared_ptr<PushNotificationContext> > mPendingNotifications; 
 	static ModuleInfo<PushNotification> sInfo;
 	int mTimeout;
 	PushNotificationService *mAPNS;
 };
 
-PushNotificationContext::PushNotificationContext(shared_ptr<OutgoingTransaction> &transaction, PushNotification * module, const shared_ptr<PushNotificationRequest> &pnr) :
-		mModule(module), mPushNotificationRequest(pnr) {
-	LOGD("New PushNotificationContext %p", this);
+PushNotificationContext::PushNotificationContext(const shared_ptr<OutgoingTransaction> &transaction, PushNotification * module, const shared_ptr<PushNotificationRequest> &pnr, const string &token) :
+		mModule(module), mPushNotificationRequest(pnr), mToken(token) {
 	mTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
 	mEndTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
 }
@@ -80,7 +83,6 @@ PushNotificationContext::~PushNotificationContext() {
 		su_timer_destroy(mTimer);
 	if (mEndTimer)
 		su_timer_destroy(mEndTimer);
-	LOGD("Destroy PushNotificationContext %p", this);
 }
 
 void PushNotificationContext::start(int seconds) {
@@ -151,9 +153,10 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	mAPNS->start();
 }
 
-shared_ptr<PushNotificationRequest> PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, string *token){
+void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction){
+	shared_ptr<PushNotificationContext> context;
 	sip_t *sip=ms->getSip();
-	shared_ptr<PushNotificationRequest> zero;
+	
 	if (sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_params != NULL){
 		char type[12];
 		char deviceToken[65];
@@ -166,46 +169,57 @@ shared_ptr<PushNotificationRequest> PushNotification::makePushNotification(const
 		char const *params=sip->sip_request->rq_url->url_params;
 		/*extract all parameters required to make the push notification */
 		if (url_param(params, "pn-tok", deviceToken, sizeof(deviceToken)) != sizeof(deviceToken))
-			return zero;
+			return ;
 		//check if another push notification for this device wouldn't be pending
-		if (mPendingNotifications.find(deviceToken)!=mPendingNotifications.end()){
-			LOGD("Another push notification is pending for device %s, giving up",deviceToken);
-			return zero;
+		auto it=mPendingNotifications.find(deviceToken);
+		if (it!=mPendingNotifications.end()){
+			LOGD("Another push notification is pending for device %s, not creating a new one",deviceToken);
+			context=(*it).second;
 		}
-		if (!url_param(params, "pn-type", type, sizeof(type)))
-			return zero;
-		if (!url_param(params, "app-id", appId, sizeof(appId)))
-			return zero;
-		
-		if (!url_param(params, "pn-msg-str", msg_str, sizeof(msg_str))) {
-			return zero;
+		if (context==NULL){
+			if (!url_param(params, "pn-type", type, sizeof(type)))
+				return ;
+			if (!url_param(params, "app-id", appId, sizeof(appId)))
+				return ;
+			
+			if (!url_param(params, "pn-msg-str", msg_str, sizeof(msg_str))) {
+				return ;
+			}
+			if (!url_param(params, "pn-call-str", call_str, sizeof(call_str))){
+				return ;
+			}
+			if (!url_param(params, "pn-call-snd", call_snd, sizeof(call_snd))){
+				return ;
+			}
+			if (!url_param(params, "pn-msg-snd", msg_snd, sizeof(msg_snd))){
+				return ;
+			}
+			string contact;
+			if(sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
+				contact = sip->sip_from->a_display;
+			} else {
+				contact = url_as_string(ms->getHome(), sip->sip_from->a_url);
+			}
+			shared_ptr<PushNotificationRequest> pn;
+			if (strcmp(type,"apple")==0){
+				pn= make_shared<ApplePushNotificationRequest>(appId,deviceToken, 
+						(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
+						contact,
+						(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd);
+			}else if (strcmp(type,"google")==0){
+				//TODO
+			}
+			if (pn){
+				/*create a context*/
+				context = make_shared<PushNotificationContext>(transaction, this, pn,string(deviceToken));
+				context->start(mTimeout);
+				mPendingNotifications.insert(make_pair(deviceToken,context));
+			}
 		}
-		if (!url_param(params, "pn-call-str", call_str, sizeof(call_str))){
-			return zero;
-		}
-		if (!url_param(params, "pn-call-snd", call_snd, sizeof(call_snd))){
-			return zero;
-		}
-		if (!url_param(params, "pn-msg-snd", msg_snd, sizeof(msg_snd))){
-			return zero;
-		}
-		string contact;
-		if(sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
-			contact = sip->sip_from->a_display;
-		} else {
-			contact = url_as_string(ms->getHome(), sip->sip_from->a_url);
-		}
-		if (strcmp(type,"apple")==0){
-			*token=deviceToken;
-			return make_shared<ApplePushNotificationRequest>(appId,deviceToken, 
-					(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
-					contact,
-					(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd);
-		}else if (strcmp(type,"google")==0){
-			//TODO
-		}
+		if (context) /*associate with transaction so that transaction can eventually cancel it if the device answers.*/
+			transaction->setProperty(getModuleName(), context);
 	}
-	return zero;
+	return ;
 }
 
 void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
@@ -219,14 +233,7 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 			sip_t *sip = ms->getSip();
 			if (sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_params != NULL) {
 				try{
-					string deviceToken;
-					shared_ptr<PushNotificationRequest> request = makePushNotification(ms,&deviceToken);
-					if (request){
-						shared_ptr<PushNotificationContext> context = make_shared<PushNotificationContext>(transaction, this, request);
-						context->start(mTimeout);
-						transaction->setProperty(getModuleName(), context);
-						mPendingNotifications.insert(make_pair(deviceToken,context));
-					}
+					makePushNotification(ms,transaction);
 				}catch(exception &e){
 					LOGE("Could not create push notification.");
 				}
@@ -238,6 +245,7 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
 	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 	if (transaction != NULL && ev->getMsgSip()->getSip()->sip_status->st_status !=503) {
+		/*any response except 503 (which is sofia's internal response for broken transports) should cancel the push*/
 		shared_ptr<PushNotificationContext> ctx=transaction->getProperty<PushNotificationContext>(getModuleName());
 		if (ctx) ctx->cancel();
 	}
@@ -256,13 +264,16 @@ void PushNotification::onTransactionEvent(const shared_ptr<Transaction> &transac
 	}
 }
 
-void PushNotification::clearNotification(shared_ptr<PushNotificationContext> ctx){
-	for(auto it=mPendingNotifications.begin();it!=mPendingNotifications.end();++it){
-		if ((*it).second==ctx){
-			LOGD("Push notification to %s cleared.",(*it).first.c_str());
-			mPendingNotifications.erase(it);
-			break;
+void PushNotification::clearNotification(const shared_ptr<PushNotificationContext> &ctx){
+	LOGD("Push notification to %s cleared.",ctx->getToken().c_str());
+	auto it = mPendingNotifications.find(ctx->getToken());
+	if (it!=mPendingNotifications.end()){
+		if ((*it).second!=ctx){
+			LOGA("PushNotification::clearNotification(): should not happen.");
 		}
+		mPendingNotifications.erase(it);
+	}else{
+		LOGA("PushNotification::clearNotification(): should not happen 2.");
 	}
 }
 
