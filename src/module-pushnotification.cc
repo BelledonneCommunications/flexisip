@@ -96,11 +96,6 @@ void PushNotificationContext::cancel(){
 		su_timer_destroy(mTimer);
 		mTimer=NULL;
 	}
-	if (mEndTimer){
-		su_timer_destroy(mEndTimer);
-		mEndTimer=NULL;
-	}
-	onEnd();
 }
 
 void PushNotificationContext::onTimeout() {

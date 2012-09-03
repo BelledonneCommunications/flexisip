@@ -97,6 +97,7 @@ public:
 				{ Boolean, "fork-late", "Fork invites to late registers", "false" },
 				{ Boolean, "fork-one-response", "Only forward one response of forked invite to the caller", "true" },
 				{ Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite", "false" },
+				{ Integer , "message-delivery-timeout", "Maximum duration for delivering a message (text)","3600"},
 				{	String, "generated-contact-route" , "Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
 				{	String, "generated-contact-expected-realm" , "Require presence of authorization header for specified realm. [Realm]", ""},
 				config_item_end };
@@ -130,9 +131,12 @@ public:
 		mStaticRecordsFile = mc->get<ConfigString>("static-records-file")->read();
 		mStaticRecordsTimeout = mc->get<ConfigInt>("static-records-timeout")->read();
 		mForkCfg=make_shared<ForkContextConfig>();
+		mMessageForkCfg=make_shared<ForkContextConfig>();
 		mForkCfg->mForkOneResponse = mc->get<ConfigBoolean>("fork-one-response")->read();
 		mForkCfg->mForkNoGlobalDecline = mc->get<ConfigBoolean>("fork-no-global-decline")->read();
-		mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
+		mMessageForkCfg->mForkLate=mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
+		mForkCfg->mDeliveryTimeout = 30;
+		mMessageForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("message-delivery-timeout")->read();
 		if (!mStaticRecordsFile.empty()) {
 			readStaticRecords();
 			mStaticRecordsTimer=mAgent->createTimer(mStaticRecordsTimeout*1000, &staticRoutesRereadTimerfunc,this);
@@ -211,6 +215,7 @@ private:
 	list<string> mDomains;
 	bool mFork;
 	shared_ptr<ForkContextConfig> mForkCfg;
+	shared_ptr<ForkContextConfig> mMessageForkCfg;
 	typedef multimap<string, shared_ptr<ForkContext>> ForkMap;
 	ForkMap mForks;
 	string mGeneratedContactRoute;
@@ -431,7 +436,7 @@ void Registrar::onRegister(Agent *agent, shared_ptr<RequestSipEvent> &ev, sip_co
 			if (!context->hasFinalResponse()){
 				LOGD("Found a pending context for contact %s: %p", sipUri.c_str(), context.get());
 				dispatch(agent, context->getEvent(), ct, NULL, context);
-			}
+			}else LOGD("Found a pending context but already has final response");
 		}
 
 		// If not found find in aliases
@@ -518,7 +523,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 			if (sip->sip_request->rq_method == sip_method_invite) {
 				context = make_shared<ForkCallContext>(agent, ev, mForkCfg, this);
 			} else if (sip->sip_request->rq_method == sip_method_message) {
-				context = make_shared<ForkMessageContext>(agent, ev, mForkCfg, this);
+				context = make_shared<ForkMessageContext>(agent, ev, mMessageForkCfg, this);
 			}
 			if (context.get() != NULL) {
 				mForks.insert(pair<string, shared_ptr<ForkContext>>(sipUri, context));

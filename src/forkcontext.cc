@@ -20,7 +20,6 @@
 
 using namespace ::std;
 
-static const int timer_c=30000;
 
 void ForkContext::__timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg){
 	(static_cast<ForkContext*>(arg))->onLateTimeout();
@@ -50,6 +49,11 @@ void ForkContext::onLateTimeout(){
 
 void ForkContext::onNew(const shared_ptr<IncomingTransaction> &transaction) {
 	mIncoming = transaction;
+	if (mCfg->mForkLate && mLateTimer==NULL){
+		/*this timer is for when outgoing transaction all die prematuraly, we still need to wait that late register arrive.*/
+		mLateTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
+		su_timer_set_interval(mLateTimer, &ForkContext::__timer_callback, this, (su_duration_t)mCfg->mDeliveryTimeout* (su_duration_t)1000);
+	}
 }
 
 void ForkContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) {
@@ -59,11 +63,6 @@ void ForkContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) 
 
 void ForkContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) {
 	mOutgoings.push_back(transaction);
-	if (mCfg->mForkLate && mLateTimer==NULL){
-		/*this timer is for when outgoing transaction all die prematuraly, we still need to wait that late register arrive.*/
-		mLateTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
-		su_timer_set_interval(mLateTimer, &ForkContext::__timer_callback, this, timer_c);
-	}
 }
 
 void ForkContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {

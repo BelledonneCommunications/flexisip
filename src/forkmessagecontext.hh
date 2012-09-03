@@ -28,8 +28,10 @@
 class ForkMessageContext: public ForkContext {
 private:
 	std::shared_ptr<ResponseSipEvent> mBestResponse;
-	int mFinal;
+	int mDelivered;
 	std::list<int> mForwardResponses;
+	void forward(const std::shared_ptr<SipEvent> &ev);
+	void store(std::shared_ptr<ResponseSipEvent> &event);
 
 public:
 	ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
@@ -43,11 +45,7 @@ public:
 	void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
 
 private:
-	void cancel();
-	void cancelOthers(const std::shared_ptr<OutgoingTransaction> &transaction = std::shared_ptr<OutgoingTransaction>());
-	void decline(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &ev);
-	void forward(const std::shared_ptr<SipEvent> &ev, bool force = false);
-	void store(std::shared_ptr<ResponseSipEvent> &ev);
+	
 };
 
 
