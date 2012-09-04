@@ -163,17 +163,54 @@ void do_numeric(void) {
 	btest_false("numeric a","a=123ip");
 }
 
+void do_in(void) {
+	count=0; cerr << "Suite in" << endl;
+
+	bool exp=true;
+	btest(exp, "'A' in 'A'","");
+	btest(exp, "'A' in 'A B'","");
+	btest(exp, "'A' in 'B A'","");
+	btest(exp, "'A' in 'C A B'","");
+
+	exp=false;
+	btest(exp, "'A' in 'B'","");
+	btest(exp, "'A' in 'BA'","");
+	btest(exp, "'A' in 'AB'","");
+}
+
+void do_nin(void) {
+	count=0; cerr << "Suite nin" << endl;
+
+	bool exp=false;
+	btest(exp, "'A' nin 'A'","");
+	btest(exp, "'A' nin 'A B'","");
+	btest(exp, "'A' nin 'B A'","");
+	btest(exp, "'A' nin 'C A B'","");
+
+	exp=true;
+	btest(exp, "'A' nin 'B'","");
+	btest(exp, "'A' nin 'BA'","");
+	btest(exp, "'A' nin 'AB'","");
+}
+
+void do_other(void) {
+	count=0; cerr << "Suite other" << endl;
+
+	btest_true("false||(a=='toto')||false","a=toto");
+	btest_false("false||(a=='toto')||false","a=titi");
+	btest_true("!(true) || true", "");
+}
+
 void do_predefined_tests(void) {
 	do_true_false();
 	do_or();
 	do_and();
 	do_const();
 	do_var();
+	do_in();
+	do_nin();
 
-	btest_true("false||(a=='toto')||false","a=toto");
-	btest_false("false||(a=='toto')||false","a=titi");
-	btest_true("!(true) || true", "");
-
+	do_other();
 	do_numeric();
 	do_regex();
 

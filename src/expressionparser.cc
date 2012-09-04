@@ -595,6 +595,12 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 				cur_exp=make_shared<NumericOp>(var);
 				i+=j; j=0;
 				// fixme should check all is finished now
+			} else if (isKeyword(expr.substr(i), &j, "nin") || isKeyword(expr.substr(i), &j, "notin")) {
+				i+=j; j=0;
+				auto rightVar= buildVariableOrConstant(expr.substr(i),&j);
+				auto in=make_shared<InOp>(cur_var, rightVar);
+				cur_exp=make_shared<LogicalNot>(in);
+				i+=j;
 			} else {
 				cur_var=buildVariableOrConstant(expr.substr(i),&j);
 				i+=j;j=0;
