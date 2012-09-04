@@ -41,6 +41,8 @@ ConfigItemDescriptor config[]={
 
 void ConfigEntryFilter::declareConfig(GenericStruct *module_config){
 	module_config->addChildrenValues(config, FALSE);
+	module_config->deprecateChild("from-domains");
+	module_config->deprecateChild("to-domains");
 }
 
 void ConfigEntryFilter::loadConfig(const GenericStruct  *mc){

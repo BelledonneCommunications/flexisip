@@ -392,6 +392,11 @@ GenericEntry * GenericStruct::addChild(GenericEntry *c){
 	return c;
 }
 
+void GenericStruct::deprecateChild(const char *name){
+	GenericEntry *e=find(name);
+	if (e) e->setDeprecated(true);
+}
+
 void GenericStruct::addChildrenValues(ConfigItemDescriptor *items){
 	addChildrenValues(items,true);
 }
@@ -698,6 +703,7 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 	GenericStruct *global=new GenericStruct("global","Some global settings of the flexisip proxy.",2);
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
+	global->deprecateChild("ip-address");
 	global->setConfigListener(this);
 
 	ConfigString *version=new ConfigString("version-number", "Flexisip version.", PACKAGE_VERSION, 999);
@@ -800,9 +806,8 @@ ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)
 		list<GenericEntry*>::iterator it;
 		for(it=cs->getChildren().begin();it!=cs->getChildren().end();++it){
 			dump2(ostr,*it,level+1);
-			ostr<<endl;
 		}
-	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL){
+	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL && !val->isDeprecated()){
 		printHelp(ostr,entry->getHelp(),"#");
 		ostr<<"#  Default value: "<<val->getDefault()<<endl;
 		if (mDumpDefault) {
@@ -810,6 +815,7 @@ ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)
 		} else {
 			ostr<<entry->getName()<<"="<<val->get()<<endl;
 		}
+		ostr<<endl;
 	}
 	return ostr;
 }
@@ -854,12 +860,12 @@ ostream &TexFileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int lev
 		list<GenericEntry*>::iterator it;
 		for(it=cs->getChildren().begin();it!=cs->getChildren().end();++it){
 			dump2(ostr,*it,level+1);
-			ostr<<endl;
 		}
-	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL){
+	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL && !val->isDeprecated()){
 		ostr<<"\\subsubsection{"<<escape(entry->getName())<<"}"<<endl;
 		ostr<<escape(entry->getHelp())<<endl;
 		ostr<<"The default value is ``"<<escape(val->getDefault())<<"''."<<endl;
+		ostr<<endl;
 	}
 	return ostr;
 }
@@ -906,8 +912,10 @@ ostream &MibDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
 		list<GenericEntry*>::iterator it;
 		cs->mibFragment(ostr, spacing);
 		for(it=cs->getChildren().begin();it!=cs->getChildren().end();++it){
-			dump2(ostr,*it,level+1);
-			ostr<<endl;
+			if (!cs->isDeprecated()){
+				dump2(ostr,*it,level+1);
+				ostr<<endl;
+			}
 		}
 	}else if ((cVal=dynamic_cast<ConfigValue*>(entry))!=NULL){
 		cVal->mibFragment(ostr, spacing);

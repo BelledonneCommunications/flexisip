@@ -197,6 +197,12 @@ public:
 	ConfigValueListener *getConfigListener() const {
 		return mConfigListener;
 	}
+	void setDeprecated(bool yesno){
+		mDeprecated=yesno;
+	}
+	bool isDeprecated()const {
+		return mDeprecated;
+	}
 protected:
 	virtual void doMibFragment(std::ostream &ostr, const std::string &def, const std::string &access, const std::string &syntax, const std::string &spacing) const;
 	GenericEntry(const std::string &name, GenericValueType type, const std::string &help,oid oid_index=0);
@@ -204,6 +210,7 @@ protected:
 	const std::string mName;
 	bool mReadOnly;
 	bool mExportToConfigFile;
+	bool mDeprecated;
 	std::string mErrorMessage;
 private:
 	const std::string mHelp;
@@ -242,6 +249,7 @@ public:
 	std::pair<StatCounter64 *, StatCounter64 *> createStatPair(const std::string &name, const std::string &help);
 	void addChildrenValues(ConfigItemDescriptor *items);
 	void addChildrenValues(ConfigItemDescriptor *items, bool hashed);
+	void deprecateChild(const char *name);
 	//void addChildrenValues(StatItemDescriptor *items);
 	std::list<GenericEntry*> &getChildren();
 	template <typename _retType>
