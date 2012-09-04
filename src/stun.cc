@@ -47,7 +47,9 @@ int StunServer::start(){
 	int err;
 	struct sockaddr_in laddr;
 	std::string bind_address = GenericManager::get()->getGlobal()->get<ConfigString>("bind-address")->read();
-
+	
+	if (bind_address.size()==0) bind_address="0.0.0.0";
+	
 	mSock=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
 	if (mSock==-1){
 		LOGE("Could not create socket: %s",strerror(errno));
@@ -60,7 +62,7 @@ int StunServer::start(){
 	
 	err=bind(mSock,(struct sockaddr*)&laddr,sizeof(laddr));
 	if (err==-1){
-		LOGE("Could not bind STUN server to port %i", mPort);
+		LOGE("Could not bind STUN server to %s port %i", bind_address.c_str(),mPort);
 		return -1;
 	}
 	
