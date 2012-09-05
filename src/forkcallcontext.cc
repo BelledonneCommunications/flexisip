@@ -24,7 +24,7 @@
 using namespace ::std;
 
 ForkCallContext::ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
-		ForkContext(agent, event,cfg, listener), mFinal(0) {
+		ForkContext(agent, event,cfg, listener), mFinal(0),mCancelled(false) {
 	LOGD("New ForkCallContext %p", this);
 	
 }
@@ -34,6 +34,7 @@ ForkCallContext::~ForkCallContext() {
 }
 
 void ForkCallContext::cancel() {
+	mCancelled=true;
 	cancelOthers();
 }
 
@@ -41,7 +42,7 @@ void ForkCallContext::forward(const shared_ptr<SipEvent> &ev, bool force) {
 	sip_t *sip = ev->getMsgSip()->getSip();
 	bool fakeSipEvent = (mFinal > 0 && !force) || mIncoming == NULL;
 
-	if (mForkOneResponse) { // TODO: respect RFC 3261 16.7.5
+	if (mCfg->mForkOneResponse) { // TODO: respect RFC 3261 16.7.5
 		if (sip->sip_status->st_status == 183 || sip->sip_status->st_status == 180) {
 			auto it = find(mForwardResponses.begin(), mForwardResponses.end(), sip->sip_status->st_status);
 			if (it != mForwardResponses.end()) {
@@ -62,7 +63,7 @@ void ForkCallContext::forward(const shared_ptr<SipEvent> &ev, bool force) {
 }
 
 void ForkCallContext::decline(const shared_ptr<OutgoingTransaction> &transaction, shared_ptr<ResponseSipEvent> &ev) {
-	if (!mForkNoGlobalDecline) {
+	if (!mCfg->mForkNoGlobalDecline) {
 		cancelOthers(transaction);
 
 		forward(ev);
@@ -131,7 +132,7 @@ void ForkCallContext::onResponse(const shared_ptr<OutgoingTransaction> &transact
 			forward(event);
 			return;
 		} else if (sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 300) {
-			if (mForkOneResponse) // TODO: respect RFC 3261 16.7.5
+			if (mCfg->mForkOneResponse) // TODO: respect RFC 3261 16.7.5
 				cancelOthers(transaction);
 			forward(event, true);
 			return;
@@ -139,7 +140,9 @@ void ForkCallContext::onResponse(const shared_ptr<OutgoingTransaction> &transact
 			decline(transaction, event);
 			return;
 		} else {
-			store(event);
+			if (!mCancelled)
+				store(event);
+			else forward(event,true);
 			return;
 		}
 	}
@@ -182,4 +185,8 @@ void ForkCallContext::checkFinished(){
 void ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
 	
 	ForkContext::onDestroy(transaction);
+}
+
+bool ForkCallContext::hasFinalResponse(){
+	return mFinal>0 || mCancelled;
 }

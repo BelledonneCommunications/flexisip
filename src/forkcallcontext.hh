@@ -29,15 +29,12 @@ class ForkCallContext: public ForkContext {
 private:
 	std::shared_ptr<ResponseSipEvent> mBestResponse;
 	int mFinal;
-	bool mForkOneResponse;
-	bool mForkNoGlobalDecline;
+	bool mCancelled;
 	std::list<int> mForwardResponses;
 
 public:
 	ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
-	virtual bool hasFinalResponse(){
-		return mFinal>0;
-	}
+	virtual bool hasFinalResponse();
 	~ForkCallContext();
 	virtual void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
 	virtual void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event);

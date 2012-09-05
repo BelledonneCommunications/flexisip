@@ -25,7 +25,8 @@
 
 class ForkContextConfig{
 public:
-	int mDeliveryTimeout; /* in seconds*/
+	ForkContextConfig();
+	int mDeliveryTimeout; /* in seconds, used for "late" forking*/
 	bool mForkLate;
 	bool mForkOneResponse;
 	bool mForkNoGlobalDecline;
