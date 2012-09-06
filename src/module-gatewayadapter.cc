@@ -47,6 +47,7 @@ class GatewayRegister {
 	static StatCounter64 *mCountRegisteringMsg200;
 	static StatCounter64 *mCountRegisteringMsg408;
 	static StatCounter64 *mCountRegisteringMsg401;
+	static StatCounter64 *mCountRegisteringMsg407;
 	static StatCounter64 *mCountRegisteringMsgUnknown;
 	static StatCounter64 *mCountRegisteredUnknown;
 	static StatCounter64 *mCountStart;
@@ -63,6 +64,7 @@ public:
 
 	void start();
 	void end();
+	void authenticate();
 
 	sip_from_t* getFrom() const {
 		return from;
@@ -165,6 +167,7 @@ StatCounter64 *GatewayRegister::mCountInitialMsg=NULL;
 StatCounter64 *GatewayRegister::mCountRegisteringMsg200=NULL;
 StatCounter64 *GatewayRegister::mCountRegisteringMsg408=NULL;
 StatCounter64 *GatewayRegister::mCountRegisteringMsg401=NULL;
+StatCounter64 *GatewayRegister::mCountRegisteringMsg407=NULL;
 StatCounter64 *GatewayRegister::mCountRegisteringMsgUnknown=NULL;
 StatCounter64 *GatewayRegister::mCountRegisteredUnknown=NULL;
 StatCounter64 *GatewayRegister::mCountStart=NULL;
@@ -223,6 +226,11 @@ void GatewayRegister::sendRegister() {
 	nua_register(nh, SIPTAG_CONTACT(contact), TAG_END());
 }
 
+void GatewayRegister::authenticate() {
+	ostringstream auth;
+	auth << "Digest:\"" << getFrom()->a_url->url_host << "\":" << getFrom()->a_url->url_user << ":" << getPassword();
+	nua_authenticate(nh, NUTAG_AUTH(auth.str().c_str()),TAG_END());
+}
 void GatewayRegister::onMessage(const sip_t *sip) {
 	switch (state) {
 	case State::INITIAL:
@@ -231,25 +239,33 @@ void GatewayRegister::onMessage(const sip_t *sip) {
 		break;
 
 	case State::REGISTRING:
-		if (sip->sip_status->st_status == 200) {
+		switch (sip->sip_status->st_status) {
+		case 200:
 			++*mCountRegisteringMsg200;
 			LOGD("REGISTER done");
 			state = State::REGISTRED;
 			end(); // TODO: stop the dialog?
-		} else if (sip->sip_status->st_status == 408) {
+			break;
+		case 408:
 			++*mCountRegisteringMsg408;
 			LOGD("REGISTER timeout");
 			end();
-		} else if (sip->sip_status->st_status == 401){
+			break;
+		case 401:
 			++*mCountRegisteringMsg401;
-			LOGD("REGISTER challenged ");
-			ostringstream auth;
-			auth << "Digest:\"" << getFrom()->a_url->url_host << "\":" << getFrom()->a_url->url_user << ":" << getPassword();
-			nua_authenticate(nh, NUTAG_AUTH(auth.str().c_str()),TAG_END());
-		} else {
+			LOGD("REGISTER challenged 401");
+			authenticate();
+			break;
+		case 407:
+			++*mCountRegisteringMsg407;
+			LOGD("REGISTER challenged 407");
+			authenticate();
+			break;
+		default:
 			++*mCountRegisteringMsgUnknown;
 			LOGD("REGISTER not handled response: %i", sip->sip_status->st_status);
 			end();
+			break;
 		}
 		break;
 
