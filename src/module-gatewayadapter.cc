@@ -86,6 +86,7 @@ public:
 		mCountRegisteringMsg200=mc->createStat("count-gr-registering-200", "Number of 200 received while in registering state");
 		mCountRegisteringMsg408=mc->createStat("count-gr-registering-408", "Number of 408 received while in registering state");
 		mCountRegisteringMsg401=mc->createStat("count-gr-registering-401", "Number of 401 received while in registering state");
+		mCountRegisteringMsg401=mc->createStat("count-gr-registering-407", "Number of 407 received while in registering state");
 		mCountRegisteringMsgUnknown=mc->createStat("count-gr-registering-unknown", "Number of unknown received while in registering state");
 		mCountRegisteredUnknown=mc->createStat("count-gr-registered-unknown", "Number of msg received while in registered state");
 		mCountStart=mc->createStat("count-gr-start", "Number of calls to start()");
