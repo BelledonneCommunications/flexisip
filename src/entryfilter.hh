@@ -41,6 +41,8 @@ class EntryFilter{
 };
 
 class ConfigEntryFilter : public EntryFilter {
+	StatCounter64 *mCountEvalTrue;
+	StatCounter64 *mCountEvalFalse;
 	public:
 		ConfigEntryFilter();
 		virtual ~ConfigEntryFilter();

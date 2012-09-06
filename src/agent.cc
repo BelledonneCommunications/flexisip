@@ -28,6 +28,7 @@
 #include <sstream>
 #include <sofia-sip/tport_tag.h>
 #include <sofia-sip/su_tagarg.h>
+#include <sofia-sip/sip.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -133,6 +134,54 @@ static int get_local_ip_for_with_connect(int type, const char *dest, char *resul
 	return 0;
 }
 
+static StatCounter64 *createCounter(GenericStruct *global, string keyprefix, string helpprefix, string value) {
+	return global->createStat(keyprefix+value, helpprefix + value +".");
+}
+void Agent::onDeclare(GenericStruct *root) {
+	GenericStruct *global=root->get<GenericStruct>("global");
+	string key="count-incoming-request-";
+	string help="Number of incoming requests with method name ";
+	mCountIncomingRegister=createCounter(global,key, help, "register");
+	mCountIncomingInvite=createCounter(global,key, help, "invite");
+	mCountIncomingAck=createCounter(global,key, help, "ack");
+	mCountIncomingInfo=createCounter(global,key, help, "info");
+	mCountIncomingBye=createCounter(global,key, help, "bye");
+	mCountIncomingCancel=createCounter(global,key, help, "cancel");
+	mCountIncomingMessage=createCounter(global,key, help, "message");
+	mCountIncomingDecline=createCounter(global,key, help, "decline");
+	mCountIncomingOptions=createCounter(global,key, help, "options");
+	mCountIncomingReqUnknown=createCounter(global,key, help, "unknown");
+
+	key="count-incoming-response-";
+	help= "Number of incoming response with status ";
+	mCountIncoming100=createCounter(global,key, help, "100");
+	mCountIncoming101=createCounter(global,key, help, "101");
+	mCountIncoming180=createCounter(global,key, help, "180");
+	mCountIncoming200=createCounter(global,key, help, "200");
+	mCountIncoming202=createCounter(global,key, help, "202");
+	mCountIncoming401=createCounter(global,key, help, "401");
+	mCountIncoming404=createCounter(global,key, help, "404");
+	mCountIncoming407=createCounter(global,key, help, "407");
+	mCountIncoming486=createCounter(global,key, help, "486");
+	mCountIncoming488=createCounter(global,key, help, "488");
+	mCountIncoming603=createCounter(global,key, help, "603");
+	mCountIncomingResUnknown=createCounter(global,key, help, "unknown");
+
+	key="count-reply-";
+	help="Number of replied ";
+	mCountReply100=createCounter(global,key, help, "100");
+	mCountReply101=createCounter(global,key, help, "101");
+	mCountReply180=createCounter(global,key, help, "180");
+	mCountReply200=createCounter(global,key, help, "200");
+	mCountReply202=createCounter(global,key, help, "202");
+	mCountReply401=createCounter(global,key, help, "401");
+	mCountReply404=createCounter(global,key, help, "404");
+	mCountReply407=createCounter(global,key, help, "407");
+	mCountReply486=createCounter(global,key, help, "486");
+	mCountReply488=createCounter(global,key, help, "488");
+	mCountReplyResUnknown=createCounter(global,key, help, "unknown");
+}
+
 Agent::Agent(su_root_t* root, int port, int tlsport) :
 		mPort(port), mTlsPort(tlsport) {
 	char sipuri[128] = { 0 };
@@ -165,6 +214,7 @@ Agent::Agent(su_root_t* root, int port, int tlsport) :
 	" (sofia-sip-nta/" NTA_VERSION ")";
 
 	for_each(mModules.begin(), mModules.end(), bind2nd(mem_fun(&Module::declare), cr));
+	onDeclare(cr);
 
 	/* we pass "" as localaddr when we just want to dump the default config. So don't go further*/
 	if (mPort == 0)
@@ -462,7 +512,45 @@ bool Agent::isUs(const url_t *url, bool check_aliases) const {
 }
 
 void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
-	ev->getMsgSip()->log("Receiving new Request SIP message:");
+	sip_t *sip=ev->getMsgSip()->mSip;
+	sip_request_t *req=sip->sip_request;
+	ev->getMsgSip()->log("Receiving new Request SIP message: %s",
+			req->rq_method_name);
+	switch (req->rq_method) {
+	case sip_method_register:
+		++*mCountIncomingRegister;
+		break;
+	case sip_method_invite:
+		++*mCountIncomingInvite;
+		break;
+	case sip_method_ack:
+		++*mCountIncomingAck;
+		break;
+	case sip_method_info:
+		++*mCountIncomingInfo;
+		break;
+	case sip_method_cancel:
+		++*mCountIncomingCancel;
+		break;
+	case sip_method_bye:
+		++*mCountIncomingBye;
+		break;
+	case sip_method_message:
+		++*mCountIncomingMessage;
+		break;
+	case sip_method_options:
+		++*mCountIncomingOptions;
+		break;
+	default:
+		if (strcmp(req->rq_method_name, "DECLINE")==0) {
+			++*mCountIncomingDecline;
+		} else {
+			++*mCountIncomingReqUnknown;
+		}
+		break;
+	}
+
+
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		ev->mCurrModule = (*it);
@@ -476,7 +564,49 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 }
 
 void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
-	ev->getMsgSip()->log("Receiving new Response SIP message:");
+	ev->getMsgSip()->log("Receiving new Response SIP message: %d",
+			ev->getMsgSip()->mSip->sip_status->st_status);
+
+	sip_t *sip=ev->getMsgSip()->mSip;
+	switch (sip->sip_status->st_status) {
+	case 100:
+		++*mCountIncoming100;
+		break;
+	case 101:
+		++*mCountIncoming101;
+		break;
+	case 180:
+		++*mCountIncoming180;
+		break;
+	case 200:
+		++*mCountIncoming200;
+		break;
+	case 202:
+		++*mCountIncoming202;
+		break;
+	case 401:
+		++*mCountIncoming401;
+		break;
+	case 404:
+		++*mCountIncoming404;
+		break;
+	case 407:
+		++*mCountIncoming407;
+		break;
+	case 486:
+		++*mCountIncoming486;
+		break;
+	case 488:
+		++*mCountIncoming488;
+		break;
+	case 603:
+		++*mCountIncoming603;
+		break;
+	default:
+		++*mCountIncomingResUnknown;
+		break;
+	}
+
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		ev->mCurrModule = *it;
@@ -623,6 +753,43 @@ void Agent::send(const shared_ptr<MsgSip> &ms) {
 }
 
 void Agent::reply(const shared_ptr<MsgSip> &ms, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+
+	switch (status) {
+	case 100:
+		++*mCountReply100;
+		break;
+	case 101:
+		++*mCountReply101;
+		break;
+	case 180:
+		++*mCountReply180;
+		break;
+	case 200:
+		++*mCountReply200;
+		break;
+	case 202:
+		++*mCountReply202;
+		break;
+	case 401:
+		++*mCountReply401;
+		break;
+	case 404:
+		++*mCountReply404;
+		break;
+	case 407:
+		++*mCountReply407;
+		break;
+	case 486:
+		++*mCountReply486;
+		break;
+	case 488:
+		++*mCountReply488;
+		break;
+	default:
+		++*mCountReplyResUnknown;
+		break;
+	}
+
 	ta_list ta;
 	ta_start(ta, tag, value);
 	msg_t* msg = ms->createOrigMsgRef();

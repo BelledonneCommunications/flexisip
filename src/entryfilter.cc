@@ -43,6 +43,8 @@ void ConfigEntryFilter::declareConfig(GenericStruct *module_config){
 	module_config->addChildrenValues(config, FALSE);
 	module_config->deprecateChild("from-domains");
 	module_config->deprecateChild("to-domains");
+	mCountEvalTrue=module_config->createStat("count-eval-true", "Number of filter evaluations to true.");
+	mCountEvalFalse=module_config->createStat("count-eval-false", "Number of filter evaluations to false.");
 }
 
 void ConfigEntryFilter::loadConfig(const GenericStruct  *mc){
@@ -149,9 +151,11 @@ bool ConfigEntryFilter::canEnter(sip_t *sip) {
 
 	SipArguments arguments(sip);
 	try {
-		return mBooleanExprFilter->eval(&arguments);
+		bool e=mBooleanExprFilter->eval(&arguments);
+		if (e) ++*mCountEvalTrue; else ++*mCountEvalFalse;
+		return e;
 	} catch (const invalid_argument *e) {
-		LOGD("Entry to %s forbidden on filtering error %s", mEntryName.c_str(), e->what());
+		LOGD("Fix your %s filter : %s", mEntryName.c_str(), e->what());
 		throw;
 	}
 }

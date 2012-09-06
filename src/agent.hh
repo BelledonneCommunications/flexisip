@@ -55,6 +55,45 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 	friend class StatelessSipEvent;
 	friend class StatefulSipEvent;
 	friend class Module;
+
+
+	StatCounter64 *mCountIncomingRegister;
+	StatCounter64 *mCountIncomingInvite;
+	StatCounter64 *mCountIncomingAck;
+	StatCounter64 *mCountIncomingInfo;
+	StatCounter64 *mCountIncomingBye;
+	StatCounter64 *mCountIncomingCancel;
+	StatCounter64 *mCountIncomingMessage;
+	StatCounter64 *mCountIncomingOptions;
+	StatCounter64 *mCountIncomingDecline;
+	StatCounter64 *mCountIncomingReqUnknown;
+
+	StatCounter64 *mCountIncoming100; // trying
+	StatCounter64 *mCountIncoming101;
+	StatCounter64 *mCountIncoming180; // ringing
+	StatCounter64 *mCountIncoming200; // ok
+	StatCounter64 *mCountIncoming202;
+	StatCounter64 *mCountIncoming401; // user auth.
+	StatCounter64 *mCountIncoming404; // not found
+	StatCounter64 *mCountIncoming486; // busy
+	StatCounter64 *mCountIncoming488;
+	StatCounter64 *mCountIncoming407; // proxy auth
+	StatCounter64 *mCountIncoming603; // decline
+	StatCounter64 *mCountIncomingResUnknown;
+
+	StatCounter64 *mCountReply100; // trying
+	StatCounter64 *mCountReply101;
+	StatCounter64 *mCountReply180; // ringing
+	StatCounter64 *mCountReply200; // ok
+	StatCounter64 *mCountReply202;
+	StatCounter64 *mCountReply401; // user auth.
+	StatCounter64 *mCountReply404; // not found
+	StatCounter64 *mCountReply486; // busy
+	StatCounter64 *mCountReply488;
+	StatCounter64 *mCountReply407; // proxy auth
+	StatCounter64 *mCountReplyResUnknown;
+	void onDeclare(GenericStruct *root);
+
 	public:
 		Agent(su_root_t *root, int port, int tlsport);
 		virtual void loadConfig(GenericManager *cm);

@@ -65,7 +65,7 @@ void MsgSip::log(const char *fmt, ...) {
 			va_end(args);
 		}
 		buf = msg_as_string(mHome, mMsg, NULL, 0, &msg_size);
-		LOGD("%s%s%s", (header) ? header : "", (header) ? "\n" : "", buf);
+		LOGD("%s%s%s\nendmsg", (header) ? header : "", (header) ? "\n" : "", buf);
 	}
 }
 

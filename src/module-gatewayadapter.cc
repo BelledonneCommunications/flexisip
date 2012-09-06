@@ -27,6 +27,8 @@
 
 using namespace ::std;
 
+class GatewayAdapter;
+
 class GatewayRegister {
 	typedef enum {
 		INITIAL, REGISTRING, REGISTRED
@@ -40,6 +42,18 @@ class GatewayRegister {
 	string password;
 	string routingParam;
 	sip_contact_t *contact;
+
+	static StatCounter64 *mCountInitialMsg;
+	static StatCounter64 *mCountRegisteringMsg200;
+	static StatCounter64 *mCountRegisteringMsg408;
+	static StatCounter64 *mCountRegisteringMsg401;
+	static StatCounter64 *mCountRegisteringMsgUnknown;
+	static StatCounter64 *mCountRegisteredUnknown;
+	static StatCounter64 *mCountStart;
+	static StatCounter64 *mCountError;
+	static StatCounter64 *mCountEnd;
+	static StatCounter64 *mCountForkToGateway;
+	static StatCounter64 *mCountDomainRewrite;
 public:
 	void sendRegister();
 	GatewayRegister(Agent *ag, nua_t * nua, sip_from_t *from, sip_to_t *to, sip_contact_t *contact);
@@ -64,6 +78,17 @@ public:
 
 	const string& getPassword() {
 		return password;
+	}
+	static void onDeclare(GenericStruct *mc) {
+		mCountInitialMsg=mc->createStat("count-gr-initial-msg", "Number of msg received while in initial state");
+		mCountRegisteringMsg200=mc->createStat("count-gr-registering-200", "Number of 200 received while in registering state");
+		mCountRegisteringMsg408=mc->createStat("count-gr-registering-408", "Number of 408 received while in registering state");
+		mCountRegisteringMsg401=mc->createStat("count-gr-registering-401", "Number of 401 received while in registering state");
+		mCountRegisteringMsgUnknown=mc->createStat("count-gr-registering-unknown", "Number of unknown received while in registering state");
+		mCountRegisteredUnknown=mc->createStat("count-gr-registered-unknown", "Number of msg received while in registered state");
+		mCountStart=mc->createStat("count-gr-start", "Number of calls to start()");
+		mCountError=mc->createStat("count-gr-error", "Number of calls to error()");
+		mCountEnd=mc->createStat("count-gr-end", "Number of calls to end()");
 	}
 
 private:
@@ -136,6 +161,18 @@ private:
 	};
 };
 
+StatCounter64 *GatewayRegister::mCountInitialMsg=NULL;
+StatCounter64 *GatewayRegister::mCountRegisteringMsg200=NULL;
+StatCounter64 *GatewayRegister::mCountRegisteringMsg408=NULL;
+StatCounter64 *GatewayRegister::mCountRegisteringMsg401=NULL;
+StatCounter64 *GatewayRegister::mCountRegisteringMsgUnknown=NULL;
+StatCounter64 *GatewayRegister::mCountRegisteredUnknown=NULL;
+StatCounter64 *GatewayRegister::mCountStart=NULL;
+StatCounter64 *GatewayRegister::mCountError=NULL;
+StatCounter64 *GatewayRegister::mCountEnd=NULL;
+StatCounter64 *GatewayRegister::mCountForkToGateway=NULL;
+StatCounter64 *GatewayRegister::mCountDomainRewrite=NULL;
+
 GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, sip_to_t *sip_to, sip_contact_t *sip_contact) :
 		agent(ag) {
 	su_home_init(&home);
@@ -190,34 +227,41 @@ void GatewayRegister::onMessage(const sip_t *sip) {
 	switch (state) {
 	case State::INITIAL:
 		onError("Can't receive message in this state");
+		++*mCountInitialMsg;
 		break;
 
 	case State::REGISTRING:
 		if (sip->sip_status->st_status == 200) {
+			++*mCountRegisteringMsg200;
 			LOGD("REGISTER done");
 			state = State::REGISTRED;
 			end(); // TODO: stop the dialog?
 		} else if (sip->sip_status->st_status == 408) {
+			++*mCountRegisteringMsg408;
 			LOGD("REGISTER timeout");
 			end();
 		} else if (sip->sip_status->st_status == 401){
+			++*mCountRegisteringMsg401;
 			LOGD("REGISTER challenged ");
 			ostringstream auth;
 			auth << "Digest:\"" << getFrom()->a_url->url_host << "\":" << getFrom()->a_url->url_user << ":" << getPassword();
 			nua_authenticate(nh, NUTAG_AUTH(auth.str().c_str()),TAG_END());
 		} else {
+			++*mCountRegisteringMsgUnknown;
 			LOGD("REGISTER not handled response: %i", sip->sip_status->st_status);
 			end();
 		}
 		break;
 
 	case State::REGISTRED:
+		++*mCountRegisteredUnknown;
 		LOGD("new message %i", sip->sip_status->st_status);
 		break;
 	}
 }
 
 void GatewayRegister::onError(const char *message, ...) {
+	++*mCountError;
 	va_list args;
 	va_start(args, message);
 	LOGE("%s", message);
@@ -228,20 +272,24 @@ void GatewayRegister::onError(const char *message, ...) {
 void GatewayRegister::start() {
 	LOGD("GatewayRegister start");
 	LOGD("Fetching binding");
+	++*mCountStart;
 	RegistrarDb::get(agent)->fetch(from->a_url, make_shared<OnFetchListener>(this));
 }
 
 void GatewayRegister::end() {
+	++*mCountEnd;
 	LOGD("GatewayRegister end");
 }
 
 class GatewayAdapter: public Module {
+	StatCounter64 *mCountForkToGateway;
+	StatCounter64 *mCountDomainRewrite;
 public:
 	GatewayAdapter(Agent *ag);
 
 	~GatewayAdapter();
 
-	virtual void onDeclare(GenericStruct *module_config);
+	virtual void onDeclare(GenericStruct *mc);
 
 	virtual void onLoad(const GenericStruct *module_config);
 
@@ -275,8 +323,8 @@ GatewayAdapter::~GatewayAdapter() {
 	su_home_deinit(&home);
 }
 
-void GatewayAdapter::onDeclare(GenericStruct *module_config) {
-	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
+void GatewayAdapter::onDeclare(GenericStruct *mc) {
+	mc->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = {
 			{ String, "gateway", "A gateway uri where to send all requests.", "sip:localhost:0" },
 			{ String, "gateway-domain", "Modify the from and to domains of incoming register", "" },
@@ -286,7 +334,10 @@ void GatewayAdapter::onDeclare(GenericStruct *module_config) {
 			{ String, "routing-param", "Parameter name hosting the incoming domain that will be sent in the register to the gateway.", "routing-domain" },
 			config_item_end
 	};
-	module_config->addChildrenValues(items);
+	mc->addChildrenValues(items);
+	GatewayRegister::onDeclare(mc);
+	mCountForkToGateway=mc->createStat("count-fork-to-gateway", "Number of forks to gateway.");
+	mCountDomainRewrite=mc->createStat("countdomain-rewrite", "Number of domain rewrite.");
 }
 
 bool GatewayAdapter::isValidNextConfig(const ConfigValue &cv) {
@@ -332,6 +383,7 @@ void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 						INT_MAX);
 				contact->m_next = sip->sip_contact;
 				sip->sip_contact = contact;
+				++*mCountForkToGateway;
 			}
 
 			if (mRegisterOnGateway) gr->start();
@@ -341,6 +393,7 @@ void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		char routing_param[64];
 		url_t *dest = sip->sip_request->rq_url;
 		if (url_param(dest->url_params, mRoutingParam.c_str(), routing_param, sizeof(routing_param))) {
+			++*mCountDomainRewrite;
 			LOGD("Rewriting request uri and to with domain %s", routing_param);
 			dest->url_host=su_strdup(ms->getHome(), routing_param);
 			sip->sip_to->a_url[0].url_host=su_strdup(ms->getHome(), routing_param);
