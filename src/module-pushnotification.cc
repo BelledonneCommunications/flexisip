@@ -69,6 +69,7 @@ private:
 	map<string,shared_ptr<PushNotificationContext> > mPendingNotifications; 
 	static ModuleInfo<PushNotification> sInfo;
 	int mTimeout;
+	std::list<std::string> mGoogleProjects;
 	PushNotificationService *mAPNS;
 };
 
@@ -134,9 +135,11 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = {
 			{ Integer, "timeout", "Number of second to wait before sending a push notification to device(if <=0 then disabled)", "5" },
-			{ Boolean, "apple", "Enable push notificaction for apple devices", "true" },
+			{ Boolean, "apple", "Enable push notification for apple devices", "true" },
 			{ String, "apple-certificate-dir", "Path to directory where to find Apple Push Notification service certificates. They should bear the appid of the application, suffixed by the release mode and .pem extension. For example: org.linphone.dev.pem org.linphone.prod.pem com.somephone.dev.pem etc..."
 			" The files should be .pem format, and made of certificate followed by private key." , "/etc/flexisip/apn" },
+			{ Boolean, "google", "Enable push notification for android devices", "true" },
+			{ StringList, "google-projects-api-keys", "List of couple projectId:ApiKey for each android project which support push notifications", "" },
 			config_item_end };
 	module_config->addChildrenValues(items);
 }
@@ -144,8 +147,24 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 void PushNotification::onLoad(const GenericStruct *mc) {
 	mTimeout = mc->get<ConfigInt>("timeout")->read();
 	string certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
+	mGoogleProjects = mc->get<ConfigStringList>("google-projects-api-keys")->read();
 	mAPNS = new PushNotificationService( certdir, "");
 	mAPNS->start();
+}
+
+std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
+    std::stringstream ss(s);
+    std::string item;
+    while(std::getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+    return elems;
+}
+
+
+std::vector<std::string> split(const std::string &s, char delim) {
+    std::vector<std::string> elems;
+    return split(s, delim, elems);
 }
 
 void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction){
@@ -197,12 +216,30 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 			}
 			shared_ptr<PushNotificationRequest> pn;
 			if (strcmp(type,"apple")==0){
-				pn= make_shared<ApplePushNotificationRequest>(appId,deviceToken, 
+				pn= make_shared<ApplePushNotificationRequest>(appId, deviceToken,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
 						contact,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd);
-			}else if (strcmp(type,"google")==0){
-				//TODO
+			} else if (strcmp(type,"google")==0) {
+				string apiKey = string("");
+				for (list<string>::const_iterator iterator = mGoogleProjects.begin(); iterator != mGoogleProjects.end(); ++iterator) {
+					string couple = string((*iterator).c_str());
+					vector<string> splitedCouple = split(couple, ':');
+					if (splitedCouple.size() == 2) {
+						string tempAppId = splitedCouple[0];
+						if (tempAppId.compare(appId) == 0) {
+							apiKey = splitedCouple[1];
+						}
+					}
+				}
+
+				if (!apiKey.empty()) {
+					// We only have one client for all Android apps, called "google"
+					pn= make_shared<GooglePushNotificationRequest>(string("google"), deviceToken, apiKey,
+							(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
+							contact,
+							(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd);
+				}
 			}
 			if (pn){
 				/*create a context*/

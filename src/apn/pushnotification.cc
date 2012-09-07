@@ -48,8 +48,23 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const string & appid,
 
 }
 
+GooglePushNotificationRequest::GooglePushNotificationRequest(const string & appid, const std::string &deviceToken, const std::string &apiKey, const std::string &msg_id, const std::string &arg, const std::string &sound) : PushNotificationRequest(appid) {
+	std::ostringstream httpBody;
+	httpBody << "data.loc-key=" << msg_id << "&data.loc-args=" << arg << "&data.sound=" << sound << "&registration_id=" << deviceToken;
+	LOGD("Push notification https post body is %s", httpBody.str().c_str());
+
+	std::ostringstream httpHeader;
+	httpHeader << "HTTP/1.1\r\nContent-Type:application/x-www-form-urlencoded;charset=UTF-8\r\nAuthorization:key=" << apiKey << "\r\nContent-Length:" << httpBody.str().size() <<"\r\n\r\n";
+	LOGD("Push notification https post header is %s", httpHeader.str().c_str());
+
+	createPushNotification(httpHeader.str(), httpBody.str(), mData);
+}
 
 const std::vector<char> ApplePushNotificationRequest::getData() const{
+	return mData;
+}
+
+const std::vector<char> GooglePushNotificationRequest::getData() const{
 	return mData;
 }
 
@@ -131,6 +146,25 @@ int ApplePushNotificationRequest::createPushNotification(const vector<char> &dev
 	/* payload */
 	memcpy(binaryMessagePt, &payload[0], payloadLength);
 	binaryMessagePt += payloadLength;
+
+	return 0;
+}
+
+int GooglePushNotificationRequest::createPushNotification(const string &header, const string &body, vector<char> &retVal) {
+	int headerLength = header.length();
+	int bodyLength = body.length();
+
+	retVal.clear();
+	retVal.resize(headerLength + bodyLength);
+
+	char *binaryMessageBuff = &retVal[0];
+	char *binaryMessagePt = binaryMessageBuff;
+
+	memcpy(binaryMessagePt, &header[0], headerLength);
+	binaryMessagePt += headerLength;
+
+	memcpy(binaryMessagePt, &body[0], bodyLength);
+	binaryMessagePt += bodyLength;
 
 	return 0;
 }

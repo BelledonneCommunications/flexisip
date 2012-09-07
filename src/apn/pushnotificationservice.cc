@@ -26,13 +26,15 @@
 #include <sstream>
 
 const char *APN_ADDRESS = "gateway.sandbox.push.apple.com";
+const char *GPN_ADDRESS = "https://android.googleapis.com/gcm/send";
 const char *APN_PORT = "2195";
+const char *GPN_PORT = "443";
 
 using namespace ::std;
 using namespace ::boost;
 
 void PushNotificationService::sendRequest(const std::shared_ptr<PushNotificationRequest> &pn) {
-	std::shared_ptr<PushNotificationClient> client=mClients[pn->getAppIdentifier()+string(".pem")];
+	std::shared_ptr<PushNotificationClient> client=mClients[pn->getAppIdentifier()];
 	if (client==0){
 		LOGE("No push notification certificate for client %s",pn->getAppIdentifier().c_str());
 		return;
@@ -117,9 +119,18 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 				LOGE("use_private_key_file: %s",err.message().c_str());
 			}
 		}
-		mClients[cert]=make_shared<PushNotificationClient>(cert, this,ctx,APN_ADDRESS,APN_PORT);
+		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
+		mClients[certName]=make_shared<PushNotificationClient>(cert, this, ctx, APN_ADDRESS, APN_PORT);
 	}
 	closedir(dirp);
+
+	// Android Client
+	string googleClient = string("google");
+	std::shared_ptr<boost::asio::ssl::context> ctx(new boost::asio::ssl::context(mIOService, asio::ssl::context::sslv23_client));
+	system::error_code err;
+	ctx->set_options(asio::ssl::context::default_workarounds, err);
+	ctx->set_verify_mode(asio::ssl::context::verify_none);
+	mClients[googleClient]=make_shared<PushNotificationClient>(googleClient, this, ctx, GPN_ADDRESS, GPN_PORT);
 }
 
 PushNotificationService::PushNotificationService(const std::string &certdir, const std::string &cafile) :

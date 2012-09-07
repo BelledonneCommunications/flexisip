@@ -44,10 +44,20 @@ public:
 	ApplePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &msg_id, const std::string &arg, const std::string &sound);
 	~ApplePushNotificationRequest() {};
 private:
-
 	static int formatDeviceToken(const std::string &deviceToken, std::vector<char> &retVal);
 	static int createPushNotification(const std::vector<char> &deviceToken, const std::string &payload, std::vector<char> &retVal);
+private:
+	std::vector<char> mData;
+};
 
+class GooglePushNotificationRequest: public PushNotificationRequest {
+public:
+	static const int MAXPAYLOAD_SIZE;
+	virtual const std::vector<char> getData() const;
+	GooglePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &apiKey, const std::string &msg_id, const std::string &arg, const std::string &sound);
+	~GooglePushNotificationRequest() {};
+private:
+	static int createPushNotification(const std::string &header, const std::string &body, std::vector<char> &retVal);
 private:
 	std::vector<char> mData;
 };
