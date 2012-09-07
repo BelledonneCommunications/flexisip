@@ -117,13 +117,13 @@ void SipEvent::restartProcessing() {
 }
 
 RequestSipEvent::RequestSipEvent(const shared_ptr<IncomingAgent> &incomingAgent, const shared_ptr<MsgSip> &msgSip) :
-		SipEvent(msgSip) {
+		SipEvent(msgSip), mRecordRouteAdded(false) {
 	mIncomingAgent = incomingAgent;
 	mOutgoingAgent = incomingAgent->getAgent()->shared_from_this();
 }
 
-RequestSipEvent::RequestSipEvent(const shared_ptr<SipEvent> &sipEvent) :
-		SipEvent(*sipEvent) {
+RequestSipEvent::RequestSipEvent(const shared_ptr<RequestSipEvent> &sipEvent) :
+		SipEvent(*sipEvent), mRecordRouteAdded(sipEvent->mRecordRouteAdded) {
 }
 
 void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {

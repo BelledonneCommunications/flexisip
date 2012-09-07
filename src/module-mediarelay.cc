@@ -509,8 +509,6 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 
 	mServer->update();
 
-	//be in the record-route
-	addRecordRoute(c->getHome(), getAgent(), msg, sip);
 	delete m;
 	return true;
 }
@@ -527,11 +525,15 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) == NULL) {
 			c = make_shared<RelayedCall>(mServer, sip, mEarlymediaRTPDir);
 			if (processNewInvite(c, ot, ev->getMsgSip())) {
+				//be in the record-route
+				addRecordRouteIncoming(c->getHome(), getAgent(),ev);
 				mCalls->store(c);
 				ot->setProperty<RelayedCall>(getModuleName(), c);
 			}
 		} else {
 			if (processNewInvite(c, ot, ev->getMsgSip())) {
+				//be in the record-route
+				addRecordRouteIncoming(c->getHome(), getAgent(),ev);
 				ot->setProperty(getModuleName(), c);
 			}
 		}

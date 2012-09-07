@@ -20,6 +20,7 @@
 #include "agent.hh"
 #include "entryfilter.hh"
 #include "sofia-sip/auth_digest.h"
+#include "sofia-sip/tport.h"
 
 #include "expressionparser.hh"
 
@@ -238,52 +239,62 @@ void ModuleToolbox::prependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *
 	sip->sip_route = r;
 }
 
-void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *transport) {
-	sip_via_t *via = sip->sip_via;
+static bool already_in(sip_record_route_t *orig, sip_record_route_t *newone){
+	for(;orig!=NULL;orig=orig->r_next){
+		if (url_cmp_all(orig->r_url,newone->r_url)==0)
+			return true;
+	}
+	return false;
+}
+
+void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev, tport_t *tport){
+	const tp_name_t *name;
+	shared_ptr<MsgSip> msgsip=ev->getMsgSip();
+	msg_t *msg=msgsip->getMsg();
+	sip_t *sip=msgsip->getSip();
+	const char *uri_scheme;
 	sip_record_route_t *rr;
-	char lower_tport[16]={0};
-	bool transport_given = (transport != NULL);
-
-	if (transport == NULL)
-		transport = sip_via_transport(via);
-
-	for(int i=0;transport[i]!='\0';i++){
-		lower_tport[i]=tolower(transport[i]);
-	}
-
-	if (strcasecmp(transport,"TLS")==0){
-		int port = ag->getTlsPort();
-		if (port != 5061) {
-			rr = sip_record_route_format(home, "<sips:%s:%i;lr;transport=%s>", ag->getPublicIp().c_str(), port, lower_tport);
-		} else {
-			rr = sip_record_route_format(home, "<sips:%s;lr;transport=%s>", ag->getPublicIp().c_str(), lower_tport);
-		}
-	}
-	else if (strcasecmp(transport, "UDP") != 0) {
-		int port = ag->getPort();
-		if (port != 5060) {
-			rr = sip_record_route_format(home, "<sip:%s:%i;lr;transport=%s>", ag->getPublicIp().c_str(), port, lower_tport);
-		} else {
-			rr = sip_record_route_format(home, "<sip:%s;lr;transport=%s>", ag->getPublicIp().c_str(), lower_tport);
-		}
-	} else {
-		if (ag->getPort() != 5060) {
-			rr = sip_record_route_format(home, "<sip:%s:%i;lr>", ag->getPublicIp().c_str(), ag->getPort());
-		} else {
-			rr = sip_record_route_format(home, "<sip:%s;lr>", ag->getPublicIp().c_str());
-		}
+	
+	tport=tport_parent(tport); //get primary transport
+	name=tport_name(tport); //primary transport name
+	
+	if (strcmp(name->tpn_proto,"tls")==0)
+		uri_scheme="sips";
+	else uri_scheme="sip";
+	if (strcmp(name->tpn_proto,"udp")==0){
+		rr=sip_record_route_format(home,"<%s:%s:%s;lr>",uri_scheme,name->tpn_canon,name->tpn_port);
+	}else{
+		rr=sip_record_route_format(home,"<%s:%s:%s;transport=%s;lr>",uri_scheme,name->tpn_canon,name->tpn_port,name->tpn_proto);
 	}
 	if (sip->sip_record_route == NULL) {
 		sip->sip_record_route = rr;
 	} else {
 		/*make sure we are not already in*/
-		if (!transport_given && sip->sip_record_route && ag->isUs(sip->sip_record_route->r_url, false))
+		if (already_in(sip->sip_record_route,rr))
 			return;
 		rr->r_next = sip->sip_record_route;
 		msg_header_remove_all(msg, (msg_pub_t*) sip, (msg_header_t*) sip->sip_record_route);
 		msg_header_insert(msg, (msg_pub_t*) sip, (msg_header_t*) rr);
 		sip->sip_record_route = rr;
 	}
+	ev->mRecordRouteAdded=true;
+}
+
+void ModuleToolbox::addRecordRouteIncoming(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev ) {
+	if (ev->mRecordRouteAdded) return;
+
+	shared_ptr<MsgSip> msgsip=ev->getMsgSip();
+	msg_t *orig_msg=msgsip->createOrigMsgRef();
+	tport_t *primaries=nta_agent_tports(ag->getSofiaAgent());
+	tport_t *tport=tport_delivered_by(primaries,orig_msg);
+	
+	msg_destroy(orig_msg);
+	
+	if (tport==NULL){
+		LOGE("Cannot find tport message is coming from, not possible to add a Record-Route.");
+		return;
+	}
+	addRecordRoute(home,ag,ev,tport);
 }
 
 bool ModuleToolbox::fromMatch(const sip_from_t *from1, const sip_from_t *from2) {

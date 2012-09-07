@@ -124,6 +124,9 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		su_root_t *getRoot() const{
 			return mRoot;
 		}
+		nta_agent_t *getSofiaAgent()const{
+			return mAgent;
+		}
 		int countUsInVia(sip_via_t *via)const;
 		bool isUs(const char *host, const char *port, bool check_aliases)const;
 		sip_via_t *getNextVia(sip_t *response);

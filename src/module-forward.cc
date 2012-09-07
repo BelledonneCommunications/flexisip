@@ -22,6 +22,7 @@
 #include "etchosts.hh"
 #include <sstream>
 #include <sofia-sip/sip_status.h>
+#include <sofia-sip/tport.h>
 
 using namespace ::std;
 
@@ -95,22 +96,18 @@ url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest)
  so that further request from both sides are sent to the appropriate transport of flexisip, and also we don't ask to a UDP only equipment to route to TCP.
  */
 void ForwardModule::checkRecordRoutes(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
+	if (!ev->mRecordRouteAdded)
+		return; //if no record route were added by any module, no need to set an outgoing record route.
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	sip_record_route_t *rr = ms->getSip()->sip_record_route;
-	char last_transport[16] = { 0 };
-	char next_transport[16] = { 0 };
-
-	if (rr) {
-		if (getAgent()->isUs(rr->r_url, false)) {
-			if (!url_param(rr->r_url->url_params, "transport", last_transport, sizeof(last_transport))) {
-				strncpy(last_transport, "UDP", sizeof(last_transport));
-			}
-			if (!url_param(dest->url_params, "transport", next_transport, sizeof(next_transport))) {
-				strncpy(next_transport, "UDP", sizeof(next_transport));
-			}
-			if (strcasecmp(next_transport, last_transport) != 0) {
-				addRecordRoute(ms->getHome(), getAgent(), ms->getMsg(), ms->getSip(), next_transport);
-			}
+	sip_method_t method=ms->getSip()->sip_request->rq_method;
+	if (method==sip_method_invite || method==sip_method_subscribe){
+		tp_name_t name={0};
+		tport_name_by_url(ms->getHome(),&name,(url_string_t*)dest);
+		tport_t *tport=tport_by_name(nta_agent_tports(getSofiaAgent()),&name);
+		if (tport){
+			addRecordRoute(ms->getHome(),getAgent(),ev,tport);
+		}else{
+			LOGE("Could not find tport to set proper outgoing Record-Route.");
 		}
 	}
 }

@@ -150,7 +150,7 @@ protected:
 class RequestSipEvent: public SipEvent {
 public:
 	RequestSipEvent(const std::shared_ptr<IncomingAgent> &incomingAgent, const std::shared_ptr<MsgSip> &msgSip);
-	RequestSipEvent(const std::shared_ptr<SipEvent> &sipEvent);
+	RequestSipEvent(const std::shared_ptr<RequestSipEvent> &sipEvent);
 
 	virtual void suspendProcessing();
 	std::shared_ptr<IncomingTransaction> createIncomingTransaction();
@@ -164,6 +164,7 @@ public:
 	virtual void setIncomingAgent(const std::shared_ptr<IncomingAgent> &agent);
 
 	~RequestSipEvent();
+	bool mRecordRouteAdded;
 };
 
 class ResponseSipEvent: public SipEvent {

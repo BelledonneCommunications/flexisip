@@ -349,7 +349,7 @@ int TranscodeModule::processNewInvite(CallContext *c, shared_ptr<RequestSipEvent
 	}
 	if (ret == 0) {
 		//be in the record-route
-		addRecordRoute(c->getHome(), getAgent(), ms->getMsg(), ms->getSip());
+		addRecordRouteIncoming(c->getHome(), getAgent(), ev);
 		c->storeNewInvite(ms->getMsg());
 	} else {
 		ev->reply(ms, 415, "Unsupported codecs", TAG_END());
