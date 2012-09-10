@@ -28,6 +28,12 @@
 
 using namespace ::std;
 
+static bool isNumeric(const char *host){
+	if (host[0]=='[') return true; //ipv6
+	struct in_addr addr;
+	return !!inet_aton(host,&addr); //inet_aton returns non zero if ipv4 address is valid.
+}
+
 class Registrar;
 static Registrar *sRegistrarInstanceForSigAction=NULL;
 
@@ -206,8 +212,16 @@ private:
 		db->mLocalRegExpire->removeExpiredBefore(time(NULL));
 		mCountLocalActives->set(db->mLocalRegExpire->countActives());
 	}
-	bool isManagedDomain(const char *domain) {
-		return ModuleToolbox::matchesOneOf(domain, mDomains);
+	bool isManagedDomain(const url_t *url) {
+		bool check=ModuleToolbox::matchesOneOf(url->url_host, mDomains);
+		if (check){
+			//additional check: if the domain is an ip address that is not this proxy, then it is not considered as a managed domain for the registrar.
+			//we need this to distinguish requests that needs registrar routing from already routed requests.
+			if (isNumeric(url->url_host) && !getAgent()->isUs(url,true)){
+				check=false;
+			}
+		}
+		return check;
 	}
 	void readStaticRecords();
 	bool contactUrlInVia(const url_t *ct_url, sip_via_t * via);
@@ -299,7 +313,7 @@ void Registrar::readStaticRecords() {
 
 					if (url != NULL && contact != NULL) {
 						auto listener=make_shared<OnStaticBindListener>(getAgent(), line);
-						bool alias=isManagedDomain(url->url_host);
+						bool alias=isManagedDomain(url);
 						RegistrarDb::get(mAgent)->bind(url, contact, fakeCallId, version, NULL, expire, alias, listener);
 						continue;
 					}
@@ -634,28 +648,6 @@ public:
 	}
 };
 
-static bool isIpv6(const char *c) {
-	if (!c) return false;
-	while (*c != '\0') {
-		if (*c == ':' || (*c >= 'a' && *c <= 'f') || (*c >= '0' && *c<='9'))
-			++c;
-		else
-			return false;
-	}
-	return true;
-}
-
-static bool isIpv4(const char *c) {
-	if (!c) return false;
-	while (*c != '\0') {
-		if (*c == '.' || (*c >= '0' && *c<='9'))
-			++c;
-		else
-			return false;
-	}
-	return true;
-}
-
 void Registrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
@@ -671,7 +663,7 @@ void Registrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	if (sip->sip_request->rq_method == sip_method_register) {
 		url_t *sipurl = sip->sip_from->a_url;
-		if (sipurl->url_host && isManagedDomain(sipurl->url_host)) {
+		if (sipurl->url_host && isManagedDomain(sipurl)) {
 			sip_expires_t *expires = sip->sip_expires;
 			int maindelta = getMainDelta(expires);
 			if (sip->sip_contact != NULL) {
@@ -713,13 +705,14 @@ void Registrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		/* When we accept * as domain we need to test ip4/ipv6 */
 		if (sip->sip_request->rq_method != sip_method_ack && sip->sip_to != NULL && sip->sip_to->a_tag == NULL) {
 			url_t *sipurl = sip->sip_request->rq_url;
-			if (sipurl->url_host  && !(isIpv4(sipurl->url_host)||isIpv6(sipurl->url_host)) && isManagedDomain(sipurl->url_host)) {
+			if (sipurl->url_host  && isManagedDomain(sipurl)) {
 				char *url = url_as_string(ms->getHome(), sipurl);
 				LOGD("Fetch %s.", url);
 				RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnBindForRoutingListener>(this, ev, url), true);
 			}
 		}
 		if (sip->sip_request->rq_method == sip_method_ack) {
+			//Seems very complex: maybe it could be simpler.
 			sip_route_t *route = sip->sip_route;
 			bool routeAck=false;
 			while (route) {
@@ -730,7 +723,7 @@ void Registrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 				route=route->r_next;
 			}
 			const char *req_host = sip->sip_request->rq_url->url_host;
-			if (!routeAck && !isIpv4(req_host) && !isIpv6(req_host)) {
+			if (!routeAck && !isNumeric(req_host)) {
 				LOGD("We are the destination of this ACK, stopped.");
 				ev->terminateProcessing();
 				return;
