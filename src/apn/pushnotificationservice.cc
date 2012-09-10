@@ -26,7 +26,7 @@
 #include <sstream>
 
 const char *APN_ADDRESS = "gateway.sandbox.push.apple.com";
-const char *GPN_ADDRESS = "https://android.googleapis.com/gcm/send";
+const char *GPN_ADDRESS = "android.googleapis.com";
 const char *APN_PORT = "2195";
 const char *GPN_PORT = "443";
 
@@ -77,6 +77,14 @@ void PushNotificationService::stop() {
 void PushNotificationService::setupClients(const string &certdir, const string &ca){
 	struct dirent *dirent;
 	DIR *dirp;
+
+	// Android Client
+	string googleClient = string("google");
+	std::shared_ptr<boost::asio::ssl::context> ctx(new boost::asio::ssl::context(mIOService, asio::ssl::context::sslv23_client));
+	system::error_code err;
+	ctx->set_options(asio::ssl::context::default_workarounds, err);
+	ctx->set_verify_mode(asio::ssl::context::verify_none);
+	mClients[googleClient]=make_shared<PushNotificationClient>(googleClient, this, ctx, GPN_ADDRESS, GPN_PORT);
 	
 	dirp=opendir(certdir.c_str());
 	if (dirp==NULL){
@@ -123,14 +131,6 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 		mClients[certName]=make_shared<PushNotificationClient>(cert, this, ctx, APN_ADDRESS, APN_PORT);
 	}
 	closedir(dirp);
-
-	// Android Client
-	string googleClient = string("google");
-	std::shared_ptr<boost::asio::ssl::context> ctx(new boost::asio::ssl::context(mIOService, asio::ssl::context::sslv23_client));
-	system::error_code err;
-	ctx->set_options(asio::ssl::context::default_workarounds, err);
-	ctx->set_verify_mode(asio::ssl::context::verify_none);
-	mClients[googleClient]=make_shared<PushNotificationClient>(googleClient, this, ctx, GPN_ADDRESS, GPN_PORT);
 }
 
 PushNotificationService::PushNotificationService(const std::string &certdir, const std::string &cafile) :

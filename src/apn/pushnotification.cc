@@ -54,7 +54,7 @@ GooglePushNotificationRequest::GooglePushNotificationRequest(const string & appi
 	LOGD("Push notification https post body is %s", httpBody.str().c_str());
 
 	std::ostringstream httpHeader;
-	httpHeader << "HTTP/1.1\r\nContent-Type:application/x-www-form-urlencoded;charset=UTF-8\r\nAuthorization:key=" << apiKey << "\r\nContent-Length:" << httpBody.str().size() <<"\r\n\r\n";
+	httpHeader << "POST /gcm/send HTTP/1.1\r\nHost:android.googleapis.com\r\nContent-Type:application/x-www-form-urlencoded;charset=UTF-8\r\nAuthorization:key=" << apiKey << "\r\nContent-Length:" << httpBody.str().size() <<"\r\n\r\n";
 	LOGD("Push notification https post header is %s", httpHeader.str().c_str());
 
 	createPushNotification(httpHeader.str(), httpBody.str(), mData);

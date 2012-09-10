@@ -320,17 +320,8 @@ public:
 			LOGD("ACK are never challenged");
 			return;
 		}
-		// first check for auth module for this domain
-		auth_mod_t *am=findAuthModule(sip->sip_from->a_url[0].url_host);
-		if (am==NULL) {
-			LOGI("unknown domain [%s]",sip->sip_from->a_url[0].url_host);
-			ev->reply(ms, SIP_488_NOT_ACCEPTABLE,
-					SIPTAG_CONTACT(sip->sip_contact),
-					SIPTAG_SERVER_STR(getAgent()->getServerString()),
-					TAG_END());
-			return;
-		}
 
+		// First check for trusted host
 		sip_via_t *via=sip->sip_via;
 		list<string>::const_iterator trustedHostsIt=mTrustedHosts.begin();
 		const char *receivedHost=!empty(via->v_received) ? via->v_received : via->v_host;
@@ -339,6 +330,17 @@ public:
 				LOGD("Allowing message from trusted host %s", receivedHost);
 				return;
 			}
+		}
+
+		// Then check for auth module for this domain
+		auth_mod_t *am=findAuthModule(sip->sip_from->a_url[0].url_host);
+		if (am==NULL) {
+			LOGI("unknown domain [%s]",sip->sip_from->a_url[0].url_host);
+			ev->reply(ms, SIP_488_NOT_ACCEPTABLE,
+					SIPTAG_CONTACT(sip->sip_contact),
+					SIPTAG_SERVER_STR(getAgent()->getServerString()),
+					TAG_END());
+			return;
 		}
 
 		// Create incoming transaction if not already exists

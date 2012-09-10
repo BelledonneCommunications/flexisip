@@ -137,6 +137,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		void injectResponseEvent(std::shared_ptr<ResponseSipEvent> ev);
 		void sendRequestEvent(std::shared_ptr<RequestSipEvent> ev);
 		void sendResponseEvent(std::shared_ptr<ResponseSipEvent> ev);
+		void incrReplyStat(int status);
 	protected:
 		void sendTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
 		int onIncomingMessage(msg_t *msg, sip_t *sip);

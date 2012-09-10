@@ -82,6 +82,13 @@ class VariableOrConstant {
 public:
 	virtual ~VariableOrConstant() {};
 	virtual const std::string &get(const Arguments *args)=0;
+	const bool defined(const Arguments *args) {
+		try {
+			get(args);
+			return true;
+		} catch (exception *e) {}
+		return false;
+	}
 	const list<string> &getAsList(const Arguments *args) {
 		string s=get(args);
 		mValueList.clear();
@@ -245,6 +252,21 @@ public:
 			}
 		}
 		if (logEval) log({"evaluating ", var, " is numeric : ", res?"true":"false"});
+		return res;
+	}
+};
+
+
+class DefinedOp : public BooleanExpression{
+	shared_ptr<VariableOrConstant> mVar;
+	string mName;
+public:
+	DefinedOp(string name, shared_ptr<VariableOrConstant> var) : mVar(var), mName(name){
+		log({"Creating DefinedOperator"});
+	};
+	virtual bool eval(const Arguments *args){
+		bool res=mVar->defined(args);
+		if (logEval) log({"evaluating is defined for ", mName, res?"true":"false"});
 		return res;
 	}
 };
@@ -488,6 +510,10 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 					i+=j; j=0;
 					auto var=buildVariableOrConstant(expr.substr(i),&j);
 					cur_exp=make_shared<NumericOp>(var);
+				} else if (isKeyword(expr.substr(i), &j, "defined")) {
+					i+=j; j=0;
+					auto var=buildVariableOrConstant(expr.substr(i),&j);
+					cur_exp=make_shared<DefinedOp>(expr.substr(i, j), var);
 				} else if (expr[i]=='(') {
 					size_t end=find_matching_closing_parenthesis(expr,i+1);
 					if (end!=string::npos){
@@ -532,6 +558,18 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 				j=0;
 				auto rightVar= buildVariableOrConstant(expr.substr(i),&j);
 				cur_exp=make_shared<ContainsOp>(cur_var, rightVar);
+				i+=j;
+			} else {
+				cur_var=buildVariableOrConstant(expr.substr(i),&j);
+				i+=j;j=0;
+			}
+			break;
+		case 'd':
+			if (isKeyword(expr.substr(i), &j, "defined")) {
+				i+=j;
+				j=0;
+				auto rightVar= buildVariableOrConstant(expr.substr(i),&j);
+				cur_exp=make_shared<DefinedOp>(expr.substr(i, j), rightVar);
 				i+=j;
 			} else {
 				cur_var=buildVariableOrConstant(expr.substr(i),&j);

@@ -173,7 +173,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 	
 	if (sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_params != NULL){
 		char type[12];
-		char deviceToken[65];
+		char deviceToken[256];
 		char appId[256]={0};
 		char msg_str[64];
 		char call_str[64];
@@ -182,8 +182,9 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 		
 		char const *params=sip->sip_request->rq_url->url_params;
 		/*extract all parameters required to make the push notification */
-		if (url_param(params, "pn-tok", deviceToken, sizeof(deviceToken)) != sizeof(deviceToken))
+		if (url_param(params, "pn-tok", deviceToken, sizeof(deviceToken)) == 0) {
 			return ;
+		}
 		//check if another push notification for this device wouldn't be pending
 		auto it=mPendingNotifications.find(deviceToken);
 		if (it!=mPendingNotifications.end()){
