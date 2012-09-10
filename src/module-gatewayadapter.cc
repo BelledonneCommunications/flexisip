@@ -64,7 +64,7 @@ public:
 
 	void start();
 	void end();
-	void authenticate();
+	void authenticate(const msg_param_t *au_params);
 
 	sip_from_t* getFrom() const {
 		return from;
@@ -86,7 +86,7 @@ public:
 		mCountRegisteringMsg200=mc->createStat("count-gr-registering-200", "Number of 200 received while in registering state");
 		mCountRegisteringMsg408=mc->createStat("count-gr-registering-408", "Number of 408 received while in registering state");
 		mCountRegisteringMsg401=mc->createStat("count-gr-registering-401", "Number of 401 received while in registering state");
-		mCountRegisteringMsg401=mc->createStat("count-gr-registering-407", "Number of 407 received while in registering state");
+		mCountRegisteringMsg407=mc->createStat("count-gr-registering-407", "Number of 407 received while in registering state");
 		mCountRegisteringMsgUnknown=mc->createStat("count-gr-registering-unknown", "Number of unknown received while in registering state");
 		mCountRegisteredUnknown=mc->createStat("count-gr-registered-unknown", "Number of msg received while in registered state");
 		mCountStart=mc->createStat("count-gr-start", "Number of calls to start()");
@@ -227,11 +227,24 @@ void GatewayRegister::sendRegister() {
 	nua_register(nh, SIPTAG_CONTACT(contact), TAG_END());
 }
 
-void GatewayRegister::authenticate() {
-	ostringstream auth;
-	auth << "Digest:\"" << getFrom()->a_url->url_host << "\":" << getFrom()->a_url->url_user << ":" << getPassword();
-	nua_authenticate(nh, NUTAG_AUTH(auth.str().c_str()),TAG_END());
+void GatewayRegister::authenticate(const msg_param_t *au_params) {
+        ostringstream digest;
+        digest << "Digest:";
+
+        const char *realm = msg_params_find(au_params, "realm=");
+        if (realm[0] != '"') digest << "\"";
+        digest << realm;
+        if (realm[strlen(realm)-1] != '"') digest << "\"";
+
+        string user(getFrom()->a_url->url_user);
+
+        digest << ":" << user << ":" << password;
+
+        string digeststr(digest.str());
+        //LOGD("GR authentication with %s", digeststr.c_str()); // expose password
+        nua_authenticate(nh, NUTAG_AUTH(digeststr.c_str()),TAG_END());
 }
+
 void GatewayRegister::onMessage(const sip_t *sip) {
 	switch (state) {
 	case State::INITIAL:
@@ -255,12 +268,12 @@ void GatewayRegister::onMessage(const sip_t *sip) {
 		case 401:
 			++*mCountRegisteringMsg401;
 			LOGD("REGISTER challenged 401");
-			authenticate();
+			authenticate(sip->sip_www_authenticate->au_params);
 			break;
 		case 407:
 			++*mCountRegisteringMsg407;
 			LOGD("REGISTER challenged 407");
-			authenticate();
+			authenticate(sip->sip_proxy_authenticate->au_params);
 			break;
 		default:
 			++*mCountRegisteringMsgUnknown;
