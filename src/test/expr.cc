@@ -205,6 +205,8 @@ void do_defined(void) {
 	count=0; cerr << "Suite defined" << endl;
 	btest_true("defined a", "a=toto");
 	btest_false("defined a", "b=toto");
+	btest_false("!defined a", "a=toto");
+	btest_true("!defined a", "b=toto");
 }
 
 void do_predefined_tests(void) {

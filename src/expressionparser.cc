@@ -510,6 +510,10 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 					i+=j; j=0;
 					auto var=buildVariableOrConstant(expr.substr(i),&j);
 					cur_exp=make_shared<NumericOp>(var);
+				} else if (isKeyword(expr.substr(i), &j, "defined")) {
+					i+=j; j=0;
+					auto var=buildVariableOrConstant(expr.substr(i),&j);
+					cur_exp=make_shared<DefinedOp>(expr.substr(i, j), var);
 				} else if (expr[i]=='(') {
 					size_t end=find_matching_closing_parenthesis(expr,i+1);
 					if (end!=string::npos){
