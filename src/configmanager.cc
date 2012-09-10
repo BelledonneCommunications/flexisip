@@ -597,9 +597,9 @@ ConfigStringList::ConfigStringList(const string &name, const string &help, const
 
 #define DELIMITERS " \n,"
 
-list<string>  ConfigStringList::read()const{
+list<string> ConfigStringList::parse(const char *input){
 	list<string> retlist;
-	char *res=strdup(get().c_str());
+	char *res=strdup(input);
 	char *saveptr=NULL;
 	char *ret=strtok_r(res,DELIMITERS,&saveptr);
 	while(ret!=NULL){
@@ -608,6 +608,10 @@ list<string>  ConfigStringList::read()const{
 	}
 	free(res);
 	return retlist;
+}
+
+list<string>  ConfigStringList::read()const{
+	return parse(get().c_str());
 }
 
 
@@ -660,20 +664,8 @@ static ConfigItemDescriptor global_conf[]={
 		{	Boolean	,	"debug"	        ,	"Outputs very detailed logs",	"false"	},
 		{	Boolean	,	"auto-respawn"  ,	"Automatically respawn flexisip in case of abnormal termination (crashes)",	"true"},
 		{	StringList	,"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost"},
-		{	String	,	"ip-address"	,	"The public ip of the proxy.(DEPRECATED use public-address)",		""},
-		{	String	,	"public-address",	"The public address of the proxy.",	"guess"},
-		{	Boolean	,	"dynamic-address",	"Enable updating of the ip associated with public address",	"false"},
-		{	Boolean	,	"adaptive-address",	"Try to use the more suitable public address",	"false"},
-		{	String	,	"bind-address"  ,	"The local interface's address where to listen. The wildcard (*) means all interfaces.",	"*"},
-		{	Integer	,	"port"		,	"UDP/TCP port number to listen for sip messages.",	"5060"},
-		config_item_end
-};
-
-static ConfigItemDescriptor tls_conf[]={
-		{	Boolean	,	"enabled"	,	"Enable SIP/TLS (sips)",	"true"	},
-		{	Integer	,	"port",	"The port used for SIP/TLS",	"5061"},
-		{	String	,	"certificates-dir", "An absolute path of a directory where TLS certificate can be found. "
-				"The private key for TLS server must be in a agent.pem file within this directory" , "/etc/flexisip/tls"	},
+		{	StringList	,"transports"	,	"List of white space separated SIP uri where the proxy must listen.",	"sip:*" },
+		{	String		,"tls-certificates-dir", "An absolute path of a directory where TLS server certificate and private key can be found, concatenated inside an 'agent.pem' file.", "/etc/flexisip/tls"},
 		config_item_end
 };
 
@@ -703,7 +695,6 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 	GenericStruct *global=new GenericStruct("global","Some global settings of the flexisip proxy.",2);
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
-	global->deprecateChild("ip-address");
 	global->setConfigListener(this);
 
 	ConfigString *version=new ConfigString("version-number", "Flexisip version.", PACKAGE_VERSION, 999);
@@ -716,10 +707,6 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 	runtimeError->setReadOnly(true);
 	global->addChild(runtimeError);
 
-	GenericStruct *tls=new GenericStruct("tls","TLS specific parameters.",0);
-	mConfigRoot.addChild(tls);
-	tls->addChildrenValues(tls_conf);
-	tls->setConfigListener(this);
 }
 
 bool GenericManager::doIsValidNextConfig(const ConfigValue &cv) {

@@ -111,10 +111,16 @@ private:
 				LOGE("Cannot insert url param [%s]", lParam);
 			}
 			/*masquerade the contact, so that later requests (INVITEs) come to us */
-			ct_url->url_host = getAgent()->getPublicIp().c_str();
-			ct_url->url_port = su_sprintf(ms->getHome(), "%i", getAgent()->getPort());
-			/*remove the transport, in most case further requests should come back to us in UDP*/
+			const url_t*preferedRoute=getAgent()->getPreferredRouteUrl();
+			ct_url->url_host = preferedRoute->url_host;
+			ct_url->url_port = preferedRoute->url_port;
+			ct_url->url_scheme=preferedRoute->url_scheme;
 			ct_url->url_params = url_strip_param_string(su_strdup(ms->getHome(), ct_url->url_params), "transport");
+			char tport_value[64];
+			if (url_param(preferedRoute->url_params,"transport",tport_value,sizeof(tport_value))>0){
+				lParam = su_sprintf(ms->getHome(), "transport=%s",tport_value);
+				url_param_add(ms->getHome(),ct_url,lParam);
+			}
 		}
 	}
 

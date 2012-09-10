@@ -233,13 +233,15 @@ Agent *MediaRelayServer::getAgent() {
 }
 RtpSession *MediaRelayServer::createRtpSession() {
 	RtpSession *session = rtp_session_new(RTP_SESSION_SENDRECV);
+	string bindIp=mAgent->getBindIp();
+	if (bindIp.empty()) bindIp="0.0.0.0";
 	for (int i = 0; i < 100; ++i) {
 		int port = ((rand() % (mMaxPort - mMinPort)) + mMinPort) & 0xfffe;
 
 #if ORTP_ABI_VERSION >= 9
-		if (rtp_session_set_local_addr(session, mAgent->getBindIp().c_str(), port, port+1) == 0) {
+		if (rtp_session_set_local_addr(session, bindIp.c_str(), port, port+1) == 0) {
 #else
-		if (rtp_session_set_local_addr(session, mAgent->getBindIp().c_str(), port) == 0) {
+		if (rtp_session_set_local_addr(session, bindIp.c_str(), port) == 0) {
 #endif
 			return session;
 		}

@@ -395,6 +395,7 @@ class ConfigStringList : public ConfigValue{
 public:
 	ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
 	std::list<std::string> read()const;
+	static std::list<std::string> parse(const char *input);
 private:
 };
 

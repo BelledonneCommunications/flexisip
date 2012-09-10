@@ -194,7 +194,8 @@ GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, si
 	to = sip_to_dup(&home, sip_to);
 
 	// Copy contact
-	contact = sip_contact_format(&home, "<sip:%s@%s:%i>;expires=%i", sip_contact->m_url->url_user, ag->getPublicIp().c_str(), ag->getPort(), INT_MAX);
+	const url_t *url=ag->getPreferredRouteUrl();
+	contact = sip_contact_format(&home, "<%s:%s@%s:%s>;expires=%i",url->url_scheme, sip_contact->m_url->url_user, url->url_host, url->url_port, INT_MAX);
 
 	// Override domains?
 	if (domain != NULL) {
@@ -343,7 +344,7 @@ GatewayAdapter::~GatewayAdapter() {
 void GatewayAdapter::onDeclare(GenericStruct *mc) {
 	mc->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = {
-			{ String, "gateway", "A gateway uri where to send all requests.", "sip:localhost:0" },
+			{ String, "gateway", "A gateway uri where to send all requests, as a SIP url (eg 'sip:gateway.example.net')", "" },
 			{ String, "gateway-domain", "Modify the from and to domains of incoming register", "" },
 			{ Boolean, "fork-to-gateway", "The gateway will be added to the incoming register contacts.", "true" },
 			{ Boolean, "register-on-gateway", "Send a REGISTER to the gateway using "
@@ -358,6 +359,8 @@ void GatewayAdapter::onDeclare(GenericStruct *mc) {
 }
 
 bool GatewayAdapter::isValidNextConfig(const ConfigValue &cv) {
+	GenericStruct *module_config=dynamic_cast<GenericStruct*>(cv.getParent());
+	if (!module_config->get<ConfigBoolean>("enabled")->readNext()) return true;
 	if (cv.getName() == "gateway") {
 		if (cv.getNextValue().empty()) {
 			LOGE("Empty value GatewayAdapter::%s=%s", cv.getName().c_str(), cv.getNextValue().c_str());

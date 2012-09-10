@@ -39,9 +39,12 @@ using namespace ::std;
 
 DosProtection::DosProtection() {
 	ConfigItemDescriptor items[] = { 
-		{ Boolean, "enabled", "Enable or disable DOS protection using IPTables firewall.", "false" }, { StringList, "authorized-ip", "List of whitelist IPs which won't be affected by DOS protection.", "127.0.0.1" },
+		{ Boolean, "enabled", "Enable or disable DOS protection using IPTables firewall.", "false" }, 
+		{ StringList, "authorized-ip", "List of whitelist IPs which won't be affected by DOS protection.", "127.0.0.1" },
+		{ Integer, "port",	"Local ports to protect.", "5060"},
 		{ Integer, "ban-duration",
-		"Time (in seconds) while an IP have to not send any packet in order to leave the blacklist.", "60" }, { Integer, "packets-limit", "Number of packets authorized in 1sec before considering them as DOS attack.", "20" },
+		"Time (in seconds) while an IP have to not send any packet in order to leave the blacklist.", "60" },
+		{ Integer, "packets-limit", "Number of packets authorized in 1sec before considering them as DOS attack.", "20" },
 		{ Integer, "maximum-connections",
 		"Maximal amount of simultaneous connections to accept.", "1000" }, config_item_end 
 	};
@@ -97,7 +100,7 @@ DosProtection *DosProtection::get() {
 	return sInstance;
 }
 
-bool directoryExists(const char* path)
+static bool directoryExists(const char* path)
 {
   return (access(path, 00) == 0);
 }
@@ -110,9 +113,9 @@ void DosProtection::load() {
 	mPacketsLimit = dosProtection->get<ConfigInt>("packets-limit")->read();
 	mMaximumConnections = dosProtection->get<ConfigInt>("maximum-connections")->read();
 
-	mPort = GenericManager::get()->getGlobal()->get<ConfigInt>("port")->read();
-	if (mPort<=0)
-		mPort=GenericManager::get()->getRoot()->get<GenericStruct>("tls")->get<ConfigInt>("port")->read();
+	//TODO since flexisip can listen on multiple ports, retrieve the used ports from agent and run protection on all of them.
+	mPort = dosProtection->get<ConfigInt>("port")->read();
+	
 	mPeriod = 1;
 	mLogLevel = "warning";
 	mLogPrefix = "Flexisip-DOS";
