@@ -201,6 +201,12 @@ void do_other(void) {
 	btest_true("!(true) || true", "");
 }
 
+void do_defined(void) {
+	count=0; cerr << "Suite defined" << endl;
+	btest_true("defined a", "a=toto");
+	btest_false("defined a", "b=toto");
+}
+
 void do_predefined_tests(void) {
 	do_true_false();
 	do_or();
@@ -215,7 +221,10 @@ void do_predefined_tests(void) {
 	do_regex();
 
 	do_interceptor_tests();
+
+	do_defined();
 }
+
 
 void do_cmd_test(int argc, char *argv[]) {
 	try {
