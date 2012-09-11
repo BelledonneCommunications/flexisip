@@ -76,8 +76,10 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 	StatCounter64 *mCountIncoming401; // user auth.
 	StatCounter64 *mCountIncoming404; // not found
 	StatCounter64 *mCountIncoming486; // busy
+	StatCounter64 *mCountIncoming487; // request canceled
 	StatCounter64 *mCountIncoming488;
 	StatCounter64 *mCountIncoming407; // proxy auth
+	StatCounter64 *mCountIncoming408; // request timeout
 	StatCounter64 *mCountIncoming603; // decline
 	StatCounter64 *mCountIncomingResUnknown;
 
@@ -89,8 +91,10 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 	StatCounter64 *mCountReply401; // user auth.
 	StatCounter64 *mCountReply404; // not found
 	StatCounter64 *mCountReply486; // busy
+	StatCounter64 *mCountReply487; // request canceled
 	StatCounter64 *mCountReply488;
 	StatCounter64 *mCountReply407; // proxy auth
+	StatCounter64 *mCountReply408; // request timeout
 	StatCounter64 *mCountReplyResUnknown;
 	void onDeclare(GenericStruct *root);
 

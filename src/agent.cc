@@ -162,7 +162,9 @@ void Agent::onDeclare(GenericStruct *root) {
 	mCountIncoming401=createCounter(global,key, help, "401");
 	mCountIncoming404=createCounter(global,key, help, "404");
 	mCountIncoming407=createCounter(global,key, help, "407");
+	mCountIncoming408=createCounter(global,key, help, "408");
 	mCountIncoming486=createCounter(global,key, help, "486");
+	mCountIncoming487=createCounter(global,key, help, "487");
 	mCountIncoming488=createCounter(global,key, help, "488");
 	mCountIncoming603=createCounter(global,key, help, "603");
 	mCountIncomingResUnknown=createCounter(global,key, help, "unknown");
@@ -177,7 +179,9 @@ void Agent::onDeclare(GenericStruct *root) {
 	mCountReply401=createCounter(global,key, help, "401");
 	mCountReply404=createCounter(global,key, help, "404");
 	mCountReply407=createCounter(global,key, help, "407");
+	mCountReply408=createCounter(global,key, help, "408"); // request timeout
 	mCountReply486=createCounter(global,key, help, "486");
+	mCountReply487=createCounter(global,key, help, "487"); // Request canceled
 	mCountReply488=createCounter(global,key, help, "488");
 	mCountReplyResUnknown=createCounter(global,key, help, "unknown");
 }
@@ -593,8 +597,14 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	case 407:
 		++*mCountIncoming407;
 		break;
+	case 408:
+		++*mCountIncoming408;
+		break;
 	case 486:
 		++*mCountIncoming486;
+		break;
+	case 487:
+		++*mCountIncoming487;
 		break;
 	case 488:
 		++*mCountIncoming488;
@@ -778,8 +788,14 @@ void Agent::incrReplyStat(int status) {
 	case 407:
 		++*mCountReply407;
 		break;
+	case 408:
+		++*mCountReply408;
+		break;
 	case 486:
 		++*mCountReply486;
+		break;
+	case 487:
+		++*mCountReply487;
 		break;
 	case 488:
 		++*mCountReply488;
