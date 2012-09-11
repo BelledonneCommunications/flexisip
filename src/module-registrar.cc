@@ -58,6 +58,8 @@ class Registrar: public Module, public ModuleToolbox, public ForkContextListener
 	StatCounter64 *mCountBind;
 	StatCounter64 *mCountBindFinished;
 	StatCounter64 *mCountForks;
+	StatCounter64 *mCountForkLegs;
+	StatCounter64 *mCountForkLegsFinished;
 	StatCounter64 *mCountForksFinished;
 	StatCounter64 *mCountNonForks;
 	StatCounter64 *mCountClear;
@@ -120,6 +122,10 @@ public:
 		p = mc->createStatPair("count-forks", "Number of forks");
 		mCountForks = p.first;
 		mCountForksFinished = p.second;
+
+		p = mc->createStatPair("count-fork-legs", "Number of fork legs");
+		mCountForkLegs = p.first;
+		mCountForkLegsFinished = p.second;
 
 		mCountNonForks = mc->createStat("count-non-forked", "Number of non forked invites.");
 		mCountLocalActives = mc->createStat("count-local-registered-users", "Number of users currently registered through this server.");
@@ -563,12 +569,14 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 							handled++;
 							if (!fork)
 								break;
+							else ++*mCountForkLegs;
 						}
 					} else {
 						if (dispatch(agent, ev, ct, NULL, context)) {
 							handled++;
 							if (!fork)
 								break;
+							else ++*mCountForkLegs;
 						}
 					}
 				} else {
@@ -576,6 +584,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 				}
 			} else {
 				if (fork) {
+					++*mCountForkLegs;
 					mForks.insert(pair<string, shared_ptr<ForkContext>>(ec->mSipUri, context));
 					LOGD("Add fork %p to store %s", context.get(), ec->mSipUri);
 				}
@@ -774,9 +783,11 @@ void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, T
 }
 
 void Registrar::onForkContextFinished(shared_ptr<ForkContext> ctx){
+	++*mCountForksFinished;
 	for (auto it = mForks.begin(); it != mForks.end(); ++it) {
 		if (it->second == ctx) {
 			LOGD("Remove fork %s from store", it->first.c_str());
+			++*mCountForkLegsFinished;
 			mForks.erase(it);
 			break;
 		}
