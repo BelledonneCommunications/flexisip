@@ -30,6 +30,7 @@
 #include <sofia-sip/su_tagarg.h>
 #include <sofia-sip/sip.h>
 #include <sofia-sip/su_md5.h>
+#include <sofia-sip/tport.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -226,14 +227,22 @@ void Agent::start(const char *transport_override){
 		}
 		su_home_deinit(&home);
 	}
-	sip_contact_t *ctts=nta_agent_contact(mAgent);
-	if (ctts==NULL) LOGA("No sip transport defined.");
-	char contacts[512];
-	sip_contact_e(contacts,sizeof(contacts),(msg_header_t*)ctts,0);
-	LOGD("Contacts are %s",contacts);
+	
+	
+	tport_t *primaries=tport_primaries(nta_agent_tports(mAgent));
+	if (primaries==NULL) LOGA("No sip transport defined.");
 	su_md5_t ctx;
 	su_md5_init(&ctx);
-	su_md5_strupdate(&ctx,contacts);
+	LOGD("Agent 's primaries are:");
+	for(tport_t *tport=primaries;tport!=NULL;tport=tport_next(tport)){
+		const tp_name_t *name;
+		char url[512];
+		name=tport_name(tport);
+		snprintf(url,sizeof(url),"sip:%s:%s;transport=%s,maddr=%s",name->tpn_canon,name->tpn_port,name->tpn_proto,name->tpn_host);
+		su_md5_strupdate(&ctx,url);
+		LOGD("\t%s",url);
+	}
+	
 	char digest[(SU_MD5_DIGEST_SIZE*2)+1];
 	su_md5_hexdigest(&ctx,digest);
 	su_md5_deinit(&ctx);
@@ -241,6 +250,7 @@ void Agent::start(const char *transport_override){
 	// compute a network wide unique id
 	mUniqueId = digest;
 	
+	sip_contact_t *ctts=nta_agent_contact(mAgent);
 	char prefUrl[266];
 	url_e(prefUrl,sizeof(prefUrl),ctts->m_url);
 	mPreferredRoute=ctts->m_url;
@@ -448,7 +458,7 @@ int Agent::countUsInVia(sip_via_t *via) const {
 bool Agent::isUs(const char *host, const char *port, bool check_aliases) const {
 	char *tmp = NULL;
 	int end;
-	sip_contact_t *ctts=nta_agent_contact(mAgent);
+	tport_t *tport=tport_primaries(nta_agent_tports(mAgent));
 	
 	//skip possibly trailing '.' at the end of host
 	if (host[end = (strlen(host) - 1)] == '.') {
@@ -458,14 +468,15 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases) const {
 		host = tmp;
 	}
 	const char *matched_port=port;
-	for(;ctts!=NULL;ctts=ctts->m_next){
+	for(;tport!=NULL;tport=tport_next(tport)){
+		const tp_name_t *tn=tport_name(tport);
 		if (port==NULL){
-			if (strcmp(ctts->m_url->url_scheme,"sips")==0)
+			if (strcmp(tn->tpn_proto,"tls")==0)
 				matched_port="5061";
 			else matched_port="5060";
 		}
-		if (strcmp(matched_port,url_port(ctts->m_url))==0 &&
-			strcmp(host,ctts->m_url->url_host)==0)
+		if (strcmp(matched_port,tn->tpn_port)==0 &&
+			strcmp(host,tn->tpn_canon)==0)
 			return true;
 		
 	}

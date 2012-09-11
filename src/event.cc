@@ -43,6 +43,7 @@ MsgSip::MsgSip(msg_t *msg) {
 
 MsgSip::MsgSip(const MsgSip &msgSip) {
 //	LOGD("New MsgSip %p with swallow copy %p of msg %p", this, mMsg, msgSip.mMsg);
+	msgSip.serialize();
 	defineMsg(msgSip.mMsg);
 	mOriginalMsg = msg_ref_create(msgSip.mOriginalMsg);
 }
@@ -64,6 +65,7 @@ void MsgSip::log(const char *fmt, ...) {
 			header = su_vsprintf(mHome, fmt, args);
 			va_end(args);
 		}
+		msg_serialize(mMsg,(msg_pub_t*)mSip); //make sure the message is serialized before showing it; it can be very confusing.
 		buf = msg_as_string(mHome, mMsg, NULL, 0, &msg_size);
 		LOGD("%s%s%s\nendmsg", (header) ? header : "", (header) ? "\n" : "", buf);
 	}
@@ -80,10 +82,12 @@ SipEvent::SipEvent(const shared_ptr<MsgSip> msgSip) :
 	LOGD("New SipEvent %p", this);
 }
 
+
 SipEvent::SipEvent(const SipEvent &sipEvent) :
 		mCurrModule(sipEvent.mCurrModule), mMsgSip(sipEvent.mMsgSip), mIncomingAgent(sipEvent.mIncomingAgent), mOutgoingAgent(sipEvent.mOutgoingAgent), mState(sipEvent.mState) {
 	LOGD("New SipEvent %p with state %s", this, stateStr(mState).c_str());
 }
+
 
 SipEvent::~SipEvent() {
 	//LOGD("Destroy SipEvent %p", this);

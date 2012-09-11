@@ -290,6 +290,7 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<
 		msg_header_insert(msg, (msg_pub_t*) sip, (msg_header_t*) rr);
 		sip->sip_record_route = rr;
 	}
+	LOGD("Record route added.");
 	ev->mRecordRouteAdded=true;
 }
 
