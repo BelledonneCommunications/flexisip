@@ -58,8 +58,8 @@ class Registrar: public Module, public ModuleToolbox, public ForkContextListener
 	StatCounter64 *mCountBind;
 	StatCounter64 *mCountBindFinished;
 	StatCounter64 *mCountForks;
-	StatCounter64 *mCountForkLegs;
-	StatCounter64 *mCountForkLegsFinished;
+	StatCounter64 *mCountForkTransactions;
+	StatCounter64 *mCountForkTransactionsFinished;
 	StatCounter64 *mCountForksFinished;
 	StatCounter64 *mCountNonForks;
 	StatCounter64 *mCountClear;
@@ -102,6 +102,7 @@ public:
 				{	String , "redis-record-serializer", "Implementation of the contact serialiser to use. [C, protobuf]","protobuf"},
 #endif
 				{ Boolean, "fork", "Fork messages to all registered devices", "true" },
+				{ Boolean, "stateful", "Force forking and thus the creation of an outgoing transaction even when only one contact found", "true" },
 				{ Boolean, "fork-late", "Fork invites to late registers", "false" },
 				{ Boolean, "fork-one-response", "Only forward one response of forked invite to the caller", "true" },
 				{ Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite", "false" },
@@ -123,9 +124,9 @@ public:
 		mCountForks = p.first;
 		mCountForksFinished = p.second;
 
-		p = mc->createStatPair("count-fork-legs", "Number of fork legs");
-		mCountForkLegs = p.first;
-		mCountForkLegsFinished = p.second;
+		p = mc->createStatPair("count-fork-transactions", "Number of outgoing transaction created for forking");
+		mCountForkTransactions = p.first;
+		mCountForkTransactionsFinished = p.second;
 
 		mCountNonForks = mc->createStat("count-non-forked", "Number of non forked invites.");
 		mCountLocalActives = mc->createStat("count-local-registered-users", "Number of users currently registered through this server.");
@@ -137,7 +138,12 @@ public:
 		for (it = mDomains.begin(); it != mDomains.end(); ++it) {
 			LOGD("Found registrar domain: %s", (*it).c_str());
 		}
+		mStateful=mc->get<ConfigBoolean>("stateful");
 		mFork = mc->get<ConfigBoolean>("fork")->read();
+		if (mStateful && !mFork) {
+			LOGI("Stateful registrar imply fork=true");
+			mFork=true;
+		}
 		mGeneratedContactRoute = mc->get<ConfigString>("generated-contact-route")->read();
 		mExpectedRealm = mc->get<ConfigString>("generated-contact-expected-realm")->read();
 		mStaticRecordsFile = mc->get<ConfigString>("static-records-file")->read();
@@ -153,6 +159,7 @@ public:
 			readStaticRecords();
 			mStaticRecordsTimer=mAgent->createTimer(mStaticRecordsTimeout*1000, &staticRoutesRereadTimerfunc,this);
 		}
+
 
 		mSigaction.sa_sigaction = Registrar::sighandler;
 		mSigaction.sa_flags = SA_SIGINFO;
@@ -240,6 +247,7 @@ private:
 	ForkMap mForks;
 	string mGeneratedContactRoute;
 	string mExpectedRealm;
+	bool mStateful;
 	string mStaticRecordsFile;
 	su_timer_t *mStaticRecordsTimer;
 	int mStaticRecordsTimeout;
@@ -526,20 +534,22 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 
 	if (contacts.size() > 0) {
 		bool handled = false;
-		bool fork = !(!mFork || (contacts.size() <= 1 && !mForkCfg->mForkLate) || (
-				ms->getSip()->sip_request->rq_method != sip_method_invite &&
-				ms->getSip()->sip_request->rq_method != sip_method_message
-				));
-		if (fork) {
-			++*mCountForks;
-		} else {
+		bool dontfork = !mFork // forking disabled
+				|| (contacts.size() <= 1 && (!mForkCfg->mForkLate || !mStateful)) // not necessary
+				|| !(
+				ms->getSip()->sip_request->rq_method == sip_method_invite ||
+				ms->getSip()->sip_request->rq_method == sip_method_message
+				); // method is not correct
+		if (dontfork) {
 			++*mCountNonForks;
+		} else {
+			++*mCountForks;
 		}
 
 		// Init context if needed
 		shared_ptr<ForkContext> context;
 		shared_ptr<IncomingTransaction> incoming_transaction;
-		if (fork) {
+		if (!dontfork) {
 			if (sip->sip_request->rq_method == sip_method_invite) {
 				context = make_shared<ForkCallContext>(agent, ev, mForkCfg, this);
 			} else if (sip->sip_request->rq_method == sip_method_message) {
@@ -553,7 +563,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 				context->onNew(incoming_transaction);
 			} else {
 				LOGW("Can't create fork for method %s", sip->sip_request->rq_method_name);
-				fork = false;
+				dontfork = true;
 			}
 		}
 
@@ -567,24 +577,19 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 					if (ec->mRoute != NULL && 0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
 						if (dispatch(agent, ev, ct, ec->mRoute, context)) {
 							handled++;
-							if (!fork)
-								break;
-							else ++*mCountForkLegs;
+							if (dontfork) break;
 						}
 					} else {
 						if (dispatch(agent, ev, ct, NULL, context)) {
 							handled++;
-							if (!fork)
-								break;
-							else ++*mCountForkLegs;
+							if (dontfork) break;
 						}
 					}
 				} else {
 					LOGW("Can't create sip_contact of %s.", ec->mSipUri);
 				}
 			} else {
-				if (fork) {
-					++*mCountForkLegs;
+				if (!dontfork) {
 					mForks.insert(pair<string, shared_ptr<ForkContext>>(ec->mSipUri, context));
 					LOGD("Add fork %p to store %s", context.get(), ec->mSipUri);
 				}
@@ -592,7 +597,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 		}
 
 		if (handled > 0) {
-			if (fork) {
+			if (!dontfork) {
 				shared_ptr<ResponseSipEvent> new_ev(make_shared<ResponseSipEvent>(ev->getOutgoingAgent(), incoming_transaction->createResponse(SIP_100_TRYING)));
 				new_ev->setIncomingAgent(incoming_transaction);
 				agent->sendResponseEvent(new_ev);
@@ -753,17 +758,19 @@ void Registrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 }
 
 void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
-	shared_ptr<ForkContext> ptr = transaction->getProperty<ForkContext>(getModuleName());
-	if (ptr != NULL) {
+	shared_ptr<ForkContext> forkContext = transaction->getProperty<ForkContext>(getModuleName());
+	if (forkContext != NULL) {
 		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(transaction);
 		if (ot != NULL) {
 			switch (event) {
 			case Transaction::Destroy:
-				ptr->onDestroy(ot);
+				forkContext->onDestroy(ot);
+				++*mCountForkTransactionsFinished;
 				break;
 
 			case Transaction::Create:
-				ptr->onNew(ot);
+				forkContext->onNew(ot);
+				++*mCountForkTransactions;
 				break;
 			}
 		}
@@ -771,7 +778,7 @@ void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, T
 		if (it != NULL) {
 			switch (event) {
 			case Transaction::Destroy:
-				ptr->onDestroy(it);
+				forkContext->onDestroy(it);
 				break;
 
 			case Transaction::Create: // Can't happen because property is set after this event
@@ -783,11 +790,10 @@ void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, T
 }
 
 void Registrar::onForkContextFinished(shared_ptr<ForkContext> ctx){
-	++*mCountForksFinished;
 	for (auto it = mForks.begin(); it != mForks.end(); ++it) {
 		if (it->second == ctx) {
 			LOGD("Remove fork %s from store", it->first.c_str());
-			++*mCountForkLegsFinished;
+			++*mCountForksFinished;
 			mForks.erase(it);
 			break;
 		}
