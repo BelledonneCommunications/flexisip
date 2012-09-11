@@ -164,7 +164,7 @@ void ForkCallContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) 
 
 void ForkCallContext::checkFinished(){
 	if (mOutgoings.size() == 0 && (mLateTimerExpired || mLateTimer==NULL)) {
-		if (mIncoming != NULL && mFinal == 0) {
+		if (mIncoming != NULL && !hasFinalResponse()) {
 			if (mBestResponse == NULL) {
 				// Create response
 				shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
