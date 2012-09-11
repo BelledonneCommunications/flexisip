@@ -29,6 +29,8 @@
 #include <sofia-sip/tport_tag.h>
 #include <sofia-sip/su_tagarg.h>
 #include <sofia-sip/sip.h>
+#include <sofia-sip/su_md5.h>
+#include <sofia-sip/tport.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -41,6 +43,7 @@
 
 using namespace ::std;
 
+#if 0
 static bool resolveAddress(const string &address, string &ipAddress) {
 	int err;
 	char buff[IPADDR_SIZE];
@@ -134,6 +137,8 @@ static int get_local_ip_for_with_connect(int type, const char *dest, char *resul
 	return 0;
 }
 
+#endif
+
 static StatCounter64 *createCounter(GenericStruct *global, string keyprefix, string helpprefix, string value) {
 	return global->createStat(keyprefix+value, helpprefix + value +".");
 }
@@ -186,13 +191,82 @@ void Agent::onDeclare(GenericStruct *root) {
 	mCountReplyResUnknown=createCounter(global,key, help, "unknown");
 }
 
-Agent::Agent(su_root_t* root, int port, int tlsport) :
-		mPort(port), mTlsPort(tlsport) {
-	char sipuri[128] = { 0 };
-	GenericStruct *cr = GenericManager::get()->getRoot();
-	GenericStruct *tls = cr->get<GenericStruct>("tls");
-	static const int timer_b=20000;/*ms*/
 
+void Agent::start(const char *transport_override){
+	GenericStruct *cr=GenericManager::get()->getRoot();
+	list<string> transports=cr->get<GenericStruct>("global")->get<ConfigStringList>("transports")->read();
+	
+	if (transport_override){
+		transports=ConfigStringList::parse(transport_override);
+	}
+
+#if 0
+	if (mPublicAddress.empty() || mPublicAddress == "guess") {
+		char localip[128];
+		get_local_ip_for_with_connect(AF_INET, "209.85.229.147", localip);
+		mPublicAddress = localip;
+	}
+#endif
+	
+	for(auto it=transports.begin();it!=transports.end();++it){
+		const string &uri=(*it);
+		char bindIp[128];
+		url_t *url;
+		int err;
+		su_home_t home;
+		su_home_init(&home);
+		url=url_make(&home,uri.c_str());
+		LOGD("Enabling transport %s",uri.c_str());
+		if (url_param(url->url_params,"maddr",bindIp,sizeof(bindIp))>0){
+			mBindIp=bindIp;
+		}
+		if (uri.find("sips")==0){
+			string keys = cr->get<GenericStruct>("global")->get<ConfigString>("tls-certificates-dir")->read();
+			err=nta_agent_add_tport(mAgent,(const url_string_t*)url,TPTAG_CERTIFICATE(keys.c_str()), NTATAG_TLS_RPORT(1), TAG_END());
+		}else{
+			err=nta_agent_add_tport(mAgent,(const url_string_t*)url,NTATAG_CLIENT_RPORT(1), TAG_END());
+		}
+		if (err==-1){
+			LOGE("Could not enable transport %s: %s",uri.c_str(),strerror(errno));
+		}
+		su_home_deinit(&home);
+	}
+	
+	
+	tport_t *primaries=tport_primaries(nta_agent_tports(mAgent));
+	if (primaries==NULL) LOGA("No sip transport defined.");
+	su_md5_t ctx;
+	su_md5_init(&ctx);
+	LOGD("Agent 's primaries are:");
+	for(tport_t *tport=primaries;tport!=NULL;tport=tport_next(tport)){
+		const tp_name_t *name;
+		char url[512];
+		name=tport_name(tport);
+		snprintf(url,sizeof(url),"sip:%s:%s;transport=%s,maddr=%s",name->tpn_canon,name->tpn_port,name->tpn_proto,name->tpn_host);
+		su_md5_strupdate(&ctx,url);
+		LOGD("\t%s",url);
+	}
+	
+	char digest[(SU_MD5_DIGEST_SIZE*2)+1];
+	su_md5_hexdigest(&ctx,digest);
+	su_md5_deinit(&ctx);
+	digest[16]='\0';//keep half of the digest, should be enough
+	// compute a network wide unique id
+	mUniqueId = digest;
+	
+	sip_contact_t *ctts=nta_agent_contact(mAgent);
+	char prefUrl[266];
+	url_e(prefUrl,sizeof(prefUrl),ctts->m_url);
+	mPreferredRoute=ctts->m_url;
+	LOGD("Preferred route is %s", prefUrl);
+	
+	mPublicIp=ctts->m_url->url_host;
+}
+
+Agent::Agent(su_root_t* root){
+	static const int timer_b=20000;/*ms*/
+	GenericStruct *cr = GenericManager::get()->getRoot();
+	
 	EtcHostsResolver::get();
 
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "NatHelper"));
@@ -220,92 +294,6 @@ Agent::Agent(su_root_t* root, int port, int tlsport) :
 	for_each(mModules.begin(), mModules.end(), bind2nd(mem_fun(&Module::declare), cr));
 	onDeclare(cr);
 
-	/* we pass "" as localaddr when we just want to dump the default config. So don't go further*/
-	if (mPort == 0)
-		return;
-
-	if (mPort == -1)
-		mPort = cr->get<GenericStruct>("global")->get<ConfigInt>("port")->read();
-	if (mTlsPort == -1)
-		mTlsPort = tls->get<ConfigInt>("port")->read();
-
-	mDynamicAddress = cr->get<GenericStruct>("global")->get<ConfigBoolean>("dynamic-address")->read();
-	mAdaptiveAddress = cr->get<GenericStruct>("global")->get<ConfigBoolean>("adaptive-address")->read();
-	string bind_address = cr->get<GenericStruct>("global")->get<ConfigString>("bind-address")->read();
-	mPublicAddress = cr->get<GenericStruct>("global")->get<ConfigString>("ip-address")->read();
-
-	// If empty get new entry
-	if (mPublicAddress.empty()) {
-		mPublicAddress = cr->get<GenericStruct>("global")->get<ConfigString>("public-address")->read();
-	}
-
-	if (mPublicAddress.empty() || mPublicAddress == "guess") {
-		char localip[128];
-		get_local_ip_for_with_connect(AF_INET, "209.85.229.147", localip);
-		mPublicAddress = localip;
-	}
-
-	// Resolve at start if dynamic address is false or disable dynamic address if it is an ip
-	if (isIPAddress(mPublicAddress)) {
-		mDynamicAddress = false;
-	} else {
-		if (!mDynamicAddress) {
-			if(!resolveAddress(mPublicAddress, mPublicAddress)) {
-				LOGE("Can't resolve public address: stay in the dynamic mode");
-				mDynamicAddress = true;
-			}
-		}
-	}
-
-	LOGI("Public address is %s, bind address is %s", mPublicAddress.c_str(), bind_address.c_str());
-
-	// compute a network wide unique id, REVISIT: compute a hash
-	ostringstream oss;
-	oss << mPublicAddress << "_" << ((mPort > 0) ? mPort : mTlsPort);
-	mUniqueId = oss.str();
-	ostringstream transportUri;
-	mRoot = root;
-
-	mAgent=NULL;
-	if (mPort>0){
-		snprintf(sipuri, sizeof(sipuri) - 1, "sip:%s:%i;maddr=%s", mPublicAddress.c_str(), mPort, bind_address.c_str());
-		LOGD("Enabling 'sip' listening point with uri '%s'.", sipuri);
-		mAgent = nta_agent_create(root, (url_string_t*) sipuri, &Agent::messageCallback, (nta_agent_magic_t*) this, NTATAG_CLIENT_RPORT(1), NTATAG_UDP_MTU(1460), NTATAG_SIP_T1X64(timer_b), TAG_END());
-	}
-	transportUri << "<" << sipuri << ">";
-	if (tls->get<ConfigBoolean>("enabled")->read()) {
-		string keys = tls->get<ConfigString>("certificates-dir")->read();
-		snprintf(sipuri, sizeof(sipuri) - 1, "sips:%s:%i;maddr=%s", mPublicAddress.c_str(), mTlsPort, bind_address.c_str());
-		LOGD("Enabling 'sips' listening point with uri '%s', keys in %s", sipuri, keys.c_str());
-		if (mAgent==NULL){
-			mAgent = nta_agent_create(root, (url_string_t*) sipuri, &Agent::messageCallback, (nta_agent_magic_t*) this, TPTAG_CERTIFICATE(keys.c_str()), NTATAG_TLS_RPORT(1),NTATAG_SIP_T1X64(timer_b), TAG_END());
-		}else{
-			nta_agent_add_tport(mAgent, (url_string_t*) sipuri, TPTAG_CERTIFICATE(keys.c_str()), NTATAG_TLS_RPORT(1), TAG_END());
-		}
-		transportUri << ",<" << sipuri << ">";
-	}
-	mTransportUri = transportUri.str();
-
-	if (mAgent == NULL) {
-		LOGF("Could not create sofia mta, certainly SIP ports already in use.");
-	}
-
-	if (bind_address == "*") {
-		bind_address = "0.0.0.0";
-	}
-	mBindAddress = bind_address;
-
-	oss.str(mPreferredRoute);
-	oss << "sip:";
-	if (!mBindAddress.empty() && mBindAddress != "0.0.0.0" && mBindAddress != "::0") {
-		oss << mBindAddress;
-	} else {
-		oss << mPublicAddress;
-	}
-	oss << ":" << mPort;
-	mPreferredRoute = oss.str();
-	LOGD("Preferred route is %s", mPreferredRoute.c_str());
-
 	struct ifaddrs *net_addrs;
 	int err = getifaddrs(&net_addrs);
 	if (err == 0) {
@@ -320,6 +308,8 @@ Agent::Agent(su_root_t* root, int port, int tlsport) :
 	} else {
 		LOGE("Can't find interface addresses: %s", strerror(err));
 	}
+	mRoot = root;
+	mAgent = nta_agent_create(root, (url_string_t*) -1, &Agent::messageCallback, (nta_agent_magic_t*) this, NTATAG_UDP_MTU(1460), NTATAG_SIP_T1X64(timer_b), TAG_END());
 }
 
 Agent::~Agent() {
@@ -330,6 +320,12 @@ Agent::~Agent() {
 
 const char *Agent::getServerString() const {
 	return mServerString.c_str();
+}
+
+std::string Agent::getPreferredRoute()const{
+	char prefUrl[266];
+	url_e(prefUrl,sizeof(prefUrl),mPreferredRoute);
+	return string(prefUrl);
 }
 
 void Agent::loadConfig(GenericManager *cm) {
@@ -349,41 +345,27 @@ void Agent::loadConfig(GenericManager *cm) {
 	}
 }
 
-std::string Agent::getPublicIp() const {
-	if (mDynamicAddress) {
-		string publicIP;
-		resolveAddress(mPublicAddress, publicIP);
-		return publicIP;
-	}
-	return mPublicAddress;
-}
-
-std::string Agent::getBindIp() const {
-	return mBindAddress;
-}
 
 std::string Agent::getPreferredIp(const std::string &destination) const {
-	if (mAdaptiveAddress) {
-		int err;
-		struct addrinfo addr;
-		memset(&addr, 0, sizeof(addr));
-		addr.ai_family = PF_INET;
-		addr.ai_flags = AI_NUMERICHOST;
+	int err;
+	struct addrinfo addr;
+	memset(&addr, 0, sizeof(addr));
+	addr.ai_family = PF_INET;
+	addr.ai_flags = AI_NUMERICHOST;
 
-		struct addrinfo *result;
-		err = getaddrinfo(destination.c_str(), NULL, &addr, &result);
-		if (err == 0) {
-			for (auto it = mNetworks.begin(); it != mNetworks.end(); ++it) {
-				if (it->isInNetwork(result->ai_addr)) {
-					freeaddrinfo(result);
-					return it->getIP();
-				}
+	struct addrinfo *result;
+	err = getaddrinfo(destination.c_str(), NULL, &addr, &result);
+	if (err == 0) {
+		for (auto it = mNetworks.begin(); it != mNetworks.end(); ++it) {
+			if (it->isInNetwork(result->ai_addr)) {
+				freeaddrinfo(result);
+				return it->getIP();
 			}
-
-			freeaddrinfo(result);
-		} else {
-			LOGE("getaddrinfo error: %s", strerror(errno));
 		}
+
+		freeaddrinfo(result);
+	} else {
+		LOGE("getaddrinfo error: %s", strerror(errno));
 	}
 	return getPublicIp();
 }
@@ -480,9 +462,8 @@ int Agent::countUsInVia(sip_via_t *via) const {
 bool Agent::isUs(const char *host, const char *port, bool check_aliases) const {
 	char *tmp = NULL;
 	int end;
-	int p = (port != NULL) ? atoi(port) : 5060;
-	if (p != mPort && p != mTlsPort)
-		return false;
+	tport_t *tport=tport_primaries(nta_agent_tports(mAgent));
+	
 	//skip possibly trailing '.' at the end of host
 	if (host[end = (strlen(host) - 1)] == '.') {
 		tmp = (char*) alloca(end+1);
@@ -490,8 +471,20 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases) const {
 		tmp[end] = '\0';
 		host = tmp;
 	}
-	if (strcmp(host, getPublicIp().c_str()) == 0)
-		return true;
+	const char *matched_port=port;
+	for(;tport!=NULL;tport=tport_next(tport)){
+		const tp_name_t *tn=tport_name(tport);
+		if (port==NULL){
+			if (strcmp(tn->tpn_proto,"tls")==0)
+				matched_port="5061";
+			else matched_port="5060";
+		}
+		if (strcmp(matched_port,tn->tpn_port)==0 &&
+			strcmp(host,tn->tpn_canon)==0)
+			return true;
+		
+	}
+	
 	if (check_aliases) {
 		list<string>::const_iterator it;
 		for (it = mAliases.begin(); it != mAliases.end(); ++it) {

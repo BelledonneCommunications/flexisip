@@ -4,7 +4,9 @@ It is released under the AGPL v3. Please understand the terms of AGPL in COPYING
 Flexisip depends on the following externals:
 -oRTP
 -mediastreamer2
--sofia-sip
+-sofia-sip 
+
+SofiaSIP needs to patched with sofia patches from patches/ directory of flexisip sources when running flexisip on several interfaces or when running several instances of same transport type (ex: 2 tcp transport on two different ports).
 
 - autotools, libtool
 

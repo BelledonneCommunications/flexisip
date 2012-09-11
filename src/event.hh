@@ -55,6 +55,9 @@ public:
 	inline su_home_t* getHome() const {
 		return mHome;
 	}
+	void serialize()const{
+		msg_serialize(mMsg,(msg_pub_t*)mSip);
+	}
 
 	void log(const char * header = NULL, ...) ;//__attribute__((format(printf,2,3)));
 	msg_t *createOrigMsgRef() { return msg_ref_create(mOriginalMsg); }
@@ -145,6 +148,8 @@ protected:
 			return "unknown";
 		}
 	}
+private:
+	
 };
 
 class RequestSipEvent: public SipEvent {

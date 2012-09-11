@@ -99,24 +99,23 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 	void onDeclare(GenericStruct *root);
 
 	public:
-		Agent(su_root_t *root, int port, int tlsport);
+		Agent(su_root_t *root);
+		void start(const char *transport_override);
 		virtual void loadConfig(GenericManager *cm);
 		virtual ~Agent();
-		std::string getPublicIp() const;
-		std::string getBindIp() const;
 		std::string getPreferredIp(const std::string &destination) const;
-
+		const std::string &getBindIp()const{
+			return mBindIp;
+		}
+		const std::string &getPublicIp()const{
+			return mPublicIp;
+		}
 		virtual Agent *getAgent() {
 			return this;
 		}
-
-		int getPort()const{
-			return mPort;
-		}
-		int getTlsPort()const{
-			return mTlsPort;		
-		}
-		const std::string &getPreferredRoute()const{
+		//Prefered route for inter-proxy communication
+		std::string getPreferredRoute()const;
+		const url_t *getPreferredRouteUrl()const{
 			return mPreferredRoute;
 		}
 		/**
@@ -154,13 +153,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		std::string mServerString;
 		std::list<Module*> mModules;
 		std::list<std::string> mAliases;
-		bool mDynamicAddress;
-		bool mAdaptiveAddress;
-		std::string mPublicAddress;
-		std::string mBindAddress;
-		std::string mPreferredRoute;
-		int mPort;
-		int mTlsPort;
+		url_t *mPreferredRoute;
 		class Network {
 			struct sockaddr_storage mNetwork;
 			std::string mIP;
@@ -173,9 +166,9 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		};
 		std::list<Network> mNetworks;
 		std::string mUniqueId;
+		std::string mBindIp,mPublicIp;
 		nta_agent_t *mAgent;
 		su_root_t *mRoot;
-		std::string mTransportUri;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);
 };
 

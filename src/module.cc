@@ -252,20 +252,33 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<
 	shared_ptr<MsgSip> msgsip=ev->getMsgSip();
 	msg_t *msg=msgsip->getMsg();
 	sip_t *sip=msgsip->getSip();
-	const char *uri_scheme;
-	sip_record_route_t *rr;
+	sip_record_route_t *rr=NULL;
+	int port;
 	
 	tport=tport_parent(tport); //get primary transport
 	name=tport_name(tport); //primary transport name
 	
-	if (strcmp(name->tpn_proto,"tls")==0)
-		uri_scheme="sips";
-	else uri_scheme="sip";
+	port=atoi(name->tpn_port);
 	if (strcmp(name->tpn_proto,"udp")==0){
-		rr=sip_record_route_format(home,"<%s:%s:%s;lr>",uri_scheme,name->tpn_canon,name->tpn_port);
-	}else{
-		rr=sip_record_route_format(home,"<%s:%s:%s;transport=%s;lr>",uri_scheme,name->tpn_canon,name->tpn_port,name->tpn_proto);
+		if (port!=5060){
+			rr=sip_record_route_format(home,"<sip:%s:%s;lr>",name->tpn_canon,name->tpn_port);
+		}else{
+			rr=sip_record_route_format(home,"<sip:%s;lr>",name->tpn_canon);
+		}
+	}else if (strcmp(name->tpn_proto,"tcp")==0){
+		if (port!=5060){
+			rr=sip_record_route_format(home,"<sip:%s:%s;transport=tcp;lr>",name->tpn_canon,name->tpn_port);
+		}else{
+			rr=sip_record_route_format(home,"<sip:%s;transport=tcp;lr>",name->tpn_canon);
+		}
+	}else if (strcmp(name->tpn_proto,"tls")==0){
+		if (port!=5061){
+			rr=sip_record_route_format(home,"<sips:%s:%s;transport=tls;lr>",name->tpn_canon,name->tpn_port);
+		}else{
+			rr=sip_record_route_format(home,"<sips:%s;transport=tls;lr>",name->tpn_canon);
+		}
 	}
+	if (!rr) return;
 	if (sip->sip_record_route == NULL) {
 		sip->sip_record_route = rr;
 	} else {
@@ -277,6 +290,7 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<
 		msg_header_insert(msg, (msg_pub_t*) sip, (msg_header_t*) rr);
 		sip->sip_record_route = rr;
 	}
+	LOGD("Record route added.");
 	ev->mRecordRouteAdded=true;
 }
 

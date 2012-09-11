@@ -60,8 +60,7 @@ using namespace ::std;
 
 static void usage(const char *arg0){
 	printf("%s\n"
-	       "\t\t [--port <port number to listen>]\n"
-	       "\t\t [--tlsport <port number for sips>]\n"
+	       "\t\t [--transports <transport uris (quoted)>]\n"
 	       "\t\t [--debug]\n"
 	       "\t\t [--daemon]\n"
 	       "\t\t [--configfile <path>]\n"
@@ -377,7 +376,7 @@ static int parse_key_value(int argc, char *argv[], const char **key, const char 
 int main(int argc, char *argv[]){
 	shared_ptr<Agent> a;
 	StunServer *stun=NULL;
-	int port=-1, tlsport=-1;
+	const char *transports=NULL;
 	int i;
 	const char *pidfile=NULL;
 	const char *cfgfile=CONFIG_DIR "/flexisip.conf";
@@ -390,19 +389,13 @@ int main(int argc, char *argv[]){
 	map<string,string> oset;
 
 	for(i=1;i<argc;++i){
-		if (strcmp(argv[i],"--port")==0){
+		if (strcmp(argv[i],"--transports")==0){
 			i++;
 			if (i<argc){
-				port=atoi(argv[i]);
+				transports=argv[i];
 				continue;
 			}
-		} else if (strcmp(argv[i],"--tlsport")==0){
-			i++;
-			if (i<argc){
-				tlsport=atoi(argv[i]);
-				continue;
-			}
-		}else if (strcmp(argv[i],"--pidfile")==0){
+		} else if (strcmp(argv[i],"--pidfile")==0){
 			i++;
 			if (i<argc){
 				pidfile=argv[i];
@@ -456,7 +449,7 @@ int main(int argc, char *argv[]){
 	DosProtection *dos=DosProtection::get();
 
 	if (dump_default_cfg){
-		a=make_shared<Agent>(root,0,0);
+		a=make_shared<Agent>(root);
 		GenericStruct *rootStruct=GenericManager::get()->getRoot();
 		if (dump_cfg_part && !(rootStruct=dynamic_cast<GenericStruct *>(rootStruct->find(dump_cfg_part)))) {
 			cerr<<"Couldn't find node " << dump_cfg_part << endl;
@@ -471,7 +464,7 @@ int main(int argc, char *argv[]){
 	}
 
 	if (dump_snmp_mib) {
-		a=make_shared<Agent>(root,0,0);
+		a=make_shared<Agent>(root);
 		cout<<MibDumper(GenericManager::get()->getRoot());
 		return 0;
 	}
@@ -510,7 +503,8 @@ int main(int argc, char *argv[]){
 	LOGN("Starting flexisip version %s", VERSION);
 	GenericManager::get()->sendTrap("Flexisip starting");
 	root=su_root_create(NULL);
-	a=make_shared<Agent>(root,port,tlsport);
+	a=make_shared<Agent>(root);
+	a->start(transports);
 #ifdef ENABLE_SNMP
 	SnmpAgent lAgent(*a,*cfg, oset);
 #endif
