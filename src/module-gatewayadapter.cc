@@ -195,7 +195,13 @@ GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, si
 
 	// Copy contact
 	const url_t *url=ag->getPreferredRouteUrl();
-	contact = sip_contact_format(&home, "<%s:%s@%s:%s>;expires=%i",url->url_scheme, sip_contact->m_url->url_user, url->url_host, url->url_port, INT_MAX);
+	const char *port= url->url_port;
+	const char *user=sip_contact->m_url->url_user;
+	if (port) {
+		contact = sip_contact_format(&home, "<%s:%s@%s:%s>;expires=%i",url->url_scheme, user, url->url_host, port, INT_MAX);
+	} else {
+		contact = sip_contact_format(&home, "<%s:%s@%s>;expires=%i",url->url_scheme, user, url->url_host, INT_MAX);
+	}
 
 	// Override domains?
 	if (domain != NULL) {
