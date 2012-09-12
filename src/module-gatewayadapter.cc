@@ -368,7 +368,7 @@ void GatewayAdapter::onDeclare(GenericStruct *mc) {
 	mc->addChildrenValues(items);
 	GatewayRegister::onDeclare(mc);
 	mCountForkToGateway=mc->createStat("count-fork-to-gateway", "Number of forks to gateway.");
-	mCountDomainRewrite=mc->createStat("countdomain-rewrite", "Number of domain rewrite.");
+	mCountDomainRewrite=mc->createStat("count-domain-rewrite", "Number of domain rewrite.");
 }
 
 bool GatewayAdapter::isValidNextConfig(const ConfigValue &cv) {
