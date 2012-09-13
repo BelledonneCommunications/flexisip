@@ -103,15 +103,39 @@ void ForkCallContext::onRequest(const shared_ptr<IncomingTransaction> &transacti
 	}
 }
 
-void ForkCallContext::store(shared_ptr<ResponseSipEvent> &event) {
-	bool best = true;
-
-	if (mBestResponse != NULL) {
-		if (mBestResponse->getMsgSip()->getSip()->sip_status->st_status < event->getMsgSip()->getSip()->sip_status->st_status) {
-			best = false;
-		}
+static bool isARetryableResponseCode(int code){
+	switch(code){
+		case 401:
+		case 407:
+		case 415:
+		case 420:
+		case 484:
+			return true;
+		default:
+			return false;
 	}
+	return false;
+}
 
+void ForkCallContext::store(shared_ptr<ResponseSipEvent> &event) {
+	bool best = false;
+	int code=event->getMsgSip()->getSip()->sip_status->st_status;
+
+	//don't forward 503 and 408
+	if (code!=503 && code!=408){
+		if (mBestResponse != NULL) {
+			//we must give priority to 401, 407, 415, 420, 484 because they will trigger a request retry.
+			int prev_resp_code=mBestResponse->getMsgSip()->getSip()->sip_status->st_status;
+			int code_class=code/100;
+			int prev_code_class=prev_resp_code/100;
+			
+			if (code_class < prev_code_class) {
+				best = true;
+			}else if (isARetryableResponseCode(code)){
+				best=true;
+			}
+		}else best=true;
+	}
 	// Save
 	if (best) {
 		mBestResponse = make_shared<ResponseSipEvent>(event); // Copy event
