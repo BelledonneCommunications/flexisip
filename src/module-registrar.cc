@@ -535,7 +535,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 	if (contacts.size() > 0) {
 		bool handled = false;
 		bool dontfork = !mFork // forking disabled
-				|| (contacts.size() <= 1 && (!mForkCfg->mForkLate || !mStateful)) // not necessary
+				|| (contacts.size() <= 1 && !mForkCfg->mForkLate && !mStateful) // not forced
 				|| !(
 				ms->getSip()->sip_request->rq_method == sip_method_invite ||
 				ms->getSip()->sip_request->rq_method == sip_method_message
@@ -672,6 +672,7 @@ void Registrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		shared_ptr<ForkContext> ptr = transaction->getProperty<ForkContext>(getModuleName());
 		if (ptr != NULL) {
 			ptr->onRequest(transaction, ev);
+			if (ev->isTerminated()) return;
 		}
 	}
 
