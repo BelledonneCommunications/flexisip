@@ -98,6 +98,7 @@ void ForkCallContext::onRequest(const shared_ptr<IncomingTransaction> &transacti
 		if (sip->sip_request->rq_method == sip_method_cancel) {
 			LOGD("Fork: incomingCallback cancel");
 			cancel();
+			event->terminateProcessing();
 		}
 	}
 }
