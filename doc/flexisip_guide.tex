@@ -111,10 +111,10 @@ This guide is to be used on Debian6 or Centos6 servers.
 
 
 \subsection{Network configuration}
-The server requires two IP addresses:
+The server needs two IP addresses:
 \begin{itemize*}
  \item a public IP address;
- \item a local IP address on the 172.16.0.0 subnet for inter-flexisip communication.
+ \item a local IP address on the 172.16.0.0 subnet for inter-flexisip communication, required only for cluster deployment.
 \end{itemize*}
 
 Note that the 172.16.0.1 address is reserved for the registration database (redis server).
@@ -286,8 +286,6 @@ A simple configuration is:
 \begin{verbatim}
 [module::Registrar]
 enabled=true
-from-domains=*
-to-domains=*
 db-implementation=redis-async
 redis-record-serializer=protobuf
 \end{verbatim}
@@ -300,14 +298,11 @@ For details, see the \nameref{module::Registrar} on page \pageref{module::Regist
 \begin{verbatim}
 [global]
 aliases=localhost
-[tls]
-enabled=false
 [module::MediaRelay]
 enabled=false
 [module::Transcoder]
 enabled=true
-from-domains=*
-to-domains=*
+
 \end{verbatim}
 
 For details, see the \nameref{module::Transcoder} on page \pageref{module::Transcoder}.
@@ -325,9 +320,6 @@ reg-domains=sip.example.org
 redis-record-serializer=protobuf
 db-implementation=redis-async
 
-
-[tls]
-enabled=false
 \end{verbatim}
 
 For details, see the \nameref{module::Registrar} on page \pageref{module::Registrar}.
@@ -346,15 +338,9 @@ reg-domains=sip.example.org
 redis-record-serializer=protobuf
 db-implementation=redis-async
 
-
-[tls]
-enabled=false
-
-
 [module::Authentication]
 enabled=true
 auth-domains=sip.example.org
-from-domains=sip.example.org
 datasource=DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3;
 request=select password from accounts where id = :id
 \end{verbatim}
@@ -364,24 +350,18 @@ and the \nameref{module::Authentication} on page \pageref{module::Authentication
 
 
 
-\subsection{Registrar, Transcoder, Gateway adapter and authentication}
+\subsection{TLS access, Registrar, Transcoder, Gateway adapter and authentication}
 
 \begin{verbatim} 
 [global]
 aliases=sip.example.org
 debug=1
-port=5060
-
-
-[tls]
-enabled=true
-port=5061
-certificates-dir=/etc/flexisip/tls
-
+transports=sips:*
+tls-certificates-dir=/etc/flexisip/tls
 
 [module::Transcoder]
 enabled=true
-to-domains=sip.example.org
+filter=(to.uri.domain == 'sip.example.org')
 
 
 [module::Registrar]
@@ -394,13 +374,12 @@ redis-auth-password=the_random_very_long_string_also_defined_in_redis.conf_83cb1
 
 
 [module::MediaRelay]
-to-domains=sip.example.org
+to-domains=(to.uri.domain == 'sip.example.org')
 
 
 [module::Authentication]
 enabled=true
-from-domains=sip.example.org
-auth-domains=siip.example.org
+auth-domains=sip.example.org
 odbc-asynchronous=true
 request=select password from accounts_plain where login = :id
 datasource=DRIVER={MySQL};SERVER=host;DATABASE=flexisip_test;USER=user;PASSWORD=pass;OPTION=3;
@@ -420,8 +399,6 @@ enabled=false
 
 [module::GatewayAdapter]
 enabled=true
-from-domains=*
-to-domains=*
 gateway=sip:10.0.0.1:5060
 gateway-domain=sip:10.0.0.1:5060
 \end{verbatim}
