@@ -16,6 +16,7 @@ rpm:
 	TAR_OPTIONS=--wildcards rpmbuild -ta --clean --rmsource --rmspec $(PACKAGE)-$(VERSION).tar.gz
 
 deb:
+	scripts/update_debian_changelog.sh $(PACKAGE) $(VERSION)
 	$(MAKE) dist
 	mv $(distdir).tar.gz ../$(PACKAGE)_$(VERSION).orig.tar.gz
 	DEB_BUILD_OPTIONS="nostrip debug" dpkg-buildpackage -us -uc

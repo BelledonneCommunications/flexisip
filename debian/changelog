@@ -1,3 +1,9 @@
+flexisip (0.5.0) unstable; urgency=low
+
+  * New version
+
+ -- Make deb <contact@linphone.org>  Fri, 14 Sep 2012 11:47:15 +0200
+
 flexisip (0.4.1-1) unstable; urgency=low
 
   * Initial release 
