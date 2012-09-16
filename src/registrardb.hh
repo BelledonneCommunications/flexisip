@@ -122,7 +122,8 @@ private:
 	static void init();
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec);
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
-	static std::string sLineFieldName;
+	static std::string extractUniqueId(const sip_contact_t *contact);
+	static std::list<std::string> sLineFieldNames;
 	static int sMaxContacts;
 	std::string mKey;
 protected:

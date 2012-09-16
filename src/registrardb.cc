@@ -84,16 +84,29 @@ static bool isMismatchingStaticRecord(shared_ptr<ExtendedContact> &ec, const cha
 
 	return 0!=strcmp(ec->mCallId, version);
 }
+
+string Record::extractUniqueId(const sip_contact_t *contact){
+	char lineValue[256]={0};
+	
+	/*search for device unique parameter among the ones configured */
+	for(auto it=sLineFieldNames.begin();it!=sLineFieldNames.end();++it){
+		if (url_param(contact->m_url[0].url_params, (*it).c_str(), lineValue, sizeof(lineValue) - 1)>0) {
+			break;
+		}
+	}
+	return string(lineValue);
+}
+
 /**
  * Should first have checked the validity of the register with isValidRegister.
  */
 void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t now) {
-	char lineValue[20];
-	char *lineValuePtr = lineValue;
-
-	if (!url_param(sip->m_url[0].url_params, sLineFieldName.c_str(), lineValue, sizeof(lineValue) - 1)) {
-		lineValuePtr = NULL;
-	}
+	const char *lineValuePtr=NULL;
+	string lineValue=extractUniqueId(sip);
+	
+	if (lineValue.size()>0)
+		lineValuePtr=lineValue.c_str();
+	
 	auto it = mContacts.begin();
 	while (it != mContacts.end()) {
 		shared_ptr<ExtendedContact> ec = (*it);
@@ -225,11 +238,11 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 void Record::bind(const sip_contact_t *contacts, const char* route, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias) {
 	sip_contact_t *c = (sip_contact_t *) contacts;
 	while (c) {
-		char lineValue[20];
-		char *lineValuePtr = lineValue;
-		if (!url_param(c->m_url[0].url_params, sLineFieldName.c_str(), lineValue, sizeof(lineValue) - 1)) {
-			lineValuePtr = NULL;
-		}
+		const char *lineValuePtr=NULL;
+		string lineValue=extractUniqueId(c);
+	
+		if (lineValue.size()>0)
+			lineValuePtr=lineValue.c_str();
 		char transport[20];
 		char *transportPtr = transport;
 		if (!url_param(c->m_url[0].url_params, "transport", transport, sizeof(transport) - 1)) {
@@ -269,7 +282,7 @@ void Record::print() {
 }
 
 int Record::sMaxContacts = -1;
-string Record::sLineFieldName = "";
+list<string> Record::sLineFieldNames;
 
 Record::Record(string key):mKey(key) {
 	if (sMaxContacts == -1)
@@ -282,7 +295,7 @@ Record::~Record() {
 void Record::init() {
 	GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
 	sMaxContacts = registrar->get<ConfigInt>("max-contacts-by-aor")->read();
-	sLineFieldName = registrar->get<ConfigString>("line-field-name")->read();
+	sLineFieldNames = registrar->get<ConfigStringList>("unique-id-parameters")->read();
 }
 
 RegistrarDb::LocalRegExpire::LocalRegExpire(string preferedRoute) {

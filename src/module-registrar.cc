@@ -87,10 +87,12 @@ public:
 	virtual void onDeclare(GenericStruct *mc) {
 		ConfigItemDescriptor configs[] = { { StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar.", "localhost" },
 				{ Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "15" },
-				{ String, "line-field-name", "Name of the contact uri parameter used for identifying user's device. ", "line" },
+				{ StringList, "unique-id-parameters", "List of contact uri parameters that can be used to identify a user's device. ", "line" },
+				{ Integer, "max-expires"	, "Maximum expire time for a REGISTER, in seconds.", "86400" },
+				{ Integer, "min-expires"	, "Minimum expire time for a REGISTER, in seconds.", "60" },
 				{ String, "static-records-file", "File containing the static records to add to database at startup. "
-				"Format: one 'sip_uri contact_header' by line. "
-				"Ex1: <sip:contact@domain> <sip:127.0.0.1:5460>,<sip:192.168.0.1:5160>", "" },
+				"Format: one 'sip_uri contact_header' by line. Example:\n"
+				"<sip:contact@domain> <sip:127.0.0.1:5460>,<sip:192.168.0.1:5160>", "" },
 				{ Integer, "static-records-timeout", "Timeout in seconds after which the static records file is re-read and the contacts updated.", "600" },
 
 				{	String , "db-implementation", "Implementation used for storing address of records contact uris. [redis-async, redis-sync, internal]","internal"},
@@ -144,6 +146,8 @@ public:
 			LOGI("Stateful registrar imply fork=true");
 			mFork=true;
 		}
+		mMaxExpires = mc->get<ConfigInt>("max-expires")->read();
+		mMinExpires = mc->get<ConfigInt>("min-expires")->read();
 		mGeneratedContactRoute = mc->get<ConfigString>("generated-contact-route")->read();
 		mExpectedRealm = mc->get<ConfigString>("generated-contact-expected-realm")->read();
 		mStaticRecordsFile = mc->get<ConfigString>("static-records-file")->read();
@@ -175,14 +179,14 @@ public:
 	}
 
 	// Delta from expires header, normalized with custom rules.
-	static int getMainDelta(sip_expires_t *expires) {
-		int delta = 3600;
+	unsigned int getMainDelta(sip_expires_t *expires) {
+		unsigned int delta = mMaxExpires;
 		if (expires) {
 			delta = expires->ex_delta;
-			if (delta < 30 && delta > 0) {
-				delta = 30;
-			} else if (delta > 3600 * 24) {
-				delta = 3600 * 24;
+			if (delta < mMinExpires && delta > 0) {
+				delta = mMinExpires;
+			} else if (delta > mMaxExpires) {
+				delta = mMaxExpires;
 			}
 		}
 		return delta;
@@ -245,13 +249,14 @@ private:
 	shared_ptr<ForkContextConfig> mMessageForkCfg;
 	typedef multimap<string, shared_ptr<ForkContext>> ForkMap;
 	ForkMap mForks;
+	unsigned int mMaxExpires, mMinExpires;
 	string mGeneratedContactRoute;
 	string mExpectedRealm;
-	bool mStateful;
 	string mStaticRecordsFile;
 	su_timer_t *mStaticRecordsTimer;
 	int mStaticRecordsTimeout;
 	struct sigaction mSigaction;
+	bool mStateful;
 	static void sighandler(int signum, siginfo_t *info, void *ptr) {
 		if (signum == SIGUSR1) {
 			LOGI("Received signal triggering static records file re-read");
