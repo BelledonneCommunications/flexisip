@@ -33,20 +33,14 @@ const char *GPN_PORT = "443";
 using namespace ::std;
 using namespace ::boost;
 
-void PushNotificationService::sendRequest(const std::shared_ptr<PushNotificationRequest> &pn) {
+int PushNotificationService::sendRequest(const std::shared_ptr<PushNotificationRequest> &pn) {
 	std::shared_ptr<PushNotificationClient> client=mClients[pn->getAppIdentifier()];
 	if (client==0){
 		LOGE("No push notification certificate for client %s",pn->getAppIdentifier().c_str());
-		return;
+		return -1;
 	}
-	
-	if (client->isReady()) {
-		client->send(pn->getData());
-		return;
-	}
-	// Wait for free thread
-	LOGE("Client is not ready ! push notification is lost.");
-		
+
+	return client->send(pn->getData());
 }
 
 void PushNotificationService::start() {
@@ -74,7 +68,24 @@ void PushNotificationService::stop() {
 	}
 }
 
-void PushNotificationService::setupClients(const string &certdir, const string &ca){
+void PushNotificationService::waitEnd() {
+	if (mThread != NULL) {
+		LOGD("Waiting for PushNotificationService to end");
+		bool finished = false;
+		while (!finished) {
+			finished = true;
+			map<string, std::shared_ptr<PushNotificationClient> >::const_iterator it;
+			for (it = mClients.begin(); it != mClients.end(); ++it) {
+				if (!it->second->isIdle()) {
+					finished = false;
+					break;
+				}
+			}
+		}
+	}
+}
+
+void PushNotificationService::setupClients(const string &certdir, const string &ca, int maxQueueSize) {
 	struct dirent *dirent;
 	DIR *dirp;
 
@@ -84,7 +95,7 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 	system::error_code err;
 	ctx->set_options(asio::ssl::context::default_workarounds, err);
 	ctx->set_verify_mode(asio::ssl::context::verify_none);
-	mClients[googleClient]=make_shared<PushNotificationClient>(googleClient, this, ctx, GPN_ADDRESS, GPN_PORT);
+	mClients[googleClient]=make_shared<PushNotificationClient>(googleClient, this, ctx, GPN_ADDRESS, GPN_PORT, maxQueueSize);
 	
 	dirp=opendir(certdir.c_str());
 	if (dirp==NULL){
@@ -128,14 +139,14 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 			}
 		}
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
-		mClients[certName]=make_shared<PushNotificationClient>(cert, this, ctx, APN_ADDRESS, APN_PORT);
+		mClients[certName]=make_shared<PushNotificationClient>(cert, this, ctx, APN_ADDRESS, APN_PORT, maxQueueSize);
 	}
 	closedir(dirp);
 }
 
-PushNotificationService::PushNotificationService(const std::string &certdir, const std::string &cafile) :
+PushNotificationService::PushNotificationService(const std::string &certdir, const std::string &cafile, int maxQueueSize) :
 		mIOService(), mThread(NULL) {
-	setupClients(certdir,cafile);
+	setupClients(certdir, cafile, maxQueueSize);
 }
 
 PushNotificationService::~PushNotificationService() {
@@ -151,8 +162,6 @@ int PushNotificationService::run() {
 }
 
 void PushNotificationService::clientEnded() {
-	unique_lock<mutex> lock(mMutex);
-	mClientCondition.notify_all();
 }
 
 asio::io_service &PushNotificationService::getService() {

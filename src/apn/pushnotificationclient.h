@@ -19,6 +19,7 @@
 #ifndef PUSH_NOTIFICATION_CLIENT_H
 #define PUSH_NOTIFICATION_CLIENT_H
 
+#include <queue>
 #include <vector>
 
 #include <boost/asio.hpp>
@@ -28,9 +29,9 @@
 
 class PushNotificationClient {
 public:
-	PushNotificationClient(const std::string &name, PushNotificationService *service, std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host, const std::string &port);
-	void send(const std::vector<char> &data);
-	bool isReady() const;
+	PushNotificationClient(const std::string &name, PushNotificationService *service, std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host, const std::string &port, int maxQueueSize);
+	int send(const std::vector<char> &data);
+	bool isIdle();
 protected:
 	void handle_resolve(const boost::system::error_code& error, boost::asio::ip::tcp::resolver::iterator endpoint_iterator);
 	void handle_connect(const boost::system::error_code& error, boost::asio::ip::tcp::resolver::iterator endpoint_iterator);
@@ -42,16 +43,18 @@ private:
 	void onEnd();
 	void onError();
 	void connect();
+	bool next();
 private:
 	PushNotificationService *mService;
 	boost::asio::ip::tcp::resolver mResolver;
 	boost::asio::ssl::stream<boost::asio::ip::tcp::socket> mSocket;
 	std::shared_ptr<boost::asio::ssl::context> mContext;
-	bool mReady;
-	std::vector<char> mData;
+	std::queue<std::vector<char> > mDataQueue;
 	std::vector<char> mResponse;
+	bool mReady;
 	std::string mName;
 	std::string mHost,mPort;
+	int mMaxQueueSize;
 };
 
 #endif //PUSH_NOTIFICATION_CLIENT_H

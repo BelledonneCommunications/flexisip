@@ -135,6 +135,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = {
 			{ Integer, "timeout", "Number of second to wait before sending a push notification to device(if <=0 then disabled)", "5" },
+			{ Integer, "max-queue-size", "Maximum number of notifications queued for each client", "10" },
 			{ Boolean, "apple", "Enable push notification for apple devices", "true" },
 			{ String, "apple-certificate-dir", "Path to directory where to find Apple Push Notification service certificates. They should bear the appid of the application, suffixed by the release mode and .pem extension. For example: org.linphone.dev.pem org.linphone.prod.pem com.somephone.dev.pem etc..."
 			" The files should be .pem format, and made of certificate followed by private key." , "/etc/flexisip/apn" },
@@ -146,9 +147,10 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 
 void PushNotification::onLoad(const GenericStruct *mc) {
 	mTimeout = mc->get<ConfigInt>("timeout")->read();
+	int maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
 	string certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
 	mGoogleProjects = mc->get<ConfigStringList>("google-projects-api-keys")->read();
-	mAPNS = new PushNotificationService( certdir, "");
+	mAPNS = new PushNotificationService(certdir, "", maxQueueSize);
 	mAPNS->start();
 }
 

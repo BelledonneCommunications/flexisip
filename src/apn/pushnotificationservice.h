@@ -37,13 +37,15 @@ class PushNotificationClient;
 class PushNotificationService {
 	friend class PushNotificationClient;
 public:
-	void sendRequest(const std::shared_ptr<PushNotificationRequest> &pn);
+	int sendRequest(const std::shared_ptr<PushNotificationRequest> &pn);
 
 	void start();
 
 	void stop();
 
-	PushNotificationService(const std::string &certdir, const std::string &cafile);
+	void waitEnd();
+
+	PushNotificationService(const std::string &certdir, const std::string &cafile, int maxQueueSize);
 
 	~PushNotificationService();
 
@@ -53,7 +55,7 @@ public:
 #endif
 
 private:
-	void setupClients(const std::string & certdir, const std::string& ca);
+	void setupClients(const std::string & certdir, const std::string& ca, int maxQueueSize);
   
 	int run();
 
@@ -63,12 +65,7 @@ private:
 
 private:
 	boost::asio::io_service mIOService;
-	
-
 	std::thread *mThread;
-
-	std::mutex mMutex;
-	std::condition_variable mClientCondition;
 
 	bool mHaveToStop;
 	std::map<std::string,std::shared_ptr<PushNotificationClient> > mClients;

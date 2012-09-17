@@ -24,19 +24,46 @@
 using namespace ::std;
 using namespace ::boost;
 
-PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService *service, std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host, const std::string &port) :
-		mService(service), mResolver(mService->getService()), mSocket(mService->getService(), *ctx), mContext(ctx), mReady(true), mName(name), mHost(host),mPort(port) {
+PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService *service, std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host, const std::string &port, int maxQueueSize) :
+		mService(service), mResolver(mService->getService()), mSocket(mService->getService(), *ctx), mContext(ctx), mReady(true), mName(name), mHost(host), mPort(port), mMaxQueueSize(maxQueueSize) {
 }
 
-void PushNotificationClient::send(const vector<char> &data) {
-	mData = data;
-	LOGD("PushNotificationClient(%s) started", mName.c_str());
-	mReady = false;
-	if (!mSocket.lowest_layer().is_open()) {
-		connect();
-	} else {
-		send();
+int PushNotificationClient::send(const vector<char> &data) {
+	int size = mDataQueue.size();
+	if (size >= mMaxQueueSize) {
+		LOGW("PushNotificationClient(%s) queue full, push notification is lost", mName.c_str());
+		return 0;
 	}
+	mDataQueue.push(data);
+	if (size == 0) {
+		mReady = false;
+		LOGD("PushNotificationClient(%s) started", mName.c_str());
+		if (!mSocket.lowest_layer().is_open()) {
+			connect();
+		} else {
+			send();
+		}
+	} else {
+		LOGD("PushNotificationClient(%s) running, queue_size=%d", mName.c_str(), size);
+	}
+	return 1;
+}
+
+bool PushNotificationClient::isIdle() {
+	return mDataQueue.empty();
+}
+
+bool PushNotificationClient::next() {
+	bool hasNext = !mDataQueue.empty();
+	LOGD("PushNotificationClient(%s) next, queue_size=%d", mName.c_str(), (int)mDataQueue.size());
+	if (hasNext && mReady) {
+		if (!mSocket.lowest_layer().is_open()) {
+			connect();
+		} else {
+			send();
+		}
+	}
+	return hasNext;
 }
 
 void PushNotificationClient::connect() {
@@ -82,12 +109,14 @@ void PushNotificationClient::handle_handshake(const system::error_code& error) {
 
 void PushNotificationClient::send() {
 	LOGD("PushNotificationClient(%s) send data", mName.c_str());
-	asio::async_write(mSocket, asio::buffer(mData), bind(&PushNotificationClient::handle_write, this, asio::placeholders::error, asio::placeholders::bytes_transferred));
+	asio::async_write(mSocket, asio::buffer(mDataQueue.front()), bind(&PushNotificationClient::handle_write, this, asio::placeholders::error, asio::placeholders::bytes_transferred));
 }
 
 void PushNotificationClient::handle_write(const system::error_code& error, size_t bytes_transferred) {
 	if (!error) {
 		LOGD("PushNotificationClient(%s) write done", mName.c_str());
+		mDataQueue.pop();
+		mReady = true;
 		mResponse.resize(512);
 		asio::async_read(mSocket,asio::buffer(mResponse),bind(&PushNotificationClient::handle_read, this, asio::placeholders::error, asio::placeholders::bytes_transferred));
 		onEnd();
@@ -102,25 +131,22 @@ void PushNotificationClient::handle_read(const boost::system::error_code& error,
 		ostringstream response;
 		response<<(&mResponse[0]);
 		LOGD("PushNotificationClient(%s) read done: %s", mName.c_str(),response.str().c_str());
-		onEnd();
 	} else {
 		LOGE("PushNotificationClient(%s) read failed", mName.c_str());
-		onError();
 	}
-}
-
-bool PushNotificationClient::isReady() const {
-	return mReady;
 }
 
 void PushNotificationClient::onError() {
 	LOGD("PushNotificationClient(%s) disconnected", mName.c_str());
+	if (!mDataQueue.empty()) mDataQueue.pop();
 	mSocket.lowest_layer().close();
 	onEnd();
 }
 
 void PushNotificationClient::onEnd() {
-	mReady = true;
-	LOGD("PushNotificationClient(%s) idle", mName.c_str());
-	mService->clientEnded();
+	if (!next()) {
+		LOGD("PushNotificationClient(%s) idle", mName.c_str());
+		mService->clientEnded();
+		mReady = true;
+	}
 }
