@@ -20,6 +20,7 @@
 #define PUSH_NOTIFICATION_SERVICE_H
 
 #include "pushnotification.h"
+#include "configmanager.hh"
 
 #include <list>
 
@@ -45,7 +46,7 @@ public:
 
 	void waitEnd();
 
-	PushNotificationService(const std::string &certdir, const std::string &cafile, int maxQueueSize);
+	PushNotificationService(const std::string &certdir, const std::string &cafile, int maxQueueSize, StatCounter64 *countFailed, StatCounter64 *countSent);
 
 	~PushNotificationService();
 
@@ -70,6 +71,8 @@ private:
 	bool mHaveToStop;
 	std::map<std::string,std::shared_ptr<PushNotificationClient> > mClients;
 	std::string mPassword;
+	StatCounter64 *mCountFailed;
+	StatCounter64 *mCountSent;
 };
 
 #endif //PUSH_NOTIFICATION_SERVICE_H

@@ -71,6 +71,8 @@ private:
 	int mTimeout;
 	std::list<std::string> mGoogleProjects;
 	PushNotificationService *mAPNS;
+	StatCounter64 *mCountFailed;
+	StatCounter64 *mCountSent;
 };
 
 PushNotificationContext::PushNotificationContext(const shared_ptr<OutgoingTransaction> &transaction, PushNotification * module, const shared_ptr<PushNotificationRequest> &pnr, const string &token) :
@@ -121,7 +123,7 @@ void PushNotificationContext::__end_timer_callback(su_root_magic_t *magic, su_ti
 ModuleInfo<PushNotification> PushNotification::sInfo("PushNotification", "This module performs push notifications", ModuleInfoBase::ModuleOid::PushNotification);
 
 PushNotification::PushNotification(Agent *ag) :
-		Module(ag), mAPNS(NULL) {
+		Module(ag), mAPNS(NULL), mCountFailed(NULL), mCountSent(NULL) {
 }
 
 PushNotification::~PushNotification() {
@@ -143,6 +145,8 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 			{ StringList, "google-projects-api-keys", "List of couple projectId:ApiKey for each android project which support push notifications", "" },
 			config_item_end };
 	module_config->addChildrenValues(items);
+	mCountFailed = module_config->createStat("count-pn-failed", "Number of push notifications failed to be sent");
+	mCountSent = module_config->createStat("count-pn-failed", "Number of push notifications successfully sent");
 }
 
 void PushNotification::onLoad(const GenericStruct *mc) {
@@ -150,7 +154,7 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	int maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
 	string certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
 	mGoogleProjects = mc->get<ConfigStringList>("google-projects-api-keys")->read();
-	mAPNS = new PushNotificationService(certdir, "", maxQueueSize);
+	mAPNS = new PushNotificationService(certdir, "", maxQueueSize, mCountFailed, mCountSent);
 	mAPNS->start();
 }
 

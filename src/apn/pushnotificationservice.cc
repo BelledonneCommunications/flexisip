@@ -144,8 +144,8 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 	closedir(dirp);
 }
 
-PushNotificationService::PushNotificationService(const std::string &certdir, const std::string &cafile, int maxQueueSize) :
-		mIOService(), mThread(NULL) {
+PushNotificationService::PushNotificationService(const std::string &certdir, const std::string &cafile, int maxQueueSize, StatCounter64 *countFailed, StatCounter64 *countSent) :
+		mIOService(), mThread(NULL), mCountFailed(countFailed), mCountSent(countSent) {
 	setupClients(certdir, cafile, maxQueueSize);
 }
 

@@ -42,6 +42,7 @@ private:
 	void send();
 	void onEnd();
 	void onError();
+	void onSuccess();
 	void connect();
 	bool next();
 private:

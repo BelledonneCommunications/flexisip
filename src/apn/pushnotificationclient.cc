@@ -50,7 +50,7 @@ int PushNotificationClient::send(const vector<char> &data) {
 }
 
 bool PushNotificationClient::isIdle() {
-	return mDataQueue.empty();
+	return (mDataQueue.empty() && mReady);
 }
 
 bool PushNotificationClient::next() {
@@ -115,11 +115,9 @@ void PushNotificationClient::send() {
 void PushNotificationClient::handle_write(const system::error_code& error, size_t bytes_transferred) {
 	if (!error) {
 		LOGD("PushNotificationClient(%s) write done", mName.c_str());
-		mDataQueue.pop();
-		mReady = true;
 		mResponse.resize(512);
 		asio::async_read(mSocket,asio::buffer(mResponse),bind(&PushNotificationClient::handle_read, this, asio::placeholders::error, asio::placeholders::bytes_transferred));
-		onEnd();
+		onSuccess();
 	} else {
 		LOGE("PushNotificationClient(%s) write failed", mName.c_str());
 		onError();
@@ -140,6 +138,14 @@ void PushNotificationClient::onError() {
 	LOGD("PushNotificationClient(%s) disconnected", mName.c_str());
 	if (!mDataQueue.empty()) mDataQueue.pop();
 	mSocket.lowest_layer().close();
+	(*mService->mCountFailed)++;
+	onEnd();
+}
+
+void PushNotificationClient::onSuccess() {
+	mDataQueue.pop();
+	(*mService->mCountSent)++;
+	mReady = true;
 	onEnd();
 }
 
