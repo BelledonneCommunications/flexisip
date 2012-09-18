@@ -25,55 +25,50 @@
 
 using namespace ::std;
 
-const int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 256;
+const unsigned int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 256;
+const unsigned int ApplePushNotificationRequest::DEVICE_BINARY_SIZE = 32;
 
-ApplePushNotificationRequest::ApplePushNotificationRequest(const string & appid, const std::string &deviceToken, const std::string &msg_id, const std::string &arg, const std::string &sound) : PushNotificationRequest(appid) {
-	std::vector<char> deviceData;
-	std::ostringstream payload;
-	int ret = formatDeviceToken(deviceToken, deviceData);
-	if (ret != 0) {
+ApplePushNotificationRequest::ApplePushNotificationRequest(const string & appid, const string &deviceToken, const string &msg_id, const string &arg, const string &sound) : PushNotificationRequest(appid) {
+	ostringstream payload;
+	int ret = formatDeviceToken(deviceToken);
+	if ((ret != 0) || (mDeviceToken.size() != DEVICE_BINARY_SIZE)) {
 		throw runtime_error("ApplePushNotification: Invalid deviceToken");
 		return;
 	}
-	payload<<"{\"aps\":{\"alert\":{\"loc-key\":\""<<msg_id<<"\",\"loc-args\":[\""<<arg<<"\"]},\"sound\":\""<<sound<<"\"}}";
-	LOGD("Push notification payload is %s",payload.str().c_str());
-	ret = createPushNotification(deviceData, payload.str(), mData);
-	if (ret != 0) {
-		if (ret == -1) {
-			throw runtime_error("ApplePushNotification: Invalid deviceToken");
-		} else if (ret == -2) {
-			throw runtime_error("ApplePushNotification: Too long payload");
-		}
+	payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg << "\"]},\"sound\":\"" << sound << "\"}}";
+	if (payload.str().length() > MAXPAYLOAD_SIZE) {
+		return;
 	}
-
+	mPayload = payload.str();
+	LOGD("Push notification payload is %s", mPayload.c_str());
 }
 
-GooglePushNotificationRequest::GooglePushNotificationRequest(const string & appid, const std::string &deviceToken, const std::string &apiKey, const std::string &msg_id, const std::string &arg, const std::string &sound) : PushNotificationRequest(appid) {
-	std::ostringstream httpBody;
+GooglePushNotificationRequest::GooglePushNotificationRequest(const string & appid, const string &deviceToken, const string &apiKey, const string &msg_id, const string &arg, const string &sound) : PushNotificationRequest(appid) {
+	ostringstream httpBody;
 	httpBody << "data.loc-key=" << msg_id << "&data.loc-args=" << arg << "&data.sound=" << sound << "&registration_id=" << deviceToken;
-	LOGD("Push notification https post body is %s", httpBody.str().c_str());
+	mHttpBody = httpBody.str();
+	LOGD("Push notification https post body is %s", mHttpBody.c_str());
 
-	std::ostringstream httpHeader;
-	httpHeader << "POST /gcm/send HTTP/1.1\r\nHost:android.googleapis.com\r\nContent-Type:application/x-www-form-urlencoded;charset=UTF-8\r\nAuthorization:key=" << apiKey << "\r\nContent-Length:" << httpBody.str().size() <<"\r\n\r\n";
-	LOGD("Push notification https post header is %s", httpHeader.str().c_str());
-
-	createPushNotification(httpHeader.str(), httpBody.str(), mData);
+	ostringstream httpHeader;
+	httpHeader << "POST /gcm/send HTTP/1.1\r\nHost:android.googleapis.com\r\nContent-Type:application/x-www-form-urlencoded;charset=UTF-8\r\nAuthorization:key=" << apiKey << "\r\nContent-Length:" << httpBody.str().size() << "\r\n\r\n";
+	mHttpHeader = httpHeader.str();
+	LOGD("Push notification https post header is %s", mHttpHeader.c_str());
 }
 
-const std::vector<char> ApplePushNotificationRequest::getData() const{
-	return mData;
+const vector<char> ApplePushNotificationRequest::getData() {
+	return createPushNotification();
 }
 
-const std::vector<char> GooglePushNotificationRequest::getData() const{
-	return mData;
+const vector<char> GooglePushNotificationRequest::getData() {
+	return createPushNotification();
 }
 
-int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken, vector<char> &retVal) {
+int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
 	char car = 0;
 	char oct = 0;
 	char val;
 
-	retVal.clear();
+	mDeviceToken.clear();
 	for (unsigned int i = 0; i < deviceToken.length(); ++i) {
 		char tokenCar = deviceToken[i];
 		if (tokenCar >= '0' && tokenCar <= '9') {
@@ -94,28 +89,17 @@ int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken, v
 		}
 		oct = 1 - oct;
 		if (oct == 0) {
-			retVal.push_back(car);
+			mDeviceToken.push_back(car);
 		}
 	}
 	return 0;
 }
 
-int ApplePushNotificationRequest::createPushNotification(const vector<char> &deviceToken, const string &payload, vector<char> &retVal) {
-	static const unsigned int DEVICE_BINARY_SIZE = 32;
-
-	/* Inputs verifications */
-
-	if (deviceToken.size() != DEVICE_BINARY_SIZE) {
-		return -1;
-	}
-
-	int payloadLength = payload.length();
-	if (payloadLength > MAXPAYLOAD_SIZE) {
-		return -2;
-	}
+vector<char> ApplePushNotificationRequest::createPushNotification() {
+	vector<char> retVal;
+	unsigned int payloadLength = mPayload.length();
 
 	/* Init */
-
 	retVal.clear();
 	/* message format is, |COMMAND|TOKENLEN|TOKEN|PAYLOADLEN|PAYLOAD| */
 	retVal.resize(sizeof(uint8_t) + sizeof(uint16_t) + DEVICE_BINARY_SIZE + sizeof(uint16_t) + payloadLength);
@@ -136,7 +120,7 @@ int ApplePushNotificationRequest::createPushNotification(const vector<char> &dev
 	binaryMessagePt += sizeof(uint16_t);
 
 	/* device token */
-	memcpy(binaryMessagePt, &deviceToken[0], DEVICE_BINARY_SIZE);
+	memcpy(binaryMessagePt, &mDeviceToken[0], DEVICE_BINARY_SIZE);
 	binaryMessagePt += DEVICE_BINARY_SIZE;
 
 	/* payload length network order */
@@ -144,15 +128,16 @@ int ApplePushNotificationRequest::createPushNotification(const vector<char> &dev
 	binaryMessagePt += sizeof(uint16_t);
 
 	/* payload */
-	memcpy(binaryMessagePt, &payload[0], payloadLength);
+	memcpy(binaryMessagePt, &mPayload[0], payloadLength);
 	binaryMessagePt += payloadLength;
 
-	return 0;
+	return retVal;
 }
 
-int GooglePushNotificationRequest::createPushNotification(const string &header, const string &body, vector<char> &retVal) {
-	int headerLength = header.length();
-	int bodyLength = body.length();
+vector<char> GooglePushNotificationRequest::createPushNotification() {
+	vector<char> retVal;
+	int headerLength = mHttpHeader.length();
+	int bodyLength = mHttpBody.length();
 
 	retVal.clear();
 	retVal.resize(headerLength + bodyLength);
@@ -160,11 +145,11 @@ int GooglePushNotificationRequest::createPushNotification(const string &header, 
 	char *binaryMessageBuff = &retVal[0];
 	char *binaryMessagePt = binaryMessageBuff;
 
-	memcpy(binaryMessagePt, &header[0], headerLength);
+	memcpy(binaryMessagePt, &mHttpHeader[0], headerLength);
 	binaryMessagePt += headerLength;
 
-	memcpy(binaryMessagePt, &body[0], bodyLength);
+	memcpy(binaryMessagePt, &mHttpBody[0], bodyLength);
 	binaryMessagePt += bodyLength;
 
-	return 0;
+	return retVal;
 }

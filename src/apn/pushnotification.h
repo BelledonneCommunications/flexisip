@@ -27,7 +27,7 @@ public:
 	const std::string &getAppIdentifier(){
 		return mAppId;
 	}
-	virtual const std::vector<char> getData() const = 0;
+	virtual const std::vector<char> getData() = 0;
 	virtual ~PushNotificationRequest() = 0;
 private:
 	const std::string mAppId;
@@ -39,27 +39,31 @@ inline PushNotificationRequest::~PushNotificationRequest() {
 
 class ApplePushNotificationRequest: public PushNotificationRequest {
 public:
-	static const int MAXPAYLOAD_SIZE;
-	virtual const std::vector<char> getData() const;
+	static const unsigned int MAXPAYLOAD_SIZE;
+	static const unsigned int DEVICE_BINARY_SIZE;
+	virtual const std::vector<char> getData();
 	ApplePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &msg_id, const std::string &arg, const std::string &sound);
 	~ApplePushNotificationRequest() {};
-private:
-	static int formatDeviceToken(const std::string &deviceToken, std::vector<char> &retVal);
-	static int createPushNotification(const std::vector<char> &deviceToken, const std::string &payload, std::vector<char> &retVal);
-private:
-	std::vector<char> mData;
+
+protected:
+	int formatDeviceToken(const std::string &deviceToken);
+	std::vector<char> createPushNotification();
+
+	std::vector<char> mDeviceToken;
+	std::string mPayload;
 };
 
 class GooglePushNotificationRequest: public PushNotificationRequest {
 public:
-	static const int MAXPAYLOAD_SIZE;
-	virtual const std::vector<char> getData() const;
+	virtual const std::vector<char> getData();
 	GooglePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &apiKey, const std::string &msg_id, const std::string &arg, const std::string &sound);
 	~GooglePushNotificationRequest() {};
-private:
-	static int createPushNotification(const std::string &header, const std::string &body, std::vector<char> &retVal);
-private:
-	std::vector<char> mData;
+
+protected:
+	std::vector<char> createPushNotification();
+
+	std::string mHttpHeader;
+	std::string mHttpBody;
 };
 
 #endif
