@@ -50,6 +50,8 @@ public:
 
 	~PushNotificationService();
 
+	boost::asio::io_service &getService();
+
 	std::string handle_password_callback(std::size_t max_length, boost::asio::ssl::context_base::password_purpose purpose) const;
 #if BOOST_VERSION >= 104800
 	bool handle_verify_callback(bool preverified, boost::asio::ssl::verify_context &ctx) const;
@@ -59,8 +61,6 @@ private:
 	void setupClients(const std::string & certdir, const std::string& ca, int maxQueueSize);
   
 	int run();
-
-	boost::asio::io_service &getService();
 
 	void clientEnded();
 
