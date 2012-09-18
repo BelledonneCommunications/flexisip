@@ -45,12 +45,12 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const string & appid,
 
 GooglePushNotificationRequest::GooglePushNotificationRequest(const string & appid, const string &deviceToken, const string &apiKey, const string &msg_id, const string &arg, const string &sound) : PushNotificationRequest(appid) {
 	ostringstream httpBody;
-	httpBody << "data.loc-key=" << msg_id << "&data.loc-args=" << arg << "&data.sound=" << sound << "&registration_id=" << deviceToken;
+	httpBody << "{\"registration_ids\":[\"" << deviceToken << "\"],\"data\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":\"" << arg << "\",\"sound\":\"" << sound << "\"}}";
 	mHttpBody = httpBody.str();
 	LOGD("Push notification https post body is %s", mHttpBody.c_str());
 
 	ostringstream httpHeader;
-	httpHeader << "POST /gcm/send HTTP/1.1\r\nHost:android.googleapis.com\r\nContent-Type:application/x-www-form-urlencoded;charset=UTF-8\r\nAuthorization:key=" << apiKey << "\r\nContent-Length:" << httpBody.str().size() << "\r\n\r\n";
+	httpHeader << "POST /gcm/send HTTP/1.1\r\nHost:android.googleapis.com\r\nContent-Type:application/json\r\nAuthorization:key=" << apiKey << "\r\nContent-Length:" << httpBody.str().size() << "\r\n\r\n";
 	mHttpHeader = httpHeader.str();
 	LOGD("Push notification https post header is %s", mHttpHeader.c_str());
 }
