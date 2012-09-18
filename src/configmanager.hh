@@ -283,9 +283,9 @@ public:
 	uint64_t read() { return mValue; }
 	void set(uint64_t val) { mValue=val; }
 	void operator++() {++mValue;};
-	void operator++(int count) {mValue+=count;};
+	void operator++(int) {mValue++;};
 	void operator--() {--mValue;};
-	void operator--(int count) {mValue-=count;};
+	void operator--(int) {mValue--;};
 private:
 	uint64_t mValue;
 };
