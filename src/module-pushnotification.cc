@@ -283,8 +283,9 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 
 void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
 	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-	if (transaction != NULL && ev->getMsgSip()->getSip()->sip_status->st_status !=503) {
-		/*any response except 503 (which is sofia's internal response for broken transports) should cancel the push*/
+	int code=ev->getMsgSip()->getSip()->sip_status->st_status;
+	if (transaction != NULL && code>=180 && code!=503) {
+		/*any response >=180 except 503 (which is sofia's internal response for broken transports) should cancel the push*/
 		shared_ptr<PushNotificationContext> ctx=transaction->getProperty<PushNotificationContext>(getModuleName());
 		if (ctx) ctx->cancel();
 	}
