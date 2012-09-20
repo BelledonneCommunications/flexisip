@@ -309,6 +309,8 @@ RegistrarDb::LocalRegExpire::LocalRegExpire(string preferedRoute) {
 }
 
 RegistrarDb::RegistrarDb(Agent *ag) : mLocalRegExpire(new LocalRegExpire(ag->getPreferredRoute())) {
+	GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+	mUseGlobalDomain=registrar->get<ConfigBoolean>("use-global-domain");
 }
 
 RegistrarDb::~RegistrarDb() {
@@ -360,7 +362,11 @@ int RegistrarDb::count_sip_contacts(const sip_contact_t *contact) {
 }
 
 void RegistrarDb::defineKeyFromUrl(char *key, int len, const url_t *url) {
-	snprintf(key, len - 1, "%s@%s", url->url_user, url->url_host);
+	if (!mUseGlobalDomain) {
+		snprintf(key, len - 1, "%s@%s", url->url_user, url->url_host);
+	} else {
+		snprintf(key, len - 1, "%s@merged", url->url_user);
+	}
 }
 
 bool RegistrarDb::errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const char *key, const shared_ptr<RegistrarDbListener> &listener) {

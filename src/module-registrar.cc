@@ -96,6 +96,7 @@ public:
 				{ Integer, "static-records-timeout", "Timeout in seconds after which the static records file is re-read and the contacts updated.", "600" },
 
 				{	String , "db-implementation", "Implementation used for storing address of records contact uris. [redis-async, redis-sync, internal]","internal"},
+				{	Boolean , "use-global-domain", "Store and retrieve contacts without using the domain.","false"},
 #ifdef ENABLE_REDIS
 				{	String , "redis-server-domain", "Domain of the redis server. ","localhost"},
 				{	Integer , "redis-server-port", "Port of the redis server.","6379"},

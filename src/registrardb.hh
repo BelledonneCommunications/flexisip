@@ -218,11 +218,12 @@ protected:
 
 	int count_sip_contacts(const sip_contact_t *contact);
 	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const char *key, const std::shared_ptr<RegistrarDbListener> &listener);
-	static void defineKeyFromUrl(char *key, int len, const url_t *url);
+	void defineKeyFromUrl(char *key, int len, const url_t *url);
 	RegistrarDb(Agent *ag);
 	virtual ~RegistrarDb();
 	std::map<std::string, Record*> mRecords;
 	LocalRegExpire *mLocalRegExpire;
+	bool mUseGlobalDomain;
 	static RegistrarDb *sUnique;
 };
 

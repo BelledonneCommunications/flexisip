@@ -154,18 +154,18 @@ typedef struct RegistrarDbRedisAsync::RegistrarUserData {
 
 	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, bool alias, shared_ptr<RegistrarDbListener>listener, forwardFn *fn):
 		self(self),fn(fn),token(0),sipContact(sip_contact),calldId(calld_id),csSeq(cs_seq),listener(listener),record(""),globalExpire(0),route(NULL),alias(alias){
-		defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
+		self->defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
 		record.setKey(key);
 		if (route) this->route=strdup(route);
 	}
 	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, shared_ptr<RegistrarDbListener>listener, forwardFn *fn):
 		self(self),fn(fn),token(0),sipContact(sip_contact),calldId(calld_id),csSeq(cs_seq),listener(listener),record(""),globalExpire(0),route(NULL){
-		defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
+		self->defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
 		record.setKey(key);
 	}
 	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t *url, shared_ptr<RegistrarDbListener>listener, forwardFn *fn):
 		self(self),fn(fn),token(0),sipContact(NULL),calldId(NULL),csSeq(-1),listener(listener),record(""),globalExpire(0),route(NULL){
-		defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
+		self->defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
 		record.setKey(key);
 	}
 	~RegistrarUserData(){
