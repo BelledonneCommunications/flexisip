@@ -238,16 +238,22 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 void Record::bind(const sip_contact_t *contacts, const char* route, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias) {
 	sip_contact_t *c = (sip_contact_t *) contacts;
 	while (c) {
+		if ((c->m_expires && atoi(c->m_expires) == 0)|| (!c->m_expires && globalExpire == 0)) {
+			c = c->m_next;
+			continue;
+		}
+
 		const char *lineValuePtr=NULL;
 		string lineValue=extractUniqueId(c);
-	
 		if (lineValue.size()>0)
 			lineValuePtr=lineValue.c_str();
+
 		char transport[20];
 		char *transportPtr = transport;
 		if (!url_param(c->m_url[0].url_params, "transport", transport, sizeof(transport) - 1)) {
 			transportPtr = NULL;
 		}
+
 		ostringstream contactId;
 		defineContactId(contactId, c->m_url, transportPtr);
 		insertOrUpdateBinding(make_shared<ExtendedContact>(c, contactId.str().c_str(), route, lineValuePtr, globalExpire, call_id, cseq, now, alias));
