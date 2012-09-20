@@ -146,7 +146,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 			config_item_end };
 	module_config->addChildrenValues(items);
 	mCountFailed = module_config->createStat("count-pn-failed", "Number of push notifications failed to be sent");
-	mCountSent = module_config->createStat("count-pn-failed", "Number of push notifications successfully sent");
+	mCountSent = module_config->createStat("count-pn-sent", "Number of push notifications successfully sent");
 }
 
 void PushNotification::onLoad(const GenericStruct *mc) {
