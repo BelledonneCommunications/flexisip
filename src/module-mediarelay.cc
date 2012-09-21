@@ -22,9 +22,11 @@
 #include "callstore.hh"
 #include "sdp-modifier.hh"
 #include "transaction.hh"
+#include "h264iframefilter.hh"
 
 #include <vector>
 #include <algorithm>
+
 
 using namespace ::std;
 
@@ -52,6 +54,10 @@ protected:
 				{ String, "early-media-rtp-dir", "Set the RTP direction during early media state (duplex, forward)", "duplex" },
 				{ Integer, "sdp-port-range-min", "The minimal value of SDP port range", "1024" },
 				{ Integer, "sdp-port-range-max", "The maximal value of SDP port range", "65535" },
+#ifdef H264_FILTERING_ENABLED
+				{ Integer, "h264-filtering-bandwidth", "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value expressed in kbit/s. Use 0 to disable the feature", "0" },
+				{ Integer, "h264-iframe-decim", "When above option is activated, keep one I frame over this number.", "1" },
+#endif
 				config_item_end };
 		mc->addChildrenValues(items);
 
@@ -63,11 +69,12 @@ private:
 	bool processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
 	void process200OkforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
 	void processOtherforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
-
 	CallStore *mCalls;
 	MediaRelayServer *mServer;
 	string mSdpMangledParam;
 	RTPDir mEarlymediaRTPDir;
+	int mH264FilteringBandwidth;
+	int mH264Decim;
 	static ModuleInfo<MediaRelay> sInfo;
 };
 
@@ -90,10 +97,14 @@ class RelayedCall: public CallContextBase {
 public:
 	static const int sMaxSessions = 4;
 	RelayedCall(MediaRelayServer *server, sip_t *sip, MediaRelay::RTPDir dir) :
-			CallContextBase(sip), mServer(server), mState(Idle), mEarlymediaRTPDir(dir) {
+			CallContextBase(sip), mServer(server), mState(Idle), mEarlymediaRTPDir(dir), mBandwidthThres(0) {
 		LOGD("New RelayedCall %p", this);
 	}
-
+	/*Enable filtering of H264 Iframes for low bandwidth.*/
+	void enableH264IFrameFiltering(int bandwidth_threshold, int decim){
+		mBandwidthThres=bandwidth_threshold;
+		mDecim=decim;
+	}
 	/*this function is called to masquerade the SDP, for each mline*/
 	void setMedia(SdpModifier *m, const string &tag, const shared_ptr<Transaction> &transaction, const string &frontIp, const string&backIp) {
 		sdp_media_t *mline = m->mSession->sdp_media;
@@ -111,17 +122,19 @@ public:
 			if (s == NULL) {
 				s = mServer->createSession();
 				mSessions[i].mRelaySession = s;
-				s->addFront(frontIp);
+				configureMediaSource(s->addFront(frontIp),m->mSession,mline);
 			}
 			if (!tag.empty()) {
 				if (mSessions[i].mMediaSources.find(tag) == mSessions[i].mMediaSources.end()) {
 					shared_ptr<MediaSource> ms = s->addBack(backIp);
+					configureMediaSource(ms,m->mSession,mline);
 					ms->setBehaviour(MediaSource::Receive);
 					mSessions[i].mMediaSources.insert(pair<string, shared_ptr<MediaSource>>(tag, ms));
 				}
 			} else {
 				if (mSessions[i].mTransactions.find(transaction) == mSessions[i].mTransactions.end()) {
 					shared_ptr<MediaSource> ms = s->addBack(backIp);
+					configureMediaSource(ms,m->mSession,mline);
 					ms->setBehaviour(MediaSource::Receive);
 					mSessions[i].mTransactions.insert(pair<shared_ptr<Transaction>, shared_ptr<MediaSource>>(transaction, ms));
 				}
@@ -390,12 +403,27 @@ public:
 			}
 		}
 	}
+	void configureMediaSource(shared_ptr<MediaSource> ms, sdp_session_t *session, sdp_media_t *mline){
+		if (mBandwidthThres>0){
+			if (mline->m_type==sdp_media_video){
+				if (mline->m_rtpmaps && strcmp(mline->m_rtpmaps->rm_encoding,"H264")==0){
+					sdp_bandwidth_t *b=session->sdp_bandwidths;
+					if (b && b->b_modifier==sdp_bw_as && ((int)b->b_value) <= (int)mBandwidthThres){
+						LOGI("Enabling H264 filtering");
+						ms->setFilter(make_shared<H264IFrameFilter>(mDecim));
+					}
+				}
+			}
+		}
+	}
 
 private:
 	RelaySessionTransaction mSessions[sMaxSessions];
 	MediaRelayServer *mServer;
 	State mState;
 	MediaRelay::RTPDir mEarlymediaRTPDir;
+	int mBandwidthThres;
+	int mDecim;
 };
 
 static bool isEarlyMedia(sip_t *sip) {
@@ -429,6 +457,12 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mServer = new MediaRelayServer(mAgent);
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
 	string rtpdir = modconf->get<ConfigString>("early-media-rtp-dir")->read();
+#ifdef H264_FILTERING_ENABLED
+	mH264FilteringBandwidth=modconf->get<ConfigInt>("h264-filtering-bandwidth")->read();
+#else
+	mH264FilteringBandwidth=0;
+#endif
+	
 	mEarlymediaRTPDir = DUPLEX;
 	if (rtpdir == "duplex") {
 		mEarlymediaRTPDir = DUPLEX;

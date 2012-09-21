@@ -123,11 +123,17 @@ int MediaSource::recv(int i, uint8_t *buf, size_t buflen) {
 int MediaSource::send(int i, uint8_t *buf, size_t buflen) {
 	int err;
 	if (mSockAddrSize[i] > 0) {
-		err = sendto(mSources[i], buf, buflen, 0, (struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]);
+		if (!mFilter || mFilter->onTransfer(buf,buflen) ){
+			err = sendto(mSources[i], buf, buflen, 0, (struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]);
+		}else err=buflen;//don't report error.
 		return err;
 	}
 	return 0;
 
+}
+
+void MediaSource::setFilter(shared_ptr<MediaFilter> filter){
+	mFilter=filter;
 }
 
 RelaySession::RelaySession(MediaRelayServer *server) :
