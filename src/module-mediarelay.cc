@@ -406,7 +406,7 @@ public:
 	void configureMediaSource(shared_ptr<MediaSource> ms, sdp_session_t *session, int mline_nr){
 		sdp_media_t *mline;
 		int i;
-		for(i=0,mline=session->sdp_media;i<mline_nr;mline=mline->m_next){
+		for(i=0,mline=session->sdp_media;i<mline_nr;mline=mline->m_next,++i){
 		}
 		if (mBandwidthThres>0){
 			if (mline->m_type==sdp_media_video){
@@ -463,8 +463,10 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	string rtpdir = modconf->get<ConfigString>("early-media-rtp-dir")->read();
 #ifdef H264_FILTERING_ENABLED
 	mH264FilteringBandwidth=modconf->get<ConfigInt>("h264-filtering-bandwidth")->read();
+	mH264Decim=modconf->get<ConfigInt>("h264-iframe-decim")->read();
 #else
 	mH264FilteringBandwidth=0;
+	mH264Decim=0;
 #endif
 	
 	mEarlymediaRTPDir = DUPLEX;
