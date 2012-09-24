@@ -217,8 +217,10 @@ void Agent::start(const char *transport_override){
 		su_home_init(&home);
 		url=url_make(&home,uri.c_str());
 		LOGD("Enabling transport %s",uri.c_str());
-		if (url_param(url->url_params,"maddr",bindIp,sizeof(bindIp))>0){
-			mBindIp=bindIp;
+		if (mBindIp.empty()){
+			if (url_param(url->url_params,"maddr",bindIp,sizeof(bindIp))>0){
+				mBindIp=bindIp;
+			}
 		}
 		if (uri.find("sips")==0){
 			string keys = cr->get<GenericStruct>("global")->get<ConfigString>("tls-certificates-dir")->read();
@@ -231,7 +233,8 @@ void Agent::start(const char *transport_override){
 		}
 		su_home_deinit(&home);
 	}
-	
+	if (mBindIp.empty())
+		mBindIp="0.0.0.0";
 	
 	tport_t *primaries=tport_primaries(nta_agent_tports(mAgent));
 	if (primaries==NULL) LOGA("No sip transport defined.");
