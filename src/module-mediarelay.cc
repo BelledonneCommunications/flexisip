@@ -122,19 +122,17 @@ public:
 			if (s == NULL) {
 				s = mServer->createSession();
 				mSessions[i].mRelaySession = s;
-				configureMediaSource(s->addFront(frontIp),m->mSession,mline);
+				s->addFront(frontIp);
 			}
 			if (!tag.empty()) {
 				if (mSessions[i].mMediaSources.find(tag) == mSessions[i].mMediaSources.end()) {
 					shared_ptr<MediaSource> ms = s->addBack(backIp);
-					configureMediaSource(ms,m->mSession,mline);
 					ms->setBehaviour(MediaSource::Receive);
 					mSessions[i].mMediaSources.insert(pair<string, shared_ptr<MediaSource>>(tag, ms));
 				}
 			} else {
 				if (mSessions[i].mTransactions.find(transaction) == mSessions[i].mTransactions.end()) {
 					shared_ptr<MediaSource> ms = s->addBack(backIp);
-					configureMediaSource(ms,m->mSession,mline);
 					ms->setBehaviour(MediaSource::Receive);
 					mSessions[i].mTransactions.insert(pair<shared_ptr<Transaction>, shared_ptr<MediaSource>>(transaction, ms));
 				}
@@ -238,7 +236,7 @@ public:
 		}
 	}
 
-	void setFront(int mline, const string &ip, int port) {
+	void setFront(SdpModifier *m, int mline, const string &ip, int port) {
 		if (mline >= sMaxSessions) {
 			return;
 		}
@@ -246,13 +244,14 @@ public:
 		if (s != NULL) {
 			shared_ptr<MediaSource> ms = s->getFronts().front();
 			if(ms->getPort() == -1) {
+				configureMediaSource(ms,m->mSession,mline);
 				ms->set(ip, port);
 			}
 			ms->setBehaviour(MediaSource::All);
 		}
 	}
 
-	void setBack(int mline, const string &ip, int port, const string &tag, const shared_ptr<Transaction> &transaction) {
+	void setBack(SdpModifier *m, int mline, const string &ip, int port, const string &tag, const shared_ptr<Transaction> &transaction) {
 		if (mline >= sMaxSessions) {
 			return;
 		}
@@ -260,6 +259,7 @@ public:
 		if (s != NULL) {
 			auto ms = getMS(mline, tag, transaction);
 			if (ms != NULL && ms->getPort() == -1) {
+				configureMediaSource(ms,m->mSession,mline);
 				ms->set(ip, port);
 			}
 		}
@@ -403,12 +403,16 @@ public:
 			}
 		}
 	}
-	void configureMediaSource(shared_ptr<MediaSource> ms, sdp_session_t *session, sdp_media_t *mline){
+	void configureMediaSource(shared_ptr<MediaSource> ms, sdp_session_t *session, int mline_nr){
+		sdp_media_t *mline;
+		int i;
+		for(i=0,mline=session->sdp_media;i<mline_nr;mline=mline->m_next){
+		}
 		if (mBandwidthThres>0){
 			if (mline->m_type==sdp_media_video){
 				if (mline->m_rtpmaps && strcmp(mline->m_rtpmaps->rm_encoding,"H264")==0){
 					sdp_bandwidth_t *b=session->sdp_bandwidths;
-					if (b && b->b_modifier==sdp_bw_as && ((int)b->b_value) <= (int)mBandwidthThres){
+					if (b && ((int)b->b_value) <= (int)mBandwidthThres){
 						LOGI("Enabling H264 filtering");
 						ms->setFilter(make_shared<H264IFrameFilter>(mDecim));
 					}
@@ -525,9 +529,9 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 
 	// Set
 	if (c->getCallerTag() == from_tag)
-		m->iterate(bind(&RelayedCall::setFront, c, placeholders::_1, placeholders::_2, placeholders::_3));
+		m->iterate(bind(&RelayedCall::setFront, c, m, placeholders::_1, placeholders::_2, placeholders::_3));
 	else
-		m->iterate(bind(&RelayedCall::setBack, c, placeholders::_1, placeholders::_2, placeholders::_3, from_tag, ref(transaction)));
+		m->iterate(bind(&RelayedCall::setBack, c, m, placeholders::_1, placeholders::_2, placeholders::_3, from_tag, ref(transaction)));
 
 	// Translate
 	if (c->getCallerTag() == from_tag)
@@ -640,9 +644,9 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 
 	// Set
 	if (c->getCallerTag() == from_tag)
-		m->iterate(bind(&RelayedCall::setBack, c, placeholders::_1, placeholders::_2, placeholders::_3, to_tag, ref(transaction)));
+		m->iterate(bind(&RelayedCall::setBack, c, m, placeholders::_1, placeholders::_2, placeholders::_3, to_tag, ref(transaction)));
 	else
-		m->iterate(bind(&RelayedCall::setFront, c, placeholders::_1, placeholders::_2, placeholders::_3));
+		m->iterate(bind(&RelayedCall::setFront, c, m, placeholders::_1, placeholders::_2, placeholders::_3));
 
 	if (c->getCallerTag() == from_tag && sip->sip_status->st_status == 200)
 		c->validBack(sip->sip_to->a_tag);
