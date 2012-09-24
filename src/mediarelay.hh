@@ -52,6 +52,7 @@ private:
 
 class MediaSource;
 
+
 class RelaySession {
 public:
 
@@ -100,6 +101,14 @@ private:
 	std::list<std::shared_ptr<MediaSource>> mFronts;
 	std::list<std::shared_ptr<MediaSource>> mBacks;
 };
+
+class MediaFilter{
+public:
+	///Should return false if the packet must not be transfered.
+	virtual bool onTransfer(uint8_t *data, size_t size)=0;
+};
+
+
 
 class MediaSource {
 public:
@@ -160,6 +169,8 @@ public:
 	RelaySession *getRelaySession() {
 		return mRelaySession;
 	}
+	
+	void setFilter(std::shared_ptr<MediaFilter> filter);
 
 private:
 	const bool mFront;
@@ -171,6 +182,7 @@ private:
 	struct sockaddr_storage mSockAddr[2];
 	socklen_t mSockAddrSize[2];
 	RelaySession *mRelaySession;
+	std::shared_ptr<MediaFilter> mFilter;
 };
 
 #endif

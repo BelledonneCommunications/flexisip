@@ -31,7 +31,8 @@ flexisip_SOURCES=main.cc \
 			module-auth.cc \
 			module-loadbalancer.cc \
 			dos-protection.cc dos-protection.hh \
-			expressionparser.cc expressionparser.hh
+			expressionparser.cc expressionparser.hh \
+			h264iframefilter.cc h264iframefilter.hh
 
 
 if BUILD_SNMP

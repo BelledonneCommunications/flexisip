@@ -22,9 +22,11 @@
 #include "callstore.hh"
 #include "sdp-modifier.hh"
 #include "transaction.hh"
+#include "h264iframefilter.hh"
 
 #include <vector>
 #include <algorithm>
+
 
 using namespace ::std;
 
@@ -52,6 +54,10 @@ protected:
 				{ String, "early-media-rtp-dir", "Set the RTP direction during early media state (duplex, forward)", "duplex" },
 				{ Integer, "sdp-port-range-min", "The minimal value of SDP port range", "1024" },
 				{ Integer, "sdp-port-range-max", "The maximal value of SDP port range", "65535" },
+#ifdef H264_FILTERING_ENABLED
+				{ Integer, "h264-filtering-bandwidth", "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value expressed in kbit/s. Use 0 to disable the feature", "0" },
+				{ Integer, "h264-iframe-decim", "When above option is activated, keep one I frame over this number.", "1" },
+#endif
 				config_item_end };
 		mc->addChildrenValues(items);
 
@@ -63,11 +69,12 @@ private:
 	bool processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
 	void process200OkforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
 	void processOtherforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
-
 	CallStore *mCalls;
 	MediaRelayServer *mServer;
 	string mSdpMangledParam;
 	RTPDir mEarlymediaRTPDir;
+	int mH264FilteringBandwidth;
+	int mH264Decim;
 	static ModuleInfo<MediaRelay> sInfo;
 };
 
@@ -90,10 +97,14 @@ class RelayedCall: public CallContextBase {
 public:
 	static const int sMaxSessions = 4;
 	RelayedCall(MediaRelayServer *server, sip_t *sip, MediaRelay::RTPDir dir) :
-			CallContextBase(sip), mServer(server), mState(Idle), mEarlymediaRTPDir(dir) {
+			CallContextBase(sip), mServer(server), mState(Idle), mEarlymediaRTPDir(dir), mBandwidthThres(0) {
 		LOGD("New RelayedCall %p", this);
 	}
-
+	/*Enable filtering of H264 Iframes for low bandwidth.*/
+	void enableH264IFrameFiltering(int bandwidth_threshold, int decim){
+		mBandwidthThres=bandwidth_threshold;
+		mDecim=decim;
+	}
 	/*this function is called to masquerade the SDP, for each mline*/
 	void setMedia(SdpModifier *m, const string &tag, const shared_ptr<Transaction> &transaction, const string &frontIp, const string&backIp) {
 		sdp_media_t *mline = m->mSession->sdp_media;
@@ -225,7 +236,7 @@ public:
 		}
 	}
 
-	void setFront(int mline, const string &ip, int port) {
+	void setFront(SdpModifier *m, int mline, const string &ip, int port) {
 		if (mline >= sMaxSessions) {
 			return;
 		}
@@ -233,13 +244,14 @@ public:
 		if (s != NULL) {
 			shared_ptr<MediaSource> ms = s->getFronts().front();
 			if(ms->getPort() == -1) {
+				configureMediaSource(ms,m->mSession,mline);
 				ms->set(ip, port);
 			}
 			ms->setBehaviour(MediaSource::All);
 		}
 	}
 
-	void setBack(int mline, const string &ip, int port, const string &tag, const shared_ptr<Transaction> &transaction) {
+	void setBack(SdpModifier *m, int mline, const string &ip, int port, const string &tag, const shared_ptr<Transaction> &transaction) {
 		if (mline >= sMaxSessions) {
 			return;
 		}
@@ -247,6 +259,7 @@ public:
 		if (s != NULL) {
 			auto ms = getMS(mline, tag, transaction);
 			if (ms != NULL && ms->getPort() == -1) {
+				configureMediaSource(ms,m->mSession,mline);
 				ms->set(ip, port);
 			}
 		}
@@ -390,12 +403,31 @@ public:
 			}
 		}
 	}
+	void configureMediaSource(shared_ptr<MediaSource> ms, sdp_session_t *session, int mline_nr){
+		sdp_media_t *mline;
+		int i;
+		for(i=0,mline=session->sdp_media;i<mline_nr;mline=mline->m_next,++i){
+		}
+		if (mBandwidthThres>0){
+			if (mline->m_type==sdp_media_video){
+				if (mline->m_rtpmaps && strcmp(mline->m_rtpmaps->rm_encoding,"H264")==0){
+					sdp_bandwidth_t *b=session->sdp_bandwidths;
+					if (b && ((int)b->b_value) <= (int)mBandwidthThres){
+						LOGI("Enabling H264 filtering");
+						ms->setFilter(make_shared<H264IFrameFilter>(mDecim));
+					}
+				}
+			}
+		}
+	}
 
 private:
 	RelaySessionTransaction mSessions[sMaxSessions];
 	MediaRelayServer *mServer;
 	State mState;
 	MediaRelay::RTPDir mEarlymediaRTPDir;
+	int mBandwidthThres;
+	int mDecim;
 };
 
 static bool isEarlyMedia(sip_t *sip) {
@@ -429,6 +461,14 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mServer = new MediaRelayServer(mAgent);
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
 	string rtpdir = modconf->get<ConfigString>("early-media-rtp-dir")->read();
+#ifdef H264_FILTERING_ENABLED
+	mH264FilteringBandwidth=modconf->get<ConfigInt>("h264-filtering-bandwidth")->read();
+	mH264Decim=modconf->get<ConfigInt>("h264-iframe-decim")->read();
+#else
+	mH264FilteringBandwidth=0;
+	mH264Decim=0;
+#endif
+	
 	mEarlymediaRTPDir = DUPLEX;
 	if (rtpdir == "duplex") {
 		mEarlymediaRTPDir = DUPLEX;
@@ -491,9 +531,9 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 
 	// Set
 	if (c->getCallerTag() == from_tag)
-		m->iterate(bind(&RelayedCall::setFront, c, placeholders::_1, placeholders::_2, placeholders::_3));
+		m->iterate(bind(&RelayedCall::setFront, c, m, placeholders::_1, placeholders::_2, placeholders::_3));
 	else
-		m->iterate(bind(&RelayedCall::setBack, c, placeholders::_1, placeholders::_2, placeholders::_3, from_tag, ref(transaction)));
+		m->iterate(bind(&RelayedCall::setBack, c, m, placeholders::_1, placeholders::_2, placeholders::_3, from_tag, ref(transaction)));
 
 	// Translate
 	if (c->getCallerTag() == from_tag)
@@ -524,6 +564,8 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) == NULL) {
 			c = make_shared<RelayedCall>(mServer, sip, mEarlymediaRTPDir);
+			if (mH264FilteringBandwidth)
+				c->enableH264IFrameFiltering(mH264FilteringBandwidth,mH264Decim);
 			if (processNewInvite(c, ot, ev->getMsgSip())) {
 				//be in the record-route
 				addRecordRouteIncoming(c->getHome(), getAgent(),ev);
@@ -604,9 +646,9 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 
 	// Set
 	if (c->getCallerTag() == from_tag)
-		m->iterate(bind(&RelayedCall::setBack, c, placeholders::_1, placeholders::_2, placeholders::_3, to_tag, ref(transaction)));
+		m->iterate(bind(&RelayedCall::setBack, c, m, placeholders::_1, placeholders::_2, placeholders::_3, to_tag, ref(transaction)));
 	else
-		m->iterate(bind(&RelayedCall::setFront, c, placeholders::_1, placeholders::_2, placeholders::_3));
+		m->iterate(bind(&RelayedCall::setFront, c, m, placeholders::_1, placeholders::_2, placeholders::_3));
 
 	if (c->getCallerTag() == from_tag && sip->sip_status->st_status == 200)
 		c->validBack(sip->sip_to->a_tag);

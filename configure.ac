@@ -82,6 +82,13 @@ AC_ARG_ENABLE(transcoder,
 )
 AM_CONDITIONAL(BUILD_TRANSCODER,test x$transcoder = xyes)
 
+AC_ARG_ENABLE(h264-filter,
+	AC_HELP_STRING([--enable-h264-filter],
+	    [Enable H264 i-frame filtering @<:@yes@:>@]),
+        [h264_filter="${enableval}"],[h264_filter=no]
+)
+AC_DEFINE([H264_FILTERING_ENABLED],1,[H264 I frame filtering is enabled.])
+
 AC_DEFUN([CHECK_BOOST],[$1
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[[
         #ifndef $2
