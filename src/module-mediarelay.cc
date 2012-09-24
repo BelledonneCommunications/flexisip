@@ -558,6 +558,8 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) == NULL) {
 			c = make_shared<RelayedCall>(mServer, sip, mEarlymediaRTPDir);
+			if (mH264FilteringBandwidth)
+				c->enableH264IFrameFiltering(mH264FilteringBandwidth,mH264Decim);
 			if (processNewInvite(c, ot, ev->getMsgSip())) {
 				//be in the record-route
 				addRecordRouteIncoming(c->getHome(), getAgent(),ev);
