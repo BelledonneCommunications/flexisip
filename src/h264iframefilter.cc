@@ -66,7 +66,8 @@ bool H264IFrameFilter::onTransfer(uint8_t *data, size_t size){
 		}
 		break;
 		case TYPE_STAP_A:
-			LOGE("H264 STAP-A packets not handled.");
+			LOGW("H264 STAP-A packets not properly handled.");
+			ret=true; //anyway these are usually small NALs
 		break;
 		default:
 		break;
