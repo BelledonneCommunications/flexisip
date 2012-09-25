@@ -19,7 +19,7 @@
 #ifndef PUSH_NOTIFICATION_SERVICE_H
 #define PUSH_NOTIFICATION_SERVICE_H
 
-#include "pushnotification.h"
+#include "pushnotification.hh"
 #include "configmanager.hh"
 
 #include <list>

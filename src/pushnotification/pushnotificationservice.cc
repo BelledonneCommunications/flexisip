@@ -18,16 +18,18 @@
 #include <sys/types.h>
 #include <dirent.h>
 
-#include "pushnotificationservice.h"
-#include "pushnotificationclient.h"
+#include "pushnotificationservice.hh"
+#include "pushnotificationclient.hh"
 #include "common.hh"
 
 #include <boost/bind.hpp>
 #include <sstream>
 
-const char *APN_ADDRESS = "gateway.sandbox.push.apple.com";
-const char *GPN_ADDRESS = "android.googleapis.com";
+const char *APN_DEV_ADDRESS = "gateway.sandbox.push.apple.com";
+const char *APN_PROD_ADDRESS = "gateway.push.apple.com";
 const char *APN_PORT = "2195";
+
+const char *GPN_ADDRESS = "android.googleapis.com";
 const char *GPN_PORT = "443";
 
 using namespace ::std;
@@ -39,8 +41,10 @@ int PushNotificationService::sendRequest(const std::shared_ptr<PushNotificationR
 		LOGE("No push notification certificate for client %s",pn->getAppIdentifier().c_str());
 		return -1;
 	}
-
-	return client->send(pn->getData());
+	//this method is called from flexisip main thread, while service is running in its own thread.
+	//To avoid using dedicated mutex, use the server post() method to delegate the processing of the push notification to the service thread.
+	mIOService.post(std::bind(&PushNotificationClient::sendRequest,client,pn));
+	return 0;
 }
 
 void PushNotificationService::start() {
@@ -139,7 +143,11 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 			}
 		}
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
-		mClients[certName]=make_shared<PushNotificationClient>(cert, this, ctx, APN_ADDRESS, APN_PORT, maxQueueSize);
+		const char *apn_server;
+		if (certName.find(".dev")!=string::npos)
+			apn_server=APN_DEV_ADDRESS;
+		else apn_server=APN_PROD_ADDRESS;
+		mClients[certName]=make_shared<PushNotificationClient>(cert, this, ctx, apn_server, APN_PORT, maxQueueSize);
 	}
 	closedir(dirp);
 }

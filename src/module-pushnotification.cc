@@ -20,8 +20,8 @@
 #include "agent.hh"
 #include "event.hh"
 #include "transaction.hh"
-#include "apn/pushnotification.h"
-#include "apn/pushnotificationservice.h"
+#include "pushnotification/pushnotification.hh"
+#include "pushnotification/pushnotificationservice.hh"
 
 using namespace ::std;
 
@@ -29,8 +29,8 @@ class PushNotification;
 
 class PushNotificationContext : public enable_shared_from_this< PushNotificationContext >{
 private:
-	su_timer_t *mTimer;
-	su_timer_t *mEndTimer;
+	su_timer_t *mTimer; //timer after which push is sent
+	su_timer_t *mEndTimer; //timer after which push is cleared from global map.
 	PushNotification *mModule;
 	shared_ptr<PushNotificationRequest> mPushNotificationRequest;
 	string mToken;
@@ -66,7 +66,7 @@ public:
 	void clearNotification(const shared_ptr<PushNotificationContext>& ctx);
 private:
 	void makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction);
-	map<string,shared_ptr<PushNotificationContext> > mPendingNotifications; 
+	map<string,shared_ptr<PushNotificationContext> > mPendingNotifications; //map of pending push notifications. Its purpose is to avoid sending multiples notifications for the same call attempt to a given device.
 	static ModuleInfo<PushNotification> sInfo;
 	int mTimeout;
 	std::list<std::string> mGoogleProjects;
@@ -91,7 +91,7 @@ PushNotificationContext::~PushNotificationContext() {
 void PushNotificationContext::start(int seconds) {
 	if (!mTimer) return;
 	su_timer_set_interval(mTimer, &PushNotificationContext::__timer_callback, this, seconds * 1000);
-	su_timer_set_interval(mEndTimer, &PushNotificationContext::__end_timer_callback, this, (seconds+30) * 1000);
+	su_timer_set_interval(mEndTimer, &PushNotificationContext::__end_timer_callback, this, 30 * 1000);
 }
 
 void PushNotificationContext::cancel(){

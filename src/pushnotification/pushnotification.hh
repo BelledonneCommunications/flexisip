@@ -27,7 +27,7 @@ public:
 	const std::string &getAppIdentifier(){
 		return mAppId;
 	}
-	virtual const std::vector<char> getData() = 0;
+	virtual const std::vector<char> &getData() = 0;
 	virtual ~PushNotificationRequest() = 0;
 private:
 	const std::string mAppId;
@@ -41,27 +41,27 @@ class ApplePushNotificationRequest: public PushNotificationRequest {
 public:
 	static const unsigned int MAXPAYLOAD_SIZE;
 	static const unsigned int DEVICE_BINARY_SIZE;
-	virtual const std::vector<char> getData();
+	virtual const std::vector<char> &getData();
 	ApplePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &msg_id, const std::string &arg, const std::string &sound);
 	~ApplePushNotificationRequest() {};
 
 protected:
 	int formatDeviceToken(const std::string &deviceToken);
-	std::vector<char> createPushNotification();
-
+	void createPushNotification();
+	std::vector<char> mBuffer;
 	std::vector<char> mDeviceToken;
 	std::string mPayload;
 };
 
 class GooglePushNotificationRequest: public PushNotificationRequest {
 public:
-	virtual const std::vector<char> getData();
+	virtual const std::vector<char> & getData();
 	GooglePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &apiKey, const std::string &msg_id, const std::string &arg, const std::string &sound);
 	~GooglePushNotificationRequest() {};
 
 protected:
-	std::vector<char> createPushNotification();
-
+	void createPushNotification();
+	std::vector<char> mBuffer;
 	std::string mHttpHeader;
 	std::string mHttpBody;
 };

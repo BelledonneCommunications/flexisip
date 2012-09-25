@@ -61,9 +61,9 @@ endif
 
 if BUILD_PUSHNOTIFICATION
 flexisip_SOURCES+=module-pushnotification.cc \
-			apn/pushnotification.cc apn/pushnotification.h \
-			apn/pushnotificationservice.cc apn/pushnotificationservice.h \
-			apn/pushnotificationclient.cc apn/pushnotificationclient.h 
+			pushnotification/pushnotification.cc pushnotification/pushnotification.hh \
+			pushnotification/pushnotificationservice.cc pushnotification/pushnotificationservice.hh \
+			pushnotification/pushnotificationclient.cc pushnotification/pushnotificationclient.hh 
 AM_CXXFLAGS+=-DENABLE_PUSHNOTIFICATION $(BOOST_CPPFLAGS)
 flexisip_LDADD+=$(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB)
 endif

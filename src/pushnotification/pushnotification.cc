@@ -16,7 +16,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pushnotification.h"
+#include "pushnotification.hh"
 
 #include <string.h>
 #include <stdexcept>
@@ -53,15 +53,14 @@ GooglePushNotificationRequest::GooglePushNotificationRequest(const string & appi
 	httpHeader << "POST /gcm/send HTTP/1.1\r\nHost:android.googleapis.com\r\nContent-Type:application/json\r\nAuthorization:key=" << apiKey << "\r\nContent-Length:" << httpBody.str().size() << "\r\n\r\n";
 	mHttpHeader = httpHeader.str();
 	LOGD("Push notification https post header is %s", mHttpHeader.c_str());
+	
 }
 
-const vector<char> ApplePushNotificationRequest::getData() {
-	return createPushNotification();
+const vector<char> & ApplePushNotificationRequest::getData() {
+	createPushNotification();
+	return mBuffer;
 }
 
-const vector<char> GooglePushNotificationRequest::getData() {
-	return createPushNotification();
-}
 
 int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
 	char car = 0;
@@ -95,15 +94,14 @@ int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
 	return 0;
 }
 
-vector<char> ApplePushNotificationRequest::createPushNotification() {
-	vector<char> retVal;
+void ApplePushNotificationRequest::createPushNotification() {
 	unsigned int payloadLength = mPayload.length();
 
 	/* Init */
-	retVal.clear();
+	mBuffer.clear();
 	/* message format is, |COMMAND|TOKENLEN|TOKEN|PAYLOADLEN|PAYLOAD| */
-	retVal.resize(sizeof(uint8_t) + sizeof(uint16_t) + DEVICE_BINARY_SIZE + sizeof(uint16_t) + payloadLength);
-	char *binaryMessageBuff = &retVal[0];
+	mBuffer.resize(sizeof(uint8_t) + sizeof(uint16_t) + DEVICE_BINARY_SIZE + sizeof(uint16_t) + payloadLength);
+	char *binaryMessageBuff = &mBuffer[0];
 	char *binaryMessagePt = binaryMessageBuff;
 
 	/* Compute PushNotification */
@@ -130,19 +128,16 @@ vector<char> ApplePushNotificationRequest::createPushNotification() {
 	/* payload */
 	memcpy(binaryMessagePt, &mPayload[0], payloadLength);
 	binaryMessagePt += payloadLength;
-
-	return retVal;
 }
 
-vector<char> GooglePushNotificationRequest::createPushNotification() {
-	vector<char> retVal;
+void GooglePushNotificationRequest::createPushNotification() {
 	int headerLength = mHttpHeader.length();
 	int bodyLength = mHttpBody.length();
 
-	retVal.clear();
-	retVal.resize(headerLength + bodyLength);
+	mBuffer.clear();
+	mBuffer.resize(headerLength + bodyLength);
 
-	char *binaryMessageBuff = &retVal[0];
+	char *binaryMessageBuff = &mBuffer[0];
 	char *binaryMessagePt = binaryMessageBuff;
 
 	memcpy(binaryMessagePt, &mHttpHeader[0], headerLength);
@@ -150,6 +145,9 @@ vector<char> GooglePushNotificationRequest::createPushNotification() {
 
 	memcpy(binaryMessagePt, &mHttpBody[0], bodyLength);
 	binaryMessagePt += bodyLength;
+}
 
-	return retVal;
+const vector<char> & GooglePushNotificationRequest::getData() {
+	createPushNotification();
+	return mBuffer;
 }
