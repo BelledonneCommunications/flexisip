@@ -175,6 +175,20 @@ void ForkCallContext::onResponse(const shared_ptr<OutgoingTransaction> &transact
 	LOGW("Outgoing transaction: ignore message");
 }
 
+void ForkCallContext::sendRinging(){
+	// Create response
+	if (mIncoming && mFinal==0){
+		for (auto it = mForwardResponses.begin(); it!=mForwardResponses.end(); ++it){
+			if (*it==180 || *it==183)
+				return;
+		}
+		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_180_RINGING));
+		shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
+		ev->setIncomingAgent(mIncoming);
+		mAgent->sendResponseEvent(ev);
+	}
+}
+
 void ForkCallContext::onNew(const shared_ptr<IncomingTransaction> &transaction) {
 	ForkContext::onNew(transaction);
 }

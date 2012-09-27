@@ -43,6 +43,7 @@ public:
 	virtual void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &event);
 	virtual void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
 	virtual void checkFinished();
+	void sendRinging();
 private:
 	void cancel();
 	void cancelOthers(const std::shared_ptr<OutgoingTransaction> &transaction = std::shared_ptr<OutgoingTransaction>());

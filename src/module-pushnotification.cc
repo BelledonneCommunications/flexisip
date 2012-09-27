@@ -22,6 +22,7 @@
 #include "transaction.hh"
 #include "pushnotification/pushnotification.hh"
 #include "pushnotification/pushnotificationservice.hh"
+#include "forkcallcontext.hh"
 
 using namespace ::std;
 
@@ -33,6 +34,7 @@ private:
 	su_timer_t *mEndTimer; //timer after which push is cleared from global map.
 	PushNotification *mModule;
 	shared_ptr<PushNotificationRequest> mPushNotificationRequest;
+	shared_ptr<ForkCallContext> mForkContext;
 	string mToken;
 	void onTimeout();
 	void onEnd();
@@ -79,6 +81,7 @@ PushNotificationContext::PushNotificationContext(const shared_ptr<OutgoingTransa
 		mModule(module), mPushNotificationRequest(pnr), mToken(token) {
 	mTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
 	mEndTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
+	mForkContext = transaction->getProperty<ForkCallContext>("Registrar");
 }
 
 PushNotificationContext::~PushNotificationContext() {
@@ -104,6 +107,8 @@ void PushNotificationContext::cancel(){
 void PushNotificationContext::onTimeout() {
 	LOGD("PushNotificationContext timer, sending now.");
 	mModule->getService()->sendRequest(mPushNotificationRequest);
+	if (mForkContext)
+		mForkContext->sendRinging();
 }
 
 void PushNotificationContext::onEnd() {
