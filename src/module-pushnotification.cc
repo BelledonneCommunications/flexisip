@@ -38,6 +38,7 @@ private:
 	string mToken;
 	void onTimeout();
 	void onEnd();
+	void clear();
 
 	static void __timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	static void __end_timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
@@ -81,7 +82,7 @@ PushNotificationContext::PushNotificationContext(const shared_ptr<OutgoingTransa
 		mModule(module), mPushNotificationRequest(pnr), mToken(token) {
 	mTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
 	mEndTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
-	mForkContext = transaction->getProperty<ForkCallContext>("Registrar");
+	mForkContext = dynamic_pointer_cast<ForkCallContext>(transaction->getProperty<ForkContext>("Registrar"));
 }
 
 PushNotificationContext::~PushNotificationContext() {
@@ -105,10 +106,27 @@ void PushNotificationContext::cancel(){
 }
 
 void PushNotificationContext::onTimeout() {
+	if (mForkContext){
+		if (mForkContext->hasFinalResponse()){
+			LOGD("Call is already established or canceled, so push notification is not sent but cleared.");
+			clear();
+			return;
+		}
+	}
 	LOGD("PushNotificationContext timer, sending now.");
 	mModule->getService()->sendRequest(mPushNotificationRequest);
-	if (mForkContext)
+	if (mForkContext){
+		LOGD("Notifying call context...");
 		mForkContext->sendRinging();
+	}
+}
+
+void PushNotificationContext::clear(){
+	if (mEndTimer){
+		su_timer_destroy(mEndTimer);
+		mEndTimer=NULL;
+	}
+	mModule->clearNotification(shared_from_this());
 }
 
 void PushNotificationContext::onEnd() {
