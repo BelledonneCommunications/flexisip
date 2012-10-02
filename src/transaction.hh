@@ -61,7 +61,9 @@ protected:
 	Agent *mAgent;
 	typedef std::tuple<std::shared_ptr<void>, std::string> property_type;
 	std::map<std::string, property_type> mProperties;
-
+	void looseProperties(){
+		mProperties.clear();
+	}
 public:
 	Transaction(Agent *agent) :
 			mAgent(agent) {

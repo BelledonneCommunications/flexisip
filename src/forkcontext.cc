@@ -29,7 +29,7 @@ void ForkContext::__timer_callback(su_root_magic_t *magic, su_timer_t *t, su_tim
 }
 
 ForkContext::ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
-		mAgent(agent), mEvent(make_shared<RequestSipEvent>(event)), mCfg(cfg), mLateTimer(NULL), mListener(listener) {
+		mListener(listener), mAgent(agent), mEvent(make_shared<RequestSipEvent>(event)), mCfg(cfg), mLateTimer(NULL) {
 	mLateTimerExpired=false;
 }
 
@@ -41,7 +41,7 @@ void ForkContext::checkFinished(){
 		}else finished=true;
 	}
 	if (finished)
-		mListener->onForkContextFinished(shared_from_this());
+		setFinished();
 }
 
 void ForkContext::onLateTimeout(){
@@ -73,6 +73,7 @@ void ForkContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) 
 	checkFinished();
 }
 
+
 const shared_ptr<RequestSipEvent> &ForkContext::getEvent() {
 	return mEvent;
 }
@@ -80,5 +81,17 @@ const shared_ptr<RequestSipEvent> &ForkContext::getEvent() {
 ForkContext::~ForkContext() {
 	if (mLateTimer)
 		su_timer_destroy(mLateTimer);
+}
+
+void ForkContext::setFinished(){
+	if (mLateTimer){
+		su_timer_destroy(mLateTimer);
+		mLateTimer=NULL;
+	}
+	//force reference to be loosed immediately, to avoid circular dependencies.
+	mEvent.reset();
+	mIncoming.reset();
+	mOutgoings.clear();
+	mListener->onForkContextFinished(shared_from_this());
 }
 

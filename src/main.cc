@@ -543,6 +543,7 @@ int main(int argc, char *argv[]){
 	su_root_destroy(root);
 	LOGN("Flexisip exiting normally.");
 	GenericManager::get()->sendTrap("Flexisip exiting normally");
+	GenericManager::atexit(); //free the config manager to prevent memory leak detected by valgrind.
 	return 0;
 }
 

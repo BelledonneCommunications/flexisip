@@ -53,6 +53,7 @@ void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const 
 		mSofiaRef = shared_from_this();
 		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Create);
 	}
+	
 }
 
 void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms) {
@@ -65,6 +66,7 @@ void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms) {
 		mSofiaRef = shared_from_this();
 		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Create);
 	}
+	
 }
 
 int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *irq, const sip_t *sip) {
@@ -90,6 +92,7 @@ void OutgoingTransaction::destroy() {
 		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Destroy);
 		nta_outgoing_bind(mOutgoing, NULL, NULL); //avoid callbacks
 		nta_outgoing_destroy(mOutgoing);
+		looseProperties();
 	}
 }
 
@@ -125,7 +128,7 @@ shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const *p
 
 void IncomingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncoming) {
-		msg_t* msg = msg_dup(ms->getMsg());
+		msg_t* msg = msg_dup(ms->getMsg()); //need to duplicate the message because mreply will decrement its ref count.
 		nta_incoming_mreply(mIncoming, msg);
 		if (ms->getSip()->sip_status != NULL && ms->getSip()->sip_status->st_status >= 200) {
 			destroy();
@@ -185,5 +188,6 @@ void IncomingTransaction::destroy() {
 		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Destroy);
 		nta_incoming_bind(mIncoming, NULL, NULL); //avoid callbacks
 		nta_incoming_destroy(mIncoming);
+		looseProperties();
 	}
 }

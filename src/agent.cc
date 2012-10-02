@@ -308,6 +308,7 @@ Agent::Agent(su_root_t* root){
 			}
 			ifa = ifa->ifa_next;
 		}
+		freeifaddrs(net_addrs);
 	} else {
 		LOGE("Can't find interface addresses: %s", strerror(err));
 	}
@@ -687,7 +688,6 @@ void Agent::sendTransactionEvent(const shared_ptr<Transaction> &transaction, Tra
 int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
 	// Assuming sip is derived from msg
 	shared_ptr<MsgSip> ms(new MsgSip(msg));
-//	msg_destroy(msg);
 	if (sip->sip_request) {
 		shared_ptr<RequestSipEvent> ev(new RequestSipEvent(dynamic_pointer_cast<IncomingAgent>(shared_from_this()), ms));
 		sendRequestEvent(ev);
@@ -695,6 +695,7 @@ int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
 		shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(shared_from_this()), ms));
 		sendResponseEvent(ev);
 	}
+	msg_destroy(msg);
 	return 0;
 }
 

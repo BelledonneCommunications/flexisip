@@ -216,8 +216,7 @@ void ForkCallContext::checkFinished(){
 			++mFinal;
 		}
 		mBestResponse.reset();
-		mIncoming.reset();
-		mListener->onForkContextFinished(shared_from_this());
+		setFinished();
 	}
 }
 

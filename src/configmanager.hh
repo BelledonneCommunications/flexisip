@@ -502,6 +502,7 @@ public:
 	}
 	bool mNeedRestart;
 	bool mDirtyConfig;
+	static void atexit();
 private:
 	GenericManager();
 	virtual ~GenericManager(){}
@@ -521,7 +522,6 @@ private:
 			}
 		}
 	}
-	static void atexit(); // Don't call directly!
 	RootConfigStruct mConfigRoot;
 	FileConfigReader mReader;
 	std::string mConfigFile;

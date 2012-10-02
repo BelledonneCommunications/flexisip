@@ -42,7 +42,7 @@ void ForkMessageContext::forward(const shared_ptr<SipEvent> &ev) {
 	
 	if (sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 700) {
 		mDelivered=true;
-		mListener->onForkContextFinished(shared_from_this());
+		setFinished();
 	}
 }
 

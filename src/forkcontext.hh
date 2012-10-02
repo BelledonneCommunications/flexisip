@@ -42,6 +42,7 @@ public:
 class ForkContext : public std::enable_shared_from_this<ForkContext>{
 private:
 	static void __timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
+	ForkContextListener * mListener;
 protected:
 	Agent * mAgent;
 	std::shared_ptr<RequestSipEvent> mEvent;
@@ -49,8 +50,9 @@ protected:
 	std::list<std::shared_ptr<OutgoingTransaction>> mOutgoings;
 	std::shared_ptr<ForkContextConfig> mCfg;
 	su_timer_t *mLateTimer;
-	ForkContextListener * mListener;
 	bool mLateTimerExpired;
+	//Do not do anything after calling setFinished(), because it might destroy this.
+	void setFinished();
 public:
 	ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
 	virtual bool hasFinalResponse()=0;
