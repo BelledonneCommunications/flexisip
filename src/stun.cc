@@ -22,6 +22,9 @@
 
 #include <arpa/inet.h>
 #include <poll.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+
 
 StunServer::Init StunServer::sStaticInit;
 
@@ -80,10 +83,17 @@ void StunServer::stop(){
 }
 
 void StunServer::run(){
+	int err;
+	
+	/*set a high priority to this thread so that it answers fast*/
+	err=setpriority(PRIO_PROCESS,0,-20);
+	if (err==-1){
+		LOGW("Fail to set high priority to stun server thread: %s",strerror(errno));
+	}
+	
 	while(mRunning){
 		struct pollfd pfd[1];
 		uint8_t buf[500];
-		int err;
 		
 		pfd[0].fd=mSock;
 		pfd[0].events=POLLIN;
