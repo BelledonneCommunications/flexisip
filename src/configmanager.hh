@@ -502,8 +502,8 @@ public:
 	}
 	bool mNeedRestart;
 	bool mDirtyConfig;
-	static void atexit();
 private:
+	static void atexit();
 	GenericManager();
 	virtual ~GenericManager(){}
 	bool doIsValidNextConfig(const ConfigValue &cv);
