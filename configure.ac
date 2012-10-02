@@ -236,6 +236,7 @@ scripts/redhat/Makefile
 src/Makefile
 src/test/Makefile
 doc/Makefile
+debian/Makefile
 flexisip.spec
 ])
 AC_OUTPUT

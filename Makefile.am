@@ -3,7 +3,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 EXTRA_DIST=flexisip.spec.in flexisip.spec
 
-SUBDIRS=src scripts doc
+SUBDIRS=src scripts doc debian
 
 
 # `make rpm'
@@ -18,5 +18,8 @@ rpm:
 deb:
 	scripts/update_debian_changelog.sh $(PACKAGE) $(VERSION)
 	$(MAKE) dist
-	mv $(distdir).tar.gz ../$(PACKAGE)_$(VERSION).orig.tar.gz
-	DEB_BUILD_OPTIONS="nostrip debug" dpkg-buildpackage -us -uc
+	rm -rf build-debian
+	mkdir -p build-debian
+	mv $(distdir).tar.gz build-debian/$(PACKAGE)_$(VERSION).orig.tar.gz
+	cd build-debian && tar -xvzf $(PACKAGE)_$(VERSION).orig.tar.gz
+	cd build-debian/$(PACKAGE)-$(VERSION) && DEB_BUILD_OPTIONS="nostrip debug" dpkg-buildpackage -us -uc
