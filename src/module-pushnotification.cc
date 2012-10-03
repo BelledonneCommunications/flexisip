@@ -35,7 +35,7 @@ private:
 	PushNotification *mModule;
 	shared_ptr<PushNotificationRequest> mPushNotificationRequest;
 	shared_ptr<ForkCallContext> mForkContext;
-	string mToken;
+	string mKey; //unique key for the push notification, identifiying the device and the call.
 	void onTimeout();
 	void onEnd();
 	void clear();
@@ -43,12 +43,12 @@ private:
 	static void __timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	static void __end_timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 public:
-	PushNotificationContext(const shared_ptr<OutgoingTransaction> &transaction, PushNotification * module, const shared_ptr<PushNotificationRequest> &pnr, const string& token);
+	PushNotificationContext(const shared_ptr<OutgoingTransaction> &transaction, PushNotification * module, const shared_ptr<PushNotificationRequest> &pnr, const string& pn_key);
 	~PushNotificationContext();
 	void start(int seconds);
 	void cancel();
-	const string &getToken()const{
-		return mToken;
+	const string &getKey()const{
+		return mKey;
 	}
 };
 
@@ -78,8 +78,8 @@ private:
 	StatCounter64 *mCountSent;
 };
 
-PushNotificationContext::PushNotificationContext(const shared_ptr<OutgoingTransaction> &transaction, PushNotification * module, const shared_ptr<PushNotificationRequest> &pnr, const string &token) :
-		mModule(module), mPushNotificationRequest(pnr), mToken(token) {
+PushNotificationContext::PushNotificationContext(const shared_ptr<OutgoingTransaction> &transaction, PushNotification * module, const shared_ptr<PushNotificationRequest> &pnr, const string &key) :
+		mModule(module), mPushNotificationRequest(pnr), mKey(key) {
 	mTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
 	mEndTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
 	mForkContext = dynamic_pointer_cast<ForkCallContext>(transaction->getProperty<ForkContext>("Registrar"));
@@ -199,6 +199,7 @@ std::vector<std::string> split(const std::string &s, char delim) {
 void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction){
 	shared_ptr<PushNotificationContext> context;
 	sip_t *sip=ms->getSip();
+	const char *call_id=ms->getSip()->sip_call_id->i_id;
 	
 	if (sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_params != NULL){
 		char type[12];
@@ -208,6 +209,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 		char call_str[64];
 		char call_snd[64];
 		char msg_snd[64];
+		char pn_key[512]={0};
 		
 		char const *params=sip->sip_request->rq_url->url_params;
 		/*extract all parameters required to make the push notification */
@@ -215,9 +217,10 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 			return ;
 		}
 		//check if another push notification for this device wouldn't be pending
-		auto it=mPendingNotifications.find(deviceToken);
+		snprintf(pn_key,sizeof(pn_key)-1,"%s:%s",call_id,deviceToken);
+		auto it=mPendingNotifications.find(pn_key);
 		if (it!=mPendingNotifications.end()){
-			LOGD("Another push notification is pending for device %s, not creating a new one",deviceToken);
+			LOGD("Another push notification is pending for this call %s and this device %s, not creating a new one",call_id,deviceToken);
 			context=(*it).second;
 		}
 		if (context==NULL){
@@ -249,7 +252,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 				pn= make_shared<ApplePushNotificationRequest>(appId, deviceToken,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
 						contact,
-						(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd);
+						(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
+						call_id);
 			} else if (strcmp(type,"google")==0) {
 				string apiKey = string("");
 				for (list<string>::const_iterator iterator = mGoogleProjects.begin(); iterator != mGoogleProjects.end(); ++iterator) {
@@ -268,14 +272,15 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 					pn= make_shared<GooglePushNotificationRequest>(string("google"), deviceToken, apiKey,
 							(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
 							contact,
-							(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd);
+							(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
+							call_id);
 				}
 			}
 			if (pn){
 				/*create a context*/
-				context = make_shared<PushNotificationContext>(transaction, this, pn,string(deviceToken));
+				context = make_shared<PushNotificationContext>(transaction, this, pn,pn_key);
 				context->start(mTimeout);
-				mPendingNotifications.insert(make_pair(deviceToken,context));
+				mPendingNotifications.insert(make_pair(pn_key,context));
 			}
 		}
 		if (context) /*associate with transaction so that transaction can eventually cancel it if the device answers.*/
@@ -328,8 +333,8 @@ void PushNotification::onTransactionEvent(const shared_ptr<Transaction> &transac
 }
 
 void PushNotification::clearNotification(const shared_ptr<PushNotificationContext> &ctx){
-	LOGD("Push notification to %s cleared.",ctx->getToken().c_str());
-	auto it = mPendingNotifications.find(ctx->getToken());
+	LOGD("Push notification to %s cleared.",ctx->getKey().c_str());
+	auto it = mPendingNotifications.find(ctx->getKey());
 	if (it!=mPendingNotifications.end()){
 		if ((*it).second!=ctx){
 			LOGA("PushNotification::clearNotification(): should not happen.");

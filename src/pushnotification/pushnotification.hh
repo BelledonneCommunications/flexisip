@@ -42,7 +42,7 @@ public:
 	static const unsigned int MAXPAYLOAD_SIZE;
 	static const unsigned int DEVICE_BINARY_SIZE;
 	virtual const std::vector<char> &getData();
-	ApplePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &msg_id, const std::string &arg, const std::string &sound);
+	ApplePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &msg_id, const std::string &arg, const std::string &sound, const std::string &callid);
 	~ApplePushNotificationRequest() {};
 
 protected:
@@ -56,7 +56,7 @@ protected:
 class GooglePushNotificationRequest: public PushNotificationRequest {
 public:
 	virtual const std::vector<char> & getData();
-	GooglePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &apiKey, const std::string &msg_id, const std::string &arg, const std::string &sound);
+	GooglePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &apiKey, const std::string &msg_id, const std::string &arg, const std::string &sound, const std::string &callid);
 	~GooglePushNotificationRequest() {};
 
 protected:

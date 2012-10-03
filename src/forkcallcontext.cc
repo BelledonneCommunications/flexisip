@@ -121,21 +121,18 @@ void ForkCallContext::store(shared_ptr<ResponseSipEvent> &event) {
 	bool best = false;
 	int code=event->getMsgSip()->getSip()->sip_status->st_status;
 
-	//don't forward 503 and 408
-	if (code!=503 && code!=408){
-		if (mBestResponse != NULL) {
-			//we must give priority to 401, 407, 415, 420, 484 because they will trigger a request retry.
-			int prev_resp_code=mBestResponse->getMsgSip()->getSip()->sip_status->st_status;
-			int code_class=code/100;
-			int prev_code_class=prev_resp_code/100;
-			
-			if (code_class < prev_code_class) {
-				best = true;
-			}else if (isARetryableResponseCode(code)){
-				best=true;
-			}
-		}else best=true;
-	}
+	if (mBestResponse != NULL) {
+		//we must give priority to 401, 407, 415, 420, 484 because they will trigger a request retry.
+		int prev_resp_code=mBestResponse->getMsgSip()->getSip()->sip_status->st_status;
+		int code_class=code/100;
+		int prev_code_class=prev_resp_code/100;
+		
+		if (code_class < prev_code_class) {
+			best = true;
+		}else if (isARetryableResponseCode(code)){
+			best=true;
+		}
+	}else best=true;
 	// Save
 	if (best) {
 		mBestResponse = make_shared<ResponseSipEvent>(event); // Copy event
@@ -151,24 +148,37 @@ void ForkCallContext::onResponse(const shared_ptr<OutgoingTransaction> &transact
 	const shared_ptr<MsgSip> &ms = event->getMsgSip();
 	sip_via_remove(ms->getMsg(), ms->getSip()); // remove via
 	sip_t *sip = ms->getSip();
+	
 	if (sip != NULL && sip->sip_status != NULL) {
+		int code=sip->sip_status->st_status;
 		LOGD("Fork: outgoingCallback %d", sip->sip_status->st_status);
-		if (sip->sip_status->st_status > 100 && sip->sip_status->st_status < 200) {
+		if (code > 100 && code < 200) {
 			forward(event);
 			return;
-		} else if (sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 300) {
+		} else if (code >= 200 && code < 300) {
 			if (mCfg->mForkOneResponse) // TODO: respect RFC 3261 16.7.5
 				cancelOthers(transaction);
 			forward(event, true);
 			return;
-		} else if (sip->sip_status->st_status >= 600 && sip->sip_status->st_status < 700) {
+		} else if (code >= 600 && code < 700) {
 			decline(transaction, event);
 			return;
 		} else {
-			if (!mCancelled)
-				store(event);
-			else forward(event,true);
-			return;
+			//ignore  503 and 408
+			if (code!=503 && code!=408){
+				if (mOutgoings.size()<2){
+					//optimization: when there a single branch in the fork, send all the response immediately.
+					forward(event,true);
+					
+				}else if (!mCancelled){
+					store(event);
+				}else{
+					forward(event,true);
+				}
+				return;
+			}else{// Don't forward
+				event->setIncomingAgent(shared_ptr<IncomingAgent>());
+			}
 		}
 	}
 
