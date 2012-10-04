@@ -531,7 +531,7 @@ int main(int argc, char *argv[]){
 
 
 	su_timer_t *timer=su_timer_create(su_root_task(root),5000);
-	su_timer_run(timer,(su_timer_f)timerfunc,a.get());
+	su_timer_set_for_ever(timer,(su_timer_f)timerfunc,a.get()); 
 	su_root_run(root);
 	su_timer_destroy(timer);
 	DosProtection::get()->stop();
