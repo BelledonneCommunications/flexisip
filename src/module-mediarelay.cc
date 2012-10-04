@@ -544,6 +544,9 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	if (c->getCallerTag() == from_tag)
 		m->addIceCandidate(bind(&RelayedCall::forwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, to_tag, ref(transaction)),
 			bind(&RelayedCall::backwardIceTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3));
+	else
+		m->addIceCandidate(bind(&RelayedCall::backwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3),
+			bind(&RelayedCall::forwardIceTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, from_tag, ref(transaction)));
 	m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	m->update(msg, sip);
 
@@ -664,6 +667,9 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 	if (c->getCallerTag() == from_tag)
 		m->addIceCandidate(bind(&RelayedCall::backwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3),
 			bind(&RelayedCall::forwardIceTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, to_tag, ref(transaction)));
+	else
+		m->addIceCandidate(bind(&RelayedCall::forwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, from_tag, ref(transaction)),
+			bind(&RelayedCall::backwardIceTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3));
 	m->update(msg, sip);
 
 	delete m;
