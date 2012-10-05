@@ -310,7 +310,7 @@ RegistrarDb::LocalRegExpire::LocalRegExpire(string preferedRoute) {
 
 RegistrarDb::RegistrarDb(Agent *ag) : mLocalRegExpire(new LocalRegExpire(ag->getPreferredRoute())) {
 	GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
-	mUseGlobalDomain=registrar->get<ConfigBoolean>("use-global-domain");
+	mUseGlobalDomain=registrar->get<ConfigBoolean>("use-global-domain")->read();
 }
 
 RegistrarDb::~RegistrarDb() {
