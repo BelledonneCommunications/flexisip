@@ -671,9 +671,9 @@ static ConfigItemDescriptor global_conf[]={
 								"* listen on all local interfaces for udp and tcp, on standart port:\n"
 								"\ttransports=sip:*\n"
 								"* listen on all local interfaces for udp,tcp and tls, on standart ports:\n"
-								"\ttransports=sip:* sip:*;transport=tls\n" 
+								"\ttransports=sip:* sips:*\n" 
 								"* listen on 192.168.0.29:6060 with tls, but public hostname is 'sip.linphone.org' used in SIP messages. Bind address won't appear:\n"
-								"\ttransports=sip:sip.linphone.org:6060;maddr=192.168.0.29"
+								"\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29"
 		,	"sip:*" },
 		{	String		,"tls-certificates-dir", "An absolute path of a directory where TLS server certificate and private key can be found, concatenated inside an 'agent.pem' file.", "/etc/flexisip/tls"},
 		config_item_end
