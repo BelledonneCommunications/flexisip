@@ -105,7 +105,7 @@ private:
 			}
 			/*add a parameter like "CtRt15.128.128.2=tcp:201.45.118.16:50025" in the contact, so that we know where is the client
 			 when we later have to route an INVITE to him */
-			lParam = su_sprintf(ms->getHome(), "%s=%s:%s:%s", mContactRouteParamName.c_str(), ct_tport, ct_url->url_host, ct_url->url_port);
+			lParam = su_sprintf(ms->getHome(), "%s=%s:%s:%s", mContactRouteParamName.c_str(), ct_tport, ct_url->url_host, url_port(ct_url));
 			LOGD("Rewriting contact with param [%s]", lParam);
 			if (url_param_add(ms->getHome(), ct_url, lParam)) {
 				LOGE("Cannot insert url param [%s]", lParam);
@@ -113,7 +113,7 @@ private:
 			/*masquerade the contact, so that later requests (INVITEs) come to us */
 			const url_t*preferedRoute=getAgent()->getPreferredRouteUrl();
 			ct_url->url_host = preferedRoute->url_host;
-			ct_url->url_port = preferedRoute->url_port;
+			ct_url->url_port = url_port(preferedRoute);
 			ct_url->url_scheme=preferedRoute->url_scheme;
 			ct_url->url_params = url_strip_param_string(su_strdup(ms->getHome(), ct_url->url_params), "transport");
 			char tport_value[64];

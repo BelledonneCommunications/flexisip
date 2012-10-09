@@ -34,7 +34,7 @@ class GatewayRegister {
 		INITIAL, REGISTRING, REGISTRED
 	} State;
 	State state;
-	Agent *agent;
+	Agent *mAgent;
 	su_home_t home;
 	nua_handle_t *nh;
 	sip_from_t *from;
@@ -142,7 +142,7 @@ private:
 				LOGD("Record doesn't exist. Fork");
 				string password;
 				AuthDb *mAuthDb = AuthDb::get();
-				AuthDbResult result = mAuthDb->password(gw->agent->getRoot(), gw->getFrom()->a_url, gw->getFrom()->a_url->url_user, password, make_shared<OnAuthListener>(gw));
+				AuthDbResult result = mAuthDb->password(gw->mAgent->getRoot(), gw->getFrom()->a_url, gw->getFrom()->a_url->url_user, password, make_shared<OnAuthListener>(gw));
 
 				// Already a response?
 				if (result != AuthDbResult::PENDING) {
@@ -178,7 +178,7 @@ StatCounter64 *GatewayRegister::mCountForkToGateway=NULL;
 StatCounter64 *GatewayRegister::mCountDomainRewrite=NULL;
 
 GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, sip_to_t *sip_to, sip_contact_t *sip_contact) :
-		agent(ag) {
+		mAgent(ag) {
 	su_home_init(&home);
 
 	url_t *domain = NULL;
@@ -206,9 +206,7 @@ GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, si
 	// Override domains?
 	if (domain != NULL) {
 		from->a_url->url_host = domain->url_host;
-		from->a_url->url_port = domain->url_port;
 		to->a_url->url_host = domain->url_host;
-		to->a_url->url_port = domain->url_port;
 	}
 
 	state = State::INITIAL;
@@ -310,7 +308,7 @@ void GatewayRegister::start() {
 	LOGD("GatewayRegister start");
 	LOGD("Fetching binding");
 	++*mCountStart;
-	RegistrarDb::get(agent)->fetch(from->a_url, make_shared<OnFetchListener>(this));
+	RegistrarDb::get(mAgent)->fetch(from->a_url, make_shared<OnFetchListener>(this));
 }
 
 void GatewayRegister::end() {
@@ -414,12 +412,21 @@ void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			}
 
 			if (mForkToGateway) {
-				sip_contact_t *contact = sip_contact_format(&home,
+				sip_contact_t *contact;
+				if (gateway_url->url_port){
+					contact = sip_contact_format(&home,
 						"<sip:%s@%s:%s>;expires=%i",
 						sip->sip_contact->m_url->url_user,
 						gateway_url->url_host,
 						gateway_url->url_port,
 						INT_MAX);
+				}else{
+					contact = sip_contact_format(&home,
+						"<sip:%s@%s>;expires=%i",
+						sip->sip_contact->m_url->url_user,
+						gateway_url->url_host,
+						INT_MAX);
+				}
 				contact->m_next = sip->sip_contact;
 				sip->sip_contact = contact;
 				++*mCountForkToGateway;
