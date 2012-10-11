@@ -365,3 +365,9 @@ bool ModuleToolbox::transportEquals(const char *tr1, const char *tr2) {
 	return strcasecmp(tr1, tr2) == 0;
 }
 
+bool ModuleToolbox::isNumeric(const char *host){
+	if (host[0]=='[') return true; //ipv6
+	struct in_addr addr;
+	return !!inet_aton(host,&addr); //inet_aton returns non zero if ipv4 address is valid.
+}
+

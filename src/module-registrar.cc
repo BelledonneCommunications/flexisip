@@ -28,12 +28,6 @@
 
 using namespace ::std;
 
-static bool isNumeric(const char *host){
-	if (host[0]=='[') return true; //ipv6
-	struct in_addr addr;
-	return !!inet_aton(host,&addr); //inet_aton returns non zero if ipv4 address is valid.
-}
-
 class Registrar;
 static Registrar *sRegistrarInstanceForSigAction=NULL;
 
@@ -235,7 +229,7 @@ private:
 		if (check){
 			//additional check: if the domain is an ip address that is not this proxy, then it is not considered as a managed domain for the registrar.
 			//we need this to distinguish requests that needs registrar routing from already routed requests.
-			if (isNumeric(url->url_host) && !getAgent()->isUs(url,true)){
+			if (ModuleToolbox::isNumeric(url->url_host) && !getAgent()->isUs(url,true)){
 				check=false;
 			}
 		}
@@ -595,9 +589,16 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 					LOGW("Can't create sip_contact of %s.", ec->mSipUri);
 				}
 			} else {
-				if (!dontfork) {
+				if(isManagedDomain(ct->m_url)) {
+					if (!dontfork) {
 					mForks.insert(pair<string, shared_ptr<ForkContext>>(ec->mSipUri, context));
 					LOGD("Add fork %p to store %s", context.get(), ec->mSipUri);
+					}
+				} else {
+					if (dispatch(agent, ev, ct, NULL, context)) {
+						handled++;
+						if (dontfork) break;
+					}
 				}
 			}
 		}
@@ -744,7 +745,7 @@ void Registrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 				route=route->r_next;
 			}
 			const char *req_host = sip->sip_request->rq_url->url_host;
-			if (!routeAck && !isNumeric(req_host)) {
+			if (!routeAck && !ModuleToolbox::isNumeric(req_host)) {
 				LOGD("We are the destination of this ACK, stopped.");
 				ev->terminateProcessing();
 				return;
