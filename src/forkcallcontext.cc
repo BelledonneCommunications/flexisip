@@ -194,6 +194,8 @@ void ForkCallContext::sendRinging(){
 		}
 		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_180_RINGING));
 		shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
+		//add a to tag, no set by sofia here.
+		sip_to_tag(msgsip->getHome(), msgsip->getSip()->sip_to, nta_agent_newtag(msgsip->getHome(),"%s",mAgent->getSofiaAgent()));
 		ev->setIncomingAgent(mIncoming);
 		mAgent->sendResponseEvent(ev);
 	}
