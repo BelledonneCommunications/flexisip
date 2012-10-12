@@ -46,6 +46,9 @@ void ForkContext::checkFinished(){
 
 void ForkContext::onLateTimeout(){
 	LOGD("ForkContext: late timer expired.");
+	shared_ptr<ForkContext> me(shared_from_this()); //this is to keep the object alive at least the time of the timer callback.
+	//Indeed sofia does not hold a refcount to the ForkContext. During checkFinished() the refcount my drop to zero, but we need to the object
+	//to be kept alive until checkFinished() returns.
 	mLateTimerExpired=true;
 	checkFinished();
 }
