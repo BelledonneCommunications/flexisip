@@ -381,9 +381,9 @@ const MSList *CallContext::getInitialOffer()const{
 void CallContext::dump(){
 	CallContextBase::dump();
 	if (mTicker!=NULL){
-		LOGD("Front side:");
+		LOGD("Front side: %i", mFrontSide->getAudioPort());
 		mFrontSide->dump();
-		LOGD("Back side:");
+		LOGD("Back side: %i", mBackSide->getAudioPort());
 		mBackSide->dump();
 	}else LOGD("is inactive");
 }

@@ -300,9 +300,6 @@ int TranscodeModule::handleOffer(CallContext *c, shared_ptr<SipEvent> &&ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
-	string addr;
-	int port;
-	int ptime;
 	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), ms->getSip());
 
 	if (m == NULL)
@@ -311,19 +308,28 @@ int TranscodeModule::handleOffer(CallContext *c, shared_ptr<SipEvent> &&ev) {
 	MSList *ioffer = m->readPayloads();
 
 	if (isOneCodecSupported(ioffer)) {
+		string addr;
+		int frport;
 		c->prepare(mCallParams);
 		c->setInitialOffer(ioffer);
-		m->getAudioIpPort(&addr, &port);
-		ptime = m->readPtime();
-		/*forces the front side to bind and allocate a port immediately on the bind-address supplied in the config*/LOGD("Front side remote address: %s:%i", addr.c_str(), port);
-		c->getFrontSide()->getAudioPort();
-		c->getFrontSide()->setRemoteAddr(addr.c_str(), port);
+
+		/*forces the front side to bind and allocate a port immediately on the bind-address supplied in the config*/
+		m->getAudioIpPort(&addr, &frport);
+		c->getFrontSide()->setRemoteAddr(addr.c_str(), frport);
+		int flport= c->getFrontSide()->getAudioPort(); //assign port
+		LOGD("Front side %s:%i <-> local:%i", addr.c_str(), frport, flport);
+
+		int ptime = m->readPtime();
 		if (ptime > 0) {
 			c->getFrontSide()->setPtime(ptime);
 			m->setPtime(0); //remove the ptime attribute
 		}
-		port = c->getBackSide()->getAudioPort();
-		m->changeAudioIpPort(getAgent()->getPublicIp().c_str(), port);
+
+		int blport = c->getBackSide()->getAudioPort();
+		const char *publicIp=getAgent()->getPublicIp().c_str();
+		m->changeAudioIpPort(publicIp, blport);
+		LOGD("Back side local port: %s:%i <-> ?", publicIp, blport);
+
 		m->replacePayloads(mSupportedAudioPayloads, c->getInitialOffer());
 		m->update(msg, sip);
 
@@ -437,7 +443,6 @@ int TranscodeModule::handleAnswer(CallContext *ctx, shared_ptr<SipEvent> &&ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	string addr;
 	int port;
-	const MSList *ioffer = ctx->getInitialOffer();
 	SdpModifier *m = SdpModifier::createFromSipMsg(ctx->getHome(), ms->getSip());
 	int ptime;
 
@@ -465,6 +470,7 @@ int TranscodeModule::handleAnswer(CallContext *ctx, shared_ptr<SipEvent> &&ev) {
 	ctx->getBackSide()->assignPayloads(normalizePayloads(answer));
 	ms_list_free(answer);
 
+	const MSList *ioffer = ctx->getInitialOffer();
 	MSList *common = SdpModifier::findCommon(mSupportedAudioPayloads, ioffer, false);
 	if (common != NULL) {
 		m->replacePayloads(common, NULL);
