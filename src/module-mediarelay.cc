@@ -23,6 +23,7 @@
 #include "sdp-modifier.hh"
 #include "transaction.hh"
 #include "h264iframefilter.hh"
+#include "callcontext-mediarelay.hh"
 
 #include <vector>
 #include <algorithm>
@@ -30,15 +31,10 @@
 
 using namespace ::std;
 
-class RelayedCall;
-
 class MediaRelay: public Module, protected ModuleToolbox {
 	StatCounter64 *mCountCalls;
 	StatCounter64 *mCountCallsFinished;
 public:
-	typedef enum {
-		DUPLEX, FORWARD
-	} RTPDir;
 	MediaRelay(Agent *ag);
 	~MediaRelay();
 	virtual void onLoad(const GenericStruct * modconf);
@@ -72,363 +68,12 @@ private:
 	CallStore *mCalls;
 	MediaRelayServer *mServer;
 	string mSdpMangledParam;
-	RTPDir mEarlymediaRTPDir;
+	RelayedCall::RTPDir mEarlymediaRTPDir;
 	int mH264FilteringBandwidth;
 	int mH264Decim;
 	static ModuleInfo<MediaRelay> sInfo;
 };
 
-class RelayedCall: public CallContextBase {
-	class RelaySessionTransaction {
-	public:
-		RelaySessionTransaction() :
-				mRelaySession(NULL) {
-
-		}
-
-		RelaySession *mRelaySession;
-		map<shared_ptr<Transaction>, shared_ptr<MediaSource>> mTransactions;
-		map<string, shared_ptr<MediaSource>> mMediaSources;
-		bool toDelete;
-	};
-	typedef enum {
-		Idle, Initialized, Running
-	} State;
-public:
-	static const int sMaxSessions = 4;
-	RelayedCall(MediaRelayServer *server, sip_t *sip, MediaRelay::RTPDir dir) :
-			CallContextBase(sip), mServer(server), mState(Idle), mEarlymediaRTPDir(dir), mBandwidthThres(0) {
-		LOGD("New RelayedCall %p", this);
-	}
-	/*Enable filtering of H264 Iframes for low bandwidth.*/
-	void enableH264IFrameFiltering(int bandwidth_threshold, int decim){
-		mBandwidthThres=bandwidth_threshold;
-		mDecim=decim;
-	}
-	/*this function is called to masquerade the SDP, for each mline*/
-	void setMedia(SdpModifier *m, const string &tag, const shared_ptr<Transaction> &transaction, const string &frontIp, const string&backIp) {
-		sdp_media_t *mline = m->mSession->sdp_media;
-		int i = 0;
-		for (i = 0; mline != NULL && i < sMaxSessions; mline = mline->m_next, ++i) {
-			if (mline->m_port == 0) {
-				//case of declined mline.
-				continue;
-			}
-			if (i >= sMaxSessions) {
-				LOGE("Max sessions per relayed call is reached.");
-				return;
-			}
-			RelaySession *s = mSessions[i].mRelaySession;
-			if (s == NULL) {
-				s = mServer->createSession();
-				mSessions[i].mRelaySession = s;
-				s->addFront(frontIp);
-			}
-			if (!tag.empty()) {
-				if (mSessions[i].mMediaSources.find(tag) == mSessions[i].mMediaSources.end()) {
-					shared_ptr<MediaSource> ms = s->addBack(backIp);
-					ms->setBehaviour(MediaSource::Receive);
-					mSessions[i].mMediaSources.insert(pair<string, shared_ptr<MediaSource>>(tag, ms));
-				}
-			} else {
-				if (mSessions[i].mTransactions.find(transaction) == mSessions[i].mTransactions.end()) {
-					shared_ptr<MediaSource> ms = s->addBack(backIp);
-					ms->setBehaviour(MediaSource::Receive);
-					mSessions[i].mTransactions.insert(pair<shared_ptr<Transaction>, shared_ptr<MediaSource>>(transaction, ms));
-				}
-			}
-		}
-		while (i < sMaxSessions) {
-			if (mSessions[i].mRelaySession) {
-				for (auto it = mSessions[i].mRelaySession->getFronts().begin(); it != mSessions[i].mRelaySession->getFronts().end(); ++it) {
-					(*it)->setBehaviour(MediaSource::None);
-				}
-				for (auto it = mSessions[i].mRelaySession->getBacks().begin(); it != mSessions[i].mRelaySession->getBacks().end(); ++it) {
-					(*it)->setBehaviour(MediaSource::None);
-				}
-				mSessions[i].mRelaySession->unuse();
-				mSessions[i].mRelaySession = NULL;
-				mSessions[i].mMediaSources.clear();
-				mSessions[i].mTransactions.clear();
-			}
-			++i;
-		}
-	}
-
-	void backwardTranslate(int mline, string *ip, int *port) {
-		if (*port == 0) {
-			//case of declined mline.
-			return;
-		}
-		if (mline >= sMaxSessions) {
-			return;
-		}
-		RelaySession *s = mSessions[mline].mRelaySession;
-		if (s != NULL) {
-			*port = s->getFronts().front()->getRelayPort();
-			*ip = s->getFronts().front()->getPublicIp();
-		}
-	}
-
-	void backwardIceTranslate(int mline, string *ip, int *port) {
-		if (*port == 0) {
-			//case of declined mline.
-			return;
-		}
-		if (mline >= sMaxSessions) {
-			return;
-		}
-		RelaySession *s = mSessions[mline].mRelaySession;
-		if (s != NULL) {
-			*port = s->getFronts().front()->getPort();
-			*ip = s->getFronts().front()->getIp();
-		}
-	}
-
-	shared_ptr<MediaSource> getMS(int mline, string tag, const shared_ptr<Transaction> &transaction) {
-		if (tag.empty()) {
-			auto it = mSessions[mline].mTransactions.find(transaction);
-			if (it != mSessions[mline].mTransactions.end()) {
-				return it->second;
-			}
-		} else {
-			auto it = mSessions[mline].mMediaSources.find(tag);
-			if (it != mSessions[mline].mMediaSources.end()) {
-				return it->second;
-			}
-		}
-		return shared_ptr<MediaSource>();
-	}
-
-	void forwardTranslate(int mline, string *ip, int *port, const string &tag, const shared_ptr<Transaction> &transaction) {
-		if (mline >= sMaxSessions) {
-			return;
-		}
-		RelaySession *s = mSessions[mline].mRelaySession;
-		if (s != NULL) {
-			auto ms = getMS(mline, tag, transaction);
-			if (ms != NULL) {
-				*port = ms->getRelayPort();
-				*ip = ms->getPublicIp();
-			} else {
-				*port = -1;
-				*ip = mServer->getAgent()->getPublicIp();
-			}
-
-		}
-	}
-
-	void forwardIceTranslate(int mline, string *ip, int *port, const string &tag, const shared_ptr<Transaction> &transaction) {
-		if (mline >= sMaxSessions) {
-			return;
-		}
-		RelaySession *s = mSessions[mline].mRelaySession;
-		if (s != NULL) {
-			auto ms = getMS(mline, tag, transaction);
-			if (ms != NULL) {
-				*port = ms->getPort();
-				*ip = ms->getIp();
-			} else {
-				*port = -1;
-				*ip = mServer->getAgent()->getPublicIp();
-			}
-
-		}
-	}
-
-	void setFront(SdpModifier *m, int mline, const string &ip, int port) {
-		if (mline >= sMaxSessions) {
-			return;
-		}
-		RelaySession *s = mSessions[mline].mRelaySession;
-		if (s != NULL) {
-			shared_ptr<MediaSource> ms = s->getFronts().front();
-			if(ms->getPort() == -1) {
-				configureMediaSource(ms,m->mSession,mline);
-				ms->set(ip, port);
-			}
-			ms->setBehaviour(MediaSource::All);
-		}
-	}
-
-	void setBack(SdpModifier *m, int mline, const string &ip, int port, const string &tag, const shared_ptr<Transaction> &transaction) {
-		if (mline >= sMaxSessions) {
-			return;
-		}
-		RelaySession *s = mSessions[mline].mRelaySession;
-		if (s != NULL) {
-			auto ms = getMS(mline, tag, transaction);
-			if (ms != NULL && ms->getPort() == -1) {
-				configureMediaSource(ms,m->mSession,mline);
-				ms->set(ip, port);
-			}
-		}
-	}
-
-	// Set only one sender to the caller
-	void update(const shared_ptr<Transaction> &transaction = shared_ptr<Transaction>()) {
-		if (mState == Idle)
-			mState = Initialized;
-
-		if (mEarlymediaRTPDir != MediaRelay::DUPLEX)
-			return;
-
-		// Only one feed from back to front
-		string feeder;
-		for (int mline = 0; mline < sMaxSessions; ++mline) {
-			RelaySession *s = mSessions[mline].mRelaySession;
-			if (s != NULL) {
-				for (auto it = mSessions[mline].mMediaSources.begin(); it != mSessions[mline].mMediaSources.end(); ++it) {
-					shared_ptr<MediaSource> &ms = it->second;
-					if (ms->getBehaviour() & MediaSource::Send) {
-						feeder = it->first;
-					}
-				}
-				break;
-			}
-		}
-
-		// Update feeder
-		for (int mline = 0; mline < sMaxSessions; ++mline) {
-			RelaySession *s = mSessions[mline].mRelaySession;
-			if (s != NULL) {
-				map<string, shared_ptr<MediaSource>>::iterator it;
-				if (feeder.empty())
-					it = mSessions[mline].mMediaSources.begin();
-				else
-					it = mSessions[mline].mMediaSources.find(feeder);
-				if (it != mSessions[mline].mMediaSources.end()) {
-					shared_ptr<MediaSource> &ms = it->second;
-					ms->setBehaviour(MediaSource::All);
-				}
-			}
-		}
-	}
-
-	void validTransaction(const string &tag, const shared_ptr<Transaction> &transaction) {
-		for (int mline = 0; mline < sMaxSessions; ++mline) {
-			RelaySession *s = mSessions[mline].mRelaySession;
-			if (s != NULL) {
-				auto it = mSessions[mline].mTransactions.find(transaction);
-				if (it != mSessions[mline].mTransactions.end()) {
-					mSessions[mline].mMediaSources.insert(pair<string, shared_ptr<MediaSource>>(tag, it->second));
-					mSessions[mline].mTransactions.erase(it);
-				}
-			}
-		}
-	}
-
-	bool removeTransaction(const shared_ptr<Transaction> &transaction) {
-		bool remove = (mState != Running);
-		for (int mline = 0; mline < sMaxSessions; ++mline) {
-			RelaySession *s = mSessions[mline].mRelaySession;
-			if (s != NULL) {
-				auto it = mSessions[mline].mTransactions.find(transaction);
-				if (it != mSessions[mline].mTransactions.end()) {
-					shared_ptr<MediaSource> &ms = it->second;
-					s->removeBack(ms);
-					mSessions[mline].mTransactions.erase(it);
-				}
-				if (!mSessions[mline].mTransactions.empty() || !mSessions[mline].mMediaSources.empty())
-					remove = false;
-			}
-		}
-		update();
-		return remove;
-	}
-
-	bool removeBack(const string &tag) {
-		bool remove = (mState != Running);
-		for (int mline = 0; mline < sMaxSessions; ++mline) {
-			RelaySession *s = mSessions[mline].mRelaySession;
-			if (s != NULL) {
-				auto it = mSessions[mline].mMediaSources.find(tag);
-				if (it != mSessions[mline].mMediaSources.end()) {
-					shared_ptr<MediaSource> &ms = it->second;
-					s->removeBack(ms);
-					mSessions[mline].mMediaSources.erase(it);
-				}
-				if (!mSessions[mline].mTransactions.empty() || !mSessions[mline].mMediaSources.empty())
-					remove = false;
-			}
-		}
-		update();
-		return remove;
-	}
-
-	void validBack(const string &tag) {
-		if (mState == Initialized) {
-			for (int mline = 0; mline < sMaxSessions; ++mline) {
-				RelaySession *s = mSessions[mline].mRelaySession;
-				if (s != NULL) {
-					auto it = mSessions[mline].mMediaSources.begin();
-					while (it != mSessions[mline].mMediaSources.end()) {
-						shared_ptr<MediaSource> &ms = it->second;
-						if (it->first == tag) {
-							ms->setBehaviour(MediaSource::BehaviourType::All);
-						} else {
-							s->removeBack(ms);
-							mSessions[mline].mMediaSources.erase(it);
-						}
-						++it;
-					}
-					mSessions[mline].mTransactions.clear();
-				}
-			}
-		}
-		mState = Running;
-	}
-
-	bool isInactive(time_t cur) {
-		time_t maxtime = 0;
-		RelaySession *r;
-		for (int i = 0; i < sMaxSessions; ++i) {
-			time_t tmp;
-			r = mSessions[i].mRelaySession;
-			if (r && ((tmp = r->getLastActivityTime()) > maxtime))
-				maxtime = tmp;
-		}
-		if (cur - maxtime > 30)
-			return true;
-		return false;
-	}
-
-	~RelayedCall() {
-		LOGD("Destroy RelayedCall %p", this);
-		int i;
-		for (i = 0; i < sMaxSessions; ++i) {
-			RelaySession *s = mSessions[i].mRelaySession;
-			if (s) {
-				s->unuse();
-			}
-		}
-	}
-	void configureMediaSource(shared_ptr<MediaSource> ms, sdp_session_t *session, int mline_nr){
-		sdp_media_t *mline;
-		int i;
-		for(i=0,mline=session->sdp_media;i<mline_nr;mline=mline->m_next,++i){
-		}
-		if (mBandwidthThres>0){
-			if (mline->m_type==sdp_media_video){
-				if (mline->m_rtpmaps && strcmp(mline->m_rtpmaps->rm_encoding,"H264")==0){
-					sdp_bandwidth_t *b=session->sdp_bandwidths;
-					if (b && ((int)b->b_value) <= (int)mBandwidthThres){
-						LOGI("Enabling H264 filtering");
-						ms->setFilter(make_shared<H264IFrameFilter>(mDecim));
-					}
-				}
-			}
-		}
-	}
-
-private:
-	RelaySessionTransaction mSessions[sMaxSessions];
-	MediaRelayServer *mServer;
-	State mState;
-	MediaRelay::RTPDir mEarlymediaRTPDir;
-	int mBandwidthThres;
-	int mDecim;
-};
 
 static bool isEarlyMedia(sip_t *sip) {
 	if (sip->sip_status->st_status == 180 || sip->sip_status->st_status == 183) {
@@ -469,13 +114,13 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mH264Decim=0;
 #endif
 	
-	mEarlymediaRTPDir = DUPLEX;
+	mEarlymediaRTPDir = RelayedCall::RelayedCall::DUPLEX;
 	if (rtpdir == "duplex") {
-		mEarlymediaRTPDir = DUPLEX;
+		mEarlymediaRTPDir = RelayedCall::DUPLEX;
 	} else if (rtpdir == "forward") {
-		mEarlymediaRTPDir = FORWARD;
+		mEarlymediaRTPDir = RelayedCall::FORWARD;
 	} else {
-		LOGW("Wrong value %s for early-media-rtp-dir entry; switch to duplex.", rtpdir.c_str());
+		LOGW("Wrong value %s for early-media-rtp-dir entry; switch to RelayedCall::DUPLEX.", rtpdir.c_str());
 	}
 }
 

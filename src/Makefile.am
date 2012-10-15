@@ -7,9 +7,10 @@ flexisip_SOURCES=main.cc \
 			sdp-modifier.hh  sdp-modifier.cc \
 			callstore.hh  callstore.cc \
 			forkcontext.hh forkcontext.cc \
+			callcontext-mediarelay.hh  callcontext-mediarelay.cc \
+			callcontext-transcoder.hh  callcontext-transcoder.cc \
 			forkcallcontext.hh  forkcallcontext.cc \
 			forkmessagecontext.hh  forkmessagecontext.cc \
-			callcontext.cc callcontext.hh \
 			registrardb-internal.cc registrardb-internal.hh registrardb.cc registrardb.hh \
 			etchosts.cc etchosts.hh \
 			lpconfig.c lpconfig.h \

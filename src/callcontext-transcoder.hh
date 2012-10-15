@@ -27,7 +27,7 @@
 #include <mediastreamer2/msrtp.h>
 #include <mediastreamer2/bitratecontrol.h>
 
-class CallContext;
+class TranscodedCall;
 class CallContextParams{
 	public:
 		int mJbNomSize;
@@ -36,7 +36,7 @@ class CallContextParams{
 
 class CallSide{
 	public:
-		CallSide(CallContext *ctx, const CallContextParams & params);
+		CallSide(TranscodedCall *ctx, const CallContextParams & params);
 		~CallSide();
 		MSConnectionPoint getRecvPoint();
 		PayloadType *getRecvFormat();
@@ -54,7 +54,7 @@ class CallSide{
 	private:
 		static void payloadTypeChanged(RtpSession *s, unsigned long data);
 		static void onTelephoneEvent(RtpSession *s, int dtmf, void * user_data);
-		CallContext *mCallCtx;
+		TranscodedCall *mCallCtx;
 		RtpSession *mSession;
 		RtpProfile *mProfile;
 		PayloadType *getSendFormat();
@@ -74,9 +74,9 @@ class CallSide{
 
 
 
-class CallContext : public CallContextBase{
+class TranscodedCall : public CallContextBase{
 	public:
-		CallContext(sip_t *invite, const std::string &bind_address);
+		TranscodedCall(sip_t *invite, const std::string &bind_address);
 		void prepare(const CallContextParams & params);
 		void join(MSTicker *ticker);
 		void unjoin();
@@ -92,7 +92,7 @@ class CallContext : public CallContextBase{
 		}
 		void playTone(sip_t *info);
 		void playTone(CallSide *origin, char dtmf);
-		~CallContext();
+		~TranscodedCall();
 		void dump();
 		void doBgTasks();
 		virtual bool isInactive(time_t);

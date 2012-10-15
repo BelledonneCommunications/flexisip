@@ -18,7 +18,7 @@
 
 
 #include "flexisip-config.h"
-#include "callcontext.hh"
+#include "callcontext-transcoder.hh"
 
 #include "mediastreamer2/dtmfgen.h"
 #include "ortp/telephonyevents.h"
@@ -27,7 +27,7 @@
 
 using namespace ::std;
 
-CallSide::CallSide(CallContext *ctx, const CallContextParams &params) : mCallCtx(ctx){
+CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCallCtx(ctx){
 	mSession=rtp_session_new(RTP_SESSION_SENDRECV);
 	mProfile=rtp_profile_new("Call profile");
 	mEncoder=NULL;
@@ -259,7 +259,7 @@ void CallSide::disconnect(CallSide *recvSide){
 }
 
 void CallSide::payloadTypeChanged(RtpSession *session, unsigned long data){
-	CallContext *ctx=reinterpret_cast<CallContext*>(data);
+	TranscodedCall *ctx=reinterpret_cast<TranscodedCall*>(data);
 	CallSide *side=static_cast<CallSide*>(rtp_session_get_data(session));
 	int num=rtp_session_get_recv_payload_type(session);
 	RtpProfile *prof=rtp_session_get_profile(session);
@@ -272,7 +272,7 @@ void CallSide::payloadTypeChanged(RtpSession *session, unsigned long data){
 }
 
 void CallSide::onTelephoneEvent(RtpSession *s, int dtmf, void * data){
-	CallContext *ctx=reinterpret_cast<CallContext*>(data);
+	TranscodedCall *ctx=reinterpret_cast<TranscodedCall*>(data);
 	CallSide *side=static_cast<CallSide*>(rtp_session_get_data(s));
 	LOGD("Receiving telephone event %c",dtmf);
 	ctx->playTone(side,dtmf);
@@ -307,14 +307,14 @@ void CallSide::doBgTasks(){
 }
 
 
-CallContext::CallContext(sip_t *sip, const string &bind_address) : CallContextBase(sip), mFrontSide(0), mBackSide(0),mBindAddress(bind_address){
+TranscodedCall::TranscodedCall(sip_t *sip, const string &bind_address) : CallContextBase(sip), mFrontSide(0), mBackSide(0),mBindAddress(bind_address){
 	mInitialOffer=NULL;
 	mTicker=NULL;
 	mInfoCSeq=-1;
 	mCreateTime=time(NULL);
 }
 
-void CallContext::prepare( const CallContextParams &params){
+void TranscodedCall::prepare( const CallContextParams &params){
 	if (mFrontSide){
 		if (isJoined())
 			unjoin();
@@ -330,7 +330,7 @@ void CallContext::prepare( const CallContextParams &params){
 	mBackSide=new CallSide(this,params);
 }
 
-void CallContext::join(MSTicker *t){
+void TranscodedCall::join(MSTicker *t){
 	LOGD("Joining...");
 	mFrontSide->connect(mBackSide);
 	mBackSide->connect(mFrontSide);
@@ -340,7 +340,7 @@ void CallContext::join(MSTicker *t){
 	LOGD("Graphs now running");
 }
 
-void CallContext::unjoin(){
+void TranscodedCall::unjoin(){
 	LOGD("Unjoining...");
 	ms_ticker_detach(mTicker,mFrontSide->getRecvPoint().filter);
 	ms_ticker_detach(mTicker,mBackSide->getRecvPoint().filter);
@@ -349,18 +349,18 @@ void CallContext::unjoin(){
 	mTicker=NULL;
 }
 
-bool CallContext::isJoined()const{
+bool TranscodedCall::isJoined()const{
 	return mTicker!=NULL;
 }
 
-void CallContext::redraw(CallSide *r){
+void TranscodedCall::redraw(CallSide *r){
 	LOGI("Redrawing in context of MSTicker");
 	CallSide *s=(r==mFrontSide) ? mBackSide : mFrontSide;
 	s->disconnect(r);
 	s->connect(r,mTicker);
 }
 
-bool CallContext::isInactive(time_t cur){
+bool TranscodedCall::isInactive(time_t cur){
 	if (mFrontSide==NULL) {
 		if (cur>mCreateTime+180){
 			LOGD("CallContext %p usage timeout expired",this);
@@ -370,15 +370,15 @@ bool CallContext::isInactive(time_t cur){
 	return !(mFrontSide->isActive(cur) || mBackSide->isActive(cur));
 }
 
-void CallContext::setInitialOffer(MSList *payloads){
+void TranscodedCall::setInitialOffer(MSList *payloads){
 	mInitialOffer=payloads;
 }
 
-const MSList *CallContext::getInitialOffer()const{
+const MSList *TranscodedCall::getInitialOffer()const{
 	return mInitialOffer;
 }
 
-void CallContext::dump(){
+void TranscodedCall::dump(){
 	CallContextBase::dump();
 	if (mTicker!=NULL){
 		LOGD("Front side: %i", mFrontSide->getAudioPort());
@@ -388,7 +388,7 @@ void CallContext::dump(){
 	}else LOGD("is inactive");
 }
 
-void CallContext::playTone(sip_t *info){
+void TranscodedCall::playTone(sip_t *info){
 	if (mFrontSide && mBackSide){
 		if (mInfoCSeq==-1 || ((unsigned int)mInfoCSeq)!=info->sip_cseq->cs_seq){
 			mInfoCSeq=info->sip_cseq->cs_seq;
@@ -406,7 +406,7 @@ void CallContext::playTone(sip_t *info){
 	}else LOGW("Tone not played because graph is not ready.");
 }
 
-CallSide *CallContext::getOther(CallSide *cs){
+CallSide *TranscodedCall::getOther(CallSide *cs){
 	if (cs==mBackSide)
 		return mFrontSide;
 	else if (cs==mFrontSide)
@@ -417,18 +417,18 @@ CallSide *CallContext::getOther(CallSide *cs){
 	}
 }
 
-void CallContext::playTone(CallSide *origin, const char dtmf){
+void TranscodedCall::playTone(CallSide *origin, const char dtmf){
 	getOther(origin)->playTone (dtmf);
 }
 
-void CallContext::doBgTasks(){
+void TranscodedCall::doBgTasks(){
 	if (mFrontSide && mBackSide){
 		mFrontSide->doBgTasks();
 		mBackSide->doBgTasks();
 	}
 }
 
-CallContext::~CallContext(){
+TranscodedCall::~TranscodedCall(){
 	if (mTicker!=NULL)
 		unjoin();
 	if (mFrontSide) delete mFrontSide;
