@@ -31,8 +31,6 @@ CallContextBase::CallContextBase(sip_t *sip){
 	mInvCseq=sip->sip_cseq->cs_seq;
 	mResCseq=(uint32_t)-1;
 	mInvite=NULL;
-	mResponse=NULL;
-	mAck=NULL;
 	mCallerTag=sip->sip_from->a_tag;
 	mViaCount = 0;
 	sip_via_t *via;
@@ -42,6 +40,7 @@ CallContextBase::CallContextBase(sip_t *sip){
 	if (via && via->v_branch){
 		mBranch=via->v_branch;
 	}
+	LOGD("CallContext %p created", this);
 }
 
 bool CallContextBase::match(Agent *ag, sip_t *sip, bool stateful){
@@ -82,23 +81,6 @@ bool CallContextBase::isNewInvite (sip_t *invite){
 	return invite->sip_cseq->cs_seq!=mInvCseq;
 }
 
-bool CallContextBase::isNewEarlyMedia(sip_t *sip){
-	if (mResponse){
-		sip_t *resp=(sip_t*)msg_object(mResponse);
-		return resp->sip_cseq->cs_seq!=sip->sip_cseq->cs_seq;
-	}
-	return true;
-}
-
-bool CallContextBase::isNew200Ok(sip_t *sip){
-	if (mResponse){
-		sip_t *resp=(sip_t*)msg_object(mResponse);
-		return resp->sip_status->st_status!=200 ||
-		    resp->sip_cseq->cs_seq!=sip->sip_cseq->cs_seq;
-	}
-	return true;
-}
-
 void CallContextBase::storeNewInvite(msg_t *msg){
 	sip_t *sip=(sip_t*)msg_object(msg);
 	//serialize the message before copying it otherwise we might miss some content
@@ -110,48 +92,8 @@ void CallContextBase::storeNewInvite(msg_t *msg){
 	mInvite=msg_copy(msg);
 }
 
-void CallContextBase::storeNewAck(msg_t *msg){
-	sip_t *sip=(sip_t*)msg_object(msg);
-	//serialize the message before copying it otherwise we might miss some content
-	msg_serialize(msg,(msg_pub_t*)sip);
-	mAckCseq=sip->sip_cseq->cs_seq;
-	if(mAck != NULL){
-		msg_destroy(mAck);
-	}
-	mAck=msg_copy(msg);
-}
-
-bool CallContextBase::isNewAck(sip_t *ack){
-	return ack->sip_cseq->cs_seq!=mAckCseq;
-}
-
-void CallContextBase::storeNewResponse(msg_t *msg){
-	sip_t *sip=(sip_t*)msg_object(msg);
-	//serialize the message before copying it otherwise we might miss some content
-	msg_serialize(msg,(msg_pub_t*)sip);
-	if(mResponse != NULL){
-		msg_destroy(mResponse);
-	}
-	mResponse=msg_copy(msg);
-	mResCseq=sip->sip_cseq->cs_seq;
-	if (mCalleeTag.empty()){
-		if (sip->sip_to && sip->sip_to->a_tag){
-			LOGD("Response establishes a dialog or early dialog.");
-			mCalleeTag=sip->sip_to->a_tag;
-		}
-	}
-}
-
 msg_t *CallContextBase::getLastForwardedInvite()const{
 	return mInvite;
-}
-
-msg_t *CallContextBase::getLastForwaredResponse()const{
-	return mResponse;
-}
-
-msg_t *CallContextBase::getLastForwardedAck()const{
-	return mAck;
 }
 
 void CallContextBase::dump(){
@@ -163,12 +105,6 @@ CallContextBase::~CallContextBase(){
 	LOGD("CallContext %p with id %u destroyed.",this,mCallHash);
 	if(mInvite != NULL){
 		msg_destroy(mInvite);
-	}
-	if(mResponse != NULL){
-		msg_destroy(mResponse);
-	}
-	if(mAck != NULL){
-		msg_destroy(mAck);
 	}
 }
 

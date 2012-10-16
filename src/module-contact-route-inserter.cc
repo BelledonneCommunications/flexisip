@@ -90,7 +90,7 @@ public:
 		}
 	}
 private:
-	void masqueradeContact(shared_ptr<SipEvent> &&ev) {
+	void masqueradeContact(shared_ptr<SipEvent> ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		if (sip->sip_contact != NULL && sip->sip_contact->m_url != NULL) {

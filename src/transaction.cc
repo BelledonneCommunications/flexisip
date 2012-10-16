@@ -74,8 +74,11 @@ int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *
 	LOGD("OutgoingTransaction callback %p", it);
 	if (sip != NULL) {
 		msg_t *msg = nta_outgoing_getresponse(it->mOutgoing);
-		shared_ptr<ResponseSipEvent> sipevent(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(it->shared_from_this()), shared_ptr<MsgSip>(new MsgSip(msg))));
+		auto oagent=dynamic_pointer_cast<OutgoingAgent>(it->shared_from_this());
+		auto msgsip=shared_ptr<MsgSip>(new MsgSip(msg));
+		shared_ptr<ResponseSipEvent> sipevent(new ResponseSipEvent(oagent, msgsip));
 		msg_destroy(msg);
+
 		it->mAgent->sendResponseEvent(sipevent);
 		if (sip->sip_status && sip->sip_status->st_status >= 200) {
 			it->destroy();

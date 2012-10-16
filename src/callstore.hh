@@ -29,14 +29,7 @@ class CallContextBase{
 		bool match(Agent *ag, sip_t *sip, bool stateful = false);
 		bool isNewInvite(sip_t *sip);
 		void storeNewInvite(msg_t *orig);
-		bool isNewEarlyMedia(sip_t *sip);
-		bool isNew200Ok(sip_t *sip);
-		void storeNewAck(msg_t *msg);
-		bool isNewAck(sip_t *sip);
-		void storeNewResponse(msg_t *msg);
 		msg_t *getLastForwardedInvite()const;
-		msg_t *getLastForwaredResponse()const;
-		msg_t *getLastForwardedAck()const;
 		virtual void dump();
 		virtual bool isInactive(time_t cur){
 			return false;
@@ -58,8 +51,6 @@ class CallContextBase{
 		su_home_t mHome;
 		sip_from_t *mFrom;
 		msg_t *mInvite;
-		msg_t *mResponse;
-		msg_t *mAck;
 		uint32_t mCallHash;
 		uint32_t mInvCseq;
 		uint32_t mResCseq;

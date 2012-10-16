@@ -29,9 +29,7 @@ using namespace ::std;
 
 class TickerManager {
 public:
-	TickerManager() {
-		mStarted = false;
-	}
+	TickerManager() : mLastTickerIndex(0),mStarted(false){}
 	MSTicker *chooseOne() {
 		if (!mStarted) {
 			int cpucount = getCpuCount();
@@ -70,10 +68,10 @@ private:
 	bool mStarted;
 };
 
-class TranscodeModule: public Module, protected ModuleToolbox {
+class Transcoder: public Module, protected ModuleToolbox {
 public:
-	TranscodeModule(Agent *ag);
-	~TranscodeModule();
+	Transcoder(Agent *ag);
+	~Transcoder();
 	virtual void onLoad(const GenericStruct *module_config);
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
@@ -81,16 +79,16 @@ public:
 	virtual void onDeclare(GenericStruct *mc);
 private:
 	TickerManager mTickerManager;
-	int handleOffer(TranscodedCall *c, shared_ptr<SipEvent> &&ev);
-	int handleAnswer(TranscodedCall *c, shared_ptr<SipEvent> &&ev);
-	int processNewInvite(TranscodedCall *c, shared_ptr<RequestSipEvent> &ev);
+	int handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev);
+	int handleAnswer(TranscodedCall *c, shared_ptr<SipEvent> ev);
+	int processInvite(TranscodedCall *c, shared_ptr<RequestSipEvent> &ev);
 	void process200OkforInvite(TranscodedCall *ctx, shared_ptr<ResponseSipEvent> &ev);
-	void processNewAck(TranscodedCall *ctx, shared_ptr<RequestSipEvent> &ev);
+	void processAck(TranscodedCall *ctx, shared_ptr<RequestSipEvent> &ev);
 	bool processSipInfo(TranscodedCall *c, shared_ptr<RequestSipEvent> &ev);
 	void onTimer();
 	static void sOnTimer(void *unused, su_timer_t *t, void *zis);
 	bool canDoRateControl(sip_t *sip);
-	bool isOneCodecSupported(const MSList *ioffer);
+	bool hasSupportedCodec(const MSList *ioffer);
 	MSList *normalizePayloads(MSList *l);
 	MSList *orderList(const list<string> &config, const MSList *l);
 	MSList *mSupportedAudioPayloads;
@@ -98,11 +96,10 @@ private:
 	su_timer_t *mTimer;
 	list<string> mRcUserAgents;
 	CallContextParams mCallParams;
-	bool mBlockRetrans;
-	static ModuleInfo<TranscodeModule> sInfo;
+	static ModuleInfo<Transcoder> sInfo;
 };
 
-ModuleInfo<TranscodeModule> TranscodeModule::sInfo("Transcoder", "The purpose of the Transcoder module is to transparently transcode from one audio codec to another to make "
+ModuleInfo<Transcoder> Transcoder::sInfo("Transcoder", "The purpose of the Transcoder module is to transparently transcode from one audio codec to another to make "
 		"the communication possible between clients that do not share the same set of supported codecs. "
 		"Concretely it adds all missing codecs into the INVITEs it receives, and adds codecs matching the original INVITE into the 200Ok. "
 		"Rtp ports and addresses are masqueraded so that the streams can be processed by the proxy. "
@@ -151,7 +148,7 @@ static MSList *makeSupportedAudioPayloadList() {
 	return l;
 }
 
-bool TranscodeModule::isOneCodecSupported(const MSList *ioffer) {
+bool Transcoder::hasSupportedCodec(const MSList *ioffer) {
 	const MSList *e1, *e2;
 	for (e1 = ioffer; e1 != NULL; e1 = e1->next) {
 		PayloadType *p1 = (PayloadType*) e1->data;
@@ -164,18 +161,18 @@ bool TranscodeModule::isOneCodecSupported(const MSList *ioffer) {
 	return false;
 }
 
-TranscodeModule::TranscodeModule(Agent *ag) :
+Transcoder::Transcoder(Agent *ag) :
 		Module(ag), mTimer(0) {
 	mSupportedAudioPayloads = NULL;
 }
 
-TranscodeModule::~TranscodeModule() {
+Transcoder::~Transcoder() {
 	if (mTimer)
 		getAgent()->stopTimer(mTimer);
 	ms_list_free(mSupportedAudioPayloads);
 }
 
-void TranscodeModule::onDeclare(GenericStruct *mc) {
+void Transcoder::onDeclare(GenericStruct *mc) {
 	/*we need to be disabled by default*/
 	mc->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[]={
@@ -194,7 +191,7 @@ void TranscodeModule::onDeclare(GenericStruct *mc) {
 	mCalls.setCallStatCounters(p.first, p.second);
 }
 
-MSList *TranscodeModule::orderList(const list<string> &config, const MSList *l) {
+MSList *Transcoder::orderList(const list<string> &config, const MSList *l) {
 	int err;
 	int rate;
 	MSList *ret = NULL;
@@ -230,22 +227,21 @@ MSList *TranscodeModule::orderList(const list<string> &config, const MSList *l) 
 	return ret;
 }
 
-void TranscodeModule::onLoad(const GenericStruct *module_config){
+void Transcoder::onLoad(const GenericStruct *module_config){
 	mTimer=mAgent->createTimer(20,&sOnTimer,this);
 	mCallParams.mJbNomSize=module_config->get<ConfigInt>("jb-nom-size")->read();
 	mRcUserAgents=module_config->get<ConfigStringList>("rc-user-agents")->read();
 	MSList *l=makeSupportedAudioPayloadList();
 	mSupportedAudioPayloads=orderList(module_config->get<ConfigStringList>("audio-codecs")->read(),l);
-	mBlockRetrans=module_config->get<ConfigBoolean>("block-retransmissions")->read();
 	ms_list_free(l);
 }
 
-void TranscodeModule::onIdle() {
+void Transcoder::onIdle() {
 	mCalls.dump();
 	mCalls.removeAndDeleteInactives();
 }
 
-bool TranscodeModule::canDoRateControl(sip_t *sip) {
+bool Transcoder::canDoRateControl(sip_t *sip) {
 	if (sip->sip_user_agent != NULL && sip->sip_user_agent->g_string != NULL) {
 		list<string>::const_iterator it;
 		for (it = mRcUserAgents.begin(); it != mRcUserAgents.end(); ++it) {
@@ -258,7 +254,7 @@ bool TranscodeModule::canDoRateControl(sip_t *sip) {
 	return false;
 }
 
-bool TranscodeModule::processSipInfo(TranscodedCall *c, shared_ptr<RequestSipEvent> &ev) {
+bool Transcoder::processSipInfo(TranscodedCall *c, shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	sip_payload_t *payload = sip->sip_payload;
@@ -281,7 +277,7 @@ static const PayloadType *findPt(const MSList *l, const char *mime, int rate) {
 	return NULL;
 }
 
-MSList *TranscodeModule::normalizePayloads(MSList *l) {
+MSList *Transcoder::normalizePayloads(MSList *l) {
 	MSList *it;
 	for (it = l; it != NULL; it = it->next) {
 		PayloadType *pt = (PayloadType*) l->data;
@@ -296,7 +292,7 @@ MSList *TranscodeModule::normalizePayloads(MSList *l) {
 	return l;
 }
 
-int TranscodeModule::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> &&ev) {
+int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
@@ -307,7 +303,7 @@ int TranscodeModule::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> &&ev) {
 
 	MSList *ioffer = m->readPayloads();
 
-	if (isOneCodecSupported(ioffer)) {
+	if (hasSupportedCodec(ioffer)) {
 		string addr;
 		int frport;
 		c->prepare(mCallParams);
@@ -347,7 +343,7 @@ int TranscodeModule::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> &&ev) {
 	return -1;
 }
 
-int TranscodeModule::processNewInvite(TranscodedCall *c, shared_ptr<RequestSipEvent> &ev) {
+int Transcoder::processInvite(TranscodedCall *c, shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	int ret = 0;
 	if (SdpModifier::hasSdp(ms->getSip())) {
@@ -363,83 +359,53 @@ int TranscodeModule::processNewInvite(TranscodedCall *c, shared_ptr<RequestSipEv
 	return ret;
 }
 
-void TranscodeModule::processNewAck(TranscodedCall *ctx, shared_ptr<RequestSipEvent> &ev) {
-	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
+void Transcoder::processAck(TranscodedCall *ctx, shared_ptr<RequestSipEvent> &ev) {
 	LOGD("Processing ACK");
 	const MSList *ioffer = ctx->getInitialOffer();
 	if (ioffer == NULL) {
 		LOGE("Processing ACK with SDP but no offer was made or processed.");
 	} else {
 		handleAnswer(ctx, ev);
-		ctx->storeNewAck(ms->getMsg());
 	}
 }
 
-void TranscodeModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
+void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	shared_ptr<TranscodedCall> c;
 	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
 
 	if (sip->sip_request->rq_method == sip_method_invite) {
-		if ((c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip))) == NULL) {
-			c = make_shared<TranscodedCall>(sip, getAgent()->getBindIp());
+		ev->createIncomingTransaction();
+		shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
+		c = make_shared<TranscodedCall>(sip, getAgent()->getBindIp());
+		if (processInvite(c.get(), ev) == 0) {
 			mCalls.store(c);
-			processNewInvite(c.get(), ev);
+			ot->setProperty<TranscodedCall>(getModuleName(), c);
 		} else {
-			if (c->isNewInvite(sip)) {
-				processNewInvite(c.get(), ev);
-			} else if (mAgent->countUsInVia(sip->sip_via)) {
-				LOGD("We are already in VIA headers of this request");
+			LOGD("Transcoder: couldn't process invite, stopping processing");
+			return;
+		}
+	} else if (sip->sip_request->rq_method == sip_method_info) {
+		if ((c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip))) != NULL) {
+			if (processSipInfo(c.get(), ev)) {
+				/*stop the processing */
 				return;
-			} else if (c->getLastForwardedInvite() != NULL) {
-				if (!mBlockRetrans) {
-					LOGD("This is an invite retransmission.");
-					msg = msg_copy(c->getLastForwardedInvite());
-					sip = (sip_t*) msg_object(msg);
-				} else {
-					LOGD("Retransmission ignored.");
-					ev->suspendProcessing();
-				}
 			}
 		}
-	} else if (sip->sip_request->rq_method == sip_method_ack && SdpModifier::hasSdp(sip)) {
-		if ((c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip))) == NULL) {
-			LOGD("Seeing ACK with no call reference");
-		} else {
-			if (c->isNewAck(sip)) {
-				processNewAck(c.get(), ev);
-			} else if (mAgent->countUsInVia(sip->sip_via)) {
-				LOGD("We are already in VIA headers of this request");
-				return;
-			} else if (c->getLastForwardedAck() != NULL) {
-				msg = msg_copy(c->getLastForwardedAck());
-				sip = (sip_t*) msg_object(msg);
-				LOGD("Forwarding ack retransmission");
-			}
+	} else if (sip->sip_request->rq_method == sip_method_bye) {
+		if ((c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip))) != NULL) {
+			mCalls.remove(c);
 		}
 	} else {
-		if (sip->sip_request->rq_method == sip_method_info) {
-			if ((c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip))) != NULL) {
-				if (processSipInfo(c.get(), ev)) {
-					/*stop the processing */
-					return;
-				}
-			}
-		}
 		//all other requests go through
-
-		if (sip->sip_request->rq_method == sip_method_bye) {
-			if ((c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip))) != NULL) {
-				mCalls.remove(c);
-			}
-		}
 	}
 
 	ev->setMsgSip(make_shared<MsgSip>(*ms,msg));
 }
 
-int TranscodeModule::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> &&ev) {
+int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {
+	LOGD("Transcoder::handleAnswer");
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	string addr;
 	int port;
@@ -488,15 +454,13 @@ int TranscodeModule::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> &&ev
 	return 0;
 }
 
-void TranscodeModule::process200OkforInvite(TranscodedCall *ctx, shared_ptr<ResponseSipEvent> &ev) {
-	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
+void Transcoder::process200OkforInvite(TranscodedCall *ctx, shared_ptr<ResponseSipEvent> &ev) {
 	LOGD("Processing 200 Ok");
 	if (SdpModifier::hasSdp((sip_t*) msg_object(ctx->getLastForwardedInvite()))) {
 		handleAnswer(ctx, ev);
 	} else {
 		handleOffer(ctx, ev);
 	}
-	ctx->storeNewResponse(ms->getMsg());
 }
 
 static bool isEarlyMedia(sip_t *sip) {
@@ -506,37 +470,43 @@ static bool isEarlyMedia(sip_t *sip) {
 	return false;
 }
 
-void TranscodeModule::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
 	shared_ptr<TranscodedCall> c;
-	if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite && mAgent->countUsInVia(sip->sip_via) < 2) { //If we are more than 1 time in via headers, wait until next time we receive this message for any processing
+	if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
+		if (mAgent->countUsInVia(sip->sip_via) > 1) {
+			LOGD("We are more than 1 time in via headers,"
+					"wait until next time we receive this message for any processing");
+			return;
+		}
+
 		fixAuthChallengeForSDP(ms->getHome(), msg, sip);
-		if ((c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip))) != NULL) {
-			if (sip->sip_status->st_status == 200 && c->isNew200Ok(sip)) {
-				process200OkforInvite(c.get(), ev);
-			} else if (isEarlyMedia(sip) && c->isNewEarlyMedia(sip)) {
-				process200OkforInvite(c.get(), ev);
-			} else if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
-				LOGD("This is a 200 or 183 retransmission");
-				if (c->getLastForwaredResponse() != NULL) {
-					msg = msg_copy(c->getLastForwaredResponse());
-					sip = (sip_t*) msg_object(msg);
-					ev->setMsgSip(make_shared<MsgSip>(*ms, msg));
-				}
-			}
+
+		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+		if (transaction == NULL) {
+			LOGD("No transaction found");
+			return;
+		}
+		if ((c = transaction->getProperty<TranscodedCall>(getModuleName())) == NULL) {
+			LOGD("No transcoded call context found");
+			return;
+		}
+
+		if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
+			process200OkforInvite(c.get(), ev);
 		}
 	}
 }
 
-void TranscodeModule::onTimer() {
+void Transcoder::onTimer() {
 	for(auto it = mCalls.getList().begin(); it != mCalls.getList().end(); ++it) {
 		dynamic_pointer_cast<TranscodedCall>(*it)->doBgTasks();
 	}
 }
 
-void TranscodeModule::sOnTimer(void *unused, su_timer_t *t, void *zis) {
-	((TranscodeModule*) zis)->onTimer();
+void Transcoder::sOnTimer(void *unused, su_timer_t *t, void *zis) {
+	((Transcoder*) zis)->onTimer();
 }
 
