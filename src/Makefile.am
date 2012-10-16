@@ -60,6 +60,10 @@ AM_CFLAGS+=-DENABLE_TRANSCODER
 AM_CXXFLAGS+=-DENABLE_TRANSCODER
 endif
 
+if BUILD_DATEHANDLER
+flexisip_SOURCES+=module-datehandler.cc
+endif
+
 if BUILD_PUSHNOTIFICATION
 flexisip_SOURCES+=module-pushnotification.cc \
 			pushnotification/pushnotification.cc pushnotification/pushnotification.hh \

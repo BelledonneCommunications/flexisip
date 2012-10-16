@@ -147,6 +147,17 @@ fi
 
 AM_CONDITIONAL(BUILD_PUSHNOTIFICATION,test x$pushnotification = xyes)
 
+AC_ARG_ENABLE(datehandler,
+	AC_HELP_STRING([--enable-datehandler],
+	    [Build DateHandler module @<:@no@:>@]),
+        [datehandler="${enableval}"],[datehandler=no]
+)
+
+if test "$datehandler" = "yes" ; then
+	AC_DEFINE([HAVE_DATEHANDLER],1,[Defined when the DateHandler module is compiled in.])
+fi
+AM_CONDITIONAL(BUILD_DATEHANDLER,test x$datehandler = xyes)
+
 AC_ARG_ENABLE(redis,
 	AC_HELP_STRING([--enable-redis],
 	    [Build with redis key/value datastore @<:@no@:>@]),

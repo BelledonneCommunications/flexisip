@@ -274,6 +274,9 @@ Agent::Agent(su_root_t* root){
 
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "NatHelper"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Authentication"));
+#ifdef HAVE_DATEHANDLER
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "DateHandler"));
+#endif
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GatewayAdapter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Registrar"));
 #ifdef ENABLE_PUSHNOTIFICATION

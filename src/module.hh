@@ -64,6 +64,7 @@ class ModuleInfoBase {
 		enum ModuleOid {
 			NatHelper=30,
 			Authentication=60,
+			DateHandler=75,
 			GatewayAdapter=90,
 			Registrar=120,
 			PushNotification=130,
