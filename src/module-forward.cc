@@ -127,17 +127,6 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		return;
 	}
 
-	switch (sip->sip_request->rq_method) {
-	case sip_method_invite:
-		LOGD("This is an invite");
-		break;
-	case sip_method_register:
-		LOGD("This is a register");
-
-	case sip_method_ack:
-	default:
-		break;
-	}
 	dest = sip->sip_request->rq_url;
 	// removes top route headers if they matches us
 	while (sip->sip_route != NULL && getAgent()->isUs(sip->sip_route->r_url)) {
@@ -149,7 +138,8 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 
 	/* workaround bad sip uris with two @ that results in host part being "something@somewhere" */
-	if (strchr(dest->url_host, '@') != 0) {
+	if ((dest->url_type!=url_sip && dest->url_type!=url_sips)
+		|| dest->url_host==NULL || strchr(dest->url_host, '@') != 0) {
 		ev->reply(ms, SIP_400_BAD_REQUEST, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
@@ -159,7 +149,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	string ip;
 	if (EtcHostsResolver::get()->resolve(dest->url_host, &ip)) {
 		LOGD("Found %s in /etc/hosts", dest->url_host);
-		/* duplication dest because we don't want to modify the message with our name resolution result*/
+		/* duplication of dest because we don't want to modify the message with our name resolution result*/
 		dest = url_hdup(ms->getHome(), dest);
 		dest->url_host = ip.c_str();
 	}
