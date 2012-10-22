@@ -287,6 +287,8 @@ void CallSide::playTone(char tone_name){
 		if (strcasecmp(enc_fmt,"pcmu")==0 || strcasecmp(enc_fmt,"pcma")==0){
 			LOGD("Modulating dtmf %c",tone_name);
 			ms_filter_call_method(mToneGen,MS_DTMF_GEN_PUT,&tone_name);
+		} else {
+			ms_warning("Cannot send tone [%i] because selected codec is not G711",tone_name);
 		}
 	} else {
 		ms_warning("Cannot send tone [%i] because neither rfc2833 nor G711 codec selected",tone_name);

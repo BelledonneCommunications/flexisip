@@ -127,6 +127,18 @@ shared_ptr<CallContextBase> CallStore::find(Agent *ag, sip_t *sip, bool stateful
 	return shared_ptr<CallContextBase>();
 }
 
+void CallStore::findAndRemoveExcept(Agent *ag, sip_t *sip, CallContextBase *c) {
+	int removed=0;
+	for(auto it=mCalls.begin();it!=mCalls.end();){
+		if (it->get()!=c && (*it)->match(ag,sip, false)) {
+			it=mCalls.erase(it);
+			++removed;
+		}
+		else ++it;
+	}
+	LOGD("Removed %d maching call contexts from store", removed);
+}
+
 void CallStore::remove(const shared_ptr<CallContextBase> &ctx){
 	if (mCountCallsFinished) ++(*mCountCallsFinished);
 	mCalls.remove(ctx);

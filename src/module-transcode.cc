@@ -371,14 +371,13 @@ void Transcoder::processAck(TranscodedCall *ctx, shared_ptr<RequestSipEvent> &ev
 
 void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	shared_ptr<TranscodedCall> c;
 	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
 
 	if (sip->sip_request->rq_method == sip_method_invite) {
 		ev->createIncomingTransaction();
-		shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
-		c = make_shared<TranscodedCall>(sip, getAgent()->getBindIp());
+		auto ot = ev->createOutgoingTransaction();
+		auto c = make_shared<TranscodedCall>(sip, getAgent()->getBindIp());
 		if (processInvite(c.get(), ev) == 0) {
 			mCalls.store(c);
 			ot->setProperty<TranscodedCall>(getModuleName(), c);
@@ -387,14 +386,17 @@ void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			return;
 		}
 	} else if (sip->sip_request->rq_method == sip_method_info) {
-		if ((c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip))) != NULL) {
-			if (processSipInfo(c.get(), ev)) {
-				/*stop the processing */
-				return;
-			}
+		auto c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip, true));
+		if (c == NULL) {
+			LOGD("Transcoder: couldn't find call context for info");
+			return;
+		} else if (processSipInfo(c.get(), ev)) {
+			/*stop the processing */
+			return;
 		}
 	} else if (sip->sip_request->rq_method == sip_method_bye) {
-		if ((c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip))) != NULL) {
+		auto c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip, true));
+		if (c != NULL) {
 			mCalls.remove(c);
 		}
 	} else {
@@ -474,7 +476,7 @@ void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
-	shared_ptr<TranscodedCall> c;
+
 	if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
 		if (mAgent->countUsInVia(sip->sip_via) > 1) {
 			LOGD("We are more than 1 time in via headers,"
@@ -489,12 +491,17 @@ void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			LOGD("No transaction found");
 			return;
 		}
-		if ((c = transaction->getProperty<TranscodedCall>(getModuleName())) == NULL) {
+
+		shared_ptr<TranscodedCall> c = transaction->getProperty<TranscodedCall>(getModuleName());
+		if (c == NULL) {
 			LOGD("No transcoded call context found");
 			return;
 		}
 
 		if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
+			// Remove all call contexts maching the sip message
+			// Except the one from this outgoing transaction
+			mCalls.findAndRemoveExcept(getAgent(), sip, c.get());
 			process200OkforInvite(c.get(), ev);
 		}
 	}
