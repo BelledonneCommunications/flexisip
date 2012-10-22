@@ -179,8 +179,8 @@ void Transcoder::onDeclare(GenericStruct *mc) {
 		{	Integer		,	"jb-nom-size"	,	"Nominal size of RTP jitter buffer, in milliseconds. A value of 0 means no jitter buffer (packet processing).",
 												"0" },
 		{	StringList	,	"rc-user-agents",	"Whitespace separated list of user-agent strings for which audio rate control is performed.",""},
-		{	StringList	,	"audio-codecs",	"Whitespace seprated list of audio codecs, in order of preference.",
-			"speex/8000 amr/8000 iLBC/8000 gsm/8000 pcmu/8000 pcma/8000"},
+		{	StringList	,	"audio-codecs",	"Whitespace seprated list of audio codecs, in order of preference. The telephone-event codec is necessary for inband DTMF processing.",
+			"speex/8000 amr/8000 iLBC/8000 gsm/8000 pcmu/8000 pcma/8000 telephone-event/8000"},
 		{	Boolean , "block-retransmissions", "If true, retransmissions of INVITEs will be blocked. "
 			"The purpose of this option is to limit bandwidth usage and server load on reliable networks.","false" },
 			config_item_end
