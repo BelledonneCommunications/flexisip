@@ -271,11 +271,17 @@ void CallSide::payloadTypeChanged(RtpSession *session, unsigned long data){
 	}
 }
 
-void CallSide::onTelephoneEvent(RtpSession *s, int dtmf, void * data){
+static int dtmf_tab[]={'0','1','2','3','4','5','6','7','8','9','*','#','A','B','C','D','!'};
+void CallSide::onTelephoneEvent(RtpSession *s, int dtmf_index, void * data){
 	TranscodedCall *ctx=reinterpret_cast<TranscodedCall*>(data);
 	CallSide *side=static_cast<CallSide*>(rtp_session_get_data(s));
-	LOGD("Receiving telephone event %c",dtmf);
-	ctx->playTone(side,dtmf);
+    if (dtmf_index>16){
+            ms_warning("Unsupported telephone-event type %d.", dtmf_index);
+            return;
+    }
+
+	LOGD("Receiving telephone event %c",dtmf_tab[dtmf_index]);
+	ctx->playTone(side,dtmf_tab[dtmf_index]);
 }
 
 void CallSide::playTone(char tone_name){
