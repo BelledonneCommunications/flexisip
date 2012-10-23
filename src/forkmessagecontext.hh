@@ -24,26 +24,29 @@
 #include "transaction.hh"
 #include "forkcontext.hh"
 #include <list>
+#include <map>
 
 class ForkMessageContext: public ForkContext {
 private:
 	std::shared_ptr<ResponseSipEvent> mBestResponse;
-	int mDelivered;
+	int mDeliveredCount;
 	std::list<int> mForwardResponses;
+	std::map<std::string,bool> mDeliveryMap;//map of pairs (unique-id,delivered)
 	void forward(const std::shared_ptr<SipEvent> &ev);
 	void store(std::shared_ptr<ResponseSipEvent> &event);
+	void markAsDelivered(const std::shared_ptr<SipEvent> &ev);
 
 public:
 	ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
-	~ForkMessageContext();
-	virtual bool hasFinalResponse();
-	void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
-	void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event);
-	void onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
-	void onNew(const std::shared_ptr<OutgoingTransaction> &transaction);
-	void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &event);
-	void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
-
+	virtual ~ForkMessageContext();
+	virtual void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
+	virtual void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event);
+	virtual void onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
+	virtual void onNew(const std::shared_ptr<OutgoingTransaction> &transaction);
+	virtual void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &event);
+	virtual void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
+	virtual bool onNewRegister(const sip_contact_t *ctt);
+	virtual void checkFinished();
 private:
 	
 };

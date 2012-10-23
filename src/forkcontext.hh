@@ -55,7 +55,6 @@ protected:
 	void setFinished();
 public:
 	ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
-	virtual bool hasFinalResponse()=0;
 	virtual ~ForkContext();
 	virtual void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
 	virtual void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event) = 0;
@@ -65,6 +64,12 @@ public:
 	virtual void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
 	virtual void onLateTimeout();
 	virtual void checkFinished();
+	/*
+	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.
+	 * If the fork context is interested in handling this new destination, then it should return true, false otherwise.
+	 * Typical case for refusing it is when another transaction already exists or existed for this contact.
+	**/ 
+	virtual bool onNewRegister(const sip_contact_t *ctt);
 	const std::shared_ptr<RequestSipEvent> &getEvent();
 };
 

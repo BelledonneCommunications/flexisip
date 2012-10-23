@@ -40,6 +40,14 @@ void OutgoingTransaction::cancel() {
 	destroy();
 }
 
+const url_t *OutgoingTransaction::getRequestUri()const{
+	if (mOutgoing==NULL){
+		LOGE("OutgoingTransaction::getRequestUri(): transaction not started !");
+		return NULL;
+	}
+	return nta_outgoing_request_uri(mOutgoing);
+}
+
 void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	msg_t* msg = msg_dup(ms->getMsg());
 	ta_list ta;

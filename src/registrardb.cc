@@ -85,16 +85,20 @@ static bool isMismatchingStaticRecord(shared_ptr<ExtendedContact> &ec, const cha
 	return 0!=strcmp(ec->mCallId, version);
 }
 
-string Record::extractUniqueId(const sip_contact_t *contact){
+string Record::extractUniqueId(const url_t *url){
 	char lineValue[256]={0};
 	
 	/*search for device unique parameter among the ones configured */
 	for(auto it=sLineFieldNames.begin();it!=sLineFieldNames.end();++it){
-		if (url_param(contact->m_url[0].url_params, (*it).c_str(), lineValue, sizeof(lineValue) - 1)>0) {
+		if (url_param(url->url_params, (*it).c_str(), lineValue, sizeof(lineValue) - 1)>0) {
 			break;
 		}
 	}
 	return string(lineValue);
+}
+
+string Record::extractUniqueId(const sip_contact_t *contact){
+	return extractUniqueId(contact->m_url);
 }
 
 /**

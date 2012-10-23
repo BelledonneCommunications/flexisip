@@ -122,6 +122,7 @@ public:
 class OutgoingTransaction: public Transaction, public OutgoingAgent, public std::enable_shared_from_this<OutgoingTransaction> {
 public:
 	void cancel();
+	const url_t *getRequestUri()const;
 	~OutgoingTransaction();
 
 	inline virtual Agent *getAgent() {

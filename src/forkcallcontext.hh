@@ -31,10 +31,8 @@ private:
 	int mFinal;
 	bool mCancelled;
 	std::list<int> mForwardResponses;
-
 public:
 	ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
-	virtual bool hasFinalResponse();
 	~ForkCallContext();
 	virtual void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
 	virtual void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event);
@@ -43,7 +41,9 @@ public:
 	virtual void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &event);
 	virtual void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
 	virtual void checkFinished();
+	virtual bool onNewRegister(const sip_contact_t *ctt);
 	void sendRinging();
+	bool isCompleted()const;
 private:
 	void cancel();
 	void cancelOthers(const std::shared_ptr<OutgoingTransaction> &transaction = std::shared_ptr<OutgoingTransaction>());

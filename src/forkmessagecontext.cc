@@ -17,6 +17,7 @@
  */
 
 #include "forkmessagecontext.hh"
+#include "registrardb.hh"
 #include "common.hh"
 #include <algorithm>
 #include <sofia-sip/sip_status.h>
@@ -24,7 +25,7 @@
 using namespace ::std;
 
 ForkMessageContext::ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
-		ForkContext(agent, event,cfg,listener), mDelivered(false) {
+		ForkContext(agent, event,cfg,listener), mDeliveredCount(0) {
 	LOGD("New ForkMessageContext %p", this);
 }
 
@@ -32,18 +33,41 @@ ForkMessageContext::~ForkMessageContext() {
 	LOGD("Destroy ForkMessageContext %p", this);
 }
 
-bool ForkMessageContext::hasFinalResponse(){
-	return mDelivered;
+void ForkMessageContext::markAsDelivered(const shared_ptr<SipEvent> &ev){
+	shared_ptr<OutgoingTransaction> tr=dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+	shared_ptr<string> uid=tr->getProperty<string>("contact-unique-id");
+	if (uid!=NULL && uid->size()>0){
+		LOGD("ForkMessageContext: Marking %s as delivered",uid->c_str());
+		mDeliveryMap[*uid]=true;
+	}
 }
-
 
 void ForkMessageContext::forward(const shared_ptr<SipEvent> &ev) {
 	sip_t *sip = ev->getMsgSip()->getSip();
 	
-	if (sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 700) {
-		mDelivered=true;
-		setFinished();
+	if (sip->sip_status->st_status >= 200 ) {
+		markAsDelivered(ev);
+		mDeliveredCount++;
+		if (mDeliveredCount>1){
+			/*should only transfer one response*/
+			ev->setIncomingAgent(shared_ptr<IncomingAgent>());
+		}
+		checkFinished();
 	}
+}
+
+void ForkMessageContext::checkFinished(){
+	bool everyone_delivered=true;
+	for (auto it=mDeliveryMap.begin();it!=mDeliveryMap.end();++it){
+		if ((*it).second==false) everyone_delivered=false;
+	}
+	if (everyone_delivered){
+		LOGD("ForkMessageContext::checkFinished(): every instance received the message, it's finished.");
+		setFinished();
+		return;
+	}
+	/*otherwise, we wait the expiry of the ForkContext late timer*/
+	return ForkContext::checkFinished();
 }
 
 void ForkMessageContext::onRequest(const shared_ptr<IncomingTransaction> &transaction, shared_ptr<RequestSipEvent> &event) {
@@ -96,12 +120,22 @@ void ForkMessageContext::onDestroy(const shared_ptr<IncomingTransaction> &transa
 }
 
 void ForkMessageContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) {
+	const url_t *dest=transaction->getRequestUri();
+	string uid=Record::extractUniqueId(dest);
+	if (uid.size()>0){
+		auto it=mDeliveryMap.find(uid);
+		if (it==mDeliveryMap.end()){
+			LOGD("ForkMessageContext: adding %s as potential receiver of message.",uid.c_str());
+			mDeliveryMap[uid]=false;
+		}
+		transaction->setProperty<string>("contact-unique-id",make_shared<string>(uid));
+	}
 	ForkContext::onNew(transaction);
 }
 
 void ForkMessageContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
 	if (mOutgoings.size() == 1) {
-		if (mIncoming != NULL && !mDelivered) {
+		if (mIncoming != NULL && mDeliveredCount==0) {
 			if (mBestResponse == NULL && mCfg->mDeliveryTimeout < 25) {
 				// Create response
 				shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
@@ -127,3 +161,24 @@ void ForkMessageContext::onDestroy(const shared_ptr<OutgoingTransaction> &transa
 	}
 	ForkContext::onDestroy(transaction);
 }
+
+bool ForkMessageContext::onNewRegister(const sip_contact_t *ctt){
+	bool already_have_transaction=!ForkContext::onNewRegister(ctt);
+	if (already_have_transaction) return false;
+	string unique_id=Record::extractUniqueId(ctt);
+	if (unique_id.size()>0){
+		auto it=mDeliveryMap.find(unique_id);
+		if (it==mDeliveryMap.end()){
+			//this is a new client instance or a client for which the message wasn't delivered yet. The message needs to be delivered.
+			LOGD("ForkMessageContext::onNewRegister(): this is a new client instance.");
+			return true;
+		}else if ((*it).second==false){
+			//this is a new client instance or a client for which the message wasn't delivered yet. The message needs to be delivered.
+			LOGD("ForkMessageContext::onNewRegister(): this client is reconnecting but was not delivered before.");
+			return true;
+		}
+	}
+	//in all other case we can accept a new transaction only if the message hasn't been delivered already.
+	return mDeliveredCount==0;
+}
+

@@ -107,7 +107,7 @@ void PushNotificationContext::cancel(){
 
 void PushNotificationContext::onTimeout() {
 	if (mForkContext){
-		if (mForkContext->hasFinalResponse()){
+		if (mForkContext->isCompleted()){
 			LOGD("Call is already established or canceled, so push notification is not sent but cleared.");
 			clear();
 			return;

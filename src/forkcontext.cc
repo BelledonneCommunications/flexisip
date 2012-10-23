@@ -53,6 +53,29 @@ void ForkContext::onLateTimeout(){
 	checkFinished();
 }
 
+struct dest_finder{
+	dest_finder(const sip_contact_t *ctt) : mCtt(ctt){};
+	bool operator()(shared_ptr<OutgoingTransaction> & trn){
+		const url_t *dest=trn->getRequestUri();
+		if (dest && url_cmp_all(dest,mCtt->m_url)==0)
+			return true;
+		return false;
+	}
+	const sip_contact_t *mCtt;
+};
+
+
+//this implementation looks for already pending transaction and rejects handling a new one that would already exist.
+bool ForkContext::onNewRegister(const sip_contact_t* ctt){
+	auto it=find_if(mOutgoings.begin(),mOutgoings.end(),dest_finder(ctt));
+	if (it!=mOutgoings.end()){
+		LOGD("ForkContext %p: onNewRegister(): destination already handled.",this);
+		return false;
+	}
+	return true;
+}
+
+
 void ForkContext::onNew(const shared_ptr<IncomingTransaction> &transaction) {
 	mIncoming = transaction;
 	if (mCfg->mForkLate && mLateTimer==NULL){

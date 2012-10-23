@@ -215,7 +215,7 @@ void ForkCallContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) 
 
 void ForkCallContext::checkFinished(){
 	if (mOutgoings.size() == 0 && (mLateTimerExpired || mLateTimer==NULL)) {
-		if (mIncoming != NULL && !hasFinalResponse()) {
+		if (mIncoming != NULL && !isCompleted()) {
 			if (mBestResponse == NULL) {
 				// Create response
 				shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
@@ -237,6 +237,12 @@ void ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transacti
 	ForkContext::onDestroy(transaction);
 }
 
-bool ForkCallContext::hasFinalResponse(){
+
+bool ForkCallContext::onNewRegister(const sip_contact_t *ctt){
+	if (isCompleted()) return false;
+	return ForkContext::onNewRegister(ctt);
+}
+
+bool ForkCallContext::isCompleted()const{
 	return mFinal>0 || mCancelled;
 }
