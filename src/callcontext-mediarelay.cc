@@ -64,7 +64,7 @@ void RelayedCall::setMedia(SdpModifier *m, const string &tag, const shared_ptr<T
 		} else {
 			if (mSessions[i].mTransactions.find(transaction) == mSessions[i].mTransactions.end()) {
 				shared_ptr<MediaSource> ms = s->addBack(backIp);
-				ms->setBehaviour(MediaSource::Receive);
+				ms->setBehaviour(MediaSource::None);
 				mSessions[i].mTransactions.insert(pair<shared_ptr<Transaction>, shared_ptr<MediaSource>>(transaction, ms));
 			}
 		}
@@ -197,14 +197,14 @@ void RelayedCall::setBack(SdpModifier *m, int mline, const string &ip, int port,
 }
 
 // Set only one sender to the caller
-void RelayedCall::update(const shared_ptr<Transaction> &transaction) {
+void RelayedCall::update() {
 	if (mState == Idle)
 		mState = Initialized;
 
 	if (mEarlymediaRTPDir != DUPLEX)
 		return;
 
-	// Only one feed from back to front
+	// Only one feed from back to front: find current one
 	string feeder;
 	for (int mline = 0; mline < sMaxSessions; ++mline) {
 		RelaySession *s = mSessions[mline].mRelaySession;
@@ -219,14 +219,15 @@ void RelayedCall::update(const shared_ptr<Transaction> &transaction) {
 		}
 	}
 
-	// Update feeder
+	// Update current feeder
 	for (int mline = 0; mline < sMaxSessions; ++mline) {
 		RelaySession *s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
 			map<string, shared_ptr<MediaSource>>::iterator it;
-			if (feeder.empty())
+			if (feeder.empty()) {
 				it = mSessions[mline].mMediaSources.begin();
-			else
+				while(it != mSessions[mline].mMediaSources.end() && !(it->second->getBehaviour() & MediaSource::Receive)) ++it;
+			} else
 				it = mSessions[mline].mMediaSources.find(feeder);
 			if (it != mSessions[mline].mMediaSources.end()) {
 				shared_ptr<MediaSource> &ms = it->second;
@@ -242,6 +243,7 @@ void RelayedCall::validTransaction(const string &tag, const shared_ptr<Transacti
 		if (s != NULL) {
 			auto it = mSessions[mline].mTransactions.find(transaction);
 			if (it != mSessions[mline].mTransactions.end()) {
+				it->second->setBehaviour(MediaSource::Receive);
 				mSessions[mline].mMediaSources.insert(pair<string, shared_ptr<MediaSource>>(tag, it->second));
 				mSessions[mline].mTransactions.erase(it);
 			}

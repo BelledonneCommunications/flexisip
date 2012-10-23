@@ -301,7 +301,7 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 	if (c->getCallerTag() == from_tag && sip->sip_status->st_status == 200)
 		c->validBack(sip->sip_to->a_tag);
 
-	c->update(transaction);
+	c->update();
 
 	// Translate
 	if (c->getCallerTag() == from_tag)

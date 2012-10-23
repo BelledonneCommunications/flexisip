@@ -67,7 +67,7 @@ public:
 	void setBack(SdpModifier *m, int mline, const std::string &ip, int port, const std::string &tag, const std::shared_ptr<Transaction> &transaction);
 
 	// Set only one sender to the caller
-	void update(const std::shared_ptr<Transaction> &transaction = std::shared_ptr<Transaction>());
+	void update();
 
 	void validTransaction(const std::string &tag, const std::shared_ptr<Transaction> &transaction);
 	bool removeTransaction(const std::shared_ptr<Transaction> &transaction);
