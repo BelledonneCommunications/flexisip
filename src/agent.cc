@@ -338,7 +338,6 @@ std::string Agent::getPreferredRoute()const{
 void Agent::loadConfig(GenericManager *cm) {
 	cm->loadStrict(); //now that each module has declared its settings, we need to reload from the config file
 	mAliases = cm->getGlobal()->get<ConfigStringList>("aliases")->read();
-	discoverInterfaces();
 	LOGD("List of host aliases:");
 	for (list<string>::iterator it = mAliases.begin(); it != mAliases.end(); ++it) {
 		LOGD("%s", (*it).c_str());
@@ -486,17 +485,16 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases) const {
 				matched_port="5061";
 			else matched_port="5060";
 		}
-		if (strcmp(matched_port,tn->tpn_port)==0 &&
-			strcmp(host,tn->tpn_canon)==0)
-			return true;
-		
-	}
-	
-	if (check_aliases) {
-		list<string>::const_iterator it;
-		for (it = mAliases.begin(); it != mAliases.end(); ++it) {
-			if (strcasecmp(host, (*it).c_str()) == 0)
+		if (strcmp(matched_port,tn->tpn_port)==0){
+			if (strcmp(host,tn->tpn_canon)==0)
 				return true;
+			if (check_aliases) {
+				list<string>::const_iterator it;
+				for (it = mAliases.begin(); it != mAliases.end(); ++it) {
+					if (strcasecmp(host, (*it).c_str()) == 0)
+						return true;
+				}
+			}
 		}
 	}
 	return false;
@@ -726,27 +724,6 @@ su_timer_t *Agent::createTimer(int milliseconds, timerCallback cb, void *data) {
 
 void Agent::stopTimer(su_timer_t *t) {
 	su_timer_destroy(t);
-}
-
-void Agent::discoverInterfaces() {
-	struct ifaddrs *ifp;
-	struct ifaddrs *ifpstart;
-	char address[NI_MAXHOST];
-
-	if (getifaddrs(&ifpstart) < 0) {
-		return;
-	}
-
-	for (ifp = ifpstart; ifp != NULL; ifp = ifp->ifa_next) {
-		if (ifp->ifa_addr && (ifp->ifa_flags & IFF_RUNNING)) {
-			if (getnameinfo(ifp->ifa_addr, sizeof(sockaddr_storage), address, sizeof(address), NULL, 0, NI_NUMERICHOST) == 0) {
-				if (strchr(address, '%') == NULL) { /*avoid ipv6 link-local addresses */
-					mAliases.push_back(string(address));
-				}
-			}
-		}
-	}
-	freeifaddrs(ifpstart);
 }
 
 void Agent::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
