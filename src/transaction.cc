@@ -37,6 +37,21 @@ OutgoingTransaction::~OutgoingTransaction() {
 
 void OutgoingTransaction::cancel() {
 	nta_outgoing_cancel(mOutgoing);
+	// Maybe it is not a good idea to destroy the sofia transaction immediately after cancelling it.
+	//Indeed, sofia keeps the transaction open in case no provisional response has been received so far, so that the Cancel is sent
+	//after receiving the response, as requested by the RFC.
+	//Destroying the transaction here is suspected to generate rare crashes like the backtrace below, when a 200Ok for invite response is received, 
+	//for a cancelled transaction.
+/*
+#1  0x00007f796113dfc0 in *__GI_abort () at abort.c:92
+#2  0x00007f7961134301 in *__GI___assert_fail (
+    assertion=0x7f7963dfbb88 "orq->orq_queue == sa->sa_out.completed || orq->orq_queue == sa->sa_out.terminated", file=<value optimized out>, 
+    line=9298, function=0x7f7963dfc863 "outgoing_recv") at assert.c:81
+#3  0x00007f7963d6023e in ?? () from /usr/lib/libsofia-sip-ua.so.0
+#4  0x00007f7963d6c04c in ?? () from /usr/lib/libsofia-sip-ua.so.0
+#5  0x00007f7963ddbee5 in tport_deliver () from /usr/lib/libsofia-sip-ua.so.0
+*/
+	
 	destroy();
 }
 

@@ -309,28 +309,34 @@ void Registrar::readStaticRecords() {
 		const char *fakeCallId=su_sprintf(&home,"static-record-v%d",version);
 		Record::setStaticRecordsVersion(version);
 		while (file.good() && getline(file, line).good()) {
-			size_t start = line.find_first_of('<');
-			size_t pos = line.find_first_of('>');
-			if (start != string::npos && pos != string::npos && start < pos) {
-				if (line[pos + 1] == ' ') {
-					// Read from
-					from = line.substr(start + 1, pos - (start + 1));
+			size_t i;
+			bool is_a_comment=false;
+			for(i=0;i<line.size();++i){
+				//skip spaces or comments
+				if (isblank(line[i])) continue;
+				if (line[i]=='#') is_a_comment=true;
+				else break;
+			}
+			if (is_a_comment) continue;
+			if (i==line.size()) continue; //blank line
+			size_t cttpos = line.find_first_of(' ',i);
+			if (cttpos != string::npos && cttpos < line.size()) {
+				// Read uri
+				from = line.substr(0, cttpos);
 
-					// Read contacts
-					pos++;
-					contact_header = line.substr(pos, line.length() - pos);
+				// Read contacts
+				contact_header = line.substr(cttpos+1, line.length() - cttpos+1);
 
-					// Create
-					url_t *url = url_make(&home, from.c_str());
-					sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
-					int expire=mStaticRecordsTimeout+5; // 5s to avoid race conditions
+				// Create
+				sip_contact_t *url = sip_contact_make(&home, from.c_str());
+				sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
+				int expire=mStaticRecordsTimeout+5; // 5s to avoid race conditions
 
-					if (url != NULL && contact != NULL) {
-						auto listener=make_shared<OnStaticBindListener>(getAgent(), line);
-						bool alias=isManagedDomain(url);
-						RegistrarDb::get(mAgent)->bind(url, contact, fakeCallId, version, NULL, expire, alias, listener);
-						continue;
-					}
+				if (url != NULL && contact != NULL) {
+					auto listener=make_shared<OnStaticBindListener>(getAgent(), line);
+					bool alias=isManagedDomain(contact->m_url);
+					RegistrarDb::get(mAgent)->bind(url->m_url, contact, fakeCallId, version, NULL, expire, alias, listener);
+					continue;
 				}
 			}
 			LOGW("Incorrect line format: %s", line.c_str());
