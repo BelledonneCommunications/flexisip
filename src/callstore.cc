@@ -127,10 +127,10 @@ shared_ptr<CallContextBase> CallStore::find(Agent *ag, sip_t *sip, bool stateful
 	return shared_ptr<CallContextBase>();
 }
 
-void CallStore::findAndRemoveExcept(Agent *ag, sip_t *sip, CallContextBase *c) {
+void CallStore::findAndRemoveExcept(Agent *ag, sip_t *sip, CallContextBase *c, bool stateful) {
 	int removed=0;
 	for(auto it=mCalls.begin();it!=mCalls.end();){
-		if (it->get()!=c && (*it)->match(ag,sip, false)) {
+		if (it->get()!=c && (*it)->match(ag,sip, stateful)) {
 			it=mCalls.erase(it);
 			++removed;
 		}
