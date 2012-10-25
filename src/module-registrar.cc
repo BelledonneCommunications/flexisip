@@ -415,44 +415,43 @@ bool Registrar::dispatch(Agent *agent, const shared_ptr<RequestSipEvent> &ev, si
 	sip_t *sip = ms->getSip();
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
 	if (ct->m_url[0].url_host != NULL && ct->m_url[0].url_host[0] != '\0') {
-		char *contact_url_string = url_as_string(ms->getHome(), ct->m_url);
-		if (!contactUrlInVia(ct->m_url, sip->sip_via)) {
-			shared_ptr<MsgSip> new_msgsip;
-			if (context) {
-				new_msgsip = make_shared<MsgSip>(*ms);
-			} else {
-				new_msgsip = ms;
-			}
-			msg_t *new_msg = new_msgsip->getMsg();
-			sip_t *new_sip = new_msgsip->getSip();
-
-			/* Rewrite request-uri */
-			new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), ct->m_url);
-			if (route != NULL) {
-				LOGD("This flexisip instance is not responsible for contact %s -> %s",contact_url_string, route);
-				prependRoute(msg_home(new_msg), agent, new_msg, new_sip, route);
-			}
-
-			shared_ptr<RequestSipEvent> new_ev;
-			if (context) {
-				shared_ptr<RequestSipEvent> req_ev = make_shared<RequestSipEvent>(ev);
-				req_ev->setMsgSip(new_msgsip);
-				shared_ptr<OutgoingTransaction> transaction = req_ev->createOutgoingTransaction();
-				transaction->setProperty(Registrar::sInfo.getModuleName(), context);
-
-				new_ev = req_ev;
-				LOGD("Fork to %s", contact_url_string);
-			} else {
-				new_ev = ev;
-				LOGD("Dispatch to %s", contact_url_string);
-			}
-
-			/* Back to work */
-			agent->injectRequestEvent(new_ev);
-			return true;
-		} else {
-			LOGW("Contact %s is already routed", contact_url_string);
+		if (IS_LOGD && contactUrlInVia(ct->m_url, sip->sip_via)) {
+			LOGD("Contact url in vias, the message will be routed backward");
 		}
+		char *contact_url_string = url_as_string(ms->getHome(), ct->m_url);
+		shared_ptr<MsgSip> new_msgsip;
+		if (context) {
+			new_msgsip = make_shared<MsgSip>(*ms);
+		} else {
+			new_msgsip = ms;
+		}
+		msg_t *new_msg = new_msgsip->getMsg();
+		sip_t *new_sip = new_msgsip->getSip();
+
+		/* Rewrite request-uri */
+		new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), ct->m_url);
+		if (route != NULL) {
+			LOGD("This flexisip instance is not responsible for contact %s -> %s",contact_url_string, route);
+			prependRoute(msg_home(new_msg), agent, new_msg, new_sip, route);
+		}
+
+		shared_ptr<RequestSipEvent> new_ev;
+		if (context) {
+			shared_ptr<RequestSipEvent> req_ev = make_shared<RequestSipEvent>(ev);
+			req_ev->setMsgSip(new_msgsip);
+			shared_ptr<OutgoingTransaction> transaction = req_ev->createOutgoingTransaction();
+			transaction->setProperty(Registrar::sInfo.getModuleName(), context);
+
+			new_ev = req_ev;
+			LOGD("Fork to %s", contact_url_string);
+		} else {
+			new_ev = ev;
+			LOGD("Dispatch to %s", contact_url_string);
+		}
+
+		/* Back to work */
+		agent->injectRequestEvent(new_ev);
+		return true;
 	} else {
 		LOGW("Unrouted request because of incorrect address of contact");
 	}
