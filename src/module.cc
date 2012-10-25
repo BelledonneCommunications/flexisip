@@ -239,14 +239,6 @@ void ModuleToolbox::prependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *
 	sip->sip_route = r;
 }
 
-static bool already_in(sip_record_route_t *orig, sip_record_route_t *newone){
-	for(;orig!=NULL;orig=orig->r_next){
-		if (url_cmp_all(orig->r_url,newone->r_url)==0)
-			return true;
-	}
-	return false;
-}
-
 void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev, tport_t *tport){
 	const tp_name_t *name;
 	shared_ptr<MsgSip> msgsip=ev->getMsgSip();
@@ -283,8 +275,10 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<
 		sip->sip_record_route = rr;
 	} else {
 		/*make sure we are not already in*/
-		if (already_in(sip->sip_record_route,rr))
+		if (sip->sip_record_route && url_cmp_all(sip->sip_record_route->r_url,rr->r_url)==0) {
+			LOGD("Skipping addition of record route identical to top one");
 			return;
+		}
 		rr->r_next = sip->sip_record_route;
 		msg_header_remove_all(msg, (msg_pub_t*) sip, (msg_header_t*) sip->sip_record_route);
 		msg_header_insert(msg, (msg_pub_t*) sip, (msg_header_t*) rr);
