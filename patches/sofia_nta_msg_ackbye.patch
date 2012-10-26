@@ -1,0 +1,11 @@
+--- sofia-sip-1.12.11.orig/libsofia-sip-ua/nta/nta.c	2011-03-11 15:49:18.000000000 +0100
++++ sofia-sip-1.12.11/libsofia-sip-ua/nta/nta.c	2012-10-26 18:36:56.222096187 +0200
+@@ -3771,7 +3771,7 @@
+ 
+   home = msg_home(bmsg);
+ 
+-  if (!(cseq = sip_cseq_create(home, 0x7fffffff, SIP_METHOD_BYE)))
++  if (!(cseq = sip_cseq_create(home, sip->sip_cseq->cs_seq+1, SIP_METHOD_BYE)))
+     goto err;
+   else
+     msg_header_insert(bmsg, (msg_pub_t *)bsip, (msg_header_t *)cseq);

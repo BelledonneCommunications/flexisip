@@ -26,7 +26,8 @@
 class CallContextBase{
 	public:
 		CallContextBase(sip_t *sip);
-		bool match(Agent *ag, sip_t *sip, bool stateful = false);
+		bool match(Agent *ag, sip_t *sip, bool stateful = false, bool match_established=false);
+		void establishDialogWith200Ok(Agent *ag, sip_t *sip);
 		bool isNewInvite(sip_t *sip);
 		void storeNewInvite(msg_t *orig);
 		msg_t *getLastForwardedInvite()const;
@@ -67,6 +68,7 @@ class CallStore{
 		~CallStore();
 		void store(const std::shared_ptr<CallContextBase> &ctx);
 		std::shared_ptr<CallContextBase> find(Agent *ag, sip_t *sip, bool stateful = false);
+		std::shared_ptr<CallContextBase> findEstablishedDialog(Agent *ag, sip_t *sip);
 		void findAndRemoveExcept(Agent *ag, sip_t *sip, CallContextBase *c, bool stateful = false);
 		void remove(const std::shared_ptr<CallContextBase> &ctx);
 		void removeAndDeleteInactives();

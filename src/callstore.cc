@@ -43,13 +43,21 @@ CallContextBase::CallContextBase(sip_t *sip){
 	LOGD("CallContext %p created", this);
 }
 
-bool CallContextBase::match(Agent *ag, sip_t *sip, bool stateful){
+void CallContextBase::establishDialogWith200Ok(Agent *ag, sip_t *sip){
+	if (sip->sip_status->st_status>=200 && sip->sip_status->st_status<300){
+		LOGD("Dialog is established");
+		if (sip->sip_to->a_tag)
+			mCalleeTag=sip->sip_to->a_tag;
+	}
+}
+
+bool CallContextBase::match(Agent *ag, sip_t *sip, bool stateful, bool match_established){
 	if (sip->sip_call_id==NULL) return false;
 	if (sip->sip_from->a_tag==NULL) return false;
 	
 	if (sip->sip_call_id->i_hash==mCallHash){
 		if (sip->sip_request==NULL && (sip->sip_status->st_status>100 && sip->sip_status->st_status<300) ){
-			if (mCalleeTag.empty() && strcmp(mCallerTag.c_str(),sip->sip_from->a_tag)==0){
+			if (!match_established && mCalleeTag.empty() && strcmp(mCallerTag.c_str(),sip->sip_from->a_tag)==0){
 				/*not yet established dialog*/
 				//check the via branch to know if that response can correspond to the original INVITE
 				//and possibly establish the dialog.
@@ -57,6 +65,7 @@ bool CallContextBase::match(Agent *ag, sip_t *sip, bool stateful){
 				if (respvia && respvia->v_branch){
 					if (strcmp(respvia->v_branch,mBranch.c_str())==0){
 						LOGD("Found CallContext matching response");
+						establishDialogWith200Ok(ag,sip);
 						return true;
 					}
 				}
@@ -122,6 +131,14 @@ void CallStore::store(const shared_ptr<CallContextBase> &ctx){
 shared_ptr<CallContextBase> CallStore::find(Agent *ag, sip_t *sip, bool stateful){
 	for(auto it=mCalls.begin();it!=mCalls.end();++it){
 		if ((*it)->match(ag,sip, stateful))
+		    return *it;
+	}
+	return shared_ptr<CallContextBase>();
+}
+
+shared_ptr<CallContextBase> CallStore::findEstablishedDialog(Agent *ag, sip_t *sip){
+	for(auto it=mCalls.begin();it!=mCalls.end();++it){
+		if ((*it)->match(ag,sip,false,true))
 		    return *it;
 	}
 	return shared_ptr<CallContextBase>();

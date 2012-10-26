@@ -50,6 +50,7 @@ protected:
 				{ String, "early-media-rtp-dir", "Set the RTP direction during early media state (duplex, forward)", "duplex" },
 				{ Integer, "sdp-port-range-min", "The minimal value of SDP port range", "1024" },
 				{ Integer, "sdp-port-range-max", "The maximal value of SDP port range", "65535" },
+				{ Boolean, "bye-orphan-dialogs", "Sends a ACK and BYE to 200Ok for INVITEs not belonging to any established call.", "false"},
 #ifdef H264_FILTERING_ENABLED
 				{ Integer, "h264-filtering-bandwidth", "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value expressed in kbit/s. Use 0 to disable the feature", "0" },
 				{ Integer, "h264-iframe-decim", "When above option is activated, keep one I frame over this number.", "1" },
@@ -71,6 +72,7 @@ private:
 	RelayedCall::RTPDir mEarlymediaRTPDir;
 	int mH264FilteringBandwidth;
 	int mH264Decim;
+	bool mByeOrphanDialogs;
 	static ModuleInfo<MediaRelay> sInfo;
 };
 
@@ -106,6 +108,7 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mServer = new MediaRelayServer(mAgent);
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
 	string rtpdir = modconf->get<ConfigString>("early-media-rtp-dir")->read();
+	mByeOrphanDialogs = modconf->get<ConfigBoolean>("bye-orphan-dialogs")->read();
 #ifdef H264_FILTERING_ENABLED
 	mH264FilteringBandwidth=modconf->get<ConfigInt>("h264-filtering-bandwidth")->read();
 	mH264Decim=modconf->get<ConfigInt>("h264-iframe-decim")->read();
@@ -228,7 +231,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			}
 		}
 	} else if (sip->sip_request->rq_method == sip_method_bye) {
-		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) != NULL) {
+		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->findEstablishedDialog(getAgent(), sip))) != NULL) {
 			mCalls->remove(c);
 		}
 	} else if (sip->sip_request->rq_method == sip_method_cancel) {
@@ -262,11 +265,15 @@ void MediaRelay::processOtherforInvite(const shared_ptr<RelayedCall> &c, const s
 void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
 	sip_t *sip = msgSip->getSip();
 	msg_t *msg = msgSip->getMsg();
-	LOGD("Processing 200 Ok");
+	LOGD("Processing 200 Ok or early media");
 
 	if (sip->sip_to == NULL || sip->sip_to->a_tag == NULL) {
 		LOGW("No tag in answer");
 		return;
+	}
+	
+	if (sip->sip_status->st_status==200){
+		c->establishDialogWith200Ok(getAgent(),sip);
 	}
 
 	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), sip);
@@ -339,6 +346,18 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 				}
 			}
 			return;
+		}
+	}else{
+		if (mByeOrphanDialogs && sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite && sip->sip_status->st_status == 200) {
+			//Out of transaction 200Ok for invite.
+			//Check if it matches an established dialog whose to-tag is different, then it is a 200Ok sent by the client
+			//before receiving the Cancel.
+			shared_ptr<CallContextBase> c=mCalls->findEstablishedDialog(getAgent(),sip);
+			if (c==NULL || (c && (sip->sip_to->a_tag==NULL || c->getCalleeTag()!=sip->sip_to->a_tag))){
+				LOGD("Receiving out of transaction and dialog 200Ok for invite, rejecting it.");
+				nta_msg_ackbye(getAgent()->getSofiaAgent(),msg_dup(msg));
+				ev->terminateProcessing();
+			}
 		}
 	}
 }
