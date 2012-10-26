@@ -130,6 +130,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	dest = sip->sip_request->rq_url;
 	// removes top route headers if they matches us
 	while (sip->sip_route != NULL && getAgent()->isUs(sip->sip_route->r_url)) {
+		LOGD("Removing top route %s", url_as_string(ms->getHome(), sip->sip_route->r_url));
 		sip_route_remove(msg, sip);
 	}
 	if (sip->sip_route != NULL) {

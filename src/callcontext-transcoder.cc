@@ -171,25 +171,26 @@ PayloadType * CallSide::getRecvFormat(){
 	return rtp_profile_get_payload(prof,pt);
 }
 
-void CallSide::connect(CallSide *recvSide, MSTicker *t){
-	MSConnectionHelper h;
+void CallSide::connect(CallSide *recvSide, MSTicker *ticker){
+	MSConnectionHelper conHelper;
 	PayloadType *recvpt;
 	PayloadType *sendpt;
 	
 	recvpt=recvSide->getRecvFormat();
 	sendpt=getSendFormat();
-	ms_connection_helper_start(&h);
-	ms_connection_helper_link(&h,recvSide->getRecvPoint().filter,-1,
+	ms_connection_helper_start(&conHelper);
+	ms_connection_helper_link(&conHelper,recvSide->getRecvPoint().filter,-1,
 	                          recvSide->getRecvPoint().pin);
 
-	LOGD("recvside enc=%i %s/%i sendside enc=%i %s/%i",
-	     payload_type_get_number(recvpt), recvpt->mime_type,recvpt->clock_rate,
-	     payload_type_get_number(sendpt), sendpt->mime_type,sendpt->clock_rate);
+	LOGD("recvside (%p) enc=%i %s/%i sendside (%p) enc=%i %s/%i",
+	     recvSide, payload_type_get_number(recvpt), recvpt->mime_type,recvpt->clock_rate,
+	     this, payload_type_get_number(sendpt), sendpt->mime_type,sendpt->clock_rate);
 	if (strcasecmp(recvpt->mime_type,sendpt->mime_type)!=0
-	    || recvpt->clock_rate!=sendpt->clock_rate || mToneGen!=0){		
+	    || recvpt->clock_rate!=sendpt->clock_rate || mToneGen!=0){
 
+		LOGD("Will instanciate new codecs");
 		if (mDecoder){
-			if (t) ms_filter_postprocess(mDecoder);
+			if (ticker) ms_filter_postprocess(mDecoder);
 			ms_filter_destroy(mDecoder);
 		}
 		rtp_session_flush_sockets(mSession);
@@ -199,11 +200,11 @@ void CallSide::connect(CallSide *recvSide, MSTicker *t){
 			LOGE("Could not instanciate decoder for %s",recvpt->mime_type);
 		}else{
 			if (!mUsePlc) ms_filter_call_method(mDecoder,MS_FILTER_ADD_FMTP,(void*)"plc=0");
-			if (t)
-				ms_filter_preprocess(mDecoder,t);
+			if (ticker)
+				ms_filter_preprocess(mDecoder,ticker);
 		}
 		if (mEncoder){
-			if (t) ms_filter_postprocess(mEncoder);
+			if (ticker) ms_filter_postprocess(mEncoder);
 			ms_filter_destroy(mEncoder);
 			if (mRc) {
 				ms_bitrate_controller_destroy(mRc);
@@ -223,17 +224,19 @@ void CallSide::connect(CallSide *recvSide, MSTicker *t){
 				ms_filter_call_method(mEncoder,MS_FILTER_ADD_FMTP,(void*)sendpt->send_fmtp);
 			if (sendpt->normal_bitrate>0)
 				ms_filter_call_method(mEncoder,MS_FILTER_SET_BITRATE,(void*)&sendpt->normal_bitrate);
-			if (t)
-				ms_filter_preprocess(mEncoder,t);
+			if (ticker)
+				ms_filter_preprocess(mEncoder,ticker);
 		}
 	}
+
+
 	if (mDecoder)
-		ms_connection_helper_link(&h,mDecoder,0,0);
+		ms_connection_helper_link(&conHelper,mDecoder,0,0);
 	if (mToneGen)
-		ms_connection_helper_link(&h,mToneGen,0,0);
+		ms_connection_helper_link(&conHelper,mToneGen,0,0);
 	if (mEncoder)
-		ms_connection_helper_link(&h,mEncoder,0,0);
-	ms_connection_helper_link(&h,mSender,0,-1);
+		ms_connection_helper_link(&conHelper,mEncoder,0,0);
+	ms_connection_helper_link(&conHelper,mSender,0,-1);
 	if (mRcEnabled && mRc==NULL && mEncoder){
 		if (mRtpEvq==NULL){
 			mRtpEvq=ortp_ev_queue_new();
@@ -288,7 +291,7 @@ void CallSide::playTone(char tone_name){
 	if (mSession && rtp_session_telephone_events_supported(mSession)!=-1) {
 		LOGD("Sending dtmf signal %c",tone_name);
 		ms_filter_call_method(mSender,MS_RTP_SEND_SEND_DTMF,&tone_name);
-	} else 	if (mEncoder && mToneGen){
+	} else if (mEncoder && mToneGen){
 		const char *enc_fmt=mEncoder->desc->enc_fmt;
 		if (strcasecmp(enc_fmt,"pcmu")==0 || strcasecmp(enc_fmt,"pcma")==0){
 			LOGD("Modulating dtmf %c",tone_name);
@@ -323,7 +326,9 @@ TranscodedCall::TranscodedCall(sip_t *sip, const string &bind_address) : CallCon
 }
 
 void TranscodedCall::prepare( const CallContextParams &params){
+	LOGD("Preparing...");
 	if (mFrontSide){
+		LOGD("Call sides used to be front=%p back=%p", mFrontSide, mBackSide);
 		if (isJoined())
 			unjoin();
 		delete mFrontSide;
@@ -336,6 +341,7 @@ void TranscodedCall::prepare( const CallContextParams &params){
 	}
 	mFrontSide=new CallSide(this,params);
 	mBackSide=new CallSide(this,params);
+	LOGD("Call sides are now front=%p back=%p", mFrontSide, mBackSide);
 }
 
 void TranscodedCall::join(MSTicker *t){
@@ -389,9 +395,9 @@ const MSList *TranscodedCall::getInitialOffer()const{
 void TranscodedCall::dump(){
 	CallContextBase::dump();
 	if (mTicker!=NULL){
-		LOGD("Front side: %i", mFrontSide->getAudioPort());
+		LOGD("Front side %p: %i", mFrontSide, mFrontSide->getAudioPort());
 		mFrontSide->dump();
-		LOGD("Back side: %i", mBackSide->getAudioPort());
+		LOGD("Back side %p: %i", mBackSide, mBackSide->getAudioPort());
 		mBackSide->dump();
 	}else LOGD("is inactive");
 }
@@ -407,7 +413,7 @@ void TranscodedCall::playTone(sip_t *info){
 				dtmf=p[0];
 				if (dtmf!=0){
 					LOGD("Intercepting dtmf in SIP info");
-					getBackSide()->playTone(dtmf);
+					mBackSide->playTone(dtmf);
 				}
 			}
 		}

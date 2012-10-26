@@ -501,7 +501,7 @@ void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
 			// Remove all call contexts maching the sip message
 			// Except the one from this outgoing transaction
-			mCalls.findAndRemoveExcept(getAgent(), sip, c.get());
+			mCalls.findAndRemoveExcept(getAgent(), sip, c.get(), true);
 			process200OkforInvite(c.get(), ev);
 		}
 	}
