@@ -718,7 +718,7 @@ const string& Agent::getUniqueId() const {
 
 su_timer_t *Agent::createTimer(int milliseconds, timerCallback cb, void *data) {
 	su_timer_t *timer = su_timer_create(su_root_task(mRoot), milliseconds);
-	su_timer_run(timer, (su_timer_f) cb, data);
+	su_timer_set_for_ever(timer, (su_timer_f) cb, data);
 	return timer;
 }
 
