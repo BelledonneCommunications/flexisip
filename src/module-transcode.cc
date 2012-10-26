@@ -304,16 +304,19 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 	MSList *ioffer = m->readPayloads();
 
 	if (hasSupportedCodec(ioffer)) {
-		string addr;
+		string fraddr;
 		int frport;
 		c->prepare(mCallParams);
 		c->setInitialOffer(ioffer);
 
-		/*forces the front side to bind and allocate a port immediately on the bind-address supplied in the config*/
-		m->getAudioIpPort(&addr, &frport);
-		c->getFrontSide()->setRemoteAddr(addr.c_str(), frport);
-		int flport= c->getFrontSide()->getAudioPort(); //assign port
-		LOGD("Front side %s:%i <-> local:%i", addr.c_str(), frport, flport);
+		m->getAudioIpPort(&fraddr, &frport);
+		// Force front side to bind and allocate a port immediately on the bind-address
+		// BIG FAT WARNING: call getAudioPort BEFORE the setRemoteAddr
+		// to get the local address bound correctly
+		int flport= c->getFrontSide()->getAudioPort();
+		string fladdr= c->getFrontSide()->getLocalAddress();
+		c->getFrontSide()->setRemoteAddr(fraddr.c_str(), frport);
+		LOGD("Front side %s:%i <-> %s:%i", fraddr.c_str(), frport, fladdr.c_str(), flport);
 
 		int ptime = m->readPtime();
 		if (ptime > 0) {

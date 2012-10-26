@@ -43,6 +43,7 @@ class CallSide{
 		void enableRc(bool enabled);
 		void connect(CallSide *recvSide, MSTicker *t=NULL);
 		void disconnect(CallSide *recvSide);
+		const std::string &getLocalAddress();
 		int getAudioPort();
 		void setRemoteAddr(const char *addr, int port);
 		void assignPayloads(const MSList *payloads);
@@ -70,6 +71,7 @@ class CallSide{
 		int mPtime;
 		bool mRcEnabled;
 		bool mUsePlc;
+		std::string mLocalAddress;
 };
 
 

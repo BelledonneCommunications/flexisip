@@ -64,20 +64,27 @@ CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCall
 	mLastRecvCount=0;
 	mPtime=0;
 	mRcEnabled=false;
+	mLocalAddress="0.0.0.0";
 }
 
 void CallSide::enableRc(bool enabled){
 	mRcEnabled=enabled;
 }
 
+
+const string &CallSide::getLocalAddress() {
+	return mLocalAddress;
+}
+
 int CallSide::getAudioPort(){
 	int port=rtp_session_get_local_port(mSession);
 	if (port==-1){
 		/*request oRTP to bind randomly*/
+		mLocalAddress=mCallCtx->getBindAddress();
 #if ORTP_ABI_VERSION >= 9
-		rtp_session_set_local_addr(mSession,mCallCtx->getBindAddress().c_str(),-1,-1);
+		rtp_session_set_local_addr(mSession,mLocaAddress.c_str(),-1,-1);
 #else
-		rtp_session_set_local_addr(mSession,mCallCtx->getBindAddress().c_str(),-1);
+		rtp_session_set_local_addr(mSession,mLocalAddress.c_str(),-1);
 #endif
 		port=rtp_session_get_local_port(mSession);
 	}

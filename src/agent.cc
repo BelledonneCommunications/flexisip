@@ -264,6 +264,7 @@ void Agent::start(const char *transport_override){
 	LOGD("Preferred route is %s", prefUrl);
 	
 	mPublicIp=ctts->m_url->url_host;
+	LOGD("Agent public ip is %s", mPublicIp.c_str());
 }
 
 Agent::Agent(su_root_t* root){
