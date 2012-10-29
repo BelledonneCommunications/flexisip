@@ -46,7 +46,8 @@ void SnmpAgent::SnmpAgentTask::operator()() {
 	mConfigmanager.getSnmpNotifier()->setInitialized(true);
 	while (mKeepRunning) {
 		if (mConfigmanager.mNeedRestart) mKeepRunning=false;
-		agent_check_and_process(1);
+		agent_check_and_process(0);
+		usleep(100000);
 	}
 	mConfigmanager.getSnmpNotifier()->setInitialized(false);
 	snmp_shutdown("flexisip");
