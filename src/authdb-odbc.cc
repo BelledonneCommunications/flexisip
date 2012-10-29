@@ -102,8 +102,8 @@ struct AuthDbTimingsAnalyzer {
 			return;
 		}
 
-		microseconds duration = t2-t1;
-		long ticks = duration.count();
+		//microseconds duration = t2-t1;
+		long ticks = /*duration*/(t2-t1).count();
 
 		tMutex.lock();
 
