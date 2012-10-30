@@ -38,47 +38,36 @@ public:
 		mMasqueradeInviteContacts = module_config->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
 	}
 
+
 	void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
+		const sip_method_t rq_method=sip->sip_request->rq_method;
 
-		if (sip->sip_request->rq_method == sip_method_register) {
+		if (rq_method== sip_method_register) {
 			//rewrite the request uri to the domain
-			//this assume the domain is also the proxy
+			//this assumes the domain is also the proxy
 			sip->sip_request->rq_url->url_host = sip->sip_to->a_url->url_host;
 			sip->sip_request->rq_url->url_port = sip->sip_to->a_url->url_port;
 		}
 
-		if (sip->sip_request->rq_method == sip_method_register || ((sip->sip_request->rq_method == sip_method_invite) && mMasqueradeInviteContacts)) {
+		if (rq_method == sip_method_register || ((rq_method == sip_method_invite) && mMasqueradeInviteContacts)) {
+			LOGD("Masquerading contact");
 			masqueradeContact(ev);
 		}
-		if (sip->sip_request->rq_method != sip_method_register) {
-			/* check if request-uri contains a contact-route parameter, so that we can route back to the client */
-			char contact_route_param[64];
+
+		if (rq_method != sip_method_register) {
+			// check if request-uri contains a contact-route parameter,
+			// so that we can route back to the client
+			char ctrt[64];
 			url_t *dest = sip->sip_request->rq_url;
-			// now need to check if request uri has special param inserted by contact-route-inserter module
-			if (url_param(dest->url_params, mContactRouteParamName.c_str(), contact_route_param, sizeof(contact_route_param))) {
-				//first remove param
-				dest->url_params = url_strip_param_string(su_strdup(ms->getHome(), dest->url_params), mContactRouteParamName.c_str());
-				//test and remove maddr param
-				if (url_has_param(dest, "maddr")) {
-					dest->url_params = url_strip_param_string(su_strdup(ms->getHome(), dest->url_params), "maddr");
-				}
-				//second change dest to
-				char* tmp = strchr(contact_route_param, ':');
-				if (tmp) {
-					char* transport = su_strndup(ms->getHome(), contact_route_param, tmp - contact_route_param);
-					char *tmp2 = tmp + 1;
-					tmp = strchr(tmp2, ':');
-					if (tmp) {
-						dest->url_host = su_strndup(ms->getHome(), tmp2, tmp - tmp2);
-						dest->url_port = su_strdup(ms->getHome(), tmp + 1);
-						if (strcasecmp(transport, "udp") != 0) {
-							char *t_param = su_sprintf(ms->getHome(), "transport=%s", transport);
-							url_param_add(ms->getHome(), dest, t_param);
-						}
-					}
-				}
+			// now need to check if request uri has special param inserted
+			// by contact-route-inserter module
+			if (url_param(dest->url_params, mContactRouteParamName.c_str(), ctrt, sizeof(ctrt))) {
+				LOGD("Found a contact route parameter");
+				rewriteReqUrlWithCtrt(dest, ctrt, ms->getHome());
+			} else {
+				LOGD("No countact route parameter found");
 			}
 		}
 	}
@@ -89,39 +78,82 @@ public:
 			masqueradeContact(ev);
 		}
 	}
+
+
 private:
 	void masqueradeContact(shared_ptr<SipEvent> ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
-		if (sip->sip_contact != NULL && sip->sip_contact->m_url != NULL) {
-			//rewrite contact, put local host instead and store previous contact host in new parameter
-			char ct_tport[32] = "udp";
-			char* lParam;
-			url_t *ct_url = sip->sip_contact->m_url;
-
-			//grab the transport of the contact uri
-			if (url_param(sip->sip_contact->m_url->url_params, "transport", ct_tport, sizeof(ct_tport)) > 0) {
-
-			}
-			/*add a parameter like "CtRt15.128.128.2=tcp:201.45.118.16:50025" in the contact, so that we know where is the client
-			 when we later have to route an INVITE to him */
-			lParam = su_sprintf(ms->getHome(), "%s=%s:%s:%s", mContactRouteParamName.c_str(), ct_tport, ct_url->url_host, url_port(ct_url));
-			LOGD("Rewriting contact with param [%s]", lParam);
-			if (url_param_add(ms->getHome(), ct_url, lParam)) {
-				LOGE("Cannot insert url param [%s]", lParam);
-			}
-			/*masquerade the contact, so that later requests (INVITEs) come to us */
-			const url_t*preferedRoute=getAgent()->getPreferredRouteUrl();
-			ct_url->url_host = preferedRoute->url_host;
-			ct_url->url_port = url_port(preferedRoute);
-			ct_url->url_scheme=preferedRoute->url_scheme;
-			ct_url->url_params = url_strip_param_string(su_strdup(ms->getHome(), ct_url->url_params), "transport");
-			char tport_value[64];
-			if (url_param(preferedRoute->url_params,"transport",tport_value,sizeof(tport_value))>0){
-				lParam = su_sprintf(ms->getHome(), "transport=%s",tport_value);
-				url_param_add(ms->getHome(),ct_url,lParam);
-			}
+		if (sip->sip_contact == NULL || sip->sip_contact->m_url == NULL) {
+			LOGD("Sip contact or url is null");
+			return;
 		}
+
+		//rewrite contact, put local host instead and store previous contact host in new parameter
+		char ct_tport[32] = "udp";
+		char* lParam;
+		url_t *ct_url = sip->sip_contact->m_url;
+
+		//grab the transport of the contact uri
+		if (url_param(sip->sip_contact->m_url->url_params, "transport", ct_tport, sizeof(ct_tport)) > 0) {
+
+		}
+
+		/*add a parameter like "CtRt15.128.128.2=tcp:201.45.118.16:50025" in the contact, so that we know where is the client
+			 when we later have to route an INVITE to him */
+		lParam = su_sprintf(ms->getHome(), "%s=%s:%s:%s", mContactRouteParamName.c_str(), ct_tport, ct_url->url_host, url_port(ct_url));
+		LOGD("Rewriting contact with param [%s]", lParam);
+		if (url_param_add(ms->getHome(), ct_url, lParam)) {
+			LOGE("Cannot insert url param [%s]", lParam);
+		}
+
+		/*masquerade the contact, so that later requests (INVITEs) come to us */
+		const url_t*preferedRoute=getAgent()->getPreferredRouteUrl();
+		ct_url->url_host = preferedRoute->url_host;
+		ct_url->url_port = url_port(preferedRoute);
+		ct_url->url_scheme=preferedRoute->url_scheme;
+		ct_url->url_params = url_strip_param_string(su_strdup(ms->getHome(), ct_url->url_params), "transport");
+		char tport_value[64];
+		if (url_param(preferedRoute->url_params,"transport",tport_value,sizeof(tport_value))>0){
+			lParam = su_sprintf(ms->getHome(), "transport=%s",tport_value);
+			url_param_add(ms->getHome(),ct_url,lParam);
+		}
+		LOGD("Contact has been rewritten to %s", url_as_string(ms->getHome(), ct_url));
+	}
+
+
+	void rewriteReqUrlWithCtrt(url_t *dest, char contact_route_param[64], su_home_t *home) {
+		//first remove param
+		dest->url_params = url_strip_param_string(su_strdup(home, dest->url_params), mContactRouteParamName.c_str());
+
+		//test and remove maddr param
+		if (url_has_param(dest, "maddr")) {
+			dest->url_params = url_strip_param_string(su_strdup(home, dest->url_params), "maddr");
+		}
+
+		//second change dest to
+		char* tmp = strchr(contact_route_param, ':');
+		if (!tmp) {
+			LOGD("Skipping url rewrite: first ':' not found");
+			return;
+		}
+
+		char* transport = su_strndup(home, contact_route_param, tmp - contact_route_param);
+		char *tmp2 = tmp + 1;
+		tmp = strchr(tmp2, ':');
+		if (!tmp) {
+			LOGD("Skipping url rewrite: second ':' not found");
+			return;
+		}
+
+		dest->url_host = su_strndup(home, tmp2, tmp - tmp2);
+		dest->url_port = su_strdup(home, tmp + 1);
+		if (strcasecmp(transport, "udp") != 0) {
+			char *t_param = su_sprintf(home, "transport=%s", transport);
+			url_param_add(home, dest, t_param);
+		}
+
+		LOGD("Request url changed to %s", url_as_string(home, dest));
 	}
 
 	string mContactRouteParamName;
