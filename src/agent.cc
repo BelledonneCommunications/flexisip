@@ -268,7 +268,6 @@ void Agent::start(const char *transport_override){
 }
 
 Agent::Agent(su_root_t* root){
-	static const int timer_b=20000;/*ms*/
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	
 	EtcHostsResolver::get();
@@ -317,7 +316,7 @@ Agent::Agent(su_root_t* root){
 		LOGE("Can't find interface addresses: %s", strerror(err));
 	}
 	mRoot = root;
-	mAgent = nta_agent_create(root, (url_string_t*) -1, &Agent::messageCallback, (nta_agent_magic_t*) this, NTATAG_UDP_MTU(1460), NTATAG_SIP_T1X64(timer_b), TAG_END());
+	mAgent = nta_agent_create(root, (url_string_t*) -1, &Agent::messageCallback, (nta_agent_magic_t*) this, NTATAG_UDP_MTU(1460), TAG_END());
 }
 
 Agent::~Agent() {

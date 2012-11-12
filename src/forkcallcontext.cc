@@ -24,13 +24,17 @@
 using namespace ::std;
 
 ForkCallContext::ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
-		ForkContext(agent, event,cfg, listener), mFinal(0),mCancelled(false) {
+		ForkContext(agent, event,cfg, listener), mShortTimer(NULL), mFinal(0), mCancelled(false) {
 	LOGD("New ForkCallContext %p", this);
 	
 }
 
 ForkCallContext::~ForkCallContext() {
 	LOGD("Destroy ForkCallContext %p", this);
+	if (mShortTimer){
+		su_timer_destroy(mShortTimer);
+		mShortTimer=NULL;
+	}
 }
 
 void ForkCallContext::cancel() {
@@ -130,6 +134,10 @@ void ForkCallContext::store(shared_ptr<ResponseSipEvent> &event) {
 		if (code_class < prev_code_class) {
 			best = true;
 		}else if (isARetryableResponseCode(code)){
+			if (mShortTimer==NULL){
+				mShortTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
+				su_timer_set_interval(mShortTimer, &ForkCallContext::sOnShortTimer, this, (su_duration_t)5000);
+			}
 			best=true;
 		}
 	}else best=true;
@@ -246,3 +254,19 @@ bool ForkCallContext::onNewRegister(const sip_contact_t *ctt){
 bool ForkCallContext::isCompleted()const{
 	return mFinal>0 || mCancelled;
 }
+
+void ForkCallContext::onShortTimer(){
+	if (!isCompleted() && isARetryableResponseCode(mBestResponse->getMsgSip()->getSip()->sip_status->st_status)){
+		cancelOthers(static_pointer_cast<OutgoingTransaction>(mBestResponse->getOutgoingAgent()));
+		mAgent->injectResponseEvent(mBestResponse); // send urgent reply immediately
+		mBestResponse.reset();
+	}
+	su_timer_destroy(mShortTimer);
+	mShortTimer=NULL;
+}
+
+void ForkCallContext::sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg){
+	ForkCallContext *zis=static_cast<ForkCallContext*>(arg);
+	zis->onShortTimer();
+}
+

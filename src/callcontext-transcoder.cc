@@ -82,7 +82,7 @@ int CallSide::getAudioPort(){
 		/*request oRTP to bind randomly*/
 		mLocalAddress=mCallCtx->getBindAddress();
 #if ORTP_ABI_VERSION >= 9
-		rtp_session_set_local_addr(mSession,mLocaAddress.c_str(),-1,-1);
+		rtp_session_set_local_addr(mSession,mLocalAddress.c_str(),-1,-1);
 #else
 		rtp_session_set_local_addr(mSession,mLocalAddress.c_str(),-1);
 #endif

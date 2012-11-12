@@ -103,6 +103,7 @@ public:
 				{ Boolean, "fork-late", "Fork invites to late registers", "false" },
 				{ Boolean, "fork-one-response", "Only forward one response of forked invite to the caller", "true" },
 				{ Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite", "false" },
+				{ Integer, "call-fork-timeout", "Maximum time for a call fork to try to reach a callee, in seconds.","90"},
 				{ Integer , "message-delivery-timeout", "Maximum duration for delivering a message (text)","3600"},
 				{	String, "generated-contact-route" , "Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
 				{	String, "generated-contact-expected-realm" , "Require presence of authorization header for specified realm. [Realm]", ""},
@@ -152,7 +153,7 @@ public:
 		mForkCfg->mForkOneResponse = mc->get<ConfigBoolean>("fork-one-response")->read();
 		mForkCfg->mForkNoGlobalDecline = mc->get<ConfigBoolean>("fork-no-global-decline")->read();
 		mMessageForkCfg->mForkLate=mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
-		mForkCfg->mDeliveryTimeout = 30;
+		mForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("call-fork-timeout")->read();
 		mMessageForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("message-delivery-timeout")->read();
 		if (!mStaticRecordsFile.empty()) {
 			readStaticRecords();
