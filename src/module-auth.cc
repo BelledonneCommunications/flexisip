@@ -405,6 +405,16 @@ public:
 	void onIdle() {
 		mNonceStore.cleanExpired();
 	}
+
+	virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
+		if (conf.getName() == "trusted-hosts" && state == ConfigState::Commited) {
+			mTrustedHosts=((ConfigStringList*)(&conf))->read();
+			LOGD("Trusted hosts updated");
+			return true;
+		} else {
+			return Module::doOnConfigStateChanged(conf, state);
+		}
+	}
 };
 
 ModuleInfo<Authentication> Authentication::sInfo("Authentication",
