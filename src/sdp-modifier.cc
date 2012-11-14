@@ -382,6 +382,17 @@ void SdpModifier::translate(function<void(int, string *, int *)> fct){
 			sdp_attribute_replace(&mline->m_attributes, a, 0);
 		}
 	}
+
+	if (sdp_connection_translated) {
+		/* By changing the global connection address we may have broken the connection address of some mlines
+		   that were marked as "nortpproxy". So we need to fix the connection address of these mlines now. */
+		mline = mSession->sdp_media;
+		for (i = 0; mline != NULL; mline = mline->m_next, ++i) {
+			if (hasMediaAttribute(mline, "nortpproxy") && !mline->m_connections) {
+				changeMediaConnection(mline, global_c_address.c_str());
+			}
+		}
+	}
 }
 
 bool SdpModifier::hasAttribute(const char *name) {
