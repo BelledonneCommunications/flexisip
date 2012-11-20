@@ -63,7 +63,11 @@ ForwardModule::~ForwardModule() {
 }
 
 void ForwardModule::onDeclare(GenericStruct * module_config) {
-	ConfigItemDescriptor items[] = { { String, "route", "A sip uri where to send all requests", "" }, { Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to above route", "false" }, config_item_end };
+	ConfigItemDescriptor items[] = {
+			{ String, "route", "A sip uri where to send all requests", "" },
+			{ Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to above route", "false" },
+			config_item_end
+	};
 	module_config->addChildrenValues(items);
 }
 

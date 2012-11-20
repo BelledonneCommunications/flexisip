@@ -509,8 +509,16 @@ sip_via_t *Agent::getNextVia(sip_t *response) {
 	return NULL;
 }
 
+/**
+ * Takes care of an eventual maddr parameter.
+ */
 bool Agent::isUs(const url_t *url, bool check_aliases) const {
-	return isUs(url->url_host, url->url_port, check_aliases);
+	char maddr[50];
+	if (url_param(url->url_params, "maddr", maddr, sizeof(maddr))) {
+		return isUs(maddr, url->url_port, check_aliases);
+	} else {
+		return isUs(url->url_host, url->url_port, check_aliases);
+	}
 }
 
 void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
