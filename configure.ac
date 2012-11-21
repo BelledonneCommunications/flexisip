@@ -9,6 +9,7 @@ AC_CONFIG_HEADERS([flexisip-config.h])
 AM_INIT_AUTOMAKE
 AC_CONFIG_MACRO_DIR([m4])
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],)
+m4_include([m4/ax_compare_version.m4])
 
 # Checks for programs.
 # Favor g++ 4.4 as (the one in Debian and centos stable versions).
@@ -199,10 +200,22 @@ AC_HEADER_STDBOOL
 
 PKG_CHECK_MODULES(SOFIA,[sofia-sip-ua >= 1.12.10])
 PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
-PKG_CHECK_MODULES(ORTP,[ortp >= 0.21.0],ORTP_ABI_VERSION=">=9",ORTP_ABI_VERSION="<9")
+PKG_CHECK_MODULES(ORTP,[ortp >= 0.16.3])
+
+ORTP_VERSION=`$PKG_CONFIG --modversion ortp 2>&1`
+AX_COMPARE_VERSION([$ORTP_VERSION], [ge], [0.21.0],ORTP_ABI_VERSION=">=9",ORTP_ABI_VERSION="<9")
 if test "x$ORTP_ABI_VERSION" = "x>=9"; then
-	AC_DEFINE([ORTP_ABI_VERSION],9,[oRTP ABI version])
+        AC_DEFINE([ORTP_ABI_VERSION],9,[oRTP ABI version])
 fi
+
+
+
+AX_COMPARE_VERSION([$ORTP_VERSION], [ge], [0.21.1],
+	AC_DEFINE([ORTP_HAS_REUSEADDR],1, [oRTP rtp_session_set_reuseaddr availabled]),
+	AC_MSG_WARN([Ports allocated inside relay/transcoder will be messed up!])
+)
+
+
 # Checks for library functions.
 
 AM_CONDITIONAL(USE_DEB,test x$use_deb = xtrue)

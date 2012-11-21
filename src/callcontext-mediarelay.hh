@@ -76,6 +76,7 @@ public:
 
 	void validBack(const std::string &tag);
 
+	bool checkMediaValid();
 	bool isInactive(time_t cur);
 	std::shared_ptr<MediaSource> getMS(int mline, std::string tag, const std::shared_ptr<Transaction> &transaction);
 

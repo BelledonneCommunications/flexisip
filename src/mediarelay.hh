@@ -92,6 +92,7 @@ public:
 	MediaRelayServer *getRelayServer() {
 		return mServer;
 	}
+	bool checkMediaSources();
 
 private:
 	Mutex mMutex;
@@ -121,6 +122,8 @@ public:
 		Send = 2,
 		All = 3,
 	} BehaviourType;
+
+	bool checkSocketsValid();
 
 	void set(const std::string &ip, int port);
 

@@ -30,6 +30,7 @@
 
 
 using namespace ::std;
+using namespace ::std::placeholders;
 
 class MediaRelay: public Module, protected ModuleToolbox {
 	StatCounter64 *mCountCalls;
@@ -63,7 +64,7 @@ protected:
 		mCountCallsFinished=p.second;
 	}
 private:
-	bool processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
+	bool processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<RequestSipEvent> &ev);
 	void process200OkforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
 	void processOtherforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
 	CallStore *mCalls;
@@ -138,9 +139,10 @@ void MediaRelay::onUnload() {
 	}
 }
 
-bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
-	sip_t *sip = msgSip->getSip();
-	msg_t *msg = msgSip->getMsg();
+
+bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<RequestSipEvent> &ev) {
+	sip_t *sip = ev->getMsgSip()->getSip();
+	msg_t *msg = ev->getMsgSip()->getMsg();
 
 	if (sip->sip_from == NULL || sip->sip_from->a_tag == NULL) {
 		LOGW("No tag in from !");
@@ -177,24 +179,31 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	else
 		c->setMedia(m, from_tag, transaction, invite_host, from_host);
 
+	if (!c->checkMediaValid()) {
+		LOGE("The relay media are invalid, no RTP/RTCP port remaining?");
+		delete m;
+		ev->reply(ev->getMsgSip(), 500, "RTP port pool exhausted", TAG_END());
+		return false;
+	}
+
 	// Set
 	if (c->getCallerTag() == from_tag)
-		m->iterate(bind(&RelayedCall::setFront, c, m, placeholders::_1, placeholders::_2, placeholders::_3));
+		m->iterate(bind(&RelayedCall::setFront, c, m, _1, _2, _3));
 	else
-		m->iterate(bind(&RelayedCall::setBack, c, m, placeholders::_1, placeholders::_2, placeholders::_3, from_tag, ref(transaction)));
+		m->iterate(bind(&RelayedCall::setBack, c, m, _1, _2, _3, from_tag, ref(transaction)));
 
 	// Translate
 	if (c->getCallerTag() == from_tag)
-		m->translate(bind(&RelayedCall::forwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, to_tag, ref(transaction)));
+		m->translate(bind(&RelayedCall::forwardTranslate, c, _1, _2, _3, to_tag, ref(transaction)));
 	else
-		m->translate(bind(&RelayedCall::backwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3));
+		m->translate(bind(&RelayedCall::backwardTranslate, c, _1, _2, _3));
 
 	if (c->getCallerTag() == from_tag)
-		m->addIceCandidate(bind(&RelayedCall::forwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, to_tag, ref(transaction)),
-			bind(&RelayedCall::backwardIceTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3));
+		m->addIceCandidate(bind(&RelayedCall::forwardTranslate, c, _1, _2, _3, to_tag, ref(transaction)),
+			bind(&RelayedCall::backwardIceTranslate, c, _1, _2, _3));
 	else
-		m->addIceCandidate(bind(&RelayedCall::backwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3),
-			bind(&RelayedCall::forwardIceTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, from_tag, ref(transaction)));
+		m->addIceCandidate(bind(&RelayedCall::backwardTranslate, c, _1, _2, _3),
+			bind(&RelayedCall::forwardIceTranslate, c, _1, _2, _3, from_tag, ref(transaction)));
 	m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	m->update(msg, sip);
 
@@ -217,14 +226,14 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			c = make_shared<RelayedCall>(mServer, sip, mEarlymediaRTPDir);
 			if (mH264FilteringBandwidth)
 				c->enableH264IFrameFiltering(mH264FilteringBandwidth,mH264Decim);
-			if (processNewInvite(c, ot, ev->getMsgSip())) {
+			if (processNewInvite(c, ot, ev)) {
 				//be in the record-route
 				addRecordRouteIncoming(c->getHome(), getAgent(),ev);
 				mCalls->store(c);
 				ot->setProperty<RelayedCall>(getModuleName(), c);
 			}
 		} else {
-			if (processNewInvite(c, ot, ev->getMsgSip())) {
+			if (processNewInvite(c, ot, ev)) {
 				//be in the record-route
 				addRecordRouteIncoming(c->getHome(), getAgent(),ev);
 				ot->setProperty(getModuleName(), c);
@@ -301,9 +310,9 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 
 	// Set
 	if (c->getCallerTag() == from_tag)
-		m->iterate(bind(&RelayedCall::setBack, c, m, placeholders::_1, placeholders::_2, placeholders::_3, to_tag, ref(transaction)));
+		m->iterate(bind(&RelayedCall::setBack, c, m, _1, _2, _3, to_tag, ref(transaction)));
 	else
-		m->iterate(bind(&RelayedCall::setFront, c, m, placeholders::_1, placeholders::_2, placeholders::_3));
+		m->iterate(bind(&RelayedCall::setFront, c, m, _1, _2, _3));
 
 	if (c->getCallerTag() == from_tag && sip->sip_status->st_status == 200)
 		c->validBack(sip->sip_to->a_tag);
@@ -312,16 +321,16 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 
 	// Translate
 	if (c->getCallerTag() == from_tag)
-		m->translate(bind(&RelayedCall::backwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3));
+		m->translate(bind(&RelayedCall::backwardTranslate, c, _1, _2, _3));
 	else
-		m->translate(bind(&RelayedCall::forwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, from_tag, ref(transaction)));
+		m->translate(bind(&RelayedCall::forwardTranslate, c, _1, _2, _3, from_tag, ref(transaction)));
 
 	if (c->getCallerTag() == from_tag)
-		m->addIceCandidate(bind(&RelayedCall::backwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3),
-			bind(&RelayedCall::forwardIceTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, to_tag, ref(transaction)));
+		m->addIceCandidate(bind(&RelayedCall::backwardTranslate, c, _1, _2, _3),
+			bind(&RelayedCall::forwardIceTranslate, c, _1, _2, _3, to_tag, ref(transaction)));
 	else
-		m->addIceCandidate(bind(&RelayedCall::forwardTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3, from_tag, ref(transaction)),
-			bind(&RelayedCall::backwardIceTranslate, c, placeholders::_1, placeholders::_2, placeholders::_3));
+		m->addIceCandidate(bind(&RelayedCall::forwardTranslate, c, _1, _2, _3, from_tag, ref(transaction)),
+			bind(&RelayedCall::backwardIceTranslate, c, _1, _2, _3));
 	m->update(msg, sip);
 
 	delete m;

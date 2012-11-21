@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <list>
 
+
 using namespace ::std;
 
 MediaSource::MediaSource(RelaySession * relaySession, bool front, const string &default_ip) :
@@ -34,6 +35,9 @@ MediaSource::MediaSource(RelaySession * relaySession, bool front, const string &
 	mSources[1] = rtp_session_get_rtcp_socket(mSession);
 }
 
+bool MediaSource::checkSocketsValid() {
+	return mSources[0] != -1 && mSources[1] != -1;
+}
 MediaSource::~MediaSource() {
 	rtp_session_destroy(mSession);
 }
@@ -165,7 +169,6 @@ shared_ptr<MediaSource> RelaySession::addBack(const string &default_ip) {
 	mMutex.lock();
 	mBacks.push_back(ms);
 	mMutex.unlock();
-
 	return ms;
 }
 
@@ -181,6 +184,24 @@ RelaySession::~RelaySession() {
 
 void RelaySession::unuse() {
 	mUsed = false;
+}
+
+bool RelaySession::checkMediaSources() {
+	mMutex.lock();
+	for (auto itb=mBacks.begin(); itb != mBacks.end(); ++itb) {
+		if (!(*itb)->checkSocketsValid()) {
+			mMutex.unlock();
+			return false;
+		}
+	}
+	for (auto itf=mFronts.begin(); itf != mFronts.end(); ++itf) {
+		if (!(*itf)->checkSocketsValid()) {
+			mMutex.unlock();
+			return false;
+		}
+	}
+	mMutex.unlock();
+	return true;
 }
 
 void RelaySession::transfer(time_t curtime, const shared_ptr<MediaSource> &org, int i) {
@@ -239,6 +260,9 @@ Agent *MediaRelayServer::getAgent() {
 }
 RtpSession *MediaRelayServer::createRtpSession() {
 	RtpSession *session = rtp_session_new(RTP_SESSION_SENDRECV);
+#if ORTP_HAS_REUSEADDR
+	rtp_session_set_reuseaddr(session, FALSE);
+#endif
 	string bindIp=mAgent->getBindIp();
 	if (bindIp.empty()) bindIp="0.0.0.0";
 	for (int i = 0; i < 100; ++i) {
@@ -253,7 +277,7 @@ RtpSession *MediaRelayServer::createRtpSession() {
 		}
 	}
 
-	LOGW("Could not find a random port for %s !", mAgent->getBindIp().c_str());
+	LOGE("Could not find a random port for %s !", mAgent->getBindIp().c_str());
 	return session;
 }
 

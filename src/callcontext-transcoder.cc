@@ -29,6 +29,9 @@ using namespace ::std;
 
 CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCallCtx(ctx){
 	mSession=rtp_session_new(RTP_SESSION_SENDRECV);
+#if ORTP_HAS_REUSEADDR
+	rtp_session_set_reuseaddr(mSession, FALSE);
+#endif
 	mProfile=rtp_profile_new("Call profile");
 	mEncoder=NULL;
 	mDecoder=NULL;

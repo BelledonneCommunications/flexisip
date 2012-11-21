@@ -36,6 +36,7 @@ void RelayedCall::enableH264IFrameFiltering(int bandwidth_threshold, int decim){
 	mBandwidthThres=bandwidth_threshold;
 	mDecim=decim;
 }
+
 /*this function is called to masquerade the SDP, for each mline*/
 void RelayedCall::setMedia(SdpModifier *m, const string &tag, const shared_ptr<Transaction> &transaction, const string &frontIp, const string&backIp) {
 	sdp_media_t *mline = m->mSession->sdp_media;
@@ -84,6 +85,14 @@ void RelayedCall::setMedia(SdpModifier *m, const string &tag, const shared_ptr<T
 		}
 		++i;
 	}
+}
+
+bool RelayedCall::checkMediaValid() {
+	for (int i=0; i < sMaxSessions; ++i) {
+		RelaySession *s=mSessions[i].mRelaySession;
+		if (s && !s->checkMediaSources()) return false;
+	}
+	return true;
 }
 
 void RelayedCall::backwardTranslate(int mline, string *ip, int *port) {
