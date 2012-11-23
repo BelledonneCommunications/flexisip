@@ -248,6 +248,19 @@ void Agent::start(const char *transport_override){
 		snprintf(url,sizeof(url),"sip:%s:%s;transport=%s,maddr=%s",name->tpn_canon,name->tpn_port,name->tpn_proto,name->tpn_host);
 		su_md5_strupdate(&ctx,url);
 		LOGD("\t%s",url);
+		if (mPreferredRoute==NULL && strcmp(name->tpn_canon,name->tpn_host)==0 ){
+			mPreferredRoute=ModuleToolbox::urlFromTportName(&mHome,name);
+			char prefUrl[266];
+			url_e(prefUrl,sizeof(prefUrl),mPreferredRoute);
+			LOGD("Preferred route is %s", prefUrl);
+		}
+		if (mPublicIp.empty() && strcmp(name->tpn_canon,name->tpn_host)!=0){
+			mPublicIp=name->tpn_canon;
+		}
+	}
+	
+	if (mPublicIp.empty()){
+		mPublicIp=mPreferredRoute->url_host;
 	}
 	
 	char digest[(SU_MD5_DIGEST_SIZE*2)+1];
@@ -257,13 +270,6 @@ void Agent::start(const char *transport_override){
 	// compute a network wide unique id
 	mUniqueId = digest;
 	
-	sip_contact_t *ctts=nta_agent_contact(mAgent);
-	char prefUrl[266];
-	url_e(prefUrl,sizeof(prefUrl),ctts->m_url);
-	mPreferredRoute=ctts->m_url;
-	LOGD("Preferred route is %s", prefUrl);
-	
-	mPublicIp=ctts->m_url->url_host;
 	LOGD("Agent public ip is %s", mPublicIp.c_str());
 }
 
@@ -317,12 +323,14 @@ Agent::Agent(su_root_t* root){
 	}
 	mRoot = root;
 	mAgent = nta_agent_create(root, (url_string_t*) -1, &Agent::messageCallback, (nta_agent_magic_t*) this, NTATAG_UDP_MTU(1460), TAG_END());
+	su_home_init(&mHome);
 }
 
 Agent::~Agent() {
 	for_each(mModules.begin(), mModules.end(), delete_functor<Module>());
 	if (mAgent)
 		nta_agent_destroy(mAgent);
+	su_home_deinit(&mHome);
 }
 
 const char *Agent::getServerString() const {

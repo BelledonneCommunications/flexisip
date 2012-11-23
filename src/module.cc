@@ -20,7 +20,7 @@
 #include "agent.hh"
 #include "entryfilter.hh"
 #include "sofia-sip/auth_digest.h"
-#include "sofia-sip/tport.h"
+
 
 #include "expressionparser.hh"
 
@@ -239,37 +239,46 @@ void ModuleToolbox::prependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *
 	sip->sip_route = r;
 }
 
+url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
+	url_t *url=NULL;
+	int port=atoi(name->tpn_port);
+	if (strcmp(name->tpn_proto,"udp")==0){
+		if (port!=5060){
+			url=url_format(home,"sip:%s:%s",name->tpn_canon,name->tpn_port);
+		}else{
+			url=url_format(home,"sip:%s",name->tpn_canon);
+		}
+	}else if (strcmp(name->tpn_proto,"tcp")==0){
+		if (port!=5060){
+			url=url_format(home,"sip:%s:%s;transport=tcp",name->tpn_canon,name->tpn_port);
+		}else{
+			url=url_format(home,"sip:%s;transport=tcp",name->tpn_canon);
+		}
+	}else if (strcmp(name->tpn_proto,"tls")==0){
+		if (port!=5061){
+			url=url_format(home,"sips:%s:%s;transport=tls",name->tpn_canon,name->tpn_port);
+		}else{
+			url=url_format(home,"sips:%s;transport=tls",name->tpn_canon);
+		}
+	}
+	return url;
+}
+
 void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev, tport_t *tport){
 	const tp_name_t *name;
 	shared_ptr<MsgSip> msgsip=ev->getMsgSip();
 	msg_t *msg=msgsip->getMsg();
 	sip_t *sip=msgsip->getSip();
 	sip_record_route_t *rr=NULL;
-	int port;
+	url_t *url;
 	
 	tport=tport_parent(tport); //get primary transport
 	name=tport_name(tport); //primary transport name
 	
-	port=atoi(name->tpn_port);
-	if (strcmp(name->tpn_proto,"udp")==0){
-		if (port!=5060){
-			rr=sip_record_route_format(home,"<sip:%s:%s;lr>",name->tpn_canon,name->tpn_port);
-		}else{
-			rr=sip_record_route_format(home,"<sip:%s;lr>",name->tpn_canon);
-		}
-	}else if (strcmp(name->tpn_proto,"tcp")==0){
-		if (port!=5060){
-			rr=sip_record_route_format(home,"<sip:%s:%s;transport=tcp;lr>",name->tpn_canon,name->tpn_port);
-		}else{
-			rr=sip_record_route_format(home,"<sip:%s;transport=tcp;lr>",name->tpn_canon);
-		}
-	}else if (strcmp(name->tpn_proto,"tls")==0){
-		if (port!=5061){
-			rr=sip_record_route_format(home,"<sips:%s:%s;transport=tls;lr>",name->tpn_canon,name->tpn_port);
-		}else{
-			rr=sip_record_route_format(home,"<sips:%s;transport=tls;lr>",name->tpn_canon);
-		}
-	}
+	url=urlFromTportName(home,name);
+	if (!url) return;
+	url_param_add(home,url,"lr");
+	rr=sip_record_route_create(home,url,NULL);
 	if (!rr) return;
 	if (sip->sip_record_route == NULL) {
 		sip->sip_record_route = rr;

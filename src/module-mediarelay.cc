@@ -159,7 +159,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		from_tag = sip->sip_from->a_tag;
 	string from_host;
 	if (sip->sip_from != NULL && sip->sip_from->a_url != NULL && sip->sip_from->a_url->url_host != NULL)
-		from_host = sip->sip_from->a_url->url_host;
+		from_host = sip->sip_contact->m_url->url_host;
 	string to_tag;
 	if (sip->sip_to != NULL && sip->sip_to->a_tag != NULL)
 		to_tag = sip->sip_to->a_tag;

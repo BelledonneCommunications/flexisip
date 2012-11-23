@@ -20,6 +20,7 @@
 #define module_hh
 
 #include "sofia-sip/nta_tport.h"
+#include "sofia-sip/tport.h"
 
 #include <string>
 #include <memory>
@@ -158,6 +159,7 @@ class ModuleToolbox{
 	public:
 		static msg_auth_t *findAuthorizationForRealm(su_home_t *home, msg_auth_t *au, const char *realm);
 		static void addRecordRouteIncoming(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev);
+		static url_t *urlFromTportName(su_home_t *home, const tp_name_t *name);
 		static void addRecordRoute(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev, tport_t *tport);
 		static void prependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *route);
 		static bool sipPortEquals(const char *p1, const char *p2);

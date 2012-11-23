@@ -169,6 +169,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		std::string mBindIp,mPublicIp;
 		nta_agent_t *mAgent;
 		su_root_t *mRoot;
+		su_home_t mHome;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);
 };
 
