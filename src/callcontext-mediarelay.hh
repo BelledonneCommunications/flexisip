@@ -40,8 +40,8 @@ public:
 		}
 
 		RelaySession *mRelaySession;
-		std::map<std::shared_ptr<Transaction>, std::shared_ptr<MediaSource>> mTransactions;
-		std::map<std::string, std::shared_ptr<MediaSource>> mMediaSources;
+		std::map<std::shared_ptr<Transaction>, std::shared_ptr<RelayChannel>> mTransactions;
+		std::map<std::string, std::shared_ptr<RelayChannel>> mRelayChannels;
 		bool toDelete;
 	};
 	typedef enum {
@@ -49,40 +49,56 @@ public:
 	} RTPDir;
 	static const int sMaxSessions = 4;
 	RelayedCall(MediaRelayServer *server, sip_t *sip, RTPDir dir);
+	
 	/*Enable filtering of H264 Iframes for low bandwidth.*/
 	void enableH264IFrameFiltering(int bandwidth_threshold, int decim);
-	/*this function is called to masquerade the SDP, for each mline*/
-	void setMedia(SdpModifier *m, const std::string &tag, const std::shared_ptr<Transaction> &transaction, const std::string &frontIp, const std::string&backIp);
+	
+	/* Create a channel for each sdp media using defined relay ip for front and back. The transaction
+	 * allow use to identify the callee (we don't have a tag yet).
+	 */
+	void initChannels(SdpModifier *m, const std::string &tag, const std::shared_ptr<Transaction> &transaction, const std::string &frontRelayIp, const std::string&backRelayIp);
 
-	void backwardTranslate(int mline, std::string *ip, int *port);
+	/* Change the ip/port of sdp line by provided ones. Used for masquerade front channels */
+	void masqueradeForFront(int mline, std::string *ip, int *port);
 
-	void backwardIceTranslate(int mline, std::string *ip, int *port);
+	/* Change the ip/port of sdp line by provided ones for ICE. Used for masquerade front channels */
+	void masqueradeIceForFront(int mline, std::string *ip, int *port);
 
-	void forwardTranslate(int mline, std::string *ip, int *port, const std::string &tag, const std::shared_ptr<Transaction> &transaction);
+	/* Change the ip/port of sdp line by provided ones. Used for masquerade back channels */
+	void masqueradeForBack(int mline, std::string *ip, int *port, const std::string &tag, const std::shared_ptr<Transaction> &transaction);
 
-	void forwardIceTranslate(int mline, std::string *ip, int *port, const std::string &tag, const std::shared_ptr<Transaction> &transaction);
+	/* Change the ip/port of sdp mline by provided ones for ICE. Used for masquerade back channels */
+	void masqueradeIceForBack(int mline, std::string *ip, int *port, const std::string &tag, const std::shared_ptr<Transaction> &transaction);
 
-	void setFront(SdpModifier *m, int mline, const std::string &ip, int port);
+	/* Assign destination ip/port of front channel by provided ones of SDP. */
+	void assignFrontChannel(SdpModifier *m, int mline, const std::string &ip, int port);
 
-	void setBack(SdpModifier *m, int mline, const std::string &ip, int port, const std::string &tag, const std::shared_ptr<Transaction> &transaction);
+	/* Assign destination ip/port of front channel by provided ones of SDP. */
+	void assignBackChannel(SdpModifier *m, int mline, const std::string &ip, int port, const std::string &tag, const std::shared_ptr<Transaction> &transaction);
 
-	// Set only one sender to the caller
+	/* Set only one sender to the caller. */
 	void update();
 
-	void validTransaction(const std::string &tag, const std::shared_ptr<Transaction> &transaction);
+	/* Validate the channels using a transaction. After this functions the callee will be identified by
+	 * the tag and not the transaction */
+	void validateTransaction(const std::string &tag, const std::shared_ptr<Transaction> &transaction);
+
+	/* Remove a back channel using its tag */
+	bool removeBack(const std::string &tag);
+	
+	/* Remove a back channel using its transaction */
 	bool removeTransaction(const std::shared_ptr<Transaction> &transaction);
 
-	bool removeBack(const std::string &tag);
-
-	void validBack(const std::string &tag);
+	/* Set a back as unique channel. Remove all other channels and set the channel bidirectional. */
+	void setUniqueBack(const std::string &tag);
 
 	bool checkMediaValid();
 	bool isInactive(time_t cur);
-	std::shared_ptr<MediaSource> getMS(int mline, std::string tag, const std::shared_ptr<Transaction> &transaction);
+	std::shared_ptr<RelayChannel> getMS(int mline, std::string tag, const std::shared_ptr<Transaction> &transaction);
 
 	virtual ~RelayedCall();
 
-	void configureMediaSource(std::shared_ptr<MediaSource> ms, sdp_session_t *session, int mline_nr);
+	void configureMediaSource(std::shared_ptr<RelayChannel> ms, sdp_session_t *session, int mline_nr);
 
 private:
 	typedef enum {

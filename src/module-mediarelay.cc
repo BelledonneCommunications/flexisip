@@ -66,7 +66,7 @@ protected:
 private:
 	bool processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<RequestSipEvent> &ev);
 	void process200OkforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
-	void processOtherforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
+	void processFailureForInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
 	CallStore *mCalls;
 	MediaRelayServer *mServer;
 	string mSdpMangledParam;
@@ -175,9 +175,9 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 
 	// Create Media
 	if (c->getCallerTag() == from_tag)
-		c->setMedia(m, to_tag, transaction, from_host, invite_host);
+		c->initChannels(m, to_tag, transaction, mAgent->getPreferredIp(from_host), mAgent->getPreferredIp(invite_host));
 	else
-		c->setMedia(m, from_tag, transaction, invite_host, from_host);
+		c->initChannels(m, from_tag, transaction, mAgent->getPreferredIp(invite_host), mAgent->getPreferredIp(from_host));
 
 	if (!c->checkMediaValid()) {
 		LOGE("The relay media are invalid, no RTP/RTCP port remaining?");
@@ -188,22 +188,24 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 
 	// Set
 	if (c->getCallerTag() == from_tag)
-		m->iterate(bind(&RelayedCall::setFront, c, m, _1, _2, _3));
+		m->iterate(bind(&RelayedCall::assignFrontChannel, c, m, _1, _2, _3));
 	else
-		m->iterate(bind(&RelayedCall::setBack, c, m, _1, _2, _3, from_tag, ref(transaction)));
+		m->iterate(bind(&RelayedCall::assignBackChannel, c, m, _1, _2, _3, from_tag, ref(transaction)));
 
 	// Translate
 	if (c->getCallerTag() == from_tag)
-		m->translate(bind(&RelayedCall::forwardTranslate, c, _1, _2, _3, to_tag, ref(transaction)));
+		m->masquerade(bind(&RelayedCall::masqueradeForBack, c, _1, _2, _3, to_tag, ref(transaction)));
 	else
-		m->translate(bind(&RelayedCall::backwardTranslate, c, _1, _2, _3));
+		m->masquerade(bind(&RelayedCall::masqueradeForFront, c, _1, _2, _3));
 
+	// Masquerade using ICE
 	if (c->getCallerTag() == from_tag)
-		m->addIceCandidate(bind(&RelayedCall::forwardTranslate, c, _1, _2, _3, to_tag, ref(transaction)),
-			bind(&RelayedCall::backwardIceTranslate, c, _1, _2, _3));
+		m->addIceCandidate(bind(&RelayedCall::masqueradeForBack, c, _1, _2, _3, to_tag, ref(transaction)),
+			bind(&RelayedCall::masqueradeIceForFront, c, _1, _2, _3));
 	else
-		m->addIceCandidate(bind(&RelayedCall::backwardTranslate, c, _1, _2, _3),
-			bind(&RelayedCall::forwardIceTranslate, c, _1, _2, _3, from_tag, ref(transaction)));
+		m->addIceCandidate(bind(&RelayedCall::masqueradeForFront, c, _1, _2, _3),
+			bind(&RelayedCall::masqueradeIceForBack, c, _1, _2, _3, from_tag, ref(transaction)));
+		
 	m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	m->update(msg, sip);
 
@@ -249,7 +251,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		}
 	}
 }
-void MediaRelay::processOtherforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
+void MediaRelay::processFailureForInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
 	sip_t *sip = msgSip->getSip();
 	LOGD("Processing Other");
 	if (sip->sip_to == NULL || sip->sip_to->a_tag == NULL) {
@@ -298,9 +300,9 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 	if (sip->sip_to != NULL && sip->sip_to->a_tag != NULL)
 		to_tag = sip->sip_to->a_tag;
 
-	// Valid transaction: now we can use tag as MediaSource identifier
+	// Valid transaction: now we can use tag as RelayChannel identifier
 	if (c->getCallerTag() == from_tag)
-		c->validTransaction(to_tag, transaction);
+		c->validateTransaction(to_tag, transaction);
 
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
 		LOGD("200 OK is already relayed");
@@ -310,27 +312,27 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 
 	// Set
 	if (c->getCallerTag() == from_tag)
-		m->iterate(bind(&RelayedCall::setBack, c, m, _1, _2, _3, to_tag, ref(transaction)));
+		m->iterate(bind(&RelayedCall::assignBackChannel, c, m, _1, _2, _3, to_tag, ref(transaction)));
 	else
-		m->iterate(bind(&RelayedCall::setFront, c, m, _1, _2, _3));
+		m->iterate(bind(&RelayedCall::assignFrontChannel, c, m, _1, _2, _3));
 
 	if (c->getCallerTag() == from_tag && sip->sip_status->st_status == 200)
-		c->validBack(sip->sip_to->a_tag);
+		c->setUniqueBack(sip->sip_to->a_tag);
 
 	c->update();
 
 	// Translate
 	if (c->getCallerTag() == from_tag)
-		m->translate(bind(&RelayedCall::backwardTranslate, c, _1, _2, _3));
+		m->masquerade(bind(&RelayedCall::masqueradeForFront, c, _1, _2, _3));
 	else
-		m->translate(bind(&RelayedCall::forwardTranslate, c, _1, _2, _3, from_tag, ref(transaction)));
+		m->masquerade(bind(&RelayedCall::masqueradeForBack, c, _1, _2, _3, from_tag, ref(transaction)));
 
 	if (c->getCallerTag() == from_tag)
-		m->addIceCandidate(bind(&RelayedCall::backwardTranslate, c, _1, _2, _3),
-			bind(&RelayedCall::forwardIceTranslate, c, _1, _2, _3, to_tag, ref(transaction)));
+		m->addIceCandidate(bind(&RelayedCall::masqueradeForFront, c, _1, _2, _3),
+			bind(&RelayedCall::masqueradeIceForBack, c, _1, _2, _3, to_tag, ref(transaction)));
 	else
-		m->addIceCandidate(bind(&RelayedCall::forwardTranslate, c, _1, _2, _3, from_tag, ref(transaction)),
-			bind(&RelayedCall::backwardIceTranslate, c, _1, _2, _3));
+		m->addIceCandidate(bind(&RelayedCall::masqueradeForBack, c, _1, _2, _3, from_tag, ref(transaction)),
+			bind(&RelayedCall::masqueradeIceForFront, c, _1, _2, _3));
 	m->update(msg, sip);
 
 	delete m;
@@ -350,8 +352,8 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 				fixAuthChallengeForSDP(ms->getHome(), msg, sip);
 				if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
 					process200OkforInvite(c, transaction, ev->getMsgSip());
-				} else if (sip->sip_status->st_status > 200) {
-					processOtherforInvite(c, transaction, ev->getMsgSip());
+				} else if (sip->sip_status->st_status >= 300) {
+					processFailureForInvite(c, transaction, ev->getMsgSip());
 				}
 			}
 			return;

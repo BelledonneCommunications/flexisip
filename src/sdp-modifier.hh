@@ -46,7 +46,7 @@ class SdpModifier{
 		void changeMediaConnection(sdp_media_t *mline, const char *relay_ip);
 		void addIceCandidate(std::function<void(int, std::string *, int *)>, std::function<void(int, std::string *, int*)>);
 		void iterate(std::function<void(int, const std::string &, int)>);
-		void translate(std::function<void(int, std::string *, int *)>);
+		void masquerade(std::function<void(int, std::string *, int *)>);
 		void addAttribute(const char *name, const char *value);
 		bool hasAttribute(const char *name);
 		void addMediaAttribute(sdp_media_t *mline, const char *name, const char *value);

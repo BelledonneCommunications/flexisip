@@ -28,25 +28,25 @@
 
 using namespace ::std;
 
-MediaSource::MediaSource(RelaySession * relaySession, bool front, const string &default_ip) :
-		mFront(front), mBehaviour(BehaviourType::All), mIp(default_ip), mPort(-1), mRelaySession(relaySession) {
+RelayChannel::RelayChannel(RelaySession * relaySession, bool front, const string &publicIp) :
+		mFront(front), mBehaviour(BehaviourType::All), mPublicIp(publicIp), mIp(std::string("undefined")), mPort(-1), mRelaySession(relaySession) {
 	mSession = mRelaySession->getRelayServer()->createRtpSession();
 	mSources[0] = rtp_session_get_rtp_socket(mSession);
 	mSources[1] = rtp_session_get_rtcp_socket(mSession);
 }
 
-bool MediaSource::checkSocketsValid() {
+bool RelayChannel::checkSocketsValid() {
 	return mSources[0] != -1 && mSources[1] != -1;
 }
-MediaSource::~MediaSource() {
+RelayChannel::~RelayChannel() {
 	rtp_session_destroy(mSession);
 }
 
-void MediaSource::set(const string &ip, int port) {
+void RelayChannel::set(const string &ip, int port) {
 	if (isFront())
-		LOGD("MediaSource %p | Set | %s:%i <-> %i", this, ip.c_str(), port, getRelayPort());
+		LOGD("RelayChannel %p | Set | %s:%i <-> %i", this, ip.c_str(), port, getRelayPort());
 	else
-		LOGD("MediaSource %p | Set | %i <-> %s:%i", this, getRelayPort(), ip.c_str(), port);
+		LOGD("RelayChannel %p | Set | %i <-> %s:%i", this, getRelayPort(), ip.c_str(), port);
 	mPort = port;
 	mIp = ip;
 	struct addrinfo *res = NULL;
@@ -58,7 +58,7 @@ void MediaSource::set(const string &ip, int port) {
 	hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
 	err = getaddrinfo(ip.c_str(), portstr, &hints, &res);
 	if (err != 0) {
-		LOGE("MediaSource::MediaSource() failed for %s:%i : %s", ip.c_str(), port, gai_strerror(err));
+		LOGE("RelayChannel::RelayChannel() failed for %s:%i : %s", ip.c_str(), port, gai_strerror(err));
 	} else {
 		memcpy(&mSockAddr[0], res->ai_addr, res->ai_addrlen);
 		mSockAddrSize[0] = res->ai_addrlen;
@@ -69,7 +69,7 @@ void MediaSource::set(const string &ip, int port) {
 	hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
 	err = getaddrinfo(ip.c_str(), portstr, &hints, &res);
 	if (err != 0) {
-		LOGE("MediaSource::MediaSource() failed for %s:%i : %s", ip.c_str(), port, gai_strerror(err));
+		LOGE("RelayChannel::RelayChannel() failed for %s:%i : %s", ip.c_str(), port, gai_strerror(err));
 	} else {
 		memcpy(&mSockAddr[1], res->ai_addr, res->ai_addrlen);
 		mSockAddrSize[1] = res->ai_addrlen;
@@ -77,7 +77,7 @@ void MediaSource::set(const string &ip, int port) {
 	}
 }
 
-void MediaSource::setBehaviour(const BehaviourType &behaviour) {
+void RelayChannel::setBehaviour(const BehaviourType &behaviour) {
 	mBehaviour = behaviour;
 	if (IS_LOGD) {
 		const char *typeStr;
@@ -102,11 +102,11 @@ void MediaSource::setBehaviour(const BehaviourType &behaviour) {
 			typeStr = "INVALID";
 			break;
 		}
-		LOGD("MediaSource %p | %s", this, typeStr);
+		LOGD("RelayChannel %p | %s", this, typeStr);
 	}
 }
 
-void MediaSource::fillPollFd(struct pollfd *tab) {
+void RelayChannel::fillPollFd(struct pollfd *tab) {
 	for (int i = 0; i < 2; ++i) {
 		tab[i].fd = mSources[i];
 		tab[i].events = POLLIN;
@@ -114,7 +114,7 @@ void MediaSource::fillPollFd(struct pollfd *tab) {
 	}
 }
 
-int MediaSource::recv(int i, uint8_t *buf, size_t buflen) {
+int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 	mSockAddrSize[i] = sizeof(mSockAddr[i]);
 	int err = recvfrom(mSources[i], buf, buflen, 0, (struct sockaddr*) &mSockAddr[i], &mSockAddrSize[i]);
 	if (err == -1) {
@@ -124,7 +124,7 @@ int MediaSource::recv(int i, uint8_t *buf, size_t buflen) {
 
 }
 
-int MediaSource::send(int i, uint8_t *buf, size_t buflen) {
+int RelayChannel::send(int i, uint8_t *buf, size_t buflen) {
 	int err;
 	if (mSockAddrSize[i] > 0) {
 		if (!mFilter || mFilter->onTransfer(buf,buflen) ){
@@ -136,7 +136,7 @@ int MediaSource::send(int i, uint8_t *buf, size_t buflen) {
 
 }
 
-void MediaSource::setFilter(shared_ptr<MediaFilter> filter){
+void RelayChannel::setFilter(shared_ptr<MediaFilter> filter){
 	mFilter=filter;
 }
 
@@ -146,9 +146,9 @@ RelaySession::RelaySession(MediaRelayServer *server) :
 	mUsed = true;
 }
 
-shared_ptr<MediaSource> RelaySession::addFront(const string &default_ip) {
-	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this, true, default_ip);
-	LOGD("MediaSource %p | Add | %s:%i <-> %i", ms.get(), ms->getIp().c_str(), ms->getPort(), ms->getRelayPort());
+shared_ptr<RelayChannel> RelaySession::addFront(const string &default_ip) {
+	shared_ptr<RelayChannel> ms = make_shared<RelayChannel>(this, true, default_ip);
+	LOGD("RelayChannel %p | Add | %s:%i <-> %i", ms.get(), ms->getIp().c_str(), ms->getPort(), ms->getRelayPort());
 	mMutex.lock();
 	mFronts.push_back(ms);
 	mMutex.unlock();
@@ -156,24 +156,24 @@ shared_ptr<MediaSource> RelaySession::addFront(const string &default_ip) {
 	return ms;
 }
 
-void RelaySession::removeFront(const shared_ptr<MediaSource> &ms) {
-	LOGD("MediaSource %p | Remove |  %s:%i <-> %i", ms.get(), ms->getIp().c_str(), ms->getPort(), ms->getRelayPort());
+void RelaySession::removeFront(const shared_ptr<RelayChannel> &ms) {
+	LOGD("RelayChannel %p | Remove |  %s:%i <-> %i", ms.get(), ms->getIp().c_str(), ms->getPort(), ms->getRelayPort());
 	mMutex.lock();
 	mFronts.remove(ms);
 	mMutex.unlock();
 }
 
-shared_ptr<MediaSource> RelaySession::addBack(const string &default_ip) {
-	shared_ptr<MediaSource> ms = make_shared<MediaSource>(this, false, default_ip);
-	LOGD("MediaSource %p | Add | %i <-> %s:%i", ms.get(), ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
+shared_ptr<RelayChannel> RelaySession::addBack(const string &default_ip) {
+	shared_ptr<RelayChannel> ms = make_shared<RelayChannel>(this, false, default_ip);
+	LOGD("RelayChannel %p | Add | %i <-> %s:%i", ms.get(), ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
 	mMutex.lock();
 	mBacks.push_back(ms);
 	mMutex.unlock();
 	return ms;
 }
 
-void RelaySession::removeBack(const shared_ptr<MediaSource> &ms) {
-	LOGD("MediaSource %p | Remove | %i <-> %s:%i", ms.get(), ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
+void RelaySession::removeBack(const shared_ptr<RelayChannel> &ms) {
+	LOGD("RelayChannel %p | Remove | %i <-> %s:%i", ms.get(), ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
 	mMutex.lock();
 	mBacks.remove(ms);
 	mMutex.unlock();
@@ -204,7 +204,7 @@ bool RelaySession::checkMediaSources() {
 	return true;
 }
 
-void RelaySession::transfer(time_t curtime, const shared_ptr<MediaSource> &org, int i) {
+void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &org, int i) {
 	uint8_t buf[1500];
 	const int maxsize = sizeof(buf);
 	int recv_len;
@@ -213,8 +213,8 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<MediaSource> &org, 
 	mLastActivityTime = curtime;
 	recv_len = org->recv(i, buf, maxsize);
 	if (recv_len > 0) {
-		if (org->getBehaviour() & MediaSource::Send) {
-			list<shared_ptr<MediaSource>> list;
+		if (org->getBehaviour() & RelayChannel::Send) {
+			list<shared_ptr<RelayChannel>> list;
 			if (org->isFront()) {
 				list = mBacks;
 			} else {
@@ -224,8 +224,8 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<MediaSource> &org, 
 			auto it = list.begin();
 			if (it != list.end()) {
 				while (it != list.end()) {
-					const shared_ptr<MediaSource> &dest = (*it);
-					if (dest->getBehaviour() & MediaSource::Receive) {
+					const shared_ptr<RelayChannel> &dest = (*it);
+					if (dest->getBehaviour() & RelayChannel::Receive) {
 						//LOGD("%s:%i -> %i | size = %i | %i -> %s:%i", org->getIp().c_str(), org->getPort(), org->getRelayPort() + i, recv_len, dest->getRelayPort() +i, dest->getIp().c_str(), dest->getPort());
 						send_len = dest->send(i, buf, recv_len);
 						if (send_len != recv_len) {
@@ -325,7 +325,7 @@ void MediaRelayServer::run() {
 	struct pollfd *pfds = NULL;
 	int err;
 	int pfds_size = 0, cur_pfds_size = 0;
-	list<shared_ptr<MediaSource>> mediaSources;
+	list<shared_ptr<RelayChannel>> mediaSources;
 
 	while (mRunning) {
 		mMutex.lock();
@@ -335,12 +335,12 @@ void MediaRelayServer::run() {
 			RelaySession *ptr = *it;
 			ptr->getMutex().lock();
 
-			const list<shared_ptr<MediaSource>>& fronts = ptr->getFronts();
+			const list<shared_ptr<RelayChannel>>& fronts = ptr->getFronts();
 			for (auto it2 = fronts.begin(); it2 != fronts.end(); ++it2) {
 				mediaSources.push_back(*it2);
 			}
 
-			const list<shared_ptr<MediaSource>>& backs = ptr->getBacks();
+			const list<shared_ptr<RelayChannel>>& backs = ptr->getBacks();
 			for (auto it2 = backs.begin(); it2 != backs.end(); ++it2) {
 				mediaSources.push_back(*it2);
 			}

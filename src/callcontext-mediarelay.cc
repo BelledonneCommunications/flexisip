@@ -38,7 +38,7 @@ void RelayedCall::enableH264IFrameFiltering(int bandwidth_threshold, int decim){
 }
 
 /*this function is called to masquerade the SDP, for each mline*/
-void RelayedCall::setMedia(SdpModifier *m, const string &tag, const shared_ptr<Transaction> &transaction, const string &frontIp, const string&backIp) {
+void RelayedCall::initChannels(SdpModifier *m, const string &tag, const shared_ptr<Transaction> &transaction, const string &frontRelayIp, const string&backRelayIp) {
 	sdp_media_t *mline = m->mSession->sdp_media;
 	int i = 0;
 	for (i = 0; mline != NULL && i < sMaxSessions; mline = mline->m_next, ++i) {
@@ -54,33 +54,33 @@ void RelayedCall::setMedia(SdpModifier *m, const string &tag, const shared_ptr<T
 		if (s == NULL) {
 			s = mServer->createSession();
 			mSessions[i].mRelaySession = s;
-			s->addFront(frontIp);
+			s->addFront(frontRelayIp);
 		}
 		if (!tag.empty()) {
-			if (mSessions[i].mMediaSources.find(tag) == mSessions[i].mMediaSources.end()) {
-				shared_ptr<MediaSource> ms = s->addBack(backIp);
-				ms->setBehaviour(MediaSource::Receive);
-				mSessions[i].mMediaSources.insert(pair<string, shared_ptr<MediaSource>>(tag, ms));
+			if (mSessions[i].mRelayChannels.find(tag) == mSessions[i].mRelayChannels.end()) {
+				shared_ptr<RelayChannel> ms = s->addBack(backRelayIp);
+				ms->setBehaviour(RelayChannel::Receive);
+				mSessions[i].mRelayChannels.insert(pair<string, shared_ptr<RelayChannel>>(tag, ms));
 			}
 		} else {
 			if (mSessions[i].mTransactions.find(transaction) == mSessions[i].mTransactions.end()) {
-				shared_ptr<MediaSource> ms = s->addBack(backIp);
-				ms->setBehaviour(MediaSource::None);
-				mSessions[i].mTransactions.insert(pair<shared_ptr<Transaction>, shared_ptr<MediaSource>>(transaction, ms));
+				shared_ptr<RelayChannel> ms = s->addBack(backRelayIp);
+				ms->setBehaviour(RelayChannel::None);
+				mSessions[i].mTransactions.insert(pair<shared_ptr<Transaction>, shared_ptr<RelayChannel>>(transaction, ms));
 			}
 		}
 	}
 	while (i < sMaxSessions) {
 		if (mSessions[i].mRelaySession) {
 			for (auto it = mSessions[i].mRelaySession->getFronts().begin(); it != mSessions[i].mRelaySession->getFronts().end(); ++it) {
-				(*it)->setBehaviour(MediaSource::None);
+				(*it)->setBehaviour(RelayChannel::None);
 			}
 			for (auto it = mSessions[i].mRelaySession->getBacks().begin(); it != mSessions[i].mRelaySession->getBacks().end(); ++it) {
-				(*it)->setBehaviour(MediaSource::None);
+				(*it)->setBehaviour(RelayChannel::None);
 			}
 			mSessions[i].mRelaySession->unuse();
 			mSessions[i].mRelaySession = NULL;
-			mSessions[i].mMediaSources.clear();
+			mSessions[i].mRelayChannels.clear();
 			mSessions[i].mTransactions.clear();
 		}
 		++i;
@@ -95,7 +95,7 @@ bool RelayedCall::checkMediaValid() {
 	return true;
 }
 
-void RelayedCall::backwardTranslate(int mline, string *ip, int *port) {
+void RelayedCall::masqueradeForFront(int mline, string *ip, int *port) {
 	if (*port == 0) {
 		//case of declined mline.
 		return;
@@ -110,7 +110,7 @@ void RelayedCall::backwardTranslate(int mline, string *ip, int *port) {
 	}
 }
 
-void RelayedCall::backwardIceTranslate(int mline, string *ip, int *port) {
+void RelayedCall::masqueradeIceForFront(int mline, string *ip, int *port) {
 	if (*port == 0) {
 		//case of declined mline.
 		return;
@@ -125,22 +125,22 @@ void RelayedCall::backwardIceTranslate(int mline, string *ip, int *port) {
 	}
 }
 
-shared_ptr<MediaSource> RelayedCall::getMS(int mline, string tag, const shared_ptr<Transaction> &transaction) {
+shared_ptr<RelayChannel> RelayedCall::getMS(int mline, string tag, const shared_ptr<Transaction> &transaction) {
 	if (tag.empty()) {
 		auto it = mSessions[mline].mTransactions.find(transaction);
 		if (it != mSessions[mline].mTransactions.end()) {
 			return it->second;
 		}
 	} else {
-		auto it = mSessions[mline].mMediaSources.find(tag);
-		if (it != mSessions[mline].mMediaSources.end()) {
+		auto it = mSessions[mline].mRelayChannels.find(tag);
+		if (it != mSessions[mline].mRelayChannels.end()) {
 			return it->second;
 		}
 	}
-	return shared_ptr<MediaSource>();
+	return shared_ptr<RelayChannel>();
 }
 
-void RelayedCall::forwardTranslate(int mline, string *ip, int *port, const string &tag, const shared_ptr<Transaction> &transaction) {
+void RelayedCall::masqueradeForBack(int mline, string *ip, int *port, const string &tag, const shared_ptr<Transaction> &transaction) {
 	if (mline >= sMaxSessions) {
 		return;
 	}
@@ -158,7 +158,7 @@ void RelayedCall::forwardTranslate(int mline, string *ip, int *port, const strin
 	}
 }
 
-void RelayedCall::forwardIceTranslate(int mline, string *ip, int *port, const string &tag, const shared_ptr<Transaction> &transaction) {
+void RelayedCall::masqueradeIceForBack(int mline, string *ip, int *port, const string &tag, const shared_ptr<Transaction> &transaction) {
 	if (mline >= sMaxSessions) {
 		return;
 	}
@@ -176,22 +176,22 @@ void RelayedCall::forwardIceTranslate(int mline, string *ip, int *port, const st
 	}
 }
 
-void RelayedCall::setFront(SdpModifier *m, int mline, const string &ip, int port) {
+void RelayedCall::assignFrontChannel(SdpModifier *m, int mline, const string &ip, int port) {
 	if (mline >= sMaxSessions) {
 		return;
 	}
 	RelaySession *s = mSessions[mline].mRelaySession;
 	if (s != NULL) {
-		shared_ptr<MediaSource> ms = s->getFronts().front();
+		shared_ptr<RelayChannel> ms = s->getFronts().front();
 		if(ms->getPort() == -1) {
 			configureMediaSource(ms,m->mSession,mline);
 			ms->set(ip, port);
 		}
-		ms->setBehaviour(MediaSource::All);
+		ms->setBehaviour(RelayChannel::All);
 	}
 }
 
-void RelayedCall::setBack(SdpModifier *m, int mline, const string &ip, int port, const string &tag, const shared_ptr<Transaction> &transaction) {
+void RelayedCall::assignBackChannel(SdpModifier *m, int mline, const string &ip, int port, const string &tag, const shared_ptr<Transaction> &transaction) {
 	if (mline >= sMaxSessions) {
 		return;
 	}
@@ -218,9 +218,9 @@ void RelayedCall::update() {
 	for (int mline = 0; mline < sMaxSessions; ++mline) {
 		RelaySession *s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
-			for (auto it = mSessions[mline].mMediaSources.begin(); it != mSessions[mline].mMediaSources.end(); ++it) {
-				shared_ptr<MediaSource> &ms = it->second;
-				if (ms->getBehaviour() & MediaSource::Send) {
+			for (auto it = mSessions[mline].mRelayChannels.begin(); it != mSessions[mline].mRelayChannels.end(); ++it) {
+				shared_ptr<RelayChannel> &ms = it->second;
+				if (ms->getBehaviour() & RelayChannel::Send) {
 					feeder = it->first;
 				}
 			}
@@ -232,28 +232,28 @@ void RelayedCall::update() {
 	for (int mline = 0; mline < sMaxSessions; ++mline) {
 		RelaySession *s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
-			map<string, shared_ptr<MediaSource>>::iterator it;
+			map<string, shared_ptr<RelayChannel>>::iterator it;
 			if (feeder.empty()) {
-				it = mSessions[mline].mMediaSources.begin();
-				while(it != mSessions[mline].mMediaSources.end() && !(it->second->getBehaviour() & MediaSource::Receive)) ++it;
+				it = mSessions[mline].mRelayChannels.begin();
+				while(it != mSessions[mline].mRelayChannels.end() && !(it->second->getBehaviour() & RelayChannel::Receive)) ++it;
 			} else
-				it = mSessions[mline].mMediaSources.find(feeder);
-			if (it != mSessions[mline].mMediaSources.end()) {
-				shared_ptr<MediaSource> &ms = it->second;
-				ms->setBehaviour(MediaSource::All);
+				it = mSessions[mline].mRelayChannels.find(feeder);
+			if (it != mSessions[mline].mRelayChannels.end()) {
+				shared_ptr<RelayChannel> &ms = it->second;
+				ms->setBehaviour(RelayChannel::All);
 			}
 		}
 	}
 }
 
-void RelayedCall::validTransaction(const string &tag, const shared_ptr<Transaction> &transaction) {
+void RelayedCall::validateTransaction(const string &tag, const shared_ptr<Transaction> &transaction) {
 	for (int mline = 0; mline < sMaxSessions; ++mline) {
 		RelaySession *s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
 			auto it = mSessions[mline].mTransactions.find(transaction);
 			if (it != mSessions[mline].mTransactions.end()) {
-				it->second->setBehaviour(MediaSource::Receive);
-				mSessions[mline].mMediaSources.insert(pair<string, shared_ptr<MediaSource>>(tag, it->second));
+				it->second->setBehaviour(RelayChannel::Receive);
+				mSessions[mline].mRelayChannels.insert(pair<string, shared_ptr<RelayChannel>>(tag, it->second));
 				mSessions[mline].mTransactions.erase(it);
 			}
 		}
@@ -267,11 +267,11 @@ bool RelayedCall::removeTransaction(const shared_ptr<Transaction> &transaction) 
 		if (s != NULL) {
 			auto it = mSessions[mline].mTransactions.find(transaction);
 			if (it != mSessions[mline].mTransactions.end()) {
-				shared_ptr<MediaSource> &ms = it->second;
+				shared_ptr<RelayChannel> &ms = it->second;
 				s->removeBack(ms);
 				mSessions[mline].mTransactions.erase(it);
 			}
-			if (!mSessions[mline].mTransactions.empty() || !mSessions[mline].mMediaSources.empty())
+			if (!mSessions[mline].mTransactions.empty() || !mSessions[mline].mRelayChannels.empty())
 				remove = false;
 		}
 	}
@@ -284,13 +284,13 @@ bool RelayedCall::removeBack(const string &tag) {
 	for (int mline = 0; mline < sMaxSessions; ++mline) {
 		RelaySession *s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
-			auto it = mSessions[mline].mMediaSources.find(tag);
-			if (it != mSessions[mline].mMediaSources.end()) {
-				shared_ptr<MediaSource> &ms = it->second;
+			auto it = mSessions[mline].mRelayChannels.find(tag);
+			if (it != mSessions[mline].mRelayChannels.end()) {
+				shared_ptr<RelayChannel> &ms = it->second;
 				s->removeBack(ms);
-				mSessions[mline].mMediaSources.erase(it);
+				mSessions[mline].mRelayChannels.erase(it);
 			}
-			if (!mSessions[mline].mTransactions.empty() || !mSessions[mline].mMediaSources.empty())
+			if (!mSessions[mline].mTransactions.empty() || !mSessions[mline].mRelayChannels.empty())
 				remove = false;
 		}
 	}
@@ -298,19 +298,19 @@ bool RelayedCall::removeBack(const string &tag) {
 	return remove;
 }
 
-void RelayedCall::validBack(const string &tag) {
+void RelayedCall::setUniqueBack(const string &tag) {
 	if (mState == Initialized) {
 		for (int mline = 0; mline < sMaxSessions; ++mline) {
 			RelaySession *s = mSessions[mline].mRelaySession;
 			if (s != NULL) {
-				auto it = mSessions[mline].mMediaSources.begin();
-				while (it != mSessions[mline].mMediaSources.end()) {
-					shared_ptr<MediaSource> &ms = it->second;
+				auto it = mSessions[mline].mRelayChannels.begin();
+				while (it != mSessions[mline].mRelayChannels.end()) {
+					shared_ptr<RelayChannel> &ms = it->second;
 					if (it->first == tag) {
-						ms->setBehaviour(MediaSource::BehaviourType::All);
+						ms->setBehaviour(RelayChannel::BehaviourType::All);
 					} else {
 						s->removeBack(ms);
-						mSessions[mline].mMediaSources.erase(it);
+						mSessions[mline].mRelayChannels.erase(it);
 					}
 					++it;
 				}
@@ -346,7 +346,7 @@ RelayedCall::~RelayedCall() {
 	}
 }
 
-void RelayedCall::configureMediaSource(shared_ptr<MediaSource> ms, sdp_session_t *session, int mline_nr){
+void RelayedCall::configureMediaSource(shared_ptr<RelayChannel> ms, sdp_session_t *session, int mline_nr){
 	sdp_media_t *mline;
 	int i;
 	for(i=0,mline=session->sdp_media;i<mline_nr;mline=mline->m_next,++i){

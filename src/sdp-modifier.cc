@@ -332,7 +332,7 @@ void SdpModifier::iterate(function<void(int, const string &, int )> fct){
 	}
 }
 
-void SdpModifier::translate(function<void(int, string *, int *)> fct){
+void SdpModifier::masquerade(function<void(int, string *, int *)> fct){
 	sdp_media_t *mline=mSession->sdp_media;
 	sdp_attribute_t *rtcp_attribute;
 	int i;

@@ -46,11 +46,11 @@ private:
 	int mCtlPipe[2];
 	bool mRunning;
 
-	friend class MediaSource;
+	friend class RelayChannel;
 	//int ,
 };
 
-class MediaSource;
+class RelayChannel;
 
 
 class RelaySession {
@@ -60,14 +60,14 @@ public:
 	~RelaySession();
 
 	void fillPollFd(struct pollfd *tab);
-	void transfer(time_t current, const std::shared_ptr<MediaSource> &org, int i);
+	void transfer(time_t current, const std::shared_ptr<RelayChannel> &org, int i);
 	void unuse();
 
-	const std::list<std::shared_ptr<MediaSource>>& getFronts() {
+	const std::list<std::shared_ptr<RelayChannel>>& getFronts() {
 		return mFronts;
 	}
 
-	const std::list<std::shared_ptr<MediaSource>>& getBacks() {
+	const std::list<std::shared_ptr<RelayChannel>>& getBacks() {
 		return mBacks;
 	}
 
@@ -79,11 +79,11 @@ public:
 		return mLastActivityTime;
 	}
 
-	std::shared_ptr<MediaSource> addFront(const std::string &default_ip = std::string("undefined"));
-	void removeFront(const std::shared_ptr<MediaSource> &ms);
+	std::shared_ptr<RelayChannel> addFront(const std::string &default_ip = std::string("undefined"));
+	void removeFront(const std::shared_ptr<RelayChannel> &ms);
 
-	std::shared_ptr<MediaSource> addBack(const std::string &default_ip = std::string("undefined"));
-	void removeBack(const std::shared_ptr<MediaSource> &ms);
+	std::shared_ptr<RelayChannel> addBack(const std::string &default_ip = std::string("undefined"));
+	void removeBack(const std::shared_ptr<RelayChannel> &ms);
 
 	Mutex &getMutex() {
 		return mMutex;
@@ -99,8 +99,8 @@ private:
 	MediaRelayServer *mServer;
 	time_t mLastActivityTime;
 	bool_t mUsed;
-	std::list<std::shared_ptr<MediaSource>> mFronts;
-	std::list<std::shared_ptr<MediaSource>> mBacks;
+	std::list<std::shared_ptr<RelayChannel>> mFronts;
+	std::list<std::shared_ptr<RelayChannel>> mBacks;
 };
 
 class MediaFilter{
@@ -111,10 +111,10 @@ public:
 
 
 
-class MediaSource {
+class RelayChannel {
 public:
-	MediaSource(RelaySession * relaySession, bool front, const std::string &default_ip = std::string("undefined"));
-	~MediaSource();
+	RelayChannel(RelaySession * relaySession, bool front, const std::string &publicIp);
+	~RelayChannel();
 
 	typedef enum {
 		None = 0,
@@ -131,19 +131,19 @@ public:
 		return mIp;
 	}
 
-	const std::string getPublicIp() const {
-		return mRelaySession->getRelayServer()->getAgent()->getPreferredIp(mIp);
+	const std::string &getPublicIp() const {
+		return mPublicIp;
 	}
 
 	int getPort() const {
 		return mPort;
 	}
 
-	bool operator ==(const MediaSource &source) const {
+	bool operator ==(const RelayChannel &source) const {
 		return mIp == source.mIp && mPort == source.mPort;
 	}
 
-	bool operator <(const MediaSource &source) const {
+	bool operator <(const RelayChannel &source) const {
 		if (mIp == source.mIp) {
 			return mPort < source.mPort;
 		}
@@ -178,6 +178,7 @@ public:
 private:
 	const bool mFront;
 	BehaviourType mBehaviour;
+	std::string mPublicIp;
 	std::string mIp;
 	int mPort;
 	RtpSession *mSession;
@@ -189,3 +190,4 @@ private:
 };
 
 #endif
+
