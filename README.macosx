@@ -1,3 +1,0 @@
-can be compiled starting from xcode 4.5.1 with the following configure options:
-
-configure CC=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang CXX="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ --stdlib=libc++" --disable-strict

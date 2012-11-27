@@ -15,7 +15,7 @@ m4_include([m4/ax_compare_version.m4])
 # Favor g++ 4.4 as (the one in Debian and centos stable versions).
 # Use ./configure CXX=path to override.
 AC_PROG_CC
-AC_PROG_CXX([g++-4.4 g++])
+AC_PROG_CXX([clang++ g++-4.4 g++])
 AC_PROG_LIBTOOL
 
 build_snmp=true
@@ -48,16 +48,24 @@ else
 	use_rpm=true;
 fi
 
-# Use only -O1 due to a compile-time bug in gcc 4.4.6 from centos6.
-CFLAGS="-g -O2 -pthread $CFLAGS"
-CXXFLAGS="-g -O1 -pthread -std=c++0x"
-LDFLAGS="-pthread $LDFLAGS"
+strictness=yes
+case $CXX in
+	*clang++*)
+	CXXFLAGS="$CXXFLAGS -g -O2 -std=c++0x -stdlib=libc++"
+	strictness=no;
+	;;
+	*g++*)
+	# Use only -O1 due to a compile-time bug in gcc 4.4.6 from centos6.
+	CFLAGS="-g -O2 -pthread $CFLAGS"
+	CXXFLAGS="-g -O1 -pthread -std=c++0x"
+	LDFLAGS="-pthread $LDFLAGS"
+	;;
+esac
 
 AC_ARG_ENABLE(strict,
 	AC_HELP_STRING([--enable-strict],
 		       [Build with stricter options (gcc only) @<:@yes@:>@]),[
-	strictness="${enableval}"],[strictness=yes]
-)
+	strictness="${enableval}"],[foo=bar])
 
 
 # Checks for libraries.
