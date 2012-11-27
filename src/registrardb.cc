@@ -312,9 +312,11 @@ RegistrarDb::LocalRegExpire::LocalRegExpire(string preferedRoute) {
 	mPreferedRoute=preferedRoute;
 }
 
-RegistrarDb::RegistrarDb(Agent *ag) : mLocalRegExpire(new LocalRegExpire(ag->getPreferredRoute())) {
-	GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
-	mUseGlobalDomain=registrar->get<ConfigBoolean>("use-global-domain")->read();
+RegistrarDb::RegistrarDb(Agent *ag) : mLocalRegExpire(new LocalRegExpire(ag->getPreferredRoute())), mUseGlobalDomain(false) {
+}
+
+void RegistrarDb::useGlobalDomain(bool useGlobalDomain){
+	mUseGlobalDomain=useGlobalDomain;
 }
 
 RegistrarDb::~RegistrarDb() {
