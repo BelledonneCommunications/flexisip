@@ -33,7 +33,8 @@ flexisip_SOURCES=main.cc \
 			module-loadbalancer.cc \
 			dos-protection.cc dos-protection.hh \
 			expressionparser.cc expressionparser.hh \
-			h264iframefilter.cc h264iframefilter.hh
+			h264iframefilter.cc h264iframefilter.hh \
+			telephone-event-filter.cc telephone-event-filter.hh
 
 
 if BUILD_SNMP

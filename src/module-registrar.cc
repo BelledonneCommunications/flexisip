@@ -510,6 +510,7 @@ void Registrar::onRegister(Agent *agent, shared_ptr<RequestSipEvent> &ev, sip_co
 void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Record *aor, const url_t *sipUri) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
+	char sipUriRef[256]={0};
 	std::list<std::shared_ptr<ExtendedContact>> contacts;
 	std::list<std::shared_ptr<ExtendedContact>> contact;
 	
@@ -573,14 +574,13 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 			}
 			if (context.get() != NULL) {
 				url_t modified_uri=*sipUri;
-				char sipUriRef[256]={0};
 				
 				if (mUseGlobalDomain){
 					modified_uri.url_host="merged";
 				}
 				url_e(sipUriRef,sizeof(sipUriRef)-1,&modified_uri);
-				mForks.insert(pair<string, shared_ptr<ForkContext>>(sipUriRef, context));
-				LOGD("Add fork %p to store %s", context.get(), sipUriRef);
+				mForks.insert(make_pair(sipUriRef, context));
+				LOGD("Add fork %p to store with key '%s'", context.get(), sipUriRef);
 				incoming_transaction = ev->createIncomingTransaction();
 				incoming_transaction->setProperty<ForkContext>(Registrar::sInfo.getModuleName(), context);
 				context->onNew(incoming_transaction);
@@ -612,12 +612,19 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 					LOGW("Can't create sip_contact of %s.", ec->mSipUri);
 				}
 			} else {
-				if(isManagedDomain(ct->m_url)) {
+				if (isManagedDomain(ct->m_url)) {
 					if (!dontfork) {
-					mForks.insert(pair<string, shared_ptr<ForkContext>>(ec->mSipUri, context));
-					LOGD("Add fork %p to store %s", context.get(), ec->mSipUri);
+						sip_contact_t *temp_ctt=sip_contact_make(ms->getHome(),ec->mSipUri);
+						
+						if (mUseGlobalDomain){
+							temp_ctt->m_url->url_host="merged";
+							temp_ctt->m_url->url_port=NULL;
+						}
+						url_e(sipUriRef,sizeof(sipUriRef)-1,temp_ctt->m_url);
+						mForks.insert(make_pair(sipUriRef, context));
+						LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), sipUriRef);
 					}
-				} else {
+				}else{
 					if (dispatch(agent, ev, ct, NULL, context)) {
 						handled++;
 						if (dontfork) break;
