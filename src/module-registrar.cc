@@ -155,13 +155,13 @@ public:
 		mMessageForkCfg->mForkLate=mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
 		mForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("call-fork-timeout")->read();
 		mMessageForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("message-delivery-timeout")->read();
-		if (!mStaticRecordsFile.empty()) {
-			readStaticRecords();
-			mStaticRecordsTimer=mAgent->createTimer(mStaticRecordsTimeout*1000, &staticRoutesRereadTimerfunc,this);
-		}
 		mUseGlobalDomain=mc->get<ConfigBoolean>("use-global-domain")->read();
 		RegistrarDb::get(mAgent)->useGlobalDomain(mUseGlobalDomain);
 
+		if (!mStaticRecordsFile.empty()) {
+			readStaticRecords(); // read static records from configuration file
+			mStaticRecordsTimer=mAgent->createTimer(mStaticRecordsTimeout*1000, &staticRoutesRereadTimerfunc,this);
+		}
 		mSigaction.sa_sigaction = Registrar::sighandler;
 		mSigaction.sa_flags = SA_SIGINFO;
 		sigaction(SIGUSR1, &mSigaction, NULL);
