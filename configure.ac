@@ -2,7 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.61])
-AC_INIT([flexisip], [0.5.0], [simon.morlat@linphone.org])
+dnl AC_INIT([flexisip], [0.5.0], [simon.morlat@linphone.org])
+AC_INIT([flexisip], [m4_esyscmd_s([git describe | ( read id ; echo 0.5.0-git$id )])], [simon.morlat@linphone.org]) 
 AC_CONFIG_SRCDIR([src/agent.cc])
 AC_CONFIG_HEADERS([flexisip-config.h])
 
