@@ -52,9 +52,11 @@ protected:
 				{ Integer, "sdp-port-range-min", "The minimal value of SDP port range", "1024" },
 				{ Integer, "sdp-port-range-max", "The maximal value of SDP port range", "65535" },
 				{ Boolean, "bye-orphan-dialogs", "Sends a ACK and BYE to 200Ok for INVITEs not belonging to any established call.", "false"},
-#ifdef H264_FILTERING_ENABLED
+#ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
+				/*very specific features, useless for most people*/
 				{ Integer, "h264-filtering-bandwidth", "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value expressed in kbit/s. Use 0 to disable the feature", "0" },
 				{ Integer, "h264-iframe-decim", "When above option is activated, keep one I frame over this number.", "1" },
+				{ Boolean, "drop-telephone-event", "Drop out telephone-events packet from incoming RTP stream for sips calls.", "false" },
 #endif
 				config_item_end };
 		mc->addChildrenValues(items);
@@ -67,12 +69,14 @@ private:
 	bool processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<RequestSipEvent> &ev);
 	void process200OkforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
 	void processFailureForInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
+	void configureContext(shared_ptr<RelayedCall> &c); 
 	CallStore *mCalls;
 	MediaRelayServer *mServer;
 	string mSdpMangledParam;
 	RelayedCall::RTPDir mEarlymediaRTPDir;
 	int mH264FilteringBandwidth;
 	int mH264Decim;
+	bool mDropTelephoneEvent;
 	bool mByeOrphanDialogs;
 	static ModuleInfo<MediaRelay> sInfo;
 };
@@ -110,12 +114,14 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
 	string rtpdir = modconf->get<ConfigString>("early-media-rtp-dir")->read();
 	mByeOrphanDialogs = modconf->get<ConfigBoolean>("bye-orphan-dialogs")->read();
-#ifdef H264_FILTERING_ENABLED
+#ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 	mH264FilteringBandwidth=modconf->get<ConfigInt>("h264-filtering-bandwidth")->read();
 	mH264Decim=modconf->get<ConfigInt>("h264-iframe-decim")->read();
+	mDropTelephoneEvent=modconf->get<ConfigBoolean>("drop-telephone-event")->read();
 #else
 	mH264FilteringBandwidth=0;
 	mH264Decim=0;
+	mDropTelephoneEvent=false;
 #endif
 	
 	mEarlymediaRTPDir = RelayedCall::RelayedCall::DUPLEX;
@@ -174,10 +180,11 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	}
 
 	// Create Media
-	if (c->getCallerTag() == from_tag)
+	if (c->getCallerTag() == from_tag){
 		c->initChannels(m, to_tag, transaction, mAgent->getPreferredIp(from_host), mAgent->getPreferredIp(invite_host));
-	else
+	}else{
 		c->initChannels(m, from_tag, transaction, mAgent->getPreferredIp(invite_host), mAgent->getPreferredIp(from_host));
+	}
 
 	if (!c->checkMediaValid()) {
 		LOGE("The relay media are invalid, no RTP/RTCP port remaining?");
@@ -215,6 +222,17 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	return true;
 }
 
+
+void MediaRelay::configureContext(shared_ptr<RelayedCall> &c){
+#ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
+	if (mH264FilteringBandwidth)
+		c->enableH264IFrameFiltering(mH264FilteringBandwidth,mH264Decim);
+	if (mDropTelephoneEvent)
+		c->enableTelephoneEventDrooping(true);
+#endif
+}
+
+
 void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
@@ -226,8 +244,8 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) == NULL) {
 			c = make_shared<RelayedCall>(mServer, sip, mEarlymediaRTPDir);
-			if (mH264FilteringBandwidth)
-				c->enableH264IFrameFiltering(mH264FilteringBandwidth,mH264Decim);
+			
+			configureContext(c);
 			if (processNewInvite(c, ot, ev)) {
 				//be in the record-route
 				addRecordRouteIncoming(c->getHome(), getAgent(),ev);

@@ -50,13 +50,10 @@ public:
 	static const int sMaxSessions = 4;
 	RelayedCall(MediaRelayServer *server, sip_t *sip, RTPDir dir);
 	
-	/*Enable filtering of H264 Iframes for low bandwidth.*/
-	void enableH264IFrameFiltering(int bandwidth_threshold, int decim);
-	
 	/* Create a channel for each sdp media using defined relay ip for front and back. The transaction
 	 * allow use to identify the callee (we don't have a tag yet).
 	 */
-	void initChannels(SdpModifier *m, const std::string &tag, const std::shared_ptr<Transaction> &transaction, const std::string &frontRelayIp, const std::string&backRelayIp);
+	void initChannels(SdpModifier *m, const std::string &tag, const std::shared_ptr<Transaction> &transaction, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps);
 
 	/* Change the ip/port of sdp line by provided ones. Used for masquerade front channels */
 	void masqueradeForFront(int mline, std::string *ip, int *port);
@@ -98,8 +95,13 @@ public:
 
 	virtual ~RelayedCall();
 
-	void configureMediaSource(std::shared_ptr<RelayChannel> ms, sdp_session_t *session, int mline_nr);
+	void configureRelayChannel(std::shared_ptr<RelayChannel> ms,sip_t *sip, sdp_session_t *session, int mline_nr);
 
+	/*Enable filtering of H264 Iframes for low bandwidth.*/
+	void enableH264IFrameFiltering(int bandwidth_threshold, int decim);
+	/*Enable telephone-event dropping for tls clients*/
+	void enableTelephoneEventDrooping(bool value);
+	
 private:
 	typedef enum {
 		Idle, Initialized, Running
@@ -110,6 +112,7 @@ private:
 	RTPDir mEarlymediaRTPDir;
 	int mBandwidthThres;
 	int mDecim;
+	bool mDropTelephoneEvents;
 };
 
 

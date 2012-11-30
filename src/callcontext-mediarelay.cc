@@ -22,6 +22,7 @@
 #include <string>
 #include "mediarelay.hh"
 #include "h264iframefilter.hh"
+#include "telephone-event-filter.hh"
 
 using namespace std;
 
@@ -29,6 +30,7 @@ using namespace std;
 RelayedCall::RelayedCall(MediaRelayServer *server, sip_t *sip, RTPDir dir) :
 					CallContextBase(sip), mServer(server), mState(Idle), mEarlymediaRTPDir(dir), mBandwidthThres(0) {
 	LOGD("New RelayedCall %p", this);
+	mDropTelephoneEvents=false;
 }
 
 /*Enable filtering of H264 Iframes for low bandwidth.*/
@@ -37,8 +39,13 @@ void RelayedCall::enableH264IFrameFiltering(int bandwidth_threshold, int decim){
 	mDecim=decim;
 }
 
+void RelayedCall::enableTelephoneEventDrooping(bool value){
+	mDropTelephoneEvents=value;
+}
+
+
 /*this function is called to masquerade the SDP, for each mline*/
-void RelayedCall::initChannels(SdpModifier *m, const string &tag, const shared_ptr<Transaction> &transaction, const string &frontRelayIp, const string&backRelayIp) {
+void RelayedCall::initChannels(SdpModifier *m, const string &tag, const shared_ptr<Transaction> &transaction, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps) {
 	sdp_media_t *mline = m->mSession->sdp_media;
 	int i = 0;
 	for (i = 0; mline != NULL && i < sMaxSessions; mline = mline->m_next, ++i) {
@@ -48,23 +55,23 @@ void RelayedCall::initChannels(SdpModifier *m, const string &tag, const shared_p
 		}
 		if (i >= sMaxSessions) {
 			LOGE("Max sessions per relayed call is reached.");
-			return;
+			return ;
 		}
 		RelaySession *s = mSessions[i].mRelaySession;
 		if (s == NULL) {
 			s = mServer->createSession();
 			mSessions[i].mRelaySession = s;
-			s->addFront(frontRelayIp);
+			s->addFront(frontRelayIps);
 		}
 		if (!tag.empty()) {
 			if (mSessions[i].mRelayChannels.find(tag) == mSessions[i].mRelayChannels.end()) {
-				shared_ptr<RelayChannel> ms = s->addBack(backRelayIp);
+				shared_ptr<RelayChannel> ms = s->addBack(backRelayIps);
 				ms->setBehaviour(RelayChannel::Receive);
 				mSessions[i].mRelayChannels.insert(pair<string, shared_ptr<RelayChannel>>(tag, ms));
 			}
 		} else {
 			if (mSessions[i].mTransactions.find(transaction) == mSessions[i].mTransactions.end()) {
-				shared_ptr<RelayChannel> ms = s->addBack(backRelayIp);
+				shared_ptr<RelayChannel> ms = s->addBack(backRelayIps);
 				ms->setBehaviour(RelayChannel::None);
 				mSessions[i].mTransactions.insert(pair<shared_ptr<Transaction>, shared_ptr<RelayChannel>>(transaction, ms));
 			}
@@ -184,7 +191,7 @@ void RelayedCall::assignFrontChannel(SdpModifier *m, int mline, const string &ip
 	if (s != NULL) {
 		shared_ptr<RelayChannel> ms = s->getFronts().front();
 		if(ms->getPort() == -1) {
-			configureMediaSource(ms,m->mSession,mline);
+			configureRelayChannel(ms,m->mSip,m->mSession,mline);
 			ms->set(ip, port);
 		}
 		ms->setBehaviour(RelayChannel::All);
@@ -199,7 +206,7 @@ void RelayedCall::assignBackChannel(SdpModifier *m, int mline, const string &ip,
 	if (s != NULL) {
 		auto ms = getMS(mline, tag, transaction);
 		if (ms != NULL && ms->getPort() == -1) {
-			configureMediaSource(ms,m->mSession,mline);
+			configureRelayChannel(ms,m->mSip,m->mSession,mline);
 			ms->set(ip, port);
 		}
 	}
@@ -346,7 +353,20 @@ RelayedCall::~RelayedCall() {
 	}
 }
 
-void RelayedCall::configureMediaSource(shared_ptr<RelayChannel> ms, sdp_session_t *session, int mline_nr){
+
+#ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
+
+static bool isTls(url_t *url){
+	if (url->url_type==url_sips) return true;
+	char transport[20]={0};
+	if (url_param(url->url_params,"transport",transport,sizeof(transport)-1)>0 && strcasecmp(transport,"tls")==0)
+		return true;
+	return false;
+}
+#endif
+
+
+void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms, sip_t *sip, sdp_session_t *session, int mline_nr){
 	sdp_media_t *mline;
 	int i;
 	for(i=0,mline=session->sdp_media;i<mline_nr;mline=mline->m_next,++i){
@@ -358,6 +378,20 @@ void RelayedCall::configureMediaSource(shared_ptr<RelayChannel> ms, sdp_session_
 				if (b && ((int)b->b_value) <= (int)mBandwidthThres){
 					LOGI("Enabling H264 filtering");
 					ms->setFilter(make_shared<H264IFrameFilter>(mDecim));
+				}
+			}
+		}
+	}
+	if (mDropTelephoneEvents){
+		//only telephone event coming from tls clients are dropped.
+		if (mline->m_type==sdp_media_audio){
+			if (isTls(sip->sip_contact->m_url)){
+				sdp_rtpmap_t *rtpmap;
+				for (rtpmap=mline->m_rtpmaps;rtpmap!=NULL;rtpmap=rtpmap->rm_next){
+					if (strcasecmp(rtpmap->rm_encoding,"telephone-event")==0){
+						LOGI("Enabling telephone-event filtering on payload type %i",rtpmap->rm_pt);
+						ms->setFilter(make_shared<TelephoneEventFilter>((int)rtpmap->rm_pt));
+					}
 				}
 			}
 		}

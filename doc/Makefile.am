@@ -1,3 +1,5 @@
+EXTRA_DIST=latex_include_generator.sh
+
 guide=flexisip_guide
 guide_tex=$(srcdir)/${guide}.tex
 guide_pdf=$(top_builddir)/doc/${guide}.pdf

@@ -56,6 +56,7 @@ bool SdpModifier::initFromSipMsg(sip_t *sip){
 		LOGE("SDP with no mline.");
 		return false;
 	}
+	mSip=sip;
 	return true;
 }
 

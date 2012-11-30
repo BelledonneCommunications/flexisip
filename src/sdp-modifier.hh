@@ -58,9 +58,9 @@ class SdpModifier{
 		SdpModifier(su_home_t *home);
 		static MSList *findCommon(const MSList *offer, const MSList *answer, bool use_offer_numbering);
 		sdp_session_t *mSession;
+		sip_t *mSip;
 	private:
 		sdp_parser_t *mParser;
-		sip_t *mSip;
 		su_home_t *mHome;
 };
 

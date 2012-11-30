@@ -103,7 +103,8 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		void start(const char *transport_override);
 		virtual void loadConfig(GenericManager *cm);
 		virtual ~Agent();
-		std::string getPreferredIp(const std::string &destination) const;
+		///Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination. 
+		std::pair<std::string,std::string> getPreferredIp(const std::string &destination) const;
 		const std::string &getBindIp()const{
 			return mBindIp;
 		}

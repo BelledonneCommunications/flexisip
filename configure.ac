@@ -3,7 +3,10 @@
 
 AC_PREREQ([2.61])
 dnl AC_INIT([flexisip], [0.5.0], [simon.morlat@linphone.org])
-AC_INIT([flexisip], [m4_esyscmd_s([git describe | ( read id ; echo 0.5.0-git$id )])], [simon.morlat@linphone.org]) 
+
+m4_ifdef([m4_esyscmd_s],
+[AC_INIT([flexisip], [m4_esyscmd_s([git describe | ( read id ; echo 0.5.0-git$id )])], [simon.morlat@linphone.org]) ],
+[ AC_INIT([flexisip], [0.5.0], [simon.morlat@linphone.org])] )
 AC_CONFIG_SRCDIR([src/agent.cc])
 AC_CONFIG_HEADERS([flexisip-config.h])
 
@@ -92,12 +95,14 @@ AC_ARG_ENABLE(transcoder,
 )
 AM_CONDITIONAL(BUILD_TRANSCODER,test x$transcoder = xyes)
 
-AC_ARG_ENABLE(h264-filter,
-	AC_HELP_STRING([--enable-h264-filter],
-	    [Enable H264 i-frame filtering @<:@yes@:>@]),
-        [h264_filter="${enableval}"],[h264_filter=no]
+AC_ARG_ENABLE(specific-features,
+	AC_HELP_STRING([--enable-specific-features],
+	    [Enable specific features @<:no:>@]),
+        [specific_features="${enableval}"],[specific_features=no]
 )
-AC_DEFINE([H264_FILTERING_ENABLED],1,[H264 I frame filtering is enabled.])
+if test $specific_features = "yes"; then
+	AC_DEFINE([MEDIARELAY_SPECIFIC_FEATURES_ENABLED],1,[Enable specific features.])
+fi
 
 AC_DEFUN([CHECK_BOOST],[$1
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[[

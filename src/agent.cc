@@ -360,28 +360,27 @@ void Agent::loadConfig(GenericManager *cm) {
 }
 
 
-std::string Agent::getPreferredIp(const std::string &destination) const {
+std::pair<std::string,std::string> Agent::getPreferredIp(const std::string &destination) const {
 	int err;
-	struct addrinfo addr;
-	memset(&addr, 0, sizeof(addr));
-	addr.ai_family = PF_INET;
-	addr.ai_flags = AI_NUMERICHOST;
+	struct addrinfo hints;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_flags = AI_NUMERICHOST;
 
 	struct addrinfo *result;
-	err = getaddrinfo(destination.c_str(), NULL, &addr, &result);
+	err = getaddrinfo(destination.c_str(), NULL, &hints, &result);
 	if (err == 0) {
 		for (auto it = mNetworks.begin(); it != mNetworks.end(); ++it) {
 			if (it->isInNetwork(result->ai_addr)) {
 				freeaddrinfo(result);
-				return it->getIP();
+				return make_pair(it->getIP(),it->getIP());
 			}
 		}
-
 		freeaddrinfo(result);
 	} else {
 		LOGE("getaddrinfo error: %s", strerror(errno));
 	}
-	return getPublicIp();
+	return make_pair(getPublicIp(),"0.0.0.0");
 }
 
 Agent::Network::Network(const Network &net): mIP(net.mIP) {

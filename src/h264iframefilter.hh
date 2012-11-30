@@ -25,7 +25,10 @@
 class H264IFrameFilter : public MediaFilter{
 public:
 	H264IFrameFilter(int skipcount);
-	virtual bool onTransfer(uint8_t *data, size_t size);
+	///Should return false if the incoming packet must not be transfered.
+	bool onIncomingTransfer(uint8_t *data, size_t size, const sockaddr *addr, socklen_t addrlen);
+	///Should return false if the packet output must not be sent.
+	bool onOutgoingTransfer(uint8_t *data, size_t size, const sockaddr *addr, socklen_t addrlen);
 private:
 	int mSkipCount;
 	uint32_t mLastIframeTimestamp;

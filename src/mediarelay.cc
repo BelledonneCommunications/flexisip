@@ -28,9 +28,9 @@
 
 using namespace ::std;
 
-RelayChannel::RelayChannel(RelaySession * relaySession, bool front, const string &publicIp) :
-		mFront(front), mBehaviour(BehaviourType::All), mPublicIp(publicIp), mIp(std::string("undefined")), mPort(-1), mRelaySession(relaySession) {
-	mSession = mRelaySession->getRelayServer()->createRtpSession();
+RelayChannel::RelayChannel(RelaySession * relaySession, bool front, const std::pair<std::string,std::string> &relayIps) :
+		mFront(front), mBehaviour(BehaviourType::All), mPublicIp(relayIps.first), mIp(std::string("undefined")), mPort(-1), mRelaySession(relaySession) {
+	mSession = mRelaySession->getRelayServer()->createRtpSession(relayIps.second);
 	mSources[0] = rtp_session_get_rtp_socket(mSession);
 	mSources[1] = rtp_session_get_rtcp_socket(mSession);
 }
@@ -117,7 +117,11 @@ void RelayChannel::fillPollFd(struct pollfd *tab) {
 int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 	mSockAddrSize[i] = sizeof(mSockAddr[i]);
 	int err = recvfrom(mSources[i], buf, buflen, 0, (struct sockaddr*) &mSockAddr[i], &mSockAddrSize[i]);
-	if (err == -1) {
+	if (err>0){
+		if (mFilter && mFilter->onIncomingTransfer(buf,buflen,(struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]) == false ){
+			return 0;
+		}
+	}else if (err == -1) {
 		mSockAddrSize[i] = 0;
 	}
 	return err;
@@ -127,7 +131,7 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 int RelayChannel::send(int i, uint8_t *buf, size_t buflen) {
 	int err;
 	if (mSockAddrSize[i] > 0) {
-		if (!mFilter || mFilter->onTransfer(buf,buflen) ){
+		if (!mFilter || mFilter->onOutgoingTransfer(buf,buflen,(struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]) ){
 			err = sendto(mSources[i], buf, buflen, 0, (struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]);
 		}else err=buflen;//don't report error.
 		return err;
@@ -146,8 +150,8 @@ RelaySession::RelaySession(MediaRelayServer *server) :
 	mUsed = true;
 }
 
-shared_ptr<RelayChannel> RelaySession::addFront(const string &default_ip) {
-	shared_ptr<RelayChannel> ms = make_shared<RelayChannel>(this, true, default_ip);
+shared_ptr<RelayChannel> RelaySession::addFront(const std::pair<std::string,std::string> &relayIps) {
+	shared_ptr<RelayChannel> ms = make_shared<RelayChannel>(this, true, relayIps);
 	LOGD("RelayChannel %p | Add | %s:%i <-> %i", ms.get(), ms->getIp().c_str(), ms->getPort(), ms->getRelayPort());
 	mMutex.lock();
 	mFronts.push_back(ms);
@@ -163,8 +167,8 @@ void RelaySession::removeFront(const shared_ptr<RelayChannel> &ms) {
 	mMutex.unlock();
 }
 
-shared_ptr<RelayChannel> RelaySession::addBack(const string &default_ip) {
-	shared_ptr<RelayChannel> ms = make_shared<RelayChannel>(this, false, default_ip);
+shared_ptr<RelayChannel> RelaySession::addBack(const std::pair<std::string,std::string> &relayIps) {
+	shared_ptr<RelayChannel> ms = make_shared<RelayChannel>(this, false, relayIps);
 	LOGD("RelayChannel %p | Add | %i <-> %s:%i", ms.get(), ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
 	mMutex.lock();
 	mBacks.push_back(ms);
@@ -258,13 +262,12 @@ MediaRelayServer::MediaRelayServer(Agent *agent) :
 Agent *MediaRelayServer::getAgent() {
 	return mAgent;
 }
-RtpSession *MediaRelayServer::createRtpSession() {
+
+RtpSession *MediaRelayServer::createRtpSession(const std::string & bindIp) {
 	RtpSession *session = rtp_session_new(RTP_SESSION_SENDRECV);
 #if ORTP_HAS_REUSEADDR
 	rtp_session_set_reuseaddr(session, FALSE);
 #endif
-	string bindIp=mAgent->getBindIp();
-	if (bindIp.empty()) bindIp="0.0.0.0";
 	for (int i = 0; i < 100; ++i) {
 		int port = ((rand() % (mMaxPort - mMinPort)) + mMinPort) & 0xfffe;
 

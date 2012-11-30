@@ -25,7 +25,8 @@
 class TelephoneEventFilter : public MediaFilter{
 public:
 	TelephoneEventFilter(int telephone_event_pt);
-	virtual bool onTransfer(uint8_t *data, size_t size);
+	virtual bool onIncomingTransfer(uint8_t *data, size_t size, const struct sockaddr* sockaddr, socklen_t addrlen);
+	virtual bool onOutgoingTransfer(uint8_t *data, size_t size, const struct sockaddr* sockaddr, socklen_t addrlen);
 private:
 	int mTelephoneEventPt;
 };

@@ -23,12 +23,16 @@
 TelephoneEventFilter::TelephoneEventFilter(int telephone_event_pt) : mTelephoneEventPt(telephone_event_pt){
 }
 
-bool TelephoneEventFilter::onTransfer(uint8_t *data, size_t size){
+bool TelephoneEventFilter::onIncomingTransfer(uint8_t *data, size_t size, const struct sockaddr* sockaddr, socklen_t addrlen){
 	rtp_header_t *h=(rtp_header_t*)data;
 	if (size<sizeof(rtp_header_t)) return true;
 	if (h->paytype==mTelephoneEventPt){
 		LOGD("Detected telephone event in stream, dropping.");
 		return false;
 	}
+	return true;
+}
+
+bool TelephoneEventFilter::onOutgoingTransfer(uint8_t *data, size_t size, const struct sockaddr* sockaddr, socklen_t addrlen){
 	return true;
 }

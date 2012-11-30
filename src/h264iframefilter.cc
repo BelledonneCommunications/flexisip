@@ -34,7 +34,7 @@ static inline uint8_t nal_header_get_type(const uint8_t *h){
 H264IFrameFilter::H264IFrameFilter(int skipcount) : mSkipCount(skipcount), mLastIframeTimestamp(0), mIframeCount(0){
 }
 
-bool H264IFrameFilter::onTransfer(uint8_t *data, size_t size){
+bool H264IFrameFilter::onOutgoingTransfer(uint8_t *data, size_t size, const sockaddr *addr, socklen_t addrlen){
 	const uint8_t *p=data;
 	bool ret=false;
 	bool isIFrame=false;
@@ -84,5 +84,9 @@ bool H264IFrameFilter::onTransfer(uint8_t *data, size_t size){
 	}
 	
 	return ret;
+}
+
+bool H264IFrameFilter::onIncomingTransfer(uint8_t *data, size_t size, const sockaddr *addr, socklen_t addrlen){
+	return true;
 }
 

@@ -31,7 +31,7 @@ public:
 	RelaySession *createSession();
 	void update();
 	Agent *getAgent();
-	RtpSession *createRtpSession();
+	RtpSession *createRtpSession(const std::string & bindIp);
 private:
 	void start();
 	void run();
@@ -79,10 +79,10 @@ public:
 		return mLastActivityTime;
 	}
 
-	std::shared_ptr<RelayChannel> addFront(const std::string &default_ip = std::string("undefined"));
+	std::shared_ptr<RelayChannel> addFront(const std::pair<std::string,std::string> & relayIps);
 	void removeFront(const std::shared_ptr<RelayChannel> &ms);
 
-	std::shared_ptr<RelayChannel> addBack(const std::string &default_ip = std::string("undefined"));
+	std::shared_ptr<RelayChannel> addBack(const std::pair<std::string,std::string> & relayIps);
 	void removeBack(const std::shared_ptr<RelayChannel> &ms);
 
 	Mutex &getMutex() {
@@ -105,15 +105,17 @@ private:
 
 class MediaFilter{
 public:
-	///Should return false if the packet must not be transfered.
-	virtual bool onTransfer(uint8_t *data, size_t size)=0;
+	///Should return false if the incoming packet must not be transfered.
+	virtual bool onIncomingTransfer(uint8_t *data, size_t size, const sockaddr *addr, socklen_t addrlen)=0;
+	///Should return false if the packet output must not be sent.
+	virtual bool onOutgoingTransfer(uint8_t *data, size_t size, const sockaddr *addr, socklen_t addrlen)=0;
 };
 
 
 
 class RelayChannel {
 public:
-	RelayChannel(RelaySession * relaySession, bool front, const std::string &publicIp);
+	RelayChannel(RelaySession * relaySession, bool front, const std::pair<std::string,std::string> &relayIps);
 	~RelayChannel();
 
 	typedef enum {
