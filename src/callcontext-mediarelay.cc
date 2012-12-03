@@ -382,6 +382,7 @@ void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms, sip_t *sip,
 			}
 		}
 	}
+#ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 	if (mDropTelephoneEvents){
 		//only telephone event coming from tls clients are dropped.
 		if (mline->m_type==sdp_media_audio){
@@ -396,5 +397,6 @@ void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms, sip_t *sip,
 			}
 		}
 	}
+#endif
 }
 
