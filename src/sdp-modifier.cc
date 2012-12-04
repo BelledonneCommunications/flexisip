@@ -24,6 +24,7 @@
 using namespace ::std;
 
 SdpModifier *SdpModifier::createFromSipMsg(su_home_t *home, sip_t *sip){
+	if (!sip->sip_payload || !sip->sip_payload->pl_data) return NULL;
 	SdpModifier *sm=new SdpModifier(home);
 	if (!sm->initFromSipMsg(sip)) {
 		delete sm;
@@ -247,6 +248,12 @@ void SdpModifier::replacePayloads(const MSList *payloads, const MSList *preserve
 		sdp_rtpmap_t *map=sdp_rtpmap_make_from_payload_type(mHome,pt,number);
 		mline->m_rtpmaps=sdp_rtpmap_append(mline->m_rtpmaps,map);
 	}
+}
+
+short SdpModifier::getAudioIpVersion() {
+      sdp_connection_t *c=mSession->sdp_media->m_connections;
+      if (c && c->c_addrtype == sdp_addr_ip6) return 6;
+      return 4;
 }
 
 void SdpModifier::getAudioIpPort(string *ip, int *port){

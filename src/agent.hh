@@ -105,11 +105,11 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		virtual ~Agent();
 		///Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination. 
 		std::pair<std::string,std::string> getPreferredIp(const std::string &destination) const;
-		const std::string &getBindIp()const{
-			return mBindIp;
+		const std::string &getRtpBindIp()const{
+			return mRtpBindIp;
 		}
-		const std::string &getPublicIp()const{
-			return mPublicIp;
+		const std::string &getPublicIp(short version=4)const{
+			return version == 6 ? mPublicIpV6 : mPublicIpV4;
 		}
 		virtual Agent *getAgent() {
 			return this;
@@ -117,7 +117,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		//Prefered route for inter-proxy communication
 		std::string getPreferredRoute()const;
 		const url_t *getPreferredRouteUrl()const{
-			return mPreferredRoute;
+			return mPreferredRouteV4;
 		}
 		/**
 		 * return a network unique identifier for this Agent.
@@ -154,7 +154,8 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		std::string mServerString;
 		std::list<Module*> mModules;
 		std::list<std::string> mAliases;
-		url_t *mPreferredRoute;
+		url_t *mPreferredRouteV4;
+		url_t *mPreferredRouteV6;
 		class Network {
 			struct sockaddr_storage mNetwork;
 			std::string mIP;
@@ -167,7 +168,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		};
 		std::list<Network> mNetworks;
 		std::string mUniqueId;
-		std::string mBindIp,mPublicIp;
+		std::string mRtpBindIp,mPublicIpV4,mPublicIpV6;
 		nta_agent_t *mAgent;
 		su_root_t *mRoot;
 		su_home_t mHome;

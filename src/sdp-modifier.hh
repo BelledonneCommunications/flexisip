@@ -41,6 +41,7 @@ class SdpModifier{
 		MSList *readPayloads();
 		int readPtime();
 		void replacePayloads(const MSList *payloads, const MSList *preserved_numbers);
+		short getAudioIpVersion();
 		void getAudioIpPort(std::string *ip, int *port);
 		void changeAudioIpPort(const char *ip, int port);
 		void changeMediaConnection(sdp_media_t *mline, const char *relay_ip);

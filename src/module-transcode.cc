@@ -325,7 +325,9 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 		}
 
 		int blport = c->getBackSide()->getAudioPort();
-		const char *publicIp=getAgent()->getPublicIp().c_str();
+		const short ipVersion=m->getAudioIpVersion();
+		const char *publicIp=getAgent()->getPublicIp(ipVersion).c_str();
+		LOGD("Using public ip%s %s", ipVersion == 6 ?"v6":"v4", publicIp);
 		m->changeAudioIpPort(publicIp, blport);
 		LOGD("Back side local port: %s:%i <-> ?", publicIp, blport);
 
@@ -380,13 +382,21 @@ void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	if (sip->sip_request->rq_method == sip_method_invite) {
 		ev->createIncomingTransaction();
 		auto ot = ev->createOutgoingTransaction();
-		auto c = make_shared<TranscodedCall>(sip, getAgent()->getBindIp());
+		auto c = make_shared<TranscodedCall>(sip, getAgent()->getRtpBindIp());
 		if (processInvite(c.get(), ev) == 0) {
 			mCalls.store(c);
 			ot->setProperty<TranscodedCall>(getModuleName(), c);
 		} else {
 			LOGD("Transcoder: couldn't process invite, stopping processing");
 			return;
+		}
+	} else if (sip->sip_request->rq_method == sip_method_ack) {
+		auto c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip, true));
+		if (c == NULL) {
+			LOGD("Transcoder: couldn't find call context for ack");
+			return;
+		} else {
+		  processAck(c.get(), ev);
 		}
 	} else if (sip->sip_request->rq_method == sip_method_info) {
 		auto c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip, true));
@@ -430,7 +440,10 @@ int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {
 		ctx->getBackSide()->setPtime(ptime);
 		m->setPtime(0); //remove the ptime attribute
 	}
-	m->changeAudioIpPort(getAgent()->getPublicIp().c_str(), ctx->getFrontSide()->getAudioPort());
+	const short ipVersion=m->getAudioIpVersion();
+	const char *publicIp=getAgent()->getPublicIp(ipVersion).c_str();
+	LOGD("Using public ip%s %s", ipVersion == 6 ?"v6":"v4", publicIp);
+	m->changeAudioIpPort(publicIp, ctx->getFrontSide()->getAudioPort());
 
 	MSList *answer = m->readPayloads();
 	if (answer == NULL) {

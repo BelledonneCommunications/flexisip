@@ -43,102 +43,6 @@
 
 using namespace ::std;
 
-#if 0
-static bool resolveAddress(const string &address, string &ipAddress) {
-	int err;
-	char buff[IPADDR_SIZE];
-	struct addrinfo addr;
-	memset(&addr, 0, sizeof(addr));
-	addr.ai_family = PF_INET;
-	struct addrinfo *result;
-	err = getaddrinfo(address.c_str(), NULL, &addr, &result);
-	if (err == 0) {
-		err = getnameinfo(result->ai_addr, result->ai_addrlen, buff, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
-		freeaddrinfo(result);
-		if (err == 0) {
-			ipAddress.assign(buff);
-			return true;
-		} else {
-			LOGE("getnameinfo error: %s", strerror(errno));
-		}
-	} else {
-		LOGE("getaddrinfo error: %s", strerror(errno));
-	}
-	return false;
-}
-
-static bool isIPAddress(const string &address) {
-	int err;
-	struct addrinfo addr;
-	memset(&addr, 0, sizeof(addr));
-	addr.ai_family = AF_UNSPEC;
-	addr.ai_flags = AI_NUMERICHOST;
-
-	struct addrinfo *result;
-	err = getaddrinfo(address.c_str(), NULL, &addr, &result);
-	if (err == 0) {
-		freeaddrinfo(result);
-		return true;
-	} else {
-		LOGE("getaddrinfo error: %s", strerror(errno));
-	}
-	return false;
-}
-
-static int get_local_ip_for_with_connect(int type, const char *dest, char *result) {
-	int err, tmp;
-	struct addrinfo hints;
-	struct addrinfo *res = NULL;
-	struct sockaddr_storage addr;
-	int sock;
-	socklen_t s;
-
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = (type == AF_INET6) ? PF_INET6 : PF_INET;
-	hints.ai_socktype = SOCK_DGRAM;
-	/*hints.ai_flags=AI_NUMERICHOST|AI_CANONNAME;*/
-	err = getaddrinfo(dest, "5060", &hints, &res);
-	if (err != 0) {
-		LOGE("getaddrinfo() error: %s", strerror(err));
-		return -1;
-	}
-	if (res == NULL) {
-		LOGE("bug: getaddrinfo returned nothing.");
-		return -1;
-	}
-	sock = socket(res->ai_family, SOCK_DGRAM, 0);
-	tmp = 1;
-	err = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &tmp, sizeof(int));
-	if (err < 0) {
-		LOGW("Error in setsockopt: %s", strerror(errno));
-	}
-	err = connect(sock, res->ai_addr, res->ai_addrlen);
-	if (err < 0) {
-		LOGE("Error in connect: %s", strerror(errno));
-		freeaddrinfo(res);
-		close(sock);
-		return -1;
-	}
-	freeaddrinfo(res);
-	res = NULL;
-	s = sizeof(addr);
-	err = getsockname(sock, (struct sockaddr*) &addr, &s);
-	if (err != 0) {
-		LOGE("Error in getsockname: %s", strerror(errno));
-		close(sock);
-		return -1;
-	}
-
-	err = getnameinfo((struct sockaddr *) &addr, s, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
-	if (err != 0) {
-		LOGE("getnameinfo error: %s", strerror(errno));
-	}
-	close(sock);
-	return 0;
-}
-
-#endif
-
 static StatCounter64 *createCounter(GenericStruct *global, string keyprefix, string helpprefix, string value) {
 	return global->createStat(keyprefix+value, helpprefix + value +".");
 }
@@ -200,26 +104,19 @@ void Agent::start(const char *transport_override){
 		transports=ConfigStringList::parse(transport_override);
 	}
 
-#if 0
-	if (mPublicAddress.empty() || mPublicAddress == "guess") {
-		char localip[128];
-		get_local_ip_for_with_connect(AF_INET, "209.85.229.147", localip);
-		mPublicAddress = localip;
-	}
-#endif
-	
 	for(auto it=transports.begin();it!=transports.end();++it){
 		const string &uri=(*it);
-		char bindIp[128];
+		char rtpBindIp[128];
 		url_t *url;
 		int err;
 		su_home_t home;
 		su_home_init(&home);
 		url=url_make(&home,uri.c_str());
 		LOGD("Enabling transport %s",uri.c_str());
-		if (mBindIp.empty()){
-			if (url_param(url->url_params,"maddr",bindIp,sizeof(bindIp))>0){
-				mBindIp=bindIp;
+		if (mRtpBindIp.empty()){
+			if (url_param(url->url_params,"maddr",rtpBindIp,sizeof(rtpBindIp))>0){
+				LOGD("RTP sockets will bind only on %s", rtpBindIp);
+				mRtpBindIp=rtpBindIp;
 			}
 		}
 		if (uri.find("sips")==0){
@@ -233,13 +130,16 @@ void Agent::start(const char *transport_override){
 		}
 		su_home_deinit(&home);
 	}
-	if (mBindIp.empty())
-		mBindIp="0.0.0.0";
+	if (mRtpBindIp.empty()) {
+		LOGD("RTP sockets will bind on 0.0.0.0");
+		mRtpBindIp="0.0.0.0";
+	}
 	
 	tport_t *primaries=tport_primaries(nta_agent_tports(mAgent));
 	if (primaries==NULL) LOGA("No sip transport defined.");
 	su_md5_t ctx;
 	su_md5_init(&ctx);
+
 	LOGD("Agent 's primaries are:");
 	for(tport_t *tport=primaries;tport!=NULL;tport=tport_next(tport)){
 		const tp_name_t *name;
@@ -248,20 +148,35 @@ void Agent::start(const char *transport_override){
 		snprintf(url,sizeof(url),"sip:%s:%s;transport=%s,maddr=%s",name->tpn_canon,name->tpn_port,name->tpn_proto,name->tpn_host);
 		su_md5_strupdate(&ctx,url);
 		LOGD("\t%s",url);
-		if (mPreferredRoute==NULL && strcmp(name->tpn_canon,name->tpn_host)==0 ){
-			mPreferredRoute=ModuleToolbox::urlFromTportName(&mHome,name);
-			char prefUrl[266];
-			url_e(prefUrl,sizeof(prefUrl),mPreferredRoute);
-			LOGD("Preferred route is %s", prefUrl);
-		}
-		if (mPublicIp.empty() && strcmp(name->tpn_canon,name->tpn_host)!=0){
-			mPublicIp=name->tpn_canon;
+		bool isIpv6=strchr(name->tpn_host, ':') != NULL;
+		if (strcmp(name->tpn_canon,name->tpn_host)==0) {
+			// Both numeric and literal value are the same
+			// which is the normal situation.
+			url_t **preferred=isIpv6?&mPreferredRouteV6:&mPreferredRouteV4;
+			if (*preferred == NULL) {
+				*preferred=ModuleToolbox::urlFromTportName(&mHome,name);
+				char prefUrl[266];
+				url_e(prefUrl,sizeof(prefUrl),*preferred);
+				LOGD("\tDetected %s preferred route to %s", isIpv6 ? "ipv6":"ipv4", prefUrl);
+			}
+		} else {
+			// The numeric and literal values are different
+			// which is the case of transport with sip:literal;maddr=numeric
+			// where literal is the hostname publicly communicated
+			// and maddr the real ip we listen on.
+			// Useful for a scenario where the flexisip is behind a router.
+			if (isIpv6 && mPublicIpV6.empty()) {
+				mPublicIpV6=name->tpn_canon;
+				LOGD("\tDetected ipv6 public ip on %s", mPublicIpV6.c_str());
+			} else if (!isIpv6 && mPublicIpV4.empty()) {
+				mPublicIpV4=name->tpn_canon;
+				LOGD("\tDetected ipv4 public ip on %s", mPublicIpV4.c_str());
+			}
 		}
 	}
 	
-	if (mPublicIp.empty()){
-		mPublicIp=mPreferredRoute->url_host;
-	}
+	if (mPublicIpV4.empty() && mPreferredRouteV4) mPublicIpV4=mPreferredRouteV4->url_host;
+	if (mPublicIpV6.empty() && mPreferredRouteV6) mPublicIpV6=mPreferredRouteV6->url_host;
 	
 	char digest[(SU_MD5_DIGEST_SIZE*2)+1];
 	su_md5_hexdigest(&ctx,digest);
@@ -270,7 +185,9 @@ void Agent::start(const char *transport_override){
 	// compute a network wide unique id
 	mUniqueId = digest;
 	
-	LOGD("Agent public ip is %s", mPublicIp.c_str());
+	LOGD("Agent public \n"
+			"\tv4 is %s\n"
+			"\tv6 is %s", mPublicIpV4.c_str(), mPublicIpV6.c_str());
 }
 
 Agent::Agent(su_root_t* root){
@@ -339,7 +256,7 @@ const char *Agent::getServerString() const {
 
 std::string Agent::getPreferredRoute()const{
 	char prefUrl[266];
-	url_e(prefUrl,sizeof(prefUrl),mPreferredRoute);
+	url_e(prefUrl,sizeof(prefUrl),mPreferredRouteV4);
 	return string(prefUrl);
 }
 
