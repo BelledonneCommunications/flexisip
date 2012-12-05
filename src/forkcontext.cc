@@ -17,6 +17,7 @@
  */
 
 #include "forkcontext.hh"
+#include "registrardb.hh"
 
 using namespace ::std;
 
@@ -31,6 +32,7 @@ void ForkContext::__timer_callback(su_root_magic_t *magic, su_timer_t *t, su_tim
 ForkContext::ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
 		mListener(listener), mAgent(agent), mEvent(make_shared<RequestSipEvent>(event)), mCfg(cfg), mLateTimer(NULL) {
 	mLateTimerExpired=false;
+	su_home_init(&mHome);
 }
 
 void ForkContext::checkFinished(){
@@ -54,21 +56,30 @@ void ForkContext::onLateTimeout(){
 }
 
 struct dest_finder{
-	dest_finder(const sip_contact_t *ctt) : mCtt(ctt){};
-	bool operator()(shared_ptr<OutgoingTransaction> & trn){
-		const url_t *dest=trn->getRequestUri();
-		if (dest && url_cmp_all(dest,mCtt->m_url)==0)
+	dest_finder(const sip_contact_t *ctt) : mCtt(ctt){
+		//mUniqueId=Record::extractUniqueId(ctt->m_url);
+	}
+	bool operator()(const url_t *dest){
+		/*
+		if (!mUniqueId.empty()){
+			string uniqueid=Record::extractUniqueId(dest);
+			if (uniqueid==mUniqueId)
+				return true;
+		}
+		*/
+		if (url_cmp(dest,mCtt->m_url)==0)
 			return true;
 		return false;
 	}
 	const sip_contact_t *mCtt;
+	string mUniqueId;
 };
 
 
-//this implementation looks for already pending transaction and rejects handling a new one that would already exist.
+//this implementation looks for already pending or failed transactions and then rejects handling of a new one that would already been tried.
 bool ForkContext::onNewRegister(const sip_contact_t* ctt){
-	auto it=find_if(mOutgoings.begin(),mOutgoings.end(),dest_finder(ctt));
-	if (it!=mOutgoings.end()){
+	auto it=find_if(mDestinationUris.begin(),mDestinationUris.end(),dest_finder(ctt));
+	if (it!=mDestinationUris.end()){
 		LOGD("ForkContext %p: onNewRegister(): destination already handled.",this);
 		return false;
 	}
@@ -92,6 +103,7 @@ void ForkContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) 
 
 void ForkContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) {
 	mOutgoings.push_back(transaction);
+	mDestinationUris.push_back(url_hdup(&mHome,transaction->getRequestUri()));
 }
 
 void ForkContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
@@ -107,6 +119,7 @@ const shared_ptr<RequestSipEvent> &ForkContext::getEvent() {
 ForkContext::~ForkContext() {
 	if (mLateTimer)
 		su_timer_destroy(mLateTimer);
+	su_home_deinit(&mHome);
 }
 
 void ForkContext::setFinished(){

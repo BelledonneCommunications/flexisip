@@ -44,10 +44,12 @@ private:
 	static void __timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	ForkContextListener * mListener;
 protected:
+	su_home_t mHome;
 	Agent * mAgent;
 	std::shared_ptr<RequestSipEvent> mEvent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
 	std::list<std::shared_ptr<OutgoingTransaction>> mOutgoings;
+	std::list<url_t *> mDestinationUris;
 	std::shared_ptr<ForkContextConfig> mCfg;
 	su_timer_t *mLateTimer;
 	bool mLateTimerExpired;

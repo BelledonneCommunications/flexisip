@@ -462,7 +462,8 @@ bool Registrar::dispatch(Agent *agent, const shared_ptr<RequestSipEvent> &ev, si
 }
 
 void Registrar::onRegister(Agent *agent, shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, Record *aor, const url_t * sipUri) {
-	if (mForkCfg->mForkLate) {
+	sip_expires_t *expires=ev->getMsgSip()->getSip()->sip_expires;
+	if ((mForkCfg->mForkLate || mMessageForkCfg->mForkLate) && expires && expires->ex_delta>0) {
 		char sipUriRef[256]={0};
 		url_t urlcopy=*sipUri;
 		

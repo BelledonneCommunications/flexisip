@@ -276,10 +276,16 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<
 	name=tport_name(tport); //primary transport name
 	
 	url=urlFromTportName(home,name);
-	if (!url) return;
+	if (!url){
+		LOGE("ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL");
+		return;
+	}
 	url_param_add(home,url,"lr");
 	rr=sip_record_route_create(home,url,NULL);
-	if (!rr) return;
+	if (!rr) {
+		LOGE("ModuleToolbox::addRecordRoute(): sip_record_route_create() returned NULL");
+		return;
+	}
 	if (sip->sip_record_route == NULL) {
 		sip->sip_record_route = rr;
 	} else {
