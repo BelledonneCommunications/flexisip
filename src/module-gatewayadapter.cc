@@ -114,7 +114,11 @@ private:
 		}
 
 		virtual void onAsynchronousResponse(AuthDbResult ret, const char *password) {
-			checkPassword(password);
+			if (ret==AuthDbResult::PASSWORD_FOUND && password!=NULL){
+				checkPassword(password);
+			}else{
+				LOGE("GatewayRegister onAsynchronousResponse(): Can't find user password, give up.");
+			}
 		}
 
 		virtual void onError() {
@@ -150,7 +154,7 @@ private:
 						gw->setPassword(password);
 						gw->sendRegister();
 					} else {
-						LOGE("Can't find user password. Abort.");
+						LOGE("Can't find user password, give up.");
 					}
 				}
 			} else {
