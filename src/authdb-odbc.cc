@@ -241,6 +241,9 @@ OdbcAuthDb::OdbcAuthDb():mAsynchronousRetrieving(true),env(NULL),execDirect(fals
 	SQLRETURN retcode;
 	// 1. Enable or disable connection pooling.
 	// It should be done BEFORE allocating the environment.
+	// Note: this is useless with unixodbc
+	// the pooling attribute of env is set during allocation
+	// if odbcinst.ini/Pooling=1
 	unsigned long poolingPtr = asPooling ? SQL_CP_ONE_PER_DRIVER : SQL_CP_OFF;
 	retcode = SQLSetEnvAttr(NULL, SQL_ATTR_CONNECTION_POOLING, (void*)poolingPtr, 0);
 	if (!SQL_SUCCEEDED(retcode)) {
@@ -345,6 +348,8 @@ void OdbcAuthDb::stmtError(ConnectionCtx &ctx, const char* doing) {
 
 bool OdbcAuthDb::getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimings &timings) {
 	steady_clock::time_point tp1=steady_clock::now();
+
+	// Create a 'wrapper' connection attached to nothing
 	SQLRETURN retcode = SQLAllocHandle(SQL_HANDLE_DBC, env, &ctx.dbc);
 	if (!SQL_SUCCEEDED(retcode)) {
 		envError("SQLAllocHandle DBC");
@@ -353,6 +358,10 @@ bool OdbcAuthDb::getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimin
 	steady_clock::time_point tp2=steady_clock::now();
 	LOGD("SQLAllocHandle: %s : %lu ms", id.c_str(), (unsigned long) duration_cast<milliseconds>(tp2-tp1).count());
 
+	// Either:
+	// - reuse an underlying connection from the pool;
+	// - establish an underlying connecion;
+	// Attach underlying to wrapper.
 	retcode = SQLDriverConnect(ctx.dbc, NULL, (SQLCHAR*) connectionString.c_str(), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
 	if (!SQL_SUCCEEDED(retcode)) {dbcError(ctx, "SQLDriverConnect"); return false;}
 	LOGD("SQLDriverConnect %s : %lu ms", id.c_str(), (unsigned long) duration_cast<milliseconds>(steady_clock::now()-tp2).count());
