@@ -662,6 +662,7 @@ GenericManager *GenericManager::get(){
 
 static ConfigItemDescriptor global_conf[]={
 		{	Boolean	,	"debug"	        ,	"Outputs very detailed logs",	"false"	},
+		{	Boolean	,	"dump-corefiles",	"Generate a corefile when crashing", "true"},
 		{	Boolean	,	"auto-respawn"  ,	"Automatically respawn flexisip in case of abnormal termination (crashes)",	"true"},
 		{	StringList	,"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost"},
 		{	StringList	,"transports"	,	"List of white space separated SIP uris where the proxy must listen."

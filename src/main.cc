@@ -150,7 +150,7 @@ static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *a){
 	a->idle();
 }
 
-static void initialize(bool debug, bool useSyslog){
+static void initialize(bool debug, bool useSyslog, bool dump_cores){
 	sUseSyslog=useSyslog;
 	if (useSyslog){
 		openlog("flexisip", 0, LOG_USER);
@@ -170,13 +170,15 @@ static void initialize(bool debug, bool useSyslog){
 	signal(SIGTERM,flexisip_stop);
 	signal(SIGINT,flexisip_stop);
 	signal(SIGUSR1,flexisip_stat);
-	/*enable core dumps*/
-	struct rlimit lm;
-	lm.rlim_cur=RLIM_INFINITY;
-	lm.rlim_max=RLIM_INFINITY;
-	if (setrlimit(RLIMIT_CORE,&lm)==-1){
-		LOGE("Cannot enable core dump, setrlimit() failed: %s",strerror(errno));
-	}
+	if (dump_cores){
+		/*enable core dumps*/
+		struct rlimit lm;
+		lm.rlim_cur=RLIM_INFINITY;
+		lm.rlim_max=RLIM_INFINITY;
+		if (setrlimit(RLIMIT_CORE,&lm)==-1){
+			LOGE("Cannot enable core dump, setrlimit() failed: %s",strerror(errno));
+		}
+	}	
 	
 	su_init();
 }
@@ -482,8 +484,9 @@ int main(int argc, char *argv[]){
 
 
 	if (!debug) debug=cfg->getGlobal()->get<ConfigBoolean>("debug")->read();
+	bool corefiles=cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
 
-	initialize (debug,useSyslog);
+	initialize (debug,useSyslog,corefiles);
 
 	log_boolean_expression_evaluation(oset.find("bee") != oset.end());
 	log_boolean_expression_parsing(oset.find("bep") != oset.end());
