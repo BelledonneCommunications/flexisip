@@ -280,7 +280,7 @@ RtpSession *MediaRelayServer::createRtpSession(const std::string & bindIp) {
 		}
 	}
 
-	LOGE("Could not find a random port for %s !", mAgent->getRtpBindIp().c_str());
+	LOGE("Could not find a random port on interface %s !", bindIp.c_str());
 	return session;
 }
 

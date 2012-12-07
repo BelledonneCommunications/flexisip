@@ -115,7 +115,6 @@ void Agent::start(const char *transport_override){
 		LOGD("Enabling transport %s",uri.c_str());
 		if (mRtpBindIp.empty()){
 			if (url_param(url->url_params,"maddr",rtpBindIp,sizeof(rtpBindIp))>0){
-				LOGD("RTP sockets will bind only on %s", rtpBindIp);
 				mRtpBindIp=rtpBindIp;
 			}
 		}
@@ -131,7 +130,6 @@ void Agent::start(const char *transport_override){
 		su_home_deinit(&home);
 	}
 	if (mRtpBindIp.empty()) {
-		LOGD("RTP sockets will bind on 0.0.0.0");
 		mRtpBindIp="0.0.0.0";
 	}
 	
@@ -150,27 +148,27 @@ void Agent::start(const char *transport_override){
 		LOGD("\t%s",url);
 		bool isIpv6=strchr(name->tpn_host, ':') != NULL;
 		if (strcmp(name->tpn_canon,name->tpn_host)==0) {
-			// Both numeric and literal value are the same
+			// Both public and bind value are the same
 			// which is the normal situation.
 			url_t **preferred=isIpv6?&mPreferredRouteV6:&mPreferredRouteV4;
 			if (*preferred == NULL) {
 				*preferred=ModuleToolbox::urlFromTportName(&mHome,name);
 				char prefUrl[266];
 				url_e(prefUrl,sizeof(prefUrl),*preferred);
-				LOGD("\tDetected %s preferred route to %s", isIpv6 ? "ipv6":"ipv4", prefUrl);
+				//LOGD("\tDetected %s preferred route to %s", isIpv6 ? "ipv6":"ipv4", prefUrl);
 			}
 		} else {
-			// The numeric and literal values are different
-			// which is the case of transport with sip:literal;maddr=numeric
-			// where literal is the hostname publicly communicated
+			// The public and bind values are different
+			// which is the case of transport with sip:public;maddr=bind
+			// where public is the hostname or ip address publicly announced
 			// and maddr the real ip we listen on.
 			// Useful for a scenario where the flexisip is behind a router.
 			if (isIpv6 && mPublicIpV6.empty()) {
 				mPublicIpV6=name->tpn_canon;
-				LOGD("\tDetected ipv6 public ip on %s", mPublicIpV6.c_str());
+				//LOGD("\tIpv6 public ip is %s", mPublicIpV6.c_str());
 			} else if (!isIpv6 && mPublicIpV4.empty()) {
 				mPublicIpV4=name->tpn_canon;
-				LOGD("\tDetected ipv4 public ip on %s", mPublicIpV4.c_str());
+				//LOGD("\tIpv4 public ip %s", mPublicIpV4.c_str());
 			}
 		}
 	}
@@ -185,9 +183,7 @@ void Agent::start(const char *transport_override){
 	// compute a network wide unique id
 	mUniqueId = digest;
 	
-	LOGD("Agent public \n"
-			"\tv4 is %s\n"
-			"\tv6 is %s", mPublicIpV4.c_str(), mPublicIpV6.c_str());
+	LOGD("Agent public hostname/ip %s (v6: %s)",mPublicIpV4.c_str(), mPublicIpV6.c_str());
 }
 
 Agent::Agent(su_root_t* root){
