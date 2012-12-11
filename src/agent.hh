@@ -105,11 +105,12 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		virtual ~Agent();
 		///Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination. 
 		std::pair<std::string,std::string> getPreferredIp(const std::string &destination) const;
-		const std::string &getRtpBindIp()const{
-			return mRtpBindIp;
+		///Returns the _default_ bind address for RTP sockets.
+		const std::string &getRtpBindIp(bool ipv6=false)const{
+			return ipv6 ? mRtpBindIp6 : mRtpBindIp;
 		}
-		const std::string &getPublicIp(short version=4)const{
-			return version == 6 ? mPublicIpV6 : mPublicIpV4;
+		const std::string &getPublicIp(bool ipv6=false)const{
+			return ipv6 ? mPublicIpV6 : mPublicIpV4;
 		}
 		virtual Agent *getAgent() {
 			return this;
@@ -168,7 +169,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		};
 		std::list<Network> mNetworks;
 		std::string mUniqueId;
-		std::string mRtpBindIp,mPublicIpV4,mPublicIpV6;
+		std::string mRtpBindIp,mRtpBindIp6,mPublicIpV4,mPublicIpV6;
 		nta_agent_t *mAgent;
 		su_root_t *mRoot;
 		su_home_t mHome;

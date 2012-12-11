@@ -106,18 +106,12 @@ void Agent::start(const char *transport_override){
 
 	for(auto it=transports.begin();it!=transports.end();++it){
 		const string &uri=(*it);
-		char rtpBindIp[128];
 		url_t *url;
 		int err;
 		su_home_t home;
 		su_home_init(&home);
 		url=url_make(&home,uri.c_str());
 		LOGD("Enabling transport %s",uri.c_str());
-		if (mRtpBindIp.empty()){
-			if (url_param(url->url_params,"maddr",rtpBindIp,sizeof(rtpBindIp))>0){
-				mRtpBindIp=rtpBindIp;
-			}
-		}
 		if (uri.find("sips")==0){
 			string keys = cr->get<GenericStruct>("global")->get<ConfigString>("tls-certificates-dir")->read();
 			err=nta_agent_add_tport(mAgent,(const url_string_t*)url,TPTAG_CERTIFICATE(keys.c_str()), NTATAG_TLS_RPORT(1), TAG_END());
@@ -128,9 +122,6 @@ void Agent::start(const char *transport_override){
 			LOGE("Could not enable transport %s: %s",uri.c_str(),strerror(errno));
 		}
 		su_home_deinit(&home);
-	}
-	if (mRtpBindIp.empty()) {
-		mRtpBindIp="0.0.0.0";
 	}
 	
 	tport_t *primaries=tport_primaries(nta_agent_tports(mAgent));
@@ -176,6 +167,13 @@ void Agent::start(const char *transport_override){
 	if (mPublicIpV4.empty() && mPreferredRouteV4) mPublicIpV4=mPreferredRouteV4->url_host;
 	if (mPublicIpV6.empty() && mPreferredRouteV6) mPublicIpV6=mPreferredRouteV6->url_host;
 	
+	if (mRtpBindIp.empty()) {
+		mRtpBindIp=mPreferredRouteV4->url_host;
+	}
+	if (mRtpBindIp6.empty()) {
+		mRtpBindIp6=mPreferredRouteV6->url_host;
+	}
+	
 	char digest[(SU_MD5_DIGEST_SIZE*2)+1];
 	su_md5_hexdigest(&ctx,digest);
 	su_md5_deinit(&ctx);
@@ -184,6 +182,7 @@ void Agent::start(const char *transport_override){
 	mUniqueId = digest;
 	
 	LOGD("Agent public hostname/ip %s (v6: %s)",mPublicIpV4.c_str(), mPublicIpV6.c_str());
+	LOGD("Agent's _default_ RTP bind ip address is %s (v6: %s)",mRtpBindIp.c_str(),mRtpBindIp6.c_str());
 }
 
 Agent::Agent(su_root_t* root):mTerminating(false){
@@ -294,7 +293,7 @@ std::pair<std::string,std::string> Agent::getPreferredIp(const std::string &dest
 	} else {
 		LOGE("getaddrinfo error: %s", strerror(errno));
 	}
-	return make_pair(getPublicIp(),"0.0.0.0");
+	return strchr(destination.c_str(),':')==NULL ? make_pair(getPublicIp(),getRtpBindIp()) : make_pair(getPublicIp(true),getRtpBindIp(true));
 }
 
 Agent::Network::Network(const Network &net): mIP(net.mIP) {
