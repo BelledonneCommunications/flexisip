@@ -173,6 +173,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		su_root_t *mRoot;
 		su_home_t mHome;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);
+		bool mTerminating;
 };
 
 #endif

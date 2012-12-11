@@ -186,7 +186,7 @@ void Agent::start(const char *transport_override){
 	LOGD("Agent public hostname/ip %s (v6: %s)",mPublicIpV4.c_str(), mPublicIpV6.c_str());
 }
 
-Agent::Agent(su_root_t* root){
+Agent::Agent(su_root_t* root):mTerminating(false){
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	
 	EtcHostsResolver::get();
@@ -240,6 +240,7 @@ Agent::Agent(su_root_t* root){
 }
 
 Agent::~Agent() {
+	mTerminating=true;
 	for_each(mModules.begin(), mModules.end(), delete_functor<Module>());
 	if (mAgent)
 		nta_agent_destroy(mAgent);
@@ -615,6 +616,11 @@ void Agent::sendTransactionEvent(const shared_ptr<Transaction> &transaction, Tra
 }
 
 int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
+	if (mTerminating) {
+		// Avoid throwing a bad weak pointer on GatewayAdapter destruction
+		LOGI("Skipping incoming message on expired agent");
+		return -1;
+	}
 	// Assuming sip is derived from msg
 	shared_ptr<MsgSip> ms(new MsgSip(msg));
 	if (sip->sip_request) {
