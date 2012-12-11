@@ -67,7 +67,7 @@ struct dest_finder{
 				return true;
 		}
 		*/
-		if (url_cmp(dest,mCtt->m_url)==0)
+		if (url_cmp_all(dest,mCtt->m_url)==0)
 			return true;
 		return false;
 	}
