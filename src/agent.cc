@@ -167,12 +167,15 @@ void Agent::start(const char *transport_override){
 	if (mPublicIpV4.empty() && mPreferredRouteV4) mPublicIpV4=mPreferredRouteV4->url_host;
 	if (mPublicIpV6.empty() && mPreferredRouteV6) mPublicIpV6=mPreferredRouteV6->url_host;
 	
-	if (mRtpBindIp.empty()) {
+	if (mPreferredRouteV4) {
 		mRtpBindIp=mPreferredRouteV4->url_host;
 	}
-	if (mRtpBindIp6.empty()) {
+	if (mPreferredRouteV6) {
 		mRtpBindIp6=mPreferredRouteV6->url_host;
 	}
+	
+	if (mRtpBindIp.empty()) mRtpBindIp="0.0.0.0";
+	if (mRtpBindIp6.empty()) mRtpBindIp6="::0";
 	
 	char digest[(SU_MD5_DIGEST_SIZE*2)+1];
 	su_md5_hexdigest(&ctx,digest);
