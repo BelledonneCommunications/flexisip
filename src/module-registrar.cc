@@ -81,7 +81,8 @@ public:
 	virtual void onDeclare(GenericStruct *mc) {
 		ConfigItemDescriptor configs[] = { { StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar.", "localhost" },
 				{ Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "15" },
-				{ StringList, "unique-id-parameters", "List of contact uri parameters that can be used to identify a user's device. ", "line" },
+				{ StringList, "unique-id-parameters", "List of contact uri parameters that can be used to identify a user's device. "
+						"The contact parameters are searched in the order of the list, the first matching parameter is used and the others ignored.", "line" },
 				{ Integer, "max-expires"	, "Maximum expire time for a REGISTER, in seconds.", "86400" },
 				{ Integer, "min-expires"	, "Minimum expire time for a REGISTER, in seconds.", "60" },
 				{ String, "static-records-file", "File containing the static records to add to database at startup. "
