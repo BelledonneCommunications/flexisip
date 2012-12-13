@@ -326,7 +326,7 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 
 		int blport = c->getBackSide()->getAudioPort();
 		const short ipVersion=m->getAudioIpVersion();
-		const char *publicIp=getAgent()->getPublicIp(ipVersion).c_str();
+		const char *publicIp=getAgent()->getPublicIp(ipVersion==6).c_str();
 		LOGD("Using public ip%s %s", ipVersion == 6 ?"v6":"v4", publicIp);
 		m->changeAudioIpPort(publicIp, blport);
 		LOGD("Back side local port: %s:%i <-> ?", publicIp, blport);
@@ -441,7 +441,7 @@ int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {
 		m->setPtime(0); //remove the ptime attribute
 	}
 	const short ipVersion=m->getAudioIpVersion();
-	const char *publicIp=getAgent()->getPublicIp(ipVersion).c_str();
+	const char *publicIp=getAgent()->getPublicIp(ipVersion==6).c_str();
 	LOGD("Using public ip%s %s", ipVersion == 6 ?"v6":"v4", publicIp);
 	m->changeAudioIpPort(publicIp, ctx->getFrontSide()->getAudioPort());
 
