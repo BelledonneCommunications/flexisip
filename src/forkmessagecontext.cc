@@ -27,9 +27,12 @@ using namespace ::std;
 ForkMessageContext::ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
 		ForkContext(agent, event,cfg,listener), mDeliveredCount(0) {
 	LOGD("New ForkMessageContext %p", this);
+	mAcceptanceTimer=NULL;
 }
 
 ForkMessageContext::~ForkMessageContext() {
+	if (mAcceptanceTimer)
+		su_timer_destroy(mAcceptanceTimer);
 	LOGD("Destroy ForkMessageContext %p", this);
 }
 
@@ -61,7 +64,7 @@ void ForkMessageContext::checkFinished(){
 	for (auto it=mDeliveryMap.begin();it!=mDeliveryMap.end();++it){
 		if ((*it).second==false) everyone_delivered=false;
 	}
-	if (everyone_delivered){
+	if (mDeliveryMap.size()>0 && everyone_delivered){
 		LOGD("ForkMessageContext::checkFinished(): every instance received the message, it's finished.");
 		setFinished();
 		return;
@@ -111,8 +114,53 @@ void ForkMessageContext::onResponse(const shared_ptr<OutgoingTransaction> &trans
 	LOGW("ForkMessageContext : ignore message");
 }
 
+void ForkMessageContext::finishIncomingTransaction(){
+	if (mIncoming != NULL && mDeliveredCount==0) {
+		if (mBestResponse == NULL && mCfg->mDeliveryTimeout <= 30) {
+			// Create response
+			shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
+			shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
+			ev->setIncomingAgent(mIncoming);
+			mAgent->sendResponseEvent(ev);
+		} else {
+			int code=mBestResponse ? mBestResponse->getMsgSip()->getSip()->sip_status->st_status : 0;
+			if (!mBestResponse || code==408 || code==503){
+				if (mCfg->mForkLate){
+					/*in fork late mode, never answer a service unavailable*/
+					shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_202_ACCEPTED));
+					shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
+					ev->setIncomingAgent(mIncoming);
+					mAgent->sendResponseEvent(ev);
+				}
+			}else 
+				mAgent->injectResponseEvent(mBestResponse); // Reply
+		}
+	}
+	if (mAcceptanceTimer){
+		su_timer_destroy(mAcceptanceTimer);
+		mAcceptanceTimer=NULL;
+	}
+	mBestResponse.reset();
+	mIncoming.reset();
+}
+
+void ForkMessageContext::onAcceptanceTimer(){
+	LOGD("ForkMessageContext::onAcceptanceTimer()");
+	finishIncomingTransaction();
+}
+
+void ForkMessageContext::sOnAcceptanceTimer(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg){
+	static_cast<ForkMessageContext*>(arg)->onAcceptanceTimer();
+}
+
+
 void ForkMessageContext::onNew(const shared_ptr<IncomingTransaction> &transaction) {
 	ForkContext::onNew(transaction);
+	//start the acceptance timer immediately
+	if (mCfg->mForkLate && mCfg->mDeliveryTimeout>30){
+		mAcceptanceTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
+		su_timer_set_interval(mAcceptanceTimer, &ForkMessageContext::sOnAcceptanceTimer, this, (su_duration_t)20000);
+	}
 }
 
 void ForkMessageContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) {
@@ -135,29 +183,7 @@ void ForkMessageContext::onNew(const shared_ptr<OutgoingTransaction> &transactio
 
 void ForkMessageContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
 	if (mOutgoings.size() == 1) {
-		if (mIncoming != NULL && mDeliveredCount==0) {
-			if (mBestResponse == NULL && mCfg->mDeliveryTimeout < 25) {
-				// Create response
-				shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
-				shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
-				ev->setIncomingAgent(mIncoming);
-				mAgent->sendResponseEvent(ev);
-			} else {
-				int code=mBestResponse ? mBestResponse->getMsgSip()->getSip()->sip_status->st_status : 0;
-				if (!mBestResponse || code==408 || code==503){
-					if (mCfg->mForkLate){
-						/*in fork late mode, never answer a service unavailable*/
-						shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_202_ACCEPTED));
-						shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
-						ev->setIncomingAgent(mIncoming);
-						mAgent->sendResponseEvent(ev);
-					}
-				}else 
-					mAgent->injectResponseEvent(mBestResponse); // Reply
-			}
-		}
-		mBestResponse.reset();
-		mIncoming.reset();
+		finishIncomingTransaction();
 	}
 	ForkContext::onDestroy(transaction);
 }
@@ -179,6 +205,7 @@ bool ForkMessageContext::onNewRegister(const sip_contact_t *ctt){
 		}
 	}
 	//in all other case we can accept a new transaction only if the message hasn't been delivered already.
+	LOGD("Message has been delivered %i times.",mDeliveredCount);
 	return mDeliveredCount==0;
 }
 
