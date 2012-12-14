@@ -107,7 +107,7 @@ void ForkCallContext::onRequest(const shared_ptr<IncomingTransaction> &transacti
 	}
 }
 
-static bool isARetryableResponseCode(int code){
+bool ForkCallContext::isRetryableOrUrgent(int code){
 	switch(code){
 		case 401:
 		case 407:
@@ -115,6 +115,9 @@ static bool isARetryableResponseCode(int code){
 		case 420:
 		case 484:
 			return true;
+		case 603:
+			if (mCfg->mTreatDeclineAsUrgent)
+				return true;
 		default:
 			return false;
 	}
@@ -133,10 +136,10 @@ void ForkCallContext::store(shared_ptr<ResponseSipEvent> &event) {
 		
 		if (code_class < prev_code_class) {
 			best = true;
-		}else if (isARetryableResponseCode(code)){
+		}else if (isRetryableOrUrgent(code)){
 			if (mShortTimer==NULL){
 				mShortTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
-				su_timer_set_interval(mShortTimer, &ForkCallContext::sOnShortTimer, this, (su_duration_t)5000);
+				su_timer_set_interval(mShortTimer, &ForkCallContext::sOnShortTimer, this, (su_duration_t)mCfg->mUrgentTimeout*1000);
 			}
 			best=true;
 		}
@@ -256,7 +259,7 @@ bool ForkCallContext::isCompleted()const{
 }
 
 void ForkCallContext::onShortTimer(){
-	if (!isCompleted() && isARetryableResponseCode(mBestResponse->getMsgSip()->getSip()->sip_status->st_status)){
+	if (!isCompleted() && isRetryableOrUrgent(mBestResponse->getMsgSip()->getSip()->sip_status->st_status)){
 		cancelOthers(static_pointer_cast<OutgoingTransaction>(mBestResponse->getOutgoingAgent()));
 		mAgent->injectResponseEvent(mBestResponse); // send urgent reply immediately
 		mBestResponse.reset();

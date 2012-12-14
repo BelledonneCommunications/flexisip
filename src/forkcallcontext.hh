@@ -46,6 +46,7 @@ public:
 	void sendRinging();
 	bool isCompleted()const;
 private:
+	bool isRetryableOrUrgent(int code);
 	void onShortTimer();
 	void cancel();
 	void cancelOthers(const std::shared_ptr<OutgoingTransaction> &transaction = std::shared_ptr<OutgoingTransaction>());

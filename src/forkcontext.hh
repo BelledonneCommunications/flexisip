@@ -27,9 +27,11 @@ class ForkContextConfig{
 public:
 	ForkContextConfig();
 	int mDeliveryTimeout; /* in seconds, used for "late" forking*/
+	int mUrgentTimeout; /*timeout for sending buffered urgent or retryable reponses (like 415).*/
 	bool mForkLate;
 	bool mForkOneResponse;
 	bool mForkNoGlobalDecline;
+	bool mTreatDeclineAsUrgent; /*treat 603 declined as a urgent response, only useful is mForkNoGlobalDecline==true*/
 };
 
 class ForkContext;
