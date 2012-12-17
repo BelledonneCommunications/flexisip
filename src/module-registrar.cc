@@ -840,7 +840,8 @@ void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, T
 }
 
 void Registrar::onForkContextFinished(shared_ptr<ForkContext> ctx){
-	for (auto it = mForks.begin(); it != mForks.end();) {
+	multimap<string,shared_ptr<ForkContext> >::iterator it;
+	for (it = mForks.begin(); it != mForks.end();) {
 		if (it->second == ctx) {
 			LOGD("Remove fork %s from store", it->first.c_str());
 			++*mCountForksFinished;
