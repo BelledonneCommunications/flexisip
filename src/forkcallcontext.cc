@@ -225,7 +225,7 @@ void ForkCallContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) 
 }
 
 void ForkCallContext::checkFinished(){
-	if (mOutgoings.size() == 0 && (mLateTimerExpired || mLateTimer==NULL)) {
+	if (mOutgoings.size() == 0 && ((mLateTimerExpired || mLateTimer==NULL) || mIncoming==NULL)) {
 		if (mIncoming != NULL && !isCompleted()) {
 			if (mBestResponse == NULL) {
 				// Create response
@@ -255,7 +255,7 @@ bool ForkCallContext::onNewRegister(const sip_contact_t *ctt){
 }
 
 bool ForkCallContext::isCompleted()const{
-	return mFinal>0 || mCancelled;
+	return mFinal>0 || mCancelled || mIncoming==NULL;
 }
 
 void ForkCallContext::onShortTimer(){

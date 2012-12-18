@@ -559,7 +559,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 	}
 
 	if (contacts.size() > 0) {
-		bool handled = false;
+		int handled = 0;
 		bool dontfork = !mFork // forking disabled
 				|| (contacts.size() <= 1 && !mForkCfg->mForkLate && !mStateful) // not forced
 				|| !(
@@ -581,7 +581,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 			} else if (sip->sip_request->rq_method == sip_method_message) {
 				context = make_shared<ForkMessageContext>(agent, ev, mMessageForkCfg, this);
 			}
-			if (context.get() != NULL) {
+			if (context) {
 				url_t modified_uri=*sipUri;
 				
 				if (mUseGlobalDomain){
@@ -654,7 +654,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 			LOGD("This user isn't registered (no valid contact).");
 		}
 	} else {
-		LOGD("This user isn't registered (no contact).");
+		LOGD("This user isn't registered (no contact at all).");
 	}
 
 	ev->reply(ms, SIP_404_NOT_FOUND, SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
