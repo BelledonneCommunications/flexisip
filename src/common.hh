@@ -25,8 +25,6 @@
 #include <ortp/ortp.h>
 #include <map>
 #include <sys/timeb.h>
-#include <time.h>
-#include "flexisip-config.h"
 
 extern bool sUseSyslog;
 

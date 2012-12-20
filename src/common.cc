@@ -18,7 +18,9 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <time.h>
 #include "common.hh"
+#include "flexisip-config.h"
 
 Mutex::Mutex(bool reentrant) :
 		mReentrant(reentrant), mCount(0) {
