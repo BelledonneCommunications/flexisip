@@ -217,6 +217,10 @@ static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip,
 	//su_md5_str0update(md5, port);
 
 	url_update(md5, sip->sip_request->rq_url);
+	if (sip->sip_request->rq_url->url_params){
+		//put url params in the hash too, because sofia does not do it in url_update().
+		su_md5_str0update(md5,sip->sip_request->rq_url->url_params);
+	}
 	if (sip->sip_call_id) {
 		su_md5_str0update(md5, sip->sip_call_id->i_id);
 	}
