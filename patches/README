@@ -1,0 +1,4 @@
+This directory contains patches to be applied to sofia-sip.
+sofia-use-monotonic-clock.patch is optional and shall not be applied for a deployment on a machine that has correct time information.
+All other patches are necessary for correct flexisip operation.
+

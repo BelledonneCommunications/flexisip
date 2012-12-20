@@ -1,0 +1,103 @@
+From: Joerg Platte <joerg.platte@de.abb.com>
+Date: Wed, 19 Dec 2012 09:19:07 +0100
+Subject: [PATCH] use monotonic clock
+
+---
+ libsofia-sip-ua/su/su_time.c  |   17 +++++++++--------
+ libsofia-sip-ua/su/su_time0.c |   14 ++++++++------
+ 2 files changed, 17 insertions(+), 14 deletions(-)
+
+diff --git a/libsofia-sip-ua/su/su_time.c b/libsofia-sip-ua/su/su_time.c
+index 2326bfa..45154ab 100644
+--- a/libsofia-sip-ua/su/su_time.c
++++ b/libsofia-sip-ua/su/su_time.c
+@@ -396,7 +396,7 @@ uint64_t su_nanocounter(void)
+   struct timespec tp;
+   struct timeval tv;
+   static int init = 0;
+-  static clockid_t cpu = CLOCK_REALTIME;
++  static clockid_t cpu = CLOCK_MONOTONIC;
+ 
+ # define CLOCK_GETTIMEOFDAY 0xdedbeefUL
+ 
+@@ -414,14 +414,14 @@ uint64_t su_nanocounter(void)
+     else if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tp) >= 0)
+       cpu = CLOCK_PROCESS_CPUTIME_ID;
+ #endif
+-    else if (clock_gettime(CLOCK_REALTIME, &tp) >= 0)
+-      cpu = CLOCK_REALTIME;
++    else if (clock_gettime(CLOCK_MONOTONIC, &tp) >= 0)
++      cpu = CLOCK_MONOTONIC;
+     else
+       cpu = CLOCK_GETTIMEOFDAY;
+   }
+ 
+   if (cpu == CLOCK_GETTIMEOFDAY) {
+-    gettimeofday(&tv, NULL);
++    clock_gettime(CLOCK_MONOTONIC, &tp);
+     tp.tv_sec = tv.tv_sec, tp.tv_nsec = tv.tv_usec * 1000;
+   }
+   else if (clock_gettime(cpu, &tp) < 0)
+@@ -451,8 +451,8 @@ uint64_t su_counter(void)
+ #elif HAVE_GETTIMEOFDAY
+ uint64_t su_counter(void)
+ {
+-  struct timeval tv;
+-  gettimeofday(&tv, NULL);
++   struct timespec tv;
++   clock_gettime(CLOCK_MONOTONIC, &_t);
+   /* return value is in microseconds */
+   return
+     (uint64_t)((unsigned long)tv.tv_usec) +
+@@ -461,8 +461,9 @@ uint64_t su_counter(void)
+ 
+ uint64_t su_nanocounter(void)
+ {
+-  struct timeval tv;
+-  gettimeofday(&tv, NULL);
++   struct timespec tv;
++   clock_gettime(CLOCK_MONOTONIC, &_t);
++                
+   /* return value is in nanoseconds */
+   return
+     (uint64_t)((unsigned long)tv.tv_usec) * 1000ULL +
+diff --git a/libsofia-sip-ua/su/su_time0.c b/libsofia-sip-ua/su/su_time0.c
+index 8ae8972..8b7b3aa 100644
+--- a/libsofia-sip-ua/su/su_time0.c
++++ b/libsofia-sip-ua/su/su_time0.c
+@@ -80,7 +80,10 @@ void su_time(su_time_t *tv)
+ {
+ #if HAVE_GETTIMEOFDAY
+   if (tv) {
+-    gettimeofday((struct timeval *)tv, NULL);
++    struct timespec _t;
++    clock_gettime(CLOCK_MONOTONIC, &_t);
++    tv->tv_sec=_t.tv_sec;
++    tv->tv_usec=_t.tv_nsec/1000;;
+     tv->tv_sec += NTP_EPOCH;
+   }
+ #elif HAVE_FILETIME
+@@ -123,7 +126,7 @@ su_nanotime_t su_nanotime(su_nanotime_t *return_time)
+   {
+     struct timespec tv;
+ 
+-    if (clock_gettime(CLOCK_REALTIME, &tv) == 0) {
++    if (clock_gettime(CLOCK_MONOTONIC, &tv) == 0) {
+       now = ((su_nanotime_t)tv.tv_sec + NTP_EPOCH) * E9 + tv.tv_nsec;
+       *return_time = now;
+       if (_su_nanotime)
+@@ -149,11 +152,10 @@ su_nanotime_t su_nanotime(su_nanotime_t *return_time)
+   }
+ #elif HAVE_GETTIMEOFDAY
+   {
+-    struct timeval tv;
+-
+-    gettimeofday(&tv, NULL);
++    struct timespec tv;
++    clock_gettime(CLOCK_MONOTONIC, &tv);
+ 
+-    now = ((su_nanotime_t)tv.tv_sec + NTP_EPOCH) * E9 + tv.tv_usec * 1000;
++    now = ((su_nanotime_t)tv.tv_sec + NTP_EPOCH) * E9 + tv.tv_nsec;
+   }
+ #else
+   now = ((su_nanotime_t)time() + NTP_EPOCH) * E9;
