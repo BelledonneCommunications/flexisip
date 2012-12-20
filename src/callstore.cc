@@ -162,7 +162,7 @@ void CallStore::remove(const shared_ptr<CallContextBase> &ctx){
 }
 
 void CallStore::removeAndDeleteInactives(){
-	time_t cur=time(NULL);
+	time_t cur=getCurrentTime();
 	for(auto it=mCalls.begin();it!=mCalls.end();){
 		if ((*it)->isInactive (cur)){
 			if (mCountCallsFinished) ++(*mCountCallsFinished);

@@ -869,7 +869,7 @@ ostream &TexFileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int lev
 }
 
 ostream &MibDumper::dump(ostream & ostr)const {
-	const time_t t = time(NULL);
+	const time_t t = getCurrentTime();
 	char mbstr[100];
 	strftime(mbstr, sizeof(mbstr), "%Y%m%d0000Z", localtime(&t));
 

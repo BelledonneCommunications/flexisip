@@ -332,7 +332,7 @@ TranscodedCall::TranscodedCall(sip_t *sip, const string &bind_address) : CallCon
 	mInitialOffer=NULL;
 	mTicker=NULL;
 	mInfoCSeq=-1;
-	mCreateTime=time(NULL);
+	mCreateTime=getCurrentTime();
 }
 
 void TranscodedCall::prepare( const CallContextParams &params){

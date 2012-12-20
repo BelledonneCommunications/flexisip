@@ -82,7 +82,7 @@ public:
 		}
 
 		auto itE=expires.find(nonce);
-		time_t expiration=time(NULL)+NONCE_EXPIRES;
+		time_t expiration=getCurrentTime()+NONCE_EXPIRES;
 		if (itE!=expires.end()) {
 			LOGE("Replacing nonce expiration for %s", nonce.c_str());
 			itE->second=expiration;
@@ -112,7 +112,7 @@ public:
 	void cleanExpired() {
 		unique_lock<mutex> lck(mut);
 		int count=0;
-		time_t now =time(NULL);
+		time_t now =getCurrentTime();
 		for (auto it=expires.begin(); it != expires.end(); ) {
 			if (now > it->second) {
 				LOGD("Cleaning expired nonce %s", it->first.c_str());

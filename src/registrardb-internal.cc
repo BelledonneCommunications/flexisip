@@ -48,7 +48,7 @@ void RegistrarDbInternal::doBind(const url_t* fromUrl, const sip_contact_t *sip_
                 return;
         }
 
-        time_t now = time(NULL);
+        time_t now = getCurrentTime();
 
         map<string, Record*>::iterator it = mRecords.find(key);
         Record *r;
@@ -81,7 +81,7 @@ void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<RegistrarDb
         Record *r = NULL;
         if (it != mRecords.end()) {
                 r = (*it).second;
-                r->clean(time(NULL));
+                r->clean(getCurrentTime());
                 if (r->isEmpty()) {
                 	mRecords.erase(it);
                 	r=NULL;

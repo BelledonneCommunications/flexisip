@@ -39,7 +39,7 @@ int PushNotificationClient::sendRequest(const std::shared_ptr<PushNotificationRe
 	if (size == 0) {
 		/*the client was inactive possibly for a long time. In such case, close and re-create the socket.*/
 		if (mLastUse!=0){
-			if (time(NULL)-mLastUse>60){
+			if (getCurrentTime()-mLastUse>60){
 				LOGD("Re-creating connection with server.");
 				mSocket.lowest_layer().close();
 			}
@@ -112,7 +112,7 @@ void PushNotificationClient::handle_handshake(const system::error_code& error) {
 
 void PushNotificationClient::send() {
 	LOGD("PushNotificationClient(%s) send data", mName.c_str());
-	mLastUse=time(NULL);
+	mLastUse=getCurrentTime();
 	asio::async_write(mSocket, asio::buffer(mRequestQueue.front()->getData()), bind(&PushNotificationClient::handle_write, this, asio::placeholders::error, asio::placeholders::bytes_transferred));
 }
 

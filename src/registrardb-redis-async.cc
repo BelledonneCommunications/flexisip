@@ -229,7 +229,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 		ERROR
 	}
 
-	time_t now=time(NULL);
+	time_t now=getCurrentTime();
 	data->record.clean(now);
 
 	data->listener->onRecordFound(&data->record);
@@ -271,7 +271,7 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 		return;
 	}
 
-	time_t now=time(NULL);
+	time_t now=getCurrentTime();
 	data->record.clean(data->sipContact, data->calldId, data->csSeq, now);
 	data->record.bind(data->sipContact, data->route, data->globalExpire, data->calldId, data->csSeq, now, data->alias);
 	mLocalRegExpire->update(data->record);

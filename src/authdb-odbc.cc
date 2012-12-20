@@ -426,7 +426,7 @@ AuthDbResult OdbcAuthDb::password(su_root_t *root, const url_t *from, const char
 	string domain(from->url_host);
 	string auth(auth_username);
 
-	time_t now=time(NULL);
+	time_t now=getCurrentTime();
 	string key(createPasswordKey(id, domain, auth));
 	string fallbackPassword;
 	switch(getCachedPassword(key, domain, fallbackPassword, now)) {
@@ -621,7 +621,7 @@ AuthDbResult OdbcAuthDb::doRetrievePassword(const string &id, const string &doma
 	timings.tGotResult=steady_clock::now();
 	foundPassword.assign((char*)password);
 	string key(createPasswordKey(id, domain, auth));
-	cachePassword(key, domain, foundPassword, time(NULL));
+	cachePassword(key, domain, foundPassword, getCurrentTime());
 	LOGD("Password found %s for %s", foundPassword.c_str(), id.c_str());
 	return PASSWORD_FOUND;
 }

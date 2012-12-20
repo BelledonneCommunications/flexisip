@@ -104,6 +104,15 @@ if test $specific_features = "yes"; then
 	AC_DEFINE([MEDIARELAY_SPECIFIC_FEATURES_ENABLED],1,[Enable specific features.])
 fi
 
+AC_ARG_ENABLE(monotonic-clock-registrations,
+	AC_HELP_STRING([--enable-monotonic-clock-registrations],
+	    [Enable monotonic clock for registrations @<:no:>@]),
+        [monotonic_clock_registrations="${enableval}"],[monotonic_clock_registrations=no]
+)
+if test $monotonic_clock_registrations = "yes"; then
+	AC_DEFINE([MONOTONIC_CLOCK_REGISTRATIONS],1,[Enable monotonic clock for registrations.])
+fi
+
 AC_DEFUN([CHECK_BOOST],[$1
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[[
         #ifndef $2

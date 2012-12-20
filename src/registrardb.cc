@@ -274,11 +274,18 @@ void Record::bind(const char *c, const char *contactId, const char* route, const
 
 void Record::print() {
 	LOGD("Record contains %zu contacts", mContacts.size());
-	time_t now=time(NULL);
+	time_t now=getCurrentTime();
+#ifdef MONOTONIC_CLOCK_REGISTRATIONS
+	time_t offset=time(NULL)-now;
+#endif
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		shared_ptr<ExtendedContact> ec = (*it);
 		char buffer[256] = "UNDETERMINED";
-		struct tm *ptm = localtime(&ec->mExpireAt);
+		time_t expire=ec->mExpireAt;
+#ifdef MONOTONIC_CLOCK_REGISTRATIONS
+		expire+=offset;
+#endif
+		struct tm *ptm = localtime(&expire);
 		if (ptm != NULL) {
 			strftime(buffer, sizeof(buffer) - 1, "%c", ptm);
 		}

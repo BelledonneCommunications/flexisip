@@ -146,7 +146,7 @@ void RelayChannel::setFilter(shared_ptr<MediaFilter> filter){
 
 RelaySession::RelaySession(MediaRelayServer *server) :
 		mServer(server) {
-	mLastActivityTime = time(NULL);
+	mLastActivityTime = getCurrentTime();
 	mUsed = true;
 }
 
@@ -376,7 +376,7 @@ void MediaRelayServer::run() {
 					LOGE("Fail to read from control pipe.");
 				}
 			}
-			time_t curtime = time(NULL);
+			time_t curtime = getCurrentTime();
 			int i = 0;
 			for (auto it = mediaSources.begin(); it != mediaSources.end(); ++it) {
 				if (pfds[i].revents & POLLIN) {

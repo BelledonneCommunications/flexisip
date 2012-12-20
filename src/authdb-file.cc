@@ -36,7 +36,7 @@ FileAuthDb::FileAuthDb() {
 }
 
 AuthDbResult FileAuthDb::password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener) {
-	time_t now = time(NULL);
+	time_t now = getCurrentTime();
 
 	if (difftime(now, mLastSync) >= mCacheExpire) {
 		sync();
@@ -66,7 +66,7 @@ void FileAuthDb::sync() {
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
 
-	mLastSync = time(NULL);
+	mLastSync = getCurrentTime();
 
 	ifstream file;
 

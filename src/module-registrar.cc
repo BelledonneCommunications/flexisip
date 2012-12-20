@@ -231,7 +231,7 @@ public:
 private:
 	void updateLocalRegExpire() {
 		RegistrarDb *db = RegistrarDb::get(mAgent);
-		db->mLocalRegExpire->removeExpiredBefore(time(NULL));
+		db->mLocalRegExpire->removeExpiredBefore(getCurrentTime());
 		mCountLocalActives->set(db->mLocalRegExpire->countActives());
 	}
 	bool isManagedDomain(const url_t *url) {
@@ -533,7 +533,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 	if (aor)
 		contacts = aor->getExtendedContacts();
 
-	time_t now = time(NULL);
+	time_t now = getCurrentTime();
 
 	// Generate a fake contact for a proxy
 	if (!mGeneratedContactRoute.empty()) {
@@ -682,7 +682,7 @@ public:
 	}
 	void onRecordFound(Record *r) {
 		const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
-		time_t now = time(NULL);
+		time_t now = getCurrentTime();
 		Registrar::send200Ok(mModule->getAgent(), mEv, r->getContacts(ms->getHome(), now));
 		mModule->onRegister(mModule->getAgent(), mEv, mContact, r, mSipUri);
 	}

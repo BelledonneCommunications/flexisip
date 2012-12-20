@@ -101,3 +101,16 @@ void Mutex::unlock() {
 	}
 }
 
+time_t getCurrentTime() {
+#ifdef MONOTONIC_CLOCK_REGISTRATIONS
+	struct timespec t;
+	if (clock_gettime(CLOCK_MONOTONIC, &t)) {
+	        LOGE("cannot read monotonic clock");
+	        return time(NULL);
+	}
+
+	return t.tv_sec;
+#else
+        return time(NULL);
+#endif
+}

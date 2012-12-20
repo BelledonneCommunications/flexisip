@@ -25,6 +25,8 @@
 #include <ortp/ortp.h>
 #include <map>
 #include <sys/timeb.h>
+#include <time.h>
+#include "flexisip-config.h"
 
 extern bool sUseSyslog;
 
@@ -114,5 +116,7 @@ class map_delete_functor{
 };
 
 #define RESTART_EXIT_CODE 5
+
+time_t getCurrentTime();
 
 #endif

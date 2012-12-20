@@ -138,7 +138,7 @@ void RegistrarDbRedisSync::doBind(const url_t* url, const sip_contact_t *sip_con
                 return;
         }
 
-        time_t now = time(NULL);
+        time_t now = getCurrentTime();
         r.clean(sip_contact, calld_id, cs_seq, now);
         r.bind(sip_contact, route, global_expire, calld_id, cs_seq, now, alias);
         mLocalRegExpire->update(r);
@@ -225,7 +225,7 @@ void RegistrarDbRedisSync::doFetch(const url_t *url, const shared_ptr<RegistrarD
         mSerializer->parse(reply->str, reply->len, &r);
         freeReplyObject(reply);
 
-        time_t now = time(NULL);
+        time_t now = getCurrentTime();
         r.clean(now);
 
         listener->onRecordFound(&r);
