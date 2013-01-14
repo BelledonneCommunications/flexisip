@@ -241,9 +241,9 @@ public:
 
 	virtual void onDeclare(GenericStruct * mc){
 		ConfigItemDescriptor items[]={
-			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	""	},
+			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	"localhost"	},
 			{	StringList	,	"trusted-hosts"	, 	"List of whitespace separated IP which will not be challenged.",	""	},
-			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file].",		"odbc"	},
+			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file, fixed].",		"fixed"	},
 			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. " \
 					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. " \
 					"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. " \

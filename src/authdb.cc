@@ -23,6 +23,16 @@ using namespace ::std;
 
 AuthDb *AuthDb::sUnique = NULL;
 
+
+class FixedAuthDb : public AuthDb{
+public:
+        FixedAuthDb(){};
+	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener) {
+		foundPassword.assign("fixed");
+		return AuthDbResult::PASSWORD_FOUND;
+	}
+};
+
 AuthDb* AuthDb::get() {
 	if (sUnique == NULL) {
 		GenericStruct *cr=GenericManager::get()->getRoot();
@@ -34,7 +44,9 @@ AuthDb* AuthDb::get() {
 //			sUnique = new RedisAuthDb();
 		} else if (impl == "file") {
                         sUnique = new FileAuthDb();
-                }
+                } else if (impl == "fixed") {
+			sUnique = new FixedAuthDb();
+		}
 	}
 
 	return sUnique;
@@ -84,4 +96,5 @@ bool AuthDb::cachePassword(const string &key, const string &domain, const string
 
 	return true;
 }
+
 
