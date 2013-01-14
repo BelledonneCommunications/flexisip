@@ -286,6 +286,7 @@ public:
 									AUTHTAG_EXPIRES(NONCE_EXPIRES), // in seconds
 									AUTHTAG_NEXT_EXPIRES(NEXT_NONCE_EXPIRES), // in seconds
 									AUTHTAG_FORBIDDEN(1),
+									AUTHTAG_ALLOW("ACK CANCEL BYE"),
 									TAG_END());
 			auth_plugin_t *ap = AUTH_PLUGIN(mAuthModules[*it]);
 			ap->mModule = this;
