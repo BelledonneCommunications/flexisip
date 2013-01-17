@@ -55,7 +55,7 @@ fi
 strictness=yes
 case $CXX in
 	*clang++*)
-	CXXFLAGS="$CXXFLAGS -g -O2 -std=c++0x -stdlib=libc++"
+	CXXFLAGS="$CXXFLAGS -std=c++11 -stdlib=libc++"
 	strictness=no;
 	;;
 	*g++*)
