@@ -180,7 +180,7 @@ void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 }
 
 void Module::processTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
-	LOGD("Invoking onTransactionEvent() on module %s", getModuleName().c_str());
+//	LOGD("Invoking onTransactionEvent() on module %s", getModuleName().c_str());
 	onTransactionEvent(transaction, event);
 }
 

@@ -33,6 +33,7 @@
 
 using namespace ::std;
 
+#define QOP_AUTH
 const static int NONCE_EXPIRES=100;
 const static int NEXT_NONCE_EXPIRES=100;
 
@@ -282,9 +283,11 @@ public:
 									AUTHTAG_METHOD("odbc"),
 									AUTHTAG_REALM((*it).c_str()),
 									AUTHTAG_OPAQUE("+GNywA=="),
+#ifdef QOP_AUTH
 									AUTHTAG_QOP("auth"),
 									AUTHTAG_EXPIRES(NONCE_EXPIRES), // in seconds
 									AUTHTAG_NEXT_EXPIRES(NEXT_NONCE_EXPIRES), // in seconds
+#endif
 									AUTHTAG_FORBIDDEN(1),
 									AUTHTAG_ALLOW("ACK CANCEL BYE"),
 									TAG_END());
@@ -590,7 +593,9 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 	char const *phrase = "Bad authorization ";
 	if ((!ar->ar_username && (phrase = PA "username")) ||
 			(!ar->ar_nonce && (phrase = PA "nonce")) ||
+#ifdef QOP_AUTH
 			(!ar->ar_nc && (phrase = PA "nonce count")) ||
+#endif
 			(!ar->ar_uri && (phrase = PA "URI")) ||
 			(!ar->ar_response && (phrase = PA "response")) ||
 			/* (!ar->ar_opaque && (phrase = PA "opaque")) || */
@@ -639,6 +644,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		return;
 	}
 
+#ifdef QOP_AUTH
 	int pnc=module->mNonceStore.getNc(ar->ar_nonce);
 	int nnc = (int) strtoul(ar->ar_nc, NULL, 10);
 	if (pnc == -1 || pnc >= nnc) {
@@ -651,6 +657,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 	} else {
 		module->mNonceStore.updateNc(ar->ar_nonce, nnc);
 	}
+#endif
 
 	// Retrieve password. The result may be either synchronous OR asynchronous,
 	// on a case by case basis.
