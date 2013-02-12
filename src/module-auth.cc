@@ -321,7 +321,6 @@ public:
 		// Do it first to make sure no transaction is created which
 		// would send an unappropriate 100 trying response.
 		if (sip->sip_request->rq_method == sip_method_ack) {
-			LOGD("ACK are never challenged");
 			return;
 		}
 
@@ -339,9 +338,17 @@ public:
 		// Then check for auth module for this domain
 		auth_mod_t *am=findAuthModule(sip->sip_from->a_url[0].url_host);
 		if (am==NULL) {
-			LOGI("unknown domain [%s]",sip->sip_from->a_url[0].url_host);
+			LOGI("Unknown domain [%s]",sip->sip_from->a_url[0].url_host);
 			ev->reply(ms, SIP_488_NOT_ACCEPTABLE,
 					SIPTAG_CONTACT(sip->sip_contact),
+					SIPTAG_SERVER_STR(getAgent()->getServerString()),
+					TAG_END());
+			return;
+		}
+		// Check for the existence of username, reject if absent.
+		if (sip->sip_from->a_url->url_user==NULL){
+			LOGI("From has no username, cannot authenticate.");
+			ev->reply(ms, SIP_488_NOT_ACCEPTABLE,
 					SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					TAG_END());
 			return;
