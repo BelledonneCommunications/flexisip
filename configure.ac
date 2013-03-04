@@ -221,7 +221,7 @@ AM_CONDITIONAL(BUILD_PROTOBUF,test x$protobuf = xyes)
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
 
-PKG_CHECK_MODULES(SOFIA,[sofia-sip-ua >= 1.12.10])
+PKG_CHECK_MODULES(SOFIA,[sofia-sip-ua >= 1.12.11])
 PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
 PKG_CHECK_MODULES(ORTP,[ortp >= 0.16.3])
 
