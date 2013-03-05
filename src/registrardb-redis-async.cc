@@ -43,133 +43,141 @@ int RegistrarDbRedisAsync::sPort=0;
 int RegistrarDbRedisAsync::sTimeout=0;
 string RegistrarDbRedisAsync::sAuthPassword="";
 
-RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag):RegistrarDb(ag),mContext(NULL),mRoot(ag->getRoot()){
+RegistrarDbRedisAsync::RegistrarDbRedisAsync ( Agent *ag ) :RegistrarDb ( ag ),mContext ( NULL ),mRoot ( ag->getRoot() )
+{
 	mSerializer=RecordSerializer::get();
-	GenericStruct *registrar=GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
-	sDomain=registrar->get<ConfigString>("redis-server-domain")->read();
-	sPort=registrar->get<ConfigInt>("redis-server-port")->read();
-	sTimeout=registrar->get<ConfigInt>("redis-server-timeout")->read();
-	sAuthPassword=registrar->get<ConfigString>("redis-auth-password")->read();
+	GenericStruct *registrar=GenericManager::get()->getRoot()->get<GenericStruct> ( "module::Registrar" );
+	sDomain=registrar->get<ConfigString> ( "redis-server-domain" )->read();
+	sPort=registrar->get<ConfigInt> ( "redis-server-port" )->read();
+	sTimeout=registrar->get<ConfigInt> ( "redis-server-timeout" )->read();
+	sAuthPassword=registrar->get<ConfigString> ( "redis-auth-password" )->read();
 }
 
-RegistrarDbRedisAsync::~RegistrarDbRedisAsync(){
-	if (mContext) {
-		redisAsyncDisconnect(mContext);
-	}
+RegistrarDbRedisAsync::~RegistrarDbRedisAsync()
+{
+	if ( mContext ) {
+			redisAsyncDisconnect ( mContext );
+		}
 }
 
 
 #ifndef WITHOUT_HIREDIS_CONNECT_CALLBACK
-void RegistrarDbRedisAsync::connectCallback(const redisAsyncContext *c, int status) {
-    if (status != REDIS_OK) {
-        LOGE("Couldn't connect to redis: %s", c->errstr);
-        RegistrarDbRedisAsync *zis=(RegistrarDbRedisAsync *) c->data;
-        zis->mContext=NULL;
-        return;
-    }
-    LOGD("Connected... %p", c);
+void RegistrarDbRedisAsync::connectCallback ( const redisAsyncContext *c, int status )
+{
+	if ( status != REDIS_OK ) {
+			LOGE ( "Couldn't connect to redis: %s", c->errstr );
+			RegistrarDbRedisAsync *zis= ( RegistrarDbRedisAsync * ) c->data;
+			zis->mContext=NULL;
+			return;
+		}
+	LOGD ( "Connected... %p", c );
 }
 #endif
 
-void RegistrarDbRedisAsync::disconnectCallback(const redisAsyncContext *c, int status) {
-	RegistrarDbRedisAsync *zis=(RegistrarDbRedisAsync *) c->data;
+void RegistrarDbRedisAsync::disconnectCallback ( const redisAsyncContext *c, int status )
+{
+	RegistrarDbRedisAsync *zis= ( RegistrarDbRedisAsync * ) c->data;
 	zis->mContext=NULL;
-	if (status != REDIS_OK) {
-		LOGE("Redis disconnection message: %s", c->errstr);
-		return;
-	}
-	LOGD("Disconnected %p...", c);
+	if ( status != REDIS_OK ) {
+			LOGE ( "Redis disconnection message: %s", c->errstr );
+			return;
+		}
+	LOGD ( "Disconnected %p...", c );
 }
 
-bool RegistrarDbRedisAsync::isConnected() {
+bool RegistrarDbRedisAsync::isConnected()
+{
 	return mContext != NULL;
 }
 
-static void handleAuthReply(redisAsyncContext* ac, void *r, void *privdata){
-	redisReply *reply = (redisReply *)r;
-	if (!reply || reply->type == REDIS_REPLY_ERROR){
-		LOGE("Could'nt authenticate with redis server");
-		redisAsyncDisconnect(ac);
-	}
+static void handleAuthReply ( redisAsyncContext* ac, void *r, void *privdata )
+{
+	redisReply *reply = ( redisReply * ) r;
+	if ( !reply || reply->type == REDIS_REPLY_ERROR ) {
+			LOGE ( "Could'nt authenticate with redis server" );
+			redisAsyncDisconnect ( ac );
+		}
 }
 
 
-bool RegistrarDbRedisAsync::connect(){
-	if (isConnected()) {
-		LOGW("Redis already connected");
-		return true;
-	}
+bool RegistrarDbRedisAsync::connect()
+{
+	if ( isConnected() ) {
+			LOGW ( "Redis already connected" );
+			return true;
+		}
 
-    mContext = redisAsyncConnect(sDomain.c_str(), sPort);
-    mContext->data=this;
-    if (mContext->err) {
-        LOGE("Redis Connection error: %s", mContext->errstr);
-        redisAsyncFree(mContext);
-        mContext=NULL;
-        return false;
-    }
+	mContext = redisAsyncConnect ( sDomain.c_str(), sPort );
+	mContext->data=this;
+	if ( mContext->err ) {
+			LOGE ( "Redis Connection error: %s", mContext->errstr );
+			redisAsyncFree ( mContext );
+			mContext=NULL;
+			return false;
+		}
 
 #ifndef WITHOUT_HIREDIS_CONNECT_CALLBACK
-    redisAsyncSetConnectCallback(mContext, connectCallback);
+	redisAsyncSetConnectCallback ( mContext, connectCallback );
 #endif
 
-    redisAsyncSetDisconnectCallback(mContext, disconnectCallback);
+	redisAsyncSetDisconnectCallback ( mContext, disconnectCallback );
 
-    if (REDIS_OK != redisSofiaAttach(mContext, mRoot)){
-    	LOGE("Redis Connection error");
-    	redisAsyncDisconnect(mContext);
-    	mContext=NULL;
-    	return false;
-    }
+	if ( REDIS_OK != redisSofiaAttach ( mContext, mRoot ) ) {
+			LOGE ( "Redis Connection error" );
+			redisAsyncDisconnect ( mContext );
+			mContext=NULL;
+			return false;
+		}
 
-    if (!sAuthPassword.empty()){
-    	redisAsyncCommand(mContext, handleAuthReply, NULL, "AUTH %s", sAuthPassword.c_str());
-    }
-    return true;
+	if ( !sAuthPassword.empty() ) {
+			redisAsyncCommand ( mContext, handleAuthReply, NULL, "AUTH %s", sAuthPassword.c_str() );
+		}
+	return true;
 }
 
-unsigned long RegistrarDbRedisAsync::getToken(){
-	if (mToken == LONG_MAX) {
-		mToken=0;
-	}
+unsigned long RegistrarDbRedisAsync::getToken()
+{
+	if ( mToken == LONG_MAX ) {
+			mToken=0;
+		}
 	return mToken++;
 }
 
 
-typedef void (forwardFn)(redisAsyncContext*, redisReply*,RegistrarDbRedisAsync::RegistrarUserData *);
+typedef void ( forwardFn ) ( redisAsyncContext*, redisReply*,RegistrarDbRedisAsync::RegistrarUserData * );
 
 typedef struct RegistrarDbRedisAsync::RegistrarUserData {
 	RegistrarDbRedisAsync *self;
 	char key[AOR_KEY_SIZE];
 	forwardFn *fn;
 	unsigned long token;
-        const sip_contact_t * sipContact;
+	const sip_contact_t * sipContact;
 	const char * calldId;
-        uint32_t csSeq;
+	uint32_t csSeq;
 	shared_ptr<RegistrarDbListener>listener;
 	Record record;
 	int globalExpire;
 	char *route;
 	bool alias;
 
-	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, bool alias, shared_ptr<RegistrarDbListener>listener, forwardFn *fn):
-		self(self),fn(fn),token(0),sipContact(sip_contact),calldId(calld_id),csSeq(cs_seq),listener(listener),record(""),globalExpire(0),route(NULL),alias(alias){
-		self->defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
-		record.setKey(key);
-		if (route) this->route=strdup(route);
+	RegistrarUserData ( RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, bool alias, shared_ptr<RegistrarDbListener>listener, forwardFn *fn ) :
+		self ( self ),fn ( fn ),token ( 0 ),sipContact ( sip_contact ),calldId ( calld_id ),csSeq ( cs_seq ),listener ( listener ),record ( "" ),globalExpire ( 0 ),route ( NULL ),alias ( alias ) {
+		self->defineKeyFromUrl ( key,AOR_KEY_SIZE-1, url );
+		record.setKey ( key );
+		if ( route ) this->route=strdup ( route );
 	}
-	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, shared_ptr<RegistrarDbListener>listener, forwardFn *fn):
-		self(self),fn(fn),token(0),sipContact(sip_contact),calldId(calld_id),csSeq(cs_seq),listener(listener),record(""),globalExpire(0),route(NULL){
-		self->defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
-		record.setKey(key);
+	RegistrarUserData ( RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, shared_ptr<RegistrarDbListener>listener, forwardFn *fn ) :
+		self ( self ),fn ( fn ),token ( 0 ),sipContact ( sip_contact ),calldId ( calld_id ),csSeq ( cs_seq ),listener ( listener ),record ( "" ),globalExpire ( 0 ),route ( NULL ) {
+		self->defineKeyFromUrl ( key,AOR_KEY_SIZE-1, url );
+		record.setKey ( key );
 	}
-	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t *url, shared_ptr<RegistrarDbListener>listener, forwardFn *fn):
-		self(self),fn(fn),token(0),sipContact(NULL),calldId(NULL),csSeq(-1),listener(listener),record(""),globalExpire(0),route(NULL){
-		self->defineKeyFromUrl(key,AOR_KEY_SIZE-1, url);
-		record.setKey(key);
+	RegistrarUserData ( RegistrarDbRedisAsync *self, const url_t *url, shared_ptr<RegistrarDbListener>listener, forwardFn *fn ) :
+		self ( self ),fn ( fn ),token ( 0 ),sipContact ( NULL ),calldId ( NULL ),csSeq ( -1 ),listener ( listener ),record ( "" ),globalExpire ( 0 ),route ( NULL ) {
+		self->defineKeyFromUrl ( key,AOR_KEY_SIZE-1, url );
+		record.setKey ( key );
 	}
-	~RegistrarUserData(){
-		if (route) free(route);
+	~RegistrarUserData() {
+		if ( route ) free ( route );
 	}
 } RegistrarUserData;
 
@@ -179,43 +187,48 @@ typedef struct RegistrarDbRedisAsync::RegistrarUserData {
  * the serialized contacts currently stored on the server.
  * If the redis reply is valid, the reply is forwarded to an action specific method.
  */
-void RegistrarDbRedisAsync::sHandleAorGetReply(redisAsyncContext* ac, void *r, void *privdata){
-	redisReply *reply = (redisReply *)r;
-	RegistrarUserData *data=(RegistrarUserData *)privdata;
-	if (!reply || reply->type == REDIS_REPLY_ERROR){
-		LOGE("Redis error getting aor:%s [%lu] - %s", data->key, data->token, reply?reply->str:"null reply");
-		ERROR
-	}
+void RegistrarDbRedisAsync::sHandleAorGetReply ( redisAsyncContext* ac, void *r, void *privdata )
+{
+	redisReply *reply = ( redisReply * ) r;
+	RegistrarUserData *data= ( RegistrarUserData * ) privdata;
+	if ( !reply || reply->type == REDIS_REPLY_ERROR ) {
+			LOGE ( "Redis error getting aor:%s [%lu] - %s", data->key, data->token, reply?reply->str:"null reply" );
+			ERROR
+		}
 
-	LOGD("GOT aor:%s [%lu] --> %i bytes", data->key,data->token, reply->len);
-	data->fn(ac,reply,data);
+	LOGD ( "GOT aor:%s [%lu] --> %i bytes", data->key,data->token, reply->len );
+	data->fn ( ac,reply,data );
 }
 
-void RegistrarDbRedisAsync::sHandleSet(redisAsyncContext* ac, void *r, void *privdata){
-	redisReply *reply = (redisReply *)r;
-	RegistrarUserData *data=(RegistrarUserData *)privdata;
-    if (!reply || reply->type == REDIS_REPLY_ERROR) {
-    	LOGE("Redis error setting aor:%s [%lu] - %s", data->key, data->token, reply?reply->str:"null reply");
-		ERROR
-    }
-	LOGD("Sent updated aor:%s [%lu] success", data->key,data->token);
-	data->listener->onRecordFound(&data->record);
+void RegistrarDbRedisAsync::sHandleSet ( redisAsyncContext* ac, void *r, void *privdata )
+{
+	redisReply *reply = ( redisReply * ) r;
+	RegistrarUserData *data= ( RegistrarUserData * ) privdata;
+	if ( !reply || reply->type == REDIS_REPLY_ERROR ) {
+			LOGE ( "Redis error setting aor:%s [%lu] - %s", data->key, data->token, reply?reply->str:"null reply" );
+			ERROR
+		}
+	LOGD ( "Sent updated aor:%s [%lu] success", data->key,data->token );
+	data->listener->onRecordFound ( &data->record );
 	delete data;
 }
 
 
 
 
-void RegistrarDbRedisAsync::sHandleBind(redisAsyncContext* ac, redisReply *reply, RegistrarUserData *data){
-	data->self->handleBind(reply,data);
+void RegistrarDbRedisAsync::sHandleBind ( redisAsyncContext* ac, redisReply *reply, RegistrarUserData *data )
+{
+	data->self->handleBind ( reply,data );
 }
 
-void RegistrarDbRedisAsync::sHandleClear(redisAsyncContext* ac, redisReply *reply, RegistrarUserData *data){
-	data->self->handleClear(reply,data);
+void RegistrarDbRedisAsync::sHandleClear ( redisAsyncContext* ac, redisReply *reply, RegistrarUserData *data )
+{
+	data->self->handleClear ( reply,data );
 }
 
-void RegistrarDbRedisAsync::sHandleFetch(redisAsyncContext* ac, redisReply *reply, RegistrarUserData *data){
-	data->self->handleFetch(reply,data);
+void RegistrarDbRedisAsync::sHandleFetch ( redisAsyncContext* ac, redisReply *reply, RegistrarUserData *data )
+{
+	data->self->handleFetch ( reply,data );
 }
 
 
@@ -223,105 +236,116 @@ void RegistrarDbRedisAsync::sHandleFetch(redisAsyncContext* ac, redisReply *repl
 
 
 
-void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *data){
-	if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
-		LOGE("Couldn't parse stored contacts for aor:%s : %u bytes", data->key, reply->len);
-		ERROR
-	}
+void RegistrarDbRedisAsync::handleFetch ( redisReply *reply, RegistrarUserData *data )
+{
+	if ( reply->len>0 ) {
+			if ( !mSerializer->parse ( reply->str, reply->len, &data->record ) ) {
+					LOGE ( "Couldn't parse stored contacts for aor:%s : %u bytes", data->key, reply->len );
+					ERROR
+				}
+
+			time_t now=getCurrentTime();
+			data->record.clean ( now );
+
+			data->listener->onRecordFound ( &data->record );
+			delete data;
+		}
+	else {
+			data->listener->onRecordFound ( NULL );
+		}
+}
+
+
+
+
+void RegistrarDbRedisAsync::handleClear ( redisReply *reply, RegistrarUserData *data )
+{
+	if ( reply->str > 0 ) {
+			if ( !mSerializer->parse ( reply->str, reply->len, &data->record ) ) {
+					LOGE ( "Couldn't parse stored contacts for aor:%s : %i bytes", data->key, reply->len );
+					ERROR
+				}
+			if ( data->record.isInvalidRegister ( data->calldId, data->csSeq ) ) {
+					data->listener->onInvalid();
+					delete data;
+					return;
+				}
+		}
+
+	chk_redis_err ( redisAsyncCommand ( mContext, sHandleSet, data,"DEL aor:%s",data->key ) );
+}
+
+
+
+
+void RegistrarDbRedisAsync::handleBind ( redisReply *reply, RegistrarUserData *data )
+{
+	if ( !mSerializer->parse ( reply->str, reply->len, &data->record ) ) {
+			LOGE ( "Couldn't parse stored contacts for aor:%s : %u bytes", data->key, reply->len );
+			ERROR
+		}
+
+
+	if ( data->record.isInvalidRegister ( data->calldId, data->csSeq ) ) {
+			data->listener->onInvalid();
+			delete data;
+			return;
+		}
 
 	time_t now=getCurrentTime();
-	data->record.clean(now);
-
-	data->listener->onRecordFound(&data->record);
-	delete data;
-}
-
-
-
-
-void RegistrarDbRedisAsync::handleClear(redisReply *reply, RegistrarUserData *data){
-    if (reply->str > 0) {
-    	if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
-    		LOGE("Couldn't parse stored contacts for aor:%s : %i bytes", data->key, reply->len);
-    		ERROR
-    	}
-    	if (data->record.isInvalidRegister(data->calldId, data->csSeq)){
-        	data->listener->onInvalid();
-        	delete data;
-        	return;
-        }
-    }
-
-    chk_redis_err(redisAsyncCommand(mContext, sHandleSet, data,"DEL aor:%s",data->key));
-}
-
-
-
-
-void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *data){
-	if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
-		LOGE("Couldn't parse stored contacts for aor:%s : %u bytes", data->key, reply->len);
-		ERROR
-	}
-
-
-	if (data->record.isInvalidRegister(data->calldId, data->csSeq)){
-		data->listener->onInvalid();
-		delete data;
-		return;
-	}
-
-	time_t now=getCurrentTime();
-	data->record.clean(data->sipContact, data->calldId, data->csSeq, now);
-	data->record.bind(data->sipContact, data->route, data->globalExpire, data->calldId, data->csSeq, now, data->alias);
-	mLocalRegExpire->update(data->record);
+	data->record.clean ( data->sipContact, data->calldId, data->csSeq, now );
+	data->record.bind ( data->sipContact, data->route, data->globalExpire, data->calldId, data->csSeq, now, data->alias );
+	mLocalRegExpire->update ( data->record );
 
 	string serialized;
-	mSerializer->serialize(&data->record, serialized);
-	LOGD("Sending updated aor:%s [%lu] --> %u bytes", data->key,data->token,(unsigned)serialized.length());
-	chk_redis_err(redisAsyncCommand(mContext, sHandleSet, data,"SET aor:%s %b",data->key, serialized.data(), serialized.length()));
+	mSerializer->serialize ( &data->record, serialized );
+	LOGD ( "Sending updated aor:%s [%lu] --> %u bytes", data->key,data->token, ( unsigned ) serialized.length() );
+	chk_redis_err ( redisAsyncCommand ( mContext, sHandleSet, data,"SET aor:%s %b",data->key, serialized.data(), serialized.length() ) );
 
 	time_t expireat=data->record.latestExpire();
-	chk_redis_err(redisAsyncCommand(data->self->mContext, NULL, NULL,"EXPIREAT aor:%s %lu",data->key, expireat));
+	chk_redis_err ( redisAsyncCommand ( data->self->mContext, NULL, NULL,"EXPIREAT aor:%s %lu",data->key, expireat ) );
 }
 
 
 
-void RegistrarDbRedisAsync::doBind(const url_t* url, const sip_contact_t *sip_contact, const char * call_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
-  	RegistrarUserData *data=new RegistrarUserData(this,url,sip_contact,call_id,cs_seq,route,alias,listener,sHandleBind);
+void RegistrarDbRedisAsync::doBind ( const url_t* url, const sip_contact_t *sip_contact, const char * call_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener )
+{
+	RegistrarUserData *data=new RegistrarUserData ( this,url,sip_contact,call_id,cs_seq,route,alias,listener,sHandleBind );
 	data->globalExpire=global_expire;
-	if (!isConnected() && !connect()) {
-		LOGE("Not connected to redis server");
-		ERROR
-	}
-	if (errorOnTooMuchContactInBind(sip_contact,data->key,listener)){
-		ERROR
-	}
+	if ( !isConnected() && !connect() ) {
+			LOGE ( "Not connected to redis server" );
+			ERROR
+		}
+	if ( errorOnTooMuchContactInBind ( sip_contact,data->key,listener ) ) {
+			ERROR
+		}
 
-	LOGD("Binding aor:%s [%lu]", data->key, data->token);
-	chk_redis_err(redisAsyncCommand(mContext, sHandleAorGetReply,data,"GET aor:%s",data->key));
+	LOGD ( "Binding aor:%s [%lu]", data->key, data->token );
+	chk_redis_err ( redisAsyncCommand ( mContext, sHandleAorGetReply,data,"GET aor:%s",data->key ) );
 }
 
-void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<RegistrarDbListener> &listener){
-	RegistrarUserData *data=new RegistrarUserData(this, sip->sip_from->a_url,sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, listener, sHandleClear);
-	if (!isConnected() && !connect()) {
-		LOGE("Not connected to redis server");
-		ERROR
-	}
-	LOGD("Clearing aor:%s [%lu]", data->key, data->token);
-	mLocalRegExpire->remove(data->key);
-	chk_redis_err(redisAsyncCommand(mContext, sHandleAorGetReply,data,"GET aor:%s",data->key));
+void RegistrarDbRedisAsync::doClear ( const sip_t *sip, const shared_ptr<RegistrarDbListener> &listener )
+{
+	RegistrarUserData *data=new RegistrarUserData ( this, sip->sip_from->a_url,sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, listener, sHandleClear );
+	if ( !isConnected() && !connect() ) {
+			LOGE ( "Not connected to redis server" );
+			ERROR
+		}
+	LOGD ( "Clearing aor:%s [%lu]", data->key, data->token );
+	mLocalRegExpire->remove ( data->key );
+	chk_redis_err ( redisAsyncCommand ( mContext, sHandleAorGetReply,data,"GET aor:%s",data->key ) );
 }
 
 
 
 
-void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<RegistrarDbListener> &listener){
-	RegistrarUserData *data=new RegistrarUserData(this,url,listener,sHandleFetch);
-	if (!isConnected() && !connect()) {
-		LOGE("Not connected to redis server");
-		ERROR
-	}
-	LOGD("Fetching aor:%s [%lu]", data->key, data->token);
-	chk_redis_err(redisAsyncCommand(mContext, sHandleAorGetReply,data,"GET aor:%s",data->key));
+void RegistrarDbRedisAsync::doFetch ( const url_t *url, const shared_ptr<RegistrarDbListener> &listener )
+{
+	RegistrarUserData *data=new RegistrarUserData ( this,url,listener,sHandleFetch );
+	if ( !isConnected() && !connect() ) {
+			LOGE ( "Not connected to redis server" );
+			ERROR
+		}
+	LOGD ( "Fetching aor:%s [%lu]", data->key, data->token );
+	chk_redis_err ( redisAsyncCommand ( mContext, sHandleAorGetReply,data,"GET aor:%s",data->key ) );
 }
