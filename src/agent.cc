@@ -642,6 +642,7 @@ int Agent::messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t
 }
 
 void Agent::idle() {
+	LOGD("In Agent::idle()");
 	for_each(mModules.begin(), mModules.end(), mem_fun(&Module::idle));
 	if (GenericManager::get()->mNeedRestart) {
 		exit(RESTART_EXIT_CODE);
