@@ -99,6 +99,9 @@ void Agent::onDeclare(GenericStruct *root) {
 void Agent::start(const char *transport_override){
 	GenericStruct *cr=GenericManager::get()->getRoot();
 	list<string> transports=cr->get<GenericStruct>("global")->get<ConfigStringList>("transports")->read();
+	int tports_idle_timeout=cr->get<GenericStruct>("global")->get<ConfigInt>("idle-timeout")->read();
+	
+	tports_idle_timeout*=1000; //sofia needs a value in millseconds.
 	
 	if (transport_override){
 		transports=ConfigStringList::parse(transport_override);
@@ -114,9 +117,9 @@ void Agent::start(const char *transport_override){
 		LOGD("Enabling transport %s",uri.c_str());
 		if (uri.find("sips")==0){
 			string keys = cr->get<GenericStruct>("global")->get<ConfigString>("tls-certificates-dir")->read();
-			err=nta_agent_add_tport(mAgent,(const url_string_t*)url,TPTAG_CERTIFICATE(keys.c_str()), NTATAG_TLS_RPORT(1), TAG_END());
+			err=nta_agent_add_tport(mAgent,(const url_string_t*)url,TPTAG_CERTIFICATE(keys.c_str()), NTATAG_TLS_RPORT(1), TPTAG_IDLE(tports_idle_timeout), TAG_END());
 		}else{
-			err=nta_agent_add_tport(mAgent,(const url_string_t*)url,NTATAG_CLIENT_RPORT(1), TAG_END());
+			err=nta_agent_add_tport(mAgent,(const url_string_t*)url,NTATAG_CLIENT_RPORT(1), TPTAG_IDLE(tports_idle_timeout), TAG_END());
 		}
 		if (err==-1){
 			LOGE("Could not enable transport %s: %s",uri.c_str(),strerror(errno));
