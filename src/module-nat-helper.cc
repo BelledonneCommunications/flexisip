@@ -130,6 +130,8 @@ class NatHelper : public Module, protected ModuleToolbox{
 				received=via->v_host;
 			}
 			
+			if (rport==NULL) rport=via->v_port; //if no rport is given, then trust the via port.
+			
 			for (;ctt!=NULL;ctt=ctt->m_next){
 				if (ctt->m_url && ctt->m_url->url_host){
 					const char *host=ctt->m_url->url_host;
