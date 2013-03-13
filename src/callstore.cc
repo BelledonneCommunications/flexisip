@@ -144,10 +144,12 @@ shared_ptr<CallContextBase> CallStore::findEstablishedDialog(Agent *ag, sip_t *s
 	return shared_ptr<CallContextBase>();
 }
 
-void CallStore::findAndRemoveExcept(Agent *ag, sip_t *sip, CallContextBase *c, bool stateful) {
+void CallStore::findAndRemoveExcept(Agent *ag, sip_t *sip, const shared_ptr<CallContextBase> &ctx, bool stateful) {
 	int removed=0;
 	for(auto it=mCalls.begin();it!=mCalls.end();){
-		if (it->get()!=c && (*it)->match(ag,sip, stateful)) {
+		if (*it!=ctx && (*it)->match(ag,sip, stateful)) {
+			if (mCountCallsFinished) ++(*mCountCallsFinished);
+			LOGD("CallStore::findAndRemoveExcept() removing CallContext %p",ctx.get());
 			it=mCalls.erase(it);
 			++removed;
 		}
@@ -157,14 +159,19 @@ void CallStore::findAndRemoveExcept(Agent *ag, sip_t *sip, CallContextBase *c, b
 }
 
 void CallStore::remove(const shared_ptr<CallContextBase> &ctx){
-	if (mCountCallsFinished) ++(*mCountCallsFinished);
-	mCalls.remove(ctx);
+	auto it=std::find(mCalls.begin(),mCalls.end(),ctx);
+	if (it!=mCalls.end()){
+		LOGD("CallStore::remove() removing CallContext %p",ctx.get());
+		if (mCountCallsFinished) ++(*mCountCallsFinished);
+		mCalls.erase(it);
+	}
 }
 
 void CallStore::removeAndDeleteInactives(){
 	time_t cur=getCurrentTime();
 	for(auto it=mCalls.begin();it!=mCalls.end();){
 		if ((*it)->isInactive (cur)){
+			LOGD("CallStore::removeAndDeleteInactives() removing CallContext %p",(*it).get());
 			if (mCountCallsFinished) ++(*mCountCallsFinished);
 			it=mCalls.erase(it);
 		}else ++it;

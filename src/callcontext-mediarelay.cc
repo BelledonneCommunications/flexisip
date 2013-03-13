@@ -345,8 +345,9 @@ bool RelayedCall::isInactive(time_t cur) {
 		if (r && ((tmp = r->getLastActivityTime()) > maxtime))
 			maxtime = tmp;
 	}
-	if (cur - maxtime > 30)
+	if (cur - maxtime > 90){ // this value shall not be less than the time to establish a call.
 		return true;
+	}
 	return false;
 }
 
