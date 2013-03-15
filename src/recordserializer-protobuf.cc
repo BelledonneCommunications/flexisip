@@ -42,7 +42,7 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r){
 	}
 
 	for (int i = 0; i < contacts.contact_size(); ++i) {
-	    const RecordContactPb& c = contacts.contact(i);
+		const RecordContactPb& c = contacts.contact(i);
 		r->bind(c.uri().c_str(),
 				c.contact_id().c_str(),
 				c.has_route()? c.route().c_str() : NULL,

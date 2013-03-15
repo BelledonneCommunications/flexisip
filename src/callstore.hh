@@ -69,7 +69,7 @@ class CallStore{
 		void store(const std::shared_ptr<CallContextBase> &ctx);
 		std::shared_ptr<CallContextBase> find(Agent *ag, sip_t *sip, bool stateful = false);
 		std::shared_ptr<CallContextBase> findEstablishedDialog(Agent *ag, sip_t *sip);
-		void findAndRemoveExcept(Agent *ag, sip_t *sip, CallContextBase *c, bool stateful = false);
+		void findAndRemoveExcept(Agent *ag, sip_t *sip, const std::shared_ptr<CallContextBase> &ctx, bool stateful = false);
 		void remove(const std::shared_ptr<CallContextBase> &ctx);
 		void removeAndDeleteInactives();
 		void setCallStatCounters(StatCounter64 *invCount, StatCounter64 *invFinishedCount) {

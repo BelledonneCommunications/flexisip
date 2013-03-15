@@ -677,6 +677,7 @@ static ConfigItemDescriptor global_conf[]={
 								"\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29"
 		,	"sip:*" },
 		{	String		,"tls-certificates-dir", "An absolute path of a directory where TLS server certificate and private key can be found, concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'.", "/etc/flexisip/tls"},
+		{	Integer		,"idle-timeout",	"Time interval in seconds after which inactive connections are closed.", "3600"},
 		config_item_end
 };
 

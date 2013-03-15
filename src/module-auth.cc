@@ -33,6 +33,7 @@
 
 using namespace ::std;
 
+#define QOP_AUTH
 const static int NONCE_EXPIRES=100;
 const static int NEXT_NONCE_EXPIRES=100;
 
@@ -241,9 +242,9 @@ public:
 
 	virtual void onDeclare(GenericStruct * mc){
 		ConfigItemDescriptor items[]={
-			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	""	},
+			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	"localhost"	},
 			{	StringList	,	"trusted-hosts"	, 	"List of whitespace separated IP which will not be challenged.",	""	},
-			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file].",		"odbc"	},
+			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file, fixed].",		"fixed"	},
 			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. " \
 					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. " \
 					"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. " \
@@ -282,10 +283,13 @@ public:
 									AUTHTAG_METHOD("odbc"),
 									AUTHTAG_REALM((*it).c_str()),
 									AUTHTAG_OPAQUE("+GNywA=="),
+#ifdef QOP_AUTH
 									AUTHTAG_QOP("auth"),
 									AUTHTAG_EXPIRES(NONCE_EXPIRES), // in seconds
 									AUTHTAG_NEXT_EXPIRES(NEXT_NONCE_EXPIRES), // in seconds
+#endif
 									AUTHTAG_FORBIDDEN(1),
+									AUTHTAG_ALLOW("ACK CANCEL BYE"),
 									TAG_END());
 			auth_plugin_t *ap = AUTH_PLUGIN(mAuthModules[*it]);
 			ap->mModule = this;
@@ -316,8 +320,8 @@ public:
 
 		// Do it first to make sure no transaction is created which
 		// would send an unappropriate 100 trying response.
-		if (sip->sip_request->rq_method == sip_method_ack) {
-			LOGD("ACK are never challenged");
+		if (sip->sip_request->rq_method == sip_method_ack || sip->sip_request->rq_method == sip_method_cancel) {
+			/*ack and cancel shall never be challenged according to the RFC.*/
 			return;
 		}
 
@@ -335,9 +339,17 @@ public:
 		// Then check for auth module for this domain
 		auth_mod_t *am=findAuthModule(sip->sip_from->a_url[0].url_host);
 		if (am==NULL) {
-			LOGI("unknown domain [%s]",sip->sip_from->a_url[0].url_host);
+			LOGI("Unknown domain [%s]",sip->sip_from->a_url[0].url_host);
 			ev->reply(ms, SIP_488_NOT_ACCEPTABLE,
 					SIPTAG_CONTACT(sip->sip_contact),
+					SIPTAG_SERVER_STR(getAgent()->getServerString()),
+					TAG_END());
+			return;
+		}
+		// Check for the existence of username, reject if absent.
+		if (sip->sip_from->a_url->url_user==NULL){
+			LOGI("From has no username, cannot authenticate.");
+			ev->reply(ms, SIP_488_NOT_ACCEPTABLE,
 					SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					TAG_END());
 			return;
@@ -589,7 +601,9 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 	char const *phrase = "Bad authorization ";
 	if ((!ar->ar_username && (phrase = PA "username")) ||
 			(!ar->ar_nonce && (phrase = PA "nonce")) ||
+#ifdef QOP_AUTH
 			(!ar->ar_nc && (phrase = PA "nonce count")) ||
+#endif
 			(!ar->ar_uri && (phrase = PA "URI")) ||
 			(!ar->ar_response && (phrase = PA "response")) ||
 			/* (!ar->ar_opaque && (phrase = PA "opaque")) || */
@@ -638,6 +652,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		return;
 	}
 
+#ifdef QOP_AUTH
 	int pnc=module->mNonceStore.getNc(ar->ar_nonce);
 	int nnc = (int) strtoul(ar->ar_nc, NULL, 10);
 	if (pnc == -1 || pnc >= nnc) {
@@ -650,6 +665,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 	} else {
 		module->mNonceStore.updateNc(ar->ar_nonce, nnc);
 	}
+#endif
 
 	// Retrieve password. The result may be either synchronous OR asynchronous,
 	// on a case by case basis.

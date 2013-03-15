@@ -148,6 +148,10 @@ shared_ptr<RelayChannel> RelayedCall::getMS(int mline, string tag, const shared_
 }
 
 void RelayedCall::masqueradeForBack(int mline, string *ip, int *port, const string &tag, const shared_ptr<Transaction> &transaction) {
+	if (*port == 0) {
+		//case of media stream removal
+		return;
+	}
 	if (mline >= sMaxSessions) {
 		return;
 	}
@@ -166,6 +170,10 @@ void RelayedCall::masqueradeForBack(int mline, string *ip, int *port, const stri
 }
 
 void RelayedCall::masqueradeIceForBack(int mline, string *ip, int *port, const string &tag, const shared_ptr<Transaction> &transaction) {
+	if (*port == 0) {
+		//case of media stream removal
+		return;
+	}
 	if (mline >= sMaxSessions) {
 		return;
 	}
@@ -337,8 +345,9 @@ bool RelayedCall::isInactive(time_t cur) {
 		if (r && ((tmp = r->getLastActivityTime()) > maxtime))
 			maxtime = tmp;
 	}
-	if (cur - maxtime > 30)
+	if (cur - maxtime > 90){ // this value shall not be less than the time to establish a call.
 		return true;
+	}
 	return false;
 }
 

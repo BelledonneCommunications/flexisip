@@ -219,7 +219,7 @@ On centos install package "net-snmp-libs", on Debian install package "snmp-mibs-
 \subsubsection{Access statistics and configuration}
 When the flexisip server is running, you can monitor it using :
 \begin{verbatim}
-mkdir -p ~/.snmp/mibs/fleximib.txt
+mkdir -p ~/.snmp/mibs
 flexisip --dump-snmp-mib > ~/.snmp/mibs/fleximib.txt
 snmpwalk -m FLEXISIP-MIB  -v 2c -c public -Of localhost FLEXISIP-MIB::flexisipMIB
 or

@@ -353,6 +353,7 @@ void SdpModifier::masquerade(function<void(int, string *, int *)> fct){
 		string ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
 		int port=mline->m_port;
 
+		if (port == 0) continue;
 		if (hasMediaAttribute(mline,"nortpproxy")) continue;
 		fct(i,&ip,&port);
 		

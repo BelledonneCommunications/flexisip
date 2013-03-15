@@ -263,11 +263,9 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->findEstablishedDialog(getAgent(), sip))) != NULL) {
 			mCalls->remove(c);
 		}
-	} else if (sip->sip_request->rq_method == sip_method_cancel) {
-		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) != NULL) {
-			mCalls->remove(c);
-		}
 	}
+	//no need to match cancel requests. They will terminate the outgoing transaction which will eventually (see onTransactionEvent() below)
+	//drop the call.
 }
 void MediaRelay::processFailureForInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
 	sip_t *sip = msgSip->getSip();
