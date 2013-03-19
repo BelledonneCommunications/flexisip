@@ -49,6 +49,7 @@
 #define VERSION "DEVEL"
 #endif //VERSION
 
+#include "flexisip_gitversion.h"
 
 static int run=1;
 static int pipe_fds[2]={-1}; //pipes used by flexisip to notify its starter process that everything went fine 
@@ -60,14 +61,15 @@ using namespace ::std;
 
 static void usage(const char *arg0){
 	printf("%s\n"
-	       "\t\t [--transports <transport uris (quoted)>]\n"
-	       "\t\t [--debug]\n"
-	       "\t\t [--daemon]\n"
-	       "\t\t [--configfile <path>]\n"
-	       "\t\t [--dump-default-config [node name]]\n"
-	       "\t\t [--dump-snmp-mib]\n"
-           "\t\t [--set <[node/]option[=value]>]\n"
-	       "\t\t [--help]\n",arg0);
+		"\t\t [--transports <transport uris (quoted)>]\n"
+		"\t\t [--debug]\n"
+		"\t\t [--daemon]\n"
+		"\t\t [--configfile <path>]\n"
+		"\t\t [--dump-default-config [node name]]\n"
+		"\t\t [--dump-snmp-mib]\n"
+		"\t\t [--set <[node/]option[=value]>]\n"
+		"\t\t [--help]\n"
+		"\t\t [--version]\n",arg0);
 	exit(-1);
 }
 
@@ -441,7 +443,10 @@ int main(int argc, char *argv[]){
 			continue;
 		} else if (strcmp(argv[i],"--help")==0 || strcmp(argv[i],"-h")==0){
 			// nothing
-		} else {
+		} else if (strcmp(argv[i],"--version")==0 || strcmp(argv[i],"-v")==0){
+			fprintf(stdout,"%s (git: %s)\n",VERSION,FLEXISIP_GIT_VERSION);
+			exit(0);
+		}else {
 			fprintf(stderr,"Bad option %s\n",argv[i]);
 		}
 		usage(argv[0]);
@@ -503,7 +508,7 @@ int main(int argc, char *argv[]){
 		forkAndDetach(pidfile,cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read());
 	}
 
-	LOGN("Starting flexisip version %s", VERSION);
+	LOGN("Starting flexisip version %s (git %s)", VERSION, FLEXISIP_GIT_VERSION);
 	GenericManager::get()->sendTrap("Flexisip starting");
 	root=su_root_create(NULL);
 	a=make_shared<Agent>(root);

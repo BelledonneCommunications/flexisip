@@ -1,3 +1,13 @@
+GITVERSION_FILE=flexisip_gitversion.h
+GITVERSION_FILE_TMP=flexisip_gitversion.h.tmp
+GITDESCRIBE=`git describe`
+GITREVISION=`git rev-parse HEAD`
+
+ECHO=/bin/echo
+
+CLEANFILES=$(GITVERSION_FILE)
+BUILT_SOURCES=$(GITVERSION_FILE)
+
 SUBDIRS=test
 
 bin_PROGRAMS=flexisip
@@ -34,7 +44,8 @@ flexisip_SOURCES=main.cc \
 			dos-protection.cc dos-protection.hh \
 			expressionparser.cc expressionparser.hh \
 			h264iframefilter.cc h264iframefilter.hh \
-			telephone-event-filter.cc telephone-event-filter.hh
+			telephone-event-filter.cc telephone-event-filter.hh \
+			$(GITVERSION_FILE) 
 
 
 if BUILD_SNMP
@@ -87,7 +98,7 @@ $(builddir)/pb_generated_src_stamp : $(pb_files)
 	protoc --proto_path=$(builddir) --cpp_out=$(builddir) $(pb_files)
 	touch $(builddir)/pb_generated_src_stamp
 
-BUILT_SOURCES=$(builddir)/pb_generated_src_stamp
+BUILT_SOURCES+=$(builddir)/pb_generated_src_stamp 
 
 flexisip_SOURCES+=recordserializer-protobuf.cc
 nodist_flexisip_SOURCES=recordserializer-protobuf.pb.cc recordserializer-protobuf.pb.h
@@ -95,8 +106,28 @@ AM_CXXFLAGS+=-DENABLE_PROTOBUF
 AM_CFLAGS+=-DENABLE_PROTOBUF
 endif
     
-EXTRA_DIST=$(pb_files)
+EXTRA_DIST=$(pb_files) $(GITVERSION_FILE)
 
 
 clean-local:
 	rm -f $(builddir)/recordserializer-protobuf.pb* $(builddir)/pb_generated_src_stamp
+
+
+make_gitversion_h:
+	if test "$(GITDESCRIBE)" != "" ; then \
+		$(ECHO) -n "#define FLEXISIP_GIT_VERSION \"$(GITDESCRIBE)\"" > $(GITVERSION_FILE_TMP) ; \
+	elif test "$(GITREVISION)" != "" ; then \
+		$(ECHO) -n "#define FLEXISIP_GIT_VERSION \"$(LINPHONE_VERSION)_$(GITREVISION)\"" > $(GITVERSION_FILE_TMP) ; \
+	else \
+		$(ECHO) -n "" > $(GITVERSION_FILE_TMP) ; \
+	fi
+	if test ! -f $(srcdir)/$(GITVERSION_FILE) ; then \
+		cp -f $(GITVERSION_FILE_TMP) $(srcdir)/$(GITVERSION_FILE) ; \
+	fi
+	if test "`cat $(GITVERSION_FILE_TMP)`" != "`cat $(srcdir)/$(GITVERSION_FILE)`" ; then \
+		cp -f $(GITVERSION_FILE_TMP) $(srcdir)/$(GITVERSION_FILE) ; \
+	fi
+	rm -f $(GITVERSION_FILE_TMP) ;
+
+$(GITVERSION_FILE): make_gitversion_h
+
