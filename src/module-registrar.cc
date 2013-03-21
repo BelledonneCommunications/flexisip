@@ -685,8 +685,13 @@ public:
 	void onRecordFound(Record *r) {
 		const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
 		time_t now = getCurrentTime();
-		Registrar::send200Ok(mModule->getAgent(), mEv, r->getContacts(ms->getHome(), now));
-		mModule->onRegister(mModule->getAgent(), mEv, mContact, r, mSipUri);
+		if (r){
+			Registrar::send200Ok(mModule->getAgent(), mEv, r->getContacts(ms->getHome(), now));
+			mModule->onRegister(mModule->getAgent(), mEv, mContact, r, mSipUri);
+		}else{
+			LOGE("OnBindListener::onRecordFound(): Record is null");
+			Registrar::send480KO(mModule->getAgent(),mEv);
+		}
 	}
 	void onError() {
 		Registrar::send480KO(mModule->getAgent(), mEv);
