@@ -80,6 +80,8 @@ class CallStore{
 		const std::list<std::shared_ptr<CallContextBase>> &getList()const{
 			return mCalls;
 		}
+		///Returns the number of calls registered in the CallStore.
+		int size();
 	private:
 		std::list<std::shared_ptr<CallContextBase>> mCalls;
 		StatCounter64 *mCountCalls;

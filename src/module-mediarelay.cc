@@ -52,6 +52,8 @@ protected:
 				{ Integer, "sdp-port-range-min", "The minimal value of SDP port range", "1024" },
 				{ Integer, "sdp-port-range-max", "The maximal value of SDP port range", "65535" },
 				{ Boolean, "bye-orphan-dialogs", "Sends a ACK and BYE to 200Ok for INVITEs not belonging to any established call.", "false"},
+				{ Integer, "max-calls", "Maximum concurrent calls processed by the media-relay. Calls arriving when the limit is exceed will be rejected. "
+							"A value of 0 means no limit.", "0" },
 #ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 				/*very specific features, useless for most people*/
 				{ Integer, "h264-filtering-bandwidth", "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value expressed in kbit/s. Use 0 to disable the feature", "0" },
@@ -76,6 +78,7 @@ private:
 	RelayedCall::RTPDir mEarlymediaRTPDir;
 	int mH264FilteringBandwidth;
 	int mH264Decim;
+	int mMaxCalls;
 	bool mDropTelephoneEvent;
 	bool mByeOrphanDialogs;
 	static ModuleInfo<MediaRelay> sInfo;
@@ -123,7 +126,7 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mH264Decim=0;
 	mDropTelephoneEvent=false;
 #endif
-	
+	mMaxCalls=modconf->get<ConfigInt>("max-calls")->read();
 	mEarlymediaRTPDir = RelayedCall::RelayedCall::DUPLEX;
 	if (rtpdir == "duplex") {
 		mEarlymediaRTPDir = RelayedCall::DUPLEX;
@@ -243,6 +246,12 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		ev->createIncomingTransaction();
 		shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) == NULL) {
+			if (mMaxCalls>0 && mCalls->size()>=mMaxCalls){
+				LOGW("Maximum number of relayed calls reached (%i), call is rejected",mMaxCalls);
+				ev->reply(ev->getMsgSip(), 503, "Maximum number of calls reached", TAG_END());
+				return;
+			}
+			
 			c = make_shared<RelayedCall>(mServer, sip, mEarlymediaRTPDir);
 			
 			configureContext(c);
