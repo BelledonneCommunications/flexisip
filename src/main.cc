@@ -50,6 +50,10 @@
 #endif //VERSION
 
 #include "flexisip_gitversion.h"
+#ifndef FLEXISIP_GIT_VERSION
+#define FLEXISIP_GIT_VERSION "undefined"
+#endif
+
 
 static int run=1;
 static int pipe_fds[2]={-1}; //pipes used by flexisip to notify its starter process that everything went fine 
