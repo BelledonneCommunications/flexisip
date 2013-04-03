@@ -308,6 +308,8 @@ static void forkAndDetach(const char *pidfile, bool auto_respawn){
 				if (WIFEXITED(status)) {
 					if (WEXITSTATUS(status) == RESTART_EXIT_CODE) {
 						LOGI("Flexisip restart to apply new config...");
+						sleep(1);
+						continue;
 					} else {
 						LOGD("Flexisip exited normally");
 						exit(0);

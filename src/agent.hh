@@ -49,7 +49,7 @@ class Module;
  * 
  * Refer to the flexisip.conf.sample installed by "make install" for documentation about what each module does.
 **/
-class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shared_from_this<Agent>{
+class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shared_from_this<Agent>, public ConfigValueListener {
 	friend class IncomingTransaction;
 	friend class OutgoingTransaction;
 	friend class StatelessSipEvent;
@@ -97,6 +97,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 	StatCounter64 *mCountReply408; // request timeout
 	StatCounter64 *mCountReplyResUnknown;
 	void onDeclare(GenericStruct *root);
+	ConfigValueListener *mBaseConfigListener;
 
 	public:
 		Agent(su_root_t *root);
@@ -144,6 +145,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		void sendRequestEvent(std::shared_ptr<RequestSipEvent> ev);
 		void sendResponseEvent(std::shared_ptr<ResponseSipEvent> ev);
 		void incrReplyStat(int status);
+		bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 	protected:
 		void sendTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
 		int onIncomingMessage(msg_t *msg, sip_t *sip);

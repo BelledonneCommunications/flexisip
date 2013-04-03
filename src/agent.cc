@@ -191,7 +191,7 @@ void Agent::start(const char *transport_override){
 	LOGD("Agent's _default_ RTP bind ip address is %s (v6: %s)",mRtpBindIp.c_str(),mRtpBindIp6.c_str());
 }
 
-Agent::Agent(su_root_t* root):mTerminating(false){
+Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	
 	EtcHostsResolver::get();
@@ -262,8 +262,25 @@ std::string Agent::getPreferredRoute()const{
 	return string(prefUrl);
 }
 
+bool Agent::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
+	LOGD("Configuration of agent changed for key %s to %s",
+			conf.getName().c_str(), conf.get().c_str());
+
+	if (conf.getName() == "aliases" && state == ConfigState::Commited) {
+		mAliases=((ConfigStringList*)(&conf))->read();
+		LOGD("Global aliases updated");
+		return true;
+	}
+
+	return mBaseConfigListener->onConfigStateChanged(conf, state);
+}
+
 void Agent::loadConfig(GenericManager *cm) {
 	cm->loadStrict(); //now that each module has declared its settings, we need to reload from the config file
+	if (!mBaseConfigListener) {
+		mBaseConfigListener=cm->getGlobal()->getConfigListener();
+	}
+	cm->getRoot()->get<GenericStruct>("global")->setConfigListener(this);
 	mAliases = cm->getGlobal()->get<ConfigStringList>("aliases")->read();
 	LOGD("List of host aliases:");
 	for (list<string>::iterator it = mAliases.begin(); it != mAliases.end(); ++it) {
