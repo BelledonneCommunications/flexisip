@@ -166,6 +166,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 			" The files should be .pem format, and made of certificate followed by private key." , "/etc/flexisip/apn" },
 			{ Boolean, "google", "Enable push notification for android devices", "true" },
 			{ StringList, "google-projects-api-keys", "List of couple projectId:ApiKey for each android project which support push notifications", "" },
+			{ Boolean, "windowsphone", "Enable push notification for windows phone 8 devices", "true" },
 			config_item_end };
 	module_config->addChildrenValues(items);
 	mCountFailed = module_config->createStat("count-pn-failed", "Number of push notifications failed to be sent");
@@ -247,6 +248,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 			} else {
 				contact = url_as_string(ms->getHome(), sip->sip_from->a_url);
 			}
+
 			shared_ptr<PushNotificationRequest> pn;
 			if (strcmp(type,"apple")==0){
 				pn= make_shared<ApplePushNotificationRequest>(appId, deviceToken,
@@ -254,6 +256,9 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 						contact,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
 						call_id);
+			} else if (strcmp(type,"wp")==0) {
+				pn= make_shared<WindowsPhonePushNotificationRequest>(appId, deviceToken,
+						(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str);
 			} else if (strcmp(type,"google")==0) {
 				string apiKey = string("");
 				for (list<string>::const_iterator iterator = mGoogleProjects.begin(); iterator != mGoogleProjects.end(); ++iterator) {
@@ -278,7 +283,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 			}
 			if (pn){
 				/*create a context*/
-				context = make_shared<PushNotificationContext>(transaction, this, pn,pn_key);
+				context = make_shared<PushNotificationContext>(transaction, this, pn, pn_key);
 				context->start(mTimeout);
 				mPendingNotifications.insert(make_pair(pn_key,context));
 			}

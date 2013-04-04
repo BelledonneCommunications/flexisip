@@ -27,12 +27,16 @@ public:
 	const std::string &getAppIdentifier(){
 		return mAppId;
 	}
+	const std::string &getType(){
+		return mType;
+	}
 	virtual const std::vector<char> &getData() = 0;
 	virtual ~PushNotificationRequest() = 0;
 private:
 	const std::string mAppId;
+	const std::string mType;
 protected:
-	PushNotificationRequest(const std::string &appid) : mAppId(appid){};
+	PushNotificationRequest(const std::string &appid, const std::string &type) : mAppId(appid), mType(type){};
 };
 inline PushNotificationRequest::~PushNotificationRequest() {
 }
@@ -58,6 +62,19 @@ public:
 	virtual const std::vector<char> & getData();
 	GooglePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &apiKey, const std::string &msg_id, const std::string &arg, const std::string &sound, const std::string &callid);
 	~GooglePushNotificationRequest() {};
+
+protected:
+	void createPushNotification();
+	std::vector<char> mBuffer;
+	std::string mHttpHeader;
+	std::string mHttpBody;
+};
+
+class WindowsPhonePushNotificationRequest: public PushNotificationRequest {
+public:
+	virtual const std::vector<char> & getData();
+	WindowsPhonePushNotificationRequest(const std::string &host, const std::string &query, const std::string &msg_id);
+	~WindowsPhonePushNotificationRequest() {};
 
 protected:
 	void createPushNotification();

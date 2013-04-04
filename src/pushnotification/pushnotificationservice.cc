@@ -32,14 +32,27 @@ const char *APN_PORT = "2195";
 const char *GPN_ADDRESS = "android.googleapis.com";
 const char *GPN_PORT = "443";
 
+const char *WPPN_PORT = "80";
+
 using namespace ::std;
 using namespace ::boost;
 
 int PushNotificationService::sendRequest(const std::shared_ptr<PushNotificationRequest> &pn) {
 	std::shared_ptr<PushNotificationClient> client=mClients[pn->getAppIdentifier()];
 	if (client==0){
-		LOGE("No push notification certificate for client %s",pn->getAppIdentifier().c_str());
-		return -1;
+		if (pn->getType().compare(string("wp"))==0) {
+			string wpClient = pn->getAppIdentifier();
+			std::shared_ptr<boost::asio::ssl::context> ctx(new boost::asio::ssl::context(mIOService, asio::ssl::context::sslv23_client));
+			system::error_code err;
+			ctx->set_options(asio::ssl::context::default_workarounds, err);
+			ctx->set_verify_mode(asio::ssl::context::verify_none);
+			mClients[wpClient] = make_shared<PushNotificationClient>(wpClient, this, ctx, pn->getAppIdentifier(), WPPN_PORT, 1, FALSE);
+			LOGD("Creating PNclient for client %s",pn->getAppIdentifier().c_str());
+			client = mClients[wpClient];
+		} else {
+			LOGE("No push notification certificate for client %s",pn->getAppIdentifier().c_str());
+			return -1;
+		}
 	}
 	//this method is called from flexisip main thread, while service is running in its own thread.
 	//To avoid using dedicated mutex, use the server post() method to delegate the processing of the push notification to the service thread.
@@ -99,7 +112,7 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 	system::error_code err;
 	ctx->set_options(asio::ssl::context::default_workarounds, err);
 	ctx->set_verify_mode(asio::ssl::context::verify_none);
-	mClients[googleClient]=make_shared<PushNotificationClient>(googleClient, this, ctx, GPN_ADDRESS, GPN_PORT, maxQueueSize);
+	mClients[googleClient]=make_shared<PushNotificationClient>(googleClient, this, ctx, GPN_ADDRESS, GPN_PORT, maxQueueSize, TRUE);
 	
 	dirp=opendir(certdir.c_str());
 	if (dirp==NULL){
@@ -147,7 +160,7 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 		if (certName.find(".dev")!=string::npos)
 			apn_server=APN_DEV_ADDRESS;
 		else apn_server=APN_PROD_ADDRESS;
-		mClients[certName]=make_shared<PushNotificationClient>(cert, this, ctx, apn_server, APN_PORT, maxQueueSize);
+		mClients[certName]=make_shared<PushNotificationClient>(cert, this, ctx, apn_server, APN_PORT, maxQueueSize, TRUE);
 	}
 	closedir(dirp);
 }
