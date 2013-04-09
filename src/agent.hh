@@ -37,6 +37,7 @@
 #include "configmanager.hh"
 #include "event.hh"
 #include "transaction.hh"
+#include "eventlogs/eventlogs.hh"
 
 class Module;
 
@@ -152,6 +153,8 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		virtual void send(const std::shared_ptr<MsgSip> &msg);
 		virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 		void discoverInterfaces();
+		void startLogWriter();
+		void logEvent(const std::shared_ptr<SipEvent> &ev);
 		std::string mServerString;
 		std::list<Module*> mModules;
 		std::list<std::string> mAliases;
@@ -173,6 +176,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		nta_agent_t *mAgent;
 		su_root_t *mRoot;
 		su_home_t mHome;
+		EventLogWriter *mLogWriter;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);
 		bool mTerminating;
 };

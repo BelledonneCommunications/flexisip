@@ -93,8 +93,20 @@ void Agent::onDeclare(GenericStruct *root) {
 	mCountReply487=createCounter(global,key, help, "487"); // Request canceled
 	mCountReply488=createCounter(global,key, help, "488");
 	mCountReplyResUnknown=createCounter(global,key, help, "unknown");
+	mLogWriter=NULL;
 }
 
+void Agent::startLogWriter(){
+	GenericStruct *cr=GenericManager::get()->getRoot();
+	bool enabled=cr->get<GenericStruct>("global")->get<ConfigBoolean>("enable-event-logs")->read();
+	string logdir=cr->get<GenericStruct>("global")->get<ConfigString>("event-logs-dir")->read();
+	if (enabled){
+		FilesystemEventLogWriter *lw=new FilesystemEventLogWriter(logdir);
+		if (!lw->isReady()){
+			delete lw;
+		}else mLogWriter=lw;
+	}
+}
 
 void Agent::start(const char *transport_override){
 	GenericStruct *cr=GenericManager::get()->getRoot();
@@ -189,6 +201,8 @@ void Agent::start(const char *transport_override){
 	
 	LOGD("Agent public hostname/ip %s (v6: %s)",mPublicIpV4.c_str(), mPublicIpV6.c_str());
 	LOGD("Agent's _default_ RTP bind ip address is %s (v6: %s)",mRtpBindIp.c_str(),mRtpBindIp6.c_str());
+	
+	startLogWriter();
 }
 
 Agent::Agent(su_root_t* root):mTerminating(false){
@@ -447,6 +461,15 @@ bool Agent::isUs(const url_t *url, bool check_aliases) const {
 	}
 }
 
+void Agent::logEvent(const shared_ptr<SipEvent> &ev){
+	if (mLogWriter){
+		shared_ptr<EventLog> evlog;
+		if (ev->isTerminated() && (evlog=ev->getEventLog<EventLog>())){
+			if (evlog->isCompleted()) mLogWriter->write(evlog);
+		}
+	}
+}
+
 void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	sip_t *sip=ev->getMsgSip()->mSip;
 	sip_request_t *req=sip->sip_request;
@@ -497,6 +520,7 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
+	logEvent(ev);
 }
 
 void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
@@ -559,6 +583,7 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
+	logEvent(ev);
 }
 
 void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {

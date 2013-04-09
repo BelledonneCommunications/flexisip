@@ -45,7 +45,8 @@ flexisip_SOURCES=main.cc \
 			expressionparser.cc expressionparser.hh \
 			h264iframefilter.cc h264iframefilter.hh \
 			telephone-event-filter.cc telephone-event-filter.hh \
-			$(GITVERSION_FILE) 
+			$(GITVERSION_FILE) \
+			eventlogs/eventlogs.cc eventlogs/eventlogs.hh
 
 
 if BUILD_SNMP

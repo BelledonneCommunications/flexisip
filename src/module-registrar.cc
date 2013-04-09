@@ -665,18 +665,18 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 class OnBindListener: public RegistrarDbListener {
 	Registrar *mModule;
 	shared_ptr<RequestSipEvent> mEv;
-	url_t * mSipUri;
+	sip_from_t * mSipFrom;
 	su_home_t mHome;
 	sip_contact_t *mContact;
 public:
-	OnBindListener(Registrar *module, shared_ptr<RequestSipEvent> ev, const url_t* sipuri = NULL, sip_contact_t *contact = NULL) :
-			mModule(module), mEv(ev), mSipUri(NULL), mContact(NULL) {
+	OnBindListener(Registrar *module, shared_ptr<RequestSipEvent> ev, const sip_from_t* sipuri = NULL, sip_contact_t *contact = NULL) :
+			mModule(module), mEv(ev), mSipFrom(NULL), mContact(NULL) {
 		ev->suspendProcessing();
 		su_home_init(&mHome);
 		if (contact)
 			mContact = sip_contact_copy(&mHome, contact);
 		if (sipuri){
-			mSipUri=url_hdup(&mHome,sipuri);
+			mSipFrom=sip_from_dup(&mHome,sipuri);
 		}
 	}
 	~OnBindListener() {
@@ -687,7 +687,14 @@ public:
 		time_t now = getCurrentTime();
 		if (r){
 			Registrar::send200Ok(mModule->getAgent(), mEv, r->getContacts(ms->getHome(), now));
-			mModule->onRegister(mModule->getAgent(), mEv, mContact, r, mSipUri);
+			mModule->onRegister(mModule->getAgent(), mEv, mContact, r, mSipFrom->a_url);
+			RegistrationLog::Type type;
+			if (ms->getSip()->sip_expires && ms->getSip()->sip_expires->ex_delta==0) type=RegistrationLog::Unregister; //REVISIT not 100% exact.
+			else type=RegistrationLog::Register;
+			auto evlog=make_shared<RegistrationLog>(type,mSipFrom,Record::extractUniqueId(mContact),mContact);
+			if (ms->getSip()->sip_user_agent) evlog->setUserAgent(ms->getSip()->sip_user_agent);
+			evlog->setCompleted();
+			mEv->setEventLog(evlog);
 		}else{
 			LOGE("OnBindListener::onRecordFound(): Record is null");
 			Registrar::send480KO(mModule->getAgent(),mEv);
@@ -752,7 +759,7 @@ void Registrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 					RegistrarDb::get(mAgent)->clear(sip, listener);
 					return;
 				} else {
-					shared_ptr<OnBindListener> listener(make_shared<OnBindListener>(this, ev, sipurl, sip->sip_contact));
+					shared_ptr<OnBindListener> listener(make_shared<OnBindListener>(this, ev, sip->sip_from, sip->sip_contact));
 					++*mCountBind;
 					LOGD("Updating binding");
 					listener->addStatCounter(mCountBindFinished);

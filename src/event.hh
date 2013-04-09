@@ -31,6 +31,7 @@ class IncomingAgent;
 class OutgoingAgent;
 class IncomingTransaction;
 class OutgoingTransaction;
+class EventLog;
 
 class MsgSip {
 	friend class Agent;
@@ -126,12 +127,21 @@ public:
 	virtual ~SipEvent();
 
 	Module *getCurrentModule() { return mCurrModule; }
+	
+	template <typename _eventLogT> 
+	std::shared_ptr<_eventLogT> getEventLog(){
+		return std::dynamic_pointer_cast<_eventLogT>(mEventLog);
+	}
+	void setEventLog(const std::shared_ptr<EventLog> & log){
+		mEventLog=log;
+	}
 
 protected:
 	Module *mCurrModule;
 	std::shared_ptr<MsgSip> mMsgSip;
 	std::shared_ptr<IncomingAgent> mIncomingAgent;
 	std::shared_ptr<OutgoingAgent> mOutgoingAgent;
+	std::shared_ptr<EventLog> mEventLog;
 
 	enum State {
 		STARTED, SUSPENDED, TERMINATED,
