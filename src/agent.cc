@@ -607,6 +607,7 @@ void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
+	logEvent(ev);
 	LOG_END
 }
 
@@ -631,6 +632,7 @@ void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
+	logEvent(ev);
 	LOG_END
 }
 
