@@ -261,7 +261,7 @@ bool Transcoder::processSipInfo(TranscodedCall *c, shared_ptr<RequestSipEvent> &
 	if (payload != NULL && payload->pl_data != NULL) {
 		if (sip->sip_content_type != NULL && strcasecmp(sip->sip_content_type->c_subtype, "dtmf-relay") == 0) {
 			c->playTone(sip);
-			ev->reply(ms, 200, NULL, TAG_END());
+			ev->reply(200, NULL, TAG_END());
 			return true;
 		}
 	}
@@ -359,7 +359,7 @@ int Transcoder::processInvite(TranscodedCall *c, shared_ptr<RequestSipEvent> &ev
 		addRecordRouteIncoming(c->getHome(), getAgent(), ev);
 		c->storeNewInvite(ms->getMsg());
 	} else {
-		ev->reply(ms, 415, "Unsupported codecs", TAG_END());
+		ev->reply(415, "Unsupported codecs", TAG_END());
 	}
 	return ret;
 }

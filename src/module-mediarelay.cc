@@ -192,7 +192,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	if (!c->checkMediaValid()) {
 		LOGE("The relay media are invalid, no RTP/RTCP port remaining?");
 		delete m;
-		ev->reply(ev->getMsgSip(), 500, "RTP port pool exhausted", TAG_END());
+		ev->reply(500, "RTP port pool exhausted", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return false;
 	}
 
@@ -248,7 +248,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) == NULL) {
 			if (mMaxCalls>0 && mCalls->size()>=mMaxCalls){
 				LOGW("Maximum number of relayed calls reached (%i), call is rejected",mMaxCalls);
-				ev->reply(ev->getMsgSip(), 503, "Maximum number of calls reached", TAG_END());
+				ev->reply(503, "Maximum number of calls reached", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 				return;
 			}
 			

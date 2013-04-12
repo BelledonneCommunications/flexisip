@@ -103,6 +103,12 @@ void ForkMessageContext::onResponse(const shared_ptr<OutgoingTransaction> &trans
 	sip_t *sip = ms->getSip();
 	if (sip != NULL && sip->sip_status != NULL) {
 		LOGD("Fork: outgoingCallback %d", sip->sip_status->st_status);
+		sip_t *sip=event->getMsgSip()->getSip();
+		auto log=make_shared<MessageLog>(MessageLog::Delivery,sip->sip_from,sip->sip_to,sip->sip_call_id->i_hash);
+		log->setDestination(transaction->getRequestUri());
+		log->setStatusCode(sip->sip_status->st_status,sip->sip_status->st_phrase);
+		log->setCompleted();
+		event->setEventLog(log);
 		if (sip->sip_status->st_status > 100 && sip->sip_status->st_status < 300) {
 			forward(event);
 			return;
@@ -114,6 +120,14 @@ void ForkMessageContext::onResponse(const shared_ptr<OutgoingTransaction> &trans
 	LOGW("ForkMessageContext : ignore message");
 }
 
+void ForkMessageContext::logReceptionEvent(const shared_ptr<ResponseSipEvent> &ev){
+	sip_t *sip=ev->getMsgSip()->getSip();
+	auto log=make_shared<MessageLog>(MessageLog::Reception,sip->sip_from,sip->sip_to,sip->sip_call_id->i_hash);
+	log->setStatusCode(sip->sip_status->st_status,sip->sip_status->st_phrase);
+	log->setCompleted();
+	ev->setEventLog(log);
+}
+
 void ForkMessageContext::finishIncomingTransaction(){
 	if (mIncoming != NULL && mDeliveredCount==0) {
 		if (mBestResponse == NULL && mCfg->mDeliveryTimeout <= 30) {
@@ -121,6 +135,7 @@ void ForkMessageContext::finishIncomingTransaction(){
 			shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
 			shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 			ev->setIncomingAgent(mIncoming);
+			logReceptionEvent(ev);
 			mAgent->sendResponseEvent(ev);
 		} else {
 			int code=mBestResponse ? mBestResponse->getMsgSip()->getSip()->sip_status->st_status : 0;
@@ -130,10 +145,13 @@ void ForkMessageContext::finishIncomingTransaction(){
 					shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_202_ACCEPTED));
 					shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 					ev->setIncomingAgent(mIncoming);
+					logReceptionEvent(ev);
 					mAgent->sendResponseEvent(ev);
 				}
-			}else 
+			}else{
+				logReceptionEvent(mBestResponse);
 				mAgent->injectResponseEvent(mBestResponse); // Reply
+			}
 		}
 	}
 	if (mAcceptanceTimer){

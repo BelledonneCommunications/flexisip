@@ -31,6 +31,7 @@ class IncomingAgent;
 class OutgoingAgent;
 class IncomingTransaction;
 class OutgoingTransaction;
+class EventLog;
 
 class MsgSip {
 	friend class Agent;
@@ -121,17 +122,24 @@ public:
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) = 0;
 	virtual void send(const std::shared_ptr<MsgSip> &msg) = 0;
 
-	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) = 0;
-
 	virtual ~SipEvent();
 
 	Module *getCurrentModule() { return mCurrModule; }
+	
+	template <typename _eventLogT> 
+	std::shared_ptr<_eventLogT> getEventLog(){
+		return std::dynamic_pointer_cast<_eventLogT>(mEventLog);
+	}
+	void setEventLog(const std::shared_ptr<EventLog> & log){
+		mEventLog=log;
+	}
 
 protected:
 	Module *mCurrModule;
 	std::shared_ptr<MsgSip> mMsgSip;
 	std::shared_ptr<IncomingAgent> mIncomingAgent;
 	std::shared_ptr<OutgoingAgent> mOutgoingAgent;
+	std::shared_ptr<EventLog> mEventLog;
 
 	enum State {
 		STARTED, SUSPENDED, TERMINATED,
@@ -164,7 +172,7 @@ public:
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);
 
-	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
+	virtual void reply(int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 
 	virtual void setIncomingAgent(const std::shared_ptr<IncomingAgent> &agent);
 
@@ -179,8 +187,6 @@ public:
 
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);
-
-	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 
 	virtual void setOutgoingAgent(const std::shared_ptr<OutgoingAgent> &agent);
 
