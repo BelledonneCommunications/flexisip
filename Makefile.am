@@ -18,7 +18,7 @@ rpm:
 SHORT_VERSION=$(shell echo $(VERSION)| sed 's/-.*//')
 
 deb:
-	scripts/update_debian_changelog.sh $(PACKAGE) $(VERSION)
+	scripts/debian/update_debian_changelog.sh $(PACKAGE) $(VERSION)
 	$(MAKE) dist
 	rm -rf build-debian
 	mkdir -p build-debian

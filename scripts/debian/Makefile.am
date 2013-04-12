@@ -1,4 +1,4 @@
-EXTRA_DIST=flexisip
+EXTRA_DIST=flexisip update_debian_changelog.sh
 
 if USE_DEB
 
