@@ -127,7 +127,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	// Check max forwards
 	if (sip->sip_max_forwards != NULL && sip->sip_max_forwards->mf_count <= countVia(ev)) {
 		LOGD("Too Many Hops");
-		ev->reply(ms, SIP_483_TOO_MANY_HOPS, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		ev->reply(SIP_483_TOO_MANY_HOPS, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
 
@@ -145,7 +145,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	/* workaround bad sip uris with two @ that results in host part being "something@somewhere" */
 	if ((dest->url_type!=url_sip && dest->url_type!=url_sips)
 		|| dest->url_host==NULL || strchr(dest->url_host, '@') != 0) {
-		ev->reply(ms, SIP_400_BAD_REQUEST, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		ev->reply(SIP_400_BAD_REQUEST, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
 
@@ -164,7 +164,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	// Check looping
 	if (isLooping(ev, branchStr + 7)) {
-		ev->reply(ms, SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		ev->reply(SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	} else if (getAgent()->isUs(dest->url_host, dest->url_port, false)) {
 		ms->log("Skipping forwarding of request to us %s", url_as_string(ms->getHome(), dest));
 		ev->terminateProcessing();

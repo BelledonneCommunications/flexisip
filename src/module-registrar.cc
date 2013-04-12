@@ -368,12 +368,17 @@ void Registrar::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char 
 			clog->setStatusCode(code,reason);
 			clog->setCompleted();
 		}
+	}else if (sip->sip_request->rq_method==sip_method_message){
+		shared_ptr<MessageLog> mlog=ev->getEventLog<MessageLog>();
+		if (mlog){
+			mlog->setStatusCode(code,reason);
+			mlog->setCompleted();
+		}
 	}
-	
 	if (contacts != NULL) {
-		ev->reply(ms, code, reason, SIPTAG_CONTACT(contacts), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		ev->reply(code, reason, SIPTAG_CONTACT(contacts), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	} else {
-		ev->reply(ms, code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	}
 }
 
@@ -722,6 +727,8 @@ public:
 		sip_t *sip=ev->getMsgSip()->getSip();
 		if (sip->sip_request->rq_method==sip_method_invite){
 			ev->setEventLog(make_shared<CallLog>(sip->sip_from,sip->sip_to));
+		}else if (sip->sip_request->rq_method==sip_method_message){
+			ev->setEventLog(make_shared<MessageLog>(MessageLog::Reception,sip->sip_from,sip->sip_to,sip->sip_call_id->i_hash));
 		}
 	}
 	;

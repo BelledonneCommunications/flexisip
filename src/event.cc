@@ -157,7 +157,7 @@ void RequestSipEvent::send(const shared_ptr<MsgSip> &msg) {
 	terminateProcessing();
 }
 
-void RequestSipEvent::reply(const shared_ptr<MsgSip> &unused, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+void RequestSipEvent::reply(int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
 		if (IS_LOGD) {
 			LOGD("Replying Request SIP message: %i %s\n\n", status, phrase);
@@ -242,10 +242,6 @@ void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg) {
 		LOGD("The Response SIP message is not sent");
 	}
 	terminateProcessing();
-}
-
-void ResponseSipEvent::reply(const shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
-	LOGA("Can't reply to an response sip event");
 }
 
 void ResponseSipEvent::setOutgoingAgent(const shared_ptr<OutgoingAgent> &agent) {

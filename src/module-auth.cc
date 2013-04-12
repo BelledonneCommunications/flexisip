@@ -134,10 +134,11 @@ private:
 	class AuthenticationListener : public AuthDbListener {
 		Agent *mAgent;
 		shared_ptr<RequestSipEvent> mEv;
-		bool mHashedPass;
 		auth_mod_t *mAm;
 		auth_status_t *mAs;
 		auth_challenger_t const *mAch;
+		bool mHashedPass;
+		bool mPasswordFound;
 	public:
 		bool mImmediateRetrievePass;
 		auth_response_t mAr;
@@ -340,7 +341,7 @@ public:
 		auth_mod_t *am=findAuthModule(sip->sip_from->a_url[0].url_host);
 		if (am==NULL) {
 			LOGI("Unknown domain [%s]",sip->sip_from->a_url[0].url_host);
-			ev->reply(ms, SIP_488_NOT_ACCEPTABLE,
+			ev->reply( SIP_488_NOT_ACCEPTABLE,
 					SIPTAG_CONTACT(sip->sip_contact),
 					SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					TAG_END());
@@ -349,7 +350,7 @@ public:
 		// Check for the existence of username, reject if absent.
 		if (sip->sip_from->a_url->url_user==NULL){
 			LOGI("From has no username, cannot authenticate.");
-			ev->reply(ms, SIP_488_NOT_ACCEPTABLE,
+			ev->reply(SIP_488_NOT_ACCEPTABLE,
 					SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					TAG_END());
 			return;
@@ -435,7 +436,7 @@ ModuleInfo<Authentication> Authentication::sInfo("Authentication",
 
 
 Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, shared_ptr<RequestSipEvent> ev, bool hashedPasswords):
-		mAgent(ag),mEv(ev),mHashedPass(hashedPasswords),mAm(NULL),mAs(NULL),mAch(NULL) {
+		mAgent(ag),mEv(ev),mAm(NULL),mAs(NULL),mAch(NULL),mHashedPass(hashedPasswords),mPasswordFound(false){
 	memset(&mAr, '\0', sizeof(mAr)), mAr.ar_size=sizeof(mAr);
 }
 
@@ -450,14 +451,23 @@ void Authentication::AuthenticationListener::setData(auth_mod_t *am, auth_status
  */
 bool Authentication::AuthenticationListener::sendReply(){
 	const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
-	sip_t *sip = ms->getSip();
+	sip_t *sip=ms->getSip();
 	if (mAs->as_status) {
-		mEv->reply(ms, mAs->as_status,mAs->as_phrase,
-				SIPTAG_CONTACT(sip->sip_contact),
-				SIPTAG_HEADER((const sip_header_t*)mAs->as_info),
-				SIPTAG_HEADER((const sip_header_t*)mAs->as_response),
-				SIPTAG_SERVER_STR(mAgent->getServerString()),
-				TAG_END());
+		if (mAs->as_status!=401 && mAs->as_status!=407){
+			auto log=make_shared<AuthLog>(sip->sip_request->rq_method_name,
+							sip->sip_from,
+							sip->sip_to,
+							mPasswordFound);
+			log->setStatusCode(mAs->as_status,mAs->as_phrase);
+			log->setOrigin(sip->sip_via);
+			log->setCompleted();
+			mEv->setEventLog(log);
+		}
+		mEv->reply(mAs->as_status,mAs->as_phrase,
+					SIPTAG_HEADER((const sip_header_t*)mAs->as_info),
+					SIPTAG_HEADER((const sip_header_t*)mAs->as_response),
+					SIPTAG_SERVER_STR(mAgent->getServerString()),
+					TAG_END());
 		return true;
 	}else{
 		// Success
@@ -480,6 +490,7 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 	auth_hexmd5_t a1buf, response;
 
 	if (passwd) {
+		mPasswordFound=true;
 		++*getModule()->mCountPassFound;
 		if (mHashedPass) {
 			strncpy(a1buf, passwd, 33); // remove trailing NULL character

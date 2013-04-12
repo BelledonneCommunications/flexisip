@@ -52,6 +52,7 @@ private:
 	static void sOnAcceptanceTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	void finishIncomingTransaction();
 	void onAcceptanceTimer();
+	void logReceptionEvent(const std::shared_ptr<ResponseSipEvent> &ev);
 };
 
 
