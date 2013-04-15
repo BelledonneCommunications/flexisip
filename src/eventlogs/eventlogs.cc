@@ -271,7 +271,8 @@ void FilesystemEventLogWriter::writeRegistrationLog(const std::shared_ptr<Regist
 	if (fd==-1) return;
 	
 	ostringstream msg;
-	msg<<PrettyTime(rlog->mDate)<<": "<<rlog->mType<<" "<<rlog->mFrom<<" ("<<rlog->mContacts->m_url<<") ";
+	msg<<PrettyTime(rlog->mDate)<<": "<<rlog->mType<<" "<<rlog->mFrom;
+	if (rlog->mContacts && rlog->mContacts->m_url) msg<<" ("<<rlog->mContacts->m_url<<") ";
 	if (rlog->mUA) msg<<rlog->mUA<<endl;
 	
 	if (::write(fd,msg.str().c_str(),msg.str().size())==-1){
