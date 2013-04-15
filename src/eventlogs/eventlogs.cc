@@ -272,7 +272,7 @@ void FilesystemEventLogWriter::writeRegistrationLog(const std::shared_ptr<Regist
 	
 	ostringstream msg;
 	msg<<PrettyTime(rlog->mDate)<<": "<<rlog->mType<<" "<<rlog->mFrom<<" ("<<rlog->mContacts->m_url<<") ";
-	msg<<rlog->mUA<<endl;
+	if (rlog->mUA) msg<<rlog->mUA<<endl;
 	
 	if (::write(fd,msg.str().c_str(),msg.str().size())==-1){
 		LOGE("Fail to write registration log: %s",strerror(errno));
