@@ -72,7 +72,7 @@ private:
 	bool mOriginal;
 };
 
-class SipEvent {
+class SipEvent : public std::enable_shared_from_this<SipEvent>{
 	friend class Agent;
 public:
 
@@ -130,10 +130,8 @@ public:
 	std::shared_ptr<_eventLogT> getEventLog(){
 		return std::dynamic_pointer_cast<_eventLogT>(mEventLog);
 	}
-	void setEventLog(const std::shared_ptr<EventLog> & log){
-		mEventLog=log;
-	}
-
+	void setEventLog(const std::shared_ptr<EventLog> & log);
+	void flushLog();/*to be used exceptionally when an eventlog needs to be flushed immediately, for example because you need to submit a new one.*/
 protected:
 	Module *mCurrModule;
 	std::shared_ptr<MsgSip> mMsgSip;

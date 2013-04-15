@@ -32,7 +32,7 @@ private:
 	int mDeliveredCount;
 	std::list<int> mForwardResponses;
 	std::map<std::string,bool> mDeliveryMap;//map of pairs (unique-id,delivered)
-	void forward(const std::shared_ptr<SipEvent> &ev);
+	void forward(const std::shared_ptr<ResponseSipEvent> &ev);
 	void store(std::shared_ptr<ResponseSipEvent> &event);
 	void markAsDelivered(const std::shared_ptr<SipEvent> &ev);
 	su_timer_t *mAcceptanceTimer; /*timeout after which an answer must be sent through the incoming transaction even if no success response was received on the outgoing transactions*/

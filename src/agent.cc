@@ -481,7 +481,7 @@ bool Agent::isUs(const url_t *url, bool check_aliases) const {
 void Agent::logEvent(const shared_ptr<SipEvent> &ev){
 	if (mLogWriter){
 		shared_ptr<EventLog> evlog;
-		if (ev->isTerminated() && (evlog=ev->getEventLog<EventLog>())){
+		if ((evlog=ev->getEventLog<EventLog>())){
 			if (evlog->isCompleted()) mLogWriter->write(evlog);
 		}
 	}
@@ -537,7 +537,6 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
-	logEvent(ev);
 }
 
 void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
@@ -600,7 +599,6 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
-	logEvent(ev);
 }
 
 void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
@@ -624,7 +622,6 @@ void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
-	logEvent(ev);
 	LOG_END
 }
 
@@ -649,7 +646,6 @@ void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
 	}
-	logEvent(ev);
 	LOG_END
 }
 

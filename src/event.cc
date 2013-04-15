@@ -93,10 +93,29 @@ SipEvent::~SipEvent() {
 	//LOGD("Destroy SipEvent %p", this);
 }
 
+void SipEvent::flushLog(){
+	if (mEventLog){
+		Agent *agent=NULL;
+		if (mIncomingAgent) agent=mIncomingAgent->getAgent();
+		else if (mOutgoingAgent) agent=mOutgoingAgent->getAgent();
+		else LOGA("Event has no incoming nor outgoing agent.");
+		agent->logEvent(shared_from_this());
+		mEventLog=NULL;
+	}
+}
+
+void SipEvent::setEventLog(const std::shared_ptr<EventLog> & log){
+	mEventLog=log;
+	if (mState==TERMINATED){
+		flushLog();
+	}
+}
+
 void SipEvent::terminateProcessing() {
 	LOGD("Terminate SipEvent %p", this);
 	if (mState == STARTED || mState == SUSPENDED) {
 		mState = TERMINATED;
+		flushLog();
 	} else {
 		LOGA("Can't terminateProcessing: wrong state %s", stateStr(mState).c_str());
 	}

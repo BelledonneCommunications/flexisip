@@ -460,6 +460,7 @@ bool Authentication::AuthenticationListener::sendReply(){
 							mPasswordFound);
 			log->setStatusCode(mAs->as_status,mAs->as_phrase);
 			log->setOrigin(sip->sip_via);
+			if (sip->sip_user_agent) log->setUserAgent(sip->sip_user_agent);
 			log->setCompleted();
 			mEv->setEventLog(log);
 		}

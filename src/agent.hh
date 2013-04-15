@@ -147,6 +147,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		void sendResponseEvent(std::shared_ptr<ResponseSipEvent> ev);
 		void incrReplyStat(int status);
 		bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
+		void logEvent(const std::shared_ptr<SipEvent> &ev);
 	protected:
 		void sendTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
@@ -156,7 +157,6 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 		void discoverInterfaces();
 		void startLogWriter();
-		void logEvent(const std::shared_ptr<SipEvent> &ev);
 		std::string mServerString;
 		std::list<Module*> mModules;
 		std::list<std::string> mAliases;

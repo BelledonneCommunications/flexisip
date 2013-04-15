@@ -219,7 +219,12 @@ int FilesystemEventLogWriter::openPath(const url_t *uri, const char *kind, time_
 		const char *domain=uri->url_host;
 		
 		
-		path<<mRootPath<<"/"<<domain;
+		path<<mRootPath<<"/users";
+		
+		if (!createDirectoryIfNotExist(path.str().c_str()))
+			return -1;
+		
+		path<<"/"<<domain;
 		
 		if (!createDirectoryIfNotExist(path.str().c_str()))
 			return -1;
@@ -266,8 +271,8 @@ void FilesystemEventLogWriter::writeRegistrationLog(const std::shared_ptr<Regist
 	if (fd==-1) return;
 	
 	ostringstream msg;
-	msg<<PrettyTime(rlog->mDate)<<": "<<rlog->mType<<" "<<rlog->mFrom<<" with contact "<<rlog->mContacts->m_url;
-	msg<<" ("<<rlog->mUA<<")"<<endl;
+	msg<<PrettyTime(rlog->mDate)<<": "<<rlog->mType<<" "<<rlog->mFrom<<" ("<<rlog->mContacts->m_url<<") ";
+	msg<<rlog->mUA<<endl;
 	
 	if (::write(fd,msg.str().c_str(),msg.str().size())==-1){
 		LOGE("Fail to write registration log: %s",strerror(errno));
@@ -328,6 +333,7 @@ void FilesystemEventLogWriter::writeAuthLog(const std::shared_ptr<AuthLog> &alog
 	ostringstream msg;
 	msg<<PrettyTime(alog->mDate)<<" "<<alog->mMethod<<" "<<alog->mFrom;
 	if (alog->mOrigin) msg<<" ("<<alog->mOrigin<<") ";
+	if (alog->mUA) msg<<" ("<<alog->mUA<<") ";
 	msg<<" --> "<<alog->mTo<<" ";
 	msg<<alog->mStatusCode<<" "<<alog->mReason<<endl;
 	

@@ -45,7 +45,7 @@ void ForkMessageContext::markAsDelivered(const shared_ptr<SipEvent> &ev){
 	}
 }
 
-void ForkMessageContext::forward(const shared_ptr<SipEvent> &ev) {
+void ForkMessageContext::forward(const shared_ptr<ResponseSipEvent> &ev) {
 	sip_t *sip = ev->getMsgSip()->getSip();
 	
 	if (sip->sip_status->st_status >= 200 ) {
@@ -54,6 +54,8 @@ void ForkMessageContext::forward(const shared_ptr<SipEvent> &ev) {
 		if (mDeliveredCount>1){
 			/*should only transfer one response*/
 			ev->setIncomingAgent(shared_ptr<IncomingAgent>());
+		}else if (mIncoming){
+			logReceptionEvent(ev);
 		}
 		checkFinished();
 	}
@@ -103,19 +105,19 @@ void ForkMessageContext::onResponse(const shared_ptr<OutgoingTransaction> &trans
 	sip_t *sip = ms->getSip();
 	if (sip != NULL && sip->sip_status != NULL) {
 		LOGD("Fork: outgoingCallback %d", sip->sip_status->st_status);
+		
+		if (sip->sip_status->st_status > 100 && sip->sip_status->st_status < 300) {
+			forward(event);
+		} else {
+			store(event);
+		}
 		sip_t *sip=event->getMsgSip()->getSip();
 		auto log=make_shared<MessageLog>(MessageLog::Delivery,sip->sip_from,sip->sip_to,sip->sip_call_id->i_hash);
 		log->setDestination(transaction->getRequestUri());
 		log->setStatusCode(sip->sip_status->st_status,sip->sip_status->st_phrase);
 		log->setCompleted();
 		event->setEventLog(log);
-		if (sip->sip_status->st_status > 100 && sip->sip_status->st_status < 300) {
-			forward(event);
-			return;
-		} else {
-			store(event);
-			return;
-		}
+		return;
 	}
 	LOGW("ForkMessageContext : ignore message");
 }
@@ -126,6 +128,7 @@ void ForkMessageContext::logReceptionEvent(const shared_ptr<ResponseSipEvent> &e
 	log->setStatusCode(sip->sip_status->st_status,sip->sip_status->st_phrase);
 	log->setCompleted();
 	ev->setEventLog(log);
+	ev->flushLog();
 }
 
 void ForkMessageContext::finishIncomingTransaction(){
