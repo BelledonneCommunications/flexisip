@@ -100,7 +100,7 @@ void SipEvent::flushLog(){
 		else if (mOutgoingAgent) agent=mOutgoingAgent->getAgent();
 		else LOGA("Event has no incoming nor outgoing agent.");
 		agent->logEvent(shared_from_this());
-		mEventLog=NULL;
+		mEventLog.reset();
 	}
 }
 
