@@ -699,7 +699,7 @@ public:
 			RegistrationLog::Type type;
 			if (ms->getSip()->sip_expires && ms->getSip()->sip_expires->ex_delta==0) type=RegistrationLog::Unregister; //REVISIT not 100% exact.
 			else type=RegistrationLog::Register;
-			auto evlog=make_shared<RegistrationLog>(type,mSipFrom,mContact ? Record::extractUniqueId(mContact) : "", mContact);
+			auto evlog=make_shared<RegistrationLog>(type,ms->getSip()->sip_from,mContact ? Record::extractUniqueId(mContact) : "", mContact);
 			if (ms->getSip()->sip_user_agent) evlog->setUserAgent(ms->getSip()->sip_user_agent);
 			evlog->setCompleted();
 			mEv->setEventLog(evlog);
