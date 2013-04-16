@@ -3,10 +3,7 @@
 
 AC_PREREQ([2.61])
 
-m4_ifdef([m4_esyscmd_s],
-  [AC_INIT([flexisip], [m4_esyscmd_s([scripts/gitversion.sh])], [simon.morlat@linphone.org]) ],
-  [AC_INIT([flexisip], [0.6.0], [simon.morlat@linphone.org])]
-)
+AC_INIT([flexisip], [0.6.0], [simon.morlat@linphone.org])
 
 AC_CONFIG_SRCDIR([src/agent.cc])
 AC_CONFIG_HEADERS([flexisip-config.h])
