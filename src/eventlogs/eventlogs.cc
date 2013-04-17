@@ -299,8 +299,12 @@ void FilesystemEventLogWriter::writeCallLog(const std::shared_ptr<CallLog> &clog
 	if (fd1==-1 || ::write(fd1,msg.str().c_str(),msg.str().size())==-1){
 		LOGE("Fail to write registration log: %s",strerror(errno));
 	}
-	if (fd2==-1 || ::write(fd2,msg.str().c_str(),msg.str().size())==-1){
-		LOGE("Fail to write registration log: %s",strerror(errno));
+	// Avoid to write logs for users that possibly do not exist.
+	// However the error will be reported in the errors directory.
+	if (clog->mStatusCode!=404){ 
+		if (fd2==-1 || ::write(fd2,msg.str().c_str(),msg.str().size())==-1){
+			LOGE("Fail to write registration log: %s",strerror(errno));
+		}
 	}
 	if (fd1!=-1) close(fd1);
 	if (fd2!=-1) close(fd2);
@@ -311,7 +315,7 @@ void FilesystemEventLogWriter::writeCallLog(const std::shared_ptr<CallLog> &clog
 
 void FilesystemEventLogWriter::writeMessageLog(const std::shared_ptr<MessageLog> &mlog){
 	const char *label="messages";
-	int fd=openPath(mlog->mReportType==MessageLog::Delivery ? mlog->mFrom->a_url : mlog->mTo->a_url
+	int fd=openPath(mlog->mReportType==MessageLog::Reception ? mlog->mFrom->a_url : mlog->mTo->a_url
 			,label,mlog->mDate);
 	if (fd==-1) return;
 	ostringstream msg;
@@ -320,8 +324,12 @@ void FilesystemEventLogWriter::writeMessageLog(const std::shared_ptr<MessageLog>
 	msg<<mlog->mFrom<<" --> "<<mlog->mTo;
 	if (mlog->mUri) msg<<" ("<<mlog->mUri<<") ";
 	msg<<mlog->mStatusCode<<" "<<mlog->mReason<<endl;
-	if (::write(fd,msg.str().c_str(),msg.str().size())==-1){
-		LOGE("Fail to write message log: %s",strerror(errno));
+	// Avoid to write logs for users that possibly do not exist.
+	// However the error will be reported in the errors directory.
+	if (!(mlog->mReportType==MessageLog::Delivery && mlog->mStatusCode==404)){
+		if (::write(fd,msg.str().c_str(),msg.str().size())==-1){
+			LOGE("Fail to write message log: %s",strerror(errno));
+		}
 	}
 	close(fd);
 	if (mlog->mStatusCode>=300){
