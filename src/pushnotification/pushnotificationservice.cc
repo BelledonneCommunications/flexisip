@@ -34,6 +34,8 @@ const char *GPN_PORT = "443";
 
 const char *WPPN_PORT = "80";
 
+int MAX_QUEUE_SIZE = 10;
+
 using namespace ::std;
 using namespace ::boost;
 
@@ -46,7 +48,7 @@ int PushNotificationService::sendRequest(const std::shared_ptr<PushNotificationR
 			system::error_code err;
 			ctx->set_options(asio::ssl::context::default_workarounds, err);
 			ctx->set_verify_mode(asio::ssl::context::verify_none);
-			mClients[wpClient] = make_shared<PushNotificationClient>(wpClient, this, ctx, pn->getAppIdentifier(), WPPN_PORT, 1, FALSE);
+			mClients[wpClient] = make_shared<PushNotificationClient>(wpClient, this, ctx, pn->getAppIdentifier(), WPPN_PORT, MAX_QUEUE_SIZE, FALSE);
 			LOGD("Creating PNclient for client %s",pn->getAppIdentifier().c_str());
 			client = mClients[wpClient];
 		} else {
@@ -105,6 +107,7 @@ void PushNotificationService::waitEnd() {
 void PushNotificationService::setupClients(const string &certdir, const string &ca, int maxQueueSize) {
 	struct dirent *dirent;
 	DIR *dirp;
+	MAX_QUEUE_SIZE = maxQueueSize;
 
 	// Android Client
 	string googleClient = string("google");

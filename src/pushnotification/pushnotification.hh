@@ -73,7 +73,7 @@ protected:
 class WindowsPhonePushNotificationRequest: public PushNotificationRequest {
 public:
 	virtual const std::vector<char> & getData();
-	WindowsPhonePushNotificationRequest(const std::string &host, const std::string &query, const std::string &msg_id);
+	WindowsPhonePushNotificationRequest(const std::string &host, const std::string &query, bool is_message, const std::string &message, const std::string &sender_name, const std::string &sender_uri);
 	~WindowsPhonePushNotificationRequest() {};
 
 protected:

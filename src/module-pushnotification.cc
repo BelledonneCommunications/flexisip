@@ -251,14 +251,17 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 
 			shared_ptr<PushNotificationRequest> pn;
 			if (strcmp(type,"apple")==0){
-				pn= make_shared<ApplePushNotificationRequest>(appId, deviceToken,
+				pn = make_shared<ApplePushNotificationRequest>(appId, deviceToken,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
 						contact,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
 						call_id);
 			} else if (strcmp(type,"wp")==0) {
-				pn= make_shared<WindowsPhonePushNotificationRequest>(appId, deviceToken,
-						(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str);
+				pn = make_shared<WindowsPhonePushNotificationRequest>(appId, deviceToken,
+						sip->sip_request->rq_method != sip_method_invite,
+						"", //TODO: send the message
+						contact,
+						url_as_string(ms->getHome(), sip->sip_from->a_url));
 			} else if (strcmp(type,"google")==0) {
 				string apiKey = string("");
 				for (list<string>::const_iterator iterator = mGoogleProjects.begin(); iterator != mGoogleProjects.end(); ++iterator) {
@@ -274,7 +277,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 
 				if (!apiKey.empty()) {
 					// We only have one client for all Android apps, called "google"
-					pn= make_shared<GooglePushNotificationRequest>(string("google"), deviceToken, apiKey,
+					pn = make_shared<GooglePushNotificationRequest>(string("google"), deviceToken, apiKey,
 							(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
 							contact,
 							(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
