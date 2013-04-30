@@ -143,7 +143,7 @@ void Agent::start(const char *transport_override){
 	}
 	
 	tport_t *primaries=tport_primaries(nta_agent_tports(mAgent));
-	if (primaries==NULL) LOGA("No sip transport defined.");
+	if (primaries==NULL) LOGF("No sip transport defined.");
 	su_md5_t ctx;
 	su_md5_init(&ctx);
 
