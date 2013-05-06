@@ -100,6 +100,10 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 	void onDeclare(GenericStruct *root);
 	ConfigValueListener *mBaseConfigListener;
 
+	private:
+	template <typename SipEventT>
+	void doSendEvent
+	(std::shared_ptr<SipEventT> ev, const std::list<Module *>::iterator &begin, const std::list<Module *>::iterator &end);
 	public:
 		Agent(su_root_t *root);
 		void start(const char *transport_override);
@@ -149,7 +153,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 		void logEvent(const std::shared_ptr<SipEvent> &ev);
 	protected:
-		void sendTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
+		void sendTransactionEvent(std::shared_ptr<TransactionEvent> ev);
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
 	private:
 		virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);

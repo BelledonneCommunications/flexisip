@@ -16,25 +16,45 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef expressionparser_hh
-#define expressionparser_hh
+#ifndef SIPATTREXTRACTOR_HH
+#define SIPATTREXTRACTOR_HH
 
 #include <string>
 #include <memory>
 
-class SipAttributes;
+#ifndef NO_SOFIA
+#include <sofia-sip/sip.h>
+#endif
 
-void log_boolean_expression_evaluation(bool value);
-void log_boolean_expression_parsing(bool value);
-
-class BooleanExpression{
-protected:
-	BooleanExpression(){};
+class SipAttributes {
 public:
-		virtual bool eval(const SipAttributes *args)=0;
-		virtual ~BooleanExpression(){};
-		static std::shared_ptr<BooleanExpression> parse(const std::string &str);
-		long ptr();
+#ifdef NO_SOFIA
+	SipAttributes(std::string &attributes);
+#else
+	SipAttributes(sip_t *sip) : sip(sip){};
+private:
+	sip_t *sip;
+#endif
+public:
+	~SipAttributes(){};
+
+	
+	std::string get(const std::string &arg) const;
+	
+	std::string getOrEmpty(const std::string &arg) const{
+		if (arg == "method_or_status") {
+			std::string method=getOrEmpty("request.mn");
+			if (!method.empty()) return method;
+			return getOrEmpty("status.code");
+		}
+
+		try {
+			return get(arg);
+		} catch (...) {
+			return "";
+		}
+	}
+	bool isTrue(const std::string &arg) const;
 };
 
 

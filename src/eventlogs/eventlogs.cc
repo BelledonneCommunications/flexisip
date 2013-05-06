@@ -18,7 +18,10 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <fcntl.h>
+
 #include "eventlogs/eventlogs.hh"
+
 
 #include <iostream>
 #include <iomanip>

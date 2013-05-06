@@ -23,6 +23,9 @@
 #include "agent.hh"
 #include "module.hh"
 
+#include "log/logmanager.hh"
+#include "sipattrextractor.hh"
+
 #include "etchosts.hh"
 #include <algorithm>
 #include <sstream>
@@ -487,11 +490,36 @@ void Agent::logEvent(const shared_ptr<SipEvent> &ev){
 	}
 }
 
+template <typename SipEventT>
+inline void Agent::doSendEvent
+(shared_ptr<SipEventT> ev, const list<Module *>::iterator &begin, const list<Module *>::iterator &end) {
+	#define LOG_SCOPED_EV_THREAD(ssargs, key) LOG_SCOPED_THREAD(key, ssargs->getOrEmpty(key));
+	
+	auto ssargs=ev->getMsgSip()->getSipAttr();
+	LOG_SCOPED_EV_THREAD(ssargs, "from.uri.user");
+	LOG_SCOPED_EV_THREAD(ssargs, "from.uri.domain");
+	LOG_SCOPED_EV_THREAD(ssargs, "to.uri.user");
+	LOG_SCOPED_EV_THREAD(ssargs, "to.uri.domain");
+	LOG_SCOPED_EV_THREAD(ssargs, "method_or_status");
+	LOG_SCOPED_EV_THREAD(ssargs, "callid");
+	
+
+	for (auto it = begin; it != end; ++it) {
+		ev->mCurrModule = (*it);
+		(*it)->process(ev);
+		if (ev->isTerminated() || ev->isSuspended())
+			break;
+	}
+	if (!ev->isTerminated() && !ev->isSuspended()) {
+		LOGA("Event not handled");
+	}	
+}
+
+
 void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	sip_t *sip=ev->getMsgSip()->mSip;
 	sip_request_t *req=sip->sip_request;
-	ev->getMsgSip()->log("Receiving new Request SIP message: %s",
-			req->rq_method_name);
+	SLOGD << "Receiving new Request SIP message: " << req->rq_method_name << "\n" << *ev->getMsgSip();
 	switch (req->rq_method) {
 	case sip_method_register:
 		++*mCountIncomingRegister;
@@ -526,22 +554,13 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 		break;
 	}
 
-
-	list<Module*>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		ev->mCurrModule = (*it);
-		(*it)->processRequest(ev);
-		if (ev->isTerminated() || ev->isSuspended())
-			break;
-	}
-	if (!ev->isTerminated() && !ev->isSuspended()) {
-		LOGA("Event not handled");
-	}
+	doSendEvent(ev, mModules.begin(), mModules.end());
 }
 
 void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
-	ev->getMsgSip()->log("Receiving new Response SIP message: %d",
-			ev->getMsgSip()->mSip->sip_status->st_status);
+	SLOGD << "Receiving new Response SIP message: "
+	<< ev->getMsgSip()->mSip->sip_status->st_status << "\n"
+	<< *ev->getMsgSip();
 
 	sip_t *sip=ev->getMsgSip()->mSip;
 	switch (sip->sip_status->st_status) {
@@ -589,75 +608,46 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 		break;
 	}
 
-	list<Module*>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		ev->mCurrModule = *it;
-		(*it)->processResponse(ev);
-		if (ev->isTerminated() || ev->isSuspended())
-			break;
-	}
-	if (!ev->isTerminated() && !ev->isSuspended()) {
-		LOGA("Event not handled");
-	}
+	doSendEvent(ev, mModules.begin(), mModules.end());
 }
 
 void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
-	LOG_START
-	ev->getMsgSip()->log("Inject Request SIP message:");
-	list<Module*>::iterator it;
+	SLOGD << "Inject Request SIP message:\n" << *ev->getMsgSip();
 	ev->restartProcessing();
-	LOGD("Injecting request event after %s", ev->mCurrModule->getModuleName().c_str());
+	SLOGD << "Injecting request event after %s" << ev->mCurrModule->getModuleName();
+	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		if (ev->mCurrModule == *it) {
 			++it;
 			break;
 		}
 	}
-	for (; it != mModules.end(); ++it) {
-		ev->mCurrModule = *it;
-		(*it)->processRequest(ev);
-		if (ev->isTerminated() || ev->isSuspended())
-			break;
-	}
-	if (!ev->isTerminated() && !ev->isSuspended()) {
-		LOGA("Event not handled");
-	}
-	LOG_END
+
+	doSendEvent(ev, it, mModules.end());
 }
 
 void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
-	LOG_START
-	ev->getMsgSip()->log("Inject Response SIP message:");
+	SLOGD << "Inject Response SIP message:\n" << *ev->getMsgSip();
 	list<Module*>::iterator it;
 	ev->restartProcessing();
-	LOGD("Injecting response event after %s", ev->mCurrModule->getModuleName().c_str());
+	SLOGD << "Injecting response event after %s" << ev->mCurrModule->getModuleName();
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		if (ev->mCurrModule == *it) {
 			++it;
 			break;
 		}
 	}
-	for (; it != mModules.end(); ++it) {
-		ev->mCurrModule = *it;
-		(*it)->processResponse(ev);
-		if (ev->isTerminated() || ev->isSuspended())
-			break;
-	}
-	if (!ev->isTerminated() && !ev->isSuspended()) {
-		LOGA("Event not handled");
-	}
-	LOG_END
+
+	doSendEvent(ev, it, mModules.end());
 }
 
-void Agent::sendTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
-	LOG_START
-	LOGD("Propagating new Transaction Event %p %s", transaction.get(),
-			Transaction::eventStr(event));
+void Agent::sendTransactionEvent(shared_ptr<TransactionEvent> ev) {
+	SLOGD << "Propagating new Transaction Event " << ev->transaction.get()
+			<< " " << ev->getKindName();
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		(*it)->processTransactionEvent(transaction, event);
+		(*it)->processTransactionEvent(ev);
 	}
-	LOG_END
 }
 
 int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
@@ -685,7 +675,7 @@ int Agent::messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t
 }
 
 void Agent::idle() {
-	LOGD("In Agent::idle()");
+	SLOGD << "In Agent::idle()";
 	for_each(mModules.begin(), mModules.end(), mem_fun(&Module::idle));
 	if (GenericManager::get()->mNeedRestart) {
 		exit(RESTART_EXIT_CODE);

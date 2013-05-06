@@ -21,6 +21,7 @@
 #include "registrardb.hh"
 #include "forkcallcontext.hh"
 #include "forkmessagecontext.hh"
+#include "log/logmanager.hh"
 
 #include <sofia-sip/sip_status.h>
 #include <fstream>
@@ -38,7 +39,7 @@ public:
 	}
 	void onRecordFound(Record *r) {
 		if (r!=NULL) {
-			r->print();
+			SLOGD << r;
 		} else {
 			LOGD("No record found");
 		}
@@ -221,7 +222,7 @@ public:
 
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 
-	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
+	virtual void onTransactionEvent(shared_ptr<TransactionEvent> ev);
 
 	void idle() { updateLocalRegExpire(); }
 	
@@ -432,13 +433,16 @@ bool Registrar::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *ct_
 
 bool Registrar::dispatch(const shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, const char *route, shared_ptr<ForkContext> context) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	sip_t *sip = ms->getSip();
+
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
 	if (ct->m_url[0].url_host != NULL && ct->m_url[0].url_host[0] != '\0') {
-		if (IS_LOGD && contactUrlInVia(ct->m_url, sip->sip_via)) {
-			LOGD("Contact url in vias, the message will be routed backward");
-		}
-		char *contact_url_string = url_as_string(ms->getHome(), ct->m_url);
+#if not(__GNUC__ == 4 && __GNUC_MINOR__ < 5 )
+		sip_t *sip = ms->getSip();
+		static auto lambdaContactUrlInVia = [&]() {return contactUrlInVia(ct->m_url, sip->sip_via); };
+		static auto lambdaMsg = [](std::ostream &strm) {strm << "Contact url in vias, the message will be routed backward"; };
+		LOGDFN(lambdaContactUrlInVia, lambdaMsg);
+#endif
+		char __attribute__ ((unused)) *contact_url_string = url_as_string(ms->getHome(), ct->m_url); // not too expensive I guess
 		shared_ptr<MsgSip> new_msgsip;
 		if (context) {
 			new_msgsip = make_shared<MsgSip>(*ms);
@@ -798,8 +802,7 @@ void Registrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		if (sip->sip_request->rq_method != sip_method_ack && sip->sip_to != NULL && sip->sip_to->a_tag == NULL) {
 			url_t *sipurl = sip->sip_request->rq_url;
 			if (sipurl->url_host  && isManagedDomain(sipurl)) {
-				char *url = url_as_string(ms->getHome(), sipurl);
-				LOGD("Fetch %s.", url);
+				LOGD("Fetch %s.", url_as_string(ms->getHome(), sipurl));
 				RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnBindForRoutingListener>(this, ev, sipurl), true);
 			}
 		}
@@ -835,31 +838,31 @@ void Registrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	}
 }
 
-void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
-	shared_ptr<ForkContext> forkContext = transaction->getProperty<ForkContext>(getModuleName());
+void Registrar::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
+	shared_ptr<ForkContext> forkContext = ev->transaction->getProperty<ForkContext>(getModuleName());
 	if (forkContext != NULL) {
-		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(transaction);
+		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->transaction);
 		if (ot != NULL) {
-			switch (event) {
-			case Transaction::Destroy:
+			switch (ev->kind) {
+				case TransactionEvent::Type::Destroy:
 				forkContext->onDestroy(ot);
 				++*mCountForkTransactionsFinished;
 				break;
 
-			case Transaction::Create:
+				case TransactionEvent::Type::Create:
 				forkContext->onNew(ot);
 				++*mCountForkTransactions;
 				break;
 			}
 		}
-		shared_ptr<IncomingTransaction> it = dynamic_pointer_cast<IncomingTransaction>(transaction);
+		shared_ptr<IncomingTransaction> it = dynamic_pointer_cast<IncomingTransaction>(ev->transaction);
 		if (it != NULL) {
-			switch (event) {
-			case Transaction::Destroy:
+			switch (ev->kind) {
+				case TransactionEvent::Type::Destroy:
 				forkContext->onDestroy(it);
 				break;
 
-			case Transaction::Create: // Can't happen because property is set after this event
+				case TransactionEvent::Type::Create: // Can't happen because property is set after this event
 				break;
 			}
 		}

@@ -59,7 +59,7 @@ public:
 	PushNotification(Agent *ag);
 	virtual ~PushNotification();
 	void onDeclare(GenericStruct *module_config);
-	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
+	virtual void onTransactionEvent(shared_ptr<TransactionEvent> ev);
 	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev);
 	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev);
 	virtual void onLoad(const GenericStruct *mc);
@@ -327,14 +327,14 @@ void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
 	}
 }
 
-void PushNotification::onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
-	shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(transaction);
+void PushNotification::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
+	shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->transaction);
 	if (ot != NULL) {
-		switch (event) {
-		case Transaction::Destroy:
+		switch (ev->kind) {
+			case TransactionEvent::Type::Destroy:
 			break;
 
-		case Transaction::Create:
+			case TransactionEvent::Type::Create:
 			break;
 		}
 	}

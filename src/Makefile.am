@@ -43,8 +43,10 @@ flexisip_SOURCES=main.cc \
 			module-loadbalancer.cc \
 			dos-protection.cc dos-protection.hh \
 			expressionparser.cc expressionparser.hh \
+			sipattrextractor.cc sipattrextractor.hh \
 			h264iframefilter.cc h264iframefilter.hh \
 			telephone-event-filter.cc telephone-event-filter.hh \
+			log/logmanager.cc log/logmanager.hh \
 			$(GITVERSION_FILE) \
 			eventlogs/eventlogs.cc eventlogs/eventlogs.hh
 
@@ -75,6 +77,11 @@ endif
 
 if BUILD_DATEHANDLER
 flexisip_SOURCES+=module-datehandler.cc
+endif
+
+if BUILD_BOOSTLOG
+AM_CXXFLAGS+=-DENABLE_BOOSTLOG -DBOOST_LOG_USE_NATIVE_SYSLOG=1 $(BOOST_CPPFLAGS) $(BOOST_LOG_CPPFLAGS)
+flexisip_LDADD+=$(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(BOOST_LOG_LIB)
 endif
 
 if BUILD_PUSHNOTIFICATION
@@ -131,4 +138,3 @@ make_gitversion_h:
 	rm -f $(GITVERSION_FILE_TMP) ;
 
 $(GITVERSION_FILE): make_gitversion_h
-

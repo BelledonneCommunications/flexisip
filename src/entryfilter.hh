@@ -35,7 +35,7 @@ class EntryFilter{
 		}
 		virtual void loadConfig(const GenericStruct *module_config){
 		}
-		virtual bool canEnter(sip_t *sip)=0;
+		virtual bool canEnter(const std::shared_ptr<MsgSip> &ms)=0;
 		virtual bool isEnabled()=0;
 		virtual ~EntryFilter(){};
 };
@@ -48,7 +48,7 @@ class ConfigEntryFilter : public EntryFilter {
 		virtual ~ConfigEntryFilter();
 		virtual void declareConfig(GenericStruct *module_config);
 		virtual void loadConfig(const GenericStruct * module_config);
-		virtual bool canEnter(sip_t *sip);
+		virtual bool canEnter(const std::shared_ptr<MsgSip> &ms);
 		virtual bool isEnabled();
 	private:
 		bool mEnabled;

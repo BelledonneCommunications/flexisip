@@ -24,6 +24,7 @@
 #include "lpconfig.h"
 #include "configmanager.hh"
 #include "common.hh"
+#include "log/logmanager.hh"
 
 #include <functional>
 
@@ -308,7 +309,7 @@ oid Oid::oidFromHashedString(const string &str) {
 	  // 1: snmpwalk cannot associate oid to name otherwise
 }
 
-GenericEntry::GenericEntry(const string &name, GenericValueType type, const string &help,oid oid_index) :
+GenericEntry::	GenericEntry(const string &name, GenericValueType type, const string &help,oid oid_index) :
 				mOid(0),mName(name),mReadOnly(false),mExportToConfigFile(true),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
 	mConfigListener=NULL;
 	size_t idx;
@@ -662,6 +663,10 @@ GenericManager *GenericManager::get(){
 
 static ConfigItemDescriptor global_conf[]={
 		{	Boolean	,	"debug"	        ,	"Outputs very detailed logs",	"false"	},
+		{	String,		"log-filter"	,	"Boost::log filter expression, "
+				"Available attributes include: %Severity% %Module% %callid% %from.uri.user% %from.uri.domain%." 
+				"Severity levels are: fatal error info warning debug."
+				"see http://boost-log.sourceforge.net/libs/log1/doc/html/log/detailed/utilities.html#log.detailed.utilities.init.filter_formatter", ""},
 		{	Boolean	,	"dump-corefiles",	"Generate a corefile when crashing", "true"},
 		{	Boolean	,	"auto-respawn"  ,	"Automatically respawn flexisip in case of abnormal termination (crashes)",	"true"},
 		{	StringList	,"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost"},
@@ -724,6 +729,9 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 }
 
 bool GenericManager::doIsValidNextConfig(const ConfigValue &cv) {
+	if (cv.getName() == "log-filter") {
+		return flexisip::log::validateFilter(cv.getNextValue());
+	}
 	return true;
 }
 
@@ -739,7 +747,9 @@ bool GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 			mDirtyConfig=false;
 			break;
 		case ConfigState::Commited:
-			if (mDirtyConfig) {
+			if (conf.getName() == "log-filter") {
+				flexisip::log::updateFilter(conf.getNextValue());
+			} else if (mDirtyConfig) {
 				LOGI("Scheduling server restart to apply new config.");
 				mDirtyConfig=false;
 				mNeedRestart=true;

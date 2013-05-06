@@ -42,7 +42,7 @@ public:
 	virtual void onUnload();
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
-	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
+	virtual void onTransactionEvent(shared_ptr<TransactionEvent> ev);
 	virtual void onIdle();
 protected:
 	virtual void onDeclare(GenericStruct * mc) {
@@ -398,14 +398,14 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	}
 }
 
-void MediaRelay::onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
-	shared_ptr<RelayedCall> c = transaction->getProperty<RelayedCall>(getModuleName());
+void MediaRelay::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
+	shared_ptr<RelayedCall> c = ev->transaction->getProperty<RelayedCall>(getModuleName());
 	if (c != NULL) {
-		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(transaction);
+		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->transaction);
 		if (ot != NULL) {
-			switch (event) {
-			case Transaction::Destroy:
-				if (c->removeTransaction(transaction)) {
+			switch (ev->kind) {
+				case TransactionEvent::Type::Destroy:
+				if (c->removeTransaction(ev->transaction)) {
 					mCalls->remove(c);
 				}
 				break;

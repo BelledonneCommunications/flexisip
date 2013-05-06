@@ -8,16 +8,18 @@ AC_INIT([flexisip], [0.6.0], [simon.morlat@linphone.org])
 AC_CONFIG_SRCDIR([src/agent.cc])
 AC_CONFIG_HEADERS([flexisip-config.h])
 
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([-Wno-portability])
 AC_CONFIG_MACRO_DIR([m4])
+ACLOCAL_AMFLAGS = -I m4
+
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],)
 m4_include([m4/ax_compare_version.m4])
 
 # Checks for programs.
 # Favor g++ 4.4 as (the one in Debian and centos stable versions).
 # Use ./configure CXX=path to override.
-AC_PROG_CC
-AC_PROG_CXX([clang++ g++-4.4 g++])
+AC_PROG_CC([gcc-4.4 gcc])
+AC_PROG_CXX([g++-4.4 g++])
 AC_PROG_LIBTOOL
 
 build_snmp=true
@@ -59,7 +61,7 @@ case $CXX in
 	*g++*)
 	# Use only -O1 due to a compile-time bug in gcc 4.4.6 from centos6.
 	CFLAGS="-g -O2 -pthread $CFLAGS"
-	CXXFLAGS="-g -O1 -pthread -std=c++0x"
+	CXXFLAGS="-g3 -ggdb3 -O0 -pthread -std=c++0x"
 	LDFLAGS="-pthread $LDFLAGS"
 	;;
 esac
@@ -150,6 +152,11 @@ AM_CONDITIONAL(USE_MONOTONIC_CLOCK,test x$use_monotonic_clock = xyes)
 #AM_CONDITIONAL(WITHOUT_HIREDIS_CONNECT_CALLBACK,test x$use_old_hiredis = xyes)
 
 
+
+AX_BOOST_BASE([1.41],[],[AC_MSG_ERROR([boost base not found.])])
+CHECK_BOOST([AX_BOOST_LOG], [HAVE_BOOST_LOG], [found_boost_log=yes], [AC_MSG_WARN([boost log not found.])])
+AM_CONDITIONAL(BUILD_BOOSTLOG, test x$found_boost_log = xyes)
+# Note that you also needs boost thread
 
 
 AC_ARG_ENABLE(pushnotification,

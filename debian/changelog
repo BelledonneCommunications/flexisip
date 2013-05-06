@@ -1,3 +1,9 @@
+flexisip (0.6.0-6ga6d8227) UNRELEASED; urgency=low
+
+  * New version
+
+ -- Make deb <contact@linphone.org>  Wed, 03 Apr 2013 14:24:34 +0200
+
 flexisip (0.6.0) unstable; urgency=low
 
   * New version

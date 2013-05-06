@@ -12,7 +12,7 @@ static size_t count=0;
 static bool error_occured=false;
 
 
-class FakeArguments : public Arguments {
+class SipAttributes {
 	map<string,string> mStringArgs;
 	map<string,bool> mBoolArgs;
 
@@ -42,7 +42,7 @@ class FakeArguments : public Arguments {
 		}
 	}
 public:
-	FakeArguments(const char *s) {
+	SipAttributes(const char *s) {
 		const char *sep = "|";
 		char *dup=strdup(s);
 		char *p = strtok(dup, sep);
@@ -87,7 +87,7 @@ static void btest(bool expected, const char *expr, const char *argstr) {
 		string s(expr);
 		shared_ptr<BooleanExpression> be=BooleanExpression::parse(s);
 		if (be){
-			FakeArguments args(argstr);
+			SipAttributes args(argstr);
 			bool res=success=be->eval(&args);
 			print_test_value(count, expr, argstr, expected, res);
 		}
@@ -232,7 +232,7 @@ void do_cmd_test(int argc, char *argv[]) {
 	try {
 		shared_ptr<BooleanExpression> expr=BooleanExpression::parse(argv[1]);
 		if (expr){
-			FakeArguments args(argv[2]);
+			SipAttributes args(argv[2]);
 			cout<<"Result: " << (expr->eval(&args) ? "true" : "false" )<< endl;
 		}
 	} catch(invalid_argument *e){

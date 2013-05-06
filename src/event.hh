@@ -21,6 +21,8 @@
 
 #include <memory>
 #include <string>
+#include <ostream>
+#include <functional>
 #include <sofia-sip/msg.h>
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nta.h>
@@ -32,6 +34,7 @@ class OutgoingAgent;
 class IncomingTransaction;
 class OutgoingTransaction;
 class EventLog;
+class SipAttributes;
 
 class MsgSip {
 	friend class Agent;
@@ -59,17 +62,18 @@ public:
 	void serialize()const{
 		msg_serialize(mMsg,(msg_pub_t*)mSip);
 	}
-
-	void log(const char * header = NULL, ...) ;//__attribute__((format(printf,2,3)));
 	msg_t *createOrigMsgRef() { return msg_ref_create(mOriginalMsg); }
+	inline std::shared_ptr<SipAttributes> getSipAttr() { return mSipAttr; }
+	const char *print();
 private:
 	MsgSip(msg_t *msg);
 	void defineMsg(msg_t *msg);
-	su_home_t *mHome;
+	mutable su_home_t *mHome;
 	msg_t *mOriginalMsg;
 	msg_t *mMsg;
 	sip_t *mSip;
 	bool mOriginal;
+	std::shared_ptr<SipAttributes> mSipAttr;
 };
 
 class SipEvent : public std::enable_shared_from_this<SipEvent>{
@@ -190,5 +194,11 @@ public:
 
 	~ResponseSipEvent();
 };
+
+inline std::ostream& operator<<(std::ostream& strm, MsgSip& obj) {
+	strm << obj.print();
+	return strm;	
+}
+
 
 #endif //event_hh

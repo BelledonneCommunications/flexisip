@@ -313,7 +313,7 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 		// Force front side to bind and allocate a port immediately on the bind-address
 		// BIG FAT WARNING: call getAudioPort BEFORE the setRemoteAddr
 		// to get the local address bound correctly
-		int flport= c->getFrontSide()->getAudioPort();
+		int __attribute__ ((unused)) flport= c->getFrontSide()->getAudioPort();
 		string fladdr= c->getFrontSide()->getLocalAddress();
 		c->getFrontSide()->setRemoteAddr(fraddr.c_str(), frport);
 		LOGD("Front side %s:%i <-> %s:%i", fraddr.c_str(), frport, fladdr.c_str(), flport);

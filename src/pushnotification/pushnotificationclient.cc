@@ -24,7 +24,7 @@
 using namespace ::std;
 using namespace ::boost;
 
-PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService *service, std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host, const std::string &port, int maxQueueSize, bool_t isSecure) :
+PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService *service, std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host, const std::string &port, int maxQueueSize, bool isSecure) :
 		mService(service), mResolver(mService->getService()), mSocket(mService->getService(), *ctx), mContext(ctx), mName(name), mHost(host), mPort(port), mMaxQueueSize(maxQueueSize), mIsSecure(isSecure) {
 	mLastUse=0;
 }

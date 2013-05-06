@@ -101,6 +101,7 @@ private:
 class EventLogWriter{
 public:
 	virtual void write(const std::shared_ptr<EventLog> &evlog)=0;
+	virtual ~EventLogWriter() {}
 };
 
 class FilesystemEventLogWriter : public EventLogWriter{

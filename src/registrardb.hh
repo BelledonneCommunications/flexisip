@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <limits>
 #include <mutex>
+#include <iosfwd>
 
 #include <sofia-sip/sip.h>
 #include "agent.hh"
@@ -115,6 +116,8 @@ public:
 
 };
 
+
+
 class Record {
 	friend class RecursiveRegistrarDbListener;
 	friend class RegistrarDb;
@@ -139,7 +142,7 @@ public:
 	void clean(time_t time);
 	void bind(const sip_contact_t *contacts, const char* route, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias);
 	void bind(const char *contact, const char* route, const char *transport, const char *lineValue, long expireAt, float q, const char *call_id, uint32_t cseq, time_t now, bool alias);
-	void print();
+	void print(std::ostream &stream) const;
 	bool isEmpty() { return mContacts.empty(); };
 	const std::string &getKey() const {
 		return mKey;
@@ -170,6 +173,15 @@ public:
 
 	~Record();
 };
+
+template< typename TraitsT >
+inline std::basic_ostream< char, TraitsT >& operator<< (
+	std::basic_ostream< char, TraitsT >& strm, const Record &record)
+{
+	record.print(strm);
+	return strm;
+}
+
 
 class RegistrarDbListener: public StatFinishListener {
 public:

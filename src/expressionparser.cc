@@ -10,12 +10,11 @@
 #include <stdexcept>
 #include <algorithm>
 #include "expressionparser.hh"
+#include "sipattrextractor.hh"
 
 #include <regex.h>
 
-#ifndef TEST_BOOL_EXPR
-#include "common.hh"
-#endif
+#include "log/logmanager.hh"
 
 
 using namespace::std;
@@ -25,16 +24,14 @@ static string tf(bool value) {
 	return value?"true":"false";
 }
 
-string BooleanExpression::ptr() {
-	ostringstream oss;
-	oss << (long)this;
-	return oss.str();
+long BooleanExpression::ptr() {
+	return (long)this;
 }
 
 class EmptyBooleanExpression : public BooleanExpression {
 public:
 	EmptyBooleanExpression() {}
-	bool eval(const Arguments *args) { return true; }
+	bool eval(const SipAttributes *args) { return true; }
 };
 
 shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpos);
@@ -55,24 +52,8 @@ void log_boolean_expression_evaluation(bool value) { logEval=value; }
 static bool logParse=false;
 void log_boolean_expression_parsing(bool value) { logParse=value; }
 
-static void log(initializer_list<string> tuple) {
-	if (!logParse) return;
-#ifdef TEST_BOOL_EXPR
-	for (auto it=tuple.begin(); it != tuple.end(); ++it) {
-		cout << *it;
-	}
-	cout << endl;
-#else
-	if (IS_LOGD) {
-		ostringstream oss;
-		for (auto it=tuple.begin(); it != tuple.end(); ++it) {
-			oss << *it;
-		}
-		LOGD("%s", oss.str().c_str());
-	}
-#endif
-}
-
+#define LOGPARSE if (logParse) SLOGI
+#define LOGEVAL if (logEval) SLOGI
 
 
 
@@ -81,15 +62,15 @@ class VariableOrConstant {
 	list<string> mValueList;
 public:
 	virtual ~VariableOrConstant() {};
-	virtual const std::string &get(const Arguments *args)=0;
-	const bool defined(const Arguments *args) {
+	virtual const std::string &get(const SipAttributes *args)=0;
+	const bool defined(const SipAttributes *args) {
 		try {
 			get(args);
 			return true;
 		} catch (exception *e) {}
 		return false;
 	}
-	const list<string> &getAsList(const Arguments *args) {
+	const list<string> &getAsList(const SipAttributes *args) {
 		string s=get(args);
 		mValueList.clear();
 
@@ -119,9 +100,9 @@ class Constant : public VariableOrConstant {
 	string mVal;
 public:
 	Constant(const std::string &val): mVal(val) {
-		log({"Creating constant XX", val, "XX"});
+		LOGPARSE << "Creating constant XX" << val << "XX";
 	}
-	virtual const std::string &get(const Arguments *args) {
+	virtual const std::string &get(const SipAttributes *args) {
 		return mVal;
 	}
 };
@@ -131,13 +112,13 @@ class Variable : public VariableOrConstant {
 	string mVal;
 public:
 	Variable(const std::string &val): mId(val) {
-		log({"Creating variable XX", val, "XX"});
+		LOGPARSE << "Creating variable XX" << val << "XX";
 	}
-	virtual const std::string &get(const Arguments *args) {
+	virtual const std::string &get(const SipAttributes *args) {
 		try {
 			mVal=args->get(mId);
 		} catch (exception *e) {
-			log({"GET ", mId, " : ", e->what()});
+			LOGEVAL << "GET " << mId << " : " << e->what();
 			throw;
 		}
 		return mVal;
@@ -148,7 +129,7 @@ class TrueFalseExpression : public BooleanExpression {
 	string mId;
 public:
 	TrueFalseExpression(const string &value) : mId(value){}
-	virtual bool eval(const Arguments *args){
+	virtual bool eval(const SipAttributes *args){
 		if (mId == "true") return true;
 		if (mId == "false") return false;
 		return args->isTrue(mId);
@@ -159,14 +140,14 @@ class LogicalAnd : public BooleanExpression{
 	shared_ptr<BooleanExpression> mExp1,mExp2;
 public:
 	LogicalAnd(shared_ptr<BooleanExpression> exp1, shared_ptr<BooleanExpression> exp2): mExp1(exp1), mExp2(exp2){
-		log({"Creating LogicalAnd"});
+		LOGPARSE << "Creating LogicalAnd";
 	}
-	virtual bool eval(const Arguments *args){
-		if (logEval) log({"eval && : ", ptr()});
+	virtual bool eval(const SipAttributes *args){
+		LOGEVAL << "eval && : " << ptr();
 		bool e1=mExp1->eval(args);
-		if (logEval) log({"eval && : ", ptr(), "left exp =", tf(e1)});
+		LOGEVAL << "eval && : " << ptr() << "left exp =" << tf(e1);
 		bool res=e1 && mExp2->eval(args);
-		if (logEval) log({"eval && : ", ptr(), tf(res)});
+		LOGEVAL << "eval && : " << ptr() << tf(res);
 		return res;
 	}
 };
@@ -175,15 +156,15 @@ public:
 class LogicalOr : public BooleanExpression{
 public:
 	LogicalOr(shared_ptr<BooleanExpression> exp1, shared_ptr<BooleanExpression> exp2): mExp1(exp1), mExp2(exp2){
-		log({"Creating LogicalOr"});
+		LOGPARSE << "Creating LogicalOr";
 	}
-	virtual bool eval(const Arguments *args){
-		if (logEval) log({"eval || : ", ptr()});
+	virtual bool eval(const SipAttributes *args){
+		LOGEVAL << "eval || : " << ptr();
 		bool e1=mExp1->eval(args);
-		if (logEval) log({"eval || : ", ptr(), "left exp =", tf(e1)});
+		LOGEVAL << "eval || : " <<ptr() << "left exp =" << tf(e1);
 
 		bool res=e1 || mExp2->eval(args);
-		if (logEval) log({"eval || : ", tf(res)});
+		LOGEVAL << "eval || : " << tf(res);
 		return res;
 	}
 private:
@@ -193,11 +174,11 @@ private:
 class LogicalNot : public BooleanExpression{
 public:
 	LogicalNot(shared_ptr<BooleanExpression> exp) :mExp(exp){
-		log({"Creating LogicalNot"});
+		LOGPARSE << "Creating LogicalNot";
 	}
-	virtual bool eval(const Arguments *args){
+	virtual bool eval(const SipAttributes *args){
 		bool res=!mExp->eval(args);
-		if (logEval) log({"evaluating logicalnot : ", res?"true":"false"});
+		LOGEVAL << "evaluating logicalnot : " << (res?"true":"false");
 		return res;
 	}
 private:
@@ -208,11 +189,11 @@ private:
 class EqualsOp : public BooleanExpression{
 public:
 	EqualsOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2) : mVar1(var1), mVar2(var2){
-		log({"Creating EqualsOperator"});
+		LOGPARSE << "Creating EqualsOperator";
 	};
-	virtual bool eval(const Arguments *args){
+	virtual bool eval(const SipAttributes *args){
 		bool res=mVar1->get(args)==mVar2->get(args);
-		if (logEval) log({"evaluating ", mVar1->get(args), " == ", mVar2->get(args), " : ", res?"true":"false"});
+		LOGEVAL << "evaluating "<< mVar1->get(args)<< " == "<< mVar2->get(args)<< " : " << (res?"true":"false");
 		return res;
 	}
 private:
@@ -224,11 +205,11 @@ class UnEqualsOp : public BooleanExpression {
 public:
 	UnEqualsOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2)
 	: mVar1(var1), mVar2(var2){
-		log({"Creating UnEqualsOperator"});
+		LOGPARSE << "Creating UnEqualsOperator";
 	};
-	virtual bool eval(const Arguments *args){
+	virtual bool eval(const SipAttributes *args){
 		bool res=mVar1->get(args)!=mVar2->get(args);
-		if (logEval) log({"evaluating ", mVar1->get(args), " != ", mVar2->get(args), " : ", res?"true":"false"});
+		LOGEVAL << "evaluating " << mVar1->get(args) << " != " << mVar2->get(args) << " : " << (res?"true":"false");
 		return res;
 	}
 private:
@@ -240,9 +221,9 @@ class NumericOp : public BooleanExpression{
 	shared_ptr<VariableOrConstant> mVar;
 public:
 	NumericOp(shared_ptr<VariableOrConstant> var) : mVar(var){
-		log({"Creating NumericOperator"});
+		LOGPARSE << "Creating NumericOperator";
 	};
-	virtual bool eval(const Arguments *args){
+	virtual bool eval(const SipAttributes *args){
 		string var=mVar->get(args);
 		bool res=true;
 		for (auto it=var.begin(); it != var.end(); ++it) {
@@ -251,7 +232,7 @@ public:
 				break;
 			}
 		}
-		if (logEval) log({"evaluating ", var, " is numeric : ", res?"true":"false"});
+		LOGEVAL << "evaluating " << var << " is numeric : " << (res?"true":"false");
 		return res;
 	}
 };
@@ -262,11 +243,11 @@ class DefinedOp : public BooleanExpression{
 	string mName;
 public:
 	DefinedOp(string name, shared_ptr<VariableOrConstant> var) : mVar(var), mName(name){
-		log({"Creating DefinedOperator"});
+		LOGPARSE << "Creating DefinedOperator";
 	};
-	virtual bool eval(const Arguments *args){
+	virtual bool eval(const SipAttributes *args){
 		bool res=mVar->defined(args);
-		if (logEval) log({"evaluating is defined for ", mName, res?"true":"false"});
+		LOGEVAL << "evaluating is defined for " << mName << (res?"true":"false");
 		return res;
 	}
 };
@@ -278,7 +259,7 @@ class Regex : public BooleanExpression{
 	char error_msg_buff[100];
 public:
 	Regex(shared_ptr<VariableOrConstant> input, shared_ptr<Constant> pattern) : mInput(input),mPattern(pattern){
-		log({"Creating Regular Expression"});
+		LOGPARSE << "Creating Regular Expression";
 		string p= pattern->get(NULL);
 		int err = regcomp(&preg,p.c_str(), REG_NOSUB | REG_EXTENDED);
 		if (err !=0) throw new invalid_argument("couldn't compile regex " + p);
@@ -286,7 +267,7 @@ public:
 	~Regex() {
 		regfree(&preg);
 	}
-	virtual bool eval(const Arguments *args){
+	virtual bool eval(const SipAttributes *args){
 		string input=mInput->get(args);
 		int match = regexec(&preg, input.c_str(), 0, NULL, 0);
 		bool res;
@@ -303,7 +284,7 @@ public:
 			break;
 		}
 
-		if (logEval) log({"evaluating ", input, " is regex  " , mPattern->get(NULL), " : ", res?"true":"false"});
+		LOGEVAL << "evaluating " << input << " is regex  " << mPattern->get(NULL) << " : " << (res?"true":"false");
 		return res;
 	}
 };
@@ -312,9 +293,9 @@ class ContainsOp : public BooleanExpression{
 	shared_ptr<VariableOrConstant> mVar1,mVar2;
 public:
 	ContainsOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2) : mVar1(var1), mVar2(var2){};
-	virtual bool eval(const Arguments *args){
+	virtual bool eval(const SipAttributes *args){
 		bool res=mVar1->get(args).find(mVar2->get(args))!=std::string::npos;
-		if (logEval) log({"evaluating ", mVar1->get(args), " contains ", mVar2->get(args), " : ", res?"true":"false"});
+		LOGEVAL << "evaluating " << mVar1->get(args) << " contains " << mVar2->get(args) << " : " << (res?"true":"false");
 		return res;
 	}
 };
@@ -323,20 +304,20 @@ public:
 class InOp : public BooleanExpression{
 public:
 	InOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2) : mVar1(var1), mVar2(var2){};
-	virtual bool eval(const Arguments *args){
+	virtual bool eval(const SipAttributes *args){
 		bool res=false;
 		const list<string> &values=mVar2->getAsList(args);
 		const string &varValue=mVar1->get(args);
 
-		if (logEval) log({"Evaluating '", varValue, "' IN {", mVar2->get(args), "}"});
+		LOGEVAL << "Evaluating '" << varValue << "' IN {" << mVar2->get(args) << "}";
 		for (auto it=values.begin(); it != values.end(); ++it) {
-			if (logEval) log({"Trying '",  *it, "'"});
+			LOGEVAL << "Trying '" <<  *it << "'";
 			if (varValue == *it) {
 				res=true;
 				break;
 			}
 		}
-		if (logEval) log({"->", res?"true":"false"});
+		LOGEVAL << "->" << (res?"true":"false");
 		return res;
 	}
 private:
@@ -354,7 +335,7 @@ static size_t find_first_non_word(const string &expr, size_t offset) {
 
 
 shared_ptr<Variable> buildVariable(const string & expr, size_t *newpos){
-	log({"buildVariable working on XX", expr, "XX"});
+	LOGPARSE << "buildVariable working on XX" << expr << "XX";
 	while (expr[*newpos]==' ') *newpos+=1;
 
 	size_t eow=find_first_non_word(expr, *newpos);
@@ -368,7 +349,7 @@ shared_ptr<Variable> buildVariable(const string & expr, size_t *newpos){
 }
 
 shared_ptr<Constant> buildConstant(const string & expr, size_t *newpos){
-	log({"buildConstant working on XX", expr, "XX"});
+	LOGPARSE << "buildConstant working on XX" << expr << "XX";
 	while (expr[*newpos]==' ') *newpos+=1;
 
 	if (expr[*newpos]!='\'')
@@ -386,7 +367,7 @@ shared_ptr<Constant> buildConstant(const string & expr, size_t *newpos){
 }
 
 shared_ptr<VariableOrConstant> buildVariableOrConstant(const string & expr, size_t *newpos){
-	log({"buildVariableOrConstant working on XX", expr, "XX"});
+	LOGPARSE << "buildVariableOrConstant working on XX" << expr << "XX";
 	while (expr[*newpos]==' ') *newpos+=1;
 
 	if (expr[*newpos]=='\''){
@@ -424,25 +405,25 @@ bool isKeyword(const string &expr, size_t *newpos, const string &keyword) {
 	if (availableLen > keyLen && isalnum(expr[pos+keyLen])) return false;
 
 	*newpos+=keyLen;
-	log({"Recognized keyword '", keyword, "'"});
+	LOGPARSE << "Recognized keyword '" << keyword << "'";
 	return true;
 }
 
 static void printState(const string &str, size_t pos) {
-	log({"Working on " , str});
+	LOGPARSE << "Working on " << str;
 	ostringstream oss;
 	for (size_t i=0; i < pos + 11; ++i) oss << " ";
 	oss << "^";
 	if (pos < str.size()) {
 		oss << str.substr(pos, 1);
 	}
-	log({oss.str()});
+	LOGPARSE << oss.str().c_str();
 }
 
 shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpos){
 	size_t i;
 
-	log({"Parsing expression ", expr});
+	LOGPARSE << "Parsing expression " << expr;
 	shared_ptr<BooleanExpression> cur_exp;
 	shared_ptr<VariableOrConstant> cur_var;
 
@@ -525,7 +506,7 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 					}
 				} else {
 					ostringstream oss; oss << expr[i];
-					log({">", oss.str(), ""});
+					LOGPARSE << ">" << oss.str();
 					throw new invalid_argument("! operator expects boolean value or () expression.");
 
 				}
@@ -549,7 +530,7 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 			}
 			break;
 		case ' ':
-			log({"skipping space"});
+			LOGPARSE << "skipping space";
 			i++;
 			break;
 		case 'c':
