@@ -78,17 +78,23 @@ void RelayChannel::set(const string &ip, int port) {
 }
 
 void RelayChannel::setBehaviour(const BehaviourType &behaviour) {
+	mBehaviour=behaviour;
 	switch (behaviour) {
 		case None:
 			SLOGD << "RelayChannel " << this << " | " << "None";
+			break;
 		case Send:
 			SLOGD << "RelayChannel " << this << " | " << "Send";
+			break;
 		case Receive:
 			SLOGD << "RelayChannel " << this << " | " << "Receive";
+			break;
 		case All:
 			SLOGD << "RelayChannel " << this << " | " << "All";
+			break;
 		default:
 			SLOGD << "RelayChannel " << this << " | " << "INVALID";
+			break;
 	};
 }
 
