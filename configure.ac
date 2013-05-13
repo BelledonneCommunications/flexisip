@@ -10,7 +10,7 @@ AC_CONFIG_HEADERS([flexisip-config.h])
 
 AM_INIT_AUTOMAKE([-Wno-portability])
 AC_CONFIG_MACRO_DIR([m4])
-ACLOCAL_AMFLAGS = -I m4
+ACLOCAL_AMFLAGS="-I m4"
 
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],)
 m4_include([m4/ax_compare_version.m4])
