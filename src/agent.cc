@@ -156,17 +156,7 @@ void Agent::start(const char *transport_override){
 		su_md5_strupdate(&ctx,url);
 		LOGD("\t%s",url);
 		bool isIpv6=strchr(name->tpn_host, ':') != NULL;
-		if (strcmp(name->tpn_canon,name->tpn_host)==0) {
-			// Both public and bind value are the same
-			// which is the normal situation.
-			url_t **preferred=isIpv6?&mPreferredRouteV6:&mPreferredRouteV4;
-			if (*preferred == NULL) {
-				*preferred=ModuleToolbox::urlFromTportName(&mHome,name);
-				char prefUrl[266];
-				url_e(prefUrl,sizeof(prefUrl),*preferred);
-				//LOGD("\tDetected %s preferred route to %s", isIpv6 ? "ipv6":"ipv4", prefUrl);
-			}
-		} else {
+		if (strcmp(name->tpn_canon,name->tpn_host)!=0) {
 			// The public and bind values are different
 			// which is the case of transport with sip:public;maddr=bind
 			// where public is the hostname or ip address publicly announced
@@ -179,6 +169,15 @@ void Agent::start(const char *transport_override){
 				mPublicIpV4=name->tpn_canon;
 				//LOGD("\tIpv4 public ip %s", mPublicIpV4.c_str());
 			}
+		}
+		url_t **preferred=isIpv6?&mPreferredRouteV6:&mPreferredRouteV4;
+		if (*preferred == NULL) {
+			tp_name_t tp_priv_name=*name;
+			tp_priv_name.tpn_canon=tp_priv_name.tpn_host;
+			*preferred=ModuleToolbox::urlFromTportName(&mHome,&tp_priv_name);
+			//char prefUrl[266];
+			//url_e(prefUrl,sizeof(prefUrl),*preferred);
+			//LOGD("\tDetected %s preferred route to %s", isIpv6 ? "ipv6":"ipv4", prefUrl);
 		}
 	}
 	
@@ -204,6 +203,12 @@ void Agent::start(const char *transport_override){
 	
 	LOGD("Agent public hostname/ip %s (v6: %s)",mPublicIpV4.c_str(), mPublicIpV6.c_str());
 	LOGD("Agent's _default_ RTP bind ip address is %s (v6: %s)",mRtpBindIp.c_str(),mRtpBindIp6.c_str());
+	
+	char prefUrl4[256]={0};
+	char prefUrl6[256]={0};
+	if (mPreferredRouteV4) url_e(prefUrl4,sizeof(prefUrl4),mPreferredRouteV4);
+	if (mPreferredRouteV6) url_e(prefUrl6,sizeof(prefUrl6),mPreferredRouteV6);
+	LOGD("Agent's preferred IP for internal routing is %s (v6: %s)",prefUrl4,prefUrl6);
 	
 	startLogWriter();
 }
@@ -259,6 +264,8 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 	mRoot = root;
 	mAgent = nta_agent_create(root, (url_string_t*) -1, &Agent::messageCallback, (nta_agent_magic_t*) this, NTATAG_UDP_MTU(1460), TAG_END());
 	su_home_init(&mHome);
+	mPreferredRouteV4=NULL;
+	mPreferredRouteV6=NULL;
 }
 
 Agent::~Agent() {
