@@ -53,6 +53,7 @@ fi
 [want_boost="yes"]
 )
 
+define(`bsetuplib', `patsubst(`$1', `log', `log_setup')')dnl
 
 if test "x$want_boost" = "xyes"; then
 	AC_REQUIRE([AC_PROG_CC])
@@ -89,9 +90,10 @@ if test "x$want_boost" = "xyes"; then
 	        for libextension in `ls $BOOSTLIBDIR/libboost_log*.so* $BOOSTLIBDIR/libboost_log*.a* 2>/dev/null | sed 's,.*/,,' | sed -e 's;^lib\(boost_log.*\)\.so.*$;\1;' -e 's;^lib\(boost_log.*\)\.a*$;\1;'`
 		do
 	        	ax_lib=${libextension}
+			setup_lib=`echo $ax_lib | sed 's/log/log_setup/'`
 			AC_CHECK_LIB($ax_lib, 
 				main,
-				[BOOST_LOG_LIB="-l$ax_lib -l${ax_lib}_setup -lboost_thread "; AC_SUBST(BOOST_LOG_LIB) link_log="yes"; break],
+				[BOOST_LOG_LIB="-l$ax_lib -l${setup_lib} -lboost_thread "; AC_SUBST(BOOST_LOG_LIB) link_log="yes"; break],
 				[link_log="no"])
 		done
 
@@ -99,16 +101,18 @@ if test "x$want_boost" = "xyes"; then
 	        for libextension in `ls $BOOSTLIBDIR/boost_log*.{dll,a}* 2>/dev/null | sed 's,.*/,,' | sed -e 's;^\(boost_log.*\)\.dll.*$;\1;' -e 's;^\(boost_log.*\)\.a*$;\1;'`
 		do
 			ax_lib=${libextension}
+			setup_lib=`echo $ax_lib | sed 's/log/log_setup/'`
 			AC_CHECK_LIB($ax_lib, main,
-			[BOOST_LOG_LIB="-l$ax_lib  -l${ax_lib}_setup -lboost_thread"; AC_SUBST(BOOST_LOG_LIB) link_log="yes"; break],
+			[BOOST_LOG_LIB="-l$ax_lib  -l${setup_lib} -lboost_thread"; AC_SUBST(BOOST_LOG_LIB) link_log="yes"; break],
 			[link_log="no"])
 		done
 		fi
 
 	else
 		for ax_lib in $ax_boost_user_log_lib boost_log-$ax_boost_user_log_lib; do
+			setup_lib=`echo $ax_lib | sed 's/log/log_setup/'`
 			AC_CHECK_LIB($ax_lib, exit,
-			[BOOST_LOG_LIB="-l$ax_lib  -l${ax_lib}_setup -lboost_thread"; AC_SUBST(BOOST_LOG_LIB) link_log="yes"; break],
+			[BOOST_LOG_LIB="-l$ax_lib  -l${setup_lib} -lboost_thread"; AC_SUBST(BOOST_LOG_LIB) link_log="yes"; break],
 			[link_log="no"])
 		done
 
