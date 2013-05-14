@@ -24,7 +24,6 @@
 #include <string>
 #include <iostream>
 #include <sstream>
-#include <syslog.h>
 
 namespace flexisip {
 namespace log {
@@ -145,7 +144,7 @@ namespace log {
 
 
 
-
+#include <syslog.h>
 #include <ortp/ortp.h>
 #include <ostream>
 
@@ -249,7 +248,7 @@ namespace log {
 			logging::record_ostream strm(rec);
 			strm << buf;
 			strm.flush();
-			lg.push_record(boost::move(rec));
+			lg.push_record(std::move(rec));
 		}
 	}
 
@@ -264,7 +263,7 @@ namespace log {
 			logging::record_ostream strm(rec);
 			sFn(strm);
 			strm.flush();
-			lg.push_record(boost::move(rec));
+			lg.push_record(std::move(rec));
 		}
 	}
 
