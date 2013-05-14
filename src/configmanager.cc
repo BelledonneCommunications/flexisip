@@ -666,7 +666,7 @@ static ConfigItemDescriptor global_conf[]={
 		{	String,		"log-filter"	,	"Boost::log filter expression, "
 				"Available attributes include: %Severity% %Module% %callid% %from.uri.user% %from.uri.domain%." 
 				"Severity levels are: fatal error info warning debug."
-				"see http://boost-log.sourceforge.net/libs/log1/doc/html/log/detailed/utilities.html#log.detailed.utilities.init.filter_formatter", ""},
+				"see http://boost-log.sourceforge.net/libs/log1/doc/html/log/detailed/utilities.html#log.detailed.utilities.init.filter_formatter", "%Severity% > debug"},
 		{	Boolean	,	"dump-corefiles",	"Generate a corefile when crashing", "true"},
 		{	Boolean	,	"auto-respawn"  ,	"Automatically respawn flexisip in case of abnormal termination (crashes)",	"true"},
 		{	StringList	,"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost"},
