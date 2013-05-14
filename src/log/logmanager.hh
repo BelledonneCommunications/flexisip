@@ -243,7 +243,7 @@ namespace log {
 		{
 			char buf[500];
 			vsnprintf(buf, sizeof(buf), fmt, l);
-			buf[sizeof(buf)]=0;
+			buf[sizeof(buf) -1]=0;
 
 			logging::record_ostream strm(rec);
 			strm << buf;
