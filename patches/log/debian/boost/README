@@ -1,0 +1,3 @@
+apt-get source boost1.42
+untar
+dpkg-buildpackage -us -uc -sa

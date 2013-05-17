@@ -1,0 +1,10 @@
+Flexisip logging is handled by the Boost Log v1 library.
+
+BoostLog v1 was not and official Boost library.
+As a consequence it is not included in distributions.
+
+The patches in this directory are needed to make it available on
+Debian 6 (squeeze) and Centos 6.
+
+
+Note that BoostLog v2 is scheduled for inclusion in Boost 1.54.
