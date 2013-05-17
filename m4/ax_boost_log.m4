@@ -93,7 +93,7 @@ if test "x$want_boost" = "xyes"; then
 			setup_lib=`echo $ax_lib | sed 's/log/log_setup/'`
 			AC_CHECK_LIB($ax_lib, 
 				main,
-				[BOOST_LOG_LIB="-l$ax_lib -l${setup_lib} -lboost_thread "; AC_SUBST(BOOST_LOG_LIB) link_log="yes"; break],
+				[BOOST_LOG_LIB="-l$ax_lib -l${setup_lib} "; AC_SUBST(BOOST_LOG_LIB) link_log="yes"; break],
 				[link_log="no"])
 		done
 
@@ -103,7 +103,7 @@ if test "x$want_boost" = "xyes"; then
 			ax_lib=${libextension}
 			setup_lib=`echo $ax_lib | sed 's/log/log_setup/'`
 			AC_CHECK_LIB($ax_lib, main,
-			[BOOST_LOG_LIB="-l$ax_lib  -l${setup_lib} -lboost_thread"; AC_SUBST(BOOST_LOG_LIB) link_log="yes"; break],
+			[BOOST_LOG_LIB="-l$ax_lib  -l${setup_lib} "; AC_SUBST(BOOST_LOG_LIB) link_log="yes"; break],
 			[link_log="no"])
 		done
 		fi
@@ -112,7 +112,7 @@ if test "x$want_boost" = "xyes"; then
 		for ax_lib in $ax_boost_user_log_lib boost_log-$ax_boost_user_log_lib; do
 			setup_lib=`echo $ax_lib | sed 's/log/log_setup/'`
 			AC_CHECK_LIB($ax_lib, exit,
-			[BOOST_LOG_LIB="-l$ax_lib  -l${setup_lib} -lboost_thread"; AC_SUBST(BOOST_LOG_LIB) link_log="yes"; break],
+			[BOOST_LOG_LIB="-l$ax_lib  -l${setup_lib} "; AC_SUBST(BOOST_LOG_LIB) link_log="yes"; break],
 			[link_log="no"])
 		done
 
