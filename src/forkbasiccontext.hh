@@ -16,8 +16,8 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef forkmessagecontext_hh
-#define forkmessagecontext_hh
+#ifndef forkbasiccontext_hh
+#define forkbasiccontext_hh
 
 #include "agent.hh"
 #include "event.hh"
@@ -26,19 +26,16 @@
 #include <list>
 #include <map>
 
-class ForkMessageContext: public ForkContext {
+class ForkBasicContext: public ForkContext {
 private:
-	std::shared_ptr<ResponseSipEvent> mBestResponse;
 	int mDeliveredCount;
-	std::map<std::string,bool> mDeliveryMap;//map of pairs (unique-id,delivered)
+	std::shared_ptr<ResponseSipEvent> mBestResponse;
 	void forward(const std::shared_ptr<ResponseSipEvent> &ev);
 	void store(std::shared_ptr<ResponseSipEvent> &event);
-	void markAsDelivered(const std::shared_ptr<SipEvent> &ev);
-	su_timer_t *mAcceptanceTimer; /*timeout after which an answer must be sent through the incoming transaction even if no success response was received on the outgoing transactions*/
-	static const int sAcceptanceTimeout=20; /* this must be less than the transaction time (32 seconds)*/
+	su_timer_t *mDecisionTimer; /*timeout after which an answer must be sent through the incoming transaction even if no success response was received on the outgoing transactions*/
 public:
-	ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
-	virtual ~ForkMessageContext();
+	ForkBasicContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
+	virtual ~ForkBasicContext();
 	virtual void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
 	virtual void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event);
 	virtual void onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
@@ -48,11 +45,10 @@ public:
 	virtual bool onNewRegister(const sip_contact_t *ctt);
 	virtual void checkFinished();
 private:
-	static void sOnAcceptanceTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	void finishIncomingTransaction();
-	void onAcceptanceTimer();
-	void logReceptionEvent(const std::shared_ptr<ResponseSipEvent> &ev);
+	static void sOnDecisionTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
+	void onDecisionTimer();
 };
 
 
-#endif /* forkmessagecontext_hh */
+#endif /* forkbasiccontext_hh */

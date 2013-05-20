@@ -21,6 +21,7 @@ flexisip_SOURCES=main.cc \
 			callcontext-transcoder.hh  callcontext-transcoder.cc \
 			forkcallcontext.hh  forkcallcontext.cc \
 			forkmessagecontext.hh  forkmessagecontext.cc \
+			forkbasiccontext.cc forkbasiccontext.hh \
 			registrardb-internal.cc registrardb-internal.hh registrardb.cc registrardb.hh \
 			etchosts.cc etchosts.hh \
 			lpconfig.c lpconfig.h \

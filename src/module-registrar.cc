@@ -21,6 +21,7 @@
 #include "registrardb.hh"
 #include "forkcallcontext.hh"
 #include "forkmessagecontext.hh"
+#include "forkbasiccontext.hh"
 #include "log/logmanager.hh"
 
 #include <sofia-sip/sip_status.h>
@@ -163,6 +164,12 @@ public:
 		
 		mMessageForkCfg->mForkLate=mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
 		mMessageForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("message-delivery-timeout")->read();
+		mOtherForkCfg=make_shared<ForkContextConfig>();
+		mOtherForkCfg->mForkOneResponse=true;
+		mOtherForkCfg->mForkLate=false;
+		mOtherForkCfg->mDeliveryTimeout=30;
+		
+		
 		mUseGlobalDomain=mc->get<ConfigBoolean>("use-global-domain")->read();
 		RegistrarDb::get(mAgent)->useGlobalDomain(mUseGlobalDomain);
 
@@ -252,6 +259,7 @@ private:
 	bool mFork;
 	shared_ptr<ForkContextConfig> mForkCfg;
 	shared_ptr<ForkContextConfig> mMessageForkCfg;
+	shared_ptr<ForkContextConfig> mOtherForkCfg;
 	typedef multimap<string, shared_ptr<ForkContext>> ForkMap;
 	ForkMap mForks;
 	unsigned int mMaxExpires, mMinExpires;
@@ -574,13 +582,8 @@ void Registrar::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, const
 
 	if (contacts.size() > 0) {
 		int handled = 0;
-		bool dontfork = !mFork // forking disabled
-				|| (contacts.size() <= 1 && !mForkCfg->mForkLate && !mStateful) // not forced
-				|| !(
-				ms->getSip()->sip_request->rq_method == sip_method_invite ||
-				ms->getSip()->sip_request->rq_method == sip_method_message
-				); // method is not correct
-		if (dontfork) {
+		
+		if (!mFork) {
 			++*mCountNonForks;
 		} else {
 			++*mCountForks;
@@ -589,27 +592,28 @@ void Registrar::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, const
 		// Init context if needed
 		shared_ptr<ForkContext> context;
 		shared_ptr<IncomingTransaction> incoming_transaction;
-		if (!dontfork) {
+		if (mFork) {
 			if (sip->sip_request->rq_method == sip_method_invite) {
 				context = make_shared<ForkCallContext>(getAgent(), ev, mForkCfg, this);
 			} else if (sip->sip_request->rq_method == sip_method_message) {
 				context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this);
+			} else {
+				context = make_shared<ForkBasicContext>(getAgent(),ev,mOtherForkCfg,this);
 			}
 			if (context) {
-				url_t modified_uri=*sipUri;
-				
-				if (mUseGlobalDomain){
-					modified_uri.url_host="merged";
+				if (context->getConfig()->mForkLate){
+					url_t modified_uri=*sipUri;
+					
+					if (mUseGlobalDomain){
+						modified_uri.url_host="merged";
+					}
+					url_e(sipUriRef,sizeof(sipUriRef)-1,&modified_uri);
+					mForks.insert(make_pair(sipUriRef, context));
+					LOGD("Add fork %p to store with key '%s'", context.get(), sipUriRef);
 				}
-				url_e(sipUriRef,sizeof(sipUriRef)-1,&modified_uri);
-				mForks.insert(make_pair(sipUriRef, context));
-				LOGD("Add fork %p to store with key '%s'", context.get(), sipUriRef);
 				incoming_transaction = ev->createIncomingTransaction();
 				incoming_transaction->setProperty<ForkContext>(Registrar::sInfo.getModuleName(), context);
 				context->onNew(incoming_transaction);
-			} else {
-				LOGW("Can't create fork for method %s", sip->sip_request->rq_method_name);
-				dontfork = true;
 			}
 		}
 
@@ -623,41 +627,39 @@ void Registrar::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, const
 					if (ec->mRoute != NULL && 0 != strcmp(getAgent()->getPreferredRoute().c_str(), ec->mRoute)) {
 						if (dispatch(ev, ct, ec->mRoute, context)) {
 							handled++;
-							if (dontfork) break;
+							if (!mFork) break;
 						}
 					} else {
 						if (dispatch(ev, ct, NULL, context)) {
 							handled++;
-							if (dontfork) break;
+							if (!mFork) break;
 						}
 					}
 				} else {
 					LOGW("Can't create sip_contact of %s.", ec->mSipUri);
 				}
 			} else {
-				if (isManagedDomain(ct->m_url)) {
-					if (!dontfork) {
-						sip_contact_t *temp_ctt=sip_contact_make(ms->getHome(),ec->mSipUri);
-						
-						if (mUseGlobalDomain){
-							temp_ctt->m_url->url_host="merged";
-							temp_ctt->m_url->url_port=NULL;
-						}
-						url_e(sipUriRef,sizeof(sipUriRef)-1,temp_ctt->m_url);
-						mForks.insert(make_pair(sipUriRef, context));
-						LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), sipUriRef);
+				if (mFork && context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
+					sip_contact_t *temp_ctt=sip_contact_make(ms->getHome(),ec->mSipUri);
+					
+					if (mUseGlobalDomain){
+						temp_ctt->m_url->url_host="merged";
+						temp_ctt->m_url->url_port=NULL;
 					}
+					url_e(sipUriRef,sizeof(sipUriRef)-1,temp_ctt->m_url);
+					mForks.insert(make_pair(sipUriRef, context));
+					LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), sipUriRef);
 				}else{
 					if (dispatch(ev, ct, NULL, context)) {
 						handled++;
-						if (dontfork) break;
+						if (!mFork) break;
 					}
 				}
 			}
 		}
 
 		if (handled > 0) {
-			if (!dontfork) {
+			if (mFork) {
 				shared_ptr<ResponseSipEvent> new_ev(make_shared<ResponseSipEvent>(ev->getOutgoingAgent(), incoming_transaction->createResponse(SIP_100_TRYING)));
 				new_ev->setIncomingAgent(incoming_transaction);
 				getAgent()->sendResponseEvent(new_ev);
@@ -871,6 +873,7 @@ void Registrar::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
 }
 
 void Registrar::onForkContextFinished(shared_ptr<ForkContext> ctx){
+	if (!ctx->getConfig()->mForkLate) return;
 	for (auto it = mForks.begin(); it != mForks.end();) {
 		if (it->second == ctx) {
 			LOGD("Remove fork %s from store", it->first.c_str());
