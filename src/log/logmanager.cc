@@ -19,7 +19,6 @@
  */
 
 #include "logmanager.hh"
-#include <boost/concept_check.hpp>
 #include <string>	
 #include <ortp/ortp.h>
 
@@ -30,6 +29,7 @@ static bool is_debug=false;
 static bool is_syslog=false;
 
 #ifdef ENABLE_BOOSTLOG
+#include <boost/concept_check.hpp>
 #include <boost/log/utility/init/from_stream.hpp>
 #include <boost/log/sources/severity_logger.hpp>
 #include <boost/log/sources/record_ostream.hpp>
