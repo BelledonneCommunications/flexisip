@@ -307,7 +307,6 @@ int main(int argc, char *argv[]){
 	const char *cfgfile=CONFIG_DIR "/flexisip.conf";
 	bool debug=false;
 	bool daemon=false;
-	bool useSyslog=false;
 	bool dump_default_cfg=false;
 	char *dump_cfg_part=NULL;
 	bool dump_snmp_mib=false;
@@ -330,7 +329,7 @@ int main(int argc, char *argv[]){
 			daemon=true;
 			continue;
 		}else if (strcmp(argv[i],"--syslog")==0){
-			useSyslog=true;
+			sUseSyslog=true;
 			continue;
 		}else if (strcmp(argv[i],"--debug")==0){
 			debug=true;
@@ -373,7 +372,10 @@ int main(int argc, char *argv[]){
 		usage(argv[0]);
 	}
 	
-	flexisip::log::preinit(debug);
+	if (!dump_default_cfg && !dump_snmp_mib) {
+		ortp_init();
+		flexisip::log::preinit(sUseSyslog, debug);
+	}
 	GenericManager *cfg=GenericManager::get();
 	DosProtection *dos=DosProtection::get();
 
@@ -416,8 +418,7 @@ int main(int argc, char *argv[]){
 
 	
 	// Initialize
-	ortp_init();
-	flexisip::log::initLogs(useSyslog, debug);
+	flexisip::log::initLogs(sUseSyslog, debug);
 	flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
 
 	signal(SIGPIPE,SIG_IGN);

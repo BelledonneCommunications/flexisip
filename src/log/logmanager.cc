@@ -25,6 +25,10 @@
 
 using namespace std;
 
+static bool is_preinit_done = false;
+static bool is_debug=false;
+static bool is_syslog=false;
+
 #ifdef ENABLE_BOOSTLOG
 #include <boost/log/utility/init/from_stream.hpp>
 #include <boost/log/sources/severity_logger.hpp>
@@ -60,7 +64,6 @@ namespace fmt = boost::log::formatters;
 namespace flt = boost::log::filters;
 
 
-
 #define addIfString(name, before, after) \
 	fmt::if_(flt::has_attr(name)) \
 	[ \
@@ -80,13 +83,13 @@ namespace flt = boost::log::filters;
 	> 
 	createFormatter(bool timestamp=true) {
 		return fmt::stream
-//		<< fmt::if_(timestamp)
-//		[
-		<<  "[" << fmt::date_time< boost::posix_time::ptime >("TimeStamp", "%d.%m.%Y %H:%M:%S.%f") << "]"
-//		]
+		<< fmt::if_(flt::has_attr("TimeStamp"))
+		[
+		fmt::stream <<  "[" << fmt::date_time< boost::posix_time::ptime >("TimeStamp", "%d.%m.%Y %H:%M:%S.%f") << "] "
+		]
 		<< fmt::if_(flt::has_attr("Severity"))
 		[
-		fmt::stream << " [" << fmt::attr< flexisip::log::level >("Severity") << "]"
+		fmt::stream << "[" << fmt::attr< flexisip::log::level >("Severity") << "]"
 		]
 		<< addIfString("method_or_status", " [", "]")
 		<< addIfString("Module", " [", "]")
@@ -104,7 +107,6 @@ namespace flt = boost::log::filters;
 namespace flexisip {
 namespace log {
 
-	
 	static void ortpFlexisipLogHandler(OrtpLogLevel log_level, const char *str, va_list l){
 		level flLevel;
 		switch(log_level){
@@ -155,36 +157,59 @@ namespace log {
 		logging::core::get()->add_sink(sink);
 	}
 
-	static bool is_debug=false;
-	typedef sinks::synchronous_sink< sinks::basic_text_ostream_backend< char >> text_sink_t;
-	static boost::shared_ptr<text_sink_t> preSink;
-	void preinit(bool debug) {
+	static void init_log_to_console() {
+		auto sink=logging::init_log_to_console();
+		sink->locked_backend()->set_formatter(createFormatter(false));
+	}
+
+	void register_log_factories();
+	void preinit(bool syslog, bool debug) {
 		is_debug=debug;
+		is_syslog=syslog;
+		is_preinit_done=true;
 		ortp_set_log_handler(ortpFlexisipLogHandler);
-		logging::register_simple_formatter_factory< flexisip::log::level >("Severity");
-		logging::register_simple_filter_factory< flexisip::log::level >("Severity");
-		preSink=logging::init_log_to_console();
+		register_log_factories();
+
+		syslog ? init_log_to_syslog() : init_log_to_console();
+		updateFilter("");
 	}
 
 	void initLogs(bool syslog, bool debug) {
-		is_debug=debug;
-
-		boost::log::core::get()->remove_sink(preSink);
-		preSink=boost::make_shared<text_sink_t>();
-		if (syslog) 
-			init_log_to_syslog();
-		else {
-			auto sink=logging::init_log_to_console();
-			sink->locked_backend()->set_formatter(createFormatter(false));
+		if (is_syslog != syslog) {
+			LOGF("Different preinit and init syslog config is not supported.");
+		}
+		if (!is_preinit_done) {
+			LOGF("Preinit was skipped: not supported.");
 		}
 
+		is_debug=debug;
 		logging::add_common_attributes();
 	}
 
+	static string addDebugToFilterStr(const string &filterstr) {
+		std::ostringstream oss;
+		if (is_debug) {
+			// Allow debug level logs
+			oss << "%Severity% >= debug";
+			if (!filterstr.empty()) {
+				oss << " | ( " << filterstr << " )";
+			}
+		} else if (filterstr.empty()) {
+			// Don't show debug level logs
+			oss << "%Severity% > debug";
+		} else {
+			// Use string as is
+			oss << filterstr;
+		}
+		
+		return oss.str();
+	}
+
 	bool validateFilter(const string &filterstr) {
-		SLOGI << "Validating filter " << filterstr;
+		string actualFilterStr = addDebugToFilterStr(filterstr);
+		SLOGI << "Validating filter " << actualFilterStr;
 		try {
-			logging::parse_filter(filterstr);
+			logging::parse_filter(actualFilterStr);
 			SLOGI << "Validating filter OK";
 			
 			return true;
@@ -199,19 +224,10 @@ namespace log {
 	}
 
 	bool updateFilter(const string &filterstr) {
-		if (is_debug) {
-			ostringstream oss;
-			oss << "%Severity% >= " << level::debug;
-			if (!filterstr.empty()) {
-				oss << " | ( " << filterstr << " )";
-			}
-			cerr << "Log filter set to " << oss.str() << endl;
-			auto filter = boost::log::parse_filter(oss.str());
-			boost::log::core::get()->set_filter(filter);
-		} else {
-			auto filter= boost::log::parse_filter(filterstr);
-			boost::log::core::get()->set_filter(filter);
-		}
+		string actualFilterStr = addDebugToFilterStr(filterstr);
+		//SLOGI << "Log filter set to " << actualFilterStr << endl;
+		auto filter = boost::log::parse_filter(actualFilterStr);
+		boost::log::core::get()->set_filter(filter);
 		return true;
 	}
 
@@ -228,7 +244,6 @@ namespace log {
 namespace flexisip {
 namespace log {
 
-	
 	static void syslogHandler(OrtpLogLevel log_level, const char *str, va_list l){
 		int syslev=LOG_ALERT;
 		switch(log_level){
@@ -238,21 +253,16 @@ namespace log {
 			case ORTP_MESSAGE:
 				syslev=LOG_INFO;
 				break;
-				/*			
-				 *		case ORTP_NOTICE:
-				 *			syslev=LOG_NOTICE;
-				 *			break;
-				 */
-				case ORTP_WARNING:
-					syslev=LOG_WARNING;
-					break;
-				case ORTP_ERROR:
-					syslev=LOG_ERR;
-				case ORTP_FATAL:
-					syslev=LOG_ALERT;
-					break;
-				default:
-					syslev=LOG_ERR;
+			case ORTP_WARNING:
+				syslev=LOG_WARNING;
+				break;
+			case ORTP_ERROR:
+				syslev=LOG_ERR;
+			case ORTP_FATAL:
+				syslev=LOG_ALERT;
+				break;
+			default:
+				syslev=LOG_ERR;
 		}
 		vsyslog(syslev,str,l);
 	}
@@ -283,36 +293,53 @@ namespace log {
 		fprintf(stderr,"\n");
 	}
 	
-
-void initLogs(bool syslog, bool debug) {
-	ortp_set_log_file(stdout);
-	ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
 	
-	if (debug==false){
-		ortp_set_log_level_mask(ORTP_ERROR|ORTP_FATAL);
+	void preinit(bool syslog, bool debug) {
+		is_preinit_done=true;
+		is_syslog=syslog;
+		is_debug=debug;
+		ortp_set_log_file(stdout);
+		cerr << "syslog=" << syslog << " debug=" << debug << endl;
+
+		if (debug){
+			ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
+		} else {
+			ortp_set_log_level_mask(ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
+		}
+		
+		if (syslog){
+			openlog("flexisip", 0, LOG_USER);
+			setlogmask(~0);
+			ortp_set_log_handler(syslogHandler);
+		}else{
+			ortp_set_log_handler(defaultLogHandler);
+		}
 	}
-	if (syslog){
-		openlog("flexisip", 0, LOG_USER);
-		setlogmask(~0);
-		ortp_set_log_handler(syslogHandler);
-	}else{
-		ortp_set_log_handler(defaultLogHandler);
+	
+	void initLogs(bool syslog, bool debug) {
+		if (is_syslog != syslog) {
+			LOGF("Different preinit and init syslog config is not supported.");
+		}
+		if (!is_preinit_done) {
+			LOGF("Preinit was skipped: not supported.");
+		}
+	
+		if (debug){
+			ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
+		} else {
+			ortp_set_log_level_mask(ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
+		}
+
+		is_debug = debug;
 	}
-}
 
-bool validateFilter(const string &filterstr) {
+	bool validateFilter(const string &filterstr) {
+		return true;
+	}
 
-	return true;
-}
-
-bool updateFilter(const string &filterstr) {
-
-	return true;
-}
-
-void preinit(bool debug) {
-	ortp_set_log_handler(defaultLogHandler);
-}
+	bool updateFilter(const string &filterstr) {
+		return true;
+	}
 
 }}
 

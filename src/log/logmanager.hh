@@ -40,7 +40,7 @@ namespace log {
 		fatal
 	};
 		
-		
+
 		
 	// The formatting logic for the severity level
 	template< typename CharT, typename TraitsT >
@@ -312,7 +312,7 @@ namespace log {
 	
 	bool updateFilter(const std::string &filterstr);
 
-	void preinit(bool debug);
+	void preinit(bool syslog, bool debug);
 
 } // end log
 } // end flexisip

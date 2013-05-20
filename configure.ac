@@ -277,8 +277,10 @@ AC_SUBST(CONFIG_DIR)
 #Keep this at the end
 if test x$GCC$strictness = xyesyes ; then
         CFLAGS="$CFLAGS -Wall -Werror -fno-strict-aliasing"
-        CXXFLAGS="$CXXFLAGS -Wall -Werror -fno-strict-aliasing"
+        WARNINGCXXFLAGS="-Wall -Werror -fno-strict-aliasing"
 fi
+
+AC_SUBST(WARNINGCXXFLAGS)
 
 
 AC_CONFIG_FILES(
