@@ -201,7 +201,7 @@ public:
  * It is used by the Registrar module.
  **/
 class RegistrarDb {
-	friend class Registrar;
+	friend class ModuleRegistrar;
 public:
 	static RegistrarDb *get(Agent *ag);
 	void bind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener);

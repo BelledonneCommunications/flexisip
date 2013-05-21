@@ -225,6 +225,7 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 #endif
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GatewayAdapter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Registrar"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Router"));
 #ifdef ENABLE_PUSHNOTIFICATION
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "PushNotification"));
 #endif
@@ -497,6 +498,20 @@ void Agent::logEvent(const shared_ptr<SipEvent> &ev){
 	}
 }
 
+struct ModuleHasName {
+	ModuleHasName(const string &ref) :
+	match(ref) {
+	}
+	bool operator()(Module *module) {
+		return module->getModuleName() == match;
+	}
+	const string &match;
+};
+Module *Agent::findModule(const string &modname) const {
+	auto it=find_if(mModules.begin(), mModules.end(), ModuleHasName(modname));
+	return (it != mModules.end()) ? *it : NULL;
+}
+
 template <typename SipEventT>
 inline void Agent::doSendEvent
 (shared_ptr<SipEventT> ev, const list<Module *>::iterator &begin, const list<Module *>::iterator &end) {
@@ -621,7 +636,7 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	SLOGD << "Inject Request SIP message:\n" << *ev->getMsgSip();
 	ev->restartProcessing();
-	SLOGD << "Injecting request event after %s" << ev->mCurrModule->getModuleName();
+	SLOGD << "Injecting request event after " << ev->mCurrModule->getModuleName();
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		if (ev->mCurrModule == *it) {
@@ -637,7 +652,7 @@ void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	SLOGD << "Inject Response SIP message:\n" << *ev->getMsgSip();
 	list<Module*>::iterator it;
 	ev->restartProcessing();
-	SLOGD << "Injecting response event after %s" << ev->mCurrModule->getModuleName();
+	SLOGD << "Injecting response event after " << ev->mCurrModule->getModuleName();
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		if (ev->mCurrModule == *it) {
 			++it;

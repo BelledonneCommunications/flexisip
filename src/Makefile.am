@@ -39,6 +39,7 @@ flexisip_SOURCES=main.cc \
 			module-contact-route-inserter.cc \
 			module-nat-helper.cc \
 			module-registrar.cc \
+			module-router.cc lateforkapplier.hh \
 			module-mediarelay.cc \
 			module-auth.cc \
 			module-loadbalancer.cc \

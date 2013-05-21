@@ -301,7 +301,7 @@ RelaySession *MediaRelayServer::createSession() {
 	if (!mRunning)
 		start();
 
-	LOGD("There are now %i relay sessions running.", (int)mSessions.size());
+	LOGD("There are now %zu relay sessions running.", mSessions.size());
 	/*write to the control pipe to wakeup the server thread */
 	if (write(mCtlPipe[1], "e", 1) == -1)
 		LOGE("MediaRelayServer: fail to write to control pipe.");

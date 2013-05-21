@@ -272,7 +272,7 @@ void Record::bind(const char *c, const char *contactId, const char* route, const
 }
 
 void Record::print(std::ostream &stream) const{
-	stream << "Record contains " << mContacts.size() << " contacts" << "\n";
+	stream << "Record contains " << mContacts.size() << " contacts";
 	time_t now=getCurrentTime();
 #ifdef MONOTONIC_CLOCK_REGISTRATIONS
 	time_t offset=time(NULL)-now;
@@ -289,11 +289,11 @@ void Record::print(std::ostream &stream) const{
 			strftime(buffer, sizeof(buffer) - 1, "%c", ptm);
 		}
 		int expireAfter=ec->mExpireAt-now;
-		stream << ec->mSipUri << " route=" << ec->mRoute
+		stream << "\n" << ec->mSipUri << " route=" << ec->mRoute
 			<< " alias=" << (ec->mAlias ? "yes" : "no")
 			<< " expire=" << expireAfter << " s (" << buffer << ")";
 	}
-	stream << "==========================" << "\n";
+	stream << "\n==========================";
 }
 
 int Record::sMaxContacts = -1;

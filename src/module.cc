@@ -382,3 +382,14 @@ bool ModuleToolbox::isNumeric(const char *host){
 	return !!inet_aton(host,&addr); //inet_aton returns non zero if ipv4 address is valid.
 }
 
+bool ModuleToolbox::isManagedDomain(const Agent *agent, const list<string> &domains, const url_t *url) {
+	bool check=ModuleToolbox::matchesOneOf(url->url_host, domains);
+	if (check){
+		//additional check: if the domain is an ip address that is not this proxy, then it is not considered as a managed domain for the registrar.
+		//we need this to distinguish requests that needs registrar routing from already routed requests.
+		if (ModuleToolbox::isNumeric(url->url_host) && !agent->isUs(url,true)){
+			check=false;
+		}
+	}
+	return check;
+}
