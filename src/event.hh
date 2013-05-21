@@ -21,6 +21,8 @@
 
 #include <memory>
 #include <string>
+#include <ostream>
+#include <functional>
 #include <sofia-sip/msg.h>
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nta.h>
@@ -31,6 +33,8 @@ class IncomingAgent;
 class OutgoingAgent;
 class IncomingTransaction;
 class OutgoingTransaction;
+class EventLog;
+class SipAttributes;
 
 class MsgSip {
 	friend class Agent;
@@ -58,20 +62,21 @@ public:
 	void serialize()const{
 		msg_serialize(mMsg,(msg_pub_t*)mSip);
 	}
-
-	void log(const char * header = NULL, ...) ;//__attribute__((format(printf,2,3)));
 	msg_t *createOrigMsgRef() { return msg_ref_create(mOriginalMsg); }
+	inline std::shared_ptr<SipAttributes> getSipAttr() { return mSipAttr; }
+	const char *print();
 private:
 	MsgSip(msg_t *msg);
 	void defineMsg(msg_t *msg);
-	su_home_t *mHome;
+	mutable su_home_t *mHome;
 	msg_t *mOriginalMsg;
 	msg_t *mMsg;
 	sip_t *mSip;
 	bool mOriginal;
+	std::shared_ptr<SipAttributes> mSipAttr;
 };
 
-class SipEvent {
+class SipEvent : public std::enable_shared_from_this<SipEvent>{
 	friend class Agent;
 public:
 
@@ -121,17 +126,22 @@ public:
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) = 0;
 	virtual void send(const std::shared_ptr<MsgSip> &msg) = 0;
 
-	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) = 0;
-
 	virtual ~SipEvent();
 
 	Module *getCurrentModule() { return mCurrModule; }
-
+	
+	template <typename _eventLogT> 
+	std::shared_ptr<_eventLogT> getEventLog(){
+		return std::dynamic_pointer_cast<_eventLogT>(mEventLog);
+	}
+	void setEventLog(const std::shared_ptr<EventLog> & log);
+	void flushLog();/*to be used exceptionally when an eventlog needs to be flushed immediately, for example because you need to submit a new one.*/
 protected:
 	Module *mCurrModule;
 	std::shared_ptr<MsgSip> mMsgSip;
 	std::shared_ptr<IncomingAgent> mIncomingAgent;
 	std::shared_ptr<OutgoingAgent> mOutgoingAgent;
+	std::shared_ptr<EventLog> mEventLog;
 
 	enum State {
 		STARTED, SUSPENDED, TERMINATED,
@@ -164,7 +174,7 @@ public:
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);
 
-	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
+	virtual void reply(int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 
 	virtual void setIncomingAgent(const std::shared_ptr<IncomingAgent> &agent);
 
@@ -180,11 +190,15 @@ public:
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);
 
-	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
-
 	virtual void setOutgoingAgent(const std::shared_ptr<OutgoingAgent> &agent);
 
 	~ResponseSipEvent();
 };
+
+inline std::ostream& operator<<(std::ostream& strm, MsgSip& obj) {
+	strm << obj.print();
+	return strm;	
+}
+
 
 #endif //event_hh

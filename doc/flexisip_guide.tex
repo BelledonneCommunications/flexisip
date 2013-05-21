@@ -283,6 +283,9 @@ For details, see the \nameref{module::Authentication} on page \pageref{module::A
 \subsection{Redis backend}
 This backend allows several flexisip servers to share the same user contacts.
 The contacts are serialized in the Redis server as protobuf binary strings.
+Servers time need to be synchronized and accurate for a proper management of the contact database.
+Failure to keep time synchronized would have severe consequences.
+
 A simple configuration is:
 
 \begin{verbatim}

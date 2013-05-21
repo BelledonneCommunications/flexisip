@@ -1,0 +1,4 @@
+rpm -i boost-1.41.0-17.el6_4.src.rpm
+Uncompress patches
+cp *.patch ~/rpmbuild/SOURCES/
+rpmbuild -ba boost.spec

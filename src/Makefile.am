@@ -1,3 +1,13 @@
+GITVERSION_FILE=flexisip_gitversion.h
+GITVERSION_FILE_TMP=flexisip_gitversion.h.tmp
+GITDESCRIBE=`git describe`
+GITREVISION=`git rev-parse HEAD`
+
+ECHO=/bin/echo
+
+CLEANFILES=$(GITVERSION_FILE)
+BUILT_SOURCES=$(GITVERSION_FILE)
+
 SUBDIRS=test
 
 bin_PROGRAMS=flexisip
@@ -11,6 +21,7 @@ flexisip_SOURCES=main.cc \
 			callcontext-transcoder.hh  callcontext-transcoder.cc \
 			forkcallcontext.hh  forkcallcontext.cc \
 			forkmessagecontext.hh  forkmessagecontext.cc \
+			forkbasiccontext.cc forkbasiccontext.hh \
 			registrardb-internal.cc registrardb-internal.hh registrardb.cc registrardb.hh \
 			etchosts.cc etchosts.hh \
 			lpconfig.c lpconfig.h \
@@ -33,8 +44,12 @@ flexisip_SOURCES=main.cc \
 			module-loadbalancer.cc \
 			dos-protection.cc dos-protection.hh \
 			expressionparser.cc expressionparser.hh \
+			sipattrextractor.cc sipattrextractor.hh \
 			h264iframefilter.cc h264iframefilter.hh \
-			telephone-event-filter.cc telephone-event-filter.hh
+			telephone-event-filter.cc telephone-event-filter.hh \
+			log/logmanager.cc log/logmanager.hh \
+			$(GITVERSION_FILE) \
+			eventlogs/eventlogs.cc eventlogs/eventlogs.hh
 
 
 if BUILD_SNMP
@@ -45,8 +60,8 @@ endif
 flexisip_LDADD=$(SOFIA_LIBS) $(MEDIASTREAMER_LIBS) $(ODBC_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) $(PROTOBUF_CFLAGS)  \
-			-DCONFIG_DIR=\"$(CONFIG_DIR)\"
-AM_CFLAGS=$(MEDIASTREAMER_CFLAGS) 
+			-DCONFIG_DIR=\"$(CONFIG_DIR)\" -DORTP_DEBUG_MODE $(WARNINGCXXFLAGS)
+AM_CFLAGS=$(MEDIASTREAMER_CFLAGS) -DORTP_DEBUG_MODE
 
 if USE_MONOTONIC_CLOCK
 AM_CXXFLAGS+=-DUSE_MONOTONIC_CLOCK
@@ -63,6 +78,15 @@ endif
 
 if BUILD_DATEHANDLER
 flexisip_SOURCES+=module-datehandler.cc
+endif
+
+if BUILD_BOOSTLOG
+AM_CXXFLAGS+=-DENABLE_BOOSTLOG -DBOOST_LOG_USE_NATIVE_SYSLOG=1 $(BOOST_CPPFLAGS) $(BOOST_LOG_CPPFLAGS) $(BOOST_REGEX_CPPFLAGS) $(BOOST_THREAD_CPPFLAGS)
+
+flexisip_LDADD+=$(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(BOOST_LOG_LIB) $(BOOST_REGEX_LIB) $(BOOST_THREAD_LIB) libhack.a
+noinst_LIBRARIES = libhack.a
+libhack_a_SOURCES = log/workaround.cc log/logmanager.hh
+libhack_a_CXXFLAGS = $(AM_CXXFLAGS) -Wno-uninitialized
 endif
 
 if BUILD_PUSHNOTIFICATION
@@ -87,7 +111,7 @@ $(builddir)/pb_generated_src_stamp : $(pb_files)
 	protoc --proto_path=$(builddir) --cpp_out=$(builddir) $(pb_files)
 	touch $(builddir)/pb_generated_src_stamp
 
-BUILT_SOURCES=$(builddir)/pb_generated_src_stamp
+BUILT_SOURCES+=$(builddir)/pb_generated_src_stamp 
 
 flexisip_SOURCES+=recordserializer-protobuf.cc
 nodist_flexisip_SOURCES=recordserializer-protobuf.pb.cc recordserializer-protobuf.pb.h
@@ -95,8 +119,27 @@ AM_CXXFLAGS+=-DENABLE_PROTOBUF
 AM_CFLAGS+=-DENABLE_PROTOBUF
 endif
     
-EXTRA_DIST=$(pb_files)
+EXTRA_DIST=$(pb_files) $(GITVERSION_FILE)
 
 
 clean-local:
 	rm -f $(builddir)/recordserializer-protobuf.pb* $(builddir)/pb_generated_src_stamp
+
+
+make_gitversion_h:
+	if test "$(GITDESCRIBE)" != "" ; then \
+		$(ECHO) -n "#define FLEXISIP_GIT_VERSION \"$(GITDESCRIBE)\"" > $(GITVERSION_FILE_TMP) ; \
+	elif test "$(GITREVISION)" != "" ; then \
+		$(ECHO) -n "#define FLEXISIP_GIT_VERSION \"$(LINPHONE_VERSION)_$(GITREVISION)\"" > $(GITVERSION_FILE_TMP) ; \
+	else \
+		$(ECHO) -n "" > $(GITVERSION_FILE_TMP) ; \
+	fi
+	if test ! -f $(srcdir)/$(GITVERSION_FILE) ; then \
+		cp -f $(GITVERSION_FILE_TMP) $(srcdir)/$(GITVERSION_FILE) ; \
+	fi
+	if test "`cat $(GITVERSION_FILE_TMP)`" != "`cat $(srcdir)/$(GITVERSION_FILE)`" ; then \
+		cp -f $(GITVERSION_FILE_TMP) $(srcdir)/$(GITVERSION_FILE) ; \
+	fi
+	rm -f $(GITVERSION_FILE_TMP) ;
+
+$(GITVERSION_FILE): make_gitversion_h

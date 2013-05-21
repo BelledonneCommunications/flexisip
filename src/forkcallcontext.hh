@@ -32,6 +32,7 @@ private:
 	int mFinal;
 	bool mCancelled;
 	std::list<int> mForwardResponses;
+	std::shared_ptr<CallLog> mLog;
 public:
 	ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
 	~ForkCallContext();
@@ -51,8 +52,10 @@ private:
 	void cancel();
 	void cancelOthers(const std::shared_ptr<OutgoingTransaction> &transaction = std::shared_ptr<OutgoingTransaction>());
 	void decline(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &ev);
-	void forward(const std::shared_ptr<SipEvent> &ev, bool force = false);
+	void forward(const std::shared_ptr<ResponseSipEvent> &ev, bool force = false);
 	void store(std::shared_ptr<ResponseSipEvent> &ev);
+	void sendResponse(std::shared_ptr<ResponseSipEvent> ev, bool inject);
+	void logResponse(const std::shared_ptr<ResponseSipEvent> &ev);
 	static void sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 };
 

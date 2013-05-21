@@ -78,32 +78,24 @@ void RelayChannel::set(const string &ip, int port) {
 }
 
 void RelayChannel::setBehaviour(const BehaviourType &behaviour) {
-	mBehaviour = behaviour;
-	if (IS_LOGD) {
-		const char *typeStr;
-		switch (mBehaviour) {
+	mBehaviour=behaviour;
+	switch (behaviour) {
 		case None:
-			typeStr = "None";
+			SLOGD << "RelayChannel " << this << " | " << "None";
 			break;
-
 		case Send:
-			typeStr = "Send";
+			SLOGD << "RelayChannel " << this << " | " << "Send";
 			break;
-
 		case Receive:
-			typeStr = "Receive";
+			SLOGD << "RelayChannel " << this << " | " << "Receive";
 			break;
-
 		case All:
-			typeStr = "All";
+			SLOGD << "RelayChannel " << this << " | " << "All";
 			break;
-
 		default:
-			typeStr = "INVALID";
+			SLOGD << "RelayChannel " << this << " | " << "INVALID";
 			break;
-		}
-		LOGD("RelayChannel %p | %s", this, typeStr);
-	}
+	};
 }
 
 void RelayChannel::fillPollFd(struct pollfd *tab) {
@@ -303,15 +295,13 @@ MediaRelayServer::~MediaRelayServer() {
 
 RelaySession *MediaRelayServer::createSession() {
 	RelaySession *s = new RelaySession(this);
-	int count;
 	mMutex.lock();
 	mSessions.push_back(s);
-	count = mSessions.size();
 	mMutex.unlock();
 	if (!mRunning)
 		start();
 
-	LOGD("There are now %i relay sessions running.", count);
+	LOGD("There are now %i relay sessions running.", (int)mSessions.size());
 	/*write to the control pipe to wakeup the server thread */
 	if (write(mCtlPipe[1], "e", 1) == -1)
 		LOGE("MediaRelayServer: fail to write to control pipe.");

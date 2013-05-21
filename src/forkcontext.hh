@@ -61,10 +61,10 @@ public:
 	ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
 	virtual ~ForkContext();
 	virtual void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
-	virtual void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event) = 0;
+	virtual void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event)=0;
 	virtual void onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
 	virtual void onNew(const std::shared_ptr<OutgoingTransaction> &transaction);
-	virtual void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &event) = 0;
+	virtual void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &event)=0;
 	virtual void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
 	virtual void onLateTimeout();
 	virtual void checkFinished();
@@ -75,6 +75,9 @@ public:
 	**/ 
 	virtual bool onNewRegister(const sip_contact_t *ctt);
 	const std::shared_ptr<RequestSipEvent> &getEvent();
+	const std::shared_ptr<ForkContextConfig> &getConfig()const{
+		return mCfg;
+	}
 };
 
 #endif /* forkcontext_hh */

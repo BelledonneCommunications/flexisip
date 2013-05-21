@@ -5,6 +5,7 @@
 # default is to build with redis & protobuf support
 %define     redis       %{?_without_redis:0}%{!?_without_redis:1}
 %define     protobuf       %{?_without_protobuf:0}%{!?_without_protobuf:1}
+%define     boostlog       %{?_without_boostlog:0}%{!?_without_boostlog:1}
 
 
 # 
@@ -24,6 +25,9 @@ BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 BuildArch:	i686
 %endif
 Requires: bash >= 2.0, unixODBC >= 2.3.0
+%if %{boostlog}
+Requires: boost-log >= 1.41.0
+%endif
 Requires(post): /sbin/chkconfig coreutils
 Requires(preun): /sbin/chkconfig /sbin/chkconfig
 Requires(postun): /sbin/service

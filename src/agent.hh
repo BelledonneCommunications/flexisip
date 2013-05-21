@@ -37,6 +37,7 @@
 #include "configmanager.hh"
 #include "event.hh"
 #include "transaction.hh"
+#include "eventlogs/eventlogs.hh"
 
 class Module;
 
@@ -49,7 +50,7 @@ class Module;
  * 
  * Refer to the flexisip.conf.sample installed by "make install" for documentation about what each module does.
 **/
-class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shared_from_this<Agent>{
+class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shared_from_this<Agent>, public ConfigValueListener {
 	friend class IncomingTransaction;
 	friend class OutgoingTransaction;
 	friend class StatelessSipEvent;
@@ -97,7 +98,12 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 	StatCounter64 *mCountReply408; // request timeout
 	StatCounter64 *mCountReplyResUnknown;
 	void onDeclare(GenericStruct *root);
+	ConfigValueListener *mBaseConfigListener;
 
+	private:
+	template <typename SipEventT>
+	void doSendEvent
+	(std::shared_ptr<SipEventT> ev, const std::list<Module *>::iterator &begin, const std::list<Module *>::iterator &end);
 	public:
 		Agent(su_root_t *root);
 		void start(const char *transport_override);
@@ -144,14 +150,17 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		void sendRequestEvent(std::shared_ptr<RequestSipEvent> ev);
 		void sendResponseEvent(std::shared_ptr<ResponseSipEvent> ev);
 		void incrReplyStat(int status);
+		bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
+		void logEvent(const std::shared_ptr<SipEvent> &ev);
 	protected:
-		void sendTransactionEvent(const std::shared_ptr<Transaction> &transaction, Transaction::Event event);
+		void sendTransactionEvent(std::shared_ptr<TransactionEvent> ev);
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
 	private:
 		virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 		virtual void send(const std::shared_ptr<MsgSip> &msg);
 		virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 		void discoverInterfaces();
+		void startLogWriter();
 		std::string mServerString;
 		std::list<Module*> mModules;
 		std::list<std::string> mAliases;
@@ -173,6 +182,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		nta_agent_t *mAgent;
 		su_root_t *mRoot;
 		su_home_t mHome;
+		EventLogWriter *mLogWriter;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);
 		bool mTerminating;
 };

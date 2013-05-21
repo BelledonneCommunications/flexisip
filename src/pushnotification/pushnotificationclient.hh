@@ -30,7 +30,7 @@
 
 class PushNotificationClient {
 public:
-	PushNotificationClient(const std::string &name, PushNotificationService *service, std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host, const std::string &port, int maxQueueSize);
+	PushNotificationClient(const std::string &name, PushNotificationService *service, std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host, const std::string &port, int maxQueueSize, bool isSecure);
 	int sendRequest(const std::shared_ptr<PushNotificationRequest> &req);
 	bool isIdle();
 protected:
@@ -57,6 +57,7 @@ private:
 	std::string mHost,mPort;
 	int mMaxQueueSize;
 	time_t mLastUse;
+	bool mIsSecure;
 };
 
 #endif //PUSH_NOTIFICATION_CLIENT_H

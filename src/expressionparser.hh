@@ -22,13 +22,7 @@
 #include <string>
 #include <memory>
 
-class Arguments {
-public:
-	virtual ~Arguments(){};
-	virtual std::string get(const std::string &arg) const =0;
-	virtual bool isTrue(const std::string &arg) const =0;
-};
-
+class SipAttributes;
 
 void log_boolean_expression_evaluation(bool value);
 void log_boolean_expression_parsing(bool value);
@@ -37,10 +31,10 @@ class BooleanExpression{
 protected:
 	BooleanExpression(){};
 public:
-		virtual bool eval(const Arguments *args)=0;
+		virtual bool eval(const SipAttributes *args)=0;
 		virtual ~BooleanExpression(){};
 		static std::shared_ptr<BooleanExpression> parse(const std::string &str);
-		std::string ptr();
+		long ptr();
 };
 
 

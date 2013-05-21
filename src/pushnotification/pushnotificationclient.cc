@@ -24,8 +24,8 @@
 using namespace ::std;
 using namespace ::boost;
 
-PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService *service, std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host, const std::string &port, int maxQueueSize) :
-		mService(service), mResolver(mService->getService()), mSocket(mService->getService(), *ctx), mContext(ctx), mName(name), mHost(host), mPort(port), mMaxQueueSize(maxQueueSize) {
+PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService *service, std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host, const std::string &port, int maxQueueSize, bool isSecure) :
+		mService(service), mResolver(mService->getService()), mSocket(mService->getService(), *ctx), mContext(ctx), mName(name), mHost(host), mPort(port), mMaxQueueSize(maxQueueSize), mIsSecure(isSecure) {
 	mLastUse=0;
 }
 
@@ -88,7 +88,12 @@ void PushNotificationClient::handle_resolve(const system::error_code& error, asi
 void PushNotificationClient::handle_connect(const system::error_code& error, asio::ip::tcp::resolver::iterator endpoint_iterator) {
 	if (!error) {
 		LOGD("PushNotificationClient(%s) connected", mName.c_str());
-		mSocket.async_handshake(asio::ssl::stream_base::client, bind(&PushNotificationClient::handle_handshake, this, asio::placeholders::error));
+		if (mIsSecure) {
+			mSocket.async_handshake(asio::ssl::stream_base::client, bind(&PushNotificationClient::handle_handshake, this, asio::placeholders::error));
+		} else {
+			LOGD("PushNotificationClient(%s) handshake skipped", mName.c_str());
+			send();
+		}
 	} else if (endpoint_iterator != asio::ip::tcp::resolver::iterator()) {
 		mSocket.lowest_layer().close();
 		asio::ip::tcp::endpoint endpoint = *endpoint_iterator;
@@ -113,14 +118,22 @@ void PushNotificationClient::handle_handshake(const system::error_code& error) {
 void PushNotificationClient::send() {
 	LOGD("PushNotificationClient(%s) send data", mName.c_str());
 	mLastUse=getCurrentTime();
-	asio::async_write(mSocket, asio::buffer(mRequestQueue.front()->getData()), bind(&PushNotificationClient::handle_write, this, asio::placeholders::error, asio::placeholders::bytes_transferred));
+	if (mIsSecure) {
+		asio::async_write(mSocket, asio::buffer(mRequestQueue.front()->getData()), bind(&PushNotificationClient::handle_write, this, asio::placeholders::error, asio::placeholders::bytes_transferred));
+	} else {
+		asio::async_write(mSocket.next_layer(), asio::buffer(mRequestQueue.front()->getData()), bind(&PushNotificationClient::handle_write, this, asio::placeholders::error, asio::placeholders::bytes_transferred));
+	}
 }
 
 void PushNotificationClient::handle_write(const system::error_code& error, size_t bytes_transferred) {
 	if (!error) {
 		LOGD("PushNotificationClient(%s) write done", mName.c_str());
 		mResponse.resize(512);
-		asio::async_read(mSocket,asio::buffer(mResponse),bind(&PushNotificationClient::handle_read, this, asio::placeholders::error, asio::placeholders::bytes_transferred));
+		if (mIsSecure) {
+			asio::async_read(mSocket, asio::buffer(mResponse),bind(&PushNotificationClient::handle_read, this, asio::placeholders::error, asio::placeholders::bytes_transferred));
+		} else {
+			mSocket.next_layer().async_read_some(asio::buffer(mResponse),bind(&PushNotificationClient::handle_read, this, asio::placeholders::error, asio::placeholders::bytes_transferred));
+		}
 		onSuccess();
 	} else {
 		LOGE("PushNotificationClient(%s) write failed", mName.c_str());

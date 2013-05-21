@@ -59,7 +59,7 @@ public:
 	PushNotification(Agent *ag);
 	virtual ~PushNotification();
 	void onDeclare(GenericStruct *module_config);
-	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
+	virtual void onTransactionEvent(shared_ptr<TransactionEvent> ev);
 	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev);
 	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev);
 	virtual void onLoad(const GenericStruct *mc);
@@ -166,6 +166,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 			" The files should be .pem format, and made of certificate followed by private key." , "/etc/flexisip/apn" },
 			{ Boolean, "google", "Enable push notification for android devices", "true" },
 			{ StringList, "google-projects-api-keys", "List of couple projectId:ApiKey for each android project which support push notifications", "" },
+			{ Boolean, "windowsphone", "Enable push notification for windows phone 8 devices", "true" },
 			config_item_end };
 	module_config->addChildrenValues(items);
 	mCountFailed = module_config->createStat("count-pn-failed", "Number of push notifications failed to be sent");
@@ -247,13 +248,20 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 			} else {
 				contact = url_as_string(ms->getHome(), sip->sip_from->a_url);
 			}
+
 			shared_ptr<PushNotificationRequest> pn;
 			if (strcmp(type,"apple")==0){
-				pn= make_shared<ApplePushNotificationRequest>(appId, deviceToken,
+				pn = make_shared<ApplePushNotificationRequest>(appId, deviceToken,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
 						contact,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
 						call_id);
+			} else if (strcmp(type,"wp")==0) {
+				pn = make_shared<WindowsPhonePushNotificationRequest>(appId, deviceToken,
+						sip->sip_request->rq_method != sip_method_invite,
+						"", //TODO: send the message
+						contact,
+						url_as_string(ms->getHome(), sip->sip_from->a_url));
 			} else if (strcmp(type,"google")==0) {
 				string apiKey = string("");
 				for (list<string>::const_iterator iterator = mGoogleProjects.begin(); iterator != mGoogleProjects.end(); ++iterator) {
@@ -269,7 +277,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 
 				if (!apiKey.empty()) {
 					// We only have one client for all Android apps, called "google"
-					pn= make_shared<GooglePushNotificationRequest>(string("google"), deviceToken, apiKey,
+					pn = make_shared<GooglePushNotificationRequest>(string("google"), deviceToken, apiKey,
 							(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
 							contact,
 							(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
@@ -278,7 +286,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 			}
 			if (pn){
 				/*create a context*/
-				context = make_shared<PushNotificationContext>(transaction, this, pn,pn_key);
+				context = make_shared<PushNotificationContext>(transaction, this, pn, pn_key);
 				context->start(mTimeout);
 				mPendingNotifications.insert(make_pair(pn_key,context));
 			}
@@ -319,14 +327,14 @@ void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
 	}
 }
 
-void PushNotification::onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
-	shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(transaction);
+void PushNotification::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
+	shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->transaction);
 	if (ot != NULL) {
-		switch (event) {
-		case Transaction::Destroy:
+		switch (ev->kind) {
+			case TransactionEvent::Type::Destroy:
 			break;
 
-		case Transaction::Create:
+			case TransactionEvent::Type::Create:
 			break;
 		}
 	}

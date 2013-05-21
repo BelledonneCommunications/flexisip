@@ -20,7 +20,7 @@
 #include "agent.hh"
 #include "entryfilter.hh"
 #include "sofia-sip/auth_digest.h"
-
+#include "log/logmanager.hh"
 
 #include "expressionparser.hh"
 
@@ -153,8 +153,9 @@ void Module::reload() {
 
 void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
+	LOG_SCOPED_THREAD("Module", getModuleName());
 	try {
-		if(mFilter->canEnter(ms->getSip())) {
+		if(mFilter->canEnter(ms)) {
 			LOGD("Invoking onRequest() on module %s", getModuleName().c_str());
 			onRequest(ev);
 		} else {
@@ -167,8 +168,9 @@ void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 
 void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
+	LOG_SCOPED_THREAD("Module", getModuleName());
 	try {
-		if(mFilter->canEnter(ms->getSip())) {
+		if(mFilter->canEnter(ms)) {
 			LOGD("Invoking onResponse() on module %s", getModuleName().c_str());
 			onResponse(ev);
 		} else {
@@ -179,9 +181,9 @@ void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 	}
 }
 
-void Module::processTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
+void Module::processTransactionEvent(shared_ptr<TransactionEvent> ev) {
 //	LOGD("Invoking onTransactionEvent() on module %s", getModuleName().c_str());
-	onTransactionEvent(transaction, event);
+	onTransactionEvent(ev);
 }
 
 void Module::idle() {

@@ -74,7 +74,7 @@ void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const 
 		msg_destroy(msg);
 	} else {
 		mSofiaRef = shared_from_this();
-		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Create);
+		mAgent->sendTransactionEvent(TransactionEvent::makeCreate(shared_from_this()));
 	}
 	
 }
@@ -87,7 +87,7 @@ void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms) {
 		msg_destroy(msg);
 	} else {
 		mSofiaRef = shared_from_this();
-		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Create);
+		mAgent->sendTransactionEvent(TransactionEvent::makeCreate(shared_from_this()));
 	}
 	
 }
@@ -115,7 +115,7 @@ int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *
 void OutgoingTransaction::destroy() {
 	if (mSofiaRef != NULL) {
 		mSofiaRef.reset();
-		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Destroy);
+		mAgent->sendTransactionEvent(TransactionEvent::makeDestroy(shared_from_this()));
 		nta_outgoing_bind(mOutgoing, NULL, NULL); //avoid callbacks
 		nta_outgoing_destroy(mOutgoing);
 		looseProperties();
@@ -135,7 +135,7 @@ void IncomingTransaction::handle(const shared_ptr<MsgSip> &ms) {
 		nta_incoming_bind(mIncoming, IncomingTransaction::_callback, (nta_incoming_magic_t*) this);
 		mSofiaRef = shared_from_this();
 
-		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Create);
+		mAgent->sendTransactionEvent(TransactionEvent::makeCreate(shared_from_this()));
 	} else {
 		LOGE("Error during incoming transaction creation");
 	}
@@ -211,7 +211,7 @@ int IncomingTransaction::_callback(nta_incoming_magic_t *magic, nta_incoming_t *
 void IncomingTransaction::destroy() {
 	if (mSofiaRef != NULL) {
 		mSofiaRef.reset();
-		mAgent->sendTransactionEvent(shared_from_this(), Transaction::Destroy);
+		mAgent->sendTransactionEvent(TransactionEvent::makeDestroy(shared_from_this()));
 		nta_incoming_bind(mIncoming, NULL, NULL); //avoid callbacks
 		nta_incoming_destroy(mIncoming);
 		looseProperties();

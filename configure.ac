@@ -2,24 +2,23 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.61])
-dnl AC_INIT([flexisip], [0.5.0], [simon.morlat@linphone.org])
 
-m4_ifdef([m4_esyscmd_s],
-[AC_INIT([flexisip], [m4_esyscmd_s([git describe | ( read id ; echo 0.5.0-git$id )])], [simon.morlat@linphone.org]) ],
-[ AC_INIT([flexisip], [0.5.0], [simon.morlat@linphone.org])] )
+AC_INIT([flexisip], [0.6.0], [simon.morlat@linphone.org])
+
 AC_CONFIG_SRCDIR([src/agent.cc])
 AC_CONFIG_HEADERS([flexisip-config.h])
 
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([-Wno-portability])
 AC_CONFIG_MACRO_DIR([m4])
+
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],)
 m4_include([m4/ax_compare_version.m4])
 
 # Checks for programs.
 # Favor g++ 4.4 as (the one in Debian and centos stable versions).
 # Use ./configure CXX=path to override.
-AC_PROG_CC
-AC_PROG_CXX([clang++ g++-4.4 g++])
+AC_PROG_CC([gcc-4.4 gcc])
+AC_PROG_CXX([g++-4.4 g++])
 AC_PROG_LIBTOOL
 
 build_snmp=true
@@ -153,6 +152,14 @@ AM_CONDITIONAL(USE_MONOTONIC_CLOCK,test x$use_monotonic_clock = xyes)
 
 
 
+AX_BOOST_BASE([1.41],[],[AC_MSG_WARN([boost base not found.])])
+CHECK_BOOST([AX_BOOST_LOG], [HAVE_BOOST_LOG], [found_boost_log=yes], [AC_MSG_WARN([boost log not found.])])
+if test x$found_boost_log = xyes ; then
+	CHECK_BOOST([AX_BOOST_REGEX], [HAVE_BOOST_LOG], [found_boost_log=yes], [AC_MSG_WARN([boost regex not found.])])
+	CHECK_BOOST([AX_BOOST_THREAD], [HAVE_BOOST_LOG], [found_boost_log=yes], [AC_MSG_WARN([boost thread not found.])])
+fi
+AM_CONDITIONAL(BUILD_BOOSTLOG, test x$found_boost_log = xyes)
+
 
 AC_ARG_ENABLE(pushnotification,
 	AC_HELP_STRING([--disable-pushnotification],
@@ -270,8 +277,10 @@ AC_SUBST(CONFIG_DIR)
 #Keep this at the end
 if test x$GCC$strictness = xyesyes ; then
         CFLAGS="$CFLAGS -Wall -Werror -fno-strict-aliasing"
-        CXXFLAGS="$CXXFLAGS -Wall -Werror -fno-strict-aliasing"
+        WARNINGCXXFLAGS="-Wall -Werror -fno-strict-aliasing"
 fi
+
+AC_SUBST(WARNINGCXXFLAGS)
 
 
 AC_CONFIG_FILES(

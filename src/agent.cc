@@ -23,6 +23,9 @@
 #include "agent.hh"
 #include "module.hh"
 
+#include "log/logmanager.hh"
+#include "sipattrextractor.hh"
+
 #include "etchosts.hh"
 #include <algorithm>
 #include <sstream>
@@ -93,8 +96,20 @@ void Agent::onDeclare(GenericStruct *root) {
 	mCountReply487=createCounter(global,key, help, "487"); // Request canceled
 	mCountReply488=createCounter(global,key, help, "488");
 	mCountReplyResUnknown=createCounter(global,key, help, "unknown");
+	mLogWriter=NULL;
 }
 
+void Agent::startLogWriter(){
+	GenericStruct *cr=GenericManager::get()->getRoot();
+	bool enabled=cr->get<GenericStruct>("global")->get<ConfigBoolean>("enable-event-logs")->read();
+	string logdir=cr->get<GenericStruct>("global")->get<ConfigString>("event-logs-dir")->read();
+	if (enabled){
+		FilesystemEventLogWriter *lw=new FilesystemEventLogWriter(logdir);
+		if (!lw->isReady()){
+			delete lw;
+		}else mLogWriter=lw;
+	}
+}
 
 void Agent::start(const char *transport_override){
 	GenericStruct *cr=GenericManager::get()->getRoot();
@@ -128,7 +143,7 @@ void Agent::start(const char *transport_override){
 	}
 	
 	tport_t *primaries=tport_primaries(nta_agent_tports(mAgent));
-	if (primaries==NULL) LOGA("No sip transport defined.");
+	if (primaries==NULL) LOGF("No sip transport defined.");
 	su_md5_t ctx;
 	su_md5_init(&ctx);
 
@@ -141,17 +156,7 @@ void Agent::start(const char *transport_override){
 		su_md5_strupdate(&ctx,url);
 		LOGD("\t%s",url);
 		bool isIpv6=strchr(name->tpn_host, ':') != NULL;
-		if (strcmp(name->tpn_canon,name->tpn_host)==0) {
-			// Both public and bind value are the same
-			// which is the normal situation.
-			url_t **preferred=isIpv6?&mPreferredRouteV6:&mPreferredRouteV4;
-			if (*preferred == NULL) {
-				*preferred=ModuleToolbox::urlFromTportName(&mHome,name);
-				char prefUrl[266];
-				url_e(prefUrl,sizeof(prefUrl),*preferred);
-				//LOGD("\tDetected %s preferred route to %s", isIpv6 ? "ipv6":"ipv4", prefUrl);
-			}
-		} else {
+		if (strcmp(name->tpn_canon,name->tpn_host)!=0) {
 			// The public and bind values are different
 			// which is the case of transport with sip:public;maddr=bind
 			// where public is the hostname or ip address publicly announced
@@ -164,6 +169,15 @@ void Agent::start(const char *transport_override){
 				mPublicIpV4=name->tpn_canon;
 				//LOGD("\tIpv4 public ip %s", mPublicIpV4.c_str());
 			}
+		}
+		url_t **preferred=isIpv6?&mPreferredRouteV6:&mPreferredRouteV4;
+		if (*preferred == NULL) {
+			tp_name_t tp_priv_name=*name;
+			tp_priv_name.tpn_canon=tp_priv_name.tpn_host;
+			*preferred=ModuleToolbox::urlFromTportName(&mHome,&tp_priv_name);
+			//char prefUrl[266];
+			//url_e(prefUrl,sizeof(prefUrl),*preferred);
+			//LOGD("\tDetected %s preferred route to %s", isIpv6 ? "ipv6":"ipv4", prefUrl);
 		}
 	}
 	
@@ -189,9 +203,17 @@ void Agent::start(const char *transport_override){
 	
 	LOGD("Agent public hostname/ip %s (v6: %s)",mPublicIpV4.c_str(), mPublicIpV6.c_str());
 	LOGD("Agent's _default_ RTP bind ip address is %s (v6: %s)",mRtpBindIp.c_str(),mRtpBindIp6.c_str());
+	
+	char prefUrl4[256]={0};
+	char prefUrl6[256]={0};
+	if (mPreferredRouteV4) url_e(prefUrl4,sizeof(prefUrl4),mPreferredRouteV4);
+	if (mPreferredRouteV6) url_e(prefUrl6,sizeof(prefUrl6),mPreferredRouteV6);
+	LOGD("Agent's preferred IP for internal routing is %s (v6: %s)",prefUrl4,prefUrl6);
+	
+	startLogWriter();
 }
 
-Agent::Agent(su_root_t* root):mTerminating(false){
+Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	
 	EtcHostsResolver::get();
@@ -242,6 +264,8 @@ Agent::Agent(su_root_t* root):mTerminating(false){
 	mRoot = root;
 	mAgent = nta_agent_create(root, (url_string_t*) -1, &Agent::messageCallback, (nta_agent_magic_t*) this, NTATAG_UDP_MTU(1460), TAG_END());
 	su_home_init(&mHome);
+	mPreferredRouteV4=NULL;
+	mPreferredRouteV6=NULL;
 }
 
 Agent::~Agent() {
@@ -262,8 +286,25 @@ std::string Agent::getPreferredRoute()const{
 	return string(prefUrl);
 }
 
+bool Agent::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
+	LOGD("Configuration of agent changed for key %s to %s",
+			conf.getName().c_str(), conf.get().c_str());
+
+	if (conf.getName() == "aliases" && state == ConfigState::Commited) {
+		mAliases=((ConfigStringList*)(&conf))->read();
+		LOGD("Global aliases updated");
+		return true;
+	}
+
+	return mBaseConfigListener->onConfigStateChanged(conf, state);
+}
+
 void Agent::loadConfig(GenericManager *cm) {
 	cm->loadStrict(); //now that each module has declared its settings, we need to reload from the config file
+	if (!mBaseConfigListener) {
+		mBaseConfigListener=cm->getGlobal()->getConfigListener();
+	}
+	cm->getRoot()->get<GenericStruct>("global")->setConfigListener(this);
 	mAliases = cm->getGlobal()->get<ConfigStringList>("aliases")->read();
 	LOGD("List of host aliases:");
 	for (list<string>::iterator it = mAliases.begin(); it != mAliases.end(); ++it) {
@@ -447,11 +488,45 @@ bool Agent::isUs(const url_t *url, bool check_aliases) const {
 	}
 }
 
+void Agent::logEvent(const shared_ptr<SipEvent> &ev){
+	if (mLogWriter){
+		shared_ptr<EventLog> evlog;
+		if ((evlog=ev->getEventLog<EventLog>())){
+			if (evlog->isCompleted()) mLogWriter->write(evlog);
+		}
+	}
+}
+
+template <typename SipEventT>
+inline void Agent::doSendEvent
+(shared_ptr<SipEventT> ev, const list<Module *>::iterator &begin, const list<Module *>::iterator &end) {
+	#define LOG_SCOPED_EV_THREAD(ssargs, key) LOG_SCOPED_THREAD(key, ssargs->getOrEmpty(key));
+	
+	auto ssargs=ev->getMsgSip()->getSipAttr();
+	LOG_SCOPED_EV_THREAD(ssargs, "from.uri.user");
+	LOG_SCOPED_EV_THREAD(ssargs, "from.uri.domain");
+	LOG_SCOPED_EV_THREAD(ssargs, "to.uri.user");
+	LOG_SCOPED_EV_THREAD(ssargs, "to.uri.domain");
+	LOG_SCOPED_EV_THREAD(ssargs, "method_or_status");
+	LOG_SCOPED_EV_THREAD(ssargs, "callid");
+	
+
+	for (auto it = begin; it != end; ++it) {
+		ev->mCurrModule = (*it);
+		(*it)->process(ev);
+		if (ev->isTerminated() || ev->isSuspended())
+			break;
+	}
+	if (!ev->isTerminated() && !ev->isSuspended()) {
+		LOGA("Event not handled");
+	}	
+}
+
+
 void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	sip_t *sip=ev->getMsgSip()->mSip;
 	sip_request_t *req=sip->sip_request;
-	ev->getMsgSip()->log("Receiving new Request SIP message: %s",
-			req->rq_method_name);
+	SLOGD << "Receiving new Request SIP message: " << req->rq_method_name << "\n" << *ev->getMsgSip();
 	switch (req->rq_method) {
 	case sip_method_register:
 		++*mCountIncomingRegister;
@@ -486,22 +561,13 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 		break;
 	}
 
-
-	list<Module*>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		ev->mCurrModule = (*it);
-		(*it)->processRequest(ev);
-		if (ev->isTerminated() || ev->isSuspended())
-			break;
-	}
-	if (!ev->isTerminated() && !ev->isSuspended()) {
-		LOGA("Event not handled");
-	}
+	doSendEvent(ev, mModules.begin(), mModules.end());
 }
 
 void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
-	ev->getMsgSip()->log("Receiving new Response SIP message: %d",
-			ev->getMsgSip()->mSip->sip_status->st_status);
+	SLOGD << "Receiving new Response SIP message: "
+	<< ev->getMsgSip()->mSip->sip_status->st_status << "\n"
+	<< *ev->getMsgSip();
 
 	sip_t *sip=ev->getMsgSip()->mSip;
 	switch (sip->sip_status->st_status) {
@@ -549,75 +615,46 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 		break;
 	}
 
-	list<Module*>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		ev->mCurrModule = *it;
-		(*it)->processResponse(ev);
-		if (ev->isTerminated() || ev->isSuspended())
-			break;
-	}
-	if (!ev->isTerminated() && !ev->isSuspended()) {
-		LOGA("Event not handled");
-	}
+	doSendEvent(ev, mModules.begin(), mModules.end());
 }
 
 void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
-	LOG_START
-	ev->getMsgSip()->log("Inject Request SIP message:");
-	list<Module*>::iterator it;
+	SLOGD << "Inject Request SIP message:\n" << *ev->getMsgSip();
 	ev->restartProcessing();
-	LOGD("Injecting request event after %s", ev->mCurrModule->getModuleName().c_str());
+	SLOGD << "Injecting request event after %s" << ev->mCurrModule->getModuleName();
+	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		if (ev->mCurrModule == *it) {
 			++it;
 			break;
 		}
 	}
-	for (; it != mModules.end(); ++it) {
-		ev->mCurrModule = *it;
-		(*it)->processRequest(ev);
-		if (ev->isTerminated() || ev->isSuspended())
-			break;
-	}
-	if (!ev->isTerminated() && !ev->isSuspended()) {
-		LOGA("Event not handled");
-	}
-	LOG_END
+
+	doSendEvent(ev, it, mModules.end());
 }
 
 void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
-	LOG_START
-	ev->getMsgSip()->log("Inject Response SIP message:");
+	SLOGD << "Inject Response SIP message:\n" << *ev->getMsgSip();
 	list<Module*>::iterator it;
 	ev->restartProcessing();
-	LOGD("Injecting response event after %s", ev->mCurrModule->getModuleName().c_str());
+	SLOGD << "Injecting response event after %s" << ev->mCurrModule->getModuleName();
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		if (ev->mCurrModule == *it) {
 			++it;
 			break;
 		}
 	}
-	for (; it != mModules.end(); ++it) {
-		ev->mCurrModule = *it;
-		(*it)->processResponse(ev);
-		if (ev->isTerminated() || ev->isSuspended())
-			break;
-	}
-	if (!ev->isTerminated() && !ev->isSuspended()) {
-		LOGA("Event not handled");
-	}
-	LOG_END
+
+	doSendEvent(ev, it, mModules.end());
 }
 
-void Agent::sendTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
-	LOG_START
-	LOGD("Propagating new Transaction Event %p %s", transaction.get(),
-			Transaction::eventStr(event));
+void Agent::sendTransactionEvent(shared_ptr<TransactionEvent> ev) {
+	SLOGD << "Propagating new Transaction Event " << ev->transaction.get()
+			<< " " << ev->getKindName();
 	list<Module*>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		(*it)->processTransactionEvent(transaction, event);
+		(*it)->processTransactionEvent(ev);
 	}
-	LOG_END
 }
 
 int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
@@ -645,7 +682,7 @@ int Agent::messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t
 }
 
 void Agent::idle() {
-	LOGD("In Agent::idle()");
+	SLOGD << "In Agent::idle()";
 	for_each(mModules.begin(), mModules.end(), mem_fun(&Module::idle));
 	if (GenericManager::get()->mNeedRestart) {
 		exit(RESTART_EXIT_CODE);

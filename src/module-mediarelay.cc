@@ -42,7 +42,7 @@ public:
 	virtual void onUnload();
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
-	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
+	virtual void onTransactionEvent(shared_ptr<TransactionEvent> ev);
 	virtual void onIdle();
 protected:
 	virtual void onDeclare(GenericStruct * mc) {
@@ -52,6 +52,8 @@ protected:
 				{ Integer, "sdp-port-range-min", "The minimal value of SDP port range", "1024" },
 				{ Integer, "sdp-port-range-max", "The maximal value of SDP port range", "65535" },
 				{ Boolean, "bye-orphan-dialogs", "Sends a ACK and BYE to 200Ok for INVITEs not belonging to any established call.", "false"},
+				{ Integer, "max-calls", "Maximum concurrent calls processed by the media-relay. Calls arriving when the limit is exceed will be rejected. "
+							"A value of 0 means no limit.", "0" },
 #ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 				/*very specific features, useless for most people*/
 				{ Integer, "h264-filtering-bandwidth", "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value expressed in kbit/s. Use 0 to disable the feature", "0" },
@@ -76,6 +78,7 @@ private:
 	RelayedCall::RTPDir mEarlymediaRTPDir;
 	int mH264FilteringBandwidth;
 	int mH264Decim;
+	int mMaxCalls;
 	bool mDropTelephoneEvent;
 	bool mByeOrphanDialogs;
 	static ModuleInfo<MediaRelay> sInfo;
@@ -123,7 +126,7 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mH264Decim=0;
 	mDropTelephoneEvent=false;
 #endif
-	
+	mMaxCalls=modconf->get<ConfigInt>("max-calls")->read();
 	mEarlymediaRTPDir = RelayedCall::RelayedCall::DUPLEX;
 	if (rtpdir == "duplex") {
 		mEarlymediaRTPDir = RelayedCall::DUPLEX;
@@ -189,7 +192,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	if (!c->checkMediaValid()) {
 		LOGE("The relay media are invalid, no RTP/RTCP port remaining?");
 		delete m;
-		ev->reply(ev->getMsgSip(), 500, "RTP port pool exhausted", TAG_END());
+		ev->reply(500, "RTP port pool exhausted", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return false;
 	}
 
@@ -243,6 +246,12 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		ev->createIncomingTransaction();
 		shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) == NULL) {
+			if (mMaxCalls>0 && mCalls->size()>=mMaxCalls){
+				LOGW("Maximum number of relayed calls reached (%i), call is rejected",mMaxCalls);
+				ev->reply(503, "Maximum number of calls reached", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+				return;
+			}
+			
 			c = make_shared<RelayedCall>(mServer, sip, mEarlymediaRTPDir);
 			
 			configureContext(c);
@@ -389,14 +398,14 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	}
 }
 
-void MediaRelay::onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
-	shared_ptr<RelayedCall> c = transaction->getProperty<RelayedCall>(getModuleName());
+void MediaRelay::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
+	shared_ptr<RelayedCall> c = ev->transaction->getProperty<RelayedCall>(getModuleName());
 	if (c != NULL) {
-		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(transaction);
+		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->transaction);
 		if (ot != NULL) {
-			switch (event) {
-			case Transaction::Destroy:
-				if (c->removeTransaction(transaction)) {
+			switch (ev->kind) {
+				case TransactionEvent::Type::Destroy:
+				if (c->removeTransaction(ev->transaction)) {
 					mCalls->remove(c);
 				}
 				break;

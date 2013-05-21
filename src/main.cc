@@ -19,7 +19,6 @@
 #include "flexisip-config.h"
 #define FLEXISIP_INCLUDED
 #endif
-#include <syslog.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -49,6 +48,13 @@
 #define VERSION "DEVEL"
 #endif //VERSION
 
+#include "flexisip_gitversion.h"
+#ifndef FLEXISIP_GIT_VERSION
+#define FLEXISIP_GIT_VERSION "undefined"
+#endif
+
+#include "log/logmanager.hh"
+#include <ortp/ortp.h>
 
 static int run=1;
 static int pipe_fds[2]={-1}; //pipes used by flexisip to notify its starter process that everything went fine 
@@ -60,24 +66,26 @@ using namespace ::std;
 
 static void usage(const char *arg0){
 	printf("%s\n"
-	       "\t\t [--transports <transport uris (quoted)>]\n"
-	       "\t\t [--debug]\n"
-	       "\t\t [--daemon]\n"
-	       "\t\t [--configfile <path>]\n"
-	       "\t\t [--dump-default-config [node name]]\n"
-	       "\t\t [--dump-snmp-mib]\n"
-           "\t\t [--set <[node/]option[=value]>]\n"
-	       "\t\t [--help]\n",arg0);
+		"\t\t [--transports <transport uris (quoted)>]\n"
+		"\t\t [--debug]\n"
+		"\t\t [--daemon]\n"
+		"\t\t [--configfile <path>]\n"
+		"\t\t [--dump-default-config [node name]]\n"
+		"\t\t [--dump-snmp-mib]\n"
+		"\t\t [--set <[node/]option[=value]>]\n"
+		"\t\t [--help]\n"
+		"\t\t [--version]\n",arg0);
 	exit(-1);
 }
 
 static void flexisip_stop(int signum){
 	if (flexisip_pid>0){
-		LOGD("Watchdog received quit signal...passing to child.");
+		// We can't log from the parent process
+		//LOGD("Watchdog received quit signal...passing to child.");
 		/*we are the watchdog, pass the signal to our child*/
 		kill(flexisip_pid,signum);
 	}else{
-		LOGD("Received quit signal...");
+		//LOGD("Received quit signal...");
 		run=0;
 		if (root){
 			su_root_break (root);
@@ -88,99 +96,12 @@ static void flexisip_stop(int signum){
 static void flexisip_stat(int signum){
 }
 
-static void syslogHandler(OrtpLogLevel log_level, const char *str, va_list l){
-	int syslev=LOG_ALERT;
-	switch(log_level){
-		case ORTP_DEBUG:
-			syslev=LOG_DEBUG;
-			break;
-		case ORTP_MESSAGE:
-			syslev=LOG_INFO;
-			break;
-/*			
-		case ORTP_NOTICE:
-			syslev=LOG_NOTICE;
-			break;
-*/
-		 case ORTP_WARNING:
-			syslev=LOG_WARNING;
-			break;
-		case ORTP_ERROR:
-			syslev=LOG_ERR;
-		case ORTP_FATAL:
-			syslev=LOG_ALERT;
-			break;
-		default:
-			syslev=LOG_ERR;
-	}
-	vsyslog(syslev,str,l);
-}
-
-static void defaultLogHandler(OrtpLogLevel log_level, const char *str, va_list l){
-	const char *levname="none";
-	switch(log_level){
-		case ORTP_DEBUG:
-			levname="D: ";
-		break;
-		case ORTP_MESSAGE:
-			levname="M: ";
-		break;
-		case ORTP_WARNING:
-			levname="W: ";
-		break;
-		case ORTP_ERROR:
-			levname="E: ";
-		break;
-		case ORTP_FATAL:
-			levname="F: ";
-		break;
-		default:
-			break;
-	}
-	fprintf(stderr,"%s",levname);
-	vfprintf(stderr,str,l);
-	fprintf(stderr,"\n");
-}
-
-static void sofiaLogHandler(void *, char const *fmt, va_list ap){
-	ortp_logv(ORTP_MESSAGE,fmt,ap);
+static void sofiaLogHandler(void *, const char *fmt, va_list ap){
+	LOGDV(fmt,ap);
 }
 
 static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *a){
 	a->idle();
-}
-
-static void initialize(bool debug, bool useSyslog, bool dump_cores){
-	sUseSyslog=useSyslog;
-	if (useSyslog){
-		openlog("flexisip", 0, LOG_USER);
-		setlogmask(~0);
-		ortp_set_log_handler(syslogHandler);
-	}else{
-		ortp_set_log_handler(defaultLogHandler);
-	}
-	ortp_init();
-	ortp_set_log_file(stdout);
-	ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
-	
-	if (debug==false){
-		ortp_set_log_level_mask(ORTP_ERROR|ORTP_FATAL);
-	}
-	signal(SIGPIPE,SIG_IGN);
-	signal(SIGTERM,flexisip_stop);
-	signal(SIGINT,flexisip_stop);
-	signal(SIGUSR1,flexisip_stat);
-	if (dump_cores){
-		/*enable core dumps*/
-		struct rlimit lm;
-		lm.rlim_cur=RLIM_INFINITY;
-		lm.rlim_max=RLIM_INFINITY;
-		if (setrlimit(RLIMIT_CORE,&lm)==-1){
-			LOGE("Cannot enable core dump, setrlimit() failed: %s",strerror(errno));
-		}
-	}	
-	
-	su_init();
 }
 
 
@@ -302,6 +223,8 @@ static void forkAndDetach(const char *pidfile, bool auto_respawn){
 				if (WIFEXITED(status)) {
 					if (WEXITSTATUS(status) == RESTART_EXIT_CODE) {
 						LOGI("Flexisip restart to apply new config...");
+						sleep(1);
+						continue;
 					} else {
 						LOGD("Flexisip exited normally");
 						exit(0);
@@ -384,7 +307,6 @@ int main(int argc, char *argv[]){
 	const char *cfgfile=CONFIG_DIR "/flexisip.conf";
 	bool debug=false;
 	bool daemon=false;
-	bool useSyslog=false;
 	bool dump_default_cfg=false;
 	char *dump_cfg_part=NULL;
 	bool dump_snmp_mib=false;
@@ -407,7 +329,7 @@ int main(int argc, char *argv[]){
 			daemon=true;
 			continue;
 		}else if (strcmp(argv[i],"--syslog")==0){
-			useSyslog=true;
+			sUseSyslog=true;
 			continue;
 		}else if (strcmp(argv[i],"--debug")==0){
 			debug=true;
@@ -441,12 +363,19 @@ int main(int argc, char *argv[]){
 			continue;
 		} else if (strcmp(argv[i],"--help")==0 || strcmp(argv[i],"-h")==0){
 			// nothing
-		} else {
+		} else if (strcmp(argv[i],"--version")==0 || strcmp(argv[i],"-v")==0){
+			fprintf(stdout,"%s (git: %s)\n",VERSION,FLEXISIP_GIT_VERSION);
+			exit(0);
+		}else {
 			fprintf(stderr,"Bad option %s\n",argv[i]);
 		}
 		usage(argv[0]);
 	}
-	ortp_set_log_handler(defaultLogHandler);
+	
+	if (!dump_default_cfg && !dump_snmp_mib) {
+		ortp_init();
+		flexisip::log::preinit(sUseSyslog, debug);
+	}
 	GenericManager *cfg=GenericManager::get();
 	DosProtection *dos=DosProtection::get();
 
@@ -484,9 +413,30 @@ int main(int argc, char *argv[]){
 
 
 	if (!debug) debug=cfg->getGlobal()->get<ConfigBoolean>("debug")->read();
-	bool corefiles=cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
 
-	initialize (debug,useSyslog,corefiles);
+	bool dump_cores=cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
+
+	
+	// Initialize
+	flexisip::log::initLogs(sUseSyslog, debug);
+	flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
+
+	signal(SIGPIPE,SIG_IGN);
+	signal(SIGTERM,flexisip_stop);
+	signal(SIGINT,flexisip_stop);
+	signal(SIGUSR1,flexisip_stat);
+
+	if (dump_cores){
+		/*enable core dumps*/
+		struct rlimit lm;
+		lm.rlim_cur=RLIM_INFINITY;
+		lm.rlim_max=RLIM_INFINITY;
+		if (setrlimit(RLIMIT_CORE,&lm)==-1){
+			LOGE("Cannot enable core dump, setrlimit() failed: %s",strerror(errno));
+		}
+	}
+
+	su_init();
 
 	log_boolean_expression_evaluation(oset.find("bee") != oset.end());
 	log_boolean_expression_parsing(oset.find("bep") != oset.end());
@@ -496,14 +446,13 @@ int main(int argc, char *argv[]){
 	/*
 	 NEVER NEVER create pthreads before this point : threads do not survive the fork below !!!!!!!!!!
 	*/
-	
 	if (daemon){
 		/*now that we have successfully loaded the config, there is nothing that can prevent us to start (normally).
 		So we can detach.*/
 		forkAndDetach(pidfile,cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read());
 	}
 
-	LOGN("Starting flexisip version %s", VERSION);
+	LOGN("Starting flexisip version %s (git %s)", VERSION, FLEXISIP_GIT_VERSION);
 	GenericManager::get()->sendTrap("Flexisip starting");
 	root=su_root_create(NULL);
 	a=make_shared<Agent>(root);

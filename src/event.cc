@@ -23,6 +23,7 @@
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/su_tagarg.h>
 #include <sofia-sip/msg_addr.h>
+#include "sipattrextractor.hh"
 
 using namespace ::std;
 
@@ -32,6 +33,7 @@ void MsgSip::defineMsg(msg_t *msg) {
 	mSip = sip_object(mMsg);
 	mHome = msg_home(mMsg);
 	mOriginal = false;
+	mSipAttr = make_shared<SipAttributes>(mSip);
 }
 
 MsgSip::MsgSip(msg_t *msg) {
@@ -53,23 +55,13 @@ MsgSip::MsgSip(const MsgSip &msgSip, msg_t *msg) {
 	mOriginalMsg = msg_ref_create(msgSip.mOriginalMsg);
 }
 
-
-void MsgSip::log(const char *fmt, ...) {
-	if (IS_LOGD) {
-		size_t msg_size;
-		char *header = NULL;
-		char *buf = NULL;
-		if (fmt) {
-			va_list args;
-			va_start(args, fmt);
-			header = su_vsprintf(mHome, fmt, args);
-			va_end(args);
-		}
-		msg_serialize(mMsg,(msg_pub_t*)mSip); //make sure the message is serialized before showing it; it can be very confusing.
-		buf = msg_as_string(mHome, mMsg, NULL, 0, &msg_size);
-		LOGD("%s%s%s\nendmsg", (header) ? header : "", (header) ? "\n" : "", buf);
-	}
+const char * MsgSip::print() {
+	//make sure the message is serialized before showing it; it can be very confusing.
+	size_t msg_size;
+	msg_serialize(mMsg,(msg_pub_t*)mSip);
+	return msg_as_string(mHome, mMsg, NULL, 0, &msg_size);
 }
+
 
 MsgSip::~MsgSip() {
 	//LOGD("Destroy MsgSip %p", this);
@@ -93,10 +85,29 @@ SipEvent::~SipEvent() {
 	//LOGD("Destroy SipEvent %p", this);
 }
 
+void SipEvent::flushLog(){
+	if (mEventLog){
+		Agent *agent=NULL;
+		if (mIncomingAgent) agent=mIncomingAgent->getAgent();
+		else if (mOutgoingAgent) agent=mOutgoingAgent->getAgent();
+		else LOGA("Event has no incoming nor outgoing agent.");
+		agent->logEvent(shared_from_this());
+		mEventLog.reset();
+	}
+}
+
+void SipEvent::setEventLog(const std::shared_ptr<EventLog> & log){
+	mEventLog=log;
+	if (mState==TERMINATED){
+		flushLog();
+	}
+}
+
 void SipEvent::terminateProcessing() {
 	LOGD("Terminate SipEvent %p", this);
 	if (mState == STARTED || mState == SUSPENDED) {
 		mState = TERMINATED;
+		flushLog();
 	} else {
 		LOGA("Can't terminateProcessing: wrong state %s", stateStr(mState).c_str());
 	}
@@ -132,9 +143,9 @@ RequestSipEvent::RequestSipEvent(const shared_ptr<RequestSipEvent> &sipEvent) :
 
 void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	if (mOutgoingAgent != NULL) {
-		if (IS_LOGD) {
-			msg->log("Sending Request SIP message to=%s:", u ? url_as_string(msg->getHome(), (url_t const *) u) : NULL);
-		}
+		SLOGD << "Sending Request SIP message to "
+		<< (u ? url_as_string(msg->getHome(), (url_t const *) u) : "NULL")
+		<< "\n" << *msg;
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mOutgoingAgent->send(msg, u, ta_tags(ta));
@@ -147,9 +158,7 @@ void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u,
 
 void RequestSipEvent::send(const shared_ptr<MsgSip> &msg) {
 	if (mOutgoingAgent != NULL) {
-		if (IS_LOGD) {
-			msg->log("Sending Request SIP message:");
-		}
+		SLOGD << "Sending Request SIP message:\n" << *msg;
 		mOutgoingAgent->send(msg);
 	} else {
 		LOGD("The Request SIP message is not send");
@@ -157,11 +166,9 @@ void RequestSipEvent::send(const shared_ptr<MsgSip> &msg) {
 	terminateProcessing();
 }
 
-void RequestSipEvent::reply(const shared_ptr<MsgSip> &unused, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+void RequestSipEvent::reply(int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
-		if (IS_LOGD) {
-			LOGD("Replying Request SIP message: %i %s\n\n", status, phrase);
-		}
+		LOGD("Replying Request SIP message: %i %s\n\n", status, phrase);
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mIncomingAgent->reply(getMsgSip(), status, phrase, ta_tags(ta));
@@ -219,9 +226,9 @@ ResponseSipEvent::ResponseSipEvent(const shared_ptr<SipEvent> &sipEvent) :
 
 void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
-		if (IS_LOGD) {
-			msg->log("Sending Response SIP message to=%s:", u ? url_as_string(msg->getHome(), (url_t const *) u) : NULL);
-		}
+		SLOGD << "Sending Response SIP message to "
+				<< (u ? url_as_string(msg->getHome(), (url_t const *) u) : "NULL")
+				<< "\n" << *msg;
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mIncomingAgent->send(msg, u, ta_tags(ta));
@@ -234,18 +241,12 @@ void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u
 
 void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg) {
 	if (mIncomingAgent != NULL) {
-		if (IS_LOGD) {
-			msg->log("Sending Response SIP message:");
-		}
+		SLOGD << "Sending Response SIP message:\n" << *msg;
 		mIncomingAgent->send(msg);
 	} else {
-		LOGD("The Response SIP message is not sent");
+		SLOGD << "The Response SIP message is not sent";
 	}
 	terminateProcessing();
-}
-
-void ResponseSipEvent::reply(const shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
-	LOGA("Can't reply to an response sip event");
 }
 
 void ResponseSipEvent::setOutgoingAgent(const shared_ptr<OutgoingAgent> &agent) {

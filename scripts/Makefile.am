@@ -1,5 +1,6 @@
 SUBDIRS=debian redhat
 
+EXTRA_DIST=gitversion.sh
 
 OTHER_FLAGS=
 configdir=$(sysconfdir)/flexisip

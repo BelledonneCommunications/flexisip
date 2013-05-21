@@ -26,6 +26,7 @@
 #include "configmanager.hh"
 
 #include <sstream>
+#include <ostream>
 #include <ctime>
 #include <cstdio>
 #include <algorithm>
@@ -131,8 +132,7 @@ void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq,
 		}
 	}
 
-	if (IS_LOGD)
-		print();
+	SLOGD << *this;
 }
 
 /*
@@ -264,16 +264,15 @@ void Record::bind(const sip_contact_t *contacts, const char* route, int globalEx
 		c = c->m_next;
 	}
 
-	if (IS_LOGD)
-		print();
+	SLOGD << *this;
 }
 
 void Record::bind(const char *c, const char *contactId, const char* route, const char *lineValue, long expireAt, float q, const char *call_id, uint32_t cseq, time_t updated_time, bool alias) {
 	insertOrUpdateBinding(make_shared<ExtendedContact>(c, contactId, route, lineValue, expireAt, q, call_id, cseq, updated_time, alias));
 }
 
-void Record::print() {
-	LOGD("Record contains %zu contacts", mContacts.size());
+void Record::print(std::ostream &stream) const{
+	stream << "Record contains " << mContacts.size() << " contacts" << "\n";
 	time_t now=getCurrentTime();
 #ifdef MONOTONIC_CLOCK_REGISTRATIONS
 	time_t offset=time(NULL)-now;
@@ -290,12 +289,11 @@ void Record::print() {
 			strftime(buffer, sizeof(buffer) - 1, "%c", ptm);
 		}
 		int expireAfter=ec->mExpireAt-now;
-		LOGD("%s route=%s alias=%s expire=%d s (%s)",
-				ec->mSipUri, ec->mRoute,
-				ec->mAlias ? "yes" : "no",
-				expireAfter, buffer);
+		stream << ec->mSipUri << " route=" << ec->mRoute
+			<< " alias=" << (ec->mAlias ? "yes" : "no")
+			<< " expire=" << expireAfter << " s (" << buffer << ")";
 	}
-	LOGD("==========================");
+	stream << "==========================" << "\n";
 }
 
 int Record::sMaxContacts = -1;

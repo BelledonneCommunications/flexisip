@@ -181,3 +181,7 @@ void CallStore::removeAndDeleteInactives(){
 void CallStore::dump(){
 	for_each(mCalls.begin(),mCalls.end(),bind(&CallContextBase::dump, placeholders::_1));
 }
+
+int CallStore::size(){
+	return mCalls.size();
+}

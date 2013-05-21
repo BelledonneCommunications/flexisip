@@ -21,6 +21,8 @@
 #include "registrardb.hh"
 #include "forkcallcontext.hh"
 #include "forkmessagecontext.hh"
+#include "forkbasiccontext.hh"
+#include "log/logmanager.hh"
 
 #include <sofia-sip/sip_status.h>
 #include <fstream>
@@ -38,7 +40,7 @@ public:
 	}
 	void onRecordFound(Record *r) {
 		if (r!=NULL) {
-			r->print();
+			SLOGD << r;
 		} else {
 			LOGD("No record found");
 		}
@@ -65,10 +67,9 @@ class Registrar: public Module, public ModuleToolbox, public ForkContextListener
 		r->readStaticRecords();
 	}
 public:
-	static void send480KO(Agent *agent, shared_ptr<RequestSipEvent> &ev);
-	static void send200Ok(Agent *agent, shared_ptr<RequestSipEvent> &ev, const sip_contact_t *contacts);
-	void routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Record *aorb, const url_t *sipUri);
-	void onRegister(Agent *agent, shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, Record *aorb, const url_t* sipUri);
+	void sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, const sip_contact_t *contacts=NULL);
+	void routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aorb, const url_t *sipUri);
+	void onRegister(shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, Record *aorb, const url_t* sipUri);
 
 	Registrar(Agent *ag) : Module(ag),mStaticRecordsTimer(NULL) {
 		sRegistrarInstanceForSigAction=this;
@@ -163,6 +164,12 @@ public:
 		
 		mMessageForkCfg->mForkLate=mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
 		mMessageForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("message-delivery-timeout")->read();
+		mOtherForkCfg=make_shared<ForkContextConfig>();
+		mOtherForkCfg->mForkOneResponse=true;
+		mOtherForkCfg->mForkLate=false;
+		mOtherForkCfg->mDeliveryTimeout=30;
+		
+		
 		mUseGlobalDomain=mc->get<ConfigBoolean>("use-global-domain")->read();
 		RegistrarDb::get(mAgent)->useGlobalDomain(mUseGlobalDomain);
 
@@ -222,7 +229,7 @@ public:
 
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 
-	virtual void onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event);
+	virtual void onTransactionEvent(shared_ptr<TransactionEvent> ev);
 
 	void idle() { updateLocalRegExpire(); }
 	
@@ -247,11 +254,12 @@ private:
 	}
 	void readStaticRecords();
 	bool contactUrlInVia(const url_t *ct_url, sip_via_t * via);
-	bool dispatch(Agent *agent, const shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, const char *route, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
+	bool dispatch(const shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, const char *route, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
 	list<string> mDomains;
 	bool mFork;
 	shared_ptr<ForkContextConfig> mForkCfg;
 	shared_ptr<ForkContextConfig> mMessageForkCfg;
+	shared_ptr<ForkContextConfig> mOtherForkCfg;
 	typedef multimap<string, shared_ptr<ForkContext>> ForkMap;
 	ForkMap mForks;
 	unsigned int mMaxExpires, mMinExpires;
@@ -359,17 +367,27 @@ void Registrar::readStaticRecords() {
 
 }
 
-void Registrar::send480KO(Agent *agent, shared_ptr<RequestSipEvent> &ev) {
+void Registrar::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, const sip_contact_t *contacts) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	ev->reply(ms, 480, "Temporarily Unavailable", SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
-}
-
-void Registrar::send200Ok(Agent *agent, shared_ptr<RequestSipEvent> &ev, const sip_contact_t *contacts) {
-	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
+	sip_t *sip=ms->getSip();
+	
+	if (sip->sip_request->rq_method==sip_method_invite){
+		shared_ptr<CallLog> clog=ev->getEventLog<CallLog>();
+		if (clog){
+			clog->setStatusCode(code,reason);
+			clog->setCompleted();
+		}
+	}else if (sip->sip_request->rq_method==sip_method_message){
+		shared_ptr<MessageLog> mlog=ev->getEventLog<MessageLog>();
+		if (mlog){
+			mlog->setStatusCode(code,reason);
+			mlog->setCompleted();
+		}
+	}
 	if (contacts != NULL) {
-		ev->reply(ms, 200, "Registration successful", SIPTAG_CONTACT(contacts), SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
+		ev->reply(code, reason, SIPTAG_CONTACT(contacts), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	} else {
-		ev->reply(ms, 200, "Registration successful", SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
+		ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	}
 }
 
@@ -421,15 +439,18 @@ bool Registrar::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *ct_
 	return false;
 }
 
-bool Registrar::dispatch(Agent *agent, const shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, const char *route, shared_ptr<ForkContext> context) {
+bool Registrar::dispatch(const shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, const char *route, shared_ptr<ForkContext> context) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	sip_t *sip = ms->getSip();
+
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
 	if (ct->m_url[0].url_host != NULL && ct->m_url[0].url_host[0] != '\0') {
-		if (IS_LOGD && contactUrlInVia(ct->m_url, sip->sip_via)) {
-			LOGD("Contact url in vias, the message will be routed backward");
-		}
-		char *contact_url_string = url_as_string(ms->getHome(), ct->m_url);
+#if not(__GNUC__ == 4 && __GNUC_MINOR__ < 5 )
+		sip_t *sip = ms->getSip();
+		static auto lambdaContactUrlInVia = [&]() {return contactUrlInVia(ct->m_url, sip->sip_via); };
+		static auto lambdaMsg = [](std::ostream &strm) {strm << "Contact url in vias, the message will be routed backward"; };
+		LOGDFN(lambdaContactUrlInVia, lambdaMsg);
+#endif
+		char __attribute__ ((unused)) *contact_url_string = url_as_string(ms->getHome(), ct->m_url); // not too expensive I guess
 		shared_ptr<MsgSip> new_msgsip;
 		if (context) {
 			new_msgsip = make_shared<MsgSip>(*ms);
@@ -443,7 +464,7 @@ bool Registrar::dispatch(Agent *agent, const shared_ptr<RequestSipEvent> &ev, si
 		new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), ct->m_url);
 		if (route != NULL) {
 			LOGD("This flexisip instance is not responsible for contact %s -> %s",contact_url_string, route);
-			prependRoute(msg_home(new_msg), agent, new_msg, new_sip, route);
+			prependRoute(msg_home(new_msg),getAgent(), new_msg, new_sip, route);
 		}
 
 		shared_ptr<RequestSipEvent> new_ev;
@@ -461,7 +482,7 @@ bool Registrar::dispatch(Agent *agent, const shared_ptr<RequestSipEvent> &ev, si
 		}
 
 		/* Back to work */
-		agent->injectRequestEvent(new_ev);
+		getAgent()->injectRequestEvent(new_ev);
 		return true;
 	} else {
 		LOGW("Unrouted request because of incorrect address of contact");
@@ -469,7 +490,7 @@ bool Registrar::dispatch(Agent *agent, const shared_ptr<RequestSipEvent> &ev, si
 	return false;
 }
 
-void Registrar::onRegister(Agent *agent, shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, Record *aor, const url_t * sipUri) {
+void Registrar::onRegister(shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, Record *aor, const url_t * sipUri) {
 	sip_expires_t *expires=ev->getMsgSip()->getSip()->sip_expires;
 	if ((mForkCfg->mForkLate || mMessageForkCfg->mForkLate) && expires && expires->ex_delta>0
 		&& ct && sipUri) {
@@ -489,7 +510,7 @@ void Registrar::onRegister(Agent *agent, shared_ptr<RequestSipEvent> &ev, sip_co
 			shared_ptr<ForkContext> context = it->second;
 			if (context->onNewRegister(ct)){
 				LOGD("Found a pending context for user %s: %p", sipUriRef, context.get());
-				dispatch(agent, context->getEvent(), ct, NULL, context);
+				dispatch( context->getEvent(), ct, NULL, context);
 			}else LOGD("Found a pending context but not interested in this new register.");
 		}
 
@@ -507,7 +528,7 @@ void Registrar::onRegister(Agent *agent, shared_ptr<RequestSipEvent> &ev, sip_co
 							shared_ptr<ForkContext> context = it->second;
 							if (context->onNewRegister(ct)){
 								LOGD("Found a pending context for contact %s: %p", uri.c_str(), context.get());
-								dispatch(agent, context->getEvent(), ct, NULL, context);
+								dispatch(context->getEvent(), ct, NULL, context);
 							}
 						}
 					}
@@ -517,7 +538,7 @@ void Registrar::onRegister(Agent *agent, shared_ptr<RequestSipEvent> &ev, sip_co
 	}
 }
 
-void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Record *aor, const url_t *sipUri) {
+void Registrar::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, const url_t *sipUri) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	char sipUriRef[256]={0};
@@ -526,7 +547,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 	
 	if (!aor && mGeneratedContactRoute.empty()) {
 		LOGD("This user isn't registered (no aor).");
-		ev->reply(ms, SIP_404_NOT_FOUND, SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
+		sendReply(ev,SIP_404_NOT_FOUND);
 		return;
 	}
 
@@ -549,7 +570,7 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 				shared_ptr<OutgoingTransaction> transaction = ev->createOutgoingTransaction();
 				shared_ptr<string> thisProxyRealm(make_shared<string>(to->url_host));
 				transaction->setProperty("this_proxy_realm", thisProxyRealm);
-				agent->injectRequestEvent(ev);
+				getAgent()->injectRequestEvent(ev);
 				return;
 			}
 		} else {
@@ -561,13 +582,8 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 
 	if (contacts.size() > 0) {
 		int handled = 0;
-		bool dontfork = !mFork // forking disabled
-				|| (contacts.size() <= 1 && !mForkCfg->mForkLate && !mStateful) // not forced
-				|| !(
-				ms->getSip()->sip_request->rq_method == sip_method_invite ||
-				ms->getSip()->sip_request->rq_method == sip_method_message
-				); // method is not correct
-		if (dontfork) {
+		
+		if (!mFork) {
 			++*mCountNonForks;
 		} else {
 			++*mCountForks;
@@ -576,27 +592,28 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 		// Init context if needed
 		shared_ptr<ForkContext> context;
 		shared_ptr<IncomingTransaction> incoming_transaction;
-		if (!dontfork) {
+		if (mFork) {
 			if (sip->sip_request->rq_method == sip_method_invite) {
-				context = make_shared<ForkCallContext>(agent, ev, mForkCfg, this);
+				context = make_shared<ForkCallContext>(getAgent(), ev, mForkCfg, this);
 			} else if (sip->sip_request->rq_method == sip_method_message) {
-				context = make_shared<ForkMessageContext>(agent, ev, mMessageForkCfg, this);
+				context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this);
+			} else {
+				context = make_shared<ForkBasicContext>(getAgent(),ev,mOtherForkCfg,this);
 			}
 			if (context) {
-				url_t modified_uri=*sipUri;
-				
-				if (mUseGlobalDomain){
-					modified_uri.url_host="merged";
+				if (context->getConfig()->mForkLate){
+					url_t modified_uri=*sipUri;
+					
+					if (mUseGlobalDomain){
+						modified_uri.url_host="merged";
+					}
+					url_e(sipUriRef,sizeof(sipUriRef)-1,&modified_uri);
+					mForks.insert(make_pair(sipUriRef, context));
+					LOGD("Add fork %p to store with key '%s'", context.get(), sipUriRef);
 				}
-				url_e(sipUriRef,sizeof(sipUriRef)-1,&modified_uri);
-				mForks.insert(make_pair(sipUriRef, context));
-				LOGD("Add fork %p to store with key '%s'", context.get(), sipUriRef);
 				incoming_transaction = ev->createIncomingTransaction();
 				incoming_transaction->setProperty<ForkContext>(Registrar::sInfo.getModuleName(), context);
 				context->onNew(incoming_transaction);
-			} else {
-				LOGW("Can't create fork for method %s", sip->sip_request->rq_method_name);
-				dontfork = true;
 			}
 		}
 
@@ -607,47 +624,45 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 				ct = Record::extendedContactToSofia(ms->getHome(), *ec, now);
 			if (!ec->mAlias) {
 				if (ct) {
-					if (ec->mRoute != NULL && 0 != strcmp(agent->getPreferredRoute().c_str(), ec->mRoute)) {
-						if (dispatch(agent, ev, ct, ec->mRoute, context)) {
+					if (ec->mRoute != NULL && 0 != strcmp(getAgent()->getPreferredRoute().c_str(), ec->mRoute)) {
+						if (dispatch(ev, ct, ec->mRoute, context)) {
 							handled++;
-							if (dontfork) break;
+							if (!mFork) break;
 						}
 					} else {
-						if (dispatch(agent, ev, ct, NULL, context)) {
+						if (dispatch(ev, ct, NULL, context)) {
 							handled++;
-							if (dontfork) break;
+							if (!mFork) break;
 						}
 					}
 				} else {
 					LOGW("Can't create sip_contact of %s.", ec->mSipUri);
 				}
 			} else {
-				if (isManagedDomain(ct->m_url)) {
-					if (!dontfork) {
-						sip_contact_t *temp_ctt=sip_contact_make(ms->getHome(),ec->mSipUri);
-						
-						if (mUseGlobalDomain){
-							temp_ctt->m_url->url_host="merged";
-							temp_ctt->m_url->url_port=NULL;
-						}
-						url_e(sipUriRef,sizeof(sipUriRef)-1,temp_ctt->m_url);
-						mForks.insert(make_pair(sipUriRef, context));
-						LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), sipUriRef);
+				if (mFork && context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
+					sip_contact_t *temp_ctt=sip_contact_make(ms->getHome(),ec->mSipUri);
+					
+					if (mUseGlobalDomain){
+						temp_ctt->m_url->url_host="merged";
+						temp_ctt->m_url->url_port=NULL;
 					}
+					url_e(sipUriRef,sizeof(sipUriRef)-1,temp_ctt->m_url);
+					mForks.insert(make_pair(sipUriRef, context));
+					LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), sipUriRef);
 				}else{
-					if (dispatch(agent, ev, ct, NULL, context)) {
+					if (dispatch(ev, ct, NULL, context)) {
 						handled++;
-						if (dontfork) break;
+						if (!mFork) break;
 					}
 				}
 			}
 		}
 
 		if (handled > 0) {
-			if (!dontfork) {
+			if (mFork) {
 				shared_ptr<ResponseSipEvent> new_ev(make_shared<ResponseSipEvent>(ev->getOutgoingAgent(), incoming_transaction->createResponse(SIP_100_TRYING)));
 				new_ev->setIncomingAgent(incoming_transaction);
-				agent->sendResponseEvent(new_ev);
+				getAgent()->sendResponseEvent(new_ev);
 				ev->terminateProcessing();
 			}
 			return;
@@ -657,26 +672,25 @@ void Registrar::routeRequest(Agent *agent, shared_ptr<RequestSipEvent> &ev, Reco
 	} else {
 		LOGD("This user isn't registered (no contact at all).");
 	}
-
-	ev->reply(ms, SIP_404_NOT_FOUND, SIPTAG_SERVER_STR(agent->getServerString()), TAG_END());
+	sendReply(ev,SIP_404_NOT_FOUND);
 }
 
 // Listener class NEED to copy the shared pointer
 class OnBindListener: public RegistrarDbListener {
 	Registrar *mModule;
 	shared_ptr<RequestSipEvent> mEv;
-	url_t * mSipUri;
+	sip_from_t * mSipFrom;
 	su_home_t mHome;
 	sip_contact_t *mContact;
 public:
-	OnBindListener(Registrar *module, shared_ptr<RequestSipEvent> ev, const url_t* sipuri = NULL, sip_contact_t *contact = NULL) :
-			mModule(module), mEv(ev), mSipUri(NULL), mContact(NULL) {
+	OnBindListener(Registrar *module, shared_ptr<RequestSipEvent> ev, const sip_from_t* sipuri = NULL, sip_contact_t *contact = NULL) :
+			mModule(module), mEv(ev), mSipFrom(NULL), mContact(NULL) {
 		ev->suspendProcessing();
 		su_home_init(&mHome);
 		if (contact)
 			mContact = sip_contact_copy(&mHome, contact);
 		if (sipuri){
-			mSipUri=url_hdup(&mHome,sipuri);
+			mSipFrom=sip_from_dup(&mHome,sipuri);
 		}
 	}
 	~OnBindListener() {
@@ -685,11 +699,23 @@ public:
 	void onRecordFound(Record *r) {
 		const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
 		time_t now = getCurrentTime();
-		Registrar::send200Ok(mModule->getAgent(), mEv, r->getContacts(ms->getHome(), now));
-		mModule->onRegister(mModule->getAgent(), mEv, mContact, r, mSipUri);
+		if (r){
+			mModule->sendReply(mEv, 200, "Registration successful", r->getContacts(ms->getHome(), now));
+			mModule->onRegister(mEv, mContact, r, mSipFrom->a_url);
+			RegistrationLog::Type type;
+			if (ms->getSip()->sip_expires && ms->getSip()->sip_expires->ex_delta==0) type=RegistrationLog::Unregister; //REVISIT not 100% exact.
+			else type=RegistrationLog::Register;
+			auto evlog=make_shared<RegistrationLog>(type,ms->getSip()->sip_from,mContact ? Record::extractUniqueId(mContact) : "", mContact);
+			if (ms->getSip()->sip_user_agent) evlog->setUserAgent(ms->getSip()->sip_user_agent);
+			evlog->setCompleted();
+			mEv->setEventLog(evlog);
+		}else{
+			LOGE("OnBindListener::onRecordFound(): Record is null");
+			mModule->sendReply(mEv,SIP_480_TEMPORARILY_UNAVAILABLE);
+		}
 	}
 	void onError() {
-		Registrar::send480KO(mModule->getAgent(), mEv);
+		mModule->sendReply(mEv, SIP_500_INTERNAL_SERVER_ERROR);
 	}
 };
 
@@ -704,13 +730,19 @@ public:
 			mModule(module), mEv(ev) {
 		ev->suspendProcessing();
 		mSipUri=url_hdup(mEv->getMsgSip()->getHome(),sipuri);
+		sip_t *sip=ev->getMsgSip()->getSip();
+		if (sip->sip_request->rq_method==sip_method_invite){
+			ev->setEventLog(make_shared<CallLog>(sip->sip_from,sip->sip_to));
+		}else if (sip->sip_request->rq_method==sip_method_message){
+			ev->setEventLog(make_shared<MessageLog>(MessageLog::Reception,sip->sip_from,sip->sip_to,sip->sip_call_id->i_hash));
+		}
 	}
 	;
 	void onRecordFound(Record *r) {
-		mModule->routeRequest(mModule->getAgent(), mEv, r, mSipUri);
+		mModule->routeRequest(mEv, r, mSipUri);
 	}
 	void onError() {
-		Registrar::send480KO(mModule->getAgent(), mEv);
+		mModule->sendReply(mEv,SIP_500_INTERNAL_SERVER_ERROR);
 	}
 };
 
@@ -736,7 +768,7 @@ void Registrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			if (sip->sip_contact != NULL) {
 				if (!checkStarUse(sip->sip_contact, maindelta)) {
 					LOGD("The star rules are not respected.");
-					ev->reply(ms, 400, "Invalid Request", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+					sendReply(ev,400, "Invalid Request");
 					return;
 				}
 				if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
@@ -747,7 +779,7 @@ void Registrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 					RegistrarDb::get(mAgent)->clear(sip, listener);
 					return;
 				} else {
-					shared_ptr<OnBindListener> listener(make_shared<OnBindListener>(this, ev, sipurl, sip->sip_contact));
+					shared_ptr<OnBindListener> listener(make_shared<OnBindListener>(this, ev, sip->sip_from, sip->sip_contact));
 					++*mCountBind;
 					LOGD("Updating binding");
 					listener->addStatCounter(mCountBindFinished);
@@ -772,8 +804,7 @@ void Registrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		if (sip->sip_request->rq_method != sip_method_ack && sip->sip_to != NULL && sip->sip_to->a_tag == NULL) {
 			url_t *sipurl = sip->sip_request->rq_url;
 			if (sipurl->url_host  && isManagedDomain(sipurl)) {
-				char *url = url_as_string(ms->getHome(), sipurl);
-				LOGD("Fetch %s.", url);
+				LOGD("Fetch %s.", url_as_string(ms->getHome(), sipurl));
 				RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnBindForRoutingListener>(this, ev, sipurl), true);
 			}
 		}
@@ -809,31 +840,31 @@ void Registrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	}
 }
 
-void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, Transaction::Event event) {
-	shared_ptr<ForkContext> forkContext = transaction->getProperty<ForkContext>(getModuleName());
+void Registrar::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
+	shared_ptr<ForkContext> forkContext = ev->transaction->getProperty<ForkContext>(getModuleName());
 	if (forkContext != NULL) {
-		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(transaction);
+		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->transaction);
 		if (ot != NULL) {
-			switch (event) {
-			case Transaction::Destroy:
+			switch (ev->kind) {
+				case TransactionEvent::Type::Destroy:
 				forkContext->onDestroy(ot);
 				++*mCountForkTransactionsFinished;
 				break;
 
-			case Transaction::Create:
+				case TransactionEvent::Type::Create:
 				forkContext->onNew(ot);
 				++*mCountForkTransactions;
 				break;
 			}
 		}
-		shared_ptr<IncomingTransaction> it = dynamic_pointer_cast<IncomingTransaction>(transaction);
+		shared_ptr<IncomingTransaction> it = dynamic_pointer_cast<IncomingTransaction>(ev->transaction);
 		if (it != NULL) {
-			switch (event) {
-			case Transaction::Destroy:
+			switch (ev->kind) {
+				case TransactionEvent::Type::Destroy:
 				forkContext->onDestroy(it);
 				break;
 
-			case Transaction::Create: // Can't happen because property is set after this event
+				case TransactionEvent::Type::Create: // Can't happen because property is set after this event
 				break;
 			}
 		}
@@ -842,6 +873,7 @@ void Registrar::onTransactionEvent(const shared_ptr<Transaction> &transaction, T
 }
 
 void Registrar::onForkContextFinished(shared_ptr<ForkContext> ctx){
+	if (!ctx->getConfig()->mForkLate) return;
 	for (auto it = mForks.begin(); it != mForks.end();) {
 		if (it->second == ctx) {
 			LOGD("Remove fork %s from store", it->first.c_str());

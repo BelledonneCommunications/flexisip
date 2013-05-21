@@ -347,7 +347,7 @@ void OdbcAuthDb::stmtError(ConnectionCtx &ctx, const char* doing) {
 
 
 bool OdbcAuthDb::getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimings &timings) {
-	steady_clock::time_point tp1=steady_clock::now();
+	steady_clock::time_point __attribute__ ((unused)) tp1=steady_clock::now();
 
 	// Create a 'wrapper' connection attached to nothing
 	SQLRETURN retcode = SQLAllocHandle(SQL_HANDLE_DBC, env, &ctx.dbc);
@@ -355,7 +355,7 @@ bool OdbcAuthDb::getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimin
 		envError("SQLAllocHandle DBC");
 		return false;
 	}
-	steady_clock::time_point tp2=steady_clock::now();
+	steady_clock::time_point __attribute__ ((unused)) tp2=steady_clock::now();
 	LOGD("SQLAllocHandle: %s : %lu ms", id.c_str(), (unsigned long) duration_cast<milliseconds>(tp2-tp1).count());
 
 	// Either:
