@@ -47,3 +47,4 @@ stamp-h1
 /src/test/expr
 src/libhack.a
 build-debian/
+debian/changelog
