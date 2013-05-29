@@ -171,6 +171,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		ev->terminateProcessing();
 	} else {
 		tport_t *tport=checkRecordRoutes(ev, dest);
+		if (sip->sip_max_forwards) --sip->sip_max_forwards->mf_count;
 		//since checkRecordRoutes() may find appropriate tport, avoid sofia to search it again.
 		if (tport)
 			ev->send(ms, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());
