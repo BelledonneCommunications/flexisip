@@ -225,11 +225,11 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 #endif
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GatewayAdapter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Registrar"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "ContactRouteInserter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Router"));
 #ifdef ENABLE_PUSHNOTIFICATION
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "PushNotification"));
 #endif
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "ContactRouteInserter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "LoadBalancer"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "MediaRelay"));
 #ifdef ENABLE_TRANSCODER
@@ -540,8 +540,12 @@ inline void Agent::doSendEvent
 
 void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	sip_t *sip=ev->getMsgSip()->mSip;
-	sip_request_t *req=sip->sip_request;
-	SLOGD << "Receiving new Request SIP message: " << req->rq_method_name << "\n" << *ev->getMsgSip();
+	const sip_request_t *req=sip->sip_request;
+	const url_t *from= sip->sip_from->a_url;
+	SLOGD << "Receiving new Request SIP message "
+		<< req->rq_method_name
+		<< " from " << from->url_user << "@" << from->url_host << " :"
+		<< "\n" << *ev->getMsgSip();
 	switch (req->rq_method) {
 	case sip_method_register:
 		++*mCountIncomingRegister;
