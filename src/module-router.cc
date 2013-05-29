@@ -46,8 +46,7 @@ class ModuleRouter: public Module, public ModuleToolbox, public ForkContextListe
 public:
 	void sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason);
 	void routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aorb, const url_t *sipUri);
-	void onRouting(shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, Record *aorb, const url_t* sipUri);
-	void onContactRegistered(shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, Record *aor, const url_t * sipUri);
+	void onContactRegistered(sip_contact_t *ct, Record *aor, const url_t * sipUri);
 
 	ModuleRouter(Agent *ag) : Module(ag) {
 	}
@@ -93,7 +92,7 @@ public:
 		mStateful=mc->get<ConfigBoolean>("stateful");
 		mFork = mc->get<ConfigBoolean>("fork")->read();
 		if (mStateful && !mFork) {
-			LOGI("Stateful registrar imply fork=true");
+			LOGI("Stateful router implies fork=true");
 			mFork=true;
 		}
 		mGeneratedContactRoute = mc->get<ConfigString>("generated-contact-route")->read();
@@ -133,7 +132,6 @@ private:
 	bool isManagedDomain(const url_t *url) {
 		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 	}
-	bool contactUrlInVia(const url_t *ct_url, sip_via_t * via);
 	bool dispatch(const shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, const char *route, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
 	list<string> mDomains;
 	bool mFork;
@@ -175,8 +173,7 @@ void ModuleRouter::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const ch
  * Check if the contact is in one via.
  * Avoid to check a contact information that already known
  */
-bool ModuleRouter::contactUrlInVia(const url_t *url, sip_via_t * via) {
-
+static bool contactUrlInVia(const url_t *url, sip_via_t * via) {
 	while (via != NULL) {
 		if (via->v_host && url->url_host && !strcmp(via->v_host, url->url_host)) {
 			const char *port1 = (via->v_port) ? via->v_port : "5060";
@@ -272,17 +269,15 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, sip_contact_t
 }
 
 
-void LateForkApplier::onContactRegistered(const Agent *agent, shared_ptr<RequestSipEvent> ev, sip_contact_t *ct, Record *aor, const url_t * sipUri) {
+void LateForkApplier::onContactRegistered(const Agent *agent, sip_contact_t *ct, Record *aor, const url_t * sipUri) {
 	ModuleRouter *module=(ModuleRouter*) agent->findModule(ModuleRouter::sInfo.getModuleName());
-	module->onContactRegistered(ev, ct, aor, sipUri);
+	module->onContactRegistered(ct, aor, sipUri);
 }
 
-void ModuleRouter::onContactRegistered(shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, Record *aor, const url_t * sipUri) {
+void ModuleRouter::onContactRegistered(sip_contact_t *ct, Record *aor, const url_t * sipUri) {
 	SLOGD << "ModuleRouter::onContactRegistered" << sipUri;
-	sip_expires_t *expires=ev->getMsgSip()->getSip()->sip_expires;
 
 	if (!mForkCfg->mForkLate && !mMessageForkCfg->mForkLate) return;
-	if (!expires || expires->ex_delta <=0) return;
 	if (!ct || !sipUri) return; // nothing to do
 
 
@@ -332,7 +327,6 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 	sip_t *sip = ms->getSip();
 	char sipUriRef[256]={0};
 	std::list<std::shared_ptr<ExtendedContact>> contacts;
-	std::list<std::shared_ptr<ExtendedContact>> contact;
 	
 	if (!aor && mGeneratedContactRoute.empty()) {
 		LOGD("This user isn't registered (no aor).");
@@ -459,9 +453,11 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
     sipUri=<value optimized out>) at module-router.cc:452
 #4  0x00000000005363d2 in OnBindForRoutingListener::onRecordFound(Record*) ()
 				*/
-				shared_ptr<ResponseSipEvent> new_ev(make_shared<ResponseSipEvent>(ev->getOutgoingAgent(), incoming_transaction->createResponse(SIP_100_TRYING)));
+				const auto response=incoming_transaction->createResponse(SIP_100_TRYING);
+				shared_ptr<ResponseSipEvent> new_ev(make_shared<ResponseSipEvent>(ev->getOutgoingAgent(), response));
 				new_ev->setIncomingAgent(incoming_transaction);
 				getAgent()->sendResponseEvent(new_ev);
+
 				ev->terminateProcessing();
 			}
 			return;

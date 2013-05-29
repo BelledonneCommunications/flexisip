@@ -28,7 +28,7 @@
 
 class Agent;
 struct LateForkApplier {
-	static void onContactRegistered(const Agent *agent, std::shared_ptr<RequestSipEvent> ev, sip_contact_t *ct, Record *aor, const url_t * sipUri);
+	static void onContactRegistered(const Agent *, sip_contact_t *, Record *, const url_t * sipUri);
 };
 
 #endif

@@ -59,7 +59,7 @@ public:
 	virtual void onDeclare(GenericStruct *mc) {
 		ConfigItemDescriptor configs[] = {
 			{ StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar.", "localhost" },
-			{ Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "15" },
+			{ Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "15" }, /*used by registrardb*/
 			{ StringList, "unique-id-parameters", "List of contact uri parameters that can be used to identify a user's device. "
 					"The contact parameters are searched in the order of the list, the first matching parameter is used and the others ignored.", "line" },
 			{ Integer, "max-expires"	, "Maximum expire time for a REGISTER, in seconds.", "86400" },
@@ -76,7 +76,7 @@ public:
 			{ Integer , "redis-server-port", "Port of the redis server.","6379"},
 			{ String , "redis-auth-password", "Authentication password for redis. Empty to disable.",""},
 			{ Integer , "redis-server-timeout", "Timeout in milliseconds of the redis connection.","1500"},
-			{ String , "redis-record-serializer", "Implementation of the contact serialiser to use. [C, protobuf]","protobuf"},
+			{ String , "redis-record-serializer", "Serialize contacts with: [C, protobuf]","protobuf"},
 			config_item_end
 		};
 		mc->addChildrenValues(configs);
@@ -87,9 +87,8 @@ public:
 	}
 
 	virtual void onLoad(const GenericStruct *mc) {
-		list<string>::const_iterator it;
 		mDomains = mc->get<ConfigStringList>("reg-domains")->read();
-		for (it = mDomains.begin(); it != mDomains.end(); ++it) {
+		for (auto it = mDomains.begin(); it != mDomains.end(); ++it) {
 			LOGD("Found registrar domain: %s", (*it).c_str());
 		}
 		mMaxExpires = mc->get<ConfigInt>("max-expires")->read();
@@ -115,7 +114,7 @@ public:
 	}
 
 	// Delta from expires header, normalized with custom rules.
-	unsigned int getMainDelta(sip_expires_t *expires) {
+	unsigned int getMainDelta(const sip_expires_t *expires) {
 		unsigned int delta = mMaxExpires;
 		if (expires) {
 			delta = expires->ex_delta;
@@ -149,6 +148,7 @@ public:
 		return true;
 	}
 
+	void processRequest(shared_ptr<RequestSipEvent> &ev, sip_t *sip);
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
 
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
@@ -167,7 +167,6 @@ private:
 		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 	}
 	void readStaticRecords();
-	bool contactUrlInVia(const url_t *ct_url, sip_via_t * via);
 	list<string> mDomains;
 	unsigned int mMaxExpires, mMinExpires;
 	string mStaticRecordsFile;
@@ -179,83 +178,7 @@ private:
 	static ModuleInfo<ModuleRegistrar> sInfo;
 };
 
-// Listener class NEED to copy the shared pointer
-class OnStaticBindListener: public RegistrarDbListener {
-	friend class ModuleRegistrar;
-	Agent *agent;
-	string line;
-public:
-	OnStaticBindListener(Agent *agent, const string& line) :
-			agent(agent), line(line) {
-	}
-	void onRecordFound(Record *r) {
-		LOGD("Static route added: %s", line.c_str());
-	}
-	void onError() {
-		LOGE("Can't add static route: %s", line.c_str());
-	}
-};
 
-void ModuleRegistrar::readStaticRecords() {
-	static int version=0;
-	if (mStaticRecordsFile.empty()) return;
-	LOGD("Reading static records file");
-
-	su_home_t home;
-
-	stringstream ss;
-	ss.exceptions(ifstream::failbit | ifstream::badbit);
-
-	string line;
-	string from;
-	string contact_header;
-
-	ifstream file;
-	file.open(mStaticRecordsFile);
-	if (file.is_open()) {
-		su_home_init(&home);
-		++version;
-		const char *fakeCallId=su_sprintf(&home,"static-record-v%d",version);
-		Record::setStaticRecordsVersion(version);
-		while (file.good() && getline(file, line).good()) {
-			size_t i;
-			bool is_a_comment=false;
-			for(i=0;i<line.size();++i){
-				//skip spaces or comments
-				if (isblank(line[i])) continue;
-				if (line[i]=='#') is_a_comment=true;
-				else break;
-			}
-			if (is_a_comment) continue;
-			if (i==line.size()) continue; //blank line
-			size_t cttpos = line.find_first_of(' ',i);
-			if (cttpos != string::npos && cttpos < line.size()) {
-				// Read uri
-				from = line.substr(0, cttpos);
-
-				// Read contacts
-				contact_header = line.substr(cttpos+1, line.length() - cttpos+1);
-
-				// Create
-				sip_contact_t *url = sip_contact_make(&home, from.c_str());
-				sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
-				int expire=mStaticRecordsTimeout+5; // 5s to avoid race conditions
-
-				if (url != NULL && contact != NULL) {
-					auto listener=make_shared<OnStaticBindListener>(getAgent(), line);
-					bool alias=isManagedDomain(contact->m_url);
-					RegistrarDb::get(mAgent)->bind(url->m_url, contact, fakeCallId, version, NULL, expire, alias, listener);
-					continue;
-				}
-			}
-			LOGW("Incorrect line format: %s", line.c_str());
-		}
-		su_home_deinit(&home);
-	} else {
-		LOGE("Can't open file %s", mStaticRecordsFile.c_str());
-	}
-
-}
 
 void ModuleRegistrar::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, const sip_contact_t *contacts) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
@@ -279,25 +202,6 @@ void ModuleRegistrar::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const
 	} else {
 		ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	}
-}
-
-/**
- * Check if the contact is in one via.
- * Avoid to check a contact information that already known
- */
-bool ModuleRegistrar::contactUrlInVia(const url_t *url, sip_via_t * via) {
-
-	while (via != NULL) {
-		if (via->v_host && url->url_host && !strcmp(via->v_host, url->url_host)) {
-			const char *port1 = (via->v_port) ? via->v_port : "5060";
-			const char *port2 = (url->url_port) ? url->url_port : "5060";
-			if (!strcmp(port1, port2))
-				return true;
-		}
-		via = via->v_next;
-	}
-
-	return false;
 }
 
 
@@ -348,7 +252,12 @@ public:
 		time_t now = getCurrentTime();
 		if (r){
 			mModule->sendReply(mEv, 200, "Registration successful", r->getContacts(ms->getHome(), now));
-			LateForkApplier::onContactRegistered(mModule->getAgent(), mEv, mContact, r, mSipFrom->a_url);
+
+			const sip_expires_t *expires=mEv->getMsgSip()->getSip()->sip_expires;
+			if (expires && expires->ex_delta > 0) {
+				LateForkApplier::onContactRegistered(mModule->getAgent(), mContact, r, mSipFrom->a_url);
+			}
+
 			eventLogRecordFound();
 		}else{
 			LOGE("OnBindListener::onRecordFound(): Record is null");
@@ -359,6 +268,10 @@ public:
 		mModule->sendReply(mEv, SIP_500_INTERNAL_SERVER_ERROR);
 	}
 };
+
+
+
+
 
 class FakeFetchListener: public RegistrarDbListener {
 	friend class ModuleRegistrar;
@@ -392,24 +305,10 @@ void ModuleRegistrar::sighandler(int signum, siginfo_t* info, void* ptr) {
 	}
 }
 
-
-void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
-	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	sip_t *sip = ms->getSip();
-
-	if (sip->sip_request->rq_method != sip_method_register) return;
-	
-	url_t *sipurl = sip->sip_from->a_url;
-	if (!sipurl->url_host || !isManagedDomain(sipurl)) return;
-	
+void ModuleRegistrar::processRequest(shared_ptr<RequestSipEvent> &ev, sip_t *sip) {
 	sip_expires_t *expires = sip->sip_expires;
 	int maindelta = getMainDelta(expires);
 	if (sip->sip_contact != NULL) {
-		if (!checkStarUse(sip->sip_contact, maindelta)) {
-			LOGD("The star rules are not respected.");
-			sendReply(ev,400, "Invalid Request");
-			return;
-		}
 		if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
 			auto listener = make_shared<OnBindListener>(this, ev);
 			mStats.mCountClear->incrStart();
@@ -426,11 +325,38 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			return;
 		}
 		LOGD("Records binded to registrar database.");
-	} else {
+	}
+}
+
+void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
+	sip_t *sip = ms->getSip();
+
+	// Only manage registers for certain domains
+	if (sip->sip_request->rq_method != sip_method_register) return;
+	
+	url_t *sipurl = sip->sip_from->a_url;
+	if (!sipurl->url_host || !isManagedDomain(sipurl)) return;
+	
+	// Handle fetching
+	if (sip->sip_contact == NULL) {
 		LOGD("No sip contact, it is a fetch only request for %s.", url_as_string(ms->getHome(), sipurl));
-		RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnBindListener>(this, ev));
+		auto listener=make_shared<OnBindListener>(this, ev);
+		RegistrarDb::get(mAgent)->fetch(sipurl, listener);
 		return;
 	}
+
+	// Reject malformed registrations
+	const sip_expires_t *expires = sip->sip_expires;
+	const int maindelta = getMainDelta(expires);
+	if (!checkStarUse(sip->sip_contact, maindelta)) {
+		LOGD("The star rules are not respected.");
+		sendReply(ev,400, "Invalid Request");
+		return;
+	}
+
+	// Handle modifications
+	processRequest(ev, sip);	
 }
 
 
@@ -440,6 +366,98 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 
 void ModuleRegistrar::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
 }
+
+
+
+
+
+
+/* Section for static records */
+
+
+// Listener class NEED to copy the shared pointer
+class OnStaticBindListener: public RegistrarDbListener {
+	friend class ModuleRegistrar;
+	Agent *agent;
+	string line;
+public:
+	OnStaticBindListener(Agent *agent, const string& line) :
+	agent(agent), line(line) {
+	}
+	void onRecordFound(Record *r) {
+		LOGD("Static route added: %s", line.c_str());
+	}
+	void onError() {
+		LOGE("Can't add static route: %s", line.c_str());
+	}
+};
+
+
+void ModuleRegistrar::readStaticRecords() {
+	static int version=0;
+	if (mStaticRecordsFile.empty()) return;
+	LOGD("Reading static records file");
+	
+	su_home_t home;
+	
+	stringstream ss;
+	ss.exceptions(ifstream::failbit | ifstream::badbit);
+	
+	string line;
+	string from;
+	string contact_header;
+	
+	ifstream file;
+	file.open(mStaticRecordsFile);
+	if (file.is_open()) {
+		su_home_init(&home);
+		++version;
+		const char *fakeCallId=su_sprintf(&home,"static-record-v%d",version);
+		Record::setStaticRecordsVersion(version);
+		while (file.good() && getline(file, line).good()) {
+			size_t i;
+			bool is_a_comment=false;
+			for(i=0;i<line.size();++i){
+				//skip spaces or comments
+				if (isblank(line[i])) continue;
+				if (line[i]=='#') is_a_comment=true;
+				else break;
+			}
+			if (is_a_comment) continue;
+			if (i==line.size()) continue; //blank line
+			size_t cttpos = line.find_first_of(' ',i);
+			if (cttpos != string::npos && cttpos < line.size()) {
+				// Read uri
+				from = line.substr(0, cttpos);
+				
+				// Read contacts
+				contact_header = line.substr(cttpos+1, line.length() - cttpos+1);
+				
+				// Create
+				sip_contact_t *url = sip_contact_make(&home, from.c_str());
+				sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
+				int expire=mStaticRecordsTimeout+5; // 5s to avoid race conditions
+				
+				if (url != NULL && contact != NULL) {
+					auto listener=make_shared<OnStaticBindListener>(getAgent(), line);
+					bool alias=isManagedDomain(contact->m_url);
+					RegistrarDb::get(mAgent)->bind(url->m_url, contact, fakeCallId, version, NULL, expire, alias, listener);
+					continue;
+				}
+			}
+			LOGW("Incorrect line format: %s", line.c_str());
+		}
+		su_home_deinit(&home);
+	} else {
+		LOGE("Can't open file %s", mStaticRecordsFile.c_str());
+	}
+	
+}
+
+
+
+
+
 
 ModuleInfo<ModuleRegistrar> ModuleRegistrar::sInfo("Registrar",
 		"The ModuleRegistrar module accepts REGISTERs for domains it manages, and store the address of record "
