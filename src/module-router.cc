@@ -46,7 +46,7 @@ class ModuleRouter: public Module, public ModuleToolbox, public ForkContextListe
 public:
 	void sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason);
 	void routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aorb, const url_t *sipUri);
-	void onContactRegistered(sip_contact_t *ct, Record *aor, const url_t * sipUri);
+	void onContactRegistered(const sip_contact_t *ct, Record *aor, const url_t * sipUri);
 
 	ModuleRouter(Agent *ag) : Module(ag) {
 	}
@@ -134,7 +134,7 @@ private:
 	bool isManagedDomain(const url_t *url) {
 		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 	}
-	bool dispatch(const shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, const char *route, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
+	bool dispatch(const shared_ptr<RequestSipEvent> &ev, const sip_contact_t *ct, const char *route, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
 	string routingKey(const url_t* sipUri) {
 		ostringstream oss;
 		if (sipUri->url_user) {
@@ -230,7 +230,7 @@ bool ModuleRouter::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *
 	return false;
 }
 
-bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, const char *route, shared_ptr<ForkContext> context) {
+bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const sip_contact_t *ct, const char *route, shared_ptr<ForkContext> context) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
@@ -283,12 +283,12 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, sip_contact_t
 }
 
 
-void LateForkApplier::onContactRegistered(const Agent *agent, sip_contact_t *ct, Record *aor, const url_t * sipUri) {
+void LateForkApplier::onContactRegistered(const Agent *agent, const sip_contact_t *ct, Record *aor, const url_t * sipUri) {
 	ModuleRouter *module=(ModuleRouter*) agent->findModule(ModuleRouter::sInfo.getModuleName());
 	module->onContactRegistered(ct, aor, sipUri);
 }
 
-void ModuleRouter::onContactRegistered(sip_contact_t *ct, Record *aor, const url_t * sipUri) {
+void ModuleRouter::onContactRegistered(const sip_contact_t *ct, Record *aor, const url_t * sipUri) {
 	SLOGD << "ModuleRouter::onContactRegistered";
 
 	if (!mForkCfg->mForkLate && !mMessageForkCfg->mForkLate) return;

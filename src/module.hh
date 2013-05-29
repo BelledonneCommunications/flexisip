@@ -181,6 +181,7 @@ class ModuleToolbox{
 		static bool transportEquals(const char *tr1, const char *tr2);
 		static bool isNumeric(const char *host);
 		static bool isManagedDomain(const Agent *agent, const std::list<std::string> &domains, const url_t *url);
+		static void addRoutingParam(su_home_t *home, sip_contact_t *contacts, const std::string &routingParam, const char *domain);
 
 };
 

@@ -393,3 +393,13 @@ bool ModuleToolbox::isManagedDomain(const Agent *agent, const list<string> &doma
 	}
 	return check;
 }
+
+void ModuleToolbox::addRoutingParam(su_home_t *home, sip_contact_t *c, const string &routingParam, const char *domain) {
+	ostringstream oss;
+	oss << routingParam << "=" << domain;
+	string routing_param(oss.str());
+	while (c != NULL) {
+		url_param_add(home, c->m_url, routing_param.c_str());
+		c = c->m_next;
+	}
+}
