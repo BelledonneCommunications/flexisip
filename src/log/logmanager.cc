@@ -93,10 +93,10 @@ namespace flt = boost::log::filters;
 		<< addIfString("method_or_status", " [", "]")
 		<< addIfString("Module", " [", "]")
 		<< addIfString("callid", " [", "]")
-		<< addIfString("from.uri.user", " [", "")
-		<< addIfString("from.uri.domain", "@", "")
-		<< addIfString("to.uri.user", " --> ", "")
-		<< addIfString("to.uri.domain", "@", "]")
+//		<< addIfString("from.uri.user", " [", "")
+//		<< addIfString("from.uri.domain", "@", "")
+//		<< addIfString("to.uri.user", " --> ", "")
+//		<< addIfString("to.uri.domain", "@", "]")
 		<< " : " << fmt::message()
 		;
 		
