@@ -60,7 +60,6 @@ public:
 			{ Boolean, "fork", "Fork messages to all registered devices", "true" },
 			{ Boolean, "stateful", "Force forking and thus the creation of an outgoing transaction even when only one contact found", "true" },
 			{ Boolean, "fork-late", "Fork invites to late registers", "false" },
-			{ Boolean, "fork-one-response", "Only forward one response of forked invite to the caller", "true" },
 			{ Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite", "false" },
 			{ Boolean, "treat-decline-as-urgent", "Treat 603 Declined answers as urgent. Only relevant if fork-no-global-decline is set to true.", "false"}, 
 			{ Integer, "call-fork-timeout", "Maximum time for a call fork to try to reach a callee, in seconds.","90"},
@@ -70,6 +69,8 @@ public:
 			{ Integer , "message-delivery-timeout", "Maximum duration for delivering a message (text)","3600"},
 			{ String, "generated-contact-route" , "Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
 			{ String, "generated-contact-expected-realm" , "Require presence of authorization header for specified realm. [Realm]", ""},
+			{ Boolean, "fork-one-response", "Only forward one response of forked invite to the caller", "true" },
+			{ Boolean, "remove-to-tag", "Remove to tag from 183, 180, and 101 responses to workaround buggy gateways", "false" },
 			config_item_end
 		};
 		mc->addChildrenValues(configs);
@@ -104,7 +105,8 @@ public:
 		mForkCfg->mUrgentTimeout = mc->get<ConfigInt>("call-fork-urgent-timeout")->read();
 		mForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("call-fork-timeout")->read();
 		mForkCfg->mTreatDeclineAsUrgent = mc->get<ConfigBoolean>("treat-decline-as-urgent")->read();
-		
+		mForkCfg->mRemoveToTag = mc->get<ConfigBoolean>("remove-to-tag")->read();
+
 		mMessageForkCfg->mForkLate=mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
 		mMessageForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("message-delivery-timeout")->read();
 		mOtherForkCfg=make_shared<ForkContextConfig>();

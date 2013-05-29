@@ -32,6 +32,7 @@ public:
 	bool mForkOneResponse;
 	bool mForkNoGlobalDecline;
 	bool mTreatDeclineAsUrgent; /*treat 603 declined as a urgent response, only useful is mForkNoGlobalDecline==true*/
+	bool mRemoveToTag; /*workaround buggy OVH which wrongly terminates wrong call*/
 };
 
 class ForkContext;

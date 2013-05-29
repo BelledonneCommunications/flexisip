@@ -47,14 +47,15 @@ void ForkCallContext::cancel() {
 void ForkCallContext::forward(const shared_ptr<ResponseSipEvent> &ev, bool force) {
 	sip_t *sip = ev->getMsgSip()->getSip();
 	bool fakeSipEvent = (mFinal > 0 && !force) || mIncoming == NULL;
+	const int status = sip->sip_status->st_status;
 
 	if (mCfg->mForkOneResponse) { // TODO: respect RFC 3261 16.7.5
-		if (sip->sip_status->st_status == 183 || sip->sip_status->st_status == 180 || sip->sip_status->st_status == 101) {
-			auto it = find(mForwardResponses.begin(), mForwardResponses.end(), sip->sip_status->st_status);
+		if (status == 183 || status == 180 || status == 101) {
+			auto it = find(mForwardResponses.begin(), mForwardResponses.end(), status);
 			if (it != mForwardResponses.end()) {
 				fakeSipEvent = true;
 			} else {
-				mForwardResponses.push_back(sip->sip_status->st_status);
+				mForwardResponses.push_back(status);
 			}
 		}
 	}
@@ -62,10 +63,14 @@ void ForkCallContext::forward(const shared_ptr<ResponseSipEvent> &ev, bool force
 	if (fakeSipEvent) {
 		ev->setIncomingAgent(shared_ptr<IncomingAgent>());
 	}else{
+		if (mCfg->mRemoveToTag && (status == 183 || status == 180 || status == 101)) {
+			SLOGD << "Removing 'to tag' ";
+			msg_header_remove_param((msg_common_t *)sip->sip_to, "tag");
+		}
 		logResponse(ev);
 	}
 
-	if (sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 700) {
+	if (status >= 200 && status < 700) {
 		++mFinal;
 	}
 }
@@ -210,7 +215,10 @@ void ForkCallContext::sendRinging(){
 		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_180_RINGING));
 		shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 		//add a to tag, no set by sofia here.
-		sip_to_tag(msgsip->getHome(), msgsip->getSip()->sip_to, nta_agent_newtag(msgsip->getHome(),"%s",mAgent->getSofiaAgent()));
+		if (!mCfg->mRemoveToTag) {
+			const char *totag=nta_agent_newtag(msgsip->getHome(),"%s",mAgent->getSofiaAgent());
+			sip_to_tag(msgsip->getHome(), msgsip->getSip()->sip_to, totag);
+		}
 		ev->setIncomingAgent(mIncoming);
 		sendResponse(ev,false);
 	}
