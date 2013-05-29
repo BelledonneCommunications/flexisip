@@ -49,7 +49,7 @@ void ForkCallContext::forward(const shared_ptr<ResponseSipEvent> &ev, bool force
 	bool fakeSipEvent = (mFinal > 0 && !force) || mIncoming == NULL;
 
 	if (mCfg->mForkOneResponse) { // TODO: respect RFC 3261 16.7.5
-		if (sip->sip_status->st_status == 183 || sip->sip_status->st_status == 180) {
+		if (sip->sip_status->st_status == 183 || sip->sip_status->st_status == 180 || sip->sip_status->st_status == 101) {
 			auto it = find(mForwardResponses.begin(), mForwardResponses.end(), sip->sip_status->st_status);
 			if (it != mForwardResponses.end()) {
 				fakeSipEvent = true;
