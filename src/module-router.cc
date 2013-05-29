@@ -133,6 +133,18 @@ private:
 		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 	}
 	bool dispatch(const shared_ptr<RequestSipEvent> &ev, sip_contact_t *ct, const char *route, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
+	string routingKey(const url_t* sipUri) {
+		ostringstream oss;
+		if (sipUri->url_user) {
+			oss << sipUri->url_user << "@";
+		}
+		if (mUseGlobalDomain){
+			oss << "merged";
+		} else {
+			oss << sipUri->url_host;
+		}
+		return oss.str();
+	}
 	list<string> mDomains;
 	bool mFork;
 	shared_ptr<ForkContextConfig> mForkCfg;
@@ -275,7 +287,7 @@ void LateForkApplier::onContactRegistered(const Agent *agent, sip_contact_t *ct,
 }
 
 void ModuleRouter::onContactRegistered(sip_contact_t *ct, Record *aor, const url_t * sipUri) {
-	SLOGD << "ModuleRouter::onContactRegistered" << sipUri;
+	SLOGD << "ModuleRouter::onContactRegistered";
 
 	if (!mForkCfg->mForkLate && !mMessageForkCfg->mForkLate) return;
 	if (!ct || !sipUri) return; // nothing to do
@@ -290,13 +302,15 @@ void ModuleRouter::onContactRegistered(sip_contact_t *ct, Record *aor, const url
 	url_e(sipUriRef,sizeof(sipUriRef)-1,&urlcopy);
 	
 	// Find all contexts
-	auto range = mForks.equal_range(sipUriRef);
+	const string key(routingKey(sipUri));
+	auto range = mForks.equal_range(key.c_str());
+	SLOGD << "Searching for fork context with key " << key;
 
 	// First use sipURI
 	for(auto it = range.first; it != range.second; ++it) {
 		shared_ptr<ForkContext> context = it->second;
 		if (context->onNewRegister(ct)){
-			LOGD("Found a pending context for user %s: %p", sipUriRef, context.get());
+			SLOGD << "Found a pending context for key " << key << ": " << context.get();
 			dispatch( context->getEvent(), ct, NULL, context);
 		}else LOGD("Found a pending context but not interested in this new register.");
 	}
@@ -385,14 +399,9 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			}
 			if (context) {
 				if (context->getConfig()->mForkLate){
-					url_t modified_uri=*sipUri;
-					
-					if (mUseGlobalDomain){
-						modified_uri.url_host="merged";
-					}
-					url_e(sipUriRef,sizeof(sipUriRef)-1,&modified_uri);
-					mForks.insert(make_pair(sipUriRef, context));
-					LOGD("Add fork %p to store with key '%s'", context.get(), sipUriRef);
+					const string key(routingKey(sipUri));
+					mForks.insert(make_pair(key, context));
+					SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
 				}
 				incoming_transaction = ev->createIncomingTransaction();
 				incoming_transaction->setProperty<ForkContext>(ModuleRouter::sInfo.getModuleName(), context);
@@ -511,6 +520,10 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			if (ev->isTerminated()) return;
 		}
 	}
+
+	// Don't route registers
+	if (sip->sip_request->rq_method == sip_method_register) return;
+
 
 	/*see if we can route other requests */
 	/*acks shall not have their request uri rewritten:
