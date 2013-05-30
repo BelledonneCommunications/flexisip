@@ -21,6 +21,7 @@
 #include <time.h>
 #include "common.hh"
 #include "flexisip-config.h"
+#include <cstring>
 
 Mutex::Mutex(bool reentrant) :
 		mReentrant(reentrant), mCount(0) {

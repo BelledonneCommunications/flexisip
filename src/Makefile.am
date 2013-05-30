@@ -88,6 +88,8 @@ flexisip_LDADD+=$(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(BOOST_LOG_LIB) $(BOOST_RE
 noinst_LIBRARIES = libhack.a
 libhack_a_SOURCES = log/workaround.cc log/logmanager.hh
 libhack_a_CXXFLAGS = $(AM_CXXFLAGS) -Wno-uninitialized
+
+AM_CXXFLAGS+= -DBOOST_LOG_DYN_LINK=1
 endif
 
 if BUILD_PUSHNOTIFICATION

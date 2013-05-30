@@ -244,7 +244,7 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const sip_con
 	static auto lambdaContactUrlInVia = [=]() {
 		return contactUrlInVia(ct->m_url, sip->sip_via);
 	};
-	static auto lambdaMsg = [](std::ostream &strm) {
+	static auto lambdaMsg = [](flexisip_record_type &strm) {
 		strm << "Contact url in vias, the message will be routed backward";
 	};
 	LOGDFN(lambdaContactUrlInVia, lambdaMsg);

@@ -195,10 +195,14 @@ public:
 	~ResponseSipEvent();
 };
 
-inline std::ostream& operator<<(std::ostream& strm, MsgSip& obj) {
-	strm << obj.print();
+inline std::ostream& operator<<(std::ostream& strm, MsgSip const& obj) {
+	// Here we hack out the constness.
+	// The print method is non const as it will modify the underlying msg_t
+	// during serialization. Moreover, the underlying sofia calls also take
+	// a non const sip_t...
+	MsgSip &hack=const_cast<MsgSip&>(obj);
+	strm << hack.print();
 	return strm;	
 }
-
 
 #endif //event_hh
