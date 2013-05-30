@@ -449,6 +449,16 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 
 		if (handled > 0) {
 			if (mFork) {
+				/* FIXME: what is this for ? couldn'it be ev.reply(SIP_100_TRYING) ? */
+				/* crash here:
+#0  nta_msg_create (agent=0xaaaaaaaaaaaaaaaa, flags=0) at ../../../libsofia-sip-ua/nta/nta.c:3335
+#1  0x00007fa1f0b58e08 in nta_incoming_create_response (irq=0x7fa1e096c3d0, status=100, phrase=0x838140 "Trying")
+    at ../../../libsofia-sip-ua/nta/nta.c:6436
+#2  0x000000000050b0e9 in IncomingTransaction::createResponse (this=0x7fa1e0994cd0, status=0, phrase=0x838140 "Trying") at transaction.cc:149
+#3  0x0000000000533181 in ModuleRouter::routeRequest (this=0x874370, ev=<value optimized out>, aor=<value optimized out>, 
+    sipUri=<value optimized out>) at module-router.cc:452
+#4  0x00000000005363d2 in OnBindForRoutingListener::onRecordFound(Record*) ()
+				*/
 				shared_ptr<ResponseSipEvent> new_ev(make_shared<ResponseSipEvent>(ev->getOutgoingAgent(), incoming_transaction->createResponse(SIP_100_TRYING)));
 				new_ev->setIncomingAgent(incoming_transaction);
 				getAgent()->sendResponseEvent(new_ev);
