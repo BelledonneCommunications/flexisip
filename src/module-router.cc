@@ -525,7 +525,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	if (sip->sip_request->rq_method != sip_method_ack && sip->sip_to != NULL && sip->sip_to->a_tag == NULL) {
 		url_t *sipurl = sip->sip_request->rq_url;
 		if (sipurl->url_host  && isManagedDomain(sipurl)) {
-			LOGD("Fetch %s.", url_as_string(ms->getHome(), sipurl));
+			LOGD("Fetch for url %s.", url_as_string(ms->getHome(), sipurl));
 			RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnBindForRoutingListener>(this, ev, sipurl), true);
 		}
 	}
