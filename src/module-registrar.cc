@@ -29,6 +29,7 @@
 #include "lateforkapplier.hh"
 
 #include <functional>
+#include <algorithm>
 
 using namespace ::std;
 
@@ -51,6 +52,18 @@ class ModuleRegistrar: public Module, public ModuleToolbox {
 	static void staticRoutesRereadTimerfunc(su_root_magic_t *magic, su_timer_t *t, void *data){
 		ModuleRegistrar *r=(ModuleRegistrar *)data;
 		r->readStaticRecords();
+	}
+	void removeParamsFromContacts(su_home_t *home, sip_contact_t *c, list<string> &params) {
+		while (c) {
+			for (auto it=params.begin(); it != params.end(); ++it) {
+				url_t *curl=c->m_url;
+				const char *tag=it->c_str();
+				if (!url_has_param(curl, tag)) continue;
+				char *paramcopy=su_strdup(home, curl->url_params);
+				curl->url_params = url_strip_param_string(paramcopy, tag);
+			}
+			c=c->m_next;
+		}
 	}
 public:
 	void reply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, const sip_contact_t *contacts=NULL);
@@ -104,6 +117,8 @@ public:
 		for (auto it = mDomains.begin(); it != mDomains.end(); ++it) {
 			LOGD("Found registrar domain: %s", (*it).c_str());
 		}
+		mUniqueIdParams = mc->get<ConfigStringList>("unique-id-parameters")->read();
+
 		mMaxExpires = mc->get<ConfigInt>("max-expires")->read();
 		mMinExpires = mc->get<ConfigInt>("min-expires")->read();
 		mStaticRecordsFile = mc->get<ConfigString>("static-records-file")->read();
@@ -149,6 +164,8 @@ private:
 	void readStaticRecords();
 	bool mUpdateOnResponse;
 	list<string> mDomains;
+	list<string> mUniqueIdParams;
+	static list<string> mPushNotifParams;
 	string mRoutingParam;
 	unsigned int mMaxExpires, mMinExpires;
 	string mStaticRecordsFile;
@@ -159,6 +176,11 @@ private:
 
 	static ModuleInfo<ModuleRegistrar> sInfo;
 	list<shared_ptr<ResponseContext>> mRespContexes;
+};
+
+
+list<string> ModuleRegistrar::mPushNotifParams {
+	"pn-tok", "pn-type", "app-id", "pn-msg-str", "pn-call-str", "pn-call-snd", "pn-msg-snd"
 };
 
 // Delta from expires header, normalized with custom rules.
@@ -400,6 +422,7 @@ void ModuleRegistrar::processUpdateRequest(shared_ptr<SipEventT> &ev, const sip_
 
 
 
+
 void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
@@ -451,7 +474,14 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		SLOGD << "Contacts :" << context->mContacts;
 		// Store a reference to the ResponseContext to prevent its destruction
 		mRespContexes.push_back(context);
-		// Let the initial event flow to the end (no fork needed).
+
+		// Cleaner contacts
+		su_home_t *home=ev->getMsgSip()->getHome();
+		removeParamsFromContacts(home, sip->sip_contact, mUniqueIdParams);
+		removeParamsFromContacts(home, sip->sip_contact, mPushNotifParams);
+		SLOGD << "Removed instance and push params: \n" << sip->sip_contact;
+
+		// Let the modified initial event flow (will not be forked).
 	}
 }
 
