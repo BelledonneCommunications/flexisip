@@ -230,7 +230,7 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, sip_contact_t
 
 #if not(__GNUC__ == 4 && __GNUC_MINOR__ < 5 )
 	sip_t *sip = ms->getSip();
-	static auto lambdaContactUrlInVia = [&]() {
+	static auto lambdaContactUrlInVia = [=]() {
 		return contactUrlInVia(ct->m_url, sip->sip_via);
 	};
 	static auto lambdaMsg = [](std::ostream &strm) {
