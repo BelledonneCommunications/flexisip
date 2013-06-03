@@ -63,6 +63,7 @@ class ModuleInfoBase {
 		virtual ~ModuleInfoBase(){
 		}
 		enum ModuleOid {
+			GarbageIn=5,
 			NatHelper=30,
 			Authentication=60,
 			DateHandler=75,

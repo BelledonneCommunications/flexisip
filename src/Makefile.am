@@ -33,6 +33,7 @@ flexisip_SOURCES=main.cc \
 			stun.cc stun.hh \
 			mediarelay.cc mediarelay.hh \
 			authdb.hh authdb.cc authdb-odbc.cc authdb-file.cc \
+			module-garbage-in.cc \
 			module-forward.cc \
 			module-transcode.cc \
 			module-gatewayadapter.cc \
