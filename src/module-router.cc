@@ -69,6 +69,7 @@ public:
 			{ Integer , "message-delivery-timeout", "Maximum duration for delivering a message (text)","3600"},
 			{ String, "generated-contact-route" , "Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
 			{ String, "generated-contact-expected-realm" , "Require presence of authorization header for specified realm. [Realm]", ""},
+			{ Boolean, "generate-contact-even-on-filled-aor", "Generate a contact route even on filled AOR.", "false"},
 			{ Boolean, "fork-one-response", "Only forward one response of forked invite to the caller", "true" },
 			{ Boolean, "remove-to-tag", "Remove to tag from 183, 180, and 101 responses to workaround buggy gateways", "false" },
 			config_item_end
@@ -98,6 +99,7 @@ public:
 		}
 		mGeneratedContactRoute = mc->get<ConfigString>("generated-contact-route")->read();
 		mExpectedRealm = mc->get<ConfigString>("generated-contact-expected-realm")->read();
+		mGenerateContactEvenOnFilledAor = mc->get<ConfigBoolean>("generate-contact-even-on-filled-aor")->read();
 		mForkCfg=make_shared<ForkContextConfig>();
 		mMessageForkCfg=make_shared<ForkContextConfig>();
 		mForkCfg->mForkOneResponse = mc->get<ConfigBoolean>("fork-one-response")->read();
@@ -160,6 +162,7 @@ private:
 	bool mStateful;
 
 	static ModuleInfo<ModuleRouter> sInfo;
+	bool mGenerateContactEvenOnFilledAor;
 };
 
 
@@ -338,6 +341,7 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, Record *aor, con
 	}
 }
 
+
 void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, const url_t *sipUri) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
@@ -357,7 +361,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 	time_t now = getCurrentTime();
 
 	// Generate a fake contact for a proxy
-	if (!mGeneratedContactRoute.empty()) {
+	if (!mGeneratedContactRoute.empty() && (!aor || mGenerateContactEvenOnFilledAor)) {
 		const url_t *to = ms->getSip()->sip_to->a_url;
 		const std::shared_ptr<ExtendedContact> gwECt(make_shared<ExtendedContact>(to, mGeneratedContactRoute.c_str()));
 
@@ -369,7 +373,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				shared_ptr<OutgoingTransaction> transaction = ev->createOutgoingTransaction();
 				shared_ptr<string> thisProxyRealm(make_shared<string>(to->url_host));
 				transaction->setProperty("this_proxy_realm", thisProxyRealm);
-				getAgent()->injectRequestEvent(ev);
+				ev->restartProcessing();
 				return;
 			}
 		} else {
@@ -379,106 +383,97 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 		LOGD("Added generated contact to %s@%s through %s", to->url_user, to->url_host, mGeneratedContactRoute.c_str());
 	}
 
-	if (contacts.size() > 0) {
-		int handled = 0;
-		
-		if (!mFork) {
-			mStats.mCountNonForks->incr();
+	if (contacts.size() <= 0) {
+		LOGD("This user isn't registered (no contact at all).");
+		sendReply(ev,SIP_404_NOT_FOUND);
+		return;
+	}
+
+	
+	int handled = 0;
+	
+	if (!mFork) {
+		mStats.mCountNonForks->incr();
+	} else {
+		mStats.mCountForks->incrStart();
+	}
+
+	// Init context if needed
+	shared_ptr<ForkContext> context;
+	if (mFork) {
+		if (sip->sip_request->rq_method == sip_method_invite) {
+			context = make_shared<ForkCallContext>(getAgent(), ev, mForkCfg, this);
+		} else if (sip->sip_request->rq_method == sip_method_message) {
+			context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this);
 		} else {
-			mStats.mCountForks->incrStart();
+			context = make_shared<ForkBasicContext>(getAgent(),ev,mOtherForkCfg,this);
 		}
-
-		// Init context if needed
-		shared_ptr<ForkContext> context;
-		shared_ptr<IncomingTransaction> incoming_transaction;
-		if (mFork) {
-			if (sip->sip_request->rq_method == sip_method_invite) {
-				context = make_shared<ForkCallContext>(getAgent(), ev, mForkCfg, this);
-			} else if (sip->sip_request->rq_method == sip_method_message) {
-				context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this);
-			} else {
-				context = make_shared<ForkBasicContext>(getAgent(),ev,mOtherForkCfg,this);
+		if (context) {
+			if (context->getConfig()->mForkLate){
+				const string key(routingKey(sipUri));
+				mForks.insert(make_pair(key, context));
+				SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
 			}
-			if (context) {
-				if (context->getConfig()->mForkLate){
-					const string key(routingKey(sipUri));
-					mForks.insert(make_pair(key, context));
-					SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
-				}
-				incoming_transaction = ev->createIncomingTransaction();
-				incoming_transaction->setProperty<ForkContext>(ModuleRouter::sInfo.getModuleName(), context);
-				context->onNew(incoming_transaction);
-			}
+			auto inTr = ev->createIncomingTransaction();
+			inTr->setProperty<ForkContext>(ModuleRouter::sInfo.getModuleName(), context);
+			context->onNew(inTr);
 		}
+	}
 
-		for (auto it = contacts.begin(); it != contacts.end(); ++it) {
-			const shared_ptr<ExtendedContact> ec = *it;
-			sip_contact_t *ct = NULL;
-			if (ec)
-				ct = Record::extendedContactToSofia(ms->getHome(), *ec, now);
-			if (!ec->mAlias) {
-				if (ct) {
-					if (ec->mRoute != NULL && 0 != strcmp(getAgent()->getPreferredRoute().c_str(), ec->mRoute)) {
-						if (dispatch(ev, ct, ec->mRoute, context)) {
-							handled++;
-							if (!mFork) break;
-						}
-					} else {
-						if (dispatch(ev, ct, NULL, context)) {
-							handled++;
-							if (!mFork) break;
-						}
+	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
+		const shared_ptr<ExtendedContact> ec = *it;
+		sip_contact_t *ct = NULL;
+		if (ec)
+			ct = Record::extendedContactToSofia(ms->getHome(), *ec, now);
+		if (!ec->mAlias) {
+			if (ct) {
+				if (ec->mRoute != NULL && 0 != strcmp(getAgent()->getPreferredRoute().c_str(), ec->mRoute)) {
+					if (dispatch(ev, ct, ec->mRoute, context)) {
+						handled++;
+						if (!mFork) break;
 					}
 				} else {
-					LOGW("Can't create sip_contact of %s.", ec->mSipUri);
-				}
-			} else {
-				if (mFork && context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
-					sip_contact_t *temp_ctt=sip_contact_make(ms->getHome(),ec->mSipUri);
-					
-					if (mUseGlobalDomain){
-						temp_ctt->m_url->url_host="merged";
-						temp_ctt->m_url->url_port=NULL;
-					}
-					url_e(sipUriRef,sizeof(sipUriRef)-1,temp_ctt->m_url);
-					mForks.insert(make_pair(sipUriRef, context));
-					LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), sipUriRef);
-				}else{
 					if (dispatch(ev, ct, NULL, context)) {
 						handled++;
 						if (!mFork) break;
 					}
 				}
+			} else {
+				LOGW("Can't create sip_contact of %s.", ec->mSipUri);
 			}
-		}
-
-		if (handled > 0) {
-			if (mFork) {
-				/* FIXME: what is this for ? couldn'it be ev.reply(SIP_100_TRYING) ? */
-				/* crash here:
-#0  nta_msg_create (agent=0xaaaaaaaaaaaaaaaa, flags=0) at ../../../libsofia-sip-ua/nta/nta.c:3335
-#1  0x00007fa1f0b58e08 in nta_incoming_create_response (irq=0x7fa1e096c3d0, status=100, phrase=0x838140 "Trying")
-    at ../../../libsofia-sip-ua/nta/nta.c:6436
-#2  0x000000000050b0e9 in IncomingTransaction::createResponse (this=0x7fa1e0994cd0, status=0, phrase=0x838140 "Trying") at transaction.cc:149
-#3  0x0000000000533181 in ModuleRouter::routeRequest (this=0x874370, ev=<value optimized out>, aor=<value optimized out>, 
-    sipUri=<value optimized out>) at module-router.cc:452
-#4  0x00000000005363d2 in OnBindForRoutingListener::onRecordFound(Record*) ()
-				*/
-				const auto response=incoming_transaction->createResponse(SIP_100_TRYING);
-				shared_ptr<ResponseSipEvent> new_ev(make_shared<ResponseSipEvent>(ev->getOutgoingAgent(), response));
-				new_ev->setIncomingAgent(incoming_transaction);
-				getAgent()->sendResponseEvent(new_ev);
-
-				ev->terminateProcessing();
-			}
-			return;
 		} else {
-			LOGD("This user isn't registered (no valid contact).");
+			if (mFork && context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
+				sip_contact_t *temp_ctt=sip_contact_make(ms->getHome(),ec->mSipUri);
+				
+				if (mUseGlobalDomain){
+					temp_ctt->m_url->url_host="merged";
+					temp_ctt->m_url->url_port=NULL;
+				}
+				url_e(sipUriRef,sizeof(sipUriRef)-1,temp_ctt->m_url);
+				mForks.insert(make_pair(sipUriRef, context));
+				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), sipUriRef);
+			}else{
+				if (dispatch(ev, ct, NULL, context)) {
+					handled++;
+					if (!mFork) break;
+				}
+			}
 		}
-	} else {
-		LOGD("This user isn't registered (no contact at all).");
 	}
-	sendReply(ev,SIP_404_NOT_FOUND);
+
+	if (handled <= 0) {
+		LOGD("This user isn't registered (no valid contact).");
+		sendReply(ev,SIP_404_NOT_FOUND);
+		return;
+	}
+
+	// Handled via a fork
+	if (mFork) {
+		sendReply(ev, SIP_100_TRYING);
+		return;
+	}
+
+	// Let flow non forked handled message
 }
 
 
