@@ -112,6 +112,7 @@ ModuleInfo<Transcoder> Transcoder::sInfo("Transcoder", "The purpose of the Trans
 
 static MSList *makeSupportedAudioPayloadList() {
 	/* in mediastreamer2, we use normal_bitrate as an IP bitrate, not codec bitrate*/
+	payload_type_silk_nb.normal_bitrate = 32000;
 	payload_type_speex_nb.normal_bitrate = 32000;
 	payload_type_speex_wb.normal_bitrate = 42000;
 	payload_type_speex_nb.recv_fmtp = ms_strdup("vbr=on");
