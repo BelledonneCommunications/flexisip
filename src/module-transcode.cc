@@ -95,6 +95,7 @@ private:
 	CallStore mCalls;
 	su_timer_t *mTimer;
 	list<string> mRcUserAgents;
+	bool mRemoveBandwidthsLimits;
 	CallContextParams mCallParams;
 	static ModuleInfo<Transcoder> sInfo;
 };
@@ -182,6 +183,7 @@ void Transcoder::onDeclare(GenericStruct *mc) {
 		{	StringList	,	"rc-user-agents",	"Whitespace separated list of user-agent strings for which audio rate control is performed.",""},
 		{	StringList	,	"audio-codecs",	"Whitespace seprated list of audio codecs, in order of preference. The telephone-event codec is necessary for inband DTMF processing.",
 			"speex/8000 amr/8000 iLBC/8000 gsm/8000 pcmu/8000 pcma/8000 telephone-event/8000"},
+		{	Boolean	,	"remove-bw-limits",	"Remove the bandwidth limitations from SDP offers and answers",	"false"},
 		{	Boolean , "block-retransmissions", "If true, retransmissions of INVITEs will be blocked. "
 			"The purpose of this option is to limit bandwidth usage and server load on reliable networks.","false" },
 			config_item_end
@@ -228,12 +230,13 @@ MSList *Transcoder::orderList(const list<string> &config, const MSList *l) {
 	return ret;
 }
 
-void Transcoder::onLoad(const GenericStruct *module_config){
+void Transcoder::onLoad(const GenericStruct *mc){
 	mTimer=mAgent->createTimer(20,&sOnTimer,this);
-	mCallParams.mJbNomSize=module_config->get<ConfigInt>("jb-nom-size")->read();
-	mRcUserAgents=module_config->get<ConfigStringList>("rc-user-agents")->read();
+	mCallParams.mJbNomSize=mc->get<ConfigInt>("jb-nom-size")->read();
+	mRcUserAgents=mc->get<ConfigStringList>("rc-user-agents")->read();
+	mRemoveBandwidthsLimits=mc->get<ConfigBoolean>("remove-bw-limits")->read();
 	MSList *l=makeSupportedAudioPayloadList();
-	mSupportedAudioPayloads=orderList(module_config->get<ConfigStringList>("audio-codecs")->read(),l);
+	mSupportedAudioPayloads=orderList(mc->get<ConfigStringList>("audio-codecs")->read(),l);
 	ms_list_free(l);
 }
 
@@ -293,6 +296,14 @@ MSList *Transcoder::normalizePayloads(MSList *l) {
 	return l;
 }
 
+static void removeBandwidths(sdp_session_t *sdp) {
+	sdp_media_t *mline=sdp->sdp_media;
+	while (mline != NULL) {
+		mline->m_bandwidths=NULL;
+		mline=mline->m_next;
+	}
+}
+
 int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	msg_t *msg = ms->getMsg();
@@ -331,6 +342,8 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 		LOGD("Using public ip%s %s", ipVersion == 6 ?"v6":"v4", publicIp);
 		m->changeAudioIpPort(publicIp, blport);
 		LOGD("Back side local port: %s:%i <-> ?", publicIp, blport);
+
+		if (mRemoveBandwidthsLimits) removeBandwidths(m->mSession);
 
 		m->replacePayloads(mSupportedAudioPayloads, c->getInitialOffer());
 		m->update(msg, sip);
@@ -460,6 +473,9 @@ int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {
 	if (common != NULL) {
 		m->replacePayloads(common, NULL);
 	}
+
+	if (mRemoveBandwidthsLimits) removeBandwidths(m->mSession);
+
 	m->update(ms->getMsg(), ms->getSip());
 
 	ctx->getFrontSide()->assignPayloads(normalizePayloads(common));
