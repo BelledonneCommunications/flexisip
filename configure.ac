@@ -15,10 +15,11 @@ m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],)
 m4_include([m4/ax_compare_version.m4])
 
 # Checks for programs.
-# Favor g++ 4.4 as (the one in Debian and centos stable versions).
+# Favor g++ 4.4 (the one in centos stable version)
+# or g++ 4.7 (the one in Debian stable version).
 # Use ./configure CXX=path to override.
-AC_PROG_CC([gcc-4.4 gcc])
-AC_PROG_CXX([g++-4.4 g++])
+AC_PROG_CC([gcc-4.4 gcc-4.7 gcc])
+AC_PROG_CXX([g++-4.4 g++-4.7 g++])
 AC_PROG_LIBTOOL
 
 build_snmp=true
@@ -65,21 +66,32 @@ case $CXX in
 	;;
 esac
 
+PKG_PROG_PKG_CONFIG()
+
+
 AC_ARG_ENABLE(strict,
 	AC_HELP_STRING([--enable-strict],
 		       [Build with stricter options (gcc only) @<:@yes@:>@]),[
 	strictness="${enableval}"],[foo=bar])
 
+AC_ARG_ENABLE(odbc,
+	AC_HELP_STRING([--disable-odbc],
+	    [Build odbc support @<:@yes@:>@]),
+        [odbc="${enableval}"],[odbc=yes]
+)
+AM_CONDITIONAL(BUILD_ODBC,test x$odbc = xyes)
 
-# Checks for libraries.
-AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],,[AC_MSG_ERROR("unixodbc headers missing.")])
-AC_CHECK_LIB(odbc, main,[ODBC_LIBS="-lodbc -lltdl"], [AC_MSG_ERROR("Linking against odbc failed.")])
-AC_SUBST(ODBC_LIBS)
-AC_CHECK_HEADERS(sys/prctl.h)
-
-PKG_PROG_PKG_CONFIG()
+if test x$odbc = "xyes"; then
+	# Checks for libraries.
+	AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],,[AC_MSG_ERROR("unixodbc headers missing.")])
+	AC_CHECK_LIB(odbc, main,[ODBC_LIBS="-lodbc -lltdl"], [AC_MSG_ERROR("Linking against odbc failed.")])
+	AC_SUBST(ODBC_LIBS)
+fi
+	
 
 # Checks for header files.
+
+AC_CHECK_HEADERS(sys/prctl.h)
 
 AC_ARG_ENABLE(doc,
     AC_HELP_STRING([--disable-doc],
