@@ -309,13 +309,16 @@ class OnRequestBindListener: public RegistrarDbListener {
 	sip_from_t * mSipFrom;
 	su_home_t mHome;
 	sip_contact_t *mContact;
+	sip_path_t *mPath;
 public:
-	OnRequestBindListener(ModuleRegistrar *module, shared_ptr<RequestSipEvent> ev, const sip_from_t* sipuri = NULL, sip_contact_t *contact = NULL) :
-			mModule(module), mEv(ev), mSipFrom(NULL), mContact(NULL) {
+	OnRequestBindListener(ModuleRegistrar *module, shared_ptr<RequestSipEvent> ev, const sip_from_t* sipuri=NULL, sip_contact_t *contact=NULL, sip_path_t *path=NULL) :
+			mModule(module), mEv(ev), mSipFrom(NULL), mContact(NULL), mPath(NULL) {
 		ev->suspendProcessing();
 		su_home_init(&mHome);
 		if (contact)
 			mContact = sip_contact_copy(&mHome, contact);
+		if (path)
+			mPath = sip_path_copy(&mHome, path);
 		if (sipuri){
 			mSipFrom=sip_from_dup(&mHome,sipuri);
 		}
@@ -331,8 +334,8 @@ public:
 			mModule->reply(mEv, 200, "Registration successful", r->getContacts(ms->getHome(), now));
 
 			const sip_expires_t *expires=mEv->getMsgSip()->getSip()->sip_expires;
-			if (expires && expires->ex_delta > 0) {
-				LateForkApplier::onContactRegistered(mModule->getAgent(), mContact, r, mSipFrom->a_url);
+			if (mContact && expires && expires->ex_delta > 0) {
+				LateForkApplier::onContactRegistered(mModule->getAgent(), mContact, mPath, r, mSipFrom->a_url);
 			}
 
 			addEventLogRecordFound(mEv, mContact);
@@ -359,7 +362,7 @@ inline static bool containsNonZeroExpire(const sip_expires_t *main, const sip_co
 	return false;
 }
 
-// Listener class NEED to copy the shared pointer
+
 class OnResponseBindListener: public RegistrarDbListener {
 	ModuleRegistrar *mModule;
 	shared_ptr<ResponseSipEvent> mEv;
@@ -380,7 +383,7 @@ public:
 			
 			const sip_expires_t *expires=mEv->getMsgSip()->getSip()->sip_expires;
 			if (containsNonZeroExpire(expires, dbContacts)) {
-				LateForkApplier::onContactRegistered(mModule->getAgent(), dbContacts, r, mCtx->mFrom->a_url);
+				LateForkApplier::onContactRegistered(mModule->getAgent(), dbContacts, mCtx->mPath, r, mCtx->mFrom->a_url);
 			}
 
 			// Replace received contacts by our ones

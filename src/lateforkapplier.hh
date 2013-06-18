@@ -28,7 +28,10 @@
 
 class Agent;
 struct LateForkApplier {
-	static void onContactRegistered(const Agent *, const sip_contact_t *, Record *, const url_t * sipUri);
+	/**
+	 * record should not be null.
+	 */
+	static void onContactRegistered(const Agent *, const sip_contact_t *, const sip_path_t *path, Record *record, const url_t * sipUri);
 };
 
 #endif

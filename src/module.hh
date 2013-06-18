@@ -176,6 +176,7 @@ class ModuleToolbox{
 		static url_t *urlFromTportName(su_home_t *home, const tp_name_t *name);
 		static void addRecordRoute(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev, const tport_t *tport);
 		static void cleanAndPrependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *route);
+		static void cleanAndPrependRoutable(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const std::list<std::string> &routes);
 		static bool sipPortEquals(const char *p1, const char *p2);
 		static int sipPortToInt(const char *port);
 		static bool fromMatch(const sip_from_t *from1, const sip_from_t *from2);
@@ -185,7 +186,7 @@ class ModuleToolbox{
 		static bool isNumeric(const char *host);
 		static bool isManagedDomain(const Agent *agent, const std::list<std::string> &domains, const url_t *url);
 		static void addRoutingParam(su_home_t *home, sip_contact_t *contacts, const std::string &routingParam, const char *domain);
-		static bool prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_s * &sipr, struct sip_route_s * &value);
+		static struct sip_route_s *prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_s * &sipr, struct sip_route_s * &value);
 		static void addPathHeader(const std::shared_ptr<RequestSipEvent> &ev, const tport_t *tport);
 };
 

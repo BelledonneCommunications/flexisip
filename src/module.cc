@@ -237,6 +237,21 @@ void ModuleToolbox::cleanAndPrependRoute(su_home_t *home, Agent *ag, msg_t *msg,
 	prependNewRoutable(msg, sip, sip->sip_route, r);
 }
 
+void ModuleToolbox::cleanAndPrependRoutable(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const std::list<std::string> &routes){
+	// removes top route headers if they matches us
+	while (sip->sip_route != NULL && ag->isUs(sip->sip_route->r_url)) {
+		sip_route_remove(msg, sip);
+	}
+	SLOGD << "Removed top route headers";
+
+	for (auto it=routes.crbegin(); it != routes.crend(); ++it) {
+		sip_route_t *r = sip_route_format(home, "%s", it->c_str());
+		if (prependNewRoutable(msg, sip, sip->sip_route, r)) {
+			SLOGD << "Prepended routable " << *it;
+		}
+	}
+}
+
 url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
 	url_t *url=NULL;
 	int port=atoi(name->tpn_port);
@@ -393,21 +408,21 @@ void ModuleToolbox::addRoutingParam(su_home_t *home, sip_contact_t *c, const str
 	}
 }
 
-bool ModuleToolbox::prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_s * &sipr, struct sip_route_s * &value) {
+struct sip_route_s *ModuleToolbox::prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_s * &sipr, struct sip_route_s * &value) {
 	if (sipr == NULL) {
 		sipr = value;
-		return true;
+		return value;
 	}
 	
 	/*make sure we are not already in*/
 	if (sipr && url_cmp_all(sipr->r_url,value->r_url)==0)
-		return false;
+		return NULL;
 	
 	value->r_next = sipr;
 	msg_header_remove_all(msg, (msg_pub_t*) sip, (msg_header_t*) sipr);
 	msg_header_insert(msg, (msg_pub_t*) sip, (msg_header_t*) value);
 	sipr = value;
-	return true;
+	return value;
 }
 
 void ModuleToolbox::addPathHeader(const shared_ptr< RequestSipEvent >& ev, const tport_t* tport) {

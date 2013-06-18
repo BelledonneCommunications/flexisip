@@ -46,7 +46,7 @@ class ModuleRouter: public Module, public ModuleToolbox, public ForkContextListe
 public:
 	void sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason);
 	void routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aorb, const url_t *sipUri);
-	void onContactRegistered(const sip_contact_t *ct, Record *aor, const url_t * sipUri);
+	void onContactRegistered(const sip_contact_t *ct, const sip_path_t *path, Record *aor, const url_t * sipUri);
 
 	ModuleRouter(Agent *ag) : Module(ag) {
 	}
@@ -136,7 +136,7 @@ private:
 	bool isManagedDomain(const url_t *url) {
 		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 	}
-	bool dispatch(const shared_ptr<RequestSipEvent> &ev, const sip_contact_t *ct, const char *route, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
+	bool dispatch(const shared_ptr<RequestSipEvent> &ev, const sip_contact_t *ct, const list<string> &path, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
 	string routingKey(const url_t* sipUri) {
 		ostringstream oss;
 		if (sipUri->url_user) {
@@ -233,7 +233,7 @@ bool ModuleRouter::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *
 	return false;
 }
 
-bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const sip_contact_t *ct, const char *route, shared_ptr<ForkContext> context) {
+bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const sip_contact_t *ct, const list<string> &path, shared_ptr<ForkContext> context) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
@@ -261,10 +261,7 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const sip_con
 
 	/* Rewrite request-uri */
 	new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), ct->m_url);
-	if (route != NULL) {
-		LOGD("This flexisip instance is not responsible for contact %s -> %s",contact_url_string, route);
-		cleanAndPrependRoute(msg_home(new_msg),getAgent(), new_msg, new_sip, route);
-	}
+	cleanAndPrependRoutable(msg_home(new_msg),getAgent(), new_msg, new_sip, path);
 
 	shared_ptr<RequestSipEvent> new_ev;
 	if (context) {
@@ -286,13 +283,18 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const sip_con
 }
 
 
-void LateForkApplier::onContactRegistered(const Agent *agent, const sip_contact_t *ct, Record *aor, const url_t * sipUri) {
+void LateForkApplier::onContactRegistered(const Agent *agent, const sip_contact_t *ct, const sip_path_t *path, Record *aor, const url_t * sipUri) {
 	ModuleRouter *module=(ModuleRouter*) agent->findModule(ModuleRouter::sInfo.getModuleName());
-	module->onContactRegistered(ct, aor, sipUri);
+	module->onContactRegistered(ct, path, aor, sipUri);
 }
 
-void ModuleRouter::onContactRegistered(const sip_contact_t *ct, Record *aor, const url_t * sipUri) {
+void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t *path, Record *aor, const url_t * sipUri) {
 	SLOGD << "ModuleRouter::onContactRegistered";
+	if (aor == NULL) {
+		SLOGE << "aor was null...";
+		return;
+	}
+
 
 	if (!mForkCfg->mForkLate && !mMessageForkCfg->mForkLate) return;
 	if (!ct || !sipUri) return; // nothing to do
@@ -316,13 +318,12 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, Record *aor, con
 		shared_ptr<ForkContext> context = it->second;
 		if (context->onNewRegister(ct)){
 			SLOGD << "Found a pending context for key " << key << ": " << context.get();
-			dispatch( context->getEvent(), ct, NULL, context);
+			auto stlpath=Record::route_to_stl(context->getEvent()->getMsgSip()->getHome(), path);
+			dispatch( context->getEvent(), ct, stlpath, context);
 		}else LOGD("Found a pending context but not interested in this new register.");
 	}
 
 	// If not found find in aliases
-	if (aor == NULL) return;
-
 	const auto contacts = aor->getExtendedContacts();
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
 		const shared_ptr<ExtendedContact> ec = *it;
@@ -335,7 +336,8 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, Record *aor, con
 			if (context->onNewRegister(ct)){
 				LOGD("Found a pending context for contact %s: %p",
 				     ec->mSipUri.c_str(), context.get());
-				dispatch(context->getEvent(), ct, NULL, context);
+				auto stlpath=Record::route_to_stl(context->getEvent()->getMsgSip()->getHome(), path);
+				dispatch(context->getEvent(), ct, stlpath, context);
 			}
 		}
 	}
@@ -427,16 +429,9 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			ct = Record::extendedContactToSofia(ms->getHome(), *ec, now);
 		if (!ec->mAlias) {
 			if (ct) {
-				if (ec->route() != NULL && 0 != strcmp(getAgent()->getPreferredRoute().c_str(), ec->route())) {
-					if (dispatch(ev, ct, ec->route(), context)) {
-						handled++;
-						if (!mFork) break;
-					}
-				} else {
-					if (dispatch(ev, ct, NULL, context)) {
-						handled++;
-						if (!mFork) break;
-					}
+				if (dispatch(ev, ct, ec->mCommon.mPath, context)) {
+					handled++;
+					if (!mFork) break;
 				}
 			} else {
 				SLOGW << "Can't create sip_contact of " << ec->mSipUri;
@@ -453,7 +448,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				mForks.insert(make_pair(sipUriRef, context));
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), sipUriRef);
 			}else{
-				if (dispatch(ev, ct, NULL, context)) {
+				if (dispatch(ev, ct, ec->mCommon.mPath, context)) {
 					handled++;
 					if (!mFork) break;
 				}
