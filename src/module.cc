@@ -228,17 +228,13 @@ int ModuleToolbox::sipPortToInt(const char *port){
 	else return atoi(port);
 }
 
-void ModuleToolbox::prependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *route){
+void ModuleToolbox::cleanAndPrependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *route){
 	// removes top route headers if they matches us
-	sip_route_t *r;
-	r = sip_route_format(home, "%s", route);
+	sip_route_t *r = sip_route_format(home, "%s", route);
 	while (sip->sip_route != NULL && ag->isUs(sip->sip_route->r_url)) {
 		sip_route_remove(msg, sip);
 	}
-	r->r_next = sip->sip_route;
-	msg_header_remove_all(msg, (msg_pub_t*) sip, (msg_header_t*) sip->sip_route);
-	msg_header_insert(msg, (msg_pub_t*) sip, (msg_header_t*) r);
-	sip->sip_route = r;
+	prependNewRoutable(msg, sip, sip->sip_route, r);
 }
 
 url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
@@ -266,57 +262,50 @@ url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
 	return url;
 }
 
-void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev, tport_t *tport){
-	const tp_name_t *name;
-	shared_ptr<MsgSip> msgsip=ev->getMsgSip();
-	msg_t *msg=msgsip->getMsg();
-	sip_t *sip=msgsip->getSip();
-	sip_record_route_t *rr=NULL;
-	url_t *url;
-	
+void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev, const tport_t *tport){
+	msg_t *msg=ev->getMsgSip()->getMsg();
+	sip_t *sip=ev->getMsgSip()->getSip();
+
 	tport=tport_parent(tport); //get primary transport
-	name=tport_name(tport); //primary transport name
-	
-	url=urlFromTportName(home,name);
+	const tp_name_t *name=tport_name(tport); //primary transport name
+
+	url_t *url=urlFromTportName(home,name);
 	if (!url){
 		LOGE("ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL");
 		return;
 	}
+
 	url_param_add(home,url,"lr");
-	rr=sip_record_route_create(home,url,NULL);
+	sip_record_route_t *rr=sip_record_route_create(home,url,NULL);
 	if (!rr) {
 		LOGE("ModuleToolbox::addRecordRoute(): sip_record_route_create() returned NULL");
 		return;
 	}
-	if (sip->sip_record_route == NULL) {
-		sip->sip_record_route = rr;
-	} else {
-		/*make sure we are not already in*/
-		if (sip->sip_record_route && url_cmp_all(sip->sip_record_route->r_url,rr->r_url)==0) {
-			LOGD("Skipping addition of record route identical to top one");
-			return;
-		}
-		rr->r_next = sip->sip_record_route;
-		msg_header_remove_all(msg, (msg_pub_t*) sip, (msg_header_t*) sip->sip_record_route);
-		msg_header_insert(msg, (msg_pub_t*) sip, (msg_header_t*) rr);
-		sip->sip_record_route = rr;
+
+	if (!prependNewRoutable(msg, sip, sip->sip_record_route, rr)) {
+		LOGD("Skipping addition of record route identical to top one");
+		return;
 	}
+
 	LOGD("Record route added.");
 	ev->mRecordRouteAdded=true;
+}
+
+const tport_t *ModuleToolbox::getIncomingTport(const shared_ptr<RequestSipEvent> &ev, Agent *ag) {
+	msg_t *orig_msg=ev->getMsgSip()->createOrigMsgRef();
+	tport_t *primaries=nta_agent_tports(ag->getSofiaAgent());
+	const tport_t *tport=tport_delivered_by(primaries,orig_msg);
+	msg_destroy(orig_msg);
+	
+	return tport;
 }
 
 void ModuleToolbox::addRecordRouteIncoming(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev ) {
 	if (ev->mRecordRouteAdded) return;
 
-	shared_ptr<MsgSip> msgsip=ev->getMsgSip();
-	msg_t *orig_msg=msgsip->createOrigMsgRef();
-	tport_t *primaries=nta_agent_tports(ag->getSofiaAgent());
-	tport_t *tport=tport_delivered_by(primaries,orig_msg);
-	
-	msg_destroy(orig_msg);
-	
+	const tport_t *tport=getIncomingTport(ev, ag);
 	if (tport==NULL){
-		LOGE("Cannot find tport message is coming from, not possible to add a Record-Route.");
+		LOGE("Cannot find incoming tport, cannot add a Record-Route.");
 		return;
 	}
 	addRecordRoute(home,ag,ev,tport);
@@ -402,4 +391,21 @@ void ModuleToolbox::addRoutingParam(su_home_t *home, sip_contact_t *c, const str
 		url_param_add(home, c->m_url, routing_param.c_str());
 		c = c->m_next;
 	}
+}
+
+bool ModuleToolbox::prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_s * &sipr, struct sip_route_s * &value) {
+	if (sipr == NULL) {
+		sipr = value;
+		return true;
+	}
+	
+	/*make sure we are not already in*/
+	if (sipr && url_cmp_all(sipr->r_url,value->r_url)==0)
+		return false;
+	
+	value->r_next = sipr;
+	msg_header_remove_all(msg, (msg_pub_t*) sip, (msg_header_t*) sipr);
+	msg_header_insert(msg, (msg_pub_t*) sip, (msg_header_t*) value);
+	sipr = value;
+	return true;
 }

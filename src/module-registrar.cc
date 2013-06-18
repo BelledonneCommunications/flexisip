@@ -234,10 +234,12 @@ struct ResponseContext {
 		otr->setProperty(tag, context);
 		return context;
 	}
+
 	ResponseContext(shared_ptr<RequestSipEvent> &ev) : reqSipEvent(ev), mHome(ev->getMsgSip()->getHome()) {
 		sip_t *sip=ev->getMsgSip()->getSip();
 		mFrom = sip_from_dup(mHome, sip->sip_from);
 		mContacts = sip_contact_dup(mHome, sip->sip_contact);
+		mPath = sip_path_dup(mHome, sip->sip_path);
 	}
 
 	static bool match(const shared_ptr<ResponseContext> &ctx , const char *fromtag) {
@@ -247,6 +249,7 @@ struct ResponseContext {
 	su_home_t *mHome;
 	sip_from_t *mFrom;
 	sip_contact_t *mContacts;
+	sip_path_t *mPath;
 };
 
 
@@ -518,8 +521,9 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	const int maindelta = computeMainDelta(expires, mMinExpires, mMaxExpires);
 	auto listener = make_shared<OnResponseBindListener>(this, ev, transaction, context);
 
-	// Rewrite contacts in received msg (avoid rewriting registrardb API)
+	// Rewrite contacts in received msg (avoid reworking registrardb API)
 	reSip->sip_contact = context->mContacts;
+	reSip->sip_path = context->mPath;
 
 	if ('*' == reSip->sip_contact->m_url[0].url_scheme[0]) {
 		mStats.mCountClear->incrStart();
@@ -615,7 +619,7 @@ void ModuleRegistrar::readStaticRecords() {
 				if (url != NULL && contact != NULL) {
 					auto listener=make_shared<OnStaticBindListener>(getAgent(), line);
 					bool alias=isManagedDomain(contact->m_url);
-					RegistrarDb::get(mAgent)->bind(url->m_url, contact, fakeCallId, version, NULL, expire, alias, listener);
+					RegistrarDb::get(mAgent)->bind(url->m_url, contact, fakeCallId, version, NULL, NULL, expire, alias, listener);
 					continue;
 				}
 			}

@@ -220,7 +220,7 @@ bool ModuleRouter::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *
 						ct_url->url_host?ct_url->url_host:"",
 						ct_url->url_params?ct_url->url_params:"",
 						route);
-				prependRoute(home, mAgent, ms->getMsg(), sip, route);
+				cleanAndPrependRoute(home, mAgent, ms->getMsg(), sip, route);
 			}
 			// Back to work
 			return true;
@@ -263,7 +263,7 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const sip_con
 	new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), ct->m_url);
 	if (route != NULL) {
 		LOGD("This flexisip instance is not responsible for contact %s -> %s",contact_url_string, route);
-		prependRoute(msg_home(new_msg),getAgent(), new_msg, new_sip, route);
+		cleanAndPrependRoute(msg_home(new_msg),getAgent(), new_msg, new_sip, route);
 	}
 
 	shared_ptr<RequestSipEvent> new_ev;

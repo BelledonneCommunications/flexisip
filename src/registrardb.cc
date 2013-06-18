@@ -35,6 +35,23 @@
 
 using namespace ::std;
 
+ostream &ExtendedContact::print(std::ostream& stream, time_t now, time_t offset) const {
+	char buffer[256] = "UNDETERMINED";
+	time_t expire=mExpireAt;
+	expire+=offset;
+	struct tm *ptm = localtime(&expire);
+	if (ptm != NULL) {
+		strftime(buffer, sizeof(buffer) - 1, "%c", ptm);
+	}
+	int expireAfter=mExpireAt-now;
+	
+	stream << mSipUri << " path=";
+	for (auto it=mPath.cbegin(); it != mPath.cend(); ++it) stream << " " << *it;
+	stream << " alias=" << (mAlias ? "yes" : "no")
+	<< " expire=" << expireAfter << " s (" << buffer << ")";
+	return stream;
+}
+
 
 char Record::sStaticRecordVersion[100]={0};
 
@@ -205,6 +222,15 @@ time_t Record::latestExpire(const std::string &route) const {
 	return latest;
 }
 
+std::list<std::string> Record::route_to_stl(su_home_t *home, const sip_route_s *route) {
+	std::list<std::string> res;
+	while (route != NULL) {
+		res.push_back(url_as_string(home, route->r_url));
+		route = route->r_next;
+	}
+	return res;
+}
+
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec) {
 	// Try to locate an existing contact
 	shared_ptr<ExtendedContact> olderEc;
@@ -239,8 +265,16 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 		oss << ":" << url->url_port;
 }
 
-void Record::bind(const sip_contact_t *contacts, const char* route, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias) {
+void Record::bind(const sip_contact_t *contacts, const sip_path_t *path, const char* route, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias) {
 	sip_contact_t *c = (sip_contact_t *) contacts;
+	list<string> stlPath;
+	if (path != NULL) {
+		su_home_t home;
+		su_home_init(&home);
+		stlPath=route_to_stl(&home, path);
+		su_home_destroy(&home);
+	}
+
 	while (c) {
 		if ((c->m_expires && atoi(c->m_expires) == 0)|| (!c->m_expires && globalExpire == 0)) {
 			c = c->m_next;
@@ -260,38 +294,25 @@ void Record::bind(const sip_contact_t *contacts, const char* route, int globalEx
 
 		ostringstream contactId;
 		defineContactId(contactId, c->m_url, transportPtr);
-		insertOrUpdateBinding(make_shared<ExtendedContact>(c, contactId.str().c_str(), route, lineValuePtr, globalExpire, call_id, cseq, now, alias));
+		insertOrUpdateBinding(make_shared<ExtendedContact>(c, contactId.str().c_str(), stlPath, route, lineValuePtr, globalExpire, call_id, cseq, now, alias));
 		c = c->m_next;
 	}
 
 	SLOGD << *this;
 }
 
-void Record::bind(const char *c, const char *contactId, const char* route, const char *lineValue, long expireAt, float q, const char *call_id, uint32_t cseq, time_t updated_time, bool alias) {
-	insertOrUpdateBinding(make_shared<ExtendedContact>(c, contactId, route, lineValue, expireAt, q, call_id, cseq, updated_time, alias));
+void Record::bind(const char *c, const char *contactId, const list<string> &path, const char* route, const char *lineValue, long expireAt, float q, const char *call_id, uint32_t cseq, time_t updated_time, bool alias) {
+	insertOrUpdateBinding(make_shared<ExtendedContact>(c, contactId, path, route, lineValue, expireAt, q, call_id, cseq, updated_time, alias));
 }
 
 void Record::print(std::ostream &stream) const{
 	stream << "Record contains " << mContacts.size() << " contacts";
 	time_t now=getCurrentTime();
-#ifdef MONOTONIC_CLOCK_REGISTRATIONS
-	time_t offset=time(NULL)-now;
-#endif
+	time_t offset=getTimeOffset(now);
+
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
-		shared_ptr<ExtendedContact> ec = (*it);
-		char buffer[256] = "UNDETERMINED";
-		time_t expire=ec->mExpireAt;
-#ifdef MONOTONIC_CLOCK_REGISTRATIONS
-		expire+=offset;
-#endif
-		struct tm *ptm = localtime(&expire);
-		if (ptm != NULL) {
-			strftime(buffer, sizeof(buffer) - 1, "%c", ptm);
-		}
-		int expireAfter=ec->mExpireAt-now;
-		stream << "\n" << ec->mSipUri << " route=" << ec->mRoute
-			<< " alias=" << (ec->mAlias ? "yes" : "no")
-			<< " expire=" << expireAfter << " s (" << buffer << ")";
+		stream << "\n";
+		(*it)->print(stream, now, offset);
 	}
 	stream << "\n==========================";
 }
@@ -415,8 +436,8 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 	return sUnique;
 }
 
-void RegistrarDb::bind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
-	doBind(fromUrl, sip_contact, calld_id, cs_seq, route, global_expire, alias, listener);
+void RegistrarDb::bind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const sip_path_t *path, const char *route, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
+	doBind(fromUrl, sip_contact, calld_id, cs_seq, path, route, global_expire, alias, listener);
 }
 
 void RegistrarDb::clear(const sip_t *sip, const shared_ptr<RegistrarDbListener> &listener) {
@@ -509,5 +530,5 @@ void RegistrarDb::fetch(const url_t *url, const shared_ptr<RegistrarDbListener> 
 }
 
 void RegistrarDb::bind(const sip_t *sip, const char* route, int globalExpire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
-	bind(sip->sip_from->a_url, sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, route, globalExpire, alias, listener);
+	bind(sip->sip_from->a_url, sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, sip->sip_path, route, globalExpire, alias, listener);
 }

@@ -38,7 +38,7 @@ public:
 	~ForwardModule();
 private:
 	url_t* overrideDest(shared_ptr<RequestSipEvent> &ev, url_t* dest);
-	tport_t * checkRecordRoutes(shared_ptr<RequestSipEvent> &ev, url_t *dest);
+	void addPathHeader(const shared_ptr<RequestSipEvent> &ev, const tport_t *tport);
 	bool isLooping(shared_ptr<RequestSipEvent> &ev, const char * branch);
 	unsigned int countVia(shared_ptr<RequestSipEvent> &ev);
 	su_home_t mHome;
@@ -94,28 +94,27 @@ url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest)
 	return dest;
 }
 
-/* the goal of this method is to check whether we added ourself to the record route, and handle a possible
- transport change by adding a new record-route with transport updated.
- Typically, if we transfer an INVITE from TCP to UDP, we should find two consecutive record-route, first one with UDP, and second one with TCP
- so that further request from both sides are sent to the appropriate transport of flexisip, and also we don't ask to a UDP only equipment to route to TCP.
- */
-tport_t * ForwardModule::checkRecordRoutes(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
-	if (!ev->mRecordRouteAdded)
-		return NULL; //if no record route were added by any module, no need to set an outgoing record route.
-	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	sip_method_t method=ms->getSip()->sip_request->rq_method;
-	if (method==sip_method_invite || method==sip_method_subscribe){
-		tp_name_t name={0};
-		tport_name_by_url(ms->getHome(),&name,(url_string_t*)dest);
-		tport_t *tport=tport_by_name(nta_agent_tports(getSofiaAgent()),&name);
-		if (tport){
-			addRecordRoute(ms->getHome(),getAgent(),ev,tport);
-			return tport;
-		}else{
-			LOGE("Could not find tport to set proper outgoing Record-Route.");
-		}
+void ForwardModule::addPathHeader(const shared_ptr<RequestSipEvent> &ev, const tport_t *tport) {
+	su_home_t *home=ev->getMsgSip()->getHome();
+	msg_t *msg=ev->getMsgSip()->getMsg();
+	sip_t *sip=ev->getMsgSip()->getSip();
+
+	tport=tport_parent(tport); //get primary transport
+	const tp_name_t *name=tport_name(tport); //primary transport name
+	
+	url_t *url = urlFromTportName(home,name);
+	if (!url){
+		LOGE("ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL");
+		return;
 	}
-	return NULL;
+	url_param_add(home,url,"lr");
+	sip_path_t *path=sip_path_format(home, "%s", url_as_string(home, url));
+
+	if (!prependNewRoutable(msg, sip, sip->sip_path, path)) {
+		LOGD("Identical path already existing");
+		return;
+	}
+	LOGD("Path added.");
 }
 
 void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
@@ -169,16 +168,37 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		SLOGD << "Skipping forwarding of request to us "
 			<< url_as_string(ms->getHome(), dest) << "\n" << ms;
 		ev->terminateProcessing();
-	} else {
-		tport_t *tport=checkRecordRoutes(ev, dest);
-		if (sip->sip_max_forwards) --sip->sip_max_forwards->mf_count;
-		//since checkRecordRoutes() may find appropriate tport, avoid sofia to search it again.
-		if (tport)
-			ev->send(ms, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());
-		else
-			ev->send(ms, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), TAG_END());
 	}
 
+	// Decrease max forward
+	if (sip->sip_max_forwards) --sip->sip_max_forwards->mf_count;
+
+	// tport is the transport which will be used by sofia to send message
+	tp_name_t name={0};
+	tport_name_by_url(ms->getHome(),&name,(url_string_t*)dest);
+	tport_t *tport=tport_by_name(nta_agent_tports(getSofiaAgent()),&name);
+	if (!tport){
+		LOGE("Could not find tport to set proper outgoing Record-Route.");
+		ev->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
+		return;
+	}
+
+
+	// Eventually add second record route with different transport
+	// to bridge to networks: for example, we'll end with UDP, TCP.
+	const sip_method_t method=ms->getSip()->sip_request->rq_method;
+	if (ev->mRecordRouteAdded && (method==sip_method_invite || method==sip_method_subscribe)) {
+		addRecordRoute(ms->getHome(),getAgent(),ev,tport);
+	}
+
+	// Add path
+	if (method == sip_method_register) {
+		addPathHeader(ev, getIncomingTport(ev, getAgent()));
+		addPathHeader(ev, tport);
+	}
+
+	// Finally send message
+	ev->send(ms, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());
 }
 
 unsigned int ForwardModule::countVia(shared_ptr<RequestSipEvent> &ev) {

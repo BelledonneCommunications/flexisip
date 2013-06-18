@@ -49,14 +49,20 @@ bool RecordSerializerC::parse(const char *str, int len, Record *r){
 		char *call_id=strsep(&rc, "#");
 		char *cseq=strsep(&rc, "#");
 		char *alias=strsep(&rc, "#");
+		char *path=strsep(&rc, "#");
 
-		if (empty[0] != '\0' || !sip_contact || sip_contact[0] != '<' || !expire || !update_time || !call_id || !cseq){
+		if (empty[0] != '\0' || !sip_contact || sip_contact[0] != '<' || !expire || !update_time || !call_id || !cseq||!path){
 			LOGE("Invalid serialized contact %i %s",i, str);
 			free(rc);
 			return false;
 		}
 
-		r->bind(sip_contact, contactId, route, lineValue, q?atof(q):0, atol(expire), call_id, atoi(cseq), atol(update_time), strcmp(alias, "true") == 0);
+		std::list<std::string> stlpath;
+		while (NULL != (empty=strsep(&path, ","))){
+			stlpath.push_back(empty);
+		}
+		
+		r->bind(sip_contact, contactId, stlpath, route, lineValue, q?atof(q):0, atol(expire), call_id, atoi(cseq), atol(update_time), strcmp(alias, "true") == 0);
 		++i;
 	}
 
@@ -81,6 +87,11 @@ bool RecordSerializerC::serialize(Record *r, string &serialized){
 		oss << "#"; if (ec->mLineValueCopy) oss << ec->mLineValueCopy;
 		oss << "#" << ec->mUpdatedTime;
 		oss << "#" << ec->mCallId << "#" << ec->mCSeq << "#" << (ec->mAlias? "true": "false");
+		ostringstream poss;
+		for (auto pit=ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {
+			if (pit != ec->mPath.cbegin()) poss << ",";
+			poss << *pit;
+		}
 		++i;
 	}
 

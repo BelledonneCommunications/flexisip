@@ -53,14 +53,21 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r){
 		char *call_id=cJSON_GetObjectItem(contact->child,"call_id")->valuestring;
 		int cseq=cJSON_GetObjectItem(contact->child,"cseq")->valueint;
 		bool alias=cJSON_GetObjectItem(contact->child,"alias")->valueint != 0;
+		cJSON *path=cJSON_GetObjectItem(contact->child,"path");
 
-		if (!sip_contact || sip_contact[0] != '<' || !expire || !update_time || !call_id || !cseq){
+
+		if (!sip_contact || sip_contact[0] != '<' || !expire || !update_time || !call_id || !cseq || !path){
 			LOGE("Invalid redis contact %i %s",i, str);
 			cJSON_Delete(root);
 			return false;
 		}
 
-		r->bind(sip_contact, contactId, route, lineValue, q, expire, call_id, cseq, update_time, alias);
+		std::list<std::string> stlpath;
+		for (int p = 0 ; p < cJSON_GetArraySize(path) ; p++) {
+			stlpath.push_back(cJSON_GetArrayItem(path, p)->valuestring);
+		}
+
+		r->bind(sip_contact, contactId, stlpath, route, lineValue, q, expire, call_id, cseq, update_time, alias);
 		contact=contact->next;
 		++i;
 	}
@@ -79,6 +86,9 @@ bool RecordSerializerJson::serialize(Record *r, string &serialized){
 	for (auto it=ecs.begin(); it != ecs.end(); ++it){
 		cJSON *c=cJSON_CreateObject();
 		cJSON_AddItemToArray(contacts,c);
+		cJSON *path=cJSON_CreateArray();
+		cJSON_AddItemToObject(c, "path", path);
+
 		shared_ptr<ExtendedContact> ec=(*it);
 		cJSON_AddStringToObject(c,"uri",ec->mSipUri);
 		cJSON_AddNumberToObject(c,"expires_at",ec->mExpireAt);
@@ -90,6 +100,11 @@ bool RecordSerializerJson::serialize(Record *r, string &serialized){
 		cJSON_AddStringToObject(c,"call_id",ec->mCallId);
 		cJSON_AddNumberToObject(c,"cseq",ec->mCSeq);
 		cJSON_AddNumberToObject(c,"alias",ec->mAlias? 1: 0);
+
+		for (auto pit=ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {
+			cJSON *pitem = cJSON_CreateString(pit->c_str());
+			cJSON_AddItemToArray(path, pitem);
+		}
 	}
 
 	char *contacts_str=cJSON_PrintUnformatted(root);

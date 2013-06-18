@@ -117,3 +117,12 @@ time_t getCurrentTime() {
         return time(NULL);
 #endif
 }
+	
+const time_t getTimeOffset(time_t current_time) {
+	static time_t empty={0};
+	#ifdef MONOTONIC_CLOCK_REGISTRATIONS
+	time_t offset=time(NULL)-current_time;
+	#else
+	return empty;
+	#endif
+}

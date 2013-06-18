@@ -15,4 +15,5 @@ message RecordContactPb {
   required uint32 cseq = 7;
   required string contact_id = 8;
   optional string route = 9;
+  repeated string path = 10;
 }

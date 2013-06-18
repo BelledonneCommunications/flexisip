@@ -27,7 +27,7 @@ class RegistrarDbInternal : public RegistrarDb {
         RegistrarDbInternal(Agent *ag);
         friend class RegistrarDb;
 private:
-        virtual void doBind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener);
+	virtual void doBind(const url_t* fromUrl, const sip_contact_t* sip_contact, const char* calld_id, uint32_t cs_seq, const sip_path_t* path, const char* route, int global_expire, bool alias, const std::shared_ptr< RegistrarDbListener >& listener);
         virtual void doClear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
         virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener);
 };

@@ -43,8 +43,14 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r){
 
 	for (int i = 0; i < contacts.contact_size(); ++i) {
 		const RecordContactPb& c = contacts.contact(i);
+		list<string> stlpath;
+		for (int p=0; p < c.path_size(); ++p) {
+			stlpath.push_back(c.path(p));
+		}
+
 		r->bind(c.uri().c_str(),
 				c.contact_id().c_str(),
+				stlpath,
 				c.has_route()? c.route().c_str() : NULL,
 				c.has_line_value_copy()? c.line_value_copy().c_str() : NULL,
 				(time_t)c.expires_at(),
@@ -76,6 +82,11 @@ bool RecordSerializerPb::serialize(Record *r, string &serialized){
 		c->set_update_time(ec->mUpdatedTime);
 		c->set_call_id(ec->mCallId);
 		c->set_cseq(ec->mCSeq);
+		int pnb=0;
+		for (auto pit=ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {
+			c->set_path(pnb, *pit);
+			++pnb;
+		}
 	}
 
 	pbContacts.SerializeToString(&serialized);
