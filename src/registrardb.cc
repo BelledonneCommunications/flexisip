@@ -45,8 +45,12 @@ ostream &ExtendedContact::print(std::ostream& stream, time_t now, time_t offset)
 	}
 	int expireAfter=mExpireAt-now;
 	
-	stream << mSipUri << " path=";
-	for (auto it=mCommon.mPath.cbegin(); it != mCommon.mPath.cend(); ++it) stream << " " << *it;
+	stream << mSipUri << " path=\"";
+	for (auto it=mCommon.mPath.cbegin(); it != mCommon.mPath.cend(); ++it) {
+		if (it != mCommon.mPath.cbegin()) stream << " ";
+		stream << *it;
+	}
+	stream << "\"";
 	stream << " alias=" << (mAlias ? "yes" : "no")
 	<< " expire=" << expireAfter << " s (" << buffer << ")";
 	return stream;

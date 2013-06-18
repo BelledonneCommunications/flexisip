@@ -425,7 +425,7 @@ struct sip_route_s *ModuleToolbox::prependNewRoutable(msg_t *msg, sip_t *sip, st
 	return value;
 }
 
-void ModuleToolbox::addPathHeader(const shared_ptr< RequestSipEvent >& ev, const tport_t* tport) {
+void ModuleToolbox::addPathHeader(const shared_ptr< RequestSipEvent >& ev, const tport_t* tport, const char *uniq) {
 	su_home_t *home=ev->getMsgSip()->getHome();
 	msg_t *msg=ev->getMsgSip()->getMsg();
 	sip_t *sip=ev->getMsgSip()->getSip();
@@ -435,12 +435,16 @@ void ModuleToolbox::addPathHeader(const shared_ptr< RequestSipEvent >& ev, const
 	
 	url_t *url = urlFromTportName(home,name);
 	if (!url){
-		LOGE("ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL");
+		LOGE("ModuleToolbox::addPathHeader(): urlFromTportName() returned NULL");
 		return;
+	}
+	if (uniq) {
+		char *lParam = su_sprintf(home, "uniq=%s",uniq);
+		url_param_add(home,url,lParam);
 	}
 	url_param_add(home,url,"lr");
 	const char *cpath=url_as_string(home, url);
-	sip_path_t *path=sip_path_format(home, "%s", cpath);
+	sip_path_t *path=sip_path_format(home, "<%s>", cpath);
 	
 	if (!prependNewRoutable(msg, sip, sip->sip_path, path)) {
 		SLOGD << "Identical path already existing: " << cpath;

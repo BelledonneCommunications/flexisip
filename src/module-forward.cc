@@ -169,8 +169,8 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	// Add path
 	if (method == sip_method_register) {
-		addPathHeader(ev, getIncomingTport(ev, getAgent()));
-		addPathHeader(ev, tport);
+		//addPathHeader(ev, getIncomingTport(ev, getAgent()), getAgent()->getUniqueId());
+		addPathHeader(ev, tport, getAgent()->getUniqueId().c_str());
 	}
 
 	// Finally send message
