@@ -63,11 +63,13 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r){
 		}
 
 		std::list<std::string> stlpath;
+		if (route) stlpath.push_back(route);
 		for (int p = 0 ; p < cJSON_GetArraySize(path) ; p++) {
 			stlpath.push_back(cJSON_GetArrayItem(path, p)->valuestring);
 		}
 
-		r->bind(sip_contact, contactId, stlpath, route, lineValue, q, expire, call_id, cseq, update_time, alias);
+		ExtendedContactCommon ecc(contactId, stlpath, call_id, lineValue);
+		r->bind(ecc, sip_contact, q, expire, cseq, update_time, alias);
 		contact=contact->next;
 		++i;
 	}
@@ -90,18 +92,17 @@ bool RecordSerializerJson::serialize(Record *r, string &serialized){
 		cJSON_AddItemToObject(c, "path", path);
 
 		shared_ptr<ExtendedContact> ec=(*it);
-		cJSON_AddStringToObject(c,"uri",ec->mSipUri);
+		cJSON_AddStringToObject(c,"uri",ec->mSipUri.c_str());
 		cJSON_AddNumberToObject(c,"expires_at",ec->mExpireAt);
 		cJSON_AddNumberToObject(c,"q",ec->mQ?ec->mQ : 0);
-		if (ec->mLineValueCopy) cJSON_AddStringToObject(c,"line_value_copy",ec->mLineValueCopy);
-		if (ec->mRoute) cJSON_AddStringToObject(c,"route",ec->mRoute);
-		cJSON_AddStringToObject(c,"contact_id",ec->mContactId);
+		if (ec->line()) cJSON_AddStringToObject(c,"line_value_copy",ec->line());
+		cJSON_AddStringToObject(c,"contact_id",ec->contactId());
 		cJSON_AddNumberToObject(c,"update_time",ec->mUpdatedTime);
-		cJSON_AddStringToObject(c,"call_id",ec->mCallId);
+		cJSON_AddStringToObject(c,"call_id",ec->callId());
 		cJSON_AddNumberToObject(c,"cseq",ec->mCSeq);
 		cJSON_AddNumberToObject(c,"alias",ec->mAlias? 1: 0);
 
-		for (auto pit=ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {
+		for (auto pit=ec->mCommon.mPath.cbegin(); pit != ec->mCommon.mPath.cend(); ++pit) {
 			cJSON *pitem = cJSON_CreateString(pit->c_str());
 			cJSON_AddItemToArray(path, pitem);
 		}

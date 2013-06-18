@@ -34,7 +34,7 @@ using namespace::std;
 RegistrarDbInternal::RegistrarDbInternal(Agent *ag) : RegistrarDb(ag){
 }
 
-void RegistrarDbInternal::doBind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const sip_path_t *path, const char *route, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
+void RegistrarDbInternal::doBind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const sip_path_t *path, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
         char key[AOR_KEY_SIZE] = {0};
         defineKeyFromUrl(key, AOR_KEY_SIZE - 1, fromUrl);
 
@@ -68,7 +68,7 @@ void RegistrarDbInternal::doBind(const url_t* fromUrl, const sip_contact_t *sip_
         }
 
         r->clean(sip_contact, calld_id, cs_seq, now);
-        r->bind(sip_contact, path, route, global_expire, calld_id, cs_seq, now, alias);
+        r->bind(sip_contact, path, global_expire, calld_id, cs_seq, now, alias);
 
         mLocalRegExpire->update(*r);
         listener->onRecordFound(r);

@@ -38,7 +38,6 @@ public:
 	~ForwardModule();
 private:
 	url_t* overrideDest(shared_ptr<RequestSipEvent> &ev, url_t* dest);
-	void addPathHeader(const shared_ptr<RequestSipEvent> &ev, const tport_t *tport);
 	bool isLooping(shared_ptr<RequestSipEvent> &ev, const char * branch);
 	unsigned int countVia(shared_ptr<RequestSipEvent> &ev);
 	su_home_t mHome;
@@ -92,29 +91,6 @@ url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest)
 		}
 	}
 	return dest;
-}
-
-void ForwardModule::addPathHeader(const shared_ptr<RequestSipEvent> &ev, const tport_t *tport) {
-	su_home_t *home=ev->getMsgSip()->getHome();
-	msg_t *msg=ev->getMsgSip()->getMsg();
-	sip_t *sip=ev->getMsgSip()->getSip();
-
-	tport=tport_parent(tport); //get primary transport
-	const tp_name_t *name=tport_name(tport); //primary transport name
-	
-	url_t *url = urlFromTportName(home,name);
-	if (!url){
-		LOGE("ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL");
-		return;
-	}
-	url_param_add(home,url,"lr");
-	sip_path_t *path=sip_path_format(home, "%s", url_as_string(home, url));
-
-	if (!prependNewRoutable(msg, sip, sip->sip_path, path)) {
-		LOGD("Identical path already existing");
-		return;
-	}
-	LOGD("Path added.");
 }
 
 void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {

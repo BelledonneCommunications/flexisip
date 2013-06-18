@@ -186,7 +186,7 @@ class ModuleToolbox{
 		static bool isManagedDomain(const Agent *agent, const std::list<std::string> &domains, const url_t *url);
 		static void addRoutingParam(su_home_t *home, sip_contact_t *contacts, const std::string &routingParam, const char *domain);
 		static bool prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_s * &sipr, struct sip_route_s * &value);
-
+		static void addPathHeader(const std::shared_ptr<RequestSipEvent> &ev, const tport_t *tport);
 };
 
 #endif

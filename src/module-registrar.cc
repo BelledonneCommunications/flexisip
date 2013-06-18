@@ -430,8 +430,10 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
-
+	// Only handles registers
 	if (sip->sip_request->rq_method != sip_method_register) return;
+
+	// from managed domains
 	url_t *sipurl = sip->sip_from->a_url;
 	if (!sipurl->url_host || !isManagedDomain(sipurl)) return;
 
@@ -452,6 +454,9 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		return;
 	}
 
+	// Use path as a contact route in all cases
+	addPathHeader(ev, getIncomingTport(ev, getAgent()));
+
 	// Handle modifications
 	if (!mUpdateOnResponse) {
 		const sip_expires_t *expires = sip->sip_expires;
@@ -468,7 +473,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
 			listener->addStatCounter(mStats.mCountBind->finish);
-			RegistrarDb::get(mAgent)->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, false, listener);
+			RegistrarDb::get(mAgent)->bind(sip, maindelta, false, listener);
 			return;
 		}
 	} else {
@@ -535,7 +540,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		mStats.mCountBind->incrStart();
 		LOGD("Updating binding");
 		listener->addStatCounter(mStats.mCountBind->finish);
-		RegistrarDb::get(mAgent)->bind(reSip, mAgent->getPreferredRoute().c_str(), maindelta, false, listener);
+		RegistrarDb::get(mAgent)->bind(reSip, maindelta, false, listener);
 		return;
 	}
 }
@@ -619,7 +624,7 @@ void ModuleRegistrar::readStaticRecords() {
 				if (url != NULL && contact != NULL) {
 					auto listener=make_shared<OnStaticBindListener>(getAgent(), line);
 					bool alias=isManagedDomain(contact->m_url);
-					RegistrarDb::get(mAgent)->bind(url->m_url, contact, fakeCallId, version, NULL, NULL, expire, alias, listener);
+					RegistrarDb::get(mAgent)->bind(url->m_url, contact, fakeCallId, version, NULL, expire, alias, listener);
 					continue;
 				}
 			}

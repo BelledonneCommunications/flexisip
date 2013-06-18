@@ -44,18 +44,15 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r){
 	for (int i = 0; i < contacts.contact_size(); ++i) {
 		const RecordContactPb& c = contacts.contact(i);
 		list<string> stlpath;
+		if (c.has_route()) stlpath.push_back(c.route());
 		for (int p=0; p < c.path_size(); ++p) {
 			stlpath.push_back(c.path(p));
 		}
 
-		r->bind(c.uri().c_str(),
-				c.contact_id().c_str(),
-				stlpath,
-				c.has_route()? c.route().c_str() : NULL,
-				c.has_line_value_copy()? c.line_value_copy().c_str() : NULL,
+		ExtendedContactCommon ecc(c.contact_id().c_str(), stlpath, c.call_id().c_str(), c.has_line_value_copy()? c.line_value_copy().c_str() : NULL);
+		r->bind(ecc, c.uri().c_str(),
 				(time_t)c.expires_at(),
 				c.q(),
-				c.call_id().c_str(),
 				(uint32_t)c.cseq(),
 				c.update_time(),false);
 	}
@@ -74,16 +71,15 @@ bool RecordSerializerPb::serialize(Record *r, string &serialized){
 		auto ec=(*it);
 		RecordContactPb *c = pbContacts.add_contact();
 		c->set_uri(ec->mSipUri);
-		c->set_contact_id(ec->mContactId);
-		if (ec->mRoute) c->set_route(ec->mRoute);
-		if (ec->mLineValueCopy) c->set_line_value_copy(ec->mLineValueCopy);
+		c->set_contact_id(ec->contactId());
+		if (ec->line()) c->set_line_value_copy(ec->line());
 		c->set_expires_at(ec->mExpireAt);
 		if (ec->mQ) c->set_q(ec->mQ);
 		c->set_update_time(ec->mUpdatedTime);
-		c->set_call_id(ec->mCallId);
+		c->set_call_id(ec->callId());
 		c->set_cseq(ec->mCSeq);
 		int pnb=0;
-		for (auto pit=ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {
+		for (auto pit=ec->mCommon.mPath.cbegin(); pit != ec->mCommon.mPath.cend(); ++pit) {
 			c->set_path(pnb, *pit);
 			++pnb;
 		}

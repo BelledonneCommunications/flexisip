@@ -334,7 +334,7 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, Record *aor, con
 			shared_ptr<ForkContext> context = it->second;
 			if (context->onNewRegister(ct)){
 				LOGD("Found a pending context for contact %s: %p",
-				     ec->mSipUri, context.get());
+				     ec->mSipUri.c_str(), context.get());
 				dispatch(context->getEvent(), ct, NULL, context);
 			}
 		}
@@ -427,8 +427,8 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			ct = Record::extendedContactToSofia(ms->getHome(), *ec, now);
 		if (!ec->mAlias) {
 			if (ct) {
-				if (ec->mRoute != NULL && 0 != strcmp(getAgent()->getPreferredRoute().c_str(), ec->mRoute)) {
-					if (dispatch(ev, ct, ec->mRoute, context)) {
+				if (ec->route() != NULL && 0 != strcmp(getAgent()->getPreferredRoute().c_str(), ec->route())) {
+					if (dispatch(ev, ct, ec->route(), context)) {
 						handled++;
 						if (!mFork) break;
 					}
@@ -439,11 +439,11 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 					}
 				}
 			} else {
-				LOGW("Can't create sip_contact of %s.", ec->mSipUri);
+				SLOGW << "Can't create sip_contact of " << ec->mSipUri;
 			}
 		} else {
 			if (mFork && context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
-				sip_contact_t *temp_ctt=sip_contact_make(ms->getHome(),ec->mSipUri);
+				sip_contact_t *temp_ctt=sip_contact_make(ms->getHome(),ec->mSipUri.c_str());
 				
 				if (mUseGlobalDomain){
 					temp_ctt->m_url->url_host="merged";

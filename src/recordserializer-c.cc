@@ -58,11 +58,13 @@ bool RecordSerializerC::parse(const char *str, int len, Record *r){
 		}
 
 		std::list<std::string> stlpath;
+		if (route) stlpath.push_back(route);
 		while (NULL != (empty=strsep(&path, ","))){
 			stlpath.push_back(empty);
 		}
-		
-		r->bind(sip_contact, contactId, stlpath, route, lineValue, q?atof(q):0, atol(expire), call_id, atoi(cseq), atol(update_time), strcmp(alias, "true") == 0);
+
+		ExtendedContactCommon ecc(contactId, stlpath, call_id, lineValue);
+		r->bind(ecc, sip_contact, q?atof(q):0, atol(expire), atoi(cseq), atol(update_time), strcmp(alias, "true") == 0);
 		++i;
 	}
 
@@ -82,14 +84,14 @@ bool RecordSerializerC::serialize(Record *r, string &serialized){
 		shared_ptr<ExtendedContact> ec=(*it);
 		if (i != 0) oss << "#";
 		oss << "#" << ec->mSipUri << "#" << ec->mExpireAt << "#" <<ec->mQ;
-		oss << "#" << ec->mContactId;
-		oss << "#"; if (ec->mRoute) oss << ec->mRoute;
-		oss << "#"; if (ec->mLineValueCopy) oss << ec->mLineValueCopy;
+		oss << "#" << ec->contactId();
+		oss << "#"; // route
+		oss << "#"; if (ec->line()) oss << ec->line();
 		oss << "#" << ec->mUpdatedTime;
-		oss << "#" << ec->mCallId << "#" << ec->mCSeq << "#" << (ec->mAlias? "true": "false");
+		oss << "#" << ec->callId() << "#" << ec->mCSeq << "#" << (ec->mAlias? "true": "false");
 		ostringstream poss;
-		for (auto pit=ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {
-			if (pit != ec->mPath.cbegin()) poss << ",";
+		for (auto pit=ec->mCommon.mPath.cbegin(); pit != ec->mCommon.mPath.cend(); ++pit) {
+			if (pit != ec->mCommon.mPath.cbegin()) poss << ",";
 			poss << *pit;
 		}
 		++i;

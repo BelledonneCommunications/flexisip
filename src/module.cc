@@ -409,3 +409,28 @@ bool ModuleToolbox::prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_
 	sipr = value;
 	return true;
 }
+
+void ModuleToolbox::addPathHeader(const shared_ptr< RequestSipEvent >& ev, const tport_t* tport) {
+	su_home_t *home=ev->getMsgSip()->getHome();
+	msg_t *msg=ev->getMsgSip()->getMsg();
+	sip_t *sip=ev->getMsgSip()->getSip();
+	
+	tport=tport_parent(tport); //get primary transport
+	const tp_name_t *name=tport_name(tport); //primary transport name
+	
+	url_t *url = urlFromTportName(home,name);
+	if (!url){
+		LOGE("ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL");
+		return;
+	}
+	url_param_add(home,url,"lr");
+	const char *cpath=url_as_string(home, url);
+	sip_path_t *path=sip_path_format(home, "%s", cpath);
+	
+	if (!prependNewRoutable(msg, sip, sip->sip_path, path)) {
+		SLOGD << "Identical path already existing: " << cpath;
+	} else {
+		SLOGD << "Path added to: " << cpath;
+	}
+}
+
