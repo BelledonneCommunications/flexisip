@@ -43,6 +43,7 @@ private:
 	su_home_t mHome;
 	sip_route_t *mOutRoute;
 	bool mRewriteReqUri;
+	bool mAddPath;
 	static ModuleInfo<ForwardModule> sInfo;
 };
 
@@ -52,9 +53,8 @@ ModuleInfo<ForwardModule> ForwardModule::sInfo("Forward",
 		ModuleInfoBase::ModuleOid::Forward);
 
 ForwardModule::ForwardModule(Agent *ag) :
-		Module(ag) {
+		Module(ag), mOutRoute(NULL), mRewriteReqUri(false), mAddPath(false) {
 	su_home_init(&mHome);
-	mOutRoute = NULL;
 }
 
 ForwardModule::~ForwardModule() {
@@ -64,21 +64,23 @@ ForwardModule::~ForwardModule() {
 void ForwardModule::onDeclare(GenericStruct * module_config) {
 	ConfigItemDescriptor items[] = {
 			{ String, "route", "A sip uri where to send all requests", "" },
+			{ Boolean, "add-path", "Add a path header of this proxy", "true" },
 			{ Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to above route", "false" },
 			config_item_end
 	};
 	module_config->addChildrenValues(items);
 }
 
-void ForwardModule::onLoad(const GenericStruct *module_config) {
-	string route = module_config->get<ConfigString>("route")->read();
-	mRewriteReqUri = module_config->get<ConfigBoolean>("rewrite-req-uri")->read();
+void ForwardModule::onLoad(const GenericStruct *mc) {
+	string route = mc->get<ConfigString>("route")->read();
+	mRewriteReqUri = mc->get<ConfigBoolean>("rewrite-req-uri")->read();
 	if (route.size() > 0) {
 		mOutRoute = sip_route_make(&mHome, route.c_str());
 		if (mOutRoute == NULL || mOutRoute->r_url->url_host == NULL) {
 			LOGF("Bad route parameter '%s' in configuration of Forward module", route.c_str());
 		}
 	}
+	mAddPath = mc->get<ConfigBoolean>("add-path")->read();
 }
 
 url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
@@ -168,7 +170,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 
 	// Add path
-	if (method == sip_method_register) {
+	if (mAddPath && method == sip_method_register) {
 		//addPathHeader(ev, getIncomingTport(ev, getAgent()), getAgent()->getUniqueId());
 		addPathHeader(ev, tport, getAgent()->getUniqueId().c_str());
 	}
