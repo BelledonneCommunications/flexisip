@@ -55,6 +55,8 @@
 
 #include "log/logmanager.hh"
 #include <ortp/ortp.h>
+#include <functional>
+#include <list>
 
 static int run=1;
 static int pipe_fds[2]={-1}; //pipes used by flexisip to notify its starter process that everything went fine 
@@ -73,6 +75,7 @@ static void usage(const char *arg0){
 		"\t\t [--dump-default-config [node name]]\n"
 		"\t\t [--dump-snmp-mib]\n"
 		"\t\t [--set <[node/]option[=value]>]\n"
+		"\t\t [--list-settables\n"
 		"\t\t [--help]\n"
 		"\t\t [--version]\n",arg0);
 	exit(-1);
@@ -310,6 +313,8 @@ int main(int argc, char *argv[]){
 	bool dump_default_cfg=false;
 	char *dump_cfg_part=NULL;
 	bool dump_snmp_mib=false;
+	bool dump_settables=false;
+	string settablesPrefix;
 	map<string,string> oset;
 
 	for(i=1;i<argc;++i){
@@ -349,6 +354,13 @@ int main(int argc, char *argv[]){
 			dump_snmp_mib=true;
 			i++;
 			continue;
+		}else if (strcmp(argv[i],"--list-settables")==0){
+			dump_settables=true;
+			if ((i+1) < argc && argv[i+1][0]!='-') {
+				i++;
+				settablesPrefix=argv[i];
+			}
+			continue;
 		}else if (strcmp(argv[i],"--set")==0){
 			i++;
 			const char* skey="";
@@ -372,12 +384,13 @@ int main(int argc, char *argv[]){
 		usage(argv[0]);
 	}
 	
-	if (!dump_default_cfg && !dump_snmp_mib) {
+	if (!dump_default_cfg && !dump_snmp_mib && !dump_settables) {
 		ortp_init();
 		flexisip::log::preinit(sUseSyslog, debug);
+	} else {
+		flexisip::log::disableGlobally();
 	}
-	GenericManager *cfg=GenericManager::get();
-	DosProtection *dos=DosProtection::get();
+
 
 	if (dump_default_cfg){
 		a=make_shared<Agent>(root);
@@ -399,6 +412,53 @@ int main(int argc, char *argv[]){
 		cout<<MibDumper(GenericManager::get()->getRoot());
 		return 0;
 	}
+
+	if (dump_settables) {
+		a=make_shared<Agent>(root);
+		list<string> allCompletions;
+		allCompletions.push_back("nosnmp");
+
+		#if not(__GNUC__ == 4 && __GNUC_MINOR__ < 5 )
+		std::function<void(string &,GenericEntry *)> depthFirstSearch = [&] (string &path, GenericEntry *config) {
+			GenericStruct *gStruct=dynamic_cast<GenericStruct *>(config);
+			if (gStruct) {
+				ostringstream oss;
+				if (!path.empty()) oss << path << "/" ;
+				if (config->getName() != "flexisip") oss << config->getName();
+				for (auto it=gStruct->getChildren().cbegin(); it != gStruct->getChildren().cend(); ++it) {
+					string newpath(oss.str());
+					depthFirstSearch(newpath, *it);
+				}
+				return;
+			}
+	
+			ConfigValue *cValue=dynamic_cast<ConfigValue *>(config);
+			if (cValue) {
+				ostringstream oss;
+				if (!path.empty()) oss << path << "/" ;
+				oss << cValue->getName();
+				allCompletions.push_back(oss.str());
+				return;
+			}
+			
+		};
+
+		string empty;
+		depthFirstSearch(empty, GenericManager::get()->getRoot());
+
+		for (auto it=allCompletions.cbegin(); it != allCompletions.cend(); ++it) {
+			if (settablesPrefix.empty())
+				cout << *it << "\n";
+			else if (0 == it->compare(0, settablesPrefix.length(), settablesPrefix))
+				cout << (it->c_str()+settablesPrefix.length()) << "\n";
+		}
+		#endif
+		return 0;
+	}
+
+
+	GenericManager *cfg=GenericManager::get();
+	DosProtection *dos=DosProtection::get();
 
 	GenericManager::get()->setOverrideMap(oset);
 

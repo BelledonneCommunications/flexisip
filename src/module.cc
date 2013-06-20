@@ -68,7 +68,8 @@ Module *ModuleFactory::createModuleInstance(Agent *ag, const string &modname) {
 }
 
 void ModuleFactory::registerModule(ModuleInfoBase *m) {
-	LOGI("Registering module %s", m->getModuleName().c_str());
+	//LOGI("Registering module %s", m->getModuleName().c_str());
+	//Disabled as called from static intitialization...
 	mModules.push_back(m);
 }
 

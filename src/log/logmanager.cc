@@ -258,11 +258,15 @@ namespace log {
 	bool updateFilter(const string &filterstr) {
 		string actualFilterStr = addDebugToFilterStr(filterstr);
 		//SLOGI << "Log filter set to " << actualFilterStr << endl;
-		auto filter = boost::log::parse_filter(actualFilterStr);
-		boost::log::core::get()->set_filter(filter);
+		auto filter = logging::parse_filter(actualFilterStr);
+		logging::core::get()->set_filter(filter);
 		return true;
 	}
 
+	void disableGlobally() {
+		logging::core::get()->set_logging_enabled(false);
+		ortp_set_log_level_mask(ORTP_FATAL);
+	}
 
 }
 }
@@ -373,6 +377,9 @@ namespace log {
 		return true;
 	}
 
+	void disableGlobally(bool value) {
+		ortp_set_log_level_mask(ORTP_FATAL);
+	}
 }}
 
 
