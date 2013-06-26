@@ -459,14 +459,16 @@ void ModuleToolbox::addPathHeader(const shared_ptr< RequestSipEvent >& ev, const
 
 void ModuleToolbox::removeParamsFromContacts(su_home_t *home, sip_contact_t *c, list<string> &params) {
 	while (c) {
-		for (auto it=params.begin(); it != params.end(); ++it) {
-			url_t *curl=c->m_url;
-			const char *tag=it->c_str();
-			if (!url_has_param(curl, tag)) continue;
-			char *paramcopy=su_strdup(home, curl->url_params);
-			curl->url_params = url_strip_param_string(paramcopy, tag);
-		}
+		removeParamsFromUrl(home, c->m_url, params);
 		c=c->m_next;
 	}
 }
 
+void ModuleToolbox::removeParamsFromUrl(su_home_t *home, url_t *u, list<string> &params) {
+	for (auto it=params.begin(); it != params.end(); ++it) {
+		const char *tag=it->c_str();
+		if (!url_has_param(u, tag)) continue;
+		char *paramcopy=su_strdup(home, u->url_params);
+		u->url_params = url_strip_param_string(paramcopy, tag);
+	}
+}

@@ -192,6 +192,7 @@ class ModuleToolbox{
 		static struct sip_route_s *prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_s * &sipr, struct sip_route_s * &value);
 		static void addPathHeader(const std::shared_ptr<RequestSipEvent> &ev, const tport_t *tport, const char *uniq = NULL);
 		void removeParamsFromContacts(su_home_t *home, sip_contact_t *c, std::list<std::string> &params);
+		void removeParamsFromUrl(su_home_t *home, url_t *u, std::list<std::string> &params);
 };
 
 #endif
