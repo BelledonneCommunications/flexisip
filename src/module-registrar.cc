@@ -71,9 +71,9 @@ public:
 		ConfigItemDescriptor configs[] = {
 			{ StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar.", "localhost" },
 			{ Boolean, "reg-on-response", "Update registrar database on response.", "false" },
-			{ Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "15" }, /*used by registrardb*/
+			{ Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "12" }, /*used by registrardb*/
 			{ StringList, "unique-id-parameters", "List of contact uri parameters that can be used to identify a user's device. "
-					"The contact parameters are searched in the order of the list, the first matching parameter is used and the others ignored.", "line" },
+					"The contact parameters are searched in the order of the list, the first matching parameter is used and the others ignored.", "pn-tok line" },
 
 			{ Integer, "max-expires"	, "Maximum expire time for a REGISTER, in seconds.", "86400" },
 			{ Integer, "min-expires"	, "Minimum expire time for a REGISTER, in seconds.", "60" },
