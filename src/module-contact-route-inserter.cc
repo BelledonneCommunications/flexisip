@@ -30,8 +30,9 @@ public:
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor items[] = {
-			{ Boolean, "masquerade-contacts-for-invites", "Hack for workarounding Nortel CS2k gateways bug.", "false" },
-			{ Boolean, "insert-domain", "Masquerade domain in spite of IP.", "false" },
+			{ Boolean, "masquerade-contacts-on-registers", "Masquerade register contacts with proxy address.", "true" },
+			{ Boolean, "masquerade-contacts-for-invites", "Masquerade invite-related messages with proxy address.", "false" },
+			{ Boolean, "insert-domain", "Masquerade register with from domain.", "false" },
 			config_item_end
 		};
 		module_config->addChildrenValues(items);
@@ -39,7 +40,8 @@ public:
 
 	void onLoad(const GenericStruct *mc) {
 		mCtRtParamName = string("CtRt") + getAgent()->getUniqueId();
-		mMasqueradeInviteContacts = mc->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
+		mMasqueradeInvites = mc->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
+		mMasqueradeRegisters = mc->get<ConfigBoolean>("masquerade-contacts-on-registers")->read();
 		mInsertDomain =  mc->get<ConfigBoolean>("insert-domain")->read();
 	}
 
@@ -49,14 +51,14 @@ public:
 		sip_t *sip = ms->getSip();
 		const sip_method_t rq_method=sip->sip_request->rq_method;
 
-		if (rq_method== sip_method_register) {
+		if (mMasqueradeRegisters && rq_method== sip_method_register) {
 			//rewrite the request uri to the domain
 			//this assumes the domain is also the proxy
 			sip->sip_request->rq_url->url_host = sip->sip_to->a_url->url_host;
 			sip->sip_request->rq_url->url_port = sip->sip_to->a_url->url_port;
-		}
-
-		if (rq_method == sip_method_register || ((rq_method == sip_method_invite) && mMasqueradeInviteContacts)) {
+			LOGD("Masquerading contact");
+			masqueradeContact(ev, mInsertDomain);
+		} else if (mMasqueradeInvites && rq_method == sip_method_invite) {
 			LOGD("Masquerading contact");
 			masqueradeContact(ev);
 		}
@@ -79,7 +81,7 @@ public:
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
-		if (mMasqueradeInviteContacts && (sip->sip_cseq->cs_method == sip_method_invite || sip->sip_cseq->cs_method == sip_method_subscribe)) {
+		if (mMasqueradeInvites && (sip->sip_cseq->cs_method == sip_method_invite || sip->sip_cseq->cs_method == sip_method_subscribe)) {
 			masqueradeContact(ev);
 		}
 	}
@@ -88,7 +90,7 @@ public:
 private:
 	/*add a parameter like "CtRt15.128.128.2=tcp:201.45.118.16:50025" in the contact, so that we know where is the client
 	 when we later have to route an INVITE to him */
-	void masqueradeContact(shared_ptr<SipEvent> ev) {
+	void masqueradeContact(shared_ptr<SipEvent> ev, bool insertDomain = false) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		if (sip->sip_contact == NULL || sip->sip_contact->m_url == NULL) {
@@ -96,27 +98,26 @@ private:
 			return;
 		}
 
-		//rewrite contact, put local host instead and store previous contact host in new parameter
-		char ct_tport[32] = "udp";
 		url_t *ct_url = sip->sip_contact->m_url;
 
 		//grab the transport of the contact uri
+		char ct_tport[32] = "udp";
 		if (url_param(ct_url->url_params, "transport", ct_tport, sizeof(ct_tport)) > 0) {
 
 		}
 
 
 		// Create parameter
-		ostringstream oss;
-		oss << mCtRtParamName << "=" << ct_tport << ":" ;
-		if (mInsertDomain) {
+		string param = mCtRtParamName + "=" + ct_tport + ":";
+		if (insertDomain) {
 			// param=tport:domain
-			oss << sip->sip_from->a_url->url_host;
+			param += sip->sip_from->a_url->url_host;
 		} else {
 			// param=tport:ip_prev_hop:port_prev_hop
-			oss << ct_url->url_host << ":" << url_port(ct_url);
+			param += ct_url->url_host;
+			param += ":";
+			param += url_port(ct_url);
 		}
-		string param(oss.str());
 
 		// Add parameter
 		SLOGD << "Rewriting contact with param [" << param << "]";
@@ -174,7 +175,7 @@ private:
 	}
 
 	string mCtRtParamName;
-	bool mMasqueradeInviteContacts;
+	bool mMasqueradeRegisters, mMasqueradeInvites;
 	bool mInsertDomain;
 	static ModuleInfo<ContactRouteInserter> sInfo;
 };
