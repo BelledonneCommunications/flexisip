@@ -27,6 +27,9 @@
 #include <algorithm>
 using namespace::std;
 
+list<string> Module::sPushNotifParams {
+	"pn-tok", "pn-type", "app-id", "pn-msg-str", "pn-call-str", "pn-call-snd", "pn-msg-snd"
+};
 
 Module *ModuleInfoBase::create(Agent *ag){
 	Module *mod=_create(ag);
@@ -451,6 +454,19 @@ void ModuleToolbox::addPathHeader(const shared_ptr< RequestSipEvent >& ev, const
 		SLOGD << "Identical path already existing: " << cpath;
 	} else {
 		SLOGD << "Path added to: " << cpath;
+	}
+}
+
+void ModuleToolbox::removeParamsFromContacts(su_home_t *home, sip_contact_t *c, list<string> &params) {
+	while (c) {
+		for (auto it=params.begin(); it != params.end(); ++it) {
+			url_t *curl=c->m_url;
+			const char *tag=it->c_str();
+			if (!url_has_param(curl, tag)) continue;
+			char *paramcopy=su_strdup(home, curl->url_params);
+			curl->url_params = url_strip_param_string(paramcopy, tag);
+		}
+		c=c->m_next;
 	}
 }
 

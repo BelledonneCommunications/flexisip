@@ -53,18 +53,6 @@ class ModuleRegistrar: public Module, public ModuleToolbox {
 		ModuleRegistrar *r=(ModuleRegistrar *)data;
 		r->readStaticRecords();
 	}
-	void removeParamsFromContacts(su_home_t *home, sip_contact_t *c, list<string> &params) {
-		while (c) {
-			for (auto it=params.begin(); it != params.end(); ++it) {
-				url_t *curl=c->m_url;
-				const char *tag=it->c_str();
-				if (!url_has_param(curl, tag)) continue;
-				char *paramcopy=su_strdup(home, curl->url_params);
-				curl->url_params = url_strip_param_string(paramcopy, tag);
-			}
-			c=c->m_next;
-		}
-	}
 public:
 	void reply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, const sip_contact_t *contacts=NULL);
 	void reply(shared_ptr<ResponseSipEvent> &ev, int code, const char *reason, const sip_contact_t *contacts=NULL);
@@ -179,9 +167,6 @@ private:
 };
 
 
-list<string> ModuleRegistrar::mPushNotifParams {
-	"pn-tok", "pn-type", "app-id", "pn-msg-str", "pn-call-str", "pn-call-snd", "pn-msg-snd"
-};
 
 // Delta from expires header, normalized with custom rules.
 static uint computeMainDelta(const sip_expires_t *expires, const uint min, const uint max) {
@@ -489,7 +474,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		// Cleaner contacts
 		su_home_t *home=ev->getMsgSip()->getHome();
 		removeParamsFromContacts(home, sip->sip_contact, mUniqueIdParams);
-		removeParamsFromContacts(home, sip->sip_contact, mPushNotifParams);
+		removeParamsFromContacts(home, sip->sip_contact, sPushNotifParams);
 		SLOGD << "Removed instance and push params: \n" << sip->sip_contact;
 
 		if (sip->sip_path) {

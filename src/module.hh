@@ -151,6 +151,8 @@ class Module : protected ConfigValueListener {
 			GenericManager::get()->sendTrap(mModuleConfig, msg);
 		}
 		Agent *mAgent;
+	protected:
+		static std::list<std::string> sPushNotifParams;
 	private:
 		void setInfo(ModuleInfoBase *i);
 		ModuleInfoBase *mInfo;
@@ -158,6 +160,7 @@ class Module : protected ConfigValueListener {
 		EntryFilter *mFilter;
 		bool mDirtyConfig;
 };
+
 
 template <typename _modtype>
 Module * ModuleInfo<_modtype>::_create(Agent *ag){
@@ -188,6 +191,7 @@ class ModuleToolbox{
 		static void addRoutingParam(su_home_t *home, sip_contact_t *contacts, const std::string &routingParam, const char *domain);
 		static struct sip_route_s *prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_s * &sipr, struct sip_route_s * &value);
 		static void addPathHeader(const std::shared_ptr<RequestSipEvent> &ev, const tport_t *tport, const char *uniq = NULL);
+		void removeParamsFromContacts(su_home_t *home, sip_contact_t *c, std::list<std::string> &params);
 };
 
 #endif
