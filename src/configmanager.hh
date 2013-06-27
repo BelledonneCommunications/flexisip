@@ -43,6 +43,7 @@
 #include "common.hh"
 #include <typeinfo>
 
+#include <memory>
 
 #ifdef ENABLE_SNMP
 #include <net-snmp/net-snmp-config.h>
@@ -238,15 +239,17 @@ _retType &GenericEntriesGetter::find(const std::string &key)const{
 };
 
 
-
 class ConfigValue;
 class StatCounter64;
+class StatPair;
 class GenericStruct : public GenericEntry{
 public:
 	GenericStruct(const std::string &name, const std::string &help,oid oid_index);
 	GenericEntry * addChild(GenericEntry *c);
 	StatCounter64 *createStat(const std::string &name, const std::string &help);
 	std::pair<StatCounter64 *, StatCounter64 *> createStatPair(const std::string &name, const std::string &help);
+	std::unique_ptr<StatPair> createStats(const std::string &name, const std::string &help);
+	
 	void addChildrenValues(ConfigItemDescriptor *items);
 	void addChildrenValues(ConfigItemDescriptor *items, bool hashed);
 	void deprecateChild(const char *name);
@@ -282,15 +285,25 @@ public:
 	void setParent(GenericEntry *parent);
 	uint64_t read() { return mValue; }
 	void set(uint64_t val) { mValue=val; }
-	void operator++() {++mValue;};
-	void operator++(int) {mValue++;};
-	void operator--() {--mValue;};
-	void operator--(int) {mValue--;};
+	void operator++() {++mValue;}
+	void operator++(int) {mValue++;}
+	void operator--() {--mValue;}
+	void operator--(int) {mValue--;}
+	inline void incr() {mValue++;}
 private:
 	uint64_t mValue;
 };
 
 
+struct StatPair {
+	StatCounter64 * const start;
+	StatCounter64 * const finish;
+	StatPair(StatCounter64 *start, StatCounter64 *finish)
+	: start(start), finish(finish) {}
+	
+	inline void incrStart() { start->incr(); }
+	inline void incrFinish() { finish->incr(); }
+};
 
 class StatFinishListener {
 	std::unordered_set<StatCounter64*> mStatList;

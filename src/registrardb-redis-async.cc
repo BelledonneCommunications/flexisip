@@ -157,27 +157,25 @@ typedef struct RegistrarDbRedisAsync::RegistrarUserData {
 	shared_ptr<RegistrarDbListener>listener;
 	Record record;
 	int globalExpire;
-	char *route;
+	const sip_path_t *path;
 	bool alias;
 
-	RegistrarUserData ( RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, bool alias, shared_ptr<RegistrarDbListener>listener, forwardFn *fn ) :
-		self ( self ),fn ( fn ),token ( 0 ),sipContact ( sip_contact ),calldId ( calld_id ),csSeq ( cs_seq ),listener ( listener ),record ( "" ),globalExpire ( 0 ),route ( NULL ),alias ( alias ) {
+	RegistrarUserData ( RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const sip_path_t *path, bool alias, shared_ptr<RegistrarDbListener>listener, forwardFn *fn ) :
+		self ( self ),fn ( fn ),token ( 0 ),sipContact ( sip_contact ),calldId ( calld_id ),csSeq ( cs_seq ),listener ( listener ),record ( "" ),globalExpire ( 0 ), path ( path ), alias ( alias ) {
 		self->defineKeyFromUrl ( key,AOR_KEY_SIZE-1, url );
 		record.setKey ( key );
-		if ( route ) this->route=strdup ( route );
 	}
 	RegistrarUserData ( RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, shared_ptr<RegistrarDbListener>listener, forwardFn *fn ) :
-		self ( self ),fn ( fn ),token ( 0 ),sipContact ( sip_contact ),calldId ( calld_id ),csSeq ( cs_seq ),listener ( listener ),record ( "" ),globalExpire ( 0 ),route ( NULL ) {
+		self ( self ),fn ( fn ),token ( 0 ),sipContact ( sip_contact ),calldId ( calld_id ),csSeq ( cs_seq ),listener ( listener ),record ( "" ),globalExpire ( 0 ) {
 		self->defineKeyFromUrl ( key,AOR_KEY_SIZE-1, url );
 		record.setKey ( key );
 	}
 	RegistrarUserData ( RegistrarDbRedisAsync *self, const url_t *url, shared_ptr<RegistrarDbListener>listener, forwardFn *fn ) :
-		self ( self ),fn ( fn ),token ( 0 ),sipContact ( NULL ),calldId ( NULL ),csSeq ( -1 ),listener ( listener ),record ( "" ),globalExpire ( 0 ),route ( NULL ) {
+		self ( self ),fn ( fn ),token ( 0 ),sipContact ( NULL ),calldId ( NULL ),csSeq ( -1 ),listener ( listener ),record ( "" ),globalExpire ( 0 ) {
 		self->defineKeyFromUrl ( key,AOR_KEY_SIZE-1, url );
 		record.setKey ( key );
 	}
 	~RegistrarUserData() {
-		if ( route ) free ( route );
 	}
 } RegistrarUserData;
 
@@ -294,7 +292,7 @@ void RegistrarDbRedisAsync::handleBind ( redisReply *reply, RegistrarUserData *d
 
 	time_t now=getCurrentTime();
 	data->record.clean ( data->sipContact, data->calldId, data->csSeq, now );
-	data->record.bind ( data->sipContact, data->route, data->globalExpire, data->calldId, data->csSeq, now, data->alias );
+	data->record.bind ( data->sipContact, data->path, data->globalExpire, data->calldId, data->csSeq, now, data->alias );
 	mLocalRegExpire->update ( data->record );
 
 	string serialized;
@@ -308,9 +306,9 @@ void RegistrarDbRedisAsync::handleBind ( redisReply *reply, RegistrarUserData *d
 
 
 
-void RegistrarDbRedisAsync::doBind ( const url_t* url, const sip_contact_t *sip_contact, const char * call_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener )
+void RegistrarDbRedisAsync::doBind ( const url_t* fromUrl, const sip_contact_t* sip_contact, const char* calld_id, uint32_t cs_seq, const sip_path_t* path, int global_expire, bool alias, const shared_ptr< RegistrarDbListener >& listener )
 {
-	RegistrarUserData *data=new RegistrarUserData ( this,url,sip_contact,call_id,cs_seq,route,alias,listener,sHandleBind );
+	RegistrarUserData *data=new RegistrarUserData ( this,fromUrl,sip_contact,calld_id,cs_seq,path,alias,listener,sHandleBind );
 	data->globalExpire=global_expire;
 	if ( !isConnected() && !connect() ) {
 			LOGE ( "Not connected to redis server" );

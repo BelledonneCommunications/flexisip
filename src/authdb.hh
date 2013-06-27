@@ -89,7 +89,7 @@ public:
 	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener);
 };
 
-
+#if ENABLE_ODBC
 class OdbcAuthDb : public AuthDb {
 	~OdbcAuthDb();
 	const static int fieldLength = 500;
@@ -131,5 +131,6 @@ public:
 	bool checkConnection();
 	OdbcAuthDb();
 };
+#endif
 
 #endif

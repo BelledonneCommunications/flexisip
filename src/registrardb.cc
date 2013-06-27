@@ -35,6 +35,27 @@
 
 using namespace ::std;
 
+ostream &ExtendedContact::print(std::ostream& stream, time_t now, time_t offset) const {
+	char buffer[256] = "UNDETERMINED";
+	time_t expire=mExpireAt;
+	expire+=offset;
+	struct tm *ptm = localtime(&expire);
+	if (ptm != NULL) {
+		strftime(buffer, sizeof(buffer) - 1, "%c", ptm);
+	}
+	int expireAfter=mExpireAt-now;
+	
+	stream << mSipUri << " path=\"";
+	for (auto it=mCommon.mPath.cbegin(); it != mCommon.mPath.cend(); ++it) {
+		if (it != mCommon.mPath.cbegin()) stream << " ";
+		stream << *it;
+	}
+	stream << "\"";
+	stream << " alias=" << (mAlias ? "yes" : "no")
+	<< " expire=" << expireAfter << " s (" << buffer << ")";
+	return stream;
+}
+
 
 char Record::sStaticRecordVersion[100]={0};
 
@@ -43,9 +64,9 @@ sip_contact_t *Record::extendedContactToSofia(su_home_t *home, const ExtendedCon
 	time_t expire = ec.mExpireAt - now;
 	if (expire > 0) {
 		if (ec.mQ == 0) {
-			contact = sip_contact_format(home, "%s;expires=%lu", ec.mSipUri, expire);
+			contact = sip_contact_format(home, "%s;expires=%lu", ec.mSipUri.c_str(), expire);
 		} else {
-			contact = sip_contact_format(home, "%s;q=%4.2f;expires=%lu", ec.mSipUri, ec.mQ, expire);
+			contact = sip_contact_format(home, "%s;q=%4.2f;expires=%lu", ec.mSipUri.c_str(), ec.mQ, expire);
 		}
 	}
 	return contact;
@@ -66,7 +87,7 @@ const sip_contact_t *Record::getContacts(su_home_t *home, time_t now) {
 bool Record::isInvalidRegister(const char *call_id, uint32_t cseq) {
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		shared_ptr<ExtendedContact> ec = (*it);
-		if ((0 == strcmp(ec->mCallId, call_id)) && cseq <= ec->mCSeq) {
+		if ((0 == strcmp(ec->callId(), call_id)) && cseq <= ec->mCSeq) {
 			return true;
 		}
 	}
@@ -77,13 +98,13 @@ static bool isMismatchingStaticRecord(shared_ptr<ExtendedContact> &ec, const cha
 	static char staticRecordPrefix[]="static-record-v";
 	static size_t srpLen=strlen(staticRecordPrefix);
 
-	size_t callIdLen=strlen(ec->mCallId);
+	size_t callIdLen=ec->mCommon.mCallId.length();
 	if (callIdLen <= srpLen) return false;
 
-	bool isStaticRecordContact=0==memcmp(ec->mCallId, staticRecordPrefix, srpLen);
+	bool isStaticRecordContact=0==memcmp(ec->callId(), staticRecordPrefix, srpLen);
 	if (!isStaticRecordContact) return false;
 
-	return 0!=strcmp(ec->mCallId, version);
+	return 0!=strcmp(ec->callId(), version);
 }
 
 string Record::extractUniqueId(const url_t *url){
@@ -116,16 +137,16 @@ void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq,
 	while (it != mContacts.end()) {
 		shared_ptr<ExtendedContact> ec = (*it);
 		if (isMismatchingStaticRecord(ec, sStaticRecordVersion)) {
-			LOGD("Cleaning mismatching static record for %s", ec->mContactId);
+			SLOGD << "Cleaning mismatching static record for " << ec->mCommon.mContactId;
 			it = mContacts.erase(it);
 		} else if (now >= ec->mExpireAt) {
-			LOGD("Cleaning expired contact %s", ec->mContactId);
+			SLOGD << "Cleaning expired contact " << ec->mCommon.mContactId;
 			it = mContacts.erase(it);
-		} else if (ec->mLineValueCopy && lineValuePtr != NULL && 0 == strcmp(ec->mLineValueCopy, lineValuePtr)) {
-			LOGD("Cleaning older line '%s' for contact %s", lineValuePtr, ec->mContactId);
+		} else if (ec->line() && lineValuePtr != NULL && 0 == strcmp(ec->line(), lineValuePtr)) {
+			SLOGD << "Cleaning older line '" << lineValuePtr << "' for contact " << ec->mCommon.mContactId;
 			it = mContacts.erase(it);
-		} else if (0 == strcmp(ec->mCallId, call_id)) {
-			LOGD("Cleaning same call id contact %s (%s)", ec->mContactId, call_id);
+		} else if (0 == strcmp(ec->callId(), call_id)) {
+			LOGD("Cleaning same call id contact %s (%s)", ec->contactId(), call_id);
 			it = mContacts.erase(it);
 		} else {
 			++it;
@@ -180,7 +201,7 @@ void Record::clean(time_t now) {
 		if (now >= ec->mExpireAt) {
 			it = mContacts.erase(it);
 		} else if (isMismatchingStaticRecord(ec, sStaticRecordVersion)) {
-			LOGD("Cleaning mismatching static record for %s", ec->mContactId);
+			LOGD("Cleaning mismatching static record for %s", ec->contactId());
 			it = mContacts.erase(it);
 		} else {
 			++it;
@@ -199,18 +220,28 @@ time_t Record::latestExpire() const {
 time_t Record::latestExpire(const std::string &route) const {
 	time_t latest=0;
 	for (auto it=mContacts.begin(); it != mContacts.end(); ++it) {
-		if ((*it)->mRoute && (*it)->mExpireAt > latest && 0 == strcmp((*it)->mRoute, route.c_str()))
+		if ((*it)->mCommon.mPath.empty() || (*it)->mExpireAt <= latest) continue;
+		if (*(*it)->mCommon.mPath.begin() == route)
 			latest=(*it)->mExpireAt;
 	}
 	return latest;
+}
+
+std::list<std::string> Record::route_to_stl(su_home_t *home, const sip_route_s *route) {
+	std::list<std::string> res;
+	while (route != NULL) {
+		res.push_back(url_as_string(home, route->r_url));
+		route = route->r_next;
+	}
+	return res;
 }
 
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec) {
 	// Try to locate an existing contact
 	shared_ptr<ExtendedContact> olderEc;
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
-		if (0 == strcmp(ec->mContactId, (*it)->mContactId)) {
-			LOGD("Removing older contact with same id %s", (*it)->mContactId);
+		if (0 == strcmp(ec->contactId(), (*it)->contactId())) {
+			LOGD("Removing older contact with same id %s", (*it)->contactId());
 			mContacts.erase(it);
 			mContacts.push_back(ec);
 			return;
@@ -239,8 +270,16 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 		oss << ":" << url->url_port;
 }
 
-void Record::bind(const sip_contact_t *contacts, const char* route, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias) {
+void Record::bind(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias) {
 	sip_contact_t *c = (sip_contact_t *) contacts;
+	list<string> stlPath;
+	if (path != NULL) {
+		su_home_t home;
+		su_home_init(&home);
+		stlPath=route_to_stl(&home, path);
+		su_home_destroy(&home);
+	}
+
 	while (c) {
 		if ((c->m_expires && atoi(c->m_expires) == 0)|| (!c->m_expires && globalExpire == 0)) {
 			c = c->m_next;
@@ -260,40 +299,28 @@ void Record::bind(const sip_contact_t *contacts, const char* route, int globalEx
 
 		ostringstream contactId;
 		defineContactId(contactId, c->m_url, transportPtr);
-		insertOrUpdateBinding(make_shared<ExtendedContact>(c, contactId.str().c_str(), route, lineValuePtr, globalExpire, call_id, cseq, now, alias));
+		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr);
+		insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, c, globalExpire, cseq, now, alias));
 		c = c->m_next;
 	}
 
 	SLOGD << *this;
 }
 
-void Record::bind(const char *c, const char *contactId, const char* route, const char *lineValue, long expireAt, float q, const char *call_id, uint32_t cseq, time_t updated_time, bool alias) {
-	insertOrUpdateBinding(make_shared<ExtendedContact>(c, contactId, route, lineValue, expireAt, q, call_id, cseq, updated_time, alias));
+void Record::bind(const ExtendedContactCommon &ecc, const char *c, long expireAt, float q, uint32_t cseq, time_t updated_time, bool alias) {
+	insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, c, expireAt, q, cseq, updated_time, alias));
 }
 
 void Record::print(std::ostream &stream) const{
-	stream << "Record contains " << mContacts.size() << " contacts" << "\n";
+	stream << "Record contains " << mContacts.size() << " contacts";
 	time_t now=getCurrentTime();
-#ifdef MONOTONIC_CLOCK_REGISTRATIONS
-	time_t offset=time(NULL)-now;
-#endif
+	time_t offset=getTimeOffset(now);
+
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
-		shared_ptr<ExtendedContact> ec = (*it);
-		char buffer[256] = "UNDETERMINED";
-		time_t expire=ec->mExpireAt;
-#ifdef MONOTONIC_CLOCK_REGISTRATIONS
-		expire+=offset;
-#endif
-		struct tm *ptm = localtime(&expire);
-		if (ptm != NULL) {
-			strftime(buffer, sizeof(buffer) - 1, "%c", ptm);
-		}
-		int expireAfter=ec->mExpireAt-now;
-		stream << ec->mSipUri << " route=" << ec->mRoute
-			<< " alias=" << (ec->mAlias ? "yes" : "no")
-			<< " expire=" << expireAfter << " s (" << buffer << ")";
+		stream << "\n";
+		(*it)->print(stream, now, offset);
 	}
-	stream << "==========================" << "\n";
+	stream << "\n==========================";
 }
 
 int Record::sMaxContacts = -1;
@@ -415,8 +442,8 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 	return sUnique;
 }
 
-void RegistrarDb::bind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const char *route, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
-	doBind(fromUrl, sip_contact, calld_id, cs_seq, route, global_expire, alias, listener);
+void RegistrarDb::bind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const sip_path_t *path, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
+	doBind(fromUrl, sip_contact, calld_id, cs_seq, path, global_expire, alias, listener);
 }
 
 void RegistrarDb::clear(const sip_t *sip, const shared_ptr<RegistrarDbListener> &listener) {
@@ -450,17 +477,17 @@ public:
 			for (auto it = r->mContacts.begin(); it != r->mContacts.end(); ++it) {
 				shared_ptr<ExtendedContact> ec = *it;
 				if (!ec->mAlias || m_step == 0) {
-					LOGD("Step: %d\tFind contact %s for %s.", m_step, ec->mSipUri, m_url);
+					SLOGD << "Step: " << m_step << "\tFind contact " << ec->mSipUri << " for " << m_url;
 					m_record->mContacts.push_back(ec);
 				} else {
-					LOGD("Step: %d\tFind alias %s for %s. Try to fetch it.", m_step, ec->mSipUri, m_url);
+					SLOGD << "Step: " << m_step << "\tFind alias " << ec->mSipUri << " for " << m_url << ". Try to fetch it.";
 					m_record->mContacts.push_back(ec);
-					sip_contact_t *contact = sip_contact_format(&m_home, "%s", ec->mSipUri);
+					sip_contact_t *contact = sip_contact_format(&m_home, "%s", ec->mSipUri.c_str());
 					if (contact != NULL) {
 						++m_request;
 						m_database->fetch(contact->m_url, make_shared<RecursiveRegistrarDbListener>(m_database, this->shared_from_this(), contact->m_url, m_step - 1), false);
 					} else {
-						LOGW("Can't create sip_contact of %s.", ec->mSipUri);
+						SLOGW << "Can't create sip_contact of " << ec->mSipUri;
 					}
 				}
 			}
@@ -508,6 +535,6 @@ void RegistrarDb::fetch(const url_t *url, const shared_ptr<RegistrarDbListener> 
 	}
 }
 
-void RegistrarDb::bind(const sip_t *sip, const char* route, int globalExpire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
-	bind(sip->sip_from->a_url, sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, route, globalExpire, alias, listener);
+void RegistrarDb::bind(const sip_t *sip, int globalExpire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
+	bind(sip->sip_from->a_url, sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, sip->sip_path, globalExpire, alias, listener);
 }

@@ -93,21 +93,21 @@ void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms) {
 }
 
 int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *irq, const sip_t *sip) {
-	OutgoingTransaction * it = reinterpret_cast<OutgoingTransaction *>(magic);
-	LOGD("OutgoingTransaction callback %p", it);
+	OutgoingTransaction * otr = reinterpret_cast<OutgoingTransaction *>(magic);
+	LOGD("OutgoingTransaction callback %p", otr);
 	if (sip != NULL) {
-		msg_t *msg = nta_outgoing_getresponse(it->mOutgoing);
-		auto oagent=dynamic_pointer_cast<OutgoingAgent>(it->shared_from_this());
+		msg_t *msg = nta_outgoing_getresponse(otr->mOutgoing);
+		auto oagent=dynamic_pointer_cast<OutgoingAgent>(otr->shared_from_this());
 		auto msgsip=shared_ptr<MsgSip>(new MsgSip(msg));
 		shared_ptr<ResponseSipEvent> sipevent(new ResponseSipEvent(oagent, msgsip));
 		msg_destroy(msg);
 
-		it->mAgent->sendResponseEvent(sipevent);
+		otr->mAgent->sendResponseEvent(sipevent);
 		if (sip->sip_status && sip->sip_status->st_status >= 200) {
-			it->destroy();
+			otr->destroy();
 		}
 	} else {
-		it->destroy();
+		otr->destroy();
 	}
 	return 0;
 }

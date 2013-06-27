@@ -82,7 +82,7 @@ PushNotificationContext::PushNotificationContext(const shared_ptr<OutgoingTransa
 		mModule(module), mPushNotificationRequest(pnr), mKey(key) {
 	mTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
 	mEndTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
-	mForkContext = dynamic_pointer_cast<ForkCallContext>(transaction->getProperty<ForkContext>("Registrar"));
+	mForkContext = dynamic_pointer_cast<ForkCallContext>(transaction->getProperty<ForkContext>("Router"));
 }
 
 PushNotificationContext::~PushNotificationContext() {
@@ -106,6 +106,7 @@ void PushNotificationContext::cancel(){
 }
 
 void PushNotificationContext::onTimeout() {
+	SLOGD << "PushNotificationContext timer";
 	if (mForkContext){
 		if (mForkContext->isCompleted()){
 			LOGD("Call is already established or canceled, so push notification is not sent but cleared.");
@@ -113,7 +114,7 @@ void PushNotificationContext::onTimeout() {
 			return;
 		}
 	}
-	LOGD("PushNotificationContext timer, sending now.");
+
 	mModule->getService()->sendRequest(mPushNotificationRequest);
 	if (mForkContext){
 		LOGD("Notifying call context...");

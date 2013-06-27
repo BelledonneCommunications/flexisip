@@ -437,6 +437,12 @@ StatCounter64 *GenericStruct::createStat(const string &name, const string &help)
 pair<StatCounter64 *, StatCounter64*> GenericStruct::createStatPair(const string &name, const string &help){
 	return make_pair(createStat(name, help), createStat(name+"-finished", help + " Finished."));
 }
+
+unique_ptr<StatPair> GenericStruct::createStats(const string &name, const string &help){
+	auto start=createStat(name, help);
+	auto finish=createStat(name+"-finished", help + " Finished.");
+	return unique_ptr<StatPair>(new StatPair(start, finish));
+}
 /*
 void GenericStruct::addChildrenValues(StatItemDescriptor *items){
 	for (;items->name!=NULL;items++){
@@ -818,6 +824,7 @@ ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)
 		for(it=cs->getChildren().begin();it!=cs->getChildren().end();++it){
 			dump2(ostr,*it,level+1);
 		}
+		ostr << endl << endl << endl;
 	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL && !val->isDeprecated()){
 		printHelp(ostr,entry->getHelp(),"#");
 		ostr<<"#  Default value: "<<val->getDefault()<<endl;

@@ -210,6 +210,8 @@ void CallSide::connect(CallSide *recvSide, MSTicker *ticker){
 			LOGE("Could not instanciate decoder for %s",recvpt->mime_type);
 		}else{
 			if (!mUsePlc) ms_filter_call_method(mDecoder,MS_FILTER_ADD_FMTP,(void*)"plc=0");
+			if (recvpt->clock_rate > 0)
+				ms_filter_call_method(mDecoder,MS_FILTER_SET_SAMPLE_RATE,(void*)&recvpt->clock_rate);
 			if (ticker)
 				ms_filter_preprocess(mDecoder,ticker);
 		}
@@ -230,6 +232,8 @@ void CallSide::connect(CallSide *recvSide, MSTicker *ticker){
 				snprintf(tmp,sizeof(tmp),"ptime=%i",mPtime);
 				ms_filter_call_method(mEncoder,MS_FILTER_ADD_FMTP,(void*)tmp);
 			}
+			if (sendpt->clock_rate > 0)
+				ms_filter_call_method(mEncoder,MS_FILTER_SET_SAMPLE_RATE,(void*)&sendpt->clock_rate);
 			if (sendpt->send_fmtp!=NULL)
 				ms_filter_call_method(mEncoder,MS_FILTER_ADD_FMTP,(void*)sendpt->send_fmtp);
 			if (sendpt->normal_bitrate>0)
@@ -288,10 +292,10 @@ static int dtmf_tab[]={'0','1','2','3','4','5','6','7','8','9','*','#','A','B','
 void CallSide::onTelephoneEvent(RtpSession *s, int dtmf_index, void * data){
 	TranscodedCall *ctx=reinterpret_cast<TranscodedCall*>(data);
 	CallSide *side=static_cast<CallSide*>(rtp_session_get_data(s));
-    if (dtmf_index>16){
-            ms_warning("Unsupported telephone-event type %d.", dtmf_index);
-            return;
-    }
+	if (dtmf_index>16){
+		ms_warning("Unsupported telephone-event type %d.", dtmf_index);
+		return;
+	}
 
 	LOGD("Receiving telephone event %c",dtmf_tab[dtmf_index]);
 	ctx->playTone(side,dtmf_tab[dtmf_index]);

@@ -32,13 +32,15 @@ flexisip_SOURCES=main.cc \
 			entryfilter.cc entryfilter.hh \
 			stun.cc stun.hh \
 			mediarelay.cc mediarelay.hh \
-			authdb.hh authdb.cc authdb-odbc.cc authdb-file.cc \
+			authdb.hh authdb.cc authdb-file.cc \
+			module-garbage-in.cc \
 			module-forward.cc \
 			module-transcode.cc \
 			module-gatewayadapter.cc \
 			module-contact-route-inserter.cc \
 			module-nat-helper.cc \
 			module-registrar.cc \
+			module-router.cc lateforkapplier.hh \
 			module-mediarelay.cc \
 			module-auth.cc \
 			module-loadbalancer.cc \
@@ -57,7 +59,7 @@ flexisip_SOURCES+=snmp-agent.cc snmp-agent.h
 INCLUDES=-Imib			
 endif
 
-flexisip_LDADD=$(SOFIA_LIBS) $(MEDIASTREAMER_LIBS) $(ODBC_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)
+flexisip_LDADD=$(SOFIA_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) $(PROTOBUF_CFLAGS)  \
 			-DCONFIG_DIR=\"$(CONFIG_DIR)\" -DORTP_DEBUG_MODE $(WARNINGCXXFLAGS)
@@ -69,6 +71,13 @@ endif
 
 if WITHOUT_HIREDIS_CONNECT_CALLBACK
 AM_CXXFLAGS +=-DWITHOUT_HIREDIS_CONNECT_CALLBACK
+endif
+
+if BUILD_ODBC
+AM_CFLAGS+=-DENABLE_ODBC
+AM_CXXFLAGS+=-DENABLE_ODBC
+flexisip_LDADD+=$(ODBC_LIBS)
+flexisip_SOURCES+= authdb-odbc.cc
 endif
 
 if BUILD_TRANSCODER
@@ -87,6 +96,8 @@ flexisip_LDADD+=$(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(BOOST_LOG_LIB) $(BOOST_RE
 noinst_LIBRARIES = libhack.a
 libhack_a_SOURCES = log/workaround.cc log/logmanager.hh
 libhack_a_CXXFLAGS = $(AM_CXXFLAGS) -Wno-uninitialized
+
+AM_CXXFLAGS+= -DBOOST_LOG_DYN_LINK=1
 endif
 
 if BUILD_PUSHNOTIFICATION

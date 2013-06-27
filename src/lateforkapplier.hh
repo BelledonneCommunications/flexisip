@@ -17,29 +17,22 @@
 */
 
 
-#include <boost/version.hpp> 
-#if (BOOST_VERSION >= 105400)
-#include <boost/log/utility/setup/filter_parser.hpp>
-#include <boost/log/utility/setup/formatter_parser.hpp>
+#ifndef lateforkapplier_hh
+#define lateforkapplier_hh
 
-#else
-#include <boost/log/utility/init/filter_parser.hpp>
-#include <boost/log/utility/init/formatter_parser.hpp>
-#endif
+#include <memory>
+#include <sofia-sip/url.h>
+#include <sofia-sip/sip.h>
+#include "registrardb.hh"
 
-#include "logmanager.hh"
-namespace flexisip {
-namespace log {
 
-void register_log_factories() {
-#if (BOOST_VERSION >= 105400)
-boost::log::register_simple_formatter_factory< flexisip::log::level, char>("Severity");
-boost::log::register_simple_filter_factory< flexisip::log::level, char>("Severity");
-#else
-	boost::log::register_simple_formatter_factory< flexisip::log::level >("Severity");
-	boost::log::register_simple_filter_factory< flexisip::log::level >("Severity");
+class Agent;
+struct LateForkApplier {
+	/**
+	 * record should not be null.
+	 */
+	static void onContactRegistered(const Agent *, const sip_contact_t *, const sip_path_t *path, Record *record, const url_t * sipUri);
+};
 
 #endif
-}
 
-}}

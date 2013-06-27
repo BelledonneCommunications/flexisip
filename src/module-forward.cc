@@ -38,12 +38,12 @@ public:
 	~ForwardModule();
 private:
 	url_t* overrideDest(shared_ptr<RequestSipEvent> &ev, url_t* dest);
-	tport_t * checkRecordRoutes(shared_ptr<RequestSipEvent> &ev, url_t *dest);
 	bool isLooping(shared_ptr<RequestSipEvent> &ev, const char * branch);
 	unsigned int countVia(shared_ptr<RequestSipEvent> &ev);
 	su_home_t mHome;
 	sip_route_t *mOutRoute;
 	bool mRewriteReqUri;
+	bool mAddPath;
 	static ModuleInfo<ForwardModule> sInfo;
 };
 
@@ -53,9 +53,8 @@ ModuleInfo<ForwardModule> ForwardModule::sInfo("Forward",
 		ModuleInfoBase::ModuleOid::Forward);
 
 ForwardModule::ForwardModule(Agent *ag) :
-		Module(ag) {
+		Module(ag), mOutRoute(NULL), mRewriteReqUri(false), mAddPath(false) {
 	su_home_init(&mHome);
-	mOutRoute = NULL;
 }
 
 ForwardModule::~ForwardModule() {
@@ -65,21 +64,23 @@ ForwardModule::~ForwardModule() {
 void ForwardModule::onDeclare(GenericStruct * module_config) {
 	ConfigItemDescriptor items[] = {
 			{ String, "route", "A sip uri where to send all requests", "" },
+			{ Boolean, "add-path", "Add a path header of this proxy", "true" },
 			{ Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to above route", "false" },
 			config_item_end
 	};
 	module_config->addChildrenValues(items);
 }
 
-void ForwardModule::onLoad(const GenericStruct *module_config) {
-	string route = module_config->get<ConfigString>("route")->read();
-	mRewriteReqUri = module_config->get<ConfigBoolean>("rewrite-req-uri")->read();
+void ForwardModule::onLoad(const GenericStruct *mc) {
+	string route = mc->get<ConfigString>("route")->read();
+	mRewriteReqUri = mc->get<ConfigBoolean>("rewrite-req-uri")->read();
 	if (route.size() > 0) {
 		mOutRoute = sip_route_make(&mHome, route.c_str());
 		if (mOutRoute == NULL || mOutRoute->r_url->url_host == NULL) {
 			LOGF("Bad route parameter '%s' in configuration of Forward module", route.c_str());
 		}
 	}
+	mAddPath = mc->get<ConfigBoolean>("add-path")->read();
 }
 
 url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
@@ -92,30 +93,6 @@ url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest)
 		}
 	}
 	return dest;
-}
-
-/* the goal of this method is to check whether we added ourself to the record route, and handle a possible
- transport change by adding a new record-route with transport updated.
- Typically, if we transfer an INVITE from TCP to UDP, we should find two consecutive record-route, first one with UDP, and second one with TCP
- so that further request from both sides are sent to the appropriate transport of flexisip, and also we don't ask to a UDP only equipment to route to TCP.
- */
-tport_t * ForwardModule::checkRecordRoutes(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
-	if (!ev->mRecordRouteAdded)
-		return NULL; //if no record route were added by any module, no need to set an outgoing record route.
-	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	sip_method_t method=ms->getSip()->sip_request->rq_method;
-	if (method==sip_method_invite || method==sip_method_subscribe){
-		tp_name_t name={0};
-		tport_name_by_url(ms->getHome(),&name,(url_string_t*)dest);
-		tport_t *tport=tport_by_name(nta_agent_tports(getSofiaAgent()),&name);
-		if (tport){
-			addRecordRoute(ms->getHome(),getAgent(),ev,tport);
-			return tport;
-		}else{
-			LOGE("Could not find tport to set proper outgoing Record-Route.");
-		}
-	}
-	return NULL;
 }
 
 void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
@@ -169,15 +146,43 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		SLOGD << "Skipping forwarding of request to us "
 			<< url_as_string(ms->getHome(), dest) << "\n" << ms;
 		ev->terminateProcessing();
-	} else {
-		tport_t *tport=checkRecordRoutes(ev, dest);
-		//since checkRecordRoutes() may find appropriate tport, avoid sofia to search it again.
-		if (tport)
-			ev->send(ms, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());
-		else
-			ev->send(ms, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), TAG_END());
 	}
 
+	// Decrease max forward
+	if (sip->sip_max_forwards) --sip->sip_max_forwards->mf_count;
+
+	// tport is the transport which will be used by sofia to send message
+	tp_name_t name={0};
+	tport_name_by_url(ms->getHome(),&name,(url_string_t*)dest);
+	tport_t *tport=tport_by_name(nta_agent_tports(getSofiaAgent()),&name);
+	if (!tport){
+		LOGE("Could not find tport to set proper outgoing Record-Route.");
+		ev->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
+		return;
+	}
+
+
+	// Eventually add second record route with different transport
+	// to bridge to networks: for example, we'll end with UDP, TCP.
+	const sip_method_t method=ms->getSip()->sip_request->rq_method;
+	if (ev->mRecordRouteAdded && (method==sip_method_invite || method==sip_method_subscribe)) {
+		addRecordRoute(ms->getHome(),getAgent(),ev,tport);
+	}
+
+	// Add path
+	if (mAddPath && method == sip_method_register) {
+		//addPathHeader(ev, getIncomingTport(ev, getAgent()), getAgent()->getUniqueId());
+		addPathHeader(ev, tport, getAgent()->getUniqueId().c_str());
+	}
+
+	// Clean push notifs params from contacts
+	if (sip->sip_contact && sip->sip_request->rq_method != sip_method_register) {
+		removeParamsFromContacts(ms->getHome(), sip->sip_contact, sPushNotifParams);
+		SLOGD << "Removed push params from contact";
+	}
+
+	// Finally send message
+	ev->send(ms, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());
 }
 
 unsigned int ForwardModule::countVia(shared_ptr<RequestSipEvent> &ev) {

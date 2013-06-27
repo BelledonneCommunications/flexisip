@@ -53,14 +53,23 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r){
 		char *call_id=cJSON_GetObjectItem(contact->child,"call_id")->valuestring;
 		int cseq=cJSON_GetObjectItem(contact->child,"cseq")->valueint;
 		bool alias=cJSON_GetObjectItem(contact->child,"alias")->valueint != 0;
+		cJSON *path=cJSON_GetObjectItem(contact->child,"path");
 
-		if (!sip_contact || sip_contact[0] != '<' || !expire || !update_time || !call_id || !cseq){
+
+		if (!sip_contact || sip_contact[0] != '<' || !expire || !update_time || !call_id || !cseq || !path){
 			LOGE("Invalid redis contact %i %s",i, str);
 			cJSON_Delete(root);
 			return false;
 		}
 
-		r->bind(sip_contact, contactId, route, lineValue, q, expire, call_id, cseq, update_time, alias);
+		std::list<std::string> stlpath;
+		if (route) stlpath.push_back(route);
+		for (int p = 0 ; p < cJSON_GetArraySize(path) ; p++) {
+			stlpath.push_back(cJSON_GetArrayItem(path, p)->valuestring);
+		}
+
+		ExtendedContactCommon ecc(contactId, stlpath, call_id, lineValue);
+		r->bind(ecc, sip_contact, q, expire, cseq, update_time, alias);
 		contact=contact->next;
 		++i;
 	}
@@ -79,17 +88,24 @@ bool RecordSerializerJson::serialize(Record *r, string &serialized){
 	for (auto it=ecs.begin(); it != ecs.end(); ++it){
 		cJSON *c=cJSON_CreateObject();
 		cJSON_AddItemToArray(contacts,c);
+		cJSON *path=cJSON_CreateArray();
+		cJSON_AddItemToObject(c, "path", path);
+
 		shared_ptr<ExtendedContact> ec=(*it);
-		cJSON_AddStringToObject(c,"uri",ec->mSipUri);
+		cJSON_AddStringToObject(c,"uri",ec->mSipUri.c_str());
 		cJSON_AddNumberToObject(c,"expires_at",ec->mExpireAt);
 		cJSON_AddNumberToObject(c,"q",ec->mQ?ec->mQ : 0);
-		if (ec->mLineValueCopy) cJSON_AddStringToObject(c,"line_value_copy",ec->mLineValueCopy);
-		if (ec->mRoute) cJSON_AddStringToObject(c,"route",ec->mRoute);
-		cJSON_AddStringToObject(c,"contact_id",ec->mContactId);
+		if (ec->line()) cJSON_AddStringToObject(c,"line_value_copy",ec->line());
+		cJSON_AddStringToObject(c,"contact_id",ec->contactId());
 		cJSON_AddNumberToObject(c,"update_time",ec->mUpdatedTime);
-		cJSON_AddStringToObject(c,"call_id",ec->mCallId);
+		cJSON_AddStringToObject(c,"call_id",ec->callId());
 		cJSON_AddNumberToObject(c,"cseq",ec->mCSeq);
 		cJSON_AddNumberToObject(c,"alias",ec->mAlias? 1: 0);
+
+		for (auto pit=ec->mCommon.mPath.cbegin(); pit != ec->mCommon.mPath.cend(); ++pit) {
+			cJSON *pitem = cJSON_CreateString(pit->c_str());
+			cJSON_AddItemToArray(path, pitem);
+		}
 	}
 
 	char *contacts_str=cJSON_PrintUnformatted(root);

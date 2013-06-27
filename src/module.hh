@@ -21,6 +21,7 @@
 
 #include "sofia-sip/nta_tport.h"
 #include "sofia-sip/tport.h"
+#include "sofia-sip/msg_header.h"
 
 #include <string>
 #include <memory>
@@ -63,11 +64,13 @@ class ModuleInfoBase {
 		virtual ~ModuleInfoBase(){
 		}
 		enum ModuleOid {
+			GarbageIn=5,
 			NatHelper=30,
 			Authentication=60,
 			DateHandler=75,
 			GatewayAdapter=90,
 			Registrar=120,
+			Router=125,
 			PushNotification=130,
 			ContactRouteInserter=150,
 			LoadBalancer=180,
@@ -148,6 +151,8 @@ class Module : protected ConfigValueListener {
 			GenericManager::get()->sendTrap(mModuleConfig, msg);
 		}
 		Agent *mAgent;
+	protected:
+		static std::list<std::string> sPushNotifParams;
 	private:
 		void setInfo(ModuleInfoBase *i);
 		ModuleInfoBase *mInfo;
@@ -155,6 +160,7 @@ class Module : protected ConfigValueListener {
 		EntryFilter *mFilter;
 		bool mDirtyConfig;
 };
+
 
 template <typename _modtype>
 Module * ModuleInfo<_modtype>::_create(Agent *ag){
@@ -168,10 +174,12 @@ Module * ModuleInfo<_modtype>::_create(Agent *ag){
 class ModuleToolbox{
 	public:
 		static msg_auth_t *findAuthorizationForRealm(su_home_t *home, msg_auth_t *au, const char *realm);
+		static const tport_t *getIncomingTport(const std::shared_ptr<RequestSipEvent> &ev, Agent *ag);
 		static void addRecordRouteIncoming(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev);
 		static url_t *urlFromTportName(su_home_t *home, const tp_name_t *name);
-		static void addRecordRoute(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev, tport_t *tport);
-		static void prependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *route);
+		static void addRecordRoute(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev, const tport_t *tport);
+		static void cleanAndPrependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *route);
+		static void cleanAndPrependRoutable(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const std::list<std::string> &routes);
 		static bool sipPortEquals(const char *p1, const char *p2);
 		static int sipPortToInt(const char *port);
 		static bool fromMatch(const sip_from_t *from1, const sip_from_t *from2);
@@ -179,7 +187,12 @@ class ModuleToolbox{
 		static bool fixAuthChallengeForSDP(su_home_t *home, msg_t *msg, sip_t *sip);
 		static bool transportEquals(const char *tr1, const char *tr2);
 		static bool isNumeric(const char *host);
-
+		static bool isManagedDomain(const Agent *agent, const std::list<std::string> &domains, const url_t *url);
+		static void addRoutingParam(su_home_t *home, sip_contact_t *contacts, const std::string &routingParam, const char *domain);
+		static struct sip_route_s *prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_s * &sipr, struct sip_route_s * &value);
+		static void addPathHeader(const std::shared_ptr<RequestSipEvent> &ev, const tport_t *tport, const char *uniq = NULL);
+		void removeParamsFromContacts(su_home_t *home, sip_contact_t *c, std::list<std::string> &params);
+		void removeParamsFromUrl(su_home_t *home, url_t *u, std::list<std::string> &params);
 };
 
 #endif

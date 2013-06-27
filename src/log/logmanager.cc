@@ -29,12 +29,25 @@ static bool is_debug=false;
 static bool is_syslog=false;
 
 #ifdef ENABLE_BOOSTLOG
-#include <boost/concept_check.hpp>
+#if (BOOST_VERSION >= 105400)
+#include <boost/log/utility/setup/from_stream.hpp>
+#include <boost/log/utility/setup/filter_parser.hpp>
+#include <boost/log/utility/setup/console.hpp>
+#include <boost/log/utility/setup/common_attributes.hpp>
+#include <boost/log/expressions.hpp>
+#include <boost/log/core/record_view.hpp>
+#include <boost/log/support/date_time.hpp>
+#include <boost/log/expressions/formatters/date_time.hpp>
+#else
 #include <boost/log/utility/init/from_stream.hpp>
+#include <boost/log/utility/init/filter_parser.hpp>
+#include <boost/log/utility/init/to_console.hpp>
+#include <boost/log/utility/init/common_attributes.hpp>
+#include <boost/log/formatters.hpp>
+#endif
 #include <boost/log/sources/severity_logger.hpp>
 #include <boost/log/sources/record_ostream.hpp>
 
-#include <boost/log/utility/init/filter_parser.hpp>
 #include <boost/log/sources/global_logger_storage.hpp>
 
 #include <boost/log/sinks/sync_frontend.hpp>
@@ -45,11 +58,10 @@ static bool is_syslog=false;
 #include <tuple>
 #include <exception>
 #include <map>
-#include <boost/log/utility/init/to_console.hpp>
-#include <boost/log/utility/init/common_attributes.hpp>
+#include <boost/function.hpp>
+
 
 #include <boost/log/detail/sink_init_helpers.hpp>
-#include <boost/log/formatters.hpp>
 //#include <boost/exception/all.hpp>
 //#include <boost/exception/diagnostic_information.hpp> 
 //#include <boost/exception_ptr.hpp> 
@@ -60,9 +72,26 @@ namespace keywords = boost::log::keywords;
 namespace logging = boost::log;
 namespace sinks = boost::log::sinks;
 namespace syslog = sinks::syslog;
+#if (BOOST_VERSION >= 105400)
+namespace fmt = boost::log::expressions;
+namespace flt = boost::log::expressions;
+//typedef fmt::basic_formatter<char> formatter_functor;
+typedef logging::aux::light_function< void (logging::record_view const&, logging::basic_formatting_ostream< char > &) > formatter_functor;
+#define FMTDATETIME fmt::format_date_time< boost::posix_time::ptime >
+#define EXPR_MESSAGE fmt::message
+#define SINK_LCK(sink) sink
+#else
 namespace fmt = boost::log::formatters;
 namespace flt = boost::log::filters;
-
+typedef boost::function2<
+	void,
+	std::basic_ostream< char >&,
+	boost::log::basic_record< char > const&
+> formatter_functor;
+#define FMTDATETIME fmt::date_time< boost::posix_time::ptime >
+#define EXPR_MESSAGE fmt::message()
+#define SINK_LCK(sink) sink->locked_backend()
+#endif
 
 #define addIfString(name, before, after) \
 	fmt::if_(flt::has_attr(name)) \
@@ -76,16 +105,12 @@ namespace flt = boost::log::filters;
 	]
 
 	//! Formatter functor
-	boost::function2<
-	void,
-	std::basic_ostream< char >&,
-	boost::log::basic_record< char > const&
-	> 
+	formatter_functor
 	createFormatter(bool timestamp=true) {
 		return fmt::stream
 		<< fmt::if_(flt::has_attr("TimeStamp"))
 		[
-		fmt::stream <<  "[" << fmt::date_time< boost::posix_time::ptime >("TimeStamp", "%d.%m.%Y %H:%M:%S.%f") << "] "
+		fmt::stream <<  "[" << FMTDATETIME("TimeStamp", "%d.%m.%Y %H:%M:%S.%f") << "] "
 		]
 		<< fmt::if_(flt::has_attr("Severity"))
 		[
@@ -94,11 +119,11 @@ namespace flt = boost::log::filters;
 		<< addIfString("method_or_status", " [", "]")
 		<< addIfString("Module", " [", "]")
 		<< addIfString("callid", " [", "]")
-		<< addIfString("from.uri.user", " [", "")
-		<< addIfString("from.uri.domain", "@", "")
-		<< addIfString("to.uri.user", " --> ", "")
-		<< addIfString("to.uri.domain", "@", "]")
-		<< " : " << fmt::message()
+//		<< addIfString("from.uri.user", " [", "")
+//		<< addIfString("from.uri.domain", "@", "")
+//		<< addIfString("to.uri.user", " --> ", "")
+//		<< addIfString("to.uri.domain", "@", "]")
+		<< " : " << EXPR_MESSAGE
 		;
 		
 	}
@@ -139,7 +164,7 @@ namespace log {
 			new back_type(keywords::use_impl = syslog::native));
 		
 //		auto formatter=logging::aux::acquire_formatter(format);
-		sink->locked_backend()->set_formatter(createFormatter());
+		SINK_LCK(sink)->set_formatter(createFormatter());
 
 		// We'll have to map our custom levels to the syslog levels
 		sinks::syslog::custom_severity_mapping< level > mapping("Severity");
@@ -157,10 +182,17 @@ namespace log {
 		logging::core::get()->add_sink(sink);
 	}
 
+#if (BOOST_VERSION >= 105400)
+	static void init_log_to_console() {
+		auto sink=logging::add_console_log();
+		SINK_LCK(sink)->set_formatter(createFormatter(false));
+	}
+#else
 	static void init_log_to_console() {
 		auto sink=logging::init_log_to_console();
-		sink->locked_backend()->set_formatter(createFormatter(false));
+		SINK_LCK(sink)->set_formatter(createFormatter(false));
 	}
+#endif
 
 	void register_log_factories();
 	void preinit(bool syslog, bool debug) {
@@ -226,11 +258,15 @@ namespace log {
 	bool updateFilter(const string &filterstr) {
 		string actualFilterStr = addDebugToFilterStr(filterstr);
 		//SLOGI << "Log filter set to " << actualFilterStr << endl;
-		auto filter = boost::log::parse_filter(actualFilterStr);
-		boost::log::core::get()->set_filter(filter);
+		auto filter = logging::parse_filter(actualFilterStr);
+		logging::core::get()->set_filter(filter);
 		return true;
 	}
 
+	void disableGlobally() {
+		logging::core::get()->set_logging_enabled(false);
+		ortp_set_log_level_mask(ORTP_FATAL);
+	}
 
 }
 }
@@ -341,6 +377,9 @@ namespace log {
 		return true;
 	}
 
+	void disableGlobally(bool value) {
+		ortp_set_log_level_mask(ORTP_FATAL);
+	}
 }}
 
 

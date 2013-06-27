@@ -22,7 +22,9 @@
 using namespace ::std;
 
 
-ForkContextConfig::ForkContextConfig() : mDeliveryTimeout(0),mUrgentTimeout(5),mForkLate(false),mForkOneResponse(false), mForkNoGlobalDecline(false), mTreatDeclineAsUrgent(false){
+ForkContextConfig::ForkContextConfig() : mDeliveryTimeout(0),mUrgentTimeout(5),
+	mForkLate(false),mForkOneResponse(false), mForkNoGlobalDecline(false),
+	mTreatDeclineAsUrgent(false), mRemoveToTag(false){
 }
 
 void ForkContext::__timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg){

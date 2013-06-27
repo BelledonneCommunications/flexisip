@@ -83,7 +83,7 @@ void LoadBalancer::onRequest(shared_ptr<RequestSipEvent> &ev){
 		call_hash=sip->sip_call_id->i_hash;
 		index=call_hash % mRoutesCount;
 		route=mRoutes[index].c_str();
-		prependRoute(ms->getHome(),getAgent(),ms->getMsg(),sip,route);
+		cleanAndPrependRoute(ms->getHome(),getAgent(),ms->getMsg(),sip,route);
 	}else{
 		LOGW("request has no call id");
 	}

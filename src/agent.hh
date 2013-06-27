@@ -152,6 +152,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		void incrReplyStat(int status);
 		bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 		void logEvent(const std::shared_ptr<SipEvent> &ev);
+		Module *findModule(const std::string &modname) const;
 	protected:
 		void sendTransactionEvent(std::shared_ptr<TransactionEvent> ev);
 		int onIncomingMessage(msg_t *msg, sip_t *sip);

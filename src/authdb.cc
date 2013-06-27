@@ -38,14 +38,16 @@ AuthDb* AuthDb::get() {
 		GenericStruct *cr=GenericManager::get()->getRoot();
 		GenericStruct *ma=cr->get<GenericStruct>("module::Authentication");
 		const string &impl=ma->get<ConfigString>("db-implementation")->read();
-		if (impl == "odbc") {
-			sUnique = new OdbcAuthDb();
+		if (impl == "fixed") {
+			sUnique = new FixedAuthDb();
 //		} else if (impl == "redis") {
 //			sUnique = new RedisAuthDb();
 		} else if (impl == "file") {
                         sUnique = new FileAuthDb();
-                } else if (impl == "fixed") {
-			sUnique = new FixedAuthDb();
+#if ENABLE_ODBC
+		} else if (impl == "odbc") {
+			sUnique = new OdbcAuthDb();
+#endif
 		}
 	}
 

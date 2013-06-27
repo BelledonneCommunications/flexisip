@@ -102,14 +102,20 @@ namespace log {
 
 
 #ifdef ENABLE_BOOSTLOG
+	#include <boost/version.hpp> 
+
 	#include <cstdarg>
-	#include  <boost/log/sources/record_ostream.hpp>
+	#include <boost/log/sources/record_ostream.hpp>
 	#include <boost/log/sources/severity_logger.hpp>
 	#include <boost/log/sources/severity_feature.hpp>
 	#include <boost/log/sources/global_logger_storage.hpp>
 
 	// Declare a globally accessible severity logger
+	#if (BOOST_VERSION >= 105400)
+	BOOST_LOG_INLINE_GLOBAL_LOGGER_DEFAULT(flexisip_logger, boost::log::sources::severity_logger_mt<flexisip::log::level>)
+	#else
 	BOOST_LOG_DECLARE_GLOBAL_LOGGER(flexisip_logger, boost::log::sources::severity_logger_mt<flexisip::log::level>)
+	#endif
 
 	// Declare macros for stream logs [preferred way]
 	// ex: SLOGD << "Some debug level logs";
@@ -132,10 +138,20 @@ namespace log {
 	// Insert a scoped attribute to logger
 	// It will be removed when block goes out of scope
 	// ex: LOG_SCOPED_THREAD("sip.from.username", "guillaume");
+	#if (BOOST_VERSION >= 105400)
+	#include <boost/log/attributes/scoped_attribute.hpp>
+	#define LOG_SCOPED_THREAD(key, value) \
+	BOOST_LOG_SCOPED_THREAD_TAG((key), (value));
+	#include <boost/log/utility/formatting_ostream.hpp>
+	typedef boost::log::basic_formatting_ostream<char> flexisip_record_type;
+	#else
 	#include <boost/log/utility/scoped_attribute.hpp>
-
 	#define LOG_SCOPED_THREAD(key, value) \
 	BOOST_LOG_SCOPED_THREAD_TAG((key), string, (value));
+	typedef std::ostream flexisip_record_type;
+	#endif
+
+
 	
 	
 	
@@ -237,6 +253,7 @@ namespace log {
 	static inline void formated_log_with_severity(flexisip::log::level lvl, const char *fmt, va_list l) {
 		namespace keywords = boost::log::keywords;
 		namespace logging = boost::log;
+		if (!logging::core::get()->get_logging_enabled()) return;
 		auto lg=flexisip_logger::get();
 		logging::record rec = lg.open_record(keywords::severity = lvl);
 		if (rec)
@@ -313,6 +330,8 @@ namespace log {
 	bool updateFilter(const std::string &filterstr);
 
 	void preinit(bool syslog, bool debug);
+
+	void disableGlobally();
 
 } // end log
 } // end flexisip

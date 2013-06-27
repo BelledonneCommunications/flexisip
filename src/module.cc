@@ -27,6 +27,9 @@
 #include <algorithm>
 using namespace::std;
 
+list<string> Module::sPushNotifParams {
+	"pn-tok", "pn-type", "app-id", "pn-msg-str", "pn-call-str", "pn-call-snd", "pn-msg-snd"
+};
 
 Module *ModuleInfoBase::create(Agent *ag){
 	Module *mod=_create(ag);
@@ -68,7 +71,8 @@ Module *ModuleFactory::createModuleInstance(Agent *ag, const string &modname) {
 }
 
 void ModuleFactory::registerModule(ModuleInfoBase *m) {
-	LOGI("Registering module %s", m->getModuleName().c_str());
+	//LOGI("Registering module %s", m->getModuleName().c_str());
+	//Disabled as called from static intitialization...
 	mModules.push_back(m);
 }
 
@@ -228,17 +232,28 @@ int ModuleToolbox::sipPortToInt(const char *port){
 	else return atoi(port);
 }
 
-void ModuleToolbox::prependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *route){
+void ModuleToolbox::cleanAndPrependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *route){
 	// removes top route headers if they matches us
-	sip_route_t *r;
-	r = sip_route_format(home, "%s", route);
+	sip_route_t *r = sip_route_format(home, "%s", route);
 	while (sip->sip_route != NULL && ag->isUs(sip->sip_route->r_url)) {
 		sip_route_remove(msg, sip);
 	}
-	r->r_next = sip->sip_route;
-	msg_header_remove_all(msg, (msg_pub_t*) sip, (msg_header_t*) sip->sip_route);
-	msg_header_insert(msg, (msg_pub_t*) sip, (msg_header_t*) r);
-	sip->sip_route = r;
+	prependNewRoutable(msg, sip, sip->sip_route, r);
+}
+
+void ModuleToolbox::cleanAndPrependRoutable(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const std::list<std::string> &routes){
+	// removes top route headers if they matches us
+	while (sip->sip_route != NULL && ag->isUs(sip->sip_route->r_url)) {
+		sip_route_remove(msg, sip);
+	}
+	SLOGD << "Removed top route headers";
+
+	for (auto it=routes.crbegin(); it != routes.crend(); ++it) {
+		sip_route_t *r = sip_route_format(home, "%s", it->c_str());
+		if (prependNewRoutable(msg, sip, sip->sip_route, r)) {
+			SLOGD << "Prepended routable " << *it;
+		}
+	}
 }
 
 url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
@@ -266,57 +281,50 @@ url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
 	return url;
 }
 
-void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev, tport_t *tport){
-	const tp_name_t *name;
-	shared_ptr<MsgSip> msgsip=ev->getMsgSip();
-	msg_t *msg=msgsip->getMsg();
-	sip_t *sip=msgsip->getSip();
-	sip_record_route_t *rr=NULL;
-	url_t *url;
-	
+void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev, const tport_t *tport){
+	msg_t *msg=ev->getMsgSip()->getMsg();
+	sip_t *sip=ev->getMsgSip()->getSip();
+
 	tport=tport_parent(tport); //get primary transport
-	name=tport_name(tport); //primary transport name
-	
-	url=urlFromTportName(home,name);
+	const tp_name_t *name=tport_name(tport); //primary transport name
+
+	url_t *url=urlFromTportName(home,name);
 	if (!url){
 		LOGE("ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL");
 		return;
 	}
+
 	url_param_add(home,url,"lr");
-	rr=sip_record_route_create(home,url,NULL);
+	sip_record_route_t *rr=sip_record_route_create(home,url,NULL);
 	if (!rr) {
 		LOGE("ModuleToolbox::addRecordRoute(): sip_record_route_create() returned NULL");
 		return;
 	}
-	if (sip->sip_record_route == NULL) {
-		sip->sip_record_route = rr;
-	} else {
-		/*make sure we are not already in*/
-		if (sip->sip_record_route && url_cmp_all(sip->sip_record_route->r_url,rr->r_url)==0) {
-			LOGD("Skipping addition of record route identical to top one");
-			return;
-		}
-		rr->r_next = sip->sip_record_route;
-		msg_header_remove_all(msg, (msg_pub_t*) sip, (msg_header_t*) sip->sip_record_route);
-		msg_header_insert(msg, (msg_pub_t*) sip, (msg_header_t*) rr);
-		sip->sip_record_route = rr;
+
+	if (!prependNewRoutable(msg, sip, sip->sip_record_route, rr)) {
+		LOGD("Skipping addition of record route identical to top one");
+		return;
 	}
+
 	LOGD("Record route added.");
 	ev->mRecordRouteAdded=true;
+}
+
+const tport_t *ModuleToolbox::getIncomingTport(const shared_ptr<RequestSipEvent> &ev, Agent *ag) {
+	msg_t *orig_msg=ev->getMsgSip()->createOrigMsgRef();
+	tport_t *primaries=nta_agent_tports(ag->getSofiaAgent());
+	const tport_t *tport=tport_delivered_by(primaries,orig_msg);
+	msg_destroy(orig_msg);
+	
+	return tport;
 }
 
 void ModuleToolbox::addRecordRouteIncoming(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev ) {
 	if (ev->mRecordRouteAdded) return;
 
-	shared_ptr<MsgSip> msgsip=ev->getMsgSip();
-	msg_t *orig_msg=msgsip->createOrigMsgRef();
-	tport_t *primaries=nta_agent_tports(ag->getSofiaAgent());
-	tport_t *tport=tport_delivered_by(primaries,orig_msg);
-	
-	msg_destroy(orig_msg);
-	
+	const tport_t *tport=getIncomingTport(ev, ag);
 	if (tport==NULL){
-		LOGE("Cannot find tport message is coming from, not possible to add a Record-Route.");
+		LOGE("Cannot find incoming tport, cannot add a Record-Route.");
 		return;
 	}
 	addRecordRoute(home,ag,ev,tport);
@@ -382,3 +390,85 @@ bool ModuleToolbox::isNumeric(const char *host){
 	return !!inet_aton(host,&addr); //inet_aton returns non zero if ipv4 address is valid.
 }
 
+bool ModuleToolbox::isManagedDomain(const Agent *agent, const list<string> &domains, const url_t *url) {
+	bool check=ModuleToolbox::matchesOneOf(url->url_host, domains);
+	if (check){
+		//additional check: if the domain is an ip address that is not this proxy, then it is not considered as a managed domain for the registrar.
+		//we need this to distinguish requests that needs registrar routing from already routed requests.
+		if (ModuleToolbox::isNumeric(url->url_host) && !agent->isUs(url,true)){
+			check=false;
+		}
+	}
+	return check;
+}
+
+void ModuleToolbox::addRoutingParam(su_home_t *home, sip_contact_t *c, const string &routingParam, const char *domain) {
+	ostringstream oss;
+	oss << routingParam << "=" << domain;
+	string routing_param(oss.str());
+	while (c != NULL) {
+		url_param_add(home, c->m_url, routing_param.c_str());
+		c = c->m_next;
+	}
+}
+
+struct sip_route_s *ModuleToolbox::prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_s * &sipr, struct sip_route_s * &value) {
+	if (sipr == NULL) {
+		sipr = value;
+		return value;
+	}
+	
+	/*make sure we are not already in*/
+	if (sipr && url_cmp_all(sipr->r_url,value->r_url)==0)
+		return NULL;
+	
+	value->r_next = sipr;
+	msg_header_remove_all(msg, (msg_pub_t*) sip, (msg_header_t*) sipr);
+	msg_header_insert(msg, (msg_pub_t*) sip, (msg_header_t*) value);
+	sipr = value;
+	return value;
+}
+
+void ModuleToolbox::addPathHeader(const shared_ptr< RequestSipEvent >& ev, const tport_t* tport, const char *uniq) {
+	su_home_t *home=ev->getMsgSip()->getHome();
+	msg_t *msg=ev->getMsgSip()->getMsg();
+	sip_t *sip=ev->getMsgSip()->getSip();
+	
+	tport=tport_parent(tport); //get primary transport
+	const tp_name_t *name=tport_name(tport); //primary transport name
+	
+	url_t *url = urlFromTportName(home,name);
+	if (!url){
+		LOGE("ModuleToolbox::addPathHeader(): urlFromTportName() returned NULL");
+		return;
+	}
+	if (uniq) {
+		char *lParam = su_sprintf(home, "uniq=%s",uniq);
+		url_param_add(home,url,lParam);
+	}
+	url_param_add(home,url,"lr");
+	const char *cpath=url_as_string(home, url);
+	sip_path_t *path=sip_path_format(home, "<%s>", cpath);
+	
+	if (!prependNewRoutable(msg, sip, sip->sip_path, path)) {
+		SLOGD << "Identical path already existing: " << cpath;
+	} else {
+		SLOGD << "Path added to: " << cpath;
+	}
+}
+
+void ModuleToolbox::removeParamsFromContacts(su_home_t *home, sip_contact_t *c, list<string> &params) {
+	while (c) {
+		removeParamsFromUrl(home, c->m_url, params);
+		c=c->m_next;
+	}
+}
+
+void ModuleToolbox::removeParamsFromUrl(su_home_t *home, url_t *u, list<string> &params) {
+	for (auto it=params.begin(); it != params.end(); ++it) {
+		const char *tag=it->c_str();
+		if (!url_has_param(u, tag)) continue;
+		char *paramcopy=su_strdup(home, u->url_params);
+		u->url_params = url_strip_param_string(paramcopy, tag);
+	}
+}
