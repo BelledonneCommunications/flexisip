@@ -377,7 +377,7 @@ namespace log {
 		return true;
 	}
 
-	void disableGlobally(bool value) {
+	void disableGlobally() {
 		ortp_set_log_level_mask(ORTP_FATAL);
 	}
 }}
