@@ -262,7 +262,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 				string message = "";
 				if (is_message) {
 					sip_payload_t *payload=sip->sip_payload;
-					message = new string(payload->pl_data, payload->pl_len);
+					message = string(payload->pl_data, payload->pl_len);
 				}
 				pn = make_shared<WindowsPhonePushNotificationRequest>(appId, deviceToken,
 						is_message,
