@@ -258,9 +258,15 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 						(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
 						call_id);
 			} else if (strcmp(type,"wp")==0) {
+				bool is_message = sip->sip_request->rq_method != sip_method_invite;
+				string message = "";
+				if (is_message) {
+					sip_payload_t *payload=sip->sip_payload;
+					message = new string(payload->pl_data, payload->pl_len);
+				}
 				pn = make_shared<WindowsPhonePushNotificationRequest>(appId, deviceToken,
-						sip->sip_request->rq_method != sip_method_invite,
-						"", //TODO: send the message
+						is_message,
+						message,
 						contact,
 						url_as_string(ms->getHome(), sip->sip_from->a_url));
 			} else if (strcmp(type,"google")==0) {
