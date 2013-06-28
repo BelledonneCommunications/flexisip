@@ -216,7 +216,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 		char const *params=sip->sip_request->rq_url->url_params;
 		/*extract all parameters required to make the push notification */
 		if (url_param(params, "pn-tok", deviceToken, sizeof(deviceToken)) == 0) {
-			return ;
+			SLOGD << "no pn-tok";
+			return;
 		}
 		//check if another push notification for this device wouldn't be pending
 		snprintf(pn_key,sizeof(pn_key)-1,"%s:%s",call_id,deviceToken);
@@ -226,22 +227,32 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 			context=(*it).second;
 		}
 		if (context==NULL){
-			if (!url_param(params, "pn-type", type, sizeof(type)))
-				return ;
-			if (!url_param(params, "app-id", appId, sizeof(appId)))
-				return ;
+			if (url_param(params, "pn-type", type, sizeof(type)) == 0) {
+				SLOGD << "no pn-type";
+				return;
+			}
+
+			if (url_param(params, "app-id", appId, sizeof(appId)) == 0) {
+				SLOGD << "no app-id";
+				return;
+			}
 			
-			if (!url_param(params, "pn-msg-str", msg_str, sizeof(msg_str))) {
-				return ;
+			if (url_param(params, "pn-msg-str", msg_str, sizeof(msg_str)) == 0) {
+				SLOGD << "no pn-msg-str";
+				return;
 			}
-			if (!url_param(params, "pn-call-str", call_str, sizeof(call_str))){
-				return ;
+
+			if (url_param(params, "pn-call-str", call_str, sizeof(call_str)) == 0) {
+				SLOGD << "no pn-call-str";
+				return;
 			}
-			if (!url_param(params, "pn-call-snd", call_snd, sizeof(call_snd))){
-				return ;
+			if (url_param(params, "pn-call-snd", call_snd, sizeof(call_snd)) == 0) {
+				SLOGD << "no pn-call-snd";
+				return;
 			}
-			if (!url_param(params, "pn-msg-snd", msg_snd, sizeof(msg_snd))){
-				return ;
+			if (url_param(params, "pn-msg-snd", msg_snd, sizeof(msg_snd)) == 0) {
+				SLOGD << "no pn-msg-snd";
+				return;
 			}
 			string contact;
 			if(sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
@@ -301,7 +312,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 		if (context) /*associate with transaction so that transaction can eventually cancel it if the device answers.*/
 			transaction->setProperty(getModuleName(), context);
 	}
-	return ;
 }
 
 void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {

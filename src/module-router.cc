@@ -261,7 +261,7 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const sip_con
 
 	/* Rewrite request-uri */
 	new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), ct->m_url);
-	removeParamsFromUrl(msg_home(new_msg), new_sip->sip_request->rq_url, sPushNotifParams);
+	// the cleaning of push notif params will be done just before forward
 
 	// Convert path to routes
 	new_sip->sip_route=NULL;

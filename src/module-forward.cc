@@ -180,6 +180,8 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		removeParamsFromContacts(ms->getHome(), sip->sip_contact, sPushNotifParams);
 		SLOGD << "Removed push params from contact";
 	}
+	removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, sPushNotifParams);
+	
 
 	// Finally send message
 	ev->send(ms, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());
