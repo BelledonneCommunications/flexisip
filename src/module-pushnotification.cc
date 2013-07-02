@@ -106,7 +106,7 @@ void PushNotificationContext::cancel(){
 }
 
 void PushNotificationContext::onTimeout() {
-	SLOGD << "PushNotificationContext timer";
+	SLOGD << "PushNotificationContext timeout";
 	if (mForkContext){
 		if (mForkContext->isCompleted()){
 			LOGD("Call is already established or canceled, so push notification is not sent but cleared.");
@@ -123,6 +123,7 @@ void PushNotificationContext::onTimeout() {
 }
 
 void PushNotificationContext::clear(){
+	SLOGD << "PushNotificationContext clear";
 	if (mEndTimer){
 		su_timer_destroy(mEndTimer);
 		mEndTimer=NULL;
@@ -131,6 +132,7 @@ void PushNotificationContext::clear(){
 }
 
 void PushNotificationContext::onEnd() {
+	SLOGD << "PushNotificationContext end";
 	mModule->clearNotification(shared_from_this());
 }
 
@@ -295,7 +297,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 
 				if (!apiKey.empty()) {
 					// We only have one client for all Android apps, called "google"
-					pn = make_shared<GooglePushNotificationRequest>(string("google"), deviceToken, apiKey,
+					SLOGD << "Creating Google push notif request";
+					pn = make_shared<GooglePushNotificationRequest>("google", deviceToken, apiKey,
 							(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
 							contact,
 							(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
@@ -303,7 +306,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 				}
 			}
 			if (pn){
-				/*create a context*/
+				SLOGD << "Creating a push notif context";
 				context = make_shared<PushNotificationContext>(transaction, this, pn, pn_key);
 				context->start(mTimeout);
 				mPendingNotifications.insert(make_pair(pn_key,context));
