@@ -29,8 +29,8 @@ const char *APN_DEV_ADDRESS = "gateway.sandbox.push.apple.com";
 const char *APN_PROD_ADDRESS = "gateway.push.apple.com";
 const char *APN_PORT = "2195";
 
-const char *GPN_ADDRESS = "android.googleapis.com";
-const char *GPN_PORT = "443";
+const char *GPN_ADDRESS = "gcm.googleapis.com";
+const char *GPN_PORT = "5235";
 
 const char *WPPN_PORT = "80";
 
