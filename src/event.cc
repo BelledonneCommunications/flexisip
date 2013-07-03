@@ -131,14 +131,19 @@ void SipEvent::restartProcessing() {
 	}
 }
 
-RequestSipEvent::RequestSipEvent(const shared_ptr<IncomingAgent> &incomingAgent, const shared_ptr<MsgSip> &msgSip) :
+RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent,
+				 const shared_ptr<MsgSip> &msgSip,
+				 shared_ptr<tport_t> inTport
+				) :
 		SipEvent(msgSip), mRecordRouteAdded(false) {
+	mIncomingTport=inTport;
 	mIncomingAgent = incomingAgent;
 	mOutgoingAgent = incomingAgent->getAgent()->shared_from_this();
 }
 
 RequestSipEvent::RequestSipEvent(const shared_ptr<RequestSipEvent> &sipEvent) :
-		SipEvent(*sipEvent), mRecordRouteAdded(sipEvent->mRecordRouteAdded) {
+		SipEvent(*sipEvent), mIncomingTport(sipEvent->mIncomingTport),
+		mRecordRouteAdded(sipEvent->mRecordRouteAdded) {
 }
 
 void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
@@ -214,7 +219,7 @@ void RequestSipEvent::suspendProcessing() {
 RequestSipEvent::~RequestSipEvent() {
 }
 
-ResponseSipEvent::ResponseSipEvent(const shared_ptr<OutgoingAgent> &outgoingAgent, const shared_ptr<MsgSip> &msgSip) :
+ResponseSipEvent::ResponseSipEvent(shared_ptr<OutgoingAgent> outgoingAgent, const shared_ptr<MsgSip> &msgSip) :
 		SipEvent(msgSip) {
 	mOutgoingAgent = outgoingAgent;
 	mIncomingAgent = outgoingAgent->getAgent()->shared_from_this();

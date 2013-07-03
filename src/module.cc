@@ -20,6 +20,7 @@
 #include "agent.hh"
 #include "entryfilter.hh"
 #include "sofia-sip/auth_digest.h"
+#include "sofia-sip/nta.h"
 #include "log/logmanager.hh"
 
 #include "expressionparser.hh"
@@ -310,24 +311,16 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<
 	ev->mRecordRouteAdded=true;
 }
 
-const tport_t *ModuleToolbox::getIncomingTport(const shared_ptr<RequestSipEvent> &ev, Agent *ag) {
-	msg_t *orig_msg=ev->getMsgSip()->createOrigMsgRef();
-	tport_t *primaries=nta_agent_tports(ag->getSofiaAgent());
-	const tport_t *tport=tport_delivered_by(primaries,orig_msg);
-	msg_destroy(orig_msg);
-	
-	return tport;
-}
 
 void ModuleToolbox::addRecordRouteIncoming(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev ) {
 	if (ev->mRecordRouteAdded) return;
 
-	const tport_t *tport=getIncomingTport(ev, ag);
-	if (tport==NULL){
+	auto tport=ev->getIncomingTport();
+	if (!tport){
 		LOGE("Cannot find incoming tport, cannot add a Record-Route.");
 		return;
 	}
-	addRecordRoute(home,ag,ev,tport);
+	addRecordRoute(home,ag,ev,tport.get());
 }
 
 bool ModuleToolbox::fromMatch(const sip_from_t *from1, const sip_from_t *from2) {

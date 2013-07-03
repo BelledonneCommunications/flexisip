@@ -196,9 +196,12 @@ int IncomingTransaction::_callback(nta_incoming_magic_t *magic, nta_incoming_t *
 	LOGD("IncomingTransaction callback %p", it);
 	if (sip != NULL) {
 		msg_t *msg = nta_incoming_getrequest_ackcancel(it->mIncoming);
-		shared_ptr<RequestSipEvent> sipevent(new RequestSipEvent(dynamic_pointer_cast<IncomingAgent>(it->shared_from_this()), shared_ptr<MsgSip>(new MsgSip(msg))));
+		auto ev = make_shared<RequestSipEvent>(it->shared_from_this(),
+				MsgSip::createFromOriginalMsg(msg),
+				shared_ptr<tport_t>() /* no access to nta_agent: may put tport in transaction if needed  */
+		);
 		msg_destroy(msg);
-		it->mAgent->sendRequestEvent(sipevent);
+		it->mAgent->sendRequestEvent(ev);
 		if (sip->sip_request && sip->sip_request->rq_method == sip_method_cancel) {
 			it->destroy();
 		}

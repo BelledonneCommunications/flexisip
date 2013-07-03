@@ -677,6 +677,19 @@ void Agent::sendTransactionEvent(shared_ptr<TransactionEvent> ev) {
 	}
 }
 
+/**
+ * This is a dangerous function when called at the wrong time.
+ * So we prefer an early abort with a stack trace.
+ * Indeed, incoming tport is global in sofia and will be overwritten
+ */
+static std::shared_ptr<tport_t> getIncomingTport(const msg_t *orig, Agent *ag) {
+	tport_t *primaries=nta_agent_tports(ag->getSofiaAgent());
+	tport_t *tport=tport_delivered_by(primaries,orig);
+	if (!tport) SLOGA << "tport not found";
+	return shared_ptr<tport_t>(tport_ref(tport), tport_unref);
+}
+
+
 int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
 	if (mTerminating) {
 		// Avoid throwing a bad weak pointer on GatewayAdapter destruction
@@ -686,10 +699,11 @@ int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
 	// Assuming sip is derived from msg
 	shared_ptr<MsgSip> ms(new MsgSip(msg));
 	if (sip->sip_request) {
-		shared_ptr<RequestSipEvent> ev(new RequestSipEvent(dynamic_pointer_cast<IncomingAgent>(shared_from_this()), ms));
+		auto inTport=getIncomingTport(msg, this);
+		auto ev = make_shared<RequestSipEvent>(shared_from_this(), ms, inTport);
 		sendRequestEvent(ev);
 	} else {
-		shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(shared_from_this()), ms));
+		auto ev = make_shared<ResponseSipEvent>(shared_from_this(), ms);
 		sendResponseEvent(ev);
 	}
 	msg_destroy(msg);

@@ -23,6 +23,7 @@
 #include <string>
 #include <ostream>
 #include <functional>
+#include <sofia-sip/tport.h>
 #include <sofia-sip/msg.h>
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nta.h>
@@ -67,6 +68,9 @@ public:
 	const char *print();
 private:
 	MsgSip(msg_t *msg);
+	static inline std::shared_ptr<MsgSip> createFromOriginalMsg(msg_t *msg) {
+		return std::shared_ptr<MsgSip>(new MsgSip(msg));
+	}
 	void defineMsg(msg_t *msg);
 	mutable su_home_t *mHome;
 	msg_t *mOriginalMsg;
@@ -75,6 +79,7 @@ private:
 	bool mOriginal;
 	std::shared_ptr<SipAttributes> mSipAttr;
 };
+
 
 class SipEvent : public std::enable_shared_from_this<SipEvent>{
 	friend class Agent;
@@ -158,13 +163,15 @@ protected:
 			return "unknown";
 		}
 	}
-private:
-	
 };
 
 class RequestSipEvent: public SipEvent {
+	std::shared_ptr<tport_t> mIncomingTport;
 public:
-	RequestSipEvent(const std::shared_ptr<IncomingAgent> &incomingAgent, const std::shared_ptr<MsgSip> &msgSip);
+	RequestSipEvent(std::shared_ptr<IncomingAgent> incomingAgent,
+			const std::shared_ptr<MsgSip> &msgSip,
+			std::shared_ptr<tport_t> inTport
+       		);
 	RequestSipEvent(const std::shared_ptr<RequestSipEvent> &sipEvent);
 
 	virtual void suspendProcessing();
@@ -177,6 +184,9 @@ public:
 	virtual void reply(int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 
 	virtual void setIncomingAgent(const std::shared_ptr<IncomingAgent> &agent);
+	std::shared_ptr<tport_t> getIncomingTport() {
+		return mIncomingTport;
+	}
 
 	~RequestSipEvent();
 	bool mRecordRouteAdded;
@@ -184,7 +194,7 @@ public:
 
 class ResponseSipEvent: public SipEvent {
 public:
-	ResponseSipEvent(const std::shared_ptr<OutgoingAgent> &outgoingAgent, const std::shared_ptr<MsgSip> &msgSip);
+	ResponseSipEvent(std::shared_ptr<OutgoingAgent> outgoingAgent, const std::shared_ptr<MsgSip> &msgSip);
 	ResponseSipEvent(const std::shared_ptr<SipEvent> &sipEvent);
 
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
