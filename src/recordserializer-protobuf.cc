@@ -78,10 +78,8 @@ bool RecordSerializerPb::serialize(Record *r, string &serialized){
 		c->set_update_time(ec->mUpdatedTime);
 		c->set_call_id(ec->callId());
 		c->set_cseq(ec->mCSeq);
-		int pnb=0;
 		for (auto pit=ec->mCommon.mPath.cbegin(); pit != ec->mCommon.mPath.cend(); ++pit) {
-			c->set_path(pnb, *pit);
-			++pnb;
+			c->add_path(*pit);
 		}
 	}
 
