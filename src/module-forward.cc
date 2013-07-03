@@ -142,10 +142,12 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	// Check looping
 	if (isLooping(ev, branchStr + 7)) {
 		ev->reply(SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		return;
 	} else if (getAgent()->isUs(dest->url_host, dest->url_port, false)) {
 		SLOGD << "Skipping forwarding of request to us "
 			<< url_as_string(ms->getHome(), dest) << "\n" << ms;
 		ev->terminateProcessing();
+		return;
 	}
 
 	// Decrease max forward
