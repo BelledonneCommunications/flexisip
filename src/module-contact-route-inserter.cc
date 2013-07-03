@@ -99,6 +99,10 @@ private:
 		}
 
 		url_t *ct_url = sip->sip_contact->m_url;
+		if (ct_url->url_scheme && ct_url->url_scheme[0] == '*') {
+			SLOGD << "not masquerading star contact";
+			return;
+		}
 
 		//grab the transport of the contact uri
 		char ct_tport[32] = "udp";
