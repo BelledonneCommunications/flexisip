@@ -55,7 +55,9 @@ class NatHelper : public Module, protected ModuleToolbox{
 				if (!transport) transport="udp";
 				path->url_host=received;
 				path->url_port=rport;
-				url_strip_transport(path);
+				// url_strip_transport is not what we want
+				// note that params will never be null
+				url_strip_param_string((char*) path->url_params, "transport");
 				if (0 != strcasecmp(transport, "UDP"))
 					url_param_add(ms->getHome(), path, transport);
 /*				sip_path_t *path=rport ?
