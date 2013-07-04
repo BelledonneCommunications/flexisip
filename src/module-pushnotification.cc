@@ -311,7 +311,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 				}
 			}
 			if (pn){
-				SLOGD << "Creating a push notif context";
+				SLOGD << "Creating a push notif context to send in " << mTimeout << "s";
 				context = make_shared<PushNotificationContext>(transaction, this, pn, pn_key);
 				context->start(mTimeout);
 				mPendingNotifications.insert(make_pair(pn_key,context));
