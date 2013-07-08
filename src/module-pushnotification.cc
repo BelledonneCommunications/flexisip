@@ -259,6 +259,11 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 			string contact;
 			if(sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
 				contact = sip->sip_from->a_display;
+				// Remove the quotes surrounding the display name
+				size_t last = contact.find_last_of('"');
+				if (last != string::npos) contact.erase(last, 1);
+				size_t first = contact.find_first_of('"');
+				if (first != string::npos) contact.erase(first, 1);
 			} else {
 				contact = url_as_string(ms->getHome(), sip->sip_from->a_url);
 			}
