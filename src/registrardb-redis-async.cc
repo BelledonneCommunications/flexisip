@@ -38,19 +38,11 @@ using namespace::std;
 #define ERROR data->listener->onError(); delete data; return;
 #define chk_redis_err(cmd)  if (REDIS_ERR == (cmd)) { LOGD("Redis error") ; ERROR }
 
-string RegistrarDbRedisAsync::sDomain="";
-int RegistrarDbRedisAsync::sPort=0;
-int RegistrarDbRedisAsync::sTimeout=0;
-string RegistrarDbRedisAsync::sAuthPassword="";
-
-RegistrarDbRedisAsync::RegistrarDbRedisAsync ( Agent *ag ) :RegistrarDb ( ag ),mContext ( NULL ),mRoot ( ag->getRoot() )
+RegistrarDbRedisAsync::RegistrarDbRedisAsync ( Agent *ag, RedisParameters params )
+:RegistrarDb ( ag->getPreferredRoute() ),mContext ( NULL ), sDomain(params.domain),
+sAuthPassword(params.auth), sPort(params.port), sTimeout(params.timeout) ,mRoot ( ag->getRoot() )
 {
 	mSerializer=RecordSerializer::get();
-	GenericStruct *registrar=GenericManager::get()->getRoot()->get<GenericStruct> ( "module::Registrar" );
-	sDomain=registrar->get<ConfigString> ( "redis-server-domain" )->read();
-	sPort=registrar->get<ConfigInt> ( "redis-server-port" )->read();
-	sTimeout=registrar->get<ConfigInt> ( "redis-server-timeout" )->read();
-	sAuthPassword=registrar->get<ConfigString> ( "redis-auth-password" )->read();
 }
 
 RegistrarDbRedisAsync::~RegistrarDbRedisAsync()

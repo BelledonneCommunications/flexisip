@@ -433,7 +433,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			ct = Record::extendedContactToSofia(ms->getHome(), *ec, now);
 		if (!ec->mAlias) {
 			if (ct) {
-				if (dispatch(ev, ct, ec->mCommon.mPath, context)) {
+				if (dispatch(ev, ct, ec->mPath, context)) {
 					handled++;
 					if (!mFork) break;
 				}
@@ -452,7 +452,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				mForks.insert(make_pair(sipUriRef, context));
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), sipUriRef);
 			}else{
-				if (dispatch(ev, ct, ec->mCommon.mPath, context)) {
+				if (dispatch(ev, ct, ec->mPath, context)) {
 					handled++;
 					if (!mFork) break;
 				}

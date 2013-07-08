@@ -32,6 +32,7 @@
 #include <algorithm>
 
 #include <sofia-sip/sip_protos.h>
+#include "recordserializer.hh"
 
 using namespace ::std;
 
@@ -46,8 +47,8 @@ ostream &ExtendedContact::print(std::ostream& stream, time_t now, time_t offset)
 	int expireAfter=mExpireAt-now;
 	
 	stream << mSipUri << " path=\"";
-	for (auto it=mCommon.mPath.cbegin(); it != mCommon.mPath.cend(); ++it) {
-		if (it != mCommon.mPath.cbegin()) stream << " ";
+	for (auto it=mPath.cbegin(); it != mPath.cend(); ++it) {
+		if (it != mPath.cbegin()) stream << " ";
 		stream << *it;
 	}
 	stream << "\"";
@@ -98,7 +99,7 @@ static bool isMismatchingStaticRecord(shared_ptr<ExtendedContact> &ec, const cha
 	static char staticRecordPrefix[]="static-record-v";
 	static size_t srpLen=strlen(staticRecordPrefix);
 
-	size_t callIdLen=ec->mCommon.mCallId.length();
+	size_t callIdLen=ec->mCallId.length();
 	if (callIdLen <= srpLen) return false;
 
 	bool isStaticRecordContact=0==memcmp(ec->callId(), staticRecordPrefix, srpLen);
@@ -137,13 +138,13 @@ void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq,
 	while (it != mContacts.end()) {
 		shared_ptr<ExtendedContact> ec = (*it);
 		if (isMismatchingStaticRecord(ec, sStaticRecordVersion)) {
-			SLOGD << "Cleaning mismatching static record for " << ec->mCommon.mContactId;
+			SLOGD << "Cleaning mismatching static record for " << ec->mContactId;
 			it = mContacts.erase(it);
 		} else if (now >= ec->mExpireAt) {
-			SLOGD << "Cleaning expired contact " << ec->mCommon.mContactId;
+			SLOGD << "Cleaning expired contact " << ec->mContactId;
 			it = mContacts.erase(it);
 		} else if (ec->line() && lineValuePtr != NULL && 0 == strcmp(ec->line(), lineValuePtr)) {
-			SLOGD << "Cleaning older line '" << lineValuePtr << "' for contact " << ec->mCommon.mContactId;
+			SLOGD << "Cleaning older line '" << lineValuePtr << "' for contact " << ec->mContactId;
 			it = mContacts.erase(it);
 		} else if (0 == strcmp(ec->callId(), call_id)) {
 			LOGD("Cleaning same call id contact %s (%s)", ec->contactId(), call_id);
@@ -220,8 +221,8 @@ time_t Record::latestExpire() const {
 time_t Record::latestExpire(const std::string &route) const {
 	time_t latest=0;
 	for (auto it=mContacts.begin(); it != mContacts.end(); ++it) {
-		if ((*it)->mCommon.mPath.empty() || (*it)->mExpireAt <= latest) continue;
-		if (*(*it)->mCommon.mPath.begin() == route)
+		if ((*it)->mPath.empty() || (*it)->mExpireAt <= latest) continue;
+		if (*(*it)->mPath.begin() == route)
 			latest=(*it)->mExpireAt;
 	}
 	return latest;
@@ -307,8 +308,8 @@ void Record::bind(const sip_contact_t *contacts, const sip_path_t *path, int glo
 	SLOGD << *this;
 }
 
-void Record::bind(const ExtendedContactCommon &ecc, const char *c, long expireAt, float q, uint32_t cseq, time_t updated_time, bool alias) {
-	insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, c, expireAt, q, cseq, updated_time, alias));
+void Record::bind(const ExtendedContactCommon &ecc, const char *sipuri, long expireAt, float q, uint32_t cseq, time_t updated_time, bool alias) {
+	insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias));
 }
 
 void Record::print(std::ostream &stream) const{
@@ -344,7 +345,7 @@ RegistrarDb::LocalRegExpire::LocalRegExpire(string preferedRoute) {
 	mPreferedRoute=preferedRoute;
 }
 
-RegistrarDb::RegistrarDb(Agent *ag) : mLocalRegExpire(new LocalRegExpire(ag->getPreferredRoute())), mUseGlobalDomain(false) {
+RegistrarDb::RegistrarDb(const string &preferedRoute) : mLocalRegExpire(new LocalRegExpire(preferedRoute)), mUseGlobalDomain(false) {
 }
 
 void RegistrarDb::useGlobalDomain(bool useGlobalDomain){
@@ -426,17 +427,31 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 		if ("internal" == dbImplementation) {
 			LOGI("RegistrarDB implementation is internal");
 			sUnique = new RegistrarDbInternal(ag);
-#ifdef ENABLE_REDIS
-		} else if ("redis-sync"==dbImplementation) {
-			LOGI("RegistrarDB implementation is synchronous REDIS");
-			sUnique=new RegistrarDbRedisSync(ag);
-		} else if ("redis-async"==dbImplementation) {
-			LOGI("RegistrarDB implementation is asynchronous REDIS");
-			sUnique=new RegistrarDbRedisAsync(ag);
-#endif
-		} else {
-			LOGF("unsupported implementation %s", dbImplementation.c_str())
+			return sUnique;
 		}
+
+#ifdef ENABLE_REDIS
+		GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct > ( "module::Registrar" );
+		RedisParameters params;
+		params.domain = registrar->get<ConfigString > ( "redis-server-domain" )->read();
+		params.port = registrar->get<ConfigInt > ( "redis-server-port" )->read();
+		params.timeout = registrar->get<ConfigInt > ( "redis-server-timeout" )->read();
+		params.auth = registrar->get<ConfigString > ( "redis-auth-password" )->read();
+
+		if ("redis-sync"==dbImplementation) {
+			LOGI("RegistrarDB implementation is synchronous REDIS");
+			auto serializer = RecordSerializer::get();
+			sUnique=new RegistrarDbRedisSync(ag->getPreferredRoute(), serializer, params);
+			return sUnique;
+		}
+		if ("redis-async"==dbImplementation) {
+			LOGI("RegistrarDB implementation is asynchronous REDIS");
+			sUnique=new RegistrarDbRedisAsync(ag, params);
+			return sUnique;
+		}
+#endif
+		
+		LOGF("unsupported implementation %s", dbImplementation.c_str())
 	}
 
 	return sUnique;
@@ -537,4 +552,40 @@ void RegistrarDb::fetch(const url_t *url, const shared_ptr<RegistrarDbListener> 
 
 void RegistrarDb::bind(const sip_t *sip, int globalExpire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
 	bind(sip->sip_from->a_url, sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, sip->sip_path, globalExpire, alias, listener);
+}
+
+
+RecordSerializer *RecordSerializer::create(const string &name) { 
+	if ( name == "c" ) {
+		return new RecordSerializerC();
+	}
+	
+	if ( name == "json" ) {
+		return new RecordSerializerJson();
+	}
+	
+	#if ENABLE_PROTOBUF
+	if ( name == "protobuf" ) {
+		return new RecordSerializerPb();
+	}
+	#endif
+	
+	return NULL;
+}
+
+
+RecordSerializer *RecordSerializer::sInstance = NULL;
+
+RecordSerializer *RecordSerializer::get() {
+	if ( !sInstance ) {
+		GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct > ( "module::Registrar" );
+		string name = registrar->get<ConfigString > ( "redis-record-serializer" )->read();
+
+		sInstance = create(name);
+		if (!sInstance) {
+			SLOGA << "Unsupported record serializer: " << name;
+		}
+	}
+
+	return sInstance;
 }

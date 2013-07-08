@@ -34,48 +34,13 @@
 
 using namespace::std;
 
-RecordSerializer *RecordSerializer::sInstance = NULL;
 
-RecordSerializer *RecordSerializer::get() {
-	if ( !sInstance ) {
-		GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct > ( "module::Registrar" );
-		string name = registrar->get<ConfigString > ( "redis-record-serializer" )->read();
-
-		if ( name == "c" ) {
-			sInstance = new RecordSerializerC();
-
-		} else
-			if ( name == "json" ) {
-				sInstance = new RecordSerializerJson();
-#if ENABLE_PROTOBUF
-
-			} else
-				if ( name == "protobuf" ) {
-					sInstance = new RecordSerializerPb();
-#endif
-
-				} else {
-					LOGF ( "Unsupported record serializer: %s", name.c_str() );
-				}
-	}
-
-	return sInstance;
+RegistrarDbRedisSync::RegistrarDbRedisSync ( const string &preferedRoute, RecordSerializer *serializer, RedisParameters params) :
+RegistrarDb ( preferedRoute ), mContext ( NULL ), mSerializer(serializer), sDomain(params.domain),
+sAuthPassword(params.auth), sPort(params.port),sTimeout(params.timeout) {
 }
 
 
-string RegistrarDbRedisSync::sDomain = "";
-string RegistrarDbRedisSync::sAuthPassword = "";
-int RegistrarDbRedisSync::sPort = 0;
-int RegistrarDbRedisSync::sTimeout = 0;
-
-RegistrarDbRedisSync::RegistrarDbRedisSync ( Agent *ag ) : RegistrarDb ( ag ), mContext ( NULL ) {
-	mSerializer = RecordSerializer::get();
-	GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct > ( "module::Registrar" );
-	sDomain = registrar->get<ConfigString > ( "redis-server-domain" )->read();
-	sPort = registrar->get<ConfigInt > ( "redis-server-port" )->read();
-	sTimeout = registrar->get<ConfigInt > ( "redis-server-timeout" )->read();
-	sAuthPassword = registrar->get<ConfigString > ( "redis-auth-password" )->read();
-}
 
 RegistrarDbRedisSync::~RegistrarDbRedisSync() {
 	if ( mContext )
@@ -104,11 +69,10 @@ bool RegistrarDbRedisSync::connect() {
 	}
 
 	if ( !sAuthPassword.empty() ) {
-
 		redisReply *reply = ( redisReply* ) redisCommand ( mContext, "AUTH %s", sAuthPassword.c_str() );
 
 		if ( reply->type == REDIS_REPLY_ERROR ) {
-			LOGE ( "Could'nt authenticate with redis server" );
+			LOGE ( "Couldn't authenticate with redis server: %s", reply->str);
 			redisFree ( mContext );
 			mContext = NULL;
 			return false;

@@ -31,7 +31,7 @@
 
 using namespace::std;
 
-RegistrarDbInternal::RegistrarDbInternal(Agent *ag) : RegistrarDb(ag){
+RegistrarDbInternal::RegistrarDbInternal(Agent *ag) : RegistrarDb(ag->getPreferredRoute()){
 }
 
 void RegistrarDbInternal::doBind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const sip_path_t *path, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {

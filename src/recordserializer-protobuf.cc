@@ -60,9 +60,8 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r){
 }
 
 
-bool RecordSerializerPb::serialize(Record *r, string &serialized){
+bool RecordSerializerPb::serialize(Record *r, string &serialized, bool log){
 	if (!r)	return true;
-
 
 	RecordContactListPb pbContacts;
 	auto contacts=r->getExtendedContacts();
@@ -78,12 +77,12 @@ bool RecordSerializerPb::serialize(Record *r, string &serialized){
 		c->set_update_time(ec->mUpdatedTime);
 		c->set_call_id(ec->callId());
 		c->set_cseq(ec->mCSeq);
-		for (auto pit=ec->mCommon.mPath.cbegin(); pit != ec->mCommon.mPath.cend(); ++pit) {
+		for (auto pit=ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {
 			c->add_path(*pit);
 		}
 	}
 
-	pbContacts.SerializeToString(&serialized);
-	return true;
+	if (log) SLOGI << "Serialized " << pbContacts.DebugString() << "initialized: " << pbContacts.IsInitialized();
+	return pbContacts.SerializeToString(&serialized);
 }
 

@@ -10,8 +10,9 @@ BUILT_SOURCES=$(GITVERSION_FILE)
 
 SUBDIRS=test
 
+check_PROGRAMS=serializer
 bin_PROGRAMS=flexisip
-flexisip_SOURCES=main.cc \
+thesources= \
 			agent.cc agent.hh \
 			common.cc common.hh \
 			sdp-modifier.hh  sdp-modifier.cc \
@@ -23,6 +24,8 @@ flexisip_SOURCES=main.cc \
 			forkmessagecontext.hh  forkmessagecontext.cc \
 			forkbasiccontext.cc forkbasiccontext.hh \
 			registrardb-internal.cc registrardb-internal.hh registrardb.cc registrardb.hh \
+			recordserializer-c.cc recordserializer.hh \
+			recordserializer-json.cc cJSON.c cJSON.h \
 			etchosts.cc etchosts.hh \
 			lpconfig.c lpconfig.h \
 			configmanager.cc configmanager.hh\
@@ -55,7 +58,7 @@ flexisip_SOURCES=main.cc \
 
 
 if BUILD_SNMP
-flexisip_SOURCES+=snmp-agent.cc snmp-agent.h
+thesources+=snmp-agent.cc snmp-agent.h
 INCLUDES=-Imib			
 endif
 
@@ -77,7 +80,7 @@ if BUILD_ODBC
 AM_CFLAGS+=-DENABLE_ODBC
 AM_CXXFLAGS+=-DENABLE_ODBC
 flexisip_LDADD+=$(ODBC_LIBS)
-flexisip_SOURCES+= authdb-odbc.cc
+thesources+= authdb-odbc.cc
 endif
 
 if BUILD_TRANSCODER
@@ -86,7 +89,7 @@ AM_CXXFLAGS+=-DENABLE_TRANSCODER
 endif
 
 if BUILD_DATEHANDLER
-flexisip_SOURCES+=module-datehandler.cc
+thesources+=module-datehandler.cc
 endif
 
 if BUILD_BOOSTLOG
@@ -101,7 +104,7 @@ AM_CXXFLAGS+= -DBOOST_LOG_DYN_LINK=1
 endif
 
 if BUILD_PUSHNOTIFICATION
-flexisip_SOURCES+=module-pushnotification.cc \
+thesources+=module-pushnotification.cc \
 			pushnotification/pushnotification.cc pushnotification/pushnotification.hh \
 			pushnotification/pushnotificationservice.cc pushnotification/pushnotificationservice.hh \
 			pushnotification/pushnotificationclient.cc pushnotification/pushnotificationclient.hh 
@@ -110,12 +113,12 @@ flexisip_LDADD+=$(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB)
 endif
 
 if BUILD_REDIS
-flexisip_SOURCES+=registrardb-redis-sync.cc registrardb-redis-async.cc registrardb-redis.hh \
-        recordserializer-c.cc recordserializer.hh registrardb-redis-sofia-event.h \
-        recordserializer-json.cc cJSON.c cJSON.h
+thesources+=registrardb-redis-sync.cc registrardb-redis-async.cc registrardb-redis.hh \
+        registrardb-redis-sofia-event.h
 AM_CXXFLAGS+=-DENABLE_REDIS
 endif
 
+nodistsources=
 pb_files=$(srcdir)/recordserializer-protobuf.proto
 if BUILD_PROTOBUF
 $(builddir)/pb_generated_src_stamp : $(pb_files)
@@ -124,13 +127,26 @@ $(builddir)/pb_generated_src_stamp : $(pb_files)
 
 BUILT_SOURCES+=$(builddir)/pb_generated_src_stamp 
 
-flexisip_SOURCES+=recordserializer-protobuf.cc
-nodist_flexisip_SOURCES=recordserializer-protobuf.pb.cc recordserializer-protobuf.pb.h
+thesources+=recordserializer-protobuf.cc
+nodistsources+=recordserializer-protobuf.pb.cc recordserializer-protobuf.pb.h
 AM_CXXFLAGS+=-DENABLE_PROTOBUF
 AM_CFLAGS+=-DENABLE_PROTOBUF
 endif
     
-EXTRA_DIST=$(pb_files) $(GITVERSION_FILE)
+if BUILD_REDIS
+bin_PROGRAMS+=ctdumper
+ctdumper_SOURCES=tool/ctdumper.cc $(thesources)
+ctdumper_LDADD=$(flexisip_LDADD)
+nodist_ctdumper_SOURCES=$(nodistsources)
+endif
+
+serializer_SOURCES=test/serializer.cc $(thesources)
+serializer_LDADD=$(flexisip_LDADD)
+nodist_serializer_SOURCES=$(nodistsources)
+
+flexisip_SOURCES=main.cc $(thesources)
+nodist_flexisip_SOURCES=$(nodistsources)
+EXTRA_DIST=$(pb_files) $(GITVERSION_FILE) tool/ctdumper.cc
 
 
 clean-local:

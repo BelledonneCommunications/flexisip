@@ -26,34 +26,40 @@
 class RecordSerializer {
 	static RecordSerializer *sInstance;
 public:
+	virtual ~RecordSerializer() {};
 	static RecordSerializer *get();
+	static RecordSerializer *create(const std::string &name);
 	virtual bool parse(const char *str, int len, Record *r)=0;
-	virtual bool serialize(Record *r, std::string &serialized)=0;
+	bool parse(const std::string &str, Record *r) {
+		return parse(str.c_str(), str.length(), r);
+	}
+	virtual bool serialize(Record *r, std::string &serialized, bool log)=0;
+	bool serialize(Record *r, std::string &serialized) {
+		return serialize(r, serialized, false);
+	}
 };
+
 
 class RecordSerializerC : public RecordSerializer {
 public:
-	RecordSerializerC(){};
-	~RecordSerializerC(){};
+	virtual ~RecordSerializerC() {};
 	virtual bool parse(const char *str, int len, Record *r);
-	virtual bool serialize(Record *r, std::string &serialized);
+	virtual bool serialize(Record *r, std::string &serialized, bool log);
 };
 
 class RecordSerializerJson : public RecordSerializer {
 public:
-	RecordSerializerJson(){};
-	~RecordSerializerJson(){};
 	virtual bool parse(const char *str, int len, Record *r);
-	virtual bool serialize(Record *r, std::string &serialized);
+	virtual bool serialize(Record *r, std::string &serialized, bool log);
 };
 
 #ifdef ENABLE_PROTOBUF
 class RecordSerializerPb : public RecordSerializer {
 public:
 	RecordSerializerPb();
-	~RecordSerializerPb(){};
 	virtual bool parse(const char *str, int len, Record *r);
-	virtual bool serialize(Record *r, std::string &serialized);
+	virtual bool serialize(Record *r, std::string &serialized, bool log);
+
 };
 #endif
 

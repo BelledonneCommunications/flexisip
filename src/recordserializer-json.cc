@@ -24,9 +24,10 @@
 #include "cJSON.h"
 
 using namespace std;
+#define CHECK(msg, test) if (test) { SLOGE << "Invalid serialized contact " << i << "\n" << str << msg; cJSON_Delete(root); return false; }
 
-static inline char *parseOptionalField(const cJSON *json, const char *field){
-	cJSON *cObj=cJSON_GetObjectItem(json->child,field);
+static inline char *parseOptionalField(cJSON *json, const char *field){
+	cJSON *cObj=cJSON_GetObjectItem(json,field);
 	return cObj?cObj->valuestring:NULL;
 }
 
@@ -43,12 +44,12 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r){
 
 	int i=0;
 	while (contact && contact->child){
-		char *sip_contact=cJSON_GetObjectItem(contact->child,"uri")->valuestring;
+		const char *sip_contact=cJSON_GetObjectItem(contact->child,"uri")->valuestring;
 		time_t expire=cJSON_GetObjectItem(contact->child,"expires_at")->valuedouble;
 		float q=cJSON_GetObjectItem(contact->child,"q")->valuedouble;
 		const char *lineValue=parseOptionalField(contact->child, "line_value_copy");
 		const char *route=parseOptionalField(contact->child, "route");
-		const char *contactId=parseOptionalField(contact->child, "contact_id");
+		const char *contactId=cJSON_GetObjectItem(contact->child, "contact_id")->valuestring;
 		time_t update_time=cJSON_GetObjectItem(contact->child,"update_time")->valuedouble;
 		char *call_id=cJSON_GetObjectItem(contact->child,"call_id")->valuestring;
 		int cseq=cJSON_GetObjectItem(contact->child,"cseq")->valueint;
@@ -56,11 +57,14 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r){
 		cJSON *path=cJSON_GetObjectItem(contact->child,"path");
 
 
-		if (!sip_contact || sip_contact[0] != '<' || !expire || !update_time || !call_id || !cseq || !path){
-			LOGE("Invalid redis contact %i %s",i, str);
-			cJSON_Delete(root);
-			return false;
-		}
+		CHECK(" no sip_contact" , !sip_contact || sip_contact[0] == 0);
+		CHECK(" no contactId" , !contactId || contactId[0] == 0);
+		//CHECK_VAL("malformed sip contact", sip_contact[0] != '<', sip_contact);
+		CHECK("no expire", !expire);
+		CHECK("no updatetime", !update_time);
+		CHECK("no callid", !call_id || call_id[0] == 0);
+		CHECK("no callid", !call_id || call_id[0] == 0);
+		CHECK("no cseq", !cseq);
 
 		std::list<std::string> stlpath;
 		if (route) stlpath.push_back(route);
@@ -69,7 +73,7 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r){
 		}
 
 		ExtendedContactCommon ecc(contactId, stlpath, call_id, lineValue);
-		r->bind(ecc, sip_contact, q, expire, cseq, update_time, alias);
+		r->bind(ecc, sip_contact, expire, q, cseq, update_time, alias);
 		contact=contact->next;
 		++i;
 	}
@@ -78,7 +82,7 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r){
 	return true;
 }
 
-bool RecordSerializerJson::serialize(Record *r, string &serialized){
+bool RecordSerializerJson::serialize(Record *r, string &serialized, bool log){
 	if (!r) return true;
 
 	auto ecs=r->getExtendedContacts();
@@ -102,14 +106,16 @@ bool RecordSerializerJson::serialize(Record *r, string &serialized){
 		cJSON_AddNumberToObject(c,"cseq",ec->mCSeq);
 		cJSON_AddNumberToObject(c,"alias",ec->mAlias? 1: 0);
 
-		for (auto pit=ec->mCommon.mPath.cbegin(); pit != ec->mCommon.mPath.cend(); ++pit) {
+		for (auto pit=ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {
 			cJSON *pitem = cJSON_CreateString(pit->c_str());
 			cJSON_AddItemToArray(path, pitem);
 		}
 	}
 
 	char *contacts_str=cJSON_PrintUnformatted(root);
-	if (contacts_str) serialized.assign(contacts_str);
+	if (!contacts_str) return false;
+	serialized.assign(contacts_str);
+	if (log) SLOGI << "Serialized contact: " << serialized;
 
 	cJSON_Delete(root);
 	free(contacts_str);

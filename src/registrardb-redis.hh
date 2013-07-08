@@ -28,22 +28,31 @@
 #include <hiredis/async.h>
 #include "agent.hh"
 
+struct RedisParameters {
+        RedisParameters() : port(0), timeout(0) {}
+        std::string domain;
+        std::string auth;
+        int port;
+        int timeout;
+};
+
 class RegistrarDbRedisSync : public RegistrarDb {
-        RegistrarDbRedisSync(Agent *ag);
         ~RegistrarDbRedisSync();
         bool isConnected();
         friend class RegistrarDb;
         redisContext *mContext;
         RecordSerializer *mSerializer;
-        static std::string sDomain;
-        static std::string sAuthPassword;
-        static int sPort;
-        static int sTimeout;
+        std::string sDomain;
+        std::string sAuthPassword;
+        int sPort;
+        int sTimeout;
 protected:
         bool connect();
         virtual void doBind(const url_t* url, const sip_contact_t* sip_contact, const char* calld_id, uint32_t cs_seq, const sip_path_t* path, int global_expire, bool alias, const std::shared_ptr< RegistrarDbListener >& listener);
         virtual void doClear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
         virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener);
+public:
+        RegistrarDbRedisSync(const std::string &preferedRoute, RecordSerializer *serializer, RedisParameters params);
 };
 
 class RegistrarDbRedisAsync : public RegistrarDb {
@@ -52,12 +61,12 @@ public:
 
 protected:
         bool connect();
-	virtual void doBind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const sip_path_t *path, int global_expire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener);
+        virtual void doBind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const sip_path_t *path, int global_expire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener);
         virtual void doClear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
         virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener);
 
 private:
-        RegistrarDbRedisAsync(Agent *ag);
+        RegistrarDbRedisAsync(Agent *agent, RedisParameters params);
         ~RegistrarDbRedisAsync();
         static void connectCallback(const redisAsyncContext *c, int status);
         static void disconnectCallback(const redisAsyncContext *c, int status);
@@ -65,10 +74,10 @@ private:
         friend class RegistrarDb;
         redisAsyncContext *mContext;
         RecordSerializer *mSerializer;
-        static std::string sDomain;
-        static std::string sAuthPassword;
-        static int sPort;
-        static int sTimeout;
+        std::string sDomain;
+        std::string sAuthPassword;
+        int sPort;
+        int sTimeout;
         su_root_t *mRoot;
         unsigned long mToken;
         unsigned long getToken();

@@ -57,7 +57,10 @@ struct ExtendedContactCommon {
 struct ExtendedContact {
 	class Record;
 	friend class Record;
-	ExtendedContactCommon mCommon;
+	std::string mContactId;
+	std::string mCallId;
+	std::string mLineValueCopy;
+	std::list<std::string> mPath;
 	std::string mSipUri;
 	float mQ;
 	time_t mExpireAt;
@@ -65,15 +68,16 @@ struct ExtendedContact {
 	uint32_t mCSeq;
 	bool mAlias;
 
-	inline const char *callId() { return mCommon.mCallId.c_str(); }
-	inline const char *line() { return mCommon.mLineValueCopy.c_str(); }
-	inline const char *contactId() { return mCommon.mContactId.c_str(); }
-	inline const char *route() { return (mCommon.mPath.empty() ? NULL : mCommon.mPath.cbegin()->c_str()); }
+	inline const char *callId() { return mCallId.c_str(); }
+	inline const char *line() { return mLineValueCopy.c_str(); }
+	inline const char *contactId() { return mContactId.c_str(); }
+	inline const char *route() { return (mPath.empty() ? NULL : mPath.cbegin()->c_str()); }
 
 
 	ExtendedContact(const ExtendedContactCommon &common,
 			sip_contact_t *sip_contact, int global_expire, uint32_t cseq, time_t updateTime, bool alias) :
-			mCommon(common), mSipUri(),
+			mContactId(common.mContactId), mCallId(common.mCallId), mLineValueCopy(common.mLineValueCopy), mPath(common.mPath),
+			mSipUri(),
 			mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias) {
 
 		{
@@ -99,13 +103,15 @@ struct ExtendedContact {
 	}
 
 	ExtendedContact(const ExtendedContactCommon &common,
-			const char *sip_contact, long expireAt, float q, uint32_t cseq, time_t updateTime, bool alias) :
-			mCommon(common), mSipUri(),
+			const char *sipuri, long expireAt, float q, uint32_t cseq, time_t updateTime, bool alias) :
+			mContactId(common.mContactId), mCallId(common.mCallId), mLineValueCopy(common.mLineValueCopy), mPath(common.mPath),
+			mSipUri(sipuri),
 			mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias){
 	}
 
 	ExtendedContact(const url_t *url, std::string route) :
-			mCommon(route), mSipUri(),
+			mContactId(), mCallId(), mLineValueCopy(), mPath({route}),
+			mSipUri(),
 			mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0), mCSeq(0), mAlias(false){
 
 		su_home_t home;
@@ -147,10 +153,11 @@ private:
 	static void init();
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec);
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
-	
+	std::string mKey;
+
+public:
 	static std::list<std::string> sLineFieldNames;
 	static int sMaxContacts;
-	std::string mKey;
 protected:
 	static char sStaticRecordVersion[100];
 public:
@@ -163,7 +170,7 @@ public:
 	void clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t time);
 	void clean(time_t time);
 	void bind(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias);
-	void bind(const ExtendedContactCommon &ecc, const char* c, long int expireAt, float q, uint32_t cseq, time_t updated_time, bool alias);
+	void bind(const ExtendedContactCommon &ecc, const char* sipuri, long int expireAt, float q, uint32_t cseq, time_t updated_time, bool alias);
 	
 	void print(std::ostream &stream) const;
 	bool isEmpty() { return mContacts.empty(); };
@@ -176,7 +183,7 @@ public:
 	int count() {
 		return mContacts.size();
 	}
-	const std::list<std::shared_ptr<ExtendedContact>> &getExtendedContacts() {
+	const std::list<std::shared_ptr<ExtendedContact>> &getExtendedContacts() const {
 		return mContacts;
 	}
 	static int getMaxContacts() {
@@ -259,7 +266,7 @@ protected:
 	int count_sip_contacts(const sip_contact_t *contact);
 	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const char *key, const std::shared_ptr<RegistrarDbListener> &listener);
 	void defineKeyFromUrl(char *key, int len, const url_t *url);
-	RegistrarDb(Agent *ag);
+	RegistrarDb(const std::string &preferedRoute);
 	virtual ~RegistrarDb();
 	std::map<std::string, Record*> mRecords;
 	LocalRegExpire *mLocalRegExpire;

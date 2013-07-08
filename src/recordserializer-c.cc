@@ -25,6 +25,10 @@
 
 using namespace std;
 
+
+#define CHECK(msg, test) if (test) { SLOGE << "Invalid serialized contact " << i << " " << msg; free(rc); return false; }
+#define CHECK_VAL(msg, test, value) if (test) { SLOGE << "Invalid serialized contact " << i << " " << msg << " " << value; free(rc); return false; }
+
 /**
  * 	#<sip:guillaume@domain:port;transport=toto;e=titi>#45#q=1#45646#1325691167#ci=call_id#5
 	##<sip:guillaume@domain:port;transport=toto;ee=titi>#45#q=1#4645465#1325691167#call_id#8";
@@ -51,20 +55,23 @@ bool RecordSerializerC::parse(const char *str, int len, Record *r){
 		char *alias=strsep(&rc, "#");
 		char *path=strsep(&rc, "#");
 
-		if (empty[0] != '\0' || !sip_contact || sip_contact[0] != '<' || !expire || !update_time || !call_id || !cseq||!path){
-			LOGE("Invalid serialized contact %i %s",i, str);
-			free(rc);
-			return false;
-		}
+		CHECK("empty", empty[0] != '\0');
+		CHECK(" no sip_contact" , !sip_contact || sip_contact[0] == 0);
+		CHECK(" no contactId" , !contactId || contactId[0] == 0);
+		//CHECK_VAL("malformed sip contact", sip_contact[0] != '<', sip_contact);
+		CHECK("no expire", !expire || expire[0] == 0);
+		CHECK("no updatetime", !update_time || update_time[0] == 0);
+		CHECK("no callid", !call_id || call_id[0] == 0);
+		CHECK("no cseq", !cseq || cseq[0] == 0);
 
 		std::list<std::string> stlpath;
-		if (route) stlpath.push_back(route);
+		if (route && route[0] != 0) stlpath.push_back(route);
 		while (NULL != (empty=strsep(&path, ","))){
 			stlpath.push_back(empty);
 		}
 
 		ExtendedContactCommon ecc(contactId, stlpath, call_id, lineValue);
-		r->bind(ecc, sip_contact, q?atof(q):0, atol(expire), atoi(cseq), atol(update_time), strcmp(alias, "true") == 0);
+		r->bind(ecc, sip_contact, atol(expire), q?atof(q):0, atoi(cseq), atol(update_time), strcmp(alias, "true") == 0);
 		++i;
 	}
 
@@ -73,7 +80,7 @@ bool RecordSerializerC::parse(const char *str, int len, Record *r){
 }
 
 // #sipuri#expireAt#q#lineValue#updateTime#callId#cseq
-bool RecordSerializerC::serialize(Record *r, string &serialized){
+bool RecordSerializerC::serialize(Record *r, string &serialized, bool log){
 	if (!r) return true;
 
 	auto contacts=r->getExtendedContacts();
@@ -89,16 +96,18 @@ bool RecordSerializerC::serialize(Record *r, string &serialized){
 		oss << "#"; if (ec->line()) oss << ec->line();
 		oss << "#" << ec->mUpdatedTime;
 		oss << "#" << ec->callId() << "#" << ec->mCSeq << "#" << (ec->mAlias? "true": "false");
-		ostringstream poss;
-		for (auto pit=ec->mCommon.mPath.cbegin(); pit != ec->mCommon.mPath.cend(); ++pit) {
-			if (pit != ec->mCommon.mPath.cbegin()) poss << ",";
-			poss << *pit;
+		string pathstr;
+		for (auto pit=ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {
+			if (pit != ec->mPath.cbegin()) pathstr +=",";
+			pathstr += *pit;
 		}
+		oss << "#" << pathstr;
 		++i;
 	}
 
-	// Unfortunately, make 2 copies
-	serialized.assign(oss.str());
+	serialized.assign(move(oss.str()));
+	if (log) SLOGI << "Serialized contact: " << serialized;
+
 	return true;
 }
 
