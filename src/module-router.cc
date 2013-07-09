@@ -242,7 +242,7 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const sip_con
 		return false;
 	}
 
-#if not(__GNUC__ == 4 && __GNUC_MINOR__ < 5 )
+#if ENABLE_BOOST_LOG && not(__GNUC__ == 4 && __GNUC_MINOR__ < 5 )
 	sip_t *sip = ms->getSip();
 	auto lambdaContactUrlInVia = [=]() {
 		return contactUrlInVia(ct->m_url, sip->sip_via);
