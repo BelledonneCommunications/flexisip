@@ -48,3 +48,6 @@ stamp-h1
 src/libhack.a
 build-debian/
 debian/changelog
+src/binder
+src/serializer
+src/ctdumper

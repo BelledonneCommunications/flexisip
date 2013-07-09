@@ -31,17 +31,17 @@
 
 using namespace::std;
 
-RegistrarDbInternal::RegistrarDbInternal(Agent *ag) : RegistrarDb(ag->getPreferredRoute()){
+RegistrarDbInternal::RegistrarDbInternal(const string &preferredRoute) : RegistrarDb(preferredRoute){
 }
 
-void RegistrarDbInternal::doBind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const sip_path_t *path, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
+void RegistrarDbInternal::doBind(const BindParameters& p, const shared_ptr< RegistrarDbListener >& listener) {
         char key[AOR_KEY_SIZE] = {0};
-        defineKeyFromUrl(key, AOR_KEY_SIZE - 1, fromUrl);
+        defineKeyFromUrl(key, AOR_KEY_SIZE - 1, p.sip.from);
 
-        if (count_sip_contacts(sip_contact) > Record::getMaxContacts()) {
+	if (count_sip_contacts(p.sip.contact) > Record::getMaxContacts()) {
                 LOGD("Too many contacts in register %s %i > %i",
                         key,
-                        count_sip_contacts(sip_contact),
+                        count_sip_contacts(p.sip.contact),
                         Record::getMaxContacts());
 
                 listener->onError();
@@ -61,14 +61,14 @@ void RegistrarDbInternal::doBind(const url_t* fromUrl, const sip_contact_t *sip_
                 r = (*it).second;
         }
 
-        if (r->isInvalidRegister(calld_id, cs_seq)) {
+        if (r->isInvalidRegister(p.sip.call_id, p.sip.cs_seq)) {
         	LOGD("Invalid register");
         	listener->onInvalid();
         	return;
         }
 
-        r->clean(sip_contact, calld_id, cs_seq, now);
-        r->bind(sip_contact, path, global_expire, calld_id, cs_seq, now, alias);
+        r->clean(p.sip.contact, p.sip.call_id, p.sip.cs_seq, now);
+	r->update(p.sip.contact, p.sip.path, p.global_expire, p.sip.call_id, p.sip.cs_seq, now, p.alias);
 
         mLocalRegExpire->update(*r);
         listener->onRecordFound(r);
@@ -118,4 +118,9 @@ void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<RegistrarDb
         mRecords.erase(it);
         mLocalRegExpire->remove(key);
         listener->onRecordFound(NULL);
+}
+
+void RegistrarDbInternal::clearAll() {
+	mRecords.clear();
+	mLocalRegExpire->clearAll();
 }

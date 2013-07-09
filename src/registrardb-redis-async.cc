@@ -284,7 +284,7 @@ void RegistrarDbRedisAsync::handleBind ( redisReply *reply, RegistrarUserData *d
 
 	time_t now=getCurrentTime();
 	data->record.clean ( data->sipContact, data->calldId, data->csSeq, now );
-	data->record.bind ( data->sipContact, data->path, data->globalExpire, data->calldId, data->csSeq, now, data->alias );
+	data->record.update ( data->sipContact, data->path, data->globalExpire, data->calldId, data->csSeq, now, data->alias );
 	mLocalRegExpire->update ( data->record );
 
 	string serialized;
@@ -298,15 +298,16 @@ void RegistrarDbRedisAsync::handleBind ( redisReply *reply, RegistrarUserData *d
 
 
 
-void RegistrarDbRedisAsync::doBind ( const url_t* fromUrl, const sip_contact_t* sip_contact, const char* calld_id, uint32_t cs_seq, const sip_path_t* path, int global_expire, bool alias, const shared_ptr< RegistrarDbListener >& listener )
+void RegistrarDbRedisAsync::doBind ( const RegistrarDb::BindParameters& p, const shared_ptr< RegistrarDbListener >& listener )
 {
-	RegistrarUserData *data=new RegistrarUserData ( this,fromUrl,sip_contact,calld_id,cs_seq,path,alias,listener,sHandleBind );
-	data->globalExpire=global_expire;
+	RegistrarUserData *data=new RegistrarUserData ( this,
+		p.sip.from,p.sip.contact,p.sip.call_id,p.sip.cs_seq, p.sip.path, p.alias,listener,sHandleBind );
+	data->globalExpire=p.global_expire;
 	if ( !isConnected() && !connect() ) {
 			LOGE ( "Not connected to redis server" );
 			ERROR
 		}
-	if ( errorOnTooMuchContactInBind ( sip_contact,data->key,listener ) ) {
+	if ( errorOnTooMuchContactInBind ( p.sip.contact,data->key,listener ) ) {
 			ERROR
 		}
 

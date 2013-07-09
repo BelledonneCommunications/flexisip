@@ -32,6 +32,7 @@
 
 #include <sofia-sip/sip.h>
 #include <sofia-sip/url.h>
+#include "log/logmanager.hh"
 #include "agent.hh"
 #include <string>
 #include <list>
@@ -73,6 +74,17 @@ struct ExtendedContact {
 	inline const char *contactId() { return mContactId.c_str(); }
 	inline const char *route() { return (mPath.empty() ? NULL : mPath.cbegin()->c_str()); }
 
+	static int resolve_expire(const char *contact_expire, int global_expire) {
+		if (contact_expire) {
+			return atoi(contact_expire);
+		} else {
+			if(global_expire >= 0) {
+				return global_expire;
+			} else {
+				return -1;
+			}
+		}
+	}
 
 	ExtendedContact(const ExtendedContactCommon &common,
 			sip_contact_t *sip_contact, int global_expire, uint32_t cseq, time_t updateTime, bool alias) :
@@ -91,15 +103,9 @@ struct ExtendedContact {
 			mQ = atof(sip_contact->m_q);
 		}
 
-		if (sip_contact->m_expires) {
-			mExpireAt = updateTime + atoi(sip_contact->m_expires);
-		} else {
-			if(global_expire >= 0) {
-				mExpireAt = updateTime + global_expire;
-			} else {
-				mExpireAt = std::numeric_limits<time_t>::max();
-			}
-		}
+		int expire = resolve_expire(sip_contact->m_expires, global_expire);
+		if (expire == -1) SLOGA << "no global expire nor local contact expire found";
+		mExpireAt = updateTime + expire;
 	}
 
 	ExtendedContact(const ExtendedContactCommon &common,
@@ -169,8 +175,8 @@ public:
 	bool isInvalidRegister(const char *call_id, uint32_t cseq);
 	void clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t time);
 	void clean(time_t time);
-	void bind(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias);
-	void bind(const ExtendedContactCommon &ecc, const char* sipuri, long int expireAt, float q, uint32_t cseq, time_t updated_time, bool alias);
+	void update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias);
+	void update(const ExtendedContactCommon &ecc, const char* sipuri, long int expireAt, float q, uint32_t cseq, time_t updated_time, bool alias);
 	
 	void print(std::ostream &stream) const;
 	bool isEmpty() { return mContacts.empty(); };
@@ -235,9 +241,42 @@ public:
 class RegistrarDb {
 	friend class ModuleRegistrar;
 public:
+	struct BindParameters {
+		/**
+		 * Parameter wrapper class that doesn't copy anything.
+		 */ struct SipParams {
+			const url_t* from;
+			const sip_contact_t *contact;
+			const char * call_id;
+			const uint32_t cs_seq;
+			const sip_path_t *path;
+			SipParams(const url_t* from, const sip_contact_t *contact,
+					      const char *id, uint32_t seq, const sip_path_t *path)
+			: from(from), contact(contact), call_id(id), cs_seq(seq), path(path) {
+			}
+		};
+
+		const SipParams sip;
+		const int global_expire;
+		const bool alias;
+		BindParameters(SipParams sip, int expire, bool alias)
+		: sip(sip), global_expire(expire), alias(alias) {
+		}
+	};
 	static RegistrarDb *get(Agent *ag);
-	void bind(const url_t* fromUrl, const sip_contact_t* sip_contact, const char* calld_id, uint32_t cs_seq, const sip_path_t* path, int global_expire, bool alias, const std::shared_ptr< RegistrarDbListener >& listener);
-	void bind(const sip_t* sip, int globalExpire, bool alias, const std::shared_ptr< RegistrarDbListener >& listener);
+	void bind(const BindParameters &mainParams, const std::shared_ptr<RegistrarDbListener> &listener) {
+		doBind(mainParams, listener);
+	}
+	void bind(const sip_t *sip, int globalExpire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener) {
+		BindParameters mainParams(
+			BindParameters::SipParams(
+				sip->sip_from->a_url,
+				sip->sip_contact,
+				sip->sip_call_id->i_id,
+				sip->sip_cseq->cs_seq, sip->sip_path),
+			globalExpire, alias);
+		doBind(mainParams, listener);
+	}
 	void clear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
 	void fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool recursive = false);
 	void updateRemoteExpireTime(const std::string &key, time_t expireat);
@@ -258,8 +297,12 @@ protected:
 		size_t countActives();
 		void removeExpiredBefore(time_t before);
 		LocalRegExpire(std::string preferedRoute);
+		void clearAll() {
+			std::lock_guard<std::mutex> lock(mMutex);
+			mRegMap.clear();
+		}
 	};
-	virtual void doBind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const sip_path_t *path, int global_expire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener)=0;
+	virtual void doBind(const BindParameters &params, const std::shared_ptr<RegistrarDbListener> &listener)=0;
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener)=0;
 	virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener)=0;
 

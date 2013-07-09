@@ -271,7 +271,7 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 		oss << ":" << url->url_port;
 }
 
-void Record::bind(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias) {
+void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias) {
 	sip_contact_t *c = (sip_contact_t *) contacts;
 	list<string> stlPath;
 	if (path != NULL) {
@@ -308,7 +308,7 @@ void Record::bind(const sip_contact_t *contacts, const sip_path_t *path, int glo
 	SLOGD << *this;
 }
 
-void Record::bind(const ExtendedContactCommon &ecc, const char *sipuri, long expireAt, float q, uint32_t cseq, time_t updated_time, bool alias) {
+void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long expireAt, float q, uint32_t cseq, time_t updated_time, bool alias) {
 	insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias));
 }
 
@@ -341,11 +341,11 @@ void Record::init() {
 	sLineFieldNames = registrar->get<ConfigStringList>("unique-id-parameters")->read();
 }
 
-RegistrarDb::LocalRegExpire::LocalRegExpire(string preferedRoute) {
-	mPreferedRoute=preferedRoute;
+RegistrarDb::LocalRegExpire::LocalRegExpire(string preferredRoute) {
+	mPreferedRoute=preferredRoute;
 }
 
-RegistrarDb::RegistrarDb(const string &preferedRoute) : mLocalRegExpire(new LocalRegExpire(preferedRoute)), mUseGlobalDomain(false) {
+RegistrarDb::RegistrarDb(const string &preferredRoute) : mLocalRegExpire(new LocalRegExpire(preferredRoute)), mUseGlobalDomain(false) {
 }
 
 void RegistrarDb::useGlobalDomain(bool useGlobalDomain){
@@ -426,7 +426,7 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 		string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
 		if ("internal" == dbImplementation) {
 			LOGI("RegistrarDB implementation is internal");
-			sUnique = new RegistrarDbInternal(ag);
+			sUnique = new RegistrarDbInternal(ag->getPreferredRoute());
 			return sUnique;
 		}
 
@@ -457,9 +457,6 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 	return sUnique;
 }
 
-void RegistrarDb::bind(const url_t* fromUrl, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const sip_path_t *path, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
-	doBind(fromUrl, sip_contact, calld_id, cs_seq, path, global_expire, alias, listener);
-}
 
 void RegistrarDb::clear(const sip_t *sip, const shared_ptr<RegistrarDbListener> &listener) {
 	doClear(sip, listener);
@@ -550,9 +547,7 @@ void RegistrarDb::fetch(const url_t *url, const shared_ptr<RegistrarDbListener> 
 	}
 }
 
-void RegistrarDb::bind(const sip_t *sip, int globalExpire, bool alias, const shared_ptr<RegistrarDbListener> &listener) {
-	bind(sip->sip_from->a_url, sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq, sip->sip_path, globalExpire, alias, listener);
-}
+
 
 
 RecordSerializer *RecordSerializer::create(const string &name) { 

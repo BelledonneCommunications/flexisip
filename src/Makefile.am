@@ -10,7 +10,6 @@ BUILT_SOURCES=$(GITVERSION_FILE)
 
 SUBDIRS=test
 
-check_PROGRAMS=serializer
 bin_PROGRAMS=flexisip
 thesources= \
 			agent.cc agent.hh \
@@ -134,15 +133,19 @@ AM_CFLAGS+=-DENABLE_PROTOBUF
 endif
     
 if BUILD_REDIS
-bin_PROGRAMS+=ctdumper
+bin_PROGRAMS+=ctdumper serializer binder
 ctdumper_SOURCES=tool/ctdumper.cc $(thesources)
 ctdumper_LDADD=$(flexisip_LDADD)
 nodist_ctdumper_SOURCES=$(nodistsources)
 endif
 
-serializer_SOURCES=test/serializer.cc $(thesources)
+serializer_SOURCES=test/serializer.cc test/test_utils.hh $(thesources)
 serializer_LDADD=$(flexisip_LDADD)
 nodist_serializer_SOURCES=$(nodistsources)
+
+binder_SOURCES=test/binder.cc test/test_utils.hh $(thesources)
+binder_LDADD=$(flexisip_LDADD)
+nodist_binder_SOURCES=$(nodistsources)
 
 flexisip_SOURCES=main.cc $(thesources)
 nodist_flexisip_SOURCES=$(nodistsources)

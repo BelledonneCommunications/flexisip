@@ -121,7 +121,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		virtual Agent *getAgent() {
 			return this;
 		}
-		//Prefered route for inter-proxy communication
+		//Preferred route for inter-proxy communication
 		std::string getPreferredRoute()const;
 		const url_t *getPreferredRouteUrl()const{
 			return mPreferredRouteV4;

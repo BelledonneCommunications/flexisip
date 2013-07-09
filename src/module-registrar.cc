@@ -168,9 +168,12 @@ private:
 
 
 
-// Delta from expires header, normalized with custom rules.
-static uint computeMainDelta(const sip_expires_t *expires, const uint min, const uint max) {
-	if (!expires) return max;
+/**
+ * Delta from expires header, normalized with custom rules.
+ * return -1 on error
+ */
+static int normalizeMainDelta(const sip_expires_t *expires, const uint min, const uint max) {
+	if (!expires) return -1;
 
 	uint delta = expires->ex_delta;
 	if (delta < min && delta > 0) {
@@ -199,6 +202,16 @@ static bool checkStarUse(const sip_contact_t *contact, int expires) {
 			starFound = true;
 		}
 	} while (NULL != (contact = contact->m_next));
+	return true;
+}
+
+// Check an expire is present globally or in contact.
+static bool checkHaveExpire(const sip_contact_t *c, int expires) {
+	if (expires >=0) return true; // there exist a global expire
+	while (c) {
+		if (!c->m_expires || atoi(c->m_expires) < 0) return false;
+		c = c->m_next;
+	}
 	return true;
 }
 
@@ -393,7 +406,7 @@ public:
 template <typename SipEventT, typename ListenerT>
 void ModuleRegistrar::processUpdateRequest(shared_ptr<SipEventT> &ev, const sip_t *sip) {
 	const sip_expires_t *expires = sip->sip_expires;
-	const int maindelta = computeMainDelta(expires, mMinExpires, mMaxExpires);
+	const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
 	if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
 		auto listener = make_shared<ListenerT>(this, ev);
 		mStats.mCountClear->incrStart();
@@ -435,12 +448,18 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	// Reject malformed registrations
 	const sip_expires_t *expires = sip->sip_expires;
-	const int maindelta = computeMainDelta(expires, mMinExpires, mMaxExpires);
+	const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
+	if (!checkHaveExpire(sip->sip_contact, maindelta)) {
+		SLOGD << "No global or local expire found in at least one contact";
+		reply(ev,400, "Invalid Request");
+		return;
+	}
 	if (!checkStarUse(sip->sip_contact, maindelta)) {
 		LOGD("The star rules are not respected.");
 		reply(ev,400, "Invalid Request");
 		return;
 	}
+
 
 	// Use path as a contact route in all cases
 	addPathHeader(ev, ev->getIncomingTport().get());
@@ -448,7 +467,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	// Handle modifications
 	if (!mUpdateOnResponse) {
 		const sip_expires_t *expires = sip->sip_expires;
-		const int maindelta = computeMainDelta(expires, mMinExpires, mMaxExpires);
+		const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
 		if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
 			auto listener = make_shared<OnRequestBindListener>(this, ev);
 			mStats.mCountClear->incrStart();
@@ -515,7 +534,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 
 	// Warning: here we give the RESPONSE sip message
 	const sip_expires_t *expires = reSip->sip_expires;
-	const int maindelta = computeMainDelta(expires, mMinExpires, mMaxExpires);
+	const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
 	auto listener = make_shared<OnResponseBindListener>(this, ev, transaction, context);
 
 	// Rewrite contacts in received msg (avoid reworking registrardb API)
@@ -616,7 +635,16 @@ void ModuleRegistrar::readStaticRecords() {
 				if (url != NULL && contact != NULL) {
 					auto listener=make_shared<OnStaticBindListener>(getAgent(), line);
 					bool alias=isManagedDomain(contact->m_url);
-					RegistrarDb::get(mAgent)->bind(url->m_url, contact, fakeCallId, version, NULL, expire, alias, listener);
+					RegistrarDb::BindParameters params(
+						RegistrarDb::BindParameters::SipParams(
+							url->m_url /*from*/,
+							contact,
+							fakeCallId,
+							version,
+							NULL /*path*/)
+						, expire, alias
+					);
+					RegistrarDb::get(mAgent)->bind(params, listener);
 					continue;
 				}
 			}

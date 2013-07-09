@@ -35,8 +35,8 @@
 using namespace::std;
 
 
-RegistrarDbRedisSync::RegistrarDbRedisSync ( const string &preferedRoute, RecordSerializer *serializer, RedisParameters params) :
-RegistrarDb ( preferedRoute ), mContext ( NULL ), mSerializer(serializer), sDomain(params.domain),
+RegistrarDbRedisSync::RegistrarDbRedisSync ( const string &preferredRoute, RecordSerializer *serializer, RedisParameters params) :
+RegistrarDb ( preferredRoute ), mContext ( NULL ), mSerializer(serializer), sDomain(params.domain),
 sAuthPassword(params.auth), sPort(params.port),sTimeout(params.timeout) {
 }
 
@@ -83,11 +83,11 @@ bool RegistrarDbRedisSync::connect() {
 }
 
 
-void RegistrarDbRedisSync::doBind ( const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const sip_path_t *path, int global_expire, bool alias, const shared_ptr<RegistrarDbListener> &listener ) {
+void RegistrarDbRedisSync::doBind ( const RegistrarDb::BindParameters& p, const shared_ptr< RegistrarDbListener >& listener ) {
 	char key[AOR_KEY_SIZE] = {0};
-	defineKeyFromUrl ( key, AOR_KEY_SIZE - 1, url );
+	defineKeyFromUrl ( key, AOR_KEY_SIZE - 1, p.sip.from );
 
-	if ( errorOnTooMuchContactInBind ( sip_contact, key, listener ) ) {
+	if ( errorOnTooMuchContactInBind ( p.sip.contact, key, listener ) ) {
 		listener->onError();
 		return;
 	}
@@ -110,14 +110,14 @@ void RegistrarDbRedisSync::doBind ( const url_t* url, const sip_contact_t *sip_c
 	mSerializer->parse ( reply->str, reply->len, &r );
 	freeReplyObject ( reply );
 
-	if ( r.isInvalidRegister ( calld_id, cs_seq ) ) {
+	if ( r.isInvalidRegister ( p.sip.call_id, p.sip.cs_seq ) ) {
 		listener->onInvalid();
 		return;
 	}
 
 	time_t now = getCurrentTime();
-	r.clean ( sip_contact, calld_id, cs_seq, now );
-	r.bind ( sip_contact, path, global_expire, calld_id, cs_seq, now, alias );
+	r.clean ( p.sip.contact, p.sip.call_id, p.sip.cs_seq, now );
+	r.update ( p.sip.contact, p.sip.path, p.global_expire, p.sip.call_id, p.sip.cs_seq, now, p.alias );
 	mLocalRegExpire->update ( r );
 
 	string updatedAorString;
