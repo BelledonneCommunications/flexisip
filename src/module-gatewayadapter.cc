@@ -57,7 +57,7 @@ class GatewayRegister {
 	static StatCounter64 *mCountDomainRewrite;
 public:
 	void sendRegister();
-	GatewayRegister(Agent *ag, nua_t * nua, sip_from_t *from, sip_to_t *to, sip_contact_t *contact);
+	GatewayRegister(Agent *ag, nua_t * nua, sip_from_t *from, sip_to_t *to, sip_contact_t *contact, const sip_expires_t *global_expire);
 	~GatewayRegister();
 	void onMessage(const sip_t *sip);
 	void onError(const char * message, ...);
@@ -181,7 +181,8 @@ StatCounter64 *GatewayRegister::mCountEnd=NULL;
 StatCounter64 *GatewayRegister::mCountForkToGateway=NULL;
 StatCounter64 *GatewayRegister::mCountDomainRewrite=NULL;
 
-GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, sip_to_t *sip_to, sip_contact_t *sip_contact) :
+GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, sip_to_t *sip_to,
+				 sip_contact_t *sip_contact, const sip_expires_t *global_expire) :
 		mAgent(ag) {
 	su_home_init(&home);
 
@@ -189,6 +190,7 @@ GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, si
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::GatewayAdapter");
 	string domainString = ma->get<ConfigString>("gateway-domain")->read();
+	int forcedExpireValue = ma->get<ConfigInt>("forced-expire")->read();
 	routingParam = ma->get<ConfigString>("routing-param")->read();
 	if (!domainString.empty()) {
 		domain = url_make(&home, domainString.c_str());
@@ -201,10 +203,12 @@ GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, si
 	const url_t *url=ag->getPreferredRouteUrl();
 	const char *port= url->url_port;
 	const char *user=sip_contact->m_url->url_user;
+	int expire=forcedExpireValue != -1 ? forcedExpireValue
+		: ExtendedContact::resolve_expire(sip_contact->m_expires, global_expire != NULL ? global_expire->ex_delta : -1);
 	if (port) {
-		contact = sip_contact_format(&home, "<%s:%s@%s:%s>;expires=%i",url->url_scheme, user, url->url_host, port, INT_MAX);
+		contact = sip_contact_format(&home, "<%s:%s@%s:%s>;expires=%i",url->url_scheme, user, url->url_host, port, expire);
 	} else {
-		contact = sip_contact_format(&home, "<%s:%s@%s>;expires=%i",url->url_scheme, user, url->url_host, INT_MAX);
+		contact = sip_contact_format(&home, "<%s:%s@%s>;expires=%i",url->url_scheme, user, url->url_host, expire);
 	}
 
 	// Override domains?
@@ -365,6 +369,7 @@ GatewayAdapter::~GatewayAdapter() {
 void GatewayAdapter::onDeclare(GenericStruct *mc) {
 	mc->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = {
+			{ Integer, "forced-expire", "Force expire of gw register to a value. -1 to use expire provided in received register.", "-1" },
 			{ String, "gateway", "A gateway uri where to send all requests, as a SIP url (eg 'sip:gateway.example.net')", "" },
 			{ String, "gateway-domain", "Modify the from and to domains of incoming register", "" },
 			{ Boolean, "fork-to-gateway", "The gateway will be added to the incoming register contacts.", "true" },
@@ -412,7 +417,7 @@ void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		if (sip->sip_contact != NULL) {
 			GatewayRegister *gr = NULL;
 			if (mRegisterOnGateway) {
-				gr=new GatewayRegister(getAgent(), nua, sip->sip_from, sip->sip_to, sip->sip_contact);
+				gr=new GatewayRegister(getAgent(), nua, sip->sip_from, sip->sip_to, sip->sip_contact, sip->sip_expires);
 			}
 
 			if (mForkToGateway) {
