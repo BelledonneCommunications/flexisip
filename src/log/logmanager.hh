@@ -164,6 +164,9 @@ namespace log {
 #include <ortp/ortp.h>
 #include <ostream>
 
+typedef std::ostream flexisip_record_type;
+	
+	
 struct pumpstream : public std::ostringstream
 {
 	const OrtpLogLevel level;

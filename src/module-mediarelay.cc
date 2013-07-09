@@ -243,7 +243,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	shared_ptr<RelayedCall> c;
 
 	if (sip->sip_request->rq_method == sip_method_invite) {
-		ev->createIncomingTransaction();
+		shared_ptr<IncomingTransaction> it = ev->createIncomingTransaction();
 		shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) == NULL) {
 			if (mMaxCalls>0 && mCalls->size()>=mMaxCalls){
@@ -253,7 +253,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			}
 			
 			c = make_shared<RelayedCall>(mServer, sip, mEarlymediaRTPDir);
-			
+			it->setProperty<RelayedCall>(getModuleName(), c);
 			configureContext(c);
 			if (processNewInvite(c, ot, ev)) {
 				//be in the record-route
@@ -268,13 +268,18 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 				ot->setProperty(getModuleName(), c);
 			}
 		}
-	} else if (sip->sip_request->rq_method == sip_method_bye) {
+	}else if (sip->sip_request->rq_method == sip_method_bye) {
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->findEstablishedDialog(getAgent(), sip))) != NULL) {
 			mCalls->remove(c);
 		}
+	}else if (sip->sip_request->rq_method == sip_method_cancel) {
+		shared_ptr<IncomingTransaction> it=dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
+		/* need to match cancel from incoming transaction, because in this case the entire call context can be dropped immediately*/
+		if (it && (c = it->getProperty<RelayedCall>(getModuleName())) != NULL){
+			LOGD("Relayed call terminated by incoming cancel.");
+			mCalls->remove(c);
+		}
 	}
-	//no need to match cancel requests. They will terminate the outgoing transaction which will eventually (see onTransactionEvent() below)
-	//drop the call.
 }
 void MediaRelay::processFailureForInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
 	sip_t *sip = msgSip->getSip();
@@ -294,13 +299,14 @@ void MediaRelay::processFailureForInvite(const shared_ptr<RelayedCall> &c, const
 	// Remove back
 	if (c->getCallerTag() == from_tag) {
 		if (c->removeBack(to_tag)) {
-			mCalls->remove(c);
+			//mCalls->remove(c);
 		}
 	}
 }
 void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
 	sip_t *sip = msgSip->getSip();
 	msg_t *msg = msgSip->getMsg();
+	
 	LOGD("Processing 200 Ok or early media");
 
 	if (sip->sip_to == NULL || sip->sip_to->a_tag == NULL) {
@@ -309,7 +315,7 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 	}
 	
 	if (sip->sip_status->st_status==200){
-		c->establishDialogWith200Ok(getAgent(),sip);
+		if (!c->isDialogEstablished()) c->establishDialogWith200Ok(getAgent(),sip);
 	}
 
 	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), sip);
@@ -367,33 +373,47 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
+	shared_ptr<RelayedCall> c;
 
 	// Handle SipEvent associated with a Stateful transaction
-	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-	if (transaction != NULL) {
-		shared_ptr<RelayedCall> c = transaction->getProperty<RelayedCall>(getModuleName());
-		if (c != NULL) {
+	shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+	shared_ptr<IncomingTransaction> it=dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
+	
+	if (ot != NULL) {
+		c = ot->getProperty<RelayedCall>(getModuleName());
+		if (c) {
 			if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
 				fixAuthChallengeForSDP(ms->getHome(), msg, sip);
 				if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
-					process200OkforInvite(c, transaction, ev->getMsgSip());
+					process200OkforInvite(c, ot, ev->getMsgSip());
 				} else if (sip->sip_status->st_status >= 300) {
-					processFailureForInvite(c, transaction, ev->getMsgSip());
+					processFailureForInvite(c, ot, ev->getMsgSip());
 				}
 			}
-			return;
 		}
-	}else{
-		if (mByeOrphanDialogs && sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite && sip->sip_status->st_status == 200) {
-			//Out of transaction 200Ok for invite.
-			//Check if it matches an established dialog whose to-tag is different, then it is a 200Ok sent by the client
-			//before receiving the Cancel.
-			shared_ptr<CallContextBase> c=mCalls->findEstablishedDialog(getAgent(),sip);
-			if (c==NULL || (c && (sip->sip_to->a_tag==NULL || c->getCalleeTag()!=sip->sip_to->a_tag))){
-				LOGD("Receiving out of transaction and dialog 200Ok for invite, rejecting it.");
-				nta_msg_ackbye(getAgent()->getSofiaAgent(),msg_dup(msg));
-				ev->terminateProcessing();
+	}
+	
+	if (it && (c = it->getProperty<RelayedCall>(getModuleName()))!=NULL){
+		//This is a response sent to the incoming transaction. Check for failure code, in which case the call context can be destroyed
+		//immediately.
+		LOGD("call context %p",c.get());
+		if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite && sip->sip_status->st_status >= 300){
+			if (!c->isDialogEstablished()){
+				LOGD("RelayedCall is terminated by final error response");
+				mCalls->remove(c);
 			}
+		}
+	}
+	
+	if (ot==NULL && it==NULL &&mByeOrphanDialogs && sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite && sip->sip_status->st_status == 200) {
+		//Out of transaction 200Ok for invite.
+		//Check if it matches an established dialog whose to-tag is different, then it is a 200Ok sent by the client
+		//before receiving the Cancel.
+		shared_ptr<CallContextBase> c=mCalls->findEstablishedDialog(getAgent(),sip);
+		if (c==NULL || (c && (sip->sip_to->a_tag==NULL || c->getCalleeTag()!=sip->sip_to->a_tag))){
+			LOGD("Receiving out of transaction and dialog 200Ok for invite, rejecting it.");
+			nta_msg_ackbye(getAgent()->getSofiaAgent(),msg_dup(msg));
+			ev->terminateProcessing();
 		}
 	}
 }
@@ -406,7 +426,7 @@ void MediaRelay::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
 			switch (ev->kind) {
 				case TransactionEvent::Type::Destroy:
 				if (c->removeTransaction(ev->transaction)) {
-					mCalls->remove(c);
+					//mCalls->remove(c);
 				}
 				break;
 
@@ -420,4 +440,5 @@ void MediaRelay::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
 void MediaRelay::onIdle() {
 	mCalls->dump();
 	mCalls->removeAndDeleteInactives();
+	LOGD("There are %i calls active in the MediaRelay call list.",mCalls->size());
 }

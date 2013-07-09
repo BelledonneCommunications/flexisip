@@ -28,7 +28,7 @@ class MediaRelayServer {
 public:
 	MediaRelayServer(Agent *agent);
 	~MediaRelayServer();
-	RelaySession *createSession();
+	std::shared_ptr<RelaySession> createSession();
 	void update();
 	Agent *getAgent();
 	RtpSession *createRtpSession(const std::string & bindIp);
@@ -37,7 +37,7 @@ private:
 	void run();
 	static void *threadFunc(void *arg);
 	Mutex mMutex;
-	std::list<RelaySession*> mSessions;
+	std::list<std::shared_ptr<RelaySession>> mSessions;
 	Agent *mAgent;
 	int mMinPort;
 	int mMaxPort;
@@ -53,7 +53,7 @@ private:
 class RelayChannel;
 
 
-class RelaySession {
+class RelaySession : public std::enable_shared_from_this<RelaySession> {
 public:
 
 	RelaySession(MediaRelayServer *server);
@@ -63,8 +63,8 @@ public:
 	void transfer(time_t current, const std::shared_ptr<RelayChannel> &org, int i);
 	void unuse();
 
-	const std::list<std::shared_ptr<RelayChannel>>& getFronts() {
-		return mFronts;
+	std::shared_ptr<RelayChannel> getFront() {
+		return mFront;
 	}
 
 	const std::list<std::shared_ptr<RelayChannel>>& getBacks() {
@@ -79,7 +79,7 @@ public:
 		return mLastActivityTime;
 	}
 
-	std::shared_ptr<RelayChannel> addFront(const std::pair<std::string,std::string> & relayIps);
+	std::shared_ptr<RelayChannel> setFront(const std::pair<std::string,std::string> & relayIps);
 	void removeFront(const std::shared_ptr<RelayChannel> &ms);
 
 	std::shared_ptr<RelayChannel> addBack(const std::pair<std::string,std::string> & relayIps);
@@ -98,9 +98,9 @@ private:
 	Mutex mMutex;
 	MediaRelayServer *mServer;
 	time_t mLastActivityTime;
-	bool_t mUsed;
-	std::list<std::shared_ptr<RelayChannel>> mFronts;
+	std::shared_ptr<RelayChannel> mFront;
 	std::list<std::shared_ptr<RelayChannel>> mBacks;
+	bool_t mUsed;
 };
 
 class MediaFilter{
@@ -115,7 +115,7 @@ public:
 
 class RelayChannel {
 public:
-	RelayChannel(RelaySession * relaySession, bool front, const std::pair<std::string,std::string> &relayIps);
+	RelayChannel(std::shared_ptr<RelaySession> relaySession, bool front, const std::pair<std::string,std::string> &relayIps);
 	~RelayChannel();
 
 	typedef enum {
@@ -171,7 +171,7 @@ public:
 		return mFront;
 	}
 
-	RelaySession *getRelaySession() {
+	std::shared_ptr<RelaySession> getRelaySession() {
 		return mRelaySession;
 	}
 	
@@ -187,7 +187,7 @@ private:
 	int mSources[2];
 	struct sockaddr_storage mSockAddr[2];
 	socklen_t mSockAddrSize[2];
-	RelaySession *mRelaySession;
+	std::shared_ptr<RelaySession> mRelaySession;
 	std::shared_ptr<MediaFilter> mFilter;
 };
 

@@ -57,11 +57,11 @@ void RelayedCall::initChannels(SdpModifier *m, const string &tag, const shared_p
 			LOGE("Max sessions per relayed call is reached.");
 			return ;
 		}
-		RelaySession *s = mSessions[i].mRelaySession;
+		shared_ptr<RelaySession> s = mSessions[i].mRelaySession;
 		if (s == NULL) {
 			s = mServer->createSession();
 			mSessions[i].mRelaySession = s;
-			s->addFront(frontRelayIps);
+			s->setFront(frontRelayIps);
 		}
 		if (!tag.empty()) {
 			if (mSessions[i].mRelayChannels.find(tag) == mSessions[i].mRelayChannels.end()) {
@@ -79,9 +79,8 @@ void RelayedCall::initChannels(SdpModifier *m, const string &tag, const shared_p
 	}
 	while (i < sMaxSessions) {
 		if (mSessions[i].mRelaySession) {
-			for (auto it = mSessions[i].mRelaySession->getFronts().begin(); it != mSessions[i].mRelaySession->getFronts().end(); ++it) {
-				(*it)->setBehaviour(RelayChannel::None);
-			}
+			
+			mSessions[i].mRelaySession->getFront()->setBehaviour(RelayChannel::None);
 			for (auto it = mSessions[i].mRelaySession->getBacks().begin(); it != mSessions[i].mRelaySession->getBacks().end(); ++it) {
 				(*it)->setBehaviour(RelayChannel::None);
 			}
@@ -96,7 +95,7 @@ void RelayedCall::initChannels(SdpModifier *m, const string &tag, const shared_p
 
 bool RelayedCall::checkMediaValid() {
 	for (int i=0; i < sMaxSessions; ++i) {
-		RelaySession *s=mSessions[i].mRelaySession;
+		shared_ptr<RelaySession> s=mSessions[i].mRelaySession;
 		if (s && !s->checkMediaSources()) return false;
 	}
 	return true;
@@ -110,10 +109,10 @@ void RelayedCall::masqueradeForFront(int mline, string *ip, int *port) {
 	if (mline >= sMaxSessions) {
 		return;
 	}
-	RelaySession *s = mSessions[mline].mRelaySession;
+	shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
 	if (s != NULL) {
-		*port = s->getFronts().front()->getRelayPort();
-		*ip = s->getFronts().front()->getPublicIp();
+		*port = s->getFront()->getRelayPort();
+		*ip = s->getFront()->getPublicIp();
 	}
 }
 
@@ -125,10 +124,10 @@ void RelayedCall::masqueradeIceForFront(int mline, string *ip, int *port) {
 	if (mline >= sMaxSessions) {
 		return;
 	}
-	RelaySession *s = mSessions[mline].mRelaySession;
+	shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
 	if (s != NULL) {
-		*port = s->getFronts().front()->getPort();
-		*ip = s->getFronts().front()->getIp();
+		*port = s->getFront()->getPort();
+		*ip = s->getFront()->getIp();
 	}
 }
 
@@ -155,7 +154,7 @@ void RelayedCall::masqueradeForBack(int mline, string *ip, int *port, const stri
 	if (mline >= sMaxSessions) {
 		return;
 	}
-	RelaySession *s = mSessions[mline].mRelaySession;
+	shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
 	if (s != NULL) {
 		auto ms = getMS(mline, tag, transaction);
 		if (ms != NULL) {
@@ -177,7 +176,7 @@ void RelayedCall::masqueradeIceForBack(int mline, string *ip, int *port, const s
 	if (mline >= sMaxSessions) {
 		return;
 	}
-	RelaySession *s = mSessions[mline].mRelaySession;
+	shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
 	if (s != NULL) {
 		auto ms = getMS(mline, tag, transaction);
 		if (ms != NULL) {
@@ -195,9 +194,9 @@ void RelayedCall::assignFrontChannel(SdpModifier *m, int mline, const string &ip
 	if (mline >= sMaxSessions) {
 		return;
 	}
-	RelaySession *s = mSessions[mline].mRelaySession;
+	shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
 	if (s != NULL) {
-		shared_ptr<RelayChannel> ms = s->getFronts().front();
+		shared_ptr<RelayChannel> ms = s->getFront();
 		if(ms->getPort() == -1) {
 			configureRelayChannel(ms,m->mSip,m->mSession,mline);
 			ms->set(ip, port);
@@ -210,7 +209,7 @@ void RelayedCall::assignBackChannel(SdpModifier *m, int mline, const string &ip,
 	if (mline >= sMaxSessions) {
 		return;
 	}
-	RelaySession *s = mSessions[mline].mRelaySession;
+	shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
 	if (s != NULL) {
 		auto ms = getMS(mline, tag, transaction);
 		if (ms != NULL && ms->getPort() == -1) {
@@ -231,7 +230,7 @@ void RelayedCall::update() {
 	// Only one feed from back to front: find current one
 	string feeder;
 	for (int mline = 0; mline < sMaxSessions; ++mline) {
-		RelaySession *s = mSessions[mline].mRelaySession;
+		shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
 			for (auto it = mSessions[mline].mRelayChannels.begin(); it != mSessions[mline].mRelayChannels.end(); ++it) {
 				shared_ptr<RelayChannel> &ms = it->second;
@@ -245,7 +244,7 @@ void RelayedCall::update() {
 
 	// Update current feeder
 	for (int mline = 0; mline < sMaxSessions; ++mline) {
-		RelaySession *s = mSessions[mline].mRelaySession;
+		shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
 			map<string, shared_ptr<RelayChannel>>::iterator it;
 			if (feeder.empty()) {
@@ -263,7 +262,7 @@ void RelayedCall::update() {
 
 void RelayedCall::validateTransaction(const string &tag, const shared_ptr<Transaction> &transaction) {
 	for (int mline = 0; mline < sMaxSessions; ++mline) {
-		RelaySession *s = mSessions[mline].mRelaySession;
+		shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
 			auto it = mSessions[mline].mTransactions.find(transaction);
 			if (it != mSessions[mline].mTransactions.end()) {
@@ -278,7 +277,7 @@ void RelayedCall::validateTransaction(const string &tag, const shared_ptr<Transa
 bool RelayedCall::removeTransaction(const shared_ptr<Transaction> &transaction) {
 	bool remove = (mState != Running);
 	for (int mline = 0; mline < sMaxSessions; ++mline) {
-		RelaySession *s = mSessions[mline].mRelaySession;
+		shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
 			auto it = mSessions[mline].mTransactions.find(transaction);
 			if (it != mSessions[mline].mTransactions.end()) {
@@ -297,7 +296,7 @@ bool RelayedCall::removeTransaction(const shared_ptr<Transaction> &transaction) 
 bool RelayedCall::removeBack(const string &tag) {
 	bool remove = (mState != Running);
 	for (int mline = 0; mline < sMaxSessions; ++mline) {
-		RelaySession *s = mSessions[mline].mRelaySession;
+		shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
 		if (s != NULL) {
 			auto it = mSessions[mline].mRelayChannels.find(tag);
 			if (it != mSessions[mline].mRelayChannels.end()) {
@@ -316,7 +315,7 @@ bool RelayedCall::removeBack(const string &tag) {
 void RelayedCall::setUniqueBack(const string &tag) {
 	if (mState == Initialized) {
 		for (int mline = 0; mline < sMaxSessions; ++mline) {
-			RelaySession *s = mSessions[mline].mRelaySession;
+			shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
 			if (s != NULL) {
 				auto it = mSessions[mline].mRelayChannels.begin();
 				while (it != mSessions[mline].mRelayChannels.end()) {
@@ -338,7 +337,7 @@ void RelayedCall::setUniqueBack(const string &tag) {
 
 bool RelayedCall::isInactive(time_t cur) {
 	time_t maxtime = 0;
-	RelaySession *r;
+	shared_ptr<RelaySession> r;
 	for (int i = 0; i < sMaxSessions; ++i) {
 		time_t tmp;
 		r = mSessions[i].mRelaySession;
@@ -355,7 +354,7 @@ RelayedCall::~RelayedCall() {
 	LOGD("Destroy RelayedCall %p", this);
 	int i;
 	for (i = 0; i < sMaxSessions; ++i) {
-		RelaySession *s = mSessions[i].mRelaySession;
+		shared_ptr<RelaySession> s = mSessions[i].mRelaySession;
 		if (s) {
 			s->unuse();
 		}

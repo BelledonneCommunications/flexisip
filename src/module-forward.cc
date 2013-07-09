@@ -155,28 +155,32 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	// tport is the transport which will be used by sofia to send message
 	tp_name_t name={0};
-	tport_name_by_url(ms->getHome(),&name,(url_string_t*)dest);
-	tport_t *tport=tport_by_name(nta_agent_tports(getSofiaAgent()),&name);
-	if (!tport){
-		LOGE("Could not find tport to set proper outgoing Record-Route.");
-		ev->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
-		return;
+	tport_t *tport=NULL;
+	if (ev->getOutgoingAgent()!=NULL){
+		if (tport_name_by_url(ms->getHome(),&name,(url_string_t*)dest)==0){
+			tport=tport_by_name(nta_agent_tports(getSofiaAgent()),&name);
+			if (!tport){
+				LOGE("Could not find tport to set proper outgoing Record-Route.");
+				ev->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
+				return;
+			}
+		}else LOGE("tport_name_by_url() failed for url %s",url_as_string(ms->getHome(), dest));
 	}
 
+	if (tport){
+		// Eventually add second record route with different transport
+		// to bridge to networks: for example, we'll end with UDP, TCP.
+		const sip_method_t method=ms->getSip()->sip_request->rq_method;
+		if (ev->mRecordRouteAdded && (method==sip_method_invite || method==sip_method_subscribe)) {
+			addRecordRoute(ms->getHome(),getAgent(),ev,tport);
+		}
 
-	// Eventually add second record route with different transport
-	// to bridge to networks: for example, we'll end with UDP, TCP.
-	const sip_method_t method=ms->getSip()->sip_request->rq_method;
-	if (ev->mRecordRouteAdded && (method==sip_method_invite || method==sip_method_subscribe)) {
-		addRecordRoute(ms->getHome(),getAgent(),ev,tport);
+		// Add path
+		if (mAddPath && method == sip_method_register) {
+			//addPathHeader(ev, getIncomingTport(ev, getAgent()), getAgent()->getUniqueId());
+			addPathHeader(ev, tport, getAgent()->getUniqueId().c_str());
+		}
 	}
-
-	// Add path
-	if (mAddPath && method == sip_method_register) {
-		//addPathHeader(ev, getIncomingTport(ev, getAgent()), getAgent()->getUniqueId());
-		addPathHeader(ev, tport, getAgent()->getUniqueId().c_str());
-	}
-
 	// Clean push notifs params from contacts
 	if (sip->sip_contact && sip->sip_request->rq_method != sip_method_register) {
 		removeParamsFromContacts(ms->getHome(), sip->sip_contact, sPushNotifParams);

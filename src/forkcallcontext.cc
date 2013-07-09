@@ -111,7 +111,11 @@ void ForkCallContext::onRequest(const shared_ptr<IncomingTransaction> &transacti
 		if (sip->sip_request->rq_method == sip_method_cancel) {
 			LOGD("Fork: incomingCallback cancel");
 			cancel();
-			event->terminateProcessing();
+			/*
+			 * let the event go through the list of modules for notification purpose, but do not send the cancel at the end since it is handled here.
+			 * Indeed there might not be generated cancels for non-responded branches of the fork, letting other modules unnotified.
+			**/
+			event->setOutgoingAgent(shared_ptr<OutgoingAgent>());
 		}
 	}
 }

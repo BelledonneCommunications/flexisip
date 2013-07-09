@@ -39,10 +39,9 @@ public:
 
 		}
 
-		RelaySession *mRelaySession;
+		std::shared_ptr<RelaySession> mRelaySession;
 		std::map<std::shared_ptr<Transaction>, std::shared_ptr<RelayChannel>> mTransactions;
 		std::map<std::string, std::shared_ptr<RelayChannel>> mRelayChannels;
-		bool toDelete;
 	};
 	typedef enum {
 		DUPLEX, FORWARD

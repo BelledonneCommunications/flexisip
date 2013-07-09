@@ -28,7 +28,7 @@
 
 using namespace ::std;
 
-RelayChannel::RelayChannel(RelaySession * relaySession, bool front, const std::pair<std::string,std::string> &relayIps) :
+RelayChannel::RelayChannel(shared_ptr<RelaySession> relaySession, bool front, const std::pair<std::string,std::string> &relayIps) :
 		mFront(front), mBehaviour(BehaviourType::All), mPublicIp(relayIps.first), mIp(std::string("undefined")), mPort(-1), mRelaySession(relaySession) {
 	mSession = mRelaySession->getRelayServer()->createRtpSession(relayIps.second);
 	mSources[0] = rtp_session_get_rtp_socket(mSession);
@@ -44,9 +44,9 @@ RelayChannel::~RelayChannel() {
 
 void RelayChannel::set(const string &ip, int port) {
 	if (isFront())
-		LOGD("RelayChannel %p | Set | %s:%i <-> %i", this, ip.c_str(), port, getRelayPort());
+		LOGD("RelayChannel %p | configured | %s:%i <-> %s:%i", this, ip.c_str(), port, getPublicIp().c_str(), getRelayPort());
 	else
-		LOGD("RelayChannel %p | Set | %i <-> %s:%i", this, getRelayPort(), ip.c_str(), port);
+		LOGD("RelayChannel %p | configured | %s:%i <-> %s:%i", this, getPublicIp().c_str(), getRelayPort(), ip.c_str(), port);
 	mPort = port;
 	mIp = ip;
 	struct addrinfo *res = NULL;
@@ -142,26 +142,25 @@ RelaySession::RelaySession(MediaRelayServer *server) :
 	mUsed = true;
 }
 
-shared_ptr<RelayChannel> RelaySession::addFront(const std::pair<std::string,std::string> &relayIps) {
-	shared_ptr<RelayChannel> ms = make_shared<RelayChannel>(this, true, relayIps);
-	LOGD("RelayChannel %p | Add | %s:%i <-> %i", ms.get(), ms->getIp().c_str(), ms->getPort(), ms->getRelayPort());
+shared_ptr<RelayChannel> RelaySession::setFront(const std::pair<std::string,std::string> &relayIps) {
+	shared_ptr<RelayChannel> ms = make_shared<RelayChannel>(shared_from_this(), true, relayIps);
+	LOGD("RelaySession %p | setFront(%p) | %s:%i <-> %s:%i", this, ms.get(), ms->getIp().c_str(), ms->getPort(), ms->getPublicIp().c_str(), ms->getRelayPort());
 	mMutex.lock();
-	mFronts.push_back(ms);
+	mFront=ms;
 	mMutex.unlock();
-
 	return ms;
 }
 
 void RelaySession::removeFront(const shared_ptr<RelayChannel> &ms) {
-	LOGD("RelayChannel %p | Remove |  %s:%i <-> %i", ms.get(), ms->getIp().c_str(), ms->getPort(), ms->getRelayPort());
+	LOGD("RelaySession %p | removeFront(%p) |  %s:%i <-> %s:%i", this, ms.get(), ms->getIp().c_str(), ms->getPort(), ms->getPublicIp().c_str(), ms->getRelayPort());
 	mMutex.lock();
-	mFronts.remove(ms);
+	mFront=NULL;
 	mMutex.unlock();
 }
 
 shared_ptr<RelayChannel> RelaySession::addBack(const std::pair<std::string,std::string> &relayIps) {
-	shared_ptr<RelayChannel> ms = make_shared<RelayChannel>(this, false, relayIps);
-	LOGD("RelayChannel %p | Add | %i <-> %s:%i", ms.get(), ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
+	shared_ptr<RelayChannel> ms = make_shared<RelayChannel>(shared_from_this(), false, relayIps);
+	LOGD("RelaySession %p | addBack(%p) | %s:%i <-> %s:%i", this, ms.get(), ms->getPublicIp().c_str(), ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
 	mMutex.lock();
 	mBacks.push_back(ms);
 	mMutex.unlock();
@@ -169,17 +168,22 @@ shared_ptr<RelayChannel> RelaySession::addBack(const std::pair<std::string,std::
 }
 
 void RelaySession::removeBack(const shared_ptr<RelayChannel> &ms) {
-	LOGD("RelayChannel %p | Remove | %i <-> %s:%i", ms.get(), ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
+	LOGD("RelaySession %p | removeBack(%p) | %s:%i <-> %s:%i", this, ms.get(), ms->getPublicIp().c_str(), ms->getRelayPort(), ms->getIp().c_str(), ms->getPort());
 	mMutex.lock();
 	mBacks.remove(ms);
 	mMutex.unlock();
 }
 
 RelaySession::~RelaySession() {
+	LOGD("RelaySession %p destroyed", this);
 }
 
 void RelaySession::unuse() {
+	mMutex.lock();
 	mUsed = false;
+	mFront = NULL;
+	mBacks.clear();
+	mMutex.unlock();
 }
 
 bool RelaySession::checkMediaSources() {
@@ -190,11 +194,9 @@ bool RelaySession::checkMediaSources() {
 			return false;
 		}
 	}
-	for (auto itf=mFronts.begin(); itf != mFronts.end(); ++itf) {
-		if (!(*itf)->checkSocketsValid()) {
-			mMutex.unlock();
-			return false;
-		}
+	if (!mFront->checkSocketsValid()) {
+		mMutex.unlock();
+		return false;
 	}
 	mMutex.unlock();
 	return true;
@@ -214,7 +216,7 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &org,
 			if (org->isFront()) {
 				list = mBacks;
 			} else {
-				list = mFronts;
+				list.push_back(mFront);
 			}
 			mMutex.lock();
 			auto it = list.begin();
@@ -288,13 +290,13 @@ MediaRelayServer::~MediaRelayServer() {
 			LOGE("MediaRelayServer: Fail to write to control pipe.");
 		pthread_join(mThread, NULL);
 	}
-	for_each(mSessions.begin(), mSessions.end(), delete_functor<RelaySession>());
+	mSessions.clear();
 	close(mCtlPipe[0]);
 	close(mCtlPipe[1]);
 }
 
-RelaySession *MediaRelayServer::createSession() {
-	RelaySession *s = new RelaySession(this);
+shared_ptr<RelaySession> MediaRelayServer::createSession() {
+	shared_ptr<RelaySession> s = make_shared<RelaySession>(this);
 	mMutex.lock();
 	mSessions.push_back(s);
 	mMutex.unlock();
@@ -325,20 +327,20 @@ void MediaRelayServer::run() {
 		mediaSources.clear();
 		pfds_size = 1;
 		for (auto it = mSessions.begin(); it != mSessions.end(); ++it) {
-			RelaySession *ptr = *it;
+			shared_ptr<RelaySession> ptr = *it;
 			ptr->getMutex().lock();
 
-			const list<shared_ptr<RelayChannel>>& fronts = ptr->getFronts();
-			for (auto it2 = fronts.begin(); it2 != fronts.end(); ++it2) {
-				mediaSources.push_back(*it2);
+			if (ptr->getFront()){
+				mediaSources.push_back(ptr->getFront());
+				pfds_size+=2;
 			}
 
 			const list<shared_ptr<RelayChannel>>& backs = ptr->getBacks();
 			for (auto it2 = backs.begin(); it2 != backs.end(); ++it2) {
 				mediaSources.push_back(*it2);
+				pfds_size+=2;
 			}
 
-			pfds_size += (fronts.size() + backs.size()) * 2;
 			ptr->getMutex().unlock();
 		}
 		mMutex.unlock();
@@ -358,7 +360,7 @@ void MediaRelayServer::run() {
 		pfds[pfds_size - 1].events = POLLIN;
 		pfds[pfds_size - 1].revents = 0;
 
-		err = poll(pfds, pfds_size, -1);
+		err = poll(pfds, pfds_size, 1000);
 		if (err > 0) {
 			if (pfds[pfds_size - 1].revents) {
 				char tmp;
@@ -370,13 +372,13 @@ void MediaRelayServer::run() {
 			int i = 0;
 			for (auto it = mediaSources.begin(); it != mediaSources.end(); ++it) {
 				if (pfds[i].revents & POLLIN) {
-					RelaySession *s = (*it)->getRelaySession();
+					shared_ptr<RelaySession> s = (*it)->getRelaySession();
 					if (s->isUsed()) {
 						s->transfer(curtime, (*it), 0);
 					}
 				}
 				if (pfds[i + 1].revents & POLLIN) {
-					RelaySession *s = (*it)->getRelaySession();
+					shared_ptr<RelaySession> s = (*it)->getRelaySession();
 					if (s->isUsed()) {
 						s->transfer(curtime, (*it), 1);
 					}
@@ -389,7 +391,6 @@ void MediaRelayServer::run() {
 		mMutex.lock();
 		for (auto it = mSessions.begin(); it != mSessions.end();) {
 			if (!(*it)->isUsed()) {
-				delete *it;
 				it = mSessions.erase(it);
 				LOGD("There are now %i relay sessions running.", (int) mSessions.size());
 			} else {

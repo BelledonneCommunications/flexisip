@@ -466,12 +466,6 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 		return;
 	}
 
-	// Handled via a fork
-	if (mFork) {
-		sendReply(ev, SIP_100_TRYING);
-		return;
-	}
-
 	// Let flow non forked handled message
 }
 
@@ -512,8 +506,9 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	if (transaction != NULL) {
 		shared_ptr<ForkContext> ptr = transaction->getProperty<ForkContext>(getModuleName());
 		if (ptr != NULL) {
+			/* in practice this can only be a CANCEL*/
 			ptr->onRequest(transaction, ev);
-			if (ev->isTerminated()) return;
+			return;
 		}
 	}
 
@@ -532,6 +527,8 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		if (sipurl->url_host  && isManagedDomain(sipurl)) {
 			LOGD("Fetch for url %s.", url_as_string(ms->getHome(), sipurl));
 			RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnBindForRoutingListener>(this, ev, sipurl), true);
+			// Since we are doing a lookup, immediately send a 100 Tryin to stop retransmissions.
+			sendReply(ev, SIP_100_TRYING);
 		}
 	}
 	if (sip->sip_request->rq_method == sip_method_ack) {

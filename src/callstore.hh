@@ -28,6 +28,7 @@ class CallContextBase{
 		CallContextBase(sip_t *sip);
 		bool match(Agent *ag, sip_t *sip, bool stateful = false, bool match_established=false);
 		void establishDialogWith200Ok(Agent *ag, sip_t *sip);
+		bool isDialogEstablished()const;
 		bool isNewInvite(sip_t *sip);
 		void storeNewInvite(msg_t *orig);
 		msg_t *getLastForwardedInvite()const;
