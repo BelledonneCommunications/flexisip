@@ -95,7 +95,7 @@ struct ExtendedContact {
 		{
 		su_home_t home;
 		su_home_init(&home);
-		mSipUri = ExtendedContact::format_url(&home, sip_contact->m_url);
+		mSipUri = url_as_string(&home, sip_contact->m_url);
 		su_home_destroy(&home);
 		}
 
@@ -122,25 +122,8 @@ struct ExtendedContact {
 
 		su_home_t home;
 		su_home_init(&home);
-		mSipUri = ExtendedContact::format_url(&home, url);
+		mSipUri = url_as_string(&home, url);
 		su_home_destroy(&home);
-	}
-
-	static char* format_url(su_home_t *home, const url_t *url) {
-		const char * port = (url->url_port) ? url->url_port : "5060";
-		if (url->url_params) {
-			if (url->url_user) {
-				return su_sprintf(home, "<sip:%s@%s:%s;%s>", url->url_user, url->url_host, port, url->url_params);
-			} else {
-				return su_sprintf(home, "<sip:%s:%s;%s>", url->url_host, port, url->url_params);
-			}
-		} else {
-			if (url->url_user) {
-				return su_sprintf(home, "<sip:%s@%s:%s>", url->url_user, url->url_host, port);
-			} else {
-				return su_sprintf(home, "<sip:%s:%s>", url->url_host, port);
-			}
-		}
 	}
 
 	std::ostream &print(std::ostream & stream, time_t now, time_t offset = 0) const;
