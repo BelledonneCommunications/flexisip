@@ -86,6 +86,11 @@ struct ExtendedContact {
 		}
 	}
 
+	static std::string url_as_string(su_home_t *home, const url_t *url) {
+		std::string res=::url_as_string(home, url);
+		if (res.c_str() && res.c_str()[0] != '<') return "<" + res + ">";
+		else return res;
+	}
 	ExtendedContact(const ExtendedContactCommon &common,
 			sip_contact_t *sip_contact, int global_expire, uint32_t cseq, time_t updateTime, bool alias) :
 			mContactId(common.mContactId), mCallId(common.mCallId), mLineValueCopy(common.mLineValueCopy), mPath(common.mPath),

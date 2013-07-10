@@ -41,6 +41,7 @@ int main(int argc, char **argv) {
 	string serializer_name = "protobuf";
 	string curl;
 
+	if (argc < 5) {	usage(argv[0]); return -1; }
 	for (int i=1; i < argc; ++i) {
 		bool finished = i == argc -1;
 		if (0 == strcasecmp("--help", argv[i]) ||
