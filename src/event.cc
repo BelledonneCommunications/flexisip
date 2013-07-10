@@ -181,7 +181,7 @@ void RequestSipEvent::reply(int status, char const *phrase, tag_type_t tag, tag_
 	} else {
 		LOGD("The Request SIP message is not reply");
 	}
-	terminateProcessing();
+	if (status>=200) terminateProcessing();
 }
 
 void RequestSipEvent::setIncomingAgent(const shared_ptr<IncomingAgent> &agent) {
