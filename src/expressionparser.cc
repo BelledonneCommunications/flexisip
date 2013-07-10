@@ -67,7 +67,7 @@ public:
 		try {
 			get(args);
 			return true;
-		} catch (exception *e) {}
+		} catch (exception &e) {}
 		return false;
 	}
 	const list<string> &getAsList(const SipAttributes *args) {
@@ -117,8 +117,8 @@ public:
 	virtual const std::string &get(const SipAttributes *args) {
 		try {
 			mVal=args->get(mId);
-		} catch (exception *e) {
-			LOGEVAL << "GET " << mId << " : " << e->what();
+		} catch (exception &e) {
+			LOGEVAL << "GET " << mId << " : " << e.what();
 			throw;
 		}
 		return mVal;
@@ -262,7 +262,7 @@ public:
 		LOGPARSE << "Creating Regular Expression";
 		string p= pattern->get(NULL);
 		int err = regcomp(&preg,p.c_str(), REG_NOSUB | REG_EXTENDED);
-		if (err !=0) throw new invalid_argument("couldn't compile regex " + p);
+		if (err !=0) throw invalid_argument("couldn't compile regex " + p);
 	};
 	~Regex() {
 		regfree(&preg);
@@ -280,7 +280,7 @@ public:
 			break;
 		default:
 			regerror (match, &preg, error_msg_buff, sizeof(error_msg_buff));
-			throw new invalid_argument("Error evaluating regex " + string(error_msg_buff));
+			throw invalid_argument("Error evaluating regex " + string(error_msg_buff));
 			break;
 		}
 
@@ -340,7 +340,7 @@ shared_ptr<Variable> buildVariable(const string & expr, size_t *newpos){
 
 	size_t eow=find_first_non_word(expr, *newpos);
 	if (eow <= *newpos && expr.size() > eow) {
-		throw new invalid_argument("no variable recognized in X" + expr.substr(*newpos,string::npos)+"XX");
+		throw invalid_argument("no variable recognized in X" + expr.substr(*newpos,string::npos)+"XX");
 	}
 	size_t len=eow-*newpos;
 	auto var=expr.substr(*newpos, len);
@@ -353,7 +353,7 @@ shared_ptr<Constant> buildConstant(const string & expr, size_t *newpos){
 	while (expr[*newpos]==' ') *newpos+=1;
 
 	if (expr[*newpos]!='\'')
-		throw new invalid_argument("Missing quote at start of " + expr);
+		throw invalid_argument("Missing quote at start of " + expr);
 
 	size_t end=expr.find_first_of('\'',*newpos+1);
 	if (end!=string::npos){
@@ -362,7 +362,7 @@ shared_ptr<Constant> buildConstant(const string & expr, size_t *newpos){
 		*newpos+=len +2; // remove the two '
 		return make_shared<Constant>(cons);
 	}else {
-		throw new invalid_argument("Missing quote around " + expr);
+		throw invalid_argument("Missing quote around " + expr);
 	}
 }
 
@@ -378,7 +378,7 @@ shared_ptr<VariableOrConstant> buildVariableOrConstant(const string & expr, size
 		return dynamic_pointer_cast<VariableOrConstant>(variable);
 
 	}
-	throw new invalid_argument("Couldn't find variable or constant in " + expr);
+	throw invalid_argument("Couldn't find variable or constant in " + expr);
 }
 
 static size_t find_matching_closing_parenthesis(const string &expr, size_t offset){
@@ -438,7 +438,7 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 				cur_exp=parseExpression(expr.substr(i+1,end-i-1),&j);
 				i=end+1;
 			}else {
-				throw new invalid_argument("Missing parenthesis around " + expr);
+				throw invalid_argument("Missing parenthesis around " + expr);
 			}
 		}
 		break;
@@ -463,20 +463,20 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 				cur_exp=make_shared<LogicalOr>(cur_exp,parseExpression(expr.substr(i),&j));
 				i+=j;
 			}else{
-				throw new invalid_argument("Bad operator '|'");
+				throw invalid_argument("Bad operator '|'");
 			}
 			break;
 		case '!':
 			if (expr[i+1]=='='){
 				if (!cur_var){
-					throw new invalid_argument("!= operator expects first variable or const operand.");
+					throw invalid_argument("!= operator expects first variable or const operand.");
 				}
 				i+=2;
 				cur_exp=make_shared<UnEqualsOp>(cur_var,buildVariableOrConstant(expr.substr(i),&j));
 			}
 			else {
 				if (cur_exp){
-					throw new invalid_argument("Parsing error around '!'");
+					throw invalid_argument("Parsing error around '!'");
 				}
 				i++;
 				for (;expr[i]==' ';++i); //skip spaces (we are fair)
@@ -502,12 +502,12 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 						i=end+1;
 						j=0; // no use
 					}else {
-						throw new invalid_argument("Missing parenthesis around " + expr);
+						throw invalid_argument("Missing parenthesis around " + expr);
 					}
 				} else {
 					ostringstream oss; oss << expr[i];
 					LOGPARSE << ">" << oss.str();
-					throw new invalid_argument("! operator expects boolean value or () expression.");
+					throw invalid_argument("! operator expects boolean value or () expression.");
 
 				}
 
@@ -520,13 +520,13 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 		case '=':
 			if (expr[i+1]=='='){
 				if (!cur_var){
-					throw new invalid_argument("== operator expects first variable or const operand.");
+					throw invalid_argument("== operator expects first variable or const operand.");
 				}
 				i+=2;
 				cur_exp=make_shared<EqualsOp>(cur_var,buildVariableOrConstant(expr.substr(i),&j));
 				i+=j;
 			}else{
-				throw new invalid_argument("Bad operator =");
+				throw invalid_argument("Bad operator =");
 			}
 			break;
 		case ' ':
@@ -607,7 +607,7 @@ shared_ptr<BooleanExpression> parseExpression(const string & expr, size_t *newpo
 		case 'n':
 			if (isKeyword(expr.substr(i), &j, "numeric")) {
 				if (cur_exp || cur_var){
-					throw new invalid_argument("Parsing error around 'numeric'");
+					throw invalid_argument("Parsing error around 'numeric'");
 				}
 				i+=j; j=0;
 				auto var=buildVariableOrConstant(expr.substr(i),&j);
