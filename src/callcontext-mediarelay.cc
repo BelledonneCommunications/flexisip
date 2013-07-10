@@ -85,7 +85,7 @@ void RelayedCall::initChannels(SdpModifier *m, const string &tag, const shared_p
 				(*it)->setBehaviour(RelayChannel::None);
 			}
 			mSessions[i].mRelaySession->unuse();
-			mSessions[i].mRelaySession = NULL;
+			mSessions[i].mRelaySession = shared_ptr<RelaySession>(); // null
 			mSessions[i].mRelayChannels.clear();
 			mSessions[i].mTransactions.clear();
 		}

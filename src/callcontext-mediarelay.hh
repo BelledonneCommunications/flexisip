@@ -35,7 +35,7 @@ public:
 	class RelaySessionTransaction {
 	public:
 		RelaySessionTransaction() :
-			mRelaySession(NULL) {
+			mRelaySession(std::shared_ptr<RelaySession>()) {
 
 		}
 

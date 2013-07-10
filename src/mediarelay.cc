@@ -154,7 +154,7 @@ shared_ptr<RelayChannel> RelaySession::setFront(const std::pair<std::string,std:
 void RelaySession::removeFront(const shared_ptr<RelayChannel> &ms) {
 	LOGD("RelaySession %p | removeFront(%p) |  %s:%i <-> %s:%i", this, ms.get(), ms->getIp().c_str(), ms->getPort(), ms->getPublicIp().c_str(), ms->getRelayPort());
 	mMutex.lock();
-	mFront=NULL;
+	mFront=shared_ptr<RelayChannel>();
 	mMutex.unlock();
 }
 
@@ -181,7 +181,7 @@ RelaySession::~RelaySession() {
 void RelaySession::unuse() {
 	mMutex.lock();
 	mUsed = false;
-	mFront = NULL;
+	mFront = shared_ptr<RelayChannel>();
 	mBacks.clear();
 	mMutex.unlock();
 }
