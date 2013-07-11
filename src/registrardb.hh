@@ -157,7 +157,6 @@ protected:
 public:
 	Record(std::string key);
 	static std::string extractUniqueId(const sip_contact_t *contact);
-	static std::string extractUniqueId(const url_t *url);
 	static sip_contact_t *extendedContactToSofia(su_home_t *home, const ExtendedContact &ec, time_t now);
 	const sip_contact_t * getContacts(su_home_t *home, time_t now);
 	bool isInvalidRegister(const char *call_id, uint32_t cseq);

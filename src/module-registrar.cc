@@ -73,7 +73,7 @@ public:
 			{ Boolean, "reg-on-response", "Update registrar database on response.", "false" },
 			{ Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "12" }, /*used by registrardb*/
 			{ StringList, "unique-id-parameters", "List of contact uri parameters that can be used to identify a user's device. "
-					"The contact parameters are searched in the order of the list, the first matching parameter is used and the others ignored.", "pn-tok line" },
+					"The contact parameters are searched in the order of the list, the first matching parameter is used and the others ignored.", "+sip.instance pn-tok line" },
 
 			{ Integer, "max-expires"	, "Maximum expire time for a REGISTER, in seconds.", "86400" },
 			{ Integer, "min-expires"	, "Minimum expire time for a REGISTER, in seconds.", "60" },

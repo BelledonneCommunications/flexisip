@@ -181,6 +181,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			addPathHeader(ev, tport, getAgent()->getUniqueId().c_str());
 		}
 	}
+
 	// Clean push notifs params from contacts
 	if (sip->sip_contact && sip->sip_request->rq_method != sip_method_register) {
 		removeParamsFromContacts(ms->getHome(), sip->sip_contact, sPushNotifParams);

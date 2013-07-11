@@ -36,10 +36,36 @@ void checkExpireHandling() {
 	check("resolve expire4", ExtendedContact::resolve_expire("5", -1), 5);
 }
 
+static sip_contact_t *uid_ct(const char *urlparams, const char* ctparams) {
+	return sip_contact_format(
+		home.h, "<%s%s>%s", "sip:localhost:12345",
+		urlparams,
+		ctparams);
+}
+void checkUniqueIdExtraction() {
+	#define UID_PARAM theparam
+	string theparam = "UID_PARAM";
+	check("+sip.instance in ct param",
+		Record::extractUniqueId(uid_ct("", ";+sip.instance=UID_PARAM"))
+		, theparam);
+
+	check("+sip.instance in url param",
+		Record::extractUniqueId(uid_ct(";+sip.instance=UID_PARAM", ""))
+		, theparam);
+
+	check("line in ct param",
+		Record::extractUniqueId(uid_ct("", ";line=UID_PARAM"))
+		, theparam);
+
+	check("line url param",
+		Record::extractUniqueId(uid_ct(";line=UID_PARAM", ""))
+		, theparam);
+}
 int main(int argc, char **argv) {
 	init_tests();
 
 	checkExpireHandling();
+	checkUniqueIdExtraction();
 
 	int expire_delta= 1000;
 	list<string> paths{"path1", "path2", "path3"};

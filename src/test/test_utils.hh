@@ -17,7 +17,7 @@ void init_tests() {
 	flexisip::log::initLogs(sUseSyslog, flexisip::log::debug);
 	flexisip::log::updateFilter("%Severity% >= debug");
 	
-	Record::sLineFieldNames = {"line"};
+	Record::sLineFieldNames = {"+sip.instance", "pn-tok", "line"};
 	Record::sMaxContacts = 10;
 }
 

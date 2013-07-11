@@ -189,16 +189,15 @@ void ForkMessageContext::onDestroy(const shared_ptr<IncomingTransaction> &transa
 }
 
 void ForkMessageContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) {
-	const url_t *dest=transaction->getRequestUri();
-	string uid=Record::extractUniqueId(dest);
-	if (uid.size()>0){
+	auto shared_uid=transaction->getProperty<string>("contact-unique-id");
+	if (!shared_uid){
+		string uid=shared_uid->c_str();
 		auto it=mDeliveryMap.find(uid);
 		if (it==mDeliveryMap.end()){
 			LOGD("ForkMessageContext: adding %s as potential receiver of message.",uid.c_str());
 			mDeliveryMap[uid]=false;
 		}
-		transaction->setProperty<string>("contact-unique-id",make_shared<string>(uid));
-	}
+	} else SLOGE << "No unique id found for contact";
 	ForkContext::onNew(transaction);
 }
 

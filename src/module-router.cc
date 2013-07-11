@@ -273,6 +273,9 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const sip_con
 		req_ev->setMsgSip(new_msgsip);
 		shared_ptr<OutgoingTransaction> transaction = req_ev->createOutgoingTransaction();
 		transaction->setProperty(ModuleRouter::sInfo.getModuleName(), context);
+		auto uniqueId=make_shared<string>(Record::extractUniqueId(ct));
+		if (!uniqueId || uniqueId->empty()) SLOGE << "Couldn't find a unique id";
+		else transaction->setProperty("contact-unique-id", uniqueId);
 
 		new_ev = req_ev;
 		LOGD("Fork to %s", contact_url_string);
