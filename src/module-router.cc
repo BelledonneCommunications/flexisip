@@ -118,7 +118,6 @@ public:
 		
 		
 		mUseGlobalDomain=mc->get<ConfigBoolean>("use-global-domain")->read();
-		RegistrarDb::get(mAgent)->useGlobalDomain(mUseGlobalDomain);
 	}
 
 	virtual void onUnload() {

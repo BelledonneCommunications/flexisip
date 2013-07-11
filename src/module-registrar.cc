@@ -114,7 +114,7 @@ public:
 		
 		if (!mStaticRecordsFile.empty()) {
 			readStaticRecords(); // read static records from configuration file
-			mStaticRecordsTimer=mAgent->createTimer(mStaticRecordsTimeout*1000, &staticRoutesRereadTimerfunc,this);
+			mStaticRecordsTimer = mAgent->createTimer(mStaticRecordsTimeout*1000, &staticRoutesRereadTimerfunc,this);
 		}
 		mSigaction.sa_sigaction = ModuleRegistrar::sighandler;
 		mSigaction.sa_flags = SA_SIGINFO;

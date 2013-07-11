@@ -348,9 +348,6 @@ RegistrarDb::LocalRegExpire::LocalRegExpire(string preferredRoute) {
 RegistrarDb::RegistrarDb(const string &preferredRoute) : mLocalRegExpire(new LocalRegExpire(preferredRoute)), mUseGlobalDomain(false) {
 }
 
-void RegistrarDb::useGlobalDomain(bool useGlobalDomain){
-	mUseGlobalDomain=useGlobalDomain;
-}
 
 RegistrarDb::~RegistrarDb() {
 	delete mLocalRegExpire;
@@ -423,10 +420,14 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 	if (sUnique == NULL) {
 		GenericStruct *cr = GenericManager::get()->getRoot();
 		GenericStruct *mr = cr->get<GenericStruct>("module::Registrar");
+		GenericStruct *mro = cr->get<GenericStruct>("module::Router");
+		
+		bool useGlobalDomain=mro->get<ConfigBoolean>("use-global-domain")->read();
 		string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
 		if ("internal" == dbImplementation) {
 			LOGI("RegistrarDB implementation is internal");
 			sUnique = new RegistrarDbInternal(ag->getPreferredRoute());
+			sUnique->mUseGlobalDomain=useGlobalDomain;
 			return sUnique;
 		}
 
@@ -442,11 +443,13 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 			LOGI("RegistrarDB implementation is synchronous REDIS");
 			auto serializer = RecordSerializer::get();
 			sUnique=new RegistrarDbRedisSync(ag->getPreferredRoute(), serializer, params);
+			sUnique->mUseGlobalDomain=useGlobalDomain;
 			return sUnique;
 		}
 		if ("redis-async"==dbImplementation) {
 			LOGI("RegistrarDB implementation is asynchronous REDIS");
 			sUnique=new RegistrarDbRedisAsync(ag, params);
+			sUnique->mUseGlobalDomain=useGlobalDomain;
 			return sUnique;
 		}
 #endif

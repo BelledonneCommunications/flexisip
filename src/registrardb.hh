@@ -270,7 +270,6 @@ public:
 	unsigned long countLocalActiveRecords() {
 		return mLocalRegExpire->countActives();
 	}
-	void useGlobalDomain(bool useGlobalDomain);
 protected:
 	class LocalRegExpire {
 		std::map<std::string, time_t> mRegMap;
