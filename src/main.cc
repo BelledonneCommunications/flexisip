@@ -276,6 +276,27 @@ static void forkAndDetach(const char *pidfile, bool auto_respawn){
 	}
 }
 
+static void depthFirstSearch(string &path, GenericEntry *config, list<string> &allCompletions) {
+	GenericStruct *gStruct=dynamic_cast<GenericStruct *>(config);
+	if (gStruct) {
+		string newpath;
+		if (!path.empty()) newpath += path + "/" ;
+		if (config->getName() != "flexisip") newpath += config->getName();
+		    for (auto it=gStruct->getChildren().cbegin(); it != gStruct->getChildren().cend(); ++it) {
+			    depthFirstSearch(newpath, *it, allCompletions);
+		    }
+		    return;
+	}
+	
+	ConfigValue *cValue=dynamic_cast<ConfigValue *>(config);
+	if (cValue) {
+		string completion;
+		if (!path.empty()) completion+= path + "/";
+		completion += cValue->getName();
+		allCompletions.push_back(completion);
+	}
+}
+
 static int parse_key_value(int argc, char *argv[], const char **key, const char **value, int *shift) {
 	int i=0;
 	if (argc == 0 || argv[i][0]=='-') return -1;
@@ -418,41 +439,17 @@ int main(int argc, char *argv[]){
 		list<string> allCompletions;
 		allCompletions.push_back("nosnmp");
 
-		#if not(__GNUC__ == 4 && __GNUC_MINOR__ < 5 )
-		std::function<void(string &,GenericEntry *)> depthFirstSearch = [&] (string &path, GenericEntry *config) {
-			GenericStruct *gStruct=dynamic_cast<GenericStruct *>(config);
-			if (gStruct) {
-				ostringstream oss;
-				if (!path.empty()) oss << path << "/" ;
-				if (config->getName() != "flexisip") oss << config->getName();
-				for (auto it=gStruct->getChildren().cbegin(); it != gStruct->getChildren().cend(); ++it) {
-					string newpath(oss.str());
-					depthFirstSearch(newpath, *it);
-				}
-				return;
-			}
-	
-			ConfigValue *cValue=dynamic_cast<ConfigValue *>(config);
-			if (cValue) {
-				ostringstream oss;
-				if (!path.empty()) oss << path << "/" ;
-				oss << cValue->getName();
-				allCompletions.push_back(oss.str());
-				return;
-			}
-			
-		};
-
 		string empty;
-		depthFirstSearch(empty, GenericManager::get()->getRoot());
+		depthFirstSearch(empty, GenericManager::get()->getRoot(), allCompletions);
 
 		for (auto it=allCompletions.cbegin(); it != allCompletions.cend(); ++it) {
-			if (settablesPrefix.empty())
+			if (settablesPrefix.empty()) {
 				cout << *it << "\n";
-			else if (0 == it->compare(0, settablesPrefix.length(), settablesPrefix))
-				cout << (it->c_str()+settablesPrefix.length()) << "\n";
+			} else if (0 == it->compare(0, settablesPrefix.length(), settablesPrefix)) {
+				//cout << (it->c_str()+settablesPrefix.length()) << "\n";
+				cout << *it << "\n";
+			}
 		}
-		#endif
 		return 0;
 	}
 
