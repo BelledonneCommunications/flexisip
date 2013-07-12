@@ -95,6 +95,7 @@ public:
 	bool checkMediaSources();
 
 private:
+	void doTransfer(uint8_t *buf, int recv_len, const std::shared_ptr<RelayChannel> &dest, int i);
 	Mutex mMutex;
 	MediaRelayServer *mServer;
 	time_t mLastActivityTime;

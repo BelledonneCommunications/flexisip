@@ -202,36 +202,37 @@ bool RelaySession::checkMediaSources() {
 	return true;
 }
 
+void RelaySession::doTransfer(uint8_t *buf, int recv_len, const shared_ptr<RelayChannel> &dest, int i){
+	int send_len;
+	if (dest->getBehaviour() & RelayChannel::Receive) {
+		//LOGD("%s:%i -> %i | size = %i | %i -> %s:%i", org->getIp().c_str(), org->getPort(), org->getRelayPort() + i, recv_len, dest->getRelayPort() +i, dest->getIp().c_str(), dest->getPort());
+		send_len = dest->send(i, buf, recv_len);
+		if (send_len != recv_len) {
+			LOGW("Only %i bytes sent on %i bytes Port=%i For=%s:%i Error=%s", send_len, recv_len, dest->getRelayPort() + i, dest->getIp().c_str(), dest->getPort(), strerror(errno));
+		}
+	}
+}
+
 void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &org, int i) {
 	uint8_t buf[1500];
 	const int maxsize = sizeof(buf);
 	int recv_len;
-	int send_len;
-
+	
 	mLastActivityTime = curtime;
 	recv_len = org->recv(i, buf, maxsize);
 	if (recv_len > 0) {
 		if (org->getBehaviour() & RelayChannel::Send) {
-			list<shared_ptr<RelayChannel>> list;
-			if (org->isFront()) {
-				list = mBacks;
-			} else {
-				list.push_back(mFront);
-			}
 			mMutex.lock();
-			auto it = list.begin();
-			if (it != list.end()) {
-				while (it != list.end()) {
+			
+			if (org->isFront()) {
+				list<shared_ptr<RelayChannel>>::iterator it;
+				for (it=mBacks.begin();it != mBacks.end();++it) {
 					const shared_ptr<RelayChannel> &dest = (*it);
-					if (dest->getBehaviour() & RelayChannel::Receive) {
-						//LOGD("%s:%i -> %i | size = %i | %i -> %s:%i", org->getIp().c_str(), org->getPort(), org->getRelayPort() + i, recv_len, dest->getRelayPort() +i, dest->getIp().c_str(), dest->getPort());
-						send_len = dest->send(i, buf, recv_len);
-						if (send_len != recv_len) {
-							LOGW("Only %i bytes sent on %i bytes Port=%i For=%s:%i Error=%s", send_len, recv_len, dest->getRelayPort() + i, dest->getIp().c_str(), dest->getPort(), strerror(errno));
-						}
-					}
+					doTransfer(buf,recv_len,dest,i);
 					++it;
 				}
+			} else {
+				doTransfer(buf,recv_len,mFront,i);
 			}
 			mMutex.unlock();
 		}
