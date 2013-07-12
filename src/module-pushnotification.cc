@@ -277,8 +277,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 						call_id);
 			} else if (strcmp(type,"wp")==0) {
 				bool is_message = sip->sip_request->rq_method != sip_method_invite;
-				string message = "";
-				if (is_message) {
+				string message;
+				if (is_message && sip->sip_payload && sip->sip_payload->pl_len > 0) {
 					sip_payload_t *payload=sip->sip_payload;
 					message = string(payload->pl_data, payload->pl_len);
 				}
@@ -288,7 +288,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 						contact,
 						url_as_string(ms->getHome(), sip->sip_from->a_url));
 			} else if (strcmp(type,"google")==0) {
-				string apiKey = string("");
+				string apiKey;
 				for (list<string>::const_iterator iterator = mGoogleProjects.begin(); iterator != mGoogleProjects.end(); ++iterator) {
 					string couple = string((*iterator).c_str());
 					vector<string> splitedCouple = split(couple, ':');
