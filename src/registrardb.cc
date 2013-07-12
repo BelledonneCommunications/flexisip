@@ -30,6 +30,7 @@
 #include <ctime>
 #include <cstdio>
 #include <algorithm>
+#include <iomanip>
 
 #include <sofia-sip/sip_protos.h>
 #include "recordserializer.hh"
@@ -57,26 +58,31 @@ ostream &ExtendedContact::print(std::ostream& stream, time_t now, time_t offset)
 	return stream;
 }
 
+sip_contact_t* ExtendedContact::toSofia(su_home_t* home, time_t now) const {
+	sip_contact_t *contact = NULL;
+	time_t expire = mExpireAt - now;
+	if (expire <= 0) return NULL;
+
+	ostringstream oss;
+	oss << mSipUri;
+	oss << ";expires=" << expire;
+	if (mQ == 0) {
+		oss.setf(ios::fixed, ios::floatfield);
+		oss << std::setprecision(2) << std::setw(4);
+		oss << ";q=" << mQ;
+	}
+	contact = sip_contact_make(home, oss.str().c_str());
+	return contact;
+}
+
 
 char Record::sStaticRecordVersion[100]={0};
 
-sip_contact_t *Record::extendedContactToSofia(su_home_t *home, const ExtendedContact &ec, time_t now) {
-	sip_contact_t *contact = NULL;
-	time_t expire = ec.mExpireAt - now;
-	if (expire > 0) {
-		if (ec.mQ == 0) {
-			contact = sip_contact_format(home, "%s;expires=%lu", ec.mSipUri.c_str(), expire);
-		} else {
-			contact = sip_contact_format(home, "%s;q=%4.2f;expires=%lu", ec.mSipUri.c_str(), ec.mQ, expire);
-		}
-	}
-	return contact;
-}
 
 const sip_contact_t *Record::getContacts(su_home_t *home, time_t now) {
 	sip_contact_t *alist = NULL;
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
-		sip_contact_t *current = extendedContactToSofia(home, **it, now);
+		sip_contact_t *current = (*it)->toSofia(home, now);
 		if (current && alist) {
 			current->m_next = alist;
 		}

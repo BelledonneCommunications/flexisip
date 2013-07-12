@@ -43,7 +43,7 @@ bool compare(const ExtendedContact &ec1, bool alias,
 	check("alias", ec1.mAlias, alias);
 	check("callid", ec1.mCallId, common.mCallId);
 	check("contactid", ec1.mContactId, common.mContactId);
-	check("line", ec1.mLineValueCopy, common.mLineValueCopy);
+	check("line", ec1.mUniqueId, common.mUniqueId);
 	check("path", ec1.mPath, common.mPath);
 	check("cseq", ec1.mCSeq, cseq);
 	check("mExpireAt", ec1.mExpireAt, expireat);
@@ -55,7 +55,7 @@ bool compare(const ExtendedContact &ec1, bool alias,
 }
 
 bool compare(const ExtendedContact &ec1, const ExtendedContact &ec2) {
-	ExtendedContactCommon ecc(ec2.mContactId.c_str(), ec2.mPath, ec2.mCallId.c_str(), ec2.mLineValueCopy.c_str());
+	ExtendedContactCommon ecc(ec2.mContactId.c_str(), ec2.mPath, ec2.mCallId.c_str(), ec2.mUniqueId.c_str());
 	return compare(ec1, ec2.mAlias, ecc,
 		       ec2.mCSeq, ec2.mExpireAt, ec2.mQ, ec2.mSipUri, ec2.mUpdatedTime);
 }
