@@ -256,7 +256,6 @@ namespace log {
 	static inline void formated_log_with_severity(flexisip::log::level lvl, const char *fmt, va_list l) {
 		namespace keywords = boost::log::keywords;
 		namespace logging = boost::log;
-		if (!logging::core::get()->get_logging_enabled()) return;
 		auto lg=flexisip_logger::get();
 		logging::record rec = lg.open_record(keywords::severity = lvl);
 		if (rec)
