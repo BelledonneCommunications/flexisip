@@ -190,7 +190,7 @@ void ForkMessageContext::onDestroy(const shared_ptr<IncomingTransaction> &transa
 
 void ForkMessageContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) {
 	auto shared_uid=transaction->getProperty<string>("contact-unique-id");
-	if (!shared_uid){
+	if (shared_uid){
 		string uid=shared_uid->c_str();
 		auto it=mDeliveryMap.find(uid);
 		if (it==mDeliveryMap.end()){
