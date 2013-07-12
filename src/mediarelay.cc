@@ -229,7 +229,6 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &org,
 				for (it=mBacks.begin();it != mBacks.end();++it) {
 					const shared_ptr<RelayChannel> &dest = (*it);
 					doTransfer(buf,recv_len,dest,i);
-					++it;
 				}
 			} else {
 				doTransfer(buf,recv_len,mFront,i);
