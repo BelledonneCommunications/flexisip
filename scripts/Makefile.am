@@ -1,6 +1,6 @@
 SUBDIRS=debian redhat
 
-EXTRA_DIST=gitversion.sh
+EXTRA_DIST=gitversion.sh flexisip.bash-completion 
 
 OTHER_FLAGS=
 configdir=$(sysconfdir)/flexisip
