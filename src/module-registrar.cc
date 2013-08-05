@@ -608,6 +608,7 @@ void ModuleRegistrar::readStaticRecords() {
 		++version;
 		const char *fakeCallId=su_sprintf(&home,"static-record-v%d",version);
 		Record::setStaticRecordsVersion(version);
+		sip_path_t *path = sip_path_format(&home, "%s", getAgent()->getPreferredRoute().c_str());
 		while (file.good() && getline(file, line).good()) {
 			size_t i;
 			bool is_a_comment=false;
@@ -641,7 +642,7 @@ void ModuleRegistrar::readStaticRecords() {
 							contact,
 							fakeCallId,
 							version,
-							NULL /*path*/)
+							path)
 						, expire, alias
 					);
 					RegistrarDb::get(mAgent)->bind(params, listener);
