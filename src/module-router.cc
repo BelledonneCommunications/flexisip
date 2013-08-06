@@ -357,7 +357,6 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, const url_t *sipUri) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
-	char sipUriRef[256]={0};
 	std::list<std::shared_ptr<ExtendedContact>> contacts;
 	
 	if (!aor && mGeneratedContactRoute.empty()) {
@@ -452,9 +451,9 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 					temp_ctt->m_url->url_host="merged";
 					temp_ctt->m_url->url_port=NULL;
 				}
-				url_e(sipUriRef,sizeof(sipUriRef)-1,temp_ctt->m_url);
-				mForks.insert(make_pair(sipUriRef, context));
-				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), sipUriRef);
+				const string key(routingKey(temp_ctt->m_url));
+				mForks.insert(make_pair(key, context));
+				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
 			}else{
 				if (dispatch(ev, ct, ec->mUniqueId, ec->mPath, context)) {
 					handled++;
