@@ -274,13 +274,14 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const sip_c
 		transaction->setProperty(ModuleRouter::sInfo.getModuleName(), context);
 		auto uniqueId=make_shared<string>(uid);
 		if (!uniqueId || uniqueId->empty()) {
-			SLOGE << "Couldn't find a unique id";
+			SLOGE << "Empty unique id";
 		} else {
 			transaction->setProperty("contact-unique-id", uniqueId);
+			SLOGD << "Unique id: " << uniqueId->c_str();
 		}
 
 		new_ev = req_ev;
-		LOGD("Fork to %s", contact_url_string);
+		SLOGD << "Fork to " << contact_url_string;
 	} else {
 		new_ev = ev;
 		LOGD("Dispatch to %s", contact_url_string);
@@ -433,17 +434,15 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
 		const shared_ptr<ExtendedContact> ec = *it;
-		sip_contact_t *ct = NULL;
-		if (ec)
-			ct = ec->toSofia(ms->getHome(), now);
+		sip_contact_t *ct = ec->toSofia(ms->getHome(), now);
+		if (!ct) {
+			SLOGE << "Can't create sip_contact of " << ec->mSipUri;
+			continue;
+		}
 		if (!ec->mAlias) {
-			if (ct) {
-				if (dispatch(ev, ct, ec->mUniqueId, ec->mPath, context)) {
-					handled++;
-					if (!mFork) break;
-				}
-			} else {
-				SLOGW << "Can't create sip_contact of " << ec->mSipUri;
+			if (dispatch(ev, ct, ec->mUniqueId, ec->mPath, context)) {
+				handled++;
+				if (!mFork) break;
 			}
 		} else {
 			if (mFork && context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
@@ -493,7 +492,6 @@ public:
 			ev->setEventLog(make_shared<MessageLog>(MessageLog::Reception,sip->sip_from,sip->sip_to,sip->sip_call_id->i_hash));
 		}
 	}
-	;
 	void onRecordFound(Record *r) {
 		mModule->routeRequest(mEv, r, mSipUri);
 	}

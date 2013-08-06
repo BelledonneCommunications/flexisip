@@ -53,8 +53,9 @@ ostream &ExtendedContact::print(std::ostream& stream, time_t now, time_t offset)
 		stream << *it;
 	}
 	stream << "\"";
-	stream << " alias=" << (mAlias ? "yes" : "no")
-	<< " expire=" << expireAfter << " s (" << buffer << ")";
+	stream << " alias=" << (mAlias ? "yes" : "no");
+	if (!mAlias) stream << " uid=" << mUniqueId;
+	stream << " expire=" << expireAfter << " s (" << buffer << ")";
 	return stream;
 }
 
@@ -134,10 +135,11 @@ string Record::extractUniqueId(const sip_contact_t *contact){
  * Should first have checked the validity of the register with isValidRegister.
  */
 void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t now) {
+	if (mContacts.begin() == mContacts.end()) { return; }
 	const char *lineValuePtr=NULL;
 	string lineValue=extractUniqueId(sip);
 	
-	if (lineValue.size()>0)
+	if (!lineValue.empty())
 		lineValuePtr=lineValue.c_str();
 	
 	auto it = mContacts.begin();
@@ -295,7 +297,7 @@ void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int g
 
 		const char *lineValuePtr=NULL;
 		string lineValue=extractUniqueId(c);
-		if (lineValue.size()>0)
+		if (!lineValue.empty())
 			lineValuePtr=lineValue.c_str();
 
 		char transport[20];
