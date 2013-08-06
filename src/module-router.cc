@@ -476,13 +476,13 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 
 
 // Listener class NEED to copy the shared pointer
-class OnBindForRoutingListener: public RegistrarDbListener {
+class OnFetchForRoutingListener: public RegistrarDbListener {
 	friend class ModuleRouter;
 	ModuleRouter *mModule;
 	shared_ptr<RequestSipEvent> mEv;
 	url_t *mSipUri;
 public:
-	OnBindForRoutingListener(ModuleRouter *module, shared_ptr<RequestSipEvent> ev, const url_t *sipuri) :
+	OnFetchForRoutingListener(ModuleRouter *module, shared_ptr<RequestSipEvent> ev, const url_t *sipuri) :
 			mModule(module), mEv(ev) {
 		ev->suspendProcessing();
 		mSipUri=url_hdup(mEv->getMsgSip()->getHome(),sipuri);
@@ -531,7 +531,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		url_t *sipurl = sip->sip_request->rq_url;
 		if (sipurl->url_host  && isManagedDomain(sipurl)) {
 			LOGD("Fetch for url %s.", url_as_string(ms->getHome(), sipurl));
-			RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnBindForRoutingListener>(this, ev, sipurl), true);
+			RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnFetchForRoutingListener>(this, ev, sipurl), true);
 			// Since we are doing a lookup, immediately send a 100 Tryin to stop retransmissions.
 			sendReply(ev, SIP_100_TRYING);
 		}
