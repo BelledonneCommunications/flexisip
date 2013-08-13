@@ -528,9 +528,10 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		url_t *sipurl = sip->sip_request->rq_url;
 		if (sipurl->url_host  && isManagedDomain(sipurl)) {
 			LOGD("Fetch for url %s.", url_as_string(ms->getHome(), sipurl));
-			RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnFetchForRoutingListener>(this, ev, sipurl), true);
-			// Since we are doing a lookup, immediately send a 100 Tryin to stop retransmissions.
+			// Go stateful to stop retransmissions
+			ev->createIncomingTransaction();
 			sendReply(ev, SIP_100_TRYING);
+			RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnFetchForRoutingListener>(this, ev, sipurl), true);
 		}
 	}
 	if (sip->sip_request->rq_method == sip_method_ack) {
