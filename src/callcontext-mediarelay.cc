@@ -373,6 +373,19 @@ static bool isTls(url_t *url){
 }
 #endif
 
+static bool isLastProxy(Agent *ag, sip_t *sip){
+	sip_record_route_t *rr=sip->sip_record_route;
+	if (!rr) {
+		LOGE("No record-route in response handled by media-relay, should never happen");
+		return false;
+	}
+	while (rr->r_next!=NULL) rr=rr->r_next; //jump to last record route
+	if (ag->isUs(rr->r_url)){
+		LOGD("We are last proxy of the call flow.");
+		return true;
+	}
+	return false;
+}
 
 void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms, sip_t *sip, sdp_session_t *session, int mline_nr){
 	sdp_media_t *mline;
@@ -384,8 +397,15 @@ void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms, sip_t *sip,
 			if (mline->m_rtpmaps && strcmp(mline->m_rtpmaps->rm_encoding,"H264")==0){
 				sdp_bandwidth_t *b=session->sdp_bandwidths;
 				if (b && ((int)b->b_value) <= (int)mBandwidthThres){
-					LOGI("Enabling H264 filtering");
-					ms->setFilter(make_shared<H264IFrameFilter>(mDecim));
+					bool enabled=false;
+					if (sip->sip_request == NULL){
+						//for responses, we want to activate the feature only if we are the last proxy.
+						enabled=isLastProxy(mServer->getAgent(),sip);
+					}else enabled=true;
+					if (enabled) {
+						LOGI("Enabling H264 filtering for channel %p",ms.get());
+						ms->setFilter(make_shared<H264IFrameFilter>(mDecim));
+					}
 				}
 			}
 		}
