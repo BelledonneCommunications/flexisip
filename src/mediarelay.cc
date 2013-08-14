@@ -49,31 +49,38 @@ void RelayChannel::set(const string &ip, int port) {
 		LOGD("RelayChannel %p | configured | %s:%i <-> %s:%i", this, getPublicIp().c_str(), getRelayPort(), ip.c_str(), port);
 	mPort = port;
 	mIp = ip;
-	struct addrinfo *res = NULL;
-	struct addrinfo hints = { 0 };
-	char portstr[20];
-	int err;
+	
+	if (port!=0){
+		struct addrinfo *res = NULL;
+		struct addrinfo hints = { 0 };
+		char portstr[20];
+		int err;
 
-	snprintf(portstr, sizeof(portstr), "%i", port);
-	hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
-	err = getaddrinfo(ip.c_str(), portstr, &hints, &res);
-	if (err != 0) {
-		LOGE("RelayChannel::RelayChannel() failed for %s:%i : %s", ip.c_str(), port, gai_strerror(err));
-	} else {
-		memcpy(&mSockAddr[0], res->ai_addr, res->ai_addrlen);
-		mSockAddrSize[0] = res->ai_addrlen;
-		freeaddrinfo(res);
-	}
+		snprintf(portstr, sizeof(portstr), "%i", port);
+		hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
+		err = getaddrinfo(ip.c_str(), portstr, &hints, &res);
+		if (err != 0) {
+			LOGE("RelayChannel::RelayChannel() failed for %s:%i : %s", ip.c_str(), port, gai_strerror(err));
+		} else {
+			memcpy(&mSockAddr[0], res->ai_addr, res->ai_addrlen);
+			mSockAddrSize[0] = res->ai_addrlen;
+			freeaddrinfo(res);
+		}
 
-	snprintf(portstr, sizeof(portstr), "%i", port + 1);
-	hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
-	err = getaddrinfo(ip.c_str(), portstr, &hints, &res);
-	if (err != 0) {
-		LOGE("RelayChannel::RelayChannel() failed for %s:%i : %s", ip.c_str(), port, gai_strerror(err));
-	} else {
-		memcpy(&mSockAddr[1], res->ai_addr, res->ai_addrlen);
-		mSockAddrSize[1] = res->ai_addrlen;
-		freeaddrinfo(res);
+		snprintf(portstr, sizeof(portstr), "%i", port + 1);
+		hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
+		err = getaddrinfo(ip.c_str(), portstr, &hints, &res);
+		if (err != 0) {
+			LOGE("RelayChannel::RelayChannel() failed for %s:%i : %s", ip.c_str(), port, gai_strerror(err));
+		} else {
+			memcpy(&mSockAddr[1], res->ai_addr, res->ai_addrlen);
+			mSockAddrSize[1] = res->ai_addrlen;
+			freeaddrinfo(res);
+		}
+	}else{
+		/*case where client declined the stream (0 port in SDP)*/
+		mSockAddrSize[0]=0;
+		mSockAddrSize[1]=0;
 	}
 }
 
@@ -114,22 +121,29 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 			return 0;
 		}
 	}else if (err == -1) {
-		mSockAddrSize[i] = 0;
+		if (errno==ECONNREFUSED){
+			/*this will avoid to continue sending if there are ICMP errors*/
+			mSockAddrSize[i] = 0;
+		}
 	}
 	return err;
 
 }
 
 int RelayChannel::send(int i, uint8_t *buf, size_t buflen) {
-	int err;
-	if (mSockAddrSize[i] > 0) {
+	int err=0;
+	/*if destination address is working mSockAddrSize>0*/
+	if (mPort>0 && mSockAddrSize[i] > 0) {
 		if (!mFilter || mFilter->onOutgoingTransfer(buf,buflen,(struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]) ){
 			err = sendto(mSources[i], buf, buflen, 0, (struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]);
-		}else err=buflen;//don't report error.
-		return err;
+			if (err==-1){
+				LOGW("Error sending %i bytes (localport=%i dest=%s:%i) : %s",(int) buflen, getRelayPort() + i, mIp.c_str(), mPort, strerror(errno));
+			}else if (err != (int)buflen) {
+				LOGW("Only %i bytes sent over %i bytes (localport=%i dest=%s:%i)", err, (int)buflen, getRelayPort() + i, mIp.c_str(), mPort+i);
+			}
+		}
 	}
-	return 0;
-
+	return err;
 }
 
 void RelayChannel::setFilter(shared_ptr<MediaFilter> filter){
@@ -203,13 +217,9 @@ bool RelaySession::checkMediaSources() {
 }
 
 void RelaySession::doTransfer(uint8_t *buf, int recv_len, const shared_ptr<RelayChannel> &dest, int i){
-	int send_len;
 	if (dest->getBehaviour() & RelayChannel::Receive) {
 		//LOGD("%s:%i -> %i | size = %i | %i -> %s:%i", org->getIp().c_str(), org->getPort(), org->getRelayPort() + i, recv_len, dest->getRelayPort() +i, dest->getIp().c_str(), dest->getPort());
-		send_len = dest->send(i, buf, recv_len);
-		if (send_len != recv_len) {
-			LOGW("Only %i bytes sent on %i bytes Port=%i For=%s:%i Error=%s", send_len, recv_len, dest->getRelayPort() + i, dest->getIp().c_str(), dest->getPort(), strerror(errno));
-		}
+		dest->send(i, buf, recv_len);
 	}
 }
 
