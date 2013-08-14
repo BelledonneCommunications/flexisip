@@ -190,19 +190,23 @@ public:
 
 	~RequestSipEvent();
 	bool mRecordRouteAdded;
+private:
+	void linkTransactions();
 };
 
 class ResponseSipEvent: public SipEvent {
 public:
 	ResponseSipEvent(std::shared_ptr<OutgoingAgent> outgoingAgent, const std::shared_ptr<MsgSip> &msgSip);
-	ResponseSipEvent(const std::shared_ptr<SipEvent> &sipEvent);
-
+	ResponseSipEvent(const std::shared_ptr<ResponseSipEvent> &sipEvent);
+	
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);
-
+	
 	virtual void setOutgoingAgent(const std::shared_ptr<OutgoingAgent> &agent);
 
 	~ResponseSipEvent();
+private:
+	bool mPopVia;//set to true if the response comes from an outgoing transaction.
 };
 
 inline std::ostream& operator<<(std::ostream& strm, MsgSip const& obj) {

@@ -196,6 +196,7 @@ shared_ptr<IncomingTransaction> RequestSipEvent::createIncomingTransaction() {
 		mIncomingAgent = transaction;
 
 		transaction->handle(mMsgSip);
+		linkTransactions();
 	}
 	return transaction;
 }
@@ -205,8 +206,20 @@ shared_ptr<OutgoingTransaction> RequestSipEvent::createOutgoingTransaction() {
 	if (transaction == NULL) {
 		transaction = shared_ptr<OutgoingTransaction>(new OutgoingTransaction(mOutgoingAgent->getAgent()));
 		mOutgoingAgent = transaction;
+		linkTransactions();
 	}
 	return transaction;
+}
+
+void RequestSipEvent::linkTransactions(){
+	shared_ptr<OutgoingTransaction> ot;
+	shared_ptr<IncomingTransaction> it;
+	
+	if (mOutgoingAgent && mIncomingAgent && 
+		(ot=dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent))!=NULL &&
+		(it=dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent))!=NULL){
+		ot->mIncoming=it;
+	}
 }
 
 void RequestSipEvent::suspendProcessing() {
@@ -220,39 +233,54 @@ RequestSipEvent::~RequestSipEvent() {
 }
 
 ResponseSipEvent::ResponseSipEvent(shared_ptr<OutgoingAgent> outgoingAgent, const shared_ptr<MsgSip> &msgSip) :
-		SipEvent(msgSip) {
+		SipEvent(msgSip), mPopVia(false) {
 	mOutgoingAgent = outgoingAgent;
-	mIncomingAgent = outgoingAgent->getAgent()->shared_from_this();
+	shared_ptr<OutgoingTransaction> ot=dynamic_pointer_cast<OutgoingTransaction>(outgoingAgent);
+	if (ot){
+		//retrieve the incoming transaction associated with the outgoing one, if any.
+		//A response SipEvent is generated either from a stateless response or from a response from an outgoing transaction.
+		mIncomingAgent=ot->mIncoming;
+		mPopVia=true;
+	}
+	if (mIncomingAgent == NULL)
+		mIncomingAgent = outgoingAgent->getAgent()->shared_from_this();//the main (stateless) default agent
 }
 
-ResponseSipEvent::ResponseSipEvent(const shared_ptr<SipEvent> &sipEvent) :
-		SipEvent(*sipEvent) {
+ResponseSipEvent::ResponseSipEvent(const shared_ptr<ResponseSipEvent> &sipEvent) :
+		SipEvent(*sipEvent), mPopVia(sipEvent->mPopVia) {
 }
+
 
 void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
-		SLOGD << "Sending Response SIP message to "
-				<< (u ? url_as_string(msg->getHome(), (url_t const *) u) : "NULL")
-				<< "\n" << *msg;
+		bool via_popped=false;
+		if (mPopVia && msg==mMsgSip) {
+			sip_via_remove(msg->getMsg(), msg->getSip());
+			via_popped=true;
+		}
+		SLOGD << "Sending response:" << (via_popped ? " (via popped) " : "")<<endl<< *msg;
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mIncomingAgent->send(msg, u, ta_tags(ta));
 		ta_end(ta);
 	} else {
-		LOGD("The Response SIP message is not sent");
+		LOGD("The response is discarded.");
 	}
 	terminateProcessing();
 }
 
 void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg) {
 	if (mIncomingAgent != NULL) {
-		SLOGD << "Sending Response SIP message:\n" << *msg;
+		/*if the message is still the one for which the ResponseSipEvent was created and mPopVia is set, then pop the via*/
+		if (mPopVia && msg==mMsgSip) sip_via_remove(msg->getMsg(), msg->getSip());
+		SLOGD << "Sending response:\n" << *msg;
 		mIncomingAgent->send(msg);
 	} else {
-		SLOGD << "The Response SIP message is not sent";
+		SLOGD << "The response is discarded.";
 	}
 	terminateProcessing();
 }
+
 
 void ResponseSipEvent::setOutgoingAgent(const shared_ptr<OutgoingAgent> &agent) {
 	LOGA("Can't change outgoing agent in response sip event");

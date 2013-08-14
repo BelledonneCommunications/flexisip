@@ -145,17 +145,20 @@ public:
 	inline virtual Agent *getAgent() {
 		return Transaction::getAgent();
 	}
-
+	/// The incoming transaction from which the message comes from, if any.
+	std::shared_ptr<IncomingTransaction> mIncoming;
 private:
 	friend class RequestSipEvent;
 	OutgoingTransaction(Agent *agent);
 	std::shared_ptr<OutgoingTransaction> mSofiaRef;
 	nta_outgoing_t *mOutgoing;
+	
 
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void send(const std::shared_ptr<MsgSip> &msg);
 
 	void destroy();
+	
 
 private:
 	static int _callback(nta_outgoing_magic_t *magic, nta_outgoing_t *irq, const sip_t *sip);

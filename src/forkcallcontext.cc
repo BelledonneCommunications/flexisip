@@ -170,7 +170,6 @@ void ForkCallContext::store(shared_ptr<ResponseSipEvent> &event) {
 void ForkCallContext::onResponse(const shared_ptr<OutgoingTransaction> &transaction, shared_ptr<ResponseSipEvent> &event) {
 	event->setIncomingAgent(mIncoming);
 	const shared_ptr<MsgSip> &ms = event->getMsgSip();
-	sip_via_remove(ms->getMsg(), ms->getSip()); // remove via
 	sip_t *sip = ms->getSip();
 	
 	if (sip != NULL && sip->sip_status != NULL) {
