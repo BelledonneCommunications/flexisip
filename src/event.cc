@@ -161,15 +161,6 @@ void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u,
 	terminateProcessing();
 }
 
-void RequestSipEvent::send(const shared_ptr<MsgSip> &msg) {
-	if (mOutgoingAgent != NULL) {
-		SLOGD << "Sending Request SIP message:\n" << *msg;
-		mOutgoingAgent->send(msg);
-	} else {
-		LOGD("The Request SIP message is not send");
-	}
-	terminateProcessing();
-}
 
 void RequestSipEvent::reply(int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
@@ -265,18 +256,6 @@ void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u
 		ta_end(ta);
 	} else {
 		LOGD("The response is discarded.");
-	}
-	terminateProcessing();
-}
-
-void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg) {
-	if (mIncomingAgent != NULL) {
-		/*if the message is still the one for which the ResponseSipEvent was created and mPopVia is set, then pop the via*/
-		if (mPopVia && msg==mMsgSip) sip_via_remove(msg->getMsg(), msg->getSip());
-		SLOGD << "Sending response:\n" << *msg;
-		mIncomingAgent->send(msg);
-	} else {
-		SLOGD << "The response is discarded.";
 	}
 	terminateProcessing();
 }

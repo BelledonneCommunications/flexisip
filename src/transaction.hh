@@ -33,7 +33,6 @@ class Agent;
 class IncomingAgent {
 public:
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) = 0;
-	virtual void send(const std::shared_ptr<MsgSip> &msg) = 0;
 
 	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) = 0;
 
@@ -47,7 +46,6 @@ public:
 class OutgoingAgent {
 public:
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) = 0;
-	virtual void send(const std::shared_ptr<MsgSip> &msg) = 0;
 
 	virtual Agent *getAgent() = 0;
 
@@ -155,7 +153,6 @@ private:
 	
 
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
-	virtual void send(const std::shared_ptr<MsgSip> &msg);
 
 	void destroy();
 	
@@ -181,7 +178,6 @@ private:
 	nta_incoming_t *mIncoming;
 
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
-	virtual void send(const std::shared_ptr<MsgSip> &msg);
 	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 
 	void destroy();

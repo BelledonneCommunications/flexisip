@@ -216,7 +216,7 @@ bool ForwardModule::isLooping(shared_ptr<RequestSipEvent> &ev, const char * bran
 
 void ForwardModule::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	ev->send(ms, (url_string_t*) NULL, TAG_END());
+	ev->send(ms);
 }
 
 #include <sofia-sip/su_md5.h>

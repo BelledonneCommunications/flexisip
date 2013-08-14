@@ -741,13 +741,8 @@ void Agent::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t
 	ta_list ta;
 	ta_start(ta, tag, value);
 	msg_t* msg = msg_dup(ms->getMsg());
-	nta_msg_tsend(mAgent, msg, u, ta_tags(ta));
+	nta_msg_tsend(mAgent, msg, u, ta_tags(ta),TAG_END());
 	ta_end(ta);
-}
-
-void Agent::send(const shared_ptr<MsgSip> &ms) {
-	msg_t* msg = msg_dup(ms->getMsg());
-	nta_msg_tsend(mAgent, msg, NULL, TAG_END());
 }
 
 void Agent::incrReplyStat(int status) {

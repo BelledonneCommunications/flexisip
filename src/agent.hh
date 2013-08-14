@@ -158,7 +158,6 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
 	private:
 		virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
-		virtual void send(const std::shared_ptr<MsgSip> &msg);
 		virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 		void discoverInterfaces();
 		void startLogWriter();

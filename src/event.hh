@@ -128,8 +128,7 @@ public:
 		mOutgoingAgent = agent;
 	}
 
-	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) = 0;
-	virtual void send(const std::shared_ptr<MsgSip> &msg) = 0;
+	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u=NULL, tag_type_t tag=0, tag_value_t value=0, ...) = 0;
 
 	virtual ~SipEvent();
 
@@ -178,8 +177,7 @@ public:
 	std::shared_ptr<IncomingTransaction> createIncomingTransaction();
 	std::shared_ptr<OutgoingTransaction> createOutgoingTransaction();
 
-	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
-	virtual void send(const std::shared_ptr<MsgSip> &msg);
+	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u=NULL, tag_type_t tag=0, tag_value_t value=0, ...);
 
 	virtual void reply(int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 
@@ -199,8 +197,7 @@ public:
 	ResponseSipEvent(std::shared_ptr<OutgoingAgent> outgoingAgent, const std::shared_ptr<MsgSip> &msgSip);
 	ResponseSipEvent(const std::shared_ptr<ResponseSipEvent> &sipEvent);
 	
-	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
-	virtual void send(const std::shared_ptr<MsgSip> &msg);
+	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u=NULL, tag_type_t tag=0, tag_value_t value=0, ...);
 	
 	virtual void setOutgoingAgent(const std::shared_ptr<OutgoingAgent> &agent);
 

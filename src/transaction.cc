@@ -68,22 +68,8 @@ void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const 
 	ta_list ta;
 	ta_start(ta, tag, value);
 	LOGD("Message is sent through an outgoing transaction.");
-	mOutgoing = nta_outgoing_mcreate(mAgent->mAgent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, u, msg, ta_tags(ta));
+	mOutgoing = nta_outgoing_mcreate(mAgent->mAgent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, u, msg, ta_tags(ta),TAG_END());
 	ta_end(ta);
-	if (mOutgoing == NULL) {
-		LOGE("Error during outgoing transaction creation");
-		msg_destroy(msg);
-	} else {
-		mSofiaRef = shared_from_this();
-		mAgent->sendTransactionEvent(TransactionEvent::makeCreate(shared_from_this()));
-	}
-	
-}
-
-void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms) {
-	msg_t* msg = msg_dup(ms->getMsg());
-	LOGD("Message is sent through an outgoing transaction.");
-	mOutgoing = nta_outgoing_mcreate(mAgent->mAgent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, NULL, msg, TAG_END());
 	if (mOutgoing == NULL) {
 		LOGE("Error during outgoing transaction creation");
 		msg_destroy(msg);
@@ -158,19 +144,6 @@ shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const *p
 void IncomingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncoming) {
 		msg_t* msg = msg_dup(ms->getMsg()); //need to duplicate the message because mreply will decrement its ref count.
-		LOGD("Response is sent through an incoming transaction.");
-		nta_incoming_mreply(mIncoming, msg);
-		if (ms->getSip()->sip_status != NULL && ms->getSip()->sip_status->st_status >= 200) {
-			destroy();
-		}
-	} else {
-		LOGW("Invalid incoming");
-	}
-}
-
-void IncomingTransaction::send(const shared_ptr<MsgSip> &ms) {
-	if (mIncoming) {
-		msg_t* msg = msg_dup(ms->getMsg());
 		LOGD("Response is sent through an incoming transaction.");
 		nta_incoming_mreply(mIncoming, msg);
 		if (ms->getSip()->sip_status != NULL && ms->getSip()->sip_status->st_status >= 200) {
