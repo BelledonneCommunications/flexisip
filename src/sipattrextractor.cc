@@ -60,6 +60,7 @@ static string url_get(const string &key, size_t pos, const url_t *url) {
 	if (!url) throw new invalid_argument("No url found in sip msg for " + key);
 	if (id == "domain") return cstring_get(key, pos, url->url_host);
 	if (id == "user") return cstring_get(key, pos, url->url_user);
+	if (id == "params") return cstring_get(key, pos, url->url_params);
 	throw new runtime_error("url_get: unhandled arg '" + id + "' in " + key);
 }
 
