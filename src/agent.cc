@@ -685,7 +685,7 @@ void Agent::sendTransactionEvent(shared_ptr<TransactionEvent> ev) {
 static std::shared_ptr<tport_t> getIncomingTport(const msg_t *orig, Agent *ag) {
 	tport_t *primaries=nta_agent_tports(ag->getSofiaAgent());
 	tport_t *tport=tport_delivered_by(primaries,orig);
-	if (!tport) SLOGA << "tport not found";
+	if (!tport) LOGA("tport not found");
 	return shared_ptr<tport_t>(tport_ref(tport), tport_unref);
 }
 

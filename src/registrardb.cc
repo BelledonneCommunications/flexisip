@@ -589,7 +589,7 @@ RecordSerializer *RecordSerializer::get() {
 
 		sInstance = create(name);
 		if (!sInstance) {
-			SLOGA << "Unsupported record serializer: " << name;
+			LOGA("Unsupported record serializer: %s", name.c_str());
 		}
 	}
 

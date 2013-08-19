@@ -124,7 +124,7 @@ namespace log {
 	#define SLOGI BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::info)
 	#define SLOGW BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::warning)
 	#define SLOGE BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::error)
-	#define SLOGA BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::fatal)
+	//#define SLOGA BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::fatal) // How to abort ??
 
 	// Declare macros for printf formated logs [for historic reasons]
 	// ex: LOGD("Some debug level %s", "logs");
@@ -193,7 +193,7 @@ operator<<(pumpstream&& __os, _Tp __x)
 #define SLOGI SLOG(ORTP_MESSAGE)
 #define SLOGW SLOG(ORTP_WARNING)
 #define SLOGE SLOG(ORTP_ERROR)
-#define SLOGA SLOG(ORTP_FATAL)
+//#define SLOGA SLOG(ORTP_FATAL)
 
 #define LOGDV(thefmt, theargs) ortp_logv(ORTP_DEBUG, (thefmt), (theargs))
 #define LOGD ortp_debug
@@ -269,6 +269,7 @@ namespace log {
 			strm.flush();
 			lg.push_record(std::move(rec));
 		}
+		if (lvl == fatal) abort();
 	}
 
 	template <typename BoolFnT, typename StreamFnT>
