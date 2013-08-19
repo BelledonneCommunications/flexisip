@@ -52,8 +52,9 @@ thesources= \
 			h264iframefilter.cc h264iframefilter.hh \
 			telephone-event-filter.cc telephone-event-filter.hh \
 			log/logmanager.cc log/logmanager.hh \
-			$(GITVERSION_FILE) \
-			eventlogs/eventlogs.cc eventlogs/eventlogs.hh
+			eventlogs/eventlogs.cc eventlogs/eventlogs.hh \
+			contact-masquerader.cc contact-masquerader.hh \
+			$(GITVERSION_FILE) 
 
 
 if BUILD_SNMP

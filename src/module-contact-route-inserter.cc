@@ -18,14 +18,14 @@
 
 #include "module.hh"
 #include "agent.hh"
+#include "contact-masquerader.hh"
 
 using namespace ::std;
 
 class ContactRouteInserter: public Module {
 public:
 	ContactRouteInserter(Agent *ag) :
-		Module(ag) {
-
+		Module(ag), mContactMasquerader() {
 	}
 
 	void onDeclare(GenericStruct *module_config) {
@@ -43,6 +43,7 @@ public:
 		mMasqueradeInvites = mc->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
 		mMasqueradeRegisters = mc->get<ConfigBoolean>("masquerade-contacts-on-registers")->read();
 		mInsertDomain =  mc->get<ConfigBoolean>("insert-domain")->read();
+		mContactMasquerader = unique_ptr<ContactMasquerader>(new ContactMasquerader(mAgent, mCtRtParamName));
 	}
 
 
@@ -57,10 +58,10 @@ public:
 			sip->sip_request->rq_url->url_host = sip->sip_to->a_url->url_host;
 			sip->sip_request->rq_url->url_port = sip->sip_to->a_url->url_port;
 			LOGD("Masquerading contact");
-			masqueradeContact(ev, mInsertDomain);
+			mContactMasquerader->masquerade(ev, mInsertDomain);
 		} else if (mMasqueradeInvites && rq_method == sip_method_invite) {
 			LOGD("Masquerading contact");
-			masqueradeContact(ev);
+			mContactMasquerader->masquerade(ev);
 		}
 
 		if (rq_method != sip_method_register) {
@@ -72,7 +73,7 @@ public:
 			// by contact-route-inserter module
 			if (url_param(dest->url_params, mCtRtParamName.c_str(), ctrt, sizeof(ctrt))) {
 				LOGD("Found a contact route parameter");
-				rewriteReqUrlWithCtrt(dest, ctrt, ms->getHome());
+				mContactMasquerader->restore(ms->getHome(), dest, ctrt, "doroute");
 			} else {
 				LOGD("No countact route parameter found");
 			}
@@ -82,102 +83,11 @@ public:
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		if (mMasqueradeInvites && (sip->sip_cseq->cs_method == sip_method_invite || sip->sip_cseq->cs_method == sip_method_subscribe)) {
-			masqueradeContact(ev);
+			mContactMasquerader->masquerade(ev);
 		}
 	}
 
-
-private:
-	/*add a parameter like "CtRt15.128.128.2=tcp:201.45.118.16:50025" in the contact, so that we know where is the client
-	 when we later have to route an INVITE to him */
-	void masqueradeContact(shared_ptr<SipEvent> ev, bool insertDomain = false) {
-		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-		sip_t *sip = ms->getSip();
-		if (sip->sip_contact == NULL || sip->sip_contact->m_url == NULL) {
-			LOGD("Sip contact or url is null");
-			return;
-		}
-
-		url_t *ct_url = sip->sip_contact->m_url;
-		if (ct_url->url_scheme && ct_url->url_scheme[0] == '*') {
-			SLOGD << "not masquerading star contact";
-			return;
-		}
-
-		//grab the transport of the contact uri
-		char ct_tport[32] = "udp";
-		if (url_param(ct_url->url_params, "transport", ct_tport, sizeof(ct_tport)) > 0) {
-
-		}
-
-
-		// Create parameter
-		string param = mCtRtParamName + "=" + ct_tport + ":";
-		if (insertDomain) {
-			// param=tport:domain
-			param += sip->sip_from->a_url->url_host;
-		} else {
-			// param=tport:ip_prev_hop:port_prev_hop
-			param += ct_url->url_host;
-			param += ":";
-			param += url_port(ct_url);
-		}
-
-		// Add parameter
-		SLOGD << "Rewriting contact with param [" << param << "]";
-		if (url_param_add(ms->getHome(), ct_url, param.c_str())) {
-			LOGE("Cannot insert url param [%s]", param.c_str());
-		}
-
-		/*masquerade the contact, so that later requests (INVITEs) come to us */
-		const url_t*preferredRoute=getAgent()->getPreferredRouteUrl();
-		ct_url->url_host = preferredRoute->url_host;
-		ct_url->url_port = url_port(preferredRoute);
-		ct_url->url_scheme=preferredRoute->url_scheme;
-		ct_url->url_params = url_strip_param_string(su_strdup(ms->getHome(), ct_url->url_params), "transport");
-		char tport_value[64];
-		if (url_param(preferredRoute->url_params,"transport",tport_value,sizeof(tport_value))>0){
-			char *lParam = su_sprintf(ms->getHome(), "transport=%s",tport_value);
-			url_param_add(ms->getHome(),ct_url,lParam);
-		}
-		SLOGD << "Contact has been rewritten to " << url_as_string(ms->getHome(), ct_url);
-	}
-
-
-	void rewriteReqUrlWithCtrt(url_t *dest, char ctrt_param[64], su_home_t *home) {
-		//first remove param
-		dest->url_params = url_strip_param_string(su_strdup(home, dest->url_params), mCtRtParamName.c_str());
-
-		//test and remove maddr param
-		if (url_has_param(dest, "maddr")) {
-			dest->url_params = url_strip_param_string(su_strdup(home, dest->url_params), "maddr");
-		}
-
-		//test and remove transport param
-		if (url_has_param(dest, "transport")) {
-			dest->url_params = url_strip_param_string(su_strdup(home, dest->url_params), "transport");
-		}
-
-		//second change dest to
-		char* tend = strchr(ctrt_param, ':');
-		if (!tend) {
-			LOGD("Skipping url rewrite: first ':' not found");
-			return;
-		}
-
-		const char* transport = su_strndup(home, ctrt_param, tend - ctrt_param);
-		const url_t *paramurl = url_format(home, "sip:%s", tend +1);
-		
-		dest->url_host = paramurl->url_host; // move ownership
-		dest->url_port = paramurl->url_port; // move ownership
-		if (strcasecmp(transport, "udp") != 0) {
-			char *t_param = su_sprintf(home, "transport=%s", transport);
-			url_param_add(home, dest, t_param);
-		}
-
-		LOGD("Request url changed to %s", url_as_string(home, dest));
-	}
-
+	unique_ptr<ContactMasquerader> mContactMasquerader;
 	string mCtRtParamName;
 	bool mMasqueradeRegisters, mMasqueradeInvites;
 	bool mInsertDomain;

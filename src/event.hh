@@ -92,6 +92,12 @@ public:
 		return mMsgSip;
 	}
 
+	inline su_home_t* getHome() const {
+		return mMsgSip->getHome();
+	}
+	inline sip_t* getSip() const {
+		return mMsgSip->getSip();
+	}
 
 	inline void setMsgSip(std::shared_ptr<MsgSip> msgSip) {
 		mMsgSip = msgSip;
