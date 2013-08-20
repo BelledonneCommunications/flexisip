@@ -379,7 +379,6 @@ static bool isLastProxy(Agent *ag, sip_t *sip){
 		LOGE("No record-route in response handled by media-relay, should never happen");
 		return false;
 	}
-	while (rr->r_next!=NULL) rr=rr->r_next; //jump to last record route
 	if (ag->isUs(rr->r_url)){
 		LOGD("We are last proxy of the call flow.");
 		return true;
