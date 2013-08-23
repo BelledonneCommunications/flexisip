@@ -43,9 +43,10 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const string & appid,
 	LOGD("Push notification payload is %s", mPayload.c_str());
 }
 
-GooglePushNotificationRequest::GooglePushNotificationRequest(const string &appid, const string &deviceToken, const string &apiKey, const string &msg_id, const string &arg, const string &sound, const string &callid) : PushNotificationRequest(appid, "google") {
+GooglePushNotificationRequest::GooglePushNotificationRequest(const string &appid, const string &deviceToken, const string &apiKey, const string &arg, const string &callid)
+: PushNotificationRequest(appid, "google") {
 	ostringstream httpBody;
-	httpBody << "{\"registration_ids\":[\"" << deviceToken << "\"],\"data\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":\"" << arg << "\",\"sound\":\"" << sound << "\"}"
+	httpBody << "{\"registration_ids\":[\"" << deviceToken << "\"],\"data\":{\"loc-args\":\"" << arg << "\"}"
 			",\"call-id\":\"" <<callid<< "\"}";
 	mHttpBody = httpBody.str();
 	LOGD("Push notification https post body is %s", mHttpBody.c_str());

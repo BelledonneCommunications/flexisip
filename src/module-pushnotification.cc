@@ -209,10 +209,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 		char type[12];
 		char deviceToken[256];
 		char appId[256]={0};
-		char msg_str[64];
-		char call_str[64];
-		char call_snd[64];
-		char msg_snd[64];
 		char pn_key[512]={0};
 		
 		char const *params=sip->sip_request->rq_url->url_params;
@@ -228,7 +224,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 			LOGD("Another push notification is pending for this call %s and this device %s, not creating a new one",call_id,deviceToken);
 			context=(*it).second;
 		}
-		if (context==NULL){
+		if (!context){
 			if (url_param(params, "pn-type", type, sizeof(type)) == 0) {
 				SLOGD << "no pn-type";
 				return;
@@ -239,23 +235,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 				return;
 			}
 			
-			if (url_param(params, "pn-msg-str", msg_str, sizeof(msg_str)) == 0) {
-				SLOGD << "no pn-msg-str";
-				return;
-			}
-
-			if (url_param(params, "pn-call-str", call_str, sizeof(call_str)) == 0) {
-				SLOGD << "no pn-call-str";
-				return;
-			}
-			if (url_param(params, "pn-call-snd", call_snd, sizeof(call_snd)) == 0) {
-				SLOGD << "no pn-call-snd";
-				return;
-			}
-			if (url_param(params, "pn-msg-snd", msg_snd, sizeof(msg_snd)) == 0) {
-				SLOGD << "no pn-msg-snd";
-				return;
-			}
 			string contact;
 			if(sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
 				contact = sip->sip_from->a_display;
@@ -270,6 +249,27 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 
 			shared_ptr<PushNotificationRequest> pn;
 			if (strcmp(type,"apple")==0){
+				char msg_str[64];
+				char call_str[64];
+				char call_snd[64];
+				char msg_snd[64];
+				if (url_param(params, "pn-msg-str", msg_str, sizeof(msg_str)) == 0) {
+					SLOGD << "no pn-msg-str";
+					return;
+				}
+				
+				if (url_param(params, "pn-call-str", call_str, sizeof(call_str)) == 0) {
+					SLOGD << "no pn-call-str";
+					return;
+				}
+				if (url_param(params, "pn-call-snd", call_snd, sizeof(call_snd)) == 0) {
+					SLOGD << "no pn-call-snd";
+					return;
+				}
+				if (url_param(params, "pn-msg-snd", msg_snd, sizeof(msg_snd)) == 0) {
+					SLOGD << "no pn-msg-snd";
+					return;
+				}
 				pn = make_shared<ApplePushNotificationRequest>(appId, deviceToken,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
 						contact,
@@ -303,11 +303,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 				if (!apiKey.empty()) {
 					// We only have one client for all Android apps, called "google"
 					SLOGD << "Creating Google push notif request";
-					pn = make_shared<GooglePushNotificationRequest>("google", deviceToken, apiKey,
-							(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
-							contact,
-							(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
-							call_id);
+					pn = make_shared<GooglePushNotificationRequest>("google", deviceToken, apiKey, contact, call_id);
 				}
 			}
 			if (pn){

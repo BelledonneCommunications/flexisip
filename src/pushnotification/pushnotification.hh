@@ -60,7 +60,7 @@ protected:
 class GooglePushNotificationRequest: public PushNotificationRequest {
 public:
 	virtual const std::vector<char> & getData();
-	GooglePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &apiKey, const std::string &msg_id, const std::string &arg, const std::string &sound, const std::string &callid);
+	GooglePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &apiKey, const std::string &arg, const std::string &callid);
 	~GooglePushNotificationRequest() {};
 
 protected:
