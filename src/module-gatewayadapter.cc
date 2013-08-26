@@ -460,7 +460,7 @@ void GatewayAdapter::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 
 }
 
-void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phurase, nua_t *nua, nua_magic_t *ctx, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]) {
+void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phrase, nua_t *nua, nua_magic_t *ctx, nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]) {
 	GatewayRegister *gr = (GatewayRegister *) hmagic;
 
 	if (event == nua_r_shutdown && status >= 200) {
