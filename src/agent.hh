@@ -32,6 +32,7 @@
 #include <sofia-sip/msg.h>
 #include <sofia-sip/nta.h>
 #include <sofia-sip/nta_stateless.h>
+#include <sofia-sip/nth.h>
 
 #include "common.hh"
 #include "configmanager.hh"
@@ -153,6 +154,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 		void logEvent(const std::shared_ptr<SipEvent> &ev);
 		Module *findModule(const std::string &modname) const;
+		nth_engine_t* getHttpEngine() {return mHttpEngine; }
 	protected:
 		void sendTransactionEvent(std::shared_ptr<TransactionEvent> ev);
 		int onIncomingMessage(msg_t *msg, sip_t *sip);
@@ -181,6 +183,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		std::string mRtpBindIp,mRtpBindIp6,mPublicIpV4,mPublicIpV6;
 		nta_agent_t *mAgent;
 		su_root_t *mRoot;
+		nth_engine_t *mHttpEngine;
 		su_home_t mHome;
 		EventLogWriter *mLogWriter;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);

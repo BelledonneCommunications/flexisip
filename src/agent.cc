@@ -214,6 +214,7 @@ void Agent::start(const char *transport_override){
 }
 
 Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
+	mHttpEngine = nth_engine_create(root, NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	
 	EtcHostsResolver::get();
@@ -273,8 +274,8 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 Agent::~Agent() {
 	mTerminating=true;
 	for_each(mModules.begin(), mModules.end(), delete_functor<Module>());
-	if (mAgent)
-		nta_agent_destroy(mAgent);
+	if (mAgent)	nta_agent_destroy(mAgent);
+	if (mHttpEngine) nth_engine_destroy(mHttpEngine);
 	su_home_deinit(&mHome);
 }
 
