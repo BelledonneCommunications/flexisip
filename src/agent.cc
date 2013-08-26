@@ -691,7 +691,7 @@ static std::shared_ptr<tport_t> getIncomingTport(const msg_t *orig, Agent *ag) {
 }
 
 
-int Agent::onIncomingMessage(msg_t *msg, sip_t *sip) {
+int Agent::onIncomingMessage(msg_t *msg, const sip_t *sip) {
 	if (mTerminating) {
 		// Avoid throwing a bad weak pointer on GatewayAdapter destruction
 		LOGI("Skipping incoming message on expired agent");
