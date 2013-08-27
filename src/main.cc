@@ -58,6 +58,8 @@
 #include <functional>
 #include <list>
 
+#include "etchosts.hh"
+
 static int run=1;
 static int pipe_fds[2]={-1}; //pipes used by flexisip to notify its starter process that everything went fine 
 static pid_t flexisip_pid=0;
@@ -336,6 +338,7 @@ int main(int argc, char *argv[]){
 	bool dump_snmp_mib=false;
 	bool dump_settables=false;
 	string settablesPrefix;
+	string hostsOverride;
 	map<string,string> oset;
 
 	for(i=1;i<argc;++i){
@@ -388,7 +391,8 @@ int main(int argc, char *argv[]){
 			const char* svalue="";
 			int shift=0;
 			if (!parse_key_value(argc-i, &argv[i], &skey, &svalue, &shift)) {
-				oset.insert(make_pair(skey,svalue));
+				if (0 == strcmp(skey, "hosts")) hostsOverride = svalue;
+				else oset.insert(make_pair(skey,svalue));
 				i +=shift;
 			} else {
 				fprintf(stderr,"Bad option --set %s\n",argv[i]);
@@ -497,6 +501,10 @@ int main(int argc, char *argv[]){
 
 	log_boolean_expression_evaluation(oset.find("bee") != oset.end());
 	log_boolean_expression_parsing(oset.find("bep") != oset.end());
+	if (!hostsOverride.empty()) {
+		size_t pos = hostsOverride.find("=");
+		EtcHostsResolver::get()->override(hostsOverride.substr(0, pos), hostsOverride.substr(pos+1));
+	}
 
 	su_log_redirect(NULL,sofiaLogHandler,NULL);
 

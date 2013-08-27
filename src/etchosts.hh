@@ -28,10 +28,12 @@ class EtcHostsResolver{
 	public:
 		static EtcHostsResolver *get();
 		bool resolve(const std::string &name, std::string * result)const;
+		void override(const std::string &name, const std::string &result);
 	private:
 		EtcHostsResolver();
 		static void atexit(); // Don't call directly!
 		std::map<std::string,std::string> mMap;
+		std::map<std::string,std::string> mOverrideMap;
 		static EtcHostsResolver *sInstance;
 };
 

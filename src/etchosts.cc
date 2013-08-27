@@ -56,7 +56,7 @@ void EtcHostsResolver::atexit() {
 }
 
 
-EtcHostsResolver * EtcHostsResolver::get(){
+EtcHostsResolver *EtcHostsResolver::get(){
 	if (sInstance==NULL){
 		sInstance=new EtcHostsResolver();
 		::atexit(EtcHostsResolver::atexit);
@@ -65,12 +65,22 @@ EtcHostsResolver * EtcHostsResolver::get(){
 }
 
 bool EtcHostsResolver::resolve(const string &name, string *result)const{
-	map<string,string>::const_iterator it;
+	auto it=mOverrideMap.find(name);
+	if (it!=mOverrideMap.end()) {
+		*result=(*it).second;
+		return true;
+	}
+
 	it=mMap.find(name);
 	if (it!=mMap.end()) {
 		*result=(*it).second;
 		return true;
 	}
-	else return false;
+
+	return false;
 }
 
+void EtcHostsResolver::override(const std::string &name, const std::string &result) {
+	if (result.empty()) mOverrideMap.erase(name);
+	else mOverrideMap.insert(make_pair(name, result));
+}
