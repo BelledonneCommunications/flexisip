@@ -82,7 +82,7 @@ void ForkCallContext::decline(const shared_ptr<OutgoingTransaction> &transaction
 		forward(ev);
 	} else {
 		if (mOutgoings.size() != 1) {
-			ev->setIncomingAgent(shared_ptr<IncomingAgent>());
+			store(ev);
 		} else {
 			forward(ev);
 		}
@@ -149,14 +149,17 @@ void ForkCallContext::store(shared_ptr<ResponseSipEvent> &event) {
 		
 		if (code_class < prev_code_class) {
 			best = true;
-		}else if (isRetryableOrUrgent(code)){
-			if (mShortTimer==NULL){
-				mShortTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
-				su_timer_set_interval(mShortTimer, &ForkCallContext::sOnShortTimer, this, (su_duration_t)mCfg->mUrgentTimeout*1000);
-			}
-			best=true;
 		}
 	}else best=true;
+	
+	if (best && isRetryableOrUrgent(code)){
+		if (mShortTimer==NULL){
+			mShortTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
+			su_timer_set_interval(mShortTimer, &ForkCallContext::sOnShortTimer, this, (su_duration_t)mCfg->mUrgentTimeout*1000);
+		}
+		best=true;
+	}
+	
 	// Save
 	if (best) {
 		mBestResponse = make_shared<ResponseSipEvent>(event); // Copy event
