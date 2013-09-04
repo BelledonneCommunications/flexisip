@@ -26,7 +26,7 @@ thesources= \
 			recordserializer-c.cc recordserializer.hh \
 			recordserializer-json.cc cJSON.c cJSON.h \
 			etchosts.cc etchosts.hh \
-			lpconfig.c lpconfig.h \
+			lpconfig.cc lpconfig.h \
 			configmanager.cc configmanager.hh\
 			event.cc event.hh \
 			transaction.cc transaction.hh \

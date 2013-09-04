@@ -29,7 +29,10 @@
 
 #include <iostream>
 
+#if ENABLE_TRANSCODER
 #include <mediastreamer2/mscommon.h>
+#endif
+
 #include "agent.hh"
 #include "stun.hh"
 #include "dos-protection.hh"
