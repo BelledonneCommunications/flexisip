@@ -19,8 +19,9 @@
 
 #include "flexisip-config.h"
 #include "callcontext-transcoder.hh"
-
+#if ENABLE_TRANSCODER
 #include "mediastreamer2/dtmfgen.h"
+#endif
 #include "ortp/telephonyevents.h"
 
 #include "sdp-modifier.hh"
@@ -36,10 +37,14 @@ CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCall
 	mEncoder=NULL;
 	mDecoder=NULL;
 	mRc=NULL;
-	
+
+#if ENABLE_TRANSCODER
 	mReceiver=ms_filter_new(MS_RTP_RECV_ID);
 	mSender=ms_filter_new(MS_RTP_SEND_ID);
 	mToneGen=ms_filter_new(MS_DTMF_GEN_ID);
+#else
+	mReceiver=mSender=mToneGen=NULL;
+#endif
 
 	rtp_session_set_profile(mSession,mProfile);
 	rtp_session_set_recv_buf_size(mSession,300);
@@ -102,17 +107,19 @@ void CallSide::setPtime(int ptime){
 	mPtime=ptime;
 }
 
-void CallSide::assignPayloads(const MSList *payloads){
-	const MSList *elem;
-	for (elem=payloads;elem!=NULL;elem=elem->next){
-		PayloadType *pt=(PayloadType*)elem->data;
+void CallSide::assignPayloads(std::list< PayloadType * > &payloads){
+#if ENABLE_TRANSCODER
+	bool first = true;
+	for (auto elem=payloads.cbegin();elem!=payloads.cend();++elem){
+		PayloadType *pt=*elem;
 		PayloadType *oldpt=rtp_profile_get_payload(mProfile,payload_type_get_number(pt));
 		if (oldpt){
 			payload_type_destroy(oldpt);
 		}
 		rtp_profile_set_payload(mProfile, payload_type_get_number(pt),pt);
-		if (payloads==elem){
+		if (first){
 			rtp_session_set_payload_type(mSession,payload_type_get_number(pt));
+			first=false;
 		}
 		if (strcmp("telephone-event",pt->mime_type)==0) {
 			rtp_session_telephone_events_supported(mSession);
@@ -120,6 +127,7 @@ void CallSide::assignPayloads(const MSList *payloads){
 	}
 	ms_filter_call_method(mReceiver,MS_RTP_RECV_SET_SESSION,mSession);
 	ms_filter_call_method(mSender,MS_RTP_SEND_SET_SESSION,mSession);
+#endif
 }
 
 CallSide::~CallSide(){
@@ -129,6 +137,8 @@ CallSide::~CallSide(){
 	}
 	rtp_session_destroy(mSession);
 	rtp_profile_destroy(mProfile);
+
+#if ENABLE_TRANSCODER
 	ms_filter_destroy(mReceiver);
 	ms_filter_destroy(mSender);
 	ms_filter_destroy(mToneGen);
@@ -138,6 +148,7 @@ CallSide::~CallSide(){
 		ms_filter_destroy(mDecoder);
 	if (mRc)
 		ms_bitrate_controller_destroy(mRc);
+#endif
 }
 
 void CallSide::dump(){
@@ -182,6 +193,7 @@ PayloadType * CallSide::getRecvFormat(){
 }
 
 void CallSide::connect(CallSide *recvSide, MSTicker *ticker){
+#if ENABLE_TRANSCODER
 	MSConnectionHelper conHelper;
 	PayloadType *recvpt;
 	PayloadType *sendpt;
@@ -258,9 +270,11 @@ void CallSide::connect(CallSide *recvSide, MSTicker *ticker){
 		}
 		mRc=ms_audio_bitrate_controller_new(mSession,mEncoder,0);
 	}
+#endif
 }
 
 void CallSide::disconnect(CallSide *recvSide){
+#if ENABLE_TRANSCODER
 	MSConnectionHelper h;
 
 	ms_connection_helper_start(&h);
@@ -273,6 +287,7 @@ void CallSide::disconnect(CallSide *recvSide){
 	if (mEncoder)
 		ms_connection_helper_unlink(&h,mEncoder,0,0);
 	ms_connection_helper_unlink(&h,mSender,0,-1);
+#endif
 }
 
 void CallSide::payloadTypeChanged(RtpSession *session, unsigned long data){
@@ -302,6 +317,7 @@ void CallSide::onTelephoneEvent(RtpSession *s, int dtmf_index, void * data){
 }
 
 void CallSide::playTone(char tone_name){
+#if ENABLE_TRANSCODER
 	if (mSession && rtp_session_telephone_events_supported(mSession)!=-1) {
 		LOGD("Sending dtmf signal %c",tone_name);
 		ms_filter_call_method(mSender,MS_RTP_SEND_SEND_DTMF,&tone_name);
@@ -316,9 +332,11 @@ void CallSide::playTone(char tone_name){
 	} else {
 		ms_warning("Cannot send tone [%i] because neither rfc2833 nor G711 codec selected",tone_name);
 	}
+#endif
 }
 
 void CallSide::doBgTasks(){
+#if ENABLE_TRANSCODER
 	if (mRtpEvq){
 		OrtpEvent *ev=ortp_ev_queue_get(mRtpEvq);
 		if (ev!=NULL){
@@ -329,11 +347,12 @@ void CallSide::doBgTasks(){
 			ortp_event_destroy(ev);
 		}
 	}
+#endif
 }
 
 
-TranscodedCall::TranscodedCall(sip_t *sip, const string &bind_address) : CallContextBase(sip), mFrontSide(0), mBackSide(0),mBindAddress(bind_address){
-	mInitialOffer=NULL;
+TranscodedCall::TranscodedCall(sip_t *sip, const string &bind_address) : CallContextBase(sip), mFrontSide(0), mBackSide(0),
+		mInitialOffer(), mBindAddress(bind_address){
 	mTicker=NULL;
 	mInfoCSeq=-1;
 	mCreateTime=getCurrentTime();
@@ -348,10 +367,11 @@ void TranscodedCall::prepare( const CallContextParams &params){
 		delete mFrontSide;
 		delete mBackSide;
 	}
-	if (mInitialOffer){
-		ms_list_for_each(mInitialOffer,(void(*)(void*))payload_type_destroy);
-		ms_list_free(mInitialOffer);
-		mInitialOffer=NULL;
+	if (!mInitialOffer.empty()){
+		for (auto it=mInitialOffer.begin(); it != mInitialOffer.cend(); ++it) {
+			payload_type_destroy(*it);
+		}
+		mInitialOffer.clear();
 	}
 	mFrontSide=new CallSide(this,params);
 	mBackSide=new CallSide(this,params);
@@ -359,6 +379,7 @@ void TranscodedCall::prepare( const CallContextParams &params){
 }
 
 void TranscodedCall::join(MSTicker *t){
+#if ENABLE_TRANSCODER
 	LOGD("Joining...");
 	mFrontSide->connect(mBackSide);
 	mBackSide->connect(mFrontSide);
@@ -366,15 +387,18 @@ void TranscodedCall::join(MSTicker *t){
 	ms_ticker_attach(t,mBackSide->getRecvPoint().filter);
 	mTicker=t;
 	LOGD("Graphs now running");
+#endif
 }
 
 void TranscodedCall::unjoin(){
+#if ENABLE_TRANSCODER
 	LOGD("Unjoining...");
 	ms_ticker_detach(mTicker,mFrontSide->getRecvPoint().filter);
 	ms_ticker_detach(mTicker,mBackSide->getRecvPoint().filter);
 	mFrontSide->disconnect(mBackSide);
 	mBackSide->disconnect(mFrontSide);
 	mTicker=NULL;
+#endif
 }
 
 bool TranscodedCall::isJoined()const{
@@ -398,11 +422,11 @@ bool TranscodedCall::isInactive(time_t cur){
 	return !(mFrontSide->isActive(cur) || mBackSide->isActive(cur));
 }
 
-void TranscodedCall::setInitialOffer(MSList *payloads){
+void TranscodedCall::setInitialOffer(std::list< PayloadType * > &payloads){
 	mInitialOffer=payloads;
 }
 
-const MSList *TranscodedCall::getInitialOffer()const{
+const std::list< PayloadType * > &TranscodedCall::getInitialOffer()const{
 	return mInitialOffer;
 }
 
@@ -461,9 +485,11 @@ TranscodedCall::~TranscodedCall(){
 		unjoin();
 	if (mFrontSide) delete mFrontSide;
 	if (mBackSide) delete mBackSide;
-	if (mInitialOffer){
-		ms_list_for_each(mInitialOffer,(void(*)(void*))payload_type_destroy);
-		ms_list_free(mInitialOffer);
+	if (!mInitialOffer.empty()){
+		for (auto it=mInitialOffer.begin(); it != mInitialOffer.cend(); ++it) {
+			payload_type_destroy(*it);
+		}
+		mInitialOffer.clear();
 	}
 }
 

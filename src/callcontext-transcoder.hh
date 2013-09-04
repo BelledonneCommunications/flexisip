@@ -20,6 +20,7 @@
 #define callcontext_hh
 
 #include "callstore.hh"
+#include <list>
 
 
 #include <mediastreamer2/msfilter.h>
@@ -46,7 +47,7 @@ class CallSide{
 		const std::string &getLocalAddress();
 		int getAudioPort();
 		void setRemoteAddr(const char *addr, int port);
-		void assignPayloads(const MSList *payloads);
+		void assignPayloads(std::list<PayloadType *> &payloads);
 		void setPtime(int ptime);
 		void dump();
 		void playTone(char tone_name);
@@ -84,8 +85,8 @@ class TranscodedCall : public CallContextBase{
 		void unjoin();
 		bool isJoined()const;
 		void redraw(CallSide *receiver);
-		void setInitialOffer(MSList *payloads);
-		const MSList *getInitialOffer()const;
+		void setInitialOffer(std::list<PayloadType *> &payloads);
+		const std::list<PayloadType *> &getInitialOffer()const;
 		CallSide *getFrontSide(){
 			return mFrontSide;
 		}
@@ -106,7 +107,7 @@ class TranscodedCall : public CallContextBase{
 		MSTicker *mTicker;
 		CallSide *mFrontSide;
 		CallSide *mBackSide;
-		MSList *mInitialOffer;
+		std::list<PayloadType *> mInitialOffer;
 		int mInfoCSeq;
 		std::string mBindAddress;
 		time_t mCreateTime;

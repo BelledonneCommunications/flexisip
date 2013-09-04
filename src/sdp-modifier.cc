@@ -21,6 +21,10 @@
 #include <sofia-sip/sip_protos.h>
 #include <sstream>
 
+#if ENABLE_TRANSCODER
+#include <mediastreamer2/mscommon.h>
+#endif
+
 using namespace ::std;
 
 SdpModifier *SdpModifier::createFromSipMsg(su_home_t *home, sip_t *sip, const string &nortproxy){
@@ -83,7 +87,7 @@ static sdp_list_t *sdp_list_append(su_home_t *home, sdp_list_t *l, char *text){
 	return begin;
 }
 */
-
+#if ENABLE_TRANSCODER
 static PayloadType *payload_type_make_from_sdp_rtpmap(sdp_rtpmap_t *rtpmap){
 	if (rtpmap->rm_rate == 0 || rtpmap->rm_encoding == NULL) {
 		LOGE("Bad media description for payload type : %i", rtpmap->rm_pt);
@@ -91,7 +95,7 @@ static PayloadType *payload_type_make_from_sdp_rtpmap(sdp_rtpmap_t *rtpmap){
 	}
 	PayloadType *pt=payload_type_new();
 	pt->type=PAYLOAD_AUDIO_PACKETIZED;
-	pt->mime_type=ms_strdup(rtpmap->rm_encoding);
+	pt->mime_type=strdup(rtpmap->rm_encoding);
 	pt->clock_rate=rtpmap->rm_rate;
 	payload_type_set_number(pt,rtpmap->rm_pt);
 	payload_type_set_send_fmtp(pt,rtpmap->rm_fmtp);
@@ -128,34 +132,98 @@ static sdp_rtpmap_t *sdp_rtpmaps_find_by_number(sdp_rtpmap_t *rtpmaps, int numbe
 }
 */
 
-static PayloadType *find_by_number(const MSList *elem, int number){
-	for(;elem!=NULL;elem=elem->next){
-		PayloadType *pt=(PayloadType*)elem->data;
+static PayloadType *find_by_number(const std::list<PayloadType *> &payloads, int number){
+	for(auto elem=payloads.cbegin();elem!=payloads.cend(); ++elem){
+		PayloadType *pt=*elem;
 		if (payload_type_get_number(pt)==number)
 			return pt;
 	}
 	return NULL;
 }
 
-static PayloadType *find_payload(const MSList *elem, const char *mime, int rate){
-	for(;elem!=NULL;elem=elem->next){
-		PayloadType *pt=(PayloadType*)elem->data;
+static PayloadType *find_payload(const std::list<PayloadType *> &payloads, const char *mime, int rate){
+	for(auto elem=payloads.cbegin();elem!=payloads.cend(); ++elem){
+		PayloadType *pt=*elem;
 		if (strcasecmp(pt->mime_type,mime)==0 && rate==pt->clock_rate)
 			return pt;
 	}
 	return NULL;
 }
 
-MSList *SdpModifier::readPayloads(){
+
+
+list<PayloadType *> SdpModifier::readPayloads(){
 	sdp_media_t *mline=mSession->sdp_media;
 	sdp_rtpmap_t *elem=mline->m_rtpmaps;
-	MSList *ret=NULL;
+	list<PayloadType *> ret;
 	for(;elem!=NULL;elem=elem->rm_next){
 		PayloadType * pt = payload_type_make_from_sdp_rtpmap (elem);
-		if (pt != NULL) ret=ms_list_append(ret,pt);
+		if (pt != NULL) ret.push_back(pt);
 	}
 	return ret;
 }
+
+
+std::list< PayloadType * > SdpModifier::findCommon(const std::list< PayloadType * > &offer, const std::list< PayloadType * > &answer, bool use_offer_numbering){
+	std::list< PayloadType * > ret;
+	for (auto e1=offer.cbegin();e1!=offer.cend();++e1){
+		PayloadType *pt1=*e1;
+		for(auto e2=answer.cbegin();e2!=answer.cend();++e2){
+			PayloadType *pt2=*e2;
+			if (strcasecmp(pt1->mime_type,pt2->mime_type)==0
+				&& pt1->clock_rate==pt2->clock_rate ){
+				PayloadType *found=payload_type_clone(pt2);
+			if (use_offer_numbering)
+				payload_type_set_number(found,payload_type_get_number(pt1));
+			else
+				payload_type_set_number(found,payload_type_get_number(pt2));
+			ret.push_back(found);
+				}
+		}
+	}
+	return ret;
+}
+
+void SdpModifier::replacePayloads(const std::list<PayloadType *> &payloads, const std::list<PayloadType *> &preserved_numbers){
+	PayloadType *pt;
+	sdp_rtpmap_t ref;
+	int pt_index=100;
+	
+	memset(&ref,0,sizeof(ref));
+	ref.rm_size=sizeof(ref);
+	
+	sdp_media_t *mline=mSession->sdp_media;
+	mline->m_rtpmaps=NULL;
+	
+	for(auto elem=payloads.cbegin();elem!=payloads.cend(); ++elem){
+		pt=*elem;
+		ref.rm_encoding=pt->mime_type;
+		ref.rm_rate=pt->clock_rate;
+		LOGD("Adding new payload to sdp: %s/%i",pt->mime_type,pt->clock_rate);
+		int number=payload_type_get_number(pt);
+		if (number==-1){
+			/*see if it was numbered in the original offer*/
+			PayloadType *orig=find_payload(preserved_numbers,pt->mime_type,pt->clock_rate);
+			if (orig){
+				number=payload_type_get_number(orig);
+			}else{
+				/* find a dynamic  payload type number */
+				for(;pt_index<127;++pt_index){
+					if (find_by_number(preserved_numbers,pt_index)==NULL){
+						number=pt_index;
+						++pt_index;
+						break;
+					}
+				}
+			}
+		}
+		sdp_rtpmap_t *map=sdp_rtpmap_make_from_payload_type(mHome,pt,number);
+		mline->m_rtpmaps=sdp_rtpmap_append(mline->m_rtpmaps,map);
+	}
+}
+
+#endif
+
 
 int SdpModifier::readPtime(){
 	sdp_media_t *mline=mSession->sdp_media;
@@ -189,65 +257,6 @@ void SdpModifier::setPtime(int ptime){
 	}
 }
 
-MSList *SdpModifier::findCommon(const MSList *offer, const MSList *answer, bool use_offer_numbering){
-	MSList *ret=NULL;
-	const MSList *e1,*e2;
-	for (e1=offer;e1!=NULL;e1=e1->next){
-		PayloadType *pt1=(PayloadType *)e1->data;
-		for(e2=answer;e2!=NULL;e2=e2->next){
-			PayloadType *pt2=(PayloadType *)e2->data;
-			if (strcasecmp(pt1->mime_type,pt2->mime_type)==0
-			    && pt1->clock_rate==pt2->clock_rate ){
-				PayloadType *found=payload_type_clone(pt2);
-				if (use_offer_numbering)
-					payload_type_set_number(found,payload_type_get_number(pt1));
-				else
-					payload_type_set_number(found,payload_type_get_number(pt2));
-				ret=ms_list_append(ret,found);
-			}
-		}
-	}
-	return ret;
-}
-
-void SdpModifier::replacePayloads(const MSList *payloads, const MSList *preserved_numbers){
-	const MSList *elem;
-	PayloadType *pt;
-	sdp_rtpmap_t ref;
-	int pt_index=100;
-	
-	memset(&ref,0,sizeof(ref));
-	ref.rm_size=sizeof(ref);
-
-	sdp_media_t *mline=mSession->sdp_media;
-	mline->m_rtpmaps=NULL;
-	
-	for(elem=payloads;elem!=NULL;elem=elem->next){
-		pt=(PayloadType*)elem->data;
-		ref.rm_encoding=pt->mime_type;
-		ref.rm_rate=pt->clock_rate;
-		LOGD("Adding new payload to sdp: %s/%i",pt->mime_type,pt->clock_rate);
-		int number=payload_type_get_number(pt);
-		if (number==-1){
-			/*see if it was numbered in the original offer*/
-			PayloadType *orig=find_payload(preserved_numbers,pt->mime_type,pt->clock_rate);
-			if (orig){
-				number=payload_type_get_number(orig);
-			}else{
-				/* find a dynamic  payload type number */
-				for(;pt_index<127;++pt_index){
-					if (find_by_number(preserved_numbers,pt_index)==NULL){
-						number=pt_index;
-						++pt_index;
-						break;
-					}
-				}
-			}
-		}
-		sdp_rtpmap_t *map=sdp_rtpmap_make_from_payload_type(mHome,pt,number);
-		mline->m_rtpmaps=sdp_rtpmap_append(mline->m_rtpmaps,map);
-	}
-}
 
 short SdpModifier::getAudioIpVersion() {
       sdp_connection_t *c=mSession->sdp_media->m_connections;

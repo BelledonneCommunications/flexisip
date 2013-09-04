@@ -108,10 +108,13 @@ AC_ARG_ENABLE(doc,
 )
 
 AC_ARG_ENABLE(transcoder,
-	AC_HELP_STRING([--disable-transcoder],
-	    [Build transcoder support @<:@yes@:>@]),
-        [transcoder="${enableval}"],[transcoder=yes]
+	AC_HELP_STRING([--enable-transcoder],
+	    [Build transcoder support @<:@no@:>@]),
+        [transcoder="${enableval}"],[transcoder=no]
 )
+if test $transcoder = "yes"; then
+	PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
+fi
 AM_CONDITIONAL(BUILD_TRANSCODER,test x$transcoder = xyes)
 
 AC_ARG_ENABLE(specific-features,
@@ -257,7 +260,6 @@ AM_CONDITIONAL(BUILD_PROTOBUF,test x$protobuf = xyes)
 AC_HEADER_STDBOOL
 
 PKG_CHECK_MODULES(SOFIA,[sofia-sip-ua >= 1.12.11])
-PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
 PKG_CHECK_MODULES(ORTP,[ortp >= 0.16.3])
 
 ORTP_VERSION=`$PKG_CONFIG --modversion ortp 2>&1`

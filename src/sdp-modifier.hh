@@ -16,12 +16,12 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <mediastreamer2/mscommon.h>
 #include "common.hh"
 #include <sofia-sip/sdp.h>
 #include <sofia-sip/sip.h>
 #include <functional>
 #include <string>
+#include <list>
 
 #ifndef _SDP_MODIFIER_HH_
 #define _SDP_MODIFIER_HH_
@@ -29,6 +29,9 @@
 
 #define payload_type_set_number(pt,n)	(pt)->user_data=(void*)(long)n
 #define payload_type_get_number(pt)		(int)(long)(pt)->user_data
+
+struct _PayloadType;
+typedef struct _PayloadType PayloadType;
 
 /**
  * Utility class used to do various changes in an existing SDP message.
@@ -38,9 +41,12 @@ class SdpModifier{
 		static SdpModifier *createFromSipMsg(su_home_t *home, sip_t *sip, const std::string &nortproxy = "");
 		static bool hasSdp(const sip_t *sip);
 		bool initFromSipMsg(sip_t *sip);
-		MSList *readPayloads();
+		#if ENABLE_TRANSCODER
+		std::list<PayloadType *> readPayloads();
+		void replacePayloads(const std::list<PayloadType *> &payloads, const std::list<PayloadType *> &preserved_numbers);
+		static std::list<PayloadType *> findCommon(const std::list<PayloadType *> &offer, const std::list<PayloadType *> &answer, bool use_offer_numbering);
+		#endif
 		int readPtime();
-		void replacePayloads(const MSList *payloads, const MSList *preserved_numbers);
 		short getAudioIpVersion();
 		void getAudioIpPort(std::string *ip, int *port);
 		void changeAudioIpPort(const char *ip, int port);
@@ -57,7 +63,6 @@ class SdpModifier{
 		void setPtime(int ptime);
 		virtual ~SdpModifier();
 		SdpModifier(su_home_t *home, std::string nortproxy);
-		static MSList *findCommon(const MSList *offer, const MSList *answer, bool use_offer_numbering);
 		sdp_session_t *mSession;
 		sip_t *mSip;
 	private:

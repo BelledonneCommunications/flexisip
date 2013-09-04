@@ -18,8 +18,11 @@
 
 #include "module.hh"
 #include "agent.hh"
+
+#if ENABLE_TRANSCODER
 #include "callcontext-transcoder.hh"
 #include "sdp-modifier.hh"
+#endif
 
 #include <vector>
 #include <functional>
@@ -27,6 +30,7 @@
 
 using namespace ::std;
 
+#if ENABLE_TRANSCODER
 class TickerManager {
 public:
 	TickerManager() : mLastTickerIndex(0),mStarted(false){}
@@ -67,6 +71,7 @@ private:
 	unsigned int mLastTickerIndex;
 	bool mStarted;
 };
+#endif
 
 class Transcoder: public Module, protected ModuleToolbox {
 public:
@@ -77,6 +82,7 @@ public:
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 	virtual void onIdle();
 	virtual void onDeclare(GenericStruct *mc);
+#if ENABLE_TRANSCODER
 private:
 	TickerManager mTickerManager;
 	int handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev);
@@ -88,15 +94,16 @@ private:
 	void onTimer();
 	static void sOnTimer(void *unused, su_timer_t *t, void *zis);
 	bool canDoRateControl(sip_t *sip);
-	bool hasSupportedCodec(const MSList *ioffer);
-	MSList *normalizePayloads(MSList *l);
-	MSList *orderList(const list<string> &config, const MSList *l);
-	MSList *mSupportedAudioPayloads;
+	bool hasSupportedCodec(const list<PayloadType *> &ioffer);
+	void normalizePayloads(std::list< PayloadType * > &l);
+	list<PayloadType *> orderList(const list< string > &config, const std::list< PayloadType * > &l);
+	list<PayloadType *> mSupportedAudioPayloads;
 	CallStore mCalls;
 	su_timer_t *mTimer;
 	list<string> mRcUserAgents;
 	bool mRemoveBandwidthsLimits;
 	CallContextParams mCallParams;
+#endif
 	static ModuleInfo<Transcoder> sInfo;
 };
 
@@ -111,68 +118,19 @@ ModuleInfo<Transcoder> Transcoder::sInfo("Transcoder", "The purpose of the Trans
 		"Make sure to configure them with different to-domains or from-domains filter if you want to enable both of them.",
 		ModuleInfoBase::ModuleOid::Transcoder);
 
-static MSList *makeSupportedAudioPayloadList() {
-	/* in mediastreamer2, we use normal_bitrate as an IP bitrate, not codec bitrate*/
-	payload_type_silk_nb.normal_bitrate = 29000;
-	payload_type_speex_nb.normal_bitrate = 32000;
-	payload_type_speex_wb.normal_bitrate = 42000;
-	payload_type_speex_nb.recv_fmtp = ms_strdup("vbr=on");
-	payload_type_amr.recv_fmtp = ms_strdup("octet-align=1");
 
-	payload_type_set_number(&payload_type_pcmu8000, 0);
-	payload_type_set_number(&payload_type_pcma8000, 8);
-	payload_type_set_number(&payload_type_gsm, 3);
-	payload_type_set_number(&payload_type_speex_nb, -1);
-	payload_type_set_number(&payload_type_speex_wb, -1);
-	payload_type_set_number(&payload_type_amr, -1);
-	payload_type_set_number(&payload_type_amrwb, -1);
-	payload_type_set_number(&payload_type_ilbc, -1);
-	payload_type_set_number(&payload_type_silk_nb, -1);
-	payload_type_set_number(&payload_type_silk_mb, -1);
-	payload_type_set_number(&payload_type_silk_wb, -1);
-	payload_type_set_number(&payload_type_silk_swb, -1);
-	payload_type_set_number(&payload_type_telephone_event, -1);
-	MSList *l = NULL;
-	l = ms_list_append(l, &payload_type_speex_nb);
-	l = ms_list_append(l, &payload_type_ilbc);
-	l = ms_list_append(l, &payload_type_amr);
-	l = ms_list_append(l, &payload_type_amrwb);
-	l = ms_list_append(l, &payload_type_gsm);
-	l = ms_list_append(l, &payload_type_pcmu8000);
-	l = ms_list_append(l, &payload_type_pcma8000);
-	l = ms_list_append(l, &payload_type_telephone_event);
-	l = ms_list_append(l,&payload_type_silk_nb);
-	l = ms_list_append(l,&payload_type_silk_mb);
-	l = ms_list_append(l,&payload_type_silk_wb);
-	l = ms_list_append(l,&payload_type_silk_swb);
-
-
-	return l;
+#ifndef ENABLE_TRANSCODER
+Transcoder::Transcoder(Agent *ag) : Module(ag) {}
+Transcoder::~Transcoder() {}
+void Transcoder::onLoad(const GenericStruct *mc){}
+void Transcoder::onIdle() {}
+void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
+	LOGA("Transcoder support is not compiled");
 }
-
-bool Transcoder::hasSupportedCodec(const MSList *ioffer) {
-	const MSList *e1, *e2;
-	for (e1 = ioffer; e1 != NULL; e1 = e1->next) {
-		PayloadType *p1 = (PayloadType*) e1->data;
-		for (e2 = mSupportedAudioPayloads; e2 != NULL; e2 = e2->next) {
-			PayloadType *p2 = (PayloadType*) e2->data;
-			if (strcasecmp(p1->mime_type, p2->mime_type) == 0 && p1->clock_rate == p2->clock_rate)
-				return true;
-		}
-	}
-	return false;
+void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+	LOGA("Transcoder support is not compiled");
 }
-
-Transcoder::Transcoder(Agent *ag) :
-		Module(ag), mTimer(0) {
-	mSupportedAudioPayloads = NULL;
-}
-
-Transcoder::~Transcoder() {
-	if (mTimer)
-		getAgent()->stopTimer(mTimer);
-	ms_list_free(mSupportedAudioPayloads);
-}
+#endif
 
 void Transcoder::onDeclare(GenericStruct *mc) {
 	/*we need to be disabled by default*/
@@ -191,14 +149,79 @@ void Transcoder::onDeclare(GenericStruct *mc) {
 	mc->addChildrenValues(items);
 
 	auto p=mc->createStatPair("count-calls", "Number of transcoded calls.");
+	#if ENABLE_TRANSCODER
 	mCalls.setCallStatCounters(p.first, p.second);
+	#endif
 }
 
-MSList *Transcoder::orderList(const list<string> &config, const MSList *l) {
+
+
+
+#if ENABLE_TRANSCODER
+static list<PayloadType *> makeSupportedAudioPayloadList() {
+	/* in mediastreamer2, we use normal_bitrate as an IP bitrate, not codec bitrate*/
+	payload_type_silk_nb.normal_bitrate = 29000;
+	payload_type_speex_nb.normal_bitrate = 32000;
+	payload_type_speex_wb.normal_bitrate = 42000;
+	payload_type_speex_nb.recv_fmtp = ms_strdup("vbr=on");
+	payload_type_amr.recv_fmtp = ms_strdup("octet-align=1");
+	
+	payload_type_set_number(&payload_type_pcmu8000, 0);
+	payload_type_set_number(&payload_type_pcma8000, 8);
+	payload_type_set_number(&payload_type_gsm, 3);
+	payload_type_set_number(&payload_type_speex_nb, -1);
+	payload_type_set_number(&payload_type_speex_wb, -1);
+	payload_type_set_number(&payload_type_amr, -1);
+	payload_type_set_number(&payload_type_amrwb, -1);
+	payload_type_set_number(&payload_type_ilbc, -1);
+	payload_type_set_number(&payload_type_silk_nb, -1);
+	payload_type_set_number(&payload_type_silk_mb, -1);
+	payload_type_set_number(&payload_type_silk_wb, -1);
+	payload_type_set_number(&payload_type_silk_swb, -1);
+	payload_type_set_number(&payload_type_telephone_event, -1);
+	
+	list<PayloadType *> l;
+	l.push_back(&payload_type_speex_nb);
+	l.push_back(&payload_type_ilbc);
+	l.push_back(&payload_type_amr);
+	l.push_back(&payload_type_amrwb);
+	l.push_back(&payload_type_gsm);
+	l.push_back(&payload_type_pcmu8000);
+	l.push_back(&payload_type_pcma8000);
+	l.push_back(&payload_type_telephone_event);
+	l.push_back(&payload_type_silk_nb);
+	l.push_back(&payload_type_silk_mb);
+	l.push_back(&payload_type_silk_wb);
+	l.push_back(&payload_type_silk_swb);
+	
+	return l;
+}
+
+bool Transcoder::hasSupportedCodec(const std::list< PayloadType * > &ioffer) {
+	for (auto e1 = ioffer.cbegin(); e1 != ioffer.cend(); ++e1) {
+		PayloadType *p1 = *e1;
+		for (auto e2 = mSupportedAudioPayloads.cbegin(); e2 != mSupportedAudioPayloads.cend(); ++e2) {
+			PayloadType *p2 = *e2;
+			if (strcasecmp(p1->mime_type, p2->mime_type) == 0 && p1->clock_rate == p2->clock_rate)
+				return true;
+		}
+	}
+	return false;
+}
+
+Transcoder::Transcoder(Agent *ag) :
+Module(ag),mSupportedAudioPayloads(), mTimer(0) {
+}
+
+Transcoder::~Transcoder() {
+	if (mTimer)
+		getAgent()->stopTimer(mTimer);
+}
+
+list<PayloadType *> Transcoder::orderList(const list<string> &config, const list<PayloadType *> &l) {
 	int err;
 	int rate;
-	MSList *ret = NULL;
-	const MSList *it;
+	list<PayloadType *> ret;
 	list<string>::const_iterator cfg_it;
 
 	for (cfg_it = config.begin(); cfg_it != config.end(); ++cfg_it) {
@@ -216,11 +239,11 @@ MSList *Transcoder::orderList(const list<string> &config, const MSList *l) {
 		err = sscanf(p, "%i", &rate);
 		if (err != 1)
 			LOGF("Error parsing audio codec list, missing rate information");
-		for (it = l; it != NULL; it = it->next) {
-			PayloadType *pt = (PayloadType*) it->data;
+		for (auto it = l.cbegin(); it != l.cend(); ++it) {
+			PayloadType *pt = *it;
 			if (strcasecmp(pt->mime_type, name) == 0 && rate == pt->clock_rate) {
 				if (ms_filter_get_encoder(pt->mime_type) != NULL || strcmp("telephone-event", pt->mime_type) == 0) {
-					ret = ms_list_append(ret, pt);
+					ret.push_back(pt);
 				} else {
 					LOGE("Codec %s/%i is configured but is not supported (missing plugin ?)", name, rate);
 				}
@@ -235,9 +258,8 @@ void Transcoder::onLoad(const GenericStruct *mc){
 	mCallParams.mJbNomSize=mc->get<ConfigInt>("jb-nom-size")->read();
 	mRcUserAgents=mc->get<ConfigStringList>("rc-user-agents")->read();
 	mRemoveBandwidthsLimits=mc->get<ConfigBoolean>("remove-bw-limits")->read();
-	MSList *l=makeSupportedAudioPayloadList();
+	list<PayloadType *> l=makeSupportedAudioPayloadList();
 	mSupportedAudioPayloads=orderList(mc->get<ConfigStringList>("audio-codecs")->read(),l);
-	ms_list_free(l);
 }
 
 void Transcoder::onIdle() {
@@ -272,19 +294,18 @@ bool Transcoder::processSipInfo(TranscodedCall *c, shared_ptr<RequestSipEvent> &
 	return false;
 }
 
-static const PayloadType *findPt(const MSList *l, const char *mime, int rate) {
-	for (; l != NULL; l = l->next) {
-		const PayloadType *pt = (PayloadType*) l->data;
+static const PayloadType *findPt(const list<PayloadType *> &l, const char *mime, int rate) {
+	for (auto it=l.cbegin(); it != l.cend(); ++it) {
+		const PayloadType *pt = *it;
 		if (pt->clock_rate == rate && strcasecmp(mime, pt->mime_type) == 0)
 			return pt;
 	}
 	return NULL;
 }
 
-MSList *Transcoder::normalizePayloads(MSList *l) {
-	MSList *it;
-	for (it = l; it != NULL; it = it->next) {
-		PayloadType *pt = (PayloadType*) l->data;
+void Transcoder::normalizePayloads(std::list< PayloadType * > &l) {
+	for (auto it = l.cbegin(); it != l.cend(); ++it) {
+		PayloadType *pt = *it;
 		if (pt->normal_bitrate == 0) {
 			const PayloadType *refpt = findPt(mSupportedAudioPayloads, pt->mime_type, pt->clock_rate);
 			if (refpt && refpt->normal_bitrate > 0) {
@@ -293,7 +314,6 @@ MSList *Transcoder::normalizePayloads(MSList *l) {
 			}
 		}
 	}
-	return l;
 }
 
 static void removeBandwidths(sdp_session_t *sdp) {
@@ -313,7 +333,7 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 	if (m == NULL)
 		return -1;
 
-	MSList *ioffer = m->readPayloads();
+	list<PayloadType *> ioffer = m->readPayloads();
 
 	if (hasSupportedCodec(ioffer)) {
 		string fraddr;
@@ -355,8 +375,12 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 		return 0;
 	} else {
 		LOGW("No support for any of the codec offered by client, doing bypass.");
-		ms_list_for_each(ioffer, (void(*)(void*))payload_type_destroy);ms_list_free
-		(ioffer);
+		if (!ioffer.empty()){
+			for (auto it=ioffer.begin(); it != ioffer.cend(); ++it) {
+				payload_type_destroy(*it);
+			}
+			ioffer.clear();
+		}
 	}
 	delete m;
 	return -1;
@@ -380,8 +404,8 @@ int Transcoder::processInvite(TranscodedCall *c, shared_ptr<RequestSipEvent> &ev
 
 void Transcoder::processAck(TranscodedCall *ctx, shared_ptr<RequestSipEvent> &ev) {
 	LOGD("Processing ACK");
-	const MSList *ioffer = ctx->getInitialOffer();
-	if (ioffer == NULL) {
+	auto ioffer = ctx->getInitialOffer();
+	if (!ioffer.empty()) {
 		LOGE("Processing ACK with SDP but no offer was made or processed.");
 	} else {
 		handleAnswer(ctx, ev);
@@ -459,26 +483,27 @@ int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {
 	LOGD("Using public ip%s %s", ipVersion == 6 ?"v6":"v4", publicIp);
 	m->changeAudioIpPort(publicIp, ctx->getFrontSide()->getAudioPort());
 
-	MSList *answer = m->readPayloads();
-	if (answer == NULL) {
+	auto answer = m->readPayloads();
+	if (answer.empty()) {
 		LOGE("No payloads in 200Ok");
 		delete m;
 		return -1;
 	}
-	ctx->getBackSide()->assignPayloads(normalizePayloads(answer));
-	ms_list_free(answer);
+	normalizePayloads(answer);
+	ctx->getBackSide()->assignPayloads(answer);
 
-	const MSList *ioffer = ctx->getInitialOffer();
-	MSList *common = SdpModifier::findCommon(mSupportedAudioPayloads, ioffer, false);
-	if (common != NULL) {
-		m->replacePayloads(common, NULL);
+	const auto ioffer = ctx->getInitialOffer();
+	auto common = SdpModifier::findCommon(mSupportedAudioPayloads, ioffer, false);
+	if (!common.empty()) {
+		m->replacePayloads(common, {});
 	}
 
 	if (mRemoveBandwidthsLimits) removeBandwidths(m->mSession);
 
 	m->update(ms->getMsg(), ms->getSip());
 
-	ctx->getFrontSide()->assignPayloads(normalizePayloads(common));
+	normalizePayloads(common);
+	ctx->getFrontSide()->assignPayloads(common);
 
 	if (canDoRateControl(ms->getSip())) {
 		ctx->getBackSide()->enableRc(true);
@@ -550,3 +575,4 @@ void Transcoder::sOnTimer(void *unused, su_timer_t *t, void *zis) {
 	((Transcoder*) zis)->onTimer();
 }
 
+#endif
