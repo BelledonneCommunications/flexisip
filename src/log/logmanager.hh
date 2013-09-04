@@ -24,6 +24,7 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <syslog.h>
 
 namespace flexisip {
 namespace log {

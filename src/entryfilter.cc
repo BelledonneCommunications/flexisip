@@ -40,7 +40,7 @@ ConfigItemDescriptor config[]={
 };
 
 void ConfigEntryFilter::declareConfig(GenericStruct *module_config){
-	module_config->addChildrenValues(config, FALSE);
+	module_config->addChildrenValues(config, false);
 	module_config->deprecateChild("from-domains");
 	module_config->deprecateChild("to-domains");
 	mCountEvalTrue=module_config->createStat("count-eval-true", "Number of filter evaluations to true.");

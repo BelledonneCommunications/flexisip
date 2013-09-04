@@ -71,7 +71,6 @@ using namespace flexisip::log;
 namespace keywords = boost::log::keywords;
 namespace logging = boost::log;
 namespace sinks = boost::log::sinks;
-namespace syslog = sinks::syslog;
 #if (BOOST_VERSION >= 105400)
 namespace fmt = boost::log::expressions;
 namespace flt = boost::log::expressions;
@@ -161,7 +160,7 @@ namespace log {
 		// Create a syslog sink
 		typedef sinks::synchronous_sink< sinks::syslog_backend > back_type;
 		boost::shared_ptr< back_type > sink(
-			new back_type(keywords::use_impl = syslog::native));
+			new back_type(keywords::use_impl = sinks::syslog::native));
 		
 //		auto formatter=logging::aux::acquire_formatter(format);
 		SINK_LCK(sink)->set_formatter(createFormatter());

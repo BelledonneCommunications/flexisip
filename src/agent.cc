@@ -473,7 +473,7 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases) const {
 sip_via_t *Agent::getNextVia(sip_t *response) {
 	sip_via_t *via;
 	for (via = response->sip_via; via != NULL; via = via->v_next) {
-		if (!isUs(via->v_host, via->v_port, FALSE))
+		if (!isUs(via->v_host, via->v_port, false))
 			return via;
 	}
 	return NULL;

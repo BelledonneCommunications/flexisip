@@ -48,7 +48,7 @@ int PushNotificationService::sendRequest(const std::shared_ptr<PushNotificationR
 			boost::system::error_code err;
 			ctx->set_options(ssl::context::default_workarounds, err);
 			ctx->set_verify_mode(ssl::context::verify_none);
-			mClients[wpClient] = std::make_shared<PushNotificationClient>(wpClient, this, ctx, pn->getAppIdentifier(), WPPN_PORT, MAX_QUEUE_SIZE, FALSE);
+			mClients[wpClient] = std::make_shared<PushNotificationClient>(wpClient, this, ctx, pn->getAppIdentifier(), WPPN_PORT, MAX_QUEUE_SIZE, false);
 			LOGD("Creating PNclient for client %s",pn->getAppIdentifier().c_str());
 			client = mClients[wpClient];
 		} else {
@@ -115,7 +115,7 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 	boost::system::error_code err;
 	ctx->set_options(ssl::context::default_workarounds, err);
 	ctx->set_verify_mode(ssl::context::verify_none);
-	mClients[googleClient]=std::make_shared<PushNotificationClient>(googleClient, this, ctx, GPN_ADDRESS, GPN_PORT, maxQueueSize, TRUE);
+	mClients[googleClient]=std::make_shared<PushNotificationClient>(googleClient, this, ctx, GPN_ADDRESS, GPN_PORT, maxQueueSize, true);
 	
 	dirp=opendir(certdir.c_str());
 	if (dirp==NULL){
@@ -163,7 +163,7 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 		if (certName.find(".dev")!=string::npos)
 			apn_server=APN_DEV_ADDRESS;
 		else apn_server=APN_PROD_ADDRESS;
-		mClients[certName]=std::make_shared<PushNotificationClient>(cert, this, ctx, apn_server, APN_PORT, maxQueueSize, TRUE);
+		mClients[certName]=std::make_shared<PushNotificationClient>(cert, this, ctx, apn_server, APN_PORT, maxQueueSize, true);
 	}
 	closedir(dirp);
 }

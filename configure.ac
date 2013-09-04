@@ -22,6 +22,13 @@ AC_PROG_CC([gcc-4.4 gcc-4.7 gcc])
 AC_PROG_CXX([g++-4.4 g++-4.7 g++])
 AC_PROG_LIBTOOL
 
+AC_ARG_ENABLE(snmp,
+        AC_HELP_STRING([--disable-snmp],
+            [Build snmp support @<:@yes@:>@]),
+        [snmp="${enableval}"],[snmp=yes]
+)
+
+if test x$snmp = xyes ; then
 build_snmp=true
 AC_PATH_PROG([NET_SNMP_CONFIG],[net-snmp-config])
 if test -z "$NET_SNMP_CONFIG"; then
@@ -41,6 +48,7 @@ else
 		AC_DEFINE(ENABLE_SNMP,1,[Tells whether snmp is usable])
 		AC_MSG_NOTICE([snmp support enabled])
 	fi
+fi
 fi
 AM_CONDITIONAL(BUILD_SNMP,test x$build_snmp = xtrue)
 AC_DEFINE(SNMP_COMPANY_OID,100000,[Company OID used for prefixing flexisip MIB])
