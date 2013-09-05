@@ -23,9 +23,9 @@
 
 using namespace ::std;
 
-SdpModifier *SdpModifier::createFromSipMsg(su_home_t *home, sip_t *sip){
+SdpModifier *SdpModifier::createFromSipMsg(su_home_t *home, sip_t *sip, const string &nortproxy){
 	if (!sip->sip_payload || !sip->sip_payload->pl_data) return NULL;
-	SdpModifier *sm=new SdpModifier(home);
+	SdpModifier *sm=new SdpModifier(home, nortproxy);
 	if (!sm->initFromSipMsg(sip)) {
 		delete sm;
 		sm=NULL;
@@ -61,10 +61,9 @@ bool SdpModifier::initFromSipMsg(sip_t *sip){
 	return true;
 }
 
-SdpModifier::SdpModifier(su_home_t *home){
+SdpModifier::SdpModifier(su_home_t *home, std::string nortproxy) : mHome(home), mNortproxy(nortproxy) {
 	mParser=NULL;
 	mSip=NULL;
-	mHome=home;
 	mSession=NULL;
 }
 
@@ -297,7 +296,7 @@ void SdpModifier::addIceCandidate(function<void(int, string *, int *)> forward_f
 	r = (((uint64_t)random()) << 32) | (((uint64_t)random()) & 0xffffffff);
 	snprintf(foundation, sizeof(foundation), "%llx", (long long unsigned int)r);
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
-		if (hasMediaAttribute(mline,"candidate") && !hasMediaAttribute(mline,"remote-candidates") && !hasMediaAttribute(mline,"nortpproxy")) {
+		if (hasMediaAttribute(mline,"candidate") && !hasMediaAttribute(mline,"remote-candidates") && !hasMediaAttribute(mline,mNortproxy.c_str())) {
 			string relay_ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
 			int relay_port=mline->m_port;
 			string source_ip=relay_ip;
@@ -320,7 +319,7 @@ void SdpModifier::addIceCandidate(function<void(int, string *, int *)> forward_f
 					addMediaAttribute(mline, "candidate", candidate_line.str().c_str());
 				}
 			}
-			addMediaAttribute(mline, "nortpproxy", "yes");
+			if (!mNortproxy.empty()) addMediaAttribute(mline, mNortproxy.c_str(), "yes");
 		}
 	}
 }
@@ -354,7 +353,7 @@ void SdpModifier::masquerade(function<void(int, string *, int *)> fct){
 		int port=mline->m_port;
 
 		if (port == 0) continue;
-		if (hasMediaAttribute(mline,"nortpproxy")) continue;
+		if (hasMediaAttribute(mline, mNortproxy.c_str())) continue;
 		fct(i,&ip,&port);
 		
 		if (mline->m_connections){
@@ -397,7 +396,7 @@ void SdpModifier::masquerade(function<void(int, string *, int *)> fct){
 		   that were marked as "nortpproxy". So we need to fix the connection address of these mlines now. */
 		mline = mSession->sdp_media;
 		for (i = 0; mline != NULL; mline = mline->m_next, ++i) {
-			if (hasMediaAttribute(mline, "nortpproxy") && !mline->m_connections) {
+			if (hasMediaAttribute(mline, mNortproxy.c_str()) && !mline->m_connections) {
 				changeMediaConnection(mline, global_c_address.c_str());
 			}
 		}

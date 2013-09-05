@@ -47,7 +47,7 @@ public:
 protected:
 	virtual void onDeclare(GenericStruct * mc) {
 		ConfigItemDescriptor items[] = {
-				{ String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay.", "nortpproxy" },
+				{ String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay. Use 'disable' to disable.", "nortpproxy" },
 				{ String, "early-media-rtp-dir", "Set the RTP direction during early media state (duplex, forward)", "duplex" },
 				{ Integer, "sdp-port-range-min", "The minimal value of SDP port range", "1024" },
 				{ Integer, "sdp-port-range-max", "The maximal value of SDP port range", "65535" },
@@ -115,6 +115,7 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mCalls->setCallStatCounters(mCountCalls, mCountCallsFinished);
 	mServer = new MediaRelayServer(mAgent);
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
+	if (mSdpMangledParam == "disable") mSdpMangledParam.clear();
 	string rtpdir = modconf->get<ConfigString>("early-media-rtp-dir")->read();
 	mByeOrphanDialogs = modconf->get<ConfigBoolean>("bye-orphan-dialogs")->read();
 #ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
@@ -157,7 +158,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		LOGW("No tag in from !");
 		return false;
 	}
-	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), sip);
+	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
 		LOGW("Invalid SDP");
 		return false;
@@ -216,7 +217,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		m->addIceCandidate(bind(&RelayedCall::masqueradeForFront, c, _1, _2, _3),
 			bind(&RelayedCall::masqueradeIceForBack, c, _1, _2, _3, from_tag, ref(transaction)));
 		
-	m->addAttribute(mSdpMangledParam.c_str(), "yes");
+	if (!mSdpMangledParam.empty()) m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	m->update(msg, sip);
 
 	mServer->update();
@@ -318,7 +319,7 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 		if (!c->isDialogEstablished()) c->establishDialogWith200Ok(getAgent(),sip);
 	}
 
-	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), sip);
+	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
 		LOGW("Invalid SDP");
 		return;

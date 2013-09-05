@@ -35,7 +35,7 @@
 **/
 class SdpModifier{
 	public:
-		static SdpModifier *createFromSipMsg(su_home_t *home, sip_t *sip);
+		static SdpModifier *createFromSipMsg(su_home_t *home, sip_t *sip, const std::string &nortproxy = "");
 		static bool hasSdp(const sip_t *sip);
 		bool initFromSipMsg(sip_t *sip);
 		MSList *readPayloads();
@@ -56,13 +56,14 @@ class SdpModifier{
 		void update(msg_t *msg, sip_t *sip);
 		void setPtime(int ptime);
 		virtual ~SdpModifier();
-		SdpModifier(su_home_t *home);
+		SdpModifier(su_home_t *home, std::string nortproxy);
 		static MSList *findCommon(const MSList *offer, const MSList *answer, bool use_offer_numbering);
 		sdp_session_t *mSession;
 		sip_t *mSip;
 	private:
 		sdp_parser_t *mParser;
 		su_home_t *mHome;
+		std::string mNortproxy;
 };
 
 #endif // _SDP_MODIFIER_HH_

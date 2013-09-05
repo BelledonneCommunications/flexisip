@@ -308,7 +308,7 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
-	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), ms->getSip());
+	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), ms->getSip(), "");
 
 	if (m == NULL)
 		return -1;
