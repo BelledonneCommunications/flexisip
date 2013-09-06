@@ -6,6 +6,8 @@
 %define     redis       %{?_without_redis:0}%{!?_without_redis:1}
 %define     protobuf       %{?_without_protobuf:0}%{!?_without_protobuf:1}
 %define     boostlog       %{?_without_boostlog:0}%{!?_without_boostlog:1}
+%define     odbc       %{?_without_odbc:0}%{!?_without_odbc:1}
+%define     transcoder      %{?_without_transcoder:0}%{!?_without_transcoder:1}
 
 
 # 
@@ -24,7 +26,10 @@ BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 %ifarch %ix86
 BuildArch:	i686
 %endif
-Requires: bash >= 2.0, unixODBC >= 2.3.0
+Requires: bash >= 2.0
+%if %{odbc}
+Requires: unixODBC >= 2.3.0
+%endif
 %if %{boostlog}
 Requires: boost-log >= 1.41.0
 %endif
@@ -46,6 +51,15 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 %endif
 %if %{protobuf}
     --enable-protobuf \
+%endif
+%if !%{odbc}
+    --disable-odbc \
+%endif
+%if !%{boostlog}
+    --disable-boostlog \
+%endif
+%if %{transcoder}
+    --enable-transcoder \
 %endif
 	--sysconfdir=%{_sysconfdir} 
 %{__make} 
