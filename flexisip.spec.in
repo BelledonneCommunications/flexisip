@@ -8,6 +8,8 @@
 %define     boostlog       %{?_without_boostlog:0}%{!?_without_boostlog:1}
 %define     odbc       %{?_without_odbc:0}%{!?_without_odbc:1}
 %define     transcoder      %{?_without_transcoder:0}%{!?_without_transcoder:1}
+%define     snmp      %{?_without_snmp:0}%{!?_without_snmp:1}
+
 
 
 # 
@@ -54,6 +56,9 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 %endif
 %if !%{odbc}
     --disable-odbc \
+%endif
+%if !%{snmp}
+    --disable-snmp \
 %endif
 %if !%{boostlog}
     --disable-boostlog \
