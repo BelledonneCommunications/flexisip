@@ -19,6 +19,8 @@
 #include <string>
 #include <list>
 #include "configmanager.hh"
+#include "agent.hh"
+struct Agent;
 
 
 class DosProtection : protected ConfigValueListener {
@@ -27,13 +29,13 @@ class DosProtection : protected ConfigValueListener {
 		bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 		void start();
 		void stop();
+		static nta_agent_t *sSofiaAgent;
 	private:
 		DosProtection();
 		static void atexit(); // Don't call directly!
 		virtual ~DosProtection();
 		void load();
 		static DosProtection *sInstance;
-		int mPort;
 		int mPeriod;
 		const char *mLogLevel;
 		const char *mLogPrefix;

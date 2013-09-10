@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <stdlib.h>
+#include <sofia-sip/nta_tport.h>
 
 using namespace ::std;
 
@@ -41,7 +42,7 @@ DosProtection::DosProtection() {
 	ConfigItemDescriptor items[] = { 
 		{ Boolean, "enabled", "Enable or disable DOS protection using IPTables firewall.", "false" }, 
 		{ StringList, "authorized-ip", "List of whitelist IPs which won't be affected by DOS protection.", "127.0.0.1" },
-		{ Integer, "port",	"Local ports to protect.", "5060"},
+		{ Integer, "port",	"Deprecated: Local ports to protect.", "5060"},
 		{ Integer, "ban-duration",
 		"Time (in seconds) while an IP have to not send any packet in order to leave the blacklist.", "60" },
 		{ Integer, "packets-limit", "Number of packets authorized in 1sec before considering them as DOS attack.", "20" },
@@ -52,6 +53,7 @@ DosProtection::DosProtection() {
 	GenericStruct *s = new GenericStruct("dos-protection", "DOS protection parameters.",0);
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
+	s->deprecateChild("port");
 	s->setConfigListener(this);
 	mLoaded = false;
 }
@@ -112,9 +114,6 @@ void DosProtection::load() {
 	mBanDuration = dosProtection->get<ConfigInt>("ban-duration")->read();
 	mPacketsLimit = dosProtection->get<ConfigInt>("packets-limit")->read();
 	mMaximumConnections = dosProtection->get<ConfigInt>("maximum-connections")->read();
-
-	//TODO since flexisip can listen on multiple ports, retrieve the used ports from agent and run protection on all of them.
-	mPort = dosProtection->get<ConfigInt>("port")->read();
 	
 	mPeriod = 1;
 	mLogLevel = "warning";
@@ -200,7 +199,7 @@ void DosProtection::start() {
 	}
 
 	LOGD("Setting dos protection");
-	/* Increasing recent module default values */
+	SLOGD << "Increasing recent module default values";
 	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/%s/parameters/ip_list_tot && echo %i > /sys/module/%s/parameters/ip_list_tot && chmod u-w /sys/module/%s/parameters/ip_list_tot", mRecentDirectoryName, mMaximumConnections, mRecentDirectoryName, mRecentDirectoryName);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
@@ -208,17 +207,17 @@ void DosProtection::start() {
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	/* Backup existing IPTables rules to restore this state after closing flexisip  */
+	SLOGD << "Backup existing IPTables rules to restore this state after closing flexisip";
 	snprintf(cmd, sizeof(cmd)-1, "%s-save > " CONFIG_DIR "/iptables.bak", mPath);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	/* FLEXISIP chain */
+	SLOGD << "FLEXISIP chain";
 	snprintf(cmd, sizeof(cmd) - 1, "%s -N %s", mPath, mFlexisipChain);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	/* Allowing some IPs to not be filtered by this rules */
+	SLOGD << "Allowing some IPs to not be filtered by this rules";
 	for (list<string>::const_iterator iterator = mAuthorizedIPs.begin(); iterator != mAuthorizedIPs.end(); ++iterator) {
 		const char* ip = (*iterator).c_str();
 		snprintf(cmd, sizeof(cmd) - 1, "%s -A %s -s %s -j ACCEPT", mPath, mFlexisipChain, ip);
@@ -226,22 +225,22 @@ void DosProtection::start() {
 		CHECK_RETURN(returnedValue, cmd)
 	}
 
-	/* BLACKLIST chain */
+	SLOGD << "BLACKLIST chain";
 	snprintf(cmd, sizeof(cmd) - 1, "%s -N %s", mPath, mBlacklistChain);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	/* Logging blacklisted IPs */
+	SLOGD << "Logging blacklisted IPs";
 	snprintf(cmd, sizeof(cmd) - 1, "%s -A %s -j LOG --log-prefix %s --log-level %s", mPath, mBlacklistChain, mLogPrefix, mLogLevel);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	/* Dropping packets from BLACKLIST chain and theirs IPs to BLACKLIST list */
+	SLOGD << "Dropping packets from BLACKLIST chain and theirs IPs to BLACKLIST list";
 	snprintf(cmd, sizeof(cmd) - 1, "%s -A %s -m recent --name %s --set -j DROP", mPath, mBlacklistChain, mBlacklistChain);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	/* Limitting the amount of simultaneous connections */
+	SLOGD << "Limitting the amount of simultaneous connections";
 	snprintf(cmd, sizeof(cmd) - 1, "%s -A %s -m connlimit --connlimit-above %i -j DROP", mPath, mFlexisipChain, mMaximumConnections);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
@@ -251,30 +250,37 @@ void DosProtection::start() {
 	 * If a packet arrives during this time, timer is reset to 0
 	 * To change this behaviour to block packets for a duration without reseting timer to 0, replace --update by --rcheck
 	 */
+	SLOGD << "Block all packets for a given duration";
 	snprintf(cmd, sizeof(cmd) - 1, "%s -A %s -m recent --update --name %s --seconds %i --rttl -j DROP", mPath, mFlexisipChain, mBlacklistChain, mBanDuration);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	/* Adding all incoming packets to COUNTER list */
+	SLOGD << "Adding all incoming packets to COUNTER list";
 	snprintf(cmd, sizeof(cmd) - 1, "%s -A %s -m state --state NEW -m recent --name %s --set", mPath, mFlexisipChain, mCounterlist);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	/* If limit of packets/seconds is reached into COUNTER list, we move the packet to the BLACKLIST chain */
+	SLOGD << "If limit of packets/seconds is reached into COUNTER list, we move the packet to the BLACKLIST chain";
 	snprintf(cmd, sizeof(cmd) - 1, "%s -A %s -m state --state NEW -m recent --name %s --update --seconds %i --hitcount %i --rttl -j %s", mPath, mFlexisipChain, mCounterlist, mPeriod, mPacketsLimit, mBlacklistChain);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	/* If a packet purged it's sentence, we unblacklist it */
+	SLOGD << "If a packet purged it's sentence, we unblacklist it";
 	snprintf(cmd, sizeof(cmd) - 1, "%s -A %s -m recent --name %s --remove -j ACCEPT", mPath, mFlexisipChain, mBlacklistChain);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	/* Routing all tcp/udp SIP traffic to FLEXISIP chain */
-	snprintf(cmd, sizeof(cmd) - 1, "%s -A INPUT -p tcp --dport %i -j %s", mPath, mPort, mFlexisipChain);
-	returnedValue = system(cmd);
-	CHECK_RETURN(returnedValue, cmd)
-	snprintf(cmd, sizeof(cmd) - 1, "%s -A INPUT -p udp --dport %i -j %s", mPath, mPort, mFlexisipChain);
-	returnedValue = system(cmd);
-	CHECK_RETURN(returnedValue, cmd)
+	SLOGD << "Routing all tcp/udp SIP traffic to FLEXISIP chain";
+	tport_t *primaries=tport_primaries(nta_agent_tports(sSofiaAgent));
+	for(tport_t *tport=primaries;tport!=NULL;tport=tport_next(tport)){
+		const tp_name_t *name = tport_name(tport);
+		const char *underlying = strcmp(name->tpn_proto, "udp") == 0 ? "udp" : "tcp";
+		SLOGD << "Protecting: " << underlying << " " <<  name->tpn_canon  << ":" << name->tpn_port;
+		//bool isIpv6=strchr(name->tpn_host, ':') != NULL;
+		snprintf(cmd, sizeof(cmd) - 1, "%s -A INPUT -p %s -d %s --dport %s -j %s", mPath, underlying, name->tpn_canon, name->tpn_port, mFlexisipChain);
+		returnedValue = system(cmd);
+		CHECK_RETURN(returnedValue, cmd)
+	}
 }
+
+nta_agent_t *DosProtection::sSofiaAgent = NULL;

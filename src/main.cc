@@ -419,6 +419,10 @@ int main(int argc, char *argv[]){
 		flexisip::log::disableGlobally();
 	}
 
+	// Don't move these lines, it is black magic
+	GenericManager *cfg=GenericManager::get();
+	DosProtection *dos=DosProtection::get();
+
 
 	if (dump_default_cfg){
 		a=make_shared<Agent>(root);
@@ -461,8 +465,7 @@ int main(int argc, char *argv[]){
 	}
 
 
-	GenericManager *cfg=GenericManager::get();
-	DosProtection *dos=DosProtection::get();
+
 
 	GenericManager::get()->setOverrideMap(oset);
 
@@ -536,6 +539,7 @@ int main(int argc, char *argv[]){
 	increase_fd_limit();
 
 	/* Install firewall rules to protect Flexisip for DOS attacks */
+	DosProtection::sSofiaAgent=a->getSofiaAgent();
 	dos->start();
 
 	if (daemon){
