@@ -29,6 +29,7 @@ class ForkCallContext: public ForkContext {
 private:
 	std::shared_ptr<ResponseSipEvent> mBestResponse;
 	su_timer_t *mShortTimer; //optionaly used to send retryable responses
+	su_timer_t *mPushTimer; //used to track push responses
 	int mLastResponseCodeSent;
 	bool mCancelled;
 	std::list<int> mForwardResponses;
@@ -49,6 +50,7 @@ public:
 private:
 	bool isRetryableOrUrgent(int code);
 	void onShortTimer();
+	void onPushTimer();
 	void cancel();
 	void cancelOthers(const std::shared_ptr<OutgoingTransaction> &transaction = std::shared_ptr<OutgoingTransaction>());
 	void decline(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &ev);
@@ -57,6 +59,7 @@ private:
 	void sendResponse(std::shared_ptr<ResponseSipEvent> ev, bool inject);
 	void logResponse(const std::shared_ptr<ResponseSipEvent> &ev);
 	static void sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
+	static void sOnPushTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 };
 
 #endif //forkcallcontext_hh

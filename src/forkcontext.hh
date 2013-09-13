@@ -28,6 +28,7 @@ public:
 	ForkContextConfig();
 	int mDeliveryTimeout; /* in seconds, used for "late" forking*/
 	int mUrgentTimeout; /*timeout for sending buffered urgent or retryable reponses (like 415).*/
+	int mPushResponseTimeout; /*timeout for receiving response to push */
 	bool mForkLate;
 	bool mForkOneResponse;
 	bool mForkNoGlobalDecline;

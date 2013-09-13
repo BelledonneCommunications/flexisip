@@ -23,8 +23,13 @@
 
 using namespace ::std;
 
+template<typename T>
+static bool contains(const list<T> &l, T value) {
+	return find(l.cbegin(), l.cend(), value) != l.cend();
+}
+
 ForkCallContext::ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
-		ForkContext(agent, event,cfg, listener), mShortTimer(NULL), mLastResponseCodeSent(100), mCancelled(false) {
+		ForkContext(agent, event,cfg, listener), mShortTimer(NULL), mPushTimer(NULL), mLastResponseCodeSent(100), mCancelled(false) {
 	LOGD("New ForkCallContext %p", this);
 	mLog=event->getEventLog<CallLog>();
 }
@@ -34,6 +39,10 @@ ForkCallContext::~ForkCallContext() {
 	if (mShortTimer){
 		su_timer_destroy(mShortTimer);
 		mShortTimer=NULL;
+	}
+	if (mPushTimer){
+		su_timer_destroy(mPushTimer);
+		mPushTimer=NULL;
 	}
 }
 
@@ -77,7 +86,7 @@ void ForkCallContext::decline(const shared_ptr<OutgoingTransaction> &transaction
 		cancelOthers(transaction);
 		forward(ev);
 	} else {
-		if (mOutgoings.size() > 1) {
+		if (mOutgoings.size() != 1) {
 			store(ev);
 		} else {
 			forward(ev);
@@ -170,38 +179,29 @@ void ForkCallContext::onResponse(const shared_ptr<OutgoingTransaction> &transact
 	
 	if (sip != NULL && sip->sip_status != NULL) {
 		int code=sip->sip_status->st_status;
-		LOGD("Fork: outgoingCallback %d", sip->sip_status->st_status);
+		LOGD("Fork: outgoingCallback %d", code);
 		if (code > 100 && code < 200) {
 			forward(event);
-			return;
 		} else if (code >= 200 && code < 300) {
 			if (mCfg->mForkOneResponse) // TODO: respect RFC 3261 16.7.5
 				cancelOthers(transaction);
 			forward(event, true);
-			return;
 		} else if (code >= 600 && code < 700) {
 			decline(transaction, event);
-			return;
-		} else {
-			//ignore  503 and 408
-			if (code!=503 && code!=408){
-				if (mOutgoings.size()<2){
-					//optimization: when there is a single branch in the fork, send all the response immediately.
-					forward(event,true);
-					
-				}else if (!mCancelled){
-					store(event);
-				}else{
-					forward(event,true);
-				}
-				return;
-			}else{// Don't forward
-				event->setIncomingAgent(shared_ptr<IncomingAgent>());
+		} else if (code!=503 && code!=408){ //ignore  503 and 408
+			if (mOutgoings.size()<2){
+				//optimization: when there is a single branch in the fork, send all the response immediately.
+				forward(event,true);
+			}else if (!mCancelled){
+				store(event);
+			}else{
+				forward(event,true);
 			}
+		} else {// Don't forward
+			event->setIncomingAgent(shared_ptr<IncomingAgent>());
+			SLOGW << "ForkCallContext::onResponse " << this << " Outgoing transaction: ignore message " << code;
 		}
 	}
-
-	LOGW("Outgoing transaction: ignore message");
 }
 
 void ForkCallContext::sendRinging(){
@@ -213,6 +213,11 @@ void ForkCallContext::sendRinging(){
 		if (!mCfg->mRemoveToTag) {
 			const char *totag=nta_agent_newtag(msgsip->getHome(),"%s",mAgent->getSofiaAgent());
 			sip_to_tag(msgsip->getHome(), msgsip->getSip()->sip_to, totag);
+		}
+		if (mPushTimer) su_timer_destroy(mPushTimer), mPushTimer=NULL;
+		if (mCfg->mPushResponseTimeout > 0) {
+			mPushTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
+			su_timer_set_interval(mPushTimer, &ForkCallContext::sOnPushTimer, this, (su_duration_t)mCfg->mPushResponseTimeout*1000);
 		}
 		ev->setIncomingAgent(mIncoming);
 		sendResponse(ev,false);
@@ -294,5 +299,19 @@ void ForkCallContext::onShortTimer(){
 void ForkCallContext::sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg){
 	ForkCallContext *zis=static_cast<ForkCallContext*>(arg);
 	zis->onShortTimer();
+}
+
+
+void ForkCallContext::onPushTimer(){
+	if (!isCompleted() && !mBestResponse && !contains(mForwardResponses, 180) && !contains(mForwardResponses, 183)) {
+		SLOGD << "ForkCallContext " << this << " push timer : no uac response";
+	}
+	su_timer_destroy(mPushTimer);
+	mPushTimer=NULL;
+}
+
+void ForkCallContext::sOnPushTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg){
+	ForkCallContext *zis=static_cast<ForkCallContext*>(arg);
+	zis->onPushTimer();
 }
 

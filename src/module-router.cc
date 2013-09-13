@@ -66,6 +66,7 @@ public:
 			{ Integer, "call-fork-urgent-timeout", "Maximum time before delivering urgent responses during a call fork, in seconds. "
 				"The typical fork process requires to wait the best response from all branches before transmitting it to the client. "
 				"However some error responses are retryable immediately (like 415 unsupported media, 401, 407) thus it is painful for the client to need to wait the end of the transaction time (32 seconds) for these error codes.", "5" },
+			{ Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.","0"},
 			{ Integer , "message-delivery-timeout", "Maximum duration for delivering a message (text)","3600"},
 			{ String, "generated-contact-route" , "Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
 			{ String, "generated-contact-expected-realm" , "Require presence of authorization header for specified realm. [Realm]", ""},
@@ -106,6 +107,7 @@ public:
 		mForkCfg->mForkOneResponse = mc->get<ConfigBoolean>("fork-one-response")->read();
 		mForkCfg->mForkNoGlobalDecline = mc->get<ConfigBoolean>("fork-no-global-decline")->read();
 		mForkCfg->mUrgentTimeout = mc->get<ConfigInt>("call-fork-urgent-timeout")->read();
+		mForkCfg->mPushResponseTimeout = mc->get<ConfigInt>("call-push-response-timeout")->read();
 		mForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("call-fork-timeout")->read();
 		mForkCfg->mTreatDeclineAsUrgent = mc->get<ConfigBoolean>("treat-decline-as-urgent")->read();
 		mForkCfg->mRemoveToTag = mc->get<ConfigBoolean>("remove-to-tag")->read();
