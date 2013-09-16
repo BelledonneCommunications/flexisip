@@ -169,7 +169,8 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		url_t *mPreferredRouteV4;
 		url_t *mPreferredRouteV6;
 		class Network {
-			struct sockaddr_storage mNetwork;
+			struct sockaddr_storage mPrefix;
+			struct sockaddr_storage mMask;
 			std::string mIP;
 		public:
 			Network(const Network &net);

@@ -209,7 +209,6 @@ void Agent::start(const char *transport_override){
 	if (mPreferredRouteV4) url_e(prefUrl4,sizeof(prefUrl4),mPreferredRouteV4);
 	if (mPreferredRouteV6) url_e(prefUrl6,sizeof(prefUrl6),mPreferredRouteV6);
 	LOGD("Agent's preferred IP for internal routing is %s (v6: %s)",prefUrl4,prefUrl6);
-	
 	startLogWriter();
 }
 
@@ -347,29 +346,39 @@ std::pair<std::string,std::string> Agent::getPreferredIp(const std::string &dest
 }
 
 Agent::Network::Network(const Network &net): mIP(net.mIP) {
-	memcpy(&mNetwork, &net.mNetwork, sizeof(mNetwork));
+	memcpy(&mPrefix, &net.mPrefix, sizeof(mPrefix));
+	memcpy(&mMask, &net.mMask, sizeof(mMask));
 }
 
 Agent::Network::Network(const struct ifaddrs *ifaddr) {
 	int err = 0;
 	char ipAddress[IPADDR_SIZE];
-	memset(&mNetwork, 0, sizeof(mNetwork));
+	memset(&mPrefix, 0, sizeof(mPrefix));
+	memset(&mMask, 0, sizeof(mMask));
 	if (ifaddr->ifa_addr->sa_family == AF_INET) {
-		struct sockaddr_in *network = (struct sockaddr_in *) &mNetwork;
-		struct sockaddr_in *if_addr = (struct sockaddr_in *) ifaddr->ifa_addr;
-		struct sockaddr_in *if_mask = (struct sockaddr_in *) ifaddr->ifa_netmask;
-		mNetwork.ss_family = AF_INET;
-		network->sin_addr.s_addr = if_addr->sin_addr.s_addr & if_mask->sin_addr.s_addr;
-		err = getnameinfo(ifaddr->ifa_addr, sizeof(struct sockaddr_in), ipAddress, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
+		typedef struct sockaddr_in sockt;
+		sockt *if_addr = (sockt *) ifaddr->ifa_addr;
+		sockt *if_mask = (sockt *) ifaddr->ifa_netmask;
+		sockt *prefix = (sockt *) &mPrefix;
+		sockt *mask = (sockt *) &mMask;
+
+		mPrefix.ss_family = AF_INET;
+		prefix->sin_addr.s_addr = if_addr->sin_addr.s_addr & if_mask->sin_addr.s_addr;
+		mask->sin_addr.s_addr = if_mask->sin_addr.s_addr; // 1 chunk of 32 bits
+		err = getnameinfo(ifaddr->ifa_addr, sizeof(sockt), ipAddress, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	} else if (ifaddr->ifa_addr->sa_family == AF_INET6) {
-		struct sockaddr_in6 *network = (struct sockaddr_in6 *) &mNetwork;
-		struct sockaddr_in6 *if_addr = (struct sockaddr_in6 *) ifaddr->ifa_addr;
-		struct sockaddr_in6 *if_mask = (struct sockaddr_in6 *) ifaddr->ifa_netmask;
-		for (int i = 0; i < 4; ++i) {
-			network->sin6_addr.s6_addr[i] = if_addr->sin6_addr.s6_addr[i] & if_mask->sin6_addr.s6_addr[i];
+		typedef struct sockaddr_in6 sockt;
+		sockt *if_addr = (sockt *) ifaddr->ifa_addr;
+		sockt *if_mask = (sockt *) ifaddr->ifa_netmask;
+		sockt *prefix = (sockt *) &mPrefix;
+		sockt *mask = (sockt *) &mMask;
+
+		mPrefix.ss_family = AF_INET6;
+		for (int i = 0; i < 8; ++i) { // 8 chunks of 8 bits
+			prefix->sin6_addr.s6_addr[i] = if_addr->sin6_addr.s6_addr[i] & if_mask->sin6_addr.s6_addr[i];
+			mask->sin6_addr.s6_addr[i] = if_mask->sin6_addr.s6_addr[i];
 		}
-		mNetwork.ss_family = AF_INET6;
-		err = getnameinfo(ifaddr->ifa_addr, sizeof(struct sockaddr_in6), ipAddress, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
+		err = getnameinfo(ifaddr->ifa_addr, sizeof(sockt), ipAddress, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	}
 	if (err == 0) {
 		mIP = string(ipAddress);
@@ -384,22 +393,33 @@ const string Agent::Network::getIP() const {
 }
 
 bool Agent::Network::isInNetwork(const struct sockaddr *addr) const {
-	if (addr->sa_family != mNetwork.ss_family) {
+	if (addr->sa_family != mPrefix.ss_family) {
 		return false;
 	}
+
 	if (addr->sa_family == AF_INET) {
-		struct sockaddr_in *network = (struct sockaddr_in *) &mNetwork;
-		struct sockaddr_in *if_addr = (struct sockaddr_in *) addr;
-		return (network->sin_addr.s_addr & if_addr->sin_addr.s_addr) == network->sin_addr.s_addr;
+		typedef struct sockaddr_in sockt;
+		sockt *prefix = (sockt *) &mPrefix;
+		sockt *mask = (sockt *) &mMask;
+		sockt *if_addr = (sockt *) addr;
+
+		uint32_t test = if_addr->sin_addr.s_addr & mask->sin_addr.s_addr;
+		return test == prefix->sin_addr.s_addr;
 	} else if (addr->sa_family == AF_INET6) {
-		struct sockaddr_in6 *network = (struct sockaddr_in6 *) &mNetwork;
-		struct sockaddr_in6 *if_addr = (struct sockaddr_in6 *) addr;
-		for (int i = 0; i < 4; ++i) {
-			if ((network->sin6_addr.s6_addr[i] & if_addr->sin6_addr.s6_addr[i]) != network->sin6_addr.s6_addr[i])
+		typedef struct sockaddr_in6 sockt;
+		sockt *prefix = (sockt *) &mPrefix;
+		sockt *mask = (sockt *) &mMask;
+		sockt *if_addr = (sockt *) addr;
+
+		for (int i = 0; i < 8; ++i) {
+			uint8_t test = if_addr->sin6_addr.s6_addr[i] & mask->sin6_addr.s6_addr[i];
+			if (test != prefix->sin6_addr.s6_addr[i])
 				return false;
 		}
+		return true;
+	} else {
+		LOGF("Network::isInNetwork: cannot happen");
 	}
-	return true;
 }
 
 string Agent::Network::print(const struct ifaddrs *ifaddr) {
