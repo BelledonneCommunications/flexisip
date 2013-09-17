@@ -485,7 +485,8 @@ private:
 	static int sMaxStep;
 public:
 	RecursiveRegistrarDbListener(RegistrarDb *database, const shared_ptr<RegistrarDbListener> &original_listerner, const url_t *url, int step = sMaxStep) :
-			m_database(database), m_original_listerner(original_listerner), m_record(new Record("virtual_record")), m_request(1), m_step(step) {
+			m_database(database), m_original_listerner(original_listerner), m_request(1), m_step(step) {
+		m_record = new Record("virtual_record");
 		su_home_init(&m_home);
 		m_url = url_as_string(&m_home, url);
 	}
@@ -498,15 +499,14 @@ public:
 	void onRecordFound(Record *r) {
 		if (r != NULL) {
 			for (auto it = r->mContacts.begin(); it != r->mContacts.end(); ++it) {
-				shared_ptr<ExtendedContact> ec = *it;
-				if (!ec->mAlias || m_step == 0) {
-					SLOGD << "Step: " << m_step << "\tFind contact " << ec->mSipUri << " for " << m_url;
+				shared_ptr<ExtendedContact> &ec = *it;
+				if (!ec->mAlias) {
+					SLOGD << "Step: " << m_step << "\tFound contact " << m_url << " -> " << ec->mSipUri;
 					m_record->mContacts.push_back(ec);
-				} else {
-					SLOGD << "Step: " << m_step << "\tFind alias " << ec->mSipUri << " for " << m_url << ". Try to fetch it.";
-					m_record->mContacts.push_back(ec);
+				} else if (m_step > 0) {
+					SLOGD << "Step: " << m_step << "\tFound alias " << m_url << " -> " << ec->mSipUri;
 					sip_contact_t *contact = sip_contact_format(&m_home, "%s", ec->mSipUri.c_str());
-					if (contact != NULL) {
+					if (contact) {
 						++m_request;
 						m_database->fetch(contact->m_url, make_shared<RecursiveRegistrarDbListener>(m_database, this->shared_from_this(), contact->m_url, m_step - 1), false);
 					} else {
@@ -515,34 +515,39 @@ public:
 				}
 			}
 		}
-		if (check()) {
-			LOGD("Step: %d\tNo contact found for %s", m_step, m_url);
+
+		if (waitPullUpOrFail()) {
+			SLOGD << "Step: " << m_step << "\tNo contact found for " << m_url;
 			m_original_listerner->onRecordFound(NULL);
 		}
 	}
 
 	void onError() {
-		LOGW("Step: %d\tError during recursive fetch of %s", m_step, m_url);
-		if (check()) {
+		SLOGW << "Step: " << m_step << "\tError during recursive fetch of " << m_url;
+		if (waitPullUpOrFail()) {
 			m_original_listerner->onError();
 		}
 	}
 
 	void onInvalid() {
-		LOGW("Step: %d\tInvalid during recursive fetch of %s", m_step, m_url);
-		if (check()) {
+		SLOGW << "Step: " << m_step << "\tInvalid during recursive fetch of " << m_url;
+		if (waitPullUpOrFail()) {
 			m_original_listerner->onInvalid();
 		}
 	}
 
 private:
-	bool check() {
-		if (--m_request == 0) {
-			if (m_record->mContacts.size() == 0) {
-				return true;
-			}
-			m_original_listerner->onRecordFound(m_record);
+	bool waitPullUpOrFail() {
+		if (--m_request != 0) return false; // wait for all pending responses
+
+		// No more results expected for this recursion level
+		if (m_record->mContacts.empty()) {
+			return true; // no contacts collected on below recursion levels
 		}
+
+		// returning records collected on below recursion levels
+		SLOGD << "Step: " << m_step << "\tReturning collected records " << m_record->mContacts.size();
+		m_original_listerner->onRecordFound(m_record);
 		return false;
 	}
 };
