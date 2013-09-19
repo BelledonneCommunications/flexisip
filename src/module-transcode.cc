@@ -16,10 +16,14 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "flexisip-config.h"
+#endif
+
 #include "module.hh"
 #include "agent.hh"
 
-#if ENABLE_TRANSCODER
+#ifdef ENABLE_TRANSCODER
 #include "callcontext-transcoder.hh"
 #include "sdp-modifier.hh"
 #endif
@@ -30,7 +34,7 @@
 
 using namespace ::std;
 
-#if ENABLE_TRANSCODER
+#ifdef ENABLE_TRANSCODER
 class TickerManager {
 public:
 	TickerManager() : mLastTickerIndex(0),mStarted(false){}
@@ -82,7 +86,7 @@ public:
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 	virtual void onIdle();
 	virtual void onDeclare(GenericStruct *mc);
-#if ENABLE_TRANSCODER
+#ifdef ENABLE_TRANSCODER
 private:
 	TickerManager mTickerManager;
 	int handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev);
@@ -148,16 +152,18 @@ void Transcoder::onDeclare(GenericStruct *mc) {
 	};
 	mc->addChildrenValues(items);
 
+
 	auto p=mc->createStatPair("count-calls", "Number of transcoded calls.");
-	#if ENABLE_TRANSCODER
+#ifdef ENABLE_TRANSCODER
 	mCalls.setCallStatCounters(p.first, p.second);
-	#endif
+#endif
+	(void)p;
 }
 
 
 
 
-#if ENABLE_TRANSCODER
+#ifdef ENABLE_TRANSCODER
 static list<PayloadType *> makeSupportedAudioPayloadList() {
 	/* in mediastreamer2, we use normal_bitrate as an IP bitrate, not codec bitrate*/
 	payload_type_silk_nb.normal_bitrate = 29000;

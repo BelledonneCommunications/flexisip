@@ -21,9 +21,7 @@
 #include <sofia-sip/sip_protos.h>
 #include <sstream>
 
-#if ENABLE_TRANSCODER
-#include <mediastreamer2/mscommon.h>
-#endif
+
 
 using namespace ::std;
 
@@ -87,7 +85,7 @@ static sdp_list_t *sdp_list_append(su_home_t *home, sdp_list_t *l, char *text){
 	return begin;
 }
 */
-#if ENABLE_TRANSCODER
+
 static PayloadType *payload_type_make_from_sdp_rtpmap(sdp_rtpmap_t *rtpmap){
 	if (rtpmap->rm_rate == 0 || rtpmap->rm_encoding == NULL) {
 		LOGE("Bad media description for payload type : %i", rtpmap->rm_pt);
@@ -221,9 +219,6 @@ void SdpModifier::replacePayloads(const std::list<PayloadType *> &payloads, cons
 		mline->m_rtpmaps=sdp_rtpmap_append(mline->m_rtpmaps,map);
 	}
 }
-
-#endif
-
 
 int SdpModifier::readPtime(){
 	sdp_media_t *mline=mSession->sdp_media;

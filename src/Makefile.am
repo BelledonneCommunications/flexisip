@@ -18,7 +18,6 @@ thesources= \
 			callstore.hh  callstore.cc \
 			forkcontext.hh forkcontext.cc \
 			callcontext-mediarelay.hh  callcontext-mediarelay.cc \
-			callcontext-transcoder.hh  callcontext-transcoder.cc \
 			forkcallcontext.hh  forkcallcontext.cc \
 			forkmessagecontext.hh  forkmessagecontext.cc \
 			forkbasiccontext.cc forkbasiccontext.hh \
@@ -37,12 +36,12 @@ thesources= \
 			authdb.hh authdb.cc authdb-file.cc \
 			module-garbage-in.cc \
 			module-forward.cc \
-			module-transcode.cc \
 			module-gatewayadapter.cc \
 			module-contact-route-inserter.cc \
 			module-nat-helper.cc \
 			module-registrar.cc \
 			module-router.cc lateforkapplier.hh \
+			module-transcode.cc \
 			module-mediarelay.cc \
 			module-auth.cc \
 			module-loadbalancer.cc \
@@ -84,13 +83,12 @@ flexisip_LDADD+=$(ODBC_LIBS)
 thesources+= authdb-odbc.cc
 endif
 
-if BUILD_TRANSCODER
-AM_CFLAGS+=-DENABLE_TRANSCODER
-AM_CXXFLAGS+=-DENABLE_TRANSCODER
-endif
-
 if BUILD_DATEHANDLER
 thesources+=module-datehandler.cc
+endif
+
+if BUILD_TRANSCODER
+thesources+=	callcontext-transcoder.cc callcontext-transcoder.hh  
 endif
 
 if BUILD_BOOSTLOG

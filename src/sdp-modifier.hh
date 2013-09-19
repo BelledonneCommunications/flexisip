@@ -41,11 +41,9 @@ class SdpModifier{
 		static SdpModifier *createFromSipMsg(su_home_t *home, sip_t *sip, const std::string &nortproxy = "");
 		static bool hasSdp(const sip_t *sip);
 		bool initFromSipMsg(sip_t *sip);
-		#if ENABLE_TRANSCODER
 		std::list<PayloadType *> readPayloads();
 		void replacePayloads(const std::list<PayloadType *> &payloads, const std::list<PayloadType *> &preserved_numbers);
 		static std::list<PayloadType *> findCommon(const std::list<PayloadType *> &offer, const std::list<PayloadType *> &answer, bool use_offer_numbering);
-		#endif
 		int readPtime();
 		short getAudioIpVersion();
 		void getAudioIpPort(std::string *ip, int *port);

@@ -15,10 +15,10 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
+#ifdef HAVE_CONFIG_H
 #include "flexisip-config.h"
-#define FLEXISIP_INCLUDED
 #endif
+
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -29,7 +29,7 @@
 
 #include <iostream>
 
-#if ENABLE_TRANSCODER
+#ifdef ENABLE_TRANSCODER
 #include <mediastreamer2/mscommon.h>
 #endif
 

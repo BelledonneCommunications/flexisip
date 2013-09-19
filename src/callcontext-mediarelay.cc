@@ -67,13 +67,13 @@ void RelayedCall::initChannels(SdpModifier *m, const string &tag, const shared_p
 			if (mSessions[i].mRelayChannels.find(tag) == mSessions[i].mRelayChannels.end()) {
 				shared_ptr<RelayChannel> ms = s->addBack(backRelayIps);
 				ms->setBehaviour(RelayChannel::Receive);
-				mSessions[i].mRelayChannels.insert(pair<string, shared_ptr<RelayChannel>>(tag, ms));
+				mSessions[i].mRelayChannels.insert(make_pair(tag, ms));
 			}
 		} else {
 			if (mSessions[i].mTransactions.find(transaction) == mSessions[i].mTransactions.end()) {
 				shared_ptr<RelayChannel> ms = s->addBack(backRelayIps);
 				ms->setBehaviour(RelayChannel::None);
-				mSessions[i].mTransactions.insert(pair<shared_ptr<Transaction>, shared_ptr<RelayChannel>>(transaction, ms));
+				mSessions[i].mTransactions.insert(make_pair(transaction, ms));
 			}
 		}
 	}
@@ -260,6 +260,9 @@ void RelayedCall::update() {
 	}
 }
 
+/* associates a transaction with a to-tag.
+ * This might change, for example for a given transaction, a 183 can come from one to-tag, and the 200Ok from another to-tag.
+ */
 void RelayedCall::validateTransaction(const string &tag, const shared_ptr<Transaction> &transaction) {
 	for (int mline = 0; mline < sMaxSessions; ++mline) {
 		shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
@@ -267,8 +270,7 @@ void RelayedCall::validateTransaction(const string &tag, const shared_ptr<Transa
 			auto it = mSessions[mline].mTransactions.find(transaction);
 			if (it != mSessions[mline].mTransactions.end()) {
 				it->second->setBehaviour(RelayChannel::Receive);
-				mSessions[mline].mRelayChannels.insert(pair<string, shared_ptr<RelayChannel>>(tag, it->second));
-				mSessions[mline].mTransactions.erase(it);
+				mSessions[mline].mRelayChannels[tag]=it->second;
 			}
 		}
 	}
@@ -317,16 +319,21 @@ void RelayedCall::setUniqueBack(const string &tag) {
 		for (int mline = 0; mline < sMaxSessions; ++mline) {
 			shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
 			if (s != NULL) {
+				//assert the tag exists before removing others
+				if (mSessions[mline].mRelayChannels.find(tag)==mSessions[mline].mRelayChannels.end()){
+					LOGE("RelayedCall::setUniqueBack(): could not find tag %s",tag.c_str());
+					return;
+				}
 				auto it = mSessions[mline].mRelayChannels.begin();
 				while (it != mSessions[mline].mRelayChannels.end()) {
 					shared_ptr<RelayChannel> &ms = it->second;
 					if (it->first == tag) {
 						ms->setBehaviour(RelayChannel::BehaviourType::All);
+						++it;
 					} else {
 						s->removeBack(ms);
-						mSessions[mline].mRelayChannels.erase(it);
+						it=mSessions[mline].mRelayChannels.erase(it);
 					}
-					++it;
 				}
 				mSessions[mline].mTransactions.clear();
 			}

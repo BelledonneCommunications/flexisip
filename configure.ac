@@ -110,12 +110,16 @@ AC_ARG_ENABLE(doc,
 AC_ARG_ENABLE(transcoder,
 	AC_HELP_STRING([--enable-transcoder],
 	    [Build transcoder support @<:@no@:>@]),
-        [transcoder="${enableval}"],[transcoder=no]
+        [transcoder="${enableval}"],[transcoder=yes]
 )
 if test $transcoder = "yes"; then
 	PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
 fi
+
 AM_CONDITIONAL(BUILD_TRANSCODER,test x$transcoder = xyes)
+if test "$transcoder" = "yes"; then
+	AC_DEFINE([ENABLE_TRANSCODER],1,[Enable transcoder module.])
+fi
 
 AC_ARG_ENABLE(specific-features,
 	AC_HELP_STRING([--enable-specific-features],

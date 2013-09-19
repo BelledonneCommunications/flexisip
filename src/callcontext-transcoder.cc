@@ -19,9 +19,7 @@
 
 #include "flexisip-config.h"
 #include "callcontext-transcoder.hh"
-#if ENABLE_TRANSCODER
 #include "mediastreamer2/dtmfgen.h"
-#endif
 #include "ortp/telephonyevents.h"
 
 #include "sdp-modifier.hh"
@@ -37,14 +35,10 @@ CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCall
 	mEncoder=NULL;
 	mDecoder=NULL;
 	mRc=NULL;
-
-#if ENABLE_TRANSCODER
 	mReceiver=ms_filter_new(MS_RTP_RECV_ID);
 	mSender=ms_filter_new(MS_RTP_SEND_ID);
 	mToneGen=ms_filter_new(MS_DTMF_GEN_ID);
-#else
 	mReceiver=mSender=mToneGen=NULL;
-#endif
 
 	rtp_session_set_profile(mSession,mProfile);
 	rtp_session_set_recv_buf_size(mSession,300);
@@ -108,7 +102,6 @@ void CallSide::setPtime(int ptime){
 }
 
 void CallSide::assignPayloads(std::list< PayloadType * > &payloads){
-#if ENABLE_TRANSCODER
 	bool first = true;
 	for (auto elem=payloads.cbegin();elem!=payloads.cend();++elem){
 		PayloadType *pt=*elem;
@@ -127,7 +120,6 @@ void CallSide::assignPayloads(std::list< PayloadType * > &payloads){
 	}
 	ms_filter_call_method(mReceiver,MS_RTP_RECV_SET_SESSION,mSession);
 	ms_filter_call_method(mSender,MS_RTP_SEND_SET_SESSION,mSession);
-#endif
 }
 
 CallSide::~CallSide(){
@@ -138,7 +130,6 @@ CallSide::~CallSide(){
 	rtp_session_destroy(mSession);
 	rtp_profile_destroy(mProfile);
 
-#if ENABLE_TRANSCODER
 	ms_filter_destroy(mReceiver);
 	ms_filter_destroy(mSender);
 	ms_filter_destroy(mToneGen);
@@ -148,7 +139,7 @@ CallSide::~CallSide(){
 		ms_filter_destroy(mDecoder);
 	if (mRc)
 		ms_bitrate_controller_destroy(mRc);
-#endif
+
 }
 
 void CallSide::dump(){
@@ -193,7 +184,6 @@ PayloadType * CallSide::getRecvFormat(){
 }
 
 void CallSide::connect(CallSide *recvSide, MSTicker *ticker){
-#if ENABLE_TRANSCODER
 	MSConnectionHelper conHelper;
 	PayloadType *recvpt;
 	PayloadType *sendpt;
@@ -270,11 +260,9 @@ void CallSide::connect(CallSide *recvSide, MSTicker *ticker){
 		}
 		mRc=ms_audio_bitrate_controller_new(mSession,mEncoder,0);
 	}
-#endif
 }
 
 void CallSide::disconnect(CallSide *recvSide){
-#if ENABLE_TRANSCODER
 	MSConnectionHelper h;
 
 	ms_connection_helper_start(&h);
@@ -287,7 +275,6 @@ void CallSide::disconnect(CallSide *recvSide){
 	if (mEncoder)
 		ms_connection_helper_unlink(&h,mEncoder,0,0);
 	ms_connection_helper_unlink(&h,mSender,0,-1);
-#endif
 }
 
 void CallSide::payloadTypeChanged(RtpSession *session, unsigned long data){
@@ -317,7 +304,6 @@ void CallSide::onTelephoneEvent(RtpSession *s, int dtmf_index, void * data){
 }
 
 void CallSide::playTone(char tone_name){
-#if ENABLE_TRANSCODER
 	if (mSession && rtp_session_telephone_events_supported(mSession)!=-1) {
 		LOGD("Sending dtmf signal %c",tone_name);
 		ms_filter_call_method(mSender,MS_RTP_SEND_SEND_DTMF,&tone_name);
@@ -332,11 +318,9 @@ void CallSide::playTone(char tone_name){
 	} else {
 		ms_warning("Cannot send tone [%i] because neither rfc2833 nor G711 codec selected",tone_name);
 	}
-#endif
 }
 
 void CallSide::doBgTasks(){
-#if ENABLE_TRANSCODER
 	if (mRtpEvq){
 		OrtpEvent *ev=ortp_ev_queue_get(mRtpEvq);
 		if (ev!=NULL){
@@ -347,7 +331,6 @@ void CallSide::doBgTasks(){
 			ortp_event_destroy(ev);
 		}
 	}
-#endif
 }
 
 
@@ -379,7 +362,6 @@ void TranscodedCall::prepare( const CallContextParams &params){
 }
 
 void TranscodedCall::join(MSTicker *t){
-#if ENABLE_TRANSCODER
 	LOGD("Joining...");
 	mFrontSide->connect(mBackSide);
 	mBackSide->connect(mFrontSide);
@@ -387,18 +369,15 @@ void TranscodedCall::join(MSTicker *t){
 	ms_ticker_attach(t,mBackSide->getRecvPoint().filter);
 	mTicker=t;
 	LOGD("Graphs now running");
-#endif
 }
 
 void TranscodedCall::unjoin(){
-#if ENABLE_TRANSCODER
 	LOGD("Unjoining...");
 	ms_ticker_detach(mTicker,mFrontSide->getRecvPoint().filter);
 	ms_ticker_detach(mTicker,mBackSide->getRecvPoint().filter);
 	mFrontSide->disconnect(mBackSide);
 	mBackSide->disconnect(mFrontSide);
 	mTicker=NULL;
-#endif
 }
 
 bool TranscodedCall::isJoined()const{
