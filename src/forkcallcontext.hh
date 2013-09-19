@@ -29,7 +29,7 @@ class ForkCallContext: public ForkContext {
 private:
 	std::shared_ptr<ResponseSipEvent> mBestResponse;
 	su_timer_t *mShortTimer; //optionaly used to send retryable responses
-	int mFinal;
+	int mLastResponseCodeSent;
 	bool mCancelled;
 	std::list<int> mForwardResponses;
 	std::shared_ptr<CallLog> mLog;

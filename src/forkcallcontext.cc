@@ -24,7 +24,7 @@
 using namespace ::std;
 
 ForkCallContext::ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
-		ForkContext(agent, event,cfg, listener), mShortTimer(NULL), mFinal(0), mCancelled(false) {
+		ForkContext(agent, event,cfg, listener), mShortTimer(NULL), mLastResponseCodeSent(100), mCancelled(false) {
 	LOGD("New ForkCallContext %p", this);
 	mLog=event->getEventLog<CallLog>();
 }
@@ -46,7 +46,7 @@ void ForkCallContext::cancel() {
 
 void ForkCallContext::forward(const shared_ptr<ResponseSipEvent> &ev, bool force) {
 	sip_t *sip = ev->getMsgSip()->getSip();
-	bool fakeSipEvent = (mFinal > 0 && !force) || mIncoming == NULL;
+	bool fakeSipEvent = ((mLastResponseCodeSent >= 200) && !force) || mIncoming == NULL;
 	const int status = sip->sip_status->st_status;
 
 	if (mCfg->mForkOneResponse) { // TODO: respect RFC 3261 16.7.5
@@ -69,19 +69,15 @@ void ForkCallContext::forward(const shared_ptr<ResponseSipEvent> &ev, bool force
 		}
 		logResponse(ev);
 	}
-
-	if (status >= 200 && status < 700) {
-		++mFinal;
-	}
+	mLastResponseCodeSent=status;
 }
 
 void ForkCallContext::decline(const shared_ptr<OutgoingTransaction> &transaction, shared_ptr<ResponseSipEvent> &ev) {
 	if (!mCfg->mForkNoGlobalDecline) {
 		cancelOthers(transaction);
-
 		forward(ev);
 	} else {
-		if (mOutgoings.size() != 1) {
+		if (mOutgoings.size() > 1) {
 			store(ev);
 		} else {
 			forward(ev);
@@ -90,15 +86,13 @@ void ForkCallContext::decline(const shared_ptr<OutgoingTransaction> &transaction
 }
 
 void ForkCallContext::cancelOthers(const shared_ptr<OutgoingTransaction> &transaction) {
-	if (mFinal == 0) {
-		for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end();) {
-			if (*it != transaction) {
-				shared_ptr<OutgoingTransaction> tr = (*it);
-				it = mOutgoings.erase(it);
-				tr->cancel();
-			} else {
-				++it;
-			}
+	for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end();) {
+		if (*it != transaction) {
+			shared_ptr<OutgoingTransaction> tr = (*it);
+			it = mOutgoings.erase(it);
+			tr->cancel();
+		} else {
+			++it;
 		}
 	}
 }
@@ -157,7 +151,6 @@ void ForkCallContext::store(shared_ptr<ResponseSipEvent> &event) {
 			mShortTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
 			su_timer_set_interval(mShortTimer, &ForkCallContext::sOnShortTimer, this, (su_duration_t)mCfg->mUrgentTimeout*1000);
 		}
-		best=true;
 	}
 	
 	// Save
@@ -213,11 +206,7 @@ void ForkCallContext::onResponse(const shared_ptr<OutgoingTransaction> &transact
 
 void ForkCallContext::sendRinging(){
 	// Create response
-	if (mIncoming && mFinal==0){
-		for (auto it = mForwardResponses.begin(); it!=mForwardResponses.end(); ++it){
-			if (*it==180 || *it==183)
-				return;
-		}
+	if (mIncoming && mLastResponseCodeSent<180){
 		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_180_RINGING));
 		shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 		//add a to tag, no set by sofia here.
@@ -256,6 +245,7 @@ void ForkCallContext::sendResponse(shared_ptr<ResponseSipEvent> ev, bool inject)
 		mAgent->injectResponseEvent(ev);
 	else 
 		mAgent->sendResponseEvent(ev);
+	mLastResponseCodeSent=ev->getMsgSip()->getSip()->sip_status->st_status;
 }
 
 void ForkCallContext::checkFinished(){
@@ -270,7 +260,6 @@ void ForkCallContext::checkFinished(){
 			} else {
 				sendResponse(mBestResponse,true);
 			}
-			++mFinal;
 		}
 		mBestResponse.reset();
 		setFinished();
@@ -278,7 +267,6 @@ void ForkCallContext::checkFinished(){
 }
 
 void ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
-	
 	ForkContext::onDestroy(transaction);
 }
 
@@ -289,11 +277,12 @@ bool ForkCallContext::onNewRegister(const sip_contact_t *ctt){
 }
 
 bool ForkCallContext::isCompleted()const{
-	return mFinal>0 || mCancelled || mIncoming==NULL;
+	return mLastResponseCodeSent>=200 || mCancelled || mIncoming==NULL;
 }
 
 void ForkCallContext::onShortTimer(){
-	if (!isCompleted() && isRetryableOrUrgent(mBestResponse->getMsgSip()->getSip()->sip_status->st_status)){
+	if (mCancelled || mLastResponseCodeSent>=180) return; /*it's ringing somewhere*/
+	if (isRetryableOrUrgent(mBestResponse->getMsgSip()->getSip()->sip_status->st_status)){
 		cancelOthers(static_pointer_cast<OutgoingTransaction>(mBestResponse->getOutgoingAgent()));
 		sendResponse(mBestResponse,true);// send urgent reply immediately
 		mBestResponse.reset();
