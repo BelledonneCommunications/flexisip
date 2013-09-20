@@ -114,13 +114,15 @@ void RelayChannel::fillPollFd(struct pollfd *tab) {
 }
 
 int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
-	mSockAddrSize[i] = sizeof(mSockAddr[i]);
-	int err = recvfrom(mSources[i], buf, buflen, 0, (struct sockaddr*) &mSockAddr[i], &mSockAddrSize[i]);
+	socklen_t addrsize=sizeof(mSockAddr[i]);
+	int err = recvfrom(mSources[i], buf, buflen, 0, (struct sockaddr*) &mSockAddr[i], &addrsize);
 	if (err>0){
+		mSockAddrSize[i] = addrsize;
 		if (mFilter && mFilter->onIncomingTransfer(buf,buflen,(struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]) == false ){
 			return 0;
 		}
 	}else if (err == -1) {
+		LOGW("Error receiving on port %i from %s:%i: %s",getRelayPort(), mIp.c_str(), mPort+i, strerror(errno));
 		if (errno==ECONNREFUSED){
 			/*this will avoid to continue sending if there are ICMP errors*/
 			mSockAddrSize[i] = 0;
@@ -245,8 +247,6 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &org,
 			}
 			mMutex.unlock();
 		}
-	} else if (recv_len < 0) {
-		LOGW("Error on read Port=%i For=%s:%i Error=%s", org->getRelayPort() + i, org->getIp().c_str(), org->getPort(), strerror(errno));
 	}
 }
 
