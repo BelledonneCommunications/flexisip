@@ -46,10 +46,13 @@ UacRegister::UacRegister(const sip_from_t *from, const sip_to_t *to, int expire,
 
 
 void UacRegister::send(const sip_contact_t *contact) {
+	char expirechars[32];
 	state = INITIAL;
 	SLOGD << "Sending UacRegister " << this
 	<< " with refresh "	<< expire << "s";
-	string expirestr = to_string((long long int)expire);
+	snprintf(expirechars,sizeof(expirechars),"%i",expire);
+	//string expirestr = to_string((long long int)expire); //does not work with gcc-4.4.
+	string expirestr = expirechars;
 	string refreshtag = string("expires=") + expirestr;
 	nua_register(nh, SIPTAG_CONTACT(contact), NUTAG_M_FEATURES(refreshtag.c_str()), SIPTAG_EXPIRES_STR(expirestr.c_str()), TAG_END());
 	challengeReceived=false;

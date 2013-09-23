@@ -332,7 +332,11 @@ void RelayedCall::setUniqueBack(const string &tag) {
 						++it;
 					} else {
 						s->removeBack(ms);
-						it=mSessions[mline].mRelayChannels.erase(it);
+						//the following is not accepted by gcc 4.4 though it is correct.
+						//it=mSessions[mline].mRelayChannels.erase(it);
+						auto previt=it;
+						++it;
+						mSessions[mline].mRelayChannels.erase(previt);
 					}
 				}
 				mSessions[mline].mTransactions.clear();
