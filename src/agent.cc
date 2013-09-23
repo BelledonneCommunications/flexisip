@@ -131,7 +131,14 @@ void Agent::start(const char *transport_override){
 		url=url_make(&home,uri.c_str());
 		LOGD("Enabling transport %s",uri.c_str());
 		if (uri.find("sips")==0){
-			string keys = cr->get<GenericStruct>("global")->get<ConfigString>("tls-certificates-dir")->read();
+			string keys;
+			if (url_has_param(url,"tls-certificates-dir")) {
+				char keys_path[512];
+				url_param(url->url_params,"tls-certificates-dir",keys_path,sizeof(keys_path));
+				keys=keys_path;
+			} else {
+				 keys = cr->get<GenericStruct>("global")->get<ConfigString>("tls-certificates-dir")->read();
+			}
 			err=nta_agent_add_tport(mAgent,(const url_string_t*)url,TPTAG_CERTIFICATE(keys.c_str()), NTATAG_TLS_RPORT(1), TPTAG_IDLE(tports_idle_timeout), TAG_END());
 		}else{
 			err=nta_agent_add_tport(mAgent,(const url_string_t*)url,NTATAG_CLIENT_RPORT(1), TPTAG_IDLE(tports_idle_timeout), TAG_END());
