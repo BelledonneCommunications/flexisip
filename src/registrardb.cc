@@ -498,11 +498,12 @@ public:
 
 	void onRecordFound(Record *r) {
 		if (r != NULL) {
-			for (auto it = r->mContacts.begin(); it != r->mContacts.end(); ++it) {
-				shared_ptr<ExtendedContact> &ec = *it;
+			auto &extlist =r->getExtendedContacts();
+			for (auto it = extlist.begin(); it != extlist.end(); ++it) {
+				const shared_ptr<ExtendedContact> &ec = *it;
 				if (!ec->mAlias) {
 					SLOGD << "Step: " << m_step << "\tFound contact " << m_url << " -> " << ec->mSipUri;
-					m_record->mContacts.push_back(ec);
+					m_record->pushContact(ec);
 				} else if (m_step > 0) {
 					SLOGD << "Step: " << m_step << "\tFound alias " << m_url << " -> " << ec->mSipUri;
 					sip_contact_t *contact = sip_contact_format(&m_home, "%s", ec->mSipUri.c_str());
@@ -541,12 +542,12 @@ private:
 		if (--m_request != 0) return false; // wait for all pending responses
 
 		// No more results expected for this recursion level
-		if (m_record->mContacts.empty()) {
+		if (m_record->getExtendedContacts().empty()) {
 			return true; // no contacts collected on below recursion levels
 		}
 
 		// returning records collected on below recursion levels
-		SLOGD << "Step: " << m_step << "\tReturning collected records " << m_record->mContacts.size();
+		SLOGD << "Step: " << m_step << "\tReturning collected records " << m_record->getExtendedContacts().size();
 		m_original_listerner->onRecordFound(m_record);
 		return false;
 	}

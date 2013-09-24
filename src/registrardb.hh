@@ -143,7 +143,6 @@ std::ostream &operator<<(std::ostream & stream, const ExtendedContact &ec) {
 
 
 class Record {
-	friend class RecursiveRegistrarDbListener;
 	friend class RegistrarDb;
 private:
 	static void init();
@@ -160,6 +159,7 @@ public:
 	Record(std::string key);
 	static std::string extractUniqueId(const sip_contact_t *contact);
 	const sip_contact_t * getContacts(su_home_t *home, time_t now);
+	void pushContact(const std::shared_ptr<ExtendedContact> &ct) { mContacts.push_back(ct);};
 	bool isInvalidRegister(const char *call_id, uint32_t cseq);
 	void clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t time);
 	void clean(time_t time);

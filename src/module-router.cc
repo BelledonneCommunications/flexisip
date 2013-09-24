@@ -72,6 +72,7 @@ public:
 			{ Boolean, "generate-contact-even-on-filled-aor", "Generate a contact route even on filled AOR.", "false"},
 			{ Boolean, "fork-one-response", "Only forward one response of forked invite to the caller", "true" },
 			{ Boolean, "remove-to-tag", "Remove to tag from 183, 180, and 101 responses to workaround buggy gateways", "false" },
+			{ String, "preroute" , "rewrite username with given value.", ""},
 			config_item_end
 		};
 		mc->addChildrenValues(configs);
@@ -115,9 +116,10 @@ public:
 		mOtherForkCfg->mForkOneResponse=true;
 		mOtherForkCfg->mForkLate=false;
 		mOtherForkCfg->mDeliveryTimeout=30;
-		
-		
+	
 		mUseGlobalDomain=mc->get<ConfigBoolean>("use-global-domain")->read();
+
+		mPreroute = mc->get<ConfigString>("preroute")->read();
 	}
 
 	virtual void onUnload() {
@@ -139,7 +141,11 @@ private:
 	string routingKey(const url_t* sipUri) {
 		ostringstream oss;
 		if (sipUri->url_user) {
-			oss << sipUri->url_user << "@";
+			if (!mPreroute.empty() && strcmp(sipUri->url_user, mPreroute.c_str()) != 0) {
+				oss << "merged" << "@"; // all users but preroute are merged 
+			} else {
+				oss << sipUri->url_user << "@";
+			}
 		}
 		if (mUseGlobalDomain){
 			oss << "merged";
@@ -162,6 +168,7 @@ private:
 
 	static ModuleInfo<ModuleRouter> sInfo;
 	bool mGenerateContactEvenOnFilledAor;
+	string mPreroute;
 };
 
 
@@ -473,7 +480,65 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 }
 
 
-// Listener class NEED to copy the shared pointer
+class PreroutingFetcher: 
+public RegistrarDbListener,
+public enable_shared_from_this<PreroutingFetcher>,
+private ModuleToolbox {
+	friend class ModuleRouter;
+	ModuleRouter *mModule;
+	shared_ptr<RequestSipEvent> mEv;
+	shared_ptr<RegistrarDbListener> listerner;
+	vector< string > mPreroutes;
+	int pending;
+	bool error;
+	Record *m_record;
+public:
+	PreroutingFetcher(ModuleRouter *module, shared_ptr<RequestSipEvent> ev,
+					  const shared_ptr<RegistrarDbListener> &listerner, const vector<string> &preroutes) :
+	mModule(module), mEv(ev), listerner(listerner), mPreroutes(preroutes) {
+		pending = 0;
+		error = false;
+		m_record= new Record("virtual_record");
+	}
+	
+	~PreroutingFetcher() {
+		delete (m_record);
+	}
+
+	void fetch() {
+		const char *domain = mEv->getSip()->sip_to->a_url->url_host;
+		if (isNumeric(domain)) SLOGE << "Not handled: to is ip at " << __LINE__;
+
+		for (auto it = mPreroutes.cbegin(); it != mPreroutes.cend(); ++it) {
+			url_t *target = url_format(mEv->getHome(), "sip:%s@%s", it->c_str(), domain);
+			++pending;
+			RegistrarDb::get(mModule->getAgent())->fetch(target, this->shared_from_this(), true);
+		}
+	}
+	
+	void onRecordFound(Record *r) {
+		--pending;
+		if (r != NULL) {
+			const auto &ctlist = r->getExtendedContacts();
+			for (auto it = ctlist.begin(); it != ctlist.end(); ++it)
+				m_record->pushContact(*it);
+		}
+		checkFinished();
+	}
+	void onError() {
+		--pending;
+		error = true;
+		checkFinished();
+	}
+
+	void checkFinished() {
+		if (pending != 0) return;
+		if (error) listerner->onError();
+		else listerner->onRecordFound(m_record);
+	}
+};
+
+
 class OnFetchForRoutingListener: public RegistrarDbListener {
 	friend class ModuleRouter;
 	ModuleRouter *mModule;
@@ -498,6 +563,18 @@ public:
 		mModule->sendReply(mEv,SIP_500_INTERNAL_SERVER_ERROR);
 	}
 };
+
+static vector<string> split(const char *data, const char *delim) {
+	const char* p;
+	vector<string> res;
+	char *s = strdup(data);
+	char *saveptr=NULL;
+	for (p = strtok_r( s, delim, &saveptr );  p;  p = strtok_r( NULL, delim, &saveptr )) {
+		res.push_back(p);
+	}
+	free(s);
+	return res;
+}
 
 void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
@@ -531,7 +608,27 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			// Go stateful to stop retransmissions
 			ev->createIncomingTransaction();
 			sendReply(ev, SIP_100_TRYING);
-			RegistrarDb::get(mAgent)->fetch(sipurl, make_shared<OnFetchForRoutingListener>(this, ev, sipurl), true);
+			auto onRoutingListener = make_shared<OnFetchForRoutingListener>(this, ev, sipurl);
+			if (mPreroute.empty()) {
+				RegistrarDb::get(mAgent)->fetch(sipurl, onRoutingListener, true);
+			} else {
+				char preroute_param[20];
+				if (url_param(sipurl->url_params, "preroute", preroute_param, sizeof(preroute_param))) {
+					if (strchr(preroute_param, '@')) {
+						SLOGE << "Prerouting contains at symbol" << preroute_param;
+						return;
+					}
+					SLOGD << "Prerouting to provided " << preroute_param;
+					vector<string> tokens = split(preroute_param, ":");
+					auto prFetcher = make_shared<PreroutingFetcher>(this, ev, onRoutingListener, tokens);
+					prFetcher->fetch();
+				} else {
+					SLOGD << "Prerouting to " << mPreroute;
+					url_t *prerouteUrl = url_format(ev->getHome(), "sip:%s@%s",
+													mPreroute.c_str(), sipurl->url_host);
+					RegistrarDb::get(mAgent)->fetch(prerouteUrl, onRoutingListener, true);
+				}
+			}
 		}
 	}
 	if (sip->sip_request->rq_method == sip_method_ack) {
