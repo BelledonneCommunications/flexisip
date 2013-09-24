@@ -420,6 +420,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 }
 
 void MediaRelay::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
+	/*
 	shared_ptr<RelayedCall> c = ev->transaction->getProperty<RelayedCall>(getModuleName());
 	if (c != NULL) {
 		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->transaction);
@@ -436,6 +437,7 @@ void MediaRelay::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
 			}
 		}
 	}
+	*/
 }
 
 void MediaRelay::onIdle() {
