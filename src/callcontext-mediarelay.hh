@@ -69,7 +69,7 @@ public:
 	/* Assign destination ip/port of front channel by provided ones of SDP. */
 	void assignFrontChannel(SdpModifier *m, int mline, const std::string &ip, int port);
 
-	/* Assign destination ip/port of front channel by provided ones of SDP. */
+	/* Assign destination ip/port of back channel by provided ones of SDP. */
 	void assignBackChannel(SdpModifier *m, int mline, const std::string &ip, int port, const std::string &tag, const std::shared_ptr<Transaction> &transaction);
 
 	/* Set only one sender to the caller. */

@@ -21,12 +21,13 @@
 #include "transaction.hh"
 #include "etchosts.hh"
 #include <sstream>
+#include <sofia-sip/su_random.h>
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/tport.h>
 
 using namespace ::std;
 
-static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip, char const *string_server);
+static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip, char const *string_server, bool isStateful);
 
 class ForwardModule: public Module, ModuleToolbox {
 public:
@@ -136,16 +137,11 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		dest->url_host = ip.c_str();
 	}
 
-	// Compute branch, output branch=XXXXX
-	char const * branchStr = compute_branch(getSofiaAgent(), msg, sip, mAgent->getUniqueId().c_str());
-
-	// Check looping
-	if (isLooping(ev, branchStr + 7)) {
-		ev->reply(SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		return;
-	} else if (getAgent()->isUs(dest->url_host, dest->url_port, false)) {
+	// Check self-forwarding
+	if (getAgent()->isUs(dest->url_host, dest->url_port, false)) {
 		SLOGD << "Skipping forwarding of request to us "
 			<< url_as_string(ms->getHome(), dest) << "\n" << ms;
+		ev->reply(SIP_500_INTERNAL_SERVER_ERROR, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		ev->terminateProcessing();
 		return;
 	}
@@ -189,7 +185,15 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 	removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, sPushNotifParams);
 	
-
+	// Compute branch, output branch=XXXXX
+	bool isStateful=ev->getOutgoingAgent() != NULL && dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent())!=NULL;
+	char const * branchStr = compute_branch(getSofiaAgent(), msg, sip, mAgent->getUniqueId().c_str(),isStateful);
+	
+	if (isLooping(ev, branchStr + 7)) {
+		ev->reply(SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		return;
+	}
+	
 	// Finally send message
 	ev->send(ms, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());
 }
@@ -202,6 +206,7 @@ unsigned int ForwardModule::countVia(shared_ptr<RequestSipEvent> &ev) {
 	return via_count;
 }
 
+/*function that detects loops, does not work for requests forwarded through transaction*/
 bool ForwardModule::isLooping(shared_ptr<RequestSipEvent> &ev, const char * branch) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	for (sip_via_t *via = ms->getSip()->sip_via; via != NULL; via = via->v_next) {
@@ -220,43 +225,47 @@ void ForwardModule::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 }
 
 #include <sofia-sip/su_md5.h>
-static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip, char const *string_server) {
+static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip, char const *string_server, bool isStateful) {
 	su_md5_t md5[1];
 	uint8_t digest[SU_MD5_DIGEST_SIZE];
 	char branch[(SU_MD5_DIGEST_SIZE * 8 + 4) / 5 + 1];
 	sip_route_t const *r;
 
-	su_md5_init(md5);
+	if (!isStateful){
+		su_md5_init(md5);
 
-	su_md5_str0update(md5, string_server);
-	//su_md5_str0update(md5, port);
+		su_md5_str0update(md5, string_server);
+		//su_md5_str0update(md5, port);
 
-	url_update(md5, sip->sip_request->rq_url);
-	if (sip->sip_request->rq_url->url_params){
-		//put url params in the hash too, because sofia does not do it in url_update().
-		su_md5_str0update(md5,sip->sip_request->rq_url->url_params);
-	}
-	if (sip->sip_call_id) {
-		su_md5_str0update(md5, sip->sip_call_id->i_id);
-	}
-	if (sip->sip_from) {
-		url_update(md5, sip->sip_from->a_url);
-		su_md5_stri0update(md5, sip->sip_from->a_tag);
-	}
-	if (sip->sip_to) {
-		url_update(md5, sip->sip_to->a_url);
-		/* XXX - some broken implementations include To tag in CANCEL */
-		/* su_md5_str0update(md5, sip->sip_to->a_tag); */
-	}
-	if (sip->sip_cseq) {
-		uint32_t cseq = htonl(sip->sip_cseq->cs_seq);
-		su_md5_update(md5, &cseq, sizeof(cseq));
-	}
+		url_update(md5, sip->sip_request->rq_url);
+		if (sip->sip_request->rq_url->url_params){
+			//put url params in the hash too, because sofia does not do it in url_update().
+			su_md5_str0update(md5,sip->sip_request->rq_url->url_params);
+		}
+		if (sip->sip_call_id) {
+			su_md5_str0update(md5, sip->sip_call_id->i_id);
+		}
+		if (sip->sip_from) {
+			url_update(md5, sip->sip_from->a_url);
+			su_md5_stri0update(md5, sip->sip_from->a_tag);
+		}
+		if (sip->sip_to) {
+			url_update(md5, sip->sip_to->a_url);
+			/* XXX - some broken implementations include To tag in CANCEL */
+			/* su_md5_str0update(md5, sip->sip_to->a_tag); */
+		}
+		if (sip->sip_cseq) {
+			uint32_t cseq = htonl(sip->sip_cseq->cs_seq);
+			su_md5_update(md5, &cseq, sizeof(cseq));
+		}
 
-	for (r = sip->sip_route; r; r = r->r_next)
-		url_update(md5, r->r_url);
+		for (r = sip->sip_route; r; r = r->r_next)
+			url_update(md5, r->r_url);
 
-	su_md5_digest(md5, digest);
+		su_md5_digest(md5, digest);
+	}else{
+		su_randmem(digest,sizeof(digest));
+	}
 
 	msg_random_token(branch, sizeof(branch) - 1, digest, sizeof(digest));
 
