@@ -58,29 +58,23 @@ void ForkContext::onLateTimeout(){
 }
 
 struct dest_finder{
-	dest_finder(const sip_contact_t *ctt) : mCtt(ctt){
-		//mUniqueId=Record::extractUniqueId(ctt->m_url);
+	dest_finder(const url_t *ctt) {
+		cttport = url_port(ctt);
+		ctthost = ctt->url_host;
+		// don't care about transport
 	}
 	bool operator()(const url_t *dest){
-		/*
-		if (!mUniqueId.empty()){
-			string uniqueid=Record::extractUniqueId(dest);
-			if (uniqueid==mUniqueId)
-				return true;
-		}
-		*/
-		if (url_cmp_all(dest,mCtt->m_url)==0)
-			return true;
-		return false;
+		return 0 == strcmp(url_port(dest), cttport)
+			&& 0 == strcmp(dest->url_host, ctthost);
 	}
-	const sip_contact_t *mCtt;
-	string mUniqueId;
+	const char *ctthost;
+	const char *cttport;
 };
 
 
 //this implementation looks for already pending or failed transactions and then rejects handling of a new one that would already been tried.
 bool ForkContext::onNewRegister(const sip_contact_t* ctt){
-	auto it=find_if(mDestinationUris.begin(),mDestinationUris.end(),dest_finder(ctt));
+	auto it=find_if(mDestinationUris.begin(),mDestinationUris.end(),dest_finder(ctt->m_url));
 	if (it!=mDestinationUris.end()){
 		LOGD("ForkContext %p: onNewRegister(): destination already handled.",this);
 		return false;
