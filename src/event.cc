@@ -223,6 +223,12 @@ void RequestSipEvent::suspendProcessing() {
 RequestSipEvent::~RequestSipEvent() {
 }
 
+
+bool RequestSipEvent::findIncomingSubject(const char *searched) {
+	auto strlst = tport_delivered_from_subjects(mIncomingTport.get(), mMsgSip->mOriginalMsg);
+	return !!tport_subject_search(searched, strlst);
+}
+
 ResponseSipEvent::ResponseSipEvent(shared_ptr<OutgoingAgent> outgoingAgent, const shared_ptr<MsgSip> &msgSip) :
 		SipEvent(msgSip), mPopVia(false) {
 	mOutgoingAgent = outgoingAgent;

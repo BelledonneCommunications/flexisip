@@ -193,6 +193,7 @@ private:
 	bool dbUseHashedPasswords;
 	bool mImmediateRetrievePassword;
 	bool mNewAuthOn407;
+	bool mUseClientCertificates;
 
 	void static flexisip_auth_method_digest(auth_mod_t *am,
 				auth_status_t *as, msg_auth_t *au, auth_challenger_t const *ach);
@@ -245,10 +246,11 @@ public:
 		ConfigItemDescriptor items[]={
 			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	"localhost"	},
 			{	StringList	,	"trusted-hosts"	, 	"List of whitespace separated IP which will not be challenged.",	""	},
+			{	Boolean	,	"client-certificates"	, 	"Use client certificates.",	"0"	},
 			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file, fixed].",		"fixed"	},
-			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. " \
-					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. " \
-					"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. " \
+			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. " 
+					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. " 
+					"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. " 
 					"ex3: /etc/flexisip/passwd; for a file containing one 'user@domain password' by line.",		""	},
 			{	String		,	"request"				,	"Odbc SQL request to execute to obtain the password \n. "
 					"Named parameters are :id (the user found in the from header), :domain (the authorization realm) and :authid (the authorization username). "
@@ -264,6 +266,7 @@ public:
 			{	Boolean		,	"immediate-retrieve-password"	,	"Retrieve password immediately so that it is cached when an authenticated request arrives.",	"true"},
 			{	Boolean		,	"hashed-passwords"	,	"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).", "false" },
 			{	Boolean		,	"new-auth-on-407"	,	"When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false" },
+			
 			config_item_end
 		};
 		mc->addChildrenValues(items);
@@ -304,6 +307,7 @@ public:
 		dbUseHashedPasswords = mc->get<ConfigBoolean>("hashed-passwords")->read();
 		mImmediateRetrievePassword = mc->get<ConfigBoolean>("immediate-retrieve-password")->read();
 		mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
+		mUseClientCertificates = mc->get<ConfigBoolean>("client-certificates")->read();
 	}
 
 	auth_mod_t *findAuthModule(const char *name) {
@@ -326,7 +330,17 @@ public:
 			return;
 		}
 
-		// First check for trusted host
+		// Check for the existence of username, reject if absent.
+		if (sip->sip_from->a_url->url_user==NULL){
+			LOGI("From has no username, cannot authenticate.");
+			ev->reply(SIP_488_NOT_ACCEPTABLE,
+					  SIPTAG_SERVER_STR(getAgent()->getServerString()),
+					  TAG_END());
+			return;
+		}
+
+
+		// Check for trusted host
 		sip_via_t *via=sip->sip_via;
 		list<string>::const_iterator trustedHostsIt=mTrustedHosts.begin();
 		const char *receivedHost=!empty(via->v_received) ? via->v_received : via->v_host;
@@ -337,7 +351,7 @@ public:
 			}
 		}
 
-		// Then check for auth module for this domain
+		// Check for auth module for this domain
 		auth_mod_t *am=findAuthModule(sip->sip_from->a_url[0].url_host);
 		if (am==NULL) {
 			LOGI("Unknown domain [%s]",sip->sip_from->a_url[0].url_host);
@@ -347,15 +361,27 @@ public:
 					TAG_END());
 			return;
 		}
-		// Check for the existence of username, reject if absent.
-		if (sip->sip_from->a_url->url_user==NULL){
-			LOGI("From has no username, cannot authenticate.");
-			ev->reply(SIP_488_NOT_ACCEPTABLE,
-					SIPTAG_SERVER_STR(getAgent()->getServerString()),
-					TAG_END());
+
+		// Check TLS certificate
+		shared_ptr<tport_t> inTport = ev->getIncomingTport();
+		if (mUseClientCertificates && tport_has_tls(inTport.get())) {
+			char searched[60]; searched[0]=0;
+			const url_t *from = sip->sip_from->a_url;
+			snprintf(searched, sizeof(searched), "sip:%s@%s", from->url_user, from->url_host);
+			if (ev->findIncomingSubject(searched)) {
+				SLOGD << "Allowing message from matching TLS certificate";
+			} else {
+				SLOGE << "Client certificate do not match " << searched;
+				ev->reply( SIP_488_NOT_ACCEPTABLE,
+						   SIPTAG_CONTACT(sip->sip_contact),
+						   SIPTAG_SERVER_STR(getAgent()->getServerString()),
+						   TAG_END());
+			}
 			return;
 		}
-
+		
+		
+		
 		// Create incoming transaction if not already exists
 		// Necessary in qop=auth to prevent nonce count chaos
 		// with retransmissions.

@@ -193,6 +193,9 @@ public:
 	}
 
 	~RequestSipEvent();
+
+	/** Find if incoming tport TLS client certificate contains a given entry */
+	bool findIncomingSubject(const char *searched);
 	bool mRecordRouteAdded;
 private:
 	void linkTransactions();
