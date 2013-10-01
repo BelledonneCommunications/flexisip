@@ -689,8 +689,9 @@ static ConfigItemDescriptor global_conf[]={
 								"* listen on 192.168.0.29:6060 with tls, but public hostname is 'sip.linphone.org' used in SIP messages. Bind address won't appear:\n"
 								"\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29"
 		,	"sip:*" },
-		{	String		,"tls-certificates-dir", "An absolute path of a directory where TLS server certificate and private key can be found, concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'.", "/etc/flexisip/tls"},
+		{	String		,"tls-certificates-dir", "Path to the directory where TLS server certificate and private key can be found, concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'.", "/etc/flexisip/tls"},
 		{	Integer		,"idle-timeout",	"Time interval in seconds after which inactive connections are closed.", "3600"},
+		{	Boolean		,"require-peer-certificate",	"Require client certificate from peer.", "false"},
 		{	Boolean		,"enable-event-logs",	"Enable event logs. Event logs contain per domain and user information about processed registrations, calls and messages.", "false"},
 		{	String		,"event-logs-dir",	"Directory where event logs are written.",	"/var/log/flexisip"},
 		config_item_end

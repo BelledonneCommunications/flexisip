@@ -111,13 +111,28 @@ void Agent::startLogWriter(){
 	}
 }
 
+static string absolutePath(const string &currdir, const string &file) {
+	if (file.empty()) return file;
+	if (file.at(0) == '/') return file;
+	return currdir + "/" + file;
+}
+
 void Agent::start(const char *transport_override){
-	GenericStruct *cr=GenericManager::get()->getRoot();
-	list<string> transports=cr->get<GenericStruct>("global")->get<ConfigStringList>("transports")->read();
-	int tports_idle_timeout=cr->get<GenericStruct>("global")->get<ConfigInt>("idle-timeout")->read();
-	
-	tports_idle_timeout*=1000; //sofia needs a value in millseconds.
-	
+	char cCurrDir[FILENAME_MAX];
+	if (!getcwd(cCurrDir, sizeof(cCurrDir))) {
+		LOGA("Could not get current file path");
+	}
+	string currDir = cCurrDir;
+
+	GenericStruct *global=GenericManager::get()->getRoot()->get<GenericStruct>("global");
+		list<string> transports = global->get<ConfigStringList>("transports")->read();
+	//sofia needs a value in millseconds.
+	int tports_idle_timeout = 1000 * global->get<ConfigInt>("idle-timeout")->read();
+	bool peerCert = global->get<ConfigBoolean>("require-peer-certificate")->read();
+	string mainTlsCertsDir = global->get<ConfigString>("tls-certificates-dir")->read();
+	mainTlsCertsDir = absolutePath(currDir, mainTlsCertsDir);
+	SLOGD << "Main tls certs dir : " << mainTlsCertsDir;
+
 	if (transport_override){
 		transports=ConfigStringList::parse(transport_override);
 	}
@@ -135,13 +150,23 @@ void Agent::start(const char *transport_override){
 			if (url_has_param(url,"tls-certificates-dir")) {
 				char keys_path[512];
 				url_param(url->url_params,"tls-certificates-dir",keys_path,sizeof(keys_path));
-				keys=keys_path;
+				keys=keys_path, keys = absolutePath(currDir, keys);
 			} else {
-				 keys = cr->get<GenericStruct>("global")->get<ConfigString>("tls-certificates-dir")->read();
+				 keys = mainTlsCertsDir;
 			}
-			err=nta_agent_add_tport(mAgent,(const url_string_t*)url,TPTAG_CERTIFICATE(keys.c_str()), NTATAG_TLS_RPORT(1), TPTAG_IDLE(tports_idle_timeout), TAG_END());
+			err=nta_agent_add_tport(mAgent,
+									(const url_string_t*) url,
+									TPTAG_CERTIFICATE(keys.c_str()),
+									TPTAG_TLS_VERIFY_PEER(peerCert),  
+									NTATAG_TLS_RPORT(1),
+									TPTAG_IDLE(tports_idle_timeout),
+									TAG_END());
 		}else{
-			err=nta_agent_add_tport(mAgent,(const url_string_t*)url,NTATAG_CLIENT_RPORT(1), TPTAG_IDLE(tports_idle_timeout), TAG_END());
+			err=nta_agent_add_tport(mAgent,
+									(const url_string_t*) url,
+									NTATAG_CLIENT_RPORT(1),
+									TPTAG_IDLE(tports_idle_timeout),
+									TAG_END());
 		}
 		if (err==-1){
 			LOGE("Could not enable transport %s: %s",uri.c_str(),strerror(errno));
