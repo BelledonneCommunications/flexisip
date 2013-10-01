@@ -63,7 +63,7 @@ int PushNotificationService::sendRequest(const std::shared_ptr<PushNotificationR
 }
 
 void PushNotificationService::start() {
-	if (mThread == NULL || !mThread->joinable()) {
+	if (mThread && !mThread->joinable()) {
 		delete mThread;
 		mThread = NULL;
 	}
