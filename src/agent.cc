@@ -128,7 +128,7 @@ void Agent::start(const char *transport_override){
 		list<string> transports = global->get<ConfigStringList>("transports")->read();
 	//sofia needs a value in millseconds.
 	int tports_idle_timeout = 1000 * global->get<ConfigInt>("idle-timeout")->read();
-	bool peerCert = global->get<ConfigBoolean>("require-peer-certificate")->read();
+	bool mainPeerCert = global->get<ConfigBoolean>("require-peer-certificate")->read();
 	string mainTlsCertsDir = global->get<ConfigString>("tls-certificates-dir")->read();
 	mainTlsCertsDir = absolutePath(currDir, mainTlsCertsDir);
 	SLOGD << "Main tls certs dir : " << mainTlsCertsDir;
@@ -153,6 +153,17 @@ void Agent::start(const char *transport_override){
 				keys=keys_path, keys = absolutePath(currDir, keys);
 			} else {
 				 keys = mainTlsCertsDir;
+			}
+			bool peerCert;
+			if (url_has_param(url,"require-peer-certificate")) {
+				char require_value[50];
+				url_param(url->url_params,"require-peer-certificate", require_value, sizeof(require_value));
+				string reqval = require_value;
+				peerCert = reqval == "1" || reqval == "true";
+				if (!peerCert && reqval != "0" && reqval != "false")
+					LOGA("Bad require-peer-certificate value: %s", require_value);
+			} else {
+				peerCert = mainPeerCert;
 			}
 			err=nta_agent_add_tport(mAgent,
 									(const url_string_t*) url,

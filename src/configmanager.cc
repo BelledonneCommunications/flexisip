@@ -685,7 +685,9 @@ static ConfigItemDescriptor global_conf[]={
 								"* listen on all local interfaces for udp,tcp and tls, on standart ports:\n"
 								"\ttransports=sip:* sips:*\n"
 								"* listen on tls localhost with 2 different port and SSL certificates:\n"
-								"\ttransports=sip:localhost:5061;tls-certificates-dir=path_a sip:localhost:5062;tls-certificates-dir=path_b\n"
+								"\ttransports=sip:localhost:5061;tls-certificates-dir=path_a sip:localhost:5062;tls-certificates-dir=path_b,\n"
+								"* listen on tls localhost with 2 peer certificate requirements:\n"
+								"\ttransports=sip:localhost:5061;require-peer-certificate=0 sip:localhost:5062;require-peer-certificate=1,\n"
 								"* listen on 192.168.0.29:6060 with tls, but public hostname is 'sip.linphone.org' used in SIP messages. Bind address won't appear:\n"
 								"\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29"
 		,	"sip:*" },

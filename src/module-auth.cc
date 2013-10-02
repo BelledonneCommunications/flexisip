@@ -193,7 +193,7 @@ private:
 	bool dbUseHashedPasswords;
 	bool mImmediateRetrievePassword;
 	bool mNewAuthOn407;
-	bool mUseClientCertificates;
+	list<string> mUseClientCertificates;
 
 	void static flexisip_auth_method_digest(auth_mod_t *am,
 				auth_status_t *as, msg_auth_t *au, auth_challenger_t const *ach);
@@ -246,7 +246,8 @@ public:
 		ConfigItemDescriptor items[]={
 			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	"localhost"	},
 			{	StringList	,	"trusted-hosts"	, 	"List of whitespace separated IP which will not be challenged.",	""	},
-			{	Boolean	,	"client-certificates"	, 	"Use client certificates.",	"0"	},
+			{	StringList	,	"client-certificates-domains"	, 	"List of whitespace separated domain names to check using client certificates."
+			" CN may contain user@domain or alternate name with URI=sip:user@domain",	""	},
 			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file, fixed].",		"fixed"	},
 			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. " 
 					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. " 
@@ -307,7 +308,7 @@ public:
 		dbUseHashedPasswords = mc->get<ConfigBoolean>("hashed-passwords")->read();
 		mImmediateRetrievePassword = mc->get<ConfigBoolean>("immediate-retrieve-password")->read();
 		mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
-		mUseClientCertificates = mc->get<ConfigBoolean>("client-certificates")->read();
+		mUseClientCertificates = mc->get<ConfigStringList>("client-certificates-domains")->read();
 	}
 
 	auth_mod_t *findAuthModule(const char *name) {
@@ -317,6 +318,10 @@ public:
 			return NULL;
 		}
 		return it->second;
+	}
+
+	bool containsDomain(const list<string> &d, const char *name) {
+		return find(d.cbegin(), d.cend(), "*") != d.end() || find(d.cbegin(), d.cend(), name) != d.end();
 	}
 
 	void onRequest(shared_ptr<RequestSipEvent> &ev) {
@@ -351,23 +356,13 @@ public:
 			}
 		}
 
-		// Check for auth module for this domain
-		auth_mod_t *am=findAuthModule(sip->sip_from->a_url[0].url_host);
-		if (am==NULL) {
-			LOGI("Unknown domain [%s]",sip->sip_from->a_url[0].url_host);
-			ev->reply( SIP_488_NOT_ACCEPTABLE,
-					SIPTAG_CONTACT(sip->sip_contact),
-					SIPTAG_SERVER_STR(getAgent()->getServerString()),
-					TAG_END());
-			return;
-		}
-
 		// Check TLS certificate
+		const char *fromDomain = sip->sip_from->a_url[0].url_host;
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
-		if (mUseClientCertificates && tport_has_tls(inTport.get())) {
+		if (tport_has_tls(inTport.get()) && containsDomain(mUseClientCertificates, fromDomain)) {
 			char searched[60]; searched[0]=0;
 			const url_t *from = sip->sip_from->a_url;
-			snprintf(searched, sizeof(searched), "sip:%s@%s", from->url_user, from->url_host);
+			snprintf(searched, sizeof(searched), "sip:%s@%s", from->url_user, fromDomain);
 			if (ev->findIncomingSubject(searched)) {
 				SLOGD << "Allowing message from matching TLS certificate";
 			} else {
@@ -379,9 +374,21 @@ public:
 			}
 			return;
 		}
-		
-		
-		
+
+
+		// Check for auth module for this domain
+		auth_mod_t *am=findAuthModule(fromDomain);
+		if (am==NULL) {
+			LOGI("Unknown domain [%s]", fromDomain);
+			ev->reply( SIP_488_NOT_ACCEPTABLE,
+					SIPTAG_CONTACT(sip->sip_contact),
+					SIPTAG_SERVER_STR(getAgent()->getServerString()),
+					TAG_END());
+			return;
+		}
+
+
+
 		// Create incoming transaction if not already exists
 		// Necessary in qop=auth to prevent nonce count chaos
 		// with retransmissions.
