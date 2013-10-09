@@ -69,8 +69,7 @@ protected:
 	}
 private:
 	bool processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<RequestSipEvent> &ev);
-	void process200OkforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
-	void processFailureForInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
+	void processResponseWithSDP(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
 	void configureContext(shared_ptr<RelayedCall> &c); 
 	CallStore *mCalls;
 	MediaRelayServer *mServer;
@@ -173,9 +172,9 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	string to_tag;
 	if (sip->sip_to != NULL && sip->sip_to->a_tag != NULL)
 		to_tag = sip->sip_to->a_tag;
-	string invite_host;
+	string dest_host;
 	if (sip->sip_request != NULL && sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_host != NULL)
-		invite_host = sip->sip_request->rq_url->url_host;
+		dest_host = sip->sip_request->rq_url->url_host;
 
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
 		LOGD("Invite is already relayed");
@@ -183,12 +182,8 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		return false;
 	}
 
-	// Create Media
-	if (c->getCallerTag() == from_tag){
-		c->initChannels(m, to_tag, transaction, mAgent->getPreferredIp(from_host), mAgent->getPreferredIp(invite_host));
-	}else{
-		c->initChannels(m, from_tag, transaction, mAgent->getPreferredIp(invite_host), mAgent->getPreferredIp(from_host));
-	}
+	// create channels if not already existing
+	c->initChannels(m, from_tag, transaction->getBranchId(), mAgent->getPreferredIp(from_host), mAgent->getPreferredIp(dest_host));
 
 	if (!c->checkMediaValid()) {
 		LOGE("The relay media are invalid, no RTP/RTCP port remaining?");
@@ -197,26 +192,15 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		return false;
 	}
 
-	// Set
-	if (c->getCallerTag() == from_tag)
-		m->iterate(bind(&RelayedCall::assignFrontChannel, c, m, _1, _2, _3));
-	else
-		m->iterate(bind(&RelayedCall::assignBackChannel, c, m, _1, _2, _3, from_tag, ref(transaction)));
+	// assign destination address
+	m->iterate(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, from_tag, transaction->getBranchId()));
 
-	// Translate
-	if (c->getCallerTag() == from_tag)
-		m->masquerade(bind(&RelayedCall::masqueradeForBack, c, _1, _2, _3, to_tag, ref(transaction)));
-	else
-		m->masquerade(bind(&RelayedCall::masqueradeForFront, c, _1, _2, _3));
+	// Modify sdp message to set relay address and ports.
+	m->masquerade(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, from_tag, transaction->getBranchId()));
 
 	// Masquerade using ICE
-	if (c->getCallerTag() == from_tag)
-		m->addIceCandidate(bind(&RelayedCall::masqueradeForBack, c, _1, _2, _3, to_tag, ref(transaction)),
-			bind(&RelayedCall::masqueradeIceForFront, c, _1, _2, _3));
-	else
-		m->addIceCandidate(bind(&RelayedCall::masqueradeForFront, c, _1, _2, _3),
-			bind(&RelayedCall::masqueradeIceForBack, c, _1, _2, _3, from_tag, ref(transaction)));
-		
+	m->addIceCandidate(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, from_tag, transaction->getBranchId()));
+	
 	if (!mSdpMangledParam.empty()) m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	m->update(msg, sip);
 
@@ -246,7 +230,11 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	if (sip->sip_request->rq_method == sip_method_invite) {
 		shared_ptr<IncomingTransaction> it = ev->createIncomingTransaction();
 		shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
-		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true))) == NULL) {
+		bool newContext=false;
+		
+		c=it->getProperty<RelayedCall>(getModuleName());
+		if (c==NULL) c=dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true));
+		if (c==NULL) {
 			if (mMaxCalls>0 && mCalls->size()>=mMaxCalls){
 				LOGW("Maximum number of relayed calls reached (%i), call is rejected",mMaxCalls);
 				ev->reply(503, "Maximum number of calls reached", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
@@ -254,20 +242,15 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			}
 			
 			c = make_shared<RelayedCall>(mServer, sip, mEarlymediaRTPDir);
+			newContext=true;
 			it->setProperty<RelayedCall>(getModuleName(), c);
 			configureContext(c);
-			if (processNewInvite(c, ot, ev)) {
-				//be in the record-route
-				addRecordRouteIncoming(c->getHome(), getAgent(),ev);
-				mCalls->store(c);
-				ot->setProperty<RelayedCall>(getModuleName(), c);
-			}
-		} else {
-			if (processNewInvite(c, ot, ev)) {
-				//be in the record-route
-				addRecordRouteIncoming(c->getHome(), getAgent(),ev);
-				ot->setProperty(getModuleName(), c);
-			}
+		}
+		if (processNewInvite(c, ot, ev)) {
+			//be in the record-route
+			addRecordRouteIncoming(c->getHome(), getAgent(),ev);
+			if (newContext) mCalls->store(c);
+			ot->setProperty(getModuleName(), c);
 		}
 	}else if (sip->sip_request->rq_method == sip_method_bye) {
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->findEstablishedDialog(getAgent(), sip))) != NULL) {
@@ -282,29 +265,8 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		}
 	}
 }
-void MediaRelay::processFailureForInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
-	sip_t *sip = msgSip->getSip();
-	LOGD("Processing Other");
-	if (sip->sip_to == NULL || sip->sip_to->a_tag == NULL) {
-		LOGW("No tag in answer");
-		return;
-	}
 
-	string from_tag;
-	if (sip->sip_from != NULL && sip->sip_from->a_tag != NULL)
-		from_tag = sip->sip_from->a_tag;
-	string to_tag;
-	if (sip->sip_to != NULL && sip->sip_to->a_tag != NULL)
-		to_tag = sip->sip_to->a_tag;
-
-	// Remove back
-	if (c->getCallerTag() == from_tag) {
-		if (c->removeBack(to_tag)) {
-			//mCalls->remove(c);
-		}
-	}
-}
-void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
+void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
 	sip_t *sip = msgSip->getSip();
 	msg_t *msg = msgSip->getMsg();
 	
@@ -317,6 +279,7 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 	
 	if (sip->sip_status->st_status==200){
 		if (!c->isDialogEstablished()) c->establishDialogWith200Ok(getAgent(),sip);
+		c->setEstablished(transaction->getBranchId());
 	}
 
 	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), sip, mSdpMangledParam);
@@ -325,46 +288,24 @@ void MediaRelay::process200OkforInvite(const shared_ptr<RelayedCall> &c, const s
 		return;
 	}
 
-	string from_tag;
-	if (sip->sip_from != NULL && sip->sip_from->a_tag != NULL)
-		from_tag = sip->sip_from->a_tag;
 	string to_tag;
 	if (sip->sip_to != NULL && sip->sip_to->a_tag != NULL)
 		to_tag = sip->sip_to->a_tag;
 
-	// Valid transaction: now we can use tag as RelayChannel identifier
-	if (c->getCallerTag() == from_tag)
-		c->validateTransaction(to_tag, transaction);
-
+	
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
 		LOGD("200 OK is already relayed");
 		delete m;
 		return;
 	}
 
-	// Set
-	if (c->getCallerTag() == from_tag)
-		m->iterate(bind(&RelayedCall::assignBackChannel, c, m, _1, _2, _3, to_tag, ref(transaction)));
-	else
-		m->iterate(bind(&RelayedCall::assignFrontChannel, c, m, _1, _2, _3));
+	m->iterate(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, to_tag, transaction->getBranchId()));
 
-	if (c->getCallerTag() == from_tag && sip->sip_status->st_status == 200)
-		c->setUniqueBack(sip->sip_to->a_tag);
+	// modify sdp
+	m->masquerade(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, to_tag, transaction->getBranchId()));
+	
+	m->addIceCandidate(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, to_tag, transaction->getBranchId()));
 
-	c->update();
-
-	// Translate
-	if (c->getCallerTag() == from_tag)
-		m->masquerade(bind(&RelayedCall::masqueradeForFront, c, _1, _2, _3));
-	else
-		m->masquerade(bind(&RelayedCall::masqueradeForBack, c, _1, _2, _3, from_tag, ref(transaction)));
-
-	if (c->getCallerTag() == from_tag)
-		m->addIceCandidate(bind(&RelayedCall::masqueradeForFront, c, _1, _2, _3),
-			bind(&RelayedCall::masqueradeIceForBack, c, _1, _2, _3, to_tag, ref(transaction)));
-	else
-		m->addIceCandidate(bind(&RelayedCall::masqueradeForBack, c, _1, _2, _3, from_tag, ref(transaction)),
-			bind(&RelayedCall::masqueradeIceForFront, c, _1, _2, _3));
 	m->update(msg, sip);
 
 	delete m;
@@ -386,9 +327,9 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
 				fixAuthChallengeForSDP(ms->getHome(), msg, sip);
 				if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
-					process200OkforInvite(c, ot, ev->getMsgSip());
+					processResponseWithSDP(c, ot, ev->getMsgSip());
 				} else if (sip->sip_status->st_status >= 300) {
-					processFailureForInvite(c, ot, ev->getMsgSip());
+					c->removeBranch(ot->getBranchId());
 				}
 			}
 		}
@@ -420,24 +361,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 }
 
 void MediaRelay::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
-	/*
-	shared_ptr<RelayedCall> c = ev->transaction->getProperty<RelayedCall>(getModuleName());
-	if (c != NULL) {
-		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->transaction);
-		if (ot != NULL) {
-			switch (ev->kind) {
-				case TransactionEvent::Type::Destroy:
-				if (c->removeTransaction(ev->transaction)) {
-					//mCalls->remove(c);
-				}
-				break;
-
-			default:
-				break;
-			}
-		}
-	}
-	*/
+	
 }
 
 void MediaRelay::onIdle() {

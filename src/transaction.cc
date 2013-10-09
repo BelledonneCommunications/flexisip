@@ -22,17 +22,33 @@
 #include "agent.hh"
 #include <algorithm>
 #include <sofia-sip/su_tagarg.h>
+#include <sofia-sip/su_random.h>
+#include <sofia-sip/su_md5.h>
 
 using namespace ::std;
 
-OutgoingTransaction::OutgoingTransaction(Agent *agent) :
-		Transaction(agent), mOutgoing(NULL) {
-	LOGD("New OutgoingTransaction %p", this);
+static string getRandomBranch() {
+	uint8_t digest[SU_MD5_DIGEST_SIZE];
+	char branch[(SU_MD5_DIGEST_SIZE * 8 + 4) / 5 + 1];
+	
+	su_randmem(digest,sizeof(digest));
+	
+	msg_random_token(branch, sizeof(branch) - 1, digest, sizeof(digest));
 
+	return branch;
+}
+
+OutgoingTransaction::OutgoingTransaction(Agent *agent) :
+		Transaction(agent), mOutgoing(NULL), mBranchId(getRandomBranch()) {
+	LOGD("New OutgoingTransaction %p", this);
 }
 
 OutgoingTransaction::~OutgoingTransaction() {
 	LOGD("Delete OutgoingTransaction %p", this);
+}
+
+const string &OutgoingTransaction::getBranchId()const{
+	return mBranchId;
 }
 
 void OutgoingTransaction::cancel() {

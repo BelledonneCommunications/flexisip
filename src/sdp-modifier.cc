@@ -288,7 +288,7 @@ void SdpModifier::changeMediaConnection(sdp_media_t *mline, const char *relay_ip
 	}
 }
 
-void SdpModifier::addIceCandidate(function<void(int, string *, int *)> forward_fct, function<void(int, string *, int *)> backward_fct)
+void SdpModifier::addIceCandidate(function<void(int, string *, int *, string *, int *)> masquerade_fct)
 {
 	char foundation[32];
 	sdp_media_t *mline=mSession->sdp_media;
@@ -308,8 +308,7 @@ void SdpModifier::addIceCandidate(function<void(int, string *, int *)> forward_f
 			int source_port=relay_port;
 			uint32_t priority;
 
-			forward_fct(i,&relay_ip,&relay_port);
-			backward_fct(i,&source_ip,&source_port);
+			masquerade_fct(i,&relay_ip,&relay_port,&source_ip,&source_port);
 
 			for (uint16_t componentID=1; componentID<=2; componentID++) {
 				if (componentID == 1) {
@@ -344,7 +343,7 @@ void SdpModifier::iterate(function<void(int, const string &, int )> fct){
 	}
 }
 
-void SdpModifier::masquerade(function<void(int, string *, int *)> fct){
+void SdpModifier::masquerade(function<void(int, string *, int *, string *, int *)> fct){
 	sdp_media_t *mline=mSession->sdp_media;
 	sdp_attribute_t *rtcp_attribute;
 	int i;
@@ -359,7 +358,7 @@ void SdpModifier::masquerade(function<void(int, string *, int *)> fct){
 
 		if (port == 0) continue;
 		if (hasMediaAttribute(mline, mNortproxy.c_str())) continue;
-		fct(i,&ip,&port);
+		fct(i,&ip,&port,NULL,NULL);
 		
 		if (mline->m_connections){
 			mline->m_connections->c_address=su_strdup(mHome,ip.c_str());

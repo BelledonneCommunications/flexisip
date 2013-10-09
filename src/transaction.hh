@@ -138,6 +138,7 @@ class OutgoingTransaction: public Transaction, public OutgoingAgent, public std:
 public:
 	void cancel();
 	const url_t *getRequestUri()const;
+	const std::string &getBranchId()const;
 	~OutgoingTransaction();
 
 	inline virtual Agent *getAgent() {
@@ -150,12 +151,9 @@ private:
 	OutgoingTransaction(Agent *agent);
 	std::shared_ptr<OutgoingTransaction> mSofiaRef;
 	nta_outgoing_t *mOutgoing;
-	
-
+	std::string mBranchId;
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
-
 	void destroy();
-	
 
 private:
 	static int _callback(nta_outgoing_magic_t *magic, nta_outgoing_t *irq, const sip_t *sip);

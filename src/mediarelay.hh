@@ -24,11 +24,29 @@
 
 class RelaySession;
 
+class PollFd{
+public:
+	PollFd(int init_size);
+	void reset();
+	int addFd(int fd, unsigned int events);
+	unsigned int getREvents(int index)const;
+	struct pollfd *getPfd(){
+		return mPfd;
+	}
+	int getCurIndex()const{
+		return mCurIndex;
+	}
+private:
+	struct pollfd *mPfd;
+	int mCurIndex;
+	int mCurSize;
+};
+
 class MediaRelayServer {
 public:
 	MediaRelayServer(Agent *agent);
 	~MediaRelayServer();
-	std::shared_ptr<RelaySession> createSession();
+	std::shared_ptr<RelaySession> createSession(const std::string &frontId, const std::pair<std::string,std::string> &frontRelayIps);
 	void update();
 	Agent *getAgent();
 	RtpSession *createRtpSession(const std::string & bindIp);
@@ -47,29 +65,28 @@ private:
 	bool mRunning;
 
 	friend class RelayChannel;
-	//int ,
 };
 
 class RelayChannel;
 
 
+/**
+ * The RelaySession holds context for relaying for a single media stream, RTP and RTCP included.
+ * It has one front channel (the one to communicate with the party that generated the SDP offer,
+ * and one or several back channels, created by each party responding to the other with eventual early-media offers.
+ * Each back channel is identified with a unique transaction id.
+ * The front channel is identified by its from-tag.
+ * When the call is established, a single back channel remains active, the one corresponding to the party that took the call.
+**/
 class RelaySession : public std::enable_shared_from_this<RelaySession> {
 public:
 
-	RelaySession(MediaRelayServer *server);
+	RelaySession(MediaRelayServer *server, const std::string &frontId, const std::pair<std::string,std::string> &frontRelayIps);
 	~RelaySession();
 
-	void fillPollFd(struct pollfd *tab);
-	void transfer(time_t current, const std::shared_ptr<RelayChannel> &org, int i);
+	void fillPollFd(PollFd *pfd);
+	void checkPollFd(const PollFd *pfd, time_t curtime);
 	void unuse();
-
-	std::shared_ptr<RelayChannel> getFront() {
-		return mFront;
-	}
-
-	const std::list<std::shared_ptr<RelayChannel>>& getBacks() {
-		return mBacks;
-	}
 
 	bool isUsed() const {
 		return mUsed;
@@ -78,29 +95,35 @@ public:
 	time_t getLastActivityTime() const {
 		return mLastActivityTime;
 	}
+	
+	/**
+	 * Called each time an INVITE is forked
+	 */
+	std::shared_ptr<RelayChannel> createBranch(const std::string &trId, const std::pair<std::string,std::string> &relayIps);
+	void removeBranch(const std::string &trId);
 
-	std::shared_ptr<RelayChannel> setFront(const std::pair<std::string,std::string> & relayIps);
-	void removeFront(const std::shared_ptr<RelayChannel> &ms);
-
-	std::shared_ptr<RelayChannel> addBack(const std::pair<std::string,std::string> & relayIps);
-	void removeBack(const std::shared_ptr<RelayChannel> &ms);
-
-	Mutex &getMutex() {
-		return mMutex;
-	}
+	/**
+	 * Called when the call is established, to remove unnecessary back channels
+	**/
+	void setEstablished(const std::string &tr_id);
+	
+	std::shared_ptr<RelayChannel> getChannel(const std::string &partyId, const std::string &trId);
 
 	MediaRelayServer *getRelayServer() {
 		return mServer;
 	}
-	bool checkMediaSources();
+	bool checkChannels();
 
 private:
+	void transfer(time_t current, const std::shared_ptr<RelayChannel> &org, int i);
 	void doTransfer(uint8_t *buf, int recv_len, const std::shared_ptr<RelayChannel> &dest, int i);
 	Mutex mMutex;
 	MediaRelayServer *mServer;
 	time_t mLastActivityTime;
+	std::string mFrontId;
 	std::shared_ptr<RelayChannel> mFront;
-	std::list<std::shared_ptr<RelayChannel>> mBacks;
+	std::map<std::string,std::shared_ptr<RelayChannel>> mBacks;
+	std::shared_ptr<RelayChannel> mBack;
 	bool_t mUsed;
 };
 
@@ -116,7 +139,7 @@ public:
 
 class RelayChannel {
 public:
-	RelayChannel(std::shared_ptr<RelaySession> relaySession, bool front, const std::pair<std::string,std::string> &relayIps);
+	RelayChannel(std::shared_ptr<RelaySession> relaySession, const std::pair<std::string,std::string> &relayIps);
 	~RelayChannel();
 
 	typedef enum {
@@ -128,68 +151,59 @@ public:
 
 	bool checkSocketsValid();
 
-	void set(const std::string &ip, int port);
+	void setRemoteAddr(const std::string &ip, int port);
 
-	const std::string &getIp() const {
-		return mIp;
+	const std::string &getRemoteIp() const {
+		return mRemoteIp;
+	}
+	
+	int getRemotePort() const {
+		return mRemotePort;
 	}
 
-	const std::string &getPublicIp() const {
-		return mPublicIp;
+	const std::string &getLocalIp() const {
+		return mLocalIp;
 	}
-
-	int getPort() const {
-		return mPort;
-	}
-
-	bool operator ==(const RelayChannel &source) const {
-		return mIp == source.mIp && mPort == source.mPort;
-	}
-
-	bool operator <(const RelayChannel &source) const {
-		if (mIp == source.mIp) {
-			return mPort < source.mPort;
-		}
-		return mIp < source.mIp;
+	
+	int getLocalPort() const {
+		return rtp_session_get_local_port(mSession);
 	}
 
 	int recv(int i, uint8_t *buf, size_t size);
 	int send(int i, uint8_t *buf, size_t size);
 
-	void fillPollFd(struct pollfd *tab);
-
-	int getRelayPort() const {
-		return rtp_session_get_local_port(mSession);
-	}
-
+	void fillPollFd(PollFd *pfd);
+	bool checkPollFd(const PollFd *pfd, int i);
+	
 	const BehaviourType &getBehaviour() const{
 		return mBehaviour;
 	}
 
 	void setBehaviour(const BehaviourType &behaviour);
 
-	bool isFront() {
-		return mFront;
-	}
-
 	std::shared_ptr<RelaySession> getRelaySession() {
 		return mRelaySession;
 	}
 	
 	void setFilter(std::shared_ptr<MediaFilter> filter);
+	
+	void setUnused(){
+		mUnused=true;
+	}
 
 private:
-	const bool mFront;
 	BehaviourType mBehaviour;
-	std::string mPublicIp;
-	std::string mIp;
-	int mPort;
+	std::string mLocalIp;
+	std::string mRemoteIp;
+	int mRemotePort;
 	RtpSession *mSession;
-	int mSources[2];
+	int mSockets[2];
 	struct sockaddr_storage mSockAddr[2];
 	socklen_t mSockAddrSize[2];
 	std::shared_ptr<RelaySession> mRelaySession;
 	std::shared_ptr<MediaFilter> mFilter;
+	int mPfdIndex;
+	bool mUnused;
 };
 
 #endif

@@ -28,7 +28,7 @@ using namespace std;
 
 
 RelayedCall::RelayedCall(MediaRelayServer *server, sip_t *sip, RTPDir dir) :
-					CallContextBase(sip), mServer(server), mState(Idle), mEarlymediaRTPDir(dir), mBandwidthThres(0) {
+					CallContextBase(sip), mServer(server), mEarlymediaRTPDir(dir), mBandwidthThres(0) {
 	LOGD("New RelayedCall %p", this);
 	mDropTelephoneEvents=false;
 }
@@ -44,8 +44,7 @@ void RelayedCall::enableTelephoneEventDrooping(bool value){
 }
 
 
-/*this function is called to masquerade the SDP, for each mline*/
-void RelayedCall::initChannels(SdpModifier *m, const string &tag, const shared_ptr<Transaction> &transaction, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps) {
+void RelayedCall::initChannels(SdpModifier *m, const string &tag, const string &trid, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps) {
 	sdp_media_t *mline = m->mSession->sdp_media;
 	int i = 0;
 	for (i = 0; mline != NULL && i < sMaxSessions; mline = mline->m_next, ++i) {
@@ -57,301 +56,90 @@ void RelayedCall::initChannels(SdpModifier *m, const string &tag, const shared_p
 			LOGE("Max sessions per relayed call is reached.");
 			return ;
 		}
-		shared_ptr<RelaySession> s = mSessions[i].mRelaySession;
+		shared_ptr<RelaySession> s = mSessions[i];
 		if (s == NULL) {
-			s = mServer->createSession();
-			mSessions[i].mRelaySession = s;
-			s->setFront(frontRelayIps);
+			s = mServer->createSession(tag,frontRelayIps);
+			mSessions[i] = s;
 		}
-		if (!tag.empty()) {
-			if (mSessions[i].mRelayChannels.find(tag) == mSessions[i].mRelayChannels.end()) {
-				shared_ptr<RelayChannel> ms = s->addBack(backRelayIps);
-				ms->setBehaviour(RelayChannel::Receive);
-				mSessions[i].mRelayChannels.insert(make_pair(tag, ms));
-			}
-		} else {
-			if (mSessions[i].mTransactions.find(transaction) == mSessions[i].mTransactions.end()) {
-				shared_ptr<RelayChannel> ms = s->addBack(backRelayIps);
-				ms->setBehaviour(RelayChannel::None);
-				mSessions[i].mTransactions.insert(make_pair(transaction, ms));
-			}
+		
+		shared_ptr<RelayChannel> chan=s->getChannel(tag,trid);
+		if (chan==NULL){
+			/*this is a new outgoing branch to be established*/
+			chan=s->createBranch(trid,backRelayIps);
 		}
-	}
-	while (i < sMaxSessions) {
-		if (mSessions[i].mRelaySession) {
-			
-			mSessions[i].mRelaySession->getFront()->setBehaviour(RelayChannel::None);
-			for (auto it = mSessions[i].mRelaySession->getBacks().begin(); it != mSessions[i].mRelaySession->getBacks().end(); ++it) {
-				(*it)->setBehaviour(RelayChannel::None);
-			}
-			mSessions[i].mRelaySession->unuse();
-			mSessions[i].mRelaySession = shared_ptr<RelaySession>(); // null
-			mSessions[i].mRelayChannels.clear();
-			mSessions[i].mTransactions.clear();
-		}
-		++i;
 	}
 }
 
 bool RelayedCall::checkMediaValid() {
 	for (int i=0; i < sMaxSessions; ++i) {
-		shared_ptr<RelaySession> s=mSessions[i].mRelaySession;
-		if (s && !s->checkMediaSources()) return false;
+		shared_ptr<RelaySession> s=mSessions[i];
+		if (s && !s->checkChannels()) return false;
 	}
 	return true;
 }
 
-void RelayedCall::masqueradeForFront(int mline, string *ip, int *port) {
-	if (*port == 0) {
+void RelayedCall::masquerade(int mline, string *local_ip, int *local_port, string *remote_ip, int *remote_port, const string & partyTag, const string &trId) {
+	if (*local_port == 0) {
 		//case of declined mline.
 		return;
 	}
 	if (mline >= sMaxSessions) {
 		return;
 	}
-	shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
+	shared_ptr<RelaySession> s = mSessions[mline];
 	if (s != NULL) {
-		*port = s->getFront()->getRelayPort();
-		*ip = s->getFront()->getPublicIp();
+		shared_ptr<RelayChannel> chan=s->getChannel(partyTag,trId);
+		*local_port = chan->getLocalPort();
+		*local_ip = chan->getLocalIp();
+		if (remote_ip) *remote_ip=chan->getRemoteIp();
+		if (remote_port) *remote_port=chan->getRemotePort();
 	}
 }
 
-void RelayedCall::masqueradeIceForFront(int mline, string *ip, int *port) {
-	if (*port == 0) {
-		//case of declined mline.
-		return;
-	}
+void RelayedCall::setChannelDestinations(SdpModifier *m, int mline, const string &ip, int port, const string & partyTag, const string &trId) {
 	if (mline >= sMaxSessions) {
 		return;
 	}
-	shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
+	shared_ptr<RelaySession> s = mSessions[mline];
 	if (s != NULL) {
-		*port = s->getFront()->getPort();
-		*ip = s->getFront()->getIp();
+		shared_ptr<RelayChannel> chan=s->getChannel(partyTag,trId);
+		if(chan->getLocalPort()>0) {
+			configureRelayChannel(chan,m->mSip,m->mSession,mline);
+			chan->setRemoteAddr(ip, port);
+		}
+		chan->setBehaviour(RelayChannel::All);
 	}
 }
 
-shared_ptr<RelayChannel> RelayedCall::getMS(int mline, string tag, const shared_ptr<Transaction> &transaction) {
-	if (tag.empty()) {
-		auto it = mSessions[mline].mTransactions.find(transaction);
-		if (it != mSessions[mline].mTransactions.end()) {
-			return it->second;
-		}
-	} else {
-		auto it = mSessions[mline].mRelayChannels.find(tag);
-		if (it != mSessions[mline].mRelayChannels.end()) {
-			return it->second;
-		}
-	}
-	return shared_ptr<RelayChannel>();
-}
-
-void RelayedCall::masqueradeForBack(int mline, string *ip, int *port, const string &tag, const shared_ptr<Transaction> &transaction) {
-	if (*port == 0) {
-		//case of media stream removal
-		return;
-	}
-	if (mline >= sMaxSessions) {
-		return;
-	}
-	shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
-	if (s != NULL) {
-		auto ms = getMS(mline, tag, transaction);
-		if (ms != NULL) {
-			*port = ms->getRelayPort();
-			*ip = ms->getPublicIp();
-		} else {
-			*port = -1;
-			*ip = mServer->getAgent()->getPublicIp();
-		}
-
-	}
-}
-
-void RelayedCall::masqueradeIceForBack(int mline, string *ip, int *port, const string &tag, const shared_ptr<Transaction> &transaction) {
-	if (*port == 0) {
-		//case of media stream removal
-		return;
-	}
-	if (mline >= sMaxSessions) {
-		return;
-	}
-	shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
-	if (s != NULL) {
-		auto ms = getMS(mline, tag, transaction);
-		if (ms != NULL) {
-			*port = ms->getPort();
-			*ip = ms->getIp();
-		} else {
-			*port = -1;
-			*ip = mServer->getAgent()->getPublicIp();
-		}
-
-	}
-}
-
-void RelayedCall::assignFrontChannel(SdpModifier *m, int mline, const string &ip, int port) {
-	if (mline >= sMaxSessions) {
-		return;
-	}
-	shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
-	if (s != NULL) {
-		shared_ptr<RelayChannel> ms = s->getFront();
-		if(ms->getPort() == -1) {
-			configureRelayChannel(ms,m->mSip,m->mSession,mline);
-			ms->set(ip, port);
-		}
-		ms->setBehaviour(RelayChannel::All);
-	}
-}
-
-void RelayedCall::assignBackChannel(SdpModifier *m, int mline, const string &ip, int port, const string &tag, const shared_ptr<Transaction> &transaction) {
-	if (mline >= sMaxSessions) {
-		return;
-	}
-	shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
-	if (s != NULL) {
-		auto ms = getMS(mline, tag, transaction);
-		if (ms != NULL && ms->getPort() == -1) {
-			configureRelayChannel(ms,m->mSip,m->mSession,mline);
-			ms->set(ip, port);
+void RelayedCall::setEstablished(const string &trId){
+	int i;
+	
+	for(i=0;i<sMaxSessions;++i){
+		shared_ptr<RelaySession> s = mSessions[i];
+		if (s){
+			s->setEstablished(trId);
 		}
 	}
 }
 
-// Set only one sender to the caller
-void RelayedCall::update() {
-	if (mState == Idle)
-		mState = Initialized;
-
-	if (mEarlymediaRTPDir != DUPLEX)
-		return;
-
-	// Only one feed from back to front: find current one
-	string feeder;
-	for (int mline = 0; mline < sMaxSessions; ++mline) {
-		shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
-		if (s != NULL) {
-			for (auto it = mSessions[mline].mRelayChannels.begin(); it != mSessions[mline].mRelayChannels.end(); ++it) {
-				shared_ptr<RelayChannel> &ms = it->second;
-				if (ms->getBehaviour() & RelayChannel::Send) {
-					feeder = it->first;
-				}
-			}
-			break;
-		}
-	}
-
-	// Update current feeder
-	for (int mline = 0; mline < sMaxSessions; ++mline) {
-		shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
-		if (s != NULL) {
-			map<string, shared_ptr<RelayChannel>>::iterator it;
-			if (feeder.empty()) {
-				it = mSessions[mline].mRelayChannels.begin();
-				while(it != mSessions[mline].mRelayChannels.end() && !(it->second->getBehaviour() & RelayChannel::Receive)) ++it;
-			} else
-				it = mSessions[mline].mRelayChannels.find(feeder);
-			if (it != mSessions[mline].mRelayChannels.end()) {
-				shared_ptr<RelayChannel> &ms = it->second;
-				ms->setBehaviour(RelayChannel::All);
-			}
+void RelayedCall::removeBranch(const string &trId) {
+	int i;
+	
+	for(i=0;i<sMaxSessions;++i){
+		shared_ptr<RelaySession> s = mSessions[i];
+		if (s){
+			s->removeBranch(trId);
 		}
 	}
 }
 
-/* associates a transaction with a to-tag.
- * This might change, for example for a given transaction, a 183 can come from one to-tag, and the 200Ok from another to-tag.
- */
-void RelayedCall::validateTransaction(const string &tag, const shared_ptr<Transaction> &transaction) {
-	for (int mline = 0; mline < sMaxSessions; ++mline) {
-		shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
-		if (s != NULL) {
-			auto it = mSessions[mline].mTransactions.find(transaction);
-			if (it != mSessions[mline].mTransactions.end()) {
-				it->second->setBehaviour(RelayChannel::Receive);
-				mSessions[mline].mRelayChannels[tag]=it->second;
-			}
-		}
-	}
-}
-
-bool RelayedCall::removeTransaction(const shared_ptr<Transaction> &transaction) {
-	bool remove = (mState != Running);
-	for (int mline = 0; mline < sMaxSessions; ++mline) {
-		shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
-		if (s != NULL) {
-			auto it = mSessions[mline].mTransactions.find(transaction);
-			if (it != mSessions[mline].mTransactions.end()) {
-				shared_ptr<RelayChannel> &ms = it->second;
-				s->removeBack(ms);
-				mSessions[mline].mTransactions.erase(it);
-			}
-			if (!mSessions[mline].mTransactions.empty() || !mSessions[mline].mRelayChannels.empty())
-				remove = false;
-		}
-	}
-	update();
-	return remove;
-}
-
-bool RelayedCall::removeBack(const string &tag) {
-	bool remove = (mState != Running);
-	for (int mline = 0; mline < sMaxSessions; ++mline) {
-		shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
-		if (s != NULL) {
-			auto it = mSessions[mline].mRelayChannels.find(tag);
-			if (it != mSessions[mline].mRelayChannels.end()) {
-				shared_ptr<RelayChannel> &ms = it->second;
-				s->removeBack(ms);
-				mSessions[mline].mRelayChannels.erase(it);
-			}
-			if (!mSessions[mline].mTransactions.empty() || !mSessions[mline].mRelayChannels.empty())
-				remove = false;
-		}
-	}
-	update();
-	return remove;
-}
-
-void RelayedCall::setUniqueBack(const string &tag) {
-	if (mState == Initialized) {
-		for (int mline = 0; mline < sMaxSessions; ++mline) {
-			shared_ptr<RelaySession> s = mSessions[mline].mRelaySession;
-			if (s != NULL) {
-				//assert the tag exists before removing others
-				if (mSessions[mline].mRelayChannels.find(tag)==mSessions[mline].mRelayChannels.end()){
-					LOGE("RelayedCall::setUniqueBack(): could not find tag %s",tag.c_str());
-					return;
-				}
-				auto it = mSessions[mline].mRelayChannels.begin();
-				while (it != mSessions[mline].mRelayChannels.end()) {
-					shared_ptr<RelayChannel> &ms = it->second;
-					if (it->first == tag) {
-						ms->setBehaviour(RelayChannel::BehaviourType::All);
-						++it;
-					} else {
-						s->removeBack(ms);
-						//the following is not accepted by gcc 4.4 though it is correct.
-						//it=mSessions[mline].mRelayChannels.erase(it);
-						auto previt=it;
-						++it;
-						mSessions[mline].mRelayChannels.erase(previt);
-					}
-				}
-				mSessions[mline].mTransactions.clear();
-			}
-		}
-	}
-	mState = Running;
-}
 
 bool RelayedCall::isInactive(time_t cur) {
 	time_t maxtime = 0;
 	shared_ptr<RelaySession> r;
 	for (int i = 0; i < sMaxSessions; ++i) {
 		time_t tmp;
-		r = mSessions[i].mRelaySession;
+		r = mSessions[i];
 		if (r && ((tmp = r->getLastActivityTime()) > maxtime))
 			maxtime = tmp;
 	}
@@ -365,7 +153,7 @@ RelayedCall::~RelayedCall() {
 	LOGD("Destroy RelayedCall %p", this);
 	int i;
 	for (i = 0; i < sMaxSessions; ++i) {
-		shared_ptr<RelaySession> s = mSessions[i].mRelaySession;
+		shared_ptr<RelaySession> s = mSessions[i];
 		if (s) {
 			s->unuse();
 		}

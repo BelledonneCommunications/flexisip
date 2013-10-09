@@ -21,13 +21,14 @@
 #include "transaction.hh"
 #include "etchosts.hh"
 #include <sstream>
-#include <sofia-sip/su_random.h>
+
+#include <sofia-sip/su_md5.h>
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/tport.h>
 
 using namespace ::std;
 
-static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip, char const *string_server, bool isStateful);
+static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip, char const *string_server, const shared_ptr<OutgoingTransaction> &outTr);
 
 class ForwardModule: public Module, ModuleToolbox {
 public:
@@ -186,8 +187,8 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, sPushNotifParams);
 	
 	// Compute branch, output branch=XXXXX
-	bool isStateful=ev->getOutgoingAgent() != NULL && dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent())!=NULL;
-	char const * branchStr = compute_branch(getSofiaAgent(), msg, sip, mAgent->getUniqueId().c_str(),isStateful);
+	shared_ptr<OutgoingTransaction> outTr=ev->getOutgoingAgent() != NULL ? dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent()) : NULL;
+	char const * branchStr = compute_branch(getSofiaAgent(), msg, sip, mAgent->getUniqueId().c_str(),outTr);
 	
 	if (isLooping(ev, branchStr + 7)) {
 		ev->reply(SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
@@ -224,14 +225,13 @@ void ForwardModule::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	ev->send(ms);
 }
 
-#include <sofia-sip/su_md5.h>
-static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip, char const *string_server, bool isStateful) {
+static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip, char const *string_server, const shared_ptr<OutgoingTransaction>& outTr) {
 	su_md5_t md5[1];
 	uint8_t digest[SU_MD5_DIGEST_SIZE];
-	char branch[(SU_MD5_DIGEST_SIZE * 8 + 4) / 5 + 1];
+	char branch[(SU_MD5_DIGEST_SIZE * 8 + 4) / 5 + 1]={0};
 	sip_route_t const *r;
 
-	if (!isStateful){
+	if (!outTr){
 		su_md5_init(md5);
 
 		su_md5_str0update(md5, string_server);
@@ -263,11 +263,10 @@ static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip,
 			url_update(md5, r->r_url);
 
 		su_md5_digest(md5, digest);
+		msg_random_token(branch, sizeof(branch) - 1, digest, sizeof(digest));
 	}else{
-		su_randmem(digest,sizeof(digest));
+		strncpy(branch,outTr->getBranchId().c_str(),sizeof(branch)-1);
 	}
-
-	msg_random_token(branch, sizeof(branch) - 1, digest, sizeof(digest));
 
 	return su_sprintf(msg_home(msg), "branch=z9hG4bK.%s", branch);
 }

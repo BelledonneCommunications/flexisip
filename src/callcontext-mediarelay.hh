@@ -32,69 +32,29 @@ class TranscodedCall;
 
 class RelayedCall: public CallContextBase {
 public:
-	class RelaySessionTransaction {
-	public:
-		RelaySessionTransaction() :
-			mRelaySession(std::shared_ptr<RelaySession>()) {
-
-		}
-
-		std::shared_ptr<RelaySession> mRelaySession;
-		std::map<std::shared_ptr<Transaction>, std::shared_ptr<RelayChannel>> mTransactions;
-		std::map<std::string, std::shared_ptr<RelayChannel>> mRelayChannels;
-	};
-	typedef enum {
-		DUPLEX, FORWARD
-	} RTPDir;
+	enum RTPDir{DUPLEX, FORWARD};
 	static const int sMaxSessions = 4;
 	RelayedCall(MediaRelayServer *server, sip_t *sip, RTPDir dir);
 	
 	/* Create a channel for each sdp media using defined relay ip for front and back. The transaction
 	 * allow use to identify the callee (we don't have a tag yet).
 	 */
-	void initChannels(SdpModifier *m, const std::string &tag, const std::shared_ptr<Transaction> &transaction, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps);
+	void initChannels(SdpModifier *m, const std::string &tag, const std::string &trid, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps);
 
 	/* Change the ip/port of sdp line by provided ones. Used for masquerade front channels */
-	void masqueradeForFront(int mline, std::string *ip, int *port);
+	void masquerade(int mline, std::string *local_ip, int *local_port, std::string *remote_ip, int *remote_port, const std::string & partyTag, const std::string &trId);
 
-	/* Change the ip/port of sdp line by provided ones for ICE. Used for masquerade front channels */
-	void masqueradeIceForFront(int mline, std::string *ip, int *port);
-
-	/* Change the ip/port of sdp line by provided ones. Used for masquerade back channels */
-	void masqueradeForBack(int mline, std::string *ip, int *port, const std::string &tag, const std::shared_ptr<Transaction> &transaction);
-
-	/* Change the ip/port of sdp mline by provided ones for ICE. Used for masquerade back channels */
-	void masqueradeIceForBack(int mline, std::string *ip, int *port, const std::string &tag, const std::shared_ptr<Transaction> &transaction);
-
-	/* Assign destination ip/port of front channel by provided ones of SDP. */
-	void assignFrontChannel(SdpModifier *m, int mline, const std::string &ip, int port);
-
-	/* Assign destination ip/port of back channel by provided ones of SDP. */
-	void assignBackChannel(SdpModifier *m, int mline, const std::string &ip, int port, const std::string &tag, const std::shared_ptr<Transaction> &transaction);
-
-	/* Set only one sender to the caller. */
-	void update();
-
-	/* Validate the channels using a transaction. After this functions the callee will be identified by
-	 * the tag and not the transaction */
-	void validateTransaction(const std::string &tag, const std::shared_ptr<Transaction> &transaction);
-
-	/* Remove a back channel using its tag */
-	bool removeBack(const std::string &tag);
+	void setChannelDestinations(SdpModifier *m, int mline, const std::string &ip, int port, const std::string & partyTag, const std::string &trId);
 	
-	/* Remove a back channel using its transaction */
-	bool removeTransaction(const std::shared_ptr<Transaction> &transaction);
-
-	/* Set a back as unique channel. Remove all other channels and set the channel bidirectional. */
-	void setUniqueBack(const std::string &tag);
-
+	void removeBranch(const std::string &trId);
+	void setEstablished(const std::string &trId);
+	
 	bool checkMediaValid();
 	bool isInactive(time_t cur);
-	std::shared_ptr<RelayChannel> getMS(int mline, std::string tag, const std::shared_ptr<Transaction> &transaction);
 
 	virtual ~RelayedCall();
 
-	void configureRelayChannel(std::shared_ptr<RelayChannel> ms,sip_t *sip, sdp_session_t *session, int mline_nr);
+	void configureRelayChannel(std::shared_ptr<RelayChannel> chan,sip_t *sip, sdp_session_t *session, int mline_nr);
 
 	/*Enable filtering of H264 Iframes for low bandwidth.*/
 	void enableH264IFrameFiltering(int bandwidth_threshold, int decim);
@@ -102,12 +62,8 @@ public:
 	void enableTelephoneEventDrooping(bool value);
 	
 private:
-	typedef enum {
-		Idle, Initialized, Running
-	} State;
-	RelaySessionTransaction mSessions[sMaxSessions];
+	std::shared_ptr<RelaySession> mSessions[sMaxSessions];
 	MediaRelayServer *mServer;
-	State mState;
 	RTPDir mEarlymediaRTPDir;
 	int mBandwidthThres;
 	int mDecim;
