@@ -108,7 +108,9 @@ void SipEvent::terminateProcessing() {
 	if (mState == STARTED || mState == SUSPENDED) {
 		mState = TERMINATED;
 		flushLog();
-	} else {
+	} else if (mState==TERMINATED){
+		LOGE("SipEvent::terminateProcessing(): event is already terminated. Please fix your code.");
+	}else{
 		LOGA("Can't terminateProcessing: wrong state %s", stateStr(mState).c_str());
 	}
 }

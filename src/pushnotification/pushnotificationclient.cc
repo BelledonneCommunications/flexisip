@@ -149,7 +149,6 @@ void PushNotificationClient::handle_read(const boost::system::error_code& error,
 		LOGD("PushNotificationClient(%s) read done: %s", mName.c_str(),response.str().c_str());
 	} else {
 		LOGE("PushNotificationClient(%s) read failed", mName.c_str());
-		onError();
 	}
 }
 
