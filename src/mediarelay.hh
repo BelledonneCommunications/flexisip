@@ -139,7 +139,7 @@ public:
 
 class RelayChannel {
 public:
-	RelayChannel(std::shared_ptr<RelaySession> relaySession, const std::pair<std::string,std::string> &relayIps);
+	RelayChannel(RelaySession* relaySession, const std::pair<std::string,std::string> &relayIps);
 	~RelayChannel();
 
 	typedef enum {
@@ -180,15 +180,18 @@ public:
 	}
 
 	void setBehaviour(const BehaviourType &behaviour);
-
-	std::shared_ptr<RelaySession> getRelaySession() {
-		return mRelaySession;
-	}
 	
 	void setFilter(std::shared_ptr<MediaFilter> filter);
 	
 	void setUnused(){
 		mUnused=true;
+	}
+	
+	uint64_t getReceivedPackets()const{
+		return mPacketsReceived;
+	}
+	uint64_t getSentPackets()const{
+		return mPacketsSent;
 	}
 
 private:
@@ -200,9 +203,10 @@ private:
 	int mSockets[2];
 	struct sockaddr_storage mSockAddr[2];
 	socklen_t mSockAddrSize[2];
-	std::shared_ptr<RelaySession> mRelaySession;
 	std::shared_ptr<MediaFilter> mFilter;
 	int mPfdIndex;
+	uint64_t mPacketsSent;
+	uint64_t mPacketsReceived;
 	bool mUnused;
 };
 
