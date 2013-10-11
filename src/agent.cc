@@ -261,6 +261,7 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 	
 	EtcHostsResolver::get();
 
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "SanityChecker"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GarbageIn"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "NatHelper"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Authentication"));

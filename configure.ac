@@ -113,7 +113,7 @@ AC_ARG_ENABLE(transcoder,
         [transcoder="${enableval}"],[transcoder=yes]
 )
 if test $transcoder = "yes"; then
-	PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.1.0])
+	PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.9.0])
 fi
 
 AM_CONDITIONAL(BUILD_TRANSCODER,test x$transcoder = xyes)

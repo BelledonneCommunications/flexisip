@@ -34,6 +34,7 @@ thesources= \
 			stun.cc stun.hh \
 			mediarelay.cc mediarelay.hh \
 			authdb.hh authdb.cc authdb-file.cc \
+			module-sanitychecker.cc \
 			module-garbage-in.cc \
 			module-forward.cc \
 			module-gatewayadapter.cc \
