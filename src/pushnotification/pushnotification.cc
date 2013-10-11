@@ -35,7 +35,7 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const string & appid,
 		throw runtime_error("ApplePushNotification: Invalid deviceToken");
 		return;
 	}
-	payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg << "\"]},\"sound\":\"" << sound << "\"},\"call-id\":\"" << callid << "\",\"pn_ttl\":60}"; // PN expiration set to 60 seconds.
+    payload << "{\"aps\":{\"content-available\":1,\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg << "\"]},\"sound\":\"" << sound << "\"},\"call-id\":\"" << callid << "\",\"pn_ttl\":60}"; // PN expiration set to 60 seconds.
 	if (payload.str().length() > MAXPAYLOAD_SIZE) {
 		return;
 	}

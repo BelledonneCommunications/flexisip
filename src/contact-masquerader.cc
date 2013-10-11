@@ -36,7 +36,7 @@ void ContactMasquerader::masquerade(su_home_t *home, sip_contact_t *c, const cha
 	}
 
 	//grab the transport of the contact uri
-	char ct_tport[32] = "udp";
+	char ct_tport[32] = "udp"; 
 	if (url_param(ct_url->url_params, "transport", ct_tport, sizeof(ct_tport)) > 0) {
 
 	}

@@ -142,8 +142,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	if (getAgent()->isUs(dest->url_host, dest->url_port, false)) {
 		SLOGD << "Skipping forwarding of request to us "
 			<< url_as_string(ms->getHome(), dest) << "\n" << ms;
-		ev->reply(SIP_500_INTERNAL_SERVER_ERROR, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		ev->terminateProcessing();
+		ev->reply(SIP_501_NOT_IMPLEMENTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
 

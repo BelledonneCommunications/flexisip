@@ -64,6 +64,7 @@ class ModuleInfoBase {
 		virtual ~ModuleInfoBase(){
 		}
 		enum ModuleOid {
+			SanityChecker=3,
 			GarbageIn=5,
 			NatHelper=30,
 			Authentication=60,
