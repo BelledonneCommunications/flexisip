@@ -80,23 +80,32 @@ bool RelayedCall::checkMediaValid() {
 	return true;
 }
 
-void RelayedCall::masquerade(int mline, string *local_ip, int *local_port, string *remote_ip, int *remote_port, const string & partyTag, const string &trId){
-	if (*local_port == 0) {
-		//case of declined mline.
-		return;
-	}
+/* Obtain the local address and port used for relaying */
+std::pair<string,int> RelayedCall::getChannelSources(int mline, const std::string & partyTag, const std::string &trId){
 	if (mline >= sMaxSessions) {
-		return;
+		return make_pair("",0);
 	}
 	shared_ptr<RelaySession> s = mSessions[mline];
 	if (s != NULL) {
 		shared_ptr<RelayChannel> chan=s->getChannel(partyTag,trId);
-		*local_port = chan->getLocalPort();
-		*local_ip = chan->getLocalIp();
-		if (remote_ip) *remote_ip=chan->getRemoteIp();
-		if (remote_port) *remote_port=chan->getRemotePort();
+		return make_pair(chan->getLocalIp(),chan->getLocalPort());
 	}
+	return make_pair("",0);
 }
+	
+/* Obtain destination (previously set by setChannelDestinations()*/
+std::pair<string,int> RelayedCall::getChannelDestinations(int mline, const std::string & partyTag, const std::string &trId){
+	if (mline >= sMaxSessions) {
+		return make_pair("",0);
+	}
+	shared_ptr<RelaySession> s = mSessions[mline];
+	if (s != NULL) {
+		shared_ptr<RelayChannel> chan=s->getChannel(partyTag,trId);
+		return make_pair(chan->getRemoteIp(),chan->getRemotePort());
+	}
+	return make_pair("",0);
+}
+
 
 void RelayedCall::setChannelDestinations(SdpModifier *m, int mline, const string &ip, int port, const string & partyTag, const string &trId, bool isEarlyMedia){
 	if (mline >= sMaxSessions) {

@@ -185,10 +185,12 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	m->iterate(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, from_tag, transaction->getBranchId(),false));
 
 	// Modify sdp message to set relay address and ports.
-	m->masquerade(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, to_tag, transaction->getBranchId()));
+	m->masquerade(bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()));
 
 	// Masquerade using ICE
-	m->addIceCandidate(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, to_tag, transaction->getBranchId()));
+	m->addIceCandidate(bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()),
+			   bind(&RelayedCall::getChannelDestinations, c, _1, from_tag, transaction->getBranchId())
+	);
 	
 	if (!mSdpMangledParam.empty()) m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	m->update(msg, sip);
@@ -291,9 +293,11 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 
 	m->iterate(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, to_tag, transaction->getBranchId(),isEarlyMedia));
 	// modify sdp
-	m->masquerade(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, sip->sip_from->a_tag, transaction->getBranchId()));
+	m->masquerade(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()));
 	
-	m->addIceCandidate(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, sip->sip_from->a_tag, transaction->getBranchId()));
+	m->addIceCandidate(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()),
+		bind(&RelayedCall::getChannelDestinations, c, _1, to_tag, transaction->getBranchId())
+	);
 
 	m->update(msg, sip);
 

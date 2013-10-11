@@ -49,9 +49,10 @@ class SdpModifier{
 		void getAudioIpPort(std::string *ip, int *port);
 		void changeAudioIpPort(const char *ip, int port);
 		void changeMediaConnection(sdp_media_t *mline, const char *relay_ip);
-		void addIceCandidate(std::function<void(int, std::string *, int *, std::string *, int *)> masquerade_fct);
+		void addIceCandidate(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
+			std::function< std::pair<std::string,int>(int )> getDestAddrFcn);
 		void iterate(std::function<void(int, const std::string &, int)>);
-		void masquerade(std::function<void(int, std::string *, int *, std::string *, int *)> masquerade_fct);
+		void masquerade(std::function< std::pair<std::string,int>(int )> getAddrFcn);
 		void addAttribute(const char *name, const char *value);
 		bool hasAttribute(const char *name);
 		void addMediaAttribute(sdp_media_t *mline, const char *name, const char *value);

@@ -40,8 +40,11 @@ public:
 	 */
 	void initChannels(SdpModifier *m, const std::string &tag, const std::string &trid, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps);
 
-	/* Change the ip/port of sdp line by provided ones. Used for masquerade front channels */
-	void masquerade(int mline, std::string *local_ip, int *local_port, std::string *remote_ip, int *remote_port, const std::string & partyTag, const std::string &trId);
+	/* Obtain the local address and port used for relaying */
+	std::pair<std::string,int> getChannelSources(int mline, const std::string & partyTag, const std::string &trId);
+	
+	/* Obtain destination (previously set by setChannelDestinations()*/
+	std::pair<std::string,int> getChannelDestinations(int mline, const std::string & partyTag, const std::string &trId);
 
 	void setChannelDestinations(SdpModifier *m, int mline, const std::string &ip, int port, const std::string & partyTag, const std::string &trId,
 		bool isEarlyMedia);

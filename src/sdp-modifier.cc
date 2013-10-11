@@ -288,8 +288,8 @@ void SdpModifier::changeMediaConnection(sdp_media_t *mline, const char *relay_ip
 	}
 }
 
-void SdpModifier::addIceCandidate(function<void(int, string *, int *, string *, int *)> masquerade_fct)
-{
+void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
+			std::function< std::pair<std::string,int>(int )> getDestAddrFcn){
 	char foundation[32];
 	sdp_media_t *mline=mSession->sdp_media;
 	uint64_t r;
@@ -302,24 +302,21 @@ void SdpModifier::addIceCandidate(function<void(int, string *, int *, string *, 
 	snprintf(foundation, sizeof(foundation), "%llx", (long long unsigned int)r);
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		if (hasMediaAttribute(mline,"candidate") && !hasMediaAttribute(mline,"remote-candidates") && !hasMediaAttribute(mline,mNortproxy.c_str())) {
-			string relay_ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
-			int relay_port=mline->m_port;
-			string source_ip=relay_ip;
-			int source_port=relay_port;
 			uint32_t priority;
 
-			masquerade_fct(i,&relay_ip,&relay_port,&source_ip,&source_port);
+			auto relayAddr=getRelayAddrFcn(i);
+			auto destAddr=getDestAddrFcn(i);
 
 			for (uint16_t componentID=1; componentID<=2; componentID++) {
 				if (componentID == 1) {
 					/* Fix the connection line if needed */
-					changeMediaConnection(mline, relay_ip.c_str());
+					changeMediaConnection(mline, relayAddr.first.c_str());
 				}
-				if (!hasIceCandidate(mline, relay_ip, relay_port + componentID - 1)) {
+				if (!hasIceCandidate(mline, relayAddr.first.c_str(), relayAddr.second + componentID - 1)) {
 					priority = (65535 << 8) | (256 - componentID);
 					ostringstream candidate_line;
-					candidate_line << foundation << ' ' << componentID << " UDP " << priority << ' ' << relay_ip << ' ' << relay_port + componentID - 1
-						<< " typ relay raddr " << source_ip << " rport " << source_port + componentID - 1;
+					candidate_line << foundation << ' ' << componentID << " UDP " << priority << ' ' << relayAddr.first.c_str() << ' ' << relayAddr.second + componentID - 1
+						<< " typ relay raddr " << destAddr.first << " rport " << destAddr.second + componentID - 1;
 					addMediaAttribute(mline, "candidate", candidate_line.str().c_str());
 				}
 			}
@@ -343,7 +340,7 @@ void SdpModifier::iterate(function<void(int, const string &, int )> fct){
 	}
 }
 
-void SdpModifier::masquerade(function<void(int, string *, int *, string *, int *)> fct){
+void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
 	sdp_media_t *mline=mSession->sdp_media;
 	sdp_attribute_t *rtcp_attribute;
 	int i;
@@ -353,38 +350,36 @@ void SdpModifier::masquerade(function<void(int, string *, int *, string *, int *
 	if (mSession->sdp_connection && mSession->sdp_connection->c_address) global_c_address=mSession->sdp_connection->c_address;
 
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
-		string ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
-		int port=mline->m_port;
-
-		if (port == 0) continue;
+		if (mline->m_port == 0) continue;
+		
 		if (hasMediaAttribute(mline, mNortproxy.c_str())) continue;
-		fct(i,&ip,&port,NULL,NULL);
+		pair<string,int> relayAddr=fct(i);
 		
 		if (mline->m_connections){
-			mline->m_connections->c_address=su_strdup(mHome,ip.c_str());
+			mline->m_connections->c_address=su_strdup(mHome,relayAddr.first.c_str());
 		}else if (mSession->sdp_connection){
 			if (sdp_connection_translated){
 				// If the global connection has already been translated, add a media specific connection if needed
-				changeMediaConnection(mline,ip.c_str());
+				changeMediaConnection(mline,relayAddr.first.c_str());
 			}else{
-				mSession->sdp_connection->c_address=su_strdup(mHome,ip.c_str());
+				mSession->sdp_connection->c_address=su_strdup(mHome,relayAddr.first.c_str());
 				sdp_connection_translated = true;
 			}
 		}
-		mline->m_port=port;
+		mline->m_port=relayAddr.second;
 		rtcp_attribute = sdp_attribute_find(mline->m_attributes,"rtcp");
 		if (rtcp_attribute) {
 			int previous_port;
 			string ip_version, network_family, protocol, rtcp_addr;
 			ostringstream ost;
-			ost << port + 1;
+			ost << relayAddr.second + 1;
 			istringstream ist(string(rtcp_attribute->a_value));
 			ist >> previous_port;
 			if (!ist.eof()) ist >> network_family;
 			if (!ist.fail() && !ist.eof()) ist >> protocol;
 			if (!ist.fail() && !ist.eof()) ist >> rtcp_addr;
 			if (!ist.fail() && !ist.eof()) {
-				ost << ' ' << network_family << ' ' << protocol << ' ' << ip;
+				ost << ' ' << network_family << ' ' << protocol << ' ' << relayAddr.first;
 			}
 			sdp_attribute_t *a=(sdp_attribute_t *)su_alloc(mHome, sizeof(sdp_attribute_t));
 			memset(a,0,sizeof(*a));
