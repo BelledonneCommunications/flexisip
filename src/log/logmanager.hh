@@ -209,7 +209,8 @@ do { \
 	{ pumpstream pump(ORTP_DEBUG); (streamFn)(pump); } \
 } while(0)
 
-#define LOG_SCOPED_THREAD(key, value) ortp_debug("Scoped attr %s %s", (key), (value).c_str())
+//#define LOG_SCOPED_THREAD(key, value) ortp_debug("Scoped attr %s %s", (key), (value).c_str())
+#define LOG_SCOPED_THREAD(key, value)
 #endif
 
 

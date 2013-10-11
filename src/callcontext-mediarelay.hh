@@ -32,9 +32,8 @@ class TranscodedCall;
 
 class RelayedCall: public CallContextBase {
 public:
-	enum RTPDir{DUPLEX, FORWARD};
 	static const int sMaxSessions = 4;
-	RelayedCall(MediaRelayServer *server, sip_t *sip, RTPDir dir);
+	RelayedCall(MediaRelayServer *server, sip_t *sip);
 	
 	/* Create a channel for each sdp media using defined relay ip for front and back. The transaction
 	 * allow use to identify the callee (we don't have a tag yet).
@@ -44,7 +43,8 @@ public:
 	/* Change the ip/port of sdp line by provided ones. Used for masquerade front channels */
 	void masquerade(int mline, std::string *local_ip, int *local_port, std::string *remote_ip, int *remote_port, const std::string & partyTag, const std::string &trId);
 
-	void setChannelDestinations(SdpModifier *m, int mline, const std::string &ip, int port, const std::string & partyTag, const std::string &trId);
+	void setChannelDestinations(SdpModifier *m, int mline, const std::string &ip, int port, const std::string & partyTag, const std::string &trId,
+		bool isEarlyMedia);
 	
 	void removeBranch(const std::string &trId);
 	void setEstablished(const std::string &trId);
@@ -64,10 +64,11 @@ public:
 private:
 	std::shared_ptr<RelaySession> mSessions[sMaxSessions];
 	MediaRelayServer *mServer;
-	RTPDir mEarlymediaRTPDir;
 	int mBandwidthThres;
 	int mDecim;
 	bool mDropTelephoneEvents;
+	bool mHasSendRecvBack;
+	bool mIsEstablished;
 };
 
 

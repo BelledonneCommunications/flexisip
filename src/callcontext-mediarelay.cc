@@ -27,10 +27,12 @@
 using namespace std;
 
 
-RelayedCall::RelayedCall(MediaRelayServer *server, sip_t *sip, RTPDir dir) :
-					CallContextBase(sip), mServer(server), mEarlymediaRTPDir(dir), mBandwidthThres(0) {
+RelayedCall::RelayedCall(MediaRelayServer *server, sip_t *sip) :
+					CallContextBase(sip), mServer(server), mBandwidthThres(0) {
 	LOGD("New RelayedCall %p", this);
 	mDropTelephoneEvents=false;
+	mIsEstablished=false;
+	mHasSendRecvBack=false;
 }
 
 /*Enable filtering of H264 Iframes for low bandwidth.*/
@@ -62,7 +64,7 @@ void RelayedCall::initChannels(SdpModifier *m, const string &tag, const string &
 			mSessions[i] = s;
 		}
 		
-		shared_ptr<RelayChannel> chan=s->getChannel(tag,trid);
+		shared_ptr<RelayChannel> chan=s->getChannel("",trid);
 		if (chan==NULL){
 			/*this is a new outgoing branch to be established*/
 			chan=s->createBranch(trid,backRelayIps);
@@ -78,7 +80,7 @@ bool RelayedCall::checkMediaValid() {
 	return true;
 }
 
-void RelayedCall::masquerade(int mline, string *local_ip, int *local_port, string *remote_ip, int *remote_port, const string & partyTag, const string &trId) {
+void RelayedCall::masquerade(int mline, string *local_ip, int *local_port, string *remote_ip, int *remote_port, const string & partyTag, const string &trId){
 	if (*local_port == 0) {
 		//case of declined mline.
 		return;
@@ -96,24 +98,33 @@ void RelayedCall::masquerade(int mline, string *local_ip, int *local_port, strin
 	}
 }
 
-void RelayedCall::setChannelDestinations(SdpModifier *m, int mline, const string &ip, int port, const string & partyTag, const string &trId) {
+void RelayedCall::setChannelDestinations(SdpModifier *m, int mline, const string &ip, int port, const string & partyTag, const string &trId, bool isEarlyMedia){
 	if (mline >= sMaxSessions) {
 		return;
+	}
+	RelayChannel::Dir dir=RelayChannel::SendRecv;
+	/*The following code is to make sure than only one branch can send media to the caller,
+		until the call is established.*/
+	if (isEarlyMedia && !mIsEstablished){
+		if (mHasSendRecvBack) dir=RelayChannel::SendOnly;
+		else {
+			dir=RelayChannel::SendRecv;
+			mHasSendRecvBack=true;
+		}
 	}
 	shared_ptr<RelaySession> s = mSessions[mline];
 	if (s != NULL) {
 		shared_ptr<RelayChannel> chan=s->getChannel(partyTag,trId);
 		if(chan->getLocalPort()>0) {
 			configureRelayChannel(chan,m->mSip,m->mSession,mline);
-			chan->setRemoteAddr(ip, port);
+			chan->setRemoteAddr(ip, port,dir);
 		}
-		chan->setBehaviour(RelayChannel::All);
 	}
 }
 
 void RelayedCall::setEstablished(const string &trId){
 	int i;
-	
+	mIsEstablished=true;
 	for(i=0;i<sMaxSessions;++i){
 		shared_ptr<RelaySession> s = mSessions[i];
 		if (s){

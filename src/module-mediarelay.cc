@@ -48,7 +48,6 @@ protected:
 	virtual void onDeclare(GenericStruct * mc) {
 		ConfigItemDescriptor items[] = {
 				{ String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay. Use 'disable' to disable.", "nortpproxy" },
-				{ String, "early-media-rtp-dir", "Set the RTP direction during early media state (duplex, forward)", "duplex" },
 				{ Integer, "sdp-port-range-min", "The minimal value of SDP port range", "1024" },
 				{ Integer, "sdp-port-range-max", "The maximal value of SDP port range", "65535" },
 				{ Boolean, "bye-orphan-dialogs", "Sends a ACK and BYE to 200Ok for INVITEs not belonging to any established call.", "false"},
@@ -74,7 +73,6 @@ private:
 	CallStore *mCalls;
 	MediaRelayServer *mServer;
 	string mSdpMangledParam;
-	RelayedCall::RTPDir mEarlymediaRTPDir;
 	int mH264FilteringBandwidth;
 	int mH264Decim;
 	int mMaxCalls;
@@ -115,7 +113,6 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mServer = new MediaRelayServer(mAgent);
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
 	if (mSdpMangledParam == "disable") mSdpMangledParam.clear();
-	string rtpdir = modconf->get<ConfigString>("early-media-rtp-dir")->read();
 	mByeOrphanDialogs = modconf->get<ConfigBoolean>("bye-orphan-dialogs")->read();
 #ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 	mH264FilteringBandwidth=modconf->get<ConfigInt>("h264-filtering-bandwidth")->read();
@@ -127,14 +124,6 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mDropTelephoneEvent=false;
 #endif
 	mMaxCalls=modconf->get<ConfigInt>("max-calls")->read();
-	mEarlymediaRTPDir = RelayedCall::RelayedCall::DUPLEX;
-	if (rtpdir == "duplex") {
-		mEarlymediaRTPDir = RelayedCall::DUPLEX;
-	} else if (rtpdir == "forward") {
-		mEarlymediaRTPDir = RelayedCall::FORWARD;
-	} else {
-		LOGW("Wrong value %s for early-media-rtp-dir entry; switch to RelayedCall::DUPLEX.", rtpdir.c_str());
-	}
 }
 
 void MediaRelay::onUnload() {
@@ -193,13 +182,13 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	}
 
 	// assign destination address
-	m->iterate(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, from_tag, transaction->getBranchId()));
+	m->iterate(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, from_tag, transaction->getBranchId(),false));
 
 	// Modify sdp message to set relay address and ports.
-	m->masquerade(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, from_tag, transaction->getBranchId()));
+	m->masquerade(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, to_tag, transaction->getBranchId()));
 
 	// Masquerade using ICE
-	m->addIceCandidate(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, from_tag, transaction->getBranchId()));
+	m->addIceCandidate(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, to_tag, transaction->getBranchId()));
 	
 	if (!mSdpMangledParam.empty()) m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	m->update(msg, sip);
@@ -241,7 +230,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 				return;
 			}
 			
-			c = make_shared<RelayedCall>(mServer, sip, mEarlymediaRTPDir);
+			c = make_shared<RelayedCall>(mServer, sip);
 			newContext=true;
 			it->setProperty<RelayedCall>(getModuleName(), c);
 			configureContext(c);
@@ -269,6 +258,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip) {
 	sip_t *sip = msgSip->getSip();
 	msg_t *msg = msgSip->getMsg();
+	bool isEarlyMedia=false;
 	
 	LOGD("Processing 200 Ok or early media");
 
@@ -280,7 +270,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 	if (sip->sip_status->st_status==200){
 		if (!c->isDialogEstablished()) c->establishDialogWith200Ok(getAgent(),sip);
 		c->setEstablished(transaction->getBranchId());
-	}
+	}else isEarlyMedia=true;
 
 	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
@@ -291,7 +281,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 	string to_tag;
 	if (sip->sip_to != NULL && sip->sip_to->a_tag != NULL)
 		to_tag = sip->sip_to->a_tag;
-
+	
 	
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
 		LOGD("200 OK is already relayed");
@@ -299,12 +289,11 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 		return;
 	}
 
-	m->iterate(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, to_tag, transaction->getBranchId()));
-
+	m->iterate(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, to_tag, transaction->getBranchId(),isEarlyMedia));
 	// modify sdp
-	m->masquerade(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, to_tag, transaction->getBranchId()));
+	m->masquerade(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, sip->sip_from->a_tag, transaction->getBranchId()));
 	
-	m->addIceCandidate(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, to_tag, transaction->getBranchId()));
+	m->addIceCandidate(bind(&RelayedCall::masquerade, c, _1, _2, _3, _4, _5, sip->sip_from->a_tag, transaction->getBranchId()));
 
 	m->update(msg, sip);
 

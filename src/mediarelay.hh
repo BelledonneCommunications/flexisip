@@ -116,7 +116,6 @@ public:
 
 private:
 	void transfer(time_t current, const std::shared_ptr<RelayChannel> &org, int i);
-	void doTransfer(uint8_t *buf, int recv_len, const std::shared_ptr<RelayChannel> &dest, int i);
 	Mutex mMutex;
 	MediaRelayServer *mServer;
 	time_t mLastActivityTime;
@@ -139,63 +138,41 @@ public:
 
 class RelayChannel {
 public:
+	enum Dir {
+		SendOnly,
+		SendRecv
+	};
+	
 	RelayChannel(RelaySession* relaySession, const std::pair<std::string,std::string> &relayIps);
 	~RelayChannel();
-
-	typedef enum {
-		None = 0,
-		Receive = 1,
-		Send = 2,
-		All = 3,
-	} BehaviourType;
-
 	bool checkSocketsValid();
-
-	void setRemoteAddr(const std::string &ip, int port);
-
+	void setRemoteAddr(const std::string &ip, int port, Dir dir);
 	const std::string &getRemoteIp() const {
 		return mRemoteIp;
 	}
-	
 	int getRemotePort() const {
 		return mRemotePort;
 	}
-
 	const std::string &getLocalIp() const {
 		return mLocalIp;
 	}
-	
 	int getLocalPort() const {
 		return rtp_session_get_local_port(mSession);
 	}
-
 	int recv(int i, uint8_t *buf, size_t size);
 	int send(int i, uint8_t *buf, size_t size);
-
 	void fillPollFd(PollFd *pfd);
 	bool checkPollFd(const PollFd *pfd, int i);
-	
-	const BehaviourType &getBehaviour() const{
-		return mBehaviour;
-	}
-
-	void setBehaviour(const BehaviourType &behaviour);
-	
 	void setFilter(std::shared_ptr<MediaFilter> filter);
-	
-	void setUnused(){
-		mUnused=true;
-	}
-	
 	uint64_t getReceivedPackets()const{
 		return mPacketsReceived;
 	}
 	uint64_t getSentPackets()const{
 		return mPacketsSent;
 	}
-
+	static const char *dirToString(Dir dir);
 private:
-	BehaviourType mBehaviour;
+	Dir mDir;
 	std::string mLocalIp;
 	std::string mRemoteIp;
 	int mRemotePort;
@@ -207,7 +184,6 @@ private:
 	int mPfdIndex;
 	uint64_t mPacketsSent;
 	uint64_t mPacketsReceived;
-	bool mUnused;
 };
 
 #endif

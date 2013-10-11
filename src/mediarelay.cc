@@ -21,6 +21,8 @@
 #include "mediarelay.hh"
 
 #include <poll.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include <algorithm>
 #include <list>
@@ -59,8 +61,7 @@ unsigned int PollFd::getREvents(int index)const{
 
 
 RelayChannel::RelayChannel(RelaySession* relaySession, const std::pair<std::string,std::string> &relayIps) :
-		 mBehaviour(BehaviourType::All), mLocalIp(relayIps.first), mRemoteIp(std::string("undefined")), mRemotePort(-1),
-		 mUnused(false){
+		 mDir(SendRecv), mLocalIp(relayIps.first), mRemoteIp(std::string("undefined")), mRemotePort(-1){
 	mPfdIndex=-1;
 	mSession = relaySession->getRelayServer()->createRtpSession(relayIps.second);
 	mSockets[0] = rtp_session_get_rtp_socket(mSession);
@@ -77,11 +78,23 @@ RelayChannel::~RelayChannel() {
 	rtp_session_destroy(mSession);
 }
 
-void RelayChannel::setRemoteAddr(const string &ip, int port) {
-	LOGD("RelayChannel %p configured: local=%s:%i  remote=%s:%i", this, getLocalIp().c_str(), getLocalPort(), ip.c_str(), port);
+const char *RelayChannel::dirToString(Dir dir){
+	switch(dir){
+		case SendOnly:
+			return "SendOnly";
+		case SendRecv:
+			return "SendRecv";
+	}
+	return "invalid";
+}
+
+void RelayChannel::setRemoteAddr(const string &ip, int port, Dir dir) {
+	LOGD("RelayChannel [%p] is now configured local=[%s:%i]  remote=[%s:%i] dir=[%s]", 
+	     this, getLocalIp().c_str(), getLocalPort(), ip.c_str(), port, dirToString(dir));
 	
 	mRemotePort = port;
 	mRemoteIp = ip;
+	mDir=dir;
 	
 	if (port!=0){
 		struct addrinfo *res = NULL;
@@ -117,27 +130,6 @@ void RelayChannel::setRemoteAddr(const string &ip, int port) {
 	}
 }
 
-void RelayChannel::setBehaviour(const BehaviourType &behaviour) {
-	mBehaviour=behaviour;
-	switch (behaviour) {
-		case None:
-			SLOGD << "RelayChannel " << this << " | " << "None";
-			break;
-		case Send:
-			SLOGD << "RelayChannel " << this << " | " << "Send";
-			break;
-		case Receive:
-			SLOGD << "RelayChannel " << this << " | " << "Receive";
-			break;
-		case All:
-			SLOGD << "RelayChannel " << this << " | " << "All";
-			break;
-		default:
-			SLOGD << "RelayChannel " << this << " | " << "INVALID";
-			break;
-	};
-}
-
 void RelayChannel::fillPollFd(PollFd *pfd) {
 	mPfdIndex=-1;
 	if (mSockets[0]==-1) return ; //no socket to monitor
@@ -160,6 +152,10 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 	if (err>0){
 		mPacketsReceived++;
 		mSockAddrSize[i] = addrsize;
+		if (mDir==SendOnly) {
+			LOGD("ignored packet");
+			return 0;
+		}
 		if (mFilter && mFilter->onIncomingTransfer(buf,buflen,(struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]) == false ){
 			return 0;
 		}
@@ -187,6 +183,8 @@ int RelayChannel::send(int i, uint8_t *buf, size_t buflen) {
 				LOGW("Only %i bytes sent over %i bytes (localport=%i dest=%s:%i)", err, (int)buflen, getLocalPort() + i, mRemoteIp.c_str(), mRemotePort+i);
 			}
 		}
+	}else{
+		LOGW("Destination not valid.");
 	}
 	return err;
 }
@@ -223,25 +221,32 @@ std::shared_ptr<RelayChannel> RelaySession::createBranch(const std::string &trId
 	ret=make_shared<RelayChannel>(this, relayIps);
 	mBacks.insert(make_pair(trId,ret));
 	mMutex.unlock();
+	LOGD("RelaySession [%p]: branch corresponding to transaction [%s] added.",this,trId.c_str());
 	return ret;
 }
 
 void RelaySession::removeBranch(const std::string &trId){
+	bool removed=false;
 	mMutex.lock();
 	auto it=mBacks.find(trId);
 	if (it!=mBacks.end()){
+		removed=true;
 		mBacks.erase(it);
 	}
 	mMutex.unlock();
+	if (removed) LOGD("RelaySession [%p]: branch corresponding to transaction [%s] removed.",this,trId.c_str());
 }
 
 void RelaySession::setEstablished(const std::string &tr_id){
 	if (mBack) return;
 	shared_ptr<RelayChannel> winner=getChannel("",tr_id);
-	mMutex.lock();
-	mBack=winner;
-	mBacks.clear();
-	mMutex.unlock();
+	if (winner){
+		LOGD("RelaySession [%p] is established.",this);
+		mMutex.lock();
+		mBack=winner;
+		mBacks.clear();
+		mMutex.unlock();
+	}else LOGE("RelaySession [%p] is with from an unknown branch [%s].",this,tr_id.c_str());
 }
 
 void RelaySession::fillPollFd(PollFd* pfd) {
@@ -284,9 +289,14 @@ RelaySession::~RelaySession() {
 void RelaySession::unuse() {
 	mMutex.lock();
 	mUsed = false;
+	LOGD("RelaySession [%p] terminated.",this);
 	if (mFront){
-		LOGD("RelaySession [%p] terminated, front on port [%i] received [%lu] and sent [%lu] packets.",
-		     this,mFront->getLocalPort(),(unsigned long)mFront->getReceivedPackets(),(unsigned long)mFront->getSentPackets());
+		 LOGD("Front on port [%i] received [%lu] and sent [%lu] packets.",
+		     mFront->getLocalPort(),(unsigned long)mFront->getReceivedPackets(),(unsigned long)mFront->getSentPackets());
+	}
+	if (mBack){
+		LOGD("Back on port [%i] received [%lu] and sent [%lu] packets.",
+		     mBack->getLocalPort(),(unsigned long)mBack->getReceivedPackets(),(unsigned long)mBack->getSentPackets());
 	}
 	mFront.reset();
 	mBacks.clear();
@@ -310,12 +320,6 @@ bool RelaySession::checkChannels() {
 	return true;
 }
 
-void RelaySession::doTransfer(uint8_t *buf, int recv_len, const shared_ptr<RelayChannel> &dest, int i){
-	if (dest->getBehaviour() & RelayChannel::Receive) {
-		dest->send(i, buf, recv_len);
-	}
-}
-
 void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &chan, int i) {
 	uint8_t buf[1500];
 	const int maxsize = sizeof(buf);
@@ -324,20 +328,17 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &chan
 	mLastActivityTime = curtime;
 	recv_len = chan->recv(i, buf, maxsize);
 	if (recv_len > 0) {
-		if (chan->getBehaviour() & RelayChannel::Send) {
-			
-			if (chan==mFront) {
-				if (mBack){
-					doTransfer(buf,recv_len,mBack,i);
-				}else{
-					for (auto it=mBacks.begin();it != mBacks.end();++it) {
-						shared_ptr<RelayChannel> dest = (*it).second;
-						doTransfer(buf,recv_len,dest,i);
-					}
+		if (chan==mFront) {
+			if (mBack){
+				mBack->send(i,buf,recv_len);
+			}else{
+				for (auto it=mBacks.begin();it != mBacks.end();++it) {
+					shared_ptr<RelayChannel> dest = (*it).second;
+					dest->send(i,buf,recv_len);
 				}
-			}else if (chan==mBack){
-				doTransfer(buf,recv_len,mFront,i);
 			}
+		}else {
+			mFront->send(i,buf,recv_len);
 		}
 	}
 }
@@ -355,6 +356,7 @@ MediaRelayServer::MediaRelayServer(Agent *agent) :
 		LOGF("Could not create MediaRelayServer control pipe.");
 	}
 }
+
 Agent *MediaRelayServer::getAgent() {
 	return mAgent;
 }
@@ -417,11 +419,42 @@ void MediaRelayServer::update() {
 		LOGE("MediaRelayServer: fail to write to control pipe.");
 }
 
+static void set_high_prio(){
+	struct sched_param param;
+	int policy=SCHED_RR;
+	int result=0;
+	int max_prio;
+		
+	memset(&param,0,sizeof(param));
+		
+	max_prio = sched_get_priority_max(policy);
+	param.sched_priority=max_prio;
+	if((result=pthread_setschedparam(pthread_self(),policy, &param))) {
+		if (result==EPERM){
+			/*
+				The linux kernel has 
+				sched_get_priority_max(SCHED_OTHER)=sched_get_priority_max(SCHED_OTHER)=0.
+				As long as we can't use SCHED_RR or SCHED_FIFO, the only way to increase priority of a calling thread
+				is to use setpriority().
+			*/
+			if (setpriority(PRIO_PROCESS,0,-20)==-1){
+				LOGD("MediaRelayServer setpriority() failed: %s, nevermind.",strerror(errno));
+			}else{
+				LOGD("MediaRelayServer priority increased to maximum.");
+			}
+		}else LOGW("MediaRelayServer: pthread_setschedparam failed: %s",strerror(result));
+	} else {
+		LOGD("MediaRelayServer: priority set to [%s] and value [%i]",
+				policy==SCHED_FIFO ? "SCHED_FIFO" : "SCHED_RR", param.sched_priority);
+	}
+}
+
 void MediaRelayServer::run() {
 	PollFd pfd(512);
 	int ctl_index;
 	int err;
 
+	set_high_prio();
 	while (mRunning) {
 		pfd.reset();
 		//fill the pollfd table
