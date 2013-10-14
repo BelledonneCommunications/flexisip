@@ -186,7 +186,9 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, sPushNotifParams);
 	
 	// Compute branch, output branch=XXXXX
-	shared_ptr<OutgoingTransaction> outTr=ev->getOutgoingAgent() != NULL ? dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent()) : NULL;
+	shared_ptr<OutgoingTransaction> outTr;
+	if (ev->getOutgoingAgent() != NULL) outTr=dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+
 	char const * branchStr = compute_branch(getSofiaAgent(), msg, sip, mAgent->getUniqueId().c_str(),outTr);
 	
 	if (isLooping(ev, branchStr + 7)) {
