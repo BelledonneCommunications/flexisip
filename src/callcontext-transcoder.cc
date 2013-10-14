@@ -38,7 +38,6 @@ CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCall
 	mReceiver=ms_filter_new(MS_RTP_RECV_ID);
 	mSender=ms_filter_new(MS_RTP_SEND_ID);
 	mToneGen=ms_filter_new(MS_DTMF_GEN_ID);
-	mReceiver=mSender=mToneGen=NULL;
 
 	rtp_session_set_profile(mSession,mProfile);
 	rtp_session_set_recv_buf_size(mSession,300);

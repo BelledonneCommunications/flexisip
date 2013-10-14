@@ -534,7 +534,6 @@ int main(int argc, char *argv[]){
 #ifdef ENABLE_TRANSCODER
 	if (oset.find("notrans") == oset.end()) {
 		ms_init();
-		ms_voip_init();
 	}
 #endif
 	a->loadConfig (cfg);
