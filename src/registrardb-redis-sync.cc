@@ -82,6 +82,13 @@ bool RegistrarDbRedisSync::connect() {
 	return true;
 }
 
+static bool isPrintable(const char* str) {
+	while(str) {
+		if (!isprint(*str)) return false;
+		++str;
+	}
+	return true;
+}
 
 void RegistrarDbRedisSync::doBind ( const RegistrarDb::BindParameters& p, const shared_ptr< RegistrarDbListener >& listener ) {
 	char key[AOR_KEY_SIZE] = {0};
@@ -105,7 +112,7 @@ void RegistrarDbRedisSync::doBind ( const RegistrarDb::BindParameters& p, const 
 		return;
 	}
 
-	LOGD ( "GOT aor:%s --> %s", key, reply->str );
+	LOGD ( "GOT aor:%s --> %s", key, isPrintable(reply->str) ? reply->str : "binary" );
 	Record r ( key );
 	mSerializer->parse ( reply->str, reply->len, &r );
 	freeReplyObject ( reply );
@@ -206,7 +213,7 @@ void RegistrarDbRedisSync::doFetch ( const url_t *url, const shared_ptr<Registra
 		return;
 	}
 
-	LOGD ( "GOT aor:%s --> %s", key, reply->str );
+	LOGD ( "GOT aor:%s --> %s", key, isPrintable(reply->str) ? reply->str : "binary" );
 	if (reply->len>0){
 		Record r ( key );
 		mSerializer->parse ( reply->str, reply->len, &r );

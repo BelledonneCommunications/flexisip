@@ -21,8 +21,14 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
-class PushNotificationRequest {
+class PushNotificationRequestCallback {
+public:
+	virtual void onError(const std::string &msg) = 0;
+};
+
+class PushNotificationRequest : public PushNotificationRequestCallback {
 public:
 	const std::string &getAppIdentifier(){
 		return mAppId;
@@ -31,12 +37,18 @@ public:
 		return mType;
 	}
 	virtual const std::vector<char> &getData() = 0;
+	virtual bool isValidResponse(const std::string &str) = 0;
+	virtual bool mustReadServerResponse() = 0;
 	virtual ~PushNotificationRequest() = 0;
+	std::shared_ptr<PushNotificationRequestCallback> &getCallBack() { return mCallBack; }
+	virtual void onError(const std::string &msg) { mCallBack->onError(msg); }
 private:
 	const std::string mAppId;
 	const std::string mType;
+	std::shared_ptr<PushNotificationRequestCallback> mCallBack;
 protected:
-	PushNotificationRequest(const std::string &appid, const std::string &type) : mAppId(appid), mType(type){};
+	PushNotificationRequest(const std::string &appid, const std::string &type, const std::shared_ptr<PushNotificationRequestCallback> &cb)
+	: mAppId(appid), mType(type), mCallBack(cb) {}
 };
 inline PushNotificationRequest::~PushNotificationRequest() {
 }
@@ -46,8 +58,10 @@ public:
 	static const unsigned int MAXPAYLOAD_SIZE;
 	static const unsigned int DEVICE_BINARY_SIZE;
 	virtual const std::vector<char> &getData();
-	ApplePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &msg_id, const std::string &arg, const std::string &sound, const std::string &callid);
+	virtual bool isValidResponse(const std::string &str);
+	ApplePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::shared_ptr<PushNotificationRequestCallback> &cb, const std::string &msg_id, const std::string &arg, const std::string &sound, const std::string &callid);
 	~ApplePushNotificationRequest() {};
+	virtual bool mustReadServerResponse() { return false; }
 
 protected:
 	int formatDeviceToken(const std::string &deviceToken);
@@ -60,8 +74,10 @@ protected:
 class GooglePushNotificationRequest: public PushNotificationRequest {
 public:
 	virtual const std::vector<char> & getData();
-	GooglePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &apiKey, const std::string &arg, const std::string &callid);
+	virtual bool isValidResponse(const std::string &str);
+	GooglePushNotificationRequest(const std::string &appId, const std::string &deviceToken, const std::shared_ptr<PushNotificationRequestCallback> &cb, const std::string &apiKey, const std::string &arg, const std::string &callid);
 	~GooglePushNotificationRequest() {};
+	virtual bool mustReadServerResponse() { return true; }
 
 protected:
 	void createPushNotification();
@@ -73,14 +89,29 @@ protected:
 class WindowsPhonePushNotificationRequest: public PushNotificationRequest {
 public:
 	virtual const std::vector<char> & getData();
-	WindowsPhonePushNotificationRequest(const std::string &host, const std::string &query, bool is_message, const std::string &message, const std::string &sender_name, const std::string &sender_uri);
+	virtual bool isValidResponse(const std::string &str);
+	WindowsPhonePushNotificationRequest(const std::string &host, const std::string &query, const std::shared_ptr< PushNotificationRequestCallback > &cb, bool is_message, const std::string &message, const std::string &sender_name, const std::string &sender_uri);
 	~WindowsPhonePushNotificationRequest() {};
+	virtual bool mustReadServerResponse() { return true; }
 
 protected:
 	void createPushNotification();
 	std::vector<char> mBuffer;
 	std::string mHttpHeader;
 	std::string mHttpBody;
+};
+
+class ErrorPushNotificationRequest: public PushNotificationRequest {
+public:
+	virtual const std::vector<char> & getData() { return mBuffer; };
+	virtual bool isValidResponse(const std::string &str);
+	ErrorPushNotificationRequest(const std::shared_ptr< PushNotificationRequestCallback > &cb)
+	: PushNotificationRequest("error", "error", cb), mBuffer() {}
+	~ErrorPushNotificationRequest() {}
+	virtual bool mustReadServerResponse() { return true; }
+
+protected:
+	std::vector<char> mBuffer;
 };
 
 #endif

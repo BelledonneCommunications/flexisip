@@ -29,8 +29,8 @@ const char *APN_DEV_ADDRESS = "gateway.sandbox.push.apple.com";
 const char *APN_PROD_ADDRESS = "gateway.push.apple.com";
 const char *APN_PORT = "2195";
 
-const char *GPN_ADDRESS = "gcm.googleapis.com";
-const char *GPN_PORT = "5235";
+const char *GPN_ADDRESS = "android.googleapis.com";
+const char *GPN_PORT = "443";
 
 const char *WPPN_PORT = "80";
 
@@ -99,8 +99,9 @@ void PushNotificationService::waitEnd() {
 					finished = false;
 					break;
 				}
-			}
+			}	
 		}
+		usleep(100000); // avoid eating all cpu for nothing
 	}
 }
 
@@ -110,12 +111,11 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 	MAX_QUEUE_SIZE = maxQueueSize;
 
 	// Android Client
-	string googleClient = string("google");
 	std::shared_ptr<ssl::context> ctx(new ssl::context(mIOService, ssl::context::sslv23_client));
 	boost::system::error_code err;
 	ctx->set_options(ssl::context::default_workarounds, err);
 	ctx->set_verify_mode(ssl::context::verify_none);
-	mClients[googleClient]=std::make_shared<PushNotificationClient>(googleClient, this, ctx, GPN_ADDRESS, GPN_PORT, maxQueueSize, true);
+	mClients["google"]=std::make_shared<PushNotificationClient>("google", this, ctx, GPN_ADDRESS, GPN_PORT, maxQueueSize, true);
 	
 	dirp=opendir(certdir.c_str());
 	if (dirp==NULL){
@@ -155,7 +155,7 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 		if (!key.empty()) {
 			ctx->use_private_key_file(key, ssl::context::file_format::pem, err);
 			if (err) {
-				LOGE("use_private_key_file: %s",err.message().c_str());
+				LOGE("use_private_key_file %s: %s", certpath.c_str(), err.message().c_str());
 			}
 		}
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
@@ -168,9 +168,16 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 	closedir(dirp);
 }
 
-PushNotificationService::PushNotificationService(const std::string &certdir, const std::string &cafile, int maxQueueSize, StatCounter64 *countFailed, StatCounter64 *countSent) :
-		mIOService(), mThread(NULL), mCountFailed(countFailed), mCountSent(countSent) {
+PushNotificationService::PushNotificationService(const std::string &certdir, const std::string &cafile, int maxQueueSize) :
+		mIOService(), mThread(NULL), mClients(), mCountFailed(NULL), mCountSent(NULL) {
 	setupClients(certdir, cafile, maxQueueSize);
+
+	// Error client
+	std::shared_ptr<ssl::context> ctx(new ssl::context(mIOService, ssl::context::sslv23_client));
+	boost::system::error_code err;
+	ctx->set_options(ssl::context::default_workarounds, err);
+	ctx->set_verify_mode(ssl::context::verify_none);
+	mClients["error"]=std::make_shared<PushNotificationClient>("error", this, ctx, "127.0.0.1", "1", maxQueueSize, false);
 }
 
 PushNotificationService::~PushNotificationService() {

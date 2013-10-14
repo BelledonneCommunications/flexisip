@@ -24,11 +24,14 @@
 #include "pushnotification/pushnotificationservice.hh"
 #include "forkcallcontext.hh"
 
+#include <map>
+
 using namespace ::std;
 
 class PushNotification;
 
-class PushNotificationContext : public enable_shared_from_this< PushNotificationContext >{
+class PushNotificationContext : public enable_shared_from_this< PushNotificationContext >
+, public PushNotificationRequestCallback {
 private:
 	su_timer_t *mTimer; //timer after which push is sent
 	su_timer_t *mEndTimer; //timer after which push is cleared from global map.
@@ -37,6 +40,7 @@ private:
 	shared_ptr<ForkCallContext> mForkContext;
 	string mKey; //unique key for the push notification, identifiying the device and the call.
 	void onTimeout();
+	void onError(const string &errormsg);
 	void onEnd();
 	void clear();
 
@@ -72,7 +76,7 @@ private:
 	map<string,shared_ptr<PushNotificationContext> > mPendingNotifications; //map of pending push notifications. Its purpose is to avoid sending multiples notifications for the same call attempt to a given device.
 	static ModuleInfo<PushNotification> sInfo;
 	int mTimeout;
-	std::list<std::string> mGoogleProjects;
+	map<string, string> mGoogleKeys;
 	PushNotificationService *mAPNS;
 	StatCounter64 *mCountFailed;
 	StatCounter64 *mCountSent;
@@ -105,8 +109,16 @@ void PushNotificationContext::cancel(){
 	}
 }
 
+void PushNotificationContext::onError(const string &errormsg) {
+	SLOGD << "PNR " << mPushNotificationRequest.get() << ": error " << errormsg;
+	if (mForkContext){
+		LOGD("Notifying call context...");
+		mForkContext->onPushError(mKey, errormsg);
+	}
+}
+
 void PushNotificationContext::onTimeout() {
-	SLOGD << "PushNotificationContext timeout";
+	SLOGD << "PNR " << mPushNotificationRequest.get() << ": timeout";
 	if (mForkContext){
 		if (mForkContext->isCompleted()){
 			LOGD("Call is already established or canceled, so push notification is not sent but cleared.");
@@ -115,15 +127,17 @@ void PushNotificationContext::onTimeout() {
 		}
 	}
 
-	mModule->getService()->sendRequest(mPushNotificationRequest);
 	if (mForkContext){
-		LOGD("Notifying call context...");
+		SLOGD << "PNR " << mPushNotificationRequest.get() << ": Notifying call context...";
+		mForkContext->onPushInitiated(mKey);
 		mForkContext->sendRinging();
 	}
+
+	mModule->getService()->sendRequest(mPushNotificationRequest);
 }
 
 void PushNotificationContext::clear(){
-	SLOGD << "PushNotificationContext clear";
+	SLOGD << "PNR " << mPushNotificationRequest.get() << ": PushNotificationContext clear";
 	if (mEndTimer){
 		su_timer_destroy(mEndTimer);
 		mEndTimer=NULL;
@@ -132,7 +146,7 @@ void PushNotificationContext::clear(){
 }
 
 void PushNotificationContext::onEnd() {
-	SLOGD << "PushNotificationContext end";
+	SLOGD << "PNR " << mPushNotificationRequest.get() << ": PushNotificationContext end";
 	mModule->clearNotification(shared_from_this());
 }
 
@@ -180,25 +194,18 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	mTimeout = mc->get<ConfigInt>("timeout")->read();
 	int maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
 	string certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
-	mGoogleProjects = mc->get<ConfigStringList>("google-projects-api-keys")->read();
-	mAPNS = new PushNotificationService(certdir, "", maxQueueSize, mCountFailed, mCountSent);
+	auto googleKeys = mc->get<ConfigStringList>("google-projects-api-keys")->read();
+	mGoogleKeys.clear();
+	for (auto it=googleKeys.cbegin(); it != googleKeys.cend(); ++it) {
+		const string &keyval=*it;
+		size_t sep = keyval.find(":");
+		mGoogleKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep)));
+	}
+	mAPNS = new PushNotificationService(certdir, "", maxQueueSize);
+	mAPNS->setStatCounters(mCountFailed, mCountSent);
 	mAPNS->start();
 }
 
-std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
-    std::stringstream ss(s);
-    std::string item;
-    while(std::getline(ss, item, delim)) {
-        elems.push_back(item);
-    }
-    return elems;
-}
-
-
-std::vector<std::string> split(const std::string &s, char delim) {
-    std::vector<std::string> elems;
-    return split(s, delim, elems);
-}
 
 void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction){
 	shared_ptr<PushNotificationContext> context;
@@ -263,14 +270,14 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 					return;
 				}
 				if (url_param(params, "pn-call-snd", call_snd, sizeof(call_snd)) == 0) {
-					SLOGD << "no pn-call-snd";
-					return;
+					SLOGD << "no optional pn-call-snd, using empty";
+					strcat(call_snd, "empty");
 				}
 				if (url_param(params, "pn-msg-snd", msg_snd, sizeof(msg_snd)) == 0) {
-					SLOGD << "no pn-msg-snd";
-					return;
+					SLOGD << "no optional pn-msg-snd, using empty";
+					strcat(msg_snd, "empty");
 				}
-				pn = make_shared<ApplePushNotificationRequest>(appId, deviceToken,
+				pn = make_shared<ApplePushNotificationRequest>(appId, deviceToken, context,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
 						contact,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
@@ -282,32 +289,24 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 					sip_payload_t *payload=sip->sip_payload;
 					message = string(payload->pl_data, payload->pl_len);
 				}
-				pn = make_shared<WindowsPhonePushNotificationRequest>(appId, deviceToken,
+				pn = make_shared<WindowsPhonePushNotificationRequest>(appId, deviceToken, context,
 						is_message,
 						message,
 						contact,
 						url_as_string(ms->getHome(), sip->sip_from->a_url));
 			} else if (strcmp(type,"google")==0) {
-				string apiKey;
-				for (list<string>::const_iterator iterator = mGoogleProjects.begin(); iterator != mGoogleProjects.end(); ++iterator) {
-					string couple = string((*iterator).c_str());
-					vector<string> splitedCouple = split(couple, ':');
-					if (splitedCouple.size() == 2) {
-						string tempAppId = splitedCouple[0];
-						if (tempAppId.compare(appId) == 0) {
-							apiKey = splitedCouple[1];
-						}
-					}
-				}
-
-				if (!apiKey.empty()) {
+				auto apiKeyIt = mGoogleKeys.find(appId);
+				if (apiKeyIt != mGoogleKeys.end()) {
 					// We only have one client for all Android apps, called "google"
 					SLOGD << "Creating Google push notif request";
-					pn = make_shared<GooglePushNotificationRequest>("google", deviceToken, apiKey, contact, call_id);
+					pn = make_shared<GooglePushNotificationRequest>("google", deviceToken, context, apiKeyIt->second, contact, call_id);
 				}
+			} else if (strcmp(type, "error")==0) {
+				SLOGD << "Creating Error push notif request";
+				pn = make_shared<ErrorPushNotificationRequest>(context);
 			}
 			if (pn){
-				SLOGD << "Creating a push notif context to send in " << mTimeout << "s";
+				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << mTimeout << "s";
 				context = make_shared<PushNotificationContext>(transaction, this, pn, pn_key);
 				context->start(mTimeout);
 				mPendingNotifications.insert(make_pair(pn_key,context));

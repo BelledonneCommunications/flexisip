@@ -32,6 +32,7 @@ ForkCallContext::ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipE
 		ForkContext(agent, event,cfg, listener), mShortTimer(NULL), mPushTimer(NULL), mLastResponseCodeSent(100), mCancelled(false) {
 	LOGD("New ForkCallContext %p", this);
 	mLog=event->getEventLog<CallLog>();
+	mActivePushes = 0;
 }
 
 ForkCallContext::~ForkCallContext() {
@@ -313,5 +314,15 @@ void ForkCallContext::onPushTimer(){
 void ForkCallContext::sOnPushTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg){
 	ForkCallContext *zis=static_cast<ForkCallContext*>(arg);
 	zis->onPushTimer();
+}
+void ForkCallContext::onPushInitiated(const string &key) {
+	++mActivePushes;
+}
+
+void ForkCallContext::onPushError(const string &key, const string &errormsg) {
+	--mActivePushes;
+	if (mActivePushes != 0) return;
+	SLOGD << "Early fail due to all push requests having failed";
+	onPushTimer();
 }
 

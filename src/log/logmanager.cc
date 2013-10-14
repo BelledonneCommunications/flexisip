@@ -115,6 +115,9 @@ typedef boost::function2<
 		[
 		fmt::stream << "[" << fmt::attr< flexisip::log::level >("Severity") << "]"
 		]
+#if (BOOST_VERSION >= 105400)
+		<< " [" << fmt::attr< logging::attributes::current_thread_id::value_type >("ThreadID") << "]"
+#endif
 		<< addIfString("method_or_status", " [", "]")
 		<< addIfString("Module", " [", "]")
 		<< addIfString("callid", " [", "]")

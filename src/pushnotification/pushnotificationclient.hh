@@ -25,7 +25,6 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
-
 #include "pushnotificationservice.hh"
 
 class PushNotificationClient {
@@ -34,17 +33,17 @@ public:
 	int sendRequest(const std::shared_ptr<PushNotificationRequest> &req);
 	bool isIdle();
 protected:
-	void handle_resolve(const boost::system::error_code& error, boost::asio::ip::tcp::resolver::iterator endpoint_iterator);
-	void handle_connect(const boost::system::error_code& error, boost::asio::ip::tcp::resolver::iterator endpoint_iterator);
-	void handle_handshake(const boost::system::error_code& error);
-	void handle_write(const boost::system::error_code& error, size_t bytes_transferred);
-	void handle_read(const boost::system::error_code& error, size_t bytes_transferred);
+	void handle_resolve(std::shared_ptr< PushNotificationRequest > ctx, const boost::system::error_code &error, boost::asio::ip::tcp::resolver::iterator endpoint_iterator);
+	void handle_connect(std::shared_ptr< PushNotificationRequest > ctx, const boost::system::error_code &error, boost::asio::ip::tcp::resolver::iterator endpoint_iterator);
+	void handle_handshake(std::shared_ptr< PushNotificationRequest > ctx, const boost::system::error_code &error);
+	void handle_write(std::shared_ptr< PushNotificationRequest > ctx, const boost::system::error_code& error, size_t bytes_transferred);
+	void handle_read(std::shared_ptr< PushNotificationRequest > ctx, const boost::system::error_code &error, size_t bytes_transferred);
 private:
-	void send();
+	void send(std::shared_ptr< PushNotificationRequest > req);
 	void onEnd();
-	void onError();
-	void onSuccess();
-	void connect();
+	void onError(std::shared_ptr< PushNotificationRequest > req, const std::string &msg = "");
+	void onSuccess(std::shared_ptr< PushNotificationRequest > req);
+	void connect(std::shared_ptr< PushNotificationRequest > req);
 	bool next();
 private:
 	PushNotificationService *mService;

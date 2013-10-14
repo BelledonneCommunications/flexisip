@@ -47,6 +47,8 @@ public:
 	virtual bool onNewRegister(const sip_contact_t *ctt);
 	void sendRinging();
 	bool isCompleted()const;
+	void onPushInitiated(const std::string &key);
+	void onPushError(const std::string &key, const std::string &errormsg);
 private:
 	bool isRetryableOrUrgent(int code);
 	void onShortTimer();
@@ -60,6 +62,7 @@ private:
 	void logResponse(const std::shared_ptr<ResponseSipEvent> &ev);
 	static void sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	static void sOnPushTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
+	int mActivePushes;
 };
 
 #endif //forkcallcontext_hh

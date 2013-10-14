@@ -39,7 +39,7 @@ ForkContext::ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &e
 
 void ForkContext::checkFinished(){
 	bool finished=false;
-	if (mIncoming==NULL && mOutgoings.size()==0){
+	if (!mIncoming && mOutgoings.empty()){
 		if (mLateTimer){
 			finished=mLateTimerExpired;
 		}else finished=true;

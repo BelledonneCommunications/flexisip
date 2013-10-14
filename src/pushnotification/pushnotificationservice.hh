@@ -46,7 +46,11 @@ public:
 
 	void waitEnd();
 
-	PushNotificationService(const std::string &certdir, const std::string &cafile, int maxQueueSize, StatCounter64 *countFailed, StatCounter64 *countSent);
+	PushNotificationService(const std::string &certdir, const std::string &cafile, int maxQueueSize);
+	void setStatCounters(StatCounter64 *countFailed, StatCounter64 *countSent) {
+		mCountFailed=countFailed;
+		mCountSent=countSent;
+	}
 
 	~PushNotificationService();
 

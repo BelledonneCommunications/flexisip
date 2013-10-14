@@ -148,6 +148,13 @@ binder_SOURCES=test/binder.cc test/test_utils.hh $(thesources)
 binder_LDADD=$(flexisip_LDADD)
 nodist_binder_SOURCES=$(nodistsources)
 
+if BUILD_PUSHNOTIFICATION
+bin_PROGRAMS+=pusher
+pusher_SOURCES=tool/pusher.cc $(thesources)
+pusher_LDADD=$(flexisip_LDADD)
+nodist_pusher_SOURCES=$(nodistsources)
+endif
+
 flexisip_SOURCES=main.cc $(thesources)
 nodist_flexisip_SOURCES=$(nodistsources)
 EXTRA_DIST=$(pb_files) $(GITVERSION_FILE) tool/ctdumper.cc
