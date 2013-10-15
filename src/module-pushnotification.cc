@@ -277,7 +277,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 					SLOGD << "no optional pn-msg-snd, using empty";
 					strcat(msg_snd, "empty");
 				}
-				pn = make_shared<ApplePushNotificationRequest>(appId, deviceToken, context,
+				pn = make_shared<ApplePushNotificationRequest>(appId, deviceToken,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
 						contact,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
@@ -289,7 +289,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 					sip_payload_t *payload=sip->sip_payload;
 					message = string(payload->pl_data, payload->pl_len);
 				}
-				pn = make_shared<WindowsPhonePushNotificationRequest>(appId, deviceToken, context,
+				pn = make_shared<WindowsPhonePushNotificationRequest>(appId, deviceToken,
 						is_message,
 						message,
 						contact,
@@ -299,15 +299,16 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 				if (apiKeyIt != mGoogleKeys.end()) {
 					// We only have one client for all Android apps, called "google"
 					SLOGD << "Creating Google push notif request";
-					pn = make_shared<GooglePushNotificationRequest>("google", deviceToken, context, apiKeyIt->second, contact, call_id);
+					pn = make_shared<GooglePushNotificationRequest>("google", deviceToken, apiKeyIt->second, contact, call_id);
 				}
 			} else if (strcmp(type, "error")==0) {
 				SLOGD << "Creating Error push notif request";
-				pn = make_shared<ErrorPushNotificationRequest>(context);
+				pn = make_shared<ErrorPushNotificationRequest>();
 			}
 			if (pn){
 				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << mTimeout << "s";
 				context = make_shared<PushNotificationContext>(transaction, this, pn, pn_key);
+				pn->setCallBack(context);
 				context->start(mTimeout);
 				mPendingNotifications.insert(make_pair(pn_key,context));
 			}

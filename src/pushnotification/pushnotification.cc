@@ -31,9 +31,8 @@ const unsigned int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 256;
 const unsigned int ApplePushNotificationRequest::DEVICE_BINARY_SIZE = 32;
 
 ApplePushNotificationRequest::ApplePushNotificationRequest(const string &appId, const string &deviceToken,
-		const shared_ptr< PushNotificationRequestCallback > &cb,
 		const string &msg_id, const string &arg, const string &sound, const string &callid)
-: PushNotificationRequest(appId, "apple", cb) {
+: PushNotificationRequest(appId, "apple") {
 	ostringstream payload;
 	int ret = formatDeviceToken(deviceToken);
 	if ((ret != 0) || (mDeviceToken.size() != DEVICE_BINARY_SIZE)) {
@@ -48,8 +47,8 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const string &appId, 
 	LOGD("Push notification payload is %s", mPayload.c_str());
 }
 
-GooglePushNotificationRequest::GooglePushNotificationRequest(const string &appId, const string &deviceToken, const shared_ptr< PushNotificationRequestCallback > &cb, const string &apiKey, const string &arg, const string &callid)
-: PushNotificationRequest(appId, "google", cb) {
+GooglePushNotificationRequest::GooglePushNotificationRequest(const string &appId, const string &deviceToken, const string &apiKey, const string &arg, const string &callid)
+: PushNotificationRequest(appId, "google") {
 	ostringstream httpBody;
 	httpBody << "{\"registration_ids\":[\"" << deviceToken << "\"],\"data\":{\"loc-args\":\"" << arg << "\"}"
 			",\"call-id\":\"" <<callid<< "\"}";
@@ -62,8 +61,9 @@ GooglePushNotificationRequest::GooglePushNotificationRequest(const string &appId
 	LOGD("Push notification https post header is %s", mHttpHeader.c_str());
 }
 
-WindowsPhonePushNotificationRequest::WindowsPhonePushNotificationRequest(const string &host, const string &query, const shared_ptr< PushNotificationRequestCallback > &cb,
-									bool is_message, const std::string &message, const std::string &sender_name, const std::string &sender_uri) : PushNotificationRequest(host, "wp", cb) {
+WindowsPhonePushNotificationRequest::WindowsPhonePushNotificationRequest(const string &host, const string &query,
+									bool is_message, const std::string &message, const std::string &sender_name, const std::string &sender_uri)
+: PushNotificationRequest(host, "wp") {
 	ostringstream httpBody;
 	if (is_message) {
 		// We have to send the content of the message and the name of the sender.

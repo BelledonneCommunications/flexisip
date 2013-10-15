@@ -107,25 +107,24 @@ struct PusherArgs {
 };
 
 static shared_ptr<PushNotificationRequest> createRequestFromArgs(const PusherArgs &args) {
-	auto cb = make_shared<ErrorCb>();
 	if (args.pntype == "error") {
-		return make_shared<ErrorPushNotificationRequest>(cb);
+		return make_shared<ErrorPushNotificationRequest>();
 	} else if (args.pntype == "google") {
 		string phone="+33681741738";
 		string callid = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
-		return make_shared<GooglePushNotificationRequest>("google", args.pntok, cb, args.apikey, phone, callid);
+		return make_shared<GooglePushNotificationRequest>("google", args.pntok, args.apikey, phone, callid);
 	} else if (args.pntype == "wp") {
 		string msg = "Hi here!";
 		string sendername = "Pusher";
 		string senderuri = "sip:toto@sip.linphone.org";
-		return make_shared<WindowsPhonePushNotificationRequest>(args.appid, args.pntok, cb, true, msg, sendername, senderuri);
+		return make_shared<WindowsPhonePushNotificationRequest>(args.appid, args.pntok, true, msg, sendername, senderuri);
 	} else if (args.pntype == "apple") {
 		string msg = "IM_MSG";
 		string msgSnd = "msg.caf";
 		// appid org.linphone.phone.prod
 		string sendername = "Pusher";
 		string senderuri = "sip:toto@sip.linphone.org";
-		return make_shared<ApplePushNotificationRequest>(args.appid, args.pntok, cb, msg, senderuri, msgSnd, sendername);
+		return make_shared<ApplePushNotificationRequest>(args.appid, args.pntok, msg, senderuri, msgSnd, sendername);
 	}
 	cerr << "? push pntype " << args.pntype << endl;
 	exit(-1);
@@ -141,6 +140,8 @@ int main(int argc, char *argv[])
 	flexisip::log::updateFilter("%Severity% >= debug");
 
 	auto pn = createRequestFromArgs(args);
+	auto cb = make_shared<ErrorCb>();
+	pn->setCallBack(cb);
 
 	PushNotificationService service(args.prefix+"/apn", "", MAX_QUEUE_SIZE);
 	service.start();
