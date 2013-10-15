@@ -36,6 +36,13 @@ public:
 		if (error){
 			ev->reply(400, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		}
+		if (sip->sip_via==NULL){
+			ev->reply(400, "No via", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		}
+		if (sip->sip_request == NULL || sip->sip_request->rq_url == NULL 
+			|| sip->sip_request->rq_url->url_host == NULL){
+			ev->reply(400, "Bad request URI", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		}
 	}
 
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev){
