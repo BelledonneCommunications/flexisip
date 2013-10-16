@@ -168,7 +168,8 @@ public:
 	inline virtual Agent *getAgent() {
 		return Transaction::getAgent();
 	}
-
+	///The outgoing transaction that was eventually created to forward the message through a RequestSipEvent.
+	std::shared_ptr<OutgoingTransaction> mOutgoing;
 private:
 	friend class RequestSipEvent;
 	IncomingTransaction(Agent *agent);

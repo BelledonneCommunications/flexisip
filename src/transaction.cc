@@ -80,20 +80,30 @@ const url_t *OutgoingTransaction::getRequestUri()const{
 }
 
 void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
-	msg_t* msg = msg_dup(ms->getMsg());
 	ta_list ta;
-	ta_start(ta, tag, value);
-	LOGD("Message is sent through an outgoing transaction.");
-	mOutgoing = nta_outgoing_mcreate(mAgent->mAgent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, u, msg, ta_tags(ta),TAG_END());
-	ta_end(ta);
-	if (mOutgoing == NULL) {
-		LOGE("Error during outgoing transaction creation");
-		msg_destroy(msg);
-	} else {
-		mSofiaRef = shared_from_this();
-		mAgent->sendTransactionEvent(TransactionEvent::makeCreate(shared_from_this()));
-	}
 	
+	LOGD("Message is sent through an outgoing transaction.");
+	
+	if (!mOutgoing){
+		msg_t* msg = msg_dup(ms->getMsg());
+		ta_start(ta, tag, value);
+		mOutgoing = nta_outgoing_mcreate(mAgent->mAgent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, u, msg, ta_tags(ta),TAG_END());
+		ta_end(ta);
+		if (mOutgoing == NULL) {
+			LOGE("Error during outgoing transaction creation");
+			msg_destroy(msg);
+		} else {
+			mSofiaRef = shared_from_this();
+			mAgent->sendTransactionEvent(TransactionEvent::makeCreate(shared_from_this()));
+		}
+	}else{
+		//sofia transaction already created, this happens when attempting to forward a cancel
+		if (ms->getSip()->sip_request->rq_method==sip_method_cancel){
+			cancel();
+		}else{
+			LOGE("Attempting to send request %s through an already created outgoing transaction.",ms->getSip()->sip_request->rq_method_name);
+		}
+	}
 }
 
 int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *irq, const sip_t *sip) {
@@ -212,5 +222,6 @@ void IncomingTransaction::destroy() {
 		nta_incoming_bind(mIncoming, NULL, NULL); //avoid callbacks
 		nta_incoming_destroy(mIncoming);
 		looseProperties();
+		mOutgoing.reset();
 	}
 }

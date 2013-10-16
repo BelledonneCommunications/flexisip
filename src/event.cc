@@ -140,7 +140,13 @@ RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent,
 		SipEvent(msgSip), mRecordRouteAdded(false) {
 	mIncomingTport=inTport;
 	mIncomingAgent = incomingAgent;
-	mOutgoingAgent = incomingAgent->getAgent()->shared_from_this();
+	
+	shared_ptr<IncomingTransaction> it=dynamic_pointer_cast<IncomingTransaction>(incomingAgent);
+	if (it){
+		mOutgoingAgent = it->mOutgoing;
+	}else{
+		mOutgoingAgent = incomingAgent->getAgent()->shared_from_this();
+	}
 }
 
 RequestSipEvent::RequestSipEvent(const shared_ptr<RequestSipEvent> &sipEvent) :
@@ -212,6 +218,7 @@ void RequestSipEvent::linkTransactions(){
 		(ot=dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent))!=NULL &&
 		(it=dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent))!=NULL){
 		ot->mIncoming=it;
+		it->mOutgoing=ot;
 	}
 }
 
