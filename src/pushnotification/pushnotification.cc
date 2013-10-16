@@ -58,7 +58,7 @@ GooglePushNotificationRequest::GooglePushNotificationRequest(const string &appId
 	ostringstream httpHeader;
 	httpHeader << "POST /gcm/send HTTP/1.1\r\nHost:android.googleapis.com\r\nContent-Type:application/json\r\nAuthorization:key=" << apiKey << "\r\nContent-Length:" << httpBody.str().size() << "\r\n\r\n";
 	mHttpHeader = httpHeader.str();
-	LOGD("Push notification https post header is %s", mHttpHeader.c_str());
+	SLOGD << "PNR " << this << " https post header is " << mHttpHeader;
 }
 
 WindowsPhonePushNotificationRequest::WindowsPhonePushNotificationRequest(const string &host, const string &query,
@@ -85,7 +85,7 @@ WindowsPhonePushNotificationRequest::WindowsPhonePushNotificationRequest(const s
 		httpHeader << "POST " << query << " HTTP/1.1\r\nHost:" << host <<"\r\nX-NotificationClass:4\r\nContent-Type:text/xml\r\nContent-Length:" << httpBody.str().size() << "\r\n\r\n";
 	}
 	mHttpHeader = httpHeader.str();
-	LOGD("Push notification https post header is %s", mHttpHeader.c_str());
+	SLOGD << "PNR " << this << " https post header is " << mHttpHeader;
 }
 
 const vector<char> & ApplePushNotificationRequest::getData() {
@@ -226,7 +226,7 @@ bool WindowsPhonePushNotificationRequest::isValidResponse(const string &str) {
 
 bool GooglePushNotificationRequest::isValidResponse(const string &str) {
 	static const char expected[] = "HTTP/1.1 200";
-	return strncmp(expected, str.c_str(), sizeof(expected)) == 0;
+	return strncmp(expected, str.c_str(), sizeof(expected) -1) == 0;
 }
 
 bool ErrorPushNotificationRequest::isValidResponse(const string &str) {
