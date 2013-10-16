@@ -199,7 +199,7 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	for (auto it=googleKeys.cbegin(); it != googleKeys.cend(); ++it) {
 		const string &keyval=*it;
 		size_t sep = keyval.find(":");
-		mGoogleKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep)));
+		mGoogleKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep + 1)));
 	}
 	mAPNS = new PushNotificationService(certdir, "", maxQueueSize);
 	mAPNS->setStatCounters(mCountFailed, mCountSent);
