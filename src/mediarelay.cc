@@ -252,7 +252,7 @@ void RelaySession::setEstablished(const std::string &tr_id){
 void RelaySession::fillPollFd(PollFd* pfd) {
 	mMutex.lock();
 	
-	mFront->fillPollFd(pfd);
+	if (mFront) mFront->fillPollFd(pfd);
 	if (mBack) mBack->fillPollFd(pfd);
 	else{
 		for(auto it=mBacks.begin();it!=mBacks.end();++it){
@@ -266,7 +266,7 @@ void RelaySession::checkPollFd(const PollFd *pfd, time_t curtime){
 	int i;
 	mMutex.lock();
 	for(i=0;i<2;++i){
-		if (mFront->checkPollFd(pfd,i))
+		if (mFront && mFront->checkPollFd(pfd,i))
 			transfer(curtime,mFront,i);
 		if (!mBack){
 			for(auto it=mBacks.begin();it!=mBacks.end();++it){
@@ -287,21 +287,34 @@ RelaySession::~RelaySession() {
 }
 
 void RelaySession::unuse() {
+	struct statistics{
+		int port;
+		unsigned long recv;
+		unsigned long sent;
+	}front={0}, back={0};
+	
+	LOGD("RelaySession [%p] terminated.",this);
+	
 	mMutex.lock();
 	mUsed = false;
-	LOGD("RelaySession [%p] terminated.",this);
 	if (mFront){
-		 LOGD("Front on port [%i] received [%lu] and sent [%lu] packets.",
-		     mFront->getLocalPort(),(unsigned long)mFront->getReceivedPackets(),(unsigned long)mFront->getSentPackets());
+		front.port=mFront->getLocalPort();
+		front.recv=mFront->getReceivedPackets();
+		front.sent=mFront->getSentPackets();
 	}
 	if (mBack){
-		LOGD("Back on port [%i] received [%lu] and sent [%lu] packets.",
-		     mBack->getLocalPort(),(unsigned long)mBack->getReceivedPackets(),(unsigned long)mBack->getSentPackets());
+		back.port=mBack->getLocalPort();
+		back.recv=mBack->getReceivedPackets();
+		back.sent=mBack->getSentPackets();
 	}
 	mFront.reset();
 	mBacks.clear();
 	mBack.reset();
 	mMutex.unlock();
+	
+	/*do not log while holding a mutex*/
+	if (front.port>0) LOGD("Front on port [%i] received [%lu] and sent [%lu] packets.",front.port, front.recv, front.sent);
+	if (back.port>0) LOGD("Back on port [%i] received [%lu] and sent [%lu] packets.",back.port, back.recv, back.sent);
 }
 
 bool RelaySession::checkChannels() {
