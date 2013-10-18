@@ -473,7 +473,7 @@ void MediaRelayServer::run() {
 		//fill the pollfd table
 		mMutex.lock();
 		for (auto it = mSessions.begin(); it != mSessions.end(); ++it) {
-			(*it)->fillPollFd(&pfd);
+			if ((*it)->isUsed()) (*it)->fillPollFd(&pfd);
 		}
 		mMutex.unlock();
 
