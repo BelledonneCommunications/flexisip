@@ -164,9 +164,7 @@ void PushNotificationClient::handle_write(shared_ptr< PushNotificationRequest > 
 
 void PushNotificationClient::handle_read(shared_ptr<PushNotificationRequest> req, const err_code & error, size_t bytes_transferred){
 	if (!error) {
-		ostringstream response;
-		response<<(&mResponse[0]);
-		string responsestr(response.str());
+		string responsestr(mResponse.data(), mResponse.size());
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " read done: " << responsestr;
 		if (!req->isValidResponse(responsestr))
 			onError(req, "Invalid response");
