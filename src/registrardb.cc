@@ -501,15 +501,16 @@ public:
 			auto &extlist =r->getExtendedContacts();
 			for (auto it = extlist.begin(); it != extlist.end(); ++it) {
 				const shared_ptr<ExtendedContact> &ec = *it;
-				if (!ec->mAlias) {
-					SLOGD << "Step: " << m_step << "\tFound contact " << m_url << " -> " << ec->mSipUri;
-					m_record->pushContact(ec);
-				} else if (m_step > 0) {
-					SLOGD << "Step: " << m_step << "\tFound alias " << m_url << " -> " << ec->mSipUri;
+				// Also add alias for late forking (context in the forks map for this alias key)
+				SLOGD << "Step: " << m_step << (ec->mAlias ? "\tFound alias " : "\tFound contact ")
+				<< m_url << " -> " << ec->mSipUri;
+				m_record->pushContact(ec);
+				if (ec->mAlias && m_step > 0) {
 					sip_contact_t *contact = sip_contact_format(&m_home, "%s", ec->mSipUri.c_str());
 					if (contact) {
 						++m_request;
-						m_database->fetch(contact->m_url, make_shared<RecursiveRegistrarDbListener>(m_database, this->shared_from_this(), contact->m_url, m_step - 1), false);
+						auto recursionListener = make_shared<RecursiveRegistrarDbListener>(m_database, this->shared_from_this(), contact->m_url, m_step - 1);
+						m_database->fetch(contact->m_url, recursionListener, false);
 					} else {
 						SLOGW << "Can't create sip_contact of " << ec->mSipUri;
 					}

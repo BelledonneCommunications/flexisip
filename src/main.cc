@@ -63,6 +63,8 @@
 
 #include "etchosts.hh"
 
+#include <fstream>
+
 static int run=1;
 static int pipe_fds[2]={-1}; //pipes used by flexisip to notify its starter process that everything went fine 
 static pid_t flexisip_pid=0;
@@ -77,12 +79,14 @@ static void usage(const char *arg0){
 		"\t\t [--debug]\n"
 		"\t\t [--daemon]\n"
 		"\t\t [--configfile <path>]\n"
+		"\t\t [--configover <path>]\n"
 		"\t\t [--dump-default-config [node name]]\n"
 		"\t\t [--dump-snmp-mib]\n"
 		"\t\t [--set <[node/]option[=value]>]\n"
 		"\t\t [--list-settables\n"
 		"\t\t [--help]\n"
-		"\t\t [--version]\n",arg0);
+		"\t\t [--version]\n",
+		arg0);
 	exit(-1);
 }
 
@@ -333,7 +337,7 @@ int main(int argc, char *argv[]){
 	const char *transports=NULL;
 	int i;
 	const char *pidfile=NULL;
-	const char *cfgfile=CONFIG_DIR "/flexisip.conf";
+	const char *cfgfile = CONFIG_DIR "/flexisip.conf";
 	bool debug=false;
 	bool daemon=false;
 	bool dump_default_cfg=false;
@@ -342,6 +346,7 @@ int main(int argc, char *argv[]){
 	bool dump_settables=false;
 	string settablesPrefix;
 	string hostsOverride;
+	string configOverride;
 	map<string,string> oset;
 
 	for(i=1;i<argc;++i){
@@ -368,6 +373,10 @@ int main(int argc, char *argv[]){
 			continue;
 		}else if (strcmp(argv[i],"--configfile")==0 || strcmp(argv[i],"-c")==0){
 			cfgfile=argv[i+1];
+			i++;
+			continue;
+		}else if (strcmp(argv[i],"--configover")==0 || strcmp(argv[i],"-co")==0){
+			configOverride = argv[i+1];
 			i++;
 			continue;
 		}else if (strcmp(argv[i],"--dump-default-config")==0){
@@ -410,6 +419,16 @@ int main(int argc, char *argv[]){
 			fprintf(stderr,"Bad option %s\n",argv[i]);
 		}
 		usage(argv[0]);
+	}
+
+	if (!configOverride.empty()) {
+		ifstream overstr(configOverride.c_str(), ios_base::in);
+		string line;
+		while (getline(overstr, line)) {
+			if (line.empty() || line[0] == '#') continue;
+			size_t sep = line.find(" ");
+			oset.insert(make_pair(line.substr(0, sep), line.substr(sep + 1)));
+		}
 	}
 	
 	if (!dump_default_cfg && !dump_snmp_mib && !dump_settables) {
@@ -469,7 +488,7 @@ int main(int argc, char *argv[]){
 
 	GenericManager::get()->setOverrideMap(oset);
 
-	if (cfg->load(cfgfile)==-1){
+	if (cfg->load(cfgfile)==-1 && configOverride.empty()){
 		fprintf(stderr,"No configuration file found at %s.\nPlease specify a valid configuration file.\n"
 		        "A default flexisip.conf.sample configuration file should be installed in " CONFIG_DIR "\n"
 		        "Please edit it and restart flexisip when ready.\n"
@@ -536,6 +555,9 @@ int main(int argc, char *argv[]){
 		ms_init();
 	}
 #endif
+
+	if (!configOverride.empty()) cfg->applyOverrides(true); // using default + overrides
+
 	a->loadConfig (cfg);
 
 	increase_fd_limit();

@@ -515,18 +515,12 @@ public:
 	}
 	bool mNeedRestart;
 	bool mDirtyConfig;
-private:
-	static void atexit();
-	GenericManager();
-	virtual ~GenericManager(){}
-	bool doIsValidNextConfig(const ConfigValue &cv);
-	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
-	void applyOverrides(GenericStruct *root, bool strict) {
+	void applyOverrides(bool strict) {
 		for (auto it=mOverrides.begin(); it != mOverrides.end(); ++it){
 			const std::string &key((*it).first);
 			const std::string &value((*it).second);
 			if (value.empty()) continue;
-			ConfigValue *val=root->getDeep<ConfigValue>(key.c_str(), strict);
+			ConfigValue *val=mConfigRoot.getDeep<ConfigValue>(key.c_str(), strict);
 			if (val) {
 				std::cout << "Overriding config with " << key << ":" << value << std::endl;
 				val->set(value);
@@ -535,6 +529,12 @@ private:
 			}
 		}
 	}
+private:
+	static void atexit();
+	GenericManager();
+	virtual ~GenericManager(){}
+	bool doIsValidNextConfig(const ConfigValue &cv);
+	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 	RootConfigStruct mConfigRoot;
 	FileConfigReader mReader;
 	std::string mConfigFile;
