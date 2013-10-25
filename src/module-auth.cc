@@ -194,11 +194,22 @@ private:
 	bool mImmediateRetrievePassword;
 	bool mNewAuthOn407;
 	list<string> mUseClientCertificates;
+	list< string > mTrustedClientCertificates;
 
 	void static flexisip_auth_method_digest(auth_mod_t *am,
 				auth_status_t *as, msg_auth_t *au, auth_challenger_t const *ach);
 	void static flexisip_auth_check_digest(auth_mod_t *am,
 		       auth_status_t *as, auth_response_t *ar, auth_challenger_t const *ach);
+	const char *findIncomingSubjectInTrusted(shared_ptr<RequestSipEvent> &ev, const char* fromDomain) {
+		if (mTrustedClientCertificates.empty()) return NULL;
+		list<string> toCheck;
+		for (auto it = mTrustedClientCertificates.cbegin(); it != mTrustedClientCertificates.cend(); ++it) {
+			if (it->find("@") != string::npos) toCheck.push_back(*it);
+			else toCheck.push_back(*it + "@" + string(fromDomain));
+		}	
+		const char *res=ev->findIncomingSubject(toCheck);
+		return res;
+	}
 
 public:
 	StatCounter64 *mCountAsyncRetrieve;
@@ -248,6 +259,7 @@ public:
 			{	StringList	,	"trusted-hosts"	, 	"List of whitespace separated IP which will not be challenged.",	""	},
 			{	StringList	,	"client-certificates-domains"	, 	"List of whitespace separated domain names to check using client certificates."
 			" CN may contain user@domain or alternate name with URI=sip:user@domain",	""	},
+			{	StringList	,	"trusted-client-certificates"	, 	"List of whitespace separated username or username@domain CN which will trusted. If no domain is given it is computed.",	""	},
 			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file, fixed].",		"fixed"	},
 			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. " 
 					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. " 
@@ -309,6 +321,7 @@ public:
 		mImmediateRetrievePassword = mc->get<ConfigBoolean>("immediate-retrieve-password")->read();
 		mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
 		mUseClientCertificates = mc->get<ConfigStringList>("client-certificates-domains")->read();
+		mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
 	}
 
 	auth_mod_t *findAuthModule(const char *name) {
@@ -320,8 +333,47 @@ public:
 		return it->second;
 	}
 
-	bool containsDomain(const list<string> &d, const char *name) {
+	static bool containsDomain(const list<string> &d, const char *name) {
 		return find(d.cbegin(), d.cend(), "*") != d.end() || find(d.cbegin(), d.cend(), name) != d.end();
+	}
+
+	bool isTrustedPeer(shared_ptr<RequestSipEvent> &ev) {
+		sip_t *sip = ev->getSip();
+		if (sip->sip_request->rq_method == sip_method_register) return false;
+
+		// Check for trusted host
+		sip_via_t *via=sip->sip_via;
+		list<string>::const_iterator trustedHostsIt=mTrustedHosts.begin();
+		const char *receivedHost=!empty(via->v_received) ? via->v_received : via->v_host;
+		for (;trustedHostsIt != mTrustedHosts.end(); ++trustedHostsIt) {
+			if (*trustedHostsIt == receivedHost) {
+				LOGD("Allowing message from trusted host %s", receivedHost);
+				return true;
+			}
+		}
+		
+		// Check TLS certificate
+		const char *fromDomain = sip->sip_from->a_url[0].url_host;
+		shared_ptr<tport_t> inTport = ev->getIncomingTport();
+		if (tport_has_tls(inTport.get()) && containsDomain(mUseClientCertificates, fromDomain)) {
+			char searched[60]; searched[0]=0;
+			const url_t *from = sip->sip_from->a_url;
+			snprintf(searched, sizeof(searched), "sip:%s@%s", from->url_user, fromDomain);
+			if (ev->findIncomingSubject(searched)) {
+				SLOGD << "Allowing message from matching TLS certificate";
+			} else if (const char * res = findIncomingSubjectInTrusted(ev, fromDomain)) {
+				SLOGD << "Allowing message from trusted TLS certificate " << res;
+			} else {
+				SLOGE << "Client certificate do not match " << searched;
+				ev->reply( SIP_488_NOT_ACCEPTABLE,
+						   SIPTAG_CONTACT(sip->sip_contact),
+						   SIPTAG_SERVER_STR(getAgent()->getServerString()),
+						   TAG_END());
+			}
+			return true;
+		}
+
+		return false;
 	}
 
 	void onRequest(shared_ptr<RequestSipEvent> &ev) {
@@ -345,38 +397,12 @@ public:
 		}
 
 
-		// Check for trusted host
-		sip_via_t *via=sip->sip_via;
-		list<string>::const_iterator trustedHostsIt=mTrustedHosts.begin();
-		const char *receivedHost=!empty(via->v_received) ? via->v_received : via->v_host;
-		for (;trustedHostsIt != mTrustedHosts.end(); ++trustedHostsIt) {
-			if (*trustedHostsIt == receivedHost) {
-				LOGD("Allowing message from trusted host %s", receivedHost);
-				return;
-			}
-		}
-
-		// Check TLS certificate
-		const char *fromDomain = sip->sip_from->a_url[0].url_host;
-		shared_ptr<tport_t> inTport = ev->getIncomingTport();
-		if (tport_has_tls(inTport.get()) && containsDomain(mUseClientCertificates, fromDomain)) {
-			char searched[60]; searched[0]=0;
-			const url_t *from = sip->sip_from->a_url;
-			snprintf(searched, sizeof(searched), "sip:%s@%s", from->url_user, fromDomain);
-			if (ev->findIncomingSubject(searched)) {
-				SLOGD << "Allowing message from matching TLS certificate";
-			} else {
-				SLOGE << "Client certificate do not match " << searched;
-				ev->reply( SIP_488_NOT_ACCEPTABLE,
-						   SIPTAG_CONTACT(sip->sip_contact),
-						   SIPTAG_SERVER_STR(getAgent()->getServerString()),
-						   TAG_END());
-			}
-			return;
-		}
+		// Check trusted peer
+		if (isTrustedPeer(ev)) return;
 
 
 		// Check for auth module for this domain
+		const char *fromDomain = sip->sip_from->a_url[0].url_host;
 		auth_mod_t *am=findAuthModule(fromDomain);
 		if (am==NULL) {
 			LOGI("Unknown domain [%s]", fromDomain);

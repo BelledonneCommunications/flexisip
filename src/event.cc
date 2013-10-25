@@ -238,6 +238,17 @@ bool RequestSipEvent::findIncomingSubject(const char *searched) {
 	return !!tport_subject_search(searched, strlst);
 }
 
+const char *RequestSipEvent::findIncomingSubject(const list<string> &in) {
+	if (in.empty()) return false;
+	auto strlst = tport_delivered_from_subjects(mIncomingTport.get(), mMsgSip->mOriginalMsg);
+	for (auto it =in.cbegin(); it != in.cend(); ++it) {
+		if (tport_subject_search(it->c_str(), strlst)) return it->c_str();
+	}
+	return NULL;
+}
+
+bool findIncomingSubject(const list<string> &in);
+
 ResponseSipEvent::ResponseSipEvent(shared_ptr<OutgoingAgent> outgoingAgent, const shared_ptr<MsgSip> &msgSip) :
 		SipEvent(msgSip), mPopVia(false) {
 	mOutgoingAgent = outgoingAgent;
