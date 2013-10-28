@@ -190,12 +190,19 @@ void Agent::start(const char *transport_override){
 	su_md5_t ctx;
 	su_md5_init(&ctx);
 
+	/*
+	 * Iterate on all the transports enabled or implicitely configured (case of 'sip:*') in order to guess useful information from an empiric manner:
+	 * mPublicIpV4/mPublicIpV6 is the public IP of the proxy, assuming there's only one.
+	 * mPreferredRouteV4/mPreferredRouteV6 is a private interface of the proxy that can be used for inter flexisip nodes SIP communication.
+	 * mRtpBindIp/mRtpBindIp6 is a local address to bind rtp ports. It is taken from maddr parameter of the public transport of the proxy.
+	 * This algo is really empiric and aims at satisfy most common needs but cannot satisfy all of them.
+	**/
 	LOGD("Agent 's primaries are:");
 	for(tport_t *tport=primaries;tport!=NULL;tport=tport_next(tport)){
 		const tp_name_t *name;
 		char url[512];
 		name=tport_name(tport);
-		snprintf(url,sizeof(url),"sip:%s:%s;transport=%s,maddr=%s",name->tpn_canon,name->tpn_port,name->tpn_proto,name->tpn_host);
+		snprintf(url,sizeof(url),"sip:%s:%s;transport=%s;maddr=%s",name->tpn_canon,name->tpn_port,name->tpn_proto,name->tpn_host);
 		su_md5_strupdate(&ctx,url);
 		LOGD("\t%s",url);
 		bool isIpv6=strchr(name->tpn_host, ':') != NULL;
@@ -207,9 +214,11 @@ void Agent::start(const char *transport_override){
 			// Useful for a scenario where the flexisip is behind a router.
 			if (isIpv6 && mPublicIpV6.empty()) {
 				mPublicIpV6=name->tpn_canon;
+				mRtpBindIp6=name->tpn_host;
 				//LOGD("\tIpv6 public ip is %s", mPublicIpV6.c_str());
 			} else if (!isIpv6 && mPublicIpV4.empty()) {
 				mPublicIpV4=name->tpn_canon;
+				mRtpBindIp=name->tpn_host;
 				//LOGD("\tIpv4 public ip %s", mPublicIpV4.c_str());
 			}
 		}
@@ -227,10 +236,10 @@ void Agent::start(const char *transport_override){
 	if (mPublicIpV4.empty() && mPreferredRouteV4) mPublicIpV4=mPreferredRouteV4->url_host;
 	if (mPublicIpV6.empty() && mPreferredRouteV6) mPublicIpV6=mPreferredRouteV6->url_host;
 	
-	if (mPreferredRouteV4) {
+	if (mRtpBindIp.empty() && mPreferredRouteV4) {
 		mRtpBindIp=mPreferredRouteV4->url_host;
 	}
-	if (mPreferredRouteV6) {
+	if (mRtpBindIp6.empty() && mPreferredRouteV6) {
 		mRtpBindIp6=mPreferredRouteV6->url_host;
 	}
 	
@@ -244,14 +253,14 @@ void Agent::start(const char *transport_override){
 	// compute a network wide unique id
 	mUniqueId = digest;
 	
-	LOGD("Agent public hostname/ip %s (v6: %s)",mPublicIpV4.c_str(), mPublicIpV6.c_str());
-	LOGD("Agent's _default_ RTP bind ip address is %s (v6: %s)",mRtpBindIp.c_str(),mRtpBindIp6.c_str());
+	LOGD("Agent public hostname/ip: v4:%s v6:%s",mPublicIpV4.c_str(), mPublicIpV6.c_str());
+	LOGD("Agent's _default_ RTP bind ip address: v4:%s v6:%s",mRtpBindIp.c_str(),mRtpBindIp6.c_str());
 	
 	char prefUrl4[256]={0};
 	char prefUrl6[256]={0};
 	if (mPreferredRouteV4) url_e(prefUrl4,sizeof(prefUrl4),mPreferredRouteV4);
 	if (mPreferredRouteV6) url_e(prefUrl6,sizeof(prefUrl6),mPreferredRouteV6);
-	LOGD("Agent's preferred IP for internal routing is %s (v6: %s)",prefUrl4,prefUrl6);
+	LOGD("Agent's preferred IP for internal routing: v4: %s v6:%s",prefUrl4,prefUrl6);
 	startLogWriter();
 }
 
