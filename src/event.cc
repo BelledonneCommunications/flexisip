@@ -239,7 +239,7 @@ bool RequestSipEvent::findIncomingSubject(const char *searched) {
 }
 
 const char *RequestSipEvent::findIncomingSubject(const list<string> &in) {
-	if (in.empty()) return false;
+	if (in.empty()) return NULL;
 	auto strlst = tport_delivered_from_subjects(mIncomingTport.get(), mMsgSip->mOriginalMsg);
 	for (auto it =in.cbegin(); it != in.cend(); ++it) {
 		if (tport_subject_search(it->c_str(), strlst)) return it->c_str();
