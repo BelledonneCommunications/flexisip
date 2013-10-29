@@ -290,7 +290,7 @@ void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int g
 	}
 
 	while (c) {
-		if ((c->m_expires && atoi(c->m_expires) == 0)|| (!c->m_expires && globalExpire == 0)) {
+		if ((c->m_expires && atoi(c->m_expires) == 0)|| (!c->m_expires && globalExpire <= 0)) {
 			c = c->m_next;
 			continue;
 		}
