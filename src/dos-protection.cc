@@ -46,8 +46,12 @@ DosProtection::DosProtection() {
 		{ Integer, "ban-duration",
 		"Time (in seconds) while an IP have to not send any packet in order to leave the blacklist.", "60" },
 		{ Integer, "packets-limit", "Number of packets authorized in 1sec before considering them as DOS attack.", "20" },
-		{ Integer, "maximum-connections",
-		"Maximal amount of simultaneous connections to accept from the same IP.", "10" }, config_item_end 
+		{ Integer, "simultaneous-connections-netmask-filter", "Netmask to use to limit the number of maximum simultaneous connections (32 limits the number of connections by same IPs, 0 limits the number of absolute connections). MUST BE BETWEEN 0 AND 32!", "32" }, 
+		{ Integer, "simultaneous-connections-limit",
+		"Maximum number of connections to accept (by IP if above parameter is enabled, else absolute)", "10" }
+		{ Integer, "connections-to-watch-limit",
+		"Number of IPs to remember per list in IPTables (the higher the better but uses more RAM).", "1000" }, 
+		config_item_end 
 	};
 
 	GenericStruct *s = new GenericStruct("dos-protection", "DOS protection parameters.",0);
@@ -113,7 +117,9 @@ void DosProtection::load() {
 	mAuthorizedIPs = dosProtection->get<ConfigStringList>("authorized-ip")->read();
 	mBanDuration = dosProtection->get<ConfigInt>("ban-duration")->read();
 	mPacketsLimit = dosProtection->get<ConfigInt>("packets-limit")->read();
-	mMaximumConnections = dosProtection->get<ConfigInt>("maximum-connections")->read();
+	mNetmaskToUseToFilterSimultaneousConnections = dosProtection->get<ConfigBoolean>("simultaneous-connections-netmask-filter")->read();
+	mMaximumConnections = dosProtection->get<ConfigInt>("simultaneous-connections-limit")->read();
+	mMaximumConnectionsToWatch = dosProtection->get<ConfigInt>("connections-to-watch-limit")->read();
 	
 	mPeriod = 1;
 	mLogLevel = "warning";
@@ -200,7 +206,7 @@ void DosProtection::start() {
 
 	LOGD("Setting dos protection");
 	SLOGD << "Increasing recent module default values";
-	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/%s/parameters/ip_list_tot && echo %i > /sys/module/%s/parameters/ip_list_tot && chmod u-w /sys/module/%s/parameters/ip_list_tot", mRecentDirectoryName, mMaximumConnections, mRecentDirectoryName, mRecentDirectoryName);
+	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/%s/parameters/ip_list_tot && echo %i > /sys/module/%s/parameters/ip_list_tot && chmod u-w /sys/module/%s/parameters/ip_list_tot", mRecentDirectoryName, mMaximumConnectionsToWatch, mRecentDirectoryName, mRecentDirectoryName);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 	snprintf(cmd, sizeof(cmd) - 1, "chmod u+w /sys/module/%s/parameters/ip_pkt_list_tot && echo %i > /sys/module/%s/parameters/ip_pkt_list_tot && chmod u-w /sys/module/%s/parameters/ip_pkt_list_tot", mRecentDirectoryName, mPacketsLimit, mRecentDirectoryName, mRecentDirectoryName);
@@ -240,8 +246,8 @@ void DosProtection::start() {
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	SLOGD << "Limitting the amount of simultaneous connections for the same IP";
-	snprintf(cmd, sizeof(cmd) - 1, "%s -A %s -m connlimit --connlimit-above %i -j DROP", mPath, mFlexisipChain, mMaximumConnections);
+	SLOGD << "Limitting the amount of simultaneous connections";
+	snprintf(cmd, sizeof(cmd) - 1, "%s -A %s -m connlimit --connlimit-above %i --connlimit-mask %i -j DROP", mPath, mFlexisipChain, mMaximumConnections, mNetmaskToUseToFilterSimultaneousConnections);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
