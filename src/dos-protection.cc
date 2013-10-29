@@ -47,7 +47,7 @@ DosProtection::DosProtection() {
 		"Time (in seconds) while an IP have to not send any packet in order to leave the blacklist.", "60" },
 		{ Integer, "packets-limit", "Number of packets authorized in 1sec before considering them as DOS attack.", "20" },
 		{ Integer, "maximum-connections",
-		"Maximal amount of simultaneous connections to accept.", "1000" }, config_item_end 
+		"Maximal amount of simultaneous connections to accept from the same IP.", "10" }, config_item_end 
 	};
 
 	GenericStruct *s = new GenericStruct("dos-protection", "DOS protection parameters.",0);
@@ -240,7 +240,7 @@ void DosProtection::start() {
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
 
-	SLOGD << "Limitting the amount of simultaneous connections";
+	SLOGD << "Limitting the amount of simultaneous connections for the same IP";
 	snprintf(cmd, sizeof(cmd) - 1, "%s -A %s -m connlimit --connlimit-above %i -j DROP", mPath, mFlexisipChain, mMaximumConnections);
 	returnedValue = system(cmd);
 	CHECK_RETURN(returnedValue, cmd)
@@ -271,12 +271,16 @@ void DosProtection::start() {
 	CHECK_RETURN(returnedValue, cmd)
 
 	SLOGD << "Routing all tcp/udp SIP traffic to FLEXISIP chain";
-	tport_t *primaries=tport_primaries(nta_agent_tports(sSofiaAgent));
-	for(tport_t *tport=primaries;tport!=NULL;tport=tport_next(tport)){
+	tport_t *primaries = tport_primaries(nta_agent_tports(sSofiaAgent));
+	for(tport_t *tport = primaries; tport != NULL; tport = tport_next(tport)) {
 		const tp_name_t *name = tport_name(tport);
 		const char *underlying = strcmp(name->tpn_proto, "udp") == 0 ? "udp" : "tcp";
+		bool isIpv6 = strchr(name->tpn_host, ':') != NULL;
+		if (isIpv6) {
+			SLOGD << "Ipv6 not yet supported, can't protect " << underlying << " " <<  name->tpn_canon  << ":" << name->tpn_port;
+			continue;
+		}
 		SLOGD << "Protecting: " << underlying << " " <<  name->tpn_canon  << ":" << name->tpn_port;
-		//bool isIpv6=strchr(name->tpn_host, ':') != NULL;
 		snprintf(cmd, sizeof(cmd) - 1, "%s -A INPUT -p %s -d %s --dport %s -j %s", mPath, underlying, name->tpn_canon, name->tpn_port, mFlexisipChain);
 		returnedValue = system(cmd);
 		CHECK_RETURN(returnedValue, cmd)
