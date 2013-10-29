@@ -117,7 +117,7 @@ void DosProtection::load() {
 	mAuthorizedIPs = dosProtection->get<ConfigStringList>("authorized-ip")->read();
 	mBanDuration = dosProtection->get<ConfigInt>("ban-duration")->read();
 	mPacketsLimit = dosProtection->get<ConfigInt>("packets-limit")->read();
-	mNetmaskToUseToFilterSimultaneousConnections = dosProtection->get<ConfigBoolean>("simultaneous-connections-netmask-filter")->read();
+	mNetmaskToUseToFilterSimultaneousConnections = dosProtection->get<ConfigInt>("simultaneous-connections-netmask-filter")->read();
 	mMaximumConnections = dosProtection->get<ConfigInt>("simultaneous-connections-limit")->read();
 	mMaximumConnectionsToWatch = dosProtection->get<ConfigInt>("connections-to-watch-limit")->read();
 	

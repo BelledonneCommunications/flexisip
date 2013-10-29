@@ -48,7 +48,7 @@ class DosProtection : protected ConfigValueListener {
 		bool mEnabled;
 		int mBanDuration;
 		int mPacketsLimit;
-		bool mNetmaskToUseToFilterSimultaneousConnections;
+		int mNetmaskToUseToFilterSimultaneousConnections;
 		int mMaximumConnections;
 		int mMaximumConnectionsToWatch;
 		std::list<std::string> mAuthorizedIPs;
