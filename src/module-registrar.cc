@@ -470,8 +470,6 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	// Handle modifications
 	if (!mUpdateOnResponse) {
-		const sip_expires_t *expires = sip->sip_expires;
-		const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
 		if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
 			auto listener = make_shared<OnRequestBindListener>(this, ev);
 			mStats.mCountClear->incrStart();
@@ -488,8 +486,10 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			return;
 		}
 	} else {
-		const sip_expires_t *expires = sip->sip_expires;
-		const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
+		// Go stateful to stop retransmissions
+		ev->createIncomingTransaction();
+		ev->reply(SIP_100_TRYING, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+
 		auto context = ResponseContext::createInTransaction(ev, maindelta, getModuleName());
 		// Contact route inserter should masquerade contact using domain
 		SLOGD << "Contacts :" << context->mContacts;
