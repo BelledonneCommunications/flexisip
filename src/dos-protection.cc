@@ -48,7 +48,7 @@ DosProtection::DosProtection() {
 		{ Integer, "packets-limit", "Number of packets authorized in 1sec before considering them as DOS attack.", "20" },
 		{ Integer, "simultaneous-connections-netmask-filter", "Netmask to use to limit the number of maximum simultaneous connections (32 limits the number of connections by same IPs, 0 limits the number of absolute connections). MUST BE BETWEEN 0 AND 32!", "32" }, 
 		{ Integer, "simultaneous-connections-limit",
-		"Maximum number of connections to accept (by IP if above parameter is enabled, else absolute)", "10" }
+		"Maximum number of connections to accept (by IP if above parameter is enabled, else absolute)", "10" },
 		{ Integer, "connections-to-watch-limit",
 		"Number of IPs to remember per list in IPTables (the higher the better but uses more RAM).", "1000" }, 
 		config_item_end 
