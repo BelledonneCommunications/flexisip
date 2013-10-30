@@ -109,6 +109,8 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		ev->reply(SIP_483_TOO_MANY_HOPS, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
+	// Decrease max forward
+	if (sip->sip_max_forwards) --sip->sip_max_forwards->mf_count;
 
 	dest = sip->sip_request->rq_url;
 	// removes top route headers if they matches us
@@ -153,6 +155,13 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	tp_name_t name={0};
 	tport_t *tport=NULL;
 	if (ev->getOutgoingAgent()!=NULL){
+		if (!dest->url_port || dest->url_port[0] == 0) {
+			// tport_by_name only works on ips, probably for SRV
+			const char *thehost = dest->url_host;
+			dest->url_host = "0.0.0.0";
+			dest->url_port = url_port(dest);
+			dest->url_host = thehost;
+		}
 		if (tport_name_by_url(ms->getHome(),&name,(url_string_t*)dest)==0){
 			tport=tport_by_name(nta_agent_tports(getSofiaAgent()),&name);
 			if (!tport){
