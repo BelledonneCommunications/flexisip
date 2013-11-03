@@ -393,7 +393,8 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				shared_ptr<OutgoingTransaction> transaction = ev->createOutgoingTransaction();
 				shared_ptr<string> thisProxyRealm(make_shared<string>(to->url_host));
 				transaction->setProperty("this_proxy_realm", thisProxyRealm);
-				ev->restartProcessing();
+				shared_ptr<RequestSipEvent> new_ev = make_shared<RequestSipEvent>(ev);
+				getAgent()->injectRequestEvent(new_ev);
 				return;
 			}
 		} else {

@@ -225,18 +225,22 @@ ostream &operator<<(ostream &strm, const sip_contact_t *c) {
 struct ResponseContext {
 	const shared_ptr<RequestSipEvent> reqSipEvent;
 	
-	static shared_ptr<ResponseContext> createInTransaction(shared_ptr<RequestSipEvent> ev, const string &tag) {
+	static shared_ptr<ResponseContext> createInTransaction(shared_ptr<RequestSipEvent> ev, int globalDelta, const string &tag) {
 		ev->createIncomingTransaction();
 		auto otr = ev->createOutgoingTransaction();
-		auto context = make_shared<ResponseContext>(ev);
+		auto context = make_shared<ResponseContext>(ev, globalDelta);
 		otr->setProperty(tag, context);
 		return context;
 	}
 
-	ResponseContext(shared_ptr<RequestSipEvent> &ev) : reqSipEvent(ev), mHome(ev->getMsgSip()->getHome()) {
+	ResponseContext(shared_ptr<RequestSipEvent> &ev, int globalDelta) : reqSipEvent(ev), mHome(ev->getMsgSip()->getHome()) {
 		sip_t *sip=ev->getMsgSip()->getSip();
 		mFrom = sip_from_dup(mHome, sip->sip_from);
 		mContacts = sip_contact_dup(mHome, sip->sip_contact);
+		for (sip_contact_t *it = mContacts; it; it = it->m_next) {
+			int cExpire = ExtendedContact::resolve_expire(it->m_expires, globalDelta);
+			it->m_expires = su_sprintf(mHome, "%d", cExpire);
+		}
 		mPath = sip_path_dup(mHome, sip->sip_path);
 	}
 
@@ -466,8 +470,6 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	// Handle modifications
 	if (!mUpdateOnResponse) {
-		const sip_expires_t *expires = sip->sip_expires;
-		const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
 		if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
 			auto listener = make_shared<OnRequestBindListener>(this, ev);
 			mStats.mCountClear->incrStart();
@@ -484,7 +486,11 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			return;
 		}
 	} else {
-		auto context = ResponseContext::createInTransaction(ev, getModuleName());
+		// Go stateful to stop retransmissions
+		ev->createIncomingTransaction();
+		ev->reply(SIP_100_TRYING, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+
+		auto context = ResponseContext::createInTransaction(ev, maindelta, getModuleName());
 		// Contact route inserter should masquerade contact using domain
 		SLOGD << "Contacts :" << context->mContacts;
 		// Store a reference to the ResponseContext to prevent its destruction
