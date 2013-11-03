@@ -30,48 +30,26 @@ class NatHelper : public Module, protected ModuleToolbox{
 		~NatHelper(){
 		}
 		virtual void onRequest(shared_ptr<RequestSipEvent> &ev) {
-			const shared_ptr<MsgSip> &ms = ev->getMsgSip();
+			shared_ptr<MsgSip> ms = ev->getMsgSip();
 			sip_t *sip=ms->getSip();
 			sip_request_t *rq = sip->sip_request;
 			/* if we receive a request whose first via is wrong (received or rport parameters are present),
 			fix any possible Contact headers with the same wrong ip address and ports */
 			fixContactFromVia(ms->getHome(), sip, sip->sip_via);
 
-			if (rq->rq_method==sip_method_invite || rq->rq_method==sip_method_subscribe){
-				//be in the record route for all requests that can estabish a dialog
-				addRecordRouteIncoming (ms->getHome(),getAgent(), ev);
+			//processing of requests that may establish a dialog.
+			if ((sip->sip_to->a_tag==NULL) && (rq->rq_method==sip_method_invite || rq->rq_method==sip_method_subscribe)){
+				//fix potential record-route from a natted proxy added before us
+				if (mFixRecordRoutes)
+					fixRecordRouteInRequest(ms);
+				addRecordRouteIncoming(ms->getHome(),getAgent(), ev);
 			}
-
-			if (rq->rq_method==sip_method_register && sip->sip_path && sip->sip_path->r_url && url_has_param(sip->sip_path->r_url, "uniq")) {
-				// add remote to path 
-				const sip_via_t *via=sip->sip_via;
-				const char *received=via->v_received;
-				const char *rport=via->v_rport;
-				const char *transport=sip_via_transport(via);
-
-				url_t *path=sip->sip_path->r_url;
-				if (empty(received)) received=via->v_host;
-				if (!rport) rport=via->v_port;
-				if (!transport) transport="udp";
-				path->url_host=received;
-				path->url_port=rport;
-				// url_strip_transport is not what we want
-				// note that params will never be null
-				url_strip_param_string((char*) path->url_params, "transport");
-				if (0 != strcasecmp(transport, "UDP"))
-					url_param_add(ms->getHome(), path, transport);
-/*				sip_path_t *path=rport ?
-					sip_path_format(ms->getHome(),"sip:%s:%s;transport=%s;lr", received, rport, transport)
-					: sip_path_format(ms->getHome(),"sip:%s;transport=%s;lr", received, transport);
-
-				if (!prependNewRoutable(ms->getMsg(), sip, sip->sip_path, path)) {
-					SLOGD << "Identical path already existing: " << url_as_string(ms->getHome(), path->r_url);
-				} else {
-					SLOGD << "Path added to: " << url_as_string(ms->getHome(), path->r_url);
-				}
-				*/
-				
+			//fix potential Path header inserted before us by a flexisip natted proxy
+			if (rq->rq_method==sip_method_register && sip->sip_path && sip->sip_path->r_url && url_has_param(sip->sip_path->r_url, "fs-proxy-id")) {
+				//note: why limiting this to flexisip ? it could fix any path header, even without fs-proxy-id param.
+				fixPath(ms);
 			}
+			//Idea for future: for the case where a natted proxy forwards a REGISTER (which can be detected , we could add a Path header corresponding to this proxy
 		}
 		virtual void onResponse(shared_ptr<ResponseSipEvent> &ev){
 			const shared_ptr<MsgSip> &ms = ev->getMsgSip();
@@ -97,13 +75,15 @@ class NatHelper : public Module, protected ModuleToolbox{
 	protected:
 		virtual void onDeclare(GenericStruct * module_config){
 			ConfigItemDescriptor items[]={
-				{	String		,	"contact-verified-param"		,	"Internal URI parameter added to response contact by first proxy and cleaned by last one.",		"verified"	},
+				{String	,"contact-verified-param","Internal URI parameter added to response contact by first proxy and cleaned by last one.",		"verified"	},
+				{Boolean,"fix-record-routes","Fix record-routes, to workaround proxies behind firewalls but not aware of it.","false"},
 				config_item_end
 			};
 			module_config->addChildrenValues(items);
 		}
-		virtual void onLoad(const GenericStruct *root){
-			mContactVerifiedParam=root->get<ConfigString>("contact-verified-param")->read();
+		virtual void onLoad(const GenericStruct *sec){
+			mContactVerifiedParam=sec->get<ConfigString>("contact-verified-param")->read();
+			mFixRecordRoutes=sec->get<ConfigBoolean>("fix-record-routes")->read();
 		}
 	private:
 		string mContactVerifiedParam;
@@ -192,6 +172,44 @@ class NatHelper : public Module, protected ModuleToolbox{
 				}
 			}
 		}
+		void fixPath(shared_ptr<MsgSip> &ms){
+			sip_t *sip=ms->getSip();
+			const sip_via_t *via=sip->sip_via;
+			const char *received=via->v_received;
+			const char *rport=via->v_rport;
+			const char *transport=sip_via_transport(via);
+
+			url_t *path=sip->sip_path->r_url;
+			if (empty(received)) received=via->v_host;
+			if (!rport) rport=via->v_port;
+			if (!transport) transport="udp";
+			path->url_host=received;
+			path->url_port=rport;
+			// url_strip_transport is not what we want
+			// note that params will never be null
+			url_strip_param_string((char*) path->url_params, "transport");
+			if (0 == strcasecmp(transport, "TCP"))
+				url_param_add(ms->getHome(), path, "transport=tcp");
+			else if (0 == strcasecmp(transport, "TLS"))
+				url_param_add(ms->getHome(), path, "transport=tls");
+		}
+		void fixRecordRouteInRequest(shared_ptr<MsgSip> &ms){
+			sip_t *sip=ms->getSip();
+			if (sip->sip_record_route){
+				if (urlViaMatch(sip->sip_record_route->r_url,sip->sip_via,false)){
+					LOGD("Record-route and via are matching.");
+					if (sip->sip_via->v_received){
+						LOGD("This record-route needs to be fixed for host");
+						url_param_add(ms->getHome(),sip->sip_record_route->r_url,su_sprintf(ms->getHome(),"fs-received=%s",sip->sip_via->v_received));
+					}
+					if (sip->sip_via->v_rport){
+						LOGD("This record-route needs to be fixed for port");
+						url_param_add(ms->getHome(),sip->sip_record_route->r_url,su_sprintf(ms->getHome(),"fs-rport=%s",sip->sip_via->v_rport));
+					}
+				}
+			}
+		}
+		bool mFixRecordRoutes;
 		static ModuleInfo<NatHelper> sInfo;
 };
 

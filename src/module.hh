@@ -192,6 +192,10 @@ class ModuleToolbox{
 		static void addRoutingParam(su_home_t *home, sip_contact_t *contacts, const std::string &routingParam, const char *domain);
 		static struct sip_route_s *prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_s * &sipr, struct sip_route_s * &value);
 		static void addPathHeader(const std::shared_ptr<RequestSipEvent> &ev, const tport_t *tport, const char *uniq = NULL);
+		/**
+		* Returns true if via and url represent the same network address.
+		**/
+		static bool urlViaMatch(url_t *url, sip_via_t *via, bool use_received_rport);
 		void removeParamsFromContacts(su_home_t *home, sip_contact_t *c, std::list<std::string> &params);
 		void removeParamsFromUrl(su_home_t *home, url_t *u, std::list<std::string> &params);
 };

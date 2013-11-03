@@ -27,6 +27,7 @@ class RelaySession;
 class PollFd{
 public:
 	PollFd(int init_size);
+	~PollFd();
 	void reset();
 	int addFd(int fd, unsigned int events);
 	unsigned int getREvents(int index)const;

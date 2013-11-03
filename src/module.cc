@@ -377,6 +377,34 @@ bool ModuleToolbox::transportEquals(const char *tr1, const char *tr2) {
 	return strcasecmp(tr1, tr2) == 0;
 }
 
+bool ModuleToolbox::urlViaMatch(url_t *url, sip_via_t *via, bool use_received_rport){
+	const char *via_host=NULL;
+	const char *via_port=NULL;
+	const char *via_transport=sip_via_transport(via);
+	const char *url_host=url->url_host;
+	const char *url_pt=url_port(url); //this function never returns NULL
+	char url_transport[8]="UDP";
+	
+	if (use_received_rport){
+		via_host=via->v_received;
+		via_port=via->v_rport;
+	}
+	if (via_host==NULL){
+		via_host=via->v_host;
+	}
+	if (via_port==NULL){
+		via_port=via->v_port;
+	}
+	if (via_port==NULL){
+		if (strcasecmp(via_transport,"TLS")==0) via_port="5051";
+		else via_port="5060";
+	}
+	url_param(url->url_params,"transport",url_transport,sizeof(url_transport));
+	if (strcmp(url->url_scheme,"sips")==0) strncpy(url_transport,"TLS",sizeof(url_transport));
+	
+	return strcmp(via_host,url_host)==0 && strcmp(via_port,url_pt)==0 && strcasecmp(via_transport,url_transport)==0;
+}
+
 bool ModuleToolbox::isNumeric(const char *host){
 	if (host[0]=='[') return true; //ipv6
 	struct in_addr addr;
@@ -436,7 +464,7 @@ void ModuleToolbox::addPathHeader(const shared_ptr< RequestSipEvent >& ev, const
 		return;
 	}
 	if (uniq) {
-		char *lParam = su_sprintf(home, "uniq=%s",uniq);
+		char *lParam = su_sprintf(home, "fs-proxy-id=%s",uniq);
 		url_param_add(home,url,lParam);
 	}
 	url_param_add(home,url,"lr");

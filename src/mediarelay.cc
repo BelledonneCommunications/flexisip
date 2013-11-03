@@ -36,6 +36,10 @@ PollFd::PollFd(int init_size) : mCurSize(init_size){
 	mCurIndex=0;
 }
 
+PollFd::~PollFd(){
+	free(mPfd);
+}
+
 void PollFd::reset(){
 	mCurIndex=0;
 }
