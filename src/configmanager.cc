@@ -696,6 +696,7 @@ static ConfigItemDescriptor global_conf[]={
 		{	Boolean		,"require-peer-certificate",	"Require client certificate from peer.", "false"},
 		{	Boolean		,"enable-event-logs",	"Enable event logs. Event logs contain per domain and user information about processed registrations, calls and messages.", "false"},
 		{	String		,"event-logs-dir",	"Directory where event logs are written.",	"/var/log/flexisip"},
+		{	Integer		,"transaction-timeout",	"SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.","32000"},
 		config_item_end
 };
 

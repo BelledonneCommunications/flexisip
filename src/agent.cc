@@ -130,9 +130,13 @@ void Agent::start(const char *transport_override){
 	int tports_idle_timeout = 1000 * global->get<ConfigInt>("idle-timeout")->read();
 	bool mainPeerCert = global->get<ConfigBoolean>("require-peer-certificate")->read();
 	string mainTlsCertsDir = global->get<ConfigString>("tls-certificates-dir")->read();
+	int t1x64=global->get<ConfigInt>("transaction-timeout")->read();
 	mainTlsCertsDir = absolutePath(currDir, mainTlsCertsDir);
+
 	SLOGD << "Main tls certs dir : " << mainTlsCertsDir;
 
+	nta_agent_set_params(mAgent,NTATAG_SIP_T1X64(t1x64),TAG_END());
+	
 	if (transport_override){
 		transports=ConfigStringList::parse(transport_override);
 	}
