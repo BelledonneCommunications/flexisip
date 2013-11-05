@@ -40,6 +40,7 @@ public:
 	~ForwardModule();
 private:
 	url_t* overrideDest(shared_ptr<RequestSipEvent> &ev, url_t* dest);
+	url_t* getDestinationFromRoute(su_home_t *home, sip_t *sip);
 	bool isLooping(shared_ptr<RequestSipEvent> &ev, const char * branch);
 	unsigned int countVia(shared_ptr<RequestSipEvent> &ev);
 	su_home_t mHome;
@@ -97,6 +98,29 @@ url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest)
 	return dest;
 }
 
+url_t * ForwardModule::getDestinationFromRoute(su_home_t *home, sip_t *sip){
+	sip_route_t *route=sip->sip_route;
+	
+	if (route){
+		char received[64]={0};
+		char rport[8]={0};
+		url_t *ret=url_hdup(home,sip->sip_route->r_url);
+		
+		url_param(route->r_url->url_params,"fs-received",received,sizeof(received));
+		url_param(route->r_url->url_params,"fs-rport",rport,sizeof(rport));
+		if (received[0]!=0){
+			ret->url_host=su_strdup(home,received);
+			ret->url_params=url_strip_param_string(su_strdup(home,route->r_url->url_params),"fs-received");
+		}
+		if (rport[0]!=0){
+			ret->url_port=su_strdup(home,rport);
+			ret->url_params=url_strip_param_string(su_strdup(home,route->r_url->url_params),"fs-rport");
+		}
+		return ret;
+	}
+	return NULL;
+}
+
 void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	url_t* dest = NULL;
@@ -119,8 +143,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		sip_route_remove(msg, sip);
 	}
 	if (sip->sip_route != NULL) {
-		/*forward to this route*/
-		dest = sip->sip_route->r_url;
+		dest=getDestinationFromRoute(ms->getHome(),sip);
 	}
 
 	/* workaround bad sip uris with two @ that results in host part being "something@somewhere" */
@@ -155,36 +178,25 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	tp_name_t name={0};
 	tport_t *tport=NULL;
 	if (ev->getOutgoingAgent()!=NULL){
-		if (!dest->url_port || dest->url_port[0] == 0) {
-			// tport_by_name only works on ips, probably for SRV
-			const char *thehost = dest->url_host;
-			dest->url_host = "0.0.0.0";
-			dest->url_port = url_port(dest);
-			dest->url_host = thehost;
-		}
+		// tport_by_name can only work for IPs
 		if (tport_name_by_url(ms->getHome(),&name,(url_string_t*)dest)==0){
 			tport=tport_by_name(nta_agent_tports(getSofiaAgent()),&name);
 			if (!tport){
-				LOGE("Could not find tport to set proper outgoing Record-Route.");
-				ev->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
-				return;
+				LOGE("Could not find tport to set proper outgoing Record-Route to %s",dest->url_host);
 			}
 		}else LOGE("tport_name_by_url() failed for url %s",url_as_string(ms->getHome(), dest));
 	}
 
-	if (tport){
-		// Eventually add second record route with different transport
-		// to bridge to networks: for example, we'll end with UDP, TCP.
-		const sip_method_t method=ms->getSip()->sip_request->rq_method;
-		if (ev->mRecordRouteAdded && (method==sip_method_invite || method==sip_method_subscribe)) {
-			addRecordRoute(ms->getHome(),getAgent(),ev,tport);
-		}
+	// Eventually add second record route with different transport
+	// to bridge to networks: for example, we'll end with UDP, TCP.
+	const sip_method_t method=ms->getSip()->sip_request->rq_method;
+	if (ev->mRecordRouteAdded && (method==sip_method_invite || method==sip_method_subscribe)) {
+		addRecordRoute(ms->getHome(),getAgent(),ev,tport);
+	}
 
-		// Add path
-		if (mAddPath && method == sip_method_register) {
-			//addPathHeader(ev, getIncomingTport(ev, getAgent()), getAgent()->getUniqueId());
-			addPathHeader(ev, tport, getAgent()->getUniqueId().c_str());
-		}
+	// Add path
+	if (mAddPath && method == sip_method_register) {
+		addPathHeader(getAgent(),ev, tport, getAgent()->getUniqueId().c_str());
 	}
 
 	// Clean push notifs params from contacts

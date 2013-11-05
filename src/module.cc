@@ -285,14 +285,20 @@ url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
 void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev, const tport_t *tport){
 	msg_t *msg=ev->getMsgSip()->getMsg();
 	sip_t *sip=ev->getMsgSip()->getSip();
+	url_t *url;
+	
+	if (tport){
+		tport=tport_parent(tport); //get primary transport
+		const tp_name_t *name=tport_name(tport); //primary transport name
 
-	tport=tport_parent(tport); //get primary transport
-	const tp_name_t *name=tport_name(tport); //primary transport name
-
-	url_t *url=urlFromTportName(home,name);
-	if (!url){
-		LOGE("ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL");
-		return;
+		url=urlFromTportName(home,name);
+		if (!url){
+			LOGE("ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL");
+			return;
+		}
+	}else{
+		//default to Agent's default address.
+		url=url_hdup(home,ag->getPreferredRouteUrl());
 	}
 
 	url_param_add(home,url,"lr");
@@ -402,7 +408,7 @@ bool ModuleToolbox::urlViaMatch(url_t *url, sip_via_t *via, bool use_received_rp
 	url_param(url->url_params,"transport",url_transport,sizeof(url_transport));
 	if (strcmp(url->url_scheme,"sips")==0) strncpy(url_transport,"TLS",sizeof(url_transport));
 	
-	return strcmp(via_host,url_host)==0 && strcmp(via_port,url_pt)==0 && strcasecmp(via_transport,url_transport)==0;
+	return strcmp(via_host,url_host)==0 && strcmp(via_port,url_pt)==0;
 }
 
 bool ModuleToolbox::isNumeric(const char *host){
@@ -450,18 +456,24 @@ struct sip_route_s *ModuleToolbox::prependNewRoutable(msg_t *msg, sip_t *sip, st
 	return value;
 }
 
-void ModuleToolbox::addPathHeader(const shared_ptr< RequestSipEvent >& ev, const tport_t* tport, const char *uniq) {
+void ModuleToolbox::addPathHeader(Agent *ag, const shared_ptr< RequestSipEvent >& ev, const tport_t* tport, const char *uniq) {
 	su_home_t *home=ev->getMsgSip()->getHome();
 	msg_t *msg=ev->getMsgSip()->getMsg();
 	sip_t *sip=ev->getMsgSip()->getSip();
+	url_t *url;
 	
-	tport=tport_parent(tport); //get primary transport
-	const tp_name_t *name=tport_name(tport); //primary transport name
-	
-	url_t *url = urlFromTportName(home,name);
-	if (!url){
-		LOGE("ModuleToolbox::addPathHeader(): urlFromTportName() returned NULL");
-		return;
+	if (tport){
+		tport=tport_parent(tport); //get primary transport
+		const tp_name_t *name=tport_name(tport); //primary transport name
+		
+		url = urlFromTportName(home,name);
+		if (!url){
+			LOGE("ModuleToolbox::addPathHeader(): urlFromTportName() returned NULL");
+			return;
+		}
+	}else{
+		//default to Agent's default address.
+		url=url_hdup(home,ag->getPreferredRouteUrl());
 	}
 	if (uniq) {
 		char *lParam = su_sprintf(home, "fs-proxy-id=%s",uniq);

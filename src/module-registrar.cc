@@ -466,7 +466,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 
 	// Use path as a contact route in all cases
-	addPathHeader(ev, ev->getIncomingTport().get());
+	addPathHeader(getAgent(),ev, ev->getIncomingTport().get());
 
 	// Handle modifications
 	if (!mUpdateOnResponse) {

@@ -38,11 +38,13 @@ class NatHelper : public Module, protected ModuleToolbox{
 			fixContactFromVia(ms->getHome(), sip, sip->sip_via);
 
 			//processing of requests that may establish a dialog.
-			if ((sip->sip_to->a_tag==NULL) && (rq->rq_method==sip_method_invite || rq->rq_method==sip_method_subscribe)){
-				//fix potential record-route from a natted proxy added before us
-				if (mFixRecordRoutes)
-					fixRecordRouteInRequest(ms);
-				addRecordRouteIncoming(ms->getHome(),getAgent(), ev);
+			if (rq->rq_method==sip_method_invite || rq->rq_method==sip_method_subscribe){
+				if (sip->sip_to->a_tag==NULL){
+					//fix potential record-route from a natted proxy added before us
+					if (mFixRecordRoutes)
+						fixRecordRouteInRequest(ms);
+					addRecordRouteIncoming(ms->getHome(),getAgent(), ev);
+				}
 			}
 			//fix potential Path header inserted before us by a flexisip natted proxy
 			if (rq->rq_method==sip_method_register && sip->sip_path && sip->sip_path->r_url && url_has_param(sip->sip_path->r_url, "fs-proxy-id")) {
@@ -197,6 +199,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 			sip_t *sip=ms->getSip();
 			if (sip->sip_record_route){
 				if (urlViaMatch(sip->sip_record_route->r_url,sip->sip_via,false)){
+					const char *transport=sip_via_transport(sip->sip_via);
 					LOGD("Record-route and via are matching.");
 					if (sip->sip_via->v_received){
 						LOGD("This record-route needs to be fixed for host");
@@ -206,21 +209,12 @@ class NatHelper : public Module, protected ModuleToolbox{
 						LOGD("This record-route needs to be fixed for port");
 						url_param_add(ms->getHome(),sip->sip_record_route->r_url,su_sprintf(ms->getHome(),"fs-rport=%s",sip->sip_via->v_rport));
 					}
-				}
-			}
-		}
-		void processFixedRoute(shared_ptr<MsgSip> &ms){
-			sip_t *sip=ms->getSip();
-			sip_route_t *route=sip->sip_route;
-			char received[64]={0};
-			char rport[8]={0};
-			if (route && (url_param(route->r_url->url_params,"fs-received",received,sizeof(received))
-				|| url_param(route->r_url->url_params,"fs-rport",rport,sizeof(rport)))){
-				if (received[0]!=0){
-					route->r_url->url_host=su_strdup(ms->getHome(),received);
-				}
-				if (rport[0]!=0){
-					route->r_url->url_port=su_strdup(ms->getHome(),rport);
+					if (url_has_param(sip->sip_record_route->r_url,"transport")){
+						sip->sip_record_route->r_url->url_params=url_strip_param_string(su_strdup(ms->getHome(),sip->sip_record_route->r_url->url_params),"transport");
+					}
+					if (strcasecmp(transport,"UDP")!=0){
+						url_param_add(ms->getHome(),sip->sip_record_route->r_url,su_sprintf(ms->getHome(),"transport=%s",transport));
+					}
 				}
 			}
 		}
