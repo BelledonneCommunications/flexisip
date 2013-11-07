@@ -169,15 +169,20 @@ bool RelayedCall::isInactive(time_t cur) {
 	return false;
 }
 
-RelayedCall::~RelayedCall() {
-	LOGD("Destroy RelayedCall %p", this);
+void RelayedCall::terminate(){
 	int i;
 	for (i = 0; i < sMaxSessions; ++i) {
 		shared_ptr<RelaySession> s = mSessions[i];
 		if (s) {
 			s->unuse();
+			mSessions[i]=0;
 		}
 	}
+}
+
+RelayedCall::~RelayedCall() {
+	LOGD("Destroy RelayedCall %p", this);
+	terminate();
 }
 
 

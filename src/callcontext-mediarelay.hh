@@ -54,6 +54,7 @@ public:
 	
 	bool checkMediaValid();
 	bool isInactive(time_t cur);
+	void terminate();
 
 	virtual ~RelayedCall();
 

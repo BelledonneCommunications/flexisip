@@ -51,6 +51,10 @@ public:
 	void update();
 	Agent *getAgent();
 	RtpSession *createRtpSession(const std::string & bindIp);
+	void enableLoopPrevention(bool val);
+	bool loopPreventionEnabled()const{
+		return mPreventLoop;
+	}
 private:
 	void start();
 	void run();
@@ -64,6 +68,7 @@ private:
 	pthread_t mThread;
 	int mCtlPipe[2];
 	bool mRunning;
+	bool mPreventLoop;
 
 	friend class RelayChannel;
 };
@@ -144,7 +149,7 @@ public:
 		SendRecv
 	};
 	
-	RelayChannel(RelaySession* relaySession, const std::pair<std::string,std::string> &relayIps);
+	RelayChannel(RelaySession* relaySession, const std::pair<std::string,std::string> &relayIps, bool preventLoops);
 	~RelayChannel();
 	bool checkSocketsValid();
 	void setRemoteAddr(const std::string &ip, int port, Dir dir);
@@ -185,6 +190,7 @@ private:
 	int mPfdIndex;
 	uint64_t mPacketsSent;
 	uint64_t mPacketsReceived;
+	bool mPreventLoop;
 };
 
 #endif

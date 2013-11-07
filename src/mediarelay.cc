@@ -64,7 +64,7 @@ unsigned int PollFd::getREvents(int index)const{
 }
 
 
-RelayChannel::RelayChannel(RelaySession* relaySession, const std::pair<std::string,std::string> &relayIps) :
+RelayChannel::RelayChannel(RelaySession* relaySession, const std::pair<std::string,std::string> &relayIps, bool preventLoops) :
 		 mDir(SendRecv), mLocalIp(relayIps.first), mRemoteIp(std::string("undefined")), mRemotePort(-1){
 	mPfdIndex=-1;
 	mSession = relaySession->getRelayServer()->createRtpSession(relayIps.second);
@@ -72,6 +72,7 @@ RelayChannel::RelayChannel(RelaySession* relaySession, const std::pair<std::stri
 	mSockets[1] = rtp_session_get_rtcp_socket(mSession);
 	mPacketsReceived=0;
 	mPacketsSent=0;
+	mPreventLoop=preventLoops;
 }
 
 bool RelayChannel::checkSocketsValid() {
@@ -95,12 +96,20 @@ const char *RelayChannel::dirToString(Dir dir){
 void RelayChannel::setRemoteAddr(const string &ip, int port, Dir dir) {
 	LOGD("RelayChannel [%p] is now configured local=[%s:%i]  remote=[%s:%i] dir=[%s]", 
 	     this, getLocalIp().c_str(), getLocalPort(), ip.c_str(), port, dirToString(dir));
+	bool dest_ok=true;
+	
+	if (port>0 && mPreventLoop){
+		if (strcmp(ip.c_str(),getLocalIp().c_str())==0){
+			LOGW("RelayChannel [%p] wants to loop to local machine, not allowed.",this);
+			dest_ok=false;
+		}
+	}
 	
 	mRemotePort = port;
 	mRemoteIp = ip;
 	mDir=dir;
 	
-	if (port!=0){
+	if (dest_ok && port!=0){
 		struct addrinfo *res = NULL;
 		struct addrinfo hints = { 0 };
 		char portstr[20];
@@ -128,7 +137,7 @@ void RelayChannel::setRemoteAddr(const string &ip, int port, Dir dir) {
 			freeaddrinfo(res);
 		}
 	}else{
-		/*case where client declined the stream (0 port in SDP)*/
+		/*case where client declined the stream (0 port in SDP) or destination address is invalid*/
 		mSockAddrSize[0]=0;
 		mSockAddrSize[1]=0;
 	}
@@ -201,7 +210,7 @@ RelaySession::RelaySession(MediaRelayServer *server, const string &frontId, cons
 		mServer(server),mFrontId(frontId) {
 	mLastActivityTime = getCurrentTime();
 	mUsed = true;
-	mFront=make_shared<RelayChannel>(this,relayIps);
+	mFront=make_shared<RelayChannel>(this,relayIps,mServer->loopPreventionEnabled());
 }
 
 shared_ptr<RelayChannel> RelaySession::getChannel(const string &partyId, const string &trId){
@@ -222,7 +231,7 @@ shared_ptr<RelayChannel> RelaySession::getChannel(const string &partyId, const s
 std::shared_ptr<RelayChannel> RelaySession::createBranch(const std::string &trId, const std::pair<std::string,std::string> &relayIps){
 	shared_ptr<RelayChannel> ret;
 	mMutex.lock();
-	ret=make_shared<RelayChannel>(this, relayIps);
+	ret=make_shared<RelayChannel>(this, relayIps,mServer->loopPreventionEnabled());
 	mBacks.insert(make_pair(trId,ret));
 	mMutex.unlock();
 	LOGD("RelaySession [%p]: branch corresponding to transaction [%s] added.",this,trId.c_str());
@@ -363,11 +372,11 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &chan
 MediaRelayServer::MediaRelayServer(Agent *agent) :
 		mAgent(agent) {
 	mRunning = false;
-
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::MediaRelay");
 	mMinPort = ma->get<ConfigInt>("sdp-port-range-min")->read();
 	mMaxPort = ma->get<ConfigInt>("sdp-port-range-max")->read();
+	mPreventLoop=ma->get<ConfigBoolean>("prevent-loops")->read();
 
 	if (pipe(mCtlPipe) == -1) {
 		LOGF("Could not create MediaRelayServer control pipe.");

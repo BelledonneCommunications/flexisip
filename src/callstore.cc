@@ -168,6 +168,7 @@ void CallStore::remove(const shared_ptr<CallContextBase> &ctx){
 	if (it!=mCalls.end()){
 		LOGD("CallStore::remove() removing CallContext %p",ctx.get());
 		if (mCountCallsFinished) ++(*mCountCallsFinished);
+		(*it)->terminate();
 		mCalls.erase(it);
 	}
 }
@@ -178,6 +179,7 @@ void CallStore::removeAndDeleteInactives(){
 		if ((*it)->isInactive (cur)){
 			LOGD("CallStore::removeAndDeleteInactives() removing CallContext %p",(*it).get());
 			if (mCountCallsFinished) ++(*mCountCallsFinished);
+			(*it)->terminate();
 			it=mCalls.erase(it);
 		}else ++it;
 	}

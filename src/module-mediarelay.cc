@@ -53,6 +53,7 @@ protected:
 				{ Boolean, "bye-orphan-dialogs", "Sends a ACK and BYE to 200Ok for INVITEs not belonging to any established call.", "false"},
 				{ Integer, "max-calls", "Maximum concurrent calls processed by the media-relay. Calls arriving when the limit is exceed will be rejected. "
 							"A value of 0 means no limit.", "0" },
+				{ Boolean, "prevent-loops", "Prevent media-relay ports to loop between them, which can cause 100% cpu on the media relay thread.", "false"},
 #ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 				/*very specific features, useless for most people*/
 				{ Integer, "h264-filtering-bandwidth", "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value expressed in kbit/s. Use 0 to disable the feature", "0" },
