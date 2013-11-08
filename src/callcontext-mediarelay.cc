@@ -175,7 +175,7 @@ void RelayedCall::terminate(){
 		shared_ptr<RelaySession> s = mSessions[i];
 		if (s) {
 			s->unuse();
-			mSessions[i]=0;
+			mSessions[i].reset();
 		}
 	}
 }
