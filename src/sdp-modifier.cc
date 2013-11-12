@@ -335,6 +335,7 @@ void SdpModifier::iterate(function<void(int, const string &, int )> fct){
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		string ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
 		int port=mline->m_port;
+		if (hasMediaAttribute(mline, mNortproxy.c_str())) continue;
 
 		fct(i, ip, port);
 	}
