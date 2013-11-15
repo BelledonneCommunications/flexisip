@@ -382,7 +382,10 @@ public:
 
 		// Do it first to make sure no transaction is created which
 		// would send an unappropriate 100 trying response.
-		if (sip->sip_request->rq_method == sip_method_ack || sip->sip_request->rq_method == sip_method_cancel) {
+		if (sip->sip_request->rq_method == sip_method_ack
+			|| sip->sip_request->rq_method == sip_method_cancel
+			|| sip->sip_request->rq_method == sip_method_bye // same as in the sofia auth modules
+		) {
 			/*ack and cancel shall never be challenged according to the RFC.*/
 			return;
 		}
