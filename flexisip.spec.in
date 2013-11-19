@@ -107,6 +107,8 @@ fi
 /etc/init.d/flexisip
 /etc/flexisip
 
+%debug_package
+
 %changelog
 * Wed Feb 15 2015 Guillaume Beraudo <guillaume.beraudo@belledonne-communications.com>
     - Force use of redhat init script
