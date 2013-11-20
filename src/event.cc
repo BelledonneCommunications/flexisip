@@ -187,11 +187,13 @@ void RequestSipEvent::setIncomingAgent(const shared_ptr<IncomingAgent> &agent) {
 	LOGA("Can't change incoming agent in request sip event");
 }
 
+
+
 shared_ptr<IncomingTransaction> RequestSipEvent::createIncomingTransaction() {
 	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent);
 	if (transaction == NULL) {
 		if (!mMsgSip->mOriginal) LOGA("It is too late to create an incoming transaction");
-		transaction = shared_ptr<IncomingTransaction>(new IncomingTransaction(mIncomingAgent->getAgent()));
+		transaction = IncomingTransaction::create(mIncomingAgent->getAgent());
 		mIncomingAgent = transaction;
 
 		transaction->handle(mMsgSip);
@@ -203,7 +205,7 @@ shared_ptr<IncomingTransaction> RequestSipEvent::createIncomingTransaction() {
 shared_ptr<OutgoingTransaction> RequestSipEvent::createOutgoingTransaction() {
 	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent);
 	if (transaction == NULL) {
-		transaction = shared_ptr<OutgoingTransaction>(new OutgoingTransaction(mOutgoingAgent->getAgent()));
+		transaction = OutgoingTransaction::create(mOutgoingAgent->getAgent());
 		mOutgoingAgent = transaction;
 		linkTransactions();
 	}

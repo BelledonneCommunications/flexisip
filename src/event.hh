@@ -46,6 +46,7 @@ class MsgSip {
 	friend class IncomingTransaction;
 	friend class OutgoingTransaction;
 public:
+	MsgSip(msg_t *msg);
 	MsgSip(const MsgSip &msgSip);
 	MsgSip(const MsgSip &msgSip, msg_t *msg);
 	~MsgSip();
@@ -68,9 +69,8 @@ public:
 	inline std::shared_ptr<SipAttributes> getSipAttr() { return mSipAttr; }
 	const char *print();
 private:
-	MsgSip(msg_t *msg);
 	static inline std::shared_ptr<MsgSip> createFromOriginalMsg(msg_t *msg) {
-		return std::shared_ptr<MsgSip>(new MsgSip(msg));
+		return std::make_shared<MsgSip>(msg);
 	}
 	void defineMsg(msg_t *msg);
 	mutable su_home_t *mHome;

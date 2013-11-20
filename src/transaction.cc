@@ -43,6 +43,10 @@ OutgoingTransaction::OutgoingTransaction(Agent *agent) :
 	LOGD("New OutgoingTransaction %p", this);
 }
 
+shared_ptr<OutgoingTransaction> OutgoingTransaction::create(Agent *agent){
+	return make_shared<OutgoingTransaction>(agent);
+}
+
 OutgoingTransaction::~OutgoingTransaction() {
 	LOGD("Delete OutgoingTransaction %p", this);
 }
@@ -112,8 +116,8 @@ int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *
 	if (sip != NULL) {
 		msg_t *msg = nta_outgoing_getresponse(otr->mOutgoing);
 		auto oagent=dynamic_pointer_cast<OutgoingAgent>(otr->shared_from_this());
-		auto msgsip=shared_ptr<MsgSip>(new MsgSip(msg));
-		shared_ptr<ResponseSipEvent> sipevent(new ResponseSipEvent(oagent, msgsip));
+		auto msgsip=make_shared<MsgSip>(msg);
+		shared_ptr<ResponseSipEvent> sipevent=make_shared<ResponseSipEvent>(oagent, msgsip);
 		msg_destroy(msg);
 
 		otr->mAgent->sendResponseEvent(sipevent);
@@ -142,6 +146,10 @@ IncomingTransaction::IncomingTransaction(Agent *agent) :
 	LOGD("New IncomingTransaction %p", this);
 }
 
+shared_ptr<IncomingTransaction> IncomingTransaction::create(Agent *agent){
+	return make_shared<IncomingTransaction>(agent);
+}
+
 void IncomingTransaction::handle(const shared_ptr<MsgSip> &ms) {
 	msg_t* msg = ms->mOriginalMsg;
 	msg_ref_create(msg);
@@ -162,7 +170,7 @@ IncomingTransaction::~IncomingTransaction() {
 
 shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const *phrase) {
 	msg_t *msg = nta_incoming_create_response(mIncoming, status, phrase);
-	shared_ptr<MsgSip> ms(shared_ptr<MsgSip>(new MsgSip(msg)));
+	shared_ptr<MsgSip> ms=make_shared<MsgSip>(msg);
 	msg_destroy(msg);
 	return ms;
 }

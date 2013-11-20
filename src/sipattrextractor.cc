@@ -45,7 +45,7 @@ static string subKey(const string &key, size_t *pos) {
 }
 
 inline static string cstring_get(const string &key, size_t pos, const char *str) {
-	if (!str) throw new invalid_argument("Null string found in sip msg for " + key);
+	if (!str) throw invalid_argument("Null string found in sip msg for " + key);
 	return str;
 }
 inline static string cstring_or_empty_get(const string &key, size_t pos, const char *str) {
@@ -66,14 +66,14 @@ static string url_get(const string &key, size_t pos, const url_t *url) {
 	if (id == "domain") return cstring_get(key, pos, url->url_host);
 	if (id == "user") return cstring_get(key, pos, url->url_user);
 	if (id == "params") return cstring_or_empty_get(key, pos, url->url_params);
-	throw new runtime_error("url_get: unhandled arg '" + id + "' in " + key);
+	throw runtime_error("url_get: unhandled arg '" + id + "' in " + key);
 }
 
 static string addr_get(const string &key, size_t pos, const sip_addr_s *addr) {
 	string id=subKey(key, &pos);
 	if (!addr) throw new invalid_argument("No address found in sip msg for " + key);
 	if (id == "uri") return url_get(key, pos, addr->a_url);
-	throw new runtime_error("addr_get: unhandled arg '" + id + "' in " + key);
+	throw runtime_error("addr_get: unhandled arg '" + id + "' in " + key);
 }
 
 static string request_get(const string &key, size_t pos, const sip_request_t *req) {
@@ -81,7 +81,7 @@ static string request_get(const string &key, size_t pos, const sip_request_t *re
 	if (!req) throw new invalid_argument("No request found in sip msg for " + key);
 	if (id == "uri") return url_get(key, pos, req->rq_url);
 	if (id == "mn" || id == "method-name") return cstring_get(key, pos, req->rq_method_name);
-	throw new runtime_error("request_get: unhandled arg '" + id + "' in " + key);
+	throw runtime_error("request_get: unhandled arg '" + id + "' in " + key);
 }
 
 static string ua_get(const string &key, size_t pos, const sip_user_agent_t *ua)  {
@@ -94,14 +94,14 @@ static string status_get(const string &key, size_t pos, const sip_status_s *stat
 	if (!status) throw new invalid_argument("No status found in sip msg for " + key);
 	if (id == "phrase") return cstring_get(key, pos, status->st_phrase);
 	if (id == "code") return int_get(key, pos, status->st_status);
-	throw new runtime_error("status_get: unhandled arg '" + id + "' in " + key);
+	throw runtime_error("status_get: unhandled arg '" + id + "' in " + key);
 }
 
 static string callid_get(const string &key, size_t pos, const sip_call_id_s *callid) {
 	string id=subKey(key, &pos);
 	if (id.empty()) return cstring_get(key, pos, callid->i_id);
 	if (id == "hash") return int_get(key, pos, callid->i_hash);
-	throw new runtime_error("callid_get: unhandled arg '" + id + "' in " + key);
+	throw runtime_error("callid_get: unhandled arg '" + id + "' in " + key);
 }
 
 static bool is_request(sip_t *sip) {
@@ -121,7 +121,7 @@ std::string SipAttributes::get(const std::string &key) const {
 		if (id == "ua" || id == "user-agent") return ua_get(key, pos, sip->sip_user_agent);
 		if (id == "callid" ) return callid_get(key, pos, sip->sip_call_id);
 		
-		throw new runtime_error("unhandled arg '" + id + "' in '" + key+ "'");
+		throw runtime_error("unhandled arg '" + id + "' in '" + key+ "'");
 	}
 	
 bool SipAttributes::isTrue(const string &key) const {
@@ -130,5 +130,5 @@ bool SipAttributes::isTrue(const string &key) const {
 		} else if (key == "is_response") {
 			return !is_request(sip);
 		}
-		throw new runtime_error("unhandled true/false " + key);
+		throw runtime_error("unhandled true/false " + key);
 };

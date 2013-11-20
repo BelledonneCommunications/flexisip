@@ -136,6 +136,8 @@ struct TransactionEvent {
 
 class OutgoingTransaction: public Transaction, public OutgoingAgent, public std::enable_shared_from_this<OutgoingTransaction> {
 public:
+	//the use of make_shared() requires the constructor to be public, but don't use it. Use RequestSipEvent::createOutgoingTransaction().
+	OutgoingTransaction(Agent *agent);
 	void cancel();
 	const url_t *getRequestUri()const;
 	const std::string &getBranchId()const;
@@ -148,20 +150,19 @@ public:
 	std::shared_ptr<IncomingTransaction> mIncoming;
 private:
 	friend class RequestSipEvent;
-	OutgoingTransaction(Agent *agent);
+	static std::shared_ptr<OutgoingTransaction> create(Agent *agent);
 	std::shared_ptr<OutgoingTransaction> mSofiaRef;
 	nta_outgoing_t *mOutgoing;
 	std::string mBranchId;
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	void destroy();
-
-private:
 	static int _callback(nta_outgoing_magic_t *magic, nta_outgoing_t *irq, const sip_t *sip);
 };
 
 class IncomingTransaction: public Transaction, public IncomingAgent, public std::enable_shared_from_this<IncomingTransaction> {
 public:
-
+	//the use of make_shared() requires the constructor to be public, but don't use it. Use RequestSipEvent::createIncomingTransaction().
+	IncomingTransaction(Agent *agent);
 	void handle(const std::shared_ptr<MsgSip> &ms);
 	std::shared_ptr<MsgSip> createResponse(int status, char const *phrase);
 	~IncomingTransaction();
@@ -172,7 +173,8 @@ public:
 	std::shared_ptr<OutgoingTransaction> mOutgoing;
 private:
 	friend class RequestSipEvent;
-	IncomingTransaction(Agent *agent);
+	static std::shared_ptr<IncomingTransaction> create(Agent *agent);
+	
 	std::shared_ptr<IncomingTransaction> mSofiaRef;
 	nta_incoming_t *mIncoming;
 
@@ -180,8 +182,6 @@ private:
 	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 
 	void destroy();
-
-private:
 	static int _callback(nta_incoming_magic_t *magic, nta_incoming_t *irq, const sip_t *sip);
 };
 
