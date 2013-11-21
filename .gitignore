@@ -51,3 +51,8 @@ debian/changelog
 src/binder
 src/serializer
 src/ctdumper
+src/pusher
+*.orig
+*.kdev4
+*.settings
+compile
