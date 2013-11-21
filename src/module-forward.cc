@@ -206,13 +206,15 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 	removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, sPushNotifParams);
 	
-	
-	shared_ptr<OutgoingTransaction> outTr=dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-	if (outTr==NULL && dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent())!=NULL){
-		//if an incoming transaction has been created, then create automatically an outgoing transaction to forward the message.
-		//This is required because otherwise, any response to the message will not be routed back through the incoming transaction,
-		//leaving it unanswered, then stuck forever.
-		outTr=ev->createOutgoingTransaction();
+	shared_ptr<OutgoingTransaction> outTr;
+	if (ev->getOutgoingAgent()!=NULL){//== if message is to be forwarded
+		outTr=dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+		if (outTr==NULL && dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent())!=NULL){
+			//if an incoming transaction has been created, then create automatically an outgoing transaction to forward the message.
+			//This is required because otherwise, any response to the message will not be routed back through the incoming transaction,
+			//leaving it unanswered, then stuck forever.
+			outTr=ev->createOutgoingTransaction();
+		}
 	}
 
 	// Compute branch, output branch=XXXXX

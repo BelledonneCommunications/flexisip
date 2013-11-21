@@ -88,7 +88,9 @@ std::pair<string,int> RelayedCall::getChannelSources(int mline, const std::strin
 	shared_ptr<RelaySession> s = mSessions[mline];
 	if (s != NULL) {
 		shared_ptr<RelayChannel> chan=s->getChannel(partyTag,trId);
-		return make_pair(chan->getLocalIp(),chan->getLocalPort());
+		if (chan==NULL) {
+			LOGW("RelayedCall::getChannelSources(): no channel");
+		}else return make_pair(chan->getLocalIp(),chan->getLocalPort());
 	}
 	return make_pair("",0);
 }
@@ -101,7 +103,7 @@ std::pair<string,int> RelayedCall::getChannelDestinations(int mline, const std::
 	shared_ptr<RelaySession> s = mSessions[mline];
 	if (s != NULL) {
 		shared_ptr<RelayChannel> chan=s->getChannel(partyTag,trId);
-		return make_pair(chan->getRemoteIp(),chan->getRemotePort());
+		if (chan) return make_pair(chan->getRemoteIp(),chan->getRemotePort());
 	}
 	return make_pair("",0);
 }
@@ -124,6 +126,10 @@ void RelayedCall::setChannelDestinations(SdpModifier *m, int mline, const string
 	shared_ptr<RelaySession> s = mSessions[mline];
 	if (s != NULL) {
 		shared_ptr<RelayChannel> chan=s->getChannel(partyTag,trId);
+		if (chan==NULL) {
+			LOGW("RelayedCall::setChannelDestinations(): no channel");
+			return;
+		}
 		if(chan->getLocalPort()>0) {
 			configureRelayChannel(chan,m->mSip,m->mSession,mline);
 			chan->setRemoteAddr(ip, port,dir);
