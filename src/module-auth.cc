@@ -338,17 +338,19 @@ public:
 	}
 
 	bool isTrustedPeer(shared_ptr<RequestSipEvent> &ev) {
+		const char * res = NULL; // ugly cism ;)
 		sip_t *sip = ev->getSip();
-		if (sip->sip_request->rq_method == sip_method_register) return false;
-
-		// Check for trusted host
-		sip_via_t *via=sip->sip_via;
-		list<string>::const_iterator trustedHostsIt=mTrustedHosts.begin();
-		const char *receivedHost=!empty(via->v_received) ? via->v_received : via->v_host;
-		for (;trustedHostsIt != mTrustedHosts.end(); ++trustedHostsIt) {
-			if (*trustedHostsIt == receivedHost) {
-				LOGD("Allowing message from trusted host %s", receivedHost);
-				return true;
+		const bool notARegister = sip->sip_request->rq_method != sip_method_register;
+		if (notARegister) {
+			// Check for trusted host
+			sip_via_t *via=sip->sip_via;
+			list<string>::const_iterator trustedHostsIt=mTrustedHosts.begin();
+			const char *receivedHost=!empty(via->v_received) ? via->v_received : via->v_host;
+			for (;trustedHostsIt != mTrustedHosts.end(); ++trustedHostsIt) {
+				if (*trustedHostsIt == receivedHost) {
+					LOGD("Allowing message from trusted host %s", receivedHost);
+					return true;
+				}
 			}
 		}
 		
@@ -361,7 +363,7 @@ public:
 			snprintf(searched, sizeof(searched), "sip:%s@%s", from->url_user, fromDomain);
 			if (ev->findIncomingSubject(searched)) {
 				SLOGD << "Allowing message from matching TLS certificate";
-			} else if (const char * res = findIncomingSubjectInTrusted(ev, fromDomain)) {
+			} else if (notARegister && (res = findIncomingSubjectInTrusted(ev, fromDomain))) {
 				SLOGD << "Allowing message from trusted TLS certificate " << res;
 			} else {
 				SLOGE << "Client certificate do not match " << searched;
