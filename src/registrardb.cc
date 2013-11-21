@@ -499,6 +499,7 @@ public:
 	void onRecordFound(Record *r) {
 		if (r != NULL) {
 			auto &extlist =r->getExtendedContacts();
+			list<sip_contact_t *> vectToRecurseOn;
 			for (auto it = extlist.begin(); it != extlist.end(); ++it) {
 				const shared_ptr<ExtendedContact> &ec = *it;
 				// Also add alias for late forking (context in the forks map for this alias key)
@@ -508,13 +509,22 @@ public:
 				if (ec->mAlias && m_step > 0) {
 					sip_contact_t *contact = sip_contact_format(&m_home, "%s", ec->mSipUri.c_str());
 					if (contact) {
-						++m_request;
-						auto recursionListener = make_shared<RecursiveRegistrarDbListener>(m_database, this->shared_from_this(), contact->m_url, m_step - 1);
-						m_database->fetch(contact->m_url, recursionListener, false);
+						vectToRecurseOn.push_back(contact);
 					} else {
 						SLOGW << "Can't create sip_contact of " << ec->mSipUri;
 					}
 				}
+			}
+			m_request += vectToRecurseOn.size();
+			for (auto itrec = vectToRecurseOn.cbegin(); itrec != vectToRecurseOn.cend(); ++itrec) {
+				m_database->fetch(
+					(*itrec)->m_url,
+					make_shared<RecursiveRegistrarDbListener>(
+						m_database,
+						this->shared_from_this(),
+						(*itrec)->m_url,
+						m_step - 1),
+					false);
 			}
 		}
 

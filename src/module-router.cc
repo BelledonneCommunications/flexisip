@@ -512,9 +512,9 @@ public:
 		const char *domain = mEv->getSip()->sip_to->a_url->url_host;
 		if (isNumeric(domain)) SLOGE << "Not handled: to is ip at " << __LINE__;
 
+		pending += mPreroutes.size();
 		for (auto it = mPreroutes.cbegin(); it != mPreroutes.cend(); ++it) {
 			url_t *target = url_format(mEv->getHome(), "sip:%s@%s", it->c_str(), domain);
-			++pending;
 			RegistrarDb::get(mModule->getAgent())->fetch(target, this->shared_from_this(), true);
 		}
 	}
