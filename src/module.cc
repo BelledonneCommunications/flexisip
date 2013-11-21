@@ -166,7 +166,7 @@ void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 		} else {
 			LOGD("Skipping onRequest() on module %s", getModuleName().c_str());
 		}
-	} catch (const exception *e) {
+	} catch (exception &e) {
 		LOGD("Skipping onRequest() on module %s (error)", getModuleName().c_str());
 	}
 }
@@ -181,7 +181,7 @@ void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 		} else {
 			LOGD("Skipping onResponse() on module %s", getModuleName().c_str());
 		}
-	} catch (const exception *e) {
+	} catch (exception &e) {
 		LOGD("Skipping onResponse() on module %s (error)", getModuleName().c_str());
 	}
 }
