@@ -32,8 +32,15 @@ void ForkContext::__timer_callback(su_root_magic_t *magic, su_timer_t *t, su_tim
 }
 
 ForkContext::ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
-		mListener(listener), mAgent(agent), mEvent(make_shared<RequestSipEvent>(event)), mCfg(cfg), mLateTimer(NULL) {
-	mLateTimerExpired=false;
+		mListener(listener),
+		mAgent(agent),
+		mEvent(make_shared<RequestSipEvent>(event)),
+		mIncoming(),
+		mOutgoings(),
+		mDestinationUris(),
+		mCfg(cfg),
+		mLateTimer(NULL),
+		mLateTimerExpired(false) {
 	su_home_init(&mHome);
 }
 
