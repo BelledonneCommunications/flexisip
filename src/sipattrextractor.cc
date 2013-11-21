@@ -62,7 +62,7 @@ inline static string int_get(const string &key, size_t pos, int value) {
 
 static string url_get(const string &key, size_t pos, const url_t *url) {
 	string id=subKey(key, &pos);
-	if (!url) throw new invalid_argument("No url found in sip msg for " + key);
+	if (!url) throw invalid_argument("No url found in sip msg for " + key);
 	if (id == "domain") return cstring_get(key, pos, url->url_host);
 	if (id == "user") return cstring_get(key, pos, url->url_user);
 	if (id == "params") return cstring_or_empty_get(key, pos, url->url_params);
@@ -71,27 +71,27 @@ static string url_get(const string &key, size_t pos, const url_t *url) {
 
 static string addr_get(const string &key, size_t pos, const sip_addr_s *addr) {
 	string id=subKey(key, &pos);
-	if (!addr) throw new invalid_argument("No address found in sip msg for " + key);
+	if (!addr) throw invalid_argument("No address found in sip msg for " + key);
 	if (id == "uri") return url_get(key, pos, addr->a_url);
 	throw runtime_error("addr_get: unhandled arg '" + id + "' in " + key);
 }
 
 static string request_get(const string &key, size_t pos, const sip_request_t *req) {
 	string id=subKey(key, &pos);
-	if (!req) throw new invalid_argument("No request found in sip msg for " + key);
+	if (!req) throw invalid_argument("No request found in sip msg for " + key);
 	if (id == "uri") return url_get(key, pos, req->rq_url);
 	if (id == "mn" || id == "method-name") return cstring_get(key, pos, req->rq_method_name);
 	throw runtime_error("request_get: unhandled arg '" + id + "' in " + key);
 }
 
 static string ua_get(const string &key, size_t pos, const sip_user_agent_t *ua)  {
-	if (!ua) throw new invalid_argument("No user-agent found in sip msg for " + key);
+	if (!ua) throw invalid_argument("No user-agent found in sip msg for " + key);
 	return cstring_get(key, pos, ua->g_string);
 }
 
 static string status_get(const string &key, size_t pos, const sip_status_s *status) {
 	string id=subKey(key, &pos);
-	if (!status) throw new invalid_argument("No status found in sip msg for " + key);
+	if (!status) throw invalid_argument("No status found in sip msg for " + key);
 	if (id == "phrase") return cstring_get(key, pos, status->st_phrase);
 	if (id == "code") return int_get(key, pos, status->st_status);
 	throw runtime_error("status_get: unhandled arg '" + id + "' in " + key);
