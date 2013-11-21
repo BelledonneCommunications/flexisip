@@ -189,8 +189,9 @@ AC_ARG_ENABLE(boostlog,
 if test x$boostlog = xyes ; then
 CHECK_BOOST([AX_BOOST_LOG], [HAVE_BOOST_LOG], [found_boost_log=yes], [AC_MSG_WARN([boost log not found.])])
 if test x$found_boost_log = xyes ; then
-	CHECK_BOOST([AX_BOOST_REGEX], [HAVE_BOOST_LOG], [found_boost_log=yes], [AC_MSG_WARN([boost regex not found.])])
-	CHECK_BOOST([AX_BOOST_THREAD], [HAVE_BOOST_LOG], [found_boost_log=yes], [AC_MSG_WARN([boost thread not found.])])
+	CHECK_BOOST([AX_BOOST_REGEX], [HAVE_BOOST_LOG], [], [AC_MSG_ERROR([boost regex not found.])])
+	CHECK_BOOST([AX_BOOST_THREAD], [HAVE_BOOST_LOG], [], [AC_MSG_ERROR([boost thread not found.])])
+	CHECK_BOOST([AX_BOOST_SYSTEM], [HAVE_BOOST_LOG], [], [AC_MSG_ERROR([boost system not found.])])
 fi
 fi
 AM_CONDITIONAL(BUILD_BOOSTLOG, test x$found_boost_log = xyes)
@@ -209,6 +210,7 @@ if test x$pushnotification = xyes ; then
 	fi
 	CHECK_BOOST([AX_BOOST_SYSTEM], [HAVE_BOOST_SYSTEM], [], [AC_MSG_ERROR([boost system not found.])])
 	CHECK_BOOST([AX_BOOST_ASIO], [HAVE_BOOST_ASIO], [], [AC_MSG_ERROR([boost asio not found.])])
+	PKG_CHECK_MODULES(OPENSSL,[openssl >= 0.9.8])
 fi
 
 AM_CONDITIONAL(BUILD_PUSHNOTIFICATION,test x$pushnotification = xyes)
