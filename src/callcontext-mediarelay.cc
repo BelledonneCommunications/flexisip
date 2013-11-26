@@ -243,7 +243,7 @@ void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms, sip_t *sip,
 	if (mDropTelephoneEvents){
 		//only telephone event coming from tls clients are dropped.
 		if (mline->m_type==sdp_media_audio){
-			if (isTls(sip->sip_contact->m_url)){
+			if (sip->sip_contact==NULL || sip->sip_contact->m_url==NULL || isTls(sip->sip_contact->m_url)){
 				sdp_rtpmap_t *rtpmap;
 				for (rtpmap=mline->m_rtpmaps;rtpmap!=NULL;rtpmap=rtpmap->rm_next){
 					if (strcasecmp(rtpmap->rm_encoding,"telephone-event")==0){

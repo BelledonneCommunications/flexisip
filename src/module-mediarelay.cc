@@ -350,20 +350,18 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		
 		shared_ptr<CallContextBase> c=mCalls->findEstablishedDialog(getAgent(),sip);
 		if (c){
-			if (sip->sip_to->a_tag==NULL || c->getCalleeTag()!=sip->sip_to->a_tag){
-				if (mByeOrphanDialogs){
-					LOGD("Receiving out of transaction and dialog 200Ok for invite, rejecting it.");
-					nta_msg_ackbye(getAgent()->getSofiaAgent(),msg_dup(msg));
-					ev->terminateProcessing();
-				}
-			}else{
-				/*to-tag do match, this looks like a retransmission of 200Ok. We should re-send the last 200Ok instead of letting it pass
-				 * with unconsistent data in SDP.
-				 * It is then better to discard it.
-				 * Retransmission should be needed for UDP only.
-				 */
-				ev->terminateProcessing();
-			}
+			/*to-tag do match, this looks like a retransmission of 200Ok. We should re-send the last 200Ok instead of letting it pass
+			* with unconsistent data in SDP.
+			* It is then better to discard it.
+			* Retransmission should be needed for UDP only.
+			*/
+			ev->terminateProcessing();
+		}else if (mByeOrphanDialogs && mCalls->find(getAgent(),sip,false)!=NULL){
+			/* There a dialog with this call-id, but this 200Ok does not belong to it.
+			 * This is the case if two callers accept a forked call at the same time*/
+			LOGD("Receiving out of transaction and dialog 200Ok for invite, rejecting it.");
+			nta_msg_ackbye(getAgent()->getSofiaAgent(),msg_dup(msg));
+			ev->terminateProcessing();
 		}
 	}
 }

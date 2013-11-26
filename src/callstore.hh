@@ -26,7 +26,7 @@
 class CallContextBase{
 	public:
 		CallContextBase(sip_t *sip);
-		bool match(Agent *ag, sip_t *sip, bool stateful = false, bool match_established=false);
+		bool match(Agent *ag, sip_t *sip, bool match_call_id_only = false, bool match_established=false);
 		void establishDialogWith200Ok(Agent *ag, sip_t *sip);
 		bool isDialogEstablished()const;
 		bool isNewInvite(sip_t *sip);

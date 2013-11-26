@@ -56,7 +56,7 @@ bool CallContextBase::isDialogEstablished() const {
 }
 
 
-bool CallContextBase::match(Agent *ag, sip_t *sip, bool stateful, bool match_established){
+bool CallContextBase::match(Agent *ag, sip_t *sip, bool match_call_id_only, bool match_established){
 	if (sip->sip_call_id==NULL) return false;
 	if (sip->sip_from->a_tag==NULL) return false;
 	
@@ -85,7 +85,7 @@ bool CallContextBase::match(Agent *ag, sip_t *sip, bool stateful, bool match_est
 				return true;
 			}
 		}
-		if(stateful)
+		if(match_call_id_only)
 			return true;
 	}
 	return false;
@@ -133,9 +133,9 @@ void CallStore::store(const shared_ptr<CallContextBase> &ctx){
 	mCalls.push_back(ctx);
 }
 
-shared_ptr<CallContextBase> CallStore::find(Agent *ag, sip_t *sip, bool stateful){
+shared_ptr<CallContextBase> CallStore::find(Agent *ag, sip_t *sip, bool match_call_id_only){
 	for(auto it=mCalls.begin();it!=mCalls.end();++it){
-		if ((*it)->match(ag,sip, stateful))
+		if ((*it)->match(ag,sip, match_call_id_only))
 		    return *it;
 	}
 	return shared_ptr<CallContextBase>();
