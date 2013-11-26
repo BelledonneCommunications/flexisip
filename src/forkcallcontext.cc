@@ -255,20 +255,31 @@ void ForkCallContext::sendResponse(shared_ptr<ResponseSipEvent> ev, bool inject)
 }
 
 void ForkCallContext::checkFinished(){
-	if (mOutgoings.size() == 0 && ((mLateTimerExpired || mLateTimer==NULL) || mIncoming==NULL)) {
-		if (mIncoming != NULL && !isCompleted()) {
-			if (mBestResponse == NULL) {
-				// Create response
-				shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
-				shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
-				ev->setIncomingAgent(mIncoming);
-				sendResponse(ev,false);
-			} else {
-				sendResponse(mBestResponse,true);
-			}
+	if (mOutgoings.size() == 0){
+		if (!isCompleted() && mBestResponse){
+			/* no more outgoing transactions, but one of them replied with an explicit answer (not 503 or 408).
+			 * In this case, forward this response now.
+			**/
+			sendResponse(mBestResponse,true);
+			mBestResponse.reset();
+			setFinished();
+			return;
 		}
-		mBestResponse.reset();
-		setFinished();
+		if ((mLateTimerExpired || mLateTimer==NULL)) {
+			if (mIncoming != NULL && !isCompleted()) {
+				if (mBestResponse == NULL) {
+					// Create response
+					shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
+					shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
+					ev->setIncomingAgent(mIncoming);
+					sendResponse(ev,false);
+				} else {
+					sendResponse(mBestResponse,true);
+				}
+			}
+			mBestResponse.reset();
+			setFinished();
+		}
 	}
 }
 
