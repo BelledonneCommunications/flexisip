@@ -356,7 +356,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			* Retransmission should be needed for UDP only.
 			*/
 			ev->terminateProcessing();
-		}else if (mByeOrphanDialogs && mCalls->find(getAgent(),sip,false)!=NULL){
+		}else if (mByeOrphanDialogs && mCalls->find(getAgent(),sip,true)!=NULL){
 			/* There a dialog with this call-id, but this 200Ok does not belong to it.
 			 * This is the case if two callers accept a forked call at the same time*/
 			LOGD("Receiving out of transaction and dialog 200Ok for invite, rejecting it.");
