@@ -274,9 +274,9 @@ url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
 		}
 	}else if (strcmp(name->tpn_proto,"tls")==0){
 		if (port!=5061){
-			url=url_format(home,"sips:%s:%s;transport=tls",name->tpn_canon,name->tpn_port);
+			url=url_format(home,"sips:%s:%s",name->tpn_canon,name->tpn_port);
 		}else{
-			url=url_format(home,"sips:%s;transport=tls",name->tpn_canon);
+			url=url_format(home,"sips:%s",name->tpn_canon);
 		}
 	}
 	return url;

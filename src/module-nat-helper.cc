@@ -112,18 +112,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 							ctt->m_url->url_port=su_strdup(home,port);
 						}else LOGD("Contact in response is correct.");
 						url_param(ctt->m_url->url_params,"transport",ct_transport,sizeof(ct_transport)-1);
-						if (strcasecmp(via_transport,"UDP")==0){
-							if (ct_transport[0]!='\0'){
-								LOGD("Contact in response has incorrect transport parameter, removing it");
-								ctt->m_url->url_params=url_strip_param_string(su_strdup(home,ctt->m_url->url_params),"transport");
-							}
-						}else if (strcasecmp(via_transport,ct_transport)!=0) {
-							char param[64];
-							snprintf(param,sizeof(param)-1,"transport=%s",via_transport);
-							LOGD("Contact in response has incorrect transport parameter, replacing by %s",via_transport);
-							ctt->m_url->url_params=url_strip_param_string(su_strdup(home,ctt->m_url->url_params),"transport");
-							url_param_add(home,ctt->m_url,param);
-						}
+						fixTransport(home,ctt->m_url,via_transport);
 					}
 				}
 			}
@@ -163,15 +152,22 @@ class NatHelper : public Module, protected ModuleToolbox{
 							ctt->m_url->url_host=received;
 							ctt->m_url->url_port=rport;
 						}
-						if (!transportEquals(via_transport,ct_transport)) {
-							char param[64];
-							snprintf(param,sizeof(param)-1,"transport=%s",via_transport);
-							LOGD("Contact in request has incorrect transport parameter, replacing by %s",via_transport);
-							ctt->m_url->url_params=url_strip_param_string(su_strdup(home,ctt->m_url->url_params),"transport");
-							url_param_add(home,ctt->m_url,param);
-						}
+						fixTransport(home,ctt->m_url,via_transport);
 					}
 				}
+			}
+		}
+		void fixTransport(su_home_t *home, url_t *url, const char *transport){
+			if (url_has_param(url,"transport")){
+				url->url_params=url_strip_param_string(su_strdup(home,url->url_params),"transport");
+			}
+			if (url->url_type != url_sips){
+				const char *url_transport=NULL;
+				if (strcasecmp(transport,"TCP")==0)
+					url_transport="tcp";
+				else if (strcasecmp(transport,"TLS")==0)
+					url_transport="tls";
+				if (url_transport) url_param_add(home,url,su_sprintf(home,"transport=%s",url_transport));
 			}
 		}
 		void fixPath(shared_ptr<MsgSip> &ms){
@@ -187,13 +183,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 			if (!transport) transport="udp";
 			path->url_host=received;
 			path->url_port=rport;
-			// url_strip_transport is not what we want
-			// note that params will never be null
-			url_strip_param_string((char*) path->url_params, "transport");
-			if (0 == strcasecmp(transport, "TCP"))
-				url_param_add(ms->getHome(), path, "transport=tcp");
-			else if (0 == strcasecmp(transport, "TLS"))
-				url_param_add(ms->getHome(), path, "transport=tls");
+			fixTransport(ms->getHome(),path,transport);
 		}
 		void fixRecordRouteInRequest(shared_ptr<MsgSip> &ms){
 			sip_t *sip=ms->getSip();
@@ -209,12 +199,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 						LOGD("This record-route needs to be fixed for port");
 						url_param_add(ms->getHome(),sip->sip_record_route->r_url,su_sprintf(ms->getHome(),"fs-rport=%s",sip->sip_via->v_rport));
 					}
-					if (url_has_param(sip->sip_record_route->r_url,"transport")){
-						sip->sip_record_route->r_url->url_params=url_strip_param_string(su_strdup(ms->getHome(),sip->sip_record_route->r_url->url_params),"transport");
-					}
-					if (strcasecmp(transport,"UDP")!=0){
-						url_param_add(ms->getHome(),sip->sip_record_route->r_url,su_sprintf(ms->getHome(),"transport=%s",transport));
-					}
+					fixTransport(ms->getHome(),sip->sip_record_route->r_url,transport);
 				}
 			}
 		}
