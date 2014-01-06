@@ -424,7 +424,11 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 	if (mFork) {
 		if (sip->sip_request->rq_method == sip_method_invite) {
 			context = make_shared<ForkCallContext>(getAgent(), ev, mForkCfg, this);
-		} else if (sip->sip_request->rq_method == sip_method_message) {
+		} else if ((sip->sip_request->rq_method == sip_method_message)
+			&& !(sip->sip_content_type != NULL
+				&& strcasecmp(sip->sip_content_type->c_type, "application") == 0
+				&& strcasecmp(sip->sip_content_type->c_subtype, "im-iscomposing+xml") == 0)) {
+			// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
 			context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this);
 		} else {
 			context = make_shared<ForkBasicContext>(getAgent(),ev,mOtherForkCfg,this);
