@@ -131,6 +131,8 @@ bool ForkCallContext::isRetryableOrUrgent(int code){
 		case 415:
 		case 420:
 		case 484:
+		case 488:
+		case 606:
 			return true;
 		case 603:
 			if (mCfg->mTreatDeclineAsUrgent)
