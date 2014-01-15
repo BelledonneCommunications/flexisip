@@ -75,10 +75,15 @@ class NatHelper : public Module, protected ModuleToolbox{
 			}
 		}
 	protected:
+		enum RecordRouteFixingPolicy{
+			Safe,
+			Always
+		};
 		virtual void onDeclare(GenericStruct * module_config){
 			ConfigItemDescriptor items[]={
 				{String	,"contact-verified-param","Internal URI parameter added to response contact by first proxy and cleaned by last one.",		"verified"	},
 				{Boolean,"fix-record-routes","Fix record-routes, to workaround proxies behind firewalls but not aware of it.","false"},
+				{String,"fix-record-routes-policy","Policy to recognize nat'd record-route and fix them. There are two modes: 'safe' and 'always'", "safe" },
 				config_item_end
 			};
 			module_config->addChildrenValues(items);
@@ -86,6 +91,14 @@ class NatHelper : public Module, protected ModuleToolbox{
 		virtual void onLoad(const GenericStruct *sec){
 			mContactVerifiedParam=sec->get<ConfigString>("contact-verified-param")->read();
 			mFixRecordRoutes=sec->get<ConfigBoolean>("fix-record-routes")->read();
+			string rr_policy=sec->get<ConfigString>("fix-record-routes-policy")->read();
+			if (rr_policy=="safe"){
+				mRRPolicy=Safe;
+			}else if (rr_policy=="always"){
+				mRRPolicy=Always;
+			}else{
+				LOGF("NatHelper: Unsupported value '%s' for fix-record-routes-policy parameter",rr_policy.c_str());
+			}
 		}
 	private:
 		string mContactVerifiedParam;
@@ -185,25 +198,49 @@ class NatHelper : public Module, protected ModuleToolbox{
 			path->url_port=rport;
 			fixTransport(ms->getHome(),path,transport);
 		}
+		bool isPrivateAddress(const char *host){
+			return strstr(host,"10.")==host 
+				|| strstr(host,"192.168.")==host
+				|| strstr(host,"176.12.")==host;
+		}
 		void fixRecordRouteInRequest(shared_ptr<MsgSip> &ms){
 			sip_t *sip=ms->getSip();
 			if (sip->sip_record_route){
-				if (urlViaMatch(sip->sip_record_route->r_url,sip->sip_via,false)){
-					const char *transport=sip_via_transport(sip->sip_via);
-					LOGD("Record-route and via are matching.");
-					if (sip->sip_via->v_received){
-						LOGD("This record-route needs to be fixed for host");
-						url_param_add(ms->getHome(),sip->sip_record_route->r_url,su_sprintf(ms->getHome(),"fs-received=%s",sip->sip_via->v_received));
+				if (mRRPolicy==Safe){
+					if (urlViaMatch(sip->sip_record_route->r_url,sip->sip_via,false)){
+						const char *transport=sip_via_transport(sip->sip_via);
+						LOGD("Record-route and via are matching.");
+						if (sip->sip_via->v_received){
+							LOGD("This record-route needs to be fixed for host");
+							url_param_add(ms->getHome(),sip->sip_record_route->r_url,su_sprintf(ms->getHome(),"fs-received=%s",sip->sip_via->v_received));
+						}
+						if (sip->sip_via->v_rport){
+							LOGD("This record-route needs to be fixed for port");
+							url_param_add(ms->getHome(),sip->sip_record_route->r_url,su_sprintf(ms->getHome(),"fs-rport=%s",sip->sip_via->v_rport));
+						}
+						fixTransport(ms->getHome(),sip->sip_record_route->r_url,transport);
 					}
-					if (sip->sip_via->v_rport){
-						LOGD("This record-route needs to be fixed for port");
-						url_param_add(ms->getHome(),sip->sip_record_route->r_url,su_sprintf(ms->getHome(),"fs-rport=%s",sip->sip_via->v_rport));
+				}else{
+					const char *host=sip->sip_record_route->r_url->url_host;
+					if (host && isPrivateAddress(host)){
+						const char *transport=sip_via_transport(sip->sip_via);
+						const char *received=sip->sip_via->v_received ? sip->sip_via->v_received : sip->sip_via->v_host;
+						const char *rport=sip->sip_via->v_rport ? sip->sip_via->v_rport : sip->sip_via->v_port;
+						if (strcmp(received,host)!=0){
+							LOGD("This record-route needs to be fixed for host");
+							url_param_add(ms->getHome(),sip->sip_record_route->r_url,su_sprintf(ms->getHome(),"fs-received=%s",received));
+						}
+						if (!sipPortEquals(rport,sip->sip_record_route->r_url->url_port,transport)){
+							LOGD("This record-route needs to be fixed for port");
+							url_param_add(ms->getHome(),sip->sip_record_route->r_url,su_sprintf(ms->getHome(),"fs-rport=%s",rport));
+						}
+						fixTransport(ms->getHome(),sip->sip_record_route->r_url,transport);
 					}
-					fixTransport(ms->getHome(),sip->sip_record_route->r_url,transport);
 				}
 			}
 		}
 		bool mFixRecordRoutes;
+		RecordRouteFixingPolicy mRRPolicy;
 		static ModuleInfo<NatHelper> sInfo;
 };
 

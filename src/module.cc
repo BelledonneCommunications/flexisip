@@ -218,9 +218,13 @@ msg_auth_t *ModuleToolbox::findAuthorizationForRealm(su_home_t *home, msg_auth_t
 	return NULL;
 }
 
-bool ModuleToolbox::sipPortEquals(const char *p1, const char *p2){
+bool ModuleToolbox::sipPortEquals(const char *p1, const char *p2, const char *transport){
 	int n1,n2;
-	n1=n2=5060;
+	if (transport==NULL || strcasecmp(transport,"TLS")==0)
+		n1=n2=5060;
+	else
+		n1=n2=5061;
+	
 	if (p1 && p1[0]!='\0')
 		n1=atoi(p1);
 	if (p2 && p2[0]!='\0')
