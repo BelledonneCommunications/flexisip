@@ -300,14 +300,17 @@ bool ForkCallContext::isCompleted()const{
 }
 
 void ForkCallContext::onShortTimer(){
+	/*first stop the timer, it has to be one shot*/
+	su_timer_destroy(mShortTimer);
+	mShortTimer=NULL;
+	
 	if (mCancelled || mLastResponseCodeSent>=180) return; /*it's ringing somewhere*/
 	if (isRetryableOrUrgent(mBestResponse->getMsgSip()->getSip()->sip_status->st_status)){
 		cancelOthers(static_pointer_cast<OutgoingTransaction>(mBestResponse->getOutgoingAgent()));
 		sendResponse(mBestResponse,true);// send urgent reply immediately
 		mBestResponse.reset();
 	}
-	su_timer_destroy(mShortTimer);
-	mShortTimer=NULL;
+	
 }
 
 void ForkCallContext::sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg){
