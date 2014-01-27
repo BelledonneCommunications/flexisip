@@ -61,7 +61,7 @@ public:
 	virtual const std::vector<char> &getData();
 	virtual bool isValidResponse(const std::string &str);
 	ApplePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &msg_id, const std::string &arg, const std::string &sound, const std::string &callid);
-	~ApplePushNotificationRequest() {};
+	~ApplePushNotificationRequest() {}
 	virtual bool mustReadServerResponse() { return false; }
 
 protected:
@@ -77,7 +77,7 @@ public:
 	virtual const std::vector<char> & getData();
 	virtual bool isValidResponse(const std::string &str);
 	GooglePushNotificationRequest(const std::string &appId, const std::string &deviceToken, const std::string &apiKey, const std::string &arg, const std::string &callid);
-	~GooglePushNotificationRequest() {};
+	~GooglePushNotificationRequest() {}
 	virtual bool mustReadServerResponse() { return true; }
 
 protected:
@@ -92,7 +92,7 @@ public:
 	virtual const std::vector<char> & getData();
 	virtual bool isValidResponse(const std::string &str);
 	WindowsPhonePushNotificationRequest(const std::string &host, const std::string &query, bool is_message, const std::string &message, const std::string &sender_name, const std::string &sender_uri);
-	~WindowsPhonePushNotificationRequest() {};
+	~WindowsPhonePushNotificationRequest() {}
 	virtual bool mustReadServerResponse() { return true; }
 
 protected:
@@ -104,7 +104,7 @@ protected:
 
 class ErrorPushNotificationRequest: public PushNotificationRequest {
 public:
-	virtual const std::vector<char> & getData() { return mBuffer; };
+	virtual const std::vector<char> & getData() { return mBuffer; }
 	virtual bool isValidResponse(const std::string &str);
 	ErrorPushNotificationRequest()
 	: PushNotificationRequest("error", "error"), mBuffer() {}
