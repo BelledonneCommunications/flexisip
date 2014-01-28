@@ -104,7 +104,7 @@ static string callid_get(const string &key, size_t pos, const sip_call_id_s *cal
 	throw runtime_error("callid_get: unhandled arg '" + id + "' in " + key);
 }
 
-static bool is_request(sip_t *sip) {
+static bool is_request(const sip_t *sip) {
 	return sip_is_request((sip_header_t *)sip->sip_request);
 }
 

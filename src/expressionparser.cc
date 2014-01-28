@@ -28,6 +28,14 @@ long BooleanExpression::ptr() {
 	return (long)this;
 }
 
+#ifndef NO_SOFIA
+bool BooleanExpression::eval ( const sip_t* sip ) {
+	SipAttributes attr(sip);
+	return eval(&attr);
+}
+#endif
+
+
 class EmptyBooleanExpression : public BooleanExpression {
 public:
 	EmptyBooleanExpression() {}
@@ -348,7 +356,7 @@ shared_ptr<Variable> buildVariable(const string & expr, size_t *newpos){
 	return make_shared<Variable>(var);
 }
 
-shared_ptr<Constant> buildConstant(const string & expr, size_t *newpos){
+static shared_ptr<Constant> buildConstant(const string & expr, size_t *newpos){
 	LOGPARSE << "buildConstant working on XX" << expr << "XX";
 	while (expr[*newpos]==' ') *newpos+=1;
 
@@ -366,7 +374,7 @@ shared_ptr<Constant> buildConstant(const string & expr, size_t *newpos){
 	}
 }
 
-shared_ptr<VariableOrConstant> buildVariableOrConstant(const string & expr, size_t *newpos){
+static shared_ptr<VariableOrConstant> buildVariableOrConstant(const string & expr, size_t *newpos){
 	LOGPARSE << "buildVariableOrConstant working on XX" << expr << "XX";
 	while (expr[*newpos]==' ') *newpos+=1;
 
@@ -392,7 +400,7 @@ static size_t find_matching_closing_parenthesis(const string &expr, size_t offse
 	return string::npos;
 } 
 
-bool isKeyword(const string &expr, size_t *newpos, const string &keyword) {
+static bool isKeyword(const string &expr, size_t *newpos, const string &keyword) {
 	size_t pos=*newpos;
 	size_t keyLen=keyword.size();
 	size_t availableLen=expr.size()-pos;

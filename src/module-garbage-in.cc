@@ -47,7 +47,7 @@ public:
 
 	void onDeclare(GenericStruct *mc) {
 		mc->get<ConfigBoolean>("enabled")->setDefault("false");
-		mc->get<ConfigString>("filter")->setDefault("false");
+		mc->get<ConfigValue>("filter")->setDefault("false");
 	}
 private:
 	static ModuleInfo<ModuleGarbageIn> sInfo;

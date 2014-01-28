@@ -141,6 +141,7 @@ private:
 		bool mPasswordFound;
 	public:
 		bool mImmediateRetrievePass;
+		bool mNo403;
 		auth_response_t mAr;
 		AuthenticationListener(Agent *, shared_ptr<RequestSipEvent>, bool);
 		virtual ~AuthenticationListener(){};
@@ -166,6 +167,7 @@ private:
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
 	auth_scheme_t* mOdbcAuthScheme;
+	shared_ptr<BooleanExpression> mNo403Expr;
 	static int authPluginInit(auth_mod_t *am,
 				     auth_scheme_t *base,
 				     su_root_t *root,
@@ -279,6 +281,7 @@ public:
 			{	Boolean		,	"immediate-retrieve-password"	,	"Retrieve password immediately so that it is cached when an authenticated request arrives.",	"true"},
 			{	Boolean		,	"hashed-passwords"	,	"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).", "false" },
 			{	Boolean		,	"new-auth-on-407"	,	"When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false" },
+			{	BooleanExpr, 	"no-403",	"Don't reply 403, but 401 or 407 even in case of wrong authentication.",	""},
 			
 			config_item_end
 		};
@@ -322,6 +325,7 @@ public:
 		mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
 		mUseClientCertificates = mc->get<ConfigStringList>("client-certificates-domains")->read();
 		mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
+		mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
 	}
 
 	auth_mod_t *findAuthModule(const char *name) {
@@ -439,6 +443,7 @@ public:
 
 		AuthenticationListener *listener = new AuthenticationListener(getAgent(), ev, dbUseHashedPasswords);
 		listener->mImmediateRetrievePass = mImmediateRetrievePassword;
+		listener->mNo403= mNo403Expr->eval(ev->getSip());
 		as->as_magic=listener;
 
 
@@ -502,6 +507,7 @@ ModuleInfo<Authentication> Authentication::sInfo("Authentication",
 Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, shared_ptr<RequestSipEvent> ev, bool hashedPasswords):
 		mAgent(ag),mEv(ev),mAm(NULL),mAs(NULL),mAch(NULL),mHashedPass(hashedPasswords),mPasswordFound(false){
 	memset(&mAr, '\0', sizeof(mAr)), mAr.ar_size=sizeof(mAr);
+	mNo403=false;
 }
 
 void Authentication::AuthenticationListener::setData(auth_mod_t *am, auth_status_t *as,  auth_challenger_t const *ach){
@@ -577,7 +583,7 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 
 	if (!passwd || strcmp(response, mAr.ar_response)) {
 
-		if (mAm->am_forbidden) {
+		if (mAm->am_forbidden && !mNo403) {
 			mAs->as_status = 403, mAs->as_phrase = "Forbidden";
 			mAs->as_response = NULL;
 			mAs->as_blacklist = mAm->am_blacklist;

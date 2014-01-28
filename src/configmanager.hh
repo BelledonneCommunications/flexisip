@@ -54,6 +54,8 @@
 typedef unsigned long oid;
 #endif
 
+#include "expressionparser.hh"
+
 enum class ConfigState {Check, Changed, Reset, Commited};
 class ConfigValue;
 class ConfigValueListener {
@@ -72,6 +74,7 @@ enum GenericValueType{
 	String,
 	StringList,
 	Struct,
+	BooleanExpr,
 	Notification,
 	RuntimeError
 };
@@ -414,6 +417,12 @@ public:
 private:
 };
 
+class ConfigBooleanExpression : public ConfigValue{
+public:
+	ConfigBooleanExpression(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
+	std::shared_ptr<BooleanExpression> read()const;
+};
+
 template <typename _retType>
 _retType *GenericStruct::get(const char *name)const{
 	GenericEntry *e=find(name);
@@ -423,7 +432,7 @@ _retType *GenericStruct::get(const char *name)const{
 	}
 	_retType *ret=dynamic_cast<_retType *>(e);
 	if (ret==NULL){
-		LOGA("Config entry %s in struct %s does not have the expected type",name,e->getParent()->getName().c_str());
+		LOGA("Config entry '%s' in struct '%s' does not have the expected type",name,e->getParent()->getName().c_str());
 		return NULL;
 	}
 	return ret;

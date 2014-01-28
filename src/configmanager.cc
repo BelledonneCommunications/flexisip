@@ -402,6 +402,7 @@ void GenericStruct::deprecateChild(const char *name){
 void GenericStruct::addChildrenValues(ConfigItemDescriptor *items){
 	addChildrenValues(items,true);
 }
+
 void GenericStruct::addChildrenValues(ConfigItemDescriptor *items, bool hashed){
 	oid cOid=1;
 	for (;items->name!=NULL;items++){
@@ -419,6 +420,9 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor *items, bool hashed){
 			break;
 		case StringList:
 			val=new ConfigStringList(items->name,items->help,items->default_value,cOid);
+			break;
+		case BooleanExpr:
+			val=new ConfigBooleanExpression(items->name,items->help,items->default_value,cOid);
 			break;
 		default:
 			LOGA("Bad ConfigValue type %u for %s!", items->type, items->name);
@@ -620,6 +624,14 @@ list<string> ConfigStringList::parse(const char *input){
 
 list<string>  ConfigStringList::read()const{
 	return parse(get().c_str());
+}
+
+ConfigBooleanExpression::ConfigBooleanExpression(const string &name, const string &help, const string &default_value,oid oid_index)
+:	ConfigValue(name,BooleanExpr,help,default_value,oid_index){
+}
+
+shared_ptr<BooleanExpression> ConfigBooleanExpression::read()const{
+	return BooleanExpression::parse(get());
 }
 
 

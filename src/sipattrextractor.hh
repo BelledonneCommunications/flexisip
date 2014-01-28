@@ -31,9 +31,9 @@ public:
 #ifdef NO_SOFIA
 	SipAttributes(std::string &attributes);
 #else
-	SipAttributes(sip_t *sip) : sip(sip){};
+	SipAttributes(const sip_t *sip) : sip(sip){};
 private:
-	sip_t *sip;
+	const sip_t *sip;
 #endif
 public:
 	~SipAttributes(){};

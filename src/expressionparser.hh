@@ -19,6 +19,10 @@
 #ifndef expressionparser_hh
 #define expressionparser_hh
 
+#ifndef NO_SOFIA
+#include "sofia-sip/sip.h"
+#endif
+
 #include <string>
 #include <memory>
 
@@ -31,6 +35,9 @@ class BooleanExpression{
 protected:
 	BooleanExpression(){};
 public:
+#ifndef NO_SOFIA
+		bool eval(const sip_t *sip);
+#endif
 		virtual bool eval(const SipAttributes *args)=0;
 		virtual ~BooleanExpression(){};
 		static std::shared_ptr<BooleanExpression> parse(const std::string &str);
