@@ -44,7 +44,7 @@ struct RegistrarStats {
 
 class OnRequestBindListener;
 class OnResponseBindListener;
-struct ResponseContext;
+class ResponseContext;
 class ModuleRegistrar: public Module, public ModuleToolbox {
 	friend class OnRequestBindListener;
 	friend class OnResponseBindListener;
@@ -222,9 +222,10 @@ ostream &operator<<(ostream &strm, const sip_contact_t *c) {
 	return strm;
 }
 
-struct ResponseContext {
+class ResponseContext {
+public:
 	const shared_ptr<RequestSipEvent> reqSipEvent;
-	
+
 	static shared_ptr<ResponseContext> createInTransaction(shared_ptr<RequestSipEvent> ev, int globalDelta, const string &tag) {
 		ev->createIncomingTransaction();
 		auto otr = ev->createOutgoingTransaction();
