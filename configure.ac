@@ -63,7 +63,7 @@ fi
 strictness=yes
 case $CXX in
 	*clang++*)
-	CXXFLAGS="$CXXFLAGS -std=c++11 -stdlib=libc++"
+	CXXFLAGS="$CXXFLAGS -std=c++11 -stdlib=libc++ -Qunused-arguments"
 	strictness=no;
 	;;
 	*g++*)
