@@ -1,19 +1,19 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010  Belledonne Communications SARL.
+	Copyright (C) 2010  Belledonne Communications SARL.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 
@@ -59,7 +59,7 @@ class ConfigValue;
 class ConfigValueListener {
 	static bool sDirty;
 public:
-	~ConfigValueListener(){};
+	~ConfigValueListener(){}
 	bool onConfigStateChanged(const ConfigValue &conf, ConfigState state);
 protected:
 	virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state)=0;
@@ -168,7 +168,7 @@ public:
 	/*
 	 * @returns entry oid built from parent & object oid index
 	 */
-	Oid& getOid() {return *mOid;};
+	Oid& getOid() {return *mOid;}
 	std::string getOidAsString() const {
 		return mOid->getValueAsString();
 	}
@@ -177,7 +177,7 @@ public:
 		return mErrorMessage;
 	}
 
-	void setReadOnly(bool ro) {mReadOnly=ro;};
+	void setReadOnly(bool ro) {mReadOnly=ro;}
 	bool getExportToConfigFile() {return mExportToConfigFile;}
 	void setExportToConfigFile(bool val) { mExportToConfigFile=val;}
 #ifdef ENABLE_SNMP
@@ -236,12 +236,12 @@ _retType &GenericEntriesGetter::find(const std::string &key)const{
 	}
 
 	return *ret;
-};
+}
 
 
 class ConfigValue;
 class StatCounter64;
-class StatPair;
+struct StatPair;
 class GenericStruct : public GenericEntry{
 public:
 	GenericStruct(const std::string &name, const std::string &help,oid oid_index);
@@ -249,7 +249,7 @@ public:
 	StatCounter64 *createStat(const std::string &name, const std::string &help);
 	std::pair<StatCounter64 *, StatCounter64 *> createStatPair(const std::string &name, const std::string &help);
 	std::unique_ptr<StatPair> createStats(const std::string &name, const std::string &help);
-	
+
 	void addChildrenValues(ConfigItemDescriptor *items);
 	void addChildrenValues(ConfigItemDescriptor *items, bool hashed);
 	void deprecateChild(const char *name);
@@ -300,7 +300,7 @@ struct StatPair {
 	StatCounter64 * const finish;
 	StatPair(StatCounter64 *start, StatCounter64 *finish)
 	: start(start), finish(finish) {}
-	
+
 	inline void incrStart() { start->incr(); }
 	inline void incrFinish() { finish->incr(); }
 };
@@ -333,9 +333,11 @@ public:
 	virtual int handleSnmpRequest(netsnmp_mib_handler *,
 			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
 #endif
+	inline void doConfigMibFragment(std::ostream &ostr, const std::string &syntax, const std::string &spacing) const { doMibFragment(ostr, "", "", syntax, spacing); }
+
 	virtual void setParent(GenericEntry *parent);
 	virtual void mibFragment(std::ostream & ost, std::string spacing) const;
-	virtual void doMibFragment(std::ostream &ostr, const std::string &syntax, const std::string &spacing) const;
+	virtual void doMibFragment(std::ostream &ostr, const std::string &def, const std::string &access, const std::string &syntax, const std::string &spacing) const;
 protected:
 	bool invokeConfigStateChanged(ConfigState state) {
 		if (getParent() && getParent()->getType() == Struct) {

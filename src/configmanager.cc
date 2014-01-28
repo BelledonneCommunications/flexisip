@@ -1,19 +1,19 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010  Belledonne Communications SARL.
+	Copyright (C) 2010  Belledonne Communications SARL.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 
@@ -109,22 +109,23 @@ void GenericEntry::mibFragment(ostream & ost, string spacing) const{
 
 void ConfigValue::mibFragment(ostream & ost, string spacing) const{
 	string s("OCTET STRING");
-	doMibFragment(ost, s, spacing);
+	doConfigMibFragment(ost, s, spacing);
 }
 
-void ConfigValue::doMibFragment(ostream &ostr, const string &syntax, const string &spacing) const {
-	string access(mNotifPayload?"accessible-for-notify":mReadOnly ? "read-only":"read-write");
-	GenericEntry::doMibFragment(ostr,getDefault(),access,syntax,spacing);
+void ConfigValue::doMibFragment(ostream &ostr, const string &def, const string &access, const string &syntax, const string &spacing) const {
+	string config_access(mNotifPayload?"accessible-for-notify":mReadOnly ? "read-only":"read-write");
+	(void)def;
+	(void)access;
+	GenericEntry::doMibFragment(ostr,getDefault(),config_access,syntax,spacing);
 }
-
 
 void ConfigBoolean::mibFragment(ostream & ost, string spacing) const{
 	string s("INTEGER { true(1),false(0) }");
-	doMibFragment(ost, s, spacing);
+	doConfigMibFragment(ost, s, spacing);
 }
 void ConfigInt::mibFragment(ostream & ost, string spacing) const{
 	string s("Integer32");
-	doMibFragment(ost, s, spacing);
+	doConfigMibFragment(ost, s, spacing);
 }
 void StatCounter64::mibFragment(ostream & ost, string spacing) const{
 	string s("Counter64");
@@ -320,7 +321,7 @@ GenericEntry::	GenericEntry(const string &name, GenericValueType type, const str
 			LOGA("Uppercase characters not allowed in config items, please use lowercase characters only (while checking generic entry name '%s').",name.c_str());
 		}
 	}
-		
+
 	if (oid_index == 0) {
 		mOidLeaf = Oid::oidFromHashedString(name);
 	}
@@ -670,7 +671,7 @@ GenericManager *GenericManager::get(){
 static ConfigItemDescriptor global_conf[]={
 		{	Boolean	,	"debug"	        ,	"Outputs very detailed logs",	"false"	},
 		{	String,		"log-filter"	,	"Boost::log filter expression, "
-				"Available attributes include: %Severity% %Module% %callid% %from.uri.user% %from.uri.domain%." 
+				"Available attributes include: %Severity% %Module% %callid% %from.uri.user% %from.uri.domain%."
 				"Severity levels are: fatal error info warning debug."
 				"see http://boost-log.sourceforge.net/libs/log1/doc/html/log/detailed/utilities.html#log.detailed.utilities.init.filter_formatter", "%Severity% > debug"},
 		{	Boolean	,	"dump-corefiles",	"Generate a corefile when crashing", "true"},
