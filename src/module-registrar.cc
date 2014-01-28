@@ -44,7 +44,7 @@ struct RegistrarStats {
 
 class OnRequestBindListener;
 class OnResponseBindListener;
-class ResponseContext;
+struct ResponseContext;
 class ModuleRegistrar: public Module, public ModuleToolbox {
 	friend class OnRequestBindListener;
 	friend class OnResponseBindListener;

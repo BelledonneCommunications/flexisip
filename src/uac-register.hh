@@ -24,7 +24,7 @@
 #include <sofia-sip/msg.h>
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nua.h>
-struct Agent;
+class Agent;
 
 struct UacRegister {
 	enum State {INITIAL, REGISTERED, ERROR} state;

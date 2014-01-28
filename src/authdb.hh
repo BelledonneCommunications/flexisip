@@ -1,19 +1,19 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010  Belledonne Communications SARL.
+	Copyright (C) 2010  Belledonne Communications SARL.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef _AUTHDB_HH_
@@ -27,8 +27,12 @@
 
 #include <vector>
 #include <stdio.h>
-#include <sql.h>
-#include <sqlext.h>
+
+#if ENABLE_ODBC
+	#include <sql.h>
+	#include <sqlext.h>
+#endif
+
 #include <map>
 #include <set>
 #include <thread>
@@ -56,7 +60,7 @@ class AuthDb {
 	struct CachedPassword {
 		string pass;
 		time_t date;
-		CachedPassword(const string &pass, time_t date):pass(pass),date(date){};
+		CachedPassword(const string &pass, time_t date):pass(pass),date(date){}
 	} typedef CachedPassword;
 	map<string, map<string,CachedPassword*>> mCachedPasswords;
 	std::mutex mCachedPasswordMutex;
@@ -78,14 +82,14 @@ public:
 
 class FileAuthDb : public AuthDb{
 private:
-        string mFileString;
-        time_t mLastSync;
-        
+		string mFileString;
+		time_t mLastSync;
+
 protected:
-        void sync();
-        
+		void sync();
+
 public:
-        FileAuthDb();
+		FileAuthDb();
 	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener);
 };
 

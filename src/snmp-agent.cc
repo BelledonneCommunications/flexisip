@@ -34,6 +34,7 @@ SnmpAgent::~SnmpAgent() {
 SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent,GenericManager& cm, map<string,string> &oset)
 :mConfigmanager(cm),mAgent(agent) {
 	bool disabled=oset.find("nosnmp") != oset.end();
+	(void)mAgent;
 	mKeepRunning=!disabled;
 }
 

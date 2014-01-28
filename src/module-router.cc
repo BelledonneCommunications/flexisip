@@ -36,11 +36,11 @@ struct RouterStats {
 	unique_ptr<StatPair> mCountForks;
 	unique_ptr<StatPair> mCountForkTransactions;
 	StatCounter64 *mCountNonForks;
-	StatCounter64 *mCountLocalActives;	
+	StatCounter64 *mCountLocalActives;
 };
 
 class ModuleRouter: public Module, public ModuleToolbox, public ForkContextListener{
-	friend class LateForkApplier;
+	friend struct LateForkApplier;
 	RouterStats mStats;
 	bool rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *ct_url, const char *route);
 public:
