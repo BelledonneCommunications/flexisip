@@ -2,6 +2,7 @@ GITVERSION_FILE=flexisip_gitversion.h
 GITVERSION_FILE_TMP=flexisip_gitversion.h.tmp
 GITDESCRIBE=`git describe`
 GITREVISION=`git rev-parse HEAD`
+AUTOMAKE_OPTIONS = subdir-objects
 
 ECHO=/bin/echo
 
@@ -60,7 +61,7 @@ thesources= \
 
 if BUILD_SNMP
 thesources+=snmp-agent.cc snmp-agent.h
-INCLUDES=-Imib			
+AM_CPPFLAGS=-Imib			
 endif
 
 flexisip_LDADD=$(SOFIA_LIBS) $(ORTP_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)

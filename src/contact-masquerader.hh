@@ -23,7 +23,7 @@
 #include "event.hh"
 #include "agent.hh"
 #include <string>
-#include <boost/concept_check.hpp>
+
 
 class ContactMasquerader {
 	Agent *mAgent;

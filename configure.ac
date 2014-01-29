@@ -319,6 +319,41 @@ fi
 AC_SUBST(WARNINGCXXFLAGS)
 
 
+
+AC_ARG_ENABLE(presence,
+	AC_HELP_STRING([--enable-presence],
+	    [Build presence server]),
+        [presence="${enableval}"],[presence=no]
+)
+
+
+AC_ARG_WITH( xsde,
+      [  --with-xsde      Set prefix where libxsde can be found (ex:/usr or /usr/local)[default=PREFIX] ],
+      [ xsde_prefix=${withval}],[ xsde_prefix=${prefix} ])
+
+found_xsde=no
+
+if test x$presence = xyes ; then
+    
+	if test "$xsde_prefix" != "NONE" ; then
+	        XSDE_CPPFLAGS="-I${xsde_prefix}/include"
+	        XSDE_LIBS="-L${xsde_prefix}/lib"
+	fi
+	
+	XSDE_LIBS="$XSDE_LIBS -lxsde"
+	CPPFLAGS_save=$CPPFLAGS
+	CPPFLAGS="$CFLAGS $XSDE_CPPFLAGS"
+	
+	AC_CHECK_HEADER(xsde/cxx/pre.hxx, , [AC_MSG_ERROR(Couldn't find XSDe xml data binding dev )])
+	CPPFLAGS=$CPPFLAGS_save
+	AC_SUBST(XSDE_CPPFLAGS)
+	AC_SUBST(XSDE_LIBS)
+fi
+AM_CONDITIONAL([BUILD_PRESENCE], [test "x$found_xsde$presence" = xyesyes])
+
+
+
+
 AC_CONFIG_FILES(
 [
 Makefile
