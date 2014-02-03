@@ -147,6 +147,8 @@ public:
 	}
 	void setEventLog(const std::shared_ptr<EventLog> & log);
 	void flushLog();/*to be used exceptionally when an eventlog needs to be flushed immediately, for example because you need to submit a new one.*/
+	std::shared_ptr<IncomingTransaction> getIncomingTransaction();
+	std::shared_ptr<OutgoingTransaction> getOutgoingTransaction();
 protected:
 	Module *mCurrModule;
 	std::shared_ptr<MsgSip> mMsgSip;

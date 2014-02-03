@@ -103,37 +103,6 @@ public:
 	}
 };
 
-struct TransactionEvent {
-	enum class Type {
-		Create, Destroy
-	};
-
-	static const char *eventTypeStr(Type e) {
-		switch (e) {
-			case Type::Create:
-				return "create";
-			case Type::Destroy:
-				return "destroy";
-			default:
-				return "unkown";
-		}
-	}
-	
-	static inline std::shared_ptr<TransactionEvent> makeCreate(std::shared_ptr<Transaction> tr) {
-		return std::make_shared<TransactionEvent>(tr, Type::Create);
-	}
-	static inline std::shared_ptr<TransactionEvent> makeDestroy(std::shared_ptr<Transaction> tr) {
-		return std::make_shared<TransactionEvent>(tr, Type::Destroy);
-	}
-	TransactionEvent(std::shared_ptr<Transaction> tr, Type kind)
-	: transaction(tr),kind(kind) {}
-
-	inline const char *getKindName() { return eventTypeStr(kind); }
-
-	const std::shared_ptr<Transaction> transaction;
-	const Type kind;
-};
-
 class OutgoingTransaction: public Transaction, public OutgoingAgent, public std::enable_shared_from_this<OutgoingTransaction> {
 public:
 	//the use of make_shared() requires the constructor to be public, but don't use it. Use RequestSipEvent::createOutgoingTransaction().
@@ -141,6 +110,7 @@ public:
 	void cancel();
 	const url_t *getRequestUri()const;
 	const std::string &getBranchId()const;
+	int getResponseCode()const;
 	~OutgoingTransaction();
 
 	inline virtual Agent *getAgent() {

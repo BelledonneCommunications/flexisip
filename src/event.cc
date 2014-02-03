@@ -133,6 +133,14 @@ void SipEvent::restartProcessing() {
 	}
 }
 
+std::shared_ptr<IncomingTransaction> SipEvent::getIncomingTransaction(){
+	return dynamic_pointer_cast<IncomingTransaction>(getIncomingAgent());
+}
+
+std::shared_ptr<OutgoingTransaction> SipEvent::getOutgoingTransaction(){
+	return dynamic_pointer_cast<OutgoingTransaction>(getOutgoingAgent());
+}
+
 RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent,
 				 const shared_ptr<MsgSip> &msgSip,
 				 shared_ptr<tport_t> inTport

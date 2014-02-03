@@ -42,7 +42,6 @@ public:
 	virtual void onUnload();
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
-	virtual void onTransactionEvent(shared_ptr<TransactionEvent> ev);
 	virtual void onIdle();
 protected:
 	virtual void onDeclare(GenericStruct * mc) {
@@ -364,10 +363,6 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			ev->terminateProcessing();
 		}
 	}
-}
-
-void MediaRelay::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
-	
 }
 
 void MediaRelay::onIdle() {

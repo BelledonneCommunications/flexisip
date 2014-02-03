@@ -27,42 +27,34 @@
 
 class ForkCallContext: public ForkContext {
 private:
-	std::shared_ptr<ResponseSipEvent> mBestResponse;
 	su_timer_t *mShortTimer; //optionaly used to send retryable responses
 	su_timer_t *mPushTimer; //used to track push responses
-	int mLastResponseCodeSent;
-	bool mCancelled;
-	std::list<int> mForwardResponses;
 	std::shared_ptr<CallLog> mLog;
+	bool mCancelled;
 public:
 	ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
 	~ForkCallContext();
-	virtual void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
-	virtual void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event);
-	virtual void onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
-	virtual void onNew(const std::shared_ptr<OutgoingTransaction> &transaction);
-	virtual void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &event);
-	virtual void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
-	virtual void checkFinished();
-	virtual bool onNewRegister(const sip_contact_t *ctt);
 	void sendRinging();
 	bool isCompleted()const;
 	void onPushInitiated(const std::string &key);
 	void onPushError(const std::string &key, const std::string &errormsg);
+protected:
+	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event);
+	virtual bool onNewRegister(const url_t *url, const std::string &uid);
+	virtual void cancel();
+	
+	
 private:
-	bool isRetryableOrUrgent(int code);
+	const int *getUrgentCodes();
 	void onShortTimer();
 	void onPushTimer();
-	void cancel();
-	void cancelOthers(const std::shared_ptr<OutgoingTransaction> &transaction = std::shared_ptr<OutgoingTransaction>());
-	void decline(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &ev);
-	void forward(const std::shared_ptr<ResponseSipEvent> &ev, bool force = false);
-	void store(std::shared_ptr<ResponseSipEvent> &ev);
-	void sendResponse(std::shared_ptr<ResponseSipEvent> ev, bool inject);
+	void onLateTimeout();
+	void cancelOthers(const std::shared_ptr<BranchInfo> &br);
 	void logResponse(const std::shared_ptr<ResponseSipEvent> &ev);
 	static void sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	static void sOnPushTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	int mActivePushes;
+	static const int sUrgentCodesWithout603[];
 };
 
 #endif //forkcallcontext_hh

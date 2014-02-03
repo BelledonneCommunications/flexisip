@@ -21,6 +21,7 @@
 
 using namespace ::std;
 
+const int ForkContext::sUrgentCodes[]={401,407,415,420,484,488,606,603,0};
 
 ForkContextConfig::ForkContextConfig() : mDeliveryTimeout(0),mUrgentTimeout(5),
 	mForkLate(false),mForkOneResponse(false), mForkNoGlobalDecline(false),
@@ -28,41 +29,30 @@ ForkContextConfig::ForkContextConfig() : mDeliveryTimeout(0),mUrgentTimeout(5),
 }
 
 void ForkContext::__timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg){
-	(static_cast<ForkContext*>(arg))->onLateTimeout();
+	(static_cast<ForkContext*>(arg))->processLateTimeout();
 }
 
 ForkContext::ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
 		mListener(listener),
 		mAgent(agent),
 		mEvent(make_shared<RequestSipEvent>(event)),
-		mIncoming(),
-		mOutgoings(),
-		mDestinationUris(),
 		mCfg(cfg),
 		mLateTimer(NULL),
 		mLateTimerExpired(false) {
 	su_home_init(&mHome);
-}
-
-void ForkContext::checkFinished(){
-	bool finished=false;
-	if (!mIncoming && mOutgoings.empty()){
-		if (mLateTimer){
-			finished=mLateTimerExpired;
-		}else finished=true;
-	}
-	if (finished)
-		setFinished();
+	init();
 }
 
 void ForkContext::onLateTimeout(){
-	LOGD("ForkContext: late timer expired.");
-	shared_ptr<ForkContext> me(shared_from_this()); //this is to keep the object alive at least the time of the timer callback.
-	//Indeed sofia does not hold a refcount to the ForkContext. During checkFinished() the refcount my drop to zero, but we need to the object
-	//to be kept alive until checkFinished() returns.
-	mLateTimerExpired=true;
-	checkFinished();
 }
+
+void ForkContext::processLateTimeout() {
+	su_timer_destroy(mLateTimer);
+	mLateTimerExpired=true;
+	onLateTimeout();
+	setFinished();
+}
+
 
 struct dest_finder{
 	dest_finder(const url_t *ctt) {
@@ -70,7 +60,8 @@ struct dest_finder{
 		ctthost = ctt->url_host;
 		// don't care about transport
 	}
-	bool operator()(const url_t *dest){
+	bool operator()(const shared_ptr<BranchInfo> &br){
+		const url_t *dest=br->mTransaction->getRequestUri();
 		return 0 == strcmp(url_port(dest), cttport)
 			&& 0 == strcmp(dest->url_host, ctthost);
 	}
@@ -78,11 +69,81 @@ struct dest_finder{
 	const char *cttport;
 };
 
+struct uid_finder{
+	uid_finder(const std::string &uid) : mUid(uid){};
+	bool operator()(const shared_ptr<BranchInfo> &br){
+		return mUid==br->mUid;
+	}
+	const string mUid;
+};
+
+
+std::shared_ptr<BranchInfo> ForkContext::findBranchByUid(const std::string &uid){
+	auto it=find_if(mBranches.begin(),mBranches.end(),uid_finder(uid));
+	if (it!=mBranches.end()) return *it;
+	return shared_ptr<BranchInfo>();
+}
+
+std::shared_ptr<BranchInfo> ForkContext::findBranchByDest(const url_t *dest){
+	auto it=find_if(mBranches.begin(),mBranches.end(),dest_finder(dest));
+	if (it!=mBranches.end()) return *it;
+	return shared_ptr<BranchInfo>();
+}
+
+bool ForkContext::isUrgent(int code, const int urgentCodes[]){
+	int i;
+	for(i=0;urgentCodes[i]!=0;i++){
+		if (code==urgentCodes[i]) return true;
+	}
+	return false;
+}
+
+std::shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[]){
+	shared_ptr<BranchInfo> best;
+	for (auto it=mBranches.begin();it!=mBranches.end();++it){
+		int code=(*it)->getStatus();
+		if (code>=200){
+			if (best==NULL){
+				best=(*it);
+			}else{
+				if ((*it)->getStatus()/100 < best->getStatus()/100 )
+					best=(*it);
+			}
+		}
+	}
+	if (best==NULL) return shared_ptr<BranchInfo>();
+	if (urgentCodes){
+		for (auto it=mBranches.begin();it!=mBranches.end();++it){
+			int code=(*it)->getStatus();
+			if (isUrgent(code,urgentCodes)){
+				best=(*it);
+				break;
+			}
+		}
+	}
+	return best;
+}
+
+bool ForkContext::allBranchesAnswered()const{
+	for (auto it=mBranches.begin();it!=mBranches.end();++it){
+		if ((*it)->getStatus()<200) return false;
+	}
+	return true;
+}
+
+void ForkContext::removeBranch(const shared_ptr<BranchInfo> &br){
+	mBranches.remove(br);
+	br->clear();
+}
+
+const std::list<std::shared_ptr<BranchInfo>> & ForkContext::getBranches(){
+	return mBranches;
+}
 
 //this implementation looks for already pending or failed transactions and then rejects handling of a new one that would already been tried.
-bool ForkContext::onNewRegister(const sip_contact_t* ctt){
-	auto it=find_if(mDestinationUris.begin(),mDestinationUris.end(),dest_finder(ctt->m_url));
-	if (it!=mDestinationUris.end()){
+bool ForkContext::onNewRegister(const url_t* url, const string & uid){
+	shared_ptr<BranchInfo> br=findBranchByDest(url);
+	if (br){
 		LOGD("ForkContext %p: onNewRegister(): destination already handled.",this);
 		return false;
 	}
@@ -90,8 +151,8 @@ bool ForkContext::onNewRegister(const sip_contact_t* ctt){
 }
 
 
-void ForkContext::onNew(const shared_ptr<IncomingTransaction> &transaction) {
-	mIncoming = transaction;
+void ForkContext::init() {
+	mIncoming = mEvent->createIncomingTransaction();
 	if (mCfg->mForkLate && mLateTimer==NULL){
 		/*this timer is for when outgoing transaction all die prematuraly, we still need to wait that late register arrive.*/
 		mLateTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
@@ -99,19 +160,45 @@ void ForkContext::onNew(const shared_ptr<IncomingTransaction> &transaction) {
 	}
 }
 
-void ForkContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) {
-	mIncoming.reset();
-	checkFinished();
+void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const string &uid) {
+	shared_ptr<OutgoingTransaction> ot=ev->createOutgoingTransaction();
+	shared_ptr<BranchInfo> br=createBranchInfo();
+	br->mRequest=ev;
+	br->mTransaction=ot;
+	br->mUid=uid;
+	ot->setProperty("BranchInfo",br);
+	mBranches.push_back(br);
+	onNewBranch(br);
 }
 
-void ForkContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) {
-	mOutgoings.push_back(transaction);
-	mDestinationUris.push_back(url_hdup(&mHome,transaction->getRequestUri()));
+bool ForkContext::processCancel ( const std::shared_ptr< RequestSipEvent >& ev ) {
+	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
+	if (ev->getMsgSip()->getSip()->sip_request->rq_method==sip_method_cancel){
+		shared_ptr<BranchInfo> binfo=transaction->getProperty<BranchInfo>("BranchInfo");
+		binfo->mForkCtx->cancel();
+		return true;
+	}
+	return false;
 }
 
-void ForkContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
-	mOutgoings.remove(transaction);
-	checkFinished();
+
+bool ForkContext::processResponse ( const shared_ptr< ResponseSipEvent >& ev ) {
+	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+	if (transaction != NULL) {
+		shared_ptr<BranchInfo> binfo=transaction->getProperty<BranchInfo>("BranchInfo");
+		if (binfo){
+			auto copyEv=make_shared<ResponseSipEvent>(ev); //make a copy
+			copyEv->suspendProcessing();
+			binfo->mLastResponse=copyEv;
+			binfo->mForkCtx->onResponse(binfo,copyEv);
+			if (copyEv->isSuspended()){
+				//let the event go through but it will not be sent*/
+				ev->setIncomingAgent(NULL);
+			}
+			return true;
+		}
+	}
+	return false;
 }
 
 
@@ -133,7 +220,74 @@ void ForkContext::setFinished(){
 	//force reference to be loosed immediately, to avoid circular dependencies.
 	mEvent.reset();
 	mIncoming.reset();
-	mOutgoings.clear();
+	for_each(mBranches.begin(),mBranches.end(),mem_fn(&BranchInfo::clear));
+	mBranches.clear();
 	mListener->onForkContextFinished(shared_from_this());
+}
+
+void ForkContext::onNewBranch ( const std::shared_ptr<BranchInfo> &br ) {
+}
+
+void ForkContext::cancel(){
+}
+
+std::shared_ptr< BranchInfo > ForkContext::createBranchInfo() {
+	return make_shared<BranchInfo>(shared_from_this());
+}
+
+//called by implementors to request the forwarding of a response from this branch, regardless of whether it was retained previously or not*/
+std::shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const std::shared_ptr<BranchInfo> &br){
+	if (br->mLastResponse){
+		if (mIncoming){
+			int code=br->mLastResponse->getMsgSip()->getSip()->sip_status->st_status;
+			forwardResponse(br->mLastResponse);
+			if (code>=200) {
+				br->mTransaction.reset();
+			}
+			return br->mLastResponse;
+			
+		}else br->mLastResponse->setIncomingAgent(NULL);
+	}else{
+		LOGE("ForkContext::forwardResponse(): no response received on this branch");
+	}
+	return std::shared_ptr<ResponseSipEvent>();
+}
+
+std::shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const std::shared_ptr<ResponseSipEvent> &ev){
+	if (mIncoming){
+		int code=ev->getMsgSip()->getSip()->sip_status->st_status;
+		ev->setIncomingAgent(mIncoming);
+		mLastResponseSent=ev;
+		if (ev->isSuspended()){
+			mAgent->injectResponseEvent(ev);
+		}else{
+			mAgent->sendResponseEvent(ev);
+		}
+		if (code>=200){
+			mIncoming.reset();
+		}
+		return ev;
+	}
+	return std::shared_ptr<ResponseSipEvent>();
+}
+
+int ForkContext::getLastResponseCode()const{
+	if (mLastResponseSent) return mLastResponseSent->getMsgSip()->getSip()->sip_status->st_status;
+	return 0;
+}
+
+void BranchInfo::clear(){
+	if (mTransaction){
+		mTransaction->removeProperty("BranchInfo");
+		mTransaction.reset();
+	}
+	mRequest.reset();
+	mLastResponse.reset();
+	mForkCtx.reset();
+	
+}
+
+BranchInfo::~BranchInfo(){
+	clear();
 }
 

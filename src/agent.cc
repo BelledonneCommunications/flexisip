@@ -746,14 +746,6 @@ void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	doSendEvent(ev, it, mModules.end());
 }
 
-void Agent::sendTransactionEvent(shared_ptr<TransactionEvent> ev) {
-	SLOGD << "Propagating new Transaction Event " << ev->transaction.get()
-			<< " " << ev->getKindName();
-	list<Module*>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		(*it)->processTransactionEvent(ev);
-	}
-}
 
 /**
  * This is a dangerous function when called at the wrong time.

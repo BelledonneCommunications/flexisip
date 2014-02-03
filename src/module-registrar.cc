@@ -133,8 +133,6 @@ public:
 
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 
-	virtual void onTransactionEvent(shared_ptr<TransactionEvent> ev);
-
 	template <typename SipEventT, typename ListenerT>
 	void processUpdateRequest(shared_ptr<SipEventT> &ev, const sip_t *sip);
 
@@ -553,23 +551,14 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		LOGD("Clearing bindings");
 		listener->addStatCounter(mStats.mCountClear->finish);
 		RegistrarDb::get(mAgent)->clear(reSip, listener);
-		return;
 	} else {
 		mStats.mCountBind->incrStart();
 		LOGD("Updating binding");
 		listener->addStatCounter(mStats.mCountBind->finish);
 		RegistrarDb::get(mAgent)->bind(reSip, maindelta, false, listener);
-		return;
 	}
-}
-
-void ModuleRegistrar::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
-	auto context=ev->transaction->getProperty<ResponseContext>(getModuleName());
 	mRespContexes.remove(context);
 }
-
-
-
 
 
 

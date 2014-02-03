@@ -131,8 +131,6 @@ public:
 
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 
-	virtual void onTransactionEvent(shared_ptr<TransactionEvent> ev);
-
 	virtual void onForkContextFinished(shared_ptr<ForkContext> ctx);
 
 private:
@@ -279,15 +277,7 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const sip_c
 	if (context) {
 		shared_ptr<RequestSipEvent> req_ev = make_shared<RequestSipEvent>(ev);
 		req_ev->setMsgSip(new_msgsip);
-		shared_ptr<OutgoingTransaction> transaction = req_ev->createOutgoingTransaction();
-		transaction->setProperty(ModuleRouter::sInfo.getModuleName(), context);
-		auto uniqueId=make_shared<string>(uid);
-		if (!uniqueId || uniqueId->empty()) {
-			SLOGE << "Empty unique id";
-		} else {
-			transaction->setProperty("contact-unique-id", uniqueId);
-			SLOGD << "Unique id: " << uniqueId->c_str();
-		}
+		context->addBranch(req_ev,uid);
 
 		new_ev = req_ev;
 		SLOGD << "Fork to " << contact_url_string;
@@ -335,10 +325,11 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 	// First use sipURI
 	for(auto it = range.first; it != range.second; ++it) {
 		shared_ptr<ForkContext> context = it->second;
-		if (context->onNewRegister(ct)){
+		string uid=Record::extractUniqueId(ct);
+		if (context->onNewRegister(ct->m_url,uid)){
 			SLOGD << "Found a pending context for key " << key << ": " << context.get();
 			auto stlpath=Record::route_to_stl(context->getEvent()->getMsgSip()->getHome(), path);
-			dispatch( context->getEvent(), ct, Record::extractUniqueId(ct), stlpath, context);
+			dispatch( context->getEvent(), ct, uid, stlpath, context);
 		}else LOGD("Found a pending context but not interested in this new register.");
 	}
 
@@ -352,11 +343,12 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 		auto range = mForks.equal_range(ec->mSipUri);
 		for(auto it = range.first; it != range.second; ++it) {
 			shared_ptr<ForkContext> context = it->second;
-			if (context->onNewRegister(ct)){
+			string uid=Record::extractUniqueId(ct);
+			if (context->onNewRegister(ct->m_url,uid)){
 				LOGD("Found a pending context for contact %s: %p",
 				     ec->mSipUri.c_str(), context.get());
 				auto stlpath=Record::route_to_stl(context->getEvent()->getMsgSip()->getHome(), path);
-				dispatch(context->getEvent(), ct, Record::extractUniqueId(ct), stlpath, context);
+				dispatch(context->getEvent(), ct, uid, stlpath, context);
 			}
 		}
 	}
@@ -439,9 +431,6 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				mForks.insert(make_pair(key, context));
 				SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
 			}
-			auto inTr = ev->createIncomingTransaction();
-			inTr->setProperty<ForkContext>(ModuleRouter::sInfo.getModuleName(), context);
-			context->onNew(inTr);
 		}
 	}
 
@@ -588,14 +577,9 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	sip_t *sip = ms->getSip();
 
 	// Handle SipEvent associated with a Stateful transaction
-	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
-	if (transaction != NULL) {
-		shared_ptr<ForkContext> ptr = transaction->getProperty<ForkContext>(getModuleName());
-		if (ptr != NULL) {
-			/* in practice this can only be a CANCEL*/
-			ptr->onRequest(transaction, ev);
+	if (sip->sip_request->rq_method==sip_method_cancel){
+		if (ForkContext::processCancel(ev))
 			return;
-		}
 	}
 
 	// Don't route registers
@@ -659,46 +643,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 }
 
 void ModuleRouter::onResponse(shared_ptr<ResponseSipEvent> &ev) {
-	// Handle SipEvent associated with a Stateful transaction
-	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-	if (transaction != NULL) {
-		shared_ptr<ForkContext> ptr = transaction->getProperty<ForkContext>(getModuleName());
-		if (ptr != NULL) {
-			ptr->onResponse(transaction, ev);
-		}
-	}
-}
-
-void ModuleRouter::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
-	shared_ptr<ForkContext> forkContext = ev->transaction->getProperty<ForkContext>(getModuleName());
-	if (forkContext != NULL) {
-		shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->transaction);
-		if (ot != NULL) {
-			switch (ev->kind) {
-				case TransactionEvent::Type::Destroy:
-				forkContext->onDestroy(ot);
-				mStats.mCountForkTransactions->incrFinish();
-				break;
-
-				case TransactionEvent::Type::Create:
-				forkContext->onNew(ot);
-				mStats.mCountForkTransactions->incrStart();
-				break;
-			}
-		}
-		shared_ptr<IncomingTransaction> it = dynamic_pointer_cast<IncomingTransaction>(ev->transaction);
-		if (it != NULL) {
-			switch (ev->kind) {
-				case TransactionEvent::Type::Destroy:
-					forkContext->onDestroy(it);
-					break;
-				case TransactionEvent::Type::Create: 
-					SLOGW << "Can't happen because property is set after this event";
-					break;
-			}
-		}
-		
-	}
+	ForkContext::processResponse(ev);
 }
 
 void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx){

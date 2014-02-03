@@ -63,7 +63,6 @@ public:
 	PushNotification(Agent *ag);
 	virtual ~PushNotification();
 	void onDeclare(GenericStruct *module_config);
-	virtual void onTransactionEvent(shared_ptr<TransactionEvent> ev);
 	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev);
 	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev);
 	virtual void onLoad(const GenericStruct *mc);
@@ -345,19 +344,6 @@ void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
 		/*any response >=180 except 503 (which is sofia's internal response for broken transports) should cancel the push*/
 		shared_ptr<PushNotificationContext> ctx=transaction->getProperty<PushNotificationContext>(getModuleName());
 		if (ctx) ctx->cancel();
-	}
-}
-
-void PushNotification::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
-	shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->transaction);
-	if (ot != NULL) {
-		switch (ev->kind) {
-			case TransactionEvent::Type::Destroy:
-			break;
-
-			case TransactionEvent::Type::Create:
-			break;
-		}
 	}
 }
 

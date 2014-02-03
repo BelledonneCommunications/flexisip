@@ -186,11 +186,6 @@ void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 	}
 }
 
-void Module::processTransactionEvent(shared_ptr<TransactionEvent> ev) {
-//	LOGD("Invoking onTransactionEvent() on module %s", getModuleName().c_str());
-	onTransactionEvent(ev);
-}
-
 void Module::idle() {
 	if (mFilter->isEnabled()) {
 		onIdle();

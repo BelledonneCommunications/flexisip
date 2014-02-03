@@ -29,7 +29,7 @@ static bool contains(const list<T> &l, T value) {
 }
 
 ForkCallContext::ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
-		ForkContext(agent, event,cfg, listener), mShortTimer(NULL), mPushTimer(NULL), mLastResponseCodeSent(100), mCancelled(false) {
+		ForkContext(agent, event,cfg, listener), mShortTimer(NULL), mPushTimer(NULL), mCancelled(false) {
 	LOGD("New ForkCallContext %p", this);
 	mLog=event->getEventLog<CallLog>();
 	mActivePushes = 0;
@@ -51,55 +51,15 @@ void ForkCallContext::cancel() {
 	mLog->setCancelled();
 	mLog->setCompleted();
 	mCancelled=true;
-	cancelOthers();
+	cancelOthers(NULL);
 }
 
-void ForkCallContext::forward(const shared_ptr<ResponseSipEvent> &ev, bool force) {
-	sip_t *sip = ev->getMsgSip()->getSip();
-	bool fakeSipEvent = ((mLastResponseCodeSent >= 200) && !force) || mIncoming == NULL;
-	const int status = sip->sip_status->st_status;
-
-	if (mCfg->mForkOneResponse) { // TODO: respect RFC 3261 16.7.5
-		if (status == 183 || status == 180 || status == 101) {
-			auto it = find(mForwardResponses.begin(), mForwardResponses.end(), status);
-			if (it != mForwardResponses.end()) {
-				fakeSipEvent = true;
-			} else {
-				mForwardResponses.push_back(status);
-			}
-		}
-	}
-
-	if (fakeSipEvent) {
-		ev->setIncomingAgent(shared_ptr<IncomingAgent>());
-	}else{
-		if (mCfg->mRemoveToTag && (status == 183 || status == 180 || status == 101)) {
-			SLOGD << "Removing 'to tag' ";
-			msg_header_remove_param((msg_common_t *)sip->sip_to, "tag");
-		}
-		logResponse(ev);
-	}
-	mLastResponseCodeSent=status;
-}
-
-void ForkCallContext::decline(const shared_ptr<OutgoingTransaction> &transaction, shared_ptr<ResponseSipEvent> &ev) {
-	if (!mCfg->mForkNoGlobalDecline) {
-		cancelOthers(transaction);
-		forward(ev);
-	} else {
-		if (mOutgoings.size() != 1) {
-			store(ev);
-		} else {
-			forward(ev);
-		}
-	}
-}
-
-void ForkCallContext::cancelOthers(const shared_ptr<OutgoingTransaction> &transaction) {
-	for (list<shared_ptr<OutgoingTransaction>>::iterator it = mOutgoings.begin(); it != mOutgoings.end();) {
-		if (*it != transaction) {
-			shared_ptr<OutgoingTransaction> tr = (*it);
-			it = mOutgoings.erase(it);
+void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> & br) {
+	auto branches=getBranches();
+	for (auto it = branches.begin(); it != branches.end();) {
+		if (*it != br) {
+			shared_ptr<OutgoingTransaction> tr = (*it)->mTransaction;
+			removeBranch(*it);
 			tr->cancel();
 		} else {
 			++it;
@@ -107,109 +67,48 @@ void ForkCallContext::cancelOthers(const shared_ptr<OutgoingTransaction> &transa
 	}
 }
 
-void ForkCallContext::onRequest(const shared_ptr<IncomingTransaction> &transaction, shared_ptr<RequestSipEvent> &event) {
-	event->setOutgoingAgent(shared_ptr<OutgoingAgent>());
+const int ForkCallContext::sUrgentCodesWithout603[]={401,407,415,420,484,488,606,0};
+
+const int * ForkCallContext::getUrgentCodes(){
+	return mCfg->mTreatDeclineAsUrgent ? ForkContext::sUrgentCodes : sUrgentCodesWithout603;
+}
+
+void ForkCallContext::onResponse(const shared_ptr<BranchInfo> & br, const shared_ptr<ResponseSipEvent> &event) {
 	const shared_ptr<MsgSip> &ms = event->getMsgSip();
 	sip_t *sip = ms->getSip();
-	if (sip != NULL && sip->sip_request != NULL) {
-		if (sip->sip_request->rq_method == sip_method_cancel) {
-			LOGD("Fork: incomingCallback cancel");
-			cancel();
-			/*
-			 * let the event go through the list of modules for notification purpose, but do not send the cancel at the end since it is handled here.
-			 * Indeed there might not be generated cancels for non-responded branches of the fork, letting other modules unnotified.
-			**/
-			event->setOutgoingAgent(shared_ptr<OutgoingAgent>());
-		}
-	}
-}
-
-bool ForkCallContext::isRetryableOrUrgent(int code){
-	switch(code){
-		case 401:
-		case 407:
-		case 415:
-		case 420:
-		case 484:
-		case 488:
-		case 606:
-			return true;
-		case 603:
-			if (mCfg->mTreatDeclineAsUrgent)
-				return true;
-		default:
-			return false;
-	}
-	return false;
-}
-
-void ForkCallContext::store(shared_ptr<ResponseSipEvent> &event) {
-	bool best = false;
-	int code=event->getMsgSip()->getSip()->sip_status->st_status;
-
-	if (mBestResponse != NULL) {
-		//we must give priority to 401, 407, 415, 420, 484 because they will trigger a request retry.
-		int prev_resp_code=mBestResponse->getMsgSip()->getSip()->sip_status->st_status;
-		int code_class=code/100;
-		int prev_code_class=prev_resp_code/100;
-		
-		if (code_class < prev_code_class) {
-			best = true;
-		}
-	}else best=true;
+	int code=sip->sip_status->st_status;
 	
-	if (best && isRetryableOrUrgent(code)){
-		if (mShortTimer==NULL){
+	
+	if (code>=300){
+		if (allBranchesAnswered()){
+			shared_ptr<BranchInfo> best=findBestBranch(getUrgentCodes());
+			if (best) logResponse(forwardResponse(best));
+			return;
+		}
+		if (isUrgent(code,getUrgentCodes()) && mShortTimer==NULL){
 			mShortTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
 			su_timer_set_interval(mShortTimer, &ForkCallContext::sOnShortTimer, this, (su_duration_t)mCfg->mUrgentTimeout*1000);
+			return;
 		}
-	}
-	
-	// Save
-	if (best) {
-		mBestResponse = make_shared<ResponseSipEvent>(event); // Copy event
-		mBestResponse->suspendProcessing();
-	}
-
-	// Don't forward
-	event->setIncomingAgent(shared_ptr<IncomingAgent>());
-}
-
-void ForkCallContext::onResponse(const shared_ptr<OutgoingTransaction> &transaction, shared_ptr<ResponseSipEvent> &event) {
-	event->setIncomingAgent(mIncoming);
-	const shared_ptr<MsgSip> &ms = event->getMsgSip();
-	sip_t *sip = ms->getSip();
-	
-	if (sip != NULL && sip->sip_status != NULL) {
-		int code=sip->sip_status->st_status;
-		LOGD("Fork: outgoingCallback %d", code);
-		if (code > 100 && code < 200) {
-			forward(event);
-		} else if (code >= 200 && code < 300) {
-			if (mCfg->mForkOneResponse) // TODO: respect RFC 3261 16.7.5
-				cancelOthers(transaction);
-			forward(event, true);
-		} else if (code >= 600 && code < 700) {
-			decline(transaction, event);
-		} else if (code!=503 && code!=408){ //ignore  503 and 408
-			if (mOutgoings.size()<2){
-				//optimization: when there is a single branch in the fork, send all the response immediately.
-				forward(event,true);
-			}else if (!mCancelled){
-				store(event);
-			}else{
-				forward(event,true);
+		if (code>=600){
+			/*6xx response are normally treated as global faillures */
+			if (!mCfg->mForkNoGlobalDecline){
+				logResponse(forwardResponse(br));
+				cancelOthers(br);
 			}
-		} else {// Don't forward
-			event->setIncomingAgent(shared_ptr<IncomingAgent>());
-			SLOGW << "ForkCallContext::onResponse " << this << " Outgoing transaction: ignore message " << code;
 		}
+	}else if (code>=200){
+		logResponse(forwardResponse(br));
+		cancelOthers(br);
+	}else if (code>=100){
+		logResponse(forwardResponse(br));
 	}
 }
 
+//This is actually called when we want to simulate a ringing event, for example when a push notification is sent to a device.
 void ForkCallContext::sendRinging(){
-	// Create response
-	if (mIncoming && mLastResponseCodeSent<180){
+	int code=getLastResponseCode();
+	if (code<180){
 		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_180_RINGING));
 		shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 		//add a to tag, no set by sofia here.
@@ -222,81 +121,28 @@ void ForkCallContext::sendRinging(){
 			mPushTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
 			su_timer_set_interval(mPushTimer, &ForkCallContext::sOnPushTimer, this, (su_duration_t)mCfg->mPushResponseTimeout*1000);
 		}
-		ev->setIncomingAgent(mIncoming);
-		sendResponse(ev,false);
+		forwardResponse(ev);
 	}
-}
-
-void ForkCallContext::onNew(const shared_ptr<IncomingTransaction> &transaction) {
-	ForkContext::onNew(transaction);
-}
-
-void ForkCallContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) {
-	return ForkContext::onDestroy(transaction);
-}
-
-void ForkCallContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) {
-	ForkContext::onNew(transaction);
 }
 
 void ForkCallContext::logResponse(const shared_ptr<ResponseSipEvent> &ev){
-	sip_t *sip=ev->getMsgSip()->getSip();
-	mLog->setStatusCode(sip->sip_status->st_status,sip->sip_status->st_phrase);
-	if (sip->sip_status->st_status>=200)
-		mLog->setCompleted();
-	ev->setEventLog(mLog);
-}
-
-void ForkCallContext::sendResponse(shared_ptr<ResponseSipEvent> ev, bool inject){
-	logResponse(ev);
-	if (inject)
-		mAgent->injectResponseEvent(ev);
-	else 
-		mAgent->sendResponseEvent(ev);
-	mLastResponseCodeSent=ev->getMsgSip()->getSip()->sip_status->st_status;
-}
-
-void ForkCallContext::checkFinished(){
-	if (mOutgoings.size() == 0){
-		if (!isCompleted() && mBestResponse){
-			/* no more outgoing transactions, but one of them replied with an explicit answer (not 503 or 408).
-			 * In this case, forward this response now.
-			**/
-			sendResponse(mBestResponse,true);
-			mBestResponse.reset();
-			setFinished();
-			return;
-		}
-		if ((mLateTimerExpired || mLateTimer==NULL)) {
-			if (mIncoming != NULL && !isCompleted()) {
-				if (mBestResponse == NULL) {
-					// Create response
-					shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
-					shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
-					ev->setIncomingAgent(mIncoming);
-					sendResponse(ev,false);
-				} else {
-					sendResponse(mBestResponse,true);
-				}
-			}
-			mBestResponse.reset();
-			setFinished();
-		}
+	if (ev){
+		sip_t *sip=ev->getMsgSip()->getSip();
+		mLog->setStatusCode(sip->sip_status->st_status,sip->sip_status->st_phrase);
+		if (sip->sip_status->st_status>=200)
+			mLog->setCompleted();
+		ev->setEventLog(mLog);
 	}
 }
 
-void ForkCallContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
-	ForkContext::onDestroy(transaction);
-}
-
-
-bool ForkCallContext::onNewRegister(const sip_contact_t *ctt){
+bool ForkCallContext::onNewRegister(const url_t *url, const string &uid){
 	if (isCompleted()) return false;
-	return ForkContext::onNewRegister(ctt);
+	return ForkContext::onNewRegister(url,uid);
 }
 
 bool ForkCallContext::isCompleted()const{
-	return mLastResponseCodeSent>=200 || mCancelled || mIncoming==NULL;
+	if (getLastResponseCode()>=200 || mCancelled) return true;
+	return false;
 }
 
 void ForkCallContext::onShortTimer(){
@@ -304,14 +150,24 @@ void ForkCallContext::onShortTimer(){
 	su_timer_destroy(mShortTimer);
 	mShortTimer=NULL;
 	
-	if (mCancelled || mLastResponseCodeSent>=180) return; /*it's ringing somewhere*/
-	if (isRetryableOrUrgent(mBestResponse->getMsgSip()->getSip()->sip_status->st_status)){
-		cancelOthers(static_pointer_cast<OutgoingTransaction>(mBestResponse->getOutgoingAgent()));
-		sendResponse(mBestResponse,true);// send urgent reply immediately
-		mBestResponse.reset();
+	if (getLastResponseCode()>=180) return; /*it's ringing somewhere*/
+	auto br=findBestBranch(getUrgentCodes());
+	if (br){
+		logResponse(forwardResponse(br));
 	}
-	
 }
+
+void ForkCallContext::onLateTimeout() {
+	auto br=findBestBranch(getUrgentCodes());
+	if (!br || br->getStatus()==0 || br->getStatus()==503){
+		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
+		shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
+		logResponse(forwardResponse(ev));
+	}else{
+		logResponse(forwardResponse(br));
+	}
+}
+
 
 void ForkCallContext::sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg){
 	ForkCallContext *zis=static_cast<ForkCallContext*>(arg);
@@ -320,7 +176,7 @@ void ForkCallContext::sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_ti
 
 
 void ForkCallContext::onPushTimer(){
-	if (!isCompleted() && !mBestResponse && !contains(mForwardResponses, 180) && !contains(mForwardResponses, 183)) {
+	if (!isCompleted() && getLastResponseCode()<180) {
 		SLOGD << "ForkCallContext " << this << " push timer : no uac response";
 	}
 	su_timer_destroy(mPushTimer);
