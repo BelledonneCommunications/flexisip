@@ -32,12 +32,17 @@ void ForkContext::__timer_callback(su_root_magic_t *magic, su_timer_t *t, su_tim
 	(static_cast<ForkContext*>(arg))->processLateTimeout();
 }
 
+void ForkContext::sOnFinished(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg){
+	(static_cast<ForkContext*>(arg))->onFinished();
+}
+
 ForkContext::ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
 		mListener(listener),
 		mAgent(agent),
 		mEvent(make_shared<RequestSipEvent>(event)),
 		mCfg(cfg),
 		mLateTimer(NULL),
+		mFinishTimer(NULL),
 		mLateTimerExpired(false) {
 	su_home_init(&mHome);
 	init();
@@ -48,6 +53,7 @@ void ForkContext::onLateTimeout(){
 
 void ForkContext::processLateTimeout() {
 	su_timer_destroy(mLateTimer);
+	mLateTimer=NULL;
 	mLateTimerExpired=true;
 	onLateTimeout();
 	setFinished();
@@ -61,7 +67,7 @@ struct dest_finder{
 		// don't care about transport
 	}
 	bool operator()(const shared_ptr<BranchInfo> &br){
-		const url_t *dest=br->mTransaction->getRequestUri();
+		const url_t *dest=br->mRequest->getMsgSip()->getSip()->sip_request->rq_url;
 		return 0 == strcmp(url_port(dest), cttport)
 			&& 0 == strcmp(dest->url_host, ctthost);
 	}
@@ -163,20 +169,31 @@ void ForkContext::init() {
 void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const string &uid) {
 	shared_ptr<OutgoingTransaction> ot=ev->createOutgoingTransaction();
 	shared_ptr<BranchInfo> br=createBranchInfo();
+	
+	if (mIncoming && mBranches.size()==0){
+		/*for some reason shared_from_this() cannot be invoked within the ForkContext constructor, so we do this initialization now*/
+		mIncoming->setProperty<ForkContext>("ForkContext",shared_from_this());
+	}
+	//unlink the incoming and outgoing transactions which is done by default, since now the forkcontext is managing them.
+	ev->unlinkTransactions();
 	br->mRequest=ev;
 	br->mTransaction=ot;
 	br->mUid=uid;
 	ot->setProperty("BranchInfo",br);
-	mBranches.push_back(br);
 	onNewBranch(br);
+	mBranches.push_back(br);
+	
 }
 
 bool ForkContext::processCancel ( const std::shared_ptr< RequestSipEvent >& ev ) {
 	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
 	if (ev->getMsgSip()->getSip()->sip_request->rq_method==sip_method_cancel){
-		shared_ptr<BranchInfo> binfo=transaction->getProperty<BranchInfo>("BranchInfo");
-		binfo->mForkCtx->cancel();
-		return true;
+		shared_ptr<ForkContext> ctx=transaction->getProperty<ForkContext>("ForkContext");
+		if (ctx) {
+			ctx->cancel();
+			ev->terminateProcessing();
+			return true;
+		}
 	}
 	return false;
 }
@@ -191,11 +208,18 @@ bool ForkContext::processResponse ( const shared_ptr< ResponseSipEvent >& ev ) {
 			copyEv->suspendProcessing();
 			binfo->mLastResponse=copyEv;
 			binfo->mForkCtx->onResponse(binfo,copyEv);
-			if (copyEv->isSuspended()){
-				//let the event go through but it will not be sent*/
-				ev->setIncomingAgent(NULL);
+			//the event may go through but it will not be sent*/
+			ev->setIncomingAgent(NULL);
+			if (!copyEv->isSuspended()){
+				//LOGD("A response has been submitted");
+				//copyEv has been resubmited, so stop original event.
+				ev->terminateProcessing();
+			}else {
+				//LOGD("The response has been retained");
 			}
 			return true;
+		}else{
+			//LOGD("ForkContext: un-processed response");
 		}
 	}
 	return false;
@@ -212,17 +236,30 @@ ForkContext::~ForkContext() {
 	su_home_deinit(&mHome);
 }
 
-void ForkContext::setFinished(){
-	if (mLateTimer){
-		su_timer_destroy(mLateTimer);
-		mLateTimer=NULL;
-	}
-	//force reference to be loosed immediately, to avoid circular dependencies.
+void ForkContext::onFinished() {
+	su_timer_destroy(mFinishTimer);
+	mFinishTimer=NULL;
+	//force references to be loosed immediately, to avoid circular dependencies.
 	mEvent.reset();
 	mIncoming.reset();
 	for_each(mBranches.begin(),mBranches.end(),mem_fn(&BranchInfo::clear));
 	mBranches.clear();
 	mListener->onForkContextFinished(shared_from_this());
+	mSelf.reset(); //this must be the last thing to do
+}
+
+void ForkContext::setFinished(){
+	if (mLateTimer){
+		su_timer_destroy(mLateTimer);
+		mLateTimer=NULL;
+	}
+	mSelf=shared_from_this();//to prevent destruction until finishTimer arrives
+	mFinishTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
+	su_timer_set_interval(mFinishTimer, &ForkContext::sOnFinished, this, (su_duration_t)0);
+}
+
+bool ForkContext::shouldFinish() {
+	return true;
 }
 
 void ForkContext::onNewBranch ( const std::shared_ptr<BranchInfo> &br ) {
@@ -265,6 +302,9 @@ std::shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const std::shared
 		}
 		if (code>=200){
 			mIncoming.reset();
+			if (shouldFinish()){
+				setFinished();
+			}
 		}
 		return ev;
 	}

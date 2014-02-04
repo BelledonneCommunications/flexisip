@@ -47,7 +47,6 @@ void ForkBasicContext::onResponse(const shared_ptr<BranchInfo> &br, const shared
 				su_timer_destroy(mDecisionTimer);
 				mDecisionTimer=NULL;
 			}
-			setFinished();
 		}else{
 			if (allBranchesAnswered()){
 				finishIncomingTransaction();
@@ -70,7 +69,6 @@ void ForkBasicContext::finishIncomingTransaction(){
 	}else{
 		forwardResponse(best);
 	}
-	setFinished();
 }
 
 void ForkBasicContext::onDecisionTimer(){

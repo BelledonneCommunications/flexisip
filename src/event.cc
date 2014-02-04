@@ -232,6 +232,19 @@ void RequestSipEvent::linkTransactions(){
 	}
 }
 
+void RequestSipEvent::unlinkTransactions() {
+shared_ptr<OutgoingTransaction> ot;
+	shared_ptr<IncomingTransaction> it;
+	
+	if (mOutgoingAgent && mIncomingAgent && 
+		(ot=dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent))!=NULL &&
+		(it=dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent))!=NULL){
+		ot->mIncoming=NULL;
+		it->mOutgoing=NULL;
+	}
+}
+
+
 void RequestSipEvent::suspendProcessing() {
 	SipEvent::suspendProcessing();
 

@@ -40,6 +40,7 @@ protected:
 	virtual bool onNewRegister(const url_t *url, const std::string &uid);
 	virtual void onNewBranch(const std::shared_ptr<BranchInfo> &br);
 	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &ev);
+	virtual bool shouldFinish();
 private:
 	static void sOnAcceptanceTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	void acceptMessage();

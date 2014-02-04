@@ -578,8 +578,8 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	// Handle SipEvent associated with a Stateful transaction
 	if (sip->sip_request->rq_method==sip_method_cancel){
-		if (ForkContext::processCancel(ev))
-			return;
+		ForkContext::processCancel(ev);
+		return;
 	}
 
 	// Don't route registers

@@ -201,6 +201,7 @@ public:
 	bool findIncomingSubject(const char *searched);
 	const char *findIncomingSubject(const std::list<std::string> &in);
 	bool mRecordRouteAdded;
+	void unlinkTransactions();
 private:
 	void linkTransactions();
 };

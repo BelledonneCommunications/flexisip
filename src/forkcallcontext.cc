@@ -56,13 +56,11 @@ void ForkCallContext::cancel() {
 
 void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> & br) {
 	auto branches=getBranches();
-	for (auto it = branches.begin(); it != branches.end();) {
+	for (auto it = branches.begin(); it != branches.end();++it) {
 		if (*it != br) {
 			shared_ptr<OutgoingTransaction> tr = (*it)->mTransaction;
 			removeBranch(*it);
 			tr->cancel();
-		} else {
-			++it;
 		}
 	}
 }

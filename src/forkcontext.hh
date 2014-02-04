@@ -64,6 +64,7 @@ public:
 class ForkContext : public std::enable_shared_from_this<ForkContext>{
 private:
 	static void __timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
+	static void sOnFinished(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	ForkContextListener * mListener;
 	std::list<std::shared_ptr<BranchInfo>> mBranches;
 	void init();
@@ -75,9 +76,11 @@ protected:
 	std::shared_ptr<ResponseSipEvent> mLastResponseSent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
 	std::shared_ptr<ForkContextConfig> mCfg;
+	std::shared_ptr<ForkContext> mSelf;
 	su_timer_t *mLateTimer;
+	su_timer_t *mFinishTimer;
 	bool mLateTimerExpired;
-	//Terminate the fork process. Do not do anything after calling setFinished(), because it might destroy this.
+	//Mark the fork process as terminated. The real destruction is performed asynchrously, in next main loop iteration.
 	void setFinished();
 	//Used by derived class to allocate a derived type of BranchInfo if necessary.
 	virtual std::shared_ptr<BranchInfo> createBranchInfo();
@@ -89,6 +92,10 @@ protected:
 	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event)=0;
 	//Notifies the expiry of the final fork timeout.
 	virtual void onLateTimeout();
+	//Requests the derived class if the fork context should finish now.
+	virtual bool shouldFinish();
+	//Notifies the destruction of the fork context. Implementors should use it to perform their unitialization, but shall never forget to upcall to the parent class !*/
+	virtual void onFinished();
 	//Request the forwarding the last response from a given branch
 	std::shared_ptr<ResponseSipEvent> forwardResponse(const std::shared_ptr<BranchInfo> &br);
 	//Request the forwarding of a response supplied in argument.

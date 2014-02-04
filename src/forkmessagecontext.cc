@@ -34,7 +34,7 @@ ForkMessageContext::ForkMessageContext(Agent *agent, const std::shared_ptr<Reque
 	//start the acceptance timer immediately
 	if (mCfg->mForkLate && mCfg->mDeliveryTimeout>30){
 		mAcceptanceTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
-		su_timer_set_interval(mAcceptanceTimer, &ForkMessageContext::sOnAcceptanceTimer, this, (su_duration_t)20000);
+		su_timer_set_interval(mAcceptanceTimer, &ForkMessageContext::sOnAcceptanceTimer, this, (su_duration_t)16000);
 	}
 	mAcceptanceTimer=NULL;
 	mDeliveredCount=0;
@@ -45,6 +45,11 @@ ForkMessageContext::~ForkMessageContext() {
 		su_timer_destroy(mAcceptanceTimer);
 	LOGD("Destroy ForkMessageContext %p", this);
 }
+
+bool ForkMessageContext::shouldFinish() {
+	return false; //the messaging fork context controls its termination.
+}
+
 
 void ForkMessageContext::checkFinished(){
 	if (mIncoming==NULL && !mCfg->mForkLate){
@@ -129,7 +134,7 @@ void ForkMessageContext::sOnAcceptanceTimer(su_root_magic_t* magic, su_timer_t* 
 
 void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 	if (br->mUid.size()>0){
-		/*check for a branch already existing with this uid*/
+		/*check for a branch already existing with this uid, and eventually clean it*/
 		shared_ptr<BranchInfo> tmp=findBranchByUid(br->mUid);
 		if (tmp){
 			removeBranch(tmp);
