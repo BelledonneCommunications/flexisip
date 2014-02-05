@@ -354,8 +354,8 @@ namespace log {
 		}
 	}
 	
-	void initLogs(bool syslog, bool debug) {
-		if (is_syslog != syslog) {
+	void initLogs(bool use_syslog, bool debug) {
+		if (is_syslog != use_syslog) {
 			LOGF("Different preinit and init syslog config is not supported.");
 		}
 		if (!is_preinit_done) {

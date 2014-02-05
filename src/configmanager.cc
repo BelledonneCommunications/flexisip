@@ -995,13 +995,13 @@ static bool checkTranscoder(const std::map<std::string,std::string> &override) {
 void FileConfigReader::onUnreadItem(const char *secname, const char *key, int lineno){
 	static bool dontCheckTranscoder=checkTranscoder(GenericManager::get()->getOverrideMap());
 	if (dontCheckTranscoder && 0==strcmp(secname,"module::Transcoder")) return;
-	LOGE("Unsupported parameter '%s' in section [%s] at line %i", key, secname, lineno);
+	LOGEN("Unsupported parameter '%s' in section [%s] at line %i", key, secname, lineno);
 	mHaveUnreads=true;
 	GenericEntry *sec=mRoot->find(secname);
 	if (sec==NULL){
 		sec=mRoot->findApproximate(secname);
 		if (sec!=NULL){
-			LOGE("Did you mean '[%s]' ?",sec->getName().c_str());
+			LOGEN("Did you mean '[%s]' ?",sec->getName().c_str());
 		}
 		return;
 	}
@@ -1011,7 +1011,7 @@ void FileConfigReader::onUnreadItem(const char *secname, const char *key, int li
 		if (val==NULL){
 			val=st->findApproximate(key);
 			if (val!=NULL){
-				LOGE("Did you mean '%s' ?",val->getName().c_str());
+				LOGEN("Did you mean '%s' ?",val->getName().c_str());
 			}
 		}
 	}
@@ -1020,7 +1020,7 @@ void FileConfigReader::onUnreadItem(const char *secname, const char *key, int li
 void FileConfigReader::checkUnread(){
 	lp_config_for_each_unread (mCfg,onUnreadItem,this);
 	if (mHaveUnreads)
-		LOGF("Please fix your configuration file.");
+		LOGF("There are not understood items or section in the configuration file. Please check it.");
 }
 
 int FileConfigReader::read2(GenericEntry *entry, int level){
