@@ -187,7 +187,7 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const string 
 
 bool ForkContext::processCancel ( const std::shared_ptr< RequestSipEvent >& ev ) {
 	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
-	if (ev->getMsgSip()->getSip()->sip_request->rq_method==sip_method_cancel){
+	if (transaction && ev->getMsgSip()->getSip()->sip_request->rq_method==sip_method_cancel){
 		shared_ptr<ForkContext> ctx=transaction->getProperty<ForkContext>("ForkContext");
 		if (ctx) {
 			ctx->onCancel();
