@@ -42,7 +42,7 @@
 
 #include "common.hh"
 #include <typeinfo>
-
+#include <cxxabi.h>
 #include <memory>
 
 #ifdef ENABLE_SNMP
@@ -55,6 +55,7 @@ typedef unsigned long oid;
 #endif
 
 #include "expressionparser.hh"
+#include "flexisip-exception.hh"
 
 enum class ConfigState {Check, Changed, Reset, Commited};
 class ConfigValue;
@@ -432,8 +433,11 @@ _retType *GenericStruct::get(const char *name)const{
 	}
 	_retType *ret=dynamic_cast<_retType *>(e);
 	if (ret==NULL){
-		LOGA("Config entry '%s' in struct '%s' does not have the expected type",name,e->getParent()->getName().c_str());
-		return NULL;
+		int status;
+
+		std::string type_name = abi::__cxa_demangle(typeid(_retType).name(), 0, 0, &status);
+		SLOGA <<"Config entry '" <<name<<"' in struct '"<<e->getParent()->getName()<<"' does not have the expected type '"<< type_name<<"'";
+
 	}
 	return ret;
 };
@@ -462,7 +466,7 @@ _retType *GenericStruct::getDeep(const char *name, bool strict)const{
 		}
 		next_node=dynamic_cast<GenericStruct *>(e);
 		if (!next_node){
-			LOGA("Config entry %s in struct %s does not have the expected type",name,e->getParent()->getName().c_str());
+			SLOGA << "Config entry "<<name<<" in struct "<<e->getParent()->getName()<<" does not have the expected type";
 			return NULL;
 		}
 		prev_node=next_node;

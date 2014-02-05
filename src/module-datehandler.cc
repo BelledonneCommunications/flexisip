@@ -51,7 +51,7 @@ protected:
 			config_item_end
 		};
 		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
-		module_config->get<ConfigString>("filter")->setDefault("is_request && request.method-name == 'REGISTER'");
+		module_config->get<ConfigBooleanExpression>("filter")->setDefault("is_request && request.method-name == 'REGISTER'");
 		module_config->addChildrenValues(items);
 	}
 	virtual void onLoad(const GenericStruct *root){

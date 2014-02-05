@@ -56,3 +56,5 @@ src/pusher
 *.kdev4
 *.settings
 compile
+.DS_Store
+.dirstamp

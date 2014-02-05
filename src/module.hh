@@ -77,7 +77,8 @@ class ModuleInfoBase {
 			LoadBalancer=180,
 			MediaRelay=210,
 			Transcoder=240,
-			Forward=270
+			Forward=270,
+			Presence=300
 		};
 	protected:
 		ModuleInfoBase(const char *modname, const char *help, enum ModuleOid oid) : mName(modname), mHelp(help),
@@ -161,6 +162,13 @@ class Module : protected ConfigValueListener {
 		EntryFilter *mFilter;
 		bool mDirtyConfig;
 };
+
+inline  std::ostringstream &
+operator<<(std::ostringstream& __os, const Module& m)
+{
+	__os << m.getModuleName() ;
+	return __os;
+}
 
 
 template <typename _modtype>

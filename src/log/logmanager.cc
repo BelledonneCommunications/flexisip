@@ -380,7 +380,7 @@ namespace log {
 	}
 
 	void disableGlobally() {
-		ortp_set_log_level_mask(ORTP_FATAL);
+		ortp_set_log_level_mask(ORTP_FATAL|ORTP_ERROR);
 	}
 }}
 

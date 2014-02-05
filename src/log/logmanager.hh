@@ -125,7 +125,7 @@ namespace log {
 	#define SLOGI BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::info)
 	#define SLOGW BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::warning)
 	#define SLOGE BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::error)
-	//#define SLOGA BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::fatal) // How to abort ??
+	#define SLOGA BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::fatal) abort();
 
 	// Declare macros for printf formated logs [for historic reasons]
 	// ex: LOGD("Some debug level %s", "logs");
@@ -174,27 +174,27 @@ struct pumpstream : public std::ostringstream
 	pumpstream(OrtpLogLevel l) : level(l){}
 
 	~pumpstream() {
-		const std::string &s(str());
-		ortp_log(level, "%s", s.c_str());
+		ortp_log(level, "%s", str().c_str());
 	}
 };
 
 #if (__GNUC__ == 4 && __GNUC_MINOR__ < 5 )
 template<typename _Tp>
 inline pumpstream &
-operator<<(pumpstream&& __os, _Tp __x)
+operator<<(pumpstream&& __os, const _Tp &__x)
 { 
 	(static_cast<std::ostringstream &>(__os)) << __x;
 	return __os;
 }
 #endif
 
+
 #define SLOG(thelevel) if (ortp_logv_out!=NULL && ortp_log_level_enabled((thelevel))) pumpstream((thelevel))
 #define SLOGD SLOG(ORTP_DEBUG)
 #define SLOGI SLOG(ORTP_MESSAGE)
 #define SLOGW SLOG(ORTP_WARNING)
 #define SLOGE SLOG(ORTP_ERROR)
-//#define SLOGA SLOG(ORTP_FATAL)
+#define SLOGA throw FlexisipException()
 
 #define LOGDV(thefmt, theargs) ortp_logv(ORTP_DEBUG, (thefmt), (theargs))
 #define LOGD ortp_debug

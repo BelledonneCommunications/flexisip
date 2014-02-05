@@ -9,10 +9,12 @@ ECHO=/bin/echo
 CLEANFILES=$(GITVERSION_FILE)
 BUILT_SOURCES=$(GITVERSION_FILE)
 
-SUBDIRS=test
+SUBDIRS=test presence
+
 
 bin_PROGRAMS=flexisip
 thesources= \
+			flexisip-exception.cc flexisip-exception.hh \
 			agent.cc agent.hh \
 			common.cc common.hh \
 			sdp-modifier.hh  sdp-modifier.cc \
@@ -65,6 +67,10 @@ AM_CPPFLAGS=-Imib
 endif
 
 flexisip_LDADD=$(SOFIA_LIBS) $(ORTP_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)
+
+if BUILD_PRESENCE
+flexisip_LDADD += presence/libflexisip-presence.la
+endif
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) $(PROTOBUF_CFLAGS)  \
 			-DCONFIG_DIR=\"$(CONFIG_DIR)\" -DORTP_DEBUG_MODE $(WARNINGCXXFLAGS)

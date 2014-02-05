@@ -64,7 +64,7 @@ int StunServer::start(){
 	laddr.sin_addr.s_addr=inet_addr(bind_address.c_str());
 	laddr.sin_port=htons(mPort);
 	
-	err=bind(mSock,(struct sockaddr*)&laddr,sizeof(laddr));
+	err=::bind(mSock,(struct sockaddr*)&laddr,sizeof(laddr));
 	if (err==-1){
 		LOGE("Could not bind STUN server to %s port %i", bind_address.c_str(),mPort);
 		return -1;

@@ -344,12 +344,14 @@ if test x$presence = xyes ; then
 	CPPFLAGS_save=$CPPFLAGS
 	CPPFLAGS="$CFLAGS $XSDE_CPPFLAGS"
 	
-	AC_CHECK_HEADER(xsde/cxx/pre.hxx, , [AC_MSG_ERROR(Couldn't find XSDe xml data binding dev )])
+	AC_CHECK_HEADER(xsde/cxx/pre.hxx,[found_xsde=yes], [AC_MSG_ERROR(Couldn't find XSDe xml data binding dev )])
 	CPPFLAGS=$CPPFLAGS_save
 	AC_SUBST(XSDE_CPPFLAGS)
 	AC_SUBST(XSDE_LIBS)
+	AC_DEFINE([ENABLE_PRESENCE],1, [enable presence module])
 fi
-AM_CONDITIONAL([BUILD_PRESENCE], [test "x$found_xsde$presence" = xyesyes])
+
+AM_CONDITIONAL([BUILD_PRESENCE], [test x$found_xsde$presence = xyesyes])
 
 
 
@@ -362,6 +364,7 @@ scripts/debian/Makefile
 scripts/redhat/Makefile
 src/Makefile
 src/test/Makefile
+src/presence/Makefile
 doc/Makefile
 debian/Makefile
 flexisip.spec

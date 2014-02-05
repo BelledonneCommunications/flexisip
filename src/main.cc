@@ -330,7 +330,14 @@ static int parse_key_value(int argc, char *argv[], const char **key, const char 
 	}
 	return 0;
 }
-
+static void uncautch_handler () {
+	std::exception_ptr p= current_exception();
+	try {
+		rethrow_exception(p);
+	} catch (FlexisipException& e) {
+		SLOGE << e;
+	}
+}
 int main(int argc, char *argv[]){
 	shared_ptr<Agent> a;
 	StunServer *stun=NULL;
@@ -348,6 +355,8 @@ int main(int argc, char *argv[]){
 	string hostsOverride;
 	string configOverride;
 	map<string,string> oset;
+
+	set_terminate(uncautch_handler); //invoke in case of uncautch exception for this thread
 
 	for(i=1;i<argc;++i){
 		if (strcmp(argv[i],"--transports")==0){
