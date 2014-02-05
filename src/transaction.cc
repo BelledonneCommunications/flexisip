@@ -144,6 +144,7 @@ void OutgoingTransaction::destroy() {
 		nta_outgoing_destroy(mOutgoing);
 		mIncoming.reset();
 		looseProperties();
+		mOutgoing=NULL;
 	}
 }
 
@@ -234,5 +235,6 @@ void IncomingTransaction::destroy() {
 		nta_incoming_destroy(mIncoming);
 		looseProperties();
 		mOutgoing.reset();
+		mIncoming=NULL;
 	}
 }

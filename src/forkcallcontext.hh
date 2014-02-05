@@ -41,7 +41,7 @@ public:
 protected:
 	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event);
 	virtual bool onNewRegister(const url_t *url, const std::string &uid);
-	virtual void cancel();
+	virtual void onCancel();
 private:
 	const int *getUrgentCodes();
 	void onShortTimer();

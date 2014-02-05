@@ -18,7 +18,7 @@
 
 #include "forkcontext.hh"
 #include "registrardb.hh"
-
+#include <sofia-sip/sip_status.h>
 using namespace ::std;
 
 const int ForkContext::sUrgentCodes[]={401,407,415,420,484,488,606,603,0};
@@ -42,8 +42,7 @@ ForkContext::ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &e
 		mEvent(make_shared<RequestSipEvent>(event)),
 		mCfg(cfg),
 		mLateTimer(NULL),
-		mFinishTimer(NULL),
-		mLateTimerExpired(false) {
+		mFinishTimer(NULL){
 	su_home_init(&mHome);
 	init();
 }
@@ -54,7 +53,6 @@ void ForkContext::onLateTimeout(){
 void ForkContext::processLateTimeout() {
 	su_timer_destroy(mLateTimer);
 	mLateTimer=NULL;
-	mLateTimerExpired=true;
 	onLateTimeout();
 	setFinished();
 }
@@ -130,9 +128,11 @@ std::shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[])
 	return best;
 }
 
-bool ForkContext::allBranchesAnswered()const{
+bool ForkContext::allBranchesAnswered(bool ignore503)const{
 	for (auto it=mBranches.begin();it!=mBranches.end();++it){
-		if ((*it)->getStatus()<200) return false;
+		int code=(*it)->getStatus();
+		if (code<200) return false;
+		if (code==503 && ignore503) return false;
 	}
 	return true;
 }
@@ -190,8 +190,9 @@ bool ForkContext::processCancel ( const std::shared_ptr< RequestSipEvent >& ev )
 	if (ev->getMsgSip()->getSip()->sip_request->rq_method==sip_method_cancel){
 		shared_ptr<ForkContext> ctx=transaction->getProperty<ForkContext>("ForkContext");
 		if (ctx) {
-			ctx->cancel();
-			ev->terminateProcessing();
+			ctx->onCancel();
+			if (ctx->shouldFinish()) ctx->setFinished();
+			//let ev go through all the chain, however it will not be forwarded.
 			return true;
 		}
 	}
@@ -265,7 +266,7 @@ bool ForkContext::shouldFinish() {
 void ForkContext::onNewBranch ( const std::shared_ptr<BranchInfo> &br ) {
 }
 
-void ForkContext::cancel(){
+void ForkContext::onCancel(){
 }
 
 std::shared_ptr< BranchInfo > ForkContext::createBranchInfo() {

@@ -186,7 +186,7 @@ void RequestSipEvent::reply(int status, char const *phrase, tag_type_t tag, tag_
 		mIncomingAgent->reply(getMsgSip(), status, phrase, ta_tags(ta));
 		ta_end(ta);
 	} else {
-		LOGD("The Request SIP message is not reply");
+		LOGD("The Request SIP message is not replied");
 	}
 	if (status>=200) terminateProcessing();
 }

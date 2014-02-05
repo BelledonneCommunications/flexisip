@@ -47,7 +47,7 @@ ForkCallContext::~ForkCallContext() {
 	}
 }
 
-void ForkCallContext::cancel() {
+void ForkCallContext::onCancel() {
 	mLog->setCancelled();
 	mLog->setCompleted();
 	mCancelled=true;
@@ -78,7 +78,9 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo> & br, const shared
 	
 	
 	if (code>=300){
-		if (allBranchesAnswered()){
+		/*in fork-late mode, we must not consider that 503 resonse code (which are send by sofia in case of i/o error) are branches that are answered)
+		 * Instead we must wait for the duration of the fork for new registers*/
+		if (allBranchesAnswered(mCfg->mForkLate)){
 			shared_ptr<BranchInfo> best=findBestBranch(getUrgentCodes());
 			if (best) logResponse(forwardResponse(best));
 			return;
@@ -144,6 +146,7 @@ bool ForkCallContext::isCompleted()const{
 }
 
 void ForkCallContext::onShortTimer(){
+	LOGD("ForkCallContext [%p]: time to send urgent replies",this);
 	/*first stop the timer, it has to be one shot*/
 	su_timer_destroy(mShortTimer);
 	mShortTimer=NULL;

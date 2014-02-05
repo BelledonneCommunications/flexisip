@@ -79,7 +79,6 @@ protected:
 	std::shared_ptr<ForkContext> mSelf;
 	su_timer_t *mLateTimer;
 	su_timer_t *mFinishTimer;
-	bool mLateTimerExpired;
 	//Mark the fork process as terminated. The real destruction is performed asynchrously, in next main loop iteration.
 	void setFinished();
 	//Used by derived class to allocate a derived type of BranchInfo if necessary.
@@ -87,7 +86,7 @@ protected:
 	//Notifies derived class of the creation of a new branch
 	virtual void onNewBranch(const std::shared_ptr<BranchInfo> &br);
 	//Notifies the cancellation of the fork process.
-	virtual void cancel();
+	virtual void onCancel();
 	//Notifies the arrival of a new response on a given branch
 	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event)=0;
 	//Notifies the expiry of the final fork timeout.
@@ -107,7 +106,7 @@ protected:
 	std::shared_ptr<BranchInfo> findBranchByDest(const url_t *dest);
 	//Get the best candidate among all branches for forwarding its responses.
 	std::shared_ptr<BranchInfo> findBestBranch(const int urgentReplies[]);
-	bool allBranchesAnswered()const;
+	bool allBranchesAnswered(bool ignore503=false)const;
 	int getLastResponseCode()const;
 	void removeBranch(const std::shared_ptr<BranchInfo> &br);
 	const std::list<std::shared_ptr<BranchInfo>> & getBranches();

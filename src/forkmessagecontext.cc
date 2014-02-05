@@ -31,12 +31,12 @@ static bool needsDelivery(int code){
 ForkMessageContext::ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
 		ForkContext(agent, event,cfg,listener) {
 	LOGD("New ForkMessageContext %p", this);
+	mAcceptanceTimer=NULL;
 	//start the acceptance timer immediately
 	if (mCfg->mForkLate && mCfg->mDeliveryTimeout>30){
 		mAcceptanceTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
 		su_timer_set_interval(mAcceptanceTimer, &ForkMessageContext::sOnAcceptanceTimer, this, (su_duration_t)16000);
 	}
-	mAcceptanceTimer=NULL;
 	mDeliveredCount=0;
 }
 
