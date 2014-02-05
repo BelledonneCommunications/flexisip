@@ -51,7 +51,7 @@ void ForkCallContext::onCancel() {
 	mLog->setCancelled();
 	mLog->setCompleted();
 	mCancelled=true;
-	cancelOthers(NULL);
+	cancelOthers(shared_ptr<BranchInfo>());
 }
 
 void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> & br) {

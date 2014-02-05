@@ -210,7 +210,7 @@ bool ForkContext::processResponse ( const shared_ptr< ResponseSipEvent >& ev ) {
 			binfo->mLastResponse=copyEv;
 			binfo->mForkCtx->onResponse(binfo,copyEv);
 			//the event may go through but it will not be sent*/
-			ev->setIncomingAgent(NULL);
+			ev->setIncomingAgent(shared_ptr<IncomingAgent>());
 			if (!copyEv->isSuspended()){
 				//LOGD("A response has been submitted");
 				//copyEv has been resubmited, so stop original event.
@@ -284,7 +284,7 @@ std::shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const std::shared
 			}
 			return br->mLastResponse;
 			
-		}else br->mLastResponse->setIncomingAgent(NULL);
+		}else br->mLastResponse->setIncomingAgent(shared_ptr<IncomingAgent>());
 	}else{
 		LOGE("ForkContext::forwardResponse(): no response received on this branch");
 	}

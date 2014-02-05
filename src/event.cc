@@ -239,8 +239,8 @@ shared_ptr<OutgoingTransaction> ot;
 	if (mOutgoingAgent && mIncomingAgent && 
 		(ot=dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent))!=NULL &&
 		(it=dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent))!=NULL){
-		ot->mIncoming=NULL;
-		it->mOutgoing=NULL;
+		ot->mIncoming.reset();
+		it->mOutgoing.reset();
 	}
 }
 
