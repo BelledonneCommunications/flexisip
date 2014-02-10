@@ -61,8 +61,8 @@ class AuthDb {
 		string pass;
 		time_t date;
 		CachedPassword(const string &pass, time_t date):pass(pass),date(date){}
-	} typedef CachedPassword;
-	map<string, map<string,CachedPassword*>> mCachedPasswords;
+	};
+	map<string, map<string,CachedPassword>> mCachedPasswords;
 	std::mutex mCachedPasswordMutex;
 protected:
 	AuthDb();

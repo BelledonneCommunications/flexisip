@@ -71,12 +71,12 @@ string AuthDb::createPasswordKey(const string &user, const string &host, const s
 }
 
 AuthDb::CacheResult AuthDb::getCachedPassword(const string &key, const string &domain, string &pass, time_t now) {
-	map<string,CachedPassword*> &passwords=mCachedPasswords[domain];
+	auto & passwords=mCachedPasswords[domain];
 	unique_lock<mutex> lck(mCachedPasswordMutex);
-	map<string,CachedPassword*>::iterator it=passwords.find(key);
+	auto it=passwords.find(key);
 	if (it != passwords.end()) {
-		pass.assign((*it).second->pass);
-		if (now < (*it).second->date + mCacheExpire) {
+		pass.assign((*it).second.pass);
+		if (now < (*it).second.date + mCacheExpire) {
 			return VALID_PASS_FOUND;
 		} else {
 			return EXPIRED_PASS_FOUND;
@@ -86,14 +86,14 @@ AuthDb::CacheResult AuthDb::getCachedPassword(const string &key, const string &d
 }
 
 bool AuthDb::cachePassword(const string &key, const string &domain, const string &pass, time_t time){
-	map<string,CachedPassword*> &passwords=mCachedPasswords[domain];
+	auto & passwords=mCachedPasswords[domain];
 	unique_lock<mutex> lck(mCachedPasswordMutex);
-	map<string,CachedPassword*>::iterator it=passwords.find(key);
+	auto it=passwords.find(key);
 	if (it != passwords.end()) {
-		(*it).second->pass=pass;
-		(*it).second->date=time;
+		(*it).second.pass=pass;
+		(*it).second.date=time;
 	} else {
-		passwords.insert(make_pair(key, new CachedPassword(pass,time)));
+		passwords.insert(make_pair(key,CachedPassword(pass,time)));
 	}
 
 	return true;

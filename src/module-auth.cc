@@ -54,14 +54,23 @@ struct auth_mod_size { auth_mod_t mod[1]; auth_plugin_t plug[1]; };
 
 
 class NonceStore {
-	map<string,int> nc;
-	map<string, time_t> expires;
-	mutex mut;
+	struct NonceCount{
+		NonceCount(int c, time_t ex) : nc(c), expires(ex){};
+		int nc;
+		time_t expires;
+	};
+	map<string,NonceCount> mNc;
+	mutex mMutex;
+	int mNonceExpires;
 public:
+	NonceStore() : mNonceExpires(3600){};
+	void setNonceExpires(int value){
+		mNonceExpires=value;
+	}
 	int getNc(const string &nonce) {
-		unique_lock<mutex> lck(mut);
-		auto it=nc.find(nonce);
-		if (it!=nc.end()) return (*it).second;
+		unique_lock<mutex> lck(mMutex);
+		auto it=mNc.find(nonce);
+		if (it!=mNc.end()) return (*it).second.nc;
 		return -1;
 	}
 
@@ -73,58 +82,51 @@ public:
 		insert(snonce);
 	}
 	void insert(const string &nonce) {
-		unique_lock<mutex> lck(mut);
-		auto it=nc.find(nonce);
-		if (it!=nc.end()) {
+		unique_lock<mutex> lck(mMutex);
+		time_t expiration=getCurrentTime()+mNonceExpires;
+		auto it=mNc.find(nonce);
+		if (it!=mNc.end()) {
 			LOGE("Replacing nonce count for %s", nonce.c_str());
-			it->second=0;
+			it->second.nc=0;
+			it->second.expires=expiration;
 		} else {
-			nc.insert(make_pair(nonce,0));
-		}
-
-		auto itE=expires.find(nonce);
-		time_t expiration=getCurrentTime()+NONCE_EXPIRES;
-		if (itE!=expires.end()) {
-			LOGE("Replacing nonce expiration for %s", nonce.c_str());
-			itE->second=expiration;
-		} else {
-			expires.insert(make_pair(nonce,expiration));
+			mNc.insert(make_pair(nonce,NonceCount(0,expiration)));
 		}
 	}
 
 	void updateNc(const string &nonce, int newnc) {
-		unique_lock<mutex> lck(mut);
-		auto it=nc.find(nonce);
-		if (it!=nc.end()) {
+		unique_lock<mutex> lck(mMutex);
+		auto it=mNc.find(nonce);
+		if (it!=mNc.end()) {
 			LOGD("Updating nonce %s with nc=%d", nonce.c_str(), newnc);
-			(*it).second=newnc;
+			(*it).second.nc=newnc;
 		} else {
 			LOGE("Couldn't update nonce %s: not found", nonce.c_str());
 		}
 	}
 
 	void erase(const string &nonce) {
-		unique_lock<mutex> lck(mut);
+		unique_lock<mutex> lck(mMutex);
 		LOGD("Erasing nonce %s", nonce.c_str());
-		nc.erase(nonce);
-		expires.erase(nonce);
+		mNc.erase(nonce);
 	}
 
 	void cleanExpired() {
-		unique_lock<mutex> lck(mut);
+		unique_lock<mutex> lck(mMutex);
 		int count=0;
-		time_t now =getCurrentTime();
-		for (auto it=expires.begin(); it != expires.end(); ) {
-			if (now > it->second) {
+		time_t now = getCurrentTime();
+		size_t size=0;
+		for (auto it=mNc.begin(); it != mNc.end(); ) {
+			if (now > it->second.expires) {
 				LOGD("Cleaning expired nonce %s", it->first.c_str());
 				auto eraseIt=it;
 				++it;
-				nc.erase(eraseIt->first);
-				expires.erase(eraseIt);
+				mNc.erase(eraseIt);
 				++count;
 			} else 	++it;
+			size++;
 		}
-		if (count) LOGD("Cleaned %d expired nonces, %zd remaining", count, nc.size());
+		if (count) LOGD("Cleaned %d expired nonces, %zd remaining", count, size);
 	}
 };
 
@@ -172,22 +174,22 @@ private:
 				     auth_scheme_t *base,
 				     su_root_t *root,
 				     tag_type_t tag, tag_value_t value, ...) {
-	 auth_plugin_t *ap = AUTH_PLUGIN(am);
-	 int retval = -1;
-	 ta_list ta;
-	 ta_start(ta, tag, value);
+		auth_plugin_t *ap = AUTH_PLUGIN(am);
+		int retval = -1;
+		ta_list ta;
+		ta_start(ta, tag, value);
 
-	  if (auth_init_default(am, base, root, ta_tags(ta)) != -1) {
-		    ap->mRoot = root;
-		    ap->mBase = base;
-		    ap->mTail = &ap->mlist;
-		    retval = 0;
-	  } else {
-		  LOGE("cannot init odbc plugin");
-	  }
-	  auth_readdb_if_needed(am);
-	  ta_end(ta);
-	  return retval;
+		if (auth_init_default(am, base, root, ta_tags(ta)) != -1) {
+			ap->mRoot = root;
+			ap->mBase = base;
+			ap->mTail = &ap->mlist;
+			retval = 0;
+		} else {
+			LOGE("cannot init odbc plugin");
+		}
+		auth_readdb_if_needed(am);
+		ta_end(ta);
+		return retval;
 	}
 	bool empty(const char *value){
 		return value==NULL || value[0]=='\0';
@@ -273,6 +275,7 @@ public:
 					"select password from accounts where id = :id and domain = :domain and authid=:authid"	},
 			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
 			{	Integer		,	"max-password-length"	,	"Maximum length of the password column in database",	"100"	},
+			{	Integer		,	"nonce-expires"	,	"Expiration time of nonces, in seconds.",	"3600" },
 			{	Boolean		,	"odbc-pooling"	,	"Use pooling in odbc",	"true"	},
 			{	Integer		,	"odbc-display-timings-interval"	,	"Display timing statistics after this count of seconds",	"0"	},
 			{	Integer		,	"odbc-display-timings-after-count"	,	"Display timing statistics once the number of samples reach this number.",	"0"	},
@@ -297,7 +300,9 @@ public:
 
 	void onLoad(const GenericStruct * mc){
 		list<string>::const_iterator it;
+		int nonceExpires;
 		mDomains=mc->get<ConfigStringList>("auth-domains")->read();
+		nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
 		for (it=mDomains.begin();it!=mDomains.end();++it){
 			mAuthModules[*it] = auth_mod_create(NULL,
 									AUTHTAG_METHOD("odbc"),
@@ -305,8 +310,8 @@ public:
 									AUTHTAG_OPAQUE("+GNywA=="),
 #ifdef QOP_AUTH
 									AUTHTAG_QOP("auth"),
-									AUTHTAG_EXPIRES(NONCE_EXPIRES), // in seconds
-									AUTHTAG_NEXT_EXPIRES(NEXT_NONCE_EXPIRES), // in seconds
+									AUTHTAG_EXPIRES(nonceExpires), // in seconds
+									AUTHTAG_NEXT_EXPIRES(nonceExpires), // in seconds
 #endif
 									AUTHTAG_FORBIDDEN(1),
 									AUTHTAG_ALLOW("ACK CANCEL BYE"),
@@ -326,6 +331,7 @@ public:
 		mUseClientCertificates = mc->get<ConfigStringList>("client-certificates-domains")->read();
 		mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
 		mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
+		mNonceStore.setNonceExpires(nonceExpires);
 	}
 
 	auth_mod_t *findAuthModule(const char *name) {
@@ -371,10 +377,11 @@ public:
 				SLOGD << "Allowing message from trusted TLS certificate " << res;
 			} else {
 				SLOGE << "Client certificate do not match " << searched;
-				ev->reply( SIP_488_NOT_ACCEPTABLE,
-						   SIPTAG_CONTACT(sip->sip_contact),
-						   SIPTAG_SERVER_STR(getAgent()->getServerString()),
-						   TAG_END());
+				int code = notARegister ? 407 : 401;
+				const char *phrase="Missing or invalid client certificate";
+				ev->reply(code, phrase,
+						SIPTAG_SERVER_STR(getAgent()->getServerString()),
+						TAG_END());
 			}
 			return true;
 		}
@@ -399,7 +406,7 @@ public:
 		// Check for the existence of username, reject if absent.
 		if (sip->sip_from->a_url->url_user==NULL){
 			LOGI("From has no username, cannot authenticate.");
-			ev->reply(SIP_488_NOT_ACCEPTABLE,
+			ev->reply(403, "Username must be provided",
 					  SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					  TAG_END());
 			return;
@@ -415,8 +422,7 @@ public:
 		auth_mod_t *am=findAuthModule(fromDomain);
 		if (am==NULL) {
 			LOGI("Unknown domain [%s]", fromDomain);
-			ev->reply( SIP_488_NOT_ACCEPTABLE,
-					SIPTAG_CONTACT(sip->sip_contact),
+			ev->reply( 403, "Domain forbidden",
 					SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					TAG_END());
 			return;
