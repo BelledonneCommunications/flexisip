@@ -55,12 +55,14 @@ void ForkCallContext::onCancel() {
 }
 
 void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> & br) {
-	auto branches=getBranches();
+	list<shared_ptr<BranchInfo>> branches=getBranches();
 	for (auto it = branches.begin(); it != branches.end();++it) {
-		if (*it != br) {
-			shared_ptr<OutgoingTransaction> tr = (*it)->mTransaction;
-			removeBranch(*it);
-			tr->cancel();
+		shared_ptr<BranchInfo> brit=*it;
+		if (brit != br) {
+			shared_ptr<OutgoingTransaction> tr = brit->mTransaction;
+			removeBranch(brit);
+			if (brit->getStatus()<200)
+				tr->cancel();
 		}
 	}
 }
@@ -167,6 +169,8 @@ void ForkCallContext::onLateTimeout() {
 	}else{
 		logResponse(forwardResponse(br));
 	}
+	/*cancel all possibly pending outgoing transactions*/
+	cancelOthers(shared_ptr<BranchInfo>());
 }
 
 

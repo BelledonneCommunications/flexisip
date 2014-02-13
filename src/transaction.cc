@@ -56,8 +56,12 @@ const string &OutgoingTransaction::getBranchId()const{
 }
 
 void OutgoingTransaction::cancel() {
-	nta_outgoing_cancel(mOutgoing);
-	destroy();
+	if (mOutgoing){
+		nta_outgoing_cancel(mOutgoing);
+		destroy();
+	}else{
+		LOGE("OutgoingTransaction::cancel(): transaction already destroyed.");
+	}
 }
 
 const url_t *OutgoingTransaction::getRequestUri()const{
