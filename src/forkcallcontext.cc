@@ -60,9 +60,10 @@ void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> & br) {
 		shared_ptr<BranchInfo> brit=*it;
 		if (brit != br) {
 			shared_ptr<OutgoingTransaction> tr = brit->mTransaction;
-			removeBranch(brit);
-			if (brit->getStatus()<200)
+			if (brit->getStatus()<200 && tr)
 				tr->cancel();
+			removeBranch(brit);
+			
 		}
 	}
 }
@@ -178,7 +179,6 @@ void ForkCallContext::sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_ti
 	ForkCallContext *zis=static_cast<ForkCallContext*>(arg);
 	zis->onShortTimer();
 }
-
 
 void ForkCallContext::onPushTimer(){
 	if (!isCompleted() && getLastResponseCode()<180) {
