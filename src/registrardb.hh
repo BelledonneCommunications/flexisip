@@ -278,6 +278,7 @@ protected:
 		std::string mPreferedRoute;
 	public:
 		void remove(const std::string key) {
+			std::lock_guard<std::mutex> lock(mMutex);
 			mRegMap.erase(key);
 		}
 		void update(const Record &record);
