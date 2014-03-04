@@ -67,7 +67,8 @@ public:
 				"The typical fork process requires to wait the best response from all branches before transmitting it to the client. "
 				"However some error responses are retryable immediately (like 415 unsupported media, 401, 407) thus it is painful for the client to need to wait the end of the transaction time (32 seconds) for these error codes.", "5" },
 			{ Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.","0"},
-			{ Integer , "message-delivery-timeout", "Maximum duration for delivering a message (text)","3600"},
+			{ Integer , "message-delivery-timeout", "Maximum duration for delivering a text message","3600"},
+			{ Integer , "message-accept-timeout", "Maximum duration for accepting a text message if no response is received from any recipients.","15"},
 			{ String, "generated-contact-route" , "Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
 			{ String, "generated-contact-expected-realm" , "Require presence of authorization header for specified realm. [Realm]", ""},
 			{ Boolean, "generate-contact-even-on-filled-aor", "Generate a contact route even on filled AOR.", "false"},
@@ -114,6 +115,7 @@ public:
 
 		mMessageForkCfg->mForkLate=mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
 		mMessageForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("message-delivery-timeout")->read();
+		mMessageForkCfg->mUrgentTimeout = mc->get<ConfigInt>("message-accept-timeout")->read();
 		mOtherForkCfg=make_shared<ForkContextConfig>();
 		mOtherForkCfg->mForkOneResponse=true;
 		mOtherForkCfg->mForkLate=false;
