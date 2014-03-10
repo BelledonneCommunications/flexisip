@@ -163,10 +163,18 @@ IncomingTransaction::~IncomingTransaction() {
 }
 
 shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const *phrase) {
-	msg_t *msg = nta_incoming_create_response(mIncoming, status, phrase);
-	shared_ptr<MsgSip> ms=make_shared<MsgSip>(msg);
-	msg_destroy(msg);
-	return ms;
+	if (mIncoming){
+		msg_t *msg = nta_incoming_create_response(mIncoming, status, phrase);
+		if (!msg){
+			LOGE("IncomingTransaction::createResponse(): this=%p cannot create response.",this);
+			return shared_ptr<MsgSip>();
+		}
+		shared_ptr<MsgSip> ms=make_shared<MsgSip>(msg);
+		msg_destroy(msg);
+		return ms;
+	}
+	LOGE("IncomingTransaction::createResponse(): this=%p transaction is finished, cannot create response.",this);
+	return shared_ptr<MsgSip>();
 }
 
 void IncomingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {

@@ -165,8 +165,10 @@ void ForkCallContext::onLateTimeout() {
 	auto br=findBestBranch(getUrgentCodes());
 	if (!br || br->getStatus()==0 || br->getStatus()==503){
 		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
-		shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
-		logResponse(forwardResponse(ev));
+		if (msgsip){
+			shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
+			logResponse(forwardResponse(ev));
+		}
 	}else{
 		logResponse(forwardResponse(br));
 	}
