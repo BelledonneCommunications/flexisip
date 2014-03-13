@@ -35,7 +35,7 @@ ForkMessageContext::ForkMessageContext(Agent *agent, const std::shared_ptr<Reque
 	//start the acceptance timer immediately
 	if (mCfg->mForkLate && mCfg->mDeliveryTimeout>30){
 		mAcceptanceTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
-		su_timer_set_interval(mAcceptanceTimer, &ForkMessageContext::sOnAcceptanceTimer, this, (su_duration_t)mCfg->mUrgentTimeout);
+		su_timer_set_interval(mAcceptanceTimer, &ForkMessageContext::sOnAcceptanceTimer, this, (su_duration_t)mCfg->mUrgentTimeout*1000);
 	}
 	mDeliveredCount=0;
 }
