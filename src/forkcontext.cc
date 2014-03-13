@@ -185,10 +185,19 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const string 
 	
 }
 
-bool ForkContext::processCancel ( const std::shared_ptr< RequestSipEvent >& ev ) {
+std::shared_ptr<ForkContext> ForkContext::get(const std::shared_ptr<IncomingTransaction> &tr){
+	return tr->getProperty<ForkContext>("ForkContext");
+}
+
+std::shared_ptr<ForkContext> ForkContext::get(const std::shared_ptr<OutgoingTransaction> &tr){
+	shared_ptr<BranchInfo> br=tr->getProperty<BranchInfo>("BranchInfo");
+	return br ? br->mForkCtx : shared_ptr<ForkContext>();
+}
+
+bool ForkContext::processCancel( const std::shared_ptr< RequestSipEvent >& ev ) {
 	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
 	if (transaction && ev->getMsgSip()->getSip()->sip_request->rq_method==sip_method_cancel){
-		shared_ptr<ForkContext> ctx=transaction->getProperty<ForkContext>("ForkContext");
+		shared_ptr<ForkContext> ctx=ForkContext::get(transaction);
 		if (ctx) {
 			ctx->onCancel();
 			if (ctx->shouldFinish()) ctx->setFinished();
@@ -200,7 +209,7 @@ bool ForkContext::processCancel ( const std::shared_ptr< RequestSipEvent >& ev )
 }
 
 
-bool ForkContext::processResponse ( const shared_ptr< ResponseSipEvent >& ev ) {
+bool ForkContext::processResponse( const shared_ptr< ResponseSipEvent >& ev ) {
 	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 	if (transaction != NULL) {
 		shared_ptr<BranchInfo> binfo=transaction->getProperty<BranchInfo>("BranchInfo");

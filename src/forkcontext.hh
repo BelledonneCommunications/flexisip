@@ -120,6 +120,9 @@ public:
 	static bool processCancel(const std::shared_ptr<RequestSipEvent> &ev);
 	//called by the router module to notify the arrival of a response.
 	static bool processResponse(const std::shared_ptr<ResponseSipEvent> &ev);
+	//Obtain the ForkContext that manages a transaction.
+	static std::shared_ptr<ForkContext> get(const std::shared_ptr<OutgoingTransaction> &tr);
+	static std::shared_ptr<ForkContext> get(const std::shared_ptr<IncomingTransaction> &tr);
 	
 	/*
 	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.

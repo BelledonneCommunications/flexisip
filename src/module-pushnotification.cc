@@ -85,7 +85,7 @@ PushNotificationContext::PushNotificationContext(const shared_ptr<OutgoingTransa
 		mModule(module), mPushNotificationRequest(pnr), mKey(key) {
 	mTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
 	mEndTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
-	mForkContext = dynamic_pointer_cast<ForkCallContext>(transaction->getProperty<ForkContext>("Router"));
+	mForkContext = dynamic_pointer_cast<ForkCallContext>(ForkContext::get(transaction));
 }
 
 PushNotificationContext::~PushNotificationContext() {
