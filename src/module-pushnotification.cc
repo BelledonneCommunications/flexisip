@@ -299,6 +299,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 					// We only have one client for all Android apps, called "google"
 					SLOGD << "Creating Google push notif request";
 					pn = make_shared<GooglePushNotificationRequest>("google", deviceToken, apiKeyIt->second, contact, call_id);
+				} else {
+					SLOGD << "No Key matching appId " << appId;
 				}
 			} else if (strcmp(type, "error")==0) {
 				SLOGD << "Creating Error push notif request";
