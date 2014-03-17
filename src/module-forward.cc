@@ -88,11 +88,19 @@ void ForwardModule::onLoad(const GenericStruct *mc) {
 
 url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
+	
 	if (mOutRoute) {
+		sip_t *sip = ms->getSip();
+		for (sip_via_t *via = sip->sip_via; via != NULL; via = via->v_next) {
+			if (urlViaMatch(mOutRoute->r_url,sip->sip_via,false)) {
+				SLOGD << "Found forced outgoing route in via, skipping";
+				return dest;
+			}
+		}
 		dest = mOutRoute->r_url;
 		if (mRewriteReqUri) {
-			ms->getSip()->sip_request->rq_url->url_host = mOutRoute->r_url->url_host;
-			ms->getSip()->sip_request->rq_url->url_port = mOutRoute->r_url->url_port;
+			sip->sip_request->rq_url->url_host = mOutRoute->r_url->url_host;
+			sip->sip_request->rq_url->url_port = mOutRoute->r_url->url_port;
 		}
 	}
 	return dest;
