@@ -299,6 +299,15 @@ void LateForkApplier::onContactRegistered(const Agent *agent, const sip_contact_
 	module->onContactRegistered(ct, path, aor, sipUri);
 }
 
+static const url_t *findFirstRoute(const Agent *ag, const url_t *ct, const sip_path_t *path) {
+	for (; path; path = path->r_next) {
+		if (ag->isUs(path->r_url, false)) continue;
+		return path->r_url;
+	}
+	return ct;
+}
+
+
 void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t *path, Record *aor, const url_t * sipUri) {
 	SLOGD << "ModuleRouter::onContactRegistered";
 	if (aor == NULL) {
@@ -324,11 +333,14 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 	auto range = mForks.equal_range(key.c_str());
 	SLOGD << "Searching for fork context with key " << key;
 
+	// FIXME: should compute path only once!
+	const url_t *firstRoute = findFirstRoute(getAgent(), ct->m_url, path);
+
 	// First use sipURI
 	for(auto it = range.first; it != range.second; ++it) {
 		shared_ptr<ForkContext> context = it->second;
 		string uid=Record::extractUniqueId(ct);
-		if (context->onNewRegister(ct->m_url,uid)){
+		if (context->onNewRegister(firstRoute,uid)){
 			SLOGD << "Found a pending context for key " << key << ": " << context.get();
 			auto stlpath=Record::route_to_stl(context->getEvent()->getMsgSip()->getHome(), path);
 			dispatch( context->getEvent(), ct, uid, stlpath, context);
@@ -346,7 +358,7 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 		for(auto it = range.first; it != range.second; ++it) {
 			shared_ptr<ForkContext> context = it->second;
 			string uid=Record::extractUniqueId(ct);
-			if (context->onNewRegister(ct->m_url,uid)){
+			if (context->onNewRegister(firstRoute,uid)){
 				LOGD("Found a pending context for contact %s: %p",
 				     ec->mSipUri.c_str(), context.get());
 				auto stlpath=Record::route_to_stl(context->getEvent()->getMsgSip()->getHome(), path);
