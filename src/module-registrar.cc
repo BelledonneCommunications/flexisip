@@ -477,7 +477,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			RegistrarDb::get(mAgent)->clear(sip, listener);
 			return;
 		} else {
-			auto listener = make_shared<OnRequestBindListener>(this, ev, sip->sip_from, sip->sip_contact);
+			auto listener = make_shared<OnRequestBindListener>(this, ev, sip->sip_from, sip->sip_contact, sip->sip_path);
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
 			listener->addStatCounter(mStats.mCountBind->finish);
