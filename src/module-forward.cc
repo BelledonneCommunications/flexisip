@@ -129,6 +129,13 @@ url_t * ForwardModule::getDestinationFromRoute(su_home_t *home, sip_t *sip){
 	return NULL;
 }
 
+static bool isUs(Agent *ag, sip_route_t *r) {
+	msg_param_t param = msg_params_find(r->r_params, "fs-proxy-id");
+        if (param && strcmp(param, ag->getUniqueId().c_str()) == 0) return true;
+	return ag->isUs(r->r_url);
+}
+
+
 void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	url_t* dest = NULL;
@@ -146,7 +153,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	dest = sip->sip_request->rq_url;
 	// removes top route headers if they matches us
-	while (sip->sip_route != NULL && getAgent()->isUs(sip->sip_route->r_url)) {
+	while (sip->sip_route != NULL && isUs(getAgent(), sip->sip_route)) {
 		LOGD("Removing top route %s", url_as_string(ms->getHome(), sip->sip_route->r_url));
 		sip_route_remove(msg, sip);
 	}
