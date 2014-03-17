@@ -389,6 +389,11 @@ bool ModuleToolbox::urlViaMatch(url_t *url, sip_via_t *via, bool use_received_rp
 	const char *url_pt=url_port(url); //this function never returns NULL
 	char url_transport[8]="UDP";
 	
+	char maddr[50];
+	if (url_param(url->url_params, "maddr", maddr, sizeof(maddr))) {
+		url_host = maddr;
+	}
+
 	if (use_received_rport){
 		via_host=via->v_received;
 		via_port=via->v_rport;
