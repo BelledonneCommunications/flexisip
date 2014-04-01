@@ -113,7 +113,7 @@ void ForkCallContext::sendRinging(){
 	int code=getLastResponseCode();
 	if (code<180){
 		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_180_RINGING));
-		if (msg){
+		if (msgsip){
 			shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 			//add a to tag, no set by sofia here.
 			if (!mCfg->mRemoveToTag) {
