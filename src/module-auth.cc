@@ -424,6 +424,7 @@ public:
 		if (fromDomain && strcmp(fromDomain,"anonymous.invalid")==0){
 			ppi=sip_p_preferred_identity(sip);
 			if (ppi) fromDomain=ppi->ppid_url->url_host;
+			else LOGD("There is no p-preferred-identity");
 		}
 		auth_mod_t *am=findAuthModule(fromDomain);
 		if (am==NULL) {
@@ -446,8 +447,8 @@ public:
 		as = auth_status_new(ms->getHome());
 		as->as_method = sip->sip_request->rq_method_name;
 		as->as_source = msg_addrinfo(ms->getMsg());
-		as->as_realm = sip->sip_from->a_url[0].url_host;
 		as->as_user_uri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
+		as->as_realm = as->as_user_uri->url_host;
 		as->as_display = sip->sip_from->a_display;
 		if (sip->sip_payload)
 		    as->as_body = sip->sip_payload->pl_data,

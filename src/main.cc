@@ -523,6 +523,8 @@ int main(int argc, char *argv[]){
 	}
 
 	su_init();
+	/*tell parser to support extra headers */
+	sip_update_default_mclass(sip_extend_mclass(NULL));
 
 	log_boolean_expression_evaluation(oset.find("bee") != oset.end());
 	log_boolean_expression_parsing(oset.find("bep") != oset.end());
