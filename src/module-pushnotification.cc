@@ -25,6 +25,7 @@
 #include "forkcallcontext.hh"
 
 #include <map>
+#include <sofia-sip/msg_mime.h>
 
 using namespace ::std;
 
@@ -71,6 +72,7 @@ public:
 	}
 	void clearNotification(const shared_ptr<PushNotificationContext>& ctx);
 private:
+	bool needsPush(const sip_t *sip);
 	void makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction);
 	map<string,shared_ptr<PushNotificationContext> > mPendingNotifications; //map of pending push notifications. Its purpose is to avoid sending multiples notifications for the same call attempt to a given device.
 	static ModuleInfo<PushNotification> sInfo;
@@ -319,12 +321,26 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 	}
 }
 
+bool PushNotification::needsPush(const sip_t *sip){
+	if (sip->sip_to->a_tag) return false;
+	
+	if (sip->sip_request->rq_method == sip_method_invite)
+		return true;
+	
+	if (sip->sip_request->rq_method == sip_method_message){
+		/*dont send push for is-composing messages.*/
+		if (sip->sip_content_type && sip->sip_content_type->c_type && sip->sip_content_type->c_subtype
+			&& strcasecmp(sip->sip_content_type->c_type,"application")==0 && strcasecmp(sip->sip_content_type->c_subtype,"im-iscomposing+xml")==0)
+			return false;
+		return true;
+	}
+	return false;
+}
+
 void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip=ms->getSip();
-	if ((sip->sip_request->rq_method == sip_method_invite ||
-		sip->sip_request->rq_method == sip_method_message) &&
-		sip->sip_to && sip->sip_to->a_tag==NULL){
+	if (needsPush(sip)){
 		shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 		if (transaction != NULL) {
 			sip_t *sip = ms->getSip();
