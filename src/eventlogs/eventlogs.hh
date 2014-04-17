@@ -97,6 +97,14 @@ private:
 	bool mUserExists;
 };
 
+class CallQualityStatisticsLog : public EventLog{
+friend class FilesystemEventLogWriter;
+public:
+	CallQualityStatisticsLog(const sip_from_t *from, const sip_to_t *to, const char *report);
+	~CallQualityStatisticsLog();
+private:
+	char *mReport;
+};
 
 class EventLogWriter{
 public:
@@ -113,6 +121,7 @@ private:
 	int openPath(const url_t *uri, const char *kind, time_t curtime, int errorcode=0);
 	void writeRegistrationLog(const std::shared_ptr<RegistrationLog> &evlog);
 	void writeCallLog(const std::shared_ptr<CallLog> &clog);
+	void writeCallQualityStatisticsLog(const std::shared_ptr<CallQualityStatisticsLog> &mlog);
 	void writeMessageLog(const std::shared_ptr<MessageLog> & mlog);
 	void writeAuthLog(const std::shared_ptr<AuthLog> & alog);
 	void writeErrorLog(const std::shared_ptr<EventLog> &log, const char *kind, const std::string &logstr);

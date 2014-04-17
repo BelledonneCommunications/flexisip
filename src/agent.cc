@@ -283,6 +283,7 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 #endif
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GatewayAdapter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Registrar"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "StatisticsCollector"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "ContactRouteInserter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Router"));
 #ifdef ENABLE_PUSHNOTIFICATION

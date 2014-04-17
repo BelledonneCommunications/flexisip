@@ -95,6 +95,21 @@ void MessageLog::setDestination(const url_t *dest){
 	mUri=url_hdup(&mHome,dest);
 }
 
+CallQualityStatisticsLog::CallQualityStatisticsLog(const sip_from_t *from, const sip_to_t *to, const char *report){
+	setFrom(from);
+	setTo(to);
+
+	if (report != NULL) {
+		mReport = strdup(report);
+	}
+}
+
+CallQualityStatisticsLog::~CallQualityStatisticsLog() {
+	if (mReport != NULL) {
+		free(mReport);
+	}
+}
+
 AuthLog::AuthLog(const char *method, const sip_from_t *from, const sip_to_t *to, bool userExists){
 	setFrom(from);
 	setTo(to);
@@ -340,6 +355,27 @@ void FilesystemEventLogWriter::writeMessageLog(const std::shared_ptr<MessageLog>
 	}
 }
 
+void FilesystemEventLogWriter::writeCallQualityStatisticsLog(const std::shared_ptr<CallQualityStatisticsLog> &mlog){
+	const char *label="statistics_reports";
+	int fd=openPath(mlog->mFrom->a_url,label,mlog->mDate);
+	if (fd==-1) return;
+	ostringstream msg;
+	
+	msg<<PrettyTime(mlog->mDate)<<" ";
+	msg<<mlog->mFrom<<" --> "<<mlog->mTo<<" ";
+	msg<<mlog->mStatusCode<<" "<<mlog->mReason <<": ";
+	if (mlog->mReport != NULL) msg<<mlog->mReport<<endl;
+
+	if (::write(fd,msg.str().c_str(),msg.str().size())==-1){
+		LOGE("Fail to write registration log: %s",strerror(errno));
+	}
+
+	close(fd);
+	if (mlog->mStatusCode>=300){
+		writeErrorLog(mlog,label,msg.str());
+	}
+}
+
 void FilesystemEventLogWriter::writeAuthLog(const std::shared_ptr<AuthLog> &alog){
 	const char *label="auth";
 	ostringstream msg;
@@ -379,6 +415,8 @@ void FilesystemEventLogWriter::write(const std::shared_ptr<EventLog> &evlog){
 		writeMessageLog(static_pointer_cast<MessageLog>(evlog));
 	}else if (typeid(*evlog.get())==typeid(AuthLog)){
 		writeAuthLog(static_pointer_cast<AuthLog>(evlog));
+	}else if (typeid(*evlog.get())==typeid(CallQualityStatisticsLog)){
+		writeCallQualityStatisticsLog(static_pointer_cast<CallQualityStatisticsLog>(evlog));
 	}
 }
 

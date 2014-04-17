@@ -43,6 +43,7 @@ thesources= \
 			module-registrar.cc \
 			module-router.cc lateforkapplier.hh \
 			module-transcode.cc \
+			module-statistics-collector.cc \
 			module-mediarelay.cc \
 			module-auth.cc \
 			module-loadbalancer.cc \

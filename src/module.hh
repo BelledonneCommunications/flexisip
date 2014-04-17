@@ -71,6 +71,7 @@ class ModuleInfoBase {
 			DateHandler=75,
 			GatewayAdapter=90,
 			Registrar=120,
+			StatisticsCollector=123,
 			Router=125,
 			PushNotification=130,
 			ContactRouteInserter=150,
