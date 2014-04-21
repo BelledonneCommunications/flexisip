@@ -31,6 +31,7 @@ using namespace ::std;
 class StatisticsCollector: public Module, ModuleToolbox {
 public:
 	StatisticsCollector(Agent *ag);
+	~StatisticsCollector();
 	virtual void onDeclare(GenericStruct * module_config);
 	virtual void onLoad(const GenericStruct *root);
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
@@ -40,16 +41,22 @@ private:
 	bool containsMandatoryFields(char *data, usize_t len);
 
 	static ModuleInfo<StatisticsCollector> sInfo;
-
-	string mCollectorAddress;
+	url_t *mCollectorAddress;
+	su_home_t mHome;
 };
 
-StatisticsCollector::StatisticsCollector(Agent *ag) : Module(ag) { }
+StatisticsCollector::StatisticsCollector(Agent *ag) : Module(ag), mCollectorAddress(NULL) {
+	su_home_init(&mHome);
+}
+
+StatisticsCollector::~StatisticsCollector(){
+	su_home_deinit(&mHome);
+}
 
 void StatisticsCollector::onDeclare(GenericStruct * module_config) {
 	ConfigItemDescriptor items[] = {
-			{ String, "collector-address", "SIP end point address of the statistics collector. "
-			"Notes that the messages for this address would be deleted by this module and thus not be delivered.", "" },
+			{ String, "collector-address", "SIP URI of the statistics collector. "
+			"Note that the messages destinated to this address will be deleted by this module and thus not be delivered.", "" },
 
 			config_item_end
 	};
@@ -60,22 +67,25 @@ void StatisticsCollector::onDeclare(GenericStruct * module_config) {
 }
 
 void StatisticsCollector::onLoad(const GenericStruct *mc) {
-	mCollectorAddress = mc->get<ConfigString>("collector-address")->read();
+	string value = mc->get<ConfigString>("collector-address")->read();
+	if (value.size()>0){
+		mCollectorAddress=url_make(&mHome,value.c_str());
+		if (mCollectorAddress==NULL){
+			LOGF("StatisticsCollector: Invalid collector address '%s'",value.c_str());
+		}
+	}else mCollectorAddress=NULL;
 }
 
 void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
-	url_t *url = sip->sip_to->a_url;
-	if (url->url_user && url->url_host) {
-		string to = string(url->url_user) + "@" + url->url_host;
-		if (to == mCollectorAddress) {
-			// some treatment
-			int err = managePublishContent(ev);
-			
-			ev->reply(err, sip_status_phrase(err), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-			return;
-		}
+	url_t *url = sip->sip_request->rq_url;
+	if (mCollectorAddress && url_cmp(mCollectorAddress,url)==0) {
+		// some treatment
+		int err = managePublishContent(ev);
+		
+		ev->reply(err, sip_status_phrase(err), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		return;
 	}
 }
 
@@ -101,15 +111,15 @@ int StatisticsCollector::managePublishContent(const shared_ptr<RequestSipEvent> 
 	// verify content type
 	if (strcmp("application/vq-rtcpxr", sip->sip_content_type->c_type) != 0 
 		|| strcmp("vq-rtcpxr", sip->sip_content_type->c_subtype) != 0) {
-		err = 400;
+		err = 415;
 		statusPhrase = "Invalid content type";
 	// verify that packet contains data
 	} else if (! sip->sip_payload || sip->sip_payload->pl_len == 0 || ! sip->sip_payload->pl_data ) {
-		err = 400;
+		err = 606;
 		statusPhrase = "No data in packet payload";
 	// verify that packet contains mandatory fields
 	} else if (! containsMandatoryFields(sip->sip_payload->pl_data, sip->sip_payload->pl_len)) {
-		err = 400;
+		err = 606;
 		statusPhrase = "One or several mandatory fields missing";
 	}
 
@@ -123,5 +133,5 @@ int StatisticsCollector::managePublishContent(const shared_ptr<RequestSipEvent> 
 }
 
 ModuleInfo<StatisticsCollector> StatisticsCollector::sInfo("StatisticsCollector", "The purpose of the StatisticsCollector module is to "
-		"collects call statistics (RFC 6035) and store them on the server",
+		"collect call statistics (RFC 6035) and store them on the server.",
 		ModuleInfoBase::ModuleOid::StatisticsCollector);
