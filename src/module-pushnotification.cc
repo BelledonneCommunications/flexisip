@@ -329,8 +329,8 @@ bool PushNotification::needsPush(const sip_t *sip){
 	
 	if (sip->sip_request->rq_method == sip_method_message){
 		/*dont send push for is-composing messages.*/
-		if (sip->sip_content_type && sip->sip_content_type->c_type && sip->sip_content_type->c_subtype
-			&& strcasecmp(sip->sip_content_type->c_type,"application")==0 && strcasecmp(sip->sip_content_type->c_subtype,"im-iscomposing+xml")==0)
+		if (sip->sip_content_type && sip->sip_content_type->c_type
+			&& strcasecmp(sip->sip_content_type->c_type,"application/im-iscomposing+xml")==0)
 			return false;
 		return true;
 	}
