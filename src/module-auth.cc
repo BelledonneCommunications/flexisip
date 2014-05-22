@@ -220,7 +220,7 @@ public:
 	StatCounter64 *mCountPassNotFound;
 	NonceStore mNonceStore;
 
-	Authentication(Agent *ag):Module(ag),mCountAsyncRetrieve(NULL),mCountSyncRetrieve(NULL){
+	Authentication(Agent *ag,GenericManager& configManager):Module(ag,configManager),mCountAsyncRetrieve(NULL),mCountSyncRetrieve(NULL){
 		mNewAuthOn407=false;
 		mProxyChallenger.ach_status=407;/*SIP_407_PROXY_AUTH_REQUIRED*/
 		mProxyChallenger.ach_phrase=sip_407_Proxy_auth_required;

@@ -26,18 +26,22 @@
 #include <sys/resource.h>
 
 
-StunServer::Init StunServer::sStaticInit;
+GenericStruct* StunServer::sRoot=NULL;
 
-StunServer::Init::Init(){
+void StunServer::declare(GenericStruct& root){
 	ConfigItemDescriptor items[]={
 		{	Boolean,		"enabled",		"Enable or disable stun server.",	"true"	},
 		{	String,			"bind-address",		"Local ip address where to bind the socket.", "0.0.0.0"},
 		{	Integer,		"port"		,	"STUN server port number.",	"3478"		},
 		config_item_end
 	};
+	if (sRoot) {
+		SLOGA <<"Stun server already declared";
+	}
 	GenericStruct *s=new GenericStruct("stun-server","STUN server parameters.",0);
-	GenericManager::get()->getRoot()->addChild(s);
+	root.addChild(s);
 	s->addChildrenValues(items);
+	sRoot=&root;
 
 }
 
@@ -50,7 +54,9 @@ StunServer::StunServer(int port){
 int StunServer::start(){
 	int err;
 	struct sockaddr_in laddr;
-	std::string bind_address = GenericManager::get()->getRoot()->get<GenericStruct>("stun-server")->get<ConfigString>("bind-address")->read();
+	if (!sRoot)
+		SLOGA << "Stun server not declared";
+	std::string bind_address = sRoot->get<GenericStruct>("stun-server")->get<ConfigString>("bind-address")->read();
 	
 	if (bind_address.size()==0) bind_address="0.0.0.0";
 	

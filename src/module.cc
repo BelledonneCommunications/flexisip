@@ -22,7 +22,7 @@
 #include "sofia-sip/auth_digest.h"
 #include "sofia-sip/nta.h"
 #include "log/logmanager.hh"
-
+#include "proxy-configmanager.hh"
 #include "expressionparser.hh"
 
 #include <algorithm>
@@ -32,21 +32,28 @@ list<string> Module::sPushNotifParams {
 	"pn-tok", "pn-type", "app-id", "pn-msg-str", "pn-call-str", "pn-call-snd", "pn-msg-snd"
 };
 
-Module *ModuleInfoBase::create(Agent *ag){
-	Module *mod=_create(ag);
+Module *ModuleInfoBase::create(Agent *ag,GenericManager& configManager){
+	Module *mod=_create(ag, configManager);
 	mod->setInfo(this);
 	return mod;
 }
 
 ModuleFactory * ModuleFactory::sInstance = NULL;
+GenericManager * ModuleFactory::sConfigManager = NULL;
 
 ModuleFactory *ModuleFactory::get() {
+	if (!sConfigManager) {
+		init(*ProxyConfigManager::instance());
+		//SLOGA << "Module factory not initialized yet, call init first";
+	}
 	if (sInstance == NULL) {
 		sInstance = new ModuleFactory();
 	}
 	return sInstance;
 }
-
+void ModuleFactory::init(GenericManager& configMgr) {
+	sConfigManager=&configMgr;
+}
 struct hasName {
 	hasName(const string &ref) :
 			match(ref) {
@@ -63,7 +70,7 @@ Module *ModuleFactory::createModuleInstance(Agent *ag, const string &modname) {
 	if (it != mModules.end()) {
 		Module *m;
 		ModuleInfoBase *i = *it;
-		m = i->create(ag);
+		m = i->create(ag,*sConfigManager);
 		LOGI("Creating module instance for [%s]", m->getModuleName().c_str());
 		return m;
 	}
@@ -77,8 +84,8 @@ void ModuleFactory::registerModule(ModuleInfoBase *m) {
 	mModules.push_back(m);
 }
 
-Module::Module(Agent *ag) :
-		mAgent(ag) {
+Module::Module(Agent *ag,GenericManager& configManager) :ConfigValueListener(configManager),
+		mAgent(ag),mGenericManager(configManager) {
 	mFilter = new ConfigEntryFilter();
 }
 
@@ -166,7 +173,9 @@ void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 		} else {
 			LOGD("Skipping onRequest() on module %s", getModuleName().c_str());
 		}
-	} catch (exception &e) {
+	} catch (FlexisipException &fe) {
+		SLOGD << "Skipping onRequest() on module " << getModuleName() << " because "  << fe;
+	} catch (...) {
 		LOGD("Skipping onRequest() on module %s (error)", getModuleName().c_str());
 	}
 }
@@ -181,7 +190,9 @@ void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 		} else {
 			LOGD("Skipping onResponse() on module %s", getModuleName().c_str());
 		}
-	} catch (exception &e) {
+	} catch (FlexisipException &fe) {
+		SLOGD <<"Skipping onResponse() on module" << getModuleName() << " because " << fe;
+	} catch (...) {
 		LOGD("Skipping onResponse() on module %s (error)", getModuleName().c_str());
 	}
 }
@@ -201,6 +212,9 @@ const string &Module::getModuleName() const {
 	return mInfo->getModuleName();
 }
 
+GenericManager& Module::getConfigManager() const {
+	return mGenericManager;
+}
 msg_auth_t *ModuleToolbox::findAuthorizationForRealm(su_home_t *home, msg_auth_t *au, const char *realm) {
 	while (au!= NULL) {
 		auth_response_t r;

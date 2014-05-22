@@ -34,6 +34,7 @@
 
 #include <sofia-sip/sip_protos.h>
 #include "recordserializer.hh"
+#include "proxy-configmanager.hh"
 
 using namespace ::std;
 
@@ -336,15 +337,23 @@ int Record::sMaxContacts = -1;
 list<string> Record::sLineFieldNames;
 
 Record::Record(string key):mKey(key) {
-	if (sMaxContacts == -1)
-		init();
+	checkIfConfigured();
 }
 
 Record::~Record() {
 }
+void Record::checkIfConfigured() throw(FlexisipException){
+	if (sMaxContacts == -1)
+		SLOGA <<"Record class not configured, please call init before";
+}
 
-void Record::init() {
-	GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+int Record::getMaxContacts() {
+	checkIfConfigured();
+	return sMaxContacts;
+}
+
+void Record::init(const GenericManager& configManager) {
+	GenericStruct *registrar = configManager.get<GenericStruct>("module::Registrar");
 	sMaxContacts = registrar->get<ConfigInt>("max-contacts-by-aor")->read();
 	sLineFieldNames = registrar->get<ConfigStringList>("unique-id-parameters")->read();
 }
@@ -424,9 +433,17 @@ bool RegistrarDb::errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, 
 
 RegistrarDb *RegistrarDb::sUnique = NULL;
 
-RegistrarDb *RegistrarDb::get(Agent *ag) {
+RegistrarDb *RegistrarDb::get() {
 	if (sUnique == NULL) {
-		GenericStruct *cr = GenericManager::get()->getRoot();
+		SLOGA << "RegistrarDb should be initialized first ";
+	} else
+		return sUnique;
+}
+void RegistrarDb::init(Agent *ag,GenericManager& genericManager) {
+
+	if (sUnique == NULL) {
+		Record::init(genericManager);
+		GenericStruct *cr = genericManager.getRoot();
 		GenericStruct *mr = cr->get<GenericStruct>("module::Registrar");
 		GenericStruct *mro = cr->get<GenericStruct>("module::Router");
 		
@@ -436,7 +453,7 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 			LOGI("RegistrarDB implementation is internal");
 			sUnique = new RegistrarDbInternal(ag->getPreferredRoute());
 			sUnique->mUseGlobalDomain=useGlobalDomain;
-			return sUnique;
+			return;
 		}
 
 #ifdef ENABLE_REDIS
@@ -462,10 +479,9 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 		}
 #endif
 		
-		LOGF("unsupported implementation %s", dbImplementation.c_str())
+		SLOGA <<"unsupported implementation [" << dbImplementation <<"]";
 	}
 
-	return sUnique;
 }
 
 
@@ -601,7 +617,7 @@ RecordSerializer *RecordSerializer::sInstance = NULL;
 
 RecordSerializer *RecordSerializer::get() {
 	if ( !sInstance ) {
-		GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct > ( "module::Registrar" );
+		GenericStruct *registrar = ProxyConfigManager::instance()->get<GenericStruct > ( "module::Registrar" );
 		string name = registrar->get<ConfigString > ( "redis-record-serializer" )->read();
 
 		sInstance = create(name);

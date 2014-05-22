@@ -348,6 +348,9 @@ if test x$presence = xyes ; then
 	CPPFLAGS=$CPPFLAGS_save
 	AC_SUBST(XSDE_CPPFLAGS)
 	AC_SUBST(XSDE_LIBS)
+	
+	PKG_CHECK_MODULES(BELLESIP, [belle-sip >= 1.2.4])
+	
 	AC_DEFINE([ENABLE_PRESENCE],1, [enable presence module])
 fi
 

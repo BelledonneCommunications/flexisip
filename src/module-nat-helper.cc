@@ -25,7 +25,7 @@ using namespace ::std;
 
 class NatHelper : public Module, protected ModuleToolbox{
 	public:
-		NatHelper(Agent *ag) : Module(ag){
+		NatHelper(Agent *ag,GenericManager& configManager) : Module(ag,configManager){
 		}
 		~NatHelper(){
 		}

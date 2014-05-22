@@ -25,7 +25,7 @@ using namespace ::std;
 
 class LoadBalancer : public Module, public ModuleToolbox{
 	public:
-		LoadBalancer(Agent *ag);
+		LoadBalancer(Agent *ag,GenericManager& configManager);
 		virtual ~LoadBalancer();
 		virtual void onDeclare(GenericStruct *module_config);
 		virtual void onLoad(const GenericStruct * modconf);
@@ -41,7 +41,7 @@ ModuleInfo<LoadBalancer> LoadBalancer::sInfo("LoadBalancer",
         "This module performs load balancing between a set of configured destination proxies.",
 		ModuleInfoBase::ModuleOid::LoadBalancer);
 
-LoadBalancer::LoadBalancer(Agent *ag) : Module(ag){
+LoadBalancer::LoadBalancer(Agent *ag,GenericManager& configManager) : Module(ag,configManager){
 }
 
 LoadBalancer::~LoadBalancer(){

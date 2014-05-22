@@ -24,6 +24,7 @@
 #include "transaction.hh"
 #include "h264iframefilter.hh"
 #include "callcontext-mediarelay.hh"
+#include "proxy-configmanager.hh"
 
 #include <vector>
 #include <algorithm>
@@ -36,7 +37,7 @@ class MediaRelay: public Module, protected ModuleToolbox {
 	StatCounter64 *mCountCalls;
 	StatCounter64 *mCountCallsFinished;
 public:
-	MediaRelay(Agent *ag);
+	MediaRelay(Agent *ag,GenericManager& configManager);
 	~MediaRelay();
 	virtual void onLoad(const GenericStruct * modconf);
 	virtual void onUnload();
@@ -97,8 +98,8 @@ ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay", "The MediaRelay module ma
 		"MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.",
 		ModuleInfoBase::ModuleOid::MediaRelay);
 
-MediaRelay::MediaRelay(Agent * ag) :
-		Module(ag), mCalls(NULL), mServer(NULL) {
+MediaRelay::MediaRelay(Agent * ag,GenericManager& configManager) :
+		Module(ag,configManager), mCalls(NULL), mServer(NULL) {
 }
 
 MediaRelay::~MediaRelay() {
@@ -111,7 +112,7 @@ MediaRelay::~MediaRelay() {
 void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mCalls = new CallStore();
 	mCalls->setCallStatCounters(mCountCalls, mCountCallsFinished);
-	mServer = new MediaRelayServer(mAgent);
+	mServer = new MediaRelayServer(mAgent,*ProxyConfigManager::instance());
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
 	if (mSdpMangledParam == "disable") mSdpMangledParam.clear();
 	mByeOrphanDialogs = modconf->get<ConfigBoolean>("bye-orphan-dialogs")->read();

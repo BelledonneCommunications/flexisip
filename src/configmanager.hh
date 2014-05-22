@@ -59,13 +59,17 @@ typedef unsigned long oid;
 
 enum class ConfigState {Check, Changed, Reset, Commited};
 class ConfigValue;
+class GenericManager;
 class ConfigValueListener {
-	static bool sDirty;
 public:
-	~ConfigValueListener(){}
+	ConfigValueListener(GenericManager& configManager):mGenericManager(configManager){};
+	~ConfigValueListener(){};
 	bool onConfigStateChanged(const ConfigValue &conf, ConfigState state);
 protected:
 	virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state)=0;
+private:
+	ConfigValueListener(const GenericManager& configManager);
+	GenericManager& mGenericManager;
 };
 
 enum GenericValueType{
@@ -101,7 +105,7 @@ class Oid {
 	friend class StatCounter64;
 	friend class ConfigValue;
 	friend class GenericStruct;
-	friend class RootConfigStruct;
+	friend class GenericManager;
 	friend class NotificationEntry;
 protected:
 	Oid(Oid &parent, oid leaf);
@@ -208,6 +212,7 @@ public:
 	bool isDeprecated()const {
 		return mDeprecated;
 	}
+
 protected:
 	virtual void doMibFragment(std::ostream &ostr, const std::string &def, const std::string &access, const std::string &syntax, const std::string &spacing) const;
 	GenericEntry(const std::string &name, GenericValueType type, const std::string &help,oid oid_index=0);
@@ -225,6 +230,9 @@ private:
 	oid mOidLeaf;
 };
 
+inline std::ostream & operator<<(std::ostream &ostr, const GenericEntry &entry){
+	return ostr << entry.getName();
+}
 
 template <typename _retType>
 _retType &GenericEntriesGetter::find(const std::string &key)const{
@@ -272,10 +280,6 @@ private:
 	std::list<GenericEntry*> mEntries;
 };
 
-class RootConfigStruct : public GenericStruct {
-public:
-	RootConfigStruct(const std::string &name, const std::string &help, std::vector<oid> oid_root_prefix);
-};
 
 
 class StatCounter64 : public GenericEntry{
@@ -394,7 +398,7 @@ public:
 class ConfigRuntimeError : public ConfigValue {
 	mutable std::string mErrorStr;
 public:
-	ConfigRuntimeError(const std::string &name, const std::string &help, oid oid_index);
+	ConfigRuntimeError(const std::string &name, const std::string &help, oid oid_index,GenericStruct& root);
 	std::string generateErrors()const;
 #ifdef ENABLE_SNMP
 	virtual int handleSnmpRequest(netsnmp_mib_handler *,
@@ -402,6 +406,8 @@ public:
 #endif
 //	std::string &read()const { return get(); }
 	const void writeErrors(GenericEntry *entry, std::ostringstream &oss) const;
+private:
+	GenericStruct& mRoot;
 };
 
 class ConfigString : public ConfigValue{
@@ -428,8 +434,7 @@ template <typename _retType>
 _retType *GenericStruct::get(const char *name)const{
 	GenericEntry *e=find(name);
 	if (e==NULL) {
-		LOGA("No ConfigEntry with name %s in struct %s",name,getName().c_str());
-		return NULL;
+		SLOGA << "No ConfigEntry with name" << name <<" in struct " << getName() ;
 	}
 	_retType *ret=dynamic_cast<_retType *>(e);
 	if (ret==NULL){
@@ -500,17 +505,24 @@ class NotificationEntry : public GenericEntry{
 	bool mInitialized;
 	std::queue<std::tuple<const GenericEntry *,std::string>> mPendingTraps;
 public:
-	NotificationEntry(const std::string &name, const std::string &help, oid oid_index);
+	NotificationEntry(const std::string &name, const std::string &help, oid oid_index, Oid &msgTemplateOid, Oid &sourceTemplateOid);
 	virtual void mibFragment(std::ostream & ost, std::string spacing) const;
 	void send(const std::string &msg);
 	void send(const GenericEntry *source, const std::string &msg);
 	void setInitialized(bool status);
+private:
+	Oid &mMsgTemplateOid;
+	Oid &mSourceTemplateOid;
+
 };
 
-class GenericManager : protected ConfigValueListener {
+static oid company_id = SNMP_COMPANY_OID;
+
+class GenericManager :  public GenericStruct, protected ConfigValueListener {
 	friend class ConfigArea;
 public:
-	static GenericManager *get();
+	GenericManager(const std::string &name, const std::string &help, std::vector<oid> oid_root_prefix);
+	
 	void declareArea(const char *area_name, const char *help, ConfigItemDescriptor *items);
 	int load(const char* configFile);
 	GenericStruct *getRoot();
@@ -526,16 +538,15 @@ public:
 		mNotifier->send(source, msg);
 	}
 	void sendTrap(const std::string &msg) {
-		mNotifier->send(&mConfigRoot,msg);
+		mNotifier->send(this,msg);
 	}
-	bool mNeedRestart;
-	bool mDirtyConfig;
+
 	void applyOverrides(bool strict) {
 		for (auto it=mOverrides.begin(); it != mOverrides.end(); ++it){
 			const std::string &key((*it).first);
 			const std::string &value((*it).second);
 			if (value.empty()) continue;
-			ConfigValue *val=mConfigRoot.getDeep<ConfigValue>(key.c_str(), strict);
+			ConfigValue *val=getDeep<ConfigValue>(key.c_str(), strict);
 			if (val) {
 				std::cout << "Overriding config with " << key << ":" << value << std::endl;
 				val->set(value);
@@ -544,20 +555,26 @@ public:
 			}
 		}
 	}
+	bool needRestart() const { return mNeedRestart;}
+	/**
+	 * ask to sync, usually in a file
+	 * */
+	void sync();
+protected:
+	virtual ~GenericManager(){}
+
 private:
 	static void atexit();
-	GenericManager();
-	virtual ~GenericManager(){}
 	bool doIsValidNextConfig(const ConfigValue &cv);
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
-	RootConfigStruct mConfigRoot;
 	FileConfigReader mReader;
 	std::string mConfigFile;
 	std::map<std::string,std::string> mOverrides;
-	static GenericManager *sInstance;
 	std::map<std::string,StatCounter64*> mStatMap;
 	std::unordered_set<std::string> mStatOids;
 	NotificationEntry *mNotifier;
+	bool mNeedRestart;
+	bool mDirtyConfig;
 };
 
 

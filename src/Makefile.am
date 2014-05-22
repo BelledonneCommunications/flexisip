@@ -15,6 +15,7 @@ SUBDIRS=test presence
 bin_PROGRAMS=flexisip
 thesources= \
 			flexisip-exception.cc flexisip-exception.hh \
+			proxy-configmanager.cc proxy-configmanager.hh \
 			agent.cc agent.hh \
 			common.cc common.hh \
 			sdp-modifier.hh  sdp-modifier.cc \
@@ -66,9 +67,12 @@ thesources+=snmp-agent.cc snmp-agent.h
 AM_CPPFLAGS=-Imib			
 endif
 
+
 flexisip_LDADD=$(SOFIA_LIBS) $(ORTP_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)
 
 if BUILD_PRESENCE
+#module cannot be statically initialized in shared lib
+thesources+=presence/module-presence.cc 
 flexisip_LDADD += presence/libflexisip-presence.la
 endif
 

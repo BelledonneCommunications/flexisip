@@ -23,11 +23,11 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
-
+#include "proxy-configmanager.hh"
 using namespace ::std;
 
 FileAuthDb::FileAuthDb() {
-	GenericStruct *cr = GenericManager::get()->getRoot();
+	GenericStruct *cr = ProxyConfigManager::instance();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 
 	mFileString = ma->get<ConfigString>("datasource")->read();
@@ -62,7 +62,7 @@ AuthDbResult FileAuthDb::password(su_root_t *root, const url_t *from, const char
 void FileAuthDb::sync() {
 	LOGD("Syncing password file");
 
-	GenericStruct *cr = GenericManager::get()->getRoot();
+	GenericStruct *cr = ProxyConfigManager::instance();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
 

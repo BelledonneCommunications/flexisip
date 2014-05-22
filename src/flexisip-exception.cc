@@ -9,8 +9,19 @@
 #include <execinfo.h>
 #include <unistd.h>
 
+static void uncautch_handler () {
+	std::exception_ptr p= current_exception();
+	try {
+		rethrow_exception(p);
+	} catch (FlexisipException& e) {
+		SLOGE << e;
+	}
+}
+
 FlexisipException::FlexisipException(const char* message): mOffset(2), mMsg(message){
 	mSize = backtrace(mArray, sizeof(mArray)/sizeof(void*));
+	if (get_terminate() != uncautch_handler)
+			set_terminate(uncautch_handler); //invoke in case of uncautch exception for this thread
 }
 FlexisipException::FlexisipException(string& msg): FlexisipException(msg.c_str()){
 	mOffset++;
