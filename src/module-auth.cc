@@ -285,7 +285,7 @@ public:
 			{	Boolean		,	"immediate-retrieve-password"	,	"Retrieve password immediately so that it is cached when an authenticated request arrives.",	"true"},
 			{	Boolean		,	"hashed-passwords"	,	"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).", "false" },
 			{	Boolean		,	"new-auth-on-407"	,	"When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false" },
-			{	BooleanExpr, 	"no-403",	"Don't reply 403, but 401 or 407 even in case of wrong authentication.",	""},
+			{	BooleanExpr, 	"no-403",	"Don't reply 403, but 401 or 407 even in case of wrong authentication.",	"false"},
 			
 			config_item_end
 		};
