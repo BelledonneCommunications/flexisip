@@ -298,7 +298,7 @@ static void addEventLogRecordFound(shared_ptr<SipEventT> ev, const sip_contact_t
 	
 	if (ms->getSip()->sip_user_agent)
 		evlog->setUserAgent(ms->getSip()->sip_user_agent);
-	
+
 	evlog->setCompleted();
 	ev->setEventLog(evlog);
 }

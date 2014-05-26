@@ -101,13 +101,34 @@ void Agent::onDeclare(GenericStruct *root) {
 
 void Agent::startLogWriter(){
 	GenericStruct *cr=GenericManager::get()->getRoot();
-	bool enabled=cr->get<GenericStruct>("global")->get<ConfigBoolean>("enable-event-logs")->read();
-	string logdir=cr->get<GenericStruct>("global")->get<ConfigString>("event-logs-dir")->read();
+	bool enabled=cr->get<GenericStruct>("event-logs")->get<ConfigBoolean>("enable-event-logs")->read();
+	bool use_odb=cr->get<GenericStruct>("event-logs")->get<ConfigBoolean>("event-logs-use-odb")->read();
+
 	if (enabled){
-		FilesystemEventLogWriter *lw=new FilesystemEventLogWriter(logdir);
-		if (!lw->isReady()){
-			delete lw;
-		}else mLogWriter=lw;
+		if(use_odb){
+#ifdef HAVE_ODB
+			DataBaseEventLogWriter *dbw=new DataBaseEventLogWriter(cr->get<GenericStruct>("event-logs")->get<ConfigString>("odb-database")->read(),
+					cr->get<GenericStruct>("event-logs")->get<ConfigString>("odb-user")->read(),
+					cr->get<GenericStruct>("event-logs")->get<ConfigString>("odb-password")->read(),
+					cr->get<GenericStruct>("event-logs")->get<ConfigString>("odb-host")->read(),
+					cr->get<GenericStruct>("event-logs")->get<ConfigInt>("odb-port")->read());
+			if (!dbw->isReady()){
+				delete dbw;
+			} else {
+				mLogWriter=dbw;
+			}
+#endif
+
+
+		} else {
+			string logdir=cr->get<GenericStruct>("event-logs")->get<ConfigString>("event-logs-dir")->read();
+			FilesystemEventLogWriter *lw=new FilesystemEventLogWriter(logdir);
+			if (!lw->isReady()){
+				delete lw;
+			} else {
+				mLogWriter=lw;
+			}
+		}
 	}
 }
 

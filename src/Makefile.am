@@ -10,6 +10,8 @@ BUILT_SOURCES=$(GITVERSION_FILE)
 
 SUBDIRS=test
 
+nodistsources=
+
 bin_PROGRAMS=flexisip
 thesources= \
 			agent.cc agent.hh \
@@ -54,6 +56,7 @@ thesources= \
 			telephone-event-filter.cc telephone-event-filter.hh \
 			log/logmanager.cc log/logmanager.hh \
 			eventlogs/eventlogs.cc eventlogs/eventlogs.hh \
+			eventlogs/eventlogsdb.cc eventlogs/eventlogsdb.hh \
 			contact-masquerader.cc contact-masquerader.hh \
 			uac-register.cc uac-register.hh \
 			$(GITVERSION_FILE) 
@@ -64,9 +67,9 @@ thesources+=snmp-agent.cc snmp-agent.h
 INCLUDES=-Imib			
 endif
 
-flexisip_LDADD=$(SOFIA_LIBS) $(ORTP_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)
+flexisip_LDADD=$(SOFIA_LIBS) $(ORTP_LIBS) $(LIBODB_LIBS) $(LIBODB_MYSQL_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS) 
 
-AM_CXXFLAGS=$(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) $(PROTOBUF_CFLAGS)  \
+AM_CXXFLAGS=$(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) $(PROTOBUF_CFLAGS) $(LIBODB_CFLAGS) $(LIBODB_MYSQL_CFLAGS)  $(MYSQL_CFLAGS)\
 			-DCONFIG_DIR=\"$(CONFIG_DIR)\" -DORTP_DEBUG_MODE $(WARNINGCXXFLAGS)
 AM_CFLAGS=$(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) -DORTP_DEBUG_MODE
 
@@ -83,6 +86,16 @@ AM_CFLAGS+=-DENABLE_ODBC
 AM_CXXFLAGS+=-DENABLE_ODBC
 flexisip_LDADD+=$(ODBC_LIBS)
 thesources+= authdb-odbc.cc
+endif
+
+if BUILD_ODB
+AM_CFLAGS+=-DHAVE_ODB
+AM_CXXFLAGS+=-DHAVE_ODB
+eventlogs/eventlogsdb-odb.hxx eventlogs/eventlogsdb-odb.cxx: eventlogs/eventlogsdb.hh
+	odb $(AM_CXXFLAGS) --std c++11 -d mysql --output-dir eventlogs --generate-query --generate-schema --schema-format embedded $<
+nodistsources += eventlogs/eventlogsdb-odb.cxx 
+BUILT_SOURCES += eventlogs/eventlogsdb-odb.hxx eventlogs/eventlogsdb-odb.cxx
+
 endif
 
 if BUILD_DATEHANDLER
@@ -119,7 +132,6 @@ thesources+=registrardb-redis-sync.cc registrardb-redis-async.cc registrardb-red
 AM_CXXFLAGS+=-DENABLE_REDIS
 endif
 
-nodistsources=
 pb_files=$(srcdir)/recordserializer-protobuf.proto
 if BUILD_PROTOBUF
 $(builddir)/pb_generated_src_stamp : $(pb_files)
@@ -162,7 +174,7 @@ EXTRA_DIST=$(pb_files) $(GITVERSION_FILE) tool/ctdumper.cc
 
 
 clean-local:
-	rm -f $(builddir)/recordserializer-protobuf.pb* $(builddir)/pb_generated_src_stamp
+	rm -f $(builddir)/recordserializer-protobuf.pb* $(builddir)/pb_generated_src_stamp $(builddir)/eventlogs/eventlogsdb-odb.hxx $(builddir)/eventlogs/eventlogsdb-odb.cxx
 
 
 make_gitversion_h:

@@ -83,7 +83,6 @@ void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	if (mCollectorAddress && url_cmp(mCollectorAddress,url)==0) {
 		// some treatment
 		int err = managePublishContent(ev);
-		
 		ev->reply(err, sip_status_phrase(err), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}

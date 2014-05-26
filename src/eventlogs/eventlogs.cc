@@ -20,15 +20,47 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
-#include "eventlogs/eventlogs.hh"
-
+#include "eventlogs.hh"
+#include "eventlogsdb.hh"
+#include "configmanager.hh"
 
 #include <iostream>
 #include <iomanip>
 #include <sstream>
 #include <typeinfo>
 
-using namespace::std;
+#ifdef HAVE_ODB
+#include <odb/mysql/database.hxx>
+#include <odb/transaction.hxx>
+#include <odb/schema-catalog.hxx>
+
+#include "eventlogsdb-odb.hxx"
+
+#endif
+
+using namespace ::std;
+
+using namespace odb::core;
+
+EventLog::Init EventLog::evStaticInit;
+
+EventLog::Init::Init(){
+	ConfigItemDescriptor items[]={
+		{	Boolean		,	"enable-event-logs"		,	"Enable event logs.", "false"},
+		{	String		,	"event-logs-dir"		,	"Directory where event logs are written.",	"/var/log/flexisip"},
+		{	Boolean     ,	"event-logs-use-odb"	,	"Use odb for storing logs in database.The list of arguments below are used for the connection to the database.  ",	"false"	},
+		{	String		,	"odb-database"			,	"Name of the database", "" },
+		{	String		,	"odb-user"				,	"User", "" },
+		{	String		,	"odb-password"			,	"Password", "" },
+		{	String		,	"odb-host"				,	"Host", "" },
+		{	Integer		,	"odb-port"				,	"Port", "" },
+		config_item_end
+	};
+	GenericStruct *ev=new GenericStruct("event-logs","Event logs contain per domain and user information about processed registrations, calls and messages.",0);
+	GenericManager::get()->getRoot()->addChild(ev);
+	ev->addChildrenValues(items);
+}
+
 
 EventLog::EventLog() {
 	su_home_init(&mHome);
@@ -69,6 +101,7 @@ RegistrationLog::RegistrationLog(Type type, const sip_from_t *from, const std::s
 	setFrom(from);
 	mInstanceId=instance_id;
 	mContacts=sip_contact_dup(&mHome,contacts);
+	mStatusCode=200;
 }
 
 
@@ -419,4 +452,82 @@ void FilesystemEventLogWriter::write(const std::shared_ptr<EventLog> &evlog){
 		writeCallQualityStatisticsLog(static_pointer_cast<CallQualityStatisticsLog>(evlog));
 	}
 }
+
+#ifdef HAVE_ODB
+// Data Base EventLog Writer
+DataBaseEventLogWriter::DataBaseEventLogWriter(const std::string &db_name,const std::string &db_user, const std::string &db_password, const std::string &db_host, int db_port) : mIsReady(false){
+	try {
+		auto_ptr<odb::database> db (new odb::mysql::database (db_user, db_password, db_name, db_host, db_port));
+		{
+			mDb=db;
+			mIsReady=true;
+
+			// Create the database schema if it not exists
+			transaction t (mDb->begin ());
+			try {
+				mDb->query<EventLogDb> (false);
+			} catch (const odb::exception& e){
+				schema_catalog::create_schema (*mDb);
+			}
+			t.commit ();
+		}
+
+	} catch (const odb::exception& e){
+		LOGE("Fail to connect to the database");
+	}
+}
+
+bool DataBaseEventLogWriter::isReady()const{
+	return mIsReady;
+}
+
+void DataBaseEventLogWriter::writeRegistrationLog(const std::shared_ptr<RegistrationLog> & rLog){
+	RegistrationLogDb *ev= new RegistrationLogDb(rLog);
+	transaction t (mDb->begin ());
+	mDb->persist (*ev);
+	t.commit ();
+}
+
+void DataBaseEventLogWriter::writeCallLog(const std::shared_ptr<CallLog> & cLog){
+	CallLogDb *ev= new CallLogDb(cLog);
+	transaction t (mDb->begin ());
+	mdb->persist (*ev);
+	t.commit ();
+}
+
+void DataBaseEventLogWriter::writeMessageLog(const std::shared_ptr<MessageLog> & rlog){
+	MessageLogDb *ev= new MessageLogDb(rlog);
+	transaction t (mdb->begin ());
+	mdb->persist (*ev);
+	t.commit ();
+}
+
+void DataBaseEventLogWriter::writeAuthLog(const std::shared_ptr<AuthLog> & rlog){
+	AuthLogDb *ev= new AuthLogDb(rlog);
+	transaction t (mdb->begin ());
+	mdb->persist (*ev);
+	t.commit ();
+}
+
+void DataBaseEventLogWriter::writeCallQualityStatisticsLog(const std::shared_ptr<CallQualityStatisticsLog> & rlog){
+	CallQualityStatisticsLogDb *ev= new CallQualityStatisticsLogDb(rlog);
+	transaction t (mdb->begin ());
+	mdb->persist (*ev);
+	t.commit ();
+}
+
+void DataBaseEventLogWriter::write(const std::shared_ptr<EventLog> &evlog){
+	if (typeid(*evlog.get())==typeid(RegistrationLog)){
+		writeRegistrationLog(static_pointer_cast<RegistrationLog>(evlog));
+	}else if (typeid(*evlog.get())==typeid(CallLog)){
+		writeCallLog(static_pointer_cast<CallLog>(evlog));
+	}else if (typeid(*evlog.get())==typeid(MessageLog)){
+		writeMessageLog(static_pointer_cast<MessageLog>(evlog));
+	}else if (typeid(*evlog.get())==typeid(AuthLog)){
+		writeAuthLog(static_pointer_cast<AuthLog>(evlog));
+	}else if (typeid(*evlog.get())==typeid(CallQualityStatisticsLog)){
+		writeCallQualityStatisticsLog(static_pointer_cast<CallQualityStatisticsLog>(evlog));
+	}
+}
+#endif
 

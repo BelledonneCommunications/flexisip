@@ -76,16 +76,16 @@ esac
 
 PKG_PROG_PKG_CONFIG()
 
-
 AC_ARG_ENABLE(strict,
 	AC_HELP_STRING([--enable-strict],
-		       [Build with stricter options (gcc only) @<:@yes@:>@]),[
-	strictness="${enableval}"],[foo=bar])
+	[Build with stricter options (gcc only) @<:@yes@:>@]),[
+	strictness="${enableval}"],[foo=bar]
+)
 
 AC_ARG_ENABLE(odbc,
 	AC_HELP_STRING([--disable-odbc],
-	    [Build odbc support @<:@yes@:>@]),
-        [odbc="${enableval}"],[odbc=yes]
+	[Build odbc support @<:@yes@:>@]),
+	[odbc="${enableval}"],[odbc=yes]
 )
 AM_CONDITIONAL(BUILD_ODBC,test x$odbc = xyes)
 
@@ -95,7 +95,77 @@ if test x$odbc = "xyes"; then
 	AC_CHECK_LIB(odbc, main,[ODBC_LIBS="-lodbc -lltdl"], [AC_MSG_ERROR("Linking against odbc failed.")])
 	AC_SUBST(ODBC_LIBS)
 fi
+
+# Check for odb compiler
+AC_PATH_PROG([ODB],[odb],[no])
+if test $ODB != no; then
+	have_odb=yes
+else
+	have_odb=no
+fi
+
+# Check for libodb
+AC_ARG_ENABLE(libodb,
+	AC_HELP_STRING([--enable-libodb],
+	    [Build libodb @<:@yes@:>@]),
+        [libodb="${enableval}"],[libodb=yes]
+)
+if test $libodb = yes ; then
+	PKG_CHECK_MODULES(LIBODB,[libodb >= 2.3.0])
+fi
+
+AM_CONDITIONAL(BUILD_ODB,test x$libodb$have_odb = xyesyes)
+if test "$libodb$have_odb" = "yesyes"; then
+	AC_DEFINE([HAVE_ODB],1,[Enable odb.])
+fi
+
+# Check for libodb-mysql
+AC_ARG_ENABLE(libodb-mysql,
+	AC_HELP_STRING([--enable-libodb-mysql],
+	    [Build libodb-mysql @<:@yes@:>@]),
+        [libodb_mysql="${enableval}"],[libodb_mysql=yes]
+)
+if test x$libodb_mysql = xyes ; then
+	PKG_CHECK_MODULES(LIBODB_MYSQL,[libodb-mysql >= 2.3.0])
+fi
+
+AM_CONDITIONAL(BUILD_LIBODB_MYSQL,test x$libodb_mysql = xyes)
+if test "$libodb_mysql" = "yes"; then
+	AC_DEFINE([ENABLE_LIBODB_MYSQL],1,[Enable libodb-mysql.])
+fi
+
+# Check for mysql 
+AC_ARG_WITH(mysql,
+	AC_HELP_STRING([--with-mysql], [Set prefix where odbc can be found or "none" to disable (ex:/usr or /usr/local) [[default=/usr]]]),
+	[mysql_prefix=$withval],
+	[mysql_prefix=/usr]
+)
+if test "${mysql_prefix}" != "none" ; then
+	if test "${mysql_prefix}" != "/usr" ; then
+		MYSQL_CFLAGS="-I${mysql_prefix}/include"
+	fi
+
+	dnl check mysql headers
+	have_mysql=no
+	CPPFLAGS_save=$CPPFLAGS
+	CPPFLAGS="$CPPFLAGS $MYSQL_CFLAGS"
+	AC_CHECK_HEADER([mysql.h],have_mysql_headers=yes)
+	CPPFLAGS=$CPPFLAGS_save
+
+	if test "$have_mysql_headers" = "yes" ; then
+		have_mysql=yes
+	else
+		AC_MSG_NOTICE([Could not find odbc headers or lib])
+		MYSQL_CFLAGS=
+	fi
 	
+	AM_CONDITIONAL(BUILD_MYSQL,test x$have_mysql = xyes)
+
+	AC_SUBST(MYSQL_CFLAGS)
+else
+	have_mysql=no
+	MYSQL_CFLAGS=
+fi
 
 # Checks for header files.
 
