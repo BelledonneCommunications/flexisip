@@ -106,16 +106,21 @@ fi
 
 # Check for libodb
 AC_ARG_ENABLE(libodb,
-	AC_HELP_STRING([--enable-libodb],
-	    [Build libodb @<:@yes@:>@]),
-        [libodb="${enableval}"],[libodb=yes]
+	[AC_HELP_STRING([--enable-libodb=[yes/no]],[Compilation of libodb (default=auto)])],
+    [case "${enableval}" in
+		yes)	enable_libodb=true ;;
+		no)	enable_libodb=false ;;
+		*)	AC_MSG_ERROR(bad value ${enableval} for --enable-libodb) ;;
+	esac],
+	[enable_libodb=auto]
 )
-if test $libodb = yes ; then
-	PKG_CHECK_MODULES(LIBODB,[libodb >= 2.3.0])
+
+if test x$enable_libodb != xfalse ; then
+	PKG_CHECK_MODULES(LIBODB,[libodb >= 2.3.0],[have_libodb=yes],[have_libodb=no])
 fi
 
-AM_CONDITIONAL(BUILD_ODB,test x$libodb$have_odb = xyesyes)
-if test "$libodb$have_odb" = "yesyes"; then
+AM_CONDITIONAL(BUILD_ODB,test x$have_libodb$have_odb = xyesyes)
+if test "$have_libodb$have_odb" = "yesyes"; then
 	AC_DEFINE([HAVE_ODB],1,[Enable odb.])
 fi
 
@@ -126,8 +131,9 @@ AC_ARG_ENABLE(libodb-mysql,
         [libodb_mysql="${enableval}"],[libodb_mysql=yes]
 )
 if test x$libodb_mysql = xyes ; then
-	PKG_CHECK_MODULES(LIBODB_MYSQL,[libodb-mysql >= 2.3.0])
+	PKG_CHECK_MODULES(LIBODB_MYSQL,[libodb-mysql >= 2.3.0],[libodb_mysql=yes],[libodb_mysql=no])
 fi
+
 
 AM_CONDITIONAL(BUILD_LIBODB_MYSQL,test x$libodb_mysql = xyes)
 if test "$libodb_mysql" = "yes"; then
