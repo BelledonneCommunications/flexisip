@@ -56,7 +56,6 @@ thesources= \
 			telephone-event-filter.cc telephone-event-filter.hh \
 			log/logmanager.cc log/logmanager.hh \
 			eventlogs/eventlogs.cc eventlogs/eventlogs.hh \
-			eventlogs/eventlogsdb.cc eventlogs/eventlogsdb.hh \
 			contact-masquerader.cc contact-masquerader.hh \
 			uac-register.cc uac-register.hh \
 			$(GITVERSION_FILE) 
@@ -67,9 +66,9 @@ thesources+=snmp-agent.cc snmp-agent.h
 INCLUDES=-Imib			
 endif
 
-flexisip_LDADD=$(SOFIA_LIBS) $(ORTP_LIBS) $(LIBODB_LIBS) $(LIBODB_MYSQL_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS) 
+flexisip_LDADD=$(SOFIA_LIBS) $(ORTP_LIBS) $(LIBODB_MYSQL_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS) 
 
-AM_CXXFLAGS=$(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) $(PROTOBUF_CFLAGS) $(LIBODB_CFLAGS) $(LIBODB_MYSQL_CFLAGS)  $(MYSQL_CFLAGS)\
+AM_CXXFLAGS=$(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) $(PROTOBUF_CFLAGS) $(LIBODB_MYSQL_CFLAGS)  $(MYSQL_CFLAGS)\
 			-DCONFIG_DIR=\"$(CONFIG_DIR)\" -DORTP_DEBUG_MODE $(WARNINGCXXFLAGS)
 AM_CFLAGS=$(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) -DORTP_DEBUG_MODE
 
@@ -90,7 +89,9 @@ endif
 
 if BUILD_ODB
 AM_CFLAGS+=-DHAVE_ODB
-AM_CXXFLAGS+=-DHAVE_ODB
+AM_CXXFLAGS+=-DHAVE_ODB $(LIBODB_CFLAGS)
+flexisip_LDADD+=$(LIBODB_LIBS) 
+thesources+=eventlogs/eventlogsdb.cc eventlogs/eventlogsdb.hh
 eventlogs/eventlogsdb-odb.hxx eventlogs/eventlogsdb-odb.cxx: eventlogs/eventlogsdb.hh
 	odb $(AM_CXXFLAGS) --std c++11 -d mysql --output-dir eventlogs --generate-query --generate-schema --schema-format embedded $<
 nodistsources += eventlogs/eventlogsdb-odb.cxx 

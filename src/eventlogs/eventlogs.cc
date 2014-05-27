@@ -21,7 +21,6 @@
 #include <fcntl.h>
 
 #include "eventlogs.hh"
-#include "eventlogsdb.hh"
 #include "configmanager.hh"
 
 #include <iostream>
@@ -34,13 +33,14 @@
 #include <odb/transaction.hxx>
 #include <odb/schema-catalog.hxx>
 
+#include "eventlogsdb.hh"
 #include "eventlogsdb-odb.hxx"
+
+using namespace odb::core;
 
 #endif
 
 using namespace ::std;
-
-using namespace odb::core;
 
 EventLog::Init EventLog::evStaticInit;
 
