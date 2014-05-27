@@ -89,11 +89,11 @@ endif
 
 if BUILD_ODB
 AM_CFLAGS+=-DHAVE_ODB
-AM_CXXFLAGS+=-DHAVE_ODB $(LIBODB_CFLAGS)
+AM_CXXFLAGS+=-DHAVE_ODB $(LIBODB_CFLAGS) -Wno-unknown-pragmas
 flexisip_LDADD+=$(LIBODB_LIBS) 
 thesources+=eventlogs/eventlogsdb.cc eventlogs/eventlogsdb.hh
 eventlogs/eventlogsdb-odb.hxx eventlogs/eventlogsdb-odb.cxx: eventlogs/eventlogsdb.hh
-	odb $(AM_CXXFLAGS) --std c++11 -d mysql --output-dir eventlogs --generate-query --generate-schema --schema-format embedded $<
+	odb $(SOFIA_CFLAGS) --std c++11 -d mysql --output-dir eventlogs --generate-query --generate-schema --schema-format embedded $<
 nodistsources += eventlogs/eventlogsdb-odb.cxx 
 BUILT_SOURCES += eventlogs/eventlogsdb-odb.hxx eventlogs/eventlogsdb-odb.cxx
 

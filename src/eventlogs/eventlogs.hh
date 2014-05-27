@@ -152,7 +152,7 @@ private:
 	std::string mDatasource;
 	bool mIsReady;
 
-	std::auto_ptr<odb::database> mDb;
+	std::unique_ptr<odb::database> mDb;
 	void writeRegistrationLog(const std::shared_ptr<RegistrationLog> &evlog);
 	void writeCallLog(const std::shared_ptr<CallLog> &clog);
 	void writeCallQualityStatisticsLog(const std::shared_ptr<CallQualityStatisticsLog> &mlog);

@@ -457,9 +457,8 @@ void FilesystemEventLogWriter::write(const std::shared_ptr<EventLog> &evlog){
 // Data Base EventLog Writer
 DataBaseEventLogWriter::DataBaseEventLogWriter(const std::string &db_name,const std::string &db_user, const std::string &db_password, const std::string &db_host, int db_port) : mIsReady(false){
 	try {
-		auto_ptr<odb::database> db (new odb::mysql::database (db_user, db_password, db_name, db_host, db_port));
+		mDb = unique_ptr<odb::database>(new odb::mysql::database (db_user, db_password, db_name, db_host, db_port));
 		{
-			mDb=db;
 			mIsReady=true;
 
 			// Create the database schema if it not exists
