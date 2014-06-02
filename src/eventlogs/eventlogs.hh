@@ -149,10 +149,8 @@ public:
 	virtual void write(const std::shared_ptr<EventLog> &evlog);
 	bool isReady()const;
 private:
-	std::string mDatasource;
 	bool mIsReady;
-
-	std::unique_ptr<odb::database> mDb;
+	std::unique_ptr<odb::database> mDatabase;
 	void writeRegistrationLog(const std::shared_ptr<RegistrationLog> &evlog);
 	void writeCallLog(const std::shared_ptr<CallLog> &clog);
 	void writeCallQualityStatisticsLog(const std::shared_ptr<CallQualityStatisticsLog> &mlog);

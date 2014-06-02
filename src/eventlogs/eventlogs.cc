@@ -457,16 +457,16 @@ void FilesystemEventLogWriter::write(const std::shared_ptr<EventLog> &evlog){
 // Data Base EventLog Writer
 DataBaseEventLogWriter::DataBaseEventLogWriter(const std::string &db_name,const std::string &db_user, const std::string &db_password, const std::string &db_host, int db_port) : mIsReady(false){
 	try {
-		mDb = unique_ptr<odb::database>(new odb::mysql::database (db_user, db_password, db_name, db_host, db_port));
+		mDatabase = unique_ptr<odb::database>(new odb::mysql::database (db_user, db_password, db_name, db_host, db_port));
 		{
 			mIsReady=true;
 
 			// Create the database schema if it not exists
-			transaction t (mDb->begin ());
+			transaction t (mDatabase->begin ());
 			try {
-				mDb->query<EventLogDb> (false);
+				mDatabase->query<EventLogDb> (false);
 			} catch (const odb::exception& e){
-				schema_catalog::create_schema (*mDb);
+				schema_catalog::create_schema (*mDatabase);
 			}
 			t.commit ();
 		}
@@ -482,37 +482,47 @@ bool DataBaseEventLogWriter::isReady()const{
 
 void DataBaseEventLogWriter::writeRegistrationLog(const std::shared_ptr<RegistrationLog> & rLog){
 	RegistrationLogDb *ev= new RegistrationLogDb(rLog);
-	transaction t (mDb->begin ());
-	mDb->persist (*ev);
-	t.commit ();
+	if(mIsReady){
+		transaction t (mDatabase->begin ());
+		mDatabase->persist (*ev);
+		t.commit ();
+	}
 }
 
 void DataBaseEventLogWriter::writeCallLog(const std::shared_ptr<CallLog> & cLog){
 	CallLogDb *ev= new CallLogDb(cLog);
-	transaction t (mDb->begin ());
-	mdb->persist (*ev);
-	t.commit ();
+	if(mIsReady){
+		transaction t (mDatabase->begin ());
+		mDatabase->persist (*ev);
+		t.commit ();
+	}
 }
 
 void DataBaseEventLogWriter::writeMessageLog(const std::shared_ptr<MessageLog> & rlog){
 	MessageLogDb *ev= new MessageLogDb(rlog);
-	transaction t (mdb->begin ());
-	mdb->persist (*ev);
-	t.commit ();
+	if(mIsReady){
+		transaction t (mDatabase->begin ());
+		mDatabase->persist (*ev);
+		t.commit ();
+	}
 }
 
 void DataBaseEventLogWriter::writeAuthLog(const std::shared_ptr<AuthLog> & rlog){
 	AuthLogDb *ev= new AuthLogDb(rlog);
-	transaction t (mdb->begin ());
-	mdb->persist (*ev);
-	t.commit ();
+	if(mIsReady){
+		transaction t (mDatabase->begin ());
+		mDatabase->persist (*ev);
+		t.commit ();
+	}
 }
 
 void DataBaseEventLogWriter::writeCallQualityStatisticsLog(const std::shared_ptr<CallQualityStatisticsLog> & rlog){
 	CallQualityStatisticsLogDb *ev= new CallQualityStatisticsLogDb(rlog);
-	transaction t (mdb->begin ());
-	mdb->persist (*ev);
-	t.commit ();
+	if(mIsReady){
+		transaction t (mDatabase->begin ());
+		mDatabase->persist (*ev);
+		t.commit ();
+	}
 }
 
 void DataBaseEventLogWriter::write(const std::shared_ptr<EventLog> &evlog){

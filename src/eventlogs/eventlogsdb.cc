@@ -124,6 +124,26 @@ void MessageLogDb::setDestination(const url_t *url){
 	uri=msg.str();
 }
 
+AuthLogDb::AuthLogDb(const std::shared_ptr<AuthLog> & aLog){
+	date=aLog->mDate;
+	userExists=aLog->mUserExists;
+	method=aLog->mMethod;
+	reason=aLog->mReason;
+	statusCode=aLog->mStatusCode;
+	completed=aLog->mCompleted;
+
+	setFrom(aLog->mFrom);
+	setTo(aLog->mTo);
+	setOrigin(aLog->mOrigin);
+	setUserAgent(aLog->mUA);
+}
+
+void AuthLogDb::setOrigin(const url_t *url){
+	ostringstream msg;
+	msg<<url;
+	origin=msg.str();
+}
+
 CallQualityStatisticsLogDb::CallQualityStatisticsLogDb(const std::shared_ptr<CallQualityStatisticsLog> & csLog){
 	date=csLog->mDate;
 	statusCode=csLog->mStatusCode;
@@ -133,23 +153,4 @@ CallQualityStatisticsLogDb::CallQualityStatisticsLogDb(const std::shared_ptr<Cal
 
 	setFrom(csLog->mFrom);
 	setTo(csLog->mTo);
-}
-
-AuthLogDb::AuthLogDb(const std::shared_ptr<AuthLog> & aLog){
-	userExists=aLog->mUserExists;
-	date=aLog->mDate;
-	method=aLog->mMethod;
-	reason=aLog->mReason;
-	statusCode=aLog->mStatusCode;
-	completed=aLog->mCompleted;
-
-	setFrom(aLog->mFrom);
-	setTo(aLog->mTo);
-	setOrigin(aLog->mOrigin);
-}
-
-void AuthLogDb::setOrigin(const url_t *url){
-	ostringstream msg;
-	msg<<url;
-	origin=msg.str();
 }
