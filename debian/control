@@ -2,7 +2,7 @@ Source: flexisip
 Section: net
 Priority: optional
 Maintainer: Guillaume BERAUDO <gberaudo@linphone.org>
-Build-Depends: debhelper (>= 7.0.50~), autotools-dev, unixodbc-dev, libhiredis-dev (>= 0.11.0), libprotobuf-dev, libsnmp-dev, libsofia-sip-ua-dev (>= 1.12.11), protobuf-compiler, libboost-dev, libboost-system-dev
+Build-Depends: debhelper (>= 7.0.50~), autotools-dev, unixodbc-dev, libhiredis-dev (= 0.11.0-3), libprotobuf-dev, libsnmp-dev, libsofia-sip-ua-dev (= 1.12.11+20121219bc-1), protobuf-compiler, libboost-dev, libboost-system-dev
 Standards-Version: 3.8.4
 Homepage: http://www.flexisip.org
 Vcs-Git: gitosis@git.linphone.org:flexisip.git
@@ -10,7 +10,7 @@ Vcs-Git: gitosis@git.linphone.org:flexisip.git
 
 Package: flexisip
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, openssl
+Depends: ${shlibs:Depends}, ${misc:Depends}, openssl, libmediastreamer2 (>= 2.10.0)
 Description: Flexible SIP proxy
  Extensible SIP proxy with media capabilities. Designed for robustness and ease of use.
 
