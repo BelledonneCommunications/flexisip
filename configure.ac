@@ -63,8 +63,14 @@ fi
 strictness=yes
 case $CXX in
 	*clang++*)
-	CXXFLAGS="$CXXFLAGS -std=c++11 -stdlib=libc++ -Qunused-arguments"
+	CXXFLAGS="$CXXFLAGS -std=c++11 -Qunused-arguments"
 	strictness=no;
+	# libc++ is only required on apple
+	case $host in
+		*apple-darwin*)
+			CXXFLAGS="$CXXFLAGS -stdlib=libc++"
+		;;
+	esac
 	;;
 	*g++*)
 	# Use only -O1 due to a compile-time bug in gcc 4.4.6 from centos6.
@@ -140,7 +146,7 @@ if test "$libodb_mysql" = "yes"; then
 	AC_DEFINE([ENABLE_LIBODB_MYSQL],1,[Enable libodb-mysql.])
 fi
 
-# Check for mysql 
+# Check for mysql
 AC_ARG_WITH(mysql,
 	AC_HELP_STRING([--with-mysql], [Set prefix where odbc can be found or "none" to disable (ex:/usr or /usr/local) [[default=/usr]]]),
 	[mysql_prefix=$withval],
@@ -164,7 +170,7 @@ if test "${mysql_prefix}" != "none" ; then
 		AC_MSG_NOTICE([Could not find odbc headers or lib])
 		MYSQL_CFLAGS=
 	fi
-	
+
 	AM_CONDITIONAL(BUILD_MYSQL,test x$have_mysql = xyes)
 
 	AC_SUBST(MYSQL_CFLAGS)
