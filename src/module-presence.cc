@@ -33,10 +33,10 @@ private:
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
-				{ String, "presence-server", "A sip uri where to send all presence's requests", "sip:localhost:5065" },
+				{ String, "presence-server", "A sip uri where to send all presence's requests", "sip:127.0.0.1:5065" },
 				config_item_end
 		};
-		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
+		module_config->get<ConfigBoolean>("enabled")->setDefault("true");
 		module_config->get<ConfigBooleanExpression>("filter")->setDefault("is_request && (request.method-name == 'PUBLISH' || request.method-name == 'NOTIFY' || request.method-name == 'SUBSCRIBE')");
 		module_config->addChildrenValues(configs);
 
@@ -69,14 +69,21 @@ private:
 	void route(shared_ptr<RequestSipEvent> &ev) {
 		SLOGI << *this << " routing to [" << mDestRoute << "]";
 		cleanAndPrependRoute(&mHome,this->getAgent(),ev->getMsgSip()->getMsg(),ev->getSip(),mDestRoute.c_str());
+
+	}
+	bool isMessageAPresenceMessage(shared_ptr<RequestSipEvent> &ev) {
+		sip_t* sip=ev->getSip();
+		if (strncasecmp(sip->sip_request->rq_method_name,"PUBLISH",strlen(sip->sip_request->rq_method_name)) == 0) {
+			return (sip->sip_content_type
+				&& sip->sip_content_type->c_type && strcasecmp (sip->sip_content_type->c_type,"application/pidf+xml")==0
+				&& sip->sip_content_type->c_subtype && strcasecmp (sip->sip_content_type->c_subtype,"pidf+xml")==0);
+		}
+		return false;
 	}
 	void onRequest(shared_ptr<RequestSipEvent> &ev) {
-		sip_t* sip=ev->getSip();
-		if (	strncasecmp(sip->sip_request->rq_method_name,"SUBSCRIBE",strlen(sip->sip_request->rq_method_name)) == 0
-			||	strncasecmp(sip->sip_request->rq_method_name,"NOTIFY",strlen(sip->sip_request->rq_method_name)) == 0
-			||	strncasecmp(sip->sip_request->rq_method_name,"PUBLISH",strlen(sip->sip_request->rq_method_name)) == 0) {
+		if (isMessageAPresenceMessage(ev))
 			route(ev);
-		}
+
 	}
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev){};
 

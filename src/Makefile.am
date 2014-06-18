@@ -72,13 +72,15 @@ flexisip_LDADD=$(SOFIA_LIBS) $(ORTP_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) 
 
 if BUILD_PRESENCE
 #module cannot be statically initialized in shared lib
-thesources+=presence/module-presence.cc 
+thesources+=module-presence.cc 
 flexisip_LDADD += presence/libflexisip-presence.la
 endif
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) $(PROTOBUF_CFLAGS)  \
 			-DCONFIG_DIR=\"$(CONFIG_DIR)\" -DORTP_DEBUG_MODE $(WARNINGCXXFLAGS)
 AM_CFLAGS=$(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) -DORTP_DEBUG_MODE
+
+AM_LDFLAGS=-no-undefined
 
 if USE_MONOTONIC_CLOCK
 AM_CXXFLAGS+=-DUSE_MONOTONIC_CLOCK
@@ -151,13 +153,15 @@ ctdumper_LDADD=$(flexisip_LDADD)
 nodist_ctdumper_SOURCES=$(nodistsources)
 endif
 
-serializer_SOURCES=test/serializer.cc test/test_utils.hh $(thesources)
+serializer_SOURCES=tool/serializer.cc test/test_utils.hh $(thesources)
 serializer_LDADD=$(flexisip_LDADD)
 nodist_serializer_SOURCES=$(nodistsources)
 
-binder_SOURCES=test/binder.cc test/test_utils.hh $(thesources)
+binder_SOURCES=tool/binder.cc test/test_utils.hh $(thesources)
 binder_LDADD=$(flexisip_LDADD)
 nodist_binder_SOURCES=$(nodistsources)
+
+
 
 if BUILD_PUSHNOTIFICATION
 bin_PROGRAMS+=pusher

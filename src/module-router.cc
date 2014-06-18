@@ -598,6 +598,11 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		}
 	}
 
+	if (sip->sip_route != NULL && !getAgent()->isUs(sip->sip_route->r_url)) {
+		SLOGD << "Route header found " << url_as_string(ms->getHome(), sip->sip_route->r_url) << " but not us, skipping";
+		return;
+	}
+
 	// Don't route registers
 	if (sip->sip_request->rq_method == sip_method_register) return;
 

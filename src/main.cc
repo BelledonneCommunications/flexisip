@@ -66,6 +66,10 @@
 #include "proxy-configmanager.hh"
 #include "registrardb.hh"
 
+#ifdef ENABLE_PRESENCE
+#include "presence/presence-server.h"
+#endif //ENABLE_PRESENCE
+
 static int run=1;
 static int pipe_fds[2]={-1}; //pipes used by flexisip to notify its starter process that everything went fine 
 static pid_t flexisip_pid=0;
@@ -582,6 +586,11 @@ int main(int argc, char *argv[]){
 		stun=new StunServer(cfg.getRoot()->get<GenericStruct>("stun-server")->get<ConfigInt>("port")->read());
 		stun->start();
 	}
+
+#ifdef ENABLE_PRESENCE
+	flexisip::PresenceServer presenceServer(cfgfile);
+	presenceServer.start();
+#endif //ENABLE_PRESENCE
 
 
 

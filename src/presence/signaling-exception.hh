@@ -8,7 +8,7 @@
 #ifndef SIGNALINGEXCEPTION_HH_
 #define SIGNALINGEXCEPTION_HH_
 
-#include <src/flexisip-exception.hh>
+#include "flexisip-exception.hh"
 #include <list>
 typedef struct _belle_sip_header belle_sip_header_t;
 

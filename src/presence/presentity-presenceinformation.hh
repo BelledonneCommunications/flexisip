@@ -21,7 +21,8 @@ namespace flexisip {
 class EtagManager;
 class PresenceInformationElement {
 public:
-	PresenceInformationElement(list<pidf::tuple*> tuples, belle_sip_source_t* expirationTimer);
+	PresenceInformationElement(list<pidf::tuple*> tuples,  belle_sip_main_loop_t* mainLoop,  belle_sip_source_t* expirationTimer);
+	~PresenceInformationElement();
 	time_t getExpitationTime() const;
 	/*
 	 * update expire from now in second*/
@@ -29,9 +30,11 @@ public:
 	pidf::tuple* getTuple(const string& id) const;
 	void addTuple(pidf::tuple*);
 	void removeTuple(pidf::tuple*);
+	void clearTuples();
 private:
 	list<pidf::tuple*> mTuples;
-	belle_sip_source_t* timer;
+	belle_sip_main_loop_t* mBelleSipMainloop;
+	belle_sip_source_t* mTimer;
 };
 
 class PresentityPresenceInformation {
@@ -50,21 +53,31 @@ public:
 	string  putTuples(pidf::presence::tuple_sequence& tuples, int expires);
 
 	/*
-	 * update tuples attached to an eTag;
+	 *
+	 * Update tuples attached to an eTag
+	 *
+	 * rfc3903
+	 * 4.4.  Modifying Event State
+   	 * ...
+  	 * If the entity-tag matches previously
+   	 * published event state at the ESC, that event state is replaced by the
+   	 * event state carried in the PUBLISH request, and the EPA receives a
+   	 * 2xx response.
+	 *
 	 * @return new eTag
 	 * */
-	string  updateTuples(pidf::presence::tuple_sequence& tuples, string eTag, int expires) throw (FlexisipException);
+	string  updateTuples(pidf::presence::tuple_sequence& tuples, string& eTag, int expires) throw (FlexisipException);
 
 	/*
 	 * refresh a publish
 	 * @return new eTag
 	 * */
-	string refreshTuplesForEtag(string eTag,int expires);
+	string refreshTuplesForEtag(const string& eTag,int expires) throw (FlexisipException);
 
 	/*
 	* refresh a publish
 	* */
-	void removeTuplesForEtag(string eTag);
+	void removeTuplesForEtag(const string& eTag);
 
 
 

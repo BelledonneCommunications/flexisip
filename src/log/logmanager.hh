@@ -196,6 +196,7 @@ operator<<(pumpstream&& __os, const _Tp &__x)
 #define SLOGE SLOG(ORTP_ERROR)
 #define SLOGA SLOGA_FL(__FILE__,__LINE__)
 
+#define LOGV(thelevel,thefmt, theargs) LOGDV((thefmt), (theargs))
 #define LOGDV(thefmt, theargs) ortp_logv(ORTP_DEBUG, (thefmt), (theargs))
 #define LOGD ortp_debug
 #define LOGI ortp_message

@@ -19,9 +19,9 @@ using namespace std;
 
 class FlexisipException: public exception, public ostringstream {
 public:
-	FlexisipException();
-	FlexisipException(string& message);
-	FlexisipException(const char* message);
+	explicit FlexisipException();
+	explicit FlexisipException(string& message);
+	explicit FlexisipException(const char* message);
 	virtual ~FlexisipException();
 	//FlexisipException(FlexisipException&& other );
 	FlexisipException(const FlexisipException& other );
@@ -32,21 +32,24 @@ public:
 
 	void printStackTrace(std::ostringstream & os) const;
 
-	const char* what() const throw ();
-
+	const char* what() throw ();
+protected:
+	int mOffset; /*to hide last stack traces*/
 private:
-	string mMsg;
     void *mArray[20];
     size_t mSize;
-    int mOffset; /*to hide last stack traces*/
+    string mWhat;
+
+//    friend pumpstream&  operator<<( pumpstream&& __os, const FlexisipException& e);
 };
 
 inline   pumpstream&
-operator<<( pumpstream&& __os, const FlexisipException& e)
+operator<<( pumpstream& __os, const FlexisipException& e)
 {
-	__os << e.what() << std::endl;
+	__os << e.str() << std::endl;
 	e.printStackTrace(__os);
 	return __os;
 }
 
+#define FLEXISIP_EXCEPTION FlexisipException() << " " << __FILE__ << ":"<< __LINE__ << " "
 #endif /* FLEXISIPEXCEPTION_H_ */

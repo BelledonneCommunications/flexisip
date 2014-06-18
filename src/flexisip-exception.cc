@@ -14,12 +14,17 @@ static void uncautch_handler () {
 	try {
 		rethrow_exception(p);
 	} catch (FlexisipException& e) {
-		SLOGE << e;
+		SLOGE << e ;
+	} catch (std::exception& ee ) {
+		SLOGE << "Unexpected exception ["<< ee.what() << " ] use FlexisipException for better debug";
 	}
+	abort();
 }
+FlexisipException e;
 
-FlexisipException::FlexisipException(const char* message): mOffset(2), mMsg(message){
+FlexisipException::FlexisipException(const char* message): mOffset(1){
 	mSize = backtrace(mArray, sizeof(mArray)/sizeof(void*));
+	if (message) *this << message;
 	if (get_terminate() != uncautch_handler)
 			set_terminate(uncautch_handler); //invoke in case of uncautch exception for this thread
 }
@@ -39,10 +44,12 @@ FlexisipException::FlexisipException(const FlexisipException& other ) {
 	mOffset=other.mOffset;
 	memcpy(mArray,other.mArray,sizeof(mArray));
 	mSize=other.mSize;
-	mMsg=other.mMsg+other.str();
+	*static_cast<ostringstream*>(this) << other.str();
+	mWhat=other.mWhat;
 }
-const char* FlexisipException::what() const throw (){
-     return (mMsg+str()).c_str()  ;
+const char* FlexisipException::what() throw (){
+	mWhat=str();
+	return mWhat.c_str();
 }
  void FlexisipException::printStackTrace() const {
 
@@ -54,7 +61,7 @@ const char* FlexisipException::what() const throw (){
  	 for (int i = mOffset; i < mSize; ++i) {
  		os << bt[i] <<endl;
  	  }
- 	 delete (bt);
+ 	delete (bt);
  }
 
 
