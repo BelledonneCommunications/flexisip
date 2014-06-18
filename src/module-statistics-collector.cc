@@ -91,8 +91,40 @@ void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent> &ev) {
 void StatisticsCollector::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 }
 
-bool StatisticsCollector::containsMandatoryFields(char *data, usize_t len) {
-	// yet there is not content parsing, storing the plain text data directly
+/*avoid crash if x is NULL on libc versions <4.5.26 */
+#define __strstr(x, y) ((x==NULL)?NULL:strstr(x,y))
+
+bool StatisticsCollector::containsMandatoryFields(char *body, usize_t len) {
+	char * remote_metrics_start = __strstr(body, "RemoteMetrics:");
+
+	if (!(
+		__strstr(body, "VQIntervalReport\r\n")			== body ||
+		__strstr(body, "VQSessionReport\r\n")			== body ||
+		__strstr(body, "VQSessionReport: CallTerm\r\n") == body))
+		return false;
+
+	if (!(body=__strstr(body, "CallID:"))) return false;
+	if (!(body=__strstr(body, "LocalID:"))) return false;
+	if (!(body=__strstr(body, "RemoteID:"))) return false;
+	if (!(body=__strstr(body, "OrigID:"))) return false;
+	if (!(body=__strstr(body, "LocalGroup:"))) return false;
+	if (!(body=__strstr(body, "RemoteGroup:"))) return false;
+	if (!(body=__strstr(body, "LocalAddr:"))) return false;
+		if (!(body=__strstr(body, "IP="))) return false;
+		if (!(body=__strstr(body, "PORT="))) return false;
+		if (!(body=__strstr(body, "SSRC="))) return false;
+	if (!(body=__strstr(body, "RemoteAddr:"))) return false;
+		if (!(body=__strstr(body, "IP="))) return false;
+		if (!(body=__strstr(body, "PORT="))) return false;
+		if (!(body=__strstr(body, "SSRC="))) return false;
+	if (!(body=__strstr(body, "LocalMetrics:"))) return false;
+	if (!(body=__strstr(body, "Timestamps:"))) return false;
+		if (!(body=__strstr(body, "START="))) return false;
+		if (!(body=__strstr(body, "STOP="))) return false;
+
+	/* We should have not reached RemoteMetrics section yet */
+	if (remote_metrics_start && body >= remote_metrics_start) return false;
+
 	return true;
 }
 
@@ -106,9 +138,9 @@ int StatisticsCollector::managePublishContent(const shared_ptr<RequestSipEvent> 
 		err = 400;
 		statusPhrase = "Invalid SIP";
 	}
-	
+
 	// verify content type
-	if (strcmp("application/vq-rtcpxr", sip->sip_content_type->c_type) != 0 
+	if (strcmp("application/vq-rtcpxr", sip->sip_content_type->c_type) != 0
 		|| strcmp("vq-rtcpxr", sip->sip_content_type->c_subtype) != 0) {
 		err = 415;
 		statusPhrase = "Invalid content type";

@@ -144,13 +144,111 @@ void AuthLogDb::setOrigin(const url_t *url){
 	origin=msg.str();
 }
 
-CallQualityStatisticsLogDb::CallQualityStatisticsLogDb(const std::shared_ptr<CallQualityStatisticsLog> & csLog){
+CallQualityStatisticsLogDb::CallQualityStatisticsLogDb(const std::shared_ptr<CallQualityStatisticsLog> & csLog)
+	: call_term_report(false), local_addr(), remote_addr(), local_metrics(), remote_metrics()
+{
+	std::stringstream iss(csLog->mReport);
+	std::string token;
+	std::string line;
+	std::string section;
+	reporting_content_metrics * current_metrics = &local_metrics;
+	reporting_addr * current_addr = &local_addr;
+
 	date=csLog->mDate;
 	statusCode=csLog->mStatusCode;
 	reason=csLog->mReason;
-	report=csLog->mReport;
 	completed=csLog->mCompleted;
-
 	setFrom(csLog->mFrom);
 	setTo(csLog->mTo);
+
+	getline(iss, line);
+	report_type=line.substr(0, line.find(':'));
+	call_term_report=(line=="VQSessionReport: CallTerm\r");
+	while (iss >> token){
+		size_t colon_loc = token.find(':');
+		size_t equal_loc = token.find('=');
+
+		SLOGD << "CallQualityStatisticsLogDb: New token: " << token << " " << colon_loc << " " << equal_loc;
+
+		/*special case when value is in inverted commas eg FMTP="useinbandfec=1; stereo=0; sprop-stereo=0":
+		When first character is a quote, then we need to read the stream until the matching one is reached*/
+		if (equal_loc != std::string::npos && token[equal_loc+1]=='\"'){
+			string tmp;
+			while (token[token.size()-1]!='\"'&&(iss >> tmp)){
+				token += " " + tmp;
+			}
+			/*remove quotes*/
+			token.erase(token.begin()+equal_loc+1);
+			token.erase(token.end()-1);
+		}
+
+		if (token=="CallID:") getline(iss, call_id);
+		if (token=="LocalID:") getline(iss, local_addr.id);
+		if (token=="RemoteID:") getline(iss, remote_addr.id);
+		if (token=="OrigID:") getline(iss, orig_id);
+		if (token=="LocalGroup:") getline(iss, local_addr.group);
+		if (token=="RemoteGroup:") getline(iss, remote_addr.group);
+		if (token=="LocalMAC:") getline(iss, local_addr.mac);
+		if (token=="RemoteMAC:") getline(iss, remote_addr.mac);
+		if (token=="RemoteAddr:") current_addr = &remote_addr;
+		if (token=="RemoteMetrics:") current_metrics = &remote_metrics;
+		if (token=="DialogID:") getline(iss, dialog_id);
+
+		/* avoid false positives colon contained in key/value pairs
+		like START=2014-06-17T12:20:04Z. */
+		if (colon_loc!=std::string::npos && equal_loc==std::string::npos){
+			section=token.substr(0, colon_loc);
+		}
+
+		/*token is of the form some_key=some_value*/
+		if (equal_loc != std::string::npos){
+			std::string key = token.substr(0, equal_loc);
+			std::string value = token.substr(equal_loc+1, std::string::npos);
+
+			if (key=="IP") current_addr->ip = value;
+			else if (key=="PORT") current_addr->port = atoi(value.c_str());
+			else if (key=="SSRC") current_addr->ssrc =(unsigned int)atoi(value.c_str());
+			else if (section=="Timestamps"){
+				time_t * ts;
+				if (key=="START") ts = &current_metrics->ts_start;
+				else if (key=="STOP") ts = &current_metrics->ts_stop;
+
+				/*convert RFC3336 string to GMT timestamps*/
+				if (ts){
+					struct tm tm;
+					strptime(value.c_str(), "%Y-%m-%dT%H:%M:%SZ", &tm);
+					*ts = mktime(&tm);
+				}else{
+					SLOGE << "CallQualityStatisticsLogDb: Unhandled key=" << key << " value="<<value<<" in section="<<section;
+				}
+			}
+			else if (section=="SessionDesc"&&key=="PT") current_metrics->sd_payload_type = strtod(value.c_str(),NULL);
+			else if (section=="SessionDesc"&&key=="PD") current_metrics->sd_payload_desc = value;
+			else if (section=="SessionDesc"&&key=="SR") current_metrics->sd_sample_rate = strtod(value.c_str(),NULL);
+			else if (section=="SessionDesc"&&key=="FD") current_metrics->sd_frame_duration = strtod(value.c_str(),NULL);
+			else if (section=="SessionDesc"&&key=="FMTP") current_metrics->sd_fmtp = value;
+			else if (section=="SessionDesc"&&key=="PLC") current_metrics->sd_packet_loss_concealment = strtod(value.c_str(),NULL);
+			else if (section=="JitterBuffer"&&key=="JBA") current_metrics->jb_adaptive = strtod(value.c_str(),NULL);
+			else if (section=="JitterBuffer"&&key=="JBN") current_metrics->jb_nominal = strtod(value.c_str(),NULL);
+			else if (section=="JitterBuffer"&&key=="JBM") current_metrics->jb_max = strtod(value.c_str(),NULL);
+			else if (section=="JitterBuffer"&&key=="JBX") current_metrics->jb_abs_max = strtod(value.c_str(),NULL);
+			else if (section=="PacketLoss"&&key=="NLR") current_metrics->pl_network_packet_loss_rate = strtod(value.c_str(),NULL);
+			else if (section=="PacketLoss"&&key=="JDR") current_metrics->pl_jitter_buffer_discard_rate = strtod(value.c_str(),NULL);
+			else if (section=="Delay"&&key=="RTD") current_metrics->d_round_trip_delay = strtod(value.c_str(),NULL);
+			else if (section=="Delay"&&key=="ESD") current_metrics->d_end_system_delay = strtod(value.c_str(),NULL);
+			else if (section=="Delay"&&key=="IAJ") current_metrics->d_interarrival_jitter = strtod(value.c_str(),NULL);
+			else if (section=="Delay"&&key=="MAJ") current_metrics->d_mean_abs_jitter = strtod(value.c_str(),NULL);
+			else if (section=="Signal"&&key=="SL") current_metrics->s_level = strtod(value.c_str(),NULL);
+			else if (section=="Signal"&&key=="NL") current_metrics->s_noise_level = strtod(value.c_str(),NULL);
+			else if (section=="QualityEst"&&key=="MOSLQ") current_metrics->qe_moslq = strtod(value.c_str(),NULL);
+			else if (section=="QualityEst"&&key=="MOSCQ") current_metrics->qe_moscq = strtod(value.c_str(),NULL);
+			else if (section=="AdaptiveAlg"&&key=="NAME") qos_name = value;
+			else if (section=="AdaptiveAlg"&&key=="TS") qos_timestamp = value;
+			else if (section=="AdaptiveAlg"&&key=="IN_LEG") qos_input_leg = value;
+			else if (section=="AdaptiveAlg"&&key=="IN") qos_input = value;
+			else if (section=="AdaptiveAlg"&&key=="OUT_LEG") qos_output_leg = value;
+			else if (section=="AdaptiveAlg"&&key=="OUT") qos_output = value;
+			else SLOGE << "CallQualityStatisticsLogDb: Unhandled key="<<key<<" value="<<value<<" in section="<<section;
+		}
+	}
 }
