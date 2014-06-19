@@ -509,7 +509,7 @@ void DataBaseEventLogWriter::writeLogs(){
 	mListLogs.pop();
 	mMutex.unlock();
 
-	EventLogDb * ev;
+	EventLogDb * ev = NULL;
 	if (typeid(*evlog.get())==typeid(RegistrationLog)){
 		ev = new RegistrationLogDb(static_pointer_cast<RegistrationLog>(evlog));
 	}else if (typeid(*evlog.get())==typeid(CallLog)){

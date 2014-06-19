@@ -25,7 +25,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
-#include <typeinfo>
+#include <algorithm>
 
 using namespace ::std;
 using namespace odb::core;
@@ -144,15 +144,23 @@ void AuthLogDb::setOrigin(const url_t *url){
 	origin=msg.str();
 }
 
+static void getTrimmedEndOfLine(std::istringstream & iss, std::string & dest){
+	getline(iss, dest);
+    std::size_t first = dest.find_first_not_of(" \r\t\n");
+    std::size_t last  = dest.find_last_not_of(" \r\t\n");
+    dest=dest.substr(first, last-first+1);
+}
+
 CallQualityStatisticsLogDb::CallQualityStatisticsLogDb(const std::shared_ptr<CallQualityStatisticsLog> & csLog)
 	: call_term_report(false), local_addr(), remote_addr(), local_metrics(), remote_metrics()
 {
-	std::stringstream iss(csLog->mReport);
 	std::string token;
 	std::string line;
 	std::string section;
 	reporting_content_metrics * current_metrics = &local_metrics;
 	reporting_addr * current_addr = &local_addr;
+	std::string body = csLog->mReport;
+	std::istringstream iss(body);
 
 	date=csLog->mDate;
 	statusCode=csLog->mStatusCode;
@@ -168,7 +176,7 @@ CallQualityStatisticsLogDb::CallQualityStatisticsLogDb(const std::shared_ptr<Cal
 		size_t colon_loc = token.find(':');
 		size_t equal_loc = token.find('=');
 
-		SLOGD << "CallQualityStatisticsLogDb: New token: " << token << " " << colon_loc << " " << equal_loc;
+		/*SLOGD << "CallQualityStatisticsLogDb: New token: " << token << " " << colon_loc << " " << equal_loc;*/
 
 		/*special case when value is in inverted commas eg FMTP="useinbandfec=1; stereo=0; sprop-stereo=0":
 		When first character is a quote, then we need to read the stream until the matching one is reached*/
@@ -182,26 +190,37 @@ CallQualityStatisticsLogDb::CallQualityStatisticsLogDb(const std::shared_ptr<Cal
 			token.erase(token.end()-1);
 		}
 
-		if (token=="CallID:") getline(iss, call_id);
-		if (token=="LocalID:") getline(iss, local_addr.id);
-		if (token=="RemoteID:") getline(iss, remote_addr.id);
-		if (token=="OrigID:") getline(iss, orig_id);
-		if (token=="LocalGroup:") getline(iss, local_addr.group);
-		if (token=="RemoteGroup:") getline(iss, remote_addr.group);
-		if (token=="LocalMAC:") getline(iss, local_addr.mac);
-		if (token=="RemoteMAC:") getline(iss, remote_addr.mac);
-		if (token=="RemoteAddr:") current_addr = &remote_addr;
-		if (token=="RemoteMetrics:") current_metrics = &remote_metrics;
-		if (token=="DialogID:") getline(iss, dialog_id);
-
 		/* avoid false positives colon contained in key/value pairs
 		like START=2014-06-17T12:20:04Z. */
 		if (colon_loc!=std::string::npos && equal_loc==std::string::npos){
 			section=token.substr(0, colon_loc);
 		}
 
+
+		if (token=="CallID:") {
+			getTrimmedEndOfLine(iss, call_id);
+		} else if (token=="LocalID:"){
+			getTrimmedEndOfLine(iss, local_addr.id);
+		} else if (token=="RemoteID:"){
+			getTrimmedEndOfLine(iss, remote_addr.id);
+		} else if (token=="OrigID:"){
+			getTrimmedEndOfLine(iss, orig_id);
+		} else if (token=="LocalGroup:"){
+			getTrimmedEndOfLine(iss, local_addr.group);
+		} else if (token=="RemoteGroup:"){
+			getTrimmedEndOfLine(iss, remote_addr.group);
+		} else if (token=="LocalMAC:"){
+			getTrimmedEndOfLine(iss, local_addr.mac);
+		} else if (token=="RemoteMAC:"){
+			getTrimmedEndOfLine(iss, remote_addr.mac);
+		} else if (token=="RemoteAddr:"){
+			current_addr = &remote_addr;
+		} else if (token=="RemoteMetrics:"){
+			current_metrics = &remote_metrics;
+		} else if (token=="DialogID:"){
+			getTrimmedEndOfLine(iss, dialog_id);
 		/*token is of the form some_key=some_value*/
-		if (equal_loc != std::string::npos){
+		} else if (equal_loc != std::string::npos){
 			std::string key = token.substr(0, equal_loc);
 			std::string value = token.substr(equal_loc+1, std::string::npos);
 
@@ -222,26 +241,27 @@ CallQualityStatisticsLogDb::CallQualityStatisticsLogDb(const std::shared_ptr<Cal
 					SLOGE << "CallQualityStatisticsLogDb: Unhandled key=" << key << " value="<<value<<" in section="<<section;
 				}
 			}
-			else if (section=="SessionDesc"&&key=="PT") current_metrics->sd_payload_type = strtod(value.c_str(),NULL);
+			else if (section=="SessionDesc"&&key=="PT") current_metrics->sd_payload_type = atoi(value.c_str());
 			else if (section=="SessionDesc"&&key=="PD") current_metrics->sd_payload_desc = value;
-			else if (section=="SessionDesc"&&key=="SR") current_metrics->sd_sample_rate = strtod(value.c_str(),NULL);
-			else if (section=="SessionDesc"&&key=="FD") current_metrics->sd_frame_duration = strtod(value.c_str(),NULL);
+			else if (section=="SessionDesc"&&key=="SR") current_metrics->sd_sample_rate = atoi(value.c_str());
+			else if (section=="SessionDesc"&&key=="FD") current_metrics->sd_frame_duration = atoi(value.c_str());
 			else if (section=="SessionDesc"&&key=="FMTP") current_metrics->sd_fmtp = value;
-			else if (section=="SessionDesc"&&key=="PLC") current_metrics->sd_packet_loss_concealment = strtod(value.c_str(),NULL);
-			else if (section=="JitterBuffer"&&key=="JBA") current_metrics->jb_adaptive = strtod(value.c_str(),NULL);
-			else if (section=="JitterBuffer"&&key=="JBN") current_metrics->jb_nominal = strtod(value.c_str(),NULL);
-			else if (section=="JitterBuffer"&&key=="JBM") current_metrics->jb_max = strtod(value.c_str(),NULL);
-			else if (section=="JitterBuffer"&&key=="JBX") current_metrics->jb_abs_max = strtod(value.c_str(),NULL);
-			else if (section=="PacketLoss"&&key=="NLR") current_metrics->pl_network_packet_loss_rate = strtod(value.c_str(),NULL);
-			else if (section=="PacketLoss"&&key=="JDR") current_metrics->pl_jitter_buffer_discard_rate = strtod(value.c_str(),NULL);
-			else if (section=="Delay"&&key=="RTD") current_metrics->d_round_trip_delay = strtod(value.c_str(),NULL);
-			else if (section=="Delay"&&key=="ESD") current_metrics->d_end_system_delay = strtod(value.c_str(),NULL);
-			else if (section=="Delay"&&key=="IAJ") current_metrics->d_interarrival_jitter = strtod(value.c_str(),NULL);
-			else if (section=="Delay"&&key=="MAJ") current_metrics->d_mean_abs_jitter = strtod(value.c_str(),NULL);
-			else if (section=="Signal"&&key=="SL") current_metrics->s_level = strtod(value.c_str(),NULL);
-			else if (section=="Signal"&&key=="NL") current_metrics->s_noise_level = strtod(value.c_str(),NULL);
-			else if (section=="QualityEst"&&key=="MOSLQ") current_metrics->qe_moslq = strtod(value.c_str(),NULL);
-			else if (section=="QualityEst"&&key=="MOSCQ") current_metrics->qe_moscq = strtod(value.c_str(),NULL);
+			else if (section=="SessionDesc"&&key=="PLC") current_metrics->sd_packet_loss_concealment = atoi(value.c_str());
+			else if (section=="JitterBuffer"&&key=="JBA") current_metrics->jb_adaptive = atoi(value.c_str());
+			else if (section=="JitterBuffer"&&key=="JBN") current_metrics->jb_nominal = atoi(value.c_str());
+			else if (section=="JitterBuffer"&&key=="JBM") current_metrics->jb_max = atoi(value.c_str());
+			else if (section=="JitterBuffer"&&key=="JBX") current_metrics->jb_abs_max = atoi(value.c_str());
+			else if (section=="PacketLoss"&&key=="NLR") current_metrics->pl_network_packet_loss_rate = atoi(value.c_str());
+			else if (section=="PacketLoss"&&key=="JDR") current_metrics->pl_jitter_buffer_discard_rate = atoi(value.c_str());
+			else if (section=="Delay"&&key=="RTD") current_metrics->d_round_trip_delay = atoi(value.c_str());
+			else if (section=="Delay"&&key=="ESD") current_metrics->d_end_system_delay = atoi(value.c_str());
+			else if (section=="Delay"&&key=="IAJ") current_metrics->d_interarrival_jitter = atoi(value.c_str());
+			else if (section=="Delay"&&key=="MAJ") current_metrics->d_mean_abs_jitter = atoi(value.c_str());
+			else if (section=="Signal"&&key=="SL") current_metrics->s_level = atoi(value.c_str());
+			else if (section=="Signal"&&key=="NL") current_metrics->s_noise_level = atoi(value.c_str());
+			else if (section=="QualityEst"&&key=="MOSLQ") current_metrics->qe_moslq = atoi(value.c_str());
+			else if (section=="QualityEst"&&key=="MOSCQ") current_metrics->qe_moscq = atoi(value.c_str());
+			else if (section=="LinphoneExt"&&key=="UA") current_metrics->user_agent = value;
 			else if (section=="AdaptiveAlg"&&key=="NAME") qos_name = value;
 			else if (section=="AdaptiveAlg"&&key=="TS") qos_timestamp = value;
 			else if (section=="AdaptiveAlg"&&key=="IN_LEG") qos_input_leg = value;
@@ -249,6 +269,9 @@ CallQualityStatisticsLogDb::CallQualityStatisticsLogDb(const std::shared_ptr<Cal
 			else if (section=="AdaptiveAlg"&&key=="OUT_LEG") qos_output_leg = value;
 			else if (section=="AdaptiveAlg"&&key=="OUT") qos_output = value;
 			else SLOGE << "CallQualityStatisticsLogDb: Unhandled key="<<key<<" value="<<value<<" in section="<<section;
+		// if this is NOT a skipped section of form "ARandomSection:", log error
+		}else if (colon_loc != token.size()-1){
+			SLOGE << "CallQualityStatisticsLogDb: Unhandled token="<<token;
 		}
 	}
 }

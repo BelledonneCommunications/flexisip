@@ -26,7 +26,7 @@
 
 #include "eventlogs.hh"
 
-#pragma db model version(1, 2)
+#pragma db model version(1, 3)
 
 #pragma db object polymorphic table("EventLog")
 class EventLogDb {
@@ -135,20 +135,20 @@ private:
 
 			jb_adaptive = -1;
 			jb_abs_max = -1;
-			jb_nominal = jb_max = 0;
+			jb_nominal = jb_max = -1;
 
-			pl_network_packet_loss_rate = pl_jitter_buffer_discard_rate = 0.f;
+			pl_network_packet_loss_rate = pl_jitter_buffer_discard_rate = -1.f;
 
 			d_end_system_delay = -1;
 			d_interarrival_jitter = -1;
 			d_round_trip_delay = d_mean_abs_jitter = -1;
-			d_symm_one_way_delay = 0;
+			d_symm_one_way_delay = -1;
 
 			s_level = 127;
 			s_noise_level = 127;
 
-			qe_moslq = 0.f;
-			qe_moscq = 0.f;
+			qe_moslq = -1.f;
+			qe_moscq = -1.f;
 		}
 		// timestamps - mandatory
 		time_t ts_start;
@@ -186,6 +186,8 @@ private:
 		// quality estimates - optional
 		float qe_moslq;
 		float qe_moscq;
+
+		std::string user_agent;
 	};
 
 	std::string report_type; /*interval or session report*/
