@@ -351,7 +351,7 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 		// Force front side to bind and allocate a port immediately on the bind-address
 		// BIG FAT WARNING: call getAudioPort BEFORE the setRemoteAddr
 		// to get the local address bound correctly
-#if ENABLE_BOOSTLOG || DEBUG
+#if ENABLE_BOOSTLOG || ORTP_DEBUG_MODE
 		int flport= c->getFrontSide()->getAudioPort();
 #endif
 
