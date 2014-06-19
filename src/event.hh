@@ -168,6 +168,7 @@ protected:
 		case TERMINATED:
 			return "TERMINATED";
 		}
+		return "invalid";
 	}
 };
 
