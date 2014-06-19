@@ -215,7 +215,7 @@ CallQualityStatisticsLogDb::CallQualityStatisticsLogDb(const std::shared_ptr<Cal
 
 				/*convert RFC3336 string to GMT timestamps*/
 				if (ts){
-					struct tm tm = 0;
+					struct tm tm = {0};
 					strptime(value.c_str(), "%Y-%m-%dT%H:%M:%SZ", &tm);
 					*ts = mktime(&tm);
 				}else{
