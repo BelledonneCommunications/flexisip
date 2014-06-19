@@ -209,7 +209,7 @@ CallQualityStatisticsLogDb::CallQualityStatisticsLogDb(const std::shared_ptr<Cal
 			else if (key=="PORT") current_addr->port = atoi(value.c_str());
 			else if (key=="SSRC") current_addr->ssrc =(unsigned int)atoi(value.c_str());
 			else if (section=="Timestamps"){
-				time_t * ts;
+				time_t * ts=NULL;
 				if (key=="START") ts = &current_metrics->ts_start;
 				else if (key=="STOP") ts = &current_metrics->ts_stop;
 
