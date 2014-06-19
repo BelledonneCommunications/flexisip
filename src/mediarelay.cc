@@ -90,6 +90,7 @@ const char *RelayChannel::dirToString(Dir dir){
 		case SendRecv:
 			return "SendRecv";
 	}
+	return "invalid";
 }
 
 void RelayChannel::setRemoteAddr(const string &ip, int port, Dir dir) {
