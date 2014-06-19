@@ -7,7 +7,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 EXTRA_DIST=flexisip.spec.in flexisip.spec
 
-SUBDIRS=src scripts debian
+SUBDIRS=src scripts doc debian
 
 
 # `make rpm'
