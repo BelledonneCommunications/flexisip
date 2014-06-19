@@ -97,10 +97,10 @@ typedef boost::function2<
 	[ \
 	fmt::stream << before << fmt::attr< std::string >(name) << after \
 	]
-// #define addIfInteger(name, before, after) \
-// 	fmt::if_(flt::has_attr(name)) \
-// 	[ \
-// 	fmt::stream << before << fmt::attr< int >(name) << after \
+// #define addIfInteger(name, before, after)
+// 	fmt::if_(flt::has_attr(name))
+// 	[
+// 	fmt::stream << before << fmt::attr< int >(name) << after
 // 	]
 
 	//! Formatter functor
