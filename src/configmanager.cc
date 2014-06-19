@@ -37,6 +37,7 @@
 using namespace::std;
 
 bool ConfigValueListener::sDirty=false;
+ConfigValueListener::~ConfigValueListener(){}
 bool ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 	switch (state) {
 	case ConfigState::Commited:
@@ -467,7 +468,7 @@ void GenericStruct::addChildrenValues(StatItemDescriptor *items){
 }
 */
 struct matchEntryName{
-	matchEntryName(const char *name) : mName(name){};
+	matchEntryName(const char *name) : mName(name){}
 	bool operator()(GenericEntry* e){
 		return strcmp(mName,e->getName().c_str())==0;
 	}
@@ -481,7 +482,7 @@ GenericEntry *GenericStruct::find(const char *name)const{
 }
 
 struct matchEntryNameApprox{
-	matchEntryNameApprox(const char *name) : mName(name){};
+	matchEntryNameApprox(const char *name) : mName(name){}
 	bool operator()(GenericEntry* e){
 		unsigned int i;
 		int count=0;
@@ -569,6 +570,7 @@ StatCounter64::StatCounter64(const string &name, const string &help, oid oid_ind
 ConfigString::ConfigString(const string &name, const string &help, const string &default_value,oid oid_index)
 :	ConfigValue(name,String,help,default_value,oid_index){
 }
+ConfigString::~ConfigString() {}
 
 ConfigRuntimeError::ConfigRuntimeError(const string &name, const string &help,oid oid_index)
 :	ConfigValue(name,RuntimeError,help,"",oid_index){
@@ -580,7 +582,7 @@ const string & ConfigString::read()const{
 	return get();
 }
 
-const void ConfigRuntimeError::writeErrors(GenericEntry *entry, ostringstream &oss) const{
+void ConfigRuntimeError::writeErrors(GenericEntry *entry, ostringstream &oss) const{
 	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
 	if (cs) {
 		const auto &children=cs->getChildren();
@@ -716,6 +718,8 @@ RootConfigStruct::RootConfigStruct(const string &name, const string &help,vector
 : GenericStruct(name,help,1) {
 	mOid = new Oid(oid_root_path,1);
 }
+RootConfigStruct::~RootConfigStruct(){}
+
 static oid company_id = SNMP_COMPANY_OID;
 GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 		mConfigRoot("flexisip","This is the default Flexisip configuration file",{1,3,6,1,4,1,company_id}),
@@ -762,7 +766,6 @@ bool GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 	switch (state) {
 		case ConfigState::Check:
 			return doIsValidNextConfig(conf);
-			break;
 		case ConfigState::Changed:
 			mDirtyConfig=true;
 			break;
@@ -777,8 +780,6 @@ bool GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 				mDirtyConfig=false;
 				mNeedRestart=true;
 			}
-			break;
-		default:
 			break;
 	}
 	return true;

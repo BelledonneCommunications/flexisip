@@ -37,7 +37,6 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const string &appId, 
 	int ret = formatDeviceToken(deviceToken);
 	if ((ret != 0) || (mDeviceToken.size() != DEVICE_BINARY_SIZE)) {
 		throw runtime_error("ApplePushNotification: Invalid deviceToken");
-		return;
 	}
 
 	if( msg_id == "IC_SIL" ) // silent push: just send "content-available=1", the device will figure out what's happening

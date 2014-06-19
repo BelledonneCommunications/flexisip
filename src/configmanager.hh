@@ -61,7 +61,7 @@ class ConfigValue;
 class ConfigValueListener {
 	static bool sDirty;
 public:
-	~ConfigValueListener(){}
+	virtual ~ConfigValueListener();
 	bool onConfigStateChanged(const ConfigValue &conf, ConfigState state);
 protected:
 	virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state)=0;
@@ -133,7 +133,7 @@ public:
 	static GenericEntriesGetter &get() {
 		if (!sInstance) sInstance = new GenericEntriesGetter();
 		return *sInstance;
-	};
+	}
 	void registerWithKey(const std::string &key, GenericEntry *stat) {
 		if (mKeys.find(key) != mKeys.end()) {
 			LOGA("Duplicate entry key %s", key.c_str());
@@ -274,6 +274,7 @@ private:
 class RootConfigStruct : public GenericStruct {
 public:
 	RootConfigStruct(const std::string &name, const std::string &help, std::vector<oid> oid_root_prefix);
+	virtual ~RootConfigStruct();
 };
 
 
@@ -301,8 +302,8 @@ private:
 struct StatPair {
 	StatCounter64 * const start;
 	StatCounter64 * const finish;
-	StatPair(StatCounter64 *start, StatCounter64 *finish)
-	: start(start), finish(finish) {}
+	StatPair(StatCounter64 *istart, StatCounter64 *ifinish)
+	: start(istart), finish(ifinish) {}
 
 	inline void incrStart() { start->incr(); }
 	inline void incrFinish() { finish->incr(); }
@@ -400,13 +401,14 @@ public:
 			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
 #endif
 //	std::string &read()const { return get(); }
-	const void writeErrors(GenericEntry *entry, std::ostringstream &oss) const;
+	void writeErrors(GenericEntry *entry, std::ostringstream &oss) const;
 };
 
 class ConfigString : public ConfigValue{
 public:
 	ConfigString(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
-	const std::string & read()const;
+	~ConfigString();
+	const std::string & read() const;
 };
 
 class ConfigStringList : public ConfigValue{

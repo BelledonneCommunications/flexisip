@@ -61,7 +61,7 @@ public:
 			{ Boolean, "stateful", "Force forking and thus the creation of an outgoing transaction even when only one contact found", "true" },
 			{ Boolean, "fork-late", "Fork invites to late registers", "false" },
 			{ Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite", "false" },
-			{ Boolean, "treat-decline-as-urgent", "Treat 603 Declined answers as urgent. Only relevant if fork-no-global-decline is set to true.", "false"}, 
+			{ Boolean, "treat-decline-as-urgent", "Treat 603 Declined answers as urgent. Only relevant if fork-no-global-decline is set to true.", "false"},
 			{ Integer, "call-fork-timeout", "Maximum time for a call fork to try to reach a callee, in seconds.","90"},
 			{ Integer, "call-fork-urgent-timeout", "Maximum time before delivering urgent responses during a call fork, in seconds. "
 				"The typical fork process requires to wait the best response from all branches before transmitting it to the client. "
@@ -89,7 +89,7 @@ public:
 	virtual void onLoad(const GenericStruct *mc) {
 		GenericStruct *cr=GenericManager::get()->getRoot();
 		const GenericStruct *mReg=cr->get<GenericStruct>("module::Registrar");
-	
+
 		mDomains = mReg->get<ConfigStringList>("reg-domains")->read();
 		for (auto it = mDomains.begin(); it != mDomains.end(); ++it) {
 			LOGD("Found registrar domain: %s", (*it).c_str());
@@ -120,7 +120,7 @@ public:
 		mOtherForkCfg->mForkOneResponse=true;
 		mOtherForkCfg->mForkLate=false;
 		mOtherForkCfg->mDeliveryTimeout=30;
-	
+
 		mUseGlobalDomain=mc->get<ConfigBoolean>("use-global-domain")->read();
 
 		mPreroute = mc->get<ConfigString>("preroute")->read();
@@ -144,7 +144,7 @@ private:
 		ostringstream oss;
 		if (sipUri->url_user) {
 			if (!mPreroute.empty() && strcmp(sipUri->url_user, mPreroute.c_str()) != 0) {
-				oss << "merged" << "@"; // all users but preroute are merged 
+				oss << "merged" << "@"; // all users but preroute are merged
 			} else {
 				oss << sipUri->url_user << "@";
 			}
@@ -177,12 +177,12 @@ private:
 void ModuleRouter::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip=ms->getSip();
-	
+
 	if (sip->sip_request->rq_method==sip_method_invite){
-		shared_ptr<CallLog> clog=ev->getEventLog<CallLog>();
-		if (clog){
-			clog->setStatusCode(code,reason);
-			clog->setCompleted();
+		shared_ptr<CallLog> calllog=ev->getEventLog<CallLog>();
+		if (calllog){
+			calllog->setStatusCode(code,reason);
+			calllog->setCompleted();
 		}
 	}else if (sip->sip_request->rq_method==sip_method_message){
 		shared_ptr<MessageLog> mlog=ev->getEventLog<MessageLog>();
@@ -261,8 +261,7 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const sip_c
 	LOGDFN(lambdaContactUrlInVia, lambdaMsg);
 #endif
 
-	// not too expensive I guess when LOGD disabled
-	char __attribute__ ((unused)) *contact_url_string = url_as_string(ms->getHome(), ct->m_url);
+	char *contact_url_string = url_as_string(ms->getHome(), ct->m_url);
 	auto new_msgsip = context ? make_shared<MsgSip>(*ms) : ms;
 	msg_t *new_msg = new_msgsip->getMsg();
 	sip_t *new_sip = new_msgsip->getSip();
@@ -313,12 +312,12 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 
 	char sipUriRef[256]={0};
 	url_t urlcopy=*sipUri;
-	
+
 	if (mUseGlobalDomain){
 		urlcopy.url_host="merged";
 	}
 	url_e(sipUriRef,sizeof(sipUriRef)-1,&urlcopy);
-	
+
 	// Find all contexts
 	const string key(routingKey(sipUri));
 	auto range = mForks.equal_range(key.c_str());
@@ -342,9 +341,9 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 		if (!ec || !ec->mAlias) continue;
 
 		// Find all contexts
-		auto range = mForks.equal_range(ec->mSipUri);
-		for(auto it = range.first; it != range.second; ++it) {
-			shared_ptr<ForkContext> context = it->second;
+		auto rang = mForks.equal_range(ec->mSipUri);
+		for(auto ite = rang.first; ite != rang.second; ++ite) {
+			shared_ptr<ForkContext> context = ite->second;
 			string uid=Record::extractUniqueId(ct);
 			if (context->onNewRegister(ct->m_url,uid)){
 				LOGD("Found a pending context for contact %s: %p",
@@ -361,7 +360,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	std::list<std::shared_ptr<ExtendedContact>> contacts;
-	
+
 	if (!aor && mGeneratedContactRoute.empty()) {
 		LOGD("This user isn't registered (no aor).");
 		sendReply(ev,SIP_404_NOT_FOUND);
@@ -404,9 +403,9 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 		return;
 	}
 
-	
+
 	int handled = 0;
-	
+
 	if (!mFork) {
 		mStats.mCountNonForks->incr();
 	} else {
@@ -451,7 +450,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 		} else {
 			if (mFork && context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
 				sip_contact_t *temp_ctt=sip_contact_make(ms->getHome(),ec->mSipUri.c_str());
-				
+
 				if (mUseGlobalDomain){
 					temp_ctt->m_url->url_host="merged";
 					temp_ctt->m_url->url_port=NULL;
@@ -478,7 +477,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 }
 
 
-class PreroutingFetcher: 
+class PreroutingFetcher:
 public RegistrarDbListener,
 public enable_shared_from_this<PreroutingFetcher>,
 private ModuleToolbox {
@@ -492,13 +491,13 @@ private ModuleToolbox {
 	Record *m_record;
 public:
 	PreroutingFetcher(ModuleRouter *module, shared_ptr<RequestSipEvent> ev,
-					  const shared_ptr<RegistrarDbListener> &listerner, const vector<string> &preroutes) :
-	mModule(module), mEv(ev), listerner(listerner), mPreroutes(preroutes) {
+					  const shared_ptr<RegistrarDbListener> &listener, const vector<string> &preroutes) :
+	mModule(module), mEv(ev), listerner(listener), mPreroutes(preroutes) {
 		pending = 0;
 		error = false;
 		m_record= new Record("virtual_record");
 	}
-	
+
 	~PreroutingFetcher() {
 		delete (m_record);
 	}
@@ -513,7 +512,7 @@ public:
 			RegistrarDb::get(mModule->getAgent())->fetch(target, this->shared_from_this(), true);
 		}
 	}
-	
+
 	void onRecordFound(Record *r) {
 		--pending;
 		if (r != NULL) {
@@ -661,7 +660,7 @@ void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx){
 			//do not break, because a single fork context might appear several time in the map because of aliases.
 		}else ++it;
 	}
-	
+
 }
 
 ModuleInfo<ModuleRouter> ModuleRouter::sInfo("Router",

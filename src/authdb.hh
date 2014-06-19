@@ -40,8 +40,6 @@
 #include "sofia-sip/auth_module.h"
 #include "sofia-sip/auth_plugin.h"
 
-using namespace std;
-
 enum AuthDbResult {PENDING, PASSWORD_FOUND, PASSWORD_NOT_FOUND, AUTH_ERROR};
 
 // Fw declaration
@@ -58,22 +56,22 @@ public:
 class AuthDb {
 	static AuthDb *sUnique;
 	struct CachedPassword {
-		string pass;
+		std::string pass;
 		time_t date;
-		CachedPassword(const string &pass, time_t date):pass(pass),date(date){}
+		CachedPassword(const std::string &ipass, time_t idate):pass(ipass),date(idate){}
 	};
-	map<string, map<string,CachedPassword>> mCachedPasswords;
+	std::map<std::string, std::map<std::string,CachedPassword>> mCachedPasswords;
 	std::mutex mCachedPasswordMutex;
 protected:
 	AuthDb();
 	enum CacheResult {VALID_PASS_FOUND, EXPIRED_PASS_FOUND, NO_PASS_FOUND};
-	string createPasswordKey(const string &user, const string &host, const string &auth);
-	bool cachePassword(const string &key, const string &domain, const string &pass, time_t time);
-	CacheResult getCachedPassword(const string &key, const string &domain, string &pass, time_t now);
+	std::string createPasswordKey(const std::string &user, const std::string &host, const std::string &auth);
+	bool cachePassword(const std::string &key, const std::string &domain, const std::string &pass, time_t time);
+	CacheResult getCachedPassword(const std::string &key, const std::string &domain, std::string &pass, time_t now);
 	int mCacheExpire;
 public:
 	virtual ~AuthDb();
-	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener)=0;
+	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, std::string &foundPassword, const std::shared_ptr<AuthDbListener> &listener)=0;
 	static AuthDb* get();
 
 	AuthDb (const AuthDb &);
@@ -82,7 +80,7 @@ public:
 
 class FileAuthDb : public AuthDb{
 private:
-		string mFileString;
+		std::string mFileString;
 		time_t mLastSync;
 
 protected:
@@ -90,7 +88,7 @@ protected:
 
 public:
 		FileAuthDb();
-	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener);
+	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, std::string &foundPassword, const std::shared_ptr<AuthDbListener> &listener);
 };
 
 #if ENABLE_ODBC
@@ -104,7 +102,7 @@ class OdbcAuthDb : public AuthDb {
 		char authIdCBuffer[fieldLength +1];
 		SQLHANDLE stmt;
 		SQLHDBC dbc;
-		ConnectionCtx():stmt(NULL),dbc(NULL){};
+		ConnectionCtx():stmt(NULL),dbc(NULL){}
 		~ConnectionCtx(){
 			if (stmt) SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 
@@ -114,24 +112,24 @@ class OdbcAuthDb : public AuthDb {
 			}
 		}
 	} typedef ConnectionCtx;
-	string connectionString;
-	string request;
+	std::string connectionString;
+	std::string request;
 	int maxPassLength;
-	vector<string> parameters;
+	std::vector<std::string> parameters;
 	bool asPooling;
 	SQLHENV env;
 	void dbcError(ConnectionCtx &, const char* doing);
 	void stmtError(ConnectionCtx &ctx, const char* doing);
 	void envError(const char* doing);
 	bool execDirect;
-	bool getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimings &timings);
-	AuthDbResult doRetrievePassword(const string &user, const string &host, const string &auth, string &foundPassword, AuthDbTimings &timings);
-	void doAsyncRetrievePassword(su_root_t *, string id, string domain, string auth, string fallback, const shared_ptr<AuthDbListener> &listener);
+	bool getConnection(const std::string &id, ConnectionCtx &ctx, AuthDbTimings &timings);
+	AuthDbResult doRetrievePassword(const std::string &user, const std::string &host, const std::string &auth, std::string &foundPassword, AuthDbTimings &timings);
+	void doAsyncRetrievePassword(su_root_t *, std::string id, std::string domain, std::string auth, std::string fallback, const std::shared_ptr<AuthDbListener> &listener);
 public:
-	virtual AuthDbResult password(su_root_t*, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener);
-	map<string,string> cachedPasswords;
+	virtual AuthDbResult password(su_root_t*, const url_t *from, const char *auth_username, std::string &foundPassword, const std::shared_ptr<AuthDbListener> &listener);
+	std::map<std::string,std::string> cachedPasswords;
 	void setExecuteDirect(const bool value);
-	bool connect(const string &dsn, const string &request, const vector<string> &parameters, int maxIdLength, int maxPassLength);
+	bool connect(const std::string &dsn, const std::string &request, const std::vector<std::string> &parameters, int maxIdLength, int maxPassLength);
 	bool checkConnection();
 	OdbcAuthDb();
 };

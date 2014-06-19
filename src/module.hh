@@ -60,9 +60,9 @@ class ModuleInfoBase {
 		const std::string &getModuleHelp()const{
 			return mHelp;
 		}
-		const  unsigned int getOidIndex() {return mOidIndex;}
-		virtual ~ModuleInfoBase(){
-		}
+		unsigned int getOidIndex () const {return mOidIndex;}
+		virtual ~ModuleInfoBase();
+
 		enum ModuleOid {
 			SanityChecker=3,
 			GarbageIn=5,

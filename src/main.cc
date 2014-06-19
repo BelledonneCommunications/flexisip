@@ -66,7 +66,7 @@
 #include <fstream>
 
 static int run=1;
-static int pipe_fds[2]={-1}; //pipes used by flexisip to notify its starter process that everything went fine 
+static int pipe_fds[2]={-1}; //pipes used by flexisip to notify its starter process that everything went fine
 static pid_t flexisip_pid=0;
 static su_root_t *root=NULL;
 bool sUseSyslog=false;
@@ -159,11 +159,11 @@ static void increase_fd_limit(void){
 	if (getrlimit(RLIMIT_NOFILE,&lm)==-1){
 		LOGE("getrlimit(RLIMIT_NOFILE) failed: %s",strerror(errno));
 	}else{
-		unsigned int new_limit=getSystemFdLimit();
+		unsigned new_limit=(unsigned)getSystemFdLimit();
 		int old_lim=(int)lm.rlim_cur;
 		LOGI("Maximum number of open file descriptors is %i, limit=%i, system wide limit=%i",
 		     (int)lm.rlim_cur,(int)lm.rlim_max,getSystemFdLimit());
-		
+
 		if (lm.rlim_cur<new_limit){
 			lm.rlim_cur=lm.rlim_max=new_limit;
 			if (setrlimit(RLIMIT_NOFILE,&lm)==-1){
@@ -266,7 +266,7 @@ static void forkAndDetach(const char *pidfile, bool auto_respawn){
 			}
 		}
 		/*this is the case where we don't use the watch dog. Just create pid file and that's all.*/
-		makePidFile(pidfile);
+		/*makePidFile(pidfile); // never reached code*/
 	}else{
 		/* This is the initial process.
 		 * It should block until flexisip has started sucessfully or rejected to start.
@@ -296,7 +296,7 @@ static void depthFirstSearch(string &path, GenericEntry *config, list<string> &a
 		    }
 		    return;
 	}
-	
+
 	ConfigValue *cValue=dynamic_cast<ConfigValue *>(config);
 	if (cValue) {
 		string completion;
@@ -430,7 +430,7 @@ int main(int argc, char *argv[]){
 			oset.insert(make_pair(line.substr(0, sep), line.substr(sep + 1)));
 		}
 	}
-	
+
 	if (!dump_default_cfg && !dump_snmp_mib && !dump_settables) {
 		ortp_init();
 		flexisip::log::preinit(sUseSyslog, debug);
@@ -502,7 +502,7 @@ int main(int argc, char *argv[]){
 
 	bool dump_cores=cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
 
-	
+
 	// Initialize
 	flexisip::log::initLogs(sUseSyslog, debug);
 	flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
@@ -573,7 +573,7 @@ int main(int argc, char *argv[]){
 			LOGF("Failed to write starter pipe: %s",strerror(errno));
 		}
 	}
-	
+
 	if (cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()){
 		stun=new StunServer(cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigInt>("port")->read());
 		stun->start();
@@ -581,7 +581,7 @@ int main(int argc, char *argv[]){
 
 
 	su_timer_t *timer=su_timer_create(su_root_task(root),5000);
-	su_timer_set_for_ever(timer,(su_timer_f)timerfunc,a.get()); 
+	su_timer_set_for_ever(timer,(su_timer_f)timerfunc,a.get());
 	su_root_run(root);
 	su_timer_destroy(timer);
 	DosProtection::get()->stop();

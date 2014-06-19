@@ -50,7 +50,7 @@ bool SdpModifier::initFromSipMsg(sip_t *sip){
 		LOGE("SIP message has no payload");
 		return false;
 	}
-	mParser = sdp_parse(mHome, payload->pl_data, payload->pl_len, 0);
+	mParser = sdp_parse(mHome, payload->pl_data, (int)payload->pl_len, 0);
 	mSession=sdp_session(mParser);
 	if (mSession==NULL) {
 		LOGE("SDP parsing error: %s",sdp_parsing_error(mParser));
@@ -105,8 +105,8 @@ static sdp_rtpmap_t *sdp_rtpmap_make_from_payload_type(su_home_t *home, PayloadT
 	sdp_rtpmap_t *map=(sdp_rtpmap_t*)su_zalloc(home,sizeof(sdp_rtpmap_t));
 	map->rm_size=sizeof(sdp_rtpmap_t);
 	map->rm_encoding=su_strdup(home,pt->mime_type);
-	map->rm_rate=pt->clock_rate;
-	map->rm_pt=number;
+	map->rm_rate=(unsigned long)pt->clock_rate;
+	map->rm_pt=(unsigned int)number;
 	map->rm_fmtp=su_strdup(home,pt->recv_fmtp);
 	return map;
 }
@@ -187,17 +187,17 @@ void SdpModifier::replacePayloads(const std::list<PayloadType *> &payloads, cons
 	PayloadType *pt;
 	sdp_rtpmap_t ref;
 	int pt_index=100;
-	
+
 	memset(&ref,0,sizeof(ref));
 	ref.rm_size=sizeof(ref);
-	
+
 	sdp_media_t *mline=mSession->sdp_media;
 	mline->m_rtpmaps=NULL;
-	
+
 	for(auto elem=payloads.cbegin();elem!=payloads.cend(); ++elem){
 		pt=*elem;
 		ref.rm_encoding=pt->mime_type;
-		ref.rm_rate=pt->clock_rate;
+		ref.rm_rate=(unsigned long)pt->clock_rate;
 		LOGD("Adding new payload to sdp: %s/%i",pt->mime_type,pt->clock_rate);
 		int number=payload_type_get_number(pt);
 		if (number==-1){
@@ -269,7 +269,7 @@ void SdpModifier::changeAudioIpPort(const char *ip, int port){
 	mSession->sdp_media->m_connections
 			?mSession->sdp_media->m_connections->c_address=su_strdup(mHome,ip)
 			:mSession->sdp_connection->c_address=su_strdup(mHome,ip);
-	mSession->sdp_media->m_port=port;
+	mSession->sdp_media->m_port=(unsigned long)port;
 }
 
 void SdpModifier::changeMediaConnection(sdp_media_t *mline, const char *relay_ip){
@@ -352,10 +352,10 @@ void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
 
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		if (mline->m_port == 0) continue;
-		
+
 		if (hasMediaAttribute(mline, mNortproxy.c_str())) continue;
 		pair<string,int> relayAddr=fct(i);
-		
+
 		if (mline->m_connections){
 			mline->m_connections->c_address=su_strdup(mHome,relayAddr.first.c_str());
 		}else if (mSession->sdp_connection){
@@ -367,7 +367,7 @@ void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
 				sdp_connection_translated = true;
 			}
 		}
-		mline->m_port=relayAddr.second;
+		mline->m_port=(unsigned long)relayAddr.second;
 		rtcp_attribute = sdp_attribute_find(mline->m_attributes,"rtcp");
 		if (rtcp_attribute) {
 			int previous_port;
@@ -459,7 +459,7 @@ void SdpModifier::update(msg_t *msg, sip_t *sip){
 
 	if (sdp_message(printer)) {
 		char const *sdp = sdp_message(printer);
-		size_t msgsize = sdp_message_size(printer);
+		isize_t msgsize = sdp_message_size(printer);
 		sip_payload_t *payload=sip_payload_make(mHome,sdp);
 		int err;
 		err=sip_header_remove(msg,sip,(sip_header_t*)sip_payload(sip));

@@ -31,7 +31,7 @@
 #pragma db object polymorphic table("EventLog")
 class EventLogDb {
 public:
-	EventLogDb() {};
+	EventLogDb() {}
 	virtual ~EventLogDb();
 	void setFrom(const sip_from_t *from);
 	void setTo(const sip_to_t *to);
@@ -55,7 +55,7 @@ class RegistrationLogDb : public EventLogDb{
 public:
 	enum Type {Register, Unregister, Expired};
 	RegistrationLogDb(const std::shared_ptr<RegistrationLog> & rLog);
-	RegistrationLogDb() {};
+	RegistrationLogDb() {}
 	void setContacts(const sip_contact_t *contacts);
 private:
 	friend class odb::access;
@@ -68,7 +68,7 @@ private:
 class CallLogDb : public EventLogDb{
 public:
 	CallLogDb(const std::shared_ptr<CallLog> & cLog);
-	CallLogDb() {};
+	CallLogDb() {}
 private:
 	friend class odb::access;
 	bool cancelled;
@@ -79,7 +79,7 @@ class MessageLogDb : public EventLogDb{
 public:
 	enum ReportType {Reception, Delivery};
 	MessageLogDb(const std::shared_ptr<MessageLog> & mLog);
-	MessageLogDb() {};
+	MessageLogDb() {}
 	void setDestination(const url_t *url);
 private:
 	friend class odb::access;
@@ -92,7 +92,7 @@ private:
 class AuthLogDb : public EventLogDb{
 public:
 	AuthLogDb(const std::shared_ptr<AuthLog> & aLog);
-	AuthLogDb() {};
+	AuthLogDb() {}
 	void setOrigin(const url_t *url);
 private:
 	friend class odb::access;
@@ -105,7 +105,7 @@ private:
 class CallQualityStatisticsLogDb : public EventLogDb{
 public:
 	CallQualityStatisticsLogDb(const std::shared_ptr<CallQualityStatisticsLog> & csLog);
-	CallQualityStatisticsLogDb() {};
+	CallQualityStatisticsLogDb() {}
 private:
 	friend class odb::access;
 

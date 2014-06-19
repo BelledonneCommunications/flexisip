@@ -24,6 +24,8 @@ static string tf(bool value) {
 	return value?"true":"false";
 }
 
+BooleanExpression::~BooleanExpression(){}
+
 long BooleanExpression::ptr() {
 	return (long)this;
 }
@@ -69,13 +71,13 @@ void log_boolean_expression_parsing(bool value) { logParse=value; }
 class VariableOrConstant {
 	list<string> mValueList;
 public:
-	virtual ~VariableOrConstant() {};
+	virtual ~VariableOrConstant() {}
 	virtual const std::string &get(const SipAttributes *args)=0;
-	const bool defined(const SipAttributes *args) {
+	bool defined(const SipAttributes *args) {
 		try {
 			get(args);
 			return true;
-		} catch (exception &e) {}
+		} catch (exception &) {}
 		return false;
 	}
 	const list<string> &getAsList(const SipAttributes *args) {
@@ -198,7 +200,7 @@ class EqualsOp : public BooleanExpression{
 public:
 	EqualsOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2) : mVar1(var1), mVar2(var2){
 		LOGPARSE << "Creating EqualsOperator";
-	};
+	}
 	virtual bool eval(const SipAttributes *args){
 		bool res=mVar1->get(args)==mVar2->get(args);
 		LOGEVAL << "evaluating "<< mVar1->get(args)<< " == "<< mVar2->get(args)<< " : " << (res?"true":"false");
@@ -214,7 +216,7 @@ public:
 	UnEqualsOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2)
 	: mVar1(var1), mVar2(var2){
 		LOGPARSE << "Creating UnEqualsOperator";
-	};
+	}
 	virtual bool eval(const SipAttributes *args){
 		bool res=mVar1->get(args)!=mVar2->get(args);
 		LOGEVAL << "evaluating " << mVar1->get(args) << " != " << mVar2->get(args) << " : " << (res?"true":"false");
@@ -230,7 +232,7 @@ class NumericOp : public BooleanExpression{
 public:
 	NumericOp(shared_ptr<VariableOrConstant> var) : mVar(var){
 		LOGPARSE << "Creating NumericOperator";
-	};
+	}
 	virtual bool eval(const SipAttributes *args){
 		string var=mVar->get(args);
 		bool res=true;
@@ -252,7 +254,7 @@ class DefinedOp : public BooleanExpression{
 public:
 	DefinedOp(string name, shared_ptr<VariableOrConstant> var) : mVar(var), mName(name){
 		LOGPARSE << "Creating DefinedOperator";
-	};
+	}
 	virtual bool eval(const SipAttributes *args){
 		bool res=mVar->defined(args);
 		LOGEVAL << "evaluating is defined for " << mName << (res?"true":"false");
@@ -271,7 +273,7 @@ public:
 		string p= pattern->get(NULL);
 		int err = regcomp(&preg,p.c_str(), REG_NOSUB | REG_EXTENDED);
 		if (err !=0) throw invalid_argument("couldn't compile regex " + p);
-	};
+	}
 	~Regex() {
 		regfree(&preg);
 	}
@@ -289,7 +291,6 @@ public:
 		default:
 			regerror (match, &preg, error_msg_buff, sizeof(error_msg_buff));
 			throw invalid_argument("Error evaluating regex " + string(error_msg_buff));
-			break;
 		}
 
 		LOGEVAL << "evaluating " << input << " is regex  " << mPattern->get(NULL) << " : " << (res?"true":"false");
@@ -300,7 +301,7 @@ public:
 class ContainsOp : public BooleanExpression{
 	shared_ptr<VariableOrConstant> mVar1,mVar2;
 public:
-	ContainsOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2) : mVar1(var1), mVar2(var2){};
+	ContainsOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2) : mVar1(var1), mVar2(var2){}
 	virtual bool eval(const SipAttributes *args){
 		bool res=mVar1->get(args).find(mVar2->get(args))!=std::string::npos;
 		LOGEVAL << "evaluating " << mVar1->get(args) << " contains " << mVar2->get(args) << " : " << (res?"true":"false");
@@ -311,7 +312,7 @@ public:
 
 class InOp : public BooleanExpression{
 public:
-	InOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2) : mVar1(var1), mVar2(var2){};
+	InOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2) : mVar1(var1), mVar2(var2){}
 	virtual bool eval(const SipAttributes *args){
 		bool res=false;
 		const list<string> &values=mVar2->getAsList(args);
@@ -342,7 +343,7 @@ static size_t find_first_non_word(const string &expr, size_t offset) {
 }
 
 
-shared_ptr<Variable> buildVariable(const string & expr, size_t *newpos){
+static shared_ptr<Variable> buildVariable(const string & expr, size_t *newpos){
 	LOGPARSE << "buildVariable working on XX" << expr << "XX";
 	while (expr[*newpos]==' ') *newpos+=1;
 
@@ -384,9 +385,7 @@ static shared_ptr<VariableOrConstant> buildVariableOrConstant(const string & exp
 	}else{
 		auto variable=buildVariable(expr, newpos);
 		return dynamic_pointer_cast<VariableOrConstant>(variable);
-
 	}
-	throw invalid_argument("Couldn't find variable or constant in " + expr);
 }
 
 static size_t find_matching_closing_parenthesis(const string &expr, size_t offset){
@@ -398,7 +397,7 @@ static size_t find_matching_closing_parenthesis(const string &expr, size_t offse
 		if (match==0) return i;
 	}
 	return string::npos;
-} 
+}
 
 static bool isKeyword(const string &expr, size_t *newpos, const string &keyword) {
 	size_t pos=*newpos;

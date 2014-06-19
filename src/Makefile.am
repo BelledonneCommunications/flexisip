@@ -58,15 +58,15 @@ thesources= \
 			eventlogs/eventlogs.cc eventlogs/eventlogs.hh \
 			contact-masquerader.cc contact-masquerader.hh \
 			uac-register.cc uac-register.hh \
-			$(GITVERSION_FILE) 
+			$(GITVERSION_FILE)
 
 
 if BUILD_SNMP
 thesources+=snmp-agent.cc snmp-agent.h
-INCLUDES=-Imib			
+INCLUDES=-Imib
 endif
 
-flexisip_LDADD=$(SOFIA_LIBS) $(ORTP_LIBS) $(LIBODB_MYSQL_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS) 
+flexisip_LDADD=$(SOFIA_LIBS) $(ORTP_LIBS) $(LIBODB_MYSQL_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) $(PROTOBUF_CFLAGS) $(LIBODB_MYSQL_CFLAGS)  $(MYSQL_CFLAGS)\
 			-DCONFIG_DIR=\"$(CONFIG_DIR)\" -DORTP_DEBUG_MODE $(WARNINGCXXFLAGS)
@@ -90,11 +90,11 @@ endif
 if BUILD_ODB
 AM_CFLAGS+=-DHAVE_ODB
 AM_CXXFLAGS+=-DHAVE_ODB $(LIBODB_CFLAGS) -Wno-unknown-pragmas
-flexisip_LDADD+=$(LIBODB_LIBS) 
+flexisip_LDADD+=$(LIBODB_LIBS)
 thesources+=eventlogs/eventlogsdb.cc eventlogs/eventlogsdb.hh
 eventlogs/eventlogsdb-odb.hxx eventlogs/eventlogsdb-odb.cxx: eventlogs/eventlogsdb.hh
 	odb $(SOFIA_CFLAGS) --std c++11 -d mysql --output-dir eventlogs --generate-query --generate-schema --schema-format embedded $<
-nodistsources += eventlogs/eventlogsdb-odb.cxx 
+nodistsources += eventlogs/eventlogsdb-odb.cxx
 BUILT_SOURCES += eventlogs/eventlogsdb-odb.hxx eventlogs/eventlogsdb-odb.cxx
 
 endif
@@ -104,7 +104,7 @@ thesources+=module-datehandler.cc
 endif
 
 if BUILD_TRANSCODER
-thesources+=	callcontext-transcoder.cc callcontext-transcoder.hh  
+thesources+=	callcontext-transcoder.cc callcontext-transcoder.hh
 endif
 
 if BUILD_BOOSTLOG
@@ -122,7 +122,7 @@ if BUILD_PUSHNOTIFICATION
 thesources+=module-pushnotification.cc \
 			pushnotification/pushnotification.cc pushnotification/pushnotification.hh \
 			pushnotification/pushnotificationservice.cc pushnotification/pushnotificationservice.hh \
-			pushnotification/pushnotificationclient.cc pushnotification/pushnotificationclient.hh 
+			pushnotification/pushnotificationclient.cc pushnotification/pushnotificationclient.hh
 AM_CXXFLAGS+=-DENABLE_PUSHNOTIFICATION $(BOOST_CPPFLAGS) $(OPENSSL_CPPFLAGS)
 flexisip_LDADD+=$(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(OPENSSL_LIBS) $(BOOST_ASIO_LIB)
 endif
@@ -139,14 +139,14 @@ $(builddir)/pb_generated_src_stamp : $(pb_files)
 	protoc --proto_path=$(builddir) --cpp_out=$(builddir) $(pb_files)
 	touch $(builddir)/pb_generated_src_stamp
 
-BUILT_SOURCES+=$(builddir)/pb_generated_src_stamp 
+BUILT_SOURCES+=$(builddir)/pb_generated_src_stamp
 
 thesources+=recordserializer-protobuf.cc
 nodistsources+=recordserializer-protobuf.pb.cc recordserializer-protobuf.pb.h
 AM_CXXFLAGS+=-DENABLE_PROTOBUF
 AM_CFLAGS+=-DENABLE_PROTOBUF
 endif
-    
+
 if BUILD_REDIS
 bin_PROGRAMS+=ctdumper serializer binder
 ctdumper_SOURCES=tool/ctdumper.cc $(thesources)
@@ -180,7 +180,7 @@ clean-local:
 
 make_gitversion_h:
 	if test "$(GITDESCRIBE)" != "" ; then \
-		$(ECHO) -n "#define FLEXISIP_GIT_VERSION \"$(GITDESCRIBE)\"" > $(GITVERSION_FILE_TMP) ; \
+		$(ECHO) "#define FLEXISIP_GIT_VERSION \"$(GITDESCRIBE)\"" > $(GITVERSION_FILE_TMP) ; \
 	elif test "$(GITREVISION)" != "" ; then \
 		$(ECHO) -n "#define FLEXISIP_GIT_VERSION \"$(LINPHONE_VERSION)_$(GITREVISION)\"" > $(GITVERSION_FILE_TMP) ; \
 	else \

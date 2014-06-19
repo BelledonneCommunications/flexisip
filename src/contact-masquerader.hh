@@ -41,9 +41,10 @@ public:
 	void masquerade(su_home_t *home, sip_contact_t *c, const char *domain = NULL);
 	inline void masquerade(std::shared_ptr<SipEvent> ev, bool insertDomain = false) {
 		masquerade(ev->getHome(), ev->getSip()->sip_contact, insertDomain ? ev->getSip()->sip_from->a_url->url_host : NULL);
-	};
+	}
 
 	void restore(su_home_t *home, url_t *dest, char ctrt_param[64], const char* new_param = NULL);
 };
 
 #endif
+

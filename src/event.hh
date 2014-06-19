@@ -140,8 +140,8 @@ public:
 	virtual ~SipEvent();
 
 	Module *getCurrentModule() { return mCurrModule; }
-	
-	template <typename _eventLogT> 
+
+	template <typename _eventLogT>
 	std::shared_ptr<_eventLogT> getEventLog(){
 		return std::dynamic_pointer_cast<_eventLogT>(mEventLog);
 	}
@@ -167,8 +167,6 @@ protected:
 			return "SUSPENDED";
 		case TERMINATED:
 			return "TERMINATED";
-		default:
-			return "unknown";
 		}
 	}
 };
@@ -210,9 +208,9 @@ class ResponseSipEvent: public SipEvent {
 public:
 	ResponseSipEvent(std::shared_ptr<OutgoingAgent> outgoingAgent, const std::shared_ptr<MsgSip> &msgSip);
 	ResponseSipEvent(const std::shared_ptr<ResponseSipEvent> &sipEvent);
-	
+
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u=NULL, tag_type_t tag=0, tag_value_t value=0, ...);
-	
+
 	virtual void setOutgoingAgent(const std::shared_ptr<OutgoingAgent> &agent);
 
 	~ResponseSipEvent();
@@ -227,7 +225,7 @@ inline std::ostream& operator<<(std::ostream& strm, MsgSip const& obj) {
 	// a non const sip_t...
 	MsgSip &hack=const_cast<MsgSip&>(obj);
 	strm << hack.print();
-	return strm;	
+	return strm;
 }
 
 #endif //event_hh

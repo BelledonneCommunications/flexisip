@@ -36,8 +36,7 @@ class CallContextBase{
 		virtual bool isInactive(time_t cur){
 			return false;
 		}
-		virtual void terminate(){
-		};
+		virtual void terminate(){}
 		su_home_t *getHome(){
 			return &mHome;
 		}

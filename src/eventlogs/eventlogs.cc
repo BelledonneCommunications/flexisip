@@ -156,9 +156,9 @@ void AuthLog::setOrigin( const sip_via_t* via ) {
 	const char *scheme="sip";
 	const char *port=via->v_rport ? via->v_rport : via->v_port;
 	const char *ip=via->v_received ? via->v_received : via->v_host;
-	
+
 	protocol=strchr(protocol,'/')+1;
-	
+
 	if (strcasecmp(protocol,"UDP")==0) protocol=NULL;
 	else if (strcasecmp(protocol,"UDP")==0) {
 		protocol=NULL;
@@ -166,7 +166,7 @@ void AuthLog::setOrigin( const sip_via_t* via ) {
 	}
 	if (port)
 		mOrigin=url_format(&mHome,"%s:%s:%s",scheme,ip,port);
-	else 
+	else
 		mOrigin=url_format(&mHome,"%s:%s",scheme,ip);
 	if (protocol)
 		mOrigin->url_params=su_sprintf(&mHome,"transport=%s",protocol);
@@ -206,7 +206,7 @@ inline ostream & operator<<(ostream & ostr, const sip_from_t *from){
 
 
 struct PrettyTime{
-	PrettyTime(time_t t) : _t(t){};
+	PrettyTime(time_t t) : _t(t){}
 	time_t _t;
 };
 
@@ -247,6 +247,8 @@ inline ostream &operator<<(ostream & ostr, MessageLog::ReportType type){
 	return ostr;
 }
 
+EventLogWriter::~EventLogWriter(){}
+
 FilesystemEventLogWriter::FilesystemEventLogWriter(const std::string &rootpath) : mRootPath(rootpath), mIsReady(false){
 	if (rootpath.c_str()[0]!='/'){
 		LOGE("Path for event log writer must be absolute.");
@@ -254,7 +256,7 @@ FilesystemEventLogWriter::FilesystemEventLogWriter(const std::string &rootpath) 
 	}
 	if (!createDirectoryIfNotExist(rootpath.c_str()))
 		return;
-	
+
 	mIsReady=true;
 }
 
@@ -264,31 +266,31 @@ bool FilesystemEventLogWriter::isReady()const{
 
 int FilesystemEventLogWriter::openPath(const url_t *uri, const char *kind, time_t curtime, int errorcode){
 	ostringstream path;
-	
+
 	if (errorcode==0){
 		const char *username=uri->url_user;
 		const char *domain=uri->url_host;
-		
-		
+
+
 		path<<mRootPath<<"/users";
-		
+
 		if (!createDirectoryIfNotExist(path.str().c_str()))
 			return -1;
-		
+
 		path<<"/"<<domain;
-		
+
 		if (!createDirectoryIfNotExist(path.str().c_str()))
 			return -1;
-		
+
 		if (!username)
 			username="anonymous";
-		
+
 		path<<"/"<<username;
-		
+
 		if (!createDirectoryIfNotExist(path.str().c_str()))
 			return -1;
 		path<<"/"<<kind;
-	
+
 		if (!createDirectoryIfNotExist(path.str().c_str()))
 			return -1;
 	}else{
@@ -302,12 +304,12 @@ int FilesystemEventLogWriter::openPath(const url_t *uri, const char *kind, time_
 		if (!createDirectoryIfNotExist(path.str().c_str()))
 			return -1;
 	}
-	
+
 
 	struct tm tm;
 	localtime_r(&curtime,&tm);
 	path<<"/"<<1900+tm.tm_year<<"-"<<std::setfill('0')<<std::setw(2)<<tm.tm_mon+1<<"-"<<std::setfill('0')<<std::setw(2)<<tm.tm_mday<<".log";
-	
+
 	int fd=open(path.str().c_str(),O_WRONLY|O_CREAT|O_APPEND,S_IRUSR|S_IWUSR);
 	if (fd==-1){
 		LOGE("Cannot open %s: %s",path.str().c_str(),strerror(errno));
@@ -320,12 +322,12 @@ void FilesystemEventLogWriter::writeRegistrationLog(const std::shared_ptr<Regist
 	const char *label="registers";
 	int fd=openPath(rlog->mFrom->a_url,label,rlog->mDate);
 	if (fd==-1) return;
-	
+
 	ostringstream msg;
 	msg<<PrettyTime(rlog->mDate)<<": "<<rlog->mType<<" "<<rlog->mFrom;
 	if (rlog->mContacts && rlog->mContacts->m_url) msg<<" ("<<rlog->mContacts->m_url<<") ";
 	if (rlog->mUA) msg<<rlog->mUA<<endl;
-	
+
 	if (::write(fd,msg.str().c_str(),msg.str().size())==-1){
 		LOGE("Fail to write registration log: %s",strerror(errno));
 	}
@@ -335,32 +337,32 @@ void FilesystemEventLogWriter::writeRegistrationLog(const std::shared_ptr<Regist
 	}
 }
 
-void FilesystemEventLogWriter::writeCallLog(const std::shared_ptr<CallLog> &clog){
+void FilesystemEventLogWriter::writeCallLog(const std::shared_ptr<CallLog> &calllog){
 	const char *label="calls";
-	int fd1=openPath(clog->mFrom->a_url,label,clog->mDate);
-	int fd2=openPath(clog->mTo->a_url,label,clog->mDate);
-	
+	int fd1=openPath(calllog->mFrom->a_url,label,calllog->mDate);
+	int fd2=openPath(calllog->mTo->a_url,label,calllog->mDate);
+
 	ostringstream msg;
-	
-	msg<<PrettyTime(clog->mDate)<<": "<<clog->mFrom<<" --> "<<clog->mTo<<" ";
-	if (clog->mCancelled) msg<<"Cancelled";
-	else msg<<clog->mStatusCode<<" "<<clog->mReason;
+
+	msg<<PrettyTime(calllog->mDate)<<": "<<calllog->mFrom<<" --> "<<calllog->mTo<<" ";
+	if (calllog->mCancelled) msg<<"Cancelled";
+	else msg<<calllog->mStatusCode<<" "<<calllog->mReason;
 	msg<<endl;
-	
+
 	if (fd1==-1 || ::write(fd1,msg.str().c_str(),msg.str().size())==-1){
 		LOGE("Fail to write registration log: %s",strerror(errno));
 	}
 	// Avoid to write logs for users that possibly do not exist.
 	// However the error will be reported in the errors directory.
-	if (clog->mStatusCode!=404){ 
+	if (calllog->mStatusCode!=404){
 		if (fd2==-1 || ::write(fd2,msg.str().c_str(),msg.str().size())==-1){
 			LOGE("Fail to write registration log: %s",strerror(errno));
 		}
 	}
 	if (fd1!=-1) close(fd1);
 	if (fd2!=-1) close(fd2);
-	if (clog->mStatusCode>=300){
-		writeErrorLog(clog,label,msg.str());
+	if (calllog->mStatusCode>=300){
+		writeErrorLog(calllog,label,msg.str());
 	}
 }
 
@@ -370,7 +372,7 @@ void FilesystemEventLogWriter::writeMessageLog(const std::shared_ptr<MessageLog>
 			,label,mlog->mDate);
 	if (fd==-1) return;
 	ostringstream msg;
-	
+
 	msg<<PrettyTime(mlog->mDate)<<": "<<mlog->mReportType<<" id:"<<std::hex<<mlog->mId<<" "<<std::dec;
 	msg<<mlog->mFrom<<" --> "<<mlog->mTo;
 	if (mlog->mUri) msg<<" ("<<mlog->mUri<<") ";
@@ -393,7 +395,7 @@ void FilesystemEventLogWriter::writeCallQualityStatisticsLog(const std::shared_p
 	int fd=openPath(mlog->mFrom->a_url,label,mlog->mDate);
 	if (fd==-1) return;
 	ostringstream msg;
-	
+
 	msg<<PrettyTime(mlog->mDate)<<" ";
 	msg<<mlog->mFrom<<" --> "<<mlog->mTo<<" ";
 	msg<<mlog->mStatusCode<<" "<<mlog->mReason <<": ";
@@ -417,7 +419,7 @@ void FilesystemEventLogWriter::writeAuthLog(const std::shared_ptr<AuthLog> &alog
 	if (alog->mUA) msg<<" ("<<alog->mUA<<") ";
 	msg<<" --> "<<alog->mTo<<" ";
 	msg<<alog->mStatusCode<<" "<<alog->mReason<<endl;
-	
+
 	if (alog->mUserExists){
 		int fd=openPath(alog->mFrom->a_url,label,alog->mDate);
 		if (fd!=-1){
@@ -465,14 +467,14 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(const std::string &db_name,const 
 			transaction t (mDatabase->begin ());
 			try {
 				mDatabase->query<EventLogDb> (false);
-			} catch (const odb::exception& e){
+			} catch (const odb::exception&){
 				schema_catalog::create_schema (*mDatabase);
 			}
 			t.commit ();
 		}
 
 	} catch (const odb::exception& e){
-		LOGE("Fail to connect to the database");
+		LOGE("Fail to connect to the database: %s", e.what());
 	}
 }
 

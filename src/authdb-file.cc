@@ -109,7 +109,7 @@ void FileAuthDb::sync() {
 					LOGW("Not handled domain: %s", domain.c_str());
 				}
 			} catch (const stringstream::failure &e) {
-				LOGW("Incorrect line format: %s", line.c_str());
+				LOGW("Incorrect line format: %s (error: %s)", line.c_str(), e.what());
 			}
 		}
 	} else {

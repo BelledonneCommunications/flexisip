@@ -26,7 +26,7 @@ AuthDb *AuthDb::sUnique = NULL;
 
 class FixedAuthDb : public AuthDb{
 public:
-        FixedAuthDb(){};
+        FixedAuthDb(){}
 	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener) {
 		foundPassword.assign("fixed");
 		return AuthDbResult::PASSWORD_FOUND;

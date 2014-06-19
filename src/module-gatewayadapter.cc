@@ -74,8 +74,8 @@ public:
 		return to;
 	}
 
-	void setPassword(const string &password) {
-		this->password = password;
+	void setPassword(const string &ipassword) {
+		this->password = ipassword;
 	}
 
 	const string& getPassword() {
@@ -102,20 +102,20 @@ private:
 		GatewayRegister *gw;
 
 	public:
-		OnAuthListener(GatewayRegister * gw) :
-				gw(gw) {
+		OnAuthListener(GatewayRegister * igw) :
+				gw(igw) {
 		}
 
 		virtual void switchToAsynchronousMode(){LOGE("to implement");}
-		virtual void checkPassword(const char *password) {
+		virtual void checkPassword(const char *ipassword) {
 			LOGD("Found password");
-			gw->setPassword(password);
+			gw->setPassword(ipassword);
 			gw->sendRegister();
 		}
 
-		virtual void onAsynchronousResponse(AuthDbResult ret, const char *password) {
-			if (ret==AuthDbResult::PASSWORD_FOUND && password!=NULL){
-				checkPassword(password);
+		virtual void onAsynchronousResponse(AuthDbResult ret, const char *ipassword) {
+			if (ret==AuthDbResult::PASSWORD_FOUND && ipassword!=NULL){
+				checkPassword(ipassword);
 			}else{
 				LOGE("GatewayRegister onAsynchronousResponse(): Can't find user password, give up.");
 			}
@@ -134,8 +134,8 @@ private:
 
 	public:
 
-		OnFetchListener(GatewayRegister * gw) :
-				gw(gw) {
+		OnFetchListener(GatewayRegister * igw) :
+				gw(igw) {
 		}
 
 		~OnFetchListener() {
@@ -144,14 +144,14 @@ private:
 		void onRecordFound(Record *r) {
 			if (r == NULL) {
 				LOGD("Record doesn't exist. Fork");
-				string password;
+				string ipassword;
 				AuthDb *mAuthDb = AuthDb::get();
-				AuthDbResult result = mAuthDb->password(gw->mAgent->getRoot(), gw->getFrom()->a_url, gw->getFrom()->a_url->url_user, password, make_shared<OnAuthListener>(gw));
+				AuthDbResult result = mAuthDb->password(gw->mAgent->getRoot(), gw->getFrom()->a_url, gw->getFrom()->a_url->url_user, ipassword, make_shared<OnAuthListener>(gw));
 
 				// Already a response?
 				if (result != AuthDbResult::PENDING) {
 					if (result == AuthDbResult::PASSWORD_FOUND) {
-						gw->setPassword(password);
+						gw->setPassword(ipassword);
 						gw->sendRegister();
 					} else {
 						LOGE("Can't find user password, give up.");

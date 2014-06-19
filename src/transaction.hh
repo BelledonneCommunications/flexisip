@@ -38,9 +38,7 @@ public:
 
 	virtual Agent *getAgent() = 0;
 
-	virtual ~IncomingAgent() {
-
-	}
+	virtual ~IncomingAgent();
 };
 
 class OutgoingAgent {
@@ -49,9 +47,7 @@ public:
 
 	virtual Agent *getAgent() = 0;
 
-	virtual ~OutgoingAgent() {
-
-	}
+	virtual ~OutgoingAgent();
 };
 
 class Transaction {
@@ -67,8 +63,7 @@ public:
 			mAgent(agent) {
 	}
 
-	virtual ~Transaction() {
-
+	~Transaction() {
 	}
 
 	Agent * getAgent() {
@@ -144,7 +139,7 @@ public:
 private:
 	friend class RequestSipEvent;
 	static std::shared_ptr<IncomingTransaction> create(Agent *agent);
-	
+
 	std::shared_ptr<IncomingTransaction> mSofiaRef;
 	nta_incoming_t *mIncoming;
 

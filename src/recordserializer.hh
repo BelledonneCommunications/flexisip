@@ -26,7 +26,7 @@
 class RecordSerializer {
 	static RecordSerializer *sInstance;
 public:
-	virtual ~RecordSerializer() {};
+	virtual ~RecordSerializer() {}
 	static RecordSerializer *get();
 	static RecordSerializer *create(const std::string &name);
 	virtual bool parse(const char *str, int len, Record *r)=0;
@@ -42,7 +42,7 @@ public:
 
 class RecordSerializerC : public RecordSerializer {
 public:
-	virtual ~RecordSerializerC() {};
+	virtual ~RecordSerializerC() {}
 	virtual bool parse(const char *str, int len, Record *r);
 	virtual bool serialize(Record *r, std::string &serialized, bool log);
 };

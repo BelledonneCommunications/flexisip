@@ -61,6 +61,6 @@ class map_delete_functor{
 #define RESTART_EXIT_CODE 5
 
 time_t getCurrentTime();
-const time_t getTimeOffset(time_t current_time);
+time_t getTimeOffset(time_t current_time);
 
 #endif

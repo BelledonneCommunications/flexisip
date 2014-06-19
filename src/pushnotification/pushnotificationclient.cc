@@ -179,7 +179,7 @@ void PushNotificationClient::handle_read(shared_ptr<PushNotificationRequest> req
 void PushNotificationClient::onError(shared_ptr< PushNotificationRequest > req, const string &msg) {
 	SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " disconnected";
 	if (req->getCallBack()) req->getCallBack()->onError("Error " + msg);
-	
+
 	if (mRequestQueue.front() != req)
 		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " != " << mRequestQueue.front().get();
 	mRequestQueue.pop();

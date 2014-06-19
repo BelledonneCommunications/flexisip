@@ -28,6 +28,8 @@ ForkContextConfig::ForkContextConfig() : mDeliveryTimeout(0),mUrgentTimeout(5),
 	mTreatDeclineAsUrgent(false), mRemoveToTag(false){
 }
 
+ForkContextListener::~ForkContextListener(){}
+
 void ForkContext::__timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg){
 	(static_cast<ForkContext*>(arg))->processLateTimeout();
 }
@@ -74,7 +76,7 @@ struct dest_finder{
 };
 
 struct uid_finder{
-	uid_finder(const std::string &uid) : mUid(uid){};
+	uid_finder(const std::string &uid) : mUid(uid){}
 	bool operator()(const shared_ptr<BranchInfo> &br){
 		return mUid==br->mUid;
 	}
@@ -169,7 +171,7 @@ void ForkContext::init() {
 void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const string &uid) {
 	shared_ptr<OutgoingTransaction> ot=ev->createOutgoingTransaction();
 	shared_ptr<BranchInfo> br=createBranchInfo();
-	
+
 	if (mIncoming && mBranches.size()==0){
 		/*for some reason shared_from_this() cannot be invoked within the ForkContext constructor, so we do this initialization now*/
 		mIncoming->setProperty<ForkContext>("ForkContext",shared_from_this());
@@ -182,7 +184,7 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const string 
 	ot->setProperty("BranchInfo",br);
 	onNewBranch(br);
 	mBranches.push_back(br);
-	
+
 }
 
 std::shared_ptr<ForkContext> ForkContext::get(const std::shared_ptr<IncomingTransaction> &tr){
@@ -292,7 +294,7 @@ std::shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const std::shared
 				br->mTransaction.reset();
 			}
 			return br->mLastResponse;
-			
+
 		}else br->mLastResponse->setIncomingAgent(shared_ptr<IncomingAgent>());
 	}else{
 		LOGE("ForkContext::forwardResponse(): no response received on this branch");
@@ -334,7 +336,7 @@ void BranchInfo::clear(){
 	mRequest.reset();
 	mLastResponse.reset();
 	mForkCtx.reset();
-	
+
 }
 
 BranchInfo::~BranchInfo(){

@@ -171,7 +171,7 @@ static list<PayloadType *> makeSupportedAudioPayloadList() {
 	payload_type_speex_wb.normal_bitrate = 42000;
 	payload_type_speex_nb.recv_fmtp = ms_strdup("vbr=on");
 	payload_type_amr.recv_fmtp = ms_strdup("octet-align=1");
-	
+
 	payload_type_set_number(&payload_type_pcmu8000, 0);
 	payload_type_set_number(&payload_type_pcma8000, 8);
 	payload_type_set_number(&payload_type_gsm, 3);
@@ -185,7 +185,7 @@ static list<PayloadType *> makeSupportedAudioPayloadList() {
 	payload_type_set_number(&payload_type_silk_wb, -1);
 	payload_type_set_number(&payload_type_silk_swb, -1);
 	payload_type_set_number(&payload_type_telephone_event, -1);
-	
+
 	list<PayloadType *> l;
 	l.push_back(&payload_type_speex_nb);
 	l.push_back(&payload_type_ilbc);
@@ -199,7 +199,7 @@ static list<PayloadType *> makeSupportedAudioPayloadList() {
 	l.push_back(&payload_type_silk_mb);
 	l.push_back(&payload_type_silk_wb);
 	l.push_back(&payload_type_silk_swb);
-	
+
 	return l;
 }
 
@@ -351,7 +351,10 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 		// Force front side to bind and allocate a port immediately on the bind-address
 		// BIG FAT WARNING: call getAudioPort BEFORE the setRemoteAddr
 		// to get the local address bound correctly
-		int __attribute__ ((unused)) flport= c->getFrontSide()->getAudioPort();
+#if ENABLE_BOOSTLOG || DEBUG
+		int flport= c->getFrontSide()->getAudioPort();
+#endif
+
 		string fladdr= c->getFrontSide()->getLocalAddress();
 		c->getFrontSide()->setRemoteAddr(fraddr.c_str(), frport);
 		LOGD("Front side %s:%i <-> %s:%i", fraddr.c_str(), frport, fladdr.c_str(), flport);

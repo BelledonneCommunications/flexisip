@@ -28,7 +28,7 @@ ConfigEntryFilter::ConfigEntryFilter(){
 ConfigEntryFilter::~ConfigEntryFilter(){
 }
 
-ConfigItemDescriptor config[]={
+static ConfigItemDescriptor config[]={
 	{	Boolean,	"enabled",		"Indicate whether the module is activated.",	"true"},
 	{	String,		"from-domains",	"Deprecated: List of domain names in sip from allowed to enter the module.",	"*"},
 	{	String,		"to-domains",	"Deprecated: List of domain names in sip to allowed to enter the module.",		"*"},

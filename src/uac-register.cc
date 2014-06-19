@@ -28,13 +28,13 @@
 using namespace::std;
 
 
-UacRegister::UacRegister(const sip_from_t *from, const sip_to_t *to, int expire, nua_t *nua, nua_hmagic_t *userptr) {
+UacRegister::UacRegister(const sip_from_t *ifrom, const sip_to_t *ito, int iexpire, nua_t *nua, nua_hmagic_t *userptr) {
 	su_home_init(&home);
 
 	nh = NULL;
-	this->expire = expire;
-	this->from = sip_from_dup(&home, from);
-	this->to = sip_to_dup(&home, to);
+	expire = iexpire;
+	from = sip_from_dup(&home, ifrom);
+	to = sip_to_dup(&home, ito);
 
 	SLOGD << "Creating UacRegister " << this
 	<< " from " << from->a_url->url_user

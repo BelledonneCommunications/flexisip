@@ -35,8 +35,8 @@
 using namespace ::std;
 
 #define QOP_AUTH
-const static int NONCE_EXPIRES=100;
-const static int NEXT_NONCE_EXPIRES=100;
+// const static int NONCE_EXPIRES=100;
+// const static int NEXT_NONCE_EXPIRES=100;
 
 class Authentication;
 
@@ -56,7 +56,7 @@ struct auth_mod_size { auth_mod_t mod[1]; auth_plugin_t plug[1]; };
 
 class NonceStore {
 	struct NonceCount{
-		NonceCount(int c, time_t ex) : nc(c), expires(ex){};
+		NonceCount(int c, time_t ex) : nc(c), expires(ex){}
 		int nc;
 		time_t expires;
 	};
@@ -64,7 +64,7 @@ class NonceStore {
 	mutex mMutex;
 	int mNonceExpires;
 public:
-	NonceStore() : mNonceExpires(3600){};
+	NonceStore() : mNonceExpires(3600){}
 	void setNonceExpires(int value){
 		mNonceExpires=value;
 	}
@@ -147,7 +147,7 @@ private:
 		bool mNo403;
 		auth_response_t mAr;
 		AuthenticationListener(Agent *, shared_ptr<RequestSipEvent>, bool);
-		virtual ~AuthenticationListener(){};
+		virtual ~AuthenticationListener(){}
 
 		void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
 		void checkPassword(const char *password);
@@ -211,7 +211,7 @@ private:
 		for (auto it = mTrustedClientCertificates.cbegin(); it != mTrustedClientCertificates.cend(); ++it) {
 			if (it->find("@") != string::npos) toCheck.push_back(*it);
 			else toCheck.push_back(*it + "@" + string(fromDomain));
-		}	
+		}
 		const char *res=ev->findIncomingSubject(toCheck);
 		return res;
 	}
@@ -266,9 +266,9 @@ public:
 			" CN may contain user@domain or alternate name with URI=sip:user@domain",	""	},
 			{	StringList	,	"trusted-client-certificates"	, 	"List of whitespace separated username or username@domain CN which will trusted. If no domain is given it is computed.",	""	},
 			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file, fixed].",		"fixed"	},
-			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. " 
-					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. " 
-					"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. " 
+			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. "
+					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. "
+					"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. "
 					"ex3: /etc/flexisip/passwd; for a file containing one 'user@domain password' by line.",		""	},
 			{	String		,	"request"				,	"Odbc SQL request to execute to obtain the password \n. "
 					"Named parameters are :id (the user found in the from header), :domain (the authorization realm) and :authid (the authorization username). "
@@ -286,7 +286,7 @@ public:
 			{	Boolean		,	"hashed-passwords"	,	"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).", "false" },
 			{	Boolean		,	"new-auth-on-407"	,	"When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false" },
 			{	BooleanExpr, 	"no-403",	"Don't reply 403, but 401 or 407 even in case of wrong authentication.",	"false"},
-			
+
 			config_item_end
 		};
 		mc->addChildrenValues(items);
@@ -364,7 +364,7 @@ public:
 				}
 			}
 		}
-		
+
 		// Check TLS certificate
 		const char *fromDomain = sip->sip_from->a_url[0].url_host;
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
@@ -495,7 +495,7 @@ public:
 		} else {
 			LOGD("not handled newauthon401");
 		}
-	};
+	}
 
 	void onIdle() {
 		mNonceStore.cleanExpired();
@@ -642,12 +642,12 @@ void Authentication::AuthenticationListener::onAsynchronousResponse(AuthDbResult
 			mAgent->injectRequestEvent(mEv);
 		}
 		break;
-	default:
-		LOGE("unhandled asynchronous response %u", res);
-		// error
 	case AUTH_ERROR:
 		onError();
 		break;
+	default:
+		LOGE("Unhandled asynchronous response %u", res);
+		onError();
 	}
 	delete this;
 }

@@ -27,12 +27,15 @@
 
 using namespace ::std;
 
+IncomingAgent::~IncomingAgent(){}
+OutgoingAgent::~OutgoingAgent(){}
+
 static string getRandomBranch() {
 	uint8_t digest[SU_MD5_DIGEST_SIZE];
 	char branch[(SU_MD5_DIGEST_SIZE * 8 + 4) / 5 + 1];
-	
+
 	su_randmem(digest,sizeof(digest));
-	
+
 	msg_random_token(branch, sizeof(branch) - 1, digest, sizeof(digest));
 
 	return branch;
@@ -82,9 +85,9 @@ int OutgoingTransaction::getResponseCode()const{
 
 void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
-	
+
 	LOGD("Message is sent through an outgoing transaction.");
-	
+
 	if (!mOutgoing){
 		msg_t* msg = msg_dup(ms->getMsg());
 		ta_start(ta, tag, value);

@@ -31,7 +31,7 @@ using namespace ::std;
 bool sUseSyslog = 0;
 
 static const int MAX_QUEUE_SIZE = 100;
-static const int PRINT_STATS_TIMEOUT = 3000;	/* In milliseconds. */
+// static const int PRINT_STATS_TIMEOUT = 3000;	/* In milliseconds. */
 
 class ErrorCb : public PushNotificationRequestCallback {
 	virtual void onError(const string &msg) {
@@ -56,7 +56,7 @@ struct PusherArgs {
 		if (url_param(params, "pn-type", tmp, sizeof(tmp)) == 0) {
 			return "no pn-type";
 		} else pntype = tmp;
-		
+
 		if (url_param(params, "app-id", tmp, sizeof(tmp)) == 0) {
 			return "no app-id";
 		} else appid = tmp;
@@ -64,7 +64,7 @@ struct PusherArgs {
 		if (url_param(params, "pn-tok", tmp, sizeof(tmp)) == 0) {
 			return "no pn-tok";
 		} else pntok = tmp;
-	
+
 		return NULL;
 	}
 

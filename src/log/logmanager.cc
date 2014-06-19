@@ -19,7 +19,7 @@
  */
 
 #include "logmanager.hh"
-#include <string>	
+#include <string>
 #include <ortp/ortp.h>
 
 using namespace std;
@@ -63,8 +63,8 @@ static bool is_syslog=false;
 
 #include <boost/log/detail/sink_init_helpers.hpp>
 //#include <boost/exception/all.hpp>
-//#include <boost/exception/diagnostic_information.hpp> 
-//#include <boost/exception_ptr.hpp> 
+//#include <boost/exception/diagnostic_information.hpp>
+//#include <boost/exception_ptr.hpp>
 
 using namespace flexisip::log;
 
@@ -97,11 +97,11 @@ typedef boost::function2<
 	[ \
 	fmt::stream << before << fmt::attr< std::string >(name) << after \
 	]
-#define addIfInteger(name, before, after) \
-	fmt::if_(flt::has_attr(name)) \
-	[ \
-	fmt::stream << before << fmt::attr< int >(name) << after \
-	]
+// #define addIfInteger(name, before, after) \
+// 	fmt::if_(flt::has_attr(name)) \
+// 	[ \
+// 	fmt::stream << before << fmt::attr< int >(name) << after \
+// 	]
 
 	//! Formatter functor
 	formatter_functor
@@ -127,9 +127,9 @@ typedef boost::function2<
 //		<< addIfString("to.uri.domain", "@", "]")
 		<< " : " << EXPR_MESSAGE
 		;
-		
+
 	}
-		
+
 
 namespace flexisip {
 namespace log {
@@ -164,7 +164,7 @@ namespace log {
 		typedef sinks::synchronous_sink< sinks::syslog_backend > back_type;
 		boost::shared_ptr< back_type > sink(
 			new back_type(keywords::use_impl = sinks::syslog::native));
-		
+
 //		auto formatter=logging::aux::acquire_formatter(format);
 		SINK_LCK(sink)->set_formatter(createFormatter());
 
@@ -177,7 +177,7 @@ namespace log {
 		mapping[warning] = sinks::syslog::warning;
 		mapping[error] = sinks::syslog::error;
 		mapping[fatal] = sinks::syslog::critical;
-			
+
 		sink->locked_backend()->set_severity_mapper(mapping);
 
 		// Add the sink to the core
@@ -235,7 +235,7 @@ namespace log {
 			// Use string as is
 			oss << filterstr;
 		}
-		
+
 		return oss.str();
 	}
 
@@ -245,9 +245,9 @@ namespace log {
 		try {
 			logging::parse_filter(actualFilterStr);
 			SLOGI << "Validating filter OK";
-			
+
 			return true;
-		} catch(boost::exception &e) {
+		} catch(boost::exception &) {
 			SLOGI << "Validating filter KO : ";
 			//<<  diagnostic_information(e);
 			return false;
@@ -304,7 +304,7 @@ namespace log {
 		}
 		vsyslog(syslev,str,l);
 	}
-	
+
 	static void defaultLogHandler(OrtpLogLevel log_level, const char *str, va_list l){
 		const char *levname="none";
 		switch(log_level){
@@ -330,8 +330,8 @@ namespace log {
 		vfprintf(stderr,str,l);
 		fprintf(stderr,"\n");
 	}
-	
-	
+
+
 	void preinit(bool syslog, bool debug) {
 		is_preinit_done=true;
 		is_syslog=syslog;
@@ -344,7 +344,7 @@ namespace log {
 		} else {
 			ortp_set_log_level_mask(ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
 		}
-		
+
 		if (syslog){
 			openlog("flexisip", 0, LOG_USER);
 			setlogmask(~0);
@@ -353,7 +353,7 @@ namespace log {
 			ortp_set_log_handler(defaultLogHandler);
 		}
 	}
-	
+
 	void initLogs(bool use_syslog, bool debug) {
 		if (is_syslog != use_syslog) {
 			LOGF("Different preinit and init syslog config is not supported.");
@@ -361,7 +361,7 @@ namespace log {
 		if (!is_preinit_done) {
 			LOGF("Preinit was skipped: not supported.");
 		}
-	
+
 		if (debug){
 			ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
 		} else {

@@ -77,7 +77,7 @@ private:
 class CallLog : public EventLog{
 friend class FilesystemEventLogWriter;
 friend class CallLogDb;
-public: 
+public:
 	CallLog(const sip_from_t *from, const sip_to_t *to);
 	void setCancelled();
 private:
@@ -122,7 +122,7 @@ private:
 class EventLogWriter{
 public:
 	virtual void write(const std::shared_ptr<EventLog> &evlog)=0;
-	virtual ~EventLogWriter() {}
+	virtual ~EventLogWriter();
 };
 
 class FilesystemEventLogWriter : public EventLogWriter{

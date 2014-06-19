@@ -27,7 +27,7 @@ using namespace std;
 
 
 #define CHECK(msg, test) if (test) { SLOGE << "Invalid serialized contact " << i << " " << msg; free(rc); return false; }
-#define CHECK_VAL(msg, test, value) if (test) { SLOGE << "Invalid serialized contact " << i << " " << msg << " " << value; free(rc); return false; }
+//#define CHECK_VAL(msg, test, value) if (test) { SLOGE << "Invalid serialized contact " << i << " " << msg << " " << value; free(rc); return false; }
 
 /**
  * 	#<sip:guillaume@domain:port;transport=toto;e=titi>#45#q=1#45646#1325691167#ci=call_id#5

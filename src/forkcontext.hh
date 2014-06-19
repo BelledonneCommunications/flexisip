@@ -40,7 +40,8 @@ class ForkContext;
 
 class ForkContextListener{
 public:
-	virtual void onForkContextFinished(std::shared_ptr<ForkContext> ctx)=0; 
+	virtual ~ForkContextListener();
+	virtual void onForkContextFinished(std::shared_ptr<ForkContext> ctx)=0;
 };
 
 class BranchInfo{
@@ -99,7 +100,7 @@ protected:
 	std::shared_ptr<ResponseSipEvent> forwardResponse(const std::shared_ptr<BranchInfo> &br);
 	//Request the forwarding of a response supplied in argument.
 	std::shared_ptr<ResponseSipEvent> forwardResponse(const std::shared_ptr<ResponseSipEvent> &br);
-	
+
 	//Get a branch by specifying its unique id
 	std::shared_ptr<BranchInfo> findBranchByUid(const std::string &uid);
 	//Get a branch by specifying its request uri destination.
@@ -123,12 +124,12 @@ public:
 	//Obtain the ForkContext that manages a transaction.
 	static std::shared_ptr<ForkContext> get(const std::shared_ptr<OutgoingTransaction> &tr);
 	static std::shared_ptr<ForkContext> get(const std::shared_ptr<IncomingTransaction> &tr);
-	
+
 	/*
 	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.
 	 * If the fork context is interested in handling this new destination, then it should return true, false otherwise.
 	 * Typical case for refusing it is when another transaction already exists or existed for this contact.
-	**/ 
+	**/
 	virtual bool onNewRegister(const url_t *dest, const std::string &uid);
 	const std::shared_ptr<RequestSipEvent> &getEvent();
 	const std::shared_ptr<ForkContextConfig> &getConfig()const{

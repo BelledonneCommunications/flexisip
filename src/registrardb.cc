@@ -46,7 +46,7 @@ ostream &ExtendedContact::print(std::ostream& stream, time_t now, time_t offset)
 		strftime(buffer, sizeof(buffer) - 1, "%c", ptm);
 	}
 	int expireAfter=mExpireAt-now;
-	
+
 	stream << mSipUri << " path=\"";
 	for (auto it=mPath.cbegin(); it != mPath.cend(); ++it) {
 		if (it != mPath.cbegin()) stream << " ";
@@ -67,7 +67,7 @@ sip_contact_t* ExtendedContact::toSofia(su_home_t* home, time_t now) const {
 	ostringstream oss;
 	oss << mSipUri;
 	oss << ";expires=" << expire;
-	if (mQ == 0) {
+	if (mQ == 0.f) {
 		oss.setf(ios::fixed, ios::floatfield);
 		oss << std::setprecision(2) << std::setw(4);
 		oss << ";q=" << mQ;
@@ -138,10 +138,10 @@ void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq,
 	if (mContacts.begin() == mContacts.end()) { return; }
 	const char *lineValuePtr=NULL;
 	string lineValue=extractUniqueId(sip);
-	
+
 	if (!lineValue.empty())
 		lineValuePtr=lineValue.c_str();
-	
+
 	auto it = mContacts.begin();
 	while (it != mContacts.end()) {
 		shared_ptr<ExtendedContact> ec = (*it);
@@ -429,7 +429,7 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 		GenericStruct *cr = GenericManager::get()->getRoot();
 		GenericStruct *mr = cr->get<GenericStruct>("module::Registrar");
 		GenericStruct *mro = cr->get<GenericStruct>("module::Router");
-		
+
 		bool useGlobalDomain=mro->get<ConfigBoolean>("use-global-domain")->read();
 		string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
 		if ("internal" == dbImplementation) {
@@ -461,7 +461,7 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 			return sUnique;
 		}
 #endif
-		
+
 		LOGF("unsupported implementation %s", dbImplementation.c_str())
 	}
 
@@ -567,6 +567,8 @@ private:
 // Max recursive step
 int RecursiveRegistrarDbListener::sMaxStep = 1;
 
+RegistrarDbListener::~RegistrarDbListener(){}
+
 void RegistrarDb::fetch(const url_t *url, const shared_ptr<RegistrarDbListener> &listener, bool recursive) {
 	if (recursive) {
 		doFetch(url, make_shared<RecursiveRegistrarDbListener>(this, listener, url));
@@ -578,21 +580,21 @@ void RegistrarDb::fetch(const url_t *url, const shared_ptr<RegistrarDbListener> 
 
 
 
-RecordSerializer *RecordSerializer::create(const string &name) { 
+RecordSerializer *RecordSerializer::create(const string &name) {
 	if ( name == "c" ) {
 		return new RecordSerializerC();
 	}
-	
+
 	if ( name == "json" ) {
 		return new RecordSerializerJson();
 	}
-	
+
 	#if ENABLE_PROTOBUF
 	if ( name == "protobuf" ) {
 		return new RecordSerializerPb();
 	}
 	#endif
-	
+
 	return NULL;
 }
 
