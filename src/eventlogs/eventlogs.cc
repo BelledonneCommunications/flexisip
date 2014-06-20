@@ -543,7 +543,7 @@ void *DataBaseEventLogWriter::threadFunc(void *arg) {
 }
 
 void DataBaseEventLogWriter::write(const std::shared_ptr<EventLog> &evlog){
-	int nb_thread_max = GenericManager::get()->getRoot()->get<GenericStruct>("event-logs")->get<ConfigInt>("nb-thread-max")->read();
+	unsigned int nb_thread_max = GenericManager::get()->getRoot()->get<GenericStruct>("event-logs")->get<ConfigInt>("nb-thread-max")->read();
 	mMutex.lock();
 	if(mListLogs.size() < nb_thread_max){
 		mListLogs.push(evlog);
