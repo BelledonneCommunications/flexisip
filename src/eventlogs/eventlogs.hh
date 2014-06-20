@@ -25,6 +25,7 @@
 #include "../common.hh"
 #include <string>
 #include <memory>
+#include <queue>
 
 #ifdef HAVE_ODB
 #include <odb/database.hxx>
@@ -147,16 +148,15 @@ class DataBaseEventLogWriter : public EventLogWriter{
 public:
 	DataBaseEventLogWriter(const std::string &db_name,const std::string &db_user, const std::string &db_password, const std::string &db_host, int db_port);
 	virtual void write(const std::shared_ptr<EventLog> &evlog);
+	void static *threadFunc(void *arg) ;
 	bool isReady()const;
 private:
 	bool mIsReady;
+	void writeLogs();
+	std::mutex mMutex;
 	std::unique_ptr<odb::database> mDatabase;
-	void writeRegistrationLog(const std::shared_ptr<RegistrationLog> &evlog);
-	void writeCallLog(const std::shared_ptr<CallLog> &clog);
-	void writeCallQualityStatisticsLog(const std::shared_ptr<CallQualityStatisticsLog> &mlog);
-	void writeMessageLog(const std::shared_ptr<MessageLog> & mlog);
-	void writeAuthLog(const std::shared_ptr<AuthLog> & alog);
-	std::unique_ptr<odb::database> mdb;
+	std::queue<std::shared_ptr<EventLog>> mListLogs;
+
 };
 #endif
 

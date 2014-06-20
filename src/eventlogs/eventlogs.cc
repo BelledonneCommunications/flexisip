@@ -33,10 +33,14 @@
 #include <odb/transaction.hxx>
 #include <odb/schema-catalog.hxx>
 
+#include <thread>
+
 #include "eventlogsdb.hh"
 #include "eventlogsdb-odb.hxx"
 
 using namespace odb::core;
+
+#define NB_REQ_MAX 1000
 
 #endif
 
@@ -54,6 +58,7 @@ EventLog::Init::Init(){
 		{	String		,	"odb-password"			,	"Password", "" },
 		{	String		,	"odb-host"				,	"Host", "" },
 		{	Integer		,	"odb-port"				,	"Port", "" },
+		{	Integer		,	"nb-thread-max"			,	"Number of thread max for writing in database", "500" },
 		config_item_end
 	};
 	GenericStruct *ev=new GenericStruct("event-logs","Event logs contain per domain and user information about processed registrations, calls and messages.",0);
@@ -457,22 +462,38 @@ void FilesystemEventLogWriter::write(const std::shared_ptr<EventLog> &evlog){
 
 #ifdef HAVE_ODB
 // Data Base EventLog Writer
+
 DataBaseEventLogWriter::DataBaseEventLogWriter(const std::string &db_name,const std::string &db_user, const std::string &db_password, const std::string &db_host, int db_port) : mIsReady(false){
 	try {
 		mDatabase = unique_ptr<odb::database>(new odb::mysql::database (db_user, db_password, db_name, db_host, db_port));
-		{
-			mIsReady=true;
 
-			// Create the database schema if it not exists
-			transaction t (mDatabase->begin ());
-			try {
-				mDatabase->query<EventLogDb> (false);
-			} catch (const odb::exception&){
-				schema_catalog::create_schema (*mDatabase);
+		mIsReady=true;
+
+		schema_version v (mDatabase->schema_version ());
+		schema_version bv (schema_catalog::base_version (*mDatabase));
+		schema_version cv (schema_catalog::current_version (*mDatabase));
+
+		if (v == 0){
+		  transaction t (mDatabase->begin ());
+		  schema_catalog::create_schema (*mDatabase);
+		  t.commit ();
+		} else if (v < cv){
+			if (v < bv){
+				LOGE("Error: migration from this version is no longer supported.");
 			}
-			t.commit ();
-		}
+			for (v=schema_catalog::next_version (*mDatabase, v); v<=cv; v=schema_catalog::next_version (*mDatabase, v)){
+				transaction t (mDatabase->begin ());
+				schema_catalog::migrate_schema_pre (*mDatabase, v);
 
+				schema_catalog::migrate(*mDatabase, v);
+
+				schema_catalog::migrate_schema_post (*mDatabase, v);
+				t.commit ();
+			}
+		}
+		else if (v > cv){
+			LOGE("Error: old application trying to access new database.");
+		}
 	} catch (const odb::exception& e){
 		LOGE("Fail to connect to the database: %s", e.what());
 	}
@@ -482,63 +503,57 @@ bool DataBaseEventLogWriter::isReady()const{
 	return mIsReady;
 }
 
-void DataBaseEventLogWriter::writeRegistrationLog(const std::shared_ptr<RegistrationLog> & rLog){
-	RegistrationLogDb *ev= new RegistrationLogDb(rLog);
-	if(mIsReady){
-		transaction t (mDatabase->begin ());
-		mDatabase->persist (*ev);
-		t.commit ();
+void DataBaseEventLogWriter::writeLogs(){
+	mMutex.lock();
+	shared_ptr<EventLog> evlog = mListLogs.front();
+	mListLogs.pop();
+	mMutex.unlock();
+
+	EventLogDb * ev;
+	if (typeid(*evlog.get())==typeid(RegistrationLog)){
+		ev = new RegistrationLogDb(static_pointer_cast<RegistrationLog>(evlog));
+	}else if (typeid(*evlog.get())==typeid(CallLog)){
+		ev = new CallLogDb(static_pointer_cast<CallLog>(evlog));
+	}else if (typeid(*evlog.get())==typeid(MessageLog)){
+		ev = new MessageLogDb(static_pointer_cast<MessageLog>(evlog));
+	}else if (typeid(*evlog.get())==typeid(AuthLog)){
+		ev = new AuthLogDb(static_pointer_cast<AuthLog>(evlog));
+	}else if (typeid(*evlog.get())==typeid(CallQualityStatisticsLog)){
+		ev = new CallQualityStatisticsLogDb(static_pointer_cast<CallQualityStatisticsLog>(evlog));
+	}
+
+	if (ev){
+		if(mIsReady){
+			try {
+				transaction t (mDatabase->begin ());
+				mDatabase->persist (*ev);
+				t.commit ();
+			} catch (const odb::exception & e){
+				LOGE("DataBaseEventLogWriter: could not write log in database: %s", e.what());
+			}
+		}
+		delete ev;
 	}
 }
 
-void DataBaseEventLogWriter::writeCallLog(const std::shared_ptr<CallLog> & cLog){
-	CallLogDb *ev= new CallLogDb(cLog);
-	if(mIsReady){
-		transaction t (mDatabase->begin ());
-		mDatabase->persist (*ev);
-		t.commit ();
-	}
-}
-
-void DataBaseEventLogWriter::writeMessageLog(const std::shared_ptr<MessageLog> & rlog){
-	MessageLogDb *ev= new MessageLogDb(rlog);
-	if(mIsReady){
-		transaction t (mDatabase->begin ());
-		mDatabase->persist (*ev);
-		t.commit ();
-	}
-}
-
-void DataBaseEventLogWriter::writeAuthLog(const std::shared_ptr<AuthLog> & rlog){
-	AuthLogDb *ev= new AuthLogDb(rlog);
-	if(mIsReady){
-		transaction t (mDatabase->begin ());
-		mDatabase->persist (*ev);
-		t.commit ();
-	}
-}
-
-void DataBaseEventLogWriter::writeCallQualityStatisticsLog(const std::shared_ptr<CallQualityStatisticsLog> & rlog){
-	CallQualityStatisticsLogDb *ev= new CallQualityStatisticsLogDb(rlog);
-	if(mIsReady){
-		transaction t (mDatabase->begin ());
-		mDatabase->persist (*ev);
-		t.commit ();
-	}
+void *DataBaseEventLogWriter::threadFunc(void *arg) {
+	DataBaseEventLogWriter *dbLW = (DataBaseEventLogWriter*) arg;
+	dbLW->writeLogs();
+	return NULL;
 }
 
 void DataBaseEventLogWriter::write(const std::shared_ptr<EventLog> &evlog){
-	if (typeid(*evlog.get())==typeid(RegistrationLog)){
-		writeRegistrationLog(static_pointer_cast<RegistrationLog>(evlog));
-	}else if (typeid(*evlog.get())==typeid(CallLog)){
-		writeCallLog(static_pointer_cast<CallLog>(evlog));
-	}else if (typeid(*evlog.get())==typeid(MessageLog)){
-		writeMessageLog(static_pointer_cast<MessageLog>(evlog));
-	}else if (typeid(*evlog.get())==typeid(AuthLog)){
-		writeAuthLog(static_pointer_cast<AuthLog>(evlog));
-	}else if (typeid(*evlog.get())==typeid(CallQualityStatisticsLog)){
-		writeCallQualityStatisticsLog(static_pointer_cast<CallQualityStatisticsLog>(evlog));
+	int nb_thread_max = GenericManager::get()->getRoot()->get<GenericStruct>("event-logs")->get<ConfigInt>("nb-thread-max")->read();
+	mMutex.lock();
+	if(mListLogs.size() < nb_thread_max){
+		mListLogs.push(evlog);
+		mMutex.unlock();
+		thread t=thread(DataBaseEventLogWriter::threadFunc, this);
+		t.detach();
+	} else {
+		mMutex.unlock();
 	}
 }
+
 #endif
 
