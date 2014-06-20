@@ -26,6 +26,7 @@
 #include <string>
 #include <memory>
 #include <queue>
+#include <mutex>
 
 #ifdef HAVE_ODB
 #include <odb/database.hxx>
