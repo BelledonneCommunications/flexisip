@@ -474,15 +474,19 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(const std::string &db_name,const 
 		schema_version cv (schema_catalog::current_version (*mDatabase));
 
 		if (v == 0){
-		  transaction t (mDatabase->begin ());
-		  schema_catalog::create_schema (*mDatabase);
-		  t.commit ();
+			LOGD("No database found... creating it.", v, cv);
+			transaction t (mDatabase->begin ());
+			schema_catalog::create_schema (*mDatabase);
+			t.commit ();
 		} else if (v < cv){
+			LOGD("Database is outdated (current=%d, latest=%d).", v, cv);
 			if (v < bv){
 				LOGE("Error: migration from this version is no longer supported.");
 			}
 			for (v=schema_catalog::next_version (*mDatabase, v); v<=cv; v=schema_catalog::next_version (*mDatabase, v)){
 				transaction t (mDatabase->begin ());
+
+				LOGD("Updating database to version %d.", v);
 				schema_catalog::migrate_schema_pre (*mDatabase, v);
 
 				schema_catalog::migrate(*mDatabase, v);
@@ -495,7 +499,7 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(const std::string &db_name,const 
 			LOGE("Error: old application trying to access new database.");
 		}
 	} catch (const odb::exception& e){
-		LOGE("Fail to connect to the database: %s", e.what());
+		LOGE("Fail to connect to the database: %s.", e.what());
 	}
 }
 

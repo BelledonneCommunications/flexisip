@@ -100,9 +100,11 @@ def query_db(params, display=True):
 
             if display is True:
                 if output == []:
-                    print("No call found with MOS value ≤ {}.".format(params['bad_calls']))
+                    print(
+                        "No call found with MOS value ≤ {}.".format(params['bad_calls']))
                 else:
-                    pretty_print_data(["dialog_id", "mode", "moslq", "moscq"], output, align_settings={"dialog_id": "l"})
+                    pretty_print_data(
+                        ["dialog_id", "mode", "moslq", "moscq"], output, align_settings={"dialog_id": "l"})
 
         # display all collected data for a given dialog_id. We do NOT use call_id
         # because both call ends can emit a quality report with the same Call-ID.
@@ -115,7 +117,8 @@ def query_db(params, display=True):
 
             # retrieve all fields but QOS related data which will be treated
             # after
-            fields = [x[0] for x in query_db(kwargs, display=False) if not x[0].startswith('qos_')]
+            fields = [x[0] for x in query_db(
+                kwargs, display=False) if not x[0].startswith('qos_')]
 
             query = ("SELECT {} "
                      "FROM CallQualityStatisticsLog "
@@ -182,13 +185,15 @@ def query_db(params, display=True):
 
             # print pretty table, as any SGBD should
             if display is True:
-                pretty_print_data(header, output, align_settings={"dialog_id": "l"})
+                pretty_print_data(
+                    header, output, align_settings={"dialog_id": "l"})
 
     except mysql.connector.Error as e:
         print("Could not apply query: {}.".format(e))
         return None
     except Exception as e:
-        print("Some exception occured line {}: {}.".format(sys.exc_info()[-1].tb_lineno, e))
+        print("Some exception occurred line {}: {}.".format(
+            sys.exc_info()[-1].tb_lineno, e))
         return None
     finally:
         cursor.close()
