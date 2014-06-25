@@ -84,8 +84,24 @@ def query_db(params, display=True):
             if display is True:
                 pretty_print_data(["field", "field_type"], output)
 
+        # display all calls
+        elif params['list_calls'] is True:
+            query = ("SELECT dialog_id, local_metrics_qe_moslq, "
+                     "local_metrics_qe_moscq, remote_metrics_qe_moslq, "
+                     "remote_metrics_qe_moscq "
+                     "FROM CallQualityStatisticsLog ")
+
+            cursor.execute(query)
+            output += cursor.fetchall()
+
+            if display is True:
+                pretty_print_data(
+                    ["dialog_id", "local_moslq", "local_moscq",
+                     "remote_moslq", "remote_mscq"], output, align_settings={"dialog_id": "l"}
+                )
+
         # display calls with bad MOS values. Since both call ends can submit
-        # reports, we use the 'local'/'remote' distinction to detect which side
+        # reports, we use the local/remote distinction to detect which side
         # was poor quality
         elif params['bad_calls'] != -1:
             for mode in ['local', 'remote']:
@@ -95,13 +111,14 @@ def query_db(params, display=True):
                          "WHERE {mode}_metrics_qe_moslq BETWEEN 0 AND {minval} "
                          "OR {mode}_metrics_qe_moscq BETWEEN 0 AND {minval} ").format(
                     mode=mode, minval=params['bad_calls'])
+
                 cursor.execute(query)
                 output += cursor.fetchall()
 
             if display is True:
                 if output == []:
-                    print(
-                        "No call found with MOS value ≤ {}.".format(params['bad_calls']))
+                    print("No call found with statement: 0 ≤ MOS value ≤ {}.".format(
+                        params['bad_calls']))
                 else:
                     pretty_print_data(
                         ["dialog_id", "mode", "moslq", "moscq"], output, align_settings={"dialog_id": "l"})
@@ -126,7 +143,7 @@ def query_db(params, display=True):
             cursor.execute(query)
             output = cursor.fetchall()
 
-            if output is None:
+            if output is None or output == []:
                 print("Could not find call with dialog_id='{}'".format(
                     params['show_call']))
                 return
@@ -150,12 +167,7 @@ def query_db(params, display=True):
 
             # QOS specific section stores data as comma separated values for
             # each action it as done within the call
-            header = [list(itertools.chain.from_iterable(x)) for x in [[
-                ["timestamps"],
-                qos_input_leg.split(' '),
-                qos_output_leg.split(' '),
-                ["dialog_id"]
-            ]]][0]
+            header = None
 
             # there can be multiple lines matching a single dialog_id in case
             # of Interval reports
@@ -163,6 +175,18 @@ def query_db(params, display=True):
             for line in results:
                 (qos_name, qos_timestamp, qos_input_leg, qos_input,
                  qos_output_leg, qos_output, dialog_id) = line
+
+                if header is None or header[2] == '':
+                    header = [list(itertools.chain.from_iterable(x)) for x in [[
+                        ["timestamps"],
+                        qos_input_leg.split(' '),
+                        qos_output_leg.split(' '),
+                        ["dialog_id"]
+                    ]]][0]
+
+                # if timestamps is empty, there is no valid data in this report
+                if not qos_timestamp:
+                    continue
 
                 timestamp = qos_timestamp.split(';')[:-1]
                 split_input = qos_input.split(';')[:-1]
@@ -177,16 +201,20 @@ def query_db(params, display=True):
                                     ] for x in range(len(timestamp))]
                            ]
 
-            start = min([x[0] for x in output])
-            output = [[x[0] - start] + x[1:] for x in output]
+            if output:
+                start = min([x[0] for x in output])
+                output = [[x[0] - start] + x[1:] for x in output]
 
-            # sort array by timestamps value
-            output.sort()
+                # sort array by timestamps value
+                output.sort()
 
-            # print pretty table, as any SGBD should
-            if display is True:
-                pretty_print_data(
-                    header, output, align_settings={"dialog_id": "l"})
+            if header[2] == '':
+                print('This record has not QOS data report enabled.')
+            else:
+                # print pretty table, as any SGBD should
+                if display is True:
+                    pretty_print_data(
+                        header, output, align_settings={"dialog_id": "l"})
 
     except mysql.connector.Error as e:
         print("Could not apply query: {}.".format(e))
@@ -239,11 +267,18 @@ def main(argv):
                              default=None,
                              help="display structure of the given table"
                              )
-    query_group.add_argument('-b', '--bad-calls',
+    query_group.add_argument('-C', '--list-calls',
+                             dest="list_calls",
+                             default=False,
+                             action="store_true",
+                             help="display list of calls"
+                             )
+    query_group.add_argument('-B', '--bad-calls',
                              dest="bad_calls",
                              default=-1,
-                             help="display calls'ID with a local and/or remote"
-                             "MOSLQ/MOSCLQ lower than given value in [0, 5]",
+                             type=int,
+                             help="display calls'ID with a local and/or remote "
+                             "MOSLQ/MOSCLQ lower than given value in [0, 5]. ",
                              metavar="MIN_MOS_VALUE"
                              )
     query_group.add_argument('-c', '--show-call',
