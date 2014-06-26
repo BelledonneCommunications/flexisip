@@ -56,7 +56,3 @@ src/pusher
 *.kdev4
 *.settings
 compile
-src/eventlogs/eventlogsdb-odb.cxx
-src/eventlogs/eventlogsdb-odb.hxx
-src/eventlogs/eventlogsdb-odb.ixx
-src/eventlogs/eventlogsdb.xml
