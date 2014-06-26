@@ -302,6 +302,7 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 #ifdef HAVE_DATEHANDLER
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "DateHandler"));
 #endif
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Redirect"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GatewayAdapter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Registrar"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "StatisticsCollector"));

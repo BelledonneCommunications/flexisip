@@ -58,7 +58,8 @@ thesources= \
 			eventlogs/eventlogs.cc eventlogs/eventlogs.hh \
 			contact-masquerader.cc contact-masquerader.hh \
 			uac-register.cc uac-register.hh \
-			$(GITVERSION_FILE)
+			$(GITVERSION_FILE) \
+			module-redirect.cc
 
 
 if BUILD_SNMP

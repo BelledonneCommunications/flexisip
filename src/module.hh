@@ -78,7 +78,8 @@ class ModuleInfoBase {
 			LoadBalancer=180,
 			MediaRelay=210,
 			Transcoder=240,
-			Forward=270
+			Forward=270,
+			Redirect=290
 		};
 	protected:
 		ModuleInfoBase(const char *modname, const char *help, enum ModuleOid oid) : mName(modname), mHelp(help),
