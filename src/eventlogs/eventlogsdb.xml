@@ -1,4 +1,129 @@
 <changelog xmlns="http://www.codesynthesis.com/xmlns/odb/changelog" database="mysql" version="1">
+  <changeset version="4">
+    <alter-table name="CallQualityStatisticsLog">
+      <add-column name="la_id" type="TEXT" null="false"/>
+      <add-column name="la_ip" type="TEXT" null="false"/>
+      <add-column name="la_port" type="INT" null="false"/>
+      <add-column name="la_ssrc" type="INT UNSIGNED" null="false"/>
+      <add-column name="la_group" type="TEXT" null="false"/>
+      <add-column name="la_mac" type="TEXT" null="false"/>
+      <add-column name="ra_id" type="TEXT" null="false"/>
+      <add-column name="ra_ip" type="TEXT" null="false"/>
+      <add-column name="ra_port" type="INT" null="false"/>
+      <add-column name="ra_ssrc" type="INT UNSIGNED" null="false"/>
+      <add-column name="ra_group" type="TEXT" null="false"/>
+      <add-column name="ra_mac" type="TEXT" null="false"/>
+      <add-column name="lm_ts_start" type="BIGINT" null="false"/>
+      <add-column name="lm_ts_stop" type="BIGINT" null="false"/>
+      <add-column name="lm_sd_payload_type" type="INT" null="false"/>
+      <add-column name="lm_sd_payload_desc" type="TEXT" null="false"/>
+      <add-column name="lm_sd_sample_rate" type="INT" null="false"/>
+      <add-column name="lm_sd_frame_duration" type="INT" null="false"/>
+      <add-column name="lm_sd_fmtp" type="TEXT" null="false"/>
+      <add-column name="lm_sd_packet_loss_concealment" type="INT" null="false"/>
+      <add-column name="lm_jb_adaptive" type="INT" null="false"/>
+      <add-column name="lm_jb_nominal" type="INT" null="false"/>
+      <add-column name="lm_jb_max" type="INT" null="false"/>
+      <add-column name="lm_jb_abs_max" type="INT" null="false"/>
+      <add-column name="lm_pl_network_packet_loss_rate" type="FLOAT" null="false"/>
+      <add-column name="lm_pl_jitter_buffer_discard_rate" type="FLOAT" null="false"/>
+      <add-column name="lm_d_round_trip_delay" type="INT" null="false"/>
+      <add-column name="lm_d_end_system_delay" type="INT" null="false"/>
+      <add-column name="lm_d_symm_one_way_delay" type="INT" null="false"/>
+      <add-column name="lm_d_interarrival_jitter" type="INT" null="false"/>
+      <add-column name="lm_d_mean_abs_jitter" type="INT" null="false"/>
+      <add-column name="lm_s_level" type="INT" null="false"/>
+      <add-column name="lm_s_noise_level" type="INT" null="false"/>
+      <add-column name="lm_qe_moslq" type="FLOAT" null="false"/>
+      <add-column name="lm_qe_moscq" type="FLOAT" null="false"/>
+      <add-column name="lm_user_agent" type="TEXT" null="false"/>
+      <add-column name="rm_ts_start" type="BIGINT" null="false"/>
+      <add-column name="rm_ts_stop" type="BIGINT" null="false"/>
+      <add-column name="rm_sd_payload_type" type="INT" null="false"/>
+      <add-column name="rm_sd_payload_desc" type="TEXT" null="false"/>
+      <add-column name="rm_sd_sample_rate" type="INT" null="false"/>
+      <add-column name="rm_sd_frame_duration" type="INT" null="false"/>
+      <add-column name="rm_sd_fmtp" type="TEXT" null="false"/>
+      <add-column name="rm_sd_packet_loss_concealment" type="INT" null="false"/>
+      <add-column name="rm_jb_adaptive" type="INT" null="false"/>
+      <add-column name="rm_jb_nominal" type="INT" null="false"/>
+      <add-column name="rm_jb_max" type="INT" null="false"/>
+      <add-column name="rm_jb_abs_max" type="INT" null="false"/>
+      <add-column name="rm_pl_network_packet_loss_rate" type="FLOAT" null="false"/>
+      <add-column name="rm_pl_jitter_buffer_discard_rate" type="FLOAT" null="false"/>
+      <add-column name="rm_d_round_trip_delay" type="INT" null="false"/>
+      <add-column name="rm_d_end_system_delay" type="INT" null="false"/>
+      <add-column name="rm_d_symm_one_way_delay" type="INT" null="false"/>
+      <add-column name="rm_d_interarrival_jitter" type="INT" null="false"/>
+      <add-column name="rm_d_mean_abs_jitter" type="INT" null="false"/>
+      <add-column name="rm_s_level" type="INT" null="false"/>
+      <add-column name="rm_s_noise_level" type="INT" null="false"/>
+      <add-column name="rm_qe_moslq" type="FLOAT" null="false"/>
+      <add-column name="rm_qe_moscq" type="FLOAT" null="false"/>
+      <add-column name="rm_user_agent" type="TEXT" null="false"/>
+      <drop-column name="local_addr_id"/>
+      <drop-column name="local_addr_ip"/>
+      <drop-column name="local_addr_port"/>
+      <drop-column name="local_addr_ssrc"/>
+      <drop-column name="local_addr_group"/>
+      <drop-column name="local_addr_mac"/>
+      <drop-column name="remote_addr_id"/>
+      <drop-column name="remote_addr_ip"/>
+      <drop-column name="remote_addr_port"/>
+      <drop-column name="remote_addr_ssrc"/>
+      <drop-column name="remote_addr_group"/>
+      <drop-column name="remote_addr_mac"/>
+      <drop-column name="local_metrics_ts_start"/>
+      <drop-column name="local_metrics_ts_stop"/>
+      <drop-column name="local_metrics_sd_payload_type"/>
+      <drop-column name="local_metrics_sd_payload_desc"/>
+      <drop-column name="local_metrics_sd_sample_rate"/>
+      <drop-column name="local_metrics_sd_frame_duration"/>
+      <drop-column name="local_metrics_sd_fmtp"/>
+      <drop-column name="local_metrics_sd_packet_loss_concealment"/>
+      <drop-column name="local_metrics_jb_adaptive"/>
+      <drop-column name="local_metrics_jb_nominal"/>
+      <drop-column name="local_metrics_jb_max"/>
+      <drop-column name="local_metrics_jb_abs_max"/>
+      <drop-column name="local_metrics_pl_network_packet_loss_rate"/>
+      <drop-column name="local_metrics_pl_jitter_buffer_discard_rate"/>
+      <drop-column name="local_metrics_d_round_trip_delay"/>
+      <drop-column name="local_metrics_d_end_system_delay"/>
+      <drop-column name="local_metrics_d_symm_one_way_delay"/>
+      <drop-column name="local_metrics_d_interarrival_jitter"/>
+      <drop-column name="local_metrics_d_mean_abs_jitter"/>
+      <drop-column name="local_metrics_s_level"/>
+      <drop-column name="local_metrics_s_noise_level"/>
+      <drop-column name="local_metrics_qe_moslq"/>
+      <drop-column name="local_metrics_qe_moscq"/>
+      <drop-column name="remote_metrics_ts_start"/>
+      <drop-column name="remote_metrics_ts_stop"/>
+      <drop-column name="remote_metrics_sd_payload_type"/>
+      <drop-column name="remote_metrics_sd_payload_desc"/>
+      <drop-column name="remote_metrics_sd_sample_rate"/>
+      <drop-column name="remote_metrics_sd_frame_duration"/>
+      <drop-column name="remote_metrics_sd_fmtp"/>
+      <drop-column name="remote_metrics_sd_packet_loss_concealment"/>
+      <drop-column name="remote_metrics_jb_adaptive"/>
+      <drop-column name="remote_metrics_jb_nominal"/>
+      <drop-column name="remote_metrics_jb_max"/>
+      <drop-column name="remote_metrics_jb_abs_max"/>
+      <drop-column name="remote_metrics_pl_network_packet_loss_rate"/>
+      <drop-column name="remote_metrics_pl_jitter_buffer_discard_rate"/>
+      <drop-column name="remote_metrics_d_round_trip_delay"/>
+      <drop-column name="remote_metrics_d_end_system_delay"/>
+      <drop-column name="remote_metrics_d_symm_one_way_delay"/>
+      <drop-column name="remote_metrics_d_interarrival_jitter"/>
+      <drop-column name="remote_metrics_d_mean_abs_jitter"/>
+      <drop-column name="remote_metrics_s_level"/>
+      <drop-column name="remote_metrics_s_noise_level"/>
+      <drop-column name="remote_metrics_qe_moslq"/>
+      <drop-column name="remote_metrics_qe_moscq"/>
+      <drop-column name="local_metrics_user_agent"/>
+      <drop-column name="remote_metrics_user_agent"/>
+    </alter-table>
+  </changeset>
+
   <changeset version="3">
     <alter-table name="CallQualityStatisticsLog">
       <add-column name="local_metrics_user_agent" type="TEXT" null="false"/>

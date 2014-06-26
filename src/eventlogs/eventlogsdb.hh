@@ -26,7 +26,7 @@
 
 #include "eventlogs.hh"
 
-#pragma db model version(1, 3)
+#pragma db model version(1, 4)
 
 #pragma db object polymorphic table("EventLog")
 class EventLogDb {
@@ -195,10 +195,14 @@ private:
 	std::string call_id;
 	std::string orig_id;
 
+	#pragma db column("la")
 	reporting_addr local_addr;
+	#pragma db column("ra")
 	reporting_addr remote_addr;
 
+	#pragma db column("lm")
 	reporting_content_metrics local_metrics;
+	#pragma db column("rm")
 	reporting_content_metrics remote_metrics; // optional
 
 	std::string dialog_id; // optional

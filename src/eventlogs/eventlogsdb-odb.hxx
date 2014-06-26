@@ -2736,32 +2736,32 @@ namespace odb
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_addr_type_::id_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_addr_type_::
-  id (A::table_name, "`local_addr_id`", 0);
+  id (A::table_name, "`la_id`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_addr_type_::ip_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_addr_type_::
-  ip (A::table_name, "`local_addr_ip`", 0);
+  ip (A::table_name, "`la_ip`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_addr_type_::port_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_addr_type_::
-  port (A::table_name, "`local_addr_port`", 0);
+  port (A::table_name, "`la_port`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_addr_type_::ssrc_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_addr_type_::
-  ssrc (A::table_name, "`local_addr_ssrc`", 0);
+  ssrc (A::table_name, "`la_ssrc`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_addr_type_::group_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_addr_type_::
-  group (A::table_name, "`local_addr_group`", 0);
+  group (A::table_name, "`la_group`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_addr_type_::mac_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_addr_type_::
-  mac (A::table_name, "`local_addr_mac`", 0);
+  mac (A::table_name, "`la_mac`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_addr_type_
@@ -2770,32 +2770,32 @@ namespace odb
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_addr_type_::id_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_addr_type_::
-  id (A::table_name, "`remote_addr_id`", 0);
+  id (A::table_name, "`ra_id`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_addr_type_::ip_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_addr_type_::
-  ip (A::table_name, "`remote_addr_ip`", 0);
+  ip (A::table_name, "`ra_ip`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_addr_type_::port_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_addr_type_::
-  port (A::table_name, "`remote_addr_port`", 0);
+  port (A::table_name, "`ra_port`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_addr_type_::ssrc_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_addr_type_::
-  ssrc (A::table_name, "`remote_addr_ssrc`", 0);
+  ssrc (A::table_name, "`ra_ssrc`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_addr_type_::group_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_addr_type_::
-  group (A::table_name, "`remote_addr_group`", 0);
+  group (A::table_name, "`ra_group`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_addr_type_::mac_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_addr_type_::
-  mac (A::table_name, "`remote_addr_mac`", 0);
+  mac (A::table_name, "`ra_mac`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_addr_type_
@@ -2804,122 +2804,122 @@ namespace odb
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::ts_start_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  ts_start (A::table_name, "`local_metrics_ts_start`", 0);
+  ts_start (A::table_name, "`lm_ts_start`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::ts_stop_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  ts_stop (A::table_name, "`local_metrics_ts_stop`", 0);
+  ts_stop (A::table_name, "`lm_ts_stop`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::sd_payload_type_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  sd_payload_type (A::table_name, "`local_metrics_sd_payload_type`", 0);
+  sd_payload_type (A::table_name, "`lm_sd_payload_type`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::sd_payload_desc_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  sd_payload_desc (A::table_name, "`local_metrics_sd_payload_desc`", 0);
+  sd_payload_desc (A::table_name, "`lm_sd_payload_desc`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::sd_sample_rate_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  sd_sample_rate (A::table_name, "`local_metrics_sd_sample_rate`", 0);
+  sd_sample_rate (A::table_name, "`lm_sd_sample_rate`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::sd_frame_duration_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  sd_frame_duration (A::table_name, "`local_metrics_sd_frame_duration`", 0);
+  sd_frame_duration (A::table_name, "`lm_sd_frame_duration`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::sd_fmtp_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  sd_fmtp (A::table_name, "`local_metrics_sd_fmtp`", 0);
+  sd_fmtp (A::table_name, "`lm_sd_fmtp`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::sd_packet_loss_concealment_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  sd_packet_loss_concealment (A::table_name, "`local_metrics_sd_packet_loss_concealment`", 0);
+  sd_packet_loss_concealment (A::table_name, "`lm_sd_packet_loss_concealment`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::jb_adaptive_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  jb_adaptive (A::table_name, "`local_metrics_jb_adaptive`", 0);
+  jb_adaptive (A::table_name, "`lm_jb_adaptive`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::jb_nominal_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  jb_nominal (A::table_name, "`local_metrics_jb_nominal`", 0);
+  jb_nominal (A::table_name, "`lm_jb_nominal`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::jb_max_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  jb_max (A::table_name, "`local_metrics_jb_max`", 0);
+  jb_max (A::table_name, "`lm_jb_max`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::jb_abs_max_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  jb_abs_max (A::table_name, "`local_metrics_jb_abs_max`", 0);
+  jb_abs_max (A::table_name, "`lm_jb_abs_max`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::pl_network_packet_loss_rate_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  pl_network_packet_loss_rate (A::table_name, "`local_metrics_pl_network_packet_loss_rate`", 0);
+  pl_network_packet_loss_rate (A::table_name, "`lm_pl_network_packet_loss_rate`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::pl_jitter_buffer_discard_rate_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  pl_jitter_buffer_discard_rate (A::table_name, "`local_metrics_pl_jitter_buffer_discard_rate`", 0);
+  pl_jitter_buffer_discard_rate (A::table_name, "`lm_pl_jitter_buffer_discard_rate`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::d_round_trip_delay_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  d_round_trip_delay (A::table_name, "`local_metrics_d_round_trip_delay`", 0);
+  d_round_trip_delay (A::table_name, "`lm_d_round_trip_delay`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::d_end_system_delay_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  d_end_system_delay (A::table_name, "`local_metrics_d_end_system_delay`", 0);
+  d_end_system_delay (A::table_name, "`lm_d_end_system_delay`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::d_symm_one_way_delay_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  d_symm_one_way_delay (A::table_name, "`local_metrics_d_symm_one_way_delay`", 0);
+  d_symm_one_way_delay (A::table_name, "`lm_d_symm_one_way_delay`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::d_interarrival_jitter_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  d_interarrival_jitter (A::table_name, "`local_metrics_d_interarrival_jitter`", 0);
+  d_interarrival_jitter (A::table_name, "`lm_d_interarrival_jitter`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::d_mean_abs_jitter_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  d_mean_abs_jitter (A::table_name, "`local_metrics_d_mean_abs_jitter`", 0);
+  d_mean_abs_jitter (A::table_name, "`lm_d_mean_abs_jitter`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::s_level_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  s_level (A::table_name, "`local_metrics_s_level`", 0);
+  s_level (A::table_name, "`lm_s_level`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::s_noise_level_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  s_noise_level (A::table_name, "`local_metrics_s_noise_level`", 0);
+  s_noise_level (A::table_name, "`lm_s_noise_level`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::qe_moslq_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  qe_moslq (A::table_name, "`local_metrics_qe_moslq`", 0);
+  qe_moslq (A::table_name, "`lm_qe_moslq`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::qe_moscq_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  qe_moscq (A::table_name, "`local_metrics_qe_moscq`", 0);
+  qe_moscq (A::table_name, "`lm_qe_moscq`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::user_agent_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_::
-  user_agent (A::table_name, "`local_metrics_user_agent`", 0);
+  user_agent (A::table_name, "`lm_user_agent`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::local_metrics_type_
@@ -2928,122 +2928,122 @@ namespace odb
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::ts_start_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  ts_start (A::table_name, "`remote_metrics_ts_start`", 0);
+  ts_start (A::table_name, "`rm_ts_start`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::ts_stop_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  ts_stop (A::table_name, "`remote_metrics_ts_stop`", 0);
+  ts_stop (A::table_name, "`rm_ts_stop`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::sd_payload_type_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  sd_payload_type (A::table_name, "`remote_metrics_sd_payload_type`", 0);
+  sd_payload_type (A::table_name, "`rm_sd_payload_type`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::sd_payload_desc_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  sd_payload_desc (A::table_name, "`remote_metrics_sd_payload_desc`", 0);
+  sd_payload_desc (A::table_name, "`rm_sd_payload_desc`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::sd_sample_rate_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  sd_sample_rate (A::table_name, "`remote_metrics_sd_sample_rate`", 0);
+  sd_sample_rate (A::table_name, "`rm_sd_sample_rate`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::sd_frame_duration_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  sd_frame_duration (A::table_name, "`remote_metrics_sd_frame_duration`", 0);
+  sd_frame_duration (A::table_name, "`rm_sd_frame_duration`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::sd_fmtp_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  sd_fmtp (A::table_name, "`remote_metrics_sd_fmtp`", 0);
+  sd_fmtp (A::table_name, "`rm_sd_fmtp`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::sd_packet_loss_concealment_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  sd_packet_loss_concealment (A::table_name, "`remote_metrics_sd_packet_loss_concealment`", 0);
+  sd_packet_loss_concealment (A::table_name, "`rm_sd_packet_loss_concealment`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::jb_adaptive_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  jb_adaptive (A::table_name, "`remote_metrics_jb_adaptive`", 0);
+  jb_adaptive (A::table_name, "`rm_jb_adaptive`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::jb_nominal_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  jb_nominal (A::table_name, "`remote_metrics_jb_nominal`", 0);
+  jb_nominal (A::table_name, "`rm_jb_nominal`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::jb_max_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  jb_max (A::table_name, "`remote_metrics_jb_max`", 0);
+  jb_max (A::table_name, "`rm_jb_max`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::jb_abs_max_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  jb_abs_max (A::table_name, "`remote_metrics_jb_abs_max`", 0);
+  jb_abs_max (A::table_name, "`rm_jb_abs_max`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::pl_network_packet_loss_rate_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  pl_network_packet_loss_rate (A::table_name, "`remote_metrics_pl_network_packet_loss_rate`", 0);
+  pl_network_packet_loss_rate (A::table_name, "`rm_pl_network_packet_loss_rate`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::pl_jitter_buffer_discard_rate_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  pl_jitter_buffer_discard_rate (A::table_name, "`remote_metrics_pl_jitter_buffer_discard_rate`", 0);
+  pl_jitter_buffer_discard_rate (A::table_name, "`rm_pl_jitter_buffer_discard_rate`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::d_round_trip_delay_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  d_round_trip_delay (A::table_name, "`remote_metrics_d_round_trip_delay`", 0);
+  d_round_trip_delay (A::table_name, "`rm_d_round_trip_delay`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::d_end_system_delay_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  d_end_system_delay (A::table_name, "`remote_metrics_d_end_system_delay`", 0);
+  d_end_system_delay (A::table_name, "`rm_d_end_system_delay`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::d_symm_one_way_delay_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  d_symm_one_way_delay (A::table_name, "`remote_metrics_d_symm_one_way_delay`", 0);
+  d_symm_one_way_delay (A::table_name, "`rm_d_symm_one_way_delay`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::d_interarrival_jitter_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  d_interarrival_jitter (A::table_name, "`remote_metrics_d_interarrival_jitter`", 0);
+  d_interarrival_jitter (A::table_name, "`rm_d_interarrival_jitter`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::d_mean_abs_jitter_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  d_mean_abs_jitter (A::table_name, "`remote_metrics_d_mean_abs_jitter`", 0);
+  d_mean_abs_jitter (A::table_name, "`rm_d_mean_abs_jitter`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::s_level_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  s_level (A::table_name, "`remote_metrics_s_level`", 0);
+  s_level (A::table_name, "`rm_s_level`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::s_noise_level_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  s_noise_level (A::table_name, "`remote_metrics_s_noise_level`", 0);
+  s_noise_level (A::table_name, "`rm_s_noise_level`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::qe_moslq_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  qe_moslq (A::table_name, "`remote_metrics_qe_moslq`", 0);
+  qe_moslq (A::table_name, "`rm_qe_moslq`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::qe_moscq_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  qe_moscq (A::table_name, "`remote_metrics_qe_moscq`", 0);
+  qe_moscq (A::table_name, "`rm_qe_moscq`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::user_agent_type_
   query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_::
-  user_agent (A::table_name, "`remote_metrics_user_agent`", 0);
+  user_agent (A::table_name, "`rm_user_agent`", 0);
 
   template <typename A>
   const typename query_columns< ::CallQualityStatisticsLogDb, id_mysql, A >::remote_metrics_type_
