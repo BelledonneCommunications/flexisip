@@ -26,7 +26,7 @@
 
 #include "eventlogs.hh"
 
-#pragma db model version(1, 3, closed)
+#pragma db model version(1, 3)
 
 #pragma db object polymorphic table("EventLog")
 class EventLogDb {
