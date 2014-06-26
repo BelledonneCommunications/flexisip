@@ -259,8 +259,8 @@ CallQualityStatisticsLogDb::CallQualityStatisticsLogDb(const std::shared_ptr<Cal
 			else if (section=="Delay"&&key=="MAJ") current_metrics->d_mean_abs_jitter = atoi(value.c_str());
 			else if (section=="Signal"&&key=="SL") current_metrics->s_level = atoi(value.c_str());
 			else if (section=="Signal"&&key=="NL") current_metrics->s_noise_level = atoi(value.c_str());
-			else if (section=="QualityEst"&&key=="MOSLQ") current_metrics->qe_moslq = atoi(value.c_str());
-			else if (section=="QualityEst"&&key=="MOSCQ") current_metrics->qe_moscq = atoi(value.c_str());
+			else if (section=="QualityEst"&&key=="MOSLQ") current_metrics->qe_moslq = atof(value.c_str());
+			else if (section=="QualityEst"&&key=="MOSCQ") current_metrics->qe_moscq = atof(value.c_str());
 			else if (section=="LinphoneExt"&&key=="UA") current_metrics->user_agent = value;
 			else if (section=="AdaptiveAlg"&&key=="NAME") qos_name = value;
 			else if (section=="AdaptiveAlg"&&key=="TS") qos_timestamp = value;
