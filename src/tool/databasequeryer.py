@@ -86,9 +86,9 @@ def query_db(params, display=True):
 
         # display all calls
         elif params['list_calls'] is True:
-            query = ("SELECT dialog_id, local_metrics_qe_moslq, "
-                     "local_metrics_qe_moscq, remote_metrics_qe_moslq, "
-                     "remote_metrics_qe_moscq "
+            query = ("SELECT dialog_id, lm_qe_moslq, "
+                     "lm_qe_moscq, rm_qe_moslq, "
+                     "rm_qe_moscq "
                      "FROM CallQualityStatisticsLog ")
 
             cursor.execute(query)
@@ -104,12 +104,13 @@ def query_db(params, display=True):
         # reports, we use the local/remote distinction to detect which side
         # was poor quality
         elif params['bad_calls'] != -1:
-            for mode in ['local', 'remote']:
-                query = ("SELECT distinct dialog_id, \"{mode}\", {mode}_metrics_qe_moslq, "
-                         "{mode}_metrics_qe_moscq "
+            for mode in ['l', 'r']:
+                query = ("SELECT dialog_id, \"{mode}\", {mode}m_qe_moslq, "
+                         "{mode}m_qe_moscq "
                          "FROM CallQualityStatisticsLog "
-                         "WHERE {mode}_metrics_qe_moslq BETWEEN 0 AND {minval} "
-                         "OR {mode}_metrics_qe_moscq BETWEEN 0 AND {minval} ").format(
+                         "WHERE {mode}m_qe_moslq BETWEEN 0 AND {minval} "
+                         "OR {mode}m_qe_moscq BETWEEN 0 AND {minval} "
+                         "GROUP BY dialog_id").format(
                     mode=mode, minval=params['bad_calls'])
 
                 cursor.execute(query)
@@ -276,7 +277,7 @@ def main(argv):
     query_group.add_argument('-B', '--bad-calls',
                              dest="bad_calls",
                              default=-1,
-                             type=int,
+                             type=float,
                              help="display calls'ID with a local and/or remote "
                              "MOSLQ/MOSCLQ lower than given value in [0, 5]. ",
                              metavar="MIN_MOS_VALUE"
