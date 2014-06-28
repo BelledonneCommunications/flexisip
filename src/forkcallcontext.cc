@@ -111,7 +111,7 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo> & br, const shared
 //This is actually called when we want to simulate a ringing event, for example when a push notification is sent to a device.
 void ForkCallContext::sendRinging(){
 	int code=getLastResponseCode();
-	if (code<180){
+	if (code<180 && mIncoming){
 		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_180_RINGING));
 		if (msgsip){
 			shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
@@ -146,7 +146,7 @@ bool ForkCallContext::onNewRegister(const url_t *url, const string &uid){
 }
 
 bool ForkCallContext::isCompleted()const{
-	if (getLastResponseCode()>=200 || mCancelled) return true;
+	if (getLastResponseCode()>=200 || mCancelled || mIncoming==NULL) return true;
 	return false;
 }
 
