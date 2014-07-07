@@ -3,6 +3,7 @@
 
 try:
     import sys
+    import os
     import argparse
     import itertools
     import copy
@@ -18,7 +19,8 @@ def pretty_print_data_vertically(header, data):
     max_field_width = max([len(x) for x in header])
     for row_i, row in enumerate(data):
         formatted.append(
-            '*************************** %i. row ***************************' % (row_i + 1, ))
+            '*************************** %i. row ***************************' %
+            (row_i + 1, ))
         for i, field in enumerate(header):
             formatted.append("%s: %s" % (field.rjust(max_field_width), row[i]))
     print('\n'.join(formatted))
@@ -34,25 +36,46 @@ def pretty_print_create_table(header, data, align_settings=None):
     print(x)
 
 
-def pretty_print_data(header, data, align_settings=None, max_available_width=100):
-    current_width = 0
+def pretty_print_data(header, data, align_settings=None, max_width=-1):
+    if max_width == -1:
+        # retrieve real width of terminal, if available
+        try:
+            rows, columns = os.popen('stty size', 'r').read().split()
+            max_width = int(columns)
+        except:
+            max_width = 80
+
+    current_width = 1
     start_ind = 0
     end_ind = 0
 
+    if not data:
+        print "No data to pretty print!"
+        return
+
     while end_ind < len(header):
-        if current_width + len(header[end_ind]) < max_available_width:
-            current_width += len(header[end_ind])
+        # adding 4 constant for borders + gap spaces (like '| something |')
+        max_cur_width = 3 + \
+            max(len(header[end_ind]),
+                max([len(str(row[end_ind])) for row in data]))
+
+        if current_width + max_cur_width < max_width:
+            current_width += max_cur_width
             end_ind += 1
             continue
 
         pretty_print_create_table(
-            header[start_ind:end_ind], [row[start_ind:end_ind] for row in data], align_settings)
+            header[start_ind:end_ind],
+            [row[start_ind:end_ind] for row in data], align_settings
+        )
         start_ind = end_ind
-        current_width = 0
+        current_width = 1
 
     if start_ind != end_ind:
         pretty_print_create_table(
-            header[start_ind:end_ind], [row[start_ind:end_ind] for row in data], align_settings)
+            header[start_ind:end_ind],
+            [row[start_ind:end_ind] for row in data], align_settings
+        )
 
 
 def query_db(params, display=True):
@@ -96,8 +119,15 @@ def query_db(params, display=True):
 
             if display is True:
                 pretty_print_data(
-                    ["dialog_id", "local_moslq", "local_moscq",
-                     "remote_moslq", "remote_mscq"], output, align_settings={"dialog_id": "l"}
+                    [
+                        "dialog_id",
+                        "local_moslq",
+                        "local_moscq",
+                        "remote_moslq",
+                        "remote_mscq"
+                    ],
+                    output,
+                    align_settings={"dialog_id": "l"}
                 )
 
         # display calls with bad MOS values. Since both call ends can submit
@@ -110,24 +140,28 @@ def query_db(params, display=True):
                          "FROM CallQualityStatisticsLog "
                          "WHERE {mode}m_qe_moslq BETWEEN 0 AND {minval} "
                          "OR {mode}m_qe_moscq BETWEEN 0 AND {minval} "
-                         "GROUP BY dialog_id").format(
-                    mode=mode, minval=params['bad_calls'])
+                         "GROUP BY dialog_id")
+                query.format(mode=mode, minval=params['bad_calls'])
 
                 cursor.execute(query)
                 output += cursor.fetchall()
 
             if display is True:
                 if output == []:
-                    print("No call found with statement: 0 ≤ MOS value ≤ {}.".format(
-                        params['bad_calls']))
+                    print("No call found with statement: 0 ≤ MOS value ≤ %f." %
+                          params['bad_calls'])
                 else:
                     pretty_print_data(
-                        ["dialog_id", "mode", "moslq", "moscq"], output, align_settings={"dialog_id": "l"})
+                        ["dialog_id", "mode", "moslq", "moscq"],
+                        output,
+                        align_settings={"dialog_id": "l"}
+                    )
 
-        # display all collected data for a given dialog_id. We do NOT use call_id
-        # because both call ends can emit a quality report with the same Call-ID.
-        # Since the dialog_id user the from-tag and to-tag which are opposed between
-        # caller and callee, this ensure a unique report sender
+        # display all collected data for a given dialog_id. We do NOT use
+        # call_id because both call ends can emit a quality report with the
+        # same Call-ID. Since the dialog_id user the from-tag and to-tag which
+        # are opposed between caller and callee, this ensure a unique report
+        # sender
         elif params['show_call'] is not None:
             kwargs = copy.deepcopy(params)
             kwargs["show_table"] = "CallQualityStatisticsLog"
@@ -140,13 +174,15 @@ def query_db(params, display=True):
 
             query = ("SELECT {} "
                      "FROM CallQualityStatisticsLog "
-                     "WHERE dialog_id LIKE \"%{}%\" ".format(', '.join(fields), params['show_call']))
+                     "WHERE dialog_id LIKE \"%{}%\" "
+                     .format(', '.join(fields), params['show_call'])
+                     )
             cursor.execute(query)
             output = cursor.fetchall()
 
             if output is None or output == []:
-                print("Could not find call with dialog_id='{}'".format(
-                    params['show_call']))
+                print("Could not find call with dialog_id='{}'"
+                      .format(params['show_call']))
                 return
 
             if display is True:
@@ -178,12 +214,14 @@ def query_db(params, display=True):
                  qos_output_leg, qos_output, dialog_id) = line
 
                 if header is None or header[2] == '':
-                    header = [list(itertools.chain.from_iterable(x)) for x in [[
-                        ["timestamps"],
-                        qos_input_leg.split(' '),
-                        qos_output_leg.split(' '),
-                        ["dialog_id"]
-                    ]]][0]
+                    header = [list(itertools.chain.from_iterable(x))
+                              for x in [[
+                                        ["ts"],
+                                        qos_input_leg.split(' '),
+                                        qos_output_leg.split(' '),
+                                        ["dialog_id"]
+                                        ]]
+                              ][0]
 
                 # if timestamps is empty, there is no valid data in this report
                 if not qos_timestamp:
@@ -278,8 +316,8 @@ def main(argv):
                              dest="bad_calls",
                              default=-1,
                              type=float,
-                             help="display calls'ID with a local and/or remote "
-                             "MOSLQ/MOSCLQ lower than given value in [0, 5]. ",
+                             help="display calls'ID with a local and/or remote"
+                             " MOSLQ/MOSCLQ lower than given value in [0, 5].",
                              metavar="MIN_MOS_VALUE"
                              )
     query_group.add_argument('-c', '--show-call',
