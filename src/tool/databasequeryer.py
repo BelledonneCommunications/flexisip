@@ -136,12 +136,13 @@ def query_db(params, display=True):
         elif params['bad_calls'] != -1:
             for mode in ['l', 'r']:
                 query = ("SELECT dialog_id, \"{mode}\", {mode}m_qe_moslq, "
-                         "{mode}m_qe_moscq "
+                         "{mode}m_qe_moscq, from_unixtime(lm_ts_start) "
                          "FROM CallQualityStatisticsLog "
                          "WHERE {mode}m_qe_moslq BETWEEN 0 AND {minval} "
                          "OR {mode}m_qe_moscq BETWEEN 0 AND {minval} "
-                         "GROUP BY dialog_id")
-                query.format(mode=mode, minval=params['bad_calls'])
+                         "GROUP BY dialog_id "
+                         "ORDER BY lm_ts_start")
+                query = query.format(mode=mode, minval=params['bad_calls'])
 
                 cursor.execute(query)
                 output += cursor.fetchall()
@@ -152,7 +153,7 @@ def query_db(params, display=True):
                           params['bad_calls'])
                 else:
                     pretty_print_data(
-                        ["dialog_id", "mode", "moslq", "moscq"],
+                        ["dialog_id", "mode", "moslq", "moscq", "start_date"],
                         output,
                         align_settings={"dialog_id": "l"}
                     )
