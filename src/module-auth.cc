@@ -749,7 +749,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 
 #ifdef QOP_AUTH
 	int pnc=module->mNonceStore.getNc(ar->ar_nonce);
-	int nnc = (int) strtoul(ar->ar_nc, NULL, 10);
+	int nnc = (int) strtoul(ar->ar_nc, NULL, 16);
 	if (pnc == -1 || pnc >= nnc) {
 		LOGE("Bad nonce count %d -> %d for %s", pnc, nnc, ar->ar_nonce);
 		as->as_blacklist = am->am_blacklist;
