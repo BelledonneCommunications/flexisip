@@ -474,19 +474,19 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(const std::string &db_name,const 
 		schema_version cv (schema_catalog::current_version (*mDatabase));
 
 		if (v == 0){
-			LOGD("No database found... creating it.", v, cv);
+			SLOGD << "No database found... creating it.";
 			transaction t (mDatabase->begin ());
 			schema_catalog::create_schema (*mDatabase);
 			t.commit ();
 		} else if (v < cv){
-			LOGD("Database is outdated (current=%d, latest=%d).", v, cv);
+			SLOGD << "Database is outdated (current="<<v<<", latest="<<cv<<").";
 			if (v < bv){
 				LOGE("Error: migration from this version is no longer supported.");
 			}
 			for (v=schema_catalog::next_version (*mDatabase, v); v<=cv; v=schema_catalog::next_version (*mDatabase, v)){
 				transaction t (mDatabase->begin ());
 
-				LOGD("Updating database to version %d.", v);
+				SLOGD << "Updating database to version "<<v<<".";
 				schema_catalog::migrate_schema_pre (*mDatabase, v);
 
 				schema_catalog::migrate(*mDatabase, v);
