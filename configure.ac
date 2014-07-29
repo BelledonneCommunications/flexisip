@@ -75,7 +75,7 @@ case $CXX in
 	*g++*)
 	# Use only -O1 due to a compile-time bug in gcc 4.4.6 from centos6.
 	CFLAGS="-g -O2 -pthread $CFLAGS"
-	CXXFLAGS="-g -O1 -pthread -std=c++0x"
+	CXXFLAGS="-g -O1 -pthread -std=c++0x $CXXFLAGS"
 	LDFLAGS="-pthread $LDFLAGS"
 	;;
 esac
