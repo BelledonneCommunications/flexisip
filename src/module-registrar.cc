@@ -90,6 +90,7 @@ public:
 			{ String , "redis-auth-password", "Authentication password for redis. Empty to disable.",""},
 			{ Integer , "redis-server-timeout", "Timeout in milliseconds of the redis connection.","1500"},
 			{ String , "redis-record-serializer", "Serialize contacts with: [C, protobuf]","protobuf"},
+			{ String , "service-route", "Sequence of proxies (space-separated) where requests will be redirected through (RFC3608)",""},
 			config_item_end
 		};
 		mc->addChildrenValues(configs);
@@ -106,6 +107,9 @@ public:
 			LOGD("Found registrar domain: %s", (*it).c_str());
 		}
 		mUniqueIdParams = mc->get<ConfigStringList>("unique-id-parameters")->read();
+		mServiceRoute = mc->get<ConfigString>("service-route")->read();
+		// replace space-separated to comma-separated since sofia-sip is expecting this way
+		std::replace( mServiceRoute.begin(), mServiceRoute.end(), ' ', ',');
 
 		mMaxExpires = mc->get<ConfigInt>("max-expires")->read();
 		mMinExpires = mc->get<ConfigInt>("min-expires")->read();
@@ -151,6 +155,7 @@ private:
 	bool mUpdateOnResponse;
 	list<string> mDomains;
 	list<string> mUniqueIdParams;
+	string mServiceRoute;
 	static list<string> mPushNotifParams;
 	string mRoutingParam;
 	unsigned int mMaxExpires, mMinExpires;
@@ -275,8 +280,16 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 
 	replyPopulateEventLog(ev, sip, code, reason);
 
-	if (contacts != NULL) {
+	if (! mServiceRoute.empty()) {
+		LOGD("Setting service route to %s", mServiceRoute.c_str());
+	}
+
+	if (contacts != NULL && !mServiceRoute.empty()) {
+		ev->reply(code, reason, SIPTAG_CONTACT(contacts), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	} else if (contacts != NULL) {
 		ev->reply(code, reason, SIPTAG_CONTACT(contacts), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	} else if (!mServiceRoute.empty()){
+		ev->reply(code, reason, SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	} else {
 		ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	}
@@ -371,7 +384,7 @@ class OnResponseBindListener: public RegistrarDbListener {
 	shared_ptr<ResponseContext> mCtx;
 public:
 	OnResponseBindListener(ModuleRegistrar *module, shared_ptr<ResponseSipEvent> ev,
-			       shared_ptr<OutgoingTransaction> tr, shared_ptr<ResponseContext> ctx) :
+				   shared_ptr<OutgoingTransaction> tr, shared_ptr<ResponseContext> ctx) :
 	mModule(module), mEv(ev), mTr(tr), mCtx(ctx) {
 		ev->suspendProcessing();
 	}
