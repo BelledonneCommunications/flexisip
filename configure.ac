@@ -74,10 +74,20 @@ case $CXX in
 	;;
 	*g++*)
 	# Use only -O1 due to a compile-time bug in gcc 4.4.6 from centos6.
-	CFLAGS="-g -O2 -pthread $CFLAGS"
-	CXXFLAGS="-g -O1 -pthread -std=c++0x $CXXFLAGS"
-	LDFLAGS="-pthread $LDFLAGS"
-	;;
+	CFLAGS="-g -O2 $CFLAGS"
+	CXXFLAGS="-g -O1 -std=c++0x $CXXFLAGS"
+
+	case $host in
+		*apple-darwin*)
+			# on OSX, pthread is always enabled (see http://lists.apple.com/archives/Unix-porting/2005/Mar/msg00019.html)
+			# If enabled, the compiler reports "unrecognized option '-pthread'"
+		;;
+		*)
+			CFLAGS="-pthread $CFLAGS"
+			CXXFLAGS="-pthread $CXXFLAGS"
+			LDFLAGS="-pthread $LDFLAGS"
+		;;
+	esac
 esac
 
 PKG_PROG_PKG_CONFIG()
@@ -97,7 +107,7 @@ AM_CONDITIONAL(BUILD_ODBC,test x$odbc = xyes)
 
 if test x$odbc = "xyes"; then
 	# Checks for libraries.
-	AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],,[AC_MSG_ERROR("unixodbc headers missing.")])
+	AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],,[AC_MSG_ERROR("unixodbc headers missing. This is required for odbc. Use --disable-odbc if you don''t need this feature." )])
 	AC_CHECK_LIB(odbc, main,[ODBC_LIBS="-lodbc -lltdl"], [AC_MSG_ERROR("Linking against odbc failed.")])
 	AC_SUBST(ODBC_LIBS)
 fi
