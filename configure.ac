@@ -177,7 +177,7 @@ if test "${mysql_prefix}" != "none" ; then
 	if test "$have_mysql_headers" = "yes" ; then
 		have_mysql=yes
 	else
-		AC_MSG_NOTICE([Could not find odbc headers or lib])
+		AC_MSG_NOTICE([Could not find mysql headers or lib])
 		MYSQL_CFLAGS=
 	fi
 
