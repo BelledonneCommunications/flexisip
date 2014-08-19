@@ -135,7 +135,7 @@ public:
 class Authentication : public Module {
 private:
 	class AuthenticationListener : public AuthDbListener {
-		Agent *mAgent;
+		Authentication *mModule;
 		shared_ptr<RequestSipEvent> mEv;
 		auth_mod_t *mAm;
 		auth_status_t *mAs;
@@ -146,31 +146,40 @@ private:
 		bool mImmediateRetrievePass;
 		bool mNo403;
 		auth_response_t mAr;
-		AuthenticationListener(Agent *, shared_ptr<RequestSipEvent>, bool);
+		AuthenticationListener(Authentication *, shared_ptr<RequestSipEvent>, bool);
 		virtual ~AuthenticationListener(){}
 
 		void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
 		void checkPassword(const char *password);
-		void onAsynchronousResponse(AuthDbResult ret, const char *password);
-		void switchToAsynchronousMode();
+		void onResult();
 		void onError();
-		bool sendReply();
+		void finish();/*the listener is destroyed when calling this, careful*/
 		su_root_t *getRoot() {
-			return mAgent->getRoot();
+			return getAgent()->getRoot();
+		}
+		Agent *getAgent(){
+			return mModule->getAgent();
 		}
 		Authentication *getModule() {
-			return static_cast<Authentication *>(mEv->getCurrentModule());
+			return mModule;
 		}
 	};
 private:
+	static ModuleInfo<Authentication> sInfo;
 	map<string,auth_mod_t *> mAuthModules;
 	list<string> mDomains;
 	list<string> mTrustedHosts;
-	static ModuleInfo<Authentication> sInfo;
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
 	auth_scheme_t* mOdbcAuthScheme;
 	shared_ptr<BooleanExpression> mNo403Expr;
+	AuthenticationListener *mCurrentAuthOp;
+	bool dbUseHashedPasswords;
+	bool mImmediateRetrievePassword;
+	bool mNewAuthOn407;
+	list<string> mUseClientCertificates;
+	list< string > mTrustedClientCertificates;
+	
 	static int authPluginInit(auth_mod_t *am,
 				     auth_scheme_t *base,
 				     su_root_t *root,
@@ -195,11 +204,6 @@ private:
 	bool empty(const char *value){
 		return value==NULL || value[0]=='\0';
 	}
-	bool dbUseHashedPasswords;
-	bool mImmediateRetrievePassword;
-	bool mNewAuthOn407;
-	list<string> mUseClientCertificates;
-	list< string > mTrustedClientCertificates;
 
 	void static flexisip_auth_method_digest(auth_mod_t *am,
 				auth_status_t *as, msg_auth_t *au, auth_challenger_t const *ach);
@@ -247,6 +251,7 @@ public:
 		if (auth_mod_register_plugin(mOdbcAuthScheme)) {
 			LOGE("Cannot register auth plugin");
 		}
+		mCurrentAuthOp=NULL;
 	}
 
 	~Authentication(){
@@ -435,13 +440,10 @@ public:
 			return;
 		}
 
-
-
 		// Create incoming transaction if not already exists
 		// Necessary in qop=auth to prevent nonce count chaos
 		// with retransmissions.
 		ev->createIncomingTransaction();
-
 
 		auth_status_t *as;
 		as = auth_status_new(ms->getHome());
@@ -454,10 +456,10 @@ public:
 		    as->as_body = sip->sip_payload->pl_data,
 		as->as_bodylen = sip->sip_payload->pl_len;
 
-		AuthenticationListener *listener = new AuthenticationListener(getAgent(), ev, dbUseHashedPasswords);
+		AuthenticationListener* listener = new AuthenticationListener(this, ev, dbUseHashedPasswords);
 		listener->mImmediateRetrievePass = mImmediateRetrievePassword;
 		listener->mNo403= mNo403Expr->eval(ev->getSip());
-		as->as_magic=listener;
+		as->as_magic=mCurrentAuthOp=listener;
 
 
 		// Attention: the auth_mod_verify method should not send by itself any message but
@@ -468,6 +470,12 @@ public:
 			auth_mod_verify(am, as, sip->sip_authorization,&mRegistrarChallenger);
 		} else {
 			auth_mod_verify(am, as, sip->sip_proxy_authorization,&mProxyChallenger);
+		}
+		if (mCurrentAuthOp){
+			/*it has not been cleared by the listener itself, so password checking is still in progress. We need to suspend the event*/
+			// Send pending message, needed data will be kept as long
+			// as SipEvent is held in the listener.
+			ev->suspendProcessing();
 		}
 	}
 	void onResponse(shared_ptr<ResponseSipEvent> &ev) {
@@ -517,8 +525,8 @@ ModuleInfo<Authentication> Authentication::sInfo("Authentication",
 	ModuleInfoBase::ModuleOid::Authentication);
 
 
-Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, shared_ptr<RequestSipEvent> ev, bool hashedPasswords):
-		mAgent(ag),mEv(ev),mAm(NULL),mAs(NULL),mAch(NULL),mHashedPass(hashedPasswords),mPasswordFound(false){
+Authentication::AuthenticationListener::AuthenticationListener(Authentication *module, shared_ptr<RequestSipEvent> ev, bool hashedPasswords):
+		mModule(module),mEv(ev),mAm(NULL),mAs(NULL),mAch(NULL),mHashedPass(hashedPasswords),mPasswordFound(false){
 	memset(&mAr, '\0', sizeof(mAr)), mAr.ar_size=sizeof(mAr);
 	mNo403=false;
 }
@@ -532,7 +540,7 @@ void Authentication::AuthenticationListener::setData(auth_mod_t *am, auth_status
 /**
  * return true if the event is terminated
  */
-bool Authentication::AuthenticationListener::sendReply(){
+void Authentication::AuthenticationListener::finish(){
 	const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
 	sip_t *sip=ms->getSip();
 	if (mAs->as_status) {
@@ -550,9 +558,8 @@ bool Authentication::AuthenticationListener::sendReply(){
 		mEv->reply(mAs->as_status,mAs->as_phrase,
 					SIPTAG_HEADER((const sip_header_t*)mAs->as_info),
 					SIPTAG_HEADER((const sip_header_t*)mAs->as_response),
-					SIPTAG_SERVER_STR(mAgent->getServerString()),
+					SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					TAG_END());
-		return true;
 	}else{
 		// Success
 		if (sip->sip_request->rq_method == sip_method_register){
@@ -562,8 +569,15 @@ bool Authentication::AuthenticationListener::sendReply(){
 			msg_auth_t *au=ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_proxy_authorization, mAs->as_realm);
 			if (au) msg_header_remove(ms->getMsg(), (msg_pub_t*)sip, (msg_header_t *)au);
 		}
-		return false;
+		if (mEv->isSuspended()){
+			// The event is re-injected
+			getAgent()->injectRequestEvent(mEv);
+		}
 	}
+	if (mModule->mCurrentAuthOp==this){
+		mModule->mCurrentAuthOp=NULL;
+	}
+	delete this;
 }
 
 /**
@@ -632,31 +646,20 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 }
 
 
-void Authentication::AuthenticationListener::onAsynchronousResponse(AuthDbResult res, const char *password) {
-	switch (res) {
+void Authentication::AuthenticationListener::onResult() {
+	switch (mResult) {
 	case PASSWORD_FOUND:
 	case PASSWORD_NOT_FOUND:
-		checkPassword(password);
-		if (!sendReply()) {
-			// The event is not terminated
-			mAgent->injectRequestEvent(mEv);
-		}
+		checkPassword(mPassword.c_str());
+		finish();
 		break;
 	case AUTH_ERROR:
 		onError();
 		break;
 	default:
-		LOGE("Unhandled asynchronous response %u", res);
+		LOGE("Unhandled asynchronous response %u", mResult);
 		onError();
 	}
-	delete this;
-}
-
-// Called when starting asynchronous retrieving of password
-void Authentication::AuthenticationListener::switchToAsynchronousMode() {
-	// Send pending message, needed data will be kept as long
-	// as SipEvent is held in the listener.
-	mEv->suspendProcessing();
 }
 
 void Authentication::AuthenticationListener::onError() {
@@ -664,8 +667,7 @@ void Authentication::AuthenticationListener::onError() {
 		mAs->as_status = 500, mAs->as_phrase = "Internal error";
 		mAs->as_response = NULL;
 	}
-
-	sendReply();
+	finish();
 }
 
 
@@ -682,14 +684,14 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		auth_response_t *ar,
 		auth_challenger_t const *ach) {
 
-	shared_ptr<AuthenticationListener> listener((AuthenticationListener*) as->as_magic);
+	AuthenticationListener * listener=(AuthenticationListener*)as->as_magic;
 
 	if (am == NULL || as == NULL || ar == NULL || ach == NULL) {
 		if (as) {
 			as->as_status = 500, as->as_phrase = "Internal Server Error";
 			as->as_response = NULL;
 		}
-		listener->sendReply();
+		listener->finish();
 		return;
 	}
 
@@ -715,7 +717,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		LOGD("auth_method_digest: 400 %s", phrase);
 		as->as_status = 400, as->as_phrase = phrase;
 		as->as_response = NULL;
-		listener->sendReply();
+		listener->finish();
 		return;
 	}
 
@@ -725,7 +727,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 				ar->ar_username, as->as_user_uri->url_user,
 				ar->ar_realm, as->as_user_uri->url_host);
 		as->as_response = NULL;
-		listener->sendReply();
+		listener->finish();
 		return;
 	}
 
@@ -736,14 +738,14 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		as->as_blacklist = am->am_blacklist;
 		auth_challenge_digest(am, as, ach);
 		module->mNonceStore.insert(as->as_response);
-		listener->sendReply();
+		listener->finish();
 		return;
 	}
 
 	if (as->as_stale) {
 		auth_challenge_digest(am, as, ach);
 		module->mNonceStore.insert(as->as_response);
-		listener->sendReply();
+		listener->finish();
 		return;
 	}
 
@@ -755,42 +757,22 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		as->as_blacklist = am->am_blacklist;
 		auth_challenge_digest(am, as, ach);
 		module->mNonceStore.insert(as->as_response);
-		listener->sendReply();
+		listener->finish();
 		return;
 	} else {
 		module->mNonceStore.updateNc(ar->ar_nonce, nnc);
 	}
 #endif
 
-	// Retrieve password. The result may be either synchronous OR asynchronous,
-	// on a case by case basis.
-	string foundPassword;
-	AuthDbResult res=AuthDb::get()->password(listener->getRoot(), as->as_user_uri, ar->ar_username, foundPassword, listener);
-	switch (res) {
-		case PENDING:
-			// The password couldn't be retrieved synchronously
-			// It will be retrieved asynchronously and the listener
-			// will be called with it.
-			++*module->mCountAsyncRetrieve;
-			LOGD("authentication PENDING for %s", ar->ar_username);
-			break;
-		case PASSWORD_FOUND:
-			++*module->mCountSyncRetrieve;
-			listener->checkPassword(foundPassword.c_str());
-			listener->sendReply();
-			break;
-		case PASSWORD_NOT_FOUND:
-			++*module->mCountSyncRetrieve;
-			listener->checkPassword(NULL);
-			listener->sendReply();
-			break;
-		case AUTH_ERROR:
-			listener->onError();
-			// on error deletes the listener
-			break;
-	}
+	AuthDb::get()->getPassword(listener->getRoot(), as->as_user_uri, ar->ar_username, listener);
 }
 
+
+class DummyListener : public AuthDbListener{
+	virtual void onResult(){
+		delete this;
+	}
+};
 
 /** Authenticate a request with @b Digest authentication scheme.
  */
@@ -813,7 +795,6 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 		LOGD("%s: allow unauthenticated %s", __func__, as->as_method);
 		as->as_status = 0, as->as_phrase = NULL;
 		as->as_match = (msg_header_t *)au;
-		delete listener;
 		return;
 	}
 
@@ -836,11 +817,9 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 		// sends back its request; this time with the expected authentication credentials.
 		if (listener->mImmediateRetrievePass) {
 			LOGD("Searching for %s password to have it when the authenticated request comes", as->as_user_uri->url_user);
-			string foundPassword;
-			AuthDb::get()->password(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, foundPassword, shared_ptr<AuthDbListener>());
+			AuthDb::get()->getPassword(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, new DummyListener());
 		}
-		listener->sendReply();
-		delete listener;
+		listener->finish();
 		return;
 	}
 }

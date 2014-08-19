@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define SU_MSG_ARG_T struct auth_splugin_t
+#define SU_MSG_ARG_T void
 
 #include "authdb.hh"
 #include <vector>
@@ -420,19 +420,19 @@ static void closeCursor(SQLHSTMT &stmt) {
 
 
 
-AuthDbResult OdbcAuthDb::password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener){
+void OdbcAuthDb::getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener *listener){
 	// Check for usable cached password
 	string id(from->url_user);
 	string domain(from->url_host);
 	string auth(auth_username);
-
 	time_t now=getCurrentTime();
 	string key(createPasswordKey(id, domain, auth));
-	string fallbackPassword;
-	switch(getCachedPassword(key, domain, fallbackPassword, now)) {
+	
+	switch(getCachedPassword(key, domain, listener->mPassword, now)) {
 	case VALID_PASS_FOUND:
-		foundPassword.assign(fallbackPassword);
-		return AuthDbResult::PASSWORD_FOUND;
+		listener->mResult=AuthDbResult::PASSWORD_FOUND;
+		listener->onResult();
+		return;
 	case EXPIRED_PASS_FOUND:
 		// Might check here if connection is failing
 		// If it is the case use fallback password and
@@ -446,14 +446,13 @@ AuthDbResult OdbcAuthDb::password(su_root_t *root, const url_t *from, const char
 		// Asynchronously retrieve password in a new thread.
 		// Allocate on the stack and detach. It is lawful since:
 		// "When detach() returns, *this no longer represents the possibly continuing thread of execution."
-		if (listener) {
-			listener->switchToAsynchronousMode();
-		}
-		thread t=thread(bind(&OdbcAuthDb::doAsyncRetrievePassword, this, root, id, domain, auth, fallbackPassword, listener));
+
+		thread t=thread(bind(&OdbcAuthDb::doAsyncRetrievePassword, this, root, id, domain, auth, listener));
 		t.detach();	// Thread will continue running in detached mode
-		return PENDING;
+		return;
 	} else {
 		AuthDbTimings timings;
+		string foundPassword;
 		timings.tStart=steady_clock::now();
 		AuthDbResult ret = doRetrievePassword(id, domain, auth, foundPassword, timings);
 		timings.tEnd=steady_clock::now();
@@ -461,22 +460,18 @@ AuthDbResult OdbcAuthDb::password(su_root_t *root, const url_t *from, const char
 			timings.error = true;
 		}
 		timings.done();
-		return ret;
+		listener->mResult=ret;
+		listener->mPassword=foundPassword;
+		listener->onResult();
 	}
 }
 
-struct auth_splugin_t
-{
-  shared_ptr<AuthDbListener>listener;
-  AuthDbResult result;
-  char *password;
-};
-
 
 static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg,
-				     auth_splugin_t *u) {
-	u->listener->onAsynchronousResponse(u->result, u->password);
-	if (u->password) free(u->password);
+				     void *u) {
+	AuthDbListener **listenerStorage = (AuthDbListener**)su_msg_data(msg);
+	AuthDbListener *listener=*listenerStorage;
+	listener->onResult();
 }
 
 
@@ -484,16 +479,16 @@ static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg,
 static unsigned long threadCount=0;
 static mutex threadCountMutex;
 */
-void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string domain, string auth, string fallback, const shared_ptr<AuthDbListener> &listener){
+void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string domain, string auth, AuthDbListener * listener){
 /*	unsigned long localThreadCountCopy=0;
 	threadCountMutex.lock();
 	++threadCount;
 	localThreadCountCopy=threadCount;
 	threadCountMutex.unlock();*/
-	string foundPassword;
+	string password;
 	AuthDbTimings timings;
 	timings.tStart=steady_clock::now();
-	AuthDbResult ret = doRetrievePassword(id, domain, auth, foundPassword, timings);
+	AuthDbResult ret = doRetrievePassword(id, domain, auth, password, timings);
 	timings.tEnd=steady_clock::now();
 	if (ret == AUTH_ERROR) {
 		timings.error = true;
@@ -506,26 +501,24 @@ void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string doma
 				su_root_task(root),
 				su_root_task(root),
 				main_thread_async_response_cb,
-				sizeof(auth_splugin_t))) {
+				sizeof(AuthDbListener*))) {
 			LOGF("Couldn't create auth async message");
 		}
 
-		auth_splugin_t *asp = su_msg_data(mamc);
-		asp->listener = listener;
-		asp->result = ret;
-		asp->password = NULL;
+		AuthDbListener **listenerStorage = (AuthDbListener **)su_msg_data(mamc);
+		*listenerStorage = listener;
+		
 		switch (ret) {
 		case PASSWORD_FOUND:
-			asp->password = strdup(foundPassword.c_str());
+			listener->mResult=ret;
+			listener->mPassword=password;
 			break;
 		case PASSWORD_NOT_FOUND:
-			//asp->password = NULL;
+			listener->mResult=AuthDbResult::PASSWORD_NOT_FOUND;
+			listener->mPassword="";
 			break;
 		case AUTH_ERROR:
-			if (!fallback.empty()) {
-				asp->result = PASSWORD_FOUND;
-				asp->password = strdup(fallback.c_str());
-			}
+			/*in that case we can fallback to the cached password previously set*/
 			break;
 		case PENDING:
 			LOGF("unhandled case PENDING");

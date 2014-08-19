@@ -49,8 +49,6 @@ private:
 			if (!contact) {
 				SLOGE<< this->getModuleName() << ": wrong destination contact for redirection [" <<cv.getName() <<"]";
 				return false;
-			} else {
-				 su_free(&mHome, contact);
 			}
 		}
 		return true;
@@ -76,6 +74,7 @@ public:
 		}
 
 		~ModuleRedirect() {
+			su_home_deinit(&mHome);
 		}
 
 };

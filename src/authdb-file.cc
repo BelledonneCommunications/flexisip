@@ -35,8 +35,9 @@ FileAuthDb::FileAuthDb() {
 	sync();
 }
 
-AuthDbResult FileAuthDb::password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener) {
+void FileAuthDb::getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener *listener) {
 	time_t now = getCurrentTime();
+	AuthDbResult res=AuthDbResult::PASSWORD_NOT_FOUND;
 
 	if (difftime(now, mLastSync) >= mCacheExpire) {
 		sync();
@@ -47,16 +48,17 @@ AuthDbResult FileAuthDb::password(su_root_t *root, const url_t *from, const char
 	string auth(auth_username);
 
 	string key(createPasswordKey(id, domain, auth));
-	switch (getCachedPassword(key, domain, foundPassword, now)) {
+	switch (getCachedPassword(key, domain, listener->mPassword, now)) {
 	case VALID_PASS_FOUND:
-		return AuthDbResult::PASSWORD_FOUND;
+		res= AuthDbResult::PASSWORD_FOUND;
 	case EXPIRED_PASS_FOUND:
 		break;
 	default:
+		res=AuthDbResult::PASSWORD_NOT_FOUND;
 		break;
 	}
-
-	return AuthDbResult::PASSWORD_NOT_FOUND;
+	listener->mResult=res;
+	listener->onResult();
 }
 
 void FileAuthDb::sync() {

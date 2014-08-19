@@ -24,12 +24,16 @@ using namespace ::std;
 AuthDb *AuthDb::sUnique = NULL;
 
 
+AuthDbListener::~AuthDbListener(){
+}
+
 class FixedAuthDb : public AuthDb{
 public:
         FixedAuthDb(){}
-	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, string &foundPassword, const shared_ptr<AuthDbListener> &listener) {
-		foundPassword.assign("fixed");
-		return AuthDbResult::PASSWORD_FOUND;
+	virtual void getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener * listener) {
+		listener->mPassword.assign("fixed");
+		listener->mResult=PASSWORD_FOUND;
+		listener->onResult();
 	}
 };
 

@@ -106,23 +106,19 @@ private:
 				gw(igw) {
 		}
 
-		virtual void switchToAsynchronousMode(){LOGE("to implement");}
-		virtual void checkPassword(const char *ipassword) {
+		void checkPassword(const char *ipassword) {
 			LOGD("Found password");
 			gw->setPassword(ipassword);
 			gw->sendRegister();
 		}
 
-		virtual void onAsynchronousResponse(AuthDbResult ret, const char *ipassword) {
-			if (ret==AuthDbResult::PASSWORD_FOUND && ipassword!=NULL){
-				checkPassword(ipassword);
+		virtual void onResult() {
+			if (mResult==AuthDbResult::PASSWORD_FOUND){
+				checkPassword(mPassword.c_str());
 			}else{
-				LOGE("GatewayRegister onAsynchronousResponse(): Can't find user password, give up.");
+				LOGE("GatewayRegister onResult(): Can't find user password, give up.");
 			}
-		}
-
-		virtual void onError() {
-			gw->onError("Error on password retrieval");
+			delete this;
 		}
 
 	};
@@ -146,17 +142,7 @@ private:
 				LOGD("Record doesn't exist. Fork");
 				string ipassword;
 				AuthDb *mAuthDb = AuthDb::get();
-				AuthDbResult result = mAuthDb->password(gw->mAgent->getRoot(), gw->getFrom()->a_url, gw->getFrom()->a_url->url_user, ipassword, make_shared<OnAuthListener>(gw));
-
-				// Already a response?
-				if (result != AuthDbResult::PENDING) {
-					if (result == AuthDbResult::PASSWORD_FOUND) {
-						gw->setPassword(ipassword);
-						gw->sendRegister();
-					} else {
-						LOGE("Can't find user password, give up.");
-					}
-				}
+				mAuthDb->getPassword(gw->mAgent->getRoot(), gw->getFrom()->a_url, gw->getFrom()->a_url->url_user, new OnAuthListener(gw));
 			} else {
 				LOGD("Record already exists. Not forked");
 			}

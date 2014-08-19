@@ -45,12 +45,12 @@ enum AuthDbResult {PENDING, PASSWORD_FOUND, PASSWORD_NOT_FOUND, AUTH_ERROR};
 // Fw declaration
 struct AuthDbTimings;
 
-class AuthDbListener : StatFinishListener {
+class AuthDbListener : public StatFinishListener {
 public:
-	virtual void checkPassword(const char *password) = 0;
-	virtual void switchToAsynchronousMode() = 0;
-	virtual void onAsynchronousResponse(AuthDbResult ret, const char *password) = 0;
-	virtual void onError() = 0;
+	virtual void onResult()=0;
+	virtual ~AuthDbListener();
+	std::string mPassword;
+	AuthDbResult mResult;
 };
 
 class AuthDb {
@@ -71,7 +71,7 @@ protected:
 	int mCacheExpire;
 public:
 	virtual ~AuthDb();
-	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, std::string &foundPassword, const std::shared_ptr<AuthDbListener> &listener)=0;
+	virtual void getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener *listener)=0;
 	static AuthDb* get();
 
 	AuthDb (const AuthDb &);
@@ -80,15 +80,15 @@ public:
 
 class FileAuthDb : public AuthDb{
 private:
-		std::string mFileString;
-		time_t mLastSync;
+	std::string mFileString;
+	time_t mLastSync;
 
 protected:
-		void sync();
+	void sync();
 
 public:
-		FileAuthDb();
-	virtual AuthDbResult password(su_root_t *root, const url_t *from, const char *auth_username, std::string &foundPassword, const std::shared_ptr<AuthDbListener> &listener);
+	FileAuthDb();
+	virtual void getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener* listener);
 };
 
 #if ENABLE_ODBC
@@ -124,9 +124,9 @@ class OdbcAuthDb : public AuthDb {
 	bool execDirect;
 	bool getConnection(const std::string &id, ConnectionCtx &ctx, AuthDbTimings &timings);
 	AuthDbResult doRetrievePassword(const std::string &user, const std::string &host, const std::string &auth, std::string &foundPassword, AuthDbTimings &timings);
-	void doAsyncRetrievePassword(su_root_t *, std::string id, std::string domain, std::string auth, std::string fallback, const std::shared_ptr<AuthDbListener> &listener);
+	void doAsyncRetrievePassword(su_root_t *, std::string id, std::string domain, std::string auth, AuthDbListener *listener);
 public:
-	virtual AuthDbResult password(su_root_t*, const url_t *from, const char *auth_username, std::string &foundPassword, const std::shared_ptr<AuthDbListener> &listener);
+	virtual void getPassword(su_root_t*, const url_t *from, const char *auth_username, AuthDbListener *listener);
 	std::map<std::string,std::string> cachedPasswords;
 	void setExecuteDirect(const bool value);
 	bool connect(const std::string &dsn, const std::string &request, const std::vector<std::string> &parameters, int maxIdLength, int maxPassLength);
