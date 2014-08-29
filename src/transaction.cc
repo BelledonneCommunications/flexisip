@@ -89,7 +89,7 @@ void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const 
 	LOGD("Message is sent through an outgoing transaction.");
 
 	if (!mOutgoing){
-		msg_t* msg = msg_dup(ms->getMsg());
+		msg_t* msg = msg_ref_create(ms->getMsg());
 		ta_start(ta, tag, value);
 		mOutgoing = nta_outgoing_mcreate(mAgent->mAgent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, u, msg, ta_tags(ta),TAG_END());
 		ta_end(ta);
@@ -150,8 +150,8 @@ shared_ptr<IncomingTransaction> IncomingTransaction::create(Agent *agent){
 }
 
 void IncomingTransaction::handle(const shared_ptr<MsgSip> &ms) {
-	msg_t* msg = ms->mOriginalMsg;
-	msg_ref_create(msg);
+	msg_t* msg = ms->getMsg();
+	msg=msg_ref_create(msg);
 	mIncoming = nta_incoming_create(mAgent->mAgent, NULL, msg, sip_object(msg), TAG_END());
 	if (mIncoming != NULL) {
 		nta_incoming_bind(mIncoming, IncomingTransaction::_callback, (nta_incoming_magic_t*) this);
@@ -182,7 +182,7 @@ shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const *p
 
 void IncomingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncoming) {
-		msg_t* msg = msg_dup(ms->getMsg()); //need to duplicate the message because mreply will decrement its ref count.
+		msg_t* msg = msg_ref_create(ms->getMsg()); //need to increment refcount of the message because mreply will decrement it.
 		LOGD("Response is sent through an incoming transaction.");
 		nta_incoming_mreply(mIncoming, msg);
 		if (ms->getSip()->sip_status != NULL && ms->getSip()->sip_status->st_status >= 200) {
@@ -214,9 +214,7 @@ int IncomingTransaction::_callback(nta_incoming_magic_t *magic, nta_incoming_t *
 	if (sip != NULL) {
 		msg_t *msg = nta_incoming_getrequest_ackcancel(it->mIncoming);
 		auto ev = make_shared<RequestSipEvent>(it->shared_from_this(),
-				MsgSip::createFromOriginalMsg(msg),
-				shared_ptr<tport_t>() /* no access to nta_agent: may put tport in transaction if needed  */
-		);
+				make_shared<MsgSip>(msg));
 		msg_destroy(msg);
 		it->mAgent->sendRequestEvent(ev);
 		if (sip->sip_request && sip->sip_request->rq_method == sip_method_cancel) {

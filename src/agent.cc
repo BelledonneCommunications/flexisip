@@ -641,7 +641,7 @@ inline void Agent::doSendEvent
 
 
 void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
-	sip_t *sip=ev->getMsgSip()->mSip;
+	sip_t *sip=ev->getMsgSip()->getSip();
 	const sip_request_t *req=sip->sip_request;
 	const url_t *from= sip->sip_from->a_url;
 	SLOGD << "Receiving new Request SIP message "
@@ -687,10 +687,10 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 
 void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	SLOGD << "Receiving new Response SIP message: "
-	<< ev->getMsgSip()->mSip->sip_status->st_status << "\n"
+	<< ev->getMsgSip()->getSip()->sip_status->st_status << "\n"
 	<< *ev->getMsgSip();
 
-	sip_t *sip=ev->getMsgSip()->mSip;
+	sip_t *sip=ev->getMsgSip()->getSip();
 	switch (sip->sip_status->st_status) {
 	case 100:
 		++*mCountIncoming100;
@@ -769,19 +769,17 @@ void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	doSendEvent(ev, it, mModules.end());
 }
 
-
 /**
  * This is a dangerous function when called at the wrong time.
  * So we prefer an early abort with a stack trace.
  * Indeed, incoming tport is global in sofia and will be overwritten
  */
-static std::shared_ptr<tport_t> getIncomingTport(const msg_t *orig, Agent *ag) {
+static tport_t* getIncomingTport(const msg_t *orig, Agent *ag) {
 	tport_t *primaries=nta_agent_tports(ag->getSofiaAgent());
 	tport_t *tport=tport_delivered_by(primaries,orig);
 	if (!tport) LOGA("tport not found");
-	return shared_ptr<tport_t>(tport_ref(tport), tport_unref);
+	return tport;
 }
-
 
 int Agent::onIncomingMessage(msg_t *msg, const sip_t *sip) {
 	if (mTerminating) {
@@ -790,10 +788,9 @@ int Agent::onIncomingMessage(msg_t *msg, const sip_t *sip) {
 		return -1;
 	}
 	// Assuming sip is derived from msg
-	shared_ptr<MsgSip> ms(new MsgSip(msg));
+	shared_ptr<MsgSip> ms=make_shared<MsgSip>(msg);
 	if (sip->sip_request) {
-		auto inTport=getIncomingTport(msg, this);
-		auto ev = make_shared<RequestSipEvent>(shared_from_this(), ms, inTport);
+		auto ev = make_shared<RequestSipEvent>(shared_from_this(), ms,getIncomingTport(msg,this));
 		sendRequestEvent(ev);
 	} else {
 		auto ev = make_shared<ResponseSipEvent>(shared_from_this(), ms);
@@ -833,7 +830,7 @@ void Agent::stopTimer(su_timer_t *t) {
 void Agent::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
 	ta_start(ta, tag, value);
-	msg_t* msg = msg_dup(ms->getMsg());
+	msg_t* msg = msg_ref_create(ms->getMsg());
 	nta_msg_tsend(mAgent, msg, u, ta_tags(ta),TAG_END());
 	ta_end(ta);
 }
@@ -885,7 +882,7 @@ void Agent::reply(const shared_ptr<MsgSip> &ms, int status, char const *phrase, 
 	incrReplyStat(status);
 	ta_list ta;
 	ta_start(ta, tag, value);
-	msg_t* msg = ms->createOrigMsgRef();
+	msg_t* msg = msg_ref_create(ms->getMsg());
 	nta_msg_treply(mAgent, msg, status, phrase, ta_tags(ta));
 	ta_end(ta);
 }

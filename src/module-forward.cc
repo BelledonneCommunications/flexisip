@@ -179,10 +179,9 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 
 	// Check self-forwarding
-	if (ev->getOutgoingAgent()!=NULL && getAgent()->isUs(dest->url_host, dest->url_port, false)) {
-		SLOGD << "Skipping forwarding of request to us "
-			<< url_as_string(ms->getHome(), dest) << "\n" << ms;
-		ev->reply(SIP_501_NOT_IMPLEMENTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	if (ev->getOutgoingAgent()!=NULL && getAgent()->isUs(dest->url_host, dest->url_port, true)) {
+		SLOGD << "Stopping request to us";
+		ev->terminateProcessing();
 		return;
 	}
 

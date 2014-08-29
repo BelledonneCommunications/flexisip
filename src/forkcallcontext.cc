@@ -62,8 +62,7 @@ void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> & br) {
 			shared_ptr<OutgoingTransaction> tr = brit->mTransaction;
 			if (brit->getStatus()<200 && tr)
 				tr->cancel();
-			removeBranch(brit);
-			
+			removeBranch(brit);	
 		}
 	}
 }

@@ -345,14 +345,13 @@ public:
 		const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
 		time_t now = getCurrentTime();
 		if (r){
+			addEventLogRecordFound(mEv, mContact);
 			mModule->reply(mEv, 200, "Registration successful", r->getContacts(ms->getHome(), now));
 
 			const sip_expires_t *expires=mEv->getMsgSip()->getSip()->sip_expires;
 			if (mContact && expires && expires->ex_delta > 0) {
 				LateForkApplier::onContactRegistered(mModule->getAgent(), mContact, mPath, r, mSipFrom->a_url);
 			}
-
-			addEventLogRecordFound(mEv, mContact);
 		}else{
 			LOGE("OnRequestBindListener::onRecordFound(): Record is null");
 			mModule->reply(mEv,SIP_480_TEMPORARILY_UNAVAILABLE);

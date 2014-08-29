@@ -140,6 +140,7 @@ bool ForkContext::allBranchesAnswered(bool ignore503)const{
 }
 
 void ForkContext::removeBranch(const shared_ptr<BranchInfo> &br){
+	LOGD("ForkContext [%p] branch [%p] removed.",this,br.get());
 	mBranches.remove(br);
 	br->clear();
 }
@@ -184,7 +185,7 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const string 
 	ot->setProperty("BranchInfo",br);
 	onNewBranch(br);
 	mBranches.push_back(br);
-
+	LOGD("ForkContext [%p] new fork branch [%p]",this,br.get());
 }
 
 std::shared_ptr<ForkContext> ForkContext::get(const std::shared_ptr<IncomingTransaction> &tr){
@@ -261,6 +262,10 @@ void ForkContext::onFinished() {
 }
 
 void ForkContext::setFinished(){
+	if (mFinishTimer){
+		/*already finishing, ignore*/
+		return;
+	}
 	if (mLateTimer){
 		su_timer_destroy(mLateTimer);
 		mLateTimer=NULL;

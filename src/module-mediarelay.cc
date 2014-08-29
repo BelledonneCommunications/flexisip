@@ -313,7 +313,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	shared_ptr<RelayedCall> c;
 
 	// Handle SipEvent associated with a Stateful transaction
-	shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+	shared_ptr<OutgoingTransaction> ot=dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 	shared_ptr<IncomingTransaction> it=dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
 
 	if (ot != NULL) {
@@ -329,7 +329,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			}
 		}
 	}
-
+	
 	if (it && (c = it->getProperty<RelayedCall>(getModuleName()))!=NULL){
 		//This is a response sent to the incoming transaction. Check for failure code, in which case the call context can be destroyed
 		//immediately.

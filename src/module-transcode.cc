@@ -423,7 +423,6 @@ void Transcoder::processAck(TranscodedCall *ctx, shared_ptr<RequestSipEvent> &ev
 
 void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
 
 	if (sip->sip_request->rq_method == sip_method_invite) {
@@ -462,8 +461,6 @@ void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	} else {
 		//all other requests go through
 	}
-
-	ev->setMsgSip(make_shared<MsgSip>(*ms,msg));
 }
 
 int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {

@@ -623,24 +623,6 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			}
 		}
 	}
-	if (sip->sip_request->rq_method == sip_method_ack) {
-		//Seems very complex: maybe it could be simpler.
-		sip_route_t *route = sip->sip_route;
-		bool routeAck=false;
-		while (route) {
-			if (!mAgent->isUs(route->r_url, true)) {
-				routeAck=true;
-				break;
-			}
-			route=route->r_next;
-		}
-		const char *req_host = sip->sip_request->rq_url->url_host;
-		if (!routeAck && !ModuleToolbox::isNumeric(req_host)) {
-			LOGD("We are the destination of this ACK, stopped.");
-			ev->terminateProcessing();
-			return;
-		}
-	}
 }
 
 void ModuleRouter::onResponse(shared_ptr<ResponseSipEvent> &ev) {
