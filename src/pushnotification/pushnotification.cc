@@ -31,7 +31,7 @@ const unsigned int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 256;
 const unsigned int ApplePushNotificationRequest::DEVICE_BINARY_SIZE = 32;
 
 ApplePushNotificationRequest::ApplePushNotificationRequest(const string &appId, const string &deviceToken,
-		const string &msg_id, const string &arg, const string &sound, const string &callid)
+		const string &msg_id, const string &arg, const string &sound, const string &callid, const bool no_badge)
 : PushNotificationRequest(appId, "apple") {
 	ostringstream payload;
 	int ret = formatDeviceToken(deviceToken);
@@ -39,11 +39,17 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const string &appId, 
 		throw runtime_error("ApplePushNotification: Invalid deviceToken");
 	}
 
-	if( msg_id == "IC_SIL" ) // silent push: just send "content-available=1", the device will figure out what's happening
-		payload << "{\"aps\":{\"sound\":\"\", \"content-available\":1},\"pn_ttl\":60}"; // PN expiration set to 60 seconds.
-	else
-		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg << "\"]},\"sound\":\"" << sound << "\"},\"call-id\":\"" << callid << "\",\"pn_ttl\":60}"; // PN expiration set to 60 seconds.
+	if( msg_id == "IC_SIL" ){ // silent push: just send "content-available=1", the device will figure out what's happening
+		// use string literal for readability (see http://en.wikipedia.org/wiki/C%2B%2B11#New_string_literals )
+		payload << R"({"aps":{"sound":"", "content-available":1},"pn_ttl":60})"; // PN expiration set to 60 seconds.
+	} else {
 
+		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg << "\"]},\"sound\":\"" << sound << "\"";
+
+		if( no_badge ){ payload << ",\"badge\":0"; } /* some apps don't want the push to update the badge */
+
+		payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":60}"; // PN expiration set to 60 seconds.
+	}
 	if (payload.str().length() > MAXPAYLOAD_SIZE) {
 		return;
 	}

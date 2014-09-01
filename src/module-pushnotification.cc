@@ -73,6 +73,7 @@ public:
 	void clearNotification(const shared_ptr<PushNotificationContext>& ctx);
 private:
 	bool needsPush(const sip_t *sip);
+	bool mNoBadgeiOS;
 	void makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction);
 	map<string,shared_ptr<PushNotificationContext> > mPendingNotifications; //map of pending push notifications. Its purpose is to avoid sending multiples notifications for the same call attempt to a given device.
 	static ModuleInfo<PushNotification> sInfo;
@@ -164,7 +165,7 @@ void PushNotificationContext::__end_timer_callback(su_root_magic_t *magic, su_ti
 ModuleInfo<PushNotification> PushNotification::sInfo("PushNotification", "This module performs push notifications", ModuleInfoBase::ModuleOid::PushNotification);
 
 PushNotification::PushNotification(Agent *ag) :
-		Module(ag), mAPNS(NULL), mCountFailed(NULL), mCountSent(NULL) {
+		Module(ag), mAPNS(NULL), mCountFailed(NULL), mCountSent(NULL), mNoBadgeiOS(false) {
 }
 
 PushNotification::~PushNotification() {
@@ -185,6 +186,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 			{ Boolean, "google", "Enable push notification for android devices", "true" },
 			{ StringList, "google-projects-api-keys", "List of couple projectId:ApiKey for each android project which support push notifications", "" },
 			{ Boolean, "windowsphone", "Enable push notification for windows phone 8 devices", "true" },
+			{ Boolean, "no-badge", "Set the badge value to 0 for apple push", "false" },
 			config_item_end };
 	module_config->addChildrenValues(items);
 	mCountFailed = module_config->createStat("count-pn-failed", "Number of push notifications failed to be sent");
@@ -192,16 +194,19 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 }
 
 void PushNotification::onLoad(const GenericStruct *mc) {
-	mTimeout = mc->get<ConfigInt>("timeout")->read();
+	mNoBadgeiOS      = mc->get<ConfigBoolean>("no-badge")->read();
+	mTimeout         = mc->get<ConfigInt>("timeout")->read();
 	int maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
-	string certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
-	auto googleKeys = mc->get<ConfigStringList>("google-projects-api-keys")->read();
+	string certdir   = mc->get<ConfigString>("apple-certificate-dir")->read();
+	auto googleKeys  = mc->get<ConfigStringList>("google-projects-api-keys")->read();
+
 	mGoogleKeys.clear();
 	for (auto it=googleKeys.cbegin(); it != googleKeys.cend(); ++it) {
 		const string &keyval=*it;
 		size_t sep = keyval.find(":");
 		mGoogleKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep + 1)));
 	}
+
 	mAPNS = new PushNotificationService(certdir, "", maxQueueSize);
 	mAPNS->setStatCounters(mCountFailed, mCountSent);
 	mAPNS->start();
@@ -282,7 +287,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 						(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
 						contact,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
-						call_id);
+						call_id,
+						mNoBadgeiOS);
 			} else if (strcmp(type,"wp")==0) {
 				bool is_message = sip->sip_request->rq_method != sip_method_invite;
 				string message;

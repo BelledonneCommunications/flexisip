@@ -60,7 +60,7 @@ public:
 	static const unsigned int DEVICE_BINARY_SIZE;
 	virtual const std::vector<char> &getData();
 	virtual bool isValidResponse(const std::string &str);
-	ApplePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &msg_id, const std::string &arg, const std::string &sound, const std::string &callid);
+	ApplePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &msg_id, const std::string &arg, const std::string &sound, const std::string &callid, const bool no_badge);
 	~ApplePushNotificationRequest() {}
 	virtual bool mustReadServerResponse() { return false; }
 
