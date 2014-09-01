@@ -3,7 +3,7 @@
 
 AC_PREREQ([2.61])
 
-AC_INIT([flexisip], [0.7.0], [simon.morlat@linphone.org])
+AC_INIT([flexisip], [0.8.0], [simon.morlat@linphone.org])
 
 AC_CONFIG_SRCDIR([src/agent.cc])
 AC_CONFIG_HEADERS([flexisip-config.h])
@@ -275,7 +275,7 @@ AX_BOOST_BASE([1.41],[],[AC_MSG_WARN([boost base not found.])])
 AC_ARG_ENABLE(boostlog,
         AC_HELP_STRING([--disable-boostlog],
             [Build boost log support @<:@yes@:>@]),
-        [boostlog="${enableval}"],[boostlog=yes]
+        [boostlog="${enableval}"],[boostlog=no]
 )
 
 if test x$boostlog = xyes ; then
