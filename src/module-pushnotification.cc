@@ -73,11 +73,11 @@ public:
 	void clearNotification(const shared_ptr<PushNotificationContext>& ctx);
 private:
 	bool needsPush(const sip_t *sip);
-	bool mNoBadgeiOS;
 	void makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction);
 	map<string,shared_ptr<PushNotificationContext> > mPendingNotifications; //map of pending push notifications. Its purpose is to avoid sending multiples notifications for the same call attempt to a given device.
 	static ModuleInfo<PushNotification> sInfo;
 	int mTimeout;
+	bool mNoBadgeiOS;
 	map<string, string> mGoogleKeys;
 	PushNotificationService *mAPNS;
 	StatCounter64 *mCountFailed;
@@ -165,7 +165,7 @@ void PushNotificationContext::__end_timer_callback(su_root_magic_t *magic, su_ti
 ModuleInfo<PushNotification> PushNotification::sInfo("PushNotification", "This module performs push notifications", ModuleInfoBase::ModuleOid::PushNotification);
 
 PushNotification::PushNotification(Agent *ag) :
-		Module(ag), mAPNS(NULL), mCountFailed(NULL), mCountSent(NULL), mNoBadgeiOS(false) {
+		Module(ag), mNoBadgeiOS(false), mAPNS(NULL), mCountFailed(NULL), mCountSent(NULL) {
 }
 
 PushNotification::~PushNotification() {
