@@ -40,8 +40,7 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const string &appId, 
 	}
 
 	if( msg_id == "IC_SIL" ){ // silent push: just send "content-available=1", the device will figure out what's happening
-		// use string literal for readability (see http://en.wikipedia.org/wiki/C%2B%2B11#New_string_literals )
-		payload << R"({"aps":{"sound":"", "content-available":1},"pn_ttl":60})"; // PN expiration set to 60 seconds.
+		payload << "{\"aps\":{\"sound\":\"\", \"content-available\":1},\"pn_ttl\":60}"; // PN expiration set to 60 seconds.
 	} else {
 
 		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg << "\"]},\"sound\":\"" << sound << "\"";
