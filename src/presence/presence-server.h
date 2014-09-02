@@ -35,7 +35,8 @@ struct BelleSipUriComparator : public std::binary_function<belle_sip_uri_t*, bel
 namespace pidf {
 class tuple;
 }
-
+	class Subscription;
+	
 class PresenceServer :  EtagManager {
 public:
 	PresenceServer(std::string configFile) throw (FlexisipException);
@@ -60,25 +61,33 @@ private:
 	void processPublishRequestEvent(const belle_sip_request_event_t *event) throw (SignalingException,FlexisipException);
 	void processSubscribeRequestEvent(const belle_sip_request_event_t *event) throw (SignalingException,FlexisipException);
 
+	
+	/*
+	 *Publish API
+	 *
+	 */
 	PresentityPresenceInformation* getPresenceInfo(const string& eTag) const ;
-	PresentityPresenceInformation* getPresenceInfo(const belle_sip_uri_t* identity) const ;
-
 	/*
 	 * @throw in case an entry already exist for this entity;
 	 * */
+	PresentityPresenceInformation* getPresenceInfo(const belle_sip_uri_t* identity) const ;
 	void addPresenceInfo(PresentityPresenceInformation*) throw (FlexisipException);
-
-
 	void invalidateEtag(string eTag);
-
-	map<std::string,PresentityPresenceInformation*> mPresenceInformationsByEtag;
-
-	map<const belle_sip_uri_t*,PresentityPresenceInformation*,BelleSipUriComparator> mPresenceInformations;
-
-
 	void invalidateETag(const string& eTag) ;
 	void modifyEtag(const string& oldEtag, const string& newEtag) throw (FlexisipException);
 	void addEtag(PresentityPresenceInformation* info,const string& etag) throw (FlexisipException);
+	map<std::string,shared_ptr<PresentityPresenceInformation*>> mPresenceInformationsByEtag;
+	map<const belle_sip_uri_t*,shared_ptr<PresentityPresenceInformation*>,BelleSipUriComparator> mPresenceInformations;
+
+	/*
+	 *Subscribe Notify API
+	 *
+	 */
+	//Subscription* getSubscription(const belle_sip_uri_t* identity) const ;
+	//void notify(Subscription& subscription,PresentityPresenceInformation& presenceInformation) throw (FlexisipException);
+	map<const belle_sip_uri_t*,list<shared_ptr<Subscription>>,BelleSipUriComparator> mSubscriptionsByEntity;
+
+
 };
 }
 #endif /* defined(__flexisip__presence_server__) */
