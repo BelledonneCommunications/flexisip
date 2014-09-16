@@ -57,6 +57,7 @@ protected:
 				/*very specific features, useless for most people*/
 				{ Integer, "h264-filtering-bandwidth", "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value expressed in kbit/s. Use 0 to disable the feature", "0" },
 				{ Integer, "h264-iframe-decim", "When above option is activated, keep one I frame over this number.", "1" },
+				{ Boolean, "h264-decim-only-last-proxy", "Decimate only if this server is the last proxy in the routes", "true" },
 				{ Boolean, "drop-telephone-event", "Drop out telephone-events packet from incoming RTP stream for sips calls.", "false" },
 #endif
 				config_item_end };
@@ -74,6 +75,7 @@ private:
 	MediaRelayServer *mServer;
 	string mSdpMangledParam;
 	int mH264FilteringBandwidth;
+	bool mH264DecimOnlyIfLastProxy;
 	int mH264Decim;
 	int mMaxCalls;
 	bool mDropTelephoneEvent;
@@ -118,10 +120,12 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mH264FilteringBandwidth=modconf->get<ConfigInt>("h264-filtering-bandwidth")->read();
 	mH264Decim=modconf->get<ConfigInt>("h264-iframe-decim")->read();
 	mDropTelephoneEvent=modconf->get<ConfigBoolean>("drop-telephone-event")->read();
+	mH264DecimOnlyIfLastProxy=modconf->get<ConfigBoolean>("h264-decim-only-last-proxy")->read();
 #else
 	mH264FilteringBandwidth=0;
 	mH264Decim=0;
 	mDropTelephoneEvent=false;
+	mH264DecimOnlyIfLastProxy=true;
 #endif
 	mMaxCalls=modconf->get<ConfigInt>("max-calls")->read();
 }
@@ -207,7 +211,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 void MediaRelay::configureContext(shared_ptr<RelayedCall> &c){
 #ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 	if (mH264FilteringBandwidth)
-		c->enableH264IFrameFiltering(mH264FilteringBandwidth,mH264Decim);
+		c->enableH264IFrameFiltering(mH264FilteringBandwidth,mH264Decim,mH264DecimOnlyIfLastProxy);
 	if (mDropTelephoneEvent)
 		c->enableTelephoneEventDrooping(true);
 #endif
@@ -329,7 +333,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			}
 		}
 	}
-	
+
 	if (it && (c = it->getProperty<RelayedCall>(getModuleName()))!=NULL){
 		//This is a response sent to the incoming transaction. Check for failure code, in which case the call context can be destroyed
 		//immediately.
