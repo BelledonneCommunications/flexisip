@@ -131,12 +131,12 @@ int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *
 
 void OutgoingTransaction::destroy() {
 	if (mSofiaRef != NULL) {
-		mSofiaRef.reset();
 		nta_outgoing_bind(mOutgoing, NULL, NULL); //avoid callbacks
 		nta_outgoing_destroy(mOutgoing);
-		mIncoming.reset();
-		looseProperties();
 		mOutgoing=NULL;
+		looseProperties();
+		mIncoming.reset();
+		mSofiaRef.reset(); //This must be the last instruction of this function because it may destroy this OutgoingTransaction.
 	}
 }
 
@@ -228,11 +228,11 @@ int IncomingTransaction::_callback(nta_incoming_magic_t *magic, nta_incoming_t *
 
 void IncomingTransaction::destroy() {
 	if (mSofiaRef != NULL) {
-		mSofiaRef.reset();
 		nta_incoming_bind(mIncoming, NULL, NULL); //avoid callbacks
 		nta_incoming_destroy(mIncoming);
+		mIncoming=NULL;
 		looseProperties();
 		mOutgoing.reset();
-		mIncoming=NULL;
+		mSofiaRef.reset();//This MUST be the last instruction of this function, because it may destroy the IncomingTransaction.
 	}
 }
