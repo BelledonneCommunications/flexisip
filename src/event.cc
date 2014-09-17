@@ -57,7 +57,7 @@ MsgSip::~MsgSip() {
 	msg_destroy(mMsg);
 }
 
-SipEvent::SipEvent(const shared_ptr<IncomingAgent> &inAgent, const shared_ptr<MsgSip> msgSip) :
+SipEvent::SipEvent(const shared_ptr<IncomingAgent> &inAgent, const shared_ptr<MsgSip>  & msgSip) :
 		mCurrModule(NULL), mMsgSip(msgSip), mState(STARTED) {
 	LOGD("New SipEvent %p", this);
 	mIncomingAgent = inAgent;
@@ -70,7 +70,7 @@ SipEvent::SipEvent(const shared_ptr<IncomingAgent> &inAgent, const shared_ptr<Ms
 	}
 }
 
-SipEvent::SipEvent(const shared_ptr<OutgoingAgent> &outAgent, const shared_ptr<MsgSip> msgSip) :
+SipEvent::SipEvent(const shared_ptr<OutgoingAgent> &outAgent, const shared_ptr<MsgSip> & msgSip) :
 		mCurrModule(NULL), mMsgSip(msgSip), mState(STARTED) {
 	LOGD("New SipEvent %p", this);
 	mOutgoingAgent = outAgent;
@@ -84,9 +84,10 @@ SipEvent::SipEvent(const shared_ptr<OutgoingAgent> &outAgent, const shared_ptr<M
 }
 
 SipEvent::SipEvent(const SipEvent &sipEvent) :
-		mCurrModule(sipEvent.mCurrModule), mMsgSip(sipEvent.mMsgSip), mIncomingAgent(sipEvent.mIncomingAgent), mOutgoingAgent(sipEvent.mOutgoingAgent), mAgent(sipEvent.mAgent), mState(sipEvent.mState) {
+		mCurrModule(sipEvent.mCurrModule),  mMsgSip(NULL), mIncomingAgent(sipEvent.mIncomingAgent), mOutgoingAgent(sipEvent.mOutgoingAgent), mAgent(sipEvent.mAgent), mState(sipEvent.mState) {
 	LOGD("New SipEvent %p with state %s", this, stateStr(mState).c_str());
-	
+	//make a copy of the msgsip when the SipEvent is copy-constructed
+	mMsgSip=make_shared<MsgSip>(*sipEvent.mMsgSip);
 }
 
 

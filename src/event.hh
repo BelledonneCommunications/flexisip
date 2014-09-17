@@ -77,8 +77,8 @@ class SipEvent : public std::enable_shared_from_this<SipEvent>{
 	friend class Agent;
 public:
 
-	SipEvent(const std::shared_ptr<IncomingAgent> &inAgent, const std::shared_ptr<MsgSip> msgSip);
-	SipEvent(const std::shared_ptr<OutgoingAgent> &outAgent, const std::shared_ptr<MsgSip> msgSip);
+	SipEvent(const std::shared_ptr<IncomingAgent> &inAgent, const std::shared_ptr<MsgSip> & msgSip);
+	SipEvent(const std::shared_ptr<OutgoingAgent> &outAgent, const std::shared_ptr<MsgSip> & msgSip);
 	SipEvent(const SipEvent &sipEvent);
 
 	inline const std::shared_ptr<MsgSip> &getMsgSip() const {
