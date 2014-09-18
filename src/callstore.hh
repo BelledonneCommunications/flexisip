@@ -37,9 +37,6 @@ class CallContextBase{
 			return false;
 		}
 		virtual void terminate(){}
-		su_home_t *getHome(){
-			return &mHome;
-		}
 		virtual ~CallContextBase();
 		const std::string & getCallerTag()const{
 			return mCallerTag;

@@ -334,7 +334,7 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
-	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), ms->getSip(), "");
+	SdpModifier *m = SdpModifier::createFromSipMsg(ms->getHome(), ms->getSip(), "");
 
 	if (m == NULL)
 		return -1;
@@ -403,7 +403,7 @@ int Transcoder::processInvite(TranscodedCall *c, shared_ptr<RequestSipEvent> &ev
 	}
 	if (ret == 0) {
 		//be in the record-route
-		addRecordRouteIncoming(c->getHome(), getAgent(), ev);
+		addRecordRouteIncoming(ms->getHome(), getAgent(), ev);
 		c->storeNewInvite(ms->getMsg());
 	} else {
 		ev->reply(415, "Unsupported codecs", TAG_END());
@@ -468,7 +468,7 @@ int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	string addr;
 	int port;
-	SdpModifier *m = SdpModifier::createFromSipMsg(ctx->getHome(), ms->getSip());
+	SdpModifier *m = SdpModifier::createFromSipMsg(ms->getHome(), ms->getSip());
 	int ptime;
 
 	if (m == NULL)

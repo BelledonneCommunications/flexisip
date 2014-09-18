@@ -262,7 +262,14 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const sip_c
 #endif
 
 	char *contact_url_string = url_as_string(ms->getHome(), ct->m_url);
-	auto new_msgsip = context ? make_shared<MsgSip>(*ms) : ms;
+	shared_ptr<RequestSipEvent> new_ev;
+	if (context){
+		//duplicate the SIP event
+		new_ev=make_shared<RequestSipEvent>(ev);
+	}else{
+		new_ev=ev;
+	}
+	auto new_msgsip = new_ev->getMsgSip();
 	msg_t *new_msg = new_msgsip->getMsg();
 	sip_t *new_sip = new_msgsip->getSip();
 
@@ -274,16 +281,10 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const sip_c
 	new_sip->sip_route=NULL;
 	cleanAndPrependRoutable(msg_home(new_msg),getAgent(), new_msg, new_sip, path);
 
-	shared_ptr<RequestSipEvent> new_ev;
 	if (context) {
-		shared_ptr<RequestSipEvent> req_ev = make_shared<RequestSipEvent>(ev);
-		req_ev->setMsgSip(new_msgsip);
-		context->addBranch(req_ev,uid);
-
-		new_ev = req_ev;
+		context->addBranch(new_ev,uid);
 		SLOGD << "Fork to " << contact_url_string;
 	} else {
-		new_ev = ev;
 		LOGD("Dispatch to %s", contact_url_string);
 	}
 

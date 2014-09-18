@@ -150,7 +150,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		LOGW("No tag in from !");
 		return false;
 	}
-	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), sip, mSdpMangledParam);
+	SdpModifier *m = SdpModifier::createFromSipMsg(ev->getMsgSip()->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
 		LOGW("Invalid SDP");
 		return false;
@@ -245,7 +245,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		}
 		if (processNewInvite(c, ot, ev)) {
 			//be in the record-route
-			addRecordRouteIncoming(c->getHome(), getAgent(),ev);
+			addRecordRouteIncoming(ev->getMsgSip()->getHome(), getAgent(),ev);
 			if (newContext) mCalls->store(c);
 			ot->setProperty(getModuleName(), c);
 		}
@@ -280,7 +280,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 		c->setEstablished(transaction->getBranchId());
 	}else isEarlyMedia=true;
 
-	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), sip, mSdpMangledParam);
+	SdpModifier *m = SdpModifier::createFromSipMsg(msgSip->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
 		LOGW("Invalid SDP");
 		return;
