@@ -21,20 +21,21 @@ namespace flexisip {
 class EtagManager;
 class PresenceInformationElement {
 public:
-	PresenceInformationElement(list<pidf::tuple*> tuples,  belle_sip_main_loop_t* mainLoop,  belle_sip_source_t* expirationTimer);
+	PresenceInformationElement(pidf::presence::tuple_sequence* tuples, belle_sip_main_loop_t* mainLoop);
 	~PresenceInformationElement();
 	time_t getExpitationTime() const;
-	/*
-	 * update expire from now in second*/
-	void setExpires(unsigned int expiration);
+	void setExpiresTimer( belle_sip_source_t* timer);
 	pidf::tuple* getTuple(const string& id) const;
 	void addTuple(pidf::tuple*);
 	void removeTuple(pidf::tuple*);
 	void clearTuples();
+	const string& getEtag();
+	void setEtag(const string& eTag);
 private:
 	list<pidf::tuple*> mTuples;
 	belle_sip_main_loop_t* mBelleSipMainloop;
 	belle_sip_source_t* mTimer;
+	string mEtag;
 };
 
 class PresentityPresenceInformation {
@@ -89,6 +90,11 @@ public:
 
 
 private:
+	/*
+	 * tuples may be null
+	 */
+	string setOrUpdate(pidf::presence::tuple_sequence* tuples, const string* eTag,int expires) throw (FlexisipException);
+
 	const belle_sip_uri_t* mEntity;
 	EtagManager& mEtagManager;
 	belle_sip_main_loop_t* mBelleSipMainloop;
