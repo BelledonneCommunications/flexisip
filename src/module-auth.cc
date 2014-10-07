@@ -805,24 +805,24 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 	}
 
 	if (au) {
-		LOGD("Searching for auth digest response for this proxy");
+		SLOGD << "Searching for auth digest response for this proxy";
 		msg_auth_t *matched_au=ModuleToolbox::findAuthorizationForRealm(as->as_home, au, as->as_realm);
 		if (matched_au) au=matched_au;
 		auth_digest_response_get(as->as_home, &listener->mAr, au->au_params);
-		LOGD("Using auth digest response for realm %s", listener->mAr.ar_realm);
+		SLOGD << "Using auth digest response for realm " << listener->mAr.ar_realm;
 		as->as_match = (msg_header_t *)au;
 		flexisip_auth_check_digest(am, as, &listener->mAr, ach);
 	}
 	else {
 		/* There was no realm or credentials, send challenge */
-		LOGD("%s: no credentials matched realm or no realm", __func__);
+		SLOGD << __func__<< ": no credentials matched realm or no realm" ;
 		auth_challenge_digest(am, as, ach);
 		listener->getModule()->mNonceStore.insert(as->as_response);
 
 		// Retrieve the password in the hope it will be in cache when the remote UAC
 		// sends back its request; this time with the expected authentication credentials.
 		if (listener->mImmediateRetrievePass) {
-			LOGD("Searching for %s password to have it when the authenticated request comes", as->as_user_uri->url_user);
+			SLOGD <<"Searching for "<< as->as_user_uri->url_user<< " password to have it when the authenticated request comes" ;
 			string foundPassword;
 			AuthDb::get()->password(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, foundPassword, shared_ptr<AuthDbListener>());
 		}

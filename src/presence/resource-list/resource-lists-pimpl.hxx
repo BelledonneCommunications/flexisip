@@ -37,7 +37,7 @@
 
 #include <xsde/cxx/stack.hxx>
 
-#include "xml-pimpl.hxx"
+#include "../xml/xml-pimpl.hxx"
 
 namespace resource_lists
 {
@@ -366,15 +366,15 @@ namespace resource_lists
     public:
     ::xml_schema::string_pimpl string_p_;
     ::xml_schema::uri_pimpl uri_p_;
-    ::resource_lists::list_pimpl list_p_;
+    ::namespace_::lang_pimpl lang_p_;
     ::resource_lists::listType_pimpl listType_p_;
     ::resource_lists::entryType_pimpl entryType_p_;
-    ::resource_lists::display_name_pimpl display_name_p_;
+    ::resource_lists::list_pimpl list_p_;
     ::resource_lists::entry_refType_pimpl entry_refType_p_;
+    ::resource_lists::display_name_pimpl display_name_p_;
     ::resource_lists::externalType_pimpl externalType_p_;
     ::resource_lists::resource_lists_pimpl resource_lists_p_;
     ::resource_lists::display_nameType_pimpl display_nameType_p_;
-    ::namespace_::lang_pimpl lang_p_;
   };
 }
 

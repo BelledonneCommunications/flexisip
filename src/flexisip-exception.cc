@@ -5,7 +5,7 @@
  *      Author: jehanmonnier
  */
 
-#include <flexisip-exception.hh>
+#include "flexisip-exception.hh"
 #include <execinfo.h>
 #include <unistd.h>
 

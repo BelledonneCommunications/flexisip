@@ -1,0 +1,4 @@
+UPDATE_OID=flexisipMIB
+UPDATE_CONF=/Users/jehanmonnier/workspaces/workspace-flexisip/flexisip/src/mib/mib2c.flexisip.conf
+UPDATE_MIB2C_OPTS=
+#UPDATE_NOPROBE=1

@@ -168,15 +168,15 @@ void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 	LOG_SCOPED_THREAD("Module", getModuleName());
 	try {
 		if(mFilter->canEnter(ms)) {
-			LOGD("Invoking onRequest() on module %s", getModuleName().c_str());
+			SLOGD << "Invoking onRequest() on module "<< getModuleName();
 			onRequest(ev);
 		} else {
-			LOGD("Skipping onRequest() on module %s", getModuleName().c_str());
+			SLOGD <<"Skipping onRequest() on module "<< getModuleName();
 		}
 	} catch (FlexisipException &fe) {
 		SLOGD << "Skipping onRequest() on module " << getModuleName() << " because "  << fe;
 	} catch (...) {
-		LOGD("Skipping onRequest() on module %s (error)", getModuleName().c_str());
+		SLOGD << "Skipping onRequest() on module (error)" << getModuleName();
 	}
 }
 

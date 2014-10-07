@@ -99,6 +99,8 @@ namespace namespace_
 #include <stdlib.h>
 #include <new>
 
+#include <xsde/cxx/guard.hxx>
+
 namespace namespace_
 {
   // lang

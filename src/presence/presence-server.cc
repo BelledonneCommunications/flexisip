@@ -137,10 +137,10 @@ void PresenceServer::processRequestEvent(PresenceServer * thiz, const belle_sip_
 	
 }
 void PresenceServer::processResponseEvent(PresenceServer * thiz, const belle_sip_response_event_t *event){
-	SLOGA << "Not implemented yet";
+	SLOGD << " PresenceServer::processResponseEvent Not implemented yet";
 }
 void PresenceServer::processTimeout(PresenceServer * thiz, const belle_sip_timeout_event_t *event) {
-	SLOGA << "Not implemented yet";
+	SLOGD << " PresenceServer::processTimeout Not implemented yet";
 }
 void PresenceServer::processTransactionTerminated(PresenceServer * thiz, const belle_sip_transaction_terminated_event_t *event){
 	//nop
@@ -327,6 +327,8 @@ void  PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t
 			presenceInfo = new PresentityPresenceInformation(entity,*this,belle_sip_stack_get_main_loop(mStack));
 			SLOGD <<"New Presentity ["<< *presenceInfo << "] created";
 			addPresenceInfo(presenceInfo);
+		} else {
+			SLOGD <<"Presentity ["<< *presenceInfo << "] found";
 		}
 		if (eTag.empty())
 			eTag=presenceInfo->putTuples(presence_body->tuple(),expires);
@@ -471,25 +473,95 @@ void  PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event
 	 The other response codes defined in SIP [1] may be used in response
 	 to SUBSCRIBE requests, as appropriate.
 	 */
-	
+	belle_sip_server_transaction_t* server_transaction = belle_sip_provider_create_server_transaction(mProvider,request);
 	belle_sip_dialog_t* dialog = belle_sip_request_event_get_dialog(event);
+	if (!dialog)
+		dialog = belle_sip_provider_create_dialog(mProvider, BELLE_SIP_TRANSACTION(server_transaction));
+		
 	belle_sip_header_expires_t* headerExpires = belle_sip_message_get_header_by_type(request,belle_sip_header_expires_t);
 	int expires;
 	if (headerExpires)
 		expires=belle_sip_header_expires_get_expires(headerExpires);
 	else
-		expires=3600;//rfc3856, defrault value
+		expires=3600;//rfc3856, default value
 	
 	switch (belle_sip_dialog_get_state(dialog)) {
 		case BELLE_SIP_DIALOG_NULL: {
-			PresenceSubscription* subscription= new PresenceSubscription(expires,belle_sip_request_get_uri(request));
-			belle_sip_dialog_set_application_data(dialog, new shared_ptr<PresenceSubscription>(subscription));
-			mSubscriptionsByEntity[belle_sip_request_get_uri(request)].push_back(shared_ptr<Subscription>(subscription));
-			//creating a new Subscription
+			//first create the dialog
+			belle_sip_response_t* resp=belle_sip_response_create_from_request(request,200);
+			belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp), BELLE_SIP_HEADER(belle_sip_header_expires_create(expires)));
+			
+			
+			belle_sip_server_transaction_send_response(server_transaction,resp);
+
+			
+			PresenceSubscription* subscription= new PresenceSubscription(expires
+																		 ,belle_sip_request_get_uri(request)
+																		 ,dialog
+																		 ,mProvider);
+			belle_sip_dialog_set_application_data(dialog, subscription);
+			addOrUpdateListener(*subscription,expires);
 			break;
 		}
 		case BELLE_SIP_DIALOG_CONFIRMED: {
+			PresenceSubscription* subscription = static_cast<PresenceSubscription*>(belle_sip_dialog_get_application_data(dialog));
 			
+//			RFC 3265
+//			3.1.4.2. Refreshing of Subscriptions
+//			 
+//			 At any time before a subscription expires, the subscriber may refresh
+//			 the timer on such a subscription by sending another SUBSCRIBE request
+//			 on the same dialog as the existing subscription, and with the same
+//			 "Event" header "id" parameter (if one was present in the initial
+//			 subscription).  The handling for such a request is the same as for
+//			 the initial creation of a subscription except as described below.
+//			 
+//			 If the initial SUBSCRIBE message contained an "id" parameter on
+//			 the "Event" header, then refreshes of the subscription must also
+//			 contain an identical "id" parameter; they will otherwise be
+//			 considered new subscriptions in an existing dialog.
+//
+			//FIXME not checked yet,
+			
+//			 If a SUBSCRIBE request to refresh a subscription receives a "481"
+//			 response, this indicates that the subscription has been terminated
+//			 and that the subscriber did not receive notification of this fact.
+//			 In this case, the subscriber should consider the subscription
+//			 invalid.  If the subscriber wishes to re-subscribe to the state, he
+//			 does so by composing an unrelated initial SUBSCRIBE request with a
+//			 freshly-generated Call-ID and a new, unique "From" tag (see section
+//			 3.1.4.1.)
+
+			if (subscription->getState() == Subscription::State::terminated) {
+				delete subscription;
+				belle_sip_dialog_set_application_data(dialog, NULL);
+				throw SIGNALING_EXCEPTION(481) << "Subscription ["<< std::hex<<(long)subscription<< "] for dialog ["
+				<< BELLE_SIP_OBJECT(dialog)<< "] already in terminated state";
+			
+			}
+			
+//			 If a SUBSCRIBE request to refresh a subscription fails with a non-481
+//			 response, the original subscription is still considered valid for the
+//			 duration of the most recently known "Expires" value as negotiated by
+//			 SUBSCRIBE and its response, or as communicated by NOTIFY in the
+//			 "Subscription-State" header "expires" parameter.
+//			 
+//			 Note that many such errors indicate that there may be a problem
+//			 with the network or the notifier such that no further NOTIFY
+//			 messages will be received.
+//			 
+			
+			belle_sip_response_t* resp=belle_sip_response_create_from_request(request,200);
+			belle_sip_server_transaction_send_response(server_transaction,resp);
+			
+			if (expires == 0) {
+				subscription->setState(Subscription::State::terminated);
+				removeListener(*subscription);
+			} else {
+				//update expires
+				subscription->setExpire(expires);
+				addOrUpdateListener(*subscription,expires);
+			}
 			break;
 		}
 			
@@ -499,12 +571,6 @@ void  PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event
 			<< "in state [" <<belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog)) ;
 		}
 	}
-	
-	belle_sip_response_t* resp=belle_sip_response_create_from_request(request,200);
-	belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp), BELLE_SIP_HEADER(belle_sip_message_get_header_by_type(request, belle_sip_header_expires_t)));
-	
-	belle_sip_server_transaction_t* server_transaction = belle_sip_provider_create_server_transaction(mProvider,request);
-	belle_sip_server_transaction_send_response(server_transaction,resp);
 	
 	
 }
@@ -551,5 +617,24 @@ void PresenceServer::addEtag(PresentityPresenceInformation* info,const string& e
 bool BelleSipUriComparator::operator()(const belle_sip_uri_t* lhs, const belle_sip_uri_t* rhs) const {
 	return !belle_sip_uri_equals(lhs,rhs);
 }
+void PresenceServer::addOrUpdateListener(PresentityPresenceInformation::Listener& listener,int expires) {
+	PresentityPresenceInformation* presenceInfo = getPresenceInfo(listener.getPresentityUri());
+	if (presenceInfo == NULL) {
+		/*no information available yet, but creating entry to be able to register subscribers*/
+		presenceInfo = new PresentityPresenceInformation(listener.getPresentityUri(),*this,belle_sip_stack_get_main_loop(mStack));
+		SLOGD <<"New Presentity ["<< *presenceInfo << "] created";
+		addPresenceInfo(presenceInfo);
+	}
+	presenceInfo->addOrUpdateListener(listener,expires);
+	
+}
+void PresenceServer::removeListener(PresentityPresenceInformation::Listener& listener) {
+	PresentityPresenceInformation* presenceInfo = getPresenceInfo(listener.getPresentityUri());
+	if (presenceInfo) {
+		presenceInfo->removeListener(listener);
+	} else
+		SLOGW <<"No presence info for this entity ["<<listener.getPresentityUri()<<"]/["<<std::hex << (long)&listener<<"]";
+}
+
 
 

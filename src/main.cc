@@ -18,7 +18,9 @@
 #ifdef HAVE_CONFIG_H
 #include "flexisip-config.h"
 #endif
-
+#ifndef CONFIG_DIR
+	#define CONFIG_DIR
+#endif
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -563,6 +565,8 @@ int main(int argc, char *argv[]){
 	if (oset.find("notrans") == oset.end()) {
 		ms_init();
 	}
+#elif !defined(ENABLE_BOOST_LOG)
+	ortp_init();
 #endif
 
 	if (!configOverride.empty()) cfg.applyOverrides(true); // using default + overrides

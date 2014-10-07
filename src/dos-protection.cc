@@ -19,6 +19,9 @@
 #ifdef HAVE_CONFIG_H
 #include "flexisip-config.h"
 #endif
+#ifndef CONFIG_DIR
+	#define CONFIG_DIR "."
+#endif
 #include "dos-protection.hh"
 #include "configmanager.hh"
 #include <unistd.h>

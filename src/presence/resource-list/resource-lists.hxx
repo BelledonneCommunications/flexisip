@@ -177,7 +177,7 @@ namespace resource_lists
 }
 
 
-#include "xml.hxx"
+#include "../xml/xml.hxx"
 
 namespace resource_lists
 {

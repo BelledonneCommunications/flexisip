@@ -8,7 +8,7 @@
 
 #include "presence-configmanager.hh"
 
-static ConfigItemDescriptor global_conf[]={
+static ConfigItemDescriptor presence_global_conf[]={
 //	{	Boolean	,	"debug"	        ,	"Outputs very detailed logs",	"false"	},
 //	{	String,		"log-filter"	,	"Boost::log filter expression, "
 //		"Available attributes include: %Severity% %Module% %callid% %from.uri.user% %from.uri.domain%."
@@ -46,7 +46,7 @@ PresenceConfigManager::PresenceConfigManager() : GenericManager("flexisip-presen
 
 	GenericStruct *global=new GenericStruct("presence-global","Some global settings of the flexisip presence server.",2);
 	getRoot()->addChild(global);
-	global->addChildrenValues(global_conf);
+	global->addChildrenValues(presence_global_conf);
 	global->setConfigListener(this);
 	
 	ConfigString *version=new ConfigString("version-number", "Flexisip presence server version.", PACKAGE_VERSION, 999);

@@ -316,7 +316,7 @@ namespace xml_schema
   typedef xsde::cxx::parser::context parser_context;
 }
 
-#include "xml-pskel.hxx"
+#include "../xml/xml-pskel.hxx"
 
 namespace resource_lists
 {

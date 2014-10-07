@@ -5,7 +5,7 @@
  *      Author: jehanmonnier
  */
 
-#include <signaling-exception.hh>
+#include "signaling-exception.hh"
 #include "belle-sip/belle-sip.h"
 namespace flexisip {
 

@@ -398,13 +398,6 @@ namespace resource_lists
   resource_lists_paggr::
   resource_lists_paggr ()
   {
-    this->list_p_.parsers (this->string_p_,
-                           this->display_nameType_p_,
-                           this->list_p_,
-                           this->externalType_p_,
-                           this->entryType_p_,
-                           this->entry_refType_p_);
-
     this->listType_p_.parsers (this->string_p_,
                                this->display_nameType_p_,
                                this->list_p_,
@@ -415,10 +408,17 @@ namespace resource_lists
     this->entryType_p_.parsers (this->uri_p_,
                                 this->display_name_p_);
 
-    this->display_name_p_.parsers (this->lang_p_);
+    this->list_p_.parsers (this->string_p_,
+                           this->display_nameType_p_,
+                           this->list_p_,
+                           this->externalType_p_,
+                           this->entryType_p_,
+                           this->entry_refType_p_);
 
     this->entry_refType_p_.parsers (this->uri_p_,
                                     this->display_nameType_p_);
+
+    this->display_name_p_.parsers (this->lang_p_);
 
     this->externalType_p_.parsers (this->uri_p_,
                                    this->display_nameType_p_);

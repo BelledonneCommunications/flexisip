@@ -434,7 +434,7 @@ template <typename _retType>
 _retType *GenericStruct::get(const char *name)const{
 	GenericEntry *e=find(name);
 	if (e==NULL) {
-		SLOGA << "No ConfigEntry with name" << name <<" in struct " << getName() ;
+		SLOGA << "No ConfigEntry with name [" << name <<"] in struct [" << getName() <<"]" ;
 	}
 	_retType *ret=dynamic_cast<_retType *>(e);
 	if (ret==NULL){

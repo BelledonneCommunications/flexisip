@@ -14,7 +14,8 @@ libflexisip_presence_la_SOURCES = 	presence-server.cc \
 									application_pidf+xml/pidf+xml.cxx \
 									xml/xml-pimpl.cxx \
 									xml/xml-pskel.cxx \
-									xml/xml.cxx
+									xml/xml.cxx \
+									subscription.cc
 							
 libflexisip_presence_la_LIBADD= $(XSDE_LIBS) $(BELLESIP_LIBS)
 							 

@@ -26,6 +26,7 @@ public:
 	time_t getExpitationTime() const;
 	void setExpiresTimer( belle_sip_source_t* timer);
 	pidf::tuple* getTuple(const string& id) const;
+	const list<pidf::tuple*> getTuples() const;
 	void addTuple(pidf::tuple*);
 	void removeTuple(pidf::tuple*);
 	void clearTuples();
@@ -37,14 +38,28 @@ private:
 	belle_sip_source_t* mTimer;
 	string mEtag;
 };
-
+/*
+ * Presence Information is the key class representy a presentity. This class can be either created bu a Publish for a presentiry or by a Subscription to a presentity
+ 
+ */
 class PresentityPresenceInformation {
 
 public:
 
 	class Listener {
-		public:
-		virtual void onInformationChanged(const PresentityPresenceInformation& presenceInformation)=0;
+		
+	public:
+		Listener();
+		~Listener();
+		void setExpiresTimer(belle_sip_main_loop_t *ml,belle_sip_source_t* timer);
+		/*returns prsentity uri associated to this Listener*/
+		virtual const belle_sip_uri_t* getPresentityUri()=0;
+		/*invoked on changes*/
+		virtual void onInformationChanged(PresentityPresenceInformation& presenceInformation)=0;
+		/*invoked on expiration*/
+		virtual void onExpired(PresentityPresenceInformation& presenceInformation)=0;
+	private:
+		belle_sip_source_t* mTimer;
 	};
 
 	/*
@@ -82,19 +97,38 @@ public:
 
 
 
-	PresentityPresenceInformation(belle_sip_uri_t* entity,EtagManager& etagManager,belle_sip_main_loop_t *ml);
+	PresentityPresenceInformation(const belle_sip_uri_t* entity,EtagManager& etagManager,belle_sip_main_loop_t *ml);
 	virtual ~PresentityPresenceInformation();
 
 	const belle_sip_uri_t* getEntity() const;
 
-
+	/**
+	 *add notity listener for an entity
+	 */
+	void addOrUpdateListener(Listener& listener,int expires);
+	/*
+	 * remove listener
+	 */
+	void removeListener(Listener& listener);
+	
+	
+	/*
+	 * return the presence information for this entity in a pidf serilized format
+	 */
+	string getPidf() throw (FlexisipException);
+	
+	
 
 private:
 	/*
 	 * tuples may be null
 	 */
 	string setOrUpdate(pidf::presence::tuple_sequence* tuples, const string* eTag,int expires) throw (FlexisipException);
-
+	/*
+	 *Notify all listener
+	 */
+	void notifyAll();
+	
 	const belle_sip_uri_t* mEntity;
 	EtagManager& mEtagManager;
 	belle_sip_main_loop_t* mBelleSipMainloop;
@@ -102,7 +136,7 @@ private:
 	std::map<std::string /*Etag*/,PresenceInformationElement*> mInformationElements;
 
 	// list of subscribers function to be called when a tuple changed
-	std::map<belle_sip_uri_t*,Listener*> mSubscribers;
+	std::list<Listener*> mSubscribers;
 };
 
 std::ostream& operator<<(std::ostream& __os,const PresentityPresenceInformation&);

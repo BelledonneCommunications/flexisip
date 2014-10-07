@@ -172,13 +172,13 @@ void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u,
 
 void RequestSipEvent::reply(int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
-		LOGD("Replying Request SIP message: %i %s\n\n", status, phrase);
+		SLOGD << "Replying Request SIP message: " <<status << " " << phrase<<std::endl;
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mIncomingAgent->reply(getMsgSip(), status, phrase, ta_tags(ta));
 		ta_end(ta);
 	} else {
-		LOGD("The Request SIP message is not reply");
+		SLOGD << "The Request SIP message is not reply";
 	}
 	if (status>=200) terminateProcessing();
 }

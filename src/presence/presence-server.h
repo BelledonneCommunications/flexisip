@@ -16,6 +16,7 @@
 #include "etag-manager.hh"
 #include "presence-configmanager.hh"
 #include "presentity-presenceinformation.hh"
+#include "presentity-manager.hh"
 
 typedef struct belle_sip_stack belle_sip_stack_t;
 typedef struct belle_sip_provider belle_sip_provider_t;
@@ -37,7 +38,7 @@ class tuple;
 }
 	class Subscription;
 	
-class PresenceServer :  EtagManager {
+class PresenceServer :  EtagManager,PresentityManager {
 public:
 	PresenceServer(std::string configFile) throw (FlexisipException);
 	~PresenceServer();
@@ -80,9 +81,13 @@ private:
 	map<const belle_sip_uri_t*,shared_ptr<PresentityPresenceInformation*>,BelleSipUriComparator> mPresenceInformations;
 
 	/*
-	 *Subscribe Notify API
+	 *Presentity API
 	 *
 	 */
+	
+	 void addOrUpdateListener(PresentityPresenceInformation::Listener& listerner,int expires);
+	 void removeListener(PresentityPresenceInformation::Listener& listerner);
+	
 	//Subscription* getSubscription(const belle_sip_uri_t* identity) const ;
 	//void notify(Subscription& subscription,PresentityPresenceInformation& presenceInformation) throw (FlexisipException);
 	map<const belle_sip_uri_t*,list<shared_ptr<Subscription>>,BelleSipUriComparator> mSubscriptionsByEntity;
