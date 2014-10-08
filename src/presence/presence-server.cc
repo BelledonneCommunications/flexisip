@@ -103,10 +103,13 @@ void PresenceServer::start() throw (FlexisipException) {
 	}
 }
 void PresenceServer::processDialogTerminated(PresenceServer * thiz, const belle_sip_dialog_terminated_event_t *event) {
-	SLOGA << "Not implemented yet";
+	belle_sip_dialog_t *dialog = belle_sip_dialog_terminated_event_get_dialog(event);
+	if (typeid(belle_sip_dialog_get_application_data(dialog)) == typeid(PresenceSubscription*)) {
+		delete static_cast<PresenceSubscription*>(belle_sip_dialog_get_application_data(dialog));
+	};
 }
 void PresenceServer::processIoError(PresenceServer * thiz, const belle_sip_io_error_event_t *event){
-	SLOGA << "Not implemented yet";
+	SLOGD << "PresenceServer::processIoError not implemented yet";
 }
 void PresenceServer::processRequestEvent(PresenceServer * thiz, const belle_sip_request_event_t *event){
 	belle_sip_request_t* request = belle_sip_request_event_get_request(event);
@@ -314,6 +317,7 @@ void  PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t
 		} catch (const xml_schema::parser_exception& e) {
 			ostringstream  os;
 			os << "Cannot parse body caused by [" << e.text() << "] at line ["<< e.line () << "] column [" << e.column() <<"]";
+			//todo check error code
 			throw SIGNALING_EXCEPTION_1(400,belle_sip_header_create("Warning",os.str().c_str())) << os.str();
 		}
 		
