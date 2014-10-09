@@ -70,7 +70,9 @@ public:
 	virtual void onDeclare(GenericStruct *mc) {
 		ConfigItemDescriptor configs[] = {
 			{ StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar.", "localhost" },
-			{ Boolean, "reg-on-response", "Update registrar database on response.", "false" },
+			{ Boolean, "reg-on-response", "Register users based on response obtained from a back-end server. "
+				"This mode is for using flexisip as a front-end server to hold client connections but register"
+				"acceptance is deferred to backend server to which the REGISTER is routed.", "false" },
 			{ Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "12" }, /*used by registrardb*/
 			{ StringList, "unique-id-parameters", "List of contact uri parameters that can be used to identify a user's device. "
 					"The contact parameters are searched in the order of the list, the first matching parameter is used and the others ignored.", "+sip.instance pn-tok line" },
@@ -83,7 +85,7 @@ public:
 					"<sip:contact@domain> <sip:127.0.0.1:5460>,<sip:192.168.0.1:5160>", "" },
 			{ Integer, "static-records-timeout", "Timeout in seconds after which the static records file is re-read and the contacts updated.", "600" },
 
-			{ String , "db-implementation", "Implementation used for storing address of records contact uris. [redis-async, redis-sync, internal]","internal"},
+			{ String , "db-implementation", "Implementation used for storing address of records contact uris. [redis-async, internal]","internal"},
 			// Redis config support
 			{ String , "redis-server-domain", "Domain of the redis server. ","localhost"},
 			{ Integer , "redis-server-port", "Port of the redis server.","6379"},
