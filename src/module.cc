@@ -22,7 +22,7 @@
 #include "sofia-sip/auth_digest.h"
 #include "sofia-sip/nta.h"
 #include "log/logmanager.hh"
-#include "proxy-configmanager.hh"
+
 #include "expressionparser.hh"
 
 #include <algorithm>
@@ -32,28 +32,21 @@ list<string> Module::sPushNotifParams {
 	"pn-tok", "pn-type", "app-id", "pn-msg-str", "pn-call-str", "pn-call-snd", "pn-msg-snd"
 };
 
-Module *ModuleInfoBase::create(Agent *ag,GenericManager& configManager){
-	Module *mod=_create(ag, configManager);
+Module *ModuleInfoBase::create(Agent *ag){
+	Module *mod=_create(ag);
 	mod->setInfo(this);
 	return mod;
 }
 
 ModuleFactory * ModuleFactory::sInstance = NULL;
-GenericManager * ModuleFactory::sConfigManager = NULL;
 
 ModuleFactory *ModuleFactory::get() {
-	if (!sConfigManager) {
-		init(*ProxyConfigManager::instance());
-		//SLOGA << "Module factory not initialized yet, call init first";
-	}
 	if (sInstance == NULL) {
 		sInstance = new ModuleFactory();
 	}
 	return sInstance;
 }
-void ModuleFactory::init(GenericManager& configMgr) {
-	sConfigManager=&configMgr;
-}
+
 struct hasName {
 	hasName(const string &ref) :
 			match(ref) {
@@ -70,7 +63,7 @@ Module *ModuleFactory::createModuleInstance(Agent *ag, const string &modname) {
 	if (it != mModules.end()) {
 		Module *m;
 		ModuleInfoBase *i = *it;
-		m = i->create(ag,*sConfigManager);
+		m = i->create(ag);
 		LOGI("Creating module instance for [%s]", m->getModuleName().c_str());
 		return m;
 	}
@@ -84,8 +77,8 @@ void ModuleFactory::registerModule(ModuleInfoBase *m) {
 	mModules.push_back(m);
 }
 
-Module::Module(Agent *ag,GenericManager& configManager) :ConfigValueListener(configManager),
-		mAgent(ag),mGenericManager(configManager) {
+Module::Module(Agent *ag) :
+		mAgent(ag) {
 	mFilter = new ConfigEntryFilter();
 }
 
@@ -212,9 +205,6 @@ const string &Module::getModuleName() const {
 	return mInfo->getModuleName();
 }
 
-GenericManager& Module::getConfigManager() const {
-	return mGenericManager;
-}
 msg_auth_t *ModuleToolbox::findAuthorizationForRealm(su_home_t *home, msg_auth_t *au, const char *realm) {
 	while (au!= NULL) {
 		auth_response_t r;

@@ -79,7 +79,7 @@ private:
 
 class Transcoder: public Module, protected ModuleToolbox {
 public:
-	Transcoder(Agent *ag,GenericManager& configManager);
+	Transcoder(Agent *ag);
 	~Transcoder();
 	virtual void onLoad(const GenericStruct *module_config);
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
@@ -215,8 +215,8 @@ bool Transcoder::hasSupportedCodec(const std::list< PayloadType * > &ioffer) {
 	return false;
 }
 
-Transcoder::Transcoder(Agent *ag,GenericManager& configManager)
-	: Module(ag,configManager), mSupportedAudioPayloads(), mTimer(0) {
+Transcoder::Transcoder(Agent *ag) :
+Module(ag),mSupportedAudioPayloads(), mTimer(0) {
 }
 
 Transcoder::~Transcoder() {

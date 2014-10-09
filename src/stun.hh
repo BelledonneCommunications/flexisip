@@ -21,15 +21,10 @@
 
 #include <ortp/stun.h>
 #include <pthread.h>
-class GenericStruct;
+
 class StunServer{
 	public:
-	/*
-	 * call to attach Stun server to configuration three
-	 * */
-	static void declare(GenericStruct& root);
-
-	StunServer(int port=3478);
+		StunServer(int port=3478);
 		~StunServer();
 		int start();
 		void stop();
@@ -40,9 +35,11 @@ class StunServer{
 		pthread_t mThread;
 		int mPort;
 		int mSock;
-		static GenericStruct* sRoot;;
-
-
+		class Init{
+			public:
+				Init();
+		};
+		static Init sStaticInit;
 };
 
 #endif

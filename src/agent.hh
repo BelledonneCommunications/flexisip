@@ -99,16 +99,16 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 	StatCounter64 *mCountReply408; // request timeout
 	StatCounter64 *mCountReplyResUnknown;
 	void onDeclare(GenericStruct *root);
-
+	ConfigValueListener *mBaseConfigListener;
 
 	private:
 	template <typename SipEventT>
 	void doSendEvent
 	(std::shared_ptr<SipEventT> ev, const std::list<Module *>::iterator &begin, const std::list<Module *>::iterator &end);
 	public:
-		Agent(su_root_t *root, GenericManager& cm);
+		Agent(su_root_t *root);
 		void start(const char *transport_override);
-		virtual void loadConfig();
+		virtual void loadConfig(GenericManager *cm);
 		virtual ~Agent();
 		///Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination. 
 		std::pair<std::string,std::string> getPreferredIp(const std::string &destination) const;
@@ -156,7 +156,6 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		Module *findModule(const std::string &modname) const;
 		int onIncomingMessage(msg_t *msg, const sip_t *sip);
 		nth_engine_t* getHttpEngine() {return mHttpEngine; }
-
 	protected:
 		void sendTransactionEvent(std::shared_ptr<TransactionEvent> ev);
 	private:
@@ -190,7 +189,6 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		EventLogWriter *mLogWriter;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);
 		bool mTerminating;
-		GenericManager& mConfigMgr;
 };
 
 #endif

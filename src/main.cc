@@ -58,15 +58,14 @@
 #define FLEXISIP_GIT_VERSION "undefined"
 #endif
 
-
+#include "log/logmanager.hh"
+#include <ortp/ortp.h>
 #include <functional>
 #include <list>
 
 #include "etchosts.hh"
 
 #include <fstream>
-#include "proxy-configmanager.hh"
-#include "registrardb.hh"
 
 #ifdef ENABLE_PRESENCE
 #include "presence/presence-server.h"
@@ -78,7 +77,7 @@ static pid_t flexisip_pid=0;
 static su_root_t *root=NULL;
 bool sUseSyslog=false;
 
-
+using namespace ::std;
 
 static void usage(const char *arg0){
 	printf("%s\n"
@@ -337,11 +336,8 @@ static int parse_key_value(int argc, char *argv[], const char **key, const char 
 	}
 	return 0;
 }
-
-
-
 int main(int argc, char *argv[]){
- 	shared_ptr<Agent> a;
+	shared_ptr<Agent> a;
 	StunServer *stun=NULL;
 	const char *transports=NULL;
 	int i;
@@ -357,7 +353,6 @@ int main(int argc, char *argv[]){
 	string hostsOverride;
 	string configOverride;
 	map<string,string> oset;
-
 
 
 	for(i=1;i<argc;++i){
@@ -450,13 +445,13 @@ int main(int argc, char *argv[]){
 	}
 
 	// Don't move these lines, it is black magic
-	ProxyConfigManager& cfg = *ProxyConfigManager::instance();
-	StunServer::declare(*cfg.getRoot());
+	GenericManager *cfg=GenericManager::get();
 	DosProtection *dos=DosProtection::get();
 
+
 	if (dump_default_cfg){
-		a=make_shared<Agent>(root,cfg);
-		GenericStruct *rootStruct=&cfg;
+		a=make_shared<Agent>(root);
+		GenericStruct *rootStruct=GenericManager::get()->getRoot();
 		if (dump_cfg_part && !(rootStruct=dynamic_cast<GenericStruct *>(rootStruct->find(dump_cfg_part)))) {
 			cerr<<"Couldn't find node " << dump_cfg_part << endl;
 			return -1;
@@ -470,18 +465,18 @@ int main(int argc, char *argv[]){
 	}
 
 	if (dump_snmp_mib) {
-		a=make_shared<Agent>(root,cfg);
-		cout<<MibDumper(cfg.getRoot());
+		a=make_shared<Agent>(root);
+		cout<<MibDumper(GenericManager::get()->getRoot());
 		return 0;
 	}
 
 	if (dump_settables) {
-		a=make_shared<Agent>(root,cfg);
+		a=make_shared<Agent>(root);
 		list<string> allCompletions;
 		allCompletions.push_back("nosnmp");
 
 		string empty;
-		depthFirstSearch(empty, cfg.getRoot(), allCompletions);
+		depthFirstSearch(empty, GenericManager::get()->getRoot(), allCompletions);
 
 		for (auto it=allCompletions.cbegin(); it != allCompletions.cend(); ++it) {
 			if (settablesPrefix.empty()) {
@@ -497,9 +492,9 @@ int main(int argc, char *argv[]){
 
 
 
-	cfg.setOverrideMap(oset);
+	GenericManager::get()->setOverrideMap(oset);
 
-	if (cfg.load(cfgfile)==-1 && configOverride.empty()){
+	if (cfg->load(cfgfile)==-1 && configOverride.empty()){
 		fprintf(stderr,"No configuration file found at %s.\nPlease specify a valid configuration file.\n"
 		        "A default flexisip.conf.sample configuration file should be installed in " CONFIG_DIR "\n"
 		        "Please edit it and restart flexisip when ready.\n"
@@ -508,14 +503,15 @@ int main(int argc, char *argv[]){
 	}
 
 
-	if (!debug) debug=cfg.getGlobal()->get<ConfigBoolean>("debug")->read();
 
-	bool dump_cores=cfg.getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
+	if (!debug) debug=cfg->getGlobal()->get<ConfigBoolean>("debug")->read();
+
+	bool dump_cores=cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
 
 	
 	// Initialize
 	flexisip::log::initLogs(sUseSyslog, debug);
-	flexisip::log::updateFilter(cfg.getGlobal()->get<ConfigString>("log-filter")->read());
+	flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
 
 	signal(SIGPIPE,SIG_IGN);
 	signal(SIGTERM,flexisip_stop);
@@ -549,17 +545,16 @@ int main(int argc, char *argv[]){
 	if (daemon){
 		/*now that we have successfully loaded the config, there is nothing that can prevent us to start (normally).
 		So we can detach.*/
-		forkAndDetach(pidfile,cfg.getGlobal()->get<ConfigBoolean>("auto-respawn")->read());
+		forkAndDetach(pidfile,cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read());
 	}
 
 	LOGN("Starting flexisip version %s (git %s)", VERSION, FLEXISIP_GIT_VERSION);
-	cfg.sendTrap("Flexisip starting");
+	GenericManager::get()->sendTrap("Flexisip starting");
 	root=su_root_create(NULL);
-	a=make_shared<Agent>(root,cfg);
-
+	a=make_shared<Agent>(root);
 	a->start(transports);
 #ifdef ENABLE_SNMP
-	SnmpAgent lAgent(*a,cfg, oset);
+	SnmpAgent lAgent(*a,*cfg, oset);
 #endif
 #ifdef ENABLE_TRANSCODER
 	if (oset.find("notrans") == oset.end()) {
@@ -569,9 +564,9 @@ int main(int argc, char *argv[]){
 	ortp_init();
 #endif
 
-	if (!configOverride.empty()) cfg.applyOverrides(true); // using default + overrides
+	if (!configOverride.empty()) cfg->applyOverrides(true); // using default + overrides
 
-	a->loadConfig ();
+	a->loadConfig (cfg);
 
 	increase_fd_limit();
 
@@ -584,10 +579,9 @@ int main(int argc, char *argv[]){
 			LOGF("Failed to write starter pipe: %s",strerror(errno));
 		}
 	}
-
-
-	if (cfg.getRoot()->get<GenericStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()){
-		stun=new StunServer(cfg.getRoot()->get<GenericStruct>("stun-server")->get<ConfigInt>("port")->read());
+	
+	if (cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()){
+		stun=new StunServer(cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigInt>("port")->read());
 		stun->start();
 	}
 
@@ -595,7 +589,6 @@ int main(int argc, char *argv[]){
 	flexisip::PresenceServer presenceServer(cfgfile);
 	presenceServer.start();
 #endif //ENABLE_PRESENCE
-
 
 
 	su_timer_t *timer=su_timer_create(su_root_task(root),5000);
@@ -610,7 +603,7 @@ int main(int argc, char *argv[]){
 	}
 	su_root_destroy(root);
 	LOGN("Flexisip exiting normally.");
-	cfg.sendTrap("Flexisip exiting normally");
+	GenericManager::get()->sendTrap("Flexisip exiting normally");
 	return 0;
 }
 

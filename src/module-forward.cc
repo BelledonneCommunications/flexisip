@@ -32,7 +32,7 @@ static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip,
 
 class ForwardModule: public Module, ModuleToolbox {
 public:
-	ForwardModule(Agent *ag,GenericManager& configManager);
+	ForwardModule(Agent *ag);
 	virtual void onDeclare(GenericStruct * module_config);
 	virtual void onLoad(const GenericStruct *root);
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
@@ -55,7 +55,8 @@ ModuleInfo<ForwardModule> ForwardModule::sInfo("Forward",
 		"It must always be enabled.",
 		ModuleInfoBase::ModuleOid::Forward);
 
-ForwardModule::ForwardModule(Agent *ag, GenericManager& configManager) : Module(ag,configManager), mOutRoute(NULL), mRewriteReqUri(false), mAddPath(false) {
+ForwardModule::ForwardModule(Agent *ag) :
+		Module(ag), mOutRoute(NULL), mRewriteReqUri(false), mAddPath(false) {
 	su_home_init(&mHome);
 }
 

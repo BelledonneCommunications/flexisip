@@ -29,7 +29,6 @@
 #include <iostream>
 #include <stdlib.h>
 #include <sofia-sip/nta_tport.h>
-#include "proxy-configmanager.hh"
 
 using namespace ::std;
 
@@ -42,7 +41,7 @@ DosProtection *DosProtection::sInstance = NULL;
 
 using namespace ::std;
 
-DosProtection::DosProtection():ConfigValueListener(*ProxyConfigManager::instance()) {
+DosProtection::DosProtection() {
 	ConfigItemDescriptor items[] = { 
 		{ Boolean, "enabled", "Enable or disable DOS protection using IPTables firewall.", "false" }, 
 		{ StringList, "authorized-ip", "List of whitelist IPs which won't be affected by DOS protection.", "127.0.0.1" },
@@ -59,7 +58,7 @@ DosProtection::DosProtection():ConfigValueListener(*ProxyConfigManager::instance
 	};
 
 	GenericStruct *s = new GenericStruct("dos-protection", "DOS protection parameters.",0);
-	ProxyConfigManager::instance()->addChild(s);
+	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
 	s->deprecateChild("port");
 	s->setConfigListener(this);
@@ -116,7 +115,7 @@ static bool directoryExists(const char* path)
 }
 
 void DosProtection::load() {
-	GenericStruct *dosProtection = ProxyConfigManager::instance()->get<GenericStruct>("dos-protection");
+	GenericStruct *dosProtection = GenericManager::get()->getRoot()->get<GenericStruct>("dos-protection");
 	mEnabled = dosProtection->get<ConfigBoolean>("enabled")->read();
 	mAuthorizedIPs = dosProtection->get<ConfigStringList>("authorized-ip")->read();
 	mBanDuration = dosProtection->get<ConfigInt>("ban-duration")->read();

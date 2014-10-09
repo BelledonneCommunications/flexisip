@@ -145,16 +145,14 @@ std::ostream &operator<<(std::ostream & stream, const ExtendedContact &ec) {
 class Record {
 	friend class RegistrarDb;
 private:
-	/*
-	 * to be call first
-	 * */
-	static void init(const GenericManager& configManager);
+	static void init();
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec);
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
 	std::string mKey;
+
+public:
 	static std::list<std::string> sLineFieldNames;
 	static int sMaxContacts;
-	static void checkIfConfigured() throw (FlexisipException);
 protected:
 	static char sStaticRecordVersion[100];
 public:
@@ -182,7 +180,11 @@ public:
 	const std::list<std::shared_ptr<ExtendedContact>> &getExtendedContacts() const {
 		return mContacts;
 	}
-	static int getMaxContacts();
+	static int getMaxContacts() {
+		if (sMaxContacts == -1)
+			init();
+		return sMaxContacts;
+	}
 	time_t latestExpire() const;
 	time_t latestExpire(const std::string &route) const;
 	static void setStaticRecordsVersion(int version) {
@@ -249,11 +251,7 @@ public:
 		: sip(sip), global_expire(expire), alias(alias) {
 		}
 	};
-	/**
-	 * init should be called first
-	 * */
-	static RegistrarDb *get();
-	static void init(Agent *ag,GenericManager& genericManager);
+	static RegistrarDb *get(Agent *ag);
 	void bind(const BindParameters &mainParams, const std::shared_ptr<RegistrarDbListener> &listener) {
 		doBind(mainParams, listener);
 	}

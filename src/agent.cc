@@ -100,7 +100,7 @@ void Agent::onDeclare(GenericStruct *root) {
 }
 
 void Agent::startLogWriter(){
-	GenericStruct *cr=mConfigMgr.getRoot();
+	GenericStruct *cr=GenericManager::get()->getRoot();
 	bool enabled=cr->get<GenericStruct>("global")->get<ConfigBoolean>("enable-event-logs")->read();
 	string logdir=cr->get<GenericStruct>("global")->get<ConfigString>("event-logs-dir")->read();
 	if (enabled){
@@ -124,7 +124,7 @@ void Agent::start(const char *transport_override){
 	}
 	string currDir = cCurrDir;
 
-	GenericStruct *global=mConfigMgr.getRoot()->get<GenericStruct>("global");
+	GenericStruct *global=GenericManager::get()->getRoot()->get<GenericStruct>("global");
 		list<string> transports = global->get<ConfigStringList>("transports")->read();
 	//sofia needs a value in millseconds.
 	int tports_idle_timeout = 1000 * global->get<ConfigInt>("idle-timeout")->read();
@@ -268,9 +268,9 @@ void Agent::start(const char *transport_override){
 	startLogWriter();
 }
 
-Agent::Agent(su_root_t* root,GenericManager& cm):ConfigValueListener(cm), mTerminating(false),mConfigMgr(cm){
+Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 	mHttpEngine = nth_engine_create(root, NTHTAG_ERROR_MSG(0), TAG_END());
-	GenericStruct *cr = mConfigMgr.getRoot();
+	GenericStruct *cr = GenericManager::get()->getRoot();
 	
 	EtcHostsResolver::get();
 
@@ -296,7 +296,7 @@ Agent::Agent(su_root_t* root,GenericManager& cm):ConfigValueListener(cm), mTermi
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "LoadBalancer"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "MediaRelay"));
 #ifdef ENABLE_TRANSCODER
-	const auto &overrideMap=mConfigMgr.getOverrideMap();
+	const auto &overrideMap=GenericManager::get()->getOverrideMap();
 	if (overrideMap.find("notrans") == overrideMap.end()) {
 		mModules.push_back(ModuleFactory::get()->createModuleInstance(this,"Transcoder"));
 	}
@@ -357,15 +357,19 @@ bool Agent::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 	if (conf.getName() == "aliases" && state == ConfigState::Commited) {
 		mAliases=((ConfigStringList*)(&conf))->read();
 		LOGD("Global aliases updated");
+		return true;
 	}
 
-	return true;
+	return mBaseConfigListener->onConfigStateChanged(conf, state);
 }
 
-void Agent::loadConfig() {
-	mConfigMgr.loadStrict(); //now that each module has declared its settings, we need to reload from the config file
-	mConfigMgr.getRoot()->get<GenericStruct>("global")->setConfigListener(this);
-	mAliases = mConfigMgr.getGlobal()->get<ConfigStringList>("aliases")->read();
+void Agent::loadConfig(GenericManager *cm) {
+	cm->loadStrict(); //now that each module has declared its settings, we need to reload from the config file
+	if (!mBaseConfigListener) {
+		mBaseConfigListener=cm->getGlobal()->getConfigListener();
+	}
+	cm->getRoot()->get<GenericStruct>("global")->setConfigListener(this);
+	mAliases = cm->getGlobal()->get<ConfigStringList>("aliases")->read();
 	LOGD("List of host aliases:");
 	for (list<string>::iterator it = mAliases.begin(); it != mAliases.end(); ++it) {
 		LOGD("%s", (*it).c_str());
@@ -797,7 +801,7 @@ int Agent::messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t
 void Agent::idle() {
 	SLOGD << "In Agent::idle()";
 	for_each(mModules.begin(), mModules.end(), mem_fun(&Module::idle));
-	if (mConfigMgr.needRestart()) {
+	if (GenericManager::get()->mNeedRestart) {
 		exit(RESTART_EXIT_CODE);
 	}
 }

@@ -90,7 +90,7 @@ private:
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev){};
 
 public:
-		ModulePresence(Agent *ag, GenericManager& configManager) : Module(ag,configManager) {
+		ModulePresence(Agent *ag) : Module(ag) {
 			su_home_init(&mHome);
 		}
 

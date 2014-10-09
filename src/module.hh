@@ -39,12 +39,10 @@ class ModuleFactory{
 	public:
 		static ModuleFactory *get();
 		Module *createModuleInstance(Agent *ag, const std::string &modname);
-		static void init(GenericManager& configManager);
 	private:
 		void registerModule(ModuleInfoBase *m);
 		std::list<ModuleInfoBase*> mModules;
 		static ModuleFactory *sInstance;
-		static GenericManager* sConfigManager;
 		friend class ModuleInfoBase;
 };
 
@@ -54,8 +52,8 @@ class ModuleInfoBase {
 	const oid mOidIndex;
 	static oid indexCount;
 	public:
-		Module *create(Agent *ag, GenericManager& configManager);
-		virtual Module *_create(Agent *ag,GenericManager& configManager)=0;
+		Module *create(Agent *ag);
+		virtual Module *_create(Agent *ag)=0;
 		const std::string &getModuleName()const{
 			return mName;
 		}
@@ -95,7 +93,7 @@ class ModuleInfo : public ModuleInfoBase{
 		ModuleInfo(const char *modname, const char *help, ModuleOid oid) : ModuleInfoBase(modname,help,oid){
 		}
 	protected:
-		virtual Module *_create(Agent *ag,GenericManager& configManager);
+		virtual Module *_create(Agent *ag);
 };
 
 class EntryFilter;
@@ -110,13 +108,11 @@ class EntryFilter;
 class Module : protected ConfigValueListener {
 	friend class ModuleInfoBase;
 	public:
-		Module(Agent *,GenericManager& configManager);
+		Module(Agent *);
 		virtual ~Module();
 		Agent *getAgent()const;
 		nta_agent_t *getSofiaAgent()const;
-		const std::string &getModuleName() const;
-		GenericManager& getConfigManager() const;
-	
+		const std::string &getModuleName()const;
 		void declare(GenericStruct *root);
 		void checkConfig();
 		void load();
@@ -154,7 +150,7 @@ class Module : protected ConfigValueListener {
 		virtual bool onCheckValidNextConfig() {return true;}
 		virtual bool isValidNextConfig(const ConfigValue &cv) {return true;}
 		void sendTrap(const std::string &msg) {
-			getConfigManager().sendTrap(mModuleConfig, msg);
+			GenericManager::get()->sendTrap(mModuleConfig, msg);
 		}
 		Agent *mAgent;
 	protected:
@@ -163,7 +159,6 @@ class Module : protected ConfigValueListener {
 		void setInfo(ModuleInfoBase *i);
 		ModuleInfoBase *mInfo;
 		GenericStruct *mModuleConfig;
-		GenericManager& mGenericManager;
 		EntryFilter *mFilter;
 		bool mDirtyConfig;
 };
@@ -177,8 +172,8 @@ operator<<(std::ostringstream& __os, const Module& m)
 
 
 template <typename _modtype>
-Module * ModuleInfo<_modtype>::_create(Agent *ag,GenericManager& configManager){
-	Module *mod=new _modtype(ag,configManager);
+Module * ModuleInfo<_modtype>::_create(Agent *ag){
+	Module *mod=new _modtype(ag);
 	return mod;
 }
 

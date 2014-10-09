@@ -24,7 +24,6 @@
 #include <sofia-sip/nua.h>
 #include <sofia-sip/sip_status.h>
 #include <limits.h>
-#include "proxy-configmanager.hh"
 
 using namespace ::std;
 
@@ -188,7 +187,7 @@ GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, si
 	su_home_init(&home);
 
 	url_t *domain = NULL;
-	GenericStruct *cr = ProxyConfigManager::instance();
+	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::GatewayAdapter");
 	string domainString = ma->get<ConfigString>("gateway-domain")->read();
 	int forcedExpireValue = ma->get<ConfigInt>("forced-expire")->read();
@@ -317,7 +316,7 @@ void GatewayRegister::start() {
 	LOGD("GatewayRegister start");
 	LOGD("Fetching binding");
 	++*mCountStart;
-	RegistrarDb::get()->fetch(from->a_url, make_shared<OnFetchListener>(this));
+	RegistrarDb::get(mAgent)->fetch(from->a_url, make_shared<OnFetchListener>(this));
 }
 
 void GatewayRegister::end() {
@@ -329,7 +328,7 @@ class GatewayAdapter: public Module {
 	StatCounter64 *mCountForkToGateway;
 	StatCounter64 *mCountDomainRewrite;
 public:
-	GatewayAdapter(Agent *ag,GenericManager& configManager);
+	GatewayAdapter(Agent *ag);
 
 	~GatewayAdapter();
 
@@ -354,8 +353,8 @@ private:
 	su_home_t home;
 };
 
-GatewayAdapter::GatewayAdapter(Agent *ag, GenericManager& configManager)
-	: Module(ag,configManager), nua(NULL) {
+GatewayAdapter::GatewayAdapter(Agent *ag) :
+		Module(ag), nua(NULL) {
 	su_home_init(&home);
 }
 

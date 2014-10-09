@@ -45,7 +45,7 @@ private:
 
 class MediaRelayServer {
 public:
-	MediaRelayServer(Agent *agent, GenericManager &genericMgr);
+	MediaRelayServer(Agent *agent);
 	~MediaRelayServer();
 	std::shared_ptr<RelaySession> createSession(const std::string &frontId, const std::pair<std::string,std::string> &frontRelayIps);
 	void update();

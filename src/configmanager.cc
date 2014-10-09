@@ -36,10 +36,31 @@
 
 using namespace::std;
 
-
+bool ConfigValueListener::sDirty=false;
 bool ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigState state) {
-	if (state ==ConfigState::Commited) {
-		mGenericManager.sync();
+	switch (state) {
+	case ConfigState::Commited:
+		if (sDirty) {
+			// Write to disk
+			GenericStruct *rootStruct=GenericManager::get()->getRoot();
+			ofstream cfgfile;
+			cfgfile.open(GenericManager::get()->getConfigFile());
+			FileConfigDumper dumper(rootStruct);
+			dumper.setDumpDefaultValues(false);
+			cfgfile << dumper;
+			cfgfile.close();
+			LOGI("New configuration wrote to %s .", GenericManager::get()->getConfigFile().c_str());
+			sDirty=false;
+		}
+		break;
+	case ConfigState::Changed:
+		sDirty=true;
+		break;
+	case ConfigState::Reset:
+		sDirty=false;
+		break;
+	default:
+		break;
 	}
 	return doOnConfigStateChanged(conf, state);
 }
@@ -129,14 +150,8 @@ void NotificationEntry::mibFragment(ostream & ost, string spacing) const{
 			<< spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
-NotificationEntry::NotificationEntry(	const std::string &name
-										, const std::string &help
-										, oid oid_index
-										, Oid &msgTemplateOid
-										, Oid &sourceTemplateOid): GenericEntry(name,Notification,help,oid_index)
-																	, mInitialized(false)
-																	, mMsgTemplateOid(msgTemplateOid)
-																	, mSourceTemplateOid(sourceTemplateOid){
+NotificationEntry::NotificationEntry(const std::string &name, const std::string &help, oid oid_index):
+		GenericEntry(name,Notification,help,oid_index), mInitialized(false){
 }
 
 void NotificationEntry::setInitialized(bool status) {
@@ -168,6 +183,11 @@ void NotificationEntry::send(const GenericEntry *source, const string &msg){
 		return;
 	}
 
+	static Oid &sMsgTemplateOid=GenericManager::get()->getRoot()
+			->getDeep<GenericEntry>("notif/msg", true)->getOid();
+	static Oid &sSourceTemplateOid=GenericManager::get()->getRoot()
+			->getDeep<GenericEntry>("notif/source", true)->getOid();
+
 	/*
 	 * See:
 	 * http://net-snmp.sourceforge.net/dev/agent/notification_8c-example.html
@@ -186,16 +206,16 @@ void NotificationEntry::send(const GenericEntry *source, const string &msg){
 			mOid->mOidPath.size() * sizeof(oid));
 
 	snmp_varlist_add_variable(&notification_vars,
-			(const oid*)mMsgTemplateOid.getValue().data(),
-			mMsgTemplateOid.getValue().size(),
+			(const oid*)sMsgTemplateOid.getValue().data(),
+			sMsgTemplateOid.getValue().size(),
 			ASN_OCTET_STR,
 			(u_char *)msg.data(),msg.length());
 
 	if (source) {
 		string oidstr(source->getOidAsString());
 		snmp_varlist_add_variable(&notification_vars,
-				(const oid*)mSourceTemplateOid.getValue().data(),
-				mSourceTemplateOid.getValue().size(),
+				(const oid*)sSourceTemplateOid.getValue().data(),
+				sSourceTemplateOid.getValue().size(),
 				ASN_OCTET_STR,
 				(u_char *)oidstr.data(),oidstr.length());
 	}
@@ -510,13 +530,13 @@ ConfigBoolean::ConfigBoolean(const string &name, const string &help, const strin
 bool ConfigBoolean::read()const{
 	if (get()=="true" || get()=="1") return true;
 	else if (get()=="false" || get()=="0") return false;
-	SLOGA << "Bad boolean value " << get() ;
+	LOGA("Bad boolean value %s",get().c_str());
 	return false;
 }
 bool ConfigBoolean::readNext()const{
 	if (getNextValue()=="true" || getNextValue()=="1") return true;
 	else if (getNextValue()=="false" || getNextValue()=="0") return false;
-	SLOGA << "Bad boolean value " << getNextValue() ;
+	LOGA("Bad boolean value %s",getNextValue().c_str());
 	return false;
 }
 
@@ -550,8 +570,8 @@ ConfigString::ConfigString(const string &name, const string &help, const string 
 :	ConfigValue(name,String,help,default_value,oid_index){
 }
 
-ConfigRuntimeError::ConfigRuntimeError(const string &name, const string &help,oid oid_index,GenericStruct& root)
-:	ConfigValue(name,RuntimeError,help,"",oid_index), mRoot(root){
+ConfigRuntimeError::ConfigRuntimeError(const string &name, const string &help,oid oid_index)
+:	ConfigValue(name,RuntimeError,help,"",oid_index){
 	this->setReadOnly(true);
 	this->mExportToConfigFile=false;
 }
@@ -577,7 +597,7 @@ const void ConfigRuntimeError::writeErrors(GenericEntry *entry, ostringstream &o
 
 string ConfigRuntimeError::generateErrors()const{
 	ostringstream oss;
-	writeErrors(&mRoot, oss);
+	writeErrors(GenericManager::get()->getRoot(), oss);
 	return oss.str();
 }
 
@@ -615,6 +635,8 @@ shared_ptr<BooleanExpression> ConfigBooleanExpression::read()const{
 }
 
 
+GenericManager *GenericManager::sInstance=0;
+
 static void init_flexisip_snmp() {
 #ifdef ENABLE_SNMP
 	int syslog = 0; /* change this if you want to use syslog */
@@ -642,44 +664,95 @@ static void init_flexisip_snmp() {
 #endif
 }
 
-//void GenericManager::atexit() {
-//	if (sInstance!=NULL) {
-//		delete sInstance;
-//		sInstance = NULL;
-//	}
-//}
-//
-//GenericManager *GenericManager::get(){
-//	if (sInstance==NULL) {
-//		init_flexisip_snmp();
-//		sInstance=new GenericManager();
-//		::atexit(GenericManager::atexit);
-//	}
-//	return sInstance;
-//}
+void GenericManager::atexit() {
+	if (sInstance!=NULL) {
+		delete sInstance;
+		sInstance = NULL;
+	}
+}
+
+GenericManager *GenericManager::get(){
+	if (sInstance==NULL) {
+		init_flexisip_snmp();
+		sInstance=new GenericManager();
+		::atexit(GenericManager::atexit);
+	}
+	return sInstance;
+}
 
 
 
+RootConfigStruct::RootConfigStruct(const string &name, const string &help,vector<oid> oid_root_path)
+: GenericStruct(name,help,1) {
+	mOid = new Oid(oid_root_path,1);
+}
+static oid company_id = SNMP_COMPANY_OID;
+GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
+		mConfigRoot("flexisip","This is the default Flexisip configuration file",{1,3,6,1,4,1,company_id}),
+		mReader(&mConfigRoot), mNotifier(NULL){
+		//to make sure global_conf is instanciated first
+		static ConfigItemDescriptor global_conf[]={
+			{	Boolean	,	"debug"	        ,	"Outputs very detailed logs",	"false"	},
+			{	String,		"log-filter"	,	"Boost::log filter expression, "
+				"Available attributes include: %Severity% %Module% %callid% %from.uri.user% %from.uri.domain%."
+				"Severity levels are: fatal error info warning debug."
+				"see http://boost-log.sourceforge.net/libs/log1/doc/html/log/detailed/utilities.html#log.detailed.utilities.init.filter_formatter", "%Severity% > debug"},
+			{	Boolean	,	"dump-corefiles",	"Generate a corefile when crashing", "true"},
+			{	Boolean	,	"auto-respawn"  ,	"Automatically respawn flexisip in case of abnormal termination (crashes)",	"true"},
+			{	StringList	,"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost"},
+			{	StringList	,"transports"	,	"List of white space separated SIP uris where the proxy must listen."
+				"Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' prameter is unspecified, it will listen "
+				"to both udp and tcp. An local address to bind can be indicated in the 'maddr' parameter, while the domain part of the uris "
+				"are used as public domain or ip address. A per transport directory with the same meaning as tls-certificates-dir can be added as uri parameter.Here some examples to understand:\n"
+				"* listen on all local interfaces for udp and tcp, on standart port:\n"
+				"\ttransports=sip:*\n"
+				"* listen on all local interfaces for udp,tcp and tls, on standart ports:\n"
+				"\ttransports=sip:* sips:*\n"
+				"* listen on tls localhost with 2 different port and SSL certificates:\n"
+				"\ttransports=sip:localhost:5061;tls-certificates-dir=path_a sip:localhost:5062;tls-certificates-dir=path_b,\n"
+				"* listen on tls localhost with 2 peer certificate requirements:\n"
+				"\ttransports=sip:localhost:5061;require-peer-certificate=0 sip:localhost:5062;require-peer-certificate=1,\n"
+				"* listen on 192.168.0.29:6060 with tls, but public hostname is 'sip.linphone.org' used in SIP messages. Bind address won't appear:\n"
+				"\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29"
+				,	"sip:*" },
+			{	String		,"tls-certificates-dir", "Path to the directory where TLS server certificate and private key can be found, concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'.", "/etc/flexisip/tls"},
+			{	Integer		,"idle-timeout",	"Time interval in seconds after which inactive connections are closed.", "3600"},
+			{	Boolean		,"require-peer-certificate",	"Require client certificate from peer.", "false"},
+			{	Boolean		,"enable-event-logs",	"Enable event logs. Event logs contain per domain and user information about processed registrations, calls and messages.", "false"},
+			{	String		,"event-logs-dir",	"Directory where event logs are written.",	"/var/log/flexisip"},
+			{	Integer		,"transaction-timeout",	"SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.","32000"},
+			config_item_end
+		};
+		
+			
+	GenericStruct *notifObjs=new GenericStruct("notif","Templates for notifications.",1);
+	notifObjs->setExportToConfigFile(false);
+	mConfigRoot.addChild(notifObjs);
+	mNotifier=new NotificationEntry("sender","Send notifications",1);
+	notifObjs->addChild(mNotifier);
+	ConfigString *nmsg=new ConfigString("msg", "Notification message payload.", "", 10);
+	nmsg->setNotifPayload(true);
+	notifObjs->addChild(nmsg);
+	ConfigString *nsoid=new ConfigString("source", "Notification source payload.", "", 11);
+	nsoid->setNotifPayload(true);
+	notifObjs->addChild(nsoid);
 
 
-GenericManager::GenericManager(const std::string &name, const std::string &help, std::vector<oid> oid_root_prefix)
-	: GenericStruct(name,help,1),ConfigValueListener(*this)
-		, mNeedRestart(false), mDirtyConfig(false)
-		, mReader(this), mNotifier(NULL) {
-		mOid = new Oid(oid_root_prefix,1);
-		GenericStruct *notifObjs=new GenericStruct("notif","Templates for notifications.",1);
-		notifObjs->setExportToConfigFile(false);
-		this->addChild(notifObjs);
 
-		ConfigString *nmsg=new ConfigString("msg", "Notification message payload.", "", 10);
-		nmsg->setNotifPayload(true);
-		notifObjs->addChild(nmsg);
-		ConfigString *nsoid=new ConfigString("source", "Notification source payload.", "", 11);
-		nsoid->setNotifPayload(true);
-		notifObjs->addChild(nsoid);
+	GenericStruct *global=new GenericStruct("global","Some global settings of the flexisip proxy.",2);
+	mConfigRoot.addChild(global);
+	global->addChildrenValues(global_conf);
+	global->setConfigListener(this);
 
-		mNotifier=new NotificationEntry("sender","Send notifications",1,nmsg->getOid(),nsoid->getOid());
-		notifObjs->addChild(mNotifier);
+	ConfigString *version=new ConfigString("version-number", "Flexisip version.", PACKAGE_VERSION, 999);
+	version->setReadOnly(true);
+	version->setExportToConfigFile(false);
+	global->addChild(version);
+
+	ConfigValue *runtimeError=new ConfigRuntimeError("runtime-error", "Retrieve current runtime error state", 998);
+	runtimeError->setExportToConfigFile(false);
+	runtimeError->setReadOnly(true);
+	global->addChild(runtimeError);
 
 }
 
@@ -730,11 +803,11 @@ void GenericManager::loadStrict(){
 }
 
 GenericStruct *GenericManager::getRoot(){
-	return this;
+	return &mConfigRoot;
 }
 
 const GenericStruct *GenericManager::getGlobal(){
-	return get<GenericStruct>("global");
+	return mConfigRoot.get<GenericStruct>("global");
 }
 
 ostream &FileConfigDumper::dump(ostream & ostr)const {
@@ -923,6 +996,8 @@ static bool checkTranscoder(const std::map<std::string,std::string> &override) {
 	return false;
 }
 void FileConfigReader::onUnreadItem(const char *secname, const char *key, int lineno){
+	static bool dontCheckTranscoder=checkTranscoder(GenericManager::get()->getOverrideMap());
+	if (dontCheckTranscoder && 0==strcmp(secname,"module::Transcoder")) return;
 	LOGE("Unsupported parameter '%s' in section [%s] at line %i", key, secname, lineno);
 	mHaveUnreads=true;
 	GenericEntry *sec=mRoot->find(secname);
@@ -1218,15 +1293,3 @@ int StatCounter64::handleSnmpRequest(netsnmp_mib_handler *handler,
 	return SNMP_ERR_NOERROR;
 }
 #endif
-
-void GenericManager::sync() {
-	GenericStruct *rootStruct=getRoot();
-	ofstream cfgfile;
-	cfgfile.open(getConfigFile());
-	FileConfigDumper dumper(rootStruct);
-	dumper.setDumpDefaultValues(false);
-	cfgfile << dumper;
-	cfgfile.close();
-	LOGI("New configuration wrote to %s .", getConfigFile().c_str());
-}
-

@@ -177,8 +177,8 @@ struct pumpstream : public std::ostringstream
 		ortp_log(level, "%s", str().c_str());
 	}
 };
-/*
-#if (__GNUC__ == 4 && __GNUC_MINOR__ < 5 )
+
+#if 0 && (__GNUC__ == 4 && __GNUC_MINOR__ < 5 )
 template<typename _Tp>
 inline pumpstream &
 operator<<(pumpstream&& __os, const _Tp &__x)
@@ -187,8 +187,9 @@ operator<<(pumpstream&& __os, const _Tp &__x)
 	return __os;
 }
 #endif
-*/
 #define SLOGA_FL(file,line) throw FlexisipException() << " " << file << ":"<< line << " "
+
+
 #define SLOG(thelevel) if (ortp_logv_out!=NULL && ortp_log_level_enabled((thelevel))) pumpstream((thelevel))
 #define SLOGD SLOG(ORTP_DEBUG)
 #define SLOGI SLOG(ORTP_MESSAGE)

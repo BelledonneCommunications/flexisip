@@ -18,7 +18,6 @@
 
 
 #include "authdb.hh"
-#include "proxy-configmanager.hh"
 
 using namespace ::std;
 
@@ -36,7 +35,7 @@ public:
 
 AuthDb* AuthDb::get() {
 	if (sUnique == NULL) {
-		GenericStruct *cr=ProxyConfigManager::instance();
+		GenericStruct *cr=GenericManager::get()->getRoot();
 		GenericStruct *ma=cr->get<GenericStruct>("module::Authentication");
 		const string &impl=ma->get<ConfigString>("db-implementation")->read();
 		if (impl == "fixed") {
@@ -57,7 +56,7 @@ AuthDb* AuthDb::get() {
 
 
 AuthDb::AuthDb() {
-	GenericStruct *cr=ProxyConfigManager::instance();
+	GenericStruct *cr=GenericManager::get()->getRoot();
 	GenericStruct *ma=cr->get<GenericStruct>("module::Authentication");
 	list<string> domains=ma->get<ConfigStringList>("auth-domains")->read();
 	mCacheExpire = ma->get<ConfigInt>("cache-expire")->read();

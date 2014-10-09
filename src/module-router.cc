@@ -24,7 +24,7 @@
 #include "forkbasiccontext.hh"
 #include "log/logmanager.hh"
 #include <sofia-sip/sip_status.h>
-#include "proxy-configmanager.hh"
+
 #include "lateforkapplier.hh"
 
 using namespace ::std;
@@ -48,7 +48,7 @@ public:
 	void routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aorb, const url_t *sipUri);
 	void onContactRegistered(const sip_contact_t *ct, const sip_path_t *path, Record *aor, const url_t * sipUri);
 
-	ModuleRouter(Agent *ag,GenericManager& configManager) : Module(ag,configManager) {
+	ModuleRouter(Agent *ag) : Module(ag) {
 	}
 
 	~ModuleRouter() {
@@ -86,7 +86,7 @@ public:
 	}
 
 	virtual void onLoad(const GenericStruct *mc) {
-		GenericStruct *cr=ProxyConfigManager::instance();
+		GenericStruct *cr=GenericManager::get()->getRoot();
 		const GenericStruct *mReg=cr->get<GenericStruct>("module::Registrar");
 	
 		mDomains = mReg->get<ConfigStringList>("reg-domains")->read();
@@ -519,7 +519,7 @@ public:
 		pending += mPreroutes.size();
 		for (auto it = mPreroutes.cbegin(); it != mPreroutes.cend(); ++it) {
 			url_t *target = url_format(mEv->getHome(), "sip:%s@%s", it->c_str(), domain);
-			RegistrarDb::get()->fetch(target, this->shared_from_this(), true);
+			RegistrarDb::get(mModule->getAgent())->fetch(target, this->shared_from_this(), true);
 		}
 	}
 	
@@ -622,7 +622,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			sendReply(ev, SIP_100_TRYING);
 			auto onRoutingListener = make_shared<OnFetchForRoutingListener>(this, ev, sipurl);
 			if (mPreroute.empty()) {
-				RegistrarDb::get()->fetch(sipurl, onRoutingListener, true);
+				RegistrarDb::get(mAgent)->fetch(sipurl, onRoutingListener, true);
 			} else {
 				char preroute_param[20];
 				if (url_param(sipurl->url_params, "preroute", preroute_param, sizeof(preroute_param))) {
@@ -638,7 +638,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 					SLOGD << "Prerouting to " << mPreroute;
 					url_t *prerouteUrl = url_format(ev->getHome(), "sip:%s@%s",
 													mPreroute.c_str(), sipurl->url_host);
-					RegistrarDb::get()->fetch(prerouteUrl, onRoutingListener, true);
+					RegistrarDb::get(mAgent)->fetch(prerouteUrl, onRoutingListener, true);
 				}
 			}
 		}

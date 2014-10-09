@@ -24,8 +24,8 @@ using namespace ::std;
 
 class ContactRouteInserter: public Module {
 public:
-	ContactRouteInserter(Agent *ag, GenericManager& configManager):
-		Module(ag,configManager), mContactMasquerader() {
+	ContactRouteInserter(Agent *ag) :
+		Module(ag), mContactMasquerader() {
 	}
 
 	void onDeclare(GenericStruct *module_config) {

@@ -14,7 +14,7 @@
 #include <map>
 #include "signaling-exception.hh"
 #include "etag-manager.hh"
-#include "presence-configmanager.hh"
+//#include "presence-configmanager.hh"
 #include "presentity-presenceinformation.hh"
 #include "presentity-manager.hh"
 
@@ -45,7 +45,7 @@ public:
 	void start() throw (FlexisipException);
 private:
 
-	PresenceConfigManager mConfigManager;
+	//PresenceConfigManager mConfigManager;
 	belle_sip_stack_t *mStack;
 	belle_sip_provider_t *mProvider;
 	belle_sip_listener_t *mListener;

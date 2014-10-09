@@ -23,7 +23,7 @@ using namespace ::std;
 
 class ModuleSanityChecker : public Module, protected ModuleToolbox{
 public:
-	ModuleSanityChecker(Agent *ag,GenericManager& configManager) : Module(ag,configManager){
+	ModuleSanityChecker(Agent *ag) : Module(ag){
 	}
 
 	~ModuleSanityChecker(){

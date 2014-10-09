@@ -369,11 +369,11 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &chan
 	}
 }
 
-MediaRelayServer::MediaRelayServer(Agent *agent,GenericManager &genericMgr) :
+MediaRelayServer::MediaRelayServer(Agent *agent) :
 		mAgent(agent) {
 	mRunning = false;
-
-	GenericStruct *ma = genericMgr.get<GenericStruct>("module::MediaRelay");
+	GenericStruct *cr = GenericManager::get()->getRoot();
+	GenericStruct *ma = cr->get<GenericStruct>("module::MediaRelay");
 	mMinPort = ma->get<ConfigInt>("sdp-port-range-min")->read();
 	mMaxPort = ma->get<ConfigInt>("sdp-port-range-max")->read();
 	mPreventLoop=ma->get<ConfigBoolean>("prevent-loops")->read();

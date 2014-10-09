@@ -6,7 +6,6 @@
 //  Copyright (c) 2014 Belledonne Communications. All rights reserved.
 //
 
-#define BELLE_SIP_USE_STL 1;
 
 #include "presence-server.h"
 #include "belle-sip/belle-sip.h"
@@ -60,9 +59,9 @@ mStack(belle_sip_stack_new(NULL))
 	belle_sip_set_log_handler(_belle_sip_log);
 	belle_sip_set_log_level(BELLE_SIP_LOG_MESSAGE);
 	
-	if (mConfigManager.load(configFile.c_str())==-1 ) {
-		throw FLEXISIP_EXCEPTION <<"No configuration file found at [" << configFile << "] Please specify a valid configuration file." ;
-	}
+//	if (mConfigManager.load(configFile.c_str())==-1 ) {
+//		throw FLEXISIP_EXCEPTION <<"No configuration file found at [" << configFile << "] Please specify a valid configuration file." ;
+//	}
 	belle_sip_listener_callbacks_t listener_callbacks;
 	
 	memset(&listener_callbacks,0,sizeof(listener_callbacks));
@@ -74,7 +73,7 @@ mStack(belle_sip_stack_new(NULL))
 	listener_callbacks.process_transaction_terminated=(void (*)(void *, const belle_sip_transaction_terminated_event_t *))PresenceServer::processTransactionTerminated;
 	mListener=belle_sip_listener_create_from_callbacks(&listener_callbacks,this);
 	belle_sip_provider_add_sip_listener(mProvider,mListener);
-	mDefaultExpires=mConfigManager.get<GenericStruct>("presence-global")->get<ConfigInt>("expires")->read();
+	mDefaultExpires=3600; //FIXME config mConfigManager.get<GenericStruct>("presence-global")->get<ConfigInt>("expires")->read();
 	SLOGD << "Presence server configuration file ["<< configFile  << "] Successfully loaded ";
 	
 	
@@ -88,7 +87,8 @@ PresenceServer::~PresenceServer() {
 }
 void PresenceServer::start() throw (FlexisipException) {
 	
-	auto transports=mConfigManager.get<GenericStruct>("presence-global")->get<ConfigStringList>("transports")->read();
+	list<string> transports; //mConfigManager.get<GenericStruct>("presence-global")->get<ConfigStringList>("transports")->read();
+	transports.push_back({"sip:127.0.0.1:5065"});
 	for (auto it = transports.begin(); it != transports.end(); ++it) {
 		belle_sip_uri_t* uri = belle_sip_uri_parse(it->c_str());
 		if (uri) {

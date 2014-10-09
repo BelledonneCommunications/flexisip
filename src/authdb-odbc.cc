@@ -22,7 +22,6 @@
 #include <vector>
 #include <set>
 #include <chrono>
-#include "proxy-configmanager.hh"
 
 using namespace ::std;
 using namespace chrono;
@@ -212,7 +211,7 @@ static vector<string> parseAndUpdateRequestConfig(string &request) {
  * http://msdn.microsoft.com/en-us/library/ms716319%28v=VS.85%29.aspx
  */
 OdbcAuthDb::OdbcAuthDb():mAsynchronousRetrieving(true),env(NULL),execDirect(false) {
-	GenericStruct *cr=ProxyConfigManager::instance();
+	GenericStruct *cr=GenericManager::get()->getRoot();
 	GenericStruct *ma=cr->get<GenericStruct>("module::Authentication");
 
 	string none = "none";

@@ -23,7 +23,7 @@ using namespace ::std;
 
 class ModuleGarbageIn : public Module, protected ModuleToolbox{
 public:
-	ModuleGarbageIn(Agent *ag,GenericManager& configManager) : Module(ag,configManager){
+	ModuleGarbageIn(Agent *ag) : Module(ag){
 	}
 
 	~ModuleGarbageIn(){

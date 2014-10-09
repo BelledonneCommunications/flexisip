@@ -59,7 +59,7 @@ public:
 	
 	void routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aorb, const url_t *sipUri);
 
-	ModuleRegistrar(Agent *ag,GenericManager& configManager) : Module(ag,configManager),mStaticRecordsTimer(NULL) {
+	ModuleRegistrar(Agent *ag) : Module(ag),mStaticRecordsTimer(NULL) {
 		sRegistrarInstanceForSigAction=this;
 		memset(&mSigaction, 0, sizeof(mSigaction));
 	}
@@ -120,9 +120,6 @@ public:
 		mSigaction.sa_flags = SA_SIGINFO;
 		sigaction(SIGUSR1, &mSigaction, NULL);
 		sigaction(SIGUSR2, &mSigaction, NULL);
-
-		RegistrarDb::init(getAgent(),getConfigManager());
-
 	}
 
 	virtual void onUnload() {
@@ -145,7 +142,7 @@ public:
 
 private:
 	void updateLocalRegExpire() {
-		RegistrarDb *db = RegistrarDb::get();
+		RegistrarDb *db = RegistrarDb::get(mAgent);
 		db->mLocalRegExpire->removeExpiredBefore(getCurrentTime());
 		mStats.mCountLocalActives->set(db->mLocalRegExpire->countActives());
 	}
@@ -420,14 +417,14 @@ void ModuleRegistrar::processUpdateRequest(shared_ptr<SipEventT> &ev, const sip_
 		mStats.mCountClear->incrStart();
 		LOGD("Clearing bindings");
 		listener->addStatCounter(mStats.mCountClear->finish);
-		RegistrarDb::get()->clear(sip, listener);
+		RegistrarDb::get(mAgent)->clear(sip, listener);
 		return;
 	} else {
 		auto listener = make_shared<ListenerT>(this, ev, sip->sip_from, sip->sip_contact);
 		mStats.mCountBind->incrStart();
 		LOGD("Updating binding");
 		listener->addStatCounter(mStats.mCountBind->finish);
-		RegistrarDb::get()->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, false, listener);
+		RegistrarDb::get(mAgent)->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, false, listener);
 		return;
 	}
 }
@@ -450,7 +447,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	if (sip->sip_contact == NULL) {
 		LOGD("No sip contact, it is a fetch only request for %s.", url_as_string(ms->getHome(), sipurl));
 		auto listener=make_shared<OnRequestBindListener>(this, ev);
-		RegistrarDb::get()->fetch(sipurl, listener);
+		RegistrarDb::get(mAgent)->fetch(sipurl, listener);
 		return;
 	}
 
@@ -479,14 +476,14 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			mStats.mCountClear->incrStart();
 			LOGD("Clearing bindings");
 			listener->addStatCounter(mStats.mCountClear->finish);
-			RegistrarDb::get()->clear(sip, listener);
+			RegistrarDb::get(mAgent)->clear(sip, listener);
 			return;
 		} else {
 			auto listener = make_shared<OnRequestBindListener>(this, ev, sip->sip_from, sip->sip_contact);
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
 			listener->addStatCounter(mStats.mCountBind->finish);
-			RegistrarDb::get()->bind(sip, maindelta, false, listener);
+			RegistrarDb::get(mAgent)->bind(sip, maindelta, false, listener);
 			return;
 		}
 	} else {
@@ -555,13 +552,13 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		mStats.mCountClear->incrStart();
 		LOGD("Clearing bindings");
 		listener->addStatCounter(mStats.mCountClear->finish);
-		RegistrarDb::get()->clear(reSip, listener);
+		RegistrarDb::get(mAgent)->clear(reSip, listener);
 		return;
 	} else {
 		mStats.mCountBind->incrStart();
 		LOGD("Updating binding");
 		listener->addStatCounter(mStats.mCountBind->finish);
-		RegistrarDb::get()->bind(reSip, maindelta, false, listener);
+		RegistrarDb::get(mAgent)->bind(reSip, maindelta, false, listener);
 		return;
 	}
 }
@@ -655,7 +652,7 @@ void ModuleRegistrar::readStaticRecords() {
 							path)
 						, expire, alias
 					);
-					RegistrarDb::get()->bind(params, listener);
+					RegistrarDb::get(mAgent)->bind(params, listener);
 					continue;
 				}
 			}
@@ -698,7 +695,7 @@ void ModuleRegistrar::sighandler(int signum, siginfo_t* info, void* ptr) {
 		url_t *url=url_make(&home, "sip:contact@domain");
 		
 		auto listener=make_shared<FakeFetchListener>();
-		RegistrarDb::get()->fetch(url, listener, false);
+		RegistrarDb::get(sRegistrarInstanceForSigAction->getAgent())->fetch(url, listener, false);
 	}
 }
 
