@@ -64,8 +64,10 @@ void ForkBasicContext::finishIncomingTransaction(){
 	if (best==NULL) {
 		// Create response
 		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
-		shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
-		forwardResponse(ev);
+		if (msgsip){
+			shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
+			forwardResponse(ev);
+		}
 	}else{
 		forwardResponse(best);
 	}
