@@ -105,6 +105,19 @@ AC_ARG_ENABLE(odbc,
 )
 AM_CONDITIONAL(BUILD_ODBC,test x$odbc = xyes)
 
+
+# Check for unixodbc
+AC_ARG_WITH(odbc,
+	AC_HELP_STRING([--with-odbc], [Set prefix where odbc can be found or "none" to disable (ex:/usr or /usr/local) [[default=/usr]]]),
+	[
+		CFLAGS="$CFLAGS -I$withval/include"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		LDFLAGS="$LDFLAGS -L$withval/lib64"
+	],
+	[foo=bar]
+)
+
+
 if test x$odbc = "xyes"; then
 	# Checks for libraries.
 	AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],,[AC_MSG_ERROR("unixodbc headers missing. This is required for odbc. Use --disable-odbc if you don''t need this feature." )])
@@ -189,6 +202,7 @@ else
 	MYSQL_CFLAGS=
 fi
 
+
 # Checks for header files.
 
 AC_CHECK_HEADERS(sys/prctl.h)
@@ -201,7 +215,7 @@ AC_ARG_ENABLE(doc,
 
 AC_ARG_ENABLE(transcoder,
 	AC_HELP_STRING([--enable-transcoder],
-	    [Build transcoder support @<:@no@:>@]),
+	    [Build transcoder support [yes]]),
         [transcoder="${enableval}"],[transcoder=yes]
 )
 if test $transcoder = "yes"; then
@@ -215,7 +229,7 @@ fi
 
 AC_ARG_ENABLE(specific-features,
 	AC_HELP_STRING([--enable-specific-features],
-	    [Enable specific features @<:no:>@]),
+	    [Enable specific features [no]]),
         [specific_features="${enableval}"],[specific_features=no]
 )
 if test $specific_features = "yes"; then
@@ -224,7 +238,7 @@ fi
 
 AC_ARG_ENABLE(monotonic-clock-registrations,
 	AC_HELP_STRING([--enable-monotonic-clock-registrations],
-	    [Enable monotonic clock for registrations @<:no:>@]),
+	    [Enable monotonic clock for registrations [no]]),
         [monotonic_clock_registrations="${enableval}"],[monotonic_clock_registrations=no]
 )
 if test $monotonic_clock_registrations = "yes"; then

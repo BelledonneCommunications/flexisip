@@ -10,27 +10,36 @@
 %define     transcoder      %{?_without_transcoder:0}%{!?_without_transcoder:1}
 %define     snmp      %{?_without_snmp:0}%{!?_without_snmp:1}
 
+# will be 1 if we need to generate a /opt/belledonne-communications RPM
+%define     bcpkg       %{?_with_bc:1}%{!?_with_bc:0}
 
+# These lines are here because we can build the RPM for flexisip, in which 
+# case we prefix the entire installation so that we don't break compatibility
+# with the user's libs.
+# To compile with bc prefix, use rpmbuild -ba --with bc [SPEC]
+%define                 pkg_name        %{?_with_bc:bc-flexisip}%{!?_with_bc:flexisip}
+%define                 pkg_prefix      %{?_with_bc:bc-}%{!?_with_bc:}
+%{?_with_bc: %define    _prefix         /opt/belledonne-communications}
 
 # 
 # flexisip - SIP proxy with media capabilities
 # 
 
 Summary:	SIP proxy with media capabilities
-Name:		flexisip
+Name:		%pkg_name
 Version:	@PACKAGE_VERSION@
 Release:	%(git describe --tags --abbrev=40 | sed -rn 's/^.*-([0-9]+)-g[a-z0-9]{40}$/\1/p' || echo '1')%{?dist}
 License:	AGPL
 Group:		Applications/Communications
 URL:		http://www.belledonne-communications.com
-Source0:	%{name}-@PACKAGE_VERSION@.tar.gz
+Source0:	flexisip-@PACKAGE_VERSION@.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 %ifarch %ix86
 BuildArch:	i686
 %endif
 Requires: bash >= 2.0
 %if %{odbc}
-Requires: unixODBC >= 2.3.0
+Requires: %{pkg_prefix}unixODBC >= 2.3.0
 %endif
 %if %{boostlog}
 Requires: boost-log >= 1.41.0
@@ -43,7 +52,7 @@ Requires(postun): /sbin/service
 Extensible SIP proxy with media capabilities. Designed for robustness and easy of use.
 
 %prep
-%setup -q
+%setup -qn flexisip-%{version}
 
 %build
 %configure \
@@ -63,10 +72,14 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 %if !%{boostlog}
     --disable-boostlog \
 %endif
-%if %{transcoder}
-    --enable-transcoder \
+%if !%{transcoder}
+    --disable-transcoder \
+%endif
+%if %{bcpkg}
+    --with-odbc=%{_prefix} \
 %endif
 	--sysconfdir=%{_sysconfdir} 
+
 %{__make} 
 
 # parallel build disabled due to automake libtool random errors
@@ -77,6 +90,10 @@ rm -rf $RPM_BUILD_ROOT
 %makeinstall
 rm -rf /usr/share/doc/%{name}-@PACKAGE_VERSION@/*.tmp.tex
 install -p -m 0744 scripts/redhat/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
+
+%if %{bcpkg}
+export QA_RPATHS=0x0003
+%endif
 
 %clean
 rm -rf $RPM_BUILD_ROOT
