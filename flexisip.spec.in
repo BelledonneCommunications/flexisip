@@ -119,13 +119,20 @@ fi
 %files
 %defattr(-,root,root,-)
 %doc AUTHORS COPYING ChangeLog INSTALL NEWS README
-%doc %{_prefix}/share/doc/flexisip/flexisip_guide.tex %{_prefix}/share/doc/*.pdf %{_prefix}/share/doc/latex_include_generator.sh
+%if !%{bcpkg}
+%doc %{_prefix}/share/doc/flexisip/flexisip_guide.tex 
+%doc %{_prefix}/share/doc/*.pdf 
+%doc %{_prefix}/share/doc/latex_include_generator.sh
+%endif
+
 %exclude %{_prefix}/share/doc/flexisip
 %{_bindir}/*
 /etc/init.d/flexisip
 /etc/flexisip
 
 %changelog
+* Tue Oct 14 2014 Guillaume Bienkowski <gbi@linphone.org>
+	- Add /opt packaging possibility
 * Wed Feb 15 2012 Guillaume Beraudo <guillaume.beraudo@belledonne-communications.com>
     - Force use of redhat init script
 * Tue Oct 19 2010 Simon Morlat <simon.morlat@belledonne-communications.com>
