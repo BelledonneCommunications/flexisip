@@ -118,14 +118,15 @@ fi
 
 %files
 %defattr(-,root,root,-)
-%doc AUTHORS COPYING ChangeLog INSTALL NEWS README doc/flexisip_guide.tex doc/*.pdf doc/latex_include_generator.sh
-%exclude /usr/share/doc/flexisip
+%doc AUTHORS COPYING ChangeLog INSTALL NEWS README
+%doc %{_prefix}/share/doc/flexisip/flexisip_guide.tex %{_prefix}/share/doc/*.pdf %{_prefix}/share/doc/latex_include_generator.sh
+%exclude %{_prefix}/share/doc/flexisip
 %{_bindir}/*
 /etc/init.d/flexisip
 /etc/flexisip
 
 %changelog
-* Wed Feb 15 2015 Guillaume Beraudo <guillaume.beraudo@belledonne-communications.com>
+* Wed Feb 15 2012 Guillaume Beraudo <guillaume.beraudo@belledonne-communications.com>
     - Force use of redhat init script
 * Tue Oct 19 2010 Simon Morlat <simon.morlat@belledonne-communications.com>
 	- Initial specfile for first prototype release
