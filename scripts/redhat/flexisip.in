@@ -10,7 +10,7 @@
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-prog="flexisip"
+prog=@bindir@/flexisip
 
 # Source networking configuration.
 . /etc/sysconfig/network
@@ -22,8 +22,8 @@ prog="flexisip"
 FLEXISIP_OPTIONS="--daemon --syslog"
 FLEXISIP_PID=/var/run/flexisip.pid
 
-[ -f /usr/bin/$prog -o -f /usr/local/bin/$prog ] || exit 0
-PATH=$PATH:/usr/bin:/usr/local/bin
+[ -f $prog ] || exit 0
+export PATH=@bindir@:$PATH
 
 # By default it's all good
 RETVAL=0
