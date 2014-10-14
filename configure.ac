@@ -288,12 +288,12 @@ AM_CONDITIONAL(USE_MONOTONIC_CLOCK,test x$use_monotonic_clock = xyes)
 AX_BOOST_BASE([1.41],[],[AC_MSG_WARN([boost base not found.])])
 AC_ARG_ENABLE(boostlog,
         AC_HELP_STRING([--disable-boostlog],
-            [Build boost log support @<:@yes@:>@]),
+            [Build boost log support [no]]),
         [boostlog="${enableval}"],[boostlog=no]
 )
 
 if test x$boostlog = xyes ; then
-CHECK_BOOST([AX_BOOST_LOG], [HAVE_BOOST_LOG], [found_boost_log=yes], [AC_MSG_WARN([boost log not found.])])
+CHECK_BOOST([AX_BOOST_LOG], [HAVE_BOOST_LOG], [found_boost_log=yes], [AC_MSG_ERROR([boost log not found.])])
 if test x$found_boost_log = xyes ; then
 	CHECK_BOOST([AX_BOOST_REGEX], [HAVE_BOOST_LOG], [], [AC_MSG_ERROR([boost regex not found.])])
 	CHECK_BOOST([AX_BOOST_THREAD], [HAVE_BOOST_LOG], [], [AC_MSG_ERROR([boost thread not found.])])
