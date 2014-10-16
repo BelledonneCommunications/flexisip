@@ -60,6 +60,7 @@ else
 	use_rpm=true;
 fi
 
+
 strictness=yes
 case $CXX in
 	*clang++*)
@@ -72,7 +73,9 @@ case $CXX in
 		;;
 	esac
 	;;
-	*g++*)
+esac
+
+if test $GCC = yes ; then
 	# Use only -O1 due to a compile-time bug in gcc 4.4.6 from centos6.
 	CFLAGS="-g -O2 $CFLAGS"
 	CXXFLAGS="-g -O1 -std=c++0x $CXXFLAGS"
@@ -88,7 +91,7 @@ case $CXX in
 			LDFLAGS="-pthread $LDFLAGS"
 		;;
 	esac
-esac
+fi
 
 PKG_PROG_PKG_CONFIG()
 
