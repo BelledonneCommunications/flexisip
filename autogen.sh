@@ -1,5 +1,11 @@
 #!/bin/sh
 
+srcdir=`dirname $0`
+test -z "$srcdir" && srcdir=.
+
+THEDIR=`pwd`
+cd $srcdir
+
 #AM_VERSION="1.10"
 if ! type aclocal-$AM_VERSION 1>/dev/null 2>&1; then
 	# automake-1.10 (recommended) is not available on Fedora 8
@@ -30,3 +36,4 @@ autoheader
 $AUTOMAKE --force-missing --add-missing --copy
 autoconf
 
+cd $THEDIR
