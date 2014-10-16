@@ -149,25 +149,25 @@ AM_CFLAGS+=-DENABLE_PROTOBUF
 endif
 
 if BUILD_REDIS
-bin_PROGRAMS+=ctdumper serializer binder
-ctdumper_SOURCES=tool/ctdumper.cc $(thesources)
-ctdumper_LDADD=$(flexisip_LDADD)
-nodist_ctdumper_SOURCES=$(nodistsources)
+bin_PROGRAMS+=flexisip_ctdumper flexisip_serializer flexisip_binder
+flexisip_ctdumper_SOURCES=tool/ctdumper.cc $(thesources)
+flexisip_ctdumper_LDADD=$(flexisip_LDADD)
+nodist_flexisip_ctdumper_SOURCES=$(nodistsources)
 endif
 
-serializer_SOURCES=test/serializer.cc test/test_utils.hh $(thesources)
-serializer_LDADD=$(flexisip_LDADD)
-nodist_serializer_SOURCES=$(nodistsources)
+flexisip_serializer_SOURCES=test/serializer.cc test/test_utils.hh $(thesources)
+flexisip_serializer_LDADD=$(flexisip_LDADD)
+nodist_flexisip_serializer_SOURCES=$(nodistsources)
 
-binder_SOURCES=test/binder.cc test/test_utils.hh $(thesources)
-binder_LDADD=$(flexisip_LDADD)
-nodist_binder_SOURCES=$(nodistsources)
+flexisip_binder_SOURCES=test/binder.cc test/test_utils.hh $(thesources)
+flexisip_binder_LDADD=$(flexisip_LDADD)
+nodist_flexisip_binder_SOURCES=$(nodistsources)
 
 if BUILD_PUSHNOTIFICATION
-bin_PROGRAMS+=pusher
-pusher_SOURCES=tool/pusher.cc $(thesources)
-pusher_LDADD=$(flexisip_LDADD)
-nodist_pusher_SOURCES=$(nodistsources)
+bin_PROGRAMS+=flexisip_pusher
+flexisip_pusher_SOURCES=tool/pusher.cc $(thesources)
+flexisip_pusher_LDADD=$(flexisip_LDADD)
+nodist_flexisip_pusher_SOURCES=$(nodistsources)
 endif
 
 flexisip_SOURCES=main.cc $(thesources)
