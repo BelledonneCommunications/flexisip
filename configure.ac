@@ -109,10 +109,19 @@ AM_CONDITIONAL(BUILD_ODBC,test x$odbc = xyes)
 # Check for unixodbc
 AC_ARG_WITH(odbc,
 	AC_HELP_STRING([--with-odbc], [Set prefix where odbc can be found or "none" to disable (ex:/usr or /usr/local) [[default=/usr]]]),
-	[
-		CFLAGS="$CFLAGS -I$withval/include"
-		CPPFLAGS="$CPPFLAGS -I$withval/include"
-		LDFLAGS="$LDFLAGS -L$withval/lib64"
+	[	
+		# Use the odbc_config tool to get odbc libs and includes
+		AC_CHECK_PROG([pdflatex], [pdflatex], [yes], [no])
+		AM_CONDITIONAL([GENERATE_DOC], [test "x$pdflatex$doc" = xyesyes])
+		
+		AC_CHECK_PROG([odbc_config],[odbc_config], [yes], [no], [$withval/bin])
+		if test $odbc_config = no; then
+			AC_MSG_ERROR([You need the program 'odbc_config' in $withval/bin])
+		else
+			CFLAGS="$CFLAGS -I`$withval/bin/odbc_config --include-prefix`"
+			CPPFLAGS="$CPPFLAGS -I`$withval/bin/odbc_config --include-prefix`"
+			LDFLAGS="$LDFLAGS -L`$withval/bin/odbc_config --lib-prefix`"
+		fi
 	],
 	[foo=bar]
 )
