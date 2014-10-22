@@ -6,6 +6,7 @@
 %define     redis       %{?_without_redis:0}%{!?_without_redis:1}
 %define     protobuf       %{?_without_protobuf:0}%{!?_without_protobuf:1}
 %define     boostlog       %{?_without_boostlog:0}%{!?_without_boostlog:1}
+%define     push       %{?_with_push:1}%{!?_without_push:0}
 %define     odbc       %{?_without_odbc:0}%{!?_without_odbc:1}
 %define     transcoder      %{?_without_transcoder:0}%{!?_without_transcoder:1}
 %define     snmp      %{?_without_snmp:0}%{!?_without_snmp:1}
@@ -74,6 +75,9 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 %endif
 %if !%{transcoder}
     --disable-transcoder \
+%endif
+%if !%{push}
+    --disable-pushnotification \
 %endif
 %if %{bcpkg}
     --with-odbc=%{_prefix} \
