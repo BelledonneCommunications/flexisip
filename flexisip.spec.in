@@ -131,7 +131,7 @@ fi
 %defattr(-,root,root,-)
 %doc AUTHORS COPYING ChangeLog INSTALL NEWS README
 %docdir %{_docdir}
-
+%{_docdir}
 %exclude %{_prefix}/share/doc/flexisip
 %{_bindir}/*
 /etc/init.d/flexisip
