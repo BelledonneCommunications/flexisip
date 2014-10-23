@@ -3,16 +3,16 @@
 ## rpmbuild options
 
 # default is to build with redis & protobuf support
-%define     redis       %{?_without_redis:0}%{!?_without_redis:1}
-%define     protobuf       %{?_without_protobuf:0}%{!?_without_protobuf:1}
-%define     boostlog       %{?_without_boostlog:0}%{!?_without_boostlog:1}
+%define     redis      %{?_without_redis:0}%{!?_without_redis:1}
+%define     protobuf   %{?_without_protobuf:0}%{!?_without_protobuf:1}
+%define     boostlog   %{?_without_boostlog:0}%{!?_without_boostlog:1}
 %define     push       %{?_with_push:1}%{!?_without_push:0}
 %define     odbc       %{?_without_odbc:0}%{!?_without_odbc:1}
-%define     transcoder      %{?_without_transcoder:0}%{!?_without_transcoder:1}
-%define     snmp      %{?_without_snmp:0}%{!?_without_snmp:1}
+%define     transcoder %{?_without_transcoder:0}%{!?_without_transcoder:1}
+%define     snmp       %{?_without_snmp:0}%{!?_without_snmp:1}
 
 # will be 1 if we need to generate a /opt/belledonne-communications RPM
-%define     bcpkg       %{?_with_bc:1}%{!?_with_bc:0}
+%define     bcpkg      %{?_with_bc:1}%{!?_with_bc:0}
 
 # These lines are here because we can build the RPM for flexisip, in which 
 # case we prefix the entire installation so that we don't break compatibility
