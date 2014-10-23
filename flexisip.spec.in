@@ -6,7 +6,7 @@
 %define     redis      %{?_without_redis:0}%{!?_without_redis:1}
 %define     protobuf   %{?_without_protobuf:0}%{!?_without_protobuf:1}
 %define     boostlog   %{?_without_boostlog:0}%{!?_without_boostlog:1}
-%define     push       %{?_with_push:1}%{!?_without_push:0}
+%define     push       %{?_with_push:1}%{!?_with_push:0}
 %define     odbc       %{?_without_odbc:0}%{!?_without_odbc:1}
 %define     transcoder %{?_without_transcoder:0}%{!?_without_transcoder:1}
 %define     snmp       %{?_without_snmp:0}%{!?_without_snmp:1}
@@ -21,6 +21,13 @@
 %define                 pkg_name        %{?_with_bc:bc-flexisip}%{!?_with_bc:flexisip}
 %define                 pkg_prefix      %{?_with_bc:bc-}%{!?_with_bc:}
 %{?_with_bc: %define    _prefix         /opt/belledonne-communications}
+
+# re-define some directories for older RPMBuild versions which don't. This messes up the doc/ dir
+# taken from https://fedoraproject.org/wiki/Packaging:RPMMacros?rd=Packaging/RPMMacros
+%define _datarootdir       %{_prefix}/share
+%define _datadir           %{_datarootdir}
+%define _docdir            %{_datadir}/doc
+
 
 # 
 # flexisip - SIP proxy with media capabilities
