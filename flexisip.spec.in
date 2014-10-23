@@ -98,7 +98,7 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 
 %install
 rm -rf $RPM_BUILD_ROOT
-%makeinstall
+make install DESTDIR=$RPM_BUILD_ROOT
 rm -rf /usr/share/doc/%{name}-@PACKAGE_VERSION@/*.tmp.tex
 install -p -m 0744 scripts/redhat/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
 
@@ -130,11 +130,7 @@ fi
 %files
 %defattr(-,root,root,-)
 %doc AUTHORS COPYING ChangeLog INSTALL NEWS README
-%if !%{bcpkg}
-%doc %{_prefix}/share/doc/flexisip/flexisip_guide.tex 
-%doc %{_prefix}/share/doc/*.pdf 
-%doc %{_prefix}/share/doc/latex_include_generator.sh
-%endif
+%docdir %{_docdir}
 
 %exclude %{_prefix}/share/doc/flexisip
 %{_bindir}/*
