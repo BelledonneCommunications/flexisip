@@ -24,10 +24,20 @@
 
 using namespace ::std;
 
+static bool needsDelivery(int code){
+	return code<200 || code==503 || code==408;
+}
+
 ForkMessageContext::ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
-		ForkContext(agent, event,cfg,listener), mDeliveredCount(0) {
+		ForkContext(agent, event,cfg,listener) {
 	LOGD("New ForkMessageContext %p", this);
 	mAcceptanceTimer=NULL;
+	//start the acceptance timer immediately
+	if (mCfg->mForkLate && mCfg->mDeliveryTimeout>30){
+		mAcceptanceTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
+		su_timer_set_interval(mAcceptanceTimer, &ForkMessageContext::sOnAcceptanceTimer, this, (su_duration_t)mCfg->mUrgentTimeout*1000);
+	}
+	mDeliveredCount=0;
 }
 
 ForkMessageContext::~ForkMessageContext() {
@@ -36,90 +46,59 @@ ForkMessageContext::~ForkMessageContext() {
 	LOGD("Destroy ForkMessageContext %p", this);
 }
 
-void ForkMessageContext::markAsDelivered(const shared_ptr<SipEvent> &ev){
-	shared_ptr<OutgoingTransaction> tr=dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-	shared_ptr<string> uid=tr->getProperty<string>("contact-unique-id");
-	if (uid!=NULL && uid->size()>0){
-		LOGD("ForkMessageContext: Marking %s as delivered",uid->c_str());
-		mDeliveryMap[*uid]=true;
-	}
+bool ForkMessageContext::shouldFinish() {
+	return false; //the messaging fork context controls its termination.
 }
 
-void ForkMessageContext::forward(const shared_ptr<ResponseSipEvent> &ev) {
-	sip_t *sip = ev->getMsgSip()->getSip();
-	
-	if (sip->sip_status->st_status >= 200 ) {
-		markAsDelivered(ev);
-		mDeliveredCount++;
-		if (mDeliveredCount>1){
-			/*should only transfer one response*/
-			ev->setIncomingAgent(shared_ptr<IncomingAgent>());
-		}else if (mIncoming){
-			logReceptionEvent(ev);
-		}
-		checkFinished();
-	}
-}
 
 void ForkMessageContext::checkFinished(){
-	bool everyone_delivered=true;
-	for (auto it=mDeliveryMap.begin();it!=mDeliveryMap.end();++it){
-		if ((*it).second==false) everyone_delivered=false;
-	}
-	if (mDeliveryMap.size()>0 && everyone_delivered){
-		LOGD("ForkMessageContext::checkFinished(): every instance received the message, it's finished.");
+	if (mIncoming==NULL && !mCfg->mForkLate){
 		setFinished();
 		return;
 	}
-	/*otherwise, we wait the expiry of the ForkContext late timer*/
-	return ForkContext::checkFinished();
-}
-
-void ForkMessageContext::onRequest(const shared_ptr<IncomingTransaction> &transaction, shared_ptr<RequestSipEvent> &event) {
 	
-}
-
-void ForkMessageContext::store(shared_ptr<ResponseSipEvent> &event) {
-	bool best = true;
-
-	if (mBestResponse != NULL) {
-		if (mBestResponse->getMsgSip()->getSip()->sip_status->st_status < event->getMsgSip()->getSip()->sip_status->st_status) {
-			best = false;
+	auto branches=getBranches();
+	bool awaiting_responses=false;
+	
+	if (!mCfg->mForkLate){
+		awaiting_responses=!allBranchesAnswered();
+	}else{
+		for(auto it=branches.begin();it!=branches.end();++it){
+			if (needsDelivery((*it)->getStatus())) {
+				awaiting_responses=true;
+				break;
+			}
 		}
 	}
-
-	// Save
-	if (best) {
-		mBestResponse = make_shared<ResponseSipEvent>(event); // Copy event
-		mBestResponse->suspendProcessing();
+	if (!awaiting_responses){
+		shared_ptr<BranchInfo> br=findBestBranch(sUrgentCodes);
+		if (br){
+			forwardResponse(br);
+		}
+		setFinished();
 	}
-
-	// Don't forward
-	event->setIncomingAgent(shared_ptr<IncomingAgent>());
 }
 
-void ForkMessageContext::onResponse(const shared_ptr<OutgoingTransaction> &transaction, shared_ptr<ResponseSipEvent> &event) {
-	event->setIncomingAgent(mIncoming);
-	const shared_ptr<MsgSip> &ms = event->getMsgSip();
-	sip_t *sip = ms->getSip();
-	
-	if (sip != NULL && sip->sip_status != NULL) {
-		LOGD("Fork: outgoingCallback %d", sip->sip_status->st_status);
-		
-		if (sip->sip_status->st_status > 100 && sip->sip_status->st_status < 300) {
-			forward(event);
-		} else {
-			store(event);
+void ForkMessageContext::onResponse(const std::shared_ptr<BranchInfo> &br, const shared_ptr<ResponseSipEvent> &event) {
+	sip_t *sip = event->getMsgSip()->getSip();
+	int code=event->getMsgSip()->getSip()->sip_status->st_status;
+	LOGD("ForkMessageContext::onResponse()");
+	auto log=make_shared<MessageLog>(MessageLog::Delivery,sip->sip_from,sip->sip_to,sip->sip_call_id->i_hash);
+	log->setDestination(br->mRequest->getMsgSip()->getSip()->sip_request->rq_url);
+	log->setStatusCode(sip->sip_status->st_status,sip->sip_status->st_phrase);
+	log->setCompleted();
+	event->setEventLog(log);
+	if (code > 100 && code < 300) {
+		if (code>=200){
+			mDeliveredCount++;
+			if (mAcceptanceTimer) {
+				su_timer_destroy(mAcceptanceTimer);
+				mAcceptanceTimer=NULL;
+			}else if (mDeliveredCount==1) logReceptionEvent(event);
 		}
-		sip_t *sip=event->getMsgSip()->getSip();
-		auto log=make_shared<MessageLog>(MessageLog::Delivery,sip->sip_from,sip->sip_to,sip->sip_call_id->i_hash);
-		log->setDestination(transaction->getRequestUri());
-		log->setStatusCode(sip->sip_status->st_status,sip->sip_status->st_phrase);
-		log->setCompleted();
-		event->setEventLog(log);
-		return;
+		forwardResponse(br);
 	}
-	LOGW("ForkMessageContext : ignore message");
+	checkFinished();
 }
 
 void ForkMessageContext::logReceptionEvent(const shared_ptr<ResponseSipEvent> &ev){
@@ -131,94 +110,48 @@ void ForkMessageContext::logReceptionEvent(const shared_ptr<ResponseSipEvent> &e
 	ev->flushLog();
 }
 
-void ForkMessageContext::finishIncomingTransaction(){
-	if (mIncoming != NULL && mDeliveredCount==0) {
-		if (mBestResponse == NULL && mCfg->mDeliveryTimeout <= 30) {
-			// Create response
-			shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
-			shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
-			ev->setIncomingAgent(mIncoming);
-			logReceptionEvent(ev);
-			mAgent->sendResponseEvent(ev);
-		} else {
-			int code=mBestResponse ? mBestResponse->getMsgSip()->getSip()->sip_status->st_status : 0;
-			if (!mBestResponse || code==408 || code==503){
-				if (mCfg->mForkLate){
-					/*in fork late mode, never answer a service unavailable*/
-					shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_202_ACCEPTED));
-					shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
-					ev->setIncomingAgent(mIncoming);
-					logReceptionEvent(ev);
-					mAgent->sendResponseEvent(ev);
-				}
-			}else{
-				logReceptionEvent(mBestResponse);
-				mAgent->injectResponseEvent(mBestResponse); // Reply
-			}
-		}
-	}
-	if (mAcceptanceTimer){
-		su_timer_destroy(mAcceptanceTimer);
-		mAcceptanceTimer=NULL;
-	}
-	mBestResponse.reset();
-	mIncoming.reset();
+/*we are called here if no good response has been received from any branch, in fork-late mode only */
+void ForkMessageContext::acceptMessage(){
+	if (mIncoming==NULL) return;
+	
+	/*in fork late mode, never answer a service unavailable*/
+	shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_202_ACCEPTED));
+	shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
+	forwardResponse(ev);
+	logReceptionEvent(ev);
 }
 
 void ForkMessageContext::onAcceptanceTimer(){
 	LOGD("ForkMessageContext::onAcceptanceTimer()");
-	finishIncomingTransaction();
+	acceptMessage();
+	su_timer_destroy(mAcceptanceTimer);
+	mAcceptanceTimer=NULL;
 }
 
 void ForkMessageContext::sOnAcceptanceTimer(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg){
 	static_cast<ForkMessageContext*>(arg)->onAcceptanceTimer();
 }
 
-
-void ForkMessageContext::onNew(const shared_ptr<IncomingTransaction> &transaction) {
-	ForkContext::onNew(transaction);
-	//start the acceptance timer immediately
-	if (mCfg->mForkLate && mCfg->mDeliveryTimeout>30){
-		mAcceptanceTimer=su_timer_create(su_root_task(mAgent->getRoot()), 0);
-		su_timer_set_interval(mAcceptanceTimer, &ForkMessageContext::sOnAcceptanceTimer, this, (su_duration_t)20000);
-	}
-}
-
-void ForkMessageContext::onDestroy(const shared_ptr<IncomingTransaction> &transaction) {
-	ForkContext::onDestroy(transaction);
-}
-
-void ForkMessageContext::onNew(const shared_ptr<OutgoingTransaction> &transaction) {
-	auto shared_uid=transaction->getProperty<string>("contact-unique-id");
-	if (shared_uid){
-		string uid=shared_uid->c_str();
-		auto it=mDeliveryMap.find(uid);
-		if (it==mDeliveryMap.end()){
-			LOGD("ForkMessageContext: adding %s as potential receiver of message.",uid.c_str());
-			mDeliveryMap[uid]=false;
+void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
+	if (br->mUid.size()>0){
+		/*check for a branch already existing with this uid, and eventually clean it*/
+		shared_ptr<BranchInfo> tmp=findBranchByUid(br->mUid);
+		if (tmp){
+			removeBranch(tmp);
 		}
 	} else SLOGE << "No unique id found for contact";
-	ForkContext::onNew(transaction);
 }
 
-void ForkMessageContext::onDestroy(const shared_ptr<OutgoingTransaction> &transaction) {
-	if (mOutgoings.size() == 1) {
-		finishIncomingTransaction();
-	}
-	ForkContext::onDestroy(transaction);
-}
-
-bool ForkMessageContext::onNewRegister(const sip_contact_t *ctt){
-	bool already_have_transaction=!ForkContext::onNewRegister(ctt);
+bool ForkMessageContext::onNewRegister(const url_t *dest, const string &uid){
+	bool already_have_transaction=!ForkContext::onNewRegister(dest,uid);
 	if (already_have_transaction) return false;
-	string unique_id=Record::extractUniqueId(ctt);
-	if (unique_id.size()>0){
-		auto it=mDeliveryMap.find(unique_id);
-		if (it==mDeliveryMap.end()){
+	if (uid.size()>0){
+		shared_ptr<BranchInfo> br=findBranchByUid(uid);
+		if (br==NULL){
 			//this is a new client instance or a client for which the message wasn't delivered yet. The message needs to be delivered.
 			LOGD("ForkMessageContext::onNewRegister(): this is a new client instance.");
 			return true;
-		}else if ((*it).second==false){
+		}else if (needsDelivery(br->getStatus())){
 			//this is a new client instance or a client for which the message wasn't delivered yet. The message needs to be delivered.
 			LOGD("ForkMessageContext::onNewRegister(): this client is reconnecting but was not delivered before.");
 			return true;

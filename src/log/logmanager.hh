@@ -233,21 +233,22 @@ if (sUseSyslog){ \
 	}\
 }while(0);
 		
-/** LOGF must be used to report any startup or configuration fatal error that needs to be seen by the operator.
+/** LOGEN and LOGF must be used to report any startup or configuration fatal error that needs to be seen by the operator.
  * This is why it goes to syslog (if syslog is used) and standart output.
  **/
-#define LOGF(args...) do{ \
-fprintf(stdout,args); \
-fprintf(stdout,"\n"); \
-if (sUseSyslog){ \
+#define LOGEN(args...) do{ \
 	fprintf(stderr,args); \
 	fprintf(stderr,"\n"); \
-}\
-exit(-1); \
+	if (sUseSyslog){ \
+		syslog(LOG_ERR,args); \
+	}\
 }while(0);
 			
 
-
+#define LOGF(args...) do{ \
+LOGEN(args);\
+exit(-1);\
+}while(0);
 
 
 

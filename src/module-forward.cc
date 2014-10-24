@@ -88,11 +88,19 @@ void ForwardModule::onLoad(const GenericStruct *mc) {
 
 url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
+
 	if (mOutRoute) {
+		sip_t *sip = ms->getSip();
+		for (sip_via_t *via = sip->sip_via; via != NULL; via = via->v_next) {
+			if (urlViaMatch(mOutRoute->r_url,sip->sip_via,false)) {
+				SLOGD << "Found forced outgoing route in via, skipping";
+				return dest;
+			}
+		}
 		dest = mOutRoute->r_url;
 		if (mRewriteReqUri) {
-			ms->getSip()->sip_request->rq_url->url_host = mOutRoute->r_url->url_host;
-			ms->getSip()->sip_request->rq_url->url_port = mOutRoute->r_url->url_port;
+			sip->sip_request->rq_url->url_host = mOutRoute->r_url->url_host;
+			sip->sip_request->rq_url->url_port = mOutRoute->r_url->url_port;
 		}
 	}
 	return dest;
@@ -100,12 +108,12 @@ url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest)
 
 url_t * ForwardModule::getDestinationFromRoute(su_home_t *home, sip_t *sip){
 	sip_route_t *route=sip->sip_route;
-	
+
 	if (route){
 		char received[64]={0};
 		char rport[8]={0};
 		url_t *ret=url_hdup(home,sip->sip_route->r_url);
-		
+
 		url_param(route->r_url->url_params,"fs-received",received,sizeof(received));
 		url_param(route->r_url->url_params,"fs-rport",rport,sizeof(rport));
 		if (received[0]!=0){
@@ -120,6 +128,13 @@ url_t * ForwardModule::getDestinationFromRoute(su_home_t *home, sip_t *sip){
 	}
 	return NULL;
 }
+
+static bool isUs(Agent *ag, sip_route_t *r) {
+	msg_param_t param = msg_params_find(r->r_params, "fs-proxy-id");
+        if (param && strcmp(param, ag->getUniqueId().c_str()) == 0) return true;
+	return ag->isUs(r->r_url);
+}
+
 
 void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
@@ -138,7 +153,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	dest = sip->sip_request->rq_url;
 	// removes top route headers if they matches us
-	while (sip->sip_route != NULL && getAgent()->isUs(sip->sip_route->r_url)) {
+	while (sip->sip_route != NULL && isUs(getAgent(), sip->sip_route)) {
 		LOGD("Removing top route %s", url_as_string(ms->getHome(), sip->sip_route->r_url));
 		sip_route_remove(msg, sip);
 	}
@@ -164,10 +179,9 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 
 	// Check self-forwarding
-	if (ev->getOutgoingAgent()!=NULL && getAgent()->isUs(dest->url_host, dest->url_port, false)) {
-		SLOGD << "Skipping forwarding of request to us "
-			<< url_as_string(ms->getHome(), dest) << "\n" << ms;
-		ev->reply(SIP_501_NOT_IMPLEMENTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	if (ev->getOutgoingAgent()!=NULL && getAgent()->isUs(dest->url_host, dest->url_port, true)) {
+		SLOGD << "Stopping request to us";
+		ev->terminateProcessing();
 		return;
 	}
 
@@ -175,7 +189,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	if (sip->sip_max_forwards) --sip->sip_max_forwards->mf_count;
 
 	// tport is the transport which will be used by sofia to send message
-	tp_name_t name={0};
+	tp_name_t name={0,0,0,0,0,0};
 	tport_t *tport=NULL;
 	if (ev->getOutgoingAgent()!=NULL){
 		// tport_by_name can only work for IPs
@@ -205,7 +219,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		SLOGD << "Removed push params from contact";
 	}
 	removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, sPushNotifParams);
-	
+
 	shared_ptr<OutgoingTransaction> outTr;
 	if (ev->getOutgoingAgent()!=NULL){//== if message is to be forwarded
 		outTr=dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
@@ -219,12 +233,12 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	// Compute branch, output branch=XXXXX
 	char const * branchStr = compute_branch(getSofiaAgent(), msg, sip, mAgent->getUniqueId().c_str(),outTr);
-	
+
 	if (isLooping(ev, branchStr + 7)) {
 		ev->reply(SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
-	
+
 	// Finally send message
 	ev->send(ms, (url_string_t*) dest, NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());
 }

@@ -32,6 +32,8 @@ list<string> Module::sPushNotifParams {
 	"pn-tok", "pn-type", "app-id", "pn-msg-str", "pn-call-str", "pn-call-snd", "pn-msg-snd"
 };
 
+ModuleInfoBase::~ModuleInfoBase() {}
+
 Module *ModuleInfoBase::create(Agent *ag){
 	Module *mod=_create(ag);
 	mod->setInfo(this);
@@ -67,8 +69,7 @@ Module *ModuleFactory::createModuleInstance(Agent *ag, const string &modname) {
 		LOGI("Creating module instance for [%s]", m->getModuleName().c_str());
 		return m;
 	}
-	LOGE("Could not find any registered module with name %s", modname.c_str());
-	return NULL;
+	SLOGA << "Could not find any registered module with name ["<< modname <<"]";
 }
 
 void ModuleFactory::registerModule(ModuleInfoBase *m) {
@@ -92,7 +93,6 @@ bool Module::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) 
 	switch (state) {
 		case ConfigState::Check:
 			return isValidNextConfig(conf);
-		break;
 		case ConfigState::Changed:
 			mDirtyConfig=true;
 			break;
@@ -105,8 +105,6 @@ bool Module::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) 
 				reload();
 				mDirtyConfig=false;
 			}
-			break;
-		default:
 			break;
 	}
 	return true;
@@ -186,13 +184,8 @@ void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 	} catch (FlexisipException &fe) {
 		SLOGD <<"Skipping onResponse() on module" << getModuleName() << " because " << fe;
 	} catch (...) {
-		LOGD("Skipping onResponse() on module %s (error)", getModuleName().c_str());
+		SLOGD << "Skipping onRequest() on module (error)" << getModuleName();
 	}
-}
-
-void Module::processTransactionEvent(shared_ptr<TransactionEvent> ev) {
-//	LOGD("Invoking onTransactionEvent() on module %s", getModuleName().c_str());
-	onTransactionEvent(ev);
 }
 
 void Module::idle() {
@@ -228,7 +221,7 @@ bool ModuleToolbox::sipPortEquals(const char *p1, const char *p2, const char *tr
 		n1=n2=5060;
 	else
 		n1=n2=5061;
-	
+
 	if (p1 && p1[0]!='\0')
 		n1=atoi(p1);
 	if (p2 && p2[0]!='\0')
@@ -251,18 +244,17 @@ void ModuleToolbox::cleanAndPrependRoute(su_home_t *home, Agent *ag, msg_t *msg,
 }
 
 void ModuleToolbox::cleanAndPrependRoutable(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const std::list<std::string> &routes){
-	// removes top route headers if they matches us
-	while (sip->sip_route != NULL && ag->isUs(sip->sip_route->r_url)) {
-		sip_route_remove(msg, sip);
-	}
-	SLOGD << "Removed top route headers";
-
 	for (auto it=routes.crbegin(); it != routes.crend(); ++it) {
 		sip_route_t *r = sip_route_format(home, "%s", it->c_str());
 		if (prependNewRoutable(msg, sip, sip->sip_route, r)) {
 			SLOGD << "Prepended routable " << *it;
 		}
 	}
+	// removes top route headers if they matches us
+	while (sip->sip_route != NULL && ag->isUs(sip->sip_route->r_url)) {
+		sip_route_remove(msg, sip);
+	}
+	SLOGD << "Removed top route headers";
 }
 
 url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
@@ -294,7 +286,7 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<
 	msg_t *msg=ev->getMsgSip()->getMsg();
 	sip_t *sip=ev->getMsgSip()->getSip();
 	url_t *url;
-	
+
 	if (tport){
 		tport=tport_parent(tport); //get primary transport
 		const tp_name_t *name=tport_name(tport); //primary transport name
@@ -398,7 +390,12 @@ bool ModuleToolbox::urlViaMatch(url_t *url, sip_via_t *via, bool use_received_rp
 	const char *url_host=url->url_host;
 	const char *url_pt=url_port(url); //this function never returns NULL
 	char url_transport[8]="UDP";
-	
+
+	char maddr[50];
+	if (url_param(url->url_params, "maddr", maddr, sizeof(maddr))) {
+		url_host = maddr;
+	}
+
 	if (use_received_rport){
 		via_host=via->v_received;
 		via_port=via->v_rport;
@@ -415,7 +412,7 @@ bool ModuleToolbox::urlViaMatch(url_t *url, sip_via_t *via, bool use_received_rp
 	}
 	url_param(url->url_params,"transport",url_transport,sizeof(url_transport));
 	if (strcmp(url->url_scheme,"sips")==0) strncpy(url_transport,"TLS",sizeof(url_transport));
-	
+
 	return strcmp(via_host,url_host)==0 && strcmp(via_port,url_pt)==0;
 }
 
@@ -452,11 +449,11 @@ struct sip_route_s *ModuleToolbox::prependNewRoutable(msg_t *msg, sip_t *sip, st
 		sipr = value;
 		return value;
 	}
-	
+
 	/*make sure we are not already in*/
 	if (sipr && url_cmp_all(sipr->r_url,value->r_url)==0)
 		return NULL;
-	
+
 	value->r_next = sipr;
 	msg_header_remove_all(msg, (msg_pub_t*) sip, (msg_header_t*) sipr);
 	msg_header_insert(msg, (msg_pub_t*) sip, (msg_header_t*) value);
@@ -469,11 +466,11 @@ void ModuleToolbox::addPathHeader(Agent *ag, const shared_ptr< RequestSipEvent >
 	msg_t *msg=ev->getMsgSip()->getMsg();
 	sip_t *sip=ev->getMsgSip()->getSip();
 	url_t *url;
-	
+
 	if (tport){
 		tport=tport_parent(tport); //get primary transport
 		const tp_name_t *name=tport_name(tport); //primary transport name
-		
+
 		url = urlFromTportName(home,name);
 		if (!url){
 			LOGE("ModuleToolbox::addPathHeader(): urlFromTportName() returned NULL");
@@ -490,7 +487,7 @@ void ModuleToolbox::addPathHeader(Agent *ag, const shared_ptr< RequestSipEvent >
 	url_param_add(home,url,"lr");
 	const char *cpath=url_as_string(home, url);
 	sip_path_t *path=sip_path_format(home, "<%s>", cpath);
-	
+
 	if (!prependNewRoutable(msg, sip, sip->sip_path, path)) {
 		SLOGD << "Identical path already existing: " << cpath;
 	} else {

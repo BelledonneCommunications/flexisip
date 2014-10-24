@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# axtunnel This script starts and stops the axtunnel_server daemon
+# flexisip This script starts and stops the flexisip daemon
 #
 # chkconfig: - 78 30
 # processname: flexisip
@@ -10,7 +10,7 @@
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-prog="flexisip"
+prog=@bindir@/flexisip
 
 # Source networking configuration.
 . /etc/sysconfig/network
@@ -18,12 +18,12 @@ prog="flexisip"
 # Check that networking is up.
 [ ${NETWORKING} = "no" ] && exit 0
 
-# Set default axtunnel_server configuration.
+# Set default flexisip configuration.
 FLEXISIP_OPTIONS="--daemon --syslog"
 FLEXISIP_PID=/var/run/flexisip.pid
 
-[ -f /usr/bin/$prog -o -f /usr/local/bin/$prog ] || exit 0
-PATH=$PATH:/usr/bin:/usr/local/bin
+[ -f $prog ] || exit 0
+export PATH=@bindir@:$PATH
 
 # By default it's all good
 RETVAL=0

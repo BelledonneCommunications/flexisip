@@ -51,7 +51,7 @@ struct ExtendedContactCommon {
 		if (lineValue) mUniqueId = lineValue;
 		mContactId = contactId;
 	}
-	ExtendedContactCommon(const std::string &route) : mContactId(), mCallId(),mUniqueId(),mPath({route}) {};
+	ExtendedContactCommon(const std::string &route) : mContactId(), mCallId(),mUniqueId(),mPath({route}) {}
 };
 
 
@@ -159,15 +159,15 @@ public:
 	Record(std::string key);
 	static std::string extractUniqueId(const sip_contact_t *contact);
 	const sip_contact_t * getContacts(su_home_t *home, time_t now);
-	void pushContact(const std::shared_ptr<ExtendedContact> &ct) { mContacts.push_back(ct);};
+	void pushContact(const std::shared_ptr<ExtendedContact> &ct) { mContacts.push_back(ct);}
 	bool isInvalidRegister(const char *call_id, uint32_t cseq);
 	void clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t time);
 	void clean(time_t time);
 	void update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias);
 	void update(const ExtendedContactCommon &ecc, const char* sipuri, long int expireAt, float q, uint32_t cseq, time_t updated_time, bool alias);
-	
+
 	void print(std::ostream &stream) const;
-	bool isEmpty() { return mContacts.empty(); };
+	bool isEmpty() { return mContacts.empty(); }
 	const std::string &getKey() const {
 		return mKey;
 	}
@@ -211,8 +211,7 @@ inline std::basic_ostream< char, TraitsT >& operator<< (
 
 class RegistrarDbListener: public StatFinishListener {
 public:
-	~RegistrarDbListener() {
-	}
+	virtual ~RegistrarDbListener();
 	virtual void onRecordFound(Record *r) = 0;
 	virtual void onError() = 0;
 	virtual void onInvalid() {
@@ -238,17 +237,17 @@ public:
 			const char * call_id;
 			const uint32_t cs_seq;
 			const sip_path_t *path;
-			SipParams(const url_t* from, const sip_contact_t *contact,
-					      const char *id, uint32_t seq, const sip_path_t *path)
-			: from(from), contact(contact), call_id(id), cs_seq(seq), path(path) {
+			SipParams(const url_t* ifrom, const sip_contact_t *icontact,
+					      const char *iid, uint32_t iseq, const sip_path_t *ipath)
+			: from(ifrom), contact(icontact), call_id(iid), cs_seq(iseq), path(ipath) {
 			}
 		};
 
 		const SipParams sip;
 		const int global_expire;
 		const bool alias;
-		BindParameters(SipParams sip, int expire, bool alias)
-		: sip(sip), global_expire(expire), alias(alias) {
+		BindParameters(SipParams isip, int iexpire, bool ialias)
+		: sip(isip), global_expire(iexpire), alias(ialias) {
 		}
 	};
 	static RegistrarDb *get(Agent *ag);
@@ -278,6 +277,7 @@ protected:
 		std::string mPreferedRoute;
 	public:
 		void remove(const std::string key) {
+			std::lock_guard<std::mutex> lock(mMutex);
 			mRegMap.erase(key);
 		}
 		void update(const Record &record);

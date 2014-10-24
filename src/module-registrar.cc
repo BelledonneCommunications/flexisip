@@ -56,7 +56,7 @@ class ModuleRegistrar: public Module, public ModuleToolbox {
 public:
 	void reply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, const sip_contact_t *contacts=NULL);
 	void reply(shared_ptr<ResponseSipEvent> &ev, int code, const char *reason, const sip_contact_t *contacts=NULL);
-	
+
 	void routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aorb, const url_t *sipUri);
 
 	ModuleRegistrar(Agent *ag) : Module(ag),mStaticRecordsTimer(NULL) {
@@ -70,7 +70,9 @@ public:
 	virtual void onDeclare(GenericStruct *mc) {
 		ConfigItemDescriptor configs[] = {
 			{ StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar.", "localhost" },
-			{ Boolean, "reg-on-response", "Update registrar database on response.", "false" },
+			{ Boolean, "reg-on-response", "Register users based on response obtained from a back-end server. "
+				"This mode is for using flexisip as a front-end server to hold client connections but register"
+				"acceptance is deferred to backend server to which the REGISTER is routed.", "false" },
 			{ Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.", "12" }, /*used by registrardb*/
 			{ StringList, "unique-id-parameters", "List of contact uri parameters that can be used to identify a user's device. "
 					"The contact parameters are searched in the order of the list, the first matching parameter is used and the others ignored.", "+sip.instance pn-tok line" },
@@ -83,13 +85,14 @@ public:
 					"<sip:contact@domain> <sip:127.0.0.1:5460>,<sip:192.168.0.1:5160>", "" },
 			{ Integer, "static-records-timeout", "Timeout in seconds after which the static records file is re-read and the contacts updated.", "600" },
 
-			{ String , "db-implementation", "Implementation used for storing address of records contact uris. [redis-async, redis-sync, internal]","internal"},
+			{ String , "db-implementation", "Implementation used for storing address of records contact uris. [redis-async, internal]","internal"},
 			// Redis config support
 			{ String , "redis-server-domain", "Domain of the redis server. ","localhost"},
 			{ Integer , "redis-server-port", "Port of the redis server.","6379"},
 			{ String , "redis-auth-password", "Authentication password for redis. Empty to disable.",""},
 			{ Integer , "redis-server-timeout", "Timeout in milliseconds of the redis connection.","1500"},
 			{ String , "redis-record-serializer", "Serialize contacts with: [C, protobuf]","protobuf"},
+			{ String , "service-route", "Sequence of proxies (space-separated) where requests will be redirected through (RFC3608)",""},
 			config_item_end
 		};
 		mc->addChildrenValues(configs);
@@ -106,12 +109,15 @@ public:
 			LOGD("Found registrar domain: %s", (*it).c_str());
 		}
 		mUniqueIdParams = mc->get<ConfigStringList>("unique-id-parameters")->read();
+		mServiceRoute = mc->get<ConfigString>("service-route")->read();
+		// replace space-separated to comma-separated since sofia-sip is expecting this way
+		std::replace( mServiceRoute.begin(), mServiceRoute.end(), ' ', ',');
 
 		mMaxExpires = mc->get<ConfigInt>("max-expires")->read();
 		mMinExpires = mc->get<ConfigInt>("min-expires")->read();
 		mStaticRecordsFile = mc->get<ConfigString>("static-records-file")->read();
 		mStaticRecordsTimeout = mc->get<ConfigInt>("static-records-timeout")->read();
-		
+
 		if (!mStaticRecordsFile.empty()) {
 			readStaticRecords(); // read static records from configuration file
 			mStaticRecordsTimer = mAgent->createTimer(mStaticRecordsTimeout*1000, &staticRoutesRereadTimerfunc,this);
@@ -133,8 +139,6 @@ public:
 
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 
-	virtual void onTransactionEvent(shared_ptr<TransactionEvent> ev);
-
 	template <typename SipEventT, typename ListenerT>
 	void processUpdateRequest(shared_ptr<SipEventT> &ev, const sip_t *sip);
 
@@ -153,6 +157,7 @@ private:
 	bool mUpdateOnResponse;
 	list<string> mDomains;
 	list<string> mUniqueIdParams;
+	string mServiceRoute;
 	static list<string> mPushNotifParams;
 	string mRoutingParam;
 	unsigned int mMaxExpires, mMinExpires;
@@ -194,7 +199,7 @@ static bool checkStarUse(const sip_contact_t *contact, int expires) {
 		if (starFound) {
 			return false;
 		}
-		
+
 		++count;
 		if ('*' == contact->m_url[0].url_scheme[0]) {
 			if (count > 1 || 0 != expires)
@@ -258,10 +263,10 @@ public:
 
 static void replyPopulateEventLog(shared_ptr<SipEvent> ev, const sip_t *sip, int code, const char *reason) {
 	if (sip->sip_request->rq_method==sip_method_invite){
-		shared_ptr<CallLog> clog=ev->getEventLog<CallLog>();
-		if (clog){
-			clog->setStatusCode(code,reason);
-			clog->setCompleted();
+		shared_ptr<CallLog> calllog=ev->getEventLog<CallLog>();
+		if (calllog){
+			calllog->setStatusCode(code,reason);
+			calllog->setCompleted();
 		}
 	}else if (sip->sip_request->rq_method==sip_method_message){
 		shared_ptr<MessageLog> mlog=ev->getEventLog<MessageLog>();
@@ -274,11 +279,19 @@ static void replyPopulateEventLog(shared_ptr<SipEvent> ev, const sip_t *sip, int
 void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, const sip_contact_t *contacts) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip=ms->getSip();
-	
+
 	replyPopulateEventLog(ev, sip, code, reason);
 
-	if (contacts != NULL) {
+	if (! mServiceRoute.empty()) {
+		LOGD("Setting service route to %s", mServiceRoute.c_str());
+	}
+
+	if (contacts != NULL && !mServiceRoute.empty()) {
+		ev->reply(code, reason, SIPTAG_CONTACT(contacts), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	} else if (contacts != NULL) {
 		ev->reply(code, reason, SIPTAG_CONTACT(contacts), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	} else if (!mServiceRoute.empty()){
+		ev->reply(code, reason, SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	} else {
 		ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	}
@@ -288,7 +301,7 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 template <typename SipEventT>
 static void addEventLogRecordFound(shared_ptr<SipEventT> ev, const sip_contact_t *contacts) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	
+
 	RegistrationLog::Type type;
 	if (ms->getSip()->sip_expires && ms->getSip()->sip_expires->ex_delta==0)
 		type=RegistrationLog::Unregister; //REVISIT not 100% exact.
@@ -297,10 +310,10 @@ static void addEventLogRecordFound(shared_ptr<SipEventT> ev, const sip_contact_t
 
 	string id(contacts ? Record::extractUniqueId(contacts) : "");
 	auto evlog=make_shared<RegistrationLog>(type,ms->getSip()->sip_from,id, contacts);
-	
+
 	if (ms->getSip()->sip_user_agent)
 		evlog->setUserAgent(ms->getSip()->sip_user_agent);
-	
+
 	evlog->setCompleted();
 	ev->setEventLog(evlog);
 }
@@ -334,14 +347,13 @@ public:
 		const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
 		time_t now = getCurrentTime();
 		if (r){
+			addEventLogRecordFound(mEv, mContact);
 			mModule->reply(mEv, 200, "Registration successful", r->getContacts(ms->getHome(), now));
 
 			const sip_expires_t *expires=mEv->getMsgSip()->getSip()->sip_expires;
 			if (mContact && expires && expires->ex_delta > 0) {
 				LateForkApplier::onContactRegistered(mModule->getAgent(), mContact, mPath, r, mSipFrom->a_url);
 			}
-
-			addEventLogRecordFound(mEv, mContact);
 		}else{
 			LOGE("OnRequestBindListener::onRecordFound(): Record is null");
 			mModule->reply(mEv,SIP_480_TEMPORARILY_UNAVAILABLE);
@@ -373,17 +385,17 @@ class OnResponseBindListener: public RegistrarDbListener {
 	shared_ptr<ResponseContext> mCtx;
 public:
 	OnResponseBindListener(ModuleRegistrar *module, shared_ptr<ResponseSipEvent> ev,
-			       shared_ptr<OutgoingTransaction> tr, shared_ptr<ResponseContext> ctx) :
+				   shared_ptr<OutgoingTransaction> tr, shared_ptr<ResponseContext> ctx) :
 	mModule(module), mEv(ev), mTr(tr), mCtx(ctx) {
 		ev->suspendProcessing();
 	}
-	
+
 	void onRecordFound(Record *r) {
 		const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
 		time_t now = getCurrentTime();
 		if (r){
 			const sip_contact_t *dbContacts= r->getContacts(ms->getHome(), now);
-			
+
 			const sip_expires_t *expires=mEv->getMsgSip()->getSip()->sip_expires;
 			if (containsNonZeroExpire(expires, dbContacts)) {
 				LateForkApplier::onContactRegistered(mModule->getAgent(), dbContacts, mCtx->mPath, r, mCtx->mFrom->a_url);
@@ -479,7 +491,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			RegistrarDb::get(mAgent)->clear(sip, listener);
 			return;
 		} else {
-			auto listener = make_shared<OnRequestBindListener>(this, ev, sip->sip_from, sip->sip_contact);
+			auto listener = make_shared<OnRequestBindListener>(this, ev, sip->sip_from, sip->sip_contact, sip->sip_path);
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
 			listener->addStatCounter(mStats.mCountBind->finish);
@@ -532,7 +544,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		LOGD("No transaction found");
 		return;
 	}
-	
+
 	auto context = transaction->getProperty<ResponseContext>(getModuleName());
 	if (!context) {
 		LOGD("No response context found");
@@ -553,23 +565,14 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		LOGD("Clearing bindings");
 		listener->addStatCounter(mStats.mCountClear->finish);
 		RegistrarDb::get(mAgent)->clear(reSip, listener);
-		return;
 	} else {
 		mStats.mCountBind->incrStart();
 		LOGD("Updating binding");
 		listener->addStatCounter(mStats.mCountBind->finish);
 		RegistrarDb::get(mAgent)->bind(reSip, maindelta, false, listener);
-		return;
 	}
-}
-
-void ModuleRegistrar::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
-	auto context=ev->transaction->getProperty<ResponseContext>(getModuleName());
 	mRespContexes.remove(context);
 }
-
-
-
 
 
 
@@ -582,8 +585,8 @@ class OnStaticBindListener: public RegistrarDbListener {
 	Agent *agent;
 	string line;
 public:
-	OnStaticBindListener(Agent *agent, const string& line) :
-	agent(agent), line(line) {
+	OnStaticBindListener(Agent *iagent, const string& iline) :
+	agent(iagent), line(iline) {
 	}
 	void onRecordFound(Record *r) {
 		LOGD("Static route added: %s", line.c_str());
@@ -598,16 +601,16 @@ void ModuleRegistrar::readStaticRecords() {
 	static int version=0;
 	if (mStaticRecordsFile.empty()) return;
 	LOGD("Reading static records file");
-	
+
 	su_home_t home;
-	
+
 	stringstream ss;
 	ss.exceptions(ifstream::failbit | ifstream::badbit);
-	
+
 	string line;
 	string from;
 	string contact_header;
-	
+
 	ifstream file;
 	file.open(mStaticRecordsFile);
 	if (file.is_open()) {
@@ -631,15 +634,15 @@ void ModuleRegistrar::readStaticRecords() {
 			if (cttpos != string::npos && cttpos < line.size()) {
 				// Read uri
 				from = line.substr(0, cttpos);
-				
+
 				// Read contacts
 				contact_header = line.substr(cttpos+1, line.length() - cttpos+1);
-				
+
 				// Create
 				sip_contact_t *url = sip_contact_make(&home, from.c_str());
 				sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
 				int expire=mStaticRecordsTimeout+5; // 5s to avoid race conditions
-				
+
 				if (url != NULL && contact != NULL) {
 					auto listener=make_shared<OnStaticBindListener>(getAgent(), line);
 					bool alias=isManagedDomain(contact->m_url);
@@ -662,7 +665,7 @@ void ModuleRegistrar::readStaticRecords() {
 	} else {
 		LOGE("Can't open file %s", mStaticRecordsFile.c_str());
 	}
-	
+
 }
 
 
@@ -693,7 +696,7 @@ void ModuleRegistrar::sighandler(int signum, siginfo_t* info, void* ptr) {
 		su_home_t home;
 		su_home_init(&home);
 		url_t *url=url_make(&home, "sip:contact@domain");
-		
+
 		auto listener=make_shared<FakeFetchListener>();
 		RegistrarDb::get(sRegistrarInstanceForSigAction->getAgent())->fetch(url, listener, false);
 	}

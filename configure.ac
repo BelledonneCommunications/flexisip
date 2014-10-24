@@ -3,7 +3,7 @@
 
 AC_PREREQ([2.61])
 
-AC_INIT([flexisip], [0.6.0], [simon.morlat@linphone.org])
+AC_INIT([flexisip], [0.8.0], [simon.morlat@linphone.org])
 
 AC_CONFIG_SRCDIR([src/agent.cc])
 AC_CONFIG_HEADERS([flexisip-config.h])
@@ -18,8 +18,8 @@ m4_include([m4/ax_compare_version.m4])
 # Favor g++ 4.4 (the one in centos stable version)
 # or g++ 4.7 (the one in Debian stable version).
 # Use ./configure CXX=path to override.
-AC_PROG_CC([gcc-4.4 gcc-4.7 gcc])
-AC_PROG_CXX([g++-4.4 g++-4.7 g++])
+AC_PROG_CC(["xcrun clang" gcc-4.4 gcc-4.7 gcc])
+AC_PROG_CXX(["xcrun clang++" g++-4.4 g++-4.7 g++ ])
 AC_PROG_LIBTOOL
 
 AC_ARG_ENABLE(snmp,
@@ -60,42 +60,161 @@ else
 	use_rpm=true;
 fi
 
+
 strictness=yes
 case $CXX in
 	*clang++*)
-	CXXFLAGS="$CXXFLAGS -std=c++11 -stdlib=libc++ -Qunused-arguments"
+	CXXFLAGS="$CXXFLAGS -std=c++11 -Qunused-arguments"
 	strictness=no;
-	;;
-	*g++*)
-	# Use only -O1 due to a compile-time bug in gcc 4.4.6 from centos6.
-	CFLAGS="-g -O2 -pthread $CFLAGS"
-	CXXFLAGS="-g -O1 -pthread -std=c++0x"
-	LDFLAGS="-pthread $LDFLAGS"
+	# libc++ is only required on apple
+	case $host in
+		*apple-darwin*)
+			CXXFLAGS="$CXXFLAGS -stdlib=libc++"
+			LDFLAGS="$LDFLAGS -Framework SystemConfiguration"
+		;;
+	esac
 	;;
 esac
 
-PKG_PROG_PKG_CONFIG()
+if test $GCC = yes ; then
+	# Use only -O1 due to a compile-time bug in gcc 4.4.6 from centos6.
+	CFLAGS="-g -O2 $CFLAGS"
+	CXXFLAGS="-g -O1 -std=c++0x $CXXFLAGS"
 
+	case $host in
+		*apple-darwin*)
+			# on OSX, pthread is always enabled (see http://lists.apple.com/archives/Unix-porting/2005/Mar/msg00019.html)
+			# If enabled, the compiler reports "unrecognized option '-pthread'"
+		;;
+		*)
+			CFLAGS="-pthread $CFLAGS"
+			CXXFLAGS="-pthread $CXXFLAGS"
+			LDFLAGS="-pthread $LDFLAGS"
+		;;
+	esac
+fi
+
+PKG_PROG_PKG_CONFIG()
 
 AC_ARG_ENABLE(strict,
 	AC_HELP_STRING([--enable-strict],
-		       [Build with stricter options (gcc only) @<:@yes@:>@]),[
-	strictness="${enableval}"],[foo=bar])
+	[Build with stricter options (gcc only) @<:@yes@:>@]),[
+	strictness="${enableval}"],[foo=bar]
+)
 
 AC_ARG_ENABLE(odbc,
 	AC_HELP_STRING([--disable-odbc],
-	    [Build odbc support @<:@yes@:>@]),
-        [odbc="${enableval}"],[odbc=yes]
+	[Build odbc support @<:@yes@:>@]),
+	[odbc="${enableval}"],[odbc=yes]
 )
 AM_CONDITIONAL(BUILD_ODBC,test x$odbc = xyes)
 
+
+# Check for unixodbc
+AC_ARG_WITH(odbc,
+	AC_HELP_STRING([--with-odbc], [Set prefix where odbc can be found or "none" to disable (ex:/usr or /usr/local) [[default=/usr]]]),
+	[	
+		# Use the odbc_config tool to get odbc libs and includes
+		AC_CHECK_PROG([pdflatex], [pdflatex], [yes], [no])
+		AM_CONDITIONAL([GENERATE_DOC], [test "x$pdflatex$doc" = xyesyes])
+		
+		AC_CHECK_PROG([odbc_config],[odbc_config], [yes], [no], [$withval/bin])
+		if test $odbc_config = no; then
+			AC_MSG_ERROR([You need the program 'odbc_config' in $withval/bin])
+		else
+			CFLAGS="$CFLAGS -I`$withval/bin/odbc_config --include-prefix`"
+			CPPFLAGS="$CPPFLAGS -I`$withval/bin/odbc_config --include-prefix`"
+			LDFLAGS="$LDFLAGS -L`$withval/bin/odbc_config --lib-prefix`"
+		fi
+	],
+	[foo=bar]
+)
+
+
 if test x$odbc = "xyes"; then
 	# Checks for libraries.
-	AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],,[AC_MSG_ERROR("unixodbc headers missing.")])
+	AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],,[AC_MSG_ERROR("unixodbc headers missing. This is required for odbc. Use --disable-odbc if you don''t need this feature." )])
 	AC_CHECK_LIB(odbc, main,[ODBC_LIBS="-lodbc -lltdl"], [AC_MSG_ERROR("Linking against odbc failed.")])
 	AC_SUBST(ODBC_LIBS)
 fi
-	
+
+# Check for odb compiler
+AC_PATH_PROG([ODB],[odb],[no])
+if test $ODB != no; then
+	have_odb=yes
+else
+	have_odb=no
+fi
+
+# Check for libodb
+AC_ARG_ENABLE(libodb,
+	[AC_HELP_STRING([--enable-libodb=[yes/no]],[Compilation of libodb (default=auto)])],
+    [case "${enableval}" in
+		yes)	enable_libodb=true ;;
+		no)	enable_libodb=false ;;
+		*)	AC_MSG_ERROR(bad value ${enableval} for --enable-libodb) ;;
+	esac],
+	[enable_libodb=auto]
+)
+
+if test x$enable_libodb != xfalse ; then
+	PKG_CHECK_MODULES(LIBODB,[libodb >= 2.3.0],[have_libodb=yes],[have_libodb=no])
+fi
+
+AM_CONDITIONAL(BUILD_ODB,test x$have_libodb$have_odb = xyesyes)
+if test "$have_libodb$have_odb" = "yesyes"; then
+	AC_DEFINE([HAVE_ODB],1,[Enable odb.])
+fi
+
+# Check for libodb-mysql
+AC_ARG_ENABLE(libodb-mysql,
+	AC_HELP_STRING([--enable-libodb-mysql],
+	    [Build libodb-mysql @<:@yes@:>@]),
+        [libodb_mysql="${enableval}"],[libodb_mysql=yes]
+)
+if test x$libodb_mysql = xyes ; then
+	PKG_CHECK_MODULES(LIBODB_MYSQL,[libodb-mysql >= 2.3.0],[libodb_mysql=yes],[libodb_mysql=no])
+fi
+
+
+AM_CONDITIONAL(BUILD_LIBODB_MYSQL,test x$libodb_mysql = xyes)
+if test "$libodb_mysql" = "yes"; then
+	AC_DEFINE([ENABLE_LIBODB_MYSQL],1,[Enable libodb-mysql.])
+fi
+
+# Check for mysql
+AC_ARG_WITH(mysql,
+	AC_HELP_STRING([--with-mysql], [Set prefix where odbc can be found or "none" to disable (ex:/usr or /usr/local) [[default=/usr]]]),
+	[mysql_prefix=$withval],
+	[mysql_prefix=/usr]
+)
+if test "${mysql_prefix}" != "none" ; then
+	if test "${mysql_prefix}" != "/usr" ; then
+		MYSQL_CFLAGS="-I${mysql_prefix}/include"
+	fi
+
+	dnl check mysql headers
+	have_mysql=no
+	CPPFLAGS_save=$CPPFLAGS
+	CPPFLAGS="$CPPFLAGS $MYSQL_CFLAGS"
+	AC_CHECK_HEADER([mysql.h],have_mysql_headers=yes)
+	CPPFLAGS=$CPPFLAGS_save
+
+	if test "$have_mysql_headers" = "yes" ; then
+		have_mysql=yes
+	else
+		AC_MSG_NOTICE([Could not find mysql headers or lib])
+		MYSQL_CFLAGS=
+	fi
+
+	AM_CONDITIONAL(BUILD_MYSQL,test x$have_mysql = xyes)
+
+	AC_SUBST(MYSQL_CFLAGS)
+else
+	have_mysql=no
+	MYSQL_CFLAGS=
+fi
+
 
 # Checks for header files.
 
@@ -109,7 +228,7 @@ AC_ARG_ENABLE(doc,
 
 AC_ARG_ENABLE(transcoder,
 	AC_HELP_STRING([--enable-transcoder],
-	    [Build transcoder support @<:@no@:>@]),
+	    [Build transcoder support [yes]]),
         [transcoder="${enableval}"],[transcoder=yes]
 )
 if test $transcoder = "yes"; then
@@ -123,7 +242,7 @@ fi
 
 AC_ARG_ENABLE(specific-features,
 	AC_HELP_STRING([--enable-specific-features],
-	    [Enable specific features @<:no:>@]),
+	    [Enable specific features [no]]),
         [specific_features="${enableval}"],[specific_features=no]
 )
 if test $specific_features = "yes"; then
@@ -132,7 +251,7 @@ fi
 
 AC_ARG_ENABLE(monotonic-clock-registrations,
 	AC_HELP_STRING([--enable-monotonic-clock-registrations],
-	    [Enable monotonic clock for registrations @<:no:>@]),
+	    [Enable monotonic clock for registrations [no]]),
         [monotonic_clock_registrations="${enableval}"],[monotonic_clock_registrations=no]
 )
 if test $monotonic_clock_registrations = "yes"; then
@@ -182,12 +301,12 @@ AM_CONDITIONAL(USE_MONOTONIC_CLOCK,test x$use_monotonic_clock = xyes)
 AX_BOOST_BASE([1.41],[],[AC_MSG_WARN([boost base not found.])])
 AC_ARG_ENABLE(boostlog,
         AC_HELP_STRING([--disable-boostlog],
-            [Build boost log support @<:@yes@:>@]),
-        [boostlog="${enableval}"],[boostlog=yes]
+            [Build boost log support [no]]),
+        [boostlog="${enableval}"],[boostlog=no]
 )
 
 if test x$boostlog = xyes ; then
-CHECK_BOOST([AX_BOOST_LOG], [HAVE_BOOST_LOG], [found_boost_log=yes], [AC_MSG_WARN([boost log not found.])])
+CHECK_BOOST([AX_BOOST_LOG], [HAVE_BOOST_LOG], [found_boost_log=yes], [AC_MSG_ERROR([boost log not found.])])
 if test x$found_boost_log = xyes ; then
 	CHECK_BOOST([AX_BOOST_REGEX], [HAVE_BOOST_LOG], [], [AC_MSG_ERROR([boost regex not found.])])
 	CHECK_BOOST([AX_BOOST_THREAD], [HAVE_BOOST_LOG], [], [AC_MSG_ERROR([boost thread not found.])])

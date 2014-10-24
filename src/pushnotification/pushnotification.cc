@@ -31,20 +31,24 @@ const unsigned int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 256;
 const unsigned int ApplePushNotificationRequest::DEVICE_BINARY_SIZE = 32;
 
 ApplePushNotificationRequest::ApplePushNotificationRequest(const string &appId, const string &deviceToken,
-		const string &msg_id, const string &arg, const string &sound, const string &callid)
+		const string &msg_id, const string &arg, const string &sound, const string &callid, const bool no_badge)
 : PushNotificationRequest(appId, "apple") {
 	ostringstream payload;
 	int ret = formatDeviceToken(deviceToken);
 	if ((ret != 0) || (mDeviceToken.size() != DEVICE_BINARY_SIZE)) {
 		throw runtime_error("ApplePushNotification: Invalid deviceToken");
-		return;
 	}
 
-	if( msg_id == "IC_SIL" ) // silent push: just send "content-available=1", the device will figure out what's happening
+	if( msg_id == "IC_SIL" ){ // silent push: just send "content-available=1", the device will figure out what's happening
 		payload << "{\"aps\":{\"sound\":\"\", \"content-available\":1},\"pn_ttl\":60}"; // PN expiration set to 60 seconds.
-	else
-		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg << "\"]},\"sound\":\"" << sound << "\"},\"call-id\":\"" << callid << "\",\"pn_ttl\":60}"; // PN expiration set to 60 seconds.
+	} else {
 
+		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg << "\"]},\"sound\":\"" << sound << "\"";
+
+		if( no_badge ){ payload << ",\"badge\":0"; } /* some apps don't want the push to update the badge */
+
+		payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":60}"; // PN expiration set to 60 seconds.
+	}
 	if (payload.str().length() > MAXPAYLOAD_SIZE) {
 		return;
 	}

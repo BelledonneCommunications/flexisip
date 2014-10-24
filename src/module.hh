@@ -60,9 +60,9 @@ class ModuleInfoBase {
 		const std::string &getModuleHelp()const{
 			return mHelp;
 		}
-		const  unsigned int getOidIndex() {return mOidIndex;}
-		virtual ~ModuleInfoBase(){
-		}
+		unsigned int getOidIndex () const {return mOidIndex;}
+		virtual ~ModuleInfoBase();
+
 		enum ModuleOid {
 			SanityChecker=3,
 			GarbageIn=5,
@@ -71,6 +71,7 @@ class ModuleInfoBase {
 			DateHandler=75,
 			GatewayAdapter=90,
 			Registrar=120,
+			StatisticsCollector=123,
 			Router=125,
 			PushNotification=130,
 			ContactRouteInserter=150,
@@ -78,6 +79,7 @@ class ModuleInfoBase {
 			MediaRelay=210,
 			Transcoder=240,
 			Forward=270,
+			Redirect=290, 
 			Presence=300
 		};
 	protected:
@@ -119,7 +121,6 @@ class Module : protected ConfigValueListener {
 		void reload();
 		void processRequest(std::shared_ptr<RequestSipEvent> &ev);
 		void processResponse(std::shared_ptr<ResponseSipEvent> &ev);
-		void processTransactionEvent(std::shared_ptr<TransactionEvent> ev);
 		StatCounter64 &findStat(const std::string &statName) const;
 		void idle();
 	public:
@@ -128,9 +129,6 @@ class Module : protected ConfigValueListener {
 		}
 		inline void process(std::shared_ptr<ResponseSipEvent> &ev) {
 			processResponse(ev);
-		}
-		inline void process(std::shared_ptr<TransactionEvent> &ev) {
-			processTransactionEvent(ev);
 		}
 	protected:
 		virtual void onDeclare(GenericStruct *root){
@@ -141,9 +139,6 @@ class Module : protected ConfigValueListener {
 		}
 		virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev)=0;
 		virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev)=0;
-		virtual void onTransactionEvent(std::shared_ptr<TransactionEvent> ev) {
-
-		}
 		virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 		virtual void onIdle(){
 		}

@@ -48,7 +48,6 @@ class MsgSip {
 public:
 	MsgSip(msg_t *msg);
 	MsgSip(const MsgSip &msgSip);
-	MsgSip(const MsgSip &msgSip, msg_t *msg);
 	~MsgSip();
 
 	inline msg_t* getMsg() const {
@@ -56,28 +55,20 @@ public:
 	}
 
 	inline sip_t* getSip() const {
-		return mSip;
+		return (sip_t*)msg_object(mMsg);
 	}
 
 	inline su_home_t* getHome() const {
-		return mHome;
+		return msg_home(mMsg);
 	}
 	void serialize()const{
-		msg_serialize(mMsg,(msg_pub_t*)mSip);
+		msg_serialize(mMsg,(msg_pub_t*)getSip());
 	}
-	msg_t *createOrigMsgRef() { return msg_ref_create(mOriginalMsg); }
 	inline std::shared_ptr<SipAttributes> getSipAttr() { return mSipAttr; }
 	const char *print();
 private:
-	static inline std::shared_ptr<MsgSip> createFromOriginalMsg(msg_t *msg) {
-		return std::make_shared<MsgSip>(msg);
-	}
-	void defineMsg(msg_t *msg);
-	mutable su_home_t *mHome;
-	msg_t *mOriginalMsg;
+	void assignMsg(msg_t *msg);
 	msg_t *mMsg;
-	sip_t *mSip;
-	bool mOriginal;
 	std::shared_ptr<SipAttributes> mSipAttr;
 };
 
@@ -86,7 +77,8 @@ class SipEvent : public std::enable_shared_from_this<SipEvent>{
 	friend class Agent;
 public:
 
-	SipEvent(const std::shared_ptr<MsgSip> msgSip);
+	SipEvent(const std::shared_ptr<IncomingAgent> &inAgent, const std::shared_ptr<MsgSip> & msgSip);
+	SipEvent(const std::shared_ptr<OutgoingAgent> &outAgent, const std::shared_ptr<MsgSip> & msgSip);
 	SipEvent(const SipEvent &sipEvent);
 
 	inline const std::shared_ptr<MsgSip> &getMsgSip() const {
@@ -102,7 +94,6 @@ public:
 
 	inline void setMsgSip(std::shared_ptr<MsgSip> msgSip) {
 		mMsgSip = msgSip;
-		mMsgSip->mOriginal = false;
 	}
 
 	virtual void terminateProcessing();
@@ -140,19 +131,22 @@ public:
 	virtual ~SipEvent();
 
 	Module *getCurrentModule() { return mCurrModule; }
-	
-	template <typename _eventLogT> 
+
+	template <typename _eventLogT>
 	std::shared_ptr<_eventLogT> getEventLog(){
 		return std::dynamic_pointer_cast<_eventLogT>(mEventLog);
 	}
 	void setEventLog(const std::shared_ptr<EventLog> & log);
 	void flushLog();/*to be used exceptionally when an eventlog needs to be flushed immediately, for example because you need to submit a new one.*/
+	std::shared_ptr<IncomingTransaction> getIncomingTransaction();
+	std::shared_ptr<OutgoingTransaction> getOutgoingTransaction();
 protected:
 	Module *mCurrModule;
 	std::shared_ptr<MsgSip> mMsgSip;
 	std::shared_ptr<IncomingAgent> mIncomingAgent;
 	std::shared_ptr<OutgoingAgent> mOutgoingAgent;
 	std::shared_ptr<EventLog> mEventLog;
+	Agent *mAgent;
 
 	enum State {
 		STARTED, SUSPENDED, TERMINATED,
@@ -165,19 +159,15 @@ protected:
 			return "SUSPENDED";
 		case TERMINATED:
 			return "TERMINATED";
-		default:
-			return "unknown";
 		}
+		return "invalid";
 	}
 };
 
 class RequestSipEvent: public SipEvent {
-	std::shared_ptr<tport_t> mIncomingTport;
 public:
 	RequestSipEvent(std::shared_ptr<IncomingAgent> incomingAgent,
-			const std::shared_ptr<MsgSip> &msgSip,
-			std::shared_ptr<tport_t> inTport
-       		);
+			const std::shared_ptr<MsgSip> &msgSip, tport_t *tport=NULL);
 	RequestSipEvent(const std::shared_ptr<RequestSipEvent> &sipEvent);
 
 	virtual void suspendProcessing();
@@ -189,27 +179,29 @@ public:
 	virtual void reply(int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 
 	virtual void setIncomingAgent(const std::shared_ptr<IncomingAgent> &agent);
-	std::shared_ptr<tport_t> getIncomingTport() {
-		return mIncomingTport;
-	}
 
 	~RequestSipEvent();
 
 	/** Find if incoming tport TLS client certificate contains a given entry */
 	bool findIncomingSubject(const char *searched);
 	const char *findIncomingSubject(const std::list<std::string> &in);
+	void unlinkTransactions();
+	const std::shared_ptr<tport_t> &getIncomingTport()const{
+		return mIncomingTport;
+	}
 	bool mRecordRouteAdded;
 private:
 	void linkTransactions();
+	std::shared_ptr<tport_t> mIncomingTport;
 };
 
 class ResponseSipEvent: public SipEvent {
 public:
 	ResponseSipEvent(std::shared_ptr<OutgoingAgent> outgoingAgent, const std::shared_ptr<MsgSip> &msgSip);
 	ResponseSipEvent(const std::shared_ptr<ResponseSipEvent> &sipEvent);
-	
+
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u=NULL, tag_type_t tag=0, tag_value_t value=0, ...);
-	
+
 	virtual void setOutgoingAgent(const std::shared_ptr<OutgoingAgent> &agent);
 
 	~ResponseSipEvent();
@@ -224,7 +216,7 @@ inline std::ostream& operator<<(std::ostream& strm, MsgSip const& obj) {
 	// a non const sip_t...
 	MsgSip &hack=const_cast<MsgSip&>(obj);
 	strm << hack.print();
-	return strm;	
+	return strm;
 }
 
 #endif //event_hh

@@ -28,22 +28,13 @@
 
 class ForkBasicContext: public ForkContext {
 private:
-	int mDeliveredCount;
-	std::shared_ptr<ResponseSipEvent> mBestResponse;
-	void forward(const std::shared_ptr<ResponseSipEvent> &ev);
-	void store(std::shared_ptr<ResponseSipEvent> &event);
 	su_timer_t *mDecisionTimer; /*timeout after which an answer must be sent through the incoming transaction even if no success response was received on the outgoing transactions*/
 public:
 	ForkBasicContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
 	virtual ~ForkBasicContext();
-	virtual void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
-	virtual void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event);
-	virtual void onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
-	virtual void onNew(const std::shared_ptr<OutgoingTransaction> &transaction);
-	virtual void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &event);
-	virtual void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
-	virtual bool onNewRegister(const sip_contact_t *ctt);
-	virtual void checkFinished();
+protected:
+	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event);
+	virtual bool onNewRegister(const url_t *url, const std::string &uid);
 private:
 	void finishIncomingTransaction();
 	static void sOnDecisionTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);

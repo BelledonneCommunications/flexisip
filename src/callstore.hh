@@ -36,11 +36,7 @@ class CallContextBase{
 		virtual bool isInactive(time_t cur){
 			return false;
 		}
-		virtual void terminate(){
-		};
-		su_home_t *getHome(){
-			return &mHome;
-		}
+		virtual void terminate(){}
 		virtual ~CallContextBase();
 		const std::string & getCallerTag()const{
 			return mCallerTag;

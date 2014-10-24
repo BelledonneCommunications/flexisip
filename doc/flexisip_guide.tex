@@ -150,32 +150,35 @@ yum install flexisip-server-ha*.rpm
 \end{verbatim}
 
 
-\subsection{Installation on Debian}
+\subsection{Installation on Debian Wheezy}
 \subsubsection{Belledonne repository - apt}
+Prepend the belledonne communication apt repo in /etc/apt/sources.list:
 \begin{verbatim}
-cat >/etc/apt/sources.list.d/bc.list <<EOF
-# Up-to-date flexisip dependencies
-deb ftp://repo:reporepo@linphone.org/debian squeeze main
-
-
-# Needed for mibs description
-deb http://ftp.fr.debian.org/debian/ squeeze non-free
-
-
-# Needed for current corosync and pacemaker
-deb http://backports.debian.org/debian-backports squeeze-backports main non-free contrib
-deb-src http://backports.debian.org/debian-backports squeeze-backports main non-free contrib
-EOF
-\end{verbatim} 
-
-\begin{verbatim}
-aptitude update
-aptitude install -t squeeze-backports flexisip-ha
+deb http://linphone.org/snapshots/debian wheezy main
 \end{verbatim}
 
+If not yet present, add the wheezy backport repository (for redis-server):
+\begin{verbatim}
+deb http://ftp.debian.org/debian/ wheezy-backports main
+\end{verbatim} 
+
+Install the belledonne communication gpg key used to sign the debs:
+\begin{verbatim}
+wget -O - -q http://linphone.org/snapshots/debian/repo.gpg.key | apt-key add -
+\end{verbatim}
+
+Update aptitude and install flexisip and it's dependencies:
+\begin{verbatim}
+aptitude update
+aptitude -t wheezy-backports install redis-server
+aptitude install flexisip
+\end{verbatim}
 
 Then define /etc/flexisip.conf and restart flexisip daemon.
-
+\begin{verbatim}
+flexisip --dump-default-config > /etc/flexisip/flexisip.conf
+service flexisip restart
+\end{verbatim}
 
 \subsection{Startup options}
 By default, flexisip uses the /etc/flexisip/flexisip.conf configuration file.

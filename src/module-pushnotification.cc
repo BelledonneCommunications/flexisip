@@ -25,6 +25,7 @@
 #include "forkcallcontext.hh"
 
 #include <map>
+#include <sofia-sip/msg_mime.h>
 
 using namespace ::std;
 
@@ -63,7 +64,6 @@ public:
 	PushNotification(Agent *ag);
 	virtual ~PushNotification();
 	void onDeclare(GenericStruct *module_config);
-	virtual void onTransactionEvent(shared_ptr<TransactionEvent> ev);
 	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev);
 	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev);
 	virtual void onLoad(const GenericStruct *mc);
@@ -72,10 +72,12 @@ public:
 	}
 	void clearNotification(const shared_ptr<PushNotificationContext>& ctx);
 private:
+	bool needsPush(const sip_t *sip);
 	void makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction);
 	map<string,shared_ptr<PushNotificationContext> > mPendingNotifications; //map of pending push notifications. Its purpose is to avoid sending multiples notifications for the same call attempt to a given device.
 	static ModuleInfo<PushNotification> sInfo;
 	int mTimeout;
+	bool mNoBadgeiOS;
 	map<string, string> mGoogleKeys;
 	PushNotificationService *mAPNS;
 	StatCounter64 *mCountFailed;
@@ -86,7 +88,7 @@ PushNotificationContext::PushNotificationContext(const shared_ptr<OutgoingTransa
 		mModule(module), mPushNotificationRequest(pnr), mKey(key) {
 	mTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
 	mEndTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
-	mForkContext = dynamic_pointer_cast<ForkCallContext>(transaction->getProperty<ForkContext>("Router"));
+	mForkContext = dynamic_pointer_cast<ForkCallContext>(ForkContext::get(transaction));
 }
 
 PushNotificationContext::~PushNotificationContext() {
@@ -163,7 +165,7 @@ void PushNotificationContext::__end_timer_callback(su_root_magic_t *magic, su_ti
 ModuleInfo<PushNotification> PushNotification::sInfo("PushNotification", "This module performs push notifications", ModuleInfoBase::ModuleOid::PushNotification);
 
 PushNotification::PushNotification(Agent *ag) :
-		Module(ag), mAPNS(NULL), mCountFailed(NULL), mCountSent(NULL) {
+		Module(ag), mNoBadgeiOS(false), mAPNS(NULL), mCountFailed(NULL), mCountSent(NULL) {
 }
 
 PushNotification::~PushNotification() {
@@ -184,6 +186,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 			{ Boolean, "google", "Enable push notification for android devices", "true" },
 			{ StringList, "google-projects-api-keys", "List of couple projectId:ApiKey for each android project which support push notifications", "" },
 			{ Boolean, "windowsphone", "Enable push notification for windows phone 8 devices", "true" },
+			{ Boolean, "no-badge", "Set the badge value to 0 for apple push", "false" },
 			config_item_end };
 	module_config->addChildrenValues(items);
 	mCountFailed = module_config->createStat("count-pn-failed", "Number of push notifications failed to be sent");
@@ -191,16 +194,19 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 }
 
 void PushNotification::onLoad(const GenericStruct *mc) {
-	mTimeout = mc->get<ConfigInt>("timeout")->read();
+	mNoBadgeiOS      = mc->get<ConfigBoolean>("no-badge")->read();
+	mTimeout         = mc->get<ConfigInt>("timeout")->read();
 	int maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
-	string certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
-	auto googleKeys = mc->get<ConfigStringList>("google-projects-api-keys")->read();
+	string certdir   = mc->get<ConfigString>("apple-certificate-dir")->read();
+	auto googleKeys  = mc->get<ConfigStringList>("google-projects-api-keys")->read();
+
 	mGoogleKeys.clear();
 	for (auto it=googleKeys.cbegin(); it != googleKeys.cend(); ++it) {
 		const string &keyval=*it;
 		size_t sep = keyval.find(":");
 		mGoogleKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep + 1)));
 	}
+
 	mAPNS = new PushNotificationService(certdir, "", maxQueueSize);
 	mAPNS->setStatCounters(mCountFailed, mCountSent);
 	mAPNS->start();
@@ -211,13 +217,13 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 	shared_ptr<PushNotificationContext> context;
 	sip_t *sip=ms->getSip();
 	const char *call_id=ms->getSip()->sip_call_id->i_id;
-	
+
 	if (sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_params != NULL){
 		char type[12];
 		char deviceToken[256];
 		char appId[256]={0};
 		char pn_key[512]={0};
-		
+
 		char const *params=sip->sip_request->rq_url->url_params;
 		/*extract all parameters required to make the push notification */
 		if (url_param(params, "pn-tok", deviceToken, sizeof(deviceToken)) == 0) {
@@ -241,7 +247,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 				SLOGD << "no app-id";
 				return;
 			}
-			
+
 			string contact;
 			if(sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
 				contact = sip->sip_from->a_display;
@@ -264,7 +270,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 					SLOGD << "no pn-msg-str";
 					return;
 				}
-				
+
 				if (url_param(params, "pn-call-str", call_str, sizeof(call_str)) == 0) {
 					SLOGD << "no pn-call-str";
 					return;
@@ -281,7 +287,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 						(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
 						contact,
 						(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
-						call_id);
+						call_id,
+						mNoBadgeiOS);
 			} else if (strcmp(type,"wp")==0) {
 				bool is_message = sip->sip_request->rq_method != sip_method_invite;
 				string message;
@@ -300,6 +307,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 					// We only have one client for all Android apps, called "google"
 					SLOGD << "Creating Google push notif request";
 					pn = make_shared<GooglePushNotificationRequest>("google", deviceToken, apiKeyIt->second, contact, call_id);
+				} else {
+					SLOGD << "No Key matching appId " << appId;
 				}
 			} else if (strcmp(type, "error")==0) {
 				SLOGD << "Creating Error push notif request";
@@ -318,20 +327,33 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 	}
 }
 
+bool PushNotification::needsPush(const sip_t *sip){
+	if (sip->sip_to->a_tag) return false;
+
+	if (sip->sip_request->rq_method == sip_method_invite)
+		return true;
+
+	if (sip->sip_request->rq_method == sip_method_message){
+		/*dont send push for is-composing messages.*/
+		if (sip->sip_content_type && sip->sip_content_type->c_type
+			&& strcasecmp(sip->sip_content_type->c_type,"application/im-iscomposing+xml")==0)
+			return false;
+		return true;
+	}
+	return false;
+}
+
 void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip=ms->getSip();
-	if ((sip->sip_request->rq_method == sip_method_invite ||
-		sip->sip_request->rq_method == sip_method_message) &&
-		sip->sip_to && sip->sip_to->a_tag==NULL){
+	if (needsPush(sip)){
 		shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 		if (transaction != NULL) {
-			sip_t *sip = ms->getSip();
 			if (sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_params != NULL) {
 				try{
 					makePushNotification(ms,transaction);
 				}catch(exception &e){
-					LOGE("Could not create push notification.");
+					LOGE("Could not create push notification: %s.", e.what());
 				}
 			}
 		}
@@ -345,19 +367,6 @@ void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
 		/*any response >=180 except 503 (which is sofia's internal response for broken transports) should cancel the push*/
 		shared_ptr<PushNotificationContext> ctx=transaction->getProperty<PushNotificationContext>(getModuleName());
 		if (ctx) ctx->cancel();
-	}
-}
-
-void PushNotification::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
-	shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->transaction);
-	if (ot != NULL) {
-		switch (ev->kind) {
-			case TransactionEvent::Type::Destroy:
-			break;
-
-			case TransactionEvent::Type::Create:
-			break;
-		}
 	}
 }
 

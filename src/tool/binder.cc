@@ -1,6 +1,6 @@
 
 #include "test_utils.hh"
-#include <src/registrardb-internal.hh>
+#include "../registrardb-internal.hh"
 #include "../registrardb.hh"
 
 using namespace std;

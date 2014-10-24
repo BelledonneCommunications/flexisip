@@ -27,12 +27,15 @@
 
 using namespace ::std;
 
+IncomingAgent::~IncomingAgent(){}
+OutgoingAgent::~OutgoingAgent(){}
+
 static string getRandomBranch() {
 	uint8_t digest[SU_MD5_DIGEST_SIZE];
 	char branch[(SU_MD5_DIGEST_SIZE * 8 + 4) / 5 + 1];
-	
+
 	su_randmem(digest,sizeof(digest));
-	
+
 	msg_random_token(branch, sizeof(branch) - 1, digest, sizeof(digest));
 
 	return branch;
@@ -56,23 +59,12 @@ const string &OutgoingTransaction::getBranchId()const{
 }
 
 void OutgoingTransaction::cancel() {
-	nta_outgoing_cancel(mOutgoing);
-	// Maybe it is not a good idea to destroy the sofia transaction immediately after cancelling it.
-	//Indeed, sofia keeps the transaction open in case no provisional response has been received so far, so that the Cancel is sent
-	//after receiving the response, as requested by the RFC.
-	//Destroying the transaction here is suspected to generate rare crashes like the backtrace below, when a 200Ok for invite response is received, 
-	//for a cancelled transaction.
-/*
-#1  0x00007f796113dfc0 in *__GI_abort () at abort.c:92
-#2  0x00007f7961134301 in *__GI___assert_fail (
-    assertion=0x7f7963dfbb88 "orq->orq_queue == sa->sa_out.completed || orq->orq_queue == sa->sa_out.terminated", file=<value optimized out>, 
-    line=9298, function=0x7f7963dfc863 "outgoing_recv") at assert.c:81
-#3  0x00007f7963d6023e in ?? () from /usr/lib/libsofia-sip-ua.so.0
-#4  0x00007f7963d6c04c in ?? () from /usr/lib/libsofia-sip-ua.so.0
-#5  0x00007f7963ddbee5 in tport_deliver () from /usr/lib/libsofia-sip-ua.so.0
-*/
-	
-	destroy();
+	if (mOutgoing){
+		nta_outgoing_cancel(mOutgoing);
+		destroy();
+	}else{
+		LOGE("OutgoingTransaction::cancel(): transaction already destroyed.");
+	}
 }
 
 const url_t *OutgoingTransaction::getRequestUri()const{
@@ -83,13 +75,21 @@ const url_t *OutgoingTransaction::getRequestUri()const{
 	return nta_outgoing_request_uri(mOutgoing);
 }
 
+int OutgoingTransaction::getResponseCode()const{
+	if (mOutgoing==NULL){
+		LOGE("OutgoingTransaction::getRequestUri(): transaction not started !");
+		return 0;
+	}
+	return nta_outgoing_status(mOutgoing);
+}
+
 void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
-	
+
 	LOGD("Message is sent through an outgoing transaction.");
-	
+
 	if (!mOutgoing){
-		msg_t* msg = msg_dup(ms->getMsg());
+		msg_t* msg = msg_ref_create(ms->getMsg());
 		ta_start(ta, tag, value);
 		mOutgoing = nta_outgoing_mcreate(mAgent->mAgent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, u, msg, ta_tags(ta),TAG_END());
 		ta_end(ta);
@@ -98,7 +98,6 @@ void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const 
 			msg_destroy(msg);
 		} else {
 			mSofiaRef = shared_from_this();
-			mAgent->sendTransactionEvent(TransactionEvent::makeCreate(shared_from_this()));
 		}
 	}else{
 		//sofia transaction already created, this happens when attempting to forward a cancel
@@ -132,12 +131,12 @@ int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *
 
 void OutgoingTransaction::destroy() {
 	if (mSofiaRef != NULL) {
-		mSofiaRef.reset();
-		mAgent->sendTransactionEvent(TransactionEvent::makeDestroy(shared_from_this()));
 		nta_outgoing_bind(mOutgoing, NULL, NULL); //avoid callbacks
 		nta_outgoing_destroy(mOutgoing);
-		mIncoming.reset();
+		mOutgoing=NULL;
 		looseProperties();
+		mIncoming.reset();
+		mSofiaRef.reset(); //This must be the last instruction of this function because it may destroy this OutgoingTransaction.
 	}
 }
 
@@ -151,14 +150,12 @@ shared_ptr<IncomingTransaction> IncomingTransaction::create(Agent *agent){
 }
 
 void IncomingTransaction::handle(const shared_ptr<MsgSip> &ms) {
-	msg_t* msg = ms->mOriginalMsg;
-	msg_ref_create(msg);
+	msg_t* msg = ms->getMsg();
+	msg=msg_ref_create(msg);
 	mIncoming = nta_incoming_create(mAgent->mAgent, NULL, msg, sip_object(msg), TAG_END());
 	if (mIncoming != NULL) {
 		nta_incoming_bind(mIncoming, IncomingTransaction::_callback, (nta_incoming_magic_t*) this);
 		mSofiaRef = shared_from_this();
-
-		mAgent->sendTransactionEvent(TransactionEvent::makeCreate(shared_from_this()));
 	} else {
 		LOGE("Error during incoming transaction creation");
 	}
@@ -169,15 +166,23 @@ IncomingTransaction::~IncomingTransaction() {
 }
 
 shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const *phrase) {
-	msg_t *msg = nta_incoming_create_response(mIncoming, status, phrase);
-	shared_ptr<MsgSip> ms=make_shared<MsgSip>(msg);
-	msg_destroy(msg);
-	return ms;
+	if (mIncoming){
+		msg_t *msg = nta_incoming_create_response(mIncoming, status, phrase);
+		if (!msg){
+			LOGE("IncomingTransaction::createResponse(): this=%p cannot create response.",this);
+			return shared_ptr<MsgSip>();
+		}
+		shared_ptr<MsgSip> ms=make_shared<MsgSip>(msg);
+		msg_destroy(msg);
+		return ms;
+	}
+	LOGE("IncomingTransaction::createResponse(): this=%p transaction is finished, cannot create response.",this);
+	return shared_ptr<MsgSip>();
 }
 
 void IncomingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncoming) {
-		msg_t* msg = msg_dup(ms->getMsg()); //need to duplicate the message because mreply will decrement its ref count.
+		msg_t* msg = msg_ref_create(ms->getMsg()); //need to increment refcount of the message because mreply will decrement it.
 		LOGD("Response is sent through an incoming transaction.");
 		nta_incoming_mreply(mIncoming, msg);
 		if (ms->getSip()->sip_status != NULL && ms->getSip()->sip_status->st_status >= 200) {
@@ -209,9 +214,7 @@ int IncomingTransaction::_callback(nta_incoming_magic_t *magic, nta_incoming_t *
 	if (sip != NULL) {
 		msg_t *msg = nta_incoming_getrequest_ackcancel(it->mIncoming);
 		auto ev = make_shared<RequestSipEvent>(it->shared_from_this(),
-				MsgSip::createFromOriginalMsg(msg),
-				shared_ptr<tport_t>() /* no access to nta_agent: may put tport in transaction if needed  */
-		);
+				make_shared<MsgSip>(msg));
 		msg_destroy(msg);
 		it->mAgent->sendRequestEvent(ev);
 		if (sip->sip_request && sip->sip_request->rq_method == sip_method_cancel) {
@@ -225,11 +228,11 @@ int IncomingTransaction::_callback(nta_incoming_magic_t *magic, nta_incoming_t *
 
 void IncomingTransaction::destroy() {
 	if (mSofiaRef != NULL) {
-		mSofiaRef.reset();
-		mAgent->sendTransactionEvent(TransactionEvent::makeDestroy(shared_from_this()));
 		nta_incoming_bind(mIncoming, NULL, NULL); //avoid callbacks
 		nta_incoming_destroy(mIncoming);
+		mIncoming=NULL;
 		looseProperties();
 		mOutgoing.reset();
+		mSofiaRef.reset();//This MUST be the last instruction of this function, because it may destroy the IncomingTransaction.
 	}
 }

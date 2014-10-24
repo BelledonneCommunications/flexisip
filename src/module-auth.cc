@@ -28,14 +28,15 @@
 #include "sofia-sip/msg_addr.h"
 #include "sofia-sip/auth_plugin.h"
 #include "sofia-sip/su_tagarg.h"
+#include "sofia-sip/sip_extra.h"
 
 #include "authdb.hh"
 
 using namespace ::std;
 
 #define QOP_AUTH
-const static int NONCE_EXPIRES=100;
-const static int NEXT_NONCE_EXPIRES=100;
+// const static int NONCE_EXPIRES=100;
+// const static int NEXT_NONCE_EXPIRES=100;
 
 class Authentication;
 
@@ -54,14 +55,23 @@ struct auth_mod_size { auth_mod_t mod[1]; auth_plugin_t plug[1]; };
 
 
 class NonceStore {
-	map<string,int> nc;
-	map<string, time_t> expires;
-	mutex mut;
+	struct NonceCount{
+		NonceCount(int c, time_t ex) : nc(c), expires(ex){}
+		int nc;
+		time_t expires;
+	};
+	map<string,NonceCount> mNc;
+	mutex mMutex;
+	int mNonceExpires;
 public:
+	NonceStore() : mNonceExpires(3600){}
+	void setNonceExpires(int value){
+		mNonceExpires=value;
+	}
 	int getNc(const string &nonce) {
-		unique_lock<mutex> lck(mut);
-		auto it=nc.find(nonce);
-		if (it!=nc.end()) return (*it).second;
+		unique_lock<mutex> lck(mMutex);
+		auto it=mNc.find(nonce);
+		if (it!=mNc.end()) return (*it).second.nc;
 		return -1;
 	}
 
@@ -73,58 +83,51 @@ public:
 		insert(snonce);
 	}
 	void insert(const string &nonce) {
-		unique_lock<mutex> lck(mut);
-		auto it=nc.find(nonce);
-		if (it!=nc.end()) {
+		unique_lock<mutex> lck(mMutex);
+		time_t expiration=getCurrentTime()+mNonceExpires;
+		auto it=mNc.find(nonce);
+		if (it!=mNc.end()) {
 			LOGE("Replacing nonce count for %s", nonce.c_str());
-			it->second=0;
+			it->second.nc=0;
+			it->second.expires=expiration;
 		} else {
-			nc.insert(make_pair(nonce,0));
-		}
-
-		auto itE=expires.find(nonce);
-		time_t expiration=getCurrentTime()+NONCE_EXPIRES;
-		if (itE!=expires.end()) {
-			LOGE("Replacing nonce expiration for %s", nonce.c_str());
-			itE->second=expiration;
-		} else {
-			expires.insert(make_pair(nonce,expiration));
+			mNc.insert(make_pair(nonce,NonceCount(0,expiration)));
 		}
 	}
 
 	void updateNc(const string &nonce, int newnc) {
-		unique_lock<mutex> lck(mut);
-		auto it=nc.find(nonce);
-		if (it!=nc.end()) {
+		unique_lock<mutex> lck(mMutex);
+		auto it=mNc.find(nonce);
+		if (it!=mNc.end()) {
 			LOGD("Updating nonce %s with nc=%d", nonce.c_str(), newnc);
-			(*it).second=newnc;
+			(*it).second.nc=newnc;
 		} else {
 			LOGE("Couldn't update nonce %s: not found", nonce.c_str());
 		}
 	}
 
 	void erase(const string &nonce) {
-		unique_lock<mutex> lck(mut);
+		unique_lock<mutex> lck(mMutex);
 		LOGD("Erasing nonce %s", nonce.c_str());
-		nc.erase(nonce);
-		expires.erase(nonce);
+		mNc.erase(nonce);
 	}
 
 	void cleanExpired() {
-		unique_lock<mutex> lck(mut);
+		unique_lock<mutex> lck(mMutex);
 		int count=0;
-		time_t now =getCurrentTime();
-		for (auto it=expires.begin(); it != expires.end(); ) {
-			if (now > it->second) {
+		time_t now = getCurrentTime();
+		size_t size=0;
+		for (auto it=mNc.begin(); it != mNc.end(); ) {
+			if (now > it->second.expires) {
 				LOGD("Cleaning expired nonce %s", it->first.c_str());
 				auto eraseIt=it;
 				++it;
-				nc.erase(eraseIt->first);
-				expires.erase(eraseIt);
+				mNc.erase(eraseIt);
 				++count;
 			} else 	++it;
+			size++;
 		}
-		if (count) LOGD("Cleaned %d expired nonces, %zd remaining", count, nc.size());
+		if (count) LOGD("Cleaned %d expired nonces, %zd remaining", count, size);
 	}
 };
 
@@ -132,7 +135,7 @@ public:
 class Authentication : public Module {
 private:
 	class AuthenticationListener : public AuthDbListener {
-		Agent *mAgent;
+		Authentication *mModule;
 		shared_ptr<RequestSipEvent> mEv;
 		auth_mod_t *mAm;
 		auth_status_t *mAs;
@@ -143,60 +146,64 @@ private:
 		bool mImmediateRetrievePass;
 		bool mNo403;
 		auth_response_t mAr;
-		AuthenticationListener(Agent *, shared_ptr<RequestSipEvent>, bool);
-		virtual ~AuthenticationListener(){};
+		AuthenticationListener(Authentication *, shared_ptr<RequestSipEvent>, bool);
+		virtual ~AuthenticationListener(){}
 
 		void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
 		void checkPassword(const char *password);
-		void onAsynchronousResponse(AuthDbResult ret, const char *password);
-		void switchToAsynchronousMode();
+		void onResult();
 		void onError();
-		bool sendReply();
+		void finish();/*the listener is destroyed when calling this, careful*/
 		su_root_t *getRoot() {
-			return mAgent->getRoot();
+			return getAgent()->getRoot();
+		}
+		Agent *getAgent(){
+			return mModule->getAgent();
 		}
 		Authentication *getModule() {
-			return static_cast<Authentication *>(mEv->getCurrentModule());
+			return mModule;
 		}
 	};
 private:
+	static ModuleInfo<Authentication> sInfo;
 	map<string,auth_mod_t *> mAuthModules;
 	list<string> mDomains;
 	list<string> mTrustedHosts;
-	static ModuleInfo<Authentication> sInfo;
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
 	auth_scheme_t* mOdbcAuthScheme;
 	shared_ptr<BooleanExpression> mNo403Expr;
-	static int authPluginInit(auth_mod_t *am,
-				     auth_scheme_t *base,
-				     su_root_t *root,
-				     tag_type_t tag, tag_value_t value, ...) {
-	 auth_plugin_t *ap = AUTH_PLUGIN(am);
-	 int retval = -1;
-	 ta_list ta;
-	 ta_start(ta, tag, value);
-
-	  if (auth_init_default(am, base, root, ta_tags(ta)) != -1) {
-		    ap->mRoot = root;
-		    ap->mBase = base;
-		    ap->mTail = &ap->mlist;
-		    retval = 0;
-	  } else {
-		  LOGE("cannot init odbc plugin");
-	  }
-	  auth_readdb_if_needed(am);
-	  ta_end(ta);
-	  return retval;
-	}
-	bool empty(const char *value){
-		return value==NULL || value[0]=='\0';
-	}
+	AuthenticationListener *mCurrentAuthOp;
 	bool dbUseHashedPasswords;
 	bool mImmediateRetrievePassword;
 	bool mNewAuthOn407;
 	list<string> mUseClientCertificates;
 	list< string > mTrustedClientCertificates;
+	
+	static int authPluginInit(auth_mod_t *am,
+				     auth_scheme_t *base,
+				     su_root_t *root,
+				     tag_type_t tag, tag_value_t value, ...) {
+		auth_plugin_t *ap = AUTH_PLUGIN(am);
+		int retval = -1;
+		ta_list ta;
+		ta_start(ta, tag, value);
+
+		if (auth_init_default(am, base, root, ta_tags(ta)) != -1) {
+			ap->mRoot = root;
+			ap->mBase = base;
+			ap->mTail = &ap->mlist;
+			retval = 0;
+		} else {
+			LOGE("cannot init odbc plugin");
+		}
+		auth_readdb_if_needed(am);
+		ta_end(ta);
+		return retval;
+	}
+	bool empty(const char *value){
+		return value==NULL || value[0]=='\0';
+	}
 
 	void static flexisip_auth_method_digest(auth_mod_t *am,
 				auth_status_t *as, msg_auth_t *au, auth_challenger_t const *ach);
@@ -208,7 +215,7 @@ private:
 		for (auto it = mTrustedClientCertificates.cbegin(); it != mTrustedClientCertificates.cend(); ++it) {
 			if (it->find("@") != string::npos) toCheck.push_back(*it);
 			else toCheck.push_back(*it + "@" + string(fromDomain));
-		}	
+		}
 		const char *res=ev->findIncomingSubject(toCheck);
 		return res;
 	}
@@ -244,6 +251,7 @@ public:
 		if (auth_mod_register_plugin(mOdbcAuthScheme)) {
 			LOGE("Cannot register auth plugin");
 		}
+		mCurrentAuthOp=NULL;
 	}
 
 	~Authentication(){
@@ -263,9 +271,9 @@ public:
 			" CN may contain user@domain or alternate name with URI=sip:user@domain",	""	},
 			{	StringList	,	"trusted-client-certificates"	, 	"List of whitespace separated username or username@domain CN which will trusted. If no domain is given it is computed.",	""	},
 			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file, fixed].",		"fixed"	},
-			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. " 
-					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. " 
-					"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. " 
+			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. "
+					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. "
+					"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. "
 					"ex3: /etc/flexisip/passwd; for a file containing one 'user@domain password' by line.",		""	},
 			{	String		,	"request"				,	"Odbc SQL request to execute to obtain the password \n. "
 					"Named parameters are :id (the user found in the from header), :domain (the authorization realm) and :authid (the authorization username). "
@@ -273,6 +281,7 @@ public:
 					"select password from accounts where id = :id and domain = :domain and authid=:authid"	},
 			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
 			{	Integer		,	"max-password-length"	,	"Maximum length of the password column in database",	"100"	},
+			{	Integer		,	"nonce-expires"	,	"Expiration time of nonces, in seconds.",	"3600" },
 			{	Boolean		,	"odbc-pooling"	,	"Use pooling in odbc",	"true"	},
 			{	Integer		,	"odbc-display-timings-interval"	,	"Display timing statistics after this count of seconds",	"0"	},
 			{	Integer		,	"odbc-display-timings-after-count"	,	"Display timing statistics once the number of samples reach this number.",	"0"	},
@@ -281,8 +290,8 @@ public:
 			{	Boolean		,	"immediate-retrieve-password"	,	"Retrieve password immediately so that it is cached when an authenticated request arrives.",	"true"},
 			{	Boolean		,	"hashed-passwords"	,	"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).", "false" },
 			{	Boolean		,	"new-auth-on-407"	,	"When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false" },
-			{	BooleanExpr, 	"no-403",	"Don't reply 403, but 401 or 407 even in case of wrong authentication.",	""},
-			
+			{	BooleanExpr, 	"no-403",	"Don't reply 403, but 401 or 407 even in case of wrong authentication.",	"false"},
+
 			config_item_end
 		};
 		mc->addChildrenValues(items);
@@ -297,7 +306,9 @@ public:
 
 	void onLoad(const GenericStruct * mc){
 		list<string>::const_iterator it;
+		int nonceExpires;
 		mDomains=mc->get<ConfigStringList>("auth-domains")->read();
+		nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
 		for (it=mDomains.begin();it!=mDomains.end();++it){
 			mAuthModules[*it] = auth_mod_create(NULL,
 									AUTHTAG_METHOD("odbc"),
@@ -305,8 +316,8 @@ public:
 									AUTHTAG_OPAQUE("+GNywA=="),
 #ifdef QOP_AUTH
 									AUTHTAG_QOP("auth"),
-									AUTHTAG_EXPIRES(NONCE_EXPIRES), // in seconds
-									AUTHTAG_NEXT_EXPIRES(NEXT_NONCE_EXPIRES), // in seconds
+									AUTHTAG_EXPIRES(nonceExpires), // in seconds
+									AUTHTAG_NEXT_EXPIRES(nonceExpires), // in seconds
 #endif
 									AUTHTAG_FORBIDDEN(1),
 									AUTHTAG_ALLOW("ACK CANCEL BYE"),
@@ -326,6 +337,7 @@ public:
 		mUseClientCertificates = mc->get<ConfigStringList>("client-certificates-domains")->read();
 		mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
 		mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
+		mNonceStore.setNonceExpires(nonceExpires);
 	}
 
 	auth_mod_t *findAuthModule(const char *name) {
@@ -357,7 +369,7 @@ public:
 				}
 			}
 		}
-		
+
 		// Check TLS certificate
 		const char *fromDomain = sip->sip_from->a_url[0].url_host;
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
@@ -371,10 +383,11 @@ public:
 				SLOGD << "Allowing message from trusted TLS certificate " << res;
 			} else {
 				SLOGE << "Client certificate do not match " << searched;
-				ev->reply( SIP_488_NOT_ACCEPTABLE,
-						   SIPTAG_CONTACT(sip->sip_contact),
-						   SIPTAG_SERVER_STR(getAgent()->getServerString()),
-						   TAG_END());
+				int code = notARegister ? 407 : 401;
+				const char *phrase="Missing or invalid client certificate";
+				ev->reply(code, phrase,
+						SIPTAG_SERVER_STR(getAgent()->getServerString()),
+						TAG_END());
 			}
 			return true;
 		}
@@ -385,6 +398,7 @@ public:
 	void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
+		sip_p_preferred_identity_t* ppi=NULL;
 
 		// Do it first to make sure no transaction is created which
 		// would send an unappropriate 100 trying response.
@@ -399,7 +413,7 @@ public:
 		// Check for the existence of username, reject if absent.
 		if (sip->sip_from->a_url->url_user==NULL){
 			LOGI("From has no username, cannot authenticate.");
-			ev->reply(SIP_488_NOT_ACCEPTABLE,
+			ev->reply(403, "Username must be provided",
 					  SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					  TAG_END());
 			return;
@@ -412,39 +426,40 @@ public:
 
 		// Check for auth module for this domain
 		const char *fromDomain = sip->sip_from->a_url[0].url_host;
+		if (fromDomain && strcmp(fromDomain,"anonymous.invalid")==0){
+			ppi=sip_p_preferred_identity(sip);
+			if (ppi) fromDomain=ppi->ppid_url->url_host;
+			else LOGD("There is no p-preferred-identity");
+		}
 		auth_mod_t *am=findAuthModule(fromDomain);
 		if (am==NULL) {
 			LOGI("Unknown domain [%s]", fromDomain);
-			ev->reply( SIP_488_NOT_ACCEPTABLE,
-					SIPTAG_CONTACT(sip->sip_contact),
+			ev->reply( 403, "Domain forbidden",
 					SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					TAG_END());
 			return;
 		}
-
-
 
 		// Create incoming transaction if not already exists
 		// Necessary in qop=auth to prevent nonce count chaos
 		// with retransmissions.
 		ev->createIncomingTransaction();
 
-
 		auth_status_t *as;
 		as = auth_status_new(ms->getHome());
 		as->as_method = sip->sip_request->rq_method_name;
 		as->as_source = msg_addrinfo(ms->getMsg());
-		as->as_realm = sip->sip_from->a_url[0].url_host;
-		as->as_user_uri = sip->sip_from->a_url;
+		as->as_user_uri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
+		as->as_realm = as->as_user_uri->url_host;
 		as->as_display = sip->sip_from->a_display;
 		if (sip->sip_payload)
 		    as->as_body = sip->sip_payload->pl_data,
 		as->as_bodylen = sip->sip_payload->pl_len;
 
-		AuthenticationListener *listener = new AuthenticationListener(getAgent(), ev, dbUseHashedPasswords);
+		AuthenticationListener* listener = new AuthenticationListener(this, ev, dbUseHashedPasswords);
 		listener->mImmediateRetrievePass = mImmediateRetrievePassword;
 		listener->mNo403= mNo403Expr->eval(ev->getSip());
-		as->as_magic=listener;
+		as->as_magic=mCurrentAuthOp=listener;
 
 
 		// Attention: the auth_mod_verify method should not send by itself any message but
@@ -455,6 +470,12 @@ public:
 			auth_mod_verify(am, as, sip->sip_authorization,&mRegistrarChallenger);
 		} else {
 			auth_mod_verify(am, as, sip->sip_proxy_authorization,&mProxyChallenger);
+		}
+		if (mCurrentAuthOp){
+			/*it has not been cleared by the listener itself, so password checking is still in progress. We need to suspend the event*/
+			// Send pending message, needed data will be kept as long
+			// as SipEvent is held in the listener.
+			ev->suspendProcessing();
 		}
 	}
 	void onResponse(shared_ptr<ResponseSipEvent> &ev) {
@@ -482,7 +503,7 @@ public:
 		} else {
 			LOGD("not handled newauthon401");
 		}
-	};
+	}
 
 	void onIdle() {
 		mNonceStore.cleanExpired();
@@ -504,8 +525,8 @@ ModuleInfo<Authentication> Authentication::sInfo("Authentication",
 	ModuleInfoBase::ModuleOid::Authentication);
 
 
-Authentication::AuthenticationListener::AuthenticationListener(Agent *ag, shared_ptr<RequestSipEvent> ev, bool hashedPasswords):
-		mAgent(ag),mEv(ev),mAm(NULL),mAs(NULL),mAch(NULL),mHashedPass(hashedPasswords),mPasswordFound(false){
+Authentication::AuthenticationListener::AuthenticationListener(Authentication *module, shared_ptr<RequestSipEvent> ev, bool hashedPasswords):
+		mModule(module),mEv(ev),mAm(NULL),mAs(NULL),mAch(NULL),mHashedPass(hashedPasswords),mPasswordFound(false){
 	memset(&mAr, '\0', sizeof(mAr)), mAr.ar_size=sizeof(mAr);
 	mNo403=false;
 }
@@ -519,7 +540,7 @@ void Authentication::AuthenticationListener::setData(auth_mod_t *am, auth_status
 /**
  * return true if the event is terminated
  */
-bool Authentication::AuthenticationListener::sendReply(){
+void Authentication::AuthenticationListener::finish(){
 	const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
 	sip_t *sip=ms->getSip();
 	if (mAs->as_status) {
@@ -537,9 +558,8 @@ bool Authentication::AuthenticationListener::sendReply(){
 		mEv->reply(mAs->as_status,mAs->as_phrase,
 					SIPTAG_HEADER((const sip_header_t*)mAs->as_info),
 					SIPTAG_HEADER((const sip_header_t*)mAs->as_response),
-					SIPTAG_SERVER_STR(mAgent->getServerString()),
+					SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					TAG_END());
-		return true;
 	}else{
 		// Success
 		if (sip->sip_request->rq_method == sip_method_register){
@@ -549,8 +569,15 @@ bool Authentication::AuthenticationListener::sendReply(){
 			msg_auth_t *au=ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_proxy_authorization, mAs->as_realm);
 			if (au) msg_header_remove(ms->getMsg(), (msg_pub_t*)sip, (msg_header_t *)au);
 		}
-		return false;
+		if (mEv->isSuspended()){
+			// The event is re-injected
+			getAgent()->injectRequestEvent(mEv);
+		}
 	}
+	if (mModule->mCurrentAuthOp==this){
+		mModule->mCurrentAuthOp=NULL;
+	}
+	delete this;
 }
 
 /**
@@ -619,31 +646,20 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 }
 
 
-void Authentication::AuthenticationListener::onAsynchronousResponse(AuthDbResult res, const char *password) {
-	switch (res) {
+void Authentication::AuthenticationListener::onResult() {
+	switch (mResult) {
 	case PASSWORD_FOUND:
 	case PASSWORD_NOT_FOUND:
-		checkPassword(password);
-		if (!sendReply()) {
-			// The event is not terminated
-			mAgent->injectRequestEvent(mEv);
-		}
+		checkPassword(mPassword.c_str());
+		finish();
 		break;
-	default:
-		LOGE("unhandled asynchronous response %u", res);
-		// error
 	case AUTH_ERROR:
 		onError();
 		break;
+	default:
+		LOGE("Unhandled asynchronous response %u", mResult);
+		onError();
 	}
-	delete this;
-}
-
-// Called when starting asynchronous retrieving of password
-void Authentication::AuthenticationListener::switchToAsynchronousMode() {
-	// Send pending message, needed data will be kept as long
-	// as SipEvent is held in the listener.
-	mEv->suspendProcessing();
 }
 
 void Authentication::AuthenticationListener::onError() {
@@ -651,8 +667,7 @@ void Authentication::AuthenticationListener::onError() {
 		mAs->as_status = 500, mAs->as_phrase = "Internal error";
 		mAs->as_response = NULL;
 	}
-
-	sendReply();
+	finish();
 }
 
 
@@ -669,14 +684,14 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		auth_response_t *ar,
 		auth_challenger_t const *ach) {
 
-	shared_ptr<AuthenticationListener> listener((AuthenticationListener*) as->as_magic);
+	AuthenticationListener * listener=(AuthenticationListener*)as->as_magic;
 
 	if (am == NULL || as == NULL || ar == NULL || ach == NULL) {
 		if (as) {
 			as->as_status = 500, as->as_phrase = "Internal Server Error";
 			as->as_response = NULL;
 		}
-		listener->sendReply();
+		listener->finish();
 		return;
 	}
 
@@ -702,7 +717,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		LOGD("auth_method_digest: 400 %s", phrase);
 		as->as_status = 400, as->as_phrase = phrase;
 		as->as_response = NULL;
-		listener->sendReply();
+		listener->finish();
 		return;
 	}
 
@@ -712,7 +727,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 				ar->ar_username, as->as_user_uri->url_user,
 				ar->ar_realm, as->as_user_uri->url_host);
 		as->as_response = NULL;
-		listener->sendReply();
+		listener->finish();
 		return;
 	}
 
@@ -723,61 +738,41 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		as->as_blacklist = am->am_blacklist;
 		auth_challenge_digest(am, as, ach);
 		module->mNonceStore.insert(as->as_response);
-		listener->sendReply();
+		listener->finish();
 		return;
 	}
 
 	if (as->as_stale) {
 		auth_challenge_digest(am, as, ach);
 		module->mNonceStore.insert(as->as_response);
-		listener->sendReply();
+		listener->finish();
 		return;
 	}
 
 #ifdef QOP_AUTH
 	int pnc=module->mNonceStore.getNc(ar->ar_nonce);
-	int nnc = (int) strtoul(ar->ar_nc, NULL, 10);
+	int nnc = (int) strtoul(ar->ar_nc, NULL, 16);
 	if (pnc == -1 || pnc >= nnc) {
 		LOGE("Bad nonce count %d -> %d for %s", pnc, nnc, ar->ar_nonce);
 		as->as_blacklist = am->am_blacklist;
 		auth_challenge_digest(am, as, ach);
 		module->mNonceStore.insert(as->as_response);
-		listener->sendReply();
+		listener->finish();
 		return;
 	} else {
 		module->mNonceStore.updateNc(ar->ar_nonce, nnc);
 	}
 #endif
 
-	// Retrieve password. The result may be either synchronous OR asynchronous,
-	// on a case by case basis.
-	string foundPassword;
-	AuthDbResult res=AuthDb::get()->password(listener->getRoot(), as->as_user_uri, ar->ar_username, foundPassword, listener);
-	switch (res) {
-		case PENDING:
-			// The password couldn't be retrieved synchronously
-			// It will be retrieved asynchronously and the listener
-			// will be called with it.
-			++*module->mCountAsyncRetrieve;
-			LOGD("authentication PENDING for %s", ar->ar_username);
-			break;
-		case PASSWORD_FOUND:
-			++*module->mCountSyncRetrieve;
-			listener->checkPassword(foundPassword.c_str());
-			listener->sendReply();
-			break;
-		case PASSWORD_NOT_FOUND:
-			++*module->mCountSyncRetrieve;
-			listener->checkPassword(NULL);
-			listener->sendReply();
-			break;
-		case AUTH_ERROR:
-			listener->onError();
-			// on error deletes the listener
-			break;
-	}
+	AuthDb::get()->getPassword(listener->getRoot(), as->as_user_uri, ar->ar_username, listener);
 }
 
+
+class DummyListener : public AuthDbListener{
+	virtual void onResult(){
+		delete this;
+	}
+};
 
 /** Authenticate a request with @b Digest authentication scheme.
  */
@@ -800,7 +795,6 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 		LOGD("%s: allow unauthenticated %s", __func__, as->as_method);
 		as->as_status = 0, as->as_phrase = NULL;
 		as->as_match = (msg_header_t *)au;
-		delete listener;
 		return;
 	}
 
@@ -823,11 +817,9 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 		// sends back its request; this time with the expected authentication credentials.
 		if (listener->mImmediateRetrievePass) {
 			SLOGD <<"Searching for "<< as->as_user_uri->url_user<< " password to have it when the authenticated request comes" ;
-			string foundPassword;
-			AuthDb::get()->password(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, foundPassword, shared_ptr<AuthDbListener>());
+			AuthDb::get()->getPassword(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, new DummyListener());
 		}
-		listener->sendReply();
-		delete listener;
+		listener->finish();
 		return;
 	}
 }

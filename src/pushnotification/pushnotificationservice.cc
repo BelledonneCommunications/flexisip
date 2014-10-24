@@ -25,16 +25,16 @@
 #include <boost/bind.hpp>
 #include <sstream>
 
-const char *APN_DEV_ADDRESS = "gateway.sandbox.push.apple.com";
-const char *APN_PROD_ADDRESS = "gateway.push.apple.com";
-const char *APN_PORT = "2195";
+static const char *APN_DEV_ADDRESS = "gateway.sandbox.push.apple.com";
+static const char *APN_PROD_ADDRESS = "gateway.push.apple.com";
+static const char *APN_PORT = "2195";
 
-const char *GPN_ADDRESS = "android.googleapis.com";
-const char *GPN_PORT = "443";
+static const char *GPN_ADDRESS = "android.googleapis.com";
+static const char *GPN_PORT = "443";
 
-const char *WPPN_PORT = "80";
+static const char *WPPN_PORT = "80";
 
-int MAX_QUEUE_SIZE = 10;
+static int MAX_QUEUE_SIZE = 10;
 
 using namespace ::std;
 namespace ssl = boost::asio::ssl;
@@ -99,7 +99,7 @@ void PushNotificationService::waitEnd() {
 					finished = false;
 					break;
 				}
-			}	
+			}
 		}
 		usleep(100000); // avoid eating all cpu for nothing
 	}
@@ -116,7 +116,7 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 	ctx->set_options(ssl::context::default_workarounds, err);
 	ctx->set_verify_mode(ssl::context::verify_none);
 	mClients["google"]=std::make_shared<PushNotificationClient>("google", this, ctx, GPN_ADDRESS, GPN_PORT, maxQueueSize, true);
-	
+
 	dirp=opendir(certdir.c_str());
 	if (dirp==NULL){
 		LOGE("Could not open push notification certificates directory (%s): %s",certdir.c_str(),strerror(errno));
@@ -126,36 +126,36 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 		if (dirent->d_type!=DT_REG && dirent->d_type!=DT_LNK) continue;
 		string cert=string(dirent->d_name);
 		string certpath= string(certdir)+"/"+cert;
-		std::shared_ptr<ssl::context> ctx(new ssl::context(mIOService, ssl::context::sslv23_client));
-		boost::system::error_code err;
-		ctx->set_options(ssl::context::default_workarounds, err);
-		ctx->set_password_callback(bind(&PushNotificationService::handle_password_callback, this, _1, _2));
+		std::shared_ptr<ssl::context> context(new ssl::context(mIOService, ssl::context::sslv23_client));
+		boost::system::error_code error;
+		context->set_options(ssl::context::default_workarounds, error);
+		context->set_password_callback(bind(&PushNotificationService::handle_password_callback, this, _1, _2));
 
 		if (!ca.empty()) {
-			ctx->set_verify_mode(ssl::context::verify_peer);
+			context->set_verify_mode(ssl::context::verify_peer);
 	#if BOOST_VERSION >= 104800
-			ctx->set_verify_callback(bind(&PushNotificationService::handle_verify_callback, this, _1, _2));
+			context->set_verify_callback(bind(&PushNotificationService::handle_verify_callback, this, _1, _2));
 	#endif
-			ctx->load_verify_file(ca, err);
-			if (err) {
-				LOGE("load_verify_file: %s",err.message().c_str());
+			context->load_verify_file(ca, error);
+			if (error) {
+				LOGE("load_verify_file: %s",error.message().c_str());
 			}
 		} else {
-			ctx->set_verify_mode(ssl::context::verify_none);
+			context->set_verify_mode(ssl::context::verify_none);
 		}
-		ctx->add_verify_path("/etc/ssl/certs");
+		context->add_verify_path("/etc/ssl/certs");
 
 		if (!cert.empty()) {
-			ctx->use_certificate_file(certpath, ssl::context::file_format::pem, err);
-			if (err) {
-				LOGE("use_certificate_file %s: %s",certpath.c_str(), err.message().c_str());
+			context->use_certificate_file(certpath, ssl::context::file_format::pem, error);
+			if (error) {
+				LOGE("use_certificate_file %s: %s",certpath.c_str(), error.message().c_str());
 			}
 		}
 		string key=certpath;
 		if (!key.empty()) {
-			ctx->use_private_key_file(key, ssl::context::file_format::pem, err);
-			if (err) {
-				LOGE("use_private_key_file %s: %s", certpath.c_str(), err.message().c_str());
+			context->use_private_key_file(key, ssl::context::file_format::pem, error);
+			if (error) {
+				LOGE("use_private_key_file %s: %s", certpath.c_str(), error.message().c_str());
 			}
 		}
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
@@ -163,7 +163,7 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 		if (certName.find(".dev")!=string::npos)
 			apn_server=APN_DEV_ADDRESS;
 		else apn_server=APN_PROD_ADDRESS;
-		mClients[certName]=std::make_shared<PushNotificationClient>(cert, this, ctx, apn_server, APN_PORT, maxQueueSize, true);
+		mClients[certName]=std::make_shared<PushNotificationClient>(cert, this, context, apn_server, APN_PORT, maxQueueSize, true);
 	}
 	closedir(dirp);
 }

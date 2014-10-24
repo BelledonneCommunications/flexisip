@@ -99,6 +99,10 @@ void ContactMasquerader::restore(su_home_t *home, url_t *dest, char ctrt_param[6
 	const char *transport = su_strndup(home, ctrt_param, tend - ctrt_param);
 	const url_t *paramurl = url_format(home, "sip:%s", tend + 1);
 
+	if (!paramurl) {
+		LOGE("ContactMasquerader::restore() aborted.");
+		return;
+	}
 	dest->url_host = paramurl->url_host; // move ownership
 	dest->url_port = paramurl->url_port; // move ownership
 	if (strcasecmp(transport, "udp") != 0) {

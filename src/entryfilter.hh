@@ -37,7 +37,7 @@ class EntryFilter{
 		}
 		virtual bool canEnter(const std::shared_ptr<MsgSip> &ms)=0;
 		virtual bool isEnabled()=0;
-		virtual ~EntryFilter(){};
+		virtual ~EntryFilter(){}
 };
 
 class ConfigEntryFilter : public EntryFilter {

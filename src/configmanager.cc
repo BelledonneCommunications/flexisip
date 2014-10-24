@@ -37,6 +37,7 @@
 using namespace::std;
 
 bool ConfigValueListener::sDirty=false;
+ConfigValueListener::~ConfigValueListener(){}
 bool ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 	switch (state) {
 	case ConfigState::Commited:
@@ -467,7 +468,7 @@ void GenericStruct::addChildrenValues(StatItemDescriptor *items){
 }
 */
 struct matchEntryName{
-	matchEntryName(const char *name) : mName(name){};
+	matchEntryName(const char *name) : mName(name){}
 	bool operator()(GenericEntry* e){
 		return strcmp(mName,e->getName().c_str())==0;
 	}
@@ -481,7 +482,7 @@ GenericEntry *GenericStruct::find(const char *name)const{
 }
 
 struct matchEntryNameApprox{
-	matchEntryNameApprox(const char *name) : mName(name){};
+	matchEntryNameApprox(const char *name) : mName(name){}
 	bool operator()(GenericEntry* e){
 		unsigned int i;
 		int count=0;
@@ -569,6 +570,7 @@ StatCounter64::StatCounter64(const string &name, const string &help, oid oid_ind
 ConfigString::ConfigString(const string &name, const string &help, const string &default_value,oid oid_index)
 :	ConfigValue(name,String,help,default_value,oid_index){
 }
+ConfigString::~ConfigString() {}
 
 ConfigRuntimeError::ConfigRuntimeError(const string &name, const string &help,oid oid_index)
 :	ConfigValue(name,RuntimeError,help,"",oid_index){
@@ -580,7 +582,7 @@ const string & ConfigString::read()const{
 	return get();
 }
 
-const void ConfigRuntimeError::writeErrors(GenericEntry *entry, ostringstream &oss) const{
+void ConfigRuntimeError::writeErrors(GenericEntry *entry, ostringstream &oss) const{
 	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
 	if (cs) {
 		const auto &children=cs->getChildren();
@@ -686,43 +688,44 @@ RootConfigStruct::RootConfigStruct(const string &name, const string &help,vector
 : GenericStruct(name,help,1) {
 	mOid = new Oid(oid_root_path,1);
 }
+RootConfigStruct::~RootConfigStruct(){}
+
 static oid company_id = SNMP_COMPANY_OID;
 GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 		mConfigRoot("flexisip","This is the default Flexisip configuration file",{1,3,6,1,4,1,company_id}),
 		mReader(&mConfigRoot), mNotifier(NULL){
 		//to make sure global_conf is instanciated first
-		static ConfigItemDescriptor global_conf[]={
+	static ConfigItemDescriptor global_conf[]={
 			{	Boolean	,	"debug"	        ,	"Outputs very detailed logs",	"false"	},
 			{	String,		"log-filter"	,	"Boost::log filter expression, "
-				"Available attributes include: %Severity% %Module% %callid% %from.uri.user% %from.uri.domain%."
-				"Severity levels are: fatal error info warning debug."
-				"see http://boost-log.sourceforge.net/libs/log1/doc/html/log/detailed/utilities.html#log.detailed.utilities.init.filter_formatter", "%Severity% > debug"},
+					"Available attributes include: %Severity% %Module% %callid% %from.uri.user% %from.uri.domain%."
+					"Severity levels are: fatal error info warning debug."
+					"see http://boost-log.sourceforge.net/libs/log1/doc/html/log/detailed/utilities.html#log.detailed.utilities.init.filter_formatter", "%Severity% > debug"},
 			{	Boolean	,	"dump-corefiles",	"Generate a corefile when crashing", "true"},
 			{	Boolean	,	"auto-respawn"  ,	"Automatically respawn flexisip in case of abnormal termination (crashes)",	"true"},
 			{	StringList	,"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost"},
 			{	StringList	,"transports"	,	"List of white space separated SIP uris where the proxy must listen."
-				"Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' prameter is unspecified, it will listen "
-				"to both udp and tcp. An local address to bind can be indicated in the 'maddr' parameter, while the domain part of the uris "
-				"are used as public domain or ip address. A per transport directory with the same meaning as tls-certificates-dir can be added as uri parameter.Here some examples to understand:\n"
-				"* listen on all local interfaces for udp and tcp, on standart port:\n"
-				"\ttransports=sip:*\n"
-				"* listen on all local interfaces for udp,tcp and tls, on standart ports:\n"
-				"\ttransports=sip:* sips:*\n"
-				"* listen on tls localhost with 2 different port and SSL certificates:\n"
-				"\ttransports=sip:localhost:5061;tls-certificates-dir=path_a sip:localhost:5062;tls-certificates-dir=path_b,\n"
-				"* listen on tls localhost with 2 peer certificate requirements:\n"
-				"\ttransports=sip:localhost:5061;require-peer-certificate=0 sip:localhost:5062;require-peer-certificate=1,\n"
-				"* listen on 192.168.0.29:6060 with tls, but public hostname is 'sip.linphone.org' used in SIP messages. Bind address won't appear:\n"
-				"\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29"
-				,	"sip:*" },
+									"Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' prameter is unspecified, it will listen "
+									"to both udp and tcp. An local address to bind can be indicated in the 'maddr' parameter, while the domain part of the uris "
+									"are used as public domain or ip address. A per transport directory with the same meaning as tls-certificates-dir can be added as uri parameter.Here some examples to understand:\n"
+									"* listen on all local interfaces for udp and tcp, on standart port:\n"
+									"\ttransports=sip:*\n"
+									"* listen on all local interfaces for udp,tcp and tls, on standart ports:\n"
+									"\ttransports=sip:* sips:*\n"
+									"* listen on tls localhost with 2 different port and SSL certificates:\n"
+									"\ttransports=sip:localhost:5061;tls-certificates-dir=path_a sip:localhost:5062;tls-certificates-dir=path_b,\n"
+									"* listen on tls localhost with 2 peer certificate requirements:\n"
+									"\ttransports=sip:localhost:5061;require-peer-certificate=0 sip:localhost:5062;require-peer-certificate=1,\n"
+									"* listen on 192.168.0.29:6060 with tls, but public hostname is 'sip.linphone.org' used in SIP messages. Bind address won't appear:\n"
+									"\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29"
+			,	"sip:*" },
 			{	String		,"tls-certificates-dir", "Path to the directory where TLS server certificate and private key can be found, concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'.", "/etc/flexisip/tls"},
 			{	Integer		,"idle-timeout",	"Time interval in seconds after which inactive connections are closed.", "3600"},
 			{	Boolean		,"require-peer-certificate",	"Require client certificate from peer.", "false"},
-			{	Boolean		,"enable-event-logs",	"Enable event logs. Event logs contain per domain and user information about processed registrations, calls and messages.", "false"},
-			{	String		,"event-logs-dir",	"Directory where event logs are written.",	"/var/log/flexisip"},
 			{	Integer		,"transaction-timeout",	"SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.","32000"},
 			config_item_end
-		};
+	};
+
 		
 			
 	GenericStruct *notifObjs=new GenericStruct("notif","Templates for notifications.",1);
@@ -767,7 +770,6 @@ bool GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 	switch (state) {
 		case ConfigState::Check:
 			return doIsValidNextConfig(conf);
-			break;
 		case ConfigState::Changed:
 			mDirtyConfig=true;
 			break;
@@ -782,8 +784,6 @@ bool GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 				mDirtyConfig=false;
 				mNeedRestart=true;
 			}
-			break;
-		default:
 			break;
 	}
 	return true;
@@ -998,13 +998,13 @@ static bool checkTranscoder(const std::map<std::string,std::string> &override) {
 void FileConfigReader::onUnreadItem(const char *secname, const char *key, int lineno){
 	static bool dontCheckTranscoder=checkTranscoder(GenericManager::get()->getOverrideMap());
 	if (dontCheckTranscoder && 0==strcmp(secname,"module::Transcoder")) return;
-	LOGE("Unsupported parameter '%s' in section [%s] at line %i", key, secname, lineno);
+	LOGEN("Unsupported parameter '%s' in section [%s] at line %i", key, secname, lineno);
 	mHaveUnreads=true;
 	GenericEntry *sec=mRoot->find(secname);
 	if (sec==NULL){
 		sec=mRoot->findApproximate(secname);
 		if (sec!=NULL){
-			LOGE("Did you mean '[%s]' ?",sec->getName().c_str());
+			LOGEN("Did you mean '[%s]' ?",sec->getName().c_str());
 		}
 		return;
 	}
@@ -1014,7 +1014,7 @@ void FileConfigReader::onUnreadItem(const char *secname, const char *key, int li
 		if (val==NULL){
 			val=st->findApproximate(key);
 			if (val!=NULL){
-				LOGE("Did you mean '%s' ?",val->getName().c_str());
+				LOGEN("Did you mean '%s' ?",val->getName().c_str());
 			}
 		}
 	}
@@ -1023,7 +1023,7 @@ void FileConfigReader::onUnreadItem(const char *secname, const char *key, int li
 void FileConfigReader::checkUnread(){
 	lp_config_for_each_unread (mCfg,onUnreadItem,this);
 	if (mHaveUnreads)
-		LOGF("Please fix your configuration file.");
+		LOGF("There are not understood items or section in the configuration file. Please check it.");
 }
 
 int FileConfigReader::read2(GenericEntry *entry, int level){

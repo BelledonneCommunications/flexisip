@@ -26,32 +26,27 @@
 #include <list>
 #include <map>
 
+
+
 class ForkMessageContext: public ForkContext {
 private:
-	std::shared_ptr<ResponseSipEvent> mBestResponse;
-	int mDeliveredCount;
-	std::map<std::string,bool> mDeliveryMap;//map of pairs (unique-id,delivered)
-	void forward(const std::shared_ptr<ResponseSipEvent> &ev);
-	void store(std::shared_ptr<ResponseSipEvent> &event);
-	void markAsDelivered(const std::shared_ptr<SipEvent> &ev);
 	su_timer_t *mAcceptanceTimer; /*timeout after which an answer must be sent through the incoming transaction even if no success response was received on the outgoing transactions*/
 	static const int sAcceptanceTimeout=20; /* this must be less than the transaction time (32 seconds)*/
+	int mDeliveredCount;
 public:
 	ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
 	virtual ~ForkMessageContext();
-	virtual void onNew(const std::shared_ptr<IncomingTransaction> &transaction);
-	virtual void onRequest(const std::shared_ptr<IncomingTransaction> &transaction, std::shared_ptr<RequestSipEvent> &event);
-	virtual void onDestroy(const std::shared_ptr<IncomingTransaction> &transaction);
-	virtual void onNew(const std::shared_ptr<OutgoingTransaction> &transaction);
-	virtual void onResponse(const std::shared_ptr<OutgoingTransaction> &transaction, std::shared_ptr<ResponseSipEvent> &event);
-	virtual void onDestroy(const std::shared_ptr<OutgoingTransaction> &transaction);
-	virtual bool onNewRegister(const sip_contact_t *ctt);
-	virtual void checkFinished();
+protected:
+	virtual bool onNewRegister(const url_t *url, const std::string &uid);
+	virtual void onNewBranch(const std::shared_ptr<BranchInfo> &br);
+	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &ev);
+	virtual bool shouldFinish();
 private:
 	static void sOnAcceptanceTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
-	void finishIncomingTransaction();
+	void acceptMessage();
 	void onAcceptanceTimer();
 	void logReceptionEvent(const std::shared_ptr<ResponseSipEvent> &ev);
+	void checkFinished();
 };
 
 

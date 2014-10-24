@@ -42,7 +42,6 @@ public:
 	virtual void onUnload();
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
-	virtual void onTransactionEvent(shared_ptr<TransactionEvent> ev);
 	virtual void onIdle();
 protected:
 	virtual void onDeclare(GenericStruct * mc) {
@@ -58,6 +57,7 @@ protected:
 				/*very specific features, useless for most people*/
 				{ Integer, "h264-filtering-bandwidth", "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value expressed in kbit/s. Use 0 to disable the feature", "0" },
 				{ Integer, "h264-iframe-decim", "When above option is activated, keep one I frame over this number.", "1" },
+				{ Boolean, "h264-decim-only-last-proxy", "Decimate only if this server is the last proxy in the routes", "true" },
 				{ Boolean, "drop-telephone-event", "Drop out telephone-events packet from incoming RTP stream for sips calls.", "false" },
 #endif
 				config_item_end };
@@ -70,11 +70,12 @@ protected:
 private:
 	bool processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<RequestSipEvent> &ev);
 	void processResponseWithSDP(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
-	void configureContext(shared_ptr<RelayedCall> &c); 
+	void configureContext(shared_ptr<RelayedCall> &c);
 	CallStore *mCalls;
 	MediaRelayServer *mServer;
 	string mSdpMangledParam;
 	int mH264FilteringBandwidth;
+	bool mH264DecimOnlyIfLastProxy;
 	int mH264Decim;
 	int mMaxCalls;
 	bool mDropTelephoneEvent;
@@ -119,10 +120,12 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mH264FilteringBandwidth=modconf->get<ConfigInt>("h264-filtering-bandwidth")->read();
 	mH264Decim=modconf->get<ConfigInt>("h264-iframe-decim")->read();
 	mDropTelephoneEvent=modconf->get<ConfigBoolean>("drop-telephone-event")->read();
+	mH264DecimOnlyIfLastProxy=modconf->get<ConfigBoolean>("h264-decim-only-last-proxy")->read();
 #else
 	mH264FilteringBandwidth=0;
 	mH264Decim=0;
 	mDropTelephoneEvent=false;
+	mH264DecimOnlyIfLastProxy=true;
 #endif
 	mMaxCalls=modconf->get<ConfigInt>("max-calls")->read();
 }
@@ -147,7 +150,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		LOGW("No tag in from !");
 		return false;
 	}
-	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), sip, mSdpMangledParam);
+	SdpModifier *m = SdpModifier::createFromSipMsg(ev->getMsgSip()->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
 		LOGW("Invalid SDP");
 		return false;
@@ -157,10 +160,10 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	string from_host;
 	if (sip->sip_via->v_received)
 		from_host=sip->sip_via->v_received;
-	else 
+	else
 		from_host=sip->sip_via->v_host;
-	
-	
+
+
 	string to_tag;
 	if (sip->sip_to->a_tag != NULL)
 		to_tag = sip->sip_to->a_tag;
@@ -194,7 +197,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	m->addIceCandidate(bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()),
 			   bind(&RelayedCall::getChannelDestinations, c, _1, from_tag, transaction->getBranchId())
 	);
-	
+
 	if (!mSdpMangledParam.empty()) m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	m->update(msg, sip);
 
@@ -208,7 +211,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 void MediaRelay::configureContext(shared_ptr<RelayedCall> &c){
 #ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 	if (mH264FilteringBandwidth)
-		c->enableH264IFrameFiltering(mH264FilteringBandwidth,mH264Decim);
+		c->enableH264IFrameFiltering(mH264FilteringBandwidth,mH264Decim,mH264DecimOnlyIfLastProxy);
 	if (mDropTelephoneEvent)
 		c->enableTelephoneEventDrooping(true);
 #endif
@@ -225,7 +228,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		shared_ptr<IncomingTransaction> it = ev->createIncomingTransaction();
 		shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
 		bool newContext=false;
-		
+
 		c=it->getProperty<RelayedCall>(getModuleName());
 		if (c==NULL) c=dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true));
 		if (c==NULL) {
@@ -234,7 +237,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 				ev->reply(503, "Maximum number of calls reached", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 				return;
 			}
-			
+
 			c = make_shared<RelayedCall>(mServer, sip);
 			newContext=true;
 			it->setProperty<RelayedCall>(getModuleName(), c);
@@ -242,7 +245,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		}
 		if (processNewInvite(c, ot, ev)) {
 			//be in the record-route
-			addRecordRouteIncoming(c->getHome(), getAgent(),ev);
+			addRecordRouteIncoming(ev->getMsgSip()->getHome(), getAgent(),ev);
 			if (newContext) mCalls->store(c);
 			ot->setProperty(getModuleName(), c);
 		}
@@ -264,20 +267,20 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 	sip_t *sip = msgSip->getSip();
 	msg_t *msg = msgSip->getMsg();
 	bool isEarlyMedia=false;
-	
+
 	LOGD("Processing 200 Ok or early media");
 
 	if (sip->sip_to == NULL || sip->sip_to->a_tag == NULL) {
 		LOGW("No tag in answer");
 		return;
 	}
-	
+
 	if (sip->sip_status->st_status==200){
 		if (!c->isDialogEstablished()) c->establishDialogWith200Ok(getAgent(),sip);
 		c->setEstablished(transaction->getBranchId());
 	}else isEarlyMedia=true;
 
-	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), sip, mSdpMangledParam);
+	SdpModifier *m = SdpModifier::createFromSipMsg(msgSip->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
 		LOGW("Invalid SDP");
 		return;
@@ -286,8 +289,8 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 	string to_tag;
 	if (sip->sip_to != NULL && sip->sip_to->a_tag != NULL)
 		to_tag = sip->sip_to->a_tag;
-	
-	
+
+
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
 		LOGD("200 OK is already relayed");
 		delete m;
@@ -297,7 +300,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 	m->iterate(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, to_tag, transaction->getBranchId(),isEarlyMedia));
 	// modify sdp
 	m->masquerade(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()));
-	
+
 	m->addIceCandidate(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()),
 		bind(&RelayedCall::getChannelDestinations, c, _1, to_tag, transaction->getBranchId())
 	);
@@ -314,9 +317,9 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	shared_ptr<RelayedCall> c;
 
 	// Handle SipEvent associated with a Stateful transaction
-	shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+	shared_ptr<OutgoingTransaction> ot=dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 	shared_ptr<IncomingTransaction> it=dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
-	
+
 	if (ot != NULL) {
 		c = ot->getProperty<RelayedCall>(getModuleName());
 		if (c) {
@@ -330,7 +333,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			}
 		}
 	}
-	
+
 	if (it && (c = it->getProperty<RelayedCall>(getModuleName()))!=NULL){
 		//This is a response sent to the incoming transaction. Check for failure code, in which case the call context can be destroyed
 		//immediately.
@@ -342,14 +345,14 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			}
 		}
 	}
-	
+
 	if (ot==NULL && it==NULL && sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite && sip->sip_status->st_status == 200) {
 		//Out of transaction 200Ok for invite.
 		//Check if it matches an established dialog whose to-tag is different, then it is a 200Ok sent by the client
 		//before receiving the Cancel.
-		
-		shared_ptr<CallContextBase> c=mCalls->findEstablishedDialog(getAgent(),sip);
-		if (c){
+
+		shared_ptr<CallContextBase> ccb=mCalls->findEstablishedDialog(getAgent(),sip);
+		if (ccb){
 			/*to-tag do match, this looks like a retransmission of 200Ok. We should re-send the last 200Ok instead of letting it pass
 			* with unconsistent data in SDP.
 			* It is then better to discard it.
@@ -364,10 +367,6 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			ev->terminateProcessing();
 		}
 	}
-}
-
-void MediaRelay::onTransactionEvent(shared_ptr<TransactionEvent> ev) {
-	
 }
 
 void MediaRelay::onIdle() {

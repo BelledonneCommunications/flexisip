@@ -2,11 +2,13 @@ Flexisip is general purpose SIP proxy with media capabilities.
 It is released under the AGPL v3. Please understand the terms of AGPL in COPYING before deploying it.
 
 Flexisip depends on the following externals:
--oRTP
--mediastreamer2
--sofia-sip 
+- oRTP
+- sofia-sip library, 'bc' branch maintained by belledonne communications
+- mediastreamer2 (optionaly use --disable-trancoder if not present)
 
-SofiaSIP needs to patched with sofia patches from patches/ directory of flexisip sources when running flexisip on several interfaces or when running several instances of same transport type (ex: 2 tcp transport on two different ports).
+The correct sofia-sip version can be found using:
+$ git clone -b bc git://git.linphone.org/sofia-sip.git
+This version contains various fixes done on top of the official sofia-sip repository.
 
 - autotools, libtool
 
@@ -15,6 +17,7 @@ Optionally it also depends on:
 - odbc
 - hiredis
 - protobuf
+- boost::Log
 
 
 To configure Flexisip, copy and modify file flexisip.conf.sample to flexisip.conf in directory <prefix>/etc/flexisip
@@ -22,25 +25,22 @@ To configure Flexisip, copy and modify file flexisip.conf.sample to flexisip.con
 
 ODBC
 --------------------
-Enable pooling in odbcinst.ini and use a thread safe driver.
+Enable pooling in odbc.ini and use a thread safe driver.
 Use ODBCINI and ODBCSYSINI environement variable to override ini files location.
 The connection string defined in authentication section of flexisip.conf may use
 either a DSN or a DSN-less connection string.
 
-Example odbcinst.ini file:
-[MySQL]
-Description = MySQL driver
-Driver     = /usr/lib/odbc/libmyodbc.so
-Setup      = /usr/lib/odbc/libodbcmyS.so
-CPTimeout       = 120
-Debug       = 0
-Threading       = 1
-DontDLClose = 1
-[ODBC]
-#Trace      = Yes
-TraceFile       = /tmp/sql.log
-#ForceTrace     = Yes
-Pooling     = Yes
+Example odbc.ini file:
+[myodbc3]
+Driver       = /usr/lib/x86_64-linux-gnu/odbc/libmyodbc.so
+Description  = MySQL ODBC 3.51 Driver DSN
+Server       = localhost
+Port         =
+User         = user
+Password     = password
+Database     = flexisip
+Option       = 4
+Socket       =
 
 
 

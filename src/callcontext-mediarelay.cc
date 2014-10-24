@@ -36,9 +36,10 @@ RelayedCall::RelayedCall(MediaRelayServer *server, sip_t *sip) :
 }
 
 /*Enable filtering of H264 Iframes for low bandwidth.*/
-void RelayedCall::enableH264IFrameFiltering(int bandwidth_threshold, int decim){
+void RelayedCall::enableH264IFrameFiltering(int bandwidth_threshold, int decim, bool onlyIfLastProxy){
 	mBandwidthThres=bandwidth_threshold;
 	mDecim=decim;
+	mH264DecimOnlyIfLastProxy=onlyIfLastProxy;
 }
 
 void RelayedCall::enableTelephoneEventDrooping(bool value){
@@ -229,7 +230,7 @@ void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms, sip_t *sip,
 					bool enabled=false;
 					if (sip->sip_request == NULL){
 						//for responses, we want to activate the feature only if we are the last proxy.
-						enabled=isLastProxy(mServer->getAgent(),sip);
+						enabled= mH264DecimOnlyIfLastProxy ? isLastProxy(mServer->getAgent(),sip) : true;
 					}else enabled=true;
 					if (enabled) {
 						LOGI("Enabling H264 filtering for channel %p",ms.get());

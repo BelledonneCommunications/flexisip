@@ -171,7 +171,7 @@ static list<PayloadType *> makeSupportedAudioPayloadList() {
 	payload_type_speex_wb.normal_bitrate = 42000;
 	payload_type_speex_nb.recv_fmtp = ms_strdup("vbr=on");
 	payload_type_amr.recv_fmtp = ms_strdup("octet-align=1");
-	
+
 	payload_type_set_number(&payload_type_pcmu8000, 0);
 	payload_type_set_number(&payload_type_pcma8000, 8);
 	payload_type_set_number(&payload_type_gsm, 3);
@@ -185,7 +185,7 @@ static list<PayloadType *> makeSupportedAudioPayloadList() {
 	payload_type_set_number(&payload_type_silk_wb, -1);
 	payload_type_set_number(&payload_type_silk_swb, -1);
 	payload_type_set_number(&payload_type_telephone_event, -1);
-	
+
 	list<PayloadType *> l;
 	l.push_back(&payload_type_speex_nb);
 	l.push_back(&payload_type_ilbc);
@@ -199,7 +199,7 @@ static list<PayloadType *> makeSupportedAudioPayloadList() {
 	l.push_back(&payload_type_silk_mb);
 	l.push_back(&payload_type_silk_wb);
 	l.push_back(&payload_type_silk_swb);
-	
+
 	return l;
 }
 
@@ -334,7 +334,7 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
-	SdpModifier *m = SdpModifier::createFromSipMsg(c->getHome(), ms->getSip(), "");
+	SdpModifier *m = SdpModifier::createFromSipMsg(ms->getHome(), ms->getSip(), "");
 
 	if (m == NULL)
 		return -1;
@@ -351,7 +351,10 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 		// Force front side to bind and allocate a port immediately on the bind-address
 		// BIG FAT WARNING: call getAudioPort BEFORE the setRemoteAddr
 		// to get the local address bound correctly
-		int __attribute__ ((unused)) flport= c->getFrontSide()->getAudioPort();
+#if ENABLE_BOOSTLOG || ORTP_DEBUG_MODE
+		int flport= c->getFrontSide()->getAudioPort();
+#endif
+
 		string fladdr= c->getFrontSide()->getLocalAddress();
 		c->getFrontSide()->setRemoteAddr(fraddr.c_str(), frport);
 		LOGD("Front side %s:%i <-> %s:%i", fraddr.c_str(), frport, fladdr.c_str(), flport);
@@ -400,7 +403,7 @@ int Transcoder::processInvite(TranscodedCall *c, shared_ptr<RequestSipEvent> &ev
 	}
 	if (ret == 0) {
 		//be in the record-route
-		addRecordRouteIncoming(c->getHome(), getAgent(), ev);
+		addRecordRouteIncoming(ms->getHome(), getAgent(), ev);
 		c->storeNewInvite(ms->getMsg());
 	} else {
 		ev->reply(415, "Unsupported codecs", TAG_END());
@@ -420,7 +423,6 @@ void Transcoder::processAck(TranscodedCall *ctx, shared_ptr<RequestSipEvent> &ev
 
 void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
 
 	if (sip->sip_request->rq_method == sip_method_invite) {
@@ -459,8 +461,6 @@ void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	} else {
 		//all other requests go through
 	}
-
-	ev->setMsgSip(make_shared<MsgSip>(*ms,msg));
 }
 
 int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {
@@ -468,7 +468,7 @@ int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	string addr;
 	int port;
-	SdpModifier *m = SdpModifier::createFromSipMsg(ctx->getHome(), ms->getSip());
+	SdpModifier *m = SdpModifier::createFromSipMsg(ms->getHome(), ms->getSip());
 	int ptime;
 
 	if (m == NULL)

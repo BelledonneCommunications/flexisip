@@ -2,7 +2,6 @@ AUTOMAKE_OPTIONS = subdir-objects
 if BUILD_PRESENCE
 lib_LTLIBRARIES = libflexisip-presence.la
 libflexisip_presence_la_SOURCES = 	presence-server.cc \
-									presence-configmanager.cc \
 									presentity-presenceinformation.cc \
 									file-resource-list-manager.cc \
 									signaling-exception.cc \

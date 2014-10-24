@@ -101,13 +101,34 @@ void Agent::onDeclare(GenericStruct *root) {
 
 void Agent::startLogWriter(){
 	GenericStruct *cr=GenericManager::get()->getRoot();
-	bool enabled=cr->get<GenericStruct>("global")->get<ConfigBoolean>("enable-event-logs")->read();
-	string logdir=cr->get<GenericStruct>("global")->get<ConfigString>("event-logs-dir")->read();
+	bool enabled=cr->get<GenericStruct>("event-logs")->get<ConfigBoolean>("enable-event-logs")->read();
+	bool use_odb=cr->get<GenericStruct>("event-logs")->get<ConfigBoolean>("event-logs-use-odb")->read();
+
 	if (enabled){
-		FilesystemEventLogWriter *lw=new FilesystemEventLogWriter(logdir);
-		if (!lw->isReady()){
-			delete lw;
-		}else mLogWriter=lw;
+		if(use_odb){
+#ifdef HAVE_ODB
+			DataBaseEventLogWriter *dbw=new DataBaseEventLogWriter(cr->get<GenericStruct>("event-logs")->get<ConfigString>("odb-database")->read(),
+					cr->get<GenericStruct>("event-logs")->get<ConfigString>("odb-user")->read(),
+					cr->get<GenericStruct>("event-logs")->get<ConfigString>("odb-password")->read(),
+					cr->get<GenericStruct>("event-logs")->get<ConfigString>("odb-host")->read(),
+					cr->get<GenericStruct>("event-logs")->get<ConfigInt>("odb-port")->read());
+			if (!dbw->isReady()){
+				delete dbw;
+			} else {
+				mLogWriter=dbw;
+			}
+#endif
+
+
+		} else {
+			string logdir=cr->get<GenericStruct>("event-logs")->get<ConfigString>("event-logs-dir")->read();
+			FilesystemEventLogWriter *lw=new FilesystemEventLogWriter(logdir);
+			if (!lw->isReady()){
+				delete lw;
+			} else {
+				mLogWriter=lw;
+			}
+		}
 	}
 }
 
@@ -127,16 +148,16 @@ void Agent::start(const char *transport_override){
 	GenericStruct *global=GenericManager::get()->getRoot()->get<GenericStruct>("global");
 		list<string> transports = global->get<ConfigStringList>("transports")->read();
 	//sofia needs a value in millseconds.
-	int tports_idle_timeout = 1000 * global->get<ConfigInt>("idle-timeout")->read();
+	unsigned int tports_idle_timeout = 1000 * (unsigned int)global->get<ConfigInt>("idle-timeout")->read();
 	bool mainPeerCert = global->get<ConfigBoolean>("require-peer-certificate")->read();
 	string mainTlsCertsDir = global->get<ConfigString>("tls-certificates-dir")->read();
-	int t1x64=global->get<ConfigInt>("transaction-timeout")->read();
+	unsigned int t1x64=(unsigned int)global->get<ConfigInt>("transaction-timeout")->read();
 	mainTlsCertsDir = absolutePath(currDir, mainTlsCertsDir);
 
 	SLOGD << "Main tls certs dir : " << mainTlsCertsDir;
 
 	nta_agent_set_params(mAgent,NTATAG_SIP_T1X64(t1x64),TAG_END());
-	
+
 	if (transport_override){
 		transports=ConfigStringList::parse(transport_override);
 	}
@@ -172,7 +193,7 @@ void Agent::start(const char *transport_override){
 			err=nta_agent_add_tport(mAgent,
 									(const url_string_t*) url,
 									TPTAG_CERTIFICATE(keys.c_str()),
-									TPTAG_TLS_VERIFY_PEER(peerCert),  
+									TPTAG_TLS_VERIFY_PEER(peerCert),
 									NTATAG_TLS_RPORT(1),
 									TPTAG_IDLE(tports_idle_timeout),
 									TAG_END());
@@ -188,7 +209,7 @@ void Agent::start(const char *transport_override){
 		}
 		su_home_deinit(&home);
 	}
-	
+
 	tport_t *primaries=tport_primaries(nta_agent_tports(mAgent));
 	if (primaries==NULL) LOGF("No sip transport defined.");
 	su_md5_t ctx;
@@ -236,30 +257,30 @@ void Agent::start(const char *transport_override){
 			//LOGD("\tDetected %s preferred route to %s", isIpv6 ? "ipv6":"ipv4", prefUrl);
 		}
 	}
-	
+
 	if (mPublicIpV4.empty() && mPreferredRouteV4) mPublicIpV4=mPreferredRouteV4->url_host;
 	if (mPublicIpV6.empty() && mPreferredRouteV6) mPublicIpV6=mPreferredRouteV6->url_host;
-	
+
 	if (mRtpBindIp.empty() && mPreferredRouteV4) {
 		mRtpBindIp=mPreferredRouteV4->url_host;
 	}
 	if (mRtpBindIp6.empty() && mPreferredRouteV6) {
 		mRtpBindIp6=mPreferredRouteV6->url_host;
 	}
-	
+
 	if (mRtpBindIp.empty()) mRtpBindIp="0.0.0.0";
 	if (mRtpBindIp6.empty()) mRtpBindIp6="::0";
-	
+
 	char digest[(SU_MD5_DIGEST_SIZE*2)+1];
 	su_md5_hexdigest(&ctx,digest);
 	su_md5_deinit(&ctx);
 	digest[16]='\0';//keep half of the digest, should be enough
 	// compute a network wide unique id
 	mUniqueId = digest;
-	
+
 	LOGD("Agent public hostname/ip: v4:%s v6:%s",mPublicIpV4.c_str(), mPublicIpV6.c_str());
 	LOGD("Agent's _default_ RTP bind ip address: v4:%s v6:%s",mRtpBindIp.c_str(),mRtpBindIp6.c_str());
-	
+
 	char prefUrl4[256]={0};
 	char prefUrl6[256]={0};
 	if (mPreferredRouteV4) url_e(prefUrl4,sizeof(prefUrl4),mPreferredRouteV4);
@@ -271,7 +292,7 @@ void Agent::start(const char *transport_override){
 Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 	mHttpEngine = nth_engine_create(root, NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct *cr = GenericManager::get()->getRoot();
-	
+
 	EtcHostsResolver::get();
 
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "SanityChecker"));
@@ -281,6 +302,7 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 #ifdef HAVE_DATEHANDLER
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "DateHandler"));
 #endif
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Redirect"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GatewayAdapter"));
 
 #ifdef ENABLE_PRESENCE
@@ -288,6 +310,7 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 #endif
 
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Registrar"));
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "StatisticsCollector"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "ContactRouteInserter"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Router"));
 #ifdef ENABLE_PUSHNOTIFICATION
@@ -307,7 +330,10 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 	VERSION
 	" (sofia-sip-nta/" NTA_VERSION ")";
 
-	for_each(mModules.begin(), mModules.end(), bind2nd(mem_fun(&Module::declare), cr));
+	//for_each(mModules.begin(), mModules.end(), bind2nd(mem_fun(&Module::declare), cr));
+	for (Module* mod :mModules) {
+		mod->declare(cr);
+	}
 	onDeclare(cr);
 
 	struct ifaddrs *net_addrs;
@@ -487,7 +513,7 @@ bool Agent::Network::isInNetwork(const struct sockaddr *addr) const {
 string Agent::Network::print(const struct ifaddrs *ifaddr) {
 	stringstream ss;
 	int err;
-	int size = (ifaddr->ifa_addr->sa_family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
+	unsigned int size = (ifaddr->ifa_addr->sa_family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
 	char result[IPADDR_SIZE];
 	ss << "Name: " << ifaddr->ifa_name;
 
@@ -519,9 +545,9 @@ int Agent::countUsInVia(sip_via_t *via) const {
 
 bool Agent::isUs(const char *host, const char *port, bool check_aliases) const {
 	char *tmp = NULL;
-	int end;
+	size_t end;
 	tport_t *tport=tport_primaries(nta_agent_tports(mAgent));
-	
+
 	//skip possibly trailing '.' at the end of host
 	if (host[end = (strlen(host) - 1)] == '.') {
 		tmp = (char*) alloca(end+1);
@@ -600,7 +626,7 @@ template <typename SipEventT>
 inline void Agent::doSendEvent
 (shared_ptr<SipEventT> ev, const list<Module *>::iterator &begin, const list<Module *>::iterator &end) {
 	#define LOG_SCOPED_EV_THREAD(ssargs, key) LOG_SCOPED_THREAD(key, ssargs->getOrEmpty(key));
-	
+
 	auto ssargs=ev->getMsgSip()->getSipAttr();
 	LOG_SCOPED_EV_THREAD(ssargs, "from.uri.user");
 	LOG_SCOPED_EV_THREAD(ssargs, "from.uri.domain");
@@ -608,7 +634,7 @@ inline void Agent::doSendEvent
 	LOG_SCOPED_EV_THREAD(ssargs, "to.uri.domain");
 	LOG_SCOPED_EV_THREAD(ssargs, "method_or_status");
 	LOG_SCOPED_EV_THREAD(ssargs, "callid");
-	
+
 
 	for (auto it = begin; it != end; ++it) {
 		ev->mCurrModule = (*it);
@@ -618,12 +644,12 @@ inline void Agent::doSendEvent
 	}
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		LOGA("Event not handled");
-	}	
+	}
 }
 
 
 void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
-	sip_t *sip=ev->getMsgSip()->mSip;
+	sip_t *sip=ev->getMsgSip()->getSip();
 	const sip_request_t *req=sip->sip_request;
 	const url_t *from= sip->sip_from->a_url;
 	SLOGD << "Receiving new Request SIP message "
@@ -669,10 +695,10 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 
 void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	SLOGD << "Receiving new Response SIP message: "
-	<< ev->getMsgSip()->mSip->sip_status->st_status << "\n"
+	<< ev->getMsgSip()->getSip()->sip_status->st_status << "\n"
 	<< *ev->getMsgSip();
 
-	sip_t *sip=ev->getMsgSip()->mSip;
+	sip_t *sip=ev->getMsgSip()->getSip();
 	switch (sip->sip_status->st_status) {
 	case 100:
 		++*mCountIncoming100;
@@ -751,27 +777,17 @@ void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	doSendEvent(ev, it, mModules.end());
 }
 
-void Agent::sendTransactionEvent(shared_ptr<TransactionEvent> ev) {
-	SLOGD << "Propagating new Transaction Event " << ev->transaction.get()
-			<< " " << ev->getKindName();
-	list<Module*>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		(*it)->processTransactionEvent(ev);
-	}
-}
-
 /**
  * This is a dangerous function when called at the wrong time.
  * So we prefer an early abort with a stack trace.
  * Indeed, incoming tport is global in sofia and will be overwritten
  */
-static std::shared_ptr<tport_t> getIncomingTport(const msg_t *orig, Agent *ag) {
+static tport_t* getIncomingTport(const msg_t *orig, Agent *ag) {
 	tport_t *primaries=nta_agent_tports(ag->getSofiaAgent());
 	tport_t *tport=tport_delivered_by(primaries,orig);
 	if (!tport) LOGA("tport not found");
-	return shared_ptr<tport_t>(tport_ref(tport), tport_unref);
+	return tport;
 }
-
 
 int Agent::onIncomingMessage(msg_t *msg, const sip_t *sip) {
 	if (mTerminating) {
@@ -780,10 +796,9 @@ int Agent::onIncomingMessage(msg_t *msg, const sip_t *sip) {
 		return -1;
 	}
 	// Assuming sip is derived from msg
-	shared_ptr<MsgSip> ms(new MsgSip(msg));
+	shared_ptr<MsgSip> ms=make_shared<MsgSip>(msg);
 	if (sip->sip_request) {
-		auto inTport=getIncomingTport(msg, this);
-		auto ev = make_shared<RequestSipEvent>(shared_from_this(), ms, inTport);
+		auto ev = make_shared<RequestSipEvent>(shared_from_this(), ms,getIncomingTport(msg,this));
 		sendRequestEvent(ev);
 	} else {
 		auto ev = make_shared<ResponseSipEvent>(shared_from_this(), ms);
@@ -823,7 +838,7 @@ void Agent::stopTimer(su_timer_t *t) {
 void Agent::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
 	ta_start(ta, tag, value);
-	msg_t* msg = msg_dup(ms->getMsg());
+	msg_t* msg = msg_ref_create(ms->getMsg());
 	nta_msg_tsend(mAgent, msg, u, ta_tags(ta),TAG_END());
 	ta_end(ta);
 }
@@ -875,7 +890,7 @@ void Agent::reply(const shared_ptr<MsgSip> &ms, int status, char const *phrase, 
 	incrReplyStat(status);
 	ta_list ta;
 	ta_start(ta, tag, value);
-	msg_t* msg = ms->createOrigMsgRef();
+	msg_t* msg = msg_ref_create(ms->getMsg());
 	nta_msg_treply(mAgent, msg, status, phrase, ta_tags(ta));
 	ta_end(ta);
 }

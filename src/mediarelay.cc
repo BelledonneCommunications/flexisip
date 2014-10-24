@@ -94,24 +94,24 @@ const char *RelayChannel::dirToString(Dir dir){
 }
 
 void RelayChannel::setRemoteAddr(const string &ip, int port, Dir dir) {
-	LOGD("RelayChannel [%p] is now configured local=[%s:%i]  remote=[%s:%i] dir=[%s]", 
+	LOGD("RelayChannel [%p] is now configured local=[%s:%i]  remote=[%s:%i] dir=[%s]",
 	     this, getLocalIp().c_str(), getLocalPort(), ip.c_str(), port, dirToString(dir));
 	bool dest_ok=true;
-	
+
 	if (port>0 && mPreventLoop){
 		if (strcmp(ip.c_str(),getLocalIp().c_str())==0){
 			LOGW("RelayChannel [%p] wants to loop to local machine, not allowed.",this);
 			dest_ok=false;
 		}
 	}
-	
+
 	mRemotePort = port;
 	mRemoteIp = ip;
 	mDir=dir;
-	
+
 	if (dest_ok && port!=0){
 		struct addrinfo *res = NULL;
-		struct addrinfo hints = { 0 };
+		struct addrinfo hints = { 0,0,0,0,0,0,0,0 };
 		char portstr[20];
 		int err;
 
@@ -216,9 +216,9 @@ RelaySession::RelaySession(MediaRelayServer *server, const string &frontId, cons
 shared_ptr<RelayChannel> RelaySession::getChannel(const string &partyId, const string &trId){
 	if (partyId==mFrontId) return mFront;
 	if (mBack) return mBack;
-	
+
 	shared_ptr<RelayChannel> ret;
-	
+
 	mMutex.lock();
 	auto it=mBacks.find(trId);
 	if (it!=mBacks.end()){
@@ -264,7 +264,7 @@ void RelaySession::setEstablished(const std::string &tr_id){
 
 void RelaySession::fillPollFd(PollFd* pfd) {
 	mMutex.lock();
-	
+
 	if (mFront) mFront->fillPollFd(pfd);
 	if (mBack) mBack->fillPollFd(pfd);
 	else{
@@ -304,10 +304,10 @@ void RelaySession::unuse() {
 		int port;
 		unsigned long recv;
 		unsigned long sent;
-	}front={0}, back={0};
-	
+	}front={0,0,0}, back={0,0,0};
+
 	LOGD("RelaySession [%p] terminated.",this);
-	
+
 	mMutex.lock();
 	mUsed = false;
 	if (mFront){
@@ -324,7 +324,7 @@ void RelaySession::unuse() {
 	mBacks.clear();
 	mBack.reset();
 	mMutex.unlock();
-	
+
 	/*do not log while holding a mutex*/
 	if (front.port>0) LOGD("Front on port [%i] received [%lu] and sent [%lu] packets.",front.port, front.recv, front.sent);
 	if (back.port>0) LOGD("Back on port [%i] received [%lu] and sent [%lu] packets.",back.port, back.recv, back.sent);
@@ -350,7 +350,7 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &chan
 	uint8_t buf[1500];
 	const int maxsize = sizeof(buf);
 	int recv_len;
-	
+
 	mLastActivityTime = curtime;
 	recv_len = chan->recv(i, buf, maxsize);
 	if (recv_len > 0) {
@@ -450,15 +450,15 @@ static void set_high_prio(){
 	int policy=SCHED_RR;
 	int result=0;
 	int max_prio;
-		
+
 	memset(&param,0,sizeof(param));
-		
+
 	max_prio = sched_get_priority_max(policy);
 	param.sched_priority=max_prio;
 	if((result=pthread_setschedparam(pthread_self(),policy, &param))) {
 		if (result==EPERM){
 			/*
-				The linux kernel has 
+				The linux kernel has
 				sched_get_priority_max(SCHED_OTHER)=sched_get_priority_max(SCHED_OTHER)=0.
 				As long as we can't use SCHED_RR or SCHED_FIFO, the only way to increase priority of a calling thread
 				is to use setpriority().
@@ -491,7 +491,7 @@ void MediaRelayServer::run() {
 		mMutex.unlock();
 
 		ctl_index=pfd.addFd(mCtlPipe[0],POLLIN);
-		
+
 		err = poll(pfd.getPfd(), pfd.getCurIndex(), 1000);
 		if (err > 0) {
 			//examine pollfd results
