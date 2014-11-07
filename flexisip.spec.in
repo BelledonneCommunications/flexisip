@@ -100,7 +100,7 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 %install
 rm -rf $RPM_BUILD_ROOT
 %makeinstall
-rm -rf /usr/share/doc/%{name}-@PACKAGE_VERSION	/*.tmp.tex
+rm -rf /usr/share/doc/%{name}-@PACKAGE_VERSION@	/*.tmp.tex
 
 %if "0%{?dist}" == "0deb"
 install -p -m 0744 scripts/debian/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
