@@ -140,8 +140,8 @@ fi
 %{_docdir}
 %exclude %{_prefix}/share/doc/flexisip
 %{_bindir}/*
-/etc/init.d/flexisip
-/etc/flexisip
+%{_sysconfdir}/init.d/flexisip
+%{_sysconfdir}/flexisip
 
 %changelog
 * Tue Oct 14 2014 Guillaume Bienkowski <gbi@linphone.org>
