@@ -24,6 +24,8 @@ ${guide_pdf}: $(srcdir)/${guide}.tex $(top_builddir)/src/flexisip
 fldocdir=$(datadir)/doc/$(PACKAGE)-$(VERSION)
 fldoc_DATA = $(docfiles)
 
+dist_fldoc_DATA=$(guide_tex)
+
 endif
 
-dist_doc_DATA=$(guide_tex)
+
