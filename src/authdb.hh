@@ -111,7 +111,7 @@ class OdbcAuthDb : public AuthDb {
 				SQLFreeHandle(SQL_HANDLE_DBC, dbc);
 			}
 		}
-	} typedef ConnectionCtx;
+	};
 	std::string connectionString;
 	std::string request;
 	int maxPassLength;

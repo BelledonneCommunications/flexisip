@@ -47,6 +47,7 @@ private:
 	void onAcceptanceTimer();
 	void logReceptionEvent(const std::shared_ptr<ResponseSipEvent> &ev);
 	void checkFinished();
+	void logDeliveryEvent(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event);
 };
 
 
