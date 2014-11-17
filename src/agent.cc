@@ -420,7 +420,7 @@ std::pair<std::string,std::string> Agent::getPreferredIp(const std::string &dest
 		}
 		freeaddrinfo(result);
 	} else {
-		LOGE("getaddrinfo error: %s", strerror(errno));
+		LOGE("getaddrinfo error: %s", gai_strerror(err));
 	}
 	return strchr(destination.c_str(),':')==NULL ? make_pair(getPublicIp(),getRtpBindIp()) : make_pair(getPublicIp(true),getRtpBindIp(true));
 }
