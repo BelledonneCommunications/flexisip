@@ -30,6 +30,7 @@
 
 # fix for bad pkgconfig path from old rpmbuild:
 %define need_pkgconfig_fix %{?_PKG_CONFIG_PATH:1}%{!?_PKG_CONFIG_PATH:0}
+%define special_boostlib_dir %{?boostlibdir:1}%{!?boostlibdir:0}
 
 # 
 # flexisip - SIP proxy with media capabilities
@@ -68,9 +69,9 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 %build
 
 %if %{need_pkgconfig_fix}
-PKG_CONFIG_PATH=%{_PKG_CONFIG_PATH}%{PKG_CONFIG_PATH}
-echo Fixing PKG_CONFIG_PATH to $(PKG_CONFIG_PATH)
+PKG_CONFIG_PATH=%{_PKG_CONFIG_PATH}:%{getenv:PKG_CONFIG_PATH}
 export PKG_CONFIG_PATH
+echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
 %endif
 
 %configure \
@@ -95,6 +96,9 @@ export PKG_CONFIG_PATH
 %endif
 %if !%{push}
     --disable-pushnotification \
+%endif
+%if %{special_boostlib_dir}
+	--with-boost-libdir=%{boostlibdir} \
 %endif
 %if %{bcpkg}
     --with-odbc=%{_prefix} \
