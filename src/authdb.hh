@@ -123,7 +123,7 @@ class OdbcAuthDb : public AuthDb {
 	void envError(const char* doing);
 	bool execDirect;
 	bool getConnection(const std::string &id, ConnectionCtx &ctx, AuthDbTimings &timings);
-	AuthDbResult doRetrievePassword(const std::string &user, const std::string &host, const std::string &auth, std::string &foundPassword, AuthDbTimings &timings);
+	AuthDbResult doRetrievePassword(ConnectionCtx& ctx, const std::string &user, const std::string &host, const std::string &auth, std::string &foundPassword, AuthDbTimings &timings);
 	void doAsyncRetrievePassword(su_root_t *, std::string id, std::string domain, std::string auth, AuthDbListener *listener);
 public:
 	virtual void getPassword(su_root_t*, const url_t *from, const char *auth_username, AuthDbListener *listener);

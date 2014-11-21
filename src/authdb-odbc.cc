@@ -454,7 +454,8 @@ void OdbcAuthDb::getPassword(su_root_t *root, const url_t *from, const char *aut
 		AuthDbTimings timings;
 		string foundPassword;
 		timings.tStart=steady_clock::now();
-		AuthDbResult ret = doRetrievePassword(id, domain, auth, foundPassword, timings);
+		ConnectionCtx ctx;
+		AuthDbResult ret = doRetrievePassword(ctx, id, domain, auth, foundPassword, timings);
 		timings.tEnd=steady_clock::now();
 		if (ret == AUTH_ERROR) {
 			timings.error = true;
@@ -485,10 +486,11 @@ void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string doma
 	++threadCount;
 	localThreadCountCopy=threadCount;
 	threadCountMutex.unlock();*/
+	ConnectionCtx ctx;
 	string password;
 	AuthDbTimings timings;
 	timings.tStart=steady_clock::now();
-	AuthDbResult ret = doRetrievePassword(id, domain, auth, password, timings);
+	AuthDbResult ret = doRetrievePassword(ctx,id, domain, auth, password, timings);
 	timings.tEnd=steady_clock::now();
 	if (ret == AUTH_ERROR) {
 		timings.error = true;
@@ -537,8 +539,7 @@ void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string doma
 	*/
 }
 
-AuthDbResult OdbcAuthDb::doRetrievePassword(const string &id, const string &domain, const string &auth, string &foundPassword, AuthDbTimings &timings){
-	ConnectionCtx ctx;
+AuthDbResult OdbcAuthDb::doRetrievePassword(ConnectionCtx& ctx, const string &id, const string &domain, const string &auth, string &foundPassword, AuthDbTimings &timings){
 	if (!getConnection(id, ctx, timings)) {
 		LOGE("ConnectionCtx creation error");
 		return AUTH_ERROR;
