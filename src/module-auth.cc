@@ -177,6 +177,7 @@ private:
 	bool dbUseHashedPasswords;
 	bool mImmediateRetrievePassword;
 	bool mNewAuthOn407;
+	bool mTestAccountsEnabled;
 	list<string> mUseClientCertificates;
 	list< string > mTrustedClientCertificates;
 	
@@ -291,7 +292,7 @@ public:
 			{	Boolean		,	"hashed-passwords"	,	"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).", "false" },
 			{	Boolean		,	"new-auth-on-407"	,	"When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false" },
 			{	BooleanExpr, 	"no-403",	"Don't reply 403, but 401 or 407 even in case of wrong authentication.",	"false"},
-
+			{	Boolean,	"enable-test-accounts-creation",	"Enable a feature useful for automatic tests, allowing a client to create a temporary account in the password database in memory. This MUST not be used for production as it is a real security hole.",	"false" },
 			config_item_end
 		};
 		mc->addChildrenValues(items);
@@ -338,6 +339,7 @@ public:
 		mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
 		mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
 		mNonceStore.setNonceExpires(nonceExpires);
+		mTestAccountsEnabled=mc->get<ConfigBoolean>("enable-test-accounts-creation")->read();
 	}
 
 	auth_mod_t *findAuthModule(const char *name) {
@@ -351,6 +353,20 @@ public:
 
 	static bool containsDomain(const list<string> &d, const char *name) {
 		return find(d.cbegin(), d.cend(), "*") != d.end() || find(d.cbegin(), d.cend(), name) != d.end();
+	}
+	
+	void handleTestAccountCreationRequests(shared_ptr<RequestSipEvent> &ev){
+		sip_t *sip = ev->getSip();
+		if (sip->sip_request->rq_method==sip_method_register){
+			sip_unknown_t *h=ModuleToolbox::getCustomHeaderByName(sip,"X-Create-Account");
+			if (h && strcasecmp(h->un_value,"yes")==0){
+				url_t *url=sip->sip_from->a_url;
+				if (url){
+					AuthDb::get()->createAccount(url, NULL, url->url_password, sip->sip_expires->ex_delta);
+					LOGD("Account created for %s@%s",url->url_user,url->url_host);
+				}
+			}
+		}
 	}
 
 	bool isTrustedPeer(shared_ptr<RequestSipEvent> &ev) {
@@ -419,6 +435,8 @@ public:
 			return;
 		}
 
+		//handle account creation request (test feature only)
+		if (mTestAccountsEnabled) handleTestAccountCreationRequests(ev);
 
 		// Check trusted peer
 		if (isTrustedPeer(ev)) return;

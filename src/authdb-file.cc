@@ -31,13 +31,13 @@ FileAuthDb::FileAuthDb() {
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 
 	mFileString = ma->get<ConfigString>("datasource")->read();
-
+	mCacheExpire=1<<31;
 	sync();
 }
 
 void FileAuthDb::getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener *listener) {
-	time_t now = getCurrentTime();
 	AuthDbResult res=AuthDbResult::PASSWORD_NOT_FOUND;
+	time_t now = getCurrentTime();
 
 	if (difftime(now, mLastSync) >= mCacheExpire) {
 		sync();
@@ -48,11 +48,9 @@ void FileAuthDb::getPassword(su_root_t *root, const url_t *from, const char *aut
 	string auth(auth_username);
 
 	string key(createPasswordKey(id, domain, auth));
-	switch (getCachedPassword(key, domain, listener->mPassword, now)) {
+	switch (getCachedPassword(key, domain, listener->mPassword)) {
 	case VALID_PASS_FOUND:
 		res= AuthDbResult::PASSWORD_FOUND;
-	case EXPIRED_PASS_FOUND:
-		break;
 	default:
 		res=AuthDbResult::PASSWORD_NOT_FOUND;
 		break;
@@ -63,7 +61,7 @@ void FileAuthDb::getPassword(su_root_t *root, const url_t *from, const char *aut
 
 void FileAuthDb::sync() {
 	LOGD("Syncing password file");
-
+	clearCache();
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
@@ -103,10 +101,10 @@ void FileAuthDb::sync() {
 
 				if (find(domains.begin(), domains.end(), domain) != domains.end()) {
 					string key(createPasswordKey(user, domain, userid));
-					cachePassword(key, domain, password, mLastSync);
+					cachePassword(key, domain, password, mCacheExpire);
 				} else if (find(domains.begin(), domains.end(), "*") != domains.end()) {
 					string key(createPasswordKey(user, domain, userid));
-					cachePassword(key, domain, password, mLastSync);
+					cachePassword(key, domain, password, mCacheExpire);
 				} else {
 					LOGW("Not handled domain: %s", domain.c_str());
 				}

@@ -425,10 +425,9 @@ void OdbcAuthDb::getPassword(su_root_t *root, const url_t *from, const char *aut
 	string id(from->url_user);
 	string domain(from->url_host);
 	string auth(auth_username);
-	time_t now=getCurrentTime();
 	string key(createPasswordKey(id, domain, auth));
 	
-	switch(getCachedPassword(key, domain, listener->mPassword, now)) {
+	switch(getCachedPassword(key, domain, listener->mPassword)) {
 	case VALID_PASS_FOUND:
 		listener->mResult=AuthDbResult::PASSWORD_FOUND;
 		listener->onResult();
@@ -615,7 +614,7 @@ AuthDbResult OdbcAuthDb::doRetrievePassword(ConnectionCtx& ctx, const string &id
 	timings.tGotResult=steady_clock::now();
 	foundPassword.assign((char*)password);
 	string key(createPasswordKey(id, domain, auth));
-	cachePassword(key, domain, foundPassword, getCurrentTime());
+	cachePassword(key, domain, foundPassword, -1);
 	LOGD("Password found %s for %s", foundPassword.c_str(), id.c_str());
 	return PASSWORD_FOUND;
 }
