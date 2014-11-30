@@ -43,12 +43,8 @@ void FileAuthDb::getPassword(su_root_t *root, const url_t *from, const char *aut
 		sync();
 	}
 
-	string id(from->url_user);
-	string domain(from->url_host);
-	string auth(auth_username);
-
-	string key(createPasswordKey(id, domain, auth));
-	switch (getCachedPassword(key, domain, listener->mPassword)) {
+	string key(createPasswordKey(from->url_user, from->url_host, auth_username));
+	switch (getCachedPassword(key, from->url_host, listener->mPassword)) {
 	case VALID_PASS_FOUND:
 		res= AuthDbResult::PASSWORD_FOUND;
 	default:
@@ -61,7 +57,6 @@ void FileAuthDb::getPassword(su_root_t *root, const url_t *from, const char *aut
 
 void FileAuthDb::sync() {
 	LOGD("Syncing password file");
-	clearCache();
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();

@@ -109,7 +109,7 @@ bool AuthDb::cachePassword(const string &key, const string &domain, const string
 		(*it).second.pass=pass;
 		(*it).second.expire_date=now+expires;
 	} else {
-		passwords.insert(make_pair(key,CachedPassword(pass,now)));
+		passwords.insert(make_pair(key,CachedPassword(pass,now+expires)));
 	}
 	return true;
 }
