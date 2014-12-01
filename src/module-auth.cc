@@ -605,6 +605,8 @@ void Authentication::AuthenticationListener::finish(){
 void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 	char const *a1;
 	auth_hexmd5_t a1buf, response;
+	
+	if (passwd && passwd[0]='\0') passwd=NULL;
 
 	if (passwd) {
 		mPasswordFound=true;
@@ -640,7 +642,7 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 			mAs->as_blacklist = mAm->am_blacklist;
 		}
 		if (passwd) {
-			LOGD("auth_method_digest: password %s did not match", passwd);
+			LOGD("auth_method_digest: password '%s' did not match", passwd);
 		} else {
 			LOGD("auth_method_digest: no password");
 		}
