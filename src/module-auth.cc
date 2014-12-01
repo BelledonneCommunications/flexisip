@@ -606,7 +606,7 @@ void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 	char const *a1;
 	auth_hexmd5_t a1buf, response;
 	
-	if (passwd && passwd[0]='\0') passwd=NULL;
+	if (passwd && passwd[0]=='\0') passwd=NULL;
 
 	if (passwd) {
 		mPasswordFound=true;
