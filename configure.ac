@@ -70,7 +70,7 @@ case $CXX in
 	case $host in
 		*apple-darwin*)
 			CXXFLAGS="$CXXFLAGS -stdlib=libc++"
-			LDFLAGS="$LDFLAGS -Framework SystemConfiguration"
+			LDFLAGS="$LDFLAGS -framework SystemConfiguration"
 		;;
 	esac
 	;;
