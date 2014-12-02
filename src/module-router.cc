@@ -420,8 +420,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			context = make_shared<ForkCallContext>(getAgent(), ev, mForkCfg, this);
 		} else if ((sip->sip_request->rq_method == sip_method_message)
 			&& !(sip->sip_content_type != NULL
-				&& strcasecmp(sip->sip_content_type->c_type, "application") == 0
-				&& strcasecmp(sip->sip_content_type->c_subtype, "im-iscomposing+xml") == 0)) {
+				&& strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0)) {
 			// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
 			context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this);
 		} else {
@@ -550,8 +549,6 @@ public:
 		sip_t *sip=ev->getMsgSip()->getSip();
 		if (sip->sip_request->rq_method==sip_method_invite){
 			ev->setEventLog(make_shared<CallLog>(sip->sip_from,sip->sip_to));
-		}else if (sip->sip_request->rq_method==sip_method_message){
-			ev->setEventLog(make_shared<MessageLog>(MessageLog::Reception,sip->sip_from,sip->sip_to,sip->sip_call_id->i_hash));
 		}
 	}
 	void onRecordFound(Record *r) {

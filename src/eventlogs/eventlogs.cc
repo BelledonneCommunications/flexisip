@@ -50,9 +50,9 @@ EventLog::Init EventLog::evStaticInit;
 
 EventLog::Init::Init(){
 	ConfigItemDescriptor items[]={
-		{	Boolean		,	"enable-event-logs"		,	"Enable event logs.", "false"},
-		{	String		,	"event-logs-dir"		,	"Directory where event logs are written.",	"/var/log/flexisip"},
-		{	Boolean     ,	"event-logs-use-odb"	,	"Use odb for storing logs in database.The list of arguments below are used for the connection to the database.  ",	"false"	},
+		{	Boolean		,	"enabled"		,	"Enable event logs.", "false"},
+		{	String		,	"dir"		,	"Directory where event logs are written as a filesystem (case where odb output is not active).",	"/var/log/flexisip"},
+		{	Boolean     ,	"use-odb"	,	"Use odb for storing logs in database. The list of arguments below are used for the connection to the database.  ",	"false"	},
 		{	String		,	"odb-database"			,	"Name of the database", "" },
 		{	String		,	"odb-user"				,	"User", "" },
 		{	String		,	"odb-password"			,	"Password", "" },
@@ -121,12 +121,13 @@ void CallLog::setCancelled(){
 	mCancelled=true;
 }
 
-MessageLog::MessageLog ( MessageLog::ReportType report, const sip_from_t* from, const sip_to_t* to, unsigned long id ) {
+MessageLog::MessageLog ( MessageLog::ReportType report, const sip_from_t* from, const sip_to_t* to, const sip_call_id_t * id ) {
 	setFrom(from);
 	setTo(to);
-	mId=id;
+	mId=id->i_hash;
 	mUri=NULL;
 	mReportType=report;
+	mCallId=id->i_id;
 }
 
 void MessageLog::setDestination(const url_t *dest){
@@ -378,7 +379,7 @@ void FilesystemEventLogWriter::writeMessageLog(const std::shared_ptr<MessageLog>
 	if (fd==-1) return;
 	ostringstream msg;
 
-	msg<<PrettyTime(mlog->mDate)<<": "<<mlog->mReportType<<" id:"<<std::hex<<mlog->mId<<" "<<std::dec;
+	msg<<PrettyTime(mlog->mDate)<<": "<<mlog->mReportType<<" id:"<<std::hex<<mlog->mCallId<<" "<<std::dec;
 	msg<<mlog->mFrom<<" --> "<<mlog->mTo;
 	if (mlog->mUri) msg<<" ("<<mlog->mUri<<") ";
 	msg<<mlog->mStatusCode<<" "<<mlog->mReason<<endl;

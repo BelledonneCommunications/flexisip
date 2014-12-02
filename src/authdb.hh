@@ -57,8 +57,8 @@ class AuthDb {
 	static AuthDb *sUnique;
 	struct CachedPassword {
 		std::string pass;
-		time_t date;
-		CachedPassword(const std::string &ipass, time_t idate):pass(ipass),date(idate){}
+		time_t expire_date;
+		CachedPassword(const std::string &ipass, time_t idate):pass(ipass),expire_date(idate){}
 	};
 	std::map<std::string, std::map<std::string,CachedPassword>> mCachedPasswords;
 	std::mutex mCachedPasswordMutex;
@@ -66,12 +66,15 @@ protected:
 	AuthDb();
 	enum CacheResult {VALID_PASS_FOUND, EXPIRED_PASS_FOUND, NO_PASS_FOUND};
 	std::string createPasswordKey(const std::string &user, const std::string &host, const std::string &auth);
-	bool cachePassword(const std::string &key, const std::string &domain, const std::string &pass, time_t time);
-	CacheResult getCachedPassword(const std::string &key, const std::string &domain, std::string &pass, time_t now);
+	bool cachePassword(const std::string &key, const std::string &domain, const std::string &pass, int expires);
+	CacheResult getCachedPassword(const std::string &key, const std::string &domain, std::string &pass);
+	void createCachedAccount(const url_t *from, const char *auth_username, const char *password, int expires);
+	void clearCache();
 	int mCacheExpire;
 public:
 	virtual ~AuthDb();
 	virtual void getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener *listener)=0;
+	virtual void createAccount(const url_t *from, const char *auth_username, const char *password, int expires);
 	static AuthDb* get();
 
 	AuthDb (const AuthDb &);
@@ -111,7 +114,7 @@ class OdbcAuthDb : public AuthDb {
 				SQLFreeHandle(SQL_HANDLE_DBC, dbc);
 			}
 		}
-	} typedef ConnectionCtx;
+	};
 	std::string connectionString;
 	std::string request;
 	int maxPassLength;
@@ -123,7 +126,7 @@ class OdbcAuthDb : public AuthDb {
 	void envError(const char* doing);
 	bool execDirect;
 	bool getConnection(const std::string &id, ConnectionCtx &ctx, AuthDbTimings &timings);
-	AuthDbResult doRetrievePassword(const std::string &user, const std::string &host, const std::string &auth, std::string &foundPassword, AuthDbTimings &timings);
+	AuthDbResult doRetrievePassword(ConnectionCtx& ctx, const std::string &user, const std::string &host, const std::string &auth, std::string &foundPassword, AuthDbTimings &timings);
 	void doAsyncRetrievePassword(su_root_t *, std::string id, std::string domain, std::string auth, AuthDbListener *listener);
 public:
 	virtual void getPassword(su_root_t*, const url_t *from, const char *auth_username, AuthDbListener *listener);

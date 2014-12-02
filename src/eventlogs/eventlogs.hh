@@ -91,12 +91,13 @@ friend class FilesystemEventLogWriter;
 friend class MessageLogDb;
 public:
 	enum ReportType{ Reception, Delivery};
-	MessageLog(ReportType report, const sip_from_t *from, const sip_to_t *to, unsigned long id);
+	MessageLog(ReportType report, const sip_from_t *from, const sip_to_t *to, const sip_call_id_t* id);
 	void setDestination(const url_t *dest);
 private:
 	ReportType mReportType;
 	url_t *mUri; //destination uri of message
 	unsigned long mId;
+	std::string mCallId;
 };
 
 class AuthLog : public EventLog{

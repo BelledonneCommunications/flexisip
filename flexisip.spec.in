@@ -3,15 +3,16 @@
 ## rpmbuild options
 
 # default is to build with redis & protobuf support
-%define     redis       %{?_without_redis:0}%{!?_without_redis:1}
-%define     protobuf       %{?_without_protobuf:0}%{!?_without_protobuf:1}
-%define     boostlog       %{?_without_boostlog:0}%{!?_without_boostlog:1}
+%define     redis      %{?_without_redis:0}%{!?_without_redis:1}
+%define     protobuf   %{?_without_protobuf:0}%{!?_without_protobuf:1}
+%define     boostlog   %{?_without_boostlog:0}%{!?_without_boostlog:1}
+%define     push       %{?_with_push:1}%{!?_with_push:0}
 %define     odbc       %{?_without_odbc:0}%{!?_without_odbc:1}
-%define     transcoder      %{?_without_transcoder:0}%{!?_without_transcoder:1}
-%define     snmp      %{?_without_snmp:0}%{!?_without_snmp:1}
+%define     transcoder %{?_without_transcoder:0}%{!?_without_transcoder:1}
+%define     snmp       %{?_without_snmp:0}%{!?_without_snmp:1}
 
 # will be 1 if we need to generate a /opt/belledonne-communications RPM
-%define     bcpkg       %{?_with_bc:1}%{!?_with_bc:0}
+%define     bcpkg      %{?_with_bc:1}%{!?_with_bc:0}
 
 # These lines are here because we can build the RPM for flexisip, in which 
 # case we prefix the entire installation so that we don't break compatibility
@@ -20,6 +21,16 @@
 %define                 pkg_name        %{?_with_bc:bc-flexisip}%{!?_with_bc:flexisip}
 %define                 pkg_prefix      %{?_with_bc:bc-}%{!?_with_bc:}
 %{?_with_bc: %define    _prefix         /opt/belledonne-communications}
+
+# re-define some directories for older RPMBuild versions which don't. This messes up the doc/ dir
+# taken from https://fedoraproject.org/wiki/Packaging:RPMMacros?rd=Packaging/RPMMacros
+%define _datarootdir       %{_prefix}/share
+%define _datadir           %{_datarootdir}
+%define _docdir            %{_datadir}/doc
+
+# fix for bad pkgconfig path from old rpmbuild:
+%define need_pkgconfig_fix %{?_PKG_CONFIG_PATH:1}%{!?_PKG_CONFIG_PATH:0}
+%define special_boostlib_dir %{?boostlibdir:1}%{!?boostlibdir:0}
 
 # 
 # flexisip - SIP proxy with media capabilities
@@ -32,7 +43,7 @@ Release:	%(git describe --tags --abbrev=40 | sed -rn 's/^.*-([0-9]+)-g[a-z0-9]{4
 License:	AGPL
 Group:		Applications/Communications
 URL:		http://www.belledonne-communications.com
-Source0:	flexisip-@PACKAGE_VERSION@.tar.gz
+Source0:	%{name}-@PACKAGE_VERSION@.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 %ifarch %ix86
 BuildArch:	i686
@@ -47,14 +58,22 @@ Requires: boost-log >= 1.41.0
 Requires(post): /sbin/chkconfig coreutils
 Requires(preun): /sbin/chkconfig /sbin/chkconfig
 Requires(postun): /sbin/service
+Prefix: /opt/belledonne-communications
 
 %description
 Extensible SIP proxy with media capabilities. Designed for robustness and easy of use.
 
 %prep
-%setup -qn flexisip-%{version}
+%setup
 
 %build
+
+%if %{need_pkgconfig_fix}
+PKG_CONFIG_PATH=%{_PKG_CONFIG_PATH}:%{getenv:PKG_CONFIG_PATH}
+export PKG_CONFIG_PATH
+echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
+%endif
+
 %configure \
 	--disable-strict \
 %if %{redis}
@@ -75,6 +94,12 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 %if !%{transcoder}
     --disable-transcoder \
 %endif
+%if !%{push}
+    --disable-pushnotification \
+%endif
+%if %{special_boostlib_dir}
+	--with-boost-libdir=%{boostlibdir} \
+%endif
 %if %{bcpkg}
     --with-odbc=%{_prefix} \
 %endif
@@ -87,9 +112,13 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 
 %install
 rm -rf $RPM_BUILD_ROOT
-%makeinstall
-rm -rf /usr/share/doc/%{name}-@PACKAGE_VERSION@/*.tmp.tex
+%{__make} install DESTDIR=$RPM_BUILD_ROOT
+
+%if "0%{?dist}" == "0.deb"
+install -p -m 0744 scripts/debian/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
+%else
 install -p -m 0744 scripts/redhat/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
+%endif
 
 %if %{bcpkg}
 export QA_RPATHS=0x0003
@@ -118,17 +147,11 @@ fi
 
 %files
 %defattr(-,root,root,-)
-%doc AUTHORS COPYING ChangeLog INSTALL NEWS README
-%if !%{bcpkg}
-%doc %{_prefix}/share/doc/flexisip/flexisip_guide.tex 
-%doc %{_prefix}/share/doc/*.pdf 
-%doc %{_prefix}/share/doc/latex_include_generator.sh
-%endif
-
-%exclude %{_prefix}/share/doc/flexisip
+%docdir %{_docdir}
+%{_docdir}
 %{_bindir}/*
-/etc/init.d/flexisip
-/etc/flexisip
+%{_sysconfdir}/init.d/flexisip
+%{_sysconfdir}/flexisip
 
 %changelog
 * Tue Oct 14 2014 Guillaume Bienkowski <gbi@linphone.org>

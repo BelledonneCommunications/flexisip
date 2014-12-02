@@ -101,8 +101,8 @@ void Agent::onDeclare(GenericStruct *root) {
 
 void Agent::startLogWriter(){
 	GenericStruct *cr=GenericManager::get()->getRoot();
-	bool enabled=cr->get<GenericStruct>("event-logs")->get<ConfigBoolean>("enable-event-logs")->read();
-	bool use_odb=cr->get<GenericStruct>("event-logs")->get<ConfigBoolean>("event-logs-use-odb")->read();
+	bool enabled=cr->get<GenericStruct>("event-logs")->get<ConfigBoolean>("enabled")->read();
+	bool use_odb=cr->get<GenericStruct>("event-logs")->get<ConfigBoolean>("use-odb")->read();
 
 	if (enabled){
 		if(use_odb){
@@ -121,7 +121,7 @@ void Agent::startLogWriter(){
 
 
 		} else {
-			string logdir=cr->get<GenericStruct>("event-logs")->get<ConfigString>("event-logs-dir")->read();
+			string logdir=cr->get<GenericStruct>("event-logs")->get<ConfigString>("dir")->read();
 			FilesystemEventLogWriter *lw=new FilesystemEventLogWriter(logdir);
 			if (!lw->isReady()){
 				delete lw;
@@ -428,7 +428,7 @@ std::pair<std::string,std::string> Agent::getPreferredIp(const std::string &dest
 		}
 		freeaddrinfo(result);
 	} else {
-		LOGE("getaddrinfo error: %s", strerror(errno));
+		LOGE("getaddrinfo error: %s", gai_strerror(err));
 	}
 	return strchr(destination.c_str(),':')==NULL ? make_pair(getPublicIp(),getRtpBindIp()) : make_pair(getPublicIp(true),getRtpBindIp(true));
 }

@@ -69,38 +69,59 @@ AuthDb::AuthDb() {
 AuthDb::~AuthDb() {
 }
 
-string AuthDb::createPasswordKey(const string &user, const string &host, const string &auth) {
-	string key(user);
-	return key.append("#").append(auth);
+string AuthDb::createPasswordKey(const string &user, const string &host, const string &auth_username) {
+	ostringstream key;
+	key<<user;
+	if (!auth_username.empty()){
+		key<<user<<"#"<<auth_username;
+	}
+	return key.str();
 }
 
-AuthDb::CacheResult AuthDb::getCachedPassword(const string &key, const string &domain, string &pass, time_t now) {
+AuthDb::CacheResult AuthDb::getCachedPassword(const string &key, const string &domain, string &pass) {
+	time_t now = getCurrentTime();
 	auto & passwords=mCachedPasswords[domain];
 	unique_lock<mutex> lck(mCachedPasswordMutex);
 	auto it=passwords.find(key);
 	if (it != passwords.end()) {
 		pass.assign((*it).second.pass);
-		if (now < (*it).second.date + mCacheExpire) {
+		if (now < (*it).second.expire_date) {
 			return VALID_PASS_FOUND;
 		} else {
+			passwords.erase(it);
 			return EXPIRED_PASS_FOUND;
 		}
 	}
 	return NO_PASS_FOUND;
 }
 
-bool AuthDb::cachePassword(const string &key, const string &domain, const string &pass, time_t time){
+void AuthDb::clearCache(){
+	mCachedPasswords.clear();
+}
+
+bool AuthDb::cachePassword(const string &key, const string &domain, const string &pass, int expires){
+	time_t now = getCurrentTime();
 	auto & passwords=mCachedPasswords[domain];
 	unique_lock<mutex> lck(mCachedPasswordMutex);
 	auto it=passwords.find(key);
+	if (expires==-1) expires=mCacheExpire;
 	if (it != passwords.end()) {
 		(*it).second.pass=pass;
-		(*it).second.date=time;
+		(*it).second.expire_date=now+expires;
 	} else {
-		passwords.insert(make_pair(key,CachedPassword(pass,time)));
+		passwords.insert(make_pair(key,CachedPassword(pass,now+expires)));
 	}
-
 	return true;
 }
 
+void AuthDb::createCachedAccount(const url_t *from, const char *auth_username, const char *password, int expires){
+	if (from->url_host && from->url_user){
+		string key=createPasswordKey(from->url_user,from->url_host,auth_username ? auth_username : "");
+		cachePassword(key,from->url_host,password,expires);
+	}
+}
+
+void AuthDb::createAccount(const url_t *from, const char *auth_username, const char *password, int expires){
+	createCachedAccount(from, auth_username, password, expires);
+}
 

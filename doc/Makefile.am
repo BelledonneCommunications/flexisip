@@ -9,7 +9,7 @@ guide=flexisip_guide
 guide_tex=$(srcdir)/${guide}.tex
 guide_pdf=$(top_builddir)/doc/${guide}.pdf
 
-docfiles=$(guide_tex)
+docfiles=$(guide_tex) $(top_srcdir)/AUTHORS $(top_srcdir)/COPYING $(top_srcdir)/ChangeLog $(top_srcdir)/NEWS $(top_srcdir)/README
 
 if GENERATE_DOC
 docfiles +=$(guide_pdf)
@@ -24,6 +24,8 @@ ${guide_pdf}: $(srcdir)/${guide}.tex $(top_builddir)/src/flexisip
 fldocdir=$(datadir)/doc/$(PACKAGE)-$(VERSION)
 fldoc_DATA = $(docfiles)
 
+dist_fldoc_DATA=$(guide_tex)
+
 endif
 
-dist_doc_DATA=$(guide_tex)
+
