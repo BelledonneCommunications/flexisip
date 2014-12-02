@@ -114,7 +114,7 @@ echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
 rm -rf $RPM_BUILD_ROOT
 %{__make} install DESTDIR=$RPM_BUILD_ROOT
 
-%if "0%{?dist}" == "0deb"
+%if "0%{?dist}" == "0.deb"
 install -p -m 0744 scripts/debian/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
 %else
 install -p -m 0744 scripts/redhat/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
