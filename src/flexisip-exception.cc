@@ -19,6 +19,7 @@
 #include <execinfo.h>
 #include <unistd.h>
 
+
 static void uncautch_handler () {
 	std::exception_ptr p= current_exception();
 	try {
@@ -35,18 +36,37 @@ FlexisipException e;
 FlexisipException::FlexisipException(const char* message): mOffset(1){
 	mSize = backtrace(mArray, sizeof(mArray)/sizeof(void*));
 	if (message) *this << message;
+#if __cplusplus > 199711L
 	if (get_terminate() != uncautch_handler)
-			set_terminate(uncautch_handler); //invoke in case of uncautch exception for this thread
+#endif
+		set_terminate(uncautch_handler); //invoke in case of uncautch exception for this thread
 }
+#if __cplusplus > 199711L
 FlexisipException::FlexisipException(string& msg): FlexisipException(msg.c_str()){
 	mOffset++;
 }
+#else
+FlexisipException::FlexisipException(string& message): mOffset(1){
+	mSize = backtrace(mArray, sizeof(mArray)/sizeof(void*));
+	*this << message;
+	set_terminate(uncautch_handler); //invoke in case of uncautch exception for this thread
+}
+#endif
+
 FlexisipException::~FlexisipException() throw (){
 	//nop
 }
+#if __cplusplus > 199711L
 FlexisipException::FlexisipException(): FlexisipException(""){
 	mOffset++;
 }
+#else
+FlexisipException::FlexisipException(): mOffset(1){
+	mSize = backtrace(mArray, sizeof(mArray)/sizeof(void*));
+	*this << "";
+	set_terminate(uncautch_handler); //invoke in case of uncautch exception for this thread
+}
+#endif
 /*FlexisipException::FlexisipException(FlexisipException&& other) {
 	FlexisipException(other);
 }*/
@@ -66,9 +86,9 @@ const char* FlexisipException::what() throw (){
 	 backtrace_symbols_fd(mArray+mOffset, mSize-mOffset, STDERR_FILENO);
  }
 
- void FlexisipException::printStackTrace(std::ostringstream & os) const {
+ void FlexisipException::printStackTrace(std::ostream & os) const {
  	 char** bt = backtrace_symbols(mArray,mSize);
- 	 for (int i = mOffset; i < mSize; ++i) {
+ 	 for (unsigned  int i = mOffset; i < mSize; ++i) {
  		os << bt[i] <<endl;
  	  }
  	delete (bt);
@@ -170,6 +190,12 @@ FlexisipException& FlexisipException::operator<<(ios& (*pf)(ios&)){
 FlexisipException& FlexisipException::operator<<(ios_base& (*pf)(ios_base&)){
 	mOs<<pf;
 	return *this;
+}
+
+std::ostream& operator<<(std::ostream& __os,const FlexisipException& e) {
+	__os << e.str() << std::endl;
+	e.printStackTrace(__os);
+	return __os;
 }
 
 

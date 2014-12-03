@@ -178,7 +178,7 @@ struct pumpstream : public std::ostringstream
 	}
 };
 
-#if 0 && (__GNUC__ == 4 && __GNUC_MINOR__ < 5 )
+#if (__GNUC__ == 4 && __GNUC_MINOR__ < 5 )
 template<typename _Tp>
 inline pumpstream &
 operator<<(pumpstream&& __os, const _Tp &__x)

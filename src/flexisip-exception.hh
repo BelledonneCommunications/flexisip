@@ -41,7 +41,7 @@ public:
 	 * */
 	void printStackTrace() const;
 
-	void printStackTrace(std::ostringstream & os) const;
+	void printStackTrace(std::ostream & os) const;
 
 	const char* what() throw ();
 	const std::string str() const;
@@ -74,19 +74,9 @@ private:
     size_t mSize;
     string mWhat;
 	ostringstream mOs;
-
-//    friend pumpstream&  operator<<( pumpstream&& __os();
 };
 
 std::ostream& operator<<(std::ostream& __os,const FlexisipException&);
-
-inline   pumpstream&
-operator<<( pumpstream& __os, const FlexisipException& e)
-{
-	__os << e.str() << std::endl;
-	e.printStackTrace(__os);
-	return __os;
-}
 
 #define FLEXISIP_EXCEPTION FlexisipException() << " " << __FILE__ << ":"<< __LINE__ << " "
 #endif /* FLEXISIPEXCEPTION_H_ */

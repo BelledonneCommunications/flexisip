@@ -330,10 +330,11 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 	VERSION
 	" (sofia-sip-nta/" NTA_VERSION ")";
 
-	//for_each(mModules.begin(), mModules.end(), bind2nd(mem_fun(&Module::declare), cr));
-	for (Module* mod :mModules) {
+	for_each(mModules.begin(), mModules.end(), bind2nd(mem_fun(&Module::declare), cr));
+	/*cxx11 only
+	 * for (Module* mod :mModules) {
 		mod->declare(cr);
-	}
+	}*/
 	onDeclare(cr);
 
 	struct ifaddrs *net_addrs;
