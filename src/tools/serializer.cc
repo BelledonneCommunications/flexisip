@@ -1,5 +1,5 @@
 
-#include "test_utils.hh"
+#include "tool_utils.hh"
 
 using namespace std;
 bool sUseSyslog;

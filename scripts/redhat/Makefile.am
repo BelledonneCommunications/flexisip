@@ -20,3 +20,5 @@ initdir=$(sysconfdir)/init.d
 init_SCRIPTS=flexisip
 
 endif
+
+CLEANFILES=flexisip

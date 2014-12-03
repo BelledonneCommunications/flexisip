@@ -20,7 +20,7 @@
 #include <unistd.h>
 
 
-static void uncautch_handler () {
+static void uncaught_handler () {
 	std::exception_ptr p= current_exception();
 	try {
 		rethrow_exception(p);
@@ -36,10 +36,10 @@ FlexisipException e;
 FlexisipException::FlexisipException(const char* message): mOffset(1){
 	mSize = backtrace(mArray, sizeof(mArray)/sizeof(void*));
 	if (message) *this << message;
-#if __cplusplus > 199711L
-	if (get_terminate() != uncautch_handler)
+#if __clang
+	if (get_terminate() != uncaught_handler)
 #endif
-		set_terminate(uncautch_handler); //invoke in case of uncautch exception for this thread
+		set_terminate(uncaught_handler); //invoke in case of uncautch exception for this thread
 }
 #if __cplusplus > 199711L
 FlexisipException::FlexisipException(string& msg): FlexisipException(msg.c_str()){
@@ -49,7 +49,7 @@ FlexisipException::FlexisipException(string& msg): FlexisipException(msg.c_str()
 FlexisipException::FlexisipException(string& message): mOffset(1){
 	mSize = backtrace(mArray, sizeof(mArray)/sizeof(void*));
 	*this << message;
-	set_terminate(uncautch_handler); //invoke in case of uncautch exception for this thread
+	set_terminate(uncaught_handler); //invoke in case of uncautch exception for this thread
 }
 #endif
 
@@ -64,7 +64,7 @@ FlexisipException::FlexisipException(): FlexisipException(""){
 FlexisipException::FlexisipException(): mOffset(1){
 	mSize = backtrace(mArray, sizeof(mArray)/sizeof(void*));
 	*this << "";
-	set_terminate(uncautch_handler); //invoke in case of uncautch exception for this thread
+	set_terminate(uncaught_handler); //invoke in case of uncautch exception for this thread
 }
 #endif
 /*FlexisipException::FlexisipException(FlexisipException&& other) {

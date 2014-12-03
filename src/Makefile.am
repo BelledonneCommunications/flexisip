@@ -9,7 +9,7 @@ ECHO=/bin/echo
 CLEANFILES=$(GITVERSION_FILE)
 BUILT_SOURCES=$(GITVERSION_FILE)
 
-SUBDIRS=test presence
+SUBDIRS=presence
 nodistsources=
 
 bin_PROGRAMS=flexisip
@@ -164,14 +164,18 @@ flexisip_ctdumper_LDADD=$(flexisip_LDADD)
 nodist_flexisip_ctdumper_SOURCES=$(nodistsources)
 endif
 
-flexisip_serializer_SOURCES=tools/serializer.cc test/test_utils.hh $(thesources)
+flexisip_serializer_SOURCES=tools/serializer.cc tools/tool_utils.hh $(thesources)
 flexisip_serializer_LDADD=$(flexisip_LDADD)
 nodist_flexisip_serializer_SOURCES=$(nodistsources)
 
-flexisip_binder_SOURCES=tools/binder.cc test/test_utils.hh $(thesources)
+flexisip_binder_SOURCES=tools/binder.cc tools/tool_utils.hh $(thesources)
 flexisip_binder_LDADD=$(flexisip_LDADD)
 nodist_flexisip_binder_SOURCES=$(nodistsources)
 
+noinst_PROGRAMS=expr
+expr_SOURCES=test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh
+expr_CXXFLAGS=-DTEST_BOOL_EXPR -DNO_SOFIA $(MEDIASTREAMER_CFLAGS)
+expr_LDADD=$(MEDIASTREAMER_LIBS) 
 
 
 if BUILD_PUSHNOTIFICATION

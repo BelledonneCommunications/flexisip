@@ -485,7 +485,6 @@ scripts/Makefile
 scripts/debian/Makefile
 scripts/redhat/Makefile
 src/Makefile
-src/test/Makefile
 src/presence/Makefile
 doc/Makefile
 debian/Makefile
