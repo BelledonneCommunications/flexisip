@@ -15,11 +15,11 @@
 # Do NOT "set -e"
 
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
-PATH=/sbin:/usr/sbin:/bin:/usr/bin
+PATH=/sbin:/usr/sbin:/bin:/usr/bin:@bindir@
 DESC="SIP proxy"
 NAME=flexisip
 PIDFILE=/var/run/$NAME.pid
-DAEMON=/usr/bin/$NAME
+DAEMON=@bindir@/$NAME
 DAEMON_ARGS="--daemon --syslog --pidfile $PIDFILE"
 SCRIPTNAME=/etc/init.d/$NAME
 
