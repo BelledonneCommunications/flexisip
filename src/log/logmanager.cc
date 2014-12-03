@@ -337,7 +337,6 @@ namespace log {
 		is_syslog=syslog;
 		is_debug=debug;
 		ortp_set_log_file(stdout);
-		cerr << "syslog=" << syslog << " debug=" << debug << endl;
 
 		if (debug){
 			ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
