@@ -1,10 +1,20 @@
 /*
- * FlexisipException.cpp
- *
- *  Created on: 4 févr. 2014
- *      Author: jehanmonnier
+	Flexisip, a flexible SIP proxy server with media capabilities.
+	Copyright (C) 2014  Belledonne Communications SARL.
+ 
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
+ 
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
+ 
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "flexisip-exception.hh"
 #include <execinfo.h>
 #include <unistd.h>
@@ -31,7 +41,7 @@ FlexisipException::FlexisipException(const char* message): mOffset(1){
 FlexisipException::FlexisipException(string& msg): FlexisipException(msg.c_str()){
 	mOffset++;
 }
-FlexisipException::~FlexisipException() {
+FlexisipException::~FlexisipException() throw (){
 	//nop
 }
 FlexisipException::FlexisipException(): FlexisipException(""){
@@ -44,11 +54,11 @@ FlexisipException::FlexisipException(const FlexisipException& other ) {
 	mOffset=other.mOffset;
 	memcpy(mArray,other.mArray,sizeof(mArray));
 	mSize=other.mSize;
-	*static_cast<ostringstream*>(this) << other.str();
+	mOs << other.str();
 	mWhat=other.mWhat;
 }
 const char* FlexisipException::what() throw (){
-	mWhat=str();
+	mWhat=mOs.str();
 	return mWhat.c_str();
 }
  void FlexisipException::printStackTrace() const {
@@ -64,5 +74,102 @@ const char* FlexisipException::what() throw (){
  	delete (bt);
  }
 
+const std::string FlexisipException::str() const {
+	return mOs.str();
+}
+FlexisipException& FlexisipException::operator<< (const char *val) {
+	mOs<<val;
+	return *this;
+}
+FlexisipException& FlexisipException::operator<< (const string& val){
+	mOs<<val;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(bool val){
+	mOs<<val;
+	return *this;
+}
+
+
+FlexisipException& FlexisipException::operator<<(short val){
+	mOs<<val;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(unsigned short val){
+	mOs<<val;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(int val){
+	mOs<<val;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(unsigned int val){
+	mOs<<val;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(long val){
+	mOs<<val;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(unsigned long val){
+	mOs<<val;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(long long val){
+	mOs<<val;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(unsigned long long val){
+	mOs<<val;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(float val){
+	mOs<<val;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(double val){
+	mOs<<val;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(long double val){
+	mOs<<val;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(void* val){
+	mOs<<val;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(streambuf* sb ){
+	mOs<<sb;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(ostream& (*pf)(ostream&)){
+	mOs<<pf;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(ios& (*pf)(ios&)){
+	mOs<<pf;
+	return *this;
+}
+
+FlexisipException& FlexisipException::operator<<(ios_base& (*pf)(ios_base&)){
+	mOs<<pf;
+	return *this;
+}
 
 

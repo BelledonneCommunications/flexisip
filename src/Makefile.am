@@ -159,16 +159,16 @@ endif
 
 if BUILD_REDIS
 bin_PROGRAMS+=flexisip_ctdumper flexisip_serializer flexisip_binder
-flexisip_ctdumper_SOURCES=tool/ctdumper.cc $(thesources)
+flexisip_ctdumper_SOURCES=tools/ctdumper.cc $(thesources)
 flexisip_ctdumper_LDADD=$(flexisip_LDADD)
 nodist_flexisip_ctdumper_SOURCES=$(nodistsources)
 endif
 
-flexisip_serializer_SOURCES=test/serializer.cc test/test_utils.hh $(thesources)
+flexisip_serializer_SOURCES=tools/serializer.cc test/test_utils.hh $(thesources)
 flexisip_serializer_LDADD=$(flexisip_LDADD)
 nodist_flexisip_serializer_SOURCES=$(nodistsources)
 
-flexisip_binder_SOURCES=test/binder.cc test/test_utils.hh $(thesources)
+flexisip_binder_SOURCES=tools/binder.cc test/test_utils.hh $(thesources)
 flexisip_binder_LDADD=$(flexisip_LDADD)
 nodist_flexisip_binder_SOURCES=$(nodistsources)
 
@@ -176,14 +176,14 @@ nodist_flexisip_binder_SOURCES=$(nodistsources)
 
 if BUILD_PUSHNOTIFICATION
 bin_PROGRAMS+=flexisip_pusher
-flexisip_pusher_SOURCES=tool/pusher.cc $(thesources)
+flexisip_pusher_SOURCES=tools/pusher.cc $(thesources)
 flexisip_pusher_LDADD=$(flexisip_LDADD)
 nodist_flexisip_pusher_SOURCES=$(nodistsources)
 endif
 
 flexisip_SOURCES=main.cc $(thesources)
 nodist_flexisip_SOURCES=$(nodistsources)
-EXTRA_DIST=$(pb_files) $(GITVERSION_FILE) tool/ctdumper.cc
+EXTRA_DIST=$(pb_files) $(GITVERSION_FILE) tools/ctdumper.cc
 
 
 clean-local:
