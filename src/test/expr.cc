@@ -81,7 +81,7 @@ static void print_test_value(size_t nb, const char *expr, const char* args, bool
 }
 
 static void btest(bool expected, const char *expr, const char *argstr) {
-	++count;
+	++::count;
 	bool success=false;
 	try {
 		string s(expr);
@@ -89,10 +89,10 @@ static void btest(bool expected, const char *expr, const char *argstr) {
 		if (be){
 			SipAttributes args(argstr);
 			bool res=success=be->eval(&args);
-			print_test_value(count, expr, argstr, expected, res);
+			print_test_value(::count, expr, argstr, expected, res);
 		}
 	} catch(exception *e){
-		std::cerr << "[KO] " << count << " exception " << e->what() << std::endl;
+		std::cerr << "[KO] " << ::count << " exception " << e->what() << std::endl;
 	}
 }
 
@@ -106,7 +106,7 @@ static void btest_false(const char *expr, const char *argstr) {
 }
 
 void do_interceptor_tests() {
-	count=0; cerr << "Suite interceptor" << endl;
+	::count=0; cerr << "Suite interceptor" << endl;
 	const char *expr="is_response || !(ua contains 'Linphone/3.5.2') || ((request.method-name == 'INVITE') && !(request.uri.user contains 'ip'))";
 
 	btest_true(expr, "is_response=0|ua=Linphone/3.5.2|request.method-name=INVITE|request.uri.user=45645");
@@ -115,20 +115,20 @@ void do_interceptor_tests() {
 }
 
 void do_true_false(void) {
-	count=0; cerr << "Suite bool" << endl;
+	::count=0; cerr << "Suite bool" << endl;
 	btest_true("true","");
 	btest_false("false","");
 }
 
 void do_or(void) {
-	count=0; cerr << "Suite or" << endl;
+	::count=0; cerr << "Suite or" << endl;
 	btest_false("false||false","");
 	btest_false("false||false||false","");
 	btest_true("false||false||true","");
 }
 
 void do_and(void) {
-	count=0; cerr << "Suite and" << endl;
+	::count=0; cerr << "Suite and" << endl;
 	btest_true("true&&true","");
 	btest_true("true&&true&&true","");
 	btest_false("false&&true","");
@@ -138,33 +138,33 @@ void do_and(void) {
 
 
 void do_const(void) {
-	count=0; cerr << "Suite const" << endl;
+	::count=0; cerr << "Suite const" << endl;
 	btest_false("'a'=='b'","");
 	btest_true("'a'=='a'","");
 }
 
 
 void do_var(void) {
-	count=0; cerr << "Suite var" << endl;
+	::count=0; cerr << "Suite var" << endl;
 	btest_true("a==''","a=");
 	btest_true("a=='test'","a=test");
 	btest_false("a=='test'","a=different");
 }
 
 void do_regex(void) {
-	count=0; cerr << "Suite regex" << endl;
+	::count=0; cerr << "Suite regex" << endl;
 	btest_true("a regex 'toto'","a=toto");
 	btest_false("a regex 'toto'","a=titi");
 }
 
 void do_numeric(void) {
-	count=0; cerr << "Suite numeric" << endl;
+	::count=0; cerr << "Suite numeric" << endl;
 	btest_true("numeric aa","aa=12345");
 	btest_false("numeric a","a=123ip");
 }
 
 void do_in(void) {
-	count=0; cerr << "Suite in" << endl;
+	::count=0; cerr << "Suite in" << endl;
 
 	bool exp=true;
 	btest(exp, "'A' in 'A'","");
@@ -179,7 +179,7 @@ void do_in(void) {
 }
 
 void do_nin(void) {
-	count=0; cerr << "Suite nin" << endl;
+	::count=0; cerr << "Suite nin" << endl;
 
 	bool exp=false;
 	btest(exp, "'A' nin 'A'","");
@@ -194,7 +194,7 @@ void do_nin(void) {
 }
 
 void do_other(void) {
-	count=0; cerr << "Suite other" << endl;
+	::count=0; cerr << "Suite other" << endl;
 
 	btest_true("false||(a=='toto')||false","a=toto");
 	btest_false("false||(a=='toto')||false","a=titi");
@@ -202,7 +202,7 @@ void do_other(void) {
 }
 
 void do_defined(void) {
-	count=0; cerr << "Suite defined" << endl;
+	::count=0; cerr << "Suite defined" << endl;
 	btest_true("defined a", "a=toto");
 	btest_false("defined a", "b=toto");
 	btest_false("!defined a", "a=toto");
