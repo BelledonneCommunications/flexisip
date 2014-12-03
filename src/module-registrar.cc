@@ -85,7 +85,7 @@ public:
 					"<sip:contact@domain> <sip:127.0.0.1:5460>,<sip:192.168.0.1:5160>", "" },
 			{ Integer, "static-records-timeout", "Timeout in seconds after which the static records file is re-read and the contacts updated.", "600" },
 
-			{ String , "db-implementation", "Implementation used for storing address of records contact uris. [redis-async, internal]","internal"},
+			{ String , "db-implementation", "Implementation used for storing address of records contact uris. [redis, internal]","internal"},
 			// Redis config support
 			{ String , "redis-server-domain", "Domain of the redis server. ","localhost"},
 			{ Integer , "redis-server-port", "Port of the redis server.","6379"},
