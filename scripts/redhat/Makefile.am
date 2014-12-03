@@ -2,7 +2,6 @@ EXTRA_DIST=flexisip.in
 
 if USE_RPM
 
-
 edit = sed -e 's|@bindir[@]|$(bindir)|g'
      
 flexisip: Makefile
