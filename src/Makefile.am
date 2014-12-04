@@ -175,7 +175,7 @@ nodist_flexisip_binder_SOURCES=$(nodistsources)
 noinst_PROGRAMS=expr
 expr_SOURCES=test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh
 expr_CXXFLAGS=-DTEST_BOOL_EXPR -DNO_SOFIA $(MEDIASTREAMER_CFLAGS)
-expr_LDADD=$(MEDIASTREAMER_LIBS) 
+expr_LDADD=$(flexisip_LDADD)
 
 
 if BUILD_PUSHNOTIFICATION
