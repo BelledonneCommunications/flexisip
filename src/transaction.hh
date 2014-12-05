@@ -130,6 +130,10 @@ public:
 	IncomingTransaction(Agent *agent);
 	void handle(const std::shared_ptr<MsgSip> &ms);
 	std::shared_ptr<MsgSip> createResponse(int status, char const *phrase);
+	sip_t *getLastResponse(){
+		msg_t *msg=nta_incoming_getresponse(mIncoming);
+		return msg ? (sip_t*)msg_object(msg) : NULL;
+	}
 	~IncomingTransaction();
 	inline virtual Agent *getAgent() {
 		return Transaction::getAgent();

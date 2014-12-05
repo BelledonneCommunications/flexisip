@@ -335,13 +335,21 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	}
 
 	if (it && (c = it->getProperty<RelayedCall>(getModuleName()))!=NULL){
-		//This is a response sent to the incoming transaction. Check for failure code, in which case the call context can be destroyed
-		//immediately.
+		//This is a response sent to the incoming transaction. 
 		LOGD("call context %p",c.get());
-		if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite && sip->sip_status->st_status >= 300){
-			if (!c->isDialogEstablished()){
-				LOGD("RelayedCall is terminated by final error response");
-				mCalls->remove(c);
+		if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite){
+			//Check for failure code, in which case the call context can be destroyed immediately.
+			if ( sip->sip_status->st_status >= 300){
+				if (!c->isDialogEstablished()){
+					LOGD("RelayedCall is terminated by final error response");
+					mCalls->remove(c);
+				}
+			}else if (sip->sip_status->st_status < 200){
+				//ensure that a single early media response is forwarded, otherwise it will be conflicting with the early-media forking
+				//feature of the MediaRelay module.
+				sip_t *last_response=it->getLastResponse();
+				if (isEarlyMedia(last_response))
+					ev->terminateProcessing();
 			}
 		}
 	}
