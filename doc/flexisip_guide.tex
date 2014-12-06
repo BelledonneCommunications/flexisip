@@ -107,7 +107,7 @@ An example of active-active configuration is included in this guide.
 
 \section{Installation}
 \subsection{Hardware and OS}
-This guide is to be used on Debian6 or Centos6 servers.
+This guide is to be used on Debian7 or Centos6 servers.
 
 
 \subsection{Network configuration}
@@ -121,38 +121,32 @@ Note that the 172.16.0.1 address is reserved for the registration database (redi
 
 
 \subsection{Installation on Centos}
-\subsubsection{Tarball - yum}
-Copy flexisip-server-ha*.rpm and  bcrepo.tar.* on the target server.
-Uncompress the tarball and copy the flexisip-server-ha rpm to the bcrepo directory then install the packages with “yum install *”.
+
+You have to have the EPEL repository added to your list of repositories. If you don't, please follow the instructions here: \url{https://fedoraproject.org/wiki/EPEL}
 
 
-To update, use the command “yum reinstall” on the components you wish to upgrade.
+Then, add our nightly repository to your yum repo list:
 
-
-\subsubsection{yum repository}
-Copy flexisip-server-ha*.rpm and  bcrepo.tar.* on the target server.
-Uncompress the bcrepo.tar.* yum repository archive in / directory.
-Create local yum repository.
 \begin{verbatim}
 cat > /etc/yum.repos.d/Belledonne.repo <<EOF
-[belledonne]
+[Belledonne]
 name=Belledonne
-baseurl=file:///var/bcrepo
-gpgcheck=0
+baseurl=http://www.linphone.org/snapshots/centos/
 enabled=1
+gpgcheck=0
 EOF
 \end{verbatim}
 
 Install
 \begin{verbatim}
-yum --disablerepo='*' --enablerepo='belledonne' clean
-yum install flexisip-server-ha*.rpm
+yum install bc-flexisip
 \end{verbatim}
 
 
 \subsection{Installation on Debian Wheezy}
-\subsubsection{Belledonne repository - apt}
-Prepend the belledonne communication apt repo in /etc/apt/sources.list:
+
+
+Prepend the belledonne communication apt repo in /etc/apt/sources.list.d/belledonne.list :
 \begin{verbatim}
 deb http://linphone.org/snapshots/debian wheezy main
 \end{verbatim}
@@ -170,14 +164,26 @@ wget -O - -q http://linphone.org/snapshots/debian/repo.gpg.key | apt-key add -
 Update aptitude and install flexisip and it's dependencies:
 \begin{verbatim}
 aptitude update
-aptitude -t wheezy-backports install redis-server
-aptitude install flexisip
+aptitude install bc-flexisip
 \end{verbatim}
 
-Then define /etc/flexisip.conf and restart flexisip daemon.
+\subsection{Default configuration}
+
+First of all, you should add the /opt/belledonne-communications/bin directory to your PATH:
+
 \begin{verbatim}
-flexisip --dump-default-config > /etc/flexisip/flexisip.conf
+export PATH=$PATH:/opt/belledonne-communications/bin
+\end{verbatim}
+
+You should define /etc/flexisip.conf and restart flexisip daemon:
+\begin{verbatim}
+/opt/belledonne-communications/bin/flexisip --dump-default-config > /etc/flexisip/flexisip.conf
+
+# on debian:
 service flexisip restart
+
+# on centos:
+/etc/init.d/flexisip restart
 \end{verbatim}
 
 \subsection{Startup options}
