@@ -62,7 +62,7 @@ Requires: boost-log >= 1.41.0
 %if %{protobuf}
 Requires: protobuf >= 2.3.0
 Requires: protobuf-c >= 0.15
-Requires: protobuf-c-devel >= 2.3.0
+Requires: protobuf-c-devel >= 0.15
 BuildRequires: protobuf-compiler >= 2.3.0
 %endif
 
