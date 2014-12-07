@@ -49,12 +49,32 @@ BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 BuildArch:	i686
 %endif
 Requires: bash >= 2.0
+Requires: boost-system >= 1.41
+
 %if %{odbc}
 Requires: %{pkg_prefix}unixODBC >= 2.3.0
 %endif
+
 %if %{boostlog}
 Requires: boost-log >= 1.41.0
 %endif
+
+%if %{protobuf}
+Requires: protobuf >= 2.3.0
+Requires: protobuf-c >= 0.15
+Requires: protobuf-c-devel >= 2.3.0
+BuildRequires: protobuf-compiler >= 2.3.0
+%endif
+
+%if %{snmp}
+Requires: net-snmp-libs
+Requires: net-snmp-devel
+%endif
+
+%if %{transcoder}
+Requires: %{pkg_prefix}mediastreamer
+%endif
+
 Requires(post): /sbin/chkconfig coreutils
 Requires(preun): /sbin/chkconfig /sbin/chkconfig
 Requires(postun): /sbin/service
