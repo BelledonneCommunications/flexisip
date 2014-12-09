@@ -219,22 +219,36 @@ static void forkAndDetach(const char *pidfile, bool auto_respawn){
 	}
 
 	if (pid==0){
-		while(1){
-			/*fork a second time for the flexisip real process*/
-			flexisip_pid = fork();
-			if (flexisip_pid < 0){
-				fprintf(stderr,"Could not fork: %s\n",strerror(errno));
-				exit(-1);
+fork_flexisip:
+		/*fork a second time for the flexisip real process*/
+		flexisip_pid = fork();
+		if (flexisip_pid < 0){
+			fprintf(stderr,"Could not fork: %s\n",strerror(errno));
+			exit(-1);
+		}
+		if (flexisip_pid == 0) {
+			/* This is the real flexisip process now.
+			 * We can proceed with real start
+			 */
+#ifdef HAVE_SYS_PRCTL_H
+			if (prctl(PR_SET_NAME,"flexisip",NULL,NULL,NULL)==-1){
+				LOGW("prctl() failed: %s",strerror(errno));
 			}
-			if (flexisip_pid > 0){
-				/* We are in the watchdog process. It will block until flexisip exits cleanly.
+#endif
+			/* we don't need the read pipe side */
+			close(pipe_fds[0]);
+			makePidFile(pidfile);
+			return;
+		}
+
+		/* We are in the watchdog process. It will block until flexisip exits cleanly.
 				 In case of crash, it will restart it.*/
-				#ifdef PR_SET_NAME
-				if (prctl(PR_SET_NAME,"flexisip_wdog",NULL,NULL,NULL)==-1){
-					LOGW("prctl() failed: %s",strerror(errno));
-				}
-				#endif
-			do_wait:
+#ifdef PR_SET_NAME
+		if (prctl(PR_SET_NAME,"flexisip_wdog",NULL,NULL,NULL)==-1){
+			LOGW("prctl() failed: %s",strerror(errno));
+		}
+#endif
+		while(true) {
 			int status=0;
 			pid_t retpid=wait(&status);
 			if (retpid>0){
@@ -242,7 +256,7 @@ static void forkAndDetach(const char *pidfile, bool auto_respawn){
 					if (WEXITSTATUS(status) == RESTART_EXIT_CODE) {
 						LOGI("Flexisip restart to apply new config...");
 						sleep(1);
-						continue;
+						goto fork_flexisip;
 					} else {
 						LOGD("Flexisip exited normally");
 						exit(0);
@@ -250,25 +264,11 @@ static void forkAndDetach(const char *pidfile, bool auto_respawn){
 				}else if (auto_respawn){
 					LOGE("Flexisip apparently crashed, respawning now...");
 					sleep(1);
-					continue;
+					goto fork_flexisip;
 				}
 			}else if (errno!=EINTR){
 				LOGE("waitpid() error: %s",strerror(errno));
 				exit(-1);
-			}else goto do_wait;
-			}else{
-				/* This is the real flexisip process now.
-				 * We can proceed with real start
-				 */
-#ifdef HAVE_SYS_PRCTL_H
-				if (prctl(PR_SET_NAME,"flexisip",NULL,NULL,NULL)==-1){
-					LOGW("prctl() failed: %s",strerror(errno));
-				}
-#endif
-				/*we don't need the read pipe side*/
-				close(pipe_fds[0]);
-				makePidFile(pidfile);
-				return;
 			}
 		}
 		/*this is the case where we don't use the watch dog. Just create pid file and that's all.*/
