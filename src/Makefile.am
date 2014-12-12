@@ -33,6 +33,7 @@ thesources= \
 			event.cc event.hh \
 			transaction.cc transaction.hh \
 			module.cc module.hh \
+			monitor.cc monitor.hh \
 			entryfilter.cc entryfilter.hh \
 			stun.cc stun.hh \
 			mediarelay.cc mediarelay.hh \

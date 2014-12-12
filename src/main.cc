@@ -71,9 +71,12 @@
 #include "presence/presence-server.h"
 #endif //ENABLE_PRESENCE
 
+#include "monitor.hh"
+
 static int run=1;
 static int pipe_fds[2]={-1}; //pipes used by flexisip to notify its starter process that everything went fine
-static pid_t flexisip_pid=0;
+static pid_t flexisip_pid = -1;
+static pid_t monitor_pid = -1;
 static su_root_t *root=NULL;
 bool sUseSyslog=false;
 
@@ -205,8 +208,9 @@ static void makePidFile(const char *pidfile){
 	}
 }
 
-static void forkAndDetach(const char *pidfile, bool auto_respawn){
+static void forkAndDetach(const char *pidfile, const char *monitor_pidfile, bool auto_respawn){
 	int err=pipe(pipe_fds);
+	bool firstTime = true;
 	if (err==-1){
 		LOGE("Could not create pipes: %s",strerror(errno));
 		exit(-1);
@@ -220,7 +224,7 @@ static void forkAndDetach(const char *pidfile, bool auto_respawn){
 
 	if (pid==0){
 fork_flexisip:
-		/*fork a second time for the flexisip real process*/
+		/*fork for the flexisip real process*/
 		flexisip_pid = fork();
 		if (flexisip_pid < 0){
 			fprintf(stderr,"Could not fork: %s\n",strerror(errno));
@@ -240,6 +244,28 @@ fork_flexisip:
 			makePidFile(pidfile);
 			return;
 		}
+		if(!firstTime) goto watchdog_loop;
+
+fork_monitor:
+		/* fork for the flexisip monitor */
+		monitor_pid = fork();
+		if (monitor_pid < 0){
+			fprintf(stderr,"Could not fork: %s\n",strerror(errno));
+			exit(-1);
+		}
+		if (monitor_pid == 0) {
+			/* This is the flexisip monitor process now. */
+#ifdef HAVE_SYS_PRCTL_H
+			if (prctl(PR_SET_NAME,"flexisip_monitor",NULL,NULL,NULL)==-1){
+				LOGW("prctl() failed: %s",strerror(errno));
+			}
+#endif
+			close(pipe_fds[0]);
+			close(pipe_fds[1]);
+			makePidFile(monitor_pidfile);
+			return;
+		}
+		if(!firstTime) goto watchdog_loop;
 
 		/* We are in the watchdog process. It will block until flexisip exits cleanly.
 				 In case of crash, it will restart it.*/
@@ -248,23 +274,36 @@ fork_flexisip:
 			LOGW("prctl() failed: %s",strerror(errno));
 		}
 #endif
+		firstTime = false;
+
+watchdog_loop:
 		while(true) {
 			int status=0;
 			pid_t retpid=wait(&status);
 			if (retpid>0){
-				if (WIFEXITED(status)) {
-					if (WEXITSTATUS(status) == RESTART_EXIT_CODE) {
-						LOGI("Flexisip restart to apply new config...");
+				if(retpid == flexisip_pid) {
+					if (WIFEXITED(status)) {
+						if (WEXITSTATUS(status) == RESTART_EXIT_CODE) {
+							LOGI("Flexisip restart to apply new config...");
+							sleep(1);
+							goto fork_flexisip;
+						} else {
+							LOGD("Flexisip exited normally");
+							exit(0);
+						}
+					}else if (auto_respawn){
+						LOGE("Flexisip apparently crashed, respawning now...");
 						sleep(1);
 						goto fork_flexisip;
-					} else {
-						LOGD("Flexisip exited normally");
-						exit(0);
 					}
-				}else if (auto_respawn){
-					LOGE("Flexisip apparently crashed, respawning now...");
-					sleep(1);
-					goto fork_flexisip;
+				} else if(retpid == monitor_pid) {
+					if(WIFEXITED(status)) {
+						LOGD("Flexisip monitior exited normaly");
+					} else if(auto_respawn){
+						LOGE("The Flexisip monitor apparently crashed, respawning now...");
+						sleep(1);
+						goto fork_monitor;
+					}
 				}
 			}else if (errno!=EINTR){
 				LOGE("waitpid() error: %s",strerror(errno));
@@ -547,7 +586,11 @@ int main(int argc, char *argv[]){
 	if (daemon){
 		/*now that we have successfully loaded the config, there is nothing that can prevent us to start (normally).
 		So we can detach.*/
-		forkAndDetach(pidfile,cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read());
+		forkAndDetach(pidfile, "/home/francois/flexisip_monitor.pid", cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read());
+		if(monitor_pid == 0) {
+			Monitor::exec();
+			LOGE("Execution of the Flexisip monitor failed");
+		}
 	}
 
 	LOGN("Starting flexisip version %s (git %s)", VERSION, FLEXISIP_GIT_VERSION);
@@ -608,4 +651,3 @@ int main(int argc, char *argv[]){
 	GenericManager::get()->sendTrap("Flexisip exiting normally");
 	return 0;
 }
-
