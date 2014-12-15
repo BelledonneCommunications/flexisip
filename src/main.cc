@@ -74,7 +74,7 @@
 #include "monitor.hh"
 
 static int run=1;
-static int pipe_fds[2]={-1}; //pipes used by flexisip to notify its starter process that everything went fine
+static int pipe_wd_fs[2]={-1}; // pipe used by the watchdog to notify the starter process that everything went fine
 static pid_t flexisip_pid = -1;
 static pid_t monitor_pid = -1;
 static su_root_t *root=NULL;
@@ -208,23 +208,37 @@ static void makePidFile(const char *pidfile){
 	}
 }
 
-static void forkAndDetach(const char *pidfile, const char *monitor_pidfile, bool auto_respawn){
+static void forkAndDetach(const char *pidfile, bool auto_respawn, bool startMonitor){
+	int pipe_fds[2];
 	int err=pipe(pipe_fds);
-	bool firstTime = true;
 	if (err==-1){
 		LOGE("Could not create pipes: %s",strerror(errno));
 		exit(-1);
 	}
+	
+	/* Creation of the watch-dog process */
 	pid_t pid = fork();
-
 	if (pid < 0){
 		fprintf(stderr,"Could not fork: %s\n",strerror(errno));
 		exit(-1);
 	}
-
 	if (pid==0){
+		/* We are in the watch-dog process */
+		uint8_t buf[4];
+		close(pipe_fds[0]);
+#ifdef PR_SET_NAME
+		if (prctl(PR_SET_NAME,"flexisip_wdog",NULL,NULL,NULL)==-1){
+			LOGW("prctl() failed: %s",strerror(errno));
+		}
+#endif
+
+		/* Creation of the flexisip process */
 fork_flexisip:
-		/*fork for the flexisip real process*/
+		err = pipe(pipe_wd_fs);
+		if(err == -1) {
+			LOGE("Could not create pipes: %s",strerror(errno));
+			exit(-1);
+		}
 		flexisip_pid = fork();
 		if (flexisip_pid < 0){
 			fprintf(stderr,"Could not fork: %s\n",strerror(errno));
@@ -234,54 +248,61 @@ fork_flexisip:
 			/* This is the real flexisip process now.
 			 * We can proceed with real start
 			 */
+			close(pipe_wd_fs[0]);
 #ifdef HAVE_SYS_PRCTL_H
 			if (prctl(PR_SET_NAME,"flexisip",NULL,NULL,NULL)==-1){
 				LOGW("prctl() failed: %s",strerror(errno));
 			}
 #endif
-			/* we don't need the read pipe side */
-			close(pipe_fds[0]);
 			makePidFile(pidfile);
 			return;
 		}
-		if(!firstTime) goto watchdog_loop;
-
-fork_monitor:
-		/* fork for the flexisip monitor */
-		monitor_pid = fork();
-		if (monitor_pid < 0){
-			fprintf(stderr,"Could not fork: %s\n",strerror(errno));
+		
+		/* 
+		 * We are in the watch-dog process again
+		 * Waiting for successfull initialisation of the flexisip process
+		 */
+		close(pipe_wd_fs[1]);
+		err=read(pipe_wd_fs[0],buf,sizeof(buf));
+		if (err==-1 || err==0){
 			exit(-1);
 		}
-		if (monitor_pid == 0) {
-			/* This is the flexisip monitor process now. */
-#ifdef HAVE_SYS_PRCTL_H
-			if (prctl(PR_SET_NAME,"flexisip_monitor",NULL,NULL,NULL)==-1){
-				LOGW("prctl() failed: %s",strerror(errno));
+		if(write(pipe_fds[1], "ok", 3) == -1) {
+			exit(-1);
+		}
+		close(pipe_wd_fs[0]);
+		
+		/*
+		 * Flexisip has successfully started.
+		 * We can now start the Flexisip monitor if it is requierd
+		 */
+fork_monitor:
+		if(startMonitor){
+			monitor_pid = fork();
+			if (monitor_pid < 0){
+				fprintf(stderr,"Could not fork: %s\n",strerror(errno));
+				exit(-1);
 			}
-#endif
-			close(pipe_fds[0]);
-			close(pipe_fds[1]);
-			makePidFile(monitor_pidfile);
-			return;
+			if (monitor_pid == 0) {
+				/* We are in the flexisip monitor process */
+				close(pipe_fds[1]);
+				Monitor::exec();
+				LOGE("Fail to launch the Flexisip monitor");
+				exit(-1);
+			}
 		}
-		if(!firstTime) goto watchdog_loop;
 
-		/* We are in the watchdog process. It will block until flexisip exits cleanly.
-				 In case of crash, it will restart it.*/
-#ifdef PR_SET_NAME
-		if (prctl(PR_SET_NAME,"flexisip_wdog",NULL,NULL,NULL)==-1){
-			LOGW("prctl() failed: %s",strerror(errno));
-		}
-#endif
-		firstTime = false;
-
-watchdog_loop:
+		/* 
+		 * We are in the watchdog process once again
+		 * This loop aims to restart childs of the watchdog process
+		 * when they have a crash
+		 */
 		while(true) {
 			int status=0;
 			pid_t retpid=wait(&status);
 			if (retpid>0){
 				if(retpid == flexisip_pid) {
+					if(startMonitor) kill(monitor_pid, SIGTERM);
 					if (WIFEXITED(status)) {
 						if (WEXITSTATUS(status) == RESTART_EXIT_CODE) {
 							LOGI("Flexisip restart to apply new config...");
@@ -297,21 +318,15 @@ watchdog_loop:
 						goto fork_flexisip;
 					}
 				} else if(retpid == monitor_pid) {
-					if(WIFEXITED(status)) {
-						LOGD("Flexisip monitior exited normaly");
-					} else if(auto_respawn){
-						LOGE("The Flexisip monitor apparently crashed, respawning now...");
-						sleep(1);
-						goto fork_monitor;
-					}
+					LOGE("The Flexisip monitor has crashed or has been illegally terminated. Restarting now");
+					sleep(1);
+					goto fork_monitor;
 				}
 			}else if (errno!=EINTR){
 				LOGE("waitpid() error: %s",strerror(errno));
 				exit(-1);
 			}
 		}
-		/*this is the case where we don't use the watch dog. Just create pid file and that's all.*/
-		/*makePidFile(pidfile); // never reached code*/
 	}else{
 		/* This is the initial process.
 		 * It should block until flexisip has started sucessfully or rejected to start.
@@ -586,11 +601,9 @@ int main(int argc, char *argv[]){
 	if (daemon){
 		/*now that we have successfully loaded the config, there is nothing that can prevent us to start (normally).
 		So we can detach.*/
-		forkAndDetach(pidfile, "/home/francois/flexisip_monitor.pid", cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read());
-		if(monitor_pid == 0) {
-			Monitor::exec();
-			LOGE("Execution of the Flexisip monitor failed");
-		}
+		bool autoRespawn = cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read();
+		bool startMonitor = cfg->getRoot()->get<GenericStruct>("monitor")->get<ConfigBoolean>("enable")->read();
+		forkAndDetach(pidfile, autoRespawn, startMonitor);
 	}
 
 	LOGN("Starting flexisip version %s (git %s)", VERSION, FLEXISIP_GIT_VERSION);
@@ -620,9 +633,10 @@ int main(int argc, char *argv[]){
 	dos->start();
 
 	if (daemon){
-		if (write(pipe_fds[1],"ok",3)==-1){
+		if (write(pipe_wd_fs[1],"ok",3)==-1){
 			LOGF("Failed to write starter pipe: %s",strerror(errno));
 		}
+		close(pipe_wd_fs[1]);
 	}
 
 	if (cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()){
