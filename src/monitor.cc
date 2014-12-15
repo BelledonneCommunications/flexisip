@@ -28,7 +28,7 @@ const string Monitor::SCRIPT_PATH = "/home/francois/projects/flexisip/flexisip_m
 Monitor::Init::Init() {
 	ConfigItemDescriptor items[] = {
 		{ Boolean   , "enable"       , "Enable or disable the Flexisip monitor daemon", "false" },
-		{ StringList, "proxy-configs", "List of proxy parameters of each SIP client which will be used for inter-calling tests", ""},
+		{ StringList, "identities"   , "List of SIP identities which will be used to test the Flexisip nodes. There must be exactly as many SIP identities as Flexisip nodes", ""},
 		{ Integer   , "test-interval", "Time between two consecutive tests", "30"},
 		{ String    , "logfile"      , "Path to the log file", "/etc/flexisip/flexisip_monitor.log"},
 		{ Integer   , "switch-port"  , "Port to open/close folowing the test succeed or not", "12345"},
@@ -42,10 +42,28 @@ Monitor::Init::Init() {
 
 void Monitor::exec() {
 	GenericStruct *monitorParams = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
+	GenericStruct *authParams = GenericManager::get()->getRoot()->get<GenericStruct>("module::Authentication");
 	string interval = monitorParams->get<ConfigValue>("test-interval")->get();
 	string logfile = monitorParams->get<ConfigString>("logfile")->read();
 	string port = monitorParams->get<ConfigValue>("switch-port")->get();
-	list<string> proxyConfigs = monitorParams->get<ConfigStringList>("proxy-configs")->read();
+	list<string> identities = monitorParams->get<ConfigStringList>("identities")->read();
+	list<string> trustedHosts = authParams->get<ConfigStringList>("trusted-hosts")->read();
+	
+	if(identities.size() != trustedHosts.size()) {
+		LOGE("Flexisip monitor: there is not as many SIP indentities as trusted-hosts");
+		exit(-1);
+	}
+	
+	list<string> proxyConfigs;
+	list<string>::const_iterator itI;
+	list<string>::const_iterator itH;
+	for(itI = identities.cbegin(), itH = trustedHosts.cbegin();
+		itI != identities.cend();
+		itI++, itH++) {
+		string proxyURI = string("sip:") + itH->data() + string(";transport=tls");
+		string proxyConfig = itI->data() + string("/") + proxyURI;
+		proxyConfigs.push_back(proxyConfig);
+	}
 	
 	char **args = new char *[proxyConfigs.size() + 9];
 	args[0] = strdup(PYTHON_INTERPRETOR.c_str());
