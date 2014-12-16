@@ -18,6 +18,7 @@
 
 #include "monitor.hh"
 #include "configmanager.hh"
+#include "agent.hh"
 
 using namespace std;
 
@@ -41,27 +42,20 @@ Monitor::Init::Init() {
 }
 
 void Monitor::exec(int socket) {
-	GenericStruct *monitorParams;
-	try{
-		monitorParams = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
-	}catch(FlexisipException &e) {
-		LOGE(e.str().c_str());
-		exit(-1);
-	}
+	// Create a temporary agent to load all modules
+	su_root_t *root = NULL;
+	shared_ptr<Agent> a = make_shared<Agent>(root);
+	GenericManager::get()->loadStrict();
+	
+	GenericStruct *monitorParams = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
 	string interval = monitorParams->get<ConfigValue>("test-interval")->get();
 	string logfile = monitorParams->get<ConfigString>("logfile")->read();
 	string port = monitorParams->get<ConfigValue>("switch-port")->get();
 	
-	GenericStruct *authParams;
-	try{
-		authParams = GenericManager::get()->getRoot()->get<GenericStruct>("module::Authentication");
-	}catch(FlexisipException &e){
-		LOGE(e.str().c_str());
-		exit(-1);
-	}
-	
-	list<string> identities = monitorParams->get<ConfigStringList>("identities")->read();
+	GenericStruct *authParams = GenericManager::get()->getRoot()->get<GenericStruct>("module::Authentication");
 	list<string> trustedHosts = authParams->get<ConfigStringList>("trusted-hosts")->read();
+	list<string> identities = monitorParams->get<ConfigStringList>("identities")->read();
+	
 	if(identities.size() != trustedHosts.size()) {
 		LOGE("Flexisip monitor: there is not as many SIP indentities as trusted-hosts");
 		exit(-1);
