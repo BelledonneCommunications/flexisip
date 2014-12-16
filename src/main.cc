@@ -267,10 +267,6 @@ fork_flexisip:
 		if (err==-1 || err==0){
 			exit(-1);
 		}
-		if(write(pipe_fds[1], "ok", 3) == -1) {
-			exit(-1);
-		}
-		close(pipe_wd_fs[0]);
 		
 		/*
 		 * Flexisip has successfully started.
@@ -278,6 +274,13 @@ fork_flexisip:
 		 */
 fork_monitor:
 		if(startMonitor){
+			int pipe_wd_mo[2];
+			err = pipe(pipe_wd_mo);
+			if(err == -1){
+				LOGE("Cannot create pipe. %s", strerror(errno));
+				kill(flexisip_pid, SIGTERM);
+				exit(-1);
+			}
 			monitor_pid = fork();
 			if (monitor_pid < 0){
 				fprintf(stderr,"Could not fork: %s\n",strerror(errno));
@@ -286,14 +289,30 @@ fork_monitor:
 			if (monitor_pid == 0) {
 				/* We are in the flexisip monitor process */
 				close(pipe_fds[1]);
-				Monitor::exec();
+				close(pipe_wd_mo[0]);
+				Monitor::exec(pipe_wd_mo[1]);
 				LOGE("Fail to launch the Flexisip monitor");
 				exit(-1);
 			}
+			/* We are in the watchdog process */
+			close(pipe_wd_mo[1]);
+			err = read(pipe_wd_mo[0], buf, sizeof(buf));
+			if(err == -1 || err == 0) {
+				kill(flexisip_pid, SIGTERM);
+				exit(-1);
+			}
+			close(pipe_wd_mo[0]);
 		}
 
 		/* 
 		 * We are in the watchdog process once again
+		 */
+		if(write(pipe_fds[1], "ok", 3) == -1) {
+			exit(-1);
+		}
+		close(pipe_wd_fs[0]);
+		
+		/*
 		 * This loop aims to restart childs of the watchdog process
 		 * when they have a crash
 		 */

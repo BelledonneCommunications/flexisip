@@ -40,15 +40,28 @@ Monitor::Init::Init() {
 	s->addChildrenValues(items);
 }
 
-void Monitor::exec() {
-	GenericStruct *monitorParams = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
-	GenericStruct *authParams = GenericManager::get()->getRoot()->get<GenericStruct>("module::Authentication");
+void Monitor::exec(int socket) {
+	GenericStruct *monitorParams;
+	try{
+		monitorParams = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
+	}catch(FlexisipException &e) {
+		LOGE(e.str().c_str());
+		exit(-1);
+	}
 	string interval = monitorParams->get<ConfigValue>("test-interval")->get();
 	string logfile = monitorParams->get<ConfigString>("logfile")->read();
 	string port = monitorParams->get<ConfigValue>("switch-port")->get();
+	
+	GenericStruct *authParams;
+	try{
+		authParams = GenericManager::get()->getRoot()->get<GenericStruct>("module::Authentication");
+	}catch(FlexisipException &e){
+		LOGE(e.str().c_str());
+		exit(-1);
+	}
+	
 	list<string> identities = monitorParams->get<ConfigStringList>("identities")->read();
 	list<string> trustedHosts = authParams->get<ConfigStringList>("trusted-hosts")->read();
-	
 	if(identities.size() != trustedHosts.size()) {
 		LOGE("Flexisip monitor: there is not as many SIP indentities as trusted-hosts");
 		exit(-1);
@@ -80,5 +93,11 @@ void Monitor::exec() {
 		i++;
 	}
 	args[i] = NULL;
+	
+	if(write(socket, "ok", 3) == -1) {
+		exit(-1);
+	}
+	close(socket);
+	
 	execvp(args[0], args);
 }

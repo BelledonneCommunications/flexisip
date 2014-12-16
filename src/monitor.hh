@@ -23,7 +23,7 @@
 
 class Monitor {
 public:
-	static void exec();
+	static void exec(int socket);
 
 private:
 	class Init {
