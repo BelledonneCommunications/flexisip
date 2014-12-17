@@ -23,19 +23,39 @@ import time
 import logging
 import argparse
 import test
+import md5
+
+
+def md5sum(string):
+    ctx = md5.new()
+    ctx.update(string)
+    return ctx.hexdigest()
+
+
+def generate_username(host):
+    return "monitor-" + md5sum(host)
+
+
+def generate_password(host, salt):
+    return md5sum(host + salt)
 
 
 parser = argparse.ArgumentParser(description="daemon for testing availability of each server of a Flexisip cluster")
-parser.add_argument("proxy_config", nargs='+', help="configuration of each client\n" +
-                    "format: identity_uri/proxy_uri")
+parser.add_argument("domain", help="domain handle by the cluster")
+parser.add_argument("salt", help="salt used to generate passwords")
+parser.add_argument("nodes", nargs='+', help="list of nodes to test")
 parser.add_argument("--interval", type=int, help="set time interval in seconds between successive tests", dest="test_interval", default=30)
 parser.add_argument("--log", help="log file path", dest="log_file", default="./flexisip_monitor.log")
 parser.add_argument("--port", "-p", help="port to switch off when test fails", dest="port", type=int, default=12345)
 args = parser.parse_args()
 
 configs = []
-for config_str in args.proxy_config:
-    configs.append(tuple(config_str.split('/')))
+for node in args.nodes:
+    username = generate_username(node)
+    password = generate_password(node, args.salt)
+    uid = "sip:{0}:{1}@{2}".format(username, password, args.domain)
+    proxy = "sip:{0};transport=tls".format(args.domain)
+    configs.append((uid, proxy))
 
 logging.basicConfig(level=logging.INFO, filename=args.log_file)
 action = test.TcpPortAction(args.port)

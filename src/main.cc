@@ -617,12 +617,12 @@ int main(int argc, char *argv[]){
 	/*
 	 NEVER NEVER create pthreads before this point : threads do not survive the fork below !!!!!!!!!!
 	*/
+	bool monitorEnabled = cfg->getRoot()->get<GenericStruct>("monitor")->get<ConfigBoolean>("enabled")->read();
 	if (daemon){
 		/*now that we have successfully loaded the config, there is nothing that can prevent us to start (normally).
 		So we can detach.*/
 		bool autoRespawn = cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read();
-		bool startMonitor = cfg->getRoot()->get<GenericStruct>("monitor")->get<ConfigBoolean>("enable")->read();
-		forkAndDetach(pidfile, autoRespawn, startMonitor);
+		forkAndDetach(pidfile, autoRespawn, monitorEnabled);
 	}
 
 	LOGN("Starting flexisip version %s (git %s)", VERSION, FLEXISIP_GIT_VERSION);
@@ -644,6 +644,15 @@ int main(int argc, char *argv[]){
 	if (!configOverride.empty()) cfg->applyOverrides(true); // using default + overrides
 
 	a->loadConfig (cfg);
+	
+	// Create temporary test accounts for the Flexisip monitor if necessary
+	if(monitorEnabled) {
+		try {
+			Monitor::createAccounts();
+		} catch(const FlexisipException &e) {
+			LOGE("Could not create test accounts for the monitor. %s", e.str().c_str());
+		}
+	}
 
 	increase_fd_limit();
 
