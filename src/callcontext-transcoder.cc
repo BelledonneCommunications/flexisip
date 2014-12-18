@@ -57,8 +57,8 @@ CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCall
 	rtp_session_set_data(mSession,this);
 	rtp_session_signal_connect(mSession,"payload_type_changed",(RtpCallback)&CallSide::payloadTypeChanged,
 							   reinterpret_cast<void *>(ctx));
-	rtp_session_signal_connect(mSession,"timestamp_jump",(RtpCallback)rtp_session_resync,(long unsigned int)NULL);
-	rtp_session_signal_connect(mSession,"ssrc_changed",(RtpCallback)rtp_session_resync,(long unsigned int)NULL);
+	rtp_session_signal_connect(mSession,"timestamp_jump",(RtpCallback)rtp_session_resync,NULL);
+	rtp_session_signal_connect(mSession,"ssrc_changed",(RtpCallback)rtp_session_resync,NULL);
 	rtp_session_signal_connect(mSession,"telephone-event",(RtpCallback)&CallSide::onTelephoneEvent,reinterpret_cast<void *>(ctx));
 	mRtpEvq=NULL;
 	mLastCheck=0;
@@ -186,7 +186,7 @@ void CallSide::connect(CallSide *recvSide, MSTicker *ticker){
 	MSConnectionHelper conHelper;
 	PayloadType *recvpt;
 	PayloadType *sendpt;
-	
+
 	recvpt=recvSide->getRecvFormat();
 	sendpt=getSendFormat();
 	ms_connection_helper_start(&conHelper);
@@ -205,7 +205,7 @@ void CallSide::connect(CallSide *recvSide, MSTicker *ticker){
 			ms_filter_destroy(mDecoder);
 		}
 		rtp_session_flush_sockets(mSession);
-			
+
 		mDecoder=ms_filter_create_decoder(recvpt->mime_type);
 		if (mDecoder==NULL){
 			LOGE("Could not instanciate decoder for %s",recvpt->mime_type);
