@@ -312,7 +312,7 @@ oid Oid::oidFromHashedString(const string &str) {
 }
 
 GenericEntry::	GenericEntry(const string &name, GenericValueType type, const string &help,oid oid_index) :
-				mOid(0),mName(name),mReadOnly(false),mExportToConfigFile(true),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
+				mOid(0),mName(name),mReadOnly(false),mExportToConfigFile(true),mDeprecated(false),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
 	mConfigListener=NULL;
 	size_t idx;
 	for(idx=0;idx<name.size();idx++){
