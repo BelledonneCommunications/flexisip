@@ -107,8 +107,7 @@ An example of active-active configuration is included in this guide.
 
 \section{Installation}
 \subsection{Hardware and OS}
-This guide is to be used on Debian7 or Centos6 servers.
-
+This guide is to be used on Debian7 or Centos7 servers.
 
 \subsection{Network configuration}
 The server needs two IP addresses:
@@ -120,7 +119,7 @@ The server needs two IP addresses:
 Note that the 172.16.0.1 address is reserved for the registration database (redis server).
 
 
-\subsection{Installation on Centos}
+\subsection{Installation on Centos7}
 
 You have to have the EPEL repository added to your list of repositories. If you don't, please follow the instructions here: \url{https://fedoraproject.org/wiki/EPEL}
 
@@ -131,7 +130,7 @@ Then, add our nightly repository to your yum repo list:
 cat > /etc/yum.repos.d/Belledonne.repo <<EOF
 [Belledonne]
 name=Belledonne
-baseurl=http://www.linphone.org/snapshots/centos/
+baseurl=http://www.linphone.org/snapshots/centos/el7
 enabled=1
 gpgcheck=0
 EOF
@@ -141,6 +140,8 @@ Install
 \begin{verbatim}
 yum install bc-flexisip
 \end{verbatim}
+
+The very first launch will fail, because it will lack a valid configuration file (see below for instructions to use a default configuration).
 
 
 \subsection{Installation on Debian Wheezy}
@@ -182,8 +183,8 @@ You should define /etc/flexisip.conf and restart flexisip daemon:
 # on debian:
 service flexisip restart
 
-# on centos:
-/etc/init.d/flexisip restart
+# on centos7:
+systemctl start flexisip.service
 \end{verbatim}
 
 \subsection{Startup options}
