@@ -57,7 +57,8 @@ DosProtection::DosProtection() {
 		config_item_end 
 	};
 
-	GenericStruct *s = new GenericStruct("dos-protection", "DOS protection parameters.",0);
+	GenericStruct *s = new GenericStruct("dos-protection", "DOS protection parameters. They protect against deny-of-service attacks on the SIP ports listened by flexisip."
+						"The blacklist can be monitored in realtime by doing 'cat /proc/net/xt_recent/FLEXISIP_BLACKLIST'.",0);
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
 	s->deprecateChild("port");

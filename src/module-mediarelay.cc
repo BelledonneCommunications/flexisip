@@ -348,7 +348,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 				//ensure that a single early media response is forwarded, otherwise it will be conflicting with the early-media forking
 				//feature of the MediaRelay module.
 				sip_t *last_response=it->getLastResponse();
-				if (isEarlyMedia(last_response))
+				if (last_response && isEarlyMedia(last_response))
 					ev->terminateProcessing();
 			}
 		}

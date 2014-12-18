@@ -56,10 +56,10 @@ CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCall
 	rtp_session_set_symmetric_rtp(mSession,TRUE);
 	rtp_session_set_data(mSession,this);
 	rtp_session_signal_connect(mSession,"payload_type_changed",(RtpCallback)&CallSide::payloadTypeChanged,
-							   reinterpret_cast<void *>(ctx));
-	rtp_session_signal_connect(mSession,"timestamp_jump",(RtpCallback)rtp_session_resync,NULL);
-	rtp_session_signal_connect(mSession,"ssrc_changed",(RtpCallback)rtp_session_resync,NULL);
-	rtp_session_signal_connect(mSession,"telephone-event",(RtpCallback)&CallSide::onTelephoneEvent,reinterpret_cast<void *>(ctx));
+							   reinterpret_cast<unsigned long>(ctx));
+	rtp_session_signal_connect(mSession,"timestamp_jump",(RtpCallback)rtp_session_resync,(unsigned long)NULL);
+	rtp_session_signal_connect(mSession,"ssrc_changed",(RtpCallback)rtp_session_resync,(unsigned long)NULL);
+	rtp_session_signal_connect(mSession,"telephone-event",(RtpCallback)&CallSide::onTelephoneEvent,reinterpret_cast<unsigned long>(ctx));
 	mRtpEvq=NULL;
 	mLastCheck=0;
 	mLastRecvCount=0;
