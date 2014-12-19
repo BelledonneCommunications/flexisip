@@ -44,7 +44,7 @@ using namespace ::std;
 DosProtection::DosProtection() {
 	ConfigItemDescriptor items[] = { 
 		{ Boolean, "enabled", "Enable or disable DOS protection using IPTables firewall.", "false" }, 
-		{ StringList, "authorized-ip", "List of whitelist IPs which won't be affected by DOS protection.", "127.0.0.1" },
+		{ StringList, "authorized-ip", "List of whitelist IPs which won't be affected by DOS protection (the ones from the trusted-host param in module::Authentication section will be automatically added).", "127.0.0.1" },
 		{ Integer, "port",	"Deprecated: Local ports to protect.", "5060"},
 		{ Integer, "ban-duration",
 		"Time (in seconds) while an IP have to not send any packet in order to leave the blacklist.", "60" },
@@ -117,6 +117,8 @@ static bool directoryExists(const char* path)
 
 void DosProtection::load() {
 	GenericStruct *dosProtection = GenericManager::get()->getRoot()->get<GenericStruct>("dos-protection");
+	GenericStruct *auth = GenericManager::get()->getRoot()->get<GenericStruct>("module::Authentication");
+
 	mEnabled = dosProtection->get<ConfigBoolean>("enabled")->read();
 	mAuthorizedIPs = dosProtection->get<ConfigStringList>("authorized-ip")->read();
 	mBanDuration = dosProtection->get<ConfigInt>("ban-duration")->read();
@@ -124,7 +126,9 @@ void DosProtection::load() {
 	mNetmaskToUseToFilterSimultaneousConnections = dosProtection->get<ConfigInt>("simultaneous-connections-netmask-filter")->read();
 	mMaximumConnections = dosProtection->get<ConfigInt>("simultaneous-connections-limit")->read();
 	mMaximumConnectionsToWatch = dosProtection->get<ConfigInt>("connections-to-watch-limit")->read();
-	
+
+	mTrustedIPs = auth->get<ConfigStringList>("trusted-hosts")->read();
+
 	mPeriod = 1;
 	mLogLevel = "warning";
 	mLogPrefix = "Flexisip-DOS";
@@ -234,6 +238,13 @@ void DosProtection::start() {
 		returnedValue = system(cmd);
 		CHECK_RETURN(returnedValue, cmd)
 	}
+	SLOGD << "Also allowing trusted IPs to not be filtered by this rules";
+        for (list<string>::const_iterator iterator = mTrustedIPs.begin(); iterator != mTrustedIPs.end(); ++iterator) {
+                const char* ip = (*iterator).c_str();
+                snprintf(cmd, sizeof(cmd) - 1, "%s -A %s -s %s -j ACCEPT", mPath, mFlexisipChain, ip);
+                returnedValue = system(cmd);
+                CHECK_RETURN(returnedValue, cmd)
+        }
 
 	SLOGD << "BLACKLIST chain";
 	snprintf(cmd, sizeof(cmd) - 1, "%s -N %s", mPath, mBlacklistChain);

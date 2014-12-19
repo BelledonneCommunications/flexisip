@@ -52,4 +52,5 @@ class DosProtection : protected ConfigValueListener {
 		int mMaximumConnections;
 		int mMaximumConnectionsToWatch;
 		std::list<std::string> mAuthorizedIPs;
+		std::list<std::string> mTrustedIPs;
 };
