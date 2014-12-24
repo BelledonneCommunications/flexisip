@@ -138,7 +138,7 @@ flexisip_LDADD+=$(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(OPENSSL_LIBS) $(BOOST_ASI
 endif
 
 if BUILD_REDIS
-thesources+=registrardb-redis-async.cc registrardb-redis.hh \
+thesources+=registrardb-redis-sync.cc registrardb-redis-async.cc registrardb-redis.hh \
         registrardb-redis-sofia-event.h
 AM_CXXFLAGS+=-DENABLE_REDIS
 endif

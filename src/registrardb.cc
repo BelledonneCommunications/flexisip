@@ -447,8 +447,15 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 		params.timeout = registrar->get<ConfigInt > ( "redis-server-timeout" )->read();
 		params.auth = registrar->get<ConfigString > ( "redis-auth-password" )->read();
 
-		if ("redis"==dbImplementation) {
-			LOGI("RegistrarDB implementation is REDIS");
+		if ("redis-sync"==dbImplementation) {
+			LOGI("RegistrarDB implementation is synchronous REDIS");
+			auto serializer = RecordSerializer::get();
+			sUnique=new RegistrarDbRedisSync(ag->getPreferredRoute(), serializer, params);
+			sUnique->mUseGlobalDomain=useGlobalDomain;
+			return sUnique;
+		}
+		if ("redis-async"==dbImplementation) {
+			LOGI("RegistrarDB implementation is asynchronous REDIS");
 			sUnique=new RegistrarDbRedisAsync(ag, params);
 			sUnique->mUseGlobalDomain=useGlobalDomain;
 			return sUnique;
