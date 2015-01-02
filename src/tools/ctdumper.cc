@@ -17,19 +17,27 @@ using namespace std;
 
 bool sUseSyslog;
 
-static su_root_t* sofia_root = NULL;
-
 struct DumpListener : public RegistrarDbListener {
+
+private:
+	su_root_t* root;
+
 private:
 	void su_break(){
-		if( sofia_root ){
-			su_root_break(sofia_root);
+		if( root ){
+			su_root_break(root);
 		}
 	}
+	
 public:
 	bool listenerError = false;
-	virtual void onRecordFound(Record *r) {
-		if (r) cout << *r << endl;
+
+public:
+	DumpListener(su_root_t* _root) : RegistrarDbListener(), root(_root) {}
+	
+	virtual void onRecordFound(Record *record) {
+		if (record) cout << *record           << endl;
+		else        cout << "No record found" << endl;
 		su_break();
 	}
 	virtual void onError() {
@@ -112,6 +120,7 @@ static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *arg){
 
 int main(int argc, char **argv) {
 	su_home_t home;
+	su_root_t* root;
 	sUseSyslog = false;
 	shared_ptr<Agent> agent;
 	CTArgs args; args.parse(argc, argv);
@@ -124,27 +133,26 @@ int main(int argc, char **argv) {
 	Record::sMaxContacts = 10;
 
 	su_home_init(&home);
-	sofia_root = su_root_create(NULL);
-	agent      = make_shared<Agent>(sofia_root);
+	root = su_root_create(NULL);
+	agent      = make_shared<Agent>(root);
 
 	auto serializer  = unique_ptr<RecordSerializer>(RecordSerializer::create(args.serializer));
-	auto registrardb = new RegistrarDbRedisAsync("localhost", sofia_root, serializer.get(), args.redis);
+	auto registrardb = new RegistrarDbRedisAsync("localhost", root, serializer.get(), args.redis);
 	auto url = url_format(&home,args.url.c_str());
-	auto listener = make_shared<DumpListener>();
+	auto listener = make_shared<DumpListener>(root);
 	
 	registrardb->fetch(url, listener);
 	
-	su_timer_t* timer = su_timer_create(su_root_task(sofia_root),5000);
+	su_timer_t* timer = su_timer_create(su_root_task(root),5000);
 	if( !listener->listenerError ){
 		su_timer_set_for_ever(timer,(su_timer_f)timerfunc,agent.get());
-		su_root_run(sofia_root);
+		su_root_run(root);
 	}
 	
 	agent.reset();
 	
 	su_timer_destroy(timer);
-	su_root_destroy(sofia_root);
-	sofia_root = NULL;
+	su_root_destroy(root);
 	su_home_destroy(&home);
 }
 
