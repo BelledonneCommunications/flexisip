@@ -44,6 +44,14 @@ sAuthPassword(params.auth), sPort(params.port), sTimeout(params.timeout) ,mRoot 
 	mSerializer=RecordSerializer::get();
 }
 
+RegistrarDbRedisAsync::RegistrarDbRedisAsync(const string &preferredRoute, su_root_t* root, RecordSerializer* serializer, RedisParameters params)
+    : RegistrarDb(preferredRoute), mContext( NULL ), sDomain(params.domain),
+      sAuthPassword(params.auth), sPort(params.port), sTimeout(params.timeout),
+      mRoot( root ) {
+    mSerializer = serializer;
+}
+
+
 RegistrarDbRedisAsync::~RegistrarDbRedisAsync()
 {
 	if ( mContext ) {

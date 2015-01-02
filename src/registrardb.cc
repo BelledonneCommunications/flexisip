@@ -447,15 +447,10 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 		params.timeout = registrar->get<ConfigInt > ( "redis-server-timeout" )->read();
 		params.auth = registrar->get<ConfigString > ( "redis-auth-password" )->read();
 
-		if ("redis-sync"==dbImplementation) {
-			LOGI("RegistrarDB implementation is synchronous REDIS");
-			auto serializer = RecordSerializer::get();
-			sUnique=new RegistrarDbRedisSync(ag->getPreferredRoute(), serializer, params);
-			sUnique->mUseGlobalDomain=useGlobalDomain;
-			return sUnique;
-		}
-		if ("redis-async"==dbImplementation) {
-			LOGI("RegistrarDB implementation is asynchronous REDIS");
+		/* Previous implementations allowed "redis-sync" and "redis-async", whereas we now expect "redis".
+		 * We check that the dbImplementation _starts_ with "redis" now, so that we stay backward compatible. */
+		if (dbImplementation.find("redis") == 0) {
+			LOGI("RegistrarDB implementation is REDIS");
 			sUnique=new RegistrarDbRedisAsync(ag, params);
 			sUnique->mUseGlobalDomain=useGlobalDomain;
 			return sUnique;

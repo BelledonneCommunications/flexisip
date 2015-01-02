@@ -9,6 +9,7 @@
 #include <hiredis/hiredis.h>
 
 #include <sofia-sip/sip_protos.h>
+#include <sofia-sip/su_wait.h>
 
 #include <memory>
 
@@ -16,22 +17,32 @@ using namespace std;
 
 bool sUseSyslog;
 
+static su_root_t* sofia_root = NULL;
+
 struct DumpListener : public RegistrarDbListener {
+private:
+	void su_break(){
+		if( sofia_root ){
+			su_root_break(sofia_root);
+		}
+	}
 public:
+	bool listenerError = false;
 	virtual void onRecordFound(Record *r) {
 		if (r) cout << *r << endl;
+		su_break();
 	}
 	virtual void onError() {
-		cout << "error" << endl;
+		SLOGE << "Connection error, aborting" <<  endl;
+		listenerError = true;
+		su_break();
 	}
 	virtual void onInvalid() {
-		cout << "invalid" << endl;
+		SLOGW << "Invalid" << endl;
+		listenerError = true;
+		su_break();
 	}
 };
-
-static void usage(const char *app) {
-	cout << app << " -h host -p port --debug -a auth -s serializer sip_uri " << endl;
-}
 
 struct CTArgs {
 	bool debug;
@@ -39,6 +50,16 @@ struct CTArgs {
 	string serializer;
 	string url;
 
+	static void usage(const char *app) {
+		CTArgs args;
+		cout << app << " -t host[" << args.redis.domain << "] "
+			<< "-p port[" << args.redis.port << "] "
+			<< "--debug "
+			<< "-a auth "
+			<< "-s serializer[" << args.serializer << "] "
+			<< "sip_uri " << endl;
+	}
+	
 	CTArgs() {
 		debug = false;
 		redis.port=6379;
@@ -56,11 +77,11 @@ struct CTArgs {
 			} else if (EQ0(i, "--help") || EQ0(i, "-h")) {
 				usage(*argv);
 				exit(0);
-			}  else if (EQ1(i, "-p")) {
+			} else if (EQ1(i, "-p")) {
 				redis.port = atoi(argv[++i]);
-			}  else if (EQ1(i, "-h")) {
+			} else if (EQ1(i, "-t")) {
 				redis.domain = argv[++i];
-			}  else if (EQ1(i, "-a")) {
+			} else if (EQ1(i, "-a")) {
 				redis.auth = argv[++i];
 			} else if (EQ1(i, "-s")) {
 				serializer = argv[++i];
@@ -85,9 +106,14 @@ struct CTArgs {
 	}
 };
 
+static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *arg){
+	arg->idle();
+}
 
 int main(int argc, char **argv) {
+	su_home_t home;
 	sUseSyslog = false;
+	shared_ptr<Agent> agent;
 	CTArgs args; args.parse(argc, argv);
 
 	flexisip::log::preinit(sUseSyslog, args.debug);
@@ -97,15 +123,28 @@ int main(int argc, char **argv) {
 	Record::sLineFieldNames = {"line"};
 	Record::sMaxContacts = 10;
 
-	auto serializer = unique_ptr<RecordSerializer>(RecordSerializer::create(args.serializer));
-	auto registrardb = new RegistrarDbRedisSync("localhost", serializer.get(), args.redis);
-
-	su_home_t home;
 	su_home_init(&home);
+	sofia_root = su_root_create(NULL);
+	agent      = make_shared<Agent>(sofia_root);
+
+	auto serializer  = unique_ptr<RecordSerializer>(RecordSerializer::create(args.serializer));
+	auto registrardb = new RegistrarDbRedisAsync("localhost", sofia_root, serializer.get(), args.redis);
 	auto url = url_format(&home,args.url.c_str());
 	auto listener = make_shared<DumpListener>();
+	
 	registrardb->fetch(url, listener);
 	
-	su_home_destroy(&home);
+	su_timer_t* timer = su_timer_create(su_root_task(sofia_root),5000);
+	if( !listener->listenerError ){
+		su_timer_set_for_ever(timer,(su_timer_f)timerfunc,agent.get());
+		su_root_run(sofia_root);
+	}
 	
+	agent.reset();
+	
+	su_timer_destroy(timer);
+	su_root_destroy(sofia_root);
+	sofia_root = NULL;
+	su_home_destroy(&home);
 }
+
