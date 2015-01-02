@@ -704,22 +704,33 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 			{	Boolean	,	"dump-corefiles",	"Generate a corefile when crashing", "true"},
 			{	Boolean	,	"auto-respawn"  ,	"Automatically respawn flexisip in case of abnormal termination (crashes)",	"true"},
 			{	StringList	,"aliases"	,	"List of white space separated host names pointing to this machine. This is to prevent loops while routing SIP messages.", "localhost"},
-			{	StringList	,"transports"	,	"List of white space separated SIP uris where the proxy must listen."
-									"Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' prameter is unspecified, it will listen "
-									"to both udp and tcp. An local address to bind can be indicated in the 'maddr' parameter, while the domain part of the uris "
-									"are used as public domain or ip address. A per transport directory with the same meaning as tls-certificates-dir can be added as uri parameter.Here some examples to understand:\n"
-									"* listen on all local interfaces for udp and tcp, on standart port:\n"
-									"\ttransports=sip:*\n"
-									"* listen on all local interfaces for udp,tcp and tls, on standart ports:\n"
-									"\ttransports=sip:* sips:*\n"
-									"* listen on tls localhost with 2 different port and SSL certificates:\n"
-									"\ttransports=sip:localhost:5061;tls-certificates-dir=path_a sip:localhost:5062;tls-certificates-dir=path_b,\n"
-									"* listen on tls localhost with 2 peer certificate requirements:\n"
-									"\ttransports=sip:localhost:5061;require-peer-certificate=0 sip:localhost:5062;require-peer-certificate=1,\n"
-									"* listen on 192.168.0.29:6060 with tls, but public hostname is 'sip.linphone.org' used in SIP messages. Bind address won't appear:\n"
-									"\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29"
-			,	"sip:*" },
-			{	String		,"tls-certificates-dir", "Path to the directory where TLS server certificate and private key can be found, concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'.", "/etc/flexisip/tls"},
+			{	StringList	,"transports"	,
+				"List of white space separated SIP uris where the proxy must listen.\n"
+				"Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' prameter is unspecified, it will listen "
+				"to both udp and tcp. A local address to bind onto can be indicated in the 'maddr' parameter, while the domain part of the"
+				" uris are used as public domain or ip address.\n"
+				"The 'sips' transport definitions accept two optional parameters:\n"
+				"\t- 'tls-certificates-dir' taking for value a path, with the same meaning as the 'tls-certificates-dir' property of this"
+				" section and overriding it for this given transport.\n"
+				"\t- 'require-peer-certificate' taking for value '0' or '1', to indicate whether clients connecting are required to present"
+				" a client certificate.\n"
+				"Here are some examples to understand:\n"
+				"* listen on all local interfaces for udp and tcp, on standart port:\n"
+				"\ttransports=sip:*\n"
+				"* listen on all local interfaces for udp,tcp and tls, on standart ports:\n"
+				"\ttransports=sip:* sips:*\n"
+				"* listen on tls localhost with 2 different ports and SSL certificates:\n"
+				"\ttransports=sips:localhost:5061;tls-certificates-dir=path_a sips:localhost:5062;tls-certificates-dir=path_b\n"
+				"* listen on tls localhost with 2 peer certificate requirements:\n"
+				"\ttransports=sips:localhost:5061;require-peer-certificate=0 sips:localhost:5062;require-peer-certificate=1\n"
+				"* listen on 192.168.0.29:6060 with tls, but public hostname is 'sip.linphone.org' used in SIP messages. "
+				"Bind address won't appear in messages:\n"
+				"\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29",
+				"sip:*" },
+			{	String		,"tls-certificates-dir", "Path to the directory where TLS server certificate and private key can be found," 
+				" concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'. "
+				"The setup of agent.pem, and eventually cafile.pem is required for TLS transport to work."
+				, "/etc/flexisip/tls"},
 			{	Integer		,"idle-timeout",	"Time interval in seconds after which inactive connections are closed.", "3600"},
 			{	Boolean		,"require-peer-certificate",	"Require client certificate from peer.", "false"},
 			{	Integer		,"transaction-timeout",	"SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.","32000"},
