@@ -30,10 +30,10 @@ private:
 	}
 	
 public:
-	bool listenerError = false;
+	bool listenerError;
 
 public:
-	DumpListener(su_root_t* _root) : RegistrarDbListener(), root(_root) {}
+	DumpListener(su_root_t* _root) : RegistrarDbListener(), root(_root), listenerError(false) {}
 	
 	virtual void onRecordFound(Record *record) {
 		if (record) cout << *record           << endl;
