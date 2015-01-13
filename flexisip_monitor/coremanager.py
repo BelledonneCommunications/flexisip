@@ -24,7 +24,7 @@ import logging
 
 
 class CoreManager:
-    def __init__(self, client_id, user_id, proxy_uri):
+    def __init__(self, user_id, proxy_uri):
         config = linphone.LpConfig.new(None)
         config.set_int("sip", "sip_port", -1)
         config.set_int("sip", "sip_tcp_port", -1)
@@ -59,7 +59,6 @@ class CoreManager:
         self.core.add_proxy_config(proxy_config)
         self.core.default_proxy_config = proxy_config
         self.core.add_auth_info(auth_info)
-        self.client_id = client_id
 
     def register(self, timeout=5):
         self.core.default_proxy_config.edit()

@@ -18,10 +18,10 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 
-from coremanager import *
 import logging
 import socket
 import threading
+from coremanager import *
 
 
 class AbstractTest:
@@ -39,101 +39,54 @@ class AbstractTest:
 
 
 class InterCallTest(AbstractTest):
-    def __init__(self, lc_configs, timeout=5):
+    def __init__(self, caller_config, callee_uris, timeout=5):
         AbstractTest.__init__(self)
-        self._managers = []
-        for config in lc_configs:
-            index = lc_configs.index(config) + 1
-            self._managers.append(CoreManager(index, *config))
+        self.caller = CoreManager(caller_config)
+        self.callee_uris = callee_uris
         self.test_count = 0
         self.timeout = timeout
+        try:
+            self.caller.register(self.timeout)
+        except CoreManager.RegistrationFailError:
+            logging.error("Registration failed")
+            raise
 
     def _run(self):
         self.test_count += 1
         try:
             logging.info("Starting test #{0}".format(self.test_count))
-            logging.info("Registering all clients")
-            for manager in self._managers:
-                manager.register(timeout=self.timeout)
+            for uri in self.callee_uris:
+                logging.info("Calling {0}".format(uri))
+                self.test_call(uri)
+                logging.info("Call has successfuly terminated")
+        except InterCallTest.TestFailException as e:
+            logging.error("Test has failed. " + e)
 
-            logging.info("Testing all call combinations")
-            for m1 in self._managers:
-                for m2 in self._managers:
-                    if m1 != m2:
-                        index1 = self._managers.index(m1) + 1
-                        logging.info("Client #{0} -> client #{1}".format(m1.client_id, m2.client_id))
-                        InterCallTest._test_call(m1, m2, timeout=self.timeout)
+    def test_call(self, callee_uri, timeout=5):
+        call = self.caller.core.invite(callee_uri)
+        result = self.caller.wait_for_until(lambda m: m.core.current_call.state == linphone.CallState.CallStreamsRunning, timeout)
+        if not result:
+            raise InterCallTest.CallStreamNotRunException(callee_uri)
 
-            logging.info("All tests have succeed")
-            return True
-        except CoreManager.RegistrationFailError as e:
-            index = self.id(e.manager)
-            logging.error("Registration of client #{0} has failed".format(index))
-            return False
-        except CoreManager.UnregistrationFailError as e:
-            index = self.id(e.manager)
-            logging.error("Unregistration of client #{0} has failed".format(index))
-            return False
-        except InterCallTest.CallTestFailException as e:
-            caller_index = self.id(e.caller)
-            callee_index = self.id(e.callee)
-            logging.error("Call between client #{0} and client #{1} has failed".format(caller_index, callee_index))
-            return False
-        finally:
-            logging.info("Unregistering all clients")
-            for manager in self._managers:
-                manager.unregister(timeout=self.timeout)
+        result = self.caller.wait_for_until(lambda m:
+                                        m.core.current_call.audio_stats.download_bandwidth > 0 and
+                                        m.core.current_call.audio_stats.upload_bandwidth > 0,
+                                    timeout)
+        self.caller.core.terminate_call(call)
+        if not result:
+            raise InterCallTest.NoDataException(callee_uri)
 
-    def print_client_configs(self):
-        for manager in self._managers:
-            index = self.id(manager)
-            proxy_config = manager.core.default_proxy_config
-            identity = proxy_config.identity
-            server_addr = proxy_config.server_addr
-            logging.info("Client #{0}: {1}\t{2}".format(index, identity, server_addr))
+    class TestFailException(Exception):
+        msg = ""
 
-    def id(self, manager):
-        return self._managers.index(manager) + 1
+        def __str__(self):
+            return cls.msg
 
-    def _test_call(caller, callee, timeout=5):
-        call = caller.core.invite(callee.core.default_proxy_config.identity)
-        result = InterCallTest._wait_for_until((caller, callee),
-                                               lambda m: m[0].core.current_call.state == linphone.CallState.CallStreamsRunning,
-                                               timeout)
-        if result:
-            InterCallTest._wait_for_until((caller, callee),
-                                          lambda m:
-                                              m[0].core.current_call.audio_stats.download_bandwidth > 0 and
-                                              m[0].core.current_call.audio_stats.upload_bandwidth > 0 and
-                                              m[1].core.current_call.audio_stats.download_bandwidth > 0 and
-                                              m[1].core.current_call.audio_stats.upload_bandwidth > 0,
-                                          timeout)
-        else:
-            raise(InterCallTest.CallTestFailException(caller, callee))
-        caller.core.terminate_call(call)
-        InterCallTest._wait_for_until((caller, callee),
-                                      lambda m: m[1].core.current_call is None,
-                                      timeout)
+    class CallStreamNotRunException(TestFailException):
+        msg = "Call could not be established"
 
-    _test_call = staticmethod(_test_call)
-
-    def _wait_for_until(managers, test_func, timeout):
-        start_time = time.time()
-        delta = 0
-        while delta < timeout and \
-                not test_func(managers):
-            for manager in managers:
-                manager.core.iterate()
-            time.sleep(0.1)
-            delta = time.time() - start_time
-        return delta < timeout
-
-    _wait_for_until = staticmethod(_wait_for_until)
-
-    class CallTestFailException(Exception):
-        def __init__(self, caller, callee):
-            self.caller = caller
-            self.callee = callee
+    class NoDataException(TestFailException):
+        msg = "No rtp packet received or send"
 
 
 class TcpPortAction(threading.Thread):

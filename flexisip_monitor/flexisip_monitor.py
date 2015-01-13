@@ -22,8 +22,8 @@
 import time
 import logging
 import argparse
-import test
 import md5
+from test import *
 
 
 def md5sum(string):
@@ -41,6 +41,7 @@ def generate_password(host, salt):
 
 
 parser = argparse.ArgumentParser(description="daemon for testing availability of each server of a Flexisip cluster")
+parser.add_argument("local_ip", help="IP number of the local host")
 parser.add_argument("domain", help="domain handle by the cluster")
 parser.add_argument("salt", help="salt used to generate passwords")
 parser.add_argument("nodes", nargs='+', help="list of nodes to test")
@@ -49,25 +50,31 @@ parser.add_argument("--log", help="log file path", dest="log_file", default="./f
 parser.add_argument("--port", "-p", help="port to switch off when test fails", dest="port", type=int, default=12345)
 args = parser.parse_args()
 
-configs = []
+caller_username = generate_username(args.local_ip)
+caller_password = generate_password(args.local_ip, args.salt)
+caller_uid = "sip:{0}:{1}@{2}".format(caller_username, caller_password, args.domain)
+caller_proxy = "sip:{0};transport=tcp".format(args.local_ip)
+caller_config = (caller_uid, caller_proxy)
+
+callee_uris = []
 for node in args.nodes:
     username = generate_username(node)
-    password = generate_password(node, args.salt)
-    uid = "sip:{0}:{1}@{2}".format(username, password, args.domain)
-    proxy = "sip:{0};transport=tls".format(args.domain)
-    configs.append((uid, proxy))
+    uri = "sip:{0}@{1}".format(username, args.domain)
+    callee_uris.append(uri)
 
 logging.basicConfig(level=logging.INFO, filename=args.log_file)
-action = test.TcpPortAction(args.port)
-test = test.InterCallTest(configs)
-test.listeners.append(action)
+logging.info("Starting Flexisip monitior")
+try:
+    test_ = InterCallTest(caller_config, callee_uris)
+except:
+    logging.fatal("Test initialization failed")
 
-logging.info("Starting Flexisip monitior with the folowing configuration")
-test.print_client_configs()
-logging.info("")
+action = TcpPortAction(args.port)
+test_.listeners.append(action)
+
 try:
     while True:
-        test.run()
+        test_.run()
         logging.info("sleeping for {0} seconds".format(args.test_interval))
         time.sleep(args.test_interval)
 except KeyboardInterrupt:
