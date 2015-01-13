@@ -57,7 +57,7 @@ void Monitor::exec(int socket) {
 	string salt = monitorParams->get<ConfigString>("password-salt")->read();
 	list<string> trustedHosts = authParams->get<ConfigStringList>("trusted-hosts")->read();
 	trustedHosts.remove_if(isLocalhost);
-	
+    
 	string domain;
 	try {
 		domain = findDomain();
@@ -76,7 +76,7 @@ void Monitor::exec(int socket) {
 		exit(-1);
 	}
 
-	char **args = new char *[9];
+	char **args = new char *[10 + trustedHosts.size()];
 	args[0] = strdup(PYTHON_INTERPRETOR.c_str());
 	args[1] = strdup(SCRIPT_PATH.c_str());
 	args[2] = strdup("--interval");
@@ -119,7 +119,7 @@ void Monitor::createAccounts() {
 		url.url_user = username;
 		url.url_host = domain.c_str();
 		
-		authDb->createAccount(&url, username, password, -1);
+		authDb->createAccount(&url, "", password, -1);
 	}
 }
 
