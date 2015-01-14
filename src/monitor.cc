@@ -48,15 +48,14 @@ void Monitor::exec(int socket) {
 	su_root_t *root = NULL;
 	shared_ptr<Agent> a = make_shared<Agent>(root);
 	GenericManager::get()->loadStrict();
-
+    
 	GenericStruct *monitorParams = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
-	GenericStruct *authParams = GenericManager::get()->getRoot()->get<GenericStruct>("module::Authentication");
+	GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 	string interval = monitorParams->get<ConfigValue>("test-interval")->get();
 	string logfile = monitorParams->get<ConfigString>("logfile")->read();
 	string port = monitorParams->get<ConfigValue>("switch-port")->get();
 	string salt = monitorParams->get<ConfigString>("password-salt")->read();
-	list<string> trustedHosts = authParams->get<ConfigStringList>("trusted-hosts")->read();
-	trustedHosts.remove_if(isLocalhost);
+	list<string> nodes = cluster->get<ConfigStringList>("nodes")->read();
     
 	string domain;
 	try {
@@ -71,12 +70,12 @@ void Monitor::exec(int socket) {
 		exit(-1);
 	}
 	
-	if(trustedHosts.empty()) {
+	if(nodes.empty()) {
 		LOGE("Monitor: no nodes declared in module::Registrar::trusted-hosts");
 		exit(-1);
 	}
 
-	char **args = new char *[10 + trustedHosts.size()];
+	char **args = new char *[10 + nodes.size()];
 	args[0] = strdup(PYTHON_INTERPRETOR.c_str());
 	args[1] = strdup(SCRIPT_PATH.c_str());
 	args[2] = strdup("--interval");
@@ -88,7 +87,7 @@ void Monitor::exec(int socket) {
 	args[8] = strdup(domain.c_str());
 	args[9] = strdup(salt.c_str());
 	int i=10;
-	for(string node : trustedHosts) {
+	for(string node : nodes) {
 		args[i] = strdup(node.c_str());
 		i++;
 	}
