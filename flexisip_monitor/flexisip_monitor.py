@@ -66,23 +66,24 @@ def find_local_address(nodes):
 
 class CalleeThread(threading.Thread):
     def __init__(self, core_manager):
+        threading.Thread.__init__(self)
         self.core_manager = core_manager
-        self.lock = threading.RLock()
-        self.terminate=False
+        self._lock = threading.RLock()
+        self._terminate=False
 
     def terminate(self):
-        self.lock.acquire()
-        self.terminate=True
-        self.lock.release()
+        self._lock.acquire()
+        self._terminate=True
+        self._lock.release()
 
     def run(self):
-        self.lock.acquire()
-        while not self.terminate:
-            self.lock.release()
+        self._lock.acquire()
+        while not self._terminate:
+            self._lock.release()
             self.core_manager.core.iterate()
-            sleep(0.1)
-            self.lock.acquire()
-        self.lock.release()
+            time.sleep(0.1)
+            self._lock.acquire()
+        self._lock.release()
 
 
 parser = argparse.ArgumentParser(description="daemon for testing availability of each server of a Flexisip cluster")
