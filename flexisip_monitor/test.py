@@ -38,10 +38,10 @@ class AbstractTest:
         pass
 
 
-class InterCallTest(AbstractTest):
+class CallTest(AbstractTest):
     def __init__(self, caller_config, callee_uris, timeout=5):
         AbstractTest.__init__(self)
-        self.caller = CoreManager(caller_config)
+        self.caller = CoreManager(*caller_config)
         self.callee_uris = callee_uris
         self.test_count = 0
         self.timeout = timeout
@@ -59,34 +59,50 @@ class InterCallTest(AbstractTest):
                 logging.info("Calling {0}".format(uri))
                 self.test_call(uri)
                 logging.info("Call has successfuly terminated")
-        except InterCallTest.TestFailException as e:
-            logging.error("Test has failed. " + e)
+                return True
+        except CallTest.TestFailException as e:
+            logging.error(e)
+            return False
 
     def test_call(self, callee_uri, timeout=5):
         call = self.caller.core.invite(callee_uri)
-        result = self.caller.wait_for_until(lambda m: m.core.current_call.state == linphone.CallState.CallStreamsRunning, timeout)
-        if not result:
-            raise InterCallTest.CallStreamNotRunException(callee_uri)
+        if call is None:
+            raise CallTest.InviteFailedException(callee_uri)
 
-        result = self.caller.wait_for_until(lambda m:
-                                        m.core.current_call.audio_stats.download_bandwidth > 0 and
-                                        m.core.current_call.audio_stats.upload_bandwidth > 0,
-                                    timeout)
+        result = self.caller.wait_for_until(
+            lambda m: (m.core.current_call is not None) and (m.core.current_call.state == linphone.CallState.CallStreamsRunning),
+            timeout)
+
+        if not result:
+            raise CallTest.CallStreamNotRunException(callee_uri)
+
+        result = self.caller.wait_for_until(
+            lambda m: m.core.current_call.audio_stats.download_bandwidth > 0 and
+            m.core.current_call.audio_stats.upload_bandwidth > 0,
+            timeout)
+
         self.caller.core.terminate_call(call)
         if not result:
-            raise InterCallTest.NoDataException(callee_uri)
+            raise CallTest.NoDataException(callee_uri)
 
     class TestFailException(Exception):
-        msg = ""
+        def __init__(self, callee_uri):
+            self.uri = callee_uri
 
         def __str__(self):
-            return cls.msg
+            return "Call with {0} failed".format(self.uri)
 
     class CallStreamNotRunException(TestFailException):
-        msg = "Call could not be established"
+        def __str__(self):
+            return CallTest.TestFailException.__str__(self) + ". Stream could not be established"
 
     class NoDataException(TestFailException):
-        msg = "No rtp packet received or send"
+        def __str__(self):
+            return CallTest.TestFailException.__str__(self) + ". No rtp packet received or send"
+
+    class InviteFailedException(TestFailException):
+        def __str__(self):
+            return CallTest.TestFailException.__str__(self) + "Could not send the INVITE request"
 
 
 class TcpPortAction(threading.Thread):

@@ -26,6 +26,7 @@ import md5
 import socket
 import errno
 import test
+from coremanager import *
 
 
 def md5sum(string):
@@ -71,6 +72,8 @@ if local_ip is None:
     logging.fatal("No node address matches with any local addresse")
     exit(1)
 
+args.nodes.remove(local_ip)
+
 caller_username = generate_username(local_ip)
 caller_password = generate_password(local_ip, args.salt)
 caller_uid = "sip:{0}:{1}@{2}".format(caller_username, caller_password, args.domain)
@@ -84,8 +87,8 @@ for node in args.nodes:
     callee_uris.append(uri)
 
 try:
-    test_ = test.InterCallTest(caller_config, callee_uris)
-except:
+    test_ = test.CallTest(caller_config, callee_uris)
+except CoreManager.RegistrationFailError:
     logging.fatal("Test initialization failed")
     exit(1)
 

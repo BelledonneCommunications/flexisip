@@ -92,8 +92,7 @@ class CoreManager:
     _call_state_callback = staticmethod(_call_state_callback)
 
     def _call_stats_updated_callback(lc, call, stats):
-        client_id = lc.user_data.client_id
-        logging.info("c{0}: D={1}kbit/s U={2}kbit/s".format(client_id, stats.download_bandwidth, stats.upload_bandwidth))
+        logging.info("Call stats: D={0}kbit/s U={1}kbit/s".format(stats.download_bandwidth, stats.upload_bandwidth))
 
     _call_stats_updated_callback = staticmethod(_call_stats_updated_callback)
 
