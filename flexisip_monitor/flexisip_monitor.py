@@ -114,9 +114,12 @@ for node in args.nodes:
     uri = "sip:{0}@{1}".format(username, args.domain)
     callee_uris.append(uri)
 
+caller = CoreManager(*caller_config)
+callee = CoreManager(*callee_config)
+
 try:
-    caller = CoreManager(*caller_config)
-    callee = CoreManager(*callee_config)
+    caller.register()
+    callee.register()
 except CoreManager.RegistrationFailError as e:
     identity = e.core.default_proxy.identity
     proxy = e.core.default_proxy.server_addr
