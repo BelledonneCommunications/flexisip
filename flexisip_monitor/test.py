@@ -39,17 +39,12 @@ class AbstractTest:
 
 
 class CallTest(AbstractTest):
-    def __init__(self, caller_config, callee_uris, timeout=5):
+    def __init__(self, caller_manager, callee_uris, timeout=5):
         AbstractTest.__init__(self)
-        self.caller = CoreManager(*caller_config)
+        self.caller = caller_manager
         self.callee_uris = callee_uris
         self.test_count = 0
         self.timeout = timeout
-        try:
-            self.caller.register(self.timeout)
-        except CoreManager.RegistrationFailError:
-            logging.error("Registration failed")
-            raise
 
     def _run(self):
         self.test_count += 1

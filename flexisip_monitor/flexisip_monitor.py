@@ -25,7 +25,8 @@ import argparse
 import md5
 import socket
 import errno
-import test
+import threading
+from test import *
 from coremanager import *
 
 
@@ -35,12 +36,20 @@ def md5sum(string):
     return ctx.hexdigest()
 
 
-def generate_username(host):
-    return "monitor-" + md5sum(host)
+def generate_username(prefix, host):
+    return "{0}-{1}".format(prefix, md5sum(host))
 
 
 def generate_password(host, salt):
-    return md5sum(host + salt)
+    return md5sum(host + salt)    
+
+
+def generate_proxy_config(host, salt, prefix, domain, transport="udp"):
+    username = generate_username(prefix, host)
+    password = generate_password(host, salt)
+    uid = "sip:{0}:{1}@{2}".format(username, password, domain)
+    proxy = "sip:{0};transport={1}".format(host, transport)
+    return (uid, proxy)
 
 
 def find_local_address(nodes):
@@ -53,6 +62,27 @@ def find_local_address(nodes):
             if e.errno != errno.EADDRNOTAVAIL:
                 raise
     return None
+
+
+class CalleeThread(threading.Thread):
+    def __init__(self, core_manager):
+        self.core_manager = core_manager
+        self.lock = threading.RLock()
+        self.terminate=False
+
+    def terminate(self):
+        self.lock.acquire()
+        self.terminate=True
+        self.lock.release()
+
+    def run(self):
+        self.lock.acquire()
+        while not self.terminate:
+            self.lock.release()
+            self.core_manager.core.iterate()
+            sleep(0.1)
+            self.lock.acquire()
+        self.lock.release()
 
 
 parser = argparse.ArgumentParser(description="daemon for testing availability of each server of a Flexisip cluster")
@@ -74,25 +104,29 @@ if local_ip is None:
 
 args.nodes.remove(local_ip)
 
-caller_username = generate_username(local_ip)
-caller_password = generate_password(local_ip, args.salt)
-caller_uid = "sip:{0}:{1}@{2}".format(caller_username, caller_password, args.domain)
-caller_proxy = "sip:{0};transport=tcp".format(local_ip)
-caller_config = (caller_uid, caller_proxy)
+caller_config = generate_proxy_config(local_ip, args.salt, "monitor-caller", args.domain, transport="tcp")
+callee_config = generate_proxy_config(local_ip, args.salt, "monitor-callee", args.domain, transport="tcp")
 
 callee_uris = []
 for node in args.nodes:
-    username = generate_username(node)
+    username = generate_username("monitor-callee", node)
     uri = "sip:{0}@{1}".format(username, args.domain)
     callee_uris.append(uri)
 
 try:
-    test_ = test.CallTest(caller_config, callee_uris)
-except CoreManager.RegistrationFailError:
-    logging.fatal("Test initialization failed")
+    caller = CoreManager(*caller_config)
+    callee = CoreManager(*callee_config)
+except CoreManager.RegistrationFailError as e:
+    identity = e.core.default_proxy.identity
+    proxy = e.core.default_proxy.server_addr
+    logging.fatal("One UA could not register. identity={0}, proxy={1}".format(identity, proxy))
     exit(1)
 
-action = test.TcpPortAction(args.port)
+callee_thread = CalleeThread(callee)
+callee_thread.start()
+
+test_ = CallTest(caller, callee_uris)
+action = TcpPortAction(args.port)
 test_.listeners.append(action)
 
 try:
@@ -102,3 +136,5 @@ try:
         time.sleep(args.test_interval)
 except KeyboardInterrupt:
     logging.info("Stopping Flexisip monitor")
+
+callee_thread.terminate()
