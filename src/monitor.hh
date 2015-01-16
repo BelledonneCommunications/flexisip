@@ -33,17 +33,19 @@ private:
 		Init();
 	};
 	
-	static bool isLocalhost(std::string host);
-	static bool notLocalhost(std::string host);
-	static std::string md5sum(std::string s);
-	static std::string generateUsername(std::string host);
-	static std::string generatePassword(std::string host, std::string salt);
+    static std::string findLocalAddress(const std::list<std::string> &nodes);
+	static bool isLocalhost(const std::string &host);
+	static bool notLocalhost(const std::string &host);
+	static std::string md5sum(const std::string &s);
+	static std::string generateUsername(const std::string &prefix, const std::string &host);
+	static std::string generatePassword(const std::string &host, const std::string &salt);
 	static std::string findDomain();
 	
 	static Init sInit;
 	static const std::string PYTHON_INTERPRETOR;
 	static const std::string SCRIPT_PATH;
-	static const std::string USERNAME_PREFIX;
+	static const std::string CALLER_PREFIX;
+	static const std::string CALLEE_PREFIX;
 };
 
 #endif

@@ -20,13 +20,15 @@
 #include "configmanager.hh"
 #include "authdb.hh"
 #include <sofia-sip/su_md5.h>
+#include <ortp/rtpsession.h>
 
 using namespace std;
 
 Monitor::Init Monitor::sInit;
 const string Monitor::PYTHON_INTERPRETOR = "/usr/bin/python2";
 const string Monitor::SCRIPT_PATH = "/home/francois/projects/flexisip/flexisip_monitor/flexisip_monitor.py";
-const string Monitor::USERNAME_PREFIX = "monitor-";
+const string Monitor::CALLER_PREFIX = "monitor-caller";
+const string Monitor::CALLEE_PREFIX = "monitor-callee";
 
 Monitor::Init::Init() {
 	ConfigItemDescriptor items[] = {
@@ -61,17 +63,17 @@ void Monitor::exec(int socket) {
 	try {
 		domain = findDomain();
 	} catch(const FlexisipException &e) {
-		LOGE("Monitor: cannot find domain. %s", e.str().c_str());
+		LOGF("Monitor: cannot find domain. %s", e.str().c_str());
 		exit(-1);
 	}
 	
 	if(salt.empty()) {
-		LOGE("Monitor: no salt set");
+		LOGF("Monitor: no salt set");
 		exit(-1);
 	}
 	
 	if(nodes.empty()) {
-		LOGE("Monitor: no nodes declared in module::Registrar::trusted-hosts");
+		LOGF("Monitor: no nodes declared in the cluster section");
 		exit(-1);
 	}
 
@@ -101,39 +103,53 @@ void Monitor::exec(int socket) {
 	execvp(args[0], args);
 }
 
-void Monitor::createAccounts() {
-	AuthDb *authDb = AuthDb::get();
-	GenericStruct *authConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Authentication");
-	GenericStruct *monitorConf = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
-	string salt = monitorConf->get<ConfigString>("password-salt")->read();
-	list<string> trustedHosts = authConf->get<ConfigStringList>("trusted-hosts")->read();
-	
-	string domain = findDomain();
-	
-	for(string trustedHost : trustedHosts) {
-		const char *username = generateUsername(trustedHost).c_str();
-		const char *password = generatePassword(trustedHost, salt).c_str();
-		
-		url_t url;
-		url.url_user = username;
-		url.url_host = domain.c_str();
-		
-		authDb->createAccount(&url, "", password, -1);
+string Monitor::findLocalAddress(const list<string> &nodes) {
+	RtpSession *session = rtp_session_new(RTP_SESSION_RECVONLY);
+	for(const string & node : nodes) {
+		if(rtp_session_set_local_addr(session, node.c_str(), 0, 0) != -1) {
+			rtp_session_destroy(session);
+			return node;
+		}
 	}
+	return "";
 }
 
-bool Monitor::isLocalhost(string host) {
+void Monitor::createAccounts() {
+    url_t url;
+	AuthDb *authDb = AuthDb::get();
+	GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+	GenericStruct *monitorConf = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
+	string salt = monitorConf->get<ConfigString>("password-salt")->read();
+	list<string> nodes = cluster->get<ConfigStringList>("nodes")->read();
+
+    url.url_host = findDomain().c_str();
+    
+	string localIP = findLocalAddress(nodes);
+	if(localIP == "") {
+		SLOGA << "Could not find local IP address";
+		exit(-1);
+	}
+	
+	const char *password = generatePassword(localIP, salt).c_str();
+	url.url_user = generateUsername(CALLER_PREFIX, localIP).c_str();
+    authDb->createAccount(&url, "", password, INT_MAX);
+	
+    url.url_user = generateUsername(CALLEE_PREFIX, localIP).c_str();
+    authDb->createAccount(&url, "", password, INT_MAX);
+}
+
+bool Monitor::isLocalhost(const string &host) {
 	return host == "localhost" ||
 	       host == "127.0.0.1" ||
 	       host == "::1" ||
 	       host == "localhost.localdomain";
 }
 
-bool Monitor::notLocalhost(string host) {
+bool Monitor::notLocalhost(const string &host) {
 	return !isLocalhost(host);
 }
 
-string Monitor::md5sum(string s) {
+string Monitor::md5sum(const string &s) {
 	char digest[2*SU_MD5_DIGEST_SIZE+1];
 	su_md5_t ctx;
 	su_md5_init(&ctx);
@@ -142,11 +158,11 @@ string Monitor::md5sum(string s) {
 	return digest;
 }
 
-string Monitor::generateUsername(string host) {
-	return USERNAME_PREFIX + md5sum(host);
+string Monitor::generateUsername(const string &prefix, const string &host) {
+	return prefix + "-" + md5sum(host);
 }
 
-string Monitor::generatePassword(string host, string salt) {
+string Monitor::generatePassword(const string &host, const string &salt) {
 	return md5sum(host + salt);
 }
 
