@@ -42,10 +42,10 @@ private:
 	static std::string findDomain();
 	
 	static Init sInit;
-	static const std::string PYTHON_INTERPRETOR;
 	static const std::string SCRIPT_PATH;
 	static const std::string CALLER_PREFIX;
 	static const std::string CALLEE_PREFIX;
+	static const int PASSWORD_CACHE_EXPIRE;
 };
 
 #endif

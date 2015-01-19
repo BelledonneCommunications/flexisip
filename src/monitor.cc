@@ -25,10 +25,10 @@
 using namespace std;
 
 Monitor::Init Monitor::sInit;
-const string Monitor::PYTHON_INTERPRETOR = "/usr/bin/python2";
-const string Monitor::SCRIPT_PATH = "/home/francois/projects/flexisip/flexisip_monitor/flexisip_monitor.py";
+const string Monitor::SCRIPT_PATH = "./flexisip_monitor.py";
 const string Monitor::CALLER_PREFIX = "monitor-caller";
 const string Monitor::CALLEE_PREFIX = "monitor-callee";
+const int Monitor::PASSWORD_CACHE_EXPIRE = INT_MAX/2;
 
 Monitor::Init::Init() {
 	ConfigItemDescriptor items[] = {
@@ -77,18 +77,17 @@ void Monitor::exec(int socket) {
 		exit(-1);
 	}
 
-	char **args = new char *[10 + nodes.size() + 1];
-	args[0] = strdup(PYTHON_INTERPRETOR.c_str());
-	args[1] = strdup(SCRIPT_PATH.c_str());
-	args[2] = strdup("--interval");
-	args[3] = strdup(interval.c_str());
-	args[4] = strdup("--log");
-	args[5] = strdup(logfile.c_str());
-	args[6] = strdup("--port");
-	args[7] = strdup(port.c_str());
-	args[8] = strdup(domain.c_str());
-	args[9] = strdup(salt.c_str());
-	int i = 10;
+	char **args = new char *[9 + nodes.size() + 1];
+	args[0] = strdup(SCRIPT_PATH.c_str());
+	args[1] = strdup("--interval");
+	args[2] = strdup(interval.c_str());
+	args[3] = strdup("--log");
+	args[4] = strdup(logfile.c_str());
+	args[5] = strdup("--port");
+	args[6] = strdup(port.c_str());
+	args[7] = strdup(domain.c_str());
+	args[8] = strdup(salt.c_str());
+	int i = 9;
 	for(string node : nodes) {
 		args[i] = strdup(node.c_str());
 		i++;
@@ -135,11 +134,11 @@ void Monitor::createAccounts() {
 	string password = generatePassword(localIP, salt).c_str();
 	string username = generateUsername(CALLER_PREFIX, localIP);
 	url.url_user = username.c_str();
-	authDb->createAccount(&url, url.url_user, password.c_str(), INT_MAX/2);
+	authDb->createAccount(&url, url.url_user, password.c_str(), PASSWORD_CACHE_EXPIRE);
 
 	username = generateUsername(CALLEE_PREFIX, localIP).c_str();
 	url.url_user = username.c_str();
-	authDb->createAccount(&url, url.url_user, password.c_str(), INT_MAX/2);
+	authDb->createAccount(&url, url.url_user, password.c_str(), PASSWORD_CACHE_EXPIRE);
 }
 
 bool Monitor::isLocalhost(const string &host) {
