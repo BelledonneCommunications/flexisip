@@ -71,10 +71,7 @@ AuthDb::~AuthDb() {
 
 string AuthDb::createPasswordKey(const string &user, const string &host, const string &auth_username) {
 	ostringstream key;
-	key<<user;
-	if (!auth_username.empty()){
-		key<<user<<"#"<<auth_username;
-	}
+	key<<user<<"#"<<auth_username;
 	return key.str();
 }
 
@@ -101,9 +98,9 @@ void AuthDb::clearCache(){
 
 bool AuthDb::cachePassword(const string &key, const string &domain, const string &pass, int expires){
 	time_t now = getCurrentTime();
-	auto & passwords=mCachedPasswords[domain];
+	map<string, CachedPassword> &passwords=mCachedPasswords[domain];
 	unique_lock<mutex> lck(mCachedPasswordMutex);
-	auto it=passwords.find(key);
+	map<string, CachedPassword>::iterator it=passwords.find(key);
 	if (expires==-1) expires=mCacheExpire;
 	if (it != passwords.end()) {
 		(*it).second.pass=pass;
@@ -116,7 +113,7 @@ bool AuthDb::cachePassword(const string &key, const string &domain, const string
 
 void AuthDb::createCachedAccount(const url_t *from, const char *auth_username, const char *password, int expires){
 	if (from->url_host && from->url_user){
-		string key=createPasswordKey(from->url_user,from->url_host,auth_username ? auth_username : "");
+		string key=createPasswordKey(from->url_user, from->url_host, auth_username ? auth_username : "");
 		cachePassword(key,from->url_host,password,expires);
 	}
 }

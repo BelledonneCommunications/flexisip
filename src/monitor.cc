@@ -1,17 +1,17 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
     Copyright (C) 2014  Belledonne Communications SARL.
- 
+
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
     published by the Free Software Foundation, either version 3 of the
     License, or (at your option) any later version.
- 
+
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
- 
+
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
@@ -37,9 +37,9 @@ Monitor::Init::Init() {
 		{ String    , "logfile"       , "Path to the log file", "/etc/flexisip/flexisip_monitor.log"},
 		{ Integer   , "switch-port"   , "Port to open/close folowing the test succeed or not", "12345"},
 		{ String    , "password-salt" , "Salt used to generate the passwords of each test account", "" },
-		config_item_end 
+		config_item_end
 	};
-	
+
 	GenericStruct *s = new GenericStruct("monitor", "Flexisip monitor parameters", 0);
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
@@ -50,7 +50,7 @@ void Monitor::exec(int socket) {
 	su_root_t *root = NULL;
 	shared_ptr<Agent> a = make_shared<Agent>(root);
 	GenericManager::get()->loadStrict();
-    
+
 	GenericStruct *monitorParams = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
 	GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 	string interval = monitorParams->get<ConfigValue>("test-interval")->get();
@@ -58,7 +58,7 @@ void Monitor::exec(int socket) {
 	string port = monitorParams->get<ConfigValue>("switch-port")->get();
 	string salt = monitorParams->get<ConfigString>("password-salt")->read();
 	list<string> nodes = cluster->get<ConfigStringList>("nodes")->read();
-    
+
 	string domain;
 	try {
 		domain = findDomain();
@@ -66,18 +66,18 @@ void Monitor::exec(int socket) {
 		LOGF("Monitor: cannot find domain. %s", e.str().c_str());
 		exit(-1);
 	}
-	
+
 	if(salt.empty()) {
 		LOGF("Monitor: no salt set");
 		exit(-1);
 	}
-	
+
 	if(nodes.empty()) {
 		LOGF("Monitor: no nodes declared in the cluster section");
 		exit(-1);
 	}
 
-	char **args = new char *[10 + nodes.size()];
+	char **args = new char *[10 + nodes.size() + 1];
 	args[0] = strdup(PYTHON_INTERPRETOR.c_str());
 	args[1] = strdup(SCRIPT_PATH.c_str());
 	args[2] = strdup("--interval");
@@ -88,7 +88,7 @@ void Monitor::exec(int socket) {
 	args[7] = strdup(port.c_str());
 	args[8] = strdup(domain.c_str());
 	args[9] = strdup(salt.c_str());
-	int i=10;
+	int i = 10;
 	for(string node : nodes) {
 		args[i] = strdup(node.c_str());
 		i++;
@@ -115,27 +115,30 @@ string Monitor::findLocalAddress(const list<string> &nodes) {
 }
 
 void Monitor::createAccounts() {
-    url_t url;
+	url_t url = {0};
 	AuthDb *authDb = AuthDb::get();
 	GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 	GenericStruct *monitorConf = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
 	string salt = monitorConf->get<ConfigString>("password-salt")->read();
 	list<string> nodes = cluster->get<ConfigStringList>("nodes")->read();
 
-    url.url_host = findDomain().c_str();
-    
+	string domaine = findDomain();
+	url.url_host = domaine.c_str();
+
 	string localIP = findLocalAddress(nodes);
 	if(localIP == "") {
 		SLOGA << "Could not find local IP address";
 		exit(-1);
 	}
-	
-	const char *password = generatePassword(localIP, salt).c_str();
-	url.url_user = generateUsername(CALLER_PREFIX, localIP).c_str();
-    authDb->createAccount(&url, "", password, INT_MAX);
-	
-    url.url_user = generateUsername(CALLEE_PREFIX, localIP).c_str();
-    authDb->createAccount(&url, "", password, INT_MAX);
+
+	string password = generatePassword(localIP, salt).c_str();
+	string username = generateUsername(CALLER_PREFIX, localIP);
+	url.url_user = username.c_str();
+	authDb->createAccount(&url, url.url_user, password.c_str(), INT_MAX/2);
+
+	username = generateUsername(CALLEE_PREFIX, localIP).c_str();
+	url.url_user = username.c_str();
+	authDb->createAccount(&url, url.url_user, password.c_str(), INT_MAX/2);
 }
 
 bool Monitor::isLocalhost(const string &host) {
@@ -150,7 +153,7 @@ bool Monitor::notLocalhost(const string &host) {
 }
 
 string Monitor::md5sum(const string &s) {
-	char digest[2*SU_MD5_DIGEST_SIZE+1];
+	char digest[2 * SU_MD5_DIGEST_SIZE + 1];
 	su_md5_t ctx;
 	su_md5_init(&ctx);
 	su_md5_strupdate(&ctx, s.c_str());

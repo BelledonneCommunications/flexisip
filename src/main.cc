@@ -645,7 +645,7 @@ int main(int argc, char *argv[]){
 
 	a->loadConfig (cfg);
 	
-	// Create temporary test accounts for the Flexisip monitor if necessary
+	// Create cached test accounts for the Flexisip monitor if necessary
 	if(monitorEnabled) {
 		try {
 			Monitor::createAccounts();

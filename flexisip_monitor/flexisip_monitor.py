@@ -121,8 +121,9 @@ try:
     caller.register()
     callee.register()
 except CoreManager.RegistrationFailError as e:
-    identity = e.core.default_proxy.identity
-    proxy = e.core.default_proxy.server_addr
+    proxy_config = e.manager.core.default_proxy_config
+    identity = proxy_config.identity
+    proxy = proxy_config.server_addr
     logging.fatal("One UA could not register. identity={0}, proxy={1}".format(identity, proxy))
     exit(1)
 
