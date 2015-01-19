@@ -115,7 +115,8 @@ string Monitor::findLocalAddress(const list<string> &nodes) {
 }
 
 void Monitor::createAccounts() {
-	url_t url = {0};
+	url_t url;
+	memset(&url, 0, sizeof(url_t));
 	AuthDb *authDb = AuthDb::get();
 	GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 	GenericStruct *monitorConf = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
