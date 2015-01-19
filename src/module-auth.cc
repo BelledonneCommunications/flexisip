@@ -220,6 +220,20 @@ private:
 		const char *res=ev->findIncomingSubject(toCheck);
 		return res;
 	}
+	
+	void loadTrustedHosts(const ConfigStringList &trustedHosts) {
+		mTrustedHosts = trustedHosts.read();
+		const GenericStruct *clusterSection = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+		bool clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
+		if(clusterEnabled) {
+			list<string> clusterNodes = clusterSection->get<ConfigStringList>("nodes")->read();
+			for(const string &node : clusterNodes) {
+				if(find(mTrustedHosts.cbegin(), mTrustedHosts.cend(), node) == mTrustedHosts.cend()) {
+					mTrustedHosts.push_back(node);
+				}
+			}
+		}
+	}
 
 public:
 	StatCounter64 *mCountAsyncRetrieve;
@@ -331,7 +345,7 @@ public:
 			}
 		}
 
-		mTrustedHosts=mc->get<ConfigStringList>("trusted-hosts")->read();
+		loadTrustedHosts(*mc->get<ConfigStringList>("trusted-hosts"));
 		dbUseHashedPasswords = mc->get<ConfigBoolean>("hashed-passwords")->read();
 		mImmediateRetrievePassword = mc->get<ConfigBoolean>("immediate-retrieve-password")->read();
 		mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
@@ -530,7 +544,7 @@ public:
 
 	virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 		if (conf.getName() == "trusted-hosts" && state == ConfigState::Commited) {
-			mTrustedHosts=((ConfigStringList*)(&conf))->read();
+			loadTrustedHosts((const ConfigStringList &)conf);
 			LOGD("Trusted hosts updated");
 			return true;
 		} else {

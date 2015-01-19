@@ -312,7 +312,7 @@ oid Oid::oidFromHashedString(const string &str) {
 }
 
 GenericEntry::	GenericEntry(const string &name, GenericValueType type, const string &help,oid oid_index) :
-				mOid(0),mName(name),mReadOnly(false),mExportToConfigFile(true),mDeprecated(false),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
+				mOid(NULL),mName(name),mReadOnly(false),mExportToConfigFile(true),mDeprecated(false),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
 	mConfigListener=NULL;
 	size_t idx;
 	for(idx=0;idx<name.size();idx++){
@@ -736,7 +736,12 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 			{	Integer		,"transaction-timeout",	"SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.","32000"},
 			config_item_end
 	};
-
+    
+    static ConfigItemDescriptor cluster_conf[]={
+		{ Boolean    , "enabled"    , "Set to 'true' if that node is part of a cluster"          , "false" },
+		{ StringList , "nodes"      , "List of IP addresses of all nodes present in the cluster" , ""      },
+		config_item_end
+	};
 		
 			
 	GenericStruct *notifObjs=new GenericStruct("notif","Templates for notifications.",1);
@@ -768,6 +773,10 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 	runtimeError->setReadOnly(true);
 	global->addChild(runtimeError);
 
+	GenericStruct *cluster = new GenericStruct("cluster", "Should the server is part of a cluster, this section enable to describe the topology of the cluster.", 0);
+	mConfigRoot.addChild(cluster);
+	cluster->addChildrenValues(cluster_conf);
+	cluster->setReadOnly(true);
 }
 
 bool GenericManager::doIsValidNextConfig(const ConfigValue &cv) {
