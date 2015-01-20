@@ -227,9 +227,9 @@ private:
 		bool clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
 		if(clusterEnabled) {
 			list<string> clusterNodes = clusterSection->get<ConfigStringList>("nodes")->read();
-			for(const string &node : clusterNodes) {
-				if(find(mTrustedHosts.cbegin(), mTrustedHosts.cend(), node) == mTrustedHosts.cend()) {
-					mTrustedHosts.push_back(node);
+			for(list<string>::const_iterator node=clusterNodes.cbegin(); node!=clusterNodes.cend(); node++) {
+				if(find(mTrustedHosts.cbegin(), mTrustedHosts.cend(), *node) == mTrustedHosts.cend()) {
+					mTrustedHosts.push_back(*node);
 				}
 			}
 		}
