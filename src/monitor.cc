@@ -88,8 +88,8 @@ void Monitor::exec(int socket) {
 	args[7] = strdup(domain.c_str());
 	args[8] = strdup(salt.c_str());
 	int i = 9;
-	for(string node : nodes) {
-		args[i] = strdup(node.c_str());
+	for(list<string>::const_iterator it=nodes.cbegin(); it!=nodes.cend(); it++) {
+		args[i] = strdup((*it).c_str());
 		i++;
 	}
 	args[i] = NULL;
@@ -104,10 +104,10 @@ void Monitor::exec(int socket) {
 
 string Monitor::findLocalAddress(const list<string> &nodes) {
 	RtpSession *session = rtp_session_new(RTP_SESSION_RECVONLY);
-	for(const string & node : nodes) {
-		if(rtp_session_set_local_addr(session, node.c_str(), 0, 0) != -1) {
+	for(list<string>::const_iterator it=nodes.cbegin(); it!=nodes.cend(); it++) {
+		if(rtp_session_set_local_addr(session, (*it).c_str(), 0, 0) != -1) {
 			rtp_session_destroy(session);
-			return node;
+			return *it;
 		}
 	}
 	return "";
