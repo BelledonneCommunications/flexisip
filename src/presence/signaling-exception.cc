@@ -37,7 +37,7 @@ SignalingException::~SignalingException() {
 		belle_sip_object_unref(header);
 	}
 }
-SignalingException::SignalingException(const SignalingException& other ):FlexisipException(other), mStatusCode(other.mStatusCode) {
+SignalingException::SignalingException(const SignalingException& other ): FlexisipException(other),mStatusCode(other.mStatusCode) {
 	for (belle_sip_header_t* header : other.mHeaders) {
 		mHeaders.push_back(header);
 		belle_sip_object_ref(header);

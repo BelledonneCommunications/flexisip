@@ -11,6 +11,7 @@
    <xs:schema targetNamespace="urn:ietf:params:xml:ns:pidf"
         xmlns:tns="urn:ietf:params:xml:ns:pidf"
         xmlns:xs="http://www.w3.org/2001/XMLSchema"
+		xmlns:dm="urn:ietf:params:xml:ns:pidf:data-model"
         elementFormDefault="qualified"
         attributeFormDefault="unqualified">
 
@@ -18,6 +19,9 @@
      <xs:import namespace="http://www.w3.org/XML/1998/namespace"
        schemaLocation="http://www.w3.org/2001/xml.xsd"/>
 
+	 <!--xs:import namespace="urn:ietf:params:xml:ns:pidf:data-model"
+	   schemaLocation="http://www.iana.org/assignments/xml-registry/schema/pidf/data-model.xsd"/-->
+	   
      <xs:element name="presence" type="tns:presence"/>
 
      <xs:complexType name="presence">
@@ -26,7 +30,9 @@
             maxOccurs="unbounded"/>
          <xs:element name="note" type="tns:note" minOccurs="0"
             maxOccurs="unbounded"/>
-         <xs:any namespace="##other" processContents="lax" minOccurs="0"
+		 <!--xs:element ref="dm:person" minOccurs="0"
+			maxOccurs="unbounded"/-->
+		 <xs:any namespace="##other" processContents="lax" minOccurs="0"
             maxOccurs="unbounded"/>
        </xs:sequence>
        <xs:attribute name="entity" type="xs:anyURI" use="required"/>

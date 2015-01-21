@@ -19,10 +19,10 @@
 
 #include "presence-server.h"
 #include "belle-sip/belle-sip.h"
-#include "application_pidf+xml/pidf+xml.hxx"
-#include "application_pidf+xml/pidf+xml-pimpl.hxx"
-#include "resource-list/resource-lists.hxx"
-#include "resource-list/resource-lists-pimpl.hxx"
+#include "pidf+xml.hxx"
+//#include "application_pidf+xml/pidf+xml-pimpl.hxx"
+//#include "resource-list/resource-lists.hxx"
+//#include "resource-list/resource-lists-pimpl.hxx"
 #include "presentity-presenceinformation.hh"
 #include "signaling-exception.hh"
 #include "subscription.hh"
@@ -69,6 +69,8 @@ mStack(belle_sip_stack_new(NULL))
 	belle_sip_set_log_handler(_belle_sip_log);
 	belle_sip_set_log_level(BELLE_SIP_LOG_MESSAGE);
 	
+	xercesc::XMLPlatformUtils::Initialize ();
+	
 //	if (mConfigManager.load(configFile.c_str())==-1 ) {
 //		throw FLEXISIP_EXCEPTION <<"No configuration file found at [" << configFile << "] Please specify a valid configuration file." ;
 //	}
@@ -93,6 +95,7 @@ PresenceServer::~PresenceServer() {
 	belle_sip_object_unref(mProvider);
 	belle_sip_object_unref(mStack);
 	belle_sip_object_unref(mListener);
+	xercesc::XMLPlatformUtils::Terminate ();
 	
 }
 void PresenceServer::start() throw (FlexisipException) {
@@ -161,7 +164,7 @@ void PresenceServer::processTransactionTerminated(PresenceServer * thiz, const b
 
 void  PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t *event) throw (SignalingException,FlexisipException){
 	belle_sip_request_t* request = belle_sip_request_event_get_request(event);
-	PresentityPresenceInformation* presenceInfo;
+	std::shared_ptr<PresentityPresenceInformation> presenceInfo;
 	
 	/*rfc3903
 	 *
@@ -312,42 +315,35 @@ void  PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t
 	
 	
 	if (belle_sip_message_get_body_size(BELLE_SIP_MESSAGE(request))>0) {
-		presence* presence_body=NULL;
+		 ::std::unique_ptr< ::pidf::Presence > presence_body=NULL;
 		try {
-			presence_paggr presenceParser;
-			xml_schema::document_pimpl doc_p (presenceParser.root_parser ()
-											  ,presenceParser.root_namespace ()
-											  ,presenceParser.root_name ()
-											  ,false);
-			presenceParser.pre ();
-			const char* data = belle_sip_message_get_body(BELLE_SIP_MESSAGE(request));
-			size_t size= belle_sip_message_get_body_size(BELLE_SIP_MESSAGE(request));
-			doc_p.parse(data, size ,true);
-			presence_body = presenceParser.post();
-		} catch (const xml_schema::parser_exception& e) {
+			istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));
+			presence_body = parsePresence(data,xml_schema::Flags::dont_validate);
+		} catch (const xml_schema::Exception& e) {
 			ostringstream  os;
-			os << "Cannot parse body caused by [" << e.text() << "] at line ["<< e.line () << "] column [" << e.column() <<"]";
+			os << "Cannot parse body caused by [" << e <<"]";
 			//todo check error code
 			throw SIGNALING_EXCEPTION_1(400,belle_sip_header_create("Warning",os.str().c_str())) << os.str();
 		}
 		
 		// check entity
-		belle_sip_uri_t* entity = belle_sip_uri_parse(presence_body->entity().c_str());
+		belle_sip_uri_t* entity = belle_sip_uri_parse(presence_body->getEntity().c_str());
 		belle_sip_object_ref(entity); //initial ref = 0;
 		if (!entity)
-			throw SIGNALING_EXCEPTION(400) << "Invalid presence entity [" <<presence_body->entity() <<"] for request ["<<std::hex<<(long)request <<"]";
+			throw SIGNALING_EXCEPTION(400) << "Invalid presence entity [" <<presence_body->getEntity() <<"] for request ["<<request <<"]";
 		
 		if  (!(presenceInfo = getPresenceInfo(entity))) {
-			presenceInfo = new PresentityPresenceInformation(entity,*this,belle_sip_stack_get_main_loop(mStack));
+			presenceInfo.reset(new PresentityPresenceInformation(entity,*this,belle_sip_stack_get_main_loop(mStack)));
 			SLOGD <<"New Presentity ["<< *presenceInfo << "] created";
+			//for (const belle_sip_uri_t* : mPresenceInformations.keys())
 			addPresenceInfo(presenceInfo);
 		} else {
 			SLOGD <<"Presentity ["<< *presenceInfo << "] found";
 		}
-		if (eTag.empty())
-			eTag=presenceInfo->putTuples(presence_body->tuple(),expires);
-		else
-			eTag=presenceInfo->updateTuples(presence_body->tuple(), eTag, expires );
+		if (eTag.empty()) {
+			eTag=presenceInfo->putTuples(presence_body->getTuple(),presence_body->getAny(),expires);
+		} else
+			eTag=presenceInfo->updateTuples(presence_body->getTuple(), presence_body->getAny(), eTag, expires );
 		
 		
 		belle_sip_object_unref(entity);
@@ -589,27 +585,27 @@ void  PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event
 	
 }
 
-PresentityPresenceInformation* PresenceServer::getPresenceInfo(const string& eTag) const  {
+const std::shared_ptr<PresentityPresenceInformation> PresenceServer::getPresenceInfo(const string& eTag) const  {
 	auto presenceInformationsByEtagIt = mPresenceInformationsByEtag.find(eTag);
 	if (presenceInformationsByEtagIt == mPresenceInformationsByEtag.end())
 		return NULL;
 	else
-		return *presenceInformationsByEtagIt->second;
+		return presenceInformationsByEtagIt->second;
 }
 
-void PresenceServer::addPresenceInfo(PresentityPresenceInformation* presenceInfo) throw (FlexisipException){
+void PresenceServer::addPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>&  presenceInfo) throw (FlexisipException){
 	
 	if (getPresenceInfo(presenceInfo->getEntity())) {
 		throw FLEXISIP_EXCEPTION <<"Presence information element already exist for" << presenceInfo ;
 	}
-	mPresenceInformations.insert(make_pair(presenceInfo->getEntity(),make_shared<PresentityPresenceInformation*>(presenceInfo)));
+	mPresenceInformations[presenceInfo->getEntity()] = presenceInfo;
 }
-PresentityPresenceInformation* PresenceServer::getPresenceInfo(const belle_sip_uri_t* identity) const  {
+std::shared_ptr<PresentityPresenceInformation> PresenceServer::getPresenceInfo(const belle_sip_uri_t* identity) const  {
 	auto presenceEntityInformationIt = mPresenceInformations.find(identity);
 	if  (presenceEntityInformationIt == mPresenceInformations.end())
 		return NULL;
 	else
-		return *presenceEntityInformationIt->second;
+		return presenceEntityInformationIt->second;
 }
 
 void PresenceServer::invalidateETag(const string& eTag) {
@@ -622,28 +618,26 @@ void PresenceServer::modifyEtag(const string& oldEtag, const string& newEtag) th
 	mPresenceInformationsByEtag[newEtag]=presenceInformationsByEtagIt->second;
 	mPresenceInformationsByEtag.erase(oldEtag);
 }
-void PresenceServer::addEtag(PresentityPresenceInformation* info,const string& etag) throw (FlexisipException) {
+void PresenceServer::addEtag(const std::shared_ptr<PresentityPresenceInformation>& info,const string& etag) throw (FlexisipException) {
 	auto presenceInformationsByEtagIt = mPresenceInformationsByEtag.find(etag);
 	if (presenceInformationsByEtagIt != mPresenceInformationsByEtag.end())
 		throw FLEXISIP_EXCEPTION << "Already existing etag [" << etag << "] use PresenceServer::modifyEtag instead ";
-	mPresenceInformationsByEtag.insert(make_pair(etag,make_shared<PresentityPresenceInformation*>(info)));
+	mPresenceInformationsByEtag[etag] = info;
 }
-bool BelleSipUriComparator::operator()(const belle_sip_uri_t* lhs, const belle_sip_uri_t* rhs) const {
-	return !belle_sip_uri_equals(lhs,rhs);
-}
-void PresenceServer::addOrUpdateListener(PresentityPresenceInformation::Listener& listener,int expires) {
-	PresentityPresenceInformation* presenceInfo = getPresenceInfo(listener.getPresentityUri());
+
+void PresenceServer::addOrUpdateListener(PresentityPresenceInformationListener& listener,int expires) {
+	std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener.getPresentityUri());
 	if (presenceInfo == NULL) {
 		/*no information available yet, but creating entry to be able to register subscribers*/
-		presenceInfo = new PresentityPresenceInformation(listener.getPresentityUri(),*this,belle_sip_stack_get_main_loop(mStack));
+		presenceInfo.reset(new PresentityPresenceInformation(listener.getPresentityUri(),*this,belle_sip_stack_get_main_loop(mStack)));
 		SLOGD <<"New Presentity ["<< *presenceInfo << "] created";
 		addPresenceInfo(presenceInfo);
 	}
 	presenceInfo->addOrUpdateListener(listener,expires);
 	
 }
-void PresenceServer::removeListener(PresentityPresenceInformation::Listener& listener) {
-	PresentityPresenceInformation* presenceInfo = getPresenceInfo(listener.getPresentityUri());
+void PresenceServer::removeListener(PresentityPresenceInformationListener& listener) {
+	const std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener.getPresentityUri());
 	if (presenceInfo) {
 		presenceInfo->removeListener(listener);
 	} else

@@ -33,6 +33,10 @@ public:
 	virtual ~SignalingException();
 	int getStatusCode();
 	const std::list<belle_sip_header_t*>& getHeaders();
+	template<typename T2>  SignalingException& operator<< (const T2& val){
+		FlexisipException::operator<<(val);
+		return *this;
+	}
 private:
 	const int mStatusCode;
 	std::list<belle_sip_header_t*> mHeaders;
@@ -42,10 +46,5 @@ private:
 #define SIGNALING_EXCEPTION_1(code,header) SignalingException(code,header) << " " << __FILE__ << ":"<< __LINE__ << " "
 #define SIGNALING_EXCEPTION(code) SIGNALING_EXCEPTION_1(code,NULL)
 
-/*inline   std::ostream&
-operator<<( std::ostream& __os, const flexisip::SignalingException& e) {
-	__os << dynamic_cast<const FlexisipException&>(e);
-	return __os;
-}*/
 
 #endif /* SIGNALINGEXCEPTION_HH_ */

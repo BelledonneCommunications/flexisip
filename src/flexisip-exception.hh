@@ -30,11 +30,10 @@ using namespace std;
 
 class FlexisipException: public exception {
 public:
-	explicit FlexisipException();
-	explicit FlexisipException(string& message);
-	explicit FlexisipException(const char* message);
+	FlexisipException();
+	FlexisipException(string& message);
+	FlexisipException(const char* message);
 	virtual ~FlexisipException() throw ();
-	//FlexisipException(FlexisipException&& other );
 	FlexisipException(const FlexisipException& other );
 	/**
 	 * print stack strace to stderr
@@ -47,26 +46,10 @@ public:
 	const std::string str() const;
 	
 	/* same as osstringstream, but as osstream does not have cp contructor, FlexisipException can't hinerite from osstream*/
-	FlexisipException& operator<< (const char *val);
-	FlexisipException& operator<< (const string& val);
-	FlexisipException& operator<<(bool val);
-	
-	FlexisipException& operator<<(short val);
-	FlexisipException& operator<<(unsigned short val);
-	FlexisipException& operator<<(int val);
-	FlexisipException& operator<<(unsigned int val);
-	FlexisipException& operator<<(long val);
-	FlexisipException& operator<<(unsigned long val);
-	FlexisipException& operator<<(long long val);
-	FlexisipException& operator<<(unsigned long long val);
-	FlexisipException& operator<<(float val);
-	FlexisipException& operator<<(double val);
-	FlexisipException& operator<<(long double val);
-	FlexisipException& operator<<(void* val);
-	FlexisipException& operator<<(streambuf* sb );
-	FlexisipException& operator<<(ostream& (*pf)(ostream&));
-	FlexisipException& operator<<(ios& (*pf)(ios&));
-	FlexisipException& operator<<(ios_base& (*pf)(ios_base&));
+	template<typename T2>  FlexisipException& operator<< (const T2& val){
+		mOs << val;
+		return *this;
+	}
 protected:
 	int mOffset; /*to hide last stack traces*/
 private:
@@ -75,8 +58,7 @@ private:
     string mWhat;
 	ostringstream mOs;
 };
-
-std::ostream& operator<<(std::ostream& __os,const FlexisipException&);
+std::ostream& operator<<(std::ostream& __os,const FlexisipException&  e);
 
 #define FLEXISIP_EXCEPTION FlexisipException() << " " << __FILE__ << ":"<< __LINE__ << " "
 #endif /* FLEXISIPEXCEPTION_H_ */

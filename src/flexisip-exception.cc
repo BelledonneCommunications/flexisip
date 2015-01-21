@@ -35,7 +35,7 @@ FlexisipException e;
 
 FlexisipException::FlexisipException(const char* message): mOffset(1){
 	mSize = backtrace(mArray, sizeof(mArray)/sizeof(void*));
-	if (message) *this << message;
+	if (message) mOs << message;
 #if __clang
 	if (get_terminate() != uncaught_handler)
 #endif
@@ -77,16 +77,12 @@ FlexisipException::FlexisipException(const FlexisipException& other ) {
 	mOs << other.str();
 	mWhat=other.mWhat;
 }
-const char* FlexisipException::what() throw (){
-	mWhat=mOs.str();
-	return mWhat.c_str();
-}
- void FlexisipException::printStackTrace() const {
+void FlexisipException::printStackTrace() const {
 
 	 backtrace_symbols_fd(mArray+mOffset, mSize-mOffset, STDERR_FILENO);
  }
 
- void FlexisipException::printStackTrace(std::ostream & os) const {
+void FlexisipException::printStackTrace(std::ostream & os) const {
  	 char** bt = backtrace_symbols(mArray,mSize);
  	 for (unsigned  int i = mOffset; i < mSize; ++i) {
  		os << bt[i] <<endl;
@@ -97,105 +93,36 @@ const char* FlexisipException::what() throw (){
 const std::string FlexisipException::str() const {
 	return mOs.str();
 }
-FlexisipException& FlexisipException::operator<< (const char *val) {
-	mOs<<val;
-	return *this;
-}
-FlexisipException& FlexisipException::operator<< (const string& val){
-	mOs<<val;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(bool val){
-	mOs<<val;
-	return *this;
+const char* FlexisipException::what() throw () {
+	mWhat=mOs.str();
+	return mWhat.c_str();
 }
 
 
-FlexisipException& FlexisipException::operator<<(short val){
-	mOs<<val;
-	return *this;
-}
 
-FlexisipException& FlexisipException::operator<<(unsigned short val){
-	mOs<<val;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(int val){
-	mOs<<val;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(unsigned int val){
-	mOs<<val;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(long val){
-	mOs<<val;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(unsigned long val){
-	mOs<<val;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(long long val){
-	mOs<<val;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(unsigned long long val){
-	mOs<<val;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(float val){
-	mOs<<val;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(double val){
-	mOs<<val;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(long double val){
-	mOs<<val;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(void* val){
-	mOs<<val;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(streambuf* sb ){
-	mOs<<sb;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(ostream& (*pf)(ostream&)){
-	mOs<<pf;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(ios& (*pf)(ios&)){
-	mOs<<pf;
-	return *this;
-}
-
-FlexisipException& FlexisipException::operator<<(ios_base& (*pf)(ios_base&)){
-	mOs<<pf;
-	return *this;
-}
-
+//Class Flexisip
 std::ostream& operator<<(std::ostream& __os,const FlexisipException& e) {
 	__os << e.str() << std::endl;
 	e.printStackTrace(__os);
 	return __os;
 }
+/*
+FlexisipException::FlexisipException() :FlexisipExceptionBase(){
+	
+}
+FlexisipException::FlexisipException(string& message):FlexisipExceptionBase(message){
+	
+}
 
+FlexisipException::FlexisipException(const char* message):FlexisipExceptionBase<FlexisipException>(message){
+	
+}
+
+ FlexisipException::~FlexisipException() throw (){
+	
+}
+FlexisipException::FlexisipException(const FlexisipException& other ) : FlexisipExceptionBase(other){
+	
+}
+*/
 

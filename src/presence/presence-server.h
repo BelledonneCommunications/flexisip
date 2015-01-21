@@ -22,11 +22,14 @@
 #include <iostream>
 #include <thread>
 #include <map>
+#include <unordered_map>
+#include <memory>
 #include "signaling-exception.hh"
 #include "etag-manager.hh"
 //#include "presence-configmanager.hh"
-#include "presentity-presenceinformation.hh"
+//#include "presentity-presenceinformation.hh"
 #include "presentity-manager.hh"
+#include "belle-sip/sip-uri.h"
 
 typedef struct belle_sip_stack belle_sip_stack_t;
 typedef struct belle_sip_provider belle_sip_provider_t;
@@ -38,16 +41,17 @@ typedef struct belle_sip_timeout_event belle_sip_timeout_event_t;
 typedef struct belle_sip_transaction_terminated_event belle_sip_transaction_terminated_event_t;
 typedef struct structbelle_sip_listener_t belle_sip_listener_t;
 
-namespace flexisip {
-struct BelleSipUriComparator : public std::binary_function<belle_sip_uri_t*, belle_sip_uri_t*, bool> {
-	bool operator()(const belle_sip_uri_t* lhs, const belle_sip_uri_t* rhs) const;
-};
+
 
 namespace pidf {
 class tuple;
 }
-	class Subscription;
+namespace flexisip {
 	
+class Subscription;
+class PresentityPresenceInformation;
+class Listener;
+
 class PresenceServer :  EtagManager,PresentityManager {
 public:
 	PresenceServer(std::string configFile) throw (FlexisipException);
@@ -77,30 +81,30 @@ private:
 	 *Publish API
 	 *
 	 */
-	PresentityPresenceInformation* getPresenceInfo(const string& eTag) const ;
+	const std::shared_ptr<PresentityPresenceInformation> getPresenceInfo(const string& eTag) const ;
 	/*
 	 * @throw in case an entry already exist for this entity;
 	 * */
-	PresentityPresenceInformation* getPresenceInfo(const belle_sip_uri_t* identity) const ;
-	void addPresenceInfo(PresentityPresenceInformation*) throw (FlexisipException);
+	std::shared_ptr<PresentityPresenceInformation> getPresenceInfo(const belle_sip_uri_t* identity) const ;
+	void addPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& ) throw (FlexisipException);
 	void invalidateEtag(string eTag);
 	void invalidateETag(const string& eTag) ;
 	void modifyEtag(const string& oldEtag, const string& newEtag) throw (FlexisipException);
-	void addEtag(PresentityPresenceInformation* info,const string& etag) throw (FlexisipException);
-	map<std::string,shared_ptr<PresentityPresenceInformation*>> mPresenceInformationsByEtag;
-	map<const belle_sip_uri_t*,shared_ptr<PresentityPresenceInformation*>,BelleSipUriComparator> mPresenceInformations;
+	void addEtag(const std::shared_ptr<PresentityPresenceInformation>& info,const string& etag) throw (FlexisipException);
+	map<std::string,shared_ptr<PresentityPresenceInformation>> mPresenceInformationsByEtag;
+	unordered_map<const belle_sip_uri_t*,shared_ptr<PresentityPresenceInformation>,hash<const belle_sip_uri_t*>,bellesip::UriComparator> mPresenceInformations;
 
 	/*
 	 *Presentity API
 	 *
 	 */
 	
-	 void addOrUpdateListener(PresentityPresenceInformation::Listener& listerner,int expires);
-	 void removeListener(PresentityPresenceInformation::Listener& listerner);
+	 void addOrUpdateListener(PresentityPresenceInformationListener& listerner,int expires);
+	 void removeListener(PresentityPresenceInformationListener& listerner);
 	
 	//Subscription* getSubscription(const belle_sip_uri_t* identity) const ;
 	//void notify(Subscription& subscription,PresentityPresenceInformation& presenceInformation) throw (FlexisipException);
-	map<const belle_sip_uri_t*,list<shared_ptr<Subscription>>,BelleSipUriComparator> mSubscriptionsByEntity;
+	unordered_map<const belle_sip_uri_t*,list<shared_ptr<Subscription>>,std::hash<const belle_sip_uri_t*>,bellesip::UriComparator> mSubscriptionsByEntity;
 
 
 };

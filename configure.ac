@@ -13,6 +13,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],)
 m4_include([m4/ax_compare_version.m4])
+m4_include([m4/ax_xsdcxx.m4])
 
 # Checks for programs.
 # Favor g++ 4.4 (the one in centos stable version)
@@ -21,6 +22,8 @@ m4_include([m4/ax_compare_version.m4])
 AC_PROG_CC(["xcrun clang" gcc-4.4 gcc-4.7 gcc])
 AC_PROG_CXX(["xcrun clang++" g++-4.4 g++-4.7 g++ ])
 AC_PROG_LIBTOOL
+# use for xml data binding
+AX_XSDCXX
 
 AC_ARG_ENABLE(snmp,
         AC_HELP_STRING([--disable-snmp],
@@ -446,34 +449,16 @@ AC_ARG_ENABLE(presence,
 )
 
 
-AC_ARG_WITH( xsde,
-      [  --with-xsde      Set prefix where libxsde can be found (ex:/usr or /usr/local)[default=PREFIX] ],
-      [ xsde_prefix=${withval}],[ xsde_prefix=${prefix} ])
-
-found_xsde=no
-
 if test x$presence = xyes ; then
-    
-	if test "$xsde_prefix" != "NONE" ; then
-	        XSDE_CPPFLAGS="-I${xsde_prefix}/include"
-	        XSDE_LIBS="-L${xsde_prefix}/lib"
-	fi
-	
-	XSDE_LIBS="$XSDE_LIBS -lxsde"
-	CPPFLAGS_save=$CPPFLAGS
-	CPPFLAGS="$CFLAGS $XSDE_CPPFLAGS"
-	
-	AC_CHECK_HEADER(xsde/cxx/pre.hxx,[found_xsde=yes], [AC_MSG_ERROR(Couldn't find XSDe xml data binding dev )])
-	CPPFLAGS=$CPPFLAGS_save
-	AC_SUBST(XSDE_CPPFLAGS)
-	AC_SUBST(XSDE_LIBS)
-	
+	if test "x$XSDCXX" = x; then
+		AC_MSG_ERROR([CodeSynthesis XSD required for presence server.])]	
+	fi	
 	PKG_CHECK_MODULES(BELLESIP, [belle-sip >= 1.2.4])
-	
+	PKG_CHECK_MODULES(XERCESC, [xerces-c >= 3.0.0])
 	AC_DEFINE([ENABLE_PRESENCE],1, [enable presence module])
 fi
 
-AM_CONDITIONAL([BUILD_PRESENCE], [test x$found_xsde$presence = xyesyes])
+AM_CONDITIONAL([BUILD_PRESENCE], [test x$presence = xyes])
 
 
 
@@ -486,6 +471,7 @@ scripts/debian/Makefile
 scripts/redhat/Makefile
 src/Makefile
 src/presence/Makefile
+src/presence/xml/Makefile
 doc/Makefile
 debian/Makefile
 flexisip.spec

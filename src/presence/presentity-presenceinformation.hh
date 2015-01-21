@@ -20,7 +20,8 @@
 #define PRESENCETUPLE_HH_
 
 #include <map>
-#include "application_pidf+xml/pidf+xml.hxx"
+#include "pidf+xml.hxx"
+//#include "data-model.hxx"
 #include <list>
 #include "flexisip-exception.hh"
 
@@ -32,19 +33,22 @@ namespace flexisip {
 class EtagManager;
 class PresenceInformationElement {
 public:
-	PresenceInformationElement(pidf::presence::tuple_sequence* tuples, belle_sip_main_loop_t* mainLoop);
+	PresenceInformationElement(pidf::Presence::TupleSequence* tuples, pidf::Presence::AnySequence* extensions, belle_sip_main_loop_t* mainLoop);
 	~PresenceInformationElement();
 	time_t getExpitationTime() const;
 	void setExpiresTimer( belle_sip_source_t* timer);
-	pidf::tuple* getTuple(const string& id) const;
-	const list<pidf::tuple*> getTuples() const;
-	void addTuple(pidf::tuple*);
-	void removeTuple(pidf::tuple*);
+	const std::unique_ptr<pidf::Tuple>& getTuple(const string& id) const;
+	const list<std::unique_ptr<pidf::Tuple>>& getTuples() const;
+	const list<xercesc::DOMElement*> getExtensions() const;
+	//void addTuple(pidf::Tuple*);
+	//void removeTuple(pidf::Tuple*);
 	void clearTuples();
 	const string& getEtag();
 	void setEtag(const string& eTag);
 private:
-	list<pidf::tuple*> mTuples;
+	list<std::unique_ptr<pidf::Tuple>> mTuples;
+	list<xercesc::DOMElement*> mExtensions;
+	::xml_schema::dom::unique_ptr< ::xercesc::DOMDocument > mDomDocument; //needed to store extension nodes
 	belle_sip_main_loop_t* mBelleSipMainloop;
 	belle_sip_source_t* mTimer;
 	string mEtag;
@@ -53,15 +57,14 @@ private:
  * Presence Information is the key class representy a presentity. This class can be either created bu a Publish for a presentiry or by a Subscription to a presentity
  
  */
-class PresentityPresenceInformation {
 
-public:
-
-	class Listener {
+	class PresentityPresenceInformation;
+	
+	class PresentityPresenceInformationListener {
 		
 	public:
-		Listener();
-		~Listener();
+		PresentityPresenceInformationListener();
+		~PresentityPresenceInformationListener();
 		void setExpiresTimer(belle_sip_main_loop_t *ml,belle_sip_source_t* timer);
 		/*returns prsentity uri associated to this Listener*/
 		virtual const belle_sip_uri_t* getPresentityUri()=0;
@@ -72,12 +75,19 @@ public:
 	private:
 		belle_sip_source_t* mTimer;
 	};
+	
+	
+	
+	
+	class PresentityPresenceInformation : public std::enable_shared_from_this<PresentityPresenceInformation>{
+
+public:
 
 	/*
 	 * store tuples a new tupple;
 	 * @return new eTag
 	 * */
-	string  putTuples(pidf::presence::tuple_sequence& tuples, int expires);
+	string  putTuples(pidf::Presence::TupleSequence& tuples, pidf::Presence::AnySequence& extensions, int expires);
 
 	/*
 	 *
@@ -93,7 +103,7 @@ public:
 	 *
 	 * @return new eTag
 	 * */
-	string  updateTuples(pidf::presence::tuple_sequence& tuples, string& eTag, int expires) throw (FlexisipException);
+	string  updateTuples(pidf::Presence::TupleSequence& tuples, pidf::Presence::AnySequence& extensions, string& eTag, int expires) throw (FlexisipException);
 
 	/*
 	 * refresh a publish
@@ -116,11 +126,11 @@ public:
 	/**
 	 *add notity listener for an entity
 	 */
-	void addOrUpdateListener(Listener& listener,int expires);
+	void addOrUpdateListener(PresentityPresenceInformationListener& listener,int expires);
 	/*
 	 * remove listener
 	 */
-	void removeListener(Listener& listener);
+	void removeListener(PresentityPresenceInformationListener& listener);
 	
 	
 	/*
@@ -134,7 +144,7 @@ private:
 	/*
 	 * tuples may be null
 	 */
-	string setOrUpdate(pidf::presence::tuple_sequence* tuples, const string* eTag,int expires) throw (FlexisipException);
+	string setOrUpdate(pidf::Presence::TupleSequence* tuples, pidf::Presence::AnySequence*, const string* eTag,int expires) throw (FlexisipException);
 	/*
 	 *Notify all listener
 	 */
@@ -147,7 +157,7 @@ private:
 	std::map<std::string /*Etag*/,PresenceInformationElement*> mInformationElements;
 
 	// list of subscribers function to be called when a tuple changed
-	std::list<Listener*> mSubscribers;
+	std::list<PresentityPresenceInformationListener*> mSubscribers;
 };
 
 std::ostream& operator<<(std::ostream& __os,const PresentityPresenceInformation&);

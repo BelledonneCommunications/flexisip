@@ -2,7 +2,7 @@ GITVERSION_FILE=flexisip_gitversion.h
 GITVERSION_FILE_TMP=flexisip_gitversion.h.tmp
 GITDESCRIBE=`git describe`
 GITREVISION=`git rev-parse HEAD`
-AUTOMAKE_OPTIONS = subdir-objects
+AUTOMAKE_OPTIONS = subdir-objects 
 
 ECHO=/bin/echo
 
@@ -71,17 +71,19 @@ endif
 
 flexisip_LDADD=$(SOFIA_LIBS) $(ORTP_LIBS) $(LIBODB_MYSQL_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)
 
-if BUILD_PRESENCE
-#module cannot be statically initialized in shared lib
-thesources+=module-presence.cc 
-flexisip_LDADD += presence/libflexisip-presence.la
-endif
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) $(PROTOBUF_CFLAGS) $(LIBODB_MYSQL_CFLAGS)  $(MYSQL_CFLAGS)\
 			-DCONFIG_DIR=\"$(CONFIG_DIR)\" -DORTP_DEBUG_MODE $(WARNINGCXXFLAGS)
 AM_CFLAGS=$(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) -DORTP_DEBUG_MODE
 
 AM_LDFLAGS=-no-undefined
+
+if BUILD_PRESENCE
+#module cannot be statically initialized in shared lib
+thesources+=module-presence.cc 
+flexisip_LDADD += presence/libflexisip-presence.la
+AM_CXXFLAGS+= -DBELLE_SIP_USE_STL $(BELLESIP_CFLAGS)
+endif
 
 if USE_MONOTONIC_CLOCK
 AM_CXXFLAGS+=-DUSE_MONOTONIC_CLOCK
@@ -175,7 +177,7 @@ nodist_flexisip_binder_SOURCES=$(nodistsources)
 
 noinst_PROGRAMS=expr
 expr_SOURCES=test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh
-expr_CXXFLAGS=-DTEST_BOOL_EXPR -DNO_SOFIA $(MEDIASTREAMER_CFLAGS)
+expr_CXXFLAGS=-DTEST_BOOL_EXPR -DNO_SOFIA $(MEDIASTREAMER_CFLAGS) $(ORTP_CFLAGS)
 expr_LDADD=$(flexisip_LDADD)
 
 

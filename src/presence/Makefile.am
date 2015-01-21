@@ -1,28 +1,15 @@
 AUTOMAKE_OPTIONS = subdir-objects
 if BUILD_PRESENCE
+SUBDIRS= xml
 lib_LTLIBRARIES = libflexisip-presence.la
 libflexisip_presence_la_SOURCES = 	presence-server.cc \
-									presentity-presenceinformation.cc \
-									file-resource-list-manager.cc \
-									signaling-exception.cc \
-									resource-list/resource-lists-pimpl.cxx \
-									resource-list/resource-lists-pskel.cxx \
-									resource-list/resource-lists.cxx \
-									application_pidf+xml/pidf+xml-pimpl.cxx \
-									application_pidf+xml/pidf+xml-pskel.cxx \
-									application_pidf+xml/pidf+xml.cxx \
-									application_pidf+xml/pidf+xml-simpl.cxx \
-									application_pidf+xml/pidf+xml-sskel.cxx \
-									xml/xml-pimpl.cxx \
-									xml/xml-pskel.cxx \
-									xml/xml.cxx \
-									xml/xml-simpl.cxx \
-									xml/xml-sskel.cxx \
-									subscription.cc
+					presentity-presenceinformation.cc \
+					signaling-exception.cc \
+					subscription.cc
 							
-libflexisip_presence_la_LIBADD= $(XSDE_LIBS) $(BELLESIP_LIBS)
+libflexisip_presence_la_LIBADD= xml/libpresence_generated.la $(ORTP_LIBS) $(BELLESIP_LIBS) $(XERCESC_LIBS)
 							 
-AM_CPPFLAGS= -I $(abs_srcdir)/../ -I$(abs_srcdir)/xml -I$(abs_srcdir)/resource-list -I$(abs_srcdir)/application_pidf+xml $(XSDE_CPPFLAGS)  $(SOFIA_CFLAGS) $(BELLESIP_CFLAGS)
-AM_LDFLAGS=
+AM_CPPFLAGS= -I $(abs_srcdir)/../ -I$(builddir)/xml $(SOFIA_CFLAGS) -DBELLE_SIP_USE_STL=1 $(BELLESIP_CFLAGS) $(ORTP_CFLAGS) $(XSDCXX_CPPFLAGS) $(XERCESC_CFLAGS)  
+AM_LDFLAGS= 
 
 endif

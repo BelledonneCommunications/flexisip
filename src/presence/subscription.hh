@@ -51,7 +51,7 @@ namespace flexisip {
 	/**
 	 ** Presence subscription object host a subscription to a opresence entity. This object has the same live cycle has a subscription dialog
 	 */
-	class PresenceSubscription : public Subscription, public PresentityPresenceInformation::Listener {
+	class PresenceSubscription : public Subscription, public PresentityPresenceInformationListener {
 	public:
 		PresenceSubscription(unsigned int expires,const belle_sip_uri_t* presentity,belle_sip_dialog_t* aDialog,belle_sip_provider_t* aProv);
 		~PresenceSubscription();

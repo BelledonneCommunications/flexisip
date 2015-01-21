@@ -20,13 +20,15 @@
 #define PRESENTITY_MANAGER_HH_
 #include "string"
 #include "flexisip-exception.hh"
+
+
 namespace flexisip {
+	class PresentityPresenceInformationListener;
 	
 	class PresentityManager {
-		
 	public:
-		virtual void addOrUpdateListener(PresentityPresenceInformation::Listener& listerner, int exires) = 0;
-		virtual void removeListener(PresentityPresenceInformation::Listener& listerner) = 0;
+		virtual void addOrUpdateListener(PresentityPresenceInformationListener& listerner, int exires) = 0;
+		virtual void removeListener(PresentityPresenceInformationListener& listerner) = 0;
 	};
 }
 #endif /* PRESENTITY_MANAGER_HH_ */

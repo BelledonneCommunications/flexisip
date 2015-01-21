@@ -7,10 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		2210082519DC5FAA006531C6 /* pidf+xml-simpl.cxx in Sources */ = {isa = PBXBuildFile; fileRef = 2210082119DC5FAA006531C6 /* pidf+xml-simpl.cxx */; };
-		2210082619DC5FAA006531C6 /* pidf+xml-sskel.cxx in Sources */ = {isa = PBXBuildFile; fileRef = 2210082319DC5FAA006531C6 /* pidf+xml-sskel.cxx */; };
-		2210082B19DD280F006531C6 /* xml-simpl.cxx in Sources */ = {isa = PBXBuildFile; fileRef = 2210082719DD280F006531C6 /* xml-simpl.cxx */; };
-		2210082C19DD280F006531C6 /* xml-sskel.cxx in Sources */ = {isa = PBXBuildFile; fileRef = 2210082919DD280F006531C6 /* xml-sskel.cxx */; };
+		2244DA8F1A6D414D00B54444 /* rpid.xsd in Sources */ = {isa = PBXBuildFile; fileRef = 2244DA8E1A6D413200B54444 /* rpid.xsd */; };
+		2244DA901A6D414D00B54444 /* data-model.xsd in Sources */ = {isa = PBXBuildFile; fileRef = 2244DA8C1A6D403D00B54444 /* data-model.xsd */; };
+		2244DA911A6D414D00B54444 /* common-schema.xsd in Sources */ = {isa = PBXBuildFile; fileRef = 2244DA8B1A6D3FCE00B54444 /* common-schema.xsd */; };
 		225C6ECE19D31071009ED695 /* agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E1619D31071009ED695 /* agent.cc */; };
 		225C6ECF19D31071009ED695 /* authdb-file.cc in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E1819D31071009ED695 /* authdb-file.cc */; };
 		225C6ED119D31071009ED695 /* authdb.cc in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E1A19D31071009ED695 /* authdb.cc */; };
@@ -47,20 +46,10 @@
 		225C6EF819D31071009ED695 /* module-router.cc in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E6C19D31071009ED695 /* module-router.cc */; };
 		225C6EF919D31071009ED695 /* module-sanitychecker.cc in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E6D19D31071009ED695 /* module-sanitychecker.cc */; };
 		225C6EFB19D31071009ED695 /* module.cc in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E6F19D31071009ED695 /* module.cc */; };
-		225C6EFC19D31071009ED695 /* pidf+xml-pimpl.cxx in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E7719D31071009ED695 /* pidf+xml-pimpl.cxx */; };
-		225C6EFD19D31071009ED695 /* pidf+xml-pskel.cxx in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E7919D31071009ED695 /* pidf+xml-pskel.cxx */; };
-		225C6EFE19D31071009ED695 /* pidf+xml.cxx in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E7B19D31071009ED695 /* pidf+xml.cxx */; };
-		225C6EFF19D31071009ED695 /* file-resource-list-manager.cc in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E7F19D31071009ED695 /* file-resource-list-manager.cc */; };
 		225C6F0119D31071009ED695 /* presence-server.cc in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E8319D31071009ED695 /* presence-server.cc */; };
 		225C6F0219D31071009ED695 /* presentity-presenceinformation.cc in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E8619D31071009ED695 /* presentity-presenceinformation.cc */; };
-		225C6F0319D31071009ED695 /* resource-lists-pimpl.cxx in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E8B19D31071009ED695 /* resource-lists-pimpl.cxx */; };
-		225C6F0419D31071009ED695 /* resource-lists-pskel.cxx in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E8D19D31071009ED695 /* resource-lists-pskel.cxx */; };
-		225C6F0519D31071009ED695 /* resource-lists.cxx in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E8F19D31071009ED695 /* resource-lists.cxx */; };
 		225C6F0619D31071009ED695 /* signaling-exception.cc in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E9219D31071009ED695 /* signaling-exception.cc */; };
 		225C6F0719D31071009ED695 /* subscription.cc in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E9419D31071009ED695 /* subscription.cc */; };
-		225C6F0819D31071009ED695 /* xml-pimpl.cxx in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E9819D31071009ED695 /* xml-pimpl.cxx */; };
-		225C6F0919D31071009ED695 /* xml-pskel.cxx in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E9A19D31071009ED695 /* xml-pskel.cxx */; };
-		225C6F0A19D31071009ED695 /* xml.cxx in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E9C19D31071009ED695 /* xml.cxx */; };
 		225C6F0F19D31071009ED695 /* recordserializer-c.cc in Sources */ = {isa = PBXBuildFile; fileRef = 225C6EA919D31071009ED695 /* recordserializer-c.cc */; };
 		225C6F1019D31071009ED695 /* recordserializer-json.cc in Sources */ = {isa = PBXBuildFile; fileRef = 225C6EAA19D31071009ED695 /* recordserializer-json.cc */; };
 		225C6F1219D31071009ED695 /* registrardb-internal.cc in Sources */ = {isa = PBXBuildFile; fileRef = 225C6EAE19D31071009ED695 /* registrardb-internal.cc */; };
@@ -78,9 +67,27 @@
 		225C6F2A19D3F68B009ED695 /* libxsde.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 225C6F2619D3F50F009ED695 /* libxsde.a */; };
 		225C6F2C19D3FA7E009ED695 /* libortp.9.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 225C6F2B19D3FA7E009ED695 /* libortp.9.dylib */; };
 		225C6F2E19D4564A009ED695 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 225C6F2D19D4564A009ED695 /* SystemConfiguration.framework */; };
+		228755BA1A304CDA00A84C77 /* xml.xsd in Sources */ = {isa = PBXBuildFile; fileRef = 225C6E9E19D31071009ED695 /* xml.xsd */; };
+		228755BC1A30AB9600A84C77 /* libxerces-c-3.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 228755BB1A30AB9600A84C77 /* libxerces-c-3.1.dylib */; };
+		228755C01A30AFEF00A84C77 /* pidf+xml.xsd in Sources */ = {isa = PBXBuildFile; fileRef = 228755BF1A30AF6A00A84C77 /* pidf+xml.xsd */; };
 		22C3694719F9412F00E59459 /* module-redirect.cc in Sources */ = {isa = PBXBuildFile; fileRef = 22C3694519F9412F00E59459 /* module-redirect.cc */; };
 		22C3694819F9412F00E59459 /* module-statistics-collector.cc in Sources */ = {isa = PBXBuildFile; fileRef = 22C3694619F9412F00E59459 /* module-statistics-collector.cc */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXBuildRule section */
+		228755B91A3048DE00A84C77 /* PBXBuildRule */ = {
+			isa = PBXBuildRule;
+			compilerSpec = com.apple.compilers.proxy.script;
+			filePatterns = "*.xsd";
+			fileType = pattern.proxy;
+			isEditable = 1;
+			outputFiles = (
+				"$(DERIVED_FILE_DIR)/${INPUT_FILE_BASE}.hxx",
+				"$(DERIVED_FILE_DIR)/${INPUT_FILE_BASE}.cxx",
+			);
+			script = "$HOME/bin/xsd cxx-tree --generate-wildcard --generate-serialization --generate-ostream --generate-detach --std c++11 --type-naming java --function-naming java --output-dir ${DERIVED_FILES_DIR} --location-regex-trace --location-regex \"%http://.+/(.+)%\\$1%\"  ${INPUT_FILE_PATH}";
+		};
+/* End PBXBuildRule section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		225C6E0A19D3104A009ED695 /* CopyFiles */ = {
@@ -95,14 +102,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		2210082119DC5FAA006531C6 /* pidf+xml-simpl.cxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "pidf+xml-simpl.cxx"; sourceTree = "<group>"; };
-		2210082219DC5FAA006531C6 /* pidf+xml-simpl.hxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "pidf+xml-simpl.hxx"; sourceTree = "<group>"; };
-		2210082319DC5FAA006531C6 /* pidf+xml-sskel.cxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "pidf+xml-sskel.cxx"; sourceTree = "<group>"; };
-		2210082419DC5FAA006531C6 /* pidf+xml-sskel.hxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "pidf+xml-sskel.hxx"; sourceTree = "<group>"; };
-		2210082719DD280F006531C6 /* xml-simpl.cxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "xml-simpl.cxx"; sourceTree = "<group>"; };
-		2210082819DD280F006531C6 /* xml-simpl.hxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "xml-simpl.hxx"; sourceTree = "<group>"; };
-		2210082919DD280F006531C6 /* xml-sskel.cxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "xml-sskel.cxx"; sourceTree = "<group>"; };
-		2210082A19DD280F006531C6 /* xml-sskel.hxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "xml-sskel.hxx"; sourceTree = "<group>"; };
+		2244DA8B1A6D3FCE00B54444 /* common-schema.xsd */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = "common-schema.xsd"; sourceTree = "<group>"; };
+		2244DA8C1A6D403D00B54444 /* data-model.xsd */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "data-model.xsd"; sourceTree = "<group>"; };
+		2244DA8E1A6D413200B54444 /* rpid.xsd */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = rpid.xsd; sourceTree = "<group>"; };
 		225C6E0C19D3104A009ED695 /* flex */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = flex; sourceTree = BUILT_PRODUCTS_DIR; };
 		225C6E1619D31071009ED695 /* agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = agent.cc; sourceTree = "<group>"; };
 		225C6E1719D31071009ED695 /* agent.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = agent.hh; sourceTree = "<group>"; };
@@ -185,13 +187,6 @@
 		225C6E7219D31071009ED695 /* .dirstamp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = .dirstamp; sourceTree = "<group>"; };
 		225C6E7319D31071009ED695 /* Makefile.am */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Makefile.am; sourceTree = "<group>"; };
 		225C6E7619D31071009ED695 /* README */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README; sourceTree = "<group>"; };
-		225C6E7719D31071009ED695 /* pidf+xml-pimpl.cxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "pidf+xml-pimpl.cxx"; sourceTree = "<group>"; };
-		225C6E7819D31071009ED695 /* pidf+xml-pimpl.hxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "pidf+xml-pimpl.hxx"; sourceTree = "<group>"; };
-		225C6E7919D31071009ED695 /* pidf+xml-pskel.cxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "pidf+xml-pskel.cxx"; sourceTree = "<group>"; };
-		225C6E7A19D31071009ED695 /* pidf+xml-pskel.hxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "pidf+xml-pskel.hxx"; sourceTree = "<group>"; };
-		225C6E7B19D31071009ED695 /* pidf+xml.cxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "pidf+xml.cxx"; sourceTree = "<group>"; };
-		225C6E7C19D31071009ED695 /* pidf+xml.hxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "pidf+xml.hxx"; sourceTree = "<group>"; };
-		225C6E7D19D31071009ED695 /* pidf+xml.xsd */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = "pidf+xml.xsd"; sourceTree = "<group>"; };
 		225C6E7E19D31071009ED695 /* etag-manager.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "etag-manager.hh"; sourceTree = "<group>"; };
 		225C6E7F19D31071009ED695 /* file-resource-list-manager.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "file-resource-list-manager.cc"; sourceTree = "<group>"; };
 		225C6E8019D31071009ED695 /* file-resource-list-manager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "file-resource-list-manager.h"; sourceTree = "<group>"; };
@@ -203,27 +198,12 @@
 		225C6E8619D31071009ED695 /* presentity-presenceinformation.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "presentity-presenceinformation.cc"; sourceTree = "<group>"; };
 		225C6E8719D31071009ED695 /* presentity-presenceinformation.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "presentity-presenceinformation.hh"; sourceTree = "<group>"; };
 		225C6E8919D31071009ED695 /* REAME */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = REAME; sourceTree = "<group>"; };
-		225C6E8A19D31071009ED695 /* resource-list-manager.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "resource-list-manager.hh"; sourceTree = "<group>"; };
-		225C6E8B19D31071009ED695 /* resource-lists-pimpl.cxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "resource-lists-pimpl.cxx"; sourceTree = "<group>"; };
-		225C6E8C19D31071009ED695 /* resource-lists-pimpl.hxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "resource-lists-pimpl.hxx"; sourceTree = "<group>"; };
-		225C6E8D19D31071009ED695 /* resource-lists-pskel.cxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "resource-lists-pskel.cxx"; sourceTree = "<group>"; };
-		225C6E8E19D31071009ED695 /* resource-lists-pskel.hxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "resource-lists-pskel.hxx"; sourceTree = "<group>"; };
-		225C6E8F19D31071009ED695 /* resource-lists.cxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "resource-lists.cxx"; sourceTree = "<group>"; };
-		225C6E9019D31071009ED695 /* resource-lists.hxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "resource-lists.hxx"; sourceTree = "<group>"; };
-		225C6E9119D31071009ED695 /* resource-lists.xsd */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = "resource-lists.xsd"; sourceTree = "<group>"; };
 		225C6E9219D31071009ED695 /* signaling-exception.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "signaling-exception.cc"; sourceTree = "<group>"; };
 		225C6E9319D31071009ED695 /* signaling-exception.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "signaling-exception.hh"; sourceTree = "<group>"; };
 		225C6E9419D31071009ED695 /* subscription.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = subscription.cc; sourceTree = "<group>"; };
 		225C6E9519D31071009ED695 /* subscription.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = subscription.hh; sourceTree = "<group>"; };
-		225C6E9819D31071009ED695 /* xml-pimpl.cxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "xml-pimpl.cxx"; sourceTree = "<group>"; };
-		225C6E9919D31071009ED695 /* xml-pimpl.hxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "xml-pimpl.hxx"; sourceTree = "<group>"; };
-		225C6E9A19D31071009ED695 /* xml-pskel.cxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "xml-pskel.cxx"; sourceTree = "<group>"; };
-		225C6E9B19D31071009ED695 /* xml-pskel.hxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "xml-pskel.hxx"; sourceTree = "<group>"; };
-		225C6E9C19D31071009ED695 /* xml.cxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = xml.cxx; sourceTree = "<group>"; };
-		225C6E9D19D31071009ED695 /* xml.hxx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = xml.hxx; sourceTree = "<group>"; };
 		225C6E9E19D31071009ED695 /* xml.xsd */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = xml.xsd; sourceTree = "<group>"; };
 		225C6E9F19D31071009ED695 /* proxy-configmanager.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "proxy-configmanager.cc"; sourceTree = "<group>"; };
-		225C6EA019D31071009ED695 /* proxy-configmanager.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "proxy-configmanager.hh"; sourceTree = "<group>"; };
 		225C6EA119D31071009ED695 /* pusher */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = pusher; sourceTree = "<group>"; };
 		225C6EA919D31071009ED695 /* recordserializer-c.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "recordserializer-c.cc"; sourceTree = "<group>"; };
 		225C6EAA19D31071009ED695 /* recordserializer-json.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "recordserializer-json.cc"; sourceTree = "<group>"; };
@@ -257,6 +237,8 @@
 		225C6F2819D3F67C009ED695 /* libbellesip.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libbellesip.0.dylib; path = "../../workspace-macosx/opt/lib/libbellesip.0.dylib"; sourceTree = "<group>"; };
 		225C6F2B19D3FA7E009ED695 /* libortp.9.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libortp.9.dylib; path = ../opt/lib/libortp.9.dylib; sourceTree = "<group>"; };
 		225C6F2D19D4564A009ED695 /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = System/Library/Frameworks/SystemConfiguration.framework; sourceTree = SDKROOT; };
+		228755BB1A30AB9600A84C77 /* libxerces-c-3.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libxerces-c-3.1.dylib"; path = "../../../../../../../opt/local/lib/libxerces-c-3.1.dylib"; sourceTree = "<group>"; };
+		228755BF1A30AF6A00A84C77 /* pidf+xml.xsd */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = "pidf+xml.xsd"; sourceTree = "<group>"; };
 		22C3694519F9412F00E59459 /* module-redirect.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "module-redirect.cc"; sourceTree = "<group>"; };
 		22C3694619F9412F00E59459 /* module-statistics-collector.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "module-statistics-collector.cc"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -266,6 +248,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				228755BC1A30AB9600A84C77 /* libxerces-c-3.1.dylib in Frameworks */,
 				225C6F2E19D4564A009ED695 /* SystemConfiguration.framework in Frameworks */,
 				225C6F2C19D3FA7E009ED695 /* libortp.9.dylib in Frameworks */,
 				225C6F2A19D3F68B009ED695 /* libxsde.a in Frameworks */,
@@ -355,7 +338,6 @@
 				225C6E7019D31071009ED695 /* module.hh */,
 				225C6E7119D31071009ED695 /* presence */,
 				225C6E9F19D31071009ED695 /* proxy-configmanager.cc */,
-				225C6EA019D31071009ED695 /* proxy-configmanager.hh */,
 				225C6EA119D31071009ED695 /* pusher */,
 				225C6EA919D31071009ED695 /* recordserializer-c.cc */,
 				225C6EAA19D31071009ED695 /* recordserializer-json.cc */,
@@ -448,18 +430,7 @@
 		225C6E7519D31071009ED695 /* application_pidf+xml */ = {
 			isa = PBXGroup;
 			children = (
-				2210082119DC5FAA006531C6 /* pidf+xml-simpl.cxx */,
-				2210082219DC5FAA006531C6 /* pidf+xml-simpl.hxx */,
-				2210082319DC5FAA006531C6 /* pidf+xml-sskel.cxx */,
-				2210082419DC5FAA006531C6 /* pidf+xml-sskel.hxx */,
 				225C6E7619D31071009ED695 /* README */,
-				225C6E7719D31071009ED695 /* pidf+xml-pimpl.cxx */,
-				225C6E7819D31071009ED695 /* pidf+xml-pimpl.hxx */,
-				225C6E7919D31071009ED695 /* pidf+xml-pskel.cxx */,
-				225C6E7A19D31071009ED695 /* pidf+xml-pskel.hxx */,
-				225C6E7B19D31071009ED695 /* pidf+xml.cxx */,
-				225C6E7C19D31071009ED695 /* pidf+xml.hxx */,
-				225C6E7D19D31071009ED695 /* pidf+xml.xsd */,
 			);
 			path = "application_pidf+xml";
 			sourceTree = "<group>";
@@ -468,14 +439,6 @@
 			isa = PBXGroup;
 			children = (
 				225C6E8919D31071009ED695 /* REAME */,
-				225C6E8A19D31071009ED695 /* resource-list-manager.hh */,
-				225C6E8B19D31071009ED695 /* resource-lists-pimpl.cxx */,
-				225C6E8C19D31071009ED695 /* resource-lists-pimpl.hxx */,
-				225C6E8D19D31071009ED695 /* resource-lists-pskel.cxx */,
-				225C6E8E19D31071009ED695 /* resource-lists-pskel.hxx */,
-				225C6E8F19D31071009ED695 /* resource-lists.cxx */,
-				225C6E9019D31071009ED695 /* resource-lists.hxx */,
-				225C6E9119D31071009ED695 /* resource-lists.xsd */,
 			);
 			path = "resource-list";
 			sourceTree = "<group>";
@@ -483,16 +446,10 @@
 		225C6E9719D31071009ED695 /* xml */ = {
 			isa = PBXGroup;
 			children = (
-				2210082719DD280F006531C6 /* xml-simpl.cxx */,
-				2210082819DD280F006531C6 /* xml-simpl.hxx */,
-				2210082919DD280F006531C6 /* xml-sskel.cxx */,
-				2210082A19DD280F006531C6 /* xml-sskel.hxx */,
-				225C6E9819D31071009ED695 /* xml-pimpl.cxx */,
-				225C6E9919D31071009ED695 /* xml-pimpl.hxx */,
-				225C6E9A19D31071009ED695 /* xml-pskel.cxx */,
-				225C6E9B19D31071009ED695 /* xml-pskel.hxx */,
-				225C6E9C19D31071009ED695 /* xml.cxx */,
-				225C6E9D19D31071009ED695 /* xml.hxx */,
+				2244DA8E1A6D413200B54444 /* rpid.xsd */,
+				2244DA8C1A6D403D00B54444 /* data-model.xsd */,
+				2244DA8B1A6D3FCE00B54444 /* common-schema.xsd */,
+				228755BF1A30AF6A00A84C77 /* pidf+xml.xsd */,
 				225C6E9E19D31071009ED695 /* xml.xsd */,
 			);
 			path = xml;
@@ -509,6 +466,7 @@
 		22FE5D3918A27D8300C78CE0 = {
 			isa = PBXGroup;
 			children = (
+				228755BB1A30AB9600A84C77 /* libxerces-c-3.1.dylib */,
 				225C6E1319D31071009ED695 /* src */,
 				225C6F2D19D4564A009ED695 /* SystemConfiguration.framework */,
 				225C6F2B19D3FA7E009ED695 /* libortp.9.dylib */,
@@ -548,6 +506,7 @@
 				225C6E0A19D3104A009ED695 /* CopyFiles */,
 			);
 			buildRules = (
+				228755B91A3048DE00A84C77 /* PBXBuildRule */,
 			);
 			dependencies = (
 			);
@@ -593,25 +552,22 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				228755BA1A304CDA00A84C77 /* xml.xsd in Sources */,
+				228755C01A30AFEF00A84C77 /* pidf+xml.xsd in Sources */,
+				2244DA911A6D414D00B54444 /* common-schema.xsd in Sources */,
+				2244DA901A6D414D00B54444 /* data-model.xsd in Sources */,
+				2244DA8F1A6D414D00B54444 /* rpid.xsd in Sources */,
 				225C6EF919D31071009ED695 /* module-sanitychecker.cc in Sources */,
-				2210082B19DD280F006531C6 /* xml-simpl.cxx in Sources */,
-				225C6EFC19D31071009ED695 /* pidf+xml-pimpl.cxx in Sources */,
 				225C6F2219D325F5009ED695 /* eventlogs.cc in Sources */,
-				2210082519DC5FAA006531C6 /* pidf+xml-simpl.cxx in Sources */,
 				225C6F2119D31071009ED695 /* uac-register.cc in Sources */,
 				225C6EDB19D31071009ED695 /* etchosts.cc in Sources */,
 				225C6F0619D31071009ED695 /* signaling-exception.cc in Sources */,
-				225C6EFD19D31071009ED695 /* pidf+xml-pskel.cxx in Sources */,
 				225C6F1919D31071009ED695 /* stun.cc in Sources */,
 				225C6F0119D31071009ED695 /* presence-server.cc in Sources */,
 				225C6ED519D31071009ED695 /* callstore.cc in Sources */,
 				22C3694719F9412F00E59459 /* module-redirect.cc in Sources */,
-				225C6F0A19D31071009ED695 /* xml.cxx in Sources */,
 				225C6F1219D31071009ED695 /* registrardb-internal.cc in Sources */,
-				225C6F0519D31071009ED695 /* resource-lists.cxx in Sources */,
-				225C6F0819D31071009ED695 /* xml-pimpl.cxx in Sources */,
 				225C6EE319D31071009ED695 /* forkmessagecontext.cc in Sources */,
-				225C6EFE19D31071009ED695 /* pidf+xml.cxx in Sources */,
 				225C6EF819D31071009ED695 /* module-router.cc in Sources */,
 				225C6F1019D31071009ED695 /* recordserializer-json.cc in Sources */,
 				225C6EF719D31071009ED695 /* module-registrar.cc in Sources */,
@@ -620,7 +576,6 @@
 				225C6EDA19D31071009ED695 /* entryfilter.cc in Sources */,
 				225C6F0219D31071009ED695 /* presentity-presenceinformation.cc in Sources */,
 				225C6ECE19D31071009ED695 /* agent.cc in Sources */,
-				2210082619DC5FAA006531C6 /* pidf+xml-sskel.cxx in Sources */,
 				225C6EE519D31071009ED695 /* logmanager.cc in Sources */,
 				225C6EDF19D31071009ED695 /* flexisip-exception.cc in Sources */,
 				225C6EE819D31071009ED695 /* main.cc in Sources */,
@@ -631,18 +586,13 @@
 				225C6F1619D31071009ED695 /* sdp-modifier.cc in Sources */,
 				225C6ED719D31071009ED695 /* configmanager.cc in Sources */,
 				225C6EE419D31071009ED695 /* h264iframefilter.cc in Sources */,
-				225C6F0919D31071009ED695 /* xml-pskel.cxx in Sources */,
 				225C6EF319D31071009ED695 /* module-mediarelay.cc in Sources */,
-				225C6EFF19D31071009ED695 /* file-resource-list-manager.cc in Sources */,
 				225C6EFB19D31071009ED695 /* module.cc in Sources */,
-				225C6F0419D31071009ED695 /* resource-lists-pskel.cxx in Sources */,
 				225C6ECF19D31071009ED695 /* authdb-file.cc in Sources */,
 				225C6ED219D31071009ED695 /* cJSON.c in Sources */,
 				225C6F0719D31071009ED695 /* subscription.cc in Sources */,
 				225C6F1A19D31071009ED695 /* telephone-event-filter.cc in Sources */,
-				2210082C19DD280F006531C6 /* xml-sskel.cxx in Sources */,
 				225C6ED819D31071009ED695 /* contact-masquerader.cc in Sources */,
-				225C6F0319D31071009ED695 /* resource-lists-pimpl.cxx in Sources */,
 				225C6EF419D31071009ED695 /* module-nat-helper.cc in Sources */,
 				225C6EE019D31071009ED695 /* forkbasiccontext.cc in Sources */,
 				225C6F1519D31071009ED695 /* registrardb.cc in Sources */,
@@ -670,7 +620,7 @@
 		225C6E1119D3104B009ED695 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -696,6 +646,7 @@
 					"/Volumes/Macintosh_HD/Users/jehanmonnier/workspaces/workspace-flexisip/opt/lib",
 					"/Volumes/Macintosh_HD/Users/jehanmonnier/workspaces/workspace-macosx/xsde-3.2.0-i686-macosx/libxsde/xsde",
 					"/Volumes/Macintosh_HD/Users/jehanmonnier/workspaces/workspace-macosx/opt/lib",
+					/opt/local/lib,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				MTL_ENABLE_DEBUG_INFO = YES;
@@ -712,7 +663,7 @@
 		225C6E1219D3104B009ED695 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -734,6 +685,7 @@
 					"/Volumes/Macintosh_HD/Users/jehanmonnier/workspaces/workspace-flexisip/opt/lib",
 					"/Volumes/Macintosh_HD/Users/jehanmonnier/workspaces/workspace-macosx/xsde-3.2.0-i686-macosx/libxsde/xsde",
 					"/Volumes/Macintosh_HD/Users/jehanmonnier/workspaces/workspace-macosx/opt/lib",
+					/opt/local/lib,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				MTL_ENABLE_DEBUG_INFO = NO;
@@ -778,6 +730,11 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					"/Users/jehanmonnier/workspaces/workspace-flexisip/opt/include",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
@@ -810,6 +767,11 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					"/Users/jehanmonnier/workspaces/workspace-flexisip/opt/include",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				SDKROOT = macosx;
 			};
