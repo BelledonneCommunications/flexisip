@@ -1,3 +1,4 @@
+AUTOMAKE_OPTIONS = subdir-objects
 noinst_LTLIBRARIES=libpresence_generated.la
 
 libpresence_generated_la_CFLAGS= $(STRICT_OPTIONS) $(STRICT_OPTIONS_CC)

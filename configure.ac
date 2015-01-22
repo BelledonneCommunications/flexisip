@@ -451,7 +451,7 @@ AC_ARG_ENABLE(presence,
 
 if test x$presence = xyes ; then
 	if test "x$XSDCXX" = x; then
-		AC_MSG_ERROR([CodeSynthesis XSD required for presence server.])]	
+		AC_MSG_ERROR([CodeSynthesis XSD required for presence server.])
 	fi	
 	PKG_CHECK_MODULES(BELLESIP, [belle-sip >= 1.2.4])
 	PKG_CHECK_MODULES(XERCESC, [xerces-c >= 3.0.0])
