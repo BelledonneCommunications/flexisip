@@ -295,8 +295,8 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const sip_c
 
 
 void LateForkApplier::onContactRegistered(const Agent *agent, const sip_contact_t *ct, const sip_path_t *path, Record *aor, const url_t * sipUri) {
-	ModuleRouter *module=(ModuleRouter*) agent->findModule(ModuleRouter::sInfo.getModuleName());
-	module->onContactRegistered(ct, path, aor, sipUri);
+	ModuleRouter *module=dynamic_cast<ModuleRouter*> (agent->findModule(ModuleRouter::sInfo.getModuleName()));
+	if (module && module->isEnabled()) module->onContactRegistered(ct, path, aor, sipUri);
 }
 
 void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t *path, Record *aor, const url_t * sipUri) {

@@ -123,6 +123,7 @@ class Module : protected ConfigValueListener {
 		void processResponse(std::shared_ptr<ResponseSipEvent> &ev);
 		StatCounter64 &findStat(const std::string &statName) const;
 		void idle();
+		bool isEnabled()const;
 	public:
 		inline void process(std::shared_ptr<RequestSipEvent> &ev) {
 			processRequest(ev);

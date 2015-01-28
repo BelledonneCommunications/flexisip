@@ -83,6 +83,11 @@ Module::Module(Agent *ag) :
 	mFilter = new ConfigEntryFilter();
 }
 
+bool Module::isEnabled() const {
+	return mFilter->isEnabled();
+}
+
+
 Module::~Module() {
 	delete mFilter;
 }

@@ -69,7 +69,8 @@ public:
 
 	virtual void onDeclare(GenericStruct *mc) {
 		ConfigItemDescriptor configs[] = {
-			{ StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar.", "localhost" },
+			{ StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar."
+					" It can eventually be the '*' (wildcard) in order to match any domain name.", "localhost" },
 			{ Boolean, "reg-on-response", "Register users based on response obtained from a back-end server. "
 				"This mode is for using flexisip as a front-end server to hold client connections but register"
 				"acceptance is deferred to backend server to which the REGISTER is routed.", "false" },
