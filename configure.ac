@@ -200,7 +200,7 @@ if test "${mysql_prefix}" != "none" ; then
 	have_mysql=no
 	CPPFLAGS_save=$CPPFLAGS
 	CPPFLAGS="$CPPFLAGS $MYSQL_CFLAGS"
-	AC_CHECK_HEADER([mysql.h],have_mysql_headers=yes)
+	AC_CHECK_HEADER([mysql/mysql.h],have_mysql_headers=yes)
 	CPPFLAGS=$CPPFLAGS_save
 
 	if test "$have_mysql_headers" = "yes" ; then
