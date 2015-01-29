@@ -75,7 +75,7 @@
 #include <time.h>
 #include <ortp/port.h>
 //#include "mediastreamer2/mscommon.h"
-#include "stun_udp.h"
+#include "flexisip_stun_udp.h"
 
 #ifdef __APPLE__
    #include "TargetConditionals.h"

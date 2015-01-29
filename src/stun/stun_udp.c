@@ -110,7 +110,7 @@
 
 #include <string.h>
 
-#include "stun/stun_udp.h"
+#include "stun/flexisip_stun_udp.h"
 #include "ortp/ortp.h"
 
 #if !defined(WIN32) && !defined(_WIN32_WCE)

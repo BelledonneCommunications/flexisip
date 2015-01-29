@@ -35,7 +35,8 @@ thesources= \
 			module.cc module.hh \
 			monitor.cc monitor.hh \
 			entryfilter.cc entryfilter.hh \
-			stun.cc stun.hh \
+			stun.cc stun.hh \			
+			stun/stun.c stun/stun_udp.c stun/flexisip_stun.h stun/flexisip_stun_udp.h \
 			mediarelay.cc mediarelay.hh \
 			authdb.hh authdb.cc authdb-file.cc \
 			module-sanitychecker.cc \
@@ -57,7 +58,6 @@ thesources= \
 			h264iframefilter.cc h264iframefilter.hh \
 			telephone-event-filter.cc telephone-event-filter.hh \
 			log/logmanager.cc log/logmanager.hh \
-			stun/stun.c stun/stun_udp.c \
 			eventlogs/eventlogs.cc eventlogs/eventlogs.hh \
 			contact-masquerader.cc contact-masquerader.hh \
 			uac-register.cc uac-register.hh \
