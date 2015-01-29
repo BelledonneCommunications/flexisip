@@ -19,6 +19,7 @@
 #ifndef stun_hh
 #define stun_hh
 
+#include "stun/stun.h"
 #include <pthread.h>
 
 class StunServer{

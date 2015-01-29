@@ -57,6 +57,7 @@ thesources= \
 			h264iframefilter.cc h264iframefilter.hh \
 			telephone-event-filter.cc telephone-event-filter.hh \
 			log/logmanager.cc log/logmanager.hh \
+			stun/stun.c stun/stun_udp.c \
 			eventlogs/eventlogs.cc eventlogs/eventlogs.hh \
 			contact-masquerader.cc contact-masquerader.hh \
 			uac-register.cc uac-register.hh \
