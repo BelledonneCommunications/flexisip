@@ -24,7 +24,6 @@
 #include <poll.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <mediastreamer2/stun.h>
 
 
 StunServer::Init StunServer::sStaticInit;
