@@ -19,6 +19,7 @@
 #include "stun.hh"
 #include "common.hh"
 #include "configmanager.hh"
+#include "stun/flexisip_stun.h"
 
 #include <arpa/inet.h>
 #include <poll.h>

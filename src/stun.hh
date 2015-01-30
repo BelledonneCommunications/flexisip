@@ -19,7 +19,6 @@
 #ifndef stun_hh
 #define stun_hh
 
-#include "stun/flexisip_stun.h"
 #include <pthread.h>
 
 class StunServer{
