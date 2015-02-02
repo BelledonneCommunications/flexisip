@@ -100,7 +100,6 @@
 #include <arpa/nameser.h>
 #include <resolv.h>
 #include <net/if.h>
-
 #endif
 
 #ifdef __QNX__
@@ -326,13 +325,13 @@ turnParseAtrRequestedTransport( char* body, unsigned int hdrLen,  TurnAtrRequest
 #define htonq(n) n
 #define ntohq(n) n
 #else /* little endian */
-static ORTP_INLINE uint64_t
+static inline uint64_t
 htonq (uint64_t v)
 {
   return htonl ((uint32_t) (v >> 32))
 	| (uint64_t) htonl ((uint32_t) v) << 32;
 }
-static ORTP_INLINE uint64_t
+static inline uint64_t
 ntohq (uint64_t v)
 {
   return ntohl ((uint32_t) (v >> 32))
@@ -1213,7 +1212,7 @@ stunRand(void)
 	  uint64_t tick;
 	  int seed;
 	  init = TRUE;
-
+#ifdef WIN32
 #if defined(_WIN32_WCE)
 	  tick = GetTickCount ();
 #elif !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
@@ -1231,6 +1230,7 @@ stunRand(void)
 	  tick <<= 32;
 	  tick |= lowtick;
 	  }
+#endif
 #elif defined(__MACH__)
 	   {
 			int fd=open("/dev/random",O_RDONLY);
