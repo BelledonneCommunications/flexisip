@@ -117,7 +117,7 @@ url_t * ForwardModule::getDestinationFromRoute(su_home_t *home, sip_t *sip){
 		url_param(route->r_url->url_params,"fs-received",received,sizeof(received));
 		url_param(route->r_url->url_params,"fs-rport",rport,sizeof(rport));
 		if (received[0]!=0){
-			ret->url_host=su_strdup(home,received);
+			urlSetHost(home, ret, received);
 			ret->url_params=url_strip_param_string(su_strdup(home,route->r_url->url_params),"fs-received");
 		}
 		if (rport[0]!=0){
@@ -184,9 +184,6 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		ev->terminateProcessing();
 		return;
 	}
-
-	// Decrease max forward
-	if (sip->sip_max_forwards) --sip->sip_max_forwards->mf_count;
 
 	// tport is the transport which will be used by sofia to send message
 	tp_name_t name={0,0,0,0,0,0};

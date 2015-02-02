@@ -196,6 +196,9 @@ class ModuleToolbox{
 		static void addRoutingParam(su_home_t *home, sip_contact_t *contacts, const std::string &routingParam, const char *domain);
 		static struct sip_route_s *prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_s * &sipr, struct sip_route_s * &value);
 		static void addPathHeader(Agent *ag, const std::shared_ptr<RequestSipEvent> &ev, const tport_t *tport, const char *uniq = NULL);
+		static bool urlHostMatch(const char *host1, const char *host2);
+		static bool urlHostMatch(url_t *url, const char *host);
+		static void urlSetHost(su_home_t *home, url_t *url, const char *host);
 		/**
 		* Returns true if via and url represent the same network address.
 		**/

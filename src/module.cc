@@ -264,26 +264,26 @@ void ModuleToolbox::cleanAndPrependRoutable(su_home_t *home, Agent *ag, msg_t *m
 
 url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
 	url_t *url=NULL;
-	int port=atoi(name->tpn_port);
-	if (strcmp(name->tpn_proto,"udp")==0){
-		if (port!=5060){
-			url=url_format(home,"sip:%s:%s",name->tpn_canon,name->tpn_port);
-		}else{
-			url=url_format(home,"sip:%s",name->tpn_canon);
-		}
-	}else if (strcmp(name->tpn_proto,"tcp")==0){
-		if (port!=5060){
-			url=url_format(home,"sip:%s:%s;transport=tcp",name->tpn_canon,name->tpn_port);
-		}else{
-			url=url_format(home,"sip:%s;transport=tcp",name->tpn_canon);
-		}
-	}else if (strcmp(name->tpn_proto,"tls")==0){
-		if (port!=5061){
-			url=url_format(home,"sips:%s:%s",name->tpn_canon,name->tpn_port);
-		}else{
-			url=url_format(home,"sips:%s",name->tpn_canon);
-		}
+	url_type_e ut=url_sip;
+	
+	if (strcasecmp(name->tpn_proto,"tls")==0){
+		ut=url_sips;
 	}
+	url=(url_t*) su_alloc(home, sizeof(url_t));
+	url_init(url, ut);
+	
+	if (strcasecmp(name->tpn_proto,"tcp")==0){
+		url_param_add(home, url, "transport=tcp");
+	}
+	
+	url->url_port=su_strdup(home, name->tpn_port);
+	if (strchr(name->tpn_canon,':')){
+		//ipv6
+		url->url_host=su_sprintf(home, "[%s]", name->tpn_canon);
+	}else{
+		url->url_host=su_strdup(home, name->tpn_canon);
+	}
+	
 	return url;
 }
 
@@ -380,6 +380,33 @@ bool ModuleToolbox::fixAuthChallengeForSDP(su_home_t *home, msg_t *msg, sip_t *s
 	return true;
 }
 
+void ModuleToolbox::urlSetHost(su_home_t *home, url_t *url, const char *host){
+	if (strchr(host,':') && host[0]!='['){
+		url->url_host=su_sprintf(home, "[%s]", host);
+	}else url->url_host=su_strdup(home, host);
+}
+
+/*this does host comparison taking into account that each one of argument can be an ipv6 address enclosed in brakets*/
+bool ModuleToolbox::urlHostMatch(const char *host1, const char *host2){
+	size_t len1,len2;
+	
+	len1=strlen(host1);
+	if (host1[0]=='['){
+		host1++;
+		len1-=2;
+	}
+	len2=strlen(host2);
+	if (host2[0]=='['){
+		host2++;
+		len2-=2;
+	}
+	return strncasecmp(host1,host2,MAX(len1,len2));
+}
+
+bool ModuleToolbox::urlHostMatch(url_t *url, const char *host){
+	return urlHostMatch(url->url_host, host);
+}
+
 bool ModuleToolbox::transportEquals(const char *tr1, const char *tr2) {
 	if (tr1 == NULL || tr1[0] == 0)
 		tr1 = "UDP";
@@ -418,7 +445,7 @@ bool ModuleToolbox::urlViaMatch(url_t *url, sip_via_t *via, bool use_received_rp
 	url_param(url->url_params,"transport",url_transport,sizeof(url_transport));
 	if (strcmp(url->url_scheme,"sips")==0) strncpy(url_transport,"TLS",sizeof(url_transport));
 
-	return strcmp(via_host,url_host)==0 && strcmp(via_port,url_pt)==0;
+	return urlHostMatch(via_host,url_host) && strcmp(via_port,url_pt)==0;
 }
 
 bool ModuleToolbox::isNumeric(const char *host){

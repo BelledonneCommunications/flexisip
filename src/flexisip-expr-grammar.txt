@@ -1,0 +1,79 @@
+
+special-chars =  ";" / "/" / "?" / ":" / "@" / "&" / "=" / "+"
+		/ "$" / "," / "-" / "_" / "." / "!" / "~" / "*" 
+		/ "(" / ")"
+
+flexisip-expression = and-expression
+		/ or-expression
+		/ negated-expression
+		/ grouped-expression
+		/ contains-expression
+		/ equals-expression
+		/ regexp-expression
+		/ in-expression
+		/ is-request
+
+and-operator = LWS "&&" LWS
+and-expression = flexisip-expression and-operator flexisip-expression
+
+or-operator = LWS "||" LWS
+or-expression = flexisip-expression or-operator flexisip-expression
+
+negated-expression = "!" LWS flexisip-expression
+
+grouped-expression = "(" LWS flexisip-expression LWS ")"
+
+is-request = LWS "is_request" LWS
+
+equals-operator = LWS "==" LWS
+equals-expression = flexisip-variable equals-operator constant
+			/ constant equals-operator flexisip-variable
+			/ flexisip-variable equals-operator flexisip-variable
+
+contains-operator = LWS "contains" LWS
+constant-value = 1*(alphanum / special-chars)
+constant = quote contant-value quote
+contains-expression = flexisip-variable contains-operator constant
+
+regexp-operator = LWS "regexp" LWS
+regexp-expression = flexisip-variable regexp-operator constant
+
+in-operator = LWS "in" LWS
+list-of-constants = 1*(constant *LWS)
+in-expression = flexisip-variable in-operator list-of-constants
+
+from-uri-user = "from.uri.username"
+from-uri-host = "from.uri.host"
+
+to-uri-user = "to.uri.username"
+to-uri-host = "to.uri.host"
+
+callid = "callid"
+
+method = "method"
+
+uri-user = "uri.user"
+uri-host = "uri.host"
+uri-params = "uri.params"
+
+status-phrase = "status.phrase"
+status-code = "status.code"
+
+user-agent = "user-agent"
+
+topvia-host = "topvia.host"
+topvia-received = "topvia.received"
+
+flexisip-variable = 	from-uri-username
+			/ from-uri-host
+			/ to-uri-user
+			/ to-uri-host
+			/ uri-user
+			/ uri-host
+			/ uri-params
+			/ topvia-host
+			/ topvia-received
+			/ status-phrase
+			/ status-code
+			/ user-agent
+

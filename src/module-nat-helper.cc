@@ -119,7 +119,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 				}else{
 					sip_contact_t *ctt=sip->sip_contact;
 					if (ctt && ctt->m_url && ctt->m_url->url_host){
-						if (strcmp(ip,ctt->m_url->url_host)!=0 || !sipPortEquals(ctt->m_url->url_port,port)){
+						if ( ! ModuleToolbox::urlHostMatch(ctt->m_url, ip) || !sipPortEquals(ctt->m_url->url_port,port)){
 							LOGD("Response is coming from %s:%s, fixing contact",ip,port);
 							ctt->m_url->url_host=su_strdup(home,ip);
 							ctt->m_url->url_port=su_strdup(home,port);
@@ -156,13 +156,13 @@ class NatHelper : public Module, protected ModuleToolbox{
 					/*If we have a single contact and we are the front-end proxy, or if we found a ip:port in a contact that seems incorrect
 						because the same appeared fixed in the via, then fix it*/
 					if ( (is_frontend && single_contact)
-						|| (strcmp(host,via->v_host)==0 && sipPortEquals(ctt->m_url->url_port,via->v_port) && transportEquals(via_transport,ct_transport))){
+						|| (ModuleToolbox::urlHostMatch(host,via->v_host) && sipPortEquals(ctt->m_url->url_port,via->v_port) && transportEquals(via_transport,ct_transport))){
 						
-						if (strcmp(host,received)!=0 || !sipPortEquals(ctt->m_url->url_port,rport)){
+						if (!ModuleToolbox::urlHostMatch(host,received) || !sipPortEquals(ctt->m_url->url_port,rport)){
 							LOGD("Fixing contact header with %s:%s to %s:%s",
 							   ctt->m_url->url_host, ctt->m_url->url_port ? ctt->m_url->url_port :"" ,
 							   received, rport ? rport : "");
-							ctt->m_url->url_host=received;
+							ModuleToolbox::urlSetHost(home, ctt->m_url, received);
 							ctt->m_url->url_port=rport;
 						}
 						fixTransport(home,ctt->m_url,via_transport);
@@ -194,7 +194,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 			if (empty(received)) received=via->v_host;
 			if (!rport) rport=via->v_port;
 			if (!transport) transport="udp";
-			path->url_host=received;
+			ModuleToolbox::urlSetHost(ms->getHome(), path, received);
 			path->url_port=rport;
 			fixTransport(ms->getHome(),path,transport);
 		}
@@ -226,7 +226,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 						const char *transport=sip_via_transport(sip->sip_via);
 						const char *received=sip->sip_via->v_received ? sip->sip_via->v_received : sip->sip_via->v_host;
 						const char *rport=sip->sip_via->v_rport ? sip->sip_via->v_rport : sip->sip_via->v_port;
-						if (strcmp(received,host)!=0){
+						if (! ModuleToolbox::urlHostMatch(received,host)){
 							LOGD("This record-route needs to be fixed for host");
 							url_param_add(ms->getHome(),sip->sip_record_route->r_url,su_sprintf(ms->getHome(),"fs-received=%s",received));
 						}

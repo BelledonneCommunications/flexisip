@@ -44,7 +44,7 @@ class ModuleRouter: public Module, public ModuleToolbox, public ForkContextListe
 	RouterStats mStats;
 	bool rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *ct_url, const char *route);
 public:
-	void sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason);
+	void sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code=0, const char *warning=NULL);
 	void routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aorb, const url_t *sipUri);
 	void onContactRegistered(const sip_contact_t *ct, const sip_path_t *path, Record *aor, const url_t * sipUri);
 
@@ -139,7 +139,7 @@ private:
 	bool isManagedDomain(const url_t *url) {
 		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 	}
-	bool dispatch(const shared_ptr<RequestSipEvent> &ev, const sip_contact_t *ct, const string &uid, const list<string> &path, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
+	bool dispatch(const shared_ptr<RequestSipEvent> &ev, const url_t *dest, const string &uid, const list<string> &path, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
 	string routingKey(const url_t* sipUri) {
 		ostringstream oss;
 		if (sipUri->url_user) {
@@ -174,9 +174,10 @@ private:
 };
 
 
-void ModuleRouter::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason) {
+void ModuleRouter::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code, const char *warning) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip=ms->getSip();
+	sip_warning_t *warn=NULL;
 
 	if (sip->sip_request->rq_method==sip_method_invite){
 		shared_ptr<CallLog> calllog=ev->getEventLog<CallLog>();
@@ -191,7 +192,15 @@ void ModuleRouter::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const ch
 			mlog->setCompleted();
 		}
 	}
-	ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	if (warn_code!=0){
+		warn=sip_warning_format(ev->getHome(), "%i %s \"%s\"", warn_code, mAgent->getPublicIp().c_str(), warning);
+	}
+	if (warn){
+		ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()),
+			SIPTAG_WARNING(warn), TAG_END());
+	}else{
+		ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	}
 }
 
 /**
@@ -241,11 +250,11 @@ bool ModuleRouter::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *
 	return false;
 }
 
-bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const sip_contact_t* ct, const string& uid, const list< string >& path, shared_ptr< ForkContext > context) {
+bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const url_t* dest, const string &uid, const list< string >& path, shared_ptr< ForkContext > context) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
-	if (ct->m_url[0].url_host == NULL || ct->m_url[0].url_host[0] == '\0') {
+	if (dest->url_host == NULL || dest->url_host[0] == '\0') {
 		LOGW("Unrouted request because of incorrect address of contact");
 		return false;
 	}
@@ -253,7 +262,7 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const sip_c
 #if ENABLE_BOOST_LOG && not(__GNUC__ == 4 && __GNUC_MINOR__ < 5 )
 	sip_t *sip = ms->getSip();
 	auto lambdaContactUrlInVia = [=]() {
-		return contactUrlInVia(ct->m_url, sip->sip_via);
+		return contactUrlInVia(dest, sip->sip_via);
 	};
 	static auto lambdaMsg = [](flexisip_record_type &strm) {
 		strm << "Contact url in vias, the message will be routed backward";
@@ -261,7 +270,7 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const sip_c
 	LOGDFN(lambdaContactUrlInVia, lambdaMsg);
 #endif
 
-	char *contact_url_string = url_as_string(ms->getHome(), ct->m_url);
+	char *contact_url_string = url_as_string(ms->getHome(), dest);
 	shared_ptr<RequestSipEvent> new_ev;
 	if (context){
 		//duplicate the SIP event
@@ -274,7 +283,7 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const sip_c
 	sip_t *new_sip = new_msgsip->getSip();
 
 	/* Rewrite request-uri */
-	new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), ct->m_url);
+	new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), dest);
 	// the cleaning of push notif params will be done just before forward
 
 	// Convert path to routes
@@ -331,7 +340,7 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 		if (context->onNewRegister(ct->m_url,uid)){
 			SLOGD << "Found a pending context for key " << key << ": " << context.get();
 			auto stlpath=Record::route_to_stl(context->getEvent()->getMsgSip()->getHome(), path);
-			dispatch( context->getEvent(), ct, uid, stlpath, context);
+			dispatch( context->getEvent(), ct->m_url, uid, stlpath, context);
 		}else LOGD("Found a pending context but not interested in this new register.");
 	}
 
@@ -350,7 +359,7 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 				LOGD("Found a pending context for contact %s: %p",
 				     ec->mSipUri.c_str(), context.get());
 				auto stlpath=Record::route_to_stl(context->getEvent()->getMsgSip()->getHome(), path);
-				dispatch(context->getEvent(), ct, uid, stlpath, context);
+				dispatch(context->getEvent(), ct->m_url, uid, stlpath, context);
 			}
 		}
 	}
@@ -434,7 +443,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			}
 		}
 	}
-
+	bool nonSipsFound=false;
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
 		const shared_ptr<ExtendedContact> ec = *it;
 		sip_contact_t *ct = ec->toSofia(ms->getHome(), now);
@@ -442,8 +451,14 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			SLOGE << "Can't create sip_contact of " << ec->mSipUri;
 			continue;
 		}
+		if (sip->sip_request->rq_url->url_type==url_sips && ct->m_url->url_type!=url_sips){
+			/* https://tools.ietf.org/html/rfc5630 */
+			nonSipsFound=true;
+			LOGD("Not dispatching request to non-sips target.");
+			continue;
+		}
 		if (!ec->mAlias) {
-			if (dispatch(ev, ct, ec->mUniqueId, ec->mPath, context)) {
+			if (dispatch(ev, ct->m_url, ec->mUniqueId, ec->mPath, context)) {
 				handled++;
 				if (!mFork) break;
 			}
@@ -459,7 +474,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				mForks.insert(make_pair(key, context));
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
 			}else{
-				if (dispatch(ev, ct, ec->mUniqueId, ec->mPath, context)) {
+				if (dispatch(ev, ct->m_url, ec->mUniqueId, ec->mPath, context)) {
 					handled++;
 					if (!mFork) break;
 				}
@@ -468,9 +483,13 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 	}
 
 	if (handled <= 0) {
-		LOGD("This user isn't registered (no valid contact).");
-		sendReply(ev,SIP_404_NOT_FOUND);
-		return;
+		if (!nonSipsFound){
+			/*rfc5630 5.3*/
+			sendReply(ev, SIP_480_TEMPORARILY_UNAVAILABLE, 380, "SIPS not allowed");
+		}else{
+			LOGD("This user isn't registered (no valid contact).");
+			sendReply(ev,SIP_404_NOT_FOUND);
+		}
 	}
 
 	// Let flow non forked handled message

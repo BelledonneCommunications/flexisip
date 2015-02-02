@@ -414,12 +414,13 @@ void Agent::loadConfig(GenericManager *cm) {
 std::pair<std::string,std::string> Agent::getPreferredIp(const std::string &destination) const {
 	int err;
 	struct addrinfo hints;
+	string dest = (destination[0]=='[') ? destination.substr(1,destination.size()-2) : destination;
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_flags = AI_NUMERICHOST;
 
 	struct addrinfo *result;
-	err = getaddrinfo(destination.c_str(), NULL, &hints, &result);
+	err = getaddrinfo(dest.c_str(), NULL, &hints, &result);
 	if (err == 0) {
 		for (auto it = mNetworks.begin(); it != mNetworks.end(); ++it) {
 			if (it->isInNetwork(result->ai_addr)) {
@@ -431,7 +432,7 @@ std::pair<std::string,std::string> Agent::getPreferredIp(const std::string &dest
 	} else {
 		LOGE("getaddrinfo error: %s", gai_strerror(err));
 	}
-	return strchr(destination.c_str(),':')==NULL ? make_pair(getPublicIp(),getRtpBindIp()) : make_pair(getPublicIp(true),getRtpBindIp(true));
+	return strchr(dest.c_str(),':')==NULL ? make_pair(getPublicIp(),getRtpBindIp()) : make_pair(getPublicIp(true),getRtpBindIp(true));
 }
 
 Agent::Network::Network(const Network &net): mIP(net.mIP) {
@@ -570,7 +571,7 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases) const {
 			if (check_aliases) {
 				list<string>::const_iterator it;
 				for (it = mAliases.begin(); it != mAliases.end(); ++it) {
-					if (strcasecmp(host, (*it).c_str()) == 0)
+					if (ModuleToolbox::urlHostMatch(host, (*it).c_str()))
 						return true;
 				}
 			}
