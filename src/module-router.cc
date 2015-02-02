@@ -483,7 +483,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 	}
 
 	if (handled <= 0) {
-		if (!nonSipsFound){
+		if (nonSipsFound){
 			/*rfc5630 5.3*/
 			sendReply(ev, SIP_480_TEMPORARILY_UNAVAILABLE, 380, "SIPS not allowed");
 		}else{

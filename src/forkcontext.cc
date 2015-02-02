@@ -299,7 +299,6 @@ std::shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const std::shared
 				br->mTransaction.reset();
 			}
 			return br->mLastResponse;
-
 		}else br->mLastResponse->setIncomingAgent(shared_ptr<IncomingAgent>());
 	}else{
 		LOGE("ForkContext::forwardResponse(): no response received on this branch");

@@ -277,12 +277,7 @@ url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
 	}
 	
 	url->url_port=su_strdup(home, name->tpn_port);
-	if (strchr(name->tpn_canon,':')){
-		//ipv6
-		url->url_host=su_sprintf(home, "[%s]", name->tpn_canon);
-	}else{
-		url->url_host=su_strdup(home, name->tpn_canon);
-	}
+	url->url_host=su_strdup(home, name->tpn_canon);
 	
 	return url;
 }
