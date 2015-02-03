@@ -200,8 +200,8 @@ class ModuleToolbox{
 		static bool urlHostMatch(const char *host1, const char *host2);
 		static bool urlHostMatch(url_t *url, const char *host);
 		/*returns the host taking into account that if it is an ipv6 address, then brakets are removed*/
-		string getHost(const char *host);
-		string urlGetHost(url_t *url);
+		static string getHost(const char *host);
+		static string urlGetHost(url_t *url);
 		static void urlSetHost(su_home_t *home, url_t *url, const char *host);
 		/**
 		* Returns true if via and url represent the same network address.

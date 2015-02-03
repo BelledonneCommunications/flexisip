@@ -238,8 +238,8 @@ void Agent::start(const char *transport_override){
 			// and maddr the real ip we listen on.
 			// Useful for a scenario where the flexisip is behind a router.
 			if (isIpv6 && mPublicIpV6.empty()) {
-				mPublicIpV6=name->tpn_canon;
-				mRtpBindIp6=name->tpn_host;
+				mPublicIpV6=ModuleToolbox::getHost(name->tpn_canon);
+				mRtpBindIp6=ModuleToolbox::getHost(name->tpn_host);
 				//LOGD("\tIpv6 public ip is %s", mPublicIpV6.c_str());
 			} else if (!isIpv6 && mPublicIpV4.empty()) {
 				mPublicIpV4=name->tpn_canon;
@@ -258,14 +258,14 @@ void Agent::start(const char *transport_override){
 		}
 	}
 
-	if (mPublicIpV4.empty() && mPreferredRouteV4) mPublicIpV4=mPreferredRouteV4->url_host;
-	if (mPublicIpV6.empty() && mPreferredRouteV6) mPublicIpV6=mPreferredRouteV6->url_host;
+	if (mPublicIpV4.empty() && mPreferredRouteV4) mPublicIpV4=ModuleToolbox::urlGetHost(mPreferredRouteV4);
+	if (mPublicIpV6.empty() && mPreferredRouteV6) mPublicIpV6=ModuleToolbox::urlGetHost(mPreferredRouteV6);
 
 	if (mRtpBindIp.empty() && mPreferredRouteV4) {
-		mRtpBindIp=mPreferredRouteV4->url_host;
+		mRtpBindIp=ModuleToolbox::urlGetHost(mPreferredRouteV4);
 	}
 	if (mRtpBindIp6.empty() && mPreferredRouteV6) {
-		mRtpBindIp6=mPreferredRouteV6->url_host;
+		mRtpBindIp6=ModuleToolbox::urlGetHost(mPreferredRouteV6);
 	}
 
 	if (mRtpBindIp.empty()) mRtpBindIp="0.0.0.0";
@@ -285,7 +285,7 @@ void Agent::start(const char *transport_override){
 	char prefUrl6[256]={0};
 	if (mPreferredRouteV4) url_e(prefUrl4,sizeof(prefUrl4),mPreferredRouteV4);
 	if (mPreferredRouteV6) url_e(prefUrl6,sizeof(prefUrl6),mPreferredRouteV6);
-	LOGD("Agent's preferred IP for internal routing: v4: %s v6:%s",prefUrl4,prefUrl6);
+	LOGD("Agent's preferred IP for internal routing: v4: %s v6: %s",prefUrl4,prefUrl6);
 	startLogWriter();
 }
 
