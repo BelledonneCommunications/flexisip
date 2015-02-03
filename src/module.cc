@@ -400,13 +400,13 @@ bool ModuleToolbox::urlHostMatch(const char *host1, const char *host2){
 		host1++;
 		len1-=2;
 		ipv6++;
-	}
+	}else if (strchr(host1,':')) ipv6++;
 	len2=strlen(host2);
 	if (host2[0]=='['){
 		host2++;
 		len2-=2;
 		ipv6++;
-	}
+	}else if (strchr(host2,':')) ipv6++;
 	if (ipv6==2){
 		/*since there exist multiple text representations of ipv6 addresses, it is necessary to switch to binary representation to make the comparision*/
 		string ip1(host1,len1), ip2(host2, len2);

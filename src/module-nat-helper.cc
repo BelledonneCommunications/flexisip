@@ -119,9 +119,9 @@ class NatHelper : public Module, protected ModuleToolbox{
 				}else{
 					sip_contact_t *ctt=sip->sip_contact;
 					if (ctt && ctt->m_url && ctt->m_url->url_host){
-						if ( ! ModuleToolbox::urlHostMatch(ctt->m_url, ip) || !sipPortEquals(ctt->m_url->url_port,port)){
+						if ( !ModuleToolbox::urlHostMatch(ctt->m_url, ip) || !sipPortEquals(ctt->m_url->url_port,port)){
 							LOGD("Response is coming from %s:%s, fixing contact",ip,port);
-							ctt->m_url->url_host=su_strdup(home,ip);
+							ModuleToolbox::urlSetHost(home,ctt->m_url,ip);
 							ctt->m_url->url_port=su_strdup(home,port);
 						}else LOGD("Contact in response is correct.");
 						url_param(ctt->m_url->url_params,"transport",ct_transport,sizeof(ct_transport)-1);
