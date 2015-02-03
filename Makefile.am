@@ -17,7 +17,7 @@ SUBDIRS=src scripts doc debian
 rpm:
 	$(MAKE) dist
 # <https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=206841>
-	TAR_OPTIONS=--wildcards rpmbuild -ta --clean --rmsource --rmspec $(PACKAGE)-$(VERSION).tar.gz
+	TAR_OPTIONS=--wildcards rpmbuild -ta --clean --rmsource --rmspec $(PACKAGE)-$(VERSION).tar.gz $(RPM_OPTIONS)
 
 deb:
 	scripts/debian/update_debian_changelog.sh $(PACKAGE) $(VERSION2)

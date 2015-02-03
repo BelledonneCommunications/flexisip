@@ -159,9 +159,9 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	string from_tag = sip->sip_from->a_tag;
 	string from_host;
 	if (sip->sip_via->v_received)
-		from_host=sip->sip_via->v_received;
+		from_host=getHost(sip->sip_via->v_received);
 	else
-		from_host=sip->sip_via->v_host;
+		from_host=getHost(sip->sip_via->v_host);
 
 
 	string to_tag;
@@ -169,7 +169,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		to_tag = sip->sip_to->a_tag;
 	string dest_host;
 	if (sip->sip_request != NULL && sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_host != NULL)
-		dest_host = sip->sip_request->rq_url->url_host;
+		dest_host = urlGetHost(sip->sip_request->rq_url);
 
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
 		LOGD("Invite is already relayed");

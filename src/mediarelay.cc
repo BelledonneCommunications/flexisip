@@ -111,7 +111,7 @@ void RelayChannel::setRemoteAddr(const string &ip, int port, Dir dir) {
 
 	if (dest_ok && port!=0){
 		struct addrinfo *res = NULL;
-		struct addrinfo hints = { 0,0,0,0,0,0,0,0 };
+		struct addrinfo hints = { 0 };
 		char portstr[20];
 		int err;
 

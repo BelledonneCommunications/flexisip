@@ -381,19 +381,41 @@ void ModuleToolbox::urlSetHost(su_home_t *home, url_t *url, const char *host){
 	}else url->url_host=su_strdup(home, host);
 }
 
-/*this does host comparison taking into account that each one of argument can be an ipv6 address enclosed in brakets*/
+string ModuleToolbox::getHost(const char *host){
+	if (host[0]=='['){
+		return string(host, 1, strlen(host)-2);
+	}
+	return string(host);
+}
+
+string ModuleToolbox::urlGetHost(url_t *url){
+	return getHost(url->url_host);
+}
+
 bool ModuleToolbox::urlHostMatch(const char *host1, const char *host2){
 	size_t len1,len2;
-	
+	int ipv6=0;
 	len1=strlen(host1);
 	if (host1[0]=='['){
 		host1++;
 		len1-=2;
+		ipv6++;
 	}
 	len2=strlen(host2);
 	if (host2[0]=='['){
 		host2++;
 		len2-=2;
+		ipv6++;
+	}
+	if (ipv6==2){
+		/*since there exist multiple text representations of ipv6 addresses, it is necessary to switch to binary representation to make the comparision*/
+		string ip1(host1,len1), ip2(host2, len2);
+		struct sockaddr_in6 addr1={0}, addr2={0};
+		if (inet_pton(AF_INET6, ip1.c_str(), &addr1)==1 && inet_pton(AF_INET6, ip2.c_str(), &addr2)==1){
+			return memcmp(&addr1, &addr2, sizeof(addr1))==0;
+		}else{
+			LOGW("Comparing invalid IPv6 addresses %s | %s",host1, host2);
+		}
 	}
 	return strncasecmp(host1,host2,MAX(len1,len2));
 }
