@@ -2,7 +2,16 @@
 
 ## rpmbuild options
 
-# default is to build with redis & protobuf support
+# redis default:    1
+# protobuf default: 1
+# boostlog default: 1
+# push default:     0
+# odbc default:     1
+# transcode default:1
+# snmp default:     1
+# bc-odbc default:  0
+# bcpkg default:    0
+
 %define     redis      %{?_without_redis:0}%{!?_without_redis:1}
 %define     protobuf   %{?_without_protobuf:0}%{!?_without_protobuf:1}
 %define     boostlog   %{?_without_boostlog:0}%{!?_without_boostlog:1}
@@ -11,15 +20,21 @@
 %define     transcoder %{?_without_transcoder:0}%{!?_without_transcoder:1}
 %define     snmp       %{?_without_snmp:0}%{!?_without_snmp:1}
 
+# invoke rpmbuild with --with bcodbc to build using Belledonne Communications' modified UnixODBC
+%define     bcodbc     %{?_with_bcodbc:1}%{!?_with_bcodbc:0}
+
 # will be 1 if we need to generate a /opt/belledonne-communications RPM
 %define     bcpkg      %{?_with_bc:1}%{!?_with_bc:0}
 
-# These lines are here because we can build the RPM for flexisip, in which 
+## end rpmbuild options
+
+# These lines are here because we can build the RPM for flexisip, in which
 # case we prefix the entire installation so that we don't break compatibility
 # with the user's libs.
 # To compile with bc prefix, use rpmbuild -ba --with bc [SPEC]
 %define                 pkg_name        %{?_with_bc:bc-flexisip}%{!?_with_bc:flexisip}
 %define                 pkg_prefix      %{?_with_bc:bc-}%{!?_with_bc:}
+%define                 odbc_prefix     %{?_with_bcodbc:%{pkg_prefix}}%{!?_with_bcodbc:}
 %{?_with_bc: %define    _prefix         /opt/belledonne-communications}
 
 # re-define some directories for older RPMBuild versions which don't. This messes up the doc/ dir
@@ -32,9 +47,9 @@
 %define need_pkgconfig_fix %{?_PKG_CONFIG_PATH:1}%{!?_PKG_CONFIG_PATH:0}
 %define special_boostlib_dir %{?boostlibdir:1}%{!?boostlibdir:0}
 
-# 
+#
 # flexisip - SIP proxy with media capabilities
-# 
+#
 
 Summary:	SIP proxy with media capabilities
 Name:		%pkg_name
@@ -52,7 +67,7 @@ Requires: bash >= 2.0
 Requires: boost-system >= 1.41
 
 %if %{odbc}
-Requires: %{pkg_prefix}unixODBC >= 2.3.0
+Requires: %{odbc_prefix}unixODBC >= 2.3.1
 %endif
 
 %if %{boostlog}
@@ -120,15 +135,15 @@ echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
 %if %{special_boostlib_dir}
 	--with-boost-libdir=%{boostlibdir} \
 %endif
-%if %{bcpkg}
+%if %{bcodbc}
     --with-odbc=%{_prefix} \
 %endif
-	--sysconfdir=%{_sysconfdir} 
+	--sysconfdir=%{_sysconfdir}
 
-%{__make} 
+%{__make}
 
 # parallel build disabled due to automake libtool random errors
-#%{__make} -j$RPM_BUILD_NCPUS 
+#%{__make} -j$RPM_BUILD_NCPUS
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -163,7 +178,7 @@ fi
 %postun
 if [ "$1" -ge "1" ]; then
 	service flexisip condrestart > /dev/null 2>&1 ||:
-fi	
+fi
 
 %files
 %defattr(-,root,root,-)
