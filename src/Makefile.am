@@ -2,7 +2,7 @@ GITVERSION_FILE=flexisip_gitversion.h
 GITVERSION_FILE_TMP=flexisip_gitversion.h.tmp
 GITDESCRIBE=`git describe`
 GITREVISION=`git rev-parse HEAD`
-AUTOMAKE_OPTIONS = subdir-objects 
+AUTOMAKE_OPTIONS = subdir-objects
 
 ECHO=/bin/echo
 
@@ -35,7 +35,7 @@ thesources= \
 			module.cc module.hh \
 			monitor.cc monitor.hh \
 			entryfilter.cc entryfilter.hh \
-			stun.cc stun.hh \			
+			stun.cc stun.hh \
 			stun/stun.c stun/stun_udp.c stun/flexisip_stun.h stun/flexisip_stun_udp.h \
 			mediarelay.cc mediarelay.hh \
 			authdb.hh authdb.cc authdb-file.cc \
@@ -67,7 +67,7 @@ thesources= \
 
 if BUILD_SNMP
 thesources+=snmp-agent.cc snmp-agent.h
-AM_CPPFLAGS=-Imib			
+AM_CPPFLAGS=-Imib
 endif
 
 flexisip_LDADD=$(SOFIA_LIBS) $(ORTP_LIBS) $(LIBODB_MYSQL_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)
@@ -81,7 +81,7 @@ AM_LDFLAGS=-no-undefined
 
 if BUILD_PRESENCE
 #module cannot be statically initialized in shared lib
-thesources+=module-presence.cc 
+thesources+=module-presence.cc
 flexisip_LDADD += presence/libflexisip-presence.la
 AM_CXXFLAGS+= -DBELLE_SIP_USE_STL $(BELLESIP_CFLAGS)
 endif
@@ -107,7 +107,7 @@ AM_CXXFLAGS+=-DHAVE_ODB $(LIBODB_CFLAGS) -Wno-unknown-pragmas
 flexisip_LDADD+=$(LIBODB_LIBS)
 thesources+=eventlogs/eventlogsdb.cc eventlogs/eventlogsdb.hh
 eventlogs/eventlogsdb-odb.hxx eventlogs/eventlogsdb-odb.cxx: eventlogs/eventlogsdb.hh
-	odb $(SOFIA_CFLAGS) --std c++11 -d mysql --output-dir eventlogs --generate-query --generate-schema --schema-format embedded $<
+	odb $(SOFIA_CFLAGS) $(ORTP_CFLAGS) --std c++11 -d mysql --output-dir eventlogs --generate-query --generate-schema --schema-format embedded $<
 nodistsources += eventlogs/eventlogsdb-odb.cxx
 BUILT_SOURCES += eventlogs/eventlogsdb-odb.hxx eventlogs/eventlogsdb-odb.cxx
 
