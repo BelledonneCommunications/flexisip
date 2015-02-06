@@ -423,6 +423,7 @@ int main(int argc, char *argv[]){
 	char *dump_cfg_part=NULL;
 	bool dump_snmp_mib=false;
 	bool dump_settables=false;
+	bool dump_modules=true;
 	string settablesPrefix;
 	string hostsOverride;
 	string configOverride;
@@ -465,6 +466,10 @@ int main(int argc, char *argv[]){
 				i++;
 				dump_cfg_part=argv[i];
 			}
+			continue;
+		} else if( strcmp(argv[i], "--list-modules")==0){
+			dump_modules = true;
+			i++;
 			continue;
 		}else if (strcmp(argv[i],"--dump-snmp-mib")==0){
 			dump_snmp_mib=true;
@@ -511,7 +516,7 @@ int main(int argc, char *argv[]){
 		}
 	}
 
-	if (!dump_default_cfg && !dump_snmp_mib && !dump_settables) {
+	if (!dump_default_cfg && !dump_snmp_mib && !dump_settables &&!dump_modules) {
 		ortp_init();
 		flexisip::log::preinit(sUseSyslog, debug);
 	} else {
@@ -541,6 +546,17 @@ int main(int argc, char *argv[]){
 	if (dump_snmp_mib) {
 		a=make_shared<Agent>(root);
 		cout<<MibDumper(GenericManager::get()->getRoot());
+		return 0;
+	}
+	if(dump_modules){
+		a=make_shared<Agent>(root);
+		GenericStruct* rootStruct = GenericManager::get()->getRoot();
+		list<GenericEntry*> children = rootStruct->getChildren();
+		for( GenericEntry* child : children ){
+			if( child->getName().find("module::") == 0 ){
+				cout << child->getName() << endl;
+			}
+		}
 		return 0;
 	}
 
