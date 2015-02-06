@@ -92,7 +92,8 @@ static void usage(const char *arg0){
 		"\t\t [--dump-default-config [node name]]\n"
 		"\t\t [--dump-snmp-mib]\n"
 		"\t\t [--set <[node/]option[=value]>]\n"
-		"\t\t [--list-settables\n"
+		"\t\t [--list-settables]\n"
+		"\t\t [--list-modules]\n"
 		"\t\t [--syslog]\n"
 		"\t\t [--help]\n"
 		"\t\t [--version]\n",
