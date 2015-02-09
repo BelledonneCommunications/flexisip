@@ -433,15 +433,13 @@ template <typename _retType>
 _retType *GenericStruct::get(const char *name)const{
 	GenericEntry *e=find(name);
 	if (e==NULL) {
-		SLOGA << "No ConfigEntry with name [" << name <<"] in struct [" << getName() <<"]" ;
+		LOGA("No ConfigEntry with name [%s] in struct [%s]",name,getName().c_str());
 	}
 	_retType *ret=dynamic_cast<_retType *>(e);
 	if (ret==NULL){
 		int status;
-
 		std::string type_name = abi::__cxa_demangle(typeid(_retType).name(), 0, 0, &status);
-		SLOGA <<"Config entry '" <<name<<"' in struct '"<<e->getParent()->getName()<<"' does not have the expected type '"<< type_name<<"'";
-
+		LOGA("Config entry [%s] in struct [%s] does not have the expected type '%s'.", name, e->getParent()->getName().c_str(), type_name.c_str() );
 	}
 	return ret;
 };
@@ -461,7 +459,7 @@ _retType *GenericStruct::getDeep(const char *name, bool strict)const{
 		GenericEntry *e=find(next_node_name.c_str());
 		if (!e) {
 			if (!strict) return NULL;
-			LOGE("No ConfigEntry with name %s in struct %s",name,prev_node->getName().c_str());
+			LOGE("No ConfigEntry with name [%s] in struct [%s]",name,prev_node->getName().c_str());
 			for (auto it=prev_node->mEntries.begin(); it != prev_node->mEntries.end(); ++it) {
 				LOGE("-> %s", (*it)->getName().c_str());
 			}
@@ -470,7 +468,7 @@ _retType *GenericStruct::getDeep(const char *name, bool strict)const{
 		}
 		next_node=dynamic_cast<GenericStruct *>(e);
 		if (!next_node){
-			SLOGA << "Config entry "<<name<<" in struct "<<e->getParent()->getName()<<" does not have the expected type";
+			LOGA("Config entry [%s] in struct [%s] does not have the expected type", e->getName().c_str(),e->getParent()->getName().c_str());
 			return NULL;
 		}
 		prev_node=next_node;

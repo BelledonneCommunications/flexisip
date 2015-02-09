@@ -127,7 +127,7 @@ void Monitor::createAccounts() {
 
 	string localIP = findLocalAddress(nodes);
 	if(localIP == "") {
-		SLOGA << "Could not find local IP address";
+		LOGA("Monitor::createAccounts(): Could not find local IP address");
 		exit(-1);
 	}
 
