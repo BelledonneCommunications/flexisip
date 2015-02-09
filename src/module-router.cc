@@ -139,6 +139,7 @@ private:
 	bool isManagedDomain(const url_t *url) {
 		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 	}
+	bool makeGeneratedContactRoute(shared_ptr<RequestSipEvent> &ev, Record *aor, list<shared_ptr<ExtendedContact>> & ec_list);
 	bool dispatch(const shared_ptr<RequestSipEvent> &ev, const url_t *dest, const string &uid, const list<string> &path, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
 	string routingKey(const url_t* sipUri) {
 		ostringstream oss;
@@ -365,11 +366,39 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 	}
 }
 
+bool ModuleRouter::makeGeneratedContactRoute(shared_ptr<RequestSipEvent> &ev, Record *aor, list<shared_ptr<ExtendedContact>> & ec_list){
+	if (!mGeneratedContactRoute.empty() && (!aor || mGenerateContactEvenOnFilledAor)) {
+		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
+		sip_t *sip = ms->getSip();
+		const url_t *to = ms->getSip()->sip_to->a_url;
+		std::shared_ptr<ExtendedContact> gwECt=make_shared<ExtendedContact>(to, mGeneratedContactRoute.c_str());
+
+		// This contact is a proxy which will challenge us with a known Realm
+		const char *nextProxyRealm = mExpectedRealm.empty() ? to->url_host : mExpectedRealm.c_str();
+		if (ms->getSip()->sip_request->rq_method == sip_method_invite && !ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_proxy_authorization, nextProxyRealm)) {
+			LOGD("No authorization header %s found in request, forwarding request only to proxy", nextProxyRealm);
+			if (rewriteContactUrl(ms, to, mGeneratedContactRoute.c_str())) {
+				shared_ptr<OutgoingTransaction> transaction = ev->createOutgoingTransaction();
+				shared_ptr<string> thisProxyRealm(make_shared<string>(to->url_host));
+				transaction->setProperty("this_proxy_realm", thisProxyRealm);
+				shared_ptr<RequestSipEvent> new_ev = make_shared<RequestSipEvent>(ev);
+				getAgent()->injectRequestEvent(new_ev);
+				return true;
+			}
+		} else {
+			LOGD("Authorization header %s found", nextProxyRealm);
+		}
+		LOGD("Added generated contact to %s@%s through %s", to->url_user, to->url_host, mGeneratedContactRoute.c_str());
+		ec_list.push_back(gwECt);
+	}
+	return false;
+}
 
 void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, const url_t *sipUri) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
-	std::list<std::shared_ptr<ExtendedContact>> contacts;
+	list<shared_ptr<ExtendedContact>> contacts;
+	list< pair<sip_contact_t*, shared_ptr<ExtendedContact> > > usable_contacts;
 
 	if (!aor && mGeneratedContactRoute.empty()) {
 		LOGD("This user isn't registered (no aor).");
@@ -383,38 +412,45 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 
 	time_t now = getCurrentTime();
 
-	// Generate a fake contact for a proxy
-	if (!mGeneratedContactRoute.empty() && (!aor || mGenerateContactEvenOnFilledAor)) {
-		const url_t *to = ms->getSip()->sip_to->a_url;
-		const std::shared_ptr<ExtendedContact> gwECt(make_shared<ExtendedContact>(to, mGeneratedContactRoute.c_str()));
+	// Eventually generate a fake contact for a proxy and handle it directly.
+	if (makeGeneratedContactRoute(ev, aor, contacts))
+		return;
 
-		// This contact is a proxy which will challenge us with a known Realm
-		const char *nextProxyRealm = mExpectedRealm.empty() ? to->url_host : mExpectedRealm.c_str();
-		if (ms->getSip()->sip_request->rq_method == sip_method_invite && !ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_proxy_authorization, nextProxyRealm)) {
-			LOGD("No authorization header %s found in request, forwarding request only to proxy", nextProxyRealm);
-			if (rewriteContactUrl(ms, to, mGeneratedContactRoute.c_str())) {
-				shared_ptr<OutgoingTransaction> transaction = ev->createOutgoingTransaction();
-				shared_ptr<string> thisProxyRealm(make_shared<string>(to->url_host));
-				transaction->setProperty("this_proxy_realm", thisProxyRealm);
-				shared_ptr<RequestSipEvent> new_ev = make_shared<RequestSipEvent>(ev);
-				getAgent()->injectRequestEvent(new_ev);
-				return;
-			}
-		} else {
-			LOGD("Authorization header %s found", nextProxyRealm);
-		}
-		contacts.push_back(gwECt);
-		LOGD("Added generated contact to %s@%s through %s", to->url_user, to->url_host, mGeneratedContactRoute.c_str());
-	}
-
-	if (contacts.size() <= 0) {
+	if (contacts.size() == 0) {
 		LOGD("This user isn't registered (no contact at all).");
 		sendReply(ev,SIP_404_NOT_FOUND);
 		return;
 	}
 
-
-	int handled = 0;
+	//now, create the list of usable contacts to fork to
+	bool nonSipsFound=false;
+	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
+		const shared_ptr<ExtendedContact> &ec = *it;
+		sip_contact_t *ct = ec->toSofia(ms->getHome(), now);
+		if (!ct) {
+			SLOGE << "Can't create sip_contact of " << ec->mSipUri;
+			continue;
+		}
+		if (sip->sip_request->rq_url->url_type==url_sips && ct->m_url->url_type!=url_sips){
+			/* https://tools.ietf.org/html/rfc5630 */
+			nonSipsFound=true;
+			LOGD("Not dispatching request to non-sips target.");
+			continue;
+		}
+		usable_contacts.push_back(make_pair(ct,ec));
+	}
+	
+	if (usable_contacts.size() == 0) {
+		if (nonSipsFound){
+			/*rfc5630 5.3*/
+			sendReply(ev, SIP_480_TEMPORARILY_UNAVAILABLE, 380, "SIPS not allowed");
+		}else{
+			LOGD("This user isn't registered (no valid contact).");
+			sendReply(ev,SIP_404_NOT_FOUND);
+		}
+		return;
+	}
+	/*now we can create a fork context and dispatch the message to all branches*/
 
 	if (!mFork) {
 		mStats.mCountNonForks->incr();
@@ -443,23 +479,12 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			}
 		}
 	}
-	bool nonSipsFound=false;
-	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
-		const shared_ptr<ExtendedContact> ec = *it;
-		sip_contact_t *ct = ec->toSofia(ms->getHome(), now);
-		if (!ct) {
-			SLOGE << "Can't create sip_contact of " << ec->mSipUri;
-			continue;
-		}
-		if (sip->sip_request->rq_url->url_type==url_sips && ct->m_url->url_type!=url_sips){
-			/* https://tools.ietf.org/html/rfc5630 */
-			nonSipsFound=true;
-			LOGD("Not dispatching request to non-sips target.");
-			continue;
-		}
+	for (auto it = usable_contacts.begin(); it != usable_contacts.end(); ++it) {
+		sip_contact_t *ct = (*it).first;
+		const shared_ptr<ExtendedContact> &ec=(*it).second;
+		
 		if (!ec->mAlias) {
 			if (dispatch(ev, ct->m_url, ec->mUniqueId, ec->mPath, context)) {
-				handled++;
 				if (!mFork) break;
 			}
 		} else {
@@ -475,24 +500,11 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
 			}else{
 				if (dispatch(ev, ct->m_url, ec->mUniqueId, ec->mPath, context)) {
-					handled++;
 					if (!mFork) break;
 				}
 			}
 		}
 	}
-
-	if (handled <= 0) {
-		if (nonSipsFound){
-			/*rfc5630 5.3*/
-			sendReply(ev, SIP_480_TEMPORARILY_UNAVAILABLE, 380, "SIPS not allowed");
-		}else{
-			LOGD("This user isn't registered (no valid contact).");
-			sendReply(ev,SIP_404_NOT_FOUND);
-		}
-	}
-
-	// Let flow non forked handled message
 }
 
 
