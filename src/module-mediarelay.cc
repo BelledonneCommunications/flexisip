@@ -199,7 +199,12 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	);
 
 	if (!mSdpMangledParam.empty()) m->addAttribute(mSdpMangledParam.c_str(), "yes");
-	m->update(msg, sip);
+	if (m->update(msg, sip)==-1){
+		LOGE("Cannot update SDP in message.");
+		delete m;
+		ev->reply(500, "Media relay SDP processing internal error", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		return false;
+	}
 
 	mServer->update();
 

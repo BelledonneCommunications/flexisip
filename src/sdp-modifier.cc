@@ -453,22 +453,24 @@ void SdpModifier::addMediaAttribute(sdp_media_t *mline, const char *name, const 
 	sdp_attribute_append(&mline->m_attributes,a);
 }
 
-void SdpModifier::update(msg_t *msg, sip_t *sip){
-	char buf[2048];
+int SdpModifier::update(msg_t *msg, sip_t *sip){
+	char buf[16384];
+	int err=0;
+	char const *sdp;
 	sdp_printer_t *printer = sdp_print(mHome, mSession, buf, sizeof(buf), 0);
 
-	if (sdp_message(printer)) {
-		char const *sdp = sdp_message(printer);
+	if (printer && (sdp=sdp_message(printer))!=NULL) {
 		isize_t msgsize = sdp_message_size(printer);
 		sip_payload_t *payload=sip_payload_make(mHome,sdp);
-		int err;
 		err=sip_header_remove(msg,sip,(sip_header_t*)sip_payload(sip));
 		if (err!=0){
 			LOGE("Could not remove payload from SIP message");
+			goto end;
 		}
 		err=sip_header_insert(msg,sip,(sip_header_t*)payload);
 		if (err!=0){
 			LOGE("Could not add payload to SIP message");
+			goto end;
 		}
 		if (sip->sip_content_length!=NULL){
 			sip_header_remove(msg,sip,(sip_header_t*)sip->sip_content_length);
@@ -477,6 +479,9 @@ void SdpModifier::update(msg_t *msg, sip_t *sip){
 		}
 	}else{
 		LOGE("Could not print SDP message !");
+		err=-1;
 	}
-	sdp_printer_free(printer);
+end:
+	if (printer) sdp_printer_free(printer);
+	return err;
 }

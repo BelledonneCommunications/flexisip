@@ -58,7 +58,7 @@ class SdpModifier{
 		void addMediaAttribute(sdp_media_t *mline, const char *name, const char *value);
 		bool hasMediaAttribute(sdp_media_t *mline, const char *name);
 		bool hasIceCandidate(sdp_media_t *mline, const std::string &addr, int port);
-		void update(msg_t *msg, sip_t *sip);
+		int update(msg_t *msg, sip_t *sip);
 		void setPtime(int ptime);
 		virtual ~SdpModifier();
 		SdpModifier(su_home_t *home, std::string nortproxy);
