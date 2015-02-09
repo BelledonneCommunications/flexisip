@@ -18,6 +18,7 @@
 %define     push       %{?_with_push:1}%{!?_with_push:0}
 %define     odbc       %{?_without_odbc:0}%{!?_without_odbc:1}
 %define     transcoder %{?_without_transcoder:0}%{!?_without_transcoder:1}
+%define     presence   %{?_with_presence:1}%{!?_with_presence:0}
 %define     snmp       %{?_without_snmp:0}%{!?_without_snmp:1}
 
 # invoke rpmbuild with --with bcodbc to build using Belledonne Communications' modified UnixODBC
@@ -128,6 +129,9 @@ echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
 %endif
 %if !%{transcoder}
     --disable-transcoder \
+%endif
+%if %{presence}
+    --enable-presence \
 %endif
 %if !%{push}
     --disable-pushnotification \
