@@ -553,7 +553,8 @@ int main(int argc, char *argv[]){
 		a=make_shared<Agent>(root);
 		GenericStruct* rootStruct = GenericManager::get()->getRoot();
 		list<GenericEntry*> children = rootStruct->getChildren();
-		for( GenericEntry* child : children ){
+		for( auto it = children.begin(); it != children.end(); ++it ){
+			GenericEntry* child = (*it);
 			if( child->getName().find("module::") == 0 ){
 				cout << child->getName() << endl;
 			}
