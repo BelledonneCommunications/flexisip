@@ -603,6 +603,26 @@ inline std::ostream & operator<<(std::ostream &ostr, const TexFileConfigDumper &
 	return dumper.dump(ostr);
 }
 
+class DokuwikiConfigDumper
+{
+public:
+	DokuwikiConfigDumper(GenericStruct *root){
+		mRoot = root;
+	}
+	
+	std::ostream &dump(std::ostream &ostr) const;
+
+private:	
+	std::string   formatTitle(const std::string &strc) const;
+	std::ostream &dump2(std::ostream & ostr, GenericEntry *entry, int level)const;
+
+	GenericStruct *mRoot;
+};
+
+inline std::ostream & operator<<(std::ostream &ostr, const DokuwikiConfigDumper &dumper){
+	return dumper.dump(ostr);
+}
+
 class MibDumper{
 public:
 	MibDumper(GenericStruct *root){

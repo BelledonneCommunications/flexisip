@@ -538,8 +538,11 @@ int main(int argc, char *argv[]){
 		}
 		if (oset.find("tex") != oset.end()) {
 			cout<<TexFileConfigDumper(rootStruct);
+		} else if (oset.find("doku") != oset.end()) {
+			cout << DokuwikiConfigDumper(rootStruct);
 		} else {
 			cout<<FileConfigDumper(rootStruct);
+		}
 		}
 		return 0;
 	}

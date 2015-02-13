@@ -930,6 +930,40 @@ ostream &TexFileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int lev
 	return ostr;
 }
 
+/* Dokuwiki */
+
+ostream &DokuwikiConfigDumper::dump(ostream &ostr) const {
+	return dump2(ostr, mRoot, 0);
+}
+
+ostream &DokuwikiConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level) const {
+	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
+	ConfigValue *val;
+
+	if (cs){
+		// we have a generic struc: we're on top level: get module name and description
+		ostr << "====" << cs->getPrettyName() << "====" << endl;
+		ostr << endl << cs->getHelp() << endl;
+		ostr << endl << "Configuration options:" << endl;
+
+		ostr << "^ Name ^ Description ^ Default value ^" << endl;
+
+		for ( auto it=cs->getChildren().begin(); it!= cs->getChildren().end(); ++it ){
+			dump2(ostr, *it, level+1);
+		}
+	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL && !val->isDeprecated()){
+		
+		// dokuwiki handles line breaks with double backspaces
+		string help = entry->getHelp();
+		escaper(help, '\n', "\\\\");
+
+		ostr << "| " << "**" << entry->getName() << "**" 
+			<< " | " << help
+			<< " | " << val->getDefault() << " |" << endl;
+	}
+	return ostr;
+}
+
 ostream &MibDumper::dump(ostream & ostr)const {
 	const time_t t = getCurrentTime();
 	char mbstr[100];
