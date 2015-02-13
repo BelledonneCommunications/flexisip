@@ -28,6 +28,11 @@
 
 #include "log/logmanager.hh"
 
+
+#ifndef MAX
+#define MAX(a,b) (a)>(b) ? (a) : (b)
+#endif
+
 class Mutex{
 	public:
 		Mutex(bool reentrant = false);

@@ -53,10 +53,6 @@ public:
 		const sip_method_t rq_method=sip->sip_request->rq_method;
 
 		if (mMasqueradeRegisters && rq_method== sip_method_register) {
-			//rewrite the request uri to the domain
-			//this assumes the domain is also the proxy
-			sip->sip_request->rq_url->url_host = sip->sip_to->a_url->url_host;
-			sip->sip_request->rq_url->url_port = sip->sip_to->a_url->url_port;
 			LOGD("Masquerading contact");
 			mContactMasquerader->masquerade(ev, mInsertDomain);
 		} else if (mMasqueradeInvites && rq_method == sip_method_invite) {

@@ -69,7 +69,8 @@ Module *ModuleFactory::createModuleInstance(Agent *ag, const string &modname) {
 		LOGI("Creating module instance for [%s]", m->getModuleName().c_str());
 		return m;
 	}
-	SLOGA << "Could not find any registered module with name ["<< modname <<"]";
+	LOGA("Could not find any registered module with name [%s]",modname.c_str());
+	return NULL;
 }
 
 void ModuleFactory::registerModule(ModuleInfoBase *m) {

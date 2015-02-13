@@ -118,16 +118,17 @@ namespace log {
 	BOOST_LOG_DECLARE_GLOBAL_LOGGER(flexisip_logger, boost::log::sources::severity_logger_mt<flexisip::log::level>)
 	#endif
 
-	// Declare macros for stream logs [preferred way]
+	// Declare macros for stream logs
 	// ex: SLOGD << "Some debug level logs";
 	#define LOGDFN(boolfn, streamfn) formatedfn_log_with_severity(flexisip::log::level::debug, (boolfn), (streamfn))
 	#define SLOGD BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::debug)
 	#define SLOGI BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::info)
 	#define SLOGW BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::warning)
 	#define SLOGE BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::error)
-	#define SLOGA BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::fatal) abort();
-
-	// Declare macros for printf formated logs [for historic reasons]
+/*	unfortunately SLOGA cannot work over boostog, because it needs to call abort.
+	#define SLOGA BOOST_LOG_SEV(flexisip_logger::get(), flexisip::log::level::fatal)
+*/
+	// Declare macros for printf formated logs
 	// ex: LOGD("Some debug level %s", "logs");
 	#define LOGDV(thefmt, theargs) flexisip::log::formated_log_with_severity(flexisip::log::level::debug, (thefmt), (theargs))
 	#define LOGD flexisip::log::formated_logd
@@ -195,8 +196,9 @@ operator<<(pumpstream&& __os, const _Tp &__x)
 #define SLOGI SLOG(ORTP_MESSAGE)
 #define SLOGW SLOG(ORTP_WARNING)
 #define SLOGE SLOG(ORTP_ERROR)
+/*
 #define SLOGA SLOGA_FL(__FILE__,__LINE__)
-
+*/
 #define LOGV(thelevel,thefmt, theargs) LOGDV((thefmt), (theargs))
 #define LOGDV(thefmt, theargs) ortp_logv(ORTP_DEBUG, (thefmt), (theargs))
 #define LOGD ortp_debug

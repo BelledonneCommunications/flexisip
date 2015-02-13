@@ -424,7 +424,7 @@ int main(int argc, char *argv[]){
 	char *dump_cfg_part=NULL;
 	bool dump_snmp_mib=false;
 	bool dump_settables=false;
-	bool dump_modules=true;
+	bool dump_modules=false;
 	string settablesPrefix;
 	string hostsOverride;
 	string configOverride;

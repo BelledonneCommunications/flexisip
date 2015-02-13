@@ -1437,7 +1437,7 @@ stunGetSystemTimeSecs(void)
    time = (t.wHour*60+t.wMinute)*60+t.wSecond;
 #else
    struct timeval now;
-   ortp_gettimeofday( &now , NULL );
+   gettimeofday( &now , NULL );
    /* assert( now ); */
    time = now.tv_sec;
 #endif
