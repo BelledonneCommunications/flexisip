@@ -36,7 +36,6 @@ args = parser.parse_args()
 args.message = ' '.join(args.message)
 args.modulename = 'flexisip:module:' + str.lower(args.modulename)
 
-print config_password
 # require a password for XMLRPC
 if config_password is None or config_password is '':
 	print "Please define a password using " + config_file + " or using the --password option"
