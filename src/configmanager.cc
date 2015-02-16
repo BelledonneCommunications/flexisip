@@ -895,6 +895,16 @@ static void escaper(string &str, char c, const string &replaced) {
 		i+=replaced.length();
 	}
 }
+
+static void string_escaper(string& str, const string &s, const string &replace){
+	size_t i=0;
+	while(string::npos != (i=str.find(s, i))) {
+		str.erase(i, s.length());
+		str.insert(i, replace);
+		i+=replace.length();
+	}
+}
+
 string TexFileConfigDumper::escape(const string &strc) const{
 	std::string str(strc);
 	escaper(str, '_', "\\_");
@@ -955,11 +965,13 @@ ostream &DokuwikiConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int le
 		
 		// dokuwiki handles line breaks with double backspaces
 		string help = entry->getHelp();
-		escaper(help, '\n', "\\\\");
+		escaper(help, '\n', "\\\\ ");
+		escaper(help, '`', "'' ");
+		string_escaper(help, ". ", ".\\\\ ");
 
-		ostr << "| " << "**" << entry->getName() << "**" 
+		ostr << "|" << "**" << entry->getName() << "**" 
 			<< " | " << help
-			<< " | " << val->getDefault() << " |" << endl;
+			<< " | " << "''" << val->getDefault() << "''" << " |" << endl;
 	}
 	return ostr;
 }
