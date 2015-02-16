@@ -28,7 +28,7 @@ parser.add_argument('docfile',             help='the module documentation file',
 parser.add_argument('--host',           default=default_host, help='the host to which we should send the documentation')
 parser.add_argument('-p', '--password', default='',           help='the password to authenticate to the server', dest=config_password)
 parser.add_argument('-u', '--user',     default='buildbot',   help='the user to authenticate to the server', dest=config_user)
-parser.add_argument('-m', '--message',  default='',           help='summary of the modifications', nargs='+')
+parser.add_argument('-m', '--message',  default='',           help='summary of the modifications')
 
 args = parser.parse_args()
 
