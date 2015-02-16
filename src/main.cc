@@ -543,7 +543,6 @@ int main(int argc, char *argv[]){
 		} else {
 			cout<<FileConfigDumper(rootStruct);
 		}
-		}
 		return 0;
 	}
 
