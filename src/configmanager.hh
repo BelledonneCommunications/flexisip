@@ -79,7 +79,19 @@ enum GenericValueType{
 	Notification,
 	RuntimeError
 };
-
+static const map<GenericValueType,string> GenericValueTypeNameMap = {
+#define TypeToName(X) { X, #X }
+	TypeToName(Boolean),
+	TypeToName(Integer),
+	TypeToName(Counter64),
+	TypeToName(String),
+	TypeToName(StringList),
+	TypeToName(Struct),
+	TypeToName(BooleanExpr),
+	TypeToName(Notification),
+	TypeToName(RuntimeError)
+#undef TypeToName
+};
 
 struct ConfigItemDescriptor {
 	GenericValueType type;
@@ -159,6 +171,14 @@ public:
 	GenericValueType getType()const{
 		return mType;
 	}
+
+	const std::string &getTypeName() const {
+		if( GenericValueTypeNameMap.count(mType) == 1)
+			return GenericValueTypeNameMap.at(mType);
+		else
+			return GenericValueTypeNameMap.at(Integer);
+	}
+
 	const std::string &getHelp()const{
 		return mHelp;
 	}

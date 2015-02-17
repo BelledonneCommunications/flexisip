@@ -956,7 +956,7 @@ ostream &DokuwikiConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int le
 		ostr << endl << cs->getHelp() << endl;
 		ostr << endl << "Configuration options:" << endl;
 
-		ostr << "^ Name ^ Description ^ Default value ^" << endl;
+		ostr << "^ Name ^ Description ^ Default value ^ Type ^" << endl;
 
 		for ( auto it=cs->getChildren().begin(); it!= cs->getChildren().end(); ++it ){
 			dump2(ostr, *it, level+1);
@@ -969,9 +969,11 @@ ostream &DokuwikiConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int le
 		escaper(help, '`', "'' ");
 		string_escaper(help, ". ", ".\\\\ ");
 
-		ostr << "|" << "**" << entry->getName() << "**" 
+		ostr << "|" << "**" << entry->getName() << "**"
 			<< " | " << help
-			<< " | " << "''" << val->getDefault() << "''" << " |" << endl;
+			<< " | " << "''" << val->getDefault() << "''" 
+			<< " | " << entry->getTypeName() 
+			<< " | " << endl;
 	}
 	return ostr;
 }
