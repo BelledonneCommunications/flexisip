@@ -26,9 +26,9 @@ AC_PROG_LIBTOOL
 AX_XSDCXX
 
 AC_ARG_ENABLE(snmp,
-        AC_HELP_STRING([--disable-snmp],
-            [Build snmp support @<:@yes@:>@]),
-        [snmp="${enableval}"],[snmp=yes]
+    AC_HELP_STRING([--enable-snmp], [Build snmp support [yes]]),
+    [snmp="${enableval}"],
+    [snmp=yes]
 )
 
 if test x$snmp = xyes ; then
@@ -64,7 +64,12 @@ else
 fi
 
 
-strictness=yes
+AC_ARG_ENABLE(strict,
+	AC_HELP_STRING([--enable-strict],[Build with stricter options (gcc only) [default=yes]]),
+	[strictness="${enableval}"],
+	[strictness=yes]
+)
+
 case $CXX in
 	*clang++*)
 	CXXFLAGS="$CXXFLAGS -std=c++11 -Qunused-arguments"
@@ -99,47 +104,52 @@ fi
 
 PKG_PROG_PKG_CONFIG()
 
-AC_ARG_ENABLE(strict,
-	AC_HELP_STRING([--enable-strict],
-	[Build with stricter options (gcc only) @<:@yes@:>@]),[
-	strictness="${enableval}"],[foo=bar]
-)
+
+# 
+# UNIXODBC HANDLING
+#
 
 AC_ARG_ENABLE(odbc,
-	AC_HELP_STRING([--disable-odbc],
-	[Build odbc support @<:@yes@:>@]),
+	AC_HELP_STRING([--enable-odbc],
+	[Build with odbc support [default=yes]]),
 	[odbc="${enableval}"],[odbc=yes]
 )
 AM_CONDITIONAL(BUILD_ODBC,test x$odbc = xyes)
 
 
-# Check for unixodbc
+# You can specify the odbc_config place to get the correct CFLAGS
 AC_ARG_WITH(odbc,
-	AC_HELP_STRING([--with-odbc], [Set prefix where odbc can be found or "none" to disable (ex:/usr or /usr/local) [[default=/usr]]]),
-	[	
-		# Use the odbc_config tool to get odbc libs and includes
-		AC_CHECK_PROG([pdflatex], [pdflatex], [yes], [no])
-		AM_CONDITIONAL([GENERATE_DOC], [test "x$pdflatex$doc" = xyesyes])
-		
-		AC_CHECK_PROG([odbc_config],[odbc_config], [yes], [no], [$withval/bin])
-		if test $odbc_config = no; then
-			AC_MSG_ERROR([You need the program 'odbc_config' in $withval/bin])
-		else
-			CFLAGS="$CFLAGS -I`$withval/bin/odbc_config --include-prefix`"
-			CPPFLAGS="$CPPFLAGS -I`$withval/bin/odbc_config --include-prefix`"
-			LDFLAGS="$LDFLAGS -L`$withval/bin/odbc_config --lib-prefix`"
-		fi
-	],
-	[foo=bar]
+	AC_HELP_STRING([--with-odbc], [Specify the odbc_config binary directory, which is used to find the ODBC libs and includes (eg: /usr/local) [default=/usr]]),
+	[odbc_prefix=$withval],	
+	[odbc_prefix=/usr]
 )
 
-
 if test x$odbc = "xyes"; then
+
+	# Use the odbc_config tool to get odbc libs and includes
+	AC_CHECK_PROG([odbc_config],[odbc_config], [yes], [no], [$odbc_prefix/bin])
+	if test $odbc_config = no; then
+		AC_MSG_ERROR(['odbc_config' not found in $odbc_prefix/bin, maybe use --with-odbc ?])
+	else
+		ODBC_CFLAGS="`$odbc_prefix/bin/odbc_config --cflags`"
+		ODBC_LIBS="`$odbc_prefix/bin/odbc_config --libs`"
+	fi
+
 	# Checks for libraries.
-	AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],,[AC_MSG_ERROR("unixodbc headers missing. This is required for odbc. Use --disable-odbc if you don''t need this feature." )])
-	AC_CHECK_LIB(odbc, main,[ODBC_LIBS="-lodbc -lltdl"], [AC_MSG_ERROR("Linking against odbc failed.")])
+	CPPFLAGS_save=$CPPFLAGS
+	CPPFLAGS="$CPPFLAGS $ODBC_CFLAGS"
+	AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],,[AC_MSG_ERROR([unixodbc headers missing. This is required for odbc. Maybe install the development package of ODBC?])])
+	CPPFLAGS=$CPPFLAGS_save
+
+	LIBS_save=$LIBS
+	LIBS="$LIBS $ODBC_LIBS"
+	AC_CHECK_LIB(odbc, SQLConnect,[foo=bar], [AC_MSG_ERROR([Linking against odbc failed.])])
+	LIBS=$LIBS_save
+
 	AC_SUBST(ODBC_LIBS)
+	AC_SUBST(ODBC_CFLAGS)
 fi
+
 
 # Check for odb compiler
 AC_PATH_PROG([ODB],[odb],[no])
@@ -172,7 +182,7 @@ fi
 # Check for libodb-mysql
 AC_ARG_ENABLE(libodb-mysql,
 	AC_HELP_STRING([--enable-libodb-mysql],
-	    [Build libodb-mysql @<:@yes@:>@]),
+	    [Build libodb-mysql [yes]]),
         [libodb_mysql="${enableval}"],[libodb_mysql=yes]
 )
 if test x$libodb_mysql = xyes ; then
@@ -187,7 +197,7 @@ fi
 
 # Check for mysql
 AC_ARG_WITH(mysql,
-	AC_HELP_STRING([--with-mysql], [Set prefix where odbc can be found or "none" to disable (ex:/usr or /usr/local) [[default=/usr]]]),
+	AC_HELP_STRING([--with-mysql], [Set prefix where MySQL can be found or "none" to disable (ex:/usr or /usr/local) [[default=/usr]]]),
 	[mysql_prefix=$withval],
 	[mysql_prefix=/usr]
 )
@@ -224,8 +234,8 @@ fi
 AC_CHECK_HEADERS(sys/prctl.h)
 
 AC_ARG_ENABLE(doc,
-    AC_HELP_STRING([--disable-doc],
-        [Build documentation @<:@yes@:>@]),
+    AC_HELP_STRING([--enable-doc],
+        [Build documentation [yes]]),
         [doc="${enableval}"],[doc=yes]
 )
 
@@ -288,24 +298,11 @@ AC_LANG_POP([C++])
 AM_CONDITIONAL(USE_MONOTONIC_CLOCK,test x$use_monotonic_clock = xyes)
 
 
-#AC_COMPILE_IFELSE(
-#  [AC_LANG_PROGRAM([
-#    #include "hiredis/async.h"
-#    void connectCb(const struct redisAsyncContext* ctx, int status){};
-#    ], [redisConnectCallback *cbNewUi=connectCb]
-#   )],
-#   [use_old_hiredis=no],
-#   [use_old_hiredis=yes]
-#)
-#AM_CONDITIONAL(WITHOUT_HIREDIS_CONNECT_CALLBACK,test x$use_old_hiredis = xyes)
-
-
-
 AX_BOOST_BASE([1.41],[],[AC_MSG_WARN([boost base not found.])])
 AC_ARG_ENABLE(boostlog,
-        AC_HELP_STRING([--disable-boostlog],
-            [Build boost log support [no]]),
-        [boostlog="${enableval}"],[boostlog=no]
+    AC_HELP_STRING([--enable-boostlog], [Build boost log support [no]]),
+    [boostlog="${enableval}"],
+    [boostlog=no]
 )
 
 if test x$boostlog = xyes ; then
@@ -320,9 +317,9 @@ AM_CONDITIONAL(BUILD_BOOSTLOG, test x$found_boost_log = xyes)
 
 
 AC_ARG_ENABLE(pushnotification,
-	AC_HELP_STRING([--disable-pushnotification],
-	    [Build pushnotification support @<:@yes@:>@]),
-        [pushnotification="${enableval}"],[pushnotification=yes]
+	AC_HELP_STRING([--enable-pushnotification], [Build pushnotification support [yes]]),
+    [pushnotification="${enableval}"],
+    [pushnotification=yes]
 )
 
 if test x$pushnotification = xyes ; then
@@ -338,9 +335,9 @@ fi
 AM_CONDITIONAL(BUILD_PUSHNOTIFICATION,test x$pushnotification = xyes)
 
 AC_ARG_ENABLE(datehandler,
-	AC_HELP_STRING([--enable-datehandler],
-	    [Build DateHandler module @<:@no@:>@]),
-        [datehandler="${enableval}"],[datehandler=no]
+	AC_HELP_STRING([--enable-datehandler], [Build DateHandler module [no]]),
+    [datehandler="${enableval}"],
+    [datehandler=no]
 )
 
 if test "$datehandler" = "yes" ; then
@@ -349,32 +346,38 @@ fi
 AM_CONDITIONAL(BUILD_DATEHANDLER,test x$datehandler = xyes)
 
 AC_ARG_ENABLE(redis,
-	AC_HELP_STRING([--enable-redis],
-	    [Build with redis key/value datastore @<:@no@:>@]),
-        [redis="${enableval}"],[redis=no]
+	AC_HELP_STRING([--enable-redis], [Build with redis key/value datastore [no]]),
+    [redis="${enableval}"],
+    [redis=no]
 )
+
 if test x$redis = xyes ; then
+
 	PKG_CHECK_MODULES(HIREDIS,[hiredis >= 0.10.0],[redis=yes],[redis=no])
 	if test "$redis" = "no" ; then
 		AC_CHECK_HEADERS(hiredis/hiredis.h,[redis=yes],[redis=no])
 		AC_CHECK_LIB(hiredis,redisAsyncCommand)
+		# when redis is not detected through pkgconfig, we can't knwo whether the 
+		# connect callback uses 1 or 2 args. Better not using it at all.
+		AC_MSG_WARN([Using redis without version info. Disabling connect callback.])
 	fi
+
 	if test "$redis" = "no" ; then
-		AC_MSG_ERROR([hiredis not found.])
+		AC_MSG_ERROR([hiredis library not found.])
 	fi
+
 fi
 AM_CONDITIONAL(BUILD_REDIS,test x$redis = xyes)
 
-PKG_CHECK_MODULES(HIREDISNEW,[hiredis >= 0.10.2],[use_old_hiredis=no],[use_old_hiredis=yes])
+PKG_CHECK_MODULES(HIREDISNEW,[hiredis >= 0.11.0],[use_old_hiredis=no],[use_old_hiredis=yes])
 AM_CONDITIONAL(WITHOUT_HIREDIS_CONNECT_CALLBACK,test x$use_old_hiredis = xyes)
 if test x$use_old_hiredis = xyes ; then
     AC_MSG_WARN([Using hiredis without connect callback!])
 fi
 
-
 AC_ARG_ENABLE(protobuf,
 	AC_HELP_STRING([--enable-protobuf],
-	    [Build registrar contact serializer using protobuf @<:@no@:>@]),
+	    [Build registrar contact serializer using protobuf [no]]),
         [protobuf="${enableval}"],[protobuf=no]
 )
 if test x$protobuf = xyes ; then
@@ -477,3 +480,20 @@ debian/Makefile
 flexisip.spec
 ])
 AC_OUTPUT
+
+
+
+echo "Flexisip build configuration ended."
+echo "Summary of build options:"
+printf "* %-30s %s\n" "SNMP"                $build_snmp
+printf "* %-30s %s\n" "ODBC"                $odbc
+printf "* %-30s %s\n" "ODB"                 $enable_libodb
+printf "* %-30s %s\n" "ODB MySQL"           $libodb_mysql
+printf "* %-30s %s\n" "Transcoder"          $transcoder
+printf "* %-30s %s\n" "Specific features"   $specific_features
+printf "* %-30s %s\n" "Push notification"   $pushnotification
+printf "* %-30s %s\n" "Redis"               $redis
+printf "* %-30s %s\n" "Protobuf"            $protobuf
+printf "* %-30s %s\n" "Presence"            $presence
+
+echo "Now type 'make' to compile, and then 'make install' (as root if needed) to install it."
