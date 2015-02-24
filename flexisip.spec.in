@@ -84,12 +84,14 @@ BuildRequires: protobuf-compiler >= 2.3.0
 %endif
 
 %if %{redis}
+
 # if we use a special redis dir, we are most likely in case where we compile hiredis ourselves.
-	%if %{special_hiredis_dir}
-		Requires: %{pkg_prefix}hiredis-devel >= 0.11
-	%else
-		Requires: hiredis-devel >= 0.11
-	%endif
+%if %{special_hiredis_dir}
+Requires: %{pkg_prefix}hiredis-devel >= 0.11
+%else
+Requires: hiredis-devel >= 0.11
+%endif
+
 %endif
 
 %if %{snmp}
