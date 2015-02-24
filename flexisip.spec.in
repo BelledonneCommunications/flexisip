@@ -47,6 +47,7 @@
 # fix for bad pkgconfig path from old rpmbuild:
 %define need_pkgconfig_fix %{?_PKG_CONFIG_PATH:1}%{!?_PKG_CONFIG_PATH:0}
 %define special_boostlib_dir %{?boostlibdir:1}%{!?boostlibdir:0}
+%define special_hiredis_dir %{?hiredisdir:1}%{!?hiredisdir:0}
 
 #
 # flexisip - SIP proxy with media capabilities
@@ -82,6 +83,10 @@ Requires: protobuf-c-devel >= 0.15
 BuildRequires: protobuf-compiler >= 2.3.0
 %endif
 
+%if %{redis}
+Requires: %{pkg_prefix}hiredis-devel >= 0.10
+%endif
+
 %if %{snmp}
 Requires: net-snmp-libs
 Requires: net-snmp-devel
@@ -114,6 +119,9 @@ echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
 	--disable-strict \
 %if %{redis}
     --enable-redis \
+	%if %{special_hiredis_dir}
+		--with-redis=%{hiredisdir}
+	%endif
 %endif
 %if %{protobuf}
     --enable-protobuf \
