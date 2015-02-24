@@ -368,6 +368,9 @@ if test x$redis = xyes ; then
 		if test "$redis_prefix" != "/usr"; then
 			HIREDIS_CFLAGS="-I$redis_prefix/include"
 			HIREDIS_LIBS="-L$redis_prefix/lib -lhiredis"
+		else
+			# default value should have a lib anyway
+			HIREDIS_LIBS="-lhiredis"
 		fi
 
 		CPPFLAGS_save=$CPPFLAGS
