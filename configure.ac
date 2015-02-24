@@ -351,27 +351,48 @@ AC_ARG_ENABLE(redis,
     [redis=no]
 )
 
+AC_ARG_WITH(redis, 
+	AC_HELP_STRING([--with-redis], [Specify where to find the redis libraries. Will force enable redis build if specified. [default=/usr]]),
+	[
+		redis_prefix="${withval}"
+		redis=yes
+	],
+	[redis_prefix=/usr]
+)
+
 if test x$redis = xyes ; then
 
-	PKG_CHECK_MODULES(HIREDIS,[hiredis >= 0.10.0],[redis=yes],[redis=no])
+	PKG_CHECK_MODULES(HIREDIS,[hiredis >= 0.11.0],[redis=yes],[redis=no])
 	if test "$redis" = "no" ; then
-		AC_CHECK_HEADERS(hiredis/hiredis.h,[redis=yes],[redis=no])
+
+		if test "$redis_prefix" != "/usr"; then
+			HIREDIS_CFLAGS="-I$redis_prefix/include"
+			HIREDIS_LIBS="-L$redis_prefix/lib -lhiredis"
+		fi
+
+		CPPFLAGS_save=$CPPFLAGS
+		CPPFLAGS="$CPPFLAGS $HIREDIS_CFLAGS"
+		AC_CHECK_HEADERS(hiredis/hiredis.h,[redis=yes],[AC_MSG_ERROR([hiredis library not found.])])
+		CPPFLAGS=$CPPFLAGS_save
+
+		LIBS_save=$LIBS
+		LIBS="$LIBS $HIREDIS_LIBS"
 		AC_CHECK_LIB(hiredis,redisAsyncCommand)
-		# when redis is not detected through pkgconfig, we can't knwo whether the 
+		LIBS=$LIBS_save
+
+		AC_SUBST(HIREDIS_CFLAGS)
+		AC_SUBST(HIREDIS_LIBS)
+
+		# when redis is not detected through pkgconfig, we can't know whether the 
 		# connect callback uses 1 or 2 args. Better not using it at all.
-		AC_MSG_WARN([Using redis without version info. Disabling connect callback.])
+		redis_no_callback=yes
 	fi
-
-	if test "$redis" = "no" ; then
-		AC_MSG_ERROR([hiredis library not found.])
-	fi
-
 fi
+
 AM_CONDITIONAL(BUILD_REDIS,test x$redis = xyes)
 
-PKG_CHECK_MODULES(HIREDISNEW,[hiredis >= 0.11.0],[use_old_hiredis=no],[use_old_hiredis=yes])
-AM_CONDITIONAL(WITHOUT_HIREDIS_CONNECT_CALLBACK,test x$use_old_hiredis = xyes)
-if test x$use_old_hiredis = xyes ; then
+AM_CONDITIONAL(WITHOUT_HIREDIS_CONNECT_CALLBACK,test x$redis_no_callback = xyes)
+if test x$redis_no_callback = xyes ; then
     AC_MSG_WARN([Using hiredis without connect callback!])
 fi
 
