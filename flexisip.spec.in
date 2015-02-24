@@ -120,7 +120,7 @@ echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
 %if %{redis}
     --enable-redis \
 	%if %{special_hiredis_dir}
-		--with-redis=%{hiredisdir}
+		--with-redis=%{hiredisdir} \
 	%endif
 %endif
 %if %{protobuf}
