@@ -653,7 +653,8 @@ void ModuleRegistrar::readStaticRecords() {
 							contact,
 							fakeCallId,
 							version,
-							path)
+							path,
+							0)
 						, expire, alias
 					);
 					RegistrarDb::get(mAgent)->bind(params, listener);

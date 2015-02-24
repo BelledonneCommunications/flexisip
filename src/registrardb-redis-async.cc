@@ -287,7 +287,7 @@ void RegistrarDbRedisAsync::handleBind ( redisReply *reply, RegistrarUserData *d
 
 	time_t now=getCurrentTime();
 	data->record.clean ( data->sipContact, data->calldId, data->csSeq, now );
-	data->record.update ( data->sipContact, data->path, data->globalExpire, data->calldId, data->csSeq, now, data->alias );
+	data->record.update ( data->sipContact, data->path, data->globalExpire, data->calldId, data->csSeq, now, data->alias, 0 );
 	mLocalRegExpire->update ( data->record );
 
 	string serialized;

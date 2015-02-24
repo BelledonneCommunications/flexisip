@@ -73,7 +73,7 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r){
 		}
 
 		ExtendedContactCommon ecc(contactId, stlpath, call_id, lineValue);
-		r->update(ecc, sip_contact, expire, q, cseq, update_time, alias);
+		r->update(ecc, sip_contact, expire, q, cseq, update_time, alias, 0);
 		contact=contact->next;
 		++i;
 	}

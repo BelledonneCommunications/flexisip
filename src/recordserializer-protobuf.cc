@@ -54,7 +54,7 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r){
 				(time_t)c.expires_at(),
 				c.q(),
 				(uint32_t)c.cseq(),
-				c.update_time(),false);
+				c.update_time(),false,0);
 	}
 	return true;
 }
