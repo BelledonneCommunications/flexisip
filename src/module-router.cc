@@ -134,13 +134,14 @@ public:
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 
 	virtual void onForkContextFinished(shared_ptr<ForkContext> ctx);
+	void extractContactByUniqueId(string uid);
 
 private:
 	bool isManagedDomain(const url_t *url) {
 		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 	}
 	bool makeGeneratedContactRoute(shared_ptr<RequestSipEvent> &ev, Record *aor, list<shared_ptr<ExtendedContact>> & ec_list);
-	bool dispatch(const shared_ptr<RequestSipEvent> &ev, const url_t *dest, const string &uid, const list<string> &path, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
+	bool dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
 	string routingKey(const url_t* sipUri) {
 		ostringstream oss;
 		if (sipUri->url_user) {
@@ -251,9 +252,14 @@ bool ModuleRouter::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *
 	return false;
 }
 
-bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const url_t* dest, const string &uid, const list< string >& path, shared_ptr< ForkContext > context) {
+bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const shared_ptr< ExtendedContact > &contact, shared_ptr< ForkContext > context) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-
+	time_t now = getCurrentTime();
+	sip_contact_t *ct = contact->toSofia(ms->getHome(), now);
+	url_t *dest = ct->m_url;
+	const string uid = contact->mUniqueId;
+	const list<string> path = contact->mPath;
+	
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
 	if (dest->url_host == NULL || dest->url_host[0] == '\0') {
 		LOGW("Unrouted request because of incorrect address of contact");
@@ -292,7 +298,7 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const url_t
 	cleanAndPrependRoutable(msg_home(new_msg),getAgent(), new_msg, new_sip, path);
 
 	if (context) {
-		context->addBranch(new_ev,uid);
+		context->addBranch(new_ev, contact);
 		SLOGD << "Fork to " << contact_url_string;
 	} else {
 		LOGD("Dispatch to %s", contact_url_string);
@@ -334,15 +340,17 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 	auto range = mForks.equal_range(key.c_str());
 	SLOGD << "Searching for fork context with key " << key;
 
-	// First use sipURI
-	for(auto it = range.first; it != range.second; ++it) {
-		shared_ptr<ForkContext> context = it->second;
-		string uid=Record::extractUniqueId(ct);
-		if (context->onNewRegister(ct->m_url,uid)){
-			SLOGD << "Found a pending context for key " << key << ": " << context.get();
-			auto stlpath=Record::route_to_stl(context->getEvent()->getMsgSip()->getHome(), path);
-			dispatch( context->getEvent(), ct->m_url, uid, stlpath, context);
-		}else LOGD("Found a pending context but not interested in this new register.");
+	string uid = Record::extractUniqueId(ct);
+	const shared_ptr<ExtendedContact> &ec = aor->extractContactByUniqueId(uid);
+	if (ec) {
+		// First use sipURI
+		for(auto it = range.first; it != range.second; ++it) {
+			shared_ptr<ForkContext> context = it->second;
+			if (context->onNewRegister(ct->m_url,uid)){
+				SLOGD << "Found a pending context for key " << key << ": " << context.get();
+				dispatch( context->getEvent(), ec, context);
+			}else LOGD("Found a pending context but not interested in this new register.");
+		}
 	}
 
 	// If not found find in aliases
@@ -355,12 +363,11 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 		auto rang = mForks.equal_range(ec->mSipUri);
 		for(auto ite = rang.first; ite != rang.second; ++ite) {
 			shared_ptr<ForkContext> context = ite->second;
-			string uid=Record::extractUniqueId(ct);
 			if (context->onNewRegister(ct->m_url,uid)){
 				LOGD("Found a pending context for contact %s: %p",
 				     ec->mSipUri.c_str(), context.get());
 				auto stlpath=Record::route_to_stl(context->getEvent()->getMsgSip()->getHome(), path);
-				dispatch(context->getEvent(), ct->m_url, uid, stlpath, context);
+				dispatch(context->getEvent(), ec, context);
 			}
 		}
 	}
@@ -484,7 +491,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 		const shared_ptr<ExtendedContact> &ec=(*it).second;
 		
 		if (!ec->mAlias) {
-			if (dispatch(ev, ct->m_url, ec->mUniqueId, ec->mPath, context)) {
+			if (dispatch(ev, ec, context)) {
 				if (!mFork) break;
 			}
 		} else {
@@ -499,7 +506,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				mForks.insert(make_pair(key, context));
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
 			}else{
-				if (dispatch(ev, ct->m_url, ec->mUniqueId, ec->mPath, context)) {
+				if (dispatch(ev, ec, context)) {
 					if (!mFork) break;
 				}
 			}

@@ -169,7 +169,7 @@ void ForkContext::init() {
 	}
 }
 
-void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const string &uid) {
+void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact) {
 	shared_ptr<OutgoingTransaction> ot=ev->createOutgoingTransaction();
 	shared_ptr<BranchInfo> br=createBranchInfo();
 
@@ -181,7 +181,8 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const string 
 	ev->unlinkTransactions();
 	br->mRequest=ev;
 	br->mTransaction=ot;
-	br->mUid=uid;
+	br->mUid=contact->mUniqueId;
+	br->mContact=contact;
 	ot->setProperty("BranchInfo",br);
 	onNewBranch(br);
 	mBranches.push_back(br);
