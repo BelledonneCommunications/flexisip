@@ -16,12 +16,12 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <submodules/sofia-sip/libsofia-sip-ua/msg/msg_internal.h>
 #include "forkmessagecontext.hh"
 #include "registrardb.hh"
 #include "common.hh"
 #include <algorithm>
 #include <sofia-sip/sip_status.h>
+#include <sofia-sip/msg_types.h>
 #include "xml/fthttp.hxx"
 
 using namespace ::std;
@@ -182,14 +182,14 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 	if (ev && isMessageARCSFileTransferMessage(ev)) {
 		shared_ptr<ExtendedContact> &ec = br->mContact;
 		if (ec && isConversionFromRcsToExternalBodyUrlNeeded(ec)) {
-			const shared_ptr<MsgSip> &message = ev->getMsgSip();
-			msg_t *msg = message->getMsg();
+			sip_t *sip = ev->getSip();
+			sip_payload_t *payload = sip->sip_payload;
 			
 			std::unique_ptr<fthttp::File> file_transfer_infos = NULL;
 			char *file_url = NULL;
 			
 			try {
-				istringstream data(msg->m_buffer[0].mb_data);
+				istringstream data(payload->pl_data);
 				file_transfer_infos = parseFile(data, xml_schema::Flags::dont_validate);
 			} catch (const xml_schema::Exception& e) {
 				SLOGE << "Can't parse the content of the message";
