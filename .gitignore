@@ -58,3 +58,5 @@ src/pusher
 compile
 .DS_Store
 .dirstamp
+/src/xml/*.cxx
+/src/xml/*.hxx

@@ -417,6 +417,8 @@ AC_HEADER_STDBOOL
 PKG_CHECK_MODULES(SOFIA,[sofia-sip-ua >= 1.12.11])
 PKG_CHECK_MODULES(ORTP,[ortp >= 0.16.3])
 
+PKG_CHECK_MODULES(XERCESC, [xerces-c >= 3.0.0])
+
 ORTP_VERSION=`$PKG_CONFIG --modversion ortp 2>&1`
 AX_COMPARE_VERSION([$ORTP_VERSION], [ge], [0.21.0],ORTP_ABI_VERSION=">=9",ORTP_ABI_VERSION="<9")
 if test "x$ORTP_ABI_VERSION" = "x>=9"; then
@@ -481,13 +483,10 @@ if test x$presence = xyes ; then
 		AC_MSG_ERROR([CodeSynthesis XSD required for presence server.])
 	fi	
 	PKG_CHECK_MODULES(BELLESIP, [belle-sip >= 1.2.4])
-	PKG_CHECK_MODULES(XERCESC, [xerces-c >= 3.0.0])
 	AC_DEFINE([ENABLE_PRESENCE],1, [enable presence module])
 fi
 
 AM_CONDITIONAL([BUILD_PRESENCE], [test x$presence = xyes])
-
-
 
 
 AC_CONFIG_FILES(
@@ -498,7 +497,7 @@ scripts/debian/Makefile
 scripts/redhat/Makefile
 src/Makefile
 src/presence/Makefile
-src/presence/xml/Makefile
+src/xml/Makefile
 doc/Makefile
 debian/Makefile
 flexisip.spec

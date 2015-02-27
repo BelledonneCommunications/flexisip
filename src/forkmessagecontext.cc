@@ -16,13 +16,16 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <submodules/sofia-sip/libsofia-sip-ua/msg/msg_internal.h>
 #include "forkmessagecontext.hh"
 #include "registrardb.hh"
 #include "common.hh"
 #include <algorithm>
 #include <sofia-sip/sip_status.h>
+#include "xml/fthttp.hxx"
 
 using namespace ::std;
+using namespace fthttp;
 
 static bool needsDelivery(int code){
 	return code<200 || code==503 || code==408;
@@ -140,6 +143,31 @@ void ForkMessageContext::sOnAcceptanceTimer(su_root_magic_t* magic, su_timer_t* 
 	static_cast<ForkMessageContext*>(arg)->onAcceptanceTimer();
 }
 
+bool isMessageARCSFileTransferMessage(shared_ptr<RequestSipEvent> &ev) {
+	sip_t* sip = ev->getSip();
+	if (strncasecmp(sip->sip_request->rq_method_name, "MESSAGE", strlen(sip->sip_request->rq_method_name)) == 0) {
+		if (sip->sip_content_type->c_type && strcasecmp (sip->sip_content_type->c_type, "application/vnd.gsma.rcs-ft-http+xml")==0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool isConversionFromRcsToExternalBodyUrlNeeded(shared_ptr<ExtendedContact> &ec) {
+	list<string> acceptHeaders = ec->mAcceptHeader;
+	if (acceptHeaders.size() == 0) {
+		return true;
+	}
+	
+	for (auto it = acceptHeaders.begin(); it != acceptHeaders.end(); ++it) {
+		string header = *it;
+		if (header.compare("application/vnd.gsma.rcs-ft-http+xml") == 0) {
+			return false;
+		}
+	}
+	return true;
+}
+
 void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 	if (br->mUid.size()>0){
 		/*check for a branch already existing with this uid, and eventually clean it*/
@@ -148,6 +176,41 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 			removeBranch(tmp);
 		}
 	} else SLOGE << "No unique id found for contact";
+	
+	// Convert a RCS file transfer message to an external body url message if contact doesn't support it
+	shared_ptr<RequestSipEvent> &ev = br->mRequest;
+	if (ev && isMessageARCSFileTransferMessage(ev)) {
+		shared_ptr<ExtendedContact> &ec = br->mContact;
+		if (ec && isConversionFromRcsToExternalBodyUrlNeeded(ec)) {
+			const shared_ptr<MsgSip> &message = ev->getMsgSip();
+			msg_t *msg = message->getMsg();
+			
+			std::unique_ptr<fthttp::File> file_transfer_infos = NULL;
+			char *file_url = NULL;
+			
+			try {
+				istringstream data(msg->m_buffer[0].mb_data);
+				file_transfer_infos = parseFile(data, xml_schema::Flags::dont_validate);
+			} catch (const xml_schema::Exception& e) {
+				SLOGE << "Can't parse the content of the message";
+			}
+			
+			if (file_transfer_infos != NULL) {
+				File::File_infoSequence &infos = file_transfer_infos->getFile_info();
+				if (infos.size() >= 1) {
+					for (File::File_infoConstIterator i (infos.begin()); i != infos.end(); ++i) {
+						const File::File_infoType info = (*i);
+						file_url = strdup(info.getData().getUrl().c_str());
+					}
+				}
+			}
+			
+			if (file_url) {
+				//TODO
+				free(file_url);
+			}
+		}
+	}
 }
 
 bool ForkMessageContext::onNewRegister(const url_t *dest, const string &uid){

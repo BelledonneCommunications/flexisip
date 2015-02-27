@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema targetNamespace="urn:gsma:params:xml:ns:rcs:rcs:fthttp"
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns="urn:gsma:params:xml:ns:rcs:rcs:fthttp"
+	elementFormDefault="qualified"
+	attributeFormDefault="unqualified">
+	<xs:element name="file">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="file-info" minOccurs="1" maxOccurs="2">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="file-size">
+								<xs:simpleType>
+									<xs:restriction base="xs:integer"/>
+								</xs:simpleType>
+							</xs:element>
+							<xs:element name="file-name" minOccurs="0" maxOccurs="1">
+								<xs:simpleType>
+									<xs:restriction base="xs:string"/>
+								</xs:simpleType>
+							</xs:element>
+							<xs:element name="content-type">
+								<xs:simpleType>
+									<xs:restriction base="xs:string"/>
+								</xs:simpleType>
+							</xs:element>
+							<xs:element name="data">
+								<xs:complexType>
+									<xs:attribute name="url" type="xs:anyURI" use="required"/>
+									<xs:attribute name="until" type="xs:dateTime" use="required"/>
+									<xs:anyAttribute namespace="##other" processContents="lax"/>
+								</xs:complexType>
+							</xs:element>
+							<xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+						</xs:sequence>
+						<xs:attribute name="type" use="required">
+							<xs:simpleType>
+								<xs:restriction base="xs:string">
+									<xs:enumeration value="file"/>
+									<xs:enumeration value="thumbnail"/>
+								</xs:restriction>
+							</xs:simpleType>
+						</xs:attribute>
+						<xs:attribute name="file-disposition" use="optional">
+							<xs:simpleType>
+								<xs:restriction base="xs:string">
+									<xs:enumeration value="render"/>
+									<xs:enumeration value="attachment"/>
+								</xs:restriction>
+							</xs:simpleType>
+						</xs:attribute>
+						<xs:anyAttribute namespace="##other" processContents="lax"/>
+					</xs:complexType>
+				</xs:element>
+				<xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>
