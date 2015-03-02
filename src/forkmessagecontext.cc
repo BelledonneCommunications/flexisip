@@ -186,7 +186,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 			sip_payload_t *payload = sip->sip_payload;
 			
 			std::unique_ptr<fthttp::File> file_transfer_infos = NULL;
-			char *file_url = NULL;
+			const char *file_url;
 			
 			try {
 				istringstream data(payload->pl_data);
@@ -199,15 +199,17 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 				File::File_infoSequence &infos = file_transfer_infos->getFile_info();
 				if (infos.size() >= 1) {
 					for (File::File_infoConstIterator i (infos.begin()); i != infos.end(); ++i) {
-						const File::File_infoType info = (*i);
-						file_url = strdup(info.getData().getUrl().c_str());
+						const File::File_infoType &info = (*i);
+						const File_info::DataType &data = info.getData();
+						const Data::UrlType &url = data.getUrl();
+						file_url = url.c_str();
+						break;
 					}
 				}
 			}
 			
 			if (file_url) {
 				//TODO
-				free(file_url);
 			}
 		}
 	}
