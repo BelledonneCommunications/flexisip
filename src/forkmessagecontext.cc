@@ -23,6 +23,7 @@
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/msg_types.h>
 #include "xml/fthttp.hxx"
+#include <xercesc/util/PlatformUtils.hpp>
 
 using namespace ::std;
 using namespace fthttp;
@@ -181,6 +182,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 	shared_ptr<RequestSipEvent> &ev = br->mRequest;
 	if (ev && isMessageARCSFileTransferMessage(ev)) {
 		shared_ptr<ExtendedContact> &ec = br->mContact;
+		xercesc::XMLPlatformUtils::Initialize();
 		if (ec && isConversionFromRcsToExternalBodyUrlNeeded(ec)) {
 			sip_t *sip = ev->getSip();
 			sip_payload_t *payload = sip->sip_payload;
@@ -212,6 +214,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 				//TODO
 			}
 		}
+		xercesc::XMLPlatformUtils::Terminate();
 	}
 }
 
