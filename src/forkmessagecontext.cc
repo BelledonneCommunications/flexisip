@@ -182,39 +182,47 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 	shared_ptr<RequestSipEvent> &ev = br->mRequest;
 	if (ev && isMessageARCSFileTransferMessage(ev)) {
 		shared_ptr<ExtendedContact> &ec = br->mContact;
-		xercesc::XMLPlatformUtils::Initialize();
 		if (ec && isConversionFromRcsToExternalBodyUrlNeeded(ec)) {
 			sip_t *sip = ev->getSip();
-			sip_payload_t *payload = sip->sip_payload;
-			
-			std::unique_ptr<fthttp::File> file_transfer_infos = NULL;
-			const char *file_url;
-			
-			try {
-				istringstream data(payload->pl_data);
-				file_transfer_infos = parseFile(data, xml_schema::Flags::dont_validate);
-			} catch (const xml_schema::Exception& e) {
-				SLOGE << "Can't parse the content of the message";
-			}
-			
-			if (file_transfer_infos != NULL) {
-				File::File_infoSequence &infos = file_transfer_infos->getFile_info();
-				if (infos.size() >= 1) {
-					for (File::File_infoConstIterator i (infos.begin()); i != infos.end(); ++i) {
-						const File::File_infoType &info = (*i);
-						const File_info::DataType &data = info.getData();
-						const Data::UrlType &url = data.getUrl();
-						file_url = url.c_str();
-						break;
+			if (sip) {
+				sip_payload_t *payload = sip->sip_payload;
+				
+				xercesc::XMLPlatformUtils::Initialize();
+				if (payload) {
+					std::unique_ptr<fthttp::File> file_transfer_infos = NULL;
+					char *file_url = NULL;
+					
+					try {
+						istringstream data(payload->pl_data);
+						file_transfer_infos = parseFile(data, xml_schema::Flags::dont_validate);
+					} catch (const xml_schema::Exception& e) {
+						SLOGE << "Can't parse the content of the message";
+					}
+					
+					if (file_transfer_infos != NULL) {
+						File::File_infoSequence &infos = file_transfer_infos->getFile_info();
+						if (infos.size() >= 1) {
+							for (File::File_infoConstIterator i (infos.begin()); i != infos.end(); ++i) {
+								const File::File_infoType &info = (*i);
+								const File_info::DataType &data = info.getData();
+								const Data::UrlType &url = data.getUrl();
+								file_url = (char *)url.c_str();
+								break;
+							}
+						}
+					}
+					
+					if (file_url) {
+						char new_content_type[256];
+						sip->sip_payload = sip_payload_make(ev->getHome(), NULL);
+						sip->sip_content_length = sip_content_length_make(ev->getHome(), 0);
+						sprintf(new_content_type, "message/external-body;access-type=URL;URL=\"%s\"", file_url);
+						sip->sip_content_type = sip_content_type_make(ev->getHome(), new_content_type);
 					}
 				}
-			}
-			
-			if (file_url) {
-				//TODO
+				xercesc::XMLPlatformUtils::Terminate();
 			}
 		}
-		xercesc::XMLPlatformUtils::Terminate();
 	}
 }
 
