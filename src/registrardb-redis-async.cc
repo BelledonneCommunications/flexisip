@@ -87,6 +87,7 @@ void RegistrarDbRedisAsync::onDisconnect(const redisAsyncContext* c, int status)
 	mContext=NULL;
 	if ( status != REDIS_OK ) {
 		LOGE ( "Redis disconnection message: %s", c->errstr );
+		tryReconnect();
 		return;
 	} else if ( bShouldReconnect ){
 		bShouldReconnect = false;
@@ -128,9 +129,9 @@ bool RegistrarDbRedisAsync::isConnected()
  * @return a map<string,string> which contains the keys and values extracted (can be empty)
  */
 static map<string,string> parseKeyValue(const std::string& toParse,
-										const char line_delim='\n',
-										const char delimiter = ':',
-										const char comment = '#'){
+										const char line_delim ='\n',
+										const char delimiter  = ':',
+										const char comment    = '#'){
 	map<string,string> kvMap;
 	istringstream values(toParse);
 
@@ -156,19 +157,6 @@ static map<string,string> parseKeyValue(const std::string& toParse,
 	}
 
 	return kvMap;
-}
-
-map<string,string> parseInfoReply(const char* reply ){
-	// Redis reply for the INFO command is a list of key:value lines,
-	// with some of the lines starting with a # for section title (which we ignore).
-
-	auto replyMap = parseKeyValue(reply);
-
-	for( auto it : replyMap ){
-		LOGE("- %s -> '%s'", it.first.c_str(), it.second.c_str());
-	}
-
-	return replyMap;
 }
 
 RedisHost RedisHost::parseSlave(const string& slave, int id){
@@ -249,7 +237,7 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply){
 
 	LOGD("Reply for replication INFO \n%s\n", reply );
 
-	auto replyMap = parseInfoReply(reply);
+	auto replyMap = parseKeyValue(reply);
 	if( replyMap.find("role") != replyMap.end() ){
 		string role = replyMap["role"];
 		if( role == "master" ){
