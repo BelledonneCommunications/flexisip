@@ -1,20 +1,20 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2012  Belledonne Communications SARL.
-    Author: Guillaume Beraudo
+	Copyright (C) 2012  Belledonne Communications SARL.
+	Author: Guillaume Beraudo
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "recordserializer.hh"
@@ -25,6 +25,7 @@
 #include <cstdio>
 #include <vector>
 #include <algorithm>
+#include <iterator>
 
 #include "configmanager.hh"
 
@@ -39,16 +40,35 @@ using namespace::std;
 #define chk_redis_err(cmd)  if (REDIS_ERR == (cmd)) { LOGD("Redis error") ; ERROR }
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync ( Agent *ag, RedisParameters params )
-:RegistrarDb ( ag->getPreferredRoute() ),mContext ( NULL ), sDomain(params.domain),
-sAuthPassword(params.auth), sPort(params.port), sTimeout(params.timeout) ,mRoot ( ag->getRoot() ){
+	:	RegistrarDb ( ag->getPreferredRoute() ),
+		mAgent(ag),
+		mContext ( NULL ),
+		sDomain(params.domain),
+		sAuthPassword(params.auth),
+		sPort(params.port),
+		sTimeout(params.timeout),
+		mRoot ( ag->getRoot() ),
+		bShouldReconnect(false),
+		mReplicationTimer(NULL),
+		slave_check_timeout(params.slave_check_timeout)
+{
 	mSerializer=RecordSerializer::get();
 }
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(const string &preferredRoute, su_root_t* root, RecordSerializer* serializer, RedisParameters params)
-    : RegistrarDb(preferredRoute), mContext( NULL ), sDomain(params.domain),
-      sAuthPassword(params.auth), sPort(params.port), sTimeout(params.timeout),
-      mRoot( root ) {
-    mSerializer = serializer;
+	: RegistrarDb(preferredRoute),
+	mAgent( NULL ),
+	mContext( NULL ),
+	sDomain(params.domain),
+	sAuthPassword(params.auth),
+	sPort(params.port),
+	sTimeout(params.timeout),
+	mRoot( root ),
+	bShouldReconnect(false),
+	mReplicationTimer(NULL),
+	slave_check_timeout(params.slave_check_timeout)
+{
+	mSerializer = serializer;
 }
 
 
@@ -57,31 +77,33 @@ RegistrarDbRedisAsync::~RegistrarDbRedisAsync()
 	if ( mContext ) {
 		redisAsyncDisconnect ( mContext );
 	}
-}
-
-
-#ifndef WITHOUT_HIREDIS_CONNECT_CALLBACK
-void RegistrarDbRedisAsync::connectCallback ( const redisAsyncContext *c, int status )
-{
-	if ( status != REDIS_OK ) {
-		LOGE ( "Couldn't connect to redis: %s", c->errstr );
-		RegistrarDbRedisAsync *zis= ( RegistrarDbRedisAsync * ) c->data;
-		zis->mContext=NULL;
-		return;
+	if( mAgent && mReplicationTimer ){
+		mAgent->stopTimer(mReplicationTimer);
+		mReplicationTimer = NULL;
 	}
-	LOGD ( "Connected... %p", c );
 }
-#endif
 
-void RegistrarDbRedisAsync::disconnectCallback ( const redisAsyncContext *c, int status )
-{
-	RegistrarDbRedisAsync *zis= ( RegistrarDbRedisAsync * ) c->data;
-	zis->mContext=NULL;
+void RegistrarDbRedisAsync::onDisconnect(const redisAsyncContext* c, int status){
+	mContext=NULL;
 	if ( status != REDIS_OK ) {
 		LOGE ( "Redis disconnection message: %s", c->errstr );
 		return;
+	} else if ( bShouldReconnect ){
+		bShouldReconnect = false;
+		connect();
 	}
 	LOGD ( "Disconnected %p...", c );
+}
+
+void RegistrarDbRedisAsync::onConnect(const redisAsyncContext* c, int status)
+{
+	if ( status != REDIS_OK ) {
+		LOGE ( "Couldn't connect to redis: %s", c->errstr );
+		mContext = NULL;
+		tryReconnect();
+		return;
+	}
+	LOGD ( "Connected... %p", c );
 }
 
 bool RegistrarDbRedisAsync::isConnected()
@@ -89,13 +111,147 @@ bool RegistrarDbRedisAsync::isConnected()
 	return mContext != NULL;
 }
 
-static void handleAuthReply ( redisAsyncContext* ac, void *r, void *privdata )
-{
-	redisReply *reply = ( redisReply * ) r;
-	if ( !reply || reply->type == REDIS_REPLY_ERROR ) {
-		LOGE ( "Could'nt authenticate with redis server" );
-		redisAsyncDisconnect ( ac );
+map<string,string> parseInfoReply(const char* reply ){
+	// Redis reply for the INFO command is a list of key:value lines,
+	// with some of the lines starting with a # for section title (which we ignore).
+
+	map<string,string> replyMap;
+	istringstream values(reply);
+
+	for (string line; std::getline(values, line); )
+	{
+		if( line.find('#') == 0 ) continue; // section title
+
+		size_t colon = line.find(':');
+		if( colon == line.npos || colon == line.length() ){
+			LOGW("Invalid line '%s' in INFO reply", line.c_str());
+			continue;
+		}
+
+		const string key = line.substr(0,colon);
+		string value = line.substr(colon+1);
+		value.erase(value.find_first_of("\r\n"));
+
+		replyMap[key] = value;
 	}
+
+	for( auto it : replyMap ){
+		LOGE("- %s -> '%s'", it.first.c_str(), it.second.c_str());
+		string val = it.second;
+		for( auto c : val ){
+			LOGE("%d (%c)", (int)c, c);
+		}
+	}
+
+	return replyMap;
+}
+
+RedisHost RedisHost::parseSlave(const string& slaveLine, int id){
+	istringstream input(slaveLine);
+	vector<string> data;
+	// a slave line has this format: "host,port,state"
+
+	// split the string with ',' into an array
+	for(string token; getline(input, token, ',') ; )
+		data.push_back(token);
+
+	if( data.size() != 3 ){
+		SLOGW << "Invalid host line: " << slaveLine;
+		return RedisHost(); // invalid host
+	} else {
+		return RedisHost(id,
+						 data[0], // host
+						 (unsigned short)atoi(data[1].c_str()), // port
+						 data[2]); // state
+	}
+}
+
+void RegistrarDbRedisAsync::updateSlavesList(const map<string,string> redisReply ){
+	int slaveCount = atoi(redisReply.at("connected_slaves").c_str());
+
+	vSlaves.clear();
+
+	for( int i=0; i<slaveCount; i++){
+		string slaveName = "slave" + std::to_string(i);
+
+		if( redisReply.find(slaveName) != redisReply.end()){
+
+			RedisHost host = RedisHost::parseSlave(redisReply.at(slaveName), i);
+			if( host.id != -1){
+				LOGD("Replication: Adding host %d %s:%d state:%s", host.id, host.address.c_str(), host.port, host.state.c_str());
+				vSlaves.push_back(host);
+			}
+		}
+	}
+}
+
+void RegistrarDbRedisAsync::tryReconnect()
+{
+	if( vSlaves.size() > 0 && !isConnected() ){
+		// we are disconnected, but we can try one of the previously determined slaves
+		RedisHost host = vSlaves.back();
+
+		LOGW("Connection lost to %s:%d, trying a known slave %d at %s:%d",
+			 sDomain.c_str(), sPort, host.id, host.address.c_str(), host.port);
+
+		sDomain = host.address;
+		sPort = host.port;
+		vSlaves.pop_back(); // remove slave from the list of known slaves for an eventual
+
+		connect();
+
+	} else {
+		LOGW("No slave to try, giving up.");
+	}
+}
+
+void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply){
+
+	LOGD("Reply for replication INFO \n%s\n", reply );
+
+	auto replyMap = parseInfoReply(reply);
+	if( replyMap.find("role") != replyMap.end() ){
+		string role = replyMap["role"];
+		if( role == "master" ){
+			// we are speaking to the master, nothing to do but update the list of slaves
+			updateSlavesList(replyMap);
+		} else if( role == "slave" ){
+			// woops, we are connected to a slave. We should go to the master
+			string masterAddress = replyMap["master_host"];
+			int masterPort = atoi(replyMap["master_port"].c_str());
+
+			LOGW("Our redis instance is a slave of %s:%d, will attempt to connect to the master", masterAddress.c_str(), masterPort);
+
+			sDomain = masterAddress;
+			sPort = masterPort;
+			bShouldReconnect = true;
+
+			disconnect();
+
+		} else {
+			SLOGW << "Unknown role '"<< role << "'";
+		}
+		if( mAgent && mReplicationTimer == NULL){
+			SLOGD << "Creating replication timer with delay of " << slave_check_timeout << "s";
+			mReplicationTimer = mAgent->createTimer(slave_check_timeout * 1000, sHandleInfoTimer, this);
+		}
+	} else {
+		SLOGW << "Invalid INFO reply: no role specified";
+	}
+}
+
+void RegistrarDbRedisAsync::handleAuthReply(const redisReply* reply)
+{
+	if ( !reply || reply->type == REDIS_REPLY_ERROR ) {
+		LOGE ( "Couldn't authenticate with redis server" );
+		disconnect();
+	} else {
+		getReplicationInfo();
+	}
+}
+
+void RegistrarDbRedisAsync::getReplicationInfo() {
+	redisAsyncCommand( mContext, sHandleReplicationInfoReply, this, "INFO replication" );
 }
 
 
@@ -116,10 +272,10 @@ bool RegistrarDbRedisAsync::connect()
 	}
 
 #ifndef WITHOUT_HIREDIS_CONNECT_CALLBACK
-	redisAsyncSetConnectCallback ( mContext, connectCallback );
+	redisAsyncSetConnectCallback ( mContext, sConnectCallback );
 #endif
 
-	redisAsyncSetDisconnectCallback ( mContext, disconnectCallback );
+	redisAsyncSetDisconnectCallback ( mContext, sDisconnectCallback );
 
 	if ( REDIS_OK != redisSofiaAttach ( mContext, mRoot ) ) {
 		LOGE ( "Redis Connection error" );
@@ -129,17 +285,19 @@ bool RegistrarDbRedisAsync::connect()
 	}
 
 	if ( !sAuthPassword.empty() ) {
-		redisAsyncCommand ( mContext, handleAuthReply, NULL, "AUTH %s", sAuthPassword.c_str() );
+		redisAsyncCommand ( mContext, shandleAuthReply, this, "AUTH %s", sAuthPassword.c_str() );
+	} else {
+		getReplicationInfo();
 	}
 	return true;
 }
 
-unsigned long RegistrarDbRedisAsync::getToken()
-{
-	if ( mToken == LONG_MAX ) {
-		mToken=0;
+bool RegistrarDbRedisAsync::disconnect(){
+	if( mContext ){
+		redisAsyncDisconnect(mContext);
+		return true;
 	}
-	return mToken++;
+	return false;
 }
 
 
@@ -211,7 +369,26 @@ void RegistrarDbRedisAsync::sHandleSet ( redisAsyncContext* ac, void *r, void *p
 }
 
 
+/* Static functions that are used as callbacks to redisAsync API */
 
+#ifndef WITHOUT_HIREDIS_CONNECT_CALLBACK
+void RegistrarDbRedisAsync::sConnectCallback ( const redisAsyncContext *c, int status )
+{
+	RegistrarDbRedisAsync *zis= ( RegistrarDbRedisAsync * ) c->data;
+	if( zis ){
+		zis->onConnect(c, status);
+	}
+
+}
+#endif
+
+void RegistrarDbRedisAsync::sDisconnectCallback ( const redisAsyncContext *c, int status )
+{
+	RegistrarDbRedisAsync *zis= ( RegistrarDbRedisAsync * ) c->data;
+	if( zis ){
+		zis->onDisconnect(c, status);
+	}
+}
 
 void RegistrarDbRedisAsync::sHandleBind ( redisAsyncContext* ac, redisReply *reply, RegistrarUserData *data )
 {
@@ -228,10 +405,37 @@ void RegistrarDbRedisAsync::sHandleFetch ( redisAsyncContext* ac, redisReply *re
 	data->self->handleFetch ( reply,data );
 }
 
+void RegistrarDbRedisAsync::sHandleReplicationInfoReply( redisAsyncContext* ac, void* r, void* privdata )
+{
+	redisReply* reply = (redisReply*)r;
+	RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)privdata;
+	if( !reply || reply->type == REDIS_REPLY_ERROR ){
+		LOGE( "Couldn't issue the INFO command, will try later");
+		return;
+	} else if( reply->str && zis ){
+		zis->handleReplicationInfoReply(reply->str);
+	}
+}
 
+/* this callback is called periodically to check if the current REDIS connection is valid */
+void RegistrarDbRedisAsync::sHandleInfoTimer(void *unused, su_timer_t *t, void *data)
+{
+	RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)data;
+	if( zis && zis->mContext ){
+		SLOGI << "Launching periodic INFO query on REDIS";
+		zis->getReplicationInfo();
+	}
+}
 
+void RegistrarDbRedisAsync::shandleAuthReply ( redisAsyncContext* ac, void *r, void *privdata )
+{
+	RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)privdata;
+	if( zis ){
+		zis->handleAuthReply( (const redisReply*) r );
+	}
+}
 
-
+/* Methods called by the callbacks */
 
 void RegistrarDbRedisAsync::handleFetch ( redisReply *reply, RegistrarUserData *data )
 {
@@ -249,9 +453,6 @@ void RegistrarDbRedisAsync::handleFetch ( redisReply *reply, RegistrarUserData *
 	delete data;
 }
 
-
-
-
 void RegistrarDbRedisAsync::handleClear ( redisReply *reply, RegistrarUserData *data )
 {
 	if ( reply->str > 0 ) {
@@ -267,9 +468,6 @@ void RegistrarDbRedisAsync::handleClear ( redisReply *reply, RegistrarUserData *
 	}
 	chk_redis_err ( redisAsyncCommand ( mContext, sHandleSet, data,"DEL aor:%s",data->key ) );
 }
-
-
-
 
 void RegistrarDbRedisAsync::handleBind ( redisReply *reply, RegistrarUserData *data )
 {
@@ -298,7 +496,6 @@ void RegistrarDbRedisAsync::handleBind ( redisReply *reply, RegistrarUserData *d
 	time_t expireat=data->record.latestExpire();
 	chk_redis_err ( redisAsyncCommand ( data->self->mContext, NULL, NULL,"EXPIREAT aor:%s %lu",data->key, expireat ) );
 }
-
 
 void RegistrarDbRedisAsync::doBind ( const RegistrarDb::BindParameters& p, const shared_ptr< RegistrarDbListener >& listener )
 {
@@ -330,8 +527,6 @@ void RegistrarDbRedisAsync::doClear ( const sip_t *sip, const shared_ptr<Registr
 }
 
 
-
-
 void RegistrarDbRedisAsync::doFetch ( const url_t *url, const shared_ptr<RegistrarDbListener> &listener )
 {
 	RegistrarUserData *data=new RegistrarUserData ( this,url,listener,sHandleFetch );
@@ -342,3 +537,4 @@ void RegistrarDbRedisAsync::doFetch ( const url_t *url, const shared_ptr<Registr
 	LOGD ( "Fetching aor:%s [%lu]", data->key, data->token );
 	chk_redis_err ( redisAsyncCommand ( mContext, sHandleAorGetReply,data,"GET aor:%s",data->key ) );
 }
+

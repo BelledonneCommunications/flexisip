@@ -155,7 +155,7 @@ void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq,
 			SLOGD << "Cleaning older line '" << lineValuePtr << "' for contact " << ec->mContactId;
 			it = mContacts.erase(it);
 		} else if (0 == strcmp(ec->callId(), call_id)) {
-			LOGD("Cleaning same call id contact %s (%s)", ec->contactId(), call_id);
+			SLOGD << "Cleaning same call id contact " << ec->contactId() << "(" << call_id << ")";
 			it = mContacts.erase(it);
 		} else {
 			++it;
@@ -446,6 +446,7 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 		params.port = registrar->get<ConfigInt > ( "redis-server-port" )->read();
 		params.timeout = registrar->get<ConfigInt > ( "redis-server-timeout" )->read();
 		params.auth = registrar->get<ConfigString > ( "redis-auth-password" )->read();
+		params.slave_check_timeout = registrar->get<ConfigInt>( "redis-slave-check-period" )->read();
 
 		/* Previous implementations allowed "redis-sync" and "redis-async", whereas we now expect "redis".
 		 * We check that the dbImplementation _starts_ with "redis" now, so that we stay backward compatible. */
@@ -456,7 +457,6 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 			return sUnique;
 		}
 #endif
-
 		LOGF("unsupported implementation %s", dbImplementation.c_str())
 	}
 
