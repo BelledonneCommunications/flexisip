@@ -71,7 +71,7 @@ bool RecordSerializerC::parse(const char *str, int len, Record *r){
 		}
 
 		ExtendedContactCommon ecc(contactId, stlpath, call_id, lineValue);
-		r->update(ecc, sip_contact, atol(expire), q?atof(q):0, atoi(cseq), atol(update_time), strcmp(alias, "true") == 0, 0);
+		r->update(ecc, sip_contact, atol(expire), q?atof(q):0, atoi(cseq), atol(update_time), strcmp(alias, "true") == 0, 0); //TODO: Replace 0 by accept header
 		++i;
 	}
 
