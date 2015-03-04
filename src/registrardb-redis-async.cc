@@ -111,59 +111,98 @@ bool RegistrarDbRedisAsync::isConnected()
 	return mContext != NULL;
 }
 
+/**
+ * @brief parseKeyValue this functions parses a string contraining a list of key/value
+ * separated by a delimiter, and for each key-value, another delimiter.
+ * It converts the string to a map<string,string>.
+ *
+ * For instance:
+ * <code>parseKeyValue("toto:tata\nfoo:bar", '\n', ':', '#')</code>
+ * will give you:
+ * { make_pair("toto","tata"), make_pair("foo", "bar") }
+ *
+ * @param toParse the string to parse
+ * @param delimiter the delimiter between key and value (default is ':')
+ * @param comment a character which is a comment. Lines starting with this character
+ * will be ignored.
+ * @return a map<string,string> which contains the keys and values extracted (can be empty)
+ */
+static map<string,string> parseKeyValue(const std::string& toParse,
+										const char line_delim='\n',
+										const char delimiter = ':',
+										const char comment = '#'){
+	map<string,string> kvMap;
+	istringstream values(toParse);
+
+	for (string line; std::getline(values, line, line_delim ); )
+	{
+		if( line.find(comment) == 0 ) continue; // section title
+
+		// clear all non-UNIX end of line chars
+		line.erase(remove_if( line.begin(), line.end(),
+							  [](char c){ return c == '\r' || c == '\n';}),
+					line.end() );
+
+		size_t delim_pos = line.find(delimiter);
+		if( delim_pos == line.npos || delim_pos == line.length() ){
+			LOGW("Invalid line '%s' in key-value", line.c_str());
+			continue;
+		}
+
+		const string key = line.substr(0,delim_pos);
+		string value = line.substr(delim_pos+1);
+
+		kvMap[key] = value;
+	}
+
+	return kvMap;
+}
+
 map<string,string> parseInfoReply(const char* reply ){
 	// Redis reply for the INFO command is a list of key:value lines,
 	// with some of the lines starting with a # for section title (which we ignore).
 
-	map<string,string> replyMap;
-	istringstream values(reply);
-
-	for (string line; std::getline(values, line); )
-	{
-		if( line.find('#') == 0 ) continue; // section title
-
-		size_t colon = line.find(':');
-		if( colon == line.npos || colon == line.length() ){
-			LOGW("Invalid line '%s' in INFO reply", line.c_str());
-			continue;
-		}
-
-		const string key = line.substr(0,colon);
-		string value = line.substr(colon+1);
-		value.erase(value.find_first_of("\r\n"));
-
-		replyMap[key] = value;
-	}
+	auto replyMap = parseKeyValue(reply);
 
 	for( auto it : replyMap ){
 		LOGE("- %s -> '%s'", it.first.c_str(), it.second.c_str());
-		string val = it.second;
-		for( auto c : val ){
-			LOGE("%d (%c)", (int)c, c);
-		}
 	}
 
 	return replyMap;
 }
 
-RedisHost RedisHost::parseSlave(const string& slaveLine, int id){
-	istringstream input(slaveLine);
+RedisHost RedisHost::parseSlave(const string& slave, int id){
+	istringstream input(slave);
 	vector<string> data;
-	// a slave line has this format: "host,port,state"
+	// a slave line has this format for redis < 2.8: "<host>,<port>,<state>"
+	// for redis > 2.8 it is this format: "ip=<ip>,port=<port>,state=<state>,...(key)=(value)"
 
 	// split the string with ',' into an array
 	for(string token; getline(input, token, ',') ; )
 		data.push_back(token);
 
-	if( data.size() != 3 ){
-		SLOGW << "Invalid host line: " << slaveLine;
-		return RedisHost(); // invalid host
-	} else {
-		return RedisHost(id,
-						 data[0], // host
+	if( data.size() > 0 && (data.at(0).find('=') != string::npos) ){
+		// we have found an "=" in one of the values: the format is post-Redis 2.8.
+		// We have to parse is accordingly.
+		auto m = parseKeyValue(slave, ',', '=');
+
+		if( m.find("ip") != m.end() &&
+			m.find("port") != m.end() &&
+			m.find("state") != m.end()){
+			return RedisHost(id, m.at("ip"),
+							 atoi(m.at("port").c_str()),
+							 m.at("state"));
+		} else {
+			SLOGW << "Missing fields in the slaveline " << slave;
+		}
+	} else if (data.size() >= 3 ){
+		return RedisHost(id, data[0], // host
 						 (unsigned short)atoi(data[1].c_str()), // port
 						 data[2]); // state
+	} else {
+		SLOGW << "Invalid host line: " << slave;
 	}
+	return RedisHost(); // invalid host
 }
 
 void RegistrarDbRedisAsync::updateSlavesList(const map<string,string> redisReply ){
@@ -207,6 +246,7 @@ void RegistrarDbRedisAsync::tryReconnect()
 
 void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply){
 
+
 	LOGD("Reply for replication INFO \n%s\n", reply );
 
 	auto replyMap = parseInfoReply(reply);
@@ -215,7 +255,9 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply){
 		if( role == "master" ){
 			// we are speaking to the master, nothing to do but update the list of slaves
 			updateSlavesList(replyMap);
+
 		} else if( role == "slave" ){
+
 			// woops, we are connected to a slave. We should go to the master
 			string masterAddress = replyMap["master_host"];
 			int masterPort = atoi(replyMap["master_port"].c_str());
@@ -405,10 +447,12 @@ void RegistrarDbRedisAsync::sHandleFetch ( redisAsyncContext* ac, redisReply *re
 	data->self->handleFetch ( reply,data );
 }
 
+
 void RegistrarDbRedisAsync::sHandleReplicationInfoReply( redisAsyncContext* ac, void* r, void* privdata )
 {
 	redisReply* reply = (redisReply*)r;
 	RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)privdata;
+
 	if( !reply || reply->type == REDIS_REPLY_ERROR ){
 		LOGE( "Couldn't issue the INFO command, will try later");
 		return;
