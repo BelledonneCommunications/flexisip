@@ -85,15 +85,16 @@ RegistrarDbRedisAsync::~RegistrarDbRedisAsync()
 
 void RegistrarDbRedisAsync::onDisconnect(const redisAsyncContext* c, int status){
 	mContext=NULL;
+	LOGD ( "Disconnected %p...", c );
 	if ( status != REDIS_OK ) {
 		LOGE ( "Redis disconnection message: %s", c->errstr );
 		tryReconnect();
 		return;
 	} else if ( bShouldReconnect ){
+		LOGE("Reconnecting to new master");
 		bShouldReconnect = false;
 		connect();
 	}
-	LOGD ( "Disconnected %p...", c );
 }
 
 void RegistrarDbRedisAsync::onConnect(const redisAsyncContext* c, int status)
@@ -184,6 +185,7 @@ RedisHost RedisHost::parseSlave(const string& slave, int id){
 			SLOGW << "Missing fields in the slaveline " << slave;
 		}
 	} else if (data.size() >= 3 ){
+		// Old-style slave format, use the data from the array directly
 		return RedisHost(id, data[0], // host
 						 (unsigned short)atoi(data[1].c_str()), // port
 						 data[2]); // state
@@ -196,7 +198,7 @@ RedisHost RedisHost::parseSlave(const string& slave, int id){
 void RegistrarDbRedisAsync::updateSlavesList(const map<string,string> redisReply ){
 	int slaveCount = atoi(redisReply.at("connected_slaves").c_str());
 
-	vSlaves.clear();
+	vector<RedisHost> newSlaves;
 
 	for( int i=0; i<slaveCount; i++){
 		string slaveName = "slave" + std::to_string(i);
@@ -205,11 +207,18 @@ void RegistrarDbRedisAsync::updateSlavesList(const map<string,string> redisReply
 
 			RedisHost host = RedisHost::parseSlave(redisReply.at(slaveName), i);
 			if( host.id != -1){
-				LOGD("Replication: Adding host %d %s:%d state:%s", host.id, host.address.c_str(), host.port, host.state.c_str());
-				vSlaves.push_back(host);
+				// only tell if a new host was found
+				if( std::find(vSlaves.begin(), vSlaves.end(), host) == vSlaves.end() ){
+					LOGD("Replication: Adding host %d %s:%d state:%s", host.id, host.address.c_str(), host.port, host.state.c_str());
+				}
+				newSlaves.push_back(host);
 			}
 		}
 	}
+
+	// replace the slaves array
+	vSlaves.clear();
+	vSlaves = newSlaves;
 }
 
 void RegistrarDbRedisAsync::tryReconnect()
@@ -223,7 +232,7 @@ void RegistrarDbRedisAsync::tryReconnect()
 
 		sDomain = host.address;
 		sPort = host.port;
-		vSlaves.pop_back(); // remove slave from the list of known slaves for an eventual
+		vSlaves.pop_back();
 
 		connect();
 
@@ -234,8 +243,7 @@ void RegistrarDbRedisAsync::tryReconnect()
 
 void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply){
 
-
-	LOGD("Reply for replication INFO \n%s\n", reply );
+	/*LOGD("Reply for replication INFO \n%s\n", reply );*/
 
 	auto replyMap = parseKeyValue(reply);
 	if( replyMap.find("role") != replyMap.end() ){
@@ -249,15 +257,20 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply){
 			// woops, we are connected to a slave. We should go to the master
 			string masterAddress = replyMap["master_host"];
 			int masterPort = atoi(replyMap["master_port"].c_str());
+			string masterStatus = replyMap["master_link_status"];
 
-			LOGW("Our redis instance is a slave of %s:%d, will attempt to connect to the master", masterAddress.c_str(), masterPort);
+			LOGW("Our redis instance is a slave of %s:%d", masterAddress.c_str(), masterPort);
+			if( masterStatus == "up" ){
+				SLOGW << "Master is up, will attempt to connect to the master";
 
-			sDomain = masterAddress;
-			sPort = masterPort;
-			bShouldReconnect = true;
+				sDomain = masterAddress;
+				sPort = masterPort;
+				bShouldReconnect = true;
 
-			disconnect();
-
+				disconnect();
+			} else {
+				SLOGW << "Master is " << masterStatus << ", wait for next periodic check to decide to connect.";
+			}
 		} else {
 			SLOGW << "Unknown role '"<< role << "'";
 		}
@@ -308,7 +321,7 @@ bool RegistrarDbRedisAsync::connect()
 	redisAsyncSetDisconnectCallback ( mContext, sDisconnectCallback );
 
 	if ( REDIS_OK != redisSofiaAttach ( mContext, mRoot ) ) {
-		LOGE ( "Redis Connection error" );
+		LOGE ( "Redis Connection error - %p", mContext );
 		redisAsyncDisconnect ( mContext );
 		mContext=NULL;
 		return false;
@@ -323,6 +336,7 @@ bool RegistrarDbRedisAsync::connect()
 }
 
 bool RegistrarDbRedisAsync::disconnect(){
+	LOGD("disconnect(%p)", mContext);
 	if( mContext ){
 		redisAsyncDisconnect(mContext);
 		return true;

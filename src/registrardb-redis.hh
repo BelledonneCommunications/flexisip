@@ -49,6 +49,10 @@ struct RedisHost {
 		id = -1;
 	}
 
+	inline bool operator ==(const RedisHost& r ){
+		return id == r.id && address == r.address && port == r.port && state == r.state;
+	}
+
 	/**
 	 * @brief parseSlave this class method will parse a line from Redis where a slave information is expected.
 	 *

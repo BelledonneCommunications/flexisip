@@ -5,7 +5,6 @@
 #include <iostream>
 #include <cstring>
 
-
 using namespace std;
 
 static size_t count=0;
@@ -72,7 +71,7 @@ static void print_test_value(size_t nb, const char *expr, const char* args, bool
 	string res=success ? "[OK]" : "[KO]";
 	cerr << res << " " << (int)nb;
 	if (!success) {
-		cerr << " expected " << (expected ? string("true"):string("false")); 
+		cerr << " expected " << (expected ? string("true"):string("false"));
 		cerr << " = " << string(expr) << endl << "[" << string(args) << "]";
 		error_occured=true;
 	}
@@ -247,7 +246,7 @@ int main(int argc, char *argv[]){
 	if (argc == 1) {
 		do_predefined_tests();
 		return error_occured;
-	} 
+	}
 
 	if (argc != 3 || string(argv[1]) == "-h" || string(argv[1]) =="--help") {
 		cout << argv[0] << " \"bool expr\" \"key1=val1|key2=val2|key3=0|key4=1\"" <<endl;
