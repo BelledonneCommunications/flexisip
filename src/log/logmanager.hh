@@ -28,7 +28,7 @@
 
 namespace flexisip {
 namespace log {
-		
+
 	// Here we define our application severity levels.
 	enum level
 	{
@@ -40,9 +40,9 @@ namespace log {
 		error,
 		fatal
 	};
-		
 
-		
+
+
 	// The formatting logic for the severity level
 	template< typename CharT, typename TraitsT >
 	inline std::basic_ostream< CharT, TraitsT >& operator<< (
@@ -64,8 +64,8 @@ namespace log {
 			strm << static_cast< int >(lvl);
 		return strm;
 	}
-	
-	
+
+
 	template< typename CharT, typename TraitsT >
 	inline std::basic_istream< CharT, TraitsT >& operator>> (
 		std::basic_istream< CharT, TraitsT >& strm, flexisip::log::level &lvl)
@@ -80,7 +80,7 @@ namespace log {
 			"error",
 			"fatal"
 		};
-		
+
 		std::string s;
 		strm >> s;
 		for (unsigned int n=0; n <(sizeof(str) / sizeof(*str)); ++n) {
@@ -93,7 +93,7 @@ namespace log {
 		strm.setstate(std::ios_base::failbit);
 		return strm;
 	}
-	
+
 }
 }
 
@@ -103,7 +103,7 @@ namespace log {
 
 
 #ifdef ENABLE_BOOSTLOG
-	#include <boost/version.hpp> 
+	#include <boost/version.hpp>
 
 	#include <cstdarg>
 	#include <boost/log/sources/record_ostream.hpp>
@@ -154,10 +154,10 @@ namespace log {
 	#endif
 
 
-	
-	
-	
-	
+
+
+
+
 #else // without boost log
 
 
@@ -167,8 +167,8 @@ namespace log {
 #include <ostream>
 
 typedef std::ostream flexisip_record_type;
-	
-	
+
+
 struct pumpstream : public std::ostringstream
 {
 	const OrtpLogLevel level;
@@ -183,7 +183,7 @@ struct pumpstream : public std::ostringstream
 template<typename _Tp>
 inline pumpstream &
 operator<<(pumpstream&& __os, const _Tp &__x)
-{ 
+{
 	(static_cast<std::ostringstream &>(__os)) << __x;
 	return __os;
 }
@@ -222,7 +222,7 @@ do { \
 
 extern bool sUseSyslog;
 
-/* 
+/*
  * We want LOGN to output all the time: this is for startup notice.
  */
 #define LOGN(args...) do{ \
@@ -234,7 +234,7 @@ if (sUseSyslog){ \
 	fprintf(stdout,"\n"); \
 	}\
 }while(0);
-		
+
 /** LOGEN and LOGF must be used to report any startup or configuration fatal error that needs to be seen by the operator.
  * This is why it goes to syslog (if syslog is used) and standart output.
  **/
@@ -245,7 +245,7 @@ if (sUseSyslog){ \
 		syslog(LOG_ERR,args); \
 	}\
 }while(0);
-			
+
 
 #define LOGF(args...) do{ \
 LOGEN(args);\
@@ -308,23 +308,23 @@ namespace log {
 	va_end (args);\
 	}
 
-	
+
 	static inline void formated_logi(const char *fmt,...) {\
 	va_list args;\
 	va_start (args, fmt);\
 	flexisip::log::formated_log_with_severity(level::info, fmt, args);\
 	va_end (args);\
 	}
-	
-	
+
+
 	static inline void formated_loge(const char *fmt,...) {\
 	va_list args;\
 	va_start (args, fmt);\
 	flexisip::log::formated_log_with_severity(level::error, fmt, args);\
 	va_end (args);\
 	}
-	
-	
+
+
 	static inline void formated_loga(const char *fmt,...) {\
 	va_list args;\
 	va_start (args, fmt);\
@@ -334,9 +334,9 @@ namespace log {
 	#endif
 
 	void initLogs(bool syslog, bool debug);
-	
+
 	bool validateFilter(const std::string &filterstr);
-	
+
 	bool updateFilter(const std::string &filterstr);
 
 	void preinit(bool syslog, bool debug);

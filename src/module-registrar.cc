@@ -69,7 +69,7 @@ public:
 
 	virtual void onDeclare(GenericStruct *mc) {
 		ConfigItemDescriptor configs[] = {
-			{ StringList, "reg-domains", "List of whitelist separated domain names to be managed by the registrar."
+			{ StringList, "reg-domains", "List of whitespace separated domain names to be managed by the registrar."
 					" It can eventually be the '*' (wildcard) in order to match any domain name.", "localhost" },
 			{ Boolean, "reg-on-response", "Register users based on response obtained from a back-end server. "
 				"This mode is for using flexisip as a front-end server to hold client connections but register"
@@ -93,6 +93,10 @@ public:
 			{ String , "redis-auth-password", "Authentication password for redis. Empty to disable.",""},
 			{ Integer , "redis-server-timeout", "Timeout in milliseconds of the redis connection.","1500"},
 			{ String , "redis-record-serializer", "Serialize contacts with: [C, protobuf]","protobuf"},
+			{ Integer, "redis-slave-check-period", "When Redis is configured in master-slave, flexisip will periodically ask what are the slaves and the master." 
+													"This is the period with which it will query the server."
+													"It will then determine whether is is connected to the master, and if not, let go of the connection and migrate to the master." 
+													"Note: This requires that all redis instances have the same password. Otherwise the authentication will fail.", "60" },
 			{ String , "service-route", "Sequence of proxies (space-separated) where requests will be redirected through (RFC3608)",""},
 			config_item_end
 		};
