@@ -159,7 +159,7 @@ protected:
 public:
 	Record(std::string key);
 	static std::string extractUniqueId(const sip_contact_t *contact);
-	const std::shared_ptr<ExtendedContact> &extractContactByUniqueId(std::string uid);
+	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
 	const sip_contact_t * getContacts(su_home_t *home, time_t now);
 	void pushContact(const std::shared_ptr<ExtendedContact> &ct) { mContacts.push_back(ct);}
 	bool isInvalidRegister(const char *call_id, uint32_t cseq);

@@ -341,7 +341,7 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 	SLOGD << "Searching for fork context with key " << key;
 
 	string uid = Record::extractUniqueId(ct);
-	const shared_ptr<ExtendedContact> &ec = aor->extractContactByUniqueId(uid);
+	const shared_ptr<ExtendedContact> ec = aor->extractContactByUniqueId(uid);
 	if (ec) {
 		// First use sipURI
 		for(auto it = range.first; it != range.second; ++it) {

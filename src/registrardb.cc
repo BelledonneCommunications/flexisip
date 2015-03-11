@@ -131,10 +131,10 @@ string Record::extractUniqueId(const sip_contact_t *contact){
 	return "";
 }
 
-const shared_ptr<ExtendedContact>& Record::extractContactByUniqueId(std::string uid) {
+const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(std::string uid) {
 	const auto contacts = getExtendedContacts();
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
-		const shared_ptr<ExtendedContact> &ec = *it;
+		const shared_ptr<ExtendedContact> ec = *it;
 		if (ec && ec->mUniqueId.compare(uid) == 0) {
 			return ec;
 		}
