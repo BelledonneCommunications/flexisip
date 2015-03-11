@@ -165,8 +165,8 @@ public:
 	bool isInvalidRegister(const char *call_id, uint32_t cseq);
 	void clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t time);
 	void clean(time_t time);
-	void update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias, const sip_accept_t *accept);
-	void update(const ExtendedContactCommon &ecc, const char* sipuri, long int expireAt, float q, uint32_t cseq, time_t updated_time, bool alias, const sip_accept_t *accept);
+	void update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept);
+	void update(const ExtendedContactCommon &ecc, const char* sipuri, long int expireAt, float q, uint32_t cseq, time_t updated_time, bool alias, const std::list<std::string> accept);
 
 	void print(std::ostream &stream) const;
 	bool isEmpty() { return mContacts.empty(); }

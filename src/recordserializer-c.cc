@@ -54,6 +54,7 @@ bool RecordSerializerC::parse(const char *str, int len, Record *r){
 		char *cseq=strsep(&rc, "#");
 		char *alias=strsep(&rc, "#");
 		char *path=strsep(&rc, "#");
+		char *accept=strsep(&rc, "#");
 
 		CHECK("empty", empty[0] != '\0');
 		CHECK(" no sip_contact" , !sip_contact || sip_contact[0] == 0);
@@ -69,9 +70,14 @@ bool RecordSerializerC::parse(const char *str, int len, Record *r){
 		while (NULL != (empty=strsep(&path, ","))){
 			stlpath.push_back(empty);
 		}
+		
+		std::list<std::string> acceptHeaders;
+		while (NULL != (empty=strsep(&accept, ","))){
+			acceptHeaders.push_back(empty);
+		}
 
 		ExtendedContactCommon ecc(contactId, stlpath, call_id, lineValue);
-		r->update(ecc, sip_contact, atol(expire), q?atof(q):0, atoi(cseq), atol(update_time), strcmp(alias, "true") == 0, 0); //TODO: Replace 0 by accept header
+		r->update(ecc, sip_contact, atol(expire), q?atof(q):0, atoi(cseq), atol(update_time), strcmp(alias, "true") == 0, acceptHeaders);
 		++i;
 	}
 
@@ -102,6 +108,12 @@ bool RecordSerializerC::serialize(Record *r, string &serialized, bool log){
 			pathstr += *pit;
 		}
 		oss << "#" << pathstr;
+		string acceptstr;
+		for (auto pit=ec->mAcceptHeader.cbegin(); pit != ec->mAcceptHeader.cend(); ++pit) {
+			if (pit != ec->mAcceptHeader.cbegin()) acceptstr +=",";
+			acceptstr += *pit;
+		}
+		oss << "#" << acceptstr;
 		++i;
 	}
 

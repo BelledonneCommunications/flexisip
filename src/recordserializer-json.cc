@@ -55,7 +55,7 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r){
 		int cseq=cJSON_GetObjectItem(contact->child,"cseq")->valueint;
 		bool alias=cJSON_GetObjectItem(contact->child,"alias")->valueint != 0;
 		cJSON *path=cJSON_GetObjectItem(contact->child,"path");
-
+		cJSON *accept=cJSON_GetObjectItem(contact->child, "acceptHeaders");
 
 		CHECK(" no sip_contact" , !sip_contact || sip_contact[0] == 0);
 		CHECK(" no contactId" , !contactId || contactId[0] == 0);
@@ -71,9 +71,14 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r){
 		for (int p = 0 ; p < cJSON_GetArraySize(path) ; p++) {
 			stlpath.push_back(cJSON_GetArrayItem(path, p)->valuestring);
 		}
+		
+		std::list<std::string> acceptHeaders;
+		for (int p = 0 ; p < cJSON_GetArraySize(accept) ; p++) {
+			acceptHeaders.push_back(cJSON_GetArrayItem(accept, p)->valuestring);
+		}
 
 		ExtendedContactCommon ecc(contactId, stlpath, call_id, lineValue);
-		r->update(ecc, sip_contact, expire, q, cseq, update_time, alias, 0); //TODO: Replace 0 by accept header
+		r->update(ecc, sip_contact, expire, q, cseq, update_time, alias, acceptHeaders);
 		contact=contact->next;
 		++i;
 	}
@@ -94,6 +99,8 @@ bool RecordSerializerJson::serialize(Record *r, string &serialized, bool log){
 		cJSON_AddItemToArray(contacts,c);
 		cJSON *path=cJSON_CreateArray();
 		cJSON_AddItemToObject(c, "path", path);
+		cJSON *acceptHeaders = cJSON_CreateArray();
+		cJSON_AddItemToObject(c, "acceptHeaders", acceptHeaders);
 
 		shared_ptr<ExtendedContact> ec=(*it);
 		cJSON_AddStringToObject(c,"uri",ec->mSipUri.c_str());
@@ -109,6 +116,10 @@ bool RecordSerializerJson::serialize(Record *r, string &serialized, bool log){
 		for (auto pit=ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {
 			cJSON *pitem = cJSON_CreateString(pit->c_str());
 			cJSON_AddItemToArray(path, pitem);
+		}
+		for (auto pit=ec->mAcceptHeader.cbegin(); pit != ec->mAcceptHeader.cend(); ++pit) {
+			cJSON *pitem = cJSON_CreateString(pit->c_str());
+			cJSON_AddItemToArray(acceptHeaders, pitem);
 		}
 	}
 

@@ -16,4 +16,5 @@ message RecordContactPb {
   required string contact_id = 8;
   optional string route = 9;
   repeated string path = 10;
+  repeated string accept_header = 11;
 }

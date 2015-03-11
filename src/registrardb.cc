@@ -290,7 +290,7 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 		oss << ":" << url->url_port;
 }
 
-void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias, const sip_accept_t *accept) {
+void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept) {
 	sip_contact_t *c = (sip_contact_t *) contacts;
 	list<string> stlPath;
 	if (path != NULL) {
@@ -316,30 +316,19 @@ void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int g
 		if (!url_param(c->m_url[0].url_params, "transport", transport, sizeof(transport) - 1)) {
 			transportPtr = NULL;
 		}
-		
-		list<string> acceptHeaders;
-		while (accept != NULL) {
-			acceptHeaders.push_back(accept->ac_type);
-			accept = accept->ac_next;
-		}
 
 		ostringstream contactId;
 		defineContactId(contactId, c->m_url, transportPtr);
 		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr);
-		insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, c, globalExpire, cseq, now, alias, acceptHeaders));
+		insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, c, globalExpire, cseq, now, alias, accept));
 		c = c->m_next;
 	}
 
 	SLOGD << *this;
 }
 
-void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long expireAt, float q, uint32_t cseq, time_t updated_time, bool alias, const sip_accept_t *accept) {
-	list<string> acceptHeaders;
-	while (accept != NULL) {
-		acceptHeaders.push_back(accept->ac_type);
-		accept = accept->ac_next;
-	}
-	insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias, acceptHeaders));
+void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long expireAt, float q, uint32_t cseq, time_t updated_time, bool alias, const std::list<std::string> accept) {
+	insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias, accept));
 }
 
 void Record::print(std::ostream &stream) const{

@@ -66,9 +66,16 @@ void RegistrarDbInternal::doBind(const BindParameters& p, const shared_ptr< Regi
         	listener->onInvalid();
         	return;
         }
+        
+        const sip_accept_t *accept = p.sip.accept;
+        list<string> acceptHeaders;
+		while (accept != NULL) {
+			acceptHeaders.push_back(accept->ac_type);
+			accept = accept->ac_next;
+		}
 
         r->clean(p.sip.contact, p.sip.call_id, p.sip.cs_seq, now);
-		r->update(p.sip.contact, p.sip.path, p.global_expire, p.sip.call_id, p.sip.cs_seq, now, p.alias, p.sip.accept);
+		r->update(p.sip.contact, p.sip.path, p.global_expire, p.sip.call_id, p.sip.cs_seq, now, p.alias, acceptHeaders);
 
         mLocalRegExpire->update(*r);
         listener->onRecordFound(r);
