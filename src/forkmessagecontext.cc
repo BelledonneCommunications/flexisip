@@ -147,6 +147,7 @@ void ForkMessageContext::sOnAcceptanceTimer(su_root_magic_t* magic, su_timer_t* 
 bool isMessageARCSFileTransferMessage(shared_ptr<RequestSipEvent> &ev) {
 	sip_t* sip = ev->getSip();
 	if (strncasecmp(sip->sip_request->rq_method_name, "MESSAGE", strlen(sip->sip_request->rq_method_name)) == 0) {
+		SLOGD << "Found message with c_type " << sip->sip_content_type->c_type;
 		if (sip->sip_content_type->c_type && strcasecmp (sip->sip_content_type->c_type, "application/vnd.gsma.rcs-ft-http+xml")==0) {
 			return true;
 		}
@@ -157,6 +158,7 @@ bool isMessageARCSFileTransferMessage(shared_ptr<RequestSipEvent> &ev) {
 bool isConversionFromRcsToExternalBodyUrlNeeded(shared_ptr<ExtendedContact> &ec) {
 	list<string> acceptHeaders = ec->mAcceptHeader;
 	if (acceptHeaders.size() == 0) {
+		SLOGD << "No accept header found for contact";
 		return true;
 	}
 	
@@ -166,10 +168,12 @@ bool isConversionFromRcsToExternalBodyUrlNeeded(shared_ptr<ExtendedContact> &ec)
 			return false;
 		}
 	}
+	SLOGD << "No accept header for RCS file transfer found for contact";
 	return true;
 }
 
 void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
+	SLOGD << "Fork message context onNewBranch";
 	if (br->mUid.size()>0){
 		/*check for a branch already existing with this uid, and eventually clean it*/
 		shared_ptr<BranchInfo> tmp=findBranchByUid(br->mUid);
@@ -181,8 +185,10 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 	// Convert a RCS file transfer message to an external body url message if contact doesn't support it
 	shared_ptr<RequestSipEvent> &ev = br->mRequest;
 	if (ev && isMessageARCSFileTransferMessage(ev)) {
+		SLOGD << "Found RCS file transfer message";
 		shared_ptr<ExtendedContact> &ec = br->mContact;
 		if (ec && isConversionFromRcsToExternalBodyUrlNeeded(ec)) {
+			SLOGD << "Found RCS file transfer message sent to a client that doesn't support RCS, let's rewrite it";
 			sip_t *sip = ev->getSip();
 			if (sip) {
 				sip_payload_t *payload = sip->sip_payload;
