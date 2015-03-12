@@ -3,7 +3,7 @@ noinst_LTLIBRARIES=libxml_binding_generated.la
 libxml_binding_generated_la_CFLAGS= $(STRICT_OPTIONS) $(STRICT_OPTIONS_CC)
 
 .xsd.hxx .xsd.cxx:
-	$(XSDCXX) cxx-tree --generate-wildcard --generate-serialization --generate-ostream --generate-detach --std c++11 --type-naming java \
+	$(XSDCXX) cxx-tree --generate-wildcard --generate-serialization --generate-ostream --generate-detach --type-naming java \
 	--function-naming java  --location-regex-trace --location-regex "%http://.+/(.+)%\$$1%" --output-dir $(builddir)  $<
 
 nodist_libxml_binding_generated_la_SOURCES = fthttp.hxx fthttp.cxx
