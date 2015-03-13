@@ -113,6 +113,10 @@ bool RegistrarDbRedisAsync::isConnected()
 	return mContext != NULL;
 }
 
+static bool is_end_line_character(char c) {
+	return c == '\r' || c == '\n';
+}
+
 /**
  * @brief parseKeyValue this functions parses a string contraining a list of key/value
  * separated by a delimiter, and for each key-value, another delimiter.
@@ -141,9 +145,7 @@ static map<string,string> parseKeyValue(const std::string& toParse,
 		if( line.find(comment) == 0 ) continue; // section title
 
 		// clear all non-UNIX end of line chars
-		line.erase(remove_if( line.begin(), line.end(),
-							  [](char c){ return c == '\r' || c == '\n';}),
-					line.end() );
+		line.erase(remove_if( line.begin(), line.end(), is_end_line_character), line.end() );
 
 		size_t delim_pos = line.find(delimiter);
 		if( delim_pos == line.npos || delim_pos == line.length() ){
