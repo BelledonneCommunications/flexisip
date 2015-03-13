@@ -139,7 +139,8 @@ const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(std::string u
 			return ec;
 		}
 	}
-	return NULL;
+	shared_ptr<ExtendedContact> noContact;
+	return noContact;
 }
 
 /**

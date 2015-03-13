@@ -189,7 +189,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 				
 				xercesc::XMLPlatformUtils::Initialize();
 				if (payload) {
-					std::unique_ptr<fthttp::File> file_transfer_infos = NULL;
+					std::unique_ptr<fthttp::File> file_transfer_infos;
 					char *file_url = NULL;
 					
 					try {
@@ -199,7 +199,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 						SLOGE << "Can't parse the content of the message";
 					}
 					
-					if (file_transfer_infos != NULL) {
+					if (file_transfer_infos) {
 						File::File_infoSequence &infos = file_transfer_infos->getFile_info();
 						if (infos.size() >= 1) {
 							for (File::File_infoConstIterator i (infos.begin()); i != infos.end(); ++i) {
