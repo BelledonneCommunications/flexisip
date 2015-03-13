@@ -203,7 +203,9 @@ void RegistrarDbRedisAsync::updateSlavesList(const map<string,string> redisReply
 	vector<RedisHost> newSlaves;
 
 	for( int i=0; i<slaveCount; i++){
-		string slaveName = "slave" + std::to_string(i);
+		std::stringstream sstm;
+		sstm << "slave" << i;
+		string slaveName = sstm.str();
 
 		if( redisReply.find(slaveName) != redisReply.end()){
 
