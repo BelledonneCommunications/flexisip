@@ -19,10 +19,51 @@
 #ifndef mediarelay_hh
 #define mediarelay_hh
 
+#include "module.hh"
 #include "agent.hh"
+#include "callstore.hh"
 #include <ortp/rtpsession.h>
 
+class RelayedCall;
+class MediaRelayServer;
+
+class MediaRelay: public Module, protected ModuleToolbox {
+	friend class MediaRelayServer;
+	friend class RelayedCall;
+public:
+	MediaRelay(Agent *ag);
+	~MediaRelay();
+	virtual void onLoad(const GenericStruct * modconf);
+	virtual void onUnload();
+	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
+	virtual void onIdle();
+protected:
+	virtual void onDeclare(GenericStruct * mc);
+private:
+	bool processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<RequestSipEvent> &ev);
+	void processResponseWithSDP(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
+	void configureContext(shared_ptr<RelayedCall> &c);
+	CallStore *mCalls;
+	MediaRelayServer *mServer;
+	string mSdpMangledParam;
+	int mH264FilteringBandwidth;
+	bool mH264DecimOnlyIfLastProxy;
+	
+	StatCounter64 *mCountCalls;
+	StatCounter64 *mCountCallsFinished;
+	int mH264Decim;
+	int mMaxCalls;
+	int mMinPort, mMaxPort;
+	bool mDropTelephoneEvent;
+	bool mByeOrphanDialogs;
+	bool mEarlyMediaRelaySingle;
+	bool mPreventLoop;
+	static ModuleInfo<MediaRelay> sInfo;
+};
+
 class RelaySession;
+class MediaRelay;
 
 class PollFd{
 public:
@@ -44,8 +85,9 @@ private:
 };
 
 class MediaRelayServer {
+friend class RelayedCall;
 public:
-	MediaRelayServer(Agent *agent);
+	MediaRelayServer(MediaRelay *module);
 	~MediaRelayServer();
 	std::shared_ptr<RelaySession> createSession(const std::string &frontId, const std::pair<std::string,std::string> &frontRelayIps);
 	void update();
@@ -53,7 +95,7 @@ public:
 	RtpSession *createRtpSession(const std::string & bindIp);
 	void enableLoopPrevention(bool val);
 	bool loopPreventionEnabled()const{
-		return mPreventLoop;
+		return mModule->mPreventLoop;
 	}
 private:
 	void start();
@@ -61,15 +103,10 @@ private:
 	static void *threadFunc(void *arg);
 	Mutex mMutex;
 	std::list<std::shared_ptr<RelaySession>> mSessions;
-	Agent *mAgent;
-	int mMinPort;
-	int mMaxPort;
-
+	MediaRelay *mModule;
 	pthread_t mThread;
 	int mCtlPipe[2];
 	bool mRunning;
-	bool mPreventLoop;
-
 	friend class RelayChannel;
 };
 

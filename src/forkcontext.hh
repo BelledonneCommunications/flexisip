@@ -30,7 +30,7 @@ public:
 	int mUrgentTimeout; /*timeout for sending buffered urgent or retryable reponses (like 415).*/
 	int mPushResponseTimeout; /*timeout for receiving response to push */
 	bool mForkLate;
-	bool mForkOneResponse;
+	bool mTreatAllErrorsAsUrgent; /*treat all SIP response code as urgent replies in the fork mechanism.*/
 	bool mForkNoGlobalDecline;
 	bool mTreatDeclineAsUrgent; /*treat 603 declined as a urgent response, only useful is mForkNoGlobalDecline==true*/
 	bool mRemoveToTag; /*workaround buggy OVH which wrongly terminates wrong call*/
@@ -136,6 +136,7 @@ public:
 		return mCfg;
 	}
 	static const int sUrgentCodes[];
+	static const int sAllCodesUrgent[];
 };
 
 #endif /* forkcontext_hh */

@@ -177,6 +177,8 @@ fi
 AM_CONDITIONAL(BUILD_ODB,test x$have_libodb$have_odb = xyesyes)
 if test "$have_libodb$have_odb" = "yesyes"; then
 	AC_DEFINE([HAVE_ODB],1,[Enable odb.])
+else
+	enable_libodb=false
 fi
 
 # Check for libodb-mysql

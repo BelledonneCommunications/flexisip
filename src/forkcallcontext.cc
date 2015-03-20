@@ -70,7 +70,11 @@ void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> & br) {
 const int ForkCallContext::sUrgentCodesWithout603[]={401,407,415,420,484,488,606,0};
 
 const int * ForkCallContext::getUrgentCodes(){
-	return mCfg->mTreatDeclineAsUrgent ? ForkContext::sUrgentCodes : sUrgentCodesWithout603;
+	if (mCfg->mTreatAllErrorsAsUrgent)
+		return ForkContext::sAllCodesUrgent;
+	if (mCfg->mTreatDeclineAsUrgent)
+		return ForkContext::sUrgentCodes;
+	return sUrgentCodesWithout603;
 }
 
 void ForkCallContext::onResponse(const shared_ptr<BranchInfo> & br, const shared_ptr<ResponseSipEvent> &event) {

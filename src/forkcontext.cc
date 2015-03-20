@@ -23,8 +23,10 @@ using namespace ::std;
 
 const int ForkContext::sUrgentCodes[]={401,407,415,420,484,488,606,603,0};
 
+const int ForkContext::sAllCodesUrgent[]={-1, 0};
+
 ForkContextConfig::ForkContextConfig() : mDeliveryTimeout(0),mUrgentTimeout(5),
-	mForkLate(false),mForkOneResponse(false), mForkNoGlobalDecline(false),
+	mForkLate(false), mTreatAllErrorsAsUrgent(false), mForkNoGlobalDecline(false),
 	mTreatDeclineAsUrgent(false), mRemoveToTag(false){
 }
 
@@ -98,8 +100,9 @@ std::shared_ptr<BranchInfo> ForkContext::findBranchByDest(const url_t *dest){
 
 bool ForkContext::isUrgent(int code, const int urgentCodes[]){
 	int i;
+	if (urgentCodes[0] == -1) return true; /*everything is urgent*/
 	for(i=0;urgentCodes[i]!=0;i++){
-		if (code==urgentCodes[i]) return true;
+		if (code==urgentCodes[i] ) return true;
 	}
 	return false;
 }

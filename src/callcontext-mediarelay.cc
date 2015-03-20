@@ -117,7 +117,7 @@ void RelayedCall::setChannelDestinations(SdpModifier *m, int mline, const string
 	RelayChannel::Dir dir=RelayChannel::SendRecv;
 	/*The following code is to make sure than only one branch can send media to the caller,
 		until the call is established.*/
-	if (isEarlyMedia && !mIsEstablished){
+	if (isEarlyMedia && mServer->mModule->mEarlyMediaRelaySingle && !mIsEstablished){
 		if (mHasSendRecvBack) dir=RelayChannel::SendOnly;
 		else {
 			dir=RelayChannel::SendRecv;

@@ -16,10 +16,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "module.hh"
-#include "agent.hh"
 #include "mediarelay.hh"
-#include "callstore.hh"
 #include "sdp-modifier.hh"
 #include "transaction.hh"
 #include "h264iframefilter.hh"
@@ -31,57 +28,6 @@
 
 using namespace ::std;
 using namespace ::std::placeholders;
-
-class MediaRelay: public Module, protected ModuleToolbox {
-	StatCounter64 *mCountCalls;
-	StatCounter64 *mCountCallsFinished;
-public:
-	MediaRelay(Agent *ag);
-	~MediaRelay();
-	virtual void onLoad(const GenericStruct * modconf);
-	virtual void onUnload();
-	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
-	virtual void onIdle();
-protected:
-	virtual void onDeclare(GenericStruct * mc) {
-		ConfigItemDescriptor items[] = {
-				{ String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay. Use 'disable' to disable.", "nortpproxy" },
-				{ Integer, "sdp-port-range-min", "The minimal value of SDP port range", "1024" },
-				{ Integer, "sdp-port-range-max", "The maximal value of SDP port range", "65535" },
-				{ Boolean, "bye-orphan-dialogs", "Sends a ACK and BYE to 200Ok for INVITEs not belonging to any established call.", "false"},
-				{ Integer, "max-calls", "Maximum concurrent calls processed by the media-relay. Calls arriving when the limit is exceed will be rejected. "
-							"A value of 0 means no limit.", "0" },
-				{ Boolean, "prevent-loops", "Prevent media-relay ports to loop between them, which can cause 100% cpu on the media relay thread.", "false"},
-#ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
-				/*very specific features, useless for most people*/
-				{ Integer, "h264-filtering-bandwidth", "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value expressed in kbit/s. Use 0 to disable the feature", "0" },
-				{ Integer, "h264-iframe-decim", "When above option is activated, keep one I frame over this number.", "1" },
-				{ Boolean, "h264-decim-only-last-proxy", "Decimate only if this server is the last proxy in the routes", "true" },
-				{ Boolean, "drop-telephone-event", "Drop out telephone-events packet from incoming RTP stream for sips calls.", "false" },
-#endif
-				config_item_end };
-		mc->addChildrenValues(items);
-
-		auto p=mc->createStatPair("count-calls", "Number of relayed calls.");
-		mCountCalls=p.first;
-		mCountCallsFinished=p.second;
-	}
-private:
-	bool processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<RequestSipEvent> &ev);
-	void processResponseWithSDP(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
-	void configureContext(shared_ptr<RelayedCall> &c);
-	CallStore *mCalls;
-	MediaRelayServer *mServer;
-	string mSdpMangledParam;
-	int mH264FilteringBandwidth;
-	bool mH264DecimOnlyIfLastProxy;
-	int mH264Decim;
-	int mMaxCalls;
-	bool mDropTelephoneEvent;
-	bool mByeOrphanDialogs;
-	static ModuleInfo<MediaRelay> sInfo;
-};
 
 
 static bool isEarlyMedia(sip_t *sip) {
@@ -109,13 +55,39 @@ MediaRelay::~MediaRelay() {
 		delete mServer;
 }
 
+void MediaRelay::onDeclare(GenericStruct * mc) {
+	ConfigItemDescriptor items[] = {
+			{ String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay. Use 'disable' to disable.", "nortpproxy" },
+			{ Integer, "sdp-port-range-min", "The minimal value of SDP port range", "1024" },
+			{ Integer, "sdp-port-range-max", "The maximal value of SDP port range", "65535" },
+			{ Boolean, "bye-orphan-dialogs", "Sends a ACK and BYE to 200Ok for INVITEs not belonging to any established call.", "false"},
+			{ Integer, "max-calls", "Maximum concurrent calls processed by the media-relay. Calls arriving when the limit is exceed will be rejected. "
+						"A value of 0 means no limit.", "0" },
+			{ Boolean, "prevent-loops", "Prevent media-relay ports to loop between them, which can cause 100% cpu on the media relay thread.", "false"},
+			{ Boolean, "early-media-relay-single", "In case multiples 183 Early media responses are received for a call, only the first one will have RTP streams forwarded back to caller. This feature prevents the caller to receive 'mixed' streams, but it breaks scenarios where multiple servers play early media announcement in sequence.", "true"},
+#ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
+			/*very specific features, useless for most people*/
+			{ Integer, "h264-filtering-bandwidth", "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value expressed in kbit/s. Use 0 to disable the feature", "0" },
+			{ Integer, "h264-iframe-decim", "When above option is activated, keep one I frame over this number.", "1" },
+			{ Boolean, "h264-decim-only-last-proxy", "Decimate only if this server is the last proxy in the routes", "true" },
+			{ Boolean, "drop-telephone-event", "Drop out telephone-events packet from incoming RTP stream for sips calls.", "false" },
+#endif
+			config_item_end };
+	mc->addChildrenValues(items);
+
+	auto p=mc->createStatPair("count-calls", "Number of relayed calls.");
+	mCountCalls=p.first;
+	mCountCallsFinished=p.second;
+}
+
 void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mCalls = new CallStore();
 	mCalls->setCallStatCounters(mCountCalls, mCountCallsFinished);
-	mServer = new MediaRelayServer(mAgent);
+	
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
 	if (mSdpMangledParam == "disable") mSdpMangledParam.clear();
 	mByeOrphanDialogs = modconf->get<ConfigBoolean>("bye-orphan-dialogs")->read();
+	mEarlyMediaRelaySingle = modconf->get<ConfigBoolean>("early-media-relay-single")->read();
 #ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 	mH264FilteringBandwidth=modconf->get<ConfigInt>("h264-filtering-bandwidth")->read();
 	mH264Decim=modconf->get<ConfigInt>("h264-iframe-decim")->read();
@@ -127,7 +99,11 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mDropTelephoneEvent=false;
 	mH264DecimOnlyIfLastProxy=true;
 #endif
+	mMinPort = modconf->get<ConfigInt>("sdp-port-range-min")->read();
+	mMaxPort = modconf->get<ConfigInt>("sdp-port-range-max")->read();
+	mPreventLoop = modconf->get<ConfigBoolean>("prevent-loops")->read();
 	mMaxCalls=modconf->get<ConfigInt>("max-calls")->read();
+	mServer = new MediaRelayServer(this);
 }
 
 void MediaRelay::onUnload() {

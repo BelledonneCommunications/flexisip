@@ -62,6 +62,7 @@ public:
 			{ Boolean, "fork-late", "Fork invites to late registers", "false" },
 			{ Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite", "false" },
 			{ Boolean, "treat-decline-as-urgent", "Treat 603 Declined answers as urgent. Only relevant if fork-no-global-decline is set to true.", "false"},
+			{ Boolean, "treat-all-as-urgent", "During a fork procedure, treat all failure response as urgent", "false" },
 			{ Integer, "call-fork-timeout", "Maximum time for a call fork to try to reach a callee, in seconds.","90"},
 			{ Integer, "call-fork-urgent-timeout", "Maximum time before delivering urgent responses during a call fork, in seconds. "
 				"The typical fork process requires to wait the best response from all branches before transmitting it to the client. "
@@ -72,7 +73,6 @@ public:
 			{ String, "generated-contact-route" , "Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
 			{ String, "generated-contact-expected-realm" , "Require presence of authorization header for specified realm. [Realm]", ""},
 			{ Boolean, "generate-contact-even-on-filled-aor", "Generate a contact route even on filled AOR.", "false"},
-			{ Boolean, "fork-one-response", "Only forward one response of forked invite to the caller", "true" },
 			{ Boolean, "remove-to-tag", "Remove to tag from 183, 180, and 101 responses to workaround buggy gateways", "false" },
 			{ String, "preroute" , "rewrite username with given value.", ""},
 			config_item_end
@@ -105,7 +105,7 @@ public:
 		mGenerateContactEvenOnFilledAor = mc->get<ConfigBoolean>("generate-contact-even-on-filled-aor")->read();
 		mForkCfg=make_shared<ForkContextConfig>();
 		mMessageForkCfg=make_shared<ForkContextConfig>();
-		mForkCfg->mForkOneResponse = mc->get<ConfigBoolean>("fork-one-response")->read();
+		mForkCfg->mTreatAllErrorsAsUrgent = mc->get<ConfigBoolean>("treat-all-as-urgent")->read();
 		mForkCfg->mForkNoGlobalDecline = mc->get<ConfigBoolean>("fork-no-global-decline")->read();
 		mForkCfg->mUrgentTimeout = mc->get<ConfigInt>("call-fork-urgent-timeout")->read();
 		mForkCfg->mPushResponseTimeout = mc->get<ConfigInt>("call-push-response-timeout")->read();
@@ -117,7 +117,7 @@ public:
 		mMessageForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("message-delivery-timeout")->read();
 		mMessageForkCfg->mUrgentTimeout = mc->get<ConfigInt>("message-accept-timeout")->read();
 		mOtherForkCfg=make_shared<ForkContextConfig>();
-		mOtherForkCfg->mForkOneResponse=true;
+		mOtherForkCfg->mTreatAllErrorsAsUrgent=false;
 		mOtherForkCfg->mForkLate=false;
 		mOtherForkCfg->mDeliveryTimeout=30;
 

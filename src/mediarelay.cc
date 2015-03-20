@@ -369,22 +369,16 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &chan
 	}
 }
 
-MediaRelayServer::MediaRelayServer(Agent *agent) :
-		mAgent(agent) {
+MediaRelayServer::MediaRelayServer(MediaRelay *module) :
+		mModule(module) {
 	mRunning = false;
-	GenericStruct *cr = GenericManager::get()->getRoot();
-	GenericStruct *ma = cr->get<GenericStruct>("module::MediaRelay");
-	mMinPort = ma->get<ConfigInt>("sdp-port-range-min")->read();
-	mMaxPort = ma->get<ConfigInt>("sdp-port-range-max")->read();
-	mPreventLoop=ma->get<ConfigBoolean>("prevent-loops")->read();
-
 	if (pipe(mCtlPipe) == -1) {
 		LOGF("Could not create MediaRelayServer control pipe.");
 	}
 }
 
 Agent *MediaRelayServer::getAgent() {
-	return mAgent;
+	return mModule->getAgent();
 }
 
 RtpSession *MediaRelayServer::createRtpSession(const std::string & bindIp) {
@@ -393,7 +387,7 @@ RtpSession *MediaRelayServer::createRtpSession(const std::string & bindIp) {
 	rtp_session_set_reuseaddr(session, FALSE);
 #endif
 	for (int i = 0; i < 100; ++i) {
-		int port = ((rand() % (mMaxPort - mMinPort)) + mMinPort) & 0xfffe;
+		int port = ((rand() % (mModule->mMaxPort - mModule->mMinPort)) + mModule->mMinPort) & 0xfffe;
 
 #if ORTP_ABI_VERSION >= 9
 		if (rtp_session_set_local_addr(session, bindIp.c_str(), port, port+1) == 0) {
