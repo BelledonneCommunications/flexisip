@@ -64,6 +64,6 @@ private:
 };
 
 ModuleInfo<ModuleSanityChecker> ModuleSanityChecker::sInfo("SanityChecker",
-	"The SanitCheck module checks that required fields of a SIP message are present to avoid unecessary checking while performing things later. "
+	"The SanitCheck module checks that required fields of a SIP message are present to avoid unecessary checking while processing message further. "
 	"If the message doesn't meet these sanity check criterias, then it is stopped and bad request response is sent.",
 	ModuleInfoBase::ModuleOid::SanityChecker);
