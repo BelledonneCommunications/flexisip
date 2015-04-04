@@ -129,7 +129,13 @@ if test x$odbc = "xyes"; then
 	# Use the odbc_config tool to get odbc libs and includes
 	AC_CHECK_PROG([odbc_config],[odbc_config], [yes], [no], [$odbc_prefix/bin])
 	if test $odbc_config = no; then
-		AC_MSG_ERROR(['odbc_config' not found in $odbc_prefix/bin, maybe use --with-odbc ?])
+		dnl debian does include odbc_config program
+		AC_MSG_WARN(['odbc_config' not found in $odbc_prefix/bin, maybe use --with-odbc ?])
+		if test "$odbc_prefix" ! = "/usr" ; then
+			ODBC_CFLAGS="-I${odbc_prefix}/include"
+			ODBC_LIBS="-I${odbc_prefix}/lib"
+		fi
+		ODBC_LIBS="$ODBC_LIBS -lodbc"
 	else
 		ODBC_CFLAGS="`$odbc_prefix/bin/odbc_config --cflags`"
 		ODBC_LIBS="`$odbc_prefix/bin/odbc_config --libs`"
