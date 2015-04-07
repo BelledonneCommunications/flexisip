@@ -31,7 +31,7 @@ private:
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
-			{ Integer , "packet_rate_limit", "Maximum packet rate received in 1 second to consider to consider it a DoS attack.","10"},
+			{ Integer , "packet-rate-limit", "Maximum packet rate received in 1 second to consider to consider it a DoS attack.","10"},
 			config_item_end
 		};
 		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
@@ -39,7 +39,7 @@ private:
 	}
 
 	void onLoad(const GenericStruct *mc) {
-		mPacketRateLimit = mc->get<ConfigInt>("packet_rate_limit")->read();
+		mPacketRateLimit = mc->get<ConfigInt>("packet-rate-limit")->read();
 	}
 
 	void onUnload() {
@@ -50,9 +50,9 @@ private:
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
 		tport_t *tport = inTport.get();
 		float packet_count_rate = tport_get_packet_count_rate(tport);
-		LOGD("Packet count rate for current tport is: %f", packet_count_rate);
+		LOGD("[DoS] Packet count rate for current tport is: %f", packet_count_rate);
 		if (packet_count_rate >= mPacketRateLimit) {
-			LOGW("Packet count rate is > to the limit %i", mPacketRateLimit);
+			LOGW("[DoS] Packet count rate is > to the limit %i", mPacketRateLimit);
 		}
 	}
 	
@@ -70,6 +70,6 @@ public:
 		}
 };
 
-ModuleInfo<ModuleDoS> ModuleDoS::sInfo("DoS protection",
+ModuleInfo<ModuleDoS> ModuleDoS::sInfo("DoS",
 		"This module bans user when they are sending too much packets on a given timelapse",
 		ModuleInfoBase::ModuleOid::DoS);
