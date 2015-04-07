@@ -39,6 +39,7 @@ thesources= \
 			stun/stun.c stun/stun_udp.c stun/flexisip_stun.h stun/flexisip_stun_udp.h \
 			mediarelay.cc mediarelay.hh \
 			authdb.hh authdb.cc authdb-file.cc \
+			module-dos.cc \
 			module-sanitychecker.cc \
 			module-garbage-in.cc \
 			module-forward.cc \
