@@ -48,6 +48,7 @@ class SdpModifier{
 		short getAudioIpVersion();
 		void getAudioIpPort(std::string *ip, int *port);
 		void changeAudioIpPort(const char *ip, int port);
+		void changeConnection(sdp_connection_t *c, const char *ip);
 		void changeMediaConnection(sdp_media_t *mline, const char *relay_ip);
 		void addIceCandidate(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
 			std::function< std::pair<std::string,int>(int )> getDestAddrFcn);

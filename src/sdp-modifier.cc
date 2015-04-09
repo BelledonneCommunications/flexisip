@@ -341,6 +341,15 @@ void SdpModifier::iterate(function<void(int, const string &, int )> fct){
 	}
 }
 
+void SdpModifier::changeConnection(sdp_connection_t *c, const char *ip){
+	/* set the c= ip address as told in 'ip' argument, except if it was 0.0.0.0, for compatibility with old softphone
+	 * indicating a send-only stream using this technique*/
+	if (c->c_address && strcmp(c->c_address,"0.0.0.0")==0){
+		return;
+	}
+	c->c_address = su_strdup(mHome, ip);
+}
+
 void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
 	sdp_media_t *mline=mSession->sdp_media;
 	sdp_attribute_t *rtcp_attribute;
@@ -357,13 +366,13 @@ void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
 		pair<string,int> relayAddr=fct(i);
 
 		if (mline->m_connections){
-			mline->m_connections->c_address=su_strdup(mHome,relayAddr.first.c_str());
+			changeConnection(mline->m_connections, relayAddr.first.c_str());
 		}else if (mSession->sdp_connection){
 			if (sdp_connection_translated){
 				// If the global connection has already been translated, add a media specific connection if needed
 				changeMediaConnection(mline,relayAddr.first.c_str());
 			}else{
-				mSession->sdp_connection->c_address=su_strdup(mHome,relayAddr.first.c_str());
+				changeConnection(mSession->sdp_connection, relayAddr.first.c_str());
 				sdp_connection_translated = true;
 			}
 		}
