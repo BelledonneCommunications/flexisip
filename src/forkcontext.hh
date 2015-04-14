@@ -107,7 +107,7 @@ protected:
 	std::shared_ptr<BranchInfo> findBranchByDest(const url_t *dest);
 	//Get the best candidate among all branches for forwarding its responses.
 	std::shared_ptr<BranchInfo> findBestBranch(const int urgentReplies[]);
-	bool allBranchesAnswered(bool ignore503=false)const;
+	bool allBranchesAnswered(bool ignore_errors_and_timeouts=false)const;
 	int getLastResponseCode()const;
 	void removeBranch(const std::shared_ptr<BranchInfo> &br);
 	const std::list<std::shared_ptr<BranchInfo>> & getBranches();

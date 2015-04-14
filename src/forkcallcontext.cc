@@ -84,7 +84,7 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo> & br, const shared
 	
 	
 	if (code>=300){
-		/*in fork-late mode, we must not consider that 503 resonse code (which are send by sofia in case of i/o error) are branches that are answered)
+		/*in fork-late mode, we must not consider that 503 and 408 resonse codes (which are send by sofia in case of i/o error or timeouts) are branches that are answered)
 		 * Instead we must wait for the duration of the fork for new registers*/
 		if (allBranchesAnswered(mCfg->mForkLate)){
 			shared_ptr<BranchInfo> best=findBestBranch(getUrgentCodes());

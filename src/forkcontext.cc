@@ -133,11 +133,11 @@ std::shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[])
 	return best;
 }
 
-bool ForkContext::allBranchesAnswered(bool ignore503)const{
+bool ForkContext::allBranchesAnswered(bool ignore_errors_and_timeouts)const{
 	for (auto it=mBranches.begin();it!=mBranches.end();++it){
 		int code=(*it)->getStatus();
 		if (code<200) return false;
-		if (code==503 && ignore503) return false;
+		if ((code==503 || code==408) && ignore_errors_and_timeouts) return false;
 	}
 	return true;
 }
