@@ -21,8 +21,12 @@
 #include "common.hh"
 #include <algorithm>
 #include <sofia-sip/sip_status.h>
+#include <sofia-sip/msg_types.h>
+#include "xml/fthttp.hxx"
+#include <xercesc/util/PlatformUtils.hpp>
 
 using namespace ::std;
+using namespace fthttp;
 
 static bool needsDelivery(int code){
 	return code<200 || code==503 || code==408;
@@ -140,6 +144,31 @@ void ForkMessageContext::sOnAcceptanceTimer(su_root_magic_t* magic, su_timer_t* 
 	static_cast<ForkMessageContext*>(arg)->onAcceptanceTimer();
 }
 
+bool isMessageARCSFileTransferMessage(shared_ptr<RequestSipEvent> &ev) {
+	sip_t* sip = ev->getSip();
+	if (strncasecmp(sip->sip_request->rq_method_name, "MESSAGE", strlen(sip->sip_request->rq_method_name)) == 0) {
+		if (sip->sip_content_type->c_type && strcasecmp (sip->sip_content_type->c_type, "application/vnd.gsma.rcs-ft-http+xml")==0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool isConversionFromRcsToExternalBodyUrlNeeded(shared_ptr<ExtendedContact> &ec) {
+	list<string> acceptHeaders = ec->mAcceptHeader;
+	if (acceptHeaders.size() == 0) {
+		return true;
+	}
+	
+	for (auto it = acceptHeaders.begin(); it != acceptHeaders.end(); ++it) {
+		string header = *it;
+		if (header.compare("application/vnd.gsma.rcs-ft-http+xml") == 0) {
+			return false;
+		}
+	}
+	return true;
+}
+
 void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 	if (br->mUid.size()>0){
 		/*check for a branch already existing with this uid, and eventually clean it*/
@@ -148,6 +177,53 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 			removeBranch(tmp);
 		}
 	} else SLOGE << "No unique id found for contact";
+	
+	// Convert a RCS file transfer message to an external body url message if contact doesn't support it
+	shared_ptr<RequestSipEvent> &ev = br->mRequest;
+	if (ev && isMessageARCSFileTransferMessage(ev)) {
+		shared_ptr<ExtendedContact> &ec = br->mContact;
+		if (ec && isConversionFromRcsToExternalBodyUrlNeeded(ec)) {
+			sip_t *sip = ev->getSip();
+			if (sip) {
+				sip_payload_t *payload = sip->sip_payload;
+				
+				xercesc::XMLPlatformUtils::Initialize();
+				if (payload) {
+					std::unique_ptr<fthttp::File> file_transfer_infos;
+					char *file_url = NULL;
+					
+					try {
+						istringstream data(payload->pl_data);
+						file_transfer_infos = parseFile(data, xml_schema::Flags::dont_validate);
+					} catch (const xml_schema::Exception& e) {
+						SLOGE << "Can't parse the content of the message";
+					}
+					
+					if (file_transfer_infos) {
+						File::File_infoSequence &infos = file_transfer_infos->getFile_info();
+						if (infos.size() >= 1) {
+							for (File::File_infoConstIterator i (infos.begin()); i != infos.end(); ++i) {
+								const File::File_infoType &info = (*i);
+								const File_info::DataType &data = info.getData();
+								const Data::UrlType &url = data.getUrl();
+								file_url = (char *)url.c_str();
+								break;
+							}
+						}
+					}
+					
+					if (file_url) {
+						char new_content_type[256];
+						sip->sip_payload = sip_payload_make(ev->getHome(), NULL);
+						sip->sip_content_length = sip_content_length_make(ev->getHome(), 0);
+						sprintf(new_content_type, "message/external-body;access-type=URL;URL=\"%s\"", file_url);
+						sip->sip_content_type = sip_content_type_make(ev->getHome(), new_content_type);
+					}
+				}
+				xercesc::XMLPlatformUtils::Terminate();
+			}
+		}
+	}
 }
 
 bool ForkMessageContext::onNewRegister(const url_t *dest, const string &uid){

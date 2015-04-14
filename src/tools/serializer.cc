@@ -4,9 +4,16 @@
 using namespace std;
 bool sUseSyslog;
 
-int test_bind_with_ecc(ExtendedContactCommon &ecc, const unique_ptr<RecordSerializer> &serializer, string contact, time_t expireat, float quality, long cseq, time_t now, bool alias) {
+int test_bind_with_ecc(ExtendedContactCommon &ecc, const unique_ptr<RecordSerializer> &serializer, string contact, time_t expireat, float quality, long cseq, time_t now, bool alias, sip_accept_t *accept) {
 	Record initial("key");
-	initial.update(ecc, contact.c_str(), expireat, quality, cseq, now, alias);
+	
+	list<string> acceptHeaders;
+	while (accept != NULL) {
+		acceptHeaders.push_back(accept->ac_type);
+		accept = accept->ac_next;
+	}
+	
+	initial.update(ecc, contact.c_str(), expireat, quality, cseq, now, alias, acceptHeaders);
 	if (!compare(firstContact(initial), alias, ecc, cseq, expireat, quality, contact, now)) {
 		cerr << "Initial and parameters differ" << endl;
 		return -1;
@@ -35,9 +42,16 @@ int test_bind_with_ecc(ExtendedContactCommon &ecc, const unique_ptr<RecordSerial
 
 int test_bind_without_ecc(ExtendedContactCommon &ecc, const unique_ptr<RecordSerializer> &serializer,
 			  sip_contact_t *contacts, sip_path_t *path, int globalexpire, const char *callid,
-			  string contact, time_t expireat, float quality, long cseq, time_t now, bool alias) {
+			  string contact, time_t expireat, float quality, long cseq, time_t now, bool alias, sip_accept_t *accept) {
 	Record initial("key");
-	initial.update(contacts, path, globalexpire, callid, cseq, now, alias);
+	
+	list<string> acceptHeaders;
+	while (accept != NULL) {
+		acceptHeaders.push_back(accept->ac_type);
+		accept = accept->ac_next;
+	}
+	
+	initial.update(contacts, path, globalexpire, callid, cseq, now, alias, acceptHeaders);
 	if (!compare(firstContact(initial), alias, ecc, cseq, expireat, quality, contact, now)) {
 		cerr << "Initial and parameters differ" << endl;
 		return -1;
@@ -90,13 +104,14 @@ int main(int argc, char **argv) {
 	sip_contact_t *sip_contact= sip_contact_format(home.h, "<%s>;q=%f;expires=%d",
 			contact.c_str(), quality, expire_delta);
 	sip_path_t *sip_path=path_fromstl(home.h ,paths);
+	sip_accept_t *accept = NULL;
 
-	if (test_bind_with_ecc(ecc, serializer, contact, expireat, quality, cseq, now, alias)) {
+	if (test_bind_with_ecc(ecc, serializer, contact, expireat, quality, cseq, now, alias, accept)) {
 		BAD("failure in bind with ecc");
 	}
 	
 	if (test_bind_without_ecc(ecc, serializer, sip_contact, sip_path, 55555, callid.c_str(),
-		contactWithChev.c_str(), expireat, quality, cseq, now, alias)) {
+		contactWithChev.c_str(), expireat, quality, cseq, now, alias, accept)) {
 		BAD("failure in bind without ecc");
 	}
 

@@ -68,6 +68,7 @@ struct ExtendedContact {
 	time_t mUpdatedTime;
 	uint32_t mCSeq;
 	bool mAlias;
+	std::list<std::string> mAcceptHeader;
 
 	inline const char *callId() { return mCallId.c_str(); }
 	inline const char *line() { return mUniqueId.c_str(); }
@@ -92,10 +93,10 @@ struct ExtendedContact {
 		else return res;
 	}
 	ExtendedContact(const ExtendedContactCommon &common,
-			sip_contact_t *sip_contact, int global_expire, uint32_t cseq, time_t updateTime, bool alias) :
+			sip_contact_t *sip_contact, int global_expire, uint32_t cseq, time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders) :
 			mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
 			mSipUri(),
-			mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias) {
+			mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias), mAcceptHeader(acceptHeaders) {
 
 		{
 		su_home_t home;
@@ -114,16 +115,16 @@ struct ExtendedContact {
 	}
 
 	ExtendedContact(const ExtendedContactCommon &common,
-			const char *sipuri, long expireAt, float q, uint32_t cseq, time_t updateTime, bool alias) :
+			const char *sipuri, long expireAt, float q, uint32_t cseq, time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders) :
 			mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
 			mSipUri(sipuri),
-			mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias){
+			mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias), mAcceptHeader(acceptHeaders) {
 	}
 
 	ExtendedContact(const url_t *url, std::string route) :
 			mContactId(), mCallId(), mUniqueId(), mPath({route}),
 			mSipUri(),
-			mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0), mCSeq(0), mAlias(false){
+			mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0), mCSeq(0), mAlias(false), mAcceptHeader({}) {
 
 		su_home_t home;
 		su_home_init(&home);
@@ -158,13 +159,14 @@ protected:
 public:
 	Record(std::string key);
 	static std::string extractUniqueId(const sip_contact_t *contact);
+	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
 	const sip_contact_t * getContacts(su_home_t *home, time_t now);
 	void pushContact(const std::shared_ptr<ExtendedContact> &ct) { mContacts.push_back(ct);}
 	bool isInvalidRegister(const char *call_id, uint32_t cseq);
 	void clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t time);
 	void clean(time_t time);
-	void update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias);
-	void update(const ExtendedContactCommon &ecc, const char* sipuri, long int expireAt, float q, uint32_t cseq, time_t updated_time, bool alias);
+	void update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept);
+	void update(const ExtendedContactCommon &ecc, const char* sipuri, long int expireAt, float q, uint32_t cseq, time_t updated_time, bool alias, const std::list<std::string> accept);
 
 	void print(std::ostream &stream) const;
 	bool isEmpty() { return mContacts.empty(); }
@@ -237,9 +239,10 @@ public:
 			const char * call_id;
 			const uint32_t cs_seq;
 			const sip_path_t *path;
+			const sip_accept_t *accept;
 			SipParams(const url_t* ifrom, const sip_contact_t *icontact,
-					      const char *iid, uint32_t iseq, const sip_path_t *ipath)
-			: from(ifrom), contact(icontact), call_id(iid), cs_seq(iseq), path(ipath) {
+					      const char *iid, uint32_t iseq, const sip_path_t *ipath, const sip_accept_t *iaccept)
+			: from(ifrom), contact(icontact), call_id(iid), cs_seq(iseq), path(ipath), accept(iaccept) {
 			}
 		};
 
@@ -260,7 +263,7 @@ public:
 				sip->sip_from->a_url,
 				sip->sip_contact,
 				sip->sip_call_id->i_id,
-				sip->sip_cseq->cs_seq, sip->sip_path),
+				sip->sip_cseq->cs_seq, sip->sip_path, sip->sip_accept),
 			globalExpire, alias);
 		doBind(mainParams, listener);
 	}

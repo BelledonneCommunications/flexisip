@@ -38,14 +38,14 @@ void RegistrarDbInternal::doBind(const BindParameters& p, const shared_ptr< Regi
         char key[AOR_KEY_SIZE] = {0};
         defineKeyFromUrl(key, AOR_KEY_SIZE - 1, p.sip.from);
 
-	if (count_sip_contacts(p.sip.contact) > Record::getMaxContacts()) {
-                LOGD("Too many contacts in register %s %i > %i",
-                        key,
-                        count_sip_contacts(p.sip.contact),
-                        Record::getMaxContacts());
+		if (count_sip_contacts(p.sip.contact) > Record::getMaxContacts()) {
+			LOGD("Too many contacts in register %s %i > %i",
+				key,
+				count_sip_contacts(p.sip.contact),
+				Record::getMaxContacts());
 
-                listener->onError();
-                return;
+			listener->onError();
+			return;
         }
 
         time_t now = getCurrentTime();
@@ -53,12 +53,12 @@ void RegistrarDbInternal::doBind(const BindParameters& p, const shared_ptr< Regi
         map<string, Record*>::iterator it = mRecords.find(key);
         Record *r;
         if (it == mRecords.end()) {
-                r = new Record(key);
-                mRecords.insert(make_pair(key, r));
-                LOGD("Creating AOR %s association", key);
+			r = new Record(key);
+			mRecords.insert(make_pair(key, r));
+			LOGD("Creating AOR %s association", key);
         } else {
-                LOGD("AOR %s found", key);
-                r = (*it).second;
+			LOGD("AOR %s found", key);
+			r = (*it).second;
         }
 
         if (r->isInvalidRegister(p.sip.call_id, p.sip.cs_seq)) {
@@ -66,9 +66,16 @@ void RegistrarDbInternal::doBind(const BindParameters& p, const shared_ptr< Regi
         	listener->onInvalid();
         	return;
         }
+        
+        const sip_accept_t *accept = p.sip.accept;
+        list<string> acceptHeaders;
+		while (accept != NULL) {
+			acceptHeaders.push_back(accept->ac_type);
+			accept = accept->ac_next;
+		}
 
         r->clean(p.sip.contact, p.sip.call_id, p.sip.cs_seq, now);
-	r->update(p.sip.contact, p.sip.path, p.global_expire, p.sip.call_id, p.sip.cs_seq, now, p.alias);
+		r->update(p.sip.contact, p.sip.path, p.global_expire, p.sip.call_id, p.sip.cs_seq, now, p.alias, acceptHeaders);
 
         mLocalRegExpire->update(*r);
         listener->onRecordFound(r);

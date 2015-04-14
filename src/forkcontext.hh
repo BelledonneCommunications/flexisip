@@ -22,6 +22,7 @@
 #include "agent.hh"
 #include "event.hh"
 #include "transaction.hh"
+#include "registrardb.hh"
 
 class ForkContextConfig{
 public:
@@ -60,6 +61,7 @@ public:
 	std::shared_ptr<RequestSipEvent> mRequest;
 	std::shared_ptr<OutgoingTransaction> mTransaction;
 	std::shared_ptr<ResponseSipEvent> mLastResponse;
+	std::shared_ptr<ExtendedContact> mContact;
 };
 
 class ForkContext : public std::enable_shared_from_this<ForkContext>{
@@ -116,7 +118,7 @@ public:
 	ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener);
 	virtual ~ForkContext();
 	//Called by the Router module to create a new branch.
-	void addBranch(const std::shared_ptr<RequestSipEvent> &ev, const std::string &uid);
+	void addBranch(const std::shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact);
 	//Called by the router module to notify a cancellation.
 	static bool processCancel(const std::shared_ptr<RequestSipEvent> &ev);
 	//called by the router module to notify the arrival of a response.

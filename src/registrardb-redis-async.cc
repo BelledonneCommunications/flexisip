@@ -364,6 +364,7 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 	int globalExpire;
 	const sip_path_t *path;
 	bool alias;
+	std::list<std::string> accept;
 
 	RegistrarUserData ( RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const sip_path_t *path, bool alias, shared_ptr<RegistrarDbListener>listener, forwardFn *fn ) :
 		self ( self ),fn ( fn ),token ( 0 ),sipContact ( sip_contact ),calldId ( calld_id ),csSeq ( cs_seq ),listener ( listener ),record ( "" ),globalExpire ( 0 ), path ( path ), alias ( alias ) {
@@ -535,7 +536,7 @@ void RegistrarDbRedisAsync::handleBind ( redisReply *reply, RegistrarUserData *d
 
 	time_t now=getCurrentTime();
 	data->record.clean ( data->sipContact, data->calldId, data->csSeq, now );
-	data->record.update ( data->sipContact, data->path, data->globalExpire, data->calldId, data->csSeq, now, data->alias );
+	data->record.update ( data->sipContact, data->path, data->globalExpire, data->calldId, data->csSeq, now, data->alias, data->accept);
 	mLocalRegExpire->update ( data->record );
 
 	string serialized;
@@ -549,9 +550,17 @@ void RegistrarDbRedisAsync::handleBind ( redisReply *reply, RegistrarUserData *d
 
 void RegistrarDbRedisAsync::doBind ( const RegistrarDb::BindParameters& p, const shared_ptr< RegistrarDbListener >& listener )
 {
+	const sip_accept_t *accept = p.sip.accept;
+	list<string> acceptHeaders;
+	while (accept != NULL) {
+		acceptHeaders.push_back(accept->ac_type);
+		accept = accept->ac_next;
+	}
+		
 	RegistrarUserData *data=new RegistrarUserData ( this,
-		p.sip.from,p.sip.contact,p.sip.call_id,p.sip.cs_seq, p.sip.path, p.alias,listener,sHandleBind );
+		p.sip.from,p.sip.contact,p.sip.call_id,p.sip.cs_seq, p.sip.path, p.alias,listener,sHandleBind);
 	data->globalExpire=p.global_expire;
+	data->accept = acceptHeaders;
 	if ( !isConnected() && !connect() ) {
 		LOGE ( "Not connected to redis server" );
 		ERROR

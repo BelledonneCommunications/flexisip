@@ -9,7 +9,7 @@ ECHO=/bin/echo
 CLEANFILES=$(GITVERSION_FILE)
 BUILT_SOURCES=$(GITVERSION_FILE)
 
-SUBDIRS=presence
+SUBDIRS=xml presence
 nodistsources=
 
 bin_PROGRAMS=flexisip
@@ -39,6 +39,7 @@ thesources= \
 			stun/stun.c stun/stun_udp.c stun/flexisip_stun.h stun/flexisip_stun_udp.h \
 			mediarelay.cc mediarelay.hh \
 			authdb.hh authdb.cc authdb-file.cc \
+			module-dos.cc \
 			module-sanitychecker.cc \
 			module-garbage-in.cc \
 			module-forward.cc \
@@ -70,7 +71,7 @@ thesources+=snmp-agent.cc snmp-agent.h
 AM_CPPFLAGS=-Imib
 endif
 
-flexisip_LDADD=$(SOFIA_LIBS) $(ORTP_LIBS) $(LIBODB_MYSQL_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)
+flexisip_LDADD= xml/libxml_binding_generated.la $(SOFIA_LIBS) $(ORTP_LIBS) $(LIBODB_MYSQL_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS) $(XERCESC_LIBS)
 
 
 AM_CXXFLAGS=$(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) $(PROTOBUF_CFLAGS) $(LIBODB_MYSQL_CFLAGS)  $(MYSQL_CFLAGS)\
@@ -193,7 +194,6 @@ endif
 flexisip_SOURCES=main.cc $(thesources)
 nodist_flexisip_SOURCES=$(nodistsources)
 EXTRA_DIST=$(pb_files) $(GITVERSION_FILE) tools/ctdumper.cc
-
 
 clean-local:
 	rm -f $(builddir)/recordserializer-protobuf.pb* $(builddir)/pb_generated_src_stamp $(builddir)/eventlogs/eventlogsdb-odb.hxx $(builddir)/eventlogs/eventlogsdb-odb.cxx

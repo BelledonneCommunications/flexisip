@@ -131,6 +131,18 @@ string Record::extractUniqueId(const sip_contact_t *contact){
 	return "";
 }
 
+const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(std::string uid) {
+	const auto contacts = getExtendedContacts();
+	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
+		const shared_ptr<ExtendedContact> ec = *it;
+		if (ec && ec->mUniqueId.compare(uid) == 0) {
+			return ec;
+		}
+	}
+	shared_ptr<ExtendedContact> noContact;
+	return noContact;
+}
+
 /**
  * Should first have checked the validity of the register with isValidRegister.
  */
@@ -279,7 +291,7 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 		oss << ":" << url->url_port;
 }
 
-void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias) {
+void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept) {
 	sip_contact_t *c = (sip_contact_t *) contacts;
 	list<string> stlPath;
 	if (path != NULL) {
@@ -309,15 +321,15 @@ void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int g
 		ostringstream contactId;
 		defineContactId(contactId, c->m_url, transportPtr);
 		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr);
-		insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, c, globalExpire, cseq, now, alias));
+		insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, c, globalExpire, cseq, now, alias, accept));
 		c = c->m_next;
 	}
 
 	SLOGD << *this;
 }
 
-void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long expireAt, float q, uint32_t cseq, time_t updated_time, bool alias) {
-	insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias));
+void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long expireAt, float q, uint32_t cseq, time_t updated_time, bool alias, const std::list<std::string> accept) {
+	insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias, accept));
 }
 
 void Record::print(std::ostream &stream) const{

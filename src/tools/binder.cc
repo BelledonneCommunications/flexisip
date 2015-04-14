@@ -84,12 +84,13 @@ int main(int argc, char **argv) {
 	sip_contact_t *sip_contact= sip_contact_format(home.h, "<%s>;q=%f;expires=%d",
 			contact.c_str(), quality, expire_delta);
 	sip_path_t *sip_path=path_fromstl(home.h ,paths);
+	sip_accept_t *accept = NULL;
 
 	
 	RegistrarDbInternal registrar("preferred_ip");
 	RegistrarDb::BindParameters params(
 		RegistrarDb::BindParameters::SipParams(
-			from, sip_contact, callid.c_str(), cseq, sip_path
+			from, sip_contact, callid.c_str(), cseq, sip_path, accept
 		), 55555, alias
 	);
 	auto listener=make_shared<MyListener>(params);

@@ -5,6 +5,7 @@ Flexisip depends on the following externals:
 - oRTP
 - sofia-sip library, 'bc' branch maintained by belledonne communications
 - mediastreamer2 (optionaly use --disable-trancoder if not present)
+- xsd (>= 4, for old OS on which this version isn't packaged, rpm and deb available here: http://www.codesynthesis.com/products/xsd/download.xhtml)
 
 The correct sofia-sip version can be found using:
 $ git clone -b bc git://git.linphone.org/sofia-sip.git

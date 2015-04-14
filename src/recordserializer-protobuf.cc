@@ -48,13 +48,19 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r){
 		for (int p=0; p < c.path_size(); ++p) {
 			stlpath.push_back(c.path(p));
 		}
+		
+		list<string> acceptHeaders;
+		for (int p=0; p < c.accept_header_size(); ++p) {
+			acceptHeaders.push_back(c.accept_header(p));
+		}
 
 		ExtendedContactCommon ecc(c.contact_id().c_str(), stlpath, c.call_id().c_str(), c.has_line_value_copy()? c.line_value_copy().c_str() : NULL);
 		r->update(ecc, c.uri().c_str(),
 				(time_t)c.expires_at(),
 				c.q(),
 				(uint32_t)c.cseq(),
-				c.update_time(),false);
+				c.update_time(),false,
+				acceptHeaders);
 	}
 	return true;
 }
@@ -79,6 +85,9 @@ bool RecordSerializerPb::serialize(Record *r, string &serialized, bool log){
 		c->set_cseq(ec->mCSeq);
 		for (auto pit=ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {
 			c->add_path(*pit);
+		}
+		for (auto pit=ec->mAcceptHeader.cbegin(); pit != ec->mAcceptHeader.cend(); ++pit) {
+			c->add_accept_header(*pit);
 		}
 	}
 

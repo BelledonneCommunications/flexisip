@@ -294,7 +294,8 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 	GenericStruct *cr = GenericManager::get()->getRoot();
 
 	EtcHostsResolver::get();
-
+	
+	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "DoS"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "SanityChecker"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GarbageIn"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "NatHelper"));
