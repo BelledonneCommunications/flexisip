@@ -64,7 +64,7 @@ private:
 		float packet_count_rate = tport_get_packet_count_rate(tport);
 		LOGD("Packet count rate (%f)", packet_count_rate);
 		
-		if (packet_count_rate >= mPacketRateLimit && !tport_is_udp(tport)) {
+		if (packet_count_rate >= mPacketRateLimit && !tport_is_udp(tport)) { // Sofia doesn't create a secondary tport for udp, so it will ban the primary and we don't want that
 			char iptables_cmd[512];
 			sockaddr *addr = tport_get_address(tport)->ai_addr;
 			socklen_t len = tport_get_address(tport)->ai_addrlen;
