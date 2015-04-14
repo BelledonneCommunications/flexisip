@@ -53,7 +53,6 @@ thesources= \
 			module-mediarelay.cc \
 			module-auth.cc \
 			module-loadbalancer.cc \
-			dos-protection.cc dos-protection.hh \
 			expressionparser.cc expressionparser.hh \
 			sipattrextractor.cc sipattrextractor.hh \
 			h264iframefilter.cc h264iframefilter.hh \

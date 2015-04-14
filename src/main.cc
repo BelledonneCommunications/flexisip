@@ -37,7 +37,6 @@
 
 #include "agent.hh"
 #include "stun.hh"
-#include "dos-protection.hh"
 
 #include <cstdlib>
 #include <cstdio>
@@ -526,7 +525,6 @@ int main(int argc, char *argv[]){
 
 	// Don't move these lines, it is black magic
 	GenericManager *cfg=GenericManager::get();
-	DosProtection *dos=DosProtection::get();
 
 
 	if (dump_default_cfg){
@@ -677,10 +675,6 @@ int main(int argc, char *argv[]){
 
 	increase_fd_limit();
 
-	/* Install firewall rules to protect Flexisip for DOS attacks */
-	DosProtection::sSofiaAgent=a->getSofiaAgent();
-	dos->start();
-
 	if (daemon){
 		if (write(pipe_wd_fs[1],"ok",3)==-1){
 			LOGF("Failed to write starter pipe: %s",strerror(errno));
@@ -703,7 +697,6 @@ int main(int argc, char *argv[]){
 	su_timer_set_for_ever(timer,(su_timer_f)timerfunc,a.get());
 	su_root_run(root);
 	su_timer_destroy(timer);
-	DosProtection::get()->stop();
 	a.reset();
 	if (stun) {
 		stun->stop();
