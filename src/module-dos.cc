@@ -46,7 +46,7 @@ private:
 			{ Integer , "packet-rate-limit", "Maximum packet rate received in [time-period] millisecond(s) to consider to consider it a DoS attack.", "10"},
 			{ Integer , "ban-time", "Number of minutes to ban the ip/port using iptables (might be less because it justs uses the minutes of the clock, not the seconds. So if the unban command is queued at 13:11:56 and scheduled and the ban time is 1 minute, it will be executed at 13:12:00)", "2"},
 			config_item_end
-		};1
+		};
 		module_config->get<ConfigBoolean>("enabled")->setDefault("true");
 		module_config->addChildrenValues(configs);
 	}
