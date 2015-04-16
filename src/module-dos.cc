@@ -20,8 +20,16 @@
 #include "agent.hh"
 #include "log/logmanager.hh"
 #include <sofia-sip/tport.h>
+#include <sofia-sip/msg_addr.h>
+#include <unordered_map>
 
 using namespace ::std;
+
+typedef struct DosContext {
+    uint64_t recv_msg_count_since_last_check;
+	double last_check_recv_msg_check_time;
+	double packet_count_rate;
+} DosContext;
 
 class ModuleDoS: public Module, ModuleToolbox {
 
@@ -30,14 +38,15 @@ private:
 	int mTimePeriod;
 	int mPacketRateLimit;
 	int mBanTime;
+	unordered_map<string, DosContext> mDosContexts;
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
-			{ Integer , "time-period", "Number of milliseconds to calculate the packet rate", "1000"},
+			{ Integer , "time-period", "Number of milliseconds to calculate the packet rate", "3000"},
 			{ Integer , "packet-rate-limit", "Maximum packet rate received in [time-period] millisecond(s) to consider to consider it a DoS attack.", "10"},
-			{ Integer , "ban-time", "Number of minutes to ban the ip/port using iptables", "1"},
+			{ Integer , "ban-time", "Number of minutes to ban the ip/port using iptables (might be less because it justs uses the minutes of the clock, not the seconds. So if the unban command is queued at 13:11:56 and scheduled and the ban time is 1 minute, it will be executed at 13:12:00)", "2"},
 			config_item_end
-		};
+		};1
 		module_config->get<ConfigBoolean>("enabled")->setDefault("true");
 		module_config->addChildrenValues(configs);
 	}
@@ -61,26 +70,74 @@ private:
 	void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
 		tport_t *tport = inTport.get();
-		float packet_count_rate = tport_get_packet_count_rate(tport);
-		LOGD("Packet count rate (%f)", packet_count_rate);
 		
-		if (packet_count_rate >= mPacketRateLimit && !tport_is_udp(tport)) { // Sofia doesn't create a secondary tport for udp, so it will ban the primary and we don't want that
-			char iptables_cmd[512];
-			sockaddr *addr = tport_get_address(tport)->ai_addr;
-			socklen_t len = tport_get_address(tport)->ai_addrlen;
+		if (tport_is_udp(tport)) { // Sofia doesn't create a secondary tport for udp, so it will ban the primary and we don't want that
+			shared_ptr<MsgSip> msg = ev->getMsgSip();
+			MsgSip *msgSip = msg.get();
+			su_sockaddr_t su[1];
+			socklen_t len = sizeof su;
+			sockaddr *addr = NULL;
 			char ip[NI_MAXHOST], port[NI_MAXSERV];
-			if (getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
-				if (getuid() != 0) {
-					LOGE("Flexisip not started with root privileges! Can't add iptables rule");
-					return;
-				}
-				LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes", packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
-				snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p tcp -s %s -m multiport --sports %s -j DROP && echo \"iptables -D INPUT -p tcp -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes", 
-					ip, port, ip, port, mBanTime);
-				system(iptables_cmd);
-			}
+			char iptables_cmd[512];
+			msg_get_address(msgSip->getMsg(), su, &len);
+			addr = &(su[0].su_sa);
 			
-			tport_reset_packet_count_rate(tport);
+			if (addr != NULL && getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
+				string id = string(ip) + ":" + string(port);
+				struct timeval now;
+				DosContext dosContext = mDosContexts[id];
+				double now_in_millis, time_elapsed;
+				
+				dosContext.recv_msg_count_since_last_check++;
+				gettimeofday(&now, NULL);
+				now_in_millis = now.tv_sec * 1000 + (now.tv_usec / 1000);
+				if (dosContext.last_check_recv_msg_check_time == 0) {
+					dosContext.last_check_recv_msg_check_time = now_in_millis;
+				}
+				
+				time_elapsed = now_in_millis - dosContext.last_check_recv_msg_check_time;
+				if (time_elapsed < 0) {
+					dosContext.packet_count_rate = 0;
+					dosContext.recv_msg_count_since_last_check = 0;
+					dosContext.last_check_recv_msg_check_time = now_in_millis;
+				} else if (time_elapsed >= mTimePeriod) {
+					dosContext.packet_count_rate = dosContext.recv_msg_count_since_last_check / time_elapsed * 1000;
+					dosContext.recv_msg_count_since_last_check = 0;
+					dosContext.last_check_recv_msg_check_time = now_in_millis;
+				}
+				mDosContexts[id] = dosContext;
+				
+				if (dosContext.packet_count_rate >= mPacketRateLimit) {
+					if (getuid() != 0) {
+						LOGE("Flexisip not started with root privileges! Can't add iptables rule");
+						return;
+					}
+					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol udp for %i minutes", dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
+					snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p udp -s %s -m multiport --sports %s -j DROP && echo \"iptables -D INPUT -p udp -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes", 
+						ip, port, ip, port, mBanTime);
+					system(iptables_cmd);
+				}
+			}
+		} else {
+			float packet_count_rate = tport_get_packet_count_rate(tport);
+			if (packet_count_rate >= mPacketRateLimit) {
+				char iptables_cmd[512];
+				sockaddr *addr = tport_get_address(tport)->ai_addr;
+				socklen_t len = tport_get_address(tport)->ai_addrlen;
+				char ip[NI_MAXHOST], port[NI_MAXSERV];
+				if (getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
+					if (getuid() != 0) {
+						LOGE("Flexisip not started with root privileges! Can't add iptables rule");
+						return;
+					}
+					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes", packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
+					snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p tcp -s %s -m multiport --sports %s -j DROP && echo \"iptables -D INPUT -p tcp -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes", 
+						ip, port, ip, port, mBanTime);
+					system(iptables_cmd);
+				}
+				
+				tport_reset_packet_count_rate(tport);
+			}
 		}
 	}
 	
@@ -99,5 +156,7 @@ public:
 };
 
 ModuleInfo<ModuleDoS> ModuleDoS::sInfo("DoS",
-		"This module bans user when they are sending too much packets on a given timelapse",
+		"This module bans user when they are sending too much packets on a given timelapse"
+		"To see the list of currently banned ips/ports, use iptables -L"
+		"You can also check the queue of unban commands using atq",
 		ModuleInfoBase::ModuleOid::DoS);
