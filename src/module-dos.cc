@@ -105,7 +105,6 @@ private:
 					dosContext.recv_msg_count_since_last_check = 0;
 					dosContext.last_check_recv_msg_check_time = now_in_millis;
 				}
-				mDosContexts[id] = dosContext;
 				
 				if (dosContext.packet_count_rate >= mPacketRateLimit) {
 					if (getuid() != 0) {
@@ -116,7 +115,10 @@ private:
 					snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p udp -s %s -m multiport --sports %s -j DROP && echo \"iptables -D INPUT -p udp -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes", 
 						ip, port, ip, port, mBanTime);
 					system(iptables_cmd);
+					dosContext.packet_count_rate = 0; // Reset it to not add the iptables rule twice by mistake
 				}
+				
+				mDosContexts[id] = dosContext;
 			}
 		} else {
 			float packet_count_rate = tport_get_packet_count_rate(tport);
@@ -136,7 +138,7 @@ private:
 					system(iptables_cmd);
 				}
 				
-				tport_reset_packet_count_rate(tport);
+				tport_reset_packet_count_rate(tport); // Reset it to not add the iptables rule twice by mistake
 			}
 		}
 	}
