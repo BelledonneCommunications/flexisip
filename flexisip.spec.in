@@ -52,6 +52,7 @@
 #
 # flexisip - SIP proxy with media capabilities
 #
+%debug_package
 
 Summary:	SIP proxy with media capabilities
 Name:		%pkg_name
