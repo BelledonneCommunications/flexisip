@@ -52,7 +52,6 @@
 #
 # flexisip - SIP proxy with media capabilities
 #
-%debug_package
 
 Summary:	SIP proxy with media capabilities
 Name:		%pkg_name
@@ -111,6 +110,8 @@ Prefix: /opt/belledonne-communications
 
 %description
 Extensible SIP proxy with media capabilities. Designed for robustness and easy of use.
+
+%debug_package
 
 %prep
 %setup
