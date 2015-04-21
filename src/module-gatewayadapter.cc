@@ -427,7 +427,9 @@ void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 				++*mCountForkToGateway;
 			}
 
-			if (mRegisterOnGateway) gr->start();
+			if (mRegisterOnGateway && gr){
+				gr->start();
+			}
 		}
 	} else {
 		/* check if request-uri contains a routing-domain parameter, so that we can route back to the client */

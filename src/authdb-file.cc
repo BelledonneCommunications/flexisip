@@ -44,12 +44,11 @@ void FileAuthDb::getPassword(su_root_t *root, const url_t *from, const char *aut
 	}
 
 	string key(createPasswordKey(from->url_user, from->url_host, auth_username));
+
 	switch (getCachedPassword(key, from->url_host, listener->mPassword)) {
-	case VALID_PASS_FOUND:
-		res= AuthDbResult::PASSWORD_FOUND;
-	default:
-		res=AuthDbResult::PASSWORD_NOT_FOUND;
-		break;
+
+		case VALID_PASS_FOUND: res= AuthDbResult::PASSWORD_FOUND; break;
+	    default:               res= AuthDbResult::PASSWORD_NOT_FOUND; break;
 	}
 	listener->mResult=res;
 	listener->onResult();

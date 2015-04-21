@@ -296,6 +296,7 @@ namespace log {
 				break;
 			case ORTP_ERROR:
 				syslev=LOG_ERR;
+				break;
 			case ORTP_FATAL:
 				syslev=LOG_ALERT;
 				break;
