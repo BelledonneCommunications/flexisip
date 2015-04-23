@@ -15,8 +15,8 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import time
@@ -176,7 +176,7 @@ class CallTest(AbstractTest):
 
     class CallStreamNotRunException(TestFailException):
         def __str__(self):
-            return CallTest.TestFailException.__str__(self) + ". Stream could not be established"
+            return CallTest.TestFailException.__str__(self) + ". Could not reach Call state CallStreamsRunning"
 
     class NoDataException(TestFailException):
         def __str__(self):

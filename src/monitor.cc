@@ -64,17 +64,17 @@ void Monitor::exec(int socket) {
 		domain = findDomain();
 	} catch(const FlexisipException &e) {
 		LOGF("Monitor: cannot find domain. %s", e.str().c_str());
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 
 	if(salt.empty()) {
 		LOGF("Monitor: no salt set");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 
 	if(nodes.empty()) {
 		LOGF("Monitor: no nodes declared in the cluster section");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 
 	char **args = new char *[9 + nodes.size() + 1];

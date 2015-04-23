@@ -73,7 +73,7 @@
 #include "monitor.hh"
 
 static int run=1;
-static int pipe_wd_fs[2]={-1}; // pipe used by the watchdog to notify the starter process that everything went fine
+static int pipe_wdog_flexisip[2]={-1}; // This is the pipe that flexisip will write to to signify it has started to the Watchdog
 static pid_t flexisip_pid = -1;
 static pid_t monitor_pid = -1;
 static su_root_t *root=NULL;
@@ -187,6 +187,7 @@ static void increase_fd_limit(void){
 	}
 }
 
+/* Allows to detach the watdog from the PTY so that we don't get traces clobbering the terminal */
 static void detach(){
 	int fd;
 	setsid();
@@ -209,66 +210,74 @@ static void makePidFile(const char *pidfile){
 	}
 }
 
+static void set_process_name(const char* process_name){
+#ifdef PR_SET_NAME
+		if (prctl(PR_SET_NAME,process_name,NULL,NULL,NULL)==-1){
+			LOGW("prctl() failed: %s",strerror(errno));
+		}
+#endif
+}
+
 static void forkAndDetach(const char *pidfile, bool auto_respawn, bool startMonitor){
-	int pipe_fds[2];
-	int err=pipe(pipe_fds);
+	int pipe_launcher_wdog[2];
+	int err=pipe(pipe_launcher_wdog);
+	bool launcherExited = false;
 	if (err==-1){
 		LOGE("Could not create pipes: %s",strerror(errno));
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
-	
+
 	/* Creation of the watch-dog process */
 	pid_t pid = fork();
 	if (pid < 0){
 		fprintf(stderr,"Could not fork: %s\n",strerror(errno));
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	if (pid==0){
 		/* We are in the watch-dog process */
 		uint8_t buf[4];
-		close(pipe_fds[0]);
-#ifdef PR_SET_NAME
-		if (prctl(PR_SET_NAME,"flexisip_wdog",NULL,NULL,NULL)==-1){
-			LOGW("prctl() failed: %s",strerror(errno));
-		}
-#endif
+		close(pipe_launcher_wdog[0]);
+		set_process_name("flexisip_wdog");
 
 		/* Creation of the flexisip process */
 fork_flexisip:
-		err = pipe(pipe_wd_fs);
+		err = pipe(pipe_wdog_flexisip);
 		if(err == -1) {
 			LOGE("Could not create pipes: %s",strerror(errno));
-			exit(-1);
+			exit(EXIT_FAILURE);
 		}
 		flexisip_pid = fork();
 		if (flexisip_pid < 0){
 			fprintf(stderr,"Could not fork: %s\n",strerror(errno));
-			exit(-1);
+			exit(EXIT_FAILURE);
 		}
 		if (flexisip_pid == 0) {
+
 			/* This is the real flexisip process now.
 			 * We can proceed with real start
 			 */
-			close(pipe_wd_fs[0]);
-#ifdef HAVE_SYS_PRCTL_H
-			if (prctl(PR_SET_NAME,"flexisip",NULL,NULL,NULL)==-1){
-				LOGW("prctl() failed: %s",strerror(errno));
-			}
-#endif
+			close(pipe_wdog_flexisip[0]);
+			set_process_name("flexisip");
 			makePidFile(pidfile);
 			return;
+		} else {
+			LOGE("[WDOG] Flexisip PID: %d", flexisip_pid);
 		}
-		
-		/* 
+
+		/*
 		 * We are in the watch-dog process again
 		 * Waiting for successfull initialisation of the flexisip process
 		 */
-		close(pipe_wd_fs[1]);
-		err=read(pipe_wd_fs[0],buf,sizeof(buf));
+		close(pipe_wdog_flexisip[1]);
+		err=read(pipe_wdog_flexisip[0],buf,sizeof(buf));
 		if (err==-1 || err==0){
-			exit(-1);
+			int errno_ = errno;
+			LOGE("[WDOG] Read error from flexisip : %s", strerror(errno_));
+			close(pipe_launcher_wdog[1]); // close launcher pipe to signify the error
+			exit(EXIT_FAILURE);
 		}
-		
+		close(pipe_wdog_flexisip[0]);
+
 		/*
 		 * Flexisip has successfully started.
 		 * We can now start the Flexisip monitor if it is requierd
@@ -280,39 +289,48 @@ fork_monitor:
 			if(err == -1){
 				LOGE("Cannot create pipe. %s", strerror(errno));
 				kill(flexisip_pid, SIGTERM);
-				exit(-1);
+				exit(EXIT_FAILURE);
 			}
 			monitor_pid = fork();
 			if (monitor_pid < 0){
 				fprintf(stderr,"Could not fork: %s\n",strerror(errno));
-				exit(-1);
+				exit(EXIT_FAILURE);
 			}
 			if (monitor_pid == 0) {
-				/* We are in the flexisip monitor process */
-				close(pipe_fds[1]);
+				/* We are in the monitor process */
+				set_process_name("flexisip_mon");
+				close(pipe_launcher_wdog[1]);
 				close(pipe_wd_mo[0]);
 				Monitor::exec(pipe_wd_mo[1]);
 				LOGE("Fail to launch the Flexisip monitor");
-				exit(-1);
+				exit(EXIT_FAILURE);
 			}
 			/* We are in the watchdog process */
 			close(pipe_wd_mo[1]);
 			err = read(pipe_wd_mo[0], buf, sizeof(buf));
 			if(err == -1 || err == 0) {
+				LOGE("[WDOG] Read error from Monitor process, killing flexisip");
 				kill(flexisip_pid, SIGTERM);
-				exit(-1);
+				exit(EXIT_FAILURE);
 			}
 			close(pipe_wd_mo[0]);
 		}
 
-		/* 
-		 * We are in the watchdog process once again
+		/*
+		 * We are in the watchdog process once again, and all went well, tell the launcher that it can exit
 		 */
-		if(write(pipe_fds[1], "ok", 3) == -1) {
-			exit(-1);
+
+		if(!launcherExited && write(pipe_launcher_wdog[1], "ok", 3) == -1) {
+			LOGE("[WDOG] Write to pipe failed, exiting");
+			exit(EXIT_FAILURE);
+		} else {
+			close(pipe_launcher_wdog[1]);
+			launcherExited = true;
 		}
-		close(pipe_wd_fs[0]);
-		
+
+		/* Detach ourselves from the PTY. */
+		detach();
+
 		/*
 		 * This loop aims to restart childs of the watchdog process
 		 * when they have a crash
@@ -330,7 +348,7 @@ fork_monitor:
 							goto fork_flexisip;
 						} else {
 							LOGD("Flexisip exited normally");
-							exit(0);
+							exit(EXIT_SUCCESS);
 						}
 					}else if (auto_respawn){
 						LOGE("Flexisip apparently crashed, respawning now...");
@@ -344,23 +362,28 @@ fork_monitor:
 				}
 			}else if (errno!=EINTR){
 				LOGE("waitpid() error: %s",strerror(errno));
-				exit(-1);
+				exit(EXIT_FAILURE);
 			}
 		}
 	}else{
 		/* This is the initial process.
 		 * It should block until flexisip has started sucessfully or rejected to start.
 		 */
+		LOGE("[LAUNCHER] Watchdog PID: %d", pid);
 		uint8_t buf[4];
 		// we don't need the write side of the pipe:
-		close(pipe_fds[1]);
-		err=read(pipe_fds[0],buf,sizeof(buf));
+		close(pipe_launcher_wdog[1]);
+
+		// Wait for WDOG to tell us "ok" if all went well, or close the pipe if flexisip failed somehow
+		err=read(pipe_launcher_wdog[0],buf,sizeof(buf));
 		if (err==-1 || err==0){
-			LOGE("Flexisip failed to start.");
-			exit(-1);
+			// pipe was closed, flexisip failed to start -> exit with failure
+			LOGE("[LAUNCHER] Flexisip failed to start.");
+			exit(EXIT_FAILURE);
 		}else{
-			detach();
-			exit(0);
+			// pipe written to, flexisip was OK
+			LOGE("[LAUNCHER] Flexisip started correctly: exit");
+			exit(EXIT_SUCCESS);
 		}
 	}
 }
@@ -663,7 +686,7 @@ int main(int argc, char *argv[]){
 	if (!configOverride.empty()) cfg->applyOverrides(true); // using default + overrides
 
 	a->loadConfig (cfg);
-	
+
 	// Create cached test accounts for the Flexisip monitor if necessary
 	if(monitorEnabled) {
 		try {
@@ -676,10 +699,10 @@ int main(int argc, char *argv[]){
 	increase_fd_limit();
 
 	if (daemon){
-		if (write(pipe_wd_fs[1],"ok",3)==-1){
+		if (write(pipe_wdog_flexisip[1],"ok",3)==-1){
 			LOGF("Failed to write starter pipe: %s",strerror(errno));
 		}
-		close(pipe_wd_fs[1]);
+		close(pipe_wdog_flexisip[1]);
 	}
 
 	if (cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()){
