@@ -114,7 +114,9 @@ private:
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol udp for %i minutes", dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p udp -s %s -m multiport --sports %s -j DROP && echo \"iptables -D INPUT -p udp -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes", 
 						ip, port, ip, port, mBanTime);
-					system(iptables_cmd);
+					if(system(iptables_cmd) != 0) {
+						LOGW("iptables command failed");
+					}
 					dosContext.packet_count_rate = 0; // Reset it to not add the iptables rule twice by mistake
 				}
 				
@@ -135,7 +137,9 @@ private:
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes", packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p tcp -s %s -m multiport --sports %s -j DROP && echo \"iptables -D INPUT -p tcp -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes", 
 						ip, port, ip, port, mBanTime);
-					system(iptables_cmd);
+					if(system(iptables_cmd) != 0) {
+						LOGW("iptables command failed");
+					}
 				}
 				
 				tport_reset_packet_count_rate(tport); // Reset it to not add the iptables rule twice by mistake
