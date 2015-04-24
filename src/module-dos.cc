@@ -71,6 +71,11 @@ private:
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
 		tport_t *tport = inTport.get();
 		
+		if (tport == NULL) {
+			LOGE("Tport is null, can't check the packet count rate");
+			return;
+		}
+		
 		if (tport_is_udp(tport)) { // Sofia doesn't create a secondary tport for udp, so it will ban the primary and we don't want that
 			shared_ptr<MsgSip> msg = ev->getMsgSip();
 			MsgSip *msgSip = msg.get();
