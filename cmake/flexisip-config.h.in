@@ -1,0 +1,30 @@
+/* flexisip-config.h.  Generated from flexisip-config.h.in by configure.  */
+/* flexisip-config.h.in.  Generated from configure.ac by autoheader.  */
+
+#cmakedefine CONFIG_DIR "${CONFIG_DIR}"
+
+#cmakedefine ENABLE_SNMP 1
+#cmakedefine ENABLE_LIBODB_MYSQL 1
+#cmakedefine ENABLE_TRANSCODER 1
+#cmakedefine ENABLE_PRESENCE 1
+
+#cmakedefine HAVE_DATEHANDLER 1
+#cmakedefine HAVE_ARC4RANDOM 1
+#cmakedefine HAVE_SYS_PRCTL_H 1
+
+#cmakedefine MEDIARELAY_SPECIFIC_FEATURES_ENABLED 1
+#cmakedefine MONOTONIC_CLOCK_REGISTRATIONS 1
+
+#define SNMP_COMPANY_OID 10000
+
+/* oRTP ABI version */
+#define ORTP_ABI_VERSION 9
+
+/* oRTP rtp_session_set_reuseaddr availabled */
+#define ORTP_HAS_REUSEADDR 1
+
+/* Define to the version of this package. */
+#define PACKAGE_VERSION "${FLEXISIP_VERSION}"
+
+/* Version number of package */
+#define VERSION "${FLEXISIP_VERSION}"

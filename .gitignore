@@ -39,7 +39,6 @@ debian/flexisip
 config.guess
 config.sub
 flexisip-config.h
-flexisip-config.h.in
 ltmain.sh
 scripts/flexisip.conf.sample
 stamp-h1
