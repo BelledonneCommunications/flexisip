@@ -43,6 +43,7 @@ set(FLEXISIP_SOURCES
 			module-mediarelay.cc 
 			module-auth.cc 
 			module-loadbalancer.cc 
+			module-dos.cc
 			expressionparser.cc expressionparser.hh 
 			sipattrextractor.cc sipattrextractor.hh 
 			h264iframefilter.cc h264iframefilter.hh 
