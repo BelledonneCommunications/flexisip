@@ -56,7 +56,7 @@ struct RedisHost {
 	/**
 	 * @brief parseSlave this class method will parse a line from Redis where a slave information is expected.
 	 *
-	 * If the parsing goes well, the returned host will have the id passed as argument, otherwise -1.
+	 * If the parsing goes well, the returned RedisHost will have the id field set to the one passed as argument, otherwise -1.
 	 * @param slaveLine the Redis answer line where a slave is defined. Format is "host,port,state"
 	 * @param id an ID to give to this slave, usually its number.
 	 * @return A RedisHost with a valid ID or -1 if the parsing failed.
