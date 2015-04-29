@@ -13,7 +13,7 @@ if BUILD_PRESENCE
 nodist_libxml_binding_generated_la_SOURCES += xml.hxx  xml.cxx pidf+xml.hxx  pidf+xml.cxx 
 EXTRA_DIST += xml.xsd pidf+xml.xsd
 
-AM_CPPFLAGS=$(XSDCXX_CPPFLAGS)  $(XERCESC_CFLAGS)
 endif
+AM_CPPFLAGS=$(XSDCXX_CPPFLAGS) $(XERCESC_CFLAGS)
 
 CLEANFILES=$(nodist_libxml_binding_generated_la_SOURCES)
