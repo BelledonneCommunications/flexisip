@@ -467,16 +467,10 @@ void GenericStruct::addChildrenValues(StatItemDescriptor *items){
 	}
 }
 */
-struct matchEntryName{
-	matchEntryName(const char *name) : mName(name){}
-	bool operator()(GenericEntry* e){
-		return strcmp(mName,e->getName().c_str())==0;
-	}
-	const char *mName;
-};
 
 GenericEntry *GenericStruct::find(const char *name)const{
-	list<GenericEntry*>::const_iterator it=find_if(mEntries.begin(),mEntries.end(),matchEntryName(name));
+	auto lambda = [name](GenericEntry* entry)->bool{ return (entry->getName() == name); };
+	auto it     = find_if(mEntries.begin(),mEntries.end(), lambda );
 	if (it!=mEntries.end()) return *it;
 	return NULL;
 }
@@ -503,7 +497,7 @@ struct matchEntryNameApprox{
 };
 
 GenericEntry * GenericStruct::findApproximate(const char *name)const{
-	list<GenericEntry*>::const_iterator it=find_if(mEntries.begin(),mEntries.end(),matchEntryNameApprox(name));
+	auto it=find_if(mEntries.begin(),mEntries.end(), matchEntryNameApprox(name));
 	if (it!=mEntries.end()) return *it;
 	return NULL;
 }
@@ -512,14 +506,8 @@ list<GenericEntry*> &GenericStruct::getChildren(){
 	return mEntries;
 }
 
-struct destroy{
-	void operator()(GenericEntry *e){
-		delete e;
-	}
-};
-
 GenericStruct::~GenericStruct(){
-	for_each(mEntries.begin(),mEntries.end(),destroy());
+	for_each(mEntries.begin(),mEntries.end(),[](GenericEntry* e){ delete e; });
 }
 
 
@@ -773,7 +761,7 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 	runtimeError->setReadOnly(true);
 	global->addChild(runtimeError);
 
-	GenericStruct *cluster = new GenericStruct("cluster", "Should the server is part of a cluster, this section enable to describe the topology of the cluster.", 0);
+	GenericStruct *cluster = new GenericStruct("cluster", "Should the server be part of a cluster, this section enable to describe the topology of the cluster.", 0);
 	mConfigRoot.addChild(cluster);
 	cluster->addChildrenValues(cluster_conf);
 	cluster->setReadOnly(true);
@@ -1098,9 +1086,8 @@ int FileConfigReader::read2(GenericEntry *entry, int level){
 	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
 	ConfigValue *cv;
 	if (cs){
-		list<GenericEntry*> & entries=cs->getChildren();
-		list<GenericEntry*>::iterator it;
-		for(it=entries.begin();it!=entries.end();++it){
+		auto &entries=cs->getChildren();
+		for(auto it=entries.begin();it!=entries.end();++it){
 			read2(*it,level+1);
 		}
 	}else if ((cv=dynamic_cast<ConfigValue*>(entry))){
