@@ -37,10 +37,6 @@ class LoadBalancer : public Module, public ModuleToolbox{
 		static ModuleInfo<LoadBalancer> sInfo;
 };
 
-ModuleInfo<LoadBalancer> LoadBalancer::sInfo("LoadBalancer",
-        "This module performs load balancing between a set of configured destination proxies.",
-		ModuleInfoBase::ModuleOid::LoadBalancer);
-
 LoadBalancer::LoadBalancer(Agent *ag) : Module(ag){
 }
 
@@ -92,3 +88,10 @@ void LoadBalancer::onRequest(shared_ptr<RequestSipEvent> &ev){
 void LoadBalancer::onResponse(shared_ptr<ResponseSipEvent> &ev){
 	/*nothing to do*/
 }
+
+
+ModuleInfo<LoadBalancer> LoadBalancer::sInfo("LoadBalancer",
+											 "This module performs load balancing between a set of configured destination proxies.",
+											 ModuleInfoBase::ModuleOid::LoadBalancer,
+											 ModuleTypeExperimental);
+

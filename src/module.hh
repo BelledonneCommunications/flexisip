@@ -1,19 +1,19 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010  Belledonne Communications SARL.
+	Copyright (C) 2010  Belledonne Communications SARL.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef module_hh
@@ -39,12 +39,19 @@ class ModuleFactory{
 	public:
 		static ModuleFactory *get();
 		Module *createModuleInstance(Agent *ag, const std::string &modname);
+		const std::list<ModuleInfoBase*>& moduleInfos() { return mModules; }
 	private:
 		void registerModule(ModuleInfoBase *m);
 		std::list<ModuleInfoBase*> mModules;
 		static ModuleFactory *sInstance;
 		friend class ModuleInfoBase;
 };
+
+
+typedef enum {
+	ModuleTypeExperimental,
+	ModuleTypeProduction
+} ModuleType_e;
 
 class ModuleInfoBase {
 	const std::string mName;
@@ -63,6 +70,8 @@ class ModuleInfoBase {
 		unsigned int getOidIndex () const {return mOidIndex;}
 		virtual ~ModuleInfoBase();
 
+		ModuleType_e type() const { return mType; }
+
 		enum ModuleOid {
 			DoS=2,
 			SanityChecker=3,
@@ -80,20 +89,22 @@ class ModuleInfoBase {
 			MediaRelay=210,
 			Transcoder=240,
 			Forward=270,
-			Redirect=290, 
+			Redirect=290,
 			Presence=300
 		};
 	protected:
-		ModuleInfoBase(const char *modname, const char *help, enum ModuleOid oid) : mName(modname), mHelp(help),
-		mOidIndex(oid){ // Oid::oidFromHashedString(modname)
+		ModuleInfoBase(const char *modname, const char *help, enum ModuleOid oid, ModuleType_e type) : mName(modname), mHelp(help),
+		mOidIndex(oid), mType(type) {
+			// Oid::oidFromHashedString(modname)
 			ModuleFactory::get()->registerModule(this);
 		}
+		ModuleType_e mType;
 };
 
 template <typename _module_>
 class ModuleInfo : public ModuleInfoBase{
 	public:
-		ModuleInfo(const char *modname, const char *help, ModuleOid oid) : ModuleInfoBase(modname,help,oid){
+		ModuleInfo(const char *modname, const char *help, ModuleOid oid, ModuleType_e type = ModuleTypeProduction) : ModuleInfoBase(modname,help,oid, type){
 		}
 	protected:
 		virtual Module *_create(Agent *ag);
@@ -125,6 +136,7 @@ class Module : protected ConfigValueListener {
 		StatCounter64 &findStat(const std::string &statName) const;
 		void idle();
 		bool isEnabled()const;
+		ModuleType_e type() const;
 	public:
 		inline void process(std::shared_ptr<RequestSipEvent> &ev) {
 			processRequest(ev);
@@ -139,8 +151,10 @@ class Module : protected ConfigValueListener {
 		}
 		virtual void onUnload(){
 		}
+
 		virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev)=0;
 		virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev)=0;
+
 		virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 		virtual void onIdle(){
 		}

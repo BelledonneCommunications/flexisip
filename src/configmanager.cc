@@ -25,6 +25,7 @@
 #include "configmanager.hh"
 #include "common.hh"
 #include "log/logmanager.hh"
+#include "configdumper.hh"
 
 #include <functional>
 
@@ -66,6 +67,12 @@ bool ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigSt
 	return doOnConfigStateChanged(conf, state);
 }
 
+/**
+ * Searches a string for a pattern, removes it, and sets the next chatacter to uppercase.
+ * For instance, string a = "toto::titi"; camelFindAndReplace(a, "::"); would set a to "totoTiti"
+ * @param haystack the string to convert to CamelCase
+ * @param needle the string to remove from the haystack
+ */
 static void camelFindAndReplace(string &haystack, const string &needle) {
 	size_t pos;
 	while ((pos=haystack.find(needle)) != string::npos) {
@@ -239,6 +246,8 @@ void GenericEntry::doMibFragment(ostream & ostr, const string &def, const string
 			<< spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
+/* ConfigValue */
+
 ConfigValue::ConfigValue(const string &name, GenericValueType  vt, const string &help, const string &default_value,oid oid_index)
 :  GenericEntry (name,vt,help,oid_index), mDefaultValue(default_value){
 	mExportToConfigFile=true;
@@ -279,6 +288,8 @@ const string & ConfigValue::getDefault()const{
 	return mDefaultValue;
 }
 
+/* Oid */
+
 Oid::Oid(Oid &parent, oid leaf) {
 	mOidPath=parent.getValue();
 	mOidPath.push_back(leaf);
@@ -311,7 +322,7 @@ oid Oid::oidFromHashedString(const string &str) {
 	  // 1: snmpwalk cannot associate oid to name otherwise
 }
 
-GenericEntry::	GenericEntry(const string &name, GenericValueType type, const string &help,oid oid_index) :
+GenericEntry::GenericEntry(const string &name, GenericValueType type, const string &help,oid oid_index) :
 				mOid(NULL),mName(name),mReadOnly(false),mExportToConfigFile(true),mDeprecated(false),mHelp(help),mType(type),mParent(0),mOidLeaf(oid_index){
 	mConfigListener=NULL;
 	size_t idx;
@@ -502,7 +513,7 @@ GenericEntry * GenericStruct::findApproximate(const char *name)const{
 	return NULL;
 }
 
-list<GenericEntry*> &GenericStruct::getChildren(){
+const list<GenericEntry*> &GenericStruct::getChildren() const {
 	return mEntries;
 }
 
@@ -678,7 +689,7 @@ RootConfigStruct::RootConfigStruct(const string &name, const string &help,vector
 }
 RootConfigStruct::~RootConfigStruct(){}
 
-static oid company_id = SNMP_COMPANY_OID;
+oid company_id = SNMP_COMPANY_OID;
 GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 		mConfigRoot("flexisip","This is the default Flexisip configuration file",{1,3,6,1,4,1,company_id}),
 		mReader(&mConfigRoot), mNotifier(NULL){
@@ -715,7 +726,7 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 				"Bind address won't appear in messages:\n"
 				"\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29",
 				"sip:*" },
-			{	String		,"tls-certificates-dir", "Path to the directory where TLS server certificate and private key can be found," 
+			{	String		,"tls-certificates-dir", "Path to the directory where TLS server certificate and private key can be found,"
 				" concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'. "
 				"The setup of agent.pem, and eventually cafile.pem is required for TLS transport to work."
 				, "/etc/flexisip/tls"},
@@ -724,14 +735,14 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 			{	Integer		,"transaction-timeout",	"SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.","32000"},
 			config_item_end
 	};
-    
-    static ConfigItemDescriptor cluster_conf[]={
+
+	static ConfigItemDescriptor cluster_conf[]={
 		{ Boolean    , "enabled"    , "Set to 'true' if that node is part of a cluster"          , "false" },
 		{ StringList , "nodes"      , "List of IP addresses of all nodes present in the cluster" , ""      },
 		config_item_end
 	};
-		
-			
+
+
 	GenericStruct *notifObjs=new GenericStruct("notif","Templates for notifications.",1);
 	notifObjs->setExportToConfigFile(false);
 	mConfigRoot.addChild(notifObjs);
@@ -743,7 +754,6 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 	ConfigString *nsoid=new ConfigString("source", "Notification source payload.", "", 11);
 	nsoid->setNotifPayload(true);
 	notifObjs->addChild(nsoid);
-
 
 
 	GenericStruct *global=new GenericStruct("global","Some global settings of the flexisip proxy.",2);
@@ -816,211 +826,6 @@ GenericStruct *GenericManager::getRoot(){
 
 const GenericStruct *GenericManager::getGlobal(){
 	return mConfigRoot.get<GenericStruct>("global");
-}
-
-ostream &FileConfigDumper::dump(ostream & ostr)const {
-	return dump2(ostr,mRoot,0);
-}
-
-ostream & FileConfigDumper::printHelp(ostream &os, const string &help, const string &comment_prefix)const{
-	const char *p=help.c_str();
-	const char *begin=p;
-	const char *origin=help.c_str();
-	for(;*p!=0;++p){
-		if ((p-begin>60 && *p==' ') || *p=='\n'){
-			os<<comment_prefix<<" "<<help.substr(begin-origin,p-begin)<<endl;
-			p++;
-			begin=p;
-		}
-	}
-	os<<comment_prefix<<" "<<help.substr(begin-origin,p-origin)<<endl;
-	return os;
-}
-
-ostream &FileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
-	if (entry && !entry->getExportToConfigFile()) return ostr;
-
-	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
-	ConfigValue *val;
-
-	if (cs){
-		ostr<<"##"<<endl;
-		printHelp(ostr,cs->getHelp(),"##");
-		ostr<<"##"<<endl;
-		if (level>0){
-			ostr<<"["<<cs->getName()<<"]"<<endl;
-		}else ostr<<endl;
-		list<GenericEntry*>::iterator it;
-		for(it=cs->getChildren().begin();it!=cs->getChildren().end();++it){
-			dump2(ostr,*it,level+1);
-		}
-		ostr << endl << endl << endl;
-	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL && !val->isDeprecated()){
-		printHelp(ostr,entry->getHelp(),"#");
-		ostr<<"#  Default value: "<<val->getDefault()<<endl;
-		if (mDumpDefault) {
-			ostr<<entry->getName()<<"="<<val->getDefault()<<endl;
-		} else {
-			ostr<<entry->getName()<<"="<<val->get()<<endl;
-		}
-		ostr<<endl;
-	}
-	return ostr;
-}
-
-
-ostream &TexFileConfigDumper::dump(ostream & ostr)const {
-	return dump2(ostr,mRoot,0);
-}
-
-
-
-static void escaper(string &str, char c, const string &replaced) {
-	size_t i=0;
-	while(string::npos != (i=str.find_first_of(c, i))) {
-		str.erase(i, 1);
-		str.insert(i, replaced);
-		i+=replaced.length();
-	}
-}
-
-static void string_escaper(string& str, const string &s, const string &replace){
-	size_t i=0;
-	while(string::npos != (i=str.find(s, i))) {
-		str.erase(i, s.length());
-		str.insert(i, replace);
-		i+=replace.length();
-	}
-}
-
-string TexFileConfigDumper::escape(const string &strc) const{
-	std::string str(strc);
-	escaper(str, '_', "\\_");
-	escaper(str, '<', "\\textless{}");
-	escaper(str, '>', "\\textgreater{}");
-
-	return str;
-}
-
-ostream &TexFileConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
-	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
-	ConfigValue *val;
-
-	if (cs){
-		if (cs->getParent()) {
-			string pn=escape(cs->getPrettyName());
-			ostr<<"\\section{"<< pn << "}" << endl << endl;
-			ostr<<"\\label{" << cs->getName() << "}" << endl;
-			ostr<<"\\subsection{Description}"<< endl <<endl;
-			ostr<<escape(cs->getHelp())<< endl <<endl;
-			ostr<<"\\subsection{Parameters}"<< endl <<endl;
-		}
-		list<GenericEntry*>::iterator it;
-		for(it=cs->getChildren().begin();it!=cs->getChildren().end();++it){
-			dump2(ostr,*it,level+1);
-		}
-	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL && !val->isDeprecated()){
-		ostr<<"\\subsubsection{"<<escape(entry->getName())<<"}"<<endl;
-		ostr<<escape(entry->getHelp())<<endl;
-		ostr<<"The default value is ``"<<escape(val->getDefault())<<"''."<<endl;
-		ostr<<endl;
-	}
-	return ostr;
-}
-
-/* Dokuwiki */
-
-ostream &DokuwikiConfigDumper::dump(ostream &ostr) const {
-	return dump2(ostr, mRoot, 0);
-}
-
-ostream &DokuwikiConfigDumper::dump2(ostream & ostr, GenericEntry *entry, int level) const {
-	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
-	ConfigValue *val;
-
-	if (cs){
-		// we have a generic struc: we're on top level: get module name and description
-		ostr << "====" << cs->getPrettyName() << "====" << endl;
-		ostr << endl << cs->getHelp() << endl;
-		ostr << endl << "Configuration options:" << endl;
-
-		ostr << "^ Name ^ Description ^ Default value ^ Type ^" << endl;
-
-		for ( auto it=cs->getChildren().begin(); it!= cs->getChildren().end(); ++it ){
-			dump2(ostr, *it, level+1);
-		}
-	}else if ((val=dynamic_cast<ConfigValue*>(entry))!=NULL && !val->isDeprecated()){
-		
-		// dokuwiki handles line breaks with double backspaces
-		string help = entry->getHelp();
-		escaper(help, '\n', "\\\\ ");
-		escaper(help, '`', "'' ");
-		string_escaper(help, ". ", ".\\\\ ");
-
-		ostr << "|" << "**" << entry->getName() << "**"
-			<< " | " << help
-			<< " | " << "''" << val->getDefault() << "''" 
-			<< " | " << entry->getTypeName() 
-			<< " | " << endl;
-	}
-	return ostr;
-}
-
-ostream &MibDumper::dump(ostream & ostr)const {
-	const time_t t = getCurrentTime();
-	char mbstr[100];
-	strftime(mbstr, sizeof(mbstr), "%Y%m%d0000Z", localtime(&t));
-
-	ostr << "FLEXISIP-MIB DEFINITIONS ::= BEGIN" << endl
-			<< "IMPORTS" << endl
-			<< "	OBJECT-TYPE, Integer32, MODULE-IDENTITY, enterprises," << endl
-			<< "	Counter64,NOTIFICATION-TYPE							  	FROM SNMPv2-SMI" << endl
-			<< "	MODULE-COMPLIANCE, OBJECT-GROUP       					FROM SNMPv2-CONF;" << endl
-			<< endl
-
-			<< "flexisipMIB MODULE-IDENTITY" << endl
-			<< "	LAST-UPDATED \"" << mbstr <<"\"" << endl
-			<< "	ORGANIZATION \"belledonne-communications\"" << endl
-			<< "	CONTACT-INFO \"postal:   34 Avenue de L'europe 38 100 Grenoble France" << endl
-			<< "		email:    contact@belledonne-communications.com\"" << endl
-			<< "	DESCRIPTION  \"A Flexisip management tree.\"" << endl
-			<< "	REVISION     \"" <<mbstr <<"\""<<endl
-			<< "    DESCRIPTION  \"" PACKAGE_VERSION << "\"" << endl
-			<< "::={ enterprises "<< company_id << " }" << endl
-			<< endl;
-
-	dump2(ostr,mRoot,0);
-	ostr << "END";
-	return ostr;
-}
-
-ostream &MibDumper::dump2(ostream & ostr, GenericEntry *entry, int level)const{
-	GenericStruct *cs=dynamic_cast<GenericStruct*>(entry);
-	ConfigValue *cVal;
-	StatCounter64 *sVal;
-	NotificationEntry *ne;
-	string spacing="";
-	while (level > 0) {
-		spacing += "	";
-		--level;
-	}
-	if (cs){
-		list<GenericEntry*>::iterator it;
-		cs->mibFragment(ostr, spacing);
-		for(it=cs->getChildren().begin();it!=cs->getChildren().end();++it){
-			if (!cs->isDeprecated()){
-				dump2(ostr,*it,level+1);
-				ostr<<endl;
-			}
-		}
-	}else if ((cVal=dynamic_cast<ConfigValue*>(entry))!=NULL){
-		cVal->mibFragment(ostr, spacing);
-	}else if ((sVal=dynamic_cast<StatCounter64*>(entry))!=NULL){
-		sVal->mibFragment(ostr, spacing);
-	}else if ((ne=dynamic_cast<NotificationEntry*>(entry))!=NULL){
-		ne->mibFragment(ostr,spacing);
-	}
-	return ostr;
 }
 
 int FileConfigReader::read(const char *filename){

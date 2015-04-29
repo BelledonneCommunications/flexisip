@@ -21,6 +21,7 @@ set(FLEXISIP_SOURCES
 			etchosts.cc etchosts.hh 
 			lpconfig.cc lpconfig.h 
 			configmanager.cc configmanager.hh
+			configdumper.hh configdumper.cc
 			event.cc event.hh 
 			transaction.cc transaction.hh 
 			module.cc module.hh 

@@ -204,6 +204,10 @@ const string &Module::getModuleName() const {
 	return mInfo->getModuleName();
 }
 
+ModuleType_e Module::type() const {
+	return mInfo->type();
+}
+
 msg_auth_t *ModuleToolbox::findAuthorizationForRealm(su_home_t *home, msg_auth_t *au, const char *realm) {
 	while (au!= NULL) {
 		auth_response_t r;
@@ -266,20 +270,20 @@ void ModuleToolbox::cleanAndPrependRoutable(su_home_t *home, Agent *ag, msg_t *m
 url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
 	url_t *url=NULL;
 	url_type_e ut=url_sip;
-	
+
 	if (strcasecmp(name->tpn_proto,"tls")==0){
 		ut=url_sips;
 	}
 	url=(url_t*) su_alloc(home, sizeof(url_t));
 	url_init(url, ut);
-	
+
 	if (strcasecmp(name->tpn_proto,"tcp")==0){
 		url_param_add(home, url, "transport=tcp");
 	}
-	
+
 	url->url_port=su_strdup(home, name->tpn_port);
 	url->url_host=su_strdup(home, name->tpn_canon);
-	
+
 	return url;
 }
 

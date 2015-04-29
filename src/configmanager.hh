@@ -50,6 +50,8 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/agent/agent_trap.h>
+
+extern oid company_id;
 #else
 typedef unsigned long oid;
 #endif
@@ -202,7 +204,7 @@ public:
 	}
 
 	void setReadOnly(bool ro) {mReadOnly=ro;}
-	bool getExportToConfigFile() {return mExportToConfigFile;}
+	bool getExportToConfigFile() const {return mExportToConfigFile;}
 	void setExportToConfigFile(bool val) { mExportToConfigFile=val;}
 #ifdef ENABLE_SNMP
 	static int sHandleSnmpRequest(netsnmp_mib_handler *handler,
@@ -281,7 +283,7 @@ public:
 	void addChildrenValues(ConfigItemDescriptor *items, bool hashed);
 	void deprecateChild(const char *name);
 	//void addChildrenValues(StatItemDescriptor *items);
-	std::list<GenericEntry*> &getChildren();
+	const std::list<GenericEntry*> &getChildren() const;
 	template <typename _retType>
 	_retType *get(const char *name)const;
 	template <typename _retType>
@@ -581,81 +583,5 @@ private:
 	std::unordered_set<std::string> mStatOids;
 	NotificationEntry *mNotifier;
 };
-
-
-class FileConfigDumper{
-public:
-	FileConfigDumper(GenericStruct *root){
-		mRoot=root;
-		mDumpDefault=true;
-	}
-	std::ostream &dump(std::ostream & ostr)const;
-	void setDumpDefaultValues(bool value) {mDumpDefault=value;}
-private:
-	bool mDumpDefault;
-	std::ostream & printHelp(std::ostream &os, const std::string &help, const std::string &comment_prefix)const;
-	std::ostream &dump2(std::ostream & ostr, GenericEntry *entry, int level)const;
-	GenericStruct *mRoot;
-};
-
-inline std::ostream & operator<<(std::ostream &ostr, const FileConfigDumper &dumper){
-	return dumper.dump(ostr);
-}
-
-class TexFileConfigDumper{
-public:
-	TexFileConfigDumper(GenericStruct *root){
-		mRoot=root;
-	}
-	std::ostream &dump(std::ostream & ostr)const;
-private:
-	std::string formatTitle(const std::string &strc) const;
-
-	std::string escape(const std::string &strc) const;
-
-	std::ostream &dump2(std::ostream & ostr, GenericEntry *entry, int level)const;
-	GenericStruct *mRoot;
-};
-
-inline std::ostream & operator<<(std::ostream &ostr, const TexFileConfigDumper &dumper){
-	return dumper.dump(ostr);
-}
-
-class DokuwikiConfigDumper
-{
-public:
-	DokuwikiConfigDumper(GenericStruct *root){
-		mRoot = root;
-	}
-	
-	std::ostream &dump(std::ostream &ostr) const;
-
-private:	
-	std::string   formatTitle(const std::string &strc) const;
-	std::ostream &dump2(std::ostream & ostr, GenericEntry *entry, int level)const;
-
-	GenericStruct *mRoot;
-};
-
-inline std::ostream & operator<<(std::ostream &ostr, const DokuwikiConfigDumper &dumper){
-	return dumper.dump(ostr);
-}
-
-class MibDumper{
-public:
-	MibDumper(GenericStruct *root){
-		mRoot=root;
-	}
-	std::ostream &dump(std::ostream & ostr)const;
-private:
-	std::ostream &dump2(std::ostream & ostr, GenericEntry *entry, int level)const;
-	GenericStruct *mRoot;
-};
-
-inline std::ostream & operator<<(std::ostream &ostr, const MibDumper &dumper){
-	return dumper.dump(ostr);
-}
-
-
 
 #endif

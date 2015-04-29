@@ -65,5 +65,6 @@ private:
 ModuleInfo<DateHandler> DateHandler::sInfo("DateHandler",
 	"The purpose of the DateHandler module is to catch 'Date' headers from sip requests, and call config-defined script passing it the date value. The typical use case "
 	"is for deploying a Flexisip proxy in an embedded system that doesn't have time information when booting up. The command can be used to assign the date to the system.",
-	ModuleInfoBase::ModuleOid::DateHandler);
+	ModuleInfoBase::ModuleOid::DateHandler,
+	ModuleTypeExperimental);
 

@@ -99,6 +99,7 @@ public:
 
 };
 ModuleInfo<ModulePresence> ModulePresence::sInfo("Presence",
-		"This module transfert sip presence messages, like subscribe/notify/publish to a presence server. "
-		,ModuleInfoBase::ModuleOid::Presence);
+		"This module transfert sip presence messages, like subscribe/notify/publish to a presence server. ",
+		ModuleInfoBase::ModuleOid::Presence,
+		ModuleInfoBase::ModuleTypeExperimental);
 
