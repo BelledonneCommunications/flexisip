@@ -282,10 +282,7 @@ public:
 		ConfigItemDescriptor items[]={
 			{	StringList	,	"auth-domains"	, 	"List of whitespace separated domain names to challenge. Others are denied.",	"localhost"	},
 			{	StringList	,	"trusted-hosts"	, 	"List of whitespace separated IP which will not be challenged.",	""	},
-			{	StringList	,	"client-certificates-domains"	, 	"List of whitespace separated domain names to check using client certificates."
-			" CN may contain user@domain or alternate name with URI=sip:user@domain",	""	},
-			{	StringList	,	"trusted-client-certificates"	, 	"List of whitespace separated username or username@domain CN which will trusted. If no domain is given it is computed.",	""	},
-			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file, fixed].",		"fixed"	},
+			{	String		,	"db-implementation"		,	"Database backend implementation [odbc, file].",		"file"	},
 			{	String		,	"datasource"		,	"Odbc connection string to use for connecting to database. "
 					"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. "
 					"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. "
@@ -294,18 +291,17 @@ public:
 					"Named parameters are :id (the user found in the from header), :domain (the authorization realm) and :authid (the authorization username). "
 					"The use of the :id parameter is mandatory.",
 					"select password from accounts where id = :id and domain = :domain and authid=:authid"	},
-			{	Integer		,	"max-id-length"	,	"Maximum length of the login column in database.",	"100"	},
-			{	Integer		,	"max-password-length"	,	"Maximum length of the password column in database",	"100"	},
 			{	Integer		,	"nonce-expires"	,	"Expiration time of nonces, in seconds.",	"3600" },
-			{	Boolean		,	"odbc-pooling"	,	"Use pooling in odbc",	"true"	},
+			{	Boolean		,	"odbc-pooling"	,	"Use db connection pooling in odbc (improves performance)",	"true"	},
 			{	Integer		,	"odbc-display-timings-interval"	,	"Display timing statistics after this count of seconds",	"0"	},
-			{	Integer		,	"odbc-display-timings-after-count"	,	"Display timing statistics once the number of samples reach this number.",	"0"	},
-			{	Boolean		,	"odbc-asynchronous"	,	"Retrieve passwords asynchronously.",	"false"	},
+			{	Integer		,	"odbc-display-timings-after-count",	"Display timing statistics once the number of samples reach this number.",	"0"	},
 			{	Integer		,	"cache-expire"	,	"Duration of the validity of the credentials added to the cache in seconds.",	"1800"	},
-			{	Boolean		,	"immediate-retrieve-password"	,	"Retrieve password immediately so that it is cached when an authenticated request arrives.",	"true"},
 			{	Boolean		,	"hashed-passwords"	,	"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).", "false" },
-			{	Boolean		,	"new-auth-on-407"	,	"When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false" },
 			{	BooleanExpr, 	"no-403",	"Don't reply 403, but 401 or 407 even in case of wrong authentication.",	"false"},
+			{	StringList	,	"client-certificates-domains"	, 	"List of whitespace separated domain names to check using client certificates (used for TLS client authentication)."
+			" CN may contain user@domain or alternate name with URI=sip:user@domain",	""	},
+			{	StringList	,	"trusted-client-certificates"	, 	"List of whitespace separated username or username@domain CN which will trusted when the client presents a TLS client certificate. If no domain is given it is computed.",	""	},
+			{	Boolean		,	"new-auth-on-407"	,	"When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false" },
 			{	Boolean,	"enable-test-accounts-creation",	"Enable a feature useful for automatic tests, allowing a client to create a temporary account in the password database in memory. This MUST not be used for production as it is a real security hole.",	"false" },
 			config_item_end
 		};
@@ -347,7 +343,7 @@ public:
 
 		loadTrustedHosts(*mc->get<ConfigStringList>("trusted-hosts"));
 		dbUseHashedPasswords = mc->get<ConfigBoolean>("hashed-passwords")->read();
-		mImmediateRetrievePassword = mc->get<ConfigBoolean>("immediate-retrieve-password")->read();
+		mImmediateRetrievePassword = true; //mc->get<ConfigBoolean>("immediate-retrieve-password")->read();
 		mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
 		mUseClientCertificates = mc->get<ConfigStringList>("client-certificates-domains")->read();
 		mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
