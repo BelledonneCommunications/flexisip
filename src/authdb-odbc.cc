@@ -1,19 +1,19 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010  Belledonne Communications SARL.
+	Copyright (C) 2010  Belledonne Communications SARL.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #define SU_MSG_ARG_T void
@@ -210,7 +210,11 @@ static vector<string> parseAndUpdateRequestConfig(string &request) {
  * See documentation on ODBC on Microsoft pages:
  * http://msdn.microsoft.com/en-us/library/ms716319%28v=VS.85%29.aspx
  */
-OdbcAuthDb::OdbcAuthDb():mAsynchronousRetrieving(true),env(NULL),execDirect(false) {
+OdbcAuthDb::OdbcAuthDb() :
+	mAsynchronousRetrieving(true),
+	env(NULL),
+	execDirect(false)
+{
 	GenericStruct *cr=GenericManager::get()->getRoot();
 	GenericStruct *ma=cr->get<GenericStruct>("module::Authentication");
 
@@ -238,9 +242,10 @@ OdbcAuthDb::OdbcAuthDb():mAsynchronousRetrieving(true),env(NULL),execDirect(fals
 	SQLRETURN retcode;
 	// 1. Enable or disable connection pooling.
 	// It should be done BEFORE allocating the environment.
-	// Note: this is useless with unixodbc
+	// Note: this is useless with the unixODBC implementation:
 	// the pooling attribute of env is set during allocation
-	// if odbcinst.ini/Pooling=1
+	// if odbcinst.ini/Pooling=1, and the SQL_ATTR_CONNECTION_POOLING doesn't mean
+	// anything to unixODBC. Sob.
 	unsigned long poolingPtr = asPooling ? SQL_CP_ONE_PER_DRIVER : SQL_CP_OFF;
 	retcode = SQLSetEnvAttr(NULL, SQL_ATTR_CONNECTION_POOLING, (void*)poolingPtr, 0);
 	if (!SQL_SUCCEEDED(retcode)) {
@@ -260,7 +265,6 @@ OdbcAuthDb::OdbcAuthDb():mAsynchronousRetrieving(true),env(NULL),execDirect(fals
 		envError("SQLSetEnvAttr ODBCv3");
 		LOGF("odbc error");
 	}
-
 
 	// Make sure the driver library is loaded.
 	// Workaround odbc errors while loading .so connector library.
@@ -423,7 +427,7 @@ void OdbcAuthDb::getPassword(su_root_t *root, const url_t *from, const char *aut
 	string domain(from->url_host);
 	string auth(auth_username);
 	string key(createPasswordKey(id, domain, auth));
-	
+
 	switch(getCachedPassword(key, domain, listener->mPassword)) {
 	case VALID_PASS_FOUND:
 		listener->mResult=AuthDbResult::PASSWORD_FOUND;
@@ -465,7 +469,7 @@ void OdbcAuthDb::getPassword(su_root_t *root, const url_t *from, const char *aut
 
 
 static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg,
-				     void *u) {
+					 void *u) {
 	AuthDbListener **listenerStorage = (AuthDbListener**)su_msg_data(msg);
 	AuthDbListener *listener=*listenerStorage;
 	listener->onResult();
@@ -505,7 +509,7 @@ void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string doma
 
 		AuthDbListener **listenerStorage = (AuthDbListener **)su_msg_data(mamc);
 		*listenerStorage = listener;
-		
+
 		switch (ret) {
 		case PASSWORD_FOUND:
 			listener->mResult=ret;
