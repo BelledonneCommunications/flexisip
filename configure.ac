@@ -505,7 +505,7 @@ if test x$use_xsd != xno ; then
 	PKG_CHECK_MODULES(XERCESC, [xerces-c >= 3.0.0])
 	AC_DEFINE([ENABLE_XSD], 1, [Enable XSD])
 fi
-AM_CONDITIONAL(BUILD_XSD, [test x$ENABLE_XSD = x1] )
+AM_CONDITIONAL(BUILD_XSD, [test x$use_xsd != xno] )
 
 # ##################################
 # END OF XSD CHECKS
