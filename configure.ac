@@ -441,6 +441,8 @@ AC_ARG_WITH([xsd-root],
 	[xsd_root="/usr"]
 )
 
+xsd_err_msg="A correct version can be found at http://www.codesynthesis.com/products/xsd/download.xhtml . Use --with-xsd=(path to xsd) to reconfigure with XSD support."
+
 # this function tries to find XSD from the xsd_root 
 AC_DEFUN([FIND_XSDCXX],
 [
@@ -464,7 +466,7 @@ if test x$use_xsd = xauto; then
 		use_xsd=no
 	else
 		if test -z "`$XSDCXX version | grep CodeSynthesis`" ; then
-			AC_MSG_NOTICE([xsd executable is not the good XSD (this happens on Mac OS). Disabling XML features since use_xsd is auto.])
+			AC_MSG_NOTICE([xsd executable is not the good XSD (this can happen on Mac OS). Disabling XML features since use_xsd is auto.])
 			use_xsd=no
 		fi
 	fi
@@ -478,14 +480,12 @@ if test x$use_xsd != xno ; then
 	
 	# hard check on xsd
 	if  test x$XSDCXX = x ; then
-		AC_MSG_ERROR([xsd executable not found. You should install the version from http://www.codesynthesis.com/products/xsd/download.xhtml])
+		AC_MSG_ERROR([xsd executable not found. $xsd_err_msg])
 	fi
 
 	# check that we don't match a bad xsd executable
 	if test -z "`$XSDCXX version | grep CodeSynthesis`" ; then
-		AC_MSG_ERROR([xsd executable is not the good XSD (this happens on Mac OS). 
-			          You should install the version from http://www.codesynthesis.com/products/xsd/download.xhtml 
-			          and use --with-xsd=(path to xsd)])
+		AC_MSG_ERROR([xsd executable is not the good XSD (this can happen on Mac OS). $xsd_err_msg])
 		use_xsd = no
 	fi
 
@@ -497,7 +497,8 @@ if test x$use_xsd != xno ; then
 		[foo=bar])
 	CPPFLAGS=$CPPFLAGS_save
 	if test x$XSDCXX_CPPFLAGS = x; then
-		AC_MSG_ERROR([xsd headers not found at path $xsd_root/libxsd/xsd/cxx/config.hxx. Are you sure that xsd is correctly installed?])
+		AC_MSG_ERROR([xsd headers not found at path $xsd_root/libxsd/xsd/cxx/config.hxx. Are you sure that xsd is correctly installed? 
+			$xsd_err_msg])
 	fi
 
 	# if XSD is enabled, we need Xerces as a dependency
@@ -572,8 +573,8 @@ AC_ARG_ENABLE(presence,
 
 
 if test x$presence = xyes ; then
-	if test "x$XSDCXX" = x; then
-		AC_MSG_ERROR([CodeSynthesis XSD required for presence server.])
+	if test "x$use_xsd" = xno; then
+		AC_MSG_ERROR([CodeSynthesis XSD required for presence server. $xsd_err_msg])
 	fi	
 	PKG_CHECK_MODULES(BELLESIP, [belle-sip >= 1.2.4])
 	AC_DEFINE([ENABLE_PRESENCE],1, [enable presence module])
