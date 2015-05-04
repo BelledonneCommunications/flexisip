@@ -1,7 +1,9 @@
 
-set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIA_SIP_UA_LIBRARIES} ${XERCES_LIBS})
+set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIA_SIP_UA_LIBRARIES})
 
 set(FLEXISIP_INCLUDES)
+
+set(FLEXISIP_DEPENDENCIES)
 
 set(FLEXISIP_SOURCES
 			main.cc
@@ -57,8 +59,6 @@ set(FLEXISIP_SOURCES
 # TODO: GIT VERSION FILE
 )
 
-set(FLEXISIP_DEPENDENCIES fthttp)
-
 
 function(ADD_XSD_WRAPPERS file _comment)
 	set(destinations ${CMAKE_CURRENT_BINARY_DIR}/xml/${file}.hxx ${CMAKE_CURRENT_BINARY_DIR}/xml/${file}.cxx)
@@ -82,9 +82,13 @@ function(ADD_XSD_WRAPPERS file _comment)
 	set(FLEXISIP_SOURCES ${FLEXISIP_SOURCES} ${destinations} PARENT_SCOPE)
 endfunction()
 
+if(ENABLE_XSD)
+	list(APPEND FLEXISIP_LIBS  ${XERCES_LIBS})
+	list(APPEND FLEXISIP_INCLUDES ${XSDCXX_ROOT_PATH}/libxsd)
+	list(APPEND FLEXISIP_DEPENDENCIES fthttp)
+	ADD_XSD_WRAPPERS( fthttp "Generating XSD for FTHTTP")
+endif()
 
-list(APPEND FLEXISIP_INCLUDES ${XSDCXX_ROOT_PATH}/libxsd)
-ADD_XSD_WRAPPERS( fthttp "Generating XSD for FTHTTP")
 
 
 if(ENABLE_ODB)
@@ -92,17 +96,9 @@ if(ENABLE_ODB)
 	#list(APPEND FLEXISIP_INCLUDES ${ODB_INCLUDE_DIRS})
 	#list(APPEND FLEXISIP_SOURCES eventlogs/eventlogsdb.cc eventlogs/eventlogsdb.hh)
 	# TODO: generate the cxx and hxx with ODB
-#eventlogs/eventlogsdb-odb.hxx eventlogs/eventlogsdb-odb.cxx: eventlogs/eventlogsdb.hh
-#	odb $(SOFIA_CFLAGS) $(ORTP_CFLAGS) --std c++11 -d mysql --output-dir eventlogs --generate-query --generate-schema --schema-format embedded $<
+	#eventlogs/eventlogsdb-odb.hxx eventlogs/eventlogsdb-odb.cxx: eventlogs/eventlogsdb.hh
+	#	odb $(SOFIA_CFLAGS) $(ORTP_CFLAGS) --std c++11 -d mysql --output-dir eventlogs --generate-query --generate-schema --schema-format embedded $<
 endif()
-
-
-if(TOTO)
-	list(APPEND FLEXISIP_SOURCES LOL)
-	list(APPEND FLEXISIP_LIBS ${TOTO_LIBRARIES} )
-	list(APPEND FLEXISIP_INCLUDES ${TOTO_INCLUDE_DIRS})
-endif()
-  
 
 if(ENABLE_SNMP)
 	list(APPEND FLEXISIP_SOURCES snmp-agent.cc snmp-agent.h)
@@ -171,9 +167,12 @@ endif()
 
 message(STATUS "Flexisip LIBS : ${FLEXISIP_LIBS}")
 message(STATUS "Flexisip INCLUDES : ${FLEXISIP_INCLUDES}")
+message(STATUS "Flexisip DEPENDENCIES : ${FLEXISIP_DEPENDENCIES}")
 
 add_executable( flexisip ${FLEXISIP_SOURCES})
-add_dependencies( flexisip ${FLEXISIP_DEPENDENCIES})
+if(FLEXISIP_DEPENDENCIES)
+	add_dependencies( flexisip ${FLEXISIP_DEPENDENCIES})
+endif()
 target_link_libraries(flexisip ${FLEXISIP_LIBS})
 target_include_directories(flexisip PUBLIC ${FLEXISIP_INCLUDES})
 
