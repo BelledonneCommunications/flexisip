@@ -168,14 +168,14 @@ fi
 AC_ARG_ENABLE(libodb,
 	[AC_HELP_STRING([--enable-libodb=[yes/no]],[Compilation of libodb (default=auto)])],
     [case "${enableval}" in
-		yes)	enable_libodb=true ;;
-		no)	enable_libodb=false ;;
+		yes)	enable_libodb=yes ;;
+		no)	enable_libodb=no ;;
 		*)	AC_MSG_ERROR(bad value ${enableval} for --enable-libodb) ;;
 	esac],
 	[enable_libodb=auto]
 )
 
-if test x$enable_libodb != xfalse ; then
+if test x$enable_libodb != xno ; then
 	PKG_CHECK_MODULES(LIBODB,[libodb >= 2.3.0],[have_libodb=yes],[have_libodb=no])
 fi
 
@@ -183,7 +183,7 @@ AM_CONDITIONAL(BUILD_ODB,test x$have_libodb$have_odb = xyesyes)
 if test "$have_libodb$have_odb" = "yesyes"; then
 	AC_DEFINE([HAVE_ODB],1,[Enable odb.])
 else
-	enable_libodb=false
+	enable_libodb=no
 fi
 
 # Check for libodb-mysql
@@ -602,7 +602,7 @@ AC_OUTPUT
 
 echo "Flexisip build configuration ended."
 echo "Summary of build options:"
-printf "* %-30s %s\n" "SNMP"                $build_snmp
+printf "* %-30s %s\n" "SNMP"                $snmp
 printf "* %-30s %s\n" "ODBC"                $odbc
 printf "* %-30s %s\n" "ODB"                 $enable_libodb
 printf "* %-30s %s\n" "ODB MySQL"           $libodb_mysql
