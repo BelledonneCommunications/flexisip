@@ -42,7 +42,7 @@ AC_DEFUN([AX_XSDCXX],
     AC_ARG_WITH([xsdcxx],
         [AS_HELP_STRING([--with-xsdcxx=@<:@ARG@:>@],
             [use CodeSynthesis XSD from given prefix (ARG=path); check PATH (ARG=yes); disable (ARG=no)])],
-        [],
+        [with_xsdcxx="${withval}"],
         [with_xsdcxx=yes])
 
     AS_IF([test "x$with_xsdcxx" != xno],

@@ -1,3 +1,5 @@
+if BUILD_XSD
+
 noinst_LTLIBRARIES=libxml_binding_generated.la
 
 libxml_binding_generated_la_CFLAGS= $(STRICT_OPTIONS) $(STRICT_OPTIONS_CC)
@@ -17,3 +19,5 @@ endif
 AM_CPPFLAGS=$(XSDCXX_CPPFLAGS) $(XERCESC_CFLAGS)
 
 CLEANFILES=$(nodist_libxml_binding_generated_la_SOURCES)
+
+endif # BUILD_XSD

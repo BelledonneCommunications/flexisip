@@ -66,19 +66,27 @@ thesources= \
 			module-redirect.cc
 
 
+
+flexisip_LDADD= $(SOFIA_LIBS) $(ORTP_LIBS) $(LIBODB_MYSQL_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)
+
+AM_CXXFLAGS= $(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) \
+				$(PROTOBUF_CFLAGS) $(LIBODB_MYSQL_CFLAGS) $(MYSQL_CFLAGS) \
+				-DCONFIG_DIR=\"$(CONFIG_DIR)\" -DORTP_DEBUG_MODE $(WARNINGCXXFLAGS)
+
+AM_CFLAGS=$(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) -DORTP_DEBUG_MODE
+
+AM_LDFLAGS=-no-undefined
+
+
+if BUILD_XSD
+flexisip_LDADD+= xml/libxml_binding_generated.la $(XERCESC_LIBS)
+AM_CXXFLAGS+= $(XSDCXX_CPPFLAGS)
+endif
+
 if BUILD_SNMP
 thesources+=snmp-agent.cc snmp-agent.h
 AM_CPPFLAGS=-Imib
 endif
-
-flexisip_LDADD= xml/libxml_binding_generated.la $(SOFIA_LIBS) $(ORTP_LIBS) $(LIBODB_MYSQL_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS) $(XERCESC_LIBS)
-
-
-AM_CXXFLAGS=$(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) $(PROTOBUF_CFLAGS) $(LIBODB_MYSQL_CFLAGS) $(XSDCXX_CPPFLAGS) $(MYSQL_CFLAGS)\
-			-DCONFIG_DIR=\"$(CONFIG_DIR)\" -DORTP_DEBUG_MODE $(WARNINGCXXFLAGS)
-AM_CFLAGS=$(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) -DORTP_DEBUG_MODE
-
-AM_LDFLAGS=-no-undefined
 
 if BUILD_PRESENCE
 #module cannot be statically initialized in shared lib
@@ -164,10 +172,12 @@ AM_CFLAGS+=-DENABLE_PROTOBUF
 endif
 
 if BUILD_REDIS
-bin_PROGRAMS+=flexisip_ctdumper flexisip_serializer flexisip_binder
-flexisip_ctdumper_SOURCES=tools/ctdumper.cc $(thesources)
-flexisip_ctdumper_LDADD=$(flexisip_LDADD)
-nodist_flexisip_ctdumper_SOURCES=$(nodistsources)
+
+	bin_PROGRAMS+=flexisip_ctdumper flexisip_serializer flexisip_binder
+	flexisip_ctdumper_SOURCES=tools/ctdumper.cc $(thesources)
+	flexisip_ctdumper_LDADD=$(flexisip_LDADD)
+	nodist_flexisip_ctdumper_SOURCES=$(nodistsources)
+
 endif
 
 flexisip_serializer_SOURCES=tools/serializer.cc tools/tool_utils.hh $(thesources)

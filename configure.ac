@@ -23,7 +23,6 @@ AC_PROG_CC(["xcrun clang" gcc-4.4 gcc-4.7 gcc])
 AC_PROG_CXX(["xcrun clang++" g++-4.4 g++-4.7 g++ ])
 AC_PROG_LIBTOOL
 # use for xml data binding
-AX_XSDCXX
 
 AC_ARG_ENABLE(snmp,
     AC_HELP_STRING([--enable-snmp], [Build snmp support [yes]]),
@@ -425,13 +424,99 @@ AC_HEADER_STDBOOL
 PKG_CHECK_MODULES(SOFIA,[sofia-sip-ua = 1.13.1-bc])
 PKG_CHECK_MODULES(ORTP,[ortp >= 0.16.3])
 
-PKG_CHECK_MODULES(XERCESC, [xerces-c >= 3.0.0])
+# ##################################
+# XSD checks
+# ##################################
+
+AC_ARG_ENABLE(xsd,
+	AC_HELP_STRING([--enable-xsd], [Enable xsd support, used for enhanced file transfers support and presence [default=auto]]),
+	[use_xsd="${enableval}"],
+	[use_xsd=auto]
+)
+
+AC_ARG_WITH([xsd-root],
+	[AS_HELP_STRING([--with-xsd-root=@<:@DIR@:>@],
+	[Specify where xsd is installed. We expect to find $DIR/bin/xsd (program) and $DIR/libxsd (includes) in there. Default path is /usr])],
+	[xsd_root="${withval}"],
+	[xsd_root="/usr"]
+)
+
+# this function tries to find XSD from the xsd_root 
+AC_DEFUN([FIND_XSDCXX],
+[
+    # check if XSD is detected by the system
+	AC_CHECK_PROG([XSDCXX], [xsd], [$xsd_root/bin/xsd], [], [$xsd_root/bin])
+
+	if test x$XSDCXX = x; then
+		# sometimes, xsc is called xsdcxx
+		AC_CHECK_PROG([XSDCXX], [xsdcxx], [$xsd_root/bin/xsdcxx], [], [$xsd_root/bin])
+	fi
+
+])
+
+if test x$use_xsd = xauto; then
+
+	# fail graciously if not found, we are in auto mode
+	FIND_XSDCXX
+
+	if test x$XSDCXX = x; then
+		AC_MSG_NOTICE([xsd executable not found, disabling XML-based features.])
+		use_xsd=no
+	else
+		if test -z "`$XSDCXX version | grep CodeSynthesis`" ; then
+			AC_MSG_NOTICE([xsd executable is not the good XSD (this happens on Mac OS). Disabling XML features since use_xsd is auto.])
+			use_xsd=no
+		fi
+	fi
+fi
+
+if test x$use_xsd != xno ; then
+
+	if test x$XSDCXX = x; then
+		FIND_XSDCXX
+	fi
+	
+	# hard check on xsd
+	if  test x$XSDCXX = x ; then
+		AC_MSG_ERROR([xsd executable not found. You should install the version from http://www.codesynthesis.com/products/xsd/download.xhtml])
+	fi
+
+	# check that we don't match a bad xsd executable
+	if test -z "`$XSDCXX version | grep CodeSynthesis`" ; then
+		AC_MSG_ERROR([xsd executable is not the good XSD (this happens on Mac OS). 
+			          You should install the version from http://www.codesynthesis.com/products/xsd/download.xhtml 
+			          and use --with-xsd=(path to xsd)])
+		use_xsd = no
+	fi
+
+	# check xsd headers
+	CPPFLAGS_save=$CPPFLAGS
+	CPPFLAGS="-I$xsd_root/libxsd $CPPFLAGS"
+	AC_CHECK_HEADERS("xsd/cxx/config.hxx", 
+		[AC_SUBST([XSDCXX_CPPFLAGS], "-I$xsd_root/libxsd/")],
+		[foo=bar])
+	CPPFLAGS=$CPPFLAGS_save
+	if test x$XSDCXX_CPPFLAGS = x; then
+		AC_MSG_ERROR([xsd headers not found at path $xsd_root/libxsd/xsd/cxx/config.hxx. Are you sure that xsd is correctly installed?])
+	fi
+
+	# if XSD is enabled, we need Xerces as a dependency
+	PKG_CHECK_MODULES(XERCESC, [xerces-c >= 3.0.0])
+	AC_DEFINE([ENABLE_XSD], 1, [Enable XSD])
+fi
+AM_CONDITIONAL(BUILD_XSD, [test x$ENABLE_XSD = x1] )
+
+# ##################################
+# END OF XSD CHECKS
+# ##################################
 
 ORTP_VERSION=`$PKG_CONFIG --modversion ortp 2>&1`
 AX_COMPARE_VERSION([$ORTP_VERSION], [ge], [0.21.0],ORTP_ABI_VERSION=">=9",ORTP_ABI_VERSION="<9")
 if test "x$ORTP_ABI_VERSION" = "x>=9"; then
         AC_DEFINE([ORTP_ABI_VERSION],9,[oRTP ABI version])
 fi
+
+
 
 
 
@@ -525,6 +610,7 @@ printf "* %-30s %s\n" "Specific features"   $specific_features
 printf "* %-30s %s\n" "Push notification"   $pushnotification
 printf "* %-30s %s\n" "Redis"               $redis
 printf "* %-30s %s\n" "Protobuf"            $protobuf
+printf "* %-30s %s\n" "XSD support"         $use_xsd
 printf "* %-30s %s\n" "Presence"            $presence
 
 echo "Now type 'make' to compile, and then 'make install' (as root if needed) to install it."

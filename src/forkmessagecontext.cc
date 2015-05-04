@@ -22,11 +22,17 @@
 #include <algorithm>
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/msg_types.h>
+
+#if ENABLE_XSD
+
 #include "xml/fthttp.hxx"
 #include <xercesc/util/PlatformUtils.hpp>
+using namespace fthttp;
+
+#endif
 
 using namespace ::std;
-using namespace fthttp;
+
 
 static bool needsDelivery(int code){
 	return code<200 || code==503 || code==408;
@@ -177,7 +183,8 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 			removeBranch(tmp);
 		}
 	} else SLOGE << "No unique id found for contact";
-	
+
+#if ENABLE_XSD
 	// Convert a RCS file transfer message to an external body url message if contact doesn't support it
 	shared_ptr<RequestSipEvent> &ev = br->mRequest;
 	if (ev && isMessageARCSFileTransferMessage(ev)) {
@@ -224,6 +231,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 			}
 		}
 	}
+#endif
 }
 
 bool ForkMessageContext::onNewRegister(const url_t *dest, const string &uid){
