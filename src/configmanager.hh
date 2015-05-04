@@ -51,10 +51,11 @@
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/agent/agent_trap.h>
 
-extern oid company_id;
 #else
 typedef unsigned long oid;
 #endif
+
+extern oid company_id;
 
 #include "expressionparser.hh"
 #include "flexisip-exception.hh"

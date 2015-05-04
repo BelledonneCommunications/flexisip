@@ -1152,4 +1152,4 @@ int StatCounter64::handleSnmpRequest(netsnmp_mib_handler *handler,
 
 	return SNMP_ERR_NOERROR;
 }
-#endif
+#endif /* enable_snmp */
