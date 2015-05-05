@@ -158,7 +158,9 @@ AM_CXXFLAGS+=-DENABLE_REDIS
 endif
 
 pb_files=$(srcdir)/recordserializer-protobuf.proto
+
 if BUILD_PROTOBUF
+
 $(builddir)/pb_generated_src_stamp : $(pb_files)
 	protoc --proto_path=$(builddir) --cpp_out=$(builddir) $(pb_files)
 	touch $(builddir)/pb_generated_src_stamp
@@ -169,14 +171,17 @@ thesources+=recordserializer-protobuf.cc
 nodistsources+=recordserializer-protobuf.pb.cc recordserializer-protobuf.pb.h
 AM_CXXFLAGS+=-DENABLE_PROTOBUF
 AM_CFLAGS+=-DENABLE_PROTOBUF
+
 endif
 
+
+# Redis
 if BUILD_REDIS
 
-	bin_PROGRAMS+=flexisip_ctdumper flexisip_serializer flexisip_binder
-	flexisip_ctdumper_SOURCES=tools/ctdumper.cc $(thesources)
-	flexisip_ctdumper_LDADD=$(flexisip_LDADD)
-	nodist_flexisip_ctdumper_SOURCES=$(nodistsources)
+bin_PROGRAMS+=flexisip_ctdumper flexisip_serializer flexisip_binder
+flexisip_ctdumper_SOURCES=tools/ctdumper.cc $(thesources)
+flexisip_ctdumper_LDADD=$(flexisip_LDADD)
+nodist_flexisip_ctdumper_SOURCES=$(nodistsources)
 
 endif
 
