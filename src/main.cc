@@ -476,8 +476,8 @@ int main(int argc, char *argv[]) {
 
 	TCLAP::CmdLine cmd("Flexisip command line", ' ', VERSION);
 
-	TCLAP::ValueArg<string>  transportsArg("t", "transports", 			"The list of transports to handle", TCLAP::ValueArgOptional, "", "sips:* sip:*", cmd);
-	TCLAP::ValueArg<string>        pidFile("p", "pidfile", 				"PID file, used when running in daemon mode", TCLAP::ValueArgOptional, "", "/tmp/flexisip.pidfile", cmd);
+	TCLAP::ValueArg<string>  transportsArg("t", "transports", 			"The list of transports to handle (overrides the ones defined in the configuration file).", TCLAP::ValueArgOptional, "", "sips:* sip:*", cmd);
+	TCLAP::ValueArg<string>        pidFile("p", "pidfile", 				"PID file location, used when running in daemon mode", TCLAP::ValueArgOptional, "", "/tmp/flexisip.pidfile", cmd);
 	TCLAP::SwitchArg            daemonMode("",  "daemon", 				"Launch in daemon mode", cmd);
 	TCLAP::SwitchArg             useSyslog("",  "syslog", 				"Use syslog for logging", cmd);
 	TCLAP::SwitchArg              useDebug("d", "debug", 				"Force debug mode (overrides the configuration)", cmd);
