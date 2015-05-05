@@ -473,7 +473,8 @@ int main(int argc, char *argv[]) {
 																		"Pass a module to specify the module for which to dump the available values.", TCLAP::ValueArgOptional, "", "module::Router", cmd);
 	TCLAP::MultiArg<string> overrideConfig("s", "set", 					"Allows to override the configuration file setting. Use --list-overrides to get a list of values that you can override.", TCLAP::ValueArgOptional,
 										   								"global/debug=true");
-	TCLAP::MultiArg<string>  hostsOverride("",  "hosts",				"Overrides a host address by passing it. You can use this flag multiple times.", TCLAP::ValueArgOptional, "example.org=127.0.0.1");
+	TCLAP::MultiArg<string>  hostsOverride("",  "hosts",				"Overrides a host address by passing it. You can use this flag multiple times. "
+																		"Also, you can remove an association by providing an empty value: '--hosts myhost='", TCLAP::ValueArgOptional, "example.org=127.0.0.1");
 
 	cmd.add(hostsOverride);
 	cmd.add(overrideConfig);

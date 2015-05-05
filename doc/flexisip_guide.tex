@@ -178,7 +178,7 @@ export PATH=$PATH:/opt/belledonne-communications/bin
 
 You should define /etc/flexisip.conf and restart flexisip daemon:
 \begin{verbatim}
-/opt/belledonne-communications/bin/flexisip --dump-default-config > /etc/flexisip/flexisip.conf
+/opt/belledonne-communications/bin/flexisip --dump-default all > /etc/flexisip/flexisip.conf
 
 # on debian:
 service flexisip restart
@@ -259,7 +259,7 @@ Note that the configuration file is updated with the new configuration.
 
 \subsection{Flexisip default configuration}
 When launched, flexisip read its configuration from the file \verb|/etc/flexisip/flexisip.conf|.
-The full list of supported options can be printed with the command flexisip \verb|--dump-default-config|.
+The full list of supported options can be printed with the command flexisip \verb|--dump-default all|.
 
 
 \section{Module backends}
