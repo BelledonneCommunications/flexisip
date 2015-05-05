@@ -59,3 +59,8 @@ compile
 .dirstamp
 /src/xml/*.cxx
 /src/xml/*.hxx
+src/expr
+src/flexisip_binder
+src/flexisip_ctdumper
+src/flexisip_pusher
+src/flexisip_serializer
