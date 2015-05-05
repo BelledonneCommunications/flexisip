@@ -45,10 +45,8 @@ void FileAuthDb::getPassword(su_root_t *root, const url_t *from, const char *aut
 
 	string key(createPasswordKey(from->url_user, from->url_host, auth_username));
 
-	switch (getCachedPassword(key, from->url_host, listener->mPassword)) {
-
-		case VALID_PASS_FOUND: res= AuthDbResult::PASSWORD_FOUND; break;
-	    default:               res= AuthDbResult::PASSWORD_NOT_FOUND; break;
+	if ( getCachedPassword(key, from->url_host, listener->mPassword) == VALID_PASS_FOUND ) {
+		res = AuthDbResult::PASSWORD_FOUND;
 	}
 	listener->mResult=res;
 	listener->onResult();
@@ -76,7 +74,7 @@ void FileAuthDb::sync() {
 	LOGD("Opening file %s", mFileString.c_str());
 	file.open(mFileString);
 	if (file.is_open()) {
-		while (file.good() && getline(file, line).good()) {
+		while (file.good() && getline(file, line)) {
 			ss.clear();
 			ss.str(line);
 			user.clear();
