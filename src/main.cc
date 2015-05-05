@@ -392,31 +392,6 @@ static void depthFirstSearch(string &path, GenericEntry *config, list<string> &a
 	}
 }
 
-static int parse_key_value(int argc, char *argv[], const char **key, const char **value, int *shift) {
-	int i = 0;
-	if (argc == 0 || argv[i][0] == '-') return -1;
-	*key = argv[i];
-	*shift = 0;
-	char *equal_sign = strchr(argv[i], '=');
-	if (equal_sign) {
-		*equal_sign = '\0';
-		*value = equal_sign + 1;
-		return 0;
-	}
-
-	++i;
-	if (i < argc && argv[i][0] == '=') {
-		++i;
-		if (i >= argc || argv[i][0] == '-') return -1;
-	}
-
-	if (i < argc && argv[i][0] != '-') {
-		*value = argv[i];
-		*shift = i;
-	}
-	return 0;
-}
-
 static int dump_config(su_root_t* root, const std::string& dump_cfg_part, bool with_experimental, const map<string,string>& oset ){
 	shared_ptr<Agent> a = make_shared<Agent>(root);
 	GenericStruct *rootStruct = GenericManager::get()->getRoot();
@@ -425,8 +400,8 @@ static int dump_config(su_root_t* root, const std::string& dump_cfg_part, bool w
 
 		size_t prefix = dump_cfg_part.find("module::");
 
-		if( prefix != dump_cfg_part.npos ){
-			cerr << "Module name should start with 'module::'" << endl;
+		if( prefix == dump_cfg_part.npos ){
+			cerr << "Module name should start with 'module::' (was given " << dump_cfg_part << " )" << endl;
 			return EXIT_FAILURE;
 
 		} else if ( !(rootStruct = dynamic_cast<GenericStruct *>(rootStruct->find(dump_cfg_part)))) {
