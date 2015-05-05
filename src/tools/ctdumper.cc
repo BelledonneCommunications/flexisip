@@ -15,7 +15,6 @@
 
 using namespace std;
 
-bool sUseSyslog;
 
 struct DumpListener : public RegistrarDbListener {
 
@@ -28,13 +27,13 @@ private:
 			su_root_break(root);
 		}
 	}
-	
+
 public:
 	bool listenerError;
 
 public:
 	DumpListener(su_root_t* _root) : RegistrarDbListener(), root(_root), listenerError(false) {}
-	
+
 	virtual void onRecordFound(Record *record) {
 		if (record) cout << *record           << endl;
 		else        cout << "No record found" << endl;
@@ -67,7 +66,7 @@ struct CTArgs {
 			<< "-s serializer[" << args.serializer << "] "
 			<< "sip_uri " << endl;
 	}
-	
+
 	CTArgs() {
 		debug = false;
 		redis.port=6379;
@@ -140,17 +139,17 @@ int main(int argc, char **argv) {
 	auto registrardb = new RegistrarDbRedisAsync("localhost", root, serializer.get(), args.redis);
 	auto url = url_format(&home,args.url.c_str());
 	auto listener = make_shared<DumpListener>(root);
-	
+
 	registrardb->fetch(url, listener);
-	
+
 	su_timer_t* timer = su_timer_create(su_root_task(root),5000);
 	if( !listener->listenerError ){
 		su_timer_set_for_ever(timer,(su_timer_f)timerfunc,agent.get());
 		su_root_run(root);
 	}
-	
+
 	agent.reset();
-	
+
 	su_timer_destroy(timer);
 	su_root_destroy(root);
 	su_home_destroy(&home);

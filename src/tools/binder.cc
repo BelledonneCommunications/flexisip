@@ -4,7 +4,6 @@
 #include "../registrardb.hh"
 
 using namespace std;
-bool sUseSyslog;
 
 
 struct MyListener : public RegistrarDbListener {
