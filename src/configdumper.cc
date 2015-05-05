@@ -48,6 +48,15 @@ ostream& ConfigDumper::dump_recursive(std::ostream &ostr, const GenericEntry *en
 }
 
 
+struct matchModuleName
+{
+	const std::string& mName;
+	matchModuleName(const std::string &name ) : mName(name) {}
+	bool operator()(const ModuleInfoBase* mi) {
+		return (mi->getModuleName() == mName);
+	}
+};
+
 #define MODULE_PREFIX_LEN 8 /* strlen("module::") */
 bool ConfigDumper::shouldDumpModule(const string& moduleName) const
 {
@@ -59,12 +68,10 @@ bool ConfigDumper::shouldDumpModule(const string& moduleName) const
 		name = moduleName.substr(MODULE_PREFIX_LEN);
 	}
 	auto moduleInfos = ModuleFactory::get()->moduleInfos();
-	auto it = std::find_if(moduleInfos.begin(), moduleInfos.end(), [name](ModuleInfoBase* i){
-			return i->getModuleName() == name;
-	});
+	auto it = std::find_if(moduleInfos.begin(), moduleInfos.end(), matchModuleName(name));
 
-	ModuleInfoBase* moduleInfo = (it != moduleInfos.end()) ? *it : nullptr;
-	if( moduleInfo != nullptr ){
+	ModuleInfoBase* moduleInfo = (it != moduleInfos.end()) ? *it : NULL;
+	if( moduleInfo != NULL ){
 		return moduleInfo->type() == ModuleTypeProduction;
 	} else {
 		return true;
