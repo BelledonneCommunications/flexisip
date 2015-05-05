@@ -479,14 +479,23 @@ void GenericStruct::addChildrenValues(StatItemDescriptor *items){
 }
 */
 
+struct matchEntryName
+{
+	const char* mName;
+	matchEntryName(const char* name ) : mName(name){}
+	bool operator()(GenericEntry* e){
+		return (strcmp(e->getName().c_str(), mName) == 0);
+	}
+};
+
 GenericEntry *GenericStruct::find(const char *name)const{
-	auto lambda = [name](GenericEntry* entry)->bool{ return (entry->getName() == name); };
-	auto it     = find_if(mEntries.begin(),mEntries.end(), lambda );
+	auto it     = find_if(mEntries.begin(),mEntries.end(), matchEntryName(name) );
 	if (it!=mEntries.end()) return *it;
 	return NULL;
 }
 
 struct matchEntryNameApprox{
+	const string mName;
 	matchEntryNameApprox(const char *name) : mName(name){}
 	bool operator()(GenericEntry* e){
 		unsigned int i;
@@ -504,7 +513,6 @@ struct matchEntryNameApprox{
 		}
 		return false;
 	}
-	const string mName;
 };
 
 GenericEntry * GenericStruct::findApproximate(const char *name)const{
@@ -518,7 +526,10 @@ const list<GenericEntry*> &GenericStruct::getChildren() const {
 }
 
 GenericStruct::~GenericStruct(){
-	for_each(mEntries.begin(),mEntries.end(),[](GenericEntry* e){ delete e; });
+	for (auto it = mEntries.begin(); it != mEntries.end(); ++it)
+	{
+		delete *it;
+	}
 }
 
 
