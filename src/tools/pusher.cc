@@ -28,8 +28,6 @@
 
 using namespace ::std;
 
-bool sUseSyslog = 0;
-
 static const int MAX_QUEUE_SIZE = 100;
 // static const int PRINT_STATS_TIMEOUT = 3000;	/* In milliseconds. */
 
