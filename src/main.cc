@@ -392,7 +392,7 @@ static void depthFirstSearch(string &path, GenericEntry *config, list<string> &a
 	}
 }
 
-static int dump_config(su_root_t* root, const std::string& dump_cfg_part, bool with_experimental, const map<string,string>& oset ){
+static int dump_config(su_root_t* root, const std::string& dump_cfg_part, bool with_experimental, const string& format ){
 	shared_ptr<Agent> a = make_shared<Agent>(root);
 	GenericStruct *rootStruct = GenericManager::get()->getRoot();
 
@@ -418,12 +418,15 @@ static int dump_config(su_root_t* root, const std::string& dump_cfg_part, bool w
 		}
 	}
 	ConfigDumper* dumper = NULL;
-	if (oset.find("tex") != oset.end()) {
+	if (format == "tex") {
 		dumper = new TexFileConfigDumper(rootStruct);
-	} else if (oset.find("doku") != oset.end()) {
+	} else if (format == "doku") {
 		dumper = new DokuwikiConfigDumper(rootStruct);
-	} else {
+	} else if (format == "file") {
 		dumper = new FileConfigDumper(rootStruct);
+	} else {
+		cerr << "Invalid output format '" << format << "'" << endl;
+		return EXIT_FAILURE;
 	}
 	dumper->setDumpExperimentalEnabled(with_experimental);
 	dumper->dump(cout);
@@ -461,6 +464,7 @@ int main(int argc, char *argv[]) {
 
 	TCLAP::SwitchArg              dumpMibs("",  "dump-mibs", 			"Will dump the MIB files for Flexisip performance counters and other related SNMP items.", cmd);
 	TCLAP::ValueArg<string>    dumpDefault("",  "dump-default",			"Dump default config, with specifier for the module to dump. Use 'all' to dump all modules.", TCLAP::ValueArgOptional, "", "module::Router", cmd);
+	TCLAP::ValueArg<string>     dumpFormat("",  "dump-format",			"Select the format in which the dump-default will print. The default is 'file'. Possible values are: file, tex, doku", TCLAP::ValueArgOptional, "file", "file", cmd);
 	TCLAP::SwitchArg           listModules("",  "list-modules", 		"Will print a list of available modules. This is useful if you want to combine with --dump-default to have specific documentation for a module", cmd);
 	TCLAP::SwitchArg   displayExperimental("",  "show-experimental",	"Use in conjunction with --dump-default: will dump the configuration for a module even if it is marked as experiemental", cmd);
 
@@ -518,7 +522,7 @@ int main(int argc, char *argv[]) {
 
 	// list default config and exit
 	if ( dumpDefault.getValue().length() != 0 ) {
-		int status = dump_config(root, dumpDefault.getValue(), displayExperimental, oset);
+		int status = dump_config(root, dumpDefault.getValue(), displayExperimental, dumpFormat.getValue());
 		return status;
 	}
 

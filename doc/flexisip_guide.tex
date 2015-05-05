@@ -231,7 +231,7 @@ Also, you will need the package "snmpwalk" to be installed on your machine. The 
 When the flexisip server is running, you can monitor it using :
 \begin{verbatim}
 mkdir -p ~/.snmp/mibs
-flexisip --dump-snmp-mib > ~/.snmp/mibs/fleximib.txt
+flexisip --dump-mibs > ~/.snmp/mibs/fleximib.txt
 snmpwalk -m FLEXISIP-MIB  -v 2c -c public -Of localhost FLEXISIP-MIB::flexisipMIB
 or
 snmpget -m FLEXISIP-MIB -v 2c -c public -Of localhost \
@@ -245,7 +245,7 @@ Note that the statistics all start with “count” prefix.
 When the server is running, you can update its configuration using:
 \begin{verbatim}
 mkdir -p  ~/.snmp/mibs/fleximib.txt
-flexisip --dump-snmp-mib > ~/.snmp/mibs/fleximib.txt
+flexisip --dump-mibs > ~/.snmp/mibs/fleximib.txt
 snmpset -m FLEXISIP-MIB  -v 2c -c private localhost \
 FLEXISIP-MIB::flexisipMIB.flexisip.global.debug.0 i 1
 \end{verbatim}

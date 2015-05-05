@@ -9,8 +9,8 @@ _flexisip_completion()
     prev=${COMP_WORDS[COMP_CWORD-1]}
 
     # flexisip main commands 
-    cmds='--transports --debug --daemon --configfile -c\
-        --dump-default-config --dump-snmp-mib --help --set --list-settables'
+    cmds='--transports --debug --daemon --config -c\
+        --dump-default --dump-mibs --help --set --list-settables'
 
     # if no command were given, complete on commands
     if [[ $COMP_CWORD -eq 1 ]] ; then
