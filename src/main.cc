@@ -470,7 +470,7 @@ int main(int argc, char *argv[]) {
 
 	/* Overriding values */
 	TCLAP::ValueArg<string>  listOverrides("",  "list-overrides",		"List the configuration values that you can override. Useful in conjunction with --set. "
-																		"Pass a module to specify the module for which to dump the available values.", TCLAP::ValueArgOptional, "", "module::Router", cmd);
+																		"Pass a module to specify the module for which to dump the available values. Use 'all' to get all possible overrides.", TCLAP::ValueArgOptional, "", "module::Router", cmd);
 	TCLAP::MultiArg<string> overrideConfig("s", "set", 					"Allows to override the configuration file setting. Use --list-overrides to get a list of values that you can override.", TCLAP::ValueArgOptional,
 										   								"global/debug=true");
 	TCLAP::MultiArg<string>  hostsOverride("",  "hosts",				"Overrides a host address by passing it. You can use this flag multiple times. "
@@ -552,7 +552,7 @@ int main(int argc, char *argv[]) {
 		depthFirstSearch(empty, GenericManager::get()->getRoot(), allCompletions);
 
 		for (auto it = allCompletions.cbegin(); it != allCompletions.cend(); ++it) {
-			if (filter.empty()) {
+			if (filter == "all") {
 				cout << *it << "\n";
 			} else if (0 == it->compare(0, filter.length(), filter)) {
 				cout << *it << "\n";
