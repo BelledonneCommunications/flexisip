@@ -180,7 +180,7 @@ private:
 	bool mTestAccountsEnabled;
 	list<string> mUseClientCertificates;
 	list< string > mTrustedClientCertificates;
-	
+
 	static int authPluginInit(auth_mod_t *am,
 				     auth_scheme_t *base,
 				     su_root_t *root,
@@ -220,7 +220,7 @@ private:
 		const char *res=ev->findIncomingSubject(toCheck);
 		return res;
 	}
-	
+
 	void loadTrustedHosts(const ConfigStringList &trustedHosts) {
 		mTrustedHosts = trustedHosts.read();
 		const GenericStruct *clusterSection = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
@@ -382,7 +382,7 @@ public:
 	static bool containsDomain(const list<string> &d, const char *name) {
 		return find(d.cbegin(), d.cend(), "*") != d.end() || find(d.cbegin(), d.cend(), name) != d.end();
 	}
-	
+
 	void handleTestAccountCreationRequests(shared_ptr<RequestSipEvent> &ev){
 		sip_t *sip = ev->getSip();
 		if (sip->sip_request->rq_method==sip_method_register){
@@ -633,7 +633,7 @@ void Authentication::AuthenticationListener::finish(){
 void Authentication::AuthenticationListener::checkPassword(const char* passwd) {
 	char const *a1;
 	auth_hexmd5_t a1buf, response;
-	
+
 	if (passwd && passwd[0]=='\0') passwd=NULL;
 
 	if (passwd) {

@@ -44,11 +44,11 @@ class Module;
 
 /**
  * The agent class represents a SIP agent.
- * It listens on a UDP and TCP port, receives request and responses, 
+ * It listens on a UDP and TCP port, receives request and responses,
  * and injects them into the module chain.
  * The module chain is :
  * NatHelper => Authentication => Registrar => ContactRouteInserter => MediaRelay => Transcoder => Forward
- * 
+ *
  * Refer to the flexisip.conf.sample installed by "make install" for documentation about what each module does.
 **/
 class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shared_from_this<Agent>, public ConfigValueListener {
@@ -110,7 +110,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 	    void start(const std::string& transport_override);
 		virtual void loadConfig(GenericManager *cm);
 		virtual ~Agent();
-		///Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination. 
+		///Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination.
 		std::pair<std::string,std::string> getPreferredIp(const std::string &destination) const;
 		///Returns the _default_ bind address for RTP sockets.
 		const std::string &getRtpBindIp(bool ipv6=false)const{

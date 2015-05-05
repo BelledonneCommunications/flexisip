@@ -16,7 +16,7 @@ void init_tests() {
 	flexisip::log::preinit(sUseSyslog, flexisip::log::debug);
 	flexisip::log::initLogs(sUseSyslog, flexisip::log::debug);
 	flexisip::log::updateFilter("%Severity% >= debug");
-	
+
 	Record::sLineFieldNames = {"+sip.instance", "pn-tok", "line"};
 	Record::sMaxContacts = 10;
 }
@@ -50,7 +50,7 @@ bool compare(const ExtendedContact &ec1, bool alias,
 	check("mQ", ec1.mQ, q);
 	check("mSipUri", ec1.mSipUri, sipuri);
 	check("mUpdatedTime", ec1.mUpdatedTime, updatedTime);
-	
+
 	return true;
 }
 

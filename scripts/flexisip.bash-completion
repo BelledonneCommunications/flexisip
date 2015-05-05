@@ -8,7 +8,7 @@ _flexisip_completion()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev=${COMP_WORDS[COMP_CWORD-1]}
 
-    # flexisip main commands 
+    # flexisip main commands
     cmds='--transports --debug --daemon --config -c\
         --dump-default --dump-mibs --help --set --list-settables'
 
