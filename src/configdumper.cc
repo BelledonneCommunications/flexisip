@@ -237,7 +237,7 @@ ostream &MibDumper::dump(ostream & ostr)const {
 			<< endl;
 
 	dump2(ostr,mRoot,0);
-	ostr << "END";
+	ostr << "END" << endl;
 	return ostr;
 }
 
