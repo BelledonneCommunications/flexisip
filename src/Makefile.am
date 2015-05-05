@@ -9,7 +9,7 @@ ECHO=/bin/echo
 CLEANFILES=$(GITVERSION_FILE)
 BUILT_SOURCES=$(GITVERSION_FILE)
 
-SUBDIRS=xml presence
+SUBDIRS=xml presence tclap
 nodistsources=
 
 bin_PROGRAMS=flexisip

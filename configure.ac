@@ -104,7 +104,7 @@ fi
 PKG_PROG_PKG_CONFIG()
 
 
-# 
+#
 # UNIXODBC HANDLING
 #
 
@@ -119,7 +119,7 @@ AM_CONDITIONAL(BUILD_ODBC,test x$odbc = xyes)
 # You can specify the odbc_config place to get the correct CFLAGS
 AC_ARG_WITH(odbc,
 	AC_HELP_STRING([--with-odbc], [Specify the odbc_config binary directory, which is used to find the ODBC libs and includes (eg: /usr/local) [default=/usr]]),
-	[odbc_prefix=$withval],	
+	[odbc_prefix=$withval],
 	[odbc_prefix=/usr]
 )
 
@@ -358,7 +358,7 @@ AC_ARG_ENABLE(redis,
     [redis=no]
 )
 
-AC_ARG_WITH(redis, 
+AC_ARG_WITH(redis,
 	AC_HELP_STRING([--with-redis], [Specify where to find the redis libraries. Will force enable redis build if specified. [default=/usr]]),
 	[
 		redis_prefix="${withval}"
@@ -393,7 +393,7 @@ if test x$redis = xyes ; then
 		AC_SUBST(HIREDIS_CFLAGS)
 		AC_SUBST(HIREDIS_LIBS)
 
-		# when redis is not detected through pkgconfig, we can't know whether the 
+		# when redis is not detected through pkgconfig, we can't know whether the
 		# connect callback uses 1 or 2 args. Better not using it at all.
 		redis_no_callback=yes
 	fi
@@ -443,7 +443,7 @@ AC_ARG_WITH([xsd-root],
 
 xsd_err_msg="A correct version can be found at http://www.codesynthesis.com/products/xsd/download.xhtml . Use --with-xsd=(path to xsd) to reconfigure with XSD support."
 
-# this function tries to find XSD from the xsd_root 
+# this function tries to find XSD from the xsd_root
 AC_DEFUN([FIND_XSDCXX],
 [
     # check if XSD is detected by the system
@@ -477,7 +477,7 @@ if test x$use_xsd != xno ; then
 	if test x$XSDCXX = x; then
 		FIND_XSDCXX
 	fi
-	
+
 	# hard check on xsd
 	if  test x$XSDCXX = x ; then
 		AC_MSG_ERROR([xsd executable not found. $xsd_err_msg])
@@ -492,12 +492,12 @@ if test x$use_xsd != xno ; then
 	# check xsd headers
 	CPPFLAGS_save=$CPPFLAGS
 	CPPFLAGS="-I$xsd_root/libxsd $CPPFLAGS"
-	AC_CHECK_HEADERS("xsd/cxx/config.hxx", 
+	AC_CHECK_HEADERS("xsd/cxx/config.hxx",
 		[AC_SUBST([XSDCXX_CPPFLAGS], "-I$xsd_root/libxsd/")],
 		[foo=bar])
 	CPPFLAGS=$CPPFLAGS_save
 	if test x$XSDCXX_CPPFLAGS = x; then
-		AC_MSG_ERROR([xsd headers not found at path $xsd_root/libxsd/xsd/cxx/config.hxx. Are you sure that xsd is correctly installed? 
+		AC_MSG_ERROR([xsd headers not found at path $xsd_root/libxsd/xsd/cxx/config.hxx. Are you sure that xsd is correctly installed?
 			$xsd_err_msg])
 	fi
 
@@ -575,7 +575,7 @@ AC_ARG_ENABLE(presence,
 if test x$presence = xyes ; then
 	if test "x$use_xsd" = xno; then
 		AC_MSG_ERROR([CodeSynthesis XSD required for presence server. $xsd_err_msg])
-	fi	
+	fi
 	PKG_CHECK_MODULES(BELLESIP, [belle-sip >= 1.2.4])
 	AC_DEFINE([ENABLE_PRESENCE],1, [enable presence module])
 fi
@@ -592,6 +592,7 @@ scripts/redhat/Makefile
 src/Makefile
 src/presence/Makefile
 src/xml/Makefile
+src/tclap/Makefile
 doc/Makefile
 debian/Makefile
 flexisip.spec
