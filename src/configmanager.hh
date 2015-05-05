@@ -19,15 +19,20 @@
 
 #ifndef configmanager_hh
 #define configmanager_hh
+
+
 #if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
-#undef PACKAGE_BUGREPORT
-#undef PACKAGE_NAME
-#undef PACKAGE_STRING
-#undef PACKAGE_TARNAME
-#undef PACKAGE_VERSION
-#include "flexisip-config.h"
-#define FLEXISIP_INCLUDED
+
+	#undef PACKAGE_BUGREPORT
+	#undef PACKAGE_NAME
+	#undef PACKAGE_STRING
+	#undef PACKAGE_TARNAME
+	#undef PACKAGE_VERSION
+	#include "flexisip-config.h"
+	#define FLEXISIP_INCLUDED
+
 #endif
+
 #include <string>
 #include <sstream>
 #include <iostream>
@@ -45,15 +50,19 @@
 #include <cxxabi.h>
 #include <memory>
 
+
 #ifdef ENABLE_SNMP
-#include <net-snmp/net-snmp-config.h>
-#include <net-snmp/net-snmp-includes.h>
-#include <net-snmp/agent/net-snmp-agent-includes.h>
-#include <net-snmp/agent/agent_trap.h>
+
+	#include <net-snmp/net-snmp-config.h>
+	#include <net-snmp/net-snmp-includes.h>
+	#include <net-snmp/agent/net-snmp-agent-includes.h>
+	#include <net-snmp/agent/agent_trap.h>
 
 #else
-typedef unsigned long oid;
-#endif
+
+	typedef unsigned long oid;
+
+#endif /* ENABLE_SNMP */
 
 extern oid company_id;
 
@@ -82,6 +91,8 @@ enum GenericValueType{
 	Notification,
 	RuntimeError
 };
+
+/* Allows to have a string for each GenericValueType */
 static const map<GenericValueType,string> GenericValueTypeNameMap = {
 #define TypeToName(X) { X, #X }
 	TypeToName(Boolean),
@@ -225,8 +236,8 @@ public:
 	ConfigValueListener *getConfigListener() const {
 		return mConfigListener;
 	}
-	void setDeprecated(bool yesno){
-		mDeprecated=yesno;
+	void setDeprecated(bool deprecated){
+		mDeprecated=deprecated;
 	}
 	bool isDeprecated()const {
 		return mDeprecated;
@@ -291,6 +302,7 @@ public:
 	_retType *getDeep(const char *name, bool strict)const;
 	~GenericStruct();
 	GenericEntry *find(const char *name)const;
+	GenericEntry *find(const std::string& name )const { return find(name.c_str()); }
 	GenericEntry *findApproximate(const char *name)const;
 	virtual void mibFragment(std::ostream & ost, std::string spacing) const;
 	virtual void setParent(GenericEntry *parent);
@@ -373,8 +385,6 @@ protected:
 	bool invokeConfigStateChanged(ConfigState state) {
 		if (getParent() && getParent()->getType() == Struct) {
 			ConfigValueListener *listener = getParent()->getConfigListener();
-//			LOGD("invokeConfigStateChanged to %d on %s/%s", state,
-//					getParent()->getName().c_str(), mName.c_str());
 			if (listener) {
 				return listener->onConfigStateChanged(*this, state);
 			} else {
@@ -427,7 +437,6 @@ public:
 	virtual int handleSnmpRequest(netsnmp_mib_handler *,
 			netsnmp_handler_registration *,netsnmp_agent_request_info*,netsnmp_request_info*);
 #endif
-//	std::string &read()const { return get(); }
 	void writeErrors(GenericEntry *entry, std::ostringstream &oss) const;
 };
 
@@ -442,7 +451,7 @@ class ConfigStringList : public ConfigValue{
 public:
 	ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value,oid oid_index);
 	std::list<std::string> read()const;
-	static std::list<std::string> parse(const char *input);
+	static std::list<std::string> parse(const std::string &in);
 private:
 };
 
@@ -478,7 +487,6 @@ _retType *GenericStruct::getDeep(const char *name, bool strict)const{
 	const GenericStruct *next_node,*prev_node=this;
 	while (std::string::npos != (next=sname.find('/', prev))) {
 		std::string next_node_name=sname.substr(prev, next-prev);
-//		LOGE("Searching for node %s", next_node_name.c_str());
 		GenericEntry *e=find(next_node_name.c_str());
 		if (!e) {
 			if (!strict) return NULL;
@@ -499,7 +507,6 @@ _retType *GenericStruct::getDeep(const char *name, bool strict)const{
 	}
 
 	std::string leaf(sname.substr(prev, len-prev));
-//	LOGE("Searching for leaf %s", leaf.c_str());
 	return prev_node->get<_retType>(leaf.c_str());
 };
 
@@ -536,12 +543,14 @@ class GenericManager : protected ConfigValueListener {
 	friend class ConfigArea;
 public:
 	static GenericManager *get();
-	void declareArea(const char *area_name, const char *help, ConfigItemDescriptor *items);
+
 	int load(const char* configFile);
 	GenericStruct *getRoot();
 	std::string &getConfigFile() { return mConfigFile; }
+
 	void setOverrideMap(const std::map<std::string,std::string> overrides) { mOverrides=overrides;}
 	std::map<std::string,std::string> &getOverrideMap() { return mOverrides; }
+
 	const GenericStruct *getGlobal();
 	void loadStrict();
 	StatCounter64 &findStat(const std::string &key);

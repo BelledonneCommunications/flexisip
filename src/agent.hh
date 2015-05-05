@@ -107,7 +107,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 	(std::shared_ptr<SipEventT> ev, const std::list<Module *>::iterator &begin, const std::list<Module *>::iterator &end);
 	public:
 		Agent(su_root_t *root);
-		void start(const char *transport_override);
+	    void start(const std::string& transport_override);
 		virtual void loadConfig(GenericManager *cm);
 		virtual ~Agent();
 		///Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination. 

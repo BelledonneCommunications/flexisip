@@ -138,7 +138,7 @@ static string absolutePath(const string &currdir, const string &file) {
 	return currdir + "/" + file;
 }
 
-void Agent::start(const char *transport_override){
+void Agent::start(const std::string &transport_override){
 	char cCurrDir[FILENAME_MAX];
 	if (!getcwd(cCurrDir, sizeof(cCurrDir))) {
 		LOGA("Could not get current file path");
@@ -158,7 +158,7 @@ void Agent::start(const char *transport_override){
 
 	nta_agent_set_params(mAgent,NTATAG_SIP_T1X64(t1x64),TAG_END());
 
-	if (transport_override){
+	if (!transport_override.empty()){
 		transports=ConfigStringList::parse(transport_override);
 	}
 

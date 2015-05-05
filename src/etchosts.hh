@@ -28,7 +28,7 @@ class EtcHostsResolver{
 	public:
 		static EtcHostsResolver *get();
 		bool resolve(const std::string &name, std::string * result)const;
-		void override(const std::string &name, const std::string &result);
+		void setHost(const std::string &name, const std::string &result);
 	private:
 		EtcHostsResolver();
 		static void atexit(); // Don't call directly!

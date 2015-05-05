@@ -30,6 +30,7 @@
 #endif
 
 #include <iostream>
+#include <tclap/CmdLine.h>
 
 #ifdef ENABLE_TRANSCODER
 #include <mediastreamer2/mscommon.h>
@@ -79,28 +80,8 @@ static int pipe_wdog_flexisip[2] = { -1}; // This is the pipe that flexisip will
 static pid_t flexisip_pid = -1;
 static pid_t monitor_pid = -1;
 static su_root_t *root = NULL;
-bool sUseSyslog = false;
 
 using namespace ::std;
-
-static void usage(const char *arg0) {
-	printf("%s\n"
-		   "\t\t [--transports <transport uris (quoted)>]\n"
-		   "\t\t [--debug]\n"
-		   "\t\t [--daemon]\n"
-		   "\t\t [--configfile <path>]\n"
-		   "\t\t [--configover <path>]\n"
-		   "\t\t [--dump-default-config [node name]]\n"
-		   "\t\t [--dump-snmp-mib]\n"
-		   "\t\t [--set <[node/]option[=value]>]\n"
-		   "\t\t [--list-settables]\n"
-		   "\t\t [--list-modules]\n"
-		   "\t\t [--syslog]\n"
-		   "\t\t [--help]\n"
-		   "\t\t [--version]\n",
-		   arg0);
-	exit(-1);
-}
 
 static void flexisip_stop(int signum) {
 	if (flexisip_pid > 0) {
@@ -435,208 +416,178 @@ static int parse_key_value(int argc, char *argv[], const char **key, const char 
 	}
 	return 0;
 }
+
+static int dump_config(su_root_t* root, const std::string& dump_cfg_part, bool with_experimental, const map<string,string>& oset ){
+	shared_ptr<Agent> a = make_shared<Agent>(root);
+	GenericStruct *rootStruct = GenericManager::get()->getRoot();
+
+	if ( dump_cfg_part != "all" ) {
+
+		size_t prefix = dump_cfg_part.find("module::");
+
+		if( prefix != dump_cfg_part.npos ){
+			cerr << "Module name should start with 'module::'" << endl;
+			return EXIT_FAILURE;
+
+		} else if ( !(rootStruct = dynamic_cast<GenericStruct *>(rootStruct->find(dump_cfg_part)))) {
+			cerr << "Couldn't find node " << dump_cfg_part << endl;
+			return EXIT_FAILURE;
+
+		} else {
+			string moduleName = dump_cfg_part.substr(strlen("module::"));
+			Module* module = a->findModule(moduleName);
+			if( module && module->type() == ModuleTypeExperimental && !with_experimental ){
+				cerr << "Module " << moduleName << " is experimental, not returning anything. To override, specify '--with-experimental'" << endl;
+				return EXIT_FAILURE;
+			}
+		}
+	}
+	ConfigDumper* dumper = NULL;
+	if (oset.find("tex") != oset.end()) {
+		dumper = new TexFileConfigDumper(rootStruct);
+	} else if (oset.find("doku") != oset.end()) {
+		dumper = new DokuwikiConfigDumper(rootStruct);
+	} else {
+		dumper = new FileConfigDumper(rootStruct);
+	}
+	dumper->setDumpExperimentalEnabled(with_experimental);
+	dumper->dump(cout);
+	delete dumper;
+	return EXIT_SUCCESS;
+}
+
+static void list_modules() {
+	shared_ptr<Agent> a = make_shared<Agent>(root);
+	GenericStruct* rootStruct = GenericManager::get()->getRoot();
+	list<GenericEntry*> children = rootStruct->getChildren();
+	for ( auto it = children.begin(); it != children.end(); ++it ) {
+		GenericEntry* child = (*it);
+		if ( child->getName().find("module::") == 0 ) {
+			cout << child->getName() << endl;
+		}
+	}
+}
+
 int main(int argc, char *argv[]) {
 	shared_ptr<Agent> a;
 	StunServer *stun = NULL;
-	const char *transports = NULL;
-	int i;
-	const char *pidfile = NULL;
-	const char *cfgfile = CONFIG_DIR "/flexisip.conf";
-	bool debug = false;
-	bool daemon = false;
-	bool dump_default_cfg = false;
-	char *dump_cfg_part = NULL;
-	bool dump_snmp_mib = false;
-	bool dump_settables = false;
-	bool dump_modules = false;
-	bool with_experimental = false;
-	string settablesPrefix;
-	string hostsOverride;
-	string configOverride;
+	bool debug;
 	map<string, string> oset;
 
+	TCLAP::CmdLine cmd("Flexisip command line", ' ', VERSION);
 
-	for (i = 1; i < argc; ++i) {
-		if (strcmp(argv[i], "--transports") == 0) {
-			i++;
-			if (i < argc) {
-				transports = argv[i];
-				continue;
-			}
-		} else if (strcmp(argv[i], "--pidfile") == 0) {
-			i++;
-			if (i < argc) {
-				pidfile = argv[i];
-				continue;
-			}
-		} else if (strcmp(argv[i], "--daemon") == 0) {
-			daemon = true;
-			continue;
-		} else if (strcmp(argv[i], "--syslog") == 0) {
-			sUseSyslog = true;
-			continue;
-		} else if (strcmp(argv[i], "--debug") == 0) {
-			debug = true;
-			continue;
-		} else if (strcmp(argv[i], "--configfile") == 0 || strcmp(argv[i], "-c") == 0) {
-			cfgfile = argv[i + 1];
-			i++;
-			continue;
-		} else if (strcmp(argv[i], "--configover") == 0 || strcmp(argv[i], "-co") == 0) {
-			configOverride = argv[i + 1];
-			i++;
-			continue;
-		} else if (strcmp(argv[i], "--dump-default-config") == 0) {
-			dump_default_cfg = true;
-			if ((i + 1) < argc && argv[i + 1][0] != '-') {
-				i++;
-				dump_cfg_part = argv[i];
-			}
-			continue;
-		} else if ( strcmp(argv[i], "--list-modules") == 0) {
-			dump_modules = true;
-			i++;
-			continue;
-		} else if ( strcmp(argv[i], "--with-experimental") == 0) {
-			with_experimental = true;
-			continue;
-		} else if (strcmp(argv[i], "--dump-snmp-mib") == 0) {
-			dump_snmp_mib = true;
-			i++;
-			continue;
-		} else if (strcmp(argv[i], "--list-settables") == 0) {
-			dump_settables = true;
-			if ((i + 1) < argc && argv[i + 1][0] != '-') {
-				i++;
-				settablesPrefix = argv[i];
-			}
-			continue;
-		} else if (strcmp(argv[i], "--set") == 0) {
-			i++;
-			const char* skey = "";
-			const char* svalue = "";
-			int shift = 0;
-			if (!parse_key_value(argc - i, &argv[i], &skey, &svalue, &shift)) {
-				if (0 == strcmp(skey, "hosts")) hostsOverride = svalue;
-				else oset.insert(make_pair(skey, svalue));
-				i += shift;
-			} else {
-				fprintf(stderr, "Bad option --set %s\n", argv[i]);
-			}
-			continue;
-		} else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-			// nothing
-		} else if (strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-v") == 0) {
-			fprintf(stdout, "%s (git: %s)\n", VERSION, FLEXISIP_GIT_VERSION);
-			exit(0);
-		} else {
-			fprintf(stderr, "Bad option %s\n", argv[i]);
-		}
-		usage(argv[0]);
+	TCLAP::ValueArg<string>  transportsArg("t", "transports", 			"The list of transports to handle", TCLAP::ValueArgOptional, "", "sips:* sip:*", cmd);
+	TCLAP::ValueArg<string>        pidFile("p", "pidfile", 				"PID file, used when running in daemon mode", TCLAP::ValueArgOptional, "", "/tmp/flexisip.pidfile", cmd);
+	TCLAP::SwitchArg            daemonMode("",  "daemon", 				"Launch in daemon mode", cmd);
+	TCLAP::SwitchArg             useSyslog("",  "syslog", 				"Use syslog for logging", cmd);
+	TCLAP::SwitchArg              useDebug("d", "debug", 				"Force debug mode (overrides the configuration)", cmd);
+	TCLAP::ValueArg<string>     configFile("c", "config", 				"Specify the location of the configuration file", TCLAP::ValueArgOptional, CONFIG_DIR "/flexisip.conf", "/srv/flexisip.conf", cmd);
+	TCLAP::SwitchArg            gitVersion("",  "git-version", 			"Will print the version and the git revision associated with this particular instance of Flexisip", cmd);
+
+	TCLAP::SwitchArg              dumpMibs("",  "dump-mibs", 			"Will dump the MIB files for Flexisip performance counters and other related SNMP items.", cmd);
+	TCLAP::ValueArg<string>    dumpDefault("",  "dump-default",			"Dump default config, with specifier for the module to dump. Use 'all' to dump all modules.", TCLAP::ValueArgOptional, "", "module::Router", cmd);
+	TCLAP::SwitchArg           listModules("",  "list-modules", 		"Will print a list of available modules. This is useful if you want to combine with --dump-default to have specific documentation for a module", cmd);
+	TCLAP::SwitchArg   displayExperimental("",  "show-experimental",	"Use in conjunction with --dump-default: will dump the configuration for a module even if it is marked as experiemental", cmd);
+
+	/* Overriding values */
+	TCLAP::ValueArg<string>  listOverrides("",  "list-overrides",		"List the configuration values that you can override. Useful in conjunction with --set. "
+																		"Pass a module to specify the module for which to dump the available values.", TCLAP::ValueArgOptional, "", "module::Router", cmd);
+	TCLAP::MultiArg<string> overrideConfig("s", "set", 					"Allows to override the configuration file setting. Use --list-overrides to get a list of values that you can override.", TCLAP::ValueArgOptional,
+										   								"global/debug=true");
+	TCLAP::MultiArg<string>  hostsOverride("",  "hosts",				"Overrides a host address by passing it. You can use this flag multiple times.", TCLAP::ValueArgOptional, "example.org=127.0.0.1");
+
+	cmd.add(hostsOverride);
+	cmd.add(overrideConfig);
+
+
+	try {
+		// Try parsing input
+		cmd.parse(argc, argv);
+		debug = useDebug.getValue();
+
+	} catch(TCLAP::ArgException &e){
+
+		cerr << "Error parsing arguments: " << e.error()  << " for arg " << e.argId() << endl;
+		exit(EXIT_FAILURE);
+
 	}
 
-	if (!configOverride.empty()) {
-		ifstream overstr(configOverride.c_str(), ios_base::in);
-		string line;
-		while (getline(overstr, line)) {
-			if (line.empty() || line[0] == '#') continue;
-			size_t sep = line.find(" ");
-			oset.insert(make_pair(line.substr(0, sep), line.substr(sep + 1)));
+	if( gitVersion.getValue() ){
+		cout << "Flexisip version " << VERSION << ", Git: " << FLEXISIP_GIT_VERSION << endl;
+		exit(EXIT_SUCCESS);
+	}
+
+	if( overrideConfig.getValue().size() != 0 ){
+		auto values = overrideConfig.getValue();
+		for( auto it = values.begin(); it != values.end(); ++it ){
+			auto pair = *it;
+			size_t eq = pair.find("=");
+			if( eq != pair.npos ){
+				oset[pair.substr(0, eq)] = pair.substr(eq+1);
+			}
 		}
 	}
 
-	if (!dump_default_cfg && !dump_snmp_mib && !dump_settables && !dump_modules) {
+
+	// in case we don't plan to launch flexisip, don't setup the logs.
+	if ( !dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs  ) {
 		ortp_init();
-		flexisip::log::preinit(sUseSyslog, debug);
+		flexisip::log::preinit(useSyslog.getValue(), useDebug.getValue());
 	} else {
 		flexisip::log::disableGlobally();
 	}
 
-	// Don't move these lines, it is black magic
+	// Instanciate the Generic manager
 	GenericManager *cfg = GenericManager::get();
 
 
-	if (dump_default_cfg) {
-		a = make_shared<Agent>(root);
-		GenericStruct *rootStruct = GenericManager::get()->getRoot();
-		if (dump_cfg_part) {
-			const char* prefix = strstr(dump_cfg_part, "module::");
-			if( prefix != dump_cfg_part ){
-				cerr << "Module name should start with 'module::'" << endl;
-				return -1;
-			} else if ( !(rootStruct = dynamic_cast<GenericStruct *>(rootStruct->find(dump_cfg_part)))) {
-				cerr << "Couldn't find node " << dump_cfg_part << endl;
-				return -1;
-			} else {
-				string moduleName = string(dump_cfg_part).substr(strlen("module::"));
-				Module* module = a->findModule(moduleName);
-				if( module && module->type() == ModuleTypeExperimental && !with_experimental ){
-					cerr << "Module " << moduleName << " is experimental, not returning anything. To override, specify '--with-experimental'" << endl;
-					return -1;
-				}
-			}
-		}
-		ConfigDumper* dumper = NULL;
-		if (oset.find("tex") != oset.end()) {
-			dumper = new TexFileConfigDumper(rootStruct);
-		} else if (oset.find("doku") != oset.end()) {
-			dumper = new DokuwikiConfigDumper(rootStruct);
-		} else {
-			dumper = new FileConfigDumper(rootStruct);
-		}
-		dumper->setDumpExperimentalEnabled(with_experimental);
-		dumper->dump(cout);
-		delete dumper;
-		return 0;
+	// list default config and exit
+	if ( dumpDefault.getValue().length() != 0 ) {
+		int status = dump_config(root, dumpDefault.getValue(), displayExperimental, oset);
+		return status;
 	}
 
-	if (dump_snmp_mib) {
+	// list all mibs and exit
+	if ( dumpMibs ) {
 		a = make_shared<Agent>(root);
 		cout << MibDumper(GenericManager::get()->getRoot());
-		return 0;
-	}
-	if (dump_modules) {
-		a = make_shared<Agent>(root);
-		GenericStruct* rootStruct = GenericManager::get()->getRoot();
-		list<GenericEntry*> children = rootStruct->getChildren();
-		for ( auto it = children.begin(); it != children.end(); ++it ) {
-			GenericEntry* child = (*it);
-			if ( child->getName().find("module::") == 0 ) {
-				cout << child->getName() << endl;
-			}
-		}
-		return 0;
+		return EXIT_SUCCESS;
 	}
 
-	if (dump_settables) {
+	// list modules and exit
+	if ( listModules ) {
+		list_modules();
+		return EXIT_SUCCESS;
+	}
+
+	// list the overridable values and exit
+	if ( listOverrides.getValue().length() != 0 ) {
 		a = make_shared<Agent>(root);
 		list<string> allCompletions;
 		allCompletions.push_back("nosnmp");
 
 		string empty;
+		string &filter = listOverrides.getValue();
+
 		depthFirstSearch(empty, GenericManager::get()->getRoot(), allCompletions);
 
 		for (auto it = allCompletions.cbegin(); it != allCompletions.cend(); ++it) {
-			if (settablesPrefix.empty()) {
+			if (filter.empty()) {
 				cout << *it << "\n";
-			} else if (0 == it->compare(0, settablesPrefix.length(), settablesPrefix)) {
-				//cout << (it->c_str()+settablesPrefix.length()) << "\n";
+			} else if (0 == it->compare(0, filter.length(), filter)) {
 				cout << *it << "\n";
 			}
 		}
-		return 0;
+		return EXIT_SUCCESS;
 	}
-
-
-
 
 	GenericManager::get()->setOverrideMap(oset);
 
-	if (cfg->load(cfgfile) == -1 && configOverride.empty()) {
+	if (cfg->load(configFile.getValue().c_str()) == -1) {
 		fprintf(stderr, "No configuration file found at %s.\nPlease specify a valid configuration file.\n"
 				"A default flexisip.conf.sample configuration file should be installed in " CONFIG_DIR "\n"
 				"Please edit it and restart flexisip when ready.\n"
-				"Alternatively a default configuration sample file can be generated at any time using --dump-default-config option.\n", cfgfile);
+				"Alternatively a default configuration sample file can be generated at any time using '--dump-default all' option.\n", configFile.getValue().c_str());
 		return -1;
 	}
 
@@ -648,7 +599,7 @@ int main(int argc, char *argv[]) {
 
 
 	// Initialize
-	flexisip::log::initLogs(sUseSyslog, debug);
+	flexisip::log::initLogs(useSyslog, debug);
 	flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
 
 	signal(SIGPIPE, SIG_IGN);
@@ -672,9 +623,17 @@ int main(int argc, char *argv[]) {
 
 	log_boolean_expression_evaluation(oset.find("bee") != oset.end());
 	log_boolean_expression_parsing(oset.find("bep") != oset.end());
-	if (!hostsOverride.empty()) {
-		size_t pos = hostsOverride.find("=");
-		EtcHostsResolver::get()->override(hostsOverride.substr(0, pos), hostsOverride.substr(pos + 1));
+
+	if ( hostsOverride.getValue().size() != 0 ) {
+		auto hosts = hostsOverride.getValue();
+		auto etcResolver = EtcHostsResolver::get();
+
+		for( auto it = hosts.begin(); it != hosts.end(); ++it ){
+			size_t pos = it->find("=");
+			if( pos != it->npos ){
+				etcResolver->setHost(it->substr(0, pos), it->substr(pos + 1));
+			}
+		}
 	}
 
 	su_log_redirect(NULL, sofiaLogHandler, NULL);
@@ -683,18 +642,18 @@ int main(int argc, char *argv[]) {
 	 NEVER NEVER create pthreads before this point : threads do not survive the fork below !!!!!!!!!!
 	*/
 	bool monitorEnabled = cfg->getRoot()->get<GenericStruct>("monitor")->get<ConfigBoolean>("enabled")->read();
-	if (daemon) {
+	if (daemonMode) {
 		/*now that we have successfully loaded the config, there is nothing that can prevent us to start (normally).
 		So we can detach.*/
 		bool autoRespawn = cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read();
-		forkAndDetach(pidfile, autoRespawn, monitorEnabled);
+		forkAndDetach(pidFile.getValue().c_str(), autoRespawn, monitorEnabled);
 	}
 
 	LOGN("Starting flexisip version %s (git %s)", VERSION, FLEXISIP_GIT_VERSION);
 	GenericManager::get()->sendTrap("Flexisip starting");
 	root = su_root_create(NULL);
 	a = make_shared<Agent>(root);
-	a->start(transports);
+	a->start(transportsArg.getValue());
 #ifdef ENABLE_SNMP
 	SnmpAgent lAgent(*a, *cfg, oset);
 #endif
@@ -706,7 +665,7 @@ int main(int argc, char *argv[]) {
 	ortp_init();
 #endif
 
-	if (!configOverride.empty()) cfg->applyOverrides(true); // using default + overrides
+	if (!oset.empty()) cfg->applyOverrides(true); // using default + overrides
 
 	a->loadConfig (cfg);
 
@@ -721,7 +680,7 @@ int main(int argc, char *argv[]) {
 
 	increase_fd_limit();
 
-	if (daemon) {
+	if (daemonMode) {
 		if (write(pipe_wdog_flexisip[1], "ok", 3) == -1) {
 			LOGF("Failed to write starter pipe: %s", strerror(errno));
 		}

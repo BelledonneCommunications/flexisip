@@ -26,8 +26,11 @@
 #include <sstream>
 #include <syslog.h>
 
+extern bool sUseSyslog;
+
 namespace flexisip {
 namespace log {
+
 
 	// Here we define our application severity levels.
 	enum level
@@ -40,8 +43,6 @@ namespace log {
 		error,
 		fatal
 	};
-
-
 
 	// The formatting logic for the severity level
 	template< typename CharT, typename TraitsT >
@@ -158,7 +159,7 @@ namespace log {
 
 
 
-#else // without boost log
+#else // ENABLE_BOOSTLOG
 
 
 
@@ -215,12 +216,10 @@ do { \
 
 //#define LOG_SCOPED_THREAD(key, value) ortp_debug("Scoped attr %s %s", (key), (value).c_str())
 #define LOG_SCOPED_THREAD(key, value)
-#endif
+
+#endif // ENABLE_BOOSTLOG
 
 
-
-
-extern bool sUseSyslog;
 
 /*
  * We want LOGN to output all the time: this is for startup notice.
@@ -251,8 +250,6 @@ if (sUseSyslog){ \
 LOGEN(args);\
 exit(-1);\
 }while(0);
-
-
 
 
 
@@ -331,7 +328,7 @@ namespace log {
 	flexisip::log::formated_log_with_severity(level::fatal, fmt, args);\
 	va_end (args);\
 	}
-	#endif
+	#endif // ENABLE_BOOSTLOG
 
 	void initLogs(bool syslog, bool debug);
 

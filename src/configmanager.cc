@@ -610,9 +610,9 @@ ConfigStringList::ConfigStringList(const string &name, const string &help, const
 
 #define DELIMITERS " \n,"
 
-list<string> ConfigStringList::parse(const char *input){
+list<string> ConfigStringList::parse(const std::string &in){
 	list<string> retlist;
-	char *res=strdup(input);
+	char *res=strdup(in.c_str());
 	char *saveptr=NULL;
 	char *ret=strtok_r(res,DELIMITERS,&saveptr);
 	while(ret!=NULL){
@@ -624,7 +624,7 @@ list<string> ConfigStringList::parse(const char *input){
 }
 
 list<string>  ConfigStringList::read()const{
-	return parse(get().c_str());
+	return parse(get());
 }
 
 ConfigBooleanExpression::ConfigBooleanExpression(const string &name, const string &help, const string &default_value,oid oid_index)

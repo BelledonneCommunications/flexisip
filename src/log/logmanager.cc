@@ -26,9 +26,11 @@ using namespace std;
 
 static bool is_preinit_done = false;
 static bool is_debug=false;
-static bool is_syslog=false;
+bool sUseSyslog = false;
 
 #ifdef ENABLE_BOOSTLOG
+
+
 #if (BOOST_VERSION >= 105400)
 #include <boost/log/utility/setup/from_stream.hpp>
 #include <boost/log/utility/setup/filter_parser.hpp>
@@ -62,9 +64,7 @@ static bool is_syslog=false;
 
 
 #include <boost/log/detail/sink_init_helpers.hpp>
-//#include <boost/exception/all.hpp>
-//#include <boost/exception/diagnostic_information.hpp>
-//#include <boost/exception_ptr.hpp>
+
 
 using namespace flexisip::log;
 
@@ -74,7 +74,6 @@ namespace sinks = boost::log::sinks;
 #if (BOOST_VERSION >= 105400)
 namespace fmt = boost::log::expressions;
 namespace flt = boost::log::expressions;
-//typedef fmt::basic_formatter<char> formatter_functor;
 typedef logging::aux::light_function< void (logging::record_view const&, logging::basic_formatting_ostream< char > &) > formatter_functor;
 #define FMTDATETIME fmt::format_date_time< boost::posix_time::ptime >
 #define EXPR_MESSAGE fmt::message
@@ -97,13 +96,8 @@ typedef boost::function2<
 	[ \
 	fmt::stream << before << fmt::attr< std::string >(name) << after \
 	]
-// #define addIfInteger(name, before, after)
-// 	fmt::if_(flt::has_attr(name))
-// 	[
-// 	fmt::stream << before << fmt::attr< int >(name) << after
-// 	]
 
-	//! Formatter functor
+//! Formatter functor
 	formatter_functor
 	createFormatter(bool timestamp=true) {
 		return fmt::stream
@@ -121,10 +115,6 @@ typedef boost::function2<
 		<< addIfString("method_or_status", " [", "]")
 		<< addIfString("Module", " [", "]")
 		<< addIfString("callid", " [", "]")
-//		<< addIfString("from.uri.user", " [", "")
-//		<< addIfString("from.uri.domain", "@", "")
-//		<< addIfString("to.uri.user", " --> ", "")
-//		<< addIfString("to.uri.domain", "@", "]")
 		<< " : " << EXPR_MESSAGE
 		;
 
@@ -165,7 +155,6 @@ namespace log {
 		boost::shared_ptr< back_type > sink(
 			new back_type(keywords::use_impl = sinks::syslog::native));
 
-//		auto formatter=logging::aux::acquire_formatter(format);
 		SINK_LCK(sink)->set_formatter(createFormatter());
 
 		// We'll have to map our custom levels to the syslog levels
@@ -199,7 +188,7 @@ namespace log {
 	void register_log_factories();
 	void preinit(bool syslog, bool debug) {
 		is_debug=debug;
-		is_syslog=syslog;
+		sUseSyslog=syslog;
 		is_preinit_done=true;
 		ortp_set_log_handler(ortpFlexisipLogHandler);
 		register_log_factories();
@@ -209,7 +198,7 @@ namespace log {
 	}
 
 	void initLogs(bool use_syslog, bool debug) {
-		if (is_syslog != use_syslog) {
+		if (sUseSyslog != use_syslog) {
 			LOGF("Different preinit and init syslog config is not supported.");
 		}
 		if (!is_preinit_done) {
@@ -222,7 +211,7 @@ namespace log {
 
 	static string addDebugToFilterStr(const string &filterstr) {
 		std::ostringstream oss;
-		if (is_debug) {
+		if (sUseSyslog) {
 			// Allow debug level logs
 			oss << "%Severity% >= debug";
 			if (!filterstr.empty()) {
@@ -275,7 +264,8 @@ namespace log {
 
 
 
-#else
+#else /* BOOSTLOG */
+
 #include <syslog.h>
 
 
@@ -335,7 +325,7 @@ namespace log {
 
 	void preinit(bool syslog, bool debug) {
 		is_preinit_done=true;
-		is_syslog=syslog;
+		sUseSyslog=syslog;
 		is_debug=debug;
 		ortp_set_log_file(stdout);
 
@@ -355,7 +345,7 @@ namespace log {
 	}
 
 	void initLogs(bool use_syslog, bool debug) {
-		if (is_syslog != use_syslog) {
+		if (sUseSyslog != use_syslog) {
 			LOGF("Different preinit and init syslog config is not supported.");
 		}
 		if (!is_preinit_done) {
@@ -382,11 +372,11 @@ namespace log {
 	void disableGlobally() {
 		ortp_set_log_level_mask(ORTP_FATAL|ORTP_ERROR);
 	}
-}}
+
+}
+}
 
 
+#endif // ENABLE_BOOSTLOG
 
 
-
-
-#endif
