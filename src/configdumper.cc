@@ -33,7 +33,9 @@ ostream& ConfigDumper::dump_recursive(std::ostream &ostr, const GenericEntry *en
 	if( cs && shouldDumpModule(cs->getName()) ){
 
 		dumpModuleHead(ostr, cs, level);
-		for( GenericEntry* child : cs->getChildren() ){
+
+		for( auto it = cs->getChildren().begin(); it != cs->getChildren().end(); ++it ){
+			GenericEntry* child = *it;
 			dump_recursive(ostr, child, level+1);
 		}
 
