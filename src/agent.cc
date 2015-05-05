@@ -294,7 +294,7 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 	GenericStruct *cr = GenericManager::get()->getRoot();
 
 	EtcHostsResolver::get();
-	
+
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "DoS"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "SanityChecker"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GarbageIn"));
@@ -331,7 +331,10 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 	VERSION
 	" (sofia-sip-nta/" NTA_VERSION ")";
 
-	for_each(mModules.begin(), mModules.end(), [cr](Module* m){ m->declare(cr); } );
+	for (auto it = mModules.begin(); it != mModules.end(); ++it)
+	{
+		(*it)->declare(cr);
+	}
 
 	onDeclare(cr);
 
