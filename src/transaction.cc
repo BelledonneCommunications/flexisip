@@ -94,6 +94,7 @@ void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const 
 		mOutgoing = nta_outgoing_mcreate(mAgent->mAgent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*) this, u, msg, ta_tags(ta),TAG_END());
 		ta_end(ta);
 		if (mOutgoing == NULL) {
+			/*when nta_outgoing_mcreate() fails, we must destroy the message because it won't take the reference*/
 			LOGE("Error during outgoing transaction creation");
 			msg_destroy(msg);
 		} else {
