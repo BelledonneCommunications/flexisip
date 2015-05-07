@@ -640,7 +640,9 @@ int main(int argc, char *argv[]) {
 	}
 
 	su_log_redirect(NULL, sofiaLogHandler, NULL);
-
+	if( useDebug ){
+		su_log_set_level(NULL, 9);
+	}
 	/*
 	 NEVER NEVER create pthreads before this point : threads do not survive the fork below !!!!!!!!!!
 	*/
@@ -654,6 +656,7 @@ int main(int argc, char *argv[]) {
 
 	LOGN("Starting flexisip version %s (git %s)", VERSION, FLEXISIP_GIT_VERSION);
 	GenericManager::get()->sendTrap("Flexisip starting");
+
 	root = su_root_create(NULL);
 	a = make_shared<Agent>(root);
 	a->start(transportsArg.getValue());
