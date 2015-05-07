@@ -216,9 +216,7 @@ public:
 	virtual ~RegistrarDbListener();
 	virtual void onRecordFound(Record *r) = 0;
 	virtual void onError() = 0;
-	virtual void onInvalid() {
-		/*let the registration timeout;*/
-	}
+	virtual void onInvalid() = 0;
 };
 
 

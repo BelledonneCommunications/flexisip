@@ -522,7 +522,7 @@ private ModuleToolbox {
 	friend class ModuleRouter;
 	ModuleRouter *mModule;
 	shared_ptr<RequestSipEvent> mEv;
-	shared_ptr<RegistrarDbListener> listerner;
+	shared_ptr<RegistrarDbListener> mListener;
 	vector< string > mPreroutes;
 	int pending;
 	bool error;
@@ -530,7 +530,7 @@ private ModuleToolbox {
 public:
 	PreroutingFetcher(ModuleRouter *module, shared_ptr<RequestSipEvent> ev,
 					  const shared_ptr<RegistrarDbListener> &listener, const vector<string> &preroutes) :
-	mModule(module), mEv(ev), listerner(listener), mPreroutes(preroutes) {
+	mModule(module), mEv(ev), mListener(listener), mPreroutes(preroutes) {
 		pending = 0;
 		error = false;
 		m_record= new Record("virtual_record");
@@ -566,10 +566,16 @@ public:
 		checkFinished();
 	}
 
+	void onInvalid() {
+		--pending;
+		error = true;
+		checkFinished();
+	}
+
 	void checkFinished() {
 		if (pending != 0) return;
-		if (error) listerner->onError();
-		else listerner->onRecordFound(m_record);
+		if (error) mListener->onError();
+		else mListener->onRecordFound(m_record);
 	}
 };
 
@@ -594,6 +600,11 @@ public:
 	}
 	void onError() {
 		mModule->sendReply(mEv,SIP_500_INTERNAL_SERVER_ERROR);
+	}
+
+	void onInvalid() {
+		LOGD("OnFetchForRoutingListener::onInvalid : 480");
+		mModule->sendReply(mEv, SIP_480_TEMPORARILY_UNAVAILABLE);
 	}
 };
 

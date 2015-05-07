@@ -137,6 +137,10 @@ private:
 		~OnFetchListener() {
 		}
 
+		void onInvalid(){
+			LOGD("GATEWAY: invalid");
+		}
+
 		void onRecordFound(Record *r) {
 			if (r == NULL) {
 				LOGD("Record doesn't exist. Fork");

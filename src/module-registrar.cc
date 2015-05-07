@@ -367,6 +367,11 @@ public:
 	void onError() {
 		mModule->reply(mEv, SIP_500_INTERNAL_SERVER_ERROR);
 	}
+
+	void onInvalid() {
+		LOGE("OnRequestBindListener::onInvalid : 480");
+		mModule->reply(mEv, SIP_480_TEMPORARILY_UNAVAILABLE);
+	}
 };
 
 inline static bool containsNonZeroExpire(const sip_expires_t *main, const sip_contact_t *c) {
@@ -420,6 +425,12 @@ public:
 	void onError() {
 		LOGE("OnResponseBindListener::onError(): 500");
 		mCtx->reqSipEvent->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
+		mEv->terminateProcessing();
+	}
+
+	void onInvalid() {
+		LOGE("OnResponseBindListener::onInvalid: 480");
+		mCtx->reqSipEvent->reply(SIP_480_TEMPORARILY_UNAVAILABLE, TAG_END());
 		mEv->terminateProcessing();
 	}
 };
@@ -599,6 +610,9 @@ public:
 	void onError() {
 		LOGE("Can't add static route: %s", line.c_str());
 	}
+	void onInvalid() {
+		LOGE("OnStaticBindListener onInvalid");
+	}
 };
 
 
@@ -689,6 +703,10 @@ public:
 		}
 	}
 	void onError() {
+	}
+
+	void onInvalid(){
+		LOGD("FakeFetchListener: onInvalid");
 	}
 };
 
