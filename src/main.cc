@@ -483,6 +483,7 @@ int main(int argc, char *argv[]) {
 	TCLAP::SwitchArg            daemonMode("",  "daemon", 				"Launch in daemon mode", cmd);
 	TCLAP::SwitchArg             useSyslog("",  "syslog", 				"Use syslog for logging", cmd);
 	TCLAP::SwitchArg              useDebug("d", "debug", 				"Force debug mode (overrides the configuration)", cmd);
+	TCLAP::SwitchArg           trackAllocs("", "track-allocations",		"Tracks allocations of SIP messages, only use with caution.", cmd);
 	TCLAP::ValueArg<string>     configFile("c", "config", 				"Specify the location of the configuration file", TCLAP::ValueArgOptional, CONFIG_DIR "/flexisip.conf", "/srv/flexisip.conf", cmd);
 	TCLAP::SwitchArg            gitVersion("",  "git-version", 			"Will print the version and the git revision associated with this particular instance of Flexisip", cmd);
 
@@ -701,7 +702,7 @@ int main(int argc, char *argv[]) {
 	presenceServer.start();
 #endif //ENABLE_PRESENCE
 
-	if( debug )
+	if( trackAllocs )
 		msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
 
 	su_timer_t *timer = su_timer_create(su_root_task(root), 5000);
@@ -715,7 +716,8 @@ int main(int argc, char *argv[]) {
 	}
 	su_root_destroy(root);
 	LOGN("Flexisip exiting normally.");
-	dump_remaining_msgs();
+	if( trackAllocs )
+		dump_remaining_msgs();
 	GenericManager::get()->sendTrap("Flexisip exiting normally");
 	return 0;
 }
