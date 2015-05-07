@@ -48,6 +48,7 @@
 #include "configdumper.hh"
 
 #include <sofia-sip/su_log.h>
+#include <sofia-sip/msg.h>
 #ifdef ENABLE_SNMP
 #include "snmp-agent.h"
 #endif
@@ -107,6 +108,29 @@ static void sofiaLogHandler(void *, const char *fmt, va_list ap) {
 
 static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *a) {
 	a->idle();
+}
+
+static std::map<msg_t*, string> msg_map;
+
+static void flexisip_msg_create(msg_t* msg){
+	msg_map[msg] = "";
+	LOGE("New <-> msg %p", msg);
+}
+
+static void flexisip_msg_destroy(msg_t* msg){
+	auto it = msg_map.find(msg);
+	if( it != msg_map.end()){
+		msg_map.erase(it);
+	}
+}
+
+static void dump_remaining_msgs(){
+	LOGE("Remaining messages: %lu", msg_map.size());
+	size_t size;
+	for( auto it = msg_map.begin(); it != msg_map.end(); ++it){
+		size = SIZE_MAX;
+		LOGE("\t- %p\n%s", it->first, msg_as_string(msg_home(it->first), it->first, NULL, 0, &size));
+	}
 }
 
 
@@ -677,6 +701,8 @@ int main(int argc, char *argv[]) {
 	presenceServer.start();
 #endif //ENABLE_PRESENCE
 
+	if( debug )
+		msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
 
 	su_timer_t *timer = su_timer_create(su_root_task(root), 5000);
 	su_timer_set_for_ever(timer, (su_timer_f)timerfunc, a.get());
@@ -689,6 +715,7 @@ int main(int argc, char *argv[]) {
 	}
 	su_root_destroy(root);
 	LOGN("Flexisip exiting normally.");
+	dump_remaining_msgs();
 	GenericManager::get()->sendTrap("Flexisip exiting normally");
 	return 0;
 }
