@@ -33,11 +33,6 @@
 #include "authdb.hh"
 
 using namespace ::std;
-
-#define QOP_AUTH
-// const static int NONCE_EXPIRES=100;
-// const static int NEXT_NONCE_EXPIRES=100;
-
 class Authentication;
 
 struct auth_plugin_t
@@ -135,6 +130,7 @@ public:
 class Authentication : public Module {
 private:
 	class AuthenticationListener : public AuthDbListener {
+		friend class Authentication;
 		Authentication *mModule;
 		shared_ptr<RequestSipEvent> mEv;
 		auth_mod_t *mAm;
@@ -178,6 +174,7 @@ private:
 	bool mImmediateRetrievePassword;
 	bool mNewAuthOn407;
 	bool mTestAccountsEnabled;
+	bool mDisableQOPAuth;
 	list<string> mUseClientCertificates;
 	list< string > mTrustedClientCertificates;
 
@@ -321,6 +318,8 @@ public:
 
 			{	Boolean,		"enable-test-accounts-creation",	"Enable a feature useful for automatic tests, allowing a client to create a temporary account in the password database in memory."
 																	"This MUST not be used for production as it is a real security hole.", "false" },
+
+			{	Boolean,		"disable-qop-auth",					"Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.", "false" },
 			config_item_end
 		};
 		mc->addChildrenValues(items);
@@ -338,36 +337,32 @@ public:
 		int nonceExpires;
 		mDomains=mc->get<ConfigStringList>("auth-domains")->read();
 		nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
+
+		loadTrustedHosts(*mc->get<ConfigStringList>("trusted-hosts"));
+        dbUseHashedPasswords       = mc->get<ConfigBoolean>("hashed-passwords")->read();
+        mImmediateRetrievePassword = true;
+        mNewAuthOn407              = mc->get<ConfigBoolean>("new-auth-on-407")->read();
+        mUseClientCertificates     = mc->get<ConfigStringList>("client-certificates-domains")->read();
+        mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
+        mNo403Expr                 = mc->get<ConfigBooleanExpression>("no-403")->read();
+        mTestAccountsEnabled       = mc->get<ConfigBoolean>("enable-test-accounts-creation")->read();
+        mDisableQOPAuth            = mc->get<ConfigBoolean>("disable-qop-auth")->read();
+		mNonceStore.setNonceExpires(nonceExpires);
+
 		for (it=mDomains.begin();it!=mDomains.end();++it){
-			mAuthModules[*it] = auth_mod_create(NULL,
-									AUTHTAG_METHOD("odbc"),
-									AUTHTAG_REALM((*it).c_str()),
-									AUTHTAG_OPAQUE("+GNywA=="),
-#ifdef QOP_AUTH
-									AUTHTAG_QOP("auth"),
-									AUTHTAG_EXPIRES(nonceExpires), // in seconds
-									AUTHTAG_NEXT_EXPIRES(nonceExpires), // in seconds
-#endif
-									AUTHTAG_FORBIDDEN(1),
-									AUTHTAG_ALLOW("ACK CANCEL BYE"),
-									TAG_END());
-			auth_plugin_t *ap = AUTH_PLUGIN(mAuthModules[*it]);
-			ap->mModule = this;
+			auto domain = *it;
+
+            mAuthModules[*it] = createAuthModule(domain, nonceExpires);
+            auth_plugin_t *ap = AUTH_PLUGIN(mAuthModules[*it]);
+            ap->mModule       = this;
+
 			LOGI("Found auth domain: %s",(*it).c_str());
 			if (mAuthModules[*it] == NULL) {
 				LOGE("Cannot create auth module odbc");
 			}
 		}
 
-		loadTrustedHosts(*mc->get<ConfigStringList>("trusted-hosts"));
-		dbUseHashedPasswords = mc->get<ConfigBoolean>("hashed-passwords")->read();
-		mImmediateRetrievePassword = true; //mc->get<ConfigBoolean>("immediate-retrieve-password")->read();
-		mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
-		mUseClientCertificates = mc->get<ConfigStringList>("client-certificates-domains")->read();
-		mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
-		mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
-		mNonceStore.setNonceExpires(nonceExpires);
-		mTestAccountsEnabled=mc->get<ConfigBoolean>("enable-test-accounts-creation")->read();
+
 	}
 
 	auth_mod_t *findAuthModule(const char *name) {
@@ -377,6 +372,29 @@ public:
 			return NULL;
 		}
 		return it->second;
+	}
+
+	auth_mod_t* createAuthModule(const std::string& domain, int nonceExpires){
+		if(mDisableQOPAuth){
+			return auth_mod_create(NULL,
+								   AUTHTAG_METHOD("odbc"),
+								   AUTHTAG_REALM(domain.c_str()),
+								   AUTHTAG_OPAQUE("+GNywA=="),
+								   AUTHTAG_FORBIDDEN(1),
+								   AUTHTAG_ALLOW("ACK CANCEL BYE"),
+								   TAG_END());
+		} else {
+			return auth_mod_create(NULL,
+								   AUTHTAG_METHOD("odbc"),
+								   AUTHTAG_REALM(domain.c_str()),
+								   AUTHTAG_OPAQUE("+GNywA=="),
+								   AUTHTAG_QOP("auth"),
+								   AUTHTAG_EXPIRES(nonceExpires), // in seconds
+								   AUTHTAG_NEXT_EXPIRES(nonceExpires), // in seconds
+								   AUTHTAG_FORBIDDEN(1),
+								   AUTHTAG_ALLOW("ACK CANCEL BYE"),
+								   TAG_END());
+		}
 	}
 
 	static bool containsDomain(const list<string> &d, const char *name) {
@@ -722,9 +740,6 @@ void Authentication::AuthenticationListener::onError() {
 
 
 
-
-
-
 #define PA "Authorization missing "
 
 /** Verify digest authentication */
@@ -747,9 +762,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 	char const *phrase = "Bad authorization ";
 	if ((!ar->ar_username && (phrase = PA "username")) ||
 			(!ar->ar_nonce && (phrase = PA "nonce")) ||
-#ifdef QOP_AUTH
-			(!ar->ar_nc && (phrase = PA "nonce count")) ||
-#endif
+			(!listener->mModule->mDisableQOPAuth && !ar->ar_nc && (phrase = PA "nonce count")) ||
 			(!ar->ar_uri && (phrase = PA "URI")) ||
 			(!ar->ar_response && (phrase = PA "response")) ||
 			/* (!ar->ar_opaque && (phrase = PA "opaque")) || */
@@ -798,20 +811,20 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		return;
 	}
 
-#ifdef QOP_AUTH
-	int pnc=module->mNonceStore.getNc(ar->ar_nonce);
-	int nnc = (int) strtoul(ar->ar_nc, NULL, 16);
-	if (pnc == -1 || pnc >= nnc) {
-		LOGE("Bad nonce count %d -> %d for %s", pnc, nnc, ar->ar_nonce);
-		as->as_blacklist = am->am_blacklist;
-		auth_challenge_digest(am, as, ach);
-		module->mNonceStore.insert(as->as_response);
-		listener->finish();
-		return;
-	} else {
-		module->mNonceStore.updateNc(ar->ar_nonce, nnc);
+	if( !listener->mModule->mDisableQOPAuth ){
+		int pnc=module->mNonceStore.getNc(ar->ar_nonce);
+		int nnc = (int) strtoul(ar->ar_nc, NULL, 16);
+		if (pnc == -1 || pnc >= nnc) {
+			LOGE("Bad nonce count %d -> %d for %s", pnc, nnc, ar->ar_nonce);
+			as->as_blacklist = am->am_blacklist;
+			auth_challenge_digest(am, as, ach);
+			module->mNonceStore.insert(as->as_response);
+			listener->finish();
+			return;
+		} else {
+			module->mNonceStore.updateNc(ar->ar_nonce, nnc);
+		}
 	}
-#endif
 
 	AuthDb::get()->getPassword(listener->getRoot(), as->as_user_uri, ar->ar_username, listener);
 }
