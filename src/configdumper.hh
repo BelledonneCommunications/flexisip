@@ -49,7 +49,7 @@ protected:
 	 * @param ostr output stream
 	 * @param moduleHead the module configuration entry
 	 * @param level When the entry is not the root entry, this represents the current recursive level (>0)
-	 * @return
+	 * @return the output stream
 	 */
 	virtual std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct* moduleHead, int level) const = 0;
 
@@ -59,8 +59,25 @@ protected:
 	 * @param moduleHead the value configuration entry
 	 * @param level When the entry is not the root entry, this represents the current recursive level (>0).
 	 *		You can use this to perform the necessary indentation into the output stream.
+	 * @return the output stream
 	 */
 	virtual std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue* value, int level) const = 0;
+
+	/**
+	 * @brief Called when the module has finished dumping all the values.
+	 *
+	 * This allows to close some anchors that might have been needed for tabular representation.
+	 * Since this is not strictly required, the function is implemented in the basic dumper as a noop.
+	 *
+	 * @param ostr output stream
+	 * @param module the module that was dumped
+	 * @param level recursion level
+	 * @return the output stream
+	 */
+	virtual std::ostream &dumpModuleEnd(std::ostream &ostr, const GenericStruct* module, int level) const {
+		return ostr;
+	}
+
 
 	/**
 	 * Will tell if the module should be dumped. If the module is experimental and the dumpExperimental flag is
@@ -104,8 +121,6 @@ public:
 	TexFileConfigDumper(GenericEntry *root) : ConfigDumper(root) {
 	}
 private:
-	std::string formatTitle(const std::string &strc) const;
-
 	std::string escape(const std::string &strc) const;
 protected:
 	virtual std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct* moduleHead, int level) const;
@@ -116,15 +131,22 @@ protected:
 class DokuwikiConfigDumper : public ConfigDumper
 {
 public:
-	DokuwikiConfigDumper(GenericEntry *root) : ConfigDumper(root) {
-	}
-
-private:
-	std::string   formatTitle(const std::string &strc) const;
+	DokuwikiConfigDumper(GenericEntry *root) : ConfigDumper(root) {}
 
 protected:
 	virtual std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct* moduleHead, int level) const;
 	virtual std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue* value, int level) const;
+};
+
+class MediaWikiConfigDumper : public ConfigDumper
+{
+public:
+	MediaWikiConfigDumper(GenericEntry* root) : ConfigDumper(root) {}
+
+protected:
+	virtual std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct* moduleHead, int level) const;
+	virtual std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue* value, int level) const;
+	virtual std::ostream &dumpModuleEnd(std::ostream &ostr, const GenericStruct* value, int level) const;
 };
 
 

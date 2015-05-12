@@ -39,6 +39,8 @@ ostream& ConfigDumper::dump_recursive(std::ostream &ostr, const GenericEntry *en
 			dump_recursive(ostr, child, level+1);
 		}
 
+		dumpModuleEnd(ostr, cs, level);
+
 	} else if( value ){
 
 		dumpModuleValue(ostr, value, level);
@@ -199,9 +201,9 @@ ostream& DokuwikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigV
 		escaper(help, '`', "'' ");
 		string_escaper(help, ". ", ".\\\\ ");
 
-		ostr << "|" << "**" << val->getName() << "**"
+		ostr << "|" << "'''" << val->getName() << "'''"
 		<< " | " << help
-		<< " | " << "''" << val->getDefault() << "''"
+		<< " | " << "<code>" << val->getDefault() << "</code>"
 		<< " | " << val->getTypeName()
 		<< " | " << endl;
 
@@ -219,6 +221,50 @@ ostream& DokuwikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericS
 	return ostr;
 }
 
+/* MediaWiki */
+
+ostream& MediaWikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, int level) const {
+	// we have a generic struc: we're on top level: get module name and description
+	ostr << "====" << cs->getPrettyName() << "====" << endl;
+	ostr << endl << cs->getHelp() << endl;
+	ostr << "----" << endl;
+	ostr << endl << "Configuration options:" << endl;
+
+	ostr << "{| border=\"1\" cellpadding=\"6\" style=\"border-collapse:collapse;\"" << endl;
+	ostr << "!Name" << endl;
+	ostr << "!Description" << endl;
+	ostr << "!Default Value" << endl;
+	ostr << "!Type" << endl;
+
+	return ostr;
+}
+
+ostream& MediaWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, int level) const {
+	if(!val->isDeprecated()){
+
+		// MediaWiki handles line breaks with double backspaces
+		string help = val->getHelp();
+		escaper(help, '\n', "<br/> ");
+		escaper(help, '`', "'' ");
+		string_escaper(help, ". ", ".<br/> ");
+
+		ostr
+		<< "|-" << endl // entry marker
+		<< "|'''" << val->getName() << "'''" << endl
+		<< "|" << help << endl
+		<< "|" << "<code>" << val->getDefault() << "</code>" << endl
+		<< "|" << val->getTypeName() << endl;
+
+	}
+	return ostr;
+}
+
+ostream& MediaWikiConfigDumper::dumpModuleEnd(std::ostream &ostr, const GenericStruct *cs, int level) const {
+
+	ostr << "|}" << endl;
+
+	return ostr;
+}
 
 /* MIB */
 

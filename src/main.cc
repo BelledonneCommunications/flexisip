@@ -446,6 +446,8 @@ static int dump_config(su_root_t* root, const std::string& dump_cfg_part, bool w
 		dumper = new DokuwikiConfigDumper(rootStruct);
 	} else if (format == "file") {
 		dumper = new FileConfigDumper(rootStruct);
+	} else if (format == "media") {
+		dumper = new MediaWikiConfigDumper(rootStruct);
 	} else {
 		cerr << "Invalid output format '" << format << "'" << endl;
 		return EXIT_FAILURE;
@@ -487,7 +489,7 @@ int main(int argc, char *argv[]) {
 
 	TCLAP::SwitchArg              dumpMibs("",  "dump-mibs", 			"Will dump the MIB files for Flexisip performance counters and other related SNMP items.", cmd);
 	TCLAP::ValueArg<string>    dumpDefault("",  "dump-default",			"Dump default config, with specifier for the module to dump. Use 'all' to dump all modules.", TCLAP::ValueArgOptional, "", "module::Router", cmd);
-	TCLAP::ValueArg<string>     dumpFormat("",  "dump-format",			"Select the format in which the dump-default will print. The default is 'file'. Possible values are: file, tex, doku", TCLAP::ValueArgOptional, "file", "file", cmd);
+	TCLAP::ValueArg<string>     dumpFormat("",  "dump-format",			"Select the format in which the dump-default will print. The default is 'file'. Possible values are: file, tex, doku, media", TCLAP::ValueArgOptional, "file", "file", cmd);
 	TCLAP::SwitchArg           listModules("",  "list-modules", 		"Will print a list of available modules. This is useful if you want to combine with --dump-default to have specific documentation for a module", cmd);
 	TCLAP::SwitchArg   displayExperimental("",  "show-experimental",	"Use in conjunction with --dump-default: will dump the configuration for a module even if it is marked as experiemental", cmd);
 
