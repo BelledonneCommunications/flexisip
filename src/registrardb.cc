@@ -96,6 +96,7 @@ bool Record::isInvalidRegister(const char *call_id, uint32_t cseq) {
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		shared_ptr<ExtendedContact> ec = (*it);
 		if ((0 == strcmp(ec->callId(), call_id)) && cseq <= ec->mCSeq) {
+			LOGD("CallID %s already registered with CSeq %d (received %d)", call_id, ec->mCSeq, cseq);
 			return true;
 		}
 	}
