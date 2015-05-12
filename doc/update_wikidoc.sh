@@ -17,7 +17,7 @@ do
 	echo "Doc for module $module -> $modulename.txt"
 	$FLEXISIP --dump-format doku --dump-default $module > $modulename.doku.txt
 	$FLEXISIP --dump-format media --dump-default $module > $modulename.media.txt
-	python dokuwiki.py $modulename $modulename.doku.txt $message
-	python mediawiki.py $modulename $modulename.media.txt $message
+	python dk.py $modulename $modulename.doku.txt $message
+	python mw.py $modulename $modulename.media.txt $message
 	rm $modulename.doku.txt $modulename.media.txt
 done
