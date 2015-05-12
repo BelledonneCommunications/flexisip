@@ -16,6 +16,7 @@ do
 	modulename=`echo $module | sed 's/module:://g'`
 	echo "Doc for module $module -> $modulename.txt"
 	$FLEXISIP --dump-format doku --dump-default $module > $modulename.txt
-	python flexiwiki.py $modulename $modulename.txt $message
+	python dokuwiki.py $modulename $modulename.txt $message
+	python mediawiki.py $modulename $modulename.txt $message
 	rm $modulename.txt
 done

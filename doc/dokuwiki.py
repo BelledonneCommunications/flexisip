@@ -6,14 +6,14 @@ import ConfigParser, os
 default_host= 'https://linphone.org/wiki'
 
 # read from a configuration file for user/pass/host. This allows for out-of-cli specification of these parameters.
-config_file     = '~/.flexiwiki.cfg'
+config_file     = '~/.flexiwiki.doku.cfg'
 config_section  = 'main'
 config_password = None
 config_user     = None
 config_host     = None
 try:
 	config = ConfigParser.ConfigParser()
-	config.read( os.path.expanduser('~/.flexiwiki.cfg') )
+	config.read( os.path.expanduser(config_file) )
 	config_password = config.get(config_section, 'password')
 	config_user     = config.get(config_section, 'username')
 	config_host     = config.get(config_section, 'host')
@@ -37,6 +37,15 @@ args.message = ' '.join(args.message)
 args.modulename = 'flexisip:module:' + str.lower(args.modulename)
 
 # require a password for XMLRPC
+if args.config_password not in [None, '']:
+	config_password = args.config_password
+
+if args.config_user not in [None, '']:
+	config_user = args.config_user
+
+if args.host not in [None, '']:
+	config_host = args.host
+
 if config_password is None or config_password is '':
 	print "Please define a password using " + config_file + " or using the --password option"
 	print "Example of " + config_file +" :"
