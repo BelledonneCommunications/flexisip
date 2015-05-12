@@ -30,6 +30,7 @@ using namespace std;
 
 class FlexisipException: public exception {
 public:
+
 	FlexisipException();
 	FlexisipException(string& message);
 	FlexisipException(const char* message);
@@ -45,7 +46,7 @@ public:
 	const char* what() throw ();
 	const std::string str() const;
 	
-	/* same as osstringstream, but as osstream does not have cp contructor, FlexisipException can't hinerite from osstream*/
+	/* same as osstringstream, but as osstream does not have cp contructor, FlexisipException can't inherit from osstream*/
 	template<typename T2>  FlexisipException& operator<< (const T2& val){
 		mOs << val;
 		return *this;

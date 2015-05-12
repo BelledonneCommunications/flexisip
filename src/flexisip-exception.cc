@@ -31,7 +31,9 @@ static void uncaught_handler () {
 	}
 	abort();
 }
+
 FlexisipException e;
+
 
 FlexisipException::FlexisipException(const char* message): mOffset(1){
 	mSize = backtrace(mArray, sizeof(mArray)/sizeof(void*));
@@ -41,6 +43,8 @@ FlexisipException::FlexisipException(const char* message): mOffset(1){
 #endif
 		set_terminate(uncaught_handler); //invoke in case of uncautch exception for this thread
 }
+
+
 #if __cplusplus > 199711L
 FlexisipException::FlexisipException(string& msg): FlexisipException(msg.c_str()){
 	mOffset++;
@@ -56,6 +60,8 @@ FlexisipException::FlexisipException(string& message): mOffset(1){
 FlexisipException::~FlexisipException() throw (){
 	//nop
 }
+
+
 #if __cplusplus > 199711L
 FlexisipException::FlexisipException(): FlexisipException(""){
 	mOffset++;
@@ -67,9 +73,8 @@ FlexisipException::FlexisipException(): mOffset(1){
 	set_terminate(uncaught_handler); //invoke in case of uncautch exception for this thread
 }
 #endif
-/*FlexisipException::FlexisipException(FlexisipException&& other) {
-	FlexisipException(other);
-}*/
+
+
 FlexisipException::FlexisipException(const FlexisipException& other ) {
 	mOffset=other.mOffset;
 	memcpy(mArray,other.mArray,sizeof(mArray));
@@ -77,18 +82,18 @@ FlexisipException::FlexisipException(const FlexisipException& other ) {
 	mOs << other.str();
 	mWhat=other.mWhat;
 }
-void FlexisipException::printStackTrace() const {
 
-	 backtrace_symbols_fd(mArray+mOffset, mSize-mOffset, STDERR_FILENO);
- }
+void FlexisipException::printStackTrace() const {
+	backtrace_symbols_fd(mArray+mOffset, mSize-mOffset, STDERR_FILENO);
+}
 
 void FlexisipException::printStackTrace(std::ostream & os) const {
- 	 char** bt = backtrace_symbols(mArray,mSize);
- 	 for (unsigned  int i = mOffset; i < mSize; ++i) {
- 		os << bt[i] <<endl;
- 	  }
- 	delete (bt);
- }
+	char** bt = backtrace_symbols(mArray,mSize);
+	for (unsigned  int i = mOffset; i < mSize; ++i) {
+		os << bt[i] <<endl;
+	}
+	delete (bt);
+}
 
 const std::string FlexisipException::str() const {
 	return mOs.str();
@@ -99,30 +104,9 @@ const char* FlexisipException::what() throw () {
 }
 
 
-
 //Class Flexisip
 std::ostream& operator<<(std::ostream& __os,const FlexisipException& e) {
 	__os << e.str() << std::endl;
 	e.printStackTrace(__os);
 	return __os;
 }
-/*
-FlexisipException::FlexisipException() :FlexisipExceptionBase(){
-	
-}
-FlexisipException::FlexisipException(string& message):FlexisipExceptionBase(message){
-	
-}
-
-FlexisipException::FlexisipException(const char* message):FlexisipExceptionBase<FlexisipException>(message){
-	
-}
-
- FlexisipException::~FlexisipException() throw (){
-	
-}
-FlexisipException::FlexisipException(const FlexisipException& other ) : FlexisipExceptionBase(other){
-	
-}
-*/
-

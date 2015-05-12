@@ -58,6 +58,7 @@ struct ExtendedContactCommon {
 struct ExtendedContact {
 	class Record;
 	friend class Record;
+
 	std::string mContactId;
 	std::string mCallId;
 	std::string mUniqueId;
@@ -136,11 +137,7 @@ struct ExtendedContact {
 
 	sip_contact_t *toSofia(su_home_t *home, time_t now) const;
 };
-/*
-std::ostream &operator<<(std::ostream & stream, const ExtendedContact &ec) {
-	return stream;
-}
-*/
+
 
 
 class Record {
@@ -211,6 +208,9 @@ inline std::basic_ostream< char, TraitsT >& operator<< (
 }
 
 
+/**
+ * A pure virtual class that is used by the registrarDB to notify the
+ */
 class RegistrarDbListener: public StatFinishListener {
 public:
 	virtual ~RegistrarDbListener();
@@ -256,6 +256,7 @@ public:
 		doBind(mainParams, listener);
 	}
 	void bind(const sip_t *sip, int globalExpire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener) {
+
 		BindParameters mainParams(
 			BindParameters::SipParams(
 				sip->sip_from->a_url,

@@ -125,7 +125,7 @@ static bool is_end_line_character(char c) {
  * For instance:
  * <code>parseKeyValue("toto:tata\nfoo:bar", '\n', ':', '#')</code>
  * will give you:
- * { make_pair("toto","tata"), make_pair("foo", "bar") }
+ * <code>{ make_pair("toto","tata"), make_pair("foo", "bar") }</code>
  *
  * @param toParse the string to parse
  * @param delimiter the delimiter between key and value (default is ':')
