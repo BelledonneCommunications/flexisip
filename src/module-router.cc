@@ -603,8 +603,8 @@ public:
 	}
 
 	void onInvalid() {
-		LOGD("OnFetchForRoutingListener::onInvalid : 480");
-		mModule->sendReply(mEv, SIP_480_TEMPORARILY_UNAVAILABLE);
+		LOGD("OnFetchForRoutingListener::onInvalid : 400 - Replayed CSeq");
+		mModule->sendReply(mEv, 400, "Replayed CSeq");
 	}
 };
 

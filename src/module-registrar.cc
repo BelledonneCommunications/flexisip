@@ -369,8 +369,8 @@ public:
 	}
 
 	void onInvalid() {
-		LOGE("OnRequestBindListener::onInvalid : 480");
-		mModule->reply(mEv, SIP_480_TEMPORARILY_UNAVAILABLE);
+		LOGE("OnRequestBindListener::onInvalid : 400 - Replayed CSeq");
+		mModule->reply(mEv, 400, "Replayed CSeq");
 	}
 };
 
@@ -429,8 +429,8 @@ public:
 	}
 
 	void onInvalid() {
-		LOGE("OnResponseBindListener::onInvalid: 480");
-		mCtx->reqSipEvent->reply(SIP_480_TEMPORARILY_UNAVAILABLE, TAG_END());
+		LOGE("OnResponseBindListener::onInvalid: 400 - Replayed CSeq");
+		mCtx->reqSipEvent->reply(400, "Replayed CSeq", TAG_END());
 		mEv->terminateProcessing();
 	}
 };
