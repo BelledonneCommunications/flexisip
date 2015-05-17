@@ -31,10 +31,10 @@ typedef struct DosContext {
 	double packet_count_rate;
 } DosContext;
 
-class ModuleDoS: public Module, ModuleToolbox {
+class DoSProtection: public Module, ModuleToolbox {
 
 private:
-	static ModuleInfo<ModuleDoS> sInfo;
+	static ModuleInfo<DoSProtection> sInfo;
 	int mTimePeriod;
 	int mPacketRateLimit;
 	int mBanTime;
@@ -42,8 +42,8 @@ private:
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
-			{ Integer , "time-period", "Number of milliseconds to calculate the packet rate", "3000"},
-			{ Integer , "packet-rate-limit", "Maximum packet rate received in [time-period] millisecond(s) to consider to consider it a DoS attack.", "10"},
+			{ Integer , "time-period", "Number of milliseconds to consider to compute the packet rate", "3000"},
+			{ Integer , "packet-rate-limit", "Maximum packet rate received in [time-period] millisecond(s) to consider it as a DoS attack.", "20"},
 			{ Integer , "ban-time", "Number of minutes to ban the ip/port using iptables (might be less because it justs uses the minutes of the clock, not the seconds. So if the unban command is queued at 13:11:56 and scheduled and the ban time is 1 minute, it will be executed at 13:12:00)", "2"},
 			config_item_end
 		};
@@ -60,6 +60,10 @@ private:
 		if (primaries == NULL) LOGF("No sip transport defined.");
 		for(tport_t *tport = primaries; tport != NULL; tport = tport_next(tport)) {
 			tport_set_params(tport, TPTAG_DOS(mTimePeriod), TAG_END());
+		}
+		if (getuid() != 0) {
+			LOGE("Flexisip not started with root privileges! iptables commands for DoS protection won't work.");
+			return;
 		}
 	}
 
@@ -84,13 +88,15 @@ private:
 			sockaddr *addr = NULL;
 			char ip[NI_MAXHOST], port[NI_MAXSERV];
 			char iptables_cmd[512];
+			int err;
+			
 			msg_get_address(msgSip->getMsg(), su, &len);
 			addr = &(su[0].su_sa);
 			
-			if (addr != NULL && getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
+			if (addr != NULL && (err=getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV)) == 0) {
 				string id = string(ip) + ":" + string(port);
 				struct timeval now;
-				DosContext dosContext = mDosContexts[id];
+				DosContext &dosContext = mDosContexts[id];
 				double now_in_millis, time_elapsed;
 				
 				dosContext.recv_msg_count_since_last_check++;
@@ -112,21 +118,16 @@ private:
 				}
 				
 				if (dosContext.packet_count_rate >= mPacketRateLimit) {
-					if (getuid() != 0) {
-						LOGE("Flexisip not started with root privileges! Can't add iptables rule");
-						return;
-					}
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol udp for %i minutes", dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p udp -s %s -m multiport --sports %s -j DROP && echo \"iptables -D INPUT -p udp -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes", 
 						ip, port, ip, port, mBanTime);
-					if(system(iptables_cmd) != 0) {
-						LOGW("iptables command failed");
+					if (system(iptables_cmd) != 0) {
+						LOGW("iptables command failed: %s", strerror(errno));
 					}
 					dosContext.packet_count_rate = 0; // Reset it to not add the iptables rule twice by mistake
+					ev->terminateProcessing(); //the event is discarded
 				}
-				
-				mDosContexts[id] = dosContext;
-			}
+			}else LOGW("getnameinfo() failed: %s", gai_strerror(err));
 		} else {
 			float packet_count_rate = tport_get_packet_count_rate(tport);
 			if (packet_count_rate >= mPacketRateLimit) {
@@ -134,16 +135,13 @@ private:
 				sockaddr *addr = tport_get_address(tport)->ai_addr;
 				socklen_t len = tport_get_address(tport)->ai_addrlen;
 				char ip[NI_MAXHOST], port[NI_MAXSERV];
+				
 				if (getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
-					if (getuid() != 0) {
-						LOGE("Flexisip not started with root privileges! Can't add iptables rule");
-						return;
-					}
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes", packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p tcp -s %s -m multiport --sports %s -j DROP && echo \"iptables -D INPUT -p tcp -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes", 
 						ip, port, ip, port, mBanTime);
-					if(system(iptables_cmd) != 0) {
-						LOGW("iptables command failed");
+					if (system(iptables_cmd) != 0) {
+						LOGW("iptables command failed: %s", strerror(errno));
 					}
 				}
 				
@@ -157,17 +155,17 @@ private:
 	};
 
 public:
-		ModuleDoS(Agent *ag) : Module(ag) {
+		DoSProtection(Agent *ag) : Module(ag) {
 			
 		}
 
-		~ModuleDoS() {
+		~DoSProtection() {
 			
 		}
 };
 
-ModuleInfo<ModuleDoS> ModuleDoS::sInfo("DoS",
+ModuleInfo<DoSProtection> DoSProtection::sInfo("DoSProtection",
 		"This module bans user when they are sending too much packets on a given timelapse"
 		"To see the list of currently banned ips/ports, use iptables -L"
 		"You can also check the queue of unban commands using atq",
-		ModuleInfoBase::ModuleOid::DoS);
+		ModuleInfoBase::ModuleOid::DoSProtection);

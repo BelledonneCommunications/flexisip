@@ -73,7 +73,7 @@ class ModuleInfoBase {
 		ModuleType_e type() const { return mType; }
 
 		enum ModuleOid {
-			DoS=2,
+			DoSProtection=2,
 			SanityChecker=3,
 			GarbageIn=5,
 			NatHelper=30,

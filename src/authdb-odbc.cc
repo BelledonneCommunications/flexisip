@@ -265,13 +265,17 @@ OdbcAuthDb::OdbcAuthDb() :
 		envError("SQLSetEnvAttr ODBCv3");
 		LOGF("odbc error");
 	}
-
+	/*SM: remove this code, because it blocks flexisip entirely at startup if the database is not responding.
+	 * Furthermore, the lt_dlopen() related bugs are workaround now in unixodbc.
+	 **/
+#if 0
 	// Make sure the driver library is loaded.
 	// Workaround odbc errors while loading .so connector library.
 	AuthDbTimings timings;
 	ConnectionCtx ctx;
 	string init="init";
 	getConnection(init, ctx, timings);
+#endif
 }
 
 void OdbcAuthDb::setExecuteDirect(const bool value) {
