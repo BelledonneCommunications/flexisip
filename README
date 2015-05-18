@@ -1,17 +1,24 @@
 Flexisip is general purpose SIP proxy with media capabilities.
 It is released under the AGPL v3. Please understand the terms of AGPL in COPYING before deploying it.
 
+
+Compilation
+---------------------
+
 Flexisip depends on the following externals:
 - oRTP
-- sofia-sip library, 'bc' branch maintained by belledonne communications
-- mediastreamer2 (optionaly use --disable-trancoder if not present)
-- xsd (>= 4, for old OS on which this version isn't packaged, rpm and deb available here: http://www.codesynthesis.com/products/xsd/download.xhtml)
+- sofia-sip library, 'bc' branch maintained by belledonne communications. 
+  You can clone it from git://git.linphone.org/sofia-sip -b bc
 
-The correct sofia-sip version can be found using:
-$ git clone -b bc git://git.linphone.org/sofia-sip.git
-This version contains various fixes done on top of the official sofia-sip repository.
+- mediastreamer2 (optional, use --disable-trancoder if not present)
+- xsd (>= 4, for old OS on which this version isn't packaged, rpm and deb 
+  are available here: http://www.codesynthesis.com/products/xsd/download.xhtml)
 
 - autotools, libtool
+
+It is recommended that you compile and install flexisip and the dependencies 
+in a prefix, so that they don't interfere with legitimate versions installed 
+in your system.
 
 Optionally it also depends on:
 - net-snmp
@@ -20,12 +27,26 @@ Optionally it also depends on:
 - protobuf
 - boost::Log
 
+You can issue ./configure --help to specify these up.
 
-To configure Flexisip, copy and modify file flexisip.conf.sample to flexisip.conf in directory <prefix>/etc/flexisip
+
+
+Configuration
+---------------------
+
+Flexisip needs a configuration file for running correctly.
+You can either:
+- copy and modify file flexisip.conf.sample to flexisip.conf in directory <prefix>/etc/flexisip
+- or issue `flexisip --dump-config all > flexisip.conf` in a terminal 
+  to generate a configuration file with the default values.
 
 
 ODBC
---------------------
+---------------------
+
+ODBC allows you to use a database for authentication. 
+Some tuning is possible to allow for better performances.
+
 Enable pooling in odbc.ini and use a thread safe driver.
 Use ODBCINI and ODBCSYSINI environement variable to override ini files location.
 The connection string defined in authentication section of flexisip.conf may use
@@ -42,7 +63,6 @@ Password     = password
 Database     = flexisip
 Option       = 4
 Socket       =
-
 
 
 Developer notes:
