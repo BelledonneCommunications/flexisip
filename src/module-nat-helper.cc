@@ -25,10 +25,10 @@ using namespace ::std;
 
 class NatHelper : public Module, protected ModuleToolbox{
 	public:
-		NatHelper(Agent *ag) : Module(ag){
-		}
-		~NatHelper(){
-		}
+		NatHelper(Agent *ag) : Module(ag){}
+	
+		~NatHelper(){}
+
 		virtual void onRequest(shared_ptr<RequestSipEvent> &ev) {
 			shared_ptr<MsgSip> ms = ev->getMsgSip();
 			sip_t *sip=ms->getSip();

@@ -31,6 +31,8 @@ EtcHostsResolver::EtcHostsResolver(){
 		LOGE("Could not open /etc/hosts");
 		return;
 	}
+
+	/* Parse the /etc/hosts file */
 	while(fgets(line,sizeof(line)-1,f)!=NULL){
 		char ip[256];
 		char name[256];

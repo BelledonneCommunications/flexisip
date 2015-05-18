@@ -245,9 +245,11 @@ void RegistrarDbRedisAsync::tryReconnect()
 	}
 }
 
-void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply){
 
-	/*LOGD("Reply for replication INFO \n%s\n", reply );*/
+/* This callback is called when the Redis instance answered our "INFO replication" message.
+ * We parse the response to determine if we are connected to the master Redis instance or
+ * a slave, and we react accordingly. */
+void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply){
 
 	auto replyMap = parseKeyValue(reply);
 	if( replyMap.find("role") != replyMap.end() ){
@@ -259,17 +261,17 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply){
 		} else if( role == "slave" ){
 
 			// woops, we are connected to a slave. We should go to the master
-			string masterAddress = replyMap["master_host"];
-			int masterPort = atoi(replyMap["master_port"].c_str());
-			string masterStatus = replyMap["master_link_status"];
+            string masterAddress = replyMap["master_host"];
+            int masterPort       = atoi(replyMap["master_port"].c_str());
+            string masterStatus  = replyMap["master_link_status"];
 
 			LOGW("Our redis instance is a slave of %s:%d", masterAddress.c_str(), masterPort);
 			if( masterStatus == "up" ){
 				SLOGW << "Master is up, will attempt to connect to the master";
 
-				sDomain = masterAddress;
-				sPort = masterPort;
-				bShouldReconnect = true;
+                sDomain          = masterAddress;
+                sPort            = masterPort;
+                bShouldReconnect = true;
 
 				disconnect();
 			} else {

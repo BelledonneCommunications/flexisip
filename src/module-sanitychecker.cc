@@ -44,6 +44,7 @@ public:
 	}
 
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev){
+		// don't check our responses ;)
 	}
 
 	void onDeclare(GenericStruct *mc) {
