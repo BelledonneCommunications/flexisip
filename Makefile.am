@@ -1,3 +1,8 @@
+#Copying and distribution of this file, with or without modification,
+#are permitted in any medium without royalty provided the copyright
+#notice and this notice are preserved.  This file is offered as-is,
+#without any warranty
+
 # VERSION is like 0.6.0
 #VERSION2 is like 0.6.0-19g46486486 or a simple string
 

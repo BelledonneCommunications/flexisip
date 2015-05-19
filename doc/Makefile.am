@@ -1,9 +1,16 @@
+#Copying and distribution of this file, with or without modification,
+#are permitted in any medium without royalty provided the copyright
+#notice and this notice are preserved.  This file is offered as-is,
+#without any warranty
+
 EXTRA_DIST=	latex_include_generator.sh \
 		schema_archi_flexisip_active-active.pdf \
 		schema_archi_flexisip_dead-active.pdf \
 		schema_archi_flexisip_active-active.svg \
 		schema_archi_flexisip_dead-active.svg \
-		bc_logo.png
+		bc_logo.png \
+		GFDL.txt \
+		README
 
 guide=flexisip_guide
 guide_tex=$(srcdir)/${guide}.tex

@@ -3,7 +3,7 @@
 
 
 #  Flexisip, a flexible SIP proxy server with media capabilities.
-#  Copyright (C) 2010  Belledonne Communications SARL.
+#  Copyright (C) 2010-2015  Belledonne Communications SARL.
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU Affero General Public License as

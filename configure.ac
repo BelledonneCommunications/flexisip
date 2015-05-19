@@ -1,9 +1,26 @@
+dnl
+dnl     Flexisip, a flexible SIP proxy server with media capabilities.
+dnl    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+dnl
+dnl    This program is free software: you can redistribute it and/or modify
+dnl    it under the terms of the GNU Affero General Public License as
+dnl    published by the Free Software Foundation, either version 3 of the
+dnl    License, or (at your option) any later version.
+dnl
+dnl    This program is distributed in the hope that it will be useful,
+dnl    but WITHOUT ANY WARRANTY; without even the implied warranty of
+dnl    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+dnl    GNU Affero General Public License for more details.
+dnl
+dnl    You should have received a copy of the GNU Affero General Public License
+dnl    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.61])
 
-AC_INIT([flexisip], [0.8.0], [simon.morlat@linphone.org])
+AC_INIT([flexisip], [0.8.1], [simon.morlat@linphone.org])
 
 AC_CONFIG_SRCDIR([src/agent.cc])
 AC_CONFIG_HEADERS([flexisip-config.h])

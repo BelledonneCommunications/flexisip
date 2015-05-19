@@ -1,31 +1,30 @@
 Flexisip is general purpose SIP proxy with media capabilities.
-It is released under the AGPL v3. Please understand the terms of AGPL in COPYING before deploying it.
+It is released under the AGPLv3 or later. Please understand the terms of AGPLv3 in COPYING before deploying it.
 
 
 Compilation
 ---------------------
 
-Flexisip depends on the following externals:
+Flexisip depends on the following required externals:
 - oRTP
 - sofia-sip library, 'bc' branch maintained by belledonne communications. 
   You can clone it from git://git.linphone.org/sofia-sip -b bc
-
-- mediastreamer2 (optional, use --disable-trancoder if not present)
-- xsd (>= 4, for old OS on which this version isn't packaged, rpm and deb 
-  are available here: http://www.codesynthesis.com/products/xsd/download.xhtml)
-
-- autotools, libtool
+- autotools, libtool (for compilation only)
 
 It is recommended that you compile and install flexisip and the dependencies 
 in a prefix, so that they don't interfere with legitimate versions installed 
 in your system.
 
 Optionally it also depends on:
+- mediastreamer2 (use --disable-trancoder if not present)
 - net-snmp
 - odbc
 - hiredis
 - protobuf
+- boost::Asio (only for push notifications)
 - boost::Log
+- xsd (>= 4, for old OS on which this version isn't packaged, rpm and deb 
+  are available here: http://www.codesynthesis.com/products/xsd/download.xhtml)
 
 You can issue ./configure --help to specify these up.
 

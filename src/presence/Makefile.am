@@ -1,3 +1,8 @@
+#Copying and distribution of this file, with or without modification,
+#are permitted in any medium without royalty provided the copyright
+#notice and this notice are preserved.  This file is offered as-is,
+#without any warranty
+
 if BUILD_PRESENCE
 lib_LTLIBRARIES = libflexisip-presence.la
 libflexisip_presence_la_SOURCES = 	presence-server.cc presence-server.h \
