@@ -125,7 +125,7 @@ static void flexisip_msg_destroy(msg_t* msg){
 }
 
 static void dump_remaining_msgs(){
-	LOGE("### Remaining messages: %lu", msg_map.size());
+	LOGE("### Remaining messages: %lu", (unsigned long)msg_map.size());
 	for( auto it = msg_map.begin(); it != msg_map.end(); ++it){
 		LOGE("### \t- %p\n", it->first);
 	}
