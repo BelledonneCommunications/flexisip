@@ -39,6 +39,7 @@ private:
 	int mPacketRateLimit;
 	int mBanTime;
 	unordered_map<string, DosContext> mDosContexts;
+	unordered_map<string, DosContext>::iterator mDOSHashtableIterator;
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
@@ -55,6 +56,7 @@ private:
 		mTimePeriod = mc->get<ConfigInt>("time-period")->read();
 		mPacketRateLimit = mc->get<ConfigInt>("packet-rate-limit")->read();
 		mBanTime = mc->get<ConfigInt>("ban-time")->read();
+		mDOSHashtableIterator = mDosContexts.begin();
 		
 		tport_t *primaries=tport_primaries(nta_agent_tports(mAgent->getSofiaAgent()));
 		if (primaries == NULL) LOGF("No sip transport defined.");
@@ -69,6 +71,45 @@ private:
 
 	void onUnload() {
 		
+	}
+	
+	void onIdle() {
+		struct timeval now;
+		double started_time_in_millis, time_elapsed;
+		
+		gettimeofday(&now, NULL);
+		started_time_in_millis = now.tv_sec * 1000 + (now.tv_usec / 1000);
+		
+		if (mDOSHashtableIterator == mDosContexts.end()) {
+			mDOSHashtableIterator = mDosContexts.begin();
+		}
+		for (; mDOSHashtableIterator != mDosContexts.end(); ) {
+			double now_in_millis;
+			DosContext dos = mDOSHashtableIterator->second;
+			
+			gettimeofday(&now, NULL);
+			now_in_millis = now.tv_sec * 1000 + (now.tv_usec / 1000);
+			time_elapsed = now_in_millis - dos.last_check_recv_msg_check_time;
+			
+			if (time_elapsed >= 3600 * 1000) { // If no message received in the past hour
+				mDOSHashtableIterator = mDosContexts.erase(mDOSHashtableIterator);
+			} else {
+				++mDOSHashtableIterator;
+			}
+			
+			if (now_in_millis - started_time_in_millis >= 100) { // Do not use more than 100ms to clean the hashtable
+				LOGW("Started to clean dos hashtable %fms ago, let's stop for now a continue later", now_in_millis - started_time_in_millis);
+				break;
+			}
+		}
+	}
+	
+	static void ban_ip_with_iptables(const char *ip, const char *port, const char *protocol, int ban_time) {
+		char iptables_cmd[512];
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p %s -s %s -m multiport --sports %s -j DROP && echo \"iptables -D INPUT -p %s -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes", protocol, ip, port, protocol, ip, port, ban_time);
+		if (system(iptables_cmd) != 0) {
+			LOGW("iptables command failed: %s", strerror(errno));
+		}
 	}
 	
 	void onRequest(shared_ptr<RequestSipEvent> &ev) {
@@ -87,13 +128,12 @@ private:
 			socklen_t len = sizeof su;
 			sockaddr *addr = NULL;
 			char ip[NI_MAXHOST], port[NI_MAXSERV];
-			char iptables_cmd[512];
 			int err;
 			
 			msg_get_address(msgSip->getMsg(), su, &len);
 			addr = &(su[0].su_sa);
 			
-			if (addr != NULL && (err=getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV)) == 0) {
+			if (addr != NULL && (err = getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV)) == 0) {
 				string id = string(ip) + ":" + string(port);
 				struct timeval now;
 				DosContext &dosContext = mDosContexts[id];
@@ -119,33 +159,29 @@ private:
 				
 				if (dosContext.packet_count_rate >= mPacketRateLimit) {
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol udp for %i minutes", dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
-					snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p udp -s %s -m multiport --sports %s -j DROP && echo \"iptables -D INPUT -p udp -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes", 
-						ip, port, ip, port, mBanTime);
-					if (system(iptables_cmd) != 0) {
-						LOGW("iptables command failed: %s", strerror(errno));
-					}
+					ban_ip_with_iptables(ip, port, "udp", mBanTime);
 					dosContext.packet_count_rate = 0; // Reset it to not add the iptables rule twice by mistake
 					ev->terminateProcessing(); //the event is discarded
 				}
-			}else LOGW("getnameinfo() failed: %s", gai_strerror(err));
+			} else {
+				LOGW("getnameinfo() failed: %s", gai_strerror(err));
+			}
 		} else {
 			float packet_count_rate = tport_get_packet_count_rate(tport);
 			if (packet_count_rate >= mPacketRateLimit) {
-				char iptables_cmd[512];
 				sockaddr *addr = tport_get_address(tport)->ai_addr;
 				socklen_t len = tport_get_address(tport)->ai_addrlen;
 				char ip[NI_MAXHOST], port[NI_MAXSERV];
+				int err;
 				
-				if (getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
+				if ((err = getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV)) == 0) {
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes", packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
-					snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p tcp -s %s -m multiport --sports %s -j DROP && echo \"iptables -D INPUT -p tcp -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes", 
-						ip, port, ip, port, mBanTime);
-					if (system(iptables_cmd) != 0) {
-						LOGW("iptables command failed: %s", strerror(errno));
-					}
+					ban_ip_with_iptables(ip, port, "tcp", mBanTime);
+					tport_reset_packet_count_rate(tport); // Reset it to not add the iptables rule twice by mistake
+					ev->terminateProcessing(); //the event is discarded
+				} else {
+					LOGW("getnameinfo() failed: %s", gai_strerror(err));
 				}
-				
-				tport_reset_packet_count_rate(tport); // Reset it to not add the iptables rule twice by mistake
 			}
 		}
 	}
