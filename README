@@ -1,6 +1,11 @@
 Flexisip is general purpose SIP proxy with media capabilities.
 It is released under the AGPLv3 or later. Please understand the terms of AGPLv3 in COPYING before deploying it.
 
+Documentation
+---------------------
+
+You will find a comprehensive documentation on how to use Flexisip online 
+here: https://wiki.linphone.org/wiki/index.php/Flexisip:start
 
 Compilation
 ---------------------
