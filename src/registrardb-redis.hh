@@ -33,7 +33,7 @@ struct RedisParameters {
 	std::string auth;
 	int port;
 	int timeout;
-	int slave_check_timeout;
+	int mSlaveCheckTimeout;
 };
 
 /**
@@ -90,15 +90,17 @@ private:
 	Agent* mAgent;
 	redisAsyncContext *mContext;
 	RecordSerializer *mSerializer;
-	std::string sDomain;
-	std::string sAuthPassword;
-	int sPort;
-	int sTimeout;
+	std::string mDomain;
+	std::string mAuthPassword;
+	int mPort;
+	int mTimeout;
 	su_root_t *mRoot;
 	vector<RedisHost> vSlaves;
-	bool bShouldReconnect;
 	su_timer_t* mReplicationTimer;
-	int slave_check_timeout;
+	int mSlaveCheckTimeout;
+
+	bool handleRedisStatus(const std::string& desc, int redisStatus, RegistrarUserData* data);
+	void onErrorData(RegistrarUserData* data);
 
 	/* callbacks */
 	void handleAuthReply(const redisReply* reply);

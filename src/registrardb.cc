@@ -459,7 +459,7 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 		params.port = registrar->get<ConfigInt > ( "redis-server-port" )->read();
 		params.timeout = registrar->get<ConfigInt > ( "redis-server-timeout" )->read();
 		params.auth = registrar->get<ConfigString > ( "redis-auth-password" )->read();
-		params.slave_check_timeout = registrar->get<ConfigInt>( "redis-slave-check-period" )->read();
+		params.mSlaveCheckTimeout = registrar->get<ConfigInt>( "redis-slave-check-period" )->read();
 
 		/* Previous implementations allowed "redis-sync" and "redis-async", whereas we now expect "redis".
 		 * We check that the dbImplementation _starts_ with "redis" now, so that we stay backward compatible. */
