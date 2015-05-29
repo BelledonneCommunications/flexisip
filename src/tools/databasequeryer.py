@@ -8,6 +8,7 @@ try:
     import itertools
     import copy
     import mysql.connector
+    import getpass
     from prettytable import PrettyTable
 except:
     print("Please install python-mysql.connector python-prettytable")
@@ -78,13 +79,21 @@ def pretty_print_data(header, data, align_settings=None, max_width=-1):
         )
 
 
-def query_db(params, display=True):
+def query_db(options, display=True):
     try:
         cnx = mysql.connector.connect(
-            host=params['host'], port=params['port'], user=params['user'],
-            password=params['password'], database=params['database_name'])
+            host=options.host, port=options.port, user=options.user,
+            password=options.password, database=options.database_name)
     except mysql.connector.Error as e:
-        print("Could not connect to database: {}".format(e))
+        err = "Could not connect to database {}: ".format(options.database_name)
+        if e.errno == 1045:
+            err += """either password is INCORRECT or {username} user is not authorized to access the database from current location.
+To have access, you must create an user in the database using:
+    create user '{username}'@'{your_ip}' IDENTIFIED BY 'THE_PASSWORD'
+    grant all privileges on {db}.* to '{username}'@'{your_ip}' WITH GRANT OPTION;""".format(username=options.user, your_ip="YOUR_IP", db=options.database_name)
+        else:
+            err += e
+        print(err)
         sys.exit(3)
 
     try:
@@ -92,7 +101,7 @@ def query_db(params, display=True):
         output = []
 
         # display name of all tables
-        if params['list_tables'] is True:
+        if options.list_tables is True:
             query = ("SHOW tables")
             cursor.execute(query)
             output = cursor.fetchall()
@@ -100,15 +109,15 @@ def query_db(params, display=True):
                 pretty_print_data(["table"], output)
 
         # display fields of a given table
-        elif params['show_table'] is not None:
-            query = ("desc {}".format(params['show_table']))
+        elif options.show_table is not None:
+            query = ("desc {}".format(options.show_table))
             cursor.execute(query)
             output = cursor.fetchall()
             if display is True:
                 pretty_print_data(["field", "field_type"], output)
 
         # display all calls
-        elif params['list_calls'] is True:
+        elif options.list_calls is True:
             query = ("SELECT dialog_id, lm_qe_moslq, "
                      "lm_qe_moscq, rm_qe_moslq, "
                      "rm_qe_moscq "
@@ -133,7 +142,7 @@ def query_db(params, display=True):
         # display calls with bad MOS values. Since both call ends can submit
         # reports, we use the local/remote distinction to detect which side
         # was poor quality
-        elif params['bad_calls'] != -1:
+        elif options.bad_calls != -1:
             for mode in ['l', 'r']:
                 query = ("SELECT dialog_id, \"{mode}\", {mode}m_qe_moslq, "
                          "{mode}m_qe_moscq, from_unixtime(lm_ts_start) "
@@ -142,7 +151,7 @@ def query_db(params, display=True):
                          "OR {mode}m_qe_moscq BETWEEN 0 AND {minval} "
                          "GROUP BY dialog_id "
                          "ORDER BY lm_ts_start")
-                query = query.format(mode=mode, minval=params['bad_calls'])
+                query = query.format(mode=mode, minval=options.bad_calls)
 
                 cursor.execute(query)
                 output += cursor.fetchall()
@@ -150,7 +159,7 @@ def query_db(params, display=True):
             if display is True:
                 if output == []:
                     print("No call found with statement: 0 ≤ MOS value ≤ %f." %
-                          params['bad_calls'])
+                          options.bad_calls)
                 else:
                     pretty_print_data(
                         ["dialog_id", "mode", "moslq", "moscq", "start_date"],
@@ -163,27 +172,27 @@ def query_db(params, display=True):
         # same Call-ID. Since the dialog_id user the from-tag and to-tag which
         # are opposed between caller and callee, this ensure a unique report
         # sender
-        elif params['show_call'] is not None:
-            kwargs = copy.deepcopy(params)
-            kwargs["show_table"] = "CallQualityStatisticsLog"
-            kwargs["show_call"] = None
+        elif options.show_call is not None:
+            options_copy = copy.deepcopy(options)
+            options_copy.show_table = "CallQualityStatisticsLog"
+            options_copy.show_call = None
 
             # retrieve all fields but QOS related data which will be treated
             # after
             fields = [x[0] for x in query_db(
-                kwargs, display=False) if not x[0].startswith('qos_')]
+                options_copy, display=False) if not x[0].startswith('qos_')]
 
             query = ("SELECT {} "
                      "FROM CallQualityStatisticsLog "
                      "WHERE dialog_id LIKE \"%{}%\" "
-                     .format(', '.join(fields), params['show_call'])
+                     .format(', '.join(fields), options.show_call)
                      )
             cursor.execute(query)
             output = cursor.fetchall()
 
             if output is None or output == []:
                 print("Could not find call with dialog_id='{}'"
-                      .format(params['show_call']))
+                      .format(options.show_call))
                 return
 
             if display is True:
@@ -194,7 +203,7 @@ def query_db(params, display=True):
                      "qos_input, qos_output_leg, qos_output, dialog_id "
                      "FROM CallQualityStatisticsLog "
                      "WHERE dialog_id LIKE \"%{}%\" "
-                     .format(params['show_call'])
+                     .format(options.show_call)
                      )
 
             cursor.execute(query)
@@ -271,6 +280,11 @@ def query_db(params, display=True):
 
 def main(argv):
     parser = argparse.ArgumentParser()
+    parser.add_argument('-d', '--database',
+                        dest="database_name",
+                        required=True,
+                        help="database name"
+                        )
     parser.add_argument('-H', '--host',
                         dest="host",
                         default="127.0.0.1",
@@ -284,17 +298,20 @@ def main(argv):
                         )
     parser.add_argument('-u', '--user',
                         dest="user",
-                        help="database user"
+                        help="database user",
+                        default="root"
                         )
-    parser.add_argument('-p', '--password',
-                        dest="password",
-                        help="database user password"
-                        )
-    parser.add_argument('-d', '--database',
-                        dest="database_name",
-                        required=True,
-                        help="database name"
-                        )
+    password_group = parser.add_mutually_exclusive_group(required=True)
+    password_group.add_argument('-p', '--password',
+                                dest="password",
+                                help="database user password",
+                                )
+    password_group.add_argument('-ap', '--ask-password',
+                                dest="ask_password",
+                                help="ask for database user password",
+                                action="store_true"
+                                )
+
     query_group = parser.add_mutually_exclusive_group(required=True)
     query_group.add_argument('-L', '--list-tables',
                              dest="list_tables",
@@ -328,8 +345,10 @@ def main(argv):
                              )
 
     options = parser.parse_args()
+    if options.ask_password:
+        options.password = getpass.getpass()
 
-    query_db(vars(options))
+    query_db(options)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
