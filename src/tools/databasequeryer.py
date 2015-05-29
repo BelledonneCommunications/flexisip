@@ -92,7 +92,7 @@ To have access, you must create an user in the database using:
     create user '{username}'@'{your_ip}' IDENTIFIED BY 'THE_PASSWORD'
     grant all privileges on {db}.* to '{username}'@'{your_ip}' WITH GRANT OPTION;""".format(username=options.user, your_ip="YOUR_IP", db=options.database_name)
         else:
-            err += e
+            err += str(e)
         print(err)
         sys.exit(3)
 
