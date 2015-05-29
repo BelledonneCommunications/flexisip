@@ -89,7 +89,6 @@ AC_ARG_ENABLE(strict,
 case $CXX in
 	*clang++*)
 	CXXFLAGS="$CXXFLAGS -std=c++11 -Qunused-arguments"
-	strictness=no;
 	# libc++ is only required on apple
 	case $host in
 		*apple-darwin*)
@@ -343,17 +342,37 @@ AM_CONDITIONAL(BUILD_BOOSTLOG, test x$found_boost_log = xyes)
 AC_ARG_ENABLE(pushnotification,
 	AC_HELP_STRING([--enable-pushnotification], [Build pushnotification support [yes]]),
     [pushnotification="${enableval}"],
-    [pushnotification=yes]
+    [pushnotification=auto]
 )
 
-if test x$pushnotification = xyes ; then
-	AX_BOOST_BASE([1.41],[pushnotification=yes],[pushnotification=no])
-	if test "$pushnotification" = "no" ; then
-		AC_MSG_ERROR([boost not found. This is required for push notification. Use --disable-pushnotification if you don''t need this feature.])
+if test "$build_upnp" != "false" ; then
+	PKG_CHECK_MODULES([LIBUPNP], [libupnp],
+		[if  pkg-config --atleast-version=1.6 "libupnp < 1.7"; then
+			build_upnp=true
+		else
+			AC_MSG_ERROR([libupnp >= 1.6 < 1.5 required.])
+		fi],
+		[if test "$build_upnp" == "true" ; then
+			AC_MSG_ERROR([libupnp not found.])
+		else
+			build_upnp=false
+		fi]
+	)
+
+fi
+
+if test x$pushnotification != xno ; then
+	AX_BOOST_BASE([1.41],[apushnotification=yes],[apushnotification=no])
+	if test x$apushnotification = xno ; then
+		if test x$pushnotification != xauto ; then
+			AC_MSG_ERROR([boost not found. This is required for push notification. Use --disable-pushnotification if you don''t need this feature.])
+		fi
+		pushnotification=$apushnotification
+	else
+		CHECK_BOOST([AX_BOOST_SYSTEM], [HAVE_BOOST_SYSTEM], [], [AC_MSG_ERROR([boost system not found.])])
+		CHECK_BOOST([AX_BOOST_ASIO], [HAVE_BOOST_ASIO], [], [AC_MSG_ERROR([boost asio not found.])])
+		PKG_CHECK_MODULES(OPENSSL,[openssl >= 0.9.8])
 	fi
-	CHECK_BOOST([AX_BOOST_SYSTEM], [HAVE_BOOST_SYSTEM], [], [AC_MSG_ERROR([boost system not found.])])
-	CHECK_BOOST([AX_BOOST_ASIO], [HAVE_BOOST_ASIO], [], [AC_MSG_ERROR([boost asio not found.])])
-	PKG_CHECK_MODULES(OPENSSL,[openssl >= 0.9.8])
 fi
 
 AM_CONDITIONAL(BUILD_PUSHNOTIFICATION,test x$pushnotification = xyes)
@@ -573,7 +592,7 @@ CONFIG_DIR="\$(sysconfdir)/flexisip"
 AC_SUBST(CONFIG_DIR)
 
 #Keep this at the end
-if test x$GCC$strictness = xyesyes ; then
+if test x$strictness = xyes ; then
         CFLAGS="$CFLAGS -Wall -Werror -fno-strict-aliasing"
         WARNINGCXXFLAGS="-Wall -Werror -fno-strict-aliasing"
 fi
