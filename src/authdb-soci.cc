@@ -78,18 +78,18 @@ void SociAuthDB::getPasswordWithPool(su_root_t* root, const std::string &id, con
 	try
 	{
 		sql << get_password_request, into(pass), use(id,"id"), use(domain, "domain"), use(authid, "authid");
-		SLOGD << "[SOCI] Got pass for " << id << endl;
+		SLOGD << "[SOCI] Got pass for " << id;
 		cachePassword( createPasswordKey(id, domain, authid), domain, pass, mCacheExpire);
 		notifyPasswordRetrieved(root, listener, PASSWORD_FOUND, pass);
 	}
 	catch (mysql_soci_error const & e)
 	{
-		SLOGE << "[SOCI] MySQL error: " << e.err_num_ << " " << e.what() << endl;
+		SLOGE << "[SOCI] MySQL error: " << e.err_num_ << " " << e.what();
 		notifyPasswordRetrieved(root, listener, PASSWORD_NOT_FOUND, pass);
 	}
 	catch (exception const & e)
 	{
-		SLOGE << "[SOCI] Some other error: " << e.what() << endl;
+		SLOGE << "[SOCI] Some other error: " << e.what();
 		notifyPasswordRetrieved(root, listener, PASSWORD_NOT_FOUND, pass);
 	}
 }
