@@ -26,7 +26,7 @@ using namespace ::std;
 class NatHelper : public Module, protected ModuleToolbox{
 	public:
 		NatHelper(Agent *ag) : Module(ag){}
-	
+
 		~NatHelper(){}
 
 		virtual void onRequest(shared_ptr<RequestSipEvent> &ev) {
@@ -47,7 +47,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 				}
 			}
 			//fix potential Path header inserted before us by a flexisip natted proxy
-			if (rq->rq_method==sip_method_register && sip->sip_path && sip->sip_path->r_url && url_has_param(sip->sip_path->r_url, "fs-proxy-id")) {
+			if (rq->rq_method==sip_method_register && sip->sip_path && url_has_param(sip->sip_path->r_url, "fs-proxy-id")) {
 				//note: why limiting this to flexisip ? it could fix any path header, even without fs-proxy-id param.
 				fixPath(ms);
 			}
@@ -61,7 +61,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 			if (cseq && (cseq->cs_method==sip_method_invite || cseq->cs_method==sip_method_subscribe)){
 				if (st->st_status>=200 && st->st_status<=299){
 					sip_contact_t *ct = ms->getSip()->sip_contact;
-					if (ct && ct->m_url) {
+					if (ct) {
 						if (!url_has_param(ct->m_url, mContactVerifiedParam.c_str())) {
 							fixContactInResponse(ms->getHome(),ms->getMsg(),ms->getSip());
 							url_param_add(ms->getHome(), ct->m_url, mContactVerifiedParam.c_str());
@@ -118,7 +118,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 					LOGE("getnameinfo() error: %s",gai_strerror(err));
 				}else{
 					sip_contact_t *ctt=sip->sip_contact;
-					if (ctt && ctt->m_url && ctt->m_url->url_host){
+					if (ctt && ctt->m_url->url_host){
 						if ( !ModuleToolbox::urlHostMatch(ctt->m_url, ip) || !sipPortEquals(ctt->m_url->url_port,port)){
 							LOGD("Response is coming from %s:%s, fixing contact",ip,port);
 							ModuleToolbox::urlSetHost(home,ctt->m_url,ip);
@@ -145,11 +145,11 @@ class NatHelper : public Module, protected ModuleToolbox{
 				/*case where the rport is not empty  but received is empty (because the host was correct)*/
 				received=via->v_host;
 			}
-			
+
 			if (rport==NULL) rport=via->v_port; //if no rport is given, then trust the via port.
-			
+
 			for (;ctt!=NULL;ctt=ctt->m_next){
-				if (ctt->m_url && ctt->m_url->url_host){
+				if (ctt->m_url->url_host){
 					const char *host=ctt->m_url->url_host;
 					char ct_transport[20]={0};
 					url_param(ctt->m_url->url_params,"transport",ct_transport,sizeof(ct_transport)-1);
@@ -157,7 +157,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 						because the same appeared fixed in the via, then fix it*/
 					if ( (is_frontend && single_contact)
 						|| (ModuleToolbox::urlHostMatch(host,via->v_host) && sipPortEquals(ctt->m_url->url_port,via->v_port) && transportEquals(via_transport,ct_transport))){
-						
+
 						if (!ModuleToolbox::urlHostMatch(host,received) || !sipPortEquals(ctt->m_url->url_port,rport)){
 							LOGD("Fixing contact header with %s:%s to %s:%s",
 							   ctt->m_url->url_host, ctt->m_url->url_port ? ctt->m_url->url_port :"" ,
@@ -199,7 +199,7 @@ class NatHelper : public Module, protected ModuleToolbox{
 			fixTransport(ms->getHome(),path,transport);
 		}
 		bool isPrivateAddress(const char *host){
-			return strstr(host,"10.")==host 
+			return strstr(host,"10.")==host
 				|| strstr(host,"192.168.")==host
 				|| strstr(host,"176.12.")==host;
 		}

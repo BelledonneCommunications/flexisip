@@ -24,7 +24,7 @@ using namespace ::std;
 /*add a parameter like "CtRt15.128.128.2=tcp:201.45.118.16:50025" in the contact, so that we know where is the client
  when we later have to route an INVITE to him */
 void ContactMasquerader::masquerade(su_home_t *home, sip_contact_t *c, const char *domain) {
-	if (c == NULL || c->m_url == NULL) {
+	if (c == NULL || c->m_url->url_host == NULL) {
 		LOGD("Sip contact or url is null");
 		return;
 	}
@@ -36,7 +36,7 @@ void ContactMasquerader::masquerade(su_home_t *home, sip_contact_t *c, const cha
 	}
 
 	//grab the transport of the contact uri
-	char ct_tport[32] = "udp"; 
+	char ct_tport[32] = "udp";
 	if (url_param(ct_url->url_params, "transport", ct_tport, sizeof(ct_tport)) > 0) {
 
 	}

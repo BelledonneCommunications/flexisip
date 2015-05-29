@@ -31,14 +31,13 @@ public:
 
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		sip_t *sip=ev->getMsgSip()->getSip();
-		
+
 		const char *error=checkHeaders(sip);
 		if (error){
 			LOGW("Rejecting request because of %s", error);
 			ev->reply(400, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		}
-		if (sip->sip_request == NULL || sip->sip_request->rq_url == NULL 
-			|| sip->sip_request->rq_url->url_host == NULL){
+		if (sip->sip_request == NULL || sip->sip_request->rq_url->url_host == NULL){
 			ev->reply(400, "Bad request URI", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		}
 	}
@@ -55,7 +54,6 @@ private:
 		if (sip->sip_from == NULL || sip->sip_from->a_url->url_host==NULL || sip->sip_from->a_tag==NULL) return "Invalid from header";
 		if (sip->sip_to == NULL || sip->sip_to->a_url->url_host==NULL) return "Invalid to header";
 		if (sip->sip_contact){
-			if (sip->sip_contact->m_url==NULL) return "Invalid URI in contact header";
 			if (sip->sip_contact->m_url->url_scheme==NULL) return "Invalid scheme in contact header";
 			if (sip->sip_contact->m_url->url_scheme[0]!='*' && sip->sip_contact->m_url->url_host==NULL) return "Invalid contact header";
 		}

@@ -57,7 +57,7 @@ private:
 		mPacketRateLimit = mc->get<ConfigInt>("packet-rate-limit")->read();
 		mBanTime = mc->get<ConfigInt>("ban-time")->read();
 		mDOSHashtableIterator = mDosContexts.begin();
-		
+
 		tport_t *primaries=tport_primaries(nta_agent_tports(mAgent->getSofiaAgent()));
 		if (primaries == NULL) LOGF("No sip transport defined.");
 		for(tport_t *tport = primaries; tport != NULL; tport = tport_next(tport)) {
@@ -70,40 +70,40 @@ private:
 	}
 
 	void onUnload() {
-		
+
 	}
-	
+
 	void onIdle() {
 		struct timeval now;
 		double started_time_in_millis, time_elapsed;
-		
+
 		gettimeofday(&now, NULL);
 		started_time_in_millis = now.tv_sec * 1000 + (now.tv_usec / 1000);
-		
+
 		if (mDOSHashtableIterator == mDosContexts.end()) {
 			mDOSHashtableIterator = mDosContexts.begin();
 		}
 		for (; mDOSHashtableIterator != mDosContexts.end(); ) {
 			double now_in_millis;
 			DosContext dos = mDOSHashtableIterator->second;
-			
+
 			gettimeofday(&now, NULL);
 			now_in_millis = now.tv_sec * 1000 + (now.tv_usec / 1000);
 			time_elapsed = now_in_millis - dos.last_check_recv_msg_check_time;
-			
+
 			if (time_elapsed >= 3600 * 1000) { // If no message received in the past hour
 				mDOSHashtableIterator = mDosContexts.erase(mDOSHashtableIterator);
 			} else {
 				++mDOSHashtableIterator;
 			}
-			
+
 			if (now_in_millis - started_time_in_millis >= 100) { // Do not use more than 100ms to clean the hashtable
 				LOGW("Started to clean dos hashtable %fms ago, let's stop for now a continue later", now_in_millis - started_time_in_millis);
 				break;
 			}
 		}
 	}
-	
+
 	static void ban_ip_with_iptables(const char *ip, const char *port, const char *protocol, int ban_time) {
 		char iptables_cmd[512];
 		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p %s -s %s -m multiport --sports %s -j DROP && echo \"iptables -D INPUT -p %s -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes", protocol, ip, port, protocol, ip, port, ban_time);
@@ -111,16 +111,16 @@ private:
 			LOGW("iptables command failed: %s", strerror(errno));
 		}
 	}
-	
+
 	void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
 		tport_t *tport = inTport.get();
-		
+
 		if (tport == NULL) {
 			LOGE("Tport is null, can't check the packet count rate");
 			return;
 		}
-		
+
 		if (tport_is_udp(tport)) { // Sofia doesn't create a secondary tport for udp, so it will ban the primary and we don't want that
 			shared_ptr<MsgSip> msg = ev->getMsgSip();
 			MsgSip *msgSip = msg.get();
@@ -129,23 +129,23 @@ private:
 			sockaddr *addr = NULL;
 			char ip[NI_MAXHOST], port[NI_MAXSERV];
 			int err;
-			
+
 			msg_get_address(msgSip->getMsg(), su, &len);
 			addr = &(su[0].su_sa);
-			
-			if (addr != NULL && (err = getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV)) == 0) {
+
+			if ((err = getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV)) == 0) {
 				string id = string(ip) + ":" + string(port);
 				struct timeval now;
 				DosContext &dosContext = mDosContexts[id];
 				double now_in_millis, time_elapsed;
-				
+
 				dosContext.recv_msg_count_since_last_check++;
 				gettimeofday(&now, NULL);
 				now_in_millis = now.tv_sec * 1000 + (now.tv_usec / 1000);
 				if (dosContext.last_check_recv_msg_check_time == 0) {
 					dosContext.last_check_recv_msg_check_time = now_in_millis;
 				}
-				
+
 				time_elapsed = now_in_millis - dosContext.last_check_recv_msg_check_time;
 				if (time_elapsed < 0) {
 					dosContext.packet_count_rate = 0;
@@ -156,7 +156,7 @@ private:
 					dosContext.recv_msg_count_since_last_check = 0;
 					dosContext.last_check_recv_msg_check_time = now_in_millis;
 				}
-				
+
 				if (dosContext.packet_count_rate >= mPacketRateLimit) {
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol udp for %i minutes", dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					ban_ip_with_iptables(ip, port, "udp", mBanTime);
@@ -173,7 +173,7 @@ private:
 				socklen_t len = tport_get_address(tport)->ai_addrlen;
 				char ip[NI_MAXHOST], port[NI_MAXSERV];
 				int err;
-				
+
 				if ((err = getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV)) == 0) {
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes", packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					ban_ip_with_iptables(ip, port, "tcp", mBanTime);
@@ -185,18 +185,18 @@ private:
 			}
 		}
 	}
-	
+
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
-		
+
 	};
 
 public:
 		DoSProtection(Agent *ag) : Module(ag) {
-			
+
 		}
 
 		~DoSProtection() {
-			
+
 		}
 };
 

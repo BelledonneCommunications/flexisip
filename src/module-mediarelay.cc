@@ -83,7 +83,7 @@ void MediaRelay::onDeclare(GenericStruct * mc) {
 void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mCalls = new CallStore();
 	mCalls->setCallStatCounters(mCountCalls, mCountCallsFinished);
-	
+
 	mSdpMangledParam = modconf->get<ConfigString>("nortpproxy")->read();
 	if (mSdpMangledParam == "disable") mSdpMangledParam.clear();
 	mByeOrphanDialogs = modconf->get<ConfigBoolean>("bye-orphan-dialogs")->read();
@@ -144,7 +144,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	if (sip->sip_to->a_tag != NULL)
 		to_tag = sip->sip_to->a_tag;
 	string dest_host;
-	if (sip->sip_request != NULL && sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_host != NULL)
+	if (sip->sip_request != NULL && sip->sip_request->rq_url->url_host != NULL)
 		dest_host = urlGetHost(sip->sip_request->rq_url);
 
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
@@ -316,7 +316,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	}
 
 	if (it && (c = it->getProperty<RelayedCall>(getModuleName()))!=NULL){
-		//This is a response sent to the incoming transaction. 
+		//This is a response sent to the incoming transaction.
 		LOGD("call context %p",c.get());
 		if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite){
 			//Check for failure code, in which case the call context can be destroyed immediately.

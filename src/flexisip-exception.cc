@@ -44,6 +44,12 @@ FlexisipException::FlexisipException(const char* message): mOffset(1){
 		set_terminate(uncaught_handler); //invoke in case of uncautch exception for this thread
 }
 
+FlexisipException::FlexisipException(const FlexisipException& other ) {
+	mOffset=other.mOffset;
+	memcpy(mArray,other.mArray,sizeof(mArray));
+	mSize=other.mSize;
+	mOs << other.str();
+}
 
 #if __cplusplus > 199711L
 FlexisipException::FlexisipException(string& msg): FlexisipException(msg.c_str()){
@@ -74,15 +80,6 @@ FlexisipException::FlexisipException(): mOffset(1){
 }
 #endif
 
-
-FlexisipException::FlexisipException(const FlexisipException& other ) {
-	mOffset=other.mOffset;
-	memcpy(mArray,other.mArray,sizeof(mArray));
-	mSize=other.mSize;
-	mOs << other.str();
-	mWhat=other.mWhat;
-}
-
 void FlexisipException::printStackTrace() const {
 	backtrace_symbols_fd(mArray+mOffset, mSize-mOffset, STDERR_FILENO);
 }
@@ -98,9 +95,8 @@ void FlexisipException::printStackTrace(std::ostream & os) const {
 const std::string FlexisipException::str() const {
 	return mOs.str();
 }
-const char* FlexisipException::what() throw () {
-	mWhat=mOs.str();
-	return mWhat.c_str();
+const char* FlexisipException::what() const throw () {
+	return mOs.str().c_str();
 }
 
 
