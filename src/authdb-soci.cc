@@ -60,7 +60,7 @@ SociAuthDB::SociAuthDB() : pool(NULL) {
 
 	LOGD("[SOCI] Authentication provider for backend %s created. Pooled for %d connections", backend.c_str(), (int)poolSize);
 
-	for( auto i = 0; i<poolSize; i++ ){
+	for( size_t i = 0; i<poolSize; i++ ){
 		pool->at(i).open(backend, connection_string);
 	}
 }
