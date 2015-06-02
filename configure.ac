@@ -367,12 +367,12 @@ if test x$pushnotification != xno ; then
 		if test x$pushnotification != xauto ; then
 			AC_MSG_ERROR([boost not found. This is required for push notification. Use --disable-pushnotification if you don''t need this feature.])
 		fi
-		pushnotification=$apushnotification
 	else
 		CHECK_BOOST([AX_BOOST_SYSTEM], [HAVE_BOOST_SYSTEM], [], [AC_MSG_ERROR([boost system not found.])])
 		CHECK_BOOST([AX_BOOST_ASIO], [HAVE_BOOST_ASIO], [], [AC_MSG_ERROR([boost asio not found.])])
 		PKG_CHECK_MODULES(OPENSSL,[openssl >= 0.9.8])
 	fi
+	pushnotification=$apushnotification
 fi
 
 AM_CONDITIONAL(BUILD_PUSHNOTIFICATION,test x$pushnotification = xyes)
