@@ -39,7 +39,7 @@ class PushNotificationService {
 	friend class PushNotificationClient;
 public:
 	int sendRequest(const std::shared_ptr<PushNotificationRequest> &pn);
-
+	void setupGenericClient(const url_t *url);
 	void start();
 
 	void stop();
@@ -63,15 +63,13 @@ public:
 
 private:
 	void setupClients(const std::string & certdir, const std::string& ca, int maxQueueSize);
-  
 	int run();
-
 	void clientEnded();
-
+	void setupErrorClient();
 private:
 	boost::asio::io_service mIOService;
 	std::thread *mThread;
-
+	int mMaxQueueSize;
 	bool mHaveToStop;
 	std::map<std::string,std::shared_ptr<PushNotificationClient> > mClients;
 	std::string mPassword;

@@ -137,13 +137,14 @@ class Module : protected ConfigValueListener {
 		void idle();
 		bool isEnabled()const;
 		ModuleType_e type() const;
-	public:
+
 		inline void process(std::shared_ptr<RequestSipEvent> &ev) {
 			processRequest(ev);
 		}
 		inline void process(std::shared_ptr<ResponseSipEvent> &ev) {
 			processResponse(ev);
 		}
+
 	protected:
 		virtual void onDeclare(GenericStruct *root){
 		}
@@ -166,12 +167,16 @@ class Module : protected ConfigValueListener {
 		Agent *mAgent;
 	protected:
 		static std::list<std::string> sPushNotifParams;
+		su_home_t *getHome(){
+			return &mHome;
+		}
 	private:
 		void setInfo(ModuleInfoBase *i);
 		ModuleInfoBase *mInfo;
 		GenericStruct *mModuleConfig;
 		EntryFilter *mFilter;
 		bool mDirtyConfig;
+		su_home_t mHome;
 };
 
 inline  std::ostringstream &

@@ -68,7 +68,7 @@ public:
 	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev);
 	virtual void onLoad(const GenericStruct *mc);
 	PushNotificationService *getService()const{
-		return mAPNS;
+		return mPNS;
 	}
 	void clearNotification(const shared_ptr<PushNotificationContext>& ctx);
 private:
@@ -76,12 +76,14 @@ private:
 	void makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction);
 	map<string,shared_ptr<PushNotificationContext> > mPendingNotifications; //map of pending push notifications. Its purpose is to avoid sending multiples notifications for the same call attempt to a given device.
 	static ModuleInfo<PushNotification> sInfo;
+	url_t *mExternalPushUri;
+	string mExternalPushMethod;
 	int mTimeout;
-	bool mNoBadgeiOS;
 	map<string, string> mGoogleKeys;
-	PushNotificationService *mAPNS;
+	PushNotificationService *mPNS;
 	StatCounter64 *mCountFailed;
 	StatCounter64 *mCountSent;
+	bool mNoBadgeiOS;
 };
 
 PushNotificationContext::PushNotificationContext(const shared_ptr<OutgoingTransaction> &transaction, PushNotification * module, const shared_ptr<PushNotificationRequest> &pnr, const string &key) :
@@ -165,13 +167,13 @@ void PushNotificationContext::__end_timer_callback(su_root_magic_t *magic, su_ti
 ModuleInfo<PushNotification> PushNotification::sInfo("PushNotification", "This module performs push notifications", ModuleInfoBase::ModuleOid::PushNotification);
 
 PushNotification::PushNotification(Agent *ag) :
-		Module(ag), mNoBadgeiOS(false), mAPNS(NULL), mCountFailed(NULL), mCountSent(NULL) {
+		Module(ag), mPNS(NULL), mCountFailed(NULL), mCountSent(NULL),  mNoBadgeiOS(false) {
 }
 
 PushNotification::~PushNotification() {
-	if (mAPNS != NULL) {
-		mAPNS->stop();
-		delete mAPNS;
+	if (mPNS != NULL) {
+		mPNS->stop();
+		delete mPNS;
 	}
 }
 
@@ -184,10 +186,27 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 			{ String, "apple-certificate-dir", "Path to directory where to find Apple Push Notification service certificates. They should bear the appid of the application, suffixed by the release mode and .pem extension. For example: org.linphone.dev.pem org.linphone.prod.pem com.somephone.dev.pem etc..."
 			" The files should be .pem format, and made of certificate followed by private key." , "/etc/flexisip/apn" },
 			{ Boolean, "google", "Enable push notification for android devices", "true" },
-			{ StringList, "google-projects-api-keys", "List of couple projectId:ApiKey for each android project which support push notifications", "" },
+			{ StringList, "google-projects-api-keys", "List of couples projectId:ApiKey for each android project that supports push notifications", "" },
 			{ Boolean, "windowsphone", "Enable push notification for windows phone 8 devices", "true" },
 			{ Boolean, "no-badge", "Set the badge value to 0 for apple push", "false" },
-			config_item_end };
+			{ String, "external-push-uri", "Instead of having Flexisip sending the push notification directly to the Google/Apple/Microsoft push servers,"
+					" send an http request to an http server with all required information encoded in URL, to which the actual sending of the push notification"
+					" is delegated. The following arguments can be substitued in the http request uri, with the following values:\n"
+					" - $type : apple, google, wp\n"
+					" - $event : call, message\n"
+					" - $from-name : the display name in the from header\n"
+					" - $from-uri : the sip uri of the from header\n"
+					" - $from-tag : the tag of the from header \n"
+					" - $call-id : the call-id of the INVITE or MESSAGE request\n"
+					" - $to-uri : the sip uri of the to header\n"
+					" - $api-key : the api key to use (google only)\n"
+					" - $msgid : the message id to put in the notification\n"
+					" - $sound : the sound file to play with the notification\n\n"
+					" The content of the text message is put in the body of the http request as text/plain, if any.\n"
+					" Example: http://192.168.0.2/$type/$event?from-uri=$from-uri&tag=$from-tag&callid=$callid&to=$to-uri", "" },
+			{ String, "external-push-method", "Method for reaching external-push-uri, typically GET or POST", "GET" },
+			config_item_end
+	};
 	module_config->addChildrenValues(items);
 	mCountFailed = module_config->createStat("count-pn-failed", "Number of push notifications failed to be sent");
 	mCountSent = module_config->createStat("count-pn-sent", "Number of push notifications successfully sent");
@@ -199,7 +218,17 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	int maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
 	string certdir   = mc->get<ConfigString>("apple-certificate-dir")->read();
 	auto googleKeys  = mc->get<ConfigStringList>("google-projects-api-keys")->read();
+	string externalUri = mc->get<ConfigString>("external-push-uri")->read();
 
+	mExternalPushMethod = mc->get<ConfigString>("external-push-method")->read();
+	if (!externalUri.empty()){
+		mExternalPushUri = url_make(getHome(),externalUri.c_str());
+		if (mExternalPushUri == NULL || mExternalPushUri->url_host == NULL){
+			LOGF("Invalid value for external-push-uri in module PushNotification");
+			return ;
+		}
+	}
+	
 	mGoogleKeys.clear();
 	for (auto it=googleKeys.cbegin(); it != googleKeys.cend(); ++it) {
 		const string &keyval=*it;
@@ -207,16 +236,20 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mGoogleKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep + 1)));
 	}
 
-	mAPNS = new PushNotificationService(certdir, "", maxQueueSize);
-	mAPNS->setStatCounters(mCountFailed, mCountSent);
-	mAPNS->start();
+	mPNS = new PushNotificationService(certdir, "", maxQueueSize);
+	mPNS->setStatCounters(mCountFailed, mCountSent);
+	if (mExternalPushUri) mPNS->setupGenericClient(mExternalPushUri);
+	mPNS->start();
 }
 
 
 void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction){
 	shared_ptr<PushNotificationContext> context;
 	sip_t *sip=ms->getSip();
-	const char *call_id=ms->getSip()->sip_call_id->i_id;
+	PushInfo pinfo;
+	
+	pinfo.mCallId = ms->getSip()->sip_call_id->i_id;
+	pinfo.mEvent = sip->sip_request->rq_method == sip_method_invite ? PushInfo::Call : PushInfo::Message;
 
 	if (sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_params != NULL){
 		char type[12];
@@ -230,11 +263,12 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 			SLOGD << "no pn-tok";
 			return;
 		}
+		pinfo.mDeviceToken=deviceToken;
 		//check if another push notification for this device wouldn't be pending
-		snprintf(pn_key,sizeof(pn_key)-1,"%s:%s",call_id,deviceToken);
+		snprintf(pn_key,sizeof(pn_key)-1,"%s:%s",pinfo.mCallId.c_str(),deviceToken);
 		auto it=mPendingNotifications.find(pn_key);
 		if (it!=mPendingNotifications.end()){
-			LOGD("Another push notification is pending for this call %s and this device %s, not creating a new one",call_id,deviceToken);
+			LOGD("Another push notification is pending for this call %s and this device %s, not creating a new one", pinfo.mCallId.c_str(), deviceToken);
 			context=(*it).second;
 		}
 		if (!context){
@@ -242,11 +276,13 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 				SLOGD << "no pn-type";
 				return;
 			}
+			pinfo.mType=type;
 
 			if (url_param(params, "app-id", appId, sizeof(appId)) == 0) {
 				SLOGD << "no app-id";
 				return;
 			}
+			pinfo.mAppId=appId;
 
 			string contact;
 			if(sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
@@ -256,8 +292,15 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 				if (last != string::npos) contact.erase(last, 1);
 				size_t first = contact.find_first_of('"');
 				if (first != string::npos) contact.erase(first, 1);
-			} else {
-				contact = url_as_string(ms->getHome(), sip->sip_from->a_url);
+				pinfo.mFromName = contact;
+			}
+			pinfo.mToUri = url_as_string(ms->getHome(), sip->sip_to->a_url);
+			contact = url_as_string(ms->getHome(), sip->sip_from->a_url);
+			pinfo.mFromUri = contact;
+			pinfo.mFromTag = sip->sip_from->a_tag;
+			if (pinfo.mEvent == PushInfo::Message && sip->sip_payload && sip->sip_payload->pl_len > 0) {
+				sip_payload_t *payload=sip->sip_payload;
+				pinfo.mText = string(payload->pl_data, payload->pl_len);
 			}
 
 			shared_ptr<PushNotificationRequest> pn;
@@ -270,50 +313,43 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 					SLOGD << "no pn-msg-str";
 					return;
 				}
-
 				if (url_param(params, "pn-call-str", call_str, sizeof(call_str)) == 0) {
 					SLOGD << "no pn-call-str";
 					return;
 				}
 				if (url_param(params, "pn-call-snd", call_snd, sizeof(call_snd)) == 0) {
 					SLOGD << "no optional pn-call-snd, using empty";
-					strcat(call_snd, "empty");
+					strncpy(call_snd, "empty", sizeof(call_snd));
 				}
 				if (url_param(params, "pn-msg-snd", msg_snd, sizeof(msg_snd)) == 0) {
 					SLOGD << "no optional pn-msg-snd, using empty";
-					strcat(msg_snd, "empty");
+					strncpy(msg_snd, "empty", sizeof(msg_snd));
 				}
-				pn = make_shared<ApplePushNotificationRequest>(appId, deviceToken,
-						(sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str,
-						contact,
-						(sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd,
-						call_id,
-						mNoBadgeiOS);
+				pinfo.mAlertMsgId = (sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str;
+				pinfo.mAlertSound = (sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd;
+				pinfo.mNoBadge = mNoBadgeiOS;
+				if (!mExternalPushUri) pn = make_shared<ApplePushNotificationRequest>(pinfo);
 			} else if (strcmp(type,"wp")==0) {
-				bool is_message = sip->sip_request->rq_method != sip_method_invite;
-				string message;
-				if (is_message && sip->sip_payload && sip->sip_payload->pl_len > 0) {
-					sip_payload_t *payload=sip->sip_payload;
-					message = string(payload->pl_data, payload->pl_len);
-				}
-				pn = make_shared<WindowsPhonePushNotificationRequest>(appId, deviceToken,
-						is_message,
-						message,
-						contact,
-						url_as_string(ms->getHome(), sip->sip_from->a_url));
+				if (!mExternalPushUri) pn = make_shared<WindowsPhonePushNotificationRequest>(pinfo);
 			} else if (strcmp(type,"google")==0) {
 				auto apiKeyIt = mGoogleKeys.find(appId);
 				if (apiKeyIt != mGoogleKeys.end()) {
+					pinfo.mApiKey = apiKeyIt->second;
 					// We only have one client for all Android apps, called "google"
 					SLOGD << "Creating Google push notif request";
-					pn = make_shared<GooglePushNotificationRequest>("google", deviceToken, apiKeyIt->second, contact, call_id);
+					if (!mExternalPushUri)
+						pn = make_shared<GooglePushNotificationRequest>(pinfo);
 				} else {
 					SLOGD << "No Key matching appId " << appId;
 				}
 			} else if (strcmp(type, "error")==0) {
 				SLOGD << "Creating Error push notif request";
-				pn = make_shared<ErrorPushNotificationRequest>();
+				if (!mExternalPushUri) pn = make_shared<ErrorPushNotificationRequest>();
 			}
+			if (mExternalPushUri){
+				pn = make_shared<GenericPushNotificationRequest>(pinfo, mExternalPushUri, mExternalPushMethod);
+			}
+			
 			if (pn){
 				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << mTimeout << "s";
 				context = make_shared<PushNotificationContext>(transaction, this, pn, pn_key);

@@ -81,6 +81,7 @@ void ModuleFactory::registerModule(ModuleInfoBase *m) {
 
 Module::Module(Agent *ag) :
 		mAgent(ag) {
+	su_home_init(&mHome);
 	mFilter = new ConfigEntryFilter();
 }
 
@@ -91,6 +92,7 @@ bool Module::isEnabled() const {
 
 Module::~Module() {
 	delete mFilter;
+	su_home_deinit(&mHome);
 }
 
 bool Module::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {

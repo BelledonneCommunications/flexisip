@@ -21,6 +21,28 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <boost/concept_check.hpp>
+
+#include <sofia-sip/url.h>
+
+struct PushInfo{
+	enum Event {Call, Message};
+	PushInfo() : mEvent(Event::Message), mNoBadge(false){};
+	Event mEvent;       //Event to advertise: call or text message.
+	std::string mType;  //type of push notif: apple, google, wp
+	std::string mAppId; //app id, as extracted from Contact
+	std::string mDeviceToken; //device token, as extracted from Contact
+	std::string mApiKey; //api key (magic number required for Google)
+	std::string mAlertSound; //sound to play 
+	std::string mAlertMsgId; //ID of message to show to user
+	std::string mFromName; //From's display name
+	std::string mFromUri; // From's SIP uri
+	std::string mFromTag; // From tag
+	std::string mToUri; // To SIP uri
+	std::string mCallId;  // CallID
+	std::string mText;    // Text of the chat message.
+	bool mNoBadge;   // Whether to display a badge on the application (ios specific).
+};
 
 class PushNotificationRequestCallback {
 public:
@@ -59,7 +81,7 @@ public:
 	static const unsigned int DEVICE_BINARY_SIZE;
 	virtual const std::vector<char> &getData();
 	virtual bool isValidResponse(const std::string &str);
-	ApplePushNotificationRequest(const std::string & appId, const std::string &deviceToken, const std::string &msg_id, const std::string &arg, const std::string &sound, const std::string &callid, const bool no_badge);
+	ApplePushNotificationRequest(const PushInfo & pinfo);
 	~ApplePushNotificationRequest() {}
 	virtual bool mustReadServerResponse() { return false; }
 
@@ -75,7 +97,7 @@ class GooglePushNotificationRequest: public PushNotificationRequest {
 public:
 	virtual const std::vector<char> & getData();
 	virtual bool isValidResponse(const std::string &str);
-	GooglePushNotificationRequest(const std::string &appId, const std::string &deviceToken, const std::string &apiKey, const std::string &arg, const std::string &callid);
+	GooglePushNotificationRequest(const PushInfo & pinfo);
 	~GooglePushNotificationRequest() {}
 	virtual bool mustReadServerResponse() { return true; }
 
@@ -90,7 +112,7 @@ class WindowsPhonePushNotificationRequest: public PushNotificationRequest {
 public:
 	virtual const std::vector<char> & getData();
 	virtual bool isValidResponse(const std::string &str);
-	WindowsPhonePushNotificationRequest(const std::string &host, const std::string &query, bool is_message, const std::string &message, const std::string &sender_name, const std::string &sender_uri);
+	WindowsPhonePushNotificationRequest(const PushInfo & pinfo);
 	~WindowsPhonePushNotificationRequest() {}
 	virtual bool mustReadServerResponse() { return true; }
 
@@ -112,6 +134,20 @@ public:
 
 protected:
 	std::vector<char> mBuffer;
+};
+
+class GenericPushNotificationRequest: public PushNotificationRequest {
+public:
+	virtual const std::vector<char> & getData();
+	virtual bool isValidResponse(const std::string &str);
+	GenericPushNotificationRequest(const PushInfo & pinfo, const url_t *url, const std::string &method);
+	~GenericPushNotificationRequest() {}
+	virtual bool mustReadServerResponse() { return true; }
+protected:
+	std::string & substituteArgs(std::string &input, const PushInfo &pinfo);
+	void createPushNotification();
+	std::vector<char> mBuffer;
+	std::string mHttpHeaders;
 };
 
 #endif

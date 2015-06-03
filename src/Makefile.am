@@ -148,10 +148,11 @@ AM_CXXFLAGS+= -DBOOST_LOG_DYN_LINK=1
 endif
 
 if BUILD_PUSHNOTIFICATION
-thesources+=module-pushnotification.cc \
+thesources+=		module-pushnotification.cc \
 			pushnotification/pushnotification.cc pushnotification/pushnotification.hh \
 			pushnotification/pushnotificationservice.cc pushnotification/pushnotificationservice.hh \
-			pushnotification/pushnotificationclient.cc pushnotification/pushnotificationclient.hh
+			pushnotification/pushnotificationclient.cc pushnotification/pushnotificationclient.hh \
+			pushnotification/genericpushnotification.cc 
 AM_CXXFLAGS+=-DENABLE_PUSHNOTIFICATION $(BOOST_CPPFLAGS) $(OPENSSL_CPPFLAGS)
 flexisip_LDADD+=$(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(OPENSSL_LIBS) $(BOOST_ASIO_LIB)
 endif

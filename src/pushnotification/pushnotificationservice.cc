@@ -34,8 +34,6 @@ static const char *GPN_PORT = "443";
 
 static const char *WPPN_PORT = "80";
 
-static int MAX_QUEUE_SIZE = 10;
-
 using namespace ::std;
 namespace ssl = boost::asio::ssl;
 
@@ -48,8 +46,8 @@ int PushNotificationService::sendRequest(const std::shared_ptr<PushNotificationR
 			boost::system::error_code err;
 			ctx->set_options(ssl::context::default_workarounds, err);
 			ctx->set_verify_mode(ssl::context::verify_none);
-			mClients[wpClient] = std::make_shared<PushNotificationClient>(wpClient, this, ctx, pn->getAppIdentifier(), WPPN_PORT, MAX_QUEUE_SIZE, false);
-			LOGD("Creating PNclient for client %s",pn->getAppIdentifier().c_str());
+			mClients[wpClient] = std::make_shared<PushNotificationClient>(wpClient, this, ctx, pn->getAppIdentifier(), WPPN_PORT, mMaxQueueSize, false);
+			LOGD("Creating PN client for %s",pn->getAppIdentifier().c_str());
 			client = mClients[wpClient];
 		} else {
 			LOGE("No push notification certificate for client %s",pn->getAppIdentifier().c_str());
@@ -105,10 +103,27 @@ void PushNotificationService::waitEnd() {
 	}
 }
 
+void PushNotificationService::setupErrorClient(){
+	// Error client
+	std::shared_ptr<ssl::context> ctx(new ssl::context(mIOService, ssl::context::sslv23_client));
+	boost::system::error_code err;
+	ctx->set_options(ssl::context::default_workarounds, err);
+	ctx->set_verify_mode(ssl::context::verify_none);
+	mClients["error"]=std::make_shared<PushNotificationClient>("error", this, ctx, "127.0.0.1", "1", mMaxQueueSize, false);
+}
+
+void PushNotificationService::setupGenericClient(const url_t *url){
+	std::shared_ptr<ssl::context> ctx(new ssl::context(mIOService, ssl::context::sslv23_client));
+	boost::system::error_code err;
+	ctx->set_options(ssl::context::default_workarounds, err);
+	ctx->set_verify_mode(ssl::context::verify_none);
+	mClients["generic"]=std::make_shared<PushNotificationClient>("generic", this, ctx, url->url_host, url->url_port, mMaxQueueSize, false);
+}
+
 void PushNotificationService::setupClients(const string &certdir, const string &ca, int maxQueueSize) {
 	struct dirent *dirent;
 	DIR *dirp;
-	MAX_QUEUE_SIZE = maxQueueSize;
+	mMaxQueueSize = maxQueueSize;
 
 	// Android Client
 	std::shared_ptr<ssl::context> ctx(new ssl::context(mIOService, ssl::context::sslv23_client));
@@ -166,18 +181,12 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 		mClients[certName]=std::make_shared<PushNotificationClient>(cert, this, context, apn_server, APN_PORT, maxQueueSize, true);
 	}
 	closedir(dirp);
+	setupErrorClient();
 }
 
 PushNotificationService::PushNotificationService(const std::string &certdir, const std::string &cafile, int maxQueueSize) :
 		mIOService(), mThread(NULL), mClients(), mCountFailed(NULL), mCountSent(NULL) {
 	setupClients(certdir, cafile, maxQueueSize);
-
-	// Error client
-	std::shared_ptr<ssl::context> ctx(new ssl::context(mIOService, ssl::context::sslv23_client));
-	boost::system::error_code err;
-	ctx->set_options(ssl::context::default_workarounds, err);
-	ctx->set_verify_mode(ssl::context::verify_none);
-	mClients["error"]=std::make_shared<PushNotificationClient>("error", this, ctx, "127.0.0.1", "1", maxQueueSize, false);
 }
 
 PushNotificationService::~PushNotificationService() {

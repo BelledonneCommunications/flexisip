@@ -105,24 +105,30 @@ struct PusherArgs {
 };
 
 static shared_ptr<PushNotificationRequest> createRequestFromArgs(const PusherArgs &args) {
+	PushInfo pinfo;
+	pinfo.mType=args.pntype;
+	pinfo.mFromName="Pusher";
+	pinfo.mFromUri="sip:toto@sip.linphone.org";
 	if (args.pntype == "error") {
 		return make_shared<ErrorPushNotificationRequest>();
 	} else if (args.pntype == "google") {
-		string phone="+33681741738";
-		string callid = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
-		return make_shared<GooglePushNotificationRequest>("google", args.pntok, args.apikey, phone, callid);
+		pinfo.mCallId="fb14b5fe-a9ab-1231-9485-7d582244ba3d";
+		pinfo.mFromName="+33681741738";
+		pinfo.mDeviceToken=args.pntok;
+		pinfo.mApiKey=args.apikey;
+		return make_shared<GooglePushNotificationRequest>(pinfo);
 	} else if (args.pntype == "wp") {
-		string msg = "Hi here!";
-		string sendername = "Pusher";
-		string senderuri = "sip:toto@sip.linphone.org";
-		return make_shared<WindowsPhonePushNotificationRequest>(args.appid, args.pntok, true, msg, sendername, senderuri);
+		pinfo.mAppId=args.appid;
+		pinfo.mDeviceToken=args.pntok;
+		pinfo.mEvent=PushInfo::Message;
+		pinfo.mText="Hi here!";
+		return make_shared<WindowsPhonePushNotificationRequest>(pinfo);
 	} else if (args.pntype == "apple") {
-		string msg = "IM_MSG";
-		string msgSnd = "msg.caf";
-		// appid org.linphone.phone.prod
-		string sendername = "Pusher";
-		string senderuri = "sip:toto@sip.linphone.org";
-		return make_shared<ApplePushNotificationRequest>(args.appid, args.pntok, msg, senderuri, msgSnd, sendername, FALSE);
+		pinfo.mAlertMsgId="IM_MSG";
+		pinfo.mAlertSound="msg.caf";
+		pinfo.mAppId=args.appid;
+		pinfo.mDeviceToken=args.pntok;
+		return make_shared<ApplePushNotificationRequest>(pinfo);
 	}
 	cerr << "? push pntype " << args.pntype << endl;
 	exit(-1);

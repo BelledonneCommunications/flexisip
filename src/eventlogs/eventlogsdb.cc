@@ -146,9 +146,9 @@ void AuthLogDb::setOrigin(const url_t *url){
 
 static void getTrimmedEndOfLine(std::istringstream & iss, std::string & dest){
 	getline(iss, dest);
-    std::size_t first = dest.find_first_not_of(" \r\t\n");
-    std::size_t last  = dest.find_last_not_of(" \r\t\n");
-    dest=dest.substr(first, last-first+1);
+	std::size_t first = dest.find_first_not_of(" \r\t\n");
+	std::size_t last  = dest.find_last_not_of(" \r\t\n");
+	dest=dest.substr(first, last-first+1);
 }
 
 CallQualityStatisticsLogDb::CallQualityStatisticsLogDb(const std::shared_ptr<CallQualityStatisticsLog> & csLog)
