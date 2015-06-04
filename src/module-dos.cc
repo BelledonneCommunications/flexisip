@@ -26,7 +26,7 @@
 using namespace ::std;
 
 typedef struct DosContext {
-    uint64_t recv_msg_count_since_last_check;
+	uint64_t recv_msg_count_since_last_check;
 	double last_check_recv_msg_check_time;
 	double packet_count_rate;
 } DosContext;
@@ -44,7 +44,7 @@ private:
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
 			{ Integer , "time-period", "Number of milliseconds to consider to compute the packet rate", "3000"},
-			{ Integer , "packet-rate-limit", "Maximum packet rate received in [time-period] millisecond(s) to consider it as a DoS attack.", "20"},
+			{ Integer , "packet-rate-limit", "Maximum packet rate in packets/seconds,  averaged over [time-period] millisecond(s) to consider it as a DoS attack.", "20"},
 			{ Integer , "ban-time", "Number of minutes to ban the ip/port using iptables (might be less because it justs uses the minutes of the clock, not the seconds. So if the unban command is queued at 13:11:56 and scheduled and the ban time is 1 minute, it will be executed at 13:12:00)", "2"},
 			config_item_end
 		};

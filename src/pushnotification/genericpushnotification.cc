@@ -75,7 +75,7 @@ struct KeyVal{
 	KeyVal(const char *keyword, const string &value) : mKeyword(keyword), mValue(value){
 	}
 	const char *mKeyword;
-	const string &mValue;
+	const string mValue;
 };
 
 string & GenericPushNotificationRequest::substituteArgs(string &input, const PushInfo &pinfo){
