@@ -147,7 +147,7 @@ protected:
 	std::string & substituteArgs(std::string &input, const PushInfo &pinfo);
 	void createPushNotification();
 	std::vector<char> mBuffer;
-	std::string mHttpHeaders;
+	std::string mHttpMessage;
 };
 
 #endif

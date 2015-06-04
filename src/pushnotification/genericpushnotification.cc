@@ -30,27 +30,31 @@ using namespace ::std;
 
 GenericPushNotificationRequest::GenericPushNotificationRequest(const PushInfo &pinfo, const url_t *url, const string &method)
 : PushNotificationRequest("generic", "generic") {
-	ostringstream httpHeaders;
+	ostringstream httpMessage;
 	string path(url->url_path);
 	string headers(url->url_headers);
 	
 	substituteArgs(path, pinfo);
 	substituteArgs(headers, pinfo);
 	
-	httpHeaders<<method<<" "<<path<<" HTTP/1.1\r\n";
+	httpMessage<<method<<" /"<<path;
+	if (!headers.empty()) httpMessage<<"?"<<headers;
+	httpMessage<<" HTTP/1.1\r\n";
 	if (!pinfo.mText.empty()){
-		httpHeaders<<"Content-Type: text/plain\r\n";
-		httpHeaders<<"Content-Length: "<<pinfo.mText.size()<<"\r\n";
-		httpHeaders<<"\r\n\r\n";
+		httpMessage<<"Content-Type: text/plain\r\n";
+		httpMessage<<"Content-Length: "<<pinfo.mText.size()<<"\r\n";
+	}else httpMessage<<"Content-Length: 0\r\n";
+	httpMessage<<"\r\n";
+	if (!pinfo.mText.empty()){
+		httpMessage<<pinfo.mText;
+		httpMessage<<"\r\n";
 	}
-	httpHeaders<<"Content-Length: 0\r\n\r\n";
-	
-	mHttpHeaders = httpHeaders.str();
-	SLOGD << "GenericPushNotificationRequest" << this << " http message is" << mHttpHeaders;
+	mHttpMessage = httpMessage.str();
+	SLOGD << "GenericPushNotificationRequest" << this << " http message is" << mHttpMessage;
 }
 
 void GenericPushNotificationRequest::createPushNotification() {
-	int headerLength = mHttpHeaders.size();
+	int headerLength = mHttpMessage.size();
 	
 	mBuffer.clear();
 	mBuffer.resize(headerLength);
@@ -58,7 +62,7 @@ void GenericPushNotificationRequest::createPushNotification() {
 	char *binaryMessageBuff = &mBuffer[0];
 	char *binaryMessagePt = binaryMessageBuff;
 
-	memcpy(binaryMessagePt, &mHttpHeaders[0], headerLength);
+	memcpy(binaryMessagePt, &mHttpMessage[0], headerLength);
 	binaryMessagePt += headerLength;
 }
 
