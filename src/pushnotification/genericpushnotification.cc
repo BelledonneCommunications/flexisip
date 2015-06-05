@@ -41,7 +41,7 @@ GenericPushNotificationRequest::GenericPushNotificationRequest(const PushInfo &p
 	if (!headers.empty()) httpMessage<<"?"<<headers;
 	httpMessage<<" HTTP/1.1\r\n";
 	httpMessage<<"Host: "<<url->url_host;
-	if (url->url_port) httpMessage<<url->url_port;
+	if (url->url_port) httpMessage<<":"<<url->url_port;
 	httpMessage<<"\r\n";
 	if (!pinfo.mText.empty()){
 		httpMessage<<"Content-Type: text/plain\r\n";
@@ -75,7 +75,7 @@ const vector<char> & GenericPushNotificationRequest::getData() {
 }
 
 bool GenericPushNotificationRequest::isValidResponse(const string &str) {
-	LOGD("GenericPushNotificationRequest: http response is \n%s", str.c_str());
+	//LOGD("GenericPushNotificationRequest: http response is \n%s", str.c_str());
 	return true;
 }
 
@@ -88,6 +88,7 @@ struct KeyVal{
 
 string & GenericPushNotificationRequest::substituteArgs(string &input, const PushInfo &pinfo){
 	list<KeyVal> keyvals;
+	static const char *http_reserved="!*'();:@&=+$,/?#[]";
 	
 	keyvals.push_back(KeyVal("$type", pinfo.mType));
 	keyvals.push_back(KeyVal("$token", pinfo.mDeviceToken));
@@ -105,7 +106,12 @@ string & GenericPushNotificationRequest::substituteArgs(string &input, const Pus
 	for(auto it=keyvals.begin(); it!=keyvals.end(); ++it){
 		size_t pos=input.find((*it).mKeyword);
 		if (pos!=string::npos){
-			input.replace(pos,strlen((*it).mKeyword), (*it).mValue);
+			string value;
+			if (url_reserved_p((*it).mValue.c_str())){
+				value.resize(url_esclen((*it).mValue.c_str(), http_reserved));
+				url_escape(&value.at(0), (*it).mValue.c_str(), http_reserved);
+			}else value = (*it).mValue;
+			input.replace(pos,strlen((*it).mKeyword), value);
 		}
 	}
 	return input;
