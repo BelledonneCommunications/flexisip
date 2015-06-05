@@ -40,6 +40,9 @@ GenericPushNotificationRequest::GenericPushNotificationRequest(const PushInfo &p
 	httpMessage<<method<<" /"<<path;
 	if (!headers.empty()) httpMessage<<"?"<<headers;
 	httpMessage<<" HTTP/1.1\r\n";
+	httpMessage<<"Host: "<<url->url_host;
+	if (url->url_port) httpMessage<<url->url_port;
+	httpMessage<<"\r\n";
 	if (!pinfo.mText.empty()){
 		httpMessage<<"Content-Type: text/plain\r\n";
 		httpMessage<<"Content-Length: "<<pinfo.mText.size()<<"\r\n";
@@ -72,6 +75,7 @@ const vector<char> & GenericPushNotificationRequest::getData() {
 }
 
 bool GenericPushNotificationRequest::isValidResponse(const string &str) {
+	LOGD("GenericPushNotificationRequest: http response is \n%s", str.c_str());
 	return true;
 }
 
