@@ -193,7 +193,7 @@ GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, si
 	const char *port= url->url_port;
 	const char *user=sip_contact->m_url->url_user;
 	int expire=forcedExpireValue != -1 ? forcedExpireValue
-		: ExtendedContact::resolve_expire(sip_contact->m_expires, global_expire != NULL ? global_expire->ex_delta : -1);
+		: ExtendedContact::resolveExpire(sip_contact->m_expires, global_expire != NULL ? global_expire->ex_delta : -1);
 	if (port) {
 		contact = sip_contact_format(&home, "<%s:%s@%s:%s>;expires=%i",url->url_scheme, user, url->url_host, port, expire);
 	} else {

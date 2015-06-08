@@ -246,27 +246,12 @@ int ModuleToolbox::sipPortToInt(const char *port){
 	else return atoi(port);
 }
 
-void ModuleToolbox::cleanAndPrependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *route){
+void ModuleToolbox::cleanAndPrependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, sip_route_t *r){
 	// removes top route headers if they matches us
-	sip_route_t *r = sip_route_format(home, "%s", route);
 	while (sip->sip_route != NULL && ag->isUs(sip->sip_route->r_url)) {
 		sip_route_remove(msg, sip);
 	}
 	prependNewRoutable(msg, sip, sip->sip_route, r);
-}
-
-void ModuleToolbox::cleanAndPrependRoutable(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const std::list<std::string> &routes){
-	for (auto it=routes.crbegin(); it != routes.crend(); ++it) {
-		sip_route_t *r = sip_route_format(home, "%s", it->c_str());
-		if (prependNewRoutable(msg, sip, sip->sip_route, r)) {
-			SLOGD << "Prepended routable " << *it;
-		}
-	}
-	// removes top route headers if they matches us
-	while (sip->sip_route != NULL && ag->isUs(sip->sip_route->r_url)) {
-		sip_route_remove(msg, sip);
-	}
-	SLOGD << "Removed top route headers";
 }
 
 url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
@@ -500,7 +485,7 @@ void ModuleToolbox::addRoutingParam(su_home_t *home, sip_contact_t *c, const str
 	}
 }
 
-struct sip_route_s *ModuleToolbox::prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_s * &sipr, struct sip_route_s * &value) {
+sip_route_t *ModuleToolbox::prependNewRoutable(msg_t *msg, sip_t *sip, sip_route_t * &sipr, sip_route_t * value) {
 	if (sipr == NULL) {
 		sipr = value;
 		return value;
@@ -540,14 +525,16 @@ void ModuleToolbox::addPathHeader(Agent *ag, const shared_ptr< RequestSipEvent >
 		char *lParam = su_sprintf(home, "fs-proxy-id=%s",uniq);
 		url_param_add(home,url,lParam);
 	}
-	url_param_add(home,url,"lr");
-	const char *cpath=url_as_string(home, url);
-	sip_path_t *path=sip_path_format(home, "<%s>", cpath);
+	url_param_add(home, url, "lr");
+	sip_path_t *path = (sip_path_t*)su_alloc(home,sizeof(sip_path_t));
+	sip_path_init(path);
+	
+	path->r_url[0] = *url;
 
 	if (!prependNewRoutable(msg, sip, sip->sip_path, path)) {
-		SLOGD << "Identical path already existing: " << cpath;
+		SLOGD << "Identical path already existing: " << url_as_string(home, url);
 	} else {
-		SLOGD << "Path added to: " << cpath;
+		SLOGD << "Path added to: " << url_as_string(home, url);
 	}
 }
 

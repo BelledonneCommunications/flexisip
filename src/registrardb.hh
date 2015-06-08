@@ -76,7 +76,7 @@ struct ExtendedContact {
 	inline const char *contactId() { return mContactId.c_str(); }
 	inline const char *route() { return (mPath.empty() ? NULL : mPath.cbegin()->c_str()); }
 
-	static int resolve_expire(const char *contact_expire, int global_expire) {
+	static int resolveExpire(const char *contact_expire, int global_expire) {
 		if (contact_expire) {
 			return atoi(contact_expire);
 		} else {
@@ -88,7 +88,7 @@ struct ExtendedContact {
 		}
 	}
 
-	static std::string url_as_string(su_home_t *home, const url_t *url) {
+	static std::string urlToString(su_home_t *home, const url_t *url) {
 		std::string res=::url_as_string(home, url);
 		if (res.c_str() && res.c_str()[0] != '<') return "<" + res + ">";
 		else return res;
@@ -102,7 +102,7 @@ struct ExtendedContact {
 		{
 		su_home_t home;
 		su_home_init(&home);
-		mSipUri = url_as_string(&home, sip_contact->m_url);
+		mSipUri = urlToString(&home, sip_contact->m_url);
 		su_home_destroy(&home);
 		}
 
@@ -110,7 +110,7 @@ struct ExtendedContact {
 			mQ = atof(sip_contact->m_q);
 		}
 
-		int expire = resolve_expire(sip_contact->m_expires, global_expire);
+		int expire = resolveExpire(sip_contact->m_expires, global_expire);
 		if (expire == -1) LOGA("no global expire (%d) nor local contact expire (%s)found", global_expire, sip_contact->m_expires);
 		mExpireAt = updateTime + expire;
 	}
@@ -129,13 +129,13 @@ struct ExtendedContact {
 
 		su_home_t home;
 		su_home_init(&home);
-		mSipUri = url_as_string(&home, url);
+		mSipUri = urlToString(&home, url);
 		su_home_destroy(&home);
 	}
 
 	std::ostream &print(std::ostream & stream, time_t now, time_t offset = 0) const;
-
-	sip_contact_t *toSofia(su_home_t *home, time_t now) const;
+	sip_contact_t *toSofiaContacts(su_home_t *home, time_t now) const;
+	sip_route_t *toSofiaRoute(su_home_t *home) const;
 };
 
 

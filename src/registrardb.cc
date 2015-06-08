@@ -59,7 +59,7 @@ ostream &ExtendedContact::print(std::ostream& stream, time_t now, time_t offset)
 	return stream;
 }
 
-sip_contact_t* ExtendedContact::toSofia(su_home_t* home, time_t now) const {
+sip_contact_t* ExtendedContact::toSofiaContacts(su_home_t* home, time_t now) const {
 	sip_contact_t *contact = NULL;
 	time_t expire = mExpireAt - now;
 	if (expire <= 0) return NULL;
@@ -76,6 +76,28 @@ sip_contact_t* ExtendedContact::toSofia(su_home_t* home, time_t now) const {
 	return contact;
 }
 
+sip_route_t *ExtendedContact::toSofiaRoute(su_home_t *home) const{
+	sip_route_t *rbegin=NULL;
+	sip_route_t *r;
+	for(auto it=mPath.begin(); it!=mPath.end(); ++it){
+		sip_route_t *newr = sip_route_format(home, "<%s>", (*it).c_str());
+		if (!newr){
+			LOGE("Cannot parse %s into route header",(*it).c_str());
+			break;
+		}
+		if (!url_has_param(newr->r_url,"lr")){
+			url_param_add(home, newr->r_url, "lr");
+		}
+		if (rbegin == NULL){
+			rbegin = newr;
+		}else{
+			r->r_next = newr;
+		}
+		r = newr;
+	}
+	return rbegin;
+}
+
 
 char Record::sStaticRecordVersion[100]={0};
 
@@ -83,7 +105,7 @@ char Record::sStaticRecordVersion[100]={0};
 const sip_contact_t *Record::getContacts(su_home_t *home, time_t now) {
 	sip_contact_t *alist = NULL;
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
-		sip_contact_t *current = (*it)->toSofia(home, now);
+		sip_contact_t *current = (*it)->toSofiaContacts(home, now);
 		if (current && alist) {
 			current->m_next = alist;
 		}

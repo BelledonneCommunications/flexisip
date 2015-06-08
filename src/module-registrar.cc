@@ -249,7 +249,7 @@ public:
 		mFrom = sip_from_dup(mHome, sip->sip_from);
 		mContacts = sip_contact_dup(mHome, sip->sip_contact);
 		for (sip_contact_t *it = mContacts; it; it = it->m_next) {
-			int cExpire = ExtendedContact::resolve_expire(it->m_expires, globalDelta);
+			int cExpire = ExtendedContact::resolveExpire(it->m_expires, globalDelta);
 			it->m_expires = su_sprintf(mHome, "%d", cExpire);
 		}
 		mPath = sip_path_dup(mHome, sip->sip_path);

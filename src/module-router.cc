@@ -239,7 +239,7 @@ bool ModuleRouter::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *
 						ct_url->url_host?ct_url->url_host:"",
 						ct_url->url_params?ct_url->url_params:"",
 						route);
-				cleanAndPrependRoute(home, mAgent, ms->getMsg(), sip, route);
+				cleanAndPrependRoute(home, mAgent, ms->getMsg(), sip, sip_route_make(home, route));
 			}
 			// Back to work
 			return true;
@@ -255,10 +255,10 @@ bool ModuleRouter::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *
 bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const shared_ptr< ExtendedContact > &contact, shared_ptr< ForkContext > context) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	time_t now = getCurrentTime();
-	sip_contact_t *ct = contact->toSofia(ms->getHome(), now);
+	sip_contact_t *ct = contact->toSofiaContacts(ms->getHome(), now);
 	url_t *dest = ct->m_url;
 	const string uid = contact->mUniqueId;
-	const list<string> path = contact->mPath;
+	sip_route_t  *routes = contact->toSofiaRoute(ms->getHome());
 	
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
 	if (dest->url_host == NULL || dest->url_host[0] == '\0') {
@@ -295,7 +295,7 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const share
 
 	// Convert path to routes
 	new_sip->sip_route=NULL;
-	cleanAndPrependRoutable(msg_home(new_msg),getAgent(), new_msg, new_sip, path);
+	cleanAndPrependRoute(msg_home(new_msg),getAgent(), new_msg, new_sip, routes);
 
 	if (context) {
 		context->addBranch(new_ev, contact);
@@ -433,7 +433,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 	bool nonSipsFound=false;
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
 		const shared_ptr<ExtendedContact> &ec = *it;
-		sip_contact_t *ct = ec->toSofia(ms->getHome(), now);
+		sip_contact_t *ct = ec->toSofiaContacts(ms->getHome(), now);
 		if (!ct) {
 			SLOGE << "Can't create sip_contact of " << ec->mSipUri;
 			continue;

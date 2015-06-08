@@ -203,8 +203,7 @@ class ModuleToolbox{
 		static void addRecordRouteIncoming(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev);
 		static url_t *urlFromTportName(su_home_t *home, const tp_name_t *name);
 		static void addRecordRoute(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev, const tport_t *tport);
-		static void cleanAndPrependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const char *route);
-		static void cleanAndPrependRoutable(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, const std::list<std::string> &routes);
+		static void cleanAndPrependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, sip_route_t *route);
 		static bool sipPortEquals(const char *p1, const char *p2, const char *transport=NULL);
 		static int sipPortToInt(const char *port);
 		static bool fromMatch(const sip_from_t *from1, const sip_from_t *from2);
@@ -214,7 +213,7 @@ class ModuleToolbox{
 		static bool isNumeric(const char *host);
 		static bool isManagedDomain(const Agent *agent, const std::list<std::string> &domains, const url_t *url);
 		static void addRoutingParam(su_home_t *home, sip_contact_t *contacts, const std::string &routingParam, const char *domain);
-		static struct sip_route_s *prependNewRoutable(msg_t *msg, sip_t *sip, struct sip_route_s * &sipr, struct sip_route_s * &value);
+		static struct sip_route_s *prependNewRoutable(msg_t *msg, sip_t *sip, sip_route_t * &sipr, sip_route_t * value);
 		static void addPathHeader(Agent *ag, const std::shared_ptr<RequestSipEvent> &ev, const tport_t *tport, const char *uniq = NULL);
 		/*these methods do host comparison taking into account that each one of argument can be an ipv6 address enclosed in brakets*/
 		static bool urlHostMatch(const char *host1, const char *host2);

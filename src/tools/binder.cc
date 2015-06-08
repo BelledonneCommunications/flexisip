@@ -45,10 +45,10 @@ SofiaHome home;
 
 
 void checkExpireHandling() {
-	check("resolve expire1", ExtendedContact::resolve_expire(NULL, 5), 5);
-	check("resolve expire2", ExtendedContact::resolve_expire(NULL, -1), -1);
-	check("resolve expire3", ExtendedContact::resolve_expire("5", 6), 5);
-	check("resolve expire4", ExtendedContact::resolve_expire("5", -1), 5);
+	check("resolve expire1", ExtendedContact::resolveExpire(NULL, 5), 5);
+	check("resolve expire2", ExtendedContact::resolveExpire(NULL, -1), -1);
+	check("resolve expire3", ExtendedContact::resolveExpire("5", 6), 5);
+	check("resolve expire4", ExtendedContact::resolveExpire("5", -1), 5);
 }
 
 static sip_contact_t *uid_ct(const char *urlparams, const char* ctparams) {
