@@ -117,7 +117,7 @@ void PushNotificationService::setupGenericClient(const url_t *url){
 	boost::system::error_code err;
 	ctx->set_options(ssl::context::default_workarounds, err);
 	ctx->set_verify_mode(ssl::context::verify_none);
-	mClients["generic"]=std::make_shared<PushNotificationClient>("generic", this, ctx, url->url_host, url->url_port, mMaxQueueSize, false);
+	mClients["generic"]=std::make_shared<PushNotificationClient>("generic", this, ctx, url->url_host, url_port(url), mMaxQueueSize, false);
 }
 
 void PushNotificationService::setupClients(const string &certdir, const string &ca, int maxQueueSize) {
