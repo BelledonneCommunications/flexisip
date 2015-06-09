@@ -264,12 +264,11 @@ OdbcAuthDb::OdbcAuthDb() :
 		envError("SQLSetEnvAttr ODBCv3");
 		LOGF("odbc error");
 	}
-	/*SM: remove this code, because it blocks flexisip entirely at startup if the database is not responding.
-	 * Furthermore, the lt_dlopen() related bugs are workaround now in unixodbc.
+	/*SM: this follow code is really a crap because it blocks flexisip entirely at startup if the database is not responding.
+	 *  However it is required because mysql client lib segfaults like a shit when used from a thread for the first.
 	 **/
-#if 0
+#if 1
 	// Make sure the driver library is loaded.
-	// Workaround odbc errors while loading .so connector library.
 	AuthDbTimings timings;
 	ConnectionCtx ctx;
 	string init="init";
