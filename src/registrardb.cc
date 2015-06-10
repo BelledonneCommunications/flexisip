@@ -77,8 +77,8 @@ sip_contact_t* ExtendedContact::toSofiaContacts(su_home_t* home, time_t now) con
 }
 
 sip_route_t *ExtendedContact::toSofiaRoute(su_home_t *home) const{
-    sip_route_t *rbegin = NULL;
-    sip_route_t *r      = NULL;
+	sip_route_t *rbegin = NULL;
+	sip_route_t *r      = NULL;
 	for(auto it=mPath.begin(); it!=mPath.end(); ++it){
 		sip_route_t *newr = sip_route_format(home, "<%s>", (*it).c_str());
 		if (!newr){
