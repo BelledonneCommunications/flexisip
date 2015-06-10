@@ -10,7 +10,7 @@ log = logging.getLogger('mwclient.client')
 log.addHandler(logging.StreamHandler())
 log.setLevel(logging.DEBUG)
 
-default_host= 'www.linphone.org/mediawiki'
+default_host= 'www.linphone.org/wiki'
 
 # read from a configuration file for user/pass/host. This allows for out-of-cli specification of these parameters.
 config_file     = '~/.flexiwiki.media.cfg'

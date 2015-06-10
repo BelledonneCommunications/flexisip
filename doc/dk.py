@@ -3,7 +3,7 @@ import argparse
 from dokuwiki import DokuWiki, DokuWikiError
 import ConfigParser, os
 
-default_host= 'https://linphone.org/wiki'
+default_host= 'https://linphone.org/dokuwiki'
 
 # read from a configuration file for user/pass/host. This allows for out-of-cli specification of these parameters.
 config_file     = '~/.flexiwiki.doku.cfg'

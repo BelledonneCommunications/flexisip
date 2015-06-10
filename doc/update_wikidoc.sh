@@ -40,9 +40,9 @@ function upload_to_wiki {
 
 # special case for the 'global' namespace, which is not technically a module
 flexi_doc_to_file "global" "doku" "global.doku.txt"
-flexi_doc_to_file "global" "wiki" "global.wiki.txt"
-python dk.py "Flexisip:Configuration" "global.doku.txt" "Global configuration"
-python mw.py "Flexisip:Configuration" "global.wiki.txt" "Global configuration"
+flexi_doc_to_file "global" "media" "global.wiki.txt"
+python dk.py "global" "global.doku.txt" $message
+python mw.py "global" "global.wiki.txt" $message
 rm "global.doku.txt" "global.wiki.txt"
 
 
