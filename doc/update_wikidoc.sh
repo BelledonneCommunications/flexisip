@@ -49,7 +49,7 @@ rm "global.doku.txt" "global.wiki.txt"
 modules=`$FLEXISIP --list-modules`
 
 # upload for DokuWiki
-upload_to_wiki "$modules[@]" "doku" "dk.py"
+upload_to_wiki "${modules[@]}" "doku" "dk.py"
 
 #upload for MediaWiki
-upload_to_wiki "$modules[@]" "media" "mw.py"
+upload_to_wiki "${modules[@]}" "media" "mw.py"
