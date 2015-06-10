@@ -420,17 +420,18 @@ static int dump_config(su_root_t* root, const std::string& dump_cfg_part, bool w
 
 	if ( dump_cfg_part != "all" ) {
 
-		size_t prefix = dump_cfg_part.find("module::");
+		size_t prefix_location = dump_cfg_part.find("module::");
+		rootStruct = dynamic_cast<GenericStruct *>(rootStruct->find(dump_cfg_part));
 
-		if( prefix == dump_cfg_part.npos ){
-			cerr << "Module name should start with 'module::' (was given " << dump_cfg_part << " )" << endl;
+		if( dump_cfg_part != "global" && prefix_location != 0 ){
+			cerr << "Module name should start with 'module::' or be the special module 'global' (was given " << dump_cfg_part << " )" << endl;
 			return EXIT_FAILURE;
 
-		} else if ( !(rootStruct = dynamic_cast<GenericStruct *>(rootStruct->find(dump_cfg_part)))) {
+		} else if ( rootStruct == NULL ) {
 			cerr << "Couldn't find node " << dump_cfg_part << endl;
 			return EXIT_FAILURE;
 
-		} else {
+		} else if( prefix_location == 0 ) {
 			string moduleName = dump_cfg_part.substr(strlen("module::"));
 			Module* module = a->findModule(moduleName);
 			if( module && module->type() == ModuleTypeExperimental && !with_experimental ){
@@ -483,12 +484,13 @@ int main(int argc, char *argv[]) {
 	TCLAP::SwitchArg            daemonMode("",  "daemon", 				"Launch in daemon mode", cmd);
 	TCLAP::SwitchArg             useSyslog("",  "syslog", 				"Use syslog for logging", cmd);
 	TCLAP::SwitchArg              useDebug("d", "debug", 				"Force debug mode (overrides the configuration)", cmd);
-	TCLAP::SwitchArg           trackAllocs("", "track-allocations",		"Tracks allocations of SIP messages, only use with caution.", cmd);
+	TCLAP::SwitchArg           trackAllocs("",  "track-allocations",	"Tracks allocations of SIP messages, only use with caution.", cmd);
 	TCLAP::ValueArg<string>     configFile("c", "config", 				"Specify the location of the configuration file", TCLAP::ValueArgOptional, CONFIG_DIR "/flexisip.conf", "/srv/flexisip.conf", cmd);
 	TCLAP::SwitchArg            gitVersion("",  "git-version", 			"Will print the version and the git revision associated with this particular instance of Flexisip", cmd);
 
 	TCLAP::SwitchArg              dumpMibs("",  "dump-mibs", 			"Will dump the MIB files for Flexisip performance counters and other related SNMP items.", cmd);
-	TCLAP::ValueArg<string>    dumpDefault("",  "dump-default",			"Dump default config, with specifier for the module to dump. Use 'all' to dump all modules.", TCLAP::ValueArgOptional, "", "module::Router", cmd);
+	TCLAP::ValueArg<string>    dumpDefault("",  "dump-default",			"Dump default config, with specifier for the module to dump. Use 'all' to dump all modules, or 'MODULENAME' to dump a specific module. For instance, to dump the Router module default config, issue 'flexisip --dump-default module::Router.", TCLAP::ValueArgOptional, "", "all", cmd);
+	TCLAP::SwitchArg               dumpAll("", 	"dump-all-default", 	"Will dump all the configuration. This is equivalent to '--dump-default all'", cmd);
 	TCLAP::ValueArg<string>     dumpFormat("",  "dump-format",			"Select the format in which the dump-default will print. The default is 'file'. Possible values are: file, tex, doku, media", TCLAP::ValueArgOptional, "file", "file", cmd);
 	TCLAP::SwitchArg           listModules("",  "list-modules", 		"Will print a list of available modules. This is useful if you want to combine with --dump-default to have specific documentation for a module", cmd);
 	TCLAP::SwitchArg   displayExperimental("",  "show-experimental",	"Use in conjunction with --dump-default: will dump the configuration for a module even if it is marked as experiemental", cmd);
@@ -535,7 +537,7 @@ int main(int argc, char *argv[]) {
 
 
 	// in case we don't plan to launch flexisip, don't setup the logs.
-	if ( !dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs  ) {
+	if ( !dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs && !dumpAll ) {
 		ortp_init();
 		flexisip::log::preinit(useSyslog.getValue(), useDebug.getValue());
 	} else {
@@ -547,8 +549,13 @@ int main(int argc, char *argv[]) {
 
 
 	// list default config and exit
-	if ( dumpDefault.getValue().length() != 0 ) {
-		int status = dump_config(root, dumpDefault.getValue(), displayExperimental, dumpFormat.getValue());
+	std::string module = dumpDefault.getValue();
+	if ( dumpAll ){
+		module = "all";
+	}
+
+	if ( module.length() != 0 ) {
+		int status = dump_config(root, module, displayExperimental, dumpFormat.getValue());
 		return status;
 	}
 
@@ -626,6 +633,8 @@ int main(int argc, char *argv[]) {
 	/*tell parser to support extra headers */
 	sip_update_default_mclass(sip_extend_mclass(NULL));
 
+
+	/* TODO: This is obscure, should we keep that ? */
 	log_boolean_expression_evaluation(oset.find("bee") != oset.end());
 	log_boolean_expression_parsing(oset.find("bep") != oset.end());
 

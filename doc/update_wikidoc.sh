@@ -12,6 +12,14 @@ else
 	message=""
 fi
 
+function flexi_doc_to_file {
+	_module=$1
+	_format=$2
+	_file=$3
+
+	$FLEXISIP --dump-format $_format --dump-default $_module > $_file
+}
+
 function upload_to_wiki {
 	_modules=$1
 	_format=$2
@@ -23,12 +31,20 @@ function upload_to_wiki {
 	do
 		modulename=`echo $module | sed 's/module:://g'`
 		echo "Doc for module $module -> $modulename.$_format.txt"
-		echo $FLEXISIP --dump-format $_format --dump-default $module > $modulename.$_format.txt
+		flexi_doc_to_file $module $_format "$modulename.$_format.txt"
 		python $_script $modulename $modulename.$_format.txt $message
 		rm $modulename.$_format.txt
 	done
 
 }
+
+# special case for the 'global' namespace, which is not technically a module
+flexi_doc_to_file "global" "doku" "global.doku.txt"
+flexi_doc_to_file "global" "wiki" "global.wiki.txt"
+python dk.py "Flexisip:Configuration" "global.doku.txt" "Global configuration"
+python mw.py "Flexisip:Configuration" "global.wiki.txt" "Global configuration"
+rm "global.doku.txt" "global.wiki.txt"
+
 
 modules=`$FLEXISIP --list-modules`
 
