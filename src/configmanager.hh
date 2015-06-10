@@ -216,8 +216,8 @@ public:
 	}
 
 	void setReadOnly(bool ro) {mReadOnly=ro;}
-	bool getExportToConfigFile() const {return mExportToConfigFile;}
-	void setExportToConfigFile(bool val) { mExportToConfigFile=val;}
+	bool isExportable() const {return mExportToConfigFile;}
+	void setExportable(bool val) { mExportToConfigFile=val;}
 #ifdef ENABLE_SNMP
 	static int sHandleSnmpRequest(netsnmp_mib_handler *handler,
 			netsnmp_handler_registration *reginfo,

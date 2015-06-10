@@ -30,7 +30,8 @@ ostream& ConfigDumper::dump_recursive(std::ostream &ostr, const GenericEntry *en
 {
 	const GenericStruct *cs  = dynamic_cast<const GenericStruct*>(entry);
 	const ConfigValue* value = dynamic_cast<const ConfigValue*>(entry);
-	if( cs && shouldDumpModule(cs->getName()) ){
+	if( cs && shouldDumpModule(cs->getName()) && cs->isExportable() ){
+
 
 		dumpModuleHead(ostr, cs, level);
 
@@ -100,7 +101,7 @@ ostream & FileConfigDumper::printHelp(ostream &os, const string &help, const str
 }
 
 ostream & FileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, int level) const {
-	if (val && !val->getExportToConfigFile()) return ostr;
+	if (val && !val->isExportable()) return ostr;
 	if( !val->isDeprecated() ){
 
 		printHelp(ostr,val->getHelp(),"#");
@@ -117,7 +118,7 @@ ostream & FileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValu
 }
 
 ostream & FileConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const {
-	if (moduleHead && !moduleHead->getExportToConfigFile()) return ostr;
+	if (moduleHead && !moduleHead->isExportable()) return ostr;
 
 	ostr<<"##"<<endl;
 

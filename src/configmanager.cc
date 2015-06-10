@@ -754,7 +754,7 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 
 
 	GenericStruct *notifObjs=new GenericStruct("notif","Templates for notifications.",1);
-	notifObjs->setExportToConfigFile(false);
+	notifObjs->setExportable(false);
 	mConfigRoot.addChild(notifObjs);
 	mNotifier=new NotificationEntry("sender","Send notifications",1);
 	notifObjs->addChild(mNotifier);
@@ -773,11 +773,11 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 
 	ConfigString *version=new ConfigString("version-number", "Flexisip version.", PACKAGE_VERSION, 999);
 	version->setReadOnly(true);
-	version->setExportToConfigFile(false);
+	version->setExportable(false);
 	global->addChild(version);
 
 	ConfigValue *runtimeError=new ConfigRuntimeError("runtime-error", "Retrieve current runtime error state", 998);
-	runtimeError->setExportToConfigFile(false);
+	runtimeError->setExportable(false);
 	runtimeError->setReadOnly(true);
 	global->addChild(runtimeError);
 
