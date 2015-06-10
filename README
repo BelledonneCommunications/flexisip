@@ -41,7 +41,7 @@ Configuration
 Flexisip needs a configuration file for running correctly.
 You can either:
 - copy and modify file flexisip.conf.sample to flexisip.conf in directory <prefix>/etc/flexisip
-- or issue `flexisip --dump-config all > flexisip.conf` in a terminal 
+- or issue `flexisip --dump-default all > flexisip.conf` in a terminal 
   to generate a configuration file with the default values.
 
 
