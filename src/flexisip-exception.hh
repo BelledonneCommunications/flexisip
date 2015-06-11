@@ -32,7 +32,7 @@ class FlexisipException: public exception {
 public:
 
 	FlexisipException();
-	FlexisipException(string& message);
+	FlexisipException(const string& message);
 	FlexisipException(const char* message);
 	virtual ~FlexisipException() throw ();
 	FlexisipException(const FlexisipException& other );
@@ -44,7 +44,7 @@ public:
 	void printStackTrace(std::ostream & os) const;
 
 	const char* what() const throw ();
-	const std::string str() const;
+	const std::string &str() const;
 
 	/* same as osstringstream, but as osstream does not have cp contructor, FlexisipException can't inherit from osstream*/
 	template<typename T2>  FlexisipException& operator<< (const T2& val){
@@ -54,9 +54,10 @@ public:
 protected:
 	int mOffset; /*to hide last stack traces*/
 private:
-    void *mArray[20];
-    size_t mSize;
+	void *mArray[20];
+	size_t mSize;
 	ostringstream mOs;
+	mutable string mMessage;
 };
 std::ostream& operator<<(std::ostream& __os,const FlexisipException&  e);
 

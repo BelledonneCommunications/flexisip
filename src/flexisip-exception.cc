@@ -35,24 +35,22 @@ static void uncaught_handler () {
 FlexisipException e;
 
 
-FlexisipException::FlexisipException(const char* message): mOffset(1){
+FlexisipException::FlexisipException(const char* message): mOffset(1), mSize(0){
 	mSize = backtrace(mArray, sizeof(mArray)/sizeof(void*));
 	if (message) mOs << message;
 #if __clang
 	if (get_terminate() != uncaught_handler)
 #endif
-		set_terminate(uncaught_handler); //invoke in case of uncautch exception for this thread
+	set_terminate(uncaught_handler); //invoke in case of uncautch exception for this thread
 }
 
-FlexisipException::FlexisipException(const FlexisipException& other ) {
-	mOffset=other.mOffset;
+FlexisipException::FlexisipException(const FlexisipException& other ) : mOffset(other.mOffset), mSize(other.mSize) {
 	memcpy(mArray,other.mArray,sizeof(mArray));
-	mSize=other.mSize;
 	mOs << other.str();
 }
 
 #if __cplusplus > 199711L
-FlexisipException::FlexisipException(string& msg): FlexisipException(msg.c_str()){
+FlexisipException::FlexisipException(const string& msg): FlexisipException(msg.c_str()){
 	mOffset++;
 }
 #else
@@ -92,11 +90,12 @@ void FlexisipException::printStackTrace(std::ostream & os) const {
 	delete (bt);
 }
 
-const std::string FlexisipException::str() const {
-	return mOs.str();
+const std::string &FlexisipException::str() const {
+	mMessage = mOs.str(); //avoid returning a reference to temporary
+	return mMessage;
 }
 const char* FlexisipException::what() const throw () {
-	return mOs.str().c_str();
+	return str().c_str();
 }
 
 
