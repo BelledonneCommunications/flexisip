@@ -171,7 +171,7 @@ ModuleInfo<PushNotification> PushNotification::sInfo("PushNotification",
 		ModuleInfoBase::ModuleOid::PushNotification);
 
 PushNotification::PushNotification(Agent *ag) :
-		Module(ag), mPNS(NULL), mCountFailed(NULL), mCountSent(NULL),  mNoBadgeiOS(false) {
+		Module(ag), mExternalPushUri(NULL), mPNS(NULL), mCountFailed(NULL), mCountSent(NULL),  mNoBadgeiOS(false) {
 }
 
 PushNotification::~PushNotification() {
