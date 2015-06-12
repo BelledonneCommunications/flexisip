@@ -136,10 +136,18 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 	if (dirp==NULL){
 		LOGE("Could not open push notification certificates directory (%s): %s",certdir.c_str(),strerror(errno));
 		return;
-	}
-	while((dirent=readdir(dirp))!=NULL){
-		if (dirent->d_type!=DT_REG && dirent->d_type!=DT_LNK) continue;
+	}	
+	SLOGD << "Searching push notification client on dir [" << certdir << "]";
+	
+	while(true){
+		errno = 0;
+		if((dirent=readdir(dirp))==NULL) {
+			if(errno) SLOGE << "Cannot read dir [" << certdir << "] because [" << strerror(errno) << "]";
+			break;
+		}
+		
 		string cert=string(dirent->d_name);
+		if(cert.compare(string(".")) == 0 || cert.compare(string("..")) == 0) continue;
 		string certpath= string(certdir)+"/"+cert;
 		std::shared_ptr<ssl::context> context(new ssl::context(mIOService, ssl::context::sslv23_client));
 		boost::system::error_code error;
@@ -154,6 +162,7 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 			context->load_verify_file(ca, error);
 			if (error) {
 				LOGE("load_verify_file: %s",error.message().c_str());
+				continue;
 			}
 		} else {
 			context->set_verify_mode(ssl::context::verify_none);
@@ -164,6 +173,7 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 			context->use_certificate_file(certpath, ssl::context::file_format::pem, error);
 			if (error) {
 				LOGE("use_certificate_file %s: %s",certpath.c_str(), error.message().c_str());
+				continue;
 			}
 		}
 		string key=certpath;
@@ -171,6 +181,7 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 			context->use_private_key_file(key, ssl::context::file_format::pem, error);
 			if (error) {
 				LOGE("use_private_key_file %s: %s", certpath.c_str(), error.message().c_str());
+				continue;
 			}
 		}
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
@@ -179,6 +190,7 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 			apn_server=APN_DEV_ADDRESS;
 		else apn_server=APN_PROD_ADDRESS;
 		mClients[certName]=std::make_shared<PushNotificationClient>(cert, this, context, apn_server, APN_PORT, maxQueueSize, true);
+		SLOGD << "Adding ios push notification client [" << certName << "]";
 	}
 	closedir(dirp);
 	setupErrorClient();
