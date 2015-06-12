@@ -141,7 +141,7 @@ public:
 	virtual const std::vector<char> & getData();
 	virtual bool isValidResponse(const std::string &str);
 	GenericPushNotificationRequest(const PushInfo & pinfo, const url_t *url, const std::string &method);
-	~GenericPushNotificationRequest() {}
+	virtual ~GenericPushNotificationRequest() {}
 	virtual bool mustReadServerResponse() { return true; }
 protected:
 	std::string & substituteArgs(std::string &input, const PushInfo &pinfo);
