@@ -39,6 +39,7 @@ option(ENABLE_BOOSTLOG "" YES)
 option(ENABLE_DATEHANDLER "" NO)
 option(ENABLE_DOC "" YES)
 option(ENABLE_ODB "" YES)
+option(ENABLE_SOCI "" YES)
 option(ENABLE_ODB_MYSQL "" YES)
 option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "" NO)
 option(ENABLE_ODBC "Build ODBC support" YES)
@@ -139,7 +140,7 @@ if(ENABLE_ODBC)
 	if(NOT ODBC_SQL_HEADERS)
 		message(FATAL_ERROR "ODBC Mysql headers not found.")
 	else()
-		message(STATUS "ODBCK Mysql ${ODBC_SQL_HEADERS}")
+		message(STATUS "ODBC Mysql ${ODBC_SQL_HEADERS}")
 	endif()
 
 	# check that odbc_config gives us a correct library path
@@ -207,6 +208,11 @@ if(ENABLE_PRESENCE)
 	else()
 		find_package(BelleSIP 1.2.4 REQUIRED)
 	endif()
+endif()
+
+if(ENABLE_SOCI)
+	find_package(Soci REQUIRED COMPONENTS mysql)
+	find_path(SOCI_MYSQL_INCLUDES NAMES mysql.h PATH_SUFFIXES mysql)
 endif()
 
 # Boost checks
