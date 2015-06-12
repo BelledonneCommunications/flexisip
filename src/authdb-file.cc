@@ -34,7 +34,9 @@ FileAuthDb::FileAuthDb() {
 	sync();
 }
 
-void FileAuthDb::getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener *listener) {
+
+void FileAuthDb::getPasswordFromBackend(su_root_t *root, const std::string &id, const std::string &domain, const std::string &authid, AuthDbListener *listener)
+{
 	AuthDbResult res=AuthDbResult::PASSWORD_NOT_FOUND;
 	time_t now = getCurrentTime();
 
@@ -42,9 +44,9 @@ void FileAuthDb::getPassword(su_root_t *root, const url_t *from, const char *aut
 		sync();
 	}
 
-	string key(createPasswordKey(from->url_user, from->url_host, auth_username));
+	string key(createPasswordKey(id, domain, authid));
 
-	if ( getCachedPassword(key, from->url_host, listener->mPassword) == VALID_PASS_FOUND ) {
+	if ( getCachedPassword(key, domain, listener->mPassword) == VALID_PASS_FOUND ) {
 		res = AuthDbResult::PASSWORD_FOUND;
 	}
 	listener->mResult=res;

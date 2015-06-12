@@ -423,33 +423,14 @@ static void closeCursor(SQLHSTMT &stmt) {
 
 
 
-void OdbcAuthDb::getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener *listener){
-	// Check for usable cached password
-	string id(from->url_user);
-	string domain(from->url_host);
-	string auth(auth_username);
-	string key(createPasswordKey(id, domain, auth));
-
-	switch(getCachedPassword(key, domain, listener->mPassword)) {
-	case VALID_PASS_FOUND:
-		listener->mResult=AuthDbResult::PASSWORD_FOUND;
-		listener->onResult();
-		return;
-	case EXPIRED_PASS_FOUND:
-		// Might check here if connection is failing
-		// If it is the case use fallback password and
-		//return AuthDbResult::PASSWORD_FOUND;
-		break;
-	case NO_PASS_FOUND:
-		break;
-	}
+void OdbcAuthDb::getPasswordFromBackend(su_root_t *root, const std::string& id, const std::string& domain, const std::string& authid, AuthDbListener *listener){
 
 	if (mAsynchronousRetrieving) {
 		// Asynchronously retrieve password in a new thread.
 		// Allocate on the stack and detach. It is lawful since:
 		// "When detach() returns, *this no longer represents the possibly continuing thread of execution."
 
-		thread t=thread(bind(&OdbcAuthDb::doAsyncRetrievePassword, this, root, id, domain, auth, listener));
+		thread t=thread(bind(&OdbcAuthDb::doAsyncRetrievePassword, this, root, id, domain, authid, listener));
 		t.detach();	// Thread will continue running in detached mode
 		return;
 	} else {
@@ -457,7 +438,7 @@ void OdbcAuthDb::getPassword(su_root_t *root, const url_t *from, const char *aut
 		string foundPassword;
 		timings.tStart=steady_clock::now();
 		ConnectionCtx ctx;
-		AuthDbResult ret = doRetrievePassword(ctx, id, domain, auth, foundPassword, timings);
+		AuthDbResult ret = doRetrievePassword(ctx, id, domain, authid, foundPassword, timings);
 		timings.tEnd=steady_clock::now();
 		if (ret == AUTH_ERROR) {
 			timings.error = true;
@@ -468,15 +449,6 @@ void OdbcAuthDb::getPassword(su_root_t *root, const url_t *from, const char *aut
 		listener->onResult();
 	}
 }
-
-
-static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg,
-					 void *u) {
-	AuthDbListener **listenerStorage = (AuthDbListener**)su_msg_data(msg);
-	AuthDbListener *listener=*listenerStorage;
-	listener->onResult();
-}
-
 
 /*
 static unsigned long threadCount=0;
@@ -499,39 +471,7 @@ void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string doma
 	}
 	timings.done();
 
-	if (listener) {
-		su_msg_r mamc = SU_MSG_R_INIT;
-		if (-1 == su_msg_create(mamc,
-				su_root_task(root),
-				su_root_task(root),
-				main_thread_async_response_cb,
-				sizeof(AuthDbListener*))) {
-			LOGF("Couldn't create auth async message");
-		}
-
-		AuthDbListener **listenerStorage = (AuthDbListener **)su_msg_data(mamc);
-		*listenerStorage = listener;
-
-		switch (ret) {
-		case PASSWORD_FOUND:
-			listener->mResult=ret;
-			listener->mPassword=password;
-			break;
-		case PASSWORD_NOT_FOUND:
-			listener->mResult=AuthDbResult::PASSWORD_NOT_FOUND;
-			listener->mPassword="";
-			break;
-		case AUTH_ERROR:
-			/*in that case we can fallback to the cached password previously set*/
-			break;
-		case PENDING:
-			LOGF("unhandled case PENDING");
-			break;
-		}
-		if (-1 == su_msg_send(mamc)) {
-			LOGF("Couldn't send auth async message to main thread.");
-		}
-	}
+	notifyPasswordRetrieved(root, listener, ret, password);
 
 	/*
 	threadCountMutex.lock();
