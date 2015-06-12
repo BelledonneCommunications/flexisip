@@ -71,10 +71,17 @@ protected:
 	void createCachedAccount(const url_t *from, const char *auth_username, const char *password, int expires);
 	void clearCache();
 	int mCacheExpire;
+
+	void notifyPasswordRetrieved(su_root_t *root, AuthDbListener*listener, AuthDbResult result, const std::string& password);
+
+
 public:
 	virtual ~AuthDb();
-	virtual void getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener *listener)=0;
+	void getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener *listener);
 	virtual void createAccount(const url_t *from, const char *auth_username, const char *password, int expires);
+
+	virtual void getPasswordFromBackend(su_root_t *root, const std::string& id, const std::string& domain, const std::string& authid, AuthDbListener *listener) = 0;
+
 	static AuthDb* get();
 
 	AuthDb (const AuthDb &);
@@ -91,10 +98,12 @@ protected:
 
 public:
 	FileAuthDb();
-	virtual void getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener* listener);
+	virtual void getPasswordFromBackend(su_root_t *root, const std::string& id, const std::string& domain, const std::string& authid, AuthDbListener *listener);
+
 };
 
 #if ENABLE_ODBC
+
 class OdbcAuthDb : public AuthDb {
 	~OdbcAuthDb();
 	const static int fieldLength = 500;
@@ -129,13 +138,13 @@ class OdbcAuthDb : public AuthDb {
 	AuthDbResult doRetrievePassword(ConnectionCtx& ctx, const std::string &user, const std::string &host, const std::string &auth, std::string &foundPassword, AuthDbTimings &timings);
 	void doAsyncRetrievePassword(su_root_t *, std::string id, std::string domain, std::string auth, AuthDbListener *listener);
 public:
-	virtual void getPassword(su_root_t*, const url_t *from, const char *auth_username, AuthDbListener *listener);
+	virtual void getPasswordFromBackend(su_root_t *root, const std::string& id, const std::string& domain, const std::string& authid, AuthDbListener *listener);
 	std::map<std::string,std::string> cachedPasswords;
 	void setExecuteDirect(const bool value);
-	bool connect(const std::string &dsn, const std::string &request, const std::vector<std::string> &parameters, int maxIdLength, int maxPassLength);
 	bool checkConnection();
 	OdbcAuthDb();
 };
-#endif
+
+#endif /* ENABLE_ODBC */
 
 #endif
