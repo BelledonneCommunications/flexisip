@@ -282,7 +282,7 @@ public:
 
 			{	StringList,		"trusted-hosts",					"List of whitespace separated IP which will not be challenged.", ""	},
 
-			{	String,			"db-implementation",				"Database backend implementation [odbc,file,fixed].", "fixed"	},
+			{	String,			"db-implementation",				"Database backend implementation [odbc,soci,file,fixed].", "fixed"	},
 
 			{	String,			"datasource",						"Odbc connection string to use for connecting to database. "
 																	"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. "
@@ -320,6 +320,7 @@ public:
 																	"This MUST not be used for production as it is a real security hole.", "false" },
 
 			{	Boolean,		"disable-qop-auth",					"Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.", "false" },
+			
 			config_item_end
 		};
 		mc->addChildrenValues(items);

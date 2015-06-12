@@ -54,6 +54,10 @@ AuthDb* AuthDb::get() {
 		} else if (impl == "odbc") {
 			sUnique = new OdbcAuthDb();
 #endif
+#if ENABLE_SOCI
+		} else if( impl == "soci") {
+			sUnique = new SociAuthDB();
+#endif
 		}
 	}
 

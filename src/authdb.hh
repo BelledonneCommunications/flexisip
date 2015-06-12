@@ -147,4 +147,28 @@ public:
 
 #endif /* ENABLE_ODBC */
 
+#if ENABLE_SOCI
+
+#include "soci.h"
+#include "mysql/soci-mysql.h"
+
+class SociAuthDB : public AuthDb {
+	virtual ~SociAuthDB();
+public:
+	SociAuthDB();
+	void setConnectionParameters(const string& domain, const string &request);
+	virtual void getPasswordFromBackend(su_root_t *root, const std::string& id, const std::string& domain, const std::string& authid, AuthDbListener *listener);
+private:
+	void getPasswordWithPool(su_root_t* root, const std::string &id, const std::string &domain, const std::string &authid, AuthDbListener *listener);
+
+	size_t poolSize;
+	soci::connection_pool *pool;
+	std::string connection_string;
+	std::string backend;
+	std::string get_password_request;
+
+};
+
+#endif /* ENABLE_SOCI */
+
 #endif
