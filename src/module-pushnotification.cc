@@ -255,7 +255,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 	pinfo.mCallId = ms->getSip()->sip_call_id->i_id;
 	pinfo.mEvent = sip->sip_request->rq_method == sip_method_invite ? PushInfo::Call : PushInfo::Message;
 
-	if (sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_params != NULL){
+	if (sip->sip_request->rq_url->url_params != NULL){
 		char type[12];
 		char deviceToken[256];
 		char appId[256]={0};
@@ -389,7 +389,7 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 	if (needsPush(sip)){
 		shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 		if (transaction != NULL) {
-			if (sip->sip_request->rq_url != NULL && sip->sip_request->rq_url->url_params != NULL) {
+			if (sip->sip_request->rq_url->url_params != NULL) {
 				try{
 					makePushNotification(ms,transaction);
 				}catch(exception &e){
