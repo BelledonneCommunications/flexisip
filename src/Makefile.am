@@ -192,6 +192,15 @@ nodist_flexisip_ctdumper_SOURCES=$(nodistsources)
 
 endif
 
+
+if ENABLE_SOCI
+
+thesources+=authdb-soci.cc
+flexisip_LDADD+=$(SOCI_LIBS)
+AM_CXXFLAGS+=-DENABLE_SOCI $(SOCI_CFLAGS)
+
+endif
+
 flexisip_serializer_SOURCES=tools/serializer.cc tools/tool_utils.hh $(thesources)
 flexisip_serializer_LDADD=$(flexisip_LDADD)
 nodist_flexisip_serializer_SOURCES=$(nodistsources)

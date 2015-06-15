@@ -119,7 +119,6 @@ fi
 
 PKG_PROG_PKG_CONFIG()
 
-
 #
 # UNIXODBC HANDLING
 #
@@ -257,6 +256,56 @@ else
 	have_mysql=no
 	MYSQL_CFLAGS=
 fi
+
+## SOCI ORM
+
+AC_ARG_ENABLE(soci,
+	AC_HELP_STRING([--enable-soci],[Build with SOCI support [default=auto]]),
+	
+	[soci="${enableval}"],
+	[soci=auto]
+)
+AC_ARG_WITH(soci,
+	AC_HELP_STRING([--with-soci], [Specify the soci location. We expect this location to contain lib/libsoci.so, lib/libsoci_mysql.so and include/soci/ [default=/usr/local]]),
+	
+	[soci_prefix="${withval}"],
+	[soci_prefix=/usr/local]
+)
+
+if test x$soci != "xno"; then
+
+	SOCI_LIBS="-L$soci_prefix/lib -lsoci_core -lsoci_mysql"
+	SOCI_CFLAGS="-I$soci_prefix/include/soci"
+
+	LIBS_save=$LIBS
+	LIBS="$LIBS $SOCI_LIBS"
+	AC_CHECK_LIB(soci_core, soci_create_session,[soci_core_ok=ok], [AC_MSG_WARN([Linking against libsoci_core failed.])])
+	AC_CHECK_LIB(soci_mysql, register_factory_mysql,[soci_mysql_ok=ok], [AC_MSG_WARN([Linking against libsoci_mysql failed.])])
+	LIBS=$LIBS_save
+
+	CPPFLAGS_save=$CPPFLAGS
+	CPPFLAGS="$CPPFLAGS $MYSQL_CFLAGS $SOCI_CFLAGS"
+	AC_LANG_PUSH([C++])
+	AC_CHECK_HEADERS([soci.h mysql/soci-mysql.h],[soci_headers_ok=ok],[AC_MSG_WARN([soci headers not found])])
+	AC_LANG_POP([C++])
+	CPPFLAGS=$CPPFLAGS_save
+
+	if test $soci_core_ok$soci_mysql_ok$soci_headers_ok$have_mysql != "okokokyes"; then
+		if test x$soci = "xauto"; then
+			AC_MSG_WARN([Soci was not detected, disabling])
+			soci=no
+		else
+			AC_MSG_ERROR([Soci was not detected correctly])
+		fi
+	else
+		soci=yes
+	fi
+	
+	AC_SUBST(SOCI_CFLAGS)
+	AC_SUBST(SOCI_LIBS)
+fi
+
+AM_CONDITIONAL(ENABLE_SOCI, test xsoci != xno)
 
 
 # Checks for header files.
@@ -674,5 +723,6 @@ printf "* %-30s %s\n" "Redis"               $have_redis
 printf "* %-30s %s\n" "Protobuf"            $have_protobuf
 printf "* %-30s %s\n" "XSD support"         $use_xsd
 printf "* %-30s %s\n" "Presence"            $presence
+printf "* %-30s %s\n" "Soci"                $soci
 
 echo "Now type 'make' to compile, and then 'make install' (as root if needed) to install it."
