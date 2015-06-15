@@ -289,19 +289,7 @@ public:
 																	"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. "
 																	"ex3: /etc/flexisip/passwd; for a file containing one 'user@domain password' by line.", ""	},
 
-			{	String,			"request",							"Odbc SQL request to execute to obtain the password \n. "
-																	"Named parameters are :id (the user found in the from header), :domain (the authorization realm) and :authid (the authorization username). "
-																	"The use of the :id parameter is mandatory.",
-																	"select password from accounts where id = :id and domain = :domain and authid=:authid"	},
-
 			{	Integer,		"nonce-expires",					"Expiration time of nonces, in seconds.", "3600" },
-
-			{	Boolean,		"odbc-pooling",						"Use pooling in ODBC (improves performances). This is not guaranteed to succeed, because if you are using unixODBC, it consults the /etc/odbcinst.ini"
-																	"file in section [ODBC] to check for Pooling=yes/no option. You should make sure that this flag is set before expecting this option to work.",							"true"	},
-
-			{	Integer,		"odbc-display-timings-interval",	"Display timing statistics after this count of seconds", "0"	},
-
-			{	Integer,		"odbc-display-timings-after-count",	"Display timing statistics once the number of samples reach this number.", "0"	},
 
 			{	Integer,		"cache-expire",						"Duration of the validity of the credentials added to the cache in seconds.", "1800"	},
 
@@ -326,6 +314,9 @@ public:
 		mc->addChildrenValues(items);
 		/* modify the default value for "enabled" */
 		mc->get<ConfigBoolean>("enabled")->setDefault("false");
+
+		// Call declareConfig for backends
+		AuthDbBackend::declareConfig(mc);
 
 		mCountAsyncRetrieve=mc->createStat("count-async-retrieve",  "Number of asynchronous retrieves.");
 		mCountSyncRetrieve=mc->createStat("count-sync-retrieve",  "Number of synchronous retrieves.");
@@ -409,7 +400,7 @@ public:
 			if (h && strcasecmp(h->un_value,"yes")==0){
 				url_t *url=sip->sip_from->a_url;
 				if (url){
-					AuthDb::get()->createAccount(url, url->url_user, url->url_password, sip->sip_expires->ex_delta);
+					AuthDbBackend::get()->createAccount(url, url->url_user, url->url_password, sip->sip_expires->ex_delta);
 					LOGD("Account created for %s@%s with password %s and expires %i",url->url_user,url->url_host,url->url_password,
 						(int)sip->sip_expires->ex_delta);
 				}
@@ -827,7 +818,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am,
 		}
 	}
 
-	AuthDb::get()->getPassword(listener->getRoot(), as->as_user_uri, ar->ar_username, listener);
+	AuthDbBackend::get()->getPassword(listener->getRoot(), as->as_user_uri, ar->ar_username, listener);
 }
 
 
@@ -880,7 +871,7 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am,
 		// sends back its request; this time with the expected authentication credentials.
 		if (listener->mImmediateRetrievePass) {
 			SLOGD <<"Searching for "<< as->as_user_uri->url_user<< " password to have it when the authenticated request comes" ;
-			AuthDb::get()->getPassword(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, new DummyListener());
+			AuthDbBackend::get()->getPassword(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user, new DummyListener());
 		}
 		listener->finish();
 		return;

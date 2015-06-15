@@ -53,17 +53,19 @@ public:
 	AuthDbResult mResult;
 };
 
-class AuthDb {
-	static AuthDb *sUnique;
+class AuthDbBackend {
+	static AuthDbBackend *sUnique;
+
 	struct CachedPassword {
 		std::string pass;
 		time_t expire_date;
 		CachedPassword(const std::string &ipass, time_t idate):pass(ipass),expire_date(idate){}
 	};
+
 	std::map<std::string, std::map<std::string,CachedPassword>> mCachedPasswords;
 	std::mutex mCachedPasswordMutex;
 protected:
-	AuthDb();
+	AuthDbBackend();
 	enum CacheResult {VALID_PASS_FOUND, EXPIRED_PASS_FOUND, NO_PASS_FOUND};
 	std::string createPasswordKey(const std::string &user, const std::string &host, const std::string &auth);
 	bool cachePassword(const std::string &key, const std::string &domain, const std::string &pass, int expires);
@@ -74,21 +76,24 @@ protected:
 
 	void notifyPasswordRetrieved(su_root_t *root, AuthDbListener*listener, AuthDbResult result, const std::string& password);
 
-
 public:
-	virtual ~AuthDb();
+	virtual ~AuthDbBackend();
 	void getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener *listener);
+
 	virtual void createAccount(const url_t *from, const char *auth_username, const char *password, int expires);
 
 	virtual void getPasswordFromBackend(su_root_t *root, const std::string& id, const std::string& domain, const std::string& authid, AuthDbListener *listener) = 0;
 
-	static AuthDb* get();
+	static AuthDbBackend* get();
+	/* called by module_auth so that backends can declare their configuration to the ConfigurationManager */
+	static void declareConfig(GenericStruct * mc);
 
-	AuthDb (const AuthDb &);
-	void operator= (const AuthDb &);
+
+	AuthDbBackend (const AuthDbBackend &);
+	void operator= (const AuthDbBackend &);
 };
 
-class FileAuthDb : public AuthDb{
+class FileAuthDb : public AuthDbBackend{
 private:
 	std::string mFileString;
 	time_t mLastSync;
@@ -100,11 +105,13 @@ public:
 	FileAuthDb();
 	virtual void getPasswordFromBackend(su_root_t *root, const std::string& id, const std::string& domain, const std::string& authid, AuthDbListener *listener);
 
+	static void declareConfig(GenericStruct * mc) {};
+
 };
 
 #if ENABLE_ODBC
 
-class OdbcAuthDb : public AuthDb {
+class OdbcAuthDb : public AuthDbBackend {
 	~OdbcAuthDb();
 	const static int fieldLength = 500;
 	bool mAsynchronousRetrieving;
@@ -143,21 +150,27 @@ public:
 	void setExecuteDirect(const bool value);
 	bool checkConnection();
 	OdbcAuthDb();
+
+	static void declareConfig(GenericStruct * mc);
 };
 
 #endif /* ENABLE_ODBC */
+
 
 #if ENABLE_SOCI
 
 #include "soci.h"
 #include "mysql/soci-mysql.h"
 
-class SociAuthDB : public AuthDb {
+class SociAuthDB : public AuthDbBackend {
 	virtual ~SociAuthDB();
 public:
 	SociAuthDB();
 	void setConnectionParameters(const string& domain, const string &request);
 	virtual void getPasswordFromBackend(su_root_t *root, const std::string& id, const std::string& domain, const std::string& authid, AuthDbListener *listener);
+
+	static void declareConfig(GenericStruct * mc);
+
 private:
 	void getPasswordWithPool(su_root_t* root, const std::string &id, const std::string &domain, const std::string &authid, AuthDbListener *listener);
 
@@ -166,7 +179,6 @@ private:
 	std::string connection_string;
 	std::string backend;
 	std::string get_password_request;
-
 };
 
 #endif /* ENABLE_SOCI */

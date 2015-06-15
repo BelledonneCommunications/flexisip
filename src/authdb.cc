@@ -21,15 +21,15 @@
 
 using namespace ::std;
 
-AuthDb *AuthDb::sUnique = NULL;
+AuthDbBackend *AuthDbBackend::sUnique = NULL;
 
 
 AuthDbListener::~AuthDbListener(){
 }
 
-class FixedAuthDb : public AuthDb{
+class FixedAuthDb : public AuthDbBackend {
 public:
-        FixedAuthDb(){}
+	FixedAuthDb(){}
 
 	virtual void getPasswordFromBackend(su_root_t *root, const std::string& id, const std::string& domain, const std::string& authid, AuthDbListener *listener)
 	{
@@ -37,19 +37,18 @@ public:
 		listener->mResult=PASSWORD_FOUND;
 		listener->onResult();
 	}
+	static void declareConfig(GenericStruct* mc){};
 };
 
-AuthDb* AuthDb::get() {
+AuthDbBackend* AuthDbBackend::get() {
 	if (sUnique == NULL) {
 		GenericStruct *cr=GenericManager::get()->getRoot();
 		GenericStruct *ma=cr->get<GenericStruct>("module::Authentication");
 		const string &impl=ma->get<ConfigString>("db-implementation")->read();
 		if (impl == "fixed") {
 			sUnique = new FixedAuthDb();
-//		} else if (impl == "redis") {
-//			sUnique = new RedisAuthDb();
 		} else if (impl == "file") {
-                        sUnique = new FileAuthDb();
+			sUnique = new FileAuthDb();
 #if ENABLE_ODBC
 		} else if (impl == "odbc") {
 			sUnique = new OdbcAuthDb();
@@ -65,23 +64,34 @@ AuthDb* AuthDb::get() {
 }
 
 
-AuthDb::AuthDb() {
+AuthDbBackend::AuthDbBackend() {
 	GenericStruct *cr=GenericManager::get()->getRoot();
 	GenericStruct *ma=cr->get<GenericStruct>("module::Authentication");
 	list<string> domains=ma->get<ConfigStringList>("auth-domains")->read();
 	mCacheExpire = ma->get<ConfigInt>("cache-expire")->read();
 }
 
-AuthDb::~AuthDb() {
+AuthDbBackend::~AuthDbBackend() {
 }
 
-string AuthDb::createPasswordKey(const string &user, const string &host, const string &auth_username) {
+void AuthDbBackend::declareConfig(GenericStruct *mc) {
+
+	FileAuthDb::declareConfig(mc);
+#if ENABLE_ODBC
+	OdbcAuthDb::declareConfig(mc);
+#endif
+#if ENABLE_SOCI
+	SociAuthDB::declareConfig(mc);
+#endif
+}
+
+string AuthDbBackend::createPasswordKey(const string &user, const string &host, const string &auth_username) {
 	ostringstream key;
 	key<<user<<"#"<<auth_username;
 	return key.str();
 }
 
-AuthDb::CacheResult AuthDb::getCachedPassword(const string &key, const string &domain, string &pass) {
+AuthDbBackend::CacheResult AuthDbBackend::getCachedPassword(const string &key, const string &domain, string &pass) {
 	time_t now = getCurrentTime();
 	auto & passwords=mCachedPasswords[domain];
 	unique_lock<mutex> lck(mCachedPasswordMutex);
@@ -98,11 +108,11 @@ AuthDb::CacheResult AuthDb::getCachedPassword(const string &key, const string &d
 	return NO_PASS_FOUND;
 }
 
-void AuthDb::clearCache(){
+void AuthDbBackend::clearCache(){
 	mCachedPasswords.clear();
 }
 
-bool AuthDb::cachePassword(const string &key, const string &domain, const string &pass, int expires){
+bool AuthDbBackend::cachePassword(const string &key, const string &domain, const string &pass, int expires){
 	time_t now = getCurrentTime();
 	map<string, CachedPassword> &passwords=mCachedPasswords[domain];
 	unique_lock<mutex> lck(mCachedPasswordMutex);
@@ -117,7 +127,7 @@ bool AuthDb::cachePassword(const string &key, const string &domain, const string
 	return true;
 }
 
-void AuthDb::getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener *listener){
+void AuthDbBackend::getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener *listener){
 	// Check for usable cached password
 	string id(from->url_user);
 	string domain(from->url_host);
@@ -149,7 +159,7 @@ static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg,
 	listener->onResult();
 }
 
-void AuthDb::notifyPasswordRetrieved(su_root_t *root, AuthDbListener *listener, AuthDbResult result, const std::string &password) {
+void AuthDbBackend::notifyPasswordRetrieved(su_root_t *root, AuthDbListener *listener, AuthDbResult result, const std::string &password) {
 	if (listener) {
 		su_msg_r mamc = SU_MSG_R_INIT;
 		if (-1 == su_msg_create(mamc,
@@ -185,14 +195,14 @@ void AuthDb::notifyPasswordRetrieved(su_root_t *root, AuthDbListener *listener, 
 	}
 }
 
-void AuthDb::createCachedAccount(const url_t *from, const char *auth_username, const char *password, int expires){
+void AuthDbBackend::createCachedAccount(const url_t *from, const char *auth_username, const char *password, int expires){
 	if (from->url_host && from->url_user){
 		string key=createPasswordKey(from->url_user, from->url_host, auth_username ? auth_username : "");
 		cachePassword(key,from->url_host,password,expires);
 	}
 }
 
-void AuthDb::createAccount(const url_t *from, const char *auth_username, const char *password, int expires){
+void AuthDbBackend::createAccount(const url_t *from, const char *auth_username, const char *password, int expires){
 	createCachedAccount(from, auth_username, password, expires);
 }
 

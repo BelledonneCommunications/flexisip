@@ -116,7 +116,7 @@ string Monitor::findLocalAddress(const list<string> &nodes) {
 void Monitor::createAccounts() {
 	url_t url;
 	memset(&url, 0, sizeof(url_t));
-	AuthDb *authDb = AuthDb::get();
+	AuthDbBackend *authDb = AuthDbBackend::get();
 	GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 	GenericStruct *monitorConf = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
 	string salt = monitorConf->get<ConfigString>("password-salt")->read();

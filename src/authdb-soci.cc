@@ -21,13 +21,40 @@
 
 using namespace soci;
 
+void SociAuthDB::declareConfig(GenericStruct *mc) {
+	// ODBC-specific configuration keys
+	ConfigItemDescriptor items[]={
+
+		{	String,		"soci-password-request",	"Soci SQL request to execute to obtain the password.\n"
+													"Named parameters are:\n -':id' : the user found in the from header,\n -':domain' : the authorization realm, and\n -':authid' : the authorization username.\n"
+													"The use of the :id parameter is mandatory.", "select password from accounts where id = :id and domain = :domain and authid=:authid" },
+
+		{	Integer,	"soci-poolsize",			"Size of the pool of connections that Soci will use. We open a thread for each DB query, and this pool will allow each thread to get a connection.\n"
+													"The threads are blocked until a connection is released back to the pool, so increasing the pool size will allow more connections to occur simultaneously.\n"
+													"On the other hand, you should not keep too many open connections to your DB at the same time.", "100" },
+
+		{	String,		"soci-backend",				"Choose the type of backend that Soci will use for the connection.\n"
+													"Depending on your Soci package and the modules you installed, this could be 'mysql', 'oracle', 'postgresql' or something else.", "mysql" },
+
+		{	String,		"soci-connection-string",	"The configuration parameters of the Soci backend.\n"
+													"The basic format is \"key=value key2=value2\". For a mysql backend, this is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
+													"Please refer to the Soci documentation of your backend, for intance: http://soci.sourceforge.net/doc/3.2/backends/mysql.html", "db=mydb user=myuser password='mypass' host=myhost.com"	},
+		config_item_end
+	};
+
+	mc->addChildrenValues(items);
+}
+
+
 SociAuthDB::SociAuthDB() : pool(NULL) {
 
-	// TODO: get all these from the configuration
-	poolSize = 100;
-	connection_string    = "db=mydb user=user password='pass' host=myhost.com";
-	backend              = "mysql";
-	get_password_request = "select password from accounts where login=:id";
+	GenericStruct *cr=GenericManager::get()->getRoot();
+	GenericStruct *ma=cr->get<GenericStruct>("module::Authentication");
+
+	poolSize             = ma->get<  ConfigInt >("soci-poolsize")->read();;
+	connection_string    = ma->get<ConfigString>("soci-connection-string")->read();
+	backend              = ma->get<ConfigString>("soci-backend")->read();
+	get_password_request = ma->get<ConfigString>("soci-password-request")->read();
 
 	pool = new connection_pool(poolSize);
 
