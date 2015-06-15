@@ -276,6 +276,30 @@ OdbcAuthDb::OdbcAuthDb() :
 #endif
 }
 
+void OdbcAuthDb::declareConfig(GenericStruct *mc) {
+
+	// ODBC-specific configuration keys
+	ConfigItemDescriptor items[]={
+
+		{	String,			"request",							"Odbc SQL request to execute to obtain the password \n. "
+																"Named parameters are :id (the user found in the from header), :domain (the authorization realm) and :authid (the authorization username). "
+																"The use of the :id parameter is mandatory.",
+																"select password from accounts where id = :id and domain = :domain and authid=:authid"	},
+
+		{	Boolean,		"odbc-pooling",						"Use pooling in ODBC (improves performances). This is not guaranteed to succeed, because if you are using unixODBC, it consults the /etc/odbcinst.ini"
+																"file in section [ODBC] to check for Pooling=yes/no option. You should make sure that this flag is set before expecting this option to work.",							"true"	},
+
+		{	Integer,		"odbc-display-timings-interval",	"Display timing statistics after this count of seconds", "0"	},
+
+		{	Integer,		"odbc-display-timings-after-count",	"Display timing statistics once the number of samples reach this number.", "0"	},
+
+		config_item_end
+	};
+
+	mc->addChildrenValues(items);
+
+}
+
 void OdbcAuthDb::setExecuteDirect(const bool value) {
 	execDirect = value;
 }
@@ -359,6 +383,11 @@ bool OdbcAuthDb::getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimin
 		return false;
 	}
 	steady_clock::time_point tp2=steady_clock::now();
+
+	// when debug is not active, the compiler complains about tp1 and tp2 not being used.
+	(void)tp1;
+	(void)tp2;
+
 	LOGD("SQLAllocHandle: %s : %lu ms", id.c_str(), (unsigned long) duration_cast<milliseconds>(tp2-tp1).count());
 
 	// Either:

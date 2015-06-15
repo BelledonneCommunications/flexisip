@@ -144,7 +144,7 @@ private:
 			if (r == NULL) {
 				LOGD("Record doesn't exist. Fork");
 				string ipassword;
-				AuthDb *mAuthDb = AuthDb::get();
+				AuthDbBackend *mAuthDb = AuthDbBackend::get();
 				mAuthDb->getPassword(gw->mAgent->getRoot(), gw->getFrom()->a_url, gw->getFrom()->a_url->url_user, new OnAuthListener(gw));
 			} else {
 				LOGD("Record already exists. Not forked");
