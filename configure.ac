@@ -234,15 +234,13 @@ AC_ARG_WITH(mysql,
 	[mysql_prefix=/usr]
 )
 if test "${mysql_prefix}" != "none" ; then
-	if test "${mysql_prefix}" != "/usr" ; then
-		MYSQL_CFLAGS="-I${mysql_prefix}/include"
-	fi
+	MYSQL_CFLAGS="-I${mysql_prefix}/include/mysql"
 
 	dnl check mysql headers
 	have_mysql=no
 	CPPFLAGS_save=$CPPFLAGS
 	CPPFLAGS="$CPPFLAGS $MYSQL_CFLAGS"
-	AC_CHECK_HEADER([mysql/mysql.h],have_mysql_headers=yes)
+	AC_CHECK_HEADER([mysql.h],have_mysql_headers=yes)
 	CPPFLAGS=$CPPFLAGS_save
 
 	if test "$have_mysql_headers" = "yes" ; then
