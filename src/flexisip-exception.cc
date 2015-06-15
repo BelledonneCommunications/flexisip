@@ -54,7 +54,7 @@ FlexisipException::FlexisipException(const string& msg): FlexisipException(msg.c
 	mOffset++;
 }
 #else
-FlexisipException::FlexisipException(string& message): mOffset(1){
+FlexisipException::FlexisipException(const string& message): mOffset(1){
 	mSize = backtrace(mArray, sizeof(mArray)/sizeof(void*));
 	*this << message;
 	set_terminate(uncaught_handler); //invoke in case of uncautch exception for this thread
