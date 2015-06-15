@@ -148,7 +148,7 @@ if test x$odbc = "xyes"; then
 		AC_MSG_WARN(['odbc_config' not found in $odbc_prefix/bin, maybe use --with-odbc ?])
 		if test "$odbc_prefix" != "/usr" ; then
 			ODBC_CFLAGS="-I${odbc_prefix}/include"
-			ODBC_LIBS="-I${odbc_prefix}/lib"
+			ODBC_LIBS="-L${odbc_prefix}/lib"
 		fi
 		ODBC_LIBS="$ODBC_LIBS -lodbc"
 	else
