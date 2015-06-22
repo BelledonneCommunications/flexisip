@@ -56,7 +56,7 @@ StatisticsCollector::~StatisticsCollector(){
 void StatisticsCollector::onDeclare(GenericStruct * module_config) {
 	ConfigItemDescriptor items[] = {
 			{ String, "collector-address", "SIP URI of the statistics collector. "
-			"Note that the messages destinated to this address will be deleted by this module and thus not be delivered.", "" },
+			"Note that application/vq-rtcpxr messages for this address will be deleted by this module and thus not be delivered.", "" },
 
 			config_item_end
 	};
@@ -80,7 +80,11 @@ void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	url_t *url = sip->sip_request->rq_url;
-	if (mCollectorAddress && url_cmp(mCollectorAddress,url)==0) {
+	// verify collector address AND content type
+	if (mCollectorAddress
+		&& (url_cmp(mCollectorAddress,url)==0)
+		&& (strcmp("application/vq-rtcpxr", sip->sip_content_type->c_type) == 0)
+		&& (strcmp("vq-rtcpxr", sip->sip_content_type->c_subtype) != 0)) {
 		// some treatment
 		int err = managePublishContent(ev);
 		ev->reply(err, sip_status_phrase(err), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
@@ -139,13 +143,8 @@ int StatisticsCollector::managePublishContent(const shared_ptr<RequestSipEvent> 
 		statusPhrase = "Invalid SIP";
 	}
 
-	// verify content type
-	if (strcmp("application/vq-rtcpxr", sip->sip_content_type->c_type) != 0
-		|| strcmp("vq-rtcpxr", sip->sip_content_type->c_subtype) != 0) {
-		err = 415;
-		statusPhrase = "Invalid content type";
 	// verify that packet contains data
-	} else if (! sip->sip_payload || sip->sip_payload->pl_len == 0 || ! sip->sip_payload->pl_data ) {
+	if (! sip->sip_payload || sip->sip_payload->pl_len == 0 || ! sip->sip_payload->pl_data ) {
 		err = 606;
 		statusPhrase = "No data in packet payload";
 	// verify that packet contains mandatory fields
