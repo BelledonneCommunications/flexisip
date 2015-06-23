@@ -375,7 +375,7 @@ public:
 };
 
 inline static bool containsNonZeroExpire(const sip_expires_t *main, const sip_contact_t *c) {
-	const bool nonZeroMain=main && main->ex_delta > 0;
+	bool nonZeroMain=main && main->ex_delta > 0;
 	while (c != NULL) {
 		if (c->m_expires) {
 			if (atoi(c->m_expires) > 0) return true;
@@ -404,13 +404,11 @@ public:
 		const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
 		time_t now = getCurrentTime();
 		if (r){
-			const sip_contact_t *dbContacts= r->getContacts(ms->getHome(), now);
-
-			const sip_expires_t *expires=mEv->getMsgSip()->getSip()->sip_expires;
-			if (containsNonZeroExpire(expires, dbContacts)) {
-				LateForkApplier::onContactRegistered(mModule->getAgent(), dbContacts, mCtx->mPath, r, mCtx->mFrom->a_url);
+			const sip_expires_t *expires=mCtx->reqSipEvent->getMsgSip()->getSip()->sip_expires;
+			if (expires->ex_delta > 0){
+				LateForkApplier::onContactRegistered(mModule->getAgent(), mCtx->mContacts, mCtx->mPath, r, mCtx->mFrom->a_url);
 			}
-
+			const sip_contact_t *dbContacts= r->getContacts(ms->getHome(), now);
 			// Replace received contacts by our ones
 			auto &reMs =mEv->getMsgSip();
 			reMs->getSip()->sip_contact = sip_contact_dup(reMs->getHome(), dbContacts);
