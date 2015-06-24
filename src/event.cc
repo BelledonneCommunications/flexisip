@@ -42,6 +42,7 @@ MsgSip::MsgSip(const MsgSip &msgSip) {
 	msg_t *freshCopy=msg_dup(msgSip.mMsg);
 	assignMsg(freshCopy);
 	msg_destroy(freshCopy);
+	LOGD("New MsgSip %p copied from MsgSip %p",this, &msgSip);
 }
 
 const char * MsgSip::print() {

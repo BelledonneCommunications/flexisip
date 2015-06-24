@@ -43,11 +43,10 @@ void ForkContext::sOnFinished(su_root_magic_t *magic, su_timer_t *t, su_timer_ar
 ForkContext::ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener) :
 		mListener(listener),
 		mAgent(agent),
-		mEvent(make_shared<RequestSipEvent>(event)),
+		mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
 		mCfg(cfg),
 		mLateTimer(NULL),
 		mFinishTimer(NULL){
-	su_home_init(&mHome);
 	init();
 }
 
@@ -250,7 +249,6 @@ const shared_ptr<RequestSipEvent> &ForkContext::getEvent() {
 ForkContext::~ForkContext() {
 	if (mLateTimer)
 		su_timer_destroy(mLateTimer);
-	su_home_deinit(&mHome);
 }
 
 void ForkContext::onFinished() {

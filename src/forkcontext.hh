@@ -73,7 +73,6 @@ private:
 	void init();
 	void processLateTimeout();
 protected:
-	su_home_t mHome;
 	Agent * mAgent;
 	std::shared_ptr<RequestSipEvent> mEvent;
 	std::shared_ptr<ResponseSipEvent> mLastResponseSent;
