@@ -203,7 +203,7 @@ class ModuleToolbox{
 		static void addRecordRouteIncoming(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev);
 		static url_t *urlFromTportName(su_home_t *home, const tp_name_t *name);
 		static void addRecordRoute(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev, const tport_t *tport);
-		static void cleanAndPrependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, sip_route_t *route);
+		static void cleanAndPrependRoute(Agent *ag, msg_t *msg, sip_t *sip, sip_route_t *route);
 		static bool sipPortEquals(const char *p1, const char *p2, const char *transport=NULL);
 		static int sipPortToInt(const char *port);
 		static bool fromMatch(const sip_from_t *from1, const sip_from_t *from2);

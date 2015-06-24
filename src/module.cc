@@ -246,12 +246,12 @@ int ModuleToolbox::sipPortToInt(const char *port){
 	else return atoi(port);
 }
 
-void ModuleToolbox::cleanAndPrependRoute(su_home_t *home, Agent *ag, msg_t *msg, sip_t *sip, sip_route_t *r){
+void ModuleToolbox::cleanAndPrependRoute(Agent *ag, msg_t *msg, sip_t *sip, sip_route_t *r){
 	// removes top route headers if they matches us
 	while (sip->sip_route != NULL && ag->isUs(sip->sip_route->r_url)) {
 		sip_route_remove(msg, sip);
 	}
-	prependNewRoutable(msg, sip, sip->sip_route, r);
+	if (r) prependNewRoutable(msg, sip, sip->sip_route, r);
 }
 
 url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
