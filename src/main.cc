@@ -477,7 +477,7 @@ int main(int argc, char *argv[]) {
 	bool debug;
 	map<string, string> oset;
 
-	TCLAP::CmdLine cmd("Flexisip command line", ' ', VERSION);
+	TCLAP::CmdLine cmd("Flexisip command line", ' ', VERSION " (git: " FLEXISIP_GIT_VERSION ")");
 
 	TCLAP::ValueArg<string>  transportsArg("t", "transports", 			"The list of transports to handle (overrides the ones defined in the configuration file).", TCLAP::ValueArgOptional, "", "sips:* sip:*", cmd);
 	TCLAP::ValueArg<string>        pidFile("p", "pidfile", 				"PID file location, used when running in daemon mode", TCLAP::ValueArgOptional, "", "/tmp/flexisip.pidfile", cmd);
