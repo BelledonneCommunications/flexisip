@@ -1,0 +1,33 @@
+#! /bin/sh
+PATH=/sbin:/usr/sbin:/bin:/usr/bin:@bindir@
+NAME=flexisip
+PIDFILE=/var/run/$NAME.pid
+DAEMON=@bindir@/$NAME
+DAEMON_ARGS="--daemon --syslog --pidfile $PIDFILE"
+SCRIPTNAME=/etc/init.d/$NAME
+
+# Exit if the package is not installed
+[ -x "$DAEMON" ] || exit 0
+
+# Define LSB log_* functions.
+# Depend on lsb (>= 3.0-6) to ensure that this file is present.
+. /lib/lsb/init-functions
+
+case "$1" in
+  start)
+	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON -- $DAEMON_ARGS
+	;;
+
+  stop)
+	start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE --name $NAME
+        start-stop-daemon --stop --quiet --oknodo --retry=0/30/KILL/5 --exec $DAEMON
+        rm -f $PIDFILE
+	;;
+
+  *)
+	echo "Usage: $SCRIPTNAME {start|stop}" >&2
+	exit 3
+	;;
+esac
+
+:

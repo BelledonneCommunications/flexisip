@@ -2,10 +2,9 @@
 #are permitted in any medium without royalty provided the copyright
 #notice and this notice are preserved.  This file is offered as-is,
 #without any warranty
-EXTRA_DIST=flexisip.in update_debian_changelog.sh
+EXTRA_DIST=flexisip.in
 
-if USE_DEB
-if !CROSS_COMPILING
+if CROSS_COMPILING
 
 edit = sed -e 's|@bindir[@]|$(bindir)|g'
 
@@ -24,7 +23,6 @@ initdir=$(sysconfdir)/init.d
 
 init_SCRIPTS=flexisip
 
-endif
 endif
 
 CLEANFILES=flexisip

@@ -6,6 +6,7 @@
 EXTRA_DIST=flexisip.in
 
 if USE_RPM
+if !CROSS_COMPILING
 
 edit = sed -e 's|@bindir[@]|$(bindir)|g'
      
@@ -24,6 +25,7 @@ initdir=$(sysconfdir)/init.d
 
 init_SCRIPTS=flexisip
 
+endif
 endif
 
 CLEANFILES=flexisip
