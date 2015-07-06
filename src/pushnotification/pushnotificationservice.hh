@@ -69,7 +69,7 @@ private:
 	void clientEnded();
 	void setupErrorClient();
 private:
-	boost::asio::io_service mService;
+	boost::asio::io_service mIOService;
 	std::thread *mThread;
 	int mMaxQueueSize;
 	bool mHaveToStop;
