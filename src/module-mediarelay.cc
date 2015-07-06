@@ -361,5 +361,6 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 void MediaRelay::onIdle() {
 	mCalls->dump();
 	mCalls->removeAndDeleteInactives();
-	LOGD("There are %i calls active in the MediaRelay call list.",mCalls->size());
+	if (mCalls->size() > 0)
+		LOGD("There are %i calls active in the MediaRelay call list.",mCalls->size());
 }

@@ -875,23 +875,25 @@ static bool checkTranscoder(const std::map<std::string,std::string> &override) {
 void FileConfigReader::onUnreadItem(const char *secname, const char *key, int lineno){
 	static bool dontCheckTranscoder=checkTranscoder(GenericManager::get()->getOverrideMap());
 	if (dontCheckTranscoder && 0==strcmp(secname,"module::Transcoder")) return;
-	LOGEN("Unsupported parameter '%s' in section [%s] at line %i", key, secname, lineno);
+	LOGEN("Unsupported parameter '%s' in section [%s] at line %i.", key, secname, lineno);
 	mHaveUnreads=true;
 	GenericEntry *sec=mRoot->find(secname);
 	if (sec==NULL){
 		sec=mRoot->findApproximate(secname);
 		if (sec!=NULL){
-			LOGEN("Did you mean '[%s]' ?",sec->getName().c_str());
+			LOGEN("Unknown section '[%s]'. Did you mean '[%s]'?", secname, sec->getName().c_str());
+		} else {
+			LOGEN("Unknown section '[%s]'.", secname);
 		}
-		return;
-	}
-	GenericStruct *st=dynamic_cast<GenericStruct*>(sec);
-	if (st){
-		GenericEntry *val=st->find(key);
-		if (val==NULL){
-			val=st->findApproximate(key);
-			if (val!=NULL){
-				LOGEN("Did you mean '%s' ?",val->getName().c_str());
+	} else {
+		GenericStruct *st=dynamic_cast<GenericStruct*>(sec);
+		if (st){
+			GenericEntry *val=st->find(key);
+			if (val==NULL){
+				val=st->findApproximate(key);
+				if (val!=NULL){
+					LOGEN("Did you mean '%s'?",val->getName().c_str());
+				}
 			}
 		}
 	}
