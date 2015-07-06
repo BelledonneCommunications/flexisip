@@ -42,7 +42,7 @@ int PushNotificationService::sendRequest(const std::shared_ptr<PushNotificationR
 	if (client==0){
 		if (pn->getType().compare(string("wp"))==0) {
 			string wpClient = pn->getAppIdentifier();
-			std::shared_ptr<ssl::context> ctx(new ssl::context(mIOService, ssl::context::sslv23_client));
+			std::shared_ptr<ssl::context> ctx(new ssl::context(mService, ssl::context::sslv23_client));
 			boost::system::error_code err;
 			ctx->set_options(ssl::context::default_workarounds, err);
 			ctx->set_verify_mode(ssl::context::verify_none);
@@ -56,7 +56,7 @@ int PushNotificationService::sendRequest(const std::shared_ptr<PushNotificationR
 	}
 	//this method is called from flexisip main thread, while service is running in its own thread.
 	//To avoid using dedicated mutex, use the server post() method to delegate the processing of the push notification to the service thread.
-	mIOService.post(std::bind(&PushNotificationClient::sendRequest,client,pn));
+	mService.post(std::bind(&PushNotificationClient::sendRequest,client,pn));
 	return 0;
 }
 
@@ -76,7 +76,7 @@ void PushNotificationService::stop() {
 	if (mThread != NULL) {
 		LOGD("Stopping PushNotificationService");
 		mHaveToStop = true;
-		mIOService.stop();
+		mService.stop();
 		if (mThread->joinable()) {
 			mThread->join();
 		}
@@ -105,7 +105,7 @@ void PushNotificationService::waitEnd() {
 
 void PushNotificationService::setupErrorClient(){
 	// Error client
-	std::shared_ptr<ssl::context> ctx(new ssl::context(mIOService, ssl::context::sslv23_client));
+	std::shared_ptr<ssl::context> ctx(new ssl::context(mService, ssl::context::sslv23_client));
 	boost::system::error_code err;
 	ctx->set_options(ssl::context::default_workarounds, err);
 	ctx->set_verify_mode(ssl::context::verify_none);
@@ -113,25 +113,17 @@ void PushNotificationService::setupErrorClient(){
 }
 
 void PushNotificationService::setupGenericClient(const url_t *url){
-	std::shared_ptr<ssl::context> ctx(new ssl::context(mIOService, ssl::context::sslv23_client));
+	std::shared_ptr<ssl::context> ctx(new ssl::context(mService, ssl::context::sslv23_client));
 	boost::system::error_code err;
 	ctx->set_options(ssl::context::default_workarounds, err);
 	ctx->set_verify_mode(ssl::context::verify_none);
 	mClients["generic"]=std::make_shared<PushNotificationClient>("generic", this, ctx, url->url_host, url_port(url), mMaxQueueSize, false);
 }
 
-void PushNotificationService::setupClients(const string &certdir, const string &ca, int maxQueueSize) {
+void PushNotificationService::setupiOSClient(const std::string &certdir, const std::string &cafile) {
 	struct dirent *dirent;
 	DIR *dirp;
-	mMaxQueueSize = maxQueueSize;
-
-	// Android Client
-	std::shared_ptr<ssl::context> ctx(new ssl::context(mIOService, ssl::context::sslv23_client));
-	boost::system::error_code err;
-	ctx->set_options(ssl::context::default_workarounds, err);
-	ctx->set_verify_mode(ssl::context::verify_none);
-	mClients["google"]=std::make_shared<PushNotificationClient>("google", this, ctx, GPN_ADDRESS, GPN_PORT, maxQueueSize, true);
-
+	
 	dirp=opendir(certdir.c_str());
 	if (dirp==NULL){
 		LOGE("Could not open push notification certificates directory (%s): %s",certdir.c_str(),strerror(errno));
@@ -149,17 +141,17 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 		string cert=string(dirent->d_name);
 		if(cert.compare(string(".")) == 0 || cert.compare(string("..")) == 0) continue;
 		string certpath= string(certdir)+"/"+cert;
-		std::shared_ptr<ssl::context> context(new ssl::context(mIOService, ssl::context::sslv23_client));
+		std::shared_ptr<ssl::context> context(new ssl::context(mService, ssl::context::sslv23_client));
 		boost::system::error_code error;
 		context->set_options(ssl::context::default_workarounds, error);
 		context->set_password_callback(bind(&PushNotificationService::handle_password_callback, this, _1, _2));
 
-		if (!ca.empty()) {
+		if (!cafile.empty()) {
 			context->set_verify_mode(ssl::context::verify_peer);
 	#if BOOST_VERSION >= 104800
 			context->set_verify_callback(bind(&PushNotificationService::handle_verify_callback, this, _1, _2));
 	#endif
-			context->load_verify_file(ca, error);
+			context->load_verify_file(cafile, error);
 			if (error) {
 				LOGE("load_verify_file: %s",error.message().c_str());
 				continue;
@@ -189,16 +181,30 @@ void PushNotificationService::setupClients(const string &certdir, const string &
 		if (certName.find(".dev")!=string::npos)
 			apn_server=APN_DEV_ADDRESS;
 		else apn_server=APN_PROD_ADDRESS;
-		mClients[certName]=std::make_shared<PushNotificationClient>(cert, this, context, apn_server, APN_PORT, maxQueueSize, true);
+		mClients[certName]=std::make_shared<PushNotificationClient>(cert, this, context, apn_server, APN_PORT, mMaxQueueSize, true);
 		SLOGD << "Adding ios push notification client [" << certName << "]";
 	}
 	closedir(dirp);
-	setupErrorClient();
 }
 
-PushNotificationService::PushNotificationService(const std::string &certdir, const std::string &cafile, int maxQueueSize) :
-		mIOService(), mThread(NULL), mClients(), mCountFailed(NULL), mCountSent(NULL) {
-	setupClients(certdir, cafile, maxQueueSize);
+void PushNotificationService::setupAndroidClient(const std::map<std::string, std::string> googleKeys) {
+	map<string, string>::const_iterator it;
+	for (it = googleKeys.begin(); it != googleKeys.end(); ++it) {
+		string android_app_id = it->first;
+		
+		std::shared_ptr<ssl::context> ctx(new ssl::context(mService, ssl::context::sslv23_client));
+		boost::system::error_code err;
+		ctx->set_options(ssl::context::default_workarounds, err);
+		ctx->set_verify_mode(ssl::context::verify_none);
+	
+		mClients[android_app_id]=std::make_shared<PushNotificationClient>("google", this, ctx, GPN_ADDRESS, GPN_PORT, mMaxQueueSize, true);
+		SLOGD << "Adding android push notification client [" << android_app_id << "]";
+	}
+}
+
+PushNotificationService::PushNotificationService(int maxQueueSize) :
+		mService(), mThread(NULL), mMaxQueueSize(maxQueueSize), mClients(), mCountFailed(NULL), mCountSent(NULL) {
+	setupErrorClient();
 }
 
 PushNotificationService::~PushNotificationService() {
@@ -207,8 +213,8 @@ PushNotificationService::~PushNotificationService() {
 
 int PushNotificationService::run() {
 	LOGD("PushNotificationService Start");
-	boost::asio::io_service::work work(mIOService);
-	mIOService.run();
+	boost::asio::io_service::work work(mService);
+	mService.run();
 	LOGD("PushNotificationService End");
 	return 0;
 }
@@ -217,7 +223,7 @@ void PushNotificationService::clientEnded() {
 }
 
 boost::asio::io_service &PushNotificationService::getService() {
-	return mIOService;
+	return mService;
 }
 
 string PushNotificationService::handle_password_callback(size_t max_length, ssl::context_base::password_purpose purpose) const {

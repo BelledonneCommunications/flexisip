@@ -217,12 +217,14 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 }
 
 void PushNotification::onLoad(const GenericStruct *mc) {
-	mNoBadgeiOS      = mc->get<ConfigBoolean>("no-badge")->read();
-	mTimeout         = mc->get<ConfigInt>("timeout")->read();
-	int maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
-	string certdir   = mc->get<ConfigString>("apple-certificate-dir")->read();
-	auto googleKeys  = mc->get<ConfigStringList>("google-projects-api-keys")->read();
-	string externalUri = mc->get<ConfigString>("external-push-uri")->read();
+	mNoBadgeiOS			= mc->get<ConfigBoolean>("no-badge")->read();
+	mTimeout			= mc->get<ConfigInt>("timeout")->read();
+	int maxQueueSize	= mc->get<ConfigInt>("max-queue-size")->read();
+	string certdir		= mc->get<ConfigString>("apple-certificate-dir")->read();
+	auto googleKeys		= mc->get<ConfigStringList>("google-projects-api-keys")->read();
+	string externalUri	= mc->get<ConfigString>("external-push-uri")->read();
+	bool appleEnabled	= mc->get<ConfigBoolean>("apple")->read(); 
+	bool googleEnabled	= mc->get<ConfigBoolean>("google")->read(); 
 
 	mExternalPushMethod = mc->get<ConfigString>("external-push-method")->read();
 	if (!externalUri.empty()){
@@ -240,9 +242,11 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mGoogleKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep + 1)));
 	}
 
-	mPNS = new PushNotificationService(certdir, "", maxQueueSize);
+	mPNS = new PushNotificationService(maxQueueSize);
 	mPNS->setStatCounters(mCountFailed, mCountSent);
 	if (mExternalPushUri) mPNS->setupGenericClient(mExternalPushUri);
+	if (appleEnabled) mPNS->setupiOSClient(certdir, "");
+	if (googleEnabled) mPNS->setupAndroidClient(mGoogleKeys);
 	mPNS->start();
 }
 

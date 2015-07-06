@@ -40,13 +40,15 @@ class PushNotificationService {
 public:
 	int sendRequest(const std::shared_ptr<PushNotificationRequest> &pn);
 	void setupGenericClient(const url_t *url);
+	void setupiOSClient(const std::string &certdir, const std::string &cafile);
+	void setupAndroidClient(const std::map<std::string, std::string> googleKeys);
 	void start();
 
 	void stop();
 
 	void waitEnd();
 
-	PushNotificationService(const std::string &certdir, const std::string &cafile, int maxQueueSize);
+	PushNotificationService(int maxQueueSize);
 	void setStatCounters(StatCounter64 *countFailed, StatCounter64 *countSent) {
 		mCountFailed=countFailed;
 		mCountSent=countSent;
@@ -67,7 +69,7 @@ private:
 	void clientEnded();
 	void setupErrorClient();
 private:
-	boost::asio::io_service mIOService;
+	boost::asio::io_service mService;
 	std::thread *mThread;
 	int mMaxQueueSize;
 	bool mHaveToStop;

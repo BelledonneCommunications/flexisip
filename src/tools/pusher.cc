@@ -115,6 +115,7 @@ static shared_ptr<PushNotificationRequest> createRequestFromArgs(const PusherArg
 		pinfo.mCallId="fb14b5fe-a9ab-1231-9485-7d582244ba3d";
 		pinfo.mFromName="+33681741738";
 		pinfo.mDeviceToken=args.pntok;
+		pinfo.mAppId=args.appid;
 		pinfo.mApiKey=args.apikey;
 		return make_shared<GooglePushNotificationRequest>(pinfo);
 	} else if (args.pntype == "wp") {
@@ -147,7 +148,16 @@ int main(int argc, char *argv[])
 	auto cb = make_shared<ErrorCb>();
 	pn->setCallBack(cb);
 
-	PushNotificationService service(args.prefix+"/apn", "", MAX_QUEUE_SIZE);
+	PushNotificationService service(MAX_QUEUE_SIZE);
+	
+	if (args.pntype == "apple") {
+		service.setupiOSClient(args.prefix+"/apn", "");
+	} else if (args.pntype == "google") {
+		std::map<std::string, std::string> googleKey;
+		googleKey.insert(make_pair(args.appid, args.apikey));
+		service.setupAndroidClient(googleKey);
+	}
+	
 	service.start();
 	int ret = service.sendRequest(pn);
 	sleep(1);
