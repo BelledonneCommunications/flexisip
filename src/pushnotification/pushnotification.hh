@@ -41,6 +41,7 @@ struct PushInfo{
 	std::string mToUri; // To SIP uri
 	std::string mCallId;  // CallID
 	std::string mText;    // Text of the chat message.
+	std::string mUid;  //The unique id as used in the ExtendedContact, if available
 	bool mNoBadge;   // Whether to display a badge on the application (ios specific).
 };
 

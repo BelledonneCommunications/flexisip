@@ -355,6 +355,11 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms, const 
 				if (!mExternalPushUri) pn = make_shared<ErrorPushNotificationRequest>();
 			}
 			if (mExternalPushUri){
+				/*extract the unique id if possible - it's hacky*/
+				const shared_ptr<BranchInfo> &br = transaction->getProperty<BranchInfo>("BranchInfo");
+				if (br){
+					pinfo.mUid = br->mUid;
+				}
 				pn = make_shared<GenericPushNotificationRequest>(pinfo, mExternalPushUri, mExternalPushMethod);
 			}
 			

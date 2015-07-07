@@ -102,6 +102,7 @@ string & GenericPushNotificationRequest::substituteArgs(string &input, const Pus
 	keyvals.push_back(KeyVal("$event", pinfo.mEvent==PushInfo::Call ? "call" : "message"));
 	keyvals.push_back(KeyVal("$sound", pinfo.mAlertSound));
 	keyvals.push_back(KeyVal("$msgid", pinfo.mAlertMsgId));
+	keyvals.push_back(KeyVal("$uid", pinfo.mUid));
 	
 	for(auto it=keyvals.begin(); it!=keyvals.end(); ++it){
 		size_t pos=input.find((*it).mKeyword);
