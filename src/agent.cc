@@ -271,6 +271,9 @@ void Agent::start(const std::string &transport_override){
 
 	if (mRtpBindIp.empty()) mRtpBindIp="0.0.0.0";
 	if (mRtpBindIp6.empty()) mRtpBindIp6="::0";
+	
+	mPublicResolvedIpV4 = computeResolvedPublicIp(mPublicIpV4);
+	mPublicResolvedIpV6 = computeResolvedPublicIp(mPublicIpV6);
 
 	char digest[(SU_MD5_DIGEST_SIZE*2)+1];
 	su_md5_hexdigest(&ctx,digest);
@@ -280,6 +283,7 @@ void Agent::start(const std::string &transport_override){
 	mUniqueId = digest;
 
 	LOGD("Agent public hostname/ip: v4:%s v6:%s",mPublicIpV4.c_str(), mPublicIpV6.c_str());
+	LOGD("Agent public resolved hostname/ip: v4:%s v6:%s",mPublicResolvedIpV4.c_str(), mPublicResolvedIpV6.c_str());
 	LOGD("Agent's _default_ RTP bind ip address: v4:%s v6:%s",mRtpBindIp.c_str(),mRtpBindIp6.c_str());
 
 	char prefUrl4[256]={0};
@@ -412,6 +416,29 @@ void Agent::loadConfig(GenericManager *cm) {
 	}
 }
 
+std::string Agent::computeResolvedPublicIp(const std::string &host) const {
+	int err;
+	struct addrinfo hints;
+	string dest = (host[0]=='[') ? host.substr(1,host.size()-2) : host;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+
+	struct addrinfo *result;
+	err = getaddrinfo(dest.c_str(), NULL, &hints, &result);
+	if (err == 0) {
+		char ip[NI_MAXHOST];
+		err = getnameinfo(result->ai_addr, result->ai_addrlen, ip, sizeof(ip), NULL, 0, NI_NUMERICHOST);
+		if (err == 0) {
+			return ip;
+		} else {
+			LOGE("getnameinfo error: %s", gai_strerror(err));
+		}
+		freeaddrinfo(result);
+	} else {
+		LOGE("getaddrinfo error: %s", gai_strerror(err));
+	}
+	return dest;
+}
 
 std::pair<std::string,std::string> Agent::getPreferredIp(const std::string &destination) const {
 	int err;
@@ -434,7 +461,7 @@ std::pair<std::string,std::string> Agent::getPreferredIp(const std::string &dest
 	} else {
 		LOGE("getaddrinfo error: %s", gai_strerror(err));
 	}
-	return strchr(dest.c_str(),':')==NULL ? make_pair(getPublicIp(),getRtpBindIp()) : make_pair(getPublicIp(true),getRtpBindIp(true));
+	return strchr(dest.c_str(),':')==NULL ? make_pair(getResolvedPublicIp(),getRtpBindIp()) : make_pair(getResolvedPublicIp(true),getRtpBindIp(true));
 }
 
 Agent::Network::Network(const Network &net): mIP(net.mIP) {

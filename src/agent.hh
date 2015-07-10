@@ -119,6 +119,9 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		const std::string &getPublicIp(bool ipv6=false)const{
 			return ipv6 ? mPublicIpV6 : mPublicIpV4;
 		}
+		const std::string &getResolvedPublicIp(bool ipv6=false) const {
+			return ipv6 ? mPublicResolvedIpV6 : mPublicResolvedIpV4;
+		}
 		virtual Agent *getAgent() {
 			return this;
 		}
@@ -179,7 +182,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		};
 		std::list<Network> mNetworks;
 		std::string mUniqueId;
-		std::string mRtpBindIp,mRtpBindIp6,mPublicIpV4,mPublicIpV6;
+		std::string mRtpBindIp,mRtpBindIp6,mPublicIpV4,mPublicIpV6,mPublicResolvedIpV4,mPublicResolvedIpV6;
 		nta_agent_t *mAgent;
 		su_root_t *mRoot;
 		nth_engine_t *mHttpEngine;
@@ -187,6 +190,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		EventLogWriter *mLogWriter;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);
 		bool mTerminating;
+		std::string computeResolvedPublicIp(const std::string &host) const;
 };
 
 #endif
