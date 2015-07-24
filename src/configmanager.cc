@@ -743,6 +743,12 @@ GenericManager::GenericManager() : mNeedRestart(false), mDirtyConfig(false),
 			{	Integer		,"idle-timeout",	"Time interval in seconds after which inactive connections are closed.", "3600"},
 			{	Boolean		,"require-peer-certificate",	"Require client certificate from peer.", "false"},
 			{	Integer		,"transaction-timeout",	"SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.","32000"},
+			{	Integer		,"udp-mtu", "The UDP MTU. Flexisip will fallback to TCP when sending a message whose size exceeds the UDP MTU."
+				" Please read http://sofia-sip.sourceforge.net/refdocs/nta/nta__tag_8h.html#a6f51c1ff713ed4b285e95235c4cc999a for more "
+				"details. If sending large packets over UDP is not a problem, then set a big value such as 65535. "
+				"Unlike the recommandation of the RFC, the default value of UDP MTU is 1460 in Flexisip (instead of 1300).",
+				"1460"
+			},
 			config_item_end
 	};
 

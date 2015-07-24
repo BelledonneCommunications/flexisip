@@ -152,6 +152,7 @@ void Agent::start(const std::string &transport_override){
 	bool mainPeerCert = global->get<ConfigBoolean>("require-peer-certificate")->read();
 	string mainTlsCertsDir = global->get<ConfigString>("tls-certificates-dir")->read();
 	unsigned int t1x64=(unsigned int)global->get<ConfigInt>("transaction-timeout")->read();
+	int udpmtu = global->get<ConfigInt>("udp-mtu")->read();
 	mainTlsCertsDir = absolutePath(currDir, mainTlsCertsDir);
 
 	SLOGD << "Main tls certs dir : " << mainTlsCertsDir;
@@ -159,6 +160,7 @@ void Agent::start(const std::string &transport_override){
 	nta_agent_set_params(mAgent, NTATAG_SIP_T1X64(t1x64),
 			     NTATAG_RPORT(1), NTATAG_TCP_RPORT(1), NTATAG_TLS_RPORT(1), //use rport in vias added to outgoing requests for all protocols
 			     NTATAG_SERVER_RPORT(2), //always add a rport parameter even if the request doesn't have it*/
+			     NTATAG_UDP_MTU(udpmtu),
 			     TAG_END());
 
 	if (!transport_override.empty()){
@@ -359,7 +361,7 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 		LOGE("Can't find interface addresses: %s", strerror(err));
 	}
 	mRoot = root;
-	mAgent = nta_agent_create(root, (url_string_t*) -1, &Agent::messageCallback, (nta_agent_magic_t*) this, NTATAG_UDP_MTU(1460), TAG_END());
+	mAgent = nta_agent_create(root, (url_string_t*) -1, &Agent::messageCallback, (nta_agent_magic_t*) this, TAG_END());
 	su_home_init(&mHome);
 	mPreferredRouteV4=NULL;
 	mPreferredRouteV6=NULL;
