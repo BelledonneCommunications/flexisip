@@ -73,7 +73,10 @@ void StatisticsCollector::onLoad(const GenericStruct *mc) {
 		if (mCollectorAddress==NULL){
 			LOGF("StatisticsCollector: Invalid collector address '%s'",value.c_str());
 		}
-	}else mCollectorAddress=NULL;
+	}else{
+		mCollectorAddress=NULL;
+	}
+	LOGI("StatisticsCollector: setup with collector address '%s'",value.c_str());
 }
 
 void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent> &ev) {
@@ -81,14 +84,15 @@ void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	sip_t *sip = ms->getSip();
 	url_t *url = sip->sip_request->rq_url;
 	// verify collector address AND content type
-	if (mCollectorAddress
-		&& (url_cmp(mCollectorAddress,url)==0)
-		&& (strcmp("application/vq-rtcpxr", sip->sip_content_type->c_type) == 0)
-		&& (strcmp("vq-rtcpxr", sip->sip_content_type->c_subtype) != 0)) {
-		// some treatment
-		int err = managePublishContent(ev);
-		ev->reply(err, sip_status_phrase(err), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		return;
+	if (mCollectorAddress && (url_cmp(mCollectorAddress,url)==0)) {
+		if ((strcmp("application/vq-rtcpxr", sip->sip_content_type->c_type) == 0)
+			&& (strcmp("vq-rtcpxr", sip->sip_content_type->c_subtype) != 0)) {
+			// some treatment
+			int err = managePublishContent(ev);
+			ev->reply(err, sip_status_phrase(err), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		} else {
+			LOGI("StatisticsCollector: received PUBLISH for collector %s with invalid type, ignoring", mCollectorAddress->url_user);
+		}
 	}
 }
 
