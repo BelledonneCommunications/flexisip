@@ -86,12 +86,12 @@ void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	// verify collector address AND content type
 	if (mCollectorAddress && (url_cmp(mCollectorAddress,url)==0)) {
 		if ((strcmp("application/vq-rtcpxr", sip->sip_content_type->c_type) == 0)
-			&& (strcmp("vq-rtcpxr", sip->sip_content_type->c_subtype) != 0)) {
+			&& (strcmp("vq-rtcpxr", sip->sip_content_type->c_subtype) == 0)) {
 			// some treatment
 			int err = managePublishContent(ev);
 			ev->reply(err, sip_status_phrase(err), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		} else {
-			LOGI("StatisticsCollector: received PUBLISH for collector %s with invalid type, ignoring", mCollectorAddress->url_user);
+			LOGI("StatisticsCollector: received PUBLISH with invalid type, ignoring");
 		}
 	}
 }
