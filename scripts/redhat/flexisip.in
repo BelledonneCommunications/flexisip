@@ -43,7 +43,7 @@ case "$1" in
   stop)
         # Stop daemons.
         echo -n $"Stopping $prog: "
-        killproc flexisip
+        killproc -p $FLEXISIP_PID flexisip
         RETVAL=$?
         echo
 	if [ $RETVAL = 0 ]; then
