@@ -37,9 +37,8 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	const string &arg = info.mFromName.empty() ? info.mFromUri : info.mFromName;
 	const string &sound = info.mAlertSound;
 	const string &callid = info.mCallId;
-	bool no_badge = info.mNoBadge;
 	ostringstream payload;
-	
+
 	int ret = formatDeviceToken(deviceToken);
 	if ((ret != 0) || (mDeviceToken.size() != DEVICE_BINARY_SIZE)) {
 		throw runtime_error("ApplePushNotification: Invalid deviceToken");
@@ -50,9 +49,10 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	} else {
 
 		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg << "\"]},\"sound\":\"" << sound << "\"";
-
-		if( no_badge ){ payload << ",\"badge\":0"; } /* some apps don't want the push to update the badge */
-
+		/* some apps don't want the push to update the badge - but if they do,
+		we always put the badge value to 1 because we want to notify the user that
+		he/she has unread messages even if we do not know the exact count */
+		payload << ",\"badge\":" << (info.mNoBadge ? 0 : 1);
 		payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":60}"; // PN expiration set to 60 seconds.
 	}
 	if (payload.str().length() > MAXPAYLOAD_SIZE) {
