@@ -192,7 +192,7 @@ static void increase_fd_limit(void) {
 	}
 }
 
-/* Allows to detach the watdog from the PTY so that we don't get traces clobbering the terminal */
+/* Allows to detach the watchdog from the PTY so that we don't get traces clobbering the terminal */
 static void detach() {
 	int fd;
 	setsid();
@@ -266,12 +266,12 @@ fork_flexisip:
 			makePidFile(pidfile);
 			return;
 		} else {
-			LOGE("[WDOG] Flexisip PID: %d", flexisip_pid);
+			LOGI("[WDOG] Flexisip PID: %d", flexisip_pid);
 		}
 
 		/*
 		 * We are in the watch-dog process again
-		 * Waiting for successfull initialisation of the flexisip process
+		 * Waiting for successful initialisation of the flexisip process
 		 */
 		close(pipe_wdog_flexisip[1]);
 		err = read(pipe_wdog_flexisip[0], buf, sizeof(buf));

@@ -209,6 +209,13 @@ void Agent::start(const std::string &transport_override){
 		}
 		if (err==-1){
 			LOGE("Could not enable transport %s: %s",uri.c_str(),strerror(errno));
+			if (url_has_param(url,"transport")) {
+				char transport[64]={0};
+				url_param(url->url_params,"transport",transport,sizeof(transport));
+				if (strcasecmp(transport, "tls")==0){
+					LOGE("Specifying an URI with transport=tls is not understood by flexisip. Use 'sips' uri scheme instead.");
+				}
+			}
 		}
 		su_home_deinit(&home);
 	}
@@ -847,6 +854,7 @@ int Agent::messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t
 }
 
 void Agent::idle() {
+	LOGD("in Agent::idle()");
 	for_each(mModules.begin(), mModules.end(), mem_fun(&Module::idle));
 	if (GenericManager::get()->mNeedRestart) {
 		exit(RESTART_EXIT_CODE);
