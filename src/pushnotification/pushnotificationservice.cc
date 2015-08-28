@@ -123,23 +123,26 @@ void PushNotificationService::setupGenericClient(const url_t *url){
 void PushNotificationService::setupiOSClient(const std::string &certdir, const std::string &cafile) {
 	struct dirent *dirent;
 	DIR *dirp;
-	
+
 	dirp=opendir(certdir.c_str());
 	if (dirp==NULL){
 		LOGE("Could not open push notification certificates directory (%s): %s",certdir.c_str(),strerror(errno));
 		return;
-	}	
+	}
 	SLOGD << "Searching push notification client on dir [" << certdir << "]";
-	
+
 	while(true){
 		errno = 0;
 		if((dirent=readdir(dirp))==NULL) {
 			if(errno) SLOGE << "Cannot read dir [" << certdir << "] because [" << strerror(errno) << "]";
 			break;
 		}
-		
+
 		string cert=string(dirent->d_name);
-		if(cert.compare(string(".")) == 0 || cert.compare(string("..")) == 0) continue;
+		//only consider files which end with .pem
+		if(cert.compare(".") == 0 || cert.compare("..") == 0 || (cert.compare (cert.length() - ".pem".length(), ".pem".length(), ".pem") != 0)) {
+			continue;
+		}
 		string certpath= string(certdir)+"/"+cert;
 		std::shared_ptr<ssl::context> context(new ssl::context(mIOService, ssl::context::sslv23_client));
 		boost::system::error_code error;
@@ -191,12 +194,12 @@ void PushNotificationService::setupAndroidClient(const std::map<std::string, std
 	map<string, string>::const_iterator it;
 	for (it = googleKeys.begin(); it != googleKeys.end(); ++it) {
 		string android_app_id = it->first;
-		
+
 		std::shared_ptr<ssl::context> ctx(new ssl::context(mIOService, ssl::context::sslv23_client));
 		boost::system::error_code err;
 		ctx->set_options(ssl::context::default_workarounds, err);
 		ctx->set_verify_mode(ssl::context::verify_none);
-	
+
 		mClients[android_app_id]=std::make_shared<PushNotificationClient>("google", this, ctx, GPN_ADDRESS, GPN_PORT, mMaxQueueSize, true);
 		SLOGD << "Adding android push notification client [" << android_app_id << "]";
 	}
