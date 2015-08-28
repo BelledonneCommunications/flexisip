@@ -8,8 +8,7 @@
  *  All rights reverved.
  *
  *  See the file COPYING in the top directory of this distribution for
- *  more information.
- *
+ *  more information21 *
  *  THE SOFTWARE IS PROVIDED _AS IS_, WITHOUT WARRANTY OF ANY KIND, EXPRESS
  *  OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
@@ -216,7 +215,7 @@ StdOutput::_longUsage( CmdLineInterface& _cmd,
 			int optionWidth = 23;
 			os << "  " << std::left << std::setw(optionWidth) << (*it)->longID();
 			//force new line only if ID is too long
-			if ((*it)->longID().size() > optionWidth) {
+			if ((*it)->longID().size() > (unsigned)optionWidth) {
 				os << std::endl << std::string(optionWidth + 2, ' ');
 			}
 			spacePrint( os, (*it)->getDescription(), 80, 1, optionWidth + 2, optionWidth);
