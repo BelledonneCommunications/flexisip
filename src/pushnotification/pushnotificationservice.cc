@@ -140,7 +140,8 @@ void PushNotificationService::setupiOSClient(const std::string &certdir, const s
 
 		string cert=string(dirent->d_name);
 		//only consider files which end with .pem
-		if(cert.compare(".") == 0 || cert.compare("..") == 0 || (cert.compare (cert.length() - ".pem".length(), ".pem".length(), ".pem") != 0)) {
+		string suffix = ".pem";
+		if(cert.compare(".") == 0 || cert.compare("..") == 0 || (cert.compare (cert.length() - suffix.length(), suffix.length(), suffix) != 0)) {
 			continue;
 		}
 		string certpath= string(certdir)+"/"+cert;
