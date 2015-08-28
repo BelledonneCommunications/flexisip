@@ -477,31 +477,30 @@ int main(int argc, char *argv[]) {
 	bool debug;
 	map<string, string> oset;
 
-	TCLAP::CmdLine cmd("Flexisip command line", ' ', VERSION " (git: " FLEXISIP_GIT_VERSION ")");
+	TCLAP::CmdLine cmd("", ' ', VERSION " (git: " FLEXISIP_GIT_VERSION ")");
 
-	TCLAP::ValueArg<string>  transportsArg("t", "transports", 			"The list of transports to handle (overrides the ones defined in the configuration file).", TCLAP::ValueArgOptional, "", "sips:* sip:*", cmd);
-	TCLAP::ValueArg<string>        pidFile("p", "pidfile", 				"PID file location, used when running in daemon mode", TCLAP::ValueArgOptional, "", "/tmp/flexisip.pidfile", cmd);
-	TCLAP::SwitchArg            daemonMode("",  "daemon", 				"Launch in daemon mode", cmd);
-	TCLAP::SwitchArg             useSyslog("",  "syslog", 				"Use syslog for logging", cmd);
-	TCLAP::SwitchArg              useDebug("d", "debug", 				"Force debug mode (overrides the configuration)", cmd);
-	TCLAP::SwitchArg           trackAllocs("",  "track-allocations",	"Tracks allocations of SIP messages, only use with caution.", cmd);
-	TCLAP::ValueArg<string>     configFile("c", "config", 				"Specify the location of the configuration file", TCLAP::ValueArgOptional, CONFIG_DIR "/flexisip.conf", "/srv/flexisip.conf", cmd);
-	TCLAP::SwitchArg            gitVersion("",  "git-version", 			"Will print the version and the git revision associated with this particular instance of Flexisip", cmd);
+	TCLAP::ValueArg<string>     configFile("c", "config", 			"Specify the location of the configuration file.", TCLAP::ValueArgOptional, CONFIG_DIR "/flexisip.conf", "file", cmd);
+	TCLAP::SwitchArg            daemonMode("",  "daemon", 			"Launch in daemon mode.", cmd);
+	TCLAP::SwitchArg              useDebug("d", "debug", 			"Force debug mode (overrides the configuration).", cmd);
+	TCLAP::ValueArg<string>        pidFile("p", "pidfile", 			"PID file location, used when running in daemon mode.", TCLAP::ValueArgOptional, "", "file", cmd);
+	TCLAP::SwitchArg             useSyslog("",  "syslog", 			"Use syslog for logging.", cmd);
+	TCLAP::SwitchArg           trackAllocs("",  "track-allocations","Tracks allocations of SIP messages, only use with caution.", cmd);
+	TCLAP::ValueArg<string>  transportsArg("t", "transports", 		"The list of transports to handle (overrides the ones defined in the configuration file).", TCLAP::ValueArgOptional, "", "sips:* sip:*", cmd);
 
-	TCLAP::SwitchArg              dumpMibs("",  "dump-mibs", 			"Will dump the MIB files for Flexisip performance counters and other related SNMP items.", cmd);
-	TCLAP::ValueArg<string>    dumpDefault("",  "dump-default",			"Dump default config, with specifier for the module to dump. Use 'all' to dump all modules, or 'MODULENAME' to dump a specific module. For instance, to dump the Router module default config, issue 'flexisip --dump-default module::Router.", TCLAP::ValueArgOptional, "", "all", cmd);
-	TCLAP::SwitchArg               dumpAll("", 	"dump-all-default", 	"Will dump all the configuration. This is equivalent to '--dump-default all'", cmd);
-	TCLAP::ValueArg<string>     dumpFormat("",  "dump-format",			"Select the format in which the dump-default will print. The default is 'file'. Possible values are: file, tex, doku, media", TCLAP::ValueArgOptional, "file", "file", cmd);
-	TCLAP::SwitchArg           listModules("",  "list-modules", 		"Will print a list of available modules. This is useful if you want to combine with --dump-default to have specific documentation for a module", cmd);
-	TCLAP::SwitchArg   displayExperimental("",  "show-experimental",	"Use in conjunction with --dump-default: will dump the configuration for a module even if it is marked as experiemental", cmd);
+	TCLAP::SwitchArg              dumpMibs("",  "dump-mibs", 		"Will dump the MIB files for Flexisip performance counters and other related SNMP items.", cmd);
+	TCLAP::ValueArg<string>    dumpDefault("",  "dump-default",		"Dump default config, with specifier for the module to dump. Use 'all' to dump all modules, or 'MODULENAME' to dump a specific module. For instance, to dump the Router module default config, issue 'flexisip --dump-default module::Router.", TCLAP::ValueArgOptional, "", "all", cmd);
+	TCLAP::SwitchArg               dumpAll("",  "dump-all-default", "Will dump all the configuration. This is equivalent to '--dump-default all'.", cmd);
+	TCLAP::ValueArg<string>     dumpFormat("",  "dump-format",		"Select the format in which the dump-default will print. The default is 'file'. Possible values are: file, tex, doku, media.", TCLAP::ValueArgOptional, "file", "file", cmd);
+	TCLAP::SwitchArg           listModules("",  "list-modules", 	"Will print a list of available modules. This is useful if you want to combine with --dump-default to have specific documentation for a module.", cmd);
+	TCLAP::SwitchArg   displayExperimental("",  "show-experimental","Use in conjunction with --dump-default: will dump the configuration for a module even if it is marked as experiemental.", cmd);
 
 	/* Overriding values */
-	TCLAP::ValueArg<string>  listOverrides("",  "list-overrides",		"List the configuration values that you can override. Useful in conjunction with --set. "
-																		"Pass a module to specify the module for which to dump the available values. Use 'all' to get all possible overrides.", TCLAP::ValueArgOptional, "", "module::Router", cmd);
-	TCLAP::MultiArg<string> overrideConfig("s", "set", 					"Allows to override the configuration file setting. Use --list-overrides to get a list of values that you can override.", TCLAP::ValueArgOptional,
-										   								"global/debug=true");
-	TCLAP::MultiArg<string>  hostsOverride("",  "hosts",				"Overrides a host address by passing it. You can use this flag multiple times. "
-																		"Also, you can remove an association by providing an empty value: '--hosts myhost='", TCLAP::ValueArgOptional, "example.org=127.0.0.1");
+	TCLAP::ValueArg<string>  listOverrides("",  "list-overrides",	"List the configuration values that you can override. Useful in conjunction with --set. "
+																	"Pass a module to specify the module for which to dump the available values. Use 'all' to get all possible overrides.", TCLAP::ValueArgOptional, "", "module", cmd);
+	TCLAP::MultiArg<string> overrideConfig("s", "set", 				"Allows to override the configuration file setting. Use --list-overrides to get a list of values that you can override.", TCLAP::ValueArgOptional,
+										   							"global/debug=true");
+	TCLAP::MultiArg<string>  hostsOverride("",  "hosts",			"Overrides a host address by passing it. You can use this flag multiple times. "
+																	"Also, you can remove an association by providing an empty value: '--hosts myhost='.", TCLAP::ValueArgOptional, "host=ip");
 
 	cmd.add(hostsOverride);
 	cmd.add(overrideConfig);
@@ -517,11 +516,6 @@ int main(int argc, char *argv[]) {
 		cerr << "Error parsing arguments: " << e.error()  << " for arg " << e.argId() << endl;
 		exit(EXIT_FAILURE);
 
-	}
-
-	if( gitVersion.getValue() ){
-		cout << "Flexisip version " << VERSION << ", Git: " << FLEXISIP_GIT_VERSION << endl;
-		exit(EXIT_SUCCESS);
 	}
 
 	if( overrideConfig.getValue().size() != 0 ){

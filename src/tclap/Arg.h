@@ -532,12 +532,7 @@ inline std::string Arg::longID( const std::string& valueId ) const
 
 	if ( _flag != "" )
 	{
-		id += Arg::flagStartString() + _flag;
-
-		if ( _valueRequired )
-			id += std::string( 1, Arg::delimiter() ) + "<" + valueId + ">";
-
-		id += ",  ";
+		id += Arg::flagStartString() + _flag + ",  ";
 	}
 
 	id += Arg::nameStartString() + _name;
