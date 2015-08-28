@@ -471,30 +471,33 @@ RegistrarDb *RegistrarDb::get(Agent *ag) {
 			LOGI("RegistrarDB implementation is internal");
 			sUnique = new RegistrarDbInternal(ag->getPreferredRoute());
 			sUnique->mUseGlobalDomain=useGlobalDomain;
-			return sUnique;
 		}
-
 #ifdef ENABLE_REDIS
-		GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct > ( "module::Registrar" );
-		RedisParameters params;
-		params.domain = registrar->get<ConfigString > ( "redis-server-domain" )->read();
-		params.port = registrar->get<ConfigInt > ( "redis-server-port" )->read();
-		params.timeout = registrar->get<ConfigInt > ( "redis-server-timeout" )->read();
-		params.auth = registrar->get<ConfigString > ( "redis-auth-password" )->read();
-		params.mSlaveCheckTimeout = registrar->get<ConfigInt>( "redis-slave-check-period" )->read();
-
 		/* Previous implementations allowed "redis-sync" and "redis-async", whereas we now expect "redis".
 		 * We check that the dbImplementation _starts_ with "redis" now, so that we stay backward compatible. */
-		if (dbImplementation.find("redis") == 0) {
+		else if (dbImplementation.find("redis") == 0) {
 			LOGI("RegistrarDB implementation is REDIS");
+			GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct > ( "module::Registrar" );
+			RedisParameters params;
+			params.domain = registrar->get<ConfigString > ( "redis-server-domain" )->read();
+			params.port = registrar->get<ConfigInt > ( "redis-server-port" )->read();
+			params.timeout = registrar->get<ConfigInt > ( "redis-server-timeout" )->read();
+			params.auth = registrar->get<ConfigString > ( "redis-auth-password" )->read();
+			params.mSlaveCheckTimeout = registrar->get<ConfigInt>( "redis-slave-check-period" )->read();
+
 			sUnique=new RegistrarDbRedisAsync(ag, params);
 			sUnique->mUseGlobalDomain=useGlobalDomain;
-			return sUnique;
 		}
 #endif
-		LOGF("unsupported implementation %s", dbImplementation.c_str())
+		else {
+			LOGF("Unsupported implementation '%s'. %s",
+#ifdef ENABLE_REDIS
+				"Supported implementations are 'internal' or 'redis'.", dbImplementation.c_str());
+#else
+				"Supported implementation is 'internal'.", dbImplementation.c_str());
+#endif
+		}
 	}
-
 	return sUnique;
 }
 
@@ -613,19 +616,17 @@ void RegistrarDb::fetch(const url_t *url, const shared_ptr<RegistrarDbListener> 
 RecordSerializer *RecordSerializer::create(const string &name) {
 	if ( name == "c" ) {
 		return new RecordSerializerC();
-	}
-
-	if ( name == "json" ) {
+	} else if ( name == "json" ) {
 		return new RecordSerializerJson();
 	}
-
 	#if ENABLE_PROTOBUF
-	if ( name == "protobuf" ) {
+	else if ( name == "protobuf" ) {
 		return new RecordSerializerPb();
 	}
 	#endif
-
-	return NULL;
+	else {
+		return NULL;
+	}
 }
 
 
@@ -638,7 +639,7 @@ RecordSerializer *RecordSerializer::get() {
 
 		sInstance = create(name);
 		if (!sInstance) {
-			LOGA("Unsupported record serializer: %s", name.c_str());
+			LOGF("Unsupported record serializer: '%s'", name.c_str());
 		}
 	}
 
