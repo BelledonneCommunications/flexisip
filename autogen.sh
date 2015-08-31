@@ -17,8 +17,11 @@ else
 fi
 
 if test -f /opt/local/bin/glibtoolize ; then
-	# darwin
+	# darwin macports
 	LIBTOOLIZE=/opt/local/bin/glibtoolize
+elif test -f /usr/local/bin/glibtoolize ; then
+	# darwin brew
+	LIBTOOLIZE=/usr/local/bin/glibtoolize
 else
 	LIBTOOLIZE=libtoolize
 fi
