@@ -42,9 +42,9 @@ AC_PROG_LIBTOOL
 # use for xml data binding
 
 AC_ARG_ENABLE(snmp,
-    AC_HELP_STRING([--enable-snmp], [Build snmp support [yes]]),
-    [snmp="${enableval}"],
-    [snmp=yes]
+	AC_HELP_STRING([--enable-snmp], [Build snmp support [yes]]),
+	[snmp="${enableval}"],
+	[snmp=yes]
 )
 
 if test x$snmp = xyes ; then
@@ -125,22 +125,17 @@ PKG_PROG_PKG_CONFIG()
 #
 
 AC_ARG_ENABLE(odbc,
-	AC_HELP_STRING([--enable-odbc],
-	[Build with odbc support [default=yes]]),
-	[odbc="${enableval}"],[odbc=yes]
+	AC_HELP_STRING([--enable-odbc], [Build odbc support [auto]]),
+	[odbc="${enableval}"],
+	[odbc=auto]
 )
-AM_CONDITIONAL(BUILD_ODBC,test x$odbc = xyes)
-
-
 # You can specify the odbc_config place to get the correct CFLAGS
 AC_ARG_WITH(odbc,
 	AC_HELP_STRING([--with-odbc], [Specify the odbc_config binary directory, which is used to find the ODBC libs and includes (eg: /usr/local) [default=/usr]]),
 	[odbc_prefix=$withval],
 	[odbc_prefix=/usr]
 )
-
-if test x$odbc = "xyes"; then
-
+if test x$odbc != xno ; then
 	# Use the odbc_config tool to get odbc libs and includes
 	AC_CHECK_PROG([odbc_config],[odbc_config], [yes], [no], [$odbc_prefix/bin])
 	if test $odbc_config = no; then
@@ -159,17 +154,31 @@ if test x$odbc = "xyes"; then
 	# Checks for libraries.
 	CPPFLAGS_save=$CPPFLAGS
 	CPPFLAGS="$CPPFLAGS $ODBC_CFLAGS"
-	AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],,[AC_MSG_ERROR([unixodbc headers missing. This is required for odbc. Maybe install the development package of ODBC?])])
+	AC_CHECK_HEADERS([sql.h sqlext.h sqltypes.h],[have_unixodbc_headers=yes],[have_unixodbc_headers=no])
 	CPPFLAGS=$CPPFLAGS_save
 
 	LIBS_save=$LIBS
 	LIBS="$LIBS $ODBC_LIBS"
-	AC_CHECK_LIB(odbc, SQLConnect,[foo=bar], [AC_MSG_ERROR([Linking against odbc failed.])])
+	AC_CHECK_LIB(odbc, SQLConnect,[foo=bar], [have_sql_linking=yes], [have_sql_linking=no])
 	LIBS=$LIBS_save
 
 	AC_SUBST(ODBC_LIBS)
 	AC_SUBST(ODBC_CFLAGS)
+
+	if test x$have_unixodbc_headers = xno ; then
+		if test x$odbc != xauto ; then
+			AC_MSG_ERROR([unixodbc headers not found. This is required for enabling odbc. Use --disable-odbc if you don''t need this feature.])
+		fi
+	fi
+	if test x$have_sql_linking = xno ; then
+		if test x$odbc != xauto ; then
+			AC_MSG_ERROR([Linking against odbc failed. This is required for enabling odbc. Use --disable-odbc if you don''t need this feature.])
+		fi
+	fi
 fi
+AM_CONDITIONAL(BUILD_ODBC,test x$have_unixodbc_headers$have_sql_linking = xyesyes)
+
+
 
 
 # Check for odb compiler
@@ -183,7 +192,7 @@ fi
 # Check for libodb
 AC_ARG_ENABLE(libodb,
 	[AC_HELP_STRING([--enable-libodb=[yes/no]],[Compilation of libodb (default=auto)])],
-    [case "${enableval}" in
+	[case "${enableval}" in
 		yes)	enable_libodb=yes ;;
 		no)	enable_libodb=no ;;
 		*)	AC_MSG_ERROR(bad value ${enableval} for --enable-libodb) ;;
@@ -205,8 +214,8 @@ fi
 # Check for libodb-mysql
 AC_ARG_ENABLE(libodb-mysql,
 	AC_HELP_STRING([--enable-libodb-mysql],
-	    [Build libodb-mysql [yes]]),
-        [libodb_mysql="${enableval}"],[libodb_mysql=yes]
+		[Build libodb-mysql [yes]]),
+		[libodb_mysql="${enableval}"],[libodb_mysql=yes]
 )
 if test x$libodb_mysql = xyes ; then
 	PKG_CHECK_MODULES(LIBODB_MYSQL,[libodb-mysql >= 2.3.0],[libodb_mysql=yes],[libodb_mysql=no])
@@ -257,29 +266,36 @@ fi
 AC_CHECK_HEADERS(sys/prctl.h)
 
 AC_ARG_ENABLE(doc,
-    AC_HELP_STRING([--enable-doc],
-        [Build documentation [yes]]),
-        [doc="${enableval}"],[doc=yes]
+	AC_HELP_STRING([--enable-doc],
+		[Build documentation [yes]]),
+		[doc="${enableval}"],[doc=yes]
 )
 
+
+# Check for transcoder
 AC_ARG_ENABLE(transcoder,
-	AC_HELP_STRING([--enable-transcoder],
-	    [Build transcoder support [yes]]),
-        [transcoder="${enableval}"],[transcoder=yes]
+	AC_HELP_STRING([--enable-transcoder], [Build transcoder support [auto]]),
+	[transcoder="${enableval}"],
+	[transcoder=auto]
 )
-if test $transcoder = "yes"; then
-	PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.9.0])
+if test x$transcoder != xno ; then
+	PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.9.0],[have_transcoder=yes],[have_transcoder=no])
+	if test x$have_transcoder = xno ; then
+		if test x$transcoder != xauto ; then
+			AC_MSG_ERROR([mediastreamer2 not found. This is required for enabling transcoder. Use --disable-transcoder if you don''t need this feature.])
+		fi
+	fi
 fi
-
-AM_CONDITIONAL(BUILD_TRANSCODER,test x$transcoder = xyes)
-if test "$transcoder" = "yes"; then
+AM_CONDITIONAL(BUILD_TRANSCODER,test x$have_transcoder = xyes)
+if test "$have_transcoder" = "yes"; then
 	AC_DEFINE([ENABLE_TRANSCODER],1,[Enable transcoder module.])
 fi
 
+
 AC_ARG_ENABLE(specific-features,
 	AC_HELP_STRING([--enable-specific-features],
-	    [Enable specific features [no]]),
-        [specific_features="${enableval}"],[specific_features=no]
+		[Enable specific features [no]]),
+		[specific_features="${enableval}"],[specific_features=no]
 )
 if test $specific_features = "yes"; then
 	AC_DEFINE([MEDIARELAY_SPECIFIC_FEATURES_ENABLED],1,[Enable specific features.])
@@ -287,20 +303,20 @@ fi
 
 AC_ARG_ENABLE(monotonic-clock-registrations,
 	AC_HELP_STRING([--enable-monotonic-clock-registrations],
-	    [Enable monotonic clock for registrations [no]]),
-        [monotonic_clock_registrations="${enableval}"],[monotonic_clock_registrations=no]
+		[Enable monotonic clock for registrations [no]]),
+		[monotonic_clock_registrations="${enableval}"],[monotonic_clock_registrations=no]
 )
 if test $monotonic_clock_registrations = "yes"; then
 	AC_DEFINE([MONOTONIC_CLOCK_REGISTRATIONS],1,[Enable monotonic clock for registrations.])
 fi
 
 AC_DEFUN([CHECK_BOOST],[$1
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[[
-        #ifndef $2
-            fail
-        #endif
-        return 0;
-    ]])], [$3], [$4])
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[[
+		#ifndef $2
+			fail
+		#endif
+		return 0;
+	]])], [$3], [$4])
 ])
 
 
@@ -308,11 +324,11 @@ AC_DEFUN([CHECK_BOOST],[$1
 AC_LANG_PUSH([C++])
 AC_COMPILE_IFELSE(
   [AC_LANG_PROGRAM([
-    #include <chrono>
-    using namespace ::std;
-    using namespace chrono;
-    steady_clock::time_point test;
-    ],[]
+	#include <chrono>
+	using namespace ::std;
+	using namespace chrono;
+	steady_clock::time_point test;
+	],[]
   )],
   [use_monotonic_clock=no],
   [use_monotonic_clock=yes]
@@ -323,9 +339,9 @@ AM_CONDITIONAL(USE_MONOTONIC_CLOCK,test x$use_monotonic_clock = xyes)
 
 AX_BOOST_BASE([1.41],[],[AC_MSG_WARN([boost base not found.])])
 AC_ARG_ENABLE(boostlog,
-    AC_HELP_STRING([--enable-boostlog], [Build boost log support [no]]),
-    [boostlog="${enableval}"],
-    [boostlog=no]
+	AC_HELP_STRING([--enable-boostlog], [Build boost log support [no]]),
+	[boostlog="${enableval}"],
+	[boostlog=no]
 )
 
 if test x$boostlog = xyes ; then
@@ -337,13 +353,6 @@ if test x$found_boost_log = xyes ; then
 fi
 fi
 AM_CONDITIONAL(BUILD_BOOSTLOG, test x$found_boost_log = xyes)
-
-
-AC_ARG_ENABLE(pushnotification,
-	AC_HELP_STRING([--enable-pushnotification], [Build pushnotification support [yes]]),
-    [pushnotification="${enableval}"],
-    [pushnotification=auto]
-)
 
 if test "$build_upnp" != "false" ; then
 	PKG_CHECK_MODULES([LIBUPNP], [libupnp],
@@ -360,6 +369,12 @@ if test "$build_upnp" != "false" ; then
 	)
 
 fi
+
+AC_ARG_ENABLE(pushnotification,
+	AC_HELP_STRING([--enable-pushnotification], [Build pushnotification support [yes]]),
+	[pushnotification="${enableval}"],
+	[pushnotification=auto]
+)
 
 if test x$pushnotification != xno ; then
 	AX_BOOST_BASE([1.41],[apushnotification=yes],[apushnotification=no])
@@ -379,8 +394,8 @@ AM_CONDITIONAL(BUILD_PUSHNOTIFICATION,test x$pushnotification = xyes)
 
 AC_ARG_ENABLE(datehandler,
 	AC_HELP_STRING([--enable-datehandler], [Build DateHandler module [no]]),
-    [datehandler="${enableval}"],
-    [datehandler=no]
+	[datehandler="${enableval}"],
+	[datehandler=no]
 )
 
 if test "$datehandler" = "yes" ; then
@@ -390,8 +405,8 @@ AM_CONDITIONAL(BUILD_DATEHANDLER,test x$datehandler = xyes)
 
 AC_ARG_ENABLE(redis,
 	AC_HELP_STRING([--enable-redis], [Build with redis key/value datastore [no]]),
-    [redis="${enableval}"],
-    [redis=no]
+	[redis="${enableval}"],
+	[redis=no]
 )
 
 AC_ARG_WITH(redis,
@@ -439,16 +454,16 @@ AM_CONDITIONAL(BUILD_REDIS,test x$redis = xyes)
 
 AM_CONDITIONAL(WITHOUT_HIREDIS_CONNECT_CALLBACK,test x$redis_no_callback = xyes)
 if test x$redis_no_callback = xyes ; then
-    AC_MSG_WARN([Using hiredis without connect callback!])
+	AC_MSG_WARN([Using hiredis without connect callback!])
 fi
 
 AC_ARG_ENABLE(protobuf,
 	AC_HELP_STRING([--enable-protobuf],
-	    [Build registrar contact serializer using protobuf [no]]),
-        [protobuf="${enableval}"],[protobuf=no]
+		[Build registrar contact serializer using protobuf [no]]),
+		[protobuf="${enableval}"],[protobuf=no]
 )
 if test x$protobuf = xyes ; then
-    PKG_CHECK_MODULES(PROTOBUF,[protobuf >= 2.3.0])
+	PKG_CHECK_MODULES(PROTOBUF,[protobuf >= 2.3.0])
 fi
 AM_CONDITIONAL(BUILD_PROTOBUF,test x$protobuf = xyes)
 
@@ -482,7 +497,7 @@ xsd_err_msg="A correct version can be found at http://www.codesynthesis.com/prod
 # this function tries to find XSD from the xsd_root
 AC_DEFUN([FIND_XSDCXX],
 [
-    # check if XSD is detected by the system
+	# check if XSD is detected by the system
 	AC_CHECK_PROG([XSDCXX], [xsd], [$xsd_root/bin/xsd], [], [$xsd_root/bin])
 
 	if test x$XSDCXX = x; then
@@ -551,7 +566,7 @@ AM_CONDITIONAL(BUILD_XSD, [test x$use_xsd != xno] )
 ORTP_VERSION=`$PKG_CONFIG --modversion ortp 2>&1`
 AX_COMPARE_VERSION([$ORTP_VERSION], [ge], [0.21.0],ORTP_ABI_VERSION=">=9",ORTP_ABI_VERSION="<9")
 if test "x$ORTP_ABI_VERSION" = "x>=9"; then
-        AC_DEFINE([ORTP_ABI_VERSION],9,[oRTP ABI version])
+		AC_DEFINE([ORTP_ABI_VERSION],9,[oRTP ABI version])
 fi
 
 
@@ -574,10 +589,10 @@ AM_CONDITIONAL(CROSS_COMPILING, test x$cross_compiling = xyes)
 # Checks for programs
 
 if test x$protobuf = xyes ; then
-    AC_PATH_PROG([PROTOC],[protoc])
-    if test -z "$PROTOC"; then
-        AC_MSG_ERROR(['protoc' is required to generate protobuf serializer classes])
-    fi
+	AC_PATH_PROG([PROTOC],[protoc])
+	if test -z "$PROTOC"; then
+		AC_MSG_ERROR(['protoc' is required to generate protobuf serializer classes])
+	fi
 fi
 
 
@@ -594,8 +609,8 @@ AC_SUBST(CONFIG_DIR)
 
 #Keep this at the end
 if test x$strictness = xyes ; then
-        CFLAGS="$CFLAGS -Wall -Werror -fno-strict-aliasing"
-        WARNINGCXXFLAGS="-Wall -Werror -fno-strict-aliasing"
+		CFLAGS="$CFLAGS -Wall -Werror -fno-strict-aliasing"
+		WARNINGCXXFLAGS="-Wall -Werror -fno-strict-aliasing"
 fi
 
 AC_SUBST(WARNINGCXXFLAGS)
@@ -604,8 +619,8 @@ AC_SUBST(WARNINGCXXFLAGS)
 
 AC_ARG_ENABLE(presence,
 	AC_HELP_STRING([--enable-presence],
-	    [Build presence server]),
-        [presence="${enableval}"],[presence=no]
+		[Build presence server]),
+		[presence="${enableval}"],[presence=no]
 )
 
 
