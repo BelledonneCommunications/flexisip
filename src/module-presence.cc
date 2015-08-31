@@ -68,7 +68,7 @@ private:
 
 	void route(shared_ptr<RequestSipEvent> &ev) {
 		SLOGI << *this << " routing to [" << mDestRoute << "]";
-		cleanAndPrependRoute(&mHome,this->getAgent(),ev->getMsgSip()->getMsg(),ev->getSip(),mDestRoute.c_str());
+		cleanAndPrependRoute(this->getAgent(),ev->getMsgSip()->getMsg(),ev->getSip(),sip_route_make(&mHome,mDestRoute.c_str()));
 
 	}
 	bool isMessageAPresenceMessage(shared_ptr<RequestSipEvent> &ev) {
@@ -101,5 +101,5 @@ public:
 ModuleInfo<ModulePresence> ModulePresence::sInfo("Presence",
 		"This module transfert sip presence messages, like subscribe/notify/publish to a presence server. ",
 		ModuleInfoBase::ModuleOid::Presence,
-		ModuleInfoBase::ModuleTypeExperimental);
+		ModuleTypeExperimental);
 

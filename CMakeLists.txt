@@ -84,10 +84,14 @@ if(NOT XSDCXX_PROG)
 else()
 	set(ENABLE_XSD 1)
 	message(STATUS "XSD found at ${XSDCXX_PROG}, enabling XSD")
-	# TODO: check XSD headers and check that XSD is the correct executable
+	# TODO: check XSD is the correct executable
 	find_library(XERCES_LIBS NAMES xerces-c)
 	if(NOT XERCES_LIBS)
 		message(FATAL_ERROR "Failed to find the Xerces library.")
+	endif()
+	find_path(XERCES_INCLUDE_DIRS NAMES xercesc/util/XercesDefs.hpp)
+	if(NOT XERCES_INCLUDE_DIRS)
+		message(FATAL_ERROR "Failed to find the Xerces includes.")
 	endif()
 endif()
 
@@ -196,7 +200,7 @@ if(ENABLE_DOC)
 endif()
 
 if(ENABLE_PRESENCE)
-	find_package(belle-sip 1.2.4 REQUIRED)
+	find_package(BelleSIP 1.2.4 REQUIRED)
 endif()
 
 # Boost checks

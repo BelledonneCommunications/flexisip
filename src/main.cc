@@ -704,7 +704,7 @@ int main(int argc, char *argv[]) {
 	}
 
 #ifdef ENABLE_PRESENCE
-	flexisip::PresenceServer presenceServer(cfgfile);
+	flexisip::PresenceServer presenceServer(configFile.getValue());
 	presenceServer.start();
 #endif //ENABLE_PRESENCE
 
