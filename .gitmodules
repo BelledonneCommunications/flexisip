@@ -1,0 +1,24 @@
+[submodule "submodules/belle-sip"]
+	path = submodules/belle-sip
+	url = git://git.linphone.org/belle-sip
+[submodule "submodules/externals/antlr3"]
+	path = submodules/externals/antlr3
+	url = git://git.linphone.org/antlr3.git
+[submodule "submodules/externals/polarssl"]
+	path = submodules/externals/polarssl
+	url = git://git.linphone.org/polarssl.git
+[submodule "submodules/externals/sofia-sip"]
+	path = submodules/externals/sofia-sip
+	url = git://git.linphone.org/sofia-sip.git
+[submodule "submodules/ortp"]
+	path = submodules/ortp
+	url = git://git.linphone.org/ortp.git
+[submodule "submodules/cmake-builder"]
+	path = submodules/cmake-builder
+	url = git://git.linphone.org/linphone-cmake-builder
+[submodule "submodules/mediastreamer2"]
+	path = submodules/mediastreamer2
+	url = git://git.linphone.org/mediastreamer2.git
+[submodule "submodules/externals/speex"]
+	path = submodules/externals/speex
+	url = git://git.linphone.org/speex.git
