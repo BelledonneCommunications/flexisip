@@ -36,7 +36,7 @@ private:
 				{ String, "presence-server", "A sip uri where to send all presence's requests", "sip:127.0.0.1:5065" },
 				config_item_end
 		};
-		module_config->get<ConfigBoolean>("enabled")->setDefault("true");
+		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 		module_config->get<ConfigBooleanExpression>("filter")->setDefault("is_request && (request.method-name == 'PUBLISH' || request.method-name == 'NOTIFY' || request.method-name == 'SUBSCRIBE')");
 		module_config->addChildrenValues(configs);
 

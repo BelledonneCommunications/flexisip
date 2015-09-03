@@ -68,7 +68,7 @@ thesources= \
 			contact-masquerader.cc contact-masquerader.hh \
 			uac-register.cc uac-register.hh \
 			$(GITVERSION_FILE) \
-			module-redirect.cc
+			module-redirect.cc module-presence.cc
 
 
 
@@ -95,7 +95,6 @@ endif
 
 if BUILD_PRESENCE
 #module cannot be statically initialized in shared lib
-thesources+=module-presence.cc
 flexisip_LDADD += presence/libflexisip-presence.la
 AM_CXXFLAGS+= -DBELLE_SIP_USE_STL $(BELLESIP_CFLAGS)
 endif

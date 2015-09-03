@@ -320,9 +320,7 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Redirect"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GatewayAdapter"));
 
-#ifdef ENABLE_PRESENCE
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Presence"));
-#endif
 
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Registrar"));
 	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "StatisticsCollector"));

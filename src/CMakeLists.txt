@@ -55,7 +55,7 @@ set(FLEXISIP_SOURCES
 			eventlogs/eventlogs.cc eventlogs/eventlogs.hh 
 			contact-masquerader.cc contact-masquerader.hh 
 			uac-register.cc uac-register.hh 
-			module-redirect.cc
+			module-redirect.cc module-presence.cc
 # TODO: GIT VERSION FILE
 )
 set(GENERATED_SOURCE_FILES
@@ -156,7 +156,6 @@ if(ENABLE_PROTOBUF)
 endif()
 
 if(ENABLE_PRESENCE)
-	list(APPEND FLEXISIP_SOURCES module-presence.cc)
 	list(APPEND FLEXISIP_SOURCES presence/etag-manager.hh )
 	list(APPEND FLEXISIP_SOURCES presence/presence-server.cc)
 	list(APPEND FLEXISIP_SOURCES presence/presentity-presenceinformation.hh presence/presentity-presenceinformation.cc )
