@@ -67,7 +67,7 @@ private:
 	}
 
 	void route(shared_ptr<RequestSipEvent> &ev) {
-		SLOGI << *this << " routing to [" << mDestRoute << "]";
+		SLOGI << getModuleName() << " routing to [" << mDestRoute << "]";
 		cleanAndPrependRoute(this->getAgent(),ev->getMsgSip()->getMsg(),ev->getSip(),sip_route_make(&mHome,mDestRoute.c_str()));
 
 	}
