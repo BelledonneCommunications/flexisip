@@ -537,7 +537,7 @@ if test x$use_xsd != xno ; then
 	# check that we don't match a bad xsd executable
 	if test -z "`$XSDCXX version | grep CodeSynthesis`" ; then
 		AC_MSG_ERROR([xsd executable is not the good XSD (this can happen on Mac OS). $xsd_err_msg])
-		use_xsd = no
+		use_xsd=no
 	fi
 
 	# check xsd headers
@@ -554,7 +554,7 @@ if test x$use_xsd != xno ; then
 
 	# if XSD is enabled, we need Xerces as a dependency
 	PKG_CHECK_MODULES(XERCESC, [xerces-c >= 3.0.0])
-	use_xsd = yes
+	use_xsd=yes
 	AC_DEFINE([ENABLE_XSD], 1, [Enable XSD])
 fi
 AM_CONDITIONAL(BUILD_XSD, [test x$use_xsd != xno] )

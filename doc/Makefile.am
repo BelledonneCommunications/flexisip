@@ -27,12 +27,12 @@ ${guide_pdf}: $(srcdir)/${guide}.tex $(top_builddir)/src/flexisip
 	$(srcdir)/latex_include_generator.sh
 # Several times to make sure the TOC is up-to-date
 	- pdflatex --interaction=nonstopmode  "\newcommand\flexisipversion{ $(VERSION)}\input{$(guide_tex)}"
+endif
 
 fldocdir=$(datadir)/doc/$(PACKAGE)-$(VERSION)
 fldoc_DATA = $(docfiles)
 
 dist_fldoc_DATA=$(guide_tex)
 
-endif
 
 

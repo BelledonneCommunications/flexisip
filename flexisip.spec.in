@@ -44,6 +44,8 @@
 
 ## end rpmbuild options
 
+%define _unpackaged_files_terminate_build 0
+
 # These lines are here because we can build the RPM for flexisip, in which
 # case we prefix the entire installation so that we don't break compatibility
 # with the user's libs.
@@ -94,7 +96,7 @@ Requires: boost-log >= 1.41.0
 %if %{protobuf}
 Requires: protobuf >= 2.3.0
 Requires: protobuf-c >= 0.15
-Requires: protobuf-c-devel >= 0.15
+BuildRequires: protobuf-c-devel >= 0.15
 BuildRequires: protobuf-compiler >= 2.3.0
 %endif
 
@@ -219,6 +221,7 @@ fi
 %docdir %{_docdir}
 %{_docdir}
 %{_bindir}/*
+%{_libdir}/*.so.*
 %{_sysconfdir}/init.d/flexisip
 %{_sysconfdir}/flexisip
 

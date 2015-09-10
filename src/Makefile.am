@@ -199,7 +199,7 @@ flexisip_binder_LDADD=$(flexisip_LDADD)
 nodist_flexisip_binder_SOURCES=$(nodistsources)
 
 noinst_PROGRAMS=expr
-expr_SOURCES=test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh
+expr_SOURCES=test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh flexisip-exception.cc flexisip-exception.hh
 expr_CXXFLAGS=-DTEST_BOOL_EXPR -DNO_SOFIA $(MEDIASTREAMER_CFLAGS) $(ORTP_CFLAGS)
 expr_LDADD=$(flexisip_LDADD)
 
