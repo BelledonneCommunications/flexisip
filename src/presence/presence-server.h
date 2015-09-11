@@ -58,7 +58,11 @@ public:
 	~PresenceServer();
 	void start() throw (FlexisipException);
 private:
-
+	class Init{
+	public:
+		Init();
+	};
+	static Init sStaticInit;
 	//PresenceConfigManager mConfigManager;
 	belle_sip_stack_t *mStack;
 	belle_sip_provider_t *mProvider;

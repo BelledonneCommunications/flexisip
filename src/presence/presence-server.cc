@@ -26,6 +26,7 @@
 #include "presentity-presenceinformation.hh"
 #include "signaling-exception.hh"
 #include "subscription.hh"
+#include "configmanager.hh"
 #include <string.h>
 
 using namespace pidf;
@@ -55,7 +56,18 @@ void _belle_sip_log(belle_sip_log_level lev, const char *fmt, va_list args) {
 	LOGV(level, fmt,args);
 }
 
+PresenceServer::Init PresenceServer::sStaticInit;
 
+PresenceServer::Init::Init(){
+	ConfigItemDescriptor items[]={
+		{	Integer			, "expires"		, "Publish default expires in second.  by default.","600"},
+		{	StringList      , "transports"   , "List of white space separated SIP uris where the proxy must listen.","sip:127.0.0.1:5065"},
+		config_item_end
+	};
+	GenericStruct *s=new GenericStruct("presence-server", "Flexisip presence server parameters.",0);
+	GenericManager::get()->getRoot()->addChild(s);
+	s->addChildrenValues(items);
+}
 
 
 PresenceServer::PresenceServer(std::string configFile) throw (FlexisipException) :
@@ -85,7 +97,7 @@ mStack(belle_sip_stack_new(NULL))
 	listener_callbacks.process_transaction_terminated=(void (*)(void *, const belle_sip_transaction_terminated_event_t *))PresenceServer::processTransactionTerminated;
 	mListener=belle_sip_listener_create_from_callbacks(&listener_callbacks,this);
 	belle_sip_provider_add_sip_listener(mProvider,mListener);
-	mDefaultExpires=3600; //FIXME config mConfigManager.get<GenericStruct>("presence-global")->get<ConfigInt>("expires")->read();
+	mDefaultExpires=GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigInt>("expires")->read();
 	SLOGD << "Presence server configuration file ["<< configFile  << "] Successfully loaded ";
 	
 	
@@ -100,8 +112,8 @@ PresenceServer::~PresenceServer() {
 }
 void PresenceServer::start() throw (FlexisipException) {
 	
-	list<string> transports; //mConfigManager.get<GenericStruct>("presence-global")->get<ConfigStringList>("transports")->read();
-	transports.push_back({"sip:127.0.0.1:5065"});
+	list<string> transports = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigStringList>("transports")->read();
+	
 	for (auto it = transports.begin(); it != transports.end(); ++it) {
 		belle_sip_uri_t* uri = belle_sip_uri_parse(it->c_str());
 		if (uri) {
