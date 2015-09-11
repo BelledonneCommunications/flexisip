@@ -95,8 +95,8 @@ Requires: boost-log >= 1.41.0
 
 %if %{protobuf}
 Requires: protobuf >= 2.3.0
-Requires: protobuf-c >= 0.15
-BuildRequires: protobuf-c-devel >= 0.15
+#Requires: protobuf-c >= 0.15
+#BuildRequires: protobuf-c-devel >= 0.15
 BuildRequires: protobuf-compiler >= 2.3.0
 %endif
 
@@ -221,7 +221,9 @@ fi
 %docdir %{_docdir}
 %{_docdir}
 %{_bindir}/*
+%if %{presence}
 %{_libdir}/*.so.*
+%endif
 %{_sysconfdir}/init.d/flexisip
 %{_sysconfdir}/flexisip
 
