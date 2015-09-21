@@ -420,16 +420,15 @@ public:
 		const char * res = NULL; // ugly cism ;)
 		sip_t *sip = ev->getSip();
 		const bool notARegister = sip->sip_request->rq_method != sip_method_register;
-		if (notARegister) {
-			// Check for trusted host
-			sip_via_t *via=sip->sip_via;
-			list<string>::const_iterator trustedHostsIt=mTrustedHosts.begin();
-			const char *receivedHost=!empty(via->v_received) ? via->v_received : via->v_host;
-			for (;trustedHostsIt != mTrustedHosts.end(); ++trustedHostsIt) {
-				if (*trustedHostsIt == receivedHost) {
-					LOGD("Allowing message from trusted host %s", receivedHost);
-					return true;
-				}
+		
+		// Check for trusted host
+		sip_via_t *via=sip->sip_via;
+		list<string>::const_iterator trustedHostsIt=mTrustedHosts.begin();
+		const char *receivedHost=!empty(via->v_received) ? via->v_received : via->v_host;
+		for (;trustedHostsIt != mTrustedHosts.end(); ++trustedHostsIt) {
+			if (*trustedHostsIt == receivedHost) {
+				LOGD("Allowing message from trusted host %s", receivedHost);
+				return true;
 			}
 		}
 

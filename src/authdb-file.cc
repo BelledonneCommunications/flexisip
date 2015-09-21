@@ -31,7 +31,6 @@ FileAuthDb::FileAuthDb() {
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 
 	mFileString = ma->get<ConfigString>("datasource")->read();
-	mCacheExpire=1<<31;
 	sync();
 }
 
