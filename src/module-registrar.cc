@@ -405,7 +405,7 @@ public:
 		time_t now = getCurrentTime();
 		if (r){
 			const sip_expires_t *expires=mCtx->reqSipEvent->getMsgSip()->getSip()->sip_expires;
-			if (expires->ex_delta > 0){
+			if (!expires || expires->ex_delta > 0){
 				LateForkApplier::onContactRegistered(mModule->getAgent(), mCtx->mContacts, mCtx->mPath, r, mCtx->mFrom->a_url);
 			}
 			const sip_contact_t *dbContacts= r->getContacts(ms->getHome(), now);
