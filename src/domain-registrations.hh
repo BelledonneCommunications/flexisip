@@ -25,6 +25,7 @@
 #include <sofia-sip/msg.h>
 #include <sofia-sip/nta.h>
 #include <sofia-sip/tport.h>
+#include <sofia-sip/su_wait.h>
 
 #include "common.hh"
 #include "configmanager.hh"
@@ -32,6 +33,7 @@
 #include <list>
 
 class DomainRegistrationManager;
+class Agent;
 
 class DomainRegistration{
 public:
@@ -41,12 +43,16 @@ public:
 	~DomainRegistration();
 private:
 	void setContact(msg_t *msg);
-	static int legCallback(nta_leg_magic_t *ctx, nta_leg_t *leg, nta_incoming_t *incoming, const sip_t *request);
-	static int responseCallback(nta_outgoing_magic_t *ctx, nta_outgoing_t *orq, const sip_t *resp);
+	int getExpires(nta_outgoing_t *orq, const sip_t *response);
+	static int sLegCallback(nta_leg_magic_t *ctx, nta_leg_t *leg, nta_incoming_t *incoming, const sip_t *request);
+	static int sResponseCallback(nta_outgoing_magic_t *ctx, nta_outgoing_t *orq, const sip_t *resp);
+	static void sRefreshRegistration(su_root_magic_t *magic, su_timer_t *timer, su_timer_arg_t *arg);
+	void responseCallback(nta_outgoing_t *orq, const sip_t *resp);
 	DomainRegistrationManager &mManager;
 	su_home_t mHome;
 	nta_leg_t *mLeg;
-	tport_t *mTport;
+	tport_t *mPrimaryTport; //the tport that has the configuration
+	tport_t *mCurrentTport; //the secondary tport that has the active connection.
 	su_timer_t *mTimer;
 	url_t *mFrom;
 	url_t *mProxy;
@@ -55,11 +61,11 @@ private:
 class DomainRegistrationManager{
 friend class DomainRegistration;
 public:
-	DomainRegistrationManager(nta_agent_t *agent);
+	DomainRegistrationManager(Agent *agent);
 	int load(const std::string &configFile);
 	~DomainRegistrationManager();
 private:
-	nta_agent_t *mAgent;
+	Agent *mAgent;
 	
 	std::list<std::shared_ptr<DomainRegistration>> mRegistrations;
 };

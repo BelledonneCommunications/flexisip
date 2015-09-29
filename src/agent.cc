@@ -372,7 +372,7 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 	su_home_init(&mHome);
 	mPreferredRouteV4=NULL;
 	mPreferredRouteV6=NULL;
-	mDrm = new DomainRegistrationManager(mAgent);
+	mDrm = new DomainRegistrationManager(this);
 }
 
 Agent::~Agent() {
