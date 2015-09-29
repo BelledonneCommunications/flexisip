@@ -22,6 +22,7 @@
 #endif
 #include "agent.hh"
 #include "module.hh"
+#include "domain-registrations.hh"
 
 #include "log/logmanager.hh"
 #include "sipattrextractor.hh"
@@ -301,6 +302,7 @@ void Agent::start(const std::string &transport_override){
 	if (mPreferredRouteV6) url_e(prefUrl6,sizeof(prefUrl6),mPreferredRouteV6);
 	LOGD("Agent's preferred IP for internal routing: v4: %s v6: %s",prefUrl4,prefUrl6);
 	startLogWriter();
+	mDrm->load("");
 }
 
 Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
@@ -370,11 +372,13 @@ Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
 	su_home_init(&mHome);
 	mPreferredRouteV4=NULL;
 	mPreferredRouteV6=NULL;
+	mDrm = new DomainRegistrationManager(mAgent);
 }
 
 Agent::~Agent() {
 	mTerminating=true;
 	for_each(mModules.begin(), mModules.end(), delete_functor<Module>());
+	if (mDrm) delete mDrm;
 	if (mAgent)	nta_agent_destroy(mAgent);
 	if (mHttpEngine) nth_engine_destroy(mHttpEngine);
 	su_home_deinit(&mHome);
@@ -689,10 +693,11 @@ inline void Agent::doSendEvent
 void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	sip_t *sip=ev->getMsgSip()->getSip();
 	const sip_request_t *req=sip->sip_request;
-	const url_t *from= sip->sip_from->a_url;
+	const url_t *from_url= sip->sip_from ? sip->sip_from->a_url : NULL;
+	
 	SLOGD << "Receiving new Request SIP message "
 		<< req->rq_method_name
-		<< " from " << from->url_user << "@" << from->url_host << " :"
+		<< " from " << (from_url ?  url_as_string(ev->getHome(), from_url) : "<invalid from>" ) << " :"
 		<< "\n" << *ev->getMsgSip();
 	switch (req->rq_method) {
 	case sip_method_register:

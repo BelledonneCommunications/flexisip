@@ -41,6 +41,7 @@
 #include "eventlogs/eventlogs.hh"
 
 class Module;
+class DomainRegistrationManager;
 
 /**
  * The agent class represents a SIP agent.
@@ -164,6 +165,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 		void discoverInterfaces();
 		void startLogWriter();
+		std::string computeResolvedPublicIp(const std::string &host) const;
 		std::string mServerString;
 		std::list<Module*> mModules;
 		std::list<std::string> mAliases;
@@ -188,9 +190,10 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		nth_engine_t *mHttpEngine;
 		su_home_t mHome;
 		EventLogWriter *mLogWriter;
+		DomainRegistrationManager *mDrm;
 		static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent,msg_t *msg,sip_t *sip);
 		bool mTerminating;
-		std::string computeResolvedPublicIp(const std::string &host) const;
+		
 };
 
 #endif
