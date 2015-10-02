@@ -165,6 +165,7 @@ private:
 	map<string,auth_mod_t *> mAuthModules;
 	list<string> mDomains;
 	list<string> mTrustedHosts;
+	list< string > mTrustedClientCertificates;
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
 	auth_scheme_t* mOdbcAuthScheme;
@@ -175,8 +176,7 @@ private:
 	bool mNewAuthOn407;
 	bool mTestAccountsEnabled;
 	bool mDisableQOPAuth;
-	list<string> mUseClientCertificates;
-	list< string > mTrustedClientCertificates;
+	
 
 	static int authPluginInit(auth_mod_t *am,
 				     auth_scheme_t *base,
@@ -309,8 +309,6 @@ public:
 
 			{	BooleanExpr,	"no-403",							"Don't reply 403, but 401 or 407 even in case of wrong authentication.", "false"},
 
-			{	StringList,		"client-certificates-domains",		"List of whitespace separated domain names to check using client certificates."
-																	"CN may contain user@domain or alternate name with URI=sip:user@domain", ""	},
 
 			{	StringList,		"trusted-client-certificates",		"List of whitespace separated username or username@domain CN which will trusted. If no domain is given it is computed.", ""	},
 
@@ -339,30 +337,26 @@ public:
 		nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
 
 		loadTrustedHosts(*mc->get<ConfigStringList>("trusted-hosts"));
-        dbUseHashedPasswords       = mc->get<ConfigBoolean>("hashed-passwords")->read();
-        mImmediateRetrievePassword = true;
-        mNewAuthOn407              = mc->get<ConfigBoolean>("new-auth-on-407")->read();
-        mUseClientCertificates     = mc->get<ConfigStringList>("client-certificates-domains")->read();
-        mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
-        mNo403Expr                 = mc->get<ConfigBooleanExpression>("no-403")->read();
-        mTestAccountsEnabled       = mc->get<ConfigBoolean>("enable-test-accounts-creation")->read();
-        mDisableQOPAuth            = mc->get<ConfigBoolean>("disable-qop-auth")->read();
+		dbUseHashedPasswords       = mc->get<ConfigBoolean>("hashed-passwords")->read();
+		mImmediateRetrievePassword = true;
+		mNewAuthOn407              = mc->get<ConfigBoolean>("new-auth-on-407")->read();
+		mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
+		mNo403Expr                 = mc->get<ConfigBooleanExpression>("no-403")->read();
+		mTestAccountsEnabled       = mc->get<ConfigBoolean>("enable-test-accounts-creation")->read();
+		mDisableQOPAuth            = mc->get<ConfigBoolean>("disable-qop-auth")->read();
 		mNonceStore.setNonceExpires(nonceExpires);
 
 		for (it=mDomains.begin();it!=mDomains.end();++it){
 			auto domain = *it;
 
-            mAuthModules[*it] = createAuthModule(domain, nonceExpires);
-            auth_plugin_t *ap = AUTH_PLUGIN(mAuthModules[*it]);
-            ap->mModule       = this;
-
+			mAuthModules[*it] = createAuthModule(domain, nonceExpires);
+			auth_plugin_t *ap = AUTH_PLUGIN(mAuthModules[*it]);
+			ap->mModule       = this;
 			LOGI("Found auth domain: %s",(*it).c_str());
 			if (mAuthModules[*it] == NULL) {
 				LOGE("Cannot create auth module odbc");
 			}
 		}
-
-
 	}
 
 	auth_mod_t *findAuthModule(const char *name) {
@@ -417,9 +411,7 @@ public:
 	}
 
 	bool isTrustedPeer(shared_ptr<RequestSipEvent> &ev) {
-		const char * res = NULL; // ugly cism ;)
 		sip_t *sip = ev->getSip();
-		const bool notARegister = sip->sip_request->rq_method != sip_method_register;
 		
 		// Check for trusted host
 		sip_via_t *via=sip->sip_via;
@@ -431,29 +423,43 @@ public:
 				return true;
 			}
 		}
-
-		// Check TLS certificate
-		const char *fromDomain = sip->sip_from->a_url[0].url_host;
+		return false;
+	}
+	
+	bool isTlsClientAuthenticated(shared_ptr<RequestSipEvent> &ev){
+		sip_t *sip = ev->getSip();
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
-		if (tport_has_tls(inTport.get()) && containsDomain(mUseClientCertificates, fromDomain)) {
-			char searched[60]; searched[0]=0;
+		
+		// Check TLS certificate
+		if (tport_has_tls(inTport.get())) {
 			const url_t *from = sip->sip_from->a_url;
-			snprintf(searched, sizeof(searched), "sip:%s@%s", from->url_user, fromDomain);
+			const char *fromDomain = from->url_host;
+			const char * res = NULL;
+			url_t searched_uri = URL_INIT_AS(sip);
+			SofiaAutoHome home;
+			char *searched;
+			
+			searched_uri.url_host = from->url_host;
+			searched_uri.url_user = from->url_user;
+			searched = url_as_string(home.home(), &searched_uri);
+			
 			if (ev->findIncomingSubject(searched)) {
 				SLOGD << "Allowing message from matching TLS certificate";
-			} else if (notARegister && (res = findIncomingSubjectInTrusted(ev, fromDomain))) {
+				return true;
+			} else if (sip->sip_request->rq_method != sip_method_register && (res = findIncomingSubjectInTrusted(ev, fromDomain))) {
 				SLOGD << "Allowing message from trusted TLS certificate " << res;
+				return true;
 			} else {
-				SLOGE << "Client certificate do not match " << searched;
-				int code = notARegister ? 407 : 401;
-				const char *phrase="Missing or invalid client certificate";
-				ev->reply(code, phrase,
-						SIPTAG_SERVER_STR(getAgent()->getServerString()),
-						TAG_END());
+				/*case where the certificate would work for the entire domain*/
+				searched_uri.url_user = NULL;
+				searched = url_as_string(home.home(), &searched_uri);
+				if (ev->findIncomingSubject(searched)){
+					SLOGD << "Allowing message from matching TLS certificate for entire domain";
+					return true;
+				}
 			}
-			return true;
+			LOGE("Client is presenting a TLS certificate not matching its identity.");
 		}
-
 		return false;
 	}
 
@@ -472,23 +478,13 @@ public:
 			return;
 		}
 
-		// Check for the existence of username, reject if absent.
-		if (sip->sip_from->a_url->url_user==NULL){
-			LOGI("From has no username, cannot authenticate.");
-			ev->reply(403, "Username must be provided",
-					  SIPTAG_SERVER_STR(getAgent()->getServerString()),
-					  TAG_END());
-			return;
-		}
-
 		//handle account creation request (test feature only)
 		if (mTestAccountsEnabled) handleTestAccountCreationRequests(ev);
 
 		// Check trusted peer
 		if (isTrustedPeer(ev)) return;
 
-
-		// Check for auth module for this domain
+		// Check for auth module for this domain, this will also tell us if this domain is allowed (auth-domains config item)
 		const char *fromDomain = sip->sip_from->a_url[0].url_host;
 		if (fromDomain && strcmp(fromDomain,"anonymous.invalid")==0){
 			ppi=sip_p_preferred_identity(sip);
@@ -501,6 +497,18 @@ public:
 			ev->reply( 403, "Domain forbidden",
 					SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					TAG_END());
+			return;
+		}
+		
+		//check if TLS client certificate provides sufficent authentication for this request.
+		if (isTlsClientAuthenticated(ev)) return;
+		
+		// Check for the existence of username, which is required for proceeding with digest authentication in flexisip. Reject if absent.
+		if (sip->sip_from->a_url->url_user==NULL){
+			LOGI("From has no username, cannot authenticate.");
+			ev->reply(403, "Username must be provided",
+					  SIPTAG_SERVER_STR(getAgent()->getServerString()),
+					  TAG_END());
 			return;
 		}
 
@@ -585,7 +593,12 @@ public:
 };
 
 ModuleInfo<Authentication> Authentication::sInfo("Authentication",
-	"The authentication module challenges SIP requests according to a user/password database.",
+	"The authentication module challenges and authenticates SIP requests using two possible methods: \n"
+	" * if the request is received via a TLS transport and 'require-peer-certificate' is set in transport definition in [Global] section for this transport, "
+	" then the From header of the request is matched with the CN claimed by the client certificate. The CN must contain sip:user@domain or alternate name with URI=sip:user@domain"
+	" corresponding to the URI in the from header for the request to be accepted.\n"
+	" * if no TLS client based authentication can be performed, or is failed, then a SIP digest authentication is performed. The password verification is made by querying"
+	" a database or a password file on disk.",
 	ModuleInfoBase::ModuleOid::Authentication);
 
 

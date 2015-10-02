@@ -44,15 +44,19 @@ public:
 private:
 	void setContact(msg_t *msg);
 	int getExpires(nta_outgoing_t *orq, const sip_t *response);
+	static void sOnConnectionBroken(tp_stack_t *stack, tp_client_t *client, tport_t *tport, msg_t *msg, int error);
 	static int sLegCallback(nta_leg_magic_t *ctx, nta_leg_t *leg, nta_incoming_t *incoming, const sip_t *request);
 	static int sResponseCallback(nta_outgoing_magic_t *ctx, nta_outgoing_t *orq, const sip_t *resp);
 	static void sRefreshRegistration(su_root_magic_t *magic, su_timer_t *timer, su_timer_arg_t *arg);
 	void responseCallback(nta_outgoing_t *orq, const sip_t *resp);
+	void onConnectionBroken(tport_t *tport, msg_t *msg, int error);
+	void cleanCurrentTport();
 	DomainRegistrationManager &mManager;
 	su_home_t mHome;
 	nta_leg_t *mLeg;
 	tport_t *mPrimaryTport; //the tport that has the configuration
 	tport_t *mCurrentTport; //the secondary tport that has the active connection.
+	int mPendId;
 	su_timer_t *mTimer;
 	url_t *mFrom;
 	url_t *mProxy;

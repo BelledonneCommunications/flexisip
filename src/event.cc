@@ -271,8 +271,6 @@ const char *RequestSipEvent::findIncomingSubject(const list<string> &in) {
 	return NULL;
 }
 
-bool findIncomingSubject(const list<string> &in);
-
 ResponseSipEvent::ResponseSipEvent(shared_ptr<OutgoingAgent> outgoingAgent, const shared_ptr<MsgSip> &msgSip) :
 		SipEvent(outgoingAgent,msgSip), mPopVia(false) {
 	mPopVia=mAgent!=mOutgoingAgent.get(); //we pop the via if sending through transaction
