@@ -278,6 +278,7 @@ AC_ARG_ENABLE(transcoder,
 	[transcoder="${enableval}"],
 	[transcoder=auto]
 )
+have_transcoder=no
 if test x$transcoder != xno ; then
 	PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.9.0],[have_transcoder=yes],[have_transcoder=no])
 	if test x$have_transcoder = xno ; then
@@ -660,7 +661,7 @@ printf "* %-30s %s\n" "SNMP"                $snmp
 printf "* %-30s %s\n" "ODBC"                $odbc
 printf "* %-30s %s\n" "ODB"                 $enable_libodb
 printf "* %-30s %s\n" "ODB MySQL"           $libodb_mysql
-printf "* %-30s %s\n" "Transcoder"          $transcoder
+printf "* %-30s %s\n" "Transcoder"          $have_transcoder
 printf "* %-30s %s\n" "Specific features"   $specific_features
 printf "* %-30s %s\n" "Push notification"   $pushnotification
 printf "* %-30s %s\n" "Redis"               $redis

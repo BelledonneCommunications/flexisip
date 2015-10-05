@@ -90,7 +90,8 @@ class ModuleInfoBase {
 			Transcoder=240,
 			Forward=270,
 			Redirect=290,
-			Presence=300
+			Presence=300,
+			InterProxyCommunications=310
 		};
 	protected:
 		ModuleInfoBase(const char *modname, const char *help, enum ModuleOid oid, ModuleType_e type) : mName(modname), mHelp(help),

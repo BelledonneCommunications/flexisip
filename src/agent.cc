@@ -302,7 +302,7 @@ void Agent::start(const std::string &transport_override){
 	if (mPreferredRouteV6) url_e(prefUrl6,sizeof(prefUrl6),mPreferredRouteV6);
 	LOGD("Agent's preferred IP for internal routing: v4: %s v6: %s",prefUrl4,prefUrl6);
 	startLogWriter();
-	mDrm->load("");
+	mDrm->load();
 }
 
 Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){

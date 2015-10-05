@@ -66,7 +66,7 @@ class DomainRegistrationManager{
 friend class DomainRegistration;
 public:
 	DomainRegistrationManager(Agent *agent);
-	int load(const std::string &configFile);
+	int load();
 	~DomainRegistrationManager();
 private:
 	Agent *mAgent;

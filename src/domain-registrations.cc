@@ -18,6 +18,7 @@
 
 #include "domain-registrations.hh"
 #include "agent.hh"
+#include "module.hh"
 
 #include <sofia-sip/nta_stateless.h>
 #include <sofia-sip/nth.h>
@@ -27,9 +28,50 @@
 #include <sofia-sip/sip_tag.h>
 #include <sofia-sip/nta_tport.h>
 
+#include <fstream>
+#include <sstream>
+
+
 using namespace::std;
 
 DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agent){
+	GenericManager *mgr = GenericManager::get();
+	GenericStruct *domainRegistrationCfg = new GenericStruct("inter-domain-connections", 
+		"Inter domain connections is a set of feature allowing to dynamically connect several flexisip servers together in order to manage SIP routing at local and global"
+		" scope. Let's suppose you have two SIP network a.example.net and b.example.net run privately and independently (no one from a.example.net "
+		"needs to call someone at b.example.net). However, when people from a and b are outside of their network, they register to a worldwide available "
+		"flexisip instance running on 'global.example.net'. It is then possible to:\n"
+		"* have calls made within a.example.net routed locally and sent to global.example.net in order to reach users inside and outside of a's network."
+		" Example: 1@a.example.net calls 2@a.example.net. If 2 is registered on a.example.net then the call is routed locally. On the contrary if 2 is"
+		" absent and registered, the call is then sent to global.example.net and then routed by the global proxy.\n"
+		"* when global.example.net receives a call from a user not within its native network (ex: 1@a.example.net calls 2@a.example.net), "
+		"it can route this call to the proxy that is responsible for managing the local domain (a.example.net).\n"
+		"This system is dynamic, that is the physical IP address of a and b network can change (dynamic ip address)\n."
+		"This scenario is achieved with two key features:\n"
+		"* a.example.net sends a REGISTER to global.example.net to indicate that it is the responsible for the entire domain a.example.net."
+		" The global.example.net authenticates this REGISTER thanks to TLS client certificate presented by a.example.net.\n"
+		"* global.example.net is configured to accept this domain registration and route all calls it receives directly and estinated to a.example.net domain"
+		" through the connection established by a.example.net during the domain registration."
+		, ModuleInfoBase::InterProxyCommunications);
+	
+	mgr->getRoot()->addChild(domainRegistrationCfg);
+	
+	ConfigItemDescriptor configs[] = {
+		{ Boolean , "accept-domain-registrations", "Whether flexisip shall accept registrations for entire domains", "false"},
+		{ String , "domain-registrations", "Path to a text file describing the domain registrations to make. This file must contains lines like:\n"
+							" <local domain name> <SIP URI of proxy/registrar where to send the domain REGISTER>\n"
+							" where:\n"
+							" <local domain name> is a domain name managed locally by this proxy\n"
+							" <SIP URI of proxy/registrar> is the SIP URI where the domain registration will be sent. The special uri parameter"
+							" 'tls-certificate-dir' is understood in order to specify a TLS client certificate to present to the remote proxy.\n"
+							" If the file is absent or empty, no registrations are done."
+							, "/etc/flexisip/domain-registrations.conf"},
+		config_item_end
+	};
+	
+	
+	domainRegistrationCfg->addChildrenValues(configs);
+	
 }
 
 
@@ -37,14 +79,52 @@ DomainRegistrationManager::~DomainRegistrationManager() {
 
 }
 
-int DomainRegistrationManager::load(const string& configFile) {
-	su_home_t home;
-	su_home_init(&home);
-	auto dr = make_shared<DomainRegistration>(*this, "local.linphone.org", url_make(&home, "sip:sip.linphone.org;transport=tcp"), "");
-	mRegistrations.push_back(dr);
-	dr->start();
-	su_home_deinit(&home);
+int DomainRegistrationManager::load() {
+	ifstream ifs;
+	string configFile;
+	
+	GenericStruct *domainRegistrationCfg = GenericManager::get()->getRoot()->get<GenericStruct>("inter-domain-connections");
+	configFile = domainRegistrationCfg->get<ConfigString>("domain-registrations")->read();
+	
+	if (configFile.empty()) return 0;
+	
+	ifs.open(configFile);
+	if (!ifs.is_open()) {
+		LOGE("Cannot open domain registration configuration file '%s'", configFile.c_str());
+		return -1;
+	}
+	do{
+		SofiaAutoHome home;
+		string line;
+		string domain,uri;
+		getline(ifs, line);
+		istringstream istr(line);
+		istr>>domain;
+		istr>>uri;
+		if (domain.empty()) continue; /*empty line */
+		if (uri.empty()) {
+			LOGE("Empty URI in domain registration definition.");
+			goto error;
+		}
+		url_t *url = url_make(home.home(), uri.c_str());
+		if (!url){
+			LOGE("Bad URI '%s' in domain registration definition.", uri.c_str());
+			goto error;
+		}
+		/*extract the certificate directory parameter if given, and remove it before passing the URI to the DomainRegistration object*/
+		char clientCertdir[256]={0};
+		if (url_param(url->url_params, "tls-certificates-dir", clientCertdir, sizeof(clientCertdir))>0){
+			url->url_params = url_strip_param_string(su_strdup(home.home(), url->url_params), "tls-certificates-dir");
+		}
+		auto dr = make_shared<DomainRegistration>(*this, domain, url, clientCertdir);
+		mRegistrations.push_back(dr);
+	}while(!ifs.eof() && !ifs.bad());
+	
+	for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
 	return 0;
+error:
+	LOGF("Syntax error parsing domain registration configuration file '%s'", configFile.c_str());
+	return -1;
 }
 
 
@@ -129,11 +209,17 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 		mTimer = NULL;
 	}
 	mTimer = su_timer_create(su_root_task(mManager.mAgent->getRoot()), 0);
+	if (resp){
+		SofiaAutoHome home;
+		msg_t *msg = nta_outgoing_getresponse(orq);
+		SLOGD<<"DomainRegistration::responseCallback(): receiving response:"<<endl<<msg_as_string(home.home(), msg, msg_object(msg), 0, NULL); 
+		msg_unref(msg);
+	}
 	
 	if (!resp || resp->sip_status->st_status != 200){
 		/*the registration failed for whatever reason. Retry shortly.*/
 		nextSchedule = 30;
-		LOGD("Domain registration for %s failed will retry in %i seconds", mFrom->url_host, nextSchedule);
+		LOGD("Domain registration for %s failed, will retry in %i seconds", mFrom->url_host, nextSchedule);
 		su_timer_set_interval(mTimer, &DomainRegistration::sRefreshRegistration, this, (su_duration_t)nextSchedule*1000);
 	}else{
 		tport_t *tport = nta_outgoing_transport(orq);
