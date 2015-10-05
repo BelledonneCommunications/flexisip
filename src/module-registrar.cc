@@ -62,6 +62,7 @@ public:
 	ModuleRegistrar(Agent *ag) : Module(ag),mStaticRecordsTimer(NULL) {
 		sRegistrarInstanceForSigAction=this;
 		memset(&mSigaction, 0, sizeof(mSigaction));
+		mStaticRecordsVersion = 0;
 	}
 
 	~ModuleRegistrar() {
@@ -137,7 +138,6 @@ public:
 		if (mStaticRecordsTimer) {
 			su_timer_destroy(mStaticRecordsTimer);
 		}
-		Record::setStaticRecordsVersion(0);
 	}
 
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
@@ -169,9 +169,9 @@ private:
 	string mStaticRecordsFile;
 	su_timer_t *mStaticRecordsTimer;
 	int mStaticRecordsTimeout;
+	int mStaticRecordsVersion;
 	struct sigaction mSigaction;
 	static void sighandler(int signum, siginfo_t *info, void *ptr);
-
 	static ModuleInfo<ModuleRegistrar> sInfo;
 	list<shared_ptr<ResponseContext>> mRespContexes;
 };
@@ -596,17 +596,19 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 // Listener class NEED to copy the shared pointer
 class OnStaticBindListener: public RegistrarDbListener {
 	friend class ModuleRegistrar;
-	Agent *agent;
-	string line;
+	SofiaAutoHome mHome;
+	string mContact;
+	string mFrom;
 public:
-	OnStaticBindListener(Agent *iagent, const string& iline) :
-	agent(iagent), line(iline) {
+	OnStaticBindListener(const url_t *from, const sip_contact_t *ct){
+		mFrom = url_as_string(mHome.home(), from);
+		mContact = url_as_string(mHome.home(), ct->m_url);
 	}
 	void onRecordFound(Record *r) {
-		LOGD("Static route added: %s", line.c_str());
+		LOGD("Static route added for %s: %s", mFrom.c_str(), mContact.c_str());
 	}
 	void onError() {
-		LOGE("Can't add static route: %s", line.c_str());
+		LOGE("Can't add static route for %s", mFrom.c_str());
 	}
 	void onInvalid() {
 		LOGE("OnStaticBindListener onInvalid");
@@ -615,7 +617,6 @@ public:
 
 
 void ModuleRegistrar::readStaticRecords() {
-	static int version=0;
 	if (mStaticRecordsFile.empty()) return;
 	LOGD("Reading static records file");
 
@@ -632,10 +633,9 @@ void ModuleRegistrar::readStaticRecords() {
 	file.open(mStaticRecordsFile);
 	if (file.is_open()) {
 		su_home_init(&home);
-		++version;
-		const char *fakeCallId=su_sprintf(&home,"static-record-v%d",version);
-		Record::setStaticRecordsVersion(version);
+		const char *fakeCallId=su_sprintf(&home,"static-record-v%x",su_random());
 		sip_path_t *path = sip_path_format(&home, "%s", getAgent()->getPreferredRoute().c_str());
+		mStaticRecordsVersion++;
 		while (file.good() && getline(file, line).good()) {
 			size_t i;
 			bool is_a_comment=false;
@@ -660,22 +660,31 @@ void ModuleRegistrar::readStaticRecords() {
 				sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
 				int expire=mStaticRecordsTimeout+5; // 5s to avoid race conditions
 
-				if (url != NULL && contact != NULL) {
-					auto listener=make_shared<OnStaticBindListener>(getAgent(), line);
-					bool alias=isManagedDomain(contact->m_url);
-					RegistrarDb::BindParameters params(
-						RegistrarDb::BindParameters::SipParams(
-							url->m_url /*from*/,
-							contact,
-							fakeCallId,
-							version,
-							path,
-							NULL)
-						, expire, alias
-					);
-					RegistrarDb::get(mAgent)->bind(params, listener);
-					continue;
+				if (url != NULL){
+					while (contact != NULL) {
+						sip_contact_t single = *contact;
+						single.m_next = NULL;
+						auto listener=make_shared<OnStaticBindListener>(url->m_url, &single);
+						bool alias=isManagedDomain(contact->m_url);
+						RegistrarDb::BindParameters params(
+							RegistrarDb::BindParameters::SipParams(
+								url->m_url /*from*/,
+								&single,
+								fakeCallId,
+								0,
+								path,
+								NULL)
+							, expire, alias
+						);
+						params.version = mStaticRecordsVersion;
+						/*if no user part is given, consider it as to be used as a route, that is not changing the
+						 * request uri but instead prepend a route*/
+						params.usedAsRoute = (single.m_url->url_user == NULL);
+						RegistrarDb::get(mAgent)->bind(params, listener);
+						contact = contact->m_next;
+					}
 				}
+				continue;
 			}
 			LOGW("Incorrect line format: %s", line.c_str());
 		}

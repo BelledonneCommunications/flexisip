@@ -147,7 +147,7 @@ void Agent::start(const std::string &transport_override){
 	string currDir = cCurrDir;
 
 	GenericStruct *global=GenericManager::get()->getRoot()->get<GenericStruct>("global");
-		list<string> transports = global->get<ConfigStringList>("transports")->read();
+	list<string> transports = global->get<ConfigStringList>("transports")->read();
 	//sofia needs a value in millseconds.
 	unsigned int tports_idle_timeout = 1000 * (unsigned int)global->get<ConfigInt>("idle-timeout")->read();
 	bool mainPeerCert = global->get<ConfigBoolean>("require-peer-certificate")->read();
@@ -302,7 +302,6 @@ void Agent::start(const std::string &transport_override){
 	if (mPreferredRouteV6) url_e(prefUrl6,sizeof(prefUrl6),mPreferredRouteV6);
 	LOGD("Agent's preferred IP for internal routing: v4: %s v6: %s",prefUrl4,prefUrl6);
 	startLogWriter();
-	mDrm->load();
 }
 
 Agent::Agent(su_root_t* root):mBaseConfigListener(NULL), mTerminating(false){
@@ -425,6 +424,7 @@ void Agent::loadConfig(GenericManager *cm) {
 		(*it)->checkConfig();
 		(*it)->load();
 	}
+	if (mDrm) mDrm->load();
 }
 
 std::string Agent::computeResolvedPublicIp(const std::string &host) const {

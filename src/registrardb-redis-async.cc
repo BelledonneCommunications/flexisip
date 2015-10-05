@@ -329,8 +329,8 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply){
 			if( masterStatus == "up" ){
 				SLOGW << "Master is up, will attempt to connect to the master at " << masterAddress << ":" << masterPort;
 
-                mDomain = masterAddress;
-                mPort   = masterPort;
+				mDomain = masterAddress;
+				mPort   = masterPort;
 
 				// disconnect and reconnect immediately, dropping the previous context
 				disconnect();

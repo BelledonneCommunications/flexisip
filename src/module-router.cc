@@ -288,13 +288,30 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const share
 	msg_t *new_msg = new_msgsip->getMsg();
 	sip_t *new_sip = new_msgsip->getSip();
 
-	/* Rewrite request-uri */
-	new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), dest);
-	// the cleaning of push notif params will be done just before forward
-
 	// Convert path to routes
+	sip_route_t *routes = contact->toSofiaRoute(new_ev->getHome());
+	if (!contact->mUsedAsRoute){
+		/* Rewrite request-uri */
+		new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), dest);
+		// the cleaning of push notif params will be done just before forward
+	}else{
+		//leave the request uri as it is, but append a route for the final destination
+		sip_route_t *final_route = sip_route_create(new_msgsip->getHome(), dest, NULL);
+		if (!url_has_param(final_route->r_url,"lr")){
+			url_param_add(new_msgsip->getHome(), final_route->r_url, "lr");
+		}
+		
+		if (routes == NULL) routes = final_route;
+		else{
+			sip_route_t *r = routes;
+			while (r->r_next != NULL){
+				r = r->r_next;
+			}
+			r->r_next = final_route;
+		}
+	}
 	new_sip->sip_route=NULL;
-	cleanAndPrependRoute(getAgent(), new_msg, new_sip, contact->toSofiaRoute(new_ev->getHome()));
+	cleanAndPrependRoute(getAgent(), new_msg, new_sip, routes);
 
 	if (context) {
 		context->addBranch(new_ev, contact);

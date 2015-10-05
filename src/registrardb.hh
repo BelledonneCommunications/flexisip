@@ -70,6 +70,7 @@ struct ExtendedContact {
 	uint32_t mCSeq;
 	bool mAlias;
 	std::list<std::string> mAcceptHeader;
+	bool mUsedAsRoute; /*whether the contact information shall be used as a route when forming a request, instead of replacing the request-uri*/
 
 	inline const char *callId() { return mCallId.c_str(); }
 	inline const char *line() { return mUniqueId.c_str(); }
@@ -97,13 +98,13 @@ struct ExtendedContact {
 			sip_contact_t *sip_contact, int global_expire, uint32_t cseq, time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders) :
 			mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
 			mSipUri(),
-			mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias), mAcceptHeader(acceptHeaders) {
+			mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias), mAcceptHeader(acceptHeaders), mUsedAsRoute(false) {
 
 		{
-		su_home_t home;
-		su_home_init(&home);
-		mSipUri = urlToString(&home, sip_contact->m_url);
-		su_home_destroy(&home);
+			su_home_t home;
+			su_home_init(&home);
+			mSipUri = urlToString(&home, sip_contact->m_url);
+			su_home_destroy(&home);
 		}
 
 		if (sip_contact->m_q) {
@@ -119,13 +120,13 @@ struct ExtendedContact {
 			const char *sipuri, long expireAt, float q, uint32_t cseq, time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders) :
 			mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
 			mSipUri(sipuri),
-			mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias), mAcceptHeader(acceptHeaders) {
+			mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias), mAcceptHeader(acceptHeaders), mUsedAsRoute(false) {
 	}
 
 	ExtendedContact(const url_t *url, std::string route) :
 			mContactId(), mCallId(), mUniqueId(), mPath({route}),
 			mSipUri(),
-			mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0), mCSeq(0), mAlias(false), mAcceptHeader({}) {
+			mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0), mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false) {
 
 		su_home_t home;
 		su_home_init(&home);
@@ -151,19 +152,16 @@ private:
 public:
 	static std::list<std::string> sLineFieldNames;
 	static int sMaxContacts;
-protected:
-	static char sStaticRecordVersion[100];
-public:
 	Record(std::string key);
 	static std::string extractUniqueId(const sip_contact_t *contact);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
 	const sip_contact_t * getContacts(su_home_t *home, time_t now);
 	void pushContact(const std::shared_ptr<ExtendedContact> &ct) { mContacts.push_back(ct);}
 	bool isInvalidRegister(const char *call_id, uint32_t cseq);
-	void clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t time);
+	void clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t time, int version);
 	void clean(time_t time);
-	void update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept);
-	void update(const ExtendedContactCommon &ecc, const char* sipuri, long int expireAt, float q, uint32_t cseq, time_t updated_time, bool alias, const std::list<std::string> accept);
+	void update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept,  bool usedAsRoute);
+	void update(const ExtendedContactCommon &ecc, const char* sipuri, long int expireAt, float q, uint32_t cseq, time_t updated_time, bool alias, const std::list<std::string> accept,  bool usedAsRoute);
 
 	void print(std::ostream &stream) const;
 	bool isEmpty() { return mContacts.empty(); }
@@ -186,16 +184,7 @@ public:
 	}
 	time_t latestExpire() const;
 	time_t latestExpire(const std::string &route) const;
-	static void setStaticRecordsVersion(int version) {
-		static int maxlen=sizeof(sStaticRecordVersion);
-		memset(sStaticRecordVersion, 0, maxlen);
-		if (version != 0) {
-			snprintf(sStaticRecordVersion, maxlen, "static-record-v%d", version);
-		}
-	}
-
 	static std::list<std::string> route_to_stl(su_home_t *home, const sip_route_s *route);
-
 	~Record();
 };
 
@@ -246,9 +235,11 @@ public:
 
 		const SipParams sip;
 		const int global_expire;
+		int version; /* used by static records only*/
 		const bool alias;
+		bool usedAsRoute;
 		BindParameters(SipParams isip, int iexpire, bool ialias)
-		: sip(isip), global_expire(iexpire), alias(ialias) {
+		: sip(isip), global_expire(iexpire), alias(ialias), usedAsRoute(false) {
 		}
 	};
 	static RegistrarDb *get(Agent *ag);

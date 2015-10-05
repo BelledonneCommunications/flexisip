@@ -85,7 +85,7 @@ int DomainRegistrationManager::load() {
 	
 	GenericStruct *domainRegistrationCfg = GenericManager::get()->getRoot()->get<GenericStruct>("inter-domain-connections");
 	configFile = domainRegistrationCfg->get<ConfigString>("domain-registrations")->read();
-	
+	LOGD("Loading domain registration configuration from %s", configFile.c_str());
 	if (configFile.empty()) return 0;
 	
 	ifs.open(configFile);
@@ -93,11 +93,21 @@ int DomainRegistrationManager::load() {
 		LOGE("Cannot open domain registration configuration file '%s'", configFile.c_str());
 		return -1;
 	}
+	LOGD("Loading domain registration configuration from %s", configFile.c_str());
 	do{
 		SofiaAutoHome home;
 		string line;
 		string domain,uri;
+		bool is_a_comment = false;
 		getline(ifs, line);
+		
+		for(size_t i=0;i<line.size();++i){
+			//skip spaces or comments
+			if (isblank(line[i])) continue;
+			if (line[i]=='#') is_a_comment=true;
+			else break;
+		}
+		if (is_a_comment) continue;
 		istringstream istr(line);
 		istr>>domain;
 		istr>>uri;

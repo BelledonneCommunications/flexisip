@@ -98,10 +98,6 @@ sip_route_t *ExtendedContact::toSofiaRoute(su_home_t *home) const{
 	return rbegin;
 }
 
-
-char Record::sStaticRecordVersion[100]={0};
-
-
 const sip_contact_t *Record::getContacts(su_home_t *home, time_t now) {
 	sip_contact_t *alist = NULL;
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
@@ -124,20 +120,6 @@ bool Record::isInvalidRegister(const char *call_id, uint32_t cseq) {
 	}
 	return false;
 }
-
-static bool isMismatchingStaticRecord(shared_ptr<ExtendedContact> &ec, const char* version) {
-	static char staticRecordPrefix[]="static-record-v";
-	static size_t srpLen=strlen(staticRecordPrefix);
-
-	size_t callIdLen=ec->mCallId.length();
-	if (callIdLen <= srpLen) return false;
-
-	bool isStaticRecordContact=0==memcmp(ec->callId(), staticRecordPrefix, srpLen);
-	if (!isStaticRecordContact) return false;
-
-	return 0!=strcmp(ec->callId(), version);
-}
-
 
 string Record::extractUniqueId(const sip_contact_t *contact){
 	char lineValue[256]={0};
@@ -169,7 +151,7 @@ const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(std::string u
 /**
  * Should first have checked the validity of the register with isValidRegister.
  */
-void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t now) {
+void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t now, int version) {
 	if (mContacts.begin() == mContacts.end()) { return; }
 	const char *lineValuePtr=NULL;
 	string lineValue=extractUniqueId(sip);
@@ -180,10 +162,7 @@ void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq,
 	auto it = mContacts.begin();
 	while (it != mContacts.end()) {
 		shared_ptr<ExtendedContact> ec = (*it);
-		if (isMismatchingStaticRecord(ec, sStaticRecordVersion)) {
-			SLOGD << "Cleaning mismatching static record for " << ec->mContactId;
-			it = mContacts.erase(it);
-		} else if (now >= ec->mExpireAt) {
+		if (now >= ec->mExpireAt) {
 			SLOGD << "Cleaning expired contact " << ec->mContactId;
 			it = mContacts.erase(it);
 		} else if (ec->line() && lineValuePtr != NULL && 0 == strcmp(ec->line(), lineValuePtr)) {
@@ -244,10 +223,7 @@ void Record::clean(time_t now) {
 		shared_ptr<ExtendedContact> ec = (*it);
 		if (now >= ec->mExpireAt) {
 			it = mContacts.erase(it);
-		} else if (isMismatchingStaticRecord(ec, sStaticRecordVersion)) {
-			LOGD("Cleaning mismatching static record for %s", ec->contactId());
-			it = mContacts.erase(it);
-		} else {
+		}else {
 			++it;
 		}
 	}
@@ -314,9 +290,10 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 		oss << ":" << url->url_port;
 }
 
-void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept) {
+void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute) {
 	sip_contact_t *c = (sip_contact_t *) contacts;
 	list<string> stlPath;
+
 	if (path != NULL) {
 		su_home_t home;
 		su_home_init(&home);
@@ -351,8 +328,10 @@ void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int g
 	SLOGD << *this;
 }
 
-void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long expireAt, float q, uint32_t cseq, time_t updated_time, bool alias, const std::list<std::string> accept) {
-	insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias, accept));
+void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long expireAt, float q, uint32_t cseq, time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute) {
+	auto exct = make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias, accept);
+	exct->mUsedAsRoute = usedAsRoute;
+	insertOrUpdateBinding(exct);
 }
 
 void Record::print(std::ostream &stream) const{
