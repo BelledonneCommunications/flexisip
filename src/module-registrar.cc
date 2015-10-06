@@ -128,6 +128,8 @@ public:
 			readStaticRecords(); // read static records from configuration file
 			mStaticRecordsTimer = mAgent->createTimer(mStaticRecordsTimeout*1000, &staticRoutesRereadTimerfunc,this);
 		}
+		mAllowDomainRegistrations = GenericManager::get()->getRoot()
+				->get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("accept-domain-registrations")->read();
 		mSigaction.sa_sigaction = ModuleRegistrar::sighandler;
 		mSigaction.sa_flags = SA_SIGINFO;
 		sigaction(SIGUSR1, &mSigaction, NULL);
@@ -160,6 +162,7 @@ private:
 	}
 	void readStaticRecords();
 	bool mUpdateOnResponse;
+	bool mAllowDomainRegistrations;
 	list<string> mDomains;
 	list<string> mUniqueIdParams;
 	string mServiceRoute;
@@ -491,9 +494,15 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		return;
 	}
 
-
 	// Use path as a contact route in all cases
 	addPathHeader(getAgent(),ev, ev->getIncomingTport().get());
+	
+	//domain registration case, does nothing for the moment
+	if (sipurl->url_user == NULL && mAllowDomainRegistrations){
+		LOGD("Accepting domain registration (not implemented)");
+		reply(ev, 200, "Ok", NULL);
+		return;
+	}
 
 	// Handle modifications
 	if (!mUpdateOnResponse) {

@@ -52,7 +52,7 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 		" The global.example.net authenticates this REGISTER thanks to TLS client certificate presented by a.example.net.\n"
 		"* global.example.net is configured to accept this domain registration and route all calls it receives directly and estinated to a.example.net domain"
 		" through the connection established by a.example.net during the domain registration."
-		, ModuleInfoBase::InterProxyCommunications);
+		, ModuleInfoBase::InterDomainConnections);
 	
 	mgr->getRoot()->addChild(domainRegistrationCfg);
 	

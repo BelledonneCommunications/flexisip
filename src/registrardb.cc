@@ -321,7 +321,9 @@ void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int g
 		ostringstream contactId;
 		defineContactId(contactId, c->m_url, transportPtr);
 		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr);
-		insertOrUpdateBinding(make_shared<ExtendedContact>(ecc, c, globalExpire, cseq, now, alias, accept));
+		auto exc = make_shared<ExtendedContact>(ecc, c, globalExpire, cseq, now, alias, accept);
+		exc->mUsedAsRoute = usedAsRoute;
+		insertOrUpdateBinding(exc);
 		c = c->m_next;
 	}
 
