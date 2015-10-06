@@ -139,6 +139,20 @@ static string absolutePath(const string &currdir, const string &file) {
 	return currdir + "/" + file;
 }
 
+void Agent::checkAllowedParams(const url_t *uri){
+	SofiaAutoHome home;
+	if (!uri->url_params) return;
+	char *params = su_strdup(home.home(), uri->url_params);
+	/*remove all the allowed params and see if something else is remaning at the end*/
+	params = url_strip_param_string(params, "tls-certificates-dir");
+	params = url_strip_param_string(params, "require-peer-certificate");
+	params = url_strip_param_string(params, "maddr");
+	//make sure that there is no misstyped params in the url:
+	if (params && strlen(params)>0){
+		LOGF("Bad parameters '%s' given in transports definition.", params);
+	}
+}
+
 void Agent::start(const std::string &transport_override){
 	char cCurrDir[FILENAME_MAX];
 	if (!getcwd(cCurrDir, sizeof(cCurrDir))) {
@@ -192,10 +206,13 @@ void Agent::start(const std::string &transport_override){
 				string reqval = require_value;
 				peerCert = reqval == "1" || reqval == "true";
 				if (!peerCert && reqval != "0" && reqval != "false")
-					LOGA("Bad require-peer-certificate value: %s", require_value);
+					LOGF("Bad require-peer-certificate value: %s", require_value);
 			} else {
 				peerCert = mainPeerCert;
 			}
+			
+			checkAllowedParams(url);
+			
 			err=nta_agent_add_tport(mAgent,
 									(const url_string_t*) url,
 									TPTAG_CERTIFICATE(keys.c_str()),

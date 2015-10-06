@@ -166,6 +166,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		void discoverInterfaces();
 		void startLogWriter();
 		std::string computeResolvedPublicIp(const std::string &host) const;
+		void checkAllowedParams(const url_t *uri);
 		std::string mServerString;
 		std::list<Module*> mModules;
 		std::list<std::string> mAliases;
