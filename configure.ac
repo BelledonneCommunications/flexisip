@@ -464,13 +464,17 @@ fi
 
 AC_ARG_ENABLE(protobuf,
 	AC_HELP_STRING([--enable-protobuf],
-		[Build registrar contact serializer using protobuf [no]]),
-		[protobuf="${enableval}"],[protobuf=no]
+		[Build registrar contact serializer using protobuf [auto]]),
+		[protobuf="${enableval}"],[protobuf=auto]
 )
-if test x$protobuf = xyes ; then
-	PKG_CHECK_MODULES(PROTOBUF,[protobuf >= 2.3.0])
+have_protobuf=no
+if test x$protobuf != xno ; then
+	PKG_CHECK_MODULES(PROTOBUF,[protobuf >= 2.3.0],[have_protobuf=yes],[have_protobuf=no])
+	if test "$protobuf$have_protobuf" = "yesno" ; then
+		AC_MSG_ERROR([No protobuf library found])
+	fi
 fi
-AM_CONDITIONAL(BUILD_PROTOBUF,test x$protobuf = xyes)
+AM_CONDITIONAL(BUILD_PROTOBUF,test x$have_protobuf = xyes)
 
 
 
@@ -593,7 +597,7 @@ AM_CONDITIONAL(CROSS_COMPILING, test x$cross_compiling = xyes)
 
 # Checks for programs
 
-if test x$protobuf = xyes ; then
+if test x$have_protobuf = xyes ; then
 	AC_PATH_PROG([PROTOC],[protoc])
 	if test -z "$PROTOC"; then
 		AC_MSG_ERROR(['protoc' is required to generate protobuf serializer classes])
@@ -669,7 +673,7 @@ printf "* %-30s %s\n" "Transcoder"          $have_transcoder
 printf "* %-30s %s\n" "Specific features"   $specific_features
 printf "* %-30s %s\n" "Push notification"   $pushnotification
 printf "* %-30s %s\n" "Redis"               $have_redis
-printf "* %-30s %s\n" "Protobuf"            $protobuf
+printf "* %-30s %s\n" "Protobuf"            $have_protobuf
 printf "* %-30s %s\n" "XSD support"         $use_xsd
 printf "* %-30s %s\n" "Presence"            $presence
 
