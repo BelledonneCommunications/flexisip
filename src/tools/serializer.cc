@@ -28,7 +28,7 @@ int test_bind_with_ecc(ExtendedContactCommon &ecc, const unique_ptr<RecordSerial
 		accept = accept->ac_next;
 	}
 
-	initial.update(ecc, contact.c_str(), expireat, quality, cseq, now, alias, acceptHeaders);
+	initial.update(ecc, contact.c_str(), expireat, quality, cseq, now, alias, acceptHeaders, false);
 	if (!compare(firstContact(initial), alias, ecc, cseq, expireat, quality, contact, now)) {
 		cerr << "Initial and parameters differ" << endl;
 		return -1;
@@ -66,7 +66,7 @@ int test_bind_without_ecc(ExtendedContactCommon &ecc, const unique_ptr<RecordSer
 		accept = accept->ac_next;
 	}
 
-	initial.update(contacts, path, globalexpire, callid, cseq, now, alias, acceptHeaders);
+	initial.update(contacts, path, globalexpire, callid, cseq, now, alias, acceptHeaders, false);
 	if (!compare(firstContact(initial), alias, ecc, cseq, expireat, quality, contact, now)) {
 		cerr << "Initial and parameters differ" << endl;
 		return -1;

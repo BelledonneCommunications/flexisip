@@ -405,24 +405,23 @@ fi
 AM_CONDITIONAL(BUILD_DATEHANDLER,test x$datehandler = xyes)
 
 AC_ARG_ENABLE(redis,
-	AC_HELP_STRING([--enable-redis], [Build with redis key/value datastore [no]]),
+	AC_HELP_STRING([--enable-redis], [Build with redis key/value datastore [auto]]),
 	[redis="${enableval}"],
-	[redis=no]
+	[redis=auto]
 )
 
 AC_ARG_WITH(redis,
 	AC_HELP_STRING([--with-redis], [Specify where to find the redis libraries. Will force enable redis build if specified. [default=/usr]]),
 	[
 		redis_prefix="${withval}"
-		redis=yes
 	],
 	[redis_prefix=/usr]
 )
+have_redis=no
+if test x$redis != xno ; then
 
-if test x$redis = xyes ; then
-
-	PKG_CHECK_MODULES(HIREDIS,[hiredis >= 0.11.0],[redis=yes],[redis=no])
-	if test "$redis" = "no" ; then
+	PKG_CHECK_MODULES(HIREDIS,[hiredis >= 0.11.0],[have_redis=yes],[have_redis=no])
+	if test "$have_redis" = "no" ; then
 
 		if test "$redis_prefix" != "/usr"; then
 			HIREDIS_CFLAGS="-I$redis_prefix/include"
@@ -434,12 +433,13 @@ if test x$redis = xyes ; then
 
 		CPPFLAGS_save=$CPPFLAGS
 		CPPFLAGS="$CPPFLAGS $HIREDIS_CFLAGS"
-		AC_CHECK_HEADERS(hiredis/hiredis.h,[redis=yes],[AC_MSG_ERROR([hiredis library not found.])])
-		CPPFLAGS=$CPPFLAGS_save
-
 		LIBS_save=$LIBS
 		LIBS="$LIBS $HIREDIS_LIBS"
-		AC_CHECK_LIB(hiredis,redisAsyncCommand)
+		AC_CHECK_HEADERS(hiredis/hiredis.h, 
+			[AC_CHECK_LIB(hiredis,redisAsyncCommand,[have_redis=yes] , [have_redis=no])],
+			[have_redis=no])
+		
+		CPPFLAGS=$CPPFLAGS_save
 		LIBS=$LIBS_save
 
 		AC_SUBST(HIREDIS_CFLAGS)
@@ -448,10 +448,14 @@ if test x$redis = xyes ; then
 		# when redis is not detected through pkgconfig, we can't know whether the
 		# connect callback uses 1 or 2 args. Better not using it at all.
 		redis_no_callback=yes
+		if test "$redis$have_redis" = "yesno" ; then
+			AC_MSG_ERROR([hiredis library not found.])
+		fi
 	fi
+	have_redis=yes
 fi
 
-AM_CONDITIONAL(BUILD_REDIS,test x$redis = xyes)
+AM_CONDITIONAL(BUILD_REDIS,test x$have_redis = xyes)
 
 AM_CONDITIONAL(WITHOUT_HIREDIS_CONNECT_CALLBACK,test x$redis_no_callback = xyes)
 if test x$redis_no_callback = xyes ; then
@@ -664,7 +668,7 @@ printf "* %-30s %s\n" "ODB MySQL"           $libodb_mysql
 printf "* %-30s %s\n" "Transcoder"          $have_transcoder
 printf "* %-30s %s\n" "Specific features"   $specific_features
 printf "* %-30s %s\n" "Push notification"   $pushnotification
-printf "* %-30s %s\n" "Redis"               $redis
+printf "* %-30s %s\n" "Redis"               $have_redis
 printf "* %-30s %s\n" "Protobuf"            $protobuf
 printf "* %-30s %s\n" "XSD support"         $use_xsd
 printf "* %-30s %s\n" "Presence"            $presence
