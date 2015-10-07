@@ -203,8 +203,16 @@ int DomainRegistration::getExpires( nta_outgoing_t* orq, const sip_t* response )
 }
 
 void DomainRegistration::onConnectionBroken(tport_t* tport, msg_t* msg, int error) {
+	int nextSchedule = 5;
 	//restart registration...
-	start();
+	if (mTimer){
+		su_timer_destroy(mTimer);
+		mTimer = NULL;
+	}
+	mTimer = su_timer_create(su_root_task(mManager.mAgent->getRoot()), 0);
+	LOGD("Scheduling next domain register refresh for %s in %i seconds", mFrom->url_host, nextSchedule);
+	su_timer_set_interval(mTimer, &DomainRegistration::sRefreshRegistration, this, (su_duration_t)nextSchedule*1000);
+	LOGD("DomainRegistration::onConnectionBroken(), restarting registration in %i seconds", nextSchedule);
 }
 
 void DomainRegistration::sOnConnectionBroken(tp_stack_t* stack, tp_client_t* client, tport_t* tport, msg_t* msg, int error ) {
@@ -235,6 +243,7 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 		tport_t *tport = nta_outgoing_transport(orq);
 		cleanCurrentTport();
 		mCurrentTport = tport;
+		tport_set_params(tport, TPTAG_SDWN_ERROR(1), TAG_END());
 		mPendId = tport_pend(tport, NULL, &DomainRegistration::sOnConnectionBroken, (tp_client_t*)this);
 		nextSchedule = ((getExpires(orq, resp) * 90) / 100 ) + 1;
 		LOGD("Scheduling next domain register refresh for %s in %i seconds", mFrom->url_host, nextSchedule);
