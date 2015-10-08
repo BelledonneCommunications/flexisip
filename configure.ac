@@ -481,7 +481,7 @@ AM_CONDITIONAL(BUILD_PROTOBUF,test x$have_protobuf = xyes)
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
 
-PKG_CHECK_MODULES(SOFIA,[sofia-sip-ua = 1.13.2-bc])
+PKG_CHECK_MODULES(SOFIA,[sofia-sip-ua >= 1.13.3-bc])
 PKG_CHECK_MODULES(ORTP,[ortp >= 0.16.3])
 
 # ##################################
