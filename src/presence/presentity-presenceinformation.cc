@@ -239,43 +239,45 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 	
 	string PresentityPresenceInformation::getPidf() throw (FlexisipException){
 		stringstream out;
-		char* entity= belle_sip_uri_to_string(getEntity());
-		pidf::Presence presence((string(entity)));
-		belle_sip_free(entity);
-		
-		for (auto element:mInformationElements) {
-			//copy pidf
-			for (const unique_ptr<pidf::Tuple>& tup :element.second->getTuples()){
-				presence.getTuple().push_back(*tup->_clone());
-			}
-			//copy extensions
-			for( auto extension:element.second->getExtensions()) {
-				presence.getAny().push_back(dynamic_cast<xercesc::DOMElement*>(presence.getDomDocument().importNode(extension,true))); // might be optimized
-			}
-		}
-		pidf::Note value;
-		namespace_::Lang lang("en");
-		value+="No presence information available yet";
-		value.setLang(lang);
-		//value.lang("en");
-		if (presence.getTuple().size()==0) {
-			presence.getNote().push_back(value);
-		}
-		
-		
 		try {
+			char* entity= belle_sip_uri_to_string(getEntity());
+			pidf::Presence presence((string(entity)));
+			belle_sip_free(entity);
+			
+			for (auto element:mInformationElements) {
+				//copy pidf
+				for (const unique_ptr<pidf::Tuple>& tup :element.second->getTuples()){
+					presence.getTuple().push_back(*tup->_clone());
+				}
+				//copy extensions
+				for( auto extension:element.second->getExtensions()) {
+					presence.getAny().push_back(dynamic_cast<xercesc::DOMElement*>(presence.getDomDocument().importNode(extension,true))); // might be optimized
+				}
+			}
+			pidf::Note value;
+			namespace_::Lang lang("en");
+			value+="No presence information available yet";
+			value.setLang(lang);
+			//value.lang("en");
+			if (presence.getTuple().size()==0) {
+				presence.getNote().push_back(value);
+			}
+			
 			// Serialize the object model to XML.
 			//
 			xml_schema::NamespaceInfomap map;
 			map[""].name = "urn:ietf:params:xml:ns:pidf";
 			
 			serializePresence (out, presence, map);
-	  
+			
 		}
 		catch (const xml_schema::Exception& e) {
-			xercesc::XMLPlatformUtils::Terminate ();
-			FLEXISIP_EXCEPTION << "error: " << e ;
+			throw FLEXISIP_EXCEPTION << "error: " << e ;
 		}
+		catch (exception& e) {
+			throw FLEXISIP_EXCEPTION << "Cannot get pidf for for ["<< *this<< "]error [" << e.what() <<"]" ;
+		}
+		
 		return out.str();
 	}
 	

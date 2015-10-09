@@ -64,7 +64,7 @@ namespace flexisip {
 	class PresenceSubscription : public Subscription, public PresentityPresenceInformationListener {
 	public:
 		PresenceSubscription(unsigned int expires,const belle_sip_uri_t* presentity,belle_sip_dialog_t* aDialog,belle_sip_provider_t* aProv);
-		~PresenceSubscription();
+		virtual ~PresenceSubscription();
 	
 		
 		

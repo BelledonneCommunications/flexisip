@@ -159,7 +159,7 @@ namespace log {
 
 #else // ENABLE_BOOSTLOG
 
-
+#define ORTP_DEBUG_MODE 1 //Flexisip extensively use SLOD
 
 #include <syslog.h>
 #include <ortp/ortp.h>

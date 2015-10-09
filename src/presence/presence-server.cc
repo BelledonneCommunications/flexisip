@@ -71,10 +71,11 @@ PresenceServer::Init::Init(){
 
 
 PresenceServer::PresenceServer(std::string configFile) throw (FlexisipException) :
-mStack(belle_sip_stack_new(NULL))
+ mStarted(true)
+,mStack(belle_sip_stack_new(NULL))
 ,mProvider(belle_sip_stack_create_provider(mStack,NULL))
 ,mIterateThread([this]() {
-	while (this->mIterateThread.joinable())
+	while (mStarted)
 		belle_sip_stack_sleep(this->mStack,100);
 }) {
 	
@@ -103,6 +104,7 @@ mStack(belle_sip_stack_new(NULL))
 	
 }
 PresenceServer::~PresenceServer() {
+	mStarted=false;
 	mIterateThread.join();
 	belle_sip_object_unref(mProvider);
 	belle_sip_object_unref(mStack);

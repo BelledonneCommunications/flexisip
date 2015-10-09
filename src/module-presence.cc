@@ -76,7 +76,7 @@ private:
 		if (strncasecmp(sip->sip_request->rq_method_name,"SUBSCRIBE",strlen(sip->sip_request->rq_method_name)) == 0) {
 			return true;
 		} else if (strncasecmp(sip->sip_request->rq_method_name,"PUBLISH",strlen(sip->sip_request->rq_method_name)) == 0) {
-			return (sip->sip_content_type
+			return !sip->sip_content_type || (sip->sip_content_type
 				&& sip->sip_content_type->c_type && strcasecmp (sip->sip_content_type->c_type,"application/pidf+xml")==0
 				&& sip->sip_content_type->c_subtype && strcasecmp (sip->sip_content_type->c_subtype,"pidf+xml")==0);
 		}

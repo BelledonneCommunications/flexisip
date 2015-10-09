@@ -459,11 +459,11 @@ std::string Agent::computeResolvedPublicIp(const std::string &host) const {
 		if (err == 0) {
 			return ip;
 		} else {
-			LOGE("getnameinfo error: %s", gai_strerror(err));
+			LOGE("getnameinfo error: %s for host [%s]", gai_strerror(err),host.c_str());
 		}
 		freeaddrinfo(result);
 	} else {
-		LOGE("getaddrinfo error: %s", gai_strerror(err));
+		LOGE("getaddrinfo error: %s for host [%s]", gai_strerror(err),host.c_str());
 	}
 	return dest;
 }

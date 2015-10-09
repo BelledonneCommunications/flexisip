@@ -131,12 +131,17 @@ void Subscription::setAcceptHeader(belle_sip_header_t* acceptHeader) {
 	void PresenceSubscription::onInformationChanged(PresentityPresenceInformation& presenceInformation) {
 		string body;
 		belle_sip_header_content_type_t* content_type=NULL;
-		if (getState() == active) {
-			body+=presenceInformation.getPidf();
-			content_type=belle_sip_header_content_type_create("application","pidf+xml");
+		try {
+			if (getState() == active) {
+				body+=presenceInformation.getPidf();
+				content_type=belle_sip_header_content_type_create("application","pidf+xml");
+			}
+		} catch (FlexisipException &e) {
+			SLOGD <<"Cannot notify ["<<this->getPresentityUri()<<"] caused by ["<< e <<"]";
+			return;
 		}
 		
- 		notify(content_type,body);
+		notify(content_type,body);
 	}
 	
 	void PresenceSubscription::onExpired(PresentityPresenceInformation& presenceInformation) {
