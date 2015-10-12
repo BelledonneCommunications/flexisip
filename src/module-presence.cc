@@ -73,8 +73,8 @@ private:
 	}
 	bool isMessageAPresenceMessage(shared_ptr<RequestSipEvent> &ev) {
 		sip_t* sip=ev->getSip();
-		if (strncasecmp(sip->sip_request->rq_method_name,"SUBSCRIBE",strlen(sip->sip_request->rq_method_name)) == 0) {
-			return true;
+		if (strncasecmp(sip->sip_request->rq_method_name,"SUBSCRIBE",strlen(sip->sip_request->rq_method_name))==0) {
+			return sip->sip_event && strcmp(sip->sip_event->o_type,"presence")==0;
 		} else if (strncasecmp(sip->sip_request->rq_method_name,"PUBLISH",strlen(sip->sip_request->rq_method_name)) == 0) {
 			return !sip->sip_content_type || (sip->sip_content_type
 				&& sip->sip_content_type->c_type && strcasecmp (sip->sip_content_type->c_type,"application/pidf+xml")==0
