@@ -342,9 +342,9 @@ void  PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t
 		
 		// check entity
 		belle_sip_uri_t* entity = belle_sip_uri_parse(presence_body->getEntity().c_str());
-		belle_sip_object_ref(entity); //initial ref = 0;
 		if (!entity)
 			throw SIGNALING_EXCEPTION(400) << "Invalid presence entity [" <<presence_body->getEntity() <<"] for request ["<<request <<"]";
+		belle_sip_object_ref(entity); //initial ref = 0;
 		
 		if  (!(presenceInfo = getPresenceInfo(entity))) {
 			presenceInfo.reset(new PresentityPresenceInformation(entity,*this,belle_sip_stack_get_main_loop(mStack)));

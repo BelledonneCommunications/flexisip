@@ -448,15 +448,16 @@ void FilesystemEventLogWriter::writeErrorLog(const std::shared_ptr<EventLog> &lo
 }
 
 void FilesystemEventLogWriter::write(const std::shared_ptr<EventLog> &evlog){
-	if (typeid(*evlog.get())==typeid(RegistrationLog)){
+	EventLog *ev = evlog.get(); //to fix compilation issue with Apple LLVM version 7.0.0
+	if (typeid(*ev)==typeid(RegistrationLog)){
 		writeRegistrationLog(static_pointer_cast<RegistrationLog>(evlog));
-	}else if (typeid(*evlog.get())==typeid(CallLog)){
+	}else if (typeid(*ev)==typeid(CallLog)){
 		writeCallLog(static_pointer_cast<CallLog>(evlog));
-	}else if (typeid(*evlog.get())==typeid(MessageLog)){
+	}else if (typeid(*ev)==typeid(MessageLog)){
 		writeMessageLog(static_pointer_cast<MessageLog>(evlog));
-	}else if (typeid(*evlog.get())==typeid(AuthLog)){
+	}else if (typeid(*ev)==typeid(AuthLog*)){
 		writeAuthLog(static_pointer_cast<AuthLog>(evlog));
-	}else if (typeid(*evlog.get())==typeid(CallQualityStatisticsLog)){
+	}else if (typeid(*ev)==typeid(CallQualityStatisticsLog)){
 		writeCallQualityStatisticsLog(static_pointer_cast<CallQualityStatisticsLog>(evlog));
 	}
 }

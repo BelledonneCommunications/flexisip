@@ -56,6 +56,7 @@ set(FLEXISIP_SOURCES
 			contact-masquerader.cc contact-masquerader.hh 
 			uac-register.cc uac-register.hh 
 			module-redirect.cc module-presence.cc
+			domain-registrations.cc  domain-registrations.hh
 # TODO: GIT VERSION FILE
 )
 set(GENERATED_SOURCE_FILES
@@ -166,7 +167,8 @@ if(ENABLE_PRESENCE)
 	add_definitions(-DBELLE_SIP_USE_STL ${BELLE_SIP_CFLAGS})
 	ADD_XSD_WRAPPERS( xml "Presence XSD - xml.xsd")
 	ADD_XSD_WRAPPERS( pidf+xml "Presence XSD - pidf+xml.xsd")
-	list(APPEND FLEXISIP_DEPENDENCIES xml pidf+xml)
+	ADD_XSD_WRAPPERS( rlmi+xml "Presence XSD - rlmi+xml.xsd")
+	list(APPEND FLEXISIP_DEPENDENCIES xml pidf+xml rlmi+xml)
 endif()
 
 if(ENABLE_PUSHNOTIFICATION)
