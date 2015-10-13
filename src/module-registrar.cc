@@ -642,7 +642,6 @@ void ModuleRegistrar::readStaticRecords() {
 	file.open(mStaticRecordsFile);
 	if (file.is_open()) {
 		su_home_init(&home);
-		const char *fakeCallId=su_sprintf(&home,"static-record-v%x",su_random());
 		sip_path_t *path = sip_path_format(&home, "%s", getAgent()->getPreferredRoute().c_str());
 		mStaticRecordsVersion++;
 		while (file.good() && getline(file, line).good()) {
@@ -675,6 +674,8 @@ void ModuleRegistrar::readStaticRecords() {
 						single.m_next = NULL;
 						auto listener=make_shared<OnStaticBindListener>(url->m_url, &single);
 						bool alias=isManagedDomain(contact->m_url);
+						const char *fakeCallId=su_sprintf(&home,"static-record-v%x",su_random());
+						
 						RegistrarDb::BindParameters params(
 							RegistrarDb::BindParameters::SipParams(
 								url->m_url /*from*/,
