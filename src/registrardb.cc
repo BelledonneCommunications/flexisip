@@ -34,6 +34,7 @@
 
 #include <sofia-sip/sip_protos.h>
 #include "recordserializer.hh"
+#include "module.hh"
 
 using namespace ::std;
 
@@ -80,7 +81,7 @@ sip_route_t *ExtendedContact::toSofiaRoute(su_home_t *home) const{
 	sip_route_t *rbegin = NULL;
 	sip_route_t *r      = NULL;
 	for(auto it=mPath.begin(); it!=mPath.end(); ++it){
-		sip_route_t *newr = sip_route_format(home, "<%s>", (*it).c_str());
+		sip_route_t *newr = sip_route_make(home, (*it).c_str());
 		if (!newr){
 			LOGE("Cannot parse %s into route header",(*it).c_str());
 			break;
@@ -490,7 +491,7 @@ void RegistrarDb::clear(const sip_t *sip, const shared_ptr<RegistrarDbListener> 
 class RecursiveRegistrarDbListener: public RegistrarDbListener, public enable_shared_from_this<RecursiveRegistrarDbListener> {
 private:
 	RegistrarDb *m_database;
-	shared_ptr<RegistrarDbListener> m_original_listerner;
+	shared_ptr<RegistrarDbListener> mOriginalListener;
 	Record *m_record;
 	su_home_t m_home;
 	int m_request;
@@ -499,7 +500,7 @@ private:
 	static int sMaxStep;
 public:
 	RecursiveRegistrarDbListener(RegistrarDb *database, const shared_ptr<RegistrarDbListener> &original_listerner, const url_t *url, int step = sMaxStep) :
-			m_database(database), m_original_listerner(original_listerner), m_request(1), m_step(step) {
+			m_database(database), mOriginalListener(original_listerner), m_request(1), m_step(step) {
 		m_record = new Record("virtual_record");
 		su_home_init(&m_home);
 		m_url = url_as_string(&m_home, url);
@@ -515,10 +516,13 @@ public:
 			auto &extlist =r->getExtendedContacts();
 			list<sip_contact_t *> vectToRecurseOn;
 			for (auto it = extlist.begin(); it != extlist.end(); ++it) {
-				const shared_ptr<ExtendedContact> &ec = *it;
+				shared_ptr<ExtendedContact> ec = *it;
 				// Also add alias for late forking (context in the forks map for this alias key)
 				SLOGD << "Step: " << m_step << (ec->mAlias ? "\tFound alias " : "\tFound contact ")
 				<< m_url << " -> " << ec->mSipUri;
+				if (!ec->mAlias && ec->mUsedAsRoute){
+					ec = transformContactUsedAsRoute(m_url, ec);
+				}
 				m_record->pushContact(ec);
 				if (ec->mAlias && m_step > 0) {
 					sip_contact_t *contact = sip_contact_format(&m_home, "%s", ec->mSipUri.c_str());
@@ -544,25 +548,40 @@ public:
 
 		if (waitPullUpOrFail()) {
 			SLOGD << "Step: " << m_step << "\tNo contact found for " << m_url;
-			m_original_listerner->onRecordFound(NULL);
+			mOriginalListener->onRecordFound(NULL);
 		}
 	}
 
 	void onError() {
 		SLOGW << "Step: " << m_step << "\tError during recursive fetch of " << m_url;
 		if (waitPullUpOrFail()) {
-			m_original_listerner->onError();
+			mOriginalListener->onError();
 		}
 	}
 
 	void onInvalid() {
 		SLOGW << "Step: " << m_step << "\tInvalid during recursive fetch of " << m_url;
 		if (waitPullUpOrFail()) {
-			m_original_listerner->onInvalid();
+			mOriginalListener->onInvalid();
 		}
 	}
 
 private:
+	shared_ptr<ExtendedContact> transformContactUsedAsRoute(const char *uri, const shared_ptr<ExtendedContact> &ec){
+		/*this function does the following:
+		 * - make a copy of the extended contact
+		 * - in this copy replace the main contact information by the 'url' given in argument
+		 * - append the main contact information of the original extended contact into the Path header of the new extended contact.
+		 * While recursiving through alias, this allows to have a Route header appended for a "usedAsRoute" kind of Contact but still preserving
+		 * the last request uri that was found recursed through the alias mechanism.
+		*/
+		shared_ptr<ExtendedContact> newEc = make_shared<ExtendedContact>(*ec);
+		newEc->mSipUri = uri;
+		newEc->mPath.push_back(ec->mSipUri);
+		newEc->mUsedAsRoute = false;
+		return newEc;
+	}
+	
 	bool waitPullUpOrFail() {
 		if (--m_request != 0) return false; // wait for all pending responses
 
@@ -573,7 +592,7 @@ private:
 
 		// returning records collected on below recursion levels
 		SLOGD << "Step: " << m_step << "\tReturning collected records " << m_record->getExtendedContacts().size();
-		m_original_listerner->onRecordFound(m_record);
+		mOriginalListener->onRecordFound(m_record);
 		return false;
 	}
 };
