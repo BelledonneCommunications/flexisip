@@ -240,7 +240,6 @@ public:
 	const shared_ptr<RequestSipEvent> reqSipEvent;
 
 	static shared_ptr<ResponseContext> createInTransaction(shared_ptr<RequestSipEvent> ev, int globalDelta, const string &tag) {
-		ev->createIncomingTransaction();
 		auto otr = ev->createOutgoingTransaction();
 		auto context = make_shared<ResponseContext>(ev, globalDelta);
 		otr->setProperty(tag, context);
@@ -550,21 +549,18 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	if (!mUpdateOnResponse) return;
-
-	// Handle db update on response
 	const shared_ptr<MsgSip> &reMs = ev->getMsgSip();
 	sip_t *reSip = reMs->getSip();
+
+	// Only handle response to registers
+	if (reSip->sip_cseq->cs_method != sip_method_register) return;
+	// Handle db update on response
 	const url_t *reSipurl = reSip->sip_from->a_url;
 	if (!reSipurl->url_host || !isManagedDomain(reSipurl)) return;
 
-	if (!reSip->sip_status || reSip->sip_status->st_status != 200) {
-		SLOGD << "Letting the non 200 response flow";
-		return;
-	}
-
 	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 	if (transaction == NULL) {
-		LOGD("No transaction found");
+		/*not a response we want to manage*/
 		return;
 	}
 
@@ -574,27 +570,32 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		return;
 	}
 
-	// Warning: here we give the RESPONSE sip message
-	const sip_expires_t *expires = reSip->sip_expires;
-	const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
-	auto listener = make_shared<OnResponseBindListener>(this, ev, transaction, context);
+	if (reSip->sip_status->st_status == 200){
+		// Warning: here we give the RESPONSE sip message
+		const sip_expires_t *expires = reSip->sip_expires;
+		const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
+		auto listener = make_shared<OnResponseBindListener>(this, ev, transaction, context);
 
-	// Rewrite contacts in received msg (avoid reworking registrardb API)
-	reSip->sip_contact = context->mContacts;
-	reSip->sip_path = context->mPath;
+		// Rewrite contacts in received msg (avoid reworking registrardb API)
+		reSip->sip_contact = context->mContacts;
+		reSip->sip_path = context->mPath;
 
-	if ('*' == reSip->sip_contact->m_url[0].url_scheme[0]) {
-		mStats.mCountClear->incrStart();
-		LOGD("Clearing bindings");
-		listener->addStatCounter(mStats.mCountClear->finish);
-		RegistrarDb::get(mAgent)->clear(reSip, listener);
-	} else {
-		mStats.mCountBind->incrStart();
-		LOGD("Updating binding");
-		listener->addStatCounter(mStats.mCountBind->finish);
-		RegistrarDb::get(mAgent)->bind(reSip, maindelta, false, listener);
+		if ('*' == reSip->sip_contact->m_url[0].url_scheme[0]) {
+			mStats.mCountClear->incrStart();
+			LOGD("Clearing bindings");
+			listener->addStatCounter(mStats.mCountClear->finish);
+			RegistrarDb::get(mAgent)->clear(reSip, listener);
+		} else {
+			mStats.mCountBind->incrStart();
+			LOGD("Updating binding");
+			listener->addStatCounter(mStats.mCountBind->finish);
+			RegistrarDb::get(mAgent)->bind(reSip, maindelta, false, listener);
+		}
 	}
-	mRespContexes.remove(context);
+	if (reSip->sip_status->st_status >= 200){
+		/*for all final responses, drop the context anyway*/
+		mRespContexes.remove(context);
+	}
 }
 
 

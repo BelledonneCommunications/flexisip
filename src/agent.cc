@@ -168,6 +168,9 @@ void Agent::start(const std::string &transport_override){
 	string mainTlsCertsDir = global->get<ConfigString>("tls-certificates-dir")->read();
 	unsigned int t1x64=(unsigned int)global->get<ConfigInt>("transaction-timeout")->read();
 	int udpmtu = global->get<ConfigInt>("udp-mtu")->read();
+	unsigned int incompleteIncomingMessageTimeout = 600 *1000; /*milliseconds*/
+	unsigned int keepAliveInterval = 30 * 60 * 1000; /*30mn*/
+	
 	mainTlsCertsDir = absolutePath(currDir, mainTlsCertsDir);
 
 	SLOGD << "Main tls certs dir : " << mainTlsCertsDir;
@@ -218,11 +221,17 @@ void Agent::start(const std::string &transport_override){
 									TPTAG_CERTIFICATE(keys.c_str()),
 									TPTAG_TLS_VERIFY_PEER(peerCert),
 									TPTAG_IDLE(tports_idle_timeout),
+									TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+									TPTAG_KEEPALIVE(keepAliveInterval),
+									TPTAG_SDWN_ERROR(1),
 									TAG_END());
 		}else{
 			err=nta_agent_add_tport(mAgent,
 									(const url_string_t*) url,
 									TPTAG_IDLE(tports_idle_timeout),
+									TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+									TPTAG_KEEPALIVE(keepAliveInterval),
+									TPTAG_SDWN_ERROR(1),
 									TAG_END());
 		}
 		if (err==-1){
