@@ -60,7 +60,7 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r){
 				c.q(),
 				(uint32_t)c.cseq(),
 				c.update_time(),false,
-				acceptHeaders, c.used_as_route() );
+				acceptHeaders, c.has_used_as_route() ? c.used_as_route() : false );
 	}
 	return true;
 }
