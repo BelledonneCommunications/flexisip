@@ -497,9 +497,9 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	addPathHeader(getAgent(),ev, ev->getIncomingTport().get());
 	
 	//domain registration case, does nothing for the moment
-	if (sipurl->url_user == NULL && mAllowDomainRegistrations){
-		LOGD("Accepting domain registration (not implemented)");
-		reply(ev, 200, "Ok", NULL);
+	if (sipurl->url_user == NULL && !mAllowDomainRegistrations){
+		LOGE("Not accepting domain registration");
+		reply(ev, 403, "Domain registration forbidden", NULL);
 		return;
 	}
 

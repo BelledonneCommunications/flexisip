@@ -56,6 +56,7 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 	bool alias;
 	int mVersion;
 	std::list<std::string> accept;
+	bool mUsedAsRoute;
 
 	RegistrarUserData ( RegistrarDbRedisAsync *self, const url_t* url, const sip_contact_t *sip_contact, const char * calld_id, uint32_t cs_seq, const sip_path_t *path, bool alias,
 			    int version, shared_ptr<RegistrarDbListener>listener, forwardFn *fn ) :
@@ -93,6 +94,7 @@ RegistrarDbRedisAsync::RegistrarDbRedisAsync ( Agent *ag, RedisParameters params
 	mSlaveCheckTimeout(params.mSlaveCheckTimeout)
 {
 	mSerializer=RecordSerializer::get();
+	mCurSlave = 0;
 }
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(const string &preferredRoute, su_root_t* root, RecordSerializer* serializer, RedisParameters params) : RegistrarDb(preferredRoute),
@@ -107,6 +109,7 @@ RegistrarDbRedisAsync::RegistrarDbRedisAsync(const string &preferredRoute, su_ro
 	mSlaveCheckTimeout(params.mSlaveCheckTimeout)
 {
 	mSerializer = serializer;
+	mCurSlave = 0;
 }
 
 RegistrarDbRedisAsync::~RegistrarDbRedisAsync()
@@ -274,7 +277,7 @@ void RegistrarDbRedisAsync::updateSlavesList(const map<string,string> redisReply
 			RedisHost host = RedisHost::parseSlave(redisReply.at(slaveName), i);
 			if( host.id != -1){
 				// only tell if a new host was found
-				if( std::find(vSlaves.begin(), vSlaves.end(), host) == vSlaves.end() ){
+				if( std::find(mSlaves.begin(), mSlaves.end(), host) == mSlaves.end() ){
 					LOGD("Replication: Adding host %d %s:%d state:%s", host.id, host.address.c_str(), host.port, host.state.c_str());
 				}
 				newSlaves.push_back(host);
@@ -283,25 +286,26 @@ void RegistrarDbRedisAsync::updateSlavesList(const map<string,string> redisReply
 	}
 
 	// replace the slaves array
-	vSlaves.clear();
-	vSlaves = newSlaves;
+	mSlaves.clear();
+	mSlaves = newSlaves;
 }
 
 void RegistrarDbRedisAsync::tryReconnect()
 {
-	if( vSlaves.size() > 0 && !isConnected() ){
+	size_t slaveCount = mSlaves.size();
+	if( slaveCount > 0 && !isConnected() ){
 		// we are disconnected, but we can try one of the previously determined slaves
-		RedisHost host = vSlaves.back();
+		mCurSlave++;
+		mCurSlave = mCurSlave % slaveCount;
+		RedisHost host = mSlaves[mCurSlave];
 
 		LOGW("Connection lost to %s:%d, trying a known slave %d at %s:%d",
 				mDomain.c_str(), mPort, host.id, host.address.c_str(), host.port);
 
 		mDomain = host.address;
 		mPort = host.port;
-		vSlaves.pop_back();
-
+		
 		connect();
-
 	} else {
 		LOGW("No slave to try, giving up.");
 	}
@@ -575,7 +579,7 @@ void RegistrarDbRedisAsync::handleBind ( redisReply *reply, RegistrarUserData *d
 
 	time_t now=getCurrentTime();
 	data->record.clean ( data->sipContact, data->calldId, data->csSeq, now, data->mVersion);
-	data->record.update ( data->sipContact, data->path, data->globalExpire, data->calldId, data->csSeq, now, data->alias, data->accept, FALSE/*FIXME: usedAsRoute not supported in redis backend*/);
+	data->record.update ( data->sipContact, data->path, data->globalExpire, data->calldId, data->csSeq, now, data->alias, data->accept, data->mUsedAsRoute);
 	mLocalRegExpire->update ( data->record );
 
 	string serialized;

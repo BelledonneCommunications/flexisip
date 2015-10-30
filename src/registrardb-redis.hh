@@ -95,7 +95,8 @@ private:
 	int mPort;
 	int mTimeout;
 	su_root_t *mRoot;
-	vector<RedisHost> vSlaves;
+	vector<RedisHost> mSlaves;
+	size_t mCurSlave;
 	su_timer_t* mReplicationTimer;
 	int mSlaveCheckTimeout;
 

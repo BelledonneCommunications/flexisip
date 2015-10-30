@@ -255,6 +255,9 @@ public:
 				sip->sip_call_id->i_id,
 				sip->sip_cseq->cs_seq, sip->sip_path, sip->sip_accept),
 			globalExpire, alias);
+		if (sip->sip_request){
+			mainParams.usedAsRoute = sip->sip_request->rq_url->url_user == NULL;
+		}
 		doBind(mainParams, listener);
 	}
 	void clear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);

@@ -423,10 +423,14 @@ int RegistrarDb::count_sip_contacts(const sip_contact_t *contact) {
 }
 
 void RegistrarDb::defineKeyFromUrl(char *key, int len, const url_t *url) {
-	if (!mUseGlobalDomain) {
-		snprintf(key, len - 1, "%s@%s", url->url_user, url->url_host);
-	} else {
-		snprintf(key, len - 1, "%s@merged", url->url_user);
+	if (url->url_user){
+		if (!mUseGlobalDomain) {
+			snprintf(key, len - 1, "%s@%s", url->url_user, url->url_host);
+		} else {
+			snprintf(key, len - 1, "%s@merged", url->url_user);
+		}
+	}else{
+		snprintf(key, len - 1, "%s", url->url_host);
 	}
 }
 
