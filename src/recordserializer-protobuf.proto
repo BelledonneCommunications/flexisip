@@ -35,5 +35,5 @@ message RecordContactPb {
   optional string route = 9;
   repeated string path = 10;
   repeated string accept_header = 11;
-  required bool used_as_route = 12;
+  optional bool used_as_route = 12;
 }
