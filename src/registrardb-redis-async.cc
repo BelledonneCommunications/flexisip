@@ -340,7 +340,6 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply){
 
 				// disconnect and reconnect immediately, dropping the previous context
 				disconnect();
-				mContext = NULL;
 				connect();
 			} else {
 				SLOGW << "Master is " << masterStatus << " but not up, wait for next periodic check to decide to connect.";
@@ -413,6 +412,7 @@ bool RegistrarDbRedisAsync::disconnect(){
 	LOGD("disconnect(%p)", mContext);
 	if( mContext ){
 		redisAsyncDisconnect(mContext);
+		mContext = NULL;
 		return true;
 	}
 	return false;

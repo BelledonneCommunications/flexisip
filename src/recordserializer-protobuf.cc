@@ -60,7 +60,7 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r){
 				c.q(),
 				(uint32_t)c.cseq(),
 				c.update_time(),false,
-				acceptHeaders, c.has_used_as_route() ? c.used_as_route() : false );
+				acceptHeaders, /*c.has_used_as_route() ? c.used_as_route() :*/ false );
 	}
 	return true;
 }
@@ -89,7 +89,7 @@ bool RecordSerializerPb::serialize(Record *r, string &serialized, bool log){
 		for (auto pit=ec->mAcceptHeader.cbegin(); pit != ec->mAcceptHeader.cend(); ++pit) {
 			c->add_accept_header(*pit);
 		}
-		c->set_used_as_route(ec->mUsedAsRoute);
+		/*c->set_used_as_route(ec->mUsedAsRoute);*/
 	}
 
 	if (log) SLOGI << "Serialized " << pbContacts.DebugString() << "initialized: " << pbContacts.IsInitialized();
