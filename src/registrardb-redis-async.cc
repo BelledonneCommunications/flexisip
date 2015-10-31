@@ -564,10 +564,7 @@ void RegistrarDbRedisAsync::handleClear ( redisReply *reply, RegistrarUserData *
 void RegistrarDbRedisAsync::handleBind ( redisReply *reply, RegistrarUserData *data )
 {
 	if ( !mSerializer->parse ( reply->str, reply->len, &data->record ) ) {
-		LOGE( "Couldn't parse stored contacts for aor:%s : %u bytes", data->key, reply->len );
-		data->listener->onError();
-		delete data;
-		return;
+		LOGW( "Couldn't parse stored contacts for aor:%s : %u bytes, going to erase previous value.", data->key, reply->len );
 	}
 
 	if ( data->record.isInvalidRegister( data->calldId, data->csSeq ) ) {
