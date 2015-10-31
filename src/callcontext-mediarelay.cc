@@ -26,7 +26,7 @@
 using namespace std;
 
 
-RelayedCall::RelayedCall(MediaRelayServer *server, sip_t *sip) :
+RelayedCall::RelayedCall(const shared_ptr<MediaRelayServer> &server, sip_t *sip) :
 					CallContextBase(sip), mServer(server), mBandwidthThres(0) {
 	LOGD("New RelayedCall %p", this);
 	mDropTelephoneEvents=false;

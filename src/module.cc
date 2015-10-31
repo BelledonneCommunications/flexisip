@@ -564,3 +564,22 @@ sip_unknown_t *ModuleToolbox::getCustomHeaderByName(sip_t *sip, const char *name
 	return NULL;
 }
 
+int ModuleToolbox::getCpuCount() {
+	int count = 0;
+	char line[256] = { 0 };
+	
+	FILE *f = fopen("/proc/cpuinfo", "r");
+	if (f != NULL) {
+		while (fgets(line, sizeof(line), f)) {
+			if (strstr(line, "processor") == line)
+				count++;
+		}
+		LOGI("Found %i processors", count);
+		fclose(f);
+	} else {
+		LOGE("ModuleToolbox::getCpuCount() not implemented outside of Linux");
+		count = 1;
+	}
+	return count;
+}
+

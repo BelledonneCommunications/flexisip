@@ -45,14 +45,13 @@ ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay", "The MediaRelay module ma
 		ModuleInfoBase::ModuleOid::MediaRelay);
 
 MediaRelay::MediaRelay(Agent * ag) :
-		Module(ag), mCalls(NULL), mServer(NULL) {
+		Module(ag), mCalls(NULL) {
 }
 
 MediaRelay::~MediaRelay() {
 	if (mCalls)
 		delete mCalls;
-	if (mServer)
-		delete mServer;
+	mServers.clear();
 }
 
 void MediaRelay::onDeclare(GenericStruct * mc) {
@@ -80,6 +79,15 @@ void MediaRelay::onDeclare(GenericStruct * mc) {
 	mCountCallsFinished=p.second;
 }
 
+void MediaRelay::createServers(){
+	int cpuCount = ModuleToolbox::getCpuCount();
+	int i;
+	for(i = 0; i<cpuCount; ++i){
+		mServers.push_back(make_shared<MediaRelayServer>(this));
+	}
+	mCurServer = 0;
+}
+
 void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mCalls = new CallStore();
 	mCalls->setCallStatCounters(mCountCalls, mCountCallsFinished);
@@ -103,7 +111,7 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mMaxPort = modconf->get<ConfigInt>("sdp-port-range-max")->read();
 	mPreventLoop = modconf->get<ConfigBoolean>("prevent-loops")->read();
 	mMaxCalls=modconf->get<ConfigInt>("max-calls")->read();
-	mServer = new MediaRelayServer(this);
+	createServers();
 }
 
 void MediaRelay::onUnload() {
@@ -111,10 +119,7 @@ void MediaRelay::onUnload() {
 		delete mCalls;
 		mCalls=NULL;
 	}
-	if (mServer) {
-		delete mServer;
-		mServer=NULL;
-	}
+	mServers.clear();
 }
 
 
@@ -181,8 +186,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		ev->reply(500, "Media relay SDP processing internal error", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return false;
 	}
-
-	mServer->update();
+	c->getServer()->update();
 
 	delete m;
 	return true;
@@ -218,8 +222,9 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 				ev->reply(503, "Maximum number of calls reached", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 				return;
 			}
-
-			c = make_shared<RelayedCall>(mServer, sip);
+			
+			c = make_shared<RelayedCall>(mServers[mCurServer], sip);
+			mCurServer = (mCurServer + 1) % mServers.size();
 			newContext=true;
 			it->setProperty<RelayedCall>(getModuleName(), c);
 			configureContext(c);

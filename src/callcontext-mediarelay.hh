@@ -33,7 +33,7 @@ class TranscodedCall;
 class RelayedCall: public CallContextBase {
 public:
 	static const int sMaxSessions = 4;
-	RelayedCall(MediaRelayServer *server, sip_t *sip);
+	RelayedCall(const shared_ptr<MediaRelayServer> &server, sip_t *sip);
 
 	/* Create a channel for each sdp media using defined relay ip for front and back. The transaction
 	 * allow use to identify the callee (we don't have a tag yet).
@@ -64,10 +64,12 @@ public:
 	void enableH264IFrameFiltering(int bandwidth_threshold, int decim, bool onlyIfLastProxy);
 	/*Enable telephone-event dropping for tls clients*/
 	void enableTelephoneEventDrooping(bool value);
-
+	const shared_ptr<MediaRelayServer> & getServer()const{
+		return mServer;
+	}
 private:
 	std::shared_ptr<RelaySession> mSessions[sMaxSessions];
-	MediaRelayServer *mServer;
+	const shared_ptr<MediaRelayServer> & mServer;
 	int mBandwidthThres;
 	int mDecim;
 	bool mH264DecimOnlyIfLastProxy;

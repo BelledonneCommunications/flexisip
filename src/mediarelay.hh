@@ -41,11 +41,13 @@ public:
 protected:
 	virtual void onDeclare(GenericStruct * mc);
 private:
+	void createServers();
 	bool processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<RequestSipEvent> &ev);
 	void processResponseWithSDP(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<MsgSip> &msgSip);
 	void configureContext(shared_ptr<RelayedCall> &c);
 	CallStore *mCalls;
-	MediaRelayServer *mServer;
+	vector<shared_ptr<MediaRelayServer>> mServers;
+	size_t mCurServer;
 	string mSdpMangledParam;
 	int mH264FilteringBandwidth;
 	bool mH264DecimOnlyIfLastProxy;

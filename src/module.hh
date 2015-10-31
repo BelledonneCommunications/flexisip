@@ -230,6 +230,7 @@ class ModuleToolbox{
 		static void removeParamsFromContacts(su_home_t *home, sip_contact_t *c, std::list<std::string> &params);
 		static void removeParamsFromUrl(su_home_t *home, url_t *u, std::list<std::string> &params);
 		static sip_unknown_t *getCustomHeaderByName(sip_t *sip, const char *name);
+		static int getCpuCount();
 };
 
 /*nice wrapper of the sofia-sip su_home_t, that performs automatic destruction of the home when it leaving a code block or function.*/

@@ -40,7 +40,7 @@ public:
 	TickerManager() : mLastTickerIndex(0),mStarted(false){}
 	MSTicker *chooseOne() {
 		if (!mStarted) {
-			int cpucount = getCpuCount();
+			int cpucount = ModuleToolbox::getCpuCount();
 			mLastTickerIndex = 0;
 			for (int i = 0; i < cpucount; ++i) {
 				mTickers.push_back(ms_ticker_new());
@@ -56,21 +56,6 @@ public:
 		for_each(mTickers.begin(), mTickers.end(), ptr_fun(ms_ticker_destroy));
 	}
 private:
-	int getCpuCount() {
-		char line[256] = { 0 };
-		int count = 0;
-		FILE *f = fopen("/proc/cpuinfo", "r");
-		if (f != NULL) {
-			while (fgets(line, sizeof(line), f)) {
-				if (strstr(line, "processor") == line)
-					count++;
-			}
-			LOGI("Found %i processors", count);
-			fclose(f);
-		} else
-			count = 1;
-		return count;
-	}
 	vector<MSTicker*> mTickers;
 	unsigned int mLastTickerIndex;
 	bool mStarted;

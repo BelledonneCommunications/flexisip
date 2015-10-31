@@ -427,7 +427,7 @@ shared_ptr<RelaySession> MediaRelayServer::createSession(const std::string &fron
 	if (!mRunning)
 		start();
 
-	LOGD("There are now %zu relay sessions running.", mSessions.size());
+	LOGD("There are now %zu relay sessions running on MediaRelayServer [%p]", mSessions.size(), this);
 	/*write to the control pipe to wakeup the server thread */
 	update();
 	return s;
