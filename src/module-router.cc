@@ -124,6 +124,7 @@ public:
 		mUseGlobalDomain=mc->get<ConfigBoolean>("use-global-domain")->read();
 
 		mPreroute = mc->get<ConfigString>("preroute")->read();
+		mAllowDomainRegistrations = cr->get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("accept-domain-registrations")->read();
 	}
 
 	virtual void onUnload() {
@@ -172,6 +173,7 @@ private:
 
 	static ModuleInfo<ModuleRouter> sInfo;
 	bool mGenerateContactEvenOnFilledAor;
+	bool mAllowDomainRegistrations;
 	string mPreroute;
 };
 
@@ -670,7 +672,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			sendReply(ev, SIP_100_TRYING);
 			auto onRoutingListener = make_shared<OnFetchForRoutingListener>(this, ev, sipurl);
 			if (mPreroute.empty()) {
-				RegistrarDb::get(mAgent)->fetch(sipurl, onRoutingListener, true);
+				RegistrarDb::get(mAgent)->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
 			} else {
 				char preroute_param[20];
 				if (url_param(sipurl->url_params, "preroute", preroute_param, sizeof(preroute_param))) {

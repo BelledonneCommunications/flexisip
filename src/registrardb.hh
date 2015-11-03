@@ -185,6 +185,7 @@ public:
 	time_t latestExpire() const;
 	time_t latestExpire(const std::string &route) const;
 	static std::list<std::string> route_to_stl(su_home_t *home, const sip_route_s *route);
+	void appendContactsFrom(Record *src);
 	~Record();
 };
 
@@ -262,6 +263,7 @@ public:
 	}
 	void clear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
 	void fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool recursive = false);
+	void fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool includingDomains, bool recursive);
 	void updateRemoteExpireTime(const std::string &key, time_t expireat);
 	unsigned long countLocalActiveRecords() {
 		return mLocalRegExpire->countActives();
@@ -292,6 +294,7 @@ protected:
 	int count_sip_contacts(const sip_contact_t *contact);
 	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const char *key, const std::shared_ptr<RegistrarDbListener> &listener);
 	void defineKeyFromUrl(char *key, int len, const url_t *url);
+	void fetchWithDomain(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool recursive);
 	RegistrarDb(const std::string &preferedRoute);
 	virtual ~RegistrarDb();
 	std::map<std::string, Record*> mRecords;

@@ -366,6 +366,14 @@ void Record::init() {
 	sLineFieldNames = registrar->get<ConfigStringList>("unique-id-parameters")->read();
 }
 
+void Record::appendContactsFrom(Record *src){
+	if (!src) return;
+
+	for (auto it = src->mContacts.begin(); it != src->mContacts.end(); ++it){
+		mContacts.push_back(*it);
+	}
+}
+
 RegistrarDb::LocalRegExpire::LocalRegExpire(string preferredRoute) {
 	mPreferedRoute=preferredRoute;
 }
@@ -607,14 +615,75 @@ int RecursiveRegistrarDbListener::sMaxStep = 1;
 RegistrarDbListener::~RegistrarDbListener(){}
 
 void RegistrarDb::fetch(const url_t *url, const shared_ptr<RegistrarDbListener> &listener, bool recursive) {
-	if (recursive) {
-		doFetch(url, make_shared<RecursiveRegistrarDbListener>(this, listener, url));
-	} else {
-		doFetch(url, listener);
+	fetch(url, listener, recursive, false);
+}
+
+void RegistrarDb::fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool includingDomains, bool recursive){
+	if (includingDomains){
+		fetchWithDomain(url, listener, recursive);
+	}else{
+		if (recursive) {
+			doFetch(url, make_shared<RecursiveRegistrarDbListener>(this, listener, url));
+		} else {
+			doFetch(url, listener);
+		}
 	}
 }
 
+class AgregatorRegistrarDbListener : public RegistrarDbListener{
+private:
+	shared_ptr<RegistrarDbListener> mOriginalListener;
+	int mNumRespExpected;
+	int mNumResponseObtained;
+	Record *mRecord;
+	bool mError;
+	Record *getRecord(){
+		if (mRecord == NULL)
+			mRecord = new Record("Aggregated record");
+		return mRecord;
+	}
+	void checkFinished(){
+		mNumResponseObtained++;
+		if (mNumResponseObtained == mNumRespExpected){
+			if (mError && mRecord == NULL){
+				mOriginalListener->onError();
+			}else{
+				mOriginalListener->onRecordFound(mRecord);
+			}
+		}
+	}
+public:
+	AgregatorRegistrarDbListener(const shared_ptr<RegistrarDbListener> &origListener, int numResponseExpected)
+		: mOriginalListener(origListener), mNumRespExpected(numResponseExpected), mNumResponseObtained(0), mRecord(0){
+		mError = false;
+	}
+	virtual ~AgregatorRegistrarDbListener(){
+		if (mRecord) delete mRecord;
+	}
+	virtual void onRecordFound(Record *r){
+		if (r){
+			getRecord()->appendContactsFrom(r);
+		}
+		checkFinished();
+	}
+	virtual void onError() {
+		mError = true;
+		checkFinished();
+	}
+	virtual void onInvalid() {
+		//onInvalid() will normally never be called for a fetch request
+		checkFinished();
+	}
+};
 
+void RegistrarDb::fetchWithDomain(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool recursive){
+	url_t domainOnlyUrl = *url;
+	domainOnlyUrl.url_user = NULL;
+	
+	auto agregator = make_shared<AgregatorRegistrarDbListener>(listener, 2);
+	fetch(url, agregator, recursive);
+	fetch(&domainOnlyUrl, agregator, false);
+}
 
 
 RecordSerializer *RecordSerializer::create(const string &name) {
