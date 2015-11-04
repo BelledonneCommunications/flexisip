@@ -227,6 +227,8 @@ class ModuleToolbox{
 		* Returns true if via and url represent the same network address.
 		**/
 		static bool urlViaMatch(url_t *url, sip_via_t *via, bool use_received_rport);
+		/*returns true if the two url represent the same transport channel (IP, port and protocol)*/
+		static bool urlTransportMatch(const url_t *url1, const url_t *url2);
 		static void removeParamsFromContacts(su_home_t *home, sip_contact_t *c, std::list<std::string> &params);
 		static void removeParamsFromUrl(su_home_t *home, url_t *u, std::list<std::string> &params);
 		static sip_unknown_t *getCustomHeaderByName(sip_t *sip, const char *name);

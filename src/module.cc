@@ -21,6 +21,7 @@
 #include "entryfilter.hh"
 #include "sofia-sip/auth_digest.h"
 #include "sofia-sip/nta.h"
+#include <sofia-sip-1.12/sofia-sip/url.h>
 #include "log/logmanager.hh"
 
 #include "expressionparser.hh"
@@ -455,6 +456,49 @@ bool ModuleToolbox::urlViaMatch(url_t *url, sip_via_t *via, bool use_received_rp
 	if (strcmp(url->url_scheme,"sips")==0) strncpy(url_transport,"TLS",sizeof(url_transport));
 
 	return urlHostMatch(via_host,url_host) && strcmp(via_port,url_pt)==0;
+}
+
+static const char *get_transport_name_sip(const char *transport){
+	if (transport == NULL || transport[0]=='\0') return "UDP";
+	else if (strcasecmp(transport, "udp") == 0) return "UDP";
+	else if (strcasecmp(transport, "tcp") == 0) return "TCP";
+	else if (strcasecmp(transport, "tls") == 0) return "TLS";
+	return "INVALID";
+}
+
+static const char *get_transport_name_sips(const char *transport){
+	if (transport == NULL || transport[0]=='\0') return "TLS";
+	else if (strcasecmp(transport, "udp") == 0) return "DTLS";
+	else if (strcasecmp(transport, "tcp") == 0) return "TLS";
+	else if (strcasecmp(transport, "tls") == 0) return "TLS"; /*should not happen but not so serious*/
+	return "INVALID";
+}
+
+static const char * url_get_transport(const url_t *url){
+	char transport[8]={0};
+	const char *ret = "UDP";
+	
+	url_param(url->url_params,"transport",transport,sizeof(transport));
+	switch(url->url_type){
+		case url_sip:
+			ret = get_transport_name_sip(transport);
+		break;
+		case url_sips:
+			ret = get_transport_name_sips(transport);
+		break;
+		default:
+			LOGE("url_get_transport(): invalid url kind %i",(int) url->url_type);
+		break;
+	}
+	return ret;
+}
+
+bool ModuleToolbox::urlTransportMatch(const url_t *url1, const url_t *url2){
+	if (strcasecmp(url_get_transport(url1), url_get_transport(url2)) != 0) return false;
+	if (!urlHostMatch(url1->url_host, url2->url_host)) return false;
+	if (strcmp(url_port(url1), url_port(url2)) != 0) return false;
+	
+	return true;
 }
 
 bool ModuleToolbox::isNumeric(const char *host){
