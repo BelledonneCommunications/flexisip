@@ -257,7 +257,7 @@ public:
 				sip->sip_cseq->cs_seq, sip->sip_path, sip->sip_accept),
 			globalExpire, alias);
 		if (sip->sip_request){
-			mainParams.usedAsRoute = sip->sip_request->rq_url->url_user == NULL;
+			mainParams.usedAsRoute = sip->sip_from->a_url->url_user == NULL;
 		}
 		doBind(mainParams, listener);
 	}
