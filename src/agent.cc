@@ -660,6 +660,7 @@ sip_via_t *Agent::getNextVia(sip_t *response) {
  */
 bool Agent::isUs(const url_t *url, bool check_aliases) const {
 	char maddr[50];
+	if (mDrm && mDrm->isUs(url)) return true;
 	if (url_param(url->url_params, "maddr", maddr, sizeof(maddr))) {
 		return isUs(maddr, url->url_port, check_aliases);
 	} else {

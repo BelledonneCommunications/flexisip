@@ -24,6 +24,7 @@
 # odbc default:     1
 # transcode default:1
 # snmp default:     1
+# odb default:      0
 # bc-odbc default:  0
 # bcpkg default:    0
 
@@ -35,6 +36,7 @@
 %define     transcoder %{?_without_transcoder:0}%{!?_without_transcoder:1}
 %define     presence   %{?_with_presence:1}%{!?_with_presence:0}
 %define     snmp       %{?_without_snmp:0}%{!?_without_snmp:1}
+%define     odb        %{?_with_odb:1}%{!?_with_odb:0}
 
 # invoke rpmbuild with --with bcodbc to build using Belledonne Communications' modified UnixODBC
 %define     bcodbc     %{?_with_bcodbc:1}%{!?_with_bcodbc:0}
@@ -153,6 +155,10 @@ echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
 %if !%{odbc}
     --disable-odbc \
 %endif
+%if !%{odb}
+    --enable-libodb=no \
+    --enable-libodb-mysql=no \
+%endif
 %if !%{snmp}
     --disable-snmp \
 %endif
@@ -228,6 +234,8 @@ fi
 %{_sysconfdir}/flexisip
 
 %changelog
+* Wed Nov 04 2015 Sylvain Berfini <sylvain.berfini@linphone.org>
+	- Add option to disable odb
 * Tue Oct 14 2014 Guillaume Bienkowski <gbi@linphone.org>
 	- Add /opt packaging possibility
 * Wed Feb 15 2012 Guillaume Beraudo <guillaume.beraudo@belledonne-communications.com>

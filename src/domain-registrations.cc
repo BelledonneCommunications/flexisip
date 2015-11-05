@@ -137,6 +137,14 @@ error:
 	return -1;
 }
 
+bool DomainRegistrationManager::isUs(const url_t *url)const{
+	for (auto it = mRegistrations.begin(); it != mRegistrations.end(); ++it){
+		const shared_ptr<DomainRegistration> & dr = *it;
+		if (dr->isUs(url)) return TRUE;
+	}
+	return FALSE;
+}
+
 
 DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr, const string& localDomain, const url_t* parent_proxy, const string& clientCertdir )
 	: mManager(mgr){
@@ -145,6 +153,7 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr, const str
 	tp_name_t tpn = {0};
 	bool usingTls;
 	nta_agent_t *agent = mManager.mAgent->getSofiaAgent();
+	unsigned int keepAliveInterval = 10*60*1000;
 	
 	su_home_init(&mHome);
 	mFrom = url_format(&mHome, "%s:%s", parent_proxy->url_type == url_sips ? "sips" : "sip", localDomain.c_str());
@@ -157,9 +166,15 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr, const str
 	tportUri = url_format(&mHome, "%s:*:*", usingTls ? "sips" : "sip");
 	
 	if (usingTls && !clientCertdir.empty()){
-		nta_agent_add_tport(agent, (url_string_t*)tportUri, TPTAG_CERTIFICATE(clientCertdir.c_str()), TPTAG_IDENT(localDomain.c_str()), TAG_END());
+		nta_agent_add_tport(agent, (url_string_t*)tportUri,
+				    TPTAG_CERTIFICATE(clientCertdir.c_str()), 
+				    TPTAG_IDENT(localDomain.c_str()),
+				    TPTAG_KEEPALIVE(keepAliveInterval),
+				    TAG_END());
 	}else{
-		nta_agent_add_tport(agent, (url_string_t*)tportUri, TPTAG_IDENT(localDomain.c_str()), TAG_END());
+		nta_agent_add_tport(agent, (url_string_t*)tportUri, TPTAG_IDENT(localDomain.c_str()), 
+					TPTAG_KEEPALIVE(keepAliveInterval),
+					TAG_END());
 	}
 	tpn.tpn_ident = localDomain.c_str();
 	mPrimaryTport = tport_by_name(nta_agent_tports(agent), &tpn);
@@ -177,6 +192,7 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr, const str
 	}
 	mCurrentTport = NULL;
 	mTimer = NULL;
+	mExternalContact = NULL;
 }
 
 int DomainRegistration::sLegCallback ( nta_leg_magic_t* ctx, nta_leg_t* leg, nta_incoming_t* incoming, const sip_t* request ) {
@@ -248,7 +264,13 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 		nextSchedule = ((getExpires(orq, resp) * 90) / 100 ) + 1;
 		LOGD("Scheduling next domain register refresh for %s in %i seconds", mFrom->url_host, nextSchedule);
 		su_timer_set_interval(mTimer, &DomainRegistration::sRefreshRegistration, this, (su_duration_t)nextSchedule*1000);
-		
+		/*store contact sent in response, as it gives information about our public IP/port*/
+		if (resp->sip_contact){
+			if (mExternalContact){
+				su_free(&mHome, mExternalContact);
+			}
+			mExternalContact = sip_contact_dup(&mHome, resp->sip_contact);
+		}
 	}
 }
 
@@ -315,4 +337,11 @@ void DomainRegistration::stop() {
 		su_timer_destroy(mTimer);
 		mTimer = NULL;
 	}
+}
+
+bool DomainRegistration::isUs(const url_t *url){
+	if (mExternalContact){
+		return ModuleToolbox::urlTransportMatch(url, mExternalContact->m_url);
+	}
+	return false;
 }

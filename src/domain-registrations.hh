@@ -40,6 +40,7 @@ public:
 	DomainRegistration(DomainRegistrationManager &mgr, const std::string &localDomain, const url_t *parent_proxy, const std::string &clientCertdir);
 	void start();
 	void stop();
+	bool isUs(const url_t *url);
 	~DomainRegistration();
 private:
 	void setContact(msg_t *msg);
@@ -60,6 +61,7 @@ private:
 	su_timer_t *mTimer;
 	url_t *mFrom;
 	url_t *mProxy;
+	sip_contact_t *mExternalContact;
 };
 
 class DomainRegistrationManager{
@@ -67,6 +69,10 @@ friend class DomainRegistration;
 public:
 	DomainRegistrationManager(Agent *agent);
 	int load();
+	/**
+	 * check is url is a local contact of any existing domain registration.
+	 */
+	bool isUs(const url_t *url)const;
 	~DomainRegistrationManager();
 private:
 	Agent *mAgent;
