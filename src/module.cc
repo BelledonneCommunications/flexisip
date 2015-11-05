@@ -425,7 +425,7 @@ bool ModuleToolbox::transportEquals(const char *tr1, const char *tr2) {
 	return strcasecmp(tr1, tr2) == 0;
 }
 
-bool ModuleToolbox::urlViaMatch(url_t *url, sip_via_t *via, bool use_received_rport){
+bool ModuleToolbox::urlViaMatch(const url_t *url, const sip_via_t *via, bool use_received_rport){
 	const char *via_host=NULL;
 	const char *via_port=NULL;
 	const char *via_transport=sip_via_transport(via);
@@ -456,6 +456,14 @@ bool ModuleToolbox::urlViaMatch(url_t *url, sip_via_t *via, bool use_received_rp
 	if (strcmp(url->url_scheme,"sips")==0) strncpy(url_transport,"TLS",sizeof(url_transport));
 
 	return urlHostMatch(via_host,url_host) && strcmp(via_port,url_pt)==0;
+}
+
+bool ModuleToolbox::viaContainsUrl(const sip_via_t *vias, const url_t* url){
+	const sip_via_t *via;
+	for (via = vias; via != NULL; via = via->v_next){
+		if (urlViaMatch(url, via, true)) return true;
+	}
+	return false;
 }
 
 static const char *get_transport_name_sip(const char *transport){

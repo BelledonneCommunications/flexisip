@@ -462,6 +462,10 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			LOGD("Not dispatching request to non-sips target.");
 			continue;
 		}
+		if (ec->mUsedAsRoute && ModuleToolbox::viaContainsUrl(sip->sip_via, ct->m_url)){
+			LOGD("Skip destination to %s, because the message is coming from here already.", url_as_string(ms->getHome(), ct->m_url));
+			continue;
+		}
 		usable_contacts.push_back(make_pair(ct,ec));
 	}
 	
