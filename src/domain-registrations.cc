@@ -153,6 +153,7 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr, const str
 	tp_name_t tpn = {0};
 	bool usingTls;
 	nta_agent_t *agent = mManager.mAgent->getSofiaAgent();
+	unsigned int keepAliveInterval = 10*60*1000;
 	
 	su_home_init(&mHome);
 	mFrom = url_format(&mHome, "%s:%s", parent_proxy->url_type == url_sips ? "sips" : "sip", localDomain.c_str());
@@ -165,9 +166,15 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr, const str
 	tportUri = url_format(&mHome, "%s:*:*", usingTls ? "sips" : "sip");
 	
 	if (usingTls && !clientCertdir.empty()){
-		nta_agent_add_tport(agent, (url_string_t*)tportUri, TPTAG_CERTIFICATE(clientCertdir.c_str()), TPTAG_IDENT(localDomain.c_str()), TAG_END());
+		nta_agent_add_tport(agent, (url_string_t*)tportUri,
+				    TPTAG_CERTIFICATE(clientCertdir.c_str()), 
+				    TPTAG_IDENT(localDomain.c_str()),
+				    TPTAG_KEEPALIVE(keepAliveInterval),
+				    TAG_END());
 	}else{
-		nta_agent_add_tport(agent, (url_string_t*)tportUri, TPTAG_IDENT(localDomain.c_str()), TAG_END());
+		nta_agent_add_tport(agent, (url_string_t*)tportUri, TPTAG_IDENT(localDomain.c_str()), 
+					TPTAG_KEEPALIVE(keepAliveInterval),
+					TAG_END());
 	}
 	tpn.tpn_ident = localDomain.c_str();
 	mPrimaryTport = tport_by_name(nta_agent_tports(agent), &tpn);
