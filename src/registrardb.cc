@@ -615,7 +615,7 @@ int RecursiveRegistrarDbListener::sMaxStep = 1;
 RegistrarDbListener::~RegistrarDbListener(){}
 
 void RegistrarDb::fetch(const url_t *url, const shared_ptr<RegistrarDbListener> &listener, bool recursive) {
-	fetch(url, listener, recursive, false);
+	fetch(url, listener, false, recursive);
 }
 
 void RegistrarDb::fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool includingDomains, bool recursive){
