@@ -21,7 +21,6 @@
 #include "entryfilter.hh"
 #include "sofia-sip/auth_digest.h"
 #include "sofia-sip/nta.h"
-#include <sofia-sip-1.12/sofia-sip/url.h>
 #include "log/logmanager.hh"
 
 #include "expressionparser.hh"
