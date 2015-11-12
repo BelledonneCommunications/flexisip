@@ -634,12 +634,14 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases) const {
 		if (strcmp(matched_port,tn->tpn_port)==0){
 			if (strcmp(host,tn->tpn_canon)==0)
 				return true;
-			if (check_aliases) {
-				list<string>::const_iterator it;
-				for (it = mAliases.begin(); it != mAliases.end(); ++it) {
-					if (ModuleToolbox::urlHostMatch(host, (*it).c_str()))
-						return true;
-				}
+		}
+		if (check_aliases) {
+			/*the checking of aliases ignores the port number, since a domain name in a Route header might resolve to multiple ports 
+			 * thanks to SRV records*/
+			list<string>::const_iterator it;
+			for (it = mAliases.begin(); it != mAliases.end(); ++it) {
+				if (ModuleToolbox::urlHostMatch(host, (*it).c_str()))
+					return true;
 			}
 		}
 	}
