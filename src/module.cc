@@ -24,6 +24,7 @@
 #include "log/logmanager.hh"
 
 #include "expressionparser.hh"
+#include "domain-registrations.hh"
 
 #include <algorithm>
 using namespace::std;
@@ -277,16 +278,26 @@ url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name){
 void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev, const tport_t *tport){
 	msg_t *msg=ev->getMsgSip()->getMsg();
 	sip_t *sip=ev->getMsgSip()->getSip();
-	url_t *url;
+	url_t *url = NULL;
 
 	if (tport){
-		tport=tport_parent(tport); //get primary transport
-		const tp_name_t *name=tport_name(tport); //primary transport name
-
-		url=urlFromTportName(home,name);
+		DomainRegistrationManager *drm = ag->getDRM();
+		if (drm){//this finds public contact information for request received via domain registration connections.
+			const url_t *reg_uri = drm->getPublicUri(tport);
+			if (reg_uri){
+				url = url_hdup(home, reg_uri);
+				LOGD("ModuleToolbox::addRecordRoute(): public uri found from domain registration manager.");
+			}
+		}
 		if (!url){
-			LOGE("ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL");
-			return;
+			tport=tport_parent(tport); //get primary transport, to get the public (server socket) ip/port
+			const tp_name_t *name=tport_name(tport); //primary transport name
+
+			url=urlFromTportName(home,name);
+			if (!url){
+				LOGE("ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL");
+				return;
+			}
 		}
 	}else{
 		//default to Agent's default address.

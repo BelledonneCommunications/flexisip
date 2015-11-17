@@ -108,7 +108,7 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 	(std::shared_ptr<SipEventT> ev, const std::list<Module *>::iterator &begin, const std::list<Module *>::iterator &end);
 	public:
 		Agent(su_root_t *root);
-	    void start(const std::string& transport_override);
+		void start(const std::string& transport_override);
 		virtual void loadConfig(GenericManager *cm);
 		virtual ~Agent();
 		///Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination.
@@ -160,6 +160,9 @@ class Agent: public IncomingAgent, public OutgoingAgent, public std::enable_shar
 		Module *findModule(const std::string &modname) const;
 		int onIncomingMessage(msg_t *msg, const sip_t *sip);
 		nth_engine_t* getHttpEngine() {return mHttpEngine; }
+		DomainRegistrationManager *getDRM(){
+			return mDrm;
+		}
 	private:
 		virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 		virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);

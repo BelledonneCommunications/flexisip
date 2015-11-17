@@ -41,6 +41,8 @@ public:
 	void start();
 	void stop();
 	bool isUs(const url_t *url);
+	bool hasTport(const tport_t *tport)const;
+	const url_t *getPublicUri()const;
 	~DomainRegistration();
 private:
 	void setContact(msg_t *msg);
@@ -73,6 +75,11 @@ public:
 	 * check is url is a local contact of any existing domain registration.
 	 */
 	bool isUs(const url_t *url)const;
+	/**
+	 * If this tport was created as result of domain registration, returns the known public ip/port.
+	 * This is useful for setting correct Record-Routes for request arriving through these connections.
+	**/
+	const url_t *getPublicUri(const tport_t *tport)const;
 	~DomainRegistrationManager();
 private:
 	Agent *mAgent;

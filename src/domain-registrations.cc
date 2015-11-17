@@ -145,6 +145,15 @@ bool DomainRegistrationManager::isUs(const url_t *url)const{
 	return FALSE;
 }
 
+const url_t *DomainRegistrationManager::getPublicUri(const tport_t *tport)const{
+	for (auto it = mRegistrations.begin(); it != mRegistrations.end(); ++it){
+		const shared_ptr<DomainRegistration> & dr = *it;
+		if (dr->hasTport(tport))
+			return dr->getPublicUri();
+	}
+	return NULL;
+}
+
 
 DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr, const string& localDomain, const url_t* parent_proxy, const string& clientCertdir )
 	: mManager(mgr){
@@ -193,6 +202,14 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr, const str
 	mCurrentTport = NULL;
 	mTimer = NULL;
 	mExternalContact = NULL;
+}
+
+bool DomainRegistration::hasTport(const tport_t *tport)const{
+	return tport == mCurrentTport && mCurrentTport != NULL;
+}
+
+const url_t *DomainRegistration::getPublicUri()const{
+	return mExternalContact->m_url;
 }
 
 int DomainRegistration::sLegCallback ( nta_leg_magic_t* ctx, nta_leg_t* leg, nta_incoming_t* incoming, const sip_t* request ) {
