@@ -500,6 +500,10 @@ static const char * url_get_transport(const url_t *url){
 	return ret;
 }
 
+string ModuleToolbox::urlGetTransport(const url_t *url){
+	return url_get_transport(url);
+}
+
 bool ModuleToolbox::urlTransportMatch(const url_t *url1, const url_t *url2){
 	if (strcasecmp(url_get_transport(url1), url_get_transport(url2)) != 0) return false;
 	if (!urlHostMatch(url1->url_host, url2->url_host)) return false;

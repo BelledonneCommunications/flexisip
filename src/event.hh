@@ -190,6 +190,7 @@ public:
 	}
 	bool mRecordRouteAdded;
 private:
+	void checkContentLength(const url_t *url);
 	void linkTransactions();
 	std::shared_ptr<tport_t> mIncomingTport;
 };
@@ -205,6 +206,7 @@ public:
 
 	~ResponseSipEvent();
 private:
+	void checkContentLength(const std::shared_ptr<MsgSip> &msg, const sip_via_t *via);
 	bool mPopVia;//set to true if the response comes from an outgoing transaction.
 };
 

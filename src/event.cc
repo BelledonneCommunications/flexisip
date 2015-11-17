@@ -20,6 +20,7 @@
 #include "event.hh"
 #include "transaction.hh"
 #include "common.hh"
+#include "module.hh"
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/su_tagarg.h>
 #include <sofia-sip/msg_addr.h>
@@ -148,6 +149,20 @@ std::shared_ptr<IncomingTransaction> SipEvent::getIncomingTransaction(){
 
 std::shared_ptr<OutgoingTransaction> SipEvent::getOutgoingTransaction(){
 	return dynamic_pointer_cast<OutgoingTransaction>(getOutgoingAgent());
+}
+
+
+void RequestSipEvent::checkContentLength(const url_t *url){
+	sip_t *sip = mMsgSip->getSip();
+	if (sip->sip_content_length == NULL){
+		string transport = ModuleToolbox::urlGetTransport(url);
+		if (strcasecmp(transport.c_str(), "UDP") != 0){
+			/*if there is no Content-length and we are switching to a non-udp transport, we have to add a Content-Length, as requested by
+			 * RFC3261 for reliable transports*/
+			LOGD("Automatically adding content-length because going to a stream-based transport");
+			sip->sip_content_length = sip_content_length_make(mMsgSip->getHome(), "0");
+		}
+	}
 }
 
 RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent,
@@ -280,6 +295,14 @@ ResponseSipEvent::ResponseSipEvent(const shared_ptr<ResponseSipEvent> &sipEvent)
 		SipEvent(*sipEvent), mPopVia(sipEvent->mPopVia) {
 }
 
+void ResponseSipEvent::checkContentLength(const shared_ptr<MsgSip> &msg, const sip_via_t *via){
+	if (msg->getSip()->sip_content_length == NULL && strcasecmp(via->v_protocol, "UDP") != 0){
+		/*if there is no Content-length and we are switching to a non-udp transport, we have to add a Content-Length, as requested by
+			 * RFC3261 for reliable transports*/
+		LOGD("Automatically adding content-length because going to a stream-based transport");
+		msg->getSip()->sip_content_length = sip_content_length_make(mMsgSip->getHome(), "0");
+	}
+}
 
 void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
@@ -288,6 +311,7 @@ void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u
 			sip_via_remove(msg->getMsg(), msg->getSip());
 			via_popped=true;
 		}
+		checkContentLength(msg, msg->getSip()->sip_via);
 		SLOGD << "Sending response:" << (via_popped ? " (via popped) " : "")<<endl<< *msg;
 		ta_list ta;
 		ta_start(ta, tag, value);
