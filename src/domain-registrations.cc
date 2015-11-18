@@ -319,7 +319,7 @@ void DomainRegistration::start() {
 	if (nta_msg_request_complete(msg, mLeg, sip_method_register, NULL, (url_string_t*)mProxy) != 0){
 		LOGE("nta_msg_request_complete() failed");
 	}
-	msg_header_insert(msg, msg_object(msg), (msg_header_t*)sip_expires_create(msg_home(msg), 3600));
+	msg_header_insert(msg, msg_object(msg), (msg_header_t*)sip_expires_create(msg_home(msg), 600));
 	setContact(msg);
 	sip_complete_message(msg);
 	msg_serialize(msg, msg_object(msg));
