@@ -24,9 +24,9 @@ using namespace std;
 namespace flexisip {
 
 Subscription::Subscription(string eventName,unsigned int expires,belle_sip_dialog_t* aDialog, belle_sip_provider_t* prov)
-	:mEventName(eventName)
+	:mDialog(aDialog)
+	,mEventName(eventName)
 	,mExpires(expires)
-	,mDialog(aDialog)
 	,mState(active)
 	,mProv(prov){
 	
@@ -52,7 +52,13 @@ void Subscription::setAcceptHeader(belle_sip_header_t* acceptHeader) {
 	
 		}
 	}
+	void Subscription::notify(belle_sip_multipart_body_handler_t* body) {
+		notify(NULL,NULL,body);
+	}
 	void Subscription::notify(belle_sip_header_content_type_t * content_type, string& body) {
+		notify(content_type,&body,NULL);
+	}
+	void Subscription::notify(belle_sip_header_content_type_t * content_type, string* body,belle_sip_multipart_body_handler_t* multiPartBody)	 {
 		if (belle_sip_dialog_get_state(mDialog) != BELLE_SIP_DIALOG_CONFIRMED) {
 			SLOGE << "Cannot notify information change for ["<<std::hex <<(long)this<<"] because dialog ["<<std::hex <<(long)mDialog <<"]is in state ["<< belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(mDialog)) <<"]" ;
 			return;
@@ -60,12 +66,15 @@ void Subscription::setAcceptHeader(belle_sip_header_t* acceptHeader) {
 		belle_sip_request_t* notify=belle_sip_dialog_create_queued_request(mDialog,"NOTIFY");
 		belle_sip_message_add_header((belle_sip_message_t*)notify,belle_sip_header_create("Event",mEventName.c_str()));
 		
-		if (content_type) {
+		if (content_type && body) {
 			belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify), BELLE_SIP_HEADER(content_type));
-			belle_sip_message_set_body(BELLE_SIP_MESSAGE(notify), body.c_str(), (int)body.length());
+			belle_sip_message_set_body(BELLE_SIP_MESSAGE(notify), body->c_str(), (int)body->length());
+			belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify), BELLE_SIP_HEADER(belle_sip_header_content_length_create((int)body->length())));
+		} else if (multiPartBody) {
+			belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify), belle_sip_header_create("Require", "eventlist"));
+			belle_sip_multipart_body_handler_set_related(multiPartBody, TRUE);
+			belle_sip_message_set_body_handler(BELLE_SIP_MESSAGE(notify), BELLE_SIP_BODY_HANDLER(multiPartBody));
 		}
-		belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify), BELLE_SIP_HEADER(belle_sip_header_content_length_create((int)body.length())));
-		
 		
 		/*RFC 3265
 		 *
@@ -125,7 +134,7 @@ void Subscription::setAcceptHeader(belle_sip_header_t* acceptHeader) {
 		belle_sip_object_unref((void*)mPresentity);
 		
 	}
-	const belle_sip_uri_t* PresenceSubscription::getPresentityUri() {
+	const belle_sip_uri_t* PresenceSubscription::getPresentityUri() const {
 		return mPresentity;
 	}
 	void PresenceSubscription::onInformationChanged(PresentityPresenceInformation& presenceInformation) {
@@ -144,7 +153,7 @@ void Subscription::setAcceptHeader(belle_sip_header_t* acceptHeader) {
 		notify(content_type,body);
 	}
 	
-	void PresenceSubscription::onExpired(PresentityPresenceInformation& presenceInformation) {
+	void PresenceSubscription::onExpired(PresentityPresenceInformation& presenceInformation){
 		//just transition state to expired
 		setState(Subscription::State::terminated);
 	}

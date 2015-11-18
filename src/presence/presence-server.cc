@@ -21,9 +21,10 @@
 #include "belle-sip/belle-sip.h"
 #include "pidf+xml.hxx"
 //#include "application_pidf+xml/pidf+xml-pimpl.hxx"
-//#include "resource-list/resource-lists.hxx"
+#include "resource-lists.hxx"
 //#include "resource-list/resource-lists-pimpl.hxx"
 #include "presentity-presenceinformation.hh"
+#include "list-subscription.hh"
 #include "signaling-exception.hh"
 #include "subscription.hh"
 #include "configmanager.hh"
@@ -511,24 +512,47 @@ void  PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event
 	
 	switch (belle_sip_dialog_get_state(dialog)) {
 		case BELLE_SIP_DIALOG_NULL: {
+			belle_sip_header_supported_t *supported = belle_sip_message_get_header_by_type(BELLE_SIP_MESSAGE(request), belle_sip_header_supported_t);
+			belle_sip_header_content_disposition_t *content_disposition = belle_sip_message_get_header_by_type(BELLE_SIP_MESSAGE(request), belle_sip_header_content_disposition_t);
 			//first create the dialog
 			belle_sip_response_t* resp=belle_sip_response_create_from_request(request,200);
 			belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp), BELLE_SIP_HEADER(belle_sip_header_expires_create(expires)));
 			
-			
-			belle_sip_server_transaction_send_response(server_transaction,resp);
+			//case of rfc5367 (list subscription with resource list in body
+			if (supported
+				&& belle_sip_list_find_custom(belle_sip_header_supported_get_supported(supported), (belle_sip_compare_func)strcasecmp, "eventlist")
+				&& content_disposition
+				&& (strcasecmp (belle_sip_header_content_disposition_get_content_disposition(content_disposition), "recipient-list") == 0)){
+				
+				SLOGD << "Subscribe for resource list " << "for dialog [" << BELLE_SIP_OBJECT(dialog) << "]";
+				
+				ListSubscription *listSubscription = new ListSubscription(expires,server_transaction,mProvider);
+				// send 200ok late to allow deeper anylise of request
+				belle_sip_server_transaction_send_response(server_transaction,resp);
 
+				belle_sip_dialog_set_application_data(dialog, listSubscription);
+				for (shared_ptr<PresentityPresenceInformationListener>& listener:listSubscription->getListeners()) {
+					addOrUpdateListener(listener,expires);
+				}
+				listSubscription->notify(TRUE);
+				
+			} else {
+				
+				shared_ptr<PresentityPresenceInformationListener> subscription= make_shared<PresenceSubscription>(expires
+																								 ,belle_sip_request_get_uri(request)
+																								 ,dialog
+																								 ,mProvider);
+				belle_sip_dialog_set_application_data(dialog, subscription.get());
+				// send 200ok late to allow deeper anylise of request
+				belle_sip_server_transaction_send_response(server_transaction,resp);
+				
+				addOrUpdateListener(subscription,expires);
+			}
 			
-			PresenceSubscription* subscription= new PresenceSubscription(expires
-																		 ,belle_sip_request_get_uri(request)
-																		 ,dialog
-																		 ,mProvider);
-			belle_sip_dialog_set_application_data(dialog, subscription);
-			addOrUpdateListener(*subscription,expires);
 			break;
 		}
 		case BELLE_SIP_DIALOG_CONFIRMED: {
-			PresenceSubscription* subscription = static_cast<PresenceSubscription*>(belle_sip_dialog_get_application_data(dialog));
+			Subscription* subscription = static_cast<Subscription*>(belle_sip_dialog_get_application_data(dialog));
 			
 //			RFC 3265
 //			3.1.4.2. Refreshing of Subscriptions
@@ -580,11 +604,32 @@ void  PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event
 			
 			if (expires == 0) {
 				subscription->setState(Subscription::State::terminated);
-				removeListener(*subscription);
+				if (typeid(*subscription) == typeid(PresenceSubscription)) {
+					shared_ptr<PresentityPresenceInformationListener> listener = dynamic_cast<PresenceSubscription*>(subscription)->shared_from_this();
+					removeListener(listener);
+				} else {
+					//list subscription case
+					ListSubscription *listSubscription = dynamic_cast<ListSubscription*>(subscription);
+					for (shared_ptr<PresentityPresenceInformationListener> listener:listSubscription->getListeners()) {
+						removeListener(listener);
+					}
+					dynamic_cast<Subscription*>(listSubscription)->notify(NULL); // to trigger final notify
+					//fixme de delete listSubscription ???
+				}
 			} else {
 				//update expires
 				subscription->setExpire(expires);
-				addOrUpdateListener(*subscription,expires);
+				if (typeid(subscription) == typeid(PresenceSubscription)) {
+					shared_ptr<PresentityPresenceInformationListener> listener = dynamic_cast<PresenceSubscription*>(subscription)->shared_from_this();
+					addOrUpdateListener(listener,expires);
+				} else {
+					//list subscription case
+					ListSubscription *listSubscription = static_cast<ListSubscription*>(subscription);
+					for (shared_ptr<PresentityPresenceInformationListener> listener:listSubscription->getListeners()) {
+						addOrUpdateListener(listener,expires);
+					}
+				}
+				
 			}
 			break;
 		}
@@ -639,23 +684,23 @@ void PresenceServer::addEtag(const std::shared_ptr<PresentityPresenceInformation
 	mPresenceInformationsByEtag[etag] = info;
 }
 
-void PresenceServer::addOrUpdateListener(PresentityPresenceInformationListener& listener,int expires) {
-	std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener.getPresentityUri());
+void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listener,int expires) {
+	std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
 	if (presenceInfo == NULL) {
 		/*no information available yet, but creating entry to be able to register subscribers*/
-		presenceInfo.reset(new PresentityPresenceInformation(listener.getPresentityUri(),*this,belle_sip_stack_get_main_loop(mStack)));
+		presenceInfo.reset(new PresentityPresenceInformation(listener->getPresentityUri(),*this,belle_sip_stack_get_main_loop(mStack)));
 		SLOGD <<"New Presentity ["<< *presenceInfo << "] created";
 		addPresenceInfo(presenceInfo);
 	}
 	presenceInfo->addOrUpdateListener(listener,expires);
 	
 }
-void PresenceServer::removeListener(PresentityPresenceInformationListener& listener) {
-	const std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener.getPresentityUri());
+void PresenceServer::removeListener(shared_ptr<PresentityPresenceInformationListener>& listener) {
+	const std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
 	if (presenceInfo) {
 		presenceInfo->removeListener(listener);
 	} else
-		SLOGW <<"No presence info for this entity ["<<listener.getPresentityUri()<<"]/["<<std::hex << (long)&listener<<"]";
+		SLOGW <<"No presence info for this entity ["<<listener->getPresentityUri()<<"]/["<<std::hex << (long)&listener<<"]";
 }
 
 

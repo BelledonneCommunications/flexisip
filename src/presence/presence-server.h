@@ -104,8 +104,8 @@ private:
 	 *
 	 */
 	
-	 void addOrUpdateListener(PresentityPresenceInformationListener& listerner,int expires);
-	 void removeListener(PresentityPresenceInformationListener& listerner);
+	 void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listerner,int expires);
+	 void removeListener(shared_ptr<PresentityPresenceInformationListener>& listerner);
 	
 	//Subscription* getSubscription(const belle_sip_uri_t* identity) const ;
 	//void notify(Subscription& subscription,PresentityPresenceInformation& presenceInformation) throw (FlexisipException);

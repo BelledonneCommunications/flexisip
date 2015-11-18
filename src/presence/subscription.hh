@@ -31,10 +31,11 @@ namespace flexisip {
 			active, pending, terminated
 		};
 		Subscription(string eventName,unsigned int expires,belle_sip_dialog_t* aDialog,belle_sip_provider_t* prov);
-		~Subscription();
+		virtual ~Subscription();
 		void setAcceptHeader(belle_sip_header_t* acceptHeader);
 		void setId(string& id);
 		void notify(belle_sip_header_content_type_t * content_type, string& body);
+		void notify(belle_sip_multipart_body_handler_t* body);
 		static const char* stateToString(State aState);
 		State getState() const;
 		void setState(Subscription::State state);
@@ -42,17 +43,21 @@ namespace flexisip {
 		 * used to update expire value
 		 */
 		void setExpire(int expires);
+	protected:
+		belle_sip_dialog_t* mDialog;
+		belle_sip_provider_t* mProv;
 	private:
+		Subscription(const Subscription&);
+		void notify(belle_sip_header_content_type_t * content_type, string* body,belle_sip_multipart_body_handler_t* multiPartBody);
 		string mEventName;
 		string mEventId;
 		belle_sip_header_t* mAcceptHeader;
 		string state;
 		unsigned int mExpires;
 		string mId;
-		belle_sip_dialog_t* mDialog;
+		
 		State mState;
 		time_t creationTime;
-		belle_sip_provider_t* mProv;
 	
 	};
 	
@@ -68,7 +73,7 @@ namespace flexisip {
 	
 		
 		
-		const belle_sip_uri_t* getPresentityUri(void);
+		const belle_sip_uri_t* getPresentityUri(void) const;
 		/*
 		 * This function is call every time Presentity information need to be notified to a UA
 		 */
@@ -80,6 +85,7 @@ namespace flexisip {
 		
 
 	};
+	
 }
 
 

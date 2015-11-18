@@ -27,8 +27,8 @@ namespace flexisip {
 	
 	class PresentityManager {
 	public:
-		virtual void addOrUpdateListener(PresentityPresenceInformationListener& listerner, int exires) = 0;
-		virtual void removeListener(PresentityPresenceInformationListener& listerner) = 0;
+		virtual void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listerner, int exires) = 0;
+		virtual void removeListener(shared_ptr<PresentityPresenceInformationListener>& listerner) = 0;
 	};
 }
 #endif /* PRESENTITY_MANAGER_HH_ */

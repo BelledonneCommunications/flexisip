@@ -121,7 +121,7 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 		});
 		// create timer
 		belle_sip_source_t* timer = belle_sip_main_loop_create_timeout(mBelleSipMainloop
-																	   ,(belle_sip_source_func_t)source_func
+																	   ,(belle_sip_source_func_t)belle_sip_source_cpp_func
 																	   , func
 																	   , expires*1000
 																	   ,"timer for presence Info");
@@ -172,13 +172,13 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 		return mEntity;
 	}
 	
-	void PresentityPresenceInformation::addOrUpdateListener( PresentityPresenceInformationListener& listener,int expires) {
+	void PresentityPresenceInformation::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> listener,int expires) {
 		
 		//search if exist
 		string op;
 		bool listener_exist = false;
-		for (PresentityPresenceInformationListener * existing_listener:mSubscribers) {
-			if (&listener == existing_listener) {
+		for (const shared_ptr<PresentityPresenceInformationListener> existing_listener:mSubscribers) {
+			if (listener == existing_listener) {
 				listener_exist=true;
 				break;
 			}
@@ -187,18 +187,18 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 			op="Updating";
 		} else {
 			//not found, adding
-			mSubscribers.push_back(&listener);
+			mSubscribers.push_back(listener);
 			op="Adding";
 		}
 
 		
 		SLOGD << op<<" listener ["<<&listener <<"] on ["<<*this<<"] for ["<<expires<<"] seconds";
-		PresentityPresenceInformationListener* listener_ptr=&listener;
+		//PresentityPresenceInformationListener* listener_ptr=listener.get();
 		// cb function to invalidate an unrefreshed etag;
-		std::function<int (unsigned int)> *func = new std::function<int (unsigned int)>([this,listener_ptr](unsigned int events) {
-			listener_ptr->onExpired(*this);
-			this->removeListener(*listener_ptr);
-			SLOGD << "Listener ["<<listener_ptr << "] on ["<<*this<<"] has expired";
+		std::function<int (unsigned int)> *func = new std::function<int (unsigned int)>([this,listener/*_ptr*/](unsigned int events) {
+			listener->onExpired(*this);
+			this->removeListener(listener);
+			SLOGD << "Listener ["<<listener << "] on ["<<*this<<"] has expired";
 			return BELLE_SIP_STOP;
 		});
 		// create timer
@@ -209,7 +209,7 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 																	   ,"timer for presence info listener");
 		
 		//set expiration timer
-		listener.setExpiresTimer(mBelleSipMainloop,timer);
+		listener->setExpiresTimer(mBelleSipMainloop,timer);
 
 		
 		
@@ -221,22 +221,27 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 		 * MUST send a NOTIFY message immediately to communicate the current
 		 * resource state to the subscriber.
 		 */
-		listener.onInformationChanged(*this);
+		listener->onInformationChanged(*this);
 		
 	}
-	void PresentityPresenceInformation::removeListener( PresentityPresenceInformationListener& listener) {
-		SLOGD << "removing listener ["<<&listener <<"] on ["<<*this<<"]";
-		mSubscribers.remove(&listener);
+	void PresentityPresenceInformation::removeListener(shared_ptr<PresentityPresenceInformationListener> listener) {
+		SLOGD << "removing listener ["<<listener<<"] on ["<<*this<<"]";
+		//1 cancel expiration time
+		listener->setExpiresTimer(mBelleSipMainloop,NULL);
+		//2 remove listener
+		mSubscribers.remove(listener);
 		//			 3.1.4.3. Unsubscribing
 		//
 		//			 Unsubscribing is handled in the same way as refreshing of a
 		//			 subscription, with the "Expires" header set to "0".  Note that a
 		//			 successful unsubscription will also trigger a final NOTIFY message.
-		listener.onInformationChanged(*this);
+		listener->onInformationChanged(*this);
 		
 	}
 	
-	
+	bool PresentityPresenceInformation::isKnown() {
+		return mInformationElements.size() > 0;
+	}
 	string PresentityPresenceInformation::getPidf() throw (FlexisipException){
 		stringstream out;
 		try {
@@ -282,7 +287,7 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 	}
 	
 	void PresentityPresenceInformation::notifyAll() {
-			for (PresentityPresenceInformationListener* listener:mSubscribers) {
+			for (shared_ptr<PresentityPresenceInformationListener> listener:mSubscribers) {
 				listener->onInformationChanged(*this);
 		}
 		SLOGD << *this << " has notified ["<< mSubscribers.size() << " ] listeners";
@@ -302,7 +307,7 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 			belle_sip_object_unref(mTimer);
 		}
 		mTimer = timer;
-		belle_sip_object_ref(mTimer);
+		if (mTimer) belle_sip_object_ref(mTimer);
 	}
 	
 	//PresenceInformationElement

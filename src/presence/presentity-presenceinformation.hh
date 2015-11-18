@@ -60,14 +60,14 @@ private:
 
 	class PresentityPresenceInformation;
 	
-	class PresentityPresenceInformationListener {
+	class PresentityPresenceInformationListener : public enable_shared_from_this<PresentityPresenceInformationListener>{
 		
 	public:
 		PresentityPresenceInformationListener();
-		~PresentityPresenceInformationListener();
+		virtual ~PresentityPresenceInformationListener();
 		void setExpiresTimer(belle_sip_main_loop_t *ml,belle_sip_source_t* timer);
 		/*returns prsentity uri associated to this Listener*/
-		virtual const belle_sip_uri_t* getPresentityUri()=0;
+		virtual const belle_sip_uri_t* getPresentityUri() const = 0;
 		/*invoked on changes*/
 		virtual void onInformationChanged(PresentityPresenceInformation& presenceInformation)=0;
 		/*invoked on expiration*/
@@ -126,11 +126,11 @@ public:
 	/**
 	 *add notity listener for an entity
 	 */
-	void addOrUpdateListener(PresentityPresenceInformationListener& listener,int expires);
+	void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> listener,int expires);
 	/*
 	 * remove listener
 	 */
-	void removeListener(PresentityPresenceInformationListener& listener);
+	void removeListener(shared_ptr<PresentityPresenceInformationListener> listener);
 	
 	
 	/*
@@ -138,7 +138,10 @@ public:
 	 */
 	string getPidf() throw (FlexisipException);
 	
-	
+	/*
+	 * return true if a presence info is already known from a publish
+	 */
+	bool isKnown();
 
 private:
 	/*
@@ -157,7 +160,7 @@ private:
 	std::map<std::string /*Etag*/,PresenceInformationElement*> mInformationElements;
 
 	// list of subscribers function to be called when a tuple changed
-	std::list<PresentityPresenceInformationListener*> mSubscribers;
+	std::list<shared_ptr<PresentityPresenceInformationListener>> mSubscribers;
 };
 
 std::ostream& operator<<(std::ostream& __os,const PresentityPresenceInformation&);
