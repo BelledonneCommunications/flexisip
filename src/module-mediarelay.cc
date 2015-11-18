@@ -215,7 +215,8 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		bool newContext=false;
 
 		c=it->getProperty<RelayedCall>(getModuleName());
-		if (c==NULL) c=dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, true));
+		/*if the transaction has no RelayedCall associated, then look for an established dialog (case of reINVITE) */
+		if (c==NULL) c=dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, false));
 		if (c==NULL) {
 			if (mMaxCalls>0 && mCalls->size()>=mMaxCalls){
 				LOGW("Maximum number of relayed calls reached (%i), call is rejected",mMaxCalls);
