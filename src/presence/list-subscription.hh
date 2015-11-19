@@ -20,6 +20,7 @@
 #define flexisip_rls_subscription_hh
 #include "subscription.hh"
 #include <unordered_map>
+#include <chrono>
 using namespace std;
 typedef struct _belle_sip_uri belle_sip_uri_t;
 typedef struct belle_sip_server_transaction belle_sip_server_transaction_t;

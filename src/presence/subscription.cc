@@ -51,6 +51,7 @@ void Subscription::setAcceptHeader(belle_sip_header_t* acceptHeader) {
 			case terminated: return BELLE_SIP_SUBSCRIPTION_STATE_TERMINATED;
 	
 		}
+		return "Unknown state";
 	}
 	void Subscription::notify(belle_sip_multipart_body_handler_t* body) {
 		notify(NULL,NULL,body);
