@@ -17,8 +17,8 @@ nodist_libxml_binding_generated_la_SOURCES = fthttp.hxx fthttp.cxx
 EXTRA_DIST = fthttp.xsd
 	
 if BUILD_PRESENCE
-nodist_libxml_binding_generated_la_SOURCES += xml.hxx  xml.cxx pidf+xml.hxx  pidf+xml.cxx 
-EXTRA_DIST += xml.xsd pidf+xml.xsd
+nodist_libxml_binding_generated_la_SOURCES += xml.hxx  xml.cxx pidf+xml.hxx  pidf+xml.cxx resource-lists.hxx resource-lists.cxx
+EXTRA_DIST += xml.xsd pidf+xml.xsd resource-lists.xsd
 
 endif
 AM_CPPFLAGS=$(XSDCXX_CPPFLAGS) $(XERCESC_CFLAGS)

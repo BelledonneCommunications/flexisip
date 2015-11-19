@@ -86,7 +86,7 @@ AM_LDFLAGS=-no-undefined
 
 if BUILD_XSD
 flexisip_LDADD+= xml/libxml_binding_generated.la $(XERCESC_LIBS)
-AM_CXXFLAGS+= $(XSDCXX_CPPFLAGS)
+AM_CXXFLAGS+= $(XSDCXX_CPPFLAGS) $(XERCESC_CFLAGS)
 endif
 
 if BUILD_SNMP
