@@ -33,7 +33,7 @@ namespace flexisip {
 	/*
 	 * this class instanciate a resource as defined by rfc4662 (I.E a presentity from a resource-list)
 	 */
-	class PresentityResourceListener : public enable_shared_from_this<PresentityResourceListener>, public PresentityPresenceInformationListener {
+	class PresentityResourceListener : public PresentityPresenceInformationListener {
 	public:
 		PresentityResourceListener(ListSubscription & aListSubscription, const belle_sip_uri_t * presentity);
 		PresentityResourceListener(const PresentityResourceListener&);
@@ -80,7 +80,7 @@ namespace flexisip {
 		typedef  unordered_map<const belle_sip_uri_t*,shared_ptr<PresentityPresenceInformation>,hash<const belle_sip_uri_t*>,bellesip::UriComparator> PendingStateType;
 		PendingStateType mPendingStates; //map of Presentity to be notified by uri
 		chrono::time_point<chrono::system_clock> mLastNotify;
-		std::chrono::seconds mMinNotifyIntervale;
+		chrono::seconds mMinNotifyIntervale;
 		/*
 		 * rfc 4662
 		 * 5.2.  List Attributes

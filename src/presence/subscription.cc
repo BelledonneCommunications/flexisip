@@ -25,10 +25,10 @@ namespace flexisip {
 
 Subscription::Subscription(string eventName,unsigned int expires,belle_sip_dialog_t* aDialog, belle_sip_provider_t* prov)
 	:mDialog(aDialog)
+	,mProv(prov)
 	,mEventName(eventName)
 	,mExpires(expires)
-	,mState(active)
-	,mProv(prov){
+	,mState(active) {
 	
 		belle_sip_object_ref(mDialog);
 		belle_sip_object_ref(mProv);
