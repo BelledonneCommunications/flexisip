@@ -182,7 +182,7 @@ echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
 %endif
 	--sysconfdir=%{_sysconfdir}
 
-%{__make}
+%{__make} V=1
 
 # parallel build disabled due to automake libtool random errors
 #%{__make} -j$RPM_BUILD_NCPUS
