@@ -7,6 +7,7 @@ GITVERSION_FILE=flexisip_gitversion.h
 GITVERSION_FILE_TMP=flexisip_gitversion.h.tmp
 GITDESCRIBE=`git describe`
 GITREVISION=`git rev-parse HEAD`
+GIT_TAG=`cd $(top_srcdir) && git describe --abbrev=0`
 AUTOMAKE_OPTIONS = subdir-objects
 
 ECHO=/bin/echo
@@ -222,6 +223,10 @@ clean-local:
 
 make_gitversion_h:
 	if test "$(GITDESCRIBE)" != "" ; then \
+		if [ "$(GIT_TAG)" != "$(PACKAGE_VERSION)" ]; then \
+			$(ECHO) "*** PACKAGE_VERSION and git tag differ. Please put them identical."; \
+			exit 1; \
+		fi ; \
 		$(ECHO) "#define FLEXISIP_GIT_VERSION \"$(GITDESCRIBE)\"" > $(GITVERSION_FILE_TMP) ; \
 	elif test "$(GITREVISION)" != "" ; then \
 		$(ECHO) -n "#define FLEXISIP_GIT_VERSION \"$(LINPHONE_VERSION)_$(GITREVISION)\"" > $(GITVERSION_FILE_TMP) ; \

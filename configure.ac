@@ -20,7 +20,7 @@ dnl    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 AC_PREREQ([2.61])
 
-AC_INIT([flexisip], [1.0.7], [simon.morlat@linphone.org])
+AC_INIT([flexisip], [1.0.8], [simon.morlat@linphone.org])
 
 AC_CONFIG_SRCDIR([src/agent.cc])
 AC_CONFIG_HEADERS([flexisip-config.h])
