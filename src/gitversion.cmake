@@ -20,15 +20,35 @@
 #
 ############################################################################
 
-if(GIT_EXECUTABLE)
+macro(execute_git GIT_OUTPUT_VARIABLE)
+	set(_subcommand_list "${ARGN}")
 	execute_process(
-		COMMAND ${GIT_EXECUTABLE} describe --always
+		COMMAND ${GIT_EXECUTABLE} ${_subcommand_list}
 		WORKING_DIRECTORY ${WORK_DIR}
-		OUTPUT_VARIABLE GIT_REVISION
+		OUTPUT_VARIABLE ${GIT_OUTPUT_VARIABLE}
 		OUTPUT_STRIP_TRAILING_WHITESPACE
 	)
+endmacro()
+
+if(GIT_EXECUTABLE)
+	execute_git(GIT_DESCRIBE describe)
+	execute_git(GIT_REVISION rev-parse HEAD)
+	execute_git(GIT_TAG describe --abbrev=0)
 else()
-	set(GIT_REVISION "unknown")
+	set(GIT_DESCRIBE)
+	set(GIT_REVISION)
+	set(GIT_TAG)
 endif()
 
-configure_file("${WORK_DIR}/gitversion.h.in" "${OUTPUT_DIR}/flexisip_gitversion.h" @ONLY)
+if(GIT_DESCRIBE)
+	if(NOT GIT_TAG STREQUAL FLEXISIP_VERSION)
+		message(FATAL_ERROR "FLEXISIP_VERSION and git tag differ. Please put them identical.")
+	endif()
+	set(GIT_VERSION "${GIT_DESCRIBE}")
+	configure_file("${WORK_DIR}/gitversion.h.in" "${OUTPUT_DIR}/flexisip_gitversion.h" @ONLY)
+elseif(GIT_REVISION)
+	set(GIT_VERSION "${FLEXISIP_VERSION}_${GIT_REVISION}")
+	configure_file("${WORK_DIR}/gitversion.h.in" "${OUTPUT_DIR}/flexisip_gitversion.h" @ONLY)
+elseif(NOT EXISTS "${OUTPUT_DIR}/flexisip_gitversion.h")
+	file(WRITE "${OUTPUT_DIR}/flexisip_gitversion.h" "")
+endif()
