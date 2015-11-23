@@ -19,6 +19,7 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 ############################################################################
+
 cmake_minimum_required(VERSION 3.0.0 FATAL_ERROR)
 
 project(flexisip C CXX)
@@ -32,7 +33,6 @@ set(FLEXISIP_SO_VERSION "6")
 include(CMakePushCheckState)
 include(CMakeDependentOption)
 include(CheckSymbolExists)
-include(CheckIncludeFile)
 include(CheckFunctionExists)
 
 option(ENABLE_STATIC "Build static library (default is shared library)." NO)
@@ -67,21 +67,23 @@ endfunction()
 
 # Configure CMAKE
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-add_definitions(-DHAVE_CONFIG_H)
-list( APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
+add_definitions("-DHAVE_CONFIG_H")
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Required packages
 find_package(SofiaSipUa REQUIRED)
-find_package(ORTP 0.21 REQUIRED)
-
-
-find_program(XSDCXX_PROG NAMES "xsdcxx" "xsd" 
-						HINTS ${XSDCXX_ROOT_PATH}/bin 
-						NO_DEFAULT_PATH)
-if(NOT XSDCXX_PROG)
-	set(ENABLE_XSD 0)
-	message(STATUS "Program 'xsdcxx' could not be found in ${XSDCXX_ROOT_PATH}/bin, disabling XSD features")
+if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
+	include("${EP_ortp_CONFIG_DIR}/ORTPConfig.cmake")
 else()
+	find_package(ORTP 0.21 REQUIRED)
+endif()
+
+
+find_program(XSDCXX_PROG NAMES "xsdcxx" "xsd"
+	HINTS ${XSDCXX_ROOT_PATH}/bin 
+	NO_DEFAULT_PATH
+)
+if(XSDCXX_PROG)
 	set(ENABLE_XSD 1)
 	message(STATUS "XSD found at ${XSDCXX_PROG}, enabling XSD")
 	# TODO: check XSD is the correct executable
@@ -93,6 +95,9 @@ else()
 	if(NOT XERCES_INCLUDE_DIRS)
 		message(FATAL_ERROR "Failed to find the Xerces includes.")
 	endif()
+else()
+	set(ENABLE_XSD 0)
+	message(STATUS "Program 'xsdcxx' could not be found in ${XSDCXX_ROOT_PATH}/bin, disabling XSD features")
 endif()
 
 check_function_exists(arc4random HAVE_ARC4RANDOM)
@@ -124,7 +129,7 @@ if(ENABLE_SNMP)
 endif()
 
 if(ENABLE_ODBC)
-	FIND_PROGRAM_REQUIRED(ODBC_PROG odbc_config )
+	FIND_PROGRAM_REQUIRED(ODBC_PROG odbc_config)
 	execute_process(COMMAND "${ODBC_PROG}" "--libs" OUTPUT_VARIABLE ODBC_LIBRARIES OUTPUT_STRIP_TRAILING_WHITESPACE)
 	execute_process(COMMAND "${ODBC_PROG}" "--cflags" OUTPUT_VARIABLE ODBC_CFLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
 	execute_process(COMMAND "${ODBC_PROG}" "--include-prefix" OUTPUT_VARIABLE ODBC_INCLUDE_DIRS OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -133,7 +138,7 @@ if(ENABLE_ODBC)
 	message(STATUS "ODBC headers: ${ODBC_CFLAGS}")
 
 	# check SQL headers
-	find_path(ODBC_SQL_HEADERS NAMES sql.h sqlext.h sqltypes.h mysql/mysql.h PATHS ODBC_INCLUDE_DIRS )
+	find_path(ODBC_SQL_HEADERS NAMES sql.h sqlext.h sqltypes.h mysql/mysql.h PATHS ODBC_INCLUDE_DIRS)
 	if(NOT ODBC_SQL_HEADERS)
 		message(FATAL_ERROR "ODBC Mysql headers not found.")
 	else()
@@ -142,7 +147,7 @@ if(ENABLE_ODBC)
 
 	# check that odbc_config gives us a correct library path
 	find_library(ODBC_LIB_FOUND NAMES odbc PATHS ODBC_LIBRARY_DIR)
-	if(NOT ODBC_LIB_FOUND )
+	if(NOT ODBC_LIB_FOUND)
 		message(FATAL_ERROR "ODBC library not found.")
 	endif()
 endif()
@@ -164,7 +169,7 @@ if(ENABLE_DATEHANDLER)
 endif()
 
 if(ENABLE_REDIS)
-	find_path(HIREDIS_INCLUDE_DIRS NAMES hiredis/hiredis.h )
+	find_path(HIREDIS_INCLUDE_DIRS NAMES hiredis/hiredis.h)
 	find_library(HIREDIS_LIBRARIES NAMES hiredis)
 	if(NOT HIREDIS_INCLUDE_DIRS)
 		message(FATAL_ERROR "hiredis headers not found")
@@ -178,10 +183,10 @@ if(ENABLE_REDIS)
 	list(APPEND CMAKE_REQUIRED_INCLUDES ${HIREDIS_INCLUDE_DIRS})
 	list(APPEND CMAKE_REQUIRED_LIBRARIES ${HIREDIS_LIBRARIES})
 	check_symbol_exists("redisAsyncCommand" "hiredis/async.h" HIREDIS_ASYNC_ENABLED)
+	cmake_pop_check_state()
 	if(NOT HIREDIS_ASYNC_ENABLED)
 		message(FATAL_ERROR "Hiredis needs support for Async commands.")
 	endif()
-	cmake_pop_check_state()
 endif()
 
 if(ENABLE_PROTOBUF)
@@ -200,7 +205,11 @@ if(ENABLE_DOC)
 endif()
 
 if(ENABLE_PRESENCE)
-	find_package(BelleSIP 1.2.4 REQUIRED)
+	if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
+		include("${EP_bellesip_CONFIG_DIR}/BelleSIPConfig.cmake")
+	else()
+		find_package(BelleSIP 1.2.4 REQUIRED)
+	endif()
 endif()
 
 # Boost checks
@@ -212,7 +221,9 @@ if(ENABLE_PUSHNOTIFICATION)
 	find_package(openssl 0.9.8 REQUIRED)
 	list(APPEND BOOST_COMPONENTS system)
 endif()
-find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+if(BOOST_COMPONENTS)
+	find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+endif()
 
 
 include_directories(
