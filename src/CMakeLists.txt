@@ -214,6 +214,7 @@ if(FLEXISIP_DEPENDENCIES)
 	add_dependencies(flexisip ${FLEXISIP_DEPENDENCIES})
 endif()
 add_dependencies(flexisip flexisip-git-version)
+target_compile_features(flexisip PRIVATE cxx_auto_type cxx_variadic_macros)
 target_link_libraries(flexisip ${FLEXISIP_LIBS})
 target_include_directories(flexisip PUBLIC ${FLEXISIP_INCLUDES})
 

@@ -65,9 +65,7 @@ function(FIND_PROGRAM_REQUIRED varname progname)
 	endif()
 endfunction()
 
-# Configure CMAKE
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-add_definitions("-DHAVE_CONFIG_H")
+
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Required packages
@@ -236,6 +234,7 @@ include_directories(
 
 configure_file(${PROJECT_SOURCE_DIR}/cmake/flexisip-config.h.in ${PROJECT_BINARY_DIR}/flexisip-config.h)
 set_source_files_properties(${PROJECT_BINARY_DIR}/flexisip-config.h PROPERTIES GENERATED ON)
+add_definitions("-DHAVE_CONFIG_H")
 
 add_subdirectory(src)
 
