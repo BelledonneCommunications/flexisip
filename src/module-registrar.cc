@@ -36,6 +36,29 @@ using namespace ::std;
 class ModuleRegistrar;
 static ModuleRegistrar *sRegistrarInstanceForSigAction=NULL;
 
+
+
+class FakeFetchListener: public RegistrarDbListener {
+	friend class ModuleRegistrar;
+public:
+	FakeFetchListener() {
+	}
+	void onRecordFound(Record *r) {
+		if (r!=NULL) {
+			SLOGD << r;
+		} else {
+			LOGD("No record found");
+		}
+	}
+	void onError() {
+	}
+
+	void onInvalid(){
+		LOGD("FakeFetchListener: onInvalid");
+	}
+};
+
+
 struct RegistrarStats {
 	unique_ptr<StatPair> mCountBind;
 	unique_ptr<StatPair> mCountClear;
@@ -130,6 +153,8 @@ public:
 		}
 		mAllowDomainRegistrations = GenericManager::get()->getRoot()
 				->get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("accept-domain-registrations")->read();
+		mAssumeUniqueDomains = GenericManager::get()->getRoot()
+				->get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("assume-unique-domains")->read();
 		mSigaction.sa_sigaction = ModuleRegistrar::sighandler;
 		mSigaction.sa_flags = SA_SIGINFO;
 		sigaction(SIGUSR1, &mSigaction, NULL);
@@ -173,6 +198,7 @@ private:
 	su_timer_t *mStaticRecordsTimer;
 	int mStaticRecordsTimeout;
 	int mStaticRecordsVersion;
+	bool mAssumeUniqueDomains;
 	struct sigaction mSigaction;
 	static void sighandler(int signum, siginfo_t *info, void *ptr);
 	static ModuleInfo<ModuleRegistrar> sInfo;
@@ -513,6 +539,10 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			RegistrarDb::get(mAgent)->clear(sip, listener);
 			return;
 		} else {
+			if (sipurl->url_user && mAssumeUniqueDomains){
+				/*first clear to make sure that there is only one record*/
+				RegistrarDb::get(mAgent)->clear(sip,make_shared<FakeFetchListener>());
+			}
 			auto listener = make_shared<OnRequestBindListener>(this, ev, sip->sip_from, sip->sip_contact, sip->sip_path);
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
@@ -705,29 +735,6 @@ void ModuleRegistrar::readStaticRecords() {
 	}
 
 }
-
-
-
-class FakeFetchListener: public RegistrarDbListener {
-	friend class ModuleRegistrar;
-public:
-	FakeFetchListener() {
-	}
-	void onRecordFound(Record *r) {
-		if (r!=NULL) {
-			SLOGD << r;
-		} else {
-			LOGD("No record found");
-		}
-	}
-	void onError() {
-	}
-
-	void onInvalid(){
-		LOGD("FakeFetchListener: onInvalid");
-	}
-};
-
 
 void ModuleRegistrar::sighandler(int signum, siginfo_t* info, void* ptr) {
 	if (signum == SIGUSR1) {

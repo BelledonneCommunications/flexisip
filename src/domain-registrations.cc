@@ -58,6 +58,8 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 	
 	ConfigItemDescriptor configs[] = {
 		{ Boolean , "accept-domain-registrations", "Whether flexisip shall accept registrations for entire domains", "false"},
+		{ Boolean , "assume-unique-domains", "Whether flexisip shall assume that there is a unique server per registered domain, which allows"
+						" to clean old registrations and simplifies the routing logic.", "false"},
 		{ String , "domain-registrations", "Path to a text file describing the domain registrations to make. This file must contains lines like:\n"
 							" <local domain name> <SIP URI of proxy/registrar where to send the domain REGISTER>\n"
 							" where:\n"

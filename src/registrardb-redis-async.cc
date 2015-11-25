@@ -545,7 +545,7 @@ void RegistrarDbRedisAsync::handleFetch ( redisReply *reply, RegistrarUserData *
 
 void RegistrarDbRedisAsync::handleClear ( redisReply *reply, RegistrarUserData *data )
 {
-	if ( reply->str > 0 ) {
+	if ( reply->len > 0 ) {
 		if ( !mSerializer->parse ( reply->str, reply->len, &data->record ) ) {
 			LOGE ( "Couldn't parse stored contacts for aor:%s : %i bytes", data->key, reply->len );
 			data->listener->onError();

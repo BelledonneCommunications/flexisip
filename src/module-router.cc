@@ -602,6 +602,67 @@ public:
 };
 
 
+class TargetUriListFetcher: public RegistrarDbListener,public enable_shared_from_this<TargetUriListFetcher>, private ModuleToolbox {
+	friend class ModuleRouter;
+	ModuleRouter *mModule;
+	shared_ptr<RequestSipEvent> mEv;
+	shared_ptr<RegistrarDbListener> mListener;
+	sip_route_t *mUriList; /*it is parsed as a route but is not a route*/
+	int pending;
+	bool error;
+	Record *m_record;
+public:
+	TargetUriListFetcher(ModuleRouter *module, const shared_ptr<RequestSipEvent> & ev,
+					  const shared_ptr<RegistrarDbListener> &listener, sip_unknown_t *target_uris) :
+	mModule(module), mEv(ev), mListener(listener) {
+		pending = 0;
+		error = false;
+		m_record= new Record("virtual_record");
+		if (target_uris && target_uris->un_value){
+			/*the X-target-uris header is parsed like a route, as it is a list of URIs*/
+			mUriList = sip_route_make(mEv->getHome(), target_uris->un_value);
+		}
+	}
+
+	~TargetUriListFetcher() {
+		delete (m_record);
+	}
+
+	void fetch(bool allowDomainRegistrations, bool recursive) {
+		sip_route_t *iter;
+		for (iter = mUriList; iter != NULL; iter = iter->r_next) {
+			RegistrarDb::get(mModule->getAgent())->fetch(iter->r_url, this->shared_from_this(), allowDomainRegistrations, recursive);
+		}
+	}
+
+	void onRecordFound(Record *r) {
+		--pending;
+		if (r != NULL) {
+			const auto &ctlist = r->getExtendedContacts();
+			for (auto it = ctlist.begin(); it != ctlist.end(); ++it)
+				m_record->pushContact(*it);
+		}
+		checkFinished();
+	}
+	void onError() {
+		--pending;
+		error = true;
+		checkFinished();
+	}
+
+	void onInvalid() {
+		--pending;
+		error = true;
+		checkFinished();
+	}
+
+	void checkFinished() {
+		if (pending != 0) return;
+		if (error) mListener->onError();
+		else mListener->onRecordFound(m_record);
+	}
+};
+
 class OnFetchForRoutingListener: public RegistrarDbListener {
 	friend class ModuleRouter;
 	ModuleRouter *mModule;
@@ -676,8 +737,18 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			sendReply(ev, SIP_100_TRYING);
 			auto onRoutingListener = make_shared<OnFetchForRoutingListener>(this, ev, sipurl);
 			if (mPreroute.empty()) {
-				RegistrarDb::get(mAgent)->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
+				/*the unstandard X-Target-Uris header gives us a list of SIP uri to which the request is to be forked.*/
+				sip_unknown_t *h=ModuleToolbox::getCustomHeaderByName(ev->getSip(),"X-Target-Uris");
+				if (!h){
+					RegistrarDb::get(mAgent)->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
+				}else{
+					auto fetcher = make_shared<TargetUriListFetcher>(this, ev, onRoutingListener, h);
+					fetcher->fetch(mAllowDomainRegistrations, true);
+				}
 			} else {
+				/*The preroute request uri param does more or less the same thing as the above X-Target-Uris header, 
+				 * but was designed in more ancient times. The domain name is deduced from the request-uri.
+				 * It is kept for backward compatibility but the X-Target-Uris method is prefered*/
 				char preroute_param[20];
 				if (url_param(sipurl->url_params, "preroute", preroute_param, sizeof(preroute_param))) {
 					if (strchr(preroute_param, '@')) {
