@@ -539,7 +539,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			RegistrarDb::get(mAgent)->clear(sip, listener);
 			return;
 		} else {
-			if (sipurl->url_user && mAssumeUniqueDomains){
+			if (sipurl->url_user == NULL && mAssumeUniqueDomains){
 				/*first clear to make sure that there is only one record*/
 				RegistrarDb::get(mAgent)->clear(sip,make_shared<FakeFetchListener>());
 			}
