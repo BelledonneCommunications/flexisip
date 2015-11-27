@@ -25,6 +25,7 @@
 #include "log/logmanager.hh"
 #include <sofia-sip/sip_status.h>
 
+
 #include "lateforkapplier.hh"
 
 using namespace ::std;
@@ -70,6 +71,9 @@ public:
 			{ Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.","0"},
 			{ Integer , "message-delivery-timeout", "Maximum duration for delivering a text message","3600"},
 			{ Integer , "message-accept-timeout", "Maximum duration for accepting a text message if no response is received from any recipients.","15"},
+			{ Boolean, "allow-target-factorization", "During a call forking, allow several INVITEs going to the same next hop to be grouped into "
+				"a single one. A proprietary custom header 'X-target-uris' is added to the INVITE to indicate the final targets of the "
+				"INVITE.", "false"},
 			{ String, "generated-contact-route" , "Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
 			{ String, "generated-contact-expected-realm" , "Require presence of authorization header for specified realm. [Realm]", ""},
 			{ Boolean, "generate-contact-even-on-filled-aor", "Generate a contact route even on filled AOR.", "false"},
@@ -125,6 +129,7 @@ public:
 
 		mPreroute = mc->get<ConfigString>("preroute")->read();
 		mAllowDomainRegistrations = cr->get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("accept-domain-registrations")->read();
+		mAllowTargetFactorization = mc->get<ConfigBoolean>("allow-target-factorization")->read();
 	}
 
 	virtual void onUnload() {
@@ -142,7 +147,8 @@ private:
 		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 	}
 	bool makeGeneratedContactRoute(shared_ptr<RequestSipEvent> &ev, Record *aor, list<shared_ptr<ExtendedContact>> & ec_list);
-	bool dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact, shared_ptr<ForkContext> context = shared_ptr<ForkContext>());
+	bool dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact, shared_ptr<ForkContext> context,
+		const string &targetUris);
 	string routingKey(const url_t* sipUri) {
 		ostringstream oss;
 		if (sipUri->url_user) {
@@ -174,6 +180,7 @@ private:
 	static ModuleInfo<ModuleRouter> sInfo;
 	bool mGenerateContactEvenOnFilledAor;
 	bool mAllowDomainRegistrations;
+	bool mAllowTargetFactorization;
 	string mPreroute;
 };
 
@@ -254,7 +261,7 @@ bool ModuleRouter::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *
 	return false;
 }
 
-bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const shared_ptr< ExtendedContact > &contact, shared_ptr< ForkContext > context) {
+bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const shared_ptr< ExtendedContact > &contact, shared_ptr< ForkContext > context, const string &targetUris) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	time_t now = getCurrentTime();
 	sip_contact_t *ct = contact->toSofiaContacts(ms->getHome(), now);
@@ -312,6 +319,9 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const share
 			r->r_next = final_route;
 		}
 	}
+	if (!targetUris.empty()){
+		sip_header_insert(new_msg, new_sip, (sip_header_t*)sip_unknown_make(msg_home(new_msg), targetUris.c_str()));
+	}
 	new_sip->sip_route=NULL;
 	cleanAndPrependRoute(getAgent(), new_msg, new_sip, routes);
 
@@ -366,7 +376,7 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 			shared_ptr<ForkContext> context = it->second;
 			if (context->onNewRegister(ct->m_url,uid)){
 				SLOGD << "Found a pending context for key " << key << ": " << context.get();
-				dispatch( context->getEvent(), ec, context);
+				dispatch( context->getEvent(), ec, context, "");
 			}else LOGD("Found a pending context but not interested in this new register.");
 		}
 	}
@@ -385,7 +395,7 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 				LOGD("Found a pending context for contact %s: %p",
 				     ec->mSipUri.c_str(), context.get());
 				auto stlpath=Record::route_to_stl(context->getEvent()->getMsgSip()->getHome(), path);
-				dispatch(context->getEvent(), ec, context);
+				dispatch(context->getEvent(), ec, context, "");
 			}
 		}
 	}
@@ -419,11 +429,89 @@ bool ModuleRouter::makeGeneratedContactRoute(shared_ptr<RequestSipEvent> &ev, Re
 	return false;
 }
 
+struct ForkDestination{
+	ForkDestination() : mSipContact(NULL), mExtendedContact(NULL), mTargetUris(NULL){
+	}
+	ForkDestination(sip_contact_t* ct, const shared_ptr<ExtendedContact> &exContact, const string &targetUris) : 
+		mSipContact(ct), mExtendedContact(exContact), mTargetUris(targetUris){
+	}
+	sip_contact_t* mSipContact;
+	shared_ptr<ExtendedContact> mExtendedContact;
+	string mTargetUris;
+};
+
+class ForkGroupSorter{
+public:
+	ForkGroupSorter(const list< pair<sip_contact_t*, shared_ptr<ExtendedContact> > > &usable_contacts) : mAllContacts(usable_contacts){
+	}
+	void makeGroups(){
+		SofiaAutoHome home;
+		/*first step, eliminate adjacent contacts, they cannot be factorized*/
+		for (auto it = mAllContacts.begin(); it != mAllContacts.end();){
+			if (!(*it).second->mPath.size() < 2){
+				/*this is a "direct" destination, nothing to do*/
+				mDestinations.emplace_back(ForkDestination((*it).first, (*it).second, NULL));
+				it = mAllContacts.erase(it);
+				continue;
+			}else ++it;
+		}
+		/*second step, form groups with non-adjacent contacts*/
+		for (auto it = mAllContacts.begin(); it != mAllContacts.end();){
+			list< pair<sip_contact_t*, shared_ptr<ExtendedContact> > >::iterator sameDestinationIt;
+			ForkDestination dest;
+			ostringstream targetUris;
+			bool foundGroup = false;
+			
+			dest.mSipContact = (*it).first;
+			dest.mExtendedContact = (*it).second;
+			targetUris<<dest.mExtendedContact->mSipUri;
+			url_t *url = url_make(home.home(), (*it).second->mPath.back().c_str());
+			//remove it and now search for other contacts that have the same route.
+			it = mAllContacts.erase(it);
+			while ((sameDestinationIt = findDestination(url)) != mAllContacts.end()){
+				targetUris<<", "<<(*sameDestinationIt).second->mSipUri;
+				mAllContacts.erase(sameDestinationIt);
+				foundGroup = true;
+			}
+			if (foundGroup){
+				//a group was formed
+				LOGD("A group with targetUris %s was formed", targetUris.str().c_str());
+				dest.mTargetUris = targetUris.str();
+				it = mAllContacts.begin();
+				
+			}
+			mDestinations.emplace_back(dest);
+		}
+	}
+	void makeDestinations(){
+		for (auto it = mAllContacts.begin(); it != mAllContacts.end();){
+			mDestinations.emplace_back(ForkDestination((*it).first, (*it).second, NULL));
+		}
+	}
+	const list<ForkDestination> & getDestinations()const{
+		return mDestinations;
+	}
+private:
+	list< pair<sip_contact_t*, shared_ptr<ExtendedContact> > >::iterator findDestination(const url_t *url){
+		SofiaAutoHome home;
+		for (auto it = mAllContacts.begin(); it != mAllContacts.end(); ++it){
+			url_t *it_route = url_make(home.home(), (*it).second->mPath.back().c_str());
+			if (url_cmp(it_route, url) == 0){
+				return it;
+			}
+		}
+		return mAllContacts.end();
+	}
+	list<ForkDestination> mDestinations;
+	list< pair<sip_contact_t*, shared_ptr<ExtendedContact> > > mAllContacts;
+};
+
 void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, const url_t *sipUri) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	list<shared_ptr<ExtendedContact>> contacts;
 	list< pair<sip_contact_t*, shared_ptr<ExtendedContact> > > usable_contacts;
+	bool isInvite = false;
 
 	if (!aor && mGeneratedContactRoute.empty()) {
 		LOGD("This user isn't registered (no aor).");
@@ -492,6 +580,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 	if (mFork) {
 		if (sip->sip_request->rq_method == sip_method_invite) {
 			context = make_shared<ForkCallContext>(getAgent(), ev, mForkCfg, this);
+			isInvite = true;
 		} else if ((sip->sip_request->rq_method == sip_method_message)
 			&& !(sip->sip_content_type != NULL
 				&& strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0)) {
@@ -508,17 +597,27 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			}
 		}
 	}
-	for (auto it = usable_contacts.begin(); it != usable_contacts.end(); ++it) {
-		sip_contact_t *ct = (*it).first;
-		const shared_ptr<ExtendedContact> &ec=(*it).second;
+	//now sort usable_contacts to form groups, if grouping is allowed
+	ForkGroupSorter sorter(usable_contacts);
+	if (isInvite && mAllowTargetFactorization){
+		sorter.makeGroups();
+	}else{
+		sorter.makeDestinations();
+	}
+	const list<ForkDestination> & destinations = sorter.getDestinations();
+	
+	for (auto it = destinations.begin(); it != destinations.end(); ++it) {
+		sip_contact_t *ct = (*it).mSipContact;
+		const shared_ptr<ExtendedContact> &ec= (*it).mExtendedContact;
+		const string &targetUris = (*it).mTargetUris;
 		
 		if (!ec->mAlias) {
-			if (dispatch(ev, ec, context)) {
+			if (dispatch(ev, ec, context, targetUris)) {
 				if (!mFork) break;
 			}
 		} else {
 			if (mFork && context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
-				sip_contact_t *temp_ctt=sip_contact_make(ms->getHome(),ec->mSipUri.c_str());
+				sip_contact_t *temp_ctt=sip_contact_make(ms->getHome(), ec->mSipUri.c_str());
 
 				if (mUseGlobalDomain){
 					temp_ctt->m_url->url_host="merged";
@@ -528,7 +627,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				mForks.insert(make_pair(key, context));
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
 			}else{
-				if (dispatch(ev, ec, context)) {
+				if (dispatch(ev, ec, context, targetUris)) {
 					if (!mFork) break;
 				}
 			}
