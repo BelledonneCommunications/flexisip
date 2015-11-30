@@ -175,8 +175,6 @@ void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 		}
 	} catch (FlexisipException &fe) {
 		SLOGD << "Skipping onRequest() on module " << getModuleName() << " because "  << fe;
-	} catch (...) {
-		SLOGD << "Skipping onRequest() on module (error)" << getModuleName();
 	}
 }
 
@@ -192,8 +190,6 @@ void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 		}
 	} catch (FlexisipException &fe) {
 		SLOGD <<"Skipping onResponse() on module" << getModuleName() << " because " << fe;
-	} catch (...) {
-		SLOGD << "Skipping onRequest() on module (error)" << getModuleName();
 	}
 }
 

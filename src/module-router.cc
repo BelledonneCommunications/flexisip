@@ -320,7 +320,7 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const share
 		}
 	}
 	if (!targetUris.empty()){
-		sip_header_insert(new_msg, new_sip, (sip_header_t*)sip_unknown_make(msg_home(new_msg), targetUris.c_str()));
+		sip_header_insert(new_msg, new_sip, (sip_header_t*)sip_unknown_format(msg_home(new_msg), "X-Target-Uris: %s", targetUris.c_str()));
 	}
 	new_sip->sip_route=NULL;
 	cleanAndPrependRoute(getAgent(), new_msg, new_sip, routes);
@@ -430,7 +430,7 @@ bool ModuleRouter::makeGeneratedContactRoute(shared_ptr<RequestSipEvent> &ev, Re
 }
 
 struct ForkDestination{
-	ForkDestination() : mSipContact(NULL), mExtendedContact(NULL), mTargetUris(NULL){
+	ForkDestination() : mSipContact(NULL){
 	}
 	ForkDestination(sip_contact_t* ct, const shared_ptr<ExtendedContact> &exContact, const string &targetUris) : 
 		mSipContact(ct), mExtendedContact(exContact), mTargetUris(targetUris){
@@ -448,11 +448,10 @@ public:
 		SofiaAutoHome home;
 		/*first step, eliminate adjacent contacts, they cannot be factorized*/
 		for (auto it = mAllContacts.begin(); it != mAllContacts.end();){
-			if (!(*it).second->mPath.size() < 2){
+			if ((*it).second->mPath.size() < 2){
 				/*this is a "direct" destination, nothing to do*/
-				mDestinations.emplace_back(ForkDestination((*it).first, (*it).second, NULL));
+				mDestinations.emplace_back(ForkDestination((*it).first, (*it).second, ""));
 				it = mAllContacts.erase(it);
-				continue;
 			}else ++it;
 		}
 		/*second step, form groups with non-adjacent contacts*/
@@ -464,12 +463,12 @@ public:
 			
 			dest.mSipContact = (*it).first;
 			dest.mExtendedContact = (*it).second;
-			targetUris<<dest.mExtendedContact->mSipUri;
+			targetUris<<"<"<<dest.mExtendedContact->mSipUri<<">";
 			url_t *url = url_make(home.home(), (*it).second->mPath.back().c_str());
 			//remove it and now search for other contacts that have the same route.
 			it = mAllContacts.erase(it);
 			while ((sameDestinationIt = findDestination(url)) != mAllContacts.end()){
-				targetUris<<", "<<(*sameDestinationIt).second->mSipUri;
+				targetUris<<", <"<<(*sameDestinationIt).second->mSipUri<<">";
 				mAllContacts.erase(sameDestinationIt);
 				foundGroup = true;
 			}
@@ -485,7 +484,7 @@ public:
 	}
 	void makeDestinations(){
 		for (auto it = mAllContacts.begin(); it != mAllContacts.end();){
-			mDestinations.emplace_back(ForkDestination((*it).first, (*it).second, NULL));
+			mDestinations.emplace_back(ForkDestination((*it).first, (*it).second, ""));
 		}
 	}
 	const list<ForkDestination> & getDestinations()const{
@@ -494,8 +493,10 @@ public:
 private:
 	list< pair<sip_contact_t*, shared_ptr<ExtendedContact> > >::iterator findDestination(const url_t *url){
 		SofiaAutoHome home;
+		//LOGD("findDestination(): looking for %s", url_as_string(home.home(), url));
 		for (auto it = mAllContacts.begin(); it != mAllContacts.end(); ++it){
 			url_t *it_route = url_make(home.home(), (*it).second->mPath.back().c_str());
+			//LOGD("findDestination(): seeing %s", url_as_string(home.home(), it_route));
 			if (url_cmp(it_route, url) == 0){
 				return it;
 			}
@@ -707,15 +708,15 @@ class TargetUriListFetcher: public RegistrarDbListener,public enable_shared_from
 	shared_ptr<RequestSipEvent> mEv;
 	shared_ptr<RegistrarDbListener> mListener;
 	sip_route_t *mUriList; /*it is parsed as a route but is not a route*/
-	int pending;
-	bool error;
+	int mPending;
+	bool mError;
 	Record *m_record;
 public:
 	TargetUriListFetcher(ModuleRouter *module, const shared_ptr<RequestSipEvent> & ev,
 					  const shared_ptr<RegistrarDbListener> &listener, sip_unknown_t *target_uris) :
 	mModule(module), mEv(ev), mListener(listener) {
-		pending = 0;
-		error = false;
+		mPending = 0;
+		mError = false;
 		m_record= new Record("virtual_record");
 		if (target_uris && target_uris->un_value){
 			/*the X-target-uris header is parsed like a route, as it is a list of URIs*/
@@ -730,12 +731,13 @@ public:
 	void fetch(bool allowDomainRegistrations, bool recursive) {
 		sip_route_t *iter;
 		for (iter = mUriList; iter != NULL; iter = iter->r_next) {
+			mPending++;
 			RegistrarDb::get(mModule->getAgent())->fetch(iter->r_url, this->shared_from_this(), allowDomainRegistrations, recursive);
 		}
 	}
 
 	void onRecordFound(Record *r) {
-		--pending;
+		--mPending;
 		if (r != NULL) {
 			const auto &ctlist = r->getExtendedContacts();
 			for (auto it = ctlist.begin(); it != ctlist.end(); ++it)
@@ -744,20 +746,20 @@ public:
 		checkFinished();
 	}
 	void onError() {
-		--pending;
-		error = true;
+		--mPending;
+		mError = true;
 		checkFinished();
 	}
 
 	void onInvalid() {
-		--pending;
-		error = true;
+		--mPending;
+		mError = true;
 		checkFinished();
 	}
 
 	void checkFinished() {
-		if (pending != 0) return;
-		if (error) mListener->onError();
+		if (mPending != 0) return;
+		if (mError) mListener->onError();
 		else mListener->onRecordFound(m_record);
 	}
 };

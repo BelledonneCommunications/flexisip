@@ -830,7 +830,6 @@ void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 			break;
 		}
 	}
-
 	doSendEvent(ev, it, mModules.end());
 }
 

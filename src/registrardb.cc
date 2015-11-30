@@ -531,7 +531,7 @@ public:
 				shared_ptr<ExtendedContact> ec = *it;
 				// Also add alias for late forking (context in the forks map for this alias key)
 				SLOGD << "Step: " << m_step << (ec->mAlias ? "\tFound alias " : "\tFound contact ")
-				<< m_url << " -> " << ec->mSipUri;
+				<< m_url << " -> " << ec->mSipUri << " usedAsRoute:"<<ec->mUsedAsRoute;
 				if (!ec->mAlias && ec->mUsedAsRoute){
 					ec = transformContactUsedAsRoute(m_url, ec);
 				}
@@ -590,6 +590,7 @@ private:
 		shared_ptr<ExtendedContact> newEc = make_shared<ExtendedContact>(*ec);
 		newEc->mSipUri = uri;
 		newEc->mPath.push_back(ec->mSipUri);
+		//LOGD("transformContactUsedAsRoute(): path to %s added for %s", ec->mSipUri.c_str(), uri);
 		newEc->mUsedAsRoute = false;
 		return newEc;
 	}

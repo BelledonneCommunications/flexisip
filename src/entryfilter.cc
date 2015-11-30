@@ -77,8 +77,7 @@ bool ConfigEntryFilter::canEnter(const shared_ptr<MsgSip> &ms) {
 		if (e) ++*mCountEvalTrue; else ++*mCountEvalFalse;
 		return e;
 	} catch (invalid_argument &e) {
-		LOGD("Fix your %s filter : %s", mEntryName.c_str(), e.what());
-		throw;
+		throw FLEXISIP_EXCEPTION<<"Fix your "<<mEntryName<<" filter: "<<e.what();
 	}
 }
 
