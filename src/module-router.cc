@@ -730,8 +730,12 @@ public:
 
 	void fetch(bool allowDomainRegistrations, bool recursive) {
 		sip_route_t *iter;
-		for (iter = mUriList; iter != NULL; iter = iter->r_next) {
+		/*compute the number of asynchronous queries we are going to make, to later know when we are done.*/
+		for (iter = mUriList; iter != NULL; iter = iter->r_next){
 			mPending++;
+		}
+		/*start the queries for all uris of the target uri list*/
+		for (iter = mUriList; iter != NULL; iter = iter->r_next) {
 			RegistrarDb::get(mModule->getAgent())->fetch(iter->r_url, this->shared_from_this(), allowDomainRegistrations, recursive);
 		}
 	}
