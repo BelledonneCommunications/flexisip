@@ -300,8 +300,10 @@ bool ModuleRouter::dispatch(const shared_ptr< RequestSipEvent >& ev, const share
 	// Convert path to routes
 	sip_route_t *routes = contact->toSofiaRoute(new_ev->getHome());
 	if (!contact->mUsedAsRoute){
-		/* Rewrite request-uri */
-		new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), dest);
+		if (targetUris.empty()){
+			/* Rewrite request-uri */
+			new_sip->sip_request->rq_url[0] = *url_hdup(msg_home(new_msg), dest);
+		} // else leave the request uri as it is, the X-target-uris header will give the resolved destinations. 
 		// the cleaning of push notif params will be done just before forward
 	}else{
 		//leave the request uri as it is, but append a route for the final destination
@@ -848,6 +850,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 					RegistrarDb::get(mAgent)->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
 				}else{
 					auto fetcher = make_shared<TargetUriListFetcher>(this, ev, onRoutingListener, h);
+					sip_header_remove(ms->getMsg(), sip, (sip_header_t*)h);
 					fetcher->fetch(mAllowDomainRegistrations, true);
 				}
 			} else {
