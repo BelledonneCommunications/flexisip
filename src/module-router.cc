@@ -483,7 +483,7 @@ public:
 		}
 	}
 	void makeDestinations(){
-		for (auto it = mAllContacts.begin(); it != mAllContacts.end();){
+		for (auto it = mAllContacts.begin(); it != mAllContacts.end(); ++it){
 			mDestinations.emplace_back(ForkDestination((*it).first, (*it).second, ""));
 		}
 	}
