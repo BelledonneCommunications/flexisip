@@ -32,7 +32,7 @@ SignalingException::SignalingException(int code, belle_sip_header_t* header) :Si
 	}
 	mOffset++;
 }
-SignalingException::~SignalingException() {
+SignalingException::~SignalingException() throw (){
 	for(belle_sip_header_t* header : mHeaders) {
 		belle_sip_object_unref(header);
 	}

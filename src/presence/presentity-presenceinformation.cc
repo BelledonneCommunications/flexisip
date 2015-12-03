@@ -327,7 +327,7 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 		}
 		
 		for (pidf::Presence::AnySequence::iterator domElement = extensions->begin(); domElement!=extensions->end();domElement++) {
-			SLOGD << "Adding extension element  ["<<xercesc_3_1::XMLString::transcode( domElement->getNodeName())<<"] to presence info element [" << this <<"]";
+			SLOGD << "Adding extension element  ["<<xercesc::XMLString::transcode( domElement->getNodeName())<<"] to presence info element [" << this <<"]";
 			mExtensions.push_back(dynamic_cast<xercesc::DOMElement*>(mDomDocument->importNode(&*domElement,true)));
 		}
 		

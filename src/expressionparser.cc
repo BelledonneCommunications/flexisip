@@ -31,7 +31,7 @@
 #include <regex.h>
 
 #include "log/logmanager.hh"
-
+#include "flexisip-exception.hh"
 
 using namespace::std;
 
@@ -144,8 +144,7 @@ public:
 		try {
 			mVal=args->get(mId);
 		} catch (exception &e) {
-			LOGEVAL << "GET " << mId << " : " << e.what();
-			throw;
+			throw FLEXISIP_EXCEPTION << "GET " << mId << " : " << e.what();
 		}
 		return mVal;
 	}

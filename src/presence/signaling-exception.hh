@@ -30,7 +30,7 @@ public:
 	SignalingException(int statusCode, std::list<belle_sip_header_t*> headers=std::list<belle_sip_header_t*>());
 	SignalingException(int statusCode,belle_sip_header_t* header);
 	SignalingException(const SignalingException& other );
-	virtual ~SignalingException();
+	virtual ~SignalingException() throw();
 	int getStatusCode();
 	const std::list<belle_sip_header_t*>& getHeaders();
 	template<typename T2>  SignalingException& operator<< (const T2& val){
