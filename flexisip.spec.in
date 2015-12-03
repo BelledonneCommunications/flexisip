@@ -136,7 +136,7 @@ Prefix: /opt/belledonne-communications
 Extensible SIP proxy with media capabilities. Designed for robustness and easy of use.
 
 %prep
-%setup
+%setup -n %{src_name}-%{version} 
 
 %build
 
