@@ -52,10 +52,15 @@
 # case we prefix the entire installation so that we don't break compatibility
 # with the user's libs.
 # To compile with bc prefix, use rpmbuild -ba --with bc [SPEC]
+%if  %{presence}
+%define                 pkg_name        %{?_with_bc:bc-flexisip-presence}%{!?_with_bc:flexisip-presence}
+%else
 %define                 pkg_name        %{?_with_bc:bc-flexisip}%{!?_with_bc:flexisip}
+%endif
 %define                 pkg_prefix      %{?_with_bc:bc-}%{!?_with_bc:}
 %define                 odbc_prefix     %{?_with_bcodbc:%{pkg_prefix}}%{!?_with_bcodbc:}
 %{?_with_bc: %define    _prefix         /opt/belledonne-communications}
+%define                 src_name        %{?_with_bc:bc-flexisip}%{!?_with_bc:flexisip}
 
 # re-define some directories for older RPMBuild versions which don't. This messes up the doc/ dir
 # taken from https://fedoraproject.org/wiki/Packaging:RPMMacros?rd=Packaging/RPMMacros
@@ -79,8 +84,8 @@ Release:	%(git describe --tags --abbrev=40 | sed -rn 's/^.*-([0-9]+)-g[a-z0-9]{4
 License:	AGPL
 Group:		Applications/Communications
 URL:		http://www.belledonne-communications.com
-Source0:	%{name}-@PACKAGE_VERSION@.tar.gz
-BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
+Source0:	%{src_name}-@PACKAGE_VERSION@.tar.gz
+BuildRoot:	%{_tmppath}/%{src_name}-%{version}-%{release}-buildroot
 %ifarch %ix86
 BuildArch:	i686
 %endif
