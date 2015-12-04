@@ -311,7 +311,7 @@ void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u
 			sip_via_remove(msg->getMsg(), msg->getSip());
 			via_popped=true;
 		}
-		checkContentLength(msg, msg->getSip()->sip_via);
+		if (msg->getSip()->sip_via) checkContentLength(msg, msg->getSip()->sip_via);
 		SLOGD << "Sending response:" << (via_popped ? " (via popped) " : "")<<endl<< *msg;
 		ta_list ta;
 		ta_start(ta, tag, value);
