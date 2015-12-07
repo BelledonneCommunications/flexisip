@@ -279,7 +279,8 @@ namespace flexisip {
 		mListSubscription.onInformationChanged(presenceInformation);
 	}
 	void PresentityResourceListener::onExpired(PresentityPresenceInformation& presenceInformation){
-		throw FLEXISIP_EXCEPTION << "not implemenetd yet";
+		//fixme check if enought
+		mListSubscription.setState(Subscription::State::terminated);
 	}
 
 

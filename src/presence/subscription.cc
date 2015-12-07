@@ -95,6 +95,12 @@ void Subscription::setAcceptHeader(belle_sip_header_t* acceptHeader) {
 		belle_sip_header_subscription_state_t* sub_state = belle_sip_header_subscription_state_new();
 		belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify),BELLE_SIP_HEADER(sub_state));
 		
+		//fixme use git version
+		belle_sip_header_user_agent_t *userAgent = belle_sip_header_user_agent_new();
+		belle_sip_header_user_agent_add_product(userAgent,"flexisip-presence");
+		belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify),BELLE_SIP_HEADER(userAgent));
+
+		
 		belle_sip_header_subscription_state_set_state(sub_state, stateToString(mState));
 
 		if (mState==active) {

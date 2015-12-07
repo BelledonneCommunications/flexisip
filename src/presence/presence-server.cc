@@ -543,6 +543,7 @@ void  PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event
 																								 ,dialog
 																								 ,mProvider);
 				belle_sip_dialog_set_application_data(dialog, subscription.get());
+				SLOGD << " setting sub pointer ["<< (void*)subscription.get() << "] to dialog ["<<dialog<<"]";
 				// send 200ok late to allow deeper anylise of request
 				belle_sip_server_transaction_send_response(server_transaction,resp);
 				
@@ -581,6 +582,7 @@ void  PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event
 //			 3.1.4.1.)
 
 			if (subscription->getState() == Subscription::State::terminated) {
+				//fixme
 				delete subscription;
 				belle_sip_dialog_set_application_data(dialog, NULL);
 				throw SIGNALING_EXCEPTION(481) << "Subscription ["<< std::hex<<(long)subscription<< "] for dialog ["
@@ -605,7 +607,7 @@ void  PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event
 			if (expires == 0) {
 				subscription->setState(Subscription::State::terminated);
 				if (typeid(*subscription) == typeid(PresenceSubscription)) {
-					shared_ptr<PresentityPresenceInformationListener> listener = dynamic_cast<PresenceSubscription*>(subscription)->shared_from_this();
+					shared_ptr<PresentityPresenceInformationListener> listener = dynamic_cast<PresentityPresenceInformationListener*>(subscription)->shared_from_this();
 					removeListener(listener);
 				} else {
 					//list subscription case
@@ -616,6 +618,7 @@ void  PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event
 					dynamic_cast<Subscription*>(listSubscription)->notify(NULL); // to trigger final notify
 					//fixme de delete listSubscription ???
 				}
+				belle_sip_dialog_set_application_data(dialog, NULL);
 			} else {
 				//update expires
 				subscription->setExpire(expires);

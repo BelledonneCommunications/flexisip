@@ -76,7 +76,11 @@ bool ConfigEntryFilter::canEnter(const shared_ptr<MsgSip> &ms) {
 		bool e=mBooleanExprFilter->eval(attr.get());
 		if (e) ++*mCountEvalTrue; else ++*mCountEvalFalse;
 		return e;
-	} catch (invalid_argument &e) {
+	} catch (FlexisipException &e) {
+		SLOGD << "Cannot evaluate entry filter ["<< mEntryName<<"] filter: "<<e.what()  << "returning false";
+		return false;
+	}
+	catch (invalid_argument &e) {
 		throw FLEXISIP_EXCEPTION<<"Fix your "<<mEntryName<<" filter: "<<e.what();
 	}
 }
