@@ -220,7 +220,7 @@ target_include_directories(flexisip PUBLIC ${FLEXISIP_INCLUDES})
 
 # expression parser tester
 if(MEDIASTREAMER2_FOUND)
-	add_executable(expr test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh)
+	add_executable(expr test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh flexisip-exception.cc flexisip-exception.hh)
 	target_link_libraries(expr ${ORTP_LIBRARIES} ${MEDIASTREAMER2_LIBRARIES})
 	target_compile_options(expr PUBLIC -DTEST_BOOL_EXPR -DNO_SOFIA)
 endif()
