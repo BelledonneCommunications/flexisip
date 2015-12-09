@@ -228,6 +228,8 @@ target_include_directories(flexisip PUBLIC ${FLEXISIP_INCLUDES})
 if(MEDIASTREAMER2_FOUND)
 	add_executable(expr test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh flexisip-exception.cc flexisip-exception.hh)
 	target_link_libraries(expr ${ORTP_LIBRARIES} ${MEDIASTREAMER2_LIBRARIES})
+	set_property(TARGET expr PROPERTY CXX_STANDARD 11)
+	set_property(TARGET expr PROPERTY CXX_STANDARD_REQUIRED ON)
 	target_compile_options(expr PUBLIC -DTEST_BOOL_EXPR -DNO_SOFIA)
 endif()
 
