@@ -193,7 +193,7 @@ namespace flexisip {
 			content_id <<"<"<<cid.str()<<">";
 			belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(fistBodyPart), belle_sip_header_create("Content-Id", cid.str().c_str()));
 			belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(fistBodyPart), belle_sip_header_create("Content-Type", "application/rlmi+xml;charset=\"UTF-8\""));
-			multiPartBody = belle_sip_multipart_body_handler_new(NULL, NULL,BELLE_SIP_BODY_HANDLER(fistBodyPart));
+			multiPartBody = belle_sip_multipart_body_handler_new(NULL, NULL,BELLE_SIP_BODY_HANDLER(fistBodyPart),NULL);
 			for (belle_sip_body_handler_t* additionalPart:multipartList) {
 				belle_sip_multipart_body_handler_add_part(multiPartBody, additionalPart);
 			}
