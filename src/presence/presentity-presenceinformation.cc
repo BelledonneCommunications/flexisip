@@ -192,13 +192,13 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 		}
 
 		
-		SLOGD << op<<" listener ["<<&listener <<"] on ["<<*this<<"] for ["<<expires<<"] seconds";
+		SLOGD << op<<" listener ["<<listener.get() <<"] on ["<<*this<<"] for ["<<expires<<"] seconds";
 		//PresentityPresenceInformationListener* listener_ptr=listener.get();
 		// cb function to invalidate an unrefreshed etag;
 		std::function<int (unsigned int)> *func = new std::function<int (unsigned int)>([this,listener/*_ptr*/](unsigned int events) {
 			listener->onExpired(*this);
 			this->removeListener(listener);
-			SLOGD << "Listener ["<<listener << "] on ["<<*this<<"] has expired";
+			SLOGD << "Listener ["<<listener.get() << "] on ["<<*this<<"] has expired";
 			return BELLE_SIP_STOP;
 		});
 		// create timer
@@ -225,7 +225,7 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 		
 	}
 	void PresentityPresenceInformation::removeListener(shared_ptr<PresentityPresenceInformationListener> listener) {
-		SLOGD << "removing listener ["<<listener<<"] on ["<<*this<<"]";
+		SLOGD << "removing listener ["<<listener.get()<<"] on ["<<*this<<"]";
 		//1 cancel expiration time
 		listener->setExpiresTimer(mBelleSipMainloop,NULL);
 		//2 remove listener
@@ -248,11 +248,18 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 			char* entity= belle_sip_uri_to_string(getEntity());
 			pidf::Presence presence((string(entity)));
 			belle_sip_free(entity);
+			list<string> tupleList;
 			
 			for (auto element:mInformationElements) {
 				//copy pidf
 				for (const unique_ptr<pidf::Tuple>& tup :element.second->getTuples()){
-					presence.getTuple().push_back(*tup->_clone());
+					//check for multiple tupple id, may happend with buggy presence publisher
+					if (find(tupleList.begin(), tupleList.end(),tup.get()->getId()) == tupleList.end()) {
+						presence.getTuple().push_back(*tup->_clone());
+						tupleList.push_back(tup.get()->getId());
+					} else {
+						SLOGW << "Already existing tuple id [" << tup.get()->getId() <<" for ["<< *this<< "], skipping";
+					}
 				}
 				//copy extensions
 				for( auto extension:element.second->getExtensions()) {
