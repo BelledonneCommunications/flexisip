@@ -542,7 +542,7 @@ void  PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event
 																								 ,belle_sip_request_get_uri(request)
 																								 ,dialog
 																								 ,mProvider);
-				belle_sip_dialog_set_application_data(dialog, subscription.get());
+				belle_sip_dialog_set_application_data(dialog, dynamic_cast<Subscription*>(subscription.get()));
 				SLOGD << " setting sub pointer ["<< belle_sip_dialog_get_application_data(dialog) << "] to dialog ["<<dialog<<"]";
 				// send 200ok late to allow deeper anylise of request
 				belle_sip_server_transaction_send_response(server_transaction,resp);
@@ -627,7 +627,7 @@ void  PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event
 					addOrUpdateListener(listener,expires);
 				} else {
 					//list subscription case
-					ListSubscription *listSubscription = static_cast<ListSubscription*>(subscription);
+					ListSubscription *listSubscription = dynamic_cast<ListSubscription*>(subscription);
 					for (shared_ptr<PresentityPresenceInformationListener> listener:listSubscription->getListeners()) {
 						addOrUpdateListener(listener,expires);
 					}
