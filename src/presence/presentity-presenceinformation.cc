@@ -157,6 +157,7 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 			PresenceInformationElement* informationElement = it->second;
 			mInformationElements.erase(it);
 			delete informationElement;
+			notifyAll(); // Removing an event state change global state, so it should be notified
 		} else
 			SLOGD << "No tulpes found for etag ["<< eTag << "]";
 	}

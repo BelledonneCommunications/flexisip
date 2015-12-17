@@ -30,11 +30,12 @@ private:
 	static ModuleInfo<ModulePresence> sInfo;
 	string mDestRoute;
 	su_home_t mHome;
+	bool mOnlyListSubscription;
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
 				{ String, "presence-server", "A sip uri where to send all presence's requests", "sip:127.0.0.1:5065" },
-			//	{ Boolean, "only-list-subscription", "if true, only manage list subscription ", false },
+				{ Boolean, "only-list-subscription", "if true, only manage list subscription ", "false" },
 				config_item_end
 		};
 		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
@@ -61,7 +62,9 @@ private:
 
 	void onLoad(const GenericStruct *mc) {
 		mDestRoute = mc->get<ConfigString>("presence-server")->read();
+		mOnlyListSubscription = mc->get<ConfigBoolean>("only-list-subscription")->read();
 		SLOGI<< this->getModuleName() << ": presence server is ["<< mDestRoute <<"]";
+		SLOGI<< this->getModuleName() << ": Non list subscription are "<< (mOnlyListSubscription?"not":"") <<" redirected by presence server";
 	}
 
 	void onUnload() {
@@ -82,7 +85,7 @@ private:
 					require_recipient_list_subscribe_found=true;
 				}
 			}
-			return require_recipient_list_subscribe_found && sip->sip_event && strcmp(sip->sip_event->o_type,"presence")==0;
+			return (!mOnlyListSubscription || require_recipient_list_subscribe_found) && sip->sip_event && strcmp(sip->sip_event->o_type,"presence")==0;
 		} else if (strncasecmp(sip->sip_request->rq_method_name,"PUBLISH",strlen(sip->sip_request->rq_method_name)) == 0) {
 			return !sip->sip_content_type || (sip->sip_content_type
 				&& sip->sip_content_type->c_type && strcasecmp (sip->sip_content_type->c_type,"application/pidf+xml")==0
@@ -100,6 +103,7 @@ private:
 public:
 		ModulePresence(Agent *ag) : Module(ag) {
 			su_home_init(&mHome);
+			mOnlyListSubscription=false;
 		}
 
 		~ModulePresence() {
