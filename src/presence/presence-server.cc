@@ -110,7 +110,11 @@ PresenceServer::~PresenceServer() {
 	belle_sip_object_unref(mProvider);
 	belle_sip_object_unref(mStack);
 	belle_sip_object_unref(mListener);
+	//must be done before cleaning xerces
+	mPresenceInformations.clear();
+	mPresenceInformationsByEtag.clear();
 	xercesc::XMLPlatformUtils::Terminate ();
+	SLOGD << "Presence server destroyed";
 	
 }
 void PresenceServer::start() throw (FlexisipException) {

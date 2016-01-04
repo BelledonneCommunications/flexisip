@@ -45,7 +45,7 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 	}
 	
 	PresentityPresenceInformation::~PresentityPresenceInformation() {
-		for(auto it=mInformationElements.begin();it!=mInformationElements.end();++it) {
+		for(auto it=mInformationElements.begin();it!=mInformationElements.end();it++) {
 			delete it->second;
 			it=mInformationElements.erase(it);
 		}
