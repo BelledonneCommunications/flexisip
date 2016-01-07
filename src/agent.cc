@@ -624,25 +624,27 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases) const {
 		host = tmp;
 	}
 	const char *matched_port=port;
+	
+	if (check_aliases) {
+		/*the checking of aliases ignores the port number, since a domain name in a Route header might resolve to multiple ports 
+			* thanks to SRV records*/
+		list<string>::const_iterator it;
+		for (it = mAliases.begin(); it != mAliases.end(); ++it) {
+			if (ModuleToolbox::urlHostMatch(host, (*it).c_str()))
+				return true;
+		}
+	}
+	
 	for(;tport!=NULL;tport=tport_next(tport)){
 		const tp_name_t *tn=tport_name(tport);
 		if (port==NULL){
-			if (strcmp(tn->tpn_proto,"tls")==0)
+			if (strcasecmp(tn->tpn_proto,"tls")==0)
 				matched_port="5061";
 			else matched_port="5060";
 		}
 		if (strcmp(matched_port,tn->tpn_port)==0){
-			if (strcmp(host,tn->tpn_canon)==0)
+			if (strcasecmp(host,tn->tpn_canon)==0)
 				return true;
-		}
-		if (check_aliases) {
-			/*the checking of aliases ignores the port number, since a domain name in a Route header might resolve to multiple ports 
-			 * thanks to SRV records*/
-			list<string>::const_iterator it;
-			for (it = mAliases.begin(); it != mAliases.end(); ++it) {
-				if (ModuleToolbox::urlHostMatch(host, (*it).c_str()))
-					return true;
-			}
 		}
 	}
 	return false;
