@@ -89,6 +89,8 @@ const char *RelayChannel::dirToString(Dir dir){
 			return "SendOnly";
 		case SendRecv:
 			return "SendRecv";
+		case Inactive:
+			return "Inactive";
 	}
 	return "invalid";
 }
@@ -165,8 +167,8 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 	if (err>0){
 		mPacketsReceived++;
 		mSockAddrSize[i] = addrsize;
-		if (mDir==SendOnly) {
-			LOGD("ignored packet");
+		if (mDir==SendOnly || mDir == Inactive) {
+			/*LOGD("ignored packet");*/
 			return 0;
 		}
 		if (mFilter && mFilter->onIncomingTransfer(buf,buflen,(struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]) == false ){

@@ -57,6 +57,7 @@ private:
 	int mH264Decim;
 	int mMaxCalls;
 	int mMinPort, mMaxPort;
+	int mMaxRelayedEarlyMedia;
 	bool mDropTelephoneEvent;
 	bool mByeOrphanDialogs;
 	bool mEarlyMediaRelaySingle;
@@ -185,7 +186,8 @@ class RelayChannel {
 public:
 	enum Dir {
 		SendOnly,
-		SendRecv
+		SendRecv,
+		Inactive
 	};
 	
 	RelayChannel(RelaySession* relaySession, const std::pair<std::string,std::string> &relayIps, bool preventLoops);
