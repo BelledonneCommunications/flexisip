@@ -47,7 +47,7 @@ void RelayedCall::enableTelephoneEventDrooping(bool value){
 }
 
 
-void RelayedCall::initChannels(SdpModifier *m, const string &tag, const string &trid, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps) {
+void RelayedCall::initChannels(const shared_ptr<SdpModifier> &m, const string &tag, const string &trid, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps) {
 	sdp_media_t *mline = m->mSession->sdp_media;
 	int i = 0;
 	for (i = 0; mline != NULL && i < sMaxSessions; mline = mline->m_next, ++i) {
@@ -110,7 +110,7 @@ std::pair<string,int> RelayedCall::getChannelDestinations(int mline, const std::
 }
 
 
-void RelayedCall::setChannelDestinations(SdpModifier *m, int mline, const string &ip, int port, const string & partyTag, const string &trId, bool isEarlyMedia){
+void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier> &m, int mline, const string &ip, int port, const string & partyTag, const string &trId, bool isEarlyMedia){
 	if (mline >= sMaxSessions) {
 		return;
 	}

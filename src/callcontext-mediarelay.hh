@@ -38,7 +38,7 @@ public:
 	/* Create a channel for each sdp media using defined relay ip for front and back. The transaction
 	 * allow use to identify the callee (we don't have a tag yet).
 	 */
-	void initChannels(SdpModifier *m, const std::string &tag, const std::string &trid, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps);
+	void initChannels(const shared_ptr<SdpModifier> &m, const std::string &tag, const std::string &trid, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps);
 
 	/* Obtain the local address and port used for relaying */
 	std::pair<std::string,int> getChannelSources(int mline, const std::string & partyTag, const std::string &trId);
@@ -46,7 +46,7 @@ public:
 	/* Obtain destination (previously set by setChannelDestinations()*/
 	std::pair<std::string,int> getChannelDestinations(int mline, const std::string & partyTag, const std::string &trId);
 
-	void setChannelDestinations(SdpModifier *m, int mline, const std::string &ip, int port, const std::string & partyTag, const std::string &trId,
+	void setChannelDestinations(const shared_ptr<SdpModifier> &m, int mline, const std::string &ip, int port, const std::string & partyTag, const std::string &trId,
 		bool isEarlyMedia);
 
 	void removeBranch(const std::string &trId);

@@ -319,7 +319,7 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	msg_t *msg = ms->getMsg();
 	sip_t *sip = ms->getSip();
-	SdpModifier *m = SdpModifier::createFromSipMsg(ms->getHome(), ms->getSip(), "");
+	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(ms->getHome(), ms->getSip(), "");
 
 	if (m == NULL)
 		return -1;
@@ -365,7 +365,6 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 		if (canDoRateControl(sip)) {
 			c->getFrontSide()->enableRc(true);
 		}
-		delete m;
 		return 0;
 	} else {
 		LOGW("No support for any of the codec offered by client, doing bypass.");
@@ -376,7 +375,6 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 			ioffer.clear();
 		}
 	}
-	delete m;
 	return -1;
 }
 
@@ -453,7 +451,7 @@ int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	string addr;
 	int port;
-	SdpModifier *m = SdpModifier::createFromSipMsg(ms->getHome(), ms->getSip());
+	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(ms->getHome(), ms->getSip());
 	int ptime;
 
 	if (m == NULL)
@@ -477,7 +475,6 @@ int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {
 	auto answer = m->readPayloads();
 	if (answer.empty()) {
 		LOGE("No payloads in 200Ok");
-		delete m;
 		return -1;
 	}
 	normalizePayloads(answer);
@@ -501,7 +498,6 @@ int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {
 	}
 
 	ctx->join(mTickerManager.chooseOne());
-	delete m;
 	return 0;
 }
 

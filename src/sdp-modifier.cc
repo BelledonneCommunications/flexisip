@@ -26,11 +26,10 @@
 
 using namespace ::std;
 
-SdpModifier *SdpModifier::createFromSipMsg(su_home_t *home, sip_t *sip, const string &nortproxy){
+shared_ptr<SdpModifier> SdpModifier::createFromSipMsg(su_home_t *home, sip_t *sip, const string &nortproxy){
 	if (!sip->sip_payload || !sip->sip_payload->pl_data) return NULL;
-	SdpModifier *sm=new SdpModifier(home, nortproxy);
+	auto sm= make_shared<SdpModifier>(home, nortproxy);
 	if (!sm->initFromSipMsg(sip)) {
-		delete sm;
 		sm=NULL;
 	}
 	return sm;
@@ -288,10 +287,15 @@ void SdpModifier::changeMediaConnection(sdp_media_t *mline, const char *relay_ip
 	}
 }
 
+bool SdpModifier::shouldSkipMline(sdp_media_t *mline){
+	return hasMediaAttribute(mline,mNortproxy.c_str()) || hasMediaAttribute(mline,"remote-candidates");
+}
+
 void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-			std::function< std::pair<std::string,int>(int )> getDestAddrFcn){
+			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, sdp_session_t *offer){
 	char foundation[32];
 	sdp_media_t *mline=mSession->sdp_media;
+	sdp_media_t *offer_mline = offer ? offer->sdp_media : NULL;
 	uint64_t r;
 	int i;
 	string global_c_address;
@@ -301,7 +305,7 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 	r = (((uint64_t)random()) << 32) | (((uint64_t)random()) & 0xffffffff);
 	snprintf(foundation, sizeof(foundation), "%llx", (long long unsigned int)r);
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
-		if (hasMediaAttribute(mline,"candidate") && !hasMediaAttribute(mline,"remote-candidates") && !hasMediaAttribute(mline,mNortproxy.c_str())) {
+		if (hasMediaAttribute(mline,"candidate") && !shouldSkipMline(mline) && !(offer_mline && shouldSkipMline(offer_mline))) {
 			uint32_t priority;
 
 			auto relayAddr=getRelayAddrFcn(i);
@@ -322,11 +326,23 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 			}
 			if (!mNortproxy.empty()) addMediaAttribute(mline, mNortproxy.c_str(), "yes");
 		}
+		if (offer_mline) offer_mline = offer_mline->m_next;
 	}
 }
 
-void SdpModifier::iterate(function<void(int, const string &, int )> fct){
+void SdpModifier::addIceCandidateInOffer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
+			std::function< std::pair<std::string,int>(int )> getDestAddrFcn){
+	addIceCandidate(getRelayAddrFcn, getDestAddrFcn, NULL);
+}
+
+void SdpModifier::addIceCandidateInAnswer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
+	std::function< std::pair<std::string,int>(int )> getDestAddrFcn, sdp_session_t *offer){
+	addIceCandidate(getRelayAddrFcn, getDestAddrFcn, offer);
+}
+
+void SdpModifier::iterate(function<void(int, const string &, int )> fct, sdp_session_t *offer){
 	sdp_media_t *mline=mSession->sdp_media;
+	sdp_media_t *offer_mline = offer ? offer->sdp_media : NULL;
 	int i;
 	string global_c_address;
 
@@ -335,11 +351,22 @@ void SdpModifier::iterate(function<void(int, const string &, int )> fct){
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		string ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
 		int port=mline->m_port;
-		if (hasMediaAttribute(mline, mNortproxy.c_str())) continue;
+		if (shouldSkipMline(mline) || (offer_mline && shouldSkipMline(offer_mline))) continue;
 
 		fct(i, ip, port);
+		if (offer_mline) offer_mline = offer_mline->m_next;
 	}
 }
+
+void SdpModifier::iterateInOffer( function<void(int, const string &, int )> fct ) {
+	iterate(fct, NULL);
+}
+
+
+void SdpModifier::iterateInAnswer( function<void(int, const string &, int )> fct, sdp_session_t* offer ) {
+	iterate(fct, offer);
+}
+
 
 void SdpModifier::changeConnection(sdp_connection_t *c, const char *ip){
 	/* set the c= ip address as told in 'ip' argument, except if it was 0.0.0.0, for compatibility with old softphone
@@ -350,8 +377,9 @@ void SdpModifier::changeConnection(sdp_connection_t *c, const char *ip){
 	c->c_address = su_strdup(mHome, ip);
 }
 
-void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
+void SdpModifier::masquerade(function< pair<string,int>(int )> fct, sdp_session_t *offer){
 	sdp_media_t *mline=mSession->sdp_media;
+	sdp_media_t *offer_mline = offer ? offer->sdp_media : NULL;
 	sdp_attribute_t *rtcp_attribute;
 	int i;
 	string global_c_address;
@@ -362,7 +390,7 @@ void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		if (mline->m_port == 0) continue;
 
-		if (hasMediaAttribute(mline, mNortproxy.c_str())) continue;
+		if (shouldSkipMline(mline) || (offer_mline && shouldSkipMline(offer_mline))) continue;
 		pair<string,int> relayAddr=fct(i);
 
 		if (mline->m_connections){
@@ -398,6 +426,7 @@ void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
 			a->a_value=su_strdup(mHome, ost.str().c_str());
 			sdp_attribute_replace(&mline->m_attributes, a, 0);
 		}
+		if (offer_mline) offer_mline = offer_mline->m_next;
 	}
 
 	if (sdp_connection_translated) {
@@ -411,6 +440,15 @@ void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
 		}
 	}
 }
+
+void SdpModifier::masqueradeInOffer(std::function< std::pair<std::string,int>(int )> getAddrFcn){
+	masquerade(getAddrFcn, NULL);
+}
+
+void SdpModifier::masqueradeInAnswer( std::function< std::pair<std::string,int>(int )> getAddrFcn, sdp_session_t* offer ) {
+	masquerade(getAddrFcn, offer);
+}
+
 
 bool SdpModifier::hasAttribute(const char *name) {
 	return sdp_attribute_find(mSession->sdp_attributes,name);

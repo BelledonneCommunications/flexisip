@@ -22,6 +22,8 @@
 #include <functional>
 #include <string>
 #include <list>
+#include <memory>
+
 
 #ifndef _SDP_MODIFIER_HH_
 #define _SDP_MODIFIER_HH_
@@ -38,7 +40,7 @@ typedef struct _PayloadType PayloadType;
 **/
 class SdpModifier{
 	public:
-		static SdpModifier *createFromSipMsg(su_home_t *home, sip_t *sip, const std::string &nortproxy = "");
+		static std::shared_ptr<SdpModifier> createFromSipMsg(su_home_t *home, sip_t *sip, const std::string &nortproxy = "");
 		static bool hasSdp(const sip_t *sip);
 		bool initFromSipMsg(sip_t *sip);
 		std::list<PayloadType *> readPayloads();
@@ -50,10 +52,14 @@ class SdpModifier{
 		void changeAudioIpPort(const char *ip, int port);
 		void changeConnection(sdp_connection_t *c, const char *ip);
 		void changeMediaConnection(sdp_media_t *mline, const char *relay_ip);
-		void addIceCandidate(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
+		void addIceCandidateInOffer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
 			std::function< std::pair<std::string,int>(int )> getDestAddrFcn);
-		void iterate(std::function<void(int, const std::string &, int)>);
-		void masquerade(std::function< std::pair<std::string,int>(int )> getAddrFcn);
+		void addIceCandidateInAnswer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
+			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, sdp_session_t *offer);
+		void iterateInOffer(std::function<void(int, const std::string &, int)>);
+		void iterateInAnswer(std::function<void(int, const std::string &, int)>, sdp_session_t *offer);
+		void masqueradeInOffer(std::function< std::pair<std::string,int>(int )> getAddrFcn);
+		void masqueradeInAnswer(std::function< std::pair<std::string,int>(int )> getAddrFcn, sdp_session_t *offer);
 		void addAttribute(const char *name, const char *value);
 		bool hasAttribute(const char *name);
 		void addMediaAttribute(sdp_media_t *mline, const char *name, const char *value);
@@ -66,6 +72,11 @@ class SdpModifier{
 		sdp_session_t *mSession;
 		sip_t *mSip;
 	private:
+		bool shouldSkipMline(sdp_media_t *mline);
+		void addIceCandidate(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
+			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, sdp_session_t *offer);
+		void iterate(std::function<void(int, const std::string &, int)>, sdp_session_t *offer);
+		void masquerade(std::function< std::pair<std::string,int>(int )> getAddrFcn, sdp_session_t *offer);
 		sdp_parser_t *mParser;
 		su_home_t *mHome;
 		std::string mNortproxy;

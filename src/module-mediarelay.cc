@@ -134,7 +134,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		LOGW("No tag in from !");
 		return false;
 	}
-	SdpModifier *m = SdpModifier::createFromSipMsg(ev->getMsgSip()->getHome(), sip, mSdpMangledParam);
+	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(ev->getMsgSip()->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
 		LOGW("Invalid SDP");
 		return false;
@@ -157,7 +157,6 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
 		LOGD("Invite is already relayed");
-		delete m;
 		return false;
 	}
 
@@ -166,32 +165,30 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 
 	if (!c->checkMediaValid()) {
 		LOGE("The relay media are invalid, no RTP/RTCP port remaining?");
-		delete m;
 		ev->reply(500, "RTP port pool exhausted", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return false;
 	}
 
 	// assign destination address
-	m->iterate(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, from_tag, transaction->getBranchId(),false));
+	m->iterateInOffer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, from_tag, transaction->getBranchId(),false));
 
 	// Modify sdp message to set relay address and ports.
-	m->masquerade(bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()));
+	m->masqueradeInOffer(bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()));
 
 	// Masquerade using ICE
-	m->addIceCandidate(bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()),
+	m->addIceCandidateInOffer(bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()),
 			   bind(&RelayedCall::getChannelDestinations, c, _1, from_tag, transaction->getBranchId())
 	);
 
 	if (!mSdpMangledParam.empty()) m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	if (m->update(msg, sip)==-1){
 		LOGE("Cannot update SDP in message.");
-		delete m;
 		ev->reply(500, "Media relay SDP processing internal error", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return false;
 	}
 	c->getServer()->update();
-
-	delete m;
+	/*store the sdp modifier buit for the request, because we will need it for the response*/
+	transaction->setProperty<SdpModifier>("sdp-modifier", m);
 	return true;
 }
 
@@ -270,7 +267,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 		c->setEstablished(transaction->getBranchId());
 	}else isEarlyMedia=true;
 
-	SdpModifier *m = SdpModifier::createFromSipMsg(msgSip->getHome(), sip, mSdpMangledParam);
+	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(msgSip->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
 		LOGW("Invalid SDP");
 		return;
@@ -283,21 +280,22 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
 		LOGD("200 OK is already relayed");
-		delete m;
 		return;
 	}
 
-	m->iterate(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, to_tag, transaction->getBranchId(),isEarlyMedia));
+	shared_ptr<SdpModifier> offerm = transaction->getProperty<SdpModifier>("sdp-modifier");
+	sdp_session_t *offer = NULL;
+	if (!offerm || !offerm->mSession){
+		LOGE("MediaRelay::processResponseWithSDP(): cannot retrieve original offer !");
+	}
+	m->iterateInAnswer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, to_tag, transaction->getBranchId(),isEarlyMedia), offer);
 	// modify sdp
-	m->masquerade(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()));
+	m->masqueradeInAnswer(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()), offer);
 
-	m->addIceCandidate(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()),
-		bind(&RelayedCall::getChannelDestinations, c, _1, to_tag, transaction->getBranchId())
-	);
+	m->addIceCandidateInAnswer(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()),
+		bind(&RelayedCall::getChannelDestinations, c, _1, to_tag, transaction->getBranchId()), offer);
 
 	m->update(msg, sip);
-
-	delete m;
 }
 
 void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
