@@ -158,14 +158,16 @@ namespace flexisip {
 				}
 				
 			} else {
-				SLOGI << "Building partiat state rlmi for list name ["<< mName << "]";
+				SLOGI << "Building partial state rlmi for list name ["<< mName << "]";
 				for (pair<const belle_sip_uri_t*,shared_ptr<PresentityPresenceInformation>> presenceInformationPair:mPendingStates) {
-					shared_ptr<PresentityPresenceInformation> presenceInformation = presenceInformationPair.second;
-					char *presentityUri = belle_sip_uri_to_string(presenceInformation->getEntity());
-					rlmi::Resource resource(presentityUri);
-					belle_sip_free(presentityUri);
-					addInstanceToResource(resource, multipartList, *presenceInformation);
-					resourceList.getResource().push_back(resource);
+					if (presenceInformationPair.second->isKnown()) { /* only notify for entity with known state*/
+						shared_ptr<PresentityPresenceInformation> presenceInformation = presenceInformationPair.second;
+						char *presentityUri = belle_sip_uri_to_string(presenceInformation->getEntity());
+						rlmi::Resource resource(presentityUri);
+						belle_sip_free(presentityUri);
+						addInstanceToResource(resource, multipartList, *presenceInformation);
+						resourceList.getResource().push_back(resource);
+					}
 				}
 				
 				

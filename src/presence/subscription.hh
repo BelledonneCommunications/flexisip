@@ -40,9 +40,12 @@ namespace flexisip {
 		State getState() const;
 		void setState(Subscription::State state);
 		/*
-		 * used to update expire value
+		 * used to set expiration value
 		 */
-		void setExpire(int expires);
+		void setExpirationTime(time_t expirationTime);
+		time_t getExpirationDate();
+		void increaseExpirationTime(unsigned int expires);
+		
 	protected:
 		belle_sip_dialog_t* mDialog;
 		belle_sip_provider_t* mProv;
@@ -53,11 +56,10 @@ namespace flexisip {
 		string mEventId;
 		belle_sip_header_t* mAcceptHeader;
 		string state;
-		unsigned int mExpires;
 		string mId;
-		
 		State mState;
-		time_t creationTime;
+		time_t mCreationTime;
+		time_t mExpirationTime;
 	
 	};
 	

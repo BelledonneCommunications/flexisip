@@ -625,7 +625,7 @@ void  PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event
 				belle_sip_dialog_set_application_data(dialog, NULL);
 			} else {
 				//update expires
-				subscription->setExpire(expires);
+				subscription->increaseExpirationTime(expires);
 				if (typeid(*subscription) == typeid(PresenceSubscription)) {
 					shared_ptr<PresentityPresenceInformationListener> listener = dynamic_cast<PresenceSubscription*>(subscription)->shared_from_this();
 					addOrUpdateListener(listener,expires);
