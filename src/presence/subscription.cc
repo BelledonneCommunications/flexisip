@@ -108,6 +108,7 @@ void Subscription::setAcceptHeader(belle_sip_header_t* acceptHeader) {
 		}
 		
 		belle_sip_client_transaction_t* client_transaction = belle_sip_provider_create_client_transaction(mProv,notify);
+		belle_sip_transaction_set_application_data(BELLE_SIP_TRANSACTION(client_transaction), static_cast<Subscription*>(this));
 		if (belle_sip_client_transaction_send_request(client_transaction)) {
 			SLOGE << "Cannot send notify information change for ["<<std::hex <<(long)this<<"]";
 		}

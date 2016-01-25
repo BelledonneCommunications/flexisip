@@ -34,6 +34,8 @@ class EtagManager;
 class PresenceInformationElement {
 public:
 	PresenceInformationElement(pidf::Presence::TupleSequence* tuples, pidf::Presence::AnySequence* extensions, belle_sip_main_loop_t* mainLoop);
+	//create an information element with a default tuple set to closed.
+	PresenceInformationElement(const belle_sip_uri_t *contact);
 	~PresenceInformationElement();
 	time_t getExpitationTime() const;
 	void setExpiresTimer( belle_sip_source_t* timer);
@@ -161,6 +163,8 @@ private:
 
 	// list of subscribers function to be called when a tuple changed
 	std::list<shared_ptr<PresentityPresenceInformationListener>> mSubscribers;
+	std::shared_ptr<PresenceInformationElement> mDefaultInformationElement; // purpose of this element is to have a defualt presence status (I.E closed) when all publish have expired. 
+		
 };
 
 std::ostream& operator<<(std::ostream& __os,const PresentityPresenceInformation&);

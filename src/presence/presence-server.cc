@@ -175,7 +175,13 @@ void PresenceServer::processResponseEvent(PresenceServer * thiz, const belle_sip
 	SLOGD << " PresenceServer::processResponseEvent Not implemented yet";
 }
 void PresenceServer::processTimeout(PresenceServer * thiz, const belle_sip_timeout_event_t *event) {
-	SLOGD << " PresenceServer::processTimeout Not implemented yet";
+	belle_sip_client_transaction_t *client = belle_sip_timeout_event_get_client_transaction(event);
+	if (client) {
+		Subscription* subscription = static_cast<Subscription*>(belle_sip_transaction_get_application_data(BELLE_SIP_TRANSACTION(client)));
+		thiz->removeSubscription(subscription);
+		SLOGD << "Removing subscription [" <<subscription << "] because no response received";
+		belle_sip_dialog_set_application_data(belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(client)), NULL);
+	}
 }
 void PresenceServer::processTransactionTerminated(PresenceServer * thiz, const belle_sip_transaction_terminated_event_t *event){
 	//nop
@@ -609,19 +615,7 @@ void  PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event
 			belle_sip_server_transaction_send_response(server_transaction,resp);
 			
 			if (expires == 0) {
-				subscription->setState(Subscription::State::terminated);
-				if (typeid(*subscription) == typeid(PresenceSubscription)) {
-					shared_ptr<PresentityPresenceInformationListener> listener = dynamic_cast<PresentityPresenceInformationListener*>(subscription)->shared_from_this();
-					removeListener(listener);
-				} else {
-					//list subscription case
-					ListSubscription *listSubscription = dynamic_cast<ListSubscription*>(subscription);
-					for (shared_ptr<PresentityPresenceInformationListener> listener:listSubscription->getListeners()) {
-						removeListener(listener);
-					}
-					dynamic_cast<Subscription*>(listSubscription)->notify(NULL); // to trigger final notify
-					//fixme de delete listSubscription ???
-				}
+				removeSubscription(subscription);
 				belle_sip_dialog_set_application_data(dialog, NULL);
 			} else {
 				//update expires
@@ -710,5 +704,19 @@ void PresenceServer::removeListener(shared_ptr<PresentityPresenceInformationList
 		SLOGW <<"No presence info for this entity ["<<listener->getPresentityUri()<<"]/["<<std::hex << (long)&listener<<"]";
 }
 
-
+void PresenceServer::removeSubscription(Subscription* subscription) throw () {
+	subscription->setState(Subscription::State::terminated);
+	if (typeid(*subscription) == typeid(PresenceSubscription)) {
+		shared_ptr<PresentityPresenceInformationListener> listener = dynamic_cast<PresentityPresenceInformationListener*>(subscription)->shared_from_this();
+		removeListener(listener);
+	} else {
+		//list subscription case
+		ListSubscription *listSubscription = dynamic_cast<ListSubscription*>(subscription);
+		for (shared_ptr<PresentityPresenceInformationListener> listener:listSubscription->getListeners()) {
+			removeListener(listener);
+		}
+		dynamic_cast<Subscription*>(listSubscription)->notify(NULL); // to trigger final notify
+		//fixme de delete listSubscription ???
+	}
+}
 
