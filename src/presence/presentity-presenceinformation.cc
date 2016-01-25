@@ -384,7 +384,8 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 	}
 																					 
 	PresenceInformationElement::~PresenceInformationElement(){
-		belle_sip_main_loop_remove_source(mBelleSipMainloop,mTimer);
+		if (mBelleSipMainloop && mTimer)
+			belle_sip_main_loop_remove_source(mBelleSipMainloop,mTimer);
 		SLOGD <<  "Presence information element ["<< std::hex << (long)this << "] deleted";
 	}
 	void PresenceInformationElement::setExpiresTimer(belle_sip_source_t* timer){
