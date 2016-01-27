@@ -188,7 +188,7 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 int RelayChannel::send(int i, uint8_t *buf, size_t buflen) {
 	int err=0;
 	/*if destination address is working mSockAddrSize>0*/
-	if (mRemotePort>0 && mSockAddrSize[i] > 0) {
+	if (mRemotePort>0 && mSockAddrSize[i] > 0 && mDir != Inactive) {
 		if (!mFilter || mFilter->onOutgoingTransfer(buf,buflen,(struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]) ){
 			err = sendto(mSockets[i], buf, buflen, 0, (struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]);
 			mPacketsSent++;
@@ -199,7 +199,7 @@ int RelayChannel::send(int i, uint8_t *buf, size_t buflen) {
 			}
 		}
 	}else{
-		LOGW("Destination not valid.");
+		/*LOGW("Not sending media, destination not valid or inactive stream."); */
 	}
 	return err;
 }
