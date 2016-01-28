@@ -135,10 +135,11 @@ void PresenceServer::start() throw (FlexisipException) {
 	}
 }
 void PresenceServer::processDialogTerminated(PresenceServer * thiz, const belle_sip_dialog_terminated_event_t *event) {
-	belle_sip_dialog_t *dialog = belle_sip_dialog_terminated_event_get_dialog(event);
-	if (typeid(belle_sip_dialog_get_application_data(dialog)) == typeid(PresenceSubscription*)) {
-		delete static_cast<PresenceSubscription*>(belle_sip_dialog_get_application_data(dialog));
-	};
+	//belle_sip_dialog_t *dialog = belle_sip_dialog_terminated_event_get_dialog(event);
+	//Subscription *sub = static_cast<Subscription*>(belle_sip_dialog_get_application_data(dialog));
+	//thiz->removeSubscription(sub);
+	
+	//nothing to be done for now because expire is performed at SubscriptionLevel 
 }
 void PresenceServer::processIoError(PresenceServer * thiz, const belle_sip_io_error_event_t *event){
 	SLOGD << "PresenceServer::processIoError not implemented yet";
@@ -706,7 +707,7 @@ void PresenceServer::removeListener(shared_ptr<PresentityPresenceInformationList
 
 void PresenceServer::removeSubscription(Subscription* subscription) throw () {
 	subscription->setState(Subscription::State::terminated);
-	if (typeid(*subscription) == typeid(PresenceSubscription)) {
+	if (dynamic_cast<PresenceSubscription*>(subscription)) {
 		shared_ptr<PresentityPresenceInformationListener> listener = dynamic_cast<PresentityPresenceInformationListener*>(subscription)->shared_from_this();
 		removeListener(listener);
 	} else {
