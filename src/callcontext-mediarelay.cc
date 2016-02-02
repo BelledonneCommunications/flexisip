@@ -32,7 +32,6 @@ RelayedCall::RelayedCall(const shared_ptr<MediaRelayServer> &server, sip_t *sip)
 	mDropTelephoneEvents=false;
 	mIsEstablished=false;
 	mHasSendRecvBack=false;
-	mEarlyMediaRelayCount = 0;
 }
 
 /*Enable filtering of H264 Iframes for low bandwidth.*/
@@ -135,8 +134,7 @@ void RelayedCall::setChannelDestinations(SdpModifier *m, int mline, const string
 		if(chan->getLocalPort()>0) {
 			if (isEarlyMedia){
 				int maxEarlyRelays = mServer->mModule->mMaxRelayedEarlyMedia;
-				mEarlyMediaRelayCount++;
-				if (maxEarlyRelays != 0 && mEarlyMediaRelayCount > maxEarlyRelays){
+				if (maxEarlyRelays != 0 && s->getActiveBranchesCount() >= maxEarlyRelays){
 					LOGW("Maximum number of relayed early media streams reached for RelayedCall [%p]", this);
 					dir = RelayChannel::Inactive;
 				}

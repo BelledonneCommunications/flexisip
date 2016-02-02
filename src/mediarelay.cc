@@ -252,6 +252,17 @@ void RelaySession::removeBranch(const std::string &trId){
 	if (removed) LOGD("RelaySession [%p]: branch corresponding to transaction [%s] removed.",this,trId.c_str());
 }
 
+int RelaySession::getActiveBranchesCount(){
+	int count = 0;
+	mMutex.lock();
+	for(auto it = mBacks.begin(); it != mBacks.end(); ++it){
+		if ((*it).second->getRemotePort() > 0) count++;
+	}
+	mMutex.unlock();
+	LOGD("getActiveBranchesCount(): %i", count);
+	return count;
+}
+
 void RelaySession::setEstablished(const std::string &tr_id){
 	if (mBack) return;
 	shared_ptr<RelayChannel> winner=getChannel("",tr_id);

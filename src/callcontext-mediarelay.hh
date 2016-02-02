@@ -72,7 +72,6 @@ private:
 	const shared_ptr<MediaRelayServer> & mServer;
 	int mBandwidthThres;
 	int mDecim;
-	int mEarlyMediaRelayCount;
 	bool mH264DecimOnlyIfLastProxy;
 	bool mDropTelephoneEvents;
 	bool mHasSendRecvBack;
