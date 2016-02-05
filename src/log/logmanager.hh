@@ -190,7 +190,7 @@ operator<<(pumpstream&& __os, const _Tp &__x)
 #define SLOGA_FL(file,line) throw FlexisipException() << " " << file << ":"<< line << " "
 
 
-#define SLOG(thelevel) if (ortp_logv_out!=NULL && ortp_log_level_enabled((thelevel))) pumpstream((thelevel))
+#define SLOG(thelevel) if (ortp_log_level_enabled(ORTP_LOG_DOMAIN, (thelevel))) pumpstream((thelevel))
 #define SLOGD SLOG(ORTP_DEBUG)
 #define SLOGI SLOG(ORTP_MESSAGE)
 #define SLOGW SLOG(ORTP_WARNING)
@@ -199,7 +199,7 @@ operator<<(pumpstream&& __os, const _Tp &__x)
 #define SLOGA SLOGA_FL(__FILE__,__LINE__)
 */
 #define LOGV(thelevel,thefmt, theargs) LOGDV((thefmt), (theargs))
-#define LOGDV(thefmt, theargs) ortp_logv(ORTP_DEBUG, (thefmt), (theargs))
+#define LOGDV(thefmt, theargs) ortp_logv(ORTP_LOG_DOMAIN, ORTP_DEBUG, (thefmt), (theargs))
 #define LOGD ortp_debug
 #define LOGI ortp_message
 #define LOGW ortp_warning
@@ -208,7 +208,7 @@ operator<<(pumpstream&& __os, const _Tp &__x)
 
 #define LOGDFN(boolFn, streamFn) \
 do { \
-	if (ortp_logv_out!=NULL && ortp_log_level_enabled((ORTP_DEBUG)) && (boolFn())) \
+	if (ortp_log_level_enabled(ORTP_LOG_DOMAIN, (ORTP_DEBUG)) && (boolFn())) \
 	{ pumpstream pump(ORTP_DEBUG); (streamFn)(pump); } \
 } while(0)
 

@@ -152,10 +152,9 @@ void ForkMessageContext::sOnAcceptanceTimer(su_root_magic_t* magic, su_timer_t* 
 
 bool isMessageARCSFileTransferMessage(shared_ptr<RequestSipEvent> &ev) {
 	sip_t* sip = ev->getSip();
-	if (strncasecmp(sip->sip_request->rq_method_name, "MESSAGE", strlen(sip->sip_request->rq_method_name)) == 0) {
-		if (sip->sip_content_type->c_type && strcasecmp (sip->sip_content_type->c_type, "application/vnd.gsma.rcs-ft-http+xml")==0) {
+	
+	if (sip->sip_content_type && sip->sip_content_type->c_type && strcasecmp(sip->sip_content_type->c_type, "application/vnd.gsma.rcs-ft-http+xml")==0) {
 			return true;
-		}
 	}
 	return false;
 }

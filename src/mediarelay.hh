@@ -57,6 +57,7 @@ private:
 	int mH264Decim;
 	int mMaxCalls;
 	int mMinPort, mMaxPort;
+	int mMaxRelayedEarlyMedia;
 	bool mDropTelephoneEvent;
 	bool mByeOrphanDialogs;
 	bool mEarlyMediaRelaySingle;
@@ -132,6 +133,7 @@ public:
 	void fillPollFd(PollFd *pfd);
 	void checkPollFd(const PollFd *pfd, time_t curtime);
 	void unuse();
+	int getActiveBranchesCount();
 
 	bool isUsed() const {
 		return mUsed;
@@ -185,7 +187,8 @@ class RelayChannel {
 public:
 	enum Dir {
 		SendOnly,
-		SendRecv
+		SendRecv,
+		Inactive
 	};
 	
 	RelayChannel(RelaySession* relaySession, const std::pair<std::string,std::string> &relayIps, bool preventLoops);

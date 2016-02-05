@@ -32,6 +32,9 @@
 #include <functional>
 #include <algorithm>
 
+/*This file is using a deprecated API of mediastreamer2.*/
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 using namespace ::std;
 
 #ifdef ENABLE_TRANSCODER

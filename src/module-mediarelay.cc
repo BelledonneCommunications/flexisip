@@ -64,6 +64,8 @@ void MediaRelay::onDeclare(GenericStruct * mc) {
 						"A value of 0 means no limit.", "0" },
 			{ Boolean, "prevent-loops", "Prevent media-relay ports to loop between them, which can cause 100% cpu on the media relay thread.", "false"},
 			{ Boolean, "early-media-relay-single", "In case multiples 183 Early media responses are received for a call, only the first one will have RTP streams forwarded back to caller. This feature prevents the caller to receive 'mixed' streams, but it breaks scenarios where multiple servers play early media announcement in sequence.", "true"},
+			{ Integer, "max-early-media-per-call", "Maximum number of relayed early media streams per call. This is useful to limit the cpu usage due to early media relaying on" 
+				" embedded systems. A value of 0 stands for unlimited.", "0"},
 #ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 			/*very specific features, useless for most people*/
 			{ Integer, "h264-filtering-bandwidth", "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value expressed in kbit/s. Use 0 to disable the feature", "0" },
@@ -111,6 +113,7 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mMaxPort = modconf->get<ConfigInt>("sdp-port-range-max")->read();
 	mPreventLoop = modconf->get<ConfigBoolean>("prevent-loops")->read();
 	mMaxCalls=modconf->get<ConfigInt>("max-calls")->read();
+	mMaxRelayedEarlyMedia = modconf->get<ConfigInt>("max-early-media-per-call")->read();
 	createServers();
 }
 

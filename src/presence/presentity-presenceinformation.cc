@@ -22,6 +22,7 @@
 #include <functional>
 #include "etag-manager.hh"
 #include "pidf+xml.hxx"
+#include <memory>
 
 #define ETAG_SIZE 8
 using namespace pidf;
@@ -45,7 +46,7 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 	}
 	
 	PresentityPresenceInformation::~PresentityPresenceInformation() {
-		for(auto it=mInformationElements.begin();it!=mInformationElements.end();++it) {
+		for(auto it=mInformationElements.begin();it!=mInformationElements.end();it++) {
 			delete it->second;
 			it=mInformationElements.erase(it);
 		}
@@ -156,7 +157,11 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 		if (it != mInformationElements.end()) {
 			PresenceInformationElement* informationElement = it->second;
 			mInformationElements.erase(it);
+			if (mInformationElements.empty()) {
+				mDefaultInformationElement = make_shared<PresenceInformationElement>(this->getEntity());
+			}
 			delete informationElement;
+			notifyAll(); // Removing an event state change global state, so it should be notified
 		} else
 			SLOGD << "No tulpes found for etag ["<< eTag << "]";
 	}
@@ -192,13 +197,13 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 		}
 
 		
-		SLOGD << op<<" listener ["<<&listener <<"] on ["<<*this<<"] for ["<<expires<<"] seconds";
+		SLOGD << op<<" listener ["<<listener.get() <<"] on ["<<*this<<"] for ["<<expires<<"] seconds";
 		//PresentityPresenceInformationListener* listener_ptr=listener.get();
 		// cb function to invalidate an unrefreshed etag;
 		std::function<int (unsigned int)> *func = new std::function<int (unsigned int)>([this,listener/*_ptr*/](unsigned int events) {
 			listener->onExpired(*this);
 			this->removeListener(listener);
-			SLOGD << "Listener ["<<listener << "] on ["<<*this<<"] has expired";
+			SLOGD << "Listener ["<<listener.get() << "] on ["<<*this<<"] has expired";
 			return BELLE_SIP_STOP;
 		});
 		// create timer
@@ -225,7 +230,7 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 		
 	}
 	void PresentityPresenceInformation::removeListener(shared_ptr<PresentityPresenceInformationListener> listener) {
-		SLOGD << "removing listener ["<<listener<<"] on ["<<*this<<"]";
+		SLOGD << "removing listener ["<<listener.get()<<"] on ["<<*this<<"]";
 		//1 cancel expiration time
 		listener->setExpiresTimer(mBelleSipMainloop,NULL);
 		//2 remove listener
@@ -240,7 +245,7 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 	}
 	
 	bool PresentityPresenceInformation::isKnown() {
-		return mInformationElements.size() > 0;
+		return mInformationElements.size() > 0 || mDefaultInformationElement != nullptr;
 	}
 	string PresentityPresenceInformation::getPidf() throw (FlexisipException){
 		stringstream out;
@@ -248,16 +253,27 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 			char* entity= belle_sip_uri_to_string(getEntity());
 			pidf::Presence presence((string(entity)));
 			belle_sip_free(entity);
+			list<string> tupleList;
 			
 			for (auto element:mInformationElements) {
 				//copy pidf
 				for (const unique_ptr<pidf::Tuple>& tup :element.second->getTuples()){
-					presence.getTuple().push_back(*tup->_clone());
+					//check for multiple tupple id, may happend with buggy presence publisher
+					if (find(tupleList.begin(), tupleList.end(),tup.get()->getId()) == tupleList.end()) {
+						presence.getTuple().push_back(*tup->_clone());
+						tupleList.push_back(tup.get()->getId());
+					} else {
+						SLOGW << "Already existing tuple id [" << tup.get()->getId() <<" for ["<< *this<< "], skipping";
+					}
 				}
 				//copy extensions
 				for( auto extension:element.second->getExtensions()) {
 					presence.getAny().push_back(dynamic_cast<xercesc::DOMElement*>(presence.getDomDocument().importNode(extension,true))); // might be optimized
 				}
+			}
+			if (mInformationElements.size() == 0 && mDefaultInformationElement != nullptr) {
+				//insering default tuple
+				presence.getTuple().push_back(*mDefaultInformationElement->getTuples().begin()->get()->_clone());
 			}
 			pidf::Note value;
 			namespace_::Lang lang("en");
@@ -333,8 +349,43 @@ FlexisipException& operator<< (FlexisipException& e, const xml_schema::Exception
 		
 		
 	}
+	//code from linphone
+	/*defined in http://www.w3.org/TR/REC-xml/*/
+	static char presence_id_valid_characters[] = "0123456789abcdefghijklmnopqrstuvwxyz-.";
+	/*NameStartChar (NameChar)**/
+	static char presence_id_valid_start_characters[] = ":_abcdefghijklmnopqrstuvwxyz";
+	
+	string generate_presence_id(void) {
+		char id[7];
+		int i;
+		id[0] = presence_id_valid_start_characters[ortp_random() % (sizeof(presence_id_valid_start_characters)-1)];
+		for (i = 1; i < 6; i++) {
+			id[i] = presence_id_valid_characters[ortp_random() % (sizeof(presence_id_valid_characters)-1)];
+		}
+		id[6] = '\0';
+		
+		return id;
+	}
+
+	PresenceInformationElement::PresenceInformationElement(const belle_sip_uri_t *contact)
+		:mDomDocument(::xsd::cxx::xml::dom::create_document< char > ())
+		,mBelleSipMainloop(NULL)
+		,mTimer(NULL) {
+			char* contact_as_string = belle_sip_uri_to_string(contact);
+			std::time_t t;
+			std::time(&t);
+			struct tm * now = gmtime(&t);
+			Status status;
+			status.setBasic(Basic("closed"));
+			unique_ptr<Tuple>	tup(new Tuple (status, string(generate_presence_id())));
+			tup->setTimestamp(::xml_schema::DateTime(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday,now->tm_hour, now->tm_min, now->tm_sec));
+			tup->setContact(::pidf::Contact(contact_as_string));
+			mTuples.push_back(std::unique_ptr<Tuple>(tup.release()));
+	}
+																					 
 	PresenceInformationElement::~PresenceInformationElement(){
-		belle_sip_main_loop_remove_source(mBelleSipMainloop,mTimer);
+		if (mBelleSipMainloop && mTimer)
+			belle_sip_main_loop_remove_source(mBelleSipMainloop,mTimer);
 		SLOGD <<  "Presence information element ["<< std::hex << (long)this << "] deleted";
 	}
 	void PresenceInformationElement::setExpiresTimer(belle_sip_source_t* timer){

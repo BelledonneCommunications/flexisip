@@ -27,12 +27,12 @@ Subscription::Subscription(string eventName,unsigned int expires,belle_sip_dialo
 	:mDialog(aDialog)
 	,mProv(prov)
 	,mEventName(eventName)
-	,mExpires(expires)
 	,mState(active) {
 	
 		belle_sip_object_ref(mDialog);
 		belle_sip_object_ref(mProv);
-		time(&creationTime);
+		time(&mCreationTime);
+		mExpirationTime = mCreationTime + expires;
 }
 void Subscription::setAcceptHeader(belle_sip_header_t* acceptHeader) {
 	if (mAcceptHeader) belle_sip_object_unref(mAcceptHeader);
@@ -104,10 +104,11 @@ void Subscription::setAcceptHeader(belle_sip_header_t* acceptHeader) {
 		belle_sip_header_subscription_state_set_state(sub_state, stateToString(mState));
 
 		if (mState==active) {
-			belle_sip_header_subscription_state_set_expires(sub_state, (int)(mExpires + creationTime - current_time));
+			belle_sip_header_subscription_state_set_expires(sub_state, (int)(mExpirationTime - current_time));
 		}
 		
 		belle_sip_client_transaction_t* client_transaction = belle_sip_provider_create_client_transaction(mProv,notify);
+		belle_sip_transaction_set_application_data(BELLE_SIP_TRANSACTION(client_transaction), dynamic_cast<Subscription*>(this));
 		if (belle_sip_client_transaction_send_request(client_transaction)) {
 			SLOGE << "Cannot send notify information change for ["<<std::hex <<(long)this<<"]";
 		}
@@ -126,8 +127,12 @@ void Subscription::setAcceptHeader(belle_sip_header_t* acceptHeader) {
 	void Subscription::setState(Subscription::State state) {
 		mState=state;
 	}
-	void Subscription::setExpire(int expires) {
-		mExpires = expires;
+	void Subscription::setExpirationTime(time_t expirationTime) {
+		mExpirationTime = expirationTime;
+	}
+	
+	void Subscription::increaseExpirationTime(unsigned int expires) {
+		mExpirationTime += expires;
 	}
 	
 	//Presence Subscription

@@ -89,6 +89,8 @@ const char *RelayChannel::dirToString(Dir dir){
 			return "SendOnly";
 		case SendRecv:
 			return "SendRecv";
+		case Inactive:
+			return "Inactive";
 	}
 	return "invalid";
 }
@@ -165,8 +167,8 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 	if (err>0){
 		mPacketsReceived++;
 		mSockAddrSize[i] = addrsize;
-		if (mDir==SendOnly) {
-			LOGD("ignored packet");
+		if (mDir==SendOnly || mDir == Inactive) {
+			/*LOGD("ignored packet");*/
 			return 0;
 		}
 		if (mFilter && mFilter->onIncomingTransfer(buf,buflen,(struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]) == false ){
@@ -186,7 +188,7 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 int RelayChannel::send(int i, uint8_t *buf, size_t buflen) {
 	int err=0;
 	/*if destination address is working mSockAddrSize>0*/
-	if (mRemotePort>0 && mSockAddrSize[i] > 0) {
+	if (mRemotePort>0 && mSockAddrSize[i] > 0 && mDir != Inactive) {
 		if (!mFilter || mFilter->onOutgoingTransfer(buf,buflen,(struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]) ){
 			err = sendto(mSockets[i], buf, buflen, 0, (struct sockaddr*) &mSockAddr[i], mSockAddrSize[i]);
 			mPacketsSent++;
@@ -197,7 +199,7 @@ int RelayChannel::send(int i, uint8_t *buf, size_t buflen) {
 			}
 		}
 	}else{
-		LOGW("Destination not valid.");
+		/*LOGW("Not sending media, destination not valid or inactive stream."); */
 	}
 	return err;
 }
@@ -248,6 +250,17 @@ void RelaySession::removeBranch(const std::string &trId){
 	}
 	mMutex.unlock();
 	if (removed) LOGD("RelaySession [%p]: branch corresponding to transaction [%s] removed.",this,trId.c_str());
+}
+
+int RelaySession::getActiveBranchesCount(){
+	int count = 0;
+	mMutex.lock();
+	for(auto it = mBacks.begin(); it != mBacks.end(); ++it){
+		if ((*it).second->getRemotePort() > 0) count++;
+	}
+	mMutex.unlock();
+	LOGD("getActiveBranchesCount(): %i", count);
+	return count;
 }
 
 void RelaySession::setEstablished(const std::string &tr_id){

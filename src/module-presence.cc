@@ -30,10 +30,12 @@ private:
 	static ModuleInfo<ModulePresence> sInfo;
 	string mDestRoute;
 	su_home_t mHome;
+	shared_ptr<BooleanExpression> mOnlyListSubscription;
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
-				{ String, "presence-server", "A sip uri where to send all presence's requests", "sip:127.0.0.1:5065" },
+				{ String, "presence-server", "A sip uri where to send all presence related requests.", "sip:127.0.0.1:5065" },
+				{ BooleanExpr, "only-list-subscription", "If true, only manage list subscription.", "false" },
 				config_item_end
 		};
 		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
@@ -60,7 +62,9 @@ private:
 
 	void onLoad(const GenericStruct *mc) {
 		mDestRoute = mc->get<ConfigString>("presence-server")->read();
+		mOnlyListSubscription = mc->get<ConfigBooleanExpression>("only-list-subscription")->read();
 		SLOGI<< this->getModuleName() << ": presence server is ["<< mDestRoute <<"]";
+		SLOGI<< this->getModuleName() << ": Non list subscription are "<< (mOnlyListSubscription?"not":"") <<" redirected by presence server";
 	}
 
 	void onUnload() {
@@ -73,9 +77,16 @@ private:
 	}
 	bool isMessageAPresenceMessage(shared_ptr<RequestSipEvent> &ev) {
 		sip_t* sip=ev->getSip();
-		if (strncasecmp(sip->sip_request->rq_method_name,"SUBSCRIBE",strlen(sip->sip_request->rq_method_name))==0) {
-			return sip->sip_event && strcmp(sip->sip_event->o_type,"presence")==0;
-		} else if (strncasecmp(sip->sip_request->rq_method_name,"PUBLISH",strlen(sip->sip_request->rq_method_name)) == 0) {
+		if (sip->sip_request->rq_method == sip_method_subscribe) {
+			sip_require_t *require;
+			bool require_recipient_list_subscribe_found = false;
+			for (require=(sip_require_t *)sip->sip_require;require!=NULL;require=(sip_require_t *)require->k_next) {
+				if (*require->k_items && strcasecmp((const char*)*require->k_items, "recipient-list-subscribe") == 0) {
+					require_recipient_list_subscribe_found=true;
+				}
+			}
+			return (!mOnlyListSubscription->eval(ev->getSip()) || require_recipient_list_subscribe_found) && sip->sip_event && strcmp(sip->sip_event->o_type,"presence")==0;
+		} else if (sip->sip_request->rq_method == sip_method_publish) {
 			return !sip->sip_content_type || (sip->sip_content_type
 				&& sip->sip_content_type->c_type && strcasecmp (sip->sip_content_type->c_type,"application/pidf+xml")==0
 				&& sip->sip_content_type->c_subtype && strcasecmp (sip->sip_content_type->c_subtype,"pidf+xml")==0);
@@ -85,17 +96,16 @@ private:
 	void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		if (isMessageAPresenceMessage(ev))
 			route(ev);
-
 	}
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev){};
 
 public:
-		ModulePresence(Agent *ag) : Module(ag) {
-			su_home_init(&mHome);
-		}
+	ModulePresence(Agent *ag) : Module(ag) {
+		su_home_init(&mHome);
+	}
 
-		~ModulePresence() {
-		}
+	~ModulePresence() {
+	}
 
 };
 ModuleInfo<ModulePresence> ModulePresence::sInfo("Presence",

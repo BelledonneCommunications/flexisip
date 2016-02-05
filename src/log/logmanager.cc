@@ -270,7 +270,7 @@ namespace log {
 namespace flexisip {
 namespace log {
 
-	static void syslogHandler(OrtpLogLevel log_level, const char *str, va_list l){
+	static void syslogHandler(const char *domain, OrtpLogLevel log_level, const char *str, va_list l){
 		int syslev=LOG_ALERT;
 		switch(log_level){
 			case ORTP_DEBUG:
@@ -294,7 +294,7 @@ namespace log {
 		vsyslog(syslev,str,l);
 	}
 
-	static void defaultLogHandler(OrtpLogLevel log_level, const char *str, va_list l){
+	static void defaultLogHandler(const char *domain, OrtpLogLevel log_level, const char *str, va_list l){
 		const char *levname="none";
 		switch(log_level){
 			case ORTP_DEBUG:
@@ -328,9 +328,9 @@ namespace log {
 		ortp_set_log_file(stdout);
 
 		if (debug){
-			ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
+			ortp_set_log_level_mask(ORTP_LOG_DOMAIN, ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
 		} else {
-			ortp_set_log_level_mask(ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
+			ortp_set_log_level_mask(ORTP_LOG_DOMAIN, ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
 		}
 
 		if (syslog){
@@ -351,9 +351,9 @@ namespace log {
 		}
 
 		if (debug){
-			ortp_set_log_level_mask(ORTP_DEBUG|ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
+			ortp_set_log_level(ORTP_LOG_DOMAIN, ORTP_DEBUG);
 		} else {
-			ortp_set_log_level_mask(ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
+			ortp_set_log_level(ORTP_LOG_DOMAIN, ORTP_MESSAGE);
 		}
 
 		is_debug = debug;
@@ -368,7 +368,7 @@ namespace log {
 	}
 
 	void disableGlobally() {
-		ortp_set_log_level_mask(ORTP_FATAL|ORTP_ERROR);
+		ortp_set_log_level(ORTP_LOG_DOMAIN, ORTP_ERROR);
 	}
 
 }

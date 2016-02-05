@@ -529,7 +529,7 @@ AM_CONDITIONAL(BUILD_PROTOBUF,test x$have_protobuf = xyes)
 AC_HEADER_STDBOOL
 
 PKG_CHECK_MODULES(SOFIA,[sofia-sip-ua >= 1.13.3-bc])
-PKG_CHECK_MODULES(ORTP,[ortp >= 0.16.3])
+PKG_CHECK_MODULES(ORTP,[ortp >= 0.26.0])
 
 # ##################################
 # XSD checks

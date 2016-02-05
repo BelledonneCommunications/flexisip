@@ -91,6 +91,7 @@ BuildArch:	i686
 %endif
 Requires: bash >= 2.0
 Requires: boost-system >= 1.41
+Requires: at >= 3.1.10
 
 %if %{odbc}
 Requires: %{odbc_prefix}unixODBC >= 2.3.1

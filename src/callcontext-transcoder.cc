@@ -24,6 +24,10 @@
 
 #include "sdp-modifier.hh"
 
+
+/*This file is using a deprecated API of mediastreamer2.*/
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 using namespace ::std;
 
 CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCallCtx(ctx){
