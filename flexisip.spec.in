@@ -24,6 +24,7 @@
 # odbc default:     1
 # transcode default:1
 # snmp default:     1
+# soci default:     1
 # odb default:      0
 # bc-odbc default:  0
 # bcpkg default:    0
@@ -36,6 +37,7 @@
 %define     transcoder %{?_without_transcoder:0}%{!?_without_transcoder:1}
 %define     presence   %{?_with_presence:1}%{!?_with_presence:0}
 %define     snmp       %{?_without_snmp:0}%{!?_without_snmp:1}
+%define     soci       %{?_without_soci:0}%{!?_without_soci:1}
 %define     odb        %{?_with_odb:1}%{!?_with_odb:0}
 
 # invoke rpmbuild with --with bcodbc to build using Belledonne Communications' modified UnixODBC
@@ -124,6 +126,10 @@ Requires: net-snmp-libs
 Requires: net-snmp-devel
 %endif
 
+%if ${soci}
+Requires: soci
+%endif
+
 %if %{transcoder}
 Requires: %{pkg_prefix}mediastreamer
 %endif
@@ -167,6 +173,9 @@ echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
 %endif
 %if !%{snmp}
     --disable-snmp \
+%endif
+%if %{soci}
+	--enable-soci \
 %endif
 %if !%{boostlog}
     --disable-boostlog \
