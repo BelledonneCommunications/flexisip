@@ -177,6 +177,7 @@ echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
 %endif
 %if %{soci}
 	--enable-soci \
+	--with-soci=/usr \
 %endif
 %if !%{boostlog}
     --disable-boostlog \
@@ -250,6 +251,8 @@ fi
 %{_sysconfdir}/flexisip
 
 %changelog
+* Mon Feb 08 2016 Guillaume Bienkowski <gbi@linphone.org>
+	- Add soci option
 * Wed Nov 04 2015 Sylvain Berfini <sylvain.berfini@linphone.org>
 	- Add option to disable odb
 * Tue Oct 14 2014 Guillaume Bienkowski <gbi@linphone.org>
