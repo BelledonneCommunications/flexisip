@@ -126,7 +126,7 @@ Requires: net-snmp-libs
 Requires: net-snmp-devel
 %endif
 
-%if ${soci}
+%if %{soci}
 Requires: soci
 Requires: soci-mysql-devel
 %endif
