@@ -18,8 +18,10 @@
 
 #include "authdb.hh"
 #include <thread>
+#include <chrono>
 
 using namespace soci;
+using namespace chrono;
 
 void SociAuthDB::declareConfig(GenericStruct *mc) {
 	// ODBC-specific configuration keys
@@ -69,34 +71,44 @@ SociAuthDB::~SociAuthDB() {
 	delete pool;
 }
 
-void SociAuthDB::getPasswordWithPool(su_root_t* root, const std::string &id, const std::string &domain, const std::string &authid, AuthDbListener *listener){
+#define DURATION_MS(start, stop) (unsigned long) duration_cast<milliseconds>((start) - (stop)).count()
 
+void SociAuthDB::getPasswordWithPool(su_root_t *root, const std::string &id, const std::string &domain,
+									 const std::string &authid, AuthDbListener *listener) {
+
+	steady_clock::time_point start = steady_clock::now();
+
+	// Either:
 	// will grab a connection from the pool. This is thread safe
 	session sql(*pool);
 	std::string pass;
 
-	try
-	{
-		sql << get_password_request, into(pass), use(id,"id"), use(domain, "domain"), use(authid, "authid");
-		SLOGD << "[SOCI] Got pass for " << id;
-		cachePassword( createPasswordKey(id, domain, authid), domain, pass, mCacheExpire);
+	steady_clock::time_point stop = steady_clock::now();
+
+	SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
+	start = stop;
+
+	try {
+		sql << get_password_request, into(pass), use(id, "id"), use(domain, "domain"), use(authid, "authid");
+		stop = steady_clock::now();
+		SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
+		cachePassword(createPasswordKey(id, domain, authid), domain, pass, mCacheExpire);
 		notifyPasswordRetrieved(root, listener, PASSWORD_FOUND, pass);
-	}
-	catch (mysql_soci_error const & e)
-	{
-		SLOGE << "[SOCI] MySQL error: " << e.err_num_ << " " << e.what();
+	} catch (mysql_soci_error const &e) {
+		stop = steady_clock::now();
+		SLOGE << "[SOCI] MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
 		notifyPasswordRetrieved(root, listener, PASSWORD_NOT_FOUND, pass);
-	}
-	catch (exception const & e)
-	{
-		SLOGE << "[SOCI] Some other error: " << e.what();
+	} catch (exception const &e) {
+		stop = steady_clock::now();
+		SLOGE << "[SOCI] Some other error after " << DURATION_MS(start, stop) << "ms : " << e.what();
 		notifyPasswordRetrieved(root, listener, PASSWORD_NOT_FOUND, pass);
 	}
 }
 
 #pragma mark - Inherited virtuals
 
-void SociAuthDB::getPasswordFromBackend(su_root_t *root, const std::string& id, const std::string& domain, const std::string& authid, AuthDbListener *listener) {
+void SociAuthDB::getPasswordFromBackend(su_root_t *root, const std::string &id, const std::string &domain,
+										const std::string &authid, AuthDbListener *listener) {
 
 	// create a thread to grab a pool connection and use it to retrieve the auth information
 	auto func = bind(&SociAuthDB::getPasswordWithPool, this, root, id, domain, authid, listener);
@@ -104,5 +116,4 @@ void SociAuthDB::getPasswordFromBackend(su_root_t *root, const std::string& id, 
 	t.detach();
 
 	return;
-
 }
