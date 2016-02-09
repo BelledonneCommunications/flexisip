@@ -266,10 +266,10 @@ AC_ARG_ENABLE(soci,
 	[soci=auto]
 )
 AC_ARG_WITH(soci,
-	AC_HELP_STRING([--with-soci], [Specify the soci location. We expect this location to contain lib/libsoci.so, lib/libsoci_mysql.so and include/soci/ [default=/usr/local]]),
+	AC_HELP_STRING([--with-soci], [Specify the soci location. We expect this location to contain lib/libsoci.so, lib/libsoci_mysql.so and include/soci/ [default=/usr]]),
 	
 	[soci_prefix="${withval}"],
-	[soci_prefix=/usr/local]
+	[soci_prefix=/usr]
 )
 
 if test x$soci != "xno"; then
