@@ -83,8 +83,8 @@ public:
 	~DomainRegistrationManager();
 private:
 	Agent *mAgent;
-	
 	std::list<std::shared_ptr<DomainRegistration>> mRegistrations;
+	bool mVerifyServerCerts;
 };
 
 

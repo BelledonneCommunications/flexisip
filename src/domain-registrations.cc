@@ -68,6 +68,8 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 							" 'tls-certificate-dir' is understood in order to specify a TLS client certificate to present to the remote proxy.\n"
 							" If the file is absent or empty, no registrations are done."
 							, "/etc/flexisip/domain-registrations.conf"},
+		{ Boolean, "verify-server-certs", "When submitting a domain registration to a server over TLS, verify the certificate presented by the server. "
+				"Disabling this option is only for test, because it is a security flaw", "true"},
 		config_item_end
 	};
 	
@@ -132,6 +134,8 @@ int DomainRegistrationManager::load() {
 		mRegistrations.push_back(dr);
 	}while(!ifs.eof() && !ifs.bad());
 	
+	mVerifyServerCerts = domainRegistrationCfg->get<ConfigBoolean>("verify-server-certs")->read();
+	
 	for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
 	return 0;
 error:
@@ -163,6 +167,7 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr, const str
 	url_t *tportUri;
 	tp_name_t tpn = {0};
 	bool usingTls;
+	int verifyPolicy = mgr.mVerifyServerCerts ? TPTLS_VERIFY_OUT|TPTLS_VERIFY_SUBJECTS_OUT : TPTLS_VERIFY_NONE;
 	nta_agent_t *agent = mManager.mAgent->getSofiaAgent();
 	unsigned int keepAliveInterval = 10*60*1000;
 	
@@ -181,10 +186,14 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr, const str
 				    TPTAG_CERTIFICATE(clientCertdir.c_str()), 
 				    TPTAG_IDENT(localDomain.c_str()),
 				    TPTAG_KEEPALIVE(keepAliveInterval),
+				    TPTAG_TLS_VERIFY_POLICY(verifyPolicy),
+				    TPTAG_SERVER(0),
 				    TAG_END());
 	}else{
 		nta_agent_add_tport(agent, (url_string_t*)tportUri, TPTAG_IDENT(localDomain.c_str()), 
 					TPTAG_KEEPALIVE(keepAliveInterval),
+					TPTAG_TLS_VERIFY_POLICY(verifyPolicy),
+					TPTAG_SERVER(0),
 					TAG_END());
 	}
 	tpn.tpn_ident = localDomain.c_str();
