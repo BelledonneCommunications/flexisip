@@ -37,7 +37,7 @@ then
  exit
 fi
 [ ! -f $FOLDER/launch.config ] && echo "config file not found : "$FOLDER/launch.config"" && exit
-FLEX_OPTIONS="$FLEX_OPTIONS --configfile $FOLDER/flexisip.conf --port 5060 --set module::Authentication/datasource=$PWD/passwords"
+FLEX_OPTIONS="$FLEX_OPTIONS -c $FOLDER/flexisip.conf -t sip:* --set module::Authentication/datasource=$PWD/passwords"
 [ -z "$2" ] && FLEX_OPTIONS="$FLEX_OPTIONS --set module::Authentication/enabled=false"
 . $FOLDER/launch.config
 
