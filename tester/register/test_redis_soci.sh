@@ -6,11 +6,12 @@ if [[ $# -ne 2 ]]; then
 fi
 
 F=${FLEXISIP:=/opt/belledonne-communications/bin/flexisip}
+P=${MYSQL_PORT:=3307}
 
 echo "Launching load test with $1 total messages and $2 messages/second"
 
 # load records in mysql base
-mysql -uroot < users.sql
+mysql -uroot -P $MYSQL_PORT < users.sql
 
 #launch flexisip in background
 echo "Launching flexisip..."
