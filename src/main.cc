@@ -657,6 +657,10 @@ int main(int argc, char *argv[]) {
 		So we can detach.*/
 		bool autoRespawn = cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read();
 		forkAndDetach(pidFile.getValue().c_str(), autoRespawn, monitorEnabled);
+	} else if (pidFile.getValue().length() != 0) {
+		// not daemon but we want a pidfile anyway
+		LOGN("Pidfile is %s", pidFile.getValue().c_str())
+		makePidFile(pidFile.getValue().c_str());
 	}
 
 	LOGN("Starting flexisip version %s (git %s)", VERSION, FLEXISIP_GIT_VERSION);
