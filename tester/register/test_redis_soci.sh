@@ -26,7 +26,7 @@ echo > sipp_error.log
 echo > sipp_logs.log
 
 # start SIPP in front-end
-sipp 127.0.0.1 -sf REGISTER_client.xml -i 127.0.0.1 -sleep 3 \
+sipp 127.0.0.1:50060 -sf REGISTER_client.xml -i 127.0.0.1 -sleep 3 \
 		-inf users.csv -m $1 -r $2 \
 		-trace_err -error_file sipp_error.log \
 		-trace_logs -log_file sipp_logs.log
