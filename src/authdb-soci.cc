@@ -94,7 +94,7 @@ SociAuthDB::~SociAuthDB() {
 	delete conn_pool;
 }
 
-#define DURATION_MS(start, stop) (unsigned long) duration_cast<milliseconds>((start) - (stop)).count()
+#define DURATION_MS(start, stop) (unsigned long) duration_cast<milliseconds>((stop) - (start)).count()
 
 void SociAuthDB::getPasswordWithPool(su_root_t *root, const std::string &id, const std::string &domain,
 									 const std::string &authid, AuthDbListener *listener) {
