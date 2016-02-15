@@ -5,19 +5,24 @@ if [[ $# -ne 2 ]]; then
 	exit 1
 fi
 
+TOTAL_MSG=$1
+MSG_RATE=$2
+
 F=${FLEXISIP:=/opt/belledonne-communications/bin/flexisip}
 P=${MYSQL_PORT:=3307}
 
 echo "Launching load test with $1 total messages and $2 messages/second"
 
 # load records in mysql base
+echo "Populating SQL database."
 mysql -uroot -P $MYSQL_PORT < users.sql
 
 #launch flexisip in background
-echo "Launching flexisip..."
+echo "Launching flexisip."
 $FLEXISIP -p flexipid -c flexisip_redis_soci.conf &> flexisip.log &
 ret_code=$?
 if [[ $? -ne 0 ]]; then
+	echo "Flexisip couldn't be launched, exiting."
 	exit 1
 fi
 
@@ -26,10 +31,14 @@ echo > sipp_error.log
 echo > sipp_logs.log
 
 # start SIPP in front-end
+echo "Launching SIPP."
 sipp 127.0.0.1:50060 -sf REGISTER_client.xml -i 127.0.0.1 -sleep 3 \
 		-inf users.csv -m $1 -r $2 \
 		-trace_err -error_file sipp_error.log \
-		-trace_logs -log_file sipp_logs.log
+		-trace_logs -log_file sipp_logs.log \
+		-trace_stat -stf sipp_stat.log -fd 10 \
+		-trace_screen \
+		-trace_rtt -rtt_freq $MSG_RATE
 ret_code=$?
 
 # kill flexisip
