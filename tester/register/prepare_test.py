@@ -13,7 +13,7 @@ def write_csv(filename, nb_users):
 
 def write_sql(filename, nb_users):
 	with open(filename, "w") as sql_file:
-		header = """DROP DATABASE tests;
+		header = """DROP DATABASE IF EXISTS tests;
 CREATE DATABASE tests;
 USE tests;
 CREATE TABLE accounts (user VARCHAR(20),password VARCHAR(20));"""
