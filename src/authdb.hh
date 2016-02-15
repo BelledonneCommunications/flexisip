@@ -161,6 +161,7 @@ public:
 
 #include "soci.h"
 #include "mysql/soci-mysql.h"
+#include "utils/threadpool.hh"
 
 class SociAuthDB : public AuthDbBackend {
 	virtual ~SociAuthDB();
@@ -175,7 +176,8 @@ private:
 	void getPasswordWithPool(su_root_t* root, const std::string &id, const std::string &domain, const std::string &authid, AuthDbListener *listener);
 
 	size_t poolSize;
-	soci::connection_pool *pool;
+	soci::connection_pool *conn_pool;
+	ThreadPool *thread_pool;
 	std::string connection_string;
 	std::string backend;
 	std::string get_password_request;

@@ -78,6 +78,7 @@ set(FLEXISIP_SOURCES
 	uac-register.cc uac-register.hh
 	module-redirect.cc module-presence.cc
 	domain-registrations.cc domain-registrations.hh
+	utils/threadpool.cc utils/threadpool.hh
 )
 
 find_package(Git)
