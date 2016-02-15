@@ -68,13 +68,12 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 
 SociAuthDB::SociAuthDB() : conn_pool(NULL) {
 
+	GenericStruct *cr = GenericManager::get()->getRoot();
+	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 
-	GenericStruct *cr=GenericManager::get()->getRoot();
-	GenericStruct *ma=cr->get<GenericStruct>("module::Authentication");
-
-	poolSize             = ma->get<  ConfigInt >("soci-poolsize")->read();;
-	connection_string    = ma->get<ConfigString>("soci-connection-string")->read();
-	backend              = ma->get<ConfigString>("soci-backend")->read();
+	poolSize = ma->get<ConfigInt>("soci-poolsize")->read();
+	connection_string = ma->get<ConfigString>("soci-connection-string")->read();
+	backend = ma->get<ConfigString>("soci-backend")->read();
 	get_password_request = ma->get<ConfigString>("soci-password-request")->read();
 	int max_queue_size = ma->get<ConfigInt>("soci-max-queue-size")->read();
 
