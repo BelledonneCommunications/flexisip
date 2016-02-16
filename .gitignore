@@ -66,3 +66,4 @@ src/flexisip_pusher
 src/flexisip_serializer
 flexisip
 flexisip-config.h.in
+OUTPUT/
