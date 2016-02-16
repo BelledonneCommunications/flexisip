@@ -1,25 +1,24 @@
 /*
-    Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Flexisip, a flexible SIP proxy server with media capabilities.
+	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "contact-masquerader.hh"
 
 using namespace ::std;
-
 
 /*add a parameter like "CtRt15.128.128.2=tcp:201.45.118.16:50025" in the contact, so that we know where is the client
  when we later have to route an INVITE to him */
@@ -35,12 +34,10 @@ void ContactMasquerader::masquerade(su_home_t *home, sip_contact_t *c, const cha
 		return;
 	}
 
-	//grab the transport of the contact uri
+	// grab the transport of the contact uri
 	char ct_tport[32] = "udp";
 	if (url_param(ct_url->url_params, "transport", ct_tport, sizeof(ct_tport)) > 0) {
-
 	}
-
 
 	// Create parameter
 	string param = mCtRtParamName + "=" + ct_tport + ":";
@@ -74,22 +71,21 @@ void ContactMasquerader::masquerade(su_home_t *home, sip_contact_t *c, const cha
 	SLOGD << "Contact has been rewritten to " << url_as_string(home, ct_url);
 }
 
-
 void ContactMasquerader::restore(su_home_t *home, url_t *dest, char ctrt_param[64], const char *new_param) {
-	//first remove param
+	// first remove param
 	dest->url_params = url_strip_param_string(su_strdup(home, dest->url_params), mCtRtParamName.c_str());
 
-	//test and remove maddr param
+	// test and remove maddr param
 	if (url_has_param(dest, "maddr")) {
 		dest->url_params = url_strip_param_string(su_strdup(home, dest->url_params), "maddr");
 	}
 
-	//test and remove transport param
+	// test and remove transport param
 	if (url_has_param(dest, "transport")) {
 		dest->url_params = url_strip_param_string(su_strdup(home, dest->url_params), "transport");
 	}
 
-	//second change dest to
+	// second change dest to
 	char *tend = strchr(ctrt_param, ':');
 	if (!tend) {
 		LOGD("Skipping url rewrite: first ':' not found");
@@ -116,4 +112,3 @@ void ContactMasquerader::restore(su_home_t *home, url_t *dest, char ctrt_param[6
 
 	LOGD("Request url changed to %s", url_as_string(home, dest));
 }
-

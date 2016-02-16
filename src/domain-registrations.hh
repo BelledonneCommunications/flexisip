@@ -1,26 +1,23 @@
 /*
-    Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Flexisip, a flexible SIP proxy server with media capabilities.
+	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 
 #ifndef domainregistrations_hh
 #define domainregistrations_hh
-
-
 
 #include <sofia-sip/msg.h>
 #include <sofia-sip/nta.h>
@@ -35,16 +32,18 @@
 class DomainRegistrationManager;
 class Agent;
 
-class DomainRegistration{
-public:
-	DomainRegistration(DomainRegistrationManager &mgr, const std::string &localDomain, const url_t *parent_proxy, const std::string &clientCertdir);
+class DomainRegistration {
+  public:
+	DomainRegistration(DomainRegistrationManager &mgr, const std::string &localDomain, const url_t *parent_proxy,
+					   const std::string &clientCertdir);
 	void start();
 	void stop();
 	bool isUs(const url_t *url);
-	bool hasTport(const tport_t *tport)const;
-	const url_t *getPublicUri()const;
+	bool hasTport(const tport_t *tport) const;
+	const url_t *getPublicUri() const;
 	~DomainRegistration();
-private:
+
+  private:
 	void setContact(msg_t *msg);
 	int getExpires(nta_outgoing_t *orq, const sip_t *response);
 	static void sOnConnectionBroken(tp_stack_t *stack, tp_client_t *client, tport_t *tport, msg_t *msg, int error);
@@ -57,8 +56,8 @@ private:
 	DomainRegistrationManager &mManager;
 	su_home_t mHome;
 	nta_leg_t *mLeg;
-	tport_t *mPrimaryTport; //the tport that has the configuration
-	tport_t *mCurrentTport; //the secondary tport that has the active connection.
+	tport_t *mPrimaryTport; // the tport that has the configuration
+	tport_t *mCurrentTport; // the secondary tport that has the active connection.
 	int mPendId;
 	su_timer_t *mTimer;
 	url_t *mFrom;
@@ -66,26 +65,27 @@ private:
 	sip_contact_t *mExternalContact;
 };
 
-class DomainRegistrationManager{
-friend class DomainRegistration;
-public:
+class DomainRegistrationManager {
+	friend class DomainRegistration;
+
+  public:
 	DomainRegistrationManager(Agent *agent);
 	int load();
 	/**
 	 * check is url is a local contact of any existing domain registration.
 	 */
-	bool isUs(const url_t *url)const;
+	bool isUs(const url_t *url) const;
 	/**
 	 * If this tport was created as result of domain registration, returns the known public ip/port.
 	 * This is useful for setting correct Record-Routes for request arriving through these connections.
 	**/
-	const url_t *getPublicUri(const tport_t *tport)const;
+	const url_t *getPublicUri(const tport_t *tport) const;
 	~DomainRegistrationManager();
-private:
+
+  private:
 	Agent *mAgent;
 	std::list<std::shared_ptr<DomainRegistration>> mRegistrations;
 	bool mVerifyServerCerts;
 };
-
 
 #endif

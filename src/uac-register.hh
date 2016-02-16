@@ -27,7 +27,7 @@
 class Agent;
 
 struct UacRegister {
-	enum State {INITIAL, REGISTERED, ERROR} state;
+	enum State { INITIAL, REGISTERED, ERROR } state;
 	bool challengeReceived;
 	su_home_t home;
 	nua_handle_t *nh;
@@ -44,7 +44,7 @@ struct UacRegister {
 
 	void send(const sip_contact_t *contact);
 
-private:
+  private:
 	void authenticate(const msg_param_t *au_params);
 };
 

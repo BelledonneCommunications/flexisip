@@ -1,19 +1,19 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010  Belledonne Communications SARL.
+	Copyright (C) 2010  Belledonne Communications SARL.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "net-snmp/net-snmp-config.h"
 #include "net-snmp/net-snmp-includes.h"
@@ -26,16 +26,16 @@
 using namespace std;
 
 SnmpAgent::~SnmpAgent() {
-	mTask.mKeepRunning=false;
+	mTask.mKeepRunning = false;
 	LOGD("Waiting for the SNMP agent task to terminate");
 	mThread.join();
 }
 
-SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent,GenericManager& cm, map<string,string> &oset)
-:mConfigmanager(cm),mAgent(agent) {
-	bool disabled=oset.find("nosnmp") != oset.end();
+SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent &agent, GenericManager &cm, map<string, string> &oset)
+	: mConfigmanager(cm), mAgent(agent) {
+	bool disabled = oset.find("nosnmp") != oset.end();
 	(void)mAgent;
-	mKeepRunning=!disabled;
+	mKeepRunning = !disabled;
 }
 
 void SnmpAgent::SnmpAgentTask::operator()() {
@@ -46,7 +46,8 @@ void SnmpAgent::SnmpAgentTask::operator()() {
 	init_snmp("flexisip");
 	mConfigmanager.getSnmpNotifier()->setInitialized(true);
 	while (mKeepRunning) {
-		if (mConfigmanager.mNeedRestart) mKeepRunning=false;
+		if (mConfigmanager.mNeedRestart)
+			mKeepRunning = false;
 		agent_check_and_process(0);
 		usleep(100000);
 	}
@@ -55,8 +56,6 @@ void SnmpAgent::SnmpAgentTask::operator()() {
 	SOCK_CLEANUP;
 }
 
-SnmpAgent::SnmpAgent(Agent& agent,GenericManager &cm, map<string,string> &oset)
-: mTask(agent,cm, oset),mThread(std::ref(mTask)){
+SnmpAgent::SnmpAgent(Agent &agent, GenericManager &cm, map<string, string> &oset)
+	: mTask(agent, cm, oset), mThread(std::ref(mTask)) {
 }
-
-

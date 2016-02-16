@@ -23,8 +23,7 @@
 #include "flexisip-config.h"
 #include <cstring>
 
-Mutex::Mutex(bool reentrant) :
-		mReentrant(reentrant), mCount(0) {
+Mutex::Mutex(bool reentrant) : mReentrant(reentrant), mCount(0) {
 	int err;
 	if ((err = pthread_mutex_init(&mMutex, NULL)) != 0) {
 		LOGE("pthread_mutex_init(): %s", strerror(errno));
@@ -108,21 +107,21 @@ time_t getCurrentTime() {
 #ifdef MONOTONIC_CLOCK_REGISTRATIONS
 	struct timespec t;
 	if (clock_gettime(CLOCK_MONOTONIC, &t)) {
-	        LOGE("cannot read monotonic clock");
-	        return time(NULL);
+		LOGE("cannot read monotonic clock");
+		return time(NULL);
 	}
 
 	return t.tv_sec;
 #else
-        return time(NULL);
+	return time(NULL);
 #endif
 }
 
 time_t getTimeOffset(time_t current_time) {
-	static time_t empty={0};
-	#ifdef MONOTONIC_CLOCK_REGISTRATIONS
-	time_t offset=time(NULL)-current_time;
-	#else
+	static time_t empty = {0};
+#ifdef MONOTONIC_CLOCK_REGISTRATIONS
+	time_t offset = time(NULL) - current_time;
+#else
 	return empty;
-	#endif
+#endif
 }

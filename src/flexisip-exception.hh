@@ -28,38 +28,39 @@
 
 using namespace std;
 
-class FlexisipException: public exception {
-public:
-
+class FlexisipException : public exception {
+  public:
 	FlexisipException();
-	FlexisipException(const string& message);
-	FlexisipException(const char* message);
-	virtual ~FlexisipException() throw ();
-	FlexisipException(const FlexisipException& other );
+	FlexisipException(const string &message);
+	FlexisipException(const char *message);
+	virtual ~FlexisipException() throw();
+	FlexisipException(const FlexisipException &other);
 	/**
 	 * print stack strace to stderr
 	 * */
 	void printStackTrace() const;
 
-	void printStackTrace(std::ostream & os) const;
+	void printStackTrace(std::ostream &os) const;
 
-	const char* what() const throw ();
+	const char *what() const throw();
 	const std::string &str() const;
 
-	/* same as osstringstream, but as osstream does not have cp contructor, FlexisipException can't inherit from osstream*/
-	template<typename T2>  FlexisipException& operator<< (const T2& val){
+	/* same as osstringstream, but as osstream does not have cp contructor, FlexisipException can't inherit from
+	 * osstream*/
+	template <typename T2> FlexisipException &operator<<(const T2 &val) {
 		mOs << val;
 		return *this;
 	}
-protected:
+
+  protected:
 	int mOffset; /*to hide last stack traces*/
-private:
+  private:
 	void *mArray[20];
 	size_t mSize;
 	ostringstream mOs;
 	mutable string mMessage;
 };
-std::ostream& operator<<(std::ostream& __os,const FlexisipException&  e);
+std::ostream &operator<<(std::ostream &__os, const FlexisipException &e);
 
-#define FLEXISIP_EXCEPTION FlexisipException() << " " << __FILE__ << ":"<< __LINE__ << " "
+#define FLEXISIP_EXCEPTION FlexisipException() << " " << __FILE__ << ":" << __LINE__ << " "
 #endif /* FLEXISIPEXCEPTION_H_ */

@@ -22,11 +22,9 @@
 
 using namespace ::std;
 
+class ModulePresence : public Module, ModuleToolbox {
 
-
-class ModulePresence: public Module, ModuleToolbox {
-
-private:
+  private:
 	static ModuleInfo<ModulePresence> sInfo;
 	string mDestRoute;
 	su_home_t mHome;
@@ -34,37 +32,39 @@ private:
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
-				{ String, "presence-server", "A sip uri where to send all presence related requests.", "sip:127.0.0.1:5065" },
-				{ BooleanExpr, "only-list-subscription", "If true, only manage list subscription.", "false" },
-				config_item_end
-		};
+			{String, "presence-server", "A sip uri where to send all presence related requests.", "sip:127.0.0.1:5065"},
+			{BooleanExpr, "only-list-subscription", "If true, only manage list subscription.", "false"},
+			config_item_end};
 		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
-		module_config->get<ConfigBooleanExpression>("filter")->setDefault("is_request && (request.method-name == 'PUBLISH' || request.method-name == 'NOTIFY' || request.method-name == 'SUBSCRIBE')");
+		module_config->get<ConfigBooleanExpression>("filter")
+			->setDefault("is_request && (request.method-name == 'PUBLISH' || request.method-name == 'NOTIFY' || "
+						 "request.method-name == 'SUBSCRIBE')");
 		module_config->addChildrenValues(configs);
-
 	}
 
 	bool isValidNextConfig(const ConfigValue &cv) {
-		GenericStruct *module_config=dynamic_cast<GenericStruct*>(cv.getParent());
-		if (!module_config->get<ConfigBoolean>("enabled")->readNext()) return true;
+		GenericStruct *module_config = dynamic_cast<GenericStruct *>(cv.getParent());
+		if (!module_config->get<ConfigBoolean>("enabled")->readNext())
+			return true;
 		if (cv.getName() == "presence-server") {
-			url_t* uri=url_make(&mHome, cv.getName().c_str());
+			url_t *uri = url_make(&mHome, cv.getName().c_str());
 			if (!uri) {
-				SLOGE<< this->getModuleName() << ": wrong destination uri for presence server [" <<cv.getName() <<"]";
+				SLOGE << this->getModuleName() << ": wrong destination uri for presence server [" << cv.getName()
+					  << "]";
 				return false;
 			} else {
-				 su_free(&mHome, uri);
+				su_free(&mHome, uri);
 			}
 		}
 		return true;
 	}
 
-
 	void onLoad(const GenericStruct *mc) {
 		mDestRoute = mc->get<ConfigString>("presence-server")->read();
 		mOnlyListSubscription = mc->get<ConfigBooleanExpression>("only-list-subscription")->read();
-		SLOGI<< this->getModuleName() << ": presence server is ["<< mDestRoute <<"]";
-		SLOGI<< this->getModuleName() << ": Non list subscription are "<< (mOnlyListSubscription?"not":"") <<" redirected by presence server";
+		SLOGI << this->getModuleName() << ": presence server is [" << mDestRoute << "]";
+		SLOGI << this->getModuleName() << ": Non list subscription are " << (mOnlyListSubscription ? "not" : "")
+			  << " redirected by presence server";
 	}
 
 	void onUnload() {
@@ -72,24 +72,27 @@ private:
 
 	void route(shared_ptr<RequestSipEvent> &ev) {
 		SLOGI << getModuleName() << " routing to [" << mDestRoute << "]";
-		cleanAndPrependRoute(this->getAgent(),ev->getMsgSip()->getMsg(),ev->getSip(),sip_route_make(&mHome,mDestRoute.c_str()));
-
+		cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
+							 sip_route_make(&mHome, mDestRoute.c_str()));
 	}
 	bool isMessageAPresenceMessage(shared_ptr<RequestSipEvent> &ev) {
-		sip_t* sip=ev->getSip();
+		sip_t *sip = ev->getSip();
 		if (sip->sip_request->rq_method == sip_method_subscribe) {
 			sip_require_t *require;
 			bool require_recipient_list_subscribe_found = false;
-			for (require=(sip_require_t *)sip->sip_require;require!=NULL;require=(sip_require_t *)require->k_next) {
-				if (*require->k_items && strcasecmp((const char*)*require->k_items, "recipient-list-subscribe") == 0) {
-					require_recipient_list_subscribe_found=true;
+			for (require = (sip_require_t *)sip->sip_require; require != NULL;
+				 require = (sip_require_t *)require->k_next) {
+				if (*require->k_items && strcasecmp((const char *)*require->k_items, "recipient-list-subscribe") == 0) {
+					require_recipient_list_subscribe_found = true;
 				}
 			}
-			return (!mOnlyListSubscription->eval(ev->getSip()) || require_recipient_list_subscribe_found) && sip->sip_event && strcmp(sip->sip_event->o_type,"presence")==0;
+			return (!mOnlyListSubscription->eval(ev->getSip()) || require_recipient_list_subscribe_found) &&
+				   sip->sip_event && strcmp(sip->sip_event->o_type, "presence") == 0;
 		} else if (sip->sip_request->rq_method == sip_method_publish) {
-			return !sip->sip_content_type || (sip->sip_content_type
-				&& sip->sip_content_type->c_type && strcasecmp (sip->sip_content_type->c_type,"application/pidf+xml")==0
-				&& sip->sip_content_type->c_subtype && strcasecmp (sip->sip_content_type->c_subtype,"pidf+xml")==0);
+			return !sip->sip_content_type ||
+				   (sip->sip_content_type && sip->sip_content_type->c_type &&
+					strcasecmp(sip->sip_content_type->c_type, "application/pidf+xml") == 0 &&
+					sip->sip_content_type->c_subtype && strcasecmp(sip->sip_content_type->c_subtype, "pidf+xml") == 0);
 		}
 		return false;
 	}
@@ -99,17 +102,14 @@ private:
 	}
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev){};
 
-public:
+  public:
 	ModulePresence(Agent *ag) : Module(ag) {
 		su_home_init(&mHome);
 	}
 
 	~ModulePresence() {
 	}
-
 };
-ModuleInfo<ModulePresence> ModulePresence::sInfo("Presence",
-		"This module transfert sip presence messages, like subscribe/notify/publish to a presence server. ",
-		ModuleInfoBase::ModuleOid::Presence,
-		ModuleTypeExperimental);
-
+ModuleInfo<ModulePresence> ModulePresence::sInfo(
+	"Presence", "This module transfert sip presence messages, like subscribe/notify/publish to a presence server. ",
+	ModuleInfoBase::ModuleOid::Presence, ModuleTypeExperimental);

@@ -1,19 +1,19 @@
 /*
-    Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Flexisip, a flexible SIP proxy server with media capabilities.
+	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifdef HAVE_CONFIG_H
@@ -39,8 +39,9 @@ using namespace ::std;
 
 #ifdef ENABLE_TRANSCODER
 class TickerManager {
-public:
-	TickerManager() : mLastTickerIndex(0),mStarted(false){}
+  public:
+	TickerManager() : mLastTickerIndex(0), mStarted(false) {
+	}
 	MSTicker *chooseOne() {
 		if (!mStarted) {
 			int cpucount = ModuleToolbox::getCpuCount();
@@ -53,20 +54,20 @@ public:
 		if (mLastTickerIndex >= mTickers.size())
 			mLastTickerIndex = 0;
 		return mTickers[mLastTickerIndex++];
-
 	}
 	~TickerManager() {
 		for_each(mTickers.begin(), mTickers.end(), ptr_fun(ms_ticker_destroy));
 	}
-private:
-	vector<MSTicker*> mTickers;
+
+  private:
+	vector<MSTicker *> mTickers;
 	unsigned int mLastTickerIndex;
 	bool mStarted;
 };
 #endif
 
-class Transcoder: public Module, protected ModuleToolbox {
-public:
+class Transcoder : public Module, protected ModuleToolbox {
+  public:
 	Transcoder(Agent *ag);
 	~Transcoder();
 	virtual void onLoad(const GenericStruct *module_config);
@@ -75,7 +76,7 @@ public:
 	virtual void onIdle();
 	virtual void onDeclare(GenericStruct *mc);
 #ifdef ENABLE_TRANSCODER
-private:
+  private:
 	TickerManager mTickerManager;
 	int handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev);
 	int handleAnswer(TranscodedCall *c, shared_ptr<SipEvent> ev);
@@ -87,8 +88,8 @@ private:
 	static void sOnTimer(void *unused, su_timer_t *t, void *zis);
 	bool canDoRateControl(sip_t *sip);
 	bool hasSupportedCodec(const list<PayloadType *> &ioffer);
-	void normalizePayloads(std::list< PayloadType * > &l);
-	list<PayloadType *> orderList(const list< string > &config, const std::list< PayloadType * > &l);
+	void normalizePayloads(std::list<PayloadType *> &l);
+	list<PayloadType *> orderList(const list<string> &config, const std::list<PayloadType *> &l);
 	list<PayloadType *> mSupportedAudioPayloads;
 	CallStore mCalls;
 	su_timer_t *mTimer;
@@ -99,23 +100,29 @@ private:
 	static ModuleInfo<Transcoder> sInfo;
 };
 
-ModuleInfo<Transcoder> Transcoder::sInfo("Transcoder", "The purpose of the Transcoder module is to transparently transcode from one audio codec to another to make "
-		"the communication possible between clients that do not share the same set of supported codecs. "
-		"Concretely it adds all missing codecs into the INVITEs it receives, and adds codecs matching the original INVITE into the 200Ok. "
-		"Rtp ports and addresses are masqueraded so that the streams can be processed by the proxy. "
-		"The transcoding job is done in the background by the mediastreamer2 library, as consequence the set of "
-		"supported codecs is exactly the the same as the codec set supported by mediastreamer2, including "
-		"the possible plugins you may installed to extend mediastreamer2. "
-		"WARNING: this module can conflict with the MediaRelay module as both are changin the SDP. "
-		"Make sure to configure them with different to-domains or from-domains filter if you want to enable both of them.",
-		ModuleInfoBase::ModuleOid::Transcoder);
-
+ModuleInfo<Transcoder> Transcoder::sInfo(
+	"Transcoder",
+	"The purpose of the Transcoder module is to transparently transcode from one audio codec to another to make "
+	"the communication possible between clients that do not share the same set of supported codecs. "
+	"Concretely it adds all missing codecs into the INVITEs it receives, and adds codecs matching the original INVITE "
+	"into the 200Ok. "
+	"Rtp ports and addresses are masqueraded so that the streams can be processed by the proxy. "
+	"The transcoding job is done in the background by the mediastreamer2 library, as consequence the set of "
+	"supported codecs is exactly the the same as the codec set supported by mediastreamer2, including "
+	"the possible plugins you may installed to extend mediastreamer2. "
+	"WARNING: this module can conflict with the MediaRelay module as both are changin the SDP. "
+	"Make sure to configure them with different to-domains or from-domains filter if you want to enable both of them.",
+	ModuleInfoBase::ModuleOid::Transcoder);
 
 #ifndef ENABLE_TRANSCODER
-Transcoder::Transcoder(Agent *ag) : Module(ag) {}
-Transcoder::~Transcoder() {}
-void Transcoder::onLoad(const GenericStruct *mc){}
-void Transcoder::onIdle() {}
+Transcoder::Transcoder(Agent *ag) : Module(ag) {
+}
+Transcoder::~Transcoder() {
+}
+void Transcoder::onLoad(const GenericStruct *mc) {
+}
+void Transcoder::onIdle() {
+}
 void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	LOGA("Transcoder support is not compiled");
 }
@@ -127,29 +134,29 @@ void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 void Transcoder::onDeclare(GenericStruct *mc) {
 	/*we need to be disabled by default*/
 	mc->get<ConfigBoolean>("enabled")->setDefault("false");
-	ConfigItemDescriptor items[]={
-		{	Integer		,	"jb-nom-size"	,	"Nominal size of RTP jitter buffer, in milliseconds. A value of 0 means no jitter buffer (packet processing).",
-												"0" },
-		{	StringList	,	"rc-user-agents",	"Whitespace separated list of user-agent strings for which audio rate control is performed.",""},
-		{	StringList	,	"audio-codecs",	"Whitespace seprated list of audio codecs, in order of preference. The telephone-event codec is necessary for inband DTMF processing.",
-			"speex/8000 amr/8000 iLBC/8000 gsm/8000 pcmu/8000 pcma/8000 telephone-event/8000"},
-		{	Boolean	,	"remove-bw-limits",	"Remove the bandwidth limitations from SDP offers and answers",	"false"},
-		{	Boolean , "block-retransmissions", "If true, retransmissions of INVITEs will be blocked. "
-			"The purpose of this option is to limit bandwidth usage and server load on reliable networks.","false" },
-			config_item_end
-	};
+	ConfigItemDescriptor items[] = {
+		{Integer, "jb-nom-size",
+		 "Nominal size of RTP jitter buffer, in milliseconds. A value of 0 means no jitter buffer (packet processing).",
+		 "0"},
+		{StringList, "rc-user-agents",
+		 "Whitespace separated list of user-agent strings for which audio rate control is performed.", ""},
+		{StringList, "audio-codecs", "Whitespace seprated list of audio codecs, in order of preference. The "
+									 "telephone-event codec is necessary for inband DTMF processing.",
+		 "speex/8000 amr/8000 iLBC/8000 gsm/8000 pcmu/8000 pcma/8000 telephone-event/8000"},
+		{Boolean, "remove-bw-limits", "Remove the bandwidth limitations from SDP offers and answers", "false"},
+		{Boolean, "block-retransmissions",
+		 "If true, retransmissions of INVITEs will be blocked. "
+		 "The purpose of this option is to limit bandwidth usage and server load on reliable networks.",
+		 "false"},
+		config_item_end};
 	mc->addChildrenValues(items);
 
-
-	auto p=mc->createStatPair("count-calls", "Number of transcoded calls.");
+	auto p = mc->createStatPair("count-calls", "Number of transcoded calls.");
 #ifdef ENABLE_TRANSCODER
 	mCalls.setCallStatCounters(p.first, p.second);
 #endif
 	(void)p;
 }
-
-
-
 
 #ifdef ENABLE_TRANSCODER
 static list<PayloadType *> makeSupportedAudioPayloadList() {
@@ -191,7 +198,7 @@ static list<PayloadType *> makeSupportedAudioPayloadList() {
 	return l;
 }
 
-bool Transcoder::hasSupportedCodec(const std::list< PayloadType * > &ioffer) {
+bool Transcoder::hasSupportedCodec(const std::list<PayloadType *> &ioffer) {
 	for (auto e1 = ioffer.cbegin(); e1 != ioffer.cend(); ++e1) {
 		PayloadType *p1 = *e1;
 		for (auto e2 = mSupportedAudioPayloads.cbegin(); e2 != mSupportedAudioPayloads.cend(); ++e2) {
@@ -203,8 +210,7 @@ bool Transcoder::hasSupportedCodec(const std::list< PayloadType * > &ioffer) {
 	return false;
 }
 
-Transcoder::Transcoder(Agent *ag) :
-Module(ag),mSupportedAudioPayloads(), mTimer(0) {
+Transcoder::Transcoder(Agent *ag) : Module(ag), mSupportedAudioPayloads(), mTimer(0) {
 }
 
 Transcoder::~Transcoder() {
@@ -247,13 +253,13 @@ list<PayloadType *> Transcoder::orderList(const list<string> &config, const list
 	return ret;
 }
 
-void Transcoder::onLoad(const GenericStruct *mc){
-	mTimer=mAgent->createTimer(20,&sOnTimer,this);
-	mCallParams.mJbNomSize=mc->get<ConfigInt>("jb-nom-size")->read();
-	mRcUserAgents=mc->get<ConfigStringList>("rc-user-agents")->read();
-	mRemoveBandwidthsLimits=mc->get<ConfigBoolean>("remove-bw-limits")->read();
-	list<PayloadType *> l=makeSupportedAudioPayloadList();
-	mSupportedAudioPayloads=orderList(mc->get<ConfigStringList>("audio-codecs")->read(),l);
+void Transcoder::onLoad(const GenericStruct *mc) {
+	mTimer = mAgent->createTimer(20, &sOnTimer, this);
+	mCallParams.mJbNomSize = mc->get<ConfigInt>("jb-nom-size")->read();
+	mRcUserAgents = mc->get<ConfigStringList>("rc-user-agents")->read();
+	mRemoveBandwidthsLimits = mc->get<ConfigBoolean>("remove-bw-limits")->read();
+	list<PayloadType *> l = makeSupportedAudioPayloadList();
+	mSupportedAudioPayloads = orderList(mc->get<ConfigStringList>("audio-codecs")->read(), l);
 }
 
 void Transcoder::onIdle() {
@@ -289,7 +295,7 @@ bool Transcoder::processSipInfo(TranscodedCall *c, shared_ptr<RequestSipEvent> &
 }
 
 static const PayloadType *findPt(const list<PayloadType *> &l, const char *mime, int rate) {
-	for (auto it=l.cbegin(); it != l.cend(); ++it) {
+	for (auto it = l.cbegin(); it != l.cend(); ++it) {
 		const PayloadType *pt = *it;
 		if (pt->clock_rate == rate && strcasecmp(mime, pt->mime_type) == 0)
 			return pt;
@@ -297,7 +303,7 @@ static const PayloadType *findPt(const list<PayloadType *> &l, const char *mime,
 	return NULL;
 }
 
-void Transcoder::normalizePayloads(std::list< PayloadType * > &l) {
+void Transcoder::normalizePayloads(std::list<PayloadType *> &l) {
 	for (auto it = l.cbegin(); it != l.cend(); ++it) {
 		PayloadType *pt = *it;
 		if (pt->normal_bitrate == 0) {
@@ -311,10 +317,10 @@ void Transcoder::normalizePayloads(std::list< PayloadType * > &l) {
 }
 
 static void removeBandwidths(sdp_session_t *sdp) {
-	sdp_media_t *mline=sdp->sdp_media;
+	sdp_media_t *mline = sdp->sdp_media;
 	while (mline != NULL) {
-		mline->m_bandwidths=NULL;
-		mline=mline->m_next;
+		mline->m_bandwidths = NULL;
+		mline = mline->m_next;
 	}
 }
 
@@ -336,31 +342,32 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 		c->setInitialOffer(ioffer);
 
 		m->getAudioIpPort(&fraddr, &frport);
-		// Force front side to bind and allocate a port immediately on the bind-address
-		// BIG FAT WARNING: call getAudioPort BEFORE the setRemoteAddr
-		// to get the local address bound correctly
+// Force front side to bind and allocate a port immediately on the bind-address
+// BIG FAT WARNING: call getAudioPort BEFORE the setRemoteAddr
+// to get the local address bound correctly
 #if ENABLE_BOOSTLOG || ORTP_DEBUG_MODE
-		int flport= c->getFrontSide()->getAudioPort();
+		int flport = c->getFrontSide()->getAudioPort();
 #endif
 
-		string fladdr= c->getFrontSide()->getLocalAddress();
+		string fladdr = c->getFrontSide()->getLocalAddress();
 		c->getFrontSide()->setRemoteAddr(fraddr.c_str(), frport);
 		LOGD("Front side %s:%i <-> %s:%i", fraddr.c_str(), frport, fladdr.c_str(), flport);
 
 		int ptime = m->readPtime();
 		if (ptime > 0) {
 			c->getFrontSide()->setPtime(ptime);
-			m->setPtime(0); //remove the ptime attribute
+			m->setPtime(0); // remove the ptime attribute
 		}
 
 		int blport = c->getBackSide()->getAudioPort();
-		const short ipVersion=m->getAudioIpVersion();
-		const char *publicIp=getAgent()->getPublicIp(ipVersion==6).c_str();
-		LOGD("Using public ip%s %s", ipVersion == 6 ?"v6":"v4", publicIp);
+		const short ipVersion = m->getAudioIpVersion();
+		const char *publicIp = getAgent()->getPublicIp(ipVersion == 6).c_str();
+		LOGD("Using public ip%s %s", ipVersion == 6 ? "v6" : "v4", publicIp);
 		m->changeAudioIpPort(publicIp, blport);
 		LOGD("Back side local port: %s:%i <-> ?", publicIp, blport);
 
-		if (mRemoveBandwidthsLimits) removeBandwidths(m->mSession);
+		if (mRemoveBandwidthsLimits)
+			removeBandwidths(m->mSession);
 
 		m->replacePayloads(mSupportedAudioPayloads, c->getInitialOffer());
 		m->update(msg, sip);
@@ -372,8 +379,8 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 		return 0;
 	} else {
 		LOGW("No support for any of the codec offered by client, doing bypass.");
-		if (!ioffer.empty()){
-			for (auto it=ioffer.begin(); it != ioffer.cend(); ++it) {
+		if (!ioffer.empty()) {
+			for (auto it = ioffer.begin(); it != ioffer.cend(); ++it) {
 				payload_type_destroy(*it);
 			}
 			ioffer.clear();
@@ -390,7 +397,7 @@ int Transcoder::processInvite(TranscodedCall *c, shared_ptr<RequestSipEvent> &ev
 		ret = handleOffer(c, ev);
 	}
 	if (ret == 0) {
-		//be in the record-route
+		// be in the record-route
 		addRecordRouteIncoming(ms->getHome(), getAgent(), ev);
 		c->storeNewInvite(ms->getMsg());
 	} else {
@@ -430,7 +437,7 @@ void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			LOGD("Transcoder: couldn't find call context for ack");
 			return;
 		} else {
-		  processAck(c.get(), ev);
+			processAck(c.get(), ev);
 		}
 	} else if (sip->sip_request->rq_method == sip_method_info) {
 		auto c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip, true));
@@ -447,7 +454,7 @@ void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			mCalls.remove(c);
 		}
 	} else {
-		//all other requests go through
+		// all other requests go through
 	}
 }
 
@@ -470,11 +477,11 @@ int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {
 	ctx->getBackSide()->setRemoteAddr(addr.c_str(), port);
 	if (ptime > 0) {
 		ctx->getBackSide()->setPtime(ptime);
-		m->setPtime(0); //remove the ptime attribute
+		m->setPtime(0); // remove the ptime attribute
 	}
-	const short ipVersion=m->getAudioIpVersion();
-	const char *publicIp=getAgent()->getPublicIp(ipVersion==6).c_str();
-	LOGD("Using public ip%s %s", ipVersion == 6 ?"v6":"v4", publicIp);
+	const short ipVersion = m->getAudioIpVersion();
+	const char *publicIp = getAgent()->getPublicIp(ipVersion == 6).c_str();
+	LOGD("Using public ip%s %s", ipVersion == 6 ? "v6" : "v4", publicIp);
 	m->changeAudioIpPort(publicIp, ctx->getFrontSide()->getAudioPort());
 
 	auto answer = m->readPayloads();
@@ -492,7 +499,8 @@ int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {
 		m->replacePayloads(common, {});
 	}
 
-	if (mRemoveBandwidthsLimits) removeBandwidths(m->mSession);
+	if (mRemoveBandwidthsLimits)
+		removeBandwidths(m->mSession);
 
 	m->update(ms->getMsg(), ms->getSip());
 
@@ -510,7 +518,7 @@ int Transcoder::handleAnswer(TranscodedCall *ctx, shared_ptr<SipEvent> ev) {
 
 void Transcoder::process200OkforInvite(TranscodedCall *ctx, shared_ptr<ResponseSipEvent> &ev) {
 	LOGD("Processing 200 Ok");
-	if (SdpModifier::hasSdp((sip_t*) msg_object(ctx->getLastForwardedInvite()))) {
+	if (SdpModifier::hasSdp((sip_t *)msg_object(ctx->getLastForwardedInvite()))) {
 		handleAnswer(ctx, ev);
 	} else {
 		handleOffer(ctx, ev);
@@ -532,7 +540,7 @@ void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
 		if (mAgent->countUsInVia(sip->sip_via) > 1) {
 			LOGD("We are more than 1 time in via headers,"
-					"wait until next time we receive this message for any processing");
+				 "wait until next time we receive this message for any processing");
 			return;
 		}
 
@@ -560,13 +568,13 @@ void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 }
 
 void Transcoder::onTimer() {
-	for(auto it = mCalls.getList().begin(); it != mCalls.getList().end(); ++it) {
+	for (auto it = mCalls.getList().begin(); it != mCalls.getList().end(); ++it) {
 		dynamic_pointer_cast<TranscodedCall>(*it)->doBgTasks();
 	}
 }
 
 void Transcoder::sOnTimer(void *unused, su_timer_t *t, void *zis) {
-	((Transcoder*) zis)->onTimer();
+	((Transcoder *)zis)->onTimer();
 }
 
 #endif

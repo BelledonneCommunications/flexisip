@@ -27,24 +27,27 @@
 #endif
 
 class SipAttributes {
-public:
+  public:
 #ifdef NO_SOFIA
 	SipAttributes(std::string &attributes);
 #else
-	SipAttributes(const sip_t *isip) : sip(isip){}
-private:
+	SipAttributes(const sip_t *isip) : sip(isip) {
+	}
+
+  private:
 	const sip_t *sip;
 #endif
-public:
-	~SipAttributes(){}
-
+  public:
+	~SipAttributes() {
+	}
 
 	std::string get(const std::string &arg) const;
 
-	std::string getOrEmpty(const std::string &arg) const{
+	std::string getOrEmpty(const std::string &arg) const {
 		if (arg == "method_or_status") {
-			std::string method=getOrEmpty("request.mn");
-			if (!method.empty()) return method;
+			std::string method = getOrEmpty("request.mn");
+			if (!method.empty())
+				return method;
 			return getOrEmpty("status.code");
 		}
 
@@ -56,7 +59,5 @@ public:
 	}
 	bool isTrue(const std::string &arg) const;
 };
-
-
 
 #endif

@@ -1,19 +1,19 @@
 /*
-    Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Flexisip, a flexible SIP proxy server with media capabilities.
+	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "module.hh"
@@ -22,19 +22,18 @@
 
 using namespace ::std;
 
-class ContactRouteInserter: public Module {
-public:
-	ContactRouteInserter(Agent *ag) :
-		Module(ag), mContactMasquerader() {
+class ContactRouteInserter : public Module {
+  public:
+	ContactRouteInserter(Agent *ag) : Module(ag), mContactMasquerader() {
 	}
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor items[] = {
-			{ Boolean, "masquerade-contacts-on-registers", "Masquerade register contacts with proxy address.", "true" },
-			{ Boolean, "masquerade-contacts-for-invites", "Masquerade invite-related messages with proxy address.", "false" },
-			{ Boolean, "insert-domain", "Masquerade register with from domain.", "false" },
-			config_item_end
-		};
+			{Boolean, "masquerade-contacts-on-registers", "Masquerade register contacts with proxy address.", "true"},
+			{Boolean, "masquerade-contacts-for-invites", "Masquerade invite-related messages with proxy address.",
+			 "false"},
+			{Boolean, "insert-domain", "Masquerade register with from domain.", "false"},
+			config_item_end};
 		module_config->addChildrenValues(items);
 	}
 
@@ -42,17 +41,16 @@ public:
 		mCtRtParamName = string("CtRt") + getAgent()->getUniqueId();
 		mMasqueradeInvites = mc->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
 		mMasqueradeRegisters = mc->get<ConfigBoolean>("masquerade-contacts-on-registers")->read();
-		mInsertDomain =  mc->get<ConfigBoolean>("insert-domain")->read();
+		mInsertDomain = mc->get<ConfigBoolean>("insert-domain")->read();
 		mContactMasquerader = unique_ptr<ContactMasquerader>(new ContactMasquerader(mAgent, mCtRtParamName));
 	}
-
 
 	void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
-		const sip_method_t rq_method=sip->sip_request->rq_method;
+		const sip_method_t rq_method = sip->sip_request->rq_method;
 
-		if (mMasqueradeRegisters && rq_method== sip_method_register) {
+		if (mMasqueradeRegisters && rq_method == sip_method_register) {
 			LOGD("Masquerading contact");
 			mContactMasquerader->masquerade(ev, mInsertDomain);
 		} else if (mMasqueradeInvites && rq_method == sip_method_invite) {
@@ -78,7 +76,8 @@ public:
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
-		if (mMasqueradeInvites && (sip->sip_cseq->cs_method == sip_method_invite || sip->sip_cseq->cs_method == sip_method_subscribe)) {
+		if (mMasqueradeInvites &&
+			(sip->sip_cseq->cs_method == sip_method_invite || sip->sip_cseq->cs_method == sip_method_subscribe)) {
 			mContactMasquerader->masquerade(ev);
 		}
 	}
@@ -90,8 +89,11 @@ public:
 	static ModuleInfo<ContactRouteInserter> sInfo;
 };
 
-ModuleInfo<ContactRouteInserter> ContactRouteInserter::sInfo("ContactRouteInserter", "The purpose of the ContactRouteInserter module is to masquerade the contact header of incoming registers that are not handled locally "
-		"(think about flexisip used as a SBC gateway) in such a way that it is then possible to route back outgoing invites to the original address. "
-		"It is a kind of similar mechanism as Record-Route, but for REGISTER.",
-		ModuleInfoBase::ModuleOid::ContactRouteInserter,
-		ModuleTypeExperimental);
+ModuleInfo<ContactRouteInserter>
+	ContactRouteInserter::sInfo("ContactRouteInserter",
+								"The purpose of the ContactRouteInserter module is to masquerade the contact header of "
+								"incoming registers that are not handled locally "
+								"(think about flexisip used as a SBC gateway) in such a way that it is then possible "
+								"to route back outgoing invites to the original address. "
+								"It is a kind of similar mechanism as Record-Route, but for REGISTER.",
+								ModuleInfoBase::ModuleOid::ContactRouteInserter, ModuleTypeExperimental);

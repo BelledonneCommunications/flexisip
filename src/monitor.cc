@@ -1,19 +1,19 @@
 /*
-    Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Flexisip, a flexible SIP proxy server with media capabilities.
+	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "monitor.hh"
@@ -28,17 +28,16 @@ Monitor::Init Monitor::sInit;
 const string Monitor::SCRIPT_PATH = "./flexisip_monitor.py";
 const string Monitor::CALLER_PREFIX = "monitor-caller";
 const string Monitor::CALLEE_PREFIX = "monitor-callee";
-const int Monitor::PASSWORD_CACHE_EXPIRE = INT_MAX/2;
+const int Monitor::PASSWORD_CACHE_EXPIRE = INT_MAX / 2;
 
 Monitor::Init::Init() {
 	ConfigItemDescriptor items[] = {
-		{ Boolean   , "enabled"        , "Enable or disable the Flexisip monitor daemon", "false" },
-		{ Integer   , "test-interval" , "Time between two consecutive tests", "30"},
-		{ String    , "logfile"       , "Path to the log file", "/etc/flexisip/flexisip_monitor.log"},
-		{ Integer   , "switch-port"   , "Port to open/close folowing the test succeed or not", "12345"},
-		{ String    , "password-salt" , "Salt used to generate the passwords of each test account", "" },
-		config_item_end
-	};
+		{Boolean, "enabled", "Enable or disable the Flexisip monitor daemon", "false"},
+		{Integer, "test-interval", "Time between two consecutive tests", "30"},
+		{String, "logfile", "Path to the log file", "/etc/flexisip/flexisip_monitor.log"},
+		{Integer, "switch-port", "Port to open/close folowing the test succeed or not", "12345"},
+		{String, "password-salt", "Salt used to generate the passwords of each test account", ""},
+		config_item_end};
 
 	GenericStruct *s = new GenericStruct("monitor", "Flexisip monitor parameters", 0);
 	GenericManager::get()->getRoot()->addChild(s);
@@ -62,17 +61,17 @@ void Monitor::exec(int socket) {
 	string domain;
 	try {
 		domain = findDomain();
-	} catch(const FlexisipException &e) {
+	} catch (const FlexisipException &e) {
 		LOGF("Monitor: cannot find domain. %s", e.str().c_str());
 		exit(EXIT_FAILURE);
 	}
 
-	if(salt.empty()) {
+	if (salt.empty()) {
 		LOGF("Monitor: no salt set");
 		exit(EXIT_FAILURE);
 	}
 
-	if(nodes.empty()) {
+	if (nodes.empty()) {
 		LOGF("Monitor: no nodes declared in the cluster section");
 		exit(EXIT_FAILURE);
 	}
@@ -88,13 +87,13 @@ void Monitor::exec(int socket) {
 	args[7] = strdup(domain.c_str());
 	args[8] = strdup(salt.c_str());
 	int i = 9;
-	for(list<string>::const_iterator it=nodes.cbegin(); it!=nodes.cend(); it++) {
+	for (list<string>::const_iterator it = nodes.cbegin(); it != nodes.cend(); it++) {
 		args[i] = strdup((*it).c_str());
 		i++;
 	}
 	args[i] = NULL;
 
-	if(write(socket, "ok", 3) == -1) {
+	if (write(socket, "ok", 3) == -1) {
 		exit(-1);
 	}
 	close(socket);
@@ -104,8 +103,8 @@ void Monitor::exec(int socket) {
 
 string Monitor::findLocalAddress(const list<string> &nodes) {
 	RtpSession *session = rtp_session_new(RTP_SESSION_RECVONLY);
-	for(list<string>::const_iterator it=nodes.cbegin(); it!=nodes.cend(); it++) {
-		if(rtp_session_set_local_addr(session, (*it).c_str(), 0, 0) != -1) {
+	for (list<string>::const_iterator it = nodes.cbegin(); it != nodes.cend(); it++) {
+		if (rtp_session_set_local_addr(session, (*it).c_str(), 0, 0) != -1) {
 			rtp_session_destroy(session);
 			return *it;
 		}
@@ -126,7 +125,7 @@ void Monitor::createAccounts() {
 	url.url_host = domaine.c_str();
 
 	string localIP = findLocalAddress(nodes);
-	if(localIP == "") {
+	if (localIP == "") {
 		LOGA("Monitor::createAccounts(): Could not find local IP address");
 		exit(-1);
 	}
@@ -142,10 +141,7 @@ void Monitor::createAccounts() {
 }
 
 bool Monitor::isLocalhost(const string &host) {
-	return host == "localhost" ||
-	       host == "127.0.0.1" ||
-	       host == "::1" ||
-	       host == "localhost.localdomain";
+	return host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "localhost.localdomain";
 }
 
 bool Monitor::notLocalhost(const string &host) {
@@ -172,11 +168,11 @@ string Monitor::generatePassword(const string &host, const string &salt) {
 string Monitor::findDomain() {
 	GenericStruct *registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
 	list<string> domains = registrarConf->get<ConfigStringList>("reg-domains")->read();
-	if(domains.size() == 0) {
+	if (domains.size() == 0) {
 		throw FlexisipException("No domain declared in the registar module parameters");
 	}
 	list<string>::const_iterator it = find_if(domains.cbegin(), domains.cend(), notLocalhost);
-	if(it == domains.cend()) {
+	if (it == domains.cend()) {
 		throw FlexisipException("Only localhost is declared as registrar domain");
 	}
 	return *it;

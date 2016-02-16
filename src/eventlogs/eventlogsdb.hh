@@ -1,19 +1,19 @@
 /*
-    Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Flexisip, a flexible SIP proxy server with media capabilities.
+	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef eventlogsdb_hh
@@ -30,14 +30,16 @@
 
 #pragma db object polymorphic table("EventLog")
 class EventLogDb {
-public:
-	EventLogDb() {}
+  public:
+	EventLogDb() {
+	}
 	virtual ~EventLogDb();
 	void setFrom(const sip_from_t *from);
 	void setTo(const sip_to_t *to);
 	void setUserAgent(const sip_user_agent_t *ag);
 	void setDate(time_t t);
-protected:
+
+  protected:
 	friend class odb::access;
 	std::string from;
 	std::string to;
@@ -46,18 +48,20 @@ protected:
 	int statusCode;
 	std::string reason;
 	bool completed;
-	#pragma db id auto
+#pragma db id auto
 	unsigned long id_;
 };
 
 #pragma db object table("RegistrationLog")
-class RegistrationLogDb : public EventLogDb{
-public:
-	enum Type {Register, Unregister, Expired};
-	RegistrationLogDb(const std::shared_ptr<RegistrationLog> & rLog);
-	RegistrationLogDb() {}
+class RegistrationLogDb : public EventLogDb {
+  public:
+	enum Type { Register, Unregister, Expired };
+	RegistrationLogDb(const std::shared_ptr<RegistrationLog> &rLog);
+	RegistrationLogDb() {
+	}
 	void setContacts(const sip_contact_t *contacts);
-private:
+
+  private:
 	friend class odb::access;
 	Type type;
 	std::string contacts;
@@ -65,23 +69,27 @@ private:
 };
 
 #pragma db object table("CallLog")
-class CallLogDb : public EventLogDb{
-public:
-	CallLogDb(const std::shared_ptr<CallLog> & cLog);
-	CallLogDb() {}
-private:
+class CallLogDb : public EventLogDb {
+  public:
+	CallLogDb(const std::shared_ptr<CallLog> &cLog);
+	CallLogDb() {
+	}
+
+  private:
 	friend class odb::access;
 	bool cancelled;
 };
 
 #pragma db object table("MessageLog")
-class MessageLogDb : public EventLogDb{
-public:
-	enum ReportType {Reception, Delivery};
-	MessageLogDb(const std::shared_ptr<MessageLog> & mLog);
-	MessageLogDb() {}
+class MessageLogDb : public EventLogDb {
+  public:
+	enum ReportType { Reception, Delivery };
+	MessageLogDb(const std::shared_ptr<MessageLog> &mLog);
+	MessageLogDb() {
+	}
 	void setDestination(const url_t *url);
-private:
+
+  private:
 	friend class odb::access;
 	ReportType reportType;
 	std::string uri;
@@ -89,12 +97,14 @@ private:
 };
 
 #pragma db object table("AuthLog")
-class AuthLogDb : public EventLogDb{
-public:
-	AuthLogDb(const std::shared_ptr<AuthLog> & aLog);
-	AuthLogDb() {}
+class AuthLogDb : public EventLogDb {
+  public:
+	AuthLogDb(const std::shared_ptr<AuthLog> &aLog);
+	AuthLogDb() {
+	}
 	void setOrigin(const url_t *url);
-private:
+
+  private:
 	friend class odb::access;
 	std::string origin;
 	std::string method;
@@ -102,14 +112,16 @@ private:
 };
 
 #pragma db object table("CallQualityStatisticsLog")
-class CallQualityStatisticsLogDb : public EventLogDb{
-public:
-	CallQualityStatisticsLogDb(const std::shared_ptr<CallQualityStatisticsLog> & csLog);
-	CallQualityStatisticsLogDb() {}
-private:
+class CallQualityStatisticsLogDb : public EventLogDb {
+  public:
+	CallQualityStatisticsLogDb(const std::shared_ptr<CallQualityStatisticsLog> &csLog);
+	CallQualityStatisticsLogDb() {
+	}
+
+  private:
 	friend class odb::access;
 
-	#pragma db value
+#pragma db value
 	struct reporting_addr {
 		std::string id;
 		std::string ip;
@@ -120,9 +132,9 @@ private:
 		std::string mac; // optional
 	};
 
-	#pragma db value
+#pragma db value
 	struct reporting_content_metrics {
-		reporting_content_metrics(){
+		reporting_content_metrics() {
 			ts_start = ts_stop = 0;
 
 			sd_payload_type = -1;
@@ -195,26 +207,26 @@ private:
 	std::string call_id;
 	std::string orig_id;
 
-	#pragma db column("la")
+#pragma db column("la")
 	reporting_addr local_addr;
-	#pragma db column("ra")
+#pragma db column("ra")
 	reporting_addr remote_addr;
 
-	#pragma db column("lm")
+#pragma db column("lm")
 	reporting_content_metrics local_metrics;
-	#pragma db column("rm")
+#pragma db column("rm")
 	reporting_content_metrics remote_metrics; // optional
 
 	std::string dialog_id; // optional
 
 	// Quality of Service analyzer - custom extension
 	/* This should allow us to analysis bad network conditions and quality adaptation*/
-	std::string qos_name; /*type of the QoS analyzer used*/
-	std::string qos_timestamp; /*time of each decision in seconds*/
-	std::string qos_input_leg; /*input parameters' name*/
-	std::string qos_input; /*set of inputs for each decision, semicolon separated*/
+	std::string qos_name;		/*type of the QoS analyzer used*/
+	std::string qos_timestamp;  /*time of each decision in seconds*/
+	std::string qos_input_leg;  /*input parameters' name*/
+	std::string qos_input;		/*set of inputs for each decision, semicolon separated*/
 	std::string qos_output_leg; /*output parameters' name*/
-	std::string qos_output; /*set of outputs for each decision, semicolon separated*/
+	std::string qos_output;		/*set of outputs for each decision, semicolon separated*/
 };
 
 #endif

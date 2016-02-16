@@ -1,19 +1,19 @@
 /*
-    Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Flexisip, a flexible SIP proxy server with media capabilities.
+	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "module.hh"
@@ -31,9 +31,9 @@ typedef struct DosContext {
 	double packet_count_rate;
 } DosContext;
 
-class DoSProtection: public Module, ModuleToolbox {
+class DoSProtection : public Module, ModuleToolbox {
 
-private:
+  private:
 	static ModuleInfo<DoSProtection> sInfo;
 	int mTimePeriod;
 	int mPacketRateLimit;
@@ -43,11 +43,16 @@ private:
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
-			{ Integer , "time-period", "Number of milliseconds to consider to compute the packet rate", "3000"},
-			{ Integer , "packet-rate-limit", "Maximum packet rate in packets/seconds,  averaged over [time-period] millisecond(s) to consider it as a DoS attack.", "20"},
-			{ Integer , "ban-time", "Number of minutes to ban the ip/port using iptables (might be less because it justs uses the minutes of the clock, not the seconds. So if the unban command is queued at 13:11:56 and scheduled and the ban time is 1 minute, it will be executed at 13:12:00)", "2"},
-			config_item_end
-		};
+			{Integer, "time-period", "Number of milliseconds to consider to compute the packet rate", "3000"},
+			{Integer, "packet-rate-limit", "Maximum packet rate in packets/seconds,  averaged over [time-period] "
+										   "millisecond(s) to consider it as a DoS attack.",
+			 "20"},
+			{Integer, "ban-time", "Number of minutes to ban the ip/port using iptables (might be less because it justs "
+								  "uses the minutes of the clock, not the seconds. So if the unban command is queued "
+								  "at 13:11:56 and scheduled and the ban time is 1 minute, it will be executed at "
+								  "13:12:00)",
+			 "2"},
+			config_item_end};
 		module_config->get<ConfigBoolean>("enabled")->setDefault("true");
 		module_config->addChildrenValues(configs);
 	}
@@ -58,9 +63,10 @@ private:
 		mBanTime = mc->get<ConfigInt>("ban-time")->read();
 		mDOSHashtableIterator = mDosContexts.begin();
 
-		tport_t *primaries=tport_primaries(nta_agent_tports(mAgent->getSofiaAgent()));
-		if (primaries == NULL) LOGF("No sip transport defined.");
-		for(tport_t *tport = primaries; tport != NULL; tport = tport_next(tport)) {
+		tport_t *primaries = tport_primaries(nta_agent_tports(mAgent->getSofiaAgent()));
+		if (primaries == NULL)
+			LOGF("No sip transport defined.");
+		for (tport_t *tport = primaries; tport != NULL; tport = tport_next(tport)) {
 			tport_set_params(tport, TPTAG_DOS(mTimePeriod), TAG_END());
 		}
 		if (getuid() != 0) {
@@ -70,7 +76,6 @@ private:
 	}
 
 	void onUnload() {
-
 	}
 
 	void onIdle() {
@@ -83,7 +88,7 @@ private:
 		if (mDOSHashtableIterator == mDosContexts.end()) {
 			mDOSHashtableIterator = mDosContexts.begin();
 		}
-		for (; mDOSHashtableIterator != mDosContexts.end(); ) {
+		for (; mDOSHashtableIterator != mDosContexts.end();) {
 			double now_in_millis;
 			DosContext dos = mDOSHashtableIterator->second;
 
@@ -98,7 +103,8 @@ private:
 			}
 
 			if (now_in_millis - started_time_in_millis >= 100) { // Do not use more than 100ms to clean the hashtable
-				LOGW("Started to clean dos hashtable %fms ago, let's stop for now a continue later", now_in_millis - started_time_in_millis);
+				LOGW("Started to clean dos hashtable %fms ago, let's stop for now a continue later",
+					 now_in_millis - started_time_in_millis);
 				break;
 			}
 		}
@@ -106,7 +112,10 @@ private:
 
 	static void ban_ip_with_iptables(const char *ip, const char *port, const char *protocol, int ban_time) {
 		char iptables_cmd[512];
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p %s -s %s -m multiport --sports %s -j DROP && echo \"iptables -D INPUT -p %s -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes", protocol, ip, port, protocol, ip, port, ban_time);
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p %s -s %s -m multiport --sports %s -j DROP "
+													 "&& echo \"iptables -D INPUT -p %s -s %s -m multiport --sports %s "
+													 "-j DROP\" | at now +%i minutes",
+				 protocol, ip, port, protocol, ip, port, ban_time);
 		if (system(iptables_cmd) != 0) {
 			LOGW("iptables command failed: %s", strerror(errno));
 		}
@@ -121,7 +130,8 @@ private:
 			return;
 		}
 
-		if (tport_is_udp(tport)) { // Sofia doesn't create a secondary tport for udp, so it will ban the primary and we don't want that
+		if (tport_is_udp(tport)) { // Sofia doesn't create a secondary tport for udp, so it will ban the primary and we
+								   // don't want that
 			shared_ptr<MsgSip> msg = ev->getMsgSip();
 			MsgSip *msgSip = msg.get();
 			su_sockaddr_t su[1];
@@ -133,7 +143,8 @@ private:
 			msg_get_address(msgSip->getMsg(), su, &len);
 			addr = &(su[0].su_sa);
 
-			if ((err = getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV)) == 0) {
+			if ((err = getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV)) ==
+				0) {
 				string id = string(ip) + ":" + string(port);
 				struct timeval now;
 				DosContext &dosContext = mDosContexts[id];
@@ -158,10 +169,11 @@ private:
 				}
 
 				if (dosContext.packet_count_rate >= mPacketRateLimit) {
-					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol udp for %i minutes", dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
+					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol udp for %i minutes",
+						 dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					ban_ip_with_iptables(ip, port, "udp", mBanTime);
 					dosContext.packet_count_rate = 0; // Reset it to not add the iptables rule twice by mistake
-					ev->terminateProcessing(); //the event is discarded
+					ev->terminateProcessing(); // the event is discarded
 				}
 			} else {
 				LOGW("getnameinfo() failed: %s", gai_strerror(err));
@@ -174,11 +186,13 @@ private:
 				char ip[NI_MAXHOST], port[NI_MAXSERV];
 				int err;
 
-				if ((err = getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV)) == 0) {
-					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes", packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
+				if ((err = getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port),
+									   NI_NUMERICHOST | NI_NUMERICSERV)) == 0) {
+					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes",
+						 packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					ban_ip_with_iptables(ip, port, "tcp", mBanTime);
 					tport_reset_packet_count_rate(tport); // Reset it to not add the iptables rule twice by mistake
-					ev->terminateProcessing(); //the event is discarded
+					ev->terminateProcessing(); // the event is discarded
 				} else {
 					LOGW("getnameinfo() failed: %s", gai_strerror(err));
 				}
@@ -186,22 +200,21 @@ private:
 		}
 	}
 
-	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
+	void onResponse(std::shared_ptr<ResponseSipEvent> &ev){
 
 	};
 
-public:
-		DoSProtection(Agent *ag) : Module(ag) {
+  public:
+	DoSProtection(Agent *ag) : Module(ag) {
+	}
 
-		}
-
-		~DoSProtection() {
-
-		}
+	~DoSProtection() {
+	}
 };
 
-ModuleInfo<DoSProtection> DoSProtection::sInfo("DoSProtection",
-		"This module bans user when they are sending too much packets on a given timelapse"
-		"To see the list of currently banned ips/ports, use iptables -L"
-		"You can also check the queue of unban commands using atq",
-		ModuleInfoBase::ModuleOid::DoSProtection);
+ModuleInfo<DoSProtection>
+	DoSProtection::sInfo("DoSProtection",
+						 "This module bans user when they are sending too much packets on a given timelapse"
+						 "To see the list of currently banned ips/ports, use iptables -L"
+						 "You can also check the queue of unban commands using atq",
+						 ModuleInfoBase::ModuleOid::DoSProtection);

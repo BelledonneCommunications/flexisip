@@ -16,27 +16,23 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #ifndef h264filter_hh
 #define h264filter_hh
 
 #include "mediarelay.hh"
 
-class H264IFrameFilter : public MediaFilter{
-public:
+class H264IFrameFilter : public MediaFilter {
+  public:
 	H264IFrameFilter(int skipcount);
-	///Should return false if the incoming packet must not be transfered.
+	/// Should return false if the incoming packet must not be transfered.
 	bool onIncomingTransfer(uint8_t *data, size_t size, const sockaddr *addr, socklen_t addrlen);
-	///Should return false if the packet output must not be sent.
+	/// Should return false if the packet output must not be sent.
 	bool onOutgoingTransfer(uint8_t *data, size_t size, const sockaddr *addr, socklen_t addrlen);
-private:
+
+  private:
 	int mSkipCount;
 	uint32_t mLastIframeTimestamp;
 	int mIframeCount;
-	
 };
 
-
-
 #endif
-
