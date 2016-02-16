@@ -14,9 +14,9 @@ def write_csv(filename, nb_users):
 def write_sql(filename, nb_users):
 	with open(filename, "w") as sql_file:
 		header = """DROP DATABASE IF EXISTS tests;
-CREATE DATABASE tests;
-USE tests;
-CREATE TABLE accounts (user VARCHAR(20),password VARCHAR(20));"""
+					CREATE DATABASE tests;
+					USE tests;
+					CREATE TABLE accounts (user VARCHAR(20),password VARCHAR(20));"""
 		sql_file.write(header)
 		for x in xrange(nb_users):
 			line = """INSERT into accounts (user, password) VALUES ("{uname}", "{uname}");\n""".format(uname=str(1000+x))
