@@ -55,11 +55,12 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 										   "http://soci.sourceforge.net/doc/3.2/backends/mysql.html",
 		 "db=mydb user=myuser password='mypass' host=myhost.com"},
 
-		{Integer, "soci-max-queue-size", "Amount of queries that will be allowed to be queued before bailing password "
-										 "requests. This value should be chosen accordingly with 'soci-poolsize', so "
-										 "that you have a coherent behavior. This limit is here mainly as a safeguard "
-										 "against out-of-control growth of the queue in the event of a flood or big "
-										 "delays in the database backend.",
+		{Integer, "soci-max-queue-size",
+		 "Amount of queries that will be allowed to be queued before bailing password "
+		 "requests.\n This value should be chosen accordingly with 'soci-poolsize', so "
+		 "that you have a coherent behavior.\n This limit is here mainly as a safeguard "
+		 "against out-of-control growth of the queue in the event of a flood or big "
+		 "delays in the database backend.",
 		 "1000"},
 		config_item_end};
 
@@ -100,7 +101,6 @@ void SociAuthDB::getPasswordWithPool(su_root_t *root, const std::string &id, con
 
 	steady_clock::time_point start = steady_clock::now();
 
-	// Either:
 	// will grab a connection from the pool. This is thread safe
 	session sql(*conn_pool);
 	std::string pass;
@@ -136,9 +136,9 @@ void SociAuthDB::getPasswordFromBackend(su_root_t *root, const std::string &id, 
 	auto func = bind(&SociAuthDB::getPasswordWithPool, this, root, id, domain, authid, listener);
 
 	// the thread pool only accepts function<void>(), so we use a closure here.
-	// it can also fail to enqueue when the queue is full, so we have to act on that
 	bool success = thread_pool->Enqueue([func]() { func(); });
 	if (success == FALSE) {
+		// Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil password request for " << id << " / " << domain << " / "
 			  << authid;
 		notifyPasswordRetrieved(root, listener, AUTH_ERROR, "");
