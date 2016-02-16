@@ -8,8 +8,10 @@ fi
 TOTAL_MSG=$1
 MSG_RATE=$2
 
+#FLEXISIP and MYSQL_PORT can be specified by overloading them when launching this script
 F=${FLEXISIP:=/opt/belledonne-communications/bin/flexisip}
 P=${MYSQL_PORT:=3307}
+C=${FLEXISIP_CONFIG:=flexisip_redis_soci.conf}
 
 echo "Launching load test with $1 total messages and $2 messages/second"
 
@@ -17,9 +19,9 @@ echo "Launching load test with $1 total messages and $2 messages/second"
 echo "Populating SQL database."
 mysql -uroot -P $MYSQL_PORT < users.sql
 
-#launch flexisip in background
+#launch flexisip in background with pidfile so that we can kill it
 echo "Launching flexisip."
-$FLEXISIP -p flexipid -c flexisip_redis_soci.conf &> flexisip.log &
+$FLEXISIP -p flexipid -c $FLEXISIP_CONFIG &> flexisip.log &
 ret_code=$?
 if [[ $? -ne 0 ]]; then
 	echo "Flexisip couldn't be launched, exiting."
