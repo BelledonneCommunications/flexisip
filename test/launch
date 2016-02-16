@@ -8,6 +8,7 @@ NB_USERS=1000
 EXPIRE=3600
 IP=127.0.0.1
 DOMAIN=localhost
+FLEXISIP_PORT=50060
 PROXY=localhost
 REGISTER_PORT=5070
 USERS_PORT=5063
@@ -37,15 +38,15 @@ then
  exit
 fi
 [ ! -f $FOLDER/launch.config ] && echo "config file not found : "$FOLDER/launch.config"" && exit
-FLEX_OPTIONS="$FLEX_OPTIONS -c $FOLDER/flexisip.conf -t sip:* --set module::Authentication/datasource=$PWD/passwords"
+FLEX_OPTIONS="$FLEX_OPTIONS -c $FOLDER/flexisip.conf -t sip:*:$FLEXISIP_PORT --set module::Authentication/datasource=$PWD/passwords"
 [ -z "$2" ] && FLEX_OPTIONS="$FLEX_OPTIONS --set module::Authentication/enabled=false"
 . $FOLDER/launch.config
 
-SIPP_COMMONS="$SIPP_COMMONS -i $IP -trace_err"
+SIPP_COMMONS="127.0.0.1:$FLEXISIP_PORT $SIPP_COMMONS -i $IP -trace_err"
 REG_OPTIONS="$REG_OPTIONS -p 5070 -m `echo "1+$NB_USERS"|bc` $SIPP_COMMONS -inf authentication.csv $SDOMAIN $SEXPIRE"
 REG_INVITER_OPTIONS="$REG_INVITER_OPTIONS -p 5064 -m 1 $SIPP_COMMONS -nd $SDOMAIN $SEXPIRE $SUA"
 INV_OPTIONS="$INV_OPTIONS -m $NB_USERS -p 5064 $SIPP_COMMONS $SDOMAIN $SUA"
-UAS_OPTIONS="$UAS_OPTIONS -p 5063 $SIPP_COMMONS -mi $IP -mp 15000 -rtp_echo -bg"
+UAS_OPTIONS="$UAS_OPTIONS -p 5063 $SIPP_COMMONS -mi $IP -mp 15000 -rtp_echo -trace_msg -trace_logs -bg"
 
 echo "NB_USERS=$NB_USERS"
 echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
@@ -75,12 +76,12 @@ if [ $? -ne 0 ]; then
 fi
 
 
-CMD_REG_USERS="$SIPP $PROXY -sf register_users.xml $REG_OPTIONS -set ua noauth"
+CMD_REG_USERS="$SIPP 127.0.0.1:$FLEXISIP_PORT $PROXY -sf register_users.xml $REG_OPTIONS -set ua noauth"
 echo -e "\n\033[1mRegister users: \033[0m"
 echo $CMD_REG_USERS
 $CMD_REG_USERS
 
-CMD_REG_INVITER="$SIPP $PROXY -sf register_inviter$USE_AUTH.xml $REG_INVITER_OPTIONS"
+CMD_REG_INVITER="$SIPP -sf register_inviter$USE_AUTH.xml $REG_INVITER_OPTIONS"
 echo -e "\n\033[1mRegister inviter \033[0m"
 echo $CMD_REG_INVITER
 $CMD_REG_INVITER

@@ -8,6 +8,6 @@ For populating Postgresql database with user information:
 Creating an index on id : create index id_index on accounts (id);
 
 
-for i in `seq 0 1000000`; do echo user$i.000000 user$i.000000 >> cred; done
+for i in `seq 0 1000000`; do echo "user$i.000000\tuser$i.000000" >> cred; done
 vim to change " " with tabs
 import
