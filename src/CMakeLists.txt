@@ -27,7 +27,6 @@ set(FLEXISIP_INCLUDES)
 set(FLEXISIP_DEPENDENCIES)
 
 set(FLEXISIP_SOURCES
-	main.cc
 	flexisip-exception.cc flexisip-exception.hh
 	agent.cc agent.hh
 	common.cc common.hh
@@ -96,11 +95,11 @@ function(ADD_XSD_WRAPPERS file _comment)
 	set(regex "%http://.+/(.+)%\\\$$1%")
 
 	add_custom_command(OUTPUT ${destinations}
-		COMMAND "${XSDCXX_PROG}" "cxx-tree" "--generate-wildcard" 
-  			"--generate-serialization" "--generate-ostream" 
+		COMMAND "${XSDCXX_PROG}" "cxx-tree" "--generate-wildcard"
+  			"--generate-serialization" "--generate-ostream"
   			"--generate-detach" "--std" "c++11" "--type-naming" "java"
-			"--function-naming" "java"  "--location-regex-trace" 
-			"--location-regex" "\"${regex}\"" 
+			"--function-naming" "java"  "--location-regex-trace"
+			"--location-regex" "\"${regex}\""
 			"--output-dir" "${CMAKE_CURRENT_BINARY_DIR}/xml" "${source}"
 		COMMENT "${_comment}")
 
@@ -197,8 +196,8 @@ if(ENABLE_XSD AND ENABLE_PRESENCE)
 endif()
 
 if(ENABLE_PUSHNOTIFICATION)
-	list(APPEND FLEXISIP_SOURCES module-pushnotification.cc 
-		pushnotification/pushnotification.cc pushnotification/pushnotification.hh 
+	list(APPEND FLEXISIP_SOURCES module-pushnotification.cc
+		pushnotification/pushnotification.cc pushnotification/pushnotification.hh
 		pushnotification/pushnotificationservice.cc pushnotification/pushnotificationservice.hh
 		pushnotification/pushnotificationclient.cc pushnotification/pushnotificationclient.hh
 		pushnotification/genericpushnotification.cc)
@@ -216,14 +215,20 @@ message(STATUS "Flexisip LIBS : ${FLEXISIP_LIBS}")
 message(STATUS "Flexisip INCLUDES : ${FLEXISIP_INCLUDES}")
 message(STATUS "Flexisip DEPENDENCIES : ${FLEXISIP_DEPENDENCIES}")
 
-add_executable( flexisip ${FLEXISIP_SOURCES})
+add_library( libflexisip STATIC ${FLEXISIP_SOURCES})
 if(FLEXISIP_DEPENDENCIES)
-	add_dependencies(flexisip ${FLEXISIP_DEPENDENCIES})
+	add_dependencies(libflexisip ${FLEXISIP_DEPENDENCIES})
 endif()
-add_dependencies(flexisip flexisip-git-version)
+add_dependencies(libflexisip flexisip-git-version)
+target_compile_features(libflexisip PRIVATE cxx_auto_type cxx_variadic_macros)
+target_link_libraries(libflexisip ${FLEXISIP_LIBS})
+target_include_directories(libflexisip PUBLIC ${FLEXISIP_INCLUDES})
+
+add_executable(flexisip main.cc)
+set_property(TARGET flexisip PROPERTY CXX_STANDARD 11)
+set_property(TARGET flexisip PROPERTY CXX_STANDARD_REQUIRED ON)
 target_compile_features(flexisip PRIVATE cxx_auto_type cxx_variadic_macros)
-target_link_libraries(flexisip ${FLEXISIP_LIBS})
-target_include_directories(flexisip PUBLIC ${FLEXISIP_INCLUDES})
+target_link_libraries(flexisip libflexisip)
 
 # expression parser tester
 if(MEDIASTREAMER2_FOUND)
@@ -232,6 +237,13 @@ if(MEDIASTREAMER2_FOUND)
 	set_property(TARGET expr PROPERTY CXX_STANDARD 11)
 	set_property(TARGET expr PROPERTY CXX_STANDARD_REQUIRED ON)
 	target_compile_options(expr PUBLIC -DTEST_BOOL_EXPR -DNO_SOFIA)
+endif()
+
+if (ENABLE_PUSHNOTIFICATION)
+	add_executable(flexisip_pusher tools/pusher.cc)
+	target_link_libraries(flexisip_pusher libflexisip)
+	set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD 11)
+	set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD_REQUIRED ON)
 endif()
 
 
