@@ -22,3 +22,6 @@
 [submodule "submodules/externals/speex"]
 	path = submodules/externals/speex
 	url = git://git.linphone.org/speex.git
+[submodule "submodules/bctoolbox"]
+	path = submodules/bctoolbox
+	url = git://git.linphone.org/bctoolbox.git
