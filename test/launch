@@ -46,7 +46,7 @@ SIPP_COMMONS="127.0.0.1:$FLEXISIP_PORT $SIPP_COMMONS -i $IP -trace_err"
 REG_OPTIONS="$REG_OPTIONS -p 5070 -m `echo "1+$NB_USERS"|bc` $SIPP_COMMONS -inf authentication.csv $SDOMAIN $SEXPIRE"
 REG_INVITER_OPTIONS="$REG_INVITER_OPTIONS -p 5064 -m 1 $SIPP_COMMONS -nd $SDOMAIN $SEXPIRE $SUA"
 INV_OPTIONS="$INV_OPTIONS -m $NB_USERS -p 5064 $SIPP_COMMONS $SDOMAIN $SUA"
-UAS_OPTIONS="$UAS_OPTIONS -p 5063 $SIPP_COMMONS -mi $IP -mp 15000 -rtp_echo -trace_msg -trace_logs -bg"
+UAS_OPTIONS="$UAS_OPTIONS -bg -p 5063 $SIPP_COMMONS -mi $IP -mp 15000 -rtp_echo"
 
 echo "NB_USERS=$NB_USERS"
 echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
@@ -61,13 +61,15 @@ ulimit -n 65000
 CMD_UAS="$SIPP -sf uas.xml $UAS_OPTIONS"
 echo -e "\n\033[1mStart users listening: \033[0m"
 echo $CMD_UAS
-$CMD_UAS 2>&1 > /dev/null
+$CMD_UAS 2>&1 > uas.log
+
+sleep 2
 
 CMD_FLEXISIP="$FLEXISIP $FLEX_OPTIONS"
 echo -e "\n\033[1mStart flexisip: \033[0m"
 echo $CMD_FLEXISIP
 $CMD_FLEXISIP &> flexisip.log &
-sleep 2s
+sleep 2
 ps aux | grep flexisip | grep -v grep
 if [ $? -ne 0 ]; then
   echo "Error launching flexisip"
