@@ -249,7 +249,7 @@ endif()
 
 if (ENABLE_PUSHNOTIFICATION)
 	add_executable(flexisip_pusher tools/pusher.cc)
-	target_link_libraries(flexisip_pusher libflexisip)
+	target_link_libraries(flexisip_pusher flexisip)
 	set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD 11)
 	set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD_REQUIRED ON)
 
