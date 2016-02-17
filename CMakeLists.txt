@@ -33,6 +33,7 @@ include(CMakePushCheckState)
 include(CMakeDependentOption)
 include(CheckSymbolExists)
 include(CheckFunctionExists)
+include(FeatureSummary)
 
 option(ENABLE_STATIC "Build static library (default is shared library)." NO)
 option(ENABLE_BOOSTLOG "" YES)
@@ -228,6 +229,7 @@ if(BOOST_COMPONENTS)
 	find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS})
 endif()
 
+feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
 
 include_directories(
 	src/

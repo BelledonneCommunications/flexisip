@@ -57,7 +57,7 @@ list(REMOVE_DUPLICATES SOFIA_SIP_UA_LIBRARIES)
 set(SOFIA_SIP_UA_CPPFLAGS "")
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(SOFIA_SIP_UA
+find_package_handle_standard_args(SOFIASIPUA
   DEFAULT_MSG
   SOFIA_SIP_UA_INCLUDE_DIRS SOFIA_SIP_UA_LIBRARIES
 )
