@@ -8,10 +8,10 @@ fi
 TOTAL_MSG=$1
 MSG_RATE=$2
 
-#FLEXISIP and MYSQL_PORT can be specified by overloading them when launching this script
-F=${FLEXISIP:=/opt/belledonne-communications/bin/flexisip}
-P=${MYSQL_PORT:=3307}
-C=${FLEXISIP_CONFIG:=flexisip_redis_soci.conf}
+FLEXISIP=${FLEXISIP:=/opt/belledonne-communications/bin/flexisip}
+MYSQL_PORT=${MYSQL_PORT:=3307}
+FLEXISIP_CONFIG=${FLEXISIP_CONFIG:=flexisip_redis_soci.conf}
+SCENARIO_FILE=${SCENARIO_FILE:=REGISTER_client.xml}
 
 echo "Launching load test with $1 total messages and $2 messages/second"
 
@@ -34,7 +34,7 @@ echo > sipp_logs.log
 
 # start SIPP in front-end
 echo "Launching SIPP."
-sipp 127.0.0.1:50060 -sf REGISTER_client.xml -i 127.0.0.1 -sleep 3 \
+sipp 127.0.0.1:50060 -sf ${SCENARIO_FILE} -i 127.0.0.1 -sleep 3 \
 		-inf users.csv -m $1 -r $2 \
 		-trace_err -error_file sipp_error.log \
 		-trace_logs -log_file sipp_logs.log \
