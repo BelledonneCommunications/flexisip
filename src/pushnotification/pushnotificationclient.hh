@@ -25,6 +25,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
+#include <boost/asio/deadline_timer.hpp>
 #include "pushnotificationservice.hh"
 
 class PushNotificationClient {
@@ -47,6 +48,8 @@ class PushNotificationClient {
 					 size_t bytes_transferred);
 
   private:
+  	void handle_read_timeout(shared_ptr<PushNotificationRequest> req);
+
 	void send(std::shared_ptr<PushNotificationRequest> req);
 	void onEnd();
 	void onError(std::shared_ptr<PushNotificationRequest> req, const std::string &msg = "");
@@ -60,6 +63,7 @@ class PushNotificationClient {
 	boost::asio::ssl::stream<boost::asio::ip::tcp::socket> mSocket;
 	std::shared_ptr<boost::asio::ssl::context> mContext;
 	std::queue<std::shared_ptr<PushNotificationRequest>> mRequestQueue;
+	boost::asio::deadline_timer mReadTimeoutTimer;
 	std::vector<char> mResponse;
 	std::string mName;
 	std::string mHost, mPort;

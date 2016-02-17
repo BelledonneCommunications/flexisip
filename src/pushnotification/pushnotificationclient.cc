@@ -32,7 +32,7 @@ PushNotificationClient::PushNotificationClient(const string &name, PushNotificat
 											   std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host,
 											   const std::string &port, int maxQueueSize, bool isSecure)
 	: mService(service), mResolver(mService->getService()), mSocket(mService->getService(), *ctx), mContext(ctx),
-	  mRequestQueue(), mName(name), mHost(host), mPort(port), mMaxQueueSize(maxQueueSize), mIsSecure(isSecure) {
+	  mRequestQueue(), mReadTimeoutTimer(mService->getService()), mName(name), mHost(host), mPort(port), mMaxQueueSize(maxQueueSize), mIsSecure(isSecure) {
 	mLastUse = 0;
 }
 
@@ -152,11 +152,12 @@ void PushNotificationClient::handle_write(shared_ptr<PushNotificationRequest> re
 	if (!error) {
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " write done";
 		mResponse.resize(512);
-		if (!req->mustReadServerResponse()) {
-			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " not reading response";
-			onSuccess(req);
-			return;
+
+		if (!req->serverResponseIsImmediate()) {
+			mReadTimeoutTimer.async_wait(boost::bind(&PushNotificationClient::handle_read_timeout, this, req));
+			mReadTimeoutTimer.expires_from_now(boost::posix_time::seconds(3));
 		}
+
 		auto fn = bind(&PushNotificationClient::handle_read, this, req, asio::placeholders::error,
 					   asio::placeholders::bytes_transferred);
 		if (mIsSecure) {
@@ -171,8 +172,19 @@ void PushNotificationClient::handle_write(shared_ptr<PushNotificationRequest> re
 	}
 }
 
+void PushNotificationClient::handle_read_timeout(shared_ptr<PushNotificationRequest> req) {
+	if (mReadTimeoutTimer.expires_at() <= boost::asio::deadline_timer::traits_type::now()) {
+		// we did not receive any response, we assume everything went fine.
+		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " nothing read, assuming success";
+		onSuccess(req);
+		mReadTimeoutTimer.expires_at(boost::posix_time::pos_infin);
+	}
+	mReadTimeoutTimer.async_wait(boost::bind(&PushNotificationClient::handle_read_timeout, this, req));
+}
+
 void PushNotificationClient::handle_read(shared_ptr<PushNotificationRequest> req, const err_code &error,
 										 size_t bytes_transferred) {
+	mReadTimeoutTimer.cancel();
 	if (!error) {
 		string responsestr(mResponse.data(), mResponse.size());
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " read done: " << responsestr;
@@ -180,7 +192,7 @@ void PushNotificationClient::handle_read(shared_ptr<PushNotificationRequest> req
 			onError(req, "Invalid response");
 		else
 			onSuccess(req);
-	} else {
+	} else if (error != boost::asio::error::operation_aborted) {
 		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " read failed : " << error.message();
 		onError(req);
 	}

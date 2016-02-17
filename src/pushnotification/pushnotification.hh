@@ -60,7 +60,7 @@ class PushNotificationRequest : public PushNotificationRequestCallback {
 	}
 	virtual const std::vector<char> &getData() = 0;
 	virtual bool isValidResponse(const std::string &str) = 0;
-	virtual bool mustReadServerResponse() = 0;
+	virtual bool serverResponseIsImmediate() = 0;
 	virtual ~PushNotificationRequest() = 0;
 	void setCallBack(const std::shared_ptr<PushNotificationRequestCallback> &cb) {
 		mCallBack = cb;
@@ -94,7 +94,7 @@ class ApplePushNotificationRequest : public PushNotificationRequest {
 	ApplePushNotificationRequest(const PushInfo &pinfo);
 	~ApplePushNotificationRequest() {
 	}
-	virtual bool mustReadServerResponse() {
+	virtual bool serverResponseIsImmediate() {
 		return false;
 	}
 
@@ -104,6 +104,7 @@ class ApplePushNotificationRequest : public PushNotificationRequest {
 	std::vector<char> mBuffer;
 	std::vector<char> mDeviceToken;
 	std::string mPayload;
+	uint32_t mIdentifier;
 };
 
 class GooglePushNotificationRequest : public PushNotificationRequest {
@@ -113,7 +114,7 @@ class GooglePushNotificationRequest : public PushNotificationRequest {
 	GooglePushNotificationRequest(const PushInfo &pinfo);
 	~GooglePushNotificationRequest() {
 	}
-	virtual bool mustReadServerResponse() {
+	virtual bool serverResponseIsImmediate() {
 		return true;
 	}
 
@@ -131,7 +132,7 @@ class WindowsPhonePushNotificationRequest : public PushNotificationRequest {
 	WindowsPhonePushNotificationRequest(const PushInfo &pinfo);
 	~WindowsPhonePushNotificationRequest() {
 	}
-	virtual bool mustReadServerResponse() {
+	virtual bool serverResponseIsImmediate() {
 		return true;
 	}
 
@@ -152,7 +153,7 @@ class ErrorPushNotificationRequest : public PushNotificationRequest {
 	}
 	~ErrorPushNotificationRequest() {
 	}
-	virtual bool mustReadServerResponse() {
+	virtual bool serverResponseIsImmediate() {
 		return true;
 	}
 
@@ -167,7 +168,7 @@ class GenericPushNotificationRequest : public PushNotificationRequest {
 	GenericPushNotificationRequest(const PushInfo &pinfo, const url_t *url, const std::string &method);
 	virtual ~GenericPushNotificationRequest() {
 	}
-	virtual bool mustReadServerResponse() {
+	virtual bool serverResponseIsImmediate() {
 		return true;
 	}
 

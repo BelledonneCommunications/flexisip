@@ -31,7 +31,7 @@ const unsigned int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 256;
 const unsigned int ApplePushNotificationRequest::DEVICE_BINARY_SIZE = 32;
 
 ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
-	: PushNotificationRequest(info.mAppId, "apple") {
+	: PushNotificationRequest(info.mAppId, "apple"), mIdentifier(1) {
 	const string &deviceToken = info.mDeviceToken;
 	const string &msg_id = info.mAlertMsgId;
 	const string &arg = info.mFromName.empty() ? info.mFromUri : info.mFromName;
@@ -107,31 +107,41 @@ void ApplePushNotificationRequest::createPushNotification() {
 
 	/* Init */
 	mBuffer.clear();
-	/* message format is, |COMMAND|TOKENLEN|TOKEN|PAYLOADLEN|PAYLOAD| */
-	mBuffer.resize(sizeof(uint8_t) + sizeof(uint16_t) + DEVICE_BINARY_SIZE + sizeof(uint16_t) + payloadLength);
+	/* message format is, |COMMAND|ID|EXPIRY|TOKENLEN|TOKEN|PAYLOADLEN|PAYLOAD| */
+	mBuffer.resize(sizeof(uint8_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint16_t) + DEVICE_BINARY_SIZE + sizeof(uint16_t) + payloadLength);
 	char *binaryMessageBuff = &mBuffer[0];
 	char *binaryMessagePt = binaryMessageBuff;
 
 	/* Compute PushNotification */
 
-	uint8_t command = 0; /* command number */
+	uint8_t command = 1; /* command number. Use enhanced push notifs (cf http://redth.codes/the-problem-with-apples-push-notification-ser/) */
 	uint16_t networkOrderTokenLength = htons(DEVICE_BINARY_SIZE);
 	uint16_t networkOrderPayloadLength = htons(payloadLength);
+	uint32_t expiry = time(0) + 31536000; /* expires in one year */
+	uint32_t identifier = mIdentifier++; /* auto-increment identifier */
 
 	/* command */
 	*binaryMessagePt++ = command;
 
+	/* identifier */
+	memcpy(binaryMessagePt, &identifier, sizeof(identifier));
+	binaryMessagePt += sizeof(identifier);
+
+	/* expiry */
+	memcpy(binaryMessagePt, &expiry, sizeof(expiry));
+	binaryMessagePt += sizeof(expiry);
+
 	/* token length network order */
-	memcpy(binaryMessagePt, &networkOrderTokenLength, sizeof(uint16_t));
-	binaryMessagePt += sizeof(uint16_t);
+	memcpy(binaryMessagePt, &networkOrderTokenLength, sizeof(networkOrderTokenLength));
+	binaryMessagePt += sizeof(networkOrderTokenLength);
 
 	/* device token */
 	memcpy(binaryMessagePt, &mDeviceToken[0], DEVICE_BINARY_SIZE);
 	binaryMessagePt += DEVICE_BINARY_SIZE;
 
 	/* payload length network order */
-	memcpy(binaryMessagePt, &networkOrderPayloadLength, sizeof(uint16_t));
-	binaryMessagePt += sizeof(uint16_t);
+	memcpy(binaryMessagePt, &networkOrderPayloadLength, sizeof(networkOrderPayloadLength));
+	binaryMessagePt += sizeof(networkOrderPayloadLength);
 
 	/* payload */
 	memcpy(binaryMessagePt, &mPayload[0], payloadLength);
@@ -139,6 +149,25 @@ void ApplePushNotificationRequest::createPushNotification() {
 }
 
 bool ApplePushNotificationRequest::isValidResponse(const string &str) {
+	// error response is COMMAND(1)|STATUS(1)|ID(4) in bytes
+	if (str.length() >= 6) {
+		int error = str[1];
+		uint32_t identifier = (uint32_t)str[2];
+		static const char* errorToString[] = {
+			"No errors encountered",
+			"Processing error",
+			"Missing device token",
+			"Missing topic",
+			"Missing payload",
+			"Invalid token size",
+			"Invalid topic size",
+			"Invalid payload size",
+			"Invalid token",
+		};
+		SLOGE << "PNR " << this << " with identifier " << identifier << " failed with error "
+			<< error << " (" << (error>8 ? "unknow" : errorToString[error]) << ")";
+		return false;
+	}
 	return true;
 }
 
