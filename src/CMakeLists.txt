@@ -215,20 +215,28 @@ message(STATUS "Flexisip LIBS : ${FLEXISIP_LIBS}")
 message(STATUS "Flexisip INCLUDES : ${FLEXISIP_INCLUDES}")
 message(STATUS "Flexisip DEPENDENCIES : ${FLEXISIP_DEPENDENCIES}")
 
-add_library( libflexisip SHARED ${FLEXISIP_SOURCES})
+add_library(flexisip SHARED ${FLEXISIP_SOURCES})
 if(FLEXISIP_DEPENDENCIES)
-	add_dependencies(libflexisip ${FLEXISIP_DEPENDENCIES})
+	add_dependencies(flexisip ${FLEXISIP_DEPENDENCIES})
 endif()
-add_dependencies(libflexisip flexisip-git-version)
-target_compile_features(libflexisip PRIVATE cxx_auto_type cxx_variadic_macros)
-target_link_libraries(libflexisip ${FLEXISIP_LIBS})
-target_include_directories(libflexisip PUBLIC ${FLEXISIP_INCLUDES})
-
-add_executable(flexisip main.cc)
-set_property(TARGET flexisip PROPERTY CXX_STANDARD 11)
-set_property(TARGET flexisip PROPERTY CXX_STANDARD_REQUIRED ON)
+add_dependencies(flexisip flexisip-git-version)
 target_compile_features(flexisip PRIVATE cxx_auto_type cxx_variadic_macros)
-target_link_libraries(flexisip libflexisip)
+target_link_libraries(flexisip ${FLEXISIP_LIBS})
+target_include_directories(flexisip PUBLIC ${FLEXISIP_INCLUDES})
+
+add_executable(flexisip_server main.cc)
+set_property(TARGET flexisip_server PROPERTY OUTPUT_NAME flexisip)
+set_property(TARGET flexisip_server PROPERTY CXX_STANDARD 11)
+set_property(TARGET flexisip_server PROPERTY CXX_STANDARD_REQUIRED ON)
+target_compile_features(flexisip_server PRIVATE cxx_auto_type cxx_variadic_macros)
+target_link_libraries(flexisip_server flexisip)
+
+install(TARGETS flexisip flexisip_server
+	RUNTIME DESTINATION bin
+	LIBRARY DESTINATION lib
+	ARCHIVE DESTINATION lib
+	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+)
 
 # expression parser tester
 if(MEDIASTREAMER2_FOUND)
@@ -244,12 +252,11 @@ if (ENABLE_PUSHNOTIFICATION)
 	target_link_libraries(flexisip_pusher libflexisip)
 	set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD 11)
 	set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD_REQUIRED ON)
+
+	install(TARGETS flexisip_pusher
+		RUNTIME DESTINATION bin
+		LIBRARY DESTINATION lib
+		ARCHIVE DESTINATION lib
+		PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+	)
 endif()
-
-
-install(TARGETS flexisip
-	RUNTIME DESTINATION bin
-	LIBRARY DESTINATION lib
-	ARCHIVE DESTINATION lib
-	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-)
