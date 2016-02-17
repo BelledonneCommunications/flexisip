@@ -349,7 +349,7 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 	// At that point, we are safe
 
 	if (belle_sip_message_get_body_size(BELLE_SIP_MESSAGE(request)) > 0) {
-		::std::unique_ptr<::pidf::Presence> presence_body = NULL;
+		::std::unique_ptr<pidf::Presence> presence_body = NULL;
 		try {
 			istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));
 			presence_body = parsePresence(data, xml_schema::Flags::dont_validate);

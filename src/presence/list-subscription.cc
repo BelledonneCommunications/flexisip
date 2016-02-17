@@ -45,7 +45,7 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 			<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
 	}
 
-	::std::unique_ptr<::resource_lists::Resource_lists> resource_list_body = NULL;
+	::std::unique_ptr<resource_lists::Resource_lists> resource_list_body = NULL;
 	try {
 		istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));
 		resource_list_body = resource_lists::parseResource_lists(data, xml_schema::Flags::dont_validate);

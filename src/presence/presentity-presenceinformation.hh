@@ -52,7 +52,7 @@ class PresenceInformationElement {
   private:
 	list<std::unique_ptr<pidf::Tuple>> mTuples;
 	list<xercesc::DOMElement *> mExtensions;
-	::xml_schema::dom::unique_ptr<::xercesc::DOMDocument> mDomDocument; // needed to store extension nodes
+	::xml_schema::dom::unique_ptr<xercesc::DOMDocument> mDomDocument; // needed to store extension nodes
 	belle_sip_main_loop_t *mBelleSipMainloop;
 	belle_sip_source_t *mTimer;
 	string mEtag;
