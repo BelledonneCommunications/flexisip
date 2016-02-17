@@ -215,7 +215,7 @@ message(STATUS "Flexisip LIBS : ${FLEXISIP_LIBS}")
 message(STATUS "Flexisip INCLUDES : ${FLEXISIP_INCLUDES}")
 message(STATUS "Flexisip DEPENDENCIES : ${FLEXISIP_DEPENDENCIES}")
 
-add_library( libflexisip STATIC ${FLEXISIP_SOURCES})
+add_library( libflexisip SHARED ${FLEXISIP_SOURCES})
 if(FLEXISIP_DEPENDENCIES)
 	add_dependencies(libflexisip ${FLEXISIP_DEPENDENCIES})
 endif()
