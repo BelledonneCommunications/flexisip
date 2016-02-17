@@ -165,6 +165,10 @@ int main(int argc, char *argv[]) {
 	service.start();
 	int ret = service.sendRequest(pn);
 	sleep(1);
-	service.waitEnd();
+	if (ret == 0) {
+		service.waitEnd();
+	} else {
+		cerr << "fail to send request, aborting" << endl;
+	}
 	return ret;
 }
