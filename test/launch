@@ -38,7 +38,7 @@ then
  exit
 fi
 [ ! -f $FOLDER/launch.config ] && echo "config file not found : "$FOLDER/launch.config"" && exit
-FLEX_OPTIONS="$FLEX_OPTIONS -c $FOLDER/flexisip.conf -t sip:*:$FLEXISIP_PORT --set module::Authentication/datasource=$PWD/passwords"
+FLEX_OPTIONS="$FLEX_OPTIONS -c $FOLDER/flexisip.conf -t sip:*:$FLEXISIP_PORT --hosts localhost=127.0.0.1 --set module::Authentication/datasource=$PWD/passwords"
 [ -z "$2" ] && FLEX_OPTIONS="$FLEX_OPTIONS --set module::Authentication/enabled=false"
 . $FOLDER/launch.config
 
@@ -76,12 +76,12 @@ if [ $? -ne 0 ]; then
 fi
 
 
-CMD_REG_USERS="$SIPP 127.0.0.1:$FLEXISIP_PORT $PROXY -sf register_users.xml $REG_OPTIONS -set ua noauth"
+CMD_REG_USERS="$SIPP $PROXY -sf register_users.xml $REG_OPTIONS -set ua noauth"
 echo -e "\n\033[1mRegister users: \033[0m"
 echo $CMD_REG_USERS
 $CMD_REG_USERS
 
-CMD_REG_INVITER="$SIPP -sf register_inviter$USE_AUTH.xml $REG_INVITER_OPTIONS"
+CMD_REG_INVITER="$SIPP $PROXY -sf register_inviter$USE_AUTH.xml $REG_INVITER_OPTIONS"
 echo -e "\n\033[1mRegister inviter \033[0m"
 echo $CMD_REG_INVITER
 $CMD_REG_INVITER
