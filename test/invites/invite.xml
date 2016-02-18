@@ -84,7 +84,6 @@
       User-Agent: [$ua]
       CSeq: 2 BYE
       Contact: [$luserAdd]
-      [authentication username=user0.000000 password=user0.000000]
       Max-Forwards: 70
       Subject: Teminate invite
       Content-Length: 0
