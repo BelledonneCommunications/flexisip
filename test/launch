@@ -1,11 +1,29 @@
 #!/bin/bash
 
-[ ! -f launch.config.perso ] && echo "launch.config.perso not found" && exit 1
+### CONFIGURATION ###
 
+# You can set these in a launch.config.perso file that you put into
+# the root directory. See launch.config.perso.sample for an example.
+
+# location of the executables of interest
 FLEXISIP=${FLEXISIP:=/opt/belledonne-communications/bin/flexisip}
 SIPP=${SIPP:=sipp}
+
+# Number of users to simulate
 NB_USERS=${NB_USERS:=1000}
+
+# invite rate, number of invites to send every second
+INV_RATE=${INV_RATE:=50}
+
+# duration of the call
+CALL_LENGTH=${CALL_LENGTH:=10}
+
+# expire
 EXPIRE=${EXPIRE:=3600}
+
+
+### More advanced configuration ###
+
 IP=${IP:=127.0.0.1}
 DOMAIN=${DOMAIN:=localhost}
 FLEXISIP_PORT=${FLEXISIP_PORT:=50060}
@@ -38,10 +56,14 @@ then
  ls */launch.config | sed 's/\/.*$//'
  exit
 fi
+
+# load test-specific configuration values
 [ ! -f $FOLDER/launch.config ] && echo "config file not found : "$FOLDER/launch.config"" && exit
+. $FOLDER/launch.config
+
+
 FLEX_OPTIONS="$FLEX_OPTIONS -c $FOLDER/flexisip.conf -t sip:*:$FLEXISIP_PORT --hosts localhost=127.0.0.1 --set module::Authentication/datasource=$PWD/passwords"
 [ -z "$2" ] && FLEX_OPTIONS="$FLEX_OPTIONS --set module::Authentication/enabled=false"
-. $FOLDER/launch.config
 
 SIPP_COMMONS="127.0.0.1:$FLEXISIP_PORT $SIPP_COMMONS -i $IP -trace_err"
 REG_OPTIONS="$REG_OPTIONS -p $REGISTER_PORT -m `echo "1+$NB_USERS"|bc` $SIPP_COMMONS -inf authentication.csv $SDOMAIN $SEXPIRE"
@@ -65,7 +87,7 @@ echo $CMD_UAS
 $CMD_UAS 2>&1 > uas.log
 
 sleep 2
-
+	
 CMD_FLEXISIP="$FLEXISIP $FLEX_OPTIONS"
 echo -e "\n\033[1mStart flexisip: \033[0m"
 echo $CMD_FLEXISIP
@@ -93,16 +115,16 @@ $CMD_REG_INVITER
 
 # Allow killing
 function onexit() {
- echo -e "\e[0;31mKilling everyone \033[0m"
- killall flexisip 2>/dev/null
- killall sipp 2>/dev/null
+	echo -e "\e[0;31mKilling everyone \033[0m"
+	killall flexisip 2>/dev/null
+	killall sipp 2>/dev/null
 
- LOGS=logs/"$FOLDER"_`date '+%s'`
- LOGS_TO_SAVE=$FOLDER"/*.log *.log core"
- mkdir -p $LOGS
- mv $LOGS_TO_SAVE $LOGS
+	LOGS=logs/"$FOLDER"_`date '+%s'`
+	LOGS_TO_SAVE=$FOLDER"/*.log *.log core"
+	mkdir -p $LOGS
+	mv $LOGS_TO_SAVE $LOGS
 
- exit
+	exit
 }
 set -o errtrace 
 trap onexit 1 2 3 15 ERR
