@@ -532,6 +532,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 		expires = belle_sip_header_expires_get_expires(headerExpires);
 	else
 		expires = 3600; // rfc3856, default value
+	belle_sip_header_t *acceptEncodingHeader = belle_sip_message_get_header(BELLE_SIP_MESSAGE(request), "Accept-Encoding");
 
 	switch (belle_sip_dialog_get_state(dialog)) {
 		case BELLE_SIP_DIALOG_NULL: {
@@ -555,6 +556,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					  << "for dialog [" << BELLE_SIP_OBJECT(dialog) << "]";
 
 				ListSubscription *listSubscription = new ListSubscription(expires, server_transaction, mProvider);
+				if (acceptEncodingHeader) listSubscription->setAcceptEncodingHeader(acceptEncodingHeader);
 				// send 200ok late to allow deeper anylise of request
 				belle_sip_server_transaction_send_response(server_transaction, resp);
 

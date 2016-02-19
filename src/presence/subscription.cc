@@ -25,7 +25,7 @@ namespace flexisip {
 
 Subscription::Subscription(string eventName, unsigned int expires, belle_sip_dialog_t *aDialog,
 						   belle_sip_provider_t *prov)
-	: mDialog(aDialog), mProv(prov), mEventName(eventName), mState(active) {
+	: mDialog(aDialog), mProv(prov), mEventName(eventName), mAcceptHeader(0), mAcceptEncodingHeader(0), mState(active) {
 
 	belle_sip_object_ref(mDialog);
 	belle_sip_object_ref(mProv);
@@ -38,6 +38,14 @@ void Subscription::setAcceptHeader(belle_sip_header_t *acceptHeader) {
 	if (acceptHeader) {
 		belle_sip_object_ref(acceptHeader);
 		mAcceptHeader = acceptHeader;
+	}
+}
+void Subscription::setAcceptEncodingHeader(belle_sip_header_t *acceptEncodingHeader) {
+	if (mAcceptEncodingHeader)
+		belle_sip_object_unref(mAcceptEncodingHeader);
+	if (acceptEncodingHeader) {
+		belle_sip_object_ref(acceptEncodingHeader);
+		mAcceptEncodingHeader = acceptEncodingHeader;
 	}
 }
 void Subscription::Subscription::setId(string &id) {
@@ -55,13 +63,16 @@ const char *Subscription::stateToString(State aState) {
 	return "Unknown state";
 }
 void Subscription::notify(belle_sip_multipart_body_handler_t *body) {
-	notify(NULL, NULL, body);
+	notify(NULL, NULL, body, NULL);
 }
-void Subscription::notify(belle_sip_header_content_type_t *content_type, string &body) {
-	notify(content_type, &body, NULL);
+void Subscription::notify(belle_sip_multipart_body_handler_t *body, const string &content_encoding) {
+	notify(NULL, NULL, body, &content_encoding);
 }
-void Subscription::notify(belle_sip_header_content_type_t *content_type, string *body,
-						  belle_sip_multipart_body_handler_t *multiPartBody) {
+void Subscription::notify(belle_sip_header_content_type_t *content_type, const string &body) {
+	notify(content_type, &body, NULL, NULL);
+}
+void Subscription::notify(belle_sip_header_content_type_t *content_type, const string *body,
+						  belle_sip_multipart_body_handler_t *multiPartBody, const string *content_encoding) {
 	if (belle_sip_dialog_get_state(mDialog) != BELLE_SIP_DIALOG_CONFIRMED) {
 		SLOGE << "Cannot notify information change for [" << std::hex << (long)this << "] because dialog [" << std::hex
 			  << (long)mDialog << "]is in state ["
@@ -80,6 +91,12 @@ void Subscription::notify(belle_sip_header_content_type_t *content_type, string 
 		belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify), belle_sip_header_create("Require", "eventlist"));
 		belle_sip_multipart_body_handler_set_related(multiPartBody, TRUE);
 		belle_sip_message_set_body_handler(BELLE_SIP_MESSAGE(notify), BELLE_SIP_BODY_HANDLER(multiPartBody));
+		if (content_encoding && mAcceptEncodingHeader) {
+			const char *accept_encoding = belle_sip_header_get_unparsed_value(mAcceptEncodingHeader);
+			if (accept_encoding && (strcmp(accept_encoding, content_encoding->c_str()) == 0)) {
+				belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify), belle_sip_header_create("Content-Encoding", content_encoding->c_str()));
+			}
+		}
 	}
 
 	/*RFC 3265

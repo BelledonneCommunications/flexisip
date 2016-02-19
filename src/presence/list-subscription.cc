@@ -186,23 +186,23 @@ void ListSubscription::notify(bool_t isFullState) throw(FlexisipException) {
 		stringstream out;
 		rlmi::serializeList(out, resourceList, map);
 
-		belle_sip_memory_body_handler_t *fistBodyPart = belle_sip_memory_body_handler_new_copy_from_buffer(
+		belle_sip_memory_body_handler_t *firstBodyPart = belle_sip_memory_body_handler_new_copy_from_buffer(
 			(void *)out.str().c_str(), out.str().length(), NULL, NULL);
-		belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(fistBodyPart),
+		belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(firstBodyPart),
 										  belle_sip_header_create("Content-Transfer-Encoding", "binary"));
 		ostringstream content_id;
 		content_id << "<" << cid.str() << ">";
-		belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(fistBodyPart),
+		belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(firstBodyPart),
 										  belle_sip_header_create("Content-Id", cid.str().c_str()));
 		belle_sip_body_handler_add_header(
-			BELLE_SIP_BODY_HANDLER(fistBodyPart),
+			BELLE_SIP_BODY_HANDLER(firstBodyPart),
 			belle_sip_header_create("Content-Type", "application/rlmi+xml;charset=\"UTF-8\""));
-		multiPartBody = belle_sip_multipart_body_handler_new(NULL, NULL, BELLE_SIP_BODY_HANDLER(fistBodyPart), NULL);
+		multiPartBody = belle_sip_multipart_body_handler_new(NULL, NULL, BELLE_SIP_BODY_HANDLER(firstBodyPart), NULL);
 		for (belle_sip_body_handler_t *additionalPart : multipartList) {
 			belle_sip_multipart_body_handler_add_part(multiPartBody, additionalPart);
 		}
 
-		Subscription::notify(multiPartBody);
+		Subscription::notify(multiPartBody, "deflate");
 		mVersion++;
 		mLastNotify = chrono::system_clock::now();
 		mPendingStates.clear();
