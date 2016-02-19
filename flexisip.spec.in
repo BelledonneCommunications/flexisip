@@ -246,9 +246,7 @@ fi
 %{_bindir}/*
 
 %if %{presence}
-%{_libdir}/libflexisip-presence.so
-%{_libdir}/libflexisip-presence.a
-%{_libdir}/libflexisip-presence.la
+%{_libdir}/libflexisip-presence.*
 %endif
 
 %{_sysconfdir}/init.d/flexisip
