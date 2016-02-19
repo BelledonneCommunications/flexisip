@@ -35,21 +35,21 @@ include(CheckSymbolExists)
 include(CheckFunctionExists)
 include(FeatureSummary)
 
-option(ENABLE_STATIC "Build static library (default is shared library)." NO)
-option(ENABLE_BOOSTLOG "" YES)
-option(ENABLE_DATEHANDLER "" NO)
-option(ENABLE_DOC "" YES)
-option(ENABLE_ODB "" YES)
-option(ENABLE_SOCI "" YES)
-option(ENABLE_ODB_MYSQL "" YES)
-option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "" NO)
-option(ENABLE_ODBC "Build ODBC support" YES)
+option(ENABLE_BOOSTLOG "Build boost log support" YES)
+option(ENABLE_DATEHANDLER "Build DateHandler module" NO)
+option(ENABLE_DOC "Build documentation" YES)
+option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" NO)
+option(ENABLE_ODB "Build ODB database ORM" YES)
+option(ENABLE_ODB_MYSQL "Build ODB MySQL database driver" YES)
+option(ENABLE_ODBC "Build ODBC support for database connection" YES)
 option(ENABLE_PRESENCE "Build presence support" NO)
-option(ENABLE_PROTOBUF "" NO)
-option(ENABLE_PUSHNOTIFICATION "" YES)
-option(ENABLE_REDIS "" NO)
+option(ENABLE_PROTOBUF "Build with protobuf support" NO)
+option(ENABLE_PUSHNOTIFICATION "Build with remote push notification support" YES)
+option(ENABLE_REDIS "Build with Redis support" NO)
 option(ENABLE_SNMP "Build with SNMP support" YES)
-option(ENABLE_TRANSCODER "" YES)
+option(ENABLE_SOCI "Build with SOCI support" YES)
+option(ENABLE_STATIC "Build static library (default is shared library)." NO)
+option(ENABLE_TRANSCODER "Build transcoder support" YES)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
 set(XSDCXX_ROOT_PATH "/usr" CACHE STRING "Path of where the bin/xsdcxx executable will be found. Comes from http://www.codesynthesis.com/products/xsd/download.xhtml")
@@ -79,7 +79,7 @@ endif()
 
 
 find_program(XSDCXX_PROG NAMES "xsdcxx" "xsd"
-	HINTS ${XSDCXX_ROOT_PATH}/bin 
+	HINTS ${XSDCXX_ROOT_PATH}/bin
 	NO_DEFAULT_PATH
 )
 if(XSDCXX_PROG)
