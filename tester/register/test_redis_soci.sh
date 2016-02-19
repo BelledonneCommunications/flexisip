@@ -11,7 +11,7 @@ MSG_RATE=$2
 FLEXISIP=${FLEXISIP:=/opt/belledonne-communications/bin/flexisip}
 MYSQL_PORT=${MYSQL_PORT:=3307}
 FLEXISIP_CONFIG=${FLEXISIP_CONFIG:=flexisip_redis_soci.conf}
-SCENARIO_FILE=${SCENARIO_FILE:=REGISTER_client.xml}
+SCENARIO_FILE=${SCENARIO_FILE:=register_redis_soci.xml}
 
 echo "Launching load test with $1 total messages and $2 messages/second"
 
