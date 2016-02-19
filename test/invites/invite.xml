@@ -76,7 +76,7 @@
   <send>
     <![CDATA[
 
-      BYE [last_Contact] SIP/2.0
+      BYE [next_url] SIP/2.0
       Via: SIP/2.0/[transport] [$luserIpPort];branch=[branch]
       From: <[$luserAdd]>;tag=[pid]SIPpTag00[call_number]
       To: <[$ruserAdd]>[peer_tag_param]
