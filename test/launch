@@ -132,9 +132,6 @@ trap onexit 1 2 3 15 ERR
 CMD_INVITE_USERS="$SIPP $PROXY -sf $FOLDER/invite$USE_AUTH.xml $INV_OPTIONS"
 echo -e "\n\033[1mStart inviting users : \033[0m"
 echo $CMD_INVITE_USERS
-while [ true ]
-do
-  $CMD_INVITE_USERS
-done
+$CMD_INVITE_USERS
 
 onexit 
