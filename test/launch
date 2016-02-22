@@ -62,7 +62,7 @@ fi
 . $FOLDER/launch.config
 
 
-FLEX_OPTIONS="$FLEX_OPTIONS -c $FOLDER/flexisip.conf -t sip:*:$FLEXISIP_PORT --hosts localhost=127.0.0.1 --set module::Authentication/datasource=$PWD/passwords"
+FLEX_OPTIONS="$FLEX_OPTIONS -p flexisip_pid -c $FOLDER/flexisip.conf -t sip:*:$FLEXISIP_PORT --hosts localhost=127.0.0.1 --set module::Authentication/datasource=$PWD/passwords"
 [ -z "$2" ] && FLEX_OPTIONS="$FLEX_OPTIONS --set module::Authentication/enabled=false"
 
 SIPP_COMMONS="127.0.0.1:$FLEXISIP_PORT $SIPP_COMMONS -i $IP -trace_err -trace_msg"
@@ -116,8 +116,9 @@ $CMD_REG_INVITER
 # Allow killing
 function onexit() {
 	echo -e "\e[0;31mKilling everyone \033[0m"
-	killall flexisip 2>/dev/null
+	kill -9 `cat flexisip_pid` 2>/dev/null
 	killall sipp 2>/dev/null
+	rm -f flexisip_pid
 
 	LOGS=logs/"$FOLDER"_`date '+%s'`
 	LOGS_TO_SAVE=$FOLDER"/*.log *.log core"
