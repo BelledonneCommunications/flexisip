@@ -49,6 +49,7 @@
 
 #include <sofia-sip/su_log.h>
 #include <sofia-sip/msg.h>
+#include <sofia-sip/sofia_features.h>
 #ifdef ENABLE_SNMP
 #include "snmp-agent.h"
 #endif
@@ -479,13 +480,54 @@ static void list_modules() {
 	}
 }
 
+static string version() {
+	string version = VERSION " (git: " FLEXISIP_GIT_VERSION ")\n";
+
+	version += "sofia-sip version " SOFIA_SIP_VERSION "\n";
+	version += "\nCompiled with:\n";
+#if ENABLE_SNMP
+	version += "- SNMP\n";
+#endif
+#if ENABLE_TRANSCODER
+	version += "- Transcoder\n";
+#endif
+#if ENABLE_REDIS
+	version += "- Redis\n";
+#endif
+#if ENABLE_PUSHNOTIFICATION
+	version += "- Push Notification\n";
+#endif
+#if ENABLE_ODBC
+	version += "- ODBC\n";
+#endif
+#if ENABLE_SOCI
+	version += "- Soci\n";
+#endif
+#if ENABLE_ODB
+	version += "- ODB\n";
+#endif
+#if ENABLE_PROTOBUF
+	version += "- Protobuf\n";
+#endif
+#if ENABLE_PRESENCE
+	version += "- Presence\n";
+#endif
+#if ENABLE_BOOSTLOG
+	version += "- BoostLog\n";
+#endif
+
+	return version;
+}
+
 int main(int argc, char *argv[]) {
 	shared_ptr<Agent> a;
 	StunServer *stun = NULL;
 	bool debug;
 	map<string, string> oset;
 
-	TCLAP::CmdLine cmd("", ' ', VERSION " (git: " FLEXISIP_GIT_VERSION ")");
+	string versionString = version();
+
+	TCLAP::CmdLine cmd("", ' ', versionString);
 
 	TCLAP::ValueArg<string> configFile("c", "config", "Specify the location of the configuration file.",
 									   TCLAP::ValueArgOptional, CONFIG_DIR "/flexisip.conf", "file", cmd);
