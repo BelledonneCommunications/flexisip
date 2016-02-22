@@ -3,7 +3,7 @@
 
 <scenario>
 
-<Global variables="userId,luserAdd,luserIpPort">
+<Global variables="userId,luserAdd,luserIpPort,domain,ua">
   <action>
     <assign assign_to="userId" value="0" />
   </action>
@@ -14,10 +14,9 @@
     <add assign_to="userId" value="1" />
     <assignstr assign_to="luserIpPort" value="[local_ip]:[local_port]" />   
     <assignstr assign_to="luserAdd" value="sip:[$luserIpPort]" />   
-    <assignstr assign_to="ruserAdd" value="sip:user[$userId]@sip.example.org" /> 
+    <assignstr assign_to="ruserAdd" value="sip:user[$userId]@[$domain]" /> 
   </action>
 </nop>
-
 
 
   <send>
@@ -28,6 +27,7 @@
       From: <[$luserAdd]>;tag=[pid]SIPpTag00[call_number]
       To: <[$ruserAdd]>
       Call-ID: [call_id]
+      User-Agent: [$ua]
       CSeq: 1 INVITE
       Contact: [$luserAdd]
       Max-Forwards: 70
@@ -52,17 +52,18 @@
   <recv response="100" optional="true"></recv>
   <recv response="180" optional="true"></recv>
   <recv response="183" optional="true"></recv>
-  <recv response="200" rtd="true" timeout="2000"></recv>
+  <recv response="200" rtd="true" timeout="2000" rrs="true"></recv>
 
 
   <send>
     <![CDATA[
 
-      ACK [$ruserAdd] SIP/2.0
+      ACK [$ruserAdd]:5063 SIP/2.0
       Via: SIP/2.0/[transport] [$luserIpPort];branch=[branch]
       From: <[$luserAdd]>;tag=[pid]SIPpTag00[call_number]
       To: <[$ruserAdd]>[peer_tag_param]
       Call-ID: [call_id]
+      User-Agent: [$ua]
       CSeq: 1 ACK
       Contact: [$luserAdd]
       Max-Forwards: 70
@@ -75,7 +76,7 @@
 
   <nop>
     <action>
-      <exec play_pcap_audio="relaying/one_way_pcma_capture.pcap"/>
+      <exec play_pcap_audio="one_way_pcma_capture.pcap"/>
     </action>
   </nop>
 
@@ -86,11 +87,12 @@
   <send retrans="5">
     <![CDATA[
 
-      BYE [$ruserAdd] SIP/2.0
+      BYE [next_url] SIP/2.0
       Via: SIP/2.0/[transport] [$luserIpPort];branch=[branch]
       From: <[$luserAdd]>;tag=[pid]SIPpTag00[call_number]
       To: <[$ruserAdd]>[peer_tag_param]
       Call-ID: [call_id]
+      User-Agent: [$ua]
       CSeq: 2 BYE
       Contact: [$luserAdd]
       Max-Forwards: 70
@@ -103,10 +105,7 @@
 
   <recv response="200" crlf="true" timeout="2000"></recv>
 
-  <!-- definition of the response time repartition table (unit is ms)   -->
   <ResponseTimeRepartition value="10, 20, 30, 40, 50, 100, 150, 200"/>
-
-  <!-- definition of the call length repartition table (unit is ms)     -->
   <CallLengthRepartition value="10, 50, 100, 500, 1000, 5000, 10000"/>
 
 </scenario>
