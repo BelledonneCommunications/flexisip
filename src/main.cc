@@ -655,12 +655,13 @@ int main(int argc, char *argv[]) {
 	GenericManager::get()->setOverrideMap(oset);
 
 	if (cfg->load(configFile.getValue().c_str()) == -1) {
-		fprintf(stderr, "No configuration file found at %s.\nPlease specify a valid configuration file.\n"
+		fprintf(stderr, "Flexisip version %s\n"
+						"No configuration file found at %s.\nPlease specify a valid configuration file.\n"
 						"A default flexisip.conf.sample configuration file should be installed in " CONFIG_DIR "\n"
 						"Please edit it and restart flexisip when ready.\n"
 						"Alternatively a default configuration sample file can be generated at any time using "
 						"'--dump-default all' option.\n",
-				configFile.getValue().c_str());
+				versionString.c_str(), configFile.getValue().c_str());
 		return -1;
 	}
 
