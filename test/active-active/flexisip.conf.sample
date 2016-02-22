@@ -30,8 +30,6 @@ enabled=false
 enabled=true
 port=3579
 
-[tls]
-enabled=false
 
 [module::Authentication]
 enabled=true
