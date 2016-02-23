@@ -524,6 +524,8 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	belle_sip_dialog_t *dialog = belle_sip_request_event_get_dialog(event);
 	if (!dialog)
 		dialog = belle_sip_provider_create_dialog(mProvider, BELLE_SIP_TRANSACTION(server_transaction));
+	if (!dialog)
+		throw SIGNALING_EXCEPTION(481) << "Cannot create dialog from request ["<< request << "]";
 
 	belle_sip_header_expires_t *headerExpires =
 		belle_sip_message_get_header_by_type(request, belle_sip_header_expires_t);
