@@ -261,13 +261,13 @@ fi
 
 AC_ARG_ENABLE(soci,
 	AC_HELP_STRING([--enable-soci],[Build with SOCI support [default=auto]]),
-	
+
 	[soci="${enableval}"],
 	[soci=auto]
 )
 AC_ARG_WITH(soci,
 	AC_HELP_STRING([--with-soci], [Specify the soci location. We expect this location to contain lib/libsoci.so, lib/libsoci_mysql.so and include/soci/ [default=/usr]]),
-	
+
 	[soci_prefix="${withval}"],
 	[soci_prefix=/usr]
 )
@@ -300,13 +300,12 @@ if test x$soci != "xno"; then
 	else
 		soci=yes
 	fi
-	
+
 	AC_SUBST(SOCI_CFLAGS)
 	AC_SUBST(SOCI_LIBS)
 fi
 
-AM_CONDITIONAL(ENABLE_SOCI, test xsoci != xno)
-
+AM_CONDITIONAL(ENABLE_SOCI, test x$soci != xno)
 
 # Checks for header files.
 
@@ -327,7 +326,7 @@ AC_ARG_ENABLE(transcoder,
 )
 have_transcoder=no
 if test x$transcoder != xno ; then
-	PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.9.0],[have_transcoder=yes],[have_transcoder=no])
+	PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.13.0],[have_transcoder=yes],[have_transcoder=no])
 	if test x$have_transcoder = xno ; then
 		if test x$transcoder != xauto ; then
 			AC_MSG_ERROR([mediastreamer2 not found. This is required for enabling transcoder. Use --disable-transcoder if you don''t need this feature.])
@@ -482,10 +481,10 @@ if test x$redis != xno ; then
 		CPPFLAGS="$CPPFLAGS $HIREDIS_CFLAGS"
 		LIBS_save=$LIBS
 		LIBS="$LIBS $HIREDIS_LIBS"
-		AC_CHECK_HEADERS(hiredis/hiredis.h, 
+		AC_CHECK_HEADERS(hiredis/hiredis.h,
 			[AC_CHECK_LIB(hiredis,redisAsyncCommand,[have_redis=yes] , [have_redis=no])],
 			[have_redis=no])
-		
+
 		CPPFLAGS=$CPPFLAGS_save
 		LIBS=$LIBS_save
 

@@ -553,7 +553,7 @@ int main(int argc, char *argv[]) {
 
 	TCLAP::SwitchArg           listModules("",  "list-modules", 	"Will print a list of available modules. This is useful if you want to combine with --dump-default "
 										   							"to have specific documentation for a module.", cmd);
-	
+
 	TCLAP::SwitchArg   displayExperimental("",  "show-experimental","Use in conjunction with --dump-default: will dump the configuration for a module even if it is marked as experiemental.", cmd);
 
 	/* Overriding values */
@@ -563,7 +563,7 @@ int main(int argc, char *argv[]) {
 
 	TCLAP::MultiArg<string> overrideConfig("s", "set", 				"Allows to override the configuration file setting. Use --list-overrides to get a list of values that you can override.",
 										   TCLAP::ValueArgOptional, "global/debug=true");
-	
+
 	TCLAP::MultiArg<string>  hostsOverride("",  "hosts",			"Overrides a host address by passing it. You can use this flag multiple times. "
 																	"Also, you can remove an association by providing an empty value: '--hosts myhost='.",
 										   TCLAP::ValueArgOptional, "host=ip");
@@ -738,7 +738,7 @@ int main(int argc, char *argv[]) {
 #endif
 #ifdef ENABLE_TRANSCODER
 	if (oset.find("notrans") == oset.end()) {
-		ms_init();
+		ms_factory_new_with_voip();
 	}
 #elif !defined(ENABLE_BOOST_LOG)
 	ortp_init();
