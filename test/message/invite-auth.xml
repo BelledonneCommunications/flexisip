@@ -33,7 +33,6 @@
       Max-Forwards: 70
       Content-Type: text/plain
       Content-Length: [len]
-      Date: [date]
 
       Hello World user[$userId]!
 
@@ -57,7 +56,6 @@
       Max-Forwards: 70
       Content-Type: text/plain
       Content-Length: [len]
-      Date: [date]
       [field0]
 
       Hello World user[$userId]!

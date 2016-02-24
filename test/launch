@@ -60,6 +60,8 @@ PASSWORD_FILE="$PWD/passwords"
 USERS_CSV="$PWD/users.csv"
 [ -f "$FOLDER/users.csv" ] && USERS_CSV="$FOLDER/users.csv"
 
+UAS_FILE="$PWD/uas.xml"
+[ -f "$FOLDER/uas.xml" ] && UAS_FILE="$FOLDER/uas.xml"
 
 
 if [ -z $FOLDER ] 
@@ -93,7 +95,7 @@ ulimit -c unlimited
 ulimit -n 65000
 
 
-CMD_UAS="$SIPP -sf uas.xml $UAS_OPTIONS"
+CMD_UAS="$SIPP -sf $UAS_FILE $UAS_OPTIONS"
 echo -e "\nStart users listening:"
 echo $CMD_UAS
 $CMD_UAS 2>&1 > uas.log
@@ -137,7 +139,7 @@ function onexit() {
 	mkdir -p $LOGS
 	mv $LOGS_TO_SAVE $LOGS
 
-	exit $1
+	exit
 }
 set -o errtrace 
 trap onexit 1 2 3 15 ERR
@@ -148,4 +150,4 @@ echo $CMD_INVITE_USERS
 $CMD_INVITE_USERS
 RETVAL=$?
 
-onexit($RETVAL)
+onexit
