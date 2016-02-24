@@ -71,4 +71,6 @@ class ThreadPool {
 
 	// Function that will be invoked by our threads.
 	void Invoke();
+	
+	bool conditionCheck() const;
 };

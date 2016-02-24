@@ -54,6 +54,10 @@ bool ThreadPool::Enqueue(function<void()> f) {
 	return enqueued;
 }
 
+bool ThreadPool::conditionCheck() const {
+	return !tasks.empty() || terminate;
+}
+
 void ThreadPool::Invoke() {
 
 	function<void()> task;
@@ -62,9 +66,11 @@ void ThreadPool::Invoke() {
 		{
 			// Put unique lock on task mutex.
 			unique_lock<mutex> lock(tasksMutex);
+			
+			auto predicate = std::bind(&ThreadPool::conditionCheck, this);
 
 			// Wait until queue is not empty or termination signal is sent.
-			condition.wait(lock, [this] { return !tasks.empty() || terminate; });
+			condition.wait(lock, predicate);
 
 			// If termination signal received and queue is empty then exit else continue clearing the queue.
 			if (terminate && tasks.empty()) {
