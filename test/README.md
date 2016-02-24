@@ -26,7 +26,7 @@ The tests are manipulated by the `./launch` bash script at the root of this dire
 
 A typical test consists of 5 different processes:
 
-- First, we start a SIPP process in background with the `uas.xml` scenario that is present at the root of the directory (or the one in the current test directory). This SIPP will listen on port 5063 for incoming INVITE (or other messages depending on test) when a test is running. It is runnong in background, so that it can survive for the duration of the test. All other SIPP processes will use the "Contact:" field to tell Flexisip to route INVITEs and other messages to this SIPP instance on port 5063.
+- First, we start a SIPP process in background with the `uas.xml` scenario that is present at the root of the directory (or the one in the current test directory). This SIPP will listen on port 5063 for incoming INVITE (or other messages depending on test) when a test is running. It is running in background, so that it can survive for the duration of the test. All other SIPP processes will use the "Contact:" field to tell Flexisip to route INVITEs and other messages to this SIPP instance on port 5063.
 
 - Then, we start flexisip with the appropriate configuration file. If the launch script is started with a 2nd argument, we enable authentication and use the `passwords` file as a user database. Flexisip is launched to listen on the port 50060 so as to not interfere with currently running flexisip on the same machine.
 
