@@ -5,7 +5,7 @@ This file describes how to manage the tester scripts located in flexisip/test di
 
 First, let's see what the typical layout should be for a test:
 
-
+```
 ├── test                   # the test has its own directory
 │   ├── flexisip.conf      # (mandatory) the flexisip.conf file that will be loaded by flexisip for this test
 │   ├── invite-auth.xml    # the SIPP scenario that will be played when flexisip is running with authentication enabled
@@ -14,6 +14,7 @@ First, let's see what the typical layout should be for a test:
 │   ├── passwords          # (optional) test-specific password file for flexisip to use when authentication is enabled 
 │   ├── uas.xml            # (optional) test-specific uas.xml. This is useful in case of non-INVITE-based tests. 
 │   └── users.csv          # (optional) test-specific users authentication CSV
+```
 
 The tests are manipulated by the `./launch` bash script at the root of this directory. It takes 1 or 2 arguments: the folder of the test to conduct, and an optional 2nd argument which tells the tester to use authentication:
 
