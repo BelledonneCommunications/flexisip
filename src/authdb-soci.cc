@@ -84,7 +84,7 @@ SociAuthDB::SociAuthDB() : conn_pool(NULL) {
 	connection_string = ma->get<ConfigString>("soci-connection-string")->read();
 	backend = ma->get<ConfigString>("soci-backend")->read();
 	get_password_request = ma->get<ConfigString>("soci-password-request")->read();
-	int max_queue_size = ma->get<ConfigInt>("soci-max-queue-size")->read();
+	unsigned int max_queue_size = (unsigned int)ma->get<ConfigInt>("soci-max-queue-size")->read();
 
 	conn_pool = new connection_pool(poolSize);
 	thread_pool = new ThreadPool(poolSize, max_queue_size);
