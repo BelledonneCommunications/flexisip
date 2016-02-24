@@ -33,22 +33,34 @@ USERS_PORT=${USERS_PORT:=5063}
 INVITER_PORT=${INVITER_PORT:=5064}
 
 UA="Linphone/Linphone-3.3.x_(sipp/unknown)"
-
-# Import configuration
-FOLDER=$1
-if [ -n "$2" ]
-then
- echo -e "\033[1mUsing authentication\033[0m"
- USE_AUTH="-auth"
-else
- echo -e "\033[1mNOT using authentication\033[0m"
-fi
-
-DOMAIN="localhost"
 SDOMAIN="-set domain $DOMAIN"
 SEXPIRE="-set expire $EXPIRE"
 SUA="-set ua $UA"
 PWD="`pwd`"
+
+# Import configuration
+FOLDER=$1
+
+# Use auth or not?
+if [ -n "$2" ]
+then
+ echo -e "Using authentication"
+ AUTH_PREFIX="-auth"
+else
+ echo -e "NOT using authentication"
+fi
+AUTHENTICATION_VALUE="true"
+[ -z "$2" ] && AUTHENTICATION_VALUE="false"
+
+# If using auth, check which files we should use: if a test contains a "passwords" file, then use it, otherwise use the default.
+# Same thing for the CSV file. This allows for test-specific authentication
+PASSWORD_FILE="$PWD/passwords"
+[ -f "$FOLDER/passwords" ] && PASSWORD_FILE="$FOLDER/passwords"
+
+USERS_CSV="$PWD/users.csv"
+[ -f "$FOLDER/users.csv" ] && USERS_CSV="$FOLDER/users.csv"
+
+
 
 if [ -z $FOLDER ] 
 then
@@ -62,11 +74,11 @@ fi
 . $FOLDER/launch.config
 
 
-FLEX_OPTIONS="$FLEX_OPTIONS -p flexisip_pid -c $FOLDER/flexisip.conf -t sip:*:$FLEXISIP_PORT --hosts localhost=127.0.0.1 --set module::Authentication/datasource=$PWD/passwords"
-[ -z "$2" ] && FLEX_OPTIONS="$FLEX_OPTIONS --set module::Authentication/enabled=false"
+FLEX_OPTIONS="$FLEX_OPTIONS -p flexisip_pid -c $FOLDER/flexisip.conf -t sip:*:$FLEXISIP_PORT --hosts localhost=127.0.0.1 --set module::Authentication/datasource=\"$PASSWORD_FILE\""
+FLEX_OPTIONS="$FLEX_OPTIONS --set module::Authentication/enabled=$AUTHENTICATION_VALUE"
 
 SIPP_COMMONS="127.0.0.1:$FLEXISIP_PORT $SIPP_COMMONS -i $IP -trace_err -trace_msg"
-REG_OPTIONS="$REG_OPTIONS -p $REGISTER_PORT -m `echo "1+$NB_USERS"|bc` $SIPP_COMMONS -inf authentication.csv $SDOMAIN $SEXPIRE"
+REG_OPTIONS="$REG_OPTIONS -p $REGISTER_PORT -m `echo "1+$NB_USERS"|bc` $SIPP_COMMONS -inf $USERS_CSV $SDOMAIN $SEXPIRE"
 REG_INVITER_OPTIONS="$REG_INVITER_OPTIONS -p $INVITER_PORT -m 1 $SIPP_COMMONS -nd $SDOMAIN $SEXPIRE $SUA"
 INV_OPTIONS="$INV_OPTIONS -m $NB_USERS -p $INVITER_PORT $SIPP_COMMONS $SDOMAIN $SUA "
 UAS_OPTIONS="$UAS_OPTIONS -bg -p $USERS_PORT $SIPP_COMMONS -mi $IP -mp 15000 -rtp_echo"
@@ -82,14 +94,14 @@ ulimit -n 65000
 
 
 CMD_UAS="$SIPP -sf uas.xml $UAS_OPTIONS"
-echo -e "\n\033[1mStart users listening: \033[0m"
+echo -e "\nStart users listening:"
 echo $CMD_UAS
 $CMD_UAS 2>&1 > uas.log
 
 sleep 2
 	
 CMD_FLEXISIP="$FLEXISIP $FLEX_OPTIONS"
-echo -e "\n\033[1mStart flexisip: \033[0m"
+echo -e "Start flexisip:"
 echo $CMD_FLEXISIP
 $CMD_FLEXISIP &> flexisip.log &
 sleep 2
@@ -102,12 +114,12 @@ fi
 
 
 CMD_REG_USERS="$SIPP $PROXY -sf register_users.xml $REG_OPTIONS -set ua noauth"
-echo -e "\n\033[1mRegister users: \033[0m"
+echo -e "Register users:"
 echo $CMD_REG_USERS
 $CMD_REG_USERS
 
-CMD_REG_INVITER="$SIPP $PROXY -sf register_inviter$USE_AUTH.xml $REG_INVITER_OPTIONS"
-echo -e "\n\033[1mRegister inviter \033[0m"
+CMD_REG_INVITER="$SIPP $PROXY -sf register_inviter$AUTH_PREFIX.xml $REG_INVITER_OPTIONS"
+echo -e "Register inviter"
 echo $CMD_REG_INVITER
 $CMD_REG_INVITER
 
@@ -115,7 +127,7 @@ $CMD_REG_INVITER
 
 # Allow killing
 function onexit() {
-	echo -e "\e[0;31mKilling everyone \033[0m"
+	echo -e "Killing everyone"
 	kill -9 `cat flexisip_pid` 2>/dev/null
 	killall sipp 2>/dev/null
 	rm -f flexisip_pid
@@ -125,14 +137,15 @@ function onexit() {
 	mkdir -p $LOGS
 	mv $LOGS_TO_SAVE $LOGS
 
-	exit
+	exit $1
 }
 set -o errtrace 
 trap onexit 1 2 3 15 ERR
 
-CMD_INVITE_USERS="$SIPP $PROXY -sf $FOLDER/invite$USE_AUTH.xml $INV_OPTIONS"
-echo -e "\n\033[1mStart inviting users : \033[0m"
+CMD_INVITE_USERS="$SIPP $PROXY -sf $FOLDER/invite$AUTH_PREFIX.xml $INV_OPTIONS"
+echo -e "Start inviting users :"
 echo $CMD_INVITE_USERS
 $CMD_INVITE_USERS
+RETVAL=$?
 
-onexit 
+onexit($RETVAL)
