@@ -19,11 +19,18 @@
 #include "authdb.hh"
 #include "utils/threadpool.hh"
 #include <thread>
-#include <chrono>
 
 using namespace soci;
+
+// The dreaded chrono::steady_clock which is not supported for gcc < 4.7
+#include <chrono>
 using namespace ::std;
 using namespace chrono;
+#ifdef USE_MONOTONIC_CLOCK
+namespace std {
+typedef monotonic_clock steady_clock;
+}
+#endif
 
 void SociAuthDB::declareConfig(GenericStruct *mc) {
 	// ODBC-specific configuration keys
