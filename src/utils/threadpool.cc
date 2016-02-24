@@ -20,12 +20,12 @@
 #include "log/logmanager.hh"
 
 // Constructor.
-ThreadPool::ThreadPool(int threads, int max_queue_size)
+ThreadPool::ThreadPool(unsigned int threads, unsigned int max_queue_size)
 	: max_queue_size(max_queue_size), terminate(false), stopped(false) {
 	SLOGE << "[POOL] Init with " << threads << " threads and queue size " << max_queue_size;
 
 	// Create number of required threads and add them to the thread pool vector.
-	for (int i = 0; i < threads; i++) {
+	for (unsigned int i = 0; i < threads; i++) {
 		threadPool.emplace_back(thread(&ThreadPool::Invoke, this));
 	}
 }

@@ -33,7 +33,7 @@ using namespace std;
 class ThreadPool {
   public:
 	// Constructor.
-	ThreadPool(int threads, int max_queue_size);
+	ThreadPool(unsigned int threads, unsigned int max_queue_size);
 
 	// Destructor.
 	~ThreadPool();
@@ -61,7 +61,7 @@ class ThreadPool {
 	condition_variable condition;
 
 	// Maximum amount of tasks to be enqueued
-	int max_queue_size;
+	unsigned int max_queue_size;
 
 	// Indicates that pool needs to be shut down.
 	bool terminate;
