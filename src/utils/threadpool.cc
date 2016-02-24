@@ -107,8 +107,8 @@ void ThreadPool::ShutDown() {
 	condition.notify_all();
 
 	// Join all threads.
-	for (thread &thread : threadPool) {
-		thread.join();
+	for (auto it = threadPool.begin(); it != threadPool.end(); ++it) {
+		it->join();
 	}
 
 	// Empty workers vector.
