@@ -22,6 +22,7 @@
 #include <chrono>
 
 using namespace soci;
+using namespace ::std;
 using namespace chrono;
 
 void SociAuthDB::declareConfig(GenericStruct *mc) {
@@ -135,8 +136,7 @@ void SociAuthDB::getPasswordFromBackend(su_root_t *root, const std::string &id, 
 	// create a thread to grab a pool connection and use it to retrieve the auth information
 	auto func = bind(&SociAuthDB::getPasswordWithPool, this, root, id, domain, authid, listener);
 
-	// the thread pool only accepts function<void>(), so we use a closure here.
-	bool success = thread_pool->Enqueue([func]() { func(); });
+	bool success = thread_pool->Enqueue(func);
 	if (success == FALSE) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil password request for " << id << " / " << domain << " / "
