@@ -421,7 +421,12 @@ void RegistrarDbRedisAsync::sHandleSet(redisAsyncContext *ac, void *r, void *pri
 	RegistrarUserData *data = (RegistrarUserData *)privdata;
 	if (!reply || reply->type == REDIS_REPLY_ERROR) {
 		LOGE("Redis error setting aor:%s [%lu] - %s", data->key, data->token, reply ? reply->str : "null reply");
-		data->listener->onError();
+		if( reply && string(reply->str).find("READONLY") != string::npos ){
+			LOGW("Redis couldn't set the AOR because we're connected to a slave. Replying 480.");
+			data->listener->onRecordFound(NULL);
+		} else {
+			data->listener->onError();
+		}
 		delete data;
 		return;
 	}
