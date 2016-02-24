@@ -329,7 +329,7 @@ if test x$transcoder != xno ; then
 	PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.13.0],[have_transcoder=yes],[have_transcoder=no])
 	if test x$have_transcoder = xno ; then
 		if test x$transcoder != xauto ; then
-			AC_MSG_ERROR([mediastreamer2 not found. This is required for enabling transcoder. Use --disable-transcoder if you don''t need this feature.])
+			AC_MSG_ERROR([mediastreamer2 not found or too old. This is required for enabling transcoder. Use --disable-transcoder if you don''t need this feature.])
 		fi
 	fi
 fi

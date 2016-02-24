@@ -33,7 +33,7 @@
 #include <tclap/CmdLine.h>
 
 #ifdef ENABLE_TRANSCODER
-#include <mediastreamer2/mscommon.h>
+#include <mediastreamer2/msfactory.h>
 #endif
 
 #include "agent.hh"
