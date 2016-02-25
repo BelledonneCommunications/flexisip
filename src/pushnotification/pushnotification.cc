@@ -151,7 +151,7 @@ void ApplePushNotificationRequest::createPushNotification() {
 bool ApplePushNotificationRequest::isValidResponse(const string &str) {
 	// error response is COMMAND(1)|STATUS(1)|ID(4) in bytes
 	if (str.length() >= 6) {
-		int error = str[1];
+		uint8_t error = str[1];
 		uint32_t identifier = (uint32_t)str[2];
 		static const char* errorToString[] = {
 			"No errors encountered",
