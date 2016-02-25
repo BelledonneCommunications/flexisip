@@ -67,3 +67,5 @@ src/flexisip_serializer
 flexisip
 flexisip-config.h.in
 OUTPUT/
+test/massregister/users.csv
+test/massregister/users.sql
