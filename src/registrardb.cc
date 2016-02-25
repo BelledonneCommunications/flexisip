@@ -454,9 +454,11 @@ void RegistrarDb::defineKeyFromUrl(char *key, int len, const url_t *url) {
 
 bool RegistrarDb::errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const char *key,
 											  const shared_ptr<RegistrarDbListener> &listener) {
-	if (count_sip_contacts(sip_contact) > Record::getMaxContacts()) {
-		LOGD("Too many contacts in register %s %i > %i", key, count_sip_contacts(sip_contact),
-			 Record::getMaxContacts());
+	int nb_contact = count_sip_contacts(sip_contact);
+	int max_contact = Record::getMaxContacts();
+	if (nb_contact > max_contact) {
+		LOGD("Too many contacts in register %s %i > %i", key, nb_contact,
+			 max_contact);
 		return true;
 	}
 
