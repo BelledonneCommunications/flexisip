@@ -84,7 +84,7 @@ IF(SOCI_INCLUDE_DIR AND SOCI_LIBRARY)
     #
     FOREACH(component ${Soci_FIND_COMPONENTS})
         IF(NOT SOCI_${component}_FOUND)
-            MESSAGE(SEND_ERROR "Required component ${component} not found.")
+            MESSAGE(SEND_ERROR "Required component ${component} not found. It seems that Soci was built without support of ${component}, consider rebuilding it.")
         ENDIF()
     ENDFOREACH()
 
