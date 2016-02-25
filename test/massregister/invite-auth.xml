@@ -32,6 +32,33 @@
   <!-- asterisk -->
   <recv response="100" optional="true">
   </recv>
+
+  <recv response="401" auth="true">
+  </recv>
+
+  <send retrans="500">
+    <![CDATA[
+
+      REGISTER sip:[remote_ip] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: <sip:[field0]@[field1]>;tag=[call_number]
+      To: <sip:[field0]@[field1]>
+      Call-ID: [call_id]
+      CSeq: [cseq] REGISTER
+      Contact: sip:[field0]@[local_ip]:[local_port]
+      [field2]
+      Max-Forwards: 10
+      Expires: 120
+      User-Agent: [$ua]
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- asterisk -->
+  <recv response="100" optional="true">
+  </recv>
+
   <recv response="200">
   </recv>
 
