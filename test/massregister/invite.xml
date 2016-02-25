@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="ISO-8859-2" ?>
+
+<!--  Use with CSV file struct like: 3000;192.168.1.106;[authentication username=3000 password=3000];
+      (user part of uri, server address, auth tag in each line)
+-->
+
+<scenario name="register_client">
+  <!-- EMPTY SCENARIO, WE EXPECT THE SIMPLE REGISTRATION TO BE TESTED -->
+
+  <!-- response time repartition table (ms)   -->
+  <ResponseTimeRepartition value="10, 20, 30, 40, 50, 100, 150, 200"/>
+
+  <!-- call length repartition table (ms)     -->
+  <CallLengthRepartition value="10, 50, 100, 500, 1000, 5000, 10000"/>
+
+</scenario>
