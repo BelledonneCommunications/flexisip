@@ -60,4 +60,5 @@ INV_RATE    => Number of invites to send every second when playing the test scen
 
 CALL_LENGTH =>
 
-EXPIRE      => the expire to pass along when registering users. Make sure it is long enough to last the duration of your
+EXPIRE         => the expire to pass along when registering users. Make sure it is long enough to last the duration of your
+SKIP_REGISTERS => You can skip the 2 sipp processes that register the users prior to running the test scenario by setting this variable to something not "0"

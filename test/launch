@@ -31,6 +31,7 @@ PROXY=${PROXY:=localhost}
 REGISTER_PORT=${REGISTER_PORT:=5070}
 USERS_PORT=${USERS_PORT:=5063}
 INVITER_PORT=${INVITER_PORT:=5064}
+SKIP_REGISTERS=${SKIP_REGISTERS:=0}
 
 UA="Linphone/Linphone-3.3.x_(sipp/unknown)"
 SDOMAIN="-set domain $DOMAIN"
@@ -115,16 +116,19 @@ if [ $? -ne 0 ]; then
 fi
 
 
-CMD_REG_USERS="$SIPP $PROXY -sf register_users.xml $REG_OPTIONS -set ua noauth"
-echo -e "Register users:"
-echo $CMD_REG_USERS
-$CMD_REG_USERS
+if [[ "$SKIP_REGISTERS" -eq "0" ]]; then
+	CMD_REG_USERS="$SIPP $PROXY -sf register_users.xml $REG_OPTIONS -set ua noauth"
+	echo -e "Register users:"
+	echo $CMD_REG_USERS
+	$CMD_REG_USERS
 
-CMD_REG_INVITER="$SIPP $PROXY -sf register_inviter$AUTH_PREFIX.xml $REG_INVITER_OPTIONS"
-echo -e "Register inviter"
-echo $CMD_REG_INVITER
-$CMD_REG_INVITER
-
+	CMD_REG_INVITER="$SIPP $PROXY -sf register_inviter$AUTH_PREFIX.xml $REG_INVITER_OPTIONS"
+	echo -e "Register inviter"
+	echo $CMD_REG_INVITER
+	$CMD_REG_INVITER
+else
+	echo "Skipping registration because tests asks for it"
+fi
 
 
 # Allow killing
