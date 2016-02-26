@@ -24,6 +24,9 @@
 
 #include <boost/bind.hpp>
 #include <sstream>
+#include <openssl/x509.h>
+#include <openssl/x509_vfy.h>
+
 
 static const char *APN_DEV_ADDRESS = "gateway.sandbox.push.apple.com";
 static const char *APN_PROD_ADDRESS = "gateway.push.apple.com";
@@ -124,6 +127,31 @@ void PushNotificationService::setupGenericClient(const url_t *url) {
 																   mMaxQueueSize, false);
 }
 
+bool PushNotificationService::isCertExpired( const std::string &certPath ){
+	
+	bool expired = true;
+	FILE* certFP = fopen(certPath.c_str(), "r");
+	if(!certFP) {
+		LOGE("Couldn't open certificate file %s", certPath.c_str());
+		return expired;
+	}
+	X509* cert = d2i_X509_fp(certFP, NULL);
+	if( !cert ){
+		LOGE("Couldn't parse certificate at %s", certPath.c_str());
+		return expired;
+	} else {
+		ASN1_TIME *notBefore = X509_get_notBefore(cert);
+		ASN1_TIME *notAfter = X509_get_notAfter(cert);
+		if( X509_cmp_current_time(notBefore) > 0 && X509_cmp_current_time(notAfter) < 0 ) {
+			expired = false;
+		}
+	}
+	
+	fclose(certFP);
+	
+	return expired;
+}
+
 void PushNotificationService::setupiOSClient(const std::string &certdir, const std::string &cafile) {
 	struct dirent *dirent;
 	DIR *dirp;
@@ -176,6 +204,9 @@ void PushNotificationService::setupiOSClient(const std::string &certdir, const s
 			if (error) {
 				LOGE("use_certificate_file %s: %s", certpath.c_str(), error.message().c_str());
 				continue;
+			} else if ( isCertExpired(certpath) ){
+				LOGF("Certificate %s is expired! You won't be able to use it for push notifications. Please update your certificate or remove it entirely.", certpath.c_str());
+				// will exit flexisip
 			}
 		}
 		string key = certpath;
@@ -244,20 +275,32 @@ string PushNotificationService::handle_password_callback(size_t max_length,
 	return mPassword;
 }
 
-#if BOOST_VERSION >= 104800
 bool PushNotificationService::handle_verify_callback(bool preverified, ssl::verify_context &ctx) const {
 	char subject_name[256];
-#if not(__GNUC__ == 4 && __GNUC_MINOR__ < 5)
-	SLOGD << "Verifying " << [&]() {
-		X509 *cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
-		X509_NAME_oneline(X509_get_subject_name(cert), subject_name, 256);
-		return subject_name;
-	}();
-#else
+	
 	X509 *cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
 	X509_NAME_oneline(X509_get_subject_name(cert), subject_name, 256);
 	SLOGD << "Verifying " << subject_name;
-#endif
+	
+	int error = X509_STORE_CTX_get_error(ctx.native_handle());
+	if( error != 0 ){
+		switch (error) {
+			case X509_V_ERR_CERT_NOT_YET_VALID:
+			case X509_V_ERR_CRL_NOT_YET_VALID:
+				LOGE("Certificate for %s is not yet valid. Push won't work.", subject_name);
+				break;
+			case X509_V_ERR_CERT_HAS_EXPIRED:
+			case X509_V_ERR_CRL_HAS_EXPIRED:
+				LOGE("Certificate for %s is expired. Push won't work.", subject_name);
+				break;
+				
+			default:{
+				const char* errString = X509_verify_cert_error_string(error);
+				LOGE("Certificate for %s is invalid (reason: %d - %s). Push won't work.", subject_name, error, errString ? errString:"unknown" );
+				break;
+			}
+		}
+	}
+	
 	return preverified;
 }
-#endif

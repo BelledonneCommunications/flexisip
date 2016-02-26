@@ -70,6 +70,8 @@ class PushNotificationService {
 	int run();
 	void clientEnded();
 	void setupErrorClient();
+	bool isCertExpired( const std::string &certPath );
+
 
   private:
 	boost::asio::io_service mIOService;
