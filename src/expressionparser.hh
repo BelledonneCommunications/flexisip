@@ -38,7 +38,7 @@ class BooleanExpression {
 
   public:
 #ifndef NO_SOFIA
-	bool eval(const sip_t *sip);
+	bool eval(const sip_t *sip) throw(); // Throws FlexisipException
 #endif
 	virtual bool eval(const SipAttributes *args) = 0;
 	virtual ~BooleanExpression();

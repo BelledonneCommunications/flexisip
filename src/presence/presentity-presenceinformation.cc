@@ -17,7 +17,7 @@
 */
 #include "presentity-presenceinformation.hh"
 #include "belle-sip/belle-sip.h"
-#include "flexisip-exception.hh"
+#include "utils/flexisip-exception.hh"
 #include <ostream>
 #include <functional>
 #include "etag-manager.hh"

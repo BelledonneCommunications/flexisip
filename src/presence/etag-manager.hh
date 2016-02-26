@@ -19,7 +19,7 @@
 #ifndef ETAG_MANAGER_HH_
 #define ETAG_MANAGER_HH_
 #include "string"
-#include "flexisip-exception.hh"
+#include "utils/flexisip-exception.hh"
 namespace flexisip {
 class PresentityPresenceInformation;
 class EtagManager {

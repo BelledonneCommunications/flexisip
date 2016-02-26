@@ -23,7 +23,7 @@
 #include "pidf+xml.hxx"
 //#include "data-model.hxx"
 #include <list>
-#include "flexisip-exception.hh"
+#include "utils/flexisip-exception.hh"
 
 typedef struct _belle_sip_uri belle_sip_uri_t;
 typedef struct belle_sip_source belle_sip_source_t;

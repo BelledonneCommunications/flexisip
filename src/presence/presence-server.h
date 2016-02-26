@@ -24,7 +24,7 @@
 #include <map>
 #include <unordered_map>
 #include <memory>
-#include "signaling-exception.hh"
+#include "bellesip-signaling-exception.hh"
 #include "etag-manager.hh"
 //#include "presence-configmanager.hh"
 //#include "presentity-presenceinformation.hh"
@@ -78,8 +78,8 @@ private:
 	static void processTimeout(PresenceServer * thiz, const belle_sip_timeout_event_t *event) ;
 	static void processTransactionTerminated(PresenceServer * thiz, const belle_sip_transaction_terminated_event_t *event);
 
-	void processPublishRequestEvent(const belle_sip_request_event_t *event) throw (SignalingException,FlexisipException);
-	void processSubscribeRequestEvent(const belle_sip_request_event_t *event) throw (SignalingException,FlexisipException);
+	void processPublishRequestEvent(const belle_sip_request_event_t *event) throw (BelleSipSignalingException,FlexisipException);
+	void processSubscribeRequestEvent(const belle_sip_request_event_t *event) throw (BelleSipSignalingException,FlexisipException);
 
 	
 	/*

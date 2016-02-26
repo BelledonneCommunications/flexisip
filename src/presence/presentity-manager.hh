@@ -19,7 +19,7 @@
 #ifndef PRESENTITY_MANAGER_HH_
 #define PRESENTITY_MANAGER_HH_
 #include "string"
-#include "flexisip-exception.hh"
+#include "utils/flexisip-exception.hh"
 
 namespace flexisip {
 class PresentityPresenceInformationListener;

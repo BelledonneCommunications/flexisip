@@ -64,7 +64,7 @@ typedef unsigned long oid;
 extern oid company_id;
 
 #include "expressionparser.hh"
-#include "flexisip-exception.hh"
+#include "utils/flexisip-exception.hh"
 
 enum class ConfigState { Check, Changed, Reset, Commited };
 class ConfigValue;

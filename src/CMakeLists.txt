@@ -26,8 +26,9 @@ set(FLEXISIP_INCLUDES)
 
 set(FLEXISIP_DEPENDENCIES)
 
+file(GLOB FLEXISIP_UTILS_SRC utils/*.cc utils/*.hh)
+
 set(FLEXISIP_SOURCES
-	flexisip-exception.cc flexisip-exception.hh
 	agent.cc agent.hh
 	common.cc common.hh
 	sdp-modifier.hh sdp-modifier.cc
@@ -77,7 +78,7 @@ set(FLEXISIP_SOURCES
 	uac-register.cc uac-register.hh
 	module-redirect.cc module-presence.cc
 	domain-registrations.cc domain-registrations.hh
-	utils/threadpool.cc utils/threadpool.hh
+	${FLEXISIP_UTILS_SRC}
 )
 
 find_package(Git)
@@ -177,7 +178,7 @@ if(ENABLE_XSD AND ENABLE_PRESENCE)
 	list(APPEND FLEXISIP_SOURCES presence/etag-manager.hh)
 	list(APPEND FLEXISIP_SOURCES presence/presence-server.cc)
 	list(APPEND FLEXISIP_SOURCES presence/presentity-presenceinformation.hh presence/presentity-presenceinformation.cc)
-	list(APPEND FLEXISIP_SOURCES presence/signaling-exception.hh presence/signaling-exception.cc)
+	list(APPEND FLEXISIP_SOURCES presence/bellesip-signaling-exception.hh presence/bellesip-signaling-exception.cc)
 	list(APPEND FLEXISIP_SOURCES presence/subscription.hh presence/subscription.cc)
 	list(APPEND FLEXISIP_SOURCES presence/list-subscription.hh presence/list-subscription.cc)
 	list(APPEND FLEXISIP_LIBS ${BELLESIP_LIBRARIES} ${XERCES_LIBS})

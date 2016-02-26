@@ -16,36 +16,33 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef SIGNALINGEXCEPTION_HH_
-#define SIGNALINGEXCEPTION_HH_
+#ifndef BELLESIPSIGNALINGEXCEPTION_HH_
+#define BELLESIPSIGNALINGEXCEPTION_HH_
 
-#include "flexisip-exception.hh"
+#include "utils/signaling-exception.hh"
 #include <list>
 typedef struct _belle_sip_header belle_sip_header_t;
 
 namespace flexisip {
 
-class SignalingException : public FlexisipException {
+class BelleSipSignalingException : public SignalingException {
   public:
-	SignalingException(int statusCode, std::list<belle_sip_header_t *> headers = std::list<belle_sip_header_t *>());
-	SignalingException(int statusCode, belle_sip_header_t *header);
-	SignalingException(const SignalingException &other);
-	virtual ~SignalingException() throw();
-	int getStatusCode();
+	BelleSipSignalingException(int statusCode, std::list<belle_sip_header_t *> headers = std::list<belle_sip_header_t *>());
+	BelleSipSignalingException(int statusCode, belle_sip_header_t *header);
+	BelleSipSignalingException(const BelleSipSignalingException &other);
+	virtual ~BelleSipSignalingException() throw();
 	const std::list<belle_sip_header_t *> &getHeaders();
-	template <typename T2> SignalingException &operator<<(const T2 &val) {
-		FlexisipException::operator<<(val);
+	template <typename T2> BelleSipSignalingException &operator<<(const T2 &val) {
+		SignalingException::operator<<(val);
 		return *this;
 	}
 
   private:
-	const int mStatusCode;
 	std::list<belle_sip_header_t *> mHeaders;
 };
 
 } /* namespace flexisip */
-#define SIGNALING_EXCEPTION_1(code, header)                                                                            \
-	SignalingException(code, header) << " " << __FILE__ << ":" << __LINE__ << " "
-#define SIGNALING_EXCEPTION(code) SIGNALING_EXCEPTION_1(code, NULL)
+#define BELLESIP_SIGNALING_EXCEPTION_1(code, header) BelleSipSignalingException(code, header) << " " << __FILE__ << ":" << __LINE__ << " "
+#define BELLESIP_SIGNALING_EXCEPTION(code) BELLESIP_SIGNALING_EXCEPTION_1(code, NULL)
 
-#endif /* SIGNALINGEXCEPTION_HH_ */
+#endif /* BELLESIPSIGNALINGEXCEPTION_HH_ */

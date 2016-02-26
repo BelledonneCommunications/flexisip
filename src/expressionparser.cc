@@ -31,7 +31,7 @@
 #include <regex.h>
 
 #include "log/logmanager.hh"
-#include "flexisip-exception.hh"
+#include "utils/flexisip-exception.hh"
 
 using namespace ::std;
 
@@ -47,7 +47,7 @@ long BooleanExpression::ptr() {
 }
 
 #ifndef NO_SOFIA
-bool BooleanExpression::eval(const sip_t *sip) {
+bool BooleanExpression::eval(const sip_t *sip) throw() {
 	SipAttributes attr(sip);
 	return eval(&attr);
 }

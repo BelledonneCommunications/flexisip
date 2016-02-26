@@ -18,7 +18,7 @@
 
 #include "list-subscription.hh"
 #include "belle-sip/belle-sip.h"
-#include "signaling-exception.hh"
+#include "bellesip-signaling-exception.hh"
 #include "resource-lists.hxx"
 #include <chrono>
 #include "rlmi+xml.hxx"
@@ -39,7 +39,7 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 	if (!contentType || strcasecmp(belle_sip_header_content_type_get_type(contentType), "application") != 0 ||
 		strcasecmp(belle_sip_header_content_type_get_subtype(contentType), "resource-lists+xml") != 0) {
 
-		throw SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/resource-lists+xml"))
+		throw BELLESIP_SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/resource-lists+xml"))
 			<< "Unsupported media type ["
 			<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
 			<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
@@ -53,7 +53,7 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 		ostringstream os;
 		os << "Cannot parse body caused by [" << e << "]";
 		// todo check error code
-		throw SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
+		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
 	}
 
 	for (::resource_lists::List::ListConstIterator listIt = resource_list_body->getList().begin();
@@ -64,7 +64,7 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 			if (!uri) {
 				ostringstream os;
 				os << "Cannot parse list entry [" << entryIt->getUri() << "]";
-				throw SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
+				throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
 			}
 			mListeners.push_back(make_shared<PresentityResourceListener>(*this, uri));
 		}
@@ -72,7 +72,7 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 	if (mListeners.size() == 0) {
 		ostringstream os;
 		os << "Empty list entry for dialog id[" << belle_sip_dialog_get_dialog_id(mDialog) << "]";
-		throw SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
+		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
 	}
 
 	mName = (belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(belle_sip_request_get_uri(request)));

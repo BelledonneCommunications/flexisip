@@ -24,7 +24,7 @@
 //#include "resource-list/resource-lists-pimpl.hxx"
 #include "presentity-presenceinformation.hh"
 #include "list-subscription.hh"
-#include "signaling-exception.hh"
+#include "bellesip-signaling-exception.hh"
 #include "subscription.hh"
 #include "configmanager.hh"
 #include <string.h>
@@ -159,10 +159,10 @@ void PresenceServer::processRequestEvent(PresenceServer *thiz, const belle_sip_r
 			thiz->processSubscribeRequestEvent(event);
 
 		} else {
-			throw SIGNALING_EXCEPTION_1(405, BELLE_SIP_HEADER(belle_sip_header_allow_create("PUBLISH")))
+			throw BELLESIP_SIGNALING_EXCEPTION_1(405, BELLE_SIP_HEADER(belle_sip_header_allow_create("PUBLISH")))
 				<< "Unsupported method [" << belle_sip_request_get_method(request) << "]";
 		}
-	} catch (SignalingException &e) {
+	} catch (BelleSipSignalingException &e) {
 		SLOGE << e.what();
 		belle_sip_response_t *resp = belle_sip_response_create_from_request(request, e.getStatusCode());
 		for (belle_sip_header_t *header : e.getHeaders())
@@ -194,7 +194,7 @@ void PresenceServer::processTransactionTerminated(PresenceServer *thiz,
 	// nop
 }
 
-void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t *event) throw(SignalingException,
+void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t *event) throw(BelleSipSignalingException,
 																							  FlexisipException) {
 	belle_sip_request_t *request = belle_sip_request_event_get_request(event);
 	std::shared_ptr<PresentityPresenceInformation> presenceInfo;
@@ -242,10 +242,10 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 	 */
 	belle_sip_header_t *eventHeader = belle_sip_message_get_header(BELLE_SIP_MESSAGE(request), "Event");
 	if (!eventHeader)
-		throw SIGNALING_EXCEPTION(489) << "No sip Event for request [" << std::hex << (long)request << "]";
+		throw BELLESIP_SIGNALING_EXCEPTION(489) << "No sip Event for request [" << std::hex << (long)request << "]";
 
 	if (strcasecmp(belle_sip_header_get_unparsed_value(eventHeader), "Presence") != 0) {
-		throw SIGNALING_EXCEPTION(489) << "Unsuported  Event [" << belle_sip_header_get_unparsed_value(eventHeader)
+		throw BELLESIP_SIGNALING_EXCEPTION(489) << "Unsuported  Event [" << belle_sip_header_get_unparsed_value(eventHeader)
 									   << "for request [" << std::hex << (long)request << "]";
 	}
 
@@ -268,7 +268,7 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		if (!contentType || strcasecmp(belle_sip_header_content_type_get_type(contentType), "application") != 0 ||
 			strcasecmp(belle_sip_header_content_type_get_subtype(contentType), "pidf+xml") != 0) {
 
-			throw SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/pidf+xml"))
+			throw BELLESIP_SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/pidf+xml"))
 				<< "Unsupported media type ["
 				<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
 				<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
@@ -293,7 +293,7 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		 a response of 412 (Conditional Request Failed), and skip the
 		 remaining steps.*/
 		if (!(presenceInfo = getPresenceInfo(eTag)))
-			throw SIGNALING_EXCEPTION(412) << "Unknown eTag [" << eTag << " for request [" << std::hex << (long)request
+			throw BELLESIP_SIGNALING_EXCEPTION(412) << "Unknown eTag [" << eTag << " for request [" << std::hex << (long)request
 										   << "]";
 	}
 	belle_sip_header_expires_t *headerExpires =
@@ -343,7 +343,7 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 	 containing no message body, the ESC MAY accept it.
 	 */
 	if (!sipIfMatch && belle_sip_message_get_body_size(BELLE_SIP_MESSAGE(request)) <= 0)
-		throw SIGNALING_EXCEPTION(400) << "Publish without eTag must contain a body for request [" << std::hex
+		throw BELLESIP_SIGNALING_EXCEPTION(400) << "Publish without eTag must contain a body for request [" << std::hex
 									   << (long)request << "]";
 
 	// At that point, we are safe
@@ -357,13 +357,13 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 			ostringstream os;
 			os << "Cannot parse body caused by [" << e << "]";
 			// todo check error code
-			throw SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
+			throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
 		}
 
 		// check entity
 		belle_sip_uri_t *entity = belle_sip_uri_parse(presence_body->getEntity().c_str());
 		if (!entity)
-			throw SIGNALING_EXCEPTION(400) << "Invalid presence entity [" << presence_body->getEntity()
+			throw BELLESIP_SIGNALING_EXCEPTION(400) << "Invalid presence entity [" << presence_body->getEntity()
 										   << "] for request [" << request << "]";
 		belle_sip_object_ref(entity); // initial ref = 0;
 
@@ -402,7 +402,7 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 			if (presenceInfo)
 				eTag = presenceInfo->refreshTuplesForEtag(eTag, expires);
 			else
-				throw SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "Unknown etag"));
+				throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "Unknown etag"));
 		}
 	}
 	/*
@@ -437,7 +437,7 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 	belle_sip_server_transaction_send_response(server_transaction, resp);
 }
 
-void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_t *event) throw(SignalingException,
+void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_t *event) throw(BelleSipSignalingException,
 																								FlexisipException) {
 	belle_sip_request_t *request = belle_sip_request_event_get_request(event);
 	/*
@@ -460,10 +460,10 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	 */
 	belle_sip_header_event_t *header_event = belle_sip_message_get_header_by_type(request, belle_sip_header_event_t);
 	if (!header_event)
-		throw SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "No Event package")) << "No Event package";
+		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "No Event package")) << "No Event package";
 
 	if (strcmp("presence", belle_sip_header_event_get_package_name(header_event)) != 0)
-		throw SIGNALING_EXCEPTION(489) << "Unexpected Event package ["
+		throw BELLESIP_SIGNALING_EXCEPTION(489) << "Unexpected Event package ["
 									   << belle_sip_header_event_get_package_name(header_event) << "]";
 
 	/*
@@ -525,7 +525,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	if (!dialog)
 		dialog = belle_sip_provider_create_dialog(mProvider, BELLE_SIP_TRANSACTION(server_transaction));
 	if (!dialog)
-		throw SIGNALING_EXCEPTION(481) << "Cannot create dialog from request ["<< request << "]";
+		throw BELLESIP_SIGNALING_EXCEPTION(481) << "Cannot create dialog from request ["<< request << "]";
 
 	belle_sip_header_expires_t *headerExpires =
 		belle_sip_message_get_header_by_type(request, belle_sip_header_expires_t);
@@ -616,7 +616,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				// fixme
 				delete subscription;
 				belle_sip_dialog_set_application_data(dialog, NULL);
-				throw SIGNALING_EXCEPTION(481) << "Subscription [" << std::hex << (long)subscription << "] for dialog ["
+				throw BELLESIP_SIGNALING_EXCEPTION(481) << "Subscription [" << std::hex << (long)subscription << "] for dialog ["
 											   << BELLE_SIP_OBJECT(dialog) << "] already in terminated state";
 			}
 
@@ -657,7 +657,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 		}
 
 		default: {
-			throw SIGNALING_EXCEPTION(400) << "Unexpected request [" << std::hex << (long)request << "for dialog ["
+			throw BELLESIP_SIGNALING_EXCEPTION(400) << "Unexpected request [" << std::hex << (long)request << "for dialog ["
 										   << std::hex << (long)dialog << "in state ["
 										   << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog));
 		}

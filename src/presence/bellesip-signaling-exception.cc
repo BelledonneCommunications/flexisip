@@ -15,40 +15,39 @@
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include "signaling-exception.hh"
+#include "bellesip-signaling-exception.hh"
 #include "belle-sip/belle-sip.h"
 namespace flexisip {
 
-SignalingException::SignalingException(int code, list<belle_sip_header_t *> headers)
-	: FlexisipException(), mStatusCode(code), mHeaders(headers) {
+BelleSipSignalingException::BelleSipSignalingException(int code, list<belle_sip_header_t *> headers)
+	: SignalingException(code), mHeaders(headers) {
 	mOffset++;
 	for (belle_sip_header_t *header : mHeaders) {
 		belle_sip_object_ref(header);
 	}
 }
-SignalingException::SignalingException(int code, belle_sip_header_t *header) : SignalingException(code) {
+BelleSipSignalingException::BelleSipSignalingException(int code, belle_sip_header_t *header) : BelleSipSignalingException(code) {
 	if (header) {
 		mHeaders.push_back(header);
 		belle_sip_object_ref(header);
 	}
 	mOffset++;
 }
-SignalingException::~SignalingException() throw() {
+BelleSipSignalingException::~BelleSipSignalingException() throw() {
 	for (belle_sip_header_t *header : mHeaders) {
 		belle_sip_object_unref(header);
 	}
 }
-SignalingException::SignalingException(const SignalingException &other)
-	: FlexisipException(other), mStatusCode(other.mStatusCode) {
+BelleSipSignalingException::BelleSipSignalingException(const BelleSipSignalingException &other)
+	: SignalingException(other) {
 	for (belle_sip_header_t *header : other.mHeaders) {
 		mHeaders.push_back(header);
 		belle_sip_object_ref(header);
 	}
 }
-int SignalingException::getStatusCode() {
-	return mStatusCode;
-}
-const list<belle_sip_header_t *> &SignalingException::getHeaders() {
+
+const list<belle_sip_header_t *> &BelleSipSignalingException::getHeaders() {
 	return mHeaders;
 }
+
 } /* namespace flexisip */
