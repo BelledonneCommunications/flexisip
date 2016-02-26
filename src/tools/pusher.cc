@@ -17,7 +17,9 @@
 */
 
 #include "common.hh"
-#include "pushnotification/pushnotification.hh"
+#include "pushnotification/applepush.hh"
+#include "pushnotification/googlepush.hh"
+#include "pushnotification/microsoftpush.hh"
 #include "pushnotification/pushnotificationservice.hh"
 
 #include <unistd.h>

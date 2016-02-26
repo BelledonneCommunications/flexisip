@@ -61,7 +61,7 @@ class PushNotificationRequest : public PushNotificationRequestCallback {
 	virtual const std::vector<char> &getData() = 0;
 	virtual bool isValidResponse(const std::string &str) = 0;
 	virtual bool serverResponseIsImmediate() = 0;
-	virtual ~PushNotificationRequest() = 0;
+	virtual ~PushNotificationRequest() {}
 	void setCallBack(const std::shared_ptr<PushNotificationRequestCallback> &cb) {
 		mCallBack = cb;
 	}
@@ -82,96 +82,30 @@ class PushNotificationRequest : public PushNotificationRequestCallback {
 		: mAppId(appid), mType(type), mCallBack({}) {
 	}
 };
-inline PushNotificationRequest::~PushNotificationRequest() {
-}
 
-class ApplePushNotificationRequest : public PushNotificationRequest {
-  public:
-	static const unsigned int MAXPAYLOAD_SIZE;
-	static const unsigned int DEVICE_BINARY_SIZE;
-	virtual const std::vector<char> &getData();
-	virtual bool isValidResponse(const std::string &str);
-	ApplePushNotificationRequest(const PushInfo &pinfo);
-	~ApplePushNotificationRequest() {
-	}
-	virtual bool serverResponseIsImmediate() {
-		return false;
-	}
-
-  protected:
-	int formatDeviceToken(const std::string &deviceToken);
-	void createPushNotification();
-	std::vector<char> mBuffer;
-	std::vector<char> mDeviceToken;
-	std::string mPayload;
-	uint32_t mIdentifier;
-};
-
-class GooglePushNotificationRequest : public PushNotificationRequest {
-  public:
-	virtual const std::vector<char> &getData();
-	virtual bool isValidResponse(const std::string &str);
-	GooglePushNotificationRequest(const PushInfo &pinfo);
-	~GooglePushNotificationRequest() {
-	}
-	virtual bool serverResponseIsImmediate() {
-		return true;
-	}
-
-  protected:
-	void createPushNotification();
-	std::vector<char> mBuffer;
-	std::string mHttpHeader;
-	std::string mHttpBody;
-};
-
-class WindowsPhonePushNotificationRequest : public PushNotificationRequest {
-  public:
-	virtual const std::vector<char> &getData();
-	virtual bool isValidResponse(const std::string &str);
-	WindowsPhonePushNotificationRequest(const PushInfo &pinfo);
-	~WindowsPhonePushNotificationRequest() {
-	}
-	virtual bool serverResponseIsImmediate() {
-		return true;
-	}
-
-  protected:
-	void createPushNotification();
-	std::vector<char> mBuffer;
-	std::string mHttpHeader;
-	std::string mHttpBody;
-};
 
 class ErrorPushNotificationRequest : public PushNotificationRequest {
   public:
-	virtual const std::vector<char> &getData() {
-		return mBuffer;
-	}
-	virtual bool isValidResponse(const std::string &str);
-	ErrorPushNotificationRequest() : PushNotificationRequest("error", "error"), mBuffer() {
-	}
-	~ErrorPushNotificationRequest() {
-	}
-	virtual bool serverResponseIsImmediate() {
-		return true;
-	}
-
+	ErrorPushNotificationRequest() : PushNotificationRequest("error", "error"), mBuffer() {}
+	~ErrorPushNotificationRequest() {}
+	
+	virtual bool serverResponseIsImmediate() { return true; }
+	virtual bool isValidResponse(const std::string &str) { return false; }
+	virtual const std::vector<char> &getData() { return mBuffer; }
   protected:
 	std::vector<char> mBuffer;
 };
 
+
 class GenericPushNotificationRequest : public PushNotificationRequest {
   public:
+
+	GenericPushNotificationRequest(const PushInfo &pinfo, const url_t *url, const std::string &method);
+	
+	virtual ~GenericPushNotificationRequest() {}
+	virtual bool serverResponseIsImmediate() { return true; }
 	virtual const std::vector<char> &getData();
 	virtual bool isValidResponse(const std::string &str);
-	GenericPushNotificationRequest(const PushInfo &pinfo, const url_t *url, const std::string &method);
-	virtual ~GenericPushNotificationRequest() {
-	}
-	virtual bool serverResponseIsImmediate() {
-		return true;
-	}
-
   protected:
 	std::string &substituteArgs(std::string &input, const PushInfo &pinfo);
 	void createPushNotification();

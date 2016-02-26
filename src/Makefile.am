@@ -151,10 +151,13 @@ endif
 
 if BUILD_PUSHNOTIFICATION
 thesources+=		module-pushnotification.cc \
-			pushnotification/pushnotification.cc pushnotification/pushnotification.hh \
+			pushnotification/pushnotification.hh \
+			pushnotification/googlepush.cc pushnotification/googlepush.hh \
+			pushnotification/applepush.cc pushnotification/applepush.hh \
+			pushnotification/microsoftpush.cc pushnotification/microsoftpush.hh \
 			pushnotification/pushnotificationservice.cc pushnotification/pushnotificationservice.hh \
 			pushnotification/pushnotificationclient.cc pushnotification/pushnotificationclient.hh \
-			pushnotification/genericpushnotification.cc 
+			pushnotification/genericpush.cc pushnotification/genericpush.hh
 AM_CXXFLAGS+=-DENABLE_PUSHNOTIFICATION $(BOOST_CPPFLAGS) $(OPENSSL_CPPFLAGS)
 flexisip_LDADD+=$(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(OPENSSL_LIBS) $(BOOST_ASIO_LIB)
 endif

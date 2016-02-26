@@ -20,8 +20,10 @@
 #include "agent.hh"
 #include "event.hh"
 #include "transaction.hh"
-#include "pushnotification/pushnotification.hh"
 #include "pushnotification/pushnotificationservice.hh"
+#include "pushnotification/applepush.hh"
+#include "pushnotification/googlepush.hh"
+#include "pushnotification/microsoftpush.hh"
 #include "forkcallcontext.hh"
 
 #include <map>
