@@ -26,6 +26,7 @@
 #include <sstream>
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
+#include <openssl/err.h>
 
 
 static const char *APN_DEV_ADDRESS = "gateway.sandbox.push.apple.com";
@@ -127,27 +128,56 @@ void PushNotificationService::setupGenericClient(const url_t *url) {
 																   mMaxQueueSize, false);
 }
 
+/* Utility function to convert ASN1_TIME to a printable string in a buffer */
+static int ASN1_TIME_toString( const ASN1_TIME* time, char* buffer, uint32_t buff_length){
+	int write = 0;
+	BIO* bio = BIO_new(BIO_s_mem());
+	if (bio) {
+		if (ASN1_TIME_print(bio, time))
+			write = BIO_read(bio, buffer, buff_length-1);
+		BIO_free(bio);
+	}
+	buffer[write]='\0';
+	return write;
+}
+
 bool PushNotificationService::isCertExpired( const std::string &certPath ){
-	
 	bool expired = true;
-	FILE* certFP = fopen(certPath.c_str(), "r");
-	if(!certFP) {
-		LOGE("Couldn't open certificate file %s", certPath.c_str());
+	BIO* certbio = BIO_new(BIO_s_file());
+	int err = BIO_read_filename(certbio, certPath.c_str());
+	if( err == 0 ){
+		LOGE("BIO_read_filename failed for %s", certPath.c_str());
 		return expired;
 	}
-	X509* cert = d2i_X509_fp(certFP, NULL);
+	
+	X509* cert = PEM_read_bio_X509(certbio, NULL, 0, 0);
 	if( !cert ){
-		LOGE("Couldn't parse certificate at %s", certPath.c_str());
+		char buf[128] = {};
+		unsigned long error = ERR_get_error();
+		ERR_error_string(error, buf);
+		LOGE("Couldn't parse certificate at %s : %s", certPath.c_str(), buf);
 		return expired;
 	} else {
 		ASN1_TIME *notBefore = X509_get_notBefore(cert);
 		ASN1_TIME *notAfter = X509_get_notAfter(cert);
 		if( X509_cmp_current_time(notBefore) > 0 && X509_cmp_current_time(notAfter) < 0 ) {
+
+			LOGD("Certificate %s has a valid expiration.", certPath.c_str());
 			expired = false;
+		} else {
+			// the certificate has an expire or not before value that makes it not valid regarding the server's date.
+			char beforeStr[128] = {};
+			char afterStr[128] = {};
+			if( ASN1_TIME_toString(notBefore, beforeStr, 128) && ASN1_TIME_toString(notAfter, afterStr, 128)){
+				LOGD("Certificate %s is expired or not yet valid! Not Before: %s, Not After: %s", certPath.c_str(),
+					 beforeStr, afterStr);
+			} else {
+				LOGD("Certificate %s is expired or not yet valid!", certPath.c_str());
+			}
 		}
 	}
-	
-	fclose(certFP);
+	X509_free(cert);
+	BIO_free_all(certbio);
 	
 	return expired;
 }
