@@ -235,8 +235,7 @@ void PushNotificationService::setupiOSClient(const std::string &certdir, const s
 				LOGE("use_certificate_file %s: %s", certpath.c_str(), error.message().c_str());
 				continue;
 			} else if ( isCertExpired(certpath) ){
-				LOGF("Certificate %s is expired! You won't be able to use it for push notifications. Please update your certificate or remove it entirely.", certpath.c_str());
-				// will exit flexisip
+				LOGEN("Certificate %s is expired! You won't be able to use it for push notifications. Please update your certificate or remove it entirely.", certpath.c_str());
 			}
 		}
 		string key = certpath;
@@ -317,16 +316,16 @@ bool PushNotificationService::handle_verify_callback(bool preverified, ssl::veri
 		switch (error) {
 			case X509_V_ERR_CERT_NOT_YET_VALID:
 			case X509_V_ERR_CRL_NOT_YET_VALID:
-				LOGE("Certificate for %s is not yet valid. Push won't work.", subject_name);
+				LOGEN("Certificate for %s is not yet valid. Push won't work.", subject_name);
 				break;
 			case X509_V_ERR_CERT_HAS_EXPIRED:
 			case X509_V_ERR_CRL_HAS_EXPIRED:
-				LOGE("Certificate for %s is expired. Push won't work.", subject_name);
+				LOGEN("Certificate for %s is expired. Push won't work.", subject_name);
 				break;
 				
 			default:{
 				const char* errString = X509_verify_cert_error_string(error);
-				LOGE("Certificate for %s is invalid (reason: %d - %s). Push won't work.", subject_name, error, errString ? errString:"unknown" );
+				LOGEN("Certificate for %s is invalid (reason: %d - %s). Push won't work.", subject_name, error, errString ? errString:"unknown" );
 				break;
 			}
 		}
