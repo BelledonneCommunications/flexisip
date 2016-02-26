@@ -44,7 +44,7 @@ An experimental cmake build including dependencies is available. To compile, wit
 	-DENABLE_PUSHNOTIFICATION=NO \
 	-DENABLE_REDIS=NO \
 	-DENABLE_ODBC=NO \
-	-DENABLE_DOC=NO \ #disable latex generation
+	-DENABLE_DOC=NO \
 	-DEP_flexisip_SOURCE_DIR=$PWD \
 	-DEP_sofiasip_CONFIGURE_OPTIONS=PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/ 
 - xcodebuild -project WORK/flexisip/cmake/Project.xcodeproj/ 
