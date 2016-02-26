@@ -197,14 +197,8 @@ if(ENABLE_XSD AND ENABLE_PRESENCE)
 endif()
 
 if(ENABLE_PUSHNOTIFICATION)
-	list(APPEND FLEXISIP_SOURCES module-pushnotification.cc
-		pushnotification/pushnotification.hh
-		pushnotification/googlepush.cc pushnotification/googlepush.hh
-		pushnotification/applepush.cc pushnotification/applepush.hh
-		pushnotification/microsoftpush.cc pushnotification/microsoftpush.hh
-		pushnotification/pushnotificationservice.cc pushnotification/pushnotificationservice.hh
-		pushnotification/pushnotificationclient.cc pushnotification/pushnotificationclient.hh
-		pushnotification/genericpush.cc pushnotification/genericpush.hh)
+	file(GLOB PUSHNOTIFICATION_SRCS pushnotification/*.cc pushnotification/*.hh)
+	list(APPEND FLEXISIP_SOURCES module-pushnotification.cc ${PUSHNOTIFICATION_SRCS})
 	list(APPEND FLEXISIP_LIBS ${Boost_LIBRARIES} ${OPENSSL_LIBRARIES})
 	list(APPEND FLEXISIP_INCLUDES ${Boost_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIRS})
 endif()
