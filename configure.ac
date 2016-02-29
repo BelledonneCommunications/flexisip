@@ -665,7 +665,7 @@ AC_SUBST(CONFIG_DIR)
 #Keep this at the end
 if test x$strictness = xyes ; then
 		CFLAGS="$CFLAGS -Wall -Werror -fno-strict-aliasing"
-		WARNINGCXXFLAGS="-Wall -Werror -fno-strict-aliasing"
+		WARNINGCXXFLAGS="-Wall -Werror -fno-strict-aliasing -Wno-error=deprecated-declarations"
 fi
 
 AC_SUBST(WARNINGCXXFLAGS)
