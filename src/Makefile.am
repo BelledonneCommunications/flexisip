@@ -21,7 +21,7 @@ nodistsources=
 bin_PROGRAMS=flexisip
 thesources= \
 			utils/flexisip-exception.cc utils/flexisip-exception.hh \
-			utils/signaling-exception.cc utils/signaling-exception.hh \
+			utils/signaling-exception.hh \
 			agent.cc agent.hh \
 			common.cc common.hh \
 			sdp-modifier.hh  sdp-modifier.cc \
