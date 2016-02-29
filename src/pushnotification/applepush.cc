@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string.h>
 #include "log/logmanager.hh"
+#include <stdexcept>
 
 using namespace std;
 
