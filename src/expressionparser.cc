@@ -341,9 +341,20 @@ class ContainsOp : public BooleanExpression {
 	ContainsOp(shared_ptr<VariableOrConstant> var1, shared_ptr<VariableOrConstant> var2) : mVar1(var1), mVar2(var2) {
 	}
 	virtual bool eval(const SipAttributes *args) {
-		bool res = mVar1->get(args).find(mVar2->get(args)) != std::string::npos;
-		LOGEVAL << "evaluating " << mVar1->get(args) << " contains " << mVar2->get(args) << " : "
-				<< (res ? "true" : "false");
+		bool res = false;
+		try {
+			string var1 = mVar1->get(args);
+			string var2 = mVar2->get(args);
+			res = var1.find(var2) != std::string::npos;
+			
+			LOGEVAL << "evaluating " << mVar1->get(args) << " contains " << mVar2->get(args) << " : "
+			<< (res ? "true" : "false");
+		} catch (invalid_argument &e) {
+			// We allow to use "contains()" with empty arguments, which returns always false instead of bubbling an exception.
+			SLOGE << "Exception: Some arguments were missing (" << e.what() << "): return false";
+			return false;
+		}
+		// we could get a runtime_error, which we let bubble up because this error denotes a badly written filter (instead of just a missing field in the SIP message.
 		return res;
 	}
 };
