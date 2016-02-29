@@ -20,8 +20,8 @@
 #define SIGNALING_EXCEPTION_HH_
 
 #include "flexisip-exception.hh"
+#include <string.h>
 
-namespace flexisip {
 
 /**
  * @brief This exception inherits \ref FlexisipException and allows a SIP error code to be carried along.
@@ -30,12 +30,14 @@ namespace flexisip {
  */
 class SignalingException : public FlexisipException {
   public:
-	SignalingException(int statusCode) : mStatusCode(statusCode) {}
-	SignalingException(const SignalingException &other) : mStatusCode(other.mStatusCode) {}
+	SignalingException(int statusCode, const std::string& reason) : mStatusCode(statusCode), mReason(reason) {}
+	SignalingException(int statusCode) : mStatusCode(statusCode), mReason("Internal Error") {}
+	SignalingException(const SignalingException &other) : mStatusCode(other.mStatusCode), mReason(other.mReason) {}
 	
 	virtual ~SignalingException() {}
 	
 	int getStatusCode() { return mStatusCode; }
+	std::string getReason() const { return mReason; };
 	
 	template <typename T2> SignalingException &operator<<(const T2 &val) {
 		FlexisipException::operator<<(val);
@@ -44,9 +46,9 @@ class SignalingException : public FlexisipException {
 
   private:
 	const int mStatusCode;
+	std::string mReason;
 };
 
-} /* namespace flexisip */
 #define SIGNALING_EXCEPTION(code) SignalingException(code) << " " << __FILE__ << ":" << __LINE__ << " "
 
 #endif /* SIGNALING_EXCEPTION_HH_ */
