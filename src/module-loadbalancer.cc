@@ -29,8 +29,8 @@ class LoadBalancer : public Module, public ModuleToolbox {
 	virtual ~LoadBalancer();
 	virtual void onDeclare(GenericStruct *module_config);
 	virtual void onLoad(const GenericStruct *modconf);
-	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
+	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException);
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException);
 
   private:
 	vector<string> mRoutes;
@@ -66,7 +66,7 @@ void LoadBalancer::onLoad(const GenericStruct *modconf) {
 	mRoutesCount = mRoutes.size();
 }
 
-void LoadBalancer::onRequest(shared_ptr<RequestSipEvent> &ev) {
+void LoadBalancer::onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException){
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	uint32_t call_hash;
 	sip_t *sip = ms->getSip();
@@ -87,7 +87,7 @@ void LoadBalancer::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 }
 
-void LoadBalancer::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+void LoadBalancer::onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException){
 	/*nothing to do*/
 }
 

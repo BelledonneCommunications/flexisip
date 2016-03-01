@@ -144,7 +144,7 @@ class DoSProtection : public Module, ModuleToolbox {
 		}
 	}
 
-	void onRequest(shared_ptr<RequestSipEvent> &ev) {
+	void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException) {
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
 		tport_t *tport = inTport.get();
 
@@ -223,7 +223,7 @@ class DoSProtection : public Module, ModuleToolbox {
 		}
 	}
 
-	void onResponse(std::shared_ptr<ResponseSipEvent> &ev){
+	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException){
 
 	};
 

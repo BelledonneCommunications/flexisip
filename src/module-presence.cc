@@ -96,11 +96,11 @@ class ModulePresence : public Module, ModuleToolbox {
 		}
 		return false;
 	}
-	void onRequest(shared_ptr<RequestSipEvent> &ev) {
+	void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException){
 		if (isMessageAPresenceMessage(ev))
 			route(ev);
 	}
-	void onResponse(std::shared_ptr<ResponseSipEvent> &ev){};
+	void onResponse(std::shared_ptr<ResponseSipEvent> &ev)throw (FlexisipException){};
 
   public:
 	ModulePresence(Agent *ag) : Module(ag) {

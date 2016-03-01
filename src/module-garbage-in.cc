@@ -29,7 +29,7 @@ class ModuleGarbageIn : public Module, protected ModuleToolbox {
 	~ModuleGarbageIn() {
 	}
 
-	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) {
+	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException){
 		const sip_t *sip = ev->getMsgSip()->getSip();
 		if (sip->sip_request->rq_method == sip_method_options) {
 			ev->reply(200, NULL, TAG_END());
@@ -40,7 +40,7 @@ class ModuleGarbageIn : public Module, protected ModuleToolbox {
 		ev->terminateProcessing();
 	}
 
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) {
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException){
 		SLOGD << "Garbage: processing terminated";
 		ev->terminateProcessing();
 	}

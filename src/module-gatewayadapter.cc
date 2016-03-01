@@ -333,9 +333,9 @@ class GatewayAdapter : public Module {
 
 	virtual void onLoad(const GenericStruct *module_config);
 
-	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
+	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException);
 
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException);
 
 	virtual bool isValidNextConfig(const ConfigValue &cv);
 
@@ -414,7 +414,7 @@ void GatewayAdapter::onLoad(const GenericStruct *module_config) {
 	}
 }
 
-void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) {
+void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipException) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
@@ -457,7 +457,7 @@ void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 }
 
-void GatewayAdapter::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+void GatewayAdapter::onResponse(shared_ptr<ResponseSipEvent> &ev) throw(FlexisipException) {
 }
 
 void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phrase, nua_t *nua, nua_magic_t *ctx,

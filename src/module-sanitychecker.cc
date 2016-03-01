@@ -29,7 +29,7 @@ class ModuleSanityChecker : public Module, protected ModuleToolbox {
 	~ModuleSanityChecker() {
 	}
 
-	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) {
+	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException){
 		sip_t *sip = ev->getMsgSip()->getSip();
 
 		const char *error = checkHeaders(sip);
@@ -42,7 +42,7 @@ class ModuleSanityChecker : public Module, protected ModuleToolbox {
 		}
 	}
 
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) {
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException){
 		// don't check our responses ;)
 	}
 

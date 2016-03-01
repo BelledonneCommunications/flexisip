@@ -187,9 +187,9 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 		}
 	}
 
-	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
+	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException);
 
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException);
 
 	template <typename SipEventT, typename ListenerT>
 	void processUpdateRequest(shared_ptr<SipEventT> &ev, const sip_t *sip);
@@ -512,7 +512,7 @@ void ModuleRegistrar::processUpdateRequest(shared_ptr<SipEventT> &ev, const sip_
 	}
 }
 
-void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
+void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipException) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
@@ -604,7 +604,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 }
 
-void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) throw(FlexisipException) {
 	if (!mUpdateOnResponse)
 		return;
 	const shared_ptr<MsgSip> &reMs = ev->getMsgSip();

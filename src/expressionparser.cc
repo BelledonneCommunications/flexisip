@@ -47,9 +47,15 @@ long BooleanExpression::ptr() {
 }
 
 #ifndef NO_SOFIA
-bool BooleanExpression::eval(const sip_t *sip) throw() {
-	SipAttributes attr(sip);
-	return eval(&attr);
+bool BooleanExpression::eval(const sip_t *sip) throw(FlexisipException) {
+	bool result;
+	try {
+		SipAttributes attr(sip);
+		result = eval(&attr);
+	} catch (std::exception& e) {
+		throw FLEXISIP_EXCEPTION << "Cannot evaluate boolean expression  for " << sip << " : " << e.what();
+	}
+	return result;
 }
 #endif
 
@@ -155,11 +161,7 @@ class Variable : public VariableOrConstant {
 		LOGPARSE << "Creating variable XX" << val << "XX";
 	}
 	virtual const std::string &get(const SipAttributes *args) {
-		try {
-			mVal = args->get(mId);
-		} catch (exception &e) {
-			throw FLEXISIP_EXCEPTION << "GET " << mId << " : " << e.what();
-		}
+		mVal = args->get(mId);
 		return mVal;
 	}
 };

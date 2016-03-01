@@ -34,8 +34,8 @@ class StatisticsCollector : public Module, ModuleToolbox {
 	~StatisticsCollector();
 	virtual void onDeclare(GenericStruct *module_config);
 	virtual void onLoad(const GenericStruct *root);
-	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
+	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException);
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException);
 
   private:
 	int managePublishContent(const shared_ptr<RequestSipEvent> ev);
@@ -81,7 +81,7 @@ void StatisticsCollector::onLoad(const GenericStruct *mc) {
 	LOGI("StatisticsCollector: setup with collector address '%s'", value.c_str());
 }
 
-void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent> &ev) {
+void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipException) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	url_t *url = sip->sip_request->rq_url;
@@ -98,7 +98,7 @@ void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 }
 
-void StatisticsCollector::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+void StatisticsCollector::onResponse(shared_ptr<ResponseSipEvent> &ev) throw(FlexisipException) {
 }
 
 /*avoid crash if x is NULL on libc versions <4.5.26 */

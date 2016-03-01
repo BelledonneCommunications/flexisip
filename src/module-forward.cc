@@ -36,8 +36,8 @@ class ForwardModule : public Module, ModuleToolbox {
 	ForwardModule(Agent *ag);
 	virtual void onDeclare(GenericStruct *module_config);
 	virtual void onLoad(const GenericStruct *root);
-	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
+	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException);
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException);
 	~ForwardModule();
 
   private:
@@ -136,7 +136,7 @@ static bool isUs(Agent *ag, sip_route_t *r) {
 	return ag->isUs(r->r_url);
 }
 
-void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
+void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipException) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	url_t *dest = NULL;
 	sip_t *sip = ms->getSip();
@@ -265,7 +265,7 @@ bool ForwardModule::isLooping(shared_ptr<RequestSipEvent> &ev, const char *branc
 	return false;
 }
 
-void ForwardModule::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+void ForwardModule::onResponse(shared_ptr<ResponseSipEvent> &ev) throw(FlexisipException) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	ev->send(ms);
 }

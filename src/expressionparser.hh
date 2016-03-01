@@ -25,8 +25,10 @@
 
 #include <string>
 #include <memory>
+#include "utils/flexisip-exception.hh"
 
 class SipAttributes;
+
 
 void log_boolean_expression_evaluation(bool value);
 void log_boolean_expression_parsing(bool value);
@@ -38,7 +40,7 @@ class BooleanExpression {
 
   public:
 #ifndef NO_SOFIA
-	bool eval(const sip_t *sip) throw(); // Throws FlexisipException
+	bool eval(const sip_t *sip) throw(FlexisipException);
 #endif
 	virtual bool eval(const SipAttributes *args) = 0;
 	virtual ~BooleanExpression();

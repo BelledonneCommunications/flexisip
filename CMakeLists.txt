@@ -53,12 +53,15 @@ option(ENABLE_TRANSCODER "Build transcoder support" YES)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
 
-set(XSDCXX_ROOT_PATH "/usr" CACHE STRING "Path of where the bin/xsdcxx executable will be found. Comes from http://www.codesynthesis.com/products/xsd/download.xhtml. On mac use 'brew install xsd'")
+if(APPLE)
+set(XSDCXX_DEFAULT_ROOT_PATH "/usr/local")
+else ()
+set(XSDCXX_DEFAULT_ROOT_PATH "/usr")
+endif()
+
+set(XSDCXX_ROOT_PATH ${XSDCXX_DEFAULT_ROOT_PATH}  CACHE STRING "Path of where the bin/xsdcxx executable will be found. Comes from http://www.codesynthesis.com/products/xsd/download.xhtml. On mac use 'brew install xsd'")
 set(SYSCONFIGROOT "" CACHE STRING "Config directory, the place where flexisip expects its flexisip.conf file to reside" )
 
-if(APPLE)
-list(APPEND XSDCXX_ROOT_PATH "/usr/local")
-endif()
 
 set(CONFIG_DIR ${SYSCONFIGROOT}/etc)
 message(STATUS "Config dir: ${CONFIG_DIR}")

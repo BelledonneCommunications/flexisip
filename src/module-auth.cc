@@ -470,7 +470,7 @@ class Authentication : public Module {
 		return false;
 	}
 
-	void onRequest(shared_ptr<RequestSipEvent> &ev) {
+	void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		sip_p_preferred_identity_t *ppi = NULL;
@@ -558,7 +558,7 @@ class Authentication : public Module {
 			ev->suspendProcessing();
 		}
 	}
-	void onResponse(shared_ptr<ResponseSipEvent> &ev) {
+	void onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException){
 		if (!mNewAuthOn407)
 			return; /*nop*/
 

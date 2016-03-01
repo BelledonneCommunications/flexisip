@@ -61,11 +61,11 @@ class ModuleRedirect : public Module, ModuleToolbox {
 	void onUnload() {
 	}
 
-	void onRequest(shared_ptr<RequestSipEvent> &ev) {
+	void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException){
 		ev->reply(SIP_302_MOVED_TEMPORARILY, SIPTAG_CONTACT(sip_contact_dup(&mHome, mContact)),
 				  SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	}
-	void onResponse(std::shared_ptr<ResponseSipEvent> &ev){};
+	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException){};
 
   public:
 	ModuleRedirect(Agent *ag) : Module(ag) {
