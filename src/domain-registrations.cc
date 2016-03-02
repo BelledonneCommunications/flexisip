@@ -298,10 +298,21 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 
 	if (!resp || resp->sip_status->st_status != 200) {
 		/*the registration failed for whatever reason. Retry shortly.*/
-		nextSchedule = 30;
+		if (!resp){
+			nextSchedule = 1;
+		}else{
+			nextSchedule = 30;
+		}
 		LOGD("Domain registration for %s failed, will retry in %i seconds", mFrom->url_host, nextSchedule);
 		su_timer_set_interval(mTimer, &DomainRegistration::sRefreshRegistration, this,
 							  (su_duration_t)nextSchedule * 1000);
+		if (!resp){
+			if (mCurrentTport){
+				LOGD("No domain registration response, connection might be broken. Shutting down current connection.");
+				tport_shutdown(mCurrentTport, 2);
+				return;
+			}
+		}
 	} else {
 		tport_t *tport = nta_outgoing_transport(orq);
 		cleanCurrentTport();
