@@ -416,7 +416,7 @@ void Transcoder::processAck(TranscodedCall *ctx, shared_ptr<RequestSipEvent> &ev
 	}
 }
 
-void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
+void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException){
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
@@ -532,7 +532,7 @@ static bool isEarlyMedia(sip_t *sip) {
 	return false;
 }
 
-void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
