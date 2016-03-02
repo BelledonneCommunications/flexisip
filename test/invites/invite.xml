@@ -49,7 +49,7 @@
   <recv response="100" optional="true"></recv>
   <recv response="180" optional="true"></recv>
   <recv response="183" optional="true"></recv>
-  <recv response="200" rtd="true" timeout="2000"></recv>
+  <recv response="200" rtd="true" timeout="2000" rrs="true"></recv>
 
 
   <send>
@@ -71,12 +71,12 @@
   </send>
 
 
-  <pause/>
+  <pause milliseconds="4000" />
 
   <send>
     <![CDATA[
 
-      BYE [$ruserAdd] SIP/2.0
+      BYE [next_url] SIP/2.0
       Via: SIP/2.0/[transport] [$luserIpPort];branch=[branch]
       From: <[$luserAdd]>;tag=[pid]SIPpTag00[call_number]
       To: <[$ruserAdd]>[peer_tag_param]
@@ -84,7 +84,6 @@
       User-Agent: [$ua]
       CSeq: 2 BYE
       Contact: [$luserAdd]
-      [authentication username=user0.000000 password=user0.000000]
       Max-Forwards: 70
       Subject: Teminate invite
       Content-Length: 0

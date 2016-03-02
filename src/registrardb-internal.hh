@@ -24,14 +24,14 @@
 #include <sofia-sip/sip.h>
 
 class RegistrarDbInternal : public RegistrarDb {
-public:
+  public:
 	RegistrarDbInternal(const std::string &preferredRoute);
 	void clearAll();
-private:
-	virtual void doBind(const BindParameters &params, const std::shared_ptr< RegistrarDbListener >& listener);
+
+  private:
+	virtual void doBind(const BindParameters &params, const std::shared_ptr<RegistrarDbListener> &listener);
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
 	virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener);
 };
-
 
 #endif

@@ -16,21 +16,19 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #ifndef tevfilter_hh
 #define tevfilter_hh
 
 #include "mediarelay.hh"
 
-class TelephoneEventFilter : public MediaFilter{
-public:
+class TelephoneEventFilter : public MediaFilter {
+  public:
 	TelephoneEventFilter(int telephone_event_pt);
-	virtual bool onIncomingTransfer(uint8_t *data, size_t size, const struct sockaddr* sockaddr, socklen_t addrlen);
-	virtual bool onOutgoingTransfer(uint8_t *data, size_t size, const struct sockaddr* sockaddr, socklen_t addrlen);
-private:
+	virtual bool onIncomingTransfer(uint8_t *data, size_t size, const struct sockaddr *sockaddr, socklen_t addrlen);
+	virtual bool onOutgoingTransfer(uint8_t *data, size_t size, const struct sockaddr *sockaddr, socklen_t addrlen);
+
+  private:
 	int mTelephoneEventPt;
 };
-
-
 
 #endif

@@ -1,19 +1,19 @@
 /*
-    Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Flexisip, a flexible SIP proxy server with media capabilities.
+	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef registrardb_hh
@@ -45,15 +45,18 @@ struct ExtendedContactCommon {
 	std::string mUniqueId;
 	std::list<std::string> mPath;
 
-	ExtendedContactCommon(const char *contactId, const std::list<std::string> &path, const char* callId, const char *lineValue) {
-		if (callId) mCallId = callId;
+	ExtendedContactCommon(const char *contactId, const std::list<std::string> &path, const char *callId,
+						  const char *lineValue) {
+		if (callId)
+			mCallId = callId;
 		mPath = path;
-		if (lineValue) mUniqueId = lineValue;
+		if (lineValue)
+			mUniqueId = lineValue;
 		mContactId = contactId;
 	}
-	ExtendedContactCommon(const std::string &route) : mContactId(), mCallId(),mUniqueId(),mPath({route}) {}
+	ExtendedContactCommon(const std::string &route) : mContactId(), mCallId(), mUniqueId(), mPath({route}) {
+	}
 };
-
 
 struct ExtendedContact {
 	class Record;
@@ -70,18 +73,27 @@ struct ExtendedContact {
 	uint32_t mCSeq;
 	bool mAlias;
 	std::list<std::string> mAcceptHeader;
-	bool mUsedAsRoute; /*whether the contact information shall be used as a route when forming a request, instead of replacing the request-uri*/
+	bool mUsedAsRoute; /*whether the contact information shall be used as a route when forming a request, instead of
+						  replacing the request-uri*/
 
-	inline const char *callId() { return mCallId.c_str(); }
-	inline const char *line() { return mUniqueId.c_str(); }
-	inline const char *contactId() { return mContactId.c_str(); }
-	inline const char *route() { return (mPath.empty() ? NULL : mPath.cbegin()->c_str()); }
+	inline const char *callId() {
+		return mCallId.c_str();
+	}
+	inline const char *line() {
+		return mUniqueId.c_str();
+	}
+	inline const char *contactId() {
+		return mContactId.c_str();
+	}
+	inline const char *route() {
+		return (mPath.empty() ? NULL : mPath.cbegin()->c_str());
+	}
 
 	static int resolveExpire(const char *contact_expire, int global_expire) {
 		if (contact_expire) {
 			return atoi(contact_expire);
 		} else {
-			if(global_expire >= 0) {
+			if (global_expire >= 0) {
 				return global_expire;
 			} else {
 				return -1;
@@ -90,15 +102,17 @@ struct ExtendedContact {
 	}
 
 	static std::string urlToString(su_home_t *home, const url_t *url) {
-		std::string res=::url_as_string(home, url);
-		if (res.c_str() && res.c_str()[0] != '<') return "<" + res + ">";
-		else return res;
+		std::string res = ::url_as_string(home, url);
+		if (res.c_str() && res.c_str()[0] != '<')
+			return "<" + res + ">";
+		else
+			return res;
 	}
-	ExtendedContact(const ExtendedContactCommon &common,
-			sip_contact_t *sip_contact, int global_expire, uint32_t cseq, time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders) :
-			mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
-			mSipUri(),
-			mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias), mAcceptHeader(acceptHeaders), mUsedAsRoute(false) {
+	ExtendedContact(const ExtendedContactCommon &common, sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
+					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
+		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
+		  mSipUri(), mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias), mAcceptHeader(acceptHeaders),
+		  mUsedAsRoute(false) {
 
 		{
 			su_home_t home;
@@ -112,21 +126,21 @@ struct ExtendedContact {
 		}
 
 		int expire = resolveExpire(sip_contact->m_expires, global_expire);
-		if (expire == -1) LOGA("no global expire (%d) nor local contact expire (%s)found", global_expire, sip_contact->m_expires);
+		if (expire == -1)
+			LOGA("no global expire (%d) nor local contact expire (%s)found", global_expire, sip_contact->m_expires);
 		mExpireAt = updateTime + expire;
 	}
 
-	ExtendedContact(const ExtendedContactCommon &common,
-			const char *sipuri, long expireAt, float q, uint32_t cseq, time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders) :
-			mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
-			mSipUri(sipuri),
-			mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias), mAcceptHeader(acceptHeaders), mUsedAsRoute(false) {
+	ExtendedContact(const ExtendedContactCommon &common, const char *sipuri, long expireAt, float q, uint32_t cseq,
+					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
+		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
+		  mSipUri(sipuri), mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias),
+		  mAcceptHeader(acceptHeaders), mUsedAsRoute(false) {
 	}
 
-	ExtendedContact(const url_t *url, std::string route) :
-			mContactId(), mCallId(), mUniqueId(), mPath({route}),
-			mSipUri(),
-			mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0), mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false) {
+	ExtendedContact(const url_t *url, std::string route)
+		: mContactId(), mCallId(), mUniqueId(), mPath({route}), mSipUri(), mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0),
+		  mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false) {
 
 		su_home_t home;
 		su_home_init(&home);
@@ -134,42 +148,47 @@ struct ExtendedContact {
 		su_home_destroy(&home);
 	}
 
-	std::ostream &print(std::ostream & stream, time_t now, time_t offset = 0) const;
+	std::ostream &print(std::ostream &stream, time_t now, time_t offset = 0) const;
 	sip_contact_t *toSofiaContacts(su_home_t *home, time_t now) const;
 	sip_route_t *toSofiaRoute(su_home_t *home) const;
 };
 
-
-
 class Record {
 	friend class RegistrarDb;
-private:
+
+  private:
 	static void init();
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec);
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
 	std::string mKey;
 
-public:
+  public:
 	static std::list<std::string> sLineFieldNames;
 	static int sMaxContacts;
 	Record(std::string key);
 	static std::string extractUniqueId(const sip_contact_t *contact);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
-	const sip_contact_t * getContacts(su_home_t *home, time_t now);
-	void pushContact(const std::shared_ptr<ExtendedContact> &ct) { mContacts.push_back(ct);}
+	const sip_contact_t *getContacts(su_home_t *home, time_t now);
+	void pushContact(const std::shared_ptr<ExtendedContact> &ct) {
+		mContacts.push_back(ct);
+	}
 	bool isInvalidRegister(const char *call_id, uint32_t cseq);
 	void clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t time, int version);
 	void clean(time_t time);
-	void update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id, uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept,  bool usedAsRoute);
-	void update(const ExtendedContactCommon &ecc, const char* sipuri, long int expireAt, float q, uint32_t cseq, time_t updated_time, bool alias, const std::list<std::string> accept,  bool usedAsRoute);
+	void update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id,
+				uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute);
+	void update(const ExtendedContactCommon &ecc, const char *sipuri, long int expireAt, float q, uint32_t cseq,
+				time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute);
 
 	void print(std::ostream &stream) const;
-	bool isEmpty() { return mContacts.empty(); }
+	bool isEmpty() {
+		return mContacts.empty();
+	}
 	const std::string &getKey() const {
 		return mKey;
 	}
 	void setKey(const char *key) {
-		mKey=key;
+		mKey = key;
 	}
 	int count() {
 		return mContacts.size();
@@ -189,26 +208,22 @@ public:
 	~Record();
 };
 
-template< typename TraitsT >
-inline std::basic_ostream< char, TraitsT >& operator<< (
-	std::basic_ostream< char, TraitsT >& strm, const Record &record)
-{
+template <typename TraitsT>
+inline std::basic_ostream<char, TraitsT> &operator<<(std::basic_ostream<char, TraitsT> &strm, const Record &record) {
 	record.print(strm);
 	return strm;
 }
 
-
 /**
  * A pure virtual class that is used by the registrarDB to notify the
  */
-class RegistrarDbListener: public StatFinishListener {
-public:
+class RegistrarDbListener : public StatFinishListener {
+  public:
 	virtual ~RegistrarDbListener();
 	virtual void onRecordFound(Record *r) = 0;
 	virtual void onError() = 0;
 	virtual void onInvalid() = 0;
 };
-
 
 /**
  * A singleton class which holds records contact addresses associated with a from.
@@ -217,20 +232,21 @@ public:
  **/
 class RegistrarDb {
 	friend class ModuleRegistrar;
-public:
+
+  public:
 	struct BindParameters {
 		/**
 		 * Parameter wrapper class that doesn't copy anything.
 		 */ struct SipParams {
-			const url_t* from;
+			const url_t *from;
 			const sip_contact_t *contact;
-			const char * call_id;
+			const char *call_id;
 			const uint32_t cs_seq;
 			const sip_path_t *path;
 			const sip_accept_t *accept;
-			SipParams(const url_t* ifrom, const sip_contact_t *icontact,
-					      const char *iid, uint32_t iseq, const sip_path_t *ipath, const sip_accept_t *iaccept)
-			: from(ifrom), contact(icontact), call_id(iid), cs_seq(iseq), path(ipath), accept(iaccept) {
+			SipParams(const url_t *ifrom, const sip_contact_t *icontact, const char *iid, uint32_t iseq,
+					  const sip_path_t *ipath, const sip_accept_t *iaccept)
+				: from(ifrom), contact(icontact), call_id(iid), cs_seq(iseq), path(ipath), accept(iaccept) {
 			}
 		};
 
@@ -240,7 +256,7 @@ public:
 		const bool alias;
 		bool usedAsRoute;
 		BindParameters(SipParams isip, int iexpire, bool ialias)
-		: sip(isip), global_expire(iexpire), alias(ialias), usedAsRoute(false) {
+			: sip(isip), global_expire(iexpire), alias(ialias), usedAsRoute(false) {
 		}
 	};
 	static RegistrarDb *get(Agent *ag);
@@ -249,31 +265,31 @@ public:
 	}
 	void bind(const sip_t *sip, int globalExpire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener) {
 
-		BindParameters mainParams(
-			BindParameters::SipParams(
-				sip->sip_from->a_url,
-				sip->sip_contact,
-				sip->sip_call_id->i_id,
-				sip->sip_cseq->cs_seq, sip->sip_path, sip->sip_accept),
-			globalExpire, alias);
-		if (sip->sip_request){
+		BindParameters mainParams(BindParameters::SipParams(sip->sip_from->a_url, sip->sip_contact,
+															sip->sip_call_id->i_id, sip->sip_cseq->cs_seq,
+															sip->sip_path, sip->sip_accept),
+								  globalExpire, alias);
+		if (sip->sip_request) {
 			mainParams.usedAsRoute = sip->sip_from->a_url->url_user == NULL;
 		}
 		doBind(mainParams, listener);
 	}
 	void clear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
 	void fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool recursive = false);
-	void fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool includingDomains, bool recursive);
+	void fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool includingDomains,
+			   bool recursive);
 	void updateRemoteExpireTime(const std::string &key, time_t expireat);
 	unsigned long countLocalActiveRecords() {
 		return mLocalRegExpire->countActives();
 	}
-protected:
+
+  protected:
 	class LocalRegExpire {
 		std::map<std::string, time_t> mRegMap;
 		std::mutex mMutex;
 		std::string mPreferedRoute;
-	public:
+
+	  public:
 		void remove(const std::string key) {
 			std::lock_guard<std::mutex> lock(mMutex);
 			mRegMap.erase(key);
@@ -287,17 +303,18 @@ protected:
 			mRegMap.clear();
 		}
 	};
-	virtual void doBind(const BindParameters &params, const std::shared_ptr<RegistrarDbListener> &listener)=0;
-	virtual void doClear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener)=0;
-	virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener)=0;
+	virtual void doBind(const BindParameters &params, const std::shared_ptr<RegistrarDbListener> &listener) = 0;
+	virtual void doClear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener) = 0;
+	virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener) = 0;
 
 	int count_sip_contacts(const sip_contact_t *contact);
-	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const char *key, const std::shared_ptr<RegistrarDbListener> &listener);
+	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const char *key,
+									 const std::shared_ptr<RegistrarDbListener> &listener);
 	void defineKeyFromUrl(char *key, int len, const url_t *url);
 	void fetchWithDomain(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool recursive);
 	RegistrarDb(const std::string &preferedRoute);
 	virtual ~RegistrarDb();
-	std::map<std::string, Record*> mRecords;
+	std::map<std::string, Record *> mRecords;
 	LocalRegExpire *mLocalRegExpire;
 	bool mUseGlobalDomain;
 	static RegistrarDb *sUnique;

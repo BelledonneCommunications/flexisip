@@ -119,7 +119,6 @@ fi
 
 PKG_PROG_PKG_CONFIG()
 
-
 #
 # UNIXODBC HANDLING
 #
@@ -143,7 +142,7 @@ if test x$odbc != xno ; then
 		AC_MSG_WARN(['odbc_config' not found in $odbc_prefix/bin, maybe use --with-odbc ?])
 		if test "$odbc_prefix" != "/usr" ; then
 			ODBC_CFLAGS="-I${odbc_prefix}/include"
-			ODBC_LIBS="-I${odbc_prefix}/lib"
+			ODBC_LIBS="-L${odbc_prefix}/lib"
 		fi
 		ODBC_LIBS="$ODBC_LIBS -lodbc"
 	else
@@ -234,15 +233,13 @@ AC_ARG_WITH(mysql,
 	[mysql_prefix=/usr]
 )
 if test "${mysql_prefix}" != "none" ; then
-	if test "${mysql_prefix}" != "/usr" ; then
-		MYSQL_CFLAGS="-I${mysql_prefix}/include"
-	fi
+	MYSQL_CFLAGS="-I${mysql_prefix}/include/mysql"
 
 	dnl check mysql headers
 	have_mysql=no
 	CPPFLAGS_save=$CPPFLAGS
 	CPPFLAGS="$CPPFLAGS $MYSQL_CFLAGS"
-	AC_CHECK_HEADER([mysql/mysql.h],have_mysql_headers=yes)
+	AC_CHECK_HEADER([mysql.h],have_mysql_headers=yes)
 	CPPFLAGS=$CPPFLAGS_save
 
 	if test "$have_mysql_headers" = "yes" ; then
@@ -260,6 +257,55 @@ else
 	MYSQL_CFLAGS=
 fi
 
+## SOCI ORM
+
+AC_ARG_ENABLE(soci,
+	AC_HELP_STRING([--enable-soci],[Build with SOCI support [default=auto]]),
+
+	[soci="${enableval}"],
+	[soci=auto]
+)
+AC_ARG_WITH(soci,
+	AC_HELP_STRING([--with-soci], [Specify the soci location. We expect this location to contain lib/libsoci.so, lib/libsoci_mysql.so and include/soci/ [default=/usr]]),
+
+	[soci_prefix="${withval}"],
+	[soci_prefix=/usr]
+)
+
+if test x$soci != "xno"; then
+
+	SOCI_LIBS="-L$soci_prefix/lib -lsoci_core -lsoci_mysql"
+	SOCI_CFLAGS="-I$soci_prefix/include/soci"
+
+	LIBS_save=$LIBS
+	LIBS="$LIBS $SOCI_LIBS"
+	AC_CHECK_LIB(soci_core, soci_create_session,[soci_core_ok=ok], [AC_MSG_WARN([Linking against libsoci_core failed.])])
+	AC_CHECK_LIB(soci_mysql, register_factory_mysql,[soci_mysql_ok=ok], [AC_MSG_WARN([Linking against libsoci_mysql failed.])])
+	LIBS=$LIBS_save
+
+	CPPFLAGS_save=$CPPFLAGS
+	CPPFLAGS="$CPPFLAGS $MYSQL_CFLAGS $SOCI_CFLAGS"
+	AC_LANG_PUSH([C++])
+	AC_CHECK_HEADERS([soci.h mysql/soci-mysql.h],[soci_headers_ok=ok],[AC_MSG_WARN([soci headers not found])])
+	AC_LANG_POP([C++])
+	CPPFLAGS=$CPPFLAGS_save
+
+	if test $soci_core_ok$soci_mysql_ok$soci_headers_ok$have_mysql != "okokokyes"; then
+		if test x$soci = "xauto"; then
+			AC_MSG_WARN([Soci was not detected, disabling])
+			soci=no
+		else
+			AC_MSG_ERROR([Soci was not detected correctly])
+		fi
+	else
+		soci=yes
+	fi
+
+	AC_SUBST(SOCI_CFLAGS)
+	AC_SUBST(SOCI_LIBS)
+fi
+
+AM_CONDITIONAL(ENABLE_SOCI, test x$soci != xno)
 
 # Checks for header files.
 
@@ -280,10 +326,10 @@ AC_ARG_ENABLE(transcoder,
 )
 have_transcoder=no
 if test x$transcoder != xno ; then
-	PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.9.0],[have_transcoder=yes],[have_transcoder=no])
+	PKG_CHECK_MODULES(MEDIASTREAMER,[mediastreamer >= 2.13.0],[have_transcoder=yes],[have_transcoder=no])
 	if test x$have_transcoder = xno ; then
 		if test x$transcoder != xauto ; then
-			AC_MSG_ERROR([mediastreamer2 not found. This is required for enabling transcoder. Use --disable-transcoder if you don''t need this feature.])
+			AC_MSG_ERROR([mediastreamer2 not found or too old. This is required for enabling transcoder. Use --disable-transcoder if you don''t need this feature.])
 		fi
 	fi
 fi
@@ -435,10 +481,10 @@ if test x$redis != xno ; then
 		CPPFLAGS="$CPPFLAGS $HIREDIS_CFLAGS"
 		LIBS_save=$LIBS
 		LIBS="$LIBS $HIREDIS_LIBS"
-		AC_CHECK_HEADERS(hiredis/hiredis.h, 
+		AC_CHECK_HEADERS(hiredis/hiredis.h,
 			[AC_CHECK_LIB(hiredis,redisAsyncCommand,[have_redis=yes] , [have_redis=no])],
 			[have_redis=no])
-		
+
 		CPPFLAGS=$CPPFLAGS_save
 		LIBS=$LIBS_save
 
@@ -482,7 +528,7 @@ AM_CONDITIONAL(BUILD_PROTOBUF,test x$have_protobuf = xyes)
 AC_HEADER_STDBOOL
 
 PKG_CHECK_MODULES(SOFIA,[sofia-sip-ua >= 1.13.3-bc])
-PKG_CHECK_MODULES(ORTP,[ortp >= 0.16.3])
+PKG_CHECK_MODULES(ORTP,[ortp >= 0.26.0])
 
 # ##################################
 # XSD checks
@@ -619,7 +665,7 @@ AC_SUBST(CONFIG_DIR)
 #Keep this at the end
 if test x$strictness = xyes ; then
 		CFLAGS="$CFLAGS -Wall -Werror -fno-strict-aliasing"
-		WARNINGCXXFLAGS="-Wall -Werror -fno-strict-aliasing"
+		WARNINGCXXFLAGS="-Wall -Werror -fno-strict-aliasing -Wno-error=deprecated-declarations"
 fi
 
 AC_SUBST(WARNINGCXXFLAGS)
@@ -676,5 +722,6 @@ printf "* %-30s %s\n" "Redis"               $have_redis
 printf "* %-30s %s\n" "Protobuf"            $have_protobuf
 printf "* %-30s %s\n" "XSD support"         $use_xsd
 printf "* %-30s %s\n" "Presence"            $presence
+printf "* %-30s %s\n" "Soci"                $soci
 
 echo "Now type 'make' to compile, and then 'make install' (as root if needed) to install it."

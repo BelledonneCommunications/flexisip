@@ -24,6 +24,7 @@
 # odbc default:     1
 # transcode default:1
 # snmp default:     1
+# soci default:     1
 # odb default:      0
 # bc-odbc default:  0
 # bcpkg default:    0
@@ -36,6 +37,7 @@
 %define     transcoder %{?_without_transcoder:0}%{!?_without_transcoder:1}
 %define     presence   %{?_with_presence:1}%{!?_with_presence:0}
 %define     snmp       %{?_without_snmp:0}%{!?_without_snmp:1}
+%define     soci       %{?_without_soci:0}%{!?_without_soci:1}
 %define     odb        %{?_with_odb:1}%{!?_with_odb:0}
 
 # invoke rpmbuild with --with bcodbc to build using Belledonne Communications' modified UnixODBC
@@ -92,6 +94,7 @@ BuildArch:	i686
 Requires: bash >= 2.0
 Requires: boost-system >= 1.41
 Requires: at >= 3.1.10
+Requires: %{pkg_prefix}sofia-sip >= 1.13
 
 %if %{odbc}
 Requires: %{odbc_prefix}unixODBC >= 2.3.1
@@ -122,6 +125,11 @@ Requires: hiredis-devel >= 0.11
 %if %{snmp}
 Requires: net-snmp-libs
 Requires: net-snmp-devel
+%endif
+
+%if %{soci}
+Requires: soci
+Requires: soci-mysql-devel
 %endif
 
 %if %{transcoder}
@@ -167,6 +175,10 @@ echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
 %endif
 %if !%{snmp}
     --disable-snmp \
+%endif
+%if %{soci}
+	--enable-soci \
+	--with-soci=/usr \
 %endif
 %if !%{boostlog}
     --disable-boostlog \
@@ -233,13 +245,17 @@ fi
 %docdir %{_docdir}
 %{_docdir}
 %{_bindir}/*
+
 %if %{presence}
-%{_libdir}/*.so.*
+%{_libdir}/libflexisip-presence.*
 %endif
+
 %{_sysconfdir}/init.d/flexisip
 %{_sysconfdir}/flexisip
 
 %changelog
+* Mon Feb 08 2016 Guillaume Bienkowski <gbi@linphone.org>
+	- Add soci option
 * Wed Nov 04 2015 Sylvain Berfini <sylvain.berfini@linphone.org>
 	- Add option to disable odb
 * Tue Oct 14 2014 Guillaume Bienkowski <gbi@linphone.org>

@@ -22,44 +22,44 @@
 #
 # - Find the sofia-sip include file and library
 #
-#  SOFIA_SIP_UA_FOUND - system has sofia-sip
-#  SOFIA_SIP_UA_INCLUDE_DIRS - the sofia-sip include directory
-#  SOFIA_SIP_UA_LIBRARIES - The libraries needed to use sofia-sip
-#  SOFIA_SIP_UA_CPPFLAGS - The cflags needed to use sofia-sip
+#  SOFIASIPUA_FOUND - system has sofia-sip
+#  SOFIASIPUA_INCLUDE_DIRS - the sofia-sip include directory
+#  SOFIASIPUA_LIBRARIES - The libraries needed to use sofia-sip
+#  SOFIASIPUA_CPPFLAGS - The cflags needed to use sofia-sip
 
 
-set(_SOFIA_SIP_UA_ROOT_PATHS
-  ${WITH_SOFIA_SIP_UA}
+set(_SOFIASIPUA_ROOT_PATHS
+  ${WITH_SOFIASIPUA}
   ${CMAKE_INSTALL_PREFIX}
 )
 
-find_path(SOFIA_SIP_UA_INCLUDE_DIRS
+find_path(SOFIASIPUA_INCLUDE_DIRS
   NAMES sofia-sip/sip.h
-  HINTS _SOFIA_SIP_UA_ROOT_PATHS
+  HINTS _SOFIASIPUA_ROOT_PATHS
   PATH_SUFFIXES include/sofia-sip-1.13 include/sofia-sip-1.12
 )
 
-if(SOFIA_SIP_UA_INCLUDE_DIRS)
-  set(HAVE_SOFIA_SIP_UA_SOFIA_SIP_UA_H 1)
+if(SOFIASIPUA_INCLUDE_DIRS)
+  set(HAVE_SOFIASIPUA_SOFIASIPUA_H 1)
 endif()
 
-find_library(SOFIA_SIP_UA_LIBRARIES
+find_library(SOFIASIPUA_LIBRARIES
   NAMES sofia-sip-ua
-  HINTS ${_SOFIA_SIP_UA_ROOT_PATHS}
+  HINTS ${_SOFIASIPUA_ROOT_PATHS}
   PATH_SUFFIXES bin lib
 )
 
 if(WIN32)
-  list(APPEND SOFIA_SIP_UA_LIBRARIES ws2_32 delayimp Winmm Qwave)
+  list(APPEND SOFIASIPUA_LIBRARIES ws2_32 delayimp Winmm Qwave)
 endif(WIN32)
-list(REMOVE_DUPLICATES SOFIA_SIP_UA_INCLUDE_DIRS)
-list(REMOVE_DUPLICATES SOFIA_SIP_UA_LIBRARIES)
-set(SOFIA_SIP_UA_CPPFLAGS "")
+list(REMOVE_DUPLICATES SOFIASIPUA_INCLUDE_DIRS)
+list(REMOVE_DUPLICATES SOFIASIPUA_LIBRARIES)
+set(SOFIASIPUA_CPPFLAGS "")
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(SOFIA_SIP_UA
+find_package_handle_standard_args(SofiaSipUa
   DEFAULT_MSG
-  SOFIA_SIP_UA_INCLUDE_DIRS SOFIA_SIP_UA_LIBRARIES
+  SOFIASIPUA_INCLUDE_DIRS SOFIASIPUA_LIBRARIES
 )
 
-mark_as_advanced(SOFIA_SIP_UA_INCLUDE_DIRS SOFIA_SIP_UA_LIBRARIES SOFIA_SIP_UA_CPPFLAGS)
+mark_as_advanced(SOFIASIPUA_INCLUDE_DIRS SOFIASIPUA_LIBRARIES SOFIASIPUA_CPPFLAGS)

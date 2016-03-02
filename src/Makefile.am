@@ -20,7 +20,8 @@ nodistsources=
 
 bin_PROGRAMS=flexisip
 thesources= \
-			flexisip-exception.cc flexisip-exception.hh \
+			utils/flexisip-exception.cc utils/flexisip-exception.hh \
+			utils/signaling-exception.hh \
 			agent.cc agent.hh \
 			common.cc common.hh \
 			sdp-modifier.hh  sdp-modifier.cc \
@@ -70,7 +71,8 @@ thesources= \
 			uac-register.cc uac-register.hh \
 			$(GITVERSION_FILE) \
 			module-redirect.cc module-presence.cc \
-			domain-registrations.cc domain-registrations.hh
+			domain-registrations.cc domain-registrations.hh \
+			utils/threadpool.cc utils/threadpool.hh
 
 
 
@@ -150,10 +152,13 @@ endif
 
 if BUILD_PUSHNOTIFICATION
 thesources+=		module-pushnotification.cc \
-			pushnotification/pushnotification.cc pushnotification/pushnotification.hh \
+			pushnotification/pushnotification.hh \
+			pushnotification/googlepush.cc pushnotification/googlepush.hh \
+			pushnotification/applepush.cc pushnotification/applepush.hh \
+			pushnotification/microsoftpush.cc pushnotification/microsoftpush.hh \
 			pushnotification/pushnotificationservice.cc pushnotification/pushnotificationservice.hh \
 			pushnotification/pushnotificationclient.cc pushnotification/pushnotificationclient.hh \
-			pushnotification/genericpushnotification.cc 
+			pushnotification/genericpush.cc pushnotification/genericpush.hh
 AM_CXXFLAGS+=-DENABLE_PUSHNOTIFICATION $(BOOST_CPPFLAGS) $(OPENSSL_CPPFLAGS)
 flexisip_LDADD+=$(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(OPENSSL_LIBS) $(BOOST_ASIO_LIB)
 endif
@@ -192,6 +197,15 @@ nodist_flexisip_ctdumper_SOURCES=$(nodistsources)
 
 endif
 
+
+if ENABLE_SOCI
+
+thesources+=authdb-soci.cc
+flexisip_LDADD+=$(SOCI_LIBS)
+AM_CXXFLAGS+=-DENABLE_SOCI $(SOCI_CFLAGS)
+
+endif
+
 flexisip_serializer_SOURCES=tools/serializer.cc tools/tool_utils.hh $(thesources)
 flexisip_serializer_LDADD=$(flexisip_LDADD)
 nodist_flexisip_serializer_SOURCES=$(nodistsources)
@@ -201,7 +215,7 @@ flexisip_binder_LDADD=$(flexisip_LDADD)
 nodist_flexisip_binder_SOURCES=$(nodistsources)
 
 noinst_PROGRAMS=expr
-expr_SOURCES=test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh flexisip-exception.cc flexisip-exception.hh
+expr_SOURCES=test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh utils/flexisip-exception.cc utils/flexisip-exception.hh
 expr_CXXFLAGS=-DTEST_BOOL_EXPR -DNO_SOFIA $(MEDIASTREAMER_CFLAGS) $(ORTP_CFLAGS)
 expr_LDADD= $(SOFIA_LIBS) $(ORTP_LIBS)
 

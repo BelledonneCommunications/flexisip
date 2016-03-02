@@ -1,19 +1,19 @@
 /*
-    Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Flexisip, a flexible SIP proxy server with media capabilities.
+	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #define SU_MSG_ARG_T struct auth_splugin_t
@@ -34,20 +34,21 @@ FileAuthDb::FileAuthDb() {
 	sync();
 }
 
-void FileAuthDb::getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener *listener) {
-	AuthDbResult res=AuthDbResult::PASSWORD_NOT_FOUND;
+void FileAuthDb::getPasswordFromBackend(su_root_t *root, const std::string &id, const std::string &domain,
+										const std::string &authid, AuthDbListener *listener) {
+	AuthDbResult res = AuthDbResult::PASSWORD_NOT_FOUND;
 	time_t now = getCurrentTime();
 
 	if (difftime(now, mLastSync) >= mCacheExpire) {
 		sync();
 	}
 
-	string key(createPasswordKey(from->url_user, from->url_host, auth_username));
+	string key(createPasswordKey(id, domain, authid));
 
-	if ( getCachedPassword(key, from->url_host, listener->mPassword) == VALID_PASS_FOUND ) {
+	if (getCachedPassword(key, domain, listener->mPassword) == VALID_PASS_FOUND) {
 		res = AuthDbResult::PASSWORD_FOUND;
 	}
-	listener->mResult=res;
+	listener->mResult = res;
 	listener->onResult();
 }
 

@@ -1,19 +1,19 @@
 /*
-    Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Flexisip, a flexible SIP proxy server with media capabilities.
+	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "pushnotificationclient.hh"
@@ -28,13 +28,12 @@ namespace ip = asio::ip;
 typedef boost::system::error_code err_code;
 typedef ip::tcp::resolver::iterator TcpResIt;
 
-
-PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService *service, std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host, const std::string &port, int maxQueueSize, bool isSecure) :
-		mService(service), mResolver(mService->getService()),
-		mSocket(mService->getService(), *ctx), mContext(ctx), mRequestQueue(),
-		mName(name), mHost(host), mPort(port),
-		mMaxQueueSize(maxQueueSize), mIsSecure(isSecure) {
-	mLastUse=0;
+PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService *service,
+											   std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host,
+											   const std::string &port, int maxQueueSize, bool isSecure)
+	: mService(service), mResolver(mService->getService()), mSocket(mService->getService(), *ctx), mContext(ctx),
+	  mRequestQueue(), mReadTimeoutTimer(mService->getService()), mName(name), mHost(host), mPort(port), mMaxQueueSize(maxQueueSize), mIsSecure(isSecure) {
+	mLastUse = 0;
 }
 
 int PushNotificationClient::sendRequest(const std::shared_ptr<PushNotificationRequest> &req) {
@@ -48,8 +47,9 @@ int PushNotificationClient::sendRequest(const std::shared_ptr<PushNotificationRe
 	mRequestQueue.push(req);
 	if (size == 0) {
 		/*the client was inactive possibly for a long time. In such case, close and re-create the socket.*/
-		if (mLastUse!=0 && (getCurrentTime() - mLastUse > 60)){
-			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " re-creating connection with server.";
+		if (mLastUse != 0 && (getCurrentTime() - mLastUse > 60)) {
+			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get()
+				  << " re-creating connection with server.";
 			mSocket.lowest_layer().close();
 		}
 		next();
@@ -78,7 +78,8 @@ bool PushNotificationClient::next() {
 }
 
 void PushNotificationClient::connect(shared_ptr<PushNotificationRequest> req) {
-	auto fn (bind(&PushNotificationClient::handle_resolve, this, req, asio::placeholders::error, asio::placeholders::iterator));
+	auto fn(bind(&PushNotificationClient::handle_resolve, this, req, asio::placeholders::error,
+				 asio::placeholders::iterator));
 	if (mName == "google") {
 		// ipv6 filtering by google is broken
 		mResolver.async_resolve(ip::tcp::resolver::query(ip::tcp::v4(), mHost, mPort), fn);
@@ -87,22 +88,26 @@ void PushNotificationClient::connect(shared_ptr<PushNotificationRequest> req) {
 	}
 }
 
-void PushNotificationClient::handle_resolve(shared_ptr<PushNotificationRequest> req, const err_code & error, TcpResIt endpoint_iterator) {
+void PushNotificationClient::handle_resolve(shared_ptr<PushNotificationRequest> req, const err_code &error,
+											TcpResIt endpoint_iterator) {
 	if (!error) {
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " resolved";
 		ip::tcp::endpoint endpoint = *endpoint_iterator;
-		mSocket.lowest_layer().async_connect(endpoint, bind(&PushNotificationClient::handle_connect, this, req, asio::placeholders::error, ++endpoint_iterator));
+		mSocket.lowest_layer().async_connect(endpoint, bind(&PushNotificationClient::handle_connect, this, req,
+															asio::placeholders::error, ++endpoint_iterator));
 	} else {
 		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " resolve failed: " << error.message();
 		onError(req);
 	}
 }
 
-void PushNotificationClient::handle_connect(shared_ptr<PushNotificationRequest> req, const err_code & error, TcpResIt endpoint_iterator) {
+void PushNotificationClient::handle_connect(shared_ptr<PushNotificationRequest> req, const err_code &error,
+											TcpResIt endpoint_iterator) {
 	if (!error) {
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " connected";
 		if (mIsSecure) {
-			mSocket.async_handshake(asio::ssl::stream_base::client, bind(&PushNotificationClient::handle_handshake, this, req, asio::placeholders::error));
+			mSocket.async_handshake(asio::ssl::stream_base::client, bind(&PushNotificationClient::handle_handshake,
+																		 this, req, asio::placeholders::error));
 		} else {
 			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " handshake skipped";
 			send(req);
@@ -110,14 +115,15 @@ void PushNotificationClient::handle_connect(shared_ptr<PushNotificationRequest> 
 	} else if (endpoint_iterator != TcpResIt()) {
 		mSocket.lowest_layer().close();
 		ip::tcp::endpoint endpoint = *endpoint_iterator;
-		mSocket.lowest_layer().async_connect(endpoint, bind(&PushNotificationClient::handle_connect, this, req, asio::placeholders::error, ++endpoint_iterator));
+		mSocket.lowest_layer().async_connect(endpoint, bind(&PushNotificationClient::handle_connect, this, req,
+															asio::placeholders::error, ++endpoint_iterator));
 	} else {
 		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " connect failed: " << error.message();
 		onError(req);
 	}
 }
 
-void PushNotificationClient::handle_handshake(shared_ptr<PushNotificationRequest> req, const err_code & error) {
+void PushNotificationClient::handle_handshake(shared_ptr<PushNotificationRequest> req, const err_code &error) {
 	if (!error) {
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " handshake done";
 		send(req);
@@ -130,29 +136,33 @@ void PushNotificationClient::handle_handshake(shared_ptr<PushNotificationRequest
 
 void PushNotificationClient::send(shared_ptr<PushNotificationRequest> req) {
 	SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " send data";
-	mLastUse=getCurrentTime();
-	auto fn=bind(&PushNotificationClient::handle_write, this, req, asio::placeholders::error, asio::placeholders::bytes_transferred);
+	mLastUse = getCurrentTime();
+	auto fn = bind(&PushNotificationClient::handle_write, this, req, asio::placeholders::error,
+				   asio::placeholders::bytes_transferred);
 	auto buffer = asio::buffer(req->getData());
 	if (mIsSecure) {
 		asio::async_write(mSocket, buffer, fn);
 	} else {
-		asio::async_write(mSocket.next_layer(),buffer, fn);
+		asio::async_write(mSocket.next_layer(), buffer, fn);
 	}
 }
 
-void PushNotificationClient::handle_write(shared_ptr< PushNotificationRequest > req, const boost::system::error_code &error, size_t bytes_transferred) {
+void PushNotificationClient::handle_write(shared_ptr<PushNotificationRequest> req,
+										  const boost::system::error_code &error, size_t bytes_transferred) {
 	if (!error) {
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " write done";
 		mResponse.resize(512);
-		if (!req->mustReadServerResponse()) {
-			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " not reading response";
-			onSuccess(req);
-			return;
+
+		if (!req->serverResponseIsImmediate()) {
+			mReadTimeoutTimer.async_wait(boost::bind(&PushNotificationClient::handle_read_timeout, this, req));
+			mReadTimeoutTimer.expires_from_now(boost::posix_time::seconds(3));
 		}
-		auto fn=bind(&PushNotificationClient::handle_read, this, req, asio::placeholders::error, asio::placeholders::bytes_transferred);
+
+		auto fn = bind(&PushNotificationClient::handle_read, this, req, asio::placeholders::error,
+					   asio::placeholders::bytes_transferred);
 		if (mIsSecure) {
 			mSocket.async_read_some(asio::buffer(mResponse), fn);
-			//asio::async_read(mSocket, asio::buffer(mResponse), fn);
+			// asio::async_read(mSocket, asio::buffer(mResponse), fn);
 		} else {
 			mSocket.next_layer().async_read_some(asio::buffer(mResponse), fn);
 		}
@@ -162,7 +172,19 @@ void PushNotificationClient::handle_write(shared_ptr< PushNotificationRequest > 
 	}
 }
 
-void PushNotificationClient::handle_read(shared_ptr<PushNotificationRequest> req, const err_code & error, size_t bytes_transferred){
+void PushNotificationClient::handle_read_timeout(shared_ptr<PushNotificationRequest> req) {
+	if (mReadTimeoutTimer.expires_at() <= boost::asio::deadline_timer::traits_type::now()) {
+		// we did not receive any response, we assume everything went fine.
+		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " nothing read, assuming success";
+		onSuccess(req);
+		mReadTimeoutTimer.expires_at(boost::posix_time::pos_infin);
+	}
+	mReadTimeoutTimer.async_wait(boost::bind(&PushNotificationClient::handle_read_timeout, this, req));
+}
+
+void PushNotificationClient::handle_read(shared_ptr<PushNotificationRequest> req, const err_code &error,
+										 size_t bytes_transferred) {
+	mReadTimeoutTimer.cancel();
 	if (!error) {
 		string responsestr(mResponse.data(), mResponse.size());
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " read done: " << responsestr;
@@ -170,21 +192,23 @@ void PushNotificationClient::handle_read(shared_ptr<PushNotificationRequest> req
 			onError(req, "Invalid response");
 		else
 			onSuccess(req);
-	} else {
+	} else if (error != boost::asio::error::operation_aborted) {
 		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " read failed : " << error.message();
 		onError(req);
 	}
 }
 
-void PushNotificationClient::onError(shared_ptr< PushNotificationRequest > req, const string &msg) {
+void PushNotificationClient::onError(shared_ptr<PushNotificationRequest> req, const string &msg) {
 	SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " disconnected";
-	if (req->getCallBack()) req->getCallBack()->onError("Error " + msg);
+	if (req->getCallBack())
+		req->getCallBack()->onError("Error " + msg);
 
 	if (mRequestQueue.front() != req)
 		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " != " << mRequestQueue.front().get();
 	mRequestQueue.pop();
 	mSocket.lowest_layer().close();
-	if (mService->mCountFailed) mService->mCountFailed->incr();
+	if (mService->mCountFailed)
+		mService->mCountFailed->incr();
 	onEnd(); // that is the end for this socket, continue...
 }
 
@@ -192,7 +216,8 @@ void PushNotificationClient::onSuccess(shared_ptr<PushNotificationRequest> req) 
 	if (mRequestQueue.front() != req)
 		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " != " << mRequestQueue.front().get();
 	mRequestQueue.pop();
-	if (mService->mCountSent) mService->mCountSent->incr();
+	if (mService->mCountSent)
+		mService->mCountSent->incr();
 	onEnd();
 }
 

@@ -33,24 +33,33 @@ include(CMakePushCheckState)
 include(CMakeDependentOption)
 include(CheckSymbolExists)
 include(CheckFunctionExists)
+include(FeatureSummary)
 
-option(ENABLE_STATIC "Build static library (default is shared library)." NO)
-option(ENABLE_BOOSTLOG "" YES)
-option(ENABLE_DATEHANDLER "" NO)
-option(ENABLE_DOC "" YES)
-option(ENABLE_ODB "" YES)
-option(ENABLE_ODB_MYSQL "" YES)
-option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "" NO)
-option(ENABLE_ODBC "Build ODBC support" YES)
+option(ENABLE_BOOSTLOG "Build boost log support" YES)
+option(ENABLE_DATEHANDLER "Build DateHandler module" NO)
+option(ENABLE_DOC "Build documentation" YES)
+option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" NO)
+option(ENABLE_ODB "Build ODB database ORM" YES)
+option(ENABLE_ODB_MYSQL "Build ODB MySQL database driver" YES)
+option(ENABLE_ODBC "Build ODBC support for database connection" YES)
 option(ENABLE_PRESENCE "Build presence support" NO)
-option(ENABLE_PROTOBUF "" NO)
-option(ENABLE_PUSHNOTIFICATION "" YES)
-option(ENABLE_REDIS "" NO)
+option(ENABLE_PROTOBUF "Build with protobuf support" NO)
+option(ENABLE_PUSHNOTIFICATION "Build with remote push notification support" YES)
+option(ENABLE_REDIS "Build with Redis support" NO)
 option(ENABLE_SNMP "Build with SNMP support" YES)
-option(ENABLE_TRANSCODER "" YES)
+option(ENABLE_SOCI "Build with SOCI support" YES)
+option(ENABLE_STATIC "Build static library (default is shared library)." NO)
+option(ENABLE_TRANSCODER "Build transcoder support" YES)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
-set(XSDCXX_ROOT_PATH "/usr" CACHE STRING "Path of where the bin/xsdcxx executable will be found. Comes from http://www.codesynthesis.com/products/xsd/download.xhtml")
+
+if(APPLE)
+set(XSDCXX_DEFAULT_ROOT_PATH "/usr/local")
+else ()
+set(XSDCXX_DEFAULT_ROOT_PATH "/usr")
+endif()
+
+set(XSDCXX_ROOT_PATH ${XSDCXX_DEFAULT_ROOT_PATH}  CACHE STRING "Path of where the bin/xsdcxx executable will be found. Comes from http://www.codesynthesis.com/products/xsd/download.xhtml. On mac use 'brew install xsd'")
 set(SYSCONFIGROOT "" CACHE STRING "Config directory, the place where flexisip expects its flexisip.conf file to reside" )
 
 
@@ -77,7 +86,7 @@ endif()
 
 
 find_program(XSDCXX_PROG NAMES "xsdcxx" "xsd"
-	HINTS ${XSDCXX_ROOT_PATH}/bin 
+	HINTS ${XSDCXX_ROOT_PATH}/bin
 	NO_DEFAULT_PATH
 )
 if(XSDCXX_PROG)
@@ -139,7 +148,7 @@ if(ENABLE_ODBC)
 	if(NOT ODBC_SQL_HEADERS)
 		message(FATAL_ERROR "ODBC Mysql headers not found.")
 	else()
-		message(STATUS "ODBCK Mysql ${ODBC_SQL_HEADERS}")
+		message(STATUS "ODBC Mysql ${ODBC_SQL_HEADERS}")
 	endif()
 
 	# check that odbc_config gives us a correct library path
@@ -209,6 +218,11 @@ if(ENABLE_PRESENCE)
 	endif()
 endif()
 
+if(ENABLE_SOCI)
+	find_package(Soci REQUIRED COMPONENTS mysql)
+	find_path(SOCI_MYSQL_INCLUDES NAMES mysql.h PATH_SUFFIXES mysql)
+endif()
+
 # Boost checks
 set(BOOST_COMPONENTS )
 if(ENABLE_BOOSTLOG)
@@ -222,12 +236,13 @@ if(BOOST_COMPONENTS)
 	find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS})
 endif()
 
+feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
 
 include_directories(
 	src/
 	${CMAKE_CURRENT_BINARY_DIR}
 	${CMAKE_CURRENT_BINARY_DIR}/src/
-	${SOFIA_SIP_UA_INCLUDE_DIRS}
+	${SOFIASIPUA_INCLUDE_DIRS}
 	${ORTP_INCLUDE_DIRS}
 )
 

@@ -20,15 +20,15 @@
 #
 ############################################################################
 
-set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIA_SIP_UA_LIBRARIES})
+set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIASIPUA_LIBRARIES})
 
 set(FLEXISIP_INCLUDES)
 
 set(FLEXISIP_DEPENDENCIES)
 
+file(GLOB FLEXISIP_UTILS_SRC utils/*.cc utils/*.hh)
+
 set(FLEXISIP_SOURCES
-	main.cc
-	flexisip-exception.cc flexisip-exception.hh
 	agent.cc agent.hh
 	common.cc common.hh
 	sdp-modifier.hh sdp-modifier.cc
@@ -78,6 +78,7 @@ set(FLEXISIP_SOURCES
 	uac-register.cc uac-register.hh
 	module-redirect.cc module-presence.cc
 	domain-registrations.cc domain-registrations.hh
+	${FLEXISIP_UTILS_SRC}
 )
 
 find_package(Git)
@@ -95,11 +96,11 @@ function(ADD_XSD_WRAPPERS file _comment)
 	set(regex "%http://.+/(.+)%\\\$$1%")
 
 	add_custom_command(OUTPUT ${destinations}
-		COMMAND "${XSDCXX_PROG}" "cxx-tree" "--generate-wildcard" 
-  			"--generate-serialization" "--generate-ostream" 
+		COMMAND "${XSDCXX_PROG}" "cxx-tree" "--generate-wildcard"
+  			"--generate-serialization" "--generate-ostream"
   			"--generate-detach" "--std" "c++11" "--type-naming" "java"
-			"--function-naming" "java"  "--location-regex-trace" 
-			"--location-regex" "\"${regex}\"" 
+			"--function-naming" "java"  "--location-regex-trace"
+			"--location-regex" "\"${regex}\""
 			"--output-dir" "${CMAKE_CURRENT_BINARY_DIR}/xml" "${source}"
 		COMMENT "${_comment}")
 
@@ -177,7 +178,7 @@ if(ENABLE_XSD AND ENABLE_PRESENCE)
 	list(APPEND FLEXISIP_SOURCES presence/etag-manager.hh)
 	list(APPEND FLEXISIP_SOURCES presence/presence-server.cc)
 	list(APPEND FLEXISIP_SOURCES presence/presentity-presenceinformation.hh presence/presentity-presenceinformation.cc)
-	list(APPEND FLEXISIP_SOURCES presence/signaling-exception.hh presence/signaling-exception.cc)
+	list(APPEND FLEXISIP_SOURCES presence/bellesip-signaling-exception.hh presence/bellesip-signaling-exception.cc)
 	list(APPEND FLEXISIP_SOURCES presence/subscription.hh presence/subscription.cc)
 	list(APPEND FLEXISIP_SOURCES presence/list-subscription.hh presence/list-subscription.cc)
 	list(APPEND FLEXISIP_LIBS ${BELLESIP_LIBRARIES} ${XERCES_LIBS})
@@ -196,20 +197,23 @@ if(ENABLE_XSD AND ENABLE_PRESENCE)
 endif()
 
 if(ENABLE_PUSHNOTIFICATION)
-	list(APPEND FLEXISIP_SOURCES module-pushnotification.cc 
-		pushnotification/pushnotification.cc pushnotification/pushnotification.hh 
-		pushnotification/pushnotificationservice.cc pushnotification/pushnotificationservice.hh
-		pushnotification/pushnotificationclient.cc pushnotification/pushnotificationclient.hh
-		pushnotification/genericpushnotification.cc)
+	file(GLOB PUSHNOTIFICATION_SRCS pushnotification/*.cc pushnotification/*.hh)
+	list(APPEND FLEXISIP_SOURCES module-pushnotification.cc ${PUSHNOTIFICATION_SRCS})
 	list(APPEND FLEXISIP_LIBS ${Boost_LIBRARIES} ${OPENSSL_LIBRARIES})
 	list(APPEND FLEXISIP_INCLUDES ${Boost_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIRS})
+endif()
+
+if(ENABLE_SOCI)
+	list(APPEND FLEXISIP_SOURCES authdb-soci.cc)
+	list(APPEND FLEXISIP_LIBS ${SOCI_LIBRARY})
+	list(APPEND FLEXISIP_INCLUDES ${SOCI_INCLUDE_DIRS} ${SOCI_MYSQL_INCLUDES})
 endif()
 
 message(STATUS "Flexisip LIBS : ${FLEXISIP_LIBS}")
 message(STATUS "Flexisip INCLUDES : ${FLEXISIP_INCLUDES}")
 message(STATUS "Flexisip DEPENDENCIES : ${FLEXISIP_DEPENDENCIES}")
 
-add_executable( flexisip ${FLEXISIP_SOURCES})
+add_library(flexisip SHARED ${FLEXISIP_SOURCES})
 if(FLEXISIP_DEPENDENCIES)
 	add_dependencies(flexisip ${FLEXISIP_DEPENDENCIES})
 endif()
@@ -218,17 +222,39 @@ target_compile_features(flexisip PRIVATE cxx_auto_type cxx_variadic_macros)
 target_link_libraries(flexisip ${FLEXISIP_LIBS})
 target_include_directories(flexisip PUBLIC ${FLEXISIP_INCLUDES})
 
-# expression parser tester
-if(MEDIASTREAMER2_FOUND)
-	add_executable(expr test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh flexisip-exception.cc flexisip-exception.hh)
-	target_link_libraries(expr ${ORTP_LIBRARIES} ${MEDIASTREAMER2_LIBRARIES})
-	target_compile_options(expr PUBLIC -DTEST_BOOL_EXPR -DNO_SOFIA)
-endif()
+add_executable(flexisip_server main.cc)
+set_property(TARGET flexisip_server PROPERTY OUTPUT_NAME flexisip)
+set_property(TARGET flexisip_server PROPERTY CXX_STANDARD 11)
+set_property(TARGET flexisip_server PROPERTY CXX_STANDARD_REQUIRED ON)
+target_compile_features(flexisip_server PRIVATE cxx_auto_type cxx_variadic_macros)
+target_link_libraries(flexisip_server flexisip)
 
-
-install(TARGETS flexisip
+install(TARGETS flexisip flexisip_server
 	RUNTIME DESTINATION bin
 	LIBRARY DESTINATION lib
 	ARCHIVE DESTINATION lib
 	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
+
+# expression parser tester
+if(MEDIASTREAMER2_FOUND)
+	add_executable(expr test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh utils/flexisip-exception.cc utils/flexisip-exception.hh)
+	target_link_libraries(expr ${ORTP_LIBRARIES} ${MEDIASTREAMER2_LIBRARIES})
+	set_property(TARGET expr PROPERTY CXX_STANDARD 11)
+	set_property(TARGET expr PROPERTY CXX_STANDARD_REQUIRED ON)
+	target_compile_options(expr PUBLIC -DTEST_BOOL_EXPR -DNO_SOFIA)
+endif()
+
+if (ENABLE_PUSHNOTIFICATION)
+	add_executable(flexisip_pusher tools/pusher.cc)
+	target_link_libraries(flexisip_pusher flexisip)
+	set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD 11)
+	set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD_REQUIRED ON)
+
+	install(TARGETS flexisip_pusher
+		RUNTIME DESTINATION bin
+		LIBRARY DESTINATION lib
+		ARCHIVE DESTINATION lib
+		PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+	)
+endif()

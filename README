@@ -30,6 +30,7 @@ Optionally it also depends on:
 - boost::Log
 - xsd (>= 4, for old OS on which this version isn't packaged, rpm and deb 
   are available here: http://www.codesynthesis.com/products/xsd/download.xhtml)
+- pdflatex to generate the documentation in PDF format.
 
 You can issue ./configure --help to specify these up.
 
@@ -38,7 +39,14 @@ cmake/Xcode under macosx
 
 An experimental cmake build including dependencies is available. To compile, with cmake/Xcode, first update submodule using:
 - git submodule update --init
-- ./submodules/cmake-builder/prepare.py -G Xcode flexisip -DLINPHONE_BUILDER_EXTERNAL_SOURCE_PATH=$PWD/submodules -DENABLE_PUSHNOTIFICATION=0 -DENABLE_REDIS=0 -DENABLE_ODBC=0 -DEP_flexisip_SOURCE_DIR=$PWD -DEP_sofiasip_CONFIGURE_OPTIONS=PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/ 
+- ./submodules/cmake-builder/prepare.py -G Xcode flexisip \
+	-DLINPHONE_BUILDER_EXTERNAL_SOURCE_PATH=$PWD/submodules \
+	-DENABLE_PUSHNOTIFICATION=NO \
+	-DENABLE_REDIS=NO \
+	-DENABLE_ODBC=NO \
+	-DENABLE_DOC=NO \
+	-DEP_flexisip_SOURCE_DIR=$PWD \
+	-DEP_sofiasip_CONFIGURE_OPTIONS=PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/ 
 - xcodebuild -project WORK/flexisip/cmake/Project.xcodeproj/ 
 - open WORK/flexisip/Build/flexisip/flexisip.xcodeproj
 
