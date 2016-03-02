@@ -292,10 +292,9 @@ bool SdpModifier::shouldSkipMline(sdp_media_t *mline){
 }
 
 void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, sdp_session_t *offer){
+			std::function< std::pair<std::string,int>(int )> getDestAddrFcn){
 	char foundation[32];
 	sdp_media_t *mline=mSession->sdp_media;
-	sdp_media_t *offer_mline = offer ? offer->sdp_media : NULL;
 	uint64_t r;
 	int i;
 	string global_c_address;
@@ -305,7 +304,7 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 	r = (((uint64_t)random()) << 32) | (((uint64_t)random()) & 0xffffffff);
 	snprintf(foundation, sizeof(foundation), "%llx", (long long unsigned int)r);
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
-		if (hasMediaAttribute(mline,"candidate") && !shouldSkipMline(mline) && !(offer_mline && shouldSkipMline(offer_mline))) {
+		if (hasMediaAttribute(mline,"candidate") && !shouldSkipMline(mline) ) {
 			uint32_t priority;
 
 			auto relayAddr=getRelayAddrFcn(i);
@@ -326,23 +325,21 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 			}
 			if (!mNortproxy.empty()) addMediaAttribute(mline, mNortproxy.c_str(), "yes");
 		}
-		if (offer_mline) offer_mline = offer_mline->m_next;
 	}
 }
 
 void SdpModifier::addIceCandidateInOffer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
 			std::function< std::pair<std::string,int>(int )> getDestAddrFcn){
-	addIceCandidate(getRelayAddrFcn, getDestAddrFcn, NULL);
+	addIceCandidate(getRelayAddrFcn, getDestAddrFcn);
 }
 
 void SdpModifier::addIceCandidateInAnswer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-	std::function< std::pair<std::string,int>(int )> getDestAddrFcn, sdp_session_t *offer){
-	addIceCandidate(getRelayAddrFcn, getDestAddrFcn, offer);
+	std::function< std::pair<std::string,int>(int )> getDestAddrFcn){
+	addIceCandidate(getRelayAddrFcn, getDestAddrFcn);
 }
 
-void SdpModifier::iterate(function<void(int, const string &, int )> fct, sdp_session_t *offer){
+void SdpModifier::iterate(function<void(int, const string &, int )> fct){
 	sdp_media_t *mline=mSession->sdp_media;
-	sdp_media_t *offer_mline = offer ? offer->sdp_media : NULL;
 	int i;
 	string global_c_address;
 
@@ -351,20 +348,19 @@ void SdpModifier::iterate(function<void(int, const string &, int )> fct, sdp_ses
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		string ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
 		int port=mline->m_port;
-		if (shouldSkipMline(mline) || (offer_mline && shouldSkipMline(offer_mline))) continue;
+		if (shouldSkipMline(mline) ) continue;
 
 		fct(i, ip, port);
-		if (offer_mline) offer_mline = offer_mline->m_next;
 	}
 }
 
 void SdpModifier::iterateInOffer( function<void(int, const string &, int )> fct ) {
-	iterate(fct, NULL);
+	iterate(fct);
 }
 
 
-void SdpModifier::iterateInAnswer( function<void(int, const string &, int )> fct, sdp_session_t* offer ) {
-	iterate(fct, offer);
+void SdpModifier::iterateInAnswer( function<void(int, const string &, int )> fct) {
+	iterate(fct);
 }
 
 
@@ -377,9 +373,8 @@ void SdpModifier::changeConnection(sdp_connection_t *c, const char *ip){
 	c->c_address = su_strdup(mHome, ip);
 }
 
-void SdpModifier::masquerade(function< pair<string,int>(int )> fct, sdp_session_t *offer){
+void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
 	sdp_media_t *mline=mSession->sdp_media;
-	sdp_media_t *offer_mline = offer ? offer->sdp_media : NULL;
 	sdp_attribute_t *rtcp_attribute;
 	int i;
 	string global_c_address;
@@ -390,7 +385,7 @@ void SdpModifier::masquerade(function< pair<string,int>(int )> fct, sdp_session_
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		if (mline->m_port == 0) continue;
 
-		if (shouldSkipMline(mline) || (offer_mline && shouldSkipMline(offer_mline))) continue;
+		if (shouldSkipMline(mline) ) continue;
 		pair<string,int> relayAddr=fct(i);
 
 		if (mline->m_connections){
@@ -426,7 +421,6 @@ void SdpModifier::masquerade(function< pair<string,int>(int )> fct, sdp_session_
 			a->a_value=su_strdup(mHome, ost.str().c_str());
 			sdp_attribute_replace(&mline->m_attributes, a, 0);
 		}
-		if (offer_mline) offer_mline = offer_mline->m_next;
 	}
 
 	if (sdp_connection_translated) {
@@ -442,11 +436,11 @@ void SdpModifier::masquerade(function< pair<string,int>(int )> fct, sdp_session_
 }
 
 void SdpModifier::masqueradeInOffer(std::function< std::pair<std::string,int>(int )> getAddrFcn){
-	masquerade(getAddrFcn, NULL);
+	masquerade(getAddrFcn);
 }
 
-void SdpModifier::masqueradeInAnswer( std::function< std::pair<std::string,int>(int )> getAddrFcn, sdp_session_t* offer ) {
-	masquerade(getAddrFcn, offer);
+void SdpModifier::masqueradeInAnswer( std::function< std::pair<std::string,int>(int )> getAddrFcn ) {
+	masquerade(getAddrFcn);
 }
 
 

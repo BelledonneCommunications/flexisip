@@ -55,11 +55,11 @@ class SdpModifier{
 		void addIceCandidateInOffer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
 			std::function< std::pair<std::string,int>(int )> getDestAddrFcn);
 		void addIceCandidateInAnswer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, sdp_session_t *offer);
+			std::function< std::pair<std::string,int>(int )> getDestAddrFcn);
 		void iterateInOffer(std::function<void(int, const std::string &, int)>);
-		void iterateInAnswer(std::function<void(int, const std::string &, int)>, sdp_session_t *offer);
+		void iterateInAnswer(std::function<void(int, const std::string &, int)>);
 		void masqueradeInOffer(std::function< std::pair<std::string,int>(int )> getAddrFcn);
-		void masqueradeInAnswer(std::function< std::pair<std::string,int>(int )> getAddrFcn, sdp_session_t *offer);
+		void masqueradeInAnswer(std::function< std::pair<std::string,int>(int )> getAddrFcn);
 		void addAttribute(const char *name, const char *value);
 		bool hasAttribute(const char *name);
 		void addMediaAttribute(sdp_media_t *mline, const char *name, const char *value);
@@ -74,9 +74,9 @@ class SdpModifier{
 	private:
 		bool shouldSkipMline(sdp_media_t *mline);
 		void addIceCandidate(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, sdp_session_t *offer);
-		void iterate(std::function<void(int, const std::string &, int)>, sdp_session_t *offer);
-		void masquerade(std::function< std::pair<std::string,int>(int )> getAddrFcn, sdp_session_t *offer);
+			std::function< std::pair<std::string,int>(int )> getDestAddrFcn);
+		void iterate(std::function<void(int, const std::string &, int)>);
+		void masquerade(std::function< std::pair<std::string,int>(int )> getAddrFcn);
 		sdp_parser_t *mParser;
 		su_home_t *mHome;
 		std::string mNortproxy;

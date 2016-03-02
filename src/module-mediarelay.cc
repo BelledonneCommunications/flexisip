@@ -187,8 +187,6 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		return false;
 	}
 	c->getServer()->update();
-	/*store the sdp modifier buit for the request, because we will need it for the response*/
-	transaction->setProperty<SdpModifier>("sdp-modifier", m);
 	return true;
 }
 
@@ -203,7 +201,7 @@ void MediaRelay::configureContext(shared_ptr<RelayedCall> &c){
 }
 
 
-void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
+void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipException) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
@@ -283,22 +281,17 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 		return;
 	}
 
-	shared_ptr<SdpModifier> offerm = transaction->getProperty<SdpModifier>("sdp-modifier");
-	sdp_session_t *offer = NULL;
-	if (!offerm || !offerm->mSession){
-		LOGE("MediaRelay::processResponseWithSDP(): cannot retrieve original offer !");
-	}
-	m->iterateInAnswer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, to_tag, transaction->getBranchId(),isEarlyMedia), offer);
+	m->iterateInAnswer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, to_tag, transaction->getBranchId(),isEarlyMedia));
 	// modify sdp
-	m->masqueradeInAnswer(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()), offer);
+	m->masqueradeInAnswer(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()));
 
 	m->addIceCandidateInAnswer(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()),
-		bind(&RelayedCall::getChannelDestinations, c, _1, to_tag, transaction->getBranchId()), offer);
+		bind(&RelayedCall::getChannelDestinations, c, _1, to_tag, transaction->getBranchId()));
 
 	m->update(msg, sip);
 }
 
-void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException) {
 	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
