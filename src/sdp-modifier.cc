@@ -27,10 +27,10 @@
 using namespace ::std;
 
 shared_ptr<SdpModifier> SdpModifier::createFromSipMsg(su_home_t *home, sip_t *sip, const string &nortproxy){
-	if (!sip->sip_payload || !sip->sip_payload->pl_data) return NULL;
+	if (!sip->sip_payload || !sip->sip_payload->pl_data) return shared_ptr<SdpModifier>();
 	auto sm= make_shared<SdpModifier>(home, nortproxy);
 	if (!sm->initFromSipMsg(sip)) {
-		sm=NULL;
+		sm.reset();
 	}
 	return sm;
 }
@@ -306,7 +306,6 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		if (hasMediaAttribute(mline,"candidate") && !shouldSkipMline(mline) ) {
 			uint32_t priority;
-
 			auto relayAddr=getRelayAddrFcn(i);
 			auto destAddr=getDestAddrFcn(i);
 
