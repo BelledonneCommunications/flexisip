@@ -39,6 +39,9 @@ public:
 	 * allow use to identify the callee (we don't have a tag yet).
 	 */
 	void initChannels(const shared_ptr<SdpModifier> &m, const std::string &tag, const std::string &trid, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps);
+	
+	/* Obtain the masquerade contexts for given mline. The trid is used when offeredTag is not yet defined.*/
+	MasqueradeContextPair getMasqueradeContexts(int mline, const std::string &offererTag, const std::string &offeredTag, const std::string &trid);
 
 	/* Obtain the local address and port used for relaying */
 	std::pair<std::string,int> getChannelSources(int mline, const std::string & partyTag, const std::string &trId);

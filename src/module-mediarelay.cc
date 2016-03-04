@@ -62,6 +62,9 @@ void MediaRelay::onDeclare(GenericStruct * mc) {
 			{ Boolean, "bye-orphan-dialogs", "Sends a ACK and BYE to 200Ok for INVITEs not belonging to any established call.", "false"},
 			{ Integer, "max-calls", "Maximum concurrent calls processed by the media-relay. Calls arriving when the limit is exceed will be rejected. "
 						"A value of 0 means no limit.", "0" },
+			{ Boolean, "force-relay-for-non-ice-targets", "When true, the 'c=' line and port number"
+				" are set to the relay ip/port even if ICE candidates are present in the request."
+				" This is allow non-ice clients to have their streams relayed.", "true"},
 			{ Boolean, "prevent-loops", "Prevent media-relay ports to loop between them, which can cause 100% cpu on the media relay thread.", "false"},
 			{ Boolean, "early-media-relay-single", "In case multiples 183 Early media responses are received for a call, only the first one will have RTP streams forwarded back to caller. This feature prevents the caller to receive 'mixed' streams, but it breaks scenarios where multiple servers play early media announcement in sequence.", "true"},
 			{ Integer, "max-early-media-per-call", "Maximum number of relayed early media streams per call. This is useful to limit the cpu usage due to early media relaying on" 
@@ -114,6 +117,7 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mPreventLoop = modconf->get<ConfigBoolean>("prevent-loops")->read();
 	mMaxCalls=modconf->get<ConfigInt>("max-calls")->read();
 	mMaxRelayedEarlyMedia = modconf->get<ConfigInt>("max-early-media-per-call")->read();
+	mForceRelayForNonIceTargets = modconf->get<ConfigBoolean>("force-relay-for-non-ice-targets")->read();
 	createServers();
 }
 
@@ -169,17 +173,17 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		return false;
 	}
 
-	// assign destination address
+	// assign destination address of offerer
 	m->iterateInOffer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, from_tag, transaction->getBranchId(),false));
-
-	// Modify sdp message to set relay address and ports.
-	m->masqueradeInOffer(bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()));
 
 	// Masquerade using ICE
 	m->addIceCandidateInOffer(bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()),
-			   bind(&RelayedCall::getChannelDestinations, c, _1, from_tag, transaction->getBranchId())
-	);
+			   bind(&RelayedCall::getChannelDestinations, c, _1, from_tag, transaction->getBranchId()),
+			   bind(&RelayedCall::getMasqueradeContexts, c, _1, from_tag, to_tag, transaction->getBranchId()), mForceRelayForNonIceTargets);
 
+	// Modify sdp message to set relay address and ports for streams not handled by ICE
+	m->masqueradeInOffer(bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()));
+	
 	if (!mSdpMangledParam.empty()) m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	if (m->update(msg, sip)==-1){
 		LOGE("Cannot update SDP in message.");
@@ -280,14 +284,16 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 		LOGD("200 OK is already relayed");
 		return;
 	}
-
+	//acquire destination ip/ports from answerer
 	m->iterateInAnswer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, to_tag, transaction->getBranchId(),isEarlyMedia));
-	// modify sdp
-	m->masqueradeInAnswer(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()));
 
+	//push ICE relay candidates if necessary, and update the ICE states.
 	m->addIceCandidateInAnswer(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()),
-		bind(&RelayedCall::getChannelDestinations, c, _1, to_tag, transaction->getBranchId()));
+		bind(&RelayedCall::getChannelDestinations, c, _1, to_tag, transaction->getBranchId()),
+		bind(&RelayedCall::getMasqueradeContexts, c, _1, sip->sip_from->a_tag, to_tag, transaction->getBranchId()), mForceRelayForNonIceTargets);
 
+	// masquerade c lines and ports for streams not handled by ICE.
+	m->masqueradeInAnswer(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()));
 	m->update(msg, sip);
 }
 

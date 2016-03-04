@@ -30,10 +30,32 @@
 
 
 #define payload_type_set_number(pt,n)	(pt)->user_data=(void*)(long)n
-#define payload_type_get_number(pt)		(int)(long)(pt)->user_data
+#define payload_type_get_number(pt)	(int)(long)(pt)->user_data
 
 struct _PayloadType;
 typedef struct _PayloadType PayloadType;
+
+
+class SdpMasqueradeContext{
+public:
+	SdpMasqueradeContext();
+	bool updateIceFromOffer(sdp_session_t *session, sdp_media_t *mline, bool isOfferer);
+	bool updateIceFromAnswer(sdp_session_t *session, sdp_media_t *mline, bool isOfferer);
+private:
+	enum IceState{ IceNone, IceOffered, IceCompleted} mIceState;
+	std::string mIceUfrag, mIcePasswd;
+	static std::string getAttribute(sdp_session_t *session, sdp_media_t *mline, const std::string &name);
+	static const char *toString(IceState state);
+	static bool hasCandidates(sdp_media_t *mline);
+};
+
+struct MasqueradeContextPair{
+	MasqueradeContextPair(const std::shared_ptr<SdpMasqueradeContext> &offerer, const std::shared_ptr<SdpMasqueradeContext> &offered) :
+		mOfferer(offerer), mOffered(offered){
+	}
+	std::shared_ptr<SdpMasqueradeContext> mOfferer;
+	std::shared_ptr<SdpMasqueradeContext> mOffered;
+};
 
 /**
  * Utility class used to do various changes in an existing SDP message.
@@ -53,9 +75,13 @@ class SdpModifier{
 		void changeConnection(sdp_connection_t *c, const char *ip);
 		void changeMediaConnection(sdp_media_t *mline, const char *relay_ip);
 		void addIceCandidateInOffer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-			std::function< std::pair<std::string,int>(int )> getDestAddrFcn);
+			std::function< std::pair<std::string,int>(int )> getDestAddrFcn,
+			std::function< MasqueradeContextPair(int )> getMasqueradeContexts,
+			bool forceRelay);
 		void addIceCandidateInAnswer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-			std::function< std::pair<std::string,int>(int )> getDestAddrFcn);
+			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, 
+			std::function< MasqueradeContextPair(int )> getMasqueradeContexts,
+			bool forceRelay);
 		void iterateInOffer(std::function<void(int, const std::string &, int)>);
 		void iterateInAnswer(std::function<void(int, const std::string &, int)>);
 		void masqueradeInOffer(std::function< std::pair<std::string,int>(int )> getAddrFcn);
@@ -72,9 +98,8 @@ class SdpModifier{
 		sdp_session_t *mSession;
 		sip_t *mSip;
 	private:
-		bool shouldSkipMline(sdp_media_t *mline);
 		void addIceCandidate(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-			std::function< std::pair<std::string,int>(int )> getDestAddrFcn);
+			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool isOffer, bool forceRelay);
 		void iterate(std::function<void(int, const std::string &, int)>);
 		void masquerade(std::function< std::pair<std::string,int>(int )> getAddrFcn);
 		sdp_parser_t *mParser;

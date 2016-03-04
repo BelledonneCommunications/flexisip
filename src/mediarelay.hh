@@ -22,6 +22,7 @@
 #include "module.hh"
 #include "agent.hh"
 #include "callstore.hh"
+#include "sdp-modifier.hh"
 #include <ortp/rtpsession.h>
 
 class RelayedCall;
@@ -67,6 +68,7 @@ class MediaRelay : public Module, protected ModuleToolbox {
 	bool mByeOrphanDialogs;
 	bool mEarlyMediaRelaySingle;
 	bool mPreventLoop;
+	bool mForceRelayForNonIceTargets;
 	static ModuleInfo<MediaRelay> sInfo;
 };
 
@@ -191,7 +193,7 @@ class MediaFilter {
 	virtual bool onOutgoingTransfer(uint8_t *data, size_t size, const sockaddr *addr, socklen_t addrlen) = 0;
 };
 
-class RelayChannel {
+class RelayChannel : public SdpMasqueradeContext{
   public:
 	enum Dir { SendOnly, SendRecv, Inactive };
 

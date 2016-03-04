@@ -26,6 +26,136 @@
 
 using namespace ::std;
 
+
+SdpMasqueradeContext::SdpMasqueradeContext(){
+	mIceState = IceNone;
+}
+
+const char* SdpMasqueradeContext::toString(SdpMasqueradeContext::IceState state) {
+	switch(state){
+		case IceNone: return "IceNone";
+		case IceOffered: return "IceOffered";
+		case IceCompleted: return "IceCompleted";
+	}
+	return "IceBug";
+}
+
+
+string SdpMasqueradeContext::getAttribute(sdp_session_t* session, sdp_media_t* mline, const string& name ) {
+	sdp_attribute_t *attr = sdp_attribute_find(mline->m_attributes, name.c_str());
+	if (attr && attr->a_value) return attr->a_value;
+	attr = sdp_attribute_find(session->sdp_attributes, name.c_str());
+	if (attr && attr->a_value) return attr->a_value;
+	return "";
+}
+
+bool SdpMasqueradeContext::hasCandidates(sdp_media_t *mline){
+	return sdp_attribute_find(mline->m_attributes, "candidate") != NULL;
+}
+
+bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_t* mline, bool isOfferer) {
+	string ufrag, passwd;
+	IceState oldState = mIceState;
+	bool needsCandidates = false;
+
+	ufrag = getAttribute(session, mline, "ice-ufrag");
+	passwd = getAttribute(session, mline, "ice-pwd");
+	
+	if (isOfferer){
+		switch(mIceState){
+			case IceNone:
+				if (!ufrag.empty() && !passwd.empty() && hasCandidates(mline)){
+					mIceState = IceOffered;
+					needsCandidates = true;
+				}
+			break;
+			case IceOffered:
+				needsCandidates = true;
+			break;
+			case IceCompleted:
+				needsCandidates = false;
+				if ((ufrag != mIceUfrag || passwd != mIcePasswd) && hasCandidates(mline)){
+					/*ICE restart*/
+					mIceState = IceOffered;
+					needsCandidates = true;
+					LOGD("Ice restart detected ufrag %s->%s pwd %s->%s",
+						mIceUfrag.c_str(), ufrag.c_str(), mIcePasswd.c_str(), passwd.c_str());
+				}else if (!hasCandidates(mline)) {
+					/*case of a stream that is put inactive*/
+					mIceState = IceNone;
+				}
+			break;
+		}
+		mIceUfrag = ufrag;
+		mIcePasswd = passwd;
+		LOGD("updateIceFromOffer() this=%p setting ufrag, pwd to %s %s", this, ufrag.c_str(), passwd.c_str());
+	}else{
+		switch(mIceState){
+			case IceNone:
+				if (!ufrag.empty() && !passwd.empty() && hasCandidates(mline)){
+					mIceState = IceOffered;
+					needsCandidates = true;
+				}
+			break;
+			case IceOffered:
+			case IceCompleted:
+				if (!hasCandidates(mline)) {
+					/*case of a stream that is put inactive*/
+					mIceState = IceNone;
+				}
+			break;
+		}
+	}
+	LOGD("updateIceFromOffer() this=%p %s state %s -> %s", this, isOfferer ? "offerer" : "offered", toString(oldState), toString(mIceState)); 
+	return needsCandidates;
+}
+
+bool SdpMasqueradeContext::updateIceFromAnswer(sdp_session_t* session, sdp_media_t* mline, bool isOfferer) {
+	string ufrag, passwd;
+	IceState oldState = mIceState;
+	bool needsCandidates = false;
+	
+	ufrag = getAttribute(session, mline, "ice-ufrag");
+	passwd = getAttribute(session, mline, "ice-pwd");
+	
+	if (isOfferer){
+		switch(mIceState){
+			case IceNone:
+			break;
+			case IceOffered:
+				if (!ufrag.empty() && !passwd.empty() && hasCandidates(mline)){
+					mIceState = IceCompleted;
+				}
+			break;
+			case IceCompleted:
+				/*case of a stream that is declined*/
+				if (!hasCandidates(mline)) mIceState = IceNone;
+			break;
+		}
+	}else{
+		switch(mIceState){
+			case IceNone:
+			break;
+			case IceOffered:
+				if (!ufrag.empty() && !passwd.empty() && hasCandidates(mline)){
+					mIceState = IceCompleted;
+					needsCandidates = true;
+				}
+			break;
+			case IceCompleted:
+				/*case of a stream that is declined*/
+				if (!hasCandidates(mline)) mIceState = IceNone;
+			break;
+		}
+		mIceUfrag = ufrag;
+		mIcePasswd = passwd;
+		LOGD("updateIceFromAnswer() this=%p setting ufrag, pwd to %s %s", this, ufrag.c_str(), passwd.c_str());
+	}
+	LOGD("updateIceFromAnswer() this=%p %s state %s -> %s", this, isOfferer ? "offerer" : "offered", toString(oldState), toString(mIceState));
+	return needsCandidates;
+}
+
+
 shared_ptr<SdpModifier> SdpModifier::createFromSipMsg(su_home_t *home, sip_t *sip, const string &nortproxy){
 	if (!sip->sip_payload || !sip->sip_payload->pl_data) return shared_ptr<SdpModifier>();
 	auto sm= make_shared<SdpModifier>(home, nortproxy);
@@ -282,17 +412,14 @@ void SdpModifier::changeMediaConnection(sdp_media_t *mline, const char *relay_ip
 		if (sdp_connection_cmp(mSession->sdp_connection, c)) {
 			mline->m_connections=c;
 		} else {
+			mline->m_connections = NULL;
 			su_free(mHome,c);
 		}
 	}
 }
 
-bool SdpModifier::shouldSkipMline(sdp_media_t *mline){
-	return hasMediaAttribute(mline,mNortproxy.c_str()) || hasMediaAttribute(mline,"remote-candidates");
-}
-
 void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-			std::function< std::pair<std::string,int>(int )> getDestAddrFcn){
+			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool isOffer, bool forceRelay){
 	char foundation[32];
 	sdp_media_t *mline=mSession->sdp_media;
 	uint64_t r;
@@ -304,16 +431,30 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 	r = (((uint64_t)random()) << 32) | (((uint64_t)random()) & 0xffffffff);
 	snprintf(foundation, sizeof(foundation), "%llx", (long long unsigned int)r);
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
-		if (hasMediaAttribute(mline,"candidate") && !shouldSkipMline(mline) ) {
+		MasqueradeContextPair mctxs = getMasqueradeContexts(i);
+		bool needsCandidates = false;
+		if (isOffer){
+			needsCandidates = mctxs.mOfferer->updateIceFromOffer(mSession, mline, true);
+			mctxs.mOffered->updateIceFromOffer(mSession, mline, false);
+		}else{
+			mctxs.mOfferer->updateIceFromAnswer(mSession, mline, true);
+			needsCandidates = mctxs.mOffered->updateIceFromAnswer(mSession, mline, false);
+		}
+		
+		if (needsCandidates) {
 			uint32_t priority;
 			auto relayAddr=getRelayAddrFcn(i);
 			auto destAddr=getDestAddrFcn(i);
 
+			if (forceRelay){
+				/* Masquerade c line and port for non-ICE clients.
+				 Ice-enabled targets don't need this.*/
+				changeMediaConnection(mline, relayAddr.first.c_str());
+				mline->m_port=(unsigned long)relayAddr.second;
+			}
+			
 			for (uint16_t componentID=1; componentID<=2; componentID++) {
-				if (componentID == 1) {
-					/* Fix the connection line if needed */
-					changeMediaConnection(mline, relayAddr.first.c_str());
-				}
+				
 				if (!hasIceCandidate(mline, relayAddr.first.c_str(), relayAddr.second + componentID - 1)) {
 					priority = (65535 << 8) | (256 - componentID);
 					ostringstream candidate_line;
@@ -328,13 +469,13 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 }
 
 void SdpModifier::addIceCandidateInOffer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-			std::function< std::pair<std::string,int>(int )> getDestAddrFcn){
-	addIceCandidate(getRelayAddrFcn, getDestAddrFcn);
+			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool forceRelay){
+	addIceCandidate(getRelayAddrFcn, getDestAddrFcn, getMasqueradeContexts, true, forceRelay);
 }
 
 void SdpModifier::addIceCandidateInAnswer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-	std::function< std::pair<std::string,int>(int )> getDestAddrFcn){
-	addIceCandidate(getRelayAddrFcn, getDestAddrFcn);
+	std::function< std::pair<std::string,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool forceRelay){
+	addIceCandidate(getRelayAddrFcn, getDestAddrFcn, getMasqueradeContexts, false, forceRelay);
 }
 
 void SdpModifier::iterate(function<void(int, const string &, int )> fct){
@@ -347,7 +488,7 @@ void SdpModifier::iterate(function<void(int, const string &, int )> fct){
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		string ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
 		int port=mline->m_port;
-		if (shouldSkipMline(mline) ) continue;
+		if (hasMediaAttribute(mline,mNortproxy.c_str()) ) continue;
 
 		fct(i, ip, port);
 	}
@@ -383,8 +524,9 @@ void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
 
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		if (mline->m_port == 0) continue;
+		if (hasMediaAttribute(mline, "candidate")) continue; /*only masquerade if ICE is not involved*/
 
-		if (shouldSkipMline(mline) ) continue;
+		if (hasMediaAttribute(mline,mNortproxy.c_str())) continue;
 		pair<string,int> relayAddr=fct(i);
 
 		if (mline->m_connections){

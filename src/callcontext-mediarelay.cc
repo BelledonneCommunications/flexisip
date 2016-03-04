@@ -64,13 +64,23 @@ void RelayedCall::initChannels(const shared_ptr<SdpModifier> &m, const string &t
 			s = mServer->createSession(tag,frontRelayIps);
 			mSessions[i] = s;
 		}
-		
-		shared_ptr<RelayChannel> chan=s->getChannel("",trid);
+		shared_ptr<RelayChannel> chan = s->getChannel("",trid);
 		if (chan==NULL){
 			/*this is a new outgoing branch to be established*/
 			chan=s->createBranch(trid,backRelayIps);
 		}
 	}
+}
+
+MasqueradeContextPair RelayedCall::getMasqueradeContexts(int mline, const std::string &offererTag, 
+							 const std::string & offeredTag, const std::string &trid){
+	shared_ptr<RelaySession> s = mSessions[mline];
+	if (s == NULL) {
+		return MasqueradeContextPair(shared_ptr<SdpMasqueradeContext>(), shared_ptr<SdpMasqueradeContext>());
+	}
+	auto offerer = s->getChannel(offererTag, "");
+	auto offered = s->getChannel(offeredTag, trid);
+	return MasqueradeContextPair(static_pointer_cast<SdpMasqueradeContext>(offerer), static_pointer_cast<SdpMasqueradeContext>(offered));
 }
 
 bool RelayedCall::checkMediaValid() {
