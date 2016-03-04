@@ -291,6 +291,11 @@ void lp_section_remove_item(LpSection *sec, LpItem *item) {
 	lp_item_destroy(item);
 }
 
+const char *skip_initial_blanks(const char *str){
+	while(*str == ' ') ++str;
+	return str;
+}
+
 const char *lp_config_get_string(LpConfig *lpconfig, const char *section, const char *key, const char *default_string) {
 	LpSection *sec;
 	LpItem *item;
@@ -298,7 +303,7 @@ const char *lp_config_get_string(LpConfig *lpconfig, const char *section, const 
 	if (sec != NULL) {
 		item = lp_section_find_item(sec, key);
 		if (item != NULL)
-			return item->value;
+			return skip_initial_blanks(item->value);
 	}
 	return default_string;
 }
