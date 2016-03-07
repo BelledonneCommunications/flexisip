@@ -50,6 +50,7 @@ int PushNotificationClient::sendRequest(const std::shared_ptr<PushNotificationRe
 		if (mLastUse != 0 && (getCurrentTime() - mLastUse > 60)) {
 			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get()
 				  << " re-creating connection with server.";
+			mReadTimeoutTimer.cancel();
 			mSocket.lowest_layer().close();
 		}
 		next();
@@ -154,8 +155,8 @@ void PushNotificationClient::handle_write(shared_ptr<PushNotificationRequest> re
 		mResponse.resize(512);
 
 		if (!req->serverResponseIsImmediate()) {
-			mReadTimeoutTimer.async_wait(boost::bind(&PushNotificationClient::handle_read_timeout, this, req));
 			mReadTimeoutTimer.expires_from_now(boost::posix_time::seconds(3));
+			mReadTimeoutTimer.async_wait(boost::bind(&PushNotificationClient::handle_read_timeout, this, req, asio::placeholders::error));
 		}
 
 		auto fn = bind(&PushNotificationClient::handle_read, this, req, asio::placeholders::error,
@@ -172,14 +173,12 @@ void PushNotificationClient::handle_write(shared_ptr<PushNotificationRequest> re
 	}
 }
 
-void PushNotificationClient::handle_read_timeout(shared_ptr<PushNotificationRequest> req) {
-	if (mReadTimeoutTimer.expires_at() <= boost::asio::deadline_timer::traits_type::now()) {
+void PushNotificationClient::handle_read_timeout(shared_ptr<PushNotificationRequest> req, const boost::system::error_code &error) {
+	if (error == 0){
 		// we did not receive any response, we assume everything went fine.
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " nothing read, assuming success";
 		onSuccess(req);
-		mReadTimeoutTimer.expires_at(boost::posix_time::pos_infin);
-	}
-	mReadTimeoutTimer.async_wait(boost::bind(&PushNotificationClient::handle_read_timeout, this, req));
+	}//else aborted read timeout, ignore
 }
 
 void PushNotificationClient::handle_read(shared_ptr<PushNotificationRequest> req, const err_code &error,
@@ -200,11 +199,14 @@ void PushNotificationClient::handle_read(shared_ptr<PushNotificationRequest> req
 
 void PushNotificationClient::onError(shared_ptr<PushNotificationRequest> req, const string &msg) {
 	SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " disconnected";
+	
+	if (mRequestQueue.empty() || mRequestQueue.front() != req){
+		/*this shall not happen, since all requests are treated one after the other*/
+		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " != " << mRequestQueue.empty() ? NULL : mRequestQueue.front().get();
+		return;
+	}
 	if (req->getCallBack())
 		req->getCallBack()->onError("Error " + msg);
-
-	if (mRequestQueue.front() != req)
-		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " != " << mRequestQueue.front().get();
 	mRequestQueue.pop();
 	mSocket.lowest_layer().close();
 	if (mService->mCountFailed)
@@ -213,8 +215,11 @@ void PushNotificationClient::onError(shared_ptr<PushNotificationRequest> req, co
 }
 
 void PushNotificationClient::onSuccess(shared_ptr<PushNotificationRequest> req) {
-	if (mRequestQueue.front() != req)
-		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " != " << mRequestQueue.front().get();
+	if (mRequestQueue.empty() || mRequestQueue.front() != req){
+		/*this shall not happen, since all requests are treated one after the other*/
+		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " != " << mRequestQueue.empty() ? NULL : mRequestQueue.front().get();
+		return ;
+	}
 	mRequestQueue.pop();
 	if (mService->mCountSent)
 		mService->mCountSent->incr();

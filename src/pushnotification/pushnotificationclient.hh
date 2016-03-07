@@ -48,7 +48,7 @@ class PushNotificationClient {
 					 size_t bytes_transferred);
 
   private:
-  	void handle_read_timeout(shared_ptr<PushNotificationRequest> req);
+  	void handle_read_timeout(shared_ptr<PushNotificationRequest> req, const boost::system::error_code &error);
 
 	void send(std::shared_ptr<PushNotificationRequest> req);
 	void onEnd();
