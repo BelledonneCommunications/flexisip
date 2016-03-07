@@ -612,9 +612,9 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 			//			 freshly-generated Call-ID and a new, unique "From" tag (see section
 			//			 3.1.4.1.)
 
-			if (subscription->getState() == Subscription::State::terminated) {
+			if (!subscription  || subscription->getState() == Subscription::State::terminated) {
 				// fixme
-				delete subscription;
+				if (subscription) delete subscription;
 				belle_sip_dialog_set_application_data(dialog, NULL);
 				throw BELLESIP_SIGNALING_EXCEPTION(481) << "Subscription [" << std::hex << (long)subscription << "] for dialog ["
 											   << BELLE_SIP_OBJECT(dialog) << "] already in terminated state";
