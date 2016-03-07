@@ -149,7 +149,7 @@ bool PushNotificationService::isCertExpired( const std::string &certPath ){
 		LOGE("BIO_read_filename failed for %s", certPath.c_str());
 		return expired;
 	}
-	
+
 	X509* cert = PEM_read_bio_X509(certbio, NULL, 0, 0);
 	if( !cert ){
 		char buf[128] = {};
@@ -160,7 +160,7 @@ bool PushNotificationService::isCertExpired( const std::string &certPath ){
 	} else {
 		ASN1_TIME *notBefore = X509_get_notBefore(cert);
 		ASN1_TIME *notAfter = X509_get_notAfter(cert);
-		if( X509_cmp_current_time(notBefore) > 0 && X509_cmp_current_time(notAfter) < 0 ) {
+		if( X509_cmp_current_time(notBefore) <= 0 && X509_cmp_current_time(notAfter) >= 0 ) {
 
 			LOGD("Certificate %s has a valid expiration.", certPath.c_str());
 			expired = false;
@@ -178,7 +178,7 @@ bool PushNotificationService::isCertExpired( const std::string &certPath ){
 	}
 	X509_free(cert);
 	BIO_free_all(certbio);
-	
+
 	return expired;
 }
 
@@ -306,11 +306,11 @@ string PushNotificationService::handle_password_callback(size_t max_length,
 
 bool PushNotificationService::handle_verify_callback(bool preverified, ssl::verify_context &ctx) const {
 	char subject_name[256];
-	
+
 	X509 *cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
 	X509_NAME_oneline(X509_get_subject_name(cert), subject_name, 256);
 	SLOGD << "Verifying " << subject_name;
-	
+
 	int error = X509_STORE_CTX_get_error(ctx.native_handle());
 	if( error != 0 ){
 		switch (error) {
@@ -322,7 +322,7 @@ bool PushNotificationService::handle_verify_callback(bool preverified, ssl::veri
 			case X509_V_ERR_CRL_HAS_EXPIRED:
 				LOGEN("Certificate for %s is expired. Push won't work.", subject_name);
 				break;
-				
+
 			default:{
 				const char* errString = X509_verify_cert_error_string(error);
 				LOGEN("Certificate for %s is invalid (reason: %d - %s). Push won't work.", subject_name, error, errString ? errString:"unknown" );
@@ -330,6 +330,6 @@ bool PushNotificationService::handle_verify_callback(bool preverified, ssl::veri
 			}
 		}
 	}
-	
+
 	return preverified;
 }
