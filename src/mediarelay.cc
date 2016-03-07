@@ -68,6 +68,7 @@ RelayChannel::RelayChannel(RelaySession *relaySession, const std::pair<std::stri
 	mSession = relaySession->getRelayServer()->createRtpSession(relayIps.second);
 	mSockets[0] = rtp_session_get_rtp_socket(mSession);
 	mSockets[1] = rtp_session_get_rtcp_socket(mSession);
+	mSockAddrSize[0] = mSockAddrSize[1] = 0;
 	mPacketsReceived = 0;
 	mPacketsSent = 0;
 	mPreventLoop = preventLoops;
