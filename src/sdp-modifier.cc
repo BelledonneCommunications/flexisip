@@ -433,12 +433,15 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		MasqueradeContextPair mctxs = getMasqueradeContexts(i);
 		bool needsCandidates = false;
-		if (isOffer){
-			needsCandidates = mctxs.mOfferer->updateIceFromOffer(mSession, mline, true);
-			mctxs.mOffered->updateIceFromOffer(mSession, mline, false);
-		}else{
-			mctxs.mOfferer->updateIceFromAnswer(mSession, mline, true);
-			needsCandidates = mctxs.mOffered->updateIceFromAnswer(mSession, mline, false);
+		
+		if (mctxs.valid()){
+			if (isOffer){
+				needsCandidates = mctxs.mOfferer->updateIceFromOffer(mSession, mline, true);
+				mctxs.mOffered->updateIceFromOffer(mSession, mline, false);
+			}else{
+				mctxs.mOfferer->updateIceFromAnswer(mSession, mline, true);
+				needsCandidates = mctxs.mOffered->updateIceFromAnswer(mSession, mline, false);
+			}
 		}
 		
 		if (needsCandidates) {

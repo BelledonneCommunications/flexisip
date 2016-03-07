@@ -74,6 +74,7 @@ void RelayedCall::initChannels(const shared_ptr<SdpModifier> &m, const string &t
 
 MasqueradeContextPair RelayedCall::getMasqueradeContexts(int mline, const std::string &offererTag, 
 							 const std::string & offeredTag, const std::string &trid){
+	if (mline > sMaxSessions) return MasqueradeContextPair(shared_ptr<SdpMasqueradeContext>(), shared_ptr<SdpMasqueradeContext>());
 	shared_ptr<RelaySession> s = mSessions[mline];
 	if (s == NULL) {
 		return MasqueradeContextPair(shared_ptr<SdpMasqueradeContext>(), shared_ptr<SdpMasqueradeContext>());

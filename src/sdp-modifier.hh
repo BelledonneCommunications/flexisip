@@ -55,6 +55,9 @@ struct MasqueradeContextPair{
 	}
 	std::shared_ptr<SdpMasqueradeContext> mOfferer;
 	std::shared_ptr<SdpMasqueradeContext> mOffered;
+	bool valid()const{
+		return mOfferer != NULL && mOffered != NULL;
+	}
 };
 
 /**
