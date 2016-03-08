@@ -50,6 +50,15 @@ void RelayedCall::enableTelephoneEventDrooping(bool value){
 void RelayedCall::initChannels(const shared_ptr<SdpModifier> &m, const string &tag, const string &trid, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps) {
 	sdp_media_t *mline = m->mSession->sdp_media;
 	int i = 0;
+	bool hasMultipleTargets = false;
+	
+	int maxEarlyRelays = mServer->mModule->mMaxRelayedEarlyMedia;
+	if (maxEarlyRelays != 0){
+		if (ModuleToolbox::getCustomHeaderByName(m->mSip, "X-Target-Uris")){
+			hasMultipleTargets = true;
+		}
+	}
+	
 	for (i = 0; mline != NULL && i < sMaxSessions; mline = mline->m_next, ++i) {
 		if (mline->m_port == 0) {
 			//case of declined mline.
@@ -67,7 +76,7 @@ void RelayedCall::initChannels(const shared_ptr<SdpModifier> &m, const string &t
 		shared_ptr<RelayChannel> chan = s->getChannel("",trid);
 		if (chan==NULL){
 			/*this is a new outgoing branch to be established*/
-			chan=s->createBranch(trid,backRelayIps);
+			chan=s->createBranch(trid,backRelayIps, hasMultipleTargets);
 		}
 	}
 }
@@ -147,7 +156,7 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier> &m, int m
 			if (isEarlyMedia){
 				int maxEarlyRelays = mServer->mModule->mMaxRelayedEarlyMedia;
 				if (maxEarlyRelays != 0){
-					if (ModuleToolbox::getCustomHeaderByName(m->mSip, "X-Target-Uris")){
+					if (chan->hasMultipleTargets()){
 						/*joker: we cannot be limited by the max number of early media streams.
 						 This is to preserve the possibility for the remote proxy to 
 						 distribute early media.

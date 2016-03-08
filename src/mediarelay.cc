@@ -72,6 +72,7 @@ RelayChannel::RelayChannel(RelaySession *relaySession, const std::pair<std::stri
 	mPacketsReceived = 0;
 	mPacketsSent = 0;
 	mPreventLoop = preventLoops;
+	mHasMultipleTargets = false;
 }
 
 bool RelayChannel::checkSocketsValid() {
@@ -238,10 +239,12 @@ shared_ptr<RelayChannel> RelaySession::getChannel(const string &partyId, const s
 }
 
 std::shared_ptr<RelayChannel> RelaySession::createBranch(const std::string &trId,
-														 const std::pair<std::string, std::string> &relayIps) {
+		 const std::pair<std::string, std::string> &relayIps,
+		 bool hasMultipleTargets) {
 	shared_ptr<RelayChannel> ret;
 	mMutex.lock();
 	ret = make_shared<RelayChannel>(this, relayIps, mServer->loopPreventionEnabled());
+	ret->setMultipleTargets(hasMultipleTargets);
 	mBacks.insert(make_pair(trId, ret));
 	mMutex.unlock();
 	LOGD("RelaySession [%p]: branch corresponding to transaction [%s] added.", this, trId.c_str());

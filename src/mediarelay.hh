@@ -158,7 +158,7 @@ class RelaySession : public std::enable_shared_from_this<RelaySession> {
 	 * Called each time an INVITE is forked
 	 */
 	std::shared_ptr<RelayChannel> createBranch(const std::string &trId,
-											   const std::pair<std::string, std::string> &relayIps);
+				 const std::pair<std::string, std::string> &relayIps, bool hasMultipleTargets);
 	void removeBranch(const std::string &trId);
 
 	/**
@@ -224,6 +224,12 @@ class RelayChannel : public SdpMasqueradeContext{
 	uint64_t getSentPackets() const {
 		return mPacketsSent;
 	}
+	void setMultipleTargets(bool val){
+		mHasMultipleTargets = val;
+	}
+	bool hasMultipleTargets()const{
+		return mHasMultipleTargets;
+	}
 	static const char *dirToString(Dir dir);
 
   private:
@@ -240,6 +246,7 @@ class RelayChannel : public SdpMasqueradeContext{
 	uint64_t mPacketsSent;
 	uint64_t mPacketsReceived;
 	bool mPreventLoop;
+	bool mHasMultipleTargets;
 };
 
 #endif
