@@ -28,8 +28,6 @@
 #include <ortp/ortp.h>
 #include <sofia-sip/url.h>
 
-using namespace ::std;
-
 static const int MAX_QUEUE_SIZE = 100;
 // static const int PRINT_STATS_TIMEOUT = 3000;	/* In milliseconds. */
 
@@ -44,12 +42,12 @@ struct PusherArgs {
 	string pntype;
 	bool debug;
 	string appid;
-	string pntok;
+	vector<string> pntok;
 	string apikey;
 
 	void usage(const char *app) {
 		cout << app
-			 << " --pntype error|google|wp|apple --appid id --pntok theid --gkey googleapikey --prefix dir --debug "
+			 << " --pntype error|google|wp|apple --appid id --pntok id1 id2 id3 --gkey googleapikey --prefix dir --debug "
 			 << endl;
 	}
 
@@ -68,7 +66,7 @@ struct PusherArgs {
 		if (url_param(params, "pn-tok", tmp, sizeof(tmp)) == 0) {
 			return "no pn-tok";
 		} else
-			pntok = tmp;
+			pntok.push_back(tmp);
 
 		return NULL;
 	}
@@ -81,8 +79,6 @@ struct PusherArgs {
 		for (int i = 1; i < argc; ++i) {
 			if (EQ1(i, "--prefix")) {
 				prefix = argv[++i];
-			} else if (EQ1(i, "--pntok")) {
-				pntok = argv[++i];
 			} else if (EQ1(i, "--pntype")) {
 				pntype = argv[++i];
 			} else if (EQ1(i, "--appid")) {
@@ -90,7 +86,11 @@ struct PusherArgs {
 			} else if (EQ0(i, "--debug")) {
 				debug = true;
 			} else if (EQ1(i, "--pntok")) {
-				pntok = argv[++i];
+				i++;
+				while (i < argc && strncmp(argv[i], "--", 2) != 0) {
+					pntok.push_back(argv[i]);
+					i++;
+				}
 			} else if (EQ1(i, "--gkey")) {
 				apikey = argv[++i];
 			} else if (EQ1(i, "--raw")) {
@@ -111,35 +111,40 @@ struct PusherArgs {
 	}
 };
 
-static shared_ptr<PushNotificationRequest> createRequestFromArgs(const PusherArgs &args) {
-	PushInfo pinfo;
-	pinfo.mType = args.pntype;
-	pinfo.mFromName = "Pusher";
-	pinfo.mFromUri = "sip:toto@sip.linphone.org";
-	if (args.pntype == "error") {
-		return make_shared<ErrorPushNotificationRequest>();
-	} else if (args.pntype == "google") {
-		pinfo.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
-		pinfo.mFromName = "+33681741738";
-		pinfo.mDeviceToken = args.pntok;
-		pinfo.mAppId = args.appid;
-		pinfo.mApiKey = args.apikey;
-		return make_shared<GooglePushNotificationRequest>(pinfo);
-	} else if (args.pntype == "wp") {
-		pinfo.mAppId = args.appid;
-		pinfo.mDeviceToken = args.pntok;
-		pinfo.mEvent = PushInfo::Message;
-		pinfo.mText = "Hi here!";
-		return make_shared<WindowsPhonePushNotificationRequest>(pinfo);
-	} else if (args.pntype == "apple") {
-		pinfo.mAlertMsgId = "IM_MSG";
-		pinfo.mAlertSound = "msg.caf";
-		pinfo.mAppId = args.appid;
-		pinfo.mDeviceToken = args.pntok;
-		return make_shared<ApplePushNotificationRequest>(pinfo);
+static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const PusherArgs &args) {
+	vector<shared_ptr<PushNotificationRequest>> result;
+	for (string pntok : args.pntok) {
+		PushInfo pinfo;
+		pinfo.mType = args.pntype;
+		pinfo.mFromName = "Pusher";
+		pinfo.mFromUri = "sip:toto@sip.linphone.org";
+		if (args.pntype == "error") {
+			result.push_back(make_shared<ErrorPushNotificationRequest>());
+		} else if (args.pntype == "google") {
+			pinfo.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
+			pinfo.mFromName = "+33681741738";
+			pinfo.mDeviceToken = pntok;
+			pinfo.mAppId = args.appid;
+			pinfo.mApiKey = args.apikey;
+			result.push_back(make_shared<GooglePushNotificationRequest>(pinfo));
+		} else if (args.pntype == "wp") {
+			pinfo.mAppId = args.appid;
+			pinfo.mDeviceToken = pntok;
+			pinfo.mEvent = PushInfo::Message;
+			pinfo.mText = "Hi here!";
+			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
+		} else if (args.pntype == "apple") {
+			pinfo.mAlertMsgId = "IM_MSG";
+			pinfo.mAlertSound = "msg.caf";
+			pinfo.mAppId = args.appid;
+			pinfo.mDeviceToken = pntok;
+			result.push_back(make_shared<ApplePushNotificationRequest>(pinfo));
+		} else {
+			cerr << "? push pntype " << args.pntype << endl;
+			exit(-1);
+		}
 	}
-	cerr << "? push pntype " << args.pntype << endl;
-	exit(-1);
+	return result;
 }
 
 int main(int argc, char *argv[]) {
@@ -150,22 +155,24 @@ int main(int argc, char *argv[]) {
 	flexisip::log::initLogs(sUseSyslog, args.debug);
 	flexisip::log::updateFilter("%Severity% >= debug");
 
-	auto pn = createRequestFromArgs(args);
-	auto cb = make_shared<ErrorCb>();
-	pn->setCallBack(cb);
-
 	PushNotificationService service(MAX_QUEUE_SIZE);
 
 	if (args.pntype == "apple") {
 		service.setupiOSClient(args.prefix + "/apn", "");
 	} else if (args.pntype == "google") {
-		std::map<std::string, std::string> googleKey;
+		map<string, string> googleKey;
 		googleKey.insert(make_pair(args.appid, args.apikey));
 		service.setupAndroidClient(googleKey);
 	}
 
 	service.start();
-	int ret = service.sendRequest(pn);
+	auto pn = createRequestFromArgs(args);
+	auto cb = make_shared<ErrorCb>();
+	int ret = 0;
+	for (auto push : pn) {
+		push->setCallBack(cb);
+		ret += service.sendRequest(push);
+	}
 	sleep(1);
 	if (ret == 0) {
 		service.waitEnd();
