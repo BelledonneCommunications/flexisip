@@ -105,6 +105,7 @@ class SdpModifier{
 			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool isOffer, bool forceRelay);
 		void iterate(std::function<void(int, const std::string &, int)>);
 		void masquerade(std::function< std::pair<std::string,int>(int )> getAddrFcn);
+		void changeRtcpAttr(sdp_media_t *mline, const std::string & relayAddr, int port);
 		sdp_parser_t *mParser;
 		su_home_t *mHome;
 		std::string mNortproxy;

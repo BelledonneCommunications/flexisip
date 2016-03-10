@@ -454,6 +454,7 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 				 Ice-enabled targets don't need this.*/
 				changeMediaConnection(mline, relayAddr.first.c_str());
 				mline->m_port=(unsigned long)relayAddr.second;
+				changeRtcpAttr(mline, relayAddr.first, relayAddr.second + 1);
 			}
 			
 			for (uint16_t componentID=1; componentID<=2; componentID++) {
@@ -516,9 +517,32 @@ void SdpModifier::changeConnection(sdp_connection_t *c, const char *ip){
 	c->c_address = su_strdup(mHome, ip);
 }
 
+void SdpModifier::changeRtcpAttr(sdp_media_t *mline, const string & relayAddr, int port){
+	sdp_attribute_t *rtcp_attribute = sdp_attribute_find(mline->m_attributes,"rtcp");
+	if (rtcp_attribute) {
+		int previous_port;
+		string ip_version, network_family, protocol, rtcp_addr;
+		ostringstream ost;
+		ost << port;
+		istringstream ist(string(rtcp_attribute->a_value));
+		ist >> previous_port;
+		if (!ist.eof()) ist >> network_family;
+		if (!ist.fail() && !ist.eof()) ist >> protocol;
+		if (!ist.fail() && !ist.eof()) ist >> rtcp_addr;
+		if (!ist.fail() && !ist.eof()) {
+			ost << ' ' << network_family << ' ' << protocol << ' ' << relayAddr;
+		}
+		sdp_attribute_t *a=(sdp_attribute_t *)su_alloc(mHome, sizeof(sdp_attribute_t));
+		memset(a,0,sizeof(*a));
+		a->a_size=sizeof(*a);
+		a->a_name=su_strdup(mHome, "rtcp");
+		a->a_value=su_strdup(mHome, ost.str().c_str());
+		sdp_attribute_replace(&mline->m_attributes, a, 0);
+	}
+}
+
 void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
 	sdp_media_t *mline=mSession->sdp_media;
-	sdp_attribute_t *rtcp_attribute;
 	int i;
 	string global_c_address;
 	bool sdp_connection_translated = false;
@@ -544,27 +568,7 @@ void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
 			}
 		}
 		mline->m_port=(unsigned long)relayAddr.second;
-		rtcp_attribute = sdp_attribute_find(mline->m_attributes,"rtcp");
-		if (rtcp_attribute) {
-			int previous_port;
-			string ip_version, network_family, protocol, rtcp_addr;
-			ostringstream ost;
-			ost << relayAddr.second + 1;
-			istringstream ist(string(rtcp_attribute->a_value));
-			ist >> previous_port;
-			if (!ist.eof()) ist >> network_family;
-			if (!ist.fail() && !ist.eof()) ist >> protocol;
-			if (!ist.fail() && !ist.eof()) ist >> rtcp_addr;
-			if (!ist.fail() && !ist.eof()) {
-				ost << ' ' << network_family << ' ' << protocol << ' ' << relayAddr.first;
-			}
-			sdp_attribute_t *a=(sdp_attribute_t *)su_alloc(mHome, sizeof(sdp_attribute_t));
-			memset(a,0,sizeof(*a));
-			a->a_size=sizeof(*a);
-			a->a_name=su_strdup(mHome, "rtcp");
-			a->a_value=su_strdup(mHome, ost.str().c_str());
-			sdp_attribute_replace(&mline->m_attributes, a, 0);
-		}
+		changeRtcpAttr(mline, relayAddr.first, relayAddr.second + 1);
 	}
 
 	if (sdp_connection_translated) {
