@@ -113,7 +113,8 @@ struct PusherArgs {
 
 static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const PusherArgs &args) {
 	vector<shared_ptr<PushNotificationRequest>> result;
-	for (string pntok : args.pntok) {
+	for (auto it = args.pntok.begin(); it != args.pntok.end(); it++) {
+		auto pntok = *it;
 		PushInfo pinfo;
 		pinfo.mType = args.pntype;
 		pinfo.mFromName = "Pusher";
@@ -169,7 +170,8 @@ int main(int argc, char *argv[]) {
 	auto pn = createRequestFromArgs(args);
 	auto cb = make_shared<ErrorCb>();
 	int ret = 0;
-	for (auto push : pn) {
+	for (auto it = pn.begin(); it != pn.end(); it++) {
+		auto push = *it;
 		push->setCallBack(cb);
 		ret += service.sendRequest(push);
 	}
