@@ -28,12 +28,12 @@
 #include <ortp/ortp.h>
 #include <sofia-sip/url.h>
 
-static const int MAX_QUEUE_SIZE = 100;
+static const int MAX_QUEUE_SIZE = 3000;
 // static const int PRINT_STATS_TIMEOUT = 3000;	/* In milliseconds. */
 
 class ErrorCb : public PushNotificationRequestCallback {
 	virtual void onError(const string &msg) {
-		cout << "ErrorCb: " << msg << endl;
+		cout << "flexisip_pusher: oops! There was an unexpected error: " << msg << endl;
 	}
 };
 

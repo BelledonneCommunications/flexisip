@@ -160,15 +160,15 @@ bool PushNotificationService::isCertExpired( const std::string &certPath ){
 	} else {
 		ASN1_TIME *notBefore = X509_get_notBefore(cert);
 		ASN1_TIME *notAfter = X509_get_notAfter(cert);
+		char beforeStr[128] = {};
+		char afterStr[128] = {};
+		int validDates = ( ASN1_TIME_toString(notBefore, beforeStr, 128) && ASN1_TIME_toString(notAfter, afterStr, 128));
 		if( X509_cmp_current_time(notBefore) <= 0 && X509_cmp_current_time(notAfter) >= 0 ) {
-
-			LOGD("Certificate %s has a valid expiration.", certPath.c_str());
+			LOGD("Certificate %s has a valid expiration: %s.", certPath.c_str(), afterStr);
 			expired = false;
 		} else {
 			// the certificate has an expire or not before value that makes it not valid regarding the server's date.
-			char beforeStr[128] = {};
-			char afterStr[128] = {};
-			if( ASN1_TIME_toString(notBefore, beforeStr, 128) && ASN1_TIME_toString(notAfter, afterStr, 128)){
+			if (validDates) {
 				LOGD("Certificate %s is expired or not yet valid! Not Before: %s, Not After: %s", certPath.c_str(),
 					 beforeStr, afterStr);
 			} else {

@@ -9,27 +9,28 @@ using namespace std;
 
 const unsigned int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 256;
 const unsigned int ApplePushNotificationRequest::DEVICE_BINARY_SIZE = 32;
+uint32_t ApplePushNotificationRequest::Identifier = 1;
 
 ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
-: PushNotificationRequest(info.mAppId, "apple"), mIdentifier(1) {
+: PushNotificationRequest(info.mAppId, "apple") {
 	const string &deviceToken = info.mDeviceToken;
 	const string &msg_id = info.mAlertMsgId;
 	const string &arg = info.mFromName.empty() ? info.mFromUri : info.mFromName;
 	const string &sound = info.mAlertSound;
 	const string &callid = info.mCallId;
 	ostringstream payload;
-	
+
 	int ret = formatDeviceToken(deviceToken);
 	if ((ret != 0) || (mDeviceToken.size() != DEVICE_BINARY_SIZE)) {
 		throw runtime_error("ApplePushNotification: Invalid deviceToken");
 	}
-	
+
 	if (msg_id ==
 		"IC_SIL") { // silent push: just send "content-available=1", the device will figure out what's happening
 		payload
 		<< "{\"aps\":{\"sound\":\"\", \"content-available\":1},\"pn_ttl\":60}"; // PN expiration set to 60 seconds.
 	} else {
-		
+
 		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg
 		<< "\"]},\"sound\":\"" << sound << "\"";
 		/* some apps don't want the push to update the badge - but if they do,
@@ -54,7 +55,7 @@ int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
 	char car = 0;
 	char oct = 0;
 	char val;
-	
+
 	mDeviceToken.clear();
 	for (unsigned int i = 0; i < deviceToken.length(); ++i) {
 		char tokenCar = deviceToken[i];
@@ -84,45 +85,45 @@ int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
 
 void ApplePushNotificationRequest::createPushNotification() {
 	unsigned int payloadLength = mPayload.length();
-	
+
 	/* Init */
 	mBuffer.clear();
 	/* message format is, |COMMAND|ID|EXPIRY|TOKENLEN|TOKEN|PAYLOADLEN|PAYLOAD| */
 	mBuffer.resize(sizeof(uint8_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint16_t) + DEVICE_BINARY_SIZE + sizeof(uint16_t) + payloadLength);
 	char *binaryMessageBuff = &mBuffer[0];
 	char *binaryMessagePt = binaryMessageBuff;
-	
+
 	/* Compute PushNotification */
-	
+
 	uint8_t command = 1; /* command number. Use enhanced push notifs (cf http://redth.codes/the-problem-with-apples-push-notification-ser/) */
 	uint16_t networkOrderTokenLength = htons(DEVICE_BINARY_SIZE);
 	uint16_t networkOrderPayloadLength = htons(payloadLength);
 	uint32_t expiry = time(0) + 31536000; /* expires in one year */
-	uint32_t identifier = mIdentifier++; /* auto-increment identifier */
-	
+	uint32_t identifier = Identifier++; /* auto-increment identifier */
+
 	/* command */
 	*binaryMessagePt++ = command;
-	
+
 	/* identifier */
 	memcpy(binaryMessagePt, &identifier, sizeof(identifier));
 	binaryMessagePt += sizeof(identifier);
-	
+
 	/* expiry */
 	memcpy(binaryMessagePt, &expiry, sizeof(expiry));
 	binaryMessagePt += sizeof(expiry);
-	
+
 	/* token length network order */
 	memcpy(binaryMessagePt, &networkOrderTokenLength, sizeof(networkOrderTokenLength));
 	binaryMessagePt += sizeof(networkOrderTokenLength);
-	
+
 	/* device token */
 	memcpy(binaryMessagePt, &mDeviceToken[0], DEVICE_BINARY_SIZE);
 	binaryMessagePt += DEVICE_BINARY_SIZE;
-	
+
 	/* payload length network order */
 	memcpy(binaryMessagePt, &networkOrderPayloadLength, sizeof(networkOrderPayloadLength));
 	binaryMessagePt += sizeof(networkOrderPayloadLength);
-	
+
 	/* payload */
 	memcpy(binaryMessagePt, &mPayload[0], payloadLength);
 	binaryMessagePt += payloadLength;
@@ -145,7 +146,7 @@ bool ApplePushNotificationRequest::isValidResponse(const string &str) {
 			"Invalid token",
 		};
 		SLOGE << "PNR " << this << " with identifier " << identifier << " failed with error "
-		<< error << " (" << (error>8 ? "unknow" : errorToString[error]) << ")";
+		<< (int)error << " (" << (error>8 ? "unknown" : errorToString[error]) << ")";
 		return false;
 	}
 	return true;
