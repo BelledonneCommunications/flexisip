@@ -22,6 +22,7 @@
 #include "transaction.hh"
 #include "pushnotification/pushnotificationservice.hh"
 #include "pushnotification/applepush.hh"
+#include "pushnotification/genericpush.hh"
 #include "pushnotification/googlepush.hh"
 #include "pushnotification/microsoftpush.hh"
 #include "forkcallcontext.hh"
@@ -29,12 +30,11 @@
 #include <map>
 #include <sofia-sip/msg_mime.h>
 
-using namespace ::std;
+using namespace std;
 
 class PushNotification;
 
-class PushNotificationContext : public enable_shared_from_this<PushNotificationContext>,
-								public PushNotificationRequestCallback {
+class PushNotificationContext : public enable_shared_from_this<PushNotificationContext> {
   private:
 	su_timer_t *mTimer; // timer after which push is sent
 	su_timer_t *mEndTimer; // timer after which push is cleared from global map.
@@ -146,7 +146,7 @@ void PushNotificationContext::onTimeout() {
 		mForkContext->sendRinging();
 	}
 
-	mModule->getService()->sendRequest(mPushNotificationRequest);
+	mModule->getService()->sendPush(mPushNotificationRequest);
 }
 
 void PushNotificationContext::clear() {
@@ -188,7 +188,6 @@ PushNotification::PushNotification(Agent *ag)
 
 PushNotification::~PushNotification() {
 	if (mPNS != NULL) {
-		mPNS->stop();
 		delete mPNS;
 	}
 }
@@ -271,7 +270,6 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mPNS->setupiOSClient(certdir, "");
 	if (googleEnabled)
 		mPNS->setupAndroidClient(mGoogleKeys);
-	mPNS->start();
 }
 
 void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
@@ -379,10 +377,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				} else {
 					SLOGD << "No Key matching appId " << appId;
 				}
-			} else if (strcmp(type, "error") == 0) {
-				SLOGD << "Creating Error push notif request";
-				if (!mExternalPushUri)
-					pn = make_shared<ErrorPushNotificationRequest>();
 			}
 			if (mExternalPushUri) {
 				/*extract the unique id if possible - it's hacky*/
@@ -396,7 +390,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			if (pn) {
 				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << mTimeout << "s";
 				context = make_shared<PushNotificationContext>(transaction, this, pn, pn_key);
-				pn->setCallBack(context);
 				context->start(mTimeout);
 				mPendingNotifications.insert(make_pair(pn_key, context));
 			}

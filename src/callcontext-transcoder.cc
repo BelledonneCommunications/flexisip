@@ -26,7 +26,7 @@
 /*This file is using a deprecated API of mediastreamer2.*/
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
-using namespace ::std;
+using namespace std;
 
 CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCallCtx(ctx) {
 	mSession = rtp_session_new(RTP_SESSION_SENDRECV);

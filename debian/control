@@ -2,7 +2,7 @@ Source: flexisip
 Section: net
 Priority: optional
 Maintainer: Guillaume BERAUDO <gberaudo@linphone.org>
-Build-Depends: debhelper (>= 7.0.50~), autotools-dev, unixodbc-dev, libhiredis-dev , libprotobuf-dev, libsnmp-dev, libsofia-sip-ua-dev (= 1.12.11+20121219bc-1), protobuf-compiler, libboost-dev, libboost-system-dev
+Build-Depends: debhelper (>= 7.0.50~), autotools-dev, unixodbc-dev, libhiredis-dev , libprotobuf-dev, libsnmp-dev, libsofia-sip-ua-dev (= 1.12.11+20121219bc-1), protobuf-compiler
 Standards-Version: 3.8.4
 Homepage: http://www.flexisip.org
 Vcs-Git: gitosis@git.linphone.org:flexisip.git

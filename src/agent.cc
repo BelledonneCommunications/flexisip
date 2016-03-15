@@ -45,7 +45,7 @@
 
 #define IPADDR_SIZE 64
 
-using namespace ::std;
+using namespace std;
 
 static StatCounter64 *createCounter(GenericStruct *global, string keyprefix, string helpprefix, string value) {
 	return global->createStat(keyprefix + value, helpprefix + value + ".");

@@ -19,7 +19,7 @@
 #include "module.hh"
 #include "agent.hh"
 
-using namespace ::std;
+using namespace std;
 
 class ModuleSanityChecker : public Module, protected ModuleToolbox {
   public:

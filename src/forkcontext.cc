@@ -19,7 +19,7 @@
 #include "forkcontext.hh"
 #include "registrardb.hh"
 #include <sofia-sip/sip_status.h>
-using namespace ::std;
+using namespace std;
 
 const int ForkContext::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603, 0};
 

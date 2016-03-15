@@ -31,7 +31,7 @@
 #include <fstream>
 #include <sstream>
 
-using namespace ::std;
+using namespace std;
 
 DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agent) {
 	GenericManager *mgr = GenericManager::get();

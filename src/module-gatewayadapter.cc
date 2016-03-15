@@ -24,7 +24,7 @@
 #include <sofia-sip/sip_status.h>
 #include <limits.h>
 
-using namespace ::std;
+using namespace std;
 
 class GatewayAdapter;
 

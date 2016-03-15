@@ -23,7 +23,7 @@
 #include <sofia-sip/msg_addr.h>
 #include <unordered_map>
 
-using namespace ::std;
+using namespace std;
 
 typedef struct DosContext {
 	uint64_t recv_msg_count_since_last_check;
@@ -77,13 +77,13 @@ class DoSProtection : public Module, ModuleToolbox {
 
 	void onUnload() {
 	}
-	
+
 	virtual bool isValidNextConfig( const ConfigValue &value ) {
 		GenericStruct *module_config = dynamic_cast<GenericStruct *>(value.getParent());
 		if (!module_config->get<ConfigBoolean>("enabled")->readNext())
 			return true;
 		else {
-			
+
 #if __APPLE__
 			LOGEN("DosProtection only works on linux hosts. Please disable this module.");
 			return false;
@@ -100,7 +100,6 @@ class DoSProtection : public Module, ModuleToolbox {
 					LOGEN("Couldn't find the commant 'at' in your PATH. DosProtection needs it to be used correctly. Please fix this or disable DosProtection.");
 					return false;
 				}
-			}
 			return true;
 #endif
 		}

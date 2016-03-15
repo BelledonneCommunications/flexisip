@@ -26,7 +26,7 @@
 #include <algorithm>
 
 
-using namespace ::std;
+using namespace std;
 using namespace ::std::placeholders;
 
 
@@ -67,7 +67,7 @@ void MediaRelay::onDeclare(GenericStruct * mc) {
 				" This is allow non-ice clients to have their streams relayed.", "true"},
 			{ Boolean, "prevent-loops", "Prevent media-relay ports to loop between them, which can cause 100% cpu on the media relay thread.", "false"},
 			{ Boolean, "early-media-relay-single", "In case multiples 183 Early media responses are received for a call, only the first one will have RTP streams forwarded back to caller. This feature prevents the caller to receive 'mixed' streams, but it breaks scenarios where multiple servers play early media announcement in sequence.", "true"},
-			{ Integer, "max-early-media-per-call", "Maximum number of relayed early media streams per call. This is useful to limit the cpu usage due to early media relaying on" 
+			{ Integer, "max-early-media-per-call", "Maximum number of relayed early media streams per call. This is useful to limit the cpu usage due to early media relaying on"
 				" embedded systems. A value of 0 stands for unlimited.", "0"},
 #ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 			/*very specific features, useless for most people*/
@@ -183,7 +183,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 
 	// Modify sdp message to set relay address and ports for streams not handled by ICE
 	m->masqueradeInOffer(bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()));
-	
+
 	if (!mSdpMangledParam.empty()) m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	if (m->update(msg, sip)==-1){
 		LOGE("Cannot update SDP in message.");
@@ -225,7 +225,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipExcept
 				ev->reply(503, "Maximum number of calls reached", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 				return;
 			}
-			
+
 			c = make_shared<RelayedCall>(mServers[mCurServer], sip);
 			mCurServer = (mCurServer + 1) % mServers.size();
 			newContext=true;

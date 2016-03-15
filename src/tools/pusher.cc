@@ -31,12 +31,6 @@
 static const int MAX_QUEUE_SIZE = 3000;
 // static const int PRINT_STATS_TIMEOUT = 3000;	/* In milliseconds. */
 
-class ErrorCb : public PushNotificationRequestCallback {
-	virtual void onError(const string &msg) {
-		cout << "flexisip_pusher: oops! There was an unexpected error: " << msg << endl;
-	}
-};
-
 struct PusherArgs {
 	string prefix;
 	string pntype;
@@ -47,7 +41,7 @@ struct PusherArgs {
 
 	void usage(const char *app) {
 		cout << app
-			 << " --pntype error|google|wp|apple --appid id --pntok id1 id2 id3 --gkey googleapikey --prefix dir --debug "
+			 << " --pntype google|wp|apple --appid id --pntok id1 id2 id3 --gkey googleapikey --prefix dir --debug "
 			 << endl;
 	}
 
@@ -73,7 +67,7 @@ struct PusherArgs {
 
 	void parse(int argc, char *argv[]) {
 		prefix = "/etc/flexisip";
-		pntype = "error";
+		pntype = "";
 #define EQ0(i, name) (strcmp(name, argv[i]) == 0)
 #define EQ1(i, name) (strcmp(name, argv[i]) == 0 && argc > i)
 		for (int i = 1; i < argc; ++i) {
@@ -86,10 +80,9 @@ struct PusherArgs {
 			} else if (EQ0(i, "--debug")) {
 				debug = true;
 			} else if (EQ1(i, "--pntok")) {
-				i++;
-				while (i < argc && strncmp(argv[i], "--", 2) != 0) {
-					pntok.push_back(argv[i]);
+				while (i+1 < argc && strncmp(argv[i+1], "--", 2) != 0) {
 					i++;
+					pntok.push_back(argv[i]);
 				}
 			} else if (EQ1(i, "--gkey")) {
 				apikey = argv[++i];
@@ -119,9 +112,7 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 		pinfo.mType = args.pntype;
 		pinfo.mFromName = "Pusher";
 		pinfo.mFromUri = "sip:toto@sip.linphone.org";
-		if (args.pntype == "error") {
-			result.push_back(make_shared<ErrorPushNotificationRequest>());
-		} else if (args.pntype == "google") {
+		if (args.pntype == "google") {
 			pinfo.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
 			pinfo.mFromName = "+33681741738";
 			pinfo.mDeviceToken = pntok;
@@ -166,18 +157,16 @@ int main(int argc, char *argv[]) {
 		service.setupAndroidClient(googleKey);
 	}
 
-	service.start();
 	auto pn = createRequestFromArgs(args);
-	auto cb = make_shared<ErrorCb>();
 	int ret = 0;
 	for (auto it = pn.begin(); it != pn.end(); it++) {
 		auto push = *it;
-		push->setCallBack(cb);
-		ret += service.sendRequest(push);
+		ret += service.sendPush(push);
 	}
-	sleep(1);
 	if (ret == 0) {
-		service.waitEnd();
+		while (!service.isIdle()) {
+			sleep(1);
+		}
 	} else {
 		cerr << "fail to send request, aborting" << endl;
 	}

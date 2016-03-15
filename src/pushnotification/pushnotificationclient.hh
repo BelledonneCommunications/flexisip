@@ -16,60 +16,53 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef PUSH_NOTIFICATION_CLIENT_H
-#define PUSH_NOTIFICATION_CLIENT_H
+#pragma once
 
 #include <queue>
 #include <vector>
 #include <ctime>
+#include <mutex>
+#include <thread>
 
-#include <boost/asio.hpp>
-#include <boost/asio/ssl.hpp>
-#include <boost/asio/deadline_timer.hpp>
+#include <openssl/ssl.h>
+
 #include "pushnotificationservice.hh"
 
 class PushNotificationClient {
-  public:
-	PushNotificationClient(const std::string &name, PushNotificationService *service,
-						   std::shared_ptr<boost::asio::ssl::context> ctx, const std::string &host,
-						   const std::string &port, int maxQueueSize, bool isSecure);
-	int sendRequest(const std::shared_ptr<PushNotificationRequest> &req);
-	bool isIdle();
+	public:
+		PushNotificationClient(const std::string &name, PushNotificationService *service,
+			 				   SSL_CTX * ctx,
+							   const std::string &host, const std::string &port,
+							   int maxQueueSize, bool isSecure);
+		~PushNotificationClient();
+		int sendPush(const std::shared_ptr<PushNotificationRequest> &req);
+		bool isIdle();
+		void run();
 
-  protected:
-	void handle_resolve(std::shared_ptr<PushNotificationRequest> ctx, const boost::system::error_code &error,
-						boost::asio::ip::tcp::resolver::iterator endpoint_iterator);
-	void handle_connect(std::shared_ptr<PushNotificationRequest> ctx, const boost::system::error_code &error,
-						boost::asio::ip::tcp::resolver::iterator endpoint_iterator);
-	void handle_handshake(std::shared_ptr<PushNotificationRequest> ctx, const boost::system::error_code &error);
-	void handle_write(std::shared_ptr<PushNotificationRequest> ctx, const boost::system::error_code &error,
-					  size_t bytes_transferred);
-	void handle_read(std::shared_ptr<PushNotificationRequest> ctx, const boost::system::error_code &error,
-					 size_t bytes_transferred);
+	private:
+		void sendPushToServer(const std::shared_ptr<PushNotificationRequest> &req);
+		void recreateConnection();
+		void onError(shared_ptr<PushNotificationRequest> req, const string &msg);
+		void onSuccess(shared_ptr<PushNotificationRequest> req);
 
-  private:
-  	void handle_read_timeout(shared_ptr<PushNotificationRequest> req, const boost::system::error_code &error);
+		std::thread mThread;
+		std::mutex mMutex;
+		std::condition_variable mCondVar;
 
-	void send(std::shared_ptr<PushNotificationRequest> req);
-	void onEnd();
-	void onError(std::shared_ptr<PushNotificationRequest> req, const std::string &msg = "");
-	void onSuccess(std::shared_ptr<PushNotificationRequest> req);
-	void connect(std::shared_ptr<PushNotificationRequest> req);
-	bool next();
+		bool mThreadRunning;
+		bool mThreadWaiting;
 
-  private:
-	PushNotificationService *mService;
-	boost::asio::ip::tcp::resolver mResolver;
-	boost::asio::ssl::stream<boost::asio::ip::tcp::socket> mSocket;
-	std::shared_ptr<boost::asio::ssl::context> mContext;
-	std::queue<std::shared_ptr<PushNotificationRequest>> mRequestQueue;
-	boost::asio::deadline_timer mReadTimeoutTimer;
-	std::vector<char> mResponse;
-	std::string mName;
-	std::string mHost, mPort;
-	int mMaxQueueSize;
-	time_t mLastUse;
-	bool mIsSecure;
+		BIO * mBio;
+
+
+
+
+		PushNotificationService *mService;
+		SSL_CTX * mCtx;
+		std::queue<std::shared_ptr<PushNotificationRequest>> mRequestQueue;
+		std::string mName;
+		std::string mHost, mPort;
+		int mMaxQueueSize;
+		time_t mLastUse;
+		bool mIsSecure;
 };
-
-#endif // PUSH_NOTIFICATION_CLIENT_H

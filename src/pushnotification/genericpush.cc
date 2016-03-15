@@ -16,17 +16,16 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "pushnotification.hh"
+#include "genericpush.hh"
 
 #include <string.h>
 #include <stdexcept>
-#include <boost/asio.hpp>
 #include "common.hh"
 
 #include <iostream>
 #include <list>
 
-using namespace ::std;
+using namespace std;
 
 GenericPushNotificationRequest::GenericPushNotificationRequest(const PushInfo &pinfo, const url_t *url,
 															   const string &method)

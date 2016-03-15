@@ -20,7 +20,7 @@
 #include "agent.hh"
 #include "log/logmanager.hh"
 #include "sofia-sip/sip_status.h"
-using namespace ::std;
+using namespace std;
 
 class ModuleRedirect : public Module, ModuleToolbox {
 

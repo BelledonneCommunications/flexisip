@@ -36,7 +36,7 @@
 #include "recordserializer.hh"
 #include "module.hh"
 
-using namespace ::std;
+using namespace std;
 
 ostream &ExtendedContact::print(std::ostream &stream, time_t now, time_t offset) const {
 	char buffer[256] = "UNDETERMINED";

@@ -1,11 +1,9 @@
 
 #include "applepush.hh"
-#include <iostream>
-#include <string.h>
-#include "log/logmanager.hh"
+#include "common.hh"
+#include <sstream>
+#include <string>
 #include <stdexcept>
-
-using namespace std;
 
 const unsigned int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 256;
 const unsigned int ApplePushNotificationRequest::DEVICE_BINARY_SIZE = 32;
@@ -13,16 +11,16 @@ uint32_t ApplePushNotificationRequest::Identifier = 1;
 
 ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 : PushNotificationRequest(info.mAppId, "apple") {
-	const string &deviceToken = info.mDeviceToken;
-	const string &msg_id = info.mAlertMsgId;
-	const string &arg = info.mFromName.empty() ? info.mFromUri : info.mFromName;
-	const string &sound = info.mAlertSound;
-	const string &callid = info.mCallId;
-	ostringstream payload;
+	const std::string &deviceToken = info.mDeviceToken;
+	const std::string &msg_id = info.mAlertMsgId;
+	const std::string &arg = info.mFromName.empty() ? info.mFromUri : info.mFromName;
+	const std::string &sound = info.mAlertSound;
+	const std::string &callid = info.mCallId;
+	std::ostringstream payload;
 
 	int ret = formatDeviceToken(deviceToken);
 	if ((ret != 0) || (mDeviceToken.size() != DEVICE_BINARY_SIZE)) {
-		throw runtime_error("ApplePushNotification: Invalid deviceToken");
+		throw std::runtime_error("ApplePushNotification: Invalid deviceToken");
 	}
 
 	if (msg_id ==
@@ -46,12 +44,7 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	LOGD("Push notification payload is %s", mPayload.c_str());
 }
 
-const vector<char> &ApplePushNotificationRequest::getData() {
-	createPushNotification();
-	return mBuffer;
-}
-
-int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
+int ApplePushNotificationRequest::formatDeviceToken(const std::string &deviceToken) {
 	char car = 0;
 	char oct = 0;
 	char val;
@@ -83,7 +76,7 @@ int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
 	return 0;
 }
 
-void ApplePushNotificationRequest::createPushNotification() {
+const std::vector<char> &ApplePushNotificationRequest::getData() {
 	unsigned int payloadLength = mPayload.length();
 
 	/* Init */
@@ -127,9 +120,11 @@ void ApplePushNotificationRequest::createPushNotification() {
 	/* payload */
 	memcpy(binaryMessagePt, &mPayload[0], payloadLength);
 	binaryMessagePt += payloadLength;
+
+	return mBuffer;
 }
 
-bool ApplePushNotificationRequest::isValidResponse(const string &str) {
+bool ApplePushNotificationRequest::isValidResponse(const std::string &str) {
 	// error response is COMMAND(1)|STATUS(1)|ID(4) in bytes
 	if (str.length() >= 6) {
 		uint8_t error = str[1];

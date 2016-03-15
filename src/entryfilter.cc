@@ -20,7 +20,7 @@
 #include "module.hh"
 #include <stdexcept>
 
-using namespace ::std;
+using namespace std;
 
 ConfigEntryFilter::ConfigEntryFilter() {
 }

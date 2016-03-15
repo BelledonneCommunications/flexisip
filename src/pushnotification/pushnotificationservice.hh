@@ -16,9 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef PUSH_NOTIFICATION_SERVICE_H
-#define PUSH_NOTIFICATION_SERVICE_H
-
+#pragma once
 #include "pushnotification.hh"
 #include "configmanager.hh"
 
@@ -29,9 +27,9 @@
 #include <thread>
 #include <string>
 
-#include <boost/asio.hpp>
-#include <boost/asio/ssl.hpp>
-#include <boost/version.hpp>
+// #include <boost/asio.hpp>
+// #include <boost/asio/ssl.hpp>
+// #include <boost/version.hpp>
 
 class PushNotificationClient;
 
@@ -39,42 +37,26 @@ class PushNotificationService {
 	friend class PushNotificationClient;
 
   public:
-	int sendRequest(const std::shared_ptr<PushNotificationRequest> &pn);
-	void setupGenericClient(const url_t *url);
-	void setupiOSClient(const std::string &certdir, const std::string &cafile);
-	void setupAndroidClient(const std::map<std::string, std::string> googleKeys);
-	void start();
-
-	void stop();
-
-	void waitEnd();
-
 	PushNotificationService(int maxQueueSize);
+	~PushNotificationService();
+
 	void setStatCounters(StatCounter64 *countFailed, StatCounter64 *countSent) {
 		mCountFailed = countFailed;
 		mCountSent = countSent;
 	}
 
-	~PushNotificationService();
+	int sendPush(const std::shared_ptr<PushNotificationRequest> &pn);
+	void setupGenericClient(const url_t *url);
+	void setupiOSClient(const std::string &certdir, const std::string &cafile);
+	void setupAndroidClient(const std::map<std::string, std::string> googleKeys);
 
-	boost::asio::io_service &getService();
-
-	std::string handle_password_callback(std::size_t max_length,
-										 boost::asio::ssl::context_base::password_purpose purpose) const;
-#if BOOST_VERSION >= 104800
-	bool handle_verify_callback(bool preverified, boost::asio::ssl::verify_context &ctx) const;
-#endif
-
+	bool isIdle();
   private:
 	void setupClients(const std::string &certdir, const std::string &ca, int maxQueueSize);
-	int run();
-	void clientEnded();
-	void setupErrorClient();
 	bool isCertExpired( const std::string &certPath );
 
 
   private:
-	boost::asio::io_service mIOService;
 	std::thread *mThread;
 	int mMaxQueueSize;
 	bool mHaveToStop;
@@ -83,5 +65,3 @@ class PushNotificationService {
 	StatCounter64 *mCountFailed;
 	StatCounter64 *mCountSent;
 };
-
-#endif // PUSH_NOTIFICATION_SERVICE_H

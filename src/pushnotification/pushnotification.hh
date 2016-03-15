@@ -15,13 +15,11 @@
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef PUSH_NOTIFICATION_H
-#define PUSH_NOTIFICATION_H
+#pragma once
 
 #include <string>
 #include <vector>
 #include <memory>
-#include <boost/concept_check.hpp>
 
 #include <sofia-sip/url.h>
 
@@ -45,72 +43,24 @@ struct PushInfo {
 	bool mNoBadge; // Whether to display a badge on the application (ios specific).
 };
 
-class PushNotificationRequestCallback {
-  public:
-	virtual void onError(const std::string &msg) = 0;
+class PushNotificationRequest {
+	public:
+		const std::string &getAppIdentifier() {
+			return mAppId;
+		}
+		const std::string &getType() {
+			return mType;
+		}
+		virtual const std::vector<char> &getData() = 0;
+		virtual bool isValidResponse(const std::string &str) = 0;
+		virtual bool serverResponseIsImmediate() = 0;
+
+	protected:
+		PushNotificationRequest(const std::string &appid, const std::string &type)
+			: mAppId(appid), mType(type) {
+		}
+	private:
+		const std::string mAppId;
+		const std::string mType;
+
 };
-
-class PushNotificationRequest : public PushNotificationRequestCallback {
-  public:
-	const std::string &getAppIdentifier() {
-		return mAppId;
-	}
-	const std::string &getType() {
-		return mType;
-	}
-	virtual const std::vector<char> &getData() = 0;
-	virtual bool isValidResponse(const std::string &str) = 0;
-	virtual bool serverResponseIsImmediate() = 0;
-	virtual ~PushNotificationRequest() {}
-	void setCallBack(const std::shared_ptr<PushNotificationRequestCallback> &cb) {
-		mCallBack = cb;
-	}
-	std::shared_ptr<PushNotificationRequestCallback> &getCallBack() {
-		return mCallBack;
-	}
-	virtual void onError(const std::string &msg) {
-		mCallBack->onError(msg);
-	}
-
-  private:
-	const std::string mAppId;
-	const std::string mType;
-	std::shared_ptr<PushNotificationRequestCallback> mCallBack;
-
-  protected:
-	PushNotificationRequest(const std::string &appid, const std::string &type)
-		: mAppId(appid), mType(type), mCallBack({}) {
-	}
-};
-
-
-class ErrorPushNotificationRequest : public PushNotificationRequest {
-  public:
-	ErrorPushNotificationRequest() : PushNotificationRequest("error", "error"), mBuffer() {}
-	~ErrorPushNotificationRequest() {}
-	
-	virtual bool serverResponseIsImmediate() { return true; }
-	virtual bool isValidResponse(const std::string &str) { return false; }
-	virtual const std::vector<char> &getData() { return mBuffer; }
-  protected:
-	std::vector<char> mBuffer;
-};
-
-
-class GenericPushNotificationRequest : public PushNotificationRequest {
-  public:
-
-	GenericPushNotificationRequest(const PushInfo &pinfo, const url_t *url, const std::string &method);
-	
-	virtual ~GenericPushNotificationRequest() {}
-	virtual bool serverResponseIsImmediate() { return true; }
-	virtual const std::vector<char> &getData();
-	virtual bool isValidResponse(const std::string &str);
-  protected:
-	std::string &substituteArgs(std::string &input, const PushInfo &pinfo);
-	void createPushNotification();
-	std::vector<char> mBuffer;
-	std::string mHttpMessage;
-};
-
-#endif

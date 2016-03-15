@@ -33,7 +33,7 @@
 #include "log/logmanager.hh"
 #include "utils/flexisip-exception.hh"
 
-using namespace ::std;
+using namespace std;
 
 static string tf(bool value) {
 	return value ? "true" : "false";
@@ -348,7 +348,7 @@ class ContainsOp : public BooleanExpression {
 			string var1 = mVar1->get(args);
 			string var2 = mVar2->get(args);
 			res = var1.find(var2) != std::string::npos;
-			
+
 			LOGEVAL << "evaluating " << mVar1->get(args) << " contains " << mVar2->get(args) << " : "
 			<< (res ? "true" : "false");
 		} catch (invalid_argument &e) {

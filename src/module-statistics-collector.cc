@@ -26,7 +26,7 @@
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/tport.h>
 
-using namespace ::std;
+using namespace std;
 
 class StatisticsCollector : public Module, ModuleToolbox {
   public:

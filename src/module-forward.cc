@@ -26,7 +26,7 @@
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/tport.h>
 
-using namespace ::std;
+using namespace std;
 
 static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip, char const *string_server,
 								  const shared_ptr<OutgoingTransaction> &outTr);

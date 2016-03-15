@@ -18,7 +18,7 @@
 
 #include "contact-masquerader.hh"
 
-using namespace ::std;
+using namespace std;
 
 /*add a parameter like "CtRt15.128.128.2=tcp:201.45.118.16:50025" in the contact, so that we know where is the client
  when we later have to route an INVITE to him */

@@ -28,7 +28,7 @@
 #include "utils/signaling-exception.hh"
 
 #include <algorithm>
-using namespace ::std;
+using namespace std;
 
 list<string> Module::sPushNotifParams{"pn-tok",		 "pn-type",		"app-id",	"pn-msg-str",
 									  "pn-call-str", "pn-call-snd", "pn-msg-snd"};
@@ -161,36 +161,36 @@ void Module::reload() {
 void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	LOG_SCOPED_THREAD("Module", getModuleName());
-	
+
 	try {
-		
+
 		if (mFilter->canEnter(ms)) {
 			SLOGD << "Invoking onRequest() on module " << getModuleName();
 			onRequest(ev);
 		} else {
 			SLOGD << "Skipping onRequest() on module " << getModuleName();
 		}
-		
+
 	} catch (SignalingException &se) {
-		
+
 		SLOGD << "Signaling exception while onRequest() on module " << getModuleName() << ": " << se;
 		SLOGD << "Replying with message " << se.getStatusCode() << " and reason " << se.getReason();
 		ev->reply(se.getStatusCode(), se.getReason().c_str(), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-	
+
 	} catch (FlexisipException &fe) {
-		
+
 		SLOGD << "Exception while onRequest() on module " << getModuleName() << " because " << fe;
 		SLOGD << "Replying with error 500";
 		ev->reply(500, "Internal Error", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		
+
 	}
-	
+
 }
 
 void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	LOG_SCOPED_THREAD("Module", getModuleName());
-	
+
 	try {
 		if (mFilter->canEnter(ms)) {
 			LOGD("Invoking onResponse() on module %s", getModuleName().c_str());
@@ -201,7 +201,7 @@ void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 	} catch (FlexisipException &fe) {
 		SLOGD << "Skipping onResponse() on module" << getModuleName() << " because " << fe;
 	}
-	
+
 }
 
 void Module::idle() {

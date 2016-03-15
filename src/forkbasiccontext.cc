@@ -21,7 +21,7 @@
 #include <algorithm>
 #include <sofia-sip/sip_status.h>
 
-using namespace ::std;
+using namespace std;
 
 ForkBasicContext::ForkBasicContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event,
 								   shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener)

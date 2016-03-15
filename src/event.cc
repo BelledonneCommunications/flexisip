@@ -26,7 +26,7 @@
 #include <sofia-sip/msg_addr.h>
 #include "sipattrextractor.hh"
 
-using namespace ::std;
+using namespace std;
 
 void MsgSip::assignMsg(msg_t *msg) {
 	mMsg = msg_ref_create(msg);

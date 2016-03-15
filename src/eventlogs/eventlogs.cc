@@ -44,7 +44,7 @@ using namespace odb::core;
 
 #endif
 
-using namespace ::std;
+using namespace std;
 
 EventLog::Init EventLog::evStaticInit;
 

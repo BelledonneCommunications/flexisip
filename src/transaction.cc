@@ -25,7 +25,7 @@
 #include <sofia-sip/su_random.h>
 #include <sofia-sip/su_md5.h>
 
-using namespace ::std;
+using namespace std;
 
 IncomingAgent::~IncomingAgent() {
 }

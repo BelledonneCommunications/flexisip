@@ -27,7 +27,7 @@
 #include <sstream>
 #include <algorithm>
 
-using namespace ::std;
+using namespace std;
 using namespace odb::core;
 
 inline ostream &operator<<(ostream &ostr, const sip_user_agent_t *ua) {

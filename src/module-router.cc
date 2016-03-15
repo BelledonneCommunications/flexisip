@@ -27,7 +27,7 @@
 
 #include "lateforkapplier.hh"
 
-using namespace ::std;
+using namespace std;
 
 class ModuleRouter;
 
@@ -291,15 +291,6 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 		LOGW("Unrouted request because of incorrect address of contact");
 		return false;
 	}
-
-#if ENABLE_BOOST_LOG && not(__GNUC__ == 4 && __GNUC_MINOR__ < 5)
-	sip_t *sip = ms->getSip();
-	auto lambdaContactUrlInVia = [=]() { return contactUrlInVia(dest, sip->sip_via); };
-	static auto lambdaMsg = [](flexisip_record_type &strm) {
-		strm << "Contact url in vias, the message will be routed backward";
-	};
-	LOGDFN(lambdaContactUrlInVia, lambdaMsg);
-#endif
 
 	char *contact_url_string = url_as_string(ms->getHome(), dest);
 	shared_ptr<RequestSipEvent> new_ev;

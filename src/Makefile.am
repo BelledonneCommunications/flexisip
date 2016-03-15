@@ -139,17 +139,6 @@ if BUILD_TRANSCODER
 thesources+=	callcontext-transcoder.cc callcontext-transcoder.hh
 endif
 
-if BUILD_BOOSTLOG
-AM_CXXFLAGS+=-DENABLE_BOOSTLOG -DBOOST_LOG_USE_NATIVE_SYSLOG=1 $(BOOST_CPPFLAGS) $(BOOST_LOG_CPPFLAGS) $(BOOST_REGEX_CPPFLAGS) $(BOOST_THREAD_CPPFLAGS)
-
-flexisip_LDADD+=$(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(BOOST_LOG_LIB) $(BOOST_REGEX_LIB) $(BOOST_THREAD_LIB) libhack.a
-noinst_LIBRARIES = libhack.a
-libhack_a_SOURCES = log/workaround.cc log/logmanager.hh
-libhack_a_CXXFLAGS = $(AM_CXXFLAGS) -Wno-uninitialized
-
-AM_CXXFLAGS+= -DBOOST_LOG_DYN_LINK=1
-endif
-
 if BUILD_PUSHNOTIFICATION
 thesources+=		module-pushnotification.cc \
 			pushnotification/pushnotification.hh \
@@ -159,8 +148,8 @@ thesources+=		module-pushnotification.cc \
 			pushnotification/pushnotificationservice.cc pushnotification/pushnotificationservice.hh \
 			pushnotification/pushnotificationclient.cc pushnotification/pushnotificationclient.hh \
 			pushnotification/genericpush.cc pushnotification/genericpush.hh
-AM_CXXFLAGS+=-DENABLE_PUSHNOTIFICATION $(BOOST_CPPFLAGS) $(OPENSSL_CPPFLAGS)
-flexisip_LDADD+=$(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(OPENSSL_LIBS) $(BOOST_ASIO_LIB)
+AM_CXXFLAGS+=-DENABLE_PUSHNOTIFICATION $(OPENSSL_CPPFLAGS)
+flexisip_LDADD+=$(OPENSSL_LIBS)
 endif
 
 if BUILD_REDIS

@@ -27,7 +27,7 @@
 #include <algorithm>
 #include <list>
 
-using namespace ::std;
+using namespace std;
 
 PollFd::PollFd(int init_size) : mCurSize(init_size) {
 	mPfd = (struct pollfd *)malloc(mCurSize * sizeof(struct pollfd));

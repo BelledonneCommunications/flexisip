@@ -21,7 +21,7 @@
 
 #include <vector>
 
-using namespace ::std;
+using namespace std;
 
 class LoadBalancer : public Module, public ModuleToolbox {
   public:

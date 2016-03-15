@@ -4,7 +4,7 @@
 #include <string.h>
 #include "log/logmanager.hh"
 
-using namespace ::std;
+using namespace std;
 
 GooglePushNotificationRequest::GooglePushNotificationRequest(const PushInfo &pinfo)
 : PushNotificationRequest(pinfo.mAppId, "google") {
@@ -19,7 +19,7 @@ GooglePushNotificationRequest::GooglePushNotificationRequest(const PushInfo &pin
 	<< callid << "\"}";
 	mHttpBody = httpBody.str();
 	LOGD("Push notification https post body is %s", mHttpBody.c_str());
-	
+
 	ostringstream httpHeader;
 	httpHeader << "POST /gcm/send "
 	"HTTP/1.1\r\nHost:android.googleapis.com\r\nContent-Type:application/json\r\nAuthorization:key="
@@ -31,16 +31,16 @@ GooglePushNotificationRequest::GooglePushNotificationRequest(const PushInfo &pin
 void GooglePushNotificationRequest::createPushNotification() {
 	int headerLength = mHttpHeader.length();
 	int bodyLength = mHttpBody.length();
-	
+
 	mBuffer.clear();
 	mBuffer.resize(headerLength + bodyLength);
-	
+
 	char *binaryMessageBuff = &mBuffer[0];
 	char *binaryMessagePt = binaryMessageBuff;
-	
+
 	memcpy(binaryMessagePt, &mHttpHeader[0], headerLength);
 	binaryMessagePt += headerLength;
-	
+
 	memcpy(binaryMessagePt, &mHttpBody[0], bodyLength);
 	binaryMessagePt += bodyLength;
 }

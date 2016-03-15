@@ -31,7 +31,7 @@
 #include <functional>
 #include <algorithm>
 
-using namespace ::std;
+using namespace std;
 
 class ModuleRegistrar;
 static ModuleRegistrar *sRegistrarInstanceForSigAction = NULL;

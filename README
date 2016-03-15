@@ -26,8 +26,6 @@ Optionally it also depends on:
 - odbc
 - hiredis
 - protobuf
-- boost::Asio (only for push notifications)
-- boost::Log
 - xsd (>= 4, for old OS on which this version isn't packaged, rpm and deb 
   are available here: http://www.codesynthesis.com/products/xsd/download.xhtml)
 - pdflatex to generate the documentation in PDF format.

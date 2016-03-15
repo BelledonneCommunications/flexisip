@@ -33,7 +33,7 @@
 #include "registrardb-redis-sofia-event.h"
 #include <sofia-sip/sip_protos.h>
 
-using namespace ::std;
+using namespace std;
 
 /******
  * RegistrarUserData helper class

@@ -32,7 +32,7 @@
 
 #include "authdb.hh"
 
-using namespace ::std;
+using namespace std;
 class Authentication;
 
 struct auth_plugin_t {

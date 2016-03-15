@@ -24,7 +24,7 @@
 
 
 
-using namespace ::std;
+using namespace std;
 
 
 SdpMasqueradeContext::SdpMasqueradeContext(){
@@ -60,7 +60,7 @@ bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_
 
 	ufrag = getAttribute(session, mline, "ice-ufrag");
 	passwd = getAttribute(session, mline, "ice-pwd");
-	
+
 	if (isOfferer){
 		switch(mIceState){
 			case IceNone:
@@ -106,7 +106,7 @@ bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_
 			break;
 		}
 	}
-	LOGD("updateIceFromOffer() this=%p %s state %s -> %s", this, isOfferer ? "offerer" : "offered", toString(oldState), toString(mIceState)); 
+	LOGD("updateIceFromOffer() this=%p %s state %s -> %s", this, isOfferer ? "offerer" : "offered", toString(oldState), toString(mIceState));
 	return needsCandidates;
 }
 
@@ -114,10 +114,10 @@ bool SdpMasqueradeContext::updateIceFromAnswer(sdp_session_t* session, sdp_media
 	string ufrag, passwd;
 	IceState oldState = mIceState;
 	bool needsCandidates = false;
-	
+
 	ufrag = getAttribute(session, mline, "ice-ufrag");
 	passwd = getAttribute(session, mline, "ice-pwd");
-	
+
 	if (isOfferer){
 		switch(mIceState){
 			case IceNone:
@@ -433,7 +433,7 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		MasqueradeContextPair mctxs = getMasqueradeContexts(i);
 		bool needsCandidates = false;
-		
+
 		if (mctxs.valid()){
 			if (isOffer){
 				needsCandidates = mctxs.mOfferer->updateIceFromOffer(mSession, mline, true);
@@ -443,7 +443,7 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 				needsCandidates = mctxs.mOffered->updateIceFromAnswer(mSession, mline, false);
 			}
 		}
-		
+
 		if (needsCandidates) {
 			uint32_t priority;
 			auto relayAddr=getRelayAddrFcn(i);
@@ -456,9 +456,9 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 				mline->m_port=(unsigned long)relayAddr.second;
 				changeRtcpAttr(mline, relayAddr.first, relayAddr.second + 1);
 			}
-			
+
 			for (uint16_t componentID=1; componentID<=2; componentID++) {
-				
+
 				if (!hasIceCandidate(mline, relayAddr.first.c_str(), relayAddr.second + componentID - 1)) {
 					priority = (65535 << 8) | (256 - componentID);
 					ostringstream candidate_line;

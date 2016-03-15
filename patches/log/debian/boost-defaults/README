@@ -1,3 +1,0 @@
-apt-get source boost-defaults
-copy files
-dpkg-buildpackage -us -uc -sa

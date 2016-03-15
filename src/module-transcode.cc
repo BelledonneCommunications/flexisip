@@ -35,7 +35,7 @@
 /*This file is using a deprecated API of mediastreamer2.*/
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
-using namespace ::std;
+using namespace std;
 
 #ifdef ENABLE_TRANSCODER
 class TickerManager {
@@ -345,7 +345,7 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 // Force front side to bind and allocate a port immediately on the bind-address
 // BIG FAT WARNING: call getAudioPort BEFORE the setRemoteAddr
 // to get the local address bound correctly
-#if ENABLE_BOOSTLOG || ORTP_DEBUG_MODE
+#if ORTP_DEBUG_MODE
 		int flport = c->getFrontSide()->getAudioPort();
 #endif
 

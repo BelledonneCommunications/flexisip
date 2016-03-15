@@ -27,7 +27,7 @@
 
 #include <sofia-sip/sip_protos.h>
 
-using namespace ::std;
+using namespace std;
 
 RegistrarDbInternal::RegistrarDbInternal(const string &preferredRoute) : RegistrarDb(preferredRoute) {
 }

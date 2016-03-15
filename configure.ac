@@ -357,22 +357,13 @@ if test $monotonic_clock_registrations = "yes"; then
 	AC_DEFINE([MONOTONIC_CLOCK_REGISTRATIONS],1,[Enable monotonic clock for registrations.])
 fi
 
-AC_DEFUN([CHECK_BOOST],[$1
-	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[[
-		#ifndef $2
-			fail
-		#endif
-		return 0;
-	]])], [$3], [$4])
-])
-
 
 # Monotonic clock was not included in c++11x
 AC_LANG_PUSH([C++])
 AC_COMPILE_IFELSE(
   [AC_LANG_PROGRAM([
 	#include <chrono>
-	using namespace ::std;
+	using namespace std;
 	using namespace chrono;
 	steady_clock::time_point test;
 	],[]
@@ -383,23 +374,6 @@ AC_COMPILE_IFELSE(
 AC_LANG_POP([C++])
 AM_CONDITIONAL(USE_MONOTONIC_CLOCK,test x$use_monotonic_clock = xyes)
 
-
-AX_BOOST_BASE([1.41],[],[AC_MSG_WARN([boost base not found.])])
-AC_ARG_ENABLE(boostlog,
-	AC_HELP_STRING([--enable-boostlog], [Build boost log support [no]]),
-	[boostlog="${enableval}"],
-	[boostlog=no]
-)
-
-if test x$boostlog = xyes ; then
-CHECK_BOOST([AX_BOOST_LOG], [HAVE_BOOST_LOG], [found_boost_log=yes], [AC_MSG_ERROR([boost log not found.])])
-if test x$found_boost_log = xyes ; then
-	CHECK_BOOST([AX_BOOST_REGEX], [HAVE_BOOST_LOG], [], [AC_MSG_ERROR([boost regex not found.])])
-	CHECK_BOOST([AX_BOOST_THREAD], [HAVE_BOOST_LOG], [], [AC_MSG_ERROR([boost thread not found.])])
-	CHECK_BOOST([AX_BOOST_SYSTEM], [HAVE_BOOST_LOG], [], [AC_MSG_ERROR([boost system not found.])])
-fi
-fi
-AM_CONDITIONAL(BUILD_BOOSTLOG, test x$found_boost_log = xyes)
 
 if test "$build_upnp" != "false" ; then
 	PKG_CHECK_MODULES([LIBUPNP], [libupnp],
@@ -424,17 +398,7 @@ AC_ARG_ENABLE(pushnotification,
 )
 
 if test x$pushnotification != xno ; then
-	AX_BOOST_BASE([1.41],[apushnotification=yes],[apushnotification=no])
-	if test x$apushnotification = xno ; then
-		if test x$pushnotification != xauto ; then
-			AC_MSG_ERROR([boost not found. This is required for push notification. Use --disable-pushnotification if you don''t need this feature.])
-		fi
-	else
-		CHECK_BOOST([AX_BOOST_SYSTEM], [HAVE_BOOST_SYSTEM], [], [AC_MSG_ERROR([boost system not found.])])
-		CHECK_BOOST([AX_BOOST_ASIO], [HAVE_BOOST_ASIO], [], [AC_MSG_ERROR([boost asio not found.])])
-		PKG_CHECK_MODULES(OPENSSL,[openssl >= 0.9.8])
-	fi
-	pushnotification=$apushnotification
+	PKG_CHECK_MODULES(OPENSSL,[openssl >= 0.9.8])
 fi
 
 AM_CONDITIONAL(BUILD_PUSHNOTIFICATION,test x$pushnotification = xyes)

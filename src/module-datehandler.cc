@@ -21,7 +21,7 @@
 
 #include <sofia-sip/msg_addr.h>
 
-using namespace ::std;
+using namespace std;
 
 class DateHandler : public Module, protected ModuleToolbox {
   public:

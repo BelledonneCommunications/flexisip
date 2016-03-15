@@ -40,13 +40,12 @@
 #include <unordered_set>
 #include <tuple>
 #include <queue>
-
 #include <algorithm>
-
-#include "common.hh"
 #include <typeinfo>
 #include <cxxabi.h>
 #include <memory>
+
+#include "common.hh"
 
 #ifdef ENABLE_SNMP
 

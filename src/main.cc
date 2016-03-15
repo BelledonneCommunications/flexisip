@@ -84,7 +84,7 @@ static pid_t flexisip_pid = -1;
 static pid_t monitor_pid = -1;
 static su_root_t *root = NULL;
 
-using namespace ::std;
+using namespace std;
 
 static void flexisip_stop(int signum) {
 	if (flexisip_pid > 0) {
@@ -512,9 +512,6 @@ static string version() {
 #if ENABLE_PRESENCE
 	version += "- Presence\n";
 #endif
-#if ENABLE_BOOSTLOG
-	version += "- BoostLog\n";
-#endif
 
 	return version;
 }
@@ -740,7 +737,7 @@ int main(int argc, char *argv[]) {
 	if (oset.find("notrans") == oset.end()) {
 		ms_factory_new_with_voip();
 	}
-#elif !defined(ENABLE_BOOST_LOG)
+#else
 	ortp_init();
 #endif
 

@@ -22,7 +22,7 @@
 #include <set>
 #include <chrono>
 
-using namespace ::std;
+using namespace std;
 using namespace chrono;
 
 #ifdef USE_MONOTONIC_CLOCK

@@ -31,7 +31,7 @@ using namespace fthttp;
 
 #endif
 
-using namespace ::std;
+using namespace std;
 
 static bool needsDelivery(int code) {
 	return code < 200 || code == 503 || code == 408;

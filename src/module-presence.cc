@@ -20,7 +20,7 @@
 #include "agent.hh"
 #include "log/logmanager.hh"
 
-using namespace ::std;
+using namespace std;
 
 class ModulePresence : public Module, ModuleToolbox {
 

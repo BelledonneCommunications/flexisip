@@ -18,32 +18,24 @@
 
 #pragma once
 
-#ifndef _APPLE_PUSH_H_
-#define _APPLE_PUSH_H
-
 #include "pushnotification.hh"
 
 
 class ApplePushNotificationRequest : public PushNotificationRequest {
 public:
-	static const unsigned int MAXPAYLOAD_SIZE;
-	static const unsigned int DEVICE_BINARY_SIZE;
+	ApplePushNotificationRequest(const PushInfo &pinfo);
+	~ApplePushNotificationRequest() { }
 	virtual const std::vector<char> &getData();
 	virtual bool isValidResponse(const std::string &str);
-	ApplePushNotificationRequest(const PushInfo &pinfo);
-	~ApplePushNotificationRequest() {
-	}
-	virtual bool serverResponseIsImmediate() {
-		return false;
-	}
-
+	virtual bool serverResponseIsImmediate() { return false; }
 protected:
 	int formatDeviceToken(const std::string &deviceToken);
 	void createPushNotification();
+protected:
+	static const unsigned int MAXPAYLOAD_SIZE;
+	static const unsigned int DEVICE_BINARY_SIZE;
 	std::vector<char> mBuffer;
 	std::vector<char> mDeviceToken;
 	std::string mPayload;
 	static uint32_t Identifier;
 };
-
-#endif

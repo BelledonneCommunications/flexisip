@@ -18,7 +18,7 @@
 
 #include "authdb.hh"
 
-using namespace ::std;
+using namespace std;
 
 AuthDbBackend *AuthDbBackend::sUnique = NULL;
 

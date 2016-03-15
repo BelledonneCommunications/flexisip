@@ -24,7 +24,7 @@ using namespace soci;
 
 // The dreaded chrono::steady_clock which is not supported for gcc < 4.7
 #include <chrono>
-using namespace ::std;
+using namespace std;
 using namespace chrono;
 #ifdef USE_MONOTONIC_CLOCK
 namespace std {

@@ -20,7 +20,7 @@
 #include "agent.hh"
 #include "contact-masquerader.hh"
 
-using namespace ::std;
+using namespace std;
 
 class ContactRouteInserter : public Module {
   public:

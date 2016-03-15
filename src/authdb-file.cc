@@ -24,7 +24,7 @@
 #include <sstream>
 #include <algorithm>
 
-using namespace ::std;
+using namespace std;
 
 FileAuthDb::FileAuthDb() {
 	GenericStruct *cr = GenericManager::get()->getRoot();
