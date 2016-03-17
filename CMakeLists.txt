@@ -34,6 +34,7 @@ include(CMakeDependentOption)
 include(CheckSymbolExists)
 include(CheckFunctionExists)
 include(FeatureSummary)
+include(CheckCXXSourceCompiles)
 
 option(ENABLE_BOOSTLOG "Build boost log support" YES)
 option(ENABLE_DATEHANDLER "Build DateHandler module" NO)
@@ -108,7 +109,23 @@ endif()
 
 check_function_exists(arc4random HAVE_ARC4RANDOM)
 find_file(HAVE_SYS_PRCTL_H NAMES sys/prctl.h)
-# TODO: check monotonic clock support (we expect yes) see configure.ac
+check_cxx_source_compiles(
+	"#include <chrono>
+	using namespace ::std;
+	using namespace chrono;
+	steady_clock::time_point test;
+	int main() { return 0;}
+	"
+	HAS_STEADY_CLOCK
+)
+set(CMAKE_REQUIRED_LIBRARIES)
+
+if(HAS_STEADY_CLOCK)
+	message(STATUS "System has steady clock.")
+else()
+	message(STATUS "System doesn't have steady clock. Use monotonic instead.")
+    add_definitions(-DUSE_MONOTONIC_CLOCK)
+endif()
 
 # Options
 if(ENABLE_ODB)
