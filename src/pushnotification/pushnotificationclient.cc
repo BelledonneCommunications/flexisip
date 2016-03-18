@@ -159,7 +159,6 @@
 		}
 
 		/* wait for server response */
-		char r[1024];
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " waiting for server response";
 		if (BIO_pending(mBio) <= 0) {
 			int fdSocket;
@@ -174,24 +173,23 @@
 
 			int nRet = poll(&polls, 1, 1000);
 			// this is specific to iOS which does not send a response in case of success
-			if (nRet <= 0) {
+			if (nRet <= 0) {//poll timeout, we shall not expect a response.
 				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " nothing read, assuming success";
+				onSuccess(req);
 				return;
 			}
 		}
-		while (true) {
-			int p = BIO_read(mBio, r, 1023);
-			if(p <= 0) {
-				break;
-			} else {
-				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " read " << p << " data:\n" << r;
-				string responsestr(r, p);
-				if (!req->isValidResponse(responsestr)) {
-					onError(req, "Invalid server response");
-					return;
-				}
-			}
+		char r[1024];
+		int p = BIO_read(mBio, r, sizeof(r)-1);
+		if (p > 0) {
 			r[p] = 0;
+			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " read " << p << " data:\n" << r;
+			string responsestr(r, p);
+			if (!req->isValidResponse(responsestr)) {
+				onError(req, "Invalid server response");
+			}else{
+				onSuccess(req);
+			}
 		}
 	}
 
