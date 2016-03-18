@@ -27,7 +27,7 @@
 	PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService *service,
 		SSL_CTX * ctx, const std::string &host, const std::string &port, int maxQueueSize, bool isSecure) :
 	mThread(), mThreadRunning(false), mThreadWaiting(true),  mBio(NULL),
-	mName(name), mService(service), mCtx(ctx), mHost(host), mPort(port),
+	mService(service), mCtx(ctx), mName(name), mHost(host), mPort(port),
 	mMaxQueueSize(maxQueueSize), mLastUse(0), mIsSecure(isSecure) {}
 
 
@@ -88,36 +88,48 @@
 		std::string hostname = mHost + ":" + mPort;
 		SSL * ssl = NULL;
 
-		mBio = BIO_new_connect((char*)hostname.c_str());
 		if (mIsSecure) {
+			mBio = BIO_new_ssl_connect(mCtx);
+			BIO_set_conn_hostname(mBio, hostname.c_str());
 			/* Set the SSL_MODE_AUTO_RETRY flag */
 			BIO_get_ssl(mBio, &ssl);
 			SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 			SSL_set_options(ssl, SSL_OP_ALL);
-			BIO_set_nbio(mBio, 1);
+		}else{
+			mBio =  BIO_new_connect((char*)hostname.c_str());
 		}
 
 		int sat = BIO_do_connect(mBio);
-		while (sat <= 0 && BIO_should_retry(mBio)) {
-			sat = BIO_do_connect(mBio);
-		}
 
 		if (sat <= 0) {
 			SLOGE << "Error attempting to connect to " << hostname << ": " << sat << " - " << strerror( errno);
 			ERR_print_errors_fp(stderr);
-			BIO_free_all(mBio);
-			mBio = NULL;
-			return;
+			goto error;
+		}
+		
+		if (mIsSecure){
+			sat = BIO_do_handshake(mBio);
+			if (sat <= 0){
+				SLOGE << "Error attempting to handshake to " << hostname << ": " << sat << " - " << strerror( errno);
+				ERR_print_errors_fp(stderr);
+				goto error;
+			}
 		}
 
+		//BIO_set_nbio(mBio, 1);
+		
 		/* Check the certificate */
 		if(ssl && (SSL_get_verify_mode(ssl) == SSL_VERIFY_PEER && SSL_get_verify_result(ssl) != X509_V_OK))
 		{
 			SLOGE << "Certificate verification error: " << X509_verify_cert_error_string(SSL_get_verify_result(ssl));
+			goto error;
+		}
+		
+		return;
+		
+		error:
 			BIO_free_all(mBio);
 			mBio = NULL;
-			return;
-		}
 	}
 
 	void PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotificationRequest> &req) {
@@ -138,7 +150,6 @@
 		/* send push to the server */
 		mLastUse = getCurrentTime();
 		auto buffer = req->getData();
-		const char* request = std::string(buffer.begin(),buffer.end()).c_str();
 		int wcount = BIO_write(mBio, buffer.data(), buffer.size());
 
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " sent " << wcount << "/" << buffer.size() << " data";
@@ -165,6 +176,7 @@
 			// this is specific to iOS which does not send a response in case of success
 			if (nRet <= 0) {
 				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " nothing read, assuming success";
+				return;
 			}
 		}
 		while (true) {

@@ -54,9 +54,6 @@ class PushNotificationClient {
 
 		BIO * mBio;
 
-
-
-
 		PushNotificationService *mService;
 		SSL_CTX * mCtx;
 		std::queue<std::shared_ptr<PushNotificationRequest>> mRequestQueue;
