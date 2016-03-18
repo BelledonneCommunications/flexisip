@@ -38,6 +38,7 @@ class DoSProtection : public Module, ModuleToolbox {
 	int mTimePeriod;
 	int mPacketRateLimit;
 	int mBanTime;
+	bool mAtChecked;
 	unordered_map<string, DosContext> mDosContexts;
 	unordered_map<string, DosContext>::iterator mDOSHashtableIterator;
 
@@ -89,9 +90,8 @@ class DoSProtection : public Module, ModuleToolbox {
 			return false;
 #else
 			// we only want to check 'at' availability once
-			static bool atChecked = false;
-			if( !atChecked ){
-				atChecked = true;
+			if ( !mAtChecked ){
+				mAtChecked = true;
 				int at_command = system("which at > /dev/null");
 				if( WIFEXITED(at_command) && WEXITSTATUS(at_command) == 0 ) {
 					// at command was found, we can be sure that iptables rules will be cleaned up after the required time
@@ -100,6 +100,7 @@ class DoSProtection : public Module, ModuleToolbox {
 					LOGEN("Couldn't find the commant 'at' in your PATH. DosProtection needs it to be used correctly. Please fix this or disable DosProtection.");
 					return false;
 				}
+			}
 			return true;
 #endif
 		}
@@ -233,6 +234,7 @@ class DoSProtection : public Module, ModuleToolbox {
 
   public:
 	DoSProtection(Agent *ag) : Module(ag) {
+		mAtChecked = false;
 	}
 
 	~DoSProtection() {
