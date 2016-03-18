@@ -394,7 +394,7 @@ fi
 AC_ARG_ENABLE(pushnotification,
 	AC_HELP_STRING([--enable-pushnotification], [Build pushnotification support [yes]]),
 	[pushnotification="${enableval}"],
-	[pushnotification=auto]
+	[pushnotification=yes]
 )
 
 if test x$pushnotification != xno ; then
