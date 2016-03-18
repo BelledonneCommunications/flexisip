@@ -88,16 +88,13 @@
 		std::string hostname = mHost + ":" + mPort;
 		SSL * ssl = NULL;
 
+		mBio = BIO_new_connect((char*)hostname.c_str());
 		if (mIsSecure) {
-			mBio = BIO_new_connect(hostname.c_str());
-
 			/* Set the SSL_MODE_AUTO_RETRY flag */
 			BIO_get_ssl(mBio, &ssl);
 			SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 			SSL_set_options(ssl, SSL_OP_ALL);
 			BIO_set_nbio(mBio, 1);
-		} else {
-			mBio = BIO_new_connect(hostname.c_str());
 		}
 
 		int sat = BIO_do_connect(mBio);
