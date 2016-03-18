@@ -669,7 +669,7 @@ int main(int argc, char *argv[]) {
 
 	// Initialize
 	flexisip::log::initLogs(useSyslog, debug);
-	flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
+	//flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
 
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGTERM, flexisip_stop);
