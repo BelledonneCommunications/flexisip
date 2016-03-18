@@ -79,59 +79,63 @@
 
 	void PushNotificationClient::recreateConnection() {
 
-	/* Setup the connection */
+		/* Setup the connection */
 		if (mBio) {
 			BIO_free_all(mBio);
 		}
-		mBio = BIO_new_ssl_connect(mCtx);
 
-		BIO_set_nbio(mBio, 1);
-
-	/* Set the SSL_MODE_AUTO_RETRY flag */
-		SSL * ssl;
-		BIO_get_ssl(mBio, &ssl);
-		SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
-		SSL_set_options(ssl, SSL_OP_ALL);
-
-	/* Create and setup the connection */
-
+		/* Create and setup the connection */
 		std::string hostname = mHost + ":" + mPort;
-		BIO_set_conn_hostname(mBio, hostname.c_str());
+		SSL * ssl = NULL;
 
-		int sat = BIO_do_connect(mBio);
-		if (sat <= 0) {
-			while (BIO_should_retry(mBio)) {
-				sat = BIO_do_connect(mBio);
-			}
-			if (sat <= 0) {
-				fprintf(stderr, "Error attempting to connect '%s': %d -- %s\n", hostname.c_str(), sat, strerror( errno));
-				ERR_print_errors_fp(stderr);
-				BIO_free_all(mBio);
-				SSL_CTX_free(mCtx);
-				return;
-			}
+		if (mIsSecure) {
+			mBio = BIO_new_connect(hostname.c_str());
+
+			/* Set the SSL_MODE_AUTO_RETRY flag */
+			BIO_get_ssl(mBio, &ssl);
+			SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+			SSL_set_options(ssl, SSL_OP_ALL);
+			BIO_set_nbio(mBio, 1);
+		} else {
+			mBio = BIO_new_connect(hostname.c_str());
 		}
 
+		int sat = BIO_do_connect(mBio);
+		while (sat <= 0 && BIO_should_retry(mBio)) {
+			sat = BIO_do_connect(mBio);
+		}
 
-	/* Check the certificate */
-
-		if(SSL_get_verify_mode(ssl) == SSL_VERIFY_PEER && SSL_get_verify_result(ssl) != X509_V_OK)
-		{
-			fprintf(stderr, "Certificate verification error: %s\n", X509_verify_cert_error_string(SSL_get_verify_result(ssl)));
+		if (sat <= 0) {
+			SLOGE << "Error attempting to connect to " << hostname << ": " << sat << " - " << strerror( errno);
+			ERR_print_errors_fp(stderr);
 			BIO_free_all(mBio);
-			SSL_CTX_free(mCtx);
+			mBio = NULL;
+			return;
+		}
+
+		/* Check the certificate */
+		if(ssl && (SSL_get_verify_mode(ssl) == SSL_VERIFY_PEER && SSL_get_verify_result(ssl) != X509_V_OK))
+		{
+			SLOGE << "Certificate verification error: " << X509_verify_cert_error_string(SSL_get_verify_result(ssl));
+			BIO_free_all(mBio);
+			mBio = NULL;
 			return;
 		}
 	}
 
 	void PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotificationRequest> &req) {
-		if (mLastUse == 0) {
+		if (mLastUse == 0 || !mBio) {
 			recreateConnection();
 		/*the client was inactive possibly for a long time. In such case, close and re-create the socket.*/
 		} else if (getCurrentTime() - mLastUse > 60) {
 			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " previous was "
-				<< getCurrentTime() - mLastUse << " secs ago, re-creating connection with server.";
+			<< getCurrentTime() - mLastUse << " secs ago, re-creating connection with server.";
 			recreateConnection();
+		}
+
+		if (!mBio) {
+			onError(req, "Cannot create connection to server");
+			return;
 		}
 
 		/* send push to the server */
@@ -139,8 +143,8 @@
 		auto buffer = req->getData();
 		const char* request = std::string(buffer.begin(),buffer.end()).c_str();
 		int wcount = BIO_write(mBio, buffer.data(), buffer.size());
-		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " sent " << wcount << "/" << buffer.size() << " data";
 
+		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " sent " << wcount << "/" << buffer.size() << " data";
 		if (wcount <= 0) {
 			onError(req, "Cannot send to server");
 			return;
@@ -171,7 +175,7 @@
 			if(p <= 0) {
 				break;
 			} else {
-				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " read " << p << " data";
+				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " read " << p << " data:\n" << r;
 				string responsestr(r, p);
 				if (!req->isValidResponse(responsestr)) {
 					onError(req, "Invalid server response");
@@ -204,17 +208,17 @@
 	}
 
 
-void PushNotificationClient::onError(shared_ptr<PushNotificationRequest> req, const string &msg) {
-	SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " failed: " << msg;
-	if (mService->mCountFailed) {
-		mService->mCountFailed->incr();
+	void PushNotificationClient::onError(shared_ptr<PushNotificationRequest> req, const string &msg) {
+		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " failed: " << msg;
+		if (mService->mCountFailed) {
+			mService->mCountFailed->incr();
+		}
+		recreateConnection();
 	}
-	recreateConnection();
-}
 
-void PushNotificationClient::onSuccess(shared_ptr<PushNotificationRequest> req) {
-	if (mService->mCountSent) {
-		mService->mCountSent->incr();
+	void PushNotificationClient::onSuccess(shared_ptr<PushNotificationRequest> req) {
+		if (mService->mCountSent) {
+			mService->mCountSent->incr();
+		}
 	}
-}
 

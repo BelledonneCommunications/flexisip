@@ -31,7 +31,7 @@ WindowsPhonePushNotificationRequest::WindowsPhonePushNotificationRequest(const P
 	}
 	mHttpBody = httpBody.str();
 	LOGD("Push notification https post body is %s", mHttpBody.c_str());
-	
+
 	ostringstream httpHeader;
 	if (is_message) {
 		// Notification class 2 is the type for toast notifitcation.
@@ -52,16 +52,16 @@ WindowsPhonePushNotificationRequest::WindowsPhonePushNotificationRequest(const P
 void WindowsPhonePushNotificationRequest::createPushNotification() {
 	int headerLength = mHttpHeader.length();
 	int bodyLength = mHttpBody.length();
-	
+
 	mBuffer.clear();
 	mBuffer.resize(headerLength + bodyLength);
-	
+
 	char *binaryMessageBuff = &mBuffer[0];
 	char *binaryMessagePt = binaryMessageBuff;
-	
+
 	memcpy(binaryMessagePt, &mHttpHeader[0], headerLength);
 	binaryMessagePt += headerLength;
-	
+
 	memcpy(binaryMessagePt, &mHttpBody[0], bodyLength);
 	binaryMessagePt += bodyLength;
 }
@@ -76,13 +76,9 @@ bool WindowsPhonePushNotificationRequest::isValidResponse(const string &str) {
 	istringstream iss(str);
 	bool connect, notif, subscr = notif = connect = false;
 	while (getline(iss, line)) {
-		if (!connect)
-			connect = line.find("X-DeviceConnectionStatus: Connected") != string::npos;
-		if (!notif)
-			notif = line.find("X-NotificationStatus: Received") != string::npos;
-		if (!subscr)
-			subscr = line.find("X-SubscriptionStatus: Active") != string::npos;
+		connect |= (line.find("X-DeviceConnectionStatus: connected") != string::npos);
+		notif |= (line.find("X-NotificationStatus: Received") != string::npos);
+		subscr |= (line.find("X-SubscriptionStatus: Active") != string::npos);
 	}
-	
 	return connect && notif && subscr;
 }
