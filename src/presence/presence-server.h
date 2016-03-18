@@ -52,7 +52,7 @@ class Subscription;
 class PresentityPresenceInformation;
 class Listener;
 
-class PresenceServer :  EtagManager,PresentityManager {
+class PresenceServer :  PresentityManager {
 public:
 	PresenceServer(std::string configFile) throw (FlexisipException);
 	~PresenceServer();
@@ -105,7 +105,7 @@ private:
 	 */
 	
 	 void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listerner,int expires);
-	 void removeListener(shared_ptr<PresentityPresenceInformationListener>& listerner);
+	 void removeListener(const shared_ptr<PresentityPresenceInformationListener>& listerner);
 	
 	void removeSubscription(Subscription* identity) throw();
 	//void notify(Subscription& subscription,PresentityPresenceInformation& presenceInformation) throw (FlexisipException);

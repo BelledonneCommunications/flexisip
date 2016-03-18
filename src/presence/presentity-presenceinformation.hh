@@ -30,7 +30,7 @@ typedef struct belle_sip_source belle_sip_source_t;
 typedef struct belle_sip_main_loop belle_sip_main_loop_t;
 using namespace std;
 namespace flexisip {
-class EtagManager;
+class PresentityManager;
 class PresenceInformationElement {
   public:
 	PresenceInformationElement(pidf::Presence::TupleSequence *tuples, pidf::Presence::AnySequence *extensions,
@@ -79,6 +79,7 @@ class PresentityPresenceInformationListener : public enable_shared_from_this<Pre
 	virtual void onExpired(PresentityPresenceInformation &presenceInformation) = 0;
 
   private:
+	belle_sip_main_loop_t *mBelleSipMainloop;
 	belle_sip_source_t *mTimer;
 };
 
@@ -119,7 +120,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	* */
 	void removeTuplesForEtag(const string &eTag);
 
-	PresentityPresenceInformation(const belle_sip_uri_t *entity, EtagManager &etagManager, belle_sip_main_loop_t *ml);
+	PresentityPresenceInformation(const belle_sip_uri_t *entity, PresentityManager &presentityManager, belle_sip_main_loop_t *ml);
 	virtual ~PresentityPresenceInformation();
 
 	const belle_sip_uri_t *getEntity() const;
@@ -142,6 +143,16 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 * return true if a presence info is already known from a publish
 	 */
 	bool isKnown();
+	
+	/*
+	 * return number of current listeners (I.E subscriber)
+	 */
+	size_t getNumberOfListeners() const;
+	
+	/*
+	 * return current number of information elements (I.E from PUBLISH)
+	 */
+	size_t getNumberOfInformationElements() const;
 
   private:
 	/*
@@ -155,7 +166,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	void notifyAll();
 
 	const belle_sip_uri_t *mEntity;
-	EtagManager &mEtagManager;
+	PresentityManager &mPresentityManager;
 	belle_sip_main_loop_t *mBelleSipMainloop;
 	// Tuples ordered by Etag.
 	std::map<std::string /*Etag*/, PresenceInformationElement *> mInformationElements;

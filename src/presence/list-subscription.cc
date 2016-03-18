@@ -80,12 +80,16 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 }
 
 list<shared_ptr<PresentityPresenceInformationListener>> &ListSubscription::getListeners() {
-	shared_ptr<PresentityPresenceInformationListener> toto =
-		make_shared<PresentityResourceListener>(*this, belle_sip_uri_new());
 	return mListeners;
 }
 ListSubscription::~ListSubscription() {
+	if (mTimer) {
+		belle_sip_main_loop_cancel_source( belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv))
+										  , belle_sip_source_get_id(mTimer));
+		belle_sip_object_unref(this->mTimer);
+	}
 	belle_sip_object_unref((void *)mName);
+	SLOGD << "List souscription ["<< this <<"] deleted";
 };
 
 void ListSubscription::addInstanceToResource(rlmi::Resource &resource, list<belle_sip_body_handler_t *> &multipartList,
@@ -225,6 +229,7 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation &prese
 				belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this](unsigned int events) {
 					this->notify(FALSE);
 					SLOGD << "defered notify sent on [" << this << "]";
+					belle_sip_object_unref(this->mTimer);
 					this->mTimer = NULL;
 					return BELLE_SIP_STOP;
 				});
@@ -232,9 +237,10 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation &prese
 				chrono::milliseconds timeout(chrono::duration_cast<chrono::milliseconds>(
 					mMinNotifyIntervale - (chrono::system_clock::now() - mLastNotify)));
 
-				mTimer = belle_sip_main_loop_create_timeout(
-					belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)),
-					(belle_sip_source_func_t)belle_sip_source_cpp_func, func, timeout.count(), "timer for list notify");
+				mTimer = belle_sip_main_loop_create_cpp_timeout( belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv))
+																	, func
+																	, timeout.count()
+																	, "timer for list notify");
 			}
 
 			if (mVersion > 0) {

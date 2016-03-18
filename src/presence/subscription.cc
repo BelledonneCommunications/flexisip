@@ -138,6 +138,7 @@ void Subscription::notify(belle_sip_header_content_type_t *content_type, const s
 Subscription::~Subscription() {
 	belle_sip_object_unref(mDialog);
 	belle_sip_object_unref(mProv);
+	setAcceptEncodingHeader(NULL);
 }
 
 Subscription::State Subscription::getState() const {
@@ -164,6 +165,7 @@ PresenceSubscription::PresenceSubscription(unsigned int expires, const belle_sip
 }
 PresenceSubscription::~PresenceSubscription() {
 	belle_sip_object_unref((void *)mPresentity);
+	SLOGD << "PresenceSubscription ["<<this<<"] deleted";
 }
 const belle_sip_uri_t *PresenceSubscription::getPresentityUri() const {
 	return mPresentity;

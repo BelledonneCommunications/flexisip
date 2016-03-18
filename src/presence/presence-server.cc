@@ -19,9 +19,7 @@
 #include "presence-server.h"
 #include "belle-sip/belle-sip.h"
 #include "pidf+xml.hxx"
-//#include "application_pidf+xml/pidf+xml-pimpl.hxx"
 #include "resource-lists.hxx"
-//#include "resource-list/resource-lists-pimpl.hxx"
 #include "presentity-presenceinformation.hh"
 #include "list-subscription.hh"
 #include "bellesip-signaling-exception.hh"
@@ -70,7 +68,7 @@ PresenceServer::Init::Init() {
 }
 
 PresenceServer::PresenceServer(std::string configFile) throw(FlexisipException)
-	: mStarted(true), mStack(belle_sip_stack_new(NULL)), mProvider(belle_sip_stack_create_provider(mStack, NULL)),
+	: mStarted((belle_sip_object_enable_leak_detector(TRUE),true)), mStack(belle_sip_stack_new(NULL)), mProvider(belle_sip_stack_create_provider(mStack, NULL)),
 	  mIterateThread([this]() {
 		  while (mStarted)
 			  belle_sip_stack_sleep(this->mStack, 100);
@@ -107,16 +105,32 @@ PresenceServer::PresenceServer(std::string configFile) throw(FlexisipException)
 		GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigInt>("expires")->read();
 	SLOGD << "Presence server configuration file [" << configFile << "] Successfully loaded ";
 }
+
+static void remove_listening_point(belle_sip_listening_point_t* lp,belle_sip_provider_t* prov) {
+	belle_sip_provider_remove_listening_point(prov,lp);
+}
+
 PresenceServer::~PresenceServer() {
+	belle_sip_provider_clean_channels(mProvider);
+	const belle_sip_list_t * lps = belle_sip_provider_get_listening_points(mProvider);
+	belle_sip_list_t * tmp_list = belle_sip_list_copy(lps);
+	belle_sip_list_for_each2 (tmp_list,(void (*)(void*,void*))remove_listening_point,mProvider);
+	belle_sip_list_free(tmp_list);
+	
 	mStarted = false;
 	mIterateThread.join();
+	
 	belle_sip_object_unref(mProvider);
 	belle_sip_object_unref(mStack);
 	belle_sip_object_unref(mListener);
 	// must be done before cleaning xerces
+	SLOGD << "Still ["<<mPresenceInformations.size()<<"] PresenceInformations referenced, clearing";
 	mPresenceInformations.clear();
+	SLOGD << "Still ["<<mPresenceInformationsByEtag.size()<<"] PresenceInformationsByEtag referenced, clearing";
 	mPresenceInformationsByEtag.clear();
 	xercesc::XMLPlatformUtils::Terminate();
+	belle_sip_object_dump_active_objects();
+	belle_sip_object_flush_active_objects();
 	SLOGD << "Presence server destroyed";
 }
 void PresenceServer::start() throw(FlexisipException) {
@@ -140,11 +154,11 @@ void PresenceServer::start() throw(FlexisipException) {
 	}
 }
 void PresenceServer::processDialogTerminated(PresenceServer *thiz, const belle_sip_dialog_terminated_event_t *event) {
-	// belle_sip_dialog_t *dialog = belle_sip_dialog_terminated_event_get_dialog(event);
-	// Subscription *sub = static_cast<Subscription*>(belle_sip_dialog_get_application_data(dialog));
-	// thiz->removeSubscription(sub);
-
-	// nothing to be done for now because expire is performed at SubscriptionLevel
+	 belle_sip_dialog_t *dialog = belle_sip_dialog_terminated_event_get_dialog(event);
+	 Subscription *sub = static_cast<Subscription*>(belle_sip_dialog_get_application_data(dialog));
+	if (dynamic_cast<ListSubscription *>(sub)) {
+		thiz->removeSubscription(sub);
+	} //else  nothing to be done for now because expire is performed at SubscriptionLevel
 }
 void PresenceServer::processIoError(PresenceServer *thiz, const belle_sip_io_error_event_t *event) {
 	SLOGD << "PresenceServer::processIoError not implemented yet";
@@ -369,7 +383,7 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 
 		if (!(presenceInfo = getPresenceInfo(entity))) {
 			presenceInfo.reset(new PresentityPresenceInformation(entity, *this, belle_sip_stack_get_main_loop(mStack)));
-			SLOGD << "New Presentity [" << *presenceInfo << "] created";
+			SLOGD << "New Presentity [" << *presenceInfo << "] created from PUBLISH";
 			// for (const belle_sip_uri_t* : mPresenceInformations.keys())
 			addPresenceInfo(presenceInfo);
 		} else {
@@ -397,6 +411,7 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		if (expires == 0) {
 			if (presenceInfo)
 				presenceInfo->removeTuplesForEtag(eTag);
+			invalidateETag(eTag);
 			/*else already expired*/
 		} else {
 			if (presenceInfo)
@@ -557,7 +572,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				SLOGD << "Subscribe for resource list "
 					  << "for dialog [" << BELLE_SIP_OBJECT(dialog) << "]";
 
-				ListSubscription *listSubscription = new ListSubscription(expires, server_transaction, mProvider);
+				ListSubscription *listSubscription = new ListSubscription(expires, server_transaction, mProvider); // will be release when last PresentityPresenceInformationListener is released
 				if (acceptEncodingHeader) listSubscription->setAcceptEncodingHeader(acceptEncodingHeader);
 				// send 200ok late to allow deeper anylise of request
 				belle_sip_server_transaction_send_response(server_transaction, resp);
@@ -613,8 +628,6 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 			//			 3.1.4.1.)
 
 			if (!subscription  || subscription->getState() == Subscription::State::terminated) {
-				// fixme
-				if (subscription) delete subscription;
 				belle_sip_dialog_set_application_data(dialog, NULL);
 				throw BELLESIP_SIGNALING_EXCEPTION(481) << "Subscription [" << std::hex << (long)subscription << "] for dialog ["
 											   << BELLE_SIP_OBJECT(dialog) << "] already in terminated state";
@@ -689,7 +702,17 @@ std::shared_ptr<PresentityPresenceInformation> PresenceServer::getPresenceInfo(c
 }
 
 void PresenceServer::invalidateETag(const string &eTag) {
-	mPresenceInformationsByEtag.erase(eTag);
+	auto presenceInformationsByEtagIt = mPresenceInformationsByEtag.find(eTag);
+	if (presenceInformationsByEtagIt != mPresenceInformationsByEtag.end()) {
+		const std::shared_ptr<PresentityPresenceInformation> presenceInfo = presenceInformationsByEtagIt->second;
+		if (presenceInfo->getNumberOfListeners() == 0  && presenceInfo->getNumberOfInformationElements() == 0) {
+			SLOGD << "Presentity [" << *presenceInfo << "] no longuer referenced by any SUBSCRIBE nor PUBLISH, removing";
+			mPresenceInformations.erase(presenceInfo->getEntity());
+		}
+		mPresenceInformationsByEtag.erase(eTag);
+		SLOGD <<"Etag manager size ["<<mPresenceInformationsByEtag.size()<<"]";
+	}
+	
 }
 void PresenceServer::modifyEtag(const string &oldEtag, const string &newEtag) throw(FlexisipException) {
 	auto presenceInformationsByEtagIt = mPresenceInformationsByEtag.find(oldEtag);
@@ -704,6 +727,7 @@ void PresenceServer::addEtag(const std::shared_ptr<PresentityPresenceInformation
 	if (presenceInformationsByEtagIt != mPresenceInformationsByEtag.end())
 		throw FLEXISIP_EXCEPTION << "Already existing etag [" << etag << "] use PresenceServer::modifyEtag instead ";
 	mPresenceInformationsByEtag[etag] = info;
+	SLOGD <<"Etag manager size ["<<mPresenceInformationsByEtag.size()<<"]";
 }
 
 void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> &listener, int expires) {
@@ -712,15 +736,19 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 		/*no information available yet, but creating entry to be able to register subscribers*/
 		presenceInfo.reset(new PresentityPresenceInformation(listener->getPresentityUri(), *this,
 															 belle_sip_stack_get_main_loop(mStack)));
-		SLOGD << "New Presentity [" << *presenceInfo << "] created";
+		SLOGD << "New Presentity [" << *presenceInfo << "] created from SUBSCRIBE";
 		addPresenceInfo(presenceInfo);
 	}
 	presenceInfo->addOrUpdateListener(listener, expires);
 }
-void PresenceServer::removeListener(shared_ptr<PresentityPresenceInformationListener> &listener) {
+void PresenceServer::removeListener(const shared_ptr<PresentityPresenceInformationListener> &listener) {
 	const std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
 	if (presenceInfo) {
 		presenceInfo->removeListener(listener);
+		if (presenceInfo->getNumberOfListeners() == 0  && presenceInfo->getNumberOfInformationElements() == 0) {
+			SLOGD << "Presentity [" << *presenceInfo << "] no longuer referenced by any SUBSCRIBE nor PUBLISH, removing";
+			mPresenceInformations.erase(presenceInfo->getEntity());
+		}
 	} else
 		SLOGW << "No presence info for this entity [" << listener->getPresentityUri() << "]/[" << std::hex
 			  << (long)&listener << "]";
@@ -739,6 +767,6 @@ void PresenceServer::removeSubscription(Subscription *subscription) throw() {
 			removeListener(listener);
 		}
 		dynamic_cast<Subscription *>(listSubscription)->notify(NULL); // to trigger final notify
-		// fixme de delete listSubscription ???
+		delete listSubscription;
 	}
 }
