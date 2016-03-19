@@ -77,6 +77,16 @@
 
 #include "monitor.hh"
 
+#include <openssl/opensslconf.h>
+#if defined(OPENSSL_THREADS)
+// thread support enabled
+#else
+// no thread support
+#error "No thread support in openssl"
+#endif
+
+#include <openssl/crypto.h>
+
 static int run = 1;
 static int pipe_wdog_flexisip[2] = {
 	-1}; // This is the pipe that flexisip will write to to signify it has started to the Watchdog
@@ -85,6 +95,24 @@ static pid_t monitor_pid = -1;
 static su_root_t *root = NULL;
 
 using namespace std;
+
+static unsigned long threadid_cb(){
+	return (unsigned long)pthread_self();
+}
+
+static void locking_function(int mode, int n, const char *file, int line){
+	static mutex *mutextab=NULL;
+	if (mutextab==NULL)
+		mutextab=new mutex[CRYPTO_num_locks()];
+	if (mode & CRYPTO_LOCK)
+		mutextab[n].lock();
+	else mutextab[n].unlock();
+}
+
+static void setOpenSSLThreadSafe(){
+	CRYPTO_set_id_callback(&threadid_cb);
+	CRYPTO_set_locking_callback(&locking_function);
+}
 
 static void flexisip_stop(int signum) {
 	if (flexisip_pid > 0) {
@@ -730,6 +758,7 @@ int main(int argc, char *argv[]) {
 	root = su_root_create(NULL);
 	a = make_shared<Agent>(root);
 	a->start(transportsArg.getValue());
+	setOpenSSLThreadSafe();
 #ifdef ENABLE_SNMP
 	SnmpAgent lAgent(*a, *cfg, oset);
 #endif
