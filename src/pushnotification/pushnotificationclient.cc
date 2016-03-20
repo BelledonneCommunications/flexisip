@@ -160,35 +160,43 @@
 
 		/* wait for server response */
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " waiting for server response";
-		if (BIO_pending(mBio) <= 0) {
-			int fdSocket;
-			if (BIO_get_fd(mBio, &fdSocket) < 0) {
-				SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " could not retrieve the socket";
-				onError(req, "Broken socket");
-				return;
-			}
-			pollfd polls = {0};
-			polls.fd = fdSocket;
-			polls.events = POLLIN | POLLRDNORM | POLLRDBAND | POLLPRI;
-
-			int nRet = poll(&polls, 1, 1000);
-			// this is specific to iOS which does not send a response in case of success
-			if (nRet <= 0) {//poll timeout, we shall not expect a response.
-				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " nothing read, assuming success";
-				onSuccess(req);
-				return;
-			}
+		int fdSocket;
+		if (BIO_get_fd(mBio, &fdSocket) < 0) {
+			SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " could not retrieve the socket";
+			onError(req, "Broken socket");
+			return;
 		}
-		char r[1024];
-		int p = BIO_read(mBio, r, sizeof(r)-1);
-		if (p > 0) {
-			r[p] = 0;
-			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " read " << p << " data:\n" << r;
-			string responsestr(r, p);
-			if (!req->isValidResponse(responsestr)) {
-				onError(req, "Invalid server response");
+		pollfd polls = {0};
+		polls.fd = fdSocket;
+		polls.events = POLLIN;
+
+		int nRet = poll(&polls, 1, 1000);
+		// this is specific to iOS which does not send a response in case of success
+		if (nRet == 0) {//poll timeout, we shall not expect a response.
+			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " nothing read, assuming success";
+			onSuccess(req);
+			return;
+		}else if (nRet == -1){
+			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " poll error ("<<strerror(errno)<<"), assuming success";
+			onSuccess(req);
+			recreateConnection();//our socket is not going so well if we go here.
+			return;
+		}
+		else if (polls.revents & POLLIN){
+			char r[1024];
+			int p = BIO_read(mBio, r, sizeof(r)-1);
+			if (p > 0) {
+				r[p] = 0;
+				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " read " << p << " data:\n" << r;
+				string responsestr(r, p);
+				if (!req->isValidResponse(responsestr)) {
+					onError(req, "Invalid server response");
+				}else{
+					onSuccess(req);
+				}
 			}else{
-				onSuccess(req);
+				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << "error reading response, closing connection";
+				recreateConnection();
 			}
 		}
 	}
