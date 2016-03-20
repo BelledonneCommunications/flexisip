@@ -197,7 +197,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 	ConfigItemDescriptor items[] = {
 		{Integer, "timeout",
 		 "Number of second to wait before sending a push notification to device(if <=0 then disabled)", "5"},
-		{Integer, "max-queue-size", "Maximum number of notifications queued for each client", "10"},
+		{Integer, "max-queue-size", "Maximum number of notifications queued for each client", "100"},
 		{Boolean, "apple", "Enable push notification for apple devices", "true"},
 		{String, "apple-certificate-dir",
 		 "Path to directory where to find Apple Push Notification service certificates. They should bear the appid of "

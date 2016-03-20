@@ -58,9 +58,9 @@
 
 		int size = mRequestQueue.size();
 		if (size >= mMaxQueueSize) {
+			mMutex.unlock();
 			SLOGW << "PushNotificationClient " << mName << " PNR " << req.get() << " queue full, push lost";
 			onError(req, "Error queue full");
-			mMutex.unlock();
 			return 0;
 		} else {
 			mRequestQueue.push(req);
@@ -228,7 +228,6 @@
 		if (mService->mCountFailed) {
 			mService->mCountFailed->incr();
 		}
-		recreateConnection();
 	}
 
 	void PushNotificationClient::onSuccess(shared_ptr<PushNotificationRequest> req) {
