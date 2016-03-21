@@ -28,7 +28,7 @@ public:
 	GooglePushNotificationRequest(const PushInfo &pinfo);
 	~GooglePushNotificationRequest() {
 	}
-	virtual bool serverResponseIsImmediate() {
+	virtual bool isServerAlwaysResponding() {
 		return true;
 	}
 

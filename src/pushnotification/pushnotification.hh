@@ -53,7 +53,7 @@ class PushNotificationRequest {
 		}
 		virtual const std::vector<char> &getData() = 0;
 		virtual bool isValidResponse(const std::string &str) = 0;
-		virtual bool serverResponseIsImmediate() = 0;
+		virtual bool isServerAlwaysResponding() = 0;
 
 	protected:
 		PushNotificationRequest(const std::string &appid, const std::string &type)

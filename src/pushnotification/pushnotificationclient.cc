@@ -106,7 +106,7 @@
 			ERR_print_errors_fp(stderr);
 			goto error;
 		}
-		
+
 		if (mIsSecure){
 			sat = BIO_do_handshake(mBio);
 			if (sat <= 0){
@@ -117,16 +117,16 @@
 		}
 
 		//BIO_set_nbio(mBio, 1);
-		
+
 		/* Check the certificate */
 		if(ssl && (SSL_get_verify_mode(ssl) == SSL_VERIFY_PEER && SSL_get_verify_result(ssl) != X509_V_OK))
 		{
 			SLOGE << "Certificate verification error: " << X509_verify_cert_error_string(SSL_get_verify_result(ssl));
 			goto error;
 		}
-		
+
 		return;
-		
+
 		error:
 			BIO_free_all(mBio);
 			mBio = NULL;
@@ -160,43 +160,44 @@
 
 		/* wait for server response */
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " waiting for server response";
-		int fdSocket;
-		if (BIO_get_fd(mBio, &fdSocket) < 0) {
-			SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " could not retrieve the socket";
-			onError(req, "Broken socket");
-			return;
-		}
-		pollfd polls = {0};
-		polls.fd = fdSocket;
-		polls.events = POLLIN;
+		/* if the server response is NOT immediate, wait for something to read on the socket first */
+		if (!req->isServerAlwaysResponding()) {
+			int fdSocket;
+			if (BIO_get_fd(mBio, &fdSocket) < 0) {
+				SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " could not retrieve the socket";
+				onError(req, "Broken socket");
+				return;
+			}
+			pollfd polls = {0};
+			polls.fd = fdSocket;
+			polls.events = POLLIN;
 
-		int nRet = poll(&polls, 1, 1000);
-		// this is specific to iOS which does not send a response in case of success
-		if (nRet == 0) {//poll timeout, we shall not expect a response.
-			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " nothing read, assuming success";
-			onSuccess(req);
-			return;
-		}else if (nRet == -1){
-			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " poll error ("<<strerror(errno)<<"), assuming success";
-			onSuccess(req);
-			recreateConnection();//our socket is not going so well if we go here.
-			return;
-		}
-		else if (polls.revents & POLLIN){
-			char r[1024];
-			int p = BIO_read(mBio, r, sizeof(r)-1);
-			if (p > 0) {
-				r[p] = 0;
-				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " read " << p << " data:\n" << r;
-				string responsestr(r, p);
-				if (!req->isValidResponse(responsestr)) {
-					onError(req, "Invalid server response");
-				}else{
-					onSuccess(req);
-				}
-			}else{
+			int nRet = poll(&polls, 1, 1000);
+			// this is specific to iOS which does not send a response in case of success
+			if (nRet == 0) {//poll timeout, we shall not expect a response.
+				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " nothing read, assuming success";
+				onSuccess(req);
+				return;
+			}else if (nRet == -1){
+				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " poll error ("<<strerror(errno)<<"), assuming success";
+				onSuccess(req);
+				recreateConnection();//our socket is not going so well if we go here.
+				return;
+			} else if ((polls.revents & POLLIN) == 0) {
 				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << "error reading response, closing connection";
 				recreateConnection();
+			}
+		}
+		char r[1024];
+		int p = BIO_read(mBio, r, sizeof(r)-1);
+		if (p > 0) {
+			r[p] = 0;
+			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " read " << p << " data:\n" << r;
+			string responsestr(r, p);
+			if (!req->isValidResponse(responsestr)) {
+				onError(req, "Invalid server response");
+			}else{
+				onSuccess(req);
 			}
 		}
 	}

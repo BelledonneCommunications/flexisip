@@ -28,7 +28,7 @@ public:
 	WindowsPhonePushNotificationRequest(const PushInfo &pinfo);
 	~WindowsPhonePushNotificationRequest() {
 	}
-	virtual bool serverResponseIsImmediate() {
+	virtual bool isServerAlwaysResponding() {
 		return true;
 	}
 
