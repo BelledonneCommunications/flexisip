@@ -147,6 +147,8 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 %prep
 %setup -n %{src_name}-%{version} 
 
+%debug_package
+
 %build
 
 %if %{need_pkgconfig_fix}
