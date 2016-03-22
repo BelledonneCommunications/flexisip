@@ -19,7 +19,6 @@
 
 # redis default:    1
 # protobuf default: 1
-# boostlog default: 1
 # push default:     0
 # odbc default:     1
 # transcode default:1
@@ -31,7 +30,6 @@
 
 %define     redis      %{?_without_redis:0}%{!?_without_redis:1}
 %define     protobuf   %{?_without_protobuf:0}%{!?_without_protobuf:1}
-%define     boostlog   %{?_without_boostlog:0}%{!?_without_boostlog:1}
 %define     push       %{?_with_push:1}%{!?_with_push:0}
 %define     odbc       %{?_without_odbc:0}%{!?_without_odbc:1}
 %define     transcoder %{?_without_transcoder:0}%{!?_without_transcoder:1}
@@ -46,7 +44,7 @@
 # will be 1 if we need to generate a /opt/belledonne-communications RPM
 %define     bcpkg      %{?_with_bc:1}%{!?_with_bc:0}
 
-# This is for debian builds where debug_package has to be manually specified, 
+# This is for debian builds where debug_package has to be manually specified,
 # whereas in centos it does not
 %define     flex_debug      %{!?_enable_debug_packages:%debug_package}%{?_enable_debug_package:%{nil}}
 
@@ -76,7 +74,6 @@
 
 # fix for bad pkgconfig path from old rpmbuild:
 %define need_pkgconfig_fix %{?_PKG_CONFIG_PATH:1}%{!?_PKG_CONFIG_PATH:0}
-%define special_boostlib_dir %{?boostlibdir:1}%{!?boostlibdir:0}
 %define special_hiredis_dir %{?hiredisdir:1}%{!?hiredisdir:0}
 
 #
@@ -96,16 +93,11 @@ BuildRoot:	%{_tmppath}/%{src_name}-%{version}-%{release}-buildroot
 BuildArch:	i686
 %endif
 Requires: bash >= 2.0
-Requires: boost-system >= 1.41
 Requires: at >= 3.1.10
 Requires: %{pkg_prefix}sofia-sip >= 1.13
 
 %if %{odbc}
 Requires: %{odbc_prefix}unixODBC >= 2.3.1
-%endif
-
-%if %{boostlog}
-Requires: boost-log >= 1.41.0
 %endif
 
 %if %{protobuf}
@@ -149,7 +141,7 @@ Prefix: /opt/belledonne-communications
 Extensible SIP proxy with media capabilities. Designed for robustness and easy of use.
 
 %prep
-%setup -n %{src_name}-%{version} 
+%setup -n %{src_name}-%{version}
 
 %flex_debug
 
@@ -186,9 +178,6 @@ echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
 	--enable-soci \
 	--with-soci=/usr \
 %endif
-%if !%{boostlog}
-    --disable-boostlog \
-%endif
 %if !%{transcoder}
     --disable-transcoder \
 %endif
@@ -197,9 +186,6 @@ echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
 %endif
 %if !%{push}
     --disable-pushnotification \
-%endif
-%if %{special_boostlib_dir}
-	--with-boost-libdir=%{boostlibdir} \
 %endif
 %if %{bcodbc}
     --with-odbc=%{_prefix} \

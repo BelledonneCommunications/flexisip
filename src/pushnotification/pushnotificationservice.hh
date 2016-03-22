@@ -27,10 +27,6 @@
 #include <thread>
 #include <string>
 
-// #include <boost/asio.hpp>
-// #include <boost/asio/ssl.hpp>
-// #include <boost/version.hpp>
-
 class PushNotificationClient;
 
 class PushNotificationService {
