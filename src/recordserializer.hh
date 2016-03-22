@@ -63,4 +63,13 @@ class RecordSerializerPb : public RecordSerializer {
 };
 #endif
 
+#ifdef ENABLE_MSGPACK
+class RecordSerializerMsgPack : public RecordSerializer {
+public:
+	RecordSerializerMsgPack();
+	virtual bool parse(const char *str, int len, Record *r);
+	virtual bool serialize(Record *r, std::string &serialized, bool log);
+};
+#endif
+
 #endif

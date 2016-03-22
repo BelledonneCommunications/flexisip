@@ -117,6 +117,11 @@ if(ENABLE_XSD)
 	ADD_XSD_WRAPPERS(fthttp "Generating XSD for FTHTTP")
 endif()
 
+if(ENABLE_MSGPACK)
+	message(STATUS "Enabling MSGPACK with includes at ${MSGPACK_INCLUDE_DIRS}")
+	list(APPEND FLEXISIP_INCLUDES ${MSGPACK_INCLUDE_DIRS})
+	list(APPEND FLEXISIP_SOURCES recordserializer-msgpack.cc)
+endif()
 
 
 if(ENABLE_ODB)
@@ -258,3 +263,17 @@ if (ENABLE_PUSHNOTIFICATION)
 		PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 	)
 endif()
+
+add_executable(flexisip_serializer tools/serializer.cc)
+target_link_libraries(flexisip_serializer flexisip)
+set_property(TARGET flexisip_serializer PROPERTY CXX_STANDARD 11)
+set_property(TARGET flexisip_serializer PROPERTY CXX_STANDARD_REQUIRED ON)
+
+install(TARGETS flexisip_serializer
+	RUNTIME DESTINATION bin
+	LIBRARY DESTINATION lib
+	ARCHIVE DESTINATION lib
+	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+)
+
+

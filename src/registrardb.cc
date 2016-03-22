@@ -717,6 +717,11 @@ RecordSerializer *RecordSerializer::create(const string &name) {
 		return new RecordSerializerPb();
 	}
 #endif
+#if ENABLE_MSGPACK
+	else if (name == "msgpack"){
+		return new RecordSerializerMsgPack();
+	}
+#endif
 	else {
 		return NULL;
 	}
