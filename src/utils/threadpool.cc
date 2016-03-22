@@ -40,7 +40,7 @@ bool ThreadPool::Enqueue(function<void()> f) {
 		// Push task into queue.
 		if (tasks.size() < max_queue_size) {
 
-			SLOGE << "[POOL] Enqueue(" << tasks.size() << ")";
+			//SLOGE << "[POOL] Enqueue(" << tasks.size() << ")";
 
 			tasks.push(f);
 			enqueued = true;
@@ -83,11 +83,11 @@ void ThreadPool::Invoke() {
 
 			// Remove it from the queue.
 			tasks.pop();
-			SLOGE << "[POOL] Pop task " << tasks.size();
+			//SLOGE << "[POOL] Pop task " << tasks.size();
 		}
 
 		// Execute the task.
-		SLOGE << "[POOL] Task()";
+		//SLOGE << "[POOL] Task()";
 		task();
 	}
 }
