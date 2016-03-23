@@ -24,7 +24,7 @@
 using namespace std;
 
 namespace flexisip {
-class Subscription {
+	class Subscription : public enable_shared_from_this<Subscription>{
 
   public:
 	enum State { active, pending, terminated };

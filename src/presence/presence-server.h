@@ -107,7 +107,7 @@ private:
 	 void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listerner,int expires);
 	 void removeListener(const shared_ptr<PresentityPresenceInformationListener>& listerner);
 	
-	void removeSubscription(Subscription* identity) throw();
+	void removeSubscription(shared_ptr<Subscription> &identity) throw();
 	//void notify(Subscription& subscription,PresentityPresenceInformation& presenceInformation) throw (FlexisipException);
 	unordered_map<const belle_sip_uri_t*,list<shared_ptr<Subscription>>,std::hash<const belle_sip_uri_t*>,bellesip::UriComparator> mSubscriptionsByEntity;
 

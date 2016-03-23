@@ -48,8 +48,8 @@ PresentityPresenceInformation::PresentityPresenceInformation(const belle_sip_uri
 PresentityPresenceInformation::~PresentityPresenceInformation() {
 	for (auto it = mInformationElements.begin(); it != mInformationElements.end(); it++) {
 		delete it->second;
-		it = mInformationElements.erase(it);
 	}
+	mInformationElements.clear();
 	belle_sip_object_unref((void *)mEntity);
 	belle_sip_object_unref((void *)mBelleSipMainloop);
 	SLOGD << "Presence information [" << this << "] deleted";
@@ -70,10 +70,7 @@ string PresentityPresenceInformation::updateTuples(pidf::Presence::TupleSequence
 	return setOrUpdate(&tuples, &extensions, &eTag, expires);
 }
 void PresenceInformationElement::clearTuples() {
-
-	for (auto tupIt = mTuples.begin(); tupIt != mTuples.end(); ++tupIt) {
-		tupIt = mTuples.erase(tupIt);
-	}
+	mTuples.clear();
 }
 string PresentityPresenceInformation::setOrUpdate(pidf::Presence::TupleSequence *tuples,
 												  pidf::Presence::AnySequence *extensions, const string *eTag,

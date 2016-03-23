@@ -65,7 +65,7 @@ class PresenceInformationElement {
 
 class PresentityPresenceInformation;
 
-class PresentityPresenceInformationListener : public enable_shared_from_this<PresentityPresenceInformationListener> {
+class PresentityPresenceInformationListener  {
 
   public:
 	PresentityPresenceInformationListener();
