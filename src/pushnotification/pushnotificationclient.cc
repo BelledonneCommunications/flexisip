@@ -186,6 +186,7 @@
 			} else if ((polls.revents & POLLIN) == 0) {
 				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << "error reading response, closing connection";
 				recreateConnection();
+				return;
 			}
 		}
 		char r[1024];
@@ -196,6 +197,9 @@
 			string responsestr(r, p);
 			if (!req->isValidResponse(responsestr)) {
 				onError(req, "Invalid server response");
+				// on iOS at least, when an error happens, the socket is semibroken (server ignore next requests),
+				// so we force to recreate the connection
+				recreateConnection();
 			}else{
 				onSuccess(req);
 			}

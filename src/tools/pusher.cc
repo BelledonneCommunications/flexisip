@@ -140,6 +140,7 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 }
 
 int main(int argc, char *argv[]) {
+	int ret = 0;
 	PusherArgs args;
 	args.parse(argc, argv);
 
@@ -147,28 +148,30 @@ int main(int argc, char *argv[]) {
 	flexisip::log::initLogs(sUseSyslog, args.debug);
 	flexisip::log::updateFilter("%Severity% >= debug");
 
-	PushNotificationService service(MAX_QUEUE_SIZE);
+	{
+		PushNotificationService service(MAX_QUEUE_SIZE);
 
-	if (args.pntype == "apple") {
-		service.setupiOSClient(args.prefix + "/apn", "");
-	} else if (args.pntype == "google") {
-		map<string, string> googleKey;
-		googleKey.insert(make_pair(args.appid, args.apikey));
-		service.setupAndroidClient(googleKey);
-	}
-
-	auto pn = createRequestFromArgs(args);
-	int ret = 0;
-	for (auto it = pn.begin(); it != pn.end(); it++) {
-		auto push = *it;
-		ret += service.sendPush(push);
-	}
-	if (ret == 0) {
-		while (!service.isIdle()) {
-			sleep(1);
+		if (args.pntype == "apple") {
+			service.setupiOSClient(args.prefix + "/apn", "");
+		} else if (args.pntype == "google") {
+			map<string, string> googleKey;
+			googleKey.insert(make_pair(args.appid, args.apikey));
+			service.setupAndroidClient(googleKey);
 		}
-	} else {
-		cerr << "fail to send request, aborting" << endl;
+
+		auto pn = createRequestFromArgs(args);
+		for (auto it = pn.begin(); it != pn.end(); it++) {
+			auto push = *it;
+			ret += service.sendPush(push);
+		}
+		if (ret == 0) {
+			while (!service.isIdle()) {
+				sleep(1);
+			}
+		} else {
+			cerr << "fail to send request, aborting" << endl;
+		}
 	}
+	cerr << "job is done, thanks for using " << argv[0] << ". Bye!" << endl;
 	return ret;
 }
