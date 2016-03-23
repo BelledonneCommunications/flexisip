@@ -95,7 +95,7 @@ ostream &FileConfigDumper::printHelp(ostream &os, const string &help, const stri
 }
 
 ostream &FileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, int level) const {
-	if (val && !val->isExportable())
+	if (!val || !val->isExportable())
 		return ostr;
 	if (!val->isDeprecated()) {
 
@@ -113,7 +113,7 @@ ostream &FileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue
 }
 
 ostream &FileConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const {
-	if (moduleHead && !moduleHead->isExportable())
+	if (!moduleHead || !moduleHead->isExportable())
 		return ostr;
 
 	ostr << "##" << endl;
