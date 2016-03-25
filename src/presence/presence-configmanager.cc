@@ -18,6 +18,8 @@
 
 #include "presence-configmanager.hh"
 
+#if 0
+
 static ConfigItemDescriptor presence_global_conf[] = {
 	//	{	Boolean	,	"debug"	        ,	"Outputs very detailed logs",	"false"	},
 	//	{	Boolean	,	"dump-corefiles",	"Generate a corefile when crashing", "true"},
@@ -81,3 +83,4 @@ PresenceConfigManager::PresenceConfigManager()
 	runtimeError->setReadOnly(true);
 	global->addChild(runtimeError);
 }
+#endif

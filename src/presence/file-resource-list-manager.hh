@@ -16,8 +16,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef FILERESOURCELISTMANAGER_H_
-#define FILERESOURCELISTMANAGER_H_
+#pragma once
+
+#if 0
 
 //#include "resource-list-manager.hh"
 
@@ -27,4 +28,4 @@ public:
 	virtual ~FileResourceListManager();
 };
 
-#endif /* FILERESOURCELISTMANAGER_H_ */
+#endif

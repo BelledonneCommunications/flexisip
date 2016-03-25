@@ -16,7 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "presence-server.h"
+#include "presence-server.hh"
 #include "belle-sip/belle-sip.h"
 #include "pidf+xml.hxx"
 #include "resource-lists.hxx"
@@ -27,6 +27,7 @@
 #include "configmanager.hh"
 #include <string.h>
 #include <signal.h>
+#include <algorithm>
 
 using namespace pidf;
 using namespace flexisip;
@@ -104,7 +105,7 @@ PresenceServer::PresenceServer(std::string configFile) throw(FlexisipException)
 	belle_sip_provider_add_sip_listener(mProvider, mListener);
 	mDefaultExpires =
 		GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigInt>("expires")->read();
-	SLOGD << "Presence server configuration file [" << configFile << "] Successfully loaded ";
+	SLOGD << "Presence server configuration file [" << configFile << "] Successfully loaded";
 }
 
 static void remove_listening_point(belle_sip_listening_point_t* lp,belle_sip_provider_t* prov) {
@@ -117,7 +118,7 @@ PresenceServer::~PresenceServer() {
 	belle_sip_list_t * tmp_list = belle_sip_list_copy(lps);
 	belle_sip_list_for_each2 (tmp_list,(void (*)(void*,void*))remove_listening_point,mProvider);
 	belle_sip_list_free(tmp_list);
-	
+
 	mStarted = false;
 	belle_sip_main_loop_quit(belle_sip_stack_get_main_loop(mStack));
 	if (mIterateThread) {
@@ -709,7 +710,26 @@ void PresenceServer::addPresenceInfo(const std::shared_ptr<PresentityPresenceInf
 		throw FLEXISIP_EXCEPTION << "Presence information element already exist for" << presenceInfo;
 	}
 	mPresenceInformations[presenceInfo->getEntity()] = presenceInfo;
+	for (auto& listener : mAddPresenceInfoListeners) {
+		listener->onNewPresenceInfo(presenceInfo);
+	}
 }
+
+void PresenceServer::addNewPresenceInfoListener(const NewPresenceInfoEvent* listener) {
+	mAddPresenceInfoListeners.push_back(listener);
+}
+
+void PresenceServer::removeNewPresenceInfoListener(const NewPresenceInfoEvent* listener) {
+	auto it = find(mAddPresenceInfoListeners.begin(), mAddPresenceInfoListeners.end(), listener);
+	if (it != mAddPresenceInfoListeners.end()) {
+		mAddPresenceInfoListeners.erase(it);
+	} else {
+		SLOGW << "No such listener " << listener << " registered, ignoring.";
+	}
+}
+
+
+
 std::shared_ptr<PresentityPresenceInformation> PresenceServer::getPresenceInfo(const belle_sip_uri_t *identity) const {
 	auto presenceEntityInformationIt = mPresenceInformations.find(identity);
 	if (presenceEntityInformationIt == mPresenceInformations.end())
@@ -729,7 +749,7 @@ void PresenceServer::invalidateETag(const string &eTag) {
 		mPresenceInformationsByEtag.erase(eTag);
 		SLOGD <<"Etag manager size ["<<mPresenceInformationsByEtag.size()<<"]";
 	}
-	
+
 }
 void PresenceServer::modifyEtag(const string &oldEtag, const string &newEtag) throw(FlexisipException) {
 	auto presenceInformationsByEtagIt = mPresenceInformationsByEtag.find(oldEtag);
@@ -769,7 +789,7 @@ void PresenceServer::removeListener(const shared_ptr<PresentityPresenceInformati
 	if (presenceInfo) {
 		presenceInfo->removeListener(listener);
 		if (presenceInfo->getNumberOfListeners() == 0  && presenceInfo->getNumberOfInformationElements() == 0) {
-			SLOGD << "Presentity [" << *presenceInfo << "] no longuer referenced by any SUBSCRIBE nor PUBLISH, removing";
+			SLOGD << "Presentity [" << *presenceInfo << "] no longer referenced by any SUBSCRIBE nor PUBLISH, removing";
 			mPresenceInformations.erase(presenceInfo->getEntity());
 		}
 	} else
@@ -789,7 +809,11 @@ void PresenceServer::removeSubscription(shared_ptr<Subscription> &subscription) 
 		for (shared_ptr<PresentityPresenceInformationListener> listener : listSubscription->getListeners()) {
 			removeListener(listener);
 		}
-		listSubscription->notify(NULL); // to trigger final notify
+		listSubscription->notify(0); // to trigger final notify
 		//delete listSubscription;
 	}
+}
+
+belle_sip_main_loop_t* PresenceServer::getBelleSipMainLoop() {
+	return belle_sip_stack_get_main_loop(this->mStack);
 }

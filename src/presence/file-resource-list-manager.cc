@@ -16,8 +16,9 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <file-resource-list-manager.h>
+#include <file-resource-list-manager.hh>
 
+#if 0
 FileResourceListManager::FileResourceListManager() {
 	// TODO Auto-generated constructor stub
 }
@@ -25,3 +26,4 @@ FileResourceListManager::FileResourceListManager() {
 FileResourceListManager::~FileResourceListManager() {
 	// TODO Auto-generated destructor stub
 }
+#endif

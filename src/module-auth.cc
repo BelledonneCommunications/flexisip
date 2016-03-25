@@ -145,6 +145,8 @@ class Authentication : public Module {
 		auth_challenger_t const *mAch;
 		bool mHashedPass;
 		bool mPasswordFound;
+		AuthDbResult mResult;
+		std::string mPassword;
 
 	  public:
 		bool mImmediateRetrievePass;
@@ -156,7 +158,7 @@ class Authentication : public Module {
 
 		void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
 		void checkPassword(const char *password);
-		void onResult();
+		void onResult(AuthDbResult result, std::string passwd);
 		void onError();
 		void finish(); /*the listener is destroyed when calling this, careful*/
 		su_root_t *getRoot() {
@@ -168,6 +170,9 @@ class Authentication : public Module {
 		Authentication *getModule() {
 			return mModule;
 		}
+		private:
+			void processResponse();
+			static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u);
 	};
 
   private:
@@ -411,7 +416,8 @@ class Authentication : public Module {
 					// we want to create account with expires to 0 so that when we send 200 OK response,
 					// user knows that he is not yet registered
 					sip_time_t expires = /*sip->sip_expires->ex_delta*/0;
-					AuthDbBackend::get()->createAccount(url, url->url_user, url->url_password, expires);
+					AuthDbBackend::get()->createAccount(url->url_user, url->url_host, url->url_user, url->url_password,
+														expires);
 					LOGD("Account created for %s@%s with password %s and expires %i", url->url_user, url->url_host,
 						 url->url_password, (int)expires);
 					return true;
@@ -636,6 +642,43 @@ void Authentication::AuthenticationListener::setData(auth_mod_t *am, auth_status
 	this->mAch = ach;
 }
 
+void Authentication::AuthenticationListener::main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u) {
+	AuthenticationListener **listenerStorage = (AuthenticationListener **)su_msg_data(msg);
+	AuthenticationListener *listener = *listenerStorage;
+	listener->processResponse();
+}
+void Authentication::AuthenticationListener::onResult(AuthDbResult result, std::string passwd) {
+	// invoke callback on main thread (sofia-sip)
+	su_msg_r mamc = SU_MSG_R_INIT;
+	if (-1 == su_msg_create(mamc, su_root_task(getRoot()), su_root_task(getRoot()), main_thread_async_response_cb,
+							sizeof(AuthenticationListener *))) {
+		LOGF("Couldn't create auth async message");
+	}
+
+	AuthenticationListener **listenerStorage = (AuthenticationListener **)su_msg_data(mamc);
+	*listenerStorage = this;
+
+	switch (result) {
+		case PASSWORD_FOUND:
+			mResult = AuthDbResult::PASSWORD_FOUND;
+			mPassword = passwd;
+			break;
+		case PASSWORD_NOT_FOUND:
+			mResult = AuthDbResult::PASSWORD_NOT_FOUND;
+			mPassword = "";
+			break;
+		case AUTH_ERROR:
+			/*in that case we can fallback to the cached password previously set*/
+			break;
+		case PENDING:
+			LOGF("unhandled case PENDING");
+			break;
+	}
+	if (-1 == su_msg_send(mamc)) {
+		LOGF("Couldn't send auth async message to main thread.");
+	}
+}
+
 /**
  * return true if the event is terminated
  */
@@ -745,7 +788,7 @@ void Authentication::AuthenticationListener::checkPassword(const char *passwd) {
 	mAs->as_phrase = "";
 }
 
-void Authentication::AuthenticationListener::onResult() {
+void Authentication::AuthenticationListener::processResponse() {
 	switch (mResult) {
 		case PASSWORD_FOUND:
 		case PASSWORD_NOT_FOUND:
@@ -845,14 +888,8 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am, auth_status_t *a
 		}
 	}
 
-	AuthDbBackend::get()->getPassword(listener->getRoot(), as->as_user_uri, ar->ar_username, listener);
+	AuthDbBackend::get()->getPassword(as->as_user_uri->url_user, as->as_user_uri->url_host, ar->ar_username, listener);
 }
-
-class DummyListener : public AuthDbListener {
-	virtual void onResult() {
-		delete this;
-	}
-};
 
 /** Authenticate a request with @b Digest authentication scheme.
  */
@@ -895,8 +932,7 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am, auth_status_t *
 		if (listener->mImmediateRetrievePass) {
 			SLOGD << "Searching for " << as->as_user_uri->url_user
 				  << " password to have it when the authenticated request comes";
-			AuthDbBackend::get()->getPassword(listener->getRoot(), as->as_user_uri, as->as_user_uri->url_user,
-											  new DummyListener());
+			AuthDbBackend::get()->getPassword(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL);
 		}
 		listener->finish();
 		return;

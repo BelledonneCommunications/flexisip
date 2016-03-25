@@ -633,12 +633,12 @@ class GenericManager : protected ConfigValueListener {
 			}
 		}
 	}
-
-  private:
-	static void atexit();
+	protected:
 	GenericManager();
 	virtual ~GenericManager() {
 	}
+  private:
+	static void atexit();
 	bool doIsValidNextConfig(const ConfigValue &cv);
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 	RootConfigStruct mConfigRoot;

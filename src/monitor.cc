@@ -113,17 +113,13 @@ string Monitor::findLocalAddress(const list<string> &nodes) {
 }
 
 void Monitor::createAccounts() {
-	url_t url;
-	memset(&url, 0, sizeof(url_t));
 	AuthDbBackend *authDb = AuthDbBackend::get();
 	GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 	GenericStruct *monitorConf = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
 	string salt = monitorConf->get<ConfigString>("password-salt")->read();
 	list<string> nodes = cluster->get<ConfigStringList>("nodes")->read();
 
-	string domaine = findDomain();
-	url.url_host = domaine.c_str();
-
+	string domain = findDomain();
 	string localIP = findLocalAddress(nodes);
 	if (localIP == "") {
 		LOGA("Monitor::createAccounts(): Could not find local IP address");
@@ -132,12 +128,10 @@ void Monitor::createAccounts() {
 
 	string password = generatePassword(localIP, salt).c_str();
 	string username = generateUsername(CALLER_PREFIX, localIP);
-	url.url_user = username.c_str();
-	authDb->createAccount(&url, url.url_user, password.c_str(), PASSWORD_CACHE_EXPIRE);
+	authDb->createAccount(username.c_str(), domain.c_str(), username.c_str(), password.c_str(), PASSWORD_CACHE_EXPIRE);
 
 	username = generateUsername(CALLEE_PREFIX, localIP).c_str();
-	url.url_user = username.c_str();
-	authDb->createAccount(&url, url.url_user, password.c_str(), PASSWORD_CACHE_EXPIRE);
+	authDb->createAccount(username.c_str(), domain.c_str(), username.c_str(), password.c_str(), PASSWORD_CACHE_EXPIRE);
 }
 
 bool Monitor::isLocalhost(const string &host) {
