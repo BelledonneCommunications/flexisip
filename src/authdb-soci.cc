@@ -17,7 +17,7 @@
 */
 
 #include "authdb.hh"
-#include "utils/threadpool.hh"
+#include "mysql/soci-mysql.h"
 #include <thread>
 
 using namespace soci;
@@ -102,6 +102,14 @@ SociAuthDB::~SociAuthDB() {
 	delete conn_pool;
 }
 
+void SociAuthDB::reconnectSession(soci::session &session) {
+
+	SLOGE << "[SOCI] Trying close/reconnect on " << session.get_backend_name() << " session";
+	session.close();
+	session.reconnect();
+
+}
+
 #define DURATION_MS(start, stop) (unsigned long) duration_cast<milliseconds>((stop) - (start)).count()
 
 void SociAuthDB::getPasswordWithPool(su_root_t *root, const std::string &id, const std::string &domain,
@@ -119,19 +127,29 @@ void SociAuthDB::getPasswordWithPool(su_root_t *root, const std::string &id, con
 	start = stop;
 
 	try {
+
 		sql << get_password_request, into(pass), use(id, "id"), use(domain, "domain"), use(authid, "authid");
 		stop = steady_clock::now();
 		SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
 		cachePassword(createPasswordKey(id, domain, authid), domain, pass, mCacheExpire);
 		notifyPasswordRetrieved(root, listener, PASSWORD_FOUND, pass);
+
 	} catch (mysql_soci_error const &e) {
+
 		stop = steady_clock::now();
 		SLOGE << "[SOCI] MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
 		notifyPasswordRetrieved(root, listener, PASSWORD_NOT_FOUND, pass);
+
+		reconnectSession(sql);
+
 	} catch (exception const &e) {
+
 		stop = steady_clock::now();
 		SLOGE << "[SOCI] Some other error after " << DURATION_MS(start, stop) << "ms : " << e.what();
 		notifyPasswordRetrieved(root, listener, PASSWORD_NOT_FOUND, pass);
+
+		reconnectSession(sql);
+
 	}
 }
 

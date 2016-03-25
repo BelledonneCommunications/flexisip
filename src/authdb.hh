@@ -168,7 +168,6 @@ class OdbcAuthDb : public AuthDbBackend {
 #if ENABLE_SOCI
 
 #include "soci.h"
-#include "mysql/soci-mysql.h"
 #include "utils/threadpool.hh"
 
 class SociAuthDB : public AuthDbBackend {
@@ -185,6 +184,8 @@ class SociAuthDB : public AuthDbBackend {
   private:
 	void getPasswordWithPool(su_root_t *root, const std::string &id, const std::string &domain,
 							 const std::string &authid, AuthDbListener *listener);
+
+	void reconnectSession( soci::session &session );
 
 	size_t poolSize;
 	soci::connection_pool *conn_pool;
