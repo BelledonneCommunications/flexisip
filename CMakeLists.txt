@@ -239,6 +239,17 @@ if(ENABLE_SOCI)
 	find_path(SOCI_MYSQL_INCLUDES NAMES mysql.h PATH_SUFFIXES mysql)
 endif()
 
+
+find_path(MSGPACK_INCLUDE_DIRS NAMES msgpack.hpp HINTS /usr/local/include)
+if(MSGPACK_INCLUDE_DIRS)
+	message(STATUS "MSGPACK found")
+	add_definitions("-DENABLE_MSGPACK")
+	set(ENABLE_MSGPACK 1)
+else()
+	message(STATUS "MSGPACK not found")
+endif()
+
+
 if(ENABLE_PUSHNOTIFICATION)
 	find_package(OpenSSL 0.9.8 REQUIRED)
 endif()

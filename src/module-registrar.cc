@@ -125,7 +125,7 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 			{Integer, "redis-server-port", "Port of the redis server.", "6379"},
 			{String, "redis-auth-password", "Authentication password for redis. Empty to disable.", ""},
 			{Integer, "redis-server-timeout", "Timeout in milliseconds of the redis connection.", "1500"},
-			{String, "redis-record-serializer", "Serialize contacts with: [C, protobuf]", "protobuf"},
+			{String, "redis-record-serializer", "Serialize contacts with: [C, protobuf, json, msgpack]", "protobuf"},
 			{Integer, "redis-slave-check-period", "When Redis is configured in master-slave, flexisip will "
 												  "periodically ask what are the slaves and the master."
 												  "This is the period with which it will query the server."

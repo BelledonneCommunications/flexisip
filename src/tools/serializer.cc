@@ -78,6 +78,8 @@ int test_bind_without_ecc(ExtendedContactCommon &ecc, const unique_ptr<RecordSer
 	if (!serializer->serialize(&initial, serialized, true)) {
 		cerr << "Failed serializing" << endl;
 		return -1;
+	} else {
+		cout << "Serialized size: " << serialized.length() << endl;
 	}
 
 	Record final("key");
@@ -111,7 +113,7 @@ int main(int argc, char **argv) {
 
 	int expire_delta = 1000;
 	list<string> paths{"path1", "path2", "path3"};
-	string contactid{"ip:5223"};
+	string contactid{"192.168.0.1:5223"};
 	string callid{"callid"};
 	string line{"line"};
 	string contact = "sip:" + contactid + ";line=" + line;
