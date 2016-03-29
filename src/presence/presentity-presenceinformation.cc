@@ -311,7 +311,7 @@ PresentityPresenceInformationListener::~PresentityPresenceInformationListener() 
 void PresentityPresenceInformationListener::setExpiresTimer(belle_sip_main_loop_t *ml, belle_sip_source_t *timer) {
 	if (mTimer) {
 		// canceling previous timer
-		belle_sip_main_loop_cancel_source(ml, belle_sip_source_get_id(mTimer));;
+		belle_sip_source_cancel(mTimer);
 		belle_sip_object_unref(mTimer);
 	}
 	mBelleSipMainloop=ml;
@@ -384,7 +384,7 @@ PresenceInformationElement::~PresenceInformationElement() {
 void PresenceInformationElement::setExpiresTimer(belle_sip_source_t *timer) {
 	if (mTimer) {
 		// canceling previous timer
-		belle_sip_main_loop_cancel_source(mBelleSipMainloop, belle_sip_source_get_id(mTimer));
+		belle_sip_source_cancel(mTimer);
 		belle_sip_object_unref(mTimer);
 	}
 	mTimer = timer;

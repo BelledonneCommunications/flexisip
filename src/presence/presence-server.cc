@@ -70,8 +70,7 @@ PresenceServer::Init::Init() {
 PresenceServer::PresenceServer(std::string configFile) throw(FlexisipException)
 	: mStarted((belle_sip_object_enable_leak_detector(FALSE),true)), mStack(belle_sip_stack_new(NULL)), mProvider(belle_sip_stack_create_provider(mStack, NULL)),
 	  mIterateThread([this]() {
-		  while (mStarted)
-			  belle_sip_stack_sleep(this->mStack, 100);
+		  belle_sip_main_loop_run(belle_sip_stack_get_main_loop(this->mStack));
 	  }) {
 
 	belle_sip_set_log_handler(_belle_sip_log);
@@ -118,6 +117,7 @@ PresenceServer::~PresenceServer() {
 	belle_sip_list_free(tmp_list);
 	
 	mStarted = false;
+	belle_sip_main_loop_quit(belle_sip_stack_get_main_loop(mStack));
 	mIterateThread.join();
 	
 	belle_sip_object_unref(mProvider);
