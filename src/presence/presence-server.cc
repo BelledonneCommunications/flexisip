@@ -26,6 +26,7 @@
 #include "subscription.hh"
 #include "configmanager.hh"
 #include <string.h>
+#include <signal.h>
 
 using namespace pidf;
 using namespace flexisip;
