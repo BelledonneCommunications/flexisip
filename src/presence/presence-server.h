@@ -68,7 +68,7 @@ private:
 	belle_sip_stack_t *mStack;
 	belle_sip_provider_t *mProvider;
 	belle_sip_listener_t *mListener;
-	thread mIterateThread;
+	std::unique_ptr<thread> mIterateThread;
 	int mDefaultExpires;
 	// belle sip cbs
 	static void processDialogTerminated(PresenceServer * thiz, const belle_sip_dialog_terminated_event_t *event);
@@ -105,6 +105,7 @@ private:
 	 */
 	
 	 void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listerner,int expires);
+	 void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listerner);
 	 void removeListener(const shared_ptr<PresentityPresenceInformationListener>& listerner);
 	
 	void removeSubscription(shared_ptr<Subscription> &identity) throw();

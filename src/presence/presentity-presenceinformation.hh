@@ -129,6 +129,11 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 *add notity listener for an entity
 	 */
 	void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> listener, int expires);
+	
+	/**
+	 *add notity listener for an entity without expiration timer
+	 */
+	void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> listener);
 	/*
 	 * remove listener
 	 */

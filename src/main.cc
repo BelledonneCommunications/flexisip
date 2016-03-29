@@ -120,13 +120,13 @@ static void flexisip_stop(int signum) {
 		// LOGD("Watchdog received quit signal...passing to child.");
 		/*we are the watchdog, pass the signal to our child*/
 		kill(flexisip_pid, signum);
-	} else {
+	} else if (run != 0) {
 		// LOGD("Received quit signal...");
 		run = 0;
 		if (root) {
 			su_root_break(root);
 		}
-	}
+	} //else nop
 }
 
 static void flexisip_stat(int signum) {

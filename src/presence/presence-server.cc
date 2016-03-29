@@ -61,6 +61,7 @@ PresenceServer::Init::Init() {
 									{StringList, "transports",
 									 "List of white space separated SIP uris where the proxy must listen.",
 									 "sip:127.0.0.1:5065"},
+									{Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
 									config_item_end};
 	GenericStruct *s = new GenericStruct("presence-server", "Flexisip presence server parameters.", 0);
 	GenericManager::get()->getRoot()->addChild(s);
@@ -68,10 +69,10 @@ PresenceServer::Init::Init() {
 }
 
 PresenceServer::PresenceServer(std::string configFile) throw(FlexisipException)
-	: mStarted((belle_sip_object_enable_leak_detector(FALSE),true)), mStack(belle_sip_stack_new(NULL)), mProvider(belle_sip_stack_create_provider(mStack, NULL)),
-	  mIterateThread([this]() {
-		  belle_sip_main_loop_run(belle_sip_stack_get_main_loop(this->mStack));
-	  }) {
+	: mStarted((belle_sip_object_enable_leak_detector(GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("leak-detector")->read()),true))
+	, mStack(belle_sip_stack_new(NULL))
+	, mProvider(belle_sip_stack_create_provider(mStack, NULL))
+	, mIterateThread(nullptr) {
 
 	belle_sip_set_log_handler(_belle_sip_log);
 	belle_sip_set_log_level(BELLE_SIP_LOG_MESSAGE);
@@ -118,8 +119,10 @@ PresenceServer::~PresenceServer() {
 	
 	mStarted = false;
 	belle_sip_main_loop_quit(belle_sip_stack_get_main_loop(mStack));
-	mIterateThread.join();
-	
+	if (mIterateThread) {
+		pthread_kill(mIterateThread->native_handle(), SIGINT);//because main loop is not interruptable
+		mIterateThread->join();
+	}
 	belle_sip_object_unref(mProvider);
 	belle_sip_object_unref(mStack);
 	belle_sip_object_unref(mListener);
@@ -152,6 +155,10 @@ void PresenceServer::start() throw(FlexisipException) {
 				throw FLEXISIP_EXCEPTION << "Cannot add lp for [" << *it << "]";
 		}
 	}
+	mIterateThread.reset (new thread([this]() {
+		while (mStarted)
+			belle_sip_main_loop_run(belle_sip_stack_get_main_loop(this->mStack)); // is not interrupted by add source
+	}));
 }
 void PresenceServer::processDialogTerminated(PresenceServer *thiz, const belle_sip_dialog_terminated_event_t *event) {
 	belle_sip_dialog_t *dialog = belle_sip_dialog_terminated_event_get_dialog(event);
@@ -159,6 +166,8 @@ void PresenceServer::processDialogTerminated(PresenceServer *thiz, const belle_s
 		shared_ptr<Subscription> &sub =
 		*static_cast<shared_ptr<Subscription>*>(belle_sip_dialog_get_application_data(dialog));
 		if (dynamic_pointer_cast<ListSubscription>(sub)) {
+			SLOGD << "Subscription [" << sub.get() << "] has expired";
+			sub->setState(Subscription::State::terminated);
 			thiz->removeSubscription(sub);
 		} //else  nothing to be done for now because expire is performed at SubscriptionLevel
 		delete static_cast<shared_ptr<Subscription>*>(belle_sip_dialog_get_application_data(dialog));
@@ -585,7 +594,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 
 				belle_sip_dialog_set_application_data(dialog, new shared_ptr<Subscription> (listSubscription));
 				for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners()) {
-					addOrUpdateListener(listener, expires);
+					addOrUpdateListener(listener); //expiration is handled by dialog
 				}
 				listSubscription->notify(TRUE);
 
@@ -737,6 +746,9 @@ void PresenceServer::addEtag(const std::shared_ptr<PresentityPresenceInformation
 	SLOGD <<"Etag manager size ["<<mPresenceInformationsByEtag.size()<<"]";
 }
 
+void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> &listener) {
+	addOrUpdateListener(listener,-1);
+}
 void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> &listener, int expires) {
 	std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
 	if (presenceInfo == NULL) {
@@ -746,7 +758,10 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 		SLOGD << "New Presentity [" << *presenceInfo << "] created from SUBSCRIBE";
 		addPresenceInfo(presenceInfo);
 	}
-	presenceInfo->addOrUpdateListener(listener, expires);
+	if (expires > 0)
+		presenceInfo->addOrUpdateListener(listener, expires);
+	else
+		presenceInfo->addOrUpdateListener(listener);
 }
 void PresenceServer::removeListener(const shared_ptr<PresentityPresenceInformationListener> &listener) {
 	const std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());

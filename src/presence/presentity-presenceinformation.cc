@@ -178,6 +178,10 @@ const belle_sip_uri_t *PresentityPresenceInformation::getEntity() const {
 	return mEntity;
 }
 
+void PresentityPresenceInformation::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> listener) {
+	addOrUpdateListener(listener, -1);
+}
+
 void PresentityPresenceInformation::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> listener,
 														int expires) {
 
@@ -199,23 +203,27 @@ void PresentityPresenceInformation::addOrUpdateListener(shared_ptr<PresentityPre
 	}
 
 	SLOGD << op << " listener [" << listener.get() << "] on [" << *this << "] for [" << expires << "] seconds";
-	// PresentityPresenceInformationListener* listener_ptr=listener.get();
-	// cb function to invalidate an unrefreshed etag;
-	belle_sip_source_cpp_func_t *func =
+	
+	if (expires > 0) {
+		// PresentityPresenceInformationListener* listener_ptr=listener.get();
+		// cb function to invalidate an unrefreshed etag;
+		belle_sip_source_cpp_func_t *func =
 		new belle_sip_source_cpp_func_t([this, listener/*_ptr*/](unsigned int events) {
 			SLOGD << "Listener [" << listener.get() << "] on [" << *this << "] has expired";
 			listener->onExpired(*this);
 			this->mPresentityManager.removeListener(listener);
 			return BELLE_SIP_STOP;
 		});
-	// create timer
-	belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(mBelleSipMainloop
-																	   , func
-																	   , expires * 1000, "timer for presence info listener");
-
-	// set expiration timer
-	listener->setExpiresTimer(mBelleSipMainloop, timer);
-
+		// create timer
+		belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(mBelleSipMainloop
+																		   , func
+																		   , expires * 1000, "timer for presence info listener");
+		
+		// set expiration timer
+		listener->setExpiresTimer(mBelleSipMainloop, timer);
+	} else {
+		listener->setExpiresTimer(mBelleSipMainloop,NULL);
+	}
 	/*
 	 *rfc 3265
 	 * 3.1.6.2. Confirmation of Subscription Creation/Refreshing

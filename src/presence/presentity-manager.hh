@@ -27,7 +27,10 @@ class PresentityPresenceInformationListener;
 
 	class PresentityManager : public EtagManager {
   public:
+		
 	virtual void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> &listerner, int exires) = 0;
+	//timerless version of addOrUpdateListener
+	virtual void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> &listerner) = 0;
 	virtual void removeListener(const shared_ptr<PresentityPresenceInformationListener> &listerner) = 0;
 };
 }
