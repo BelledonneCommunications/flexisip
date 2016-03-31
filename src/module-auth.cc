@@ -29,6 +29,7 @@
 #include "sofia-sip/auth_plugin.h"
 #include "sofia-sip/su_tagarg.h"
 #include "sofia-sip/sip_extra.h"
+#include <sofia-sip/nua.h>
 
 #include "authdb.hh"
 
@@ -400,7 +401,7 @@ class Authentication : public Module {
 		return find(d.cbegin(), d.cend(), "*") != d.end() || find(d.cbegin(), d.cend(), name) != d.end();
 	}
 
-	void handleTestAccountCreationRequests(shared_ptr<RequestSipEvent> &ev) {
+	bool handleTestAccountCreationRequests(shared_ptr<RequestSipEvent> &ev) {
 		sip_t *sip = ev->getSip();
 		if (sip->sip_request->rq_method == sip_method_register) {
 			sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(sip, "X-Create-Account");
@@ -408,12 +409,14 @@ class Authentication : public Module {
 				url_t *url = sip->sip_from->a_url;
 				if (url) {
 					AuthDbBackend::get()->createAccount(url, url->url_user, url->url_password,
-														sip->sip_expires->ex_delta);
+														0);
 					LOGD("Account created for %s@%s with password %s and expires %i", url->url_user, url->url_host,
-						 url->url_password, (int)sip->sip_expires->ex_delta);
+						 url->url_password, 0);
+					return true;
 				}
 			}
 		}
+		return false;
 	}
 
 	bool isTrustedPeer(shared_ptr<RequestSipEvent> &ev) {
@@ -485,8 +488,10 @@ class Authentication : public Module {
 		}
 
 		// handle account creation request (test feature only)
-		if (mTestAccountsEnabled)
-			handleTestAccountCreationRequests(ev);
+		if (mTestAccountsEnabled && handleTestAccountCreationRequests(ev)) {
+			ev->reply(200, "Test account created", SIPTAG_SERVER_STR(getAgent()->getServerString()),
+				SIPTAG_CONTACT(sip->sip_contact), NUTAG_M_FEATURES("expires=0"), SIPTAG_EXPIRES_STR("0"), TAG_END());
+		}
 
 		// Check trusted peer
 		if (isTrustedPeer(ev))
