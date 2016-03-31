@@ -140,6 +140,8 @@ function take_mem_shot() {
 		top -l 1 -pid `cat flexisip_pid` > memory.log
 	elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
 		top -n 1 -p `cat flexisip_pid` > memory.log
+		echo "##### Proc #####" >> memory.log
+		cat /proc/`cat flexisip_pid`/status >> memory.log
 	fi
 }
 
