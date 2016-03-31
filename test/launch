@@ -32,6 +32,7 @@ REGISTER_PORT=${REGISTER_PORT:=5070}
 USERS_PORT=${USERS_PORT:=5063}
 INVITER_PORT=${INVITER_PORT:=5064}
 SKIP_REGISTERS=${SKIP_REGISTERS:=0}
+SKIP_UAS=${SKIP_UAS:=0}
 
 UA="Linphone/Linphone-3.3.x_(sipp/unknown)"
 SDOMAIN="-set domain $DOMAIN"
@@ -84,7 +85,7 @@ SIPP_COMMONS="127.0.0.1:$FLEXISIP_PORT $SIPP_COMMONS -i $IP -trace_err -trace_ms
 REG_OPTIONS="$REG_OPTIONS -p $REGISTER_PORT -m `echo "1+$NB_USERS"|bc` $SIPP_COMMONS -inf $USERS_CSV $SDOMAIN $SEXPIRE"
 REG_INVITER_OPTIONS="$REG_INVITER_OPTIONS -p $INVITER_PORT -m 1 $SIPP_COMMONS -nd $SDOMAIN $SEXPIRE $SUA"
 INV_OPTIONS="$INV_OPTIONS -m $NB_USERS -p $INVITER_PORT $SIPP_COMMONS $SDOMAIN $SUA "
-UAS_OPTIONS="$UAS_OPTIONS -bg -p $USERS_PORT $SIPP_COMMONS -mi $IP -mp 15000 -rtp_echo"
+UAS_OPTIONS="$UAS_OPTIONS -bg -p $USERS_PORT $SIPP_COMMONS -mi $IP -mp 15000 -rtp_echo -trace_msg"
 
 echo "NB_USERS=$NB_USERS"
 echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
@@ -95,13 +96,15 @@ ulimit -c unlimited
 # Open many file descriptors
 ulimit -n 65000
 
+if [[ "$SKIP_UAS" -eq "0" ]]; then
 
-CMD_UAS="$SIPP -sf $UAS_FILE $UAS_OPTIONS"
-echo -e "\nStart users listening:"
-echo $CMD_UAS
-$CMD_UAS 2>&1 > uas.log
+	CMD_UAS="$SIPP -sf $UAS_FILE $UAS_OPTIONS"
+	echo -e "\nStart users listening:"
+	echo $CMD_UAS
+	$CMD_UAS 2>&1 > uas.log
+	sleep 2
 
-sleep 2
+fi
 	
 CMD_FLEXISIP="$FLEXISIP $FLEX_OPTIONS"
 echo -e "Start flexisip:"
@@ -131,6 +134,15 @@ else
 fi
 
 
+
+function take_mem_shot() {
+	if [ "$(uname)" == "Darwin" ]; then
+		top -l 1 -pid `cat flexisip_pid` > memory.log
+	elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+		top -n 1 -p `cat flexisip_pid` > memory.log
+	fi
+}
+
 # Allow killing
 function onexit() {
 	echo -e "Killing everyone"
@@ -153,5 +165,7 @@ echo -e "Start inviting users :"
 echo $CMD_INVITE_USERS
 $CMD_INVITE_USERS
 RETVAL=$?
+
+take_mem_shot
 
 onexit
