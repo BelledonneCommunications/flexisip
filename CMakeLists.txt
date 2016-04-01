@@ -108,23 +108,17 @@ endif()
 
 check_function_exists(arc4random HAVE_ARC4RANDOM)
 find_file(HAVE_SYS_PRCTL_H NAMES sys/prctl.h)
-check_cxx_source_compiles(
-	"#include <chrono>
-	using namespace ::std;
-	using namespace chrono;
-	steady_clock::time_point test;
-	int main() { return 0;}
-	"
-	HAS_STEADY_CLOCK
-)
-set(CMAKE_REQUIRED_LIBRARIES)
 
-if(HAS_STEADY_CLOCK)
-	message(STATUS "System has steady clock.")
-else()
-	message(STATUS "System doesn't have steady clock. Use monotonic instead.")
-    add_definitions(-DUSE_MONOTONIC_CLOCK)
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+	if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
+		message(STATUS "GCC version < 4.7: use MONOTONIC clock")
+		add_definitions(-DUSE_MONOTONIC_CLOCK)
+	else()
+		message(STATUS "GCC version ${CMAKE_CXX_COMPILER_VERSION} should have steady_clock")
+	endif()
 endif()
+
+set(CMAKE_REQUIRED_LIBRARIES)
 
 # Options
 if(ENABLE_ODB)
