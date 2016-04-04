@@ -489,8 +489,7 @@ class Authentication : public Module {
 
 		// handle account creation request (test feature only)
 		if (mTestAccountsEnabled && handleTestAccountCreationRequests(ev)) {
-			ev->reply(200, "Test account created", SIPTAG_SERVER_STR(getAgent()->getServerString()),
-				SIPTAG_CONTACT(sip->sip_contact), NUTAG_M_FEATURES("expires=0"), SIPTAG_EXPIRES_STR("0"), TAG_END());
+			ev->reply(200, "Test account created", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		}
 
 		// Check trusted peer
