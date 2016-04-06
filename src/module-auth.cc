@@ -413,9 +413,7 @@ class Authentication : public Module {
 			if (h && strcasecmp(h->un_value, "yes") == 0) {
 				url_t *url = sip->sip_from->a_url;
 				if (url) {
-					// we want to create account with expires to 0 so that when we send 200 OK response,
-					// user knows that he is not yet registered
-					sip_time_t expires = /*sip->sip_expires->ex_delta*/0;
+					sip_time_t expires = sip->sip_expires->ex_delta;
 					AuthDbBackend::get()->createAccount(url->url_user, url->url_host, url->url_user, url->url_password,
 														expires);
 					LOGD("Account created for %s@%s with password %s and expires %i", url->url_user, url->url_host,
