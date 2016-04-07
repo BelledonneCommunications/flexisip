@@ -67,6 +67,7 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 				throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
 			}
 			mListeners.push_back(make_shared<PresentityResourceListener>(*this, uri));
+			belle_sip_object_unref(uri);
 		}
 	}
 	if (mListeners.size() == 0) {
@@ -84,9 +85,8 @@ list<shared_ptr<PresentityPresenceInformationListener>> &ListSubscription::getLi
 }
 ListSubscription::~ListSubscription() {
 	if (mTimer) {
-		belle_sip_main_loop_cancel_source( belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv))
-										  , belle_sip_source_get_id(mTimer));
-		belle_sip_object_unref(this->mTimer);
+		belle_sip_source_cancel(mTimer);
+		belle_sip_object_unref(mTimer);
 	}
 	belle_sip_object_unref((void *)mName);
 	SLOGD << "List souscription ["<< this <<"] deleted";
