@@ -409,9 +409,9 @@ class Authentication : public Module {
 				url_t *url = sip->sip_from->a_url;
 				if (url) {
 					AuthDbBackend::get()->createAccount(url, url->url_user, url->url_password,
-														0);
+														sip->sip_expires->ex_delta));
 					LOGD("Account created for %s@%s with password %s and expires %i", url->url_user, url->url_host,
-						 url->url_password, 0);
+						 url->url_password, sip->sip_expires->ex_delta));
 					return true;
 				}
 			}
