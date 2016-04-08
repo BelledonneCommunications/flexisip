@@ -74,7 +74,7 @@ void Subscription::notify(belle_sip_header_content_type_t *content_type, const s
 void Subscription::notify(belle_sip_header_content_type_t *content_type, const string *body,
 						  belle_sip_multipart_body_handler_t *multiPartBody, const string *content_encoding) {
 	if (belle_sip_dialog_get_state(mDialog) != BELLE_SIP_DIALOG_CONFIRMED) {
-		SLOGE << "Cannot notify information change for [" << std::hex << (long)this << "] because dialog [" << std::hex
+		SLOGI << "Cannot notify information change for [" << std::hex << (long)this << "] because dialog [" << std::hex
 			  << (long)mDialog << "]is in state ["
 			  << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(mDialog)) << "]";
 		return;

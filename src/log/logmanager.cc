@@ -112,7 +112,7 @@ namespace flexisip {
 			if (debug) {
 				ortp_set_log_level(ORTP_LOG_DOMAIN, ORTP_DEBUG);
 			} else {
-				ortp_set_log_level(ORTP_LOG_DOMAIN, ORTP_MESSAGE);
+				ortp_set_log_level(ORTP_LOG_DOMAIN, ORTP_WARNING);
 			}
 
 			is_debug = debug;

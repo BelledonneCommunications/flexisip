@@ -773,7 +773,7 @@ void PresenceServer::removeListener(const shared_ptr<PresentityPresenceInformati
 			mPresenceInformations.erase(presenceInfo->getEntity());
 		}
 	} else
-		SLOGW << "No presence info for this entity [" << listener->getPresentityUri() << "]/[" << std::hex
+		SLOGI << "No presence info for this entity [" << listener->getPresentityUri() << "]/[" << std::hex
 			  << (long)&listener << "]";
 }
 
