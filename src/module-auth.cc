@@ -413,7 +413,7 @@ class Authentication : public Module {
 			if (h && strcasecmp(h->un_value, "yes") == 0) {
 				url_t *url = sip->sip_from->a_url;
 				if (url) {
-					AuthDbBackend::get()->createAccount(url, url->url_user, url->url_password,
+					AuthDbBackend::get()->createAccount(url->url_user, url->url_host, url->url_user, url->url_password,
 														sip->sip_expires->ex_delta);
 					LOGD("Account created for %s@%s with password %s and expires %lu", url->url_user, url->url_host,
 						 url->url_password, sip->sip_expires->ex_delta);
