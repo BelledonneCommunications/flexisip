@@ -6,6 +6,7 @@
 if BUILD_PRESENCE
 lib_LTLIBRARIES = libflexisip-presence.la
 libflexisip_presence_la_SOURCES = 	presence-server.cc presence-server.hh \
+					presence-longterm.cc presence-longterm.hh \
 					presentity-presenceinformation.cc presentity-presenceinformation.hh \
 					bellesip-signaling-exception.cc bellesip-signaling-exception.hh\
 					subscription.cc subscription.hh etag-manager.hh presentity-manager.hh list-subscription.cc list-subscription.hh
