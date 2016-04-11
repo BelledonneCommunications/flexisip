@@ -25,6 +25,8 @@ public:
 		if (result == AuthDbResult::PASSWORD_FOUND) {
 			SLOGD << "Found user " << belle_sip_uri_get_user(mInfo->getEntity()) << ", adding presence information";
 			mInfo->setDefaultElement();
+		} else {
+			SLOGD << "Could not found user " << belle_sip_uri_get_user(mInfo->getEntity()) << ", ignoring";
 		}
 		delete this;
 	}
@@ -35,6 +37,7 @@ private:
 
 void PresenceLongterm::onNewPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& info) const {
 	const belle_sip_uri_t* uri = info->getEntity();
+	SLOGD << "New presence info for " << belle_sip_uri_get_user(uri) << ", checking if this user is already registered";
 	AuthDbBackend::get()->getPassword(belle_sip_uri_get_user(uri), belle_sip_uri_get_host(uri), belle_sip_uri_get_user(uri), new OnAuthListener(mMainLoop, info));
 }
 
