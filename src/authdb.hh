@@ -47,10 +47,7 @@ struct AuthDbTimings;
 
 class AuthDbListener : public StatFinishListener {
   public:
-	virtual void onResult() = 0;
-	virtual ~AuthDbListener();
-	std::string mPassword;
-	AuthDbResult mResult;
+	virtual void onResult(AuthDbResult result, std::string passwd) = 0;
 };
 
 class AuthDbBackend {
@@ -72,20 +69,17 @@ class AuthDbBackend {
 	std::string createPasswordKey(const std::string &user, const std::string &host, const std::string &auth);
 	bool cachePassword(const std::string &key, const std::string &domain, const std::string &pass, int expires);
 	CacheResult getCachedPassword(const std::string &key, const std::string &domain, std::string &pass);
-	void createCachedAccount(const url_t *from, const char *auth_username, const char *password, int expires);
+	void createCachedAccount(const char* user, const char* host, const char *auth_username, const char *password, int expires);
 	void clearCache();
 	int mCacheExpire;
-
-	void notifyPasswordRetrieved(su_root_t *root, AuthDbListener *listener, AuthDbResult result,
-								 const std::string &password);
-
   public:
 	virtual ~AuthDbBackend();
-	void getPassword(su_root_t *root, const url_t *from, const char *auth_username, AuthDbListener *listener);
+	// warning: listener may be invoked on authdb backend thread, so listener must be threadsafe somehow!
+	void getPassword(const char* user, const char* host, const char *auth_username, AuthDbListener *listener);
 
-	virtual void createAccount(const url_t *from, const char *auth_username, const char *password, int expires);
+	virtual void createAccount(const char* user, const char* host, const char *auth_username, const char *password, int expires);
 
-	virtual void getPasswordFromBackend(su_root_t *root, const std::string &id, const std::string &domain,
+	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener) = 0;
 
 	static AuthDbBackend *get();
@@ -106,7 +100,7 @@ class FileAuthDb : public AuthDbBackend {
 
   public:
 	FileAuthDb();
-	virtual void getPasswordFromBackend(su_root_t *root, const std::string &id, const std::string &domain,
+	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener);
 
 	static void declareConfig(GenericStruct *mc){};
@@ -149,11 +143,11 @@ class OdbcAuthDb : public AuthDbBackend {
 	bool getConnection(const std::string &id, ConnectionCtx &ctx, AuthDbTimings &timings);
 	AuthDbResult doRetrievePassword(ConnectionCtx &ctx, const std::string &user, const std::string &host,
 									const std::string &auth, std::string &foundPassword, AuthDbTimings &timings);
-	void doAsyncRetrievePassword(su_root_t *, std::string id, std::string domain, std::string auth,
+	void doAsyncRetrievePassword(std::string id, std::string domain, std::string auth,
 								 AuthDbListener *listener);
 
   public:
-	virtual void getPasswordFromBackend(su_root_t *root, const std::string &id, const std::string &domain,
+	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener);
 	std::map<std::string, std::string> cachedPasswords;
 	void setExecuteDirect(const bool value);
@@ -176,13 +170,13 @@ class SociAuthDB : public AuthDbBackend {
   public:
 	SociAuthDB();
 	void setConnectionParameters(const string &domain, const string &request);
-	virtual void getPasswordFromBackend(su_root_t *root, const std::string &id, const std::string &domain,
+	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener);
 
 	static void declareConfig(GenericStruct *mc);
 
   private:
-	void getPasswordWithPool(su_root_t *root, const std::string &id, const std::string &domain,
+	void getPasswordWithPool(const std::string &id, const std::string &domain,
 							 const std::string &authid, AuthDbListener *listener);
 
 	void reconnectSession( soci::session &session );

@@ -72,7 +72,8 @@
 #include <fstream>
 
 #ifdef ENABLE_PRESENCE
-#include "presence/presence-server.h"
+#include "presence/presence-server.hh"
+#include "presence/presence-longterm.hh"
 #endif // ENABLE_PRESENCE
 
 #include "monitor.hh"
@@ -800,6 +801,8 @@ int main(int argc, char *argv[]) {
 
 #ifdef ENABLE_PRESENCE
 	flexisip::PresenceServer presenceServer(configFile.getValue());
+	flexisip::PresenceLongterm presenceLongTerm(presenceServer.getBelleSipMainLoop());
+	presenceServer.addNewPresenceInfoListener(&presenceLongTerm);
 	presenceServer.start();
 #endif // ENABLE_PRESENCE
 
@@ -816,6 +819,10 @@ int main(int argc, char *argv[]) {
 		delete stun;
 	}
 	su_root_destroy(root);
+#ifdef ENABLE_PRESENCE
+	presenceServer.removeNewPresenceInfoListener(&presenceLongTerm);
+#endif // ENABLE_PRESENCE
+
 	LOGN("Flexisip exiting normally.");
 	if (trackAllocs)
 		dump_remaining_msgs();

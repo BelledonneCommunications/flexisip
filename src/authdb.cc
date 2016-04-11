@@ -22,19 +22,14 @@ using namespace std;
 
 AuthDbBackend *AuthDbBackend::sUnique = NULL;
 
-AuthDbListener::~AuthDbListener() {
-}
-
 class FixedAuthDb : public AuthDbBackend {
   public:
 	FixedAuthDb() {
 	}
 
-	virtual void getPasswordFromBackend(su_root_t *root, const std::string &id, const std::string &domain,
+	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener) {
-		listener->mPassword.assign("fixed");
-		listener->mResult = PASSWORD_FOUND;
-		listener->onResult();
+		if (listener) listener->onResult(PASSWORD_FOUND, "fixed");
 	}
 	static void declareConfig(GenericStruct *mc){};
 };
@@ -95,8 +90,8 @@ AuthDbBackend::CacheResult AuthDbBackend::getCachedPassword(const string &key, c
 	unique_lock<mutex> lck(mCachedPasswordMutex);
 	auto it = passwords.find(key);
 	if (it != passwords.end()) {
-		pass.assign((*it).second.pass);
-		if (now < (*it).second.expire_date) {
+		pass.assign(it->second.pass);
+		if (now < it->second.expire_date) {
 			return VALID_PASS_FOUND;
 		} else {
 			passwords.erase(it);
@@ -118,26 +113,25 @@ bool AuthDbBackend::cachePassword(const string &key, const string &domain, const
 	if (expires == -1)
 		expires = mCacheExpire;
 	if (it != passwords.end()) {
-		(*it).second.pass = pass;
-		(*it).second.expire_date = now + expires;
+		it->second.pass = pass;
+		it->second.expire_date = now + expires;
 	} else {
 		passwords.insert(make_pair(key, CachedPassword(pass, now + expires)));
 	}
 	return true;
 }
 
-void AuthDbBackend::getPassword(su_root_t *root, const url_t *from, const char *auth_username,
+void AuthDbBackend::getPassword(const char* user, const char* host, const char *auth_username,
 								AuthDbListener *listener) {
 	// Check for usable cached password
-	string id(from->url_user);
-	string domain(from->url_host);
+	string id(user);
+	string domain(host);
 	string auth(auth_username);
 	string key(createPasswordKey(id, domain, auth));
-
-	switch (getCachedPassword(key, domain, listener->mPassword)) {
+	string pass;
+	switch (getCachedPassword(key, domain, pass)) {
 		case VALID_PASS_FOUND:
-			listener->mResult = AuthDbResult::PASSWORD_FOUND;
-			listener->onResult();
+			if (listener) listener->onResult(AuthDbResult::PASSWORD_FOUND, pass);
 			return;
 		case EXPIRED_PASS_FOUND:
 			// Might check here if connection is failing
@@ -149,57 +143,17 @@ void AuthDbBackend::getPassword(su_root_t *root, const url_t *from, const char *
 	}
 
 	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
-	getPasswordFromBackend(root, id, domain, auth, listener);
+	getPasswordFromBackend(id, domain, auth, listener);
 }
 
-static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u) {
-	AuthDbListener **listenerStorage = (AuthDbListener **)su_msg_data(msg);
-	AuthDbListener *listener = *listenerStorage;
-	listener->onResult();
-}
-
-void AuthDbBackend::notifyPasswordRetrieved(su_root_t *root, AuthDbListener *listener, AuthDbResult result,
-											const std::string &password) {
-	if (listener) {
-		su_msg_r mamc = SU_MSG_R_INIT;
-		if (-1 == su_msg_create(mamc, su_root_task(root), su_root_task(root), main_thread_async_response_cb,
-								sizeof(AuthDbListener *))) {
-			LOGF("Couldn't create auth async message");
-		}
-
-		AuthDbListener **listenerStorage = (AuthDbListener **)su_msg_data(mamc);
-		*listenerStorage = listener;
-
-		switch (result) {
-			case PASSWORD_FOUND:
-				listener->mResult = result;
-				listener->mPassword = password;
-				break;
-			case PASSWORD_NOT_FOUND:
-				listener->mResult = AuthDbResult::PASSWORD_NOT_FOUND;
-				listener->mPassword = "";
-				break;
-			case AUTH_ERROR:
-				/*in that case we can fallback to the cached password previously set*/
-				break;
-			case PENDING:
-				LOGF("unhandled case PENDING");
-				break;
-		}
-		if (-1 == su_msg_send(mamc)) {
-			LOGF("Couldn't send auth async message to main thread.");
-		}
-	}
-}
-
-void AuthDbBackend::createCachedAccount(const url_t *from, const char *auth_username, const char *password,
+void AuthDbBackend::createCachedAccount(const char* user, const char* host, const char *auth_username, const char *password,
 										int expires) {
-	if (from->url_host && from->url_user) {
-		string key = createPasswordKey(from->url_user, from->url_host, auth_username ? auth_username : "");
-		cachePassword(key, from->url_host, password, expires);
+	if (user && host) {
+		string key = createPasswordKey(user, host, auth_username ? auth_username : "");
+		cachePassword(key, host, password, expires);
 	}
 }
 
-void AuthDbBackend::createAccount(const url_t *from, const char *auth_username, const char *password, int expires) {
-	createCachedAccount(from, auth_username, password, expires);
+void AuthDbBackend::createAccount(const char* user, const char* host, const char *auth_username, const char *password, int expires) {
+	createCachedAccount(user, host, auth_username, password, expires);
 }

@@ -447,7 +447,7 @@ static void closeCursor(SQLHSTMT &stmt) {
 	}
 }
 
-void OdbcAuthDb::getPasswordFromBackend(su_root_t *root, const std::string &id, const std::string &domain,
+void OdbcAuthDb::getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener) {
 
 	if (mAsynchronousRetrieving) {
@@ -455,7 +455,7 @@ void OdbcAuthDb::getPasswordFromBackend(su_root_t *root, const std::string &id, 
 		// Allocate on the stack and detach. It is lawful since:
 		// "When detach() returns, *this no longer represents the possibly continuing thread of execution."
 
-		thread t = thread(bind(&OdbcAuthDb::doAsyncRetrievePassword, this, root, id, domain, authid, listener));
+		thread t = thread(bind(&OdbcAuthDb::doAsyncRetrievePassword, this, id, domain, authid, listener));
 		t.detach(); // Thread will continue running in detached mode
 		return;
 	} else {
@@ -469,9 +469,7 @@ void OdbcAuthDb::getPasswordFromBackend(su_root_t *root, const std::string &id, 
 			timings.error = true;
 		}
 		timings.done();
-		listener->mResult = ret;
-		listener->mPassword = foundPassword;
-		listener->onResult();
+		if (listener) listener->onResult(ret, foundPassword);
 	}
 }
 
@@ -479,7 +477,7 @@ void OdbcAuthDb::getPasswordFromBackend(su_root_t *root, const std::string &id, 
 static unsigned long threadCount=0;
 static mutex threadCountMutex;
 */
-void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string domain, string auth,
+void OdbcAuthDb::doAsyncRetrievePassword(string id, string domain, string auth,
 										 AuthDbListener *listener) {
 	/*	unsigned long localThreadCountCopy=0;
 		threadCountMutex.lock();
@@ -497,7 +495,7 @@ void OdbcAuthDb::doAsyncRetrievePassword(su_root_t *root, string id, string doma
 	}
 	timings.done();
 
-	notifyPasswordRetrieved(root, listener, ret, password);
+	if (listener) listener->onResult(ret, password);
 
 	/*
 	threadCountMutex.lock();

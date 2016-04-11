@@ -30,6 +30,8 @@ using namespace pidf;
 
 namespace flexisip {
 
+static string generate_presence_id(void);
+
 FlexisipException &operator<<(FlexisipException &e, const xml_schema::Exception &val) {
 	stringstream e_out;
 	e_out << val;
@@ -37,12 +39,35 @@ FlexisipException &operator<<(FlexisipException &e, const xml_schema::Exception 
 	return e;
 }
 
+PresenceInformationElement::PresenceInformationElement(const belle_sip_uri_t *contact)
+	: mDomDocument(::xsd::cxx::xml::dom::create_document<char>()), mBelleSipMainloop(NULL), mTimer(NULL) {
+	char *contact_as_string = belle_sip_uri_to_string(contact);
+	std::time_t t;
+	std::time(&t);
+	struct tm *now = gmtime(&t);
+	Status status;
+	status.setBasic(Basic("open"));
+	unique_ptr<Tuple> tup(new Tuple(status, string(generate_presence_id())));
+	tup->setTimestamp(::xml_schema::DateTime(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour,
+											 now->tm_min, now->tm_sec));
+	tup->setContact(::pidf::Contact(contact_as_string));
+	mTuples.push_back(std::unique_ptr<Tuple>(tup.release()));
+	belle_sip_free(contact_as_string);
+}
+
 PresentityPresenceInformation::PresentityPresenceInformation(const belle_sip_uri_t *entity, PresentityManager &presentityManager,
 															 belle_sip_main_loop_t *mainloop)
 	: mEntity((belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(entity))), mPresentityManager(presentityManager),
-	  mBelleSipMainloop(mainloop) {
+	  mBelleSipMainloop(mainloop), mDefaultInformationElement(nullptr) {
 	belle_sip_object_ref(mainloop);
 	belle_sip_object_ref((void *)mEntity);
+}
+
+PresenceInformationElement::~PresenceInformationElement() {
+	if (mBelleSipMainloop)
+		setExpiresTimer(NULL);
+
+	SLOGD << "Presence information element [" << std::hex << (long)this << "] deleted";
 }
 
 PresentityPresenceInformation::~PresentityPresenceInformation() {
@@ -153,14 +178,16 @@ string PresentityPresenceInformation::refreshTuplesForEtag(const string &eTag, i
 	return setOrUpdate(NULL, NULL, &eTag, expires);
 }
 
+void PresentityPresenceInformation::setDefaultElement(void) {
+	mDefaultInformationElement = make_shared<PresenceInformationElement>(getEntity());
+	notifyAll();
+}
+
 void PresentityPresenceInformation::removeTuplesForEtag(const string &eTag) {
 	auto it = mInformationElements.find(eTag);
 	if (it != mInformationElements.end()) {
 		PresenceInformationElement *informationElement = it->second;
 		mInformationElements.erase(it);
-		if (mInformationElements.empty()) {
-			mDefaultInformationElement = make_shared<PresenceInformationElement>(this->getEntity());
-		}
 		delete informationElement;
 		notifyAll(); // Removing an event state change global state, so it should be notified
 	} else
@@ -203,7 +230,7 @@ void PresentityPresenceInformation::addOrUpdateListener(shared_ptr<PresentityPre
 	}
 
 	SLOGD << op << " listener [" << listener.get() << "] on [" << *this << "] for [" << expires << "] seconds";
-	
+
 	if (expires > 0) {
 		// PresentityPresenceInformationListener* listener_ptr=listener.get();
 		// cb function to invalidate an unrefreshed etag;
@@ -218,7 +245,7 @@ void PresentityPresenceInformation::addOrUpdateListener(shared_ptr<PresentityPre
 		belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(mBelleSipMainloop
 																		   , func
 																		   , expires * 1000, "timer for presence info listener");
-		
+
 		// set expiration timer
 		listener->setExpiresTimer(mBelleSipMainloop, timer);
 	} else {
@@ -280,12 +307,12 @@ string PresentityPresenceInformation::getPidf() throw(FlexisipException) {
 			// insering default tuple
 			presence.getTuple().push_back(*mDefaultInformationElement->getTuples().begin()->get());
 		}
-		pidf::Note value;
-		namespace_::Lang lang("en");
-		value += "No presence information available yet";
-		value.setLang(lang);
-		// value.lang("en");
 		if (presence.getTuple().size() == 0) {
+			pidf::Note value;
+			namespace_::Lang lang("en");
+			value += "No presence information available yet";
+			value.setLang(lang);
+			// value.lang("en");
 			presence.getNote().push_back(value);
 		}
 
@@ -349,13 +376,13 @@ PresenceInformationElement::PresenceInformationElement(pidf::Presence::TupleSequ
 		mExtensions.push_back(dynamic_cast<xercesc::DOMElement *>(mDomDocument->importNode(&*domElement, true)));
 	}
 }
-// code from linphone
-/*defined in http://www.w3.org/TR/REC-xml/*/
-static char presence_id_valid_characters[] = "0123456789abcdefghijklmnopqrstuvwxyz-.";
-/*NameStartChar (NameChar)**/
-static char presence_id_valid_start_characters[] = ":_abcdefghijklmnopqrstuvwxyz";
 
-string generate_presence_id(void) {
+static string generate_presence_id(void) {
+	// code from linphone
+	/*defined in http://www.w3.org/TR/REC-xml/*/
+	static char presence_id_valid_characters[] = "0123456789abcdefghijklmnopqrstuvwxyz-.";
+	/*NameStartChar (NameChar)**/
+	static char presence_id_valid_start_characters[] = ":_abcdefghijklmnopqrstuvwxyz";
 	char id[7];
 	int i;
 	id[0] = presence_id_valid_start_characters[ortp_random() % (sizeof(presence_id_valid_start_characters) - 1)];
@@ -367,28 +394,6 @@ string generate_presence_id(void) {
 	return id;
 }
 
-PresenceInformationElement::PresenceInformationElement(const belle_sip_uri_t *contact)
-	: mDomDocument(::xsd::cxx::xml::dom::create_document<char>()), mBelleSipMainloop(NULL), mTimer(NULL) {
-	char *contact_as_string = belle_sip_uri_to_string(contact);
-	std::time_t t;
-	std::time(&t);
-	struct tm *now = gmtime(&t);
-	Status status;
-	status.setBasic(Basic("closed"));
-	unique_ptr<Tuple> tup(new Tuple(status, string(generate_presence_id())));
-	tup->setTimestamp(::xml_schema::DateTime(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour,
-											 now->tm_min, now->tm_sec));
-	tup->setContact(::pidf::Contact(contact_as_string));
-	mTuples.push_back(std::unique_ptr<Tuple>(tup.release()));
-	belle_sip_free(contact_as_string);
-}
-
-PresenceInformationElement::~PresenceInformationElement() {
-	if (mBelleSipMainloop)
-		setExpiresTimer(NULL);
-	
-	SLOGD << "Presence information element [" << std::hex << (long)this << "] deleted";
-}
 void PresenceInformationElement::setExpiresTimer(belle_sip_source_t *timer) {
 	if (mTimer) {
 		// canceling previous timer

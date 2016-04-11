@@ -16,14 +16,15 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __flexisip__presence_configmanager__
-#define __flexisip__presence_configmanager__
+#pragma once
 
 #include "configmanager.hh"
 
+#if 0
 class PresenceConfigManager : public GenericManager {
   public:
 	PresenceConfigManager();
+	private:
 	virtual ~PresenceConfigManager(){};
 };
-#endif /* defined(__flexisip__presence_configmanager__) */
+#endif

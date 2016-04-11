@@ -115,9 +115,9 @@ class GatewayRegister {
 			gw->sendRegister();
 		}
 
-		virtual void onResult() {
-			if (mResult == AuthDbResult::PASSWORD_FOUND) {
-				checkPassword(mPassword.c_str());
+		virtual void onResult(AuthDbResult result, std::string passwd) {
+			if (result == AuthDbResult::PASSWORD_FOUND) {
+				checkPassword(passwd.c_str());
 			} else {
 				LOGE("GatewayRegister onResult(): Can't find user password, give up.");
 			}
@@ -144,10 +144,9 @@ class GatewayRegister {
 		void onRecordFound(Record *r) {
 			if (r == NULL) {
 				LOGD("Record doesn't exist. Fork");
-				string ipassword;
 				AuthDbBackend *mAuthDb = AuthDbBackend::get();
-				mAuthDb->getPassword(gw->mAgent->getRoot(), gw->getFrom()->a_url, gw->getFrom()->a_url->url_user,
-									 new OnAuthListener(gw));
+				url_t *url = gw->getFrom()->a_url;
+				mAuthDb->getPassword(url->url_user, url->url_host, url->url_user, new OnAuthListener(gw));
 			} else {
 				LOGD("Record already exists. Not forked");
 			}

@@ -49,8 +49,7 @@ class ModulePresence : public Module, ModuleToolbox {
 		if (cv.getName() == "presence-server") {
 			url_t *uri = url_make(&mHome, cv.getName().c_str());
 			if (!uri) {
-				SLOGE << this->getModuleName() << ": wrong destination uri for presence server [" << cv.getName()
-					  << "]";
+				SLOGE << getModuleName() << ": wrong destination uri for presence server [" << cv.getName() << "]";
 				return false;
 			} else {
 				su_free(&mHome, uri);
@@ -62,8 +61,8 @@ class ModulePresence : public Module, ModuleToolbox {
 	void onLoad(const GenericStruct *mc) {
 		mDestRoute = mc->get<ConfigString>("presence-server")->read();
 		mOnlyListSubscription = mc->get<ConfigBooleanExpression>("only-list-subscription")->read();
-		SLOGI << this->getModuleName() << ": presence server is [" << mDestRoute << "]";
-		SLOGI << this->getModuleName() << ": Non list subscription are " << (mOnlyListSubscription ? "not" : "")
+		SLOGI << getModuleName() << ": presence server is [" << mDestRoute << "]";
+		SLOGI << getModuleName() << ": Non list subscription are " << (mOnlyListSubscription ? "not" : "")
 			  << " redirected by presence server";
 	}
 
@@ -79,7 +78,7 @@ class ModulePresence : public Module, ModuleToolbox {
 		sip_t *sip = ev->getSip();
 		if (sip->sip_request->rq_method == sip_method_subscribe) {
 			sip_require_t *require;
-			bool require_recipient_list_subscribe_found = false;
+			bool require_recipient_list_subscribe_found = true;
 			for (require = (sip_require_t *)sip->sip_require; require != NULL;
 				 require = (sip_require_t *)require->k_next) {
 				if (*require->k_items && strcasecmp((const char *)*require->k_items, "recipient-list-subscribe") == 0) {

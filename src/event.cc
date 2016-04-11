@@ -195,7 +195,7 @@ void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u,
 
 void RequestSipEvent::reply(int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
-		SLOGD << "Replying Request SIP message: " << status << " " << phrase << std::endl;
+		SLOGD << "Replying Request SIP message: " << status << " " << phrase;
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mIncomingAgent->reply(getMsgSip(), status, phrase, ta_tags(ta));

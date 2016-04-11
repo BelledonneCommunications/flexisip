@@ -86,11 +86,16 @@ class PresentityPresenceInformationListener  {
 class PresentityPresenceInformation : public std::enable_shared_from_this<PresentityPresenceInformation> {
 
   public:
+	PresentityPresenceInformation(const belle_sip_uri_t *entity, PresentityManager &presentityManager, belle_sip_main_loop_t *ml);
+	virtual ~PresentityPresenceInformation();
+
 	/*
 	 * store tuples a new tupple;
 	 * @return new eTag
 	 * */
 	string putTuples(pidf::Presence::TupleSequence &tuples, pidf::Presence::AnySequence &extensions, int expires);
+
+	void setDefaultElement(void);
 
 	/*
 	 *
@@ -120,16 +125,13 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	* */
 	void removeTuplesForEtag(const string &eTag);
 
-	PresentityPresenceInformation(const belle_sip_uri_t *entity, PresentityManager &presentityManager, belle_sip_main_loop_t *ml);
-	virtual ~PresentityPresenceInformation();
-
 	const belle_sip_uri_t *getEntity() const;
 
 	/**
 	 *add notity listener for an entity
 	 */
 	void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> listener, int expires);
-	
+
 	/**
 	 *add notity listener for an entity without expiration timer
 	 */
@@ -148,12 +150,12 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 * return true if a presence info is already known from a publish
 	 */
 	bool isKnown();
-	
+
 	/*
 	 * return number of current listeners (I.E subscriber)
 	 */
 	size_t getNumberOfListeners() const;
-	
+
 	/*
 	 * return current number of information elements (I.E from PUBLISH)
 	 */

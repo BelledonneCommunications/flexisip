@@ -112,7 +112,7 @@ void SociAuthDB::reconnectSession(soci::session &session) {
 
 #define DURATION_MS(start, stop) (unsigned long) duration_cast<milliseconds>((stop) - (start)).count()
 
-void SociAuthDB::getPasswordWithPool(su_root_t *root, const std::string &id, const std::string &domain,
+void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &domain,
 									 const std::string &authid, AuthDbListener *listener) {
 
 	steady_clock::time_point start = steady_clock::now();
@@ -132,13 +132,13 @@ void SociAuthDB::getPasswordWithPool(su_root_t *root, const std::string &id, con
 		stop = steady_clock::now();
 		SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
 		cachePassword(createPasswordKey(id, domain, authid), domain, pass, mCacheExpire);
-		notifyPasswordRetrieved(root, listener, PASSWORD_FOUND, pass);
+		if (listener) listener->onResult(PASSWORD_FOUND, pass);
 
 	} catch (mysql_soci_error const &e) {
 
 		stop = steady_clock::now();
 		SLOGE << "[SOCI] MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
-		notifyPasswordRetrieved(root, listener, PASSWORD_NOT_FOUND, pass);
+		if (listener) listener->onResult(PASSWORD_NOT_FOUND, pass);
 
 		reconnectSession(sql);
 
@@ -146,7 +146,7 @@ void SociAuthDB::getPasswordWithPool(su_root_t *root, const std::string &id, con
 
 		stop = steady_clock::now();
 		SLOGE << "[SOCI] Some other error after " << DURATION_MS(start, stop) << "ms : " << e.what();
-		notifyPasswordRetrieved(root, listener, PASSWORD_NOT_FOUND, pass);
+		if (listener) listener->onResult(PASSWORD_NOT_FOUND, pass);
 
 		reconnectSession(sql);
 
@@ -155,18 +155,18 @@ void SociAuthDB::getPasswordWithPool(su_root_t *root, const std::string &id, con
 
 #pragma mark - Inherited virtuals
 
-void SociAuthDB::getPasswordFromBackend(su_root_t *root, const std::string &id, const std::string &domain,
+void SociAuthDB::getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener) {
 
 	// create a thread to grab a pool connection and use it to retrieve the auth information
-	auto func = bind(&SociAuthDB::getPasswordWithPool, this, root, id, domain, authid, listener);
+	auto func = bind(&SociAuthDB::getPasswordWithPool, this, id, domain, authid, listener);
 
 	bool success = thread_pool->Enqueue(func);
 	if (success == FALSE) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil password request for " << id << " / " << domain << " / "
 			  << authid;
-		notifyPasswordRetrieved(root, listener, AUTH_ERROR, "");
+		if (listener) listener->onResult(AUTH_ERROR, "");
 	}
 
 	return;
