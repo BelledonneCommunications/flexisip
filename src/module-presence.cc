@@ -78,7 +78,7 @@ class ModulePresence : public Module, ModuleToolbox {
 		sip_t *sip = ev->getSip();
 		if (sip->sip_request->rq_method == sip_method_subscribe) {
 			sip_require_t *require;
-			bool require_recipient_list_subscribe_found = true;
+			bool require_recipient_list_subscribe_found = false;
 			for (require = (sip_require_t *)sip->sip_require; require != NULL;
 				 require = (sip_require_t *)require->k_next) {
 				if (*require->k_items && strcasecmp((const char *)*require->k_items, "recipient-list-subscribe") == 0) {

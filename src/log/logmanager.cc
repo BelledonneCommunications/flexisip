@@ -97,7 +97,7 @@ namespace flexisip {
 				setlogmask(~0);
 				ortp_set_log_handler(syslogHandler);
 			} else {
-				ortp_set_log_handler(defaultLogHandler);
+				//ortp_set_log_handler(defaultLogHandler);
 			}
 		}
 
