@@ -54,7 +54,7 @@ namespace flexisip {
 			vsyslog(syslev, str, l);
 		}
 
-		static void defaultLogHandler(const char *domain, OrtpLogLevel log_level, const char *str, va_list l) {
+		void defaultLogHandler(const char *domain, OrtpLogLevel log_level, const char *str, va_list l) {
 			const char *levname = "none";
 			switch (log_level) {
 				case ORTP_DEBUG:

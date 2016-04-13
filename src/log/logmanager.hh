@@ -24,45 +24,46 @@
 #include <sstream>
 #include <syslog.h>
 
-	extern bool sUseSyslog;
+extern bool sUseSyslog;
 
-	namespace flexisip {
-		namespace log {
+namespace flexisip {
+namespace log {
 
 // Here we define our application severity levels.
-			enum level { normal, trace, debug, info, warning, error, fatal };
+enum level { normal, trace, debug, info, warning, error, fatal };
 
 // The formatting logic for the severity level
 template <typename CharT, typename TraitsT>
-			inline std::basic_ostream<CharT, TraitsT> &operator<<(std::basic_ostream<CharT, TraitsT> &strm,
-				const flexisip::log::level &lvl) {
-				static const char *const str[] = {"normal", "trace", "debug", "info", "warning", "error", "fatal"};
-				if (static_cast<std::size_t>(lvl) < (sizeof(str) / sizeof(*str)))
-					strm << str[lvl];
-				else
-					strm << static_cast<int>(lvl);
-				return strm;
-			}
+inline std::basic_ostream<CharT, TraitsT> &operator<<(std::basic_ostream<CharT, TraitsT> &strm,
+	const flexisip::log::level &lvl) {
+	static const char *const str[] = {"normal", "trace", "debug", "info", "warning", "error", "fatal"};
+	if (static_cast<std::size_t>(lvl) < (sizeof(str) / sizeof(*str)))
+		strm << str[lvl];
+	else
+		strm << static_cast<int>(lvl);
+	return strm;
+}
 
 template <typename CharT, typename TraitsT>
-			inline std::basic_istream<CharT, TraitsT> &operator>>(std::basic_istream<CharT, TraitsT> &strm,
-				flexisip::log::level &lvl) {
-				static const char *const str[] = {"normal", "trace", "debug", "info", "warning", "error", "fatal"};
+inline std::basic_istream<CharT, TraitsT> &operator>>(std::basic_istream<CharT, TraitsT> &strm,
+	flexisip::log::level &lvl) {
+	static const char *const str[] = {"normal", "trace", "debug", "info", "warning", "error", "fatal"};
 
-				std::string s;
-				strm >> s;
-				for (unsigned int n = 0; n < (sizeof(str) / sizeof(*str)); ++n) {
-					if (s == str[n]) {
-						lvl = static_cast<flexisip::log::level>(n);
-						return strm;
-					}
-				}
-	// Parse error
-				strm.setstate(std::ios_base::failbit);
-				return strm;
-			}
+	std::string s;
+	strm >> s;
+	for (unsigned int n = 0; n < (sizeof(str) / sizeof(*str)); ++n) {
+		if (s == str[n]) {
+			lvl = static_cast<flexisip::log::level>(n);
+			return strm;
 		}
 	}
+// Parse error
+	strm.setstate(std::ios_base::failbit);
+	return strm;
+}
+
+} //end of namespace log
+} //end of namespace flexisip
 
 #define ORTP_DEBUG_MODE 1 // Flexisip extensively use SLOD
 
@@ -70,17 +71,17 @@ template <typename CharT, typename TraitsT>
 #include <ortp/ortp.h>
 #include <ostream>
 
-	typedef std::ostream flexisip_record_type;
+typedef std::ostream flexisip_record_type;
 
-	struct pumpstream : public std::ostringstream {
-		const OrtpLogLevel level;
-		pumpstream(OrtpLogLevel l) : level(l) {
-		}
+struct pumpstream : public std::ostringstream {
+	const OrtpLogLevel level;
+	pumpstream(OrtpLogLevel l) : level(l) {
+	}
 
-		~pumpstream() {
-			ortp_log(level, "%s", str().c_str());
-		}
-	};
+	~pumpstream() {
+		ortp_log(level, "%s", str().c_str());
+	}
+};
 
 #if (__GNUC__ == 4 && __GNUC_MINOR__ < 5)
 template <typename _Tp> inline pumpstream &operator<<(pumpstream &&__os, const _Tp &__x) {
