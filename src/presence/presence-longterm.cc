@@ -15,7 +15,7 @@ public:
 			this->processResponse(result, passwd);
 			return BELLE_SIP_STOP;
 		});
-		belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(  mMainLoop
+		belle_sip_main_loop_create_cpp_timeout(  mMainLoop
 			, func
 			, 0
 			, "OnAuthListener to mainthread");

@@ -205,17 +205,17 @@ const belle_sip_uri_t *PresentityPresenceInformation::getEntity() const {
 	return mEntity;
 }
 
-void PresentityPresenceInformation::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> listener) {
+void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<PresentityPresenceInformationListener> &listener) {
 	addOrUpdateListener(listener, -1);
 }
 
-void PresentityPresenceInformation::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> listener,
+void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<PresentityPresenceInformationListener> &listener,
 														int expires) {
 
 	// search if exist
 	string op;
 	bool listener_exist = false;
-	for (const shared_ptr<PresentityPresenceInformationListener> existing_listener : mSubscribers) {
+	for (const shared_ptr<PresentityPresenceInformationListener> &existing_listener : mSubscribers) {
 		if (listener == existing_listener) {
 			listener_exist = true;
 			break;
@@ -261,7 +261,7 @@ void PresentityPresenceInformation::addOrUpdateListener(shared_ptr<PresentityPre
 	 */
 	listener->onInformationChanged(*this);
 }
-void PresentityPresenceInformation::removeListener(shared_ptr<PresentityPresenceInformationListener> listener) {
+void PresentityPresenceInformation::removeListener(const shared_ptr<PresentityPresenceInformationListener> &listener) {
 	SLOGD << "removing listener [" << listener.get() << "] on [" << *this << "]";
 	// 1 cancel expiration time
 	listener->setExpiresTimer(mBelleSipMainloop, NULL);
