@@ -168,14 +168,19 @@ if test x$odbc != xno ; then
 		if test x$odbc != xauto ; then
 			AC_MSG_ERROR([unixodbc headers not found. This is required for enabling odbc. Use --disable-odbc if you don''t need this feature.])
 		fi
-	fi
-	if test x$have_sql_linking = xno ; then
+		odbc=no
+	elif test x$have_sql_linking = xno ; then
 		if test x$odbc != xauto ; then
 			AC_MSG_ERROR([Linking against odbc failed. This is required for enabling odbc. Use --disable-odbc if you don''t need this feature.])
 		fi
+		odbc=no
+	else
+		odbc=yes
 	fi
+else
+	odbc=no
 fi
-AM_CONDITIONAL(BUILD_ODBC,test x$have_unixodbc_headers$have_sql_linking = xyesyes)
+AM_CONDITIONAL(BUILD_ODBC,test x$odbc = xyes)
 
 
 
@@ -452,17 +457,21 @@ if test x$redis != xno ; then
 		CPPFLAGS=$CPPFLAGS_save
 		LIBS=$LIBS_save
 
-		AC_SUBST(HIREDIS_CFLAGS)
-		AC_SUBST(HIREDIS_LIBS)
+		
 
 		# when redis is not detected through pkgconfig, we can't know whether the
 		# connect callback uses 1 or 2 args. Better not using it at all.
 		redis_no_callback=yes
-		if test "$redis$have_redis" = "yesno" ; then
-			AC_MSG_ERROR([hiredis library not found.])
+		if test "$have_redis" = "no" ; then
+			HIREDIS_CFLAGS=
+			HIREDIS_LIBS=
+			if test "$redis" = "yes" ; then
+				AC_MSG_ERROR([hiredis library not found.])
+			fi
 		fi
 	fi
-	have_redis=yes
+	AC_SUBST(HIREDIS_CFLAGS)
+	AC_SUBST(HIREDIS_LIBS)
 fi
 
 AM_CONDITIONAL(BUILD_REDIS,test x$have_redis = xyes)

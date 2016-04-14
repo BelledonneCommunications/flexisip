@@ -22,6 +22,10 @@ using namespace std;
 
 AuthDbBackend *AuthDbBackend::sUnique = NULL;
 
+AuthDbListener::~AuthDbListener(){
+}
+
+
 class FixedAuthDb : public AuthDbBackend {
   public:
 	FixedAuthDb() {

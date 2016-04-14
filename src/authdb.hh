@@ -48,6 +48,7 @@ struct AuthDbTimings;
 class AuthDbListener : public StatFinishListener {
   public:
 	virtual void onResult(AuthDbResult result, std::string passwd) = 0;
+	virtual ~AuthDbListener();
 };
 
 class AuthDbBackend {

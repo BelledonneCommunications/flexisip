@@ -87,6 +87,10 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 		 "When submitting a domain registration to a server over TLS, verify the certificate presented by the server. "
 		 "Disabling this option is only for test, because it is a security flaw",
 		 "true"},
+		 {Integer, "keepalive-interval",
+		 "Interval in seconds for sending \\r\\n\\r\\n keepalives throug the outgoing domain registration connection."
+		 "A value of zero disables keepalives.",
+		 "30"},
 		config_item_end};
 
 	domainRegistrationCfg->addChildrenValues(configs);
@@ -155,6 +159,7 @@ int DomainRegistrationManager::load() {
 	} while (!ifs.eof() && !ifs.bad());
 
 	mVerifyServerCerts = domainRegistrationCfg->get<ConfigBoolean>("verify-server-certs")->read();
+	mKeepaliveInterval = domainRegistrationCfg->get<ConfigInt>("keepalive-interval")->read();
 
 	for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
 	return 0;
@@ -190,7 +195,7 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 	bool usingTls;
 	int verifyPolicy = mgr.mVerifyServerCerts ? TPTLS_VERIFY_OUT | TPTLS_VERIFY_SUBJECTS_OUT : TPTLS_VERIFY_NONE;
 	nta_agent_t *agent = mManager.mAgent->getSofiaAgent();
-	unsigned int keepAliveInterval = 10 * 60 * 1000;
+	unsigned int keepAliveInterval = mgr.mKeepaliveInterval * 1000;
 
 	su_home_init(&mHome);
 	mFrom = url_format(&mHome, "%s:%s", parent_proxy->url_type == url_sips ? "sips" : "sip", localDomain.c_str());
