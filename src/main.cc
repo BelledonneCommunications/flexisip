@@ -800,9 +800,13 @@ int main(int argc, char *argv[]) {
 	}
 
 #ifdef ENABLE_PRESENCE
+	bool enableLongTermPresence = (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
 	flexisip::PresenceServer presenceServer(configFile.getValue());
-	flexisip::PresenceLongterm presenceLongTerm(presenceServer.getBelleSipMainLoop());
-	presenceServer.addNewPresenceInfoListener(&presenceLongTerm);
+	flexisip::PresenceLongterm *presenceLongTerm = NULL;
+	if (enableLongTermPresence) {
+		presenceLongTerm = new flexisip::PresenceLongterm(presenceServer.getBelleSipMainLoop());
+		presenceServer.addNewPresenceInfoListener(presenceLongTerm);
+	}
 	presenceServer.start();
 #endif // ENABLE_PRESENCE
 
@@ -820,7 +824,10 @@ int main(int argc, char *argv[]) {
 	}
 	su_root_destroy(root);
 #ifdef ENABLE_PRESENCE
-	presenceServer.removeNewPresenceInfoListener(&presenceLongTerm);
+	if (enableLongTermPresence) {
+		presenceServer.removeNewPresenceInfoListener(presenceLongTerm);
+		delete presenceLongTerm;
+	}
 #endif // ENABLE_PRESENCE
 
 	LOGN("Flexisip exiting normally.");
