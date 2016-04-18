@@ -106,6 +106,11 @@ int DomainRegistrationManager::load() {
 	GenericStruct *domainRegistrationCfg =
 		GenericManager::get()->getRoot()->get<GenericStruct>("inter-domain-connections");
 	configFile = domainRegistrationCfg->get<ConfigString>("domain-registrations")->read();
+	
+	
+	mVerifyServerCerts = domainRegistrationCfg->get<ConfigBoolean>("verify-server-certs")->read();
+	mKeepaliveInterval = domainRegistrationCfg->get<ConfigInt>("keepalive-interval")->read();
+	
 	LOGD("Loading domain registration configuration from %s", configFile.c_str());
 	if (configFile.empty())
 		return 0;
@@ -115,6 +120,7 @@ int DomainRegistrationManager::load() {
 		LOGE("Cannot open domain registration configuration file '%s'", configFile.c_str());
 		return -1;
 	}
+	
 	LOGD("Loading domain registration configuration from %s", configFile.c_str());
 	do {
 		SofiaAutoHome home;
@@ -157,9 +163,6 @@ int DomainRegistrationManager::load() {
 		auto dr = make_shared<DomainRegistration>(*this, domain, url, clientCertdir);
 		mRegistrations.push_back(dr);
 	} while (!ifs.eof() && !ifs.bad());
-
-	mVerifyServerCerts = domainRegistrationCfg->get<ConfigBoolean>("verify-server-certs")->read();
-	mKeepaliveInterval = domainRegistrationCfg->get<ConfigInt>("keepalive-interval")->read();
 
 	for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
 	return 0;
