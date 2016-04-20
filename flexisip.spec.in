@@ -22,7 +22,7 @@
 # push default:     0
 # odbc default:     1
 # transcode default:1
-# snmp default:     1
+# snmp default:     0
 # soci default:     1
 # odb default:      0
 # bc-odbc default:  0
