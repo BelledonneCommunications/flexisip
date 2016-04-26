@@ -65,7 +65,9 @@ void MediaRelay::onDeclare(GenericStruct * mc) {
 			{ Boolean, "force-relay-for-non-ice-targets", "When true, the 'c=' line and port number"
 				" are set to the relay ip/port even if ICE candidates are present in the request."
 				" This is allow non-ice clients to have their streams relayed.", "true"},
-			{ Boolean, "prevent-loops", "Prevent media-relay ports to loop between them, which can cause 100% cpu on the media relay thread.", "false"},
+			{ Boolean, "prevent-loops", "Prevent media-relay ports to loop between them, which can cause 100% cpu on the media relay thread."
+						"You need to set this property to false if you are running test calls from clients running on the same "
+						"IP address as the flexisip server" , "true"},
 			{ Boolean, "early-media-relay-single", "In case multiples 183 Early media responses are received for a call, only the first one will have RTP streams forwarded back to caller. This feature prevents the caller to receive 'mixed' streams, but it breaks scenarios where multiple servers play early media announcement in sequence.", "true"},
 			{ Integer, "max-early-media-per-call", "Maximum number of relayed early media streams per call. This is useful to limit the cpu usage due to early media relaying on"
 				" embedded systems. A value of 0 stands for unlimited.", "0"},
