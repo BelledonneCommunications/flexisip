@@ -251,10 +251,12 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation &prese
 
 			if (mVersion > 0) {
 				SLOGI << "Defering presence information notify for entity [" << presenceInformation.getEntity()
-					  << "] to [" << (belle_sip_source_get_timeout(mTimer)) << " ms]";
+					  << "/"<<this<<"] to [" << (belle_sip_source_get_timeout(mTimer)) << " ms]";
 			} else {
 				SLOGI << "First notify, defering presence information for entity [" << presenceInformation.getEntity()
-					  << "]";
+					   << "/"<<this<<"]";
+				
+				
 			}
 		}
 	} // else for list subscription final notify is handled separatly
