@@ -138,7 +138,7 @@ struct ExtendedContact {
 		  mAcceptHeader(acceptHeaders), mUsedAsRoute(false) {
 	}
 
-	ExtendedContact(const url_t *url, std::string route)
+	ExtendedContact(const url_t *url, const std::string &route)
 		: mContactId(), mCallId(), mUniqueId(), mPath({route}), mSipUri(), mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0),
 		  mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false) {
 

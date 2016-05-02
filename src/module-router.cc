@@ -111,9 +111,6 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 		const GenericStruct *mReg = cr->get<GenericStruct>("module::Registrar");
 
 		mDomains = mReg->get<ConfigStringList>("reg-domains")->read();
-		for (auto it = mDomains.begin(); it != mDomains.end(); ++it) {
-			LOGD("Found registrar domain: %s", (*it).c_str());
-		}
 		mStateful = mc->get<ConfigBoolean>("stateful");
 		mFork = mc->get<ConfigBoolean>("fork")->read();
 		if (mStateful && !mFork) {
@@ -548,12 +545,6 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 	if (makeGeneratedContactRoute(ev, aor, contacts))
 		return;
 
-	if (contacts.size() == 0) {
-		LOGD("This user isn't registered (no contact at all).");
-		sendReply(ev, SIP_404_NOT_FOUND);
-		return;
-	}
-
 	// now, create the list of usable contacts to fork to
 	bool nonSipsFound = false;
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
@@ -734,8 +725,8 @@ class TargetUriListFetcher : public RegistrarDbListener,
 	shared_ptr<RegistrarDbListener> mListener;
 	sip_route_t *mUriList; /*it is parsed as a route but is not a route*/
 	int mPending;
+	Record *mRecord;
 	bool mError;
-	Record *m_record;
 
   public:
 	TargetUriListFetcher(ModuleRouter *module, const shared_ptr<RequestSipEvent> &ev,
@@ -743,7 +734,7 @@ class TargetUriListFetcher : public RegistrarDbListener,
 		: mModule(module), mEv(ev), mListener(listener) {
 		mPending = 0;
 		mError = false;
-		m_record = new Record("virtual_record");
+		mRecord = new Record("virtual_record");
 		if (target_uris && target_uris->un_value) {
 			/*the X-target-uris header is parsed like a route, as it is a list of URIs*/
 			mUriList = sip_route_make(mEv->getHome(), target_uris->un_value);
@@ -751,7 +742,7 @@ class TargetUriListFetcher : public RegistrarDbListener,
 	}
 
 	~TargetUriListFetcher() {
-		delete (m_record);
+		delete mRecord;
 	}
 
 	void fetch(bool allowDomainRegistrations, bool recursive) {
@@ -772,7 +763,7 @@ class TargetUriListFetcher : public RegistrarDbListener,
 		if (r != NULL) {
 			const auto &ctlist = r->getExtendedContacts();
 			for (auto it = ctlist.begin(); it != ctlist.end(); ++it)
-				m_record->pushContact(*it);
+				mRecord->pushContact(*it);
 		}
 		checkFinished();
 	}
@@ -791,10 +782,21 @@ class TargetUriListFetcher : public RegistrarDbListener,
 	void checkFinished() {
 		if (mPending != 0)
 			return;
-		if (mError)
+		if (mError){
 			mListener->onError();
-		else
-			mListener->onRecordFound(m_record);
+		}else{
+			if (mRecord->count() > 0){	
+				/*also add aliases in the ExtendedContact list for the searched AORs, so that they are added to the ForkMap.*/
+				sip_route_t *iter;
+				for (iter = mUriList; iter != NULL; iter = iter->r_next) {
+					
+					shared_ptr<ExtendedContact> alias = make_shared<ExtendedContact>(iter->r_url, "");
+					alias->mAlias = true;
+					mRecord->pushContact(alias);
+				}
+			}
+			mListener->onRecordFound(mRecord);
+		}
 	}
 };
 

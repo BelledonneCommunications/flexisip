@@ -111,7 +111,6 @@ int DomainRegistrationManager::load() {
 	mVerifyServerCerts = domainRegistrationCfg->get<ConfigBoolean>("verify-server-certs")->read();
 	mKeepaliveInterval = domainRegistrationCfg->get<ConfigInt>("keepalive-interval")->read();
 	
-	LOGD("Loading domain registration configuration from %s", configFile.c_str());
 	if (configFile.empty())
 		return 0;
 
