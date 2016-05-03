@@ -38,6 +38,18 @@ except Exception as e:
         "Could not find prepare module: {}, probably missing submodules/cmake-builder? Try running:\ngit submodule update --init --recursive".format(e))
     exit(1)
 
+class FlexisipRpmTarget(prepare.Target):
+
+    def __init__(self):
+        prepare.Target.__init__(self, 'flexisip-rpm')
+        current_path = os.path.dirname(os.path.realpath(__file__))
+        self.required_build_platforms = ['Linux', 'Darwin']
+        self.config_file = 'configs/config-flexisip-rpm.cmake'
+        self.additional_args = ['-DLINPHONE_BUILDER_TARGET=flexisip',
+            			'-DCMAKE_INSTALL_MESSAGE=LAZY',
+            			'-DLINPHONE_BUILDER_TOP_DIR=' + current_path,
+            			'-DLINPHONE_BUILDER_EXTERNAL_SOURCE_PATH=' + current_path + '/submodules'
+	]
 
 class FlexisipTarget(prepare.Target):
 
@@ -104,7 +116,10 @@ help: help-prepare-options
     f = open('Makefile', 'w')
     f.write(makefile)
     f.close()
-
+targets = {}
+targets['flexisip'] = FlexisipTarget()
+targets['flexisip-rpm'] = FlexisipRpmTarget()
+target_names = sorted(targets.keys())
 
 def main(argv=None):
     basicConfig(format="%(levelname)s: %(message)s", level=INFO)
@@ -125,6 +140,7 @@ def main(argv=None):
         '-G', '--generator', help="CMake build system generator (default: Unix Makefiles, use cmake -h to get the complete list).", default='Unix Makefiles', dest='generator')
     argparser.add_argument(
         '-L', '--list-cmake-variables', help="List non-advanced CMake cache variables.", action='store_true', dest='list_cmake_variables')
+    argparser.add_argument('target', choices=target_names, help="The target to build.", default='flexisip')
 
     args, additional_args = argparser.parse_known_args()
 
@@ -133,10 +149,8 @@ def main(argv=None):
 
     if check_tools() != 0:
         return 1
+    target = targets[args.target]
 
-    target = None
-
-    target = FlexisipTarget()
     if args.clean or args.veryclean:
         if args.veryclean:
             target.veryclean()
