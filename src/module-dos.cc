@@ -39,6 +39,7 @@ class DoSProtection : public Module, ModuleToolbox {
 	int mPacketRateLimit;
 	int mBanTime;
 	bool mAtChecked;
+	list<string> mWhiteList;
 	unordered_map<string, DosContext> mDosContexts;
 	unordered_map<string, DosContext>::iterator mDOSHashtableIterator;
 
@@ -63,6 +64,14 @@ class DoSProtection : public Module, ModuleToolbox {
 		mPacketRateLimit = mc->get<ConfigInt>("packet-rate-limit")->read();
 		mBanTime = mc->get<ConfigInt>("ban-time")->read();
 		mDOSHashtableIterator = mDosContexts.begin();
+		
+		GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+		mWhiteList = cluster->get<ConfigStringList>("nodes")->read();
+		for (auto it = mWhiteList.begin(); it != mWhiteList.end(); ++it) {
+			const char *white_ip = (*it).c_str();
+			LOGI("IP %s is in DOS protection white list", white_ip);
+		}
+		LOGI("IP 127.0.0.1 automatically added to DOS protection white list");
 
 		tport_t *primaries = tport_primaries(nta_agent_tports(mAgent->getSofiaAgent()));
 		if (primaries == NULL)
@@ -137,6 +146,23 @@ class DoSProtection : public Module, ModuleToolbox {
 			}
 		}
 	}
+	
+	bool isIpWhiteListed(const char *ip) {
+		if (!ip) return true; // If IP is null, is useless to try to add it in iptables...
+		
+		if (ip && strcmp(ip, "127.0.0.1") == 0) { // Never ban localhost, used for presence
+			return true;
+		}
+		
+		for (auto it = mWhiteList.begin(); it != mWhiteList.end(); ++it) { // Never ban ips from cluster
+			const char *white_ip = (*it).c_str();
+			if (white_ip && strcmp(ip, white_ip) == 0) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
 
 	static void ban_ip_with_iptables(const char *ip, const char *port, const char *protocol, int ban_time) {
 		char iptables_cmd[512];
@@ -199,9 +225,13 @@ class DoSProtection : public Module, ModuleToolbox {
 				if (dosContext.packet_count_rate >= mPacketRateLimit) {
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol udp for %i minutes",
 						 dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
-					ban_ip_with_iptables(ip, port, "udp", mBanTime);
+					if (!isIpWhiteListed(ip)) {
+						ban_ip_with_iptables(ip, port, "udp", mBanTime);
+						ev->terminateProcessing(); // the event is discarded
+					} else {
+						LOGW("IP %s should be banned but wasn't because in white list", ip);
+					}
 					dosContext.packet_count_rate = 0; // Reset it to not add the iptables rule twice by mistake
-					ev->terminateProcessing(); // the event is discarded
 				}
 			} else {
 				LOGW("getnameinfo() failed: %s", gai_strerror(err));
@@ -218,9 +248,13 @@ class DoSProtection : public Module, ModuleToolbox {
 									   NI_NUMERICHOST | NI_NUMERICSERV)) == 0) {
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes",
 						 packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
-					ban_ip_with_iptables(ip, port, "tcp", mBanTime);
+					if (!isIpWhiteListed(ip)) {
+						ban_ip_with_iptables(ip, port, "tcp", mBanTime);
+						ev->terminateProcessing(); // the event is discarded
+					} else {
+						LOGW("IP %s should be banned but wasn't because in white list", ip);
+					}
 					tport_reset_packet_count_rate(tport); // Reset it to not add the iptables rule twice by mistake
-					ev->terminateProcessing(); // the event is discarded
 				} else {
 					LOGW("getnameinfo() failed: %s", gai_strerror(err));
 				}
