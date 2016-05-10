@@ -95,10 +95,8 @@ def generate_makefile(generator):
     makefile = """
 .PHONY: all
 
-build:
+all:
 \t{generator} WORK/cmake
-
-all: build
 
 help-prepare-options:
 \t@echo "prepare.py was previously executed with the following options:"
@@ -110,7 +108,7 @@ help: help-prepare-options
 \t@echo ""
 \t@echo "Available targets:"
 \t@echo ""
-\t@echo "   * all, build  : normal build"
+\t@echo "   * all: normal build"
 \t@echo ""
 """.format(options=' '.join(sys.argv), generator=generator)
     f = open('Makefile', 'w')
