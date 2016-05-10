@@ -64,7 +64,7 @@ PresenceServer::Init::Init() {
 									 "List of white space separated SIP uris where the proxy must listen.",
 									 "sip:127.0.0.1:5065"},
 									{Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
-									{ConfigBooleanExpression, "long-term-enabled", "Enable long-term presence notifies", "true"},
+									{Boolean, "long-term-enabled", "Enable long-term presence notifies", "true"},
 									config_item_end};
 	GenericStruct *s = new GenericStruct("presence-server", "Flexisip presence server parameters.", 0);
 	GenericManager::get()->getRoot()->addChild(s);
