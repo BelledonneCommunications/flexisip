@@ -87,7 +87,6 @@ endif()
 
 find_program(XSDCXX_PROG NAMES "xsdcxx" "xsd"
 	HINTS ${XSDCXX_ROOT_PATH}/bin
-	NO_DEFAULT_PATH
 )
 if(XSDCXX_PROG)
 	set(ENABLE_XSD 1)
