@@ -77,7 +77,7 @@ endfunction()
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Required packages
-find_package(SofiaSipUa REQUIRED)
+find_package(SofiaSipUa 1.13 REQUIRED)
 if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
 	include("${EP_ortp_CONFIG_DIR}/ORTPConfig.cmake")
 else()
