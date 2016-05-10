@@ -10,6 +10,7 @@
 [submodule "submodules/externals/sofia-sip"]
 	path = submodules/externals/sofia-sip
 	url = git://git.linphone.org/sofia-sip.git
+	ignore = dirty
 [submodule "submodules/ortp"]
 	path = submodules/ortp
 	url = git://git.linphone.org/ortp.git
