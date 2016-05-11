@@ -166,13 +166,13 @@ class DoSProtection : public Module, ModuleToolbox {
 
 	static void ban_ip_with_iptables(const char *ip, const char *port, const char *protocol, int ban_time) {
 		char iptables_cmd[512];
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -C INPUT -p %s -s %s -m multiport --sports %s -j DROP", 
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -w -C INPUT -p %s -s %s -m multiport --sports %s -j DROP", 
 				 protocol, ip, port);
 		if (system(iptables_cmd) == 0) {
 			LOGW("IP %s port %s on protocol %s is already in the iptables banned list, skipping...", ip, port, protocol);
 		} else {
-			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -A INPUT -p %s -s %s -m multiport --sports %s -j DROP"
-					" && echo \"iptables -D INPUT -p %s -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes",
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -w -A INPUT -p %s -s %s -m multiport --sports %s -j DROP"
+					" && echo \"iptables -w -D INPUT -p %s -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes",
 					protocol, ip, port, protocol, ip, port, ban_time);
 			if (system(iptables_cmd) != 0) {
 				LOGW("iptables command failed: %s", strerror(errno));
