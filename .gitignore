@@ -69,3 +69,4 @@ flexisip-config.h.in
 OUTPUT/
 test/massregister/users.csv
 test/massregister/users.sql
+WORK

@@ -38,10 +38,10 @@ struct PusherArgs {
 	string appid;
 	vector<string> pntok;
 	string apikey;
-
+	string packageSID;
 	void usage(const char *app) {
 		cout << app
-			 << " --pntype google|wp|apple --appid id --pntok id1 id2 id3 --gkey googleapikey --prefix dir --debug "
+			 << " --pntype google|wp|apple --appid id --key apikey --sid ms-app://value --prefix dir --debug --pntok id1 (id2 id3 ...)"
 			 << endl;
 	}
 
@@ -77,6 +77,8 @@ struct PusherArgs {
 				pntype = argv[++i];
 			} else if (EQ1(i, "--appid")) {
 				appid = argv[++i];
+			} else if (EQ1(i, "--sid")) {
+				packageSID = argv[++i];
 			} else if (EQ0(i, "--debug")) {
 				debug = true;
 			} else if (EQ1(i, "--pntok")) {
@@ -84,7 +86,7 @@ struct PusherArgs {
 					i++;
 					pntok.push_back(argv[i]);
 				}
-			} else if (EQ1(i, "--gkey")) {
+			} else if (EQ1(i, "--key")) {
 				apikey = argv[++i];
 			} else if (EQ1(i, "--raw")) {
 				const char *res = parseUrlParams(argv[++i]);
@@ -157,6 +159,8 @@ int main(int argc, char *argv[]) {
 			map<string, string> googleKey;
 			googleKey.insert(make_pair(args.appid, args.apikey));
 			service.setupAndroidClient(googleKey);
+		} else if (args.pntype == "wp") {
+			service.setupWindowsPhoneClient(args.packageSID, args.apikey);
 		}
 
 		auto pn = createRequestFromArgs(args);

@@ -229,7 +229,7 @@
 
 
 	void PushNotificationClient::onError(shared_ptr<PushNotificationRequest> req, const string &msg) {
-		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " failed: " << msg;
+		SLOGW << "PushNotificationClient " << mName << " PNR " << req.get() << " failed: " << msg;
 		if (mService->mCountFailed) {
 			mService->mCountFailed->incr();
 		}

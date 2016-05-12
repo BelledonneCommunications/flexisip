@@ -209,6 +209,8 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		{StringList, "google-projects-api-keys",
 		 "List of couples projectId:ApiKey for each android project that supports push notifications", ""},
 		{Boolean, "windowsphone", "Enable push notification for windows phone 8 devices", "true"},
+		{String, "windowsphone-package-sid", "Unique identifier for your Windows Store app. For example: ms-app://s-1-15-2-2345030743-3098444494-743537440-5853975885-5950300305-5348553438-505324794", ""},
+		{String, "windowsphone-application-secret", "Client secret. For example: Jrp1UoVt4C6CYpVVJHUPdcXLB1pEdRoB", ""},
 		{Boolean, "no-badge", "Set the badge value to 0 for apple push", "false"},
 		{String, "external-push-uri",
 		 "Instead of having Flexisip sending the push notification directly to the Google/Apple/Microsoft push servers,"
@@ -227,7 +229,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 " - $msgid : the message id to put in the notification\n"
 		 " - $sound : the sound file to play with the notification\n\n"
 		 " The content of the text message is put in the body of the http request as text/plain, if any.\n"
-		 " Example: http://192.168.0.2/$type/$event?from-uri=$from-uri&tag=$from-tag&callid=$callid&to=$to-uri",
+		 " Example: http://292.168.0.2/$type/$event?from-uri=$from-uri&tag=$from-tag&callid=$callid&to=$to-uri",
 		 ""},
 		{String, "external-push-method", "Method for reaching external-push-uri, typically GET or POST", "GET"},
 		config_item_end};
@@ -245,6 +247,9 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	string externalUri = mc->get<ConfigString>("external-push-uri")->read();
 	bool appleEnabled = mc->get<ConfigBoolean>("apple")->read();
 	bool googleEnabled = mc->get<ConfigBoolean>("google")->read();
+	bool windowsPhoneEnabled = mc->get<ConfigBoolean>("windowsphone")->read();
+	string windowsPhonePackageSID = windowsPhoneEnabled ? mc->get<ConfigString>("windowsphone-package-sid")->read() : "";
+	string windowsPhoneApplicationSecret = windowsPhoneEnabled ? mc->get<ConfigString>("windowsphone-application-secret")->read() : "";
 
 	mExternalPushMethod = mc->get<ConfigString>("external-push-method")->read();
 	if (!externalUri.empty()) {
@@ -270,6 +275,7 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mPNS->setupiOSClient(certdir, "");
 	if (googleEnabled)
 		mPNS->setupAndroidClient(mGoogleKeys);
+	mPNS->setupWindowsPhoneClient(windowsPhonePackageSID, windowsPhoneApplicationSecret);
 }
 
 void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,

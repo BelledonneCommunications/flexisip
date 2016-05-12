@@ -14,30 +14,29 @@
 
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #pragma once
 
-#include "pushnotification.hh"
+#include "pushnotificationclient.hh"
 
+class PushNotificationClientWp : public PushNotificationClient {
+	public:
+		PushNotificationClientWp(const std::string &name, PushNotificationService *service,
+			 				   SSL_CTX * ctx,
+							   const std::string &host, const std::string &port,
+							   int maxQueueSize, bool isSecure,
+							   const std::string& packageSID, const std::string& applicationSecret);
+		virtual ~PushNotificationClientWp();
 
-class WindowsPhonePushNotificationRequest : public PushNotificationRequest {
-public:
-	virtual const std::vector<char> &getData();
-	virtual bool isValidResponse(const std::string &str);
-	WindowsPhonePushNotificationRequest(const PushInfo &pinfo);
-	~WindowsPhonePushNotificationRequest() { }
+		virtual int sendPush(const std::shared_ptr<PushNotificationRequest> &req) override;
 
-	void createHTTPRequest(const std::string &access_token);
+	protected:
+		void retrieveAccessToken();
 
-	virtual bool isServerAlwaysResponding() {
-		return true;
-	}
-
-protected:
-	void createPushNotification();
-	std::vector<char> mBuffer;
-	std::string mHttpHeader;
-	std::string mHttpBody;
-	PushInfo mPushInfo;
+	private:
+		string mPackageSID;
+		string mApplicationSecret;
+		string mAccessToken;
+		time_t mTokenExpiring;
 };

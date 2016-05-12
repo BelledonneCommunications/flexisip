@@ -45,6 +45,7 @@ class PushNotificationService {
 	void setupGenericClient(const url_t *url);
 	void setupiOSClient(const std::string &certdir, const std::string &cafile);
 	void setupAndroidClient(const std::map<std::string, std::string> googleKeys);
+	void setupWindowsPhoneClient(const std::string& packageSID, const std::string& applicationSecret);
 
 	bool isIdle();
   private:
@@ -58,6 +59,7 @@ class PushNotificationService {
 	bool mHaveToStop;
 	std::map<std::string, std::shared_ptr<PushNotificationClient>> mClients;
 	std::string mPassword;
+	std::string mWindowsPhonePackageSID, mWindowsPhoneApplicationSecret;
 	StatCounter64 *mCountFailed;
 	StatCounter64 *mCountSent;
 };

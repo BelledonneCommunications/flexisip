@@ -20,6 +20,7 @@
 
 #include "pushnotificationservice.hh"
 #include "pushnotificationclient.hh"
+#include "pushnotificationclient_wp.hh"
 #include "common.hh"
 
 #include <sstream>
@@ -54,15 +55,22 @@
 		std::shared_ptr<PushNotificationClient> client = mClients[pn->getAppIdentifier()];
 		if (client == 0) {
 			if (pn->getType().compare(string("wp")) == 0) {
-				string wpClient = pn->getAppIdentifier();
+				if (mWindowsPhonePackageSID.empty() || mWindowsPhoneApplicationSecret.empty()) {
+					SLOGE << "Windows Phone not configured for push notifications ("
+					"package sid is " << (mWindowsPhonePackageSID.empty() ? "NOT configured" : "configured") << " and " <<
+					"application secret is " << (mWindowsPhoneApplicationSecret.empty() ? "NOT configured" : "configured") << ").";
+					return -1;
+				} else {
+					string wpClient = pn->getAppIdentifier();
 
-				SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
-				SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+					SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
+					SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
 
-				LOGD("Creating PN client for %s", pn->getAppIdentifier().c_str());
-				mClients[wpClient] = std::make_shared<PushNotificationClient>(wpClient, this, ctx,
-					pn->getAppIdentifier(), WPPN_PORT, mMaxQueueSize, false);
-				client = mClients[wpClient];
+					LOGD("Creating PN client for %s", pn->getAppIdentifier().c_str());
+					mClients[wpClient] = std::make_shared<PushNotificationClientWp>(wpClient, this, ctx,
+						pn->getAppIdentifier(), WPPN_PORT, mMaxQueueSize, false, mWindowsPhonePackageSID, mWindowsPhoneApplicationSecret);
+					client = mClients[wpClient];
+				}
 			} else {
 				LOGE("No push notification certificate for client %s", pn->getAppIdentifier().c_str());
 				return -1;
@@ -266,4 +274,10 @@ void PushNotificationService::setupAndroidClient(const std::map<std::string, std
 		SLOGD << "Adding android push notification client [" << android_app_id << "]";
 	}
 }
+
+void PushNotificationService::setupWindowsPhoneClient(const std::string& packageSID, const std::string& applicationSecret) {
+	mWindowsPhonePackageSID = packageSID;
+	mWindowsPhoneApplicationSecret = applicationSecret;
+}
+
 

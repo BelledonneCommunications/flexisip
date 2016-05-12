@@ -40,6 +40,7 @@ struct PushInfo {
 	std::string mCallId;  // CallID
 	std::string mText;	// Text of the chat message.
 	std::string mUid; // The unique id as used in the ExtendedContact, if available
+	std::string mAccessToken; // access token required by Microsoft to authenticate our server
 	bool mNoBadge; // Whether to display a badge on the application (ios specific).
 };
 

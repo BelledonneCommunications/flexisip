@@ -34,27 +34,20 @@ class PushNotificationClient {
 			 				   SSL_CTX * ctx,
 							   const std::string &host, const std::string &port,
 							   int maxQueueSize, bool isSecure);
-		~PushNotificationClient();
-		int sendPush(const std::shared_ptr<PushNotificationRequest> &req);
+		virtual ~PushNotificationClient();
+		virtual int sendPush(const std::shared_ptr<PushNotificationRequest> &req);
 		bool isIdle();
 		void run();
 
-	private:
+	protected:
 		void sendPushToServer(const std::shared_ptr<PushNotificationRequest> &req);
 		void recreateConnection();
 		void onError(shared_ptr<PushNotificationRequest> req, const string &msg);
 		void onSuccess(shared_ptr<PushNotificationRequest> req);
 
-		std::thread mThread;
-		std::mutex mMutex;
-		std::condition_variable mCondVar;
-
-		bool mThreadRunning;
-		bool mThreadWaiting;
-
-		BIO * mBio;
-
+	protected:
 		PushNotificationService *mService;
+		BIO * mBio;
 		SSL_CTX * mCtx;
 		std::queue<std::shared_ptr<PushNotificationRequest>> mRequestQueue;
 		std::string mName;
@@ -62,4 +55,13 @@ class PushNotificationClient {
 		int mMaxQueueSize;
 		time_t mLastUse;
 		bool mIsSecure;
+	private:
+		std::thread mThread;
+		std::mutex mMutex;
+		std::condition_variable mCondVar;
+
+		bool mThreadRunning;
+		bool mThreadWaiting;
+
+
 };

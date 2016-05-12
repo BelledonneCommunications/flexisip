@@ -890,15 +890,16 @@ void FileConfigReader::onUnreadItem(const char *secname, const char *key, int li
 	static bool dontCheckTranscoder = checkTranscoder(GenericManager::get()->getOverrideMap());
 	if (dontCheckTranscoder && 0 == strcmp(secname, "module::Transcoder"))
 		return;
-	LOGEN("Unsupported parameter '%s' in section [%s] at line %i.", key, secname, lineno);
+	ostringstream ss;
+	ss << "Unsupported parameter '" << key << "' in section [" << secname << "] at line " << lineno << ".";
 	mHaveUnreads = true;
 	GenericEntry *sec = mRoot->find(secname);
 	if (sec == NULL) {
 		sec = mRoot->findApproximate(secname);
 		if (sec != NULL) {
-			LOGEN("Unknown section '[%s]'. Did you mean '[%s]'?", secname, sec->getName().c_str());
+			ss << " Unknown section '[" << secname << "]', did you mean '[" << sec->getName().c_str() << "]' instead?";
 		} else {
-			LOGEN("Unknown section '[%s]'.", secname);
+			ss << " Unknown section '[" << secname << "]'.";
 		}
 	} else {
 		GenericStruct *st = dynamic_cast<GenericStruct *>(sec);
@@ -907,17 +908,18 @@ void FileConfigReader::onUnreadItem(const char *secname, const char *key, int li
 			if (val == NULL) {
 				val = st->findApproximate(key);
 				if (val != NULL) {
-					LOGEN("Did you mean '%s'?", val->getName().c_str());
+					ss << " Did you mean '" << val->getName().c_str() << "'?";
 				}
 			}
 		}
 	}
+	LOGEN("%s", ss.str().c_str());
 }
 
 void FileConfigReader::checkUnread() {
 	lp_config_for_each_unread(mCfg, onUnreadItem, this);
 	if (mHaveUnreads)
-		LOGF("There are not understood items or section in the configuration file. Please check it.");
+		LOGF("Some items or section are invalid in the configuration file. Please check it.");
 }
 
 int FileConfigReader::read2(GenericEntry *entry, int level) {
