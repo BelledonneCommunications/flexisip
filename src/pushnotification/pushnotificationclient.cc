@@ -26,9 +26,8 @@
 
 	PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService *service,
 		SSL_CTX * ctx, const std::string &host, const std::string &port, int maxQueueSize, bool isSecure) :
-	mThread(), mThreadRunning(false), mThreadWaiting(true),  mBio(NULL),
-	mService(service), mCtx(ctx), mName(name), mHost(host), mPort(port),
-	mMaxQueueSize(maxQueueSize), mLastUse(0), mIsSecure(isSecure) {}
+	 mService(service), mBio(NULL), mCtx(ctx), mName(name), mHost(host), mPort(port), mMaxQueueSize(maxQueueSize), mLastUse(0), mIsSecure(isSecure),
+	 mThread(), mThreadRunning(false), mThreadWaiting(true) {}
 
 
 

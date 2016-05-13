@@ -29,7 +29,7 @@ class PushNotificationClientWp : public PushNotificationClient {
 							   const std::string& packageSID, const std::string& applicationSecret);
 		virtual ~PushNotificationClientWp();
 
-		virtual int sendPush(const std::shared_ptr<PushNotificationRequest> &req) override;
+		virtual int sendPush(const std::shared_ptr<PushNotificationRequest> &req);
 
 	protected:
 		void retrieveAccessToken();

@@ -218,6 +218,9 @@ message(STATUS "Flexisip INCLUDES : ${FLEXISIP_INCLUDES}")
 message(STATUS "Flexisip DEPENDENCIES : ${FLEXISIP_DEPENDENCIES}")
 
 add_library(flexisip SHARED ${FLEXISIP_SOURCES})
+set_property(TARGET flexisip PROPERTY CXX_STANDARD 11)
+set_property(TARGET flexisip PROPERTY CXX_STANDARD_REQUIRED ON)
+
 if(FLEXISIP_DEPENDENCIES)
 	add_dependencies(flexisip ${FLEXISIP_DEPENDENCIES})
 endif()

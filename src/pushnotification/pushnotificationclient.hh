@@ -62,6 +62,4 @@ class PushNotificationClient {
 
 		bool mThreadRunning;
 		bool mThreadWaiting;
-
-
 };
