@@ -38,7 +38,7 @@
 	static const char *GPN_ADDRESS = "android.googleapis.com";
 	static const char *GPN_PORT = "443";
 
-	static const char *WPPN_PORT = "80";
+	static const char *WPPN_PORT = "443";
 
 	PushNotificationService::PushNotificationService(int maxQueueSize)
 	: mMaxQueueSize(maxQueueSize), mClients(), mCountFailed(NULL), mCountSent(NULL) {
@@ -63,12 +63,12 @@
 				} else {
 					string wpClient = pn->getAppIdentifier();
 
-					SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
+					SSL_CTX* ctx = SSL_CTX_new(TLSv1_2_method());
 					SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
 
 					LOGD("Creating PN client for %s", pn->getAppIdentifier().c_str());
 					mClients[wpClient] = std::make_shared<PushNotificationClientWp>(wpClient, this, ctx,
-						pn->getAppIdentifier(), WPPN_PORT, mMaxQueueSize, false, mWindowsPhonePackageSID, mWindowsPhoneApplicationSecret);
+						pn->getAppIdentifier(), WPPN_PORT, mMaxQueueSize, true, mWindowsPhonePackageSID, mWindowsPhoneApplicationSecret);
 					client = mClients[wpClient];
 				}
 			} else {

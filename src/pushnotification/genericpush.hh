@@ -28,7 +28,7 @@ class GenericPushNotificationRequest : public PushNotificationRequest {
 	virtual ~GenericPushNotificationRequest() {}
 	virtual bool isServerAlwaysResponding() { return true; }
 	virtual const std::vector<char> &getData();
-	virtual bool isValidResponse(const std::string &str);
+	virtual std::string isValidResponse(const std::string &str);
   protected:
 	std::string &substituteArgs(std::string &input, const PushInfo &pinfo);
 	void createPushNotification();

@@ -24,7 +24,7 @@
 class WindowsPhonePushNotificationRequest : public PushNotificationRequest {
 public:
 	virtual const std::vector<char> &getData();
-	virtual bool isValidResponse(const std::string &str);
+	virtual std::string isValidResponse(const std::string &str);
 	WindowsPhonePushNotificationRequest(const PushInfo &pinfo);
 	~WindowsPhonePushNotificationRequest() { }
 

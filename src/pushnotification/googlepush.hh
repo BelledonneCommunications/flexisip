@@ -24,7 +24,7 @@
 class GooglePushNotificationRequest : public PushNotificationRequest {
 public:
 	virtual const std::vector<char> &getData();
-	virtual bool isValidResponse(const std::string &str);
+	virtual std::string isValidResponse(const std::string &str);
 	GooglePushNotificationRequest(const PushInfo &pinfo);
 	~GooglePushNotificationRequest() {
 	}

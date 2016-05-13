@@ -75,7 +75,7 @@ const vector<char> &WindowsPhonePushNotificationRequest::getData() {
 	return mBuffer;
 }
 
-bool WindowsPhonePushNotificationRequest::isValidResponse(const string &str) {
+std::string WindowsPhonePushNotificationRequest::isValidResponse(const string &str) {
 	string line;
 	istringstream iss(str);
 	bool valid = false, connect = false, notif = false;
@@ -83,6 +83,14 @@ bool WindowsPhonePushNotificationRequest::isValidResponse(const string &str) {
 		valid |= (line.find("HTTP/1.1 200 OK") != string::npos);
 		connect |= (line.find("X-WNS-DEVICECONNECTIONSTATUS: connected") != string::npos);
 		notif |= (line.find("X-WNS-STATUS: received") != string::npos);
+
+		auto it = line.find("X-WNS-ERROR-DESCRIPTION");
+		if (it != string::npos) {
+			return line.substr(line.find(' '));
+		}
 	}
-	return valid && connect && notif;
+	if (!valid) return "Unexpected HTTP response value (not 200 OK)";
+	if (!connect) return "Device connection status not set to connected";
+	if (!notif) return "Notification not received by server";
+	return "";
 }

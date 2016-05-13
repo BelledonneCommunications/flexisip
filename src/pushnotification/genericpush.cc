@@ -77,9 +77,9 @@ const vector<char> &GenericPushNotificationRequest::getData() {
 	return mBuffer;
 }
 
-bool GenericPushNotificationRequest::isValidResponse(const string &str) {
+string GenericPushNotificationRequest::isValidResponse(const string &str) {
 	// LOGD("GenericPushNotificationRequest: http response is \n%s", str.c_str());
-	return true;
+	return "";
 }
 
 struct KeyVal {

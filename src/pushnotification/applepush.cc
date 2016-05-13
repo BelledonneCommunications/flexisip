@@ -124,7 +124,7 @@ const std::vector<char> &ApplePushNotificationRequest::getData() {
 	return mBuffer;
 }
 
-bool ApplePushNotificationRequest::isValidResponse(const std::string &str) {
+std::string ApplePushNotificationRequest::isValidResponse(const std::string &str) {
 	// error response is COMMAND(1)|STATUS(1)|ID(4) in bytes
 	if (str.length() >= 6) {
 		uint8_t error = str[1];
@@ -140,9 +140,10 @@ bool ApplePushNotificationRequest::isValidResponse(const std::string &str) {
 			"Invalid payload size",
 			"Invalid token",
 		};
-		SLOGE << "PNR " << this << " with identifier " << identifier << " failed with error "
+		std::stringstream ss;
+		ss << "PNR " << this << " with identifier " << identifier << " failed with error "
 		<< (int)error << " (" << (error>8 ? "unknown" : errorToString[error]) << ")";
-		return false;
+		return ss.str();
 	}
-	return true;
+	return "";
 }

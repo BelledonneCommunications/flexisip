@@ -28,8 +28,7 @@ PushNotificationClientWp::PushNotificationClientWp(const std::string &name, Push
 					   const std::string &host, const std::string &port,
 					   int maxQueueSize, bool isSecure,
 					   const std::string& packageSID, const std::string& applicationSecret) : PushNotificationClient(name, service, ctx, host, port, maxQueueSize, isSecure),
-																							mPackageSID(packageSID),
-																							mApplicationSecret(applicationSecret) {}
+																							mPackageSID(packageSID), mApplicationSecret(applicationSecret), mAccessToken(""), mTokenExpiring(0) {}
 
 PushNotificationClientWp::~PushNotificationClientWp() {}
 

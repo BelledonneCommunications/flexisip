@@ -26,7 +26,7 @@ public:
 	ApplePushNotificationRequest(const PushInfo &pinfo);
 	~ApplePushNotificationRequest() { }
 	virtual const std::vector<char> &getData();
-	virtual bool isValidResponse(const std::string &str);
+	virtual std::string isValidResponse(const std::string &str);
 	virtual bool isServerAlwaysResponding() { return false; }
 protected:
 	int formatDeviceToken(const std::string &deviceToken);

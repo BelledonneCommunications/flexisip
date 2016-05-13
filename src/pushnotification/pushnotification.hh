@@ -53,7 +53,7 @@ class PushNotificationRequest {
 			return mType;
 		}
 		virtual const std::vector<char> &getData() = 0;
-		virtual bool isValidResponse(const std::string &str) = 0;
+		virtual std::string isValidResponse(const std::string &str) = 0;
 		virtual bool isServerAlwaysResponding() = 0;
 
 	protected:

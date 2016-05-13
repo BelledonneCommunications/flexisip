@@ -194,9 +194,10 @@
 			r[p] = 0;
 			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " read " << p << " data:\n" << r;
 			string responsestr(r, p);
-			if (!req->isValidResponse(responsestr)) {
-				onError(req, "Invalid server response");
-				// on iOS at least, when an error happens, the socket is semibroken (server ignore next requests),
+			string error = req->isValidResponse(responsestr);
+			if (!error.empty()) {
+				onError(req, "Invalid server response: " + error);
+				// on iOS at least, when an error happens, the socket is semibroken (server ignore all future requests),
 				// so we force to recreate the connection
 				recreateConnection();
 			}else{

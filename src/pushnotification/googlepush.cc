@@ -50,7 +50,7 @@ const vector<char> &GooglePushNotificationRequest::getData() {
 	return mBuffer;
 }
 
-bool GooglePushNotificationRequest::isValidResponse(const string &str) {
+string GooglePushNotificationRequest::isValidResponse(const string &str) {
 	static const char expected[] = "HTTP/1.1 200";
-	return strncmp(expected, str.c_str(), sizeof(expected) - 1) == 0;
+	return strncmp(expected, str.c_str(), sizeof(expected) - 1) == 0 ? "" : "Unexpected HTTP response value (not 200 OK)";
 }
