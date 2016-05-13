@@ -172,7 +172,7 @@ class DoSProtection : public Module, ModuleToolbox {
 			LOGW("IP %s port %s on protocol %s is already in the iptables banned list, skipping...", ip, port, protocol);
 		} else {
 			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -w -A INPUT -p %s -s %s -m multiport --sports %s -j DROP"
-					" && echo \"iptables -w -D INPUT -p %s -s %s -m multiport --sports %s -j DROP\" | at now +%i minutes",
+					" && echo \"iptables -w -D INPUT -p %s -s %s -m multiport --sports %s -j DROP\" | at -M now +%i minutes",
 					protocol, ip, port, protocol, ip, port, ban_time);
 			if (system(iptables_cmd) != 0) {
 				LOGW("iptables command failed: %s", strerror(errno));
