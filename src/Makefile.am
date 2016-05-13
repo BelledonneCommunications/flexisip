@@ -147,6 +147,7 @@ thesources+=		module-pushnotification.cc \
 			pushnotification/microsoftpush.cc pushnotification/microsoftpush.hh \
 			pushnotification/pushnotificationservice.cc pushnotification/pushnotificationservice.hh \
 			pushnotification/pushnotificationclient.cc pushnotification/pushnotificationclient.hh \
+			pushnotification/pushnotificationclient_wp.cc pushnotification/pushnotificationclient_wp.hh \
 			pushnotification/genericpush.cc pushnotification/genericpush.hh
 AM_CXXFLAGS+=-DENABLE_PUSHNOTIFICATION $(OPENSSL_CPPFLAGS)
 flexisip_LDADD+=$(OPENSSL_LIBS)
