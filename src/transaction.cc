@@ -234,6 +234,17 @@ int IncomingTransaction::_callback(nta_incoming_magic_t *magic, nta_incoming_t *
 	return 0;
 }
 
+shared_ptr< MsgSip > IncomingTransaction::getLastResponse() {
+	shared_ptr< MsgSip > msgsip;
+	msg_t *msg = nta_incoming_getresponse(mIncoming); //warning: nta_incoming_getresponse() creates a new ref to the msg_t.
+	if (msg){
+		msgsip = make_shared<MsgSip>(msg);
+		msg_unref(msg); //MsgSip constructor takes a ref.
+	}
+	return msgsip;
+}
+
+
 void IncomingTransaction::destroy() {
 	if (mSofiaRef != NULL) {
 		nta_incoming_bind(mIncoming, NULL, NULL); // avoid callbacks

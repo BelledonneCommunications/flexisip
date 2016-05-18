@@ -77,6 +77,8 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 			 "codes.",
 			 "5"},
 			{Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.", "0"},
+			{Boolean, "basic-fork-urgent-timeout",
+			 "Maximum time before delivering urgent responses during a basic fork, in seconds. ", "5"},
 			{Integer, "message-delivery-timeout", "Maximum duration for delivering a text message", "3600"},
 			{Integer, "message-accept-timeout",
 			 "Maximum duration for accepting a text message if no response is received from any recipients.", "15"},
