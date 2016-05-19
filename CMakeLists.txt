@@ -20,7 +20,7 @@
 #
 ############################################################################
 
-cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.2.0 FATAL_ERROR) # 3.2.0 required for target_compile_features support on gcc 4.4+ (centos6)
 
 project(flexisip C CXX)
 
