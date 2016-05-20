@@ -134,7 +134,13 @@ static void flexisip_stat(int signum) {
 }
 
 static void sofiaLogHandler(void *, const char *fmt, va_list ap) {
-	LOGDV(fmt, ap);
+	// remove final \n from sofia
+	if (fmt) {
+		char* copy= strdup(fmt);
+		copy[strlen(copy)-1] = '\0';
+		LOGDV(copy, ap);
+		free(copy);
+	}
 }
 
 static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *a) {
