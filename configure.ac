@@ -42,9 +42,9 @@ AC_PROG_LIBTOOL
 # use for xml data binding
 
 AC_ARG_ENABLE(snmp,
-	AC_HELP_STRING([--enable-snmp], [Build snmp support [yes]]),
+	AC_HELP_STRING([--enable-snmp], [Build snmp support [no]]),
 	[snmp="${enableval}"],
-	[snmp=yes]
+	[snmp=no]
 )
 
 if test x$snmp = xyes ; then
@@ -457,7 +457,7 @@ if test x$redis != xno ; then
 		CPPFLAGS=$CPPFLAGS_save
 		LIBS=$LIBS_save
 
-		
+
 
 		# when redis is not detected through pkgconfig, we can't know whether the
 		# connect callback uses 1 or 2 args. Better not using it at all.
