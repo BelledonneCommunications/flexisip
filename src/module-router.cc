@@ -77,11 +77,12 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 			 "codes.",
 			 "5"},
 			{Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.", "0"},
-			{Integer, "basic-fork-urgent-timeout",
-			 "Maximum time before delivering urgent responses during a basic fork, in seconds. ", "5"},
-			{Integer, "message-delivery-timeout", "Maximum duration for delivering a text message", "3600"},
+			{Boolean, "message-fork-late", "Fork messages to client registering lately. ", "true"},
+			{Integer, "message-delivery-timeout", "Maximum duration for delivering a text message. This property applies only"
+				" if message-fork-late if set to true, otherwise the duration can't exceed the normal transaction duration.", "3600"},
 			{Integer, "message-accept-timeout",
-			 "Maximum duration for accepting a text message if no response is received from any recipients.", "15"},
+			 "Maximum duration for accepting a text message if no response is received from any recipients."
+			 " This property is meaningful when message-fork-late is set to true.", "15"},
 			{Boolean, "allow-target-factorization",
 			 "During a call forking, allow several INVITEs going to the same next hop to be grouped into "
 			 "a single one. A proprietary custom header 'X-target-uris' is added to the INVITE to indicate the final "
@@ -122,8 +123,10 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 		mGeneratedContactRoute = mc->get<ConfigString>("generated-contact-route")->read();
 		mExpectedRealm = mc->get<ConfigString>("generated-contact-expected-realm")->read();
 		mGenerateContactEvenOnFilledAor = mc->get<ConfigBoolean>("generate-contact-even-on-filled-aor")->read();
+		
+		//Forking configuration for INVITEs
 		mForkCfg = make_shared<ForkContextConfig>();
-		mMessageForkCfg = make_shared<ForkContextConfig>();
+		mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
 		mForkCfg->mTreatAllErrorsAsUrgent = mc->get<ConfigBoolean>("treat-all-as-urgent")->read();
 		mForkCfg->mForkNoGlobalDecline = mc->get<ConfigBoolean>("fork-no-global-decline")->read();
 		mForkCfg->mUrgentTimeout = mc->get<ConfigInt>("call-fork-urgent-timeout")->read();
@@ -132,9 +135,13 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 		mForkCfg->mTreatDeclineAsUrgent = mc->get<ConfigBoolean>("treat-decline-as-urgent")->read();
 		mForkCfg->mRemoveToTag = mc->get<ConfigBoolean>("remove-to-tag")->read();
 
-		mMessageForkCfg->mForkLate = mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
+		//Forking configuration for MESSAGEs
+		mMessageForkCfg = make_shared<ForkContextConfig>();
+		mMessageForkCfg->mForkLate = mc->get<ConfigBoolean>("message-fork-late")->read();
 		mMessageForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("message-delivery-timeout")->read();
 		mMessageForkCfg->mUrgentTimeout = mc->get<ConfigInt>("message-accept-timeout")->read();
+		
+		//Forking configuration for other kind of requests.
 		mOtherForkCfg = make_shared<ForkContextConfig>();
 		mOtherForkCfg->mTreatAllErrorsAsUrgent = false;
 		mOtherForkCfg->mForkLate = false;

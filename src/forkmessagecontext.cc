@@ -58,7 +58,7 @@ ForkMessageContext::~ForkMessageContext() {
 }
 
 bool ForkMessageContext::shouldFinish() {
-	return false; // the messaging fork context controls its termination.
+	return mCfg->mForkLate ? false : true; // the messaging fork context controls its termination in late forking mode.
 }
 
 void ForkMessageContext::checkFinished() {
@@ -117,8 +117,13 @@ void ForkMessageContext::onResponse(const std::shared_ptr<BranchInfo> &br, const
 		}
 		logDeliveryEvent(br, event);
 		forwardResponse(br);
-	} else
+	} else if (code >= 300 && !mCfg->mForkLate && isUrgent(code, sUrgentCodes)){
+		/*expedite back any urgent replies if late forking is disabled */
 		logDeliveryEvent(br, event);
+		forwardResponse(br);
+	} else {
+		logDeliveryEvent(br, event);
+	}
 	checkFinished();
 }
 
