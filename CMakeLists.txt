@@ -220,6 +220,12 @@ if(ENABLE_DOC)
 endif()
 
 if(ENABLE_PRESENCE)
+        # disable Presence on gcc < 4.7 because c++11 is$
+        if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPI$
+                message(WARNING "Disable Presence becaus$
+                set(ENABLE_PRESENCE OFF)
+        endif()
+
 	if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
 		include("${EP_bellesip_CONFIG_DIR}/BelleSIPConfig.cmake")
 	else()
