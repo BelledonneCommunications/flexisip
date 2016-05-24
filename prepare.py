@@ -167,10 +167,10 @@ def main(argv=None):
         if args.generator.endswith('Ninja'):
             if not check_is_installed("ninja", "it"):
                 return 1
-            generate_makefile('ninja -C', target.work_dir)
+            generate_makefile('ninja -C', target.work_dir + "/cmake")
             info("You can now run 'make' to build.")
         elif args.generator.endswith("Unix Makefiles"):
-            generate_makefile('$(MAKE) -C', target.work_dir)
+            generate_makefile('$(MAKE) -C', target.work_dir + "/cmake")
             info("You can now run 'make' to build.")
         elif args.generator == "Xcode":
             info("You can now open Xcode project with: open WORK/cmake/Project.xcodeproj")
