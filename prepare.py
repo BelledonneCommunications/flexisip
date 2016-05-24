@@ -46,10 +46,10 @@ class FlexisipRpmTarget(prepare.Target):
         self.required_build_platforms = ['Linux', 'Darwin']
         self.config_file = 'configs/config-flexisip-rpm.cmake'
         self.additional_args = ['-DLINPHONE_BUILDER_TARGET=flexisip',
-            			'-DCMAKE_INSTALL_MESSAGE=LAZY',
-            			'-DLINPHONE_BUILDER_TOP_DIR=' + current_path,
-            			'-DLINPHONE_BUILDER_EXTERNAL_SOURCE_PATH=' + current_path + '/submodules'
-	]
+                        '-DCMAKE_INSTALL_MESSAGE=LAZY',
+                        '-DLINPHONE_BUILDER_TOP_DIR=' + current_path,
+                        '-DLINPHONE_BUILDER_EXTERNAL_SOURCE_PATH=' + current_path + '/submodules'
+    ]
 
 class FlexisipTarget(prepare.Target):
 
@@ -91,12 +91,12 @@ def check_tools():
     return ret
 
 
-def generate_makefile(generator):
+def generate_makefile(generator, work_dir):
     makefile = """
 .PHONY: all
 
 all:
-\t{generator} WORK/cmake
+\t{generator} {work_dir}
 
 help-prepare-options:
 \t@echo "prepare.py was previously executed with the following options:"
@@ -110,7 +110,7 @@ help: help-prepare-options
 \t@echo ""
 \t@echo "   * all: normal build"
 \t@echo ""
-""".format(options=' '.join(sys.argv), generator=generator)
+""".format(options=' '.join(sys.argv), generator=generator, work_dir=work_dir)
     f = open('Makefile', 'w')
     f.write(makefile)
     f.close()
@@ -167,10 +167,10 @@ def main(argv=None):
         if args.generator.endswith('Ninja'):
             if not check_is_installed("ninja", "it"):
                 return 1
-            generate_makefile('ninja -C')
+            generate_makefile('ninja -C', target.work_dir)
             info("You can now run 'make' to build.")
         elif args.generator.endswith("Unix Makefiles"):
-            generate_makefile('$(MAKE) -C')
+            generate_makefile('$(MAKE) -C', target.work_dir)
             info("You can now run 'make' to build.")
         elif args.generator == "Xcode":
             info("You can now open Xcode project with: open WORK/cmake/Project.xcodeproj")
