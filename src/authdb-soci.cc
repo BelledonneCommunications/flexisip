@@ -132,8 +132,9 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 		stop = steady_clock::now();
 		SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
 		cachePassword(createPasswordKey(id, domain, authid), domain, pass, mCacheExpire);
-		if (listener) listener->onResult(PASSWORD_FOUND, pass);
-
+		if (listener){
+			listener->onResult(pass.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, pass);
+		}
 	} catch (mysql_soci_error const &e) {
 
 		stop = steady_clock::now();
