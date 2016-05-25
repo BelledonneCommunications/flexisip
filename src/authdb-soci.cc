@@ -114,21 +114,22 @@ void SociAuthDB::reconnectSession(soci::session &session) {
 
 void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &domain,
 									 const std::string &authid, AuthDbListener *listener) {
-
-	steady_clock::time_point start = steady_clock::now();
-
-	// will grab a connection from the pool. This is thread safe
-	session sql(*conn_pool);
+	steady_clock::time_point start;
+	steady_clock::time_point stop;
 	std::string pass;
-
-	steady_clock::time_point stop = steady_clock::now();
-
-	SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
-	start = stop;
-
+	session *sql = NULL;
+	
 	try {
+		start = steady_clock::now();
+		// will grab a connection from the pool. This is thread safe
+		sql = new session(*conn_pool); //this may raise a soci_error exception, so keep it in the try block.
 
-		sql << get_password_request, into(pass), use(id, "id"), use(domain, "domain"), use(authid, "authid");
+		stop = steady_clock::now();
+
+		SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
+		start = stop;
+
+		*sql << get_password_request, into(pass), use(id, "id"), use(domain, "domain"), use(authid, "authid");
 		stop = steady_clock::now();
 		SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
 		cachePassword(createPasswordKey(id, domain, authid), domain, pass, mCacheExpire);
@@ -141,7 +142,7 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 		SLOGE << "[SOCI] MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
 		if (listener) listener->onResult(PASSWORD_NOT_FOUND, pass);
 
-		reconnectSession(sql);
+		if (sql) reconnectSession(*sql);
 
 	} catch (exception const &e) {
 
@@ -149,9 +150,9 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 		SLOGE << "[SOCI] Some other error after " << DURATION_MS(start, stop) << "ms : " << e.what();
 		if (listener) listener->onResult(PASSWORD_NOT_FOUND, pass);
 
-		reconnectSession(sql);
-
+		if (sql) reconnectSession(*sql);
 	}
+	if (sql) delete sql;
 }
 
 #pragma mark - Inherited virtuals
