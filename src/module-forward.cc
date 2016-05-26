@@ -67,7 +67,7 @@ ForwardModule::~ForwardModule() {
 
 void ForwardModule::onDeclare(GenericStruct *module_config) {
 	ConfigItemDescriptor items[] = {
-		{String, "route", "A sip uri where to send all requests", ""},
+        {String, "route", "A sip uri where to send all requests", ""},
 		{Boolean, "add-path", "Add a path header of this proxy", "true"},
 		{Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to above route", "false"},
 		config_item_end};
@@ -98,10 +98,10 @@ url_t *ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest)
 			}
 		}
 		dest = mOutRoute->r_url;
-		if (mRewriteReqUri) {
-			sip->sip_request->rq_url->url_host = mOutRoute->r_url->url_host;
-			sip->sip_request->rq_url->url_port = mOutRoute->r_url->url_port;
-		}
+        if(mRewriteReqUri && (!isNumeric(dest->url_host) || !dest->url_port)) {
+            sip->sip_request->rq_url->url_host = mOutRoute->r_url->url_host;
+            sip->sip_request->rq_url->url_port = mOutRoute->r_url->url_port;
+        }
 	}
 	return dest;
 }
