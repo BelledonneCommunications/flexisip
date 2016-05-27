@@ -18,7 +18,7 @@
 
 #include "logmanager.hh"
 #include <string>
-#include <ortp/ortp.h>
+#include "bctoolbox/logging.h"
 #include <syslog.h>
 
 using namespace std;
@@ -30,22 +30,22 @@ bool sUseSyslog = false;
 
 namespace flexisip {
 	namespace log {
-		static void syslogHandler(const char *domain, OrtpLogLevel log_level, const char *str, va_list l) {
+		static void syslogHandler(const char *domain, BctbxLogLevel log_level, const char *str, va_list l) {
 			int syslev = LOG_ALERT;
 			switch (log_level) {
-				case ORTP_DEBUG:
+				case BCTBX_LOG_DEBUG:
 				syslev = LOG_DEBUG;
 				break;
-				case ORTP_MESSAGE:
+				case BCTBX_LOG_MESSAGE:
 				syslev = LOG_INFO;
 				break;
-				case ORTP_WARNING:
+				case BCTBX_LOG_WARNING:
 				syslev = LOG_WARNING;
 				break;
-				case ORTP_ERROR:
+				case BCTBX_LOG_ERROR:
 				syslev = LOG_ERR;
 				break;
-				case ORTP_FATAL:
+				case BCTBX_LOG_FATAL:
 				syslev = LOG_ALERT;
 				break;
 				default:
@@ -54,22 +54,22 @@ namespace flexisip {
 			vsyslog(syslev, str, l);
 		}
 
-		void defaultLogHandler(const char *domain, OrtpLogLevel log_level, const char *str, va_list l) {
+		void defaultLogHandler(const char *domain, BctbxLogLevel log_level, const char *str, va_list l) {
 			const char *levname = "none";
 			switch (log_level) {
-				case ORTP_DEBUG:
+				case BCTBX_LOG_DEBUG:
 				levname = "D: ";
 				break;
-				case ORTP_MESSAGE:
+				case BCTBX_LOG_MESSAGE:
 				levname = "M: ";
 				break;
-				case ORTP_WARNING:
+				case BCTBX_LOG_WARNING:
 				levname = "W: ";
 				break;
-				case ORTP_ERROR:
+				case BCTBX_LOG_ERROR:
 				levname = "E: ";
 				break;
-				case ORTP_FATAL:
+				case BCTBX_LOG_FATAL:
 				levname = "F: ";
 				break;
 				default:
@@ -84,18 +84,17 @@ namespace flexisip {
 			is_preinit_done = true;
 			sUseSyslog = syslog;
 			is_debug = debug;
-			ortp_set_log_file(stdout);
 
 			if (debug) {
-				ortp_set_log_level_mask(ORTP_LOG_DOMAIN, ORTP_DEBUG | ORTP_MESSAGE | ORTP_WARNING | ORTP_ERROR | ORTP_FATAL);
+				bctbx_set_log_level_mask(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_DEBUG | BCTBX_LOG_MESSAGE | BCTBX_LOG_WARNING | BCTBX_LOG_ERROR | BCTBX_LOG_FATAL);
 			} else {
-				ortp_set_log_level_mask(ORTP_LOG_DOMAIN, ORTP_MESSAGE | ORTP_WARNING | ORTP_ERROR | ORTP_FATAL);
+				bctbx_set_log_level_mask(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_MESSAGE | BCTBX_LOG_WARNING | BCTBX_LOG_ERROR | BCTBX_LOG_FATAL);
 			}
 
 			if (syslog) {
 				openlog("flexisip", 0, LOG_USER);
 				setlogmask(~0);
-				ortp_set_log_handler(syslogHandler);
+				bctbx_set_log_handler(syslogHandler);
 			} else {
 				//ortp_set_log_handler(defaultLogHandler);
 			}
@@ -110,9 +109,9 @@ namespace flexisip {
 			}
 
 			if (debug) {
-				ortp_set_log_level(ORTP_LOG_DOMAIN, ORTP_DEBUG);
+				bctbx_set_log_level_mask(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_DEBUG);
 			} else {
-				ortp_set_log_level(ORTP_LOG_DOMAIN, ORTP_WARNING);
+				bctbx_set_log_level_mask(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_WARNING);
 			}
 
 			is_debug = debug;
@@ -127,7 +126,7 @@ namespace flexisip {
 		}
 
 		void disableGlobally() {
-			ortp_set_log_level(ORTP_LOG_DOMAIN, ORTP_ERROR);
+			bctbx_set_log_level_mask(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_ERROR);
 		}
 	}
 }

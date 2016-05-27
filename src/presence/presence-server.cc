@@ -32,7 +32,7 @@
 using namespace pidf;
 using namespace flexisip;
 
-void _belle_sip_log(belle_sip_log_level lev, const char *fmt, va_list args) {
+void _belle_sip_log(const char *domain, BctbxLogLevel lev, const char *fmt, va_list args){
 	flexisip::log::level level;
 
 	switch (lev) {
@@ -77,7 +77,7 @@ PresenceServer::PresenceServer(std::string configFile) throw(FlexisipException)
 	, mProvider(belle_sip_stack_create_provider(mStack, NULL))
 	, mIterateThread(nullptr) {
 
-	belle_sip_set_log_handler(_belle_sip_log);
+	//bctbx_set_log_handler(_belle_sip_log);
 	belle_sip_set_log_level(BELLE_SIP_LOG_MESSAGE);
 
 	xercesc::XMLPlatformUtils::Initialize();

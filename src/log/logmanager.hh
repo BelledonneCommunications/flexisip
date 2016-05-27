@@ -65,23 +65,22 @@ inline std::basic_istream<CharT, TraitsT> &operator>>(std::basic_istream<CharT, 
 } //end of namespace log
 } //end of namespace flexisip
 
-#define ORTP_DEBUG_MODE 1 // Flexisip extensively use SLOD
+#define BCTBX_DEBUG_MODE 1 // Flexisip extensively use SLOD
 
+#ifdef BCTBX_LOG_DOMAIN
+#undef BCTBX_LOG_DOMAIN
+#endif
+#ifndef FLEXISIP_LOG_DOMAIN
+#define FLEXISIP_LOG_DOMAIN "flexisip"
+#endif
+
+#define BCTBX_LOG_DOMAIN FLEXISIP_LOG_DOMAIN
 #include <syslog.h>
-#include <ortp/ortp.h>
+#include "bctoolbox/logging.h"
 #include <ostream>
 
 typedef std::ostream flexisip_record_type;
 
-struct pumpstream : public std::ostringstream {
-	const OrtpLogLevel level;
-	pumpstream(OrtpLogLevel l) : level(l) {
-	}
-
-	~pumpstream() {
-		ortp_log(level, "%s", str().c_str());
-	}
-};
 
 #if (__GNUC__ == 4 && __GNUC_MINOR__ < 5)
 template <typename _Tp> inline pumpstream &operator<<(pumpstream &&__os, const _Tp &__x) {
@@ -89,30 +88,32 @@ template <typename _Tp> inline pumpstream &operator<<(pumpstream &&__os, const _
 	return __os;
 }
 #endif
+
 #define SLOGA_FL(file, line) throw FlexisipException() << " " << file << ":" << line << " "
 
-#define SLOG(thelevel)                                                                                                 \
-if (ortp_log_level_enabled(ORTP_LOG_DOMAIN, (thelevel)))                                                           \
-	pumpstream((thelevel))
-#define SLOGD SLOG(ORTP_DEBUG)
-#define SLOGI SLOG(ORTP_MESSAGE)
-#define SLOGW SLOG(ORTP_WARNING)
-#define SLOGE SLOG(ORTP_ERROR)
-/*
-#define SLOGA SLOGA_FL(__FILE__,__LINE__)
-*/
+#define SLOG(thelevel) BCTBX_SLOG(FLEXISIP_LOG_DOMAIN,thelevel)
+#define SLOGD BCTBX_SLOGD(FLEXISIP_LOG_DOMAIN)
+#define SLOGI BCTBX_SLOGI(FLEXISIP_LOG_DOMAIN)
+#define SLOGW BCTBX_SLOGW(FLEXISIP_LOG_DOMAIN)
+#define SLOGE BCTBX_SLOGE(FLEXISIP_LOG_DOMAIN)
+
 #define LOGV(thelevel, thefmt, theargs) LOGDV((thefmt), (theargs))
-#define LOGDV(thefmt, theargs) ortp_logv(ORTP_LOG_DOMAIN, ORTP_DEBUG, (thefmt), (theargs))
-#define LOGD ortp_debug
-#define LOGI ortp_message
-#define LOGW ortp_warning
-#define LOGE ortp_error
-#define LOGA ortp_fatal
+#define LOGDV(thefmt, theargs) bctbx_logv(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_DEBUG, (thefmt), (theargs))
+
+#define LOGD bctbx_debug
+#define LOGI bctbx_message
+#define LOGW bctbx_warning
+#define LOGE bctbx_error
+#define LOGA bctbx_fatal
+
+#define LOG_SCOPED_THREAD(key, value)
+
+
 
 #define LOGDFN(boolFn, streamFn)                                                                                       \
 do {                                                                                                               \
-	if (ortp_log_level_enabled(ORTP_LOG_DOMAIN, (ORTP_DEBUG)) && (boolFn())) {                                     \
-		pumpstream pump(ORTP_DEBUG);                                                                               \
+	if (bctbx_get_log_level_mask(FLEXISIP_LOG_DOMAIN, (BCTBX_LOG_DEBUG)) && (boolFn())) {                                     \
+		pumpstream pump(BCTBX_LOG_DEBUG);                                                                               \
 		(streamFn)(pump);                                                                                          \
 	}                                                                                                              \
 } while (0)
@@ -125,7 +126,7 @@ do {                                                                            
  */
 #define LOGN(args...)                                                                                                  \
  do {                                                                                                               \
- 	ortp_message(args);                                                                                            \
+ 	bctbx_message(args);                                                                                            \
  	if (sUseSyslog) {                                                                                              \
  		syslog(LOG_NOTICE, args);                                                                                  \
  	} else {                                                                                                       \
