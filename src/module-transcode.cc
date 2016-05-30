@@ -354,7 +354,9 @@ int Transcoder::handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev) {
 
 		string fladdr = c->getFrontSide()->getLocalAddress();
 		c->getFrontSide()->setRemoteAddr(fraddr.c_str(), frport);
+#if ORTP_DEBUG_MODE
 		LOGD("Front side %s:%i <-> %s:%i", fraddr.c_str(), frport, fladdr.c_str(), flport);
+#endif
 
 		int ptime = m->readPtime();
 		if (ptime > 0) {

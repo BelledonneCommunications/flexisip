@@ -236,6 +236,7 @@ class ModuleToolbox {
 	static string getHost(const char *host);
 	static string urlGetHost(url_t *url);
 	static void urlSetHost(su_home_t *home, url_t *url, const char *host);
+	static bool urlIsResolved(url_t *uri);
 	/**
 	* Returns true if via and url represent the same network address.
 	**/

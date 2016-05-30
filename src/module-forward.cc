@@ -97,11 +97,12 @@ url_t *ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest)
 				return dest;
 			}
 		}
-		dest = mOutRoute->r_url;
-        if(mRewriteReqUri && (!isNumeric(dest->url_host) || !dest->url_port)) {
-            sip->sip_request->rq_url->url_host = mOutRoute->r_url->url_host;
-            sip->sip_request->rq_url->url_port = mOutRoute->r_url->url_port;
-        }
+		if(!urlIsResolved(req_url)) {
+			dest = mOutRoute->r_url;
+			if(mRewriteReqUri) {
+				*req_url = *dest;
+			}
+		}
 	}
 	return dest;
 }
