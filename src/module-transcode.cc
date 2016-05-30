@@ -32,8 +32,6 @@
 #include <functional>
 #include <algorithm>
 
-/*This file is using a deprecated API of mediastreamer2.*/
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
 using namespace std;
 
@@ -94,8 +92,9 @@ class Transcoder : public Module, protected ModuleToolbox {
 	CallStore mCalls;
 	su_timer_t *mTimer;
 	list<string> mRcUserAgents;
-	bool mRemoveBandwidthsLimits;
+	MSFactory *mFactory;
 	CallContextParams mCallParams;
+	bool mRemoveBandwidthsLimits;
 #endif
 	static ModuleInfo<Transcoder> sInfo;
 };
@@ -116,6 +115,7 @@ ModuleInfo<Transcoder> Transcoder::sInfo(
 
 #ifndef ENABLE_TRANSCODER
 Transcoder::Transcoder(Agent *ag) : Module(ag) {
+	mFactory = NULL;
 }
 Transcoder::~Transcoder() {
 }
@@ -211,11 +211,15 @@ bool Transcoder::hasSupportedCodec(const std::list<PayloadType *> &ioffer) {
 }
 
 Transcoder::Transcoder(Agent *ag) : Module(ag), mSupportedAudioPayloads(), mTimer(0) {
+	mFactory = ms_factory_new_with_voip();
 }
 
 Transcoder::~Transcoder() {
 	if (mTimer)
 		getAgent()->stopTimer(mTimer);
+	if (mFactory){
+		ms_factory_destroy(mFactory);
+	}
 }
 
 list<PayloadType *> Transcoder::orderList(const list<string> &config, const list<PayloadType *> &l) {
@@ -242,7 +246,7 @@ list<PayloadType *> Transcoder::orderList(const list<string> &config, const list
 		for (auto it = l.cbegin(); it != l.cend(); ++it) {
 			PayloadType *pt = *it;
 			if (strcasecmp(pt->mime_type, name) == 0 && rate == pt->clock_rate) {
-				if (ms_filter_get_encoder(pt->mime_type) != NULL || strcmp("telephone-event", pt->mime_type) == 0) {
+				if (ms_factory_codec_supported(mFactory, pt->mime_type) || strcmp("telephone-event", pt->mime_type) == 0) {
 					ret.push_back(pt);
 				} else {
 					LOGE("Codec %s/%i is configured but is not supported (missing plugin ?)", name, rate);
@@ -421,7 +425,7 @@ void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipExcep
 	if (sip->sip_request->rq_method == sip_method_invite) {
 		ev->createIncomingTransaction();
 		auto ot = ev->createOutgoingTransaction();
-		auto c = make_shared<TranscodedCall>(sip, getAgent()->getRtpBindIp());
+		auto c = make_shared<TranscodedCall>(mFactory, sip, getAgent()->getRtpBindIp());
 		if (processInvite(c.get(), ev) == 0) {
 			mCalls.store(c);
 			ot->setProperty<TranscodedCall>(getModuleName(), c);

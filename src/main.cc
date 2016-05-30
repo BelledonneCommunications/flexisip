@@ -769,13 +769,8 @@ int main(int argc, char *argv[]) {
 #ifdef ENABLE_SNMP
 	SnmpAgent lAgent(*a, *cfg, oset);
 #endif
-#ifdef ENABLE_TRANSCODER
-	if (oset.find("notrans") == oset.end()) {
-		ms_factory_new_with_voip();
-	}
-#else
+
 	ortp_init();
-#endif
 
 	if (!oset.empty())
 		cfg->applyOverrides(true); // using default + overrides

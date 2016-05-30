@@ -27,6 +27,8 @@
 #include <mediastreamer2/msrtp.h>
 #include <mediastreamer2/bitratecontrol.h>
 
+
+class Transcoder;
 class TranscodedCall;
 class CallContextParams {
   public:
@@ -76,7 +78,7 @@ class CallSide {
 
 class TranscodedCall : public CallContextBase {
   public:
-	TranscodedCall(sip_t *invite, const std::string &bind_address);
+	TranscodedCall(MSFactory *factory, sip_t *invite, const std::string &bind_address);
 	void prepare(const CallContextParams &params);
 	void join(MSTicker *ticker);
 	void unjoin();
@@ -99,8 +101,12 @@ class TranscodedCall : public CallContextBase {
 	const std::string &getBindAddress() const {
 		return mBindAddress;
 	}
+	MSFactory *getFactory()const{
+		return mFactory;
+	}
 
   private:
+	MSFactory *mFactory;
 	CallSide *getOther(CallSide *cs);
 	MSTicker *mTicker;
 	CallSide *mFrontSide;

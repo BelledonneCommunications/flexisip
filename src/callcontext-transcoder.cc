@@ -23,12 +23,10 @@
 
 #include "sdp-modifier.hh"
 
-/*This file is using a deprecated API of mediastreamer2.*/
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
 using namespace std;
 
 CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCallCtx(ctx) {
+	MSFactory *factory = ctx->getFactory();
 	mSession = rtp_session_new(RTP_SESSION_SENDRECV);
 #if ORTP_HAS_REUSEADDR
 	rtp_session_set_reuseaddr(mSession, FALSE);
@@ -37,9 +35,9 @@ CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCall
 	mEncoder = NULL;
 	mDecoder = NULL;
 	mRc = NULL;
-	mReceiver = ms_filter_new(MS_RTP_RECV_ID);
-	mSender = ms_filter_new(MS_RTP_SEND_ID);
-	mToneGen = ms_filter_new(MS_DTMF_GEN_ID);
+	mReceiver = ms_factory_create_filter(factory, MS_RTP_RECV_ID);
+	mSender = ms_factory_create_filter(factory, MS_RTP_SEND_ID);
+	mToneGen = ms_factory_create_filter(factory, MS_DTMF_GEN_ID);
 
 	rtp_session_set_profile(mSession, mProfile);
 	rtp_session_set_recv_buf_size(mSession, 300);
@@ -184,6 +182,7 @@ PayloadType *CallSide::getRecvFormat() {
 }
 
 void CallSide::connect(CallSide *recvSide, MSTicker *ticker) {
+	MSFactory *factory = mCallCtx->getFactory();
 	MSConnectionHelper conHelper;
 	PayloadType *recvpt;
 	PayloadType *sendpt;
@@ -207,7 +206,7 @@ void CallSide::connect(CallSide *recvSide, MSTicker *ticker) {
 		}
 		rtp_session_flush_sockets(mSession);
 
-		mDecoder = ms_filter_create_decoder(recvpt->mime_type);
+		mDecoder = ms_factory_create_decoder(factory, recvpt->mime_type);
 		if (mDecoder == NULL) {
 			LOGE("Could not instanciate decoder for %s", recvpt->mime_type);
 		} else {
@@ -227,7 +226,7 @@ void CallSide::connect(CallSide *recvSide, MSTicker *ticker) {
 				mRc = NULL;
 			}
 		}
-		mEncoder = ms_filter_create_encoder(sendpt->mime_type);
+		mEncoder = ms_factory_create_encoder(factory, sendpt->mime_type);
 		if (mEncoder == NULL) {
 			LOGE("Could not instanciate encoder for %s", sendpt->mime_type);
 		} else {
@@ -334,8 +333,8 @@ void CallSide::doBgTasks() {
 	}
 }
 
-TranscodedCall::TranscodedCall(sip_t *sip, const string &bind_address)
-	: CallContextBase(sip), mFrontSide(0), mBackSide(0), mInitialOffer(), mBindAddress(bind_address) {
+TranscodedCall::TranscodedCall(MSFactory * factory, sip_t *sip, const string &bind_address)
+	: CallContextBase(sip), mFactory(factory), mFrontSide(0), mBackSide(0), mInitialOffer(), mBindAddress(bind_address) {
 	mTicker = NULL;
 	mInfoCSeq = -1;
 	mCreateTime = getCurrentTime();
@@ -476,3 +475,4 @@ TranscodedCall::~TranscodedCall() {
 		mInitialOffer.clear();
 	}
 }
+
