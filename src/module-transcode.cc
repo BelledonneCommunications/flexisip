@@ -115,7 +115,6 @@ ModuleInfo<Transcoder> Transcoder::sInfo(
 
 #ifndef ENABLE_TRANSCODER
 Transcoder::Transcoder(Agent *ag) : Module(ag) {
-	mFactory = NULL;
 }
 Transcoder::~Transcoder() {
 }
