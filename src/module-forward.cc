@@ -91,6 +91,7 @@ url_t *ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest)
 
 	if (mOutRoute) {
 		sip_t *sip = ms->getSip();
+		url_t *req_url = sip->sip_request->rq_url;
 		for (sip_via_t *via = sip->sip_via; via != NULL; via = via->v_next) {
 			if (urlViaMatch(mOutRoute->r_url, sip->sip_via, false)) {
 				SLOGD << "Found forced outgoing route in via, skipping";
