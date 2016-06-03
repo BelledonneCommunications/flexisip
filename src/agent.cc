@@ -653,7 +653,7 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases) const {
 				matched_port = "5060";
 		}
 		if (strcmp(matched_port, tn->tpn_port) == 0) {
-			if (strcasecmp(host, tn->tpn_canon) == 0)
+			if (ModuleToolbox::urlHostMatch(host, tn->tpn_canon) || ModuleToolbox::urlHostMatch(host, tn->tpn_host))
 				return true;
 		}
 	}
