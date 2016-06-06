@@ -86,9 +86,9 @@ namespace flexisip {
 			is_debug = debug;
 
 			if (debug) {
-				bctbx_set_log_level_mask(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_DEBUG | BCTBX_LOG_MESSAGE | BCTBX_LOG_WARNING | BCTBX_LOG_ERROR | BCTBX_LOG_FATAL);
+				bctbx_set_log_level(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_DEBUG);
 			} else {
-				bctbx_set_log_level_mask(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_MESSAGE | BCTBX_LOG_WARNING | BCTBX_LOG_ERROR | BCTBX_LOG_FATAL);
+				bctbx_set_log_level(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_MESSAGE);
 			}
 
 			if (syslog) {
@@ -109,9 +109,9 @@ namespace flexisip {
 			}
 
 			if (debug) {
-				bctbx_set_log_level_mask(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_DEBUG);
+				bctbx_set_log_level(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_DEBUG);
 			} else {
-				bctbx_set_log_level_mask(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_WARNING);
+				bctbx_set_log_level(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_WARNING);
 			}
 
 			is_debug = debug;
@@ -126,7 +126,7 @@ namespace flexisip {
 		}
 
 		void disableGlobally() {
-			bctbx_set_log_level_mask(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_ERROR);
+			bctbx_set_log_level(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_ERROR);
 		}
 	}
 }
