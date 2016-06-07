@@ -51,15 +51,15 @@
 	}
 
 
-	int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequest> &pn) {
+	int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequest> &pn){	
 		std::shared_ptr<PushNotificationClient> client = mClients[pn->getAppIdentifier()];
 		if (client == 0) {
-            bool isW10 = (pn->getType().compare(string("w10")) == 0);
-            if (isW10 && (mWindowsPhonePackageSID.empty() || mWindowsPhoneApplicationSecret.empty())) {
-                SLOGE << "Windows Phone not configured for push notifications ("
-                "package sid is " << (mWindowsPhonePackageSID.empty() ? "NOT configured" : "configured") << " and " <<
-                "application secret is " << (mWindowsPhoneApplicationSecret.empty() ? "NOT configured" : "configured") << ").";
-                return -1;
+        	bool isW10 = (pn->getType().compare(string("w10")) == 0);
+        	if (isW10 && (mWindowsPhonePackageSID.empty() || mWindowsPhoneApplicationSecret.empty())) {
+            	SLOGE << "Windows Phone not configured for push notifications ("
+	            	"package sid is " << (mWindowsPhonePackageSID.empty() ? "NOT configured" : "configured") << " and " <<
+	            	"application secret is " << (mWindowsPhoneApplicationSecret.empty() ? "NOT configured" : "configured") << ").";
+            	return -1;
             } else {
                 string wpClient = pn->getAppIdentifier();
                 
@@ -73,14 +73,11 @@
                 } else {
                     mClients[wpClient] = std::make_shared<PushNotificationClient>(wpClient, this, ctx,
                                                                                   pn->getAppIdentifier(), "80", mMaxQueueSize, false);
-                }
-                
+                }        
                 client = mClients[wpClient];
             }
-        } else {
-            LOGE("No push notification certificate for client %s", pn->getAppIdentifier().c_str());
-            return -1;
-        }
+		}
+
 		client->sendPush(pn);
 		return 0;
 	}
@@ -283,6 +280,5 @@ void PushNotificationService::setupAndroidClient(const std::map<std::string, std
 void PushNotificationService::setupWindowsPhoneClient(const std::string& packageSID, const std::string& applicationSecret) {
 	mWindowsPhonePackageSID = packageSID;
 	mWindowsPhoneApplicationSecret = applicationSecret;
+	SLOGD << "Adding Windows push notification client for pacakge SID [" << packageSID << "]";
 }
-
-

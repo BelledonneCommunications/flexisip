@@ -13,7 +13,6 @@ WindowsPhonePushNotificationRequest::WindowsPhonePushNotificationRequest(const P
     if(pinfo.mType == "wp"){
         createHTTPRequest("");
     }
-
 }
 
 void WindowsPhonePushNotificationRequest::createHTTPRequest(const std::string &access_token) {
@@ -22,8 +21,7 @@ void WindowsPhonePushNotificationRequest::createHTTPRequest(const std::string &a
     char unescapedUrl[512];
     url_unescape(unescapedUrl, mPushInfo.mDeviceToken.c_str());// since the device token is an encoded URI, we must unescape it first
     const string &query = std::string(unescapedUrl);
-    //bool is_message = mPushInfo.mEvent == PushInfo::Message;
-    bool is_message = true;
+    bool is_message = mPushInfo.mEvent == PushInfo::Message;
     const std::string &message = mPushInfo.mText;
     const std::string &sender_name = mPushInfo.mFromName;
     const std::string &sender_uri = mPushInfo.mFromUri;
@@ -31,34 +29,41 @@ void WindowsPhonePushNotificationRequest::createHTTPRequest(const std::string &a
     ostringstream httpHeader;
     
     if(mPushInfo.mType == "w10") {
-        if (is_message) {
+   	  if (is_message) {
             // We have to send the content of the message and the name of the sender.
             // We also need the sender address to be able to display the full chat view in case the receiver click the
             // toast.
             
             httpBody << "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-            << "<toast launch=\"" << "/Views/Chat.xaml?sip=" << sender_uri  << "\">"
-            << "<visual>"
-            << "<binding template =\"ToastGeneric\">"
-            << "<text>"	<< sender_name << "</text>"
-            << "<text>" << message << "</text>"
-            << "</binding>"
-            <<  "</visual>"
-            << "</toast>";
+                << "<toast launch=\"" << "chat?sip=" << sender_uri  << "\">"
+                << "<visual>"
+                << "<binding template =\"ToastGeneric\">"
+                << "<text>"	<< sender_name << "</text>"
+                << "<text>" << message << "</text>"
+                << "</binding>"
+                <<  "</visual>"
+                << "</toast>";
         } else {
             // No need to specify name or number, this PN will only wake up linphone.
             httpBody << "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-            << "<IncomingCall><Name></Name><Number></Number></IncomingCall>";
+        		<< "<toast launch=\"" << sender_uri << "\" >"
+                << "<visual>"
+                << "<binding template=\"ToastGeneric\" scenario=\'incomingCall\'>"
+                << "<text>Incoming Call</text>"
+                << "<text>" << sender_uri << "</text>"
+                << "</binding>"
+        		<< "</visual>"
+                << "</toast>";
         }
         
-        
         httpHeader << "POST " << query << " HTTP/1.1\r\n"
-        << "Authorization: Bearer " << access_token << "\r\n"
-        << "X-WNS-RequestForStatus: true\r\n"
-        << "X-WNS-Type: wns/toast\r\n"
-        << "Content-Type: text/xml\r\n"
-        << "Host: " << host << "\r\n"
-        << "Content-Length: " << httpBody.str().size() << "\r\n\r\n";
+            << "Authorization: Bearer " << access_token << "\r\n"
+            << "X-WNS-RequestForStatus: true\r\n"
+            << "X-WNS-Type: wns/toast\r\n"
+            << "Content-Type: text/xml\r\n"
+            << "Host: " << host << "\r\n"
+            << "Content-Length: " << httpBody.str().size() << "\r\n\r\n";
+        
     } else if(mPushInfo.mType == "wp"){
         if(is_message){
             httpBody << "<?xml version=\"1.0\" encoding=\"utf-8\"?><wp:Notification "
