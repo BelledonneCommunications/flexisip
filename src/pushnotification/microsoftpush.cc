@@ -1,6 +1,7 @@
 
 #include "microsoftpush.hh"
 #include "log/logmanager.hh"
+#include "sofia-sip/base64.h"
 #include <string.h>
 #include <iostream>
 #include <vector>
@@ -18,9 +19,10 @@ WindowsPhonePushNotificationRequest::WindowsPhonePushNotificationRequest(const P
 void WindowsPhonePushNotificationRequest::createHTTPRequest(const std::string &access_token) {
     const string &host = mPushInfo.mAppId;
     
-    char unescapedUrl[512];
-    url_unescape(unescapedUrl, mPushInfo.mDeviceToken.c_str());// since the device token is an encoded URI, we must unescape it first
-    const string &query = std::string(unescapedUrl);
+    char token[512];
+    base64_d(token, sizeof(token), mPushInfo.mDeviceToken.c_str());
+    
+    string query(token);
     bool is_message = mPushInfo.mEvent == PushInfo::Message;
     const std::string &message = mPushInfo.mText;
     const std::string &sender_name = mPushInfo.mFromName;
