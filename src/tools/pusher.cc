@@ -121,10 +121,18 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 			pinfo.mAppId = args.appid;
 			pinfo.mApiKey = args.apikey;
 			result.push_back(make_shared<GooglePushNotificationRequest>(pinfo));
-		} else if (args.pntype == "wp" || args.pntype == "w10") {
+		} else if (args.pntype == "wp") {
 			pinfo.mAppId = args.appid;
 			pinfo.mDeviceToken = pntok;
 			pinfo.mEvent = PushInfo::Message;
+			pinfo.mText = "Hi here!";
+			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
+		} else if (args.pntype == "w10") {
+			char encodedToken[512];
+			base64_e(encodedToken, sizeof(encodedToken), (void *)pntok.c_str(), strlen(pntok.c_str()));
+			pinfo.mAppId = args.appid;
+			pinfo.mEvent = PushInfo::Message;
+			pinfo.mDeviceToken = encodedToken;
 			pinfo.mText = "Hi here!";
 			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
 		} else if (args.pntype == "apple") {

@@ -18,11 +18,8 @@ WindowsPhonePushNotificationRequest::WindowsPhonePushNotificationRequest(const P
 
 void WindowsPhonePushNotificationRequest::createHTTPRequest(const std::string &access_token) {
     const string &host = mPushInfo.mAppId;
-    
     char decodeUri[512] = {0};
-    base64_d(decodeUri, sizeof(decodeUri), mPushInfo.mDeviceToken.c_str());
 
-    string query(decodeUri);
     bool is_message = mPushInfo.mEvent == PushInfo::Message;
     const std::string &message = mPushInfo.mText;
     const std::string &sender_name = mPushInfo.mFromName;
@@ -30,8 +27,10 @@ void WindowsPhonePushNotificationRequest::createHTTPRequest(const std::string &a
     ostringstream httpBody;
     ostringstream httpHeader;
     
-    if(mPushInfo.mType == "w10") {
-   	  if (is_message) {
+    if(mPushInfo.mType == "w10") {  
+        base64_d(decodeUri, sizeof(decodeUri), mPushInfo.mDeviceToken.c_str());
+        string query(decodeUri);
+        if (is_message) {
             // We have to send the content of the message and the name of the sender.
             // We also need the sender address to be able to display the full chat view in case the receiver click the
             // toast.
@@ -75,7 +74,7 @@ void WindowsPhonePushNotificationRequest::createHTTPRequest(const std::string &a
             
             // Notification class 2 is the type for toast notifitcation.
             httpHeader
-                << "POST " << query << " HTTP/1.1\r\nHost:" << host
+                << "POST " << mPushInfo.mDeviceToken << " HTTP/1.1\r\nHost:" << host
                 << "\r\nX-WindowsPhone-Target:toast\r\nX-NotificationClass:2\r\nContent-Type:text/xml\r\nContent-Length:"
                 << httpBody.str().size() << "\r\n\r\n";
         } else {
@@ -83,7 +82,7 @@ void WindowsPhonePushNotificationRequest::createHTTPRequest(const std::string &a
                 << "<IncomingCall><Name></Name><Number></Number></IncomingCall>";
             
             // Notification class 4 is the type for VoIP incoming call.
-            httpHeader << "POST " << query << " HTTP/1.1\r\nHost:" << host
+            httpHeader << "POST " << mPushInfo.mDeviceToken << " HTTP/1.1\r\nHost:" << host
             	<< "\r\nX-NotificationClass:4\r\nContent-Type:text/xml\r\nContent-Length:" << httpBody.str().size()
             	<< "\r\n\r\n";
         }
