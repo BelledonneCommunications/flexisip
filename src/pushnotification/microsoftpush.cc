@@ -19,10 +19,10 @@ WindowsPhonePushNotificationRequest::WindowsPhonePushNotificationRequest(const P
 void WindowsPhonePushNotificationRequest::createHTTPRequest(const std::string &access_token) {
     const string &host = mPushInfo.mAppId;
     
-    char token[512];
-    base64_d(token, sizeof(token), mPushInfo.mDeviceToken.c_str());
-    
-    string query(token);
+    char decodeUri[512] = {0};
+    base64_d(decodeUri, sizeof(decodeUri), mPushInfo.mDeviceToken.c_str());
+
+    string query(decodeUri);
     bool is_message = mPushInfo.mEvent == PushInfo::Message;
     const std::string &message = mPushInfo.mText;
     const std::string &sender_name = mPushInfo.mFromName;
