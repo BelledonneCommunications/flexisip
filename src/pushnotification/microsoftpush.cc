@@ -27,8 +27,10 @@ void WindowsPhonePushNotificationRequest::createHTTPRequest(const std::string &a
     ostringstream httpBody;
     ostringstream httpHeader;
     
-    if(mPushInfo.mType == "w10") {  
-        base64_d(decodeUri, sizeof(decodeUri), mPushInfo.mDeviceToken.c_str());
+    if(mPushInfo.mType == "w10") {
+        char unescapedUrl[512];
+        url_unescape(unescapedUrl, mPushInfo.mDeviceToken.c_str());
+        base64_d(decodeUri, sizeof(decodeUri), unescapedUrl);
         string query(decodeUri);
         if (is_message) {
             // We have to send the content of the message and the name of the sender.
@@ -39,7 +41,7 @@ void WindowsPhonePushNotificationRequest::createHTTPRequest(const std::string &a
                 << "<toast launch=\"" << "chat?sip=" << sender_uri  << "\">"
                 << "<visual>"
                 << "<binding template =\"ToastGeneric\">"
-                << "<text>"	<< sender_name << "</text>"
+                << "<text>"	<< sender_uri << "</text>"
                 << "<text>" << message << "</text>"
                 << "</binding>"
                 <<  "</visual>"
@@ -49,7 +51,7 @@ void WindowsPhonePushNotificationRequest::createHTTPRequest(const std::string &a
             httpBody << "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
         		<< "<toast launch=\"" << sender_uri << "\" >"
                 << "<visual>"
-                << "<binding template=\"ToastGeneric\" scenario=\'incomingCall\'>"
+                << "<binding template=\"ToastGeneric\" >"
                 << "<text>Incoming Call</text>"
                 << "<text>" << sender_uri << "</text>"
                 << "</binding>"
