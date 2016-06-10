@@ -275,7 +275,8 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mPNS->setupiOSClient(certdir, "");
 	if (googleEnabled)
 		mPNS->setupAndroidClient(mGoogleKeys);
-	mPNS->setupWindowsPhoneClient(windowsPhonePackageSID, windowsPhoneApplicationSecret);
+	if(windowsPhoneEnabled) 
+		mPNS->setupWindowsPhoneClient(windowsPhonePackageSID, windowsPhoneApplicationSecret);
 }
 
 void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
@@ -369,7 +370,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				pinfo.mNoBadge = mNoBadgeiOS;
 				if (!mExternalPushUri)
 					pn = make_shared<ApplePushNotificationRequest>(pinfo);
-			} else if (strcmp(type, "wp") == 0) {
+			} else if (strcmp(type, "wp") == 0 || strcmp(type, "w10") == 0) {
 				if (!mExternalPushUri)
 					pn = make_shared<WindowsPhonePushNotificationRequest>(pinfo);
 			} else if (strcmp(type, "google") == 0) {
@@ -383,6 +384,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				} else {
 					SLOGD << "No Key matching appId " << appId;
 				}
+			} else {
+				SLOGD << "Push notification type not recognized [" << type << "]";
 			}
 			if (mExternalPushUri) {
 				/*extract the unique id if possible - it's hacky*/

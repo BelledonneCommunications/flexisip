@@ -27,6 +27,7 @@
 
 #include <ortp/ortp.h>
 #include <sofia-sip/url.h>
+#include <sofia-sip/base64.h>
 
 static const int MAX_QUEUE_SIZE = 3000;
 // static const int PRINT_STATS_TIMEOUT = 3000;	/* In milliseconds. */
@@ -41,7 +42,7 @@ struct PusherArgs {
 	string packageSID;
 	void usage(const char *app) {
 		cout << app
-			 << " --pntype google|wp|apple --appid id --key apikey --sid ms-app://value --prefix dir --debug --pntok id1 (id2 id3 ...)"
+			 << " --pntype google|wp|w10|apple --appid id --key apikey --sid ms-app://value --prefix dir --debug --pntok id1 (id2 id3 ...)"
 			 << endl;
 	}
 
@@ -127,6 +128,14 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 			pinfo.mEvent = PushInfo::Message;
 			pinfo.mText = "Hi here!";
 			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
+		} else if (args.pntype == "w10") {
+			char encodedToken[512];
+			base64_e(encodedToken, sizeof(encodedToken), (void *)pntok.c_str(), strlen(pntok.c_str()));
+			pinfo.mAppId = args.appid;
+			pinfo.mEvent = PushInfo::Message;
+			pinfo.mDeviceToken = encodedToken;
+			pinfo.mText = "Hi here!";
+			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
 		} else if (args.pntype == "apple") {
 			pinfo.mAlertMsgId = "IM_MSG";
 			pinfo.mAlertSound = "msg.caf";
@@ -159,7 +168,7 @@ int main(int argc, char *argv[]) {
 			map<string, string> googleKey;
 			googleKey.insert(make_pair(args.appid, args.apikey));
 			service.setupAndroidClient(googleKey);
-		} else if (args.pntype == "wp") {
+		} else if (args.pntype == "wp" || args.pntype == "w10") {
 			service.setupWindowsPhoneClient(args.packageSID, args.apikey);
 		}
 
