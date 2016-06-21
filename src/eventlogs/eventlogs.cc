@@ -163,24 +163,22 @@ AuthLog::AuthLog(const char *method, const sip_from_t *from, const sip_to_t *to,
 
 void AuthLog::setOrigin(const sip_via_t *via) {
 	const char *protocol = strchr(via->v_protocol, '/') + 1;
-	const char *scheme = "sip";
 	const char *port = via->v_rport ? via->v_rport : via->v_port;
 	const char *ip = via->v_received ? via->v_received : via->v_host;
 
 	protocol = strchr(protocol, '/') + 1;
 
-	if (strcasecmp(protocol, "UDP") == 0)
-		protocol = NULL;
-	else if (strcasecmp(protocol, "UDP") == 0) {
-		protocol = NULL;
-		scheme = "sips";
+	if (strchr(ip,':') != NULL){ //IPv6
+		mOrigin = url_format(&mHome, "sip:[%s]", ip);
+	}else{
+		mOrigin = url_format(&mHome, "sip:%s", ip);
 	}
-	if (port)
-		mOrigin = url_format(&mHome, "%s:%s:%s", scheme, ip, port);
-	else
-		mOrigin = url_format(&mHome, "%s:%s", scheme, ip);
-	if (protocol)
+	if (port){
+		mOrigin->url_port = su_strdup(&mHome, port);
+	}
+	if (protocol){
 		mOrigin->url_params = su_sprintf(&mHome, "transport=%s", protocol);
+	}
 }
 
 static bool createDirectoryIfNotExist(const char *path) {
