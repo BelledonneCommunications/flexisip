@@ -258,6 +258,8 @@ class GenericEntry {
 	virtual void doMibFragment(std::ostream &ostr, const std::string &def, const std::string &access,
 							   const std::string &syntax, const std::string &spacing) const;
 	GenericEntry(const std::string &name, GenericValueType type, const std::string &help, oid oid_index = 0);
+	static std::string escapeDoubleQuotes(const std::string &str);
+	
 	Oid *mOid;
 	const std::string mName;
 	bool mReadOnly;

@@ -153,7 +153,7 @@ void NotificationEntry::mibFragment(ostream &ost, string spacing) const {
 		<< spacing << "	OBJECTS	{	flNotifString	} " << endl
 		<< spacing << "	STATUS	current" << endl
 		<< spacing << "	DESCRIPTION" << endl
-		<< spacing << "	\"" << getHelp() << endl
+		<< spacing << "	\"" << escapeDoubleQuotes(getHelp()) << endl
 		<< spacing << "	"
 		<< " PN:" << getPrettyName() << "\"" << endl
 		<< spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
@@ -235,7 +235,7 @@ void GenericEntry::doMibFragment(ostream &ostr, const string &def, const string 
 		 << spacing << "	MAX-ACCESS	" << access << endl
 		 << spacing << "	STATUS	current" << endl
 		 << spacing << "	DESCRIPTION" << endl
-		 << spacing << "	\"" << getHelp() << endl
+		 << spacing << "	\"" << escapeDoubleQuotes(getHelp()) << endl
 		 << spacing << "	"
 		 << " Default:" << def << endl
 		 << spacing << "	"
@@ -340,6 +340,18 @@ GenericEntry::GenericEntry(const string &name, GenericValueType type, const stri
 	if (oid_index == 0) {
 		mOidLeaf = Oid::oidFromHashedString(name);
 	}
+}
+
+std::string GenericEntry::escapeDoubleQuotes(const std::string &str) {
+	string escapedStr = "";
+	for(auto it=str.cbegin(); it!=str.cend(); it++) {
+		if(*it == '"') {
+			escapedStr += "''";
+		} else {
+			escapedStr += *it;
+		}
+	}
+	return escapedStr;
 }
 
 void GenericEntry::setParent(GenericEntry *parent) {
