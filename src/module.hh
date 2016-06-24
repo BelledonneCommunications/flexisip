@@ -77,8 +77,8 @@ class ModuleInfoBase {
 	}
 
 	enum ModuleOid {
-		DoSProtection = 2,
 		SanityChecker = 3,
+		DoSProtection = 4,
 		GarbageIn = 5,
 		NatHelper = 30,
 		Authentication = 60,
