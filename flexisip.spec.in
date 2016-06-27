@@ -171,8 +171,8 @@ echo Fixing PKG_CONFIG_PATH to %{getenv:PKG_CONFIG_PATH}
     --enable-libodb=no \
     --enable-libodb-mysql=no \
 %endif
-%if !%{snmp}
-    --disable-snmp \
+%if %{snmp}
+    --enable-snmp \
 %endif
 %if %{soci}
 	--enable-soci \
