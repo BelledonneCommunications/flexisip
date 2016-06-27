@@ -168,10 +168,10 @@ void AuthLog::setOrigin(const sip_via_t *via) {
 
 	protocol = strchr(protocol, '/') + 1;
 
-	if (strchr(ip,':') != NULL){ //IPv6
-		mOrigin = url_format(&mHome, "sip:[%s]", ip);
-	}else{
-		mOrigin = url_format(&mHome, "sip:%s", ip);
+	mOrigin = url_format(&mHome, "sip:%s", ip);
+	if (!mOrigin){
+		LOGE("AuthLog: invalid via with host %s", ip);
+		mOrigin = url_format(&mHome, "sip:invalid.host");
 	}
 	if (port){
 		mOrigin->url_port = su_strdup(&mHome, port);
