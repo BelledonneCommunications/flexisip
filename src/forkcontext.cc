@@ -125,7 +125,7 @@ std::shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[])
 	if (urgentCodes) {
 		for (auto it = mBranches.begin(); it != mBranches.end(); ++it) {
 			int code = (*it)->getStatus();
-			if (isUrgent(code, urgentCodes)) {
+			if (code > 0  && isUrgent(code, urgentCodes)) {
 				best = (*it);
 				break;
 			}
