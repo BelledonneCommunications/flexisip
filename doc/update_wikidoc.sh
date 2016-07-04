@@ -1,9 +1,6 @@
 #!/bin/bash
 
-
-# this assumes that flexisip is compiled in the source directory using autotools.
-# Otherwise, change this for your own flexisip executable path
-FLEXISIP=../src/flexisip
+FLEXISIP=$(find $(dirname $0)/.. -path '*src/*' -name flexisip -type f)
 
 # you can give a message by passing it as the first argument (./update_wikidoc "my update message")
 if [ "$#" -ge 1 ]; then
