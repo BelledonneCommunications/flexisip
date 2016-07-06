@@ -35,6 +35,7 @@ include(CheckSymbolExists)
 include(CheckFunctionExists)
 include(FeatureSummary)
 include(CheckCXXSourceCompiles)
+include(GNUInstallDirs)
 
 option(ENABLE_DATEHANDLER "Build DateHandler module" NO)
 option(ENABLE_DOC "Build documentation" YES)
