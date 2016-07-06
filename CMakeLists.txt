@@ -84,6 +84,7 @@ else()
 	find_package(ORTP 0.21 REQUIRED)
 endif()
 
+find_package(BcToolbox 0.0.3 REQUIRED)
 
 find_program(XSDCXX_PROG NAMES "xsdcxx" "xsd"
 	HINTS ${XSDCXX_ROOT_PATH}/bin
