@@ -95,7 +95,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 * */
 	string putTuples(pidf::Presence::TupleSequence &tuples, pidf::Presence::AnySequence &extensions, int expires);
 
-	void setDefaultElement(void);
+	void setDefaultElement(const char* contact = NULL);
 
 	/*
 	 *

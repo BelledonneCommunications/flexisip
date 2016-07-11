@@ -581,8 +581,13 @@ AuthDbResult OdbcAuthDb::doRetrievePassword(ConnectionCtx &ctx, const string &id
 
 	timings.tGotResult = steady_clock::now();
 	foundPassword.assign((char *)password);
-	string key(createPasswordKey(id, domain, auth));
+	string key(createPasswordKey(id, auth));
 	cachePassword(key, domain, foundPassword, -1);
 	LOGD("Password found %s for %s", foundPassword.c_str(), id.c_str());
 	return PASSWORD_FOUND;
+}
+
+void OdbcAuthDb::getUserWithPhoneFromBackend(const char* phone, const char* domain, AuthDbListener *listener) {
+		LOGE("%s not supported with ODBC", __FUNCTION__);
+		if (listener) listener->onResult(AuthDbResult::PASSWORD_NOT_FOUND, "");
 }

@@ -178,8 +178,15 @@ string PresentityPresenceInformation::refreshTuplesForEtag(const string &eTag, i
 	return setOrUpdate(NULL, NULL, &eTag, expires);
 }
 
-void PresentityPresenceInformation::setDefaultElement(void) {
+void PresentityPresenceInformation::setDefaultElement(const char *contact) {
 	mDefaultInformationElement = make_shared<PresenceInformationElement>(getEntity());
+
+	if (contact) {
+		for (auto & tup : mDefaultInformationElement->getTuples()) {
+			tup->setContact(::pidf::Contact(contact));
+		}
+	}
+
 	notifyAll();
 }
 
@@ -191,7 +198,7 @@ void PresentityPresenceInformation::removeTuplesForEtag(const string &eTag) {
 		delete informationElement;
 		notifyAll(); // Removing an event state change global state, so it should be notified
 	} else
-		SLOGD << "No tulpes found for etag [" << eTag << "]";
+		SLOGD << "No tuples found for etag [" << eTag << "]";
 }
 
 FlexisipException &operator<<(FlexisipException &ex, const PresentityPresenceInformation &p) {

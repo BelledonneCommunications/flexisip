@@ -30,8 +30,21 @@ FileAuthDb::FileAuthDb() {
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 
+	mLastSync = 0;
 	mFileString = ma->get<ConfigString>("datasource")->read();
 	sync();
+}
+
+void FileAuthDb::getUserWithPhoneFromBackend(const char* phone, const char* domain, AuthDbListener *listener) {
+	AuthDbResult res = AuthDbResult::PASSWORD_NOT_FOUND;
+	if (mLastSync == 0) {
+		sync();
+	}
+	std::string user;
+	if (getCachedUserWithPhone(phone, domain, user) == VALID_PASS_FOUND) {
+		res = AuthDbResult::PASSWORD_FOUND;
+	}
+	if (listener) listener->onResult(res, user);
 }
 
 void FileAuthDb::getPasswordFromBackend(const std::string &id, const std::string &domain,
@@ -43,7 +56,7 @@ void FileAuthDb::getPasswordFromBackend(const std::string &id, const std::string
 		sync();
 	}
 
-	string key(createPasswordKey(id, domain, authid));
+	string key(createPasswordKey(id, authid));
 
 	std::string passwd;
 	if (getCachedPassword(key, domain, passwd) == VALID_PASS_FOUND) {
@@ -70,6 +83,7 @@ void FileAuthDb::sync() {
 	string domain;
 	string password;
 	string userid;
+	string phone;
 
 	LOGD("Opening file %s", mFileString.c_str());
 	file.open(mFileString);
@@ -81,21 +95,29 @@ void FileAuthDb::sync() {
 			domain.clear();
 			password.clear();
 			userid.clear();
+			phone.clear();
 			try {
 				getline(ss, user, '@');
 				getline(ss, domain, ' ');
 				getline(ss, password, ' ');
 				if (!ss.eof()) {
-					getline(ss, userid);
+					getline(ss, userid, ' ');
+					if (!ss.eof()) {
+						getline(ss, phone);
+					} else {
+						phone = user;
+					}
 				} else {
-					userid = user;
+					userid = phone = user;
 				}
 
+				cacheUserWithPhone(phone, domain, user);
+
 				if (find(domains.begin(), domains.end(), domain) != domains.end()) {
-					string key(createPasswordKey(user, domain, userid));
+					string key(createPasswordKey(user, userid));
 					cachePassword(key, domain, password, mCacheExpire);
 				} else if (find(domains.begin(), domains.end(), "*") != domains.end()) {
-					string key(createPasswordKey(user, domain, userid));
+					string key(createPasswordKey(user, userid));
 					cachePassword(key, domain, password, mCacheExpire);
 				} else {
 					LOGW("Not handled domain: %s", domain.c_str());

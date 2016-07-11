@@ -84,6 +84,7 @@ SociAuthDB::SociAuthDB() : conn_pool(NULL) {
 	connection_string = ma->get<ConfigString>("soci-connection-string")->read();
 	backend = ma->get<ConfigString>("soci-backend")->read();
 	get_password_request = ma->get<ConfigString>("soci-password-request")->read();
+	get_user_with_phone_request = ma->get<ConfigString>("soci-user-with-phone-request")->read();
 	unsigned int max_queue_size = (unsigned int)ma->get<ConfigInt>("soci-max-queue-size")->read();
 
 	conn_pool = new connection_pool(poolSize);
@@ -118,7 +119,7 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 	steady_clock::time_point stop;
 	std::string pass;
 	session *sql = NULL;
-	
+
 	try {
 		start = steady_clock::now();
 		// will grab a connection from the pool. This is thread safe
@@ -132,7 +133,7 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 		*sql << get_password_request, into(pass), use(id, "id"), use(domain, "domain"), use(authid, "authid");
 		stop = steady_clock::now();
 		SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
-		cachePassword(createPasswordKey(id, domain, authid), domain, pass, mCacheExpire);
+		cachePassword(createPasswordKey(id, authid), domain, pass, mCacheExpire);
 		if (listener){
 			listener->onResult(pass.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, pass);
 		}
@@ -155,6 +156,50 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 	if (sql) delete sql;
 }
 
+void SociAuthDB::getUserWithPhoneWithPool(const std::string &phone, const std::string &domain, AuthDbListener *listener) {
+	steady_clock::time_point start;
+	steady_clock::time_point stop;
+	std::string user;
+	session *sql = NULL;
+
+	try {
+		start = steady_clock::now();
+		// will grab a connection from the pool. This is thread safe
+		sql = new session(*conn_pool); //this may raise a soci_error exception, so keep it in the try block.
+
+		stop = steady_clock::now();
+
+		SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
+		start = stop;
+
+		*sql << get_user_with_phone_request, into(user), use(phone, "phone");
+		stop = steady_clock::now();
+		if (!user.empty())  {
+			SLOGD << "[SOCI] Got user for " << phone << " in " << DURATION_MS(start, stop) << "ms";
+			cacheUserWithPhone(phone, domain, user);
+		}
+		if (listener){
+			listener->onResult(user.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, user);
+		}
+	} catch (mysql_soci_error const &e) {
+
+		stop = steady_clock::now();
+		SLOGE << "[SOCI] MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
+		if (listener) listener->onResult(PASSWORD_NOT_FOUND, user);
+
+		if (sql) reconnectSession(*sql);
+
+	} catch (exception const &e) {
+
+		stop = steady_clock::now();
+		SLOGE << "[SOCI] Some other error after " << DURATION_MS(start, stop) << "ms : " << e.what();
+		if (listener) listener->onResult(PASSWORD_NOT_FOUND, user);
+
+		if (sql) reconnectSession(*sql);
+	}
+	if (sql) delete sql;
+}
+
 #pragma mark - Inherited virtuals
 
 void SociAuthDB::getPasswordFromBackend(const std::string &id, const std::string &domain,
@@ -170,6 +215,17 @@ void SociAuthDB::getPasswordFromBackend(const std::string &id, const std::string
 			  << authid;
 		if (listener) listener->onResult(AUTH_ERROR, "");
 	}
+}
 
-	return;
+void SociAuthDB::getUserWithPhoneFromBackend(const char *phone, const char* domain, AuthDbListener *listener) {
+
+	// create a thread to grab a pool connection and use it to retrieve the auth information
+	auto func = bind(&SociAuthDB::getUserWithPhoneWithPool, this, std::string(phone), std::string(domain), listener);
+
+	bool success = thread_pool->Enqueue(func);
+	if (success == FALSE) {
+		// Enqueue() can fail when the queue is full, so we have to act on that
+		SLOGE << "[SOCI] Auth queue is full, cannot fullfil user request for " << phone;
+		if (listener) listener->onResult(AUTH_ERROR, "");
+	}
 }

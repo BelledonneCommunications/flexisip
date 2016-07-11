@@ -21,12 +21,25 @@ public:
 			, "OnAuthListener to mainthread");
 	}
 
-	virtual void processResponse(AuthDbResult result, std::string passwd) {
+	virtual void processResponse(AuthDbResult result, std::string user) {
 		if (result == AuthDbResult::PASSWORD_FOUND) {
-			SLOGD << "Found user " << belle_sip_uri_get_user(mInfo->getEntity()) << ", adding presence information";
-			mInfo->setDefaultElement();
-		} else {
-			SLOGD << "Could not found user " << belle_sip_uri_get_user(mInfo->getEntity()) << ", ignoring";
+			// result is a phone alias if (and only if) user is not the same as the entity user
+			bool isPhone = (strcmp(user.c_str(), belle_sip_uri_get_user(mInfo->getEntity())) != 0);
+			if (isPhone) {
+				SLOGD << "Found user " << user << " for phone " << belle_sip_uri_get_user(mInfo->getEntity()) << ", adding presence information";
+				// change contact accordingly
+				char *contact_as_string = belle_sip_uri_to_string(mInfo->getEntity());
+				belle_sip_uri_t *uri = belle_sip_uri_parse(contact_as_string);
+				belle_sip_uri_set_user(uri, user.c_str());
+				belle_sip_free(contact_as_string);
+				contact_as_string = belle_sip_uri_to_string(uri);
+				belle_sip_object_unref(uri);
+				mInfo->setDefaultElement(contact_as_string);
+				belle_sip_free(contact_as_string);
+			} else {
+				SLOGD << "Found user " << user << ", adding presence information";
+				mInfo->setDefaultElement();
+			}
 		}
 		delete this;
 	}
@@ -38,6 +51,5 @@ private:
 void PresenceLongterm::onNewPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& info) const {
 	const belle_sip_uri_t* uri = info->getEntity();
 	SLOGD << "New presence info for " << belle_sip_uri_get_user(uri) << ", checking if this user is already registered";
-	AuthDbBackend::get()->getPassword(belle_sip_uri_get_user(uri), belle_sip_uri_get_host(uri), belle_sip_uri_get_user(uri), new OnAuthListener(mMainLoop, info));
+	AuthDbBackend::get()->getUserWithPhone(belle_sip_uri_get_user(info->getEntity()), belle_sip_uri_get_host(info->getEntity()), new OnAuthListener(mMainLoop, info));
 }
-
