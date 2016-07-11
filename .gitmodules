@@ -25,6 +25,6 @@
 [submodule "submodules/bctoolbox"]
 	path = submodules/bctoolbox
 	url = git://git.linphone.org/bctoolbox.git
-[submodule "submodules/externals/cunit"]
-	path = submodules/externals/cunit
-	url = git://git.linphone.org/cunit.git
+[submodule "submodules/bcunit"]
+	path = submodules/bcunit
+	url = git://git.linphone.org/bcunit.git
