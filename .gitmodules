@@ -28,3 +28,6 @@
 [submodule "submodules/bcunit"]
 	path = submodules/bcunit
 	url = git://git.linphone.org/bcunit.git
+[submodule "submodules/externals/soci"]
+	path = submodules/externals/soci
+	url = https://github.com/SOCI/soci.git
