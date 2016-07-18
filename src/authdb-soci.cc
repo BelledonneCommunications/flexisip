@@ -42,6 +42,11 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 		 "and\n -':authid' : the authorization username.\n"
 		 "The use of the :id parameter is mandatory.",
 		 "select password from accounts where id = :id and domain = :domain and authid=:authid"},
+		{String, "soci-user-with-phone-request",
+		 "Soci SQL request to execute to obtain the username associated with a phone alias.\n"
+		 "Named parameters are:\n -':phone' : the phone number to search for.\n"
+		 "The use of the :phone parameter is mandatory.",
+		 "select login from accounts where phone = :phone"},
 
 		{Integer, "soci-poolsize",
 		 "Size of the pool of connections that Soci will use. We open a thread for each DB query, and this pool will "
