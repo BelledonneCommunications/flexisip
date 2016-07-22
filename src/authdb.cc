@@ -161,16 +161,17 @@ void AuthDbBackend::getPassword(const char* user, const char* host, const char *
 }
 
 void AuthDbBackend::createCachedAccount(const char* user, const char* host, const char *auth_username, const char *password,
-										int expires) {
+										int expires, const char* phone_alias) {
 	if (user && host) {
 		string key = createPasswordKey(user, auth_username ? auth_username : "");
 		cachePassword(key, host, password, expires);
-		cacheUserWithPhone(user, host, user);
+		cacheUserWithPhone(phone_alias ? phone_alias : user, host, user);
 	}
 }
 
-void AuthDbBackend::createAccount(const char* user, const char* host, const char *auth_username, const char *password, int expires) {
-	createCachedAccount(user, host, auth_username, password, expires);
+void AuthDbBackend::createAccount(const char* user, const char* host, const char *auth_username, const char *password,
+										int expires, const char* phone_alias) {
+	createCachedAccount(user, host, auth_username, password, expires, phone_alias);
 }
 
 AuthDbBackend::CacheResult AuthDbBackend::getCachedUserWithPhone(const string &phone, const string &domain, string &user) {

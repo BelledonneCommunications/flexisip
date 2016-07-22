@@ -75,7 +75,7 @@ class AuthDbBackend {
 	bool cacheUserWithPhone(const std::string &phone, const std::string &domain, const std::string &user);
 	CacheResult getCachedPassword(const std::string &key, const std::string &domain, std::string &pass);
 	CacheResult getCachedUserWithPhone(const string &phone, const string &domain, string &user);
-	void createCachedAccount(const char* user, const char* domain, const char *auth_username, const char *password, int expires);
+	void createCachedAccount(const char* user, const char* domain, const char *auth_username, const char *password, int expires, const char* phone_alias = NULL);
 	void clearCache();
 	int mCacheExpire;
   public:
@@ -85,7 +85,7 @@ class AuthDbBackend {
 	void getUserWithPhone(const char* phone, const char* domain, AuthDbListener *listener);
 	virtual void getUserWithPhoneFromBackend(const char* phone, const char* domain, AuthDbListener *listener) = 0;
 
-	virtual void createAccount(const char* user, const char* domain, const char *auth_username, const char *password, int expires);
+	virtual void createAccount(const char* user, const char* domain, const char *auth_username, const char *password, int expires, const char* phone_alias = NULL);
 
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener) = 0;
