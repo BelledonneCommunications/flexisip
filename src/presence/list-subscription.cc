@@ -23,6 +23,7 @@
 #include <chrono>
 #include "rlmi+xml.hxx"
 #include "belle-sip/bodyhandler.h"
+#include <algorithm>
 
 using namespace std;
 
@@ -64,13 +65,17 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 			//belle_sip_uri_t *uri = belle_sip_uri_parse(entryIt->getUri().c_str());
 			int username_begin = entryIt->getUri().find(':')+1;
 			int username_end = entryIt->getUri().find('@');
+			int domain_end = entryIt->getUri().find(';');
 			string username = entryIt->getUri().substr(username_begin,username_end-username_begin);
-			string domain = entryIt->getUri().substr(username_end+1);
+			string domain = entryIt->getUri().substr(username_end+1,domain_end - (username_end+1));
 			belle_sip_uri_t *uri = belle_sip_uri_create(username.c_str(), domain.c_str());
 			if (!uri || !belle_sip_uri_get_host(uri) || !belle_sip_uri_get_user(uri)) {
 				ostringstream os;
 				os << "Cannot parse list entry [" << entryIt->getUri() << "]";
 				throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
+			}
+			if (entryIt->getUri().find(";user=phone") != string::npos) {
+				belle_sip_uri_set_user_param(uri,"phone");
 			}
 			mListeners.push_back(make_shared<PresentityResourceListener>(*this, uri));
 			belle_sip_object_unref(uri);
