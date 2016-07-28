@@ -670,6 +670,8 @@ scripts/Makefile
 scripts/debian/Makefile
 scripts/redhat/Makefile
 scripts/yocto/Makefile
+scripts/flexisip.service
+scripts/flexisip@.service
 src/Makefile
 src/presence/Makefile
 src/xml/Makefile

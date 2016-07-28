@@ -206,6 +206,8 @@ install -p -m 0744 scripts/debian/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/
 %else
 install -p -m 0744 scripts/redhat/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
 %endif
+install -p -m 0644 scripts/flexisip.service ${RPM_BUILD_ROOT}lib/systemd/system
+install -p -m 0644 scripts/flexisip@.service ${RPM_BUILD_ROOT}lib/systemd/system
 
 %if %{bcpkg}
 export QA_RPATHS=0x0003
@@ -244,8 +246,12 @@ fi
 
 %{_sysconfdir}/init.d/flexisip
 %{_sysconfdir}/flexisip
+/lib/systemd/system/flexisip.service
+/lib/systemd/system/flexisip@.service
 
 %changelog
+* Thu Jul 28 2016 François Grisez <francois.grisez@belledonne-communications.com>
+	- Add systemd unit files
 * Mon Feb 08 2016 Guillaume Bienkowski <gbi@linphone.org>
 	- Add soci option
 * Wed Nov 04 2015 Sylvain Berfini <sylvain.berfini@linphone.org>

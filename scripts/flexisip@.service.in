@@ -1,0 +1,13 @@
+[Unit]
+Description=Flexisip SIP server - %i instance
+Documentation=http://www.linphone.org/technical-corner/flexisip/overview
+After=syslog.target network.target redis.service mysqld.service
+
+[Service]
+Type=forking
+PIDFile=/var/run/flexisip/%i.pid
+ExecStart=/opt/belledonne-communications/bin/flexisip --daemon --syslog --pidfile /var/run/flexisip/%i.pid -c /etc/flexisip/%i.conf
+
+[Install]
+WantedBy=multi-user.target
+
