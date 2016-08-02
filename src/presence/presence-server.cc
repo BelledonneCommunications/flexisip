@@ -130,9 +130,9 @@ PresenceServer::~PresenceServer() {
 	belle_sip_object_unref(mStack);
 	belle_sip_object_unref(mListener);
 	// must be done before cleaning xerces
-	SLOGD << "Still ["<<mPresenceInformations.size()<<"] PresenceInformations referenced, clearing";
+	if (mPresenceInformations.size()) SLOGD << "Still ["<<mPresenceInformations.size()<<"] PresenceInformations referenced, clearing";
 	mPresenceInformations.clear();
-	SLOGD << "Still ["<<mPresenceInformationsByEtag.size()<<"] PresenceInformationsByEtag referenced, clearing";
+	if (mPresenceInformationsByEtag.size()) SLOGD << "Still ["<<mPresenceInformationsByEtag.size()<<"] PresenceInformationsByEtag referenced, clearing";
 	mPresenceInformationsByEtag.clear();
 	xercesc::XMLPlatformUtils::Terminate();
 	belle_sip_object_dump_active_objects();

@@ -26,10 +26,11 @@ public:
 			// result is a phone alias if (and only if) user is not the same as the entity user
 			bool isPhone = (strcmp(user.c_str(), belle_sip_uri_get_user(mInfo->getEntity())) != 0);
 			if (isPhone) {
-				SLOGD << "Found user " << user << " for phone " << belle_sip_uri_get_user(mInfo->getEntity()) << ", adding presence information";
+				SLOGD << __FILE__ << ": " << "Found user " << user << " for phone " << belle_sip_uri_get_user(mInfo->getEntity()) << ", adding presence information";
 				// change contact accordingly
 				char *contact_as_string = belle_sip_uri_to_string(mInfo->getEntity());
 				belle_sip_uri_t *uri = belle_sip_uri_parse(contact_as_string);
+				belle_sip_uri_set_user_param(uri, NULL);
 				belle_sip_uri_set_user(uri, user.c_str());
 				belle_sip_free(contact_as_string);
 				contact_as_string = belle_sip_uri_to_string(uri);
@@ -37,7 +38,7 @@ public:
 				mInfo->setDefaultElement(contact_as_string);
 				belle_sip_free(contact_as_string);
 			} else {
-				SLOGD << "Found user " << user << ", adding presence information";
+				SLOGD << __FILE__ << ": " << "Found user " << user << ", adding presence information";
 				mInfo->setDefaultElement();
 			}
 		}
@@ -50,6 +51,6 @@ private:
 
 void PresenceLongterm::onNewPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& info) const {
 	const belle_sip_uri_t* uri = info->getEntity();
-	SLOGD << "New presence info for " << belle_sip_uri_get_user(uri) << ", checking if this user is already registered";
+	SLOGD << __FILE__ << ": " << "New presence info for " << belle_sip_uri_get_user(uri) << ", checking if this user is already registered";
 	AuthDbBackend::get()->getUserWithPhone(belle_sip_uri_get_user(info->getEntity()), belle_sip_uri_get_host(info->getEntity()), new OnAuthListener(mMainLoop, info));
 }

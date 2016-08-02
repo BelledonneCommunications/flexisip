@@ -105,10 +105,11 @@ void FileAuthDb::sync() {
 					if (!ss.eof()) {
 						getline(ss, phone);
 					} else {
-						phone = user;
+						phone = "";
 					}
 				} else {
-					userid = phone = user;
+					userid = user;
+					phone = "";
 				}
 
 				cacheUserWithPhone(phone, domain, user);

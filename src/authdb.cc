@@ -130,7 +130,10 @@ bool AuthDbBackend::cachePassword(const string &key, const string &domain, const
 
 bool AuthDbBackend::cacheUserWithPhone(const std::string &phone, const std::string &domain, const std::string &user) {
 	unique_lock<mutex> lck(mCachedUserWithPhoneMutex);
-	mPhone2User[phone + "@" + domain] = user;
+
+	if (phone != "") {
+		mPhone2User[phone + "@" + domain + ";user=phone"] = user;
+	}
 	mPhone2User[user + "@" + domain] = user;
 	return true;
 }
@@ -165,7 +168,7 @@ void AuthDbBackend::createCachedAccount(const char* user, const char* host, cons
 	if (user && host) {
 		string key = createPasswordKey(user, auth_username ? auth_username : "");
 		cachePassword(key, host, password, expires);
-		cacheUserWithPhone(phone_alias ? phone_alias : user, host, user);
+		cacheUserWithPhone(phone_alias ? phone_alias : "", host, user);
 	}
 }
 
@@ -178,6 +181,9 @@ AuthDbBackend::CacheResult AuthDbBackend::getCachedUserWithPhone(const string &p
 	time_t now = getCurrentTime();
 	unique_lock<mutex> lck(mCachedUserWithPhoneMutex);
 	auto it = mPhone2User.find(phone + "@" + domain);
+	if (it == mPhone2User.end()) {
+		it = mPhone2User.find(phone + "@" + domain + ";user=phone");
+	}
 	if (it != mPhone2User.end()) {
 		user.assign(it->second);
 		return VALID_PASS_FOUND;
