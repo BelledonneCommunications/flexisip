@@ -218,18 +218,22 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "sending of the push notification"
 		 " is delegated. The following arguments can be substitued in the http request uri, with the following "
 		 "values:\n"
-		 " - $type : apple, google, wp\n"
-		 " - $event : call, message\n"
+		 " - $type      : apple, google, wp\n"
+		 " - $token     : device token\n"
+		 " - $api-key   : the api key to use (google only)\n"
+		 " - $app-id    : application ID\n"
 		 " - $from-name : the display name in the from header\n"
-		 " - $from-uri : the sip uri of the from header\n"
-		 " - $from-tag : the tag of the from header \n"
-		 " - $call-id : the call-id of the INVITE or MESSAGE request\n"
-		 " - $to-uri : the sip uri of the to header\n"
-		 " - $api-key : the api key to use (google only)\n"
-		 " - $msgid : the message id to put in the notification\n"
-		 " - $sound : the sound file to play with the notification\n\n"
-		 " The content of the text message is put in the body of the http request as text/plain, if any.\n"
-		 " Example: http://292.168.0.2/$type/$event?from-uri=$from-uri&tag=$from-tag&callid=$callid&to=$to-uri",
+		 " - $from-uri  : the sip uri of the from header\n"
+		 " - $from-tag  : the tag of the from header \n"
+		 " - $to-uri    : the sip uri of the to header\n"
+		 " - $call-id   : the call-id of the INVITE or MESSAGE request\n"
+		 " - $event     : call, message\n"
+		 " - $sound     : the sound file to play with the notification\n"
+		 " - $msgid     : the message id to put in the notification\n"
+		 " - $uid       : \n"
+		 " \n"
+		 "The content of the text message is put in the body of the http request as text/plain, if any.\n"
+		 "Example: http://292.168.0.2/$type/$event?from-uri=$from-uri&tag=$from-tag&callid=$callid&to=$to-uri",
 		 ""},
 		{String, "external-push-method", "Method for reaching external-push-uri, typically GET or POST", "GET"},
 		config_item_end};
