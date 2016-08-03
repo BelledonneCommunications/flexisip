@@ -110,6 +110,10 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 
 			{Integer, "max-expires", "Maximum expire time for a REGISTER, in seconds.", "86400"},
 			{Integer, "min-expires", "Minimum expire time for a REGISTER, in seconds.", "60"},
+			{Integer, "force-expires", "Set a value that will override expire times given by "
+										"REGISTER requests. A null or negative value disables"
+										"that feature. If it is enabled, max-expires and min-expires "
+										"will not have any effect.", "-1"},
 
 			{String, "static-records-file", "File containing the static records to add to database at startup. "
 											"Format: one 'sip_uri contact_header' by line. Example:\n"
@@ -156,8 +160,15 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 		// replace space-separated to comma-separated since sofia-sip is expecting this way
 		std::replace(mServiceRoute.begin(), mServiceRoute.end(), ' ', ',');
 
-		mMaxExpires = mc->get<ConfigInt>("max-expires")->read();
-		mMinExpires = mc->get<ConfigInt>("min-expires")->read();
+		int forcedExpires = mc->get<ConfigInt>("force-expires")->read();
+		if(forcedExpires <= 0) {
+			mMaxExpires = mc->get<ConfigInt>("max-expires")->read();
+			mMinExpires = mc->get<ConfigInt>("min-expires")->read();
+		} else {
+			mMaxExpires = forcedExpires;
+			mMinExpires = forcedExpires;
+		}
+		
 		mStaticRecordsFile = mc->get<ConfigString>("static-records-file")->read();
 		mStaticRecordsTimeout = mc->get<ConfigInt>("static-records-timeout")->read();
 
