@@ -111,7 +111,7 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 			{Integer, "max-expires", "Maximum expire time for a REGISTER, in seconds.", "86400"},
 			{Integer, "min-expires", "Minimum expire time for a REGISTER, in seconds.", "60"},
 			{Integer, "force-expires", "Set a value that will override expire times given by "
-										"REGISTER requests. A null or negative value disables"
+										"REGISTER requests. A null or negative value disables "
 										"that feature. If it is enabled, max-expires and min-expires "
 										"will not have any effect.", "-1"},
 
