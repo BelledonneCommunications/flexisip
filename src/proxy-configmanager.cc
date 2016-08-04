@@ -60,7 +60,6 @@ ProxyConfigManager::ProxyConfigManager()
 		{String, "event-logs-dir", "Directory where event logs are written.", "/var/log/flexisip"},
 		{Integer, "transaction-timeout", "SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.",
 		 "32000"},
-		{Boolean, "enable-snmp", "Enable SNMP.", "true"},
 		config_item_end};
 
 	GenericStruct *global = new GenericStruct("global", "Some global settings of the flexisip proxy.", 2);

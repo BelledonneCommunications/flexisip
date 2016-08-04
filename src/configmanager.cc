@@ -781,6 +781,7 @@ GenericManager::GenericManager()
 		 "details. If sending large packets over UDP is not a problem, then set a big value such as 65535. "
 		 "Unlike the recommandation of the RFC, the default value of UDP MTU is 1460 in Flexisip (instead of 1300).",
 		 "1460"},
+		{Boolean, "enable-snmp", "Enable SNMP.", "true"},
 		config_item_end};
 
 	static ConfigItemDescriptor cluster_conf[] = {
