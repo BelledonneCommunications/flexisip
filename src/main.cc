@@ -767,7 +767,10 @@ int main(int argc, char *argv[]) {
 	a->start(transportsArg.getValue());
 	setOpenSSLThreadSafe();
 #ifdef ENABLE_SNMP
-	SnmpAgent lAgent(*a, *cfg, oset);
+	bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();
+	if (snmpEnabled) {
+		SnmpAgent lAgent(*a, *cfg, oset);
+	}
 #endif
 
 	ortp_init();

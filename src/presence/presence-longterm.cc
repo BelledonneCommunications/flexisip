@@ -41,6 +41,8 @@ public:
 				SLOGD << __FILE__ << ": " << "Found user " << user << ", adding presence information";
 				mInfo->setDefaultElement();
 			}
+		} else {
+			SLOGD << __FILE__ << ": " << "Could not find user " << user << ".";
 		}
 		delete this;
 	}

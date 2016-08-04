@@ -54,12 +54,13 @@ ProxyConfigManager::ProxyConfigManager()
 		 "/etc/flexisip/tls"},
 		{Integer, "idle-timeout", "Time interval in seconds after which inactive connections are closed.", "3600"},
 		{Boolean, "require-peer-certificate", "Require client certificate from peer.", "false"},
-		{Boolean, "enable-event-logs", "Enable event logs. Event logs contain per domain and user information about "
-									   "processed registrations, calls and messages.",
-		 "false"},
+		// {Boolean, "enable-event-logs", "Enable event logs. Event logs contain per domain and user information about "
+		// 							   "processed registrations, calls and messages.",
+		//  "false"},
 		{String, "event-logs-dir", "Directory where event logs are written.", "/var/log/flexisip"},
 		{Integer, "transaction-timeout", "SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.",
 		 "32000"},
+		{Boolean, "enable-snmp", "Enable SNMP.", "true"},
 		config_item_end};
 
 	GenericStruct *global = new GenericStruct("global", "Some global settings of the flexisip proxy.", 2);
