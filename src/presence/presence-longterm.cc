@@ -26,15 +26,15 @@ public:
 			// result is a phone alias if (and only if) user is not the same as the entity user
 			bool isPhone = (strcmp(user.c_str(), belle_sip_uri_get_user(mInfo->getEntity())) != 0);
 			if (isPhone) {
-				SLOGD << __FILE__ << ": " << "Found user " << user << " for phone " << belle_sip_uri_get_user(mInfo->getEntity()) << ", adding presence information";
 				// change contact accordingly
-				char *contact_as_string = belle_sip_uri_to_string(mInfo->getEntity());
-				belle_sip_uri_t *uri = belle_sip_uri_parse(contact_as_string);
-				belle_sip_uri_set_user_param(uri, NULL);
+				belle_sip_uri_t *uri = BELLE_SIP_URI(belle_sip_object_clone(BELLE_SIP_OBJECT(mInfo->getEntity())));
+				belle_sip_parameters_t* params=BELLE_SIP_PARAMETERS(uri);
+				belle_sip_parameters_remove_parameter(params, "user");
 				belle_sip_uri_set_user(uri, user.c_str());
-				belle_sip_free(contact_as_string);
-				contact_as_string = belle_sip_uri_to_string(uri);
+				char *contact_as_string = belle_sip_uri_to_string(uri);
 				belle_sip_object_unref(uri);
+				SLOGD << __FILE__ << ": " << "Found user " << user << " for phone "
+					<< belle_sip_uri_get_user(mInfo->getEntity()) << ", adding contact " << contact_as_string << " presence information";
 				mInfo->setDefaultElement(contact_as_string);
 				belle_sip_free(contact_as_string);
 			} else {
