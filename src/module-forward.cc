@@ -67,7 +67,8 @@ ForwardModule::~ForwardModule() {
 
 void ForwardModule::onDeclare(GenericStruct *module_config) {
 	ConfigItemDescriptor items[] = {
-        {String, "route", "A sip uri where to send all requests", ""},
+        {String, "route", "A sip uri representing a default where to send all requests not already resolved. "
+		"This is the typical way to setup a Flexisip proxy server acting as a front-end for backend SIP server.", ""},
 		{Boolean, "add-path", "Add a path header of this proxy", "true"},
 		{Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to above route", "false"},
 		config_item_end};

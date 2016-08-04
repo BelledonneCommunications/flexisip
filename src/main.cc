@@ -244,11 +244,15 @@ static void detach() {
 	close(fd);
 }
 
-static void makePidFile(const char *pidfile) {
-	if (pidfile) {
-		FILE *f = fopen(pidfile, "w");
-		fprintf(f, "%i", getpid());
-		fclose(f);
+static void makePidFile(const string &pidfile) {
+	if (!pidfile.empty()) {
+		FILE *f = fopen(pidfile.c_str(), "w");
+		if (f){
+			fprintf(f, "%i", getpid());
+			fclose(f);
+		}else{
+			LOGE("Could not write pid file [%s]", pidfile.c_str());
+		}
 	}
 }
 
@@ -260,7 +264,7 @@ static void set_process_name(const char *process_name) {
 #endif
 }
 
-static void forkAndDetach(const char *pidfile, bool auto_respawn, bool startMonitor) {
+static void forkAndDetach(const string &pidfile, bool auto_respawn, bool startMonitor) {
 	int pipe_launcher_wdog[2];
 	int err = pipe(pipe_launcher_wdog);
 	bool launcherExited = false;
@@ -752,11 +756,10 @@ int main(int argc, char *argv[]) {
 		/*now that we have successfully loaded the config, there is nothing that can prevent us to start (normally).
 		So we can detach.*/
 		bool autoRespawn = cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read();
-		forkAndDetach(pidFile.getValue().c_str(), autoRespawn, monitorEnabled);
+		forkAndDetach(pidFile.getValue(), autoRespawn, monitorEnabled);
 	} else if (pidFile.getValue().length() != 0) {
 		// not daemon but we want a pidfile anyway
-		LOGN("Pidfile is %s", pidFile.getValue().c_str())
-		makePidFile(pidFile.getValue().c_str());
+		makePidFile(pidFile.getValue());
 	}
 
 	LOGN("Starting flexisip version %s (git %s)", VERSION, FLEXISIP_GIT_VERSION);
