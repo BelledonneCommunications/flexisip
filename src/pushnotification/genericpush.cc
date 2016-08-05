@@ -31,8 +31,8 @@ GenericPushNotificationRequest::GenericPushNotificationRequest(const PushInfo &p
 															   const string &method)
 	: PushNotificationRequest("generic", "generic") {
 	ostringstream httpMessage;
-	string path(url->url_path);
-	string headers(url->url_headers);
+	string path(url->url_path ? url->url_path : "");
+	string headers(url->url_headers ? url->url_headers : "");
 
 	substituteArgs(path, pinfo);
 	substituteArgs(headers, pinfo);
@@ -56,7 +56,7 @@ GenericPushNotificationRequest::GenericPushNotificationRequest(const PushInfo &p
 		httpMessage << "\r\n";
 	}
 	mHttpMessage = httpMessage.str();
-	SLOGD << "GenericPushNotificationRequest" << this << " http message is" << mHttpMessage;
+	SLOGD << "GenericPushNotificationRequest" << this << " http message is " << mHttpMessage;
 }
 
 void GenericPushNotificationRequest::createPushNotification() {
