@@ -22,9 +22,10 @@ public:
 	}
 
 	virtual void processResponse(AuthDbResult result, std::string user) {
+		const char* cuser = belle_sip_uri_get_user(mInfo->getEntity());
 		if (result == AuthDbResult::PASSWORD_FOUND) {
 			// result is a phone alias if (and only if) user is not the same as the entity user
-			bool isPhone = (strcmp(user.c_str(), belle_sip_uri_get_user(mInfo->getEntity())) != 0);
+			bool isPhone = (strcmp(user.c_str(), cuser) != 0);
 			if (isPhone) {
 				// change contact accordingly
 				belle_sip_uri_t *uri = BELLE_SIP_URI(belle_sip_object_clone(BELLE_SIP_OBJECT(mInfo->getEntity())));
@@ -42,7 +43,7 @@ public:
 				mInfo->setDefaultElement();
 			}
 		} else {
-			SLOGD << __FILE__ << ": " << "Could not find user " << user << ".";
+			SLOGD << __FILE__ << ": " << "Could not find user " << cuser << ".";
 		}
 		delete this;
 	}
