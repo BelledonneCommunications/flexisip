@@ -461,11 +461,16 @@ void Agent::loadConfig(GenericManager *cm) {
 std::string Agent::computeResolvedPublicIp(const std::string &host) const {
 	int err;
 	struct addrinfo hints;
-	string dest = (host[0] == '[') ? host.substr(1, host.size() - 2) : host;
+	string dest;
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
-
 	struct addrinfo *result;
+
+	dest.clear();
+	if (host.empty())
+		return dest;
+	dest = (host[0] == '[') ? host.substr(1, host.size() - 2) : host;
+
 	err = getaddrinfo(dest.c_str(), NULL, &hints, &result);
 	if (err == 0) {
 		char ip[NI_MAXHOST];

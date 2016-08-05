@@ -178,7 +178,6 @@ void AuthDbBackend::createAccount(const char* user, const char* host, const char
 }
 
 AuthDbBackend::CacheResult AuthDbBackend::getCachedUserWithPhone(const string &phone, const string &domain, string &user) {
-	time_t now = getCurrentTime();
 	unique_lock<mutex> lck(mCachedUserWithPhoneMutex);
 	auto it = mPhone2User.find(phone + "@" + domain);
 	if (it == mPhone2User.end()) {
