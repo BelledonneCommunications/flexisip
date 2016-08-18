@@ -249,9 +249,11 @@ class Authentication : public Module {
 		const GenericStruct *presenceSection = GenericManager::get()->getRoot()->get<GenericStruct>("module::Presence");
 		bool presenceServer = presenceSection->get<ConfigBoolean>("enabled")->read();
 		if (presenceServer) {
+			SofiaAutoHome home;
 			string presenceServer = presenceSection->get<ConfigString>("presence-server")->read();
-			if (find(mTrustedHosts.cbegin(), mTrustedHosts.cend(), presenceServer) == mTrustedHosts.cend()) {
-				mTrustedHosts.push_back(presenceServer);
+			url_t *url = url_make(home.home(), presenceServer.c_str());
+			if (url->url_host && find(mTrustedHosts.cbegin(), mTrustedHosts.cend(), url->url_host) == mTrustedHosts.cend()) {
+				mTrustedHosts.push_back(url->url_host);
 			}
 		}
 	}
