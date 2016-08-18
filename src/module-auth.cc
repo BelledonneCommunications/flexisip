@@ -245,6 +245,15 @@ class Authentication : public Module {
 				}
 			}
 		}
+
+		const GenericStruct *presenceSection = GenericManager::get()->getRoot()->get<GenericStruct>("module::Presence");
+		bool presenceServer = presenceSection->get<ConfigBoolean>("enabled")->read();
+		if (presenceServer) {
+			string presenceServer = presenceSection->get<ConfigString>("presence-server")->read();
+			if (find(mTrustedHosts.cbegin(), mTrustedHosts.cend(), presenceServer) == mTrustedHosts.cend()) {
+				mTrustedHosts.push_back(presenceServer);
+			}
+		}
 	}
 
   public:
