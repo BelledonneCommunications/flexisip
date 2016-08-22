@@ -251,8 +251,9 @@ class Authentication : public Module {
 		if (presenceServer) {
 			SofiaAutoHome home;
 			string presenceServer = presenceSection->get<ConfigString>("presence-server")->read();
-			url_t *url = url_make(home.home(), presenceServer.c_str());
-			if (url->url_host) {
+			sip_contact_t *contact = sip_contact_make(home.home(), presenceServer.c_str());
+			url_t* url = contact ? contact->m_url : NULL;
+			if (url && url->url_host) {
 				if (find(mTrustedHosts.cbegin(), mTrustedHosts.cend(), url->url_host) == mTrustedHosts.cend()) {
 					SLOGI << "Adding presence server '" << url->url_host << "' to trusted hosts";
 					mTrustedHosts.push_back(url->url_host);
