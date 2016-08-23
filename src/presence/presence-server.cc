@@ -207,7 +207,14 @@ void PresenceServer::processRequestEvent(PresenceServer *thiz, const belle_sip_r
 	}
 }
 void PresenceServer::processResponseEvent(PresenceServer *thiz, const belle_sip_response_event_t *event) {
-	SLOGD << " PresenceServer::processResponseEvent Not implemented yet";
+	belle_sip_response_t* resp = belle_sip_response_event_get_response(event);
+	int code = belle_sip_response_get_status_code(resp);
+	if (code == 407) {
+		SLOGE << __FUNCTION__ << ": presence server being challenged by flexisip probably means that flexisip is misconfigured. "
+		"Presence server should be a trusted host.";
+	} else {
+		SLOGD << __FUNCTION__ << " not handled yet for " << code << ": " << belle_sip_response_get_reason_phrase(resp);
+	}
 }
 void PresenceServer::processTimeout(PresenceServer *thiz, const belle_sip_timeout_event_t *event) {
 	belle_sip_client_transaction_t *client = belle_sip_timeout_event_get_client_transaction(event);
