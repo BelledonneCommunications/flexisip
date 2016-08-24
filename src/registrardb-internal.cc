@@ -127,3 +127,8 @@ void RegistrarDbInternal::clearAll() {
 	mRecords.clear();
 	mLocalRegExpire->clearAll();
 }
+
+void RegistrarDbInternal::publish(const std::string &topic, const std::string &uid) {
+	LOGD("Publish topic = %s, uid = %s", topic.c_str(), uid.c_str());
+	RegistrarDb::notifyContactListener(topic, uid);
+}

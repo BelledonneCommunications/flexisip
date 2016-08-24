@@ -26,7 +26,6 @@
 #include <sstream>
 #include <ostream>
 #include <csignal>
-#include "lateforkapplier.hh"
 
 #include <functional>
 #include <algorithm>
@@ -238,6 +237,17 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 	list<shared_ptr<ResponseContext>> mRespContexes;
 };
 
+static string routingKey(const url_t *sipUri) {
+	ostringstream oss;
+	if (sipUri->url_user) {
+		oss << sipUri->url_user << "@";
+	}
+	if (sipUri->url_host) {
+		oss << sipUri->url_host;
+	}
+	return oss.str();
+}
+
 /**
  * Delta from expires header, normalized with custom rules.
  * return -1 on error
@@ -424,7 +434,9 @@ class OnRequestBindListener : public RegistrarDbListener {
 
 			const sip_expires_t *expires = mEv->getMsgSip()->getSip()->sip_expires;
 			if (mContact && expires && expires->ex_delta > 0) {
-				LateForkApplier::onContactRegistered(mModule->getAgent(), mContact, mPath, r, mSipFrom->a_url);
+				string uid = Record::extractUniqueId(mContact);
+				string topic = routingKey(mSipFrom->a_url);
+				RegistrarDb::get(mModule->getAgent())->publish(topic, uid);
 			}
 		} else {
 			LOGE("OnRequestBindListener::onRecordFound(): Record is null");
@@ -474,8 +486,9 @@ class OnResponseBindListener : public RegistrarDbListener {
 		if (r) {
 			const sip_expires_t *expires = mCtx->reqSipEvent->getMsgSip()->getSip()->sip_expires;
 			if (!expires || expires->ex_delta > 0) {
-				LateForkApplier::onContactRegistered(mModule->getAgent(), mCtx->mContacts, mCtx->mPath, r,
-													 mCtx->mFrom->a_url);
+				string uid = Record::extractUniqueId(mCtx->mContacts);
+				string topic = routingKey(mCtx->mFrom->a_url);
+				RegistrarDb::get(mModule->getAgent())->publish(topic, uid);
 			}
 			const sip_contact_t *dbContacts = r->getContacts(ms->getHome(), now);
 			// Replace received contacts by our ones
