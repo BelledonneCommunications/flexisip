@@ -457,7 +457,7 @@ void RegistrarDbRedisAsync::unsubscribe(const std::string &topic) {
 }
 void RegistrarDbRedisAsync::publish(const std::string &topic, const std::string &uid) {
 	LOGD("Publish topic = %s, uid = %s", topic.c_str(), uid.c_str());
-	redisAsyncCommand(mContext, NULL, NULL, "PUBLISH %s \"%s\"", topic.c_str(), uid.c_str());
+	redisAsyncCommand(mContext, NULL, NULL, "PUBLISH %s %s", topic.c_str(), uid.c_str());
 }
 
 /**
@@ -535,7 +535,7 @@ void RegistrarDbRedisAsync::sPublishCallback(redisAsyncContext *c, void *r, void
 	if (reply == NULL) return;
 
 	if (reply->type == REDIS_REPLY_ARRAY) {
-		LOGD("publish array received: [%s, %s, %s/%i]", reply->element[0]->str, reply->element[1]->str, reply->element[2]->str, reply->element[2]->integer);
+		LOGD("Publish array received: [%s, %s, %s/%i]", reply->element[0]->str, reply->element[1]->str, reply->element[2]->str, reply->element[2]->integer);
 		if (reply->element[2]->str != NULL) {
 			RegistrarDbRedisAsync *zis = (RegistrarDbRedisAsync *)c->data;
 			if (zis) {
