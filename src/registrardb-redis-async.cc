@@ -88,18 +88,17 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
  */
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag, RedisParameters params)
-	: RegistrarDb(ag->getPreferredRoute()), mAgent(ag), mContext(NULL), mDomain(params.domain),
-	  mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(ag->getRoot()),
+	: RegistrarDb(ag->getPreferredRoute()), mAgent(ag), mContext(NULL), mSubscribeContext(NULL),
+	  mDomain(params.domain), mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(ag->getRoot()),
 	  mReplicationTimer(NULL), mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
 	mSerializer = RecordSerializer::get();
 	mCurSlave = 0;
 }
 
-RegistrarDbRedisAsync::RegistrarDbRedisAsync(const string &preferredRoute, su_root_t *root,
-											 RecordSerializer *serializer, RedisParameters params)
-	: RegistrarDb(preferredRoute), mAgent(NULL), mContext(NULL), mDomain(params.domain), mAuthPassword(params.auth),
-	  mPort(params.port), mTimeout(params.timeout), mRoot(root), mReplicationTimer(NULL),
-	  mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
+RegistrarDbRedisAsync::RegistrarDbRedisAsync(const string &preferredRoute, su_root_t *root, RecordSerializer *serializer, RedisParameters params)
+	: RegistrarDb(preferredRoute), mAgent(NULL), mContext(NULL), mSubscribeContext(NULL),
+	  mDomain(params.domain), mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(root),
+	  mReplicationTimer(NULL), mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
 	mSerializer = serializer;
 	mCurSlave = 0;
 }
@@ -107,6 +106,9 @@ RegistrarDbRedisAsync::RegistrarDbRedisAsync(const string &preferredRoute, su_ro
 RegistrarDbRedisAsync::~RegistrarDbRedisAsync() {
 	if (mContext) {
 		redisAsyncDisconnect(mContext);
+	}
+	if (mSubscribeContext) {
+		redisAsyncDisconnect(mSubscribeContext);
 	}
 	if (mAgent && mReplicationTimer) {
 		mAgent->stopTimer(mReplicationTimer);
@@ -133,6 +135,31 @@ void RegistrarDbRedisAsync::onConnect(const redisAsyncContext *c, int status) {
 	if (status != REDIS_OK) {
 		LOGE("Couldn't connect to redis: %s", c->errstr);
 		mContext = NULL;
+		tryReconnect();
+		return;
+	}
+	LOGD("Connected... %p", c);
+}
+
+void RegistrarDbRedisAsync::onSubscribeDisconnect(const redisAsyncContext *c, int status) {
+	if (mSubscribeContext != NULL && mSubscribeContext != c) {
+		LOGE("Redis context %p disconnected, but current context is %p", c, mSubscribeContext);
+		return;
+	}
+
+	mSubscribeContext = NULL;
+	LOGD("Disconnected %p...", c);
+	if (status != REDIS_OK) {
+		LOGE("Redis disconnection message: %s", c->errstr);
+		tryReconnect();
+		return;
+	}
+}
+
+void RegistrarDbRedisAsync::onSubscribeConnect(const redisAsyncContext *c, int status) {
+	if (status != REDIS_OK) {
+		LOGE("Couldn't connect to redis: %s", c->errstr);
+		mSubscribeContext = NULL;
 		tryReconnect();
 		return;
 	}
@@ -360,17 +387,28 @@ bool RegistrarDbRedisAsync::connect() {
 	mContext = redisAsyncConnect(mDomain.c_str(), mPort);
 	mContext->data = this;
 	if (mContext->err) {
-		LOGE("Redis Connection error: %s", mContext->errstr);
+		SLOGE << "Redis Connection error: " << mContext->errstr;
 		redisAsyncFree(mContext);
 		mContext = NULL;
+		return false;
+	}
+	
+	mSubscribeContext = redisAsyncConnect(mDomain.c_str(), mPort);
+	mSubscribeContext->data = this;
+	if (mSubscribeContext->err) {
+		SLOGE << "Redis Connection error: " << mSubscribeContext->errstr;
+		redisAsyncFree(mSubscribeContext);
+		mSubscribeContext = NULL;
 		return false;
 	}
 
 #ifndef WITHOUT_HIREDIS_CONNECT_CALLBACK
 	redisAsyncSetConnectCallback(mContext, sConnectCallback);
+	redisAsyncSetConnectCallback(mSubscribeContext, sSubscribeConnectCallback);
 #endif
 
 	redisAsyncSetDisconnectCallback(mContext, sDisconnectCallback);
+	redisAsyncSetDisconnectCallback(mSubscribeContext, sSubscribeDisconnectCallback);
 
 	if (REDIS_OK != redisSofiaAttach(mContext, mRoot)) {
 		LOGE("Redis Connection error - %p", mContext);
@@ -378,9 +416,16 @@ bool RegistrarDbRedisAsync::connect() {
 		mContext = NULL;
 		return false;
 	}
+	if (REDIS_OK != redisSofiaAttach(mSubscribeContext, mRoot)) {
+		LOGE("Redis Connection error - %p", mSubscribeContext);
+		redisAsyncDisconnect(mSubscribeContext);
+		mSubscribeContext = NULL;
+		return false;
+	}
 
 	if (!mAuthPassword.empty()) {
 		redisAsyncCommand(mContext, shandleAuthReply, this, "AUTH %s", mAuthPassword.c_str());
+		redisAsyncCommand(mSubscribeContext, shandleAuthReply, this, "AUTH %s", mAuthPassword.c_str());
 	} else {
 		getReplicationInfo();
 	}
@@ -389,12 +434,30 @@ bool RegistrarDbRedisAsync::connect() {
 
 bool RegistrarDbRedisAsync::disconnect() {
 	LOGD("disconnect(%p)", mContext);
+	bool status = false;
 	if (mContext) {
 		redisAsyncDisconnect(mContext);
 		mContext = NULL;
-		return true;
+		status = true;
 	}
-	return false;
+	if (mSubscribeContext) {
+		redisAsyncDisconnect(mSubscribeContext);
+		mSubscribeContext = NULL;
+	}
+	return status;
+}
+
+void RegistrarDbRedisAsync::subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener) {
+	RegistrarDb::subscribe(topic, listener);
+	redisAsyncCommand(mSubscribeContext, sPublishCallback, NULL, "SUBSCRIBE %s", topic.c_str());
+}
+void RegistrarDbRedisAsync::unsubscribe(const std::string &topic) {
+	RegistrarDb::unsubscribe(topic);
+	redisAsyncCommand(mSubscribeContext, NULL, NULL, "UNSUBSCRIBE %s", topic.c_str());
+}
+void RegistrarDbRedisAsync::publish(const std::string &topic, const std::string &uid) {
+	LOGD("Publish topic = %s, uid = %s", topic.c_str(), uid.c_str());
+	redisAsyncCommand(mContext, NULL, NULL, "PUBLISH %s %s", topic.c_str(), uid.c_str());
 }
 
 /**
@@ -444,12 +507,41 @@ void RegistrarDbRedisAsync::sConnectCallback(const redisAsyncContext *c, int sta
 		zis->onConnect(c, status);
 	}
 }
+
+void RegistrarDbRedisAsync::sSubscribeConnectCallback(const redisAsyncContext *c, int status) {
+	RegistrarDbRedisAsync *zis = (RegistrarDbRedisAsync *)c->data;
+	if (zis) {
+		zis->onSubscribeConnect(c, status);
+	}
+}
 #endif
 
 void RegistrarDbRedisAsync::sDisconnectCallback(const redisAsyncContext *c, int status) {
 	RegistrarDbRedisAsync *zis = (RegistrarDbRedisAsync *)c->data;
 	if (zis) {
 		zis->onDisconnect(c, status);
+	}
+}
+
+void RegistrarDbRedisAsync::sSubscribeDisconnectCallback(const redisAsyncContext *c, int status) {
+	RegistrarDbRedisAsync *zis = (RegistrarDbRedisAsync *)c->data;
+	if (zis) {
+		zis->onSubscribeDisconnect(c, status);
+	}
+}
+
+void RegistrarDbRedisAsync::sPublishCallback(redisAsyncContext *c, void *r, void *privdata) {
+	redisReply *reply = (redisReply *)r;
+	if (reply == NULL) return;
+
+	if (reply->type == REDIS_REPLY_ARRAY) {
+		LOGD("Publish array received: [%s, %s, %s/%i]", reply->element[0]->str, reply->element[1]->str, reply->element[2]->str, reply->element[2]->integer);
+		if (reply->element[2]->str != NULL) {
+			RegistrarDbRedisAsync *zis = (RegistrarDbRedisAsync *)c->data;
+			if (zis) {
+				zis->notifyContactListener(reply->element[1]->str, reply->element[2]->str);
+			}
+		}
 	}
 }
 
@@ -560,8 +652,7 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 						data);
 }
 
-void RegistrarDbRedisAsync::doBind(const RegistrarDb::BindParameters &p,
-								   const shared_ptr<RegistrarDbListener> &listener) {
+void RegistrarDbRedisAsync::doBind(const RegistrarDb::BindParameters &p, const shared_ptr<RegistrarDbListener> &listener) {
 	const sip_accept_t *accept = p.sip.accept;
 	list<string> acceptHeaders;
 	while (accept != NULL) {

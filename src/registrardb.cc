@@ -397,6 +397,28 @@ RegistrarDb::~RegistrarDb() {
 	delete mLocalRegExpire;
 }
 
+void RegistrarDb::subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener) {
+	LOGD("Subscribe topic = %s", topic.c_str());
+	mContactListenersMap.insert(make_pair(topic, listener));
+}
+
+void RegistrarDb::unsubscribe(const std::string &topic) {
+	LOGD("Unsubscribe topic = %s", topic.c_str());
+	auto it = mContactListenersMap.find(topic);
+	if (it != mContactListenersMap.end()) {
+		mContactListenersMap.erase(topic);
+	}
+}
+
+void RegistrarDb::notifyContactListener(const std::string &key, const std::string uid) {
+	LOGD("Notify topic = %s, uid = %s", key.c_str(), uid.c_str());
+	auto it = mContactListenersMap.find(key);
+	if (it != mContactListenersMap.end()) {
+		std::shared_ptr<ContactRegisteredListener> listener = (*it).second;
+		listener->onContactRegistered(key, uid);
+	}
+}
+
 void RegistrarDb::LocalRegExpire::update(const Record &record) {
 	unique_lock<mutex> lock(mMutex);
 	time_t latest = record.latestExpire(mPreferedRoute);
@@ -629,6 +651,9 @@ class RecursiveRegistrarDbListener : public RegistrarDbListener,
 int RecursiveRegistrarDbListener::sMaxStep = 1;
 
 RegistrarDbListener::~RegistrarDbListener() {
+}
+
+ContactRegisteredListener::~ContactRegisteredListener() {
 }
 
 void RegistrarDb::fetch(const url_t *url, const shared_ptr<RegistrarDbListener> &listener, bool recursive) {

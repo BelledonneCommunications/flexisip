@@ -83,16 +83,22 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	virtual void doBind(const BindParameters &params, const std::shared_ptr<RegistrarDbListener> &listener);
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
 	virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener);
+	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
+	virtual void unsubscribe(const std::string &topic);
+	virtual void publish(const std::string &topic, const std::string &uid);
 
   private:
 	RegistrarDbRedisAsync(Agent *agent, RedisParameters params);
 	~RegistrarDbRedisAsync();
 	static void sConnectCallback(const redisAsyncContext *c, int status);
 	static void sDisconnectCallback(const redisAsyncContext *c, int status);
+	static void sSubscribeConnectCallback(const redisAsyncContext *c, int status);
+	static void sSubscribeDisconnectCallback(const redisAsyncContext *c, int status);
+	static void sPublishCallback(redisAsyncContext *c, void *r, void *privdata);
 	bool isConnected();
 	friend class RegistrarDb;
 	Agent *mAgent;
-	redisAsyncContext *mContext;
+	redisAsyncContext *mContext, *mSubscribeContext;
 	RecordSerializer *mSerializer;
 	std::string mDomain;
 	std::string mAuthPassword;
@@ -116,6 +122,8 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	void handleReplicationInfoReply(const char *str);
 	void onConnect(const redisAsyncContext *c, int status);
 	void onDisconnect(const redisAsyncContext *c, int status);
+	void onSubscribeConnect(const redisAsyncContext *c, int status);
+	void onSubscribeDisconnect(const redisAsyncContext *c, int status);
 
 	/* replication */
 	void getReplicationInfo();

@@ -225,6 +225,12 @@ class RegistrarDbListener : public StatFinishListener {
 	virtual void onInvalid() = 0;
 };
 
+class ContactRegisteredListener {
+  public:
+	virtual ~ContactRegisteredListener();
+	virtual void onContactRegistered(std::string key, std::string uid) = 0;
+};
+
 /**
  * A singleton class which holds records contact addresses associated with a from.
  * Both local and remote storage implementations exist.
@@ -276,12 +282,16 @@ class RegistrarDb {
 	}
 	void clear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
 	void fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool recursive = false);
-	void fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool includingDomains,
-			   bool recursive);
+	void fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool includingDomains, bool recursive);
 	void updateRemoteExpireTime(const std::string &key, time_t expireat);
 	unsigned long countLocalActiveRecords() {
 		return mLocalRegExpire->countActives();
 	}
+	
+	void notifyContactListener(const std::string &key, const std::string uid);
+	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
+	virtual void unsubscribe(const std::string &topic);
+	virtual void publish(const std::string &topic, const std::string &uid) = 0;
 
   protected:
 	class LocalRegExpire {
@@ -315,6 +325,7 @@ class RegistrarDb {
 	RegistrarDb(const std::string &preferedRoute);
 	virtual ~RegistrarDb();
 	std::map<std::string, Record *> mRecords;
+	std::map<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;
 	LocalRegExpire *mLocalRegExpire;
 	bool mUseGlobalDomain;
 	static RegistrarDb *sUnique;

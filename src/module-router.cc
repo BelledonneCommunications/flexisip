@@ -25,8 +25,6 @@
 #include "log/logmanager.hh"
 #include <sofia-sip/sip_status.h>
 
-#include "lateforkapplier.hh"
-
 using namespace std;
 
 class ModuleRouter;
@@ -39,7 +37,6 @@ struct RouterStats {
 };
 
 class ModuleRouter : public Module, public ModuleToolbox, public ForkContextListener {
-	friend struct LateForkApplier;
 	RouterStats mStats;
 	bool rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *ct_url, const char *route);
 
@@ -47,7 +44,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	void sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code = 0,
 				   const char *warning = NULL);
 	void routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aorb, const url_t *sipUri);
-	void onContactRegistered(const sip_contact_t *ct, const sip_path_t *path, Record *aor, const url_t *sipUri);
+	void onContactRegistered(const std::string &uid, Record *aor, const url_t *sipUri);
 
 	ModuleRouter(Agent *ag) : Module(ag) {
 	}
@@ -354,24 +351,45 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	return true;
 }
 
-void LateForkApplier::onContactRegistered(const Agent *agent, const sip_contact_t *ct, const sip_path_t *path,
-										  Record *aor, const url_t *sipUri) {
-	ModuleRouter *module = dynamic_cast<ModuleRouter *>(agent->findModule(ModuleRouter::sInfo.getModuleName()));
-	if (module && module->isEnabled())
-		module->onContactRegistered(ct, path, aor, sipUri);
-}
+class OnContactRegisteredListener : public ContactRegisteredListener, public RegistrarDbListener, public enable_shared_from_this<OnContactRegisteredListener> {
+	friend class ModuleRouter;
+	ModuleRouter *mModule;
+	const url_t *mSipUri;
+	std::string mUid;
 
-void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t *path, Record *aor,
-									   const url_t *sipUri) {
+  public:
+	OnContactRegisteredListener(ModuleRouter *module, const url_t *sipUri)
+	: mModule(module), mSipUri(sipUri), mUid("") {
+	}
+	
+	void onContactRegistered(std::string key, std::string uid) {
+		mUid = uid;
+		RegistrarDb::get(mModule->getAgent())->fetch(mSipUri, this->shared_from_this(), true);
+	}
+	
+	void onRecordFound(Record *r) {
+		mModule->onContactRegistered(mUid, r, mSipUri);
+	}
+	void onError() {
+	  
+	}
+	void onInvalid() {
+	  
+	}
+};
+
+void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, const url_t *sipUri) {
 	SLOGD << "ModuleRouter::onContactRegistered";
 	if (aor == NULL) {
 		SLOGE << "aor was null...";
 		return;
 	}
+	sip_path_t *path = NULL;
+	sip_contact_t *contact = NULL;
 
 	if (!mForkCfg->mForkLate && !mMessageForkCfg->mForkLate)
 		return;
-	if (!ct || !sipUri)
+	if (!sipUri)
 		return; // nothing to do
 
 	char sipUriRef[256] = {0};
@@ -387,13 +405,18 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 	auto range = mForks.equal_range(key.c_str());
 	SLOGD << "Searching for fork context with key " << key;
 
-	string uid = Record::extractUniqueId(ct);
 	const shared_ptr<ExtendedContact> ec = aor->extractContactByUniqueId(uid);
 	if (ec) {
+		su_home_t home;
+		su_home_init(&home);
+		contact = ec->toSofiaContacts(&home, ec->mExpireAt - 1);
+		path = ec->toSofiaRoute(&home);
+		su_home_deinit(&home);
+		
 		// First use sipURI
 		for (auto it = range.first; it != range.second; ++it) {
 			shared_ptr<ForkContext> context = it->second;
-			if (context->onNewRegister(ct->m_url, uid)) {
+			if (context->onNewRegister(contact->m_url, uid)) {
 				SLOGD << "Found a pending context for key " << key << ": " << context.get();
 				dispatch(context->getEvent(), ec, context, "");
 			} else
@@ -412,7 +435,7 @@ void ModuleRouter::onContactRegistered(const sip_contact_t *ct, const sip_path_t
 		auto rang = mForks.equal_range(ec->mSipUri);
 		for (auto ite = rang.first; ite != rang.second; ++ite) {
 			shared_ptr<ForkContext> context = ite->second;
-			if (context->onNewRegister(ct->m_url, uid)) {
+			if (context->onNewRegister(contact->m_url, uid)) {
 				LOGD("Found a pending context for contact %s: %p", ec->mSipUri.c_str(), context.get());
 				auto stlpath = Record::route_to_stl(context->getEvent()->getMsgSip()->getHome(), path);
 				dispatch(context->getEvent(), ec, context, "");
@@ -613,6 +636,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			if (context->getConfig()->mForkLate) {
 				const string key(routingKey(sipUri));
 				mForks.insert(make_pair(key, context));
+				RegistrarDb::get(getAgent())->subscribe(key, make_shared<OnContactRegisteredListener>(this, sipUri));
 				SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
 			}
 		}
@@ -646,6 +670,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				}
 				const string key(routingKey(temp_ctt->m_url));
 				mForks.insert(make_pair(key, context));
+				RegistrarDb::get(getAgent())->subscribe(key, make_shared<OnContactRegisteredListener>(this, sipUri));
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
 			} else {
 				if (dispatch(ev, ec, context, targetUris)) {
@@ -928,6 +953,7 @@ void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 	for (auto it = mForks.begin(); it != mForks.end();) {
 		if (it->second == ctx) {
 			LOGD("Remove fork %s from store", it->first.c_str());
+			RegistrarDb::get(getAgent())->unsubscribe(it->first);
 			mStats.mCountForks->incrFinish();
 			auto cur_it = it;
 			++it;
@@ -937,6 +963,7 @@ void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 		} else
 			++it;
 	}
+	
 }
 
 ModuleInfo<ModuleRouter> ModuleRouter::sInfo("Router",
