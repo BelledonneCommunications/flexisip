@@ -359,11 +359,10 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Reg
 
   public:
 	OnContactRegisteredListener(ModuleRouter *module, const url_t *sipUri)
-	: mModule(module), mSipUri(sipUri), mUid(NULL) {
+	: mModule(module), mSipUri(sipUri), mUid("") {
 	}
 	
 	void onContactRegistered(std::string key, std::string uid) {
-		LOGD("OnContactRegistered key = %s, uid = %s", key.c_str(), uid.c_str());
 		mUid = uid;
 		RegistrarDb::get(mModule->getAgent())->fetch(mSipUri, this->shared_from_this(), true);
 	}
@@ -954,13 +953,13 @@ void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 	for (auto it = mForks.begin(); it != mForks.end();) {
 		if (it->second == ctx) {
 			LOGD("Remove fork %s from store", it->first.c_str());
+			RegistrarDb::get(getAgent())->unsubscribe(it->first);
 			mStats.mCountForks->incrFinish();
 			auto cur_it = it;
 			++it;
 			// for some reason the multimap erase does not return the next iterator !
 			mForks.erase(cur_it);
 			// do not break, because a single fork context might appear several time in the map because of aliases.
-			RegistrarDb::get(getAgent())->unsubscribe(it->first.c_str());
 		} else
 			++it;
 	}

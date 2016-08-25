@@ -449,7 +449,7 @@ bool RegistrarDbRedisAsync::disconnect() {
 
 void RegistrarDbRedisAsync::subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener) {
 	RegistrarDb::subscribe(topic, listener);
-	redisAsyncCommand(mSubscribeContext, NULL, NULL, "SUBSCRIBE %s", topic.c_str());
+	redisAsyncCommand(mSubscribeContext, sPublishCallback, NULL, "SUBSCRIBE %s", topic.c_str());
 }
 void RegistrarDbRedisAsync::unsubscribe(const std::string &topic) {
 	RegistrarDb::unsubscribe(topic);
