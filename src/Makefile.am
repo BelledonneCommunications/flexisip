@@ -55,7 +55,7 @@ thesources= \
 			module-contact-route-inserter.cc \
 			module-nat-helper.cc \
 			module-registrar.cc \
-			module-router.cc lateforkapplier.hh \
+			module-router.cc \
 			module-transcode.cc \
 			module-statistics-collector.cc \
 			module-mediarelay.cc \
