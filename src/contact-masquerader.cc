@@ -71,6 +71,22 @@ void ContactMasquerader::masquerade(su_home_t *home, sip_contact_t *c, const cha
 	SLOGD << "Contact has been rewritten to " << url_as_string(home, ct_url);
 }
 
+void ContactMasquerader::masquerade(std::shared_ptr<SipEvent> ev, bool insertDomain) {
+		const char *domain = insertDomain ? ev->getSip()->sip_from->a_url->url_host : NULL;
+		sip_contact_t *contact = ev->getSip()->sip_contact;
+		while(contact) {
+			if(contact->m_expires && strcmp(contact->m_expires, "0") == 0 && (contact != ev->getSip()->sip_contact || contact->m_next)) {
+				LOGD("Removing one contact header: %s", url_as_string(ev->getHome(), contact->m_url));
+				sip_contact_t *tmp = contact->m_next;
+				msg_header_remove(ev->getMsgSip()->getMsg(), (msg_pub_t *)ev->getSip(), (msg_header_t *)contact);
+				contact = tmp;
+			} else {
+				masquerade(ev->getHome(), contact, domain);
+				contact = contact->m_next;
+			}
+		}
+}
+
 void ContactMasquerader::restore(su_home_t *home, url_t *dest, char ctrt_param[64], const char *new_param) {
 	// first remove param
 	dest->url_params = url_strip_param_string(su_strdup(home, dest->url_params), mCtRtParamName.c_str());

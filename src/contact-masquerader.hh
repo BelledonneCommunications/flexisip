@@ -36,10 +36,14 @@ class ContactMasquerader {
 	 client
 	 when we later have to route an INVITE to him */
 	void masquerade(su_home_t *home, sip_contact_t *c, const char *domain = NULL);
-	inline void masquerade(std::shared_ptr<SipEvent> ev, bool insertDomain = false) {
-		masquerade(ev->getHome(), ev->getSip()->sip_contact,
-				   insertDomain ? ev->getSip()->sip_from->a_url->url_host : NULL);
-	}
+	
+	/**
+	 * Masquerade each contact header of a REGISTER request except those
+	 * which have an 'expires' parameter with a null value. Those contact headers
+	 * will be removed from the REGISTER request. However, if each contact header
+	 * has a null 'expires' parameter, the last one will be preserved.
+	 */
+	void masquerade(std::shared_ptr<SipEvent> ev, bool insertDomain = false);
 
 	void restore(su_home_t *home, url_t *dest, char ctrt_param[64], const char *new_param = NULL);
 };
