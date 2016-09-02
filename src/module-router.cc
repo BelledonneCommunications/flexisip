@@ -369,7 +369,7 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Reg
 	}
 	
 	void onRecordFound(Record *r) {
-		LOGD("Record found for topic = %s, uid = %s", mSipUri->c_str(), mUid.c_str());
+		LOGD("Record found for uid = %s", mUid.c_str());
 		mModule->onContactRegistered(mUid, r, mSipUri);
 	}
 	void onError() {
