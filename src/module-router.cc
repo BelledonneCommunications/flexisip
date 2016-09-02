@@ -363,11 +363,13 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Reg
 	}
 	
 	void onContactRegistered(std::string key, std::string uid) {
+		LOGD("Listener found for topic = %s, uid = %s", key.c_str(), uid.c_str());
 		mUid = uid;
 		RegistrarDb::get(mModule->getAgent())->fetch(mSipUri, this->shared_from_this(), true);
 	}
 	
 	void onRecordFound(Record *r) {
+		LOGD("Record found for topic = %s, uid = %s", mSipUri->c_str(), mUid.c_str());
 		mModule->onContactRegistered(mUid, r, mSipUri);
 	}
 	void onError() {
