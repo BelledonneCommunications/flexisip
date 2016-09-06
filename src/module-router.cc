@@ -356,14 +356,21 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Reg
 	ModuleRouter *mModule;
 	const url_t *mSipUri;
 	std::string mUid;
+	su_home_t mHome;
 
   public:
 	OnContactRegisteredListener(ModuleRouter *module, const url_t *sipUri)
-	: mModule(module), mSipUri(sipUri), mUid("") {
+	: mModule(module), mUid("") {
+		su_home_init(&mHome);
+		mSipUri = url_hdup(&mHome, sipUri);
+	}
+	
+	~OnContactRegisteredListener() {
+		su_home_deinit(&mHome);
 	}
 	
 	void onContactRegistered(std::string key, std::string uid) {
-		LOGD("Listener found for topic = %s, uid = %s", key.c_str(), uid.c_str());
+		LOGD("Listener found for topic = %s, uid = %s, sipUri = %s", key.c_str(), uid.c_str(), url_as_string(&mHome, mSipUri));
 		mUid = uid;
 		RegistrarDb::get(mModule->getAgent())->fetch(mSipUri, this->shared_from_this(), true);
 	}
@@ -388,6 +395,8 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 	}
 	sip_path_t *path = NULL;
 	sip_contact_t *contact = NULL;
+	su_home_t home;
+	su_home_init(&home);
 
 	if (!mForkCfg->mForkLate && !mMessageForkCfg->mForkLate)
 		return;
@@ -409,11 +418,8 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 
 	const shared_ptr<ExtendedContact> ec = aor->extractContactByUniqueId(uid);
 	if (ec) {
-		su_home_t home;
-		su_home_init(&home);
 		contact = ec->toSofiaContacts(&home, ec->mExpireAt - 1);
 		path = ec->toSofiaRoute(&home);
-		su_home_deinit(&home);
 		
 		// First use sipURI
 		for (auto it = range.first; it != range.second; ++it) {
@@ -434,6 +440,8 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 			continue;
 
 		// Find all contexts
+		contact = ec->toSofiaContacts(&home, ec->mExpireAt - 1);
+		path = ec->toSofiaRoute(&home);
 		auto rang = mForks.equal_range(ec->mSipUri);
 		for (auto ite = rang.first; ite != rang.second; ++ite) {
 			shared_ptr<ForkContext> context = ite->second;
@@ -444,6 +452,8 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 			}
 		}
 	}
+	
+	su_home_deinit(&home);
 }
 
 bool ModuleRouter::makeGeneratedContactRoute(shared_ptr<RequestSipEvent> &ev, Record *aor,
