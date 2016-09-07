@@ -294,6 +294,14 @@ void ForkContext::onNewBranch(const std::shared_ptr<BranchInfo> &br) {
 void ForkContext::onCancel() {
 }
 
+void ForkContext::setKey(std::string key) {
+     mKey = key;
+}
+
+std::string ForkContext::getKey() {
+     return mKey;
+}
+
 std::shared_ptr<BranchInfo> ForkContext::createBranchInfo() {
 	return make_shared<BranchInfo>(shared_from_this());
 }

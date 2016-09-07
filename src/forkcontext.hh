@@ -70,6 +70,7 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	static void sOnFinished(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	ForkContextListener *mListener;
 	std::list<std::shared_ptr<BranchInfo>> mBranches;
+	std::string mKey;
 	void init();
 	void processLateTimeout();
 
@@ -129,6 +130,9 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	// Obtain the ForkContext that manages a transaction.
 	static std::shared_ptr<ForkContext> get(const std::shared_ptr<OutgoingTransaction> &tr);
 	static std::shared_ptr<ForkContext> get(const std::shared_ptr<IncomingTransaction> &tr);
+	
+	void setKey(std::string key);
+	std::string getKey();
 
 	/*
 	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.

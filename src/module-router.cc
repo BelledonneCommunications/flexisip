@@ -388,15 +388,14 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Reg
 };
 
 void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, const url_t *sipUri) {
+	SofiaAutoHome home;
+	sip_path_t *path = NULL;
+	sip_contact_t *contact = NULL;
 	SLOGD << "ModuleRouter::onContactRegistered";
 	if (aor == NULL) {
 		SLOGE << "aor was null...";
 		return;
 	}
-	sip_path_t *path = NULL;
-	sip_contact_t *contact = NULL;
-	su_home_t home;
-	su_home_init(&home);
 
 	if (!mForkCfg->mForkLate && !mMessageForkCfg->mForkLate)
 		return;
@@ -418,8 +417,8 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 
 	const shared_ptr<ExtendedContact> ec = aor->extractContactByUniqueId(uid);
 	if (ec) {
-		contact = ec->toSofiaContacts(&home, ec->mExpireAt - 1);
-		path = ec->toSofiaRoute(&home);
+		contact = ec->toSofiaContacts(home.home(), ec->mExpireAt - 1);
+		path = ec->toSofiaRoute(home.home());
 		
 		// First use sipURI
 		for (auto it = range.first; it != range.second; ++it) {
@@ -440,8 +439,8 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 			continue;
 
 		// Find all contexts
-		contact = ec->toSofiaContacts(&home, ec->mExpireAt - 1);
-		path = ec->toSofiaRoute(&home);
+		contact = ec->toSofiaContacts(home.home(), ec->mExpireAt - 1);
+		path = ec->toSofiaRoute(home.home());
 		auto rang = mForks.equal_range(ec->mSipUri);
 		for (auto ite = rang.first; ite != rang.second; ++ite) {
 			shared_ptr<ForkContext> context = ite->second;
@@ -452,8 +451,6 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 			}
 		}
 	}
-	
-	su_home_deinit(&home);
 }
 
 bool ModuleRouter::makeGeneratedContactRoute(shared_ptr<RequestSipEvent> &ev, Record *aor,
@@ -647,6 +644,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 		if (context) {
 			if (context->getConfig()->mForkLate) {
 				const string key(routingKey(sipUri));
+				context->setKey(key);
 				mForks.insert(make_pair(key, context));
 				RegistrarDb::get(getAgent())->subscribe(key, make_shared<OnContactRegisteredListener>(this, sipUri));
 				SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
@@ -681,6 +679,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 					temp_ctt->m_url->url_port = NULL;
 				}
 				const string key(routingKey(temp_ctt->m_url));
+				context->setKey(key);
 				mForks.insert(make_pair(key, context));
 				RegistrarDb::get(getAgent())->subscribe(key, make_shared<OnContactRegisteredListener>(this, sipUri));
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
@@ -962,20 +961,42 @@ void ModuleRouter::onResponse(shared_ptr<ResponseSipEvent> &ev) throw(FlexisipEx
 void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 	if (!ctx->getConfig()->mForkLate)
 		return;
-	for (auto it = mForks.begin(); it != mForks.end();) {
+	
+	string key = ctx->getKey();
+	LOGD("Looking at fork contexts with key %s", key.c_str());
+	
+	int count = mForks.count(key.c_str());
+	if (count == 1) {
+		auto it = mForks.find(key.c_str());
 		if (it->second == ctx) {
 			LOGD("Remove fork %s from store", it->first.c_str());
 			RegistrarDb::get(getAgent())->unsubscribe(it->first);
 			mStats.mCountForks->incrFinish();
-			auto cur_it = it;
-			++it;
-			// for some reason the multimap erase does not return the next iterator !
-			mForks.erase(cur_it);
-			// do not break, because a single fork context might appear several time in the map because of aliases.
-		} else
-			++it;
+			mForks.erase(it);
+		}
+	} else {
+		auto range = mForks.equal_range(key.c_str());
+		for (auto it = range.first; it != range.second;) {
+			if (it->second == ctx) {
+				LOGD("Remove fork %s from store", it->first.c_str());
+				// Do not unsubscribe as long as there is at least one another fork context with the same key
+				// See https://github.com/redis/hiredis/issues/396
+				mStats.mCountForks->incrFinish();
+				auto cur_it = it;
+				++it;
+				// for some reason the multimap erase does not return the next iterator !
+				mForks.erase(cur_it);
+				// do not break, because a single fork context might appear several time in the map because of aliases.
+			} else {
+				++it;
+			}
+		}
+		
+		count = mForks.count(key.c_str());
+		if (count <= 0) {
+			RegistrarDb::get(getAgent())->unsubscribe(key.c_str());
+		}
 	}
-	
 }
 
 ModuleInfo<ModuleRouter> ModuleRouter::sInfo("Router",
