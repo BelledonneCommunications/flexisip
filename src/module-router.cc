@@ -963,43 +963,34 @@ void ModuleRouter::onResponse(shared_ptr<ResponseSipEvent> &ev) throw(FlexisipEx
 }
 
 void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
-	if (!ctx->getConfig()->mForkLate)
-		return;
+	if (!ctx->getConfig()->mForkLate) return;
 	
 	string key = ctx->getKey();
 	LOGD("Looking at fork contexts with key %s", key.c_str());
 	
-	int count = mForks.count(key.c_str());
-	if (count == 1) {
-		auto it = mForks.find(key.c_str());
+	auto range = mForks.equal_range(key.c_str());
+	int count = 0;
+	int removed = 0;
+	for (auto it = range.first; it != range.second;) {
+		count++;
 		if (it->second == ctx) {
 			LOGD("Remove fork %s from store", it->first.c_str());
-			RegistrarDb::get(getAgent())->unsubscribe(it->first);
 			mStats.mCountForks->incrFinish();
-			mForks.erase(it);
+			auto cur_it = it;
+			++it;
+			// for some reason the multimap erase does not return the next iterator !
+			mForks.erase(cur_it);
+			removed++;
+			// do not break, because a single fork context might appear several time in the map because of aliases.
+		} else {
+			++it;
 		}
-	} else {
-		auto range = mForks.equal_range(key.c_str());
-		for (auto it = range.first; it != range.second;) {
-			if (it->second == ctx) {
-				LOGD("Remove one of %i forks with key %s from store", count, it->first.c_str());
-				// Do not unsubscribe as long as there is at least one another fork context with the same key
-				// See https://github.com/redis/hiredis/issues/396
-				mStats.mCountForks->incrFinish();
-				auto cur_it = it;
-				++it;
-				// for some reason the multimap erase does not return the next iterator !
-				mForks.erase(cur_it);
-				// do not break, because a single fork context might appear several time in the map because of aliases.
-			} else {
-				++it;
-			}
-		}
-		
-		count = mForks.count(key.c_str());
-		if (count <= 0) {
-			RegistrarDb::get(getAgent())->unsubscribe(key.c_str());
-		}
+	}
+	
+	if (count == removed && count > 0) {
+		// Do not unsubscribe as long as there is at least one another fork context with the same key
+		// See https://github.com/redis/hiredis/issues/396
+		RegistrarDb::get(getAgent())->unsubscribe(key.c_str());
 	}
 }
 
