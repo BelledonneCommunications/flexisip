@@ -646,7 +646,9 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				const string key(routingKey(sipUri));
 				context->setKey(key);
 				mForks.insert(make_pair(key, context));
-				RegistrarDb::get(getAgent())->subscribe(key, make_shared<OnContactRegisteredListener>(this, sipUri));
+				if (mForks.count(key) == 1) {
+					RegistrarDb::get(getAgent())->subscribe(key, make_shared<OnContactRegisteredListener>(this, sipUri));
+				}
 				SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
 			}
 		}
@@ -681,7 +683,9 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				const string key(routingKey(temp_ctt->m_url));
 				context->setKey(key);
 				mForks.insert(make_pair(key, context));
-				RegistrarDb::get(getAgent())->subscribe(key, make_shared<OnContactRegisteredListener>(this, sipUri));
+				if (mForks.count(key) == 1) {
+					RegistrarDb::get(getAgent())->subscribe(key, make_shared<OnContactRegisteredListener>(this, sipUri));
+				}
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
 			} else {
 				if (dispatch(ev, ec, context, targetUris)) {
@@ -978,7 +982,7 @@ void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 		auto range = mForks.equal_range(key.c_str());
 		for (auto it = range.first; it != range.second;) {
 			if (it->second == ctx) {
-				LOGD("Remove fork %s from store", it->first.c_str());
+				LOGD("Remove one of %i forks with key %s from store", count, it->first.c_str());
 				// Do not unsubscribe as long as there is at least one another fork context with the same key
 				// See https://github.com/redis/hiredis/issues/396
 				mStats.mCountForks->incrFinish();
