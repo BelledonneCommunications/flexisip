@@ -988,8 +988,6 @@ void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 	}
 	
 	if (count == removed && count > 0) {
-		// Do not unsubscribe as long as there is at least one another fork context with the same key
-		// See https://github.com/redis/hiredis/issues/396
 		RegistrarDb::get(getAgent())->unsubscribe(key.c_str());
 	}
 }

@@ -376,6 +376,8 @@ void RegistrarDbRedisAsync::handleAuthReply(const redisReply *reply) {
 
 void RegistrarDbRedisAsync::getReplicationInfo() {
 	redisAsyncCommand(mContext, sHandleReplicationInfoReply, this, "INFO replication");
+	// Workaround for issue https://github.com/redis/hiredis/issues/396
+	redisAsyncCommand(mSubscribeContext, sPublishCallback, NULL, "SUBSCRIBE %s", "FLEXISIP");
 }
 
 bool RegistrarDbRedisAsync::connect() {
@@ -441,6 +443,8 @@ bool RegistrarDbRedisAsync::disconnect() {
 		status = true;
 	}
 	if (mSubscribeContext) {
+		// Workaround for issue https://github.com/redis/hiredis/issues/396
+		redisAsyncCommand(mSubscribeContext, NULL, NULL, "UNSUBSCRIBE %s", "FLEXISIP");
 		redisAsyncDisconnect(mSubscribeContext);
 		mSubscribeContext = NULL;
 	}
