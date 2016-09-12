@@ -107,6 +107,7 @@ class ModulePresence : public Module, ModuleToolbox {
 	}
 
 	~ModulePresence() {
+		su_home_deinit(&mHome);
 	}
 };
 ModuleInfo<ModulePresence> ModulePresence::sInfo(
