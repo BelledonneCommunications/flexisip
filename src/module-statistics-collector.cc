@@ -72,9 +72,11 @@ void StatisticsCollector::onLoad(const GenericStruct *mc) {
 	string value = mc->get<ConfigString>("collector-address")->read();
 	if (value.size() > 0) {
 		mCollectorAddress = url_make(&mHome, value.c_str());
-		if (mCollectorAddress == NULL) {
+		if (mCollectorAddress == NULL ||
+			(mCollectorAddress->url_type != url_sip && mCollectorAddress->url_type != url_sips)) {
 			LOGF("StatisticsCollector: Invalid collector address '%s'", value.c_str());
 		}
+		mCollectorAddress->url_type = url_sip; /*we don't want to distinguish between sip and sips for the collector url*/
 	} else {
 		mCollectorAddress = NULL;
 	}
@@ -84,9 +86,10 @@ void StatisticsCollector::onLoad(const GenericStruct *mc) {
 void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipException) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
-	url_t *url = sip->sip_request->rq_url;
+	url_t url = *sip->sip_request->rq_url;
 	// verify collector address AND content type
-	if (mCollectorAddress && (url_cmp(mCollectorAddress, url) == 0)) {
+	url.url_type = url_sip; /*workaround the fact that we could receive the publish as sips .*/
+	if (mCollectorAddress && (url_cmp(mCollectorAddress, &url) == 0)) {
 		if ((strcmp("application/vq-rtcpxr", sip->sip_content_type->c_type) == 0) &&
 			(strcmp("vq-rtcpxr", sip->sip_content_type->c_subtype) == 0)) {
 			// some treatment
