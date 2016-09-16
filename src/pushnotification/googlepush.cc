@@ -15,6 +15,7 @@ GooglePushNotificationRequest::GooglePushNotificationRequest(const PushInfo &pin
 	ostringstream httpBody;
 	httpBody << "{\"registration_ids\":[\"" << deviceToken << "\"],\"data\":{\"loc-args\":\"" << arg
 	<< "\"}"
+	",\"priority\":\"high\""
 	",\"call-id\":\""
 	<< callid << "\"}";
 	mHttpBody = httpBody.str();

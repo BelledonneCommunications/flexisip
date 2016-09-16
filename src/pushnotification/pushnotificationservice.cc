@@ -35,7 +35,7 @@
 	static const char *APN_PROD_ADDRESS = "gateway.push.apple.com";
 	static const char *APN_PORT = "2195";
 
-	static const char *GPN_ADDRESS = "android.googleapis.com";
+	static const char *GPN_ADDRESS = "gcm-http.googleapis.com";
 	static const char *GPN_PORT = "443";
 
 	static const char *WPPN_PORT = "443";
