@@ -204,7 +204,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "the application, suffixed by the release mode and .pem extension. For example: org.linphone.dev.pem "
 		 "org.linphone.prod.pem com.somephone.dev.pem etc..."
 		 " The files should be .pem format, and made of certificate followed by private key.",
-		 "/etc/flexisip/apn"},
+		 "/Users/reisbenjamin/Downloads"},
 		{Boolean, "google", "Enable push notification for android devices", "true"},
 		{StringList, "google-projects-api-keys",
 		 "List of couples projectId:ApiKey for each android project that supports push notifications", ""},
@@ -291,6 +291,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 
 	pinfo.mCallId = ms->getSip()->sip_call_id->i_id;
 	pinfo.mEvent = sip->sip_request->rq_method == sip_method_invite ? PushInfo::Call : PushInfo::Message;
+    int time_out = mTimeout;
 
 	if (sip->sip_request->rq_url->url_params != NULL) {
 		char type[12];
@@ -353,6 +354,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				char call_str[64];
 				char call_snd[64];
 				char msg_snd[64];
+                char time_out_char[1];
 				if (url_param(params, "pn-msg-str", msg_str, sizeof(msg_str)) == 0) {
 					SLOGD << "no pn-msg-str";
 					return;
@@ -368,7 +370,12 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				if (url_param(params, "pn-msg-snd", msg_snd, sizeof(msg_snd)) == 0) {
 					SLOGD << "no optional pn-msg-snd, using empty";
 					strncpy(msg_snd, "empty", sizeof(msg_snd));
-				}
+                }
+                if (url_param(params, "pn-timeout", time_out_char, sizeof(time_out_char)) == 0) {
+                    SLOGD << "no optional pn-timeout, using mTimeout";
+                } else {
+                    time_out = std::atoi(time_out_char);
+                }
 				pinfo.mAlertMsgId = (sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str;
 				pinfo.mAlertSound = (sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd;
 				pinfo.mNoBadge = mNoBadgeiOS;
@@ -401,9 +408,9 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			}
 
 			if (pn) {
-				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << mTimeout << "s";
+				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << time_out << "s";
 				context = make_shared<PushNotificationContext>(transaction, this, pn, pn_key);
-				context->start(mTimeout);
+				context->start(time_out);
 				mPendingNotifications.insert(make_pair(pn_key, context));
 			}
 		}
