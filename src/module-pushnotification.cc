@@ -204,7 +204,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "the application, suffixed by the release mode and .pem extension. For example: org.linphone.dev.pem "
 		 "org.linphone.prod.pem com.somephone.dev.pem etc..."
 		 " The files should be .pem format, and made of certificate followed by private key.",
-		 "/Users/reisbenjamin/Downloads"},
+		 "/etc/flexisip/apn"},
 		{Boolean, "google", "Enable push notification for android devices", "true"},
 		{StringList, "google-projects-api-keys",
 		 "List of couples projectId:ApiKey for each android project that supports push notifications", ""},
