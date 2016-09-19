@@ -354,7 +354,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				char call_str[64];
 				char call_snd[64];
 				char msg_snd[64];
-                char time_out_char[1];
+                char time_out_char[4];
 				if (url_param(params, "pn-msg-str", msg_str, sizeof(msg_str)) == 0) {
 					SLOGD << "no pn-msg-str";
 					return;
