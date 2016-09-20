@@ -107,11 +107,16 @@ bool ForkContext::isUrgent(int code, const int urgentCodes[]) {
 	return false;
 }
 
-std::shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[]) {
+static bool isConsidered(int code, bool ignore503And408){
+	return ignore503And408 ? (!(code == 503 || code == 408)) : true;
+}
+
+std::shared_ptr<BranchInfo> ForkContext::_findBestBranch(const int urgentCodes[], bool ignore503And408) {
 	shared_ptr<BranchInfo> best;
+	
 	for (auto it = mBranches.begin(); it != mBranches.end(); ++it) {
 		int code = (*it)->getStatus();
-		if (code >= 200) {
+		if (code >= 200 && isConsidered(code, ignore503And408)) {
 			if (best == NULL) {
 				best = (*it);
 			} else {
@@ -125,13 +130,24 @@ std::shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[])
 	if (urgentCodes) {
 		for (auto it = mBranches.begin(); it != mBranches.end(); ++it) {
 			int code = (*it)->getStatus();
-			if (code > 0  && isUrgent(code, urgentCodes)) {
+			if (code > 0  && isConsidered(code, ignore503And408) && isUrgent(code, urgentCodes)) {
 				best = (*it);
 				break;
 			}
 		}
 	}
 	return best;
+}
+
+std::shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[], bool avoid503And408){
+	std::shared_ptr<BranchInfo> ret;
+	if (avoid503And408 == false){
+		ret = _findBestBranch(urgentCodes, false);
+	}else{
+		ret = _findBestBranch(urgentCodes, true);
+		if (ret == NULL) ret = _findBestBranch(urgentCodes, false);
+	}
+	return ret;
 }
 
 bool ForkContext::allBranchesAnswered(bool ignore_errors_and_timeouts) const {
@@ -151,7 +167,7 @@ void ForkContext::removeBranch(const shared_ptr<BranchInfo> &br) {
 	br->clear();
 }
 
-const std::list<std::shared_ptr<BranchInfo>> &ForkContext::getBranches() {
+const std::list<std::shared_ptr<BranchInfo>> &ForkContext::getBranches() const{
 	return mBranches;
 }
 

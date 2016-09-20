@@ -87,7 +87,7 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo> &br, const shared_
 		 * error or timeouts) are branches that are answered)
 		 * Instead we must wait for the duration of the fork for new registers*/
 		if (allBranchesAnswered(mCfg->mForkLate)) {
-			shared_ptr<BranchInfo> best = findBestBranch(getUrgentCodes());
+			shared_ptr<BranchInfo> best = findBestBranch(getUrgentCodes(), mCfg->mForkLate);
 			if (best)
 				logResponse(forwardResponse(best));
 			return;
@@ -161,22 +161,32 @@ bool ForkCallContext::isCompleted() const {
 	return false;
 }
 
+bool ForkCallContext::isRingingSomewhere()const{
+	const auto & branches = getBranches();
+	for (auto it = branches.begin(); it != branches.end(); ++it){
+		int status = (*it)->getStatus();
+		if (status >= 180 && status < 200)
+			return true;
+	}
+	return false;
+}
+
 void ForkCallContext::onShortTimer() {
 	LOGD("ForkCallContext [%p]: time to send urgent replies", this);
 	/*first stop the timer, it has to be one shot*/
 	su_timer_destroy(mShortTimer);
 	mShortTimer = NULL;
 
-	if (getLastResponseCode() >= 180)
+	if (isRingingSomewhere())
 		return; /*it's ringing somewhere*/
-	auto br = findBestBranch(getUrgentCodes());
+	auto br = findBestBranch(getUrgentCodes(), mCfg->mForkLate);
 	if (br) {
 		logResponse(forwardResponse(br));
 	}
 }
 
 void ForkCallContext::onLateTimeout() {
-	auto br = findBestBranch(getUrgentCodes());
+	auto br = findBestBranch(getUrgentCodes(), mCfg->mForkLate);
 	if (!br || br->getStatus() == 0 || br->getStatus() == 503) {
 		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
 		if (msgsip) {

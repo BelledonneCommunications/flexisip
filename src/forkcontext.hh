@@ -73,6 +73,7 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	std::string mKey;
 	void init();
 	void processLateTimeout();
+	std::shared_ptr<BranchInfo> _findBestBranch(const int urgentReplies[], bool ignore503And408);
 
   protected:
 	Agent *mAgent;
@@ -110,11 +111,11 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	// Get a branch by specifying its request uri destination.
 	std::shared_ptr<BranchInfo> findBranchByDest(const url_t *dest);
 	// Get the best candidate among all branches for forwarding its responses.
-	std::shared_ptr<BranchInfo> findBestBranch(const int urgentReplies[]);
+	std::shared_ptr<BranchInfo> findBestBranch(const int urgentReplies[], bool avoid503And408 = false);
 	bool allBranchesAnswered(bool ignore_errors_and_timeouts = false) const;
 	int getLastResponseCode() const;
 	void removeBranch(const std::shared_ptr<BranchInfo> &br);
-	const std::list<std::shared_ptr<BranchInfo>> &getBranches();
+	const std::list<std::shared_ptr<BranchInfo>> &getBranches()const;
 	static bool isUrgent(int code, const int urgentCodes[]);
 
   public:

@@ -47,6 +47,7 @@ class ForkCallContext : public ForkContext {
 	virtual void onCancel();
 
   private:
+	bool isRingingSomewhere()const;
 	const int *getUrgentCodes();
 	void onShortTimer();
 	void onPushTimer();
