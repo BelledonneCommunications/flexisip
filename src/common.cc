@@ -125,3 +125,32 @@ time_t getTimeOffset(time_t current_time) {
 	return empty;
 #endif
 }
+
+BinaryIp::BinaryIp(const char *hostname, bool onlyIpString) {
+	// Warning: IPv6 can use brakets.
+	char *node = hostname[0] != '['
+		? (char *)hostname
+		: strndup(hostname + 1, strlen(hostname) - 2);
+
+	struct addrinfo hints, *res;
+
+	memset(&mAddr, 0, sizeof mAddr);
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_INET6; // Only IPv6.
+	hints.ai_flags = AI_V4MAPPED; // Transform IPv4 in IPv6.
+
+	// Suppresses host address lookups.
+	if (onlyIpString)
+		hints.ai_flags |= AI_NUMERICHOST;
+
+	if (getaddrinfo(node, NULL, &hints, &res) != 0)
+		LOGE("getaddrinfo failed with %s", hostname);
+	else {
+		mAddr = ((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
+		freeaddrinfo(res);
+	}
+
+	// free IPv6 address with brakets.
+	if (node != hostname)
+		free(node);
+}

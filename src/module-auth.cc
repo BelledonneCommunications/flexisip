@@ -179,7 +179,7 @@ class Authentication : public Module {
 	static ModuleInfo<Authentication> sInfo;
 	map<string, auth_mod_t *> mAuthModules;
 	list<string> mDomains;
-	list<string> mTrustedHosts;
+	list<BinaryIp> mTrustedHosts;
 	list<string> mTrustedClientCertificates;
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
@@ -234,14 +234,20 @@ class Authentication : public Module {
 	}
 
 	void loadTrustedHosts(const ConfigStringList &trustedHosts) {
-		mTrustedHosts = trustedHosts.read();
+		list<string> hosts = trustedHosts.read();
+		transform(hosts.begin(), hosts.end(), back_inserter(mTrustedHosts), [](string host) {
+			return BinaryIp(host.c_str());
+		});
+
 		const GenericStruct *clusterSection = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 		bool clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
 		if (clusterEnabled) {
 			list<string> clusterNodes = clusterSection->get<ConfigStringList>("nodes")->read();
 			for (list<string>::const_iterator node = clusterNodes.cbegin(); node != clusterNodes.cend(); node++) {
-				if (find(mTrustedHosts.cbegin(), mTrustedHosts.cend(), *node) == mTrustedHosts.cend()) {
-					mTrustedHosts.push_back(*node);
+				BinaryIp nodeIp((*node).c_str());
+
+				if (find(mTrustedHosts.cbegin(), mTrustedHosts.cend(), nodeIp) == mTrustedHosts.cend()) {
+					mTrustedHosts.push_back(nodeIp);
 				}
 			}
 		}
@@ -254,9 +260,11 @@ class Authentication : public Module {
 			sip_contact_t *contact = sip_contact_make(home.home(), presenceServer.c_str());
 			url_t* url = contact ? contact->m_url : NULL;
 			if (url && url->url_host) {
-				if (find(mTrustedHosts.cbegin(), mTrustedHosts.cend(), url->url_host) == mTrustedHosts.cend()) {
+				BinaryIp host(url->url_host);
+
+				if (find(mTrustedHosts.cbegin(), mTrustedHosts.cend(), host) == mTrustedHosts.cend()) {
 					SLOGI << "Adding presence server '" << url->url_host << "' to trusted hosts";
-					mTrustedHosts.push_back(url->url_host);
+					mTrustedHosts.push_back(host);
 				}
 			} else {
 				SLOGW << "Could not parse presence server URL '" << presenceServer << "', cannot be added to trusted hosts!";
@@ -449,11 +457,14 @@ class Authentication : public Module {
 
 		// Check for trusted host
 		sip_via_t *via = sip->sip_via;
-		list<string>::const_iterator trustedHostsIt = mTrustedHosts.begin();
-		const char *receivedHost = !empty(via->v_received) ? via->v_received : via->v_host;
+		list<BinaryIp>::const_iterator trustedHostsIt = mTrustedHosts.begin();
+		const char *printableReceivedHost = !empty(via->v_received) ? via->v_received : via->v_host;
+
+		BinaryIp receivedHost(printableReceivedHost, true);
+
 		for (; trustedHostsIt != mTrustedHosts.end(); ++trustedHostsIt) {
-			if (*trustedHostsIt == receivedHost) {
-				LOGD("Allowing message from trusted host %s", receivedHost);
+			if (receivedHost == *trustedHostsIt) {
+				LOGD("Allowing message from trusted host %s", printableReceivedHost);
 				return true;
 			}
 		}

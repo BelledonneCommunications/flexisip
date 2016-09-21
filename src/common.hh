@@ -65,4 +65,18 @@ template <typename _first, typename _last> class map_delete_functor {
 time_t getCurrentTime();
 time_t getTimeOffset(time_t current_time);
 
+// Helper to get ip from host in a portable binary format.
+class BinaryIp {
+public:
+	// If onlyIpString = true, no address lookups are executed.
+	BinaryIp(const char *hostname, bool onlyIpString = false);
+
+	bool operator==(const BinaryIp &ip2) const {
+		return !memcmp(&mAddr, &ip2.mAddr, sizeof mAddr);
+	}
+
+private:
+	struct in6_addr mAddr;
+};
+
 #endif
