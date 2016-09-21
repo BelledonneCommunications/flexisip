@@ -185,6 +185,7 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 								   ->get<GenericStruct>("inter-domain-connections")
 								   ->get<ConfigBoolean>("assume-unique-domains")
 								   ->read();
+		mUseGlobaleDomain = GenericManager::get()->getRoot()->get<GenericStruct>("module::Router")->get<ConfigBoolean>("use-global-domain");
 		mSigaction.sa_sigaction = ModuleRegistrar::sighandler;
 		mSigaction.sa_flags = SA_SIGINFO;
 		sigaction(SIGUSR1, &mSigaction, NULL);
@@ -217,6 +218,18 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 	bool isManagedDomain(const url_t *url) {
 		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 	}
+	string routingKey(const url_t *sipUri) {
+		ostringstream oss;
+		if (sipUri->url_user) {
+			oss << sipUri->url_user << "@";
+		}
+		if(mUseGlobaleDomain) {
+			oss << "merged";
+		} else if (sipUri->url_host) {
+			oss << sipUri->url_host;
+		}
+		return oss.str();
+	}
 	void readStaticRecords();
 	bool mUpdateOnResponse;
 	bool mAllowDomainRegistrations;
@@ -235,18 +248,8 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 	static void sighandler(int signum, siginfo_t *info, void *ptr);
 	static ModuleInfo<ModuleRegistrar> sInfo;
 	list<shared_ptr<ResponseContext>> mRespContexes;
+	bool mUseGlobaleDomain;
 };
-
-static string routingKey(const url_t *sipUri) {
-	ostringstream oss;
-	if (sipUri->url_user) {
-		oss << sipUri->url_user << "@";
-	}
-	if (sipUri->url_host) {
-		oss << sipUri->url_host;
-	}
-	return oss.str();
-}
 
 /**
  * Delta from expires header, normalized with custom rules.
@@ -435,7 +438,7 @@ class OnRequestBindListener : public RegistrarDbListener {
 			const sip_expires_t *expires = mEv->getMsgSip()->getSip()->sip_expires;
 			if (mContact && expires && expires->ex_delta > 0) {
 				string uid = Record::extractUniqueId(mContact);
-				string topic = routingKey(mSipFrom->a_url);
+				string topic = mModule->routingKey(mSipFrom->a_url);
 				RegistrarDb::get(mModule->getAgent())->publish(topic, uid);
 			}
 		} else {
@@ -487,7 +490,7 @@ class OnResponseBindListener : public RegistrarDbListener {
 			const sip_expires_t *expires = mCtx->reqSipEvent->getMsgSip()->getSip()->sip_expires;
 			if (!expires || expires->ex_delta > 0) {
 				string uid = Record::extractUniqueId(mCtx->mContacts);
-				string topic = routingKey(mCtx->mFrom->a_url);
+				string topic = mModule->routingKey(mCtx->mFrom->a_url);
 				RegistrarDb::get(mModule->getAgent())->publish(topic, uid);
 			}
 			const sip_contact_t *dbContacts = r->getContacts(ms->getHome(), now);
