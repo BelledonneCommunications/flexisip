@@ -203,7 +203,10 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "Path to directory where to find Apple Push Notification service certificates. They should bear the appid of "
 		 "the application, suffixed by the release mode and .pem extension. For example: org.linphone.dev.pem "
 		 "org.linphone.prod.pem com.somephone.dev.pem etc..."
-		 " The files should be .pem format, and made of certificate followed by private key.",
+		 " The files should be .pem format, and made of certificate followed by private key."
+		 "This is also the path to the directory where to find Voice Over IP certificates (certicates to use PushKit)."
+		 "They should bear the appid of the application, suffixed by the release mode and .pem extension. For example: org.linphone.voip.dev.pem "
+		 "org.linphone.voip.prod.pem com.somephone.voip.dev.pem etc...",
 		 "/etc/flexisip/apn"},
 		{Boolean, "google", "Enable push notification for android devices", "true"},
 		{StringList, "google-projects-api-keys",
