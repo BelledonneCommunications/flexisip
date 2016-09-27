@@ -429,7 +429,7 @@ static void forkAndDetach(const string &pidfile, bool auto_respawn, bool startMo
 			exit(EXIT_FAILURE);
 		} else {
 			// pipe written to, flexisip was OK
-			LOGE("[LAUNCHER] Flexisip started correctly: exit");
+			LOGD("[LAUNCHER] Flexisip started correctly: exit");
 			exit(EXIT_SUCCESS);
 		}
 	}
