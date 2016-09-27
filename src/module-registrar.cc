@@ -185,7 +185,7 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 								   ->get<GenericStruct>("inter-domain-connections")
 								   ->get<ConfigBoolean>("assume-unique-domains")
 								   ->read();
-		mUseGlobaleDomain = GenericManager::get()->getRoot()->get<GenericStruct>("module::Router")->get<ConfigBoolean>("use-global-domain");
+		mUseGlobalDomain = GenericManager::get()->getRoot()->get<GenericStruct>("module::Router")->get<ConfigBoolean>("use-global-domain")->read();
 		mSigaction.sa_sigaction = ModuleRegistrar::sighandler;
 		mSigaction.sa_flags = SA_SIGINFO;
 		sigaction(SIGUSR1, &mSigaction, NULL);
@@ -223,7 +223,7 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 		if (sipUri->url_user) {
 			oss << sipUri->url_user << "@";
 		}
-		if(mUseGlobaleDomain) {
+		if(mUseGlobalDomain) {
 			oss << "merged";
 		} else if (sipUri->url_host) {
 			oss << sipUri->url_host;
@@ -248,7 +248,7 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 	static void sighandler(int signum, siginfo_t *info, void *ptr);
 	static ModuleInfo<ModuleRegistrar> sInfo;
 	list<shared_ptr<ResponseContext>> mRespContexes;
-	bool mUseGlobaleDomain;
+	bool mUseGlobalDomain;
 };
 
 /**
