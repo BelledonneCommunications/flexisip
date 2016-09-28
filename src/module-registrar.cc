@@ -22,11 +22,12 @@
 #include "log/logmanager.hh"
 
 #include <sofia-sip/sip_status.h>
+#include <sofia-sip/su_random.h>
+
 #include <fstream>
 #include <sstream>
 #include <ostream>
 #include <csignal>
-
 #include <functional>
 #include <algorithm>
 
@@ -139,6 +140,7 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 			 "60"},
 			{String, "service-route",
 			 "Sequence of proxies (space-separated) where requests will be redirected through (RFC3608)", ""},
+			{Integer, "register-expire-randomizer-max", "Maximum percentage of the REGISTER expire to randomly remove, 0 to disable", "0"},
 			config_item_end};
 		mc->addChildrenValues(configs);
 
@@ -170,6 +172,8 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 		
 		mStaticRecordsFile = mc->get<ConfigString>("static-records-file")->read();
 		mStaticRecordsTimeout = mc->get<ConfigInt>("static-records-timeout")->read();
+		
+		mExpireRandomizer = mc->get<ConfigInt>("register-expire-randomizer-max")->read();
 
 		if (!mStaticRecordsFile.empty()) {
 			readStaticRecords(); // read static records from configuration file
@@ -249,6 +253,7 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 	static ModuleInfo<ModuleRegistrar> sInfo;
 	list<shared_ptr<ResponseContext>> mRespContexes;
 	bool mUseGlobalDomain;
+	int mExpireRandomizer;
 };
 
 /**
@@ -359,25 +364,41 @@ static void replyPopulateEventLog(shared_ptr<SipEvent> ev, const sip_t *sip, int
 }
 void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason,
 							const sip_contact_t *contacts) {
+	const sip_contact_t *contact = NULL;
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
-
+	int expire = sip->sip_expires->ex_delta;
+	string expire_str = std::to_string(expire);
+	
 	replyPopulateEventLog(ev, sip, code, reason);
 
 	if (!mServiceRoute.empty()) {
 		LOGD("Setting service route to %s", mServiceRoute.c_str());
 	}
+	
+	// This ensures not all REGISTERs arrive at the same time on the flexisip
+	if (sip->sip_request->rq_method == sip_method_register && code == 200 && mExpireRandomizer > 0) {
+		expire = (int) expire - (expire * su_randint(0, mExpireRandomizer) / 100);
+		expire_str = std::to_string(expire);
+		if (contacts) {
+			su_home_t *home = ev->getHome();
+			contact = sip_contact_dup(home, contacts);
+			msg_header_replace_param(home, (msg_common_t *)contact, su_sprintf(home, "expires=%i", expire));
+		}
+	}
+	
+	if (!contact) contact = contacts;
 
-	if (contacts != NULL && !mServiceRoute.empty()) {
-		ev->reply(code, reason, SIPTAG_CONTACT(contacts), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
-				  SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-	} else if (contacts != NULL) {
-		ev->reply(code, reason, SIPTAG_CONTACT(contacts), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	if (contact && !mServiceRoute.empty()) {
+		ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
+				  SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
+	} else if (contact) {
+		ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
 	} else if (!mServiceRoute.empty()) {
 		ev->reply(code, reason, SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
-				  SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+				  SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
 	} else {
-		ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
 	}
 }
 
