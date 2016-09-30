@@ -56,13 +56,18 @@ void _belle_sip_log(const char *domain, BctbxLogLevel lev, const char *fmt, va_l
 	LOGV(level, fmt, args);
 }
 
+NewPresenceInfoEvent::~NewPresenceInfoEvent(){
+}
+
 PresenceServer::Init PresenceServer::sStaticInit;
 
 PresenceServer::Init::Init() {
-	ConfigItemDescriptor items[] = {{Integer, "expires", "Publish default expires in second.  by default.", "600"},
+	ConfigItemDescriptor items[] = {
+									{Boolean, "enabled", "Enable presence server", "true"},
 									{StringList, "transports",
-									 "List of white space separated SIP uris where the proxy must listen.",
+									 "List of white space separated SIP uris where the presence server must listen.",
 									 "sip:127.0.0.1:5065"},
+									 {Integer, "expires", "Publish default expires in second.  by default.", "600"},
 									{Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
 									{Boolean, "long-term-enabled", "Enable long-term presence notifies", "true"},
 									config_item_end};
@@ -72,11 +77,14 @@ PresenceServer::Init::Init() {
 }
 
 PresenceServer::PresenceServer(std::string configFile) throw(FlexisipException)
-	: mStarted((belle_sip_object_enable_leak_detector(GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("leak-detector")->read()),true))
-	, mStack(belle_sip_stack_new(NULL))
-	, mProvider(belle_sip_stack_create_provider(mStack, NULL))
+	: mStarted(true)
 	, mIterateThread(nullptr) {
-
+	
+	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
+	/*Enabling leak detector should be done asap.*/
+	belle_sip_object_enable_leak_detector(GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("leak-detector")->read());
+	mStack = belle_sip_stack_new(NULL);
+	mProvider = belle_sip_stack_create_provider(mStack, NULL);
 	//bctbx_set_log_handler(_belle_sip_log);
 	belle_sip_set_log_level(BELLE_SIP_LOG_MESSAGE);
 
@@ -104,8 +112,8 @@ PresenceServer::PresenceServer(std::string configFile) throw(FlexisipException)
 				  const belle_sip_transaction_terminated_event_t *))PresenceServer::processTransactionTerminated;
 	mListener = belle_sip_listener_create_from_callbacks(&listener_callbacks, this);
 	belle_sip_provider_add_sip_listener(mProvider, mListener);
-	mDefaultExpires =
-		GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigInt>("expires")->read();
+	mDefaultExpires = config->get<ConfigInt>("expires")->read();
+	mEnabled = config->get<ConfigBoolean>("enabled")->read();
 	SLOGD << "Presence server configuration file [" << configFile << "] Successfully loaded";
 }
 
@@ -139,8 +147,9 @@ PresenceServer::~PresenceServer() {
 	belle_sip_object_flush_active_objects();
 	SLOGD << "Presence server destroyed";
 }
-void PresenceServer::start() throw(FlexisipException) {
 
+void PresenceServer::start() throw(FlexisipException) {
+	if (!mEnabled) return;
 	list<string> transports = GenericManager::get()
 								  ->getRoot()
 								  ->get<GenericStruct>("presence-server")

@@ -294,7 +294,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 
 	pinfo.mCallId = ms->getSip()->sip_call_id->i_id;
 	pinfo.mEvent = sip->sip_request->rq_method == sip_method_invite ? PushInfo::Call : PushInfo::Message;
-    int time_out = mTimeout;
+	int time_out = mTimeout;
 
 	if (sip->sip_request->rq_url->url_params != NULL) {
 		char type[12];
@@ -357,7 +357,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				char call_str[64];
 				char call_snd[64];
 				char msg_snd[64];
-                char time_out_char[4];
+				char time_out_char[4];
 				if (url_param(params, "pn-msg-str", msg_str, sizeof(msg_str)) == 0) {
 					SLOGD << "no pn-msg-str";
 					return;
@@ -373,12 +373,12 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				if (url_param(params, "pn-msg-snd", msg_snd, sizeof(msg_snd)) == 0) {
 					SLOGD << "no optional pn-msg-snd, using empty";
 					strncpy(msg_snd, "empty", sizeof(msg_snd));
-                }
-                if (url_param(params, "pn-timeout", time_out_char, sizeof(time_out_char)) == 0) {
-                    SLOGD << "no optional pn-timeout, using mTimeout";
-                } else {
-                    time_out = std::atoi(time_out_char);
-                }
+				}
+				if (url_param(params, "pn-timeout", time_out_char, sizeof(time_out_char)) == 0) {
+					SLOGD << "no optional pn-timeout, using mTimeout";
+				} else {
+					time_out = std::atoi(time_out_char);
+				}
 				pinfo.mAlertMsgId = (sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str;
 				pinfo.mAlertSound = (sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd;
 				pinfo.mNoBadge = mNoBadgeiOS;

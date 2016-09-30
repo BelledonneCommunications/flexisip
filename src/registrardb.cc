@@ -410,7 +410,7 @@ void RegistrarDb::unsubscribe(const std::string &topic) {
 	}
 }
 
-void RegistrarDb::notifyContactListener(const std::string &key, const std::string uid) {
+void RegistrarDb::notifyContactListener(const std::string &key, const std::string &uid) {
 	LOGD("Notify topic = %s, uid = %s", key.c_str(), uid.c_str());
 	auto it = mContactListenersMap.find(key);
 	if (it != mContactListenersMap.end()) {

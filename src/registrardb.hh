@@ -288,7 +288,7 @@ class RegistrarDb {
 		return mLocalRegExpire->countActives();
 	}
 	
-	void notifyContactListener(const std::string &key, const std::string uid);
+	void notifyContactListener(const std::string &key, const std::string &uid);
 	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void unsubscribe(const std::string &topic);
 	virtual void publish(const std::string &topic, const std::string &uid) = 0;

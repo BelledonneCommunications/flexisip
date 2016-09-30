@@ -55,6 +55,7 @@ class PresentityPresenceInformation;
 class Listener;
 
 struct NewPresenceInfoEvent {
+	virtual ~NewPresenceInfoEvent();
 	virtual void onNewPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& info) const = 0;
 };
 
@@ -74,6 +75,7 @@ private:
 	};
 	static Init sStaticInit;
 	bool mStarted;
+	bool mEnabled;
 	//PresenceConfigManager mConfigManager;
 	belle_sip_stack_t *mStack;
 	belle_sip_provider_t *mProvider;
