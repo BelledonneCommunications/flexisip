@@ -203,6 +203,10 @@
 			}else{
 				onSuccess(req);
 			}
+		}else{
+			SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << "error reading mandatory response: "<< p;
+			BIO_free_all(mBio);
+			mBio = NULL;
 		}
 	}
 

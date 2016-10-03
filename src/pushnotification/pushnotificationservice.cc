@@ -29,58 +29,57 @@
 #include <openssl/err.h>
 #include <openssl/pem.h>
 
-	using namespace std;
+using namespace std;
 
-	static const char *APN_DEV_ADDRESS = "gateway.sandbox.push.apple.com";
-	static const char *APN_PROD_ADDRESS = "gateway.push.apple.com";
-	static const char *APN_PORT = "2195";
+static const char *APN_DEV_ADDRESS = "gateway.sandbox.push.apple.com";
+static const char *APN_PROD_ADDRESS = "gateway.push.apple.com";
+static const char *APN_PORT = "2195";
 
-	static const char *GPN_ADDRESS = "gcm-http.googleapis.com";
-	static const char *GPN_PORT = "443";
+static const char *GPN_ADDRESS = "gcm-http.googleapis.com";
+static const char *GPN_PORT = "443";
 
-	static const char *WPPN_PORT = "443";
+static const char *WPPN_PORT = "443";
 
-	PushNotificationService::PushNotificationService(int maxQueueSize)
-	: mMaxQueueSize(maxQueueSize), mClients(), mCountFailed(NULL), mCountSent(NULL) {
-		SSL_library_init();
-		SSL_load_error_strings();
-	}
+PushNotificationService::PushNotificationService(int maxQueueSize)
+: mMaxQueueSize(maxQueueSize), mClients(), mCountFailed(NULL), mCountSent(NULL) {
+	SSL_library_init();
+	SSL_load_error_strings();
+}
 
-	PushNotificationService::~PushNotificationService() {
-		ERR_free_strings();
-	}
+PushNotificationService::~PushNotificationService() {
+	ERR_free_strings();
+}
 
 
-	int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequest> &pn){	
-		std::shared_ptr<PushNotificationClient> client = mClients[pn->getAppIdentifier()];
-		if (client == 0) {
-        	bool isW10 = (pn->getType().compare(string("w10")) == 0);
-        	if (isW10 && (mWindowsPhonePackageSID.empty() || mWindowsPhoneApplicationSecret.empty())) {
-            	SLOGE << "Windows Phone not configured for push notifications ("
-	            	"package sid is " << (mWindowsPhonePackageSID.empty() ? "NOT configured" : "configured") << " and " <<
-	            	"application secret is " << (mWindowsPhoneApplicationSecret.empty() ? "NOT configured" : "configured") << ").";
-            	return -1;
-            } else {
-                string wpClient = pn->getAppIdentifier();
-                
-                SSL_CTX* ctx = SSL_CTX_new(TLSv1_2_method());
-                SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
-                
-                LOGD("Creating PN client for %s", pn->getAppIdentifier().c_str());
-                if(isW10) {
-                    mClients[wpClient] = std::make_shared<PushNotificationClientWp>(wpClient, this, ctx,
-                                                                                    pn->getAppIdentifier(), WPPN_PORT, mMaxQueueSize, true, mWindowsPhonePackageSID, mWindowsPhoneApplicationSecret);
-                } else {
-                    mClients[wpClient] = std::make_shared<PushNotificationClient>(wpClient, this, ctx,
-                                                                                  pn->getAppIdentifier(), "80", mMaxQueueSize, false);
-                }        
-                client = mClients[wpClient];
-            }
+int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequest> &pn){	
+	std::shared_ptr<PushNotificationClient> client = mClients[pn->getAppIdentifier()];
+	if (client == 0) {
+		bool isW10 = (pn->getType().compare(string("w10")) == 0);
+		if (isW10 && (mWindowsPhonePackageSID.empty() || mWindowsPhoneApplicationSecret.empty())) {
+			SLOGE << "Windows Phone not configured for push notifications ("
+				"package sid is " << (mWindowsPhonePackageSID.empty() ? "NOT configured" : "configured") << " and " <<
+				"application secret is " << (mWindowsPhoneApplicationSecret.empty() ? "NOT configured" : "configured") << ").";
+			return -1;
+		} else {
+			string wpClient = pn->getAppIdentifier();
+			
+			SSL_CTX* ctx = SSL_CTX_new(TLSv1_2_method());
+			SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+			
+			LOGD("Creating PN client for %s", pn->getAppIdentifier().c_str());
+			if(isW10) {
+				mClients[wpClient] = std::make_shared<PushNotificationClientWp>(wpClient, this, ctx,
+												pn->getAppIdentifier(), WPPN_PORT, mMaxQueueSize, true, mWindowsPhonePackageSID, mWindowsPhoneApplicationSecret);
+			} else {
+				mClients[wpClient] = std::make_shared<PushNotificationClient>(wpClient, this, ctx,
+												pn->getAppIdentifier(), "80", mMaxQueueSize, false);
+			}
+			client = mClients[wpClient];
 		}
-
-		client->sendPush(pn);
-		return 0;
 	}
+	client->sendPush(pn);
+	return 0;
+}
 
 bool PushNotificationService::isIdle() {
 	map<string, std::shared_ptr<PushNotificationClient>>::const_iterator it;
