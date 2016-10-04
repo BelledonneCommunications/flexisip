@@ -480,4 +480,4 @@ void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phr
 }
 
 ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter", "No documentation at the moment.",
-												 ModuleInfoBase::ModuleOid::GatewayAdapter, ModuleTypeExperimental);
+												 ModuleInfoBase::ModuleOid::GatewayAdapter, ModuleClassExperimental);

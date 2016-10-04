@@ -134,6 +134,10 @@ void Module::declare(GenericStruct *root) {
 	mModuleConfig->setConfigListener(this);
 	root->addChild(mModuleConfig);
 	mFilter->declareConfig(mModuleConfig);
+	if (getClass() == ModuleClassExperimental){
+		//Experimental modules are forced to be disabled by default.
+		root->get<ConfigBoolean>("enabled")->setDefault("false");
+	}
 	onDeclare(mModuleConfig);
 }
 
@@ -214,8 +218,8 @@ const string &Module::getModuleName() const {
 	return mInfo->getModuleName();
 }
 
-ModuleType_e Module::type() const {
-	return mInfo->type();
+ModuleClass Module::getClass() const {
+	return mInfo->getClass();
 }
 
 msg_auth_t *ModuleToolbox::findAuthorizationForRealm(su_home_t *home, msg_auth_t *au, const char *realm) {

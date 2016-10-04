@@ -112,4 +112,4 @@ class ModulePresence : public Module, ModuleToolbox {
 };
 ModuleInfo<ModulePresence> ModulePresence::sInfo(
 	"Presence", "This module transfert sip presence messages, like subscribe/notify/publish to a presence server. ",
-	ModuleInfoBase::ModuleOid::Presence, ModuleTypeExperimental);
+	ModuleInfoBase::ModuleOid::Presence, ModuleClassExperimental);

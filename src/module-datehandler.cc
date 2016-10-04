@@ -73,4 +73,4 @@ ModuleInfo<DateHandler> DateHandler::sInfo("DateHandler", "The purpose of the Da
 														  "is for deploying a Flexisip proxy in an embedded system "
 														  "that doesn't have time information when booting up. The "
 														  "command can be used to assign the date to the system.",
-										   ModuleInfoBase::ModuleOid::DateHandler, ModuleTypeExperimental);
+										   ModuleInfoBase::ModuleOid::DateHandler, ModuleClassExperimental);

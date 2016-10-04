@@ -94,4 +94,4 @@ void LoadBalancer::onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipE
 ModuleInfo<LoadBalancer>
 	LoadBalancer::sInfo("LoadBalancer",
 						"This module performs load balancing between a set of configured destination proxies.",
-						ModuleInfoBase::ModuleOid::LoadBalancer, ModuleTypeExperimental);
+						ModuleInfoBase::ModuleOid::LoadBalancer, ModuleClassExperimental);

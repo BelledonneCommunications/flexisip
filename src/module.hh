@@ -50,7 +50,7 @@ class ModuleFactory {
 	friend class ModuleInfoBase;
 };
 
-typedef enum { ModuleTypeExperimental, ModuleTypeProduction } ModuleType_e;
+typedef enum { ModuleClassExperimental, ModuleClassProduction } ModuleClass;
 
 class ModuleInfoBase {
 	const std::string mName;
@@ -72,8 +72,8 @@ class ModuleInfoBase {
 	}
 	virtual ~ModuleInfoBase();
 
-	ModuleType_e type() const {
-		return mType;
+	ModuleClass getClass() const {
+		return mClass;
 	}
 
 	enum ModuleOid {
@@ -99,17 +99,17 @@ class ModuleInfoBase {
 	};
 
   protected:
-	ModuleInfoBase(const char *modname, const char *help, enum ModuleOid oid, ModuleType_e type)
-		: mName(modname), mHelp(help), mOidIndex(oid), mType(type) {
+	ModuleInfoBase(const char *modname, const char *help, enum ModuleOid oid, ModuleClass type)
+		: mName(modname), mHelp(help), mOidIndex(oid), mClass(type) {
 		// Oid::oidFromHashedString(modname)
 		ModuleFactory::get()->registerModule(this);
 	}
-	ModuleType_e mType;
+	ModuleClass mClass;
 };
 
 template <typename _module_> class ModuleInfo : public ModuleInfoBase {
   public:
-	ModuleInfo(const char *modname, const char *help, ModuleOid oid, ModuleType_e type = ModuleTypeProduction)
+	ModuleInfo(const char *modname, const char *help, ModuleOid oid, ModuleClass type = ModuleClassProduction)
 		: ModuleInfoBase(modname, help, oid, type) {
 	}
 
@@ -144,7 +144,7 @@ class Module : protected ConfigValueListener {
 	StatCounter64 &findStat(const std::string &statName) const;
 	void idle();
 	bool isEnabled() const;
-	ModuleType_e type() const;
+	ModuleClass getClass() const;
 
 	inline void process(std::shared_ptr<RequestSipEvent> &ev) {
 		processRequest(ev);

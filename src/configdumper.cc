@@ -70,7 +70,7 @@ bool ConfigDumper::shouldDumpModule(const string &moduleName) const {
 
 	ModuleInfoBase *moduleInfo = (it != moduleInfos.end()) ? *it : NULL;
 	if (moduleInfo != NULL) {
-		return moduleInfo->type() == ModuleTypeProduction;
+		return moduleInfo->getClass() == ModuleClassProduction;
 	} else {
 		return true;
 	}

@@ -96,4 +96,4 @@ ModuleInfo<ContactRouteInserter>
 								"(think about flexisip used as a SBC gateway) in such a way that it is then possible "
 								"to route back outgoing invites to the original address. "
 								"It is a kind of similar mechanism as Record-Route, but for REGISTER.",
-								ModuleInfoBase::ModuleOid::ContactRouteInserter, ModuleTypeExperimental);
+								ModuleInfoBase::ModuleOid::ContactRouteInserter, ModuleClassExperimental);
