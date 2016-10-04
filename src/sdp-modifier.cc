@@ -403,11 +403,14 @@ void SdpModifier::changeAudioIpPort(const char *ip, int port){
 
 void SdpModifier::changeMediaConnection(sdp_media_t *mline, const char *relay_ip){
 	sdp_connection_t *c=sdp_connection_dup(mHome,mSession->sdp_connection);
+	bool isIP6 = strchr(relay_ip, ':') != NULL;
 	if (c == NULL) {
 		if (mline->m_connections) {
 			mline->m_connections->c_address=su_strdup(mHome, relay_ip);
+			mline->m_connections->c_addrtype = isIP6 ? sdp_addr_ip6 : sdp_addr_ip4;
 		}
 	} else {
+		c->c_addrtype = isIP6 ? sdp_addr_ip6 : sdp_addr_ip4;
 		c->c_address=su_strdup(mHome,relay_ip);
 		if (sdp_connection_cmp(mSession->sdp_connection, c)) {
 			mline->m_connections=c;
