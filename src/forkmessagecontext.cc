@@ -89,10 +89,10 @@ void ForkMessageContext::checkFinished() {
 	}
 }
 
-void ForkMessageContext::logDeliveryEvent(const std::shared_ptr<BranchInfo> &br,
+void ForkMessageContext::logDeliveredToUserEvent(const std::shared_ptr<BranchInfo> &br,
 										  const shared_ptr<ResponseSipEvent> &event) {
 	sip_t *sip = event->getMsgSip()->getSip();
-	auto log = make_shared<MessageLog>(MessageLog::Delivery, sip->sip_from, sip->sip_to, sip->sip_call_id);
+	auto log = make_shared<MessageLog>(MessageLog::DeliveredToUser, sip->sip_from, sip->sip_to, sip->sip_call_id);
 	log->setDestination(br->mRequest->getMsgSip()->getSip()->sip_request->rq_url);
 	log->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
 	log->setCompleted();
@@ -110,26 +110,26 @@ void ForkMessageContext::onResponse(const std::shared_ptr<BranchInfo> &br, const
 			mDeliveredCount++;
 			if (mAcceptanceTimer) {
 				if (mIncoming)
-					logReceptionEvent(event); /*in the sender's log will appear the status code from the receiver*/
+					logReceivedFromUserEvent(event); /*in the sender's log will appear the status code from the receiver*/
 				su_timer_destroy(mAcceptanceTimer);
 				mAcceptanceTimer = NULL;
 			}
 		}
-		logDeliveryEvent(br, event);
+		logDeliveredToUserEvent(br, event);
 		forwardResponse(br);
 	} else if (code >= 300 && !mCfg->mForkLate && isUrgent(code, sUrgentCodes)){
 		/*expedite back any urgent replies if late forking is disabled */
-		logDeliveryEvent(br, event);
+		logDeliveredToUserEvent(br, event);
 		forwardResponse(br);
 	} else {
-		logDeliveryEvent(br, event);
+		logDeliveredToUserEvent(br, event);
 	}
 	checkFinished();
 }
 
-void ForkMessageContext::logReceptionEvent(const shared_ptr<ResponseSipEvent> &ev) {
+void ForkMessageContext::logReceivedFromUserEvent(const shared_ptr<ResponseSipEvent> &ev) {
 	sip_t *sip = ev->getMsgSip()->getSip();
-	auto log = make_shared<MessageLog>(MessageLog::Reception, sip->sip_from, sip->sip_to, sip->sip_call_id);
+	auto log = make_shared<MessageLog>(MessageLog::ReceivedFromUser, sip->sip_from, sip->sip_to, sip->sip_call_id);
 	log->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
 	log->setCompleted();
 	ev->setEventLog(log);
@@ -146,7 +146,7 @@ void ForkMessageContext::acceptMessage() {
 	shared_ptr<ResponseSipEvent> ev(
 		new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 	forwardResponse(ev);
-	logReceptionEvent(ev); /*in the sender's log will appear the 202 accepted from flexisip server*/
+	logReceivedFromUserEvent(ev); /*in the sender's log will appear the 202 accepted from flexisip server*/
 }
 
 void ForkMessageContext::onAcceptanceTimer() {

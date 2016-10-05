@@ -97,7 +97,7 @@ class MessageLog : public EventLog {
 	friend class MessageLogDb;
 
   public:
-	enum ReportType { Reception, Delivery };
+	enum ReportType { ReceivedFromUser, DeliveredToUser };
 	MessageLog(ReportType report, const sip_from_t *from, const sip_to_t *to, const sip_call_id_t *id);
 	void setDestination(const url_t *dest);
 

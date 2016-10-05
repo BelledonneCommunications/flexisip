@@ -153,7 +153,10 @@
 
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " sent " << wcount << "/" << buffer.size() << " data";
 		if (wcount <= 0) {
+			SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " failed to send to server.";
 			onError(req, "Cannot send to server");
+			BIO_free_all(mBio);
+			mBio = NULL;
 			return;
 		}
 

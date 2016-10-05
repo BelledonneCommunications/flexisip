@@ -246,11 +246,11 @@ inline ostream &operator<<(ostream &ostr, RegistrationLog::Type type) {
 
 inline ostream &operator<<(ostream &ostr, MessageLog::ReportType type) {
 	switch (type) {
-		case MessageLog::Reception:
-			ostr << "Reception";
+		case MessageLog::ReceivedFromUser:
+			ostr << "Received from user";
 			break;
-		case MessageLog::Delivery:
-			ostr << "Delivery";
+		case MessageLog::DeliveredToUser:
+			ostr << "Delivered to user";
 			break;
 	}
 	return ostr;
@@ -385,10 +385,6 @@ void FilesystemEventLogWriter::writeCallLog(const std::shared_ptr<CallLog> &call
 
 void FilesystemEventLogWriter::writeMessageLog(const std::shared_ptr<MessageLog> &mlog) {
 	const char *label = "messages";
-	int fd = openPath(mlog->mReportType == MessageLog::Reception ? mlog->mFrom->a_url : mlog->mTo->a_url, label,
-					  mlog->mDate);
-	if (fd == -1)
-		return;
 	ostringstream msg;
 
 	msg << PrettyTime(mlog->mDate) << ": " << mlog->mReportType << " id:" << std::hex << mlog->mCallId << " "
@@ -397,14 +393,36 @@ void FilesystemEventLogWriter::writeMessageLog(const std::shared_ptr<MessageLog>
 	if (mlog->mUri)
 		msg << " (" << mlog->mUri << ") ";
 	msg << mlog->mStatusCode << " " << mlog->mReason << endl;
-	// Avoid to write logs for users that possibly do not exist.
-	// However the error will be reported in the errors directory.
-	if (!(mlog->mReportType == MessageLog::Delivery && mlog->mStatusCode == 404)) {
-		if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
-			LOGE("Fail to write message log: %s", strerror(errno));
+	
+	if (mlog->mReportType == MessageLog::ReceivedFromUser){
+		int fd = openPath(mlog->mFrom->a_url, label, mlog->mDate);
+		if (fd != -1){
+			if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
+				LOGE("Fail to write message log: %s", strerror(errno));
+			}
+			close(fd);
+		}
+	}else { //MessageLog::DeliveredToUser
+		/*the event is added into the sender's log file and the receiver's log file, for convenience*/
+		int fd = openPath(mlog->mFrom->a_url, label, mlog->mDate);
+		if (fd != -1){
+			if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
+				LOGE("Fail to write message log: %s", strerror(errno));
+			}
+			close(fd);
+		}
+		// Avoid to write logs for users that possibly do not exist.
+		// However the error will be reported in the errors directory.
+		if (mlog->mStatusCode != 404){
+			fd = openPath(mlog->mTo->a_url, label, mlog->mDate);
+			if (fd != -1){
+				if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
+					LOGE("Fail to write message log: %s", strerror(errno));
+				}
+				close(fd);
+			}
 		}
 	}
-	close(fd);
 	if (mlog->mStatusCode >= 300) {
 		writeErrorLog(mlog, label, msg.str());
 	}

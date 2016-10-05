@@ -49,9 +49,9 @@ class ForkMessageContext : public ForkContext {
 	static void sOnAcceptanceTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	void acceptMessage();
 	void onAcceptanceTimer();
-	void logReceptionEvent(const std::shared_ptr<ResponseSipEvent> &ev);
+	void logReceivedFromUserEvent(const std::shared_ptr<ResponseSipEvent> &ev);
 	void checkFinished();
-	void logDeliveryEvent(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event);
+	void logDeliveredToUserEvent(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event);
 };
 
 #endif /* forkmessagecontext_hh */
