@@ -136,7 +136,7 @@ void Module::declare(GenericStruct *root) {
 	mFilter->declareConfig(mModuleConfig);
 	if (getClass() == ModuleClassExperimental){
 		//Experimental modules are forced to be disabled by default.
-		root->get<ConfigBoolean>("enabled")->setDefault("false");
+		mModuleConfig->get<ConfigBoolean>("enabled")->setDefault("false");
 	}
 	onDeclare(mModuleConfig);
 }
