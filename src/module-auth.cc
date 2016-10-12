@@ -712,15 +712,11 @@ void Authentication::AuthenticationListener::onResult(AuthDbResult result, std::
  */
 void Authentication::AuthenticationListener::finish() {
 	const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
-	sip_t *sip = ms->getSip();
+	const sip_t *sip = ms->getSip();
 	if (mAs->as_status) {
 		if (mAs->as_status != 401 && mAs->as_status != 407) {
-			auto log =
-				make_shared<AuthLog>(sip->sip_request->rq_method_name, sip->sip_from, sip->sip_to, mPasswordFound);
+			auto log = make_shared<AuthLog>(sip, mPasswordFound);
 			log->setStatusCode(mAs->as_status, mAs->as_phrase);
-			log->setOrigin(sip->sip_via);
-			if (sip->sip_user_agent)
-				log->setUserAgent(sip->sip_user_agent);
 			log->setCompleted();
 			mEv->setEventLog(log);
 		}

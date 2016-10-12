@@ -160,7 +160,7 @@ bool StatisticsCollector::containsMandatoryFields(char *body, usize_t len) {
 
 int StatisticsCollector::managePublishContent(const shared_ptr<RequestSipEvent> ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	sip_t *sip = ms->getSip();
+	const sip_t *sip = ms->getSip();
 	int err = 200;
 	std::string statusPhrase = "OK";
 
@@ -179,11 +179,8 @@ int StatisticsCollector::managePublishContent(const shared_ptr<RequestSipEvent> 
 		statusPhrase = "One or several mandatory fields missing";
 	}
 
-	auto log = make_shared<CallQualityStatisticsLog>(sip->sip_from, sip->sip_to,
-													 sip->sip_payload ? sip->sip_payload->pl_data : NULL);
+	auto log = make_shared<CallQualityStatisticsLog>(sip);
 	log->setStatusCode(err, statusPhrase.c_str());
-	if (sip->sip_user_agent)
-		log->setUserAgent(sip->sip_user_agent);
 	log->setCompleted();
 	ev->setEventLog(log);
 

@@ -542,9 +542,6 @@ static string version() {
 #if ENABLE_SOCI
 	version += "- Soci\n";
 #endif
-#if ENABLE_ODB
-	version += "- ODB\n";
-#endif
 #if ENABLE_PROTOBUF
 	version += "- Protobuf\n";
 #endif

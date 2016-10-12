@@ -120,7 +120,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 		mGeneratedContactRoute = mc->get<ConfigString>("generated-contact-route")->read();
 		mExpectedRealm = mc->get<ConfigString>("generated-contact-expected-realm")->read();
 		mGenerateContactEvenOnFilledAor = mc->get<ConfigBoolean>("generate-contact-even-on-filled-aor")->read();
-		
+
 		//Forking configuration for INVITEs
 		mForkCfg = make_shared<ForkContextConfig>();
 		mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
@@ -137,7 +137,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 		mMessageForkCfg->mForkLate = mc->get<ConfigBoolean>("message-fork-late")->read();
 		mMessageForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("message-delivery-timeout")->read();
 		mMessageForkCfg->mUrgentTimeout = mc->get<ConfigInt>("message-accept-timeout")->read();
-		
+
 		//Forking configuration for other kind of requests.
 		mOtherForkCfg = make_shared<ForkContextConfig>();
 		mOtherForkCfg->mTreatAllErrorsAsUrgent = false;
@@ -364,26 +364,26 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Reg
 		su_home_init(&mHome);
 		mSipUri = url_hdup(&mHome, sipUri);
 	}
-	
+
 	~OnContactRegisteredListener() {
 		su_home_deinit(&mHome);
 	}
-	
+
 	void onContactRegistered(std::string key, std::string uid) {
 		LOGD("Listener found for topic = %s, uid = %s, sipUri = %s", key.c_str(), uid.c_str(), url_as_string(&mHome, mSipUri));
 		mUid = uid;
 		RegistrarDb::get(mModule->getAgent())->fetch(mSipUri, this->shared_from_this(), true);
 	}
-	
+
 	void onRecordFound(Record *r) {
 		LOGD("Record found for uid = %s", mUid.c_str());
 		mModule->onContactRegistered(mUid, r, mSipUri);
 	}
 	void onError() {
-	  
+
 	}
 	void onInvalid() {
-	  
+
 	}
 };
 
@@ -419,7 +419,7 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 	if (ec) {
 		contact = ec->toSofiaContacts(home.home(), ec->mExpireAt - 1);
 		path = ec->toSofiaRoute(home.home());
-		
+
 		// First use sipURI
 		for (auto it = range.first; it != range.second; ++it) {
 			shared_ptr<ForkContext> context = it->second;
@@ -834,11 +834,11 @@ class TargetUriListFetcher : public RegistrarDbListener,
 		if (mError){
 			mListener->onError();
 		}else{
-			if (mRecord->count() > 0){	
+			if (mRecord->count() > 0){
 				/*also add aliases in the ExtendedContact list for the searched AORs, so that they are added to the ForkMap.*/
 				sip_route_t *iter;
 				for (iter = mUriList; iter != NULL; iter = iter->r_next) {
-					
+
 					shared_ptr<ExtendedContact> alias = make_shared<ExtendedContact>(iter->r_url, "");
 					alias->mAlias = true;
 					mRecord->pushContact(alias);
@@ -860,9 +860,9 @@ class OnFetchForRoutingListener : public RegistrarDbListener {
 		: mModule(module), mEv(ev) {
 		ev->suspendProcessing();
 		mSipUri = url_hdup(mEv->getMsgSip()->getHome(), sipuri);
-		sip_t *sip = ev->getMsgSip()->getSip();
+		const sip_t *sip = ev->getMsgSip()->getSip();
 		if (sip->sip_request->rq_method == sip_method_invite) {
-			ev->setEventLog(make_shared<CallLog>(sip->sip_from, sip->sip_to));
+			ev->setEventLog(make_shared<CallLog>(sip));
 		}
 	}
 	void onRecordFound(Record *r) {
@@ -964,10 +964,10 @@ void ModuleRouter::onResponse(shared_ptr<ResponseSipEvent> &ev) throw(FlexisipEx
 
 void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 	if (!ctx->getConfig()->mForkLate) return;
-	
+
 	string key = ctx->getKey();
 	LOGD("Looking at fork contexts with key %s", key.c_str());
-	
+
 	auto range = mForks.equal_range(key.c_str());
 	int count = 0;
 	int removed = 0;
@@ -986,7 +986,7 @@ void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 			++it;
 		}
 	}
-	
+
 	if (count == removed && count > 0) {
 		RegistrarDb::get(getAgent())->unsubscribe(key.c_str());
 	}

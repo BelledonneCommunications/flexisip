@@ -101,28 +101,27 @@ void Agent::onDeclare(GenericStruct *root) {
 }
 
 void Agent::startLogWriter() {
-	GenericStruct *cr = GenericManager::get()->getRoot();
-	bool enabled = cr->get<GenericStruct>("event-logs")->get<ConfigBoolean>("enabled")->read();
-	bool use_odb = cr->get<GenericStruct>("event-logs")->get<ConfigBoolean>("use-odb")->read();
+	GenericStruct *cr = GenericManager::get()->getRoot()->get<GenericStruct>("event-logs");
 
-	if (enabled) {
-		if (use_odb) {
-#ifdef HAVE_ODB
+	if (cr->get<ConfigBoolean>("enabled")->read()) {
+		if (cr->get<ConfigString>("logger")->read() == "database") {
+			#if ENABLE_SOCI
+
 			DataBaseEventLogWriter *dbw = new DataBaseEventLogWriter(
-				cr->get<GenericStruct>("event-logs")->get<ConfigString>("odb-database")->read(),
-				cr->get<GenericStruct>("event-logs")->get<ConfigString>("odb-user")->read(),
-				cr->get<GenericStruct>("event-logs")->get<ConfigString>("odb-password")->read(),
-				cr->get<GenericStruct>("event-logs")->get<ConfigString>("odb-host")->read(),
-				cr->get<GenericStruct>("event-logs")->get<ConfigInt>("odb-port")->read());
+				cr->get<ConfigString>("database-backend")->read(),
+				cr->get<ConfigString>("database-connection-string")->read(),
+				cr->get<ConfigInt>("database-max-queue-size")->read(),
+				cr->get<ConfigInt>("database-nb-threads-max")->read()
+			);
 			if (!dbw->isReady()) {
 				delete dbw;
 			} else {
 				mLogWriter = dbw;
 			}
-#endif
 
+			#endif
 		} else {
-			string logdir = cr->get<GenericStruct>("event-logs")->get<ConfigString>("dir")->read();
+			string logdir = cr->get<ConfigString>("dir")->read();
 			FilesystemEventLogWriter *lw = new FilesystemEventLogWriter(logdir);
 			if (!lw->isReady()) {
 				delete lw;

@@ -182,55 +182,6 @@ else
 fi
 AM_CONDITIONAL(BUILD_ODBC,test x$odbc = xyes)
 
-
-
-
-# Check for odb compiler
-AC_PATH_PROG([ODB],[odb],[no])
-if test $ODB != no; then
-	have_odb=yes
-else
-	have_odb=no
-fi
-
-# Check for libodb
-AC_ARG_ENABLE(libodb,
-	[AC_HELP_STRING([--enable-libodb=[yes/no]],[Compilation of libodb (default=auto)])],
-	[case "${enableval}" in
-		yes)	enable_libodb=yes ;;
-		no)	enable_libodb=no ;;
-		*)	AC_MSG_ERROR(bad value ${enableval} for --enable-libodb) ;;
-	esac],
-	[enable_libodb=auto]
-)
-
-if test x$enable_libodb != xno ; then
-	PKG_CHECK_MODULES(LIBODB,[libodb >= 2.3.0],[have_libodb=yes],[have_libodb=no])
-fi
-
-AM_CONDITIONAL(BUILD_ODB,test x$have_libodb$have_odb = xyesyes)
-if test "$have_libodb$have_odb" = "yesyes"; then
-	AC_DEFINE([HAVE_ODB],1,[Enable odb.])
-else
-	enable_libodb=no
-fi
-
-# Check for libodb-mysql
-AC_ARG_ENABLE(libodb-mysql,
-	AC_HELP_STRING([--enable-libodb-mysql],
-		[Build libodb-mysql [yes]]),
-		[libodb_mysql="${enableval}"],[libodb_mysql=yes]
-)
-if test x$libodb_mysql = xyes ; then
-	PKG_CHECK_MODULES(LIBODB_MYSQL,[libodb-mysql >= 2.3.0],[libodb_mysql=yes],[libodb_mysql=no])
-fi
-
-
-AM_CONDITIONAL(BUILD_LIBODB_MYSQL,test x$libodb_mysql = xyes)
-if test "$libodb_mysql" = "yes"; then
-	AC_DEFINE([ENABLE_LIBODB_MYSQL],1,[Enable libodb-mysql.])
-fi
-
 # Check for mysql
 AC_ARG_WITH(mysql,
 	AC_HELP_STRING([--with-mysql], [Set prefix where MySQL can be found or "none" to disable (ex:/usr or /usr/local) [[default=/usr]]]),
@@ -560,7 +511,7 @@ if test x$use_xsd != xno ; then
 	# hard check on xsd
 	if  test x$XSDCXX = x ; then
 		AC_MSG_NOTICE([xsd executable not found. $xsd_err_msg])
-		found_xsd=no 
+		found_xsd=no
 	elif test -z "`$XSDCXX version 2>&1 | grep CodeSynthesis`" ; then
 		# check that we don't match a bad xsd executable
 		AC_MSG_NOTICE([xsd executable is not the good XSD (this can happen on Mac OS). Disabling XML features since use_xsd is auto.])
@@ -570,7 +521,7 @@ if test x$use_xsd != xno ; then
 	if test "$use_xsd$found_xsd" = "yesno" ; then
 		AC_MSG_ERROR([xsd required but not found, read messages above.])
 	fi
-	
+
 	if test "$found_xsd" = "yes" ; then
 
 		# check xsd headers
@@ -686,8 +637,6 @@ echo "Flexisip build configuration ended."
 echo "Summary of build options:"
 printf "* %-30s %s\n" "SNMP"                $snmp
 printf "* %-30s %s\n" "ODBC"                $odbc
-printf "* %-30s %s\n" "ODB"                 $enable_libodb
-printf "* %-30s %s\n" "ODB MySQL"           $libodb_mysql
 printf "* %-30s %s\n" "Transcoder"          $have_transcoder
 printf "* %-30s %s\n" "Specific features"   $specific_features
 printf "* %-30s %s\n" "Push notification"   $pushnotification

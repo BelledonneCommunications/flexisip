@@ -28,29 +28,23 @@
 #include <queue>
 #include <mutex>
 
-#ifdef HAVE_ODB
-#include <odb/database.hxx>
-#endif
-
-class FilesystemEventLogWriter;
-
 class EventLog {
 	friend class FilesystemEventLogWriter;
+	friend class DataBaseEventLogWriter;
 	friend class EventLogDb;
 
-  public:
-	EventLog();
+public:
+
+	EventLog(const sip_t *sip);
 	virtual ~EventLog();
-	void setFrom(const sip_from_t *from);
-	void setTo(const sip_to_t *to);
-	void setUserAgent(const sip_user_agent_t *ag);
 	void setCompleted();
 	void setStatusCode(int sip_status, const char *reason);
 	bool isCompleted() const {
 		return mCompleted;
 	}
 
-  protected:
+protected:
+
 	su_home_t mHome;
 	sip_from_t *mFrom;
 	sip_to_t *mTo;
@@ -59,8 +53,9 @@ class EventLog {
 	int mStatusCode;
 	std::string mReason;
 	bool mCompleted;
+	std::string mCallId;
 	class Init {
-	  public:
+	public:
 		Init();
 	};
 	static Init evStaticInit;
@@ -68,85 +63,111 @@ class EventLog {
 
 class RegistrationLog : public EventLog {
 	friend class FilesystemEventLogWriter;
+	friend class DataBaseEventLogWriter;
 	friend class RegistrationLogDb;
 
-  public:
-	enum Type { Register, Unregister, Expired };
-	RegistrationLog(Type type, const sip_from_t *from, const std::string &instance_id, const sip_contact_t *contacts);
+public:
 
-  private:
+	// Explicit values are necessary for soci. Do not change this.
+	enum Type {
+		Register = 0,
+		Unregister = 1,
+		Expired = 2
+	};
+
+	RegistrationLog(const sip_t *sip, const sip_contact_t *contacts);
+
+private:
 	Type mType;
 	sip_contact_t *mContacts;
-	std::string mInstanceId;
 };
 
 class CallLog : public EventLog {
 	friend class FilesystemEventLogWriter;
+	friend class DataBaseEventLogWriter;
 	friend class CallLogDb;
 
-  public:
-	CallLog(const sip_from_t *from, const sip_to_t *to);
+public:
+	CallLog(const sip_t *sip);
 	void setCancelled();
 
-  private:
+private:
 	bool mCancelled;
 };
 
 class MessageLog : public EventLog {
 	friend class FilesystemEventLogWriter;
+	friend class DataBaseEventLogWriter;
 	friend class MessageLogDb;
 
-  public:
-	enum ReportType { ReceivedFromUser, DeliveredToUser };
-	MessageLog(ReportType report, const sip_from_t *from, const sip_to_t *to, const sip_call_id_t *id);
+public:
+
+	// Explicit values is necessary for soci. Do not change this.
+	enum ReportType {
+		ReceivedFromUser = 0,
+		DeliveredToUser = 1
+	};
+
+	MessageLog(const sip_t *sip, ReportType report);
 	void setDestination(const url_t *dest);
 
-  private:
+private:
+
 	ReportType mReportType;
 	url_t *mUri; // destination uri of message
-	unsigned long mId;
-	std::string mCallId;
 };
 
-class AuthLog : public EventLog {
+class AuthLog: public EventLog {
 	friend class FilesystemEventLogWriter;
+	friend class DataBaseEventLogWriter;
 	friend class AuthLogDb;
 
-  public:
-	AuthLog(const char *method, const sip_from_t *from, const sip_to_t *to, bool userExists);
+public:
+
+	AuthLog(const sip_t *sip, bool userExists);
+
+private:
+
 	void setOrigin(const sip_via_t *via);
 
-  private:
 	url_t *mOrigin;
 	std::string mMethod;
 	bool mUserExists;
 };
 
-class CallQualityStatisticsLog : public EventLog {
+class CallQualityStatisticsLog: public EventLog {
 	friend class FilesystemEventLogWriter;
+	friend class DataBaseEventLogWriter;
 	friend class CallQualityStatisticsLogDb;
 
-  public:
-	CallQualityStatisticsLog(const sip_from_t *from, const sip_to_t *to, const char *report);
-	~CallQualityStatisticsLog();
+public:
 
-  private:
-	char *mReport;
+	CallQualityStatisticsLog(const sip_t *sip);
+
+private:
+
+	// Note on `soci`: The `char *` support is dead since 2008...
+	// See: https://github.com/SOCI/soci/commit/25c704ac4cb7bb0135dabc2421a1281fb868a511
+	// It's necessary to create a hard copy with a `string`.
+	std::string mReport;
 };
 
 class EventLogWriter {
-  public:
+public:
+
 	virtual void write(const std::shared_ptr<EventLog> &evlog) = 0;
 	virtual ~EventLogWriter();
 };
 
-class FilesystemEventLogWriter : public EventLogWriter {
-  public:
+class FilesystemEventLogWriter: public EventLogWriter {
+public:
+
 	FilesystemEventLogWriter(const std::string &rootpath);
 	virtual void write(const std::shared_ptr<EventLog> &evlog);
 	bool isReady() const;
 
-  private:
+private:
+
 	int openPath(const url_t *uri, const char *kind, time_t curtime, int errorcode = 0);
 	void writeRegistrationLog(const std::shared_ptr<RegistrationLog> &evlog);
 	void writeCallLog(const std::shared_ptr<CallLog> &clog);
@@ -158,22 +179,54 @@ class FilesystemEventLogWriter : public EventLogWriter {
 	bool mIsReady;
 };
 
-#if HAVE_ODB
-class DataBaseEventLogWriter : public EventLogWriter {
-  public:
-	DataBaseEventLogWriter(const std::string &db_name, const std::string &db_user, const std::string &db_password,
-						   const std::string &db_host, int db_port);
+#if ENABLE_SOCI
+
+#include <soci.h>
+#include "utils/threadpool.hh"
+
+class DataBaseEventLogWriter: public EventLogWriter {
+public:
+
+	enum Backend {
+		Mysql = 0,
+		Sqlite3 = 1
+	};
+
+	DataBaseEventLogWriter(
+		const std::string &backendString, const std::string &connectionString,
+		int maxQueueSize, int nbThreadsMax
+	);
+	~DataBaseEventLogWriter();
+
 	virtual void write(const std::shared_ptr<EventLog> &evlog);
-	void static *threadFunc(void *arg);
 	bool isReady() const;
 
-  private:
+private:
+
+	void initTables(Backend backend);
+
+	static void writeEventLog(const std::shared_ptr<EventLog> &evlog, int typeId, soci::session &sql);
+
+	void writeRegistrationLog(const std::shared_ptr<RegistrationLog> &evlog);
+	void writeCallLog(const std::shared_ptr<CallLog> &evlog);
+	void writeMessageLog(const std::shared_ptr<MessageLog> &evlog);
+	void writeAuthLog(const std::shared_ptr<AuthLog> &evlog);
+	void writeCallQualityStatisticsLog(const std::shared_ptr<CallQualityStatisticsLog> &evlog);
+
+	void writeEventFromQueue();
+
 	bool mIsReady;
-	void writeLogs();
 	std::mutex mMutex;
-	std::unique_ptr<odb::database> mDatabase;
 	std::queue<std::shared_ptr<EventLog>> mListLogs;
+
+	soci::connection_pool *mConnectionPool;
+	ThreadPool *mThreadPool;
+
+	int mMaxQueueSize;
+
+	string mInsertReq[5];
 };
+
 #endif
 
 #endif

@@ -76,10 +76,10 @@ thesources= \
 
 
 
-flexisip_LDADD= $(SOFIA_LIBS) $(ORTP_LIBS) $(LIBODB_MYSQL_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)
+flexisip_LDADD= $(SOFIA_LIBS) $(ORTP_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)
 
 AM_CXXFLAGS= $(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) \
-				$(PROTOBUF_CFLAGS) $(LIBODB_MYSQL_CFLAGS) $(MYSQL_CFLAGS) \
+				$(PROTOBUF_CFLAGS) $(MYSQL_CFLAGS) \
 				-DCONFIG_DIR=\"$(CONFIG_DIR)\" -DORTP_DEBUG_MODE $(WARNINGCXXFLAGS)
 
 AM_CFLAGS=$(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) -DORTP_DEBUG_MODE
@@ -117,18 +117,6 @@ AM_CXXFLAGS+=-DENABLE_ODBC $(ODBC_CFLAGS)
 
 flexisip_LDADD+=$(ODBC_LIBS)
 thesources+= authdb-odbc.cc
-endif
-
-if BUILD_ODB
-AM_CFLAGS+=-DHAVE_ODB
-AM_CXXFLAGS+=-DHAVE_ODB $(LIBODB_CFLAGS) -Wno-unknown-pragmas
-flexisip_LDADD+=$(LIBODB_LIBS)
-thesources+=eventlogs/eventlogsdb.cc eventlogs/eventlogsdb.hh
-eventlogs/eventlogsdb-odb.hxx eventlogs/eventlogsdb-odb.cxx: eventlogs/eventlogsdb.hh
-	odb $(SOFIA_CFLAGS) $(ORTP_CFLAGS) --std c++11 -d mysql --output-dir eventlogs --generate-query --generate-schema --schema-format embedded $<
-nodistsources += eventlogs/eventlogsdb-odb.cxx
-BUILT_SOURCES += eventlogs/eventlogsdb-odb.hxx eventlogs/eventlogsdb-odb.cxx
-
 endif
 
 if BUILD_DATEHANDLER
@@ -222,7 +210,7 @@ nodist_flexisip_SOURCES=$(nodistsources)
 EXTRA_DIST=$(pb_files) $(GITVERSION_FILE) tools/ctdumper.cc
 
 clean-local:
-	rm -f $(builddir)/recordserializer-protobuf.pb* $(builddir)/pb_generated_src_stamp $(builddir)/eventlogs/eventlogsdb-odb.hxx $(builddir)/eventlogs/eventlogsdb-odb.cxx
+	rm -f $(builddir)/recordserializer-protobuf.pb* $(builddir)/pb_generated_src_stamp
 
 
 make_gitversion_h:

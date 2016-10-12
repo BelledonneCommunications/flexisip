@@ -124,15 +124,6 @@ if(ENABLE_MSGPACK)
 endif()
 
 
-if(ENABLE_ODB)
-	#list(APPEND FLEXISIP_LIBS ${ODB_LIBRARIES})
-	#list(APPEND FLEXISIP_INCLUDES ${ODB_INCLUDE_DIRS})
-	#list(APPEND FLEXISIP_SOURCES eventlogs/eventlogsdb.cc eventlogs/eventlogsdb.hh)
-	# TODO: generate the cxx and hxx with ODB
-	#eventlogs/eventlogsdb-odb.hxx eventlogs/eventlogsdb-odb.cxx: eventlogs/eventlogsdb.hh
-	#	odb $(SOFIA_CFLAGS) $(ORTP_CFLAGS) --std c++11 -d mysql --output-dir eventlogs --generate-query --generate-schema --schema-format embedded $<
-endif()
-
 if(ENABLE_SNMP)
 	list(APPEND FLEXISIP_SOURCES snmp-agent.cc snmp-agent.h)
 	list(APPEND FLEXISIP_LIBS ${NET_SNMP_LIBRARIES})
@@ -208,6 +199,7 @@ if(ENABLE_PUSHNOTIFICATION)
 endif()
 
 if(ENABLE_SOCI)
+	add_definitions(-DENABLE_SOCI)
 	list(APPEND FLEXISIP_SOURCES authdb-soci.cc)
 	list(APPEND FLEXISIP_LIBS ${SOCI_LIBRARY})
 	list(APPEND FLEXISIP_INCLUDES ${SOCI_INCLUDE_DIRS} ${SOCI_MYSQL_INCLUDES})

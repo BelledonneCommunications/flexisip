@@ -169,10 +169,10 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 			mMaxExpires = forcedExpires;
 			mMinExpires = forcedExpires;
 		}
-		
+
 		mStaticRecordsFile = mc->get<ConfigString>("static-records-file")->read();
 		mStaticRecordsTimeout = mc->get<ConfigInt>("static-records-timeout")->read();
-		
+
 		mExpireRandomizer = mc->get<ConfigInt>("register-expire-randomizer-max")->read();
 
 		if (!mStaticRecordsFile.empty()) {
@@ -369,13 +369,13 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 	sip_t *sip = ms->getSip();
 	int expire = sip->sip_expires->ex_delta;
 	string expire_str = std::to_string(expire);
-	
+
 	replyPopulateEventLog(ev, sip, code, reason);
 
 	if (!mServiceRoute.empty()) {
 		LOGD("Setting service route to %s", mServiceRoute.c_str());
 	}
-	
+
 	// This ensures not all REGISTERs arrive at the same time on the flexisip
 	if (sip->sip_request->rq_method == sip_method_register && code == 200 && mExpireRandomizer > 0) {
 		expire = (int) expire - (expire * su_randint(0, mExpireRandomizer) / 100);
@@ -386,7 +386,7 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 			msg_header_replace_param(home, (msg_common_t *)contact, su_sprintf(home, "expires=%i", expire));
 		}
 	}
-	
+
 	if (!contact) contact = contacts;
 
 	if (contact && !mServiceRoute.empty()) {
@@ -405,19 +405,10 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 template <typename SipEventT>
 static void addEventLogRecordFound(shared_ptr<SipEventT> ev, const sip_contact_t *contacts) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-
-	RegistrationLog::Type type;
-	if (ms->getSip()->sip_expires && ms->getSip()->sip_expires->ex_delta == 0)
-		type = RegistrationLog::Unregister; // REVISIT not 100% exact.
-	else
-		type = RegistrationLog::Register;
-
 	string id(contacts ? Record::extractUniqueId(contacts) : "");
-	auto evlog = make_shared<RegistrationLog>(type, ms->getSip()->sip_from, id, contacts);
+	auto evlog = make_shared<RegistrationLog>(ms->getSip(), contacts);
 
-	if (ms->getSip()->sip_user_agent)
-		evlog->setUserAgent(ms->getSip()->sip_user_agent);
-
+	evlog->setStatusCode(200, "Ok");
 	evlog->setCompleted();
 	ev->setEventLog(evlog);
 }
