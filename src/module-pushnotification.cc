@@ -42,6 +42,7 @@ class PushNotificationContext : public enable_shared_from_this<PushNotificationC
 	shared_ptr<PushNotificationRequest> mPushNotificationRequest;
 	shared_ptr<ForkCallContext> mForkContext;
 	string mKey; // unique key for the push notification, identifiying the device and the call.
+	bool mSendRinging;
 	void onTimeout();
 	void onError(const string &errormsg);
 	void onEnd();
@@ -54,7 +55,7 @@ class PushNotificationContext : public enable_shared_from_this<PushNotificationC
 	PushNotificationContext(const shared_ptr<OutgoingTransaction> &transaction, PushNotification *module,
 							const shared_ptr<PushNotificationRequest> &pnr, const string &pn_key);
 	~PushNotificationContext();
-	void start(int seconds);
+	void start(int seconds, bool sendRinging);
 	void cancel();
 	const string &getKey() const {
 		return mKey;
@@ -99,6 +100,7 @@ PushNotificationContext::PushNotificationContext(const shared_ptr<OutgoingTransa
 	mTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
 	mEndTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
 	mForkContext = dynamic_pointer_cast<ForkCallContext>(ForkContext::get(transaction));
+	mSendRinging = true;
 }
 
 PushNotificationContext::~PushNotificationContext() {
@@ -108,9 +110,10 @@ PushNotificationContext::~PushNotificationContext() {
 		su_timer_destroy(mEndTimer);
 }
 
-void PushNotificationContext::start(int seconds) {
+void PushNotificationContext::start(int seconds, bool sendRinging) {
 	if (!mTimer)
 		return;
+	mSendRinging = sendRinging;
 	su_timer_set_interval(mTimer, &PushNotificationContext::__timer_callback, this, seconds * 1000);
 	su_timer_set_interval(mEndTimer, &PushNotificationContext::__end_timer_callback, this, 30 * 1000);
 }
@@ -143,7 +146,7 @@ void PushNotificationContext::onTimeout() {
 	if (mForkContext) {
 		SLOGD << "PNR " << mPushNotificationRequest.get() << ": Notifying call context...";
 		mForkContext->onPushInitiated(mKey);
-		mForkContext->sendRinging();
+		if (mSendRinging) mForkContext->sendRinging();
 	}
 
 	mModule->getService()->sendPush(mPushNotificationRequest);
@@ -301,8 +304,9 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		char deviceToken[256];
 		char appId[256] = {0};
 		char pn_key[512] = {0};
-
+		char tmp[16]= {0};
 		char const *params = sip->sip_request->rq_url->url_params;
+		bool pnSilent = false;
 		/*extract all parameters required to make the push notification */
 		if (url_param(params, "pn-tok", deviceToken, sizeof(deviceToken)) == 0) {
 			SLOGD << "no pn-tok";
@@ -329,6 +333,13 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				return;
 			}
 			pinfo.mAppId = appId;
+			
+			if (url_param(params, "pn-timeout", tmp, sizeof(tmp)-1) != 0) {
+				time_out = std::atoi(tmp);
+			}
+			if (url_param(params, "pn-silent", tmp, sizeof(tmp)-1) != 0) {
+				pnSilent = std::atoi(tmp) != 0;
+			}
 
 			string contact;
 			if (sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
@@ -357,7 +368,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				char call_str[64];
 				char call_snd[64];
 				char msg_snd[64];
-				char time_out_char[4];
+				
 				if (url_param(params, "pn-msg-str", msg_str, sizeof(msg_str)) == 0) {
 					SLOGD << "no pn-msg-str";
 					return;
@@ -374,11 +385,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 					SLOGD << "no optional pn-msg-snd, using empty";
 					strncpy(msg_snd, "empty", sizeof(msg_snd));
 				}
-				if (url_param(params, "pn-timeout", time_out_char, sizeof(time_out_char)) == 0) {
-					SLOGD << "no optional pn-timeout, using mTimeout";
-				} else {
-					time_out = std::atoi(time_out_char);
-				}
+				
 				pinfo.mAlertMsgId = (sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str;
 				pinfo.mAlertSound = (sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd;
 				pinfo.mNoBadge = mNoBadgeiOS;
@@ -413,7 +420,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			if (pn) {
 				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << time_out << "s";
 				context = make_shared<PushNotificationContext>(transaction, this, pn, pn_key);
-				context->start(time_out);
+				context->start(time_out, !pnSilent);
 				mPendingNotifications.insert(make_pair(pn_key, context));
 			}
 		}
