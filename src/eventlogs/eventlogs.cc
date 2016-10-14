@@ -627,11 +627,11 @@ inline string createMessageTypesTable(DataBaseEventLogWriter::Backend backend) {
 
 DataBaseEventLogWriter::DataBaseEventLogWriter(
 	const std::string &backendString, const std::string &connectionString,
-	int maxQueueSize, int nbThreadsMax
-) : mConnectionPool(nullptr),
-		mThreadPool(nullptr),
-		mIsReady(false),
-		mMaxQueueSize(maxQueueSize) {
+	int maxQueueSize, int nbThreadsMax){
+	mConnectionPool = nullptr;
+	mThreadPool = nullptr;
+	mIsReady = false;
+	mMaxQueueSize = maxQueueSize;
 	try {
 		if (backendString != "mysql" && backendString != "sqlite3") {
 			LOGE("DataBaseEventLogWriter: backend must be equals to `mysql` or `sqlite3`.");
@@ -895,7 +895,7 @@ void DataBaseEventLogWriter::write(const std::shared_ptr<EventLog> &evlog) {
 		}
 	} else {
 		mMutex.unlock();
-		LOGE("DataBaseEventLogWriter: too many events in queue! (%d)", mMaxQueueSize);
+		LOGE("DataBaseEventLogWriter: too many events in queue! (%i)", (int)mMaxQueueSize);
 	}
 }
 

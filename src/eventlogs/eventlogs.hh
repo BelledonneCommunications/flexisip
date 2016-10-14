@@ -222,7 +222,7 @@ private:
 	soci::connection_pool *mConnectionPool;
 	ThreadPool *mThreadPool;
 
-	int mMaxQueueSize;
+	size_t mMaxQueueSize;
 
 	string mInsertReq[5];
 };
