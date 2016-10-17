@@ -53,6 +53,10 @@ bool SdpMasqueradeContext::hasCandidates(sdp_media_t *mline){
 	return sdp_attribute_find(mline->m_attributes, "candidate") != NULL;
 }
 
+bool SdpMasqueradeContext::hasRemoteCandidates(sdp_media_t *mline){
+	return sdp_attribute_find(mline->m_attributes, "remote-candidates") != NULL;
+}
+
 bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_t* mline, bool isOfferer) {
 	string ufrag, passwd;
 	IceState oldState = mIceState;
@@ -64,9 +68,16 @@ bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_
 	if (isOfferer){
 		switch(mIceState){
 			case IceNone:
-				if (!ufrag.empty() && !passwd.empty() && hasCandidates(mline)){
-					mIceState = IceOffered;
-					needsCandidates = true;
+				if (!ufrag.empty() && !passwd.empty()){
+					if (hasRemoteCandidates(mline)){
+						/*This should not happen. We are discovering an already established ice session.*/
+						mIceState = IceCompleted;
+						needsCandidates = false;
+						LOGE("Unexpected remote-candidates in SDP offer.");
+					}else if (hasCandidates(mline)){
+						mIceState = IceOffered;
+						needsCandidates = true;
+					}
 				}
 			break;
 			case IceOffered:
@@ -446,6 +457,8 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 				needsCandidates = mctxs.mOffered->updateIceFromAnswer(mSession, mline, false);
 			}
 		}
+		
+		if (hasMediaAttribute(mline,mNortproxy.c_str())) continue;
 
 		if (needsCandidates) {
 			uint32_t priority;

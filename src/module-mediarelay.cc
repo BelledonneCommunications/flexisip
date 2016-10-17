@@ -71,6 +71,9 @@ void MediaRelay::onDeclare(GenericStruct * mc) {
 			{ Boolean, "early-media-relay-single", "In case multiples 183 Early media responses are received for a call, only the first one will have RTP streams forwarded back to caller. This feature prevents the caller to receive 'mixed' streams, but it breaks scenarios where multiple servers play early media announcement in sequence.", "true"},
 			{ Integer, "max-early-media-per-call", "Maximum number of relayed early media streams per call. This is useful to limit the cpu usage due to early media relaying on"
 				" embedded systems. A value of 0 stands for unlimited.", "0"},
+			{ Integer, "inactivity-period", "Period of time in seconds, after which a relayed call without any activity is "
+				"considered as no longer running. Activity counts RTP/RTCP packets exchanged through the relay and SIP messages.",
+				"3600"},
 #ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 			/*very specific features, useless for most people*/
 			{ Integer, "h264-filtering-bandwidth", "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value expressed in kbit/s. Use 0 to disable the feature", "0" },
@@ -120,6 +123,7 @@ void MediaRelay::onLoad(const GenericStruct * modconf) {
 	mMaxCalls=modconf->get<ConfigInt>("max-calls")->read();
 	mMaxRelayedEarlyMedia = modconf->get<ConfigInt>("max-early-media-per-call")->read();
 	mForceRelayForNonIceTargets = modconf->get<ConfigBoolean>("force-relay-for-non-ice-targets")->read();
+	mInactivityPeriod = modconf->get<ConfigInt>("inactivity-period")->read();
 	createServers();
 }
 
@@ -140,6 +144,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 		LOGW("No tag in from !");
 		return false;
 	}
+	c->updateActivity();
 	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(ev->getMsgSip()->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
 		LOGW("Invalid SDP");
@@ -368,7 +373,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipExc
 
 void MediaRelay::onIdle() {
 	mCalls->dump();
-	mCalls->removeAndDeleteInactives();
+	mCalls->removeAndDeleteInactives(mInactivityPeriod);
 	if (mCalls->size() > 0)
 		LOGD("There are %i calls active in the MediaRelay call list.",mCalls->size());
 }

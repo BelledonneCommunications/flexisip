@@ -145,21 +145,18 @@ void CallSide::dump() {
 	rtp_stats_display(stats, "RTP Statistics:");
 }
 
-bool CallSide::isActive(time_t cur) {
+time_t CallSide::getLastActivity() {
 	const rtp_stats_t *stats = rtp_session_get_stats(mSession);
 	if (mLastCheck == 0) {
-		mLastCheck = cur;
+		mLastCheck = getCurrentTime();
 		mLastRecvCount = stats->recv;
 	} else {
 		if (stats->recv != mLastRecvCount) {
 			mLastRecvCount = stats->recv;
-			mLastCheck = cur;
-		} else if (cur - mLastCheck > 60) {
-			ms_message("Inactive callside for more than 60 seconds.");
-			return false;
+			mLastCheck = getCurrentTime();
 		}
 	}
-	return true;
+	return mLastCheck;
 }
 
 PayloadType *CallSide::getSendFormat() {
@@ -390,15 +387,11 @@ void TranscodedCall::redraw(CallSide *r) {
 	s->connect(r, mTicker);
 }
 
-bool TranscodedCall::isInactive(time_t cur) {
+time_t TranscodedCall::getLastActivity() {
 	if (mFrontSide == NULL) {
-		if (cur > mCreateTime + 180) {
-			LOGD("CallContext %p usage timeout expired", this);
-			return true;
-		} else
-			return false;
+		return CallContextBase::getLastActivity();
 	}
-	return !(mFrontSide->isActive(cur) || mBackSide->isActive(cur));
+	return MAX(mFrontSide->getLastActivity(), mBackSide->getLastActivity());
 }
 
 void TranscodedCall::setInitialOffer(std::list<PayloadType *> &payloads) {

@@ -39,7 +39,13 @@ CallContextBase::CallContextBase(sip_t *sip) {
 	if (via && via->v_branch) {
 		mBranch = via->v_branch;
 	}
+	updateActivity();
 	LOGD("CallContext %p created", this);
+}
+
+
+void CallContextBase::updateActivity() {
+	mLastSIPActivity = getCurrentTime();
 }
 
 void CallContextBase::establishDialogWith200Ok(Agent *ag, sip_t *sip) {
@@ -106,6 +112,7 @@ void CallContextBase::storeNewInvite(msg_t *msg) {
 		msg_destroy(mInvite);
 	}
 	mInvite = msg_copy(msg);
+	updateActivity();
 }
 
 msg_t *CallContextBase::getLastForwardedInvite() const {
@@ -178,10 +185,10 @@ void CallStore::remove(const shared_ptr<CallContextBase> &ctx) {
 	}
 }
 
-void CallStore::removeAndDeleteInactives() {
+void CallStore::removeAndDeleteInactives(time_t inactivityPeriod) {
 	time_t cur = getCurrentTime();
 	for (auto it = mCalls.begin(); it != mCalls.end();) {
-		if ((*it)->isInactive(cur)) {
+		if ((*it)->getLastActivity() + inactivityPeriod < cur) {
 			LOGD("CallStore::removeAndDeleteInactives() removing CallContext %p", (*it).get());
 			if (mCountCallsFinished)
 				++(*mCountCallsFinished);

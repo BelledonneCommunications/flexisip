@@ -51,7 +51,7 @@ class CallSide {
 	void setPtime(int ptime);
 	void dump();
 	void playTone(char tone_name);
-	bool isActive(time_t cur);
+	time_t getLastActivity();
 	void doBgTasks();
 
   private:
@@ -97,7 +97,7 @@ class TranscodedCall : public CallContextBase {
 	~TranscodedCall();
 	void dump();
 	void doBgTasks();
-	virtual bool isInactive(time_t);
+	virtual time_t getLastActivity();
 	const std::string &getBindAddress() const {
 		return mBindAddress;
 	}

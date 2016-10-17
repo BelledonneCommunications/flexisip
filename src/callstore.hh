@@ -30,10 +30,11 @@ class CallContextBase {
 	bool isDialogEstablished() const;
 	bool isNewInvite(sip_t *sip);
 	void storeNewInvite(msg_t *orig);
+	void updateActivity();
 	msg_t *getLastForwardedInvite() const;
 	virtual void dump();
-	virtual bool isInactive(time_t cur) {
-		return false;
+	virtual time_t getLastActivity() {
+		return mLastSIPActivity;
 	}
 	virtual void terminate() {
 	}
@@ -59,6 +60,7 @@ class CallContextBase {
 	std::string mCalleeTag;
 	std::string mBranch; /*of the via of the first Invite request*/
 	uint32_t mViaCount;
+	time_t mLastSIPActivity;
 };
 
 class CallStore {
@@ -71,7 +73,7 @@ class CallStore {
 	void findAndRemoveExcept(Agent *ag, sip_t *sip, const std::shared_ptr<CallContextBase> &ctx,
 							 bool match_call_id_only = false);
 	void remove(const std::shared_ptr<CallContextBase> &ctx);
-	void removeAndDeleteInactives();
+	void removeAndDeleteInactives(time_t inactivityPeriod);
 	void setCallStatCounters(StatCounter64 *invCount, StatCounter64 *invFinishedCount) {
 		mCountCalls = invCount;
 		mCountCallsFinished = invFinishedCount;

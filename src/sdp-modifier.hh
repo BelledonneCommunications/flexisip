@@ -47,6 +47,7 @@ private:
 	static std::string getAttribute(sdp_session_t *session, sdp_media_t *mline, const std::string &name);
 	static const char *toString(IceState state);
 	static bool hasCandidates(sdp_media_t *mline);
+	static bool hasRemoteCandidates(sdp_media_t *mline);
 };
 
 struct MasqueradeContextPair{

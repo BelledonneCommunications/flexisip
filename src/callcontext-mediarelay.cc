@@ -196,8 +196,7 @@ void RelayedCall::removeBranch(const string &trId) {
 	}
 }
 
-
-bool RelayedCall::isInactive(time_t cur) {
+time_t RelayedCall::getLastActivity() {
 	time_t maxtime = 0;
 	shared_ptr<RelaySession> r;
 	for (int i = 0; i < sMaxSessions; ++i) {
@@ -206,10 +205,7 @@ bool RelayedCall::isInactive(time_t cur) {
 		if (r && ((tmp = r->getLastActivityTime()) > maxtime))
 			maxtime = tmp;
 	}
-	if (cur - maxtime > 90){ // this value shall not be less than the time to establish a call.
-		return true;
-	}
-	return false;
+	return MAX(maxtime, CallContextBase::getLastActivity());
 }
 
 void RelayedCall::terminate(){

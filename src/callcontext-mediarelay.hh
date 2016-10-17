@@ -56,7 +56,7 @@ public:
 	void setEstablished(const std::string &trId);
 
 	bool checkMediaValid();
-	bool isInactive(time_t cur);
+	virtual time_t getLastActivity();
 	void terminate();
 
 	virtual ~RelayedCall();

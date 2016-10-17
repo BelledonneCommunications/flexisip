@@ -267,7 +267,7 @@ void Transcoder::onLoad(const GenericStruct *mc) {
 
 void Transcoder::onIdle() {
 	mCalls.dump();
-	mCalls.removeAndDeleteInactives();
+	mCalls.removeAndDeleteInactives(180);
 }
 
 bool Transcoder::canDoRateControl(sip_t *sip) {

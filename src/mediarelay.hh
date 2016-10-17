@@ -64,6 +64,7 @@ class MediaRelay : public Module, protected ModuleToolbox {
 	int mMaxCalls;
 	int mMinPort, mMaxPort;
 	int mMaxRelayedEarlyMedia;
+	time_t mInactivityPeriod;
 	bool mDropTelephoneEvent;
 	bool mByeOrphanDialogs;
 	bool mEarlyMediaRelaySingle;
