@@ -39,6 +39,7 @@ class DoSProtection : public Module, ModuleToolbox {
 	int mPacketRateLimit;
 	int mBanTime;
 	bool mAtChecked;
+	bool mIptablesVersionChecked;
 	list<string> mWhiteList;
 	unordered_map<string, DosContext> mDosContexts;
 	unordered_map<string, DosContext>::iterator mDOSHashtableIterator;
@@ -104,9 +105,18 @@ class DoSProtection : public Module, ModuleToolbox {
 				int at_command = system("which at > /dev/null");
 				if( WIFEXITED(at_command) && WEXITSTATUS(at_command) == 0 ) {
 					// at command was found, we can be sure that iptables rules will be cleaned up after the required time
-					return true;
 				} else {
 					LOGEN("Couldn't find the commant 'at' in your PATH. DosProtection needs it to be used correctly. Please fix this or disable DosProtection.");
+					return false;
+				}
+			}
+			if (!mIptablesVersionChecked) {
+				mIptablesVersionChecked = true;
+				int iptables_command = system("iptables -w -V > /dev/null");
+				if (WIFEXITED(iptables_command) && WEXITSTATUS(iptables_command) == 0) {
+					// iptables seems to support -w parameter required to allow concurrent usage of iptables
+				} else {
+					LOGEN("IPtables' -w parameter not understood, which probably means you have a version older than 1.4.20. Please fix this or disable DosProtection.");
 					return false;
 				}
 			}
@@ -274,6 +284,7 @@ class DoSProtection : public Module, ModuleToolbox {
   public:
 	DoSProtection(Agent *ag) : Module(ag) {
 		mAtChecked = false;
+		mIptablesVersionChecked = false;
 	}
 
 	~DoSProtection() {
