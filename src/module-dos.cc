@@ -19,6 +19,7 @@
 #include "module.hh"
 #include "agent.hh"
 #include "log/logmanager.hh"
+#include "utils/threadpool.hh"
 #include <sofia-sip/tport.h>
 #include <sofia-sip/msg_addr.h>
 #include <unordered_map>
@@ -31,6 +32,16 @@ typedef struct DosContext {
 	double packet_count_rate;
 } DosContext;
 
+class DoSProtection;
+
+typedef struct BanContext {
+	char *ip;
+	char *port;
+	char *protocol;
+	void *lambda;
+	su_timer_t *timer;
+} BanContext;
+
 class DoSProtection : public Module, ModuleToolbox {
 
   private:
@@ -38,11 +49,12 @@ class DoSProtection : public Module, ModuleToolbox {
 	int mTimePeriod;
 	int mPacketRateLimit;
 	int mBanTime;
-	bool mAtChecked;
 	bool mIptablesVersionChecked;
+	bool mIptablesSupportsWait;
 	list<string> mWhiteList;
 	unordered_map<string, DosContext> mDosContexts;
 	unordered_map<string, DosContext>::iterator mDOSHashtableIterator;
+	ThreadPool *mThreadPool;
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
@@ -99,25 +111,12 @@ class DoSProtection : public Module, ModuleToolbox {
 			LOGEN("DosProtection only works on linux hosts. Please disable this module.");
 			return false;
 #else
-			// we only want to check 'at' availability once
-			if ( !mAtChecked ){
-				mAtChecked = true;
-				int at_command = system("which at > /dev/null");
-				if( WIFEXITED(at_command) && WEXITSTATUS(at_command) == 0 ) {
-					// at command was found, we can be sure that iptables rules will be cleaned up after the required time
-				} else {
-					LOGEN("Couldn't find the commant 'at' in your PATH. DosProtection needs it to be used correctly. Please fix this or disable DosProtection.");
-					return false;
-				}
-			}
 			if (!mIptablesVersionChecked) {
 				mIptablesVersionChecked = true;
 				int iptables_command = system("iptables -w -V > /dev/null");
 				if (WIFEXITED(iptables_command) && WEXITSTATUS(iptables_command) == 0) {
 					// iptables seems to support -w parameter required to allow concurrent usage of iptables
-				} else {
-					LOGEN("IPtables' -w parameter not understood, which probably means you have a version older than 1.4.20. Please fix this or disable DosProtection.");
-					return false;
+					mIptablesSupportsWait = true;
 				}
 			}
 			return true;
@@ -170,24 +169,53 @@ class DoSProtection : public Module, ModuleToolbox {
 				return true;
 			}
 		}
-		
 		return false;
 	}
 
-	static void ban_ip_with_iptables(const char *ip, const char *port, const char *protocol, int ban_time) {
+	void banIP(const char *ip, const char *port, const char *protocol) {
 		char iptables_cmd[512];
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -w -C INPUT -p %s -s %s -m multiport --sports %s -j DROP", 
-				 protocol, ip, port);
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -C INPUT -p %s -s %s -m multiport --sports %s -j DROP", 
+				 mIptablesSupportsWait ? "-w" : "", protocol, ip, port);
+		
 		if (system(iptables_cmd) == 0) {
 			LOGW("IP %s port %s on protocol %s is already in the iptables banned list, skipping...", ip, port, protocol);
 		} else {
-			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables -w -A INPUT -p %s -s %s -m multiport --sports %s -j DROP"
-					" && echo \"iptables -w -D INPUT -p %s -s %s -m multiport --sports %s -j DROP\" | at -M now +%i minutes",
-					protocol, ip, port, protocol, ip, port, ban_time);
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -A INPUT -p %s -s %s -m multiport --sports %s -j DROP",
+				mIptablesSupportsWait ? "-w" : "", protocol, ip, port);
 			if (system(iptables_cmd) != 0) {
-				LOGW("iptables command failed: %s", strerror(errno));
+				LOGW("ban iptables command failed: %s", strerror(errno));
 			}
 		}
+	}
+	
+	void unbanIP(BanContext *ctx) {
+		char iptables_cmd[512];
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -D INPUT -p %s -s %s -m multiport --sports %s -j DROP",
+			mIptablesSupportsWait ? "-w" : "", ctx->protocol, ctx->ip, ctx->port);
+		if (system(iptables_cmd) != 0) {
+			LOGW("unban iptables command failed: %s", strerror(errno));
+		}
+		free(ctx->ip);
+		free(ctx->port);
+		free(ctx->protocol);
+		free(ctx->lambda);
+		su_timer_destroy(ctx->timer);
+		free(ctx);
+	}
+	
+	static void invokeLambdaFromSofiaTimerCallback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) {
+		BanContext *ctx = (BanContext *)arg;
+		(*static_cast<std::function<void(BanContext*)>*>(ctx->lambda))(ctx);
+	}
+	
+	void createBanContextAndPostInFuture(char *ip, char *port, string protocol) {
+		BanContext *ctx = (BanContext *)malloc(sizeof(BanContext));
+		ctx->ip = strdup(ip);
+		ctx->port = strdup(port);
+		ctx->protocol = strdup(protocol.c_str());
+		ctx->lambda = new std::function<void(BanContext*)>([&](BanContext *ctx){ mThreadPool->Enqueue([&] { unbanIP(ctx); }); });
+		ctx->timer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
+		su_timer_set_interval(ctx->timer, invokeLambdaFromSofiaTimerCallback, ctx, mBanTime * 60 * 1000);
 	}
 
 	void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException) {
@@ -241,7 +269,8 @@ class DoSProtection : public Module, ModuleToolbox {
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol udp for %i minutes",
 						 dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					if (!isIpWhiteListed(ip)) {
-						ban_ip_with_iptables(ip, port, "udp", mBanTime);
+						mThreadPool->Enqueue([&] { banIP(ip, port, "udp"); });
+						createBanContextAndPostInFuture(ip, port, "udp");
 						ev->terminateProcessing(); // the event is discarded
 					} else {
 						LOGW("IP %s should be banned but wasn't because in white list", ip);
@@ -264,7 +293,8 @@ class DoSProtection : public Module, ModuleToolbox {
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes",
 						 packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					if (!isIpWhiteListed(ip)) {
-						ban_ip_with_iptables(ip, port, "tcp", mBanTime);
+						mThreadPool->Enqueue([&] { banIP(ip, port, "tcp"); });
+						createBanContextAndPostInFuture(ip, port, "tcp");
 						ev->terminateProcessing(); // the event is discarded
 					} else {
 						LOGW("IP %s should be banned but wasn't because in white list", ip);
@@ -283,11 +313,13 @@ class DoSProtection : public Module, ModuleToolbox {
 
   public:
 	DoSProtection(Agent *ag) : Module(ag) {
-		mAtChecked = false;
 		mIptablesVersionChecked = false;
+		mIptablesSupportsWait = false;
+		mThreadPool = new ThreadPool(1, 100);
 	}
 
 	~DoSProtection() {
+		delete mThreadPool;
 	}
 };
 

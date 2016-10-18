@@ -22,7 +22,7 @@
 // Constructor.
 ThreadPool::ThreadPool(unsigned int threads, unsigned int max_queue_size)
 	: max_queue_size(max_queue_size), terminate(false), stopped(false) {
-	SLOGE << "[POOL] Init with " << threads << " threads and queue size " << max_queue_size;
+	SLOGD << "[POOL] Init with " << threads << " threads and queue size " << max_queue_size;
 
 	// Create number of required threads and add them to the thread pool vector.
 	for (unsigned int i = 0; i < threads; i++) {
@@ -74,7 +74,7 @@ void ThreadPool::Invoke() {
 
 			// If termination signal received and queue is empty then exit else continue clearing the queue.
 			if (terminate && tasks.empty()) {
-				SLOGE << "[POOL] Terminate thread";
+				SLOGD << "[POOL] Terminate thread";
 				return;
 			}
 
@@ -93,7 +93,7 @@ void ThreadPool::Invoke() {
 }
 
 void ThreadPool::ShutDown() {
-	SLOGE << "[POOL] Shutdown";
+	SLOGD << "[POOL] Shutdown";
 	// Scope based locking.
 	{
 		// Put unique lock on task mutex.
