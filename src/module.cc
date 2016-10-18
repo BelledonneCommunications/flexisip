@@ -157,6 +157,11 @@ void Module::load() {
 		onLoad(mModuleConfig);
 }
 
+void Module::unload() {
+	if (mFilter->isEnabled())
+		onUnload();
+}
+
 void Module::reload() {
 	onUnload();
 	load();

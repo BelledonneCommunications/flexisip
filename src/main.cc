@@ -821,6 +821,7 @@ int main(int argc, char *argv[]) {
 	su_timer_set_for_ever(timer, (su_timer_f)timerfunc, a.get());
 	su_root_run(root);
 	su_timer_destroy(timer);
+	a->unloadConfig();
 	a.reset();
 	if (stun) {
 		stun->stop();

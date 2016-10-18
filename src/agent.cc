@@ -457,6 +457,13 @@ void Agent::loadConfig(GenericManager *cm) {
 		mDrm->load();
 }
 
+void Agent::unloadConfig() {
+	list<Module *>::iterator it;
+	for (it = mModules.begin(); it != mModules.end(); ++it) {
+		(*it)->unload();
+	}
+}
+
 std::string Agent::computeResolvedPublicIp(const std::string &host) const {
 	int err;
 	struct addrinfo hints;

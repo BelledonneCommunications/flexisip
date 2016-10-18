@@ -138,6 +138,7 @@ class Module : protected ConfigValueListener {
 	void declare(GenericStruct *root);
 	void checkConfig();
 	void load();
+	void unload();
 	void reload();
 	void processRequest(std::shared_ptr<RequestSipEvent> &ev);
 	void processResponse(std::shared_ptr<ResponseSipEvent> &ev);

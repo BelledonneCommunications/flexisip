@@ -111,6 +111,7 @@ class Agent : public IncomingAgent,
 	Agent(su_root_t *root);
 	void start(const std::string &transport_override);
 	virtual void loadConfig(GenericManager *cm);
+	virtual void unloadConfig();
 	virtual ~Agent();
 	/// Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination.
 	std::pair<std::string, std::string> getPreferredIp(const std::string &destination) const;

@@ -55,6 +55,7 @@ class DoSProtection : public Module, ModuleToolbox {
 	unordered_map<string, DosContext> mDosContexts;
 	unordered_map<string, DosContext>::iterator mDOSHashtableIterator;
 	ThreadPool *mThreadPool;
+	string mFlexisipChain;
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
@@ -62,11 +63,8 @@ class DoSProtection : public Module, ModuleToolbox {
 			{Integer, "packet-rate-limit", "Maximum packet rate in packets/seconds,  averaged over [time-period] "
 										   "millisecond(s) to consider it as a DoS attack.",
 			 "20"},
-			{Integer, "ban-time", "Number of minutes to ban the ip/port using iptables (might be less because it justs "
-								  "uses the minutes of the clock, not the seconds. So if the unban command is queued "
-								  "at 13:11:56 and scheduled and the ban time is 1 minute, it will be executed at "
-								  "13:12:00)",
-			 "2"},
+			{Integer, "ban-time", "Number of minutes to ban the ip/port using iptables", "2"},
+			{String, "iptables-chain", "Name of the chain flexisip will create to store the banned IPs", "FLEXISIP"},
 			config_item_end};
 		module_config->get<ConfigBoolean>("enabled")->setDefault("true");
 		module_config->addChildrenValues(configs);
@@ -76,6 +74,7 @@ class DoSProtection : public Module, ModuleToolbox {
 		mTimePeriod = mc->get<ConfigInt>("time-period")->read();
 		mPacketRateLimit = mc->get<ConfigInt>("packet-rate-limit")->read();
 		mBanTime = mc->get<ConfigInt>("ban-time")->read();
+		mFlexisipChain = mc->get<ConfigString>("iptables-chain")->read();
 		mDOSHashtableIterator = mDosContexts.begin();
 		
 		GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
@@ -96,9 +95,57 @@ class DoSProtection : public Module, ModuleToolbox {
 			LOGE("Flexisip not started with root privileges! iptables commands for DoS protection won't work.");
 			return;
 		}
+			
+		// Let's remove the Flexisip's chain in case the previous run crashed
+		char iptables_cmd[512];
+		// First we have to empty the chain
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -F %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		if (system(iptables_cmd) != 0) {
+			LOGW("iptables command %s failed", iptables_cmd);
+		}
+		// Then we have to remove the link to be able to remove the chain itself
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		if (system(iptables_cmd) != 0) {
+			LOGW("No previous link from INPUT to %s : normal if flexisip shut down correctly", mFlexisipChain.c_str());
+		}
+		
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -X %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		if (system(iptables_cmd) != 0) {
+			LOGW("No existing chain named %s : normal if flexisip shut down correctly", mFlexisipChain.c_str());
+		}
+		
+		// Now let's create it
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -N %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		if (system(iptables_cmd) != 0) {
+			LOGW("iptables command %s failed", iptables_cmd);
+		}
+		
+		//Finally let's add a jum from the INPUT chain to ours
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -t filter -A INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		if (system(iptables_cmd) != 0) {
+			LOGW("iptables command %s failed", iptables_cmd);
+		}
 	}
 
 	void onUnload() {
+		// Let's remove the Flexisip's chain
+		char iptables_cmd[512];
+		// First we have to empty the chain
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -F %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		if (system(iptables_cmd) != 0) {
+			LOGW("iptables command %s failed", iptables_cmd);
+		}
+		
+		// Then we have to remove the link to be able to remove the chain itself
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		if (system(iptables_cmd) != 0) {
+			LOGW("iptables command %s failed", iptables_cmd);
+		}
+		
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -X %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		if (system(iptables_cmd) != 0) {
+			LOGW("iptables command %s failed", iptables_cmd);
+		}
 	}
 
 	virtual bool isValidNextConfig( const ConfigValue &value ) {
@@ -106,7 +153,6 @@ class DoSProtection : public Module, ModuleToolbox {
 		if (!module_config->get<ConfigBoolean>("enabled")->readNext())
 			return true;
 		else {
-
 #if __APPLE__
 			LOGEN("DosProtection only works on linux hosts. Please disable this module.");
 			return false;
@@ -118,7 +164,7 @@ class DoSProtection : public Module, ModuleToolbox {
 					// iptables seems to support -w parameter required to allow concurrent usage of iptables
 					mIptablesSupportsWait = true;
 				}
-			}
+			}			
 			return true;
 #endif
 		}
@@ -174,26 +220,26 @@ class DoSProtection : public Module, ModuleToolbox {
 
 	void banIP(const char *ip, const char *port, const char *protocol) {
 		char iptables_cmd[512];
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -C INPUT -p %s -s %s -m multiport --sports %s -j DROP", 
-				 mIptablesSupportsWait ? "-w" : "", protocol, ip, port);
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -C %s -p %s -s %s -m multiport --sports %s -j DROP", 
+				 mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol, ip, port);
 		
 		if (system(iptables_cmd) == 0) {
 			LOGW("IP %s port %s on protocol %s is already in the iptables banned list, skipping...", ip, port, protocol);
 		} else {
-			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -A INPUT -p %s -s %s -m multiport --sports %s -j DROP",
-				mIptablesSupportsWait ? "-w" : "", protocol, ip, port);
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -A %s -p %s -s %s -m multiport --sports %s -j DROP",
+				mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol, ip, port);
 			if (system(iptables_cmd) != 0) {
-				LOGW("ban iptables command failed: %s", strerror(errno));
+				LOGW("iptables command %s failed: %s", iptables_cmd, strerror(errno));
 			}
 		}
 	}
 	
 	void unbanIP(BanContext *ctx) {
 		char iptables_cmd[512];
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -D INPUT -p %s -s %s -m multiport --sports %s -j DROP",
-			mIptablesSupportsWait ? "-w" : "", ctx->protocol, ctx->ip, ctx->port);
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -D %s -p %s -s %s -m multiport --sports %s -j DROP",
+			mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), ctx->protocol, ctx->ip, ctx->port);
 		if (system(iptables_cmd) != 0) {
-			LOGW("unban iptables command failed: %s", strerror(errno));
+			LOGW("iptables command %s failed: %s", iptables_cmd, strerror(errno));
 		}
 		free(ctx->ip);
 		free(ctx->port);
@@ -315,7 +361,7 @@ class DoSProtection : public Module, ModuleToolbox {
 	DoSProtection(Agent *ag) : Module(ag) {
 		mIptablesVersionChecked = false;
 		mIptablesSupportsWait = false;
-		mThreadPool = new ThreadPool(1, 100);
+		mThreadPool = new ThreadPool(1, 1000);
 	}
 
 	~DoSProtection() {
@@ -325,7 +371,7 @@ class DoSProtection : public Module, ModuleToolbox {
 
 ModuleInfo<DoSProtection>
 	DoSProtection::sInfo("DoSProtection",
-						 "This module bans user when they are sending too much packets on a given timelapse"
-						 "To see the list of currently banned ips/ports, use iptables -L"
-						 "You can also check the queue of unban commands using atq",
-						 ModuleInfoBase::ModuleOid::DoSProtection);
+			    "This module bans user when they are sending too much packets on a given timelapse"
+			    "To see the list of currently banned ips/ports, use iptables -L"
+			    "You can also check the queue of unban commands using atq",
+			    ModuleInfoBase::ModuleOid::DoSProtection);
