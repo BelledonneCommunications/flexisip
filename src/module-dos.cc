@@ -98,20 +98,25 @@ class DoSProtection : public Module, ModuleToolbox {
 			
 		// Let's remove the Flexisip's chain in case the previous run crashed
 		char iptables_cmd[512];
+		bool skipCleanup = false;
 		// First we have to empty the chain
 		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -F %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
 		if (system(iptables_cmd) != 0) {
 			LOGW("iptables command %s failed", iptables_cmd);
-		}
-		// Then we have to remove the link to be able to remove the chain itself
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
-		if (system(iptables_cmd) != 0) {
-			LOGW("No previous link from INPUT to %s : normal if flexisip shut down correctly", mFlexisipChain.c_str());
+			skipCleanup = true;
 		}
 		
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -X %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
-		if (system(iptables_cmd) != 0) {
-			LOGW("No existing chain named %s : normal if flexisip shut down correctly", mFlexisipChain.c_str());
+		if (!skipCleanup) {
+			// Then we have to remove the link to be able to remove the chain itself
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+			if (system(iptables_cmd) != 0) {
+				LOGW("iptables command %s failed", iptables_cmd);
+			}
+			
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -X %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+			if (system(iptables_cmd) != 0) {
+				LOGW("iptables command %s failed", iptables_cmd);
+			}
 		}
 		
 		// Now let's create it
@@ -220,13 +225,13 @@ class DoSProtection : public Module, ModuleToolbox {
 
 	void banIP(const char *ip, const char *port, const char *protocol) {
 		char iptables_cmd[512];
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -C %s -p %s -s %s -m multiport --sports %s -j DROP", 
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -C %s -p %s -s %s -m multiport --sports %s -j REJECT", 
 				 mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol, ip, port);
 		
 		if (system(iptables_cmd) == 0) {
 			LOGW("IP %s port %s on protocol %s is already in the iptables banned list, skipping...", ip, port, protocol);
 		} else {
-			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -A %s -p %s -s %s -m multiport --sports %s -j DROP",
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -A %s -p %s -s %s -m multiport --sports %s -j REJECT",
 				mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol, ip, port);
 			if (system(iptables_cmd) != 0) {
 				LOGW("iptables command %s failed: %s", iptables_cmd, strerror(errno));
@@ -236,7 +241,7 @@ class DoSProtection : public Module, ModuleToolbox {
 	
 	void unbanIP(BanContext *ctx) {
 		char iptables_cmd[512];
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -D %s -p %s -s %s -m multiport --sports %s -j DROP",
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -D %s -p %s -s %s -m multiport --sports %s -j REJECT",
 			mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), ctx->protocol, ctx->ip, ctx->port);
 		if (system(iptables_cmd) != 0) {
 			LOGW("iptables command %s failed: %s", iptables_cmd, strerror(errno));
