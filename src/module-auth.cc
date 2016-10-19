@@ -476,7 +476,7 @@ class Authentication : public Module {
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
 
 		// Check TLS certificate
-		if (tport_has_tls(inTport.get())) {
+		if (tport_is_verified(inTport.get())) {
 			const url_t *from = sip->sip_from->a_url;
 			const char *fromDomain = from->url_host;
 			const char *res = NULL;
