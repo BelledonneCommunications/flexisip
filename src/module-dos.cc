@@ -249,7 +249,7 @@ class DoSProtection : public Module, ModuleToolbox {
 		free(ctx->ip);
 		free(ctx->port);
 		free(ctx->protocol);
-		free(ctx->lambda);
+		delete ctx->lambda;
 		su_timer_destroy(ctx->timer);
 		free(ctx);
 	}
