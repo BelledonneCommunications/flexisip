@@ -35,10 +35,10 @@ typedef struct DosContext {
 class DoSProtection;
 
 typedef struct BanContext {
-	char *ip;
-	char *port;
-	char *protocol;
-	void *lambda;
+	string ip;
+	string port;
+	string protocol;
+	std::function<void(BanContext*)> lambda;
 	su_timer_t *timer;
 } BanContext;
 
@@ -242,29 +242,26 @@ class DoSProtection : public Module, ModuleToolbox {
 	void unbanIP(BanContext *ctx) {
 		char iptables_cmd[512];
 		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -D %s -p %s -s %s -m multiport --sports %s -j REJECT",
-			mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), ctx->protocol, ctx->ip, ctx->port);
+			mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), ctx->protocol.c_str(), ctx->ip.c_str(), ctx->port.c_str());
 		if (system(iptables_cmd) != 0) {
 			LOGW("iptables command %s failed: %s", iptables_cmd, strerror(errno));
 		}
-		free(ctx->ip);
-		free(ctx->port);
-		free(ctx->protocol);
-		delete ctx->lambda;
-		su_timer_destroy(ctx->timer);
-		free(ctx);
+		delete ctx;
 	}
 	
 	static void invokeLambdaFromSofiaTimerCallback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) {
 		BanContext *ctx = (BanContext *)arg;
-		(*static_cast<std::function<void(BanContext*)>*>(ctx->lambda))(ctx);
+		su_timer_destroy(ctx->timer);
+		ctx->timer = NULL;
+		ctx->lambda(ctx);
 	}
 	
-	void createBanContextAndPostInFuture(char *ip, char *port, string protocol) {
-		BanContext *ctx = (BanContext *)malloc(sizeof(BanContext));
-		ctx->ip = strdup(ip);
-		ctx->port = strdup(port);
-		ctx->protocol = strdup(protocol.c_str());
-		ctx->lambda = new std::function<void(BanContext*)>([&](BanContext *ctx){ mThreadPool->Enqueue([&] { unbanIP(ctx); }); });
+	void createBanContextAndPostInFuture(const char *ip, const char *port, const string &protocol) {
+		BanContext *ctx = new BanContext();
+		ctx->ip = ip;
+		ctx->port = port;
+		ctx->protocol = protocol;
+		ctx->lambda = std::function<void(BanContext*)>([&](BanContext *ctx){ mThreadPool->Enqueue([&] { unbanIP(ctx); }); });
 		ctx->timer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
 		su_timer_set_interval(ctx->timer, invokeLambdaFromSofiaTimerCallback, ctx, mBanTime * 60 * 1000);
 	}

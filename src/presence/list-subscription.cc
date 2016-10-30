@@ -83,7 +83,7 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 	}
 	if (mListeners.size() == 0) {
 		ostringstream os;
-		os << "Empty list entry for dialog id[" << belle_sip_dialog_get_dialog_id(mDialog) << "]";
+		os << "Empty list entry for dialog id[" << belle_sip_header_call_id_get_call_id(belle_sip_dialog_get_call_id(mDialog)) << "]";
 		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
 	}
 
