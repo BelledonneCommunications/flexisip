@@ -367,7 +367,7 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 	const sip_contact_t *contact = NULL;
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
-	int expire = sip->sip_expires->ex_delta;
+	int expire = sip->sip_expires ? sip->sip_expires->ex_delta : 0;
 	string expire_str = std::to_string(expire);
 
 	replyPopulateEventLog(ev, sip, code, reason);
@@ -377,7 +377,7 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 	}
 
 	// This ensures not all REGISTERs arrive at the same time on the flexisip
-	if (sip->sip_request->rq_method == sip_method_register && code == 200 && mExpireRandomizer > 0) {
+	if (sip->sip_request->rq_method == sip_method_register && code == 200 && mExpireRandomizer > 0 && expire > 0) {
 		expire = (int) expire - (expire * su_randint(0, mExpireRandomizer) / 100);
 		expire_str = std::to_string(expire);
 		if (contacts) {
@@ -390,15 +390,33 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 	if (!contact) contact = contacts;
 
 	if (contact && !mServiceRoute.empty()) {
-		ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
+		if (expire > 0) {
+			ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
 				  SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
+		} else {
+			ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
+				  SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		}
 	} else if (contact) {
-		ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
+		if (expire > 0) {
+			ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
+		} else {
+			ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		}
 	} else if (!mServiceRoute.empty()) {
-		ev->reply(code, reason, SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
+		if (expire > 0) {
+			ev->reply(code, reason, SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
 				  SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
+		} else {
+			ev->reply(code, reason, SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
+				  SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		}
 	} else {
-		ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
+		if (expire > 0) {
+			ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
+		} else {
+			ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		}
 	}
 }
 
