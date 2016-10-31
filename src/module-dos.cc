@@ -317,7 +317,7 @@ class DoSProtection : public Module, ModuleToolbox {
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol udp for %i minutes",
 						 dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					if (!isIpWhiteListed(ip)) {
-						mThreadPool->Enqueue([&] { banIP(ip, port, "udp"); });
+						mThreadPool->Enqueue([&, ip, port] { banIP(ip, port, "udp"); });
 						createBanContextAndPostInFuture(ip, port, "udp");
 						ev->terminateProcessing(); // the event is discarded
 					} else {
@@ -341,7 +341,7 @@ class DoSProtection : public Module, ModuleToolbox {
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes",
 						 packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					if (!isIpWhiteListed(ip)) {
-						mThreadPool->Enqueue([&] { banIP(ip, port, "tcp"); });
+						mThreadPool->Enqueue([&, ip, port] { banIP(ip, port, "tcp"); });
 						createBanContextAndPostInFuture(ip, port, "tcp");
 						ev->terminateProcessing(); // the event is discarded
 					} else {
