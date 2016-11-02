@@ -25,7 +25,7 @@
 
 struct PushInfo {
 	enum Event { Call, Message };
-	PushInfo() : mEvent(Event::Message), mNoBadge(false){};
+	PushInfo() : mEvent(Event::Message), mNoBadge(false), mSilent(false){};
 	Event mEvent; // Event to advertise: call or text message.
 	std::string mType; // type of push notif: apple, google, wp
 	std::string mAppId; // app id, as extracted from Contact
@@ -41,7 +41,9 @@ struct PushInfo {
 	std::string mText;	// Text of the chat message.
 	std::string mUid; // The unique id as used in the ExtendedContact, if available
 	std::string mAccessToken; // access token required by Microsoft to authenticate our server
+	int mTtl; //Time to live of the push notification.
 	bool mNoBadge; // Whether to display a badge on the application (ios specific).
+	bool mSilent;
 };
 
 class PushNotificationRequest {

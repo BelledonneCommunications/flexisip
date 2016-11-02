@@ -23,10 +23,9 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 		throw std::runtime_error("ApplePushNotification: Invalid deviceToken");
 	}
 
-	if (msg_id ==
-		"IC_SIL") { // silent push: just send "content-available=1", the device will figure out what's happening
-		payload
-		<< "{\"aps\":{\"sound\":\"\", \"content-available\":1},\"pn_ttl\":60}"; // PN expiration set to 60 seconds.
+	if (info.mSilent || msg_id == "IC_SIL") { 
+		// silent push: just send "content-available=1", the device will figure out what's happening
+		payload << "{\"aps\":{\"sound\":\"\", \"content-available\":1},\"pn_ttl\":"<< info.mTtl <<"}";
 	} else {
 
 		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg
@@ -35,7 +34,7 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 		 we always put the badge value to 1 because we want to notify the user that
 		 he/she has unread messages even if we do not know the exact count */
 		payload << ",\"badge\":" << (info.mNoBadge ? 0 : 1);
-		payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":60}"; // PN expiration set to 60 seconds.
+		payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":" << info.mTtl <<"}";
 	}
 	if (payload.str().length() > MAXPAYLOAD_SIZE) {
 		return;

@@ -86,6 +86,7 @@ class PushNotification : public Module, public ModuleToolbox {
 	url_t *mExternalPushUri;
 	string mExternalPushMethod;
 	int mTimeout;
+	int mTtl;
 	map<string, string> mGoogleKeys;
 	PushNotificationService *mPNS;
 	StatCounter64 *mCountFailed;
@@ -201,6 +202,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		{Integer, "timeout",
 		 "Number of second to wait before sending a push notification to device(if <=0 then disabled)", "5"},
 		{Integer, "max-queue-size", "Maximum number of notifications queued for each client", "100"},
+		{Integer, "time-to-live", "Default time to live for the push notifications, in seconds", "2592000"},
 		{Boolean, "apple", "Enable push notification for apple devices", "true"},
 		{String, "apple-certificate-dir",
 		 "Path to directory where to find Apple Push Notification service certificates. They should bear the appid of "
@@ -251,6 +253,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 void PushNotification::onLoad(const GenericStruct *mc) {
 	mNoBadgeiOS = mc->get<ConfigBoolean>("no-badge")->read();
 	mTimeout = mc->get<ConfigInt>("timeout")->read();
+	mTtl = mc->get<ConfigInt>("time-to-live")->read();
 	int maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
 	string certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
 	auto googleKeys = mc->get<ConfigStringList>("google-projects-api-keys")->read();
@@ -297,6 +300,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 
 	pinfo.mCallId = ms->getSip()->sip_call_id->i_id;
 	pinfo.mEvent = sip->sip_request->rq_method == sip_method_invite ? PushInfo::Call : PushInfo::Message;
+	pinfo.mTtl = mTtl;
 	int time_out = mTimeout;
 
 	if (sip->sip_request->rq_url->url_params != NULL) {
@@ -306,7 +310,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		char pn_key[512] = {0};
 		char tmp[16]= {0};
 		char const *params = sip->sip_request->rq_url->url_params;
-		bool pnSilent = false;
+
 		/*extract all parameters required to make the push notification */
 		if (url_param(params, "pn-tok", deviceToken, sizeof(deviceToken)) == 0) {
 			SLOGD << "no pn-tok";
@@ -338,7 +342,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				time_out = std::atoi(tmp);
 			}
 			if (url_param(params, "pn-silent", tmp, sizeof(tmp)-1) != 0) {
-				pnSilent = std::atoi(tmp) != 0;
+				pinfo.mSilent = std::atoi(tmp) != 0;
 			}
 
 			string contact;
@@ -420,7 +424,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			if (pn) {
 				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << time_out << "s";
 				context = make_shared<PushNotificationContext>(transaction, this, pn, pn_key);
-				context->start(time_out, !pnSilent);
+				context->start(time_out, !pinfo.mSilent);
 				mPendingNotifications.insert(make_pair(pn_key, context));
 			}
 		}
