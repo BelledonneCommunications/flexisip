@@ -141,6 +141,8 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 			pinfo.mAlertSound = "msg.caf";
 			pinfo.mAppId = args.appid;
 			pinfo.mDeviceToken = pntok;
+			pinfo.mTtl = 2592000;
+			//pinfo.mTtl = 60;
 			result.push_back(make_shared<ApplePushNotificationRequest>(pinfo));
 		} else {
 			cerr << "? push pntype " << args.pntype << endl;

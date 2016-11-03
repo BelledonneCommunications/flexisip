@@ -202,7 +202,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		{Integer, "timeout",
 		 "Number of second to wait before sending a push notification to device(if <=0 then disabled)", "5"},
 		{Integer, "max-queue-size", "Maximum number of notifications queued for each client", "100"},
-		{Integer, "time-to-live", "Default time to live for the push notifications, in seconds", "2592000"},
+		{Integer, "time-to-live", "Default time to live for the push notifications, in seconds. This parameter shall be set according to mDeliveryTimeout parameter in ForkContext.cc", "2592000"},
 		{Boolean, "apple", "Enable push notification for apple devices", "true"},
 		{String, "apple-certificate-dir",
 		 "Path to directory where to find Apple Push Notification service certificates. They should bear the appid of "
