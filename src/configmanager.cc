@@ -782,6 +782,8 @@ GenericManager::GenericManager()
 		 "Unlike the recommandation of the RFC, the default value of UDP MTU is 1460 in Flexisip (instead of 1300).",
 		 "1460"},
 		{Boolean, "enable-snmp", "Enable SNMP.", "true"},
+		{String, "unique-id", "Unique ID used to identify that instance of Flexisip. It must be a randomly generated "
+			"16-sized hexadecimal number. If empty, it will be randomly generated at each start of Flexisip.", ""},
 		config_item_end};
 
 	static ConfigItemDescriptor cluster_conf[] = {

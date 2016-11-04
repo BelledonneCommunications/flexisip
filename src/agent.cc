@@ -98,6 +98,20 @@ void Agent::onDeclare(GenericStruct *root) {
 	mCountReply488 = createCounter(global, key, help, "488");
 	mCountReplyResUnknown = createCounter(global, key, help, "unknown");
 	mLogWriter = NULL;
+	
+	std::string uniqueId = global->get<ConfigString>("unique-id")->read();
+	if (!uniqueId.empty()) {
+		if (uniqueId.length() == 16) {
+			std::transform(uniqueId.begin(), uniqueId.end(), uniqueId.begin(), ::tolower);
+			if(std::find_if(uniqueId.begin(), uniqueId.end(), [](char c)->bool{return !::isxdigit(c);}) == uniqueId.end()) {
+				mUniqueId = uniqueId;
+			} else {
+				SLOGE << "'uniqueId' parameter must hold an hexadecimal number";
+			}
+		} else {
+			SLOGE << "'uniqueId' parameter must have 16 characters. Skipping it";
+		}
+	}
 }
 
 void Agent::startLogWriter() {
@@ -313,12 +327,18 @@ void Agent::start(const std::string &transport_override) {
 	mPublicResolvedIpV4 = computeResolvedPublicIp(mPublicIpV4);
 	mPublicResolvedIpV6 = computeResolvedPublicIp(mPublicIpV6);
 
-	char digest[(SU_MD5_DIGEST_SIZE * 2) + 1];
-	su_md5_hexdigest(&ctx, digest);
-	su_md5_deinit(&ctx);
-	digest[16] = '\0'; // keep half of the digest, should be enough
-	// compute a network wide unique id
-	mUniqueId = digest;
+	// Generate the unique ID if it has not been specified in Flexisip's settings
+	if (mUniqueId.empty()) {
+		char digest[(SU_MD5_DIGEST_SIZE * 2) + 1];
+		su_md5_hexdigest(&ctx, digest);
+		su_md5_deinit(&ctx);
+		digest[16] = '\0'; // keep half of the digest, should be enough
+		// compute a network wide unique id
+		mUniqueId = digest;
+		SLOGD << "Generating the unique ID: " << mUniqueId;
+	} else {
+		SLOGD << "Static unique ID: " << mUniqueId;
+	}
 
 	LOGD("Agent public hostname/ip: v4:%s v6:%s", mPublicIpV4.c_str(), mPublicIpV6.c_str());
 	LOGD("Agent public resolved hostname/ip: v4:%s v6:%s", mPublicResolvedIpV4.c_str(), mPublicResolvedIpV6.c_str());
