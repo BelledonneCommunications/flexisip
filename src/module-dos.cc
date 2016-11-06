@@ -373,7 +373,6 @@ class DoSProtection : public Module, ModuleToolbox {
 
 ModuleInfo<DoSProtection>
 	DoSProtection::sInfo("DoSProtection",
-			    "This module bans user when they are sending too much packets on a given timelapse"
-			    "To see the list of currently banned ips/ports, use iptables -L"
-			    "You can also check the queue of unban commands using atq",
+			    "This module bans user when they are sending too much packets within a given timeframe. "
+			    "To see the list of currently banned IPs/ports, use iptables -L. ",
 			    ModuleInfoBase::ModuleOid::DoSProtection);
