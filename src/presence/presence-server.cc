@@ -213,6 +213,11 @@ void PresenceServer::processRequestEvent(PresenceServer *thiz, const belle_sip_r
 		belle_sip_response_t *resp = belle_sip_response_create_from_request(request, 500);
 		belle_sip_provider_send_response(thiz->mProvider, resp);
 		return;
+	} catch (std::exception &e3) {
+		SLOGE << "Unknown exception [" << e3.what() <<" <<use FlexisipException instead";
+		belle_sip_response_t *resp = belle_sip_response_create_from_request(request, 500);
+		belle_sip_provider_send_response(thiz->mProvider, resp);
+		return;
 	}
 }
 void PresenceServer::processResponseEvent(PresenceServer *thiz, const belle_sip_response_event_t *event) {

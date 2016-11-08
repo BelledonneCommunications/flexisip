@@ -45,7 +45,9 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 			<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
 			<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
 	}
-
+	if (!belle_sip_message_get_body(BELLE_SIP_MESSAGE(request))) {
+		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "Empty body")) << "Empty body";
+	}
 	::std::unique_ptr<resource_lists::Resource_lists> resource_list_body = NULL;
 	try {
 		istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));

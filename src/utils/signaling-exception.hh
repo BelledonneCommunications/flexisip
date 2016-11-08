@@ -32,7 +32,7 @@ class SignalingException : public FlexisipException {
   public:
 	SignalingException(int statusCode, const std::string& reason) : mStatusCode(statusCode), mReason(reason) {}
 	SignalingException(int statusCode) : mStatusCode(statusCode), mReason("Internal Error") {}
-	SignalingException(const SignalingException &other) : mStatusCode(other.mStatusCode), mReason(other.mReason) {}
+	SignalingException(const SignalingException &other) : FlexisipException(other), mStatusCode(other.mStatusCode), mReason(other.mReason) {}
 	
 	virtual ~SignalingException() throw() {}
 	
