@@ -109,9 +109,9 @@ namespace flexisip {
 			}
 
 			if (debug) {
-				bctbx_set_log_level(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_DEBUG);
+				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_DEBUG);
 			} else {
-				bctbx_set_log_level(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_WARNING);
+				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_WARNING);
 			}
 
 			is_debug = debug;
@@ -126,7 +126,7 @@ namespace flexisip {
 		}
 
 		void disableGlobally() {
-			bctbx_set_log_level(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_ERROR);
+			bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_ERROR);
 		}
 	}
 }

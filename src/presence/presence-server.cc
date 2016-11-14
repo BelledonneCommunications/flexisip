@@ -86,7 +86,7 @@ PresenceServer::PresenceServer(std::string configFile) throw(FlexisipException)
 	mStack = belle_sip_stack_new(NULL);
 	mProvider = belle_sip_stack_create_provider(mStack, NULL);
 	//bctbx_set_log_handler(_belle_sip_log);
-	belle_sip_set_log_level(BELLE_SIP_LOG_MESSAGE);
+	//belle_sip_set_log_level(BELLE_SIP_LOG_MESSAGE);
 
 	xercesc::XMLPlatformUtils::Initialize();
 
