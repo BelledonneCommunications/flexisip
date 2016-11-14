@@ -86,9 +86,9 @@ namespace flexisip {
 			is_debug = debug;
 
 			if (debug) {
-				bctbx_set_log_level(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_DEBUG);
+				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_DEBUG);
 			} else {
-				bctbx_set_log_level(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_MESSAGE);
+				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_MESSAGE);
 			}
 
 			if (syslog) {
