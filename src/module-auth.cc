@@ -474,9 +474,11 @@ class Authentication : public Module {
 	bool isTlsClientAuthenticated(shared_ptr<RequestSipEvent> &ev) {
 		sip_t *sip = ev->getSip();
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
+		unsigned int policy = 0;
 
+		tport_get_params(inTport.get(), TPTAG_TLS_VERIFY_POLICY_REF(policy), NULL);
 		// Check TLS certificate
-		if (tport_is_verified(inTport.get())) {
+		if ((policy & TPTLS_VERIFY_INCOMING) && tport_is_verified(inTport.get())) {
 			const url_t *from = sip->sip_from->a_url;
 			const char *fromDomain = from->url_host;
 			const char *res = NULL;

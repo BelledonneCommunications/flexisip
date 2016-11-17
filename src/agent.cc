@@ -163,11 +163,39 @@ void Agent::checkAllowedParams(const url_t *uri) {
 	params = url_strip_param_string(params, "tls-certificates-dir");
 	params = url_strip_param_string(params, "require-peer-certificate");
 	params = url_strip_param_string(params, "maddr");
+	params = url_strip_param_string(params, "tls-verify-incoming");
+	params = url_strip_param_string(params, "tls-verify-outgoing");
 	// make sure that there is no misstyped params in the url:
 	if (params && strlen(params) > 0) {
 		LOGF("Bad parameters '%s' given in transports definition.", params);
 	}
 }
+
+bool getUriParameter(const url_t *url, const char *param, string &value){
+	if (url_has_param(url, param)) {
+		char tmp[256]={0};
+		url_param(url->url_params, param, tmp, sizeof(tmp)-1);
+		value = tmp;
+		return true;
+	}
+	return false;
+}
+
+bool getBoolUriParameter(const url_t *url, const char *param, bool defaultValue){
+	if (url_has_param(url, param)) {
+		bool ret = false;
+		char tmp[256]={0};
+		url_param(url->url_params, param, tmp, sizeof(tmp)-1);
+		try{
+			ret = ConfigBoolean::parse(tmp);
+		}catch(FlexisipException &e){
+			LOGF("Bad value for uri parameter '%s': %s", param, e.what());
+		}
+		return ret;
+	}
+	return defaultValue;
+}
+
 
 void Agent::start(const std::string &transport_override) {
 	char cCurrDir[FILENAME_MAX];
@@ -180,7 +208,7 @@ void Agent::start(const std::string &transport_override) {
 	list<string> transports = global->get<ConfigStringList>("transports")->read();
 	// sofia needs a value in millseconds.
 	unsigned int tports_idle_timeout = 1000 * (unsigned int)global->get<ConfigInt>("idle-timeout")->read();
-	bool mainPeerCert = global->get<ConfigBoolean>("require-peer-certificate")->read();
+	bool globalVerifyIn = global->get<ConfigBoolean>("require-peer-certificate")->read();
 	string mainTlsCertsDir = global->get<ConfigString>("tls-certificates-dir")->read();
 	unsigned int t1x64 = (unsigned int)global->get<ConfigInt>("transaction-timeout")->read();
 	int udpmtu = global->get<ConfigInt>("udp-mtu")->read();
@@ -210,29 +238,29 @@ void Agent::start(const std::string &transport_override) {
 		LOGD("Enabling transport %s", uri.c_str());
 		if (uri.find("sips") == 0) {
 			string keys;
-			if (url_has_param(url, "tls-certificates-dir")) {
-				char keys_path[512];
-				url_param(url->url_params, "tls-certificates-dir", keys_path, sizeof(keys_path));
-				keys = keys_path, keys = absolutePath(currDir, keys);
-			} else {
+			string value;
+			unsigned int tls_policy = 0;
+	
+			if (globalVerifyIn) tls_policy |= TPTLS_VERIFY_INCOMING;
+			
+			if (getUriParameter(url, "tls-certificates-dir", value)){
+				keys = absolutePath(currDir, value);
+			}else{
 				keys = mainTlsCertsDir;
 			}
-			bool peerCert;
-			if (url_has_param(url, "require-peer-certificate")) {
-				char require_value[50];
-				url_param(url->url_params, "require-peer-certificate", require_value, sizeof(require_value));
-				string reqval = require_value;
-				peerCert = reqval == "1" || reqval == "true";
-				if (!peerCert && reqval != "0" && reqval != "false")
-					LOGF("Bad require-peer-certificate value: %s", require_value);
-			} else {
-				peerCert = mainPeerCert;
+			
+			if (getBoolUriParameter(url, "tls-verify-incoming", false) || getBoolUriParameter(url, "require-peer-certificate", false)){
+				tls_policy |= TPTLS_VERIFY_INCOMING;
+			}
+			
+			if (getBoolUriParameter(url, "tls-verify-outgoing", true)){
+				tls_policy |= TPTLS_VERIFY_OUTGOING | TPTLS_VERIFY_SUBJECTS_OUT;
 			}
 
 			checkAllowedParams(url);
-
+			
 			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()),
-									  TPTAG_TLS_VERIFY_PEER(peerCert), TPTAG_IDLE(tports_idle_timeout),
+									  TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
 									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
 									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TAG_END());
 		} else {
@@ -246,7 +274,7 @@ void Agent::start(const std::string &transport_override) {
 				char transport[64] = {0};
 				url_param(url->url_params, "transport", transport, sizeof(transport));
 				if (strcasecmp(transport, "tls") == 0) {
-					LOGE("Specifying an URI with transport=tls is not understood by flexisip. Use 'sips' uri scheme "
+					LOGF("Specifying an URI with transport=tls is not understood in flexisip configuration. Use 'sips' uri scheme "
 						 "instead.");
 				}
 			}

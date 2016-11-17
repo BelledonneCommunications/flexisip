@@ -556,20 +556,29 @@ ConfigBoolean::ConfigBoolean(const string &name, const string &help, const strin
 	: ConfigValue(name, Boolean, help, default_value, oid_index) {
 }
 
-bool ConfigBoolean::read() const {
-	if (get() == "true" || get() == "1")
+bool ConfigBoolean::parse(const string &value)throw (FlexisipException){
+	if (value == "true" || value == "1")
 		return true;
-	else if (get() == "false" || get() == "0")
+	else if (value == "false" || value == "0")
 		return false;
-	LOGA("Bad boolean value %s", get().c_str());
+	throw FlexisipException("Bad boolean value" + value);
+	return false;
+}
+
+bool ConfigBoolean::read() const {
+	try{
+		return parse(get());
+	}catch(FlexisipException &e){
+		LOGA("%s", e.what());
+	}
 	return false;
 }
 bool ConfigBoolean::readNext() const {
-	if (getNextValue() == "true" || getNextValue() == "1")
-		return true;
-	else if (getNextValue() == "false" || getNextValue() == "0")
-		return false;
-	LOGA("Bad boolean value %s", getNextValue().c_str());
+	try{
+		return parse(getNextValue());
+	}catch(FlexisipException &e){
+		LOGA("%s", e.what());
+	}
 	return false;
 }
 
@@ -744,9 +753,11 @@ GenericManager::GenericManager()
 		 "\t- 'tls-certificates-dir' taking for value a path, with the same meaning as the 'tls-certificates-dir' "
 		 "property of this"
 		 " section and overriding it for this given transport.\n"
-		 "\t- 'require-peer-certificate' taking for value '0' or '1', to indicate whether clients connecting are "
-		 "required to present"
-		 " a client certificate.\n"
+		 "\t- 'tls-verify-incoming' taking for value '0' or '1', to indicate whether clients connecting are "
+		 "required to present a valid client certificate. Default value is 0.\n"
+		 "\t- 'tls-verify-outgoing' taking for value '0' or '1', whether flexisip should check the peer certificate"
+		 " when it make an outgoing TLS connection to another server. Default value is 1.\n"
+		 "\t- 'require-peer-certificate' (deprecated) same as tls-verify-incoming\n"
 		 "Specifying a sip uri with transport=tls is not allowed: the 'sips' scheme must be used. As requested by SIP RFC, "
 		 "IPv6 address must be enclosed within brakets.\n"
 		 "Here are some examples to understand:\n"
@@ -760,7 +771,7 @@ GenericManager::GenericManager()
 		 "\ttransports=sips:localhost:5061;tls-certificates-dir=path_a "
 		 "sips:localhost:5062;tls-certificates-dir=path_b\n"
 		 "* listen on tls localhost with 2 peer certificate requirements:\n"
-		 "\ttransports=sips:localhost:5061;require-peer-certificate=0 sips:localhost:5062;require-peer-certificate=1\n"
+		 "\ttransports=sips:localhost:5061;tls-verify-incoming=0 sips:localhost:5062;tls-verify-incoming=1\n"
 		 "* listen on 192.168.0.29:6060 with tls, but public hostname is 'sip.linphone.org' used in SIP messages. "
 		 "Bind address won't appear in messages:\n"
 		 "\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29",
@@ -771,7 +782,7 @@ GenericManager::GenericManager()
 		 "The setup of agent.pem, and eventually cafile.pem is required for TLS transport to work.",
 		 "/etc/flexisip/tls"},
 		{Integer, "idle-timeout", "Time interval in seconds after which inactive connections are closed.", "3600"},
-		{Boolean, "require-peer-certificate", "Require client certificate from peer.", "false"},
+		{Boolean, "require-peer-certificate", "Require client certificate from peer (inbound connections only).", "false"},
 		{Integer, "transaction-timeout", "SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.",
 		 "32000"},
 		{Integer, "udp-mtu",
