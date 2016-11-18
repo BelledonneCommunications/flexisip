@@ -20,7 +20,7 @@ nodistsources=
 
 bin_PROGRAMS=flexisip
 thesources= \
-			utils/flexisip-exception.cc utils/flexisip-exception.hh \
+			utils/flexisip-exception.hh \
 			utils/signaling-exception.hh \
 			agent.cc agent.hh \
 			common.cc common.hh \
@@ -193,7 +193,7 @@ flexisip_binder_LDADD=$(flexisip_LDADD)
 nodist_flexisip_binder_SOURCES=$(nodistsources)
 
 noinst_PROGRAMS=expr
-expr_SOURCES=test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh utils/flexisip-exception.cc utils/flexisip-exception.hh
+expr_SOURCES=test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh utils/flexisip-exception.hh
 expr_CXXFLAGS=-DTEST_BOOL_EXPR -DNO_SOFIA $(MEDIASTREAMER_CFLAGS) $(ORTP_CFLAGS)
 expr_LDADD= $(SOFIA_LIBS) $(ORTP_LIBS)
 
