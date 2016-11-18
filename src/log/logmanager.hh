@@ -81,14 +81,6 @@ inline std::basic_istream<CharT, TraitsT> &operator>>(std::basic_istream<CharT, 
 
 typedef std::ostream flexisip_record_type;
 
-
-#if (__GNUC__ == 4 && __GNUC_MINOR__ < 5)
-template <typename _Tp> inline pumpstream &operator<<(pumpstream &&__os, const _Tp &__x) {
-	(static_cast<std::ostringstream &>(__os)) << __x;
-	return __os;
-}
-#endif
-
 #define SLOGA_FL(file, line) throw FlexisipException() << " " << file << ":" << line << " "
 
 #define SLOG(thelevel) BCTBX_SLOG(FLEXISIP_LOG_DOMAIN,thelevel)

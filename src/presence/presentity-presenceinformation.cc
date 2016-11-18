@@ -24,6 +24,7 @@
 #include "pidf+xml.hxx"
 #include <memory>
 #include "presentity-manager.hh"
+#include "log/logmanager.hh"
 
 #define ETAG_SIZE 8
 using namespace pidf;

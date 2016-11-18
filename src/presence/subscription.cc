@@ -19,6 +19,7 @@
 #include "subscription.hh"
 #include "belle-sip/belle-sip.h"
 #include <time.h>
+#include "log/logmanager.hh"
 using namespace std;
 
 namespace flexisip {

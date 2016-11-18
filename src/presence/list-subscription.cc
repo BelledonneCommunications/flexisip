@@ -19,6 +19,7 @@
 #include "list-subscription.hh"
 #include "belle-sip/belle-sip.h"
 #include "bellesip-signaling-exception.hh"
+#include "log/logmanager.hh"
 #include "resource-lists.hxx"
 #include <chrono>
 #include "rlmi+xml.hxx"
