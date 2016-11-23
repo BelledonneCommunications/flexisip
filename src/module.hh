@@ -180,7 +180,6 @@ class Module : protected ConfigValueListener {
 	Agent *mAgent;
 
   protected:
-	static std::list<std::string> sPushNotifParams;
 	su_home_t *getHome() {
 		return &mHome;
 	}

@@ -194,6 +194,8 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 		mSigaction.sa_flags = SA_SIGINFO;
 		sigaction(SIGUSR1, &mSigaction, NULL);
 		sigaction(SIGUSR2, &mSigaction, NULL);
+		
+		mParamsToRemove = GenericManager::get()->getRoot()->get<GenericStruct>("module::Forward")->get<ConfigStringList>("params-to-remove")->read();
 	}
 
 	virtual void onUnload() {
@@ -254,6 +256,7 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 	list<shared_ptr<ResponseContext>> mRespContexes;
 	bool mUseGlobalDomain;
 	int mExpireRandomizer;
+	std::list<std::string> mParamsToRemove;
 };
 
 /**
@@ -650,7 +653,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipE
 		// Cleaner contacts
 		su_home_t *home = ev->getMsgSip()->getHome();
 		removeParamsFromContacts(home, sip->sip_contact, mUniqueIdParams);
-		removeParamsFromContacts(home, sip->sip_contact, sPushNotifParams);
+		removeParamsFromContacts(home, sip->sip_contact, mParamsToRemove);
 		SLOGD << "Removed instance and push params: \n" << sip->sip_contact;
 
 		if (sip->sip_path) {

@@ -49,6 +49,7 @@ class ForwardModule : public Module, ModuleToolbox {
 	sip_route_t *mOutRoute;
 	bool mRewriteReqUri;
 	bool mAddPath;
+	std::list<std::string> mParamsToRemove;
 	static ModuleInfo<ForwardModule> sInfo;
 };
 
@@ -67,10 +68,13 @@ ForwardModule::~ForwardModule() {
 
 void ForwardModule::onDeclare(GenericStruct *module_config) {
 	ConfigItemDescriptor items[] = {
-        {String, "route", "A sip uri representing a default where to send all requests not already resolved. "
+		{String, "route", "A sip uri representing a default where to send all requests not already resolved. "
 		"This is the typical way to setup a Flexisip proxy server acting as a front-end for backend SIP server.", ""},
 		{Boolean, "add-path", "Add a path header of this proxy", "true"},
 		{Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to above route", "false"},
+		{StringList, "params-to-remove",
+			 "List of URL and contact params to remove",
+			 "pn-tok pn-type app-id pn-msg-str pn-call-str pn-call-snd pn-msg-snd pn-timeout"},
 		config_item_end};
 	module_config->addChildrenValues(items);
 }
@@ -85,6 +89,7 @@ void ForwardModule::onLoad(const GenericStruct *mc) {
 		}
 	}
 	mAddPath = mc->get<ConfigBoolean>("add-path")->read();
+	mParamsToRemove = mc->get<ConfigStringList>("params-to-remove")->read();
 }
 
 url_t *ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
@@ -217,10 +222,10 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipExc
 
 	// Clean push notifs params from contacts
 	if (sip->sip_contact && sip->sip_request->rq_method != sip_method_register) {
-		removeParamsFromContacts(ms->getHome(), sip->sip_contact, sPushNotifParams);
+		removeParamsFromContacts(ms->getHome(), sip->sip_contact, mParamsToRemove);
 		SLOGD << "Removed push params from contact";
 	}
-	removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, sPushNotifParams);
+	removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, mParamsToRemove);
 
 	shared_ptr<OutgoingTransaction> outTr;
 	if (ev->getOutgoingAgent() != NULL) { //== if message is to be forwarded

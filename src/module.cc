@@ -30,9 +30,6 @@
 #include <algorithm>
 using namespace std;
 
-list<string> Module::sPushNotifParams{"pn-tok",		 "pn-type",		"app-id",	"pn-msg-str",
-									  "pn-call-str", "pn-call-snd", "pn-msg-snd"};
-
 ModuleInfoBase::~ModuleInfoBase() {
 }
 
