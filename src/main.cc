@@ -704,7 +704,7 @@ int main(int argc, char *argv[]) {
 	bool dump_cores = cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
 
 	// Initialize
-	flexisip::log::initLogs(useSyslog, debug);
+	flexisip::log::initLogs(useSyslog, debug, cfg->getGlobal()->get<ConfigString>("log-level")->read());
 	//flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
 
 	signal(SIGPIPE, SIG_IGN);

@@ -100,7 +100,7 @@ namespace flexisip {
 			}
 		}
 
-		void initLogs(bool use_syslog, bool debug) {
+		void initLogs(bool use_syslog, bool debug, std::string level) {
 			if (sUseSyslog != use_syslog) {
 				LOGF("Different preinit and init syslog config is not supported.");
 			}
@@ -109,7 +109,15 @@ namespace flexisip {
 			}
 
 			if (debug) {
-				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_DEBUG);
+				if (level == "debug") {
+					bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_DEBUG);
+				} else if (level == "message") {
+					bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_MESSAGE);
+				} else if (level == "warning") {
+					bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_WARNING);
+				} else {
+					bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_ERROR);
+				}
 			} else {
 				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_WARNING);
 			}

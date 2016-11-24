@@ -33,7 +33,7 @@
 void init_tests() {
 	sUseSyslog = false;
 	flexisip::log::preinit(sUseSyslog, flexisip::log::debug);
-	flexisip::log::initLogs(sUseSyslog, flexisip::log::debug);
+	flexisip::log::initLogs(sUseSyslog, flexisip::log::debug, "debug");
 	flexisip::log::updateFilter("%Severity% >= debug");
 
 	Record::sLineFieldNames = {"+sip.instance", "pn-tok", "line"};

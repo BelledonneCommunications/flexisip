@@ -149,7 +149,7 @@ do {                                                                            
  namespace flexisip {
  	namespace log {
 
- 		void initLogs(bool syslog, bool debug);
+ 		void initLogs(bool syslog, bool debug, std::string level);
 
  		bool validateFilter(const std::string &filterstr);
 

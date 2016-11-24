@@ -737,6 +737,7 @@ GenericManager::GenericManager()
 	// to make sure global_conf is instanciated first
 	static ConfigItemDescriptor global_conf[] = {
 		{Boolean, "debug", "Outputs very detailed logs", "false"},
+		{String, "log-level", "Verbosity of logs to output if debug is enabled. Possible values are debug, message, warning and error", "debug"},
 		{Boolean, "dump-corefiles", "Generate a corefile when crashing", "true"},
 		{Boolean, "auto-respawn", "Automatically respawn flexisip in case of abnormal termination (crashes)", "true"},
 		{StringList, "aliases", "List of white space separated host names pointing to this machine. This is to prevent "
