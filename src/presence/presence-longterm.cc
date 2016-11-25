@@ -5,9 +5,9 @@
 
 using namespace flexisip;
 
-class OnAuthListener : public AuthDbListener {
+class PresenceAuthListener : public AuthDbListener {
 public:
-	OnAuthListener(belle_sip_main_loop_t *mainLoop, const std::shared_ptr<PresentityPresenceInformation> info)
+	PresenceAuthListener(belle_sip_main_loop_t *mainLoop, const std::shared_ptr<PresentityPresenceInformation> info)
 	: mMainLoop(mainLoop), mInfo(info) {}
 
 	virtual void onResult(AuthDbResult result, std::string passwd) {
@@ -21,7 +21,9 @@ public:
 			, "OnAuthListener to mainthread");
 	}
 
-	virtual void processResponse(AuthDbResult result, std::string user) {
+private:
+
+	void processResponse(AuthDbResult result, std::string user) {
 		const char* cuser = belle_sip_uri_get_user(mInfo->getEntity());
 		if (result == AuthDbResult::PASSWORD_FOUND) {
 			// result is a phone alias if (and only if) user is not the same as the entity user
@@ -47,7 +49,6 @@ public:
 		}
 		delete this;
 	}
-private:
 	belle_sip_main_loop_t *mMainLoop;
 	const std::shared_ptr<PresentityPresenceInformation> mInfo;
 };
@@ -55,5 +56,5 @@ private:
 void PresenceLongterm::onNewPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& info) const {
 	const belle_sip_uri_t* uri = info->getEntity();
 	SLOGD << __FILE__ << ": " << "New presence info for " << belle_sip_uri_get_user(uri) << ", checking if this user is already registered";
-	AuthDbBackend::get()->getUserWithPhone(belle_sip_uri_get_user(info->getEntity()), belle_sip_uri_get_host(info->getEntity()), new OnAuthListener(mMainLoop, info));
+	AuthDbBackend::get()->getUserWithPhone(belle_sip_uri_get_user(info->getEntity()), belle_sip_uri_get_host(info->getEntity()), new PresenceAuthListener(mMainLoop, info));
 }

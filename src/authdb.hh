@@ -187,9 +187,9 @@ class SociAuthDB : public AuthDbBackend {
 	static void declareConfig(GenericStruct *mc);
 
   private:
-	void getUserWithPhoneWithPool(const std::string &phone, const std::string &domain, AuthDbListener *listener);
-	void getPasswordWithPool(const std::string &id, const std::string &domain,
-							 const std::string &authid, AuthDbListener *listener);
+	void getUserWithPhoneWithPool(const std::string phone, const std::string domain, AuthDbListener *listener);
+	void getPasswordWithPool(const std::string id, const std::string domain,
+							 const std::string authid, AuthDbListener *listener);
 
 	void reconnectSession( soci::session &session );
 
