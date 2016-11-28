@@ -287,7 +287,11 @@ url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name) {
 
 	url->url_port = su_strdup(home, name->tpn_port);
 	url->url_host = su_strdup(home, name->tpn_canon);
-
+	if (ut == url_sips) {
+		if (strcmp(name->tpn_host, name->tpn_canon) != 0) {
+			url_param_add(home, url, su_sprintf(home, "maddr=%s", name->tpn_host));
+		}
+	}
 	return url;
 }
 
