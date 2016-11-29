@@ -344,6 +344,13 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			if (url_param(params, "pn-silent", tmp, sizeof(tmp)-1) != 0) {
 				pinfo.mSilent = std::atoi(tmp) != 0;
 			}
+			
+			//Be backward compatible with old Linphone app that don't use pn-silent.
+			//We don't want to notify an incoming call with a non-silent notification 60 seconds after 
+			//the beginning of the call.
+			if (pinfo.mEvent == PushInfo::Call && pinfo.mSilent == false){
+				pinfo.mTtl = 60;
+			}
 
 			string contact;
 			if (sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
