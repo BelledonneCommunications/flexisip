@@ -84,7 +84,7 @@ sip_route_t *ExtendedContact::toSofiaRoute(su_home_t *home) const {
 	sip_route_t *rbegin = NULL;
 	sip_route_t *r = NULL;
 	for (auto it = mPath.begin(); it != mPath.end(); ++it) {
-		sip_route_t *newr = sip_route_make(home, (*it).c_str());
+		sip_route_t *newr = sip_route_format(home, "<%s>", (*it).c_str());
 		if (!newr) {
 			LOGE("Cannot parse %s into route header", (*it).c_str());
 			break;
