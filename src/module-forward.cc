@@ -188,7 +188,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipExc
 	}
 
 	// Check self-forwarding
-	if (ev->getOutgoingAgent() != NULL && getAgent()->isUs(dest->url_host, dest->url_port, true)) {
+	if (ev->getOutgoingAgent() != NULL && getAgent()->isUs(dest, true)) {
 		SLOGD << "Stopping request to us";
 		ev->terminateProcessing();
 		return;
