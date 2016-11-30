@@ -47,7 +47,7 @@ struct AuthDbTimings;
 
 class AuthDbListener : public StatFinishListener {
   public:
-	virtual void onResult(AuthDbResult result, std::string passwd) = 0;
+	virtual void onResult(AuthDbResult result, const std::string &passwd) = 0;
 	virtual ~AuthDbListener();
 };
 
@@ -94,8 +94,6 @@ class AuthDbBackend {
 	/* called by module_auth so that backends can declare their configuration to the ConfigurationManager */
 	static void declareConfig(GenericStruct *mc);
 
-	AuthDbBackend(const AuthDbBackend &);
-	void operator=(const AuthDbBackend &);
 };
 
 class FileAuthDb : public AuthDbBackend {
@@ -187,9 +185,9 @@ class SociAuthDB : public AuthDbBackend {
 	static void declareConfig(GenericStruct *mc);
 
   private:
-	void getUserWithPhoneWithPool(const std::string phone, const std::string domain, AuthDbListener *listener);
-	void getPasswordWithPool(const std::string id, const std::string domain,
-							 const std::string authid, AuthDbListener *listener);
+	void getUserWithPhoneWithPool(const std::string &phone, const std::string &domain, AuthDbListener *listener);
+	void getPasswordWithPool(const std::string &id, const std::string &domain,
+							 const std::string &authid, AuthDbListener *listener);
 
 	void reconnectSession( soci::session &session );
 

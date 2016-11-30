@@ -24,7 +24,7 @@ using namespace std;
 
 namespace flexisip {
 
-Subscription::Subscription(string eventName, unsigned int expires, belle_sip_dialog_t *aDialog,
+Subscription::Subscription(const string &eventName, unsigned int expires, belle_sip_dialog_t *aDialog,
 						   belle_sip_provider_t *prov)
 	: mDialog(aDialog), mProv(prov), mEventName(eventName), mAcceptHeader(0), mAcceptEncodingHeader(0), mState(active) {
 
@@ -49,7 +49,7 @@ void Subscription::setAcceptEncodingHeader(belle_sip_header_t *acceptEncodingHea
 		mAcceptEncodingHeader = acceptEncodingHeader;
 	}
 }
-void Subscription::Subscription::setId(string &id) {
+void Subscription::Subscription::setId(const string &id) {
 	mId = id;
 }
 const char *Subscription::stateToString(State aState) {

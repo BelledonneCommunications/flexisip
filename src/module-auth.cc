@@ -158,7 +158,7 @@ class Authentication : public Module {
 
 		void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
 		void checkPassword(const char *password);
-		void onResult(AuthDbResult result, std::string passwd);
+		void onResult(AuthDbResult result, const std::string &passwd);
 		void onError();
 		void finish(); /*the listener is destroyed when calling this, careful*/
 		su_root_t *getRoot() {
@@ -677,7 +677,7 @@ void Authentication::AuthenticationListener::main_thread_async_response_cb(su_ro
 	AuthenticationListener *listener = *listenerStorage;
 	listener->processResponse();
 }
-void Authentication::AuthenticationListener::onResult(AuthDbResult result, std::string passwd) {
+void Authentication::AuthenticationListener::onResult(AuthDbResult result, const std::string &passwd) {
 	// invoke callback on main thread (sofia-sip)
 	su_msg_r mamc = SU_MSG_R_INIT;
 	if (-1 == su_msg_create(mamc, su_root_task(getRoot()), su_root_task(getRoot()), main_thread_async_response_cb,

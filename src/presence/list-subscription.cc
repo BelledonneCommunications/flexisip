@@ -33,7 +33,7 @@ namespace flexisip {
 ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transaction_t *ist,
 								   belle_sip_provider_t *aProv) throw(FlexisipException)
 	: Subscription("Presence", expires, belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)), aProv),
-	  mLastNotify(chrono::system_clock::time_point::min()), mMinNotifyIntervale(2 /*60*/), mVersion(0), mTimer(NULL) {
+	  mLastNotify(chrono::system_clock::time_point::min()), mMinNotifyInterval(2 /*60*/), mVersion(0), mTimer(NULL) {
 	belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
 	belle_sip_header_content_type_t *contentType =
 		belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
@@ -134,7 +134,7 @@ void ListSubscription::addInstanceToResource(rlmi::Resource &resource, list<bell
 	SLOGI << "Presence info added to list [" << mName << " for entity [" << presentityInformation.getEntity() << "]";
 }
 
-void ListSubscription::notify(bool_t isFullState) throw(FlexisipException) {
+void ListSubscription::notify(bool isFullState) throw(FlexisipException) {
 	belle_sip_multipart_body_handler_t *multiPartBody;
 	try {
 		char *uri = belle_sip_uri_to_string(mName);
@@ -249,7 +249,7 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation &prese
 				});
 				// create timer
 				chrono::milliseconds timeout(chrono::duration_cast<chrono::milliseconds>(
-					mMinNotifyIntervale - (chrono::system_clock::now() - mLastNotify)));
+					mMinNotifyInterval - (chrono::system_clock::now() - mLastNotify)));
 
 				mTimer = belle_sip_main_loop_create_cpp_timeout( belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv))
 																	, func
@@ -274,7 +274,7 @@ bool ListSubscription::isTimeToNotify() {
 	if (mVersion == 0) {
 		return FALSE; // initial notify not sent yet
 	}
-	return (chrono::system_clock::now() - mLastNotify) > mMinNotifyIntervale;
+	return (chrono::system_clock::now() - mLastNotify) > mMinNotifyInterval;
 }
 
 /// PresentityResourceListener//
@@ -283,15 +283,15 @@ PresentityResourceListener::PresentityResourceListener(ListSubscription &aListSu
 													   const belle_sip_uri_t *presentity)
 	: mListSubscription(aListSubscription),
 	  mPresentity((belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(presentity))) {
-	belle_sip_object_ref((void *)mPresentity);
+	belle_sip_object_ref(mPresentity);
 }
 PresentityResourceListener::~PresentityResourceListener() {
-	belle_sip_object_unref((void *)mPresentity);
+	belle_sip_object_unref(mPresentity);
 }
 PresentityResourceListener::PresentityResourceListener(const PresentityResourceListener &source)
 	: mListSubscription(source.mListSubscription) {
 	mPresentity = ((belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(source.getPresentityUri())));
-	belle_sip_object_ref((void *)mPresentity);
+	belle_sip_object_ref(mPresentity);
 }
 const belle_sip_uri_t *PresentityResourceListener::getPresentityUri(void) const {
 	return mPresentity;

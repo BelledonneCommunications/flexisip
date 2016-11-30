@@ -33,11 +33,9 @@ m4_include([m4/ax_compare_version.m4])
 m4_include([m4/ax_xsdcxx.m4])
 
 # Checks for programs.
-# Favor g++ 4.4 (the one in centos stable version)
-# or g++ 4.7 (the one in Debian stable version).
 # Use ./configure CXX=path to override.
-AC_PROG_CC(["xcrun clang" gcc-4.4 gcc-4.7 gcc])
-AC_PROG_CXX(["xcrun clang++" g++-4.4 g++-4.7 g++ ])
+AC_PROG_CC(["xcrun clang" gcc])
+AC_PROG_CXX(["xcrun clang++" g++ ])
 AC_PROG_LIBTOOL
 # use for xml data binding
 

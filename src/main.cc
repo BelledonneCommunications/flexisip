@@ -95,6 +95,10 @@ static pid_t flexisip_pid = -1;
 static pid_t monitor_pid = -1;
 static su_root_t *root = NULL;
 
+#if ENABLE_PRESENCE
+static shared_ptr<flexisip::PresenceServer> presenceServer;
+#endif
+
 using namespace std;
 
 static unsigned long threadid_cb(){
@@ -127,6 +131,11 @@ static void flexisip_stop(int signum) {
 		if (root) {
 			su_root_break(root);
 		}
+#if ENABLE_PRESENCE
+		if (presenceServer){
+			presenceServer->stop();
+		}
+#endif
 	} //else nop
 }
 
@@ -256,15 +265,15 @@ static void makePidFile(const string &pidfile) {
 	}
 }
 
-static void set_process_name(const char *process_name) {
+static void set_process_name(const string &process_name) {
 #ifdef PR_SET_NAME
-	if (prctl(PR_SET_NAME, process_name, NULL, NULL, NULL) == -1) {
+	if (prctl(PR_SET_NAME, process_name.c_str(), NULL, NULL, NULL) == -1) {
 		LOGW("prctl() failed: %s", strerror(errno));
 	}
 #endif
 }
 
-static void forkAndDetach(const string &pidfile, bool auto_respawn, bool startMonitor) {
+static void forkAndDetach(const string &pidfile, bool auto_respawn, bool startMonitor, const string &functionName) {
 	int pipe_launcher_wdog[2];
 	int err = pipe(pipe_launcher_wdog);
 	bool launcherExited = false;
@@ -303,7 +312,7 @@ static void forkAndDetach(const string &pidfile, bool auto_respawn, bool startMo
 			 * We can proceed with real start
 			 */
 			close(pipe_wdog_flexisip[0]);
-			set_process_name("flexisip");
+			set_process_name("flexisip-"+functionName);
 			makePidFile(pidfile);
 			return;
 		} else {
@@ -520,37 +529,40 @@ static void list_modules() {
 }
 
 static string version() {
-	string version = VERSION " (git: " FLEXISIP_GIT_VERSION ")\n";
+	ostringstream version;
+	version << VERSION " (git: " FLEXISIP_GIT_VERSION ")\n";
 
-	version += "sofia-sip version " SOFIA_SIP_VERSION "\n";
-	version += "\nCompiled with:\n";
+	version << "sofia-sip version " SOFIA_SIP_VERSION "\n";
+	version << "\nCompiled with:\n";
 #if ENABLE_SNMP
-	version += "- SNMP\n";
+	version << "- SNMP\n";
 #endif
 #if ENABLE_TRANSCODER
-	version += "- Transcoder\n";
+	version << "- Transcoder\n";
 #endif
 #if ENABLE_REDIS
-	version += "- Redis\n";
+	version << "- Redis\n";
 #endif
 #if ENABLE_PUSHNOTIFICATION
-	version += "- Push Notification\n";
+	version << "- Push Notification\n";
 #endif
 #if ENABLE_ODBC
-	version += "- ODBC\n";
+	version << "- ODBC\n";
 #endif
 #if ENABLE_SOCI
-	version += "- Soci\n";
+	version << "- Soci\n";
 #endif
 #if ENABLE_PROTOBUF
-	version += "- Protobuf\n";
+	version << "- Protobuf\n";
 #endif
 #if ENABLE_PRESENCE
-	version += "- Presence\n";
+	version << "- Presence\n";
 #endif
 
-	return version;
+	return version.str();
 }
+
+
 
 int main(int argc, char *argv[]) {
 	shared_ptr<Agent> a;
@@ -562,7 +574,7 @@ int main(int argc, char *argv[]) {
 
 	// clang-format off
 	TCLAP::CmdLine cmd("", ' ', versionString);
-
+	TCLAP::ValueArg<string>     functionName("", "server", 		"Specify the server function to operate: 'proxy' or 'presence'.", TCLAP::ValueArgOptional, "proxy", "server function", cmd);
 	TCLAP::ValueArg<string>     configFile("c", "config", 			"Specify the location of the configuration file.", TCLAP::ValueArgOptional, CONFIG_DIR "/flexisip.conf", "file", cmd);
 	TCLAP::SwitchArg            daemonMode("",  "daemon", 			"Launch in daemon mode.", cmd);
 	TCLAP::SwitchArg              useDebug("d", "debug", 			"Force debug mode (overrides the configuration).", cmd);
@@ -753,91 +765,99 @@ int main(int argc, char *argv[]) {
 		/*now that we have successfully loaded the config, there is nothing that can prevent us to start (normally).
 		So we can detach.*/
 		bool autoRespawn = cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read();
-		forkAndDetach(pidFile.getValue(), autoRespawn, monitorEnabled);
+		if (functionName.getValue() != "proxy") monitorEnabled = false;
+		forkAndDetach(pidFile.getValue(), autoRespawn, monitorEnabled, functionName.getValue());
 	} else if (pidFile.getValue().length() != 0) {
 		// not daemon but we want a pidfile anyway
 		makePidFile(pidFile.getValue());
 	}
 
-	LOGN("Starting flexisip version %s (git %s)", VERSION, FLEXISIP_GIT_VERSION);
-	GenericManager::get()->sendTrap("Flexisip starting");
+	LOGN("Starting flexisip %s-server version %s (git %s)", functionName.getValue().c_str(), VERSION, FLEXISIP_GIT_VERSION);
+	GenericManager::get()->sendTrap("Flexisip "+ functionName.getValue() + "-server starting");
 
 	root = su_root_create(NULL);
-	a = make_shared<Agent>(root);
-	a->start(transportsArg.getValue());
-	setOpenSSLThreadSafe();
-#ifdef ENABLE_SNMP
-	bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();
-	if (snmpEnabled) {
-		SnmpAgent lAgent(*a, *cfg, oset);
-	}
-#endif
-
-	ortp_init();
-
-	if (!oset.empty())
-		cfg->applyOverrides(true); // using default + overrides
-
-	a->loadConfig(cfg);
-
-	// Create cached test accounts for the Flexisip monitor if necessary
-	if (monitorEnabled) {
-		try {
-			Monitor::createAccounts();
-		} catch (const FlexisipException &e) {
-			LOGE("Could not create test accounts for the monitor. %s", e.str().c_str());
-		}
-	}
-
+	
 	increase_fd_limit();
-
-	if (daemonMode) {
-		if (write(pipe_wdog_flexisip[1], "ok", 3) == -1) {
-			LOGF("Failed to write starter pipe: %s", strerror(errno));
+	
+	if (functionName.getValue() == "proxy"){
+		a = make_shared<Agent>(root);
+		a->start(transportsArg.getValue());
+		setOpenSSLThreadSafe();
+	#ifdef ENABLE_SNMP
+		bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();
+		if (snmpEnabled) {
+			SnmpAgent lAgent(*a, *cfg, oset);
 		}
-		close(pipe_wdog_flexisip[1]);
-	}
+	#endif
 
-	if (cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()) {
-		stun = new StunServer(cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigInt>("port")->read());
-		stun->start();
-	}
+		ortp_init();
 
+		if (!oset.empty())
+			cfg->applyOverrides(true); // using default + overrides
+
+		a->loadConfig(cfg);
+
+		// Create cached test accounts for the Flexisip monitor if necessary
+		if (monitorEnabled) {
+			try {
+				Monitor::createAccounts();
+			} catch (const FlexisipException &e) {
+				LOGE("Could not create test accounts for the monitor. %s", e.str().c_str());
+			}
+		}
+
+		if (daemonMode) {
+			if (write(pipe_wdog_flexisip[1], "ok", 3) == -1) {
+				LOGF("Failed to write starter pipe: %s", strerror(errno));
+			}
+			close(pipe_wdog_flexisip[1]);
+		}
+
+		if (cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()) {
+			stun = new StunServer(cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigInt>("port")->read());
+			stun->start();
+		}
+		if (trackAllocs)
+			msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
+
+		su_timer_t *timer = su_timer_create(su_root_task(root), 5000);
+		su_timer_set_for_ever(timer, (su_timer_f)timerfunc, a.get());
+		su_root_run(root);
+		su_timer_destroy(timer);
+		a->unloadConfig();
+		a.reset();
+	}else if (functionName.getValue() == "presence"){
 #ifdef ENABLE_PRESENCE
-	bool enableLongTermPresence = (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
-	flexisip::PresenceServer presenceServer(configFile.getValue());
-	flexisip::PresenceLongterm *presenceLongTerm = NULL;
-	if (enableLongTermPresence) {
-		presenceLongTerm = new flexisip::PresenceLongterm(presenceServer.getBelleSipMainLoop());
-		presenceServer.addNewPresenceInfoListener(presenceLongTerm);
+		bool enableLongTermPresence = (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
+		presenceServer = make_shared<flexisip::PresenceServer>();
+		if (enableLongTermPresence) {
+			auto presenceLongTerm = make_shared<flexisip::PresenceLongterm>(presenceServer->getBelleSipMainLoop());
+			presenceServer->addNewPresenceInfoListener(presenceLongTerm);
+		}
+		if (daemonMode) {
+			if (write(pipe_wdog_flexisip[1], "ok", 3) == -1) {
+				LOGF("Failed to write starter pipe: %s", strerror(errno));
+			}
+			close(pipe_wdog_flexisip[1]);
+		}
+		presenceServer->run();
+#else
+		LOGF("Flexisip was compiled without presence server extension.");
+#endif
+		
+	}else{
+		LOGF("There is no server function '%s'.", functionName.getValue().c_str());
 	}
-	presenceServer.start();
-#endif // ENABLE_PRESENCE
 
-	if (trackAllocs)
-		msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
-
-	su_timer_t *timer = su_timer_create(su_root_task(root), 5000);
-	su_timer_set_for_ever(timer, (su_timer_f)timerfunc, a.get());
-	su_root_run(root);
-	su_timer_destroy(timer);
-	a->unloadConfig();
-	a.reset();
 	if (stun) {
 		stun->stop();
 		delete stun;
 	}
 	su_root_destroy(root);
-#ifdef ENABLE_PRESENCE
-	if (enableLongTermPresence) {
-		presenceServer.removeNewPresenceInfoListener(presenceLongTerm);
-		delete presenceLongTerm;
-	}
-#endif // ENABLE_PRESENCE
 
-	LOGN("Flexisip exiting normally.");
+	LOGN("Flexisip %s-server exiting normally.", functionName.getValue().c_str());
 	if (trackAllocs)
 		dump_remaining_msgs();
-	GenericManager::get()->sendTrap("Flexisip exiting normally");
+	GenericManager::get()->sendTrap("Flexisip "+ functionName.getValue()+"-server exiting normally");
 	return 0;
 }

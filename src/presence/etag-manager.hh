@@ -20,15 +20,17 @@
 #define ETAG_MANAGER_HH_
 #include "string"
 #include "utils/flexisip-exception.hh"
+
 namespace flexisip {
 class PresentityPresenceInformation;
 class EtagManager {
 
-  public:
+public:
 	virtual void invalidateETag(const string &eTag) = 0;
 	virtual void modifyEtag(const string &oldEtag, const string &newEtag) throw(FlexisipException) = 0;
 	virtual void addEtag(const std::shared_ptr<PresentityPresenceInformation> &info,
 						 const string &etag) throw(FlexisipException) = 0;
 };
+
 }
 #endif /* ETAG_MANAGER_HH_ */
