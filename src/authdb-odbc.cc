@@ -587,7 +587,7 @@ AuthDbResult OdbcAuthDb::doRetrievePassword(ConnectionCtx &ctx, const string &id
 	return PASSWORD_FOUND;
 }
 
-void OdbcAuthDb::getUserWithPhoneFromBackend(const char* phone, const char* domain, AuthDbListener *listener) {
+void OdbcAuthDb::getUserWithPhoneFromBackend(const std::string & phone, const std::string & domain, AuthDbListener *listener) {
 		LOGE("%s not supported with ODBC", __FUNCTION__);
 		if (listener) listener->onResult(AuthDbResult::PASSWORD_NOT_FOUND, "");
 }

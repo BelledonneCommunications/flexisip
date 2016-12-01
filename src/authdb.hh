@@ -75,17 +75,17 @@ class AuthDbBackend {
 	bool cacheUserWithPhone(const std::string &phone, const std::string &domain, const std::string &user);
 	CacheResult getCachedPassword(const std::string &key, const std::string &domain, std::string &pass);
 	CacheResult getCachedUserWithPhone(const string &phone, const string &domain, string &user);
-	void createCachedAccount(const char* user, const char* domain, const char *auth_username, const char *password, int expires, const char* phone_alias = NULL);
+	void createCachedAccount(const std::string & user, const std::string & domain, const std::string &auth_username, const std::string &password, int expires, const std::string & phone_alias = "");
 	void clearCache();
 	int mCacheExpire;
   public:
 	virtual ~AuthDbBackend();
 	// warning: listener may be invoked on authdb backend thread, so listener must be threadsafe somehow!
-	void getPassword(const char* user, const char* domain, const char *auth_username, AuthDbListener *listener);
-	void getUserWithPhone(const char* phone, const char* domain, AuthDbListener *listener);
-	virtual void getUserWithPhoneFromBackend(const char* phone, const char* domain, AuthDbListener *listener) = 0;
+	void getPassword(const std::string & user, const std::string & domain, const std::string &auth_username, AuthDbListener *listener);
+	void getUserWithPhone(const std::string &phone, const std::string &domain, AuthDbListener *listener);
+	virtual void getUserWithPhoneFromBackend(const std::string &, const std::string &, AuthDbListener *listener) = 0;
 
-	virtual void createAccount(const char* user, const char* domain, const char *auth_username, const char *password, int expires, const char* phone_alias = NULL);
+	virtual void createAccount(const std::string &user, const std::string & domain, const std::string &auth_username, const std::string &password, int expires, const std::string &phone_alias = "");
 
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener) = 0;
@@ -106,7 +106,7 @@ class FileAuthDb : public AuthDbBackend {
 
   public:
 	FileAuthDb();
-	virtual void getUserWithPhoneFromBackend(const char* phone, const char* domain, AuthDbListener *listener);
+	virtual void getUserWithPhoneFromBackend(const std::string &phone, const std::string & domain, AuthDbListener *listener);
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener);
 
@@ -154,7 +154,7 @@ class OdbcAuthDb : public AuthDbBackend {
 								 AuthDbListener *listener);
 
   public:
-	virtual void getUserWithPhoneFromBackend(const char* phone, const char* domain, AuthDbListener *listener);
+	virtual void getUserWithPhoneFromBackend(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener);
 	std::map<std::string, std::string> cachedPasswords;
@@ -178,7 +178,7 @@ class SociAuthDB : public AuthDbBackend {
   public:
 	SociAuthDB();
 	void setConnectionParameters(const string &domain, const string &request);
-	virtual void getUserWithPhoneFromBackend(const char* phone, const char* domain, AuthDbListener *listener);
+	virtual void getUserWithPhoneFromBackend(const std::string & , const std::string &, AuthDbListener *listener);
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener);
 

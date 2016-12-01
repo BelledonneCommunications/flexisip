@@ -440,11 +440,11 @@ class Authentication : public Module {
 				if (url) {
 					sip_unknown_t *h2 = ModuleToolbox::getCustomHeaderByName(sip, "X-Phone-Alias");
 					const char* phone_alias = h2 ? h2->un_value : NULL;
-
+					phone_alias = phone_alias ? phone_alias : "";
 					AuthDbBackend::get()->createAccount(url->url_user, url->url_host, url->url_user, url->url_password,
 														sip->sip_expires->ex_delta, phone_alias);
 					LOGD("Account created for %s@%s with password %s and expires %lu%s%s", url->url_user, url->url_host,
-						 url->url_password, sip->sip_expires->ex_delta, phone_alias ? " with phone alias " : "", phone_alias ? phone_alias : "");
+						 url->url_password, sip->sip_expires->ex_delta, phone_alias ? " with phone alias " : "", phone_alias);
 					return true;
 				}
 			}

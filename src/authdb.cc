@@ -31,7 +31,7 @@ class FixedAuthDb : public AuthDbBackend {
 	FixedAuthDb() {
 	}
 
-	virtual void getUserWithPhoneFromBackend(const char* phone, const char *domain, AuthDbListener *listener) {
+	virtual void getUserWithPhoneFromBackend(const std::string & phone, const std::string &domain, AuthDbListener *listener) {
 		if (listener) listener->onResult(PASSWORD_FOUND, "user@domain.com");
 	}
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
@@ -131,22 +131,23 @@ bool AuthDbBackend::cachePassword(const string &key, const string &domain, const
 bool AuthDbBackend::cacheUserWithPhone(const std::string &phone, const std::string &domain, const std::string &user) {
 	unique_lock<mutex> lck(mCachedUserWithPhoneMutex);
 
-	if (phone != "") {
-		mPhone2User[phone + "@" + domain + ";user=phone"] = user;
+	if (!phone.empty()) {
+		ostringstream ostr;
+		ostr<<phone<< "@"<< domain << ";user=phone";
+		mPhone2User[ostr.str()] = user;
 	}
-	mPhone2User[user + "@" + domain] = user;
+	ostringstream ostr;
+	ostr << user << "@" << domain;
+	mPhone2User[ostr.str()] = user;
 	return true;
 }
 
-void AuthDbBackend::getPassword(const char* user, const char* host, const char *auth_username,
+void AuthDbBackend::getPassword(const std::string &user, const std::string &host, const std::string &auth_username,
 								AuthDbListener *listener) {
 	// Check for usable cached password
-	string id(user);
-	string domain(host);
-	string auth(auth_username);
-	string key(createPasswordKey(id, auth));
+	string key(createPasswordKey(user, auth_username));
 	string pass;
-	switch (getCachedPassword(key, domain, pass)) {
+	switch (getCachedPassword(key, host, pass)) {
 		case VALID_PASS_FOUND:
 			if (listener) listener->onResult(AuthDbResult::PASSWORD_FOUND, pass);
 			return;
@@ -160,20 +161,20 @@ void AuthDbBackend::getPassword(const char* user, const char* host, const char *
 	}
 
 	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
-	getPasswordFromBackend(id, domain, auth, listener);
+	getPasswordFromBackend(user, host, auth_username, listener);
 }
 
-void AuthDbBackend::createCachedAccount(const char* user, const char* host, const char *auth_username, const char *password,
-										int expires, const char* phone_alias) {
-	if (user && host) {
-		string key = createPasswordKey(user, auth_username ? auth_username : "");
+void AuthDbBackend::createCachedAccount(const std::string &user, const std::string &host, const std::string &auth_username, const std::string &password,
+										int expires, const std::string & phone_alias) {
+	if (!user.empty() && !host.empty()) {
+		string key = createPasswordKey(user, auth_username);
 		cachePassword(key, host, password, expires);
-		cacheUserWithPhone(phone_alias ? phone_alias : "", host, user);
+		cacheUserWithPhone(phone_alias, host, user);
 	}
 }
 
-void AuthDbBackend::createAccount(const char* user, const char* host, const char *auth_username, const char *password,
-										int expires, const char* phone_alias) {
+void AuthDbBackend::createAccount(const std::string & user, const std::string & host, const std::string &auth_username, const std::string &password,
+										int expires, const std::string & phone_alias) {
 	createCachedAccount(user, host, auth_username, password, expires, phone_alias);
 }
 
@@ -190,10 +191,10 @@ AuthDbBackend::CacheResult AuthDbBackend::getCachedUserWithPhone(const string &p
 	return NO_PASS_FOUND;
 }
 
-void AuthDbBackend::getUserWithPhone(const char* phone, const char* domain, AuthDbListener *listener) {
+void AuthDbBackend::getUserWithPhone(const std::string & phone, const std::string & domain, AuthDbListener *listener) {
 	// Check for usable cached password
 	string user;
-	switch (getCachedUserWithPhone(std::string(phone), std::string(domain), user)) {
+	switch (getCachedUserWithPhone(phone, domain, user)) {
 		case VALID_PASS_FOUND:
 			if (listener) listener->onResult(AuthDbResult::PASSWORD_FOUND, user);
 			return;
