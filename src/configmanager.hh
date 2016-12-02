@@ -494,6 +494,7 @@ class ConfigStringList : public ConfigValue {
   public:
 	ConfigStringList(const std::string &name, const std::string &help, const std::string &default_value, oid oid_index);
 	std::list<std::string> read() const;
+	bool contains(const std::string &ref)const;
 	static std::list<std::string> parse(const std::string &in);
 
   private:

@@ -668,6 +668,12 @@ list<string> ConfigStringList::read() const {
 	return parse(get());
 }
 
+bool ConfigStringList::contains ( const string& ref )const {
+	auto l(read());
+	return std::find(l.begin(), l.end(), ref) != l.end();
+}
+
+
 ConfigBooleanExpression::ConfigBooleanExpression(const string &name, const string &help, const string &default_value,
 												 oid oid_index)
 	: ConfigValue(name, BooleanExpr, help, default_value, oid_index) {
@@ -743,6 +749,8 @@ GenericManager::GenericManager()
 		{StringList, "aliases", "List of white space separated host names pointing to this machine. This is to prevent "
 								"loops while routing SIP messages.",
 		 "localhost"},
+		{StringList, "default-servers", "Servers started by default when no --server option is specified on command line. "
+						"Possible values are 'proxy', 'presence', separated by whitespaces.", "proxy" },
 		{StringList, "transports",
 		 "List of white space separated SIP uris where the proxy must listen.\n"
 		 "Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' prameter is unspecified, it will "

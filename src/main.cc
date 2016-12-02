@@ -573,7 +573,7 @@ int main(int argc, char *argv[]) {
 
 	// clang-format off
 	TCLAP::CmdLine cmd("", ' ', versionString);
-	TCLAP::ValueArg<string>     functionName("", "server", 		"Specify the server function to operate: 'proxy' or 'presence'.", TCLAP::ValueArgOptional, "proxy", "server function", cmd);
+	TCLAP::ValueArg<string>     functionName("", "server", 		"Specify the server function to operate: 'proxy', 'presence', or 'all'.", TCLAP::ValueArgOptional, "", "server function", cmd);
 	TCLAP::ValueArg<string>     configFile("c", "config", 			"Specify the location of the configuration file.", TCLAP::ValueArgOptional, CONFIG_DIR "/flexisip.conf", "file", cmd);
 	TCLAP::SwitchArg            daemonMode("",  "daemon", 			"Launch in daemon mode.", cmd);
 	TCLAP::SwitchArg              useDebug("d", "debug", 			"Force debug mode (overrides the configuration).", cmd);
@@ -713,6 +713,34 @@ int main(int argc, char *argv[]) {
 		debug = cfg->getGlobal()->get<ConfigBoolean>("debug")->read();
 
 	bool dump_cores = cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
+	
+	bool startProxy = false;
+	bool startPresence = false;
+	
+	if (functionName.getValue() == "proxy"){
+		startProxy = true;
+	}else if (functionName.getValue() == "presence"){
+		startPresence = true;
+#ifndef ENABLE_PRESENCE
+		LOGF("Flexisip was compiled without presence server extension.");
+#endif
+	}else if (functionName.getValue() == "all"){
+		startPresence = true;
+		startProxy = true;
+	}else if (functionName.getValue().empty()){
+		auto default_servers = cfg->getGlobal()->get<ConfigStringList>("default-servers");
+		if (default_servers->contains("proxy")){
+			startProxy = true;
+		}
+		if (default_servers->contains("presence")){
+			startPresence = true;
+		}
+		if (!startPresence && !startProxy){
+			LOGF("Bad default-servers definition '%s'.", default_servers->get().c_str());
+		}
+	}else{
+		LOGF("There is no server function '%s'.", functionName.getValue().c_str());
+	}
 
 	// Initialize
 	flexisip::log::initLogs(useSyslog, debug, cfg->getGlobal()->get<ConfigString>("log-level")->read());
@@ -781,8 +809,7 @@ int main(int argc, char *argv[]) {
 	//we create an Agent in all cases, because it will declare config items that are necessary for presence server to run.
 	a = make_shared<Agent>(root);
 	
-	if (functionName.getValue() == "proxy"){
-		
+	if (startProxy){
 		a->start(transportsArg.getValue());
 		setOpenSSLThreadSafe();
 	#ifdef ENABLE_SNMP
@@ -791,7 +818,6 @@ int main(int argc, char *argv[]) {
 			SnmpAgent lAgent(*a, *cfg, oset);
 		}
 	#endif
-
 		ortp_init();
 
 		if (!oset.empty())
@@ -827,9 +853,10 @@ int main(int argc, char *argv[]) {
 		su_root_run(root);
 		su_timer_destroy(timer);
 		a->unloadConfig();
-	}else if (functionName.getValue() == "presence"){
+	}
+	if (startPresence){
 #ifdef ENABLE_PRESENCE
-		cfg->loadStrict();
+		if (!startProxy) cfg->loadStrict();
 		bool enableLongTermPresence = (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
 		presenceServer = make_shared<flexisip::PresenceServer>();
 		if (enableLongTermPresence) {
@@ -842,15 +869,16 @@ int main(int argc, char *argv[]) {
 			}
 			close(pipe_wdog_flexisip[1]);
 		}
-		presenceServer->run();
-#else
-		LOGF("Flexisip was compiled without presence server extension.");
+		if (startProxy){
+			//start as a thread
+			presenceServer->start();
+		}else{
+			presenceServer->run();
+		}
 #endif
-		
-	}else{
-		LOGF("There is no server function '%s'.", functionName.getValue().c_str());
 	}
 	a.reset();
+	presenceServer.reset();
 	if (stun) {
 		stun->stop();
 		delete stun;
