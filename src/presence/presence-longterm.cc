@@ -5,7 +5,7 @@
 
 using namespace flexisip;
 
-class PresenceAuthListener : public AuthDbListener {
+class OnAuthListener : public AuthDbListener {
 public:
 	PresenceAuthListener(belle_sip_main_loop_t *mainLoop, const std::shared_ptr<PresentityPresenceInformation> &info)
 	: mMainLoop(mainLoop), mInfo(info) {
@@ -51,6 +51,7 @@ private:
 		}
 		delete this;
 	}
+private:
 	belle_sip_main_loop_t *mMainLoop;
 	const std::shared_ptr<PresentityPresenceInformation> mInfo;
 };

@@ -225,7 +225,7 @@ void SociAuthDB::getPasswordFromBackend(const std::string &id, const std::string
 void SociAuthDB::getUserWithPhoneFromBackend(const string &phone, const string &domain, AuthDbListener *listener) {
 
 	// create a thread to grab a pool connection and use it to retrieve the auth information
-	auto func = bind(&SociAuthDB::getUserWithPhoneWithPool, this, phone, domain, listener);
+	auto func = bind(&SociAuthDB::getUserWithPhoneWithPool, this, std::string(phone), std::string(domain), listener);
 
 	bool success = thread_pool->Enqueue(func);
 	if (success == FALSE) {
