@@ -203,12 +203,16 @@ rm -rf $RPM_BUILD_ROOT
 
 %if "0%{?dist}" == "0.deb"
 install -p -m 0744 scripts/debian/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
+install -p -m 0744 scripts/debian/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip-presence
 %else
 install -p -m 0744 scripts/redhat/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
+install -p -m 0744 scripts/redhat/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip-presence
 %endif
 mkdir -p ${RPM_BUILD_ROOT}/lib/systemd/system
 install -p -m 0644 scripts/flexisip.service ${RPM_BUILD_ROOT}/lib/systemd/system
 install -p -m 0644 scripts/flexisip\@.service ${RPM_BUILD_ROOT}/lib/systemd/system
+install -p -m 0644 scripts/flexisip-presence.service ${RPM_BUILD_ROOT}/lib/systemd/system
+install -p -m 0644 scripts/flexisip-presence\@.service ${RPM_BUILD_ROOT}/lib/systemd/system
 
 %if %{bcpkg}
 export QA_RPATHS=0x0003
@@ -222,17 +226,24 @@ if [ $1 = 1 ]; then
 	/sbin/chkconfig --add flexisip
 	/sbin/chkconfig flexisip on
 	service flexisip start
+
+	/sbin/chkconfig --add flexisip-presence
+	/sbin/chkconfig flexisip-presence on
+	service flexisip-presence start
 fi
 
 %preun
 if [ $1 = 0 ]; then
 	service flexisip stop >/dev/null 2>&1 ||:
 	/sbin/chkconfig --del flexisip
+	service flexisip-presence stop >/dev/null 2>&1 ||:
+	/sbin/chkconfig --del flexisip-presence
 fi
 
 %postun
 if [ "$1" -ge "1" ]; then
 	service flexisip condrestart > /dev/null 2>&1 ||:
+	service flexisip-presence condrestart > /dev/null 2>&1 ||:
 fi
 
 %files
@@ -246,11 +257,16 @@ fi
 %endif
 
 %{_sysconfdir}/init.d/flexisip
+%{_sysconfdir}/init.d/flexisip-presence
 %{_sysconfdir}/flexisip
 /lib/systemd/system/flexisip.service
 /lib/systemd/system/flexisip@.service
+/lib/systemd/system/flexisip-presence.service
+/lib/systemd/system/flexisip-presence@.service
 
 %changelog
+* Fri Dec 02 2016 Simon Morlat <simon.morlat@linphone.org>
+	- Add init scripts for flexisip-presence
 * Thu Jul 28 2016 François Grisez <francois.grisez@belledonne-communications.com>
 	- Add systemd unit files
 * Mon Feb 08 2016 Guillaume Bienkowski <gbi@linphone.org>

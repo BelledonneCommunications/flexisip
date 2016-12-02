@@ -619,6 +619,8 @@ scripts/redhat/Makefile
 scripts/yocto/Makefile
 scripts/flexisip.service
 scripts/flexisip@.service
+scripts/flexisip-presence.service
+scripts/flexisip-presence@.service
 src/Makefile
 src/presence/Makefile
 src/xml/Makefile
