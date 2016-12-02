@@ -118,8 +118,8 @@ void SociAuthDB::reconnectSession(soci::session &session) {
 
 #define DURATION_MS(start, stop) (unsigned long) duration_cast<milliseconds>((stop) - (start)).count()
 
-void SociAuthDB::getPasswordWithPool(const std::string id, const std::string domain,
-									 const std::string authid, AuthDbListener *listener) {
+void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &domain,
+									 const std::string &authid, AuthDbListener *listener) {
 	steady_clock::time_point start;
 	steady_clock::time_point stop;
 	std::string pass;
@@ -161,7 +161,7 @@ void SociAuthDB::getPasswordWithPool(const std::string id, const std::string dom
 	if (sql) delete sql;
 }
 
-void SociAuthDB::getUserWithPhoneWithPool(const std::string phone, const std::string domain, AuthDbListener *listener) {
+void SociAuthDB::getUserWithPhoneWithPool(const std::string &phone, const std::string &domain, AuthDbListener *listener) {
 	steady_clock::time_point start;
 	steady_clock::time_point stop;
 	std::string user;
@@ -222,7 +222,7 @@ void SociAuthDB::getPasswordFromBackend(const std::string &id, const std::string
 	}
 }
 
-void SociAuthDB::getUserWithPhoneFromBackend(const char *phone, const char* domain, AuthDbListener *listener) {
+void SociAuthDB::getUserWithPhoneFromBackend(const string &phone, const string &domain, AuthDbListener *listener) {
 
 	// create a thread to grab a pool connection and use it to retrieve the auth information
 	auto func = bind(&SociAuthDB::getUserWithPhoneWithPool, this, phone, domain, listener);

@@ -48,7 +48,7 @@ class PresentityResourceListener : public PresentityPresenceInformationListener 
 
   private:
 	ListSubscription &mListSubscription;
-	const belle_sip_uri_t *mPresentity;
+	belle_sip_uri_t *mPresentity;
 };
 
 /*
@@ -64,7 +64,7 @@ class ListSubscription : public Subscription {
 	virtual ~ListSubscription();
 	list<shared_ptr<PresentityPresenceInformationListener>> &getListeners();
 	/* Notify taking state from all pending Presentity listener*/
-	void notify(bool_t isFullState) throw(FlexisipException);
+	void notify(bool isFullState) throw(FlexisipException);
 
   protected:
 	// this function is call by each PresentityResourceListener to centralize notifications
@@ -83,7 +83,7 @@ class ListSubscription : public Subscription {
 						  hash<const belle_sip_uri_t *>, bellesip::UriComparator> PendingStateType;
 	PendingStateType mPendingStates; // map of Presentity to be notified by uri
 	chrono::time_point<chrono::system_clock> mLastNotify;
-	chrono::seconds mMinNotifyIntervale;
+	chrono::seconds mMinNotifyInterval;
 	/*
 	 * rfc 4662
 	 * 5.2.  List Attributes

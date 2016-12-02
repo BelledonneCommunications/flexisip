@@ -76,7 +76,7 @@ PresenceServer::Init::Init() {
 	s->addChildrenValues(items);
 }
 
-PresenceServer::PresenceServer(std::string configFile) throw(FlexisipException)
+PresenceServer::PresenceServer() throw(FlexisipException)
 	: mStarted(true)
 	, mIterateThread(nullptr) {
 	
@@ -114,7 +114,6 @@ PresenceServer::PresenceServer(std::string configFile) throw(FlexisipException)
 	belle_sip_provider_add_sip_listener(mProvider, mListener);
 	mDefaultExpires = config->get<ConfigInt>("expires")->read();
 	mEnabled = config->get<ConfigBoolean>("enabled")->read();
-	SLOGD << "Presence server configuration file [" << configFile << "] Successfully loaded";
 }
 
 static void remove_listening_point(belle_sip_listening_point_t* lp,belle_sip_provider_t* prov) {
@@ -128,12 +127,7 @@ PresenceServer::~PresenceServer() {
 	belle_sip_list_for_each2 (tmp_list,(void (*)(void*,void*))remove_listening_point,mProvider);
 	belle_sip_list_free(tmp_list);
 
-	mStarted = false;
-	belle_sip_main_loop_quit(belle_sip_stack_get_main_loop(mStack));
-	if (mIterateThread) {
-		pthread_kill(mIterateThread->native_handle(), SIGINT);//because main loop is not interruptable
-		mIterateThread->join();
-	}
+	stop();
 	belle_sip_object_unref(mProvider);
 	belle_sip_object_unref(mStack);
 	belle_sip_object_unref(mListener);
@@ -148,7 +142,7 @@ PresenceServer::~PresenceServer() {
 	SLOGD << "Presence server destroyed";
 }
 
-void PresenceServer::start() throw(FlexisipException) {
+void PresenceServer::_start(bool withThread) throw(FlexisipException) {
 	if (!mEnabled) return;
 	list<string> transports = GenericManager::get()
 								  ->getRoot()
@@ -167,11 +161,36 @@ void PresenceServer::start() throw(FlexisipException) {
 				throw FLEXISIP_EXCEPTION << "Cannot add lp for [" << *it << "]";
 		}
 	}
-	mIterateThread.reset (new thread([this]() {
-		while (mStarted)
-			belle_sip_main_loop_run(belle_sip_stack_get_main_loop(this->mStack)); // is not interrupted by add source
-	}));
+	if (withThread){
+		mIterateThread.reset (new thread([this]() {
+			while (mStarted)
+				belle_sip_main_loop_run(belle_sip_stack_get_main_loop(this->mStack)); // is not interrupted by add source
+		}));
+	}
 }
+
+void PresenceServer::start() throw(FlexisipException) {
+	_start(true);
+}
+
+void PresenceServer::run() throw(FlexisipException){
+	_start(false);
+	while (mStarted){
+		belle_sip_main_loop_run(belle_sip_stack_get_main_loop(mStack));
+	}
+}
+
+void PresenceServer::stop() {
+	mStarted = false;
+	belle_sip_main_loop_quit(belle_sip_stack_get_main_loop(mStack));
+	if (mIterateThread) {
+		pthread_kill(mIterateThread->native_handle(), SIGINT);//because main loop is not interruptible
+		mIterateThread->join();
+		mIterateThread.reset();
+	}
+}
+
+
 void PresenceServer::processDialogTerminated(PresenceServer *thiz, const belle_sip_dialog_terminated_event_t *event) {
 	belle_sip_dialog_t *dialog = belle_sip_dialog_terminated_event_get_dialog(event);
 	if (belle_sip_dialog_get_application_data(dialog)) {
@@ -737,11 +756,11 @@ void PresenceServer::addPresenceInfo(const std::shared_ptr<PresentityPresenceInf
 	}
 }
 
-void PresenceServer::addNewPresenceInfoListener(const NewPresenceInfoEvent* listener) {
+void PresenceServer::addNewPresenceInfoListener(const std::shared_ptr<NewPresenceInfoEvent> &listener) {
 	mAddPresenceInfoListeners.push_back(listener);
 }
 
-void PresenceServer::removeNewPresenceInfoListener(const NewPresenceInfoEvent* listener) {
+void PresenceServer::removeNewPresenceInfoListener(const std::shared_ptr<NewPresenceInfoEvent> &listener) {
 	auto it = find(mAddPresenceInfoListeners.begin(), mAddPresenceInfoListeners.end(), listener);
 	if (it != mAddPresenceInfoListeners.end()) {
 		mAddPresenceInfoListeners.erase(it);

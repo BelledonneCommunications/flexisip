@@ -61,13 +61,16 @@ struct NewPresenceInfoEvent {
 
 class PresenceServer :  PresentityManager {
 public:
-	PresenceServer(std::string configFile) throw (FlexisipException);
+	PresenceServer() throw (FlexisipException);
 	~PresenceServer();
+	//Starts presence server as a thread
 	void start() throw (FlexisipException);
-
+	//Directly run the presence server (in current thread).
+	void run() throw (FlexisipException);
+	void stop();
 	belle_sip_main_loop_t* getBelleSipMainLoop();
-	void addNewPresenceInfoListener(const NewPresenceInfoEvent*);
-	void removeNewPresenceInfoListener(const NewPresenceInfoEvent*);
+	void addNewPresenceInfoListener(const std::shared_ptr<NewPresenceInfoEvent> &listener);
+	void removeNewPresenceInfoListener(const std::shared_ptr<NewPresenceInfoEvent> &listener);
 private:
 	class Init{
 		public:
@@ -89,7 +92,7 @@ private:
 	static void processResponseEvent(PresenceServer * thiz, const belle_sip_response_event_t *event);
 	static void processTimeout(PresenceServer * thiz, const belle_sip_timeout_event_t *event) ;
 	static void processTransactionTerminated(PresenceServer * thiz, const belle_sip_transaction_terminated_event_t *event);
-
+	void _start(bool withThread) throw (FlexisipException);
 	void processPublishRequestEvent(const belle_sip_request_event_t *event) throw (BelleSipSignalingException,FlexisipException);
 	void processSubscribeRequestEvent(const belle_sip_request_event_t *event) throw (BelleSipSignalingException,FlexisipException);
 
@@ -104,9 +107,8 @@ private:
 	 * */
 	std::shared_ptr<PresentityPresenceInformation> getPresenceInfo(const belle_sip_uri_t* identity) const ;
 	void addPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& ) throw (FlexisipException);
-	std::vector<const NewPresenceInfoEvent*> mAddPresenceInfoListeners;
+	std::vector<std::shared_ptr<NewPresenceInfoEvent> > mAddPresenceInfoListeners;
 
-	void invalidateEtag(string eTag);
 	void invalidateETag(const string& eTag) ;
 	void modifyEtag(const string& oldEtag, const string& newEtag) throw (FlexisipException);
 	void addEtag(const std::shared_ptr<PresentityPresenceInformation>& info,const string& etag) throw (FlexisipException);
@@ -118,15 +120,14 @@ private:
 	 *
 	 */
 
-	 void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listerner,int expires);
-	 void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listerner);
-	 void removeListener(const shared_ptr<PresentityPresenceInformationListener>& listerner);
+	void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listerner,int expires);
+	void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listerner);
+	void removeListener(const shared_ptr<PresentityPresenceInformationListener>& listerner);
 
 	void removeSubscription(shared_ptr<Subscription> &identity) throw();
 	//void notify(Subscription& subscription,PresentityPresenceInformation& presenceInformation) throw (FlexisipException);
 	unordered_map<const belle_sip_uri_t*,list<shared_ptr<Subscription>>,std::hash<const belle_sip_uri_t*>,bellesip::UriComparator> mSubscriptionsByEntity;
-
-
 };
+
 }
 #endif /* defined(__flexisip__presence_server__) */

@@ -19,7 +19,7 @@ prog=@bindir@/flexisip
 [ ${NETWORKING} = "no" ] && exit 0
 
 # Set default flexisip configuration.
-FLEXISIP_OPTIONS="--daemon --syslog"
+FLEXISIP_OPTIONS="--server presence --daemon --syslog"
 FLEXISIP_PID=/var/run/flexisip.pid
 
 [ -f $prog ] || exit 0
@@ -32,7 +32,7 @@ RETVAL=0
 case "$1" in
   start)
 	# Start daemon.
-	echo -n $"Starting flexisip proxy server: "
+	echo -n $"Starting flexisip presence server: "
 	daemon $NICELEVEL $prog $FLEXISIP_OPTIONS --pidfile $FLEXISIP_PID
 	RETVAL=$?
         echo
@@ -42,7 +42,7 @@ case "$1" in
         ;;
   stop)
         # Stop daemons.
-        echo -n $"Stopping flexisip proxy server: "
+        echo -n $"Stopping flexisip presence server: "
         killproc -p $FLEXISIP_PID flexisip
         RETVAL=$?
         echo

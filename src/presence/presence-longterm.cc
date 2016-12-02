@@ -7,10 +7,10 @@ using namespace flexisip;
 
 class PresenceAuthListener : public AuthDbListener {
 public:
-	PresenceAuthListener(belle_sip_main_loop_t *mainLoop, const std::shared_ptr<PresentityPresenceInformation> info)
+	PresenceAuthListener(belle_sip_main_loop_t *mainLoop, const std::shared_ptr<PresentityPresenceInformation> &info)
 	: mMainLoop(mainLoop), mInfo(info) {}
 
-	virtual void onResult(AuthDbResult result, std::string passwd) {
+	virtual void onResult(AuthDbResult result, const std::string &passwd) {
 		belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, result, passwd](unsigned int events) {
 			this->processResponse(result, passwd);
 			return BELLE_SIP_STOP;
@@ -23,7 +23,7 @@ public:
 
 private:
 
-	void processResponse(AuthDbResult result, std::string user) {
+	void processResponse(AuthDbResult result, const std::string &user) {
 		const char* cuser = belle_sip_uri_get_user(mInfo->getEntity());
 		if (result == AuthDbResult::PASSWORD_FOUND) {
 			// result is a phone alias if (and only if) user is not the same as the entity user

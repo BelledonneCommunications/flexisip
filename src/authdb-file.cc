@@ -35,7 +35,7 @@ FileAuthDb::FileAuthDb() {
 	sync();
 }
 
-void FileAuthDb::getUserWithPhoneFromBackend(const char* phone, const char* domain, AuthDbListener *listener) {
+void FileAuthDb::getUserWithPhoneFromBackend(const std::string &phone, const std::string &domain, AuthDbListener *listener) {
 	AuthDbResult res = AuthDbResult::PASSWORD_NOT_FOUND;
 	if (mLastSync == 0) {
 		sync();

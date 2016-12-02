@@ -126,12 +126,12 @@ void Monitor::createAccounts() {
 		exit(-1);
 	}
 
-	string password = generatePassword(localIP, salt).c_str();
+	string password = generatePassword(localIP, salt);
 	string username = generateUsername(CALLER_PREFIX, localIP);
-	authDb->createAccount(username.c_str(), domain.c_str(), username.c_str(), password.c_str(), PASSWORD_CACHE_EXPIRE);
+	authDb->createAccount(username, domain, username, password, PASSWORD_CACHE_EXPIRE);
 
-	username = generateUsername(CALLEE_PREFIX, localIP).c_str();
-	authDb->createAccount(username.c_str(), domain.c_str(), username.c_str(), password.c_str(), PASSWORD_CACHE_EXPIRE);
+	username = generateUsername(CALLEE_PREFIX, localIP);
+	authDb->createAccount(username, domain, username, password, PASSWORD_CACHE_EXPIRE);
 }
 
 bool Monitor::isLocalhost(const string &host) {

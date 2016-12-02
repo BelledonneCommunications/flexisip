@@ -25,13 +25,14 @@
 namespace flexisip {
 class PresentityPresenceInformationListener;
 
-	class PresentityManager : public EtagManager {
-  public:
-	//fixme splitting into function add and function update will avoid to iterate on subscriber list
-	virtual void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> &listerner, int exires) = 0;
-	//timerless version of addOrUpdateListener
-	virtual void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> &listerner) = 0;
-	virtual void removeListener(const shared_ptr<PresentityPresenceInformationListener> &listerner) = 0;
+class PresentityManager : public EtagManager {
+	public:
+		//fixme splitting into function add and function update will avoid to iterate on subscriber list
+		virtual void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> &listerner, int expires) = 0;
+		//timerless version of addOrUpdateListener
+		virtual void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> &listerner) = 0;
+		virtual void removeListener(const shared_ptr<PresentityPresenceInformationListener> &listerner) = 0;
 };
+
 }
 #endif /* PRESENTITY_MANAGER_HH_ */

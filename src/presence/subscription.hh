@@ -28,11 +28,11 @@ namespace flexisip {
 
   public:
 	enum State { active, pending, terminated };
-	Subscription(string eventName, unsigned int expires, belle_sip_dialog_t *aDialog, belle_sip_provider_t *prov);
+	Subscription(const string &eventName, unsigned int expires, belle_sip_dialog_t *aDialog, belle_sip_provider_t *prov);
 	virtual ~Subscription();
 	void setAcceptHeader(belle_sip_header_t *acceptHeader);
 	void setAcceptEncodingHeader(belle_sip_header_t *acceptEncodingHeader);
-	void setId(string &id);
+	void setId(const string &id);
 	void notify(belle_sip_header_content_type_t *content_type, const string &body);
 	void notify(belle_sip_multipart_body_handler_t *body);
 	void notify(belle_sip_multipart_body_handler_t *body, const string &content_encoding);
@@ -55,10 +55,8 @@ namespace flexisip {
 	void notify(belle_sip_header_content_type_t *content_type, const string *body,
 				belle_sip_multipart_body_handler_t *multiPartBody, const string *content_encoding);
 	string mEventName;
-	string mEventId;
 	belle_sip_header_t *mAcceptHeader;
 	belle_sip_header_t *mAcceptEncodingHeader;
-	string state;
 	string mId;
 	State mState;
 	time_t mCreationTime;

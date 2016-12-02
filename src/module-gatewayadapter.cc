@@ -115,7 +115,7 @@ class GatewayRegister {
 			gw->sendRegister();
 		}
 
-		virtual void onResult(AuthDbResult result, std::string passwd) {
+		virtual void onResult(AuthDbResult result, const std::string &passwd) {
 			if (result == AuthDbResult::PASSWORD_FOUND) {
 				checkPassword(passwd.c_str());
 			} else {
