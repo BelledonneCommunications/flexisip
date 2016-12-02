@@ -5,8 +5,8 @@ After=syslog.target network.target redis.service mysqld.service
 
 [Service]
 Type=forking
-PIDFile=/var/run/flexisip/%i.pid
-ExecStart=/opt/belledonne-communications/bin/flexisip --server presence --daemon --syslog --pidfile /var/run/flexisip/%i.pid -c /etc/flexisip/%i.conf
+PIDFile=/var/run/flexisip-presence/%i.pid
+ExecStart=/opt/belledonne-communications/bin/flexisip --server presence --daemon --syslog --pidfile /var/run/flexisip-presence/%i.pid -c /etc/flexisip/%i.conf
 
 [Install]
 WantedBy=multi-user.target

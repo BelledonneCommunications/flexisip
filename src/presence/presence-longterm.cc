@@ -8,7 +8,9 @@ using namespace flexisip;
 class PresenceAuthListener : public AuthDbListener {
 public:
 	PresenceAuthListener(belle_sip_main_loop_t *mainLoop, const std::shared_ptr<PresentityPresenceInformation> &info)
-	: mMainLoop(mainLoop), mInfo(info) {}
+	: mMainLoop(mainLoop), mInfo(info) {
+		AuthDbBackend::get(); /*this will initialize the database backend, which is good to know that it works at startup*/
+	}
 
 	virtual void onResult(AuthDbResult result, const std::string &passwd) {
 		belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, result, passwd](unsigned int events) {

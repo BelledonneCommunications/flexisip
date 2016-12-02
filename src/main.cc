@@ -778,8 +778,11 @@ int main(int argc, char *argv[]) {
 	
 	increase_fd_limit();
 	
+	//we create an Agent in all cases, because it will declare config items that are necessary for presence server to run.
+	a = make_shared<Agent>(root);
+	
 	if (functionName.getValue() == "proxy"){
-		a = make_shared<Agent>(root);
+		
 		a->start(transportsArg.getValue());
 		setOpenSSLThreadSafe();
 	#ifdef ENABLE_SNMP
@@ -824,9 +827,9 @@ int main(int argc, char *argv[]) {
 		su_root_run(root);
 		su_timer_destroy(timer);
 		a->unloadConfig();
-		a.reset();
 	}else if (functionName.getValue() == "presence"){
 #ifdef ENABLE_PRESENCE
+		cfg->loadStrict();
 		bool enableLongTermPresence = (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
 		presenceServer = make_shared<flexisip::PresenceServer>();
 		if (enableLongTermPresence) {
@@ -847,7 +850,7 @@ int main(int argc, char *argv[]) {
 	}else{
 		LOGF("There is no server function '%s'.", functionName.getValue().c_str());
 	}
-
+	a.reset();
 	if (stun) {
 		stun->stop();
 		delete stun;
