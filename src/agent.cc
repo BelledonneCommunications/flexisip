@@ -98,7 +98,7 @@ void Agent::onDeclare(GenericStruct *root) {
 	mCountReply488 = createCounter(global, key, help, "488");
 	mCountReplyResUnknown = createCounter(global, key, help, "unknown");
 	mLogWriter = NULL;
-	
+
 	std::string uniqueId = global->get<ConfigString>("unique-id")->read();
 	if (!uniqueId.empty()) {
 		if (uniqueId.length() == 16) {
@@ -128,11 +128,12 @@ void Agent::startLogWriter() {
 				cr->get<ConfigInt>("database-nb-threads-max")->read()
 			);
 			if (!dbw->isReady()) {
-				delete dbw;
+				LOGF("DataBaseEventLogWriter: unable to use database.");
 			} else {
 				mLogWriter = dbw;
 			}
-
+			#else
+				LOGF("DataBaseEventLogWriter: unable to use database (`ENABLE_SOCI` is not defined).");
 			#endif
 		} else {
 			string logdir = cr->get<ConfigString>("dir")->read();
@@ -240,25 +241,25 @@ void Agent::start(const std::string &transport_override) {
 			string keys;
 			string value;
 			unsigned int tls_policy = 0;
-	
+
 			if (globalVerifyIn) tls_policy |= TPTLS_VERIFY_INCOMING;
-			
+
 			if (getUriParameter(url, "tls-certificates-dir", value)){
 				keys = absolutePath(currDir, value);
 			}else{
 				keys = mainTlsCertsDir;
 			}
-			
+
 			if (getBoolUriParameter(url, "tls-verify-incoming", false) || getBoolUriParameter(url, "require-peer-certificate", false)){
 				tls_policy |= TPTLS_VERIFY_INCOMING;
 			}
-			
+
 			if (getBoolUriParameter(url, "tls-verify-outgoing", true)){
 				tls_policy |= TPTLS_VERIFY_OUTGOING | TPTLS_VERIFY_SUBJECTS_OUT;
 			}
 
 			checkAllowedParams(url);
-			
+
 			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()),
 									  TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
 									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),

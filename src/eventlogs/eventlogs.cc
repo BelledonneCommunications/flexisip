@@ -40,8 +40,8 @@ EventLog::Init::Init() {
 		{String, "logger", "Define logger for storing logs. It supports \"filesystem\" and \"database\".",
 		 "database"},
 		{String, "database-backend", "Choose the type of backend that Soci will use for the connection.\n"
-		 "Depending on your Soci package and the modules you installed, the supported databases are:",
-		 "`mysql` and `sqlite3`"
+		 "Depending on your Soci package and the modules you installed, the supported databases are:"
+		 "`mysql` and `sqlite3`",
 		 "mysql"},
 		{String, "database-connection-string", "The configuration parameters of the backend.\n"
 		 "The basic format is \"key=value key2=value2\". For a mysql backend, this "
@@ -627,7 +627,7 @@ inline string createMessageTypesTable(DataBaseEventLogWriter::Backend backend) {
 
 DataBaseEventLogWriter::DataBaseEventLogWriter(
 	const std::string &backendString, const std::string &connectionString,
-	int maxQueueSize, int nbThreadsMax){
+	int maxQueueSize, int nbThreadsMax) {
 	mConnectionPool = nullptr;
 	mThreadPool = nullptr;
 	mIsReady = false;
