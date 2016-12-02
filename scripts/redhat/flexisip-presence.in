@@ -31,9 +31,9 @@ RETVAL=0
 # See how we were called.
 case "$1" in
   start)
-	# Start daemon.
+	# Start daemon, giving to "daemon" shell function the pidfile, because it cannot guess it from the daemon name.
 	echo -n $"Starting flexisip presence server: "
-	daemon $NICELEVEL $prog $FLEXISIP_OPTIONS --pidfile $FLEXISIP_PID
+	daemon $NICELEVEL --pidfile $FLEXISIP_PID $prog $FLEXISIP_OPTIONS --pidfile $FLEXISIP_PID
 	RETVAL=$?
         echo
 	if [ $RETVAL = 0 ]; then
