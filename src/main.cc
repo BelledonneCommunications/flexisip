@@ -292,7 +292,7 @@ static void forkAndDetach(const string &pidfile, bool auto_respawn, bool startMo
 		/* We are in the watch-dog process */
 		uint8_t buf[4];
 		close(pipe_launcher_wdog[0]);
-		set_process_name("flexisip_wdog");
+		set_process_name("flexisipwd-"+functionName);
 
 	/* Creation of the flexisip process */
 	fork_flexisip:
@@ -326,8 +326,7 @@ static void forkAndDetach(const string &pidfile, bool auto_respawn, bool startMo
 		close(pipe_wdog_flexisip[1]);
 		err = read(pipe_wdog_flexisip[0], buf, sizeof(buf));
 		if (err == -1 || err == 0) {
-			int errno_ = errno;
-			LOGE("[WDOG] Read error from flexisip : %s", strerror(errno_));
+			if (err == -1) LOGE("[WDOG] Read error from flexisip : %s", strerror(errno));
 			close(pipe_launcher_wdog[1]); // close launcher pipe to signify the error
 			exit(EXIT_FAILURE);
 		}
