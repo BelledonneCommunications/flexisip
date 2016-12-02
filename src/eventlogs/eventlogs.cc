@@ -35,10 +35,10 @@ EventLog::Init EventLog::evStaticInit;
 EventLog::Init::Init() {
 	ConfigItemDescriptor items[] = {
 		{Boolean, "enabled", "Enable event logs.", "false"},
-		{String, "dir", "Directory where event logs are written as a filesystem (case when database output is not active).",
-		 "/var/log/flexisip"},
 		{String, "logger", "Define logger for storing logs. It supports \"filesystem\" and \"database\".",
-		 "database"},
+		 "filesystem"},
+		{String, "dir", "Directory where event logs are written as a filesystem (case when filesystem output is choosed).",
+		 "/var/log/flexisip"},
 		{String, "database-backend", "Choose the type of backend that Soci will use for the connection.\n"
 		 "Depending on your Soci package and the modules you installed, the supported databases are:"
 		 "`mysql` and `sqlite3`",
