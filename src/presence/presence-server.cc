@@ -66,7 +66,7 @@ PresenceServer::Init::Init() {
 									{Boolean, "enabled", "Enable presence server", "true"},
 									{StringList, "transports",
 									 "List of white space separated SIP uris where the presence server must listen.",
-									 "sip:127.0.0.1:5065"},
+									 "sip:127.0.0.1:5065;transport=tcp"},
 									 {Integer, "expires", "Publish default expires in second.  by default.", "600"},
 									{Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
 									{Boolean, "long-term-enabled", "Enable long-term presence notifies", "true"},

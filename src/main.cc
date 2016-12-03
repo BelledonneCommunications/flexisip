@@ -527,6 +527,17 @@ static void list_modules() {
 	}
 }
 
+const char* getFunctionName(bool startProxy, bool startPresence){
+	if (startProxy && startPresence){
+		return "proxy+presence";
+	}else if (startProxy){
+		return "proxy";
+	}else if (startPresence){
+		return "presence";
+	}
+	return "none";
+}
+
 static string version() {
 	ostringstream version;
 	version << VERSION " (git: " FLEXISIP_GIT_VERSION ")\n";
@@ -741,7 +752,7 @@ int main(int argc, char *argv[]) {
 	}else{
 		LOGF("There is no server function '%s'.", functionName.getValue().c_str());
 	}
-
+	string fName = getFunctionName(startProxy, startPresence);
 	// Initialize
 	flexisip::log::initLogs(useSyslog, debug, cfg->getGlobal()->get<ConfigString>("log-level")->read());
 	//flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
@@ -792,15 +803,15 @@ int main(int argc, char *argv[]) {
 		/*now that we have successfully loaded the config, there is nothing that can prevent us to start (normally).
 		So we can detach.*/
 		bool autoRespawn = cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read();
-		if (functionName.getValue() != "proxy") monitorEnabled = false;
-		forkAndDetach(pidFile.getValue(), autoRespawn, monitorEnabled, functionName.getValue());
+		if (!startProxy) monitorEnabled = false;
+		forkAndDetach(pidFile.getValue(), autoRespawn, monitorEnabled, fName);
 	} else if (pidFile.getValue().length() != 0) {
 		// not daemon but we want a pidfile anyway
 		makePidFile(pidFile.getValue());
 	}
 
-	LOGN("Starting flexisip %s-server version %s (git %s)", functionName.getValue().c_str(), VERSION, FLEXISIP_GIT_VERSION);
-	GenericManager::get()->sendTrap("Flexisip "+ functionName.getValue() + "-server starting");
+	LOGN("Starting flexisip %s-server version %s (git %s)", fName.c_str(), VERSION, FLEXISIP_GIT_VERSION);
+	GenericManager::get()->sendTrap("Flexisip "+ fName + "-server starting");
 
 	root = su_root_create(NULL);
 	
@@ -847,12 +858,6 @@ int main(int argc, char *argv[]) {
 		}
 		if (trackAllocs)
 			msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
-
-		su_timer_t *timer = su_timer_create(su_root_task(root), 5000);
-		su_timer_set_for_ever(timer, (su_timer_f)timerfunc, a.get());
-		su_root_run(root);
-		su_timer_destroy(timer);
-		a->unloadConfig();
 	}
 	if (startPresence){
 #ifdef ENABLE_PRESENCE
@@ -877,6 +882,15 @@ int main(int argc, char *argv[]) {
 		}
 #endif
 	}
+	
+	if (startProxy){
+		su_timer_t *timer = su_timer_create(su_root_task(root), 5000);
+		su_timer_set_for_ever(timer, (su_timer_f)timerfunc, a.get());
+		su_root_run(root);
+		su_timer_destroy(timer);
+		a->unloadConfig();
+	}
+	
 	a.reset();
 	presenceServer.reset();
 	if (stun) {
@@ -885,9 +899,9 @@ int main(int argc, char *argv[]) {
 	}
 	su_root_destroy(root);
 
-	LOGN("Flexisip %s-server exiting normally.", functionName.getValue().c_str());
+	LOGN("Flexisip %s-server exiting normally.", fName.c_str());
 	if (trackAllocs)
 		dump_remaining_msgs();
-	GenericManager::get()->sendTrap("Flexisip "+ functionName.getValue()+"-server exiting normally");
+	GenericManager::get()->sendTrap("Flexisip "+ fName + "-server exiting normally");
 	return 0;
 }
