@@ -527,7 +527,7 @@ static void list_modules() {
 	}
 }
 
-const char* getFunctionName(bool startProxy, bool startPresence){
+static const char* getFunctionName(bool startProxy, bool startPresence){
 	if (startProxy && startPresence){
 		return "proxy+presence";
 	}else if (startProxy){
@@ -536,6 +536,17 @@ const char* getFunctionName(bool startProxy, bool startPresence){
 		return "presence";
 	}
 	return "none";
+}
+
+static void notifyWatchDog(){
+	static bool notified = false;
+	if (!notified){
+		if (write(pipe_wdog_flexisip[1], "ok", 3) == -1) {
+			LOGF("Failed to write starter pipe: %s", strerror(errno));
+		}
+		close(pipe_wdog_flexisip[1]);
+		notified = true;
+	}
 }
 
 static string version() {
@@ -846,10 +857,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		if (daemonMode) {
-			if (write(pipe_wdog_flexisip[1], "ok", 3) == -1) {
-				LOGF("Failed to write starter pipe: %s", strerror(errno));
-			}
-			close(pipe_wdog_flexisip[1]);
+			notifyWatchDog();
 		}
 
 		if (cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()) {
@@ -869,10 +877,7 @@ int main(int argc, char *argv[]) {
 			presenceServer->addNewPresenceInfoListener(presenceLongTerm);
 		}
 		if (daemonMode) {
-			if (write(pipe_wdog_flexisip[1], "ok", 3) == -1) {
-				LOGF("Failed to write starter pipe: %s", strerror(errno));
-			}
-			close(pipe_wdog_flexisip[1]);
+			notifyWatchDog();
 		}
 		if (startProxy){
 			//start as a thread
