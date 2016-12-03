@@ -897,7 +897,9 @@ int main(int argc, char *argv[]) {
 	}
 	
 	a.reset();
+#ifdef ENABLE_PRESENCE
 	presenceServer.reset();
+#endif
 	if (stun) {
 		stun->stop();
 		delete stun;
