@@ -744,7 +744,11 @@ GenericManager::GenericManager()
 	static ConfigItemDescriptor global_conf[] = {
 		{Boolean, "debug", "Outputs very detailed logs", "false"},
 		{String, "log-level", "Verbosity of logs to output if debug is enabled. Possible values are debug, message, warning and error", "debug"},
-		{Boolean, "dump-corefiles", "Generate a corefile when crashing", "true"},
+		{Boolean, "dump-corefiles", "Generate a corefile when crashing. "
+			"Note that by default linux will generate coredumps in '/' which is not so convenient. The following shell command can be added to"
+			" /etc/rc.local in order to write core dumps a in specific directory, for example /home/cores:\n"
+			"\techo \"/home/cores/core.\%e.\%t.\%p\" >/proc/sys/kernel/core_pattern"
+			, "true"},
 		{Boolean, "auto-respawn", "Automatically respawn flexisip in case of abnormal termination (crashes)", "true"},
 		{StringList, "aliases", "List of white space separated host names pointing to this machine. This is to prevent "
 								"loops while routing SIP messages.",
