@@ -317,8 +317,15 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			return;
 		}
 		pinfo.mDeviceToken = deviceToken;
+		
+		if (url_param(params, "app-id", appId, sizeof(appId)) == 0) {
+			SLOGD << "no app-id";
+			return;
+		}
+		pinfo.mAppId = appId;
+		
 		// check if another push notification for this device wouldn't be pending
-		snprintf(pn_key, sizeof(pn_key) - 1, "%s:%s", pinfo.mCallId.c_str(), deviceToken);
+		snprintf(pn_key, sizeof(pn_key) - 1, "%s:%s:%s", pinfo.mCallId.c_str(), deviceToken, appId);
 		auto it = mPendingNotifications.find(pn_key);
 		if (it != mPendingNotifications.end()) {
 			LOGD("Another push notification is pending for this call %s and this device %s, not creating a new one",
@@ -331,12 +338,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				return;
 			}
 			pinfo.mType = type;
-
-			if (url_param(params, "app-id", appId, sizeof(appId)) == 0) {
-				SLOGD << "no app-id";
-				return;
-			}
-			pinfo.mAppId = appId;
 			
 			if (url_param(params, "pn-timeout", tmp, sizeof(tmp)-1) != 0) {
 				time_out = std::atoi(tmp);
