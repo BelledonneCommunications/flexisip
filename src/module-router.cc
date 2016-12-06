@@ -376,8 +376,12 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Reg
 	}
 
 	void onRecordFound(Record *r) {
-		LOGD("Record found for uid = %s", mUid.c_str());
-		mModule->onContactRegistered(mUid, r, mSipUri);
+		if (r) {
+			LOGD("Record found for uid = %s", mUid.c_str());
+			mModule->onContactRegistered(mUid, r, mSipUri);
+		} else {
+			LOGW("No record found for uid = %s", mUid.c_str());
+		}
 	}
 	void onError() {
 
@@ -391,7 +395,7 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 	SofiaAutoHome home;
 	sip_path_t *path = NULL;
 	sip_contact_t *contact = NULL;
-	SLOGD << "ModuleRouter::onContactRegistered";
+	
 	if (aor == NULL) {
 		SLOGE << "aor was null...";
 		return;
@@ -684,7 +688,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				context->setKey(key);
 				mForks.insert(make_pair(key, context));
 				if (mForks.count(key) == 1) {
-					RegistrarDb::get(getAgent())->subscribe(key, make_shared<OnContactRegisteredListener>(this, sipUri));
+					RegistrarDb::get(getAgent())->subscribe(key, make_shared<OnContactRegisteredListener>(this, temp_ctt->m_url));
 				}
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
 			} else {
