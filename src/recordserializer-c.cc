@@ -69,7 +69,7 @@ bool RecordSerializerC::parse(const char *str, int len, Record *r) {
 		CHECK("no expire", !expire || expire[0] == 0);
 		CHECK("no updatetime", !update_time || update_time[0] == 0);
 		CHECK("no callid", !call_id || call_id[0] == 0);
-		CHECK("no cseq", !cseq || cseq[0] == 0);
+		CHECK("no cseq", !cseq);
 
 		std::list<std::string> stlpath;
 		if (route && route[0] != 0)

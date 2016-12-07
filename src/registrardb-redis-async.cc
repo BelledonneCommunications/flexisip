@@ -82,7 +82,7 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 		record.setKey(key);
 	}
 	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<RegistrarDbListener> listener, forwardFn *forward_fn)
-		: token(0), calldId(NULL), csSeq(-1), listener(listener), record(""), globalExpire(0), mVersion(0), mUsedAsRoute(false) {
+		: token(0), calldId(""), csSeq(-1), listener(listener), record(""), globalExpire(0), mVersion(0), mUsedAsRoute(false) {
 		su_home_init(&mHome);
 		self = s;
 		fn = forward_fn;

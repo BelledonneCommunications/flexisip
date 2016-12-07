@@ -69,7 +69,6 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r) {
 		CHECK("no updatetime", !update_time);
 		CHECK("no callid", !call_id || call_id[0] == 0);
 		CHECK("no callid", !call_id || call_id[0] == 0);
-		CHECK("no cseq", !cseq);
 
 		std::list<std::string> stlpath;
 		if (route)

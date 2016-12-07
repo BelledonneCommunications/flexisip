@@ -928,6 +928,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipExce
 			ev->createIncomingTransaction();
 			sendReply(ev, SIP_100_TRYING);
 			auto onRoutingListener = make_shared<OnFetchForRoutingListener>(this, ev, sipurl);
+			
 			if (mPreroute.empty()) {
 				/*the unstandard X-Target-Uris header gives us a list of SIP uri to which the request is to be forked.*/
 				sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-Target-Uris");
