@@ -791,25 +791,28 @@ void ModuleRegistrar::readStaticRecords() {
 				sip_contact_t *url = sip_contact_make(&home, from.c_str());
 				sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
 				int expire = mStaticRecordsTimeout + 5; // 5s to avoid race conditions
+				
+				if (!url || !contact) {
+					LOGF("Static records file %s doesn't respect the expected format: <identity> <identity>,<identity>");
+					continue;
+				}
 
-				if (url != NULL) {
-					while (contact != NULL) {
-						sip_contact_t single = *contact;
-						single.m_next = NULL;
-						auto listener = make_shared<OnStaticBindListener>(url->m_url, &single);
-						bool alias = isManagedDomain(contact->m_url);
-						const char *fakeCallId = su_sprintf(&home, "static-record-v%x", su_random());
+				while (contact != NULL) {
+					sip_contact_t single = *contact;
+					single.m_next = NULL;
+					auto listener = make_shared<OnStaticBindListener>(url->m_url, &single);
+					bool alias = isManagedDomain(contact->m_url);
+					const char *fakeCallId = su_sprintf(&home, "static-record-v%x", su_random());
 
-						RegistrarDb::BindParameters params(RegistrarDb::BindParameters::SipParams(
-															   url->m_url /*from*/, &single, fakeCallId, 0, path, NULL),
-														   expire, alias);
-						params.version = mStaticRecordsVersion;
-						/*if no user part is given, consider it as to be used as a route, that is not changing the
-						 * request uri but instead prepend a route*/
-						params.usedAsRoute = (single.m_url->url_user == NULL);
-						RegistrarDb::get(mAgent)->bind(params, listener);
-						contact = contact->m_next;
-					}
+					RegistrarDb::BindParameters params(RegistrarDb::BindParameters::SipParams(
+															url->m_url /*from*/, &single, fakeCallId, 0, path, NULL),
+														expire, alias);
+					params.version = mStaticRecordsVersion;
+					/*if no user part is given, consider it as to be used as a route, that is not changing the
+						* request uri but instead prepend a route*/
+					params.usedAsRoute = (single.m_url->url_user == NULL);
+					RegistrarDb::get(mAgent)->bind(params, listener);
+					contact = contact->m_next;
 				}
 				continue;
 			}

@@ -114,11 +114,11 @@ const sip_contact_t *Record::getContacts(su_home_t *home, time_t now) {
 	return alist;
 }
 
-bool Record::isInvalidRegister(const char *call_id, uint32_t cseq) {
+bool Record::isInvalidRegister(const std::string &call_id, uint32_t cseq) {
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		shared_ptr<ExtendedContact> ec = (*it);
-		if ((0 == strcmp(ec->callId(), call_id)) && cseq <= ec->mCSeq) {
-			LOGD("CallID %s already registered with CSeq %d (received %d)", call_id, ec->mCSeq, cseq);
+		if ((0 == strcmp(ec->callId(), call_id.c_str())) && cseq <= ec->mCSeq) {
+			LOGD("CallID %s already registered with CSeq %d (received %d)", call_id.c_str(), ec->mCSeq, cseq);
 			return true;
 		}
 	}
@@ -156,7 +156,7 @@ const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(std::string u
 /**
  * Should first have checked the validity of the register with isValidRegister.
  */
-void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t now, int version) {
+void Record::clean(const sip_contact_t *sip, const std::string &call_id, uint32_t cseq, time_t now, int version) {
 	if (mContacts.begin() == mContacts.end()) {
 		return;
 	}
@@ -175,7 +175,7 @@ void Record::clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq,
 		} else if (ec->line() && lineValuePtr != NULL && 0 == strcmp(ec->line(), lineValuePtr)) {
 			SLOGD << "Cleaning older line '" << lineValuePtr << "' for contact " << ec->mContactId;
 			it = mContacts.erase(it);
-		} else if (0 == strcmp(ec->callId(), call_id)) {
+		} else if (0 == strcmp(ec->callId(), call_id.c_str())) {
 			SLOGD << "Cleaning same call id contact " << ec->contactId() << "(" << call_id << ")";
 			it = mContacts.erase(it);
 		} else {
@@ -299,7 +299,7 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 		oss << ":" << url->url_port;
 }
 
-void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id,
+void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,
 					uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute) {
 	sip_contact_t *c = (sip_contact_t *)contacts;
 	list<string> stlPath;

@@ -45,9 +45,9 @@ struct ExtendedContactCommon {
 	std::string mUniqueId;
 	std::list<std::string> mPath;
 
-	ExtendedContactCommon(const char *contactId, const std::list<std::string> &path, const char *callId,
+	ExtendedContactCommon(const char *contactId, const std::list<std::string> &path, const std::string &callId,
 						  const char *lineValue) {
-		if (callId)
+		if (!callId.empty())
 			mCallId = callId;
 		mPath = path;
 		if (lineValue)
@@ -172,10 +172,10 @@ class Record {
 	void pushContact(const std::shared_ptr<ExtendedContact> &ct) {
 		mContacts.push_back(ct);
 	}
-	bool isInvalidRegister(const char *call_id, uint32_t cseq);
-	void clean(const sip_contact_t *sip, const char *call_id, uint32_t cseq, time_t time, int version);
+	bool isInvalidRegister(const std::string &call_id, uint32_t cseq);
+	void clean(const sip_contact_t *sip, const std::string &call_id, uint32_t cseq, time_t time, int version);
 	void clean(time_t time);
-	void update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const char *call_id,
+	void update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,
 				uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute);
 	void update(const ExtendedContactCommon &ecc, const char *sipuri, long int expireAt, float q, uint32_t cseq,
 				time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute);

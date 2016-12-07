@@ -46,7 +46,7 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 	forwardFn *fn;
 	unsigned long token;
 	const sip_contact_t *sipContact;
-	const char *calldId;
+	std::string calldId;
 	uint32_t csSeq;
 	shared_ptr<RegistrarDbListener> listener;
 	Record record;
@@ -56,30 +56,43 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 	int mVersion;
 	std::list<std::string> accept;
 	bool mUsedAsRoute;
+	su_home_t mHome;
 
-	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t *url, const sip_contact_t *sip_contact,
-					  const char *calld_id, uint32_t cs_seq, const sip_path_t *path, bool alias, int version,
-					  shared_ptr<RegistrarDbListener> listener, forwardFn *fn)
-		: self(self), fn(fn), token(0), sipContact(sip_contact), calldId(calld_id), csSeq(cs_seq), listener(listener),
-		  record(""), globalExpire(0), path(path), alias(alias), mVersion(version), mUsedAsRoute(false) {
+	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, const sip_contact_t *sip_contact,
+					  const std::string &calld_id, uint32_t cs_seq, const sip_path_t *p, bool alias, int version,
+					  shared_ptr<RegistrarDbListener> listener, forwardFn *forward_fn)
+		: token(0), calldId(calld_id), csSeq(cs_seq), listener(listener), record(""), globalExpire(0), alias(alias), mVersion(version), mUsedAsRoute(false) {
+		su_home_init(&mHome);
+		self = s;
+		fn = forward_fn;
+		sipContact = sip_contact_dup(&mHome, sip_contact);
+		path = sip_path_dup(&mHome, p);
 		self->defineKeyFromUrl(key, AOR_KEY_SIZE - 1, url);
 		record.setKey(key);
 	}
-	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t *url, const sip_contact_t *sip_contact,
-					  const char *calld_id, uint32_t cs_seq, shared_ptr<RegistrarDbListener> listener, forwardFn *fn)
-		: self(self), fn(fn), token(0), sipContact(sip_contact), calldId(calld_id), csSeq(cs_seq), listener(listener),
-		  record(""), globalExpire(0), mVersion(0), mUsedAsRoute(false) {
+	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, const sip_contact_t *sip_contact,
+					  const std::string &calld_id, uint32_t cs_seq, shared_ptr<RegistrarDbListener> listener, forwardFn *forward_fn)
+		: token(0), calldId(calld_id), csSeq(cs_seq), listener(listener), record(""), globalExpire(0), mVersion(0), mUsedAsRoute(false) {
+		su_home_init(&mHome);
+		self = s;
+		fn = forward_fn;
+		sipContact = sip_contact_dup(&mHome, sip_contact);
+		path = NULL;
 		self->defineKeyFromUrl(key, AOR_KEY_SIZE - 1, url);
 		record.setKey(key);
 	}
-	RegistrarUserData(RegistrarDbRedisAsync *self, const url_t *url, shared_ptr<RegistrarDbListener> listener,
-					  forwardFn *fn)
-		: self(self), fn(fn), token(0), sipContact(NULL), calldId(NULL), csSeq(-1), listener(listener), record(""),
-		  globalExpire(0), mVersion(0), mUsedAsRoute(false) {
+	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<RegistrarDbListener> listener, forwardFn *forward_fn)
+		: token(0), calldId(NULL), csSeq(-1), listener(listener), record(""), globalExpire(0), mVersion(0), mUsedAsRoute(false) {
+		su_home_init(&mHome);
+		self = s;
+		fn = forward_fn;
+		sipContact = NULL;
+		path = NULL;
 		self->defineKeyFromUrl(key, AOR_KEY_SIZE - 1, url);
 		record.setKey(key);
 	}
 	~RegistrarUserData() {
+		su_home_deinit(&mHome);
 	}
 };
 
