@@ -261,8 +261,9 @@ class RegistrarDb {
 		int version; /* used by static records only*/
 		const bool alias;
 		bool usedAsRoute;
+		bool enqueueToPreventCollisions;
 		BindParameters(SipParams isip, int iexpire, bool ialias)
-			: sip(isip), global_expire(iexpire), alias(ialias), usedAsRoute(false) {
+			: sip(isip), global_expire(iexpire), alias(ialias), usedAsRoute(false), enqueueToPreventCollisions(false) {
 		}
 	};
 	static RegistrarDb *get(Agent *ag);

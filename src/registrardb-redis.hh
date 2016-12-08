@@ -109,9 +109,12 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	size_t mCurSlave;
 	su_timer_t *mReplicationTimer;
 	int mSlaveCheckTimeout;
+	std::list<RegistrarUserData*> mQueue;
+	bool mAddToQueue;
 
 	bool handleRedisStatus(const std::string &desc, int redisStatus, RegistrarUserData *data);
 	void onErrorData(RegistrarUserData *data);
+	void dequeueNextRedisCommand();
 
 	/* callbacks */
 	void handleAuthReply(const redisReply *reply);

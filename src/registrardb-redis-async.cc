@@ -57,6 +57,7 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 	std::list<std::string> accept;
 	bool mUsedAsRoute;
 	su_home_t mHome;
+	std::string mQuery;
 
 	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, const sip_contact_t *sip_contact,
 					  const std::string &calld_id, uint32_t cs_seq, const sip_path_t *p, bool alias, int version,
@@ -103,7 +104,7 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag, RedisParameters params)
 	: RegistrarDb(ag->getPreferredRoute()), mAgent(ag), mContext(NULL), mSubscribeContext(NULL),
 	  mDomain(params.domain), mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(ag->getRoot()),
-	  mReplicationTimer(NULL), mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
+	  mReplicationTimer(NULL), mSlaveCheckTimeout(params.mSlaveCheckTimeout), mAddToQueue(false) {
 	mSerializer = RecordSerializer::get();
 	mCurSlave = 0;
 }
@@ -111,7 +112,7 @@ RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag, RedisParameters params)
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(const string &preferredRoute, su_root_t *root, RecordSerializer *serializer, RedisParameters params)
 	: RegistrarDb(preferredRoute), mAgent(NULL), mContext(NULL), mSubscribeContext(NULL),
 	  mDomain(params.domain), mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(root),
-	  mReplicationTimer(NULL), mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
+	  mReplicationTimer(NULL), mSlaveCheckTimeout(params.mSlaveCheckTimeout), mAddToQueue(false) {
 	mSerializer = serializer;
 	mCurSlave = 0;
 }
@@ -507,11 +508,11 @@ void RegistrarDbRedisAsync::sHandleSet(redisAsyncContext *ac, void *r, void *pri
 		} else {
 			data->listener->onError();
 		}
-		delete data;
-		return;
+	} else {
+		LOGD("Sent updated aor:%s [%lu] success", data->key, data->token);
+		data->listener->onRecordFound(&data->record);
 	}
-	LOGD("Sent updated aor:%s [%lu] success", data->key, data->token);
-	data->listener->onRecordFound(&data->record);
+	data->self->dequeueNextRedisCommand();
 	delete data;
 }
 
@@ -604,6 +605,16 @@ void RegistrarDbRedisAsync::shandleAuthReply(redisAsyncContext *ac, void *r, voi
 
 /* Methods called by the callbacks */
 
+void RegistrarDbRedisAsync::dequeueNextRedisCommand() {
+	if (mQueue.size() > 0) {
+		RegistrarUserData *next_data = mQueue.front();
+		mQueue.pop_front();
+		check_redis_command(redisAsyncCommand(mContext, sHandleAorGetReply, next_data, next_data->mQuery.c_str(), next_data->key), next_data);
+	} else {
+		mAddToQueue = false;
+	}
+}
+
 void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *data) {
 	if (reply->len > 0) {
 		if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
@@ -678,7 +689,7 @@ void RegistrarDbRedisAsync::doBind(const RegistrarDb::BindParameters &p, const s
 	}
 
 	RegistrarUserData *data = new RegistrarUserData(this, p.sip.from, p.sip.contact, p.sip.call_id, p.sip.cs_seq,
-													p.sip.path, p.alias, p.version, listener, sHandleBind);
+							p.sip.path, p.alias, p.version, listener, sHandleBind);
 	data->globalExpire = p.global_expire;
 	data->accept = acceptHeaders;
 	data->mUsedAsRoute = p.usedAsRoute;
@@ -694,8 +705,14 @@ void RegistrarDbRedisAsync::doBind(const RegistrarDb::BindParameters &p, const s
 		return;
 	}
 
-	LOGD("Binding aor:%s [%lu]", data->key, data->token);
-	check_redis_command(redisAsyncCommand(mContext, sHandleAorGetReply, data, "GET aor:%s", data->key), data);
+	if (p.enqueueToPreventCollisions && mAddToQueue) {
+		data->mQuery = "GET aor:%s";
+		mQueue.push_back(data);
+	} else {
+		LOGD("Binding aor:%s [%lu]", data->key, data->token);
+		check_redis_command(redisAsyncCommand(mContext, sHandleAorGetReply, data, "GET aor:%s", data->key), data);
+		mAddToQueue = true;
+	}
 }
 
 void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<RegistrarDbListener> &listener) {

@@ -793,7 +793,7 @@ void ModuleRegistrar::readStaticRecords() {
 				int expire = mStaticRecordsTimeout + 5; // 5s to avoid race conditions
 				
 				if (!url || !contact) {
-					LOGF("Static records file %s doesn't respect the expected format: <identity> <identity>,<identity>");
+					LOGF("Static records line %s doesn't respect the expected format: <identity> <identity>,<identity>", line.c_str());
 					continue;
 				}
 
@@ -808,6 +808,7 @@ void ModuleRegistrar::readStaticRecords() {
 															url->m_url /*from*/, &single, fakeCallId, 0, path, NULL),
 														expire, alias);
 					params.version = mStaticRecordsVersion;
+					params.enqueueToPreventCollisions = true;
 					/*if no user part is given, consider it as to be used as a route, that is not changing the
 						* request uri but instead prepend a route*/
 					params.usedAsRoute = (single.m_url->url_user == NULL);
