@@ -240,12 +240,17 @@ class DoSProtection : public Module, ModuleToolbox {
 	}
 	
 	void unbanIP(BanContext *ctx) {
-		char iptables_cmd[512];
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -D %s -p %s -s %s -m multiport --sports %s -j REJECT",
-			mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), ctx->protocol.c_str(), ctx->ip.c_str(), ctx->port.c_str());
-		if (system(iptables_cmd) != 0) {
-			LOGW("iptables command %s failed: %s", iptables_cmd, strerror(errno));
-		}
+		string protocol = ctx->protocol;
+		string ip = ctx->ip;
+		string port = ctx->port;
+		mThreadPool->Enqueue([&, protocol, ip, port] {
+			char iptables_cmd[512];
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -D %s -p %s -s %s -m multiport --sports %s -j REJECT",
+				mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol.c_str(), ip.c_str(), port.c_str());
+			if (system(iptables_cmd) != 0) {
+				LOGW("iptables command %s failed: %s", iptables_cmd, strerror(errno));
+			}
+		});
 		delete ctx;
 	}
 	
@@ -261,7 +266,7 @@ class DoSProtection : public Module, ModuleToolbox {
 		ctx->ip = ip;
 		ctx->port = port;
 		ctx->protocol = protocol;
-		ctx->lambda = std::function<void(BanContext*)>([&](BanContext *ctx){ mThreadPool->Enqueue([&] { unbanIP(ctx); }); });
+		ctx->lambda = [&](BanContext *context) { unbanIP(context); };
 		ctx->timer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
 		su_timer_set_interval(ctx->timer, invokeLambdaFromSofiaTimerCallback, ctx, mBanTime * 60 * 1000);
 	}
