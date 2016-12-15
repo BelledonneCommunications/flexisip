@@ -34,6 +34,7 @@
 #include <sofia-sip/url.h>
 #include "log/logmanager.hh"
 #include "agent.hh"
+#include "module.hh"
 #include <string>
 #include <list>
 
@@ -65,8 +66,8 @@ struct ExtendedContact {
 	std::string mContactId;
 	std::string mCallId;
 	std::string mUniqueId;
-	std::list<std::string> mPath;
-	std::string mSipUri;
+	std::list<std::string> mPath; //list of urls as string (not enclosed with brakets)
+	std::string mSipUri; // a single sip uri (not enclosed with brakets)
 	float mQ;
 	time_t mExpireAt;
 	time_t mUpdatedTime;
@@ -101,12 +102,18 @@ struct ExtendedContact {
 		}
 	}
 
-	static std::string urlToString(su_home_t *home, const url_t *url) {
-		std::string res = ::url_as_string(home, url);
-		if (res.c_str() && res.c_str()[0] != '<')
-			return "<" + res + ">";
-		else
-			return res;
+	static std::string urlToString(const url_t *url) {
+		std::ostringstream ostr;
+		SofiaAutoHome home;
+		char *tmp = url_as_string(home.home(), url);
+		return string(tmp ? tmp : "");
+	}
+	//This function ensures compatibility with old redis record where url was stored with brakets.
+	static std::string compatUrlToString(const char *url){
+		if (url[0] == '<' && url[1] != '\0'){
+			return string(url, 1, strlen(url)-2);
+		}
+		return string(url);
 	}
 	ExtendedContact(const ExtendedContactCommon &common, sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
@@ -115,10 +122,7 @@ struct ExtendedContact {
 		  mUsedAsRoute(false) {
 
 		{
-			su_home_t home;
-			su_home_init(&home);
-			mSipUri = urlToString(&home, sip_contact->m_url);
-			su_home_destroy(&home);
+			mSipUri = urlToString(sip_contact->m_url);
 		}
 
 		if (sip_contact->m_q) {
@@ -134,22 +138,18 @@ struct ExtendedContact {
 	ExtendedContact(const ExtendedContactCommon &common, const char *sipuri, long expireAt, float q, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
 		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
-		  mSipUri(sipuri), mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias),
+		  mSipUri(compatUrlToString(sipuri)), mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias),
 		  mAcceptHeader(acceptHeaders), mUsedAsRoute(false) {
 	}
 
 	ExtendedContact(const url_t *url, const std::string &route)
 		: mContactId(), mCallId(), mUniqueId(), mPath({route}), mSipUri(), mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0),
 		  mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false) {
-
-		su_home_t home;
-		su_home_init(&home);
-		mSipUri = urlToString(&home, url);
-		su_home_destroy(&home);
+		mSipUri = urlToString(url);
 	}
 
 	std::ostream &print(std::ostream &stream, time_t now, time_t offset = 0) const;
-	sip_contact_t *toSofiaContacts(su_home_t *home, time_t now) const;
+	sip_contact_t *toSofiaContact(su_home_t *home, time_t now) const;
 	sip_route_t *toSofiaRoute(su_home_t *home) const;
 };
 

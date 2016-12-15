@@ -62,14 +62,14 @@ ostream &ExtendedContact::print(std::ostream &stream, time_t now, time_t offset)
 	return stream;
 }
 
-sip_contact_t *ExtendedContact::toSofiaContacts(su_home_t *home, time_t now) const {
+sip_contact_t *ExtendedContact::toSofiaContact(su_home_t *home, time_t now) const {
 	sip_contact_t *contact = NULL;
 	time_t expire = mExpireAt - now;
 	if (expire <= 0)
 		return NULL;
 
 	ostringstream oss;
-	oss << mSipUri;
+	oss << "<" << mSipUri << ">";
 	oss << ";expires=" << expire;
 	if (mQ == 0.f) {
 		oss.setf(ios::fixed, ios::floatfield);
@@ -105,7 +105,7 @@ sip_route_t *ExtendedContact::toSofiaRoute(su_home_t *home) const {
 const sip_contact_t *Record::getContacts(su_home_t *home, time_t now) {
 	sip_contact_t *alist = NULL;
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
-		sip_contact_t *current = (*it)->toSofiaContacts(home, now);
+		sip_contact_t *current = (*it)->toSofiaContact(home, now);
 		if (current && alist) {
 			current->m_next = alist;
 		}
@@ -575,7 +575,7 @@ class RecursiveRegistrarDbListener : public RegistrarDbListener,
 				}
 				m_record->pushContact(ec);
 				if (ec->mAlias && m_step > 0) {
-					sip_contact_t *contact = sip_contact_format(&m_home, "%s", ec->mSipUri.c_str());
+					sip_contact_t *contact = sip_contact_format(&m_home, "<%s>", ec->mSipUri.c_str());
 					if (contact) {
 						vectToRecurseOn.push_back(contact);
 					} else {

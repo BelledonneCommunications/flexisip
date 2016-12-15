@@ -285,7 +285,7 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 							shared_ptr<ForkContext> context, const string &targetUris) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	time_t now = getCurrentTime();
-	sip_contact_t *ct = contact->toSofiaContacts(ms->getHome(), now);
+	sip_contact_t *ct = contact->toSofiaContact(ms->getHome(), now);
 	url_t *dest = ct->m_url;
 	const string uid = contact->mUniqueId;
 
@@ -421,7 +421,7 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 
 	const shared_ptr<ExtendedContact> ec = aor->extractContactByUniqueId(uid);
 	if (ec) {
-		contact = ec->toSofiaContacts(home.home(), ec->mExpireAt - 1);
+		contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
 		path = ec->toSofiaRoute(home.home());
 
 		// First use sipURI
@@ -443,7 +443,7 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 			continue;
 
 		// Find all contexts
-		contact = ec->toSofiaContacts(home.home(), ec->mExpireAt - 1);
+		contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
 		path = ec->toSofiaRoute(home.home());
 		auto rang = mForks.equal_range(ec->mSipUri);
 		for (auto ite = rang.first; ite != rang.second; ++ite) {
@@ -594,7 +594,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 	bool nonSipsFound = false;
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
 		const shared_ptr<ExtendedContact> &ec = *it;
-		sip_contact_t *ct = ec->toSofiaContacts(ms->getHome(), now);
+		sip_contact_t *ct = ec->toSofiaContact(ms->getHome(), now);
 		if (!ct) {
 			SLOGE << "Can't create sip_contact of " << ec->mSipUri;
 			continue;
@@ -678,7 +678,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			}
 		} else {
 			if (mFork && context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
-				sip_contact_t *temp_ctt = sip_contact_make(ms->getHome(), ec->mSipUri.c_str());
+				sip_contact_t *temp_ctt = sip_contact_format(ms->getHome(), "<%s>", ec->mSipUri.c_str());
 
 				if (mUseGlobalDomain) {
 					temp_ctt->m_url->url_host = "merged";
