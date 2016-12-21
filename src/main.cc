@@ -38,6 +38,7 @@
 
 #include "agent.hh"
 #include "stun.hh"
+#include "stats.hh"
 #include "module.hh"
 
 #include <cstdlib>
@@ -588,6 +589,7 @@ static string version() {
 int main(int argc, char *argv[]) {
 	shared_ptr<Agent> a;
 	StunServer *stun = NULL;
+	Stats *stats = NULL;
 	bool debug;
 	map<string, string> oset;
 
@@ -864,6 +866,10 @@ int main(int argc, char *argv[]) {
 			stun = new StunServer(cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigInt>("port")->read());
 			stun->start();
 		}
+		
+		stats = new Stats();
+		stats->start();
+		
 		if (trackAllocs)
 			msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
 	}

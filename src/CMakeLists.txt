@@ -78,6 +78,7 @@ set(FLEXISIP_SOURCES
 	uac-register.cc uac-register.hh
 	module-redirect.cc module-presence.cc
 	domain-registrations.cc domain-registrations.hh
+	stats.cc stats.hh
 	${FLEXISIP_UTILS_SRC}
 )
 
