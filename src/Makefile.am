@@ -61,6 +61,7 @@ thesources= \
 			module-mediarelay.cc \
 			module-auth.cc \
 			module-loadbalancer.cc \
+			stats.cc stats.hh \
 			expressionparser.cc expressionparser.hh \
 			sipattrextractor.cc sipattrextractor.hh \
 			h264iframefilter.cc h264iframefilter.hh \
