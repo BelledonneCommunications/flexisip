@@ -11,7 +11,7 @@ configdir=$(sysconfdir)/flexisip
 
 config_DATA=flexisip.conf.sample
 
-dist_bin_SCRIPTS=flexisip_monitor.py
+dist_bin_SCRIPTS=flexisip_monitor.py flexisip_stats.py
 
 all-local:	flexisip.conf.sample
 
