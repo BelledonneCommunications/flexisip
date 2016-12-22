@@ -32,7 +32,7 @@ Stats::Stats() {
 	mRunning = false;
 }
 
-int Stats::start() {
+void Stats::start() {
 	mRunning = true;
 	pthread_create(&mThread, NULL, &Stats::threadfunc, this);
 }
@@ -132,7 +132,7 @@ void Stats::parseAndAnswer(unsigned int socket, const std::string& query) {
 	int size = query_split.size();
 	
 	if (size < 2) {
-		answer = "Error: at least 2 arguments were expected, got " + size;
+		answer = "Error: at least 2 arguments were expected, got " + std::to_string(size);
 	} else {
 		std::string command = query_split.front();
 		std::string arg = query_split.at(1);
@@ -164,7 +164,7 @@ void Stats::parseAndAnswer(unsigned int socket, const std::string& query) {
 				}
 			} else if (strcmp("SET", command.c_str()) == 0) {
 				if (size < 3) {
-					answer = "Error: at least 3 arguments were expected, got " + size;
+					answer = "Error: at least 3 arguments were expected, got " + std::to_string(size);
 				} else {
 					std::string value = query_split.at(2);
 					ConfigValue *config_value = dynamic_cast<ConfigValue *>(entry);
@@ -203,7 +203,7 @@ void Stats::run() {
 	strcpy(local.sun_path, path.c_str());
 	unlink(local.sun_path);
 	local_length = strlen(local.sun_path) + sizeof(local.sun_family);
-	if (bind(local_socket, (struct sockaddr *)&local, local_length) == -1) {
+	if (::bind(local_socket, (struct sockaddr *)&local, local_length) == -1) {
 		LOGE("Bind error%i : %s", errno, std::strerror(errno));
 		stop();
 	}

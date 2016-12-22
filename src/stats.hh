@@ -28,7 +28,7 @@ class Stats {
   public:
 	Stats();
 	~Stats();
-	int start();
+	void start();
 	void stop();
 
   private:
@@ -39,7 +39,8 @@ class Stats {
 	
 	bool mRunning;
 	pthread_t mThread;
-	unsigned int local_socket, remote_socket, remote_length;
+	int local_socket, remote_socket;
+	unsigned int remote_length;
 	struct sockaddr_un local, remote;
 	int local_length;
 };
