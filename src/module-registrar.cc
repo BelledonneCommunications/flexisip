@@ -613,6 +613,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipE
 	// domain registration case, does nothing for the moment
 	if (sipurl->url_user == NULL && !mAllowDomainRegistrations) {
 		LOGE("Not accepting domain registration");
+		SLOGUE << "Not accepting domain registration:  " << url_as_string(ms->getHome(), sipurl);
 		reply(ev, 403, "Domain registration forbidden", NULL);
 		return;
 	}

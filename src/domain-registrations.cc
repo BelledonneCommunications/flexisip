@@ -289,6 +289,7 @@ void DomainRegistration::sOnConnectionBroken(tp_stack_t *stack, tp_client_t *cli
 
 void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp) {
 	int nextSchedule;
+	SofiaAutoHome home;
 
 	if (mTimer) {
 		su_timer_destroy(mTimer);
@@ -296,7 +297,6 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 	}
 	mTimer = su_timer_create(su_root_task(mManager.mAgent->getRoot()), 0);
 	if (resp) {
-		SofiaAutoHome home;
 		msg_t *msg = nta_outgoing_getresponse(orq);
 		SLOGD << "DomainRegistration::responseCallback(): receiving response:" << endl
 			  << msg_as_string(home.home(), msg, msg_object(msg), 0, NULL);
@@ -307,8 +307,10 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 		/*the registration failed for whatever reason. Retry shortly.*/
 		if (!resp){
 			nextSchedule = 1;
+			SLOGUE << "Domain registration error for " << url_as_string(home.home(), mFrom);
 		}else{
 			nextSchedule = 30;
+			SLOGUE << "Domain registration error for " << url_as_string(home.home(), mFrom) << " : " << resp->sip_status->st_status;
 		}
 		LOGD("Domain registration for %s failed, will retry in %i seconds", mFrom->url_host, nextSchedule);
 		su_timer_set_interval(mTimer, &DomainRegistration::sRefreshRegistration, this,

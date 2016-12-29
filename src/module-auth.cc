@@ -507,6 +507,7 @@ class Authentication : public Module {
 				}
 			}
 			LOGE("Client is presenting a TLS certificate not matching its identity.");
+			SLOGUE << "Registration failure for " << url_as_string(home.home(), from) << ", TLS certificate doesn't match its identity";
 		}
 		return false;
 	}
@@ -548,6 +549,7 @@ class Authentication : public Module {
 		auth_mod_t *am = findAuthModule(fromDomain);
 		if (am == NULL) {
 			LOGI("Unknown domain [%s]", fromDomain);
+			SLOGUE << "Registration failure, domain is forbidden: " << fromDomain;
 			ev->reply(403, "Domain forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 			return;
 		}
@@ -560,6 +562,7 @@ class Authentication : public Module {
 		// Reject if absent.
 		if (sip->sip_from->a_url->url_user == NULL) {
 			LOGI("From has no username, cannot authenticate.");
+			SLOGUE << "Registration failure, username not found: " << url_as_string(ms->getHome(), sip->sip_from->a_url);
 			ev->reply(403, "Username must be provided", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 			return;
 		}
@@ -790,8 +793,10 @@ void Authentication::AuthenticationListener::checkPassword(const char *passwd) {
 			mAs->as_blacklist = mAm->am_blacklist;
 		}
 		if (passwd) {
+			SLOGUE << "Registration failure, password did not match";
 			LOGD("auth_method_digest: password '%s' did not match", passwd);
 		} else {
+			SLOGUE << "Registration failure, no password";
 			LOGD("auth_method_digest: no password");
 		}
 
@@ -875,6 +880,8 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am, auth_status_t *a
 
 	if (!ar->ar_username || !as->as_user_uri->url_user || !ar->ar_realm || !as->as_user_uri->url_host) {
 		as->as_status = 403, as->as_phrase = "Authentication info missing";
+		SLOGUE << "Registration failure, authentication info are missing: usernames " << 
+			ar->ar_username << "/" << as->as_user_uri->url_user << ", hosts " << ar->ar_realm << "/" << as->as_user_uri->url_host;
 		LOGD("from and authentication usernames [%s/%s] or from and authentication hosts [%s/%s] empty",
 			 ar->ar_username, as->as_user_uri->url_user, ar->ar_realm, as->as_user_uri->url_host);
 		as->as_response = NULL;

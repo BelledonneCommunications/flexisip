@@ -576,6 +576,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 
 	if (!aor && mGeneratedContactRoute.empty()) {
 		LOGD("This user isn't registered (no aor).");
+		SLOGUE << "User " << url_as_string(ms->getHome(), sipUri) << " isn't registered (no aor)";
 		sendReply(ev, SIP_404_NOT_FOUND);
 		return;
 	}
@@ -616,9 +617,11 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 	if (usable_contacts.size() == 0) {
 		if (nonSipsFound) {
 			/*rfc5630 5.3*/
+			SLOGUE << "Not dispatching request because SIPS not allowed for " << url_as_string(ms->getHome(), sipUri);
 			sendReply(ev, SIP_480_TEMPORARILY_UNAVAILABLE, 380, "SIPS not allowed");
 		} else {
 			LOGD("This user isn't registered (no valid contact).");
+			SLOGUE << "User " << url_as_string(ms->getHome(), sipUri) << " isn't registered (no valid contact)";
 			sendReply(ev, SIP_404_NOT_FOUND);
 		}
 		return;

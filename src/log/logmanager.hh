@@ -73,6 +73,9 @@ inline std::basic_istream<CharT, TraitsT> &operator>>(std::basic_istream<CharT, 
 #ifndef FLEXISIP_LOG_DOMAIN
 #define FLEXISIP_LOG_DOMAIN "flexisip"
 #endif
+#ifndef FLEXISIP_USER_ERRORS_LOG_DOMAIN
+#define FLEXISIP_USER_ERRORS_LOG_DOMAIN "flexisip-users"
+#endif
 
 #define BCTBX_LOG_DOMAIN FLEXISIP_LOG_DOMAIN
 #include <syslog.h>
@@ -88,6 +91,7 @@ typedef std::ostream flexisip_record_type;
 #define SLOGI BCTBX_SLOGI(FLEXISIP_LOG_DOMAIN)
 #define SLOGW BCTBX_SLOGW(FLEXISIP_LOG_DOMAIN)
 #define SLOGE BCTBX_SLOGE(FLEXISIP_LOG_DOMAIN)
+#define SLOGUE BCTBX_SLOGE(FLEXISIP_USER_ERRORS_LOG_DOMAIN)
 
 #define LOGV(thelevel, thefmt, theargs) LOGDV((thefmt), (theargs))
 #define LOGDV(thefmt, theargs) bctbx_logv(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_DEBUG, (thefmt), (theargs))
@@ -149,7 +153,7 @@ do {                                                                            
  namespace flexisip {
  	namespace log {
 
- 		void initLogs(bool syslog, bool debug, std::string level);
+ 		void initLogs(bool syslog, bool debug, std::string level, bool user_errors);
 
  		bool validateFilter(const std::string &filterstr);
 
