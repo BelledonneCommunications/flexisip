@@ -111,6 +111,7 @@ class OutgoingTransaction : public Transaction,
 	const std::string &getBranchId() const;
 	int getResponseCode() const;
 	~OutgoingTransaction();
+	std::shared_ptr<MsgSip> getRequestMsg();
 
 	inline virtual Agent *getAgent() {
 		return Transaction::getAgent();

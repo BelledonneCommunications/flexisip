@@ -693,7 +693,13 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) throw(Flexisi
 
 	if (reSip->sip_status->st_status == 200) {
 		// Warning: here we give the RESPONSE sip message
-		const sip_expires_t *expires = reSip->sip_expires;
+		const sip_expires_t *expires;
+		shared_ptr<MsgSip> request = transaction->getRequestMsg();
+		if (request) {
+			expires = request->getSip()->sip_expires;
+		} else {
+			expires = reSip->sip_expires;
+		}
 		const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
 		auto listener = make_shared<OnResponseBindListener>(this, ev, transaction, context);
 

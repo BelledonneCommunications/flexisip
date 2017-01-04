@@ -79,10 +79,21 @@ const url_t *OutgoingTransaction::getRequestUri() const {
 
 int OutgoingTransaction::getResponseCode() const {
 	if (mOutgoing == NULL) {
-		LOGE("OutgoingTransaction::getRequestUri(): transaction not started !");
+		LOGE("OutgoingTransaction::getResponseCode(): transaction not started !");
 		return 0;
 	}
 	return nta_outgoing_status(mOutgoing);
+}
+
+shared_ptr<MsgSip> OutgoingTransaction::getRequestMsg() {
+	if (mOutgoing == NULL) {
+		LOGE("OutgoingTransaction::getRequestMsg(): transaction not started !");
+		return NULL;
+	}
+	msg_t *msg = nta_outgoing_getrequest(mOutgoing);
+	auto request = make_shared<MsgSip>(msg);
+	msg_destroy(msg);
+	return request;
 }
 
 void OutgoingTransaction::send(const shared_ptr<MsgSip> &ms, url_string_t const *u, tag_type_t tag, tag_value_t value,
