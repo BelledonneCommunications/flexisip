@@ -440,7 +440,7 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		belle_sip_object_ref(entity); // initial ref = 0;
 
 		if (!(presenceInfo = getPresenceInfo(entity))) {
-			presenceInfo.reset(new PresentityPresenceInformation(entity, *this, belle_sip_stack_get_main_loop(mStack)));
+			presenceInfo = make_shared<PresentityPresenceInformation>(entity, *this, belle_sip_stack_get_main_loop(mStack));
 			SLOGD << "New Presentity [" << *presenceInfo << "] created from PUBLISH";
 			// for (const belle_sip_uri_t* : mPresenceInformations.keys())
 			addPresenceInfo(presenceInfo);
@@ -815,8 +815,8 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 	std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
 	if (presenceInfo == NULL) {
 		/*no information available yet, but creating entry to be able to register subscribers*/
-		presenceInfo.reset(new PresentityPresenceInformation(listener->getPresentityUri(), *this,
-															 belle_sip_stack_get_main_loop(mStack)));
+		presenceInfo = make_shared<PresentityPresenceInformation>(listener->getPresentityUri(), *this,
+															 belle_sip_stack_get_main_loop(mStack));
 		SLOGD << "New Presentity [" << *presenceInfo << "] created from SUBSCRIBE";
 		addPresenceInfo(presenceInfo);
 	}

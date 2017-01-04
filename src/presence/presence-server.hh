@@ -59,7 +59,7 @@ struct NewPresenceInfoEvent {
 	virtual void onNewPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& info) const = 0;
 };
 
-class PresenceServer :  PresentityManager {
+class PresenceServer : public PresentityManager {
 public:
 	PresenceServer() throw (FlexisipException);
 	~PresenceServer();
