@@ -228,7 +228,7 @@ if [ $1 = 1 ]; then
 	service flexisip start
 
 	/sbin/chkconfig --add flexisip-presence
-	/sbin/chkconfig flexisip-presence off
+	/sbin/chkconfig flexisip-presence on
 	service flexisip-presence start
 fi
 
