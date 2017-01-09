@@ -120,11 +120,9 @@ static std::string printSection(GenericStruct *gstruct, bool printHelpInsteadOfV
 }
 
 static void updateLogsVerbosity(GenericManager *manager) {
-	std::string debug_enabled = manager->getGlobal()->get<ConfigBoolean>("debug")->get();
-	bool debug = strcmp("1", debug_enabled.c_str()) == 0 || strcmp("true", debug_enabled.c_str()) == 0;
 	std::string loglevel = manager->getGlobal()->get<ConfigString>("log-level")->get();
 	bool user_errors = manager->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
-	flexisip::log::initLogs(sUseSyslog, debug, loglevel, user_errors);
+	flexisip::log::initLogs(sUseSyslog, loglevel, user_errors);
 }
 
 void Stats::parseAndAnswer(unsigned int socket, const std::string& query) {

@@ -742,8 +742,7 @@ GenericManager::GenericManager()
 	  mReader(&mConfigRoot), mNotifier(NULL) {
 	// to make sure global_conf is instanciated first
 	static ConfigItemDescriptor global_conf[] = {
-		{Boolean, "debug", "Outputs very detailed logs", "false"},
-		{String, "log-level", "Verbosity of logs to output if debug is enabled. Possible values are debug, message, warning and error", "debug"},
+		{String, "log-level", "Verbosity of logs to output. Possible values are debug, message, warning and error", "error"},
 		{Boolean, "user-errors-logs", "Log (on a different log domain) user errors like authentication, registration, routing, etc...", "false"},
 		{Boolean, "dump-corefiles", "Generate a corefile when crashing. "
 			"Note that by default linux will generate coredumps in '/' which is not so convenient. The following shell command can be added to"
@@ -810,6 +809,7 @@ GenericManager::GenericManager()
 		{String, "unique-id", "Unique ID used to identify that instance of Flexisip. It must be a randomly generated "
 			"16-sized hexadecimal number. If empty, it will be randomly generated at each start of Flexisip.", ""},
 		{Boolean, "use-maddr", "Allow flexisip to use maddr in sips connections to verify the CN of the TLS certificate", "false"},
+		{Boolean, "debug", "Outputs very detailed logs", "false"},
 		config_item_end};
 
 	static ConfigItemDescriptor cluster_conf[] = {
@@ -832,6 +832,7 @@ GenericManager::GenericManager()
 	GenericStruct *global = new GenericStruct("global", "Some global settings of the flexisip proxy.", 2);
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
+	global->get<ConfigBoolean>("debug")->setDeprecated(true);
 	global->setConfigListener(this);
 
 	ConfigString *version = new ConfigString("version-number", "Flexisip version.", PACKAGE_VERSION, 999);

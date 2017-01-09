@@ -667,7 +667,7 @@ int main(int argc, char *argv[]) {
 	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs &&
 		!dumpAll) {
 		ortp_init();
-		flexisip::log::preinit(useSyslog.getValue(), useDebug.getValue());
+		flexisip::log::preinit(useSyslog.getValue(), debug);
 	} else {
 		flexisip::log::disableGlobally();
 	}
@@ -733,9 +733,11 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	if (!debug)
-		debug = cfg->getGlobal()->get<ConfigBoolean>("debug")->read();
-
+	if (!debug){
+		if (cfg->getGlobal()->get<ConfigBoolean>("debug")->read()){
+			debug = true;
+		}
+	}
 	bool dump_cores = cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
 	
 	bool startProxy = false;
@@ -769,7 +771,7 @@ int main(int argc, char *argv[]) {
 	// Initialize
 	std::string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
 	bool user_errors = cfg->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
-	flexisip::log::initLogs(useSyslog, debug, log_level, user_errors);
+	flexisip::log::initLogs(useSyslog, debug ? "debug" : log_level, user_errors);
 	//flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
 	
 	signal(SIGPIPE, SIG_IGN);
@@ -807,7 +809,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	su_log_redirect(NULL, sofiaLogHandler, NULL);
-	if (useDebug) {
+	if (debug || log_level == "debug") {
 		su_log_set_level(NULL, 9);
 	}
 	/*
