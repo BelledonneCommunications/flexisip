@@ -26,7 +26,7 @@
 
 class Stats {
   public:
-	Stats();
+	Stats(const std::string &name);
 	~Stats();
 	void start();
 	void stop();
@@ -37,6 +37,7 @@ class Stats {
 	GenericEntry* find(GenericStruct *root, std::vector<std::string> &path);
 	static void *threadfunc(void *arg);
 	
+	std::string mName;
 	bool mRunning;
 	pthread_t mThread;
 	int local_socket, remote_socket;

@@ -589,7 +589,8 @@ static string version() {
 int main(int argc, char *argv[]) {
 	shared_ptr<Agent> a;
 	StunServer *stun = NULL;
-	Stats *stats = NULL;
+	Stats *proxy_stats = NULL;
+	Stats *presence_stats = NULL;
 	bool debug;
 	map<string, string> oset;
 
@@ -871,8 +872,8 @@ int main(int argc, char *argv[]) {
 			stun->start();
 		}
 		
-		stats = new Stats();
-		stats->start();
+		proxy_stats = new Stats("proxy");
+		proxy_stats->start();
 		
 		if (trackAllocs)
 			msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
@@ -895,6 +896,9 @@ int main(int argc, char *argv[]) {
 		}else{
 			presenceServer->run();
 		}
+		
+		presence_stats = new Stats("presence");
+		presence_stats->start();
 #endif
 	}
 	

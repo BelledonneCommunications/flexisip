@@ -1,16 +1,28 @@
 #!/usr/bin/python2
 # -*-coding:Utf-8 -*
 
-def print_usage():
-	print './flexisip_stats.py [-p/--pid pid] [-n/--name service-name] [-s/--socket path_to_unix_socket] <GET/SET/LIST> <"all"/path_to_value> [value_to_set]'
+import sys
 
-def getpid(processName):
+def print_usage():
+	print 'Usage: ./flexisip_stats.py [-p/--pid <pid>] [-s/--server "proxy"/"presence"] <GET/SET/LIST> <"all"/path_to_value> [value_to_set]'
+
+def getpid(serverType):
 	from subprocess import check_output, CalledProcessError
+	
+	pid = '/var/run/flexisip.pid'
+	if serverType == 'presence':
+		pid = '/var/run/flexisip-presence.pid'
+		
 	try:
-		return int(check_output(['pidof', '-s', processName]))
+		return int(check_output(['cat', pid]))
 	except CalledProcessError:
-		import sys
-		print 'Error, could not find flexisip process pid. Is it running ?'
+		pass
+	
+	try:
+		return int(check_output(['pidof', '-s', 'flexisip']))
+	except CalledProcessError:
+		print 'Error: could not find flexisip process pid.'
+		print_usage()
 		sys.exit(2)
 
 def sendMessage(remote_socket, message):
@@ -22,23 +34,35 @@ def sendMessage(remote_socket, message):
 		s.send(message)
 		
 		print s.recv(2048)
-	except RuntimeError as e:
-		print e
+	except socket.error:
+		print 'Error: could not connect to the socket.'
 	s.close()
 	
 def main():
 	import getopt
-	import sys
 	
-	socket = ''
-	socket_path = '/tmp/flexisip-'
-	processName = 'flexisip'
+	socket_path_base = '/tmp/flexisip-'
+	socket_path_server = 'proxy-'
+	serverType = 'proxy'
 	pid = 0
-		
+	
 	try:
-		options, args = getopt.getopt(sys.argv[1:], 'hp:s:', ['help', 'pid=', 'socket='])
+		options, args = getopt.getopt(sys.argv[1:], 'hp:s:', ['help', 'pid=', 'server='])
 	except getopt.GetoptError as err:
-		print str(err)
+		print_usage()
+		sys.exit(2)
+		
+	if len(args) < 2:
+		print 'Error: at least 2 arguments expected'
+		print_usage()
+		sys.exit(2)
+		
+	if not args[0] in ['GET', 'SET', 'LIST']:
+		print 'Error: command must be either GET, SET or LIST'
+		print_usage()
+		sys.exit(2)
+		
+	if args[0] == "SET" and len(args) < 3:
 		print_usage()
 		sys.exit(2)
 
@@ -48,15 +72,17 @@ def main():
 			sys.exit(0)
 		elif option in ('-p', '--pid'):
 			pid = int(arg)
-		elif option in ('-s', '--socket'):
-			socket = arg
-		elif option in ('-n', '--name'):
-			processName = arg
+		elif option in ('-s', '--server'):
+			serverType = arg
+			
+	if not serverType in ['proxy', 'presence']:
+		print 'Error: server must be either "proxy" (default) or "presence"'
+		print_usage()
+		sys.exit(2)
 		
-	if socket == '':
-		if pid == 0:
-			pid = getpid(processName)
-		socket = socket_path + str(pid)
+	if pid == 0:
+		pid = getpid(serverType)
+	socket = socket_path_base + socket_path_server + str(pid)
 	
 	message = ' '.join(str(x) for x in args)
 	sendMessage(socket, message)

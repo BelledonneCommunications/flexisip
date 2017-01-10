@@ -28,7 +28,8 @@
 #include "stats.hh"
 #include "log/logmanager.hh"
 
-Stats::Stats() {
+Stats::Stats(const std::string &name) {
+	mName = name;
 	mRunning = false;
 }
 
@@ -197,7 +198,7 @@ void Stats::run() {
 	}
 	local.sun_family = AF_UNIX;
 	int pid = getpid();
-	std::string path = "/tmp/flexisip-" + std::to_string(pid);
+	std::string path = "/tmp/flexisip-" + mName + "-" + std::to_string(pid);
 	SLOGD << "Statistics socket is at " << path;
 	strcpy(local.sun_path, path.c_str());
 	unlink(local.sun_path);
