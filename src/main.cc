@@ -885,7 +885,7 @@ int main(int argc, char *argv[]) {
 		presenceServer = make_shared<flexisip::PresenceServer>();
 		if (enableLongTermPresence) {
 			auto presenceLongTerm = make_shared<flexisip::PresenceLongterm>(presenceServer->getBelleSipMainLoop());
-			presenceServer->addNewPresenceInfoListener(presenceLongTerm);
+			presenceServer->addPresenceInfoObserver(presenceLongTerm);
 		}
 		if (daemonMode) {
 			notifyWatchDog();

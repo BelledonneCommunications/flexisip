@@ -56,9 +56,6 @@ void _belle_sip_log(const char *domain, BctbxLogLevel lev, const char *fmt, va_l
 	LOGV(level, fmt, args);
 }
 
-NewPresenceInfoEvent::~NewPresenceInfoEvent(){
-}
-
 PresenceServer::Init PresenceServer::sStaticInit;
 
 PresenceServer::Init::Init() {
@@ -751,19 +748,19 @@ void PresenceServer::addPresenceInfo(const std::shared_ptr<PresentityPresenceInf
 		throw FLEXISIP_EXCEPTION << "Presence information element already exist for" << presenceInfo;
 	}
 	mPresenceInformations[presenceInfo->getEntity()] = presenceInfo;
-	for (auto& listener : mAddPresenceInfoListeners) {
+	for (auto& listener : mPresenceInfoObservers) {
 		listener->onNewPresenceInfo(presenceInfo);
 	}
 }
 
-void PresenceServer::addNewPresenceInfoListener(const std::shared_ptr<NewPresenceInfoEvent> &listener) {
-	mAddPresenceInfoListeners.push_back(listener);
+void PresenceServer::addPresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &observer) {
+	mPresenceInfoObservers.push_back(observer); 
 }
 
-void PresenceServer::removeNewPresenceInfoListener(const std::shared_ptr<NewPresenceInfoEvent> &listener) {
-	auto it = find(mAddPresenceInfoListeners.begin(), mAddPresenceInfoListeners.end(), listener);
-	if (it != mAddPresenceInfoListeners.end()) {
-		mAddPresenceInfoListeners.erase(it);
+void PresenceServer::removePresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &listener) {
+	auto it = find(mPresenceInfoObservers.begin(), mPresenceInfoObservers.end(), listener);
+	if (it != mPresenceInfoObservers.end()) {
+		mPresenceInfoObservers.erase(it);
 	} else {
 		SLOGW << "No such listener " << listener << " registered, ignoring.";
 	}
@@ -820,6 +817,12 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 		SLOGD << "New Presentity [" << *presenceInfo << "] created from SUBSCRIBE";
 		addPresenceInfo(presenceInfo);
 	}
+	
+	//notify observers that a listener is added or updated
+	for (auto& listener : mPresenceInfoObservers) {
+		listener->onListenerEvent(presenceInfo);
+	}
+	
 	if (expires > 0)
 		presenceInfo->addOrUpdateListener(listener, expires);
 	else
