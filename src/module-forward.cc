@@ -139,8 +139,15 @@ url_t *ForwardModule::getDestinationFromRoute(su_home_t *home, sip_t *sip) {
 
 static bool isUs(Agent *ag, sip_route_t *r) {
 	msg_param_t param = msg_params_find(r->r_params, "fs-proxy-id");
-	if (param && strcmp(param, ag->getUniqueId().c_str()) == 0)
+	if (param && strcmp(param, ag->getUniqueId().c_str()) == 0) {
 		return true;
+	}
+	char proxyid[16];
+	if (url_param(r->r_url->url_params, "fs-proxy-id", proxyid, sizeof(proxyid))) {
+		if (strcmp(proxyid, ag->getUniqueId().c_str()) == 0) {
+			return true;
+		}
+	}
 	return ag->isUs(r->r_url);
 }
 
