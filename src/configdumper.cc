@@ -258,6 +258,41 @@ ostream &MediaWikiConfigDumper::dumpModuleEnd(std::ostream &ostr, const GenericS
 	return ostr;
 }
 
+
+ostream &XWikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, int level) const {
+	// we have a generic struc: we're on top level: get module name and description
+	ostr << "=" << cs->getPrettyName() << "=" << endl;
+	ostr << endl << cs->getHelp() << endl;
+	ostr << "----" << endl;
+	ostr << endl << "Configuration options:" << endl;
+
+	ostr << "|=(style=\"text-align: center; border: 1px solid #999\" %)Name" << endl;
+	ostr << "|=(style=\"text-align: center; border: 1px solid #999\" %)Description" << endl;
+	ostr << "|=(style=\"text-align: center; border: 1px solid #999\" %)Default Value" << endl;
+	ostr << "|=(style=\"text-align: center; border: 1px solid #999\" %)Type" << endl;
+
+	return ostr;
+}
+
+ostream &XWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, int level) const {
+	if (!val->isDeprecated()) {
+
+		// XWiki handles line breaks with double backspaces
+		string help = val->getHelp();
+		escaper(help, '\n', "\n ");
+		escaper(help, '`', "'' ");
+
+		ostr << "|=(style=\"text-align: left; border: 1px solid #999\" %)" << val->getName()  << endl
+			 << "|" << help << endl
+			 << "|(style=\"text-align: center; border: 1px solid #999\" %) ###" << val->getDefault() << "###" << endl
+			 << "|(style=\"text-align: center;\" %)" << val->getTypeName() << endl;
+	}
+	return ostr;
+}
+
+
+
+
 /* MIB */
 
 ostream &MibDumper::dump(ostream &ostr) const {

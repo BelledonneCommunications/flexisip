@@ -151,6 +151,16 @@ class MediaWikiConfigDumper : public ConfigDumper {
 	virtual std::ostream &dumpModuleEnd(std::ostream &ostr, const GenericStruct *value, int level) const;
 };
 
+class XWikiConfigDumper : public ConfigDumper {
+  public:
+	XWikiConfigDumper(GenericEntry *root) : ConfigDumper(root) {
+	}
+
+  protected:
+	virtual std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const;
+	virtual std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const;
+};
+
 class MibDumper : public ConfigDumper {
   public:
 	MibDumper(GenericEntry *root) : ConfigDumper(root) {

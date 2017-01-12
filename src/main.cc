@@ -506,6 +506,8 @@ static int dump_config(su_root_t *root, const std::string &dump_cfg_part, bool w
 		dumper = new FileConfigDumper(rootStruct);
 	} else if (format == "media") {
 		dumper = new MediaWikiConfigDumper(rootStruct);
+	} else if (format == "xwiki") {
+		dumper = new XWikiConfigDumper(rootStruct);
 	} else {
 		cerr << "Invalid output format '" << format << "'" << endl;
 		return EXIT_FAILURE;
