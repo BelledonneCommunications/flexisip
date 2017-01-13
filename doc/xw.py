@@ -10,7 +10,7 @@ import ConfigParser
 default_host="http://wiki-test.linphone.org:8080/xwiki/rest/wikis/public/spaces/Flexisip/spaces/Modules%20Reference%20Guide/pages/"
 
 # read from a configuration file for user/pass/host. This allows for out-of-cli specification of these parameters.
-config_file     = '˜./flexiwiki.x.cfg'
+config_file     = '~/.flexiwiki.x.cfg'
 config_section  = 'main'
 config_password = None
 config_user     = None
