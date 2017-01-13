@@ -282,10 +282,10 @@ ostream &XWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValu
 		escaper(help, '\n', "\n ");
 		escaper(help, '`', "'' ");
 
-		ostr << "|=(% style=\"text-align: left; border: 1px solid #999\" %)" << val->getName() 
-			 << "|" << help 
-			 << "|(% style=\"text-align: center; border: 1px solid #999\" %) ###" << val->getDefault() << "###" 
-			 << "|(% style=\"text-align: center;\" %)" << val->getTypeName() << endl;
+		ostr << "|=(% style=\"text-align: left;  vertical-align: middle; border: 1px solid #999\" %)" << val->getName() 
+			 << "|(% style=\"text-align: center; border: 1px solid #999\" %)" << help 
+			 << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %) ##" << val->getDefault() << "##" 
+			 << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %)" << val->getTypeName() << endl;
 	}
 	return ostr;
 }
