@@ -266,10 +266,10 @@ ostream &XWikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStru
 	ostr << "----" << endl;
 	ostr << endl << "Configuration options:" << endl;
 
-	ostr << "|=(style=\"text-align: center; border: 1px solid #999\" %)Name" << endl;
-	ostr << "|=(style=\"text-align: center; border: 1px solid #999\" %)Description" << endl;
-	ostr << "|=(style=\"text-align: center; border: 1px solid #999\" %)Default Value" << endl;
-	ostr << "|=(style=\"text-align: center; border: 1px solid #999\" %)Type" << endl;
+	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Name";
+	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Description" ;
+	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Default Value" ;
+	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Type" << endl;
 
 	return ostr;
 }
@@ -282,10 +282,10 @@ ostream &XWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValu
 		escaper(help, '\n', "\n ");
 		escaper(help, '`', "'' ");
 
-		ostr << "|=(style=\"text-align: left; border: 1px solid #999\" %)" << val->getName()  << endl
-			 << "|" << help << endl
-			 << "|(style=\"text-align: center; border: 1px solid #999\" %) ###" << val->getDefault() << "###" << endl
-			 << "|(style=\"text-align: center;\" %)" << val->getTypeName() << endl;
+		ostr << "|=(% style=\"text-align: left; border: 1px solid #999\" %)" << val->getName() 
+			 << "|" << help 
+			 << "|(% style=\"text-align: center; border: 1px solid #999\" %) ###" << val->getDefault() << "###" 
+			 << "|(% style=\"text-align: center;\" %)" << val->getTypeName() << endl;
 	}
 	return ostr;
 }
