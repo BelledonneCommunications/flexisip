@@ -75,7 +75,6 @@ host = config_host+modulename
 connect = config_user + ":" +config_password 
 filename = "@"+modulename + ".xwiki.txt"
 
-#curl -u "Buildbot:Fa6Ucranades&ewa" -X PUT --data-binary "@$modulename.$_format.txt" -H "Content-Type: text/plain" "http://wiki-test.linphone.org:8080/xwiki/rest/wikis/public/spaces/Flexisip/spaces/Modules%20Reference%20Guide/pages/$modulename"
 p = subprocess.Popen(['curl', '-u', connect ,  '-X', 'PUT', '--data-binary' , \
 						filename, '-H', "Content-Type:text/plain", host ], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
 out, err = p.communicate()
