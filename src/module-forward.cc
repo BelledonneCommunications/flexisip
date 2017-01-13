@@ -142,11 +142,11 @@ static bool isUs(Agent *ag, sip_route_t *r) {
 	if (param && strcmp(param, ag->getUniqueId().c_str()) == 0) {
 		return true;
 	}
-	char proxyid[16];
+	char proxyid[32] = {0};
 	if (url_param(r->r_url->url_params, "fs-proxy-id", proxyid, sizeof(proxyid))) {
-		if (strcmp(proxyid, ag->getUniqueId().c_str()) == 0) {
-			return true;
-		}
+			if (strcmp(proxyid, ag->getUniqueId().c_str()) == 0) {
+					return true;
+			}
 	}
 	return ag->isUs(r->r_url);
 }
