@@ -218,8 +218,13 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 							TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TPTAG_SERVER(0),
 							TAG_END());
 	}
-	tpn.tpn_ident = localDomain.c_str();
-	mPrimaryTport = tport_by_name(nta_agent_tports(agent), &tpn);
+	
+	if(tport_name_by_url(&mHome, &tpn, (url_string_t*)parent_proxy) == 0){
+		mPrimaryTport = tport_by_name(nta_agent_tports(agent), &tpn);
+	}else{
+        	mPrimaryTport = NULL;
+        }
+    
 	if (!mPrimaryTport) {
 		LOGF("Could not find the tport we just added in the agent.");
 	}
