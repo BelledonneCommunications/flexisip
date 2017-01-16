@@ -65,17 +65,18 @@ if config_password is None or config_password is '':
 p = subprocess.Popen(['../bc-flexisip-1.0.10/src/flexisip', '--dump-format','xwiki', '--dump-default', module ], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
 
 out, err = p.communicate()
+if out is not "":
+	f = open(args.outputfile, 'w')
+	f.write(out)
+	f.close()
 
-f = open(args.outputfile, 'w')
-f.write(out)
-f.close()
 
+	host = config_host+modulename
+	connect = config_user + ":" +config_password 
+	filename = "@"+modulename + ".xwiki.txt"
 
-host = config_host+modulename
-connect = config_user + ":" +config_password 
-filename = "@"+modulename + ".xwiki.txt"
-
-p = subprocess.Popen(['curl', '-u', connect ,  '-X', 'PUT', '--data-binary' , \
-						filename, '-H', "Content-Type:text/plain", host ], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
-out, err = p.communicate()
-print out, err
+	p = subprocess.Popen(['curl', '-u', connect ,  '-X', 'PUT', '--data-binary' , \
+							filename, '-H', "Content-Type:text/plain", host ], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
+	out, err = p.communicate()
+	print out, err
+	
