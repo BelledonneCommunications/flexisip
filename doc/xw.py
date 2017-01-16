@@ -28,12 +28,12 @@ except Exception, e:
 
 # parse cli arguments
 parser = argparse.ArgumentParser(description='Send the Flexisip documentation to the Wiki. All options passed override the config file.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
 parser.add_argument('modulename',            help='the module name')
 parser.add_argument('outputfile',            help='the module output doc file')
 parser.add_argument('--host',           default=default_host, help='the host to which we should send the documentation')
 parser.add_argument('-p', '--password', default='',           help='the password to authenticate to the server', dest='config_password')
 parser.add_argument('-u', '--user',     default='',   help='the user to authenticate to the server', dest='config_user')
+
 
 args = parser.parse_args()
 module = "module::"+args.modulename
@@ -62,10 +62,14 @@ if config_password is None or config_password is '':
 	sys.exit(1)
 
 
-p = subprocess.Popen(['../bc-flexisip-1.0.10/src/flexisip', '--dump-format','xwiki', '--dump-default', module ], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
+p = subprocess.Popen(['../bc-flexisip-1.0.10/src/flexisip', '--dump-format','xwiki', '--dump-default', module], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
 
 out, err = p.communicate()
 if out is not "":
+	message = "// Documentation based on repostory git version commit "
+	d = subprocess.Popen(['git', 'describe'], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
+	gitout, giterr = d.communicate()
+	out = message +gitout + "// \n" + out 
 	f = open(args.outputfile, 'w')
 	f.write(out)
 	f.close()
@@ -79,4 +83,3 @@ if out is not "":
 							filename, '-H', "Content-Type:text/plain", host ], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
 	out, err = p.communicate()
 	print out, err
-	
