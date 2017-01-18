@@ -197,7 +197,6 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 	bool usingTls;
 	int verifyPolicy = mgr.mVerifyServerCerts ? TPTLS_VERIFY_OUT | TPTLS_VERIFY_SUBJECTS_OUT : TPTLS_VERIFY_NONE;
 	nta_agent_t *agent = mManager.mAgent->getSofiaAgent();
-	unsigned int keepAliveInterval = mgr.mKeepaliveInterval * 1000;
 
 	su_home_init(&mHome);
 	mFrom = url_format(&mHome, "%s:%s", parent_proxy->url_type == url_sips ? "sips" : "sip", localDomain.c_str());
@@ -207,21 +206,21 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 
 	usingTls = parent_proxy->url_type == url_sips || strcasecmp(transport, "tls") == 0;
 
-	tportUri = url_format(&mHome, "%s:*:*", usingTls ? "sips" : "sip");
+	tportUri = url_format(&mHome, "%s:*:0", usingTls ? "sips" : "sip");
 
 	if (usingTls && !clientCertdir.empty()) {
+		/* need to add a new tport because we want to use a specific certificate for this connection*/
 		nta_agent_add_tport(agent, (url_string_t *)tportUri, TPTAG_CERTIFICATE(clientCertdir.c_str()),
-							TPTAG_IDENT(localDomain.c_str()), TPTAG_KEEPALIVE(keepAliveInterval),
-							TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TPTAG_SERVER(0), TAG_END());
+							TPTAG_IDENT(localDomain.c_str()),
+							TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TAG_END());
+		tpn.tpn_ident = localDomain.c_str();
+		mPrimaryTport = tport_by_name(nta_agent_tports(agent), &tpn);
+		if (!mPrimaryTport) {
+			LOGF("Could not find the tport we just added in the agent.");
+		}
 	} else {
-		nta_agent_add_tport(agent, (url_string_t *)tportUri, TPTAG_IDENT(localDomain.c_str()),
-							TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TPTAG_SERVER(0),
-							TAG_END());
-	}
-	tpn.tpn_ident = localDomain.c_str();
-	mPrimaryTport = tport_by_name(nta_agent_tports(agent), &tpn);
-	if (!mPrimaryTport) {
-		LOGF("Could not find the tport we just added in the agent.");
+		/*otherwise we can use the agent's already existing transports*/
+		mPrimaryTport = nta_agent_tports(agent);
 	}
 
 	mLeg = nta_leg_tcreate(agent, sLegCallback, (nta_leg_magic_t *)this, NTATAG_METHOD("REGISTER"),
@@ -324,9 +323,11 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 		}
 	} else {
 		tport_t *tport = nta_outgoing_transport(orq);
+		unsigned int keepAliveInterval = mManager.mKeepaliveInterval * 1000;
+		
 		cleanCurrentTport();
 		mCurrentTport = tport;
-		tport_set_params(tport, TPTAG_SDWN_ERROR(1), TAG_END());
+		tport_set_params(tport, TPTAG_SDWN_ERROR(1), TPTAG_KEEPALIVE(keepAliveInterval), TAG_END());
 		mPendId = tport_pend(tport, NULL, &DomainRegistration::sOnConnectionBroken, (tp_client_t *)this);
 		nextSchedule = ((getExpires(orq, resp) * 90) / 100) + 1;
 		LOGD("Scheduling next domain register refresh for %s in %i seconds", mFrom->url_host, nextSchedule);
