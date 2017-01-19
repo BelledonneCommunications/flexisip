@@ -150,7 +150,12 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 * return true if a presence info is already known from a publish
 	 */
 	bool isKnown();
-
+	
+	/*
+	 * return true if a presence info has a default presence value previously set by setDefaultElement
+	 */
+	bool hasDefaultElement();
+	
 	/*
 	 * return number of current listeners (I.E subscriber)
 	 */

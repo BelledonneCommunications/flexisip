@@ -282,9 +282,11 @@ void PresentityPresenceInformation::removeListener(const shared_ptr<PresentityPr
 	//			 successful unsubscription will also trigger a final NOTIFY message.
 	listener->onInformationChanged(*this);
 }
-
+bool PresentityPresenceInformation::hasDefaultElement() {
+	return mDefaultInformationElement != nullptr;
+}
 bool PresentityPresenceInformation::isKnown() {
-	return mInformationElements.size() > 0 || mDefaultInformationElement != nullptr;
+	return mInformationElements.size() > 0 || hasDefaultElement();
 }
 string PresentityPresenceInformation::getPidf() throw(FlexisipException) {
 	stringstream out;

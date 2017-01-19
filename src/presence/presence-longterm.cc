@@ -64,7 +64,7 @@ void PresenceLongterm::onNewPresenceInfo(const std::shared_ptr<PresentityPresenc
 	//AuthDbBackend::get()->getUserWithPhone(belle_sip_uri_get_user(info->getEntity()), belle_sip_uri_get_host(info->getEntity()), new PresenceAuthListener(mMainLoop, info));
 }
 void PresenceLongterm::onListenerEvent(const std::shared_ptr<PresentityPresenceInformation>& info) const {
-	if (!info->isKnown()) {
+	if (!info->hasDefaultElement()) {
 		//no presence information know yet, so ask again to the db.
 		const belle_sip_uri_t* uri = info->getEntity();
 		SLOGD << "No presence info element known yet for " << belle_sip_uri_get_user(uri) << ", checking if this user is already registered";
