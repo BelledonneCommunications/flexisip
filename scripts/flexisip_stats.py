@@ -33,7 +33,7 @@ def sendMessage(remote_socket, message):
 		s.connect(remote_socket)
 		s.send(message)
 		
-		print s.recv(2048)
+		print s.recv(8192)
 	except socket.error:
 		print 'Error: could not connect to the socket.'
 	s.close()
