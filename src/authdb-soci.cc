@@ -124,41 +124,57 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 	steady_clock::time_point stop;
 	std::string pass;
 	session *sql = NULL;
+	int errorCount = 0;
+	bool retry = false;
+	
+	while (errorCount < 2){
+		retry = false;
+		try {
+			start = steady_clock::now();
+			// will grab a connection from the pool. This is thread safe
+			sql = new session(*conn_pool); //this may raise a soci_error exception, so keep it in the try block.
 
-	try {
-		start = steady_clock::now();
-		// will grab a connection from the pool. This is thread safe
-		sql = new session(*conn_pool); //this may raise a soci_error exception, so keep it in the try block.
+			stop = steady_clock::now();
 
-		stop = steady_clock::now();
+			SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
+			start = stop;
 
-		SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
-		start = stop;
-
-		*sql << get_password_request, into(pass), use(id, "id"), use(domain, "domain"), use(authid, "authid");
-		stop = steady_clock::now();
-		SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
-		cachePassword(createPasswordKey(id, authid), domain, pass, mCacheExpire);
-		if (listener){
-			listener->onResult(pass.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, pass);
+			*sql << get_password_request, into(pass), use(id, "id"), use(domain, "domain"), use(authid, "authid");
+			stop = steady_clock::now();
+			SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
+			cachePassword(createPasswordKey(id, authid), domain, pass, mCacheExpire);
+			if (listener){
+				listener->onResult(pass.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, pass);
+			}
+			errorCount = 0;
+		} catch (mysql_soci_error const &e) {
+			errorCount++;
+			stop = steady_clock::now();
+			SLOGE << "[SOCI] MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
+			if (sql) reconnectSession(*sql);
+			
+			if (e.err_num_ == 2014 && errorCount == 1){
+				/* This is the infamous "Commands out of sync; you can't run this command now" mysql error,
+				 * which is retryable.
+				 * At this time we don't know if it is a soci or mysql bug, or bug with the sql request being executed.
+				 */
+				SLOGE << "[SOCI] retrying mysql error 2014";
+				retry = true;
+			}
+		} catch (exception const &e) {
+			errorCount++;
+			stop = steady_clock::now();
+			SLOGE << "[SOCI] Some other error after " << DURATION_MS(start, stop) << "ms : " << e.what();
+			if (sql) reconnectSession(*sql);
 		}
-	} catch (mysql_soci_error const &e) {
-
-		stop = steady_clock::now();
-		SLOGE << "[SOCI] MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
-		if (listener) listener->onResult(PASSWORD_NOT_FOUND, pass);
-
-		if (sql) reconnectSession(*sql);
-
-	} catch (exception const &e) {
-
-		stop = steady_clock::now();
-		SLOGE << "[SOCI] Some other error after " << DURATION_MS(start, stop) << "ms : " << e.what();
-		if (listener) listener->onResult(PASSWORD_NOT_FOUND, pass);
-
-		if (sql) reconnectSession(*sql);
+		if (sql) delete sql;
+		if (!retry){
+			if (errorCount){
+				if (listener) listener->onResult(AUTH_ERROR, pass);
+			}
+			break;
+		}
 	}
-	if (sql) delete sql;
 }
 
 void SociAuthDB::getUserWithPhoneWithPool(const std::string &phone, const std::string &domain, AuthDbListener *listener) {
@@ -225,7 +241,7 @@ void SociAuthDB::getPasswordFromBackend(const std::string &id, const std::string
 void SociAuthDB::getUserWithPhoneFromBackend(const string &phone, const string &domain, AuthDbListener *listener) {
 
 	// create a thread to grab a pool connection and use it to retrieve the auth information
-	auto func = bind(&SociAuthDB::getUserWithPhoneWithPool, this, std::string(phone), std::string(domain), listener);
+	auto func = bind(&SociAuthDB::getUserWithPhoneWithPool, this, phone, domain, listener);
 
 	bool success = thread_pool->Enqueue(func);
 	if (success == FALSE) {
