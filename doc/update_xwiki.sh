@@ -28,5 +28,5 @@ modules=`$FLEXISIP --list-modules`
 
 # upload for DokuWiki
 python "xw.py" "global" "global.xwiki.txt" 
-
+upload_to_wiki "global" "xwiki" "xw.py" 
 upload_to_wiki "${modules[@]}" "xwiki" "xw.py" 
