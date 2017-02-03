@@ -459,6 +459,7 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 		}
 		
 		if (hasMediaAttribute(mline,mNortproxy.c_str())) continue;
+		if (mline->m_port == 0) continue; //case of a declined or removed stream
 
 		if (needsCandidates) {
 			uint32_t priority;
