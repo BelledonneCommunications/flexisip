@@ -132,6 +132,7 @@ if BUILD_PUSHNOTIFICATION
 thesources+=		module-pushnotification.cc \
 			pushnotification/pushnotification.hh \
 			pushnotification/googlepush.cc pushnotification/googlepush.hh \
+			pushnotification/firebase.cc pushnotification/firebasepush.hh \
 			pushnotification/applepush.cc pushnotification/applepush.hh \
 			pushnotification/microsoftpush.cc pushnotification/microsoftpush.hh \
 			pushnotification/pushnotificationservice.cc pushnotification/pushnotificationservice.hh \

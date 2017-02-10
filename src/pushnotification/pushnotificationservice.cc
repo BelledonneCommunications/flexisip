@@ -38,6 +38,9 @@ static const char *APN_PORT = "2195";
 static const char *GPN_ADDRESS = "gcm-http.googleapis.com";
 static const char *GPN_PORT = "443";
 
+static const char *FIREBASE_ADDRESS = "fcm.googleapis.com";
+static const char *FIREBASE_PORT = "443";
+
 static const char *WPPN_PORT = "443";
 
 PushNotificationService::PushNotificationService(int maxQueueSize)
@@ -273,6 +276,19 @@ void PushNotificationService::setupAndroidClient(const std::map<std::string, std
 
 		mClients[android_app_id] = std::make_shared<PushNotificationClient>("google", this, ctx, GPN_ADDRESS, GPN_PORT, mMaxQueueSize, true);
 		SLOGD << "Adding android push notification client [" << android_app_id << "]";
+	}
+}
+
+void PushNotificationService::setupFirebaseClient(const std::map<std::string, std::string> firebaseKeys) {
+	map<string, string>::const_iterator it;
+	for (it = firebaseKeys.begin(); it != firebaseKeys.end(); ++it) {
+		string firebase_app_id = it->first;
+
+		SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
+		SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+
+		mClients[firebase_app_id] = std::make_shared<PushNotificationClient>("firebase", this, ctx, FIREBASE_ADDRESS, FIREBASE_PORT, mMaxQueueSize, true);
+		SLOGD << "Adding firebase push notification client [" << firebase_app_id << "]";
 	}
 }
 

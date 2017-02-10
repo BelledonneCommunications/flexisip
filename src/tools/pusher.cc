@@ -20,6 +20,7 @@
 #include "pushnotification/applepush.hh"
 #include "pushnotification/googlepush.hh"
 #include "pushnotification/microsoftpush.hh"
+#include "pushnotification/firebasepush.hh"
 #include "pushnotification/pushnotificationservice.hh"
 
 #include <unistd.h>
@@ -42,7 +43,7 @@ struct PusherArgs {
 	string packageSID;
 	void usage(const char *app) {
 		cout << app
-			 << " --pntype google|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir --debug --pntok id1 (id2 id3 ...)"
+			 << " --pntype google|firebase|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir --debug --pntok id1 (id2 id3 ...)"
 			 << endl;
 	}
 
@@ -122,6 +123,13 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 			pinfo.mAppId = args.appid;
 			pinfo.mApiKey = args.apikey;
 			result.push_back(make_shared<GooglePushNotificationRequest>(pinfo));
+		} else if (args.pntype == "firebase") {
+			pinfo.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
+			pinfo.mFromName = "+33681741738";
+			pinfo.mDeviceToken = pntok;
+			pinfo.mAppId = args.appid;
+			pinfo.mApiKey = args.apikey;
+			result.push_back(make_shared<FirebasePushNotificationRequest>(pinfo));
 		} else if (args.pntype == "wp") {
 			pinfo.mAppId = args.appid;
 			pinfo.mDeviceToken = pntok;
@@ -168,6 +176,10 @@ int main(int argc, char *argv[]) {
 			map<string, string> googleKey;
 			googleKey.insert(make_pair(args.appid, args.apikey));
 			service.setupAndroidClient(googleKey);
+		} else if (args.pntype == "firebase") {
+			map<string, string> firebaseKey;
+			firebaseKey.insert(make_pair(args.appid, args.apikey));
+			service.setupFirebaseClient(firebaseKey);
 		} else if (args.pntype == "wp" || args.pntype == "w10") {
 			service.setupWindowsPhoneClient(args.packageSID, args.apikey);
 		}

@@ -25,6 +25,7 @@
 #include "pushnotification/genericpush.hh"
 #include "pushnotification/googlepush.hh"
 #include "pushnotification/microsoftpush.hh"
+#include "pushnotification/firebasepush.hh"
 #include "forkcallcontext.hh"
 
 #include <map>
@@ -88,6 +89,7 @@ class PushNotification : public Module, public ModuleToolbox {
 	int mTimeout;
 	int mTtl;
 	map<string, string> mGoogleKeys;
+	map<string, string> mFirebaseKeys;
 	PushNotificationService *mPNS;
 	StatCounter64 *mCountFailed;
 	StatCounter64 *mCountSent;
@@ -213,9 +215,12 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "They should bear the appid of the application, suffixed by the release mode and .pem extension, and made of certificate followed by private key. "
          "For example: org.linphone.voip.dev.pem org.linphone.voip.prod.pem com.somephone.voip.dev.pem etc...",
 		 "/etc/flexisip/apn"},
-		{Boolean, "google", "Enable push notification for android devices", "true"},
+		{Boolean, "google", "Enable push notification for android devices (for compatibility only)", "true"},
 		{StringList, "google-projects-api-keys",
-		 "List of couples projectId:ApiKey for each android project that supports push notifications", ""},
+		 "List of couples projectId:ApiKey for each android project that supports push notifications (for compatibility only)", ""},
+		{Boolean, "firebase", "Enable push notification for android devices (new method for android)", "true"},
+		{StringList, "firebase-projects-api-keys",
+		 "List of couples projectId:ApiKey for each android project that supports push notifications (new method for android)", ""},
 		{Boolean, "windowsphone", "Enable push notification for windows phone 8 devices", "true"},
 		{String, "windowsphone-package-sid", "Unique identifier for your Windows Store app. For example: ms-app://s-1-15-2-2345030743-3098444494-743537440-5853975885-5950300305-5348553438-505324794", ""},
 		{String, "windowsphone-application-secret", "Client secret. For example: Jrp1UoVt4C6CYpVVJHUPdcXLB1pEdRoB", ""},
@@ -226,9 +231,9 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "sending of the push notification"
 		 " is delegated. The following arguments can be substitued in the http request uri, with the following "
 		 "values:\n"
-		 " - $type      : apple, google, wp\n"
+		 " - $type      : apple, google, wp, firebase\n"
 		 " - $token     : device token\n"
-		 " - $api-key   : the api key to use (google only)\n"
+		 " - $api-key   : the api key to use (google and firebase only)\n"
 		 " - $app-id    : application ID\n"
 		 " - $from-name : the display name in the from header\n"
 		 " - $from-uri  : the sip uri of the from header\n"
@@ -257,9 +262,11 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	int maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
 	string certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
 	auto googleKeys = mc->get<ConfigStringList>("google-projects-api-keys")->read();
+	auto firebaseKeys = mc->get<ConfigStringList>("firebase-projects-api-keys")->read();
 	string externalUri = mc->get<ConfigString>("external-push-uri")->read();
 	bool appleEnabled = mc->get<ConfigBoolean>("apple")->read();
 	bool googleEnabled = mc->get<ConfigBoolean>("google")->read();
+	bool firebaseEnabled = mc->get<ConfigBoolean>("firebase")->read();
 	bool windowsPhoneEnabled = mc->get<ConfigBoolean>("windowsphone")->read();
 	string windowsPhonePackageSID = windowsPhoneEnabled ? mc->get<ConfigString>("windowsphone-package-sid")->read() : "";
 	string windowsPhoneApplicationSecret = windowsPhoneEnabled ? mc->get<ConfigString>("windowsphone-application-secret")->read() : "";
@@ -279,6 +286,12 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		size_t sep = keyval.find(":");
 		mGoogleKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep + 1)));
 	}
+	mFirebaseKeys.clear();
+	for (auto it = firebaseKeys.cbegin(); it != firebaseKeys.cend(); ++it) {
+		const string &keyval = *it;
+		size_t sep = keyval.find(":");
+		mFirebaseKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep + 1)));
+	}
 
 	mPNS = new PushNotificationService(maxQueueSize);
 	mPNS->setStatCounters(mCountFailed, mCountSent);
@@ -288,6 +301,8 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mPNS->setupiOSClient(certdir, "");
 	if (googleEnabled)
 		mPNS->setupAndroidClient(mGoogleKeys);
+	if (firebaseEnabled)
+		mPNS->setupFirebaseClient(mFirebaseKeys);
 	if(windowsPhoneEnabled) 
 		mPNS->setupWindowsPhoneClient(windowsPhonePackageSID, windowsPhoneApplicationSecret);
 }
@@ -410,10 +425,19 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				auto apiKeyIt = mGoogleKeys.find(appId);
 				if (apiKeyIt != mGoogleKeys.end()) {
 					pinfo.mApiKey = apiKeyIt->second;
-					// We only have one client for all Android apps, called "google"
 					SLOGD << "Creating Google push notif request";
 					if (!mExternalPushUri)
 						pn = make_shared<GooglePushNotificationRequest>(pinfo);
+				} else {
+					SLOGD << "No Key matching appId " << appId;
+				}
+			} else if (strcmp(type, "firebase") == 0) {
+				auto apiKeyIt = mFirebaseKeys.find(appId);
+				if (apiKeyIt != mFirebaseKeys.end()) {
+					pinfo.mApiKey = apiKeyIt->second;
+					SLOGD << "Creating Firebase push notif request";
+					if (!mExternalPushUri)
+						pn = make_shared<FirebasePushNotificationRequest>(pinfo);
 				} else {
 					SLOGD << "No Key matching appId " << appId;
 				}

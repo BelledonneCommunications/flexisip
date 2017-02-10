@@ -45,6 +45,7 @@ class PushNotificationService {
 	void setupGenericClient(const url_t *url);
 	void setupiOSClient(const std::string &certdir, const std::string &cafile);
 	void setupAndroidClient(const std::map<std::string, std::string> googleKeys);
+	void setupFirebaseClient(const std::map<std::string, std::string> firebaseKeys);
 	void setupWindowsPhoneClient(const std::string& packageSID, const std::string& applicationSecret);
 
 	bool isIdle();
