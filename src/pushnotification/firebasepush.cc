@@ -11,7 +11,7 @@ FirebasePushNotificationRequest::FirebasePushNotificationRequest(const PushInfo 
 	const string &deviceToken = pinfo.mDeviceToken;
 	const string &apiKey = pinfo.mApiKey;
 	ostringstream httpBody;
-	httpBody << "{\"to\":\"" << deviceToken << "\"}";
+	httpBody << "{\"to\":\"" << deviceToken << "\", \"priority\":\"high\"}";
 	mHttpBody = httpBody.str();
 	LOGD("Push notification https post body is %s", mHttpBody.c_str());
 
