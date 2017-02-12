@@ -31,7 +31,7 @@
 %define     redis      %{?_without_redis:0}%{!?_without_redis:1}
 %define     protobuf   %{?_without_protobuf:0}%{!?_without_protobuf:1}
 %define     push       %{?_with_push:1}%{!?_with_push:0}
-%define     odbc       %{?_without_odbc:0}%{!?_without_odbc:1}
+%define     odbc       %{?_with_odbc:1}%{!?_with_odbc:0}
 %define     transcoder %{?_without_transcoder:0}%{!?_without_transcoder:1}
 %define     presence   %{?_with_presence:1}%{!?_with_presence:0}
 %define     snmp       %{?_without_snmp:0}%{!?_without_snmp:1}
