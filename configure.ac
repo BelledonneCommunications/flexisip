@@ -451,6 +451,7 @@ AC_HEADER_STDBOOL
 
 PKG_CHECK_MODULES(SOFIA,[sofia-sip-ua >= 1.13.12bc])
 PKG_CHECK_MODULES(ORTP,[ortp >= 0.26.0])
+PKG_CHECK_MODULES(BCTOOLBOX,[bctoolbox >= 0.4.0])
 
 AC_ARG_ENABLE(xsd,
 	AC_HELP_STRING([--enable-xsd], [Enable xsd support, used for enhanced file transfers support and presence [default=auto]]),

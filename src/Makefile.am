@@ -77,7 +77,7 @@ thesources= \
 
 
 
-flexisip_LDADD= $(SOFIA_LIBS) $(ORTP_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS)
+flexisip_LDADD= $(SOFIA_LIBS) $(ORTP_LIBS) $(MEDIASTREAMER_LIBS) $(HIREDIS_LIBS) $(PROTOBUF_LIBS) $(NETSNMPAGENT_LIBS) $(BCTOOLBOX_LIBS)
 
 AM_CXXFLAGS= $(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CFLAGS) \
 				$(PROTOBUF_CFLAGS) $(MYSQL_CFLAGS) \
@@ -86,7 +86,9 @@ AM_CXXFLAGS= $(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CF
 AM_CFLAGS=$(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) -DORTP_DEBUG_MODE
 
 AM_LDFLAGS=-no-undefined
-
+#rpath is needed for bc-package because it's mandatory for flexisip to know where to look for shared libraries.
+#In the past, this rpath was automatically set by libtool thanks to ortp.la(libdir) but now that ortp rpm is build without libtool, ortp.la is no longuer packaged.
+AM_LDFLAGS+=-Wl,-rpath -Wl,$(libdir)
 
 if BUILD_XSD
 flexisip_LDADD+= xml/libxml_binding_generated.la $(XERCESC_LIBS)
@@ -187,23 +189,23 @@ AM_CXXFLAGS+=-DENABLE_SOCI $(SOCI_CFLAGS)
 endif
 
 flexisip_serializer_SOURCES=tools/serializer.cc tools/tool_utils.hh $(thesources)
-flexisip_serializer_LDADD=$(flexisip_LDADD)
+flexisip_serializer_LDADD=$(flexisip_LDADD) $(BCTOOLBOX_LIBS)
 nodist_flexisip_serializer_SOURCES=$(nodistsources)
 
 flexisip_binder_SOURCES=tools/binder.cc tools/tool_utils.hh $(thesources)
-flexisip_binder_LDADD=$(flexisip_LDADD)
+flexisip_binder_LDADD=$(flexisip_LDADD) $(BCTOOLBOX_LIBS)
 nodist_flexisip_binder_SOURCES=$(nodistsources)
 
 noinst_PROGRAMS=expr
 expr_SOURCES=test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh utils/flexisip-exception.hh
 expr_CXXFLAGS=-DTEST_BOOL_EXPR -DNO_SOFIA $(MEDIASTREAMER_CFLAGS) $(ORTP_CFLAGS)
-expr_LDADD= $(SOFIA_LIBS) $(ORTP_LIBS)
+expr_LDADD= $(SOFIA_LIBS) $(ORTP_LIBS) $(BCTOOLBOX_LIBS)
 
 
 if BUILD_PUSHNOTIFICATION
 bin_PROGRAMS+=flexisip_pusher
 flexisip_pusher_SOURCES=tools/pusher.cc $(thesources)
-flexisip_pusher_LDADD=$(flexisip_LDADD)
+flexisip_pusher_LDADD=$(flexisip_LDADD) $(BCTOOLBOX_LIBS)
 nodist_flexisip_pusher_SOURCES=$(nodistsources)
 endif
 
