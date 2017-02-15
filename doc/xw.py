@@ -6,8 +6,7 @@ import os
 import subprocess
 import ConfigParser
 
-
-default_host="http://wiki-test.linphone.org:8080/xwiki/rest/wikis/public/spaces/Flexisip/spaces/Modules%20Reference%20Guide/pages/"
+default_host="http://wiki.linphone.org:8080/xwiki/rest/wikis/public/spaces/Flexisip/spaces/Modules%20Reference%20Guide/pages/"
 
 # read from a configuration file for user/pass/host. This allows for out-of-cli specification of these parameters.
 config_file     = '~/.flexiwiki.x.cfg'
@@ -36,8 +35,11 @@ parser.add_argument('-u', '--user',     default='',   help='the user to authenti
 
 
 args = parser.parse_args()
-module = "module::"+args.modulename
 modulename = args.modulename
+if modulename != "global":
+        module = "module::" + modulename
+else:
+     	module = modulename
 # summary should be a full string instead of an array of words
 args.modulename = 'flexisip:module:' + str.lower(args.modulename)
 
@@ -77,9 +79,12 @@ if out is not "":
 
 	host = config_host+modulename
 	connect = config_user + ":" +config_password 
-	filename = "@"+modulename + ".xwiki.txt"
-
+	#necessary @ before filename it seems , refer to xwiki REST doc
+	filename = "@" + modulename + ".xwiki.txt"
 	p = subprocess.Popen(['curl', '-u', connect ,  '-X', 'PUT', '--data-binary' , \
 							filename, '-H', "Content-Type:text/plain", host ], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
+
 	out, err = p.communicate()
 	print out, err
+
+
