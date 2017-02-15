@@ -592,7 +592,9 @@ int main(int argc, char *argv[]) {
 	shared_ptr<Agent> a;
 	StunServer *stun = NULL;
 	Stats *proxy_stats = NULL;
+#ifdef ENABLE_PRESENCE
 	Stats *presence_stats = NULL;
+#endif
 	bool debug;
 	map<string, string> oset;
 
