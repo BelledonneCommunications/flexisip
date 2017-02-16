@@ -5,6 +5,7 @@ import argparse
 import os
 import subprocess
 import ConfigParser
+import re
 
 default_host="http://wiki.linphone.org:8080/xwiki/rest/wikis/public/spaces/Flexisip/spaces/Modules%20Reference%20Guide/pages/"
 
@@ -71,6 +72,9 @@ if out is not "":
 	message = "// Documentation based on repostory git version commit "
 	d = subprocess.Popen(['git', 'describe'], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
 	gitout, giterr = d.communicate()
+	# replace all the -- in the doc with {{{--}}} to escape xwiki autoformatting -- into striken 
+	out = re.sub(r"--","{{{--}}}",out)
+	#add commit version on top of the file
 	out = message +gitout + "// \n" + out 
 	f = open(args.outputfile, 'w')
 	f.write(out)
