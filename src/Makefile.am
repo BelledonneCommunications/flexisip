@@ -86,9 +86,12 @@ AM_CXXFLAGS= $(SOFIA_CFLAGS) $(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) $(HIREDIS_CF
 AM_CFLAGS=$(ORTP_CFLAGS) $(MEDIASTREAMER_CFLAGS) -DORTP_DEBUG_MODE
 
 AM_LDFLAGS=-no-undefined
+
+if USE_RPATH 
 #rpath is needed for bc-package because it's mandatory for flexisip to know where to look for shared libraries.
 #In the past, this rpath was automatically set by libtool thanks to ortp.la(libdir) but now that ortp rpm is build without libtool, ortp.la is no longuer packaged.
 AM_LDFLAGS+=-Wl,-rpath -Wl,$(libdir)
+endif
 
 if BUILD_XSD
 flexisip_LDADD+= xml/libxml_binding_generated.la $(XERCESC_LIBS)

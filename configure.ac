@@ -543,6 +543,12 @@ if test x$use_xsd != xno ; then
 fi
 AM_CONDITIONAL(BUILD_XSD, [test x$use_xsd = xyes] )
 
+if test "$prefix" = "/usr"; then
+	use_rpath = no
+else
+	use_rpath = yes
+fi
+AM_CONDITIONAL(USE_RPATH, [test x$use_rpath = xyes])
 # ##################################
 # END OF XSD CHECKS
 # ##################################
