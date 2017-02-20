@@ -543,12 +543,13 @@ if test x$use_xsd != xno ; then
 fi
 AM_CONDITIONAL(BUILD_XSD, [test x$use_xsd = xyes] )
 
-if test "$prefix" = "/usr"; then
-	use_rpath = no
+
+if test "$prefix" = /usr ; then
+	use_rpath=false
 else
-	use_rpath = yes
+	use_rpath=true
 fi
-AM_CONDITIONAL(USE_RPATH, [test x$use_rpath = xyes])
+AM_CONDITIONAL(USE_RPATH, [test x$use_rpath = xtrue])
 # ##################################
 # END OF XSD CHECKS
 # ##################################
@@ -588,7 +589,7 @@ fi
 
 # Generates documentation pdf only if pdflatex is found
 AC_CHECK_PROG([pdflatex], [pdflatex], [yes], [no])
-AM_CONDITIONAL([GENERATE_DOC], [test "x$pdflatex$doc" = xyesyes])
+AM_CONDITIONAL([GENERATE_DOC], [test "x$pdflatex$doc" = xyes])
 
 
 # Export path to configuration directory
