@@ -544,7 +544,7 @@ fi
 AM_CONDITIONAL(BUILD_XSD, [test x$use_xsd = xyes] )
 
 
-if test "$prefix" = /usr ; then
+if test "$libdir" = /usr/lib ; then
 	use_rpath=no
 else
 	use_rpath=yes
