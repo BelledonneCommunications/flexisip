@@ -25,7 +25,8 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 
 	if (info.mSilent || msg_id == "IC_SIL") { 
 		// silent push: just send "content-available=1", the device will figure out what's happening
-		payload << "{\"aps\":{\"sound\":\"\", \"loc-key\":\"" << msg_id << "\", \"content-available\":1},\"pn_ttl\":"<< info.mTtl <<"}";
+		// We also need msg_id and callid in case the push is received but the device cannot register
+		payload << "{\"aps\":{\"sound\":\"\", \"loc-key\":\"" << msg_id << "\", \"call-id\":\"" << callid << "\", \"content-available\":1},\"pn_ttl\":"<< info.mTtl <<"}";
 	} else {
 
 		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg
