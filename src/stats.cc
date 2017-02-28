@@ -236,6 +236,7 @@ void Stats::run() {
 		close(remote_socket);
 	}
 	close(local_socket);
+	unlink(path.c_str());
 }
 
 void *Stats::threadfunc(void *arg) {
