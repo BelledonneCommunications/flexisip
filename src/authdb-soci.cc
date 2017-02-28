@@ -153,12 +153,14 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 			SLOGE << "[SOCI] MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
 			if (sql) reconnectSession(*sql);
 			
-			if (e.err_num_ == 2014 && errorCount == 1){
-				/* This is the infamous "Commands out of sync; you can't run this command now" mysql error,
+			if ((e.err_num_ == 2014 || e.err_num_ == 2006) && errorCount == 1){
+				/* 2014 is the infamous "Commands out of sync; you can't run this command now" mysql error,
 				 * which is retryable.
 				 * At this time we don't know if it is a soci or mysql bug, or bug with the sql request being executed.
+				 * 
+				 * 2006 is "MySQL server has gone away" which is also retryable.
 				 */
-				SLOGE << "[SOCI] retrying mysql error 2014";
+				SLOGE << "[SOCI] retrying mysql error " << e.err_num_;
 				retry = true;
 			}
 		} catch (exception const &e) {
