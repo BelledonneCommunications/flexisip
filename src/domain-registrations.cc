@@ -192,7 +192,6 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 									   const url_t *parent_proxy, const string &clientCertdir)
 	: mManager(mgr) {
 	char transport[64] = {0};
-	url_t *tportUri;
 	tp_name_t tpn = {0};
 	bool usingTls;
 	int verifyPolicy = mgr.mVerifyServerCerts ? TPTLS_VERIFY_OUT | TPTLS_VERIFY_SUBJECTS_OUT : TPTLS_VERIFY_NONE;
@@ -206,17 +205,35 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 
 	usingTls = parent_proxy->url_type == url_sips || strcasecmp(transport, "tls") == 0;
 
-	tportUri = url_format(&mHome, "%s:*:0", usingTls ? "sips" : "sip");
-
 	if (usingTls && !clientCertdir.empty()) {
-		/* need to add a new tport because we want to use a specific certificate for this connection*/
-		nta_agent_add_tport(agent, (url_string_t *)tportUri, TPTAG_CERTIFICATE(clientCertdir.c_str()),
-							TPTAG_IDENT(localDomain.c_str()),
-							TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TAG_END());
-		tpn.tpn_ident = localDomain.c_str();
-		mPrimaryTport = tport_by_name(nta_agent_tports(agent), &tpn);
-		if (!mPrimaryTport) {
-			LOGF("Could not find the tport we just added in the agent.");
+		string mainTlsCertsDir = GenericManager::get()->getRoot()->get<GenericStruct>("global")->get<ConfigString>("tls-certificates-dir")->read();
+		if (strcmp(mainTlsCertsDir.c_str(), clientCertdir.c_str()) == 0) {
+			// Certs dir is the same as for the existing tport
+			LOGD("Domain registration certificates are the same as the one for existing tports, let's use them");
+			mPrimaryTport = nta_agent_tports(agent);
+		} else {
+			list<string> canons;
+			tport_t *primaries = tport_primaries(nta_agent_tports(agent));
+			for (tport_t *tport = primaries; tport != NULL; tport = tport_next(tport)) {
+				const tp_name_t *name;
+				name = tport_name(tport);
+				if (strcmp(name->tpn_proto, "tls") == 0) {
+					canons.push_back(name->tpn_canon);
+				}
+			}
+			for (list<string>::iterator it = canons.begin(); it != canons.end(); ++it) {
+				url_t *tportUri = NULL;
+				tportUri = url_format(&mHome, "sips:%s:0", (*it).c_str());
+				/* need to add a new tport because we want to use a specific certificate for this connection*/
+				nta_agent_add_tport(agent, (url_string_t *)tportUri, TPTAG_CERTIFICATE(clientCertdir.c_str()),
+									TPTAG_IDENT(localDomain.c_str()),
+									TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TAG_END());
+				tpn.tpn_ident = localDomain.c_str();
+				mPrimaryTport = tport_by_name(nta_agent_tports(agent), &tpn);
+				if (!mPrimaryTport) {
+					LOGF("Could not find the tport we just added in the agent.");
+				}
+			}
 		}
 	} else {
 		/*otherwise we can use the agent's already existing transports*/
