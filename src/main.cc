@@ -916,11 +916,19 @@ int main(int argc, char *argv[]) {
 	
 	a.reset();
 #ifdef ENABLE_PRESENCE
+	if (presence_stats) {
+		presence_stats->stop();
+		delete presence_stats;
+	}
 	presenceServer.reset();
 #endif
 	if (stun) {
 		stun->stop();
 		delete stun;
+	}
+	if (proxy_stats) {
+		proxy_stats->stop();
+		delete proxy_stats;
 	}
 	su_root_destroy(root);
 

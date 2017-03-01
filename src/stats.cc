@@ -41,6 +41,7 @@ void Stats::start() {
 void Stats::stop() {
 	if (mRunning) {
 		mRunning = false;
+		shutdown(local_socket, SHUT_RDWR);
 		pthread_join(mThread, NULL);
 	}
 }
@@ -224,15 +225,15 @@ void Stats::run() {
 		    char buffer[512];
 		    int n = recv(remote_socket, buffer, 512, 0);
 		    if (n < 0) {
-			LOGE("Recv error %i : %s", errno, std::strerror(errno));
+				LOGE("Recv error %i : %s", errno, std::strerror(errno));
 		    }
 		    if (n > 0) {
-			buffer[n] = '\0';
-			LOGD("[Stats] Received: %s", buffer);
-			parseAndAnswer(remote_socket, buffer);
+				buffer[n] = '\0';
+				LOGD("[Stats] Received: %s", buffer);
+				parseAndAnswer(remote_socket, buffer);
 		    }
 		    finished = true;
-		} while (!finished);
+		} while (!finished && mRunning);
 		close(remote_socket);
 	}
 	close(local_socket);
