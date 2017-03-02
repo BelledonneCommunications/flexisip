@@ -95,11 +95,16 @@ SociAuthDB::SociAuthDB() : conn_pool(NULL) {
 	conn_pool = new connection_pool(poolSize);
 	thread_pool = new ThreadPool(poolSize, max_queue_size);
 
-	LOGD("[SOCI] Authentication provider for backend %s created. Pooled for %d connections", backend.c_str(),
-		 (int)poolSize);
+	LOGD("[SOCI] Authentication provider for backend %s created. Pooled for %d connections", backend.c_str(), (int)poolSize);
 
-	for (size_t i = 0; i < poolSize; i++) {
-		conn_pool->at(i).open(backend, connection_string);
+	try {
+		for (size_t i = 0; i < poolSize; i++) {
+			conn_pool->at(i).open(backend, connection_string);
+		}
+	} catch (soci::mysql_soci_error const & e) {
+		SLOGE << "[SOCI] connection pool open MySQL error: " << e.err_num_ << " " << e.what() << endl;
+	} catch (exception const &e) {
+		SLOGE << "[SOCI] connection pool open error: " << e.what() << endl;
 	}
 }
 
@@ -109,11 +114,15 @@ SociAuthDB::~SociAuthDB() {
 }
 
 void SociAuthDB::reconnectSession(soci::session &session) {
-
-	SLOGE << "[SOCI] Trying close/reconnect on " << session.get_backend_name() << " session";
-	session.close();
-	session.reconnect();
-
+	try {
+		SLOGE << "[SOCI] Trying close/reconnect on " << session.get_backend_name() << " session";
+		session.close();
+		session.reconnect();
+	} catch (soci::mysql_soci_error const & e) {
+		SLOGE << "[SOCI] reconnectSession MySQL error: " << e.err_num_ << " " << e.what() << endl;
+	} catch (exception const &e) {
+		SLOGE << "[SOCI] reconnectSession error: " << e.what() << endl;
+	}
 }
 
 #define DURATION_MS(start, stop) (unsigned long) duration_cast<milliseconds>((stop) - (start)).count()
@@ -127,7 +136,7 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 	int errorCount = 0;
 	bool retry = false;
 	
-	while (errorCount < 2){
+	while (errorCount < 2) {
 		retry = false;
 		try {
 			start = steady_clock::now();
@@ -150,7 +159,7 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 		} catch (mysql_soci_error const &e) {
 			errorCount++;
 			stop = steady_clock::now();
-			SLOGE << "[SOCI] MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
+			SLOGE << "[SOCI] getPasswordWithPool MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
 			if (sql) reconnectSession(*sql);
 			
 			if ((e.err_num_ == 2014 || e.err_num_ == 2006) && errorCount == 1){
@@ -166,7 +175,7 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 		} catch (exception const &e) {
 			errorCount++;
 			stop = steady_clock::now();
-			SLOGE << "[SOCI] Some other error after " << DURATION_MS(start, stop) << "ms : " << e.what();
+			SLOGE << "[SOCI] getPasswordWithPool error after " << DURATION_MS(start, stop) << "ms : " << e.what();
 			if (sql) reconnectSession(*sql);
 		}
 		if (sql) delete sql;
@@ -207,17 +216,15 @@ void SociAuthDB::getUserWithPhoneWithPool(const std::string &phone, const std::s
 	} catch (mysql_soci_error const &e) {
 
 		stop = steady_clock::now();
-		SLOGE << "[SOCI] MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
+		SLOGE << "[SOCI] getUserWithPhoneWithPool MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
 		if (listener) listener->onResult(PASSWORD_NOT_FOUND, user);
 
 		if (sql) reconnectSession(*sql);
 
 	} catch (exception const &e) {
-
 		stop = steady_clock::now();
-		SLOGE << "[SOCI] Some other error after " << DURATION_MS(start, stop) << "ms : " << e.what();
+		SLOGE << "[SOCI] getUserWithPhoneWithPool error after " << DURATION_MS(start, stop) << "ms : " << e.what();
 		if (listener) listener->onResult(PASSWORD_NOT_FOUND, user);
-
 		if (sql) reconnectSession(*sql);
 	}
 	if (sql) delete sql;
