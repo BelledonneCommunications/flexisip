@@ -14,8 +14,9 @@
 
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
+#include "flexisip-config.h"
 #include "logmanager.hh"
 #include <string>
 #include "bctoolbox/logging.h"
@@ -30,7 +31,7 @@ bool sUseSyslog = false;
 
 namespace flexisip {
 	namespace log {
-		static void syslogHandler(const char *domain, BctbxLogLevel log_level, const char *str, va_list l) {
+		static void syslogHandler(void *info, const char *domain, BctbxLogLevel log_level, const char *str, va_list l) {
 			int syslev = LOG_ALERT;
 			switch (log_level) {
 				case BCTBX_LOG_DEBUG:
@@ -54,7 +55,7 @@ namespace flexisip {
 			vsyslog(syslev, str, l);
 		}
 
-		void defaultLogHandler(const char *domain, BctbxLogLevel log_level, const char *str, va_list l) {
+		void defaultLogHandler(void *info, const char *domain, BctbxLogLevel log_level, const char *str, va_list l) {
 			const char *levname = "none";
 			switch (log_level) {
 				case BCTBX_LOG_DEBUG:
@@ -84,20 +85,38 @@ namespace flexisip {
 			is_preinit_done = true;
 			sUseSyslog = syslog;
 			is_debug = debug;
-
 			if (debug) {
 				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_DEBUG);
 			} else {
 				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_MESSAGE);
 			}
-
 			if (syslog) {
 				openlog("flexisip", 0, LOG_USER);
 				setlogmask(~0);
-				bctbx_set_log_handler(syslogHandler);
+				BctoolboxLogHandler* syshandler = (BctoolboxLogHandler*)malloc(sizeof(BctoolboxLogHandler));
+				syshandler->func = syslogHandler;
+				syshandler->user_info = NULL;
+				bctbx_add_log_handler(syshandler);
 			} else {
-				//ortp_set_log_handler(defaultLogHandler);
+				/*
+				 BctoolboxLogHandler defaulthandler;
+				 defaulthandler.func = defaultLogHandler;
+				 defaulthandler.user_info = NULL;
+				 bctbx_add_log_handler(defaulthandler);
+				 */
 			}
+			
+			FILE *f = fopen (DEFAULT_LOG_DIR "/FlexisipLogs.log" , "a");
+			BctoolboxLogHandler* filehandler = (BctoolboxLogHandler*)malloc(sizeof(BctoolboxLogHandler));
+			fprintf(stderr, DEFAULT_LOG_DIR "/FlexisipLogs.log");
+			filehandler->func = bctbx_logv_file;
+			filehandler->user_info = f;
+			bctbx_add_log_handler(filehandler);
+			
+			BctoolboxLogHandler* outhandler = (BctoolboxLogHandler*)malloc(sizeof(BctoolboxLogHandler));
+			outhandler->func = bctbx_logv_out;
+			outhandler->user_info = NULL;
+			bctbx_add_log_handler(outhandler);
 		}
 
 		void initLogs(bool use_syslog, std::string level, bool user_errors) {
