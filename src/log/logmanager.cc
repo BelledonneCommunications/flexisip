@@ -108,7 +108,6 @@ namespace flexisip {
 			
 			FILE *f = fopen (DEFAULT_LOG_DIR "/FlexisipLogs.log" , "a");
 			BctoolboxLogHandler* filehandler = (BctoolboxLogHandler*)malloc(sizeof(BctoolboxLogHandler));
-			fprintf(stderr, DEFAULT_LOG_DIR "/FlexisipLogs.log");
 			filehandler->func = bctbx_logv_file;
 			filehandler->user_info = f;
 			bctbx_add_log_handler(filehandler);
