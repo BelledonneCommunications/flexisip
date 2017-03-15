@@ -45,6 +45,19 @@ To compile, with cmake/Xcode, first update submodule using:
 - xcodebuild -project WORK/flexisip/cmake/Project.xcodeproj/ 
 - open WORK/flexisip/Build/flexisip/flexisip.xcodeproj
 
+Compile with soci on macOs
+---------------------
+
+To compile with soci on macOS you need to install and unlink mysql :
+brew install mysql
+brew unlink mysql
+Then install mysql-connector-c
+brew install mysql-connector-c
+And finally install soci with mysql
+brew install soci --with-mysql
+
+You can now use -DENABLE_SOCI=ON in your prepare options.
+
 Configuration
 ---------------------
 
