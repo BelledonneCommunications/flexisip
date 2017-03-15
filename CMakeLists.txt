@@ -237,9 +237,7 @@ else()
 endif()
 
 
-if(ENABLE_PUSHNOTIFICATION)
-	find_package(OpenSSL 0.9.8 REQUIRED)
-endif()
+find_package(OpenSSL 0.9.8 REQUIRED)
 
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
 
