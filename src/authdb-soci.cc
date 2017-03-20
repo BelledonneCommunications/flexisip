@@ -47,6 +47,11 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 		 "Named parameters are:\n -':phone' : the phone number to search for.\n"
 		 "The use of the :phone parameter is mandatory.",
 		 "select login from accounts where phone = :phone"},
+		{String, "soci-users-with-phones-request",
+		 "Soci SQL request to execute to obtain the usernames associated with phones aliases.\n"
+		 "Named parameters are:\n -':phones' : the phones to search for.\n"
+		 "The use of the :phones parameter is mandatory.",
+		 "select login, domain, phone from accounts where phone in :phones"},
 
 		{Integer, "soci-poolsize",
 		 "Size of the pool of connections that Soci will use. We open a thread for each DB query, and this pool will "
@@ -90,6 +95,7 @@ SociAuthDB::SociAuthDB() : conn_pool(NULL) {
 	backend = ma->get<ConfigString>("soci-backend")->read();
 	get_password_request = ma->get<ConfigString>("soci-password-request")->read();
 	get_user_with_phone_request = ma->get<ConfigString>("soci-user-with-phone-request")->read();
+	get_users_with_phones_request = ma->get<ConfigString>("soci-users-with-phones-request")->read();
 	unsigned int max_queue_size = (unsigned int)ma->get<ConfigInt>("soci-max-queue-size")->read();
 
 	conn_pool = new connection_pool(poolSize);
@@ -230,6 +236,72 @@ void SociAuthDB::getUserWithPhoneWithPool(const std::string &phone, const std::s
 	if (sql) delete sql;
 }
 
+void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener) {
+	steady_clock::time_point start;
+	steady_clock::time_point stop;
+	set<std::string> users;
+	string in;
+	session *sql = NULL;
+	list<std::string> phones;
+	for(tuple<std::string,std::string,AuthDbListener*> cred : creds) {
+		phones.push_back(std::get<0>(cred));
+		if(in == "") {
+			in += std::get<0>(cred);
+		} else {
+			in += "," + std::get<0>(cred);
+		}
+	}
+	
+	try {
+		start = steady_clock::now();
+		// will grab a connection from the pool. This is thread safe
+		sql = new session(*conn_pool); //this may raise a soci_error exception, so keep it in the try block.
+		
+		stop = steady_clock::now();
+		
+		SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
+		start = stop;
+		
+		string s = get_users_with_phones_request;
+		int index = s.find(":");
+		while(index > -1) {
+			s = s.replace(index, 7, in);
+			index = s.find(":");
+		}
+		rowset<row> ret = (sql->prepare << s);
+		stop = steady_clock::now();
+		
+		for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
+			row const& row = *it;
+			string phone = row.get<string>(2);
+			string domain = row.get<string>(1);
+			string user = row.get<string>(0);
+			SLOGD << "[SOCI] Got user for " << phone << " in " << DURATION_MS(start, stop) << "ms";
+			cacheUserWithPhone(phone, domain, user);
+			users.insert(phone);
+		}
+
+		if (listener){
+			listener->onResults(phones, users);
+		}
+	} catch (mysql_soci_error const &e) {
+		
+		stop = steady_clock::now();
+		SLOGE << "[SOCI] getUsersWithPhonesWithPool MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
+		users.clear();
+		if (listener) listener->onResults(phones, users);
+		
+		if (sql) reconnectSession(*sql);
+		
+	} catch (exception const &e) {
+		stop = steady_clock::now();
+		SLOGE << "[SOCI] getUsersWithPhonesWithPool error after " << DURATION_MS(start, stop) << "ms : " << e.what();
+		users.clear();
+		if (listener) listener->onResults(phones, users);
+		if (sql) reconnectSession(*sql);
+	}
+	if (sql) delete sql;
+}
 #pragma mark - Inherited virtuals
 
 void SociAuthDB::getPasswordFromBackend(const std::string &id, const std::string &domain,
@@ -256,6 +328,19 @@ void SociAuthDB::getUserWithPhoneFromBackend(const string &phone, const string &
 	if (success == FALSE) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil user request for " << phone;
+		if (listener) listener->onResult(AUTH_ERROR, "");
+	}
+}
+
+void SociAuthDB::getUsersWithPhonesFromBackend(list<tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener) {
+	
+	// create a thread to grab a pool connection and use it to retrieve the auth information
+	auto func = bind(&SociAuthDB::getUsersWithPhonesWithPool, this, creds, listener);
+	
+	bool success = thread_pool->Enqueue(func);
+	if (success == FALSE) {
+		// Enqueue() can fail when the queue is full, so we have to act on that
+		SLOGE << "[SOCI] Auth queue is full, cannot fullfil user request for " << &creds;
 		if (listener) listener->onResult(AUTH_ERROR, "");
 	}
 }

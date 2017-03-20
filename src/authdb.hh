@@ -48,6 +48,7 @@ struct AuthDbTimings;
 class AuthDbListener : public StatFinishListener {
   public:
 	virtual void onResult(AuthDbResult result, const std::string &passwd) = 0;
+	virtual void onResults(list<std::string> &phones, set<std::string> &users);
 	virtual ~AuthDbListener();
 };
 
@@ -83,7 +84,9 @@ class AuthDbBackend {
 	// warning: listener may be invoked on authdb backend thread, so listener must be threadsafe somehow!
 	void getPassword(const std::string & user, const std::string & domain, const std::string &auth_username, AuthDbListener *listener);
 	void getUserWithPhone(const std::string &phone, const std::string &domain, AuthDbListener *listener);
+	void getUsersWithPhone(list<tuple<std::string,std::string,AuthDbListener *>> & creds, AuthDbListener *listener);
 	virtual void getUserWithPhoneFromBackend(const std::string &, const std::string &, AuthDbListener *listener) = 0;
+	virtual void getUsersWithPhonesFromBackend(list<tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
 
 	virtual void createAccount(const std::string &user, const std::string & domain, const std::string &auth_username, const std::string &password, int expires, const std::string &phone_alias = "");
 
@@ -179,6 +182,7 @@ class SociAuthDB : public AuthDbBackend {
 	SociAuthDB();
 	void setConnectionParameters(const string &domain, const string &request);
 	virtual void getUserWithPhoneFromBackend(const std::string & , const std::string &, AuthDbListener *listener);
+	virtual void getUsersWithPhonesFromBackend(list<tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener);
 
@@ -186,6 +190,7 @@ class SociAuthDB : public AuthDbBackend {
 
   private:
 	void getUserWithPhoneWithPool(const std::string &phone, const std::string &domain, AuthDbListener *listener);
+	void getUsersWithPhonesWithPool(list<tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
 	void getPasswordWithPool(const std::string &id, const std::string &domain,
 							 const std::string &authid, AuthDbListener *listener);
 
@@ -198,6 +203,7 @@ class SociAuthDB : public AuthDbBackend {
 	std::string backend;
 	std::string get_password_request;
 	std::string get_user_with_phone_request;
+	std::string get_users_with_phones_request;
 };
 
 #endif /* ENABLE_SOCI */

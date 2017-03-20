@@ -269,6 +269,7 @@ void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<Present
 	 */
 	listener->onInformationChanged(*this);
 }
+	
 void PresentityPresenceInformation::removeListener(const shared_ptr<PresentityPresenceInformationListener> &listener) {
 	SLOGD << "removing listener [" << listener.get() << "] on [" << *this << "]";
 	// 1 cancel expiration time
@@ -282,6 +283,7 @@ void PresentityPresenceInformation::removeListener(const shared_ptr<PresentityPr
 	//			 successful unsubscription will also trigger a final NOTIFY message.
 	listener->onInformationChanged(*this);
 }
+	
 bool PresentityPresenceInformation::hasDefaultElement() {
 	return mDefaultInformationElement != nullptr;
 }

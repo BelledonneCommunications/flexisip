@@ -633,9 +633,13 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				belle_sip_server_transaction_send_response(server_transaction, resp);
 
 				belle_sip_dialog_set_application_data(dialog, new shared_ptr<Subscription> (listSubscription));
+#if 0
 				for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners()) {
 					addOrUpdateListener(listener); //expiration is handled by dialog
 				}
+#else
+				addOrUpdateListeners(listSubscription->getListeners());
+#endif
 				listSubscription->notify(TRUE);
 
 			} else {
@@ -716,10 +720,13 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				} else {
 					// list subscription case
 					shared_ptr<ListSubscription> listSubscription = dynamic_pointer_cast<ListSubscription>(subscription);
-					for (shared_ptr<PresentityPresenceInformationListener> listener :
-						 listSubscription->getListeners()) {
-						addOrUpdateListener(listener, expires);
+#if 0
+					for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners()) {
+						addOrUpdateListener(listener, expires); //expiration is handled by dialog
 					}
+#else
+					addOrUpdateListeners(listSubscription->getListeners(), expires);
+#endif
 				}
 			}
 			break;
@@ -810,6 +817,7 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 }
 void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> &listener, int expires) {
 	std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
+	
 	if (presenceInfo == NULL) {
 		/*no information available yet, but creating entry to be able to register subscribers*/
 		presenceInfo = make_shared<PresentityPresenceInformation>(listener->getPresentityUri(), *this,
@@ -827,6 +835,35 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 		presenceInfo->addOrUpdateListener(listener, expires);
 	else
 		presenceInfo->addOrUpdateListener(listener);
+}
+
+void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInformationListener>> &listeners) {
+	addOrUpdateListeners(listeners,-1);
+}
+void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInformationListener>> &listeners, int expires) {
+	list<std::shared_ptr<PresentityPresenceInformation>> presenceInfos;
+	for (shared_ptr<PresentityPresenceInformationListener> &listener : listeners) {
+		std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
+		if (presenceInfo == NULL) {
+			/*no information available yet, but creating entry to be able to register subscribers*/
+			presenceInfo = make_shared<PresentityPresenceInformation>(listener->getPresentityUri(), *this,
+																  belle_sip_stack_get_main_loop(mStack));
+			SLOGD << "New Presentity [" << *presenceInfo << "] created from SUBSCRIBE";
+			addPresenceInfo(presenceInfo);
+		}
+		
+		if (expires > 0)
+			presenceInfo->addOrUpdateListener(listener, expires);
+		else
+			presenceInfo->addOrUpdateListener(listener);
+		
+		presenceInfos.push_back(presenceInfo);
+	}
+	
+	//notify observers that a listener is added or updated
+	for (auto& listener : mPresenceInfoObservers) {
+			listener->onListenerEvents(presenceInfos);
+	}
 }
 void PresenceServer::removeListener(const shared_ptr<PresentityPresenceInformationListener> &listener) {
 	const std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());

@@ -25,6 +25,9 @@ AuthDbBackend *AuthDbBackend::sUnique = NULL;
 AuthDbListener::~AuthDbListener(){
 }
 
+void AuthDbListener::onResults(list<std::string> &phones, set<std::string> &users) {
+
+}
 
 class FixedAuthDb : public AuthDbBackend {
   public:
@@ -205,4 +208,36 @@ void AuthDbBackend::getUserWithPhone(const std::string & phone, const std::strin
 
 	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
 	getUserWithPhoneFromBackend(phone, domain, listener);
+}
+
+void AuthDbBackend::getUsersWithPhone(list<tuple<std::string,std::string,AuthDbListener*>> & creds, AuthDbListener *listener) {
+	list<tuple<std::string,std::string,AuthDbListener*>> needed_creds;
+	for (tuple<std::string,std::string,AuthDbListener*> cred : creds) {
+		// Check for usable cached password
+		string user;
+		string phone = std::get<0>(cred);
+		string domain = std::get<1>(cred);
+		AuthDbListener* cred_listener = std::get<2>(cred);
+		switch (getCachedUserWithPhone(phone, domain, user)) {
+			case VALID_PASS_FOUND:
+				if (cred_listener) cred_listener->onResult(AuthDbResult::PASSWORD_FOUND, user);
+				break;
+			case EXPIRED_PASS_FOUND:
+			case NO_PASS_FOUND:
+				needed_creds.push_back(cred);
+				break;
+		}
+	}
+	
+	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
+	getUsersWithPhonesFromBackend(needed_creds, listener);
+}
+
+void AuthDbBackend::getUsersWithPhonesFromBackend(list<tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener) {
+	for(tuple<std::string,std::string,AuthDbListener*> cred : creds) {
+		string phone = std::get<0>(cred);
+		string domain = std::get<1>(cred);
+		AuthDbListener* l = std::get<2>(cred);
+		getUserWithPhoneFromBackend(phone,domain, l);
+	}
 }

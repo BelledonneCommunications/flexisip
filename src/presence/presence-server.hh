@@ -63,6 +63,8 @@ public:
 	virtual void onNewPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& info) const = 0;
 	//notified when a listener is added or refreshed
 	virtual void onListenerEvent(const std::shared_ptr<PresentityPresenceInformation>& info) const = 0;
+	//notified when a listener is added or refreshed
+	virtual void onListenerEvents(list<std::shared_ptr<PresentityPresenceInformation>>& infos) const = 0;
 };
 
 class PresenceServer : public PresentityManager {
@@ -128,6 +130,8 @@ private:
 
 	void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listerner,int expires);
 	void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listerner);
+	void addOrUpdateListeners(list<shared_ptr<PresentityPresenceInformationListener>>& listerner,int expires);
+	void addOrUpdateListeners(list<shared_ptr<PresentityPresenceInformationListener>>& listerner);
 	void removeListener(const shared_ptr<PresentityPresenceInformationListener>& listerner);
 
 	void removeSubscription(shared_ptr<Subscription> &identity) throw();
