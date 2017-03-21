@@ -217,7 +217,7 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 
   private:
 	void updateLocalRegExpire() {
-		RegistrarDb *db = RegistrarDb::get(mAgent);
+		RegistrarDb *db = RegistrarDb::get();
 		db->mLocalRegExpire->removeExpiredBefore(getCurrentTime());
 		mStats.mCountLocalActives->set(db->mLocalRegExpire->countActives());
 	}
@@ -472,7 +472,7 @@ class OnRequestBindListener : public RegistrarDbListener {
 			if (mContact && expires && expires->ex_delta > 0) {
 				string uid = Record::extractUniqueId(mContact);
 				string topic = mModule->routingKey(mSipFrom->a_url);
-				RegistrarDb::get(mModule->getAgent())->publish(topic, uid);
+				RegistrarDb::get()->publish(topic, uid);
 			}
 		} else {
 			LOGE("OnRequestBindListener::onRecordFound(): Record is null");
@@ -524,7 +524,7 @@ class OnResponseBindListener : public RegistrarDbListener {
 			if (!expires || expires->ex_delta > 0) {
 				string uid = Record::extractUniqueId(mCtx->mContacts);
 				string topic = mModule->routingKey(mCtx->mFrom->a_url);
-				RegistrarDb::get(mModule->getAgent())->publish(topic, uid);
+				RegistrarDb::get()->publish(topic, uid);
 			}
 			const sip_contact_t *dbContacts = r->getContacts(ms->getHome(), now);
 			// Replace received contacts by our ones
@@ -560,14 +560,14 @@ void ModuleRegistrar::processUpdateRequest(shared_ptr<SipEventT> &ev, const sip_
 		mStats.mCountClear->incrStart();
 		LOGD("Clearing bindings");
 		listener->addStatCounter(mStats.mCountClear->finish);
-		RegistrarDb::get(mAgent)->clear(sip, listener);
+		RegistrarDb::get()->clear(sip, listener);
 		return;
 	} else {
 		auto listener = make_shared<ListenerT>(this, ev, sip->sip_from, sip->sip_contact);
 		mStats.mCountBind->incrStart();
 		LOGD("Updating binding");
 		listener->addStatCounter(mStats.mCountBind->finish);
-		RegistrarDb::get(mAgent)->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, false, listener);
+		RegistrarDb::get()->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, false, listener);
 		return;
 	}
 }
@@ -589,7 +589,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipE
 	if (sip->sip_contact == NULL) {
 		LOGD("No sip contact, it is a fetch only request for %s.", url_as_string(ms->getHome(), sipurl));
 		auto listener = make_shared<OnRequestBindListener>(this, ev);
-		RegistrarDb::get(mAgent)->fetch(sipurl, listener);
+		RegistrarDb::get()->fetch(sipurl, listener);
 		return;
 	}
 
@@ -625,19 +625,19 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipE
 			mStats.mCountClear->incrStart();
 			LOGD("Clearing bindings");
 			listener->addStatCounter(mStats.mCountClear->finish);
-			RegistrarDb::get(mAgent)->clear(sip, listener);
+			RegistrarDb::get()->clear(sip, listener);
 			return;
 		} else {
 			if (sipurl->url_user == NULL && mAssumeUniqueDomains) {
 				/*first clear to make sure that there is only one record*/
-				RegistrarDb::get(mAgent)->clear(sip, make_shared<FakeFetchListener>());
+				RegistrarDb::get()->clear(sip, make_shared<FakeFetchListener>());
 			}
 			auto listener =
 				make_shared<OnRequestBindListener>(this, ev, sip->sip_from, sip->sip_contact, sip->sip_path);
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
 			listener->addStatCounter(mStats.mCountBind->finish);
-			RegistrarDb::get(mAgent)->bind(sip, maindelta, false, listener);
+			RegistrarDb::get()->bind(sip, maindelta, false, listener);
 			return;
 		}
 	} else {
@@ -711,12 +711,12 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) throw(Flexisi
 			mStats.mCountClear->incrStart();
 			LOGD("Clearing bindings");
 			listener->addStatCounter(mStats.mCountClear->finish);
-			RegistrarDb::get(mAgent)->clear(reSip, listener);
+			RegistrarDb::get()->clear(reSip, listener);
 		} else {
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
 			listener->addStatCounter(mStats.mCountBind->finish);
-			RegistrarDb::get(mAgent)->bind(reSip, maindelta, false, listener);
+			RegistrarDb::get()->bind(reSip, maindelta, false, listener);
 		}
 	}
 	if (reSip->sip_status->st_status >= 200) {
@@ -819,7 +819,7 @@ void ModuleRegistrar::readStaticRecords() {
 					/*if no user part is given, consider it as to be used as a route, that is not changing the
 						* request uri but instead prepend a route*/
 					params.usedAsRoute = (single.m_url->url_user == NULL);
-					RegistrarDb::get(mAgent)->bind(params, listener);
+					RegistrarDb::get()->bind(params, listener);
 					contact = contact->m_next;
 				}
 				continue;
@@ -843,7 +843,7 @@ void ModuleRegistrar::sighandler(int signum, siginfo_t *info, void *ptr) {
 		url_t *url = url_make(&home, "sip:contact@domain");
 
 		auto listener = make_shared<FakeFetchListener>();
-		RegistrarDb::get(sRegistrarInstanceForSigAction->getAgent())->fetch(url, listener, false);
+		RegistrarDb::get()->fetch(url, listener, false);
 	}
 }
 

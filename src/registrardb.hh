@@ -161,11 +161,12 @@ class Record {
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec);
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
 	std::string mKey;
-
+	bool mIsDomain; /*is a domain registration*/
   public:
 	static std::list<std::string> sLineFieldNames;
 	static int sMaxContacts;
-	Record(std::string key);
+	static bool sAssumeUniqueDomains;
+	Record(const url_t *aor);
 	static std::string extractUniqueId(const sip_contact_t *contact);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
 	const sip_contact_t *getContacts(su_home_t *home, time_t now);
@@ -187,9 +188,6 @@ class Record {
 	const std::string &getKey() const {
 		return mKey;
 	}
-	void setKey(const char *key) {
-		mKey = key;
-	}
 	int count() {
 		return mContacts.size();
 	}
@@ -205,6 +203,7 @@ class Record {
 	time_t latestExpire(const std::string &route) const;
 	static std::list<std::string> route_to_stl(su_home_t *home, const sip_route_s *route);
 	void appendContactsFrom(Record *src);
+	static string defineKeyFromUrl(const url_t *aor);
 	~Record();
 };
 
@@ -259,14 +258,15 @@ class RegistrarDb {
 		const SipParams sip;
 		const int global_expire;
 		int version; /* used by static records only*/
-		const bool alias;
+		bool alias;
 		bool usedAsRoute;
 		bool enqueueToPreventCollisions;
-		BindParameters(SipParams isip, int iexpire, bool ialias)
+		BindParameters(const SipParams &isip, int iexpire, bool ialias)
 			: sip(isip), global_expire(iexpire), alias(ialias), usedAsRoute(false), enqueueToPreventCollisions(false) {
 		}
 	};
-	static RegistrarDb *get(Agent *ag);
+	static RegistrarDb *initialize(Agent *ag);
+	static RegistrarDb *get();
 	void bind(const BindParameters &mainParams, const std::shared_ptr<RegistrarDbListener> &listener) {
 		doBind(mainParams, listener);
 	}
@@ -293,7 +293,9 @@ class RegistrarDb {
 	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void unsubscribe(const std::string &topic);
 	virtual void publish(const std::string &topic, const std::string &uid) = 0;
-
+	bool useGlobalDomain()const{
+		return mUseGlobalDomain;
+	}
   protected:
 	class LocalRegExpire {
 		std::map<std::string, time_t> mRegMap;
@@ -319,9 +321,8 @@ class RegistrarDb {
 	virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener) = 0;
 
 	int count_sip_contacts(const sip_contact_t *contact);
-	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const char *key,
+	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const string &key,
 									 const std::shared_ptr<RegistrarDbListener> &listener);
-	void defineKeyFromUrl(char *key, int len, const url_t *url);
 	void fetchWithDomain(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool recursive);
 	RegistrarDb(const std::string &preferedRoute);
 	virtual ~RegistrarDb();

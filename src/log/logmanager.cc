@@ -22,6 +22,10 @@
 #include "bctoolbox/logging.h"
 #include <syslog.h>
 
+#ifndef DEFAULT_LOG_DIR
+#define DEFAULT_LOG_DIR "/var/log/flexisip"
+#endif
+
 using namespace std;
 
 static bool is_preinit_done = false;

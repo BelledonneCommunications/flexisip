@@ -33,11 +33,10 @@ RegistrarDbInternal::RegistrarDbInternal(const string &preferredRoute) : Registr
 }
 
 void RegistrarDbInternal::doBind(const BindParameters &p, const shared_ptr<RegistrarDbListener> &listener) {
-	char key[AOR_KEY_SIZE] = {0};
-	defineKeyFromUrl(key, AOR_KEY_SIZE - 1, p.sip.from);
+	string key = Record::defineKeyFromUrl(p.sip.from);
 
 	if (count_sip_contacts(p.sip.contact) > Record::getMaxContacts()) {
-		LOGD("Too many contacts in register %s %i > %i", key, count_sip_contacts(p.sip.contact),
+		LOGD("Too many contacts in register %s %i > %i", key.c_str(), count_sip_contacts(p.sip.contact),
 			 Record::getMaxContacts());
 		listener->onError();
 		return;
@@ -48,11 +47,11 @@ void RegistrarDbInternal::doBind(const BindParameters &p, const shared_ptr<Regis
 	map<string, Record *>::iterator it = mRecords.find(key);
 	Record *r;
 	if (it == mRecords.end()) {
-		r = new Record(key);
+		r = new Record(p.sip.from);
 		mRecords.insert(make_pair(key, r));
-		LOGD("Creating AOR %s association", key);
+		LOGD("Creating AOR %s association", key.c_str());
 	} else {
-		LOGD("AOR %s found", key);
+		LOGD("AOR %s found", key.c_str());
 		r = (*it).second;
 	}
 
@@ -78,8 +77,8 @@ void RegistrarDbInternal::doBind(const BindParameters &p, const shared_ptr<Regis
 }
 
 void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<RegistrarDbListener> &listener) {
-	char key[AOR_KEY_SIZE] = {0};
-	defineKeyFromUrl(key, AOR_KEY_SIZE - 1, url);
+	string key(Record::defineKeyFromUrl(url));
+	
 	map<string, Record *>::iterator it = mRecords.find(key);
 	Record *r = NULL;
 	if (it != mRecords.end()) {
@@ -95,8 +94,7 @@ void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<RegistrarDb
 }
 
 void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<RegistrarDbListener> &listener) {
-	char key[AOR_KEY_SIZE] = {0};
-	defineKeyFromUrl(key, AOR_KEY_SIZE - 1, sip->sip_from->a_url);
+	string key(Record::defineKeyFromUrl(sip->sip_from->a_url));
 
 	if (errorOnTooMuchContactInBind(sip->sip_contact, key, listener)) {
 		listener->onError();
@@ -110,7 +108,7 @@ void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<RegistrarDb
 		return;
 	}
 
-	LOGD("AOR %s found", key);
+	LOGD("AOR %s found", key.c_str());
 	Record *r = (*it).second;
 
 	if (r->isInvalidRegister(sip->sip_call_id->i_id, sip->sip_cseq->cs_seq)) {

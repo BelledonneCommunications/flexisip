@@ -311,7 +311,7 @@ void GatewayRegister::start() {
 	LOGD("GatewayRegister start");
 	LOGD("Fetching binding");
 	++*mCountStart;
-	RegistrarDb::get(mAgent)->fetch(from->a_url, make_shared<OnFetchListener>(this));
+	RegistrarDb::get()->fetch(from->a_url, make_shared<OnFetchListener>(this));
 }
 
 void GatewayRegister::end() {

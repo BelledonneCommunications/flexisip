@@ -265,9 +265,29 @@ std::list<std::string> Record::route_to_stl(su_home_t *home, const sip_route_s *
 	return res;
 }
 
+string Record::defineKeyFromUrl(const url_t *url) {
+	ostringstream ostr;
+	if (url->url_user) {
+		if (!RegistrarDb::get()->useGlobalDomain()) {
+			ostr<<url->url_user<<"@"<<url->url_host;
+		} else {
+			ostr<<url->url_user<<"@"<<"merged";
+		}
+	} else {
+		ostr<<url->url_host;
+	}
+	return ostr.str();
+}
+
+
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec) {
 	// Try to locate an existing contact
 	shared_ptr<ExtendedContact> olderEc;
+	
+	if (sAssumeUniqueDomains && mIsDomain){
+		mContacts.clear();
+	}
+	
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		if (0 == strcmp(ec->contactId(), (*it)->contactId())) {
 			LOGD("Removing older contact with same id %s", (*it)->contactId());
@@ -361,10 +381,12 @@ void Record::print(std::ostream &stream) const {
 
 int Record::sMaxContacts = -1;
 list<string> Record::sLineFieldNames;
+bool Record::sAssumeUniqueDomains = false;
 
-Record::Record(string key) : mKey(key) {
+Record::Record(const url_t *aor) : mKey(aor ? defineKeyFromUrl(aor) : "") {
 	if (sMaxContacts == -1)
 		init();
+	if (aor) mIsDomain = aor->url_user == NULL;
 }
 
 Record::~Record() {
@@ -374,6 +396,11 @@ void Record::init() {
 	GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
 	sMaxContacts = registrar->get<ConfigInt>("max-contacts-by-aor")->read();
 	sLineFieldNames = registrar->get<ConfigStringList>("unique-id-parameters")->read();
+	sAssumeUniqueDomains = GenericManager::get()
+								   ->getRoot()
+								   ->get<GenericStruct>("inter-domain-connections")
+								   ->get<ConfigBoolean>("assume-unique-domains")
+								   ->read();
 }
 
 void Record::appendContactsFrom(Record *src) {
@@ -456,30 +483,20 @@ int RegistrarDb::count_sip_contacts(const sip_contact_t *contact) {
 	int count = 0;
 	sip_contact_t *current = (sip_contact_t *)contact;
 	while (current) {
+		if (!current->m_expires || atoi(current->m_expires) != 0){
+			++count;
+		}
 		current = current->m_next;
-		++count;
 	}
 	return count;
 }
 
-void RegistrarDb::defineKeyFromUrl(char *key, int len, const url_t *url) {
-	if (url->url_user) {
-		if (!mUseGlobalDomain) {
-			snprintf(key, len - 1, "%s@%s", url->url_user, url->url_host);
-		} else {
-			snprintf(key, len - 1, "%s@merged", url->url_user);
-		}
-	} else {
-		snprintf(key, len - 1, "%s", url->url_host);
-	}
-}
-
-bool RegistrarDb::errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const char *key,
+bool RegistrarDb::errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const string & key,
 											  const shared_ptr<RegistrarDbListener> &listener) {
 	int nb_contact = count_sip_contacts(sip_contact);
 	int max_contact = Record::getMaxContacts();
 	if (nb_contact > max_contact) {
-		LOGD("Too many contacts in register %s %i > %i", key, nb_contact,
+		LOGD("Too many contacts in register %s %i > %i", key.c_str(), nb_contact,
 			 max_contact);
 		return true;
 	}
@@ -489,44 +506,52 @@ bool RegistrarDb::errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, 
 
 RegistrarDb *RegistrarDb::sUnique = NULL;
 
-RegistrarDb *RegistrarDb::get(Agent *ag) {
-	if (sUnique == NULL) {
-		GenericStruct *cr = GenericManager::get()->getRoot();
-		GenericStruct *mr = cr->get<GenericStruct>("module::Registrar");
-		GenericStruct *mro = cr->get<GenericStruct>("module::Router");
+RegistrarDb *RegistrarDb::initialize(Agent *ag){
+	if (sUnique != NULL){
+		LOGF("RegistrarDb already initialized");
+	}
+	GenericStruct *cr = GenericManager::get()->getRoot();
+	GenericStruct *mr = cr->get<GenericStruct>("module::Registrar");
+	GenericStruct *mro = cr->get<GenericStruct>("module::Router");
 
-		bool useGlobalDomain = mro->get<ConfigBoolean>("use-global-domain")->read();
-		string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
-		if ("internal" == dbImplementation) {
-			LOGI("RegistrarDB implementation is internal");
-			sUnique = new RegistrarDbInternal(ag->getPreferredRoute());
-			sUnique->mUseGlobalDomain = useGlobalDomain;
-		}
+	bool useGlobalDomain = mro->get<ConfigBoolean>("use-global-domain")->read();
+	string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
+	if ("internal" == dbImplementation) {
+		LOGI("RegistrarDB implementation is internal");
+		sUnique = new RegistrarDbInternal(ag->getPreferredRoute());
+		sUnique->mUseGlobalDomain = useGlobalDomain;
+	}
 #ifdef ENABLE_REDIS
-		/* Previous implementations allowed "redis-sync" and "redis-async", whereas we now expect "redis".
-		 * We check that the dbImplementation _starts_ with "redis" now, so that we stay backward compatible. */
-		else if (dbImplementation.find("redis") == 0) {
-			LOGI("RegistrarDB implementation is REDIS");
-			GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
-			RedisParameters params;
-			params.domain = registrar->get<ConfigString>("redis-server-domain")->read();
-			params.port = registrar->get<ConfigInt>("redis-server-port")->read();
-			params.timeout = registrar->get<ConfigInt>("redis-server-timeout")->read();
-			params.auth = registrar->get<ConfigString>("redis-auth-password")->read();
-			params.mSlaveCheckTimeout = registrar->get<ConfigInt>("redis-slave-check-period")->read();
+	/* Previous implementations allowed "redis-sync" and "redis-async", whereas we now expect "redis".
+		* We check that the dbImplementation _starts_ with "redis" now, so that we stay backward compatible. */
+	else if (dbImplementation.find("redis") == 0) {
+		LOGI("RegistrarDB implementation is REDIS");
+		GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+		RedisParameters params;
+		params.domain = registrar->get<ConfigString>("redis-server-domain")->read();
+		params.port = registrar->get<ConfigInt>("redis-server-port")->read();
+		params.timeout = registrar->get<ConfigInt>("redis-server-timeout")->read();
+		params.auth = registrar->get<ConfigString>("redis-auth-password")->read();
+		params.mSlaveCheckTimeout = registrar->get<ConfigInt>("redis-slave-check-period")->read();
 
-			sUnique = new RegistrarDbRedisAsync(ag, params);
-			sUnique->mUseGlobalDomain = useGlobalDomain;
-		}
+		sUnique = new RegistrarDbRedisAsync(ag, params);
+		sUnique->mUseGlobalDomain = useGlobalDomain;
+	}
 #endif
-		else {
-			LOGF("Unsupported implementation '%s'. %s",
+	else {
+		LOGF("Unsupported implementation '%s'. %s",
 #ifdef ENABLE_REDIS
-				 "Supported implementations are 'internal' or 'redis'.", dbImplementation.c_str());
+				"Supported implementations are 'internal' or 'redis'.", dbImplementation.c_str());
 #else
-				 "Supported implementation is 'internal'.", dbImplementation.c_str());
+				"Supported implementation is 'internal'.", dbImplementation.c_str());
 #endif
-		}
+	}
+	return sUnique;
+}
+
+RegistrarDb *RegistrarDb::get() {
+	if (sUnique == NULL) {
+		LOGF("RegistrarDb not initialized.");
 	}
 	return sUnique;
 }
@@ -551,7 +576,7 @@ class RecursiveRegistrarDbListener : public RegistrarDbListener,
 	RecursiveRegistrarDbListener(RegistrarDb *database, const shared_ptr<RegistrarDbListener> &original_listerner,
 								 const url_t *url, int step = sMaxStep)
 		: m_database(database), mOriginalListener(original_listerner), m_request(1), m_step(step) {
-		m_record = new Record("virtual_record");
+		m_record = new Record(url);
 		su_home_init(&m_home);
 		m_url = url_as_string(&m_home, url);
 	}
@@ -682,7 +707,7 @@ class AgregatorRegistrarDbListener : public RegistrarDbListener {
 	bool mError;
 	Record *getRecord() {
 		if (mRecord == NULL)
-			mRecord = new Record("Aggregated record");
+			mRecord = new Record(NULL);
 		return mRecord;
 	}
 	void checkFinished() {

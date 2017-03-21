@@ -23,6 +23,7 @@
 #include "agent.hh"
 #include "module.hh"
 #include "domain-registrations.hh"
+#include "registrardb.hh"
 
 #include "log/logmanager.hh"
 #include "sipattrextractor.hh"
@@ -495,6 +496,9 @@ void Agent::loadConfig(GenericManager *cm) {
 	for (list<string>::iterator it = mAliases.begin(); it != mAliases.end(); ++it) {
 		LOGD("%s", (*it).c_str());
 	}
+	
+	RegistrarDb::initialize(this);
+	
 	list<Module *>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		// Check in all cases, even if not enabled,

@@ -372,7 +372,7 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Reg
 	void onContactRegistered(std::string key, std::string uid) {
 		LOGD("Listener found for topic = %s, uid = %s, sipUri = %s", key.c_str(), uid.c_str(), url_as_string(&mHome, mSipUri));
 		mUid = uid;
-		RegistrarDb::get(mModule->getAgent())->fetch(mSipUri, this->shared_from_this(), true);
+		RegistrarDb::get()->fetch(mSipUri, this->shared_from_this(), true);
 	}
 
 	void onRecordFound(Record *r) {
@@ -654,7 +654,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				context->setKey(key);
 				mForks.insert(make_pair(key, context));
 				if (mForks.count(key) == 1) {
-					RegistrarDb::get(getAgent())->subscribe(key, make_shared<OnContactRegisteredListener>(this, sipUri));
+					RegistrarDb::get()->subscribe(key, make_shared<OnContactRegisteredListener>(this, sipUri));
 				}
 				SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
 			}
@@ -691,7 +691,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				context->setKey(key);
 				mForks.insert(make_pair(key, context));
 				if (mForks.count(key) == 1) {
-					RegistrarDb::get(getAgent())->subscribe(key, make_shared<OnContactRegisteredListener>(this, temp_ctt->m_url));
+					RegistrarDb::get()->subscribe(key, make_shared<OnContactRegisteredListener>(this, temp_ctt->m_url));
 				}
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
 			} else {
@@ -722,7 +722,7 @@ class PreroutingFetcher : public RegistrarDbListener,
 		: mModule(module), mEv(ev), mListener(listener), mPreroutes(preroutes) {
 		pending = 0;
 		error = false;
-		m_record = new Record("virtual_record");
+		m_record = new Record(NULL);
 	}
 
 	~PreroutingFetcher() {
@@ -737,7 +737,7 @@ class PreroutingFetcher : public RegistrarDbListener,
 		pending += mPreroutes.size();
 		for (auto it = mPreroutes.cbegin(); it != mPreroutes.cend(); ++it) {
 			url_t *target = url_format(mEv->getHome(), "sip:%s@%s", it->c_str(), domain);
-			RegistrarDb::get(mModule->getAgent())->fetch(target, this->shared_from_this(), true);
+			RegistrarDb::get()->fetch(target, this->shared_from_this(), true);
 		}
 	}
 
@@ -790,7 +790,7 @@ class TargetUriListFetcher : public RegistrarDbListener,
 		: mModule(module), mEv(ev), mListener(listener) {
 		mPending = 0;
 		mError = false;
-		mRecord = new Record("virtual_record");
+		mRecord = new Record(NULL);
 		if (target_uris && target_uris->un_value) {
 			/*the X-target-uris header is parsed like a route, as it is a list of URIs*/
 			mUriList = sip_route_make(mEv->getHome(), target_uris->un_value);
@@ -809,7 +809,7 @@ class TargetUriListFetcher : public RegistrarDbListener,
 		}
 		/*start the queries for all uris of the target uri list*/
 		for (iter = mUriList; iter != NULL; iter = iter->r_next) {
-			RegistrarDb::get(mModule->getAgent())
+			RegistrarDb::get()
 				->fetch(iter->r_url, this->shared_from_this(), allowDomainRegistrations, recursive);
 		}
 	}
@@ -936,7 +936,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipExce
 				/*the unstandard X-Target-Uris header gives us a list of SIP uri to which the request is to be forked.*/
 				sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-Target-Uris");
 				if (!h) {
-					RegistrarDb::get(mAgent)->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
+					RegistrarDb::get()->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
 				} else {
 					auto fetcher = make_shared<TargetUriListFetcher>(this, ev, onRoutingListener, h);
 					sip_header_remove(ms->getMsg(), sip, (sip_header_t *)h);
@@ -959,7 +959,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipExce
 				} else {
 					SLOGD << "Prerouting to " << mPreroute;
 					url_t *prerouteUrl = url_format(ev->getHome(), "sip:%s@%s", mPreroute.c_str(), sipurl->url_host);
-					RegistrarDb::get(mAgent)->fetch(prerouteUrl, onRoutingListener, true);
+					RegistrarDb::get()->fetch(prerouteUrl, onRoutingListener, true);
 				}
 			}
 		}
@@ -996,7 +996,7 @@ void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 	}
 
 	if (count == removed && count > 0) {
-		RegistrarDb::get(getAgent())->unsubscribe(key.c_str());
+		RegistrarDb::get()->unsubscribe(key.c_str());
 	}
 }
 
