@@ -127,7 +127,7 @@ namespace flexisip {
 				bctbx_add_log_handler(filehandler);
 			} else {
 				if(syslog) {
-					vsyslog(LOG_INFO, "Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n", NULL);;
+					vsyslog(LOG_INFO, "Error while writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n", NULL);;
 				} else {
 					printf("Error while writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n");
 				}
