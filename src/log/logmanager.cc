@@ -111,6 +111,7 @@ namespace flexisip {
 			}
 			
 			FILE *f = fopen (DEFAULT_LOG_DIR "/FlexisipLogs.log" , "a");
+			LOGD("Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log");
 			BctoolboxLogHandler* filehandler = (BctoolboxLogHandler*)malloc(sizeof(BctoolboxLogHandler));
 			filehandler->func = bctbx_logv_file;
 			filehandler->user_info = f;
