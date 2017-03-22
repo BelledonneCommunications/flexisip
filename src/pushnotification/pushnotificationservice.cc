@@ -56,8 +56,11 @@ PushNotificationService::~PushNotificationService() {
 
 int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequest> &pn){	
 	std::shared_ptr<PushNotificationClient> client = mClients[pn->getAppIdentifier()];
-	if (client == 0) {
-		bool isW10 = (pn->getType().compare(string("w10")) == 0);
+	bool isW10 = (pn->getType().compare(string("w10")) == 0);
+	bool isWP = (pn->getType().compare(string("wp")) == 0);
+	if (client == 0 && (isW10 || isWP)) {
+		// In Windows case we can't create all push notification clients at start up since we need to wait the registration of all AppID
+		// Therefore we create the push notification client just before sending the push.
 		if (isW10 && (mWindowsPhonePackageSID.empty() || mWindowsPhoneApplicationSecret.empty())) {
 			SLOGE << "Windows Phone not configured for push notifications ("
 				"package sid is " << (mWindowsPhonePackageSID.empty() ? "NOT configured" : "configured") << " and " <<
@@ -79,6 +82,9 @@ int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequ
 			}
 			client = mClients[wpClient];
 		}
+	} else {
+		SLOGE << "No push notification client available for push notification request : " << pn;
+		return -1;
 	}
 	client->sendPush(pn);
 	return 0;
