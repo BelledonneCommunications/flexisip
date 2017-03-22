@@ -108,19 +108,30 @@ namespace flexisip {
 				 defaulthandler.user_info = NULL;
 				 bctbx_add_log_handler(defaulthandler);
 				 */
+				BctoolboxLogHandler* outhandler = (BctoolboxLogHandler*)malloc(sizeof(BctoolboxLogHandler));
+				outhandler->func = bctbx_logv_out;
+				outhandler->user_info = NULL;
+				bctbx_add_log_handler(outhandler);
 			}
 			
 			FILE *f = fopen (DEFAULT_LOG_DIR "/FlexisipLogs.log" , "a");
-			LOGD("Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log");
-			BctoolboxLogHandler* filehandler = (BctoolboxLogHandler*)malloc(sizeof(BctoolboxLogHandler));
-			filehandler->func = bctbx_logv_file;
-			filehandler->user_info = f;
-			bctbx_add_log_handler(filehandler);
-			
-			BctoolboxLogHandler* outhandler = (BctoolboxLogHandler*)malloc(sizeof(BctoolboxLogHandler));
-			outhandler->func = bctbx_logv_out;
-			outhandler->user_info = NULL;
-			bctbx_add_log_handler(outhandler);
+			if(f) {
+				if(syslog) {
+					vsyslog(LOG_INFO, "Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n", NULL);
+				} else {
+					printf("Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n");
+				}
+				BctoolboxLogHandler* filehandler = (BctoolboxLogHandler*)malloc(sizeof(BctoolboxLogHandler));
+				filehandler->func = bctbx_logv_file;
+				filehandler->user_info = f;
+				bctbx_add_log_handler(filehandler);
+			} else {
+				if(syslog) {
+					vsyslog(LOG_INFO, "Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n", NULL);;
+				} else {
+					printf("Error while writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n");
+				}
+			}
 		}
 
 		void initLogs(bool use_syslog, std::string level, bool user_errors) {
