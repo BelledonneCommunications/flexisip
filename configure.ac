@@ -69,7 +69,7 @@ fi
 fi
 AM_CONDITIONAL(BUILD_SNMP,test x$build_snmp = xtrue)
 AC_DEFINE(SNMP_COMPANY_OID,100000,[Company OID used for prefixing flexisip MIB])
-AC_DEFINE(DEFAULT_LOG_DIR,"@localstatedir@/log/flexisip",[Company OID used for prefixing flexisip MIB])
+AC_DEFINE(DEFAULT_LOG_DIR,"@localstatedir@/opt/belledonne-communications/log/flexisip",[Company OID used for prefixing flexisip MIB])
 
 
 if test -f /etc/debian_version ; then

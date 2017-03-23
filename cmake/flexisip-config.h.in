@@ -36,4 +36,4 @@
 #define VERSION "${FLEXISIP_VERSION}"
 
 /* Default log directory */
-#define DEFAULT_LOG_DIR "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/log/flexisip"
+#define DEFAULT_LOG_DIR "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/opt/belledonne-communications/log/flexisip"
