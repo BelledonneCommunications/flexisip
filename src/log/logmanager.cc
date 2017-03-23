@@ -31,32 +31,34 @@ using namespace std;
 static bool is_preinit_done = false;
 static bool is_debug = false;
 bool sUseSyslog = false;
-
+BctbxLogLevel sysLevelMin = BCTBX_LOG_ERROR;
 
 namespace flexisip {
 	namespace log {
 		static void syslogHandler(void *info, const char *domain, BctbxLogLevel log_level, const char *str, va_list l) {
-			int syslev = LOG_ALERT;
-			switch (log_level) {
-				case BCTBX_LOG_DEBUG:
-				syslev = LOG_DEBUG;
-				break;
-				case BCTBX_LOG_MESSAGE:
-				syslev = LOG_INFO;
-				break;
-				case BCTBX_LOG_WARNING:
-				syslev = LOG_WARNING;
-				break;
-				case BCTBX_LOG_ERROR:
-				syslev = LOG_ERR;
-				break;
-				case BCTBX_LOG_FATAL:
-				syslev = LOG_ALERT;
-				break;
-				default:
-				syslev = LOG_ERR;
+			if (log_level >= sysLevelMin) {
+				int syslev = LOG_ALERT;
+				switch (log_level) {
+					case BCTBX_LOG_DEBUG:
+					syslev = LOG_DEBUG;
+					break;
+					case BCTBX_LOG_MESSAGE:
+					syslev = LOG_INFO;
+					break;
+					case BCTBX_LOG_WARNING:
+					syslev = LOG_WARNING;
+					break;
+					case BCTBX_LOG_ERROR:
+					syslev = LOG_ERR;
+					break;
+					case BCTBX_LOG_FATAL:
+					syslev = LOG_ALERT;
+					break;
+					default:
+					syslev = LOG_ERR;
+				}
+				vsyslog(syslev, str, l);
 			}
-			vsyslog(syslev, str, l);
 		}
 
 		void defaultLogHandler(void *info, const char *domain, BctbxLogLevel log_level, const char *str, va_list l) {
@@ -134,12 +136,23 @@ namespace flexisip {
 			}
 		}
 
-		void initLogs(bool use_syslog, std::string level, bool user_errors) {
+		void initLogs(bool use_syslog, std::string level, std::string syslevel, bool user_errors) {
 			if (sUseSyslog != use_syslog) {
 				LOGF("Different preinit and init syslog config is not supported.");
 			}
 			if (!is_preinit_done) {
 				LOGF("Preinit was skipped: not supported.");
+			}
+			if (syslevel == "debug") {
+				sysLevelMin = BCTBX_LOG_DEBUG;
+			} else if (syslevel == "message") {
+				sysLevelMin = BCTBX_LOG_MESSAGE;
+			} else if (syslevel == "warning") {
+				sysLevelMin = BCTBX_LOG_WARNING;
+			} else if (syslevel == "error") {
+				sysLevelMin = BCTBX_LOG_ERROR;
+			} else {
+				sysLevelMin = BCTBX_LOG_ERROR;
 			}
 
 			if (level == "debug") {

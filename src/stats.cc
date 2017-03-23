@@ -123,8 +123,9 @@ static std::string printSection(GenericStruct *gstruct, bool printHelpInsteadOfV
 
 static void updateLogsVerbosity(GenericManager *manager) {
 	std::string loglevel = manager->getGlobal()->get<ConfigString>("log-level")->get();
+	std::string sysloglevel = manager->getGlobal()->get<ConfigString>("syslog-level")->get();
 	bool user_errors = manager->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
-	flexisip::log::initLogs(sUseSyslog, loglevel, user_errors);
+	flexisip::log::initLogs(sUseSyslog, loglevel, sysloglevel, user_errors);
 }
 
 void Stats::parseAndAnswer(unsigned int socket, const std::string& query) {
@@ -177,8 +178,12 @@ void Stats::parseAndAnswer(unsigned int socket, const std::string& query) {
 						config_value->set(value);
 						updateLogsVerbosity(manager);
 						answer = "log-level : " + value;
+					} else if (config_value && strcmp("global/syslog-level", arg.c_str()) == 0) {
+						config_value->set(value);
+						updateLogsVerbosity(manager);
+						answer = "syslog-level : " + value;
 					} else {
-						answer = "Only debug and log-level from global can be updated while flexisip is running";
+						answer = "Only debug, log-level and syslog-level from global can be updated while flexisip is running";
 					}
 				}
 			} else {

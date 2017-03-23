@@ -775,8 +775,9 @@ int main(int argc, char *argv[]) {
 	string fName = getFunctionName(startProxy, startPresence);
 	// Initialize
 	std::string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
+	std::string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
 	bool user_errors = cfg->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
-	flexisip::log::initLogs(useSyslog, debug ? "debug" : log_level, user_errors);
+	flexisip::log::initLogs(useSyslog, debug ? "debug" : log_level, syslog_level, user_errors);
 	//flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
 	
 	signal(SIGPIPE, SIG_IGN);
