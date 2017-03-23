@@ -119,7 +119,9 @@ namespace flexisip {
 			FILE *f = fopen (DEFAULT_LOG_DIR "/FlexisipLogs.log" , "a");
 			if(f) {
 				if(syslog) {
-					vsyslog(LOG_INFO, "Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n", NULL);
+					const char* str = "Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n";
+					int len = strlen(str);
+					::syslog(LOG_INFO, str, len);
 				} else {
 					printf("Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n");
 				}
@@ -129,7 +131,9 @@ namespace flexisip {
 				bctbx_add_log_handler(filehandler);
 			} else {
 				if(syslog) {
-					vsyslog(LOG_INFO, "Error while writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n", NULL);;
+					const char* str = "Error while writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n";
+					int len = strlen(str);
+					::syslog(LOG_INFO, str, len);
 				} else {
 					printf("Error while writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n");
 				}
