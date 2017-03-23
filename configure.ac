@@ -1,4 +1,3 @@
-dnl
 dnl     Flexisip, a flexible SIP proxy server with media capabilities.
 dnl    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 dnl
@@ -69,8 +68,7 @@ fi
 fi
 AM_CONDITIONAL(BUILD_SNMP,test x$build_snmp = xtrue)
 AC_DEFINE(SNMP_COMPANY_OID,100000,[Company OID used for prefixing flexisip MIB])
-AC_SUBST([localstatedir], ['${prefix}/var'])
-AC_DEFINE(DEFAULT_LOG_DIR,"@localstatedir@/opt/belledonne-communications/log/flexisip",[Directory where log files will be but])
+AC_DEFINE_UNQUOTED(DEFAULT_LOG_DIR, "$localstatedir/opt/belledonne-communications/log/flexisip", [Directory where log files will be put])
 
 
 if test -f /etc/debian_version ; then
