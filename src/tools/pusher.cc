@@ -164,7 +164,7 @@ int main(int argc, char *argv[]) {
 	args.parse(argc, argv);
 
 	flexisip::log::preinit(sUseSyslog, args.debug);
-	flexisip::log::initLogs(sUseSyslog, "debug", false);
+	flexisip::log::initLogs(sUseSyslog, "debug", "error", false);
 	flexisip::log::updateFilter("%Severity% >= debug");
 
 	{
