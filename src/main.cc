@@ -776,8 +776,9 @@ int main(int argc, char *argv[]) {
 	// Initialize
 	std::string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
 	std::string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
+	int max_size = cfg->getGlobal()->get<ConfigInt>("max-log-size")->read();
 	bool user_errors = cfg->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
-	flexisip::log::initLogs(useSyslog, debug ? "debug" : log_level, syslog_level, user_errors);
+	flexisip::log::initLogs(useSyslog, debug ? "debug" : log_level, syslog_level, max_size, user_errors);
 	//flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
 	
 	signal(SIGPIPE, SIG_IGN);

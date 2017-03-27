@@ -125,7 +125,7 @@ static void updateLogsVerbosity(GenericManager *manager) {
 	std::string loglevel = manager->getGlobal()->get<ConfigString>("log-level")->get();
 	std::string sysloglevel = manager->getGlobal()->get<ConfigString>("syslog-level")->get();
 	bool user_errors = manager->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
-	flexisip::log::initLogs(sUseSyslog, loglevel, sysloglevel, user_errors);
+	flexisip::log::initLogs(sUseSyslog, loglevel, sysloglevel, -1, user_errors);
 }
 
 void Stats::parseAndAnswer(unsigned int socket, const std::string& query) {

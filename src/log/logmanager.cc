@@ -32,6 +32,7 @@ static bool is_preinit_done = false;
 static bool is_debug = false;
 bool sUseSyslog = false;
 BctbxLogLevel sysLevelMin = BCTBX_LOG_ERROR;
+int maxSize = -1;
 
 namespace flexisip {
 	namespace log {
@@ -118,17 +119,24 @@ namespace flexisip {
 			
 			FILE *f = fopen (DEFAULT_LOG_DIR "/FlexisipLogs.log" , "a");
 			if(f) {
+				const char* str = "Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n";
 				if(syslog) {
-					const char* str = "Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n";
 					int len = strlen(str);
 					::syslog(LOG_INFO, str, len);
 				} else {
-					printf("Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n");
+					printf("%s", str);
 				}
-				BctoolboxLogHandler* filehandler = (BctoolboxLogHandler*)malloc(sizeof(BctoolboxLogHandler));
-				filehandler->func = bctbx_logv_file;
-				filehandler->user_info = f;
-				bctbx_add_log_handler(filehandler);
+				
+				static BctoolboxFileLogHandler filehandler;
+				static BctoolboxLogHandler handler;
+				handler.func=bctbx_logv_file;
+				filehandler.handler = handler;
+				filehandler.max_size = maxSize;
+				filehandler.path = DEFAULT_LOG_DIR;
+				filehandler.name = "FlexisipLogs";
+				filehandler.file = f;
+				handler.user_info=(void*) &filehandler;
+				bctbx_add_log_handler(&handler);
 			} else {
 				if(syslog) {
 					const char* str = "Error while writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n";
@@ -140,13 +148,16 @@ namespace flexisip {
 			}
 		}
 
-		void initLogs(bool use_syslog, std::string level, std::string syslevel, bool user_errors) {
+		void initLogs(bool use_syslog, std::string level, std::string syslevel, int max_size, bool user_errors) {
 			if (sUseSyslog != use_syslog) {
 				LOGF("Different preinit and init syslog config is not supported.");
 			}
 			if (!is_preinit_done) {
 				LOGF("Preinit was skipped: not supported.");
 			}
+			
+			maxSize = max_size;
+			
 			if (syslevel == "debug") {
 				sysLevelMin = BCTBX_LOG_DEBUG;
 			} else if (syslevel == "message") {

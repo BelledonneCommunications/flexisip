@@ -146,7 +146,7 @@ int main(int argc, char **argv) {
 	args.parse(argc, argv);
 
 	flexisip::log::preinit(sUseSyslog, args.debug);
-	flexisip::log::initLogs(sUseSyslog, "debug", "error", false);
+	flexisip::log::initLogs(sUseSyslog, "debug", "error", -1, false);
 	flexisip::log::updateFilter("%Severity% >= debug");
 
 	Record::sLineFieldNames = {"line"};
