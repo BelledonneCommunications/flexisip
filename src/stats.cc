@@ -222,18 +222,18 @@ void Stats::run() {
 	while (mRunning) {
 		remote_length = sizeof(remote);
 		if ((remote_socket = accept(local_socket, (struct sockaddr *)&remote, &remote_length)) == -1) {
-			LOGE("Accept error %i : %s", errno, std::strerror(errno));
+			if (mRunning) LOGE("Accept error %i : %s", errno, std::strerror(errno));
+			continue;
 		}
 		
 		bool finished = false;
 		do {
-		    char buffer[512];
-		    int n = recv(remote_socket, buffer, 512, 0);
+		    char buffer[512]={0};
+		    int n = recv(remote_socket, buffer, sizeof(buffer)-1, 0);
 		    if (n < 0) {
 				LOGE("Recv error %i : %s", errno, std::strerror(errno));
 		    }
 		    if (n > 0) {
-				buffer[n] = '\0';
 				LOGD("[Stats] Received: %s", buffer);
 				parseAndAnswer(remote_socket, buffer);
 		    }
