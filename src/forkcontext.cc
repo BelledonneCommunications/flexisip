@@ -179,6 +179,17 @@ bool ForkContext::onNewRegister(const url_t *url, const string &uid) {
 		LOGD("ForkContext %p: onNewRegister(): destination already handled.", this);
 		return false;
 	}
+	br = findBranchByUid(uid);
+	if (br){
+		int code = br->getStatus();
+		if (code >= 300 && code != 503 && code != 408){
+			/* This instance has already declined the call, but has reconnected using another transport address.
+			 * We should not send it the message again.
+			 */
+			LOGD("ForkContext %p: onNewRegister(): instance has already declined the request.", this);
+			return false;
+		}
+	}
 	return true;
 }
 

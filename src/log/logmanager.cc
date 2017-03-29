@@ -132,8 +132,8 @@ namespace flexisip {
 				handler.func=bctbx_logv_file;
 				filehandler.handler = handler;
 				filehandler.max_size = maxSize;
-				filehandler.path = DEFAULT_LOG_DIR;
-				filehandler.name = "FlexisipLogs";
+				filehandler.path = (char*)DEFAULT_LOG_DIR;
+				filehandler.name = (char*)"FlexisipLogs";
 				filehandler.file = f;
 				handler.user_info=(void*) &filehandler;
 				bctbx_add_log_handler(&handler);
