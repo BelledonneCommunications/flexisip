@@ -632,13 +632,13 @@ ConfigByteSize::ConfigByteSize(const string &name, const string &help, const str
 uint64_t ConfigByteSize::read() const {
 	string str = get();
 	const char* size;
-	if(str.find('K') != -1) {
+	if(str.find('K') != string::npos) {
 		size = str.substr(0, str.find('K')).c_str();
 		return strtoll(size,NULL,10) * 1000;
-	} else if (str.find('M') != -1) {
+	} else if (str.find('M') != string::npos) {
 		size = str.substr(0, str.find('M')).c_str();
 		return strtoll(size,NULL,10) * 1000000;
-	} else if (str.find('G') != -1) {
+	} else if (str.find('G') != string::npos) {
 		size = str.substr(0, str.find('G')).c_str();
 		return strtoll(size,NULL,10) * 1000000000;
 	} else {
