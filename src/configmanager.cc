@@ -446,6 +446,9 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor *items, bool hashed) 
 			case String:
 				val = new ConfigString(items->name, items->help, items->default_value, cOid);
 				break;
+			case ByteSize:
+				val = new ConfigByteSize(items->name, items->help, items->default_value, cOid);
+				break;
 			case StringList:
 				val = new ConfigStringList(items->name, items->help, items->default_value, cOid);
 				break;
@@ -623,6 +626,27 @@ const string &ConfigString::read() const {
 	return get();
 }
 
+ConfigByteSize::ConfigByteSize(const string &name, const string &help, const string &default_value, oid oid_index)
+: ConfigValue(name, String, help, default_value, oid_index) {
+}
+uint64_t ConfigByteSize::read() const {
+	string str = get();
+	const char* size;
+	if(str.find('K') != -1) {
+		size = str.substr(0, str.find('K')).c_str();
+		return strtoll(size,NULL,10) * 1000;
+	} else if (str.find('M') != -1) {
+		size = str.substr(0, str.find('M')).c_str();
+		return strtoll(size,NULL,10) * 1000000;
+	} else if (str.find('G') != -1) {
+		size = str.substr(0, str.find('G')).c_str();
+		return strtoll(size,NULL,10) * 1000000000;
+	} else {
+		size = str.c_str();
+		return strtoll(size,NULL,10);
+	}
+}
+
 void ConfigRuntimeError::writeErrors(GenericEntry *entry, ostringstream &oss) const {
 	GenericStruct *cs = dynamic_cast<GenericStruct *>(entry);
 	if (cs) {
@@ -744,7 +768,7 @@ GenericManager::GenericManager()
 	static ConfigItemDescriptor global_conf[] = {
 		{String, "log-level", "Verbosity of logs to output. Possible values are debug, message, warning and error", "error"},
 		{String, "syslog-level", "Verbosity of logs to put in syslog. Possible values are debug, message, warning and error", "error"},
-		{Integer, "max-log-size", "Max size of a log file before switching to a new log file. If -1 then no max size", "-1"},
+		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file. If -1 then no max size", "0"},
 		{Boolean, "user-errors-logs", "Log (on a different log domain) user errors like authentication, registration, routing, etc...", "false"},
 		{Boolean, "dump-corefiles", "Generate a corefile when crashing. "
 			"Note that by default linux will generate coredumps in '/' which is not so convenient. The following shell command can be added to"

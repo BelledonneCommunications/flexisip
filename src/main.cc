@@ -668,15 +668,6 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	// in case we don't plan to launch flexisip, don't setup the logs.
-	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs &&
-		!dumpAll) {
-		ortp_init();
-		flexisip::log::preinit(useSyslog.getValue(), debug);
-	} else {
-		flexisip::log::disableGlobally();
-	}
-
 	// Instanciate the Generic manager
 	GenericManager *cfg = GenericManager::get();
 
@@ -776,9 +767,17 @@ int main(int argc, char *argv[]) {
 	// Initialize
 	std::string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
 	std::string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
-	int max_size = cfg->getGlobal()->get<ConfigInt>("max-log-size")->read();
 	bool user_errors = cfg->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
-	flexisip::log::initLogs(useSyslog, debug ? "debug" : log_level, syslog_level, max_size, user_errors);
+	// in case we don't plan to launch flexisip, don't setup the logs.
+	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs &&
+		!dumpAll) {
+		ortp_init();
+		uint64_t max_size = cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read();
+		flexisip::log::preinit(useSyslog.getValue(), debug, max_size);
+	} else {
+		flexisip::log::disableGlobally();
+	}
+	flexisip::log::initLogs(useSyslog, debug ? "debug" : log_level, syslog_level, user_errors);
 	//flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
 	
 	signal(SIGPIPE, SIG_IGN);
@@ -938,5 +937,7 @@ int main(int argc, char *argv[]) {
 	if (trackAllocs)
 		dump_remaining_msgs();
 	GenericManager::get()->sendTrap("Flexisip "+ fName + "-server exiting normally");
+	
+	bctbx_uninit_logger();
 	return 0;
 }

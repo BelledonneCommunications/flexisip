@@ -83,6 +83,7 @@ enum GenericValueType {
 	Integer,
 	Counter64,
 	String,
+	ByteSize,
 	StringList,
 	Struct,
 	BooleanExpr,
@@ -94,7 +95,7 @@ enum GenericValueType {
 static const map<GenericValueType, string> GenericValueTypeNameMap = {
 #define TypeToName(X)                                                                                                  \
 	{ X, #X }
-	TypeToName(Boolean),	 TypeToName(Integer), TypeToName(Counter64),   TypeToName(String),
+	TypeToName(Boolean),	 TypeToName(Integer), TypeToName(Counter64),   TypeToName(String), TypeToName(ByteSize),
 	TypeToName(StringList),  TypeToName(Struct),  TypeToName(BooleanExpr), TypeToName(Notification),
 	TypeToName(RuntimeError)
 #undef TypeToName
@@ -488,6 +489,12 @@ class ConfigString : public ConfigValue {
 	ConfigString(const std::string &name, const std::string &help, const std::string &default_value, oid oid_index);
 	~ConfigString();
 	const std::string &read() const;
+};
+
+class ConfigByteSize : public ConfigValue {
+  public:
+	ConfigByteSize(const std::string &name, const std::string &help, const std::string &default_value, oid oid_index);
+	uint64_t read() const;
 };
 
 class ConfigStringList : public ConfigValue {

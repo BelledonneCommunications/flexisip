@@ -23,7 +23,7 @@
 #include <syslog.h>
 
 #ifndef DEFAULT_LOG_DIR
-#define DEFAULT_LOG_DIR "/var/log/flexisip"
+#define DEFAULT_LOG_DIR "/var/opt/belledonne-communications/log/flexisip"
 #endif
 
 using namespace std;
@@ -32,7 +32,6 @@ static bool is_preinit_done = false;
 static bool is_debug = false;
 bool sUseSyslog = false;
 BctbxLogLevel sysLevelMin = BCTBX_LOG_ERROR;
-int maxSize = -1;
 
 namespace flexisip {
 	namespace log {
@@ -88,7 +87,7 @@ namespace flexisip {
 			fprintf(stderr, "\n");
 		}
 
-		void preinit(bool syslog, bool debug) {
+		void preinit(bool syslog, bool debug, uint64_t max_size) {
 			is_preinit_done = true;
 			sUseSyslog = syslog;
 			is_debug = debug;
@@ -100,55 +99,43 @@ namespace flexisip {
 			if (syslog) {
 				openlog("flexisip", 0, LOG_USER);
 				setlogmask(~0);
-				BctoolboxLogHandler* syshandler = (BctoolboxLogHandler*)malloc(sizeof(BctoolboxLogHandler));
-				syshandler->func = syslogHandler;
-				syshandler->user_info = NULL;
+				BctoolboxLogHandler* syshandler = bctbx_create_log_handler(syslogHandler, bctbx_logv_out_destroy, NULL);
 				bctbx_add_log_handler(syshandler);
 			} else {
 				/*
-				 BctoolboxLogHandler defaulthandler;
-				 defaulthandler.func = defaultLogHandler;
-				 defaulthandler.user_info = NULL;
-				 bctbx_add_log_handler(defaulthandler);
-				 */
-				BctoolboxLogHandler* outhandler = (BctoolboxLogHandler*)malloc(sizeof(BctoolboxLogHandler));
-				outhandler->func = bctbx_logv_out;
-				outhandler->user_info = NULL;
+				BctoolboxLogHandler* defaulthandler = bctbx_create_log_handler(defaultLogHandler, bctbx_logv_out_destroy, NULL);
+				bctbx_add_log_handler(defaulthandler);
+				 
+				BctoolboxLogHandler* outhandler = bctbx_create_log_handler(bctbx_logv_out, bctbx_logv_out_destroy, NULL);
 				bctbx_add_log_handler(outhandler);
+				*/
 			}
 			
 			FILE *f = fopen (DEFAULT_LOG_DIR "/FlexisipLogs.log" , "a");
+			const char* str;
 			if(f) {
-				const char* str = "Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n";
+				str = "Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n";
 				if(syslog) {
 					int len = strlen(str);
 					::syslog(LOG_INFO, str, len);
 				} else {
 					printf("%s", str);
 				}
-				
-				static BctoolboxFileLogHandler filehandler;
-				static BctoolboxLogHandler handler;
-				handler.func=bctbx_logv_file;
-				filehandler.handler = handler;
-				filehandler.max_size = maxSize;
-				filehandler.path = (char*)DEFAULT_LOG_DIR;
-				filehandler.name = (char*)"FlexisipLogs";
-				filehandler.file = f;
-				handler.user_info=(void*) &filehandler;
-				bctbx_add_log_handler(&handler);
+
+				BctoolboxLogHandler* handler = bctbx_create_file_log_handler(max_size, DEFAULT_LOG_DIR, "FlexisipLogs", f);
+				bctbx_add_log_handler(handler);
 			} else {
+				str = "Error while writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n";
 				if(syslog) {
-					const char* str = "Error while writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n";
 					int len = strlen(str);
 					::syslog(LOG_INFO, str, len);
 				} else {
-					printf("Error while writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n");
+					printf("%s", str);
 				}
 			}
 		}
 
-		void initLogs(bool use_syslog, std::string level, std::string syslevel, int max_size, bool user_errors) {
+		void initLogs(bool use_syslog, std::string level, std::string syslevel, bool user_errors) {
 			if (sUseSyslog != use_syslog) {
 				LOGF("Different preinit and init syslog config is not supported.");
 			}
@@ -156,7 +143,7 @@ namespace flexisip {
 				LOGF("Preinit was skipped: not supported.");
 			}
 			
-			maxSize = max_size;
+			bctbx_init_logger();
 			
 			if (syslevel == "debug") {
 				sysLevelMin = BCTBX_LOG_DEBUG;

@@ -141,5 +141,7 @@ int main(int argc, char **argv) {
 	}
 
 	cout << "success" << endl;
+	
+	bctbx_uninit_logger();
 	return 0;
 }
