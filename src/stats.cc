@@ -42,8 +42,11 @@ void Stats::stop() {
 	if (mRunning) {
 		mRunning = false;
 		shutdown(local_socket, SHUT_RDWR);
-		pthread_kill(mThread, 0);
-		//pthread_join(mThread, NULL);
+#if __APPLE__
+		pthread_kill(mThread, SIGINT);
+#else
+		pthread_join(mThread, NULL);
+#endif
 	}
 }
 
