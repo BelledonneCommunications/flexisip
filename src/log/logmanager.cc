@@ -99,14 +99,14 @@ namespace flexisip {
 			if (syslog) {
 				openlog("flexisip", 0, LOG_USER);
 				setlogmask(~0);
-				BctoolboxLogHandler* syshandler = bctbx_create_log_handler(syslogHandler, bctbx_logv_out_destroy, NULL);
+				bctbx_log_handler_t *syshandler = bctbx_create_log_handler(syslogHandler, bctbx_logv_out_destroy, NULL);
 				bctbx_add_log_handler(syshandler);
 			} else {
 				/*
-				BctoolboxLogHandler* defaulthandler = bctbx_create_log_handler(defaultLogHandler, bctbx_logv_out_destroy, NULL);
+				bctbx_log_handler_t *defaulthandler = bctbx_create_log_handler(defaultLogHandler, bctbx_logv_out_destroy, NULL);
 				bctbx_add_log_handler(defaulthandler);
 				 
-				BctoolboxLogHandler* outhandler = bctbx_create_log_handler(bctbx_logv_out, bctbx_logv_out_destroy, NULL);
+				bctbx_log_handler_t *outhandler = bctbx_create_log_handler(bctbx_logv_out, bctbx_logv_out_destroy, NULL);
 				bctbx_add_log_handler(outhandler);
 				*/
 			}
@@ -122,7 +122,7 @@ namespace flexisip {
 					printf("%s", str);
 				}
 
-				BctoolboxLogHandler* handler = bctbx_create_file_log_handler(max_size, DEFAULT_LOG_DIR, "FlexisipLogs", f);
+				bctbx_log_handler_t *handler = bctbx_create_file_log_handler(max_size, DEFAULT_LOG_DIR, "FlexisipLogs", f);
 				bctbx_add_log_handler(handler);
 			} else {
 				str = "Error while writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n";
