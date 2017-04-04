@@ -128,7 +128,7 @@ namespace flexisip {
 				}
 				
 				std::ostringstream nameStream;
-				nameStream << "FlexisipLogs_" << fName << ".log";
+				nameStream << "FlexisipLogs_" << fName;
 				bctbx_log_handler_t *handler = bctbx_create_file_log_handler(max_size, DEFAULT_LOG_DIR, nameStream.str().c_str(), f);
 				bctbx_add_log_handler(handler);
 			} else {
