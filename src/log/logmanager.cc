@@ -143,7 +143,7 @@ namespace flexisip {
 				LOGF("Preinit was skipped: not supported.");
 			}
 			
-			bctbx_init_logger(FALSE);
+			bctbx_init_logger(is_debug);
 			
 			if (syslevel == "debug") {
 				sysLevelMin = BCTBX_LOG_DEBUG;
@@ -174,8 +174,6 @@ namespace flexisip {
 			} else {
 				bctbx_set_log_level(FLEXISIP_USER_ERRORS_LOG_DOMAIN, BCTBX_LOG_FATAL);
 			}
-
-			is_debug = debug;
 		}
 
 		bool validateFilter(const string &filterstr) {
