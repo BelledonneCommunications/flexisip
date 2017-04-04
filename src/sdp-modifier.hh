@@ -23,6 +23,7 @@
 #include <string>
 #include <list>
 #include <memory>
+#include "ortp/payloadtype.h"
 
 
 #ifndef _SDP_MODIFIER_HH_
@@ -31,9 +32,6 @@
 
 #define payload_type_set_number(pt,n)	(pt)->user_data=(void*)(long)n
 #define payload_type_get_number(pt)	(int)(long)(pt)->user_data
-
-struct _PayloadType;
-typedef struct _PayloadType PayloadType;
 
 
 class SdpMasqueradeContext{
