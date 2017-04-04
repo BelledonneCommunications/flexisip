@@ -773,7 +773,7 @@ int main(int argc, char *argv[]) {
 		!dumpAll) {
 		ortp_init();
 		uint64_t max_size = cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read();
-		flexisip::log::preinit(useSyslog.getValue(), debug, max_size);
+		flexisip::log::preinit(useSyslog.getValue(), debug, max_size, fName);
 	} else {
 		flexisip::log::disableGlobally();
 	}

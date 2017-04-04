@@ -87,7 +87,7 @@ namespace flexisip {
 			fprintf(stderr, "\n");
 		}
 
-		void preinit(bool syslog, bool debug, uint64_t max_size) {
+		void preinit(bool syslog, bool debug, uint64_t max_size, string fName) {
 			is_preinit_done = true;
 			sUseSyslog = syslog;
 			is_debug = debug;
@@ -111,21 +111,30 @@ namespace flexisip {
 				*/
 			}
 			
-			FILE *f = fopen (DEFAULT_LOG_DIR "/FlexisipLogs.log" , "a");
+			std::ostringstream pathStream;
+			pathStream << DEFAULT_LOG_DIR << "/FlexisipLogs_" << fName << ".log";
+			std::string copyOfStr = pathStream.str();
+			FILE *f = fopen(copyOfStr.c_str() , "a");
 			const char* str;
 			if(f) {
-				str = "Writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n";
+				std::ostringstream stringStream;
+				stringStream << "Writing logs in : " << copyOfStr << "\n";
+				str = stringStream.str().c_str();
 				if(syslog) {
 					int len = strlen(str);
 					::syslog(LOG_INFO, str, len);
 				} else {
 					printf("%s", str);
 				}
-
-				bctbx_log_handler_t *handler = bctbx_create_file_log_handler(max_size, DEFAULT_LOG_DIR, "FlexisipLogs", f);
+				
+				std::ostringstream nameStream;
+				nameStream << "FlexisipLogs_" << fName << ".log";
+				bctbx_log_handler_t *handler = bctbx_create_file_log_handler(max_size, DEFAULT_LOG_DIR, nameStream.str().c_str(), f);
 				bctbx_add_log_handler(handler);
 			} else {
-				str = "Error while writing logs in : " DEFAULT_LOG_DIR "/FlexisipLogs.log \n";
+				std::ostringstream stringStream;
+				stringStream << "Error while writing logs in : " << copyOfStr << "\n";
+				str = stringStream.str().c_str();
 				if(syslog) {
 					int len = strlen(str);
 					::syslog(LOG_INFO, str, len);

@@ -159,7 +159,7 @@ do {                                                                            
 
  		bool updateFilter(const std::string &filterstr);
 
- 		void preinit(bool syslog, bool debug, uint64_t max_size);
+ 		void preinit(bool syslog, bool debug, uint64_t max_size, std::string fName);
 
  		void disableGlobally();
 

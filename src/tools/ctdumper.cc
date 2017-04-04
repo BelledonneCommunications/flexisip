@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
 	CTArgs args;
 	args.parse(argc, argv);
 
-	flexisip::log::preinit(sUseSyslog, args.debug, 0);
+	flexisip::log::preinit(sUseSyslog, args.debug, 0, "dumper");
 	flexisip::log::initLogs(sUseSyslog, "debug", "error", false);
 	flexisip::log::updateFilter("%Severity% >= debug");
 

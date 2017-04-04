@@ -32,7 +32,7 @@
 
 void init_tests() {
 	sUseSyslog = false;
-	flexisip::log::preinit(sUseSyslog, flexisip::log::debug, 0);
+	flexisip::log::preinit(sUseSyslog, flexisip::log::debug, 0, "test");
 	flexisip::log::initLogs(sUseSyslog, "debug", "error", false);
 	flexisip::log::updateFilter("%Severity% >= debug");
 
