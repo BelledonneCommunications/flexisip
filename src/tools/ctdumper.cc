@@ -140,13 +140,13 @@ static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *arg) {
 int main(int argc, char **argv) {
 	su_home_t home;
 	su_root_t *root;
-	sUseSyslog = false;
+	flexisip_sUseSyslog = false;
 	shared_ptr<Agent> agent;
 	CTArgs args;
 	args.parse(argc, argv);
 
-	flexisip::log::preinit(sUseSyslog, args.debug, 0, "dumper");
-	flexisip::log::initLogs(sUseSyslog, "debug", "error", false);
+	flexisip::log::preinit(flexisip_sUseSyslog, args.debug, 0, "dumper");
+	flexisip::log::initLogs(flexisip_sUseSyslog, "debug", "error", false);
 	flexisip::log::updateFilter("%Severity% >= debug");
 
 	Record::sLineFieldNames = {"line"};
