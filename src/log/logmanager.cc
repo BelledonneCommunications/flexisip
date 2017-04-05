@@ -28,15 +28,15 @@
 
 using namespace std;
 
-static bool is_preinit_done = false;
-static bool is_debug = false;
-bool sUseSyslog = false;
-BctbxLogLevel sysLevelMin = BCTBX_LOG_ERROR;
+static bool flexisip_is_preinit_done = false;
+static bool flexisip_is_debug = false;
+bool flexisip_sUseSyslog = false;
+BctbxLogLevel flexisip_sysLevelMin = BCTBX_LOG_ERROR;
 
 namespace flexisip {
 	namespace log {
 		static void syslogHandler(void *info, const char *domain, BctbxLogLevel log_level, const char *str, va_list l) {
-			if (log_level >= sysLevelMin) {
+			if (log_level >= flexisip_sysLevelMin) {
 				int syslev = LOG_ALERT;
 				switch (log_level) {
 					case BCTBX_LOG_DEBUG:
@@ -88,9 +88,9 @@ namespace flexisip {
 		}
 
 		void preinit(bool syslog, bool debug, uint64_t max_size, string fName) {
-			is_preinit_done = true;
-			sUseSyslog = syslog;
-			is_debug = debug;
+			flexisip_is_preinit_done = true;
+			flexisip_sUseSyslog = syslog;
+			flexisip_is_debug = debug;
 			if (debug) {
 				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_DEBUG);
 			} else {
@@ -145,25 +145,25 @@ namespace flexisip {
 		}
 
 		void initLogs(bool use_syslog, std::string level, std::string syslevel, bool user_errors) {
-			if (sUseSyslog != use_syslog) {
+			if (flexisip_sUseSyslog != use_syslog) {
 				LOGF("Different preinit and init syslog config is not supported.");
 			}
-			if (!is_preinit_done) {
+			if (!flexisip_is_preinit_done) {
 				LOGF("Preinit was skipped: not supported.");
 			}
 			
-			bctbx_init_logger(is_debug);
+			bctbx_init_logger(flexisip_is_debug);
 			
 			if (syslevel == "debug") {
-				sysLevelMin = BCTBX_LOG_DEBUG;
+				flexisip_sysLevelMin = BCTBX_LOG_DEBUG;
 			} else if (syslevel == "message") {
-				sysLevelMin = BCTBX_LOG_MESSAGE;
+				flexisip_sysLevelMin = BCTBX_LOG_MESSAGE;
 			} else if (syslevel == "warning") {
-				sysLevelMin = BCTBX_LOG_WARNING;
+				flexisip_sysLevelMin = BCTBX_LOG_WARNING;
 			} else if (syslevel == "error") {
-				sysLevelMin = BCTBX_LOG_ERROR;
+				flexisip_sysLevelMin = BCTBX_LOG_ERROR;
 			} else {
-				sysLevelMin = BCTBX_LOG_ERROR;
+				flexisip_sysLevelMin = BCTBX_LOG_ERROR;
 			}
 
 			if (level == "debug") {

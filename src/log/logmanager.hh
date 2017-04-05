@@ -24,7 +24,7 @@
 #include <sstream>
 #include <syslog.h>
 
-extern bool sUseSyslog;
+extern bool flexisip_sUseSyslog;
 
 namespace flexisip {
 namespace log {
@@ -123,7 +123,7 @@ do {                                                                            
 #define LOGN(args...)                                                                                                  \
  do {                                                                                                               \
  	bctbx_message(args);                                                                                            \
- 	if (sUseSyslog) {                                                                                              \
+ 	if (flexisip_sUseSyslog) {                                                                                              \
  		syslog(LOG_NOTICE, args);                                                                                  \
  	} else {                                                                                                       \
  		fprintf(stdout, args);                                                                                     \
@@ -139,7 +139,7 @@ do {                                                                            
  do {                                                                                                               \
  	fprintf(stderr, args);                                                                                         \
  	fprintf(stderr, "\n");                                                                                         \
- 	if (sUseSyslog) {                                                                                              \
+ 	if (flexisip_sUseSyslog) {                                                                                              \
  		syslog(LOG_ERR, args);                                                                                     \
  	}                                                                                                              \
  } while (0);
