@@ -253,10 +253,10 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,A
 	}
 	
 	string s = get_users_with_phones_request;
-	int index = s.find(":");
+	int index = s.find(":phones");
 	while(index > -1) {
 		s = s.replace(index, 7, in);
-		index = s.find(":");
+		index = s.find(":phones");
 	}
 	
 	try {
@@ -268,16 +268,17 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,A
 		
 		SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
 		start = stop;
-		
+		SLOGD << "[SOCI] MySQL request : " << s;
 		rowset<row> ret = (sql->prepare << s);
 		stop = steady_clock::now();
+		
+		SLOGD << "[SOCI] Got users in " << DURATION_MS(start, stop) << "ms";
 		
 		for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
 			row const& row = *it;
 			string phone = row.get<string>(2);
 			string domain = row.get<string>(1);
 			string user = row.get<string>(0);
-			SLOGD << "[SOCI] Got user for " << phone << " in " << DURATION_MS(start, stop) << "ms";
 			cacheUserWithPhone(phone, domain, user);
 			users.insert(phone);
 		}
