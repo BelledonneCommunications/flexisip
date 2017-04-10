@@ -252,6 +252,13 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,A
 		}
 	}
 	
+	string s = get_users_with_phones_request;
+	int index = s.find(":");
+	while(index > -1) {
+		s = s.replace(index, 7, in);
+		index = s.find(":");
+	}
+	
 	try {
 		start = steady_clock::now();
 		// will grab a connection from the pool. This is thread safe
@@ -262,12 +269,6 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,A
 		SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
 		start = stop;
 		
-		string s = get_users_with_phones_request;
-		int index = s.find(":");
-		while(index > -1) {
-			s = s.replace(index, 7, in);
-			index = s.find(":");
-		}
 		rowset<row> ret = (sql->prepare << s);
 		stop = steady_clock::now();
 		
@@ -285,9 +286,9 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,A
 			listener->onResults(phones, users);
 		}
 	} catch (mysql_soci_error const &e) {
-		
 		stop = steady_clock::now();
 		SLOGE << "[SOCI] getUsersWithPhonesWithPool MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
+		SLOGE << "[SOCI] MySQL request causing the error was : " << s;
 		users.clear();
 		if (listener) listener->onResults(phones, users);
 		
