@@ -246,9 +246,9 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,A
 	for(tuple<std::string,std::string,AuthDbListener*> cred : creds) {
 		phones.push_back(std::get<0>(cred));
 		if(in == "") {
-			in += std::get<0>(cred);
+			in += "'" + std::get<0>(cred) + "'";
 		} else {
-			in += "," + std::get<0>(cred);
+			in += ",'" + std::get<0>(cred) + "'";
 		}
 	}
 	
