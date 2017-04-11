@@ -240,22 +240,24 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,A
 	steady_clock::time_point start;
 	steady_clock::time_point stop;
 	set<std::string> users;
-	string in;
+	std::ostringstream in;
 	session *sql = NULL;
 	list<std::string> phones;
+	bool first = true;
 	for(tuple<std::string,std::string,AuthDbListener*> cred : creds) {
 		phones.push_back(std::get<0>(cred));
-		if(in == "") {
-			in += "'" + std::get<0>(cred) + "'";
+		if(first) {
+			first = false;
+			in << "'" << std::get<0>(cred) << "'";
 		} else {
-			in += ",'" + std::get<0>(cred) + "'";
+			in << ",'" << std::get<0>(cred) << "'";
 		}
 	}
 	
 	string s = get_users_with_phones_request;
 	int index = s.find(":phones");
 	while(index > -1) {
-		s = s.replace(index, 7, in);
+		s = s.replace(index, 7, in.str());
 		index = s.find(":phones");
 	}
 	
