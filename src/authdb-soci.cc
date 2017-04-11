@@ -268,7 +268,6 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,A
 		
 		SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
 		start = stop;
-		SLOGD << "[SOCI] MySQL request : " << s;
 		rowset<row> ret = (sql->prepare << s);
 		stop = steady_clock::now();
 		
