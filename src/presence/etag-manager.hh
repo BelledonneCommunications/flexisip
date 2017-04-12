@@ -26,10 +26,10 @@ class PresentityPresenceInformation;
 class EtagManager {
 
 public:
-	virtual void invalidateETag(const string &eTag) = 0;
-	virtual void modifyEtag(const string &oldEtag, const string &newEtag) throw(FlexisipException) = 0;
+	virtual void invalidateETag(const std::string &eTag) = 0;
+	virtual void modifyEtag(const std::string &oldEtag, const std::string &newEtag) throw(FlexisipException) = 0;
 	virtual void addEtag(const std::shared_ptr<PresentityPresenceInformation> &info,
-						 const string &etag) throw(FlexisipException) = 0;
+						 const std::string &etag) throw(FlexisipException) = 0;
 };
 
 }

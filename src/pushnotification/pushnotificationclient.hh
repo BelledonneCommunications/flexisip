@@ -42,8 +42,8 @@ class PushNotificationClient {
 	protected:
 		void sendPushToServer(const std::shared_ptr<PushNotificationRequest> &req);
 		void recreateConnection();
-		void onError(shared_ptr<PushNotificationRequest> req, const string &msg);
-		void onSuccess(shared_ptr<PushNotificationRequest> req);
+		void onError(std::shared_ptr<PushNotificationRequest> req, const std::string &msg);
+		void onSuccess(std::shared_ptr<PushNotificationRequest> req);
 
 	protected:
 		PushNotificationService *mService;

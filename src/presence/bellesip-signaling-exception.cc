@@ -19,7 +19,7 @@
 #include "belle-sip/belle-sip.h"
 namespace flexisip {
 
-BelleSipSignalingException::BelleSipSignalingException(int code, list<belle_sip_header_t *> headers)
+BelleSipSignalingException::BelleSipSignalingException(int code, std::list<belle_sip_header_t *> headers)
 	: SignalingException(code), mHeaders(headers) {
 	mOffset++;
 	for (belle_sip_header_t *header : mHeaders) {
@@ -46,7 +46,7 @@ BelleSipSignalingException::BelleSipSignalingException(const BelleSipSignalingEx
 	}
 }
 
-const list<belle_sip_header_t *> &BelleSipSignalingException::getHeaders() {
+const std::list<belle_sip_header_t *> &BelleSipSignalingException::getHeaders() {
 	return mHeaders;
 }
 

@@ -23,6 +23,7 @@
 #include <openssl/err.h>
 
 #include <poll.h>
+using namespace std;
 
 	PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService *service,
 		SSL_CTX * ctx, const std::string &host, const std::string &port, int maxQueueSize, bool isSecure) :

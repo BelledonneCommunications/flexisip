@@ -31,7 +31,7 @@
 class FlexisipException : public BctbxException {
 public:
 	FlexisipException() {mOffset++;};
-	FlexisipException(const string &message):BctbxException(message){mOffset++;};
+	FlexisipException(const std::string &message):BctbxException(message){mOffset++;};
 	FlexisipException(const char *message):BctbxException(message){mOffset++;};
 	virtual ~FlexisipException() throw(){};
 	FlexisipException(const FlexisipException &other):BctbxException(other){};

@@ -92,7 +92,7 @@ enum GenericValueType {
 };
 
 /* Allows to have a string for each GenericValueType */
-static const map<GenericValueType, string> GenericValueTypeNameMap = {
+static const std::map<GenericValueType, std::string> GenericValueTypeNameMap = {
 #define TypeToName(X)                                                                                                  \
 	{ X, #X }
 	TypeToName(Boolean),	 TypeToName(Integer), TypeToName(Counter64),   TypeToName(String), TypeToName(ByteSize),

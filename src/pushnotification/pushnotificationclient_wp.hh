@@ -35,8 +35,8 @@ class PushNotificationClientWp : public PushNotificationClient {
 		void retrieveAccessToken();
 
 	private:
-		string mPackageSID;
-		string mApplicationSecret;
-		string mAccessToken;
+		std::string mPackageSID;
+		std::string mApplicationSecret;
+		std::string mAccessToken;
 		time_t mTokenExpiring;
 };

@@ -233,8 +233,8 @@ class ModuleToolbox {
 	static bool urlHostMatch(const char *host1, const char *host2);
 	static bool urlHostMatch(url_t *url, const char *host);
 	/*returns the host taking into account that if it is an ipv6 address, then brakets are removed*/
-	static string getHost(const char *host);
-	static string urlGetHost(url_t *url);
+	static std::string getHost(const char *host);
+	static std::string urlGetHost(url_t *url);
 	static void urlSetHost(su_home_t *home, url_t *url, const char *host);
 	static bool urlIsResolved(url_t *uri);
 	/**
@@ -247,7 +247,7 @@ class ModuleToolbox {
 	static bool viaContainsUrl(const sip_via_t *vias, const url_t *url);
 	/*returns true if the two url represent the same transport channel (IP, port and protocol)*/
 	static bool urlTransportMatch(const url_t *url1, const url_t *url2);
-	static string urlGetTransport(const url_t *url);
+	static std::string urlGetTransport(const url_t *url);
 	static void removeParamsFromContacts(su_home_t *home, sip_contact_t *c, std::list<std::string> &params);
 	static void removeParamsFromUrl(su_home_t *home, url_t *u, std::list<std::string> &params);
 	static sip_unknown_t *getCustomHeaderByName(sip_t *sip, const char *name);

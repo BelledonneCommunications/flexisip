@@ -64,7 +64,7 @@ public:
 	//notified when a listener is added or refreshed
 	virtual void onListenerEvent(const std::shared_ptr<PresentityPresenceInformation>& info) const = 0;
 	//notified when a listener is added or refreshed
-	virtual void onListenerEvents(list<std::shared_ptr<PresentityPresenceInformation>>& infos) const = 0;
+	virtual void onListenerEvents(std::list<std::shared_ptr<PresentityPresenceInformation>>& infos) const = 0;
 };
 
 class PresenceServer : public PresentityManager {
@@ -91,7 +91,7 @@ private:
 	belle_sip_stack_t *mStack;
 	belle_sip_provider_t *mProvider;
 	belle_sip_listener_t *mListener;
-	std::unique_ptr<thread> mIterateThread;
+	std::unique_ptr<std::thread> mIterateThread;
 	int mDefaultExpires;
 
 	// belle sip cbs
@@ -110,33 +110,33 @@ private:
 	 *Publish API
 	 *
 	 */
-	const std::shared_ptr<PresentityPresenceInformation> getPresenceInfo(const string& eTag) const ;
+	const std::shared_ptr<PresentityPresenceInformation> getPresenceInfo(const std::string& eTag) const ;
 	/*
 	 * @throw in case an entry already exist for this entity;
 	 * */
 	std::shared_ptr<PresentityPresenceInformation> getPresenceInfo(const belle_sip_uri_t* identity) const ;
 	void addPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& ) throw (FlexisipException);
 
-	void invalidateETag(const string& eTag) ;
-	void modifyEtag(const string& oldEtag, const string& newEtag) throw (FlexisipException);
-	void addEtag(const std::shared_ptr<PresentityPresenceInformation>& info,const string& etag) throw (FlexisipException);
-	map<std::string,shared_ptr<PresentityPresenceInformation>> mPresenceInformationsByEtag;
-	unordered_map<const belle_sip_uri_t*,shared_ptr<PresentityPresenceInformation>,hash<const belle_sip_uri_t*>,bellesip::UriComparator> mPresenceInformations;
+	void invalidateETag(const std::string& eTag) ;
+	void modifyEtag(const std::string& oldEtag, const std::string& newEtag) throw (FlexisipException);
+	void addEtag(const std::shared_ptr<PresentityPresenceInformation>& info,const std::string& etag) throw (FlexisipException);
+	std::map<std::string,std::shared_ptr<PresentityPresenceInformation>> mPresenceInformationsByEtag;
+	std::unordered_map<const belle_sip_uri_t*,std::shared_ptr<PresentityPresenceInformation>,std::hash<const belle_sip_uri_t*>,bellesip::UriComparator> mPresenceInformations;
 
 	/*
 	 *Presentity API
 	 *
 	 */
 
-	void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listerner,int expires);
-	void addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listerner);
-	void addOrUpdateListeners(list<shared_ptr<PresentityPresenceInformationListener>>& listerner,int expires);
-	void addOrUpdateListeners(list<shared_ptr<PresentityPresenceInformationListener>>& listerner);
-	void removeListener(const shared_ptr<PresentityPresenceInformationListener>& listerner);
+	void addOrUpdateListener(std::shared_ptr<PresentityPresenceInformationListener>& listerner,int expires);
+	void addOrUpdateListener(std::shared_ptr<PresentityPresenceInformationListener>& listerner);
+	void addOrUpdateListeners(std::list<std::shared_ptr<PresentityPresenceInformationListener>>& listerner,int expires);
+	void addOrUpdateListeners(std::list<std::shared_ptr<PresentityPresenceInformationListener>>& listerner);
+	void removeListener(const std::shared_ptr<PresentityPresenceInformationListener>& listerner);
 
-	void removeSubscription(shared_ptr<Subscription> &identity) throw();
+	void removeSubscription(std::shared_ptr<Subscription> &identity) throw();
 	//void notify(Subscription& subscription,PresentityPresenceInformation& presenceInformation) throw (FlexisipException);
-	unordered_map<const belle_sip_uri_t*,list<shared_ptr<Subscription>>,std::hash<const belle_sip_uri_t*>,bellesip::UriComparator> mSubscriptionsByEntity;
+	std::unordered_map<const belle_sip_uri_t*,std::list<std::shared_ptr<Subscription>>,std::hash<const belle_sip_uri_t*>,bellesip::UriComparator> mSubscriptionsByEntity;
 	/**/
 	std::vector<std::shared_ptr<PresenceInfoObserver> > mPresenceInfoObservers;
 

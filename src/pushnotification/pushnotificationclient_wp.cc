@@ -23,6 +23,8 @@
 
 #include <openssl/err.h>
 
+using namespace std;
+
 PushNotificationClientWp::PushNotificationClientWp(const std::string &name, PushNotificationService *service,
 	 				   SSL_CTX * ctx,
 					   const std::string &host, const std::string &port,
