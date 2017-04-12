@@ -48,7 +48,7 @@ struct AuthDbTimings;
 class AuthDbListener : public StatFinishListener {
   public:
 	virtual void onResult(AuthDbResult result, const std::string &passwd) = 0;
-	virtual void onResults(list<std::string> &phones, set<std::string> &users);
+	virtual void onResults(std::list<std::string> &phones, set<std::string> &users);
 	virtual ~AuthDbListener();
 };
 
@@ -84,9 +84,9 @@ class AuthDbBackend {
 	// warning: listener may be invoked on authdb backend thread, so listener must be threadsafe somehow!
 	void getPassword(const std::string & user, const std::string & domain, const std::string &auth_username, AuthDbListener *listener);
 	void getUserWithPhone(const std::string &phone, const std::string &domain, AuthDbListener *listener);
-	void getUsersWithPhone(list<tuple<std::string,std::string,AuthDbListener *>> & creds, AuthDbListener *listener);
+	void getUsersWithPhone(std::list<std::tuple<std::string,std::string,AuthDbListener *>> & creds, AuthDbListener *listener);
 	virtual void getUserWithPhoneFromBackend(const std::string &, const std::string &, AuthDbListener *listener) = 0;
-	virtual void getUsersWithPhonesFromBackend(list<tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
+	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
 
 	virtual void createAccount(const std::string &user, const std::string & domain, const std::string &auth_username, const std::string &password, int expires, const std::string &phone_alias = "");
 
@@ -182,7 +182,7 @@ class SociAuthDB : public AuthDbBackend {
 	SociAuthDB();
 	void setConnectionParameters(const std::string &domain, const std::string &request);
 	virtual void getUserWithPhoneFromBackend(const std::string & , const std::string &, AuthDbListener *listener);
-	virtual void getUsersWithPhonesFromBackend(list<tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
+	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener);
 
