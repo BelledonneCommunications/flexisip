@@ -4,6 +4,7 @@
 #include <belle-sip/belle-sip.h>
 
 using namespace flexisip;
+using namespace std;
 
 class PresenceAuthListener : public AuthDbListener {
 public:

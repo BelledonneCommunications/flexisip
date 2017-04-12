@@ -66,7 +66,7 @@ class AuthDbBackend {
 	std::map<std::string, std::map<std::string, CachedPassword>> mCachedPasswords;
 	std::mutex mCachedPasswordMutex;
 	std::mutex mCachedUserWithPhoneMutex;
-	map<string, string> mPhone2User;
+	std::map<std::string, std::string> mPhone2User;
 
   protected:
 	AuthDbBackend();
@@ -180,7 +180,7 @@ class SociAuthDB : public AuthDbBackend {
 
   public:
 	SociAuthDB();
-	void setConnectionParameters(const string &domain, const string &request);
+	void setConnectionParameters(const std::string &domain, const std::string &request);
 	virtual void getUserWithPhoneFromBackend(const std::string & , const std::string &, AuthDbListener *listener);
 	virtual void getUsersWithPhonesFromBackend(list<tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
@@ -190,7 +190,7 @@ class SociAuthDB : public AuthDbBackend {
 
   private:
 	void getUserWithPhoneWithPool(const std::string &phone, const std::string &domain, AuthDbListener *listener);
-	void getUsersWithPhonesWithPool(list<tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
+	void getUsersWithPhonesWithPool(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
 	void getPasswordWithPool(const std::string &id, const std::string &domain,
 							 const std::string &authid, AuthDbListener *listener);
 

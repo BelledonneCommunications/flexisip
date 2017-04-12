@@ -29,7 +29,7 @@ namespace flexisip {
 		PresenceLongterm(belle_sip_main_loop_t *mainLoop) : mMainLoop(mainLoop) {};
 		virtual void onNewPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& info) const override;
 		virtual void onListenerEvent(const std::shared_ptr<PresentityPresenceInformation>& info) const override;
-		virtual void onListenerEvents(list<std::shared_ptr<PresentityPresenceInformation>>& info) const override;
+		virtual void onListenerEvents(std::list<std::shared_ptr<PresentityPresenceInformation>>& info) const override;
 	private:
 		belle_sip_main_loop_t *mMainLoop;
 	};
