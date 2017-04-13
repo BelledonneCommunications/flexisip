@@ -121,9 +121,10 @@ SociAuthDB::~SociAuthDB() {
 
 void SociAuthDB::reconnectSession(soci::session &session) {
 	try {
-		SLOGE << "[SOCI] Trying close/reconnect on " << session.get_backend_name() << " session";
+		SLOGE << "[SOCI] Trying close/reconnect session";
 		session.close();
 		session.reconnect();
+		SLOGD << "[SOCI] Session " << session.get_backend_name() << " successfully reconnected";
 	} catch (soci::mysql_soci_error const & e) {
 		SLOGE << "[SOCI] reconnectSession MySQL error: " << e.err_num_ << " " << e.what() << endl;
 	} catch (exception const &e) {
