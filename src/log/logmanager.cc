@@ -115,16 +115,15 @@ namespace flexisip {
 			pathStream << DEFAULT_LOG_DIR << "/FlexisipLogs_" << fName << ".log";
 			std::string copyOfStr = pathStream.str();
 			FILE *f = fopen(copyOfStr.c_str() , "a");
-			const char* str;
+			string str;
 			if(f) {
 				std::ostringstream stringStream;
 				stringStream << "Writing logs in : " << copyOfStr << "\n";
-				str = stringStream.str().c_str();
+				str = stringStream.str();
 				if(syslog) {
-					int len = strlen(str);
-					::syslog(LOG_INFO, str, len);
+					::syslog(LOG_INFO, str.c_str(), str.size());
 				} else {
-					printf("%s", str);
+					printf("%s", str.c_str());
 				}
 				
 				std::ostringstream nameStream;
@@ -134,12 +133,11 @@ namespace flexisip {
 			} else {
 				std::ostringstream stringStream;
 				stringStream << "Error while writing logs in : " << copyOfStr << "\n";
-				str = stringStream.str().c_str();
+				str = stringStream.str();
 				if(syslog) {
-					int len = strlen(str);
-					::syslog(LOG_INFO, str, len);
+					::syslog(LOG_INFO, str.c_str(), str.size());
 				} else {
-					printf("%s", str);
+					printf("%s", str.c_str());
 				}
 			}
 		}
