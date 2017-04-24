@@ -153,7 +153,7 @@ do {                                                                            
  namespace flexisip {
  	namespace log {
 
- 		void initLogs(bool syslog, std::string level, std::string syslevel, bool user_errors);
+ 		void initLogs(bool syslog, std::string level, std::string syslevel, bool user_errors, bool enable_stdout);
 
  		bool validateFilter(const std::string &filterstr);
 

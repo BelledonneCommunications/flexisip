@@ -29,7 +29,6 @@
 using namespace std;
 
 static bool flexisip_is_preinit_done = false;
-static bool flexisip_is_debug = false;
 bool flexisip_sUseSyslog = false;
 BctbxLogLevel flexisip_sysLevelMin = BCTBX_LOG_ERROR;
 
@@ -90,7 +89,6 @@ namespace flexisip {
 		void preinit(bool syslog, bool debug, uint64_t max_size, string fName) {
 			flexisip_is_preinit_done = true;
 			flexisip_sUseSyslog = syslog;
-			flexisip_is_debug = debug;
 			if (debug) {
 				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_DEBUG);
 			} else {
@@ -142,7 +140,7 @@ namespace flexisip {
 			}
 		}
 
-		void initLogs(bool use_syslog, std::string level, std::string syslevel, bool user_errors) {
+		void initLogs(bool use_syslog, std::string level, std::string syslevel, bool user_errors, bool enable_stdout) {
 			if (flexisip_sUseSyslog != use_syslog) {
 				LOGF("Different preinit and init syslog config is not supported.");
 			}
@@ -150,7 +148,7 @@ namespace flexisip {
 				LOGF("Preinit was skipped: not supported.");
 			}
 			
-			bctbx_init_logger(flexisip_is_debug);
+			bctbx_init_logger(enable_stdout);
 			
 			if (syslevel == "debug") {
 				flexisip_sysLevelMin = BCTBX_LOG_DEBUG;

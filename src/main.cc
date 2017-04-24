@@ -777,7 +777,7 @@ int main(int argc, char *argv[]) {
 	} else {
 		flexisip::log::disableGlobally();
 	}
-	flexisip::log::initLogs(useSyslog, debug ? "debug" : log_level, syslog_level, user_errors);
+	flexisip::log::initLogs(useSyslog, debug ? "debug" : log_level, syslog_level, user_errors, useDebug.getValue());
 	//flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
 	
 	signal(SIGPIPE, SIG_IGN);
