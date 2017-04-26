@@ -37,8 +37,8 @@ class MediaRelay : public Module, protected ModuleToolbox {
 	~MediaRelay();
 	virtual void onLoad(const GenericStruct *modconf);
 	virtual void onUnload();
-	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException);
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException);
+	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev) throw (FlexisipException);
+	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException);
 	virtual void onIdle();
 
   protected:
@@ -46,15 +46,15 @@ class MediaRelay : public Module, protected ModuleToolbox {
 
   private:
 	void createServers();
-	bool processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction> &transaction,
-						  const shared_ptr<RequestSipEvent> &ev);
-	void processResponseWithSDP(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction> &transaction,
-								const shared_ptr<MsgSip> &msgSip);
-	void configureContext(shared_ptr<RelayedCall> &c);
+	bool processNewInvite(const std::shared_ptr<RelayedCall> &c, const std::shared_ptr<OutgoingTransaction> &transaction,
+						  const std::shared_ptr<RequestSipEvent> &ev);
+	void processResponseWithSDP(const std::shared_ptr<RelayedCall> &c, const std::shared_ptr<OutgoingTransaction> &transaction,
+								const std::shared_ptr<MsgSip> &msgSip);
+	void configureContext(std::shared_ptr<RelayedCall> &c);
 	CallStore *mCalls;
-	vector<shared_ptr<MediaRelayServer>> mServers;
+	vector<std::shared_ptr<MediaRelayServer>> mServers;
 	size_t mCurServer;
-	string mSdpMangledParam;
+	std::string mSdpMangledParam;
 	int mH264FilteringBandwidth;
 	bool mH264DecimOnlyIfLastProxy;
 
