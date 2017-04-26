@@ -321,7 +321,7 @@ class RegistrarDb {
 	virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener) = 0;
 
 	int count_sip_contacts(const sip_contact_t *contact);
-	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const string &key,
+	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const std::string &key,
 									 const std::shared_ptr<RegistrarDbListener> &listener);
 	void fetchWithDomain(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool recursive);
 	RegistrarDb(const std::string &preferedRoute);
