@@ -106,14 +106,14 @@ struct ExtendedContact {
 		std::ostringstream ostr;
 		SofiaAutoHome home;
 		char *tmp = url_as_string(home.home(), url);
-		return string(tmp ? tmp : "");
+		return std::string(tmp ? tmp : "");
 	}
 	//This function ensures compatibility with old redis record where url was stored with brakets.
 	static std::string compatUrlToString(const char *url){
 		if (url[0] == '<' && url[1] != '\0'){
-			return string(url, 1, strlen(url)-2);
+			return std::string(url, 1, strlen(url)-2);
 		}
-		return string(url);
+		return std::string(url);
 	}
 	ExtendedContact(const ExtendedContactCommon &common, sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
@@ -203,7 +203,7 @@ class Record {
 	time_t latestExpire(const std::string &route) const;
 	static std::list<std::string> route_to_stl(su_home_t *home, const sip_route_s *route);
 	void appendContactsFrom(Record *src);
-	static string defineKeyFromUrl(const url_t *aor);
+	static std::string defineKeyFromUrl(const url_t *aor);
 	~Record();
 };
 
