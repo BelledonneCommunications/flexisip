@@ -33,12 +33,12 @@ class TranscodedCall;
 class RelayedCall: public CallContextBase {
 public:
 	static const int sMaxSessions = 4;
-	RelayedCall(const shared_ptr<MediaRelayServer> &server, sip_t *sip);
+	RelayedCall(const std::shared_ptr<MediaRelayServer> &server, sip_t *sip);
 
 	/* Create a channel for each sdp media using defined relay ip for front and back. The transaction
 	 * allow use to identify the callee (we don't have a tag yet).
 	 */
-	void initChannels(const shared_ptr<SdpModifier> &m, const std::string &tag, const std::string &trid, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps);
+	void initChannels(const std::shared_ptr<SdpModifier> &m, const std::string &tag, const std::string &trid, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps);
 	
 	/* Obtain the masquerade contexts for given mline. The trid is used when offeredTag is not yet defined.*/
 	MasqueradeContextPair getMasqueradeContexts(int mline, const std::string &offererTag, const std::string &offeredTag, const std::string &trid);
@@ -49,7 +49,7 @@ public:
 	/* Obtain destination (previously set by setChannelDestinations()*/
 	std::pair<std::string,int> getChannelDestinations(int mline, const std::string & partyTag, const std::string &trId);
 
-	void setChannelDestinations(const shared_ptr<SdpModifier> &m, int mline, const std::string &ip, int port, const std::string & partyTag, const std::string &trId,
+	void setChannelDestinations(const std::shared_ptr<SdpModifier> &m, int mline, const std::string &ip, int port, const std::string & partyTag, const std::string &trId,
 		bool isEarlyMedia);
 
 	void removeBranch(const std::string &trId);
@@ -67,12 +67,12 @@ public:
 	void enableH264IFrameFiltering(int bandwidth_threshold, int decim, bool onlyIfLastProxy);
 	/*Enable telephone-event dropping for tls clients*/
 	void enableTelephoneEventDrooping(bool value);
-	const shared_ptr<MediaRelayServer> & getServer()const{
+	const std::shared_ptr<MediaRelayServer> & getServer()const{
 		return mServer;
 	}
 private:
 	std::shared_ptr<RelaySession> mSessions[sMaxSessions];
-	const shared_ptr<MediaRelayServer> & mServer;
+	const std::shared_ptr<MediaRelayServer> & mServer;
 	int mBandwidthThres;
 	int mDecim;
 	int mEarlyMediaRelayCount;

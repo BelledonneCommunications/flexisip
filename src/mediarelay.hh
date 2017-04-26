@@ -52,7 +52,7 @@ class MediaRelay : public Module, protected ModuleToolbox {
 								const std::shared_ptr<MsgSip> &msgSip);
 	void configureContext(std::shared_ptr<RelayedCall> &c);
 	CallStore *mCalls;
-	vector<std::shared_ptr<MediaRelayServer>> mServers;
+	std::vector<std::shared_ptr<MediaRelayServer>> mServers;
 	size_t mCurServer;
 	std::string mSdpMangledParam;
 	int mH264FilteringBandwidth;

@@ -97,7 +97,7 @@ static pid_t monitor_pid = -1;
 static su_root_t *root = NULL;
 
 #if ENABLE_PRESENCE
-static shared_ptr<flexisip::PresenceServer> presenceServer;
+static std::shared_ptr<flexisip::PresenceServer> presenceServer;
 #endif
 
 using namespace std;

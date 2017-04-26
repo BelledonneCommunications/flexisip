@@ -123,7 +123,7 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 				ForkContextListener *listener);
 	virtual ~ForkContext();
 	// Called by the Router module to create a new branch.
-	void addBranch(const std::shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact);
+	void addBranch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact);
 	// Called by the router module to notify a cancellation.
 	static bool processCancel(const std::shared_ptr<RequestSipEvent> &ev);
 	// called by the router module to notify the arrival of a response.
