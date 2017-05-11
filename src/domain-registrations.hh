@@ -35,7 +35,7 @@ class Agent;
 class DomainRegistration {
   public:
 	DomainRegistration(DomainRegistrationManager &mgr, const std::string &localDomain, const url_t *parent_proxy,
-					   const std::string &clientCertdir);
+					   const std::string &clientCertdir, int lineIndex);
 	void start();
 	void stop();
 	bool isUs(const url_t *url);
@@ -54,6 +54,7 @@ class DomainRegistration {
 	void onConnectionBroken(tport_t *tport, msg_t *msg, int error);
 	void cleanCurrentTport();
 	DomainRegistrationManager &mManager;
+	StatCounter64 * mRegistrationStatus; //This contains the lastest SIP response code of the REGISTER transaction.
 	su_home_t mHome;
 	nta_leg_t *mLeg;
 	tport_t *mPrimaryTport; // the tport that has the configuration
@@ -85,6 +86,7 @@ class DomainRegistrationManager {
   private:
 	Agent *mAgent;
 	std::list<std::shared_ptr<DomainRegistration>> mRegistrations;
+	GenericStruct *mDomainRegistrationArea; /*this is used to place statistics values*/
 	int mKeepaliveInterval;
 	bool mVerifyServerCerts;
 };

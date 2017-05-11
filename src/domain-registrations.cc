@@ -35,7 +35,7 @@ using namespace std;
 
 DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agent) {
 	GenericManager *mgr = GenericManager::get();
-	GenericStruct *domainRegistrationCfg = new GenericStruct(
+	mDomainRegistrationArea = new GenericStruct(
 		"inter-domain-connections",
 		"Inter domain connections is a set of feature allowing to dynamically connect several flexisip servers "
 		"together in order to manage SIP routing at local and global"
@@ -63,7 +63,7 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 		" through the connection established by a.example.net during the domain registration.",
 		ModuleInfoBase::InterDomainConnections);
 
-	mgr->getRoot()->addChild(domainRegistrationCfg);
+	mgr->getRoot()->addChild(mDomainRegistrationArea);
 
 	ConfigItemDescriptor configs[] = {
 		{Boolean, "accept-domain-registrations", "Whether flexisip shall accept registrations for entire domains",
@@ -93,7 +93,9 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 		 "30"},
 		config_item_end};
 
-	domainRegistrationCfg->addChildrenValues(configs);
+	mDomainRegistrationArea->addChildrenValues(configs);
+	
+	
 }
 
 DomainRegistrationManager::~DomainRegistrationManager() {
@@ -102,6 +104,7 @@ DomainRegistrationManager::~DomainRegistrationManager() {
 int DomainRegistrationManager::load() {
 	ifstream ifs;
 	string configFile;
+	int lineIndex = 0;
 
 	GenericStruct *domainRegistrationCfg =
 		GenericManager::get()->getRoot()->get<GenericStruct>("inter-domain-connections");
@@ -159,7 +162,8 @@ int DomainRegistrationManager::load() {
 		if (url_param(url->url_params, "tls-certificates-dir", clientCertdir, sizeof(clientCertdir)) > 0) {
 			url->url_params = url_strip_param_string(su_strdup(home.home(), url->url_params), "tls-certificates-dir");
 		}
-		auto dr = make_shared<DomainRegistration>(*this, domain, url, clientCertdir);
+		auto dr = make_shared<DomainRegistration>(*this, domain, url, clientCertdir, lineIndex);
+		lineIndex++;
 		mRegistrations.push_back(dr);
 	} while (!ifs.eof() && !ifs.bad());
 
@@ -189,8 +193,8 @@ const url_t *DomainRegistrationManager::getPublicUri(const tport_t *tport) const
 }
 
 DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const string &localDomain,
-									   const url_t *parent_proxy, const string &clientCertdir)
-	: mManager(mgr) {
+									   const url_t *parent_proxy, const string &clientCertdir, int lineIndex)
+	: mManager(mgr){
 	char transport[64] = {0};
 	tp_name_t tpn = {0};
 	bool usingTls;
@@ -249,6 +253,12 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 	mCurrentTport = NULL;
 	mTimer = NULL;
 	mExternalContact = NULL;
+
+	ostringstream domainRegistrationStatName;
+	domainRegistrationStatName<<"registration-status-"<<lineIndex;
+	ostringstream domainRegistrationStatHelp;
+	domainRegistrationStatHelp<<"Domain registration status for "<< localDomain;
+	mRegistrationStatus = mgr.mDomainRegistrationArea->createStat(domainRegistrationStatName.str(), domainRegistrationStatHelp.str());
 }
 
 bool DomainRegistration::hasTport(const tport_t *tport) const {
@@ -296,6 +306,7 @@ void DomainRegistration::onConnectionBroken(tport_t *tport, msg_t *msg, int erro
 	LOGD("Scheduling next domain register refresh for %s in %i seconds", mFrom->url_host, nextSchedule);
 	su_timer_set_interval(mTimer, &DomainRegistration::sRefreshRegistration, this, (su_duration_t)nextSchedule * 1000);
 	LOGD("DomainRegistration::onConnectionBroken(), restarting registration in %i seconds", nextSchedule);
+	mRegistrationStatus->set(503);
 }
 
 void DomainRegistration::sOnConnectionBroken(tp_stack_t *stack, tp_client_t *client, tport_t *tport, msg_t *msg,
@@ -318,6 +329,8 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 			  << msg_as_string(home.home(), msg, msg_object(msg), 0, NULL);
 		msg_unref(msg);
 	}
+	
+	mRegistrationStatus->set(resp ? resp->sip_status->st_status : 408); /*if no response, it is a timeout*/
 
 	if (!resp || resp->sip_status->st_status != 200) {
 		/*the registration failed for whatever reason. Retry shortly.*/
