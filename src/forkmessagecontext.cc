@@ -252,12 +252,12 @@ bool ForkMessageContext::onNewRegister(const url_t *dest, const string &uid) {
 	if (uid.size() > 0) {
 		shared_ptr<BranchInfo> br = findBranchByUid(uid);
 		if (br == NULL) {
-			// this is a new client instance or a client for which the message wasn't delivered yet. The message needs
+			// this is a new client instance. The message needs
 			// to be delivered.
 			LOGD("ForkMessageContext::onNewRegister(): this is a new client instance.");
 			return true;
 		} else if (needsDelivery(br->getStatus())) {
-			// this is a new client instance or a client for which the message wasn't delivered yet. The message needs
+			// this is a client for which the message wasn't delivered yet (or failed to be delivered). The message needs
 			// to be delivered.
 			LOGD("ForkMessageContext::onNewRegister(): this client is reconnecting but was not delivered before.");
 			return true;
