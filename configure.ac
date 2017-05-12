@@ -187,10 +187,11 @@ AC_ARG_WITH(mysql,
 	[mysql_prefix=/usr]
 )
 if test "${mysql_prefix}" != "none" ; then
-	MYSQL_CFLAGS="-I${mysql_prefix}/include/mariadb"
+	MYSQL_CFLAGS="-I${mysql_prefix}/include/mysql"
 
 	dnl check mysql headers
 	have_mysql=no
+	have_mysql_headers=no
 	CPPFLAGS_save=$CPPFLAGS
 	CPPFLAGS="$CPPFLAGS $MYSQL_CFLAGS"
 	AC_CHECK_HEADER([mysql.h],have_mysql_headers=yes)
@@ -198,7 +199,8 @@ if test "${mysql_prefix}" != "none" ; then
 	
 	if test "$have_mysql_headers" = "no" ; then
             dnl try with mariadb
-            MYSQL_CFLAGS="-I${mysql_prefix}/include/mysql"
+            $as_unset ac_cv_header_mysql_h
+            MYSQL_CFLAGS="-I${mysql_prefix}/include/mariadb"
             CPPFLAGS_save=$CPPFLAGS
             CPPFLAGS="$CPPFLAGS $MYSQL_CFLAGS"
             AC_CHECK_HEADER([mysql.h],have_mysql_headers=yes)

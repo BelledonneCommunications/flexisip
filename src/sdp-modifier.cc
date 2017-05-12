@@ -531,7 +531,9 @@ void SdpModifier::changeConnection(sdp_connection_t *c, const char *ip){
 	if (c->c_address && strcmp(c->c_address,"0.0.0.0")==0){
 		return;
 	}
+	bool isIP6 = strchr(ip, ':') != NULL;
 	c->c_address = su_strdup(mHome, ip);
+	c->c_addrtype = isIP6 ? sdp_addr_ip6 : sdp_addr_ip4;
 }
 
 void SdpModifier::changeRtcpAttr(sdp_media_t *mline, const string & relayAddr, int port){
