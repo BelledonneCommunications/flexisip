@@ -190,8 +190,11 @@ if(ENABLE_PRESENCE)
 	list(APPEND FLEXISIP_SOURCES xml/rlmi+xml.xsd)
 	ADD_XSD_WRAPPERS(resource-lists "Presence XSD - resource-lists.xsd")
 	list(APPEND FLEXISIP_SOURCES xml/resource-lists.xsd)
-
-	list(APPEND FLEXISIP_DEPENDENCIES xml pidf+xml rlmi+xml resource-lists)
+	ADD_XSD_WRAPPERS(rpid "RPID XSD - rpid.xsd")
+	list(APPEND FLEXISIP_SOURCES xml/rpid.xsd)
+	ADD_XSD_WRAPPERS(data-model "Data model XSD - data-model.xsd")
+	list(APPEND FLEXISIP_SOURCES xml/data-model.xsd)
+	list(APPEND FLEXISIP_DEPENDENCIES xml pidf+xml rlmi+xml resource-lists rpid data-model)
 endif()
 
 if(ENABLE_PUSHNOTIFICATION)

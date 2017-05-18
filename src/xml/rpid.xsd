@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
    <xs:schema targetNamespace="urn:ietf:params:xml:ns:pidf:rpid"
       xmlns="urn:ietf:params:xml:ns:pidf:rpid"
-      xmlns:dm="urn:ietf:params:xml:ns:pidf:data-model"
       xmlns:xs="http://www.w3.org/2001/XMLSchema"
       elementFormDefault="qualified"
       attributeFormDefault="unqualified">

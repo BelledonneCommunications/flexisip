@@ -22,12 +22,16 @@
 #include <functional>
 #include "etag-manager.hh"
 #include "pidf+xml.hxx"
+#include "rpid.hxx"
+#include "data-model.hxx"
 #include <memory>
 #include "presentity-manager.hh"
 #include "log/logmanager.hh"
 
 #define ETAG_SIZE 8
 using namespace pidf;
+using namespace rpid;
+using namespace data_model;
 
 namespace flexisip {
 
@@ -294,7 +298,11 @@ string PresentityPresenceInformation::getPidf() throw(FlexisipException) {
 	stringstream out;
 	try {
 		char *entity = belle_sip_uri_to_string(getEntity());
-		pidf::Presence presence((string(entity)));
+		Person person = Person(entity);
+		Activities act = Activities();
+		act.getAway().push_back(rpid::Empty());
+		person.getActivities().push_back(act);
+		pidf::Presence presence(person, (string(entity)));
 		belle_sip_free(entity);
 		list<string> tupleList;
 

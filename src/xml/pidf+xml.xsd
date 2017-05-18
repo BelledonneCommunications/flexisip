@@ -19,8 +19,8 @@
      <xs:import namespace="http://www.w3.org/XML/1998/namespace"
        schemaLocation="http://www.w3.org/2001/xml.xsd"/>
 
-	 <!--xs:import namespace="urn:ietf:params:xml:ns:pidf:data-model"
-	   schemaLocation="http://www.iana.org/assignments/xml-registry/schema/pidf/data-model.xsd"/-->
+	 <xs:import namespace="urn:ietf:params:xml:ns:pidf:data-model"
+	 schemaLocation="data-model.xsd"/>
 	   
      <xs:element name="presence" type="tns:presence"/>
 
@@ -30,8 +30,8 @@
             maxOccurs="unbounded"/>
          <xs:element name="note" type="tns:note" minOccurs="0"
             maxOccurs="unbounded"/>
-		 <!--xs:element ref="dm:person" minOccurs="0"
-			maxOccurs="unbounded"/-->
+		 <xs:element ref="dm:person" minOccurs="1"
+			maxOccurs="1"/>
 		 <xs:any namespace="##other" processContents="lax" minOccurs="0"
             maxOccurs="unbounded"/>
        </xs:sequence>

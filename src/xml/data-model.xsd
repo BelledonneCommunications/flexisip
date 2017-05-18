@@ -1,10 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-   <xs:schema targetNamespace="urn:ietf:params:xml:ns:pidf:data-model"
+	<xs:schema targetNamespace="urn:ietf:params:xml:ns:pidf:data-model"
+	xmlns="urn:ietf:params:xml:ns:pidf:data-model"
     xmlns:xs="http://www.w3.org/2001/XMLSchema"
-    xmlns="urn:ietf:params:xml:ns:pidf:data-model"
+	xmlns:rpid="urn:ietf:params:xml:ns:pidf:rpid"
     elementFormDefault="qualified" attributeFormDefault="unqualified">
+
+	<!-- This import brings in the XML language attribute xml:lang-->
 	<xs:import namespace="http://www.w3.org/XML/1998/namespace"
 	schemaLocation="http://www.w3.org/2001/xml.xsd"/>
+
+	<xs:import namespace="urn:ietf:params:xml:ns:pidf:rpid"
+	schemaLocation="rpid.xsd"/>
+
 	<xs:include schemaLocation="common-schema.xsd"/>
     <xs:element name="deviceID" type="deviceID_t">
      <xs:annotation>
@@ -35,18 +42,14 @@
      </xs:annotation>
      <xs:complexType>
       <xs:sequence>
-       <xs:any namespace="##other" processContents="lax"
-        minOccurs="0" maxOccurs="unbounded">
-        <xs:annotation>
-         <xs:documentation>Characteristic and status
-          information</xs:documentation>
-        </xs:annotation>
-       </xs:any>
        <xs:element name="note" type="Note_t" minOccurs="0"
         maxOccurs="unbounded"/>
+		<xs:element ref="rpid:activities" minOccurs="0"
+		 maxOccurs="unbounded"/>
        <xs:element name="timestamp" type="Timestamp_t" minOccurs="0"/>
       </xs:sequence>
       <xs:attribute name="id" type="xs:ID" use="required"/>
+      <xs:anyAttribute namespace="##any" processContents="lax"/>
      </xs:complexType>
     </xs:element>
    </xs:schema>
