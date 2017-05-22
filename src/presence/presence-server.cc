@@ -445,9 +445,9 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 			SLOGD << "Presentity [" << *presenceInfo << "] found";
 		}
 		if (eTag.empty()) {
-			eTag = presenceInfo->putTuples(presence_body->getTuple(), presence_body->getAny(), expires);
+			eTag = presenceInfo->putTuples(presence_body->getTuple(), presence_body->getPerson().get(), expires);
 		} else
-			eTag = presenceInfo->updateTuples(presence_body->getTuple(), presence_body->getAny(), eTag, expires);
+			eTag = presenceInfo->updateTuples(presence_body->getTuple(), presence_body->getPerson().get(), eTag, expires);
 
 		belle_sip_object_unref(entity);
 

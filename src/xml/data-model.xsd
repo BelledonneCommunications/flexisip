@@ -44,8 +44,8 @@
       <xs:sequence>
        <xs:element name="note" type="Note_t" minOccurs="0"
         maxOccurs="unbounded"/>
-		<xs:element ref="rpid:activities" minOccurs="0"
-		 maxOccurs="unbounded"/>
+		   <xs:element ref="rpid:activities" minOccurs="0"
+		    maxOccurs="unbounded"/>
        <xs:element name="timestamp" type="Timestamp_t" minOccurs="0"/>
       </xs:sequence>
       <xs:attribute name="id" type="xs:ID" use="required"/>

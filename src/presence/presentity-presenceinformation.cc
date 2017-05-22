@@ -57,6 +57,10 @@ PresenceInformationElement::PresenceInformationElement(const belle_sip_uri_t *co
 											 now->tm_min, now->tm_sec));
 	tup->setContact(::pidf::Contact(contact_as_string));
 	mTuples.push_back(std::unique_ptr<Tuple>(tup.release()));
+	Activities act = Activities();
+	act.getAway().push_back(rpid::Empty());
+	mPerson.setId(contact_as_string);
+	mPerson.getActivities().push_back(act);
 	belle_sip_free(contact_as_string);
 }
 
@@ -91,19 +95,19 @@ size_t PresentityPresenceInformation::getNumberOfInformationElements() const {
 	return mInformationElements.size();
 }
 string PresentityPresenceInformation::putTuples(pidf::Presence::TupleSequence &tuples,
-												pidf::Presence::AnySequence &extensions, int expires) {
-	return setOrUpdate(&tuples, &extensions, NULL, expires);
+												data_model::Person &person, int expires) {
+	return setOrUpdate(&tuples, &person, NULL, expires);
 }
 string PresentityPresenceInformation::updateTuples(pidf::Presence::TupleSequence &tuples,
-												   pidf::Presence::AnySequence &extensions, string &eTag,
+												   data_model::Person  &person, string &eTag,
 												   int expires) throw(FlexisipException) {
-	return setOrUpdate(&tuples, &extensions, &eTag, expires);
+	return setOrUpdate(&tuples, &person, &eTag, expires);
 }
 void PresenceInformationElement::clearTuples() {
 	mTuples.clear();
 }
 string PresentityPresenceInformation::setOrUpdate(pidf::Presence::TupleSequence *tuples,
-												  pidf::Presence::AnySequence *extensions, const string *eTag,
+												  data_model::Person  *person, const string *eTag,
 												  int expires) throw(FlexisipException) {
 	PresenceInformationElement *informationElement = NULL;
 
@@ -132,7 +136,7 @@ string PresentityPresenceInformation::setOrUpdate(pidf::Presence::TupleSequence 
 	}
 
 	if (!informationElement) { // create a new one if needed
-		informationElement = new PresenceInformationElement(tuples, extensions, mBelleSipMainloop);
+		informationElement = new PresenceInformationElement(tuples, person, mBelleSipMainloop);
 		SLOGD << "Creating presence information element [" << informationElement << "]  for presentity [" << *this
 			  << "]";
 	}
@@ -299,10 +303,8 @@ string PresentityPresenceInformation::getPidf() throw(FlexisipException) {
 	try {
 		char *entity = belle_sip_uri_to_string(getEntity());
 		Person person = Person(entity);
-		Activities act = Activities();
-		act.getAway().push_back(rpid::Empty());
-		person.getActivities().push_back(act);
-		pidf::Presence presence(person, (string(entity)));
+		pidf::Presence presence((string(entity)));
+		presence.setPerson(person);
 		belle_sip_free(entity);
 		list<string> tupleList;
 
@@ -318,14 +320,23 @@ string PresentityPresenceInformation::getPidf() throw(FlexisipException) {
 				}
 			}
 			// copy extensions
-			for (auto extension : element.second->getExtensions()) {
+			Person dm_person = element.second->getPerson();
+			for(data_model::Person::ActivitiesIterator activity = dm_person.getActivities().begin(); activity != dm_person.getActivities().end();activity++) {
+				presence.getPerson()->getActivities().push_back(*activity);
+			}
+			/*for (auto extension : element.second->getExtensions()) {
 				presence.getAny().push_back(dynamic_cast<xercesc::DOMElement *>(
 					presence.getDomDocument().importNode(extension, true))); // might be optimized
-			}
+			}*/
 		}
 		if (mInformationElements.size() == 0 && mDefaultInformationElement != nullptr) {
 			// insering default tuple
 			presence.getTuple().push_back(*mDefaultInformationElement->getTuples().begin()->get());
+			// copy extensions
+			Person dm_person = mDefaultInformationElement->getPerson();
+			for(data_model::Person::ActivitiesIterator activity = dm_person.getActivities().begin(); activity != dm_person.getActivities().end();activity++) {
+				presence.getPerson()->getActivities().push_back(*activity);
+			}
 		}
 		if (presence.getTuple().size() == 0) {
 			pidf::Note value;
@@ -376,7 +387,7 @@ void PresentityPresenceInformationListener::setExpiresTimer(belle_sip_main_loop_
 // PresenceInformationElement
 
 PresenceInformationElement::PresenceInformationElement(pidf::Presence::TupleSequence *tuples,
-													   pidf::Presence::AnySequence *extensions,
+													   data_model::Person *person,
 													   belle_sip_main_loop_t *mainLoop)
 	: mDomDocument(::xsd::cxx::xml::dom::create_document<char>()), mBelleSipMainloop(mainLoop), mTimer(NULL) {
 
@@ -386,15 +397,20 @@ PresenceInformationElement::PresenceInformationElement(pidf::Presence::TupleSequ
 		tupleIt = tuples->detach(tupleIt, r);
 		mTuples.push_back(std::unique_ptr<Tuple>(r.release()));
 	}
+	if(person) {
+		for(data_model::Person::ActivitiesIterator activity = person->getActivities().begin(); activity != person->getActivities().end();activity++) {
+			mPerson.getActivities().push_back(*activity);
+		}
+	}
 
-	for (pidf::Presence::AnySequence::iterator domElement = extensions->begin(); domElement != extensions->end();
+	/*for (pidf::Presence::PersonType::iterator domElement = extensions->begin(); domElement != extensions->end();
 		 domElement++) {
 		char * transcodedString = xercesc::XMLString::transcode(domElement->getNodeName());
 		SLOGD << "Adding extension element  [" << transcodedString
 			  << "] to presence info element [" << this << "]";
 		xercesc::XMLString::release(&transcodedString);
 		mExtensions.push_back(dynamic_cast<xercesc::DOMElement *>(mDomDocument->importNode(&*domElement, true)));
-	}
+	}*/
 }
 
 static string generate_presence_id(void) {
@@ -433,8 +449,8 @@ const std::unique_ptr<pidf::Tuple> &PresenceInformationElement::getTuple(const s
 const list<std::unique_ptr<pidf::Tuple>> &PresenceInformationElement::getTuples() const {
 	return mTuples;
 }
-const list<xercesc::DOMElement *> PresenceInformationElement::getExtensions() const {
-	return mExtensions;
+const data_model::Person PresenceInformationElement::getPerson() const {
+	return mPerson;
 }
 /*	void PresenceInformationElement::addTuple(pidf::Tuple* tup) {
 		mTuples.push_back(tup);

@@ -30,10 +30,10 @@
             maxOccurs="unbounded"/>
          <xs:element name="note" type="tns:note" minOccurs="0"
             maxOccurs="unbounded"/>
-		 <xs:element ref="dm:person" minOccurs="1"
+		 <xs:element ref="dm:person" minOccurs="0"
 			maxOccurs="1"/>
-		 <xs:any namespace="##other" processContents="lax" minOccurs="0"
-            maxOccurs="unbounded"/>
+		 <!--xs:any namespace="##other" processContents="lax" minOccurs="0"
+            maxOccurs="unbounded"/ Avoid unique particle violation --> 
        </xs:sequence>
        <xs:attribute name="entity" type="xs:anyURI" use="required"/>
      </xs:complexType>
