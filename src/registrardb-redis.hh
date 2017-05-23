@@ -73,7 +73,7 @@ struct RedisHost {
 class RegistrarDbRedisAsync : public RegistrarDb {
   public:
 	struct RegistrarUserData;
-	RegistrarDbRedisAsync(const string &preferredRoute, su_root_t *root, RecordSerializer *serializer,
+	RegistrarDbRedisAsync(const std::string &preferredRoute, su_root_t *root, RecordSerializer *serializer,
 						  RedisParameters params);
 
   protected:
@@ -105,7 +105,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	int mPort;
 	int mTimeout;
 	su_root_t *mRoot;
-	vector<RedisHost> mSlaves;
+	std::vector<RedisHost> mSlaves;
 	size_t mCurSlave;
 	su_timer_t *mReplicationTimer;
 	int mSlaveCheckTimeout;
@@ -130,7 +130,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 
 	/* replication */
 	void getReplicationInfo();
-	void updateSlavesList(const map<string, string> redisReply);
+	void updateSlavesList(const std::map<std::string, std::string> redisReply);
 	void tryReconnect();
 
 	/* static handlers */
