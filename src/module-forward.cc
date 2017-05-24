@@ -49,6 +49,7 @@ class ForwardModule : public Module, ModuleToolbox {
 	sip_route_t *mOutRoute;
 	bool mRewriteReqUri;
 	bool mAddPath;
+	string mDefaultTransport;
 	std::list<std::string> mParamsToRemove;
 	static ModuleInfo<ForwardModule> sInfo;
 };
@@ -72,6 +73,8 @@ void ForwardModule::onDeclare(GenericStruct *module_config) {
 		"This is the typical way to setup a Flexisip proxy server acting as a front-end for backend SIP server.", ""},
 		{Boolean, "add-path", "Add a path header of this proxy", "true"},
 		{Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to above route", "false"},
+		{String, "default-transport", "For sip uris, in asbsence of transport parameter, assume the given transport is to be is to be used."
+			 " Possible values are udp, tcp or tls.", "udp"},
 		{StringList, "params-to-remove",
 			 "List of URL and contact params to remove",
 			 "pn-tok pn-type app-id pn-msg-str pn-call-str pn-call-snd pn-msg-snd pn-timeout"},
@@ -90,6 +93,9 @@ void ForwardModule::onLoad(const GenericStruct *mc) {
 	}
 	mAddPath = mc->get<ConfigBoolean>("add-path")->read();
 	mParamsToRemove = mc->get<ConfigStringList>("params-to-remove")->read();
+	mDefaultTransport =  mc->get<ConfigString>("default-transport")->read();
+	if (mDefaultTransport == "udp") mDefaultTransport.clear();
+	else mDefaultTransport = "transport=" + mDefaultTransport;
 }
 
 url_t *ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
@@ -110,6 +116,9 @@ url_t *ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest)
 				*req_url = *dest;
 			}
 		}
+	}
+	if (!mDefaultTransport.empty() && dest->url_type == url_sip && !url_has_param(dest, "transport") ){
+		url_param_add(ev->getHome(), dest, mDefaultTransport.c_str());
 	}
 	return dest;
 }
