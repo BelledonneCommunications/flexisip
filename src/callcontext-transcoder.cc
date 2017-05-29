@@ -46,6 +46,7 @@ CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCall
 	/*  no jitter buffer: we are just doing packet processing*/
 	mUsePlc = params.mJbNomSize == 0 ? false : true;
 	JBParameters jbpar;
+	rtp_session_get_jitter_buffer_params(mSession, &jbpar);
 	jbpar.min_size = jbpar.nom_size = params.mJbNomSize;
 	jbpar.max_size = 200;
 	jbpar.adaptive = true;
