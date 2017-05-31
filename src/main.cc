@@ -895,11 +895,17 @@ int main(int argc, char *argv[]) {
 		if (daemonMode) {
 			notifyWatchDog();
 		}
-		if (startProxy){
-			//start as a thread
-			presenceServer->start();
-		}else{
-			presenceServer->run();
+		try{
+			if (startProxy){
+				//start as a thread
+				presenceServer->start();
+			}else{
+				presenceServer->run();
+			}
+		}catch(FlexisipException &e){
+			/* Catch the presence server exception, which is generally caused by a failure while binding the SIP listening points.
+			 * Since it prevents from starting and it is not a crash, it shall be notified to the user with LOGF*/
+			LOGF("Fail to start flexisip presence server");
 		}
 		
 		presence_stats = new Stats("presence");
