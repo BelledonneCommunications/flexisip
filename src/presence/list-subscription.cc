@@ -107,7 +107,7 @@ ListSubscription::~ListSubscription() {
 };
 
 void ListSubscription::addInstanceToResource(rlmi::Resource &resource, list<belle_sip_body_handler_t *> &multipartList,
-											 PresentityPresenceInformation &presentityInformation) {
+											 PresentityPresenceInformation &presentityInformation, bool extended) {
 
 	// we have a resource instance
 	// subscription state is always active until we implement ACL
@@ -117,7 +117,7 @@ void ListSubscription::addInstanceToResource(rlmi::Resource &resource, list<bell
 	ostringstream cid;
 	cid << (const char *)cid_rand_part << "@" << belle_sip_uri_get_host(mName);
 	instance.setCid(cid.str());
-	string pidf = presentityInformation.getPidf();
+	string pidf = presentityInformation.getPidf(extended);
 	belle_sip_memory_body_handler_t *bodyPart =
 		belle_sip_memory_body_handler_new_copy_from_buffer((void *)pidf.c_str(), pidf.length(), NULL, NULL);
 	belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(bodyPart),
@@ -168,8 +168,8 @@ void ListSubscription::notify(bool isFullState) throw(FlexisipException) {
 				rlmi::Resource resource(presentityUri);
 				belle_sip_free(presentityUri);
 				PendingStateType::iterator it = mPendingStates.find(resourceListener->getPresentityUri());
-				if (it != mPendingStates.end() && it->second->isKnown()) {
-					addInstanceToResource(resource, multipartList, *it->second);
+				if (it != mPendingStates.end() && it->second.first->isKnown()) {
+					addInstanceToResource(resource, multipartList, *it->second.first, resourceListener->extendedNotifyEnabled());
 				} else {
 					SLOGI << "No presence info yet for uri [" << resourceListener->getPresentityUri() << "]";
 				}
@@ -178,14 +178,14 @@ void ListSubscription::notify(bool isFullState) throw(FlexisipException) {
 
 		} else {
 			SLOGI << "Building partial state rlmi for list name [" << mName << "]";
-			for (pair<const belle_sip_uri_t *, shared_ptr<PresentityPresenceInformation>> presenceInformationPair :
+			for (pair<const belle_sip_uri_t *, pair<shared_ptr<PresentityPresenceInformation>,bool>> presenceInformationPair :
 				 mPendingStates) {
-				if (presenceInformationPair.second->isKnown()) { /* only notify for entity with known state*/
-					shared_ptr<PresentityPresenceInformation> presenceInformation = presenceInformationPair.second;
+				if (presenceInformationPair.second.first->isKnown()) { /* only notify for entity with known state*/
+					shared_ptr<PresentityPresenceInformation> presenceInformation = presenceInformationPair.second.first;
 					char *presentityUri = belle_sip_uri_to_string(presenceInformation->getEntity());
 					rlmi::Resource resource(presentityUri);
 					belle_sip_free(presentityUri);
-					addInstanceToResource(resource, multipartList, *presenceInformation);
+					addInstanceToResource(resource, multipartList, *presenceInformation, presenceInformationPair.second.second);
 					resourceList.getResource().push_back(resource);
 				}
 			}
@@ -230,10 +230,10 @@ void ListSubscription::notify(bool isFullState) throw(FlexisipException) {
 		throw FLEXISIP_EXCEPTION << "Cannot get build list notidy for [" << mName << "]error [" << e.what() << "]";
 	}
 }
-void ListSubscription::onInformationChanged(PresentityPresenceInformation &presenceInformation) {
+void ListSubscription::onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) {
 	// store state, erase previous one if any
 	if (getState() == active) {
-		mPendingStates[presenceInformation.getEntity()] = presenceInformation.shared_from_this();
+		mPendingStates[presenceInformation.getEntity()] = std::make_pair(presenceInformation.shared_from_this(), extended);
 
 		if (isTimeToNotify()) {
 			notify(FALSE);
@@ -299,12 +299,18 @@ const belle_sip_uri_t *PresentityResourceListener::getPresentityUri(void) const 
 /*
  * This function is call every time Presentity information need to be notified to a UA
  */
-void PresentityResourceListener::onInformationChanged(PresentityPresenceInformation &presenceInformation) {
+void PresentityResourceListener::onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) {
 	// Notification is handled globaly for the list
-	mListSubscription.onInformationChanged(presenceInformation);
+	mListSubscription.onInformationChanged(presenceInformation, extended);
 }
 void PresentityResourceListener::onExpired(PresentityPresenceInformation &presenceInformation) {
 	// fixme check if enought
 	mListSubscription.setState(Subscription::State::terminated);
+}
+const belle_sip_uri_t* PresentityResourceListener::getFrom() {
+	return mListSubscription.getFrom();
+}
+const belle_sip_uri_t* PresentityResourceListener::getTo() {
+	return mListSubscription.getTo();
 }
 }

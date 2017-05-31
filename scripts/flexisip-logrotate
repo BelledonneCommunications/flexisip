@@ -1,0 +1,7 @@
+/var/opt/belledonne-communications/log/flexisip/*_*_*.log {
+	daily
+	compress
+	missingok
+	notifempty
+	nocreate
+}

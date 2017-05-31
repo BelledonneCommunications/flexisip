@@ -59,6 +59,7 @@ static ConfigItemDescriptor presence_global_conf[] = {
 	//	{	Integer		,"transaction-timeout",	"SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by
 	//default.","32000"},
 	{Integer, "expires", "Publish default expires in second.  by default.", "600"},
+	{String, "bypass-condition", "If user agent contains it, can bypass extended notifiy verification.", "false"},
 	config_item_end};
 
 PresenceConfigManager::PresenceConfigManager()

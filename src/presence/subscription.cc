@@ -1,5 +1,5 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
+	:, a flexible SIP proxy server with media capabilities.
 	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
 	This program is free software: you can redistribute it and/or modify
@@ -155,7 +155,12 @@ void Subscription::setExpirationTime(time_t expirationTime) {
 void Subscription::increaseExpirationTime(unsigned int expires) {
 	mExpirationTime += expires;
 }
-
+const belle_sip_uri_t* Subscription::getFrom() {
+	return belle_sip_header_address_get_uri(belle_sip_dialog_get_local_party(mDialog));
+}
+const belle_sip_uri_t* Subscription::getTo() {
+	return belle_sip_header_address_get_uri(belle_sip_dialog_get_remote_party(mDialog));
+}
 // Presence Subscription
 
 PresenceSubscription::PresenceSubscription(unsigned int expires, const belle_sip_uri_t *presentity,
@@ -171,12 +176,12 @@ PresenceSubscription::~PresenceSubscription() {
 const belle_sip_uri_t *PresenceSubscription::getPresentityUri() const {
 	return mPresentity;
 }
-void PresenceSubscription::onInformationChanged(PresentityPresenceInformation &presenceInformation) {
+void PresenceSubscription::onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) {
 	string body;
 	belle_sip_header_content_type_t *content_type = NULL;
 	try {
 		if (getState() == active) {
-			body += presenceInformation.getPidf();
+			body += presenceInformation.getPidf(extended);
 			content_type = belle_sip_header_content_type_create("application", "pidf+xml");
 		}
 	} catch (FlexisipException &e) {
@@ -190,5 +195,12 @@ void PresenceSubscription::onInformationChanged(PresentityPresenceInformation &p
 void PresenceSubscription::onExpired(PresentityPresenceInformation &presenceInformation) {
 	// just transition state to expired
 	setState(Subscription::State::terminated);
+}
+
+const belle_sip_uri_t* PresenceSubscription::getFrom() {
+	return Subscription::getFrom();
+}
+const belle_sip_uri_t* PresenceSubscription::getTo() {
+	return Subscription::getTo();
 }
 }

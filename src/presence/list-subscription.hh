@@ -43,8 +43,10 @@ class PresentityResourceListener : public PresentityPresenceInformationListener 
 	/*
 	 * This function is call every time Presentity information need to be notified to a UA
 	 */
-	void onInformationChanged(PresentityPresenceInformation &presenceInformation);
+	void onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended);
 	void onExpired(PresentityPresenceInformation &presenceInformation);
+	const belle_sip_uri_t* getFrom();
+	const belle_sip_uri_t* getTo();
 
   private:
 	ListSubscription &mListSubscription;
@@ -69,17 +71,17 @@ class ListSubscription : public Subscription {
   protected:
 	// this function is call by each PresentityResourceListener to centralize notifications
 	friend PresentityResourceListener;
-	void onInformationChanged(PresentityPresenceInformation &presenceInformation);
+	void onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended);
 
   private:
 	ListSubscription(const ListSubscription &);
 	// return true if a real notify can be sent.
 	bool isTimeToNotify();
 	void addInstanceToResource(rlmi::Resource &resource, list<belle_sip_body_handler_t *> &multipartList,
-							   PresentityPresenceInformation &presentityInformation);
+							   PresentityPresenceInformation &presentityInformation, bool extended);
 
 	list<shared_ptr<PresentityPresenceInformationListener>> mListeners;
-	typedef unordered_map<const belle_sip_uri_t *, shared_ptr<PresentityPresenceInformation>,
+	typedef unordered_map<const belle_sip_uri_t *, pair<shared_ptr<PresentityPresenceInformation>,bool>,
 						  hash<const belle_sip_uri_t *>, bellesip::UriComparator> PendingStateType;
 	PendingStateType mPendingStates; // map of Presentity to be notified by uri
 	chrono::time_point<chrono::system_clock> mLastNotify;

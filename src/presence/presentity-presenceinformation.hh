@@ -71,16 +71,23 @@ class PresentityPresenceInformationListener  {
 	PresentityPresenceInformationListener();
 	virtual ~PresentityPresenceInformationListener();
 	void setExpiresTimer(belle_sip_main_loop_t *ml, belle_sip_source_t *timer);
+	void enableExtendedNotify(bool enable);
+	bool extendedNotifyEnabled();
+	void enableBypass(bool enable);
+	bool bypassEnabled();
 	/*returns prsentity uri associated to this Listener*/
 	virtual const belle_sip_uri_t *getPresentityUri() const = 0;
 	/*invoked on changes*/
-	virtual void onInformationChanged(PresentityPresenceInformation &presenceInformation) = 0;
+	virtual void onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) = 0;
 	/*invoked on expiration*/
 	virtual void onExpired(PresentityPresenceInformation &presenceInformation) = 0;
-
+	virtual const belle_sip_uri_t* getFrom() = 0;
+	virtual const belle_sip_uri_t* getTo() = 0;
   private:
 	belle_sip_main_loop_t *mBelleSipMainloop;
 	belle_sip_source_t *mTimer;
+	bool mExtendedNotify;
+	bool mBypassEnabled;
 };
 
 class PresentityPresenceInformation : public std::enable_shared_from_this<PresentityPresenceInformation> {
@@ -136,6 +143,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 *add notity listener for an entity without expiration timer
 	 */
 	void addOrUpdateListener(const shared_ptr<PresentityPresenceInformationListener> &listener);
+	void addListenerIfNecessary(const shared_ptr<PresentityPresenceInformationListener> &listener);
 	/*
 	 * remove listener
 	 */
@@ -144,7 +152,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	/*
 	 * return the presence information for this entity in a pidf serilized format
 	 */
-	string getPidf() throw(FlexisipException);
+	string getPidf(bool extended) throw(FlexisipException);
 
 	/*
 	 * return true if a presence info is already known from a publish
@@ -166,7 +174,18 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 */
 	size_t getNumberOfInformationElements() const;
 
+	/*
+	 * return all the listeners (I.E. subscribers) of this presence information
+	 */
+	std::list<shared_ptr<PresentityPresenceInformationListener>> getListeners() const;
+
+	/*
+	 * return if one of the subscribers subscribed for a presence information
+	 */
+	bool findPresenceInfo(std::shared_ptr<PresentityPresenceInformation> &info);
+
   private:
+	PresentityPresenceInformation(const PresentityPresenceInformation& other);
 	/*
 	 * tuples may be null
 	 */

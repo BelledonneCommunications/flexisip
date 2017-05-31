@@ -93,6 +93,7 @@ private:
 	belle_sip_listener_t *mListener;
 	std::unique_ptr<std::thread> mIterateThread;
 	int mDefaultExpires;
+	std::string mBypass;
 
 	// belle sip cbs
 	static void processDialogTerminated(PresenceServer * thiz, const belle_sip_dialog_terminated_event_t *event);

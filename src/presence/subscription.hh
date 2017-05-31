@@ -45,6 +45,8 @@ namespace flexisip {
 	void setExpirationTime(time_t expirationTime);
 	time_t getExpirationDate();
 	void increaseExpirationTime(unsigned int expires);
+	const belle_sip_uri_t* getFrom();
+	const belle_sip_uri_t* getTo();
 
   protected:
 	belle_sip_dialog_t *mDialog;
@@ -77,9 +79,10 @@ class PresenceSubscription : public Subscription, public PresentityPresenceInfor
 	/*
 	 * This function is call every time Presentity information need to be notified to a UA
 	 */
-	void onInformationChanged(PresentityPresenceInformation &presenceInformation);
+	void onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extented);
 	void onExpired(PresentityPresenceInformation &presenceInformation);
-
+	const belle_sip_uri_t* getFrom();
+	const belle_sip_uri_t* getTo();
   private:
 	const belle_sip_uri_t *mPresentity;
 };

@@ -67,6 +67,7 @@ PresenceServer::Init::Init() {
 									 {Integer, "expires", "Publish default expires in second.  by default.", "600"},
 									{Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
 									{Boolean, "long-term-enabled", "Enable long-term presence notifies", "true"},
+									{String, "bypass-condition", "If user agent contains it, can bypass extended notifiy verification.", "false"},
 									config_item_end};
 	GenericStruct *s = new GenericStruct("presence-server", "Flexisip presence server parameters.", 0);
 	GenericManager::get()->getRoot()->addChild(s);
@@ -110,6 +111,7 @@ PresenceServer::PresenceServer() throw(FlexisipException)
 	mListener = belle_sip_listener_create_from_callbacks(&listener_callbacks, this);
 	belle_sip_provider_add_sip_listener(mProvider, mListener);
 	mDefaultExpires = config->get<ConfigInt>("expires")->read();
+	mBypass = config->get<ConfigString>("bypass-condition")->read();
 	mEnabled = config->get<ConfigBoolean>("enabled")->read();
 }
 
@@ -444,6 +446,10 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		} else {
 			SLOGD << "Presentity [" << *presenceInfo << "] found";
 		}
+		for (shared_ptr<PresentityPresenceInformationListener> listener : presenceInfo->getListeners()) {
+			std::shared_ptr<PresentityPresenceInformation> toPresenceInfo = getPresenceInfo(listener->getTo());
+			listener->enableExtendedNotify(toPresenceInfo && toPresenceInfo->findPresenceInfo(presenceInfo));
+		}
 		if (eTag.empty()) {
 			eTag = presenceInfo->putTuples(presence_body->getTuple(), presence_body->getPerson().get(), expires);
 		} else
@@ -463,6 +469,10 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		 a result of such a request.
 		 */
 		presenceInfo = getPresenceInfo(eTag);
+		for (shared_ptr<PresentityPresenceInformationListener> listener : presenceInfo->getListeners()) {
+			std::shared_ptr<PresentityPresenceInformation> toPresenceInfo = getPresenceInfo(listener->getTo());
+			listener->enableExtendedNotify(toPresenceInfo && toPresenceInfo->findPresenceInfo(presenceInfo));
+		}
 		if (expires == 0) {
 			if (presenceInfo)
 				presenceInfo->removeTuplesForEtag(eTag);
@@ -510,6 +520,7 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_t *event) throw(BelleSipSignalingException,
 																								FlexisipException) {
 	belle_sip_request_t *request = belle_sip_request_event_get_request(event);
+
 	/*
 	 3.1.6.1. Initial SUBSCRIBE Transaction Processing
 
@@ -529,6 +540,15 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	 class is not understood.
 	 */
 	belle_sip_header_event_t *header_event = belle_sip_message_get_header_by_type(request, belle_sip_header_event_t);
+	belle_sip_header_user_agent_t *user_agent = belle_sip_message_get_header_by_type(request, belle_sip_header_user_agent_t);
+	bool bypass = FALSE;
+	if(user_agent) {
+		char cchar[100];
+		belle_sip_header_user_agent_get_products_as_string(user_agent, cchar, sizeof(cchar));
+		if(strnstr(cchar, mBypass.c_str(), sizeof(cchar)) && strcmp(mBypass.c_str(), "false") != 0) {
+			bypass = TRUE;
+		}
+	}
 	if (!header_event)
 		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "No Event package")) << "No Event package";
 
@@ -605,7 +625,6 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	else
 		expires = 3600; // rfc3856, default value
 	belle_sip_header_t *acceptEncodingHeader = belle_sip_message_get_header(BELLE_SIP_MESSAGE(request), "Accept-Encoding");
-
 	switch (belle_sip_dialog_get_state(dialog)) {
 		case BELLE_SIP_DIALOG_NULL: {
 			belle_sip_header_supported_t *supported =
@@ -633,6 +652,9 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				belle_sip_server_transaction_send_response(server_transaction, resp);
 
 				belle_sip_dialog_set_application_data(dialog, new shared_ptr<Subscription> (listSubscription));
+				for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners()) {
+					listener->enableBypass(bypass); //expiration is handled by dialog
+				}
 #if 0
 				for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners()) {
 					addOrUpdateListener(listener); //expiration is handled by dialog
@@ -651,7 +673,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					  << dialog << "]";
 				// send 200ok late to allow deeper anylise of request
 				belle_sip_server_transaction_send_response(server_transaction, resp);
-
+				subscription->enableBypass(bypass);
 				addOrUpdateListener(subscription, expires);
 			}
 
@@ -720,6 +742,9 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				} else {
 					// list subscription case
 					shared_ptr<ListSubscription> listSubscription = dynamic_pointer_cast<ListSubscription>(subscription);
+					for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners()) {
+						listener->enableBypass(bypass); //expiration is handled by dialog
+					}
 #if 0
 					for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners()) {
 						addOrUpdateListener(listener, expires); //expiration is handled by dialog
@@ -830,11 +855,16 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 	for (auto& listener : mPresenceInfoObservers) {
 		listener->onListenerEvent(presenceInfo);
 	}
-	
+
+	std::shared_ptr<PresentityPresenceInformation> toPresenceInfo = getPresenceInfo(listener->getTo());
+	presenceInfo->addListenerIfNecessary(listener);
+	listener->enableExtendedNotify(toPresenceInfo && toPresenceInfo->findPresenceInfo(presenceInfo));
+
 	if (expires > 0)
 		presenceInfo->addOrUpdateListener(listener, expires);
 	else
 		presenceInfo->addOrUpdateListener(listener);
+
 }
 
 void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInformationListener>> &listeners) {
@@ -851,12 +881,16 @@ void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInfo
 			SLOGD << "New Presentity [" << *presenceInfo << "] created from SUBSCRIBE";
 			addPresenceInfo(presenceInfo);
 		}
-		
+
+		std::shared_ptr<PresentityPresenceInformation> toPresenceInfo = getPresenceInfo(listener->getTo());
+		presenceInfo->addListenerIfNecessary(listener);
+		listener->enableExtendedNotify(toPresenceInfo && toPresenceInfo->findPresenceInfo(presenceInfo));
+
 		if (expires > 0)
 			presenceInfo->addOrUpdateListener(listener, expires);
 		else
 			presenceInfo->addOrUpdateListener(listener);
-		
+
 		presenceInfos.push_back(presenceInfo);
 	}
 	
