@@ -26,7 +26,6 @@
 #include "subscription.hh"
 #include "configmanager.hh"
 #include <string.h>
-#include <cstring>
 #include <signal.h>
 #include <algorithm>
 
@@ -546,7 +545,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	if(user_agent) {
 		char cchar[100];
 		belle_sip_header_user_agent_get_products_as_string(user_agent, cchar, sizeof(cchar));
-		if(strnstr(cchar, mBypass.c_str(), sizeof(cchar)) && strcmp(mBypass.c_str(), "false") != 0) {
+		if(strcasestr(cchar, mBypass.c_str()) && strcmp(mBypass.c_str(), "false") != 0) {
 			bypass = TRUE;
 		}
 	}
