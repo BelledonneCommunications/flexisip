@@ -26,6 +26,7 @@
 #include "subscription.hh"
 #include "configmanager.hh"
 #include <string.h>
+#include <cstring>
 #include <signal.h>
 #include <algorithm>
 
