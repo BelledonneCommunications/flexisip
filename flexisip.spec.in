@@ -213,7 +213,7 @@ install -p -m 0644 scripts/flexisip.service ${RPM_BUILD_ROOT}/lib/systemd/system
 install -p -m 0644 scripts/flexisip\@.service ${RPM_BUILD_ROOT}/lib/systemd/system
 install -p -m 0644 scripts/flexisip-presence.service ${RPM_BUILD_ROOT}/lib/systemd/system
 install -p -m 0644 scripts/flexisip-presence\@.service ${RPM_BUILD_ROOT}/lib/systemd/system
-install -p -m 0644 scripts/flexisip-logrotate ${RPM_BUILD_ROOT}/etc/logrotate.d/flexisip
+install -p -m 0644 scripts/flexisip-logrotate ${RPM_BUILD_ROOT}/etc/logrotate.d
 
 %if %{bcpkg}
 export QA_RPATHS=0x0003
