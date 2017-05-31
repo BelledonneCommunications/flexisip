@@ -4,7 +4,7 @@
 #without any warranty
 SUBDIRS=debian redhat yocto
 
-EXTRA_DIST=gitversion.sh flexisip.bash-completion 
+EXTRA_DIST=gitversion.sh flexisip.bash-completion flexisip-logrotate
 
 OTHER_FLAGS=
 configdir=$(sysconfdir)/flexisip
