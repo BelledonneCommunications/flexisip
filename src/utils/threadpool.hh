@@ -26,9 +26,8 @@
 #include <mutex>
 #include <condition_variable>
 #include <iostream>
+#include <functional>
 #include <unistd.h>
-
-using namespace std;
 
 class ThreadPool {
   public:
@@ -39,7 +38,7 @@ class ThreadPool {
 	~ThreadPool();
 
 	// Adds task to a task queue.
-	bool Enqueue(function<void()> f);
+	bool Enqueue(std::function<void()> f);
 
 	// set pool size (only allowed if not yet populated)
 	void setPoolSize(int threads);
@@ -49,16 +48,16 @@ class ThreadPool {
 
   private:
 	// Thread pool storage.
-	vector<thread> threadPool;
+	std::vector<std::thread> threadPool;
 
 	// Queue to keep track of incoming tasks.
-	queue<function<void()>> tasks;
+	std::queue<std::function<void()>> tasks;
 
 	// Task queue mutex.
-	mutex tasksMutex;
+	std::mutex tasksMutex;
 
 	// Condition variable.
-	condition_variable condition;
+	std::condition_variable condition;
 
 	// Maximum amount of tasks to be enqueued
 	unsigned int max_queue_size;
@@ -71,6 +70,6 @@ class ThreadPool {
 
 	// Function that will be invoked by our threads.
 	void Invoke();
-	
+
 	bool conditionCheck() const;
 };

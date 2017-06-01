@@ -19,6 +19,8 @@
 #include "threadpool.hh"
 #include "log/logmanager.hh"
 
+using namespace std;
+
 // Constructor.
 ThreadPool::ThreadPool(unsigned int threads, unsigned int max_queue_size)
 	: max_queue_size(max_queue_size), terminate(false), stopped(false) {
@@ -66,7 +68,7 @@ void ThreadPool::Invoke() {
 		{
 			// Put unique lock on task mutex.
 			unique_lock<mutex> lock(tasksMutex);
-			
+
 			auto predicate = std::bind(&ThreadPool::conditionCheck, this);
 
 			// Wait until queue is not empty or termination signal is sent.
