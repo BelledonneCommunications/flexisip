@@ -31,6 +31,7 @@
 
 using namespace pidf;
 using namespace flexisip;
+using namespace std;
 
 void _belle_sip_log(const char *domain, BctbxLogLevel lev, const char *fmt, va_list args){
 	flexisip::log::level level;

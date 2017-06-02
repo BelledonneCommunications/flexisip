@@ -21,7 +21,6 @@
 #include "subscription.hh"
 #include <unordered_map>
 #include <chrono>
-using namespace std;
 typedef struct _belle_sip_uri belle_sip_uri_t;
 typedef struct belle_sip_server_transaction belle_sip_server_transaction_t;
 namespace rlmi {
@@ -64,7 +63,7 @@ class ListSubscription : public Subscription {
 					 belle_sip_provider_t *aProv) throw(FlexisipException);
 
 	virtual ~ListSubscription();
-	list<shared_ptr<PresentityPresenceInformationListener>> &getListeners();
+	std::list<std::shared_ptr<PresentityPresenceInformationListener>> &getListeners();
 	/* Notify taking state from all pending Presentity listener*/
 	void notify(bool isFullState) throw(FlexisipException);
 
@@ -77,15 +76,15 @@ class ListSubscription : public Subscription {
 	ListSubscription(const ListSubscription &);
 	// return true if a real notify can be sent.
 	bool isTimeToNotify();
-	void addInstanceToResource(rlmi::Resource &resource, list<belle_sip_body_handler_t *> &multipartList,
+	void addInstanceToResource(rlmi::Resource &resource, std::list<belle_sip_body_handler_t *> &multipartList,
 							   PresentityPresenceInformation &presentityInformation, bool extended);
 
-	list<shared_ptr<PresentityPresenceInformationListener>> mListeners;
-	typedef unordered_map<const belle_sip_uri_t *, pair<shared_ptr<PresentityPresenceInformation>,bool>,
-						  hash<const belle_sip_uri_t *>, bellesip::UriComparator> PendingStateType;
+	std::list<std::shared_ptr<PresentityPresenceInformationListener>> mListeners;
+	typedef std::unordered_map<const belle_sip_uri_t *, std::pair<std::shared_ptr<PresentityPresenceInformation>,bool>,
+						  std::hash<const belle_sip_uri_t *>, bellesip::UriComparator> PendingStateType;
 	PendingStateType mPendingStates; // map of Presentity to be notified by uri
-	chrono::time_point<chrono::system_clock> mLastNotify;
-	chrono::seconds mMinNotifyInterval;
+	std::chrono::time_point<std::chrono::system_clock> mLastNotify;
+	std::chrono::seconds mMinNotifyInterval;
 	/*
 	 * rfc 4662
 	 * 5.2.  List Attributes

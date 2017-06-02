@@ -32,6 +32,7 @@
 using namespace pidf;
 using namespace rpid;
 using namespace data_model;
+using namespace std;
 
 namespace flexisip {
 

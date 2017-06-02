@@ -224,7 +224,7 @@ private:
 
 	size_t mMaxQueueSize;
 
-	string mInsertReq[5];
+	std::string mInsertReq[5];
 };
 
 #endif

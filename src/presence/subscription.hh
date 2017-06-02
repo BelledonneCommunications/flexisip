@@ -21,21 +21,20 @@
 #include <string>
 #include "belle-sip/belle-sip.h"
 #include "presentity-presenceinformation.hh"
-using namespace std;
 
 namespace flexisip {
-	class Subscription : public enable_shared_from_this<Subscription>{
+	class Subscription : public std::enable_shared_from_this<Subscription>{
 
   public:
 	enum State { active, pending, terminated };
-	Subscription(const string &eventName, unsigned int expires, belle_sip_dialog_t *aDialog, belle_sip_provider_t *prov);
+	Subscription(const std::string &eventName, unsigned int expires, belle_sip_dialog_t *aDialog, belle_sip_provider_t *prov);
 	virtual ~Subscription();
 	void setAcceptHeader(belle_sip_header_t *acceptHeader);
 	void setAcceptEncodingHeader(belle_sip_header_t *acceptEncodingHeader);
-	void setId(const string &id);
-	void notify(belle_sip_header_content_type_t *content_type, const string &body);
+	void setId(const std::string &id);
+	void notify(belle_sip_header_content_type_t *content_type, const std::string &body);
 	void notify(belle_sip_multipart_body_handler_t *body);
-	void notify(belle_sip_multipart_body_handler_t *body, const string &content_encoding);
+	void notify(belle_sip_multipart_body_handler_t *body, const std::string &content_encoding);
 	static const char *stateToString(State aState);
 	State getState() const;
 	void setState(Subscription::State state);
@@ -54,12 +53,12 @@ namespace flexisip {
 
   private:
 	Subscription(const Subscription &);
-	void notify(belle_sip_header_content_type_t *content_type, const string *body,
-				belle_sip_multipart_body_handler_t *multiPartBody, const string *content_encoding);
-	string mEventName;
+	void notify(belle_sip_header_content_type_t *content_type, const std::string *body,
+				belle_sip_multipart_body_handler_t *multiPartBody, const std::string *content_encoding);
+	std::string mEventName;
 	belle_sip_header_t *mAcceptHeader;
 	belle_sip_header_t *mAcceptEncodingHeader;
-	string mId;
+	std::string mId;
 	State mState;
 	time_t mCreationTime;
 	time_t mExpirationTime;
