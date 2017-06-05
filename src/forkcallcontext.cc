@@ -47,21 +47,48 @@ ForkCallContext::~ForkCallContext() {
 	}
 }
 
-void ForkCallContext::onCancel() {
+void ForkCallContext::onCancel(const std::shared_ptr<RequestSipEvent> &ev) {
 	mLog->setCancelled();
 	mLog->setCompleted();
 	mCancelled = true;
-	cancelOthers(shared_ptr<BranchInfo>());
+	cancelOthers(shared_ptr<BranchInfo>(), ev->getSip());
 }
 
-void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> &br) {
+void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> &br, sip_t *received_cancel) {
+	list<shared_ptr<BranchInfo>> branches = getBranches();
+	for (auto it = branches.begin(); it != branches.end(); ++it) {
+		shared_ptr<BranchInfo> brit = *it;
+		if (brit != br) {
+			shared_ptr<OutgoingTransaction> tr = brit->mTransaction;
+			if (brit->getStatus() < 200 && tr) {
+				if(received_cancel && received_cancel->sip_reason) {
+					sip_reason_t *reason = sip_reason_dup(tr->getHome(), received_cancel->sip_reason);
+					tr->cancelWithReason(reason);
+				} else {
+					tr->cancel();
+				}
+			}
+			removeBranch(brit);
+		}
+	}
+}
+
+void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo> &br, FlexisipForkStatus status) {
 	list<shared_ptr<BranchInfo>> branches = getBranches();
 	for (auto it = branches.begin(); it != branches.end(); ++it) {
 		shared_ptr<BranchInfo> brit = *it;
 		if (brit != br) {
 			shared_ptr<OutgoingTransaction> tr = brit->mTransaction;
 			if (brit->getStatus() < 200 && tr)
-				tr->cancel();
+				if(status == FlexisipForkAcceptedElsewhere) {
+					sip_reason_t* reason = sip_reason_make(tr->getHome(), "SIP;cause=200;text=\"Call completed elsewhere\"");
+					tr->cancelWithReason(reason);
+				} else if (status == FlexisipForkDeclineElsewhere) {
+					sip_reason_t* reason = sip_reason_make(tr->getHome(), "SIP;cause=600;text=\"Busy Everywhere\"");
+					tr->cancelWithReason(reason);
+				} else {
+					tr->cancel();
+				}
 			removeBranch(brit);
 		}
 	}
@@ -102,12 +129,12 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo> &br, const shared_
 			/*6xx response are normally treated as global faillures */
 			if (!mCfg->mForkNoGlobalDecline) {
 				logResponse(forwardResponse(br));
-				cancelOthers(br);
+				cancelOthersWithStatus(br, FlexisipForkDeclineElsewhere);
 			}
 		}
 	} else if (code >= 200) {
 		logResponse(forwardResponse(br));
-		cancelOthers(br);
+		cancelOthersWithStatus(br, FlexisipForkAcceptedElsewhere);
 	} else if (code >= 100) {
 		logResponse(forwardResponse(br));
 	}
@@ -198,7 +225,7 @@ void ForkCallContext::onLateTimeout() {
 		logResponse(forwardResponse(br));
 	}
 	/*cancel all possibly pending outgoing transactions*/
-	cancelOthers(shared_ptr<BranchInfo>());
+	cancelOthers(shared_ptr<BranchInfo>(), NULL);
 }
 
 void ForkCallContext::sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) {

@@ -107,8 +107,10 @@ class OutgoingTransaction : public Transaction,
 	// RequestSipEvent::createOutgoingTransaction().
 	OutgoingTransaction(Agent *agent);
 	void cancel();
+	void cancelWithReason(sip_reason_t* reason);
 	const url_t *getRequestUri() const;
 	const std::string &getBranchId() const;
+	su_home_t* getHome();
 	int getResponseCode() const;
 	~OutgoingTransaction();
 	std::shared_ptr<MsgSip> getRequestMsg();
@@ -118,13 +120,13 @@ class OutgoingTransaction : public Transaction,
 	}
 	/// The incoming transaction from which the message comes from, if any.
 	std::shared_ptr<IncomingTransaction> mIncoming;
-
   private:
 	friend class RequestSipEvent;
 	static std::shared_ptr<OutgoingTransaction> create(Agent *agent);
 	std::shared_ptr<OutgoingTransaction> mSofiaRef;
 	nta_outgoing_t *mOutgoing;
 	std::string mBranchId;
+	SofiaAutoHome mHome;
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value,
 					  ...);
 	void destroy();

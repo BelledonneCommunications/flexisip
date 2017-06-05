@@ -240,7 +240,7 @@ bool ForkContext::processCancel(const std::shared_ptr<RequestSipEvent> &ev) {
 	if (transaction && ev->getMsgSip()->getSip()->sip_request->rq_method == sip_method_cancel) {
 		shared_ptr<ForkContext> ctx = ForkContext::get(transaction);
 		if (ctx) {
-			ctx->onCancel();
+			ctx->onCancel(ev);
 			if (ctx->shouldFinish())
 				ctx->setFinished();
 			// let ev go through all the chain, however it will not be forwarded.
@@ -318,7 +318,7 @@ bool ForkContext::shouldFinish() {
 void ForkContext::onNewBranch(const std::shared_ptr<BranchInfo> &br) {
 }
 
-void ForkContext::onCancel() {
+void ForkContext::onCancel(const std::shared_ptr<RequestSipEvent> &ev) {
 }
 
 void ForkContext::setKey(std::string key) {

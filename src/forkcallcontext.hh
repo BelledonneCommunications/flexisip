@@ -25,6 +25,8 @@
 #include "forkcontext.hh"
 #include <list>
 
+enum FlexisipForkStatus {FlexisipForkAcceptedElsewhere, FlexisipForkDeclineElsewhere, FlexisipForkStandard};
+
 class ForkCallContext : public ForkContext {
   private:
 	su_timer_t *mShortTimer; // optionaly used to send retryable responses
@@ -44,7 +46,7 @@ class ForkCallContext : public ForkContext {
   protected:
 	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event);
 	virtual bool onNewRegister(const url_t *url, const std::string &uid);
-	virtual void onCancel();
+	virtual void onCancel(const std::shared_ptr<RequestSipEvent> &ev);
 
   private:
 	bool isRingingSomewhere()const;
@@ -52,7 +54,8 @@ class ForkCallContext : public ForkContext {
 	void onShortTimer();
 	void onPushTimer();
 	void onLateTimeout();
-	void cancelOthers(const std::shared_ptr<BranchInfo> &br);
+	void cancelOthers(const std::shared_ptr<BranchInfo> &br, sip_t* received_cancel);
+	void cancelOthersWithStatus(const std::shared_ptr<BranchInfo> &br, FlexisipForkStatus status);
 	void logResponse(const std::shared_ptr<ResponseSipEvent> &ev);
 	static void sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	static void sOnPushTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);

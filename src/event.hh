@@ -233,4 +233,22 @@ inline std::ostream &operator<<(std::ostream &strm, MsgSip const &obj) {
 	return strm;
 }
 
+/*nice wrapper of the sofia-sip su_home_t, that performs automatic destruction of the home when it leaving a code block
+ * or function.*/
+class SofiaAutoHome {
+public:
+	SofiaAutoHome() {
+		su_home_init(&mHome);
+	}
+	su_home_t *home() {
+		return &mHome;
+	}
+	~SofiaAutoHome() {
+		su_home_deinit(&mHome);
+	}
+
+private:
+	su_home_t mHome;
+};
+
 #endif // event_hh

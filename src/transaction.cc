@@ -59,10 +59,23 @@ OutgoingTransaction::~OutgoingTransaction() {
 const string &OutgoingTransaction::getBranchId() const {
 	return mBranchId;
 }
+su_home_t* OutgoingTransaction::getHome() {
+	return mHome.home();
+}
 
 void OutgoingTransaction::cancel() {
 	if (mOutgoing) {
 		nta_outgoing_cancel(mOutgoing);
+		destroy();
+	} else {
+		LOGE("OutgoingTransaction::cancel(): transaction already destroyed.");
+	}
+}
+
+void OutgoingTransaction::cancelWithReason(sip_reason_t* reason) {
+	if (mOutgoing) {
+		//nta_outgoing_cancel(mOutgoing);
+		nta_outgoing_tcancel(mOutgoing,NULL, NULL, SIPTAG_REASON(reason), TAG_END());
 		destroy();
 	} else {
 		LOGE("OutgoingTransaction::cancel(): transaction already destroyed.");

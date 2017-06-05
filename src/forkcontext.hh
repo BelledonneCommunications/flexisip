@@ -91,7 +91,7 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	// Notifies derived class of the creation of a new branch
 	virtual void onNewBranch(const std::shared_ptr<BranchInfo> &br);
 	// Notifies the cancellation of the fork process.
-	virtual void onCancel();
+	virtual void onCancel(const std::shared_ptr<RequestSipEvent> &ev);
 	// Notifies the arrival of a new response on a given branch
 	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event) = 0;
 	// Notifies the expiry of the final fork timeout.
