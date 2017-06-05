@@ -334,43 +334,49 @@ string PresentityPresenceInformation::getPidf(bool extended) throw(FlexisipExcep
 	stringstream out;
 	try {
 		char *entity = belle_sip_uri_to_string(getEntity());
-		Person person = Person(entity);
 		pidf::Presence presence((string(entity)));
-		presence.setPerson(person);
 		belle_sip_free(entity);
 		list<string> tupleList;
 
-		for (auto element : mInformationElements) {
-			// copy pidf
-			for (const unique_ptr<pidf::Tuple> &tup : element.second->getTuples()) {
-				// check for multiple tupple id, may happend with buggy presence publisher
-				if (find(tupleList.begin(), tupleList.end(), tup.get()->getId()) == tupleList.end()) {
-					presence.getTuple().push_back(*tup);
-					tupleList.push_back(tup.get()->getId());
-				} else {
-					SLOGW << "Already existing tuple id [" << tup.get()->getId() << " for [" << *this << "], skipping";
-				}
-			}
 
-			if(extended) {
+		if(extended) {
+			for (auto element : mInformationElements) {
+				// copy pidf
+				for (const unique_ptr<pidf::Tuple> &tup : element.second->getTuples()) {
+					// check for multiple tupple id, may happend with buggy presence publisher
+					if (find(tupleList.begin(), tupleList.end(), tup.get()->getId()) == tupleList.end()) {
+						presence.getTuple().push_back(*tup);
+						tupleList.push_back(tup.get()->getId());
+					} else {
+						SLOGW << "Already existing tuple id [" << tup.get()->getId() << " for [" << *this << "], skipping";
+					}
+				}
 				// copy extensions
 				Person dm_person = element.second->getPerson();
 				for(data_model::Person::ActivitiesIterator activity = dm_person.getActivities().begin(); activity != dm_person.getActivities().end();activity++) {
+					if(!presence.getPerson()) {
+						char *entity = belle_sip_uri_to_string(getEntity());
+						Person person = Person((string(entity)));
+						belle_sip_free(entity);
+						presence.setPerson(person);
+					}
 					presence.getPerson()->getActivities().push_back(*activity);
 				}
 			}
-			/*for (auto extension : element.second->getExtensions()) {
-				presence.getAny().push_back(dynamic_cast<xercesc::DOMElement *>(
-					presence.getDomDocument().importNode(extension, true))); // might be optimized
-			}*/
 		}
-		if (mInformationElements.size() == 0 && mDefaultInformationElement != nullptr) {
+		if ((mInformationElements.size() == 0 || !extended) && mDefaultInformationElement != nullptr) {
 			// insering default tuple
 			presence.getTuple().push_back(*mDefaultInformationElement->getTuples().begin()->get());
 
 			// copy extensions
 			Person dm_person = mDefaultInformationElement->getPerson();
 			for(data_model::Person::ActivitiesIterator activity = dm_person.getActivities().begin(); activity != dm_person.getActivities().end();activity++) {
+				if(!presence.getPerson()) {
+					char *entity = belle_sip_uri_to_string(getEntity());
+					Person person = Person((string(entity)));
+					belle_sip_free(entity);
+					presence.setPerson(person);
+				}
 				presence.getPerson()->getActivities().push_back(*activity);
 			}
 		}
