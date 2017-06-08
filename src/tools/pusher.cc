@@ -35,6 +35,8 @@ static const int MAX_QUEUE_SIZE = 3000;
 // static const int PRINT_STATS_TIMEOUT = 3000;	/* In milliseconds. */
 
 struct PusherArgs {
+	PusherArgs() : debug(false){
+	}
 	string prefix;
 	string pntype;
 	bool debug;
@@ -165,7 +167,7 @@ int main(int argc, char *argv[]) {
 	args.parse(argc, argv);
 
 	flexisip::log::preinit(flexisip_sUseSyslog, args.debug, 0, "pusher");
-	flexisip::log::initLogs(flexisip_sUseSyslog, "debug", "error", false, args.debug);
+	flexisip::log::initLogs(flexisip_sUseSyslog, args.debug ? "debug" : "error", "error", false, true);
 	flexisip::log::updateFilter("%Severity% >= debug");
 
 	{
@@ -190,14 +192,42 @@ int main(int argc, char *argv[]) {
 			auto push = *it;
 			ret += service.sendPush(push);
 		}
-		if (ret == 0) {
-			while (!service.isIdle()) {
-				sleep(1);
+		
+		while (!service.isIdle()) {
+			sleep(1);
+		}
+		
+		int failed = 0;
+		int success = 0;
+		int inprogress = 0;
+		int notsubmitted = 0;
+		int total = 0;
+		
+		for(auto it = pn.begin(); it != pn.end(); it++){
+			switch((*it)->getState()){
+				case PushNotificationRequest::NotSubmitted:
+					notsubmitted++;
+				break;
+				case PushNotificationRequest::InProgress:
+					inprogress++;
+				break;
+				case PushNotificationRequest::Failed:
+					failed++;
+				break;
+				case PushNotificationRequest::Successful:
+					success++;
+				break;
 			}
-		} else {
-			cerr << "fail to send request, aborting" << endl;
+			total++;
+		}
+		cout << total << " push notification(s) sent, " << success << " successfully and " << failed << " failed." << endl;  
+		if (failed > 0 ){
+			cout << "There are failed requests, relaunch with --debug to consult exact error cause." << endl;
+		}
+		if (notsubmitted > 0 || inprogress > 0){
+			cerr << "There were unsubmitted or uncompleted requests, this is a bug." << endl;
 		}
 	}
-	cerr << "job is done, thanks for using " << argv[0] << ". Bye!" << endl;
+	cout << "job is done, thanks for using " << argv[0] << ". Bye!" << endl;
 	return ret;
 }

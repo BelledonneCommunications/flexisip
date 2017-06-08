@@ -48,6 +48,12 @@ struct PushInfo {
 
 class PushNotificationRequest {
 	public:
+		enum State{
+			NotSubmitted,
+			InProgress,
+			Successful,
+			Failed
+		};
 		const std::string &getAppIdentifier() {
 			return mAppId;
 		}
@@ -57,12 +63,18 @@ class PushNotificationRequest {
 		virtual const std::vector<char> &getData() = 0;
 		virtual std::string isValidResponse(const std::string &str) = 0;
 		virtual bool isServerAlwaysResponding() = 0;
-
+		State getState()const{
+			return mState;
+		}
+		void setState(State state){
+			mState = state;
+		}
 	protected:
 		PushNotificationRequest(const std::string &appid, const std::string &type)
-			: mAppId(appid), mType(type) {
+			: mState( NotSubmitted), mAppId(appid), mType(type) {
 		}
 	private:
+		State mState;
 		const std::string mAppId;
 		const std::string mType;
 
