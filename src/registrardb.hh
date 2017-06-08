@@ -32,6 +32,7 @@
 
 #include <sofia-sip/sip.h>
 #include <sofia-sip/url.h>
+#include <sofia-sip/su_random.h>
 #include "log/logmanager.hh"
 #include "agent.hh"
 #include "module.hh"
@@ -39,6 +40,8 @@
 #include <list>
 
 #define AOR_KEY_SIZE 128
+
+class ContactUpdateListener;
 
 struct ExtendedContactCommon {
 	std::string mContactId;
@@ -72,6 +75,7 @@ struct ExtendedContact {
 	time_t mExpireAt;
 	time_t mUpdatedTime;
 	uint32_t mCSeq;
+	uint64_t mRegId; // a unique id shared with associate t_port
 	bool mAlias;
 	std::list<std::string> mAcceptHeader;
 	bool mUsedAsRoute; /*whether the contact information shall be used as a route when forming a request, instead of
@@ -88,6 +92,11 @@ struct ExtendedContact {
 	}
 	inline const char *route() {
 		return (mPath.empty() ? NULL : mPath.cbegin()->c_str());
+	}
+
+	void setRegId(uint64_t id) {
+		mRegId = id;
+		mContactId = std::to_string(mRegId);
 	}
 
 	static int resolveExpire(const char *contact_expire, int global_expire) {
@@ -118,7 +127,7 @@ struct ExtendedContact {
 	ExtendedContact(const ExtendedContactCommon &common, sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
 		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
-		  mSipUri(), mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias), mAcceptHeader(acceptHeaders),
+		  mSipUri(), mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mRegId(-1), mAlias(alias), mAcceptHeader(acceptHeaders),
 		  mUsedAsRoute(false) {
 
 		{
@@ -138,13 +147,13 @@ struct ExtendedContact {
 	ExtendedContact(const ExtendedContactCommon &common, const char *sipuri, long expireAt, float q, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
 		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
-		  mSipUri(compatUrlToString(sipuri)), mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias),
-		  mAcceptHeader(acceptHeaders), mUsedAsRoute(false) {
+		  mSipUri(compatUrlToString(sipuri)), mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mRegId(-1),
+			mAlias(alias), mAcceptHeader(acceptHeaders), mUsedAsRoute(false) {
 	}
 
 	ExtendedContact(const url_t *url, const std::string &route)
 		: mContactId(), mCallId(), mUniqueId(), mPath({route}), mSipUri(), mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0),
-		  mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false) {
+		  mCSeq(0), mRegId(-1), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false) {
 		mSipUri = urlToString(url);
 	}
 
@@ -158,7 +167,7 @@ class Record {
 
   private:
 	static void init();
-	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec);
+	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener);
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
 	std::string mKey;
 	bool mIsDomain; /*is a domain registration*/
@@ -174,12 +183,13 @@ class Record {
 		mContacts.push_back(ct);
 	}
 	bool isInvalidRegister(const std::string &call_id, uint32_t cseq);
-	void clean(const sip_contact_t *sip, const std::string &call_id, uint32_t cseq, time_t time, int version);
-	void clean(time_t time);
+	void clean(const sip_contact_t *sip, const std::string &call_id, uint32_t cseq, time_t time, int version,
+				const std::shared_ptr<ContactUpdateListener> &listener);
+	void clean(time_t time, const std::shared_ptr<ContactUpdateListener> &listener);
 	void update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,
-				uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute);
+				uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute, const std::shared_ptr<ContactUpdateListener> &listener);
 	void update(const ExtendedContactCommon &ecc, const char *sipuri, long int expireAt, float q, uint32_t cseq,
-				time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute);
+				time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute, const std::shared_ptr<ContactUpdateListener> &listener);
 
 	void print(std::ostream &stream) const;
 	bool isEmpty() {
@@ -222,6 +232,12 @@ class RegistrarDbListener : public StatFinishListener {
 	virtual void onRecordFound(Record *r) = 0;
 	virtual void onError() = 0;
 	virtual void onInvalid() = 0;
+};
+
+class ContactUpdateListener : public RegistrarDbListener {
+	public:
+	virtual ~ContactUpdateListener();
+	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) = 0;
 };
 
 class ContactRegisteredListener {
@@ -267,10 +283,10 @@ class RegistrarDb {
 	};
 	static RegistrarDb *initialize(Agent *ag);
 	static RegistrarDb *get();
-	void bind(const BindParameters &mainParams, const std::shared_ptr<RegistrarDbListener> &listener) {
+	void bind(const BindParameters &mainParams, const std::shared_ptr<ContactUpdateListener> &listener) {
 		doBind(mainParams, listener);
 	}
-	void bind(const sip_t *sip, int globalExpire, bool alias, const std::shared_ptr<RegistrarDbListener> &listener) {
+	void bind(const sip_t *sip, int globalExpire, bool alias, const std::shared_ptr<ContactUpdateListener> &listener) {
 
 		BindParameters mainParams(BindParameters::SipParams(sip->sip_from->a_url, sip->sip_contact,
 															sip->sip_call_id->i_id, sip->sip_cseq->cs_seq,
@@ -281,14 +297,14 @@ class RegistrarDb {
 		}
 		doBind(mainParams, listener);
 	}
-	void clear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
-	void fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool recursive = false);
-	void fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool includingDomains, bool recursive);
+	void clear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
+	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
+	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
 	void updateRemoteExpireTime(const std::string &key, time_t expireat);
 	unsigned long countLocalActiveRecords() {
 		return mLocalRegExpire->countActives();
 	}
-	
+
 	void notifyContactListener(const std::string &key, const std::string &uid);
 	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void unsubscribe(const std::string &topic);
@@ -316,14 +332,14 @@ class RegistrarDb {
 			mRegMap.clear();
 		}
 	};
-	virtual void doBind(const BindParameters &params, const std::shared_ptr<RegistrarDbListener> &listener) = 0;
-	virtual void doClear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener) = 0;
-	virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener) = 0;
+	virtual void doBind(const BindParameters &params, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
+	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
+	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 
 	int count_sip_contacts(const sip_contact_t *contact);
 	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const std::string &key,
 									 const std::shared_ptr<RegistrarDbListener> &listener);
-	void fetchWithDomain(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool recursive);
+	void fetchWithDomain(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive);
 	RegistrarDb(const std::string &preferedRoute);
 	virtual ~RegistrarDb();
 	std::map<std::string, Record *> mRecords;
