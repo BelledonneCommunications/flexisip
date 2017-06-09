@@ -52,6 +52,7 @@ using namespace std;
 		if (!mThreadRunning) {
 			// start thread only when we have at least one push to send
 			mThreadRunning = true;
+			mThreadWaiting = false;
 			mThread = std::thread(&PushNotificationClient::run, this);
 		}
 		mMutex.lock();
@@ -61,8 +62,10 @@ using namespace std;
 			mMutex.unlock();
 			SLOGW << "PushNotificationClient " << mName << " PNR " << req.get() << " queue full, push lost";
 			onError(req, "Error queue full");
+			req->setState(PushNotificationRequest::Failed);
 			return 0;
 		} else {
+			req->setState(PushNotificationRequest::InProgress);
 			mRequestQueue.push(req);
 			/*client is running, it will pop the queue as soon he is finished with current request*/
 			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " running, queue_size=" << size;
@@ -74,7 +77,7 @@ using namespace std;
 	}
 
 	bool PushNotificationClient::isIdle() {
-		return mRequestQueue.empty();
+		return mThreadWaiting;
 	}
 
 	void PushNotificationClient::recreateConnection() {
@@ -217,7 +220,7 @@ using namespace std;
 	void PushNotificationClient::run() {
 		std::unique_lock<std::mutex> lock(mMutex);
 		while (mThreadRunning) {
-			if (!isIdle()) {
+			if (!mRequestQueue.empty()) {
 				SLOGD << "PushNotificationClient " << mName << " next, queue_size=" << mRequestQueue.size();
 				auto req = mRequestQueue.front();
 				mRequestQueue.pop();
@@ -238,12 +241,14 @@ using namespace std;
 
 	void PushNotificationClient::onError(shared_ptr<PushNotificationRequest> req, const string &msg) {
 		SLOGW << "PushNotificationClient " << mName << " PNR " << req.get() << " failed: " << msg;
+		req->setState(PushNotificationRequest::Failed);
 		if (mService->mCountFailed) {
 			mService->mCountFailed->incr();
 		}
 	}
 
 	void PushNotificationClient::onSuccess(shared_ptr<PushNotificationRequest> req) {
+		req->setState(PushNotificationRequest::Successful);
 		if (mService->mCountSent) {
 			mService->mCountSent->incr();
 		}

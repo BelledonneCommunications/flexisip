@@ -193,7 +193,7 @@ if(ENABLE_REDIS)
 endif()
 
 if(ENABLE_PROTOBUF)
-	find_package(protobuf REQUIRED)
+	find_package(Protobuf REQUIRED)
 	# package finder for protobuf does not exit on REQUIRED..
 	if(NOT PROTOBUF_FOUND)
 		message(FATAL_ERROR "Protobuf not found and is required")

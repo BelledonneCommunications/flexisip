@@ -79,7 +79,7 @@ void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo> &br, F
 		shared_ptr<BranchInfo> brit = *it;
 		if (brit != br) {
 			shared_ptr<OutgoingTransaction> tr = brit->mTransaction;
-			if (brit->getStatus() < 200 && tr)
+			if (tr && brit->getStatus() < 200 ){
 				if(status == FlexisipForkAcceptedElsewhere) {
 					sip_reason_t* reason = sip_reason_make(tr->getHome(), "SIP;cause=200;text=\"Call completed elsewhere\"");
 					tr->cancelWithReason(reason);
@@ -89,6 +89,7 @@ void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo> &br, F
 				} else {
 					tr->cancel();
 				}
+			}
 			removeBranch(brit);
 		}
 	}
