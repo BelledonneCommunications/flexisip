@@ -100,12 +100,12 @@ function(ADD_XSD_WRAPPERS file _comment)
 		COMMAND "${XSDCXX_PROG}" "cxx-tree" "--generate-wildcard"
   			"--generate-serialization" "--generate-ostream"
   			"--generate-detach" "--std" "c++11" "--type-naming" "java"
-			"--function-naming" "java"  "--location-regex-trace"
+			"--function-naming" "java"  "--location-regex-trace" "--show-sloc"
 			"--location-regex" "\"${regex}\""
 			"--output-dir" "${CMAKE_CURRENT_BINARY_DIR}/xml" "${source}"
 		COMMENT "${_comment}")
 
-	add_custom_target(${file} DEPENDS ${destinations})
+	add_custom_target(${file} DEPENDS ${destinations} SOURCES ${source})
 
 	set_source_files_properties(${destinations} PROPERTIES GENERATED ON)
 	set(FLEXISIP_SOURCES ${FLEXISIP_SOURCES} ${destinations} PARENT_SCOPE)
