@@ -101,7 +101,6 @@ size_t PresentityPresenceInformation::getNumberOfInformationElements() const {
 bool PresentityPresenceInformation::findPresenceInfo(std::shared_ptr<PresentityPresenceInformation> &info) {
 	for (shared_ptr<PresentityPresenceInformationListener> listener : mSubscribers) {
 		if(belle_sip_uri_equals(listener->getTo(), info->getEntity())) {
-			LOGE("Extended NOTIFY !");
 			return true;
 		}
 	}
