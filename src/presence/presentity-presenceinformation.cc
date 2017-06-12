@@ -337,7 +337,6 @@ string PresentityPresenceInformation::getPidf(bool extended) throw(FlexisipExcep
 		belle_sip_free(entity);
 		list<string> tupleList;
 
-
 		if(extended) {
 			for (auto element : mInformationElements) {
 				// copy pidf
@@ -354,9 +353,7 @@ string PresentityPresenceInformation::getPidf(bool extended) throw(FlexisipExcep
 				Person dm_person = element.second->getPerson();
 				for(data_model::Person::ActivitiesIterator activity = dm_person.getActivities().begin(); activity != dm_person.getActivities().end();activity++) {
 					if(!presence.getPerson()) {
-						char *entity = belle_sip_uri_to_string(getEntity());
-						Person person = Person((string(entity)));
-						belle_sip_free(entity);
+						Person person = Person(dm_person.getId());
 						presence.setPerson(person);
 					}
 					presence.getPerson()->getActivities().push_back(*activity);
@@ -371,9 +368,7 @@ string PresentityPresenceInformation::getPidf(bool extended) throw(FlexisipExcep
 			Person dm_person = mDefaultInformationElement->getPerson();
 			for(data_model::Person::ActivitiesIterator activity = dm_person.getActivities().begin(); activity != dm_person.getActivities().end();activity++) {
 				if(!presence.getPerson()) {
-					char *entity = belle_sip_uri_to_string(getEntity());
-					Person person = Person((string(entity)));
-					belle_sip_free(entity);
+					Person person = Person(dm_person.getId());
 					presence.setPerson(person);
 				}
 				presence.getPerson()->getActivities().push_back(*activity);
