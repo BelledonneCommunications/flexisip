@@ -480,12 +480,12 @@ class OnRequestBindListener : public ContactUpdateListener {
 				old_tport = tport_by_name(nta_agent_tports(this->mModule->getSofiaAgent()), &name);
 
 				// Set RegId to extendedContact if not set
-				if (p_ec->mRegId == -1 && !old_tport && tport_magic(old_tport) != NULL) {
+				if (p_ec->mRegId <= 0 && old_tport && tport_magic(old_tport) != NULL) {
 					p_ec->mRegId = (uint64_t)tport_magic(old_tport);
 					LOGD("Adding reg id to Extended contact: %lu", p_ec->mRegId);
 				}
 
-				if (!old_tport && this->mEv->getIncomingTport().get() != old_tport
+				if (old_tport && this->mEv->getIncomingTport().get() != old_tport
 						&& p_ec->mRegId == (uint64_t)tport_magic(old_tport)) {
 					LOGD("Removing old tport for sip uri %s", p_ec->mSipUri.c_str());
 					// 0 close incoming data, 1 close outgoing data, 2 both
@@ -674,6 +674,8 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipE
 
 	// Use path as a contact route in all cases
 	addPathHeader(getAgent(), ev, ev->getIncomingTport().get());
+	if (tport_magic(ev->getIncomingTport().get()) != NULL)
+		tport_set_magic(ev->getIncomingTport().get(), (tp_magic_t*)su_random64());
 
 	// domain registration case, does nothing for the moment
 	if (sipurl->url_user == NULL && !mAllowDomainRegistrations) {
