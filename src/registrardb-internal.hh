@@ -29,9 +29,9 @@ class RegistrarDbInternal : public RegistrarDb {
 	void clearAll();
 
   private:
-	virtual void doBind(const BindParameters &params, const std::shared_ptr<RegistrarDbListener> &listener);
-	virtual void doClear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
-	virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener);
+	virtual void doBind(const BindParameters &params, const std::shared_ptr<ContactUpdateListener> &listener);
+	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
+	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void publish(const std::string &topic, const std::string &uid);
 };
 

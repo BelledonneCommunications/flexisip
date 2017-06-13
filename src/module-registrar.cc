@@ -36,7 +36,7 @@ using namespace std;
 class ModuleRegistrar;
 static ModuleRegistrar *sRegistrarInstanceForSigAction = NULL;
 
-class FakeFetchListener : public RegistrarDbListener {
+class FakeFetchListener : public ContactUpdateListener {
 	friend class ModuleRegistrar;
 
   public:
@@ -54,6 +54,9 @@ class FakeFetchListener : public RegistrarDbListener {
 
 	void onInvalid() {
 		LOGD("FakeFetchListener: onInvalid");
+	}
+
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
 	}
 };
 
@@ -194,7 +197,7 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 		mSigaction.sa_flags = SA_SIGINFO;
 		sigaction(SIGUSR1, &mSigaction, NULL);
 		sigaction(SIGUSR2, &mSigaction, NULL);
-		
+
 		mParamsToRemove = GenericManager::get()->getRoot()->get<GenericStruct>("module::Forward")->get<ConfigStringList>("params-to-remove")->read();
 	}
 
@@ -395,28 +398,30 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 	if (contact && !mServiceRoute.empty()) {
 		if (expire > 0) {
 			ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
-				  SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
+					SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
 		} else {
 			ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
 				  SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		}
 	} else if (contact) {
 		if (expire > 0) {
-			ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
+			ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVER_STR(getAgent()->getServerString()),
+					SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
 		} else {
 			ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		}
 	} else if (!mServiceRoute.empty()) {
 		if (expire > 0) {
 			ev->reply(code, reason, SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
-				  SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
+					SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
 		} else {
 			ev->reply(code, reason, SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
-				  SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+					SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		}
 	} else {
 		if (expire > 0) {
-			ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
+			ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()),
+					TAG_END());
 		} else {
 			ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		}
@@ -435,7 +440,7 @@ static void addEventLogRecordFound(shared_ptr<SipEventT> ev, const sip_contact_t
 }
 
 // Listener class NEED to copy the shared pointer
-class OnRequestBindListener : public RegistrarDbListener {
+class OnRequestBindListener : public ContactUpdateListener {
 	ModuleRegistrar *mModule;
 	shared_ptr<RequestSipEvent> mEv;
 	sip_from_t *mSipFrom;
@@ -459,6 +464,36 @@ class OnRequestBindListener : public RegistrarDbListener {
 	}
 	~OnRequestBindListener() {
 		su_home_deinit(&mHome);
+	}
+
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+		SofiaAutoHome home;
+		tp_name_t name = {0, 0, 0, 0, 0, 0};
+		tport_t *old_tport = NULL;
+		ExtendedContact *p_ec = NULL;
+
+		if (ec == NULL) return;
+		p_ec = ec.get();
+
+		if (this->mModule->getAgent() != NULL && p_ec->mPath.size() == 1) {
+			if (tport_name_by_url(home.home(), &name, (url_string_t *)p_ec->mSipUri.c_str()) == 0) {
+				old_tport = tport_by_name(nta_agent_tports(this->mModule->getSofiaAgent()), &name);
+
+				// Set RegId to extendedContact if not set
+				if (p_ec->mRegId <= 0 && old_tport && tport_magic(old_tport) != NULL) {
+					p_ec->mRegId = (uint64_t)tport_magic(old_tport);
+					LOGD("Adding reg id to Extended contact: %lu", p_ec->mRegId);
+				}
+
+				if (old_tport && this->mEv->getIncomingTport().get() != old_tport
+						&& p_ec->mRegId == (uint64_t)tport_magic(old_tport)) {
+					LOGD("Removing old tport for sip uri %s", p_ec->mSipUri.c_str());
+					// 0 close incoming data, 1 close outgoing data, 2 both
+					tport_shutdown(old_tport, 2);
+				}
+			} else
+				LOGE("OnRequestBindListener::ContactUpdated: tport_name_by_url() failed for sip uri %s", p_ec->mSipUri.c_str());
+		}
 	}
 
 	void onRecordFound(Record *r) {
@@ -503,7 +538,7 @@ inline static bool containsNonZeroExpire(const sip_expires_t *main, const sip_co
 	return false;
 }
 
-class OnResponseBindListener : public RegistrarDbListener {
+class OnResponseBindListener : public ContactUpdateListener {
 	ModuleRegistrar *mModule;
 	shared_ptr<ResponseSipEvent> mEv;
 	shared_ptr<OutgoingTransaction> mTr;
@@ -548,6 +583,40 @@ class OnResponseBindListener : public RegistrarDbListener {
 		LOGE("OnResponseBindListener::onInvalid: 400 - Replayed CSeq");
 		mCtx->reqSipEvent->reply(400, "Replayed CSeq", TAG_END());
 		mEv->terminateProcessing();
+	}
+
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+		SofiaAutoHome home;
+		tp_name_t name = {0, 0, 0, 0, 0, 0};
+		tport_t *old_tport = NULL;
+		ExtendedContact *p_ec = NULL;
+
+		if (ec == NULL) return;
+		p_ec = ec.get();
+
+		if (this->mModule->getAgent() != NULL && p_ec->mPath.size() == 1) {
+			if (tport_name_by_url(home.home(), &name, (url_string_t *)p_ec->mSipUri.c_str()) == 0) {
+				old_tport = tport_by_name(nta_agent_tports(this->mModule->getSofiaAgent()), &name);
+
+				// Set RegId to extendedContact if not set
+				if (p_ec->mRegId <= 0 && tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()) != NULL) {
+					p_ec->setRegId(*(uint64_t *)tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()));
+					LOGD("Adding reg id to Extended contact: %lu", p_ec->mRegId);
+				}
+
+				if (!old_tport && this->mCtx->reqSipEvent->getIncomingTport().get() != old_tport
+						&& tport_get_user_data(old_tport) != NULL
+						&& p_ec->mRegId == *(uint64_t *)tport_get_user_data(old_tport)) {
+					LOGD("Removing old tport for sip uri %s", p_ec->mSipUri.c_str());
+					// Remove data if set
+					if (tport_get_user_data(old_tport) != NULL)
+						delete((uint64_t*)tport_get_user_data(old_tport));
+					// 0 close incoming data, 1 close outgoing data, 2 both
+					tport_shutdown(old_tport, 2);
+				}
+			} else
+				LOGE("OnResponseBindListener::ContactUpdated: tport_name_by_url() failed for sip uri %s", p_ec->mSipUri.c_str());
+		}
 	}
 };
 
@@ -609,6 +678,10 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipE
 
 	// Use path as a contact route in all cases
 	addPathHeader(getAgent(), ev, ev->getIncomingTport().get());
+	if (tport_get_user_data(ev->getIncomingTport().get()) != NULL) {
+		uint64_t* new_reg_id = new uint64_t(su_random64());
+		tport_set_user_data(ev->getIncomingTport().get(), new_reg_id);
+	}
 
 	// domain registration case, does nothing for the moment
 	if (sipurl->url_user == NULL && !mAllowDomainRegistrations) {
@@ -728,7 +801,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) throw(Flexisi
 /* Section for static records */
 
 // Listener class NEED to copy the shared pointer
-class OnStaticBindListener : public RegistrarDbListener {
+class OnStaticBindListener : public ContactUpdateListener {
 	friend class ModuleRegistrar;
 	SofiaAutoHome mHome;
 	string mContact;
@@ -747,6 +820,8 @@ class OnStaticBindListener : public RegistrarDbListener {
 	}
 	void onInvalid() {
 		LOGE("OnStaticBindListener onInvalid");
+	}
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
 	}
 };
 
@@ -798,7 +873,7 @@ void ModuleRegistrar::readStaticRecords() {
 				sip_contact_t *url = sip_contact_make(&home, from.c_str());
 				sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
 				int expire = mStaticRecordsTimeout + 5; // 5s to avoid race conditions
-				
+
 				if (!url || !contact) {
 					LOGF("Static records line %s doesn't respect the expected format: <identity> <identity>,<identity>", line.c_str());
 					continue;

@@ -32,7 +32,7 @@ using namespace std;
 RegistrarDbInternal::RegistrarDbInternal(const string &preferredRoute) : RegistrarDb(preferredRoute) {
 }
 
-void RegistrarDbInternal::doBind(const BindParameters &p, const shared_ptr<RegistrarDbListener> &listener) {
+void RegistrarDbInternal::doBind(const BindParameters &p, const std::shared_ptr<ContactUpdateListener> &listener) {
 	string key = Record::defineKeyFromUrl(p.sip.from);
 
 	if (count_sip_contacts(p.sip.contact) > Record::getMaxContacts()) {
@@ -68,22 +68,22 @@ void RegistrarDbInternal::doBind(const BindParameters &p, const shared_ptr<Regis
 		accept = accept->ac_next;
 	}
 
-	r->clean(p.sip.contact, p.sip.call_id, p.sip.cs_seq, now, p.version);
+	r->clean(p.sip.contact, p.sip.call_id, p.sip.cs_seq, now, p.version, listener);
 	r->update(p.sip.contact, p.sip.path, p.global_expire, p.sip.call_id, p.sip.cs_seq, now, p.alias, acceptHeaders,
-			  p.usedAsRoute);
+			  p.usedAsRoute, listener);
 
 	mLocalRegExpire->update(*r);
 	listener->onRecordFound(r);
 }
 
-void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<RegistrarDbListener> &listener) {
+void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<ContactUpdateListener> &listener) {
 	string key(Record::defineKeyFromUrl(url));
-	
+
 	map<string, Record *>::iterator it = mRecords.find(key);
 	Record *r = NULL;
 	if (it != mRecords.end()) {
 		r = (*it).second;
-		r->clean(getCurrentTime());
+		r->clean(getCurrentTime(), listener);
 		if (r->isEmpty()) {
 			mRecords.erase(it);
 			r = NULL;
@@ -93,7 +93,7 @@ void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<RegistrarDb
 	listener->onRecordFound(r);
 }
 
-void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<RegistrarDbListener> &listener) {
+void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
 	string key(Record::defineKeyFromUrl(sip->sip_from->a_url));
 
 	if (errorOnTooMuchContactInBind(sip->sip_contact, key, listener)) {

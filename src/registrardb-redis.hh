@@ -80,9 +80,9 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	bool connect();
 	bool disconnect();
 
-	virtual void doBind(const BindParameters &params, const std::shared_ptr<RegistrarDbListener> &listener);
-	virtual void doClear(const sip_t *sip, const std::shared_ptr<RegistrarDbListener> &listener);
-	virtual void doFetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener);
+	virtual void doBind(const BindParameters &params, const std::shared_ptr<ContactUpdateListener> &listener);
+	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
+	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void unsubscribe(const std::string &topic);
 	virtual void publish(const std::string &topic, const std::string &uid);
