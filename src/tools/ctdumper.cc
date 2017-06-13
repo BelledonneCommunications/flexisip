@@ -33,7 +33,7 @@
 
 using namespace std;
 
-struct DumpListener : public RegistrarDbListener {
+struct DumpListener : public ContactUpdateListener {
 
   private:
 	su_root_t *root;
@@ -49,7 +49,7 @@ struct DumpListener : public RegistrarDbListener {
 	bool listenerError;
 
   public:
-	DumpListener(su_root_t *_root) : RegistrarDbListener(), root(_root), listenerError(false) {
+	DumpListener(su_root_t *_root) : ContactUpdateListener(), root(_root), listenerError(false) {
 	}
 
 	virtual void onRecordFound(Record *record) {
@@ -69,6 +69,9 @@ struct DumpListener : public RegistrarDbListener {
 		listenerError = true;
 		su_break();
 	}
+
+  virtual void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) {
+  }
 };
 
 struct CTArgs {
