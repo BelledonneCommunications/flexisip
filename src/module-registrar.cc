@@ -480,19 +480,23 @@ class OnRequestBindListener : public ContactUpdateListener {
 				old_tport = tport_by_name(nta_agent_tports(this->mModule->getSofiaAgent()), &name);
 
 				// Set RegId to extendedContact if not set
-				if (p_ec->mRegId <= 0 && old_tport && tport_magic(old_tport) != NULL) {
-					p_ec->mRegId = (uint64_t)tport_magic(old_tport);
+				if (p_ec->mRegId <= 0 && tport_get_user_data(this->mEv->getIncomingTport().get()) != NULL) {
+					p_ec->setRegId(*(uint64_t *)tport_get_user_data(this->mEv->getIncomingTport().get()));
 					LOGD("Adding reg id to Extended contact: %lu", p_ec->mRegId);
 				}
 
-				if (old_tport && this->mEv->getIncomingTport().get() != old_tport
-						&& p_ec->mRegId == (uint64_t)tport_magic(old_tport)) {
+				if (!old_tport && this->mEv->getIncomingTport().get() != old_tport
+						&& tport_get_user_data(old_tport) != NULL
+						&& p_ec->mRegId == *(uint64_t *)tport_get_user_data(old_tport)) {
 					LOGD("Removing old tport for sip uri %s", p_ec->mSipUri.c_str());
+					// Remove data if set
+					if (tport_get_user_data(old_tport) != NULL)
+						delete((uint64_t*)tport_get_user_data(old_tport));
 					// 0 close incoming data, 1 close outgoing data, 2 both
 					tport_shutdown(old_tport, 2);
 				}
 			} else
-				LOGE("OnRequestBindListener::ContactUpdated: tport_name_by_url() failed for sip uri %s", p_ec->mSipUri.c_str());
+				LOGE("OnResponseBindListener::ContactUpdated: tport_name_by_url() failed for sip uri %s", p_ec->mSipUri.c_str());
 		}
 	}
 
