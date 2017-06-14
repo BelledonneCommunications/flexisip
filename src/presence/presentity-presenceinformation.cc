@@ -351,13 +351,7 @@ string PresentityPresenceInformation::getPidf(bool extended) throw(FlexisipExcep
 				}
 				// copy extensions
 				Person dm_person = element.second->getPerson();
-				for(data_model::Person::ActivitiesIterator activity = dm_person.getActivities().begin(); activity != dm_person.getActivities().end();activity++) {
-					if(!presence.getPerson()) {
-						Person person = Person(dm_person.getId());
-						presence.setPerson(person);
-					}
-					presence.getPerson()->getActivities().push_back(*activity);
-				}
+				presence.setPerson(Person(dm_person));
 			}
 		}
 		if ((mInformationElements.size() == 0 || !extended) && mDefaultInformationElement != nullptr) {
@@ -366,13 +360,7 @@ string PresentityPresenceInformation::getPidf(bool extended) throw(FlexisipExcep
 
 			// copy extensions
 			Person dm_person = mDefaultInformationElement->getPerson();
-			for(data_model::Person::ActivitiesIterator activity = dm_person.getActivities().begin(); activity != dm_person.getActivities().end();activity++) {
-				if(!presence.getPerson()) {
-					Person person = Person(dm_person.getId());
-					presence.setPerson(person);
-				}
-				presence.getPerson()->getActivities().push_back(*activity);
-			}
+			presence.setPerson(Person(dm_person));
 		}
 		if (presence.getTuple().size() == 0) {
 			pidf::Note value;
