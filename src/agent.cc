@@ -496,9 +496,9 @@ void Agent::loadConfig(GenericManager *cm) {
 	for (list<string>::iterator it = mAliases.begin(); it != mAliases.end(); ++it) {
 		LOGD("%s", (*it).c_str());
 	}
-	
+
 	RegistrarDb::initialize(this);
-	
+
 	list<Module *>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		// Check in all cases, even if not enabled,
@@ -534,12 +534,12 @@ std::string Agent::computeResolvedPublicIp(const std::string &host) const {
 	if (err == 0) {
 		char ip[NI_MAXHOST];
 		err = getnameinfo(result->ai_addr, result->ai_addrlen, ip, sizeof(ip), NULL, 0, NI_NUMERICHOST);
+		freeaddrinfo(result);
 		if (err == 0) {
 			return ip;
 		} else {
 			LOGE("getnameinfo error: %s for host [%s]", gai_strerror(err), host.c_str());
 		}
-		freeaddrinfo(result);
 	} else {
 		LOGE("getaddrinfo error: %s for host [%s]", gai_strerror(err), host.c_str());
 	}
