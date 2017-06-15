@@ -485,7 +485,7 @@ class OnRequestBindListener : public ContactUpdateListener {
 					LOGD("Adding reg id to Extended contact: %lu", p_ec->mRegId);
 				}
 
-				if (!old_tport && this->mEv->getIncomingTport().get() != old_tport
+				if (old_tport && this->mEv->getIncomingTport().get() != old_tport
 						&& (tport_get_user_data(old_tport) == NULL
 						|| p_ec->mRegId == *(uint64_t *)tport_get_user_data(old_tport))) {
 					LOGD("Removing old tport for sip uri %s", p_ec->mSipUri.c_str());
@@ -608,9 +608,9 @@ class OnResponseBindListener : public ContactUpdateListener {
 					LOGD("Adding reg id to Extended contact: %lu", p_ec->mRegId);
 				}
 
-				if (!old_tport && this->mCtx->reqSipEvent->getIncomingTport().get() != old_tport
-						&& tport_get_user_data(old_tport) != NULL
-						&& p_ec->mRegId == *(uint64_t *)tport_get_user_data(old_tport)) {
+				if (old_tport && this->mCtx->reqSipEvent->getIncomingTport().get() != old_tport
+						&& (tport_get_user_data(old_tport) == NULL
+						|| p_ec->mRegId == *(uint64_t *)tport_get_user_data(old_tport))) {
 					LOGD("Removing old tport for sip uri %s", p_ec->mSipUri.c_str());
 					// Remove data if set
 					if (tport_get_user_data(old_tport) != NULL)

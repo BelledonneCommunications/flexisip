@@ -32,6 +32,7 @@ RecordSerializerPb::RecordSerializerPb() {
 }
 
 bool RecordSerializerPb::parse(const char *str, int len, Record *r) {
+	uint64_t regId = -1;
 	if (!str)
 		return true;
 
@@ -55,8 +56,15 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r) {
 			acceptHeaders.push_back(c.accept_header(p));
 		}
 
+		{
+			std::string buff;
+			size_t pos = c.contact_id().find_first_of(';');
+			if (pos == std::string::npos || pos == c.contact_id().size()) break;
+			regId = std::strtoull(buff.append(c.contact_id(), pos+1, c.contact_id().size()-pos).c_str(), NULL, 10);
+		}
+
 		ExtendedContactCommon ecc(c.contact_id().c_str(), stlpath, c.call_id().c_str(),
-								  c.has_line_value_copy() ? c.line_value_copy().c_str() : NULL);
+								  c.has_line_value_copy() ? c.line_value_copy().c_str() : NULL, regId);
 		r->update(ecc, c.uri().c_str(), (time_t)c.expires_at(), c.q(), (uint32_t)c.cseq(), c.update_time(), false,
 				  acceptHeaders, c.has_used_as_route() ? c.used_as_route() : false, NULL);
 	}
@@ -74,7 +82,7 @@ bool RecordSerializerPb::serialize(Record *r, string &serialized, bool log) {
 		auto ec = (*it);
 		RecordContactPb *c = pbContacts.add_contact();
 		c->set_uri(ec->mSipUri);
-		c->set_contact_id(ec->contactId() + ';' + to_string(ec->mRegId));
+		c->set_contact_id(string(ec->contactId() + ';' + to_string(ec->mRegId)));
 		if (ec->line())
 			c->set_line_value_copy(ec->line());
 		c->set_expires_at(ec->mExpireAt);

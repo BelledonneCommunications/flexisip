@@ -364,7 +364,6 @@ void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int g
 		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr);
 		auto exc = make_shared<ExtendedContact>(ecc, c, globalExpire, cseq, now, alias, accept);
 		exc->mUsedAsRoute = usedAsRoute;
-		exc->setRegId(exc->mContactId);
 		insertOrUpdateBinding(exc, listener);
 		c = c->m_next;
 	}
@@ -377,7 +376,6 @@ void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long e
 					const std::shared_ptr<ContactUpdateListener> &listener) {
 	auto exct = make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias, accept);
 	exct->mUsedAsRoute = usedAsRoute;
-	exct->setRegId(exct->mContactId);
 	insertOrUpdateBinding(exct, listener);
 }
 
