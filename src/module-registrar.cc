@@ -481,13 +481,13 @@ class OnRequestBindListener : public ContactUpdateListener {
 
 				// Set RegId to extendedContact if not set
 				if (p_ec->mRegId <= 0 && tport_get_user_data(this->mEv->getIncomingTport().get()) != NULL) {
-					p_ec->setRegId(*(uint64_t *)tport_get_user_data(this->mEv->getIncomingTport().get()));
+					p_ec->mRegId = (*(uint64_t *)tport_get_user_data(this->mEv->getIncomingTport().get()));
 					LOGD("Adding reg id to Extended contact: %lu", p_ec->mRegId);
 				}
 
 				if (!old_tport && this->mEv->getIncomingTport().get() != old_tport
-						&& tport_get_user_data(old_tport) != NULL
-						&& p_ec->mRegId == *(uint64_t *)tport_get_user_data(old_tport)) {
+						&& (tport_get_user_data(old_tport) == NULL
+						|| p_ec->mRegId == *(uint64_t *)tport_get_user_data(old_tport))) {
 					LOGD("Removing old tport for sip uri %s", p_ec->mSipUri.c_str());
 					// Remove data if set
 					if (tport_get_user_data(old_tport) != NULL)
@@ -604,7 +604,7 @@ class OnResponseBindListener : public ContactUpdateListener {
 
 				// Set RegId to extendedContact if not set
 				if (p_ec->mRegId <= 0 && tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()) != NULL) {
-					p_ec->setRegId(*(uint64_t *)tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()));
+					p_ec->mRegId = (*(uint64_t *)tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()));
 					LOGD("Adding reg id to Extended contact: %lu", p_ec->mRegId);
 				}
 
@@ -682,7 +682,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipE
 
 	// Use path as a contact route in all cases
 	addPathHeader(getAgent(), ev, ev->getIncomingTport().get());
-	if (tport_get_user_data(ev->getIncomingTport().get()) != NULL) {
+	if (tport_get_user_data(ev->getIncomingTport().get()) == NULL) {
 		uint64_t* new_reg_id = new uint64_t(su_random64());
 		tport_set_user_data(ev->getIncomingTport().get(), new_reg_id);
 	}

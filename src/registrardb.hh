@@ -94,9 +94,11 @@ struct ExtendedContact {
 		return (mPath.empty() ? NULL : mPath.cbegin()->c_str());
 	}
 
-	void setRegId(uint64_t id) {
-		mRegId = id;
-		mContactId = std::to_string(mRegId);
+	void setRegId(const std::string &str) {
+		std::string buff;
+		size_t pos = str.find_first_of(';');
+		if (pos == std::string::npos || pos == str.size()) return;
+		mRegId = std::strtoull(buff.append(str, pos+1, str.size()-pos).c_str(), NULL, 10);
 	}
 
 	static int resolveExpire(const char *contact_expire, int global_expire) {

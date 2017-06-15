@@ -74,7 +74,7 @@ bool RecordSerializerPb::serialize(Record *r, string &serialized, bool log) {
 		auto ec = (*it);
 		RecordContactPb *c = pbContacts.add_contact();
 		c->set_uri(ec->mSipUri);
-		c->set_contact_id(ec->contactId());
+		c->set_contact_id(ec->contactId() + ';' + to_string(ec->mRegId));
 		if (ec->line())
 			c->set_line_value_copy(ec->line());
 		c->set_expires_at(ec->mExpireAt);

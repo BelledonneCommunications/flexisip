@@ -107,7 +107,7 @@ bool RecordSerializerC::serialize(Record *r, string &serialized, bool log) {
 		if (i != 0)
 			oss << "#";
 		oss << "#" << ec->mSipUri << "#" << ec->mExpireAt << "#" << ec->mQ;
-		oss << "#" << ec->contactId();
+		oss << "#" << ec->contactId() << ";" << to_string(ec->mRegId);
 		oss << "#"; // route
 		oss << "#";
 		if (ec->line())
