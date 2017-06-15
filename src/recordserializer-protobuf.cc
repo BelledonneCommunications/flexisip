@@ -32,7 +32,6 @@ RecordSerializerPb::RecordSerializerPb() {
 }
 
 bool RecordSerializerPb::parse(const char *str, int len, Record *r) {
-	uint64_t regId = -1;
 	if (!str)
 		return true;
 
@@ -58,15 +57,20 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r) {
 
 		{
 			std::string buff;
+			uint64_t regId = 0;
 			size_t pos = c.contact_id().find_first_of(';');
-			if (pos == std::string::npos || pos == c.contact_id().size()) break;
-			regId = std::strtoull(buff.append(c.contact_id(), pos+1, c.contact_id().size()-pos).c_str(), NULL, 10);
-		}
+			if (pos != std::string::npos && pos < c.contact_id().size()) {
+				regId = std::strtoull(buff.append(c.contact_id(), pos+1, c.contact_id().size()-pos).c_str(), NULL, 10);
+			} else {
+				regId = su_random64();
+			}
 
-		ExtendedContactCommon ecc(c.contact_id().c_str(), stlpath, c.call_id().c_str(),
-								  c.has_line_value_copy() ? c.line_value_copy().c_str() : NULL, regId);
+			ExtendedContactCommon ecc( (pos != std::string::npos)
+					? buff.append(c.contact_id(), pos).c_str() : c.contact_id().c_str(), stlpath, c.call_id().c_str(),
+					c.has_line_value_copy() ? c.line_value_copy().c_str() : NULL, regId);
+		}
 		r->update(ecc, c.uri().c_str(), (time_t)c.expires_at(), c.q(), (uint32_t)c.cseq(), c.update_time(), false,
-				  acceptHeaders, c.has_used_as_route() ? c.used_as_route() : false, NULL);
+				acceptHeaders, c.has_used_as_route() ? c.used_as_route() : false, NULL);
 	}
 	return true;
 }

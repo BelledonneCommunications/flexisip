@@ -51,7 +51,7 @@ struct ExtendedContactCommon {
 	uint64_t mRegId; // a unique id shared with associate t_port
 
 	ExtendedContactCommon(const char *contactId, const std::list<std::string> &path, const std::string &callId,
-						  const char *lineValue, const uint64_t regId = -1) {
+			const char *lineValue, const uint64_t regId = su_random64()) {
 		if (!callId.empty())
 			mCallId = callId;
 		mPath = path;
@@ -60,7 +60,8 @@ struct ExtendedContactCommon {
 		mContactId = contactId;
 		mRegId = regId;
 	}
-	ExtendedContactCommon(const std::string &route) : mContactId(), mCallId(), mUniqueId(), mPath({route}), mRegId(-1) {
+	ExtendedContactCommon(const std::string &route) : mContactId(), mCallId(), mUniqueId(), mPath({route}),
+			mRegId(su_random64()) {
 	}
 };
 
