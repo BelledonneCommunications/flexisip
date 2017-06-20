@@ -51,7 +51,7 @@ struct ExtendedContactCommon {
 	uint64_t mRegId; // a unique id shared with associate t_port
 
 	ExtendedContactCommon(const char *contactId, const std::list<std::string> &path, const std::string &callId,
-			const char *lineValue, const uint64_t regId = su_random64()) {
+			const char *lineValue, const uint64_t regId = 0) {
 		if (!callId.empty())
 			mCallId = callId;
 		mPath = path;
@@ -61,7 +61,7 @@ struct ExtendedContactCommon {
 		mRegId = regId;
 	}
 	ExtendedContactCommon(const std::string &route) : mContactId(), mCallId(), mUniqueId(), mPath({route}),
-			mRegId(su_random64()) {
+			mRegId(0) {
 	}
 };
 
@@ -150,7 +150,7 @@ struct ExtendedContact {
 	}
 
 	ExtendedContact(const url_t *url, const std::string &route)
-		: mContactId(), mCallId(), mUniqueId(), mPath({route}), mRegId(-1), mSipUri(), mQ(0), mExpireAt(LONG_MAX),
+		: mContactId(), mCallId(), mUniqueId(), mPath({route}), mRegId(0), mSipUri(), mQ(0), mExpireAt(LONG_MAX),
 			mUpdatedTime(0), mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false) {
 		mSipUri = urlToString(url);
 	}
@@ -185,9 +185,11 @@ class Record {
 				const std::shared_ptr<ContactUpdateListener> &listener);
 	void clean(time_t time, const std::shared_ptr<ContactUpdateListener> &listener);
 	void update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,
-				uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute, const std::shared_ptr<ContactUpdateListener> &listener);
+				uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute,
+				const std::shared_ptr<ContactUpdateListener> &listener, uint64_t regid);
 	void update(const ExtendedContactCommon &ecc, const char *sipuri, long int expireAt, float q, uint32_t cseq,
-				time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute, const std::shared_ptr<ContactUpdateListener> &listener);
+				time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute,
+				const std::shared_ptr<ContactUpdateListener> &listener, uint64_t regid);
 
 	void print(std::ostream &stream) const;
 	bool isEmpty() {
@@ -275,8 +277,9 @@ class RegistrarDb {
 		bool alias;
 		bool usedAsRoute;
 		bool enqueueToPreventCollisions;
+		uint64_t regId;
 		BindParameters(const SipParams &isip, int iexpire, bool ialias)
-			: sip(isip), global_expire(iexpire), alias(ialias), usedAsRoute(false), enqueueToPreventCollisions(false) {
+			: sip(isip), global_expire(iexpire), alias(ialias), usedAsRoute(false), enqueueToPreventCollisions(false), regId(0) {
 		}
 	};
 	static RegistrarDb *initialize(Agent *ag);
@@ -292,6 +295,9 @@ class RegistrarDb {
 								  globalExpire, alias);
 		if (sip->sip_request) {
 			mainParams.usedAsRoute = sip->sip_from->a_url->url_user == NULL;
+		}
+		if (sip->sip_user) {
+			mainParams.regId = *(uint64_t*)sip->sip_user;
 		}
 		doBind(mainParams, listener);
 	}

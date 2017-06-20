@@ -488,9 +488,10 @@ class OnRequestBindListener : public ContactUpdateListener {
 					LOGD("Adding reg id to new tport: %lu", p_ec->mRegId);
 				}
 
-				if (old_tport && (tport_get_user_data(old_tport) == NULL ||
-						*(uint64_t *)tport_get_user_data(this->mEv->getIncomingTport().get()) ==
-						*(uint64_t *)tport_get_user_data(old_tport))) {
+				if (old_tport && this->mEv->getIncomingTport().get() != old_tport
+						&& (tport_get_user_data(old_tport) == NULL
+						|| *(uint64_t *)tport_get_user_data(this->mEv->getIncomingTport().get())
+							== *(uint64_t *)tport_get_user_data(old_tport))) {
 					LOGD("Removing old tport for sip uri %s", p_ec->mSipUri.c_str());
 					// Remove data if set
 					if (tport_get_user_data(old_tport) != NULL)
@@ -605,15 +606,19 @@ class OnResponseBindListener : public ContactUpdateListener {
 			if (tport_name_by_url(home.home(), &name, (url_string_t *)p_ec->mSipUri.c_str()) == 0) {
 				old_tport = tport_by_name(nta_agent_tports(this->mModule->getSofiaAgent()), &name);
 
-				// Set RegId to extendedContact if not set
-				if (!old_tport && tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()) != NULL) {
-					p_ec->mRegId = (*(uint64_t *)tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()));
-					LOGD("Adding reg id to Extended contact: %lu", p_ec->mRegId);
+				if (tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()) == NULL ||
+						*(uint64_t *)tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()) != p_ec->mRegId) {
+					uint64_t* new_reg_id = new uint64_t(p_ec->mRegId);
+					if (tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()) != NULL)
+						delete((uint64_t*)tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()));
+					tport_set_user_data(this->mCtx->reqSipEvent->getIncomingTport().get(), (void*)new_reg_id);
+					LOGD("Adding reg id to new tport: %lu", p_ec->mRegId);
 				}
 
 				if (old_tport && this->mCtx->reqSipEvent->getIncomingTport().get() != old_tport
 						&& (tport_get_user_data(old_tport) == NULL
-						|| p_ec->mRegId == *(uint64_t *)tport_get_user_data(old_tport))) {
+						|| *(uint64_t *)tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get())
+							== *(uint64_t *)tport_get_user_data(old_tport))) {
 					LOGD("Removing old tport for sip uri %s", p_ec->mSipUri.c_str());
 					// Remove data if set
 					if (tport_get_user_data(old_tport) != NULL)
@@ -685,6 +690,10 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipE
 
 	// Use path as a contact route in all cases
 	addPathHeader(getAgent(), ev, ev->getIncomingTport().get());
+
+	// Set RegId if not set in MsgSip
+	if (tport_get_user_data(ev->getIncomingTport().get()) && !sip->sip_user)
+		sip->sip_user = tport_get_user_data(ev->getIncomingTport().get());
 
 	// domain registration case, does nothing for the moment
 	if (sipurl->url_user == NULL && !mAllowDomainRegistrations) {

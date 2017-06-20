@@ -57,7 +57,7 @@ bool RecordSerializerMsgPack::parse(const char *str, int len, Record *r){
 	for( auto it = list.begin(); it != list.end(); ++it) {
 		MsgPackContact &c = *it;
 		ExtendedContactCommon ecc(c.mContactId.c_str(), c.mPath, c.mCallId.c_str(), c.line.c_str());
-		r->update(ecc, c.mSipUri.c_str(), c.mExpireAt, c.mQ, c.mCSeq, c.mUpdatedTime, c.mAlias, c.mPath, c.mUsedAsRoute);
+		r->update(ecc, c.mSipUri.c_str(), c.mExpireAt, c.mQ, c.mCSeq, c.mUpdatedTime, c.mAlias, c.mPath, c.mUsedAsRoute, 0);
 	}
 
 	return true;

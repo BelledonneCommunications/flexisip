@@ -331,7 +331,7 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 
 void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,
 					uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute,
-					const std::shared_ptr<ContactUpdateListener> &listener) {
+					const std::shared_ptr<ContactUpdateListener> &listener, uint64_t regid) {
 	sip_contact_t *c = (sip_contact_t *)contacts;
 	list<string> stlPath;
 
@@ -361,7 +361,7 @@ void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int g
 
 		ostringstream contactId;
 		defineContactId(contactId, c->m_url, transportPtr);
-		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr);
+		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr, regid);
 		auto exc = make_shared<ExtendedContact>(ecc, c, globalExpire, cseq, now, alias, accept);
 		exc->mUsedAsRoute = usedAsRoute;
 		insertOrUpdateBinding(exc, listener);
@@ -373,7 +373,7 @@ void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int g
 
 void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long expireAt, float q, uint32_t cseq,
 					time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute,
-					const std::shared_ptr<ContactUpdateListener> &listener) {
+					const std::shared_ptr<ContactUpdateListener> &listener, uint64_t regid) {
 	auto exct = make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias, accept);
 	exct->mUsedAsRoute = usedAsRoute;
 	insertOrUpdateBinding(exct, listener);
