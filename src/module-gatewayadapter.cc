@@ -126,7 +126,7 @@ class GatewayRegister {
 	};
 
 	// Listener class NEED to copy the shared pointer
-	class OnFetchListener : public ContactUpdateListener {
+	class OnFetchListener : public RegistrarDbListener {
 	  private:
 		GatewayRegister *gw;
 
@@ -154,9 +154,6 @@ class GatewayRegister {
 
 		void onError() {
 			gw->onError("Fetch error.");
-		}
-
-		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
 		}
 	};
 };

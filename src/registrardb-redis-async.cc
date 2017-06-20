@@ -47,7 +47,7 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 	const sip_contact_t *sipContact;
 	std::string calldId;
 	uint32_t csSeq;
-	shared_ptr<ContactUpdateListener> listener;
+	shared_ptr<RegistrarDbListener> listener;
 	Record record;
 	int globalExpire;
 	const sip_path_t *path;
@@ -60,7 +60,7 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 
 	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, const sip_contact_t *sip_contact,
 					  const std::string &calld_id, uint32_t cs_seq, const sip_path_t *p, bool alias, int version,
-					  shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn)
+					  shared_ptr<RegistrarDbListener> listener, forwardFn *forward_fn)
 		: token(0), calldId(calld_id), csSeq(cs_seq), listener(listener), record(url), globalExpire(0), alias(alias), mVersion(version), mUsedAsRoute(false) {
 		su_home_init(&mHome);
 		self = s;
@@ -69,7 +69,7 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 		path = sip_path_dup(&mHome, p);
 	}
 	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, const sip_contact_t *sip_contact,
-					  const std::string &calld_id, uint32_t cs_seq, shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn)
+					  const std::string &calld_id, uint32_t cs_seq, shared_ptr<RegistrarDbListener> listener, forwardFn *forward_fn)
 		: token(0), calldId(calld_id), csSeq(cs_seq), listener(listener), record(url), globalExpire(0), mVersion(0), mUsedAsRoute(false) {
 		su_home_init(&mHome);
 		self = s;
@@ -77,7 +77,7 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 		sipContact = sip_contact_dup(&mHome, sip_contact);
 		path = NULL;
 	}
-	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn)
+	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<RegistrarDbListener> listener, forwardFn *forward_fn)
 		: token(0), calldId(""), csSeq(-1), listener(listener), record(url), globalExpire(0), mVersion(0), mUsedAsRoute(false) {
 		su_home_init(&mHome);
 		self = s;
@@ -401,7 +401,7 @@ bool RegistrarDbRedisAsync::connect() {
 		mContext = NULL;
 		return false;
 	}
-
+	
 	mSubscribeContext = redisAsyncConnect(mDomain.c_str(), mPort);
 	mSubscribeContext->data = this;
 	if (mSubscribeContext->err) {
@@ -617,7 +617,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 			return;
 		}
 		time_t now = getCurrentTime();
-		data->record.clean(now, data->listener);
+		data->record.clean(now);
 		data->listener->onRecordFound(&data->record);
 	} else {
 		data->listener->onRecordFound(NULL);
@@ -656,9 +656,9 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 	}
 
 	time_t now = getCurrentTime();
-	data->record.clean(data->sipContact, data->calldId, data->csSeq, now, data->mVersion, data->listener);
+	data->record.clean(data->sipContact, data->calldId, data->csSeq, now, data->mVersion);
 	data->record.update(data->sipContact, data->path, data->globalExpire, data->calldId, data->csSeq, now, data->alias,
-						data->accept, data->mUsedAsRoute, data->listener);
+						data->accept, data->mUsedAsRoute);
 	mLocalRegExpire->update(data->record);
 
 	string serialized;
@@ -673,7 +673,7 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 						data);
 }
 
-void RegistrarDbRedisAsync::doBind(const RegistrarDb::BindParameters &p, const shared_ptr<ContactUpdateListener> &ctUplistener) {
+void RegistrarDbRedisAsync::doBind(const RegistrarDb::BindParameters &p, const shared_ptr<RegistrarDbListener> &listener) {
 	const sip_accept_t *accept = p.sip.accept;
 	list<string> acceptHeaders;
 	while (accept != NULL) {
@@ -682,7 +682,7 @@ void RegistrarDbRedisAsync::doBind(const RegistrarDb::BindParameters &p, const s
 	}
 
 	RegistrarUserData *data = new RegistrarUserData(this, p.sip.from, p.sip.contact, p.sip.call_id, p.sip.cs_seq,
-							p.sip.path, p.alias, p.version, ctUplistener, sHandleBind);
+							p.sip.path, p.alias, p.version, listener, sHandleBind);
 	data->globalExpire = p.global_expire;
 	data->accept = acceptHeaders;
 	data->mUsedAsRoute = p.usedAsRoute;
@@ -692,7 +692,7 @@ void RegistrarDbRedisAsync::doBind(const RegistrarDb::BindParameters &p, const s
 		delete data;
 		return;
 	}
-	if (errorOnTooMuchContactInBind(p.sip.contact, data->record.getKey(), ctUplistener)) {
+	if (errorOnTooMuchContactInBind(p.sip.contact, data->record.getKey(), listener)) {
 		data->listener->onError();
 		delete data;
 		return;
@@ -708,10 +708,10 @@ void RegistrarDbRedisAsync::doBind(const RegistrarDb::BindParameters &p, const s
 	}
 }
 
-void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &ctUplistener) {
+void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<RegistrarDbListener> &listener) {
 	RegistrarUserData *data =
 		new RegistrarUserData(this, sip->sip_from->a_url, sip->sip_contact, sip->sip_call_id->i_id,
-							  sip->sip_cseq->cs_seq, ctUplistener, sHandleClear);
+							  sip->sip_cseq->cs_seq, listener, sHandleClear);
 	if (!isConnected() && !connect()) {
 		LOGE("Not connected to redis server");
 		data->listener->onError();
@@ -723,8 +723,8 @@ void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<ContactUp
 	check_redis_command(redisAsyncCommand(mContext, sHandleAorGetReply, data, "GET aor:%s", data->record.getKey().c_str()), data);
 }
 
-void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<ContactUpdateListener> &ctUplistener) {
-	RegistrarUserData *data = new RegistrarUserData(this, url, ctUplistener, sHandleFetch);
+void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<RegistrarDbListener> &listener) {
+	RegistrarUserData *data = new RegistrarUserData(this, url, listener, sHandleFetch);
 	if (!isConnected() && !connect()) {
 		LOGE("Not connected to redis server");
 		data->listener->onError();

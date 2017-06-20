@@ -58,7 +58,7 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r) {
 		ExtendedContactCommon ecc(c.contact_id().c_str(), stlpath, c.call_id().c_str(),
 								  c.has_line_value_copy() ? c.line_value_copy().c_str() : NULL);
 		r->update(ecc, c.uri().c_str(), (time_t)c.expires_at(), c.q(), (uint32_t)c.cseq(), c.update_time(), false,
-				  acceptHeaders, c.has_used_as_route() ? c.used_as_route() : false, NULL);
+				  acceptHeaders, c.has_used_as_route() ? c.used_as_route() : false);
 	}
 	return true;
 }
