@@ -476,7 +476,7 @@ class OnRequestBindListener : public ContactUpdateListener {
 		p_ec = ec.get();
 
 		if (this->mModule->getAgent() != NULL && p_ec->mPath.size() == 1) {
-			if (tport_name_by_url(home.home(), &name, (url_string_t *)p_ec->mSipUri.c_str()) == 0) {
+			if (tport_name_by_url(home.home(), &name, (url_string_t *)p_ec->mSipUri->url_user) == 0) {
 				old_tport = tport_by_name(nta_agent_tports(this->mModule->getSofiaAgent()), &name);
 
 				if (tport_get_user_data(this->mEv->getIncomingTport().get()) == NULL ||
@@ -492,7 +492,7 @@ class OnRequestBindListener : public ContactUpdateListener {
 						&& (tport_get_user_data(old_tport) == NULL
 						|| *(uint64_t *)tport_get_user_data(this->mEv->getIncomingTport().get())
 							== *(uint64_t *)tport_get_user_data(old_tport))) {
-					LOGD("Removing old tport for sip uri %s", p_ec->mSipUri.c_str());
+					LOGD("Removing old tport for sip uri %s", p_ec->mSipUri->url_user);
 					// Remove data if set
 					if (tport_get_user_data(old_tport) != NULL)
 						delete((uint64_t*)tport_get_user_data(old_tport));
@@ -500,7 +500,7 @@ class OnRequestBindListener : public ContactUpdateListener {
 					tport_shutdown(old_tport, 2);
 				}
 			} else
-				LOGE("OnResponseBindListener::ContactUpdated: tport_name_by_url() failed for sip uri %s", p_ec->mSipUri.c_str());
+				LOGE("OnRequestBindListener::ContactUpdated: tport_name_by_url() failed for sip uri %s", p_ec->mSipUri->url_user);
 		}
 	}
 
@@ -603,7 +603,7 @@ class OnResponseBindListener : public ContactUpdateListener {
 		p_ec = ec.get();
 
 		if (this->mModule->getAgent() != NULL && p_ec->mPath.size() == 1) {
-			if (tport_name_by_url(home.home(), &name, (url_string_t *)p_ec->mSipUri.c_str()) == 0) {
+			if (tport_name_by_url(home.home(), &name, (url_string_t *)p_ec->mSipUri->url_user) == 0) {
 				old_tport = tport_by_name(nta_agent_tports(this->mModule->getSofiaAgent()), &name);
 
 				if (tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()) == NULL ||
@@ -619,7 +619,7 @@ class OnResponseBindListener : public ContactUpdateListener {
 						&& (tport_get_user_data(old_tport) == NULL
 						|| *(uint64_t *)tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get())
 							== *(uint64_t *)tport_get_user_data(old_tport))) {
-					LOGD("Removing old tport for sip uri %s", p_ec->mSipUri.c_str());
+					LOGD("Removing old tport for sip uri %s", p_ec->mSipUri->url_user);
 					// Remove data if set
 					if (tport_get_user_data(old_tport) != NULL)
 						delete((uint64_t*)tport_get_user_data(old_tport));
@@ -627,7 +627,7 @@ class OnResponseBindListener : public ContactUpdateListener {
 					tport_shutdown(old_tport, 2);
 				}
 			} else
-				LOGE("OnResponseBindListener::ContactUpdated: tport_name_by_url() failed for sip uri %s", p_ec->mSipUri.c_str());
+				LOGE("OnResponseBindListener::ContactUpdated: tport_name_by_url() failed for sip uri %s", p_ec->mSipUri->url_user);
 		}
 	}
 };

@@ -329,43 +329,51 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 		oss << ":" << url->url_port;
 }
 
-void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,
+void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,
 					uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute,
-					const std::shared_ptr<ContactUpdateListener> &listener, uint64_t regid) {
-	sip_contact_t *c = (sip_contact_t *)contacts;
+					const std::shared_ptr<ContactUpdateListener> &listener) {
 	list<string> stlPath;
+	SofiaAutoHome home;
 
 	if (path != NULL) {
-		su_home_t home;
-		su_home_init(&home);
-		stlPath = route_to_stl(&home, path);
-		su_home_destroy(&home);
+		SofiaAutoHome home;
+		stlPath = route_to_stl(home.home(), path);
 	}
 
-	while (c) {
-		if ((c->m_expires && atoi(c->m_expires) == 0) || (!c->m_expires && globalExpire <= 0)) {
-			c = c->m_next;
+	while (contacts) {
+		if ((contacts->m_expires && atoi(contacts->m_expires) == 0) || (!contacts->m_expires && globalExpire <= 0)) {
+			contacts = contacts->m_next;
 			continue;
 		}
 
 		const char *lineValuePtr = NULL;
-		string lineValue = extractUniqueId(c);
+		string lineValue = extractUniqueId(contacts);
 		if (!lineValue.empty())
 			lineValuePtr = lineValue.c_str();
 
 		char transport[20];
 		char *transportPtr = transport;
-		if (!url_param(c->m_url[0].url_params, "transport", transport, sizeof(transport) - 1)) {
+		if (!url_param(contacts->m_url[0].url_params, "transport", transport, sizeof(transport) - 1)) {
 			transportPtr = NULL;
 		}
 
+		char strRegid[16] = {0};
+		uint64_t regId;
+		if (!url_param(contacts->m_url[0].url_params, "regid", strRegid, sizeof(strRegid) - 1)) {
+			regId = std::strtoull(strRegid, NULL, 10);
+		} else {
+			regId = su_random64();
+			url_param_add(home.home(), contacts->m_url, string("regid=" + to_string(regId)).c_str());
+		}
+
 		ostringstream contactId;
-		defineContactId(contactId, c->m_url, transportPtr);
-		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr, regid);
-		auto exc = make_shared<ExtendedContact>(ecc, c, globalExpire, cseq, now, alias, accept);
+		defineContactId(contactId, contacts->m_url, transportPtr);
+		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr);
+		auto exc = make_shared<ExtendedContact>(ecc, contacts, globalExpire, cseq, now, alias, accept);
+		exc->mRegId = regId;
 		exc->mUsedAsRoute = usedAsRoute;
 		insertOrUpdateBinding(exc, listener);
-		c = c->m_next;
+		contacts = contacts->m_next;
 	}
 
 	SLOGD << *this;
@@ -373,8 +381,20 @@ void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int g
 
 void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long expireAt, float q, uint32_t cseq,
 					time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute,
-					const std::shared_ptr<ContactUpdateListener> &listener, uint64_t regid) {
+					const std::shared_ptr<ContactUpdateListener> &listener) {
 	auto exct = make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias, accept);
+	url_t *sipUri = url_make(exct->mHome.home(), sipuri);
+	{
+		char strRegid[16] = {0};
+		uint64_t regId;
+		if (!url_param(sipUri->url_params, "regid", strRegid, sizeof(strRegid) - 1)) {
+			exct->mRegId = std::strtoull(strRegid, NULL, 10);
+		} else {
+			regId = su_random64();
+			url_param_add(exct->mHome.home(), sipUri, string("regid=" + to_string(regId)).c_str());
+			exct->setSipUri(sipUri);
+		}
+	}
 	exct->mUsedAsRoute = usedAsRoute;
 	insertOrUpdateBinding(exct, listener);
 }
@@ -612,7 +632,7 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 				}
 				m_record->pushContact(ec);
 				if (ec->mAlias && m_step > 0) {
-					sip_contact_t *contact = sip_contact_format(&m_home, "<%s>", ec->mSipUri.c_str());
+					sip_contact_t *contact = sip_contact_format(&m_home, "<%s>", ec->mSipUri->url_user);
 					if (contact) {
 						vectToRecurseOn.push_back(contact);
 					} else {
@@ -663,9 +683,10 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		 * Contact but still preserving
 		 * the last request uri that was found recursed through the alias mechanism.
 		*/
+		SofiaAutoHome home;
 		shared_ptr<ExtendedContact> newEc = make_shared<ExtendedContact>(*ec);
-		newEc->mSipUri = uri;
-		newEc->mPath.push_back(ec->mSipUri);
+		newEc->mSipUri = url_make(home.home(), uri);
+		newEc->mPath.push_back(uri);
 		// LOGD("transformContactUsedAsRoute(): path to %s added for %s", ec->mSipUri.c_str(), uri);
 		newEc->mUsedAsRoute = false;
 		return newEc;

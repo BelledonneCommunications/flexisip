@@ -83,7 +83,7 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r) {
 		}
 
 		ExtendedContactCommon ecc(contactId, stlpath, call_id, lineValue);
-		r->update(ecc, sip_contact, expire, q, cseq, update_time, alias, acceptHeaders, false, NULL, 0);
+		r->update(ecc, sip_contact, expire, q, cseq, update_time, alias, acceptHeaders, false, NULL);
 		contact = contact->next;
 		++i;
 	}
@@ -109,7 +109,7 @@ bool RecordSerializerJson::serialize(Record *r, string &serialized, bool log) {
 		cJSON_AddItemToObject(c, "acceptHeaders", acceptHeaders);
 
 		shared_ptr<ExtendedContact> ec = (*it);
-		cJSON_AddStringToObject(c, "uri", ec->mSipUri.c_str());
+		cJSON_AddStringToObject(c, "uri", ec->mSipUri->url_user);
 		cJSON_AddNumberToObject(c, "expires_at", ec->mExpireAt);
 		cJSON_AddNumberToObject(c, "q", ec->mQ ? ec->mQ : 0);
 		if (ec->line())

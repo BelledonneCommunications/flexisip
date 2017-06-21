@@ -446,11 +446,11 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 		// Find all contexts
 		contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
 		path = ec->toSofiaRoute(home.home());
-		auto rang = mForks.equal_range(ec->mSipUri);
+		auto rang = mForks.equal_range(ec->mSipUri->url_user);
 		for (auto ite = rang.first; ite != rang.second; ++ite) {
 			shared_ptr<ForkContext> context = ite->second;
 			if (context->onNewRegister(contact->m_url, uid)) {
-				LOGD("Found a pending context for contact %s: %p", ec->mSipUri.c_str(), context.get());
+				LOGD("Found a pending context for contact %s: %p", ec->mSipUri->url_user, context.get());
 				auto stlpath = Record::route_to_stl(context->getEvent()->getMsgSip()->getHome(), path);
 				dispatch(context->getEvent(), ec, context, "");
 			}
@@ -682,7 +682,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			}
 		} else {
 			if (mFork && context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
-				sip_contact_t *temp_ctt = sip_contact_format(ms->getHome(), "<%s>", ec->mSipUri.c_str());
+				sip_contact_t *temp_ctt = sip_contact_format(ms->getHome(), "<%s>", ec->mSipUri->url_user);
 
 				if (mUseGlobalDomain) {
 					temp_ctt->m_url->url_host = "merged";

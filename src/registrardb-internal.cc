@@ -70,7 +70,7 @@ void RegistrarDbInternal::doBind(const BindParameters &p, const std::shared_ptr<
 
 	r->clean(p.sip.contact, p.sip.call_id, p.sip.cs_seq, now, p.version, listener);
 	r->update(p.sip.contact, p.sip.path, p.global_expire, p.sip.call_id, p.sip.cs_seq, now, p.alias, acceptHeaders,
-			  p.usedAsRoute, listener, p.regId);
+			  p.usedAsRoute, listener);
 
 	mLocalRegExpire->update(*r);
 	listener->onRecordFound(r);
