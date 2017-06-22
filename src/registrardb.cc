@@ -336,7 +336,6 @@ void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalE
 	SofiaAutoHome home;
 
 	if (path != NULL) {
-		SofiaAutoHome home;
 		stlPath = route_to_stl(home.home(), path);
 	}
 
