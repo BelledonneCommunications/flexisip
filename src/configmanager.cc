@@ -768,7 +768,7 @@ GenericManager::GenericManager()
 	static ConfigItemDescriptor global_conf[] = {
 		{String, "log-level", "Verbosity of logs to output. Possible values are debug, message, warning and error", "error"},
 		{String, "syslog-level", "Verbosity of logs to put in syslog. Possible values are debug, message, warning and error", "error"},
-		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file. If -1 then no max size", "0"},
+		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file. If -1 then no max size", "100M"},
 		{Boolean, "user-errors-logs", "Log (on a different log domain) user errors like authentication, registration, routing, etc...", "false"},
 		{Boolean, "dump-corefiles", "Generate a corefile when crashing. "
 			"Note that by default linux will generate coredumps in '/' which is not so convenient. The following shell command can be added to"
