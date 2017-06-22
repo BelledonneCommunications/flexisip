@@ -632,7 +632,7 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 				}
 				m_record->pushContact(ec);
 				if (ec->mAlias && m_step > 0) {
-					sip_contact_t *contact = sip_contact_format(&m_home, "<%s>", ec->mSipUri->url_user);
+					sip_contact_t *contact = sip_contact_create(&m_home, (url_string_t*)ec->mSipUri, NULL);
 					if (contact) {
 						vectToRecurseOn.push_back(contact);
 					} else {

@@ -73,7 +73,7 @@ bool RecordSerializerPb::serialize(Record *r, string &serialized, bool log) {
 	for (it = contacts.begin(); it != contacts.end(); ++it) {
 		auto ec = (*it);
 		RecordContactPb *c = pbContacts.add_contact();
-		c->set_uri(ec->mSipUri->url_user);
+		c->set_uri(ExtendedContact::urlToString(ec->mSipUri));
 		c->set_contact_id(ec->mContactId);
 		if (ec->line())
 			c->set_line_value_copy(ec->line());
