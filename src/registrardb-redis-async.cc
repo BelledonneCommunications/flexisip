@@ -659,7 +659,6 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 	}
 
 	time_t now = getCurrentTime();
-	data->record.clean(data->sipContact, data->calldId, data->csSeq, now, data->mVersion, data->listener);
 	data->record.update(data->sipContact, data->path, data->globalExpire, data->calldId, data->csSeq, now, data->alias,
 						data->accept, data->mUsedAsRoute, data->listener);
 	mLocalRegExpire->update(data->record);

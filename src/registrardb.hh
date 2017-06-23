@@ -122,7 +122,7 @@ struct ExtendedContact {
 	}
 
 	void setSipUri(const url_t *uri) {
-		if (mSipUri) su_free(mHome.home(), (void*)mSipUri);
+		if (mSipUri) su_free(mHome.home(), mSipUri);
 		mSipUri = url_hdup(mHome.home(), uri);
 	}
 
@@ -184,8 +184,6 @@ class Record {
 		mContacts.push_back(ct);
 	}
 	bool isInvalidRegister(const std::string &call_id, uint32_t cseq);
-	void clean(const sip_contact_t *sip, const std::string &call_id, uint32_t cseq, time_t time, int version,
-				const std::shared_ptr<ContactUpdateListener> &listener);
 	void clean(time_t time, const std::shared_ptr<ContactUpdateListener> &listener);
 	void update(sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,
 				uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute,

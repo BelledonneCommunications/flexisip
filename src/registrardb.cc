@@ -153,46 +153,6 @@ const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(std::string u
 	return noContact;
 }
 
-/**
- * Should first have checked the validity of the register with isValidRegister.
- */
-void Record::clean(const sip_contact_t *sip, const std::string &call_id, uint32_t cseq, time_t now, int version,
-					const std::shared_ptr<ContactUpdateListener> &listener) {
-	if (mContacts.begin() == mContacts.end()) {
-		return;
-	}
-	const char *lineValuePtr = NULL;
-	string lineValue = extractUniqueId(sip);
-
-	if (!lineValue.empty())
-		lineValuePtr = lineValue.c_str();
-
-	auto it = mContacts.begin();
-	while (it != mContacts.end()) {
-		shared_ptr<ExtendedContact> ec = (*it);
-		if (now >= ec->mExpireAt) {
-			SLOGD << "Cleaning expired contact " << ec->mContactId;
-			if (listener)
-				listener->onContactUpdated(ec);
-			it = mContacts.erase(it);
-		} else if (ec->line() && lineValuePtr != NULL && 0 == strcmp(ec->line(), lineValuePtr)) {
-			SLOGD << "Cleaning older line '" << lineValuePtr << "' for contact " << ec->mContactId;
-			if (listener)
-				listener->onContactUpdated(ec);
-			it = mContacts.erase(it);
-		} else if (0 == strcmp(ec->callId(), call_id.c_str())) {
-			SLOGD << "Cleaning same call id contact " << ec->contactId() << "(" << call_id << ")";
-			if (listener)
-				listener->onContactUpdated(ec);
-			it = mContacts.erase(it);
-		} else {
-			++it;
-		}
-	}
-
-	SLOGD << *this;
-}
-
 /*
  static int countContacts(const sip_contact_t *contacts) {
  sip_contact_t *c=(sip_contact_t *)contacts;
@@ -292,15 +252,33 @@ string Record::defineKeyFromUrl(const url_t *url) {
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener) {
 	// Try to locate an existing contact
 	shared_ptr<ExtendedContact> olderEc;
+	time_t now = getCurrentTime();
 
 	if (sAssumeUniqueDomains && mIsDomain){
 		mContacts.clear();
 	}
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
-		if (0 == strcmp(ec->contactId(), (*it)->contactId())) {
-			LOGD("Removing older contact with same id %s", (*it)->contactId());
-			if (listener)
-				listener->onContactUpdated(ec);
+		if (now >= (*it)->mExpireAt) {
+			SLOGD << "Cleaning expired contact " << (*it)->mContactId;
+			if (listener) listener->onContactUpdated(*it);
+			it = mContacts.erase(it);
+		} else if ((*it)->line() && 0 == strcmp((*it)->line(), ec->mUniqueId.c_str())) {
+			SLOGD << "Cleaning older line '" << ec->mUniqueId << "' for contact " << ec->mContactId;
+			if (listener) listener->onContactUpdated(*it);
+			it = mContacts.erase(it);
+		} else if ((*it)->callId() && 0 == strcmp((*it)->callId(), ec->mCallId.c_str())) {
+			SLOGD << "Cleaning same call id contact " << ec->contactId() << "(" << ec->mCallId << ")";
+			if (listener) listener->onContactUpdated(*it);
+			it = mContacts.erase(it);
+		} else if ((*it)->contactId() && 0 == strcmp((*it)->contactId(), ec->contactId())) {
+			SLOGD << "Removing older contact with same id " << (*it)->contactId();
+			// Transfert param RegId from (it) to ec
+			if ((*it)->mRegId > 0) {
+				url_t *sipUri = url_hdup(ec->mHome.home(), (*it)->mSipUri);
+				url_param_add(ec->mHome.home(), sipUri, string("regid=" + to_string((*it)->mRegId)).c_str());
+				ec->setSipUri(sipUri);
+			}
+			if (listener) listener->onContactUpdated(*it);
 			mContacts.erase(it);
 			mContacts.push_back(ec);
 			return;
@@ -356,9 +334,9 @@ void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalE
 			transportPtr = NULL;
 		}
 
-		char strRegid[16] = {0};
+		char strRegid[32] = {0};
 		uint64_t regId;
-		if (!url_param(contacts->m_url[0].url_params, "regid", strRegid, sizeof(strRegid) - 1)) {
+		if (url_param(contacts->m_url[0].url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0) {
 			regId = std::strtoull(strRegid, NULL, 10);
 		} else {
 			regId = su_random64();
@@ -384,9 +362,9 @@ void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long e
 	auto exct = make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias, accept);
 	url_t *sipUri = url_make(exct->mHome.home(), sipuri);
 	{
-		char strRegid[16] = {0};
+		char strRegid[32] = {0};
 		uint64_t regId;
-		if (!url_param(sipUri->url_params, "regid", strRegid, sizeof(strRegid) - 1)) {
+		if (url_param(sipUri->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0) {
 			exct->mRegId = std::strtoull(strRegid, NULL, 10);
 		} else {
 			regId = su_random64();
