@@ -77,7 +77,7 @@ bool RecordSerializerMsgPack::serialize(Record *r, std::string &serialized, bool
 		contacts.push_back({
 			c->mContactId,
 			c->mCallId,
-			(c->mUniqueId+';'+std::to_string(c->mRegId)),
+			c->mUniqueId,
 			c->mPath,
 			c->mSipUri,
 			c->mQ,

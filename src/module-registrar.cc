@@ -439,6 +439,36 @@ static void addEventLogRecordFound(shared_ptr<SipEventT> ev, const sip_contact_t
 	ev->setEventLog(evlog);
 }
 
+static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const shared_ptr<ExtendedContact> &ec) {
+	SofiaAutoHome home;
+	tp_name_t name = {0, 0, 0, 0, 0, 0};
+	tport_t *old_tport;
+
+	if (module->getAgent() != NULL && ec->mPath.size() == 1) {
+		if (tport_name_by_url(home.home(), &name, (url_string_t *)ec->mSipUri) == 0) {
+			old_tport = tport_by_name(nta_agent_tports(module->getSofiaAgent()), &name);
+
+			// RegId not set or different from ec
+			if (tport_get_user_data(new_tport) == NULL || (uint64_t)tport_get_user_data(new_tport) != ec->mRegId) {
+				tport_set_user_data(new_tport, (void*)ec->mRegId);
+				SLOGD << "Adding reg id to new tport: " << hex << ec->mRegId;
+			}
+
+			// Not the same tport but had the same regid
+			if (old_tport && new_tport != old_tport
+					&& (tport_get_user_data(old_tport) == NULL
+						|| (uint64_t)tport_get_user_data(new_tport) == (uint64_t)tport_get_user_data(old_tport))
+					) {
+				SLOGD << "Removing old tport for sip uri " << ExtendedContact::urlToString(ec->mSipUri);
+				// 0 close incoming data, 1 close outgoing data, 2 both
+				tport_shutdown(old_tport, 2);
+			}
+		} else
+			SLOGE << "ContactUpdated: tport_name_by_url() failed for sip uri "
+					<< ExtendedContact::urlToString(ec->mSipUri);
+	}
+}
+
 // Listener class NEED to copy the shared pointer
 class OnRequestBindListener : public ContactUpdateListener {
 	ModuleRegistrar *mModule;
@@ -467,38 +497,7 @@ class OnRequestBindListener : public ContactUpdateListener {
 	}
 
 	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
-		SofiaAutoHome home;
-		tp_name_t name = {0, 0, 0, 0, 0, 0};
-		tport_t *old_tport = NULL;
-
-		if (this->mModule->getAgent() != NULL && ec->mPath.size() == 1) {
-			if (tport_name_by_url(home.home(), &name, (url_string_t *)ec->mSipUri) == 0) {
-				old_tport = tport_by_name(nta_agent_tports(this->mModule->getSofiaAgent()), &name);
-
-				if (tport_get_user_data(this->mEv->getIncomingTport().get()) == NULL ||
-						*(uint64_t *)tport_get_user_data(this->mEv->getIncomingTport().get()) != ec->mRegId) {
-					uint64_t* new_reg_id = new uint64_t(ec->mRegId);
-					if (tport_get_user_data(this->mEv->getIncomingTport().get()) != NULL)
-						delete((uint64_t*)tport_get_user_data(this->mEv->getIncomingTport().get()));
-					tport_set_user_data(this->mEv->getIncomingTport().get(), (void*)new_reg_id);
-					SLOGD << "Adding reg id to new tport: " << hex << ec->mRegId;
-				}
-
-				if (old_tport && this->mEv->getIncomingTport().get() != old_tport
-						&& (tport_get_user_data(old_tport) == NULL
-						|| *(uint64_t *)tport_get_user_data(this->mEv->getIncomingTport().get())
-							== *(uint64_t *)tport_get_user_data(old_tport))) {
-					SLOGD << "Removing old tport for sip uri " << ExtendedContact::urlToString(ec->mSipUri);
-					// Remove data if set
-					if (tport_get_user_data(old_tport) != NULL)
-						delete((uint64_t*)tport_get_user_data(old_tport));
-					// 0 close incoming data, 1 close outgoing data, 2 both
-					tport_shutdown(old_tport, 2);
-				}
-			} else
-				SLOGE << "OnRequestBindListener::ContactUpdated: tport_name_by_url() failed for sip uri "
-						<< ExtendedContact::urlToString(ec->mSipUri);
-		}
+		_onContactUpdated(this->mModule, this->mEv->getIncomingTport().get(), ec);
 	}
 
 	void onRecordFound(Record *r) {
@@ -591,38 +590,7 @@ class OnResponseBindListener : public ContactUpdateListener {
 	}
 
 	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
-		SofiaAutoHome home;
-		tp_name_t name = {0, 0, 0, 0, 0, 0};
-		tport_t *old_tport = NULL;
-
-		if (this->mModule->getAgent() != NULL && ec->mPath.size() == 1) {
-			if (tport_name_by_url(home.home(), &name, (url_string_t *)ec->mSipUri) == 0) {
-				old_tport = tport_by_name(nta_agent_tports(this->mModule->getSofiaAgent()), &name);
-
-				if (tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()) == NULL ||
-						*(uint64_t *)tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()) != ec->mRegId) {
-					uint64_t* new_reg_id = new uint64_t(ec->mRegId);
-					if (tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()) != NULL)
-						delete((uint64_t*)tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get()));
-					tport_set_user_data(this->mCtx->reqSipEvent->getIncomingTport().get(), (void*)new_reg_id);
-					LOGD("Adding reg id to new tport: %lu", ec->mRegId);
-				}
-
-				if (old_tport && this->mCtx->reqSipEvent->getIncomingTport().get() != old_tport
-						&& (tport_get_user_data(old_tport) == NULL
-						|| *(uint64_t *)tport_get_user_data(this->mCtx->reqSipEvent->getIncomingTport().get())
-							== *(uint64_t *)tport_get_user_data(old_tport))) {
-					LOGD("Removing old tport for sip uri %s", ExtendedContact::urlToString(ec->mSipUri).c_str());
-					// Remove data if set
-					if (tport_get_user_data(old_tport) != NULL)
-						delete((uint64_t*)tport_get_user_data(old_tport));
-					// 0 close incoming data, 1 close outgoing data, 2 both
-					tport_shutdown(old_tport, 2);
-				}
-			} else
-				LOGE("OnResponseBindListener::ContactUpdated: tport_name_by_url() failed for sip uri %s",
-						ExtendedContact::urlToString(ec->mSipUri).c_str());
-		}
+		_onContactUpdated(this->mModule, this->mCtx->reqSipEvent->getIncomingTport().get(), ec);
 	}
 };
 
