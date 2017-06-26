@@ -248,6 +248,22 @@ string Record::defineKeyFromUrl(const url_t *url) {
 	return ostr.str();
 }
 
+static void transfertRegId(const shared_ptr<ExtendedContact> &oldEc, const shared_ptr<ExtendedContact> &newEc) {
+	// Transfert param RegId from oldEc to newEc
+	char strRegid[32] = {0};
+	if (oldEc->mRegId > 0 &&
+			(url_has_param(newEc->mSipUri, "regid") < 0 ||
+				(url_param(newEc->mSipUri->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0 &&
+				std::strtoull(strRegid, NULL, 10) != oldEc->mRegId)
+			)
+		) {
+		url_t *sipUri = url_hdup(newEc->mHome.home(), oldEc->mSipUri);
+		sipUri->url_params = url_strip_param_string(su_strdup(newEc->mHome.home(), newEc->mSipUri->url_params), "regid");
+		url_param_add(newEc->mHome.home(), sipUri, string("regid=" + to_string(oldEc->mRegId)).c_str());
+		newEc->setSipUri(sipUri);
+		newEc->mRegId = oldEc->mRegId;
+	}
+}
 
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener) {
 	// Try to locate an existing contact
@@ -257,41 +273,32 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 	if (sAssumeUniqueDomains && mIsDomain){
 		mContacts.clear();
 	}
-	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
+	for (auto it = mContacts.begin(); it != mContacts.end();) {
 		if (now >= (*it)->mExpireAt) {
 			SLOGD << "Cleaning expired contact " << (*it)->mContactId;
-			if (listener) listener->onContactUpdated(*it);
+			if (listener) listener->onContactUpdated(ec);
 			it = mContacts.erase(it);
-		} else if ((*it)->line() && 0 == strcmp((*it)->line(), ec->mUniqueId.c_str())) {
+		} else if ((*it)->line() && (*it)->mUniqueId == ec->mUniqueId) {
 			SLOGD << "Cleaning older line '" << ec->mUniqueId << "' for contact " << ec->mContactId;
-			if (listener) listener->onContactUpdated(*it);
+			transfertRegId((*it), ec);
+			if (listener) listener->onContactUpdated(ec);
 			it = mContacts.erase(it);
-		} else if ((*it)->callId() && 0 == strcmp((*it)->callId(), ec->mCallId.c_str())) {
+		} else if ((*it)->callId() && (*it)->mCallId == ec->mCallId) {
 			SLOGD << "Cleaning same call id contact " << ec->contactId() << "(" << ec->mCallId << ")";
-			if (listener) listener->onContactUpdated(*it);
+			if (listener) listener->onContactUpdated(ec);
 			it = mContacts.erase(it);
-		} else if ((*it)->contactId() && 0 == strcmp((*it)->contactId(), ec->contactId())) {
-			SLOGD << "Removing older contact with same id " << (*it)->contactId();
-			// Transfert param RegId from (it) to ec
-			if ((*it)->mRegId > 0) {
-				url_t *sipUri = url_hdup(ec->mHome.home(), (*it)->mSipUri);
-				url_param_add(ec->mHome.home(), sipUri, string("regid=" + to_string((*it)->mRegId)).c_str());
-				ec->setSipUri(sipUri);
-			}
-			if (listener) listener->onContactUpdated(*it);
-			mContacts.erase(it);
-			mContacts.push_back(ec);
-			return;
-		}
-		if (!olderEc || olderEc->mUpdatedTime > (*it)->mUpdatedTime) {
+		} else if (!olderEc || olderEc->mUpdatedTime > (*it)->mUpdatedTime) {
 			olderEc = (*it);
+			++it;
+		} else {
+			++it;
 		}
 	}
 
 	// If contact doesn't exist and there is space left
 	if (mContacts.size() < (unsigned int)sMaxContacts) {
 		mContacts.push_back(ec);
-	} else { // no space
+	} else if (olderEc){ // no space
 		mContacts.remove(olderEc);
 		mContacts.push_back(ec);
 	}
@@ -365,12 +372,13 @@ void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long e
 		char strRegid[32] = {0};
 		uint64_t regId;
 		if (url_param(sipUri->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0) {
-			exct->mRegId = std::strtoull(strRegid, NULL, 10);
+			regId = std::strtoull(strRegid, NULL, 10);
 		} else {
 			regId = su_random64();
 			url_param_add(exct->mHome.home(), sipUri, string("regid=" + to_string(regId)).c_str());
 			exct->setSipUri(sipUri);
 		}
+		exct->mRegId = regId;
 	}
 	exct->mUsedAsRoute = usedAsRoute;
 	insertOrUpdateBinding(exct, listener);
