@@ -126,6 +126,21 @@ struct ExtendedContact {
 		mSipUri = url_hdup(mHome.home(), uri);
 	}
 
+	void transfertRegId(const std::shared_ptr<ExtendedContact> &oldEc) {
+		// Transfert param RegId from oldEc to this
+		char strRegid[32] = {0};
+		if (oldEc->mRegId > 0 &&
+				(url_param(this->mSipUri->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0 &&
+				std::strtoull(strRegid, NULL, 10) != oldEc->mRegId)
+			) {
+			url_t *sipUri = url_hdup(this->mHome.home(), this->mSipUri);
+			sipUri->url_params = url_strip_param_string(su_strdup(this->mHome.home(), this->mSipUri->url_params), "regid");
+			url_param_add(this->mHome.home(), sipUri, std::string("regid=" + std::to_string(oldEc->mRegId)).c_str());
+			this->setSipUri(sipUri);
+			this->mRegId = oldEc->mRegId;
+		}
+	}
+
 	ExtendedContact(const ExtendedContactCommon &common, sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
 		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
@@ -158,7 +173,7 @@ struct ExtendedContact {
 		mSipUri = url_hdup(mHome.home(), url);
 	}
 
-	std::ostream &print(std::ostream &stream, time_t now, time_t offset = 0) const;
+	std::ostream &print(std::ostream &stream, time_t _now = getCurrentTime(), time_t offset = 0) const;
 	sip_contact_t *toSofiaContact(su_home_t *home, time_t now) const;
 	sip_route_t *toSofiaRoute(su_home_t *home) const;
 };

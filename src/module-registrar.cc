@@ -30,6 +30,7 @@
 #include <csignal>
 #include <functional>
 #include <algorithm>
+#include <inttypes.h>
 
 using namespace std;
 
@@ -481,7 +482,7 @@ class OnRequestBindListener : public ContactUpdateListener {
 					if (tport_get_user_data(this->mEv->getIncomingTport().get()) != NULL)
 						delete((uint64_t*)tport_get_user_data(this->mEv->getIncomingTport().get()));
 					tport_set_user_data(this->mEv->getIncomingTport().get(), (void*)new_reg_id);
-					LOGD("Adding reg id to new tport: %lu", ec->mRegId);
+					LOGD("Adding reg id to new tport: 0x%" PRIx64, ec->mRegId);
 				}
 
 				if (old_tport && this->mEv->getIncomingTport().get() != old_tport
