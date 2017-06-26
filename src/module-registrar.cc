@@ -30,7 +30,6 @@
 #include <csignal>
 #include <functional>
 #include <algorithm>
-#include <inttypes.h>
 
 using namespace std;
 

@@ -133,11 +133,11 @@ struct ExtendedContact {
 				(url_param(this->mSipUri->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0 &&
 				std::strtoull(strRegid, NULL, 16) != oldEc->mRegId)
 			) {
-			std::stringstream ss;
+			std::ostringstream os;
 			url_t *sipUri = url_hdup(this->mHome.home(), this->mSipUri);
-			ss << "regid=" << std::hex << oldEc->mRegId;
+			os << "regid=" << std::hex << oldEc->mRegId;
 			sipUri->url_params = url_strip_param_string(su_strdup(this->mHome.home(), this->mSipUri->url_params), "regid");
-			url_param_add(this->mHome.home(), sipUri, ss.str().c_str());
+			url_param_add(this->mHome.home(), sipUri, os.str().c_str());
 			this->setSipUri(sipUri);
 			this->mRegId = oldEc->mRegId;
 		}

@@ -301,17 +301,16 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 		oss << ":" << url->url_port;
 }
 
-static uint64_t SetAndGetRegid(url_t *url) {
+static uint64_t setAndGetRegid(url_t *url, SofiaAutoHome *home) {
 	char strRegid[32] = {0};
 	uint64_t regId;
 	if (url_param(url->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0) {
 		regId = std::strtoull(strRegid, NULL, 16);
 	} else {
-		SofiaAutoHome home;
-		std::stringstream ss;
+		ostringstream os;
 		regId = su_random64();
-		ss << "regid=" << std::hex << regId;
-		url_param_add(home.home(), url, ss.str().c_str());
+		os << "regid=" << hex << regId;
+		url_param_add(home->home(), url, os.str().c_str());
 	}
 	return regId;
 }
@@ -347,7 +346,7 @@ void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalE
 		defineContactId(contactId, contacts->m_url, transportPtr);
 		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr);
 		auto exc = make_shared<ExtendedContact>(ecc, contacts, globalExpire, cseq, now, alias, accept);
-		exc->mRegId = SetAndGetRegid(exc->mSipUri);
+		exc->mRegId = setAndGetRegid(exc->mSipUri, &exc->mHome);
 		exc->mUsedAsRoute = usedAsRoute;
 		insertOrUpdateBinding(exc, listener);
 		contacts = contacts->m_next;
@@ -361,7 +360,7 @@ void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long e
 					const std::shared_ptr<ContactUpdateListener> &listener) {
 	auto exct = make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias, accept);
 	url_t *sipUri = url_make(exct->mHome.home(), sipuri);
-	exct->mRegId = SetAndGetRegid(sipUri);
+	exct->mRegId = setAndGetRegid(sipUri, &exct->mHome);
 	exct->mUsedAsRoute = usedAsRoute;
 	insertOrUpdateBinding(exct, listener);
 
