@@ -48,7 +48,7 @@ ostream &ExtendedContact::print(std::ostream &stream, time_t now, time_t offset)
 	}
 	int expireAfter = mExpireAt - now;
 
-	stream << mSipUri << " path=\"";
+	stream << urlToString(mSipUri) << " path=\"";
 	for (auto it = mPath.cbegin(); it != mPath.cend(); ++it) {
 		if (it != mPath.cbegin())
 			stream << " ";
@@ -270,6 +270,8 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 	shared_ptr<ExtendedContact> olderEc;
 	time_t now = getCurrentTime();
 
+	SLOGD << "Trying to insert new contact " << ec;
+
 	if (sAssumeUniqueDomains && mIsDomain){
 		mContacts.clear();
 	}
@@ -279,12 +281,12 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 			if (listener) listener->onContactUpdated(ec);
 			it = mContacts.erase(it);
 		} else if ((*it)->line() && (*it)->mUniqueId == ec->mUniqueId) {
-			SLOGD << "Cleaning older line '" << ec->mUniqueId << "' for contact " << ec->mContactId;
+			SLOGD << "Cleaning older line '" << ec->mUniqueId << "' for contact " << (*it)->mContactId;
 			transfertRegId((*it), ec);
 			if (listener) listener->onContactUpdated(ec);
 			it = mContacts.erase(it);
 		} else if ((*it)->callId() && (*it)->mCallId == ec->mCallId) {
-			SLOGD << "Cleaning same call id contact " << ec->contactId() << "(" << ec->mCallId << ")";
+			SLOGD << "Cleaning same call id contact " << (*it)->mContactId << "(" << ec->mCallId << ")";
 			if (listener) listener->onContactUpdated(ec);
 			it = mContacts.erase(it);
 		} else if (!olderEc || olderEc->mUpdatedTime > (*it)->mUpdatedTime) {
