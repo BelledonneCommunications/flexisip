@@ -482,14 +482,14 @@ class OnRequestBindListener : public ContactUpdateListener {
 					if (tport_get_user_data(this->mEv->getIncomingTport().get()) != NULL)
 						delete((uint64_t*)tport_get_user_data(this->mEv->getIncomingTport().get()));
 					tport_set_user_data(this->mEv->getIncomingTport().get(), (void*)new_reg_id);
-					LOGD("Adding reg id to new tport: 0x%" PRIx64, ec->mRegId);
+					SLOGD << "Adding reg id to new tport: " << hex << ec->mRegId;
 				}
 
 				if (old_tport && this->mEv->getIncomingTport().get() != old_tport
 						&& (tport_get_user_data(old_tport) == NULL
 						|| *(uint64_t *)tport_get_user_data(this->mEv->getIncomingTport().get())
 							== *(uint64_t *)tport_get_user_data(old_tport))) {
-					LOGD("Removing old tport for sip uri %s", ExtendedContact::urlToString(ec->mSipUri).c_str());
+					SLOGD << "Removing old tport for sip uri " << ExtendedContact::urlToString(ec->mSipUri);
 					// Remove data if set
 					if (tport_get_user_data(old_tport) != NULL)
 						delete((uint64_t*)tport_get_user_data(old_tport));
@@ -497,8 +497,8 @@ class OnRequestBindListener : public ContactUpdateListener {
 					tport_shutdown(old_tport, 2);
 				}
 			} else
-				LOGE("OnRequestBindListener::ContactUpdated: tport_name_by_url() failed for sip uri %s",
-						ExtendedContact::urlToString(ec->mSipUri).c_str());
+				SLOGE << "OnRequestBindListener::ContactUpdated: tport_name_by_url() failed for sip uri "
+						<< ExtendedContact::urlToString(ec->mSipUri);
 		}
 	}
 
