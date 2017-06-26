@@ -163,6 +163,12 @@ struct ExtendedContact {
 	sip_route_t *toSofiaRoute(su_home_t *home) const;
 };
 
+template <typename TraitsT>
+inline std::basic_ostream<char, TraitsT> &operator<<(std::basic_ostream<char, TraitsT> &strm, const ExtendedContact &ec) {
+	ec.print(strm);
+	return strm;
+}
+
 class Record {
 	friend class RegistrarDb;
 
