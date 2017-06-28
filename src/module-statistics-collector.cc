@@ -66,6 +66,8 @@ void StatisticsCollector::onDeclare(GenericStruct *module_config) {
 
 	/* modify the default value for "enabled" */
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
+	module_config->get<ConfigBooleanExpression>("filter")
+		->setDefault("is_request && request.method-name == 'PUBLISH'");
 }
 
 void StatisticsCollector::onLoad(const GenericStruct *mc) {
@@ -90,7 +92,7 @@ void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent> &ev) throw(Flexi
 	// verify collector address AND content type
 	url.url_type = url_sip; /*workaround the fact that we could receive the publish as sips .*/
 	if (mCollectorAddress && (url_cmp(mCollectorAddress, &url) == 0)) {
-		if ((strcmp("application/vq-rtcpxr", sip->sip_content_type->c_type) == 0) &&
+		if (sip->sip_content_type && (strcmp("application/vq-rtcpxr", sip->sip_content_type->c_type) == 0) &&
 			(strcmp("vq-rtcpxr", sip->sip_content_type->c_subtype) == 0)) {
 			// some treatment
 			int err = managePublishContent(ev);
