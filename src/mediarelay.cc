@@ -73,6 +73,7 @@ RelayChannel::RelayChannel(RelaySession *relaySession, const std::pair<std::stri
 	mPacketsSent = 0;
 	mPreventLoop = preventLoops;
 	mHasMultipleTargets = false;
+	mDestAddrChanged = false;
 }
 
 bool RelayChannel::checkSocketsValid() {
@@ -116,6 +117,11 @@ void RelayChannel::setRemoteAddr(const string &ip, int port, Dir dir) {
 		struct addrinfo hints = {0};
 		char portstr[20];
 		int err;
+		
+		if (mDestAddrChanged){
+			LOGW("RelayChannel [%p] is being set new destination address but was fixed previously in this session, so ignoring this request.", this);
+			return;
+		}
 
 		snprintf(portstr, sizeof(portstr), "%i", port);
 		hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
@@ -164,10 +170,19 @@ bool RelayChannel::checkPollFd(const PollFd *pfd, int i) {
 }
 
 int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
-	socklen_t addrsize = sizeof(mSockAddr[i]);
-	int err = recvfrom(mSockets[i], buf, buflen, 0, (struct sockaddr *)&mSockAddr[i], &addrsize);
+	struct sockaddr_storage ss;
+	socklen_t addrsize = sizeof(ss);
+	
+	int err = recvfrom(mSockets[i], buf, buflen, 0, (struct sockaddr *)&ss, &addrsize);
 	if (err > 0) {
 		mPacketsReceived++;
+		if (addrsize != mSockAddrSize[i] || memcmp(&ss, &mSockAddr[i], addrsize) != 0 ){
+			LOGD("RelayChannel[%p] destination address changed.", this);
+			mSockAddrSize[i] = addrsize;
+			memcpy(&mSockAddr[i], &ss, addrsize);
+			mDestAddrChanged = true;
+		}
+		
 		mSockAddrSize[i] = addrsize;
 		if (mDir == SendOnly || mDir == Inactive) {
 			/*LOGD("ignored packet");*/

@@ -1,4 +1,4 @@
-/*
+ /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
 	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
@@ -240,7 +240,7 @@ class RelayChannel : public SdpMasqueradeContext{
 	int mRemotePort;
 	RtpSession *mSession;
 	int mSockets[2];
-	struct sockaddr_storage mSockAddr[2];
+	struct sockaddr_storage mSockAddr[2]; /*the destination address in use*/
 	socklen_t mSockAddrSize[2];
 	std::shared_ptr<MediaFilter> mFilter;
 	int mPfdIndex;
@@ -248,6 +248,7 @@ class RelayChannel : public SdpMasqueradeContext{
 	uint64_t mPacketsReceived;
 	bool mPreventLoop;
 	bool mHasMultipleTargets;
+	bool mDestAddrChanged;
 };
 
 #endif
