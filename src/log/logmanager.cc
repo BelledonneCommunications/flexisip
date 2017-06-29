@@ -120,11 +120,8 @@ namespace flexisip {
 				std::ostringstream stringStream;
 				stringStream << "Writing logs in : " << copyOfStr << "\n";
 				str = stringStream.str();
-				if(syslog) {
-					::syslog(LOG_INFO, str.c_str(), str.size());
-				} else {
-					printf("%s", str.c_str());
-				}
+				if(syslog) ::syslog(LOG_INFO, str.c_str(), str.size());
+				else printf("%s", str.c_str());
 				
 				std::ostringstream nameStream;
 				nameStream << "FlexisipLogs_" << fName << ".log";
@@ -138,7 +135,6 @@ namespace flexisip {
 				str = stringStream.str();
 				if(syslog) ::syslog(LOG_INFO, str.c_str(), str.size());
 				else printf("%s", str.c_str());
-				}
 			}
 		}
 
