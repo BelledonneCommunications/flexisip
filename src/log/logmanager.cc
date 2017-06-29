@@ -99,11 +99,8 @@ namespace flexisip {
 				setlogmask(~0);
 				bctbx_log_handler_t *syshandler = bctbx_create_log_handler(syslogHandler, bctbx_logv_out_destroy, NULL);
 				if(syshandler) bctbx_add_log_handler(syshandler);
-				else if(syslog) {
-					::syslog(LOG_WARNING, "Could not create syslog handler");
-				} else {
-					printf("Warning : Could not create syslog handler");
-				}
+				else if(syslog) ::syslog(LOG_WARNING, "Could not create syslog handler");
+				else printf("Warning : Could not create syslog handler");
 			} else {
 				/*
 				bctbx_log_handler_t *defaulthandler = bctbx_create_log_handler(defaultLogHandler, bctbx_logv_out_destroy, NULL);
@@ -133,19 +130,14 @@ namespace flexisip {
 				nameStream << "FlexisipLogs_" << fName << ".log";
 				bctbx_log_handler_t *handler = bctbx_create_file_log_handler(max_size, DEFAULT_LOG_DIR, nameStream.str().c_str(), f);
 				if(handler) bctbx_add_log_handler(handler);
-				else if(syslog) {
-					::syslog(LOG_WARNING, "Could not create file handler");
-				} else {
-					printf("Warning : Could not create file handler");
-				}
+				else if(syslog) ::syslog(LOG_WARNING, "Could not create file handler");
+				else printf("Warning : Could not create file handler");
 			} else {
 				std::ostringstream stringStream;
 				stringStream << "Error while writing logs in : " << copyOfStr << "\n";
 				str = stringStream.str();
-				if(syslog) {
-					::syslog(LOG_INFO, str.c_str(), str.size());
-				} else {
-					printf("%s", str.c_str());
+				if(syslog) ::syslog(LOG_INFO, str.c_str(), str.size());
+				else printf("%s", str.c_str());
 				}
 			}
 		}
