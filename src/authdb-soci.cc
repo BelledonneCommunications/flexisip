@@ -278,10 +278,10 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,A
 		
 		for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
 			row const& row = *it;
-			string phone = row.get<string>(2);
-			string domain = row.get<string>(1);
 			string user = row.get<string>(0);
+			string phone = (row.size() >= 2) ? row.get<string>(2) : "";
 			if(phone != "") {
+				string domain = row.get<string>(1);
 				cacheUserWithPhone(phone, domain, user);
 				users.insert(phone);
 			} else {
