@@ -819,7 +819,7 @@ GenericManager::GenericManager()
 		 "Path to the directory where TLS server certificate and private key can be found,"
 		 " concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'. "
 		 "The setup of agent.pem, and eventually cafile.pem is required for TLS transport to work.",
-		 "/etc/flexisip/tls"},
+		 "/etc/flexisip/tls/"},
 		{Integer, "idle-timeout", "Time interval in seconds after which inactive connections are closed.", "3600"},
 		{Boolean, "require-peer-certificate", "Require client certificate from peer (inbound connections only).", "false"},
 		{Integer, "transaction-timeout", "SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.",
