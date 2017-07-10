@@ -604,6 +604,7 @@ int main(int argc, char *argv[]) {
 	TCLAP::CmdLine cmd("", ' ', versionString);
 	TCLAP::ValueArg<string>     functionName("", "server", 		"Specify the server function to operate: 'proxy', 'presence', or 'all'.", TCLAP::ValueArgOptional, "", "server function", cmd);
 	TCLAP::ValueArg<string>     configFile("c", "config", 			"Specify the location of the configuration file.", TCLAP::ValueArgOptional, CONFIG_DIR "/flexisip.conf", "file", cmd);
+	TCLAP::ValueArg<string>     pkcsFile("", "p12-passphrase-file", "Specify the location of the pkcs12 passphrase file.", TCLAP::ValueArgOptional,"", "file", cmd);
 	TCLAP::SwitchArg            daemonMode("",  "daemon", 			"Launch in daemon mode.", cmd);
 	TCLAP::SwitchArg              useDebug("d", "debug", 			"Force debug mode (overrides the configuration).", cmd);
 	TCLAP::ValueArg<string>        pidFile("p", "pidfile", 			"PID file location, used when running in daemon mode.", TCLAP::ValueArgOptional, "", "file", cmd);
@@ -779,7 +780,6 @@ int main(int argc, char *argv[]) {
 	}
 	flexisip::log::initLogs(useSyslog, debug ? "debug" : log_level, syslog_level, user_errors, useDebug.getValue());
 	//flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
-	
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGTERM, flexisip_stop);
 	signal(SIGINT, flexisip_stop);
@@ -844,7 +844,18 @@ int main(int argc, char *argv[]) {
 	a = make_shared<Agent>(root);
 	
 	if (startProxy){
-		a->start(transportsArg.getValue());
+		string passphrase = "";
+		if(pkcsFile.getValue() != "") {
+		ifstream dacb(pkcsFile.getValue());
+			if(!dacb.is_open()) {
+				SLOGE << "Can't open pkcs passphrase file : " << pkcsFile.getValue();
+			} else {
+				while(!dacb.eof()){
+					dacb >> passphrase;
+				}
+			}
+		}
+		a->start(transportsArg.getValue(), passphrase);
 		setOpenSSLThreadSafe();
 	#ifdef ENABLE_SNMP
 		bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();

@@ -199,7 +199,7 @@ bool getBoolUriParameter(const url_t *url, const char *param, bool defaultValue)
 }
 
 
-void Agent::start(const std::string &transport_override) {
+void Agent::start(const std::string &transport_override, const std::string passphrase) {
 	char cCurrDir[FILENAME_MAX];
 	if (!getcwd(cCurrDir, sizeof(cCurrDir))) {
 		LOGA("Could not get current file path");
@@ -261,7 +261,7 @@ void Agent::start(const std::string &transport_override) {
 
 			checkAllowedParams(url);
 
-			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()),
+			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()), TPTAG_TLS_PASSPHRASE(passphrase.c_str()),
 									  TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
 									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
 									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TAG_END());

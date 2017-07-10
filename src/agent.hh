@@ -109,7 +109,7 @@ class Agent : public IncomingAgent,
 
   public:
 	Agent(su_root_t *root);
-	void start(const std::string &transport_override);
+	void start(const std::string &transport_override, const std::string passphrase);
 	virtual void loadConfig(GenericManager *cm);
 	virtual void unloadConfig();
 	virtual ~Agent();
