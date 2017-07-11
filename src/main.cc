@@ -846,7 +846,7 @@ int main(int argc, char *argv[]) {
 	if (startProxy){
 		string passphrase = "";
 		if(pkcsFile.getValue() != "") {
-		ifstream dacb(pkcsFile.getValue());
+			ifstream dacb(pkcsFile.getValue());
 			if(!dacb.is_open()) {
 				SLOGE << "Can't open pkcs passphrase file : " << pkcsFile.getValue();
 			} else {
