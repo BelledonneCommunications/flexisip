@@ -51,7 +51,7 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 		 "Soci SQL request to execute to obtain the usernames associated with phones aliases.\n"
 		 "Named parameters are:\n -':phones' : the phones to search for.\n"
 		 "The use of the :phones parameter is mandatory.",
-		 "select login, domain, phone from accounts where phone in :phones"},
+		 "select login, domain, phone from accounts where phone in (:phones)"},
 
 		{Integer, "soci-poolsize",
 		 "Size of the pool of connections that Soci will use. We open a thread for each DB query, and this pool will "
