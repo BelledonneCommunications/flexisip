@@ -126,22 +126,7 @@ struct ExtendedContact {
 		mSipUri = url_hdup(mHome.home(), uri);
 	}
 
-	void transfertRegId(const std::shared_ptr<ExtendedContact> &oldEc) {
-		// Transfert param RegId from oldEc to this
-		char strRegid[32] = {0};
-		if (oldEc->mRegId > 0 &&
-				(url_param(this->mSipUri->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0 &&
-				std::strtoull(strRegid, NULL, 16) != oldEc->mRegId)
-			) {
-			std::ostringstream os;
-			url_t *sipUri = url_hdup(this->mHome.home(), this->mSipUri);
-			os << "regid=" << std::hex << oldEc->mRegId;
-			sipUri->url_params = url_strip_param_string(su_strdup(this->mHome.home(), this->mSipUri->url_params), "regid");
-			url_param_add(this->mHome.home(), sipUri, os.str().c_str());
-			this->setSipUri(sipUri);
-			this->mRegId = oldEc->mRegId;
-		}
-	}
+	void transfertRegId(const std::shared_ptr<ExtendedContact> &oldEc);
 
 	ExtendedContact(const ExtendedContactCommon &common, sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)

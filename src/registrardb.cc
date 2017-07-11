@@ -64,21 +64,39 @@ ostream &ExtendedContact::print(std::ostream &stream, time_t _now, time_t _offse
 	return stream;
 }
 
+void ExtendedContact::transfertRegId(const std::shared_ptr<ExtendedContact> &oldEc) {
+	// Transfert param RegId from oldEc to this
+	char strRegid[32] = {0};
+	if (oldEc->mRegId > 0 &&
+			(url_param(this->mSipUri->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0 &&
+			std::strtoull(strRegid, NULL, 16) != oldEc->mRegId)
+		) {
+		std::ostringstream os;
+		url_t *sipUri = url_hdup(this->mHome.home(), this->mSipUri);
+		os << "regid=" << std::hex << oldEc->mRegId;
+		sipUri->url_params = url_strip_param_string(su_strdup(this->mHome.home(), this->mSipUri->url_params), "regid");
+		url_param_add(this->mHome.home(), sipUri, os.str().c_str());
+		this->setSipUri(sipUri);
+		this->mRegId = oldEc->mRegId;
+	}
+}
+
 sip_contact_t *ExtendedContact::toSofiaContact(su_home_t *home, time_t now) const {
 	sip_contact_t *contact = NULL;
 	time_t expire = mExpireAt - now;
 	if (expire <= 0)
 		return NULL;
-
+	
 	ostringstream oss;
-	oss << "<" << mSipUri << ">";
-	oss << ";expires=" << expire;
+	oss << "expires=" << expire;
 	if (mQ == 0.f) {
 		oss.setf(ios::fixed, ios::floatfield);
 		oss << std::setprecision(2) << std::setw(4);
 		oss << ";q=" << mQ;
 	}
-	contact = sip_contact_make(home, oss.str().c_str());
+	contact = sip_contact_create(home, (url_string_t*)mSipUri, oss.str().c_str(), NULL);
+	/*strip out reg-id that shall not go out to the network*/
+	contact->m_url->url_params = url_strip_param_string(su_strdup(home, contact->m_url->url_params), "regid");
 	return contact;
 }
 
