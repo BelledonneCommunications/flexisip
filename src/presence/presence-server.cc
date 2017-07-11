@@ -63,7 +63,7 @@ PresenceServer::Init::Init() {
 	ConfigItemDescriptor items[] = {
 									{Boolean, "enabled", "Enable presence server", "true"},
 									{StringList, "transports",
-									 "List of white space separated SIP uris where the presence server must listen.",
+									 "List of white space separated SIP uris where the presence server must listen. Must not be tls.",
 									 "sip:127.0.0.1:5065;transport=tcp"},
 									 {Integer, "expires", "Publish default expires in second.  by default.", "600"},
 									{Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
@@ -151,6 +151,10 @@ void PresenceServer::_start(bool withThread) throw(FlexisipException) {
 								  ->read();
 
 	for (auto it = transports.begin(); it != transports.end(); ++it) {
+		string transport = *it;
+		if(transport.find("sips") != string::npos || transport.find("transport=tls") != string::npos) {
+			LOGF("Impossible to start presence server, TLS transport is not supported by the presence server.");
+		}
 		belle_sip_uri_t *uri = belle_sip_uri_parse(it->c_str());
 		if (uri) {
 			belle_sip_listening_point_t *lp = belle_sip_stack_create_listening_point(
