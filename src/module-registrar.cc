@@ -770,7 +770,8 @@ void ModuleRegistrar::readStaticRecords() {
 		su_home_init(&home);
 		sip_path_t *path = sip_path_format(&home, "%s", getAgent()->getPreferredRoute().c_str());
 		mStaticRecordsVersion++;
-		while (file.good() && getline(file, line).good()) {
+		while (file.good() && !file.eof()) {
+			getline(file, line);
 			size_t i;
 			bool is_a_comment = false;
 			for (i = 0; i < line.size(); ++i) {
