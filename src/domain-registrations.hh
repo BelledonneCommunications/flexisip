@@ -35,7 +35,7 @@ class Agent;
 class DomainRegistration {
   public:
 	DomainRegistration(DomainRegistrationManager &mgr, const std::string &localDomain, const url_t *parent_proxy,
-					   const std::string &clientCertdir, int lineIndex);
+					   const std::string &clientCertdir, const std::string &passphrase, int lineIndex);
 	void start();
 	void stop();
 	bool isUs(const url_t *url);
@@ -89,6 +89,7 @@ class DomainRegistrationManager {
 	GenericStruct *mDomainRegistrationArea; /*this is used to place statistics values*/
 	int mKeepaliveInterval;
 	bool mVerifyServerCerts;
+	std::string mPassphrase;
 };
 
 #endif

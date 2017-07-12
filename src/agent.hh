@@ -203,6 +203,7 @@ class Agent : public IncomingAgent,
 	su_home_t mHome;
 	EventLogWriter *mLogWriter;
 	DomainRegistrationManager *mDrm;
+	std::string mPassphrase;
 	static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t *msg, sip_t *sip);
 	bool mTerminating;
 };

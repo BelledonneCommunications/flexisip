@@ -260,8 +260,8 @@ void Agent::start(const std::string &transport_override, const std::string passp
 			}
 
 			checkAllowedParams(url);
-
-			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()), TPTAG_TLS_PASSPHRASE(passphrase.c_str()),
+			mPassphrase = passphrase;
+			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()), TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()),
 									  TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
 									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
 									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TAG_END());
@@ -507,7 +507,9 @@ void Agent::loadConfig(GenericManager *cm) {
 		(*it)->load();
 	}
 	if (mDrm)
+		mDrm->mPassphrase = mPassphrase;
 		mDrm->load();
+		mPassphrase = "";
 }
 
 void Agent::unloadConfig() {

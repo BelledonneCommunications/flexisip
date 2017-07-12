@@ -162,7 +162,8 @@ int DomainRegistrationManager::load() {
 		if (url_param(url->url_params, "tls-certificates-dir", clientCertdir, sizeof(clientCertdir)) > 0) {
 			url->url_params = url_strip_param_string(su_strdup(home.home(), url->url_params), "tls-certificates-dir");
 		}
-		auto dr = make_shared<DomainRegistration>(*this, domain, url, clientCertdir, lineIndex);
+		auto dr = make_shared<DomainRegistration>(*this, domain, url, clientCertdir, mPassphrase.c_str(), lineIndex);
+		mPassphrase = "";
 		lineIndex++;
 		mRegistrations.push_back(dr);
 	} while (!ifs.eof() && !ifs.bad());
@@ -193,7 +194,7 @@ const url_t *DomainRegistrationManager::getPublicUri(const tport_t *tport) const
 }
 
 DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const string &localDomain,
-									   const url_t *parent_proxy, const string &clientCertdir, int lineIndex)
+									   const url_t *parent_proxy, const string &clientCertdir, const string &passphrase, int lineIndex)
 	: mManager(mgr){
 	char transport[64] = {0};
 	tp_name_t tpn = {0};
@@ -229,7 +230,7 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 				url_t *tportUri = NULL;
 				tportUri = url_format(&mHome, "sips:%s:0", (*it).c_str());
 				/* need to add a new tport because we want to use a specific certificate for this connection*/
-				nta_agent_add_tport(agent, (url_string_t *)tportUri, TPTAG_CERTIFICATE(clientCertdir.c_str()),
+				nta_agent_add_tport(agent, (url_string_t *)tportUri, TPTAG_CERTIFICATE(clientCertdir.c_str()), TPTAG_TLS_PASSPHRASE(passphrase.c_str()),
 									TPTAG_IDENT(localDomain.c_str()),
 									TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TAG_END());
 				tpn.tpn_ident = localDomain.c_str();
