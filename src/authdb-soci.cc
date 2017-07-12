@@ -216,7 +216,17 @@ void SociAuthDB::getUserWithPhoneWithPool(const std::string &phone, const std::s
 		if(get_user_with_phone_request != "") {
 			*sql << get_user_with_phone_request, into(user), use(phone, "phone");
 		} else {
-			*sql << get_users_with_phones_request, into(user), use(phone, "phones");
+			string s = get_users_with_phones_request;
+			int index = s.find(":phones");
+			while(index > -1) {
+				s = s.replace(index, 7, phone);
+				index = s.find(":phones");
+			}
+			rowset<row> ret = (sql->prepare << s);
+			for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
+				row const& row = *it;
+				user = row.get<string>(0);
+			}
 		}
 		stop = steady_clock::now();
 		if (!user.empty())  {
