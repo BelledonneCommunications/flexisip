@@ -507,8 +507,7 @@ void Agent::loadConfig(GenericManager *cm) {
 		(*it)->load();
 	}
 	if (mDrm)
-		mDrm->mPassphrase = mPassphrase;
-		mDrm->load();
+		mDrm->load(mPassphrase);
 		mPassphrase = "";
 }
 

@@ -71,7 +71,7 @@ class DomainRegistrationManager {
 
   public:
 	DomainRegistrationManager(Agent *agent);
-	int load();
+	int load(std::string passphrase);
 	/**
 	 * check is url is a local contact of any existing domain registration.
 	 */
@@ -89,7 +89,6 @@ class DomainRegistrationManager {
 	GenericStruct *mDomainRegistrationArea; /*this is used to place statistics values*/
 	int mKeepaliveInterval;
 	bool mVerifyServerCerts;
-	std::string mPassphrase;
 };
 
 #endif

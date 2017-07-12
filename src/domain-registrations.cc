@@ -101,7 +101,7 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 DomainRegistrationManager::~DomainRegistrationManager() {
 }
 
-int DomainRegistrationManager::load() {
+int DomainRegistrationManager::load(string passphrase) {
 	ifstream ifs;
 	string configFile;
 	int lineIndex = 0;
@@ -162,8 +162,7 @@ int DomainRegistrationManager::load() {
 		if (url_param(url->url_params, "tls-certificates-dir", clientCertdir, sizeof(clientCertdir)) > 0) {
 			url->url_params = url_strip_param_string(su_strdup(home.home(), url->url_params), "tls-certificates-dir");
 		}
-		auto dr = make_shared<DomainRegistration>(*this, domain, url, clientCertdir, mPassphrase.c_str(), lineIndex);
-		mPassphrase = "";
+		auto dr = make_shared<DomainRegistration>(*this, domain, url, clientCertdir, passphrase.c_str(), lineIndex);
 		lineIndex++;
 		mRegistrations.push_back(dr);
 	} while (!ifs.eof() && !ifs.bad());
