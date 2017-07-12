@@ -21,7 +21,7 @@
 
 using namespace std;
 
-struct MyListener : public RegistrarDbListener {
+struct MyListener : public ContactUpdateListener {
 	RegistrarDb::BindParameters params;
 	MyListener(const RegistrarDb::BindParameters &params) : params(params){};
 	virtual void onRecordFound(Record *r) {
@@ -37,6 +37,8 @@ struct MyListener : public RegistrarDbListener {
 	}
 	virtual void onInvalid() {
 		BAD("RegistrarDbListener:invalid");
+	}
+	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) {
 	}
 };
 

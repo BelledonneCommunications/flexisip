@@ -351,7 +351,7 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	return true;
 }
 
-class OnContactRegisteredListener : public ContactRegisteredListener, public RegistrarDbListener, public enable_shared_from_this<OnContactRegisteredListener> {
+class OnContactRegisteredListener : public ContactRegisteredListener, public ContactUpdateListener, public enable_shared_from_this<OnContactRegisteredListener> {
 	friend class ModuleRouter;
 	ModuleRouter *mModule;
 	const url_t *mSipUri;
@@ -384,10 +384,11 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Reg
 		}
 	}
 	void onError() {
-
 	}
 	void onInvalid() {
+	}
 
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
 	}
 };
 
@@ -395,7 +396,7 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 	SofiaAutoHome home;
 	sip_path_t *path = NULL;
 	sip_contact_t *contact = NULL;
-	
+
 	if (aor == NULL) {
 		SLOGE << "aor was null...";
 		return;
@@ -704,13 +705,13 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 	}
 }
 
-class PreroutingFetcher : public RegistrarDbListener,
+class PreroutingFetcher : public ContactUpdateListener,
 						  public enable_shared_from_this<PreroutingFetcher>,
 						  private ModuleToolbox {
 	friend class ModuleRouter;
 	ModuleRouter *mModule;
 	shared_ptr<RequestSipEvent> mEv;
-	shared_ptr<RegistrarDbListener> mListener;
+	shared_ptr<ContactUpdateListener> mListener;
 	vector<string> mPreroutes;
 	int pending;
 	bool error;
@@ -718,7 +719,7 @@ class PreroutingFetcher : public RegistrarDbListener,
 
   public:
 	PreroutingFetcher(ModuleRouter *module, shared_ptr<RequestSipEvent> ev,
-					  const shared_ptr<RegistrarDbListener> &listener, const vector<string> &preroutes)
+					  const shared_ptr<ContactUpdateListener> &listener, const vector<string> &preroutes)
 		: mModule(module), mEv(ev), mListener(listener), mPreroutes(preroutes) {
 		pending = 0;
 		error = false;
@@ -762,6 +763,9 @@ class PreroutingFetcher : public RegistrarDbListener,
 		checkFinished();
 	}
 
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+	}
+
 	void checkFinished() {
 		if (pending != 0)
 			return;
@@ -772,13 +776,13 @@ class PreroutingFetcher : public RegistrarDbListener,
 	}
 };
 
-class TargetUriListFetcher : public RegistrarDbListener,
+class TargetUriListFetcher : public ContactUpdateListener,
 							 public enable_shared_from_this<TargetUriListFetcher>,
 							 private ModuleToolbox {
 	friend class ModuleRouter;
 	ModuleRouter *mModule;
 	shared_ptr<RequestSipEvent> mEv;
-	shared_ptr<RegistrarDbListener> mListener;
+	shared_ptr<ContactUpdateListener> mListener;
 	sip_route_t *mUriList; /*it is parsed as a route but is not a route*/
 	int mPending;
 	Record *mRecord;
@@ -786,7 +790,7 @@ class TargetUriListFetcher : public RegistrarDbListener,
 
   public:
 	TargetUriListFetcher(ModuleRouter *module, const shared_ptr<RequestSipEvent> &ev,
-						 const shared_ptr<RegistrarDbListener> &listener, sip_unknown_t *target_uris)
+						 const shared_ptr<ContactUpdateListener> &listener, sip_unknown_t *target_uris)
 		: mModule(module), mEv(ev), mListener(listener) {
 		mPending = 0;
 		mError = false;
@@ -835,6 +839,9 @@ class TargetUriListFetcher : public RegistrarDbListener,
 		checkFinished();
 	}
 
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+	}
+
 	void checkFinished() {
 		if (mPending != 0)
 			return;
@@ -856,7 +863,7 @@ class TargetUriListFetcher : public RegistrarDbListener,
 	}
 };
 
-class OnFetchForRoutingListener : public RegistrarDbListener {
+class OnFetchForRoutingListener : public ContactUpdateListener {
 	friend class ModuleRouter;
 	ModuleRouter *mModule;
 	shared_ptr<RequestSipEvent> mEv;
@@ -882,6 +889,9 @@ class OnFetchForRoutingListener : public RegistrarDbListener {
 	void onInvalid() {
 		LOGD("OnFetchForRoutingListener::onInvalid : 400 - Replayed CSeq");
 		mModule->sendReply(mEv, 400, "Replayed CSeq");
+	}
+
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
 	}
 };
 
@@ -931,7 +941,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipExce
 			ev->createIncomingTransaction();
 			sendReply(ev, SIP_100_TRYING);
 			auto onRoutingListener = make_shared<OnFetchForRoutingListener>(this, ev, sipurl);
-			
+
 			if (mPreroute.empty()) {
 				/*the unstandard X-Target-Uris header gives us a list of SIP uri to which the request is to be forked.*/
 				sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-Target-Uris");

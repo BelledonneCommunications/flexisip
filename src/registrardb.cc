@@ -156,7 +156,8 @@ const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(std::string u
 /**
  * Should first have checked the validity of the register with isValidRegister.
  */
-void Record::clean(const sip_contact_t *sip, const std::string &call_id, uint32_t cseq, time_t now, int version) {
+void Record::clean(const sip_contact_t *sip, const std::string &call_id, uint32_t cseq, time_t now, int version,
+					const std::shared_ptr<ContactUpdateListener> &listener) {
 	if (mContacts.begin() == mContacts.end()) {
 		return;
 	}
@@ -171,12 +172,18 @@ void Record::clean(const sip_contact_t *sip, const std::string &call_id, uint32_
 		shared_ptr<ExtendedContact> ec = (*it);
 		if (now >= ec->mExpireAt) {
 			SLOGD << "Cleaning expired contact " << ec->mContactId;
+			if (listener)
+				listener->onContactUpdated(ec);
 			it = mContacts.erase(it);
 		} else if (ec->line() && lineValuePtr != NULL && 0 == strcmp(ec->line(), lineValuePtr)) {
 			SLOGD << "Cleaning older line '" << lineValuePtr << "' for contact " << ec->mContactId;
+			if (listener)
+				listener->onContactUpdated(ec);
 			it = mContacts.erase(it);
 		} else if (0 == strcmp(ec->callId(), call_id.c_str())) {
 			SLOGD << "Cleaning same call id contact " << ec->contactId() << "(" << call_id << ")";
+			if (listener)
+				listener->onContactUpdated(ec);
 			it = mContacts.erase(it);
 		} else {
 			++it;
@@ -224,11 +231,13 @@ void Record::clean(const sip_contact_t *sip, const std::string &call_id, uint32_
 /**
  * Should first have checked the validity of the register with isValidRegister.
  */
-void Record::clean(time_t now) {
+void Record::clean(time_t now, const std::shared_ptr<ContactUpdateListener> &listener) {
 	auto it = mContacts.begin();
 	while (it != mContacts.end()) {
 		shared_ptr<ExtendedContact> ec = (*it);
 		if (now >= ec->mExpireAt) {
+			if (listener)
+				listener->onContactUpdated(ec);
 			it = mContacts.erase(it);
 		} else {
 			++it;
@@ -280,17 +289,18 @@ string Record::defineKeyFromUrl(const url_t *url) {
 }
 
 
-void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec) {
+void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener) {
 	// Try to locate an existing contact
 	shared_ptr<ExtendedContact> olderEc;
-	
+
 	if (sAssumeUniqueDomains && mIsDomain){
 		mContacts.clear();
 	}
-	
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		if (0 == strcmp(ec->contactId(), (*it)->contactId())) {
 			LOGD("Removing older contact with same id %s", (*it)->contactId());
+			if (listener)
+				listener->onContactUpdated(ec);
 			mContacts.erase(it);
 			mContacts.push_back(ec);
 			return;
@@ -320,7 +330,8 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 }
 
 void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,
-					uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute) {
+					uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute,
+					const std::shared_ptr<ContactUpdateListener> &listener) {
 	sip_contact_t *c = (sip_contact_t *)contacts;
 	list<string> stlPath;
 
@@ -353,7 +364,8 @@ void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int g
 		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr);
 		auto exc = make_shared<ExtendedContact>(ecc, c, globalExpire, cseq, now, alias, accept);
 		exc->mUsedAsRoute = usedAsRoute;
-		insertOrUpdateBinding(exc);
+		exc->setRegId(strtoul(exc->mContactId.c_str(), NULL, 10));
+		insertOrUpdateBinding(exc, listener);
 		c = c->m_next;
 	}
 
@@ -361,10 +373,12 @@ void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int g
 }
 
 void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long expireAt, float q, uint32_t cseq,
-					time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute) {
+					time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute,
+					const std::shared_ptr<ContactUpdateListener> &listener) {
 	auto exct = make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias, accept);
 	exct->mUsedAsRoute = usedAsRoute;
-	insertOrUpdateBinding(exct);
+	exct->setRegId(strtoul(exct->mContactId.c_str(), NULL, 10));
+	insertOrUpdateBinding(exct, listener);
 }
 
 void Record::print(std::ostream &stream) const {
@@ -556,15 +570,15 @@ RegistrarDb *RegistrarDb::get() {
 	return sUnique;
 }
 
-void RegistrarDb::clear(const sip_t *sip, const shared_ptr<RegistrarDbListener> &listener) {
+void RegistrarDb::clear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
 	doClear(sip, listener);
 }
 
-class RecursiveRegistrarDbListener : public RegistrarDbListener,
+class RecursiveRegistrarDbListener : public ContactUpdateListener,
 									 public enable_shared_from_this<RecursiveRegistrarDbListener> {
   private:
 	RegistrarDb *m_database;
-	shared_ptr<RegistrarDbListener> mOriginalListener;
+	shared_ptr<ContactUpdateListener> mOriginalListener;
 	Record *m_record;
 	su_home_t m_home;
 	int m_request;
@@ -573,7 +587,7 @@ class RecursiveRegistrarDbListener : public RegistrarDbListener,
 	static int sMaxStep;
 
   public:
-	RecursiveRegistrarDbListener(RegistrarDb *database, const shared_ptr<RegistrarDbListener> &original_listerner,
+	RecursiveRegistrarDbListener(RegistrarDb *database, const shared_ptr<ContactUpdateListener> &original_listerner,
 								 const url_t *url, int step = sMaxStep)
 		: m_database(database), mOriginalListener(original_listerner), m_request(1), m_step(step) {
 		m_record = new Record(url);
@@ -637,6 +651,9 @@ class RecursiveRegistrarDbListener : public RegistrarDbListener,
 		}
 	}
 
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+	}
+
   private:
 	shared_ptr<ExtendedContact> transformContactUsedAsRoute(const char *uri, const shared_ptr<ExtendedContact> &ec) {
 		/*this function does the following:
@@ -678,14 +695,17 @@ int RecursiveRegistrarDbListener::sMaxStep = 1;
 RegistrarDbListener::~RegistrarDbListener() {
 }
 
+ContactUpdateListener::~ContactUpdateListener() {
+}
+
 ContactRegisteredListener::~ContactRegisteredListener() {
 }
 
-void RegistrarDb::fetch(const url_t *url, const shared_ptr<RegistrarDbListener> &listener, bool recursive) {
+void RegistrarDb::fetch(const url_t *url, const shared_ptr<ContactUpdateListener> &listener, bool recursive) {
 	fetch(url, listener, false, recursive);
 }
 
-void RegistrarDb::fetch(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener, bool includingDomains,
+void RegistrarDb::fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains,
 						bool recursive) {
 	if (includingDomains) {
 		fetchWithDomain(url, listener, recursive);
@@ -698,9 +718,9 @@ void RegistrarDb::fetch(const url_t *url, const std::shared_ptr<RegistrarDbListe
 	}
 }
 
-class AgregatorRegistrarDbListener : public RegistrarDbListener {
+class AgregatorRegistrarDbListener : public ContactUpdateListener {
   private:
-	shared_ptr<RegistrarDbListener> mOriginalListener;
+	shared_ptr<ContactUpdateListener> mOriginalListener;
 	int mNumRespExpected;
 	int mNumResponseObtained;
 	Record *mRecord;
@@ -722,7 +742,7 @@ class AgregatorRegistrarDbListener : public RegistrarDbListener {
 	}
 
   public:
-	AgregatorRegistrarDbListener(const shared_ptr<RegistrarDbListener> &origListener, int numResponseExpected)
+	AgregatorRegistrarDbListener(const shared_ptr<ContactUpdateListener> &origListener, int numResponseExpected)
 		: mOriginalListener(origListener), mNumRespExpected(numResponseExpected), mNumResponseObtained(0), mRecord(0) {
 		mError = false;
 	}
@@ -744,9 +764,12 @@ class AgregatorRegistrarDbListener : public RegistrarDbListener {
 		// onInvalid() will normally never be called for a fetch request
 		checkFinished();
 	}
+
+	virtual void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+	}
 };
 
-void RegistrarDb::fetchWithDomain(const url_t *url, const std::shared_ptr<RegistrarDbListener> &listener,
+void RegistrarDb::fetchWithDomain(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener,
 								  bool recursive) {
 	url_t domainOnlyUrl = *url;
 	domainOnlyUrl.url_user = NULL;
