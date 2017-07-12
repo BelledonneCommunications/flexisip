@@ -50,7 +50,8 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 		{String, "soci-users-with-phones-request",
 		 "Soci SQL request to execute to obtain the usernames associated with phones aliases.\n"
 		 "Named parameters are:\n -':phones' : the phones to search for.\n"
-		 "The use of the :phones parameter is mandatory.",
+		 "The use of the :phones parameter is mandatory.\n"
+         "If you use phone number linked accounts you'll need to select login, domain, phone in your request for flexisip to work.",
 		 "select login, domain, phone from accounts where phone in (:phones)"},
 
 		{Integer, "soci-poolsize",
