@@ -159,7 +159,7 @@ void PresenceServer::_start(bool withThread) throw(FlexisipException) {
 	for (auto it = transports.begin(); it != transports.end(); ++it) {
 		string transport = *it;
 		if(transport.find("sips") != string::npos || transport.find("transport=tls") != string::npos) {
-			LOGF("Impossible to start presence server, TLS transport is not supported by the presence server.");
+			LOGF("Unable to start presence server : TLS transport is not supported by the presence server.");
 		}
 		belle_sip_uri_t *uri = belle_sip_uri_parse(it->c_str());
 		if (uri) {
