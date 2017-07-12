@@ -45,14 +45,16 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 		{String, "soci-user-with-phone-request",
 		 "Soci SQL request to execute to obtain the username associated with a phone alias.\n"
 		 "Named parameters are:\n -':phone' : the phone number to search for.\n"
-		 "The use of the :phone parameter is mandatory.",
-		 "select login from accounts where phone = :phone"},
+		 "The use of the :phone parameter is mandatory.\n"
+		 "Example : select login from accounts where phone = :phone ",
+		 ""},
 		{String, "soci-users-with-phones-request",
 		 "Soci SQL request to execute to obtain the usernames associated with phones aliases.\n"
 		 "Named parameters are:\n -':phones' : the phones to search for.\n"
 		 "The use of the :phones parameter is mandatory.\n"
-         "If you use phone number linked accounts you'll need to select login, domain, phone in your request for flexisip to work.",
-		 "select login, domain, phone from accounts where phone in (:phones)"},
+         "If you use phone number linked accounts you'll need to select login, domain, phone in your request for flexisip to work."
+		 "Example : select login, domain, phone from accounts where phone in (:phones)",
+		 ""},
 
 		{Integer, "soci-poolsize",
 		 "Size of the pool of connections that Soci will use. We open a thread for each DB query, and this pool will "
@@ -211,8 +213,11 @@ void SociAuthDB::getUserWithPhoneWithPool(const std::string &phone, const std::s
 
 		SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
 		start = stop;
-
-		*sql << get_user_with_phone_request, into(user), use(phone, "phone");
+		if(get_user_with_phone_request != "") {
+			*sql << get_user_with_phone_request, into(user), use(phone, "phone");
+		} else {
+			*sql << get_users_with_phones_request, into(user), use(phone, "phones");
+		}
 		stop = steady_clock::now();
 		if (!user.empty())  {
 			SLOGD << "[SOCI] Got user for " << phone << " in " << DURATION_MS(start, stop) << "ms";

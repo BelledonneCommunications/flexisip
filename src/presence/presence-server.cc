@@ -144,11 +144,17 @@ PresenceServer::~PresenceServer() {
 
 void PresenceServer::_start(bool withThread) throw(FlexisipException) {
 	if (!mEnabled) return;
-	list<string> transports = GenericManager::get()
-								  ->getRoot()
-								  ->get<GenericStruct>("presence-server")
-								  ->get<ConfigStringList>("transports")
-								  ->read();
+	GenericStruct *cr = GenericManager::get()->getRoot();
+	std::string get_users_with_phones_request = cr->get<GenericStruct>("module::Authentication")
+												  ->get<ConfigString>("soci-users-with-phones-request")
+												  ->read();
+	if(get_users_with_phones_request == "") {
+		LOGF("Unable to start presence server : soci-users-with-phones-request is not precised in flexisip.conf, please fix it.");
+	}
+
+	list<string> transports = cr->get<GenericStruct>("presence-server")
+								->get<ConfigStringList>("transports")
+								->read();
 
 	for (auto it = transports.begin(); it != transports.end(); ++it) {
 		string transport = *it;
