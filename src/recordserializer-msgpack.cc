@@ -25,7 +25,7 @@
 using namespace msgpack;
 
 RecordSerializerMsgPack::RecordSerializerMsgPack() {
-		
+
 }
 
 struct MsgPackContact {
@@ -48,26 +48,26 @@ struct MsgPackContact {
 
 bool RecordSerializerMsgPack::parse(const char *str, int len, Record *r){
 	if(!str) return true;
-	
+
 	auto unpacked_obj = unpack(str, len);
 	auto obj = unpacked_obj.get();
 	std::vector<MsgPackContact> list;
 	obj.convert(list);
-	
+
 	for( auto it = list.begin(); it != list.end(); ++it) {
 		MsgPackContact &c = *it;
 		ExtendedContactCommon ecc(c.mContactId.c_str(), c.mPath, c.mCallId.c_str(), c.line.c_str());
-		r->update(ecc, c.mSipUri.c_str(), c.mExpireAt, c.mQ, c.mCSeq, c.mUpdatedTime, c.mAlias, c.mPath, c.mUsedAsRoute);
+		r->update(ecc, c.mSipUri.c_str(), c.mExpireAt, c.mQ, c.mCSeq, c.mUpdatedTime, c.mAlias, c.mPath, c.mUsedAsRoute, 0);
 	}
-	
+
 	return true;
 }
 
 
 bool RecordSerializerMsgPack::serialize(Record *r, std::string &serialized, bool log){
-	
+
 	if( !r ) return true;
-	
+
 	std::stringstream ss;
 	auto extContacts = r->getExtendedContacts();
 	std::vector<MsgPackContact> contacts;
@@ -89,7 +89,7 @@ bool RecordSerializerMsgPack::serialize(Record *r, std::string &serialized, bool
 			c->mUsedAsRoute,
 			c->line()
 		});
-		
+
 	}
 	pack(ss, contacts);
 	serialized = ss.str();

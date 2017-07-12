@@ -44,7 +44,7 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 	RegistrarDbRedisAsync *self;
 	forwardFn *fn;
 	unsigned long token;
-	const sip_contact_t *sipContact;
+	sip_contact_t *sipContact;
 	std::string calldId;
 	uint32_t csSeq;
 	shared_ptr<ContactUpdateListener> listener;
@@ -61,7 +61,8 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, const sip_contact_t *sip_contact,
 					  const std::string &calld_id, uint32_t cs_seq, const sip_path_t *p, bool alias, int version,
 					  shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn)
-		: token(0), calldId(calld_id), csSeq(cs_seq), listener(listener), record(url), globalExpire(0), alias(alias), mVersion(version), mUsedAsRoute(false) {
+		: token(0), calldId(calld_id), csSeq(cs_seq), listener(listener), record(url), globalExpire(0), alias(alias),
+			mVersion(version), mUsedAsRoute(false) {
 		su_home_init(&mHome);
 		self = s;
 		fn = forward_fn;
@@ -70,7 +71,8 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 	}
 	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, const sip_contact_t *sip_contact,
 					  const std::string &calld_id, uint32_t cs_seq, shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn)
-		: token(0), calldId(calld_id), csSeq(cs_seq), listener(listener), record(url), globalExpire(0), mVersion(0), mUsedAsRoute(false) {
+		: token(0), calldId(calld_id), csSeq(cs_seq), listener(listener), record(url), globalExpire(0), mVersion(0),
+			mUsedAsRoute(false) {
 		su_home_init(&mHome);
 		self = s;
 		fn = forward_fn;
@@ -78,7 +80,8 @@ struct RegistrarDbRedisAsync::RegistrarUserData {
 		path = NULL;
 	}
 	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn)
-		: token(0), calldId(""), csSeq(-1), listener(listener), record(url), globalExpire(0), mVersion(0), mUsedAsRoute(false) {
+		: token(0), calldId(""), csSeq(-1), listener(listener), record(url), globalExpire(0), mVersion(0),
+			mUsedAsRoute(false) {
 		su_home_init(&mHome);
 		self = s;
 		fn = forward_fn;
@@ -656,7 +659,6 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 	}
 
 	time_t now = getCurrentTime();
-	data->record.clean(data->sipContact, data->calldId, data->csSeq, now, data->mVersion, data->listener);
 	data->record.update(data->sipContact, data->path, data->globalExpire, data->calldId, data->csSeq, now, data->alias,
 						data->accept, data->mUsedAsRoute, data->listener);
 	mLocalRegExpire->update(data->record);

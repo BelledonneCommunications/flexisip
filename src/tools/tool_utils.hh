@@ -68,7 +68,7 @@ bool compare(const ExtendedContact &ec1, bool alias, const ExtendedContactCommon
 	check("cseq", ec1.mCSeq, cseq);
 	check("mExpireAt", ec1.mExpireAt, expireat);
 	check("mQ", ec1.mQ, q);
-	check("mSipUri", ec1.mSipUri, sipuri);
+	check("mSipUri", ExtendedContact::urlToString(ec1.mSipUri), sipuri);
 	check("mUpdatedTime", ec1.mUpdatedTime, updatedTime);
 
 	return true;
@@ -76,7 +76,8 @@ bool compare(const ExtendedContact &ec1, bool alias, const ExtendedContactCommon
 
 bool compare(const ExtendedContact &ec1, const ExtendedContact &ec2) {
 	ExtendedContactCommon ecc(ec2.mContactId.c_str(), ec2.mPath, ec2.mCallId.c_str(), ec2.mUniqueId.c_str());
-	return compare(ec1, ec2.mAlias, ecc, ec2.mCSeq, ec2.mExpireAt, ec2.mQ, ec2.mSipUri, ec2.mUpdatedTime);
+	return compare(ec1, ec2.mAlias, ecc, ec2.mCSeq, ec2.mExpireAt, ec2.mQ, ExtendedContact::urlToString(ec2.mSipUri),
+			ec2.mUpdatedTime);
 }
 
 bool compare(const Record &r1, const Record &r2) {

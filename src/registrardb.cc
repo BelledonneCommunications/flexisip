@@ -38,7 +38,9 @@
 
 using namespace std;
 
-ostream &ExtendedContact::print(std::ostream &stream, time_t now, time_t offset) const {
+ostream &ExtendedContact::print(std::ostream &stream, time_t _now, time_t _offset) const {
+	time_t now = _now;
+	time_t offset = _offset;
 	char buffer[256] = "UNDETERMINED";
 	time_t expire = mExpireAt;
 	expire += offset;
@@ -48,7 +50,7 @@ ostream &ExtendedContact::print(std::ostream &stream, time_t now, time_t offset)
 	}
 	int expireAfter = mExpireAt - now;
 
-	stream << mSipUri << " path=\"";
+	stream << urlToString(mSipUri) << " path=\"";
 	for (auto it = mPath.cbegin(); it != mPath.cend(); ++it) {
 		if (it != mPath.cbegin())
 			stream << " ";
@@ -62,21 +64,39 @@ ostream &ExtendedContact::print(std::ostream &stream, time_t now, time_t offset)
 	return stream;
 }
 
+void ExtendedContact::transfertRegId(const std::shared_ptr<ExtendedContact> &oldEc) {
+	// Transfert param RegId from oldEc to this
+	char strRegid[32] = {0};
+	if (oldEc->mRegId > 0 &&
+			(url_param(this->mSipUri->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0 &&
+			std::strtoull(strRegid, NULL, 16) != oldEc->mRegId)
+		) {
+		std::ostringstream os;
+		url_t *sipUri = url_hdup(this->mHome.home(), this->mSipUri);
+		os << "regid=" << std::hex << oldEc->mRegId;
+		sipUri->url_params = url_strip_param_string(su_strdup(this->mHome.home(), this->mSipUri->url_params), "regid");
+		url_param_add(this->mHome.home(), sipUri, os.str().c_str());
+		this->setSipUri(sipUri);
+		this->mRegId = oldEc->mRegId;
+	}
+}
+
 sip_contact_t *ExtendedContact::toSofiaContact(su_home_t *home, time_t now) const {
 	sip_contact_t *contact = NULL;
 	time_t expire = mExpireAt - now;
 	if (expire <= 0)
 		return NULL;
-
+	
 	ostringstream oss;
-	oss << "<" << mSipUri << ">";
-	oss << ";expires=" << expire;
+	oss << "expires=" << expire;
 	if (mQ == 0.f) {
 		oss.setf(ios::fixed, ios::floatfield);
 		oss << std::setprecision(2) << std::setw(4);
 		oss << ";q=" << mQ;
 	}
-	contact = sip_contact_make(home, oss.str().c_str());
+	contact = sip_contact_create(home, (url_string_t*)mSipUri, oss.str().c_str(), NULL);
+	/*strip out reg-id that shall not go out to the network*/
+	contact->m_url->url_params = url_strip_param_string(su_strdup(home, contact->m_url->url_params), "regid");
 	return contact;
 }
 
@@ -151,46 +171,6 @@ const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(std::string u
 	}
 	shared_ptr<ExtendedContact> noContact;
 	return noContact;
-}
-
-/**
- * Should first have checked the validity of the register with isValidRegister.
- */
-void Record::clean(const sip_contact_t *sip, const std::string &call_id, uint32_t cseq, time_t now, int version,
-					const std::shared_ptr<ContactUpdateListener> &listener) {
-	if (mContacts.begin() == mContacts.end()) {
-		return;
-	}
-	const char *lineValuePtr = NULL;
-	string lineValue = extractUniqueId(sip);
-
-	if (!lineValue.empty())
-		lineValuePtr = lineValue.c_str();
-
-	auto it = mContacts.begin();
-	while (it != mContacts.end()) {
-		shared_ptr<ExtendedContact> ec = (*it);
-		if (now >= ec->mExpireAt) {
-			SLOGD << "Cleaning expired contact " << ec->mContactId;
-			if (listener)
-				listener->onContactUpdated(ec);
-			it = mContacts.erase(it);
-		} else if (ec->line() && lineValuePtr != NULL && 0 == strcmp(ec->line(), lineValuePtr)) {
-			SLOGD << "Cleaning older line '" << lineValuePtr << "' for contact " << ec->mContactId;
-			if (listener)
-				listener->onContactUpdated(ec);
-			it = mContacts.erase(it);
-		} else if (0 == strcmp(ec->callId(), call_id.c_str())) {
-			SLOGD << "Cleaning same call id contact " << ec->contactId() << "(" << call_id << ")";
-			if (listener)
-				listener->onContactUpdated(ec);
-			it = mContacts.erase(it);
-		} else {
-			++it;
-		}
-	}
-
-	SLOGD << *this;
 }
 
 /*
@@ -288,32 +268,42 @@ string Record::defineKeyFromUrl(const url_t *url) {
 	return ostr.str();
 }
 
-
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener) {
 	// Try to locate an existing contact
 	shared_ptr<ExtendedContact> olderEc;
+	time_t now = getCurrentTime();
+
+	SLOGD << "Trying to insert new contact " << *ec;
 
 	if (sAssumeUniqueDomains && mIsDomain){
 		mContacts.clear();
 	}
-	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
-		if (0 == strcmp(ec->contactId(), (*it)->contactId())) {
-			LOGD("Removing older contact with same id %s", (*it)->contactId());
-			if (listener)
-				listener->onContactUpdated(ec);
-			mContacts.erase(it);
-			mContacts.push_back(ec);
-			return;
-		}
-		if (!olderEc || olderEc->mUpdatedTime > (*it)->mUpdatedTime) {
+	for (auto it = mContacts.begin(); it != mContacts.end();) {
+		if (now >= (*it)->mExpireAt) {
+			SLOGD << "Cleaning expired contact " << (*it)->mContactId;
+			if (listener) listener->onContactUpdated(*it);
+			it = mContacts.erase(it);
+		} else if ((*it)->line() && (*it)->mUniqueId == ec->mUniqueId) {
+			SLOGD << "Cleaning older line '" << ec->mUniqueId << "' for contact " << (*it)->mContactId;
+			ec->transfertRegId((*it));
+			if (listener) listener->onContactUpdated(*it);
+			it = mContacts.erase(it);
+		} else if ((*it)->callId() && (*it)->mCallId == ec->mCallId) {
+			SLOGD << "Cleaning same call id contact " << (*it)->mContactId << "(" << ec->mCallId << ")";
+			if (listener) listener->onContactUpdated(*it);
+			it = mContacts.erase(it);
+		} else if (!olderEc || olderEc->mUpdatedTime > (*it)->mUpdatedTime) {
 			olderEc = (*it);
+			++it;
+		} else {
+			++it;
 		}
 	}
 
 	// If contact doesn't exist and there is space left
 	if (mContacts.size() < (unsigned int)sMaxContacts) {
 		mContacts.push_back(ec);
-	} else { // no space
+	} else if (olderEc){ // no space
 		mContacts.remove(olderEc);
 		mContacts.push_back(ec);
 	}
@@ -329,44 +319,55 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 		oss << ":" << url->url_port;
 }
 
-void Record::update(const sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,
+static uint64_t setAndGetRegid(url_t *url, SofiaAutoHome *home) {
+	char strRegid[32] = {0};
+	uint64_t regId;
+	if (url_param(url->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0) {
+		regId = std::strtoull(strRegid, NULL, 16);
+	} else {
+		ostringstream os;
+		regId = su_random64();
+		os << "regid=" << hex << regId;
+		url_param_add(home->home(), url, os.str().c_str());
+	}
+	return regId;
+}
+
+void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,
 					uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute,
 					const std::shared_ptr<ContactUpdateListener> &listener) {
-	sip_contact_t *c = (sip_contact_t *)contacts;
 	list<string> stlPath;
 
 	if (path != NULL) {
-		su_home_t home;
-		su_home_init(&home);
-		stlPath = route_to_stl(&home, path);
-		su_home_destroy(&home);
+		SofiaAutoHome home;
+		stlPath = route_to_stl(home.home(), path);
 	}
 
-	while (c) {
-		if ((c->m_expires && atoi(c->m_expires) == 0) || (!c->m_expires && globalExpire <= 0)) {
-			c = c->m_next;
+	while (contacts) {
+		if ((contacts->m_expires && atoi(contacts->m_expires) == 0) || (!contacts->m_expires && globalExpire <= 0)) {
+			contacts = contacts->m_next;
 			continue;
 		}
 
 		const char *lineValuePtr = NULL;
-		string lineValue = extractUniqueId(c);
+		string lineValue = extractUniqueId(contacts);
 		if (!lineValue.empty())
 			lineValuePtr = lineValue.c_str();
 
 		char transport[20];
 		char *transportPtr = transport;
-		if (!url_param(c->m_url[0].url_params, "transport", transport, sizeof(transport) - 1)) {
+		if (!url_param(contacts->m_url[0].url_params, "transport", transport, sizeof(transport) - 1)) {
 			transportPtr = NULL;
 		}
 
 		ostringstream contactId;
-		defineContactId(contactId, c->m_url, transportPtr);
+		defineContactId(contactId, contacts->m_url, transportPtr);
 		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr);
-		auto exc = make_shared<ExtendedContact>(ecc, c, globalExpire, cseq, now, alias, accept);
+		auto exc = make_shared<ExtendedContact>(ecc, contacts, globalExpire, cseq, now, alias, accept);
+		exc->mRegId = setAndGetRegid(exc->mSipUri, &exc->mHome);
 		exc->mUsedAsRoute = usedAsRoute;
-		exc->setRegId(strtoul(exc->mContactId.c_str(), NULL, 10));
 		insertOrUpdateBinding(exc, listener);
-		c = c->m_next;
+		contacts = contacts->m_next;
 	}
 
 	SLOGD << *this;
@@ -376,9 +377,12 @@ void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long e
 					time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute,
 					const std::shared_ptr<ContactUpdateListener> &listener) {
 	auto exct = make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias, accept);
+	url_t *sipUri = url_make(exct->mHome.home(), sipuri);
+	exct->mRegId = setAndGetRegid(sipUri, &exct->mHome);
 	exct->mUsedAsRoute = usedAsRoute;
-	exct->setRegId(strtoul(exct->mContactId.c_str(), NULL, 10));
 	insertOrUpdateBinding(exct, listener);
+
+	SLOGD << *this;
 }
 
 void Record::print(std::ostream &stream) const {
@@ -614,7 +618,7 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 				}
 				m_record->pushContact(ec);
 				if (ec->mAlias && m_step > 0) {
-					sip_contact_t *contact = sip_contact_format(&m_home, "<%s>", ec->mSipUri.c_str());
+					sip_contact_t *contact = sip_contact_create(&m_home, (url_string_t*)ec->mSipUri, NULL);
 					if (contact) {
 						vectToRecurseOn.push_back(contact);
 					} else {
@@ -665,9 +669,10 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		 * Contact but still preserving
 		 * the last request uri that was found recursed through the alias mechanism.
 		*/
+		SofiaAutoHome home;
 		shared_ptr<ExtendedContact> newEc = make_shared<ExtendedContact>(*ec);
-		newEc->mSipUri = uri;
-		newEc->mPath.push_back(ec->mSipUri);
+		newEc->mSipUri = url_make(home.home(), uri);
+		newEc->mPath.push_back(uri);
 		// LOGD("transformContactUsedAsRoute(): path to %s added for %s", ec->mSipUri.c_str(), uri);
 		newEc->mUsedAsRoute = false;
 		return newEc;
