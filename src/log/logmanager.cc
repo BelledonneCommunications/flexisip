@@ -160,17 +160,19 @@ namespace flexisip {
 				flexisip_sysLevelMin = BCTBX_LOG_ERROR;
 			}
 
+			BctbxLogLevel log_level;
 			if (level == "debug") {
-				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_DEBUG);
+				log_level = BCTBX_LOG_DEBUG;
 			} else if (level == "message") {
-				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_MESSAGE);
+				log_level = BCTBX_LOG_MESSAGE;
 			} else if (level == "warning") {
-				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_WARNING);
+				log_level = BCTBX_LOG_WARNING;
 			} else if (level == "error") {
-				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_ERROR);
+				log_level = BCTBX_LOG_ERROR;
 			} else {
-				bctbx_set_log_level(NULL /*any domain*/, BCTBX_LOG_ERROR);
+				log_level = BCTBX_LOG_ERROR;
 			}
+			bctbx_set_log_level(NULL /*any domain*/, min(log_level, flexisip_sysLevelMin));
 			
 			if (user_errors) {
 				bctbx_set_log_level(FLEXISIP_USER_ERRORS_LOG_DOMAIN, BCTBX_LOG_WARNING);
