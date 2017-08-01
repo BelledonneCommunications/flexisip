@@ -161,6 +161,7 @@ static bool isUs(Agent *ag, sip_route_t *r) {
 }
 
 void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipException) {
+	uint64_t destRegId = 0;
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	url_t *dest = NULL;
 	sip_t *sip = ms->getSip();
@@ -193,6 +194,15 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipExc
 		return;
 	}
 
+	if (dest->url_params != NULL) {
+		char strRegid[32] = {0};
+		if (url_param(dest->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0) {
+			destRegId = std::strtoull(strRegid, NULL, 16);
+			/*strip out reg-id that shall not go out to the network*/
+			dest->url_params = url_strip_param_string(su_strdup(ms->getHome(), dest->url_params), "regid");
+		}
+	}
+
 	dest = overrideDest(ev, dest);
 
 	string ip;
@@ -219,6 +229,16 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipExc
 			tport = tport_by_name(nta_agent_tports(getSofiaAgent()), &name);
 			if (!tport) {
 				LOGE("Could not find tport to set proper outgoing Record-Route to %s", dest->url_host);
+			} else if (tport_get_user_data(tport) != NULL && destRegId != 0
+				&& (uint64_t)tport_get_user_data(tport) != destRegId) {
+					SLOGD << "Stopping request request regId("
+						<< hex
+						<< destRegId
+						<<" ) is different than tport regId("
+						<< (uint64_t)tport_get_user_data(tport)
+						<<")";
+					ev->terminateProcessing();
+					return;
 			}
 		} else
 			LOGE("tport_name_by_url() failed for url %s", url_as_string(ms->getHome(), dest));
