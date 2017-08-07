@@ -36,8 +36,6 @@
 #include "log/logmanager.hh"
 #include "agent.hh"
 #include "module.hh"
-#include <string>
-#include <list>
 
 #define AOR_KEY_SIZE 128
 

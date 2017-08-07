@@ -43,7 +43,7 @@ struct MsgPackContact {
 	bool mUsedAsRoute;
 	std::string line;
 
-	MSGPACK_DEFINE(mContactId, mCallId, mPath, mSipUri, mQ, mExpireAt, mUpdatedTime, mCSeq, mAlias, mAcceptHeader, mUsedAsRoute, line);
+	MSGPACK_DEFINE(mContactId, mCallId, mUniqueId, mPath, mSipUri, mQ, mExpireAt, mUpdatedTime, mCSeq, mAlias, mAcceptHeader, mUsedAsRoute, line);
 };
 
 bool RecordSerializerMsgPack::parse(const char *str, int len, Record *r){
@@ -74,12 +74,12 @@ bool RecordSerializerMsgPack::serialize(Record *r, std::string &serialized, bool
 	for( auto it=extContacts.begin(); it != extContacts.end(); ++it){
 		auto c = *it;
 		SLOGI << "CSeq " << c->mCSeq;
-		contacts.push_back({
+		contacts.push_back(MsgPackContact{
 			c->mContactId,
 			c->mCallId,
 			c->mUniqueId,
 			c->mPath,
-			c->mSipUri,
+			ExtendedContact::urlToString(c->mSipUri),
 			c->mQ,
 			c->mExpireAt,
 			c->mUpdatedTime,
