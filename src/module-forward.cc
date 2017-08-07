@@ -194,14 +194,14 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipExc
 		return;
 	}
 
-	if (dest->url_params != NULL) {
-		char strRegid[32] = {0};
-		if (url_param(dest->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0) {
-			destRegId = std::strtoull(strRegid, NULL, 16);
-			/*strip out reg-id that shall not go out to the network*/
-			dest->url_params = url_strip_param_string(su_strdup(ms->getHome(), dest->url_params), "regid");
-		}
-	}
+	//if (dest->url_params != NULL) {
+	//	char strRegid[32] = {0};
+	//	if (url_param(dest->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0) {
+	//		destRegId = std::strtoull(strRegid, NULL, 16);
+	//		/*strip out reg-id that shall not go out to the network*/
+	//		dest->url_params = url_strip_param_string(su_strdup(ms->getHome(), dest->url_params), "regid");
+	//	}
+	//}
 
 	dest = overrideDest(ev, dest);
 
@@ -231,7 +231,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipExc
 				LOGE("Could not find tport to set proper outgoing Record-Route to %s", dest->url_host);
 			} else if (tport_get_user_data(tport) != NULL && destRegId != 0
 				&& (uint64_t)tport_get_user_data(tport) != destRegId) {
-					SLOGD << "Stopping request request regId("
+					SLOGD << "Stopping request regId("
 						<< hex
 						<< destRegId
 						<<" ) is different than tport regId("
