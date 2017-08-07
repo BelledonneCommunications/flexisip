@@ -100,7 +100,7 @@ namespace flexisip {
 				bctbx_log_handler_t *syshandler = bctbx_create_log_handler(syslogHandler, bctbx_logv_out_destroy, NULL);
 				if(syshandler) bctbx_add_log_handler(syshandler);
 				else if(syslog) ::syslog(LOG_WARNING, "Could not create syslog handler");
-				else printf("Warning : Could not create syslog handler");
+				else printf("Warning : Could not create syslog handler\n");
 			} else {
 				/*
 				bctbx_log_handler_t *defaulthandler = bctbx_create_log_handler(defaultLogHandler, bctbx_logv_out_destroy, NULL);
@@ -128,7 +128,7 @@ namespace flexisip {
 				bctbx_log_handler_t *handler = bctbx_create_file_log_handler(max_size, DEFAULT_LOG_DIR, nameStream.str().c_str(), f);
 				if(handler) bctbx_add_log_handler(handler);
 				else if(syslog) ::syslog(LOG_WARNING, "Could not create file handler");
-				else printf("Warning : Could not create file handler");
+				else printf("Warning : Could not create file handler \n");
 			} else {
 				std::ostringstream stringStream;
 				stringStream << "Error while writing logs in : " << copyOfStr << "\n";
