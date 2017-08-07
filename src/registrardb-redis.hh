@@ -70,9 +70,45 @@ struct RedisHost {
 	std::string state;
 };
 
+
+
+/******
+ * RegistrarUserData helper class
+ */
+class RegistrarDbRedisAsync;
+struct RegistrarUserData;
+
+typedef void(forwardFn)(redisAsyncContext *, redisReply *, RegistrarUserData *);
+
+struct RegistrarUserData {
+	RegistrarDbRedisAsync *self;
+	forwardFn *fn;
+	unsigned long token;
+	sip_contact_t *sipContact;
+	std::string calldId;
+	uint32_t csSeq;
+	std::shared_ptr<ContactUpdateListener> listener;
+	Record record;
+	int globalExpire;
+	const sip_path_t *path;
+	bool alias;
+	int mVersion;
+	std::list<std::string> accept;
+	bool mUsedAsRoute;
+	su_home_t mHome;
+	std::string mQuery;
+
+	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, const sip_contact_t *sip_contact,
+					const std::string &calld_id, uint32_t cs_seq, const sip_path_t *p, bool alias, int version,
+					std::shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn);
+	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, const sip_contact_t *sip_contact,
+					const std::string &calld_id, uint32_t cs_seq, std::shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn);
+	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, std::shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn);
+	~RegistrarUserData();
+};
+
 class RegistrarDbRedisAsync : public RegistrarDb {
   public:
-	struct RegistrarUserData;
 	RegistrarDbRedisAsync(const std::string &preferredRoute, su_root_t *root, RecordSerializer *serializer,
 						  RedisParameters params);
 
@@ -80,7 +116,9 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	bool connect();
 	bool disconnect();
 
-	virtual void doBind(const BindParameters &params, const std::shared_ptr<ContactUpdateListener> &listener);
+	virtual void doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
+					  const sip_path_t *ipath, std::list<std::string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version, 
+					  const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
@@ -109,12 +147,12 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	size_t mCurSlave;
 	su_timer_t *mReplicationTimer;
 	int mSlaveCheckTimeout;
-	std::list<RegistrarUserData*> mQueue;
-	bool mAddToQueue;
+	/*std::list<RegistrarUserData*> mQueue;
+	bool mAddToQueue;*/
 
 	bool handleRedisStatus(const std::string &desc, int redisStatus, RegistrarUserData *data);
 	void onErrorData(RegistrarUserData *data);
-	void dequeueNextRedisCommand();
+	//void dequeueNextRedisCommand();
 
 	/* callbacks */
 	void handleAuthReply(const redisReply *reply);
@@ -134,7 +172,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	void tryReconnect();
 
 	/* static handlers */
-	static void sHandleAorGetReply(struct redisAsyncContext *, void *r, void *privdata);
+	//static void sHandleAorGetReply(struct redisAsyncContext *, void *r, void *privdata);
 	static void shandleAuthReply(redisAsyncContext *ac, void *r, void *privdata);
 	static void sHandleBind(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 	static void sHandleClear(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);

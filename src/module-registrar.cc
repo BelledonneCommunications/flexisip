@@ -610,7 +610,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipE
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
 			listener->addStatCounter(mStats.mCountBind->finish);
-			RegistrarDb::get()->bind(sip, maindelta, false, listener);
+			RegistrarDb::get()->bind(sip, maindelta, false, 0, listener);
 			return;
 		}
 	} else {
@@ -689,7 +689,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) throw(Flexisi
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
 			listener->addStatCounter(mStats.mCountBind->finish);
-			RegistrarDb::get()->bind(reSip, maindelta, false, listener);
+			RegistrarDb::get()->bind(reSip, maindelta, false, 0, listener);
 		}
 	}
 	if (reSip->sip_status->st_status >= 200) {
@@ -760,16 +760,8 @@ void ModuleRegistrar::readStaticRecords() {
 					bool alias = isManagedDomain(contact->m_url);
 					const char *fakeCallId = su_sprintf(&home, "static-record-v%x", su_random());
 
-					RegistrarDb::BindParameters params(RegistrarDb::BindParameters::SipParams(
-															url->m_url /*from*/, &single, fakeCallId, 0, path, NULL),
-														expire, alias);
-					params.version = mStaticRecordsVersion;
-					params.enqueueToPreventCollisions = true;
-					/*if no user part is given, consider it as to be used as a route, that is not changing the
-						* request uri but instead prepend a route*/
-					params.usedAsRoute = (single.m_url->url_user == NULL);
-
-					RegistrarDb::get()->bind(params, listener);
+					RegistrarDb::get()->bind(url->m_url, &single, fakeCallId, 0, path, NULL, 
+						single.m_url->url_user == NULL, expire, alias, mStaticRecordsVersion, listener);
 					contact = contact->m_next;
 				}
 				continue;

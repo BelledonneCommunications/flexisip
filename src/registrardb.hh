@@ -262,49 +262,11 @@ class RegistrarDb {
 	friend class ModuleRegistrar;
 
   public:
-	struct BindParameters {
-		/**
-		 * Parameter wrapper class that doesn't copy anything.
-		 */ struct SipParams {
-			const url_t *from;
-			sip_contact_t *contact;
-			const char *call_id;
-			const uint32_t cs_seq;
-			const sip_path_t *path;
-			const sip_accept_t *accept;
-			SipParams(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
-					  const sip_path_t *ipath, const sip_accept_t *iaccept)
-				: from(ifrom), contact(icontact), call_id(iid), cs_seq(iseq), path(ipath), accept(iaccept) {
-			}
-		};
-
-		const SipParams sip;
-		const int global_expire;
-		int version; /* used by static records only*/
-		bool alias;
-		bool usedAsRoute;
-		bool enqueueToPreventCollisions;
-		BindParameters(const SipParams &isip, int iexpire, bool ialias)
-			: sip(isip), global_expire(iexpire), alias(ialias), usedAsRoute(false), enqueueToPreventCollisions(false) {
-		}
-	};
 	static RegistrarDb *initialize(Agent *ag);
 	static RegistrarDb *get();
-	void bind(const BindParameters &mainParams, const std::shared_ptr<ContactUpdateListener> &listener) {
-		doBind(mainParams, listener);
-	}
-	void bind(const sip_t *sip, int globalExpire, bool alias, const std::shared_ptr<ContactUpdateListener> &listener) {
-
-		BindParameters mainParams(BindParameters::SipParams(sip->sip_from->a_url, sip->sip_contact,
-															sip->sip_call_id->i_id, sip->sip_cseq->cs_seq,
-															sip->sip_path, sip->sip_accept),
-								  globalExpire, alias);
-		if (sip->sip_request) {
-			mainParams.usedAsRoute = sip->sip_from->a_url->url_user == NULL;
-		}
-
-		doBind(mainParams, listener);
-	}
+	void bind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
+					  const sip_path_t *ipath, const sip_accept_t *iaccept, bool usedAsRoute, int expire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener);
+	void bind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener);
 	void clear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
@@ -340,7 +302,8 @@ class RegistrarDb {
 			mRegMap.clear();
 		}
 	};
-	virtual void doBind(const BindParameters &params, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
+	virtual void doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
+					  const sip_path_t *ipath, std::list<std::string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 

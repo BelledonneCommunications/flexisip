@@ -65,10 +65,10 @@ class OnResponseBindListener : public ContactUpdateListener {
   public:
 	OnResponseBindListener(ModuleRegistrar *module, std::shared_ptr<ResponseSipEvent> ev, std::shared_ptr<OutgoingTransaction> tr,
 						   std::shared_ptr<ResponseContext> ctx);
+	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec);
 	void onRecordFound(Record *r);
 	void onError();
 	void onInvalid();
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec);
 };
 
 // Listener class NEED to copy the shared pointer
@@ -80,10 +80,10 @@ class OnStaticBindListener : public ContactUpdateListener {
 
   public:
 	OnStaticBindListener(const url_t *from, const sip_contact_t *ct);
+	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec);
 	void onRecordFound(Record *r);
 	void onError();
 	void onInvalid();
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec);
 };
 
 class FakeFetchListener : public ContactUpdateListener {

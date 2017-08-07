@@ -723,6 +723,23 @@ void RegistrarDb::fetch(const url_t *url, const std::shared_ptr<ContactUpdateLis
 	}
 }
 
+void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
+					  const sip_path_t *ipath, const sip_accept_t *iaccept, bool usedAsRoute, int expire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) 
+{
+	const sip_accept_t *accept = iaccept;
+	list<string> acceptHeaders;
+	while (accept != NULL) {
+		acceptHeaders.push_back(accept->ac_type);
+		accept = accept->ac_next;
+	}
+
+	doBind(ifrom, icontact, iid, iseq, ipath, acceptHeaders, usedAsRoute, expire, alias, version, listener);
+}
+void RegistrarDb::bind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) {
+	bind(sip->sip_from->a_url, sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq,
+		sip->sip_path, sip->sip_accept, sip->sip_from->a_url->url_user == NULL, globalExpire, alias, version, listener);
+}
+
 class AgregatorRegistrarDbListener : public ContactUpdateListener {
   private:
 	shared_ptr<ContactUpdateListener> mOriginalListener;
