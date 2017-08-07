@@ -343,11 +343,6 @@ void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalE
 	}
 
 	while (contacts) {
-		if ((contacts->m_expires && atoi(contacts->m_expires) == 0) || (!contacts->m_expires && globalExpire <= 0)) {
-			contacts = contacts->m_next;
-			continue;
-		}
-
 		const char *lineValuePtr = NULL;
 		string lineValue = extractUniqueId(contacts);
 		if (!lineValue.empty())
