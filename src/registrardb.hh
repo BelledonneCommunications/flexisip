@@ -306,6 +306,7 @@ class RegistrarDb {
 					  const sip_path_t *ipath, std::list<std::string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
+	virtual void doMigration() = 0;
 
 	int count_sip_contacts(const sip_contact_t *contact);
 	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const std::string &key,

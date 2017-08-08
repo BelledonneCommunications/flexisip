@@ -35,38 +35,12 @@
 
 using namespace std;
 
-RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, const sip_contact_t *sip_contact,
-				const std::string &calld_id, uint32_t cs_seq, const sip_path_t *p, bool alias, int version,
-				shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn)
-	: token(0), calldId(calld_id), csSeq(cs_seq), listener(listener), record(url), globalExpire(0), alias(alias),
-		mVersion(version), mUsedAsRoute(false) {
-	su_home_init(&mHome);
-	self = s;
-	fn = forward_fn;
-	sipContact = sip_contact_dup(&mHome, sip_contact);
-	path = sip_path_dup(&mHome, p);
-}
-RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, const sip_contact_t *sip_contact,
-				const std::string &calld_id, uint32_t cs_seq, shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn)
-	: token(0), calldId(calld_id), csSeq(cs_seq), listener(listener), record(url), globalExpire(0), mVersion(0),
-		mUsedAsRoute(false) {
-	su_home_init(&mHome);
-	self = s;
-	fn = forward_fn;
-	sipContact = sip_contact_dup(&mHome, sip_contact);
-	path = NULL;
-}
-RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn)
-	: token(0), calldId(""), csSeq(-1), listener(listener), record(url), globalExpire(0), mVersion(0),
-		mUsedAsRoute(false) {
-	su_home_init(&mHome);
-	self = s;
-	fn = forward_fn;
-	sipContact = NULL;
-	path = NULL;
+RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<ContactUpdateListener> listener)
+	: self(s), listener(listener), record(url), token(0), mUpdateExpire(false) {
+	
 }
 RegistrarUserData::~RegistrarUserData() {
-	su_home_deinit(&mHome);
+	
 }
 
 /******
@@ -509,6 +483,10 @@ void RegistrarDbRedisAsync::sHandleFetch(redisAsyncContext *ac, redisReply *repl
 	data->self->handleFetch(reply, data);
 }
 
+void RegistrarDbRedisAsync::sHandleMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data) {
+	data->self->handleMigration(reply, data);
+}
+
 void RegistrarDbRedisAsync::sHandleReplicationInfoReply(redisAsyncContext *ac, void *r, void *privdata) {
 	redisReply *reply = (redisReply *)r;
 	RegistrarDbRedisAsync *zis = (RegistrarDbRedisAsync *)privdata;
@@ -537,18 +515,40 @@ void RegistrarDbRedisAsync::shandleAuthReply(redisAsyncContext *ac, void *r, voi
 	}
 }
 
+void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, forwardFn *forward_fn) {
+	const char *key = data->record.getKey().c_str();
+
+	ostringstream oss;
+	oss << """MULTI\r\nWATCH " << key << "\r\n";
+	auto contacts = data->record.getExtendedContacts();
+	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
+		shared_ptr<ExtendedContact> ec = (*it);
+		string uid = "";
+		string contact = "";
+		//TODO Serialize each extended contact
+		oss << "HSET " << key << " " << uid << " = " << contact << "\r\n";
+	}
+	oss << "EXEC";
+
+	data->mUpdateExpire = true;
+	LOGD("Binding %s [%lu]", data->record.getKey().c_str(), data->token);
+	string command = oss.str();
+	LOGD("Sending updated %s --> %u bytes", key, command.length());
+	check_redis_command(redisAsyncFormattedCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))forward_fn, 
+		data, command.c_str(), command.length()), data);
+}
+
 /* Methods called by the callbacks */
 
-void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *data) {
-	
-}
-
-void RegistrarDbRedisAsync::handleClear(redisReply *reply, RegistrarUserData *data) {
-	
-}
-
 void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *data) {
-	
+	if (!reply || reply->type == REDIS_REPLY_ERROR) {
+		LOGE("Error while updating record %s [%lu] hashmap in redis, trying again", data->record.getKey().c_str(), data->token);
+		serializeAndSendToRedis(data, sHandleBind);
+	} else {
+		LOGD("Fetching %s [%lu]", data->record.getKey().c_str(), data->token);
+		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleFetch, 
+			data, "HGETALL %s", data->record.getKey().c_str()), data);
+	}
 }
 
 void RegistrarDbRedisAsync::doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
@@ -558,191 +558,133 @@ void RegistrarDbRedisAsync::doBind(const url_t *ifrom, sip_contact_t *icontact, 
 	// If there is an error, try again
 	// Once it is done, fetch all the contacts in the AOR and call the onRecordFound of the listener
 
-	RegistrarUserData *data = new RegistrarUserData(this, ifrom, icontact, iid, iseq, ipath, alias, version, listener, sHandleBind);
-	data->accept = acceptHeaders;
-	data->globalExpire = expire;
-	data->mUsedAsRoute = usedAsRoute;
+	RegistrarUserData *data = new RegistrarUserData(this, ifrom, listener);
+	time_t now = getCurrentTime();
+	data->record.update(icontact, ipath, expire, iid, iseq, now, alias, acceptHeaders, usedAsRoute, data->listener);
+	mLocalRegExpire->update(data->record);
+
+	if (!isConnected() && !connect()) {
+		LOGE("Not connected to redis server");
+		if (data->listener) data->listener->onError();
+		delete data;
+		return;
+	}
+	serializeAndSendToRedis(data, sHandleBind);
+}
+
+void RegistrarDbRedisAsync::handleClear(redisReply *reply, RegistrarUserData *data) {
+	const char *key = data->record.getKey().c_str();
+
+	if (!reply || reply->type == REDIS_REPLY_ERROR) {
+		LOGE("Redis error setting %s [%lu] - %s", key, data->token, reply ? reply->str : "null reply");
+		if (reply && string(reply->str).find("READONLY") != string::npos) {
+			LOGW("Redis couldn't set the AOR because we're connected to a slave. Replying 480.");
+			if (data->listener) data->listener->onRecordFound(NULL);
+		} else {
+			if (data->listener) data->listener->onError();
+		}
+	} else {
+		LOGD("Clearing %s [%lu] success", key, data->token);
+		if (data->listener) data->listener->onRecordFound(&data->record);
+	}
+	delete data;
 }
 
 void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
 	// Delete the AOR Hashmap using DEL
-	// Once it is done, fetch all the contacts in the AOR and call the onRecordFound of the listener
+	// Once it is done, fetch all the contacts in the AOR and call the onRecordFound of the listener ?
+	RegistrarUserData *data = new RegistrarUserData(this, sip->sip_from->a_url, listener);
+
+	if (!isConnected() && !connect()) {
+		LOGE("Not connected to redis server");
+		if (data->listener) data->listener->onError();
+		delete data;
+		return;
+	}
+
+	LOGD("Clearing %s [%lu]", data->record.getKey().c_str(), data->token);
+	mLocalRegExpire->remove(data->record.getKey().c_str());
+	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleClear, 
+		data, "DEL %s", data->record.getKey().c_str()), data);
+}
+
+void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *data) {
+	const char *key = data->record.getKey().c_str();
+	LOGD("GOT %s [%lu] --> %i contacts", key, data->token, (reply->elements / 2));
+	if (reply->elements > 0) {
+		bool contactsParsingSuccess = false;
+		for (size_t i = 0; i < reply->elements; i+=2) {
+			// Elements list is twice the size of the contacts list because the key is an element of the list itself
+			redisReply *element = reply->element[i];
+			const char *uid = element->str;
+			element = reply->element[i+1];
+			const char *contact = element->str;
+			LOGD("Parsing contact %s => %s", uid, contact);
+			//TODO parse each serialized contact
+		}
+		if (!contactsParsingSuccess) {
+			LOGE("Couldn't parse stored contacts for %s : %u bytes", key, reply->len);
+			if (data->listener) data->listener->onError();
+			delete data;
+			return;
+		} 
+
+		if (data->mUpdateExpire) {
+			time_t expireat = data->record.latestExpire();
+			check_redis_command(redisAsyncCommand(data->self->mContext, NULL, NULL, "EXPIREAT %s %lu", key, expireat), data);
+		}
+
+		time_t now = getCurrentTime();
+		data->record.clean(now, data->listener);
+		if (data->listener) data->listener->onRecordFound(&data->record);
+	} else {
+		if (data->listener) data->listener->onRecordFound(NULL);
+	}
+	delete data;
 }
 
 void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<ContactUpdateListener> &listener) {
 	// fetch all the contacts in the AOR (HGETALL) and call the onRecordFound of the listener
+	RegistrarUserData *data = new RegistrarUserData(this, url, listener);
+
+	if (!isConnected() && !connect()) {
+		LOGE("Not connected to redis server");
+		if (data->listener) data->listener->onError();
+		delete data;
+		return;
+	}
+
+	LOGD("Fetching %s [%lu]", data->record.getKey().c_str(), data->token);
+	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleFetch, 
+		data, "HGETALL %s", data->record.getKey().c_str()), data);
 }
 
-/**
- * All three actions BIND, CLEAR and FETCH require first a retrieving of
- * the serialized contacts currently stored on the server.
- * If the redis reply is valid, the reply is forwarded to an action specific method.
- *
-void RegistrarDbRedisAsync::sHandleAorGetReply(redisAsyncContext *ac, void *r, void *privdata) {
-	redisReply *reply = (redisReply *)r;
-	RegistrarUserData *data = (RegistrarUserData *)privdata;
+void RegistrarDbRedisAsync::handleMigration(redisReply *reply, RegistrarUserData *data) {
 	if (!reply || reply->type == REDIS_REPLY_ERROR) {
-		LOGE("Redis error getting aor:%s [%lu] - %s", data->record.getKey().c_str(), data->token, reply ? reply->str : "null reply");
-		data->listener->onError();
-		delete data;
-		return;
-	}
+		LOGE("Redis error: %s", reply ? reply->str : "null reply");
+	} else if (reply->type == REDIS_REPLY_ARRAY) {
+		LOGD("Fetching all previous records success");
 
-	LOGD("GOT aor:%s [%lu] --> %i bytes", data->record.getKey().c_str(), data->token, reply->len);
-	data->fn(ac, reply, data);
-}
-
-void RegistrarDbRedisAsync::sHandleSet(redisAsyncContext *ac, void *r, void *privdata) {
-	redisReply *reply = (redisReply *)r;
-	RegistrarUserData *data = (RegistrarUserData *)privdata;
-	if (!reply || reply->type == REDIS_REPLY_ERROR) {
-		LOGE("Redis error setting aor:%s [%lu] - %s", data->record.getKey().c_str(), data->token, reply ? reply->str : "null reply");
-		if( reply && string(reply->str).find("READONLY") != string::npos ){
-			LOGW("Redis couldn't set the AOR because we're connected to a slave. Replying 480.");
-			data->listener->onRecordFound(NULL);
-		} else {
-			data->listener->onError();
+		for (size_t i = 0; i < reply->elements; i++) {
+			redisReply *element = reply->element[i];
+			Record *record = new Record(NULL);
+			if (!mSerializer->parse(element->str, element->len, record)) {
+				LOGE("Couldn't parse stored contacts for aor:%s : %u bytes", data->record.getKey().c_str(), element->len);
+			} else {
+				RegistrarUserData *data2 = new RegistrarUserData(this, NULL, NULL);
+				data2->record = *record;
+				serializeAndSendToRedis(data2, sHandleMigration);
+			}
 		}
+		delete data;
 	} else {
-		LOGD("Sent updated aor:%s [%lu] success", data->record.getKey().c_str(), data->token);
-		data->listener->onRecordFound(&data->record);
-	}
-	data->self->dequeueNextRedisCommand();
-	delete data;
-}
-
-/* void RegistrarDbRedisAsync::dequeueNextRedisCommand() {
-	if (mQueue.size() > 0) {
-		RegistrarUserData *next_data = mQueue.front();
-		mQueue.pop_front();
-		check_redis_command(redisAsyncCommand(mContext, sHandleAorGetReply, next_data, next_data->mQuery.c_str(), next_data->record.getKey().c_str()), next_data);
-	} else {
-		mAddToQueue = false;
-	}
-}
-
-void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *data) {
-	if (reply->len > 0) {
-		if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
-			LOGE("Couldn't parse stored contacts for aor:%s : %u bytes", data->record.getKey().c_str(), reply->len);
-			data->listener->onError();
-			delete data;
-			return;
-		}
-		time_t now = getCurrentTime();
-		data->record.clean(now, data->listener);
-		data->listener->onRecordFound(&data->record);
-	} else {
-		data->listener->onRecordFound(NULL);
-	}
-	delete data;
-}
-
-void RegistrarDbRedisAsync::handleClear(redisReply *reply, RegistrarUserData *data) {
-	if (reply->len > 0) {
-		if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
-			LOGE("Couldn't parse stored contacts for aor:%s : %i bytes", data->record.getKey().c_str(), reply->len);
-			data->listener->onError();
-			delete data;
-			return;
-		}
-		if (data->record.isInvalidRegister(data->calldId, data->csSeq)) {
-			data->listener->onInvalid();
-			delete data;
-			return;
-		}
-	}
-	check_redis_command(redisAsyncCommand(mContext, sHandleSet, data, "DEL aor:%s", data->record.getKey().c_str()), data);
-}
-
-void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *data) {
-	if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
-		LOGW("Couldn't parse stored contacts for aor:%s : %u bytes, going to erase previous value.", data->record.getKey().c_str(),
-			 reply->len);
-	}
-
-	if (data->record.isInvalidRegister(data->calldId, data->csSeq)) {
-		SLOGD << "Cannot Bind: invalid register for call id " << data->calldId << ", CSeq " << data->csSeq << endl;
-		data->listener->onInvalid();
 		delete data;
-		return;
-	}
-
-	time_t now = getCurrentTime();
-	data->record.update(data->sipContact, data->path, data->globalExpire, data->calldId, data->csSeq, now, data->alias,
-						data->accept, data->mUsedAsRoute, data->listener);
-	mLocalRegExpire->update(data->record);
-
-	string serialized;
-	mSerializer->serialize(&data->record, serialized);
-	LOGD("Sending updated aor:%s [%lu] --> %u bytes", data->record.getKey().c_str(), data->token, (unsigned)serialized.length());
-	check_redis_command(redisAsyncCommand(mContext, sHandleSet, data, "SET aor:%s %b", data->record.getKey().c_str(), serialized.data(),
-										  serialized.length()),
-						data);
-
-	time_t expireat = data->record.latestExpire();
-	check_redis_command(redisAsyncCommand(data->self->mContext, NULL, NULL, "EXPIREAT aor:%s %lu", data->record.getKey().c_str(), expireat),
-						data);
-}
-
-void RegistrarDbRedisAsync::doBind(const RegistrarDb::BindParameters &p, const shared_ptr<ContactUpdateListener> &ctUplistener) {
-	const sip_accept_t *accept = p.sip.accept;
-	list<string> acceptHeaders;
-	while (accept != NULL) {
-		acceptHeaders.push_back(accept->ac_type);
-		accept = accept->ac_next;
-	}
-
-	RegistrarUserData *data = new RegistrarUserData(this, p.sip.from, p.sip.contact, p.sip.call_id, p.sip.cs_seq,
-							p.sip.path, p.alias, p.version, ctUplistener, sHandleBind);
-	data->globalExpire = p.global_expire;
-	data->accept = acceptHeaders;
-	data->mUsedAsRoute = p.usedAsRoute;
-	if (!isConnected() && !connect()) {
-		LOGE("Not connected to redis server");
-		data->listener->onError();
-		delete data;
-		return;
-	}
-	if (errorOnTooMuchContactInBind(p.sip.contact, data->record.getKey(), ctUplistener)) {
-		data->listener->onError();
-		delete data;
-		return;
-	}
-
-	if (p.enqueueToPreventCollisions && mAddToQueue) {
-		data->mQuery = "GET aor:%s";
-		mQueue.push_back(data);
-	} else {
-		LOGD("Binding aor:%s [%lu]", data->record.getKey().c_str(), data->token);
-		check_redis_command(redisAsyncCommand(mContext, sHandleAorGetReply, data, "GET aor:%s", data->record.getKey().c_str()), data);
-		mAddToQueue = true;
 	}
 }
 
-void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &ctUplistener) {
-	RegistrarUserData *data =
-		new RegistrarUserData(this, sip->sip_from->a_url, sip->sip_contact, sip->sip_call_id->i_id,
-							  sip->sip_cseq->cs_seq, ctUplistener, sHandleClear);
-	if (!isConnected() && !connect()) {
-		LOGE("Not connected to redis server");
-		data->listener->onError();
-		delete data;
-		return;
-	}
-	LOGD("Clearing aor:%s [%lu]", data->record.getKey().c_str(), data->token);
-	mLocalRegExpire->remove(data->record.getKey().c_str());
-	check_redis_command(redisAsyncCommand(mContext, sHandleAorGetReply, data, "GET aor:%s", data->record.getKey().c_str()), data);
+void RegistrarDbRedisAsync::doMigration() {
+	LOGD("Fetching all previous records");
+	RegistrarUserData *data = new RegistrarUserData(this, NULL, NULL);
+	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleMigration, 
+		data, "KEYS aor:*"), data);
 }
-
-void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<ContactUpdateListener> &ctUplistener) {
-	RegistrarUserData *data = new RegistrarUserData(this, url, ctUplistener, sHandleFetch);
-	if (!isConnected() && !connect()) {
-		LOGE("Not connected to redis server");
-		data->listener->onError();
-		delete data;
-		return;
-	}
-	LOGD("Fetching aor:%s [%lu]", data->record.getKey().c_str(), data->token);
-	check_redis_command(redisAsyncCommand(mContext, sHandleAorGetReply, data, "GET aor:%s", data->record.getKey().c_str()), data);
-}*/

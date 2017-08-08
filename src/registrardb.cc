@@ -724,7 +724,8 @@ void RegistrarDb::fetch(const url_t *url, const std::shared_ptr<ContactUpdateLis
 }
 
 void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
-					  const sip_path_t *ipath, const sip_accept_t *iaccept, bool usedAsRoute, int expire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) 
+					  const sip_path_t *ipath, const sip_accept_t *iaccept, bool usedAsRoute, int expire, 
+					  bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) 
 {
 	const sip_accept_t *accept = iaccept;
 	list<string> acceptHeaders;
@@ -733,11 +734,19 @@ void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *
 		accept = accept->ac_next;
 	}
 
+	int countSipContacts = count_sip_contacts(icontact);
+	if (countSipContacts > Record::getMaxContacts()) {
+		LOGD("Too many contacts in register %s %i > %i", Record::defineKeyFromUrl(ifrom).c_str(), countSipContacts, Record::getMaxContacts());
+		listener->onError();
+		return;
+	}
+
 	doBind(ifrom, icontact, iid, iseq, ipath, acceptHeaders, usedAsRoute, expire, alias, version, listener);
 }
 void RegistrarDb::bind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) {
 	bind(sip->sip_from->a_url, sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq,
-		sip->sip_path, sip->sip_accept, sip->sip_from->a_url->url_user == NULL, globalExpire, alias, version, listener);
+		sip->sip_path, sip->sip_accept, sip->sip_from->a_url->url_user == NULL, 
+		globalExpire, alias, version, listener);
 }
 
 class AgregatorRegistrarDbListener : public ContactUpdateListener {

@@ -82,28 +82,12 @@ typedef void(forwardFn)(redisAsyncContext *, redisReply *, RegistrarUserData *);
 
 struct RegistrarUserData {
 	RegistrarDbRedisAsync *self;
-	forwardFn *fn;
-	unsigned long token;
-	sip_contact_t *sipContact;
-	std::string calldId;
-	uint32_t csSeq;
 	std::shared_ptr<ContactUpdateListener> listener;
 	Record record;
-	int globalExpire;
-	const sip_path_t *path;
-	bool alias;
-	int mVersion;
-	std::list<std::string> accept;
-	bool mUsedAsRoute;
-	su_home_t mHome;
-	std::string mQuery;
+	unsigned long token;
+	bool mUpdateExpire;
 
-	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, const sip_contact_t *sip_contact,
-					const std::string &calld_id, uint32_t cs_seq, const sip_path_t *p, bool alias, int version,
-					std::shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn);
-	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, const sip_contact_t *sip_contact,
-					const std::string &calld_id, uint32_t cs_seq, std::shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn);
-	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, std::shared_ptr<ContactUpdateListener> listener, forwardFn *forward_fn);
+	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, std::shared_ptr<ContactUpdateListener> listener);
 	~RegistrarUserData();
 };
 
@@ -121,6 +105,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 					  const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener);
+	virtual void doMigration();
 	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void unsubscribe(const std::string &topic);
 	virtual void publish(const std::string &topic, const std::string &uid);
@@ -150,6 +135,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	/*std::list<RegistrarUserData*> mQueue;
 	bool mAddToQueue;*/
 
+	void serializeAndSendToRedis(RegistrarUserData *data, forwardFn *forward_fn);
 	bool handleRedisStatus(const std::string &desc, int redisStatus, RegistrarUserData *data);
 	void onErrorData(RegistrarUserData *data);
 	//void dequeueNextRedisCommand();
@@ -161,6 +147,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	void handleClear(redisReply *reply, RegistrarUserData *data);
 	void handleFetch(redisReply *reply, RegistrarUserData *data);
 	void handleReplicationInfoReply(const char *str);
+	void handleMigration(redisReply *reply, RegistrarUserData *data);
 	void onConnect(const redisAsyncContext *c, int status);
 	void onDisconnect(const redisAsyncContext *c, int status);
 	void onSubscribeConnect(const redisAsyncContext *c, int status);
@@ -180,6 +167,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	static void sHandleInfoTimer(void *unused, su_timer_t *t, void *data);
 	static void sHandleReplicationInfoReply(redisAsyncContext *ac, void *r, void *privdata);
 	static void sHandleSet(redisAsyncContext *ac, void *r, void *privdata);
+	static void sHandleMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 };
 
 #endif

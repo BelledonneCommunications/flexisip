@@ -35,14 +35,6 @@ RegistrarDbInternal::RegistrarDbInternal(const string &preferredRoute) : Registr
 void RegistrarDbInternal::doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
 					  const sip_path_t *ipath, list<string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) {
 	string key = Record::defineKeyFromUrl(ifrom);
-
-	if (count_sip_contacts(icontact) > Record::getMaxContacts()) {
-		LOGD("Too many contacts in register %s %i > %i", key.c_str(), count_sip_contacts(icontact),
-			 Record::getMaxContacts());
-		listener->onError();
-		return;
-	}
-
 	time_t now = getCurrentTime();
 
 	map<string, Record *>::iterator it = mRecords.find(key);
@@ -111,6 +103,10 @@ void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<ContactUpda
 	mRecords.erase(it);
 	mLocalRegExpire->remove(key);
 	listener->onRecordFound(NULL);
+}
+
+void RegistrarDbInternal::doMigration() {
+
 }
 
 void RegistrarDbInternal::clearAll() {
