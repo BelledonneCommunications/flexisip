@@ -602,11 +602,11 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		if (r != NULL) {
 			auto &extlist = r->getExtendedContacts();
 			list<sip_contact_t *> vectToRecurseOn;
-			for (auto it = extlist.begin(); it != extlist.end(); ++it) {
-				shared_ptr<ExtendedContact> ec = *it;
+			for (auto it : extlist) {
+				shared_ptr<ExtendedContact> ec = it;
 				// Also add alias for late forking (context in the forks map for this alias key)
 				SLOGD << "Step: " << m_step << (ec->mAlias ? "\tFound alias " : "\tFound contact ") << m_url << " -> "
-					  << ec->mSipUri << " usedAsRoute:" << ec->mUsedAsRoute;
+					  << ExtendedContact::urlToString(ec->mSipUri) << " usedAsRoute:" << ec->mUsedAsRoute;
 				if (!ec->mAlias && ec->mUsedAsRoute) {
 					ec = transformContactUsedAsRoute(m_url, ec);
 				}
@@ -616,15 +616,15 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 					if (contact) {
 						vectToRecurseOn.push_back(contact);
 					} else {
-						SLOGW << "Can't create sip_contact of " << ec->mSipUri;
+						SLOGW << "Can't create sip_contact of " << ExtendedContact::urlToString(ec->mSipUri);
 					}
 				}
 			}
 			m_request += vectToRecurseOn.size();
-			for (auto itrec = vectToRecurseOn.cbegin(); itrec != vectToRecurseOn.cend(); ++itrec) {
-				m_database->fetch((*itrec)->m_url,
+			for (auto itrec : vectToRecurseOn) {
+				m_database->fetch(itrec->m_url,
 								  make_shared<RecursiveRegistrarDbListener>(m_database, this->shared_from_this(),
-																			(*itrec)->m_url, m_step - 1),
+																			itrec->m_url, m_step - 1),
 								  false);
 			}
 		}
