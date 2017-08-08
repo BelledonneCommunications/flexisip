@@ -282,12 +282,13 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 			SLOGD << "Cleaning expired contact " << (*it)->mContactId;
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
-		} else if ((*it)->line() && (*it)->mUniqueId == ec->mUniqueId) {
+		} else if (!(*it)->mUniqueId.empty() && (*it)->mUniqueId == ec->mUniqueId) {
 			SLOGD << "Cleaning older line '" << ec->mUniqueId << "' for contact " << (*it)->mContactId;
 			ec->transfertRegId((*it));
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
-		} else if ((*it)->callId() && (*it)->mCallId == ec->mCallId) {
+		} else if ((*it)->mUniqueId.empty() && (*it)->callId() && (*it)->mCallId == ec->mCallId) {
+			/*we don't accept to clean a contact from call-id if the unique id was set previously*/
 			SLOGD << "Cleaning same call id contact " << (*it)->mContactId << "(" << ec->mCallId << ")";
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
