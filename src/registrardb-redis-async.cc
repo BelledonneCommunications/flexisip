@@ -36,7 +36,7 @@
 using namespace std;
 
 RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<ContactUpdateListener> listener)
-	: self(s), listener(listener), record(url), token(0), mUpdateExpire(false) {
+	: self(s), listener(listener), record(url), token(0), mUpdateExpire(false), mRetryCount(0) {
 	
 }
 RegistrarUserData::~RegistrarUserData() {
@@ -518,36 +518,48 @@ void RegistrarDbRedisAsync::shandleAuthReply(redisAsyncContext *ac, void *r, voi
 void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, forwardFn *forward_fn) {
 	const char *key = data->record.getKey().c_str();
 
-	ostringstream oss;
-	oss << """MULTI\r\nWATCH " << key << "\r\n";
+	int argc = 1; // HMSET
 	auto contacts = data->record.getExtendedContacts();
+	argc += contacts.size() * 2;
+	const char** argv = new const char*[argc];
+	size_t* argvlen = new size_t[argc];
+	string cmd = "HMSET";
+	argv[0] = cmd.c_str();
+	argvlen[0] = strlen(argv[0]);
+	int i = 1;
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
 		shared_ptr<ExtendedContact> ec = (*it);
-		string uid = "";
-		string contact = "";
-		//TODO Serialize each extended contact
-		oss << "HSET " << key << " " << uid << " = " << contact << "\r\n";
+
+		string uid = ec->mUniqueId;
+		argv[i] = uid.c_str();
+		argvlen[i] = strlen(argv[i]);
+		i += 1;
+
+		string contact = ExtendedContact::urlToString(ec->mSipUri);
+		argv[i] = contact.c_str();
+		argvlen[i] = strlen(argv[i]);
+		i += 1;
 	}
-	oss << "EXEC";
 
 	data->mUpdateExpire = true;
-	LOGD("Binding %s [%lu]", data->record.getKey().c_str(), data->token);
-	string command = oss.str();
-	LOGD("Sending updated %s --> %u bytes", key, command.length());
-	check_redis_command(redisAsyncFormattedCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))forward_fn, 
-		data, command.c_str(), command.length()), data);
+	LOGD("Binding %s [%lu], %lu contacts in record", key, data->token, (unsigned long)contacts.size());
+	check_redis_command(redisAsyncCommandArgv(mContext, (void (*)(redisAsyncContext*, void*, void*))forward_fn, 
+		data, argc, argv, argvlen), data);
 }
 
 /* Methods called by the callbacks */
 
 void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *data) {
-	if (!reply || reply->type == REDIS_REPLY_ERROR) {
-		LOGE("Error while updating record %s [%lu] hashmap in redis, trying again", data->record.getKey().c_str(), data->token);
+	const char *key = data->record.getKey().c_str();
+
+	if ((!reply || reply->type == REDIS_REPLY_ERROR) && (data->mRetryCount < 2)) {
+		LOGE("Error while updating record %s [%lu] hashmap in redis, trying again", key, data->token);
+		data->mRetryCount += 1;
 		serializeAndSendToRedis(data, sHandleBind);
 	} else {
-		LOGD("Fetching %s [%lu]", data->record.getKey().c_str(), data->token);
-		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleFetch, 
-			data, "HGETALL %s", data->record.getKey().c_str()), data);
+		data->mRetryCount = 0;
+		LOGD("Fetching %s [%lu]", key, data->token);
+		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleFetch, data, "HGETALL %s", key), data);
 	}
 }
 
@@ -610,9 +622,13 @@ void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<ContactUp
 
 void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *data) {
 	const char *key = data->record.getKey().c_str();
+
 	LOGD("GOT %s [%lu] --> %i contacts", key, data->token, (reply->elements / 2));
 	if (reply->elements > 0) {
 		bool contactsParsingSuccess = false;
+		su_home_t home;
+		su_home_init(&home);
+
 		for (size_t i = 0; i < reply->elements; i+=2) {
 			// Elements list is twice the size of the contacts list because the key is an element of the list itself
 			redisReply *element = reply->element[i];
@@ -620,14 +636,18 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 			element = reply->element[i+1];
 			const char *contact = element->str;
 			LOGD("Parsing contact %s => %s", uid, contact);
+			
 			//TODO parse each serialized contact
+			sip_contact_t *sip_contact = sip_contact_make(&home, contact);
 		}
+		su_home_deinit(&home);
+
 		if (!contactsParsingSuccess) {
 			LOGE("Couldn't parse stored contacts for %s : %u bytes", key, reply->len);
 			if (data->listener) data->listener->onError();
 			delete data;
 			return;
-		} 
+		}
 
 		if (data->mUpdateExpire) {
 			time_t expireat = data->record.latestExpire();
