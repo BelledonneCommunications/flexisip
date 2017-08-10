@@ -64,7 +64,7 @@ ostream &ExtendedContact::print(std::ostream &stream, time_t _now, time_t _offse
 	return stream;
 }
 
-void ExtendedContact::transfertRegId(const std::shared_ptr<ExtendedContact> &oldEc) {
+void ExtendedContact::transferRegId(const std::shared_ptr<ExtendedContact> &oldEc) {
 	// Transfert param RegId from oldEc to this
 	char strRegid[32] = {0};
 	if (oldEc->mRegId > 0 &&
@@ -280,16 +280,16 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 	for (auto it = mContacts.begin(); it != mContacts.end();) {
 		if (now >= (*it)->mExpireAt) {
 			SLOGD << "Cleaning expired contact " << (*it)->mContactId;
-			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
 		} else if (!(*it)->mUniqueId.empty() && (*it)->mUniqueId == ec->mUniqueId) {
 			SLOGD << "Cleaning older line '" << ec->mUniqueId << "' for contact " << (*it)->mContactId;
-			ec->transfertRegId((*it));
+			ec->transferRegId((*it));
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
 		} else if ((*it)->mUniqueId.empty() && (*it)->callId() && (*it)->mCallId == ec->mCallId) {
 			/*we don't accept to clean a contact from call-id if the unique id was set previously*/
 			SLOGD << "Cleaning same call id contact " << (*it)->mContactId << "(" << ec->mCallId << ")";
+			ec->transferRegId((*it));
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
 		} else if (!olderEc || olderEc->mUpdatedTime > (*it)->mUpdatedTime) {

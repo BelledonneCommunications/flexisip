@@ -126,7 +126,7 @@ struct ExtendedContact {
 		mSipUri = url_hdup(mHome.home(), uri);
 	}
 
-	void transfertRegId(const std::shared_ptr<ExtendedContact> &oldEc);
+	void transferRegId(const std::shared_ptr<ExtendedContact> &oldEc);
 
 	ExtendedContact(const ExtendedContactCommon &common, sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)

@@ -451,9 +451,8 @@ static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const
 			// RegId not set or different from ec
 			if (tport_get_user_data(new_tport) == NULL || (uint64_t)tport_get_user_data(new_tport) != ec->mRegId) {
 				tport_set_user_data(new_tport, (void*)ec->mRegId);
-				SLOGD << "Adding reg id to new tport: " << hex << ec->mRegId;
+				SLOGD << "Adding regid to new tport: " << hex << ec->mRegId;
 			}
-
 			// Not the same tport but had the same regid
 			if (old_tport && new_tport != old_tport
 					&& (tport_get_user_data(old_tport) == NULL
@@ -463,9 +462,10 @@ static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const
 				// 0 close incoming data, 1 close outgoing data, 2 both
 				tport_shutdown(old_tport, 2);
 			}
-		} else
+		} else {
 			SLOGE << "ContactUpdated: tport_name_by_url() failed for sip uri "
 					<< ExtendedContact::urlToString(ec->mSipUri);
+		}
 	}
 }
 
