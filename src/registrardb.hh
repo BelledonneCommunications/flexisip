@@ -124,6 +124,12 @@ struct ExtendedContact {
 		mSipUri = url_hdup(mHome.home(), uri);
 	}
 
+	std::string getUniqueId() {
+		return (mUniqueId.empty() ? mCallId : mUniqueId);
+	}
+
+	std::string serializeAsUrlEncodedParams();
+
 	void transfertRegId(const std::shared_ptr<ExtendedContact> &oldEc);
 
 	ExtendedContact(const ExtendedContactCommon &common, sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
@@ -197,6 +203,7 @@ class Record {
 	void update(const ExtendedContactCommon &ecc, const char *sipuri, long int expireAt, float q, uint32_t cseq,
 				time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute,
 				const std::shared_ptr<ContactUpdateListener> &listener);
+	void updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url);
 
 	void print(std::ostream &stream) const;
 	bool isEmpty() {

@@ -333,6 +333,171 @@ static uint64_t setAndGetRegid(url_t *url, SofiaAutoHome *home) {
 	return regId;
 }
 
+string ExtendedContact::serializeAsUrlEncodedParams() {
+	url_t *url = url_hdup(mHome.home(), mSipUri);
+
+	// CallId
+	ostringstream oss;
+	oss << "callid=" << mCallId;
+	url_param_add(mHome.home(), url, oss.str().c_str());
+
+	// Q
+	/*if (mQ == 0.f) {
+		oss.str("");
+		oss.clear();
+		oss << "q=" << mQ;
+		url_param_add(mHome.home(), url, oss.str().c_str());
+	}*/
+
+	// Expire
+	oss.str("");
+	oss.clear();
+	time_t expire = mExpireAt - getCurrentTime();
+	oss << "expires=" << expire;
+	url_param_add(mHome.home(), url, oss.str().c_str());
+
+	// CSeq
+	oss.str("");
+	oss.clear();
+	oss << "cseq=" << mCSeq;
+	url_param_add(mHome.home(), url, oss.str().c_str());
+
+	// Alias
+	oss.str("");
+	oss.clear();
+	oss << "alias=" << (mAlias ? "yes" : "no");
+	url_param_add(mHome.home(), url, oss.str().c_str());
+
+	// Used as route
+	oss.str("");
+	oss.clear();
+	oss << "usedAsRoute=" << (mUsedAsRoute ? "yes" : "no");
+	url_param_add(mHome.home(), url, oss.str().c_str());
+
+	// Path
+	//sip_path_t *path = path_fromstl(mHome.home(), mPath);
+	ostringstream oss_path;
+	for (auto it = mPath.begin(); it != mPath.end(); ++it) {
+		if (it != mPath.begin()) oss_path << ",";
+		oss_path << *it;
+	}
+
+	// AcceptHeaders
+	//sip_accept_t *accept = accept_fromstl(mHome.home(), mAcceptHeader);
+	ostringstream oss_accept;
+	for (auto it = mAcceptHeader.begin(); it != mAcceptHeader.end(); ++it) {
+		if (it != mAcceptHeader.begin()) oss_accept << ",";
+		oss_accept << *it;
+	}
+
+	url->url_headers = sip_headers_as_url_query(mHome.home(), 
+		/*SIPTAG_PATH(path), SIPTAG_ACCEPT(accept),*/
+		SIPTAG_PATH_STR(oss_path.str().c_str()), SIPTAG_ACCEPT_STR(oss_accept.str().c_str()), 
+		TAG_END());
+
+	return ExtendedContact::urlToString(url);
+}
+
+void Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url) {
+	su_home_t home;
+	su_home_init(&home);
+
+	url_t *url = url_make(&home, full_url);
+
+	// CallId
+	string call_id;
+	if (url_has_param(url, "callid")) {
+		char *buffer = new char[255];
+		isize_t result = url_param(url->url_params, "callid", buffer, 255);
+		if (result > 0) {
+			call_id = string(buffer);
+		}
+	}
+
+	// Expire
+	int globalExpire = 0;
+	if (url_has_param(url, "expires")) {
+		char *buffer = new char[255];
+		isize_t result = url_param(url->url_params, "expires", buffer, 255);
+		if (result > 0) {
+			globalExpire = atoi(buffer);
+		}
+	}
+
+	// CSeq
+	uint32_t cseq = 0;
+	if (url_has_param(url, "cseq")) {
+		char *buffer = new char[255];
+		isize_t result = url_param(url->url_params, "cseq", buffer, 255);
+		if (result > 0) {
+			cseq = atoll(buffer);
+		}
+	}
+
+	// Alias
+	bool alias = false;
+	if (url_has_param(url, "alias")) {
+		char *buffer = new char[5];
+		isize_t result = url_param(url->url_params, "alias", buffer, 5);
+		if (result > 0) {
+			alias = strcmp(buffer, "yes") == 0;
+		}
+	}
+
+	// Used as route
+	bool usedAsRoute = false;
+	if (url_has_param(url, "usedAsRoute")) {
+		char *buffer = new char[5];
+		isize_t result = url_param(url->url_params, "usedAsRoute", buffer, 5);
+		if (result > 0) {
+			usedAsRoute = strcmp(buffer, "yes") == 0;
+		}
+	}
+
+	// Path
+	list<string> path;
+	// Accept headers
+	list<string> acceptHeaders;
+
+	char *headers = url_query_as_header_string(&home, url->url_headers);
+	char *line = NULL;
+	while ((line = strsep(&headers, "\n")) != NULL)
+	{
+		char *ptr;
+		strtok_r(line, ":", &ptr);
+		if (line) {
+			if (strcmp(line, "path") == 0 && ptr) {
+				char *item = NULL;
+				while ((item = strsep(&ptr, ",")) != NULL) {
+					path.push_back(item);
+				}
+			} else if (strcmp(line, "accept") == 0 && ptr) {
+				char *item = NULL;
+				while ((item = strsep(&ptr, ",")) != NULL) {
+					acceptHeaders.push_back(item);
+				}
+			}
+		}
+	}
+
+	char transport[20];
+	char *transportPtr = transport;
+	if (!url_param(url[0].url_params, "transport", transport, sizeof(transport) - 1)) {
+		transportPtr = NULL;
+	}
+
+	url->url_headers = NULL;
+	sip_contact_t *contact = sip_contact_make(&home, url_as_string(&home, url));
+
+	ExtendedContactCommon ecc(key, path, call_id, uid);
+	auto exc = make_shared<ExtendedContact>(ecc, contact, globalExpire, cseq, getCurrentTime(), alias, acceptHeaders);
+	exc->mRegId = setAndGetRegid(exc->mSipUri, &exc->mHome);
+	exc->mUsedAsRoute = usedAsRoute;
+	insertOrUpdateBinding(exc, nullptr);
+
+	su_home_deinit(&home);
+}
+
 void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,
 					uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute,
 					const std::shared_ptr<ContactUpdateListener> &listener) {

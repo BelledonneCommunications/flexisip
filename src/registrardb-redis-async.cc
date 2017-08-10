@@ -518,25 +518,32 @@ void RegistrarDbRedisAsync::shandleAuthReply(redisAsyncContext *ac, void *r, voi
 void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, forwardFn *forward_fn) {
 	const char *key = data->record.getKey().c_str();
 
-	int argc = 1; // HMSET
+	int argc = 2; // HMSET key
+	string cmd = "HMSET";
+
 	auto contacts = data->record.getExtendedContacts();
 	argc += contacts.size() * 2;
+
 	const char** argv = new const char*[argc];
 	size_t* argvlen = new size_t[argc];
-	string cmd = "HMSET";
-	argv[0] = cmd.c_str();
+
+	argv[0] = strdup(cmd.c_str());
 	argvlen[0] = strlen(argv[0]);
-	int i = 1;
+
+	argv[1] = strdup(key);
+	argvlen[1] = strlen(argv[1]);
+
+	int i = 2;
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
 		shared_ptr<ExtendedContact> ec = (*it);
 
-		string uid = ec->mUniqueId;
-		argv[i] = uid.c_str();
+		string uid = ec->getUniqueId();
+		argv[i] = strdup(uid.c_str());
 		argvlen[i] = strlen(argv[i]);
 		i += 1;
 
-		string contact = ExtendedContact::urlToString(ec->mSipUri);
-		argv[i] = contact.c_str();
+		string contact = ec->serializeAsUrlEncodedParams();
+		argv[i] = strdup(contact.c_str());
 		argvlen[i] = strlen(argv[i]);
 		i += 1;
 	}
@@ -545,6 +552,8 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, for
 	LOGD("Binding %s [%lu], %lu contacts in record", key, data->token, (unsigned long)contacts.size());
 	check_redis_command(redisAsyncCommandArgv(mContext, (void (*)(redisAsyncContext*, void*, void*))forward_fn, 
 		data, argc, argv, argvlen), data);
+	free(argv);
+	free(argvlen);
 }
 
 /* Methods called by the callbacks */
@@ -625,10 +634,6 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 
 	LOGD("GOT %s [%lu] --> %i contacts", key, data->token, (reply->elements / 2));
 	if (reply->elements > 0) {
-		bool contactsParsingSuccess = false;
-		su_home_t home;
-		su_home_init(&home);
-
 		for (size_t i = 0; i < reply->elements; i+=2) {
 			// Elements list is twice the size of the contacts list because the key is an element of the list itself
 			redisReply *element = reply->element[i];
@@ -636,17 +641,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 			element = reply->element[i+1];
 			const char *contact = element->str;
 			LOGD("Parsing contact %s => %s", uid, contact);
-			
-			//TODO parse each serialized contact
-			sip_contact_t *sip_contact = sip_contact_make(&home, contact);
-		}
-		su_home_deinit(&home);
-
-		if (!contactsParsingSuccess) {
-			LOGE("Couldn't parse stored contacts for %s : %u bytes", key, reply->len);
-			if (data->listener) data->listener->onError();
-			delete data;
-			return;
+			data->record.updateFromUrlEncodedParams(key, uid, contact);
 		}
 
 		if (data->mUpdateExpire) {
@@ -703,6 +698,11 @@ void RegistrarDbRedisAsync::handleMigration(redisReply *reply, RegistrarUserData
 }
 
 void RegistrarDbRedisAsync::doMigration() {
+	if (!isConnected() && !connect()) {
+		LOGE("Not connected to redis server");
+		return;
+	}
+
 	LOGD("Fetching all previous records");
 	RegistrarUserData *data = new RegistrarUserData(this, NULL, NULL);
 	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleMigration, 
