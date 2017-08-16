@@ -534,7 +534,9 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, for
 	argv[0] = strdup(cmd.c_str());
 	argvlen[0] = strlen(argv[0]);
 
-	argv[1] = strdup(key);
+	char record_namespace[strlen(key) + 3];
+	snprintf(record_namespace, strlen(key) + 3, "fs:%s", key);
+	argv[1] = strdup(record_namespace);
 	argvlen[1] = strlen(argv[1]);
 
 	int i = 2;
@@ -553,7 +555,7 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, for
 	}
 
 	data->mUpdateExpire = true;
-	LOGD("Binding %s [%lu], %lu contacts in record", key, data->token, (unsigned long)contacts.size());
+	LOGD("Binding fs:%s [%lu], %lu contacts in record", key, data->token, (unsigned long)contacts.size());
 	check_redis_command(redisAsyncCommandArgv(mContext, (void (*)(redisAsyncContext*, void*, void*))forward_fn, 
 		data, argc, argv, argvlen), data);
 	free(argv);
@@ -566,13 +568,13 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 	const char *key = data->record.getKey().c_str();
 
 	if ((!reply || reply->type == REDIS_REPLY_ERROR) && (data->mRetryCount < 2)) {
-		LOGE("Error while updating record %s [%lu] hashmap in redis, trying again", key, data->token);
+		LOGE("Error while updating record fs:%s [%lu] hashmap in redis, trying again", key, data->token);
 		data->mRetryCount += 1;
 		serializeAndSendToRedis(data, sHandleBind);
 	} else {
 		data->mRetryCount = 0;
-		LOGD("Fetching %s [%lu]", key, data->token);
-		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleFetch, data, "HGETALL %s", key), data);
+		LOGD("Fetching fs:%s [%lu]", key, data->token);
+		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleFetch, data, "HGETALL fs:%s", key), data);
 	}
 }
 
@@ -601,7 +603,7 @@ void RegistrarDbRedisAsync::handleClear(redisReply *reply, RegistrarUserData *da
 	const char *key = data->record.getKey().c_str();
 
 	if (!reply || reply->type == REDIS_REPLY_ERROR) {
-		LOGE("Redis error setting %s [%lu] - %s", key, data->token, reply ? reply->str : "null reply");
+		LOGE("Redis error setting fs:%s [%lu] - %s", key, data->token, reply ? reply->str : "null reply");
 		if (reply && string(reply->str).find("READONLY") != string::npos) {
 			LOGW("Redis couldn't set the AOR because we're connected to a slave. Replying 480.");
 			if (data->listener) data->listener->onRecordFound(NULL);
@@ -609,7 +611,7 @@ void RegistrarDbRedisAsync::handleClear(redisReply *reply, RegistrarUserData *da
 			if (data->listener) data->listener->onError();
 		}
 	} else {
-		LOGD("Clearing %s [%lu] success", key, data->token);
+		LOGD("Clearing fs:%s [%lu] success", key, data->token);
 		if (data->listener) data->listener->onRecordFound(&data->record);
 	}
 	delete data;
@@ -628,16 +630,16 @@ void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<ContactUp
 	}
 
 	const char *key = data->record.getKey().c_str();
-	LOGD("Clearing %s [%lu]", key, data->token);
+	LOGD("Clearing fs:%s [%lu]", key, data->token);
 	mLocalRegExpire->remove(key);
 	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleClear, 
-		data, "DEL %s", key), data);
+		data, "DEL fs:%s", key), data);
 }
 
 void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *data) {
 	const char *key = data->record.getKey().c_str();
 
-	LOGD("GOT %s [%lu] --> %i contacts", key, data->token, (reply->elements / 2));
+	LOGD("GOT fs:%s [%lu] --> %i contacts", key, data->token, (reply->elements / 2));
 	if (reply->elements > 0) {
 		for (size_t i = 0; i < reply->elements; i+=2) {
 			// Elements list is twice the size of the contacts list because the key is an element of the list itself
@@ -651,7 +653,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 
 		if (data->mUpdateExpire) {
 			time_t expireat = data->record.latestExpire();
-			check_redis_command(redisAsyncCommand(data->self->mContext, NULL, NULL, "EXPIREAT %s %lu", key, expireat), data);
+			check_redis_command(redisAsyncCommand(data->self->mContext, NULL, NULL, "EXPIREAT fs:%s %lu", key, expireat), data);
 		}
 
 		time_t now = getCurrentTime();
@@ -660,7 +662,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 		delete data;
 	} else {
 		// We haven't found the record in redis, trying to find an old record
-		LOGD("Record %s not found, trying aor:%s", key, key);
+		LOGD("Record fs:%s not found, trying aor:%s", key, key);
 		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleRecordMigration, 
 			data, "GET aor:%s", key), data);
 	}
@@ -678,9 +680,9 @@ void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<ContactUp
 	}
 
 	const char *key = data->record.getKey().c_str();
-	LOGD("Fetching %s [%lu]", key, data->token);
+	LOGD("Fetching fs:%s [%lu]", key, data->token);
 	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleFetch, 
-		data, "HGETALL %s", key), data);
+		data, "HGETALL fs:%s", key), data);
 }
 
 /*
@@ -692,12 +694,16 @@ void RegistrarDbRedisAsync::handleRecordMigration(redisReply *reply, RegistrarUs
 		LOGE("Redis error: %s", reply ? reply->str : "null reply");
 		if (data->listener) data->listener->onRecordFound(NULL); 
 	} else {
-		if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
-			LOGE("Couldn't parse stored contacts for aor:%s : %u bytes", data->record.getKey().c_str(), reply->len);
-			if (data->listener) data->listener->onRecordFound(NULL); 
+		if (reply->len > 0) {
+			if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
+				LOGE("Couldn't parse stored contacts for aor:%s : %u bytes", data->record.getKey().c_str(), reply->len);
+				if (data->listener) data->listener->onRecordFound(NULL); 
+			} else {
+				LOGD("Parsing stored contacts for aor:%s successful", data->record.getKey().c_str());
+				serializeAndSendToRedis(data, sHandleMigration);
+			}
 		} else {
-			LOGD("Parsing for stored contacts for aor:%s : %u bytes successful", data->record.getKey().c_str(), reply->len);
-			serializeAndSendToRedis(data, sHandleMigration);
+			if (data->listener) data->listener->onRecordFound(NULL); 
 		}
 	}
 }
