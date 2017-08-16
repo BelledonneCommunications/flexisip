@@ -86,7 +86,7 @@ sip_contact_t *ExtendedContact::toSofiaContact(su_home_t *home, time_t now) cons
 	time_t expire = mExpireAt - now;
 	if (expire <= 0)
 		return NULL;
-	
+
 	ostringstream oss;
 	oss << "expires=" << expire;
 	if (mQ == 0.f) {
@@ -95,8 +95,7 @@ sip_contact_t *ExtendedContact::toSofiaContact(su_home_t *home, time_t now) cons
 		oss << ";q=" << mQ;
 	}
 	contact = sip_contact_create(home, (url_string_t*)mSipUri, oss.str().c_str(), NULL);
-	/*strip out reg-id that shall not go out to the network*/
-	contact->m_url->url_params = url_strip_param_string(su_strdup(home, contact->m_url->url_params), "regid");
+
 	return contact;
 }
 
