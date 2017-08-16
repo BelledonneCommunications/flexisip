@@ -391,6 +391,9 @@ void ModuleRegistrar::onLoad(const GenericStruct *mc) {
 
 	mExpireRandomizer = mc->get<ConfigInt>("register-expire-randomizer-max")->read();
 
+	// The following method call should only be done once, TODO
+	//RegistrarDb::get()->doMigration();
+
 	if (!mStaticRecordsFile.empty()) {
 		readStaticRecords(); // read static records from configuration file
 		mStaticRecordsTimer = mAgent->createTimer(mStaticRecordsTimeout * 1000, &staticRoutesRereadTimerfunc, this);

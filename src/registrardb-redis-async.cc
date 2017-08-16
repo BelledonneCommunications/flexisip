@@ -487,6 +487,10 @@ void RegistrarDbRedisAsync::sHandleMigration(redisAsyncContext *ac, redisReply *
 	data->self->handleMigration(reply, data);
 }
 
+void RegistrarDbRedisAsync::sHandleRecordMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data) {
+	data->self->handleRecordMigration(reply, data);
+}
+
 void RegistrarDbRedisAsync::sHandleReplicationInfoReply(redisAsyncContext *ac, void *r, void *privdata) {
 	redisReply *reply = (redisReply *)r;
 	RegistrarDbRedisAsync *zis = (RegistrarDbRedisAsync *)privdata;
@@ -674,25 +678,43 @@ void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<ContactUp
 		data, "HGETALL %s", data->record.getKey().c_str()), data);
 }
 
+/*
+ * The following code is to migrate a redis database to the new way
+ */
+
+void RegistrarDbRedisAsync::handleRecordMigration(redisReply *reply, RegistrarUserData *data) {
+	if (!reply || reply->type == REDIS_REPLY_ERROR) {
+		LOGE("Redis error: %s", reply ? reply->str : "null reply");
+	} else {
+		if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
+			LOGE("Couldn't parse stored contacts for aor:%s : %u bytes", data->record.getKey().c_str(), reply->len);
+		} else {
+			LOGD("Parsing for stored contacts for aor:%s : %u bytes successful", data->record.getKey().c_str(), reply->len);
+			serializeAndSendToRedis(data, sHandleMigration);
+		}
+	}
+}
+
 void RegistrarDbRedisAsync::handleMigration(redisReply *reply, RegistrarUserData *data) {
 	if (!reply || reply->type == REDIS_REPLY_ERROR) {
 		LOGE("Redis error: %s", reply ? reply->str : "null reply");
 	} else if (reply->type == REDIS_REPLY_ARRAY) {
-		LOGD("Fetching all previous records success");
+		LOGD("Fetching all previous records success: %lu record(s) found", (unsigned long)reply->elements);
 
+		su_home_t home;
+		su_home_init(&home);
 		for (size_t i = 0; i < reply->elements; i++) {
 			redisReply *element = reply->element[i];
-			Record *record = new Record(NULL);
-			if (!mSerializer->parse(element->str, element->len, record)) {
-				LOGE("Couldn't parse stored contacts for aor:%s : %u bytes", data->record.getKey().c_str(), element->len);
-			} else {
-				RegistrarUserData *data2 = new RegistrarUserData(this, NULL, NULL);
-				data2->record = *record;
-				serializeAndSendToRedis(data2, sHandleMigration);
-			}
+			url_t *url = url_make(&home, element->str);
+			RegistrarUserData *new_data = new RegistrarUserData(this, url, NULL);
+			LOGD("Fetching previous record: %s", element->str);
+			check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleRecordMigration, 
+				new_data, "GET %s", element->str), new_data);
 		}
+		su_home_deinit(&home);
 		delete data;
 	} else {
+		LOGD("Record %s successfully migrated", data->record.getKey().c_str());
 		delete data;
 	}
 }
@@ -703,7 +725,7 @@ void RegistrarDbRedisAsync::doMigration() {
 		return;
 	}
 
-	LOGD("Fetching all previous records");
+	LOGD("Fetching previous record(s)");
 	RegistrarUserData *data = new RegistrarUserData(this, NULL, NULL);
 	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleMigration, 
 		data, "KEYS aor:*"), data);

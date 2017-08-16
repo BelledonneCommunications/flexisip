@@ -149,6 +149,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	void handleFetch(redisReply *reply, RegistrarUserData *data);
 	void handleReplicationInfoReply(const char *str);
 	void handleMigration(redisReply *reply, RegistrarUserData *data);
+	void handleRecordMigration(redisReply *reply, RegistrarUserData *data);
 	void onConnect(const redisAsyncContext *c, int status);
 	void onDisconnect(const redisAsyncContext *c, int status);
 	void onSubscribeConnect(const redisAsyncContext *c, int status);
@@ -169,6 +170,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	static void sHandleReplicationInfoReply(redisAsyncContext *ac, void *r, void *privdata);
 	static void sHandleSet(redisAsyncContext *ac, void *r, void *privdata);
 	static void sHandleMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
+	static void sHandleRecordMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 };
 
 #endif
