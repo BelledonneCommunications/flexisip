@@ -534,8 +534,9 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, for
 	argv[0] = strdup(cmd.c_str());
 	argvlen[0] = strlen(argv[0]);
 
-	char record_namespace[strlen(key) + 3];
-	snprintf(record_namespace, strlen(key) + 3, "fs:%s", key);
+	int namespace_len = strlen(key) + 4; // 4 is fs: length + \0
+	char record_namespace[namespace_len];
+	snprintf(record_namespace, namespace_len, "fs:%s", key);
 	argv[1] = strdup(record_namespace);
 	argvlen[1] = strlen(argv[1]);
 
@@ -573,7 +574,7 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 		serializeAndSendToRedis(data, sHandleBind);
 	} else {
 		data->mRetryCount = 0;
-		LOGD("Fetching fs:%s [%lu]", key, data->token);
+		LOGD("Binding ok, fetching fs:%s [%lu]", key, data->token);
 		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleFetch, data, "HGETALL fs:%s", key), data);
 	}
 }
@@ -727,7 +728,7 @@ void RegistrarDbRedisAsync::handleMigration(redisReply *reply, RegistrarUserData
 		su_home_deinit(&home);
 		delete data;
 	} else {
-		LOGD("Record %s successfully migrated", data->record.getKey().c_str());
+		LOGD("Record aor:%s successfully migrated", data->record.getKey().c_str());
 		if (data->listener) data->listener->onRecordFound(&data->record); 
 		delete data;
 		/*If we want someday to remove the previous record, uncomment the following and comment the delete data above
