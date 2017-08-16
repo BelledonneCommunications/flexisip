@@ -627,10 +627,11 @@ void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<ContactUp
 		return;
 	}
 
-	LOGD("Clearing %s [%lu]", data->record.getKey().c_str(), data->token);
-	mLocalRegExpire->remove(data->record.getKey().c_str());
+	const char *key = data->record.getKey().c_str();
+	LOGD("Clearing %s [%lu]", key, data->token);
+	mLocalRegExpire->remove(key);
 	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleClear, 
-		data, "DEL %s", data->record.getKey().c_str()), data);
+		data, "DEL %s", key), data);
 }
 
 void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *data) {
@@ -656,10 +657,13 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 		time_t now = getCurrentTime();
 		data->record.clean(now, data->listener);
 		if (data->listener) data->listener->onRecordFound(&data->record);
+		delete data;
 	} else {
-		if (data->listener) data->listener->onRecordFound(NULL);
+		// We haven't found the record in redis, trying to find an old record
+		LOGD("Record %s not found, trying aor:%s", key, key);
+		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleRecordMigration, 
+			data, "GET aor:%s", key), data);
 	}
-	delete data;
 }
 
 void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<ContactUpdateListener> &listener) {
@@ -673,9 +677,10 @@ void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<ContactUp
 		return;
 	}
 
-	LOGD("Fetching %s [%lu]", data->record.getKey().c_str(), data->token);
+	const char *key = data->record.getKey().c_str();
+	LOGD("Fetching %s [%lu]", key, data->token);
 	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleFetch, 
-		data, "HGETALL %s", data->record.getKey().c_str()), data);
+		data, "HGETALL %s", key), data);
 }
 
 /*
@@ -685,9 +690,11 @@ void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<ContactUp
 void RegistrarDbRedisAsync::handleRecordMigration(redisReply *reply, RegistrarUserData *data) {
 	if (!reply || reply->type == REDIS_REPLY_ERROR) {
 		LOGE("Redis error: %s", reply ? reply->str : "null reply");
+		if (data->listener) data->listener->onRecordFound(NULL); 
 	} else {
 		if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
 			LOGE("Couldn't parse stored contacts for aor:%s : %u bytes", data->record.getKey().c_str(), reply->len);
+			if (data->listener) data->listener->onRecordFound(NULL); 
 		} else {
 			LOGD("Parsing for stored contacts for aor:%s : %u bytes successful", data->record.getKey().c_str(), reply->len);
 			serializeAndSendToRedis(data, sHandleMigration);
@@ -715,7 +722,11 @@ void RegistrarDbRedisAsync::handleMigration(redisReply *reply, RegistrarUserData
 		delete data;
 	} else {
 		LOGD("Record %s successfully migrated", data->record.getKey().c_str());
+		if (data->listener) data->listener->onRecordFound(&data->record); 
 		delete data;
+		/*If we want someday to remove the previous record, uncomment the following and comment the delete data above
+		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleClear, 
+			data, "DEL aor:%s", data->record.getKey().c_str()), data);*/
 	}
 }
 
