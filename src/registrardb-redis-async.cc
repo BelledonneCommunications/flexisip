@@ -640,7 +640,7 @@ void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<ContactUp
 void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *data) {
 	const char *key = data->record.getKey().c_str();
 
-	LOGD("GOT fs:%s [%lu] --> %i contacts", key, data->token, (reply->elements / 2));
+	LOGD("GOT fs:%s [%lu] --> %lu contacts", key, data->token, (reply->elements / 2));
 	if (reply->elements > 0) {
 		for (size_t i = 0; i < reply->elements; i+=2) {
 			// Elements list is twice the size of the contacts list because the key is an element of the list itself
