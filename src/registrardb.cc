@@ -874,8 +874,7 @@ void RegistrarDb::fetch(const url_t *url, const shared_ptr<ContactUpdateListener
 	fetch(url, listener, false, recursive);
 }
 
-void RegistrarDb::fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains,
-						bool recursive) {
+void RegistrarDb::fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive) {
 	if (includingDomains) {
 		fetchWithDomain(url, listener, recursive);
 	} else {
@@ -885,6 +884,10 @@ void RegistrarDb::fetch(const url_t *url, const std::shared_ptr<ContactUpdateLis
 			doFetch(url, listener);
 		}
 	}
+}
+
+void RegistrarDb::fetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener) {
+	doFetchForGruu(url, gruu, listener);
 }
 
 void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,

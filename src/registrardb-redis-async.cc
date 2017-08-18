@@ -36,7 +36,7 @@
 using namespace std;
 
 RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<ContactUpdateListener> listener)
-	: self(s), listener(listener), record(url), token(0), mUpdateExpire(false), mRetryCount(0) {
+	: self(s), listener(listener), record(url), token(0), mUpdateExpire(false), mRetryCount(0), mGruu("") {
 	
 }
 RegistrarUserData::~RegistrarUserData() {
@@ -640,32 +640,52 @@ void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<ContactUp
 void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *data) {
 	const char *key = data->record.getKey().c_str();
 
-	LOGD("GOT fs:%s [%lu] --> %lu contacts", key, data->token, (reply->elements / 2));
-	if (reply->elements > 0) {
-		for (size_t i = 0; i < reply->elements; i+=2) {
-			// Elements list is twice the size of the contacts list because the key is an element of the list itself
-			redisReply *element = reply->element[i];
-			const char *uid = element->str;
-			element = reply->element[i+1];
-			const char *contact = element->str;
-			LOGD("Parsing contact %s => %s", uid, contact);
-			data->record.updateFromUrlEncodedParams(key, uid, contact);
-		}
+	if (!reply || reply->type == REDIS_REPLY_ERROR) {
+		LOGE("Redis error: %s", reply ? reply->str : "null reply");
+		if (data->listener) data->listener->onError();
+	} else if (reply->type == REDIS_REPLY_ARRAY) {
+		// This is the most common scenario: we want all contacts inside the record
+		LOGD("GOT fs:%s [%lu] --> %lu contacts", key, data->token, (reply->elements / 2));
+		if (reply->elements > 0) {
+			for (size_t i = 0; i < reply->elements; i+=2) {
+				// Elements list is twice the size of the contacts list because the key is an element of the list itself
+				redisReply *element = reply->element[i];
+				const char *uid = element->str;
+				element = reply->element[i+1];
+				const char *contact = element->str;
+				LOGD("Parsing contact %s => %s", uid, contact);
+				data->record.updateFromUrlEncodedParams(key, uid, contact);
+			}
 
-		if (data->mUpdateExpire) {
-			time_t expireat = data->record.latestExpire();
-			check_redis_command(redisAsyncCommand(data->self->mContext, NULL, NULL, "EXPIREAT fs:%s %lu", key, expireat), data);
-		}
+			if (data->mUpdateExpire) {
+				time_t expireat = data->record.latestExpire();
+				check_redis_command(redisAsyncCommand(data->self->mContext, NULL, NULL, "EXPIREAT fs:%s %lu", key, expireat), data);
+			}
 
-		time_t now = getCurrentTime();
-		data->record.clean(now, data->listener);
-		if (data->listener) data->listener->onRecordFound(&data->record);
-		delete data;
+			time_t now = getCurrentTime();
+			data->record.clean(now, data->listener);
+			if (data->listener) data->listener->onRecordFound(&data->record);
+			delete data;
+		} else {
+			// We haven't found the record in redis, trying to find an old record
+			LOGD("Record fs:%s not found, trying aor:%s", key, key);
+			check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleRecordMigration, 
+				data, "GET aor:%s", key), data);
+		}
 	} else {
-		// We haven't found the record in redis, trying to find an old record
-		LOGD("Record fs:%s not found, trying aor:%s", key, key);
-		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleRecordMigration, 
-			data, "GET aor:%s", key), data);
+		// This is only when we want a contact matching a given gruu
+		const char *gruu = data->mGruu.c_str();
+		if (reply->len > 0) {
+			LOGD("GOT fs:%s [%lu] for gruu %s --> %s", key, data->token, gruu, reply->str);
+			data->record.updateFromUrlEncodedParams(key, gruu, reply->str);
+			time_t now = getCurrentTime();
+			data->record.clean(now, data->listener);
+			if (data->listener) data->listener->onRecordFound(&data->record);
+		} else {
+			LOGD("Contact matching gruu %s in record fs:%s not found", gruu, key);
+			if (data->listener) data->listener->onRecordFound(NULL);
+		}
+		delete data;
 	}
 }
 
@@ -687,7 +707,22 @@ void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<ContactUp
 }
 
 void RegistrarDbRedisAsync::doFetchForGruu(const url_t *url, const string &gruu, const shared_ptr<ContactUpdateListener> &listener) {
-	//TODO
+	// fetch only the contact in the AOR (HGET) and call the onRecordFound of the listener
+	RegistrarUserData *data = new RegistrarUserData(this, url, listener);
+	data->mGruu = gruu;
+	
+	if (!isConnected() && !connect()) {
+		LOGE("Not connected to redis server");
+		if (data->listener) data->listener->onError();
+		delete data;
+		return;
+	}
+
+	const char *key = data->record.getKey().c_str();
+	const char *field = gruu.c_str();
+	LOGD("Fetching fs:%s [%lu] contact matching gruu %s", key, data->token, field);
+	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleFetch, 
+		data, "HGET fs:%s %s", key, field), data);
 }
 
 /*

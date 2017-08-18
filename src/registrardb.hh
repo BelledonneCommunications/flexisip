@@ -277,6 +277,7 @@ class RegistrarDb {
 	void clear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
+	void fetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener);
 	void updateRemoteExpireTime(const std::string &key, time_t expireat);
 	unsigned long countLocalActiveRecords() {
 		return mLocalRegExpire->countActives();

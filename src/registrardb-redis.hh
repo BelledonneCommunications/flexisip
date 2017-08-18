@@ -87,6 +87,7 @@ struct RegistrarUserData {
 	unsigned long token;
 	bool mUpdateExpire;
 	uint8_t mRetryCount;
+	std::string mGruu;
 
 	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, std::shared_ptr<ContactUpdateListener> listener);
 	~RegistrarUserData();
