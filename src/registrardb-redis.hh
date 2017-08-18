@@ -106,6 +106,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 					  const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener);
+	virtual void doFetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void doMigration();
 	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void unsubscribe(const std::string &topic);

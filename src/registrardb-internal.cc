@@ -77,6 +77,10 @@ void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<ContactUpda
 	listener->onRecordFound(r);
 }
 
+void RegistrarDbInternal::doFetchForGruu(const url_t *url, const string &gruu, const shared_ptr<ContactUpdateListener> &listener) {
+	//TODO
+}
+
 void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
 	string key(Record::defineKeyFromUrl(sip->sip_from->a_url));
 

@@ -686,6 +686,10 @@ void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<ContactUp
 		data, "HGETALL fs:%s", key), data);
 }
 
+void RegistrarDbRedisAsync::doFetchForGruu(const url_t *url, const string &gruu, const shared_ptr<ContactUpdateListener> &listener) {
+	//TODO
+}
+
 /*
  * The following code is to migrate a redis database to the new way
  */
