@@ -579,6 +579,18 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 	}
 }
 
+static string extractUniqueId(Record r, sip_contact_t *contact) {
+	while (contact) {
+		const char *lineValuePtr = NULL;
+		string lineValue = r.extractUniqueId(contact);
+		if (!lineValue.empty()) {
+			return lineValue;
+		}
+		contact = contact->m_next;
+	}
+	return "";
+}
+
 void RegistrarDbRedisAsync::doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
 					  const sip_path_t *ipath, list<string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version, 
 					  const shared_ptr<ContactUpdateListener> &listener) {
@@ -588,6 +600,7 @@ void RegistrarDbRedisAsync::doBind(const url_t *ifrom, sip_contact_t *icontact, 
 
 	RegistrarUserData *data = new RegistrarUserData(this, ifrom, listener);
 	time_t now = getCurrentTime();
+
 	data->record.update(icontact, ipath, expire, iid, iseq, now, alias, acceptHeaders, usedAsRoute, data->listener);
 	mLocalRegExpire->update(data->record);
 
@@ -597,7 +610,15 @@ void RegistrarDbRedisAsync::doBind(const url_t *ifrom, sip_contact_t *icontact, 
 		delete data;
 		return;
 	}
-	serializeAndSendToRedis(data, sHandleBind);
+
+	if (expire > 0) {
+		serializeAndSendToRedis(data, sHandleBind);
+	} else {
+		const char *key = data->record.getKey().c_str();
+		string uid = extractUniqueId(data->record, icontact);
+		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleBind, 
+			data, "HDEL fs:%s %s", key, uid.c_str()), data);
+	}
 }
 
 void RegistrarDbRedisAsync::handleClear(redisReply *reply, RegistrarUserData *data) {
