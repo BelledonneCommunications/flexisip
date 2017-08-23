@@ -272,7 +272,7 @@ class RegistrarDb {
 	static RegistrarDb *initialize(Agent *ag);
 	static RegistrarDb *get();
 	void bind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
-					  const sip_path_t *ipath, const sip_accept_t *iaccept, bool usedAsRoute, int expire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener);
+					  const sip_path_t *ipath, const sip_supported_t *isupported, const sip_accept_t *iaccept, bool usedAsRoute, int expire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener);
 	void bind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener);
 	void clear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);

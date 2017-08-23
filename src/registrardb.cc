@@ -411,6 +411,7 @@ void Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 		if (result > 0) {
 			call_id = string(buffer);
 		}
+		url->url_params = url_strip_param_string((char *)url->url_params, "callid");
 	}
 
 	// Expire
@@ -421,6 +422,7 @@ void Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 		if (result > 0) {
 			globalExpire = atoi(buffer);
 		}
+		url->url_params = url_strip_param_string((char *)url->url_params, "expires");
 	}
 
 	// CSeq
@@ -431,6 +433,7 @@ void Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 		if (result > 0) {
 			cseq = atoll(buffer);
 		}
+		url->url_params = url_strip_param_string((char *)url->url_params, "cseq");
 	}
 
 	// Alias
@@ -441,6 +444,7 @@ void Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 		if (result > 0) {
 			alias = strcmp(buffer, "yes") == 0;
 		}
+		url->url_params = url_strip_param_string((char *)url->url_params, "alias");
 	}
 
 	// Used as route
@@ -451,6 +455,7 @@ void Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 		if (result > 0) {
 			usedAsRoute = strcmp(buffer, "yes") == 0;
 		}
+		url->url_params = url_strip_param_string((char *)url->url_params, "usedAsRoute");
 	}
 
 	// Path
@@ -486,12 +491,13 @@ void Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 	}
 
 	url->url_headers = NULL;
-	sip_contact_t *contact = sip_contact_make(&home, url_as_string(&home, url));
+	sip_contact_t *contact = sip_contact_create(&home, (url_string_t*)url, NULL);
 
 	ExtendedContactCommon ecc(key, path, call_id, uid);
 	auto exc = make_shared<ExtendedContact>(ecc, contact, globalExpire, cseq, getCurrentTime(), alias, acceptHeaders);
 	exc->mRegId = setAndGetRegid(exc->mSipUri, &exc->mHome);
 	exc->mUsedAsRoute = usedAsRoute;
+
 	insertOrUpdateBinding(exc, nullptr);
 
 	su_home_deinit(&home);
@@ -891,14 +897,26 @@ void RegistrarDb::fetchForGruu(const url_t *url, const std::string &gruu, const 
 }
 
 void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
-					  const sip_path_t *ipath, const sip_accept_t *iaccept, bool usedAsRoute, int expire, 
+					  const sip_path_t *ipath, const sip_supported_t *isupported, const sip_accept_t *iaccept, bool usedAsRoute, int expire,
 					  bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) 
 {
+	SofiaAutoHome home;
 	const sip_accept_t *accept = iaccept;
 	list<string> acceptHeaders;
 	while (accept != NULL) {
 		acceptHeaders.push_back(accept->ac_type);
 		accept = accept->ac_next;
+	}
+
+	// FIXME : get supported as header not string...
+	string supported(sip_header_as_string(home.home(), (sip_header_t *) isupported));
+	if(supported.find("gruu") != -1) {
+		stringstream stream;
+		string instance(*(icontact->m_params));
+		instance = instance.substr(instance.find("+sip.instance=\"<") + strlen("+sip.instance=\"<"));
+		instance = instance.substr(0, instance.find(">"));
+		stream << "gr=" << instance;
+		url_param_add(home.home(), icontact->m_url, stream.str().c_str());
 	}
 
 	int countSipContacts = count_sip_contacts(icontact);
@@ -912,7 +930,7 @@ void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *
 }
 void RegistrarDb::bind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) {
 	bind(sip->sip_from->a_url, sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq,
-		sip->sip_path, sip->sip_accept, sip->sip_from->a_url->url_user == NULL, 
+		sip->sip_path, sip->sip_supported, sip->sip_accept, sip->sip_from->a_url->url_user == NULL,
 		globalExpire, alias, version, listener);
 }
 
