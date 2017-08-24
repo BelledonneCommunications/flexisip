@@ -89,6 +89,7 @@ void FileAuthDb::sync() {
 	file.open(mFileString);
 	if (file.is_open()) {
 		while (file.good() && getline(file, line)) {
+			if (line.empty()) continue;
 			ss.clear();
 			ss.str(line);
 			user.clear();
