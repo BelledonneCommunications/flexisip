@@ -78,7 +78,45 @@ void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<ContactUpda
 }
 
 void RegistrarDbInternal::doFetchForGruu(const url_t *url, const string &gruu, const shared_ptr<ContactUpdateListener> &listener) {
-	//TODO
+	string key(Record::defineKeyFromUrl(url));
+	SofiaAutoHome home;
+
+	map<string, Record *>::iterator it = mRecords.find(key);
+	Record *r = NULL;
+
+	if (it == mRecords.end()) {
+		listener->onRecordFound(r);
+		return;
+	}
+
+	r = (*it).second;
+	r->clean(getCurrentTime(), listener);
+	if (r->isEmpty()) {
+		mRecords.erase(it);
+		r = NULL;
+		listener->onRecordFound(r);
+		return;
+	}
+	
+	std::list<std::shared_ptr<ExtendedContact>> contacts = r->getExtendedContacts();
+	for (auto &contact : contacts) {
+		if(!url_has_param(contact->mSipUri, "gr")) {
+			r->removeContact(contact);
+			continue;
+		}
+		char *buffer = new char[255];
+		isize_t result = url_param(contact->mSipUri->url_params, "gr", buffer, 255);
+		if(result <= 0) {
+			r->removeContact(contact);
+			continue;
+		}
+		stringstream stremGruu;
+		stremGruu << "\"<" << buffer << ">\"";
+		if(stremGruu.str() != gruu)
+			r->removeContact(contact);
+	}
+
+	listener->onRecordFound(r);
 }
 
 void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {

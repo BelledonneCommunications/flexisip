@@ -195,6 +195,9 @@ class Record {
 	void pushContact(const std::shared_ptr<ExtendedContact> &ct) {
 		mContacts.push_back(ct);
 	}
+	std::list<std::shared_ptr<ExtendedContact>>::iterator removeContact(const std::shared_ptr<ExtendedContact> &ct) {
+		return mContacts.erase(find(mContacts.begin(), mContacts.end(), ct));
+	}
 	bool isInvalidRegister(const std::string &call_id, uint32_t cseq);
 	void clean(time_t time, const std::shared_ptr<ContactUpdateListener> &listener);
 	void update(sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,

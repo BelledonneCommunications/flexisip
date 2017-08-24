@@ -883,13 +883,23 @@ void RegistrarDb::fetch(const url_t *url, const shared_ptr<ContactUpdateListener
 void RegistrarDb::fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive) {
 	if (includingDomains) {
 		fetchWithDomain(url, listener, recursive);
-	} else {
-		if (recursive) {
-			doFetch(url, make_shared<RecursiveRegistrarDbListener>(this, listener, url));
-		} else {
-			doFetch(url, listener);
+		return;
+	}
+	if(url_has_param(url, "gr")) {
+		stringstream gruu;
+		char *buffer = new char[255];
+		isize_t result = url_param(url->url_params, "gr", buffer, 255);
+		if (result > 0) {
+			gruu << "\"<" << buffer << ">\"";
+			doFetchForGruu(url, gruu.str(), recursive
+						   ? make_shared<RecursiveRegistrarDbListener>(this, listener, url)
+						   : listener);
+			return;
 		}
 	}
+	doFetch(url, recursive
+			? make_shared<RecursiveRegistrarDbListener>(this, listener, url)
+			: listener);
 }
 
 void RegistrarDb::fetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener) {
