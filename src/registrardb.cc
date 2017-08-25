@@ -64,7 +64,7 @@ ostream &ExtendedContact::print(std::ostream &stream, time_t _now, time_t _offse
 	return stream;
 }
 
-void ExtendedContact::transfertRegId(const std::shared_ptr<ExtendedContact> &oldEc) {
+void ExtendedContact::transferRegId(const std::shared_ptr<ExtendedContact> &oldEc) {
 	// Transfert param RegId from oldEc to this
 	char strRegid[32] = {0};
 	if (oldEc->mRegId > 0 &&
@@ -280,15 +280,16 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 	for (auto it = mContacts.begin(); it != mContacts.end();) {
 		if (now >= (*it)->mExpireAt) {
 			SLOGD << "Cleaning expired contact " << (*it)->mContactId;
-			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
-		} else if ((*it)->line() && (*it)->mUniqueId == ec->mUniqueId) {
+		} else if (!(*it)->mUniqueId.empty() && (*it)->mUniqueId == ec->mUniqueId) {
 			SLOGD << "Cleaning older line '" << ec->mUniqueId << "' for contact " << (*it)->mContactId;
-			ec->transfertRegId((*it));
+			ec->transferRegId((*it));
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
-		} else if ((*it)->callId() && (*it)->mCallId == ec->mCallId) {
+		} else if ((*it)->mUniqueId.empty() && (*it)->callId() && (*it)->mCallId == ec->mCallId) {
+			/*we don't accept to clean a contact from call-id if the unique id was set previously*/
 			SLOGD << "Cleaning same call id contact " << (*it)->mContactId << "(" << ec->mCallId << ")";
+			ec->transferRegId((*it));
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
 		} else if (!olderEc || olderEc->mUpdatedTime > (*it)->mUpdatedTime) {
@@ -514,11 +515,6 @@ void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalE
 	}
 
 	while (contacts) {
-		if ((contacts->m_expires && atoi(contacts->m_expires) == 0) || (!contacts->m_expires && globalExpire <= 0)) {
-			contacts = contacts->m_next;
-			continue;
-		}
-
 		const char *lineValuePtr = NULL;
 		string lineValue = extractUniqueId(contacts);
 		if (!lineValue.empty())
@@ -778,11 +774,11 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		if (r != NULL) {
 			auto &extlist = r->getExtendedContacts();
 			list<sip_contact_t *> vectToRecurseOn;
-			for (auto it = extlist.begin(); it != extlist.end(); ++it) {
-				shared_ptr<ExtendedContact> ec = *it;
+			for (auto it : extlist) {
+				shared_ptr<ExtendedContact> ec = it;
 				// Also add alias for late forking (context in the forks map for this alias key)
 				SLOGD << "Step: " << m_step << (ec->mAlias ? "\tFound alias " : "\tFound contact ") << m_url << " -> "
-					  << ec->mSipUri << " usedAsRoute:" << ec->mUsedAsRoute;
+					  << ExtendedContact::urlToString(ec->mSipUri) << " usedAsRoute:" << ec->mUsedAsRoute;
 				if (!ec->mAlias && ec->mUsedAsRoute) {
 					ec = transformContactUsedAsRoute(m_url, ec);
 				}
@@ -792,15 +788,15 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 					if (contact) {
 						vectToRecurseOn.push_back(contact);
 					} else {
-						SLOGW << "Can't create sip_contact of " << ec->mSipUri;
+						SLOGW << "Can't create sip_contact of " << ExtendedContact::urlToString(ec->mSipUri);
 					}
 				}
 			}
 			m_request += vectToRecurseOn.size();
-			for (auto itrec = vectToRecurseOn.cbegin(); itrec != vectToRecurseOn.cend(); ++itrec) {
-				m_database->fetch((*itrec)->m_url,
+			for (auto itrec : vectToRecurseOn) {
+				m_database->fetch(itrec->m_url,
 								  make_shared<RecursiveRegistrarDbListener>(m_database, this->shared_from_this(),
-																			(*itrec)->m_url, m_step - 1),
+																			itrec->m_url, m_step - 1),
 								  false);
 			}
 		}
