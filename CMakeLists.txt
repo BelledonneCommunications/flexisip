@@ -28,6 +28,7 @@ set(FLEXISIP_MAJOR_VERSION "1")
 set(FLEXISIP_MINOR_VERSION "0")
 set(FLEXISIP_MICRO_VERSION "12")
 set(FLEXISIP_VERSION "${FLEXISIP_MAJOR_VERSION}.${FLEXISIP_MINOR_VERSION}.${FLEXISIP_MICRO_VERSION}")
+set(PROJECT_VERSION ${FLEXISIP_VERSION})
 
 include(CMakePushCheckState)
 include(CMakeDependentOption)
@@ -40,7 +41,7 @@ include(GNUInstallDirs)
 option(ENABLE_DATEHANDLER "Build DateHandler module" NO)
 option(ENABLE_DOC "Build documentation" YES)
 option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" NO)
-option(ENABLE_ODBC "Build ODBC support for database connection" YES)
+option(ENABLE_ODBC "Build ODBC support for database connection" NO)
 option(ENABLE_PRESENCE "Build presence support" NO)
 option(ENABLE_PROTOBUF "Build with protobuf support" NO)
 option(ENABLE_PUSHNOTIFICATION "Build with remote push notification support" YES)
@@ -51,6 +52,10 @@ option(ENABLE_STATIC "Build static library (default is shared library)." NO)
 option(ENABLE_TRANSCODER "Build transcoder support" YES)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
+if(NOT CMAKE_INSTALL_RPATH AND CMAKE_INSTALL_PREFIX)
+        set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_FULL_LIBDIR})
+        message(STATUS "Setting install rpath to ${CMAKE_INSTALL_RPATH}")
+endif()
 
 if(APPLE)
 set(XSDCXX_DEFAULT_ROOT_PATH "/usr/local")
@@ -59,10 +64,10 @@ set(XSDCXX_DEFAULT_ROOT_PATH "/usr")
 endif()
 
 set(XSDCXX_ROOT_PATH ${XSDCXX_DEFAULT_ROOT_PATH}  CACHE STRING "Path of where the bin/xsdcxx executable will be found. Comes from http://www.codesynthesis.com/products/xsd/download.xhtml. On mac use 'brew install xsd'")
-set(SYSCONFIGROOT "" CACHE STRING "Config directory, the place where flexisip expects its flexisip.conf file to reside" )
+set(SYSCONF_INSTALL_DIR ${CMAKE_INSTALL_FULL_SYSCONFDIR} CACHE STRING "Config directory, the place where flexisip expects its flexisip.conf file to reside" )
 
 
-set(CONFIG_DIR ${SYSCONFIGROOT}/etc)
+set(CONFIG_DIR ${SYSCONF_INSTALL_DIR}/flexisip)
 message(STATUS "Config dir: ${CONFIG_DIR}")
 
 function(FIND_PROGRAM_REQUIRED varname progname)
@@ -254,14 +259,7 @@ set_source_files_properties(${PROJECT_BINARY_DIR}/flexisip-config.h PROPERTIES G
 add_definitions("-DHAVE_CONFIG_H")
 
 add_subdirectory(src)
+add_subdirectory(scripts)
 
 # Packaging
-
-set(CPACK_GENERATOR TGZ;DEB;RPM)
-set(CPACK_PACKAGE_VERSION_MAJOR ${FLEXISIP_MAJOR_VERSION})
-set(CPACK_PACKAGE_VERSION_MINOR ${FLEXISIP_MINOR_VERSION})
-set(CPACK_PACKAGE_VERSION_PATCH ${FLEXISIP_MICRO_VERSION})
-set(CPACK_PACKAGE_VERSION ${FLEXISIP_VERSION})
-set(CPACK_PACKAGE_CONTACT info@belledonne-communications.com)
-
-include(CPack)
+add_subdirectory(build)
