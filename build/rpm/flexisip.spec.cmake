@@ -201,7 +201,6 @@ fi
 %{_libdir}/*
 
 %if %{presence}
-	%{_libdir}/libflexisip-presence.*
 	%{_sysconfdir}/init.d/flexisip-presence
 	/lib/systemd/system/flexisip-presence.service
 	/lib/systemd/system/flexisip-presence@.service

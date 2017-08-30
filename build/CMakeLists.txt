@@ -22,7 +22,7 @@
 
 if (NOT CPACK_PACKAGE_NAME)
 	if (ENABLE_PRESENCE)
-		set(CPACK_PACKAGE_NAME "flexisipi-presence")
+		set(CPACK_PACKAGE_NAME "flexisip-presence")
 	else()
 		set(CPACK_PACKAGE_NAME "flexisip")
 	endif()
