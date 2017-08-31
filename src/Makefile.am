@@ -54,7 +54,7 @@ thesources= \
 			module-gatewayadapter.cc \
 			module-contact-route-inserter.cc \
 			module-nat-helper.cc \
-			module-registrar.cc \
+			module-registrar.cc module-registrar.hh \
 			module-router.cc \
 			module-transcode.cc \
 			module-statistics-collector.cc \
