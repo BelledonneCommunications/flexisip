@@ -7,23 +7,11 @@ Documentation
 You will find a comprehensive documentation on how to use Flexisip online 
 here: https://wiki.linphone.org/wiki/index.php/Flexisip:start
 
-Compilation
+Compilation on Gnu Linux
 ---------------------
 
 Flexisip depends on the following required externals:
-- oRTP
-- sofia-sip library, 'bc' branch maintained by belledonne communications. 
-  You can clone it from git://git.linphone.org/sofia-sip -b bc
-- autotools, libtool (for compilation only)
-
-It is recommended that you compile and install flexisip and the dependencies 
-in a prefix, so that they don't interfere with legitimate versions installed 
-in your system.
-
-Optionally it also depends on:
-- mediastreamer2 (use --disable-trancoder if not present)
 - net-snmp
-- odbc
 - hiredis
 - protobuf
 - xsd (>= 4, for old OS on which this version isn't packaged, rpm and deb 
@@ -31,16 +19,19 @@ Optionally it also depends on:
 - pdflatex to generate the documentation in PDF format.
 - xercesc3 
 
-You can issue ./configure --help to specify these up.
+You can issue ./prepare.py  -lf to specify these up.
+
+Rpm on Gnu Linux
+---------------------
+./prepare.py flexisip-rpm
+make
 
 cmake/Xcode under macosx
 --------------
 
 To compile, with cmake/Xcode, first update submodule using:
-- git submodule update --init
 - ./prepare.py -G Xcode flexisip \
 	-DENABLE_REDIS=NO \
-	-DENABLE_ODBC=NO \
 	-DEP_sofiasip_CONFIGURE_OPTIONS=PKG_CONFIG_PATH=/opt/local/lib/pkgconfig/ 
 - xcodebuild -project WORK/flexisip/cmake/Project.xcodeproj/ 
 - open WORK/flexisip/Build/flexisip/flexisip.xcodeproj
@@ -66,31 +57,6 @@ You can either:
 - copy and modify file flexisip.conf.sample to flexisip.conf in directory <prefix>/etc/flexisip
 - or issue `flexisip --dump-default all > flexisip.conf` in a terminal 
   to generate a configuration file with the default values.
-
-
-ODBC
----------------------
-
-ODBC allows you to use a database for authentication. 
-Some tuning is possible to allow for better performances.
-
-Enable pooling in odbc.ini and use a thread safe driver.
-Use ODBCINI and ODBCSYSINI environement variable to override ini files location.
-The connection string defined in authentication section of flexisip.conf may use
-either a DSN or a DSN-less connection string.
-
-Example odbc.ini file:
-[myodbc3]
-Driver       = /usr/lib/x86_64-linux-gnu/odbc/libmyodbc.so
-Description  = MySQL ODBC 3.51 Driver DSN
-Server       = localhost
-Port         =
-User         = user
-Password     = password
-Database     = flexisip
-Option       = 4
-Socket       =
-
 
 Developer notes:
 ---------------------
