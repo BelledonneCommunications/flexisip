@@ -36,7 +36,7 @@
 using namespace std;
 
 RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<ContactUpdateListener> listener)
-	: self(s), listener(listener), record(url), token(0), mUpdateExpire(false), mRetryCount(0), mGruu("") {
+	: self(s), listener(listener), record(url), token(0), mUpdateExpire(false), mRetryCount(0), mGruu(""), mIsUnregister(false) {
 	
 }
 RegistrarUserData::~RegistrarUserData() {
@@ -531,13 +531,13 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, for
 	const char** argv = new const char*[argc];
 	size_t* argvlen = new size_t[argc];
 
-	argv[0] = strdup(cmd.c_str());
+	argv[0] = cmd.c_str();
 	argvlen[0] = strlen(argv[0]);
 
 	int namespace_len = strlen(key) + 4; // 4 is fs: length + \0
 	char record_namespace[namespace_len];
 	snprintf(record_namespace, namespace_len, "fs:%s", key);
-	argv[1] = strdup(record_namespace);
+	argv[1] = record_namespace;
 	argvlen[1] = strlen(argv[1]);
 
 	int i = 2;
@@ -559,8 +559,12 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, for
 	LOGD("Binding fs:%s [%lu], %lu contacts in record", key, data->token, (unsigned long)contacts.size());
 	check_redis_command(redisAsyncCommandArgv(mContext, (void (*)(redisAsyncContext*, void*, void*))forward_fn, 
 		data, argc, argv, argvlen), data);
-	free(argv);
-	free(argvlen);
+
+	for (i = 2; i < argc; i++) {
+		free((char *)argv[i]);
+	}
+	delete[] argv;
+	delete[] argvlen;
 }
 
 /* Methods called by the callbacks */
@@ -616,6 +620,7 @@ void RegistrarDbRedisAsync::doBind(const url_t *ifrom, sip_contact_t *icontact, 
 	} else {
 		const char *key = data->record.getKey().c_str();
 		string uid = extractUniqueId(data->record, icontact);
+		data->mIsUnregister = true;
 		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleBind, 
 			data, "HDEL fs:%s %s", key, uid.c_str()), data);
 	}
@@ -664,6 +669,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 	if (!reply || reply->type == REDIS_REPLY_ERROR) {
 		LOGE("Redis error: %s", reply ? reply->str : "null reply");
 		if (data->listener) data->listener->onError();
+		delete data;
 	} else if (reply->type == REDIS_REPLY_ARRAY) {
 		// This is the most common scenario: we want all contacts inside the record
 		LOGD("GOT fs:%s [%lu] --> %lu contacts", key, data->token, (reply->elements / 2));
@@ -764,9 +770,13 @@ void RegistrarDbRedisAsync::handleRecordMigration(redisReply *reply, RegistrarUs
 				serializeAndSendToRedis(data, sHandleMigration);
 			}
 		} else {
-			if (data->listener) data->listener->onRecordFound(NULL); 
+			// This is a workaround required in case of unregister (expire set to 0) because
+			// if there is only one entry, it will be deleted first so the fetch will come back empty
+			// and flexisip will answer 480 instead of 200.
+			if (data->listener) data->listener->onRecordFound(data->mIsUnregister ? &data->record : NULL); 
 		}
 	}
+	delete data;
 }
 
 void RegistrarDbRedisAsync::handleMigration(redisReply *reply, RegistrarUserData *data) {
@@ -786,15 +796,14 @@ void RegistrarDbRedisAsync::handleMigration(redisReply *reply, RegistrarUserData
 				new_data, "GET %s", element->str), new_data);
 		}
 		su_home_deinit(&home);
-		delete data;
 	} else {
 		LOGD("Record aor:%s successfully migrated", data->record.getKey().c_str());
 		if (data->listener) data->listener->onRecordFound(&data->record); 
-		delete data;
 		/*If we want someday to remove the previous record, uncomment the following and comment the delete data above
 		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleClear, 
 			data, "DEL aor:%s", data->record.getKey().c_str()), data);*/
 	}
+	delete data;
 }
 
 void RegistrarDbRedisAsync::doMigration() {

@@ -489,6 +489,7 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 			stream << "\"" << url_as_string(home, sip->sip_from->a_url) << ";gr=" << gruu << "\"";
 			msg_header_replace_param(home, (msg_common_t *) contact, su_sprintf(home, "pub-gruu=%s", stream.str().c_str()));
 		}
+		delete[] buffer;
 	}
 	if (contact && !mServiceRoute.empty()) {
 		if (expire > 0) {

@@ -398,6 +398,48 @@ string ExtendedContact::serializeAsUrlEncodedParams() {
 	return ExtendedContact::urlToString(url);
 }
 
+static string getStringParam(url_t *url, const char *param) {
+	string extracted_param;
+	if (url_has_param(url, param)) {
+		char *buffer = new char[255];
+		isize_t result = url_param(url->url_params, param, buffer, 255);
+		if (result > 0) {
+			extracted_param = string(buffer);
+		}
+		url->url_params = url_strip_param_string((char *)url->url_params, param);
+		delete[] buffer;
+	}
+	return extracted_param;
+}
+
+static int getIntParam(url_t *url, const char *param) {
+	int extracted_param = 0;
+	if (url_has_param(url, param)) {
+		char *buffer = new char[255];
+		isize_t result = url_param(url->url_params, param, buffer, 255);
+		if (result > 0) {
+			extracted_param = atoi(buffer);
+		}
+		url->url_params = url_strip_param_string((char *)url->url_params, param);
+		delete[] buffer;
+	}
+	return extracted_param;
+}
+
+static bool getBoolParam(url_t *url, const char *param) {
+	bool extracted_param = false;
+	if (url_has_param(url, param)) {
+		char *buffer = new char[255];
+		isize_t result = url_param(url->url_params, param, buffer, 255);
+		if (result > 0) {
+			extracted_param = strcmp(buffer, "yes") == 0;
+		}
+		url->url_params = url_strip_param_string((char *)url->url_params, param);
+		delete[] buffer;
+	}
+	return extracted_param;
+}
+
 void Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url) {
 	su_home_t home;
 	su_home_init(&home);
@@ -405,59 +447,19 @@ void Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 	url_t *url = url_make(&home, full_url);
 
 	// CallId
-	string call_id;
-	if (url_has_param(url, "callid")) {
-		char *buffer = new char[255];
-		isize_t result = url_param(url->url_params, "callid", buffer, 255);
-		if (result > 0) {
-			call_id = string(buffer);
-		}
-		url->url_params = url_strip_param_string((char *)url->url_params, "callid");
-	}
+	string call_id = getStringParam(url, "callid");
 
 	// Expire
-	int globalExpire = 0;
-	if (url_has_param(url, "expires")) {
-		char *buffer = new char[255];
-		isize_t result = url_param(url->url_params, "expires", buffer, 255);
-		if (result > 0) {
-			globalExpire = atoi(buffer);
-		}
-		url->url_params = url_strip_param_string((char *)url->url_params, "expires");
-	}
+	int globalExpire = getIntParam(url, "expires");
 
 	// CSeq
-	uint32_t cseq = 0;
-	if (url_has_param(url, "cseq")) {
-		char *buffer = new char[255];
-		isize_t result = url_param(url->url_params, "cseq", buffer, 255);
-		if (result > 0) {
-			cseq = atoll(buffer);
-		}
-		url->url_params = url_strip_param_string((char *)url->url_params, "cseq");
-	}
+	uint32_t cseq = getIntParam(url, "cseq");
 
 	// Alias
-	bool alias = false;
-	if (url_has_param(url, "alias")) {
-		char *buffer = new char[5];
-		isize_t result = url_param(url->url_params, "alias", buffer, 5);
-		if (result > 0) {
-			alias = strcmp(buffer, "yes") == 0;
-		}
-		url->url_params = url_strip_param_string((char *)url->url_params, "alias");
-	}
+	bool alias = getBoolParam(url, "alias");
 
 	// Used as route
-	bool usedAsRoute = false;
-	if (url_has_param(url, "usedAsRoute")) {
-		char *buffer = new char[5];
-		isize_t result = url_param(url->url_params, "usedAsRoute", buffer, 5);
-		if (result > 0) {
-			usedAsRoute = strcmp(buffer, "yes") == 0;
-		}
-		url->url_params = url_strip_param_string((char *)url->url_params, "usedAsRoute");
-	}
+	bool usedAsRoute = getBoolParam(url, "usedAsRoute");
 
 	// Path
 	list<string> path;
