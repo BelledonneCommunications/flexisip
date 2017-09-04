@@ -362,6 +362,12 @@ string ExtendedContact::serializeAsUrlEncodedParams() {
 	oss << "cseq=" << mCSeq;
 	url_param_add(mHome.home(), url, oss.str().c_str());
 
+	// Updated at
+	oss.str("");
+	oss.clear();
+	oss << "updatedAt=" << mUpdatedTime;
+	url_param_add(mHome.home(), url, oss.str().c_str());
+
 	// Alias
 	oss.str("");
 	oss.clear();
@@ -426,6 +432,20 @@ static int getIntParam(url_t *url, const char *param) {
 	return extracted_param;
 }
 
+static int getUnsignedLongParam(url_t *url, const char *param) {
+	unsigned long extracted_param = 0;
+	if (url_has_param(url, param)) {
+		char *buffer = new char[255];
+		isize_t result = url_param(url->url_params, param, buffer, 255);
+		if (result > 0) {
+			extracted_param = (unsigned long) atoll(buffer);
+		}
+		url->url_params = url_strip_param_string((char *)url->url_params, param);
+		delete[] buffer;
+	}
+	return extracted_param;
+}
+
 static bool getBoolParam(url_t *url, const char *param) {
 	bool extracted_param = false;
 	if (url_has_param(url, param)) {
@@ -440,7 +460,8 @@ static bool getBoolParam(url_t *url, const char *param) {
 	return extracted_param;
 }
 
-void Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url) {
+bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url) {
+	bool result = false;
 	su_home_t home;
 	su_home_init(&home);
 
@@ -451,6 +472,9 @@ void Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 
 	// Expire
 	int globalExpire = getIntParam(url, "expires");
+
+	// Update time
+	unsigned long updatedAt = getUnsignedLongParam(url, "updatedAt");
 
 	// CSeq
 	uint32_t cseq = getIntParam(url, "cseq");
@@ -497,13 +521,17 @@ void Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 	sip_contact_t *contact = sip_contact_create(&home, (url_string_t*)url, NULL);
 
 	ExtendedContactCommon ecc(key, path, call_id, uid);
-	auto exc = make_shared<ExtendedContact>(ecc, contact, globalExpire, cseq, getCurrentTime(), alias, acceptHeaders);
+	auto exc = make_shared<ExtendedContact>(ecc, contact, globalExpire, cseq, updatedAt, alias, acceptHeaders);
 	exc->mRegId = setAndGetRegid(exc->mSipUri, &exc->mHome);
 	exc->mUsedAsRoute = usedAsRoute;
 
-	insertOrUpdateBinding(exc, nullptr);
+	if (getCurrentTime() < exc->mExpireAt) {
+		insertOrUpdateBinding(exc, nullptr);
+		result = true;
+	}
 
 	su_home_deinit(&home);
+	return result;
 }
 
 void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,

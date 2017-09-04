@@ -206,7 +206,7 @@ class Record {
 	void update(const ExtendedContactCommon &ecc, const char *sipuri, long int expireAt, float q, uint32_t cseq,
 				time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute,
 				const std::shared_ptr<ContactUpdateListener> &listener);
-	void updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url);
+	bool updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url);
 
 	void print(std::ostream &stream) const;
 	bool isEmpty() {

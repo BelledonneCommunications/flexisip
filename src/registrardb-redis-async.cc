@@ -681,7 +681,10 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 				element = reply->element[i+1];
 				const char *contact = element->str;
 				LOGD("Parsing contact %s => %s", uid, contact);
-				data->record.updateFromUrlEncodedParams(key, uid, contact);
+				if (!data->record.updateFromUrlEncodedParams(key, uid, contact)) {
+					LOGD("Record %s seems to have an outdated contact %s, remove it from redis", key, uid);
+					check_redis_command(redisAsyncCommand(data->self->mContext, NULL, NULL, "HDEL fs:%s %s", key, uid), data);
+				}
 			}
 
 			if (data->mUpdateExpire) {
