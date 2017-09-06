@@ -146,7 +146,10 @@ namespace flexisip {
 				LOGF("Preinit was skipped: not supported.");
 			}
 			
-			bctbx_init_logger(enable_stdout);
+			bctbx_init_logger(FALSE);
+			if (enable_stdout) {
+				bctbx_set_log_handler_for_domain(bctbx_logv_out, NULL);
+			}
 			
 			if (syslevel == "debug") {
 				flexisip_sysLevelMin = BCTBX_LOG_DEBUG;
