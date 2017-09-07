@@ -22,8 +22,6 @@
 using namespace std;
 
 struct MyListener : public ContactUpdateListener {
-	RegistrarDb::BindParameters params;
-	MyListener(const RegistrarDb::BindParameters &params) : params(params){};
 	virtual void onRecordFound(Record *r) {
 		// 		cout << "record found : ";
 		// 		r->print(cout);

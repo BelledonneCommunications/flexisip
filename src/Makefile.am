@@ -54,7 +54,7 @@ thesources= \
 			module-gatewayadapter.cc \
 			module-contact-route-inserter.cc \
 			module-nat-helper.cc \
-			module-registrar.cc \
+			module-registrar.cc module-registrar.hh \
 			module-router.cc \
 			module-transcode.cc \
 			module-statistics-collector.cc \
@@ -175,7 +175,7 @@ endif
 # Redis
 if BUILD_REDIS
 
-bin_PROGRAMS+=flexisip_ctdumper flexisip_serializer flexisip_binder
+bin_PROGRAMS+=flexisip_ctdumper flexisip_serializer
 flexisip_ctdumper_SOURCES=tools/ctdumper.cc $(thesources)
 flexisip_ctdumper_LDADD=$(flexisip_LDADD)
 nodist_flexisip_ctdumper_SOURCES=$(nodistsources)

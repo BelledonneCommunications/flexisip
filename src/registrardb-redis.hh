@@ -70,9 +70,32 @@ struct RedisHost {
 	std::string state;
 };
 
+
+
+/******
+ * RegistrarUserData helper class
+ */
+class RegistrarDbRedisAsync;
+struct RegistrarUserData;
+
+typedef void(forwardFn)(redisAsyncContext *, redisReply *, RegistrarUserData *);
+
+struct RegistrarUserData {
+	RegistrarDbRedisAsync *self;
+	std::shared_ptr<ContactUpdateListener> listener;
+	Record record;
+	unsigned long token;
+	bool mUpdateExpire;
+	uint8_t mRetryCount;
+	std::string mGruu;
+	bool mIsUnregister;
+
+	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, std::shared_ptr<ContactUpdateListener> listener);
+	~RegistrarUserData();
+};
+
 class RegistrarDbRedisAsync : public RegistrarDb {
   public:
-	struct RegistrarUserData;
 	RegistrarDbRedisAsync(const std::string &preferredRoute, su_root_t *root, RecordSerializer *serializer,
 						  RedisParameters params);
 
@@ -80,9 +103,13 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	bool connect();
 	bool disconnect();
 
-	virtual void doBind(const BindParameters &params, const std::shared_ptr<ContactUpdateListener> &listener);
+	virtual void doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
+					  const sip_path_t *ipath, std::list<std::string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version, 
+					  const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener);
+	virtual void doFetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener);
+	virtual void doMigration();
 	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void unsubscribe(const std::string &topic);
 	virtual void publish(const std::string &topic, const std::string &uid);
@@ -109,12 +136,13 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	size_t mCurSlave;
 	su_timer_t *mReplicationTimer;
 	int mSlaveCheckTimeout;
-	std::list<RegistrarUserData*> mQueue;
-	bool mAddToQueue;
+	/*std::list<RegistrarUserData*> mQueue;
+	bool mAddToQueue;*/
 
+	void serializeAndSendToRedis(RegistrarUserData *data, forwardFn *forward_fn);
 	bool handleRedisStatus(const std::string &desc, int redisStatus, RegistrarUserData *data);
 	void onErrorData(RegistrarUserData *data);
-	void dequeueNextRedisCommand();
+	//void dequeueNextRedisCommand();
 
 	/* callbacks */
 	void handleAuthReply(const redisReply *reply);
@@ -123,6 +151,8 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	void handleClear(redisReply *reply, RegistrarUserData *data);
 	void handleFetch(redisReply *reply, RegistrarUserData *data);
 	void handleReplicationInfoReply(const char *str);
+	void handleMigration(redisReply *reply, RegistrarUserData *data);
+	void handleRecordMigration(redisReply *reply, RegistrarUserData *data);
 	void onConnect(const redisAsyncContext *c, int status);
 	void onDisconnect(const redisAsyncContext *c, int status);
 	void onSubscribeConnect(const redisAsyncContext *c, int status);
@@ -134,7 +164,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	void tryReconnect();
 
 	/* static handlers */
-	static void sHandleAorGetReply(struct redisAsyncContext *, void *r, void *privdata);
+	//static void sHandleAorGetReply(struct redisAsyncContext *, void *r, void *privdata);
 	static void shandleAuthReply(redisAsyncContext *ac, void *r, void *privdata);
 	static void sHandleBind(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 	static void sHandleClear(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
@@ -142,6 +172,8 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	static void sHandleInfoTimer(void *unused, su_timer_t *t, void *data);
 	static void sHandleReplicationInfoReply(redisAsyncContext *ac, void *r, void *privdata);
 	static void sHandleSet(redisAsyncContext *ac, void *r, void *privdata);
+	static void sHandleMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
+	static void sHandleRecordMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 };
 
 #endif

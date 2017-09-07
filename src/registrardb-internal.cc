@@ -32,22 +32,15 @@ using namespace std;
 RegistrarDbInternal::RegistrarDbInternal(const string &preferredRoute) : RegistrarDb(preferredRoute) {
 }
 
-void RegistrarDbInternal::doBind(const BindParameters &p, const std::shared_ptr<ContactUpdateListener> &listener) {
-	string key = Record::defineKeyFromUrl(p.sip.from);
-
-	if (count_sip_contacts(p.sip.contact) > Record::getMaxContacts()) {
-		LOGD("Too many contacts in register %s %i > %i", key.c_str(), count_sip_contacts(p.sip.contact),
-			 Record::getMaxContacts());
-		listener->onError();
-		return;
-	}
-
+void RegistrarDbInternal::doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
+					  const sip_path_t *ipath, list<string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) {
+	string key = Record::defineKeyFromUrl(ifrom);
 	time_t now = getCurrentTime();
 
 	map<string, Record *>::iterator it = mRecords.find(key);
 	Record *r;
 	if (it == mRecords.end()) {
-		r = new Record(p.sip.from);
+		r = new Record(ifrom);
 		mRecords.insert(make_pair(key, r));
 		LOGD("Creating AOR %s association", key.c_str());
 	} else {
@@ -55,21 +48,13 @@ void RegistrarDbInternal::doBind(const BindParameters &p, const std::shared_ptr<
 		r = (*it).second;
 	}
 
-	if (r->isInvalidRegister(p.sip.call_id, p.sip.cs_seq)) {
+	if (r->isInvalidRegister(iid, iseq)) {
 		LOGD("Invalid register");
 		listener->onInvalid();
 		return;
 	}
 
-	const sip_accept_t *accept = p.sip.accept;
-	list<string> acceptHeaders;
-	while (accept != NULL) {
-		acceptHeaders.push_back(accept->ac_type);
-		accept = accept->ac_next;
-	}
-
-	r->update(p.sip.contact, p.sip.path, p.global_expire, p.sip.call_id, p.sip.cs_seq, now, p.alias, acceptHeaders,
-			  p.usedAsRoute, listener);
+	r->update(icontact, ipath, expire, iid, iseq, now, alias, acceptHeaders, usedAsRoute, listener);
 
 	mLocalRegExpire->update(*r);
 	listener->onRecordFound(r);
@@ -87,6 +72,48 @@ void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<ContactUpda
 			mRecords.erase(it);
 			r = NULL;
 		}
+	}
+
+	listener->onRecordFound(r);
+}
+
+void RegistrarDbInternal::doFetchForGruu(const url_t *url, const string &gruu, const shared_ptr<ContactUpdateListener> &listener) {
+	string key(Record::defineKeyFromUrl(url));
+	SofiaAutoHome home;
+
+	map<string, Record *>::iterator it = mRecords.find(key);
+	Record *r = NULL;
+
+	if (it == mRecords.end()) {
+		listener->onRecordFound(r);
+		return;
+	}
+
+	r = (*it).second;
+	r->clean(getCurrentTime(), listener);
+	if (r->isEmpty()) {
+		mRecords.erase(it);
+		r = NULL;
+		listener->onRecordFound(r);
+		return;
+	}
+	
+	std::list<std::shared_ptr<ExtendedContact>> contacts = r->getExtendedContacts();
+	for (auto &contact : contacts) {
+		if(!url_has_param(contact->mSipUri, "gr")) {
+			r->removeContact(contact);
+			continue;
+		}
+		char *buffer = new char[255];
+		isize_t result = url_param(contact->mSipUri->url_params, "gr", buffer, 255);
+		if(result <= 0) {
+			r->removeContact(contact);
+			continue;
+		}
+		stringstream stremGruu;
+		stremGruu << "\"<" << buffer << ">\"";
+		if(stremGruu.str() != gruu)
+			r->removeContact(contact);
 	}
 
 	listener->onRecordFound(r);
@@ -118,6 +145,10 @@ void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<ContactUpda
 	mRecords.erase(it);
 	mLocalRegExpire->remove(key);
 	listener->onRecordFound(NULL);
+}
+
+void RegistrarDbInternal::doMigration() {
+
 }
 
 void RegistrarDbInternal::clearAll() {
