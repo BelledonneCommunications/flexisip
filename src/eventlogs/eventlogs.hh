@@ -189,7 +189,8 @@ public:
 
 	enum Backend {
 		Mysql = 0,
-		Sqlite3 = 1
+		Sqlite3 = 1,
+		Postgresql = 2
 	};
 
 	DataBaseEventLogWriter(

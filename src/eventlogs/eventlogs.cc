@@ -41,7 +41,7 @@ EventLog::Init::Init() {
 		 "/var/log/flexisip"},
 		{String, "database-backend", "Choose the type of backend that Soci will use for the connection.\n"
 		 "Depending on your Soci package and the modules you installed, the supported databases are:"
-		 "`mysql` and `sqlite3`",
+		 "`mysql`, `sqlite3` and `postgresql`",
 		 "mysql"},
 		{String, "database-connection-string", "The configuration parameters of the backend.\n"
 		 "The basic format is \"key=value key2=value2\". For a mysql backend, this "
@@ -485,6 +485,7 @@ void FilesystemEventLogWriter::write(const std::shared_ptr<EventLog> &evlog) {
 
 #define SQL_MYSQL_LAST_ID_FUN "LAST_INSERT_ID()"
 #define SQL_SQLITE3_LAST_ID_FUN "last_insert_rowid()"
+#define SQL_POSTGRESQL_LAST_ID_FUN "lastval()"
 
 using namespace soci;
 
@@ -548,78 +549,164 @@ inline string createEventsTable(DataBaseEventLogWriter::Backend backend) {
 	// has one `_` in MySQL and none in SQlite3...
 	//
 	// Also in SQlite3, AUTOINCREMENT is only allowed on an INTEGER PRIMARY KEY.
-	str += (backend == DataBaseEventLogWriter::Backend::Mysql)
-		? "  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,"
-		: "  id INTEGER PRIMARY KEY AUTOINCREMENT,";
+	switch (backend) {
+		case DataBaseEventLogWriter::Backend::Mysql:
+			str += "  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,";
+			break;
+		case DataBaseEventLogWriter::Backend::Sqlite3:
+			str += "  id INTEGER PRIMARY KEY AUTOINCREMENT,";
+			break;
+		case DataBaseEventLogWriter::Backend::Postgresql:
+			str += "  id SERIAL PRIMARY KEY,";
+			break;
+	}
 
-	str +=
-		"  type_id TINYINT UNSIGNED NOT NULL,"
-		"  sip_from VARCHAR(255) NOT NULL,"
-		"  sip_to VARCHAR(255) NOT NULL,"
-		"  user_agent VARCHAR(255) NOT NULL,"
-		"  date DATETIME NOT NULL,"
-		"  status_code TINYINT UNSIGNED NOT NULL,"
-		"  reason VARCHAR(255) NOT NULL,"
-		"  completed CHAR(1) NOT NULL,"
-		"  call_id VARCHAR(255) NOT NULL,"
+	if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
+		str +=
+			"  type_id SMALLINT NOT NULL,"
+			"  sip_from VARCHAR(255) NOT NULL,"
+			"  sip_to VARCHAR(255) NOT NULL,"
+			"  user_agent VARCHAR(255) NOT NULL,"
+			"  date TIMESTAMP NOT NULL,"
+			"  status_code SMALLINT NOT NULL,"
+			"  reason VARCHAR(255) NOT NULL,"
+			"  completed CHAR(1) NOT NULL,"
+			"  call_id VARCHAR(255) NOT NULL,"
 
-		"  FOREIGN KEY (type_id)"
-		"    REFERENCES event_type(id)"
-		")";
+			"  FOREIGN KEY (type_id)"
+			"    REFERENCES event_type(id)"
+			")";
+	} else {
+		str +=
+			"  type_id TINYINT UNSIGNED NOT NULL,"
+			"  sip_from VARCHAR(255) NOT NULL,"
+			"  sip_to VARCHAR(255) NOT NULL,"
+			"  user_agent VARCHAR(255) NOT NULL,"
+			"  date DATETIME NOT NULL,"
+			"  status_code TINYINT UNSIGNED NOT NULL,"
+			"  reason VARCHAR(255) NOT NULL,"
+			"  completed CHAR(1) NOT NULL,"
+			"  call_id VARCHAR(255) NOT NULL,"
+
+			"  FOREIGN KEY (type_id)"
+			"    REFERENCES event_type(id)"
+			")";
+	}
 
 	return str;
 }
 
 inline string createEventTypesTable(DataBaseEventLogWriter::Backend backend) {
-	string str = (backend == DataBaseEventLogWriter::Backend::Mysql)
-		? "INSERT INTO event_type (id, type)"
-		: "INSERT OR IGNORE INTO event_type (id, type)";
+	string str = "";
 
-	str +=
-		"VALUES"
-		"(0, \"Registration\"),"
-		"(1, \"Call\"),"
-		"(2, \"Message\"),"
-		"(3, \"Auth\"),"
-		"(4, \"QualityStatistics\")";
+	switch (backend) {
+		case DataBaseEventLogWriter::Backend::Mysql:
+			str += "INSERT INTO event_type (id, type)";
+			break;
+		case DataBaseEventLogWriter::Backend::Sqlite3:
+			str += "INSERT OR IGNORE INTO event_type (id, type)";
+			break;
+		case DataBaseEventLogWriter::Backend::Postgresql:
+			str += "INSERT INTO event_type (id, type)";
+			break;
+	}
+
+	if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
+		str +=
+			"VALUES"
+			"(0, 'Registration'),"
+			"(1, 'Call'),"
+			"(2, 'Message'),"
+			"(3, 'Auth'),"
+			"(4, 'QualityStatistics')";
+	} else {
+		str +=
+			"VALUES"
+			"(0, \"Registration\"),"
+			"(1, \"Call\"),"
+			"(2, \"Message\"),"
+			"(3, \"Auth\"),"
+			"(4, \"QualityStatistics\")";
+	}
 
 	if (backend == DataBaseEventLogWriter::Backend::Mysql) {
 		str += "ON DUPLICATE KEY UPDATE type = VALUES(type)";
+	} else if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
+		str += "ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type";
 	}
 
 	return str;
 }
 
 inline string createRegistrationTypesTable(DataBaseEventLogWriter::Backend backend) {
-	string str = (backend == DataBaseEventLogWriter::Backend::Mysql)
-		? "INSERT INTO registration_type (id, type)"
-		: "INSERT OR IGNORE INTO registration_type (id, type)";
+	string str = "";
+	
+	switch (backend) {
+		case DataBaseEventLogWriter::Backend::Mysql:
+			str += "INSERT INTO registration_type (id, type)";
+			break;
+		case DataBaseEventLogWriter::Backend::Sqlite3:
+			str += "INSERT OR IGNORE INTO registration_type (id, type)";
+			break;
+		case DataBaseEventLogWriter::Backend::Postgresql:
+			str += "INSERT INTO registration_type (id, type)";
+			break;
+	}
 
-	str +=
-		"VALUES"
-		"(0, \"Register\"),"
-		"(1, \"Unregister\"),"
-		"(2, \"Expired\")";
+	if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
+		str +=
+			"VALUES"
+			"(0, 'Register'),"
+			"(1, 'Unregister'),"
+			"(2, 'Expired')";
+	} else {
+		str +=
+			"VALUES"
+			"(0, \"Register\"),"
+			"(1, \"Unregister\"),"
+			"(2, \"Expired\")";
+	}
 
 	if (backend == DataBaseEventLogWriter::Backend::Mysql) {
 		str += "ON DUPLICATE KEY UPDATE type = VALUES(type)";
+	} else if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
+		str += "ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type";
 	}
 
 	return str;
 }
 
 inline string createMessageTypesTable(DataBaseEventLogWriter::Backend backend) {
-	string str = (backend == DataBaseEventLogWriter::Backend::Mysql)
-		? "INSERT INTO message_type (id, type)"
-		: "INSERT OR IGNORE INTO message_type (id, type)";
+	string str = "";
+	
+	switch (backend) {
+		case DataBaseEventLogWriter::Backend::Mysql:
+			str += "INSERT INTO message_type (id, type)";
+			break;
+		case DataBaseEventLogWriter::Backend::Sqlite3:
+			str += "INSERT OR IGNORE INTO message_type (id, type)";
+			break;
+		case DataBaseEventLogWriter::Backend::Postgresql:
+			str += "INSERT INTO message_type (id, type)";
+			break;
+	}
 
-	str +=
-		"VALUES"
-		"(0, \"Received\"),"
-		"(1, \"Delivered\")";
+	if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
+		str +=
+			"VALUES"
+			"(0, 'Received'),"
+			"(1, 'Delivered')";
+	} else {
+		str +=
+			"VALUES"
+			"(0, \"Received\"),"
+			"(1, \"Delivered\")";
+	}
 
 	if (backend == DataBaseEventLogWriter::Backend::Mysql) {
 		str += "ON DUPLICATE KEY UPDATE type = VALUES(type)";
+	} else if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
+		str += "ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type";
 	}
 
 	return str;
@@ -633,8 +720,8 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(
 	mIsReady = false;
 	mMaxQueueSize = maxQueueSize;
 	try {
-		if (backendString != "mysql" && backendString != "sqlite3") {
-			LOGE("DataBaseEventLogWriter: backend must be equals to `mysql` or `sqlite3`.");
+		if (backendString != "mysql" && backendString != "sqlite3" && backendString != "postgresql") {
+			LOGE("DataBaseEventLogWriter: backend must be equals to `mysql`, `sqlite3` or `postgresql`.");
 			return;
 		}
 
@@ -646,12 +733,12 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(
 		}
 
 		// Init tables.
-		Backend backend = backendString == "mysql" ? Backend::Mysql : Backend::Sqlite3;
+		Backend backend = backendString == "mysql" ? Backend::Mysql : (backendString == "sqlite3" ? Backend::Sqlite3 : Backend::Postgresql);
 		initTables(backend);
 
 		// Build insert requests.
 		string lastIdFun =
-			(backend == Backend::Mysql) ? SQL_MYSQL_LAST_ID_FUN : SQL_SQLITE3_LAST_ID_FUN;
+			(backend == Backend::Mysql) ? SQL_MYSQL_LAST_ID_FUN : (backend == Backend::Sqlite3 ? SQL_SQLITE3_LAST_ID_FUN : SQL_POSTGRESQL_LAST_ID_FUN);
 
 		mInsertReq[SQL_REGISTRATION_EVENT_LOG_ID] =
 			"INSERT INTO event_registration_log VALUES (" + lastIdFun + ", :typeId, :contacts)";
@@ -689,88 +776,171 @@ void DataBaseEventLogWriter::initTables(Backend backend) {
 	session sql(*mConnectionPool);
 
 	// Create types (event, registration, message).
-	sql <<
-		"CREATE TABLE IF NOT EXISTS event_type ("
-		"  id TINYINT UNSIGNED PRIMARY KEY,"
-		"  type VARCHAR(255) NOT NULL UNIQUE"
-		")";
+	if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
+		sql <<
+			"CREATE TABLE IF NOT EXISTS event_type ("
+			"  id SMALLINT PRIMARY KEY,"
+			"  type VARCHAR(255) NOT NULL UNIQUE"
+			")";
 
-	sql <<
-		"CREATE TABLE IF NOT EXISTS registration_type ("
-		"  id TINYINT UNSIGNED PRIMARY KEY,"
-		"  type VARCHAR(255) NOT NULL UNIQUE"
-		")";
+		sql <<
+			"CREATE TABLE IF NOT EXISTS registration_type ("
+			"  id SMALLINT PRIMARY KEY,"
+			"  type VARCHAR(255) NOT NULL UNIQUE"
+			")";
 
-	sql <<
-		"CREATE TABLE IF NOT EXISTS message_type ("
-		"  id TINYINT UNSIGNED PRIMARY KEY,"
-		"  type VARCHAR(255) NOT NULL UNIQUE"
-		")";
+		sql <<
+			"CREATE TABLE IF NOT EXISTS message_type ("
+			"  id SMALLINT PRIMARY KEY,"
+			"  type VARCHAR(255) NOT NULL UNIQUE"
+			")";
+	} else {
+		sql <<
+			"CREATE TABLE IF NOT EXISTS event_type ("
+			"  id TINYINT UNSIGNED PRIMARY KEY,"
+			"  type VARCHAR(255) NOT NULL UNIQUE"
+			")";
+
+		sql <<
+			"CREATE TABLE IF NOT EXISTS registration_type ("
+			"  id TINYINT UNSIGNED PRIMARY KEY,"
+			"  type VARCHAR(255) NOT NULL UNIQUE"
+			")";
+
+		sql <<
+			"CREATE TABLE IF NOT EXISTS message_type ("
+			"  id TINYINT UNSIGNED PRIMARY KEY,"
+			"  type VARCHAR(255) NOT NULL UNIQUE"
+			")";
+	}
 
 	// Main events table.
 	sql << createEventsTable(backend);
 
 	// Specialized events table.
-	sql <<
-		"CREATE TABLE IF NOT EXISTS event_registration_log ("
-		"  id BIGINT UNSIGNED PRIMARY KEY,"
-		"  type_id TINYINT UNSIGNED NOT NULL,"
-		"  contacts VARCHAR(255) NOT NULL,"
+	if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
+		sql <<
+			"CREATE TABLE IF NOT EXISTS event_registration_log ("
+			"  id BIGINT PRIMARY KEY,"
+			"  type_id SMALLINT NOT NULL,"
+			"  contacts VARCHAR(255) NOT NULL,"
 
-		"  FOREIGN KEY (id)"
-		"    REFERENCES event_log(id)"
-		"    ON DELETE CASCADE,"
+			"  FOREIGN KEY (id)"
+			"    REFERENCES event_log(id)"
+			"    ON DELETE CASCADE,"
 
-		"  FOREIGN KEY (type_id)"
-		"    REFERENCES registration_type(id)"
-		")";
+			"  FOREIGN KEY (type_id)"
+			"    REFERENCES registration_type(id)"
+			")";
 
-	sql <<
-		"CREATE TABLE IF NOT EXISTS event_call_log ("
-		"  id BIGINT UNSIGNED PRIMARY KEY,"
-		"  cancelled CHAR(1) NOT NULL,"
+		sql <<
+			"CREATE TABLE IF NOT EXISTS event_call_log ("
+			"  id BIGINT PRIMARY KEY,"
+			"  cancelled CHAR(1) NOT NULL,"
 
-		"  FOREIGN KEY (id)"
-		"    REFERENCES event_log(id)"
-		"    ON DELETE CASCADE"
-		")";
+			"  FOREIGN KEY (id)"
+			"    REFERENCES event_log(id)"
+			"    ON DELETE CASCADE"
+			")";
 
-	sql <<
-		"CREATE TABLE IF NOT EXISTS event_message_log ("
-		"  id BIGINT UNSIGNED PRIMARY KEY,"
-		"  type_id TINYINT UNSIGNED NOT NULL,"
-		"  uri VARCHAR(255) NOT NULL,"
+		sql <<
+			"CREATE TABLE IF NOT EXISTS event_message_log ("
+			"  id BIGINT PRIMARY KEY,"
+			"  type_id SMALLINT NOT NULL,"
+			"  uri VARCHAR(255) NOT NULL,"
 
-		"  FOREIGN KEY (id)"
-		"    REFERENCES event_log(id)"
-		"    ON DELETE CASCADE,"
+			"  FOREIGN KEY (id)"
+			"    REFERENCES event_log(id)"
+			"    ON DELETE CASCADE,"
 
-		"  FOREIGN KEY (type_id)"
-		"    REFERENCES message_type(id)"
-		"    ON DELETE CASCADE"
-		")";
+			"  FOREIGN KEY (type_id)"
+			"    REFERENCES message_type(id)"
+			"    ON DELETE CASCADE"
+			")";
 
-	sql <<
-		"CREATE TABLE IF NOT EXISTS event_auth_log ("
-		"  id BIGINT UNSIGNED PRIMARY KEY,"
-		"  method VARCHAR(255) NOT NULL,"
-		"  origin VARCHAR(255) NOT NULL,"
-		"  user_exists CHAR(1) NOT NULL,"
+		sql <<
+			"CREATE TABLE IF NOT EXISTS event_auth_log ("
+			"  id BIGINT PRIMARY KEY,"
+			"  method VARCHAR(255) NOT NULL,"
+			"  origin VARCHAR(255) NOT NULL,"
+			"  user_exists CHAR(1) NOT NULL,"
 
-		"  FOREIGN KEY (id)"
-		"    REFERENCES event_log(id)"
-		"    ON DELETE CASCADE"
-		")";
+			"  FOREIGN KEY (id)"
+			"    REFERENCES event_log(id)"
+			"    ON DELETE CASCADE"
+			")";
 
-	sql <<
-		"CREATE TABLE IF NOT EXISTS event_call_quality_statistics_log ("
-		"  id BIGINT UNSIGNED PRIMARY KEY,"
-		"  report TEXT NOT NULL,"
+		sql <<
+			"CREATE TABLE IF NOT EXISTS event_call_quality_statistics_log ("
+			"  id BIGINT PRIMARY KEY,"
+			"  report TEXT NOT NULL,"
 
-		"  FOREIGN KEY (id)"
-		"    REFERENCES event_log(id)"
-		"    ON DELETE CASCADE"
-		")";
+			"  FOREIGN KEY (id)"
+			"    REFERENCES event_log(id)"
+			"    ON DELETE CASCADE"
+			")";
+	} else {
+		sql <<
+			"CREATE TABLE IF NOT EXISTS event_registration_log ("
+			"  id BIGINT UNSIGNED PRIMARY KEY,"
+			"  type_id TINYINT UNSIGNED NOT NULL,"
+			"  contacts VARCHAR(255) NOT NULL,"
+
+			"  FOREIGN KEY (id)"
+			"    REFERENCES event_log(id)"
+			"    ON DELETE CASCADE,"
+
+			"  FOREIGN KEY (type_id)"
+			"    REFERENCES registration_type(id)"
+			")";
+
+		sql <<
+			"CREATE TABLE IF NOT EXISTS event_call_log ("
+			"  id BIGINT UNSIGNED PRIMARY KEY,"
+			"  cancelled CHAR(1) NOT NULL,"
+
+			"  FOREIGN KEY (id)"
+			"    REFERENCES event_log(id)"
+			"    ON DELETE CASCADE"
+			")";
+
+		sql <<
+			"CREATE TABLE IF NOT EXISTS event_message_log ("
+			"  id BIGINT UNSIGNED PRIMARY KEY,"
+			"  type_id TINYINT UNSIGNED NOT NULL,"
+			"  uri VARCHAR(255) NOT NULL,"
+
+			"  FOREIGN KEY (id)"
+			"    REFERENCES event_log(id)"
+			"    ON DELETE CASCADE,"
+
+			"  FOREIGN KEY (type_id)"
+			"    REFERENCES message_type(id)"
+			"    ON DELETE CASCADE"
+			")";
+
+		sql <<
+			"CREATE TABLE IF NOT EXISTS event_auth_log ("
+			"  id BIGINT UNSIGNED PRIMARY KEY,"
+			"  method VARCHAR(255) NOT NULL,"
+			"  origin VARCHAR(255) NOT NULL,"
+			"  user_exists CHAR(1) NOT NULL,"
+
+			"  FOREIGN KEY (id)"
+			"    REFERENCES event_log(id)"
+			"    ON DELETE CASCADE"
+			")";
+
+		sql <<
+			"CREATE TABLE IF NOT EXISTS event_call_quality_statistics_log ("
+			"  id BIGINT UNSIGNED PRIMARY KEY,"
+			"  report TEXT NOT NULL,"
+
+			"  FOREIGN KEY (id)"
+			"    REFERENCES event_log(id)"
+			"    ON DELETE CASCADE"
+			")";
+	}
 
 	// Set types values if necessary.
 	sql << createEventTypesTable(backend);
