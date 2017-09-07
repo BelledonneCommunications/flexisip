@@ -58,13 +58,13 @@ void ContactMasquerader::masquerade(su_home_t *home, sip_contact_t *c, const cha
 	}
 
 	/*masquerade the contact, so that later requests (INVITEs) come to us */
-	const url_t *preferredRoute = mAgent->getPreferredRouteUrl();
-	ct_url->url_host = preferredRoute->url_host;
-	ct_url->url_port = url_port(preferredRoute);
-	ct_url->url_scheme = preferredRoute->url_scheme;
+	const url_t *defaultUri = mAgent->getDefaultUri();
+	ct_url->url_host = defaultUri->url_host;
+	ct_url->url_port = defaultUri->url_port;
+	ct_url->url_scheme = defaultUri->url_scheme;
 	ct_url->url_params = url_strip_param_string(su_strdup(home, ct_url->url_params), "transport");
 	char tport_value[64];
-	if (url_param(preferredRoute->url_params, "transport", tport_value, sizeof(tport_value)) > 0) {
+	if (url_param(defaultUri->url_params, "transport", tport_value, sizeof(tport_value)) > 0) {
 		char *lParam = su_sprintf(home, "transport=%s", tport_value);
 		url_param_add(home, ct_url, lParam);
 	}

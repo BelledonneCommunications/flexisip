@@ -211,7 +211,7 @@ class ModuleToolbox {
 	static msg_auth_t *findAuthorizationForRealm(su_home_t *home, msg_auth_t *au, const char *realm);
 	static const tport_t *getIncomingTport(const std::shared_ptr<RequestSipEvent> &ev, Agent *ag);
 	static void addRecordRouteIncoming(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev);
-	static url_t *urlFromTportName(su_home_t *home, const tp_name_t *name);
+	static url_t* urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr = false);
 	static void addRecordRoute(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev,
 							   const tport_t *tport);
 	static void cleanAndPrependRoute(Agent *ag, msg_t *msg, sip_t *sip, sip_route_t *route);

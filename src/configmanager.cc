@@ -840,6 +840,8 @@ GenericManager::GenericManager()
 
 	static ConfigItemDescriptor cluster_conf[] = {
 		{Boolean, "enabled", "Set to 'true' if that node is part of a cluster", "false"},
+		{String, "cluster-domain", "Domain name that is to be used by external proxies to connect on any node of the cluster randomly. "
+			"The round-robin can be implemented with SRV records or by declaring several A records for the that domain", ""},
 		{StringList, "nodes", "List of IP addresses of all nodes present in the cluster", ""},
 		config_item_end};
 

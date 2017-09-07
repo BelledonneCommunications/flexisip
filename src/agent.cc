@@ -335,7 +335,20 @@ void Agent::start(const std::string &transport_override, const std::string passp
 			// url_e(prefUrl,sizeof(prefUrl),*preferred);
 			// LOGD("\tDetected %s preferred route to %s", isIpv6 ? "ipv6":"ipv4", prefUrl);
 		}
+		if (mNodeUri == NULL) {
+			         mNodeUri = ModuleToolbox::urlFromTportName(&mHome, name);
+			string clusterDomain = GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
+			if (!clusterDomain.empty()) {
+				tp_name_t tmp_name = *name;
+				tmp_name.tpn_canon = clusterDomain.c_str();
+				tmp_name.tpn_port = NULL;
+				mClusterUri = ModuleToolbox::urlFromTportName(&mHome, &tmp_name, true);
+			}
+		}
 	}
+	
+	bool clusterModeEnabled = GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigBoolean>("enabled")->read();
+	mDefaultUri = (clusterModeEnabled && mClusterUri) ? mClusterUri : mNodeUri;
 
 	if (mPublicIpV4.empty() && mPreferredRouteV4)
 		mPublicIpV4 = ModuleToolbox::urlGetHost(mPreferredRouteV4);

@@ -134,6 +134,26 @@ class Agent : public IncomingAgent,
 		return mPreferredRouteV4;
 	}
 	/**
+	 * URI associated to this server specifically.
+	 */
+	const url_t *getNodeUri() const {
+		return mNodeUri;
+	}
+	/**
+	 * URI associated to the cluster. It is computed basing on
+	 * the cluster domain declared in the cluster section in settings.
+	 */
+	const url_t *getClusterUri() const {
+		return mClusterUri;
+	}
+	/**
+	 * Equal to the node or cluster URI depending on whether cluster mode has
+	 * been enabled in settings and a cluster domain has been decladed.
+	 */
+	const url_t *getDefaultUri() const {
+		return mDefaultUri;
+	}
+	/**
 	 * return a network unique identifier for this Agent.
 	 */
 	const std::string &getUniqueId() const;
@@ -182,6 +202,9 @@ class Agent : public IncomingAgent,
 	std::list<std::string> mAliases;
 	url_t *mPreferredRouteV4;
 	url_t *mPreferredRouteV6;
+	const url_t *mNodeUri = NULL;
+	const url_t *mClusterUri = NULL;
+	const url_t *mDefaultUri = NULL;
 	class Network {
 		struct sockaddr_storage mPrefix;
 		struct sockaddr_storage mMask;

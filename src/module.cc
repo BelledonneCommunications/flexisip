@@ -22,6 +22,7 @@
 #include "sofia-sip/auth_digest.h"
 #include "sofia-sip/nta.h"
 #include "log/logmanager.hh"
+#include "configmanager.hh"
 
 #include "expressionparser.hh"
 #include "domain-registrations.hh"
@@ -271,7 +272,8 @@ void ModuleToolbox::cleanAndPrependRoute(Agent *ag, msg_t *msg, sip_t *sip, sip_
 		prependNewRoutable(msg, sip, sip->sip_route, r);
 }
 
-url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name) {
+url_t* ModuleToolbox::urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr)
+{
 	url_t *url = NULL;
 	url_type_e ut = url_sip;
 
@@ -287,7 +289,7 @@ url_t *ModuleToolbox::urlFromTportName(su_home_t *home, const tp_name_t *name) {
 
 	url->url_port = su_strdup(home, name->tpn_port);
 	url->url_host = su_strdup(home, name->tpn_canon);
-	if (ut == url_sips) {
+	if (ut == url_sips && !avoidMAddr) {
 		if (strcmp(name->tpn_host, name->tpn_canon) != 0) {
 			if (GenericManager::get()->getGlobal()->get<ConfigBoolean>("use-maddr")->read()) {
 				url_param_add(home, url, su_sprintf(home, "maddr=%s", name->tpn_host));
@@ -324,7 +326,7 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<
 		}
 	} else {
 		// default to Agent's default address.
-		url = url_hdup(home, ag->getPreferredRouteUrl());
+		url = url_hdup(home, ag->getNodeUri());
 	}
 
 	url_param_add(home, url, "lr");
@@ -634,9 +636,9 @@ void ModuleToolbox::addPathHeader(Agent *ag, const shared_ptr<RequestSipEvent> &
 		}
 	} else {
 		// default to Agent's default address.
-		url = url_hdup(home, ag->getPreferredRouteUrl());
+		url = url_hdup(home, ag->getDefaultUri());
 	}
-	if (uniq) {
+	if (uniq && (ag->getDefaultUri() != ag->getClusterUri())) {
 		char *lParam = su_sprintf(home, "fs-proxy-id=%s", uniq);
 		url_param_add(home, url, lParam);
 	}
