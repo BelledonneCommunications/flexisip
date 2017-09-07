@@ -334,7 +334,7 @@ class DoSProtection : public Module, ModuleToolbox {
 				LOGW("getnameinfo() failed: %s", gai_strerror(err));
 			}
 		} else {
-			float packet_count_rate = tport_get_packet_count_rate(tport);
+			unsigned long packet_count_rate = tport_get_packet_count_rate(tport);
 			if (packet_count_rate >= mPacketRateLimit) {
 				sockaddr *addr = tport_get_address(tport)->ai_addr;
 				socklen_t len = tport_get_address(tport)->ai_addrlen;
@@ -343,7 +343,7 @@ class DoSProtection : public Module, ModuleToolbox {
 
 				if ((err = getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port),
 									   NI_NUMERICHOST | NI_NUMERICSERV)) == 0) {
-					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes",
+					LOGW("Packet count rate (%lu) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes",
 						 packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					if (!isIpWhiteListed(ip)) {
 						mThreadPool->Enqueue([&, ip, port] { banIP(ip, port, "tcp"); });
