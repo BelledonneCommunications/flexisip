@@ -945,14 +945,16 @@ void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *
 	}
 
 	// FIXME : get supported as header not string...
-	string supported(sip_header_as_string(home.home(), (sip_header_t *) isupported));
-	if(supported.find("gruu") != -1) {
-		stringstream stream;
-		string instance(*(icontact->m_params));
-		instance = instance.substr(instance.find("+sip.instance=\"<") + strlen("+sip.instance=\"<"));
-		instance = instance.substr(0, instance.find(">"));
-		stream << "gr=" << instance;
-		url_param_add(home.home(), icontact->m_url, stream.str().c_str());
+	if (isupported) {
+		string supported(sip_header_as_string(home.home(), (sip_header_t *) isupported));
+		if(supported.find("gruu") != -1) {
+			stringstream stream;
+			string instance(*(icontact->m_params));
+			instance = instance.substr(instance.find("+sip.instance=\"<") + strlen("+sip.instance=\"<"));
+			instance = instance.substr(0, instance.find(">"));
+			stream << "gr=" << instance;
+			url_param_add(home.home(), icontact->m_url, stream.str().c_str());
+		}
 	}
 
 	int countSipContacts = count_sip_contacts(icontact);
