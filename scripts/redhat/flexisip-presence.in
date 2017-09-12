@@ -16,7 +16,7 @@ prog=@bindir@/flexisip
 . /etc/sysconfig/network
 
 # Check that networking is up.
-[ ${NETWORKING} = "no" ] && exit 0
+[ $NETWORKING = "no" ] && exit 0
 
 # Set default flexisip configuration.
 FLEXISIP_OPTIONS="--server presence --daemon --syslog"
