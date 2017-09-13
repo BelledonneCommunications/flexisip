@@ -46,7 +46,7 @@ FlexisipException &operator<<(FlexisipException &e, const xml_schema::Exception 
 }
 
 PresenceInformationElement::PresenceInformationElement(const belle_sip_uri_t *contact)
-	: mDomDocument(::xsd::cxx::xml::dom::create_document<char>()), mBelleSipMainloop(NULL), mTimer(NULL) {
+	: mTuples(), mDomDocument(::xsd::cxx::xml::dom::create_document<char>()), mBelleSipMainloop(NULL), mTimer(NULL) {
 	char *contact_as_string = belle_sip_uri_to_string(contact);
 	std::time_t t;
 	std::time(&t);
@@ -57,6 +57,7 @@ PresenceInformationElement::PresenceInformationElement(const belle_sip_uri_t *co
 	tup->setTimestamp(::xml_schema::DateTime(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour,
 											 now->tm_min, now->tm_sec));
 	tup->setContact(::pidf::Contact(contact_as_string));
+	mTuples.clear(); // just in case
 	mTuples.push_back(std::unique_ptr<Tuple>(tup.release()));
 	Activities act = Activities();
 	act.getAway().push_back(rpid::Empty());
