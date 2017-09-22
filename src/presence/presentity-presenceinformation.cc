@@ -78,7 +78,7 @@ PresenceInformationElement::~PresenceInformationElement() {
 	if (mBelleSipMainloop)
 		setExpiresTimer(NULL);
 
-	SLOGD << "Presence information element [" << std::hex << (long)this << "] deleted";
+	SLOGD << "Presence information element [" << this << "] deleted";
 }
 
 PresentityPresenceInformation::~PresentityPresenceInformation() {

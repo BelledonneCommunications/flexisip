@@ -449,7 +449,7 @@ string ModuleRegistrar::routingKey(const url_t *sipUri) {
 
 void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason,
 							const sip_contact_t *contacts) {
-	sip_contact_t *contact = NULL;
+	sip_contact_t *modified_contacts = NULL;
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	int expire = sip->sip_expires ? sip->sip_expires->ex_delta : 0;
@@ -461,50 +461,51 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 		LOGD("Setting service route to %s", mServiceRoute.c_str());
 	}
 
+	if (contacts) {
+		modified_contacts = sip_contact_dup(ev->getHome(), contacts);
+	}
 	// This ensures not all REGISTERs arrive at the same time on the flexisip
 	if (sip->sip_request->rq_method == sip_method_register && code == 200 && mExpireRandomizer > 0 && expire > 0) {
 			expire = (int) expire - (expire * su_randint(0, mExpireRandomizer) / 100);
 			expire_str = std::to_string(expire);
 			if (contacts) {
 				su_home_t *home = ev->getHome();
-				contact = sip_contact_dup(home, contacts);
-				msg_header_replace_param(home, (msg_common_t *)contact, su_sprintf(home, "expires=%i", expire));
+				msg_header_replace_param(home, (msg_common_t *)modified_contacts, su_sprintf(home, "expires=%i", expire));
 			}
 	}
 
-	if (!contact) contact = sip_contact_dup(ev->getHome(), contacts);
-
-	if(sip->sip_request->rq_method == sip_method_register && code == 200
-	   && contact && contact->m_url && url_has_param(contact->m_url, "gr")) {
-		string gruu;
-		char *buffer = new char[255];
-		isize_t result = url_param(contact->m_url->url_params, "gr", buffer, 255);
-		if (result > 0 && contacts) {
-			su_home_t *home = ev->getHome();
-			contact = sip_contact_dup(home, contacts);
-			stringstream stream;
-			gruu = string(buffer);
-			contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"gr");
-			contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"regid");
-			stream << "\"" << url_as_string(home, sip->sip_from->a_url) << ";gr=" << gruu << "\"";
-			msg_header_replace_param(home, (msg_common_t *) contact, su_sprintf(home, "pub-gruu=%s", stream.str().c_str()));
+	for (sip_contact_t *contact = modified_contacts; contact!=NULL ; contact=contact->m_next) {
+		if(sip->sip_request->rq_method == sip_method_register && code == 200
+		   && contact && contact->m_url && url_has_param(contact->m_url, "gr")) {
+			string gruu;
+			char *buffer = new char[255];
+			isize_t result = url_param(contact->m_url->url_params, "gr", buffer, 255);
+			if (result > 0) {
+				su_home_t *home = ev->getHome();
+				stringstream stream;
+				gruu = string(buffer);
+				contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"gr");
+				contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"regid");
+				stream << "\"" << url_as_string(home, sip->sip_from->a_url) << ";gr=" << gruu << "\"";
+				msg_header_replace_param(home, (msg_common_t *) contact, su_sprintf(home, "pub-gruu=%s", stream.str().c_str()));
+			}
+			delete[] buffer;
 		}
-		delete[] buffer;
 	}
-	if (contact && !mServiceRoute.empty()) {
+	if (modified_contacts && !mServiceRoute.empty()) {
 		if (expire > 0) {
-			ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
+			ev->reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
 					SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
 		} else {
-			ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
+			ev->reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
 				  SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		}
-	} else if (contact) {
+	} else if (modified_contacts) {
 		if (expire > 0) {
-			ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVER_STR(getAgent()->getServerString()),
+			ev->reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVER_STR(getAgent()->getServerString()),
 					SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
 		} else {
-			ev->reply(code, reason, SIPTAG_CONTACT(contact), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+			ev->reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		}
 	} else if (!mServiceRoute.empty()) {
 		if (expire > 0) {

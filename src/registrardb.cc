@@ -945,7 +945,7 @@ void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *
 	}
 
 	// FIXME : get supported as header not string...
-	if (isupported) {
+	if (isupported && icontact->m_params) {
 		string supported(sip_header_as_string(home.home(), (sip_header_t *) isupported));
 		if(supported.find("gruu") != -1) {
 			stringstream stream;
@@ -1063,7 +1063,7 @@ RecordSerializer *RecordSerializer::get() {
 
 		sInstance = create(name);
 		if (!sInstance) {
-			LOGF("Unsupported record serializer: '%s'", name.c_str());
+			LOGW("Unsupported record serializer: '%s'", name.c_str());
 		}
 	}
 

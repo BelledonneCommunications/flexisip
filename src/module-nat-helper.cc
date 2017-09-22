@@ -67,7 +67,7 @@ class NatHelper : public Module, protected ModuleToolbox {
 			if (st->st_status >= 200 && st->st_status <= 299) {
 				sip_contact_t *ct = ms->getSip()->sip_contact;
 				if (ct) {
-					if (!url_has_param(ct->m_url, mContactVerifiedParam.c_str())) {
+					if (!url_has_param(ct->m_url, mContactVerifiedParam.c_str()) && !url_has_param(ct->m_url,"gr")) {
 						fixContactInResponse(ms->getHome(), ms->getMsg(), ms->getSip());
 						url_param_add(ms->getHome(), ct->m_url, mContactVerifiedParam.c_str());
 					} else if (ms->getSip()->sip_via && ms->getSip()->sip_via->v_next &&
@@ -163,6 +163,10 @@ class NatHelper : public Module, protected ModuleToolbox {
 			if (ctt->m_url->url_host) {
 				const char *host = ctt->m_url->url_host;
 				char ct_transport[20] = {0};
+				if (url_has_param(ctt->m_url,"gr")) {
+					SLOGD << "Gruu found in contact header ["<<ctt<<"] for message ["<< msg << "] skeeping nat fixing process for contact";
+					continue;
+				};
 				url_param(ctt->m_url->url_params, "transport", ct_transport, sizeof(ct_transport) - 1);
 				/*If we have a single contact and we are the front-end proxy, or if we found a ip:port in a contact that
 				   seems incorrect
