@@ -27,6 +27,7 @@
 
 #include "stats.hh"
 #include "log/logmanager.hh"
+#include "signal.h"
 
 Stats::Stats(const std::string &name) {
 	mName = name;
@@ -41,12 +42,8 @@ void Stats::start() {
 void Stats::stop() {
 	if (mRunning) {
 		mRunning = false;
-		shutdown(local_socket, SHUT_RDWR);
-#if __APPLE__
 		pthread_kill(mThread, SIGINT);
-#else
 		pthread_join(mThread, NULL);
-#endif
 	}
 }
 
@@ -245,6 +242,7 @@ void Stats::run() {
 		} while (!finished && mRunning);
 		close(remote_socket);
 	}
+	shutdown(local_socket, SHUT_RDWR);
 	close(local_socket);
 	unlink(path.c_str());
 }

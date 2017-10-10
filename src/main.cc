@@ -128,6 +128,9 @@ static void flexisip_stop(int signum) {
 		kill(flexisip_pid, signum);
 	} else if (run != 0) {
 		// LOGD("Received quit signal...");
+		
+		signal(SIGTERM, NULL); /*removing signal handler because on BSD platform it present signal to be dispathed to other threads*/
+		signal(SIGINT, NULL);
 		run = 0;
 		if (root) {
 			su_root_break(root);
@@ -599,7 +602,6 @@ int main(int argc, char *argv[]) {
 	map<string, string> oset;
 
 	string versionString = version();
-
 	// clang-format off
 	TCLAP::CmdLine cmd("", ' ', versionString);
 	TCLAP::ValueArg<string>     functionName("", "server", 		"Specify the server function to operate: 'proxy', 'presence', or 'all'.", TCLAP::ValueArgOptional, "", "server function", cmd);
