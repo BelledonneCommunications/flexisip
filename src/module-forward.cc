@@ -251,14 +251,6 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipExc
 
 	dest = overrideDest(ev, dest);
 
-	string ip;
-	if (EtcHostsResolver::get()->resolve(dest->url_host, &ip)) {
-		LOGD("Found %s in /etc/hosts", dest->url_host);
-		/* duplication of dest because we don't want to modify the message with our name resolution result*/
-		dest = url_hdup(ms->getHome(), dest);
-		dest->url_host = ip.c_str();
-	}
-
 	/*gruu processing in forward module is only done if dialog is not establish. In other cases, router mnodule is involved instead*/
 	if (url_has_param(dest,"gr") && (sip->sip_to != NULL && sip->sip_to->a_tag != NULL)) {
 		//gruu case, ask registrar db for AOR
@@ -276,6 +268,14 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
 	uint64_t destRegId = 0;
+	
+	string ip;
+	if (EtcHostsResolver::get()->resolve(dest->url_host, &ip)) {
+		LOGD("Found %s in /etc/hosts", dest->url_host);
+		/* duplication of dest because we don't want to modify the message with our name resolution result*/
+		dest = url_hdup(ms->getHome(), dest);
+		dest->url_host = ip.c_str();
+	}
 	
 	// Check self-forwarding
 	if (ev->getOutgoingAgent() != NULL && getAgent()->isUs(dest, true)) {
