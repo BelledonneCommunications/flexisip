@@ -20,7 +20,7 @@
 #
 ############################################################################
 
-set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIASIPUA_LIBRARIES} ${BCTOOLBOX_CORE_LIBRARIES})
+set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIASIPUA_LIBRARIES} ${BCTOOLBOX_CORE_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 set(FLEXISIP_INCLUDES)
 
@@ -79,6 +79,7 @@ set(FLEXISIP_SOURCES
 	module-redirect.cc module-presence.cc
 	domain-registrations.cc domain-registrations.hh
 	stats.cc stats.hh
+	service-server.hh
 	${FLEXISIP_UTILS_SRC}
 )
 
@@ -87,7 +88,6 @@ add_custom_target(flexisip-git-version
 	COMMAND ${CMAKE_COMMAND} -DGIT_EXECUTABLE=${GIT_EXECUTABLE} -DFLEXISIP_VERSION=${FLEXISIP_VERSION} -DWORK_DIR=${CMAKE_CURRENT_SOURCE_DIR} -DOUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/gitversion.cmake
 	BYPRODUCTS "${CMAKE_CURRENT_BINARY_DIR}/flexisip_gitversion.h"
 )
-
 
 function(ADD_XSD_WRAPPERS file _comment)
 	set(destinations ${CMAKE_CURRENT_BINARY_DIR}/xml/${file}.hxx ${CMAKE_CURRENT_BINARY_DIR}/xml/${file}.cxx)
@@ -195,6 +195,13 @@ if(ENABLE_PRESENCE)
 	ADD_XSD_WRAPPERS(data-model "Data model XSD - data-model.xsd")
 	list(APPEND FLEXISIP_SOURCES xml/data-model.xsd)
 	list(APPEND FLEXISIP_DEPENDENCIES xml pidf+xml rlmi+xml resource-lists rpid data-model)
+endif()
+
+if(ENABLE_CONFERENCE)
+	list(APPEND FLEXISIP_SOURCES
+		conference/conference-server.cc
+		conference/conference-server.hh
+	)
 endif()
 
 if(ENABLE_PUSHNOTIFICATION)

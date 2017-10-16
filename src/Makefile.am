@@ -73,7 +73,8 @@ thesources= \
 			$(GITVERSION_FILE) \
 			module-redirect.cc module-presence.cc \
 			domain-registrations.cc domain-registrations.hh \
-			utils/threadpool.cc utils/threadpool.hh
+			utils/threadpool.cc utils/threadpool.hh \
+			service-server.hh
 
 
 

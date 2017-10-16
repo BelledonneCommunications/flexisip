@@ -75,10 +75,8 @@ PresenceServer::Init::Init() {
 	s->addChildrenValues(items);
 }
 
-PresenceServer::PresenceServer() throw(FlexisipException)
-	: mStarted(true)
-	, mIterateThread(nullptr) {
-	
+PresenceServer::PresenceServer() : ServiceServer() {
+
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
 	/*Enabling leak detector should be done asap.*/
 	belle_sip_object_enable_leak_detector(GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("leak-detector")->read());
@@ -120,7 +118,7 @@ static void remove_listening_point(belle_sip_listening_point_t* lp,belle_sip_pro
 	belle_sip_provider_remove_listening_point(prov,lp);
 }
 
-PresenceServer::~PresenceServer() {
+PresenceServer::~PresenceServer(){
 	belle_sip_provider_clean_channels(mProvider);
 	const belle_sip_list_t * lps = belle_sip_provider_get_listening_points(mProvider);
 	belle_sip_list_t * tmp_list = belle_sip_list_copy(lps);
@@ -142,20 +140,20 @@ PresenceServer::~PresenceServer() {
 	SLOGD << "Presence server destroyed";
 }
 
-void PresenceServer::_start(bool withThread) throw(FlexisipException) {
+void PresenceServer::_init() {
 	if (!mEnabled) return;
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	std::string get_users_with_phones_request = cr->get<GenericStruct>("module::Authentication")
-												  ->get<ConfigString>("soci-users-with-phones-request")
-												  ->read();
+	->get<ConfigString>("soci-users-with-phones-request")
+	->read();
 	if(get_users_with_phones_request == "") {
 		LOGF("Unable to start presence server : soci-users-with-phones-request is not precised in flexisip.conf, please fix it.");
 	}
-
+	
 	list<string> transports = cr->get<GenericStruct>("presence-server")
-								->get<ConfigStringList>("transports")
-								->read();
-
+	->get<ConfigStringList>("transports")
+	->read();
+	
 	for (auto it = transports.begin(); it != transports.end(); ++it) {
 		string transport = *it;
 		if(transport.find("sips") != string::npos || transport.find("transport=tls") != string::npos) {
@@ -171,33 +169,14 @@ void PresenceServer::_start(bool withThread) throw(FlexisipException) {
 				throw FLEXISIP_EXCEPTION << "Cannot add lp for [" << *it << "]";
 		}
 	}
-	if (withThread){
-		mIterateThread.reset (new thread([this]() {
-			while (mStarted)
-				belle_sip_main_loop_run(belle_sip_stack_get_main_loop(this->mStack)); // is not interrupted by add source
-		}));
-	}
 }
 
-void PresenceServer::start() throw(FlexisipException) {
-	_start(true);
+void PresenceServer::_run() {
+	belle_sip_main_loop_run(belle_sip_stack_get_main_loop(mStack));
 }
 
-void PresenceServer::run() throw(FlexisipException){
-	_start(false);
-	while (mStarted){
-		belle_sip_main_loop_run(belle_sip_stack_get_main_loop(mStack));
-	}
-}
-
-void PresenceServer::stop() {
-	mStarted = false;
+void PresenceServer::_stop() {
 	belle_sip_main_loop_quit(belle_sip_stack_get_main_loop(mStack));
-	if (mIterateThread) {
-		pthread_kill(mIterateThread->native_handle(), SIGINT);//because main loop is not interruptible
-		mIterateThread->join();
-		mIterateThread.reset();
-	}
 }
 
 

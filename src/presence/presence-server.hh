@@ -20,7 +20,6 @@
 #define __flexisip__presence_server__
 
 #include <iostream>
-#include <thread>
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -30,6 +29,7 @@
 //#include "presence-configmanager.hh"
 //#include "presentity-presenceinformation.hh"
 #include "presentity-manager.hh"
+#include "../service-server.hh"
 #include "belle-sip/sip-uri.h"
 
 typedef struct belle_sip_main_loop belle_sip_main_loop_t;
@@ -67,15 +67,13 @@ public:
 	virtual void onListenerEvents(std::list<std::shared_ptr<PresentityPresenceInformation>>& infos) const = 0;
 };
 
-class PresenceServer : public PresentityManager {
+class PresenceServer : public PresentityManager, public ServiceServer {
 public:
-	PresenceServer() throw (FlexisipException);
+	PresenceServer();
 	~PresenceServer();
-	//Starts presence server as a thread
-	void start() throw (FlexisipException);
-	//Directly run the presence server (in current thread).
-	void run() throw (FlexisipException);
-	void stop();
+	void _init();
+	void _run();
+	void _stop();
 	belle_sip_main_loop_t* getBelleSipMainLoop();
 	void addPresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &observer);
 	void removePresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &observer);
@@ -85,15 +83,13 @@ private:
 		Init();
 	};
 	static Init sStaticInit;
-	bool mStarted;
-	bool mEnabled;
 	//PresenceConfigManager mConfigManager;
 	belle_sip_stack_t *mStack;
 	belle_sip_provider_t *mProvider;
 	belle_sip_listener_t *mListener;
-	std::unique_ptr<std::thread> mIterateThread;
 	int mDefaultExpires;
 	std::string mBypass;
+	bool mEnabled;
 
 	// belle sip cbs
 	static void processDialogTerminated(PresenceServer * thiz, const belle_sip_dialog_terminated_event_t *event);
@@ -102,7 +98,6 @@ private:
 	static void processResponseEvent(PresenceServer * thiz, const belle_sip_response_event_t *event);
 	static void processTimeout(PresenceServer * thiz, const belle_sip_timeout_event_t *event) ;
 	static void processTransactionTerminated(PresenceServer * thiz, const belle_sip_transaction_terminated_event_t *event);
-	void _start(bool withThread) throw (FlexisipException);
 	void processPublishRequestEvent(const belle_sip_request_event_t *event) throw (BelleSipSignalingException,FlexisipException);
 	void processSubscribeRequestEvent(const belle_sip_request_event_t *event) throw (BelleSipSignalingException,FlexisipException);
 
