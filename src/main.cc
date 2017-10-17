@@ -844,6 +844,7 @@ int main(int argc, char *argv[]) {
 	
 	//we create an Agent in all cases, because it will declare config items that are necessary for presence server to run.
 	a = make_shared<Agent>(root);
+	setOpenSSLThreadSafe();
 	
 	if (startProxy){
 		string passphrase = "";
@@ -858,7 +859,6 @@ int main(int argc, char *argv[]) {
 			}
 		}
 		a->start(transportsArg.getValue(), passphrase);
-		setOpenSSLThreadSafe();
 	#ifdef ENABLE_SNMP
 		bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();
 		if (snmpEnabled) {
