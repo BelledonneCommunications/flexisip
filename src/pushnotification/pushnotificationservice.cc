@@ -108,7 +108,7 @@ void PushNotificationService::setupGenericClient(const url_t *url) {
 	SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
 
 	mClients["generic"] = std::make_shared<PushNotificationClient>("generic", this, ctx, url->url_host, url_port(url),
-		mMaxQueueSize, false);
+		mMaxQueueSize, url->url_type == url_https);
 }
 
 /* Utility function to convert ASN1_TIME to a printable string in a buffer */
