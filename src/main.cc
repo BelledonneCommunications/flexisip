@@ -884,6 +884,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 		a->start(transportsArg.getValue(), passphrase);
+		flexisip::ConferenceServer::bindConference();
 		setOpenSSLThreadSafe();
 	#ifdef ENABLE_SNMP
 		bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();
@@ -926,7 +927,7 @@ int main(int argc, char *argv[]) {
 #ifdef ENABLE_PRESENCE
 		if (!startProxy) cfg->loadStrict();
 		bool enableLongTermPresence = (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
-		presenceServer = make_shared<flexisip::PresenceServer>();
+		presenceServer = make_shared<flexisip::PresenceServer>(startProxy);
 		if (enableLongTermPresence) {
 			auto presenceLongTerm = make_shared<flexisip::PresenceLongterm>(presenceServer->getBelleSipMainLoop());
 			presenceServer->addPresenceInfoObserver(presenceLongTerm);
@@ -935,7 +936,6 @@ int main(int argc, char *argv[]) {
 			notifyWatchDog();
 		}
 		try{
-			presenceServer->setWithThread(startProxy);
 			presenceServer->init();
 			presenceServer->run();
 		}catch(FlexisipException &e){
@@ -951,10 +951,8 @@ int main(int argc, char *argv[]) {
 
 	if (startConference){
 #ifdef ENABLE_CONFERENCE
-		conferenceServer = make_shared<flexisip::ConferenceServer>();
-
+		conferenceServer = make_shared<flexisip::ConferenceServer>(startProxy);
 		try{
-			conferenceServer->setWithThread(startProxy);
 			conferenceServer->init();
 			conferenceServer->run();
 		}catch(FlexisipException &e){
@@ -989,7 +987,7 @@ int main(int argc, char *argv[]) {
 		conference_stats->stop();
 		delete conference_stats;
 	}
-	//conferenceServer.reset();
+	conferenceServer.reset();
 #endif // ENABLE_CONFERENCE
 
 	if (stun) {

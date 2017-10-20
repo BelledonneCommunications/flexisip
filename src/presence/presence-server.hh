@@ -29,7 +29,7 @@
 //#include "presence-configmanager.hh"
 //#include "presentity-presenceinformation.hh"
 #include "presentity-manager.hh"
-#include "../service-server.hh"
+#include "service-server.hh"
 #include "belle-sip/sip-uri.h"
 
 typedef struct belle_sip_main_loop belle_sip_main_loop_t;
@@ -70,6 +70,7 @@ public:
 class PresenceServer : public PresentityManager, public ServiceServer {
 public:
 	PresenceServer();
+	PresenceServer(bool withThread);
 	~PresenceServer();
 	void _init();
 	void _run();
@@ -78,8 +79,9 @@ public:
 	void addPresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &observer);
 	void removePresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &observer);
 private:
-	class Init{
-		public:
+	// Used to declare the service configuration
+	class Init {
+	public:
 		Init();
 	};
 	static Init sStaticInit;

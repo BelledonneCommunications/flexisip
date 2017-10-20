@@ -35,22 +35,24 @@
 
 using namespace std;
 
-typedef struct _LpItem {
+namespace flexisip {
+
+struct LpItem {
 	char *key;
 	char *value;
 	int is_read;
 	int lineno;
-} LpItem;
+};
 
-typedef struct _LpSection {
+struct LpSection {
 	char *name;
-	list<_LpItem *> items;
-} LpSection;
+	list<LpItem *> items;
+};
 
-struct _LpConfig {
+struct LpConfig {
 	FILE *file;
 	char *filename;
-	list<_LpSection *> sections;
+	list<LpSection *> sections;
 	int modified;
 	int readonly;
 };
@@ -108,7 +110,7 @@ static bool_t is_first_char(const char *start, const char *pos) {
 struct LpSectionComp {
 	explicit LpSectionComp(const char *name) : name(name) {
 	}
-	inline bool operator()(const _LpSection *sec) const {
+	inline bool operator()(const LpSection *sec) const {
 		return strcasecmp(sec->name, name) == 0;
 	}
 
@@ -123,7 +125,7 @@ LpSection *lp_config_find_section(LpConfig *lpconfig, const char *name) {
 struct LpItemComp {
 	explicit LpItemComp(const char *key) : key(key) {
 	}
-	inline bool operator()(const _LpItem *item) const {
+	inline bool operator()(const LpItem *item) const {
 		return strcasecmp(item->key, key) == 0;
 	}
 
@@ -408,3 +410,4 @@ void lp_config_clean_section(LpConfig *lpconfig, const char *section) {
 int lp_config_needs_commit(const LpConfig *lpconfig) {
 	return lpconfig->modified > 0;
 }
+};//namespace

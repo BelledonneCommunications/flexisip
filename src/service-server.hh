@@ -25,7 +25,7 @@
 #include <csignal>
 
 namespace flexisip {
-	
+
 class ServiceServer {
 public:
 	ServiceServer() : ServiceServer(false) {};
@@ -52,6 +52,7 @@ public:
 		}
 	};
 
+	//Stop service server
 	void stop() {
 		mStarted = false;
 		this->_stop();
@@ -67,7 +68,6 @@ public:
 	virtual void _init() = 0;
 	virtual void _run() = 0;
 	virtual void _stop() = 0;
-
 protected:
 	bool mStarted;
 	bool mWithThread;

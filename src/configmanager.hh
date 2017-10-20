@@ -61,6 +61,9 @@ typedef unsigned long oid;
 #endif /* ENABLE_SNMP */
 
 extern oid company_id;
+namespace flexisip {
+	struct LpConfig;
+};
 
 #include "expressionparser.hh"
 #include "utils/flexisip-exception.hh"
@@ -260,7 +263,7 @@ class GenericEntry {
 							   const std::string &syntax, const std::string &spacing) const;
 	GenericEntry(const std::string &name, GenericValueType type, const std::string &help, oid oid_index = 0);
 	static std::string escapeDoubleQuotes(const std::string &str);
-	
+
 	Oid *mOid;
 	const std::string mName;
 	bool mReadOnly;
@@ -578,7 +581,7 @@ class FileConfigReader {
 	static void onUnreadItem(void *p, const char *secname, const char *key, int lineno);
 	void onUnreadItem(const char *secname, const char *key, int lineno);
 	GenericStruct *mRoot;
-	struct _LpConfig *mCfg;
+	flexisip::LpConfig *mCfg;
 	bool mHaveUnreads;
 };
 

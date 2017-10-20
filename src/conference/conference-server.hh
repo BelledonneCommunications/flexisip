@@ -19,17 +19,35 @@
 #ifndef __flexisip__conference_server__
 #define __flexisip__conference_server__
 
-#include "../service-server.hh"
+#include "service-server.hh"
+
+#include <registrardb.hh>
+
+#include "linphone++/linphone.hh"
 
 namespace flexisip {
 class ConferenceServer : public ServiceServer {
 public:
 	ConferenceServer();
+	ConferenceServer(bool withThread);
 	~ConferenceServer();
 	
 	void _init();
 	void _run();
 	void _stop();
+
+	static void bindConference();
+private:
+	std::shared_ptr<linphone::Core> mCore;
+
+	// Used to declare the service configuration
+	class Init {
+	public:
+		Init();
+	};
+	static Init sStaticInit;
+	static SofiaAutoHome mHome;
+
 };
 } // namespace flexisip
 

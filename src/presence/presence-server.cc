@@ -75,8 +75,10 @@ PresenceServer::Init::Init() {
 	s->addChildrenValues(items);
 }
 
-PresenceServer::PresenceServer() : ServiceServer() {
+PresenceServer::PresenceServer() : PresenceServer(false) {
+}
 
+PresenceServer::PresenceServer(bool withThread) : ServiceServer(withThread){
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
 	/*Enabling leak detector should be done asap.*/
 	belle_sip_object_enable_leak_detector(GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("leak-detector")->read());
@@ -95,23 +97,23 @@ PresenceServer::PresenceServer() : ServiceServer() {
 
 	memset(&listener_callbacks, 0, sizeof(listener_callbacks));
 	listener_callbacks.process_dialog_terminated =
-		(void (*)(void *, const belle_sip_dialog_terminated_event_t *))PresenceServer::processDialogTerminated;
+	(void (*)(void *, const belle_sip_dialog_terminated_event_t *))PresenceServer::processDialogTerminated;
 	listener_callbacks.process_io_error =
-		(void (*)(void *, const belle_sip_io_error_event_t *))PresenceServer::processIoError;
+	(void (*)(void *, const belle_sip_io_error_event_t *))PresenceServer::processIoError;
 	listener_callbacks.process_request_event =
-		(void (*)(void *, const belle_sip_request_event_t *))PresenceServer::processRequestEvent;
+	(void (*)(void *, const belle_sip_request_event_t *))PresenceServer::processRequestEvent;
 	listener_callbacks.process_response_event =
-		(void (*)(void *, const belle_sip_response_event_t *))PresenceServer::processResponseEvent;
+	(void (*)(void *, const belle_sip_response_event_t *))PresenceServer::processResponseEvent;
 	listener_callbacks.process_timeout =
-		(void (*)(void *, const belle_sip_timeout_event_t *))PresenceServer::processTimeout;
+	(void (*)(void *, const belle_sip_timeout_event_t *))PresenceServer::processTimeout;
 	listener_callbacks.process_transaction_terminated =
-		(void (*)(void *,
-				  const belle_sip_transaction_terminated_event_t *))PresenceServer::processTransactionTerminated;
-	mListener = belle_sip_listener_create_from_callbacks(&listener_callbacks, this);
-	belle_sip_provider_add_sip_listener(mProvider, mListener);
-	mDefaultExpires = config->get<ConfigInt>("expires")->read();
-	mBypass = config->get<ConfigString>("bypass-condition")->read();
-	mEnabled = config->get<ConfigBoolean>("enabled")->read();
+	(void (*)(void *,
+			  const belle_sip_transaction_terminated_event_t *))PresenceServer::processTransactionTerminated;
+			  mListener = belle_sip_listener_create_from_callbacks(&listener_callbacks, this);
+			  belle_sip_provider_add_sip_listener(mProvider, mListener);
+			  mDefaultExpires = config->get<ConfigInt>("expires")->read();
+			  mBypass = config->get<ConfigString>("bypass-condition")->read();
+			  mEnabled = config->get<ConfigBoolean>("enabled")->read();
 }
 
 static void remove_listening_point(belle_sip_listening_point_t* lp,belle_sip_provider_t* prov) {
