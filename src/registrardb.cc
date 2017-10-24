@@ -511,11 +511,8 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 		}
 	}
 
-	char transport[20];
-	char *transportPtr = transport;
-	if (!url_param(url[0].url_params, "transport", transport, sizeof(transport) - 1)) {
-		transportPtr = NULL;
-	}
+	char transport[20] = {0};
+	url_param(url[0].url_params, "transport", transport, sizeof(transport) - 1);
 
 	url->url_headers = NULL;
 	sip_contact_t *contact = sip_contact_create(&home, (url_string_t*)url, NULL);
@@ -946,7 +943,7 @@ void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *
 	// FIXME : get supported as header not string...
 	if (isupported && icontact->m_params) {
 		string supported(sip_header_as_string(home.home(), (sip_header_t *) isupported));
-		if(supported.find("gruu") != -1) {
+		if(supported.find("gruu") != string::npos) {
 			stringstream stream;
 			string instance(*(icontact->m_params));
 			instance = instance.substr(instance.find("+sip.instance=\"<") + strlen("+sip.instance=\"<"));

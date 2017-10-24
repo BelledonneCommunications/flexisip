@@ -335,7 +335,7 @@ class DoSProtection : public Module, ModuleToolbox {
 			}
 		} else {
 			unsigned long packet_count_rate = tport_get_packet_count_rate(tport);
-			if (packet_count_rate >= mPacketRateLimit) {
+			if (packet_count_rate >= (unsigned long) mPacketRateLimit) {
 				sockaddr *addr = tport_get_address(tport)->ai_addr;
 				socklen_t len = tport_get_address(tport)->ai_addrlen;
 				char ip[NI_MAXHOST], port[NI_MAXSERV];
