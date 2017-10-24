@@ -38,6 +38,7 @@ include(FeatureSummary)
 include(CheckCXXSourceCompiles)
 include(GNUInstallDirs)
 
+option(ENABLE_STRICT "Pass strict flags to the compiler" YES)
 option(ENABLE_DATEHANDLER "Build DateHandler module" NO)
 option(ENABLE_DOC "Build documentation" YES)
 option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" NO)
@@ -270,6 +271,8 @@ include_directories(
 configure_file(${PROJECT_SOURCE_DIR}/cmake/flexisip-config.h.in ${PROJECT_BINARY_DIR}/flexisip-config.h)
 set_source_files_properties(${PROJECT_BINARY_DIR}/flexisip-config.h PROPERTIES GENERATED ON)
 add_definitions("-DHAVE_CONFIG_H")
+
+bc_init_compilation_flags(CPP_BUILD_FLAGS C_BUILD_FLAGS CXX_BUILD_FLAGS ENABLE_STRICT)
 
 add_subdirectory(src)
 add_subdirectory(scripts)

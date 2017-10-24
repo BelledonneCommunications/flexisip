@@ -519,9 +519,8 @@ void Agent::loadConfig(GenericManager *cm) {
 		(*it)->checkConfig();
 		(*it)->load();
 	}
-	if (mDrm)
-		mDrm->load(mPassphrase);
-		mPassphrase = "";
+	if (mDrm) mDrm->load(mPassphrase);
+	mPassphrase = "";
 }
 
 void Agent::unloadConfig() {

@@ -17,6 +17,7 @@
 */
 
 #include <stdint.h>
+#include <bctoolbox/defs.h>
 #include "h264iframefilter.hh"
 
 #define TYPE_IDR 5
@@ -44,6 +45,7 @@ bool H264IFrameFilter::onOutgoingTransfer(uint8_t *data, size_t size, const sock
 	switch (ptype) {
 		case TYPE_IDR:
 			isIFrame = true;
+			BCTBX_NO_BREAK;
 		case TYPE_PPS:
 		case TYPE_SPS:
 			ret = true;
@@ -54,6 +56,7 @@ bool H264IFrameFilter::onOutgoingTransfer(uint8_t *data, size_t size, const sock
 			switch (nal_header_get_type(p)) {
 				case TYPE_IDR:
 					isIFrame = true;
+					BCTBX_NO_BREAK;
 				case TYPE_PPS:
 				case TYPE_SPS:
 					ret = true;

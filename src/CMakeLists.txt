@@ -222,6 +222,12 @@ message(STATUS "Flexisip LIBS : ${FLEXISIP_LIBS}")
 message(STATUS "Flexisip INCLUDES : ${FLEXISIP_INCLUDES}")
 message(STATUS "Flexisip DEPENDENCIES : ${FLEXISIP_DEPENDENCIES}")
 
+bc_apply_compile_flags(FLEXISIP_SOURCES CPP_BUILD_FLAGS CXX_BUILD_FLAGS)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	set_source_files_properties(cJSON.c PROPERTIES COMPILE_FLAGS "-Wno-error=misleading-indentation")
+	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_FLAGS "-Wno-error=sign-compare")
+endif()
+
 add_library(flexisip SHARED ${FLEXISIP_SOURCES})
 set_property(TARGET flexisip PROPERTY CXX_STANDARD 11)
 set_property(TARGET flexisip PROPERTY CXX_STANDARD_REQUIRED ON)
