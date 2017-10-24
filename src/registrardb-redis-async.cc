@@ -585,7 +585,6 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 
 static string extractUniqueId(Record r, sip_contact_t *contact) {
 	while (contact) {
-		const char *lineValuePtr = NULL;
 		string lineValue = r.extractUniqueId(contact);
 		if (!lineValue.empty()) {
 			return lineValue;
