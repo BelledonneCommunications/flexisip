@@ -257,8 +257,7 @@ void PresenceServer::processTransactionTerminated(PresenceServer *thiz,
 	}
 }
 
-void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t *event) throw(BelleSipSignalingException,
-																							  FlexisipException) {
+void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t *event) {
 	belle_sip_request_t *request = belle_sip_request_event_get_request(event);
 	std::shared_ptr<PresentityPresenceInformation> presenceInfo;
 
@@ -515,8 +514,7 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 	belle_sip_server_transaction_send_response(server_transaction, resp);
 }
 
-void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_t *event) throw(BelleSipSignalingException,
-																								FlexisipException) {
+void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_t *event) {
 	belle_sip_request_t *request = belle_sip_request_event_get_request(event);
 
 	/*
@@ -771,8 +769,7 @@ const std::shared_ptr<PresentityPresenceInformation> PresenceServer::getPresence
 		return presenceInformationsByEtagIt->second;
 }
 
-void PresenceServer::addPresenceInfo(const std::shared_ptr<PresentityPresenceInformation> &presenceInfo) throw(
-	FlexisipException) {
+void PresenceServer::addPresenceInfo(const std::shared_ptr<PresentityPresenceInformation> &presenceInfo) {
 
 	if (getPresenceInfo(presenceInfo->getEntity())) {
 		throw FLEXISIP_EXCEPTION << "Presence information element already exist for" << presenceInfo;
@@ -819,15 +816,14 @@ void PresenceServer::invalidateETag(const string &eTag) {
 	}
 
 }
-void PresenceServer::modifyEtag(const string &oldEtag, const string &newEtag) throw(FlexisipException) {
+void PresenceServer::modifyEtag(const string &oldEtag, const string &newEtag) {
 	auto presenceInformationsByEtagIt = mPresenceInformationsByEtag.find(oldEtag);
 	if (presenceInformationsByEtagIt == mPresenceInformationsByEtag.end())
 		throw FLEXISIP_EXCEPTION << "Unknown etag [" << oldEtag << "]";
 	mPresenceInformationsByEtag[newEtag] = presenceInformationsByEtagIt->second;
 	mPresenceInformationsByEtag.erase(oldEtag);
 }
-void PresenceServer::addEtag(const std::shared_ptr<PresentityPresenceInformation> &info,
-							 const string &etag) throw(FlexisipException) {
+void PresenceServer::addEtag(const std::shared_ptr<PresentityPresenceInformation> &info, const string &etag) {
 	auto presenceInformationsByEtagIt = mPresenceInformationsByEtag.find(etag);
 	if (presenceInformationsByEtagIt != mPresenceInformationsByEtag.end())
 		throw FLEXISIP_EXCEPTION << "Already existing etag [" << etag << "] use PresenceServer::modifyEtag instead ";
@@ -910,7 +906,7 @@ void PresenceServer::removeListener(const shared_ptr<PresentityPresenceInformati
 			  << (long)&listener << "]";
 }
 
-void PresenceServer::removeSubscription(shared_ptr<Subscription> &subscription) throw() {
+void PresenceServer::removeSubscription(shared_ptr<Subscription> &subscription) {
 	subscription->setState(Subscription::State::terminated);
 	if (dynamic_pointer_cast<PresenceSubscription>(subscription)) {
 		shared_ptr<PresentityPresenceInformationListener> listener =

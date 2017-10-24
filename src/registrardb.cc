@@ -865,9 +865,8 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		 * Contact but still preserving
 		 * the last request uri that was found recursed through the alias mechanism.
 		*/
-		SofiaAutoHome home;
 		shared_ptr<ExtendedContact> newEc = make_shared<ExtendedContact>(*ec);
-		newEc->mSipUri = url_make(home.home(), uri);
+		newEc->mSipUri = url_make(newEc->mHome.home(), uri);
 		newEc->mPath.push_back(uri);
 		// LOGD("transformContactUsedAsRoute(): path to %s added for %s", ec->mSipUri.c_str(), uri);
 		newEc->mUsedAsRoute = false;

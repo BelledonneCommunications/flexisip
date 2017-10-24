@@ -36,7 +36,10 @@ void ConferenceServer::_init() {
 	// Set config, transport, create core, etc
 	shared_ptr<Transports> cTransport = Factory::get()->createTransports();
 	string transport = "";
-	cTransport->setTcpPort(-1);
+	cTransport->setTcpPort(0);
+	cTransport->setUdpPort(0);
+	cTransport->setTlsPort(0);
+	cTransport->setDtlsPort(0);
 
 	// Flexisip config
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
@@ -55,8 +58,10 @@ void ConferenceServer::_init() {
 
 	// Core
 	this->mCore = Factory::get()->createCore(nullptr, "", "");
+	this->mCore->setConferenceFactoryUri(config->get<ConfigString>("conference-factory-uri")->read());
 	this->mCore->getConfig()->setBool("misc", "conference_server_enabled", 1);
 	this->mCore->setTransports(cTransport);
+	this->mCore->enableConferenceServer(TRUE); // duplicate?
 }
 
 void ConferenceServer::_run() {
@@ -69,12 +74,24 @@ void ConferenceServer::_stop() {
 SofiaAutoHome ConferenceServer::mHome;
 
 void ConferenceServer::bindConference() {
+	class fakeListener : public ContactUpdateListener {
+		void onRecordFound(Record *r) {}
+		void onError() {}
+		void onInvalid() {}
+		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) {
+			SLOGD << "ConferenceServer::ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();
+		}
+	};
+	shared_ptr<fakeListener> listener = make_shared<fakeListener>();
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	if (config != nullptr && config->get<ConfigBoolean>("enabled")->read()) {
-		string transport_factory = config->get<ConfigString>("conference-factory-uri")->read();
+		string transport_factory = config->get<ConfigString>("transport")->read();
 		sip_contact_t *sipContact = sip_contact_make(mHome.home(), transport_factory.c_str());
-		RegistrarDb::get()->bind(sipContact->m_url, sipContact, "CONFERENCE", 0,
-								 NULL, NULL, NULL, TRUE, std::numeric_limits<int>::max(), FALSE, 0, NULL);
+		sip_contact_t *contactDomain = sip_contact_make(mHome.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
+		url_t *url = url_format(mHome.home(), "sip:%s", contactDomain->m_url->url_host);
+		RegistrarDb::get()->bind(url, sipContact, "CONFERENCE", 0,
+								 NULL, NULL, NULL, FALSE, std::numeric_limits<int>::max(), FALSE, 0,
+								 listener);
 	}
 }
 

@@ -884,7 +884,6 @@ int main(int argc, char *argv[]) {
 			}
 		}
 		a->start(transportsArg.getValue(), passphrase);
-		flexisip::ConferenceServer::bindConference();
 		setOpenSSLThreadSafe();
 	#ifdef ENABLE_SNMP
 		bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();
@@ -898,6 +897,7 @@ int main(int argc, char *argv[]) {
 			cfg->applyOverrides(true); // using default + overrides
 
 		a->loadConfig(cfg);
+		flexisip::ConferenceServer::bindConference();
 
 		// Create cached test accounts for the Flexisip monitor if necessary
 		if (monitorEnabled) {
