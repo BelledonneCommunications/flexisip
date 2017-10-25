@@ -217,7 +217,9 @@ message(STATUS "Flexisip DEPENDENCIES : ${FLEXISIP_DEPENDENCIES}")
 
 bc_apply_compile_flags(FLEXISIP_SOURCES CPP_BUILD_FLAGS CXX_BUILD_FLAGS)
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-	set_source_files_properties(cJSON.c PROPERTIES COMPILE_FLAGS "-Wno-error=misleading-indentation")
+	if (${CMAKE_CXX_COMPILER_VERSION} VERSION_GREATER 6.0.0 OR ${CMAKE_CXX_COMPILER_VERSION} VERSION_EQUAL 6.0.0)
+		set_source_files_properties(cJSON.c PROPERTIES COMPILE_FLAGS "-Wno-error=misleading-indentation")
+	endif()
 	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_FLAGS "-Wno-error=sign-compare")
 endif()
 
