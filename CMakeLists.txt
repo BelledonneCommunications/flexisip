@@ -40,7 +40,7 @@ include(GNUInstallDirs)
 
 option(ENABLE_STRICT "Pass strict flags to the compiler" YES)
 option(ENABLE_DATEHANDLER "Build DateHandler module" NO)
-option(ENABLE_DOC "Build documentation" YES)
+option(ENABLE_DOC "Build documentation" NO)
 option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" NO)
 option(ENABLE_ODBC "Build ODBC support for database connection" NO)
 option(ENABLE_PRESENCE "Build presence support" NO)
