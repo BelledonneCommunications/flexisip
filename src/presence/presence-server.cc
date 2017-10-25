@@ -34,27 +34,7 @@ using namespace flexisip;
 using namespace std;
 
 void _belle_sip_log(const char *domain, BctbxLogLevel lev, const char *fmt, va_list args){
-	flexisip::log::level level;
-
-	switch (lev) {
-		case BELLE_SIP_LOG_FATAL:
-			level = flexisip::log::level::fatal;
-			break;
-		case BELLE_SIP_LOG_ERROR:
-			level = flexisip::log::level::error;
-			break;
-		case BELLE_SIP_LOG_WARNING:
-			level = flexisip::log::level::warning;
-			break;
-		case BELLE_SIP_LOG_MESSAGE:
-			level = flexisip::log::level::normal;
-			break;
-		case BELLE_SIP_LOG_DEBUG:
-		default:
-			level = flexisip::log::level::debug;
-			break;
-	}
-	LOGV(level, fmt, args);
+	LOGV(lev, fmt, args);
 }
 
 PresenceServer::Init PresenceServer::sStaticInit;

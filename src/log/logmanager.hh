@@ -93,8 +93,8 @@ typedef std::ostream flexisip_record_type;
 #define SLOGE BCTBX_SLOGE(FLEXISIP_LOG_DOMAIN)
 #define SLOGUE BCTBX_SLOGE(FLEXISIP_USER_ERRORS_LOG_DOMAIN)
 
-#define LOGV(thelevel, thefmt, theargs) LOGDV((thefmt), (theargs))
-#define LOGDV(thefmt, theargs) bctbx_logv(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_DEBUG, (thefmt), (theargs))
+#define LOGV(thelevel, thefmt, theargs) bctbx_logv(FLEXISIP_LOG_DOMAIN, thelevel, (thefmt), (theargs))
+#define LOGDV(thefmt, theargs) LOGV(BCTBX_LOG_DEBUG, thefmt, theargs)
 
 #define LOGD bctbx_debug
 #define LOGI bctbx_message
