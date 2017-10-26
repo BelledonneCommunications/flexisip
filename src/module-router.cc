@@ -646,6 +646,10 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 					 strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0)) {
 			// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
 			context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this);
+		} else if (sip->sip_request->rq_method == sip_method_refer && 
+				   (sip->sip_refer_to != NULL && msg_params_find(sip->sip_refer_to->r_params, "text") != NULL)) {
+			// Use the message fork context only for refers that are text to prevent storing useless refers
+			context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this);
 		} else {
 			context = make_shared<ForkBasicContext>(getAgent(), ev, mOtherForkCfg, this);
 		}
