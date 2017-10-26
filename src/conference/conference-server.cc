@@ -61,6 +61,15 @@ void ConferenceServer::_init() {
 	this->mCore->setConferenceFactoryUri(config->get<ConfigString>("conference-factory-uri")->read());
 	this->mCore->getConfig()->setBool("misc", "conference_server_enabled", 1);
 	this->mCore->setTransports(cTransport);
+
+	shared_ptr<Address> addrProxy = Factory::get()->createAddress(this->mCore->getConferenceFactoryUri());
+	shared_ptr<ProxyConfig> proxy = this->mCore->createProxyConfig();
+	proxy->setIdentityAddress(addrProxy);
+	proxy->setRoute(config->get<ConfigString>("outbound-proxy")->read());
+	proxy->setServerAddr(config->get<ConfigString>("outbound-proxy")->read());
+	proxy->enableRegister(FALSE);
+	this->mCore->addProxyConfig(proxy);
+	this->mCore->setDefaultProxyConfig(proxy);
 	this->mCore->enableConferenceServer(TRUE); // duplicate?
 }
 
@@ -106,6 +115,9 @@ ConferenceServer::Init::Init() {
 		{String, "conference-factory-uri",
 			"uri where the client must ask to create a conference.",
 			"sip:conference-factory@sip1.linphone.org"},
+		{String, "outbound-proxy",
+			"",
+			"sip:127.0.0.1:5060;transport=tcp"},
 		config_item_end};
 		GenericStruct *s = new GenericStruct("conference-server", "Flexisip conference server parameters.", 0);
 	GenericManager::get()->getRoot()->addChild(s);

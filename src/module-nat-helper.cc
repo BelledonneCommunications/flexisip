@@ -67,7 +67,7 @@ class NatHelper : public Module, protected ModuleToolbox {
 			if (st->st_status >= 200 && st->st_status <= 299) {
 				sip_contact_t *ct = ms->getSip()->sip_contact;
 				if (ct) {
-					if (!url_has_param(ct->m_url, mContactVerifiedParam.c_str()) && !url_has_param(ct->m_url,"gr") && !url_has_param(ct->m_url, "isfocus")) {
+					if (!url_has_param(ct->m_url, mContactVerifiedParam.c_str()) && !url_has_param(ct->m_url,"gr") && !msg_params_find(ct->m_params, "isfocus")) {
 						fixContactInResponse(ms->getHome(), ms->getMsg(), ms->getSip());
 						url_param_add(ms->getHome(), ct->m_url, mContactVerifiedParam.c_str());
 					} else if (ms->getSip()->sip_via && ms->getSip()->sip_via->v_next &&

@@ -897,7 +897,9 @@ int main(int argc, char *argv[]) {
 			cfg->applyOverrides(true); // using default + overrides
 
 		a->loadConfig(cfg);
+#ifdef ENABLE_CONFERENCE
 		flexisip::ConferenceServer::bindConference();
+#endif //ENABLE_CONFERENCE
 
 		// Create cached test accounts for the Flexisip monitor if necessary
 		if (monitorEnabled) {
