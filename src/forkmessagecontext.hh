@@ -33,6 +33,7 @@ class ForkMessageContext : public ForkContext {
 							  success response was received on the outgoing transactions*/
 	static const int sAcceptanceTimeout = 20; /* this must be less than the transaction time (32 seconds)*/
 	int mDeliveredCount;
+	bool mIsMessage; /* tells if the ForkMessageContext is a message, if false it's a refer */
 
   public:
 	ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event,
