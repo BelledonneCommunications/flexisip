@@ -130,6 +130,7 @@ make install DESTDIR=%{buildroot}
 mkdir -p  $RPM_BUILD_ROOT/etc/init.d
 mkdir -p  $RPM_BUILD_ROOT/etc/flexisip
 mkdir -p  $RPM_BUILD_ROOT/%{_docdir}
+mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/log/flexisip
 %if "0%{?dist}" == "0.deb"
 	install -p -m 0744 scripts/debian/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
 	%if  %{presence}
