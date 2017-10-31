@@ -602,7 +602,20 @@ static string version() {
 	return version.str();
 }
 
-
+static string getPkcsPassphrase(TCLAP::ValueArg<string> &pkcsFile){
+	string passphrase;
+	if(!pkcsFile.getValue().empty()) {
+		ifstream dacb(pkcsFile.getValue());
+		if(!dacb.is_open()) {
+			SLOGE << "Can't open pkcs passphrase file : " << pkcsFile.getValue();
+		} else {
+			while(!dacb.eof()){
+				dacb >> passphrase;
+			}
+		}
+	}
+	return passphrase;
+}
 
 int main(int argc, char *argv[]) {
 	shared_ptr<Agent> a;
@@ -846,8 +859,12 @@ int main(int argc, char *argv[]) {
 	if (debug || log_level == "debug") {
 		su_log_set_level(NULL, 9);
 	}
+	/*read the pkcs passphrase if any from the fifo, and keep it in memory*/
+	string passphrase = getPkcsPassphrase(pkcsFile);
+	
 	/*
-	 NEVER NEVER create pthreads before this point : threads do not survive the fork below !!!!!!!!!!
+	 * Perform the fork of the watchdog, followed by the fork of the worker daemon, in forkAndDetach().
+	 * NEVER NEVER create pthreads before this point : threads do not survive the fork below !!!!!!!!!!
 	*/
 	bool monitorEnabled = cfg->getRoot()->get<GenericStruct>("monitor")->get<ConfigBoolean>("enabled")->read();
 	if (daemonMode) {
@@ -861,6 +878,9 @@ int main(int argc, char *argv[]) {
 		makePidFile(pidFile.getValue());
 	}
 
+	/*
+	 * From now on, we are a flexisip daemon, that is a process that will run proxy, presence, or conference server.
+	 */
 	LOGN("Starting flexisip %s-server version %s (git %s)", fName.c_str(), VERSION, FLEXISIP_GIT_VERSION);
 	GenericManager::get()->sendTrap("Flexisip "+ fName + "-server starting");
 
@@ -873,17 +893,6 @@ int main(int argc, char *argv[]) {
 	setOpenSSLThreadSafe();
 	
 	if (startProxy){
-		string passphrase = "";
-		if(pkcsFile.getValue() != "") {
-			ifstream dacb(pkcsFile.getValue());
-			if(!dacb.is_open()) {
-				SLOGE << "Can't open pkcs passphrase file : " << pkcsFile.getValue();
-			} else {
-				while(!dacb.eof()){
-					dacb >> passphrase;
-				}
-			}
-		}
 		a->start(transportsArg.getValue(), passphrase);
 	#ifdef ENABLE_SNMP
 		bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();
