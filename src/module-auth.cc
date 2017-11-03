@@ -52,6 +52,82 @@ struct auth_mod_size {
     auth_mod_t mod[1];
     auth_plugin_t plug[1];
 };
+void flexisipSha256(char* input, size_t size, uint8_t* a1buf, char* out){
+    int di;
+    bctbx_sha256((const unsigned char*)input, strlen(input),size, a1buf);
+    for (di = 0; di < size; ++di)
+        sprintf(out + di * 2, "%02x", a1buf[di]);
+    out[64]='\0';
+}
+
+void auth_digest_a1_for_algorithm(auth_response_t *ar,char const *secret,char* ha1) {
+    char input[100];
+    uint8_t a1buf[32];
+    
+    snprintf(input,sizeof(input),"%s:%s:%s",ar->ar_username,ar->ar_realm,secret);
+    flexisipSha256(input, 32, a1buf, ha1);
+    LOGD("auth_digest_ha1() has A1 = SHA256(%s:%s:%s) = %s\n",
+         ar->ar_username,ar->ar_realm, "*******", ha1);
+}
+
+void auth_digest_a1sess_for_algorithm(auth_response_t *ar,char* ha1) {
+    char input[100];
+    uint8_t a1buf[32];
+    char* ha1_ref=ha1;
+    
+    snprintf(input,sizeof(input),"%s:%s:%s",ha1,ar->ar_nonce,ar->ar_cnonce);
+    flexisipSha256(input, 32, a1buf, ha1);
+    LOGD("auth_sessionkey has A1' = SHA256(%s:%s:%s) = %s\n",
+         ha1_ref, ar->ar_nonce, ar->ar_cnonce, ha1);
+}
+
+void auth_digest_response_for_algorithm(auth_response_t *ar,
+                                        char const *method_name,
+                                        void const *data, isize_t dlen, char* response, const char* ha1){
+    char  input[200];
+    uint8_t a1buf[32];
+    char ha2[65],Hentity[65];
+    if (ar->ar_auth_int)
+        ar->ar_qop = "auth-int";
+    else if (ar->ar_auth)
+        ar->ar_qop = "auth";
+    else
+        ar->ar_qop = NULL;
+    
+    /* Calculate Hentity */
+    if (ar->ar_auth_int) {
+        if (data && dlen) {
+            snprintf(input,sizeof(input),"%s",data);
+            flexisipSha256(input, 32, a1buf, Hentity);
+        } else {
+            strcpy(Hentity, "d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3");
+        }
+    }
+    
+    /* Calculate A2 */
+    if (ar->ar_auth_int) {
+        snprintf(input,sizeof(input),"%s:%s:%s",method_name,ar->ar_uri,Hentity);
+    }
+    else
+        snprintf(input,sizeof(input),"%s:%s",method_name,ar->ar_uri);
+    flexisipSha256(input, 32, a1buf, ha2);
+    LOGD("A2 = SHA256(%s:%s%s%s)\n", method_name, ar->ar_uri,
+         ar->ar_auth_int ? ":" : "", ar->ar_auth_int ? Hentity : "");
+    
+    /* Calculate response */
+    snprintf(input,sizeof(input),"%s:%s:%s:%s:%s:%s",ha1,ar->ar_nonce,ar->ar_nc,ar->ar_cnonce,ar->ar_qop,ha2);
+    flexisipSha256(input, 32, a1buf, response);
+    LOGD("auth_response: %s = SHA256(%s:%s%s%s%s%s%s%s:%s) (qop=%s)\n",
+         response, ha1, ar->ar_nonce,
+         ar->ar_auth ||  ar->ar_auth_int ? ":" : "",
+         ar->ar_auth ||  ar->ar_auth_int ? ar->ar_nc : "",
+         ar->ar_auth ||  ar->ar_auth_int ? ":" : "",
+         ar->ar_auth ||  ar->ar_auth_int ? ar->ar_cnonce : "",
+         ar->ar_auth ||  ar->ar_auth_int ? ":" : "",
+         ar->ar_auth ||  ar->ar_auth_int ? ar->ar_qop : "",
+         ha2,
+         ar->ar_qop ? ar->ar_qop : "NONE");
+}
 
 class NonceStore {
     struct NonceCount {
@@ -153,7 +229,7 @@ private:
     public:
         bool mImmediateRetrievePass;
         bool mNo403;
-        bool mUseTwoAlgo;
+        list<string> mAlgoUsed;
         auth_response_t mAr;
         AuthenticationListener(Authentication *, shared_ptr<RequestSipEvent>, bool);
         virtual ~AuthenticationListener() {
@@ -164,6 +240,7 @@ private:
         int checkPasswordMd5(const char *password);
         int checkPasswordForAlgorithm(const char *password);
         void onResult(AuthDbResult result, const std::string &passwd);
+        void onResult(AuthDbResult result, const passwd_algo_t &passwd);
         void onError();
         void finish(); /*the listener is destroyed when calling this, careful*/
         void finish_for_algorithm();
@@ -197,8 +274,7 @@ private:
     bool mNewAuthOn407;
     bool mTestAccountsEnabled;
     bool mDisableQOPAuth;
-    bool mUseSha256;
-    bool mUseTwoAlgorithm;
+    list<string> mAlgorithm;
     
     static int authPluginInit(auth_mod_t *am, auth_scheme_t *base, su_root_t *root, tag_type_t tag, tag_value_t value,
                               ...) {
@@ -368,13 +444,8 @@ public:
                 "Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
                 "false"},
             
-            {Boolean, "disable-sha256",
-                "Disable the hash function SHA-256. Default is to use MD5, use this flag to disable it if needed.",
-                "false"},
-            
-            {Boolean, "disable-md5-sha256",
-                "Disable the hash function SHA-256 and MD5. Default is to use MD5, use this flag to disable it if needed.",
-                "false"},
+            {StringList, "available-algorithms", "List of algorithms, separated by whitespaces.",
+                ""},
             
             config_item_end};
         mc->addChildrenValues(items);
@@ -393,6 +464,7 @@ public:
     void onLoad(const GenericStruct *mc) {
         list<string>::const_iterator it;
         int nonceExpires;
+        std::string algorithm = "MD5";
         mDomains = mc->get<ConfigStringList>("auth-domains")->read();
         nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
         
@@ -404,16 +476,27 @@ public:
         mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
         mTestAccountsEnabled = mc->get<ConfigBoolean>("enable-test-accounts-creation")->read();
         mDisableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
-        mUseSha256 = mc->get<ConfigBoolean>("disable-sha256")->read();
-        mUseTwoAlgorithm = mc->get<ConfigBoolean>("disable-md5-sha256")->read();
+        mAlgorithm=mc->get<ConfigStringList>("available-algorithms")->read();
+        mAlgorithm.unique();
         mNonceStore.setNonceExpires(nonceExpires);
         
+        for(auto algo = mAlgorithm.begin(); algo != mAlgorithm.end();algo++)
+        {
+            if((strcmp(algo->c_str(),"MD5")!=0) && (strcmp(algo->c_str(),"SHA-256")!=0))
+            {
+                LOGD("Given algorithm is not valid. Must be either MD5 or SHA-256");
+                return;
+            }
+        }
+        if(mAlgorithm.size()==1){
+            auto algo = mAlgorithm.begin();
+            algorithm.assign(algo->c_str());
+        }
         for (it = mDomains.begin(); it != mDomains.end(); ++it) {
             auto domain = *it;
             
             mAuthModules[*it] = createAuthModule(domain, nonceExpires);
-            if(mUseSha256&&(!mUseTwoAlgorithm))
-                mAuthModules[*it]->am_algorithm = "SHA-256";
+            mAuthModules[*it]->am_algorithm = strdup(algorithm.c_str());
             auth_plugin_t *ap = AUTH_PLUGIN(mAuthModules[*it]);
             ap->mModule = this;
             LOGI("Found auth domain: %s", (*it).c_str());
@@ -605,7 +688,7 @@ public:
             AuthenticationListener *listener = new AuthenticationListener(this, ev, dbUseHashedPasswords);
             listener->mImmediateRetrievePass = mImmediateRetrievePassword;
             listener->mNo403 = mNo403Expr->eval(ev->getSip());
-            listener->mUseTwoAlgo = mUseTwoAlgorithm;
+            listener->mAlgoUsed = mAlgorithm;
             as->as_magic = mCurrentAuthOp = listener;
             
             // Attention: the auth_mod_verify method should not send by itself any message but
@@ -701,6 +784,57 @@ public:
                 AuthenticationListener *listener = *listenerStorage;
                 listener->processResponse();
             }
+            
+            void Authentication::AuthenticationListener::onResult(AuthDbResult result, const passwd_algo_t &passwd) {
+                // invoke callback on main thread (sofia-sip)
+                su_msg_r mamc = SU_MSG_R_INIT;
+                if (-1 == su_msg_create(mamc, su_root_task(getRoot()), su_root_task(getRoot()), main_thread_async_response_cb,
+                                        sizeof(AuthenticationListener *))) {
+                    LOGF("Couldn't create auth async message");
+                }
+                
+                AuthenticationListener **listenerStorage = (AuthenticationListener **)su_msg_data(mamc);
+                *listenerStorage = this;
+                
+                switch (result) {
+                    case PASSWORD_FOUND:
+                        mResult = AuthDbResult::PASSWORD_FOUND;
+                        if(mHashedPass){
+                            if((mAr.ar_algorithm==NULL)||(!strcmp(mAr.ar_algorithm, "MD5"))){
+                                mPassword = passwd.passmd5;
+                            }
+                            else if(!strcmp(mAr.ar_algorithm, "SHA-256")){
+                                mPassword = passwd.passsha256;
+                            }
+                            else{
+                                mResult=AuthDbResult::AUTH_ERROR;
+                                break;
+                            }
+                        }
+                        else{
+                            mPassword = passwd.pass;
+                        }
+                        
+                        if(mPassword==""){
+                            mResult = AuthDbResult::PASSWORD_NOT_FOUND;
+                        }
+                        break;
+                    case PASSWORD_NOT_FOUND:
+                        mResult = AuthDbResult::PASSWORD_NOT_FOUND;
+                        mPassword = "";
+                        break;
+                    case AUTH_ERROR:
+                        /*in that case we can fallback to the cached password previously set*/
+                        break;
+                    case PENDING:
+                        LOGF("unhandled case PENDING");
+                        break;
+                }
+                if (-1 == su_msg_send(mamc)) {
+                    LOGF("Couldn't send auth async message to main thread.");
+                }
+            }
+            
             void Authentication::AuthenticationListener::onResult(AuthDbResult result, const std::string &passwd) {
                 // invoke callback on main thread (sofia-sip)
                 su_msg_r mamc = SU_MSG_R_INIT;
@@ -734,7 +868,7 @@ public:
             }
             
             void Authentication::AuthenticationListener::finish_for_algorithm(){
-                if(mUseTwoAlgo&&(mAs->as_status == 401)){
+                if((mAlgoUsed.size()>1)&&(mAs->as_status == 401)){
                     msg_header_t* response;
                     response = msg_header_copy(mAs->as_home, mAs->as_response);
                     msg_header_remove_param((msg_common_t *)response, "algorithm=MD5");
@@ -787,84 +921,7 @@ public:
                 }
                 delete this;
             }
-            
-            void flexisipSha256(char* input, size_t size, uint8_t* a1buf, char* out){
-                int di;
-                bctbx_sha256((const unsigned char*)input, strlen(input),size, a1buf);
-                for (di = 0; di < size; ++di)
-                    sprintf(out + di * 2, "%02x", a1buf[di]);
-                out[64]='\0';
-            }
-            
-            void auth_digest_a1_for_algorithm(auth_response_t *ar,char const *secret,char* ha1) {
-                char input[100];
-                uint8_t a1buf[32];
-                
-                snprintf(input,sizeof(input),"%s:%s:%s",ar->ar_username,ar->ar_realm,secret);
-                flexisipSha256(input, 32, a1buf, ha1);
-                LOGD("auth_digest_ha1() has A1 = SHA256(%s:%s:%s) = %s\n",
-                     ar->ar_username,ar->ar_realm, "*******", ha1);
-            }
-            
-            void auth_digest_a1sess_for_algorithm(auth_response_t *ar,char* ha1) {
-                char input[100];
-                uint8_t a1buf[32];
-                char* ha1_ref=ha1;
-                
-                snprintf(input,sizeof(input),"%s:%s:%s",ha1,ar->ar_nonce,ar->ar_cnonce);
-                flexisipSha256(input, 32, a1buf, ha1);
-                LOGD("auth_sessionkey has A1' = SHA256(%s:%s:%s) = %s\n",
-                     ha1_ref, ar->ar_nonce, ar->ar_cnonce, ha1);
-            }
-            
-            void auth_digest_response_for_algorithm(auth_response_t *ar,
-                                                    char const *method_name,
-                                                    void const *data, isize_t dlen, char* response, const char* ha1){
-                char  input[200];
-                uint8_t a1buf[32];
-                char ha2[65],Hentity[65];
-                if (ar->ar_auth_int)
-                    ar->ar_qop = "auth-int";
-                else if (ar->ar_auth)
-                    ar->ar_qop = "auth";
-                else
-                    ar->ar_qop = NULL;
-                
-                /* Calculate Hentity */
-                if (ar->ar_auth_int) {
-                    if (data && dlen) {
-                        snprintf(input,sizeof(input),"%s",data);
-                        flexisipSha256(input, 32, a1buf, Hentity);
-                    } else {
-                        strcpy(Hentity, "d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3");
-                    }
-                }
-                
-                /* Calculate A2 */
-                if (ar->ar_auth_int) {
-                    snprintf(input,sizeof(input),"%s:%s:%s",method_name,ar->ar_uri,Hentity);
-                }
-                else
-                    snprintf(input,sizeof(input),"%s:%s",method_name,ar->ar_uri);
-                flexisipSha256(input, 32, a1buf, ha2);
-                LOGD("A2 = SHA256(%s:%s%s%s)\n", method_name, ar->ar_uri,
-                     ar->ar_auth_int ? ":" : "", ar->ar_auth_int ? Hentity : "");
-                
-                /* Calculate response */
-                snprintf(input,sizeof(input),"%s:%s:%s:%s:%s:%s",ha1,ar->ar_nonce,ar->ar_nc,ar->ar_cnonce,ar->ar_qop,ha2);
-                flexisipSha256(input, 32, a1buf, response);
-                LOGD("auth_response: %s = SHA256(%s:%s%s%s%s%s%s%s:%s) (qop=%s)\n",
-                     response, ha1, ar->ar_nonce,
-                     ar->ar_auth ||  ar->ar_auth_int ? ":" : "",
-                     ar->ar_auth ||  ar->ar_auth_int ? ar->ar_nc : "",
-                     ar->ar_auth ||  ar->ar_auth_int ? ":" : "",
-                     ar->ar_auth ||  ar->ar_auth_int ? ar->ar_cnonce : "",
-                     ar->ar_auth ||  ar->ar_auth_int ? ":" : "",
-                     ar->ar_auth ||  ar->ar_auth_int ? ar->ar_qop : "",
-                     ha2,
-                     ar->ar_qop ? ar->ar_qop : "NONE");
-            }
-            
+                        
             int Authentication::AuthenticationListener::checkPasswordMd5(const char *passwd){
                 char const *a1;
                 auth_hexmd5_t a1buf, response;
