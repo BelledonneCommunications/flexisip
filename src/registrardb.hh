@@ -163,6 +163,13 @@ struct ExtendedContact {
 			mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false), mRegId(0), mHome() {
 		mSipUri = url_hdup(mHome.home(), url);
 	}
+	
+	ExtendedContact(const ExtendedContact &ec) 
+		: mContactId(ec.mContactId), mCallId(ec.mCallId), mUniqueId(ec.mUniqueId), mPath(ec.mPath), mSipUri(), mQ(ec.mQ),
+			mExpireAt(ec.mExpireAt), mUpdatedTime(ec.mUpdatedTime), mCSeq(ec.mCSeq), mAlias(ec.mAlias),
+			mAcceptHeader(ec.mAcceptHeader), mUsedAsRoute(ec.mUsedAsRoute), mRegId(ec.mRegId), mHome() {
+		mSipUri = url_hdup(mHome.home(), ec.mSipUri);
+	}
 
 	std::ostream &print(std::ostream &stream, time_t _now = getCurrentTime(), time_t offset = 0) const;
 	sip_contact_t *toSofiaContact(su_home_t *home, time_t now) const;
