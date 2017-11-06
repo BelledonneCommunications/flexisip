@@ -451,7 +451,7 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 			shared_ptr<ForkContext> context = ite->second;
 			if (context->onNewRegister(contact->m_url, uid)) {
 				LOGD("Found a pending context for contact %s: %p", ExtendedContact::urlToString(ec->mSipUri).c_str(), context.get());
-				auto stlpath = Record::route_to_stl(context->getEvent()->getMsgSip()->getHome(), path);
+				auto stlpath = Record::route_to_stl(path);
 				dispatch(context->getEvent(), ec, context, "");
 			}
 		}
