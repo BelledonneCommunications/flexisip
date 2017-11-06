@@ -235,7 +235,7 @@ class Record {
 	}
 	time_t latestExpire() const;
 	time_t latestExpire(const std::string &route) const;
-	static std::list<std::string> route_to_stl(su_home_t *home, const sip_route_s *route);
+	static std::list<std::string> route_to_stl(const sip_route_s *route);
 	void appendContactsFrom(Record *src);
 	static std::string defineKeyFromUrl(const url_t *aor);
 	~Record();

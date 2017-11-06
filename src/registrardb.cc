@@ -244,10 +244,11 @@ time_t Record::latestExpire(const std::string &route) const {
 	return latest;
 }
 
-std::list<std::string> Record::route_to_stl(su_home_t *home, const sip_route_s *route) {
+std::list<std::string> Record::route_to_stl(const sip_route_s *route) {
 	std::list<std::string> res;
+	SofiaAutoHome home;
 	while (route != NULL) {
-		res.push_back(url_as_string(home, route->r_url));
+		res.push_back(std::string(url_as_string(home.home(), route->r_url)));
 		route = route->r_next;
 	}
 	return res;
@@ -537,8 +538,7 @@ void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalE
 	list<string> stlPath;
 
 	if (path != NULL) {
-		SofiaAutoHome home;
-		stlPath = route_to_stl(home.home(), path);
+		stlPath = route_to_stl(path);
 	}
 
 	while (contacts) {
