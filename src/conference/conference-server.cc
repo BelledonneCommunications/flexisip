@@ -57,9 +57,12 @@ void ConferenceServer::_init() {
 	}
 
 	// Core
-	this->mCore = Factory::get()->createCore(nullptr, "", "");
+	auto configLinphone = Factory::get()->createConfig("");
+	configLinphone->setBool("misc", "conference_server_enabled", 1);
+	configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
+	configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
+	this->mCore = Factory::get()->createCoreWithConfig(nullptr, configLinphone);
 	this->mCore->setConferenceFactoryUri(config->get<ConfigString>("conference-factory-uri")->read());
-	this->mCore->getConfig()->setBool("misc", "conference_server_enabled", 1);
 	this->mCore->setTransports(cTransport);
 
 	shared_ptr<Address> addrProxy = Factory::get()->createAddress(this->mCore->getConferenceFactoryUri());
@@ -111,13 +114,26 @@ ConferenceServer::Init::Init() {
 		{Boolean, "enabled", "Enable conference server", "true"},
 		{String, "transport",
 			"uri where the conference server must listen.",
-			"sip:127.0.0.1:6064"},
+			"<sip:127.0.0.1:6064;transport=tcp>"},
 		{String, "conference-factory-uri",
 			"uri where the client must ask to create a conference.",
 			"sip:conference-factory@sip1.linphone.org"},
 		{String, "outbound-proxy",
 			"",
 			"sip:127.0.0.1:5060;transport=tcp"},
+		{String, "database-backend",
+			"Choose the type of backend that linphone will use for the connection.\n"
+			"Depending on your Soci package and the modules you installed, the supported databases are:"
+			"`mysql`, `sqlite3`",
+			"mysql"},
+		{String, "database-connection-string",
+			"The configuration parameters of the backend.\n"
+			"The basic format is \"key=value key2=value2\". For a mysql backend, this "
+			"is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
+			"Please refer to the Soci documentation of your backend, for instance: "
+			"http://soci.sourceforge.net/doc/3.2/backends/mysql.html"
+			"http://soci.sourceforge.net/doc/3.2/backends/sqlite3.html",
+			"db='mydb' user='myuser' password='mypass' host='myhost.com'"},
 		config_item_end};
 		GenericStruct *s = new GenericStruct("conference-server", "Flexisip conference server parameters.", 0);
 	GenericManager::get()->getRoot()->addChild(s);
