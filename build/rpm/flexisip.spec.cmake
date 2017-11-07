@@ -110,6 +110,8 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 %prep
 %setup -n %{name}-%{version}-%build_number
 
+%flex_debug
+
 %build
 %{expand:%%%cmake_name} . -DCMAKE_INSTALL_LIBDIR:PATH=%{_libdir} -DCMAKE_PREFIX_PATH:PATH=%{_prefix} \
     -DENABLE_REDIS=%{redis} \
