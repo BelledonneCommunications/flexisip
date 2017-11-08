@@ -770,6 +770,7 @@ void RegistrarDbRedisAsync::handleRecordMigration(redisReply *reply, RegistrarUs
 			} else {
 				LOGD("Parsing stored contacts for aor:%s successful", data->record.getKey().c_str());
 				serializeAndSendToRedis(data, sHandleMigration);
+				return;
 			}
 		} else {
 			// This is a workaround required in case of unregister (expire set to 0) because
