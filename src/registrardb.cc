@@ -946,10 +946,12 @@ void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *
 		if(supported.find("gruu") != string::npos) {
 			stringstream stream;
 			string instance(*(icontact->m_params));
-			instance = instance.substr(instance.find("+sip.instance=\"<") + strlen("+sip.instance=\"<"));
-			instance = instance.substr(0, instance.find(">"));
-			stream << "gr=" << instance;
-			url_param_add(home.home(), icontact->m_url, stream.str().c_str());
+			if (instance.find("+sip.instance=\"<") != string::npos) {
+				instance = instance.substr(instance.find("+sip.instance=\"<") + strlen("+sip.instance=\"<"));
+				instance = instance.substr(0, instance.find(">"));
+				stream << "gr=" << instance;
+				url_param_add(home.home(), icontact->m_url, stream.str().c_str());
+			}
 		}
 	}
 
