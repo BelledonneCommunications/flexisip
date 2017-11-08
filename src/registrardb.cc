@@ -855,7 +855,7 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 	shared_ptr<ExtendedContact> transformContactUsedAsRoute(const char *uri, const shared_ptr<ExtendedContact> &ec) {
 		/*this function does the following:
 		 * - make a copy of the extended contact
-		 * - in this copy replace the main contact information by the 'url' given in argument
+		 * - in this copy replace the main contact information by the 'uri' given in argument
 		 * - append the main contact information of the original extended contact into the Path header of the new
 		 * extended contact.
 		 * While recursiving through alias, this allows to have a Route header appended for a "usedAsRoute" kind of
@@ -864,7 +864,7 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		*/
 		shared_ptr<ExtendedContact> newEc = make_shared<ExtendedContact>(*ec);
 		newEc->mSipUri = url_make(newEc->mHome.home(), uri);
-		newEc->mPath.push_back(uri);
+		newEc->mPath.push_back(ExtendedContact::urlToString(ec->mSipUri));
 		// LOGD("transformContactUsedAsRoute(): path to %s added for %s", ec->mSipUri.c_str(), uri);
 		newEc->mUsedAsRoute = false;
 		return newEc;
