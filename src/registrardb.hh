@@ -145,8 +145,10 @@ struct ExtendedContact {
 		}
 
 		int expire = resolveExpire(sip_contact->m_expires, global_expire);
-		if (expire == -1)
-			LOGA("no global expire (%d) nor local contact expire (%s)found", global_expire, sip_contact->m_expires);
+		if (expire == -1) {
+			LOGE("no global expire (%d) nor local contact expire (%s)found", global_expire, sip_contact->m_expires);
+			expire = 0;
+		}
 		mExpireAt = updateTime + expire;
 	}
 
