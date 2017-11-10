@@ -77,6 +77,7 @@ void ConferenceServer::_init() {
 }
 
 void ConferenceServer::_run() {
+	bctbx_sleep_ms(100);
 	this->mCore->iterate();
 }
 
