@@ -16,12 +16,13 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "pushnotificationclient_wp.hh"
-#include "microsoftpush.hh"
+#include <openssl/err.h>
 
 #include "cJSON.h"
+#include "microsoftpush.hh"
+#include "utils/httputils.hh"
 
-#include <openssl/err.h>
+#include "pushnotificationclient_wp.hh"
 
 using namespace std;
 
@@ -71,8 +72,8 @@ void PushNotificationClientWp::retrieveAccessToken() {
 
 	// we must retrieve our access token
 	httpBody << "grant_type=client_credentials";
-	httpBody << "&client_id=" << mPackageSID;
-	httpBody << "&client_secret=" << mApplicationSecret;
+	httpBody << "&client_id=" << HttpUtils::escapeReservedCharacters(mPackageSID);
+	httpBody << "&client_secret=" << HttpUtils::escapeReservedCharacters(mApplicationSecret);
 	httpBody << "&scope=" << "notify.windows.com";
 
 	httpHeader << "POST /accesstoken.srf HTTP/1.1\r\nContent-Type: application/x-www-form-urlencoded\r\nHost: " << hostname << "\r\nContent-Length: " << httpBody.str().size() << "\r\n\r\n";

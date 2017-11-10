@@ -16,14 +16,15 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "genericpush.hh"
-
-#include <string.h>
-#include <stdexcept>
-#include "common.hh"
-
 #include <iostream>
 #include <list>
+#include <stdexcept>
+#include <string.h>
+
+#include "common.hh"
+#include "utils/httputils.hh"
+
+#include "genericpush.hh"
 
 using namespace std;
 
@@ -91,8 +92,6 @@ struct KeyVal {
 
 string &GenericPushNotificationRequest::substituteArgs(string &input, const PushInfo &pinfo) {
 	list<KeyVal> keyvals;
-	static const char *http_reserved = "!*'();:@&=+$,/?#[]";
-
 	keyvals.push_back(KeyVal("$type", pinfo.mType));
 	keyvals.push_back(KeyVal("$token", pinfo.mDeviceToken));
 	keyvals.push_back(KeyVal("$api-key", pinfo.mApiKey));
@@ -110,12 +109,7 @@ string &GenericPushNotificationRequest::substituteArgs(string &input, const Push
 	for (auto it = keyvals.begin(); it != keyvals.end(); ++it) {
 		size_t pos = input.find((*it).mKeyword);
 		if (pos != string::npos) {
-			string value;
-			if (url_reserved_p((*it).mValue.c_str())) {
-				value.resize(url_esclen((*it).mValue.c_str(), http_reserved));
-				url_escape(&value.at(0), (*it).mValue.c_str(), http_reserved);
-			} else
-				value = (*it).mValue;
+			string value = HttpUtils::escapeReservedCharacters(it->mValue);
 			input.replace(pos, strlen((*it).mKeyword), value);
 		}
 	}

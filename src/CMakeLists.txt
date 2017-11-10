@@ -22,65 +22,67 @@
 
 set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIASIPUA_LIBRARIES} ${LINPHONECXX_LIBRARIES} ${BCTOOLBOX_CORE_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
-set(FLEXISIP_INCLUDES)
+set(FLEXISIP_INCLUDES )
 
 set(FLEXISIP_DEPENDENCIES)
 
-file(GLOB FLEXISIP_UTILS_SRC utils/*.cc utils/*.hh)
-
 set(FLEXISIP_SOURCES
-	agent.cc agent.hh
-	common.cc common.hh
-	sdp-modifier.hh sdp-modifier.cc
-	callstore.hh callstore.cc
-	forkcontext.hh forkcontext.cc
-	callcontext-mediarelay.hh callcontext-mediarelay.cc
-	forkcallcontext.hh forkcallcontext.cc
-	forkmessagecontext.hh forkmessagecontext.cc
-	forkbasiccontext.cc forkbasiccontext.hh
-	registrardb-internal.cc registrardb-internal.hh registrardb.cc registrardb.hh
-	recordserializer-c.cc recordserializer.hh
-	recordserializer-json.cc cJSON.c cJSON.h
-	etchosts.cc etchosts.hh
-	lpconfig.cc lpconfig.h
-	configmanager.cc configmanager.hh
-	configdumper.hh configdumper.cc
-	event.cc event.hh
-	transaction.cc transaction.hh
-	module.cc module.hh
-	monitor.cc monitor.hh
-	entryfilter.cc entryfilter.hh
-	stun.cc stun.hh
-	stun/stun.c stun/stun_udp.c stun/flexisip_stun.h stun/flexisip_stun_udp.h
-	mediarelay.cc mediarelay.hh
-	authdb.hh authdb.cc authdb-file.cc
-	module-sanitychecker.cc
-	module-garbage-in.cc
-	module-forward.cc
-	module-gatewayadapter.cc
+	agent.cc
+	authdb-file.cc
+	authdb.cc
+	cJSON.c
+	callcontext-mediarelay.cc
+	callstore.cc
+	common.cc
+	configdumper.cc
+	configmanager.cc
+	contact-masquerader.cc
+	domain-registrations.cc
+	entryfilter.cc
+	etchosts.cc
+	event.cc
+	eventlogs/eventlogs.cc
+	expressionparser.cc
+	forkbasiccontext.cc
+	forkcallcontext.cc
+	forkcontext.cc
+	forkmessagecontext.cc
+	h264iframefilter.cc
+	log/logmanager.cc
+	lpconfig.cc
+	mediarelay.cc
+	module-auth.cc
 	module-contact-route-inserter.cc
+	module-dos.cc
+	module-forward.cc
+	module-garbage-in.cc
+	module-gatewayadapter.cc
+	module-loadbalancer.cc
+	module-mediarelay.cc
 	module-nat-helper.cc
+	module-redirect.cc module-presence.cc
 	module-registrar.cc
 	module-router.cc
-	module-transcode.cc
+	module-sanitychecker.cc
 	module-statistics-collector.cc
-	module-mediarelay.cc
-	module-auth.cc
-	module-loadbalancer.cc
-	module-dos.cc
-	expressionparser.cc expressionparser.hh
-	sipattrextractor.cc sipattrextractor.hh
-	h264iframefilter.cc h264iframefilter.hh
-	telephone-event-filter.cc telephone-event-filter.hh
-	log/logmanager.cc log/logmanager.hh
-	eventlogs/eventlogs.cc eventlogs/eventlogs.hh
-	contact-masquerader.cc contact-masquerader.hh
-	uac-register.cc uac-register.hh
-	module-redirect.cc module-presence.cc
-	domain-registrations.cc domain-registrations.hh
-	stats.cc stats.hh
-	service-server.hh
-	${FLEXISIP_UTILS_SRC}
+	module-transcode.cc
+	module.cc
+	monitor.cc
+	recordserializer-c.cc
+	recordserializer-json.cc
+	registrardb-internal.cc
+	registrardb.cc
+	sdp-modifier.cc
+	sipattrextractor.cc
+	stats.cc
+	stun.cc
+	stun/stun.c
+	stun/stun_udp.c
+	telephone-event-filter.cc
+	transaction.cc
+	uac-register.cc
+	utils/httputils.cc
+	utils/threadpool.cc
 )
 
 find_package(Git)
