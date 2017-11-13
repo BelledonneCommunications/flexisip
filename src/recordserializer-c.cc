@@ -131,7 +131,7 @@ bool RecordSerializerC::serialize(Record *r, string &serialized, bool log) {
 		++i;
 	}
 
-	serialized.assign(move(oss.str()));
+	serialized.assign(oss.str());
 	if (log)
 		SLOGI << "Serialized contact: " << serialized;
 

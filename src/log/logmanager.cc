@@ -139,6 +139,8 @@ namespace flexisip {
 		}
 
 		void initLogs(bool use_syslog, std::string level, std::string syslevel, bool user_errors, bool enable_stdout) {
+			bctbx_init_logger(FALSE);
+			bctbx_set_log_handler(FALSE); //remove default log handler (i.e stdout)
 			if (flexisip_sUseSyslog != use_syslog) {
 				LOGF("Different preinit and init syslog config is not supported.");
 			}
@@ -146,7 +148,6 @@ namespace flexisip {
 				LOGF("Preinit was skipped: not supported.");
 			}
 			
-			bctbx_init_logger(FALSE);
 			if (enable_stdout) {
 				bctbx_set_log_handler_for_domain(bctbx_logv_out, NULL);
 			}
