@@ -97,26 +97,31 @@ void RegistrarDbInternal::doFetchForGruu(const url_t *url, const string &gruu, c
 		listener->onRecordFound(r);
 		return;
 	}
-	
+
+	Record tmpRecord(url);
 	std::list<std::shared_ptr<ExtendedContact>> contacts = r->getExtendedContacts();
 	for (auto &contact : contacts) {
 		if(!url_has_param(contact->mSipUri, "gr")) {
-			r->removeContact(contact);
 			continue;
 		}
 		char *buffer = new char[255];
 		isize_t result = url_param(contact->mSipUri->url_params, "gr", buffer, 255);
 		if(result <= 0) {
-			r->removeContact(contact);
 			continue;
 		}
 		stringstream stremGruu;
 		stremGruu << "\"<" << buffer << ">\"";
 		if(stremGruu.str() != gruu)
-			r->removeContact(contact);
+			continue;
+		shared_ptr<ExtendedContact> newEc(contact);
+		tmpRecord.pushContact(newEc);
+	}
+	if (tmpRecord.isEmpty()) {
+		listener->onRecordFound(nullptr);
+		return;
 	}
 
-	listener->onRecordFound(r);
+	listener->onRecordFound(&tmpRecord);
 }
 
 void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
