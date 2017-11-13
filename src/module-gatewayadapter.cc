@@ -31,7 +31,6 @@ class GatewayAdapter;
 class GatewayRegister {
 	typedef enum { INITIAL, REGISTRING, REGISTRED } State;
 	State state;
-	Agent *mAgent;
 	su_home_t home;
 	nua_handle_t *nh;
 	sip_from_t *from;
@@ -175,8 +174,7 @@ StatCounter64 *GatewayRegister::mCountForkToGateway = NULL;
 StatCounter64 *GatewayRegister::mCountDomainRewrite = NULL;
 
 GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, sip_to_t *sip_to,
-								 sip_contact_t *sip_contact, const sip_expires_t *global_expire)
-	: mAgent(ag) {
+								 sip_contact_t *sip_contact, const sip_expires_t *global_expire) {
 	su_home_init(&home);
 
 	url_t *domain = NULL;
