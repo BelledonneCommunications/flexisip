@@ -20,7 +20,7 @@
 #
 ############################################################################
 
-set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIASIPUA_LIBRARIES} ${BCTOOLBOX_CORE_LIBRARIES} ) 
+set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIASIPUA_LIBRARIES} ${BCTOOLBOX_CORE_LIBRARIES} )
 
 set(FLEXISIP_INCLUDES )
 
@@ -91,36 +91,12 @@ add_custom_target(flexisip-git-version
 	BYPRODUCTS "${CMAKE_CURRENT_BINARY_DIR}/flexisip_gitversion.h"
 )
 
-
-function(ADD_XSD_WRAPPERS file _comment)
-	set(destinations ${CMAKE_CURRENT_BINARY_DIR}/xml/${file}.hxx ${CMAKE_CURRENT_BINARY_DIR}/xml/${file}.cxx)
-	set(source ${CMAKE_CURRENT_LIST_DIR}/xml/${file}.xsd)
-	file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/xml")
-
-	set(regex "%http://.+/(.+)%\\\$$1%")
-
-	add_custom_command(OUTPUT ${destinations}
-		COMMAND "${XSDCXX_PROG}" "cxx-tree" "--generate-wildcard"
-  			"--generate-serialization" "--generate-ostream"
-  			"--generate-detach" "--std" "c++11" "--type-naming" "java"
-			"--function-naming" "java"  "--location-regex-trace" "--show-sloc"
-			"--location-regex" "\"${regex}\""
-			"--output-dir" "${CMAKE_CURRENT_BINARY_DIR}/xml" "${source}"
-		COMMENT "${_comment}")
-
-	add_custom_target(${file} DEPENDS ${destinations} SOURCES ${source})
-
-	set_source_files_properties(${destinations} PROPERTIES GENERATED ON)
-	set(FLEXISIP_SOURCES ${FLEXISIP_SOURCES} ${destinations} PARENT_SCOPE)
-endfunction()
-
 list(APPEND FLEXISIP_INCLUDES ${BCTOOLBOX_INCLUDE_DIRS})
 
-if(ENABLE_XSD)
-	list(APPEND FLEXISIP_LIBS ${XERCES_LIBS})
-	list(APPEND FLEXISIP_INCLUDES ${XERCES_INCLUDE_DIRS} ${XSDCXX_ROOT_PATH}/libxsd ${CMAKE_CURRENT_BINARY_DIR}/xml)
-	list(APPEND FLEXISIP_DEPENDENCIES fthttp)
-	ADD_XSD_WRAPPERS(fthttp "Generating XSD for FTHTTP")
+if(LIBXSD_FOUND)
+	list(APPEND FLEXISIP_LIBS ${LIBXSD_LIBRARIES})
+	list(APPEND FLEXISIP_INCLUDES ${LIBXSD_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/xml)
+	list(APPEND FLEXISIP_SOURCES xml/fthttp.cc xml/fthttp.hh)
 endif()
 
 if(ENABLE_MSGPACK)
@@ -183,31 +159,66 @@ if(ENABLE_PRESENCE OR ENABLE_MDNS)
 endif()
 
 if(ENABLE_PRESENCE)
-	if (NOT ENABLE_XSD)
+	if(NOT LIBXSD_FOUND)
 		message(FATAL_ERROR "Presence asked but XSD not enabled! Please enable it first.")
 	endif()
-	file(GLOB PRESENCE_SRCS presence/*.cc presence/*.hh)
-	list(APPEND FLEXISIP_SOURCES ${PRESENCE_SRCS})
-	list(APPEND FLEXISIP_LIBS ${XERCES_LIBS})
-	list(APPEND FLEXISIP_INCLUDES presence)
-	ADD_XSD_WRAPPERS(xml "Presence XSD - xml.xsd")
-	list(APPEND FLEXISIP_SOURCES xml/xml.xsd)
-	ADD_XSD_WRAPPERS(pidf+xml "Presence XSD - pidf+xml.xsd")
-	list(APPEND FLEXISIP_SOURCES xml/pidf+xml.xsd)
-	ADD_XSD_WRAPPERS(rlmi+xml "Presence XSD - rlmi+xml.xsd")
-	list(APPEND FLEXISIP_SOURCES xml/rlmi+xml.xsd)
-	ADD_XSD_WRAPPERS(resource-lists "Presence XSD - resource-lists.xsd")
-	list(APPEND FLEXISIP_SOURCES xml/resource-lists.xsd)
-	ADD_XSD_WRAPPERS(rpid "RPID XSD - rpid.xsd")
-	list(APPEND FLEXISIP_SOURCES xml/rpid.xsd)
-	ADD_XSD_WRAPPERS(data-model "Data model XSD - data-model.xsd")
-	list(APPEND FLEXISIP_SOURCES xml/data-model.xsd)
-	list(APPEND FLEXISIP_DEPENDENCIES xml pidf+xml rlmi+xml resource-lists rpid data-model)
+	add_definitions(-DBELLE_SIP_USE_STL ${BELLE_SIP_CFLAGS})
+	list(APPEND FLEXISIP_LIBS ${BELLESIP_LIBRARIES} ${XERCES_LIBS})
+	list(APPEND FLEXISIP_INCLUDES ${BELLESIP_INCLUDE_DIRS} presence)
+	list(APPEND FLEXISIP_SOURCES
+		presence/bellesip-signaling-exception.cc
+		presence/bellesip-signaling-exception.hh
+		presence/etag-manager.hh
+		presence/file-resource-list-manager.cc
+		presence/file-resource-list-manager.hh
+		presence/list-subscription.cc
+		presence/list-subscription.hh
+		presence/presence-configmanager.cc
+		presence/presence-configmanager.hh
+		presence/presence-longterm.cc
+		presence/presence-longterm.hh
+		presence/presence-server.cc
+		presence/presence-server.hh
+		presence/presentity-manager.hh
+		presence/presentity-presenceinformation.cc
+		presence/presentity-presenceinformation.hh
+		presence/subscription.cc
+		presence/subscription.hh
+		xml/data-model.cc
+		xml/data-model.hh
+		xml/pidf+xml.cc
+		xml/pidf+xml.hh
+		xml/resource-lists.cc
+		xml/resource-lists.hh
+		xml/rlmi+xml.cc
+		xml/rlmi+xml.hh
+		xml/rpid.cc
+		xml/rpid.hh
+		xml/xml.cc
+		xml/xml.hh
+	)
 endif()
 
 if(ENABLE_PUSHNOTIFICATION)
-	file(GLOB PUSHNOTIFICATION_SRCS pushnotification/*.cc pushnotification/*.hh)
-	list(APPEND FLEXISIP_SOURCES module-pushnotification.cc ${PUSHNOTIFICATION_SRCS})
+	list(APPEND FLEXISIP_SOURCES
+		module-pushnotification.cc
+		pushnotification/applepush.cc
+		pushnotification/applepush.hh
+		pushnotification/firebasepush.cc
+		pushnotification/firebasepush.hh
+		pushnotification/genericpush.cc
+		pushnotification/genericpush.hh
+		pushnotification/googlepush.cc
+		pushnotification/googlepush.hh
+		pushnotification/microsoftpush.cc
+		pushnotification/microsoftpush.hh
+		pushnotification/pushnotificationclient.cc
+		pushnotification/pushnotificationclient.hh
+		pushnotification/pushnotificationclient_wp.cc
+		pushnotification/pushnotificationclient_wp.hh
+		pushnotification/pushnotificationservice.cc
+		pushnotification/pushnotificationservice.hh
+	)
 endif()
 list(APPEND FLEXISIP_LIBS ${OPENSSL_LIBRARIES})
 list(APPEND FLEXISIP_INCLUDES ${OPENSSL_INCLUDE_DIR})

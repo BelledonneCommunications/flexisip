@@ -25,9 +25,8 @@
 
 #if ENABLE_XSD
 
-#include "xml/fthttp.hxx"
+#include "xml/fthttp.h"
 #include <xercesc/util/PlatformUtils.hpp>
-using namespace fthttp;
 
 #endif
 
@@ -213,23 +212,23 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 
 					xercesc::XMLPlatformUtils::Initialize();
 					if (payload) {
-						std::unique_ptr<fthttp::File> file_transfer_infos;
+						std::unique_ptr<Xsd::Fthttp::File> file_transfer_infos;
 						char *file_url = NULL;
 
 						try {
 							istringstream data(payload->pl_data);
-							file_transfer_infos = parseFile(data, xml_schema::Flags::dont_validate);
-						} catch (const xml_schema::Exception &e) {
+							file_transfer_infos = Xsd::Fthttp::parseFile(data, Xsd::XmlSchema::Flags::dont_validate);
+						} catch (const Xsd::XmlSchema::Exception &e) {
 							SLOGE << "Can't parse the content of the message";
 						}
 
 						if (file_transfer_infos) {
-							File::File_infoSequence &infos = file_transfer_infos->getFile_info();
+							Xsd::Fthttp::File::FileInfoSequence &infos = file_transfer_infos->getFileInfo();
 							if (infos.size() >= 1) {
-								for (File::File_infoConstIterator i(infos.begin()); i != infos.end(); ++i) {
-									const File::File_infoType &info = (*i);
-									const File_info::DataType &data = info.getData();
-									const Data::UrlType &url = data.getUrl();
+								for (Xsd::Fthttp::File::FileInfoConstIterator i(infos.begin()); i != infos.end(); ++i) {
+									const Xsd::Fthttp::File::FileInfoType &info = (*i);
+									const Xsd::Fthttp::FileInfo::DataType &data = info.getData();
+									const Xsd::Fthttp::Data::UrlType &url = data.getUrl();
 									file_url = (char *)url.c_str();
 									break;
 								}
