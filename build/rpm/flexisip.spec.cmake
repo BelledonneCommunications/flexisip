@@ -20,6 +20,7 @@
 %define     transcoder %{?_without_transcoder:0}%{!?_without_transcoder:1}
 %define     snmp       %{?_without_snmp:0}%{!?_without_snmp:1}
 %define     presence   %{?_with_presence:1}%{!?_with_presence:0}
+%define     conference %{?_with_conference:1}%{!?_with_conference:0}
 %define     pkg_prefix %{?_with_bc:bc-}%{!?_with_bc:}
 %define     soci       %{?_without_soci:0}%{!?_without_soci:1}
 %{?_with_bc: %define    _prefix         /opt/belledonne-communications}
@@ -120,6 +121,7 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 	-DENABLE_SOCI=%{soci} \
 	-DENABLE_TRANSCODER=%{transcoder} \
 	-DENABLE_PRESENCE=%{presence} \
+	-DENABLE_CONFERENCE=%{conference} \
 	-DENABLE_PUSHNOTIFICATIN=%{push} \
         -DSYSCONF_INSTALL_DIR:PATH=%{_sysconfdir}
 
