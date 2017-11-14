@@ -20,9 +20,9 @@
 #include "belle-sip/belle-sip.h"
 #include "bellesip-signaling-exception.hh"
 #include "log/logmanager.hh"
-#include "resource-lists.hxx"
+#include "resource-lists.hh"
 #include <chrono>
-#include "rlmi+xml.hxx"
+#include "rlmi+xml.hh"
 #include "belle-sip/bodyhandler.h"
 #include <algorithm>
 
@@ -49,20 +49,20 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 	if (!belle_sip_message_get_body(BELLE_SIP_MESSAGE(request))) {
 		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "Empty body")) << "Empty body";
 	}
-	::std::unique_ptr<resource_lists::Resource_lists> resource_list_body = NULL;
+	::std::unique_ptr<Xsd::ResourceLists::ResourceLists> resource_list_body = NULL;
 	try {
 		istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));
-		resource_list_body = resource_lists::parseResource_lists(data, xml_schema::Flags::dont_validate);
-	} catch (const xml_schema::Exception &e) {
+		resource_list_body = Xsd::ResourceLists::parseResourceLists(data, Xsd::XmlSchema::Flags::dont_validate);
+	} catch (const Xsd::XmlSchema::Exception &e) {
 		ostringstream os;
 		os << "Cannot parse body caused by [" << e << "]";
 		// todo check error code
 		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
 	}
 
-	for (::resource_lists::List::ListConstIterator listIt = resource_list_body->getList().begin();
+	for (Xsd::ResourceLists::List::ListConstIterator listIt = resource_list_body->getList().begin();
 		 listIt != resource_list_body->getList().end(); listIt++) {
-		for (::resource_lists::List::EntryConstIterator entryIt = listIt->getEntry().begin();
+		for (Xsd::ResourceLists::List::EntryConstIterator entryIt = listIt->getEntry().begin();
 			 entryIt != listIt->getEntry().end(); entryIt++) {
 			//fixme until we have a fast uri parser
 			//belle_sip_uri_t *uri = belle_sip_uri_parse(entryIt->getUri().c_str());
@@ -106,12 +106,12 @@ ListSubscription::~ListSubscription() {
 	SLOGD << "List souscription ["<< this <<"] deleted";
 };
 
-void ListSubscription::addInstanceToResource(rlmi::Resource &resource, list<belle_sip_body_handler_t *> &multipartList,
+void ListSubscription::addInstanceToResource(Xsd::Rlmi::Resource &resource, list<belle_sip_body_handler_t *> &multipartList,
 											 PresentityPresenceInformation &presentityInformation, bool extended) {
 
 	// we have a resource instance
 	// subscription state is always active until we implement ACL
-	rlmi::Instance instance("1", rlmi::State::active);
+	Xsd::Rlmi::Instance instance("1", Xsd::Rlmi::State::active);
 	char cid_rand_part[8];
 	belle_sip_random_token(cid_rand_part, sizeof(cid_rand_part));
 	ostringstream cid;
@@ -157,7 +157,7 @@ void ListSubscription::notify(bool isFullState) throw(FlexisipException) {
 			 */
 			SLOGE << "First NOTIFY sent in subscription [" << mName << "] MUST contain full state";
 		}
-		rlmi::List resourceList(string(uri), mVersion, isFullState);
+		Xsd::Rlmi::List resourceList(string(uri), mVersion, isFullState);
 		belle_sip_free(uri);
 		list<belle_sip_body_handler_t *> multipartList;
 
@@ -165,7 +165,7 @@ void ListSubscription::notify(bool isFullState) throw(FlexisipException) {
 			SLOGI << "Building full state rlmi for list name [" << mName << "]";
 			for (shared_ptr<PresentityPresenceInformationListener> &resourceListener : mListeners) {
 				char *presentityUri = belle_sip_uri_to_string(resourceListener->getPresentityUri());
-				rlmi::Resource resource(presentityUri);
+				Xsd::Rlmi::Resource resource(presentityUri);
 				belle_sip_free(presentityUri);
 				PendingStateType::iterator it = mPendingStates.find(resourceListener->getPresentityUri());
 				if (it != mPendingStates.end() && it->second.first->isKnown()) {
@@ -183,7 +183,7 @@ void ListSubscription::notify(bool isFullState) throw(FlexisipException) {
 				if (presenceInformationPair.second.first->isKnown()) { /* only notify for entity with known state*/
 					shared_ptr<PresentityPresenceInformation> presenceInformation = presenceInformationPair.second.first;
 					char *presentityUri = belle_sip_uri_to_string(presenceInformation->getEntity());
-					rlmi::Resource resource(presentityUri);
+					Xsd::Rlmi::Resource resource(presentityUri);
 					belle_sip_free(presentityUri);
 					addInstanceToResource(resource, multipartList, *presenceInformation, presenceInformationPair.second.second);
 					resourceList.getResource().push_back(resource);
@@ -199,10 +199,10 @@ void ListSubscription::notify(bool isFullState) throw(FlexisipException) {
 
 		// Serialize the object model to XML.
 		//
-		xml_schema::NamespaceInfomap map;
+		Xsd::XmlSchema::NamespaceInfomap map;
 		map[""].name = "urn:ietf:params:xml:ns:rlmi";
 		stringstream out;
-		rlmi::serializeList(out, resourceList, map);
+		Xsd::Rlmi::serializeList(out, resourceList, map);
 
 		belle_sip_memory_body_handler_t *firstBodyPart = belle_sip_memory_body_handler_new_copy_from_buffer(
 			(void *)out.str().c_str(), out.str().length(), NULL, NULL);
@@ -224,7 +224,7 @@ void ListSubscription::notify(bool isFullState) throw(FlexisipException) {
 		mVersion++;
 		mLastNotify = chrono::system_clock::now();
 		mPendingStates.clear();
-	} catch (const xml_schema::Serialization &e) {
+	} catch (const Xsd::XmlSchema::Serialization &e) {
 		throw FLEXISIP_EXCEPTION << "serialization error: " << e.diagnostics();
 	} catch (exception &e) {
 		throw FLEXISIP_EXCEPTION << "Cannot get build list notidy for [" << mName << "]error [" << e.what() << "]";

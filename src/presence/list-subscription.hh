@@ -19,13 +19,11 @@
 #ifndef flexisip_rls_subscription_hh
 #define flexisip_rls_subscription_hh
 #include "subscription.hh"
+#include "rlmi+xml.hh"
 #include <unordered_map>
 #include <chrono>
 typedef struct _belle_sip_uri belle_sip_uri_t;
 typedef struct belle_sip_server_transaction belle_sip_server_transaction_t;
-namespace rlmi {
-class Resource;
-}
 namespace flexisip {
 class ListSubscription;
 
@@ -76,7 +74,7 @@ class ListSubscription : public Subscription {
 	ListSubscription(const ListSubscription &);
 	// return true if a real notify can be sent.
 	bool isTimeToNotify();
-	void addInstanceToResource(rlmi::Resource &resource, std::list<belle_sip_body_handler_t *> &multipartList,
+	void addInstanceToResource(Xsd::Rlmi::Resource &resource, std::list<belle_sip_body_handler_t *> &multipartList,
 							   PresentityPresenceInformation &presentityInformation, bool extended);
 
 	std::list<std::shared_ptr<PresentityPresenceInformationListener>> mListeners;
