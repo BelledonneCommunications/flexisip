@@ -72,9 +72,17 @@ class FlexisipPreparator(prepare.Preparator):
 
     def parse_args(self):
         prepare.Preparator.parse_args(self)
-
         if self.args.use_system_dependencies:
             self.additional_args += ["-DLINPHONE_BUILDER_USE_SYSTEM_DEPENDENCIES=YES"]
+
+    def check_environment(self, submodule_directory_to_check=None):
+        ret = prepare.Preparator.check_environment(self)
+        ret |= not self.check_is_installed('doxygen', 'doxygen')
+        ret |= not self.check_is_installed('dot', 'graphviz')
+        if 'flexisip-rpm' in self.args.target: 
+            ret |= not self.check_is_installed('rpmbuild', 'rpm-build')
+            ret |= not self.check_is_installed('bison', 'bison')
+        return ret
 
     def clean(self):
         prepare.Preparator.clean(self)
