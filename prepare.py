@@ -82,6 +82,9 @@ class FlexisipPreparator(prepare.Preparator):
         if 'flexisip-rpm' in self.args.target: 
             ret |= not self.check_is_installed('rpmbuild', 'rpm-build')
             ret |= not self.check_is_installed('bison', 'bison')
+            if os.uname()[1].startswith('debian'):
+                ret |= not self.check_is_installed('alien', 'alien')
+                ret |= not self.check_is_installed('fakeroot', 'fakeroot')
         return ret
 
     def clean(self):
