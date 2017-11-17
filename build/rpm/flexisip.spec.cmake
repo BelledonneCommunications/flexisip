@@ -21,8 +21,9 @@
 %define     snmp       %{?_without_snmp:0}%{!?_without_snmp:1}
 %define     presence   %{?_with_presence:1}%{!?_with_presence:0}
 %define     conference %{?_with_conference:1}%{!?_with_conference:0}
-%define     pkg_prefix %{?_with_bc:bc-}%{!?_with_bc:}
 %define     soci       %{?_without_soci:0}%{!?_without_soci:1}
+
+%define     pkg_prefix %{?_with_bc:bc-}%{!?_with_bc:}
 %{?_with_bc: %define    _prefix         /opt/belledonne-communications}
 
 # This is for debian builds where debug_package has to be manually specified,
@@ -39,11 +40,7 @@
 # case we prefix the entire installation so that we don't break compatibility
 # with the user's libs.
 # To compile with bc prefix, use rpmbuild -ba --with bc [SPEC]
-%if  %{presence}
-%define                 pkg_name        %{?_with_bc:bc-flexisip-presence}%{!?_with_bc:flexisip-presence}
-%else
 %define                 pkg_name        %{?_with_bc:bc-flexisip}%{!?_with_bc:flexisip}
-%endif
 
 # re-define some directories for older RPMBuild versions which don't. This messes up the doc/ dir
 # taken from https://fedoraproject.org/wiki/Packaging:RPMMacros?rd=Packaging/RPMMacros
@@ -90,6 +87,14 @@ Requires: soci-mysql-devel
 
 %if %{transcoder}
 Requires: %{pkg_prefix}mediastreamer
+%endif
+
+%if %{presence}
+Requires:	%{pkg_prefix}belle-sip
+%endif
+
+%if %{conference}
+Requires:	%{pkg_prefix}liblinphone
 %endif
 
 Requires(post): /sbin/chkconfig coreutils
