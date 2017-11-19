@@ -488,9 +488,13 @@ public:
                 return;
             }
         }
+        
         if(mAlgorithm.size()==1){
             auto algo = mAlgorithm.begin();
             algorithm.assign(algo->c_str());
+        }
+        if(mAlgorithm.size()==0){
+            mAlgorithm.push_back("MD5");
         }
         for (it = mDomains.begin(); it != mDomains.end(); ++it) {
             auto domain = *it;
@@ -884,6 +888,7 @@ public:
                                SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
                 }
             }
+
             /**
              * return true if the event is terminated
              */
@@ -1169,7 +1174,8 @@ public:
                     if (listener->mImmediateRetrievePass) {
                         SLOGD << "Searching for " << as->as_user_uri->url_user
                         << " password to have it when the authenticated request comes";
-                        AuthDbBackend::get()->getPassword(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL);
+                        //AuthDbBackend::get()->getPassword(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL);
+                        AuthDbBackend::get()->getPasswordForAlgo(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL, listener->mAlgoUsed);
                     }
                     listener->finish();
                     return;

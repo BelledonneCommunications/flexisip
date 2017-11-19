@@ -36,7 +36,7 @@ void FileAuthDb::parsePasswd(string* pass, string user, string domain, passwd_al
         }
     }
     
-    if(password->pass!=""){
+    if(password->pass !=""){
         string input;
         input = user+":"+domain+":"+password->pass;
         password->passmd5=syncMd5(input.c_str(), 16);
@@ -113,6 +113,9 @@ void FileAuthDb::sync() {
     string userid;
     string phone;
     string pass[3];
+    string version;
+    string passwd_tag;
+    int i;
     
     LOGD("Opening file %s", mFileString.c_str());
     file.open(mFileString);
@@ -121,47 +124,80 @@ void FileAuthDb::sync() {
             if (line.empty()) continue;
             ss.clear();
             ss.str(line);
-            user.clear();
-            domain.clear();
-            pass[0].clear();
-            pass[1].clear();
-            pass[2].clear();
-            userid.clear();
-            phone.clear();
-            try {
-                getline(ss, user, '@');
-                getline(ss, domain, ' ');
-                getline(ss, pass[0], ' ');
-                getline(ss, pass[1], ' ');
-                getline(ss, pass[2], ' ');
+            version.clear();
+            getline(ss, version, ' ');
+            if(version.substr(0,8)=="version:")
+                version = version.substr(8);
+            else
+                LOGA("userdb.conf must start by version:X to be used.");
+            break;
+        }
+        if(version=="1"){
+            while (file.good() && getline(file, line)) {
+                if (line.empty()) continue;
+                ss.clear();
+                ss.str(line);
+                user.clear();
+                domain.clear();
+                pass[0].clear();
+                pass[1].clear();
+                pass[2].clear();
+                password.pass.clear();
+                password.passmd5.clear();
+                password.passsha256.clear();
+                userid.clear();
+                phone.clear();
+                try {
+                    getline(ss, user, '@');
+                    getline(ss, domain, ' ');
+                    for(i=0;i<3 && (!ss.eof());i++){
+                        passwd_tag.clear();
+                        getline(ss, passwd_tag, ' ');
+                        if(passwd_tag!=";")
+                            pass[i]=strdup(passwd_tag.c_str());
+                        else break;
+                    }
+                    if(passwd_tag!=";"){
+                        if(ss.eof())
+                            LOGA("In userdb.conf, the section of password must end with ';'");
+                        else {
+                            passwd_tag.clear();
+                            getline(ss, passwd_tag, ' ');
+                            if((!ss.eof())&&(passwd_tag!=";"))
+                                LOGA("In userdb.conf, the section of password must end with ';'");
+                        }
+                    }
   
-                if (!ss.eof()) {
-                    getline(ss, userid, ' ');
                     if (!ss.eof()) {
-                        getline(ss, phone);
+                        getline(ss, userid, ' ');
+                        if (!ss.eof()) {
+                            getline(ss, phone);
+                        } else {
+                            phone = "";
+                        }
                     } else {
+                        userid = user;
                         phone = "";
                     }
-                } else {
-                    userid = user;
-                    phone = "";
-                }
                 
-                cacheUserWithPhone(phone, domain, user);
-                parsePasswd(pass,user,domain,&password);
+                    cacheUserWithPhone(phone, domain, user);
+                    parsePasswd(pass,user,domain,&password);
                 
-                if (find(domains.begin(), domains.end(), domain) != domains.end()) {
-                    string key(createPasswordKey(user, userid));
-                    cachePassword(key, domain, password, mCacheExpire);
-                } else if (find(domains.begin(), domains.end(), "*") != domains.end()) {
-                    string key(createPasswordKey(user, userid));
-                    cachePassword(key, domain, password, mCacheExpire);
-                } else {
-                    LOGW("Not handled domain: %s", domain.c_str());
+                    if (find(domains.begin(), domains.end(), domain) != domains.end()) {
+                        string key(createPasswordKey(user, userid));
+                        cachePassword(key, domain, password, mCacheExpire);
+                    } else if (find(domains.begin(), domains.end(), "*") != domains.end()) {
+                        string key(createPasswordKey(user, userid));
+                        cachePassword(key, domain, password, mCacheExpire);
+                    } else {
+                        LOGW("Not handled domain: %s", domain.c_str());
+                    }
+                } catch (const stringstream::failure &e) {
+                    LOGW("Incorrect line format: %s (error: %s)", line.c_str(), e.what());
                 }
-            } catch (const stringstream::failure &e) {
-                LOGW("Incorrect line format: %s (error: %s)", line.c_str(), e.what());
             }
+        } else {
+            LOGE("Version %s is not supported",version.c_str());
         }
     } else {
         LOGE("Can't open file %s", mFileString.c_str());
