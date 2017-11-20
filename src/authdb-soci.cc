@@ -326,7 +326,10 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,A
 	}
 	if (sql) delete sql;
 }
+
+#ifdef __clang__
 #pragma mark - Inherited virtuals
+#endif
 
 void SociAuthDB::getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener) {
