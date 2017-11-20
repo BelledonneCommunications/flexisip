@@ -181,7 +181,15 @@ private:
 
 #if ENABLE_SOCI
 
+#ifdef __GNUG__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 #include <soci.h>
+#ifdef __GNUG__
+#pragma GCC diagnostic pop
+#endif
+
 #include "utils/threadpool.hh"
 
 class DataBaseEventLogWriter: public EventLogWriter {
