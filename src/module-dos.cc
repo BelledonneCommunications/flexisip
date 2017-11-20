@@ -271,7 +271,7 @@ class DoSProtection : public Module, ModuleToolbox {
 		su_timer_set_interval(ctx->timer, invokeLambdaFromSofiaTimerCallback, ctx, mBanTime * 60 * 1000);
 	}
 
-	void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException) {
+	void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
 		tport_t *tport = inTport.get();
 
@@ -360,7 +360,7 @@ class DoSProtection : public Module, ModuleToolbox {
 		}
 	}
 
-	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException){
+	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
 
 	};
 

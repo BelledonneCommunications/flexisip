@@ -212,7 +212,7 @@ void MediaRelay::configureContext(shared_ptr<RelayedCall> &c){
 }
 
 
-void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipException) {
+void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
@@ -304,7 +304,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 	m->update(msg, sip);
 }
 
-void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException) {
+void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();

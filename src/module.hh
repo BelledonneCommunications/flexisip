@@ -162,8 +162,8 @@ class Module : protected ConfigValueListener {
 	virtual void onUnload() {
 	}
 
-	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev) throw (FlexisipException) = 0;
-	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException) = 0;
+	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev) = 0;
+	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev) = 0;
 
 	virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 	virtual void onIdle() {

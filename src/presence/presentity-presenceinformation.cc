@@ -113,7 +113,7 @@ string PresentityPresenceInformation::putTuples(pidf::Presence::TupleSequence &t
 }
 string PresentityPresenceInformation::updateTuples(pidf::Presence::TupleSequence &tuples,
 												   data_model::Person  &person, string &eTag,
-												   int expires) throw(FlexisipException) {
+												   int expires) {
 	return setOrUpdate(&tuples, &person, &eTag, expires);
 }
 void PresenceInformationElement::clearTuples() {
@@ -121,7 +121,7 @@ void PresenceInformationElement::clearTuples() {
 }
 string PresentityPresenceInformation::setOrUpdate(pidf::Presence::TupleSequence *tuples,
 												  data_model::Person  *person, const string *eTag,
-												  int expires) throw(FlexisipException) {
+												  int expires) {
 	PresenceInformationElement *informationElement = NULL;
 
 	// etag ?
@@ -196,7 +196,7 @@ string PresentityPresenceInformation::setOrUpdate(pidf::Presence::TupleSequence 
 	return generatedETag;
 }
 
-string PresentityPresenceInformation::refreshTuplesForEtag(const string &eTag, int expires) throw(FlexisipException) {
+string PresentityPresenceInformation::refreshTuplesForEtag(const string &eTag, int expires) {
 	return setOrUpdate(NULL, NULL, &eTag, expires);
 }
 
@@ -330,7 +330,7 @@ bool PresentityPresenceInformation::hasDefaultElement() {
 bool PresentityPresenceInformation::isKnown() {
 	return mInformationElements.size() > 0 || hasDefaultElement();
 }
-string PresentityPresenceInformation::getPidf(bool extended) throw(FlexisipException) {
+string PresentityPresenceInformation::getPidf(bool extended) {
 	stringstream out;
 	try {
 		char *entity = belle_sip_uri_to_string(getEntity());

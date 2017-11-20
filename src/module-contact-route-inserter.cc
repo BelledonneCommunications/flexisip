@@ -45,7 +45,7 @@ class ContactRouteInserter : public Module {
 		mContactMasquerader = unique_ptr<ContactMasquerader>(new ContactMasquerader(mAgent, mCtRtParamName));
 	}
 
-	void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException) {
+	void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		const sip_method_t rq_method = sip->sip_request->rq_method;
@@ -73,7 +73,7 @@ class ContactRouteInserter : public Module {
 			}
 		}
 	}
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException){
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		if (mMasqueradeInvites &&

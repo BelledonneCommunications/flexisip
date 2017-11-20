@@ -619,7 +619,7 @@ public:
         return false;
     }
     
-    void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException) {
+	void onRequest(shared_ptr<RequestSipEvent> &ev) {
         const shared_ptr<MsgSip> &ms = ev->getMsgSip();
         sip_t *sip = ms->getSip();
         sip_p_preferred_identity_t *ppi = NULL;
@@ -712,7 +712,7 @@ public:
                 ev->suspendProcessing();
             }
             }
-            void onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException){
+	void onResponse(shared_ptr<ResponseSipEvent> &ev) {
                 if (!mNewAuthOn407)
                     return; /*nop*/
                 

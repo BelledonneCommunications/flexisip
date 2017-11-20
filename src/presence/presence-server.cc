@@ -55,7 +55,7 @@ PresenceServer::Init::Init() {
 	s->addChildrenValues(items);
 }
 
-PresenceServer::PresenceServer() throw(FlexisipException)
+PresenceServer::PresenceServer()
 	: mStarted(true)
 	, mIterateThread(nullptr) {
 	
@@ -122,7 +122,7 @@ PresenceServer::~PresenceServer() {
 	SLOGD << "Presence server destroyed";
 }
 
-void PresenceServer::_start(bool withThread) throw(FlexisipException) {
+void PresenceServer::_start(bool withThread) {
 	if (!mEnabled) return;
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	std::string get_users_with_phones_request = cr->get<GenericStruct>("module::Authentication")
@@ -159,11 +159,11 @@ void PresenceServer::_start(bool withThread) throw(FlexisipException) {
 	}
 }
 
-void PresenceServer::start() throw(FlexisipException) {
+void PresenceServer::start() {
 	_start(true);
 }
 
-void PresenceServer::run() throw(FlexisipException){
+void PresenceServer::run() {
 	_start(false);
 	while (mStarted){
 		belle_sip_main_loop_run(belle_sip_stack_get_main_loop(mStack));
@@ -256,8 +256,7 @@ void PresenceServer::processTransactionTerminated(PresenceServer *thiz,
 	}
 }
 
-void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t *event) throw(BelleSipSignalingException,
-																							  FlexisipException) {
+void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t *event) {
 	belle_sip_request_t *request = belle_sip_request_event_get_request(event);
 	std::shared_ptr<PresentityPresenceInformation> presenceInfo;
 
@@ -514,8 +513,7 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 	belle_sip_server_transaction_send_response(server_transaction, resp);
 }
 
-void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_t *event) throw(BelleSipSignalingException,
-																								FlexisipException) {
+void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_t *event) {
 	belle_sip_request_t *request = belle_sip_request_event_get_request(event);
 
 	/*
@@ -770,8 +768,7 @@ const std::shared_ptr<PresentityPresenceInformation> PresenceServer::getPresence
 		return presenceInformationsByEtagIt->second;
 }
 
-void PresenceServer::addPresenceInfo(const std::shared_ptr<PresentityPresenceInformation> &presenceInfo) throw(
-	FlexisipException) {
+void PresenceServer::addPresenceInfo(const std::shared_ptr<PresentityPresenceInformation> &presenceInfo) {
 
 	if (getPresenceInfo(presenceInfo->getEntity())) {
 		throw FLEXISIP_EXCEPTION << "Presence information element already exist for" << presenceInfo;
@@ -818,7 +815,7 @@ void PresenceServer::invalidateETag(const string &eTag) {
 	}
 
 }
-void PresenceServer::modifyEtag(const string &oldEtag, const string &newEtag) throw(FlexisipException) {
+void PresenceServer::modifyEtag(const string &oldEtag, const string &newEtag) {
 	auto presenceInformationsByEtagIt = mPresenceInformationsByEtag.find(oldEtag);
 	if (presenceInformationsByEtagIt == mPresenceInformationsByEtag.end())
 		throw FLEXISIP_EXCEPTION << "Unknown etag [" << oldEtag << "]";
@@ -826,7 +823,7 @@ void PresenceServer::modifyEtag(const string &oldEtag, const string &newEtag) th
 	mPresenceInformationsByEtag.erase(oldEtag);
 }
 void PresenceServer::addEtag(const std::shared_ptr<PresentityPresenceInformation> &info,
-							 const string &etag) throw(FlexisipException) {
+							 const string &etag) {
 	auto presenceInformationsByEtagIt = mPresenceInformationsByEtag.find(etag);
 	if (presenceInformationsByEtagIt != mPresenceInformationsByEtag.end())
 		throw FLEXISIP_EXCEPTION << "Already existing etag [" << etag << "] use PresenceServer::modifyEtag instead ";
