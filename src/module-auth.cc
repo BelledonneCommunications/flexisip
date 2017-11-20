@@ -53,7 +53,7 @@ struct auth_mod_size {
     auth_plugin_t plug[1];
 };
 void flexisipSha256(char* input, size_t size, uint8_t* a1buf, char* out){
-    int di;
+    size_t di;
     bctbx_sha256((const unsigned char*)input, strlen(input),size, a1buf);
     for (di = 0; di < size; ++di)
         sprintf(out + di * 2, "%02x", a1buf[di]);

@@ -215,7 +215,7 @@ void AuthDbBackend::createCachedAccount(const std::string &user, const std::stri
 
 string AuthDbBackend::syncSha256(const char* input,size_t size){
     uint8_t a1buf[size];
-    int di;
+    size_t di;
     char out[size*2+1];
     bctbx_sha256((const unsigned char*)input, strlen(input),size, a1buf);
     for (di = 0; di < size; ++di)
@@ -226,7 +226,7 @@ string AuthDbBackend::syncSha256(const char* input,size_t size){
 
 string AuthDbBackend::syncMd5(const char* input,size_t size){
     uint8_t a1buf[size];
-    int di;
+    size_t di;
     char out[size*2+1];
     bctbx_md5((const unsigned char*)input, strlen(input), a1buf);
     for (di = 0; di < size; ++di)
