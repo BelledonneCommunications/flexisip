@@ -195,7 +195,7 @@ class Agent : public IncomingAgent,
 					   tag_value_t value, ...);
 	void discoverInterfaces();
 	void startLogWriter();
-	std::string computeResolvedPublicIp(const std::string &host) const;
+	std::string computeResolvedPublicIp(const std::string &host, int family = AF_UNSPEC) const;
 	void checkAllowedParams(const url_t *uri);
 	std::string mServerString;
 	std::list<Module *> mModules;
