@@ -97,7 +97,7 @@ void auth_digest_response_for_algorithm(auth_response_t *ar,
     /* Calculate Hentity */
     if (ar->ar_auth_int) {
         if (data && dlen) {
-            snprintf(input,sizeof(input),"%s",data);
+            snprintf(input,sizeof(input),"%s",reinterpret_cast<const char *>(data));
             flexisipSha256(input, 32, a1buf, Hentity);
         } else {
             strcpy(Hentity, "d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3");

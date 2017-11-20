@@ -142,6 +142,7 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 	steady_clock::time_point start;
 	steady_clock::time_point stop;
 	std::string pass;
+	passwd_algo_t passwd;
 	session *sql = NULL;
 	int errorCount = 0;
 	bool retry = false;
@@ -161,7 +162,8 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 			*sql << get_password_request, into(pass), use(id, "id"), use(domain, "domain"), use(authid, "authid");
 			stop = steady_clock::now();
 			SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
-			cachePassword(createPasswordKey(id, authid), domain, pass, mCacheExpire);
+			passwd.pass = pass;
+			cachePassword(createPasswordKey(id, authid), domain, passwd, mCacheExpire);
 			if (listener){
 				listener->onResult(pass.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, pass);
 			}
