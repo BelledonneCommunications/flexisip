@@ -29,6 +29,18 @@ public:
 		belle_sip_object_unref(timer);
 	}
 	
+    virtual void onResult(AuthDbResult result, const passwd_algo_t &passwd) {
+        belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, result, passwd](unsigned int events) {
+            this->processResponse(result, passwd.pass);
+            return BELLE_SIP_STOP;
+        });
+        belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(  mMainLoop
+                                                                           , func
+                                                                           , 0
+                                                                           , "OnAuthListener to mainthread");
+        belle_sip_object_unref(timer);
+    }
+    
 	void onResults(list<std::string> &phones, set<std::string> &users) {
 		for(std::string phone : phones) {
 			if(users.size() == 0) {
