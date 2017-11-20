@@ -87,11 +87,11 @@ typedef std::ostream flexisip_record_type;
 #define SLOGA_FL(file, line) throw FlexisipException() << " " << file << ":" << line << " "
 
 #define SLOG(thelevel) BCTBX_SLOG(FLEXISIP_LOG_DOMAIN,thelevel)
-#define SLOGD BCTBX_SLOGD(FLEXISIP_LOG_DOMAIN)
-#define SLOGI BCTBX_SLOGI(FLEXISIP_LOG_DOMAIN)
-#define SLOGW BCTBX_SLOGW(FLEXISIP_LOG_DOMAIN)
-#define SLOGE BCTBX_SLOGE(FLEXISIP_LOG_DOMAIN)
-#define SLOGUE BCTBX_SLOGE(FLEXISIP_USER_ERRORS_LOG_DOMAIN)
+#define SLOGD SLOG(BCTBX_LOG_DEBUG)
+#define SLOGI SLOG(BCTBX_LOG_MESSAGE)
+#define SLOGW SLOG(BCTBX_LOG_WARNING)
+#define SLOGE SLOG(BCTBX_LOG_ERROR)
+#define SLOGUE BCTBX_SLOG(FLEXISIP_USER_ERRORS_LOG_DOMAIN, BCTBX_LOG_ERROR)
 
 #define LOGV(thelevel, thefmt, theargs) bctbx_logv(FLEXISIP_LOG_DOMAIN, thelevel, (thefmt), (theargs))
 #define LOGDV(thefmt, theargs) LOGV(BCTBX_LOG_DEBUG, thefmt, theargs)
