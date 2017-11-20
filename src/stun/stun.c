@@ -798,7 +798,7 @@ stunParseMessage( char* buf, unsigned int bufLen, StunMessage *msg)
 static char* memcpy_check(char*dst, size_t*remaining, const void*src, size_t len)
 {
 	if( dst && remaining
-			&& (*remaining != -1) // -1 symbolizes a previous error
+			&& ((int)(*remaining) != -1) // -1 symbolizes a previous error
 			&& (*remaining >= len) ){
 		memcpy(dst, src, len);
 		*remaining -= len;
@@ -881,7 +881,7 @@ encodeAtrError(char* ptr, size_t* remaining, const StunAtrError *atr)
 	padding = (atr->sizeReason+4) % 4;
 	if ( padding>0 )
 	{
-		if(*remaining >= 4-padding){
+		if((int)(*remaining)>= 4-padding){
 			for(i=0;i<4-padding;i++) {
 				*ptr++ = 0;
 			}
@@ -918,12 +918,12 @@ encodeAtrString(char* ptr, size_t* remaining, uint16_t type, const StunAtrString
    padding = atr->sizeValue % 4;
    if ( padding>0 )
    {
-	   if(*remaining >= 4-padding){
+	   if((int)(*remaining)>= 4-padding){
 		   for(i=0;i<4-padding;i++) {
 			   *ptr++ = 0;
 		   }
 	   } else {
-		   *remaining = (size_t)-1;
+		   *remaining= (size_t)-1;
 	   }
    }
    return ptr;
@@ -957,13 +957,13 @@ encodeAtrRequestedTransport(char* ptr, size_t* remaining, const TurnAtrRequested
 {
 	ptr = encode16(ptr, remaining, TA_REQUESTEDTRANSPORT);
 	ptr = encode16(ptr, remaining, 4);
-	if( *remaining >= 4 ){
+	if( (int)(*remaining)>= 4 ){
 		*ptr++ = atr->proto;
 		*ptr++ = atr->pad1;
 		*ptr++ = atr->pad2;
 		*ptr++ = atr->pad3;
 	} else {
-		*remaining = (size_t)-1;
+		*remaining= (size_t)-1;
 	}
 	return ptr;
 }
@@ -1029,47 +1029,47 @@ stunEncodeMessage( const StunMessage *msg,
 
    ortp_debug("stun: Encoding stun message: ");
 
-   if ((remaining != -1 ) && msg->hasRequestedTransport)
+   if (((int)remaining != -1 ) && msg->hasRequestedTransport)
    {
 	  ortp_debug("stun: Encoding TA_REQUESTEDTRANSPORT: %i\n", msg->requestedTransport.proto );
 	  ptr = encodeAtrRequestedTransport (ptr, &remaining, &msg->requestedTransport);
    }
-   if ((remaining != -1 ) && msg->hasLifetimeAttributes)
+   if (((int)remaining != -1 ) && msg->hasLifetimeAttributes)
    {
 	  ortp_debug("stun: Encoding TA_LIFETIME: %i\n", msg->lifetimeAttributes.lifetime );
 	  ptr = encodeAtrLifeTime (ptr, &remaining, &msg->lifetimeAttributes);
    }
-   if ((remaining != -1 ) && msg->hasDontFragment)
+   if (((int)remaining != -1 ) && msg->hasDontFragment)
    {
 	  ortp_debug("stun: Encoding TA_DONTFRAGMENT: DF\n");
 	  ptr = encodeAtrDontFragment (ptr, &remaining);
    }
-   if ((remaining != -1 ) && msg->hasMappedAddress)
+   if (((int)remaining != -1 ) && msg->hasMappedAddress)
    {
 	  ortp_debug("stun: Encoding SA_MAPPEDADDRESS: %s\n", ipaddr(&msg->mappedAddress.ipv4) );
 	  ptr = encodeAtrAddress4 (ptr, &remaining, SA_MAPPEDADDRESS, &msg->mappedAddress);
    }
-   if ((remaining != -1 ) && msg->hasResponseAddress)
+   if (((int)remaining != -1 ) && msg->hasResponseAddress)
    {
 	  ortp_debug("stun: Encoding SA_RESPONSEADDRESS: %s\n", ipaddr(&msg->responseAddress.ipv4) );
 	  ptr = encodeAtrAddress4(ptr, &remaining, SA_RESPONSEADDRESS, &msg->responseAddress);
    }
-   if ((remaining != -1 ) && msg->hasChangeRequest)
+   if (((int)remaining != -1 ) && msg->hasChangeRequest)
    {
 	  ortp_debug("stun: Encoding SA_CHANGEREQUEST: %i\n", msg->changeRequest.value );
 	  ptr = encodeAtrChangeRequest(ptr, &remaining, &msg->changeRequest);
    }
-   if ((remaining != -1 ) && msg->hasSourceAddress)
+   if (((int)remaining != -1 ) && msg->hasSourceAddress)
    {
 	  ortp_debug("stun: Encoding SA_SOURCEADDRESS: %s\n", ipaddr(&msg->sourceAddress.ipv4) );
 	  ptr = encodeAtrAddress4(ptr, &remaining, SA_SOURCEADDRESS, &msg->sourceAddress);
    }
-   if ((remaining != -1 ) && msg->hasChangedAddress)
+   if (((int)remaining != -1 ) && msg->hasChangedAddress)
    {
 	  ortp_debug("stun: Encoding SA_CHANGEDADDRESS: %s\n", ipaddr(&msg->changedAddress.ipv4) );
 	  ptr = encodeAtrAddress4(ptr, &remaining, SA_CHANGEDADDRESS, &msg->changedAddress);
    }
-   if ((remaining != -1 ) && msg->hasUsername)
+   if (((int)remaining != -1 ) && msg->hasUsername)
    {
 	  ortp_debug("stun: Encoding SA_USERNAME: %s\n", msg->username.value );
 	  ptr = encodeAtrString(ptr, &remaining, SA_USERNAME, &msg->username);
@@ -1079,7 +1079,7 @@ stunEncodeMessage( const StunMessage *msg,
    //   ortp_debug("stun: Encoding SA_PASSWORD: %s\n", msg->password.value );
    //   ptr = encodeAtrString(ptr, SA_PASSWORD, &msg->password);
    //}
-   if ((remaining != -1 ) && msg->hasErrorCode)
+   if (((int)remaining != -1 ) && msg->hasErrorCode)
    {
 	  ortp_debug("stun: Encoding SA_ERRORCODE: class=%i number=%i reason=%s\n"
 						  , msg->errorCode.errorClass
@@ -1088,61 +1088,61 @@ stunEncodeMessage( const StunMessage *msg,
 
 	  ptr = encodeAtrError(ptr, &remaining, &msg->errorCode);
    }
-   if ((remaining != -1 ) && msg->hasUnknownAttributes)
+   if (((int)remaining != -1 ) && msg->hasUnknownAttributes)
    {
 	  ortp_debug("stun: Encoding SA_UNKNOWNATTRIBUTE: ???");
 	  ptr = encodeAtrUnknown(ptr, &remaining, &msg->unknownAttributes);
    }
-   if ((remaining != -1 ) && msg->hasReflectedFrom)
+   if (((int)remaining != -1 ) && msg->hasReflectedFrom)
    {
 	  ortp_debug("stun: Encoding SA_REFLECTEDFROM: %s\n", ipaddr(&msg->reflectedFrom.ipv4) );
 	  ptr = encodeAtrAddress4(ptr, &remaining, SA_REFLECTEDFROM, &msg->reflectedFrom);
    }
-   if ((remaining != -1 ) && msg->hasNonce)
+   if (((int)remaining != -1 ) && msg->hasNonce)
    {
 	  ortp_debug("stun: Encoding SA_NONCE: %s\n", msg->nonceName.value );
 	  ptr = encodeAtrString(ptr, &remaining, SA_NONCE, &msg->nonceName);
    }
-   if ((remaining != -1 ) && msg->hasRealm)
+   if (((int)remaining != -1 ) && msg->hasRealm)
    {
 	  ortp_debug("stun: Encoding SA_REALM: %s\n", msg->realmName.value );
 	  ptr = encodeAtrString(ptr, &remaining, SA_REALM, &msg->realmName);
    }
 
-   if ((remaining != -1 ) && msg->hasXorMappedAddress)
+   if (((int)remaining != -1 ) && msg->hasXorMappedAddress)
    {
 	  ortp_debug("stun: Encoding SA_XORMAPPEDADDRESS: %s\n", ipaddr(&msg->xorMappedAddress.ipv4) );
 	  ptr = encodeAtrAddress4 (ptr, &remaining, SA_XORMAPPEDADDRESS, &msg->xorMappedAddress);
    }
 
-   if ((remaining != -1 ) && msg->hasPriority)
+   if (((int)remaining != -1 ) && msg->hasPriority)
    {
 	  ortp_debug("stun: Encoding ICEA_PRIORITY\n");
 	  ptr = encodeAtrPriority (ptr, &remaining, &msg->priority);
    }
-   if ((remaining != -1 ) && msg->hasUseCandidate)
+   if (((int)remaining != -1 ) && msg->hasUseCandidate)
    {
 	  ortp_debug("stun: Encoding ICEA_USECANDIDATE\n");
 	  ptr = encodeAtrUseCandidate (ptr, &remaining );
    }
-   if ((remaining != -1 ) && msg->hasIceControlled)
+   if (((int)remaining != -1 ) && msg->hasIceControlled)
    {
 	  ortp_debug("stun: Encoding ICEA_ICECONTROLLED\n");
 	  ptr = encodeAtrIceControll (ptr, &remaining, ICEA_ICECONTROLLED, &msg->iceControlled);
    }
-   if ((remaining != -1 ) && msg->hasIceControlling)
+   if (((int)remaining != -1 ) && msg->hasIceControlling)
    {
 	  ortp_debug("stun: Encoding ICEA_ICECONTROLLING\n");
 	  ptr = encodeAtrIceControll (ptr, &remaining, ICEA_ICECONTROLLING, &msg->iceControlling);
    }
 
-   if ((remaining != -1 ) && msg->hasSoftware)
+   if (((int)remaining != -1 ) && msg->hasSoftware)
    {
 	  ortp_debug("stun: Encoding SA_SOFTWARE: %s\n", msg->softwareName.value );
 	  ptr = encodeAtrString(ptr, &remaining, SA_SOFTWARE, &msg->softwareName);
    }
 
-   if ((remaining != -1 ) && msg->hasMessageIntegrity
+   if (((int)remaining != -1 ) && msg->hasMessageIntegrity
 		   && password!=NULL && password->sizeValue > 0
 		   && msg->username.sizeValue>0
 		   && msg->realmName.sizeValue>0)
@@ -1155,7 +1155,7 @@ stunEncodeMessage( const StunMessage *msg,
 		msg->username.value, msg->realmName.value, password->value);
 	  ptr = encodeAtrIntegrity(ptr, &remaining, &integrity);
    }
-   else if ((remaining != -1 )
+   else if (((int)remaining != -1 )
 			&& msg->hasMessageIntegrity
 			&& password!=NULL
 			&& password->sizeValue > 0
@@ -1177,7 +1177,7 @@ stunEncodeMessage( const StunMessage *msg,
 	  ptr = encodeAtrIntegrity(ptr, &remaining, &integrity);
    }
 
-   if ((remaining != -1 ) && msg->hasFingerprint)
+   if (((int)remaining != -1 ) && msg->hasFingerprint)
    {
 	  StunAtrFingerprint fingerprint;
 	  //ortp_debug("stun: HMAC with password: %s\n", password->value );
@@ -1188,7 +1188,7 @@ stunEncodeMessage( const StunMessage *msg,
    }
    encode16(lengthp, &remaining, (uint16_t)(ptr - buf - sizeof(StunMsgHdr)));
 
-   if( remaining == -1 )
+   if( (int)remaining == -1 )
    {
 	   ortp_error("stunEncodeMessage: input buffer too small (%u)", bufLen);
 	   memset(buf, 0x0, bufLen);
