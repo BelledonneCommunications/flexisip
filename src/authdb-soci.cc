@@ -159,11 +159,12 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 			start = stop;
 
 			*sql << get_password_request, into(passwd.pass), use(id, "id"), use(domain, "domain"), use(authid, "authid");
+			passwd.passmd5 = passwd.pass; // TODO
 			stop = steady_clock::now();
 			SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
 			cachePassword(createPasswordKey(id, authid), domain, passwd, mCacheExpire);
 			if (listener){
-				listener->onResult(passwd.pass.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd.pass);
+				listener->onResult(passwd.pass.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);
 			}
 			errorCount = 0;
 		} catch (mysql_soci_error const &e) {
@@ -191,7 +192,7 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 		if (sql) delete sql;
 		if (!retry){
 			if (errorCount){
-				if (listener) listener->onResult(AUTH_ERROR, passwd.pass);
+				if (listener) listener->onResult(AUTH_ERROR, passwd);
 			}
 			break;
 		}
