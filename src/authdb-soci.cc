@@ -141,7 +141,6 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 									 const std::string &authid, AuthDbListener *listener) {
 	steady_clock::time_point start;
 	steady_clock::time_point stop;
-	std::string pass;
 	passwd_algo_t passwd;
 	session *sql = NULL;
 	int errorCount = 0;
@@ -159,13 +158,12 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 			SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
 			start = stop;
 
-			*sql << get_password_request, into(pass), use(id, "id"), use(domain, "domain"), use(authid, "authid");
+			*sql << get_password_request, into(passwd.pass), use(id, "id"), use(domain, "domain"), use(authid, "authid");
 			stop = steady_clock::now();
 			SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
-			passwd.pass = pass;
 			cachePassword(createPasswordKey(id, authid), domain, passwd, mCacheExpire);
 			if (listener){
-				listener->onResult(pass.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, pass);
+				listener->onResult(passwd.pass.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd.pass);
 			}
 			errorCount = 0;
 		} catch (mysql_soci_error const &e) {
@@ -193,7 +191,7 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 		if (sql) delete sql;
 		if (!retry){
 			if (errorCount){
-				if (listener) listener->onResult(AUTH_ERROR, pass);
+				if (listener) listener->onResult(AUTH_ERROR, passwd.pass);
 			}
 			break;
 		}
