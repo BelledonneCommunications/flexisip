@@ -878,8 +878,8 @@ public:
                     msg_header_remove_param((msg_common_t *)response, "algorithm=MD5");
                     msg_header_replace_item(mAs->as_home, (msg_common_t *)response, "algorithm=SHA-256");
                     mEv->reply(mAs->as_status, mAs->as_phrase, SIPTAG_HEADER((const sip_header_t *)mAs->as_info),
-                               SIPTAG_HEADER((const sip_header_t *)mAs->as_response),
                                SIPTAG_HEADER((const sip_header_t *)response),
+                               SIPTAG_HEADER((const sip_header_t *)mAs->as_response),                               
                                SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
                 }
                 else{
