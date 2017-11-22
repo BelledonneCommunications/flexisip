@@ -19,6 +19,8 @@
 #ifndef __flexisip__conference_server__
 #define __flexisip__conference_server__
 
+#include <memory>
+
 #include "service-server.hh"
 
 #include <registrardb.hh>
@@ -26,29 +28,36 @@
 #include "linphone++/linphone.hh"
 
 namespace flexisip {
-class ConferenceServer : public ServiceServer {
-public:
-	ConferenceServer();
-	ConferenceServer(bool withThread);
-	~ConferenceServer();
-	
-	void _init();
-	void _run();
-	void _stop();
 
-	static void bindConference();
-private:
-	std::shared_ptr<linphone::Core> mCore;
-
-	// Used to declare the service configuration
-	class Init {
+	class ConferenceServer : public ServiceServer,
+		public std::enable_shared_from_this<ConferenceServer>,
+		public linphone::CoreListener, public linphone::ChatRoomListener {
 	public:
-		Init();
-	};
-	static Init sStaticInit;
-	static SofiaAutoHome mHome;
+		ConferenceServer();
+		ConferenceServer(bool withThread);
+		~ConferenceServer();
 
-};
+		static void bindConference();
+
+	protected:
+		void _init() override;
+		void _run() override;
+		void _stop() override;
+
+	private:
+		std::shared_ptr<linphone::Core> mCore;
+
+		void onChatRoomInstantiated(const std::shared_ptr<linphone::Core> & lc, const std::shared_ptr<linphone::ChatRoom> & cr) override;
+		void onConferenceAddressGeneration(const std::shared_ptr<linphone::ChatRoom> & cr) override;
+
+		// Used to declare the service configuration
+		class Init {
+		public:
+			Init();
+		};
+		static Init sStaticInit;
+		static SofiaAutoHome mHome;
+	};
 } // namespace flexisip
 
 #endif //__flexisip__conference_server__

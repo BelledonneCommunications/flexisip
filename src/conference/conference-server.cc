@@ -16,25 +16,32 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <sstream>
+
+#include <belle-sip/utils.h>
+
 #include "conference-server.hh"
 
 #include "configmanager.hh"
 
 using namespace flexisip;
-using namespace linphone;
 using namespace std;
 
-ConferenceServer::ConferenceServer() : ServiceServer() {
-}
 
-ConferenceServer::ConferenceServer(bool withThread) : ServiceServer(withThread) {
-}
+SofiaAutoHome ConferenceServer::mHome;
+ConferenceServer::Init ConferenceServer::sStaticInit;
+
+
+ConferenceServer::ConferenceServer() : ServiceServer() {}
+
+ConferenceServer::ConferenceServer(bool withThread) : ServiceServer(withThread) {}
 
 ConferenceServer::~ConferenceServer() {}
 
+
 void ConferenceServer::_init() {
 	// Set config, transport, create core, etc
-	shared_ptr<Transports> cTransport = Factory::get()->createTransports();
+	shared_ptr<linphone::Transports> cTransport = linphone::Factory::get()->createTransports();
 	string transport = "";
 	cTransport->setTcpPort(0);
 	cTransport->setUdpPort(0);
@@ -47,7 +54,7 @@ void ConferenceServer::_init() {
 	if (transport.length() > 0) {
 		SofiaAutoHome mHome;
 		sip_contact_t *sipContact = sip_contact_make(mHome.home(), transport.c_str());
-		if (sipContact->m_url->url_port != NULL) {
+		if (sipContact->m_url->url_port != nullptr) {
 			int port;
 			istringstream istr;
 			istr.str(sipContact->m_url->url_port);
@@ -57,58 +64,125 @@ void ConferenceServer::_init() {
 	}
 
 	// Core
-	auto configLinphone = Factory::get()->createConfig("");
+	shared_ptr<linphone::Config> configLinphone = linphone::Factory::get()->createConfig("");
 	configLinphone->setBool("misc", "conference_server_enabled", 1);
 	configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
 	configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
-	this->mCore = Factory::get()->createCoreWithConfig(nullptr, configLinphone);
-	this->mCore->setConferenceFactoryUri(config->get<ConfigString>("conference-factory-uri")->read());
-	this->mCore->setTransports(cTransport);
+	mCore = linphone::Factory::get()->createCoreWithConfig(nullptr, configLinphone);
+	mCore->addListener(shared_from_this());
+	mCore->setConferenceFactoryUri(config->get<ConfigString>("conference-factory-uri")->read());
+	mCore->enableConferenceServer(true);
+	mCore->setTransports(cTransport);
 
-	shared_ptr<Address> addrProxy = Factory::get()->createAddress(this->mCore->getConferenceFactoryUri());
-	shared_ptr<ProxyConfig> proxy = this->mCore->createProxyConfig();
+	shared_ptr<linphone::Address> addrProxy = linphone::Factory::get()->createAddress(mCore->getConferenceFactoryUri());
+	shared_ptr<linphone::ProxyConfig> proxy = mCore->createProxyConfig();
 	proxy->setIdentityAddress(addrProxy);
 	proxy->setRoute(config->get<ConfigString>("outbound-proxy")->read());
 	proxy->setServerAddr(config->get<ConfigString>("outbound-proxy")->read());
-	proxy->enableRegister(FALSE);
-	this->mCore->addProxyConfig(proxy);
-	this->mCore->setDefaultProxyConfig(proxy);
-	this->mCore->enableConferenceServer(TRUE); // duplicate?
+	proxy->enableRegister(false);
+	mCore->addProxyConfig(proxy);
+	mCore->setDefaultProxyConfig(proxy);
 }
 
 void ConferenceServer::_run() {
 	bctbx_sleep_ms(100);
-	this->mCore->iterate();
+	mCore->iterate();
 }
 
-void ConferenceServer::_stop() {
+void ConferenceServer::_stop() {}
+
+
+void ConferenceServer::onChatRoomInstantiated(const shared_ptr<linphone::Core> & lc, const shared_ptr<linphone::ChatRoom> & cr) {
+	cr->setListener(shared_from_this());
 }
 
-SofiaAutoHome ConferenceServer::mHome;
+void ConferenceServer::onConferenceAddressGeneration(const std::shared_ptr<linphone::ChatRoom> & cr) {
+	class ConferenceAddressGenerator : public ContactUpdateListener, public enable_shared_from_this<ConferenceAddressGenerator> {
+	public:
+		enum class State {
+			Fetching,
+			Binding
+		};
+
+		ConferenceAddressGenerator(const shared_ptr<linphone::ChatRoom> chatRoom,
+			shared_ptr<linphone::Address> conferenceFactoryAddr, const string &uuid)
+			: mChatRoom(chatRoom), mConferenceAddr(conferenceFactoryAddr), mUuid(uuid) {}
+
+		void generateAddress() {
+			char token[17];
+			ostringstream os;
+			belle_sip_random_token(token, sizeof(token));
+			os.str("");
+			os << "chatroom-" << token;
+			mConferenceAddr->setUsername(os.str());
+			os.str("");
+			os << "\"<urn:uuid:" << mUuid << ">\"";
+			mConferenceAddr->setParam("+sip.instance", os.str());
+
+			url_t *url = url_make(mHome.home(), mConferenceAddr->asStringUriOnly().c_str());
+			RegistrarDb::get()->fetch(url, shared_from_this(), false, false);
+		}
+
+	private:
+		void onRecordFound(Record *r) {
+			if (mState == State::Fetching) {
+				if (r) {
+					generateAddress();
+				} else {
+					mState = State::Binding;
+					auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
+					string transportFactory = config->get<ConfigString>("transport")->read();
+					url_t *url = url_make(mHome.home(), mConferenceAddr->asStringUriOnly().c_str());
+					sip_contact_t *sipContact = sip_contact_make(mHome.home(), transportFactory.c_str());
+					url_param_add(mHome.home(), sipContact->m_url, ("gr=urn:uuid:" + mUuid).c_str());
+					sip_supported_t *sipSupported = reinterpret_cast<sip_supported_t *>(sip_header_format(mHome.home(), sip_supported_class, "gruu"));
+					// Store the real GRUU address in the callid field of the ExtendedContact
+					RegistrarDb::get()->bind(url, sipContact, (mConferenceAddr->asStringUriOnly() + ";gr=urn:uuid:" + mUuid).c_str(), 0, nullptr, sipSupported,
+						nullptr, false, numeric_limits<int>::max(), false, 0, shared_from_this());
+				}
+			} else {
+				const shared_ptr<ExtendedContact> ec = r->getExtendedContacts().front();
+				mChatRoom->setConferenceAddress(linphone::Factory::get()->createAddress(ec->callId()));
+			}
+		}
+		void onError() {}
+		void onInvalid() {}
+		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {}
+
+		const shared_ptr<linphone::ChatRoom> mChatRoom;
+		shared_ptr<linphone::Address> mConferenceAddr;
+		string mUuid;
+		SofiaAutoHome mHome;
+		State mState = State::Fetching;
+	};
+
+	shared_ptr<linphone::Config> config = mCore->getConfig();
+	string uuid = config->getString("misc", "uuid", "");
+	shared_ptr<linphone::Address> confAddr = linphone::Factory::get()->createAddress(mCore->getConferenceFactoryUri());
+	shared_ptr<ConferenceAddressGenerator> generator = make_shared<ConferenceAddressGenerator>(cr, confAddr, uuid);
+	generator->generateAddress();
+}
+
 
 void ConferenceServer::bindConference() {
 	class fakeListener : public ContactUpdateListener {
 		void onRecordFound(Record *r) {}
 		void onError() {}
 		void onInvalid() {}
-		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) {
-			SLOGD << "ConferenceServer::ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();
+		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+			SLOGD << "ConferenceServer: ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();
 		}
 	};
 	shared_ptr<fakeListener> listener = make_shared<fakeListener>();
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	if (config != nullptr && config->get<ConfigBoolean>("enabled")->read()) {
-		string transport_factory = config->get<ConfigString>("transport")->read();
-		sip_contact_t *sipContact = sip_contact_make(mHome.home(), transport_factory.c_str());
-		sip_contact_t *contactDomain = sip_contact_make(mHome.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
-		url_t *url = url_format(mHome.home(), "sip:%s", contactDomain->m_url->url_host);
+		string transportFactory = config->get<ConfigString>("transport")->read();
+		sip_contact_t *sipContact = sip_contact_make(mHome.home(), transportFactory.c_str());
+		url_t *url = url_make(mHome.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
 		RegistrarDb::get()->bind(url, sipContact, "CONFERENCE", 0,
-								 NULL, NULL, NULL, FALSE, std::numeric_limits<int>::max(), FALSE, 0,
-								 listener);
+			nullptr, nullptr, nullptr, false, numeric_limits<int>::max(), false, 0, listener);
 	}
 }
-
-ConferenceServer::Init ConferenceServer::sStaticInit;
 
 ConferenceServer::Init::Init() {
 	ConfigItemDescriptor items[] = {
