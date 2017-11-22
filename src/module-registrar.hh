@@ -130,9 +130,9 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 
 	virtual void onUnload();
 
-	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev) throw (FlexisipException);
+	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev);
 
-	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException);
+	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev);
 
 	template <typename SipEventT, typename ListenerT>
 	void processUpdateRequest(std::shared_ptr<SipEventT> &ev, const sip_t *sip);

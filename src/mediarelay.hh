@@ -37,8 +37,8 @@ class MediaRelay : public Module, protected ModuleToolbox {
 	~MediaRelay();
 	virtual void onLoad(const GenericStruct *modconf);
 	virtual void onUnload();
-	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev) throw (FlexisipException);
-	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException);
+	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev);
+	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev);
 	virtual void onIdle();
 
   protected:

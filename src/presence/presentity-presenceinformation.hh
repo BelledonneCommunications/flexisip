@@ -118,13 +118,13 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 * @return new eTag
 	 * */
 	std::string updateTuples(Xsd::Pidf::Presence::TupleSequence &tuples, Xsd::DataModel::Person &person, std::string &eTag,
-						int expires) throw(FlexisipException);
+						int expires);
 
 	/*
 	 * refresh a publish
 	 * @return new eTag
 	 * */
-	std::string refreshTuplesForEtag(const std::string &eTag, int expires) throw(FlexisipException);
+	std::string refreshTuplesForEtag(const std::string &eTag, int expires);
 
 	/*
 	* refresh a publish
@@ -151,7 +151,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	/*
 	 * return the presence information for this entity in a pidf serilized format
 	 */
-	std::string getPidf(bool extended) throw(FlexisipException);
+	std::string getPidf(bool extended);
 
 	/*
 	 * return true if a presence info is already known from a publish
@@ -189,7 +189,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 * tuples may be null
 	 */
 	std::string setOrUpdate(Xsd::Pidf::Presence::TupleSequence *tuples, Xsd::DataModel::Person *, const std::string *eTag,
-					   int expires) throw(FlexisipException);
+					   int expires);
 	/*
 	 *Notify all listener
 	 */

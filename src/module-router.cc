@@ -156,9 +156,9 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	virtual void onUnload() {
 	}
 
-	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException);
+	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
 
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException);
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 
 	virtual void onForkContextFinished(shared_ptr<ForkContext> ctx);
 	void extractContactByUniqueId(string uid);
@@ -911,7 +911,7 @@ static vector<string> split(const char *data, const char *delim) {
 	return res;
 }
 
-void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipException) {
+void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
@@ -980,7 +980,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipExce
 	}
 }
 
-void ModuleRouter::onResponse(shared_ptr<ResponseSipEvent> &ev) throw(FlexisipException) {
+void ModuleRouter::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	ForkContext::processResponse(ev);
 }
 

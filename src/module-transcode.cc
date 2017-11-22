@@ -69,8 +69,8 @@ class Transcoder : public Module, protected ModuleToolbox {
 	Transcoder(Agent *ag);
 	~Transcoder();
 	virtual void onLoad(const GenericStruct *module_config);
-	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException);
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException);
+	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 	virtual void onIdle();
 	virtual void onDeclare(GenericStruct *mc);
 #ifdef ENABLE_TRANSCODER
@@ -122,10 +122,10 @@ void Transcoder::onLoad(const GenericStruct *mc) {
 }
 void Transcoder::onIdle() {
 }
-void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipException) {
+void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	LOGA("Transcoder support is not compiled");
 }
-void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException) {
+void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	LOGA("Transcoder support is not compiled");
 }
 #endif
@@ -419,7 +419,7 @@ void Transcoder::processAck(TranscodedCall *ctx, shared_ptr<RequestSipEvent> &ev
 	}
 }
 
-void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) throw (FlexisipException){
+void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev){
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
@@ -533,7 +533,7 @@ static bool isEarlyMedia(sip_t *sip) {
 	return false;
 }
 
-void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException) {
+void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();

@@ -31,7 +31,7 @@ using namespace std;
 namespace flexisip {
 
 ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transaction_t *ist,
-								   belle_sip_provider_t *aProv) throw(FlexisipException)
+								   belle_sip_provider_t *aProv)
 	: Subscription("Presence", expires, belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)), aProv),
 	  mLastNotify(chrono::system_clock::time_point::min()), mMinNotifyInterval(2 /*60*/), mVersion(0), mTimer(NULL) {
 	belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
@@ -134,7 +134,7 @@ void ListSubscription::addInstanceToResource(Xsd::Rlmi::Resource &resource, list
 	SLOGI << "Presence info added to list [" << mName << " for entity [" << presentityInformation.getEntity() << "]";
 }
 
-void ListSubscription::notify(bool isFullState) throw(FlexisipException) {
+void ListSubscription::notify(bool isFullState) {
 	belle_sip_multipart_body_handler_t *multiPartBody;
 	try {
 		char *uri = belle_sip_uri_to_string(mName);

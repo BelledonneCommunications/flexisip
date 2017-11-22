@@ -47,7 +47,7 @@ long BooleanExpression::ptr() {
 }
 
 #ifndef NO_SOFIA
-bool BooleanExpression::eval(const sip_t *sip) throw(FlexisipException) {
+bool BooleanExpression::eval(const sip_t *sip) {
 	bool result;
 	try {
 		SipAttributes attr(sip);

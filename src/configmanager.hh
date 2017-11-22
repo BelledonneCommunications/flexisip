@@ -449,7 +449,7 @@ class ConfigValue : public GenericEntry {
 
 class ConfigBoolean : public ConfigValue {
   public:
-	static bool parse(const std::string &value) throw (FlexisipException);
+	static bool parse(const std::string &value);
 	ConfigBoolean(const std::string &name, const std::string &help, const std::string &default_value, oid oid_index);
 	bool read() const;
 	bool readNext() const;

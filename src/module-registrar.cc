@@ -560,7 +560,7 @@ void ModuleRegistrar::processUpdateRequest(shared_ptr<SipEventT> &ev, const sip_
 	}
 }
 
-void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipException) {
+void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	if (sip->sip_request->rq_method != sip_method_register)
@@ -655,7 +655,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) throw(FlexisipE
 	}
 }
 
-void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) throw(FlexisipException) {
+void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	if (!mUpdateOnResponse)
 		return;
 	const shared_ptr<MsgSip> &reMs = ev->getMsgSip();

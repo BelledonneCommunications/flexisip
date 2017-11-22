@@ -58,12 +58,12 @@ class ListSubscription : public Subscription {
 	// ListSubscription(unsigned int expires,list<const belle_sip_uri_t *> resources,belle_sip_dialog_t*
 	// aDialog,belle_sip_provider_t* aProv);
 	ListSubscription(unsigned int expires, belle_sip_server_transaction_t *ist,
-					 belle_sip_provider_t *aProv) throw(FlexisipException);
+					 belle_sip_provider_t *aProv);
 
 	virtual ~ListSubscription();
 	std::list<std::shared_ptr<PresentityPresenceInformationListener>> &getListeners();
 	/* Notify taking state from all pending Presentity listener*/
-	void notify(bool isFullState) throw(FlexisipException);
+	void notify(bool isFullState);
 
   protected:
 	// this function is call by each PresentityResourceListener to centralize notifications

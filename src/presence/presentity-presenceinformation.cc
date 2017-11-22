@@ -110,7 +110,7 @@ string PresentityPresenceInformation::putTuples(Xsd::Pidf::Presence::TupleSequen
 }
 string PresentityPresenceInformation::updateTuples(Xsd::Pidf::Presence::TupleSequence &tuples,
 												   Xsd::DataModel::Person  &person, string &eTag,
-												   int expires) throw(FlexisipException) {
+												   int expires) {
 	return setOrUpdate(&tuples, &person, &eTag, expires);
 }
 void PresenceInformationElement::clearTuples() {
@@ -118,7 +118,7 @@ void PresenceInformationElement::clearTuples() {
 }
 string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequence *tuples,
 												  Xsd::DataModel::Person  *person, const string *eTag,
-												  int expires) throw(FlexisipException) {
+												  int expires) {
 	PresenceInformationElement *informationElement = NULL;
 
 	// etag ?
@@ -193,7 +193,7 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 	return generatedETag;
 }
 
-string PresentityPresenceInformation::refreshTuplesForEtag(const string &eTag, int expires) throw(FlexisipException) {
+string PresentityPresenceInformation::refreshTuplesForEtag(const string &eTag, int expires) {
 	return setOrUpdate(NULL, NULL, &eTag, expires);
 }
 
@@ -327,7 +327,7 @@ bool PresentityPresenceInformation::hasDefaultElement() {
 bool PresentityPresenceInformation::isKnown() {
 	return mInformationElements.size() > 0 || hasDefaultElement();
 }
-string PresentityPresenceInformation::getPidf(bool extended) throw(FlexisipException) {
+string PresentityPresenceInformation::getPidf(bool extended) {
 	stringstream out;
 	try {
 		char *entity = belle_sip_uri_to_string(getEntity());

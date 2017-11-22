@@ -68,8 +68,8 @@ class PushNotification : public Module, public ModuleToolbox {
 	PushNotification(Agent *ag);
 	virtual ~PushNotification();
 	void onDeclare(GenericStruct *module_config);
-	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev) throw (FlexisipException);
-	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev) throw (FlexisipException);
+	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev);
+	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev);
 	virtual void onLoad(const GenericStruct *mc);
 	PushNotificationService *getService() const {
 		return mPNS;
@@ -482,7 +482,7 @@ bool PushNotification::needsPush(const sip_t *sip) {
 	return false;
 }
 
-void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) throw(FlexisipException) {
+void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	if (needsPush(sip)) {
@@ -499,7 +499,7 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) throw(Fle
 	}
 }
 
-void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent> &ev) throw(FlexisipException) {
+void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
 	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 	int code = ev->getMsgSip()->getSip()->sip_status->st_status;
 	if (transaction != NULL && code >= 180 && code != 503) {

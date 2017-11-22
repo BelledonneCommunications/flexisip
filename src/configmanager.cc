@@ -560,7 +560,7 @@ ConfigBoolean::ConfigBoolean(const string &name, const string &help, const strin
 	: ConfigValue(name, Boolean, help, default_value, oid_index) {
 }
 
-bool ConfigBoolean::parse(const string &value)throw (FlexisipException){
+bool ConfigBoolean::parse(const string &value){
 	if (value == "true" || value == "1")
 		return true;
 	else if (value == "false" || value == "0")
