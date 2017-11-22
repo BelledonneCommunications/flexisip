@@ -853,6 +853,12 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 }
 
 void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
+	if (mTerminating) {
+		// Avoid throwing a bad weak pointer on GatewayAdapter destruction
+		LOGI("Skipping incoming message on expired agent");
+		return;
+	}
+	
 	SLOGD << "Receiving new Response SIP message: " << ev->getMsgSip()->getSip()->sip_status->st_status << "\n"
 		  << *ev->getMsgSip();
 
