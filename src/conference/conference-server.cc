@@ -136,13 +136,16 @@ void ConferenceServer::onConferenceAddressGeneration(const std::shared_ptr<linph
 					sip_contact_t *sipContact = sip_contact_make(mHome.home(), transportFactory.c_str());
 					url_param_add(mHome.home(), sipContact->m_url, ("gr=urn:uuid:" + mUuid).c_str());
 					sip_supported_t *sipSupported = reinterpret_cast<sip_supported_t *>(sip_header_format(mHome.home(), sip_supported_class, "gruu"));
-					// Store the real GRUU address in the callid field of the ExtendedContact
-					RegistrarDb::get()->bind(url, sipContact, (mConferenceAddr->asStringUriOnly() + ";gr=urn:uuid:" + mUuid).c_str(), 0, nullptr, sipSupported,
+					RegistrarDb::get()->bind(url, sipContact, ("\"<urn:uuid:" + mUuid + ">\"").c_str(), 0, nullptr, sipSupported,
 						nullptr, false, numeric_limits<int>::max(), false, 0, shared_from_this());
 				}
 			} else {
 				const shared_ptr<ExtendedContact> ec = r->getExtendedContacts().front();
-				mChatRoom->setConferenceAddress(linphone::Factory::get()->createAddress(ec->callId()));
+				string uri = ExtendedContact::urlToString(ec->mSipUri);
+				shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
+				shared_ptr<linphone::Address> gruuAddr = linphone::Factory::get()->createAddress(mConferenceAddr->asStringUriOnly());
+				gruuAddr->setUriParam("gr", addr->getUriParam("gr"));
+				mChatRoom->setConferenceAddress(gruuAddr);
 			}
 		}
 		void onError() {}
