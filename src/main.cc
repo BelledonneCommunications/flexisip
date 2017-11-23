@@ -136,8 +136,6 @@ static void flexisip_stop(int signum) {
 	} else if (run != 0) {
 		// LOGD("Received quit signal...");
 		
-		signal(SIGTERM, NULL); /*removing signal handler because on BSD platform it present signal to be dispathed to other threads*/
-		signal(SIGINT, NULL);
 		run = 0;
 		if (root) {
 			su_root_break(root);
