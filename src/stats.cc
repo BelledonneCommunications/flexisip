@@ -24,14 +24,18 @@
 #include <unistd.h>
 #include <cerrno>
 #include <cstring>
+#include <poll.h>
 
 #include "stats.hh"
 #include "log/logmanager.hh"
-#include "signal.h"
+
 
 Stats::Stats(const std::string &name) {
 	mName = name;
 	mRunning = false;
+	if (pipe(mControlFds) == -1){
+		LOGF("Cannot create control pipe of Stats thread: %s", strerror(errno));
+	}
 }
 
 void Stats::start() {
@@ -42,7 +46,9 @@ void Stats::start() {
 void Stats::stop() {
 	if (mRunning) {
 		mRunning = false;
-		pthread_kill(mThread, SIGINT);
+		if (write(mControlFds[1], "please stop", 1) == -1){
+			LOGF("Cannot write to control pipe of Stats thread: %s", strerror(errno));
+		}
 		pthread_join(mThread, NULL);
 	}
 }
@@ -199,7 +205,13 @@ void Stats::parseAndAnswer(unsigned int socket, const std::string& query) {
 }
 
 void Stats::run() {
-	if ((local_socket = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+	int server_socket, child_socket;
+	unsigned int remote_length;
+	struct sockaddr_un local, remote;
+	int local_length;
+	struct pollfd pfd[2];
+	
+	if ((server_socket = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
 		LOGE("Socket error %i : %s", errno, std::strerror(errno));
 		stop();
 	}
@@ -210,40 +222,63 @@ void Stats::run() {
 	strcpy(local.sun_path, path.c_str());
 	unlink(local.sun_path);
 	local_length = strlen(local.sun_path) + sizeof(local.sun_family);
-	if (::bind(local_socket, (struct sockaddr *)&local, local_length) == -1) {
+	if (::bind(server_socket, (struct sockaddr *)&local, local_length) == -1) {
 		LOGE("Bind error%i : %s", errno, std::strerror(errno));
 		stop();
 	}
 
-	if (listen(local_socket, 1) == -1) {
+	if (listen(server_socket, 1) == -1) {
 		LOGE("Listen error %i : %s", errno, std::strerror(errno));
 		stop();
 	}
 	
 	while (mRunning) {
+		memset(pfd, 0, sizeof(pfd));
+		pfd[0].fd = server_socket;
+		pfd[0].events = POLLIN;
+		pfd[1].fd = mControlFds[0];
+		pfd[1].events = POLLIN;
+		
+		int ret = poll(pfd,2,-1);
+		
+		if (ret == -1){
+			if (errno != EINTR){
+				LOGE("Stats thread getting poll() error: %s", strerror(errno));
+			}
+			continue;
+		}else if (ret == 0){
+			continue; /*timeout not possible*/
+		}else{
+			if (pfd[0].revents != POLLIN){
+				continue;
+			}
+		}
+		/*otherwise we have something to accept on our server_socket*/
+		
 		remote_length = sizeof(remote);
-		if ((remote_socket = accept(local_socket, (struct sockaddr *)&remote, &remote_length)) == -1) {
-			if (mRunning) LOGE("Accept error %i : %s", errno, std::strerror(errno));
+		if ((child_socket = accept(server_socket, (struct sockaddr *)&remote, &remote_length)) == -1) {
+			LOGE("Accept error %i : %s", errno, std::strerror(errno));
 			continue;
 		}
 		
 		bool finished = false;
 		do {
 		    char buffer[512]={0};
-		    int n = recv(remote_socket, buffer, sizeof(buffer)-1, 0);
+		    int n = recv(child_socket, buffer, sizeof(buffer)-1, 0);
 		    if (n < 0) {
 				LOGE("Recv error %i : %s", errno, std::strerror(errno));
 		    }
 		    if (n > 0) {
 				LOGD("[Stats] Received: %s", buffer);
-				parseAndAnswer(remote_socket, buffer);
+				parseAndAnswer(child_socket, buffer);
 		    }
 		    finished = true;
 		} while (!finished && mRunning);
-		close(remote_socket);
+		shutdown(child_socket, SHUT_RDWR);
+		close(child_socket);
 	}
-	shutdown(local_socket, SHUT_RDWR);
-	close(local_socket);
+	shutdown(server_socket, SHUT_RDWR);
+	close(server_socket);
 	unlink(path.c_str());
 }
 
@@ -257,4 +292,6 @@ Stats::~Stats() {
 	if (mRunning) {
 		stop();
 	}
+	close(mControlFds[0]);
+	close(mControlFds[1]);
 }
