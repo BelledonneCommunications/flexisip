@@ -53,3 +53,6 @@
 	path = submodules/externals/zlib
 	url = git://git.linphone.org/zlib.git
 	branch = 1.2.11
+[submodule "submodules/externals/hiredis"]
+	path = submodules/externals/hiredis
+	url = https://github.com/redis/hiredis.git
