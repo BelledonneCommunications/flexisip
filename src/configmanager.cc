@@ -830,7 +830,7 @@ GenericManager::GenericManager()
 		{Boolean, "enable-snmp", "Enable SNMP.", "true"},
 		{String, "unique-id", "Unique ID used to identify that instance of Flexisip. It must be a randomly generated "
 			"16-sized hexadecimal number. If empty, it will be randomly generated at each start of Flexisip.", ""},
-		{Boolean, "use-maddr", "Allow flexisip to use maddr in sips connections to verify the CN of the TLS certificate", "false"},
+		{Boolean, "use-maddr", "Allow flexisip to use maddr in sips connections to verify the CN of the TLS certificate", "true"},
 		{Boolean, "debug", "Outputs very detailed logs", "false"},
 		config_item_end};
 
