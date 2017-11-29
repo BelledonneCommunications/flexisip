@@ -1142,8 +1142,20 @@ public:
                 
                 as->as_allow = as->as_allow || auth_allow_check(am, as) == 0;
                 
-                if (as->as_realm)
+				if (as->as_realm) {
+					/* When the client answers two responses the same time, we will choose the one with algorithm MD5 for traiting. */
+					if (au && au->au_next) {
+						auth_response_t r;
+						memset(&r, 0, sizeof(r));
+						r.ar_size = sizeof(r);
+						auth_digest_response_get(as->as_home, &r, au->au_next->au_params);
+						if(!strcmp(r.ar_algorithm, "MD5")) {
+							au->au_params = au->au_next->au_params;
+						}
+					}
+					/* After auth_digest_credentials, there is no more au->au_next. */
                     au = auth_digest_credentials(au, as->as_realm, am->am_opaque);
+				}
                 else
                     au = NULL;
                 
