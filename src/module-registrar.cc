@@ -108,7 +108,7 @@ void OnRequestBindListener::onRecordFound(Record *r) {
 		}
 	} else {
 		LOGE("OnRequestBindListener::onRecordFound(): Record is null");
-		mModule->reply(mEv, SIP_480_TEMPORARILY_UNAVAILABLE);
+		mModule->reply(mEv, SIP_500_INTERNAL_SERVER_ERROR);
 	}
 }
 void OnRequestBindListener::onError() {
@@ -144,7 +144,7 @@ void OnResponseBindListener::onRecordFound(Record *r) {
 		mModule->getAgent()->injectResponseEvent(mEv);
 	} else {
 		LOGE("OnResponseBindListener::onRecordFound(): Record is null");
-		mCtx->reqSipEvent->reply(SIP_480_TEMPORARILY_UNAVAILABLE, TAG_END());
+		mCtx->reqSipEvent->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
 		mEv->terminateProcessing();
 	}
 }
