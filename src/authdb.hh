@@ -56,6 +56,7 @@ class AuthDbListener : public StatFinishListener {
 	virtual void onResult(AuthDbResult result, const std::string &passwd) = 0;
     virtual void onResult(AuthDbResult result, const passwd_algo_t &passwd)=0;
 	virtual void onResults(std::list<std::string> &phones, std::set<std::string> &users);
+	virtual void finish_verify_algos(const passwd_algo_t &pass)=0;
 	virtual ~AuthDbListener();
 };
 
@@ -91,7 +92,7 @@ class AuthDbBackend {
 	// warning: listener may be invoked on authdb backend thread, so listener must be threadsafe somehow!
 	void getPassword(const std::string & user, const std::string & domain, const std::string &auth_username, AuthDbListener *listener);
     void getPasswordForAlgo(const std::string &user, const std::string &host, const std::string &auth_username,
-                                           AuthDbListener *listener, std::list<std::string> &list_algorithm);
+							AuthDbListener *listener, AuthDbListener *listener_ref);
 	void getUserWithPhone(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	void getUsersWithPhone(std::list<std::tuple<std::string,std::string,AuthDbListener *>> & creds, AuthDbListener *listener);
 	virtual void getUserWithPhoneFromBackend(const std::string &, const std::string &, AuthDbListener *listener) = 0;
@@ -100,11 +101,12 @@ class AuthDbBackend {
 	virtual void createAccount(const std::string &user, const std::string & domain, const std::string &auth_username, const std::string &password, int expires, const std::string &phone_alias = "");
 
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-										const std::string &authid, AuthDbListener *listener) = 0;
+										const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) = 0;
 
 	static AuthDbBackend *get();
 	/* called by module_auth so that backends can declare their configuration to the ConfigurationManager */
 	static void declareConfig(GenericStruct *mc);
+	static void verifyAlgo(const passwd_algo_t &pass, std::list<std::string> &algorithms);
     static std::string syncSha256(const char* input,size_t size);
     static std::string syncMd5(const char* input,size_t size);
 
@@ -123,7 +125,7 @@ class FileAuthDb : public AuthDbBackend {
 	FileAuthDb();
 	virtual void getUserWithPhoneFromBackend(const std::string &phone, const std::string & domain, AuthDbListener *listener);
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-										const std::string &authid, AuthDbListener *listener);
+										const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
 
     static void declareConfig(GenericStruct *mc){};
 };
@@ -196,7 +198,7 @@ class SociAuthDB : public AuthDbBackend {
 	virtual void getUserWithPhoneFromBackend(const std::string & , const std::string &, AuthDbListener *listener);
 	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-										const std::string &authid, AuthDbListener *listener);
+										const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
 
 	static void declareConfig(GenericStruct *mc);
 
@@ -204,9 +206,10 @@ class SociAuthDB : public AuthDbBackend {
 	void getUserWithPhoneWithPool(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	void getUsersWithPhonesWithPool(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
 	void getPasswordWithPool(const std::string &id, const std::string &domain,
-							 const std::string &authid, AuthDbListener *listener);
+							 const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
 
 	void reconnectSession( soci::session &session );
+	
 
 	size_t poolSize;
 	soci::connection_pool *conn_pool;
@@ -216,6 +219,8 @@ class SociAuthDB : public AuthDbBackend {
 	std::string get_password_request;
 	std::string get_user_with_phone_request;
 	std::string get_users_with_phones_request;
+	std::string get_password_algo_request;
+	bool hashed_passwd;
 };
 
 #endif /* ENABLE_SOCI */

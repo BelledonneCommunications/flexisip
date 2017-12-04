@@ -40,6 +40,10 @@ public:
                                                                            , "OnAuthListener to mainthread");
         belle_sip_object_unref(timer);
     }
+	
+	virtual void finish_verify_algos(const passwd_algo_t &pass) {
+		return;
+	}
     
 	void onResults(list<std::string> &phones, set<std::string> &users) {
 		for(std::string phone : phones) {

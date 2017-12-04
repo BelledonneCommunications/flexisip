@@ -244,6 +244,8 @@ private:
         void onError();
         void finish(); /*the listener is destroyed when calling this, careful*/
         void finish_for_algorithm();
+		void finish_verify_algos(const passwd_algo_t &pass);
+	
         su_root_t *getRoot() {
             return getAgent()->getRoot();
         }
@@ -493,9 +495,7 @@ public:
             auto algo = mAlgorithm.begin();
             algorithm.assign(algo->c_str());
         }
-        if(mAlgorithm.size()==0){
-            mAlgorithm.push_back("MD5");
-        }
+
         for (it = mDomains.begin(); it != mDomains.end(); ++it) {
             auto domain = *it;
             
@@ -870,7 +870,7 @@ public:
                     LOGF("Couldn't send auth async message to main thread.");
                 }
             }
-            
+
             void Authentication::AuthenticationListener::finish_for_algorithm(){
                 if((mAlgoUsed.size()>1)&&(mAs->as_status == 401)){
                     msg_header_t* response;
@@ -926,7 +926,12 @@ public:
                 }
                 delete this;
             }
-                        
+
+			void Authentication::AuthenticationListener::finish_verify_algos(const passwd_algo_t &pass) {
+					AuthDbBackend::verifyAlgo(pass, mAlgoUsed);
+					finish();
+			}
+
             int Authentication::AuthenticationListener::checkPasswordMd5(const char *passwd){
                 char const *a1;
                 auth_hexmd5_t a1buf, response;
@@ -1142,9 +1147,19 @@ public:
                 
                 as->as_allow = as->as_allow || auth_allow_check(am, as) == 0;
                 
-                if (as->as_realm)
-                    au = auth_digest_credentials(au, as->as_realm, am->am_opaque);
-                else
+				if (as->as_realm) {
+					if (au && au->au_next) {
+						auth_response_t r;
+						memset(&r, 0, sizeof(r));
+						r.ar_size = sizeof(r);
+						auth_digest_response_get(as->as_home, &r, au->au_next->au_params);
+						if(!strcmp(r.ar_algorithm, "MD5")) {
+							au->au_params = au->au_next->au_params;
+						}
+					}
+					au = auth_digest_credentials(au, as->as_realm, am->am_opaque);
+				}
+				else
                     au = NULL;
                 
                 if (as->as_allow) {
@@ -1175,9 +1190,9 @@ public:
                         SLOGD << "Searching for " << as->as_user_uri->url_user
                         << " password to have it when the authenticated request comes";
                         //AuthDbBackend::get()->getPassword(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL);
-                        AuthDbBackend::get()->getPasswordForAlgo(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL, listener->mAlgoUsed);
+                        AuthDbBackend::get()->getPasswordForAlgo(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL, listener);
                     }
-                    listener->finish();
+                    //listener->finish();
                     return;
                 }
             }

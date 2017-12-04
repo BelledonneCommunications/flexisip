@@ -41,7 +41,14 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 		 "Named parameters are:\n -':id' : the user found in the from header,\n -':domain' : the authorization realm, "
 		 "and\n -':authid' : the authorization username.\n"
 		 "The use of the :id parameter is mandatory.",
-		 "select password from accounts where id = :id and domain = :domain and authid=:authid"},
+		 "select password from accounts where login = :id and domain = :domain"},
+		{String, "soci-password-algo-request",
+			"Soci SQL request to execute to obtain the password.\n"
+			"Named parameters are:\n -':id' : the user found in the from header,\n -':domain' : the authorization realm, "
+			"and\n -':authid' : the authorization username.\n"
+			"The use of the :id parameter is mandatory."
+			"select password,password_md5,password_sha256 from accounts_algo where id = (select id from accounts where login = :id and domain = :domain)",
+		    ""},
 		{String, "soci-user-with-phone-request",
 		 "Soci SQL request to execute to obtain the username associated with a phone alias.\n"
 		 "Named parameters are:\n -':phone' : the phone number to search for.\n"
@@ -75,7 +82,7 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 										   "Please refer to the Soci documentation of your backend, for intance: "
 										   "http://soci.sourceforge.net/doc/3.2/backends/mysql.html",
 		 "db=mydb user=myuser password='mypass' host=myhost.com"},
-
+		
 		{Integer, "soci-max-queue-size",
 		 "Amount of queries that will be allowed to be queued before bailing password "
 		 "requests.\n This value should be chosen accordingly with 'soci-poolsize', so "
@@ -100,6 +107,8 @@ SociAuthDB::SociAuthDB() : conn_pool(NULL) {
 	get_user_with_phone_request = ma->get<ConfigString>("soci-user-with-phone-request")->read();
 	get_users_with_phones_request = ma->get<ConfigString>("soci-users-with-phones-request")->read();
 	unsigned int max_queue_size = (unsigned int)ma->get<ConfigInt>("soci-max-queue-size")->read();
+	get_password_algo_request = ma->get<ConfigString>("soci-password-algo-request")->read();
+	hashed_passwd = ma->get<ConfigBoolean>("hashed-passwords")->read();
 
 	conn_pool = new connection_pool(poolSize);
 	thread_pool = new ThreadPool(poolSize, max_queue_size);
@@ -114,7 +123,7 @@ SociAuthDB::SociAuthDB() : conn_pool(NULL) {
 		SLOGE << "[SOCI] connection pool open MySQL error: " << e.err_num_ << " " << e.what() << endl;
 	} catch (exception const &e) {
 		SLOGE << "[SOCI] connection pool open error: " << e.what() << endl;
-	}
+	}	
 }
 
 SociAuthDB::~SociAuthDB() {
@@ -138,7 +147,7 @@ void SociAuthDB::reconnectSession(soci::session &session) {
 #define DURATION_MS(start, stop) (unsigned long) duration_cast<milliseconds>((stop) - (start)).count()
 
 void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &domain,
-									 const std::string &authid, AuthDbListener *listener) {
+									 const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
 	steady_clock::time_point start;
 	steady_clock::time_point stop;
 	passwd_algo_t passwd;
@@ -157,14 +166,25 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 
 			SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
 			start = stop;
-
-			*sql << get_password_request, into(passwd.pass), use(id, "id"), use(domain, "domain"), use(authid, "authid");
-			passwd.passmd5 = passwd.pass; // TODO
+			if(get_password_algo_request!=""){
+				*sql << get_password_algo_request, into(passwd.pass), into(passwd.passmd5),into(passwd.passsha256),use(id, "id"), use(domain, "domain");
+			}
+			else {
+				if(hashed_passwd){
+					*sql << get_password_request, into(passwd.passmd5), use(id, "id"), use(domain, "domain");
+				}
+				else {
+					*sql << get_password_request, into(passwd.pass), use(id, "id"), use(domain, "domain");
+				}
+			}
+			
+			if(listener_ref) listener_ref->finish_verify_algos(passwd);
+			
 			stop = steady_clock::now();
 			SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
 			cachePassword(createPasswordKey(id, authid), domain, passwd, mCacheExpire);
 			if (listener){
-				listener->onResult(passwd.pass.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);
+				listener->onResult((passwd.pass.empty() && passwd.passmd5.empty() && passwd.passsha256.empty()) ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);
 			}
 			errorCount = 0;
 		} catch (mysql_soci_error const &e) {
@@ -333,10 +353,10 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,A
 #endif
 
 void SociAuthDB::getPasswordFromBackend(const std::string &id, const std::string &domain,
-										const std::string &authid, AuthDbListener *listener) {
+										const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
 
 	// create a thread to grab a pool connection and use it to retrieve the auth information
-	auto func = bind(&SociAuthDB::getPasswordWithPool, this, id, domain, authid, listener);
+	auto func = bind(&SociAuthDB::getPasswordWithPool, this, id, domain, authid, listener, listener_ref);
 
 	bool success = thread_pool->Enqueue(func);
 	if (success == FALSE) {

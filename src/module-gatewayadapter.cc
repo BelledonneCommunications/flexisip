@@ -125,12 +125,15 @@ class GatewayRegister {
         
         virtual void onResult(AuthDbResult result, const passwd_algo_t &passwd) {
             if (result == AuthDbResult::PASSWORD_FOUND) {
-                checkPassword(passwd.pass.c_str()); /* TODO */
+                checkPassword(passwd.pass.c_str());
             } else {
                 LOGE("GatewayRegister onResult(): Can't find user password, give up.");
             }
             delete this;
         }
+		virtual void finish_verify_algos(const passwd_algo_t &pass) {
+			return;
+		}
 	};
 
 	// Listener class NEED to copy the shared pointer

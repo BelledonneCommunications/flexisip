@@ -39,7 +39,7 @@ class FixedAuthDb : public AuthDbBackend {
 		if (listener) listener->onResult(PASSWORD_FOUND, "user@domain.com");
 	}
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-										const std::string &authid, AuthDbListener *listener) {
+										const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
 		if (listener) listener->onResult(PASSWORD_FOUND, "fixed");
 	}
 	static void declareConfig(GenericStruct *mc){};
@@ -167,30 +167,18 @@ void AuthDbBackend::getPassword(const std::string &user, const std::string &host
     }
     
     // if we reach here, password wasn't cached: we have to grab the password from the actual backend
-    getPasswordFromBackend(user, host, auth_username, listener);
+    getPasswordFromBackend(user, host, auth_username, listener, NULL);
 }
 
 void AuthDbBackend::getPasswordForAlgo(const std::string &user, const std::string &host, const std::string &auth_username,
-                                       AuthDbListener *listener, std::list<std::string> &list_algorithm) {
+										AuthDbListener *listener, AuthDbListener *listener_ref) {
     // Check for usable cached password
     string key(createPasswordKey(user, auth_username));
     passwd_algo_t pass;
     switch (getCachedPassword(key, host, pass)) {
         case VALID_PASS_FOUND:
             if (listener) listener->onResult(AuthDbResult::PASSWORD_FOUND, pass);
-            else if(pass.pass==""){
-                for(auto algo = list_algorithm.begin(); algo != list_algorithm.end();)
-                {
-                    auto algo_ref=algo++;
-                    if((!strcmp(algo_ref->c_str(),"MD5")&&(pass.passmd5==""))||(!strcmp(algo_ref->c_str(),"SHA-256")&&(pass.passsha256=="")))
-                    {
-                        list_algorithm.remove(algo_ref->c_str());
-                        if(list_algorithm.size()==0){
-                            LOGA("There is no password for the given algorithm");
-                        }
-                    }
-                }
-            }
+			if(listener_ref) listener_ref->finish_verify_algos(pass);
             return;
         case EXPIRED_PASS_FOUND:
             // Might check here if connection is failing
@@ -202,7 +190,7 @@ void AuthDbBackend::getPasswordForAlgo(const std::string &user, const std::strin
     }
     
     // if we reach here, password wasn't cached: we have to grab the password from the actual backend
-    getPasswordFromBackend(user, host, auth_username, listener);
+    getPasswordFromBackend(user, host, auth_username, listener, listener_ref);
 }
 void AuthDbBackend::createCachedAccount(const std::string &user, const std::string &host, const std::string &auth_username, const passwd_algo_t &password,
                                         int expires, const std::string & phone_alias) {
@@ -233,6 +221,17 @@ string AuthDbBackend::syncMd5(const char* input,size_t size){
         sprintf(out + di * 2, "%02x", a1buf[di]);
     out[size*2]='\0';
     return out;
+}
+
+void AuthDbBackend::verifyAlgo(const passwd_algo_t &pass, std::list<std::string> &algorithms){
+	for(auto algo = algorithms.begin(); algo != algorithms.end();)
+	{
+		auto algo_ref=algo++;
+		if((!strcmp(algo_ref->c_str(),"MD5")&&(pass.passmd5==""))||(!strcmp(algo_ref->c_str(),"SHA-256")&&(pass.passsha256=="")))
+		{
+			algorithms.remove(algo_ref->c_str());
+		}
+	}
 }
 
 void AuthDbBackend::createAccount(const std::string & user, const std::string & host, const std::string &auth_username, const std::string &password,
