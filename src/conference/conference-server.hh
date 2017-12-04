@@ -47,7 +47,7 @@ namespace flexisip {
 	private:
 		std::shared_ptr<linphone::Core> mCore;
 
-		void onChatRoomInstantiated(const std::shared_ptr<linphone::Core> & lc, const std::shared_ptr<linphone::ChatRoom> & cr) override;
+		void onChatRoomStateChanged(const std::shared_ptr<linphone::Core> & lc, const std::shared_ptr<linphone::ChatRoom> & cr, linphone::ChatRoomState state) override;
 		void onConferenceAddressGeneration(const std::shared_ptr<linphone::ChatRoom> & cr) override;
 
 		// Used to declare the service configuration
