@@ -74,7 +74,7 @@ BuildRequires: protobuf-compiler >= 2.3.0
 %endif
 
 %if %{redis}
-Requires: %{pkg_prefix}hiredis-devel >= 0.11
+Requires: %{pkg_prefix}hiredis-devel >= 0.13
 %endif
 
 %if %{snmp}
