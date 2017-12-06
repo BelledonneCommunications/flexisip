@@ -463,10 +463,9 @@ static bool getBoolParam(url_t *url, const char *param) {
 
 bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url) {
 	bool result = false;
-	su_home_t home;
-	su_home_init(&home);
+	SofiaAutoHome home;
 
-	url_t *url = url_make(&home, full_url);
+	url_t *url = url_make(home.home(), full_url);
 
 	// CallId
 	string call_id = getStringParam(url, "callid");
@@ -491,7 +490,7 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 	// Accept headers
 	list<string> acceptHeaders;
 
-	char *headers = url_query_as_header_string(&home, url->url_headers);
+	char *headers = url_query_as_header_string(home.home(), url->url_headers);
 	char *line = NULL;
 	while ((line = strsep(&headers, "\n")) != NULL)
 	{
@@ -516,7 +515,11 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 	url_param(url[0].url_params, "transport", transport, sizeof(transport) - 1);
 
 	url->url_headers = NULL;
-	sip_contact_t *contact = sip_contact_create(&home, (url_string_t*)url, NULL);
+	sip_contact_t *contact = sip_contact_create(home.home(), (url_string_t*)url, NULL);
+	
+	if (contact == NULL){
+		return result;
+	}
 
 	ExtendedContactCommon ecc(key, path, call_id, uid);
 	auto exc = make_shared<ExtendedContact>(ecc, contact, globalExpire, cseq, updatedAt, alias, acceptHeaders);
@@ -528,7 +531,6 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 		result = true;
 	}
 
-	su_home_deinit(&home);
 	return result;
 }
 
