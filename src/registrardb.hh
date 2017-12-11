@@ -69,6 +69,7 @@ struct ExtendedContact {
 	std::string mUniqueId;
 	std::list<std::string> mPath; //list of urls as string (not enclosed with brakets)
 	url_t *mSipUri; // a single sip uri with his params (not enclosed with brakets)
+	sip_contact_t *mSipContact; // Full contact
 	float mQ;
 	time_t mExpireAt;
 	time_t mUpdatedTime;
@@ -138,15 +139,16 @@ struct ExtendedContact {
 			mSipUri(), mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias),mAcceptHeader(acceptHeaders),
 			mUsedAsRoute(false), mRegId(0), mHome() {
 
-		mSipUri = url_hdup(mHome.home(), sip_contact->m_url);
+		mSipContact = sip_contact_dup(mHome.home(), sip_contact);
+		mSipUri = url_hdup(mHome.home(), mSipContact->m_url);
 
-		if (sip_contact->m_q) {
-			mQ = atof(sip_contact->m_q);
+		if (mSipContact->m_q) {
+			mQ = atof(mSipContact->m_q);
 		}
 
-		int expire = resolveExpire(sip_contact->m_expires, global_expire);
+		int expire = resolveExpire(mSipContact->m_expires, global_expire);
 		if (expire == -1) {
-			LOGE("no global expire (%d) nor local contact expire (%s)found", global_expire, sip_contact->m_expires);
+			LOGE("no global expire (%d) nor local contact expire (%s)found", global_expire, mSipContact->m_expires);
 			expire = 0;
 		}
 		mExpireAt = updateTime + expire;
