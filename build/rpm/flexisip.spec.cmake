@@ -81,8 +81,8 @@ Requires: net-snmp-devel
 %endif
 
 %if %{soci}
-Requires: soci
-Requires: soci-mysql-devel
+Requires: %{pkg_prefix}soci
+Requires: %{pkg_prefix}soci-mysql-devel
 %endif
 
 %if %{transcoder}
