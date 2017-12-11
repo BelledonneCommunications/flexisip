@@ -201,12 +201,15 @@ class RelayChannel : public SdpMasqueradeContext{
 	RelayChannel(RelaySession *relaySession, const std::pair<std::string, std::string> &relayIps, bool preventLoops);
 	~RelayChannel();
 	bool checkSocketsValid();
-	void setRemoteAddr(const std::string &ip, int port, Dir dir);
+	void setRemoteAddr(const std::string &ip, int port, int rtcp_port, Dir dir);
 	const std::string &getRemoteIp() const {
 		return mRemoteIp;
 	}
-	int getRemotePort() const {
-		return mRemotePort;
+	int getRemoteRtpPort() const {
+		return mRemotePort[0];
+	}
+	int getRemoteRtcpPort() const{
+		return mRemotePort[1];
 	}
 	const std::string &getLocalIp() const {
 		return mLocalIp;
@@ -234,16 +237,18 @@ class RelayChannel : public SdpMasqueradeContext{
 	static const char *dirToString(Dir dir);
 
   private:
+	static const int sMaxRecvErrors = 50;
 	Dir mDir;
 	std::string mLocalIp;
 	std::string mRemoteIp;
-	int mRemotePort;
+	int mRemotePort[2];
 	RtpSession *mSession;
 	int mSockets[2];
 	struct sockaddr_storage mSockAddr[2]; /*the destination address in use*/
 	socklen_t mSockAddrSize[2];
 	std::shared_ptr<MediaFilter> mFilter;
 	int mPfdIndex;
+	int mRecvErrorCount[2];
 	uint64_t mPacketsSent;
 	uint64_t mPacketsReceived;
 	bool mPreventLoop;

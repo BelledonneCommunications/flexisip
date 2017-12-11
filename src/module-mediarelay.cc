@@ -181,7 +181,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	}
 
 	// assign destination address of offerer
-	m->iterateInOffer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, from_tag, transaction->getBranchId(),false));
+	m->iterateInOffer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, _4, from_tag, transaction->getBranchId(),false));
 
 	// Masquerade using ICE
 	m->addIceCandidateInOffer(bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()),
@@ -292,7 +292,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 		return;
 	}
 	//acquire destination ip/ports from answerer
-	m->iterateInAnswer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, to_tag, transaction->getBranchId(),isEarlyMedia));
+	m->iterateInAnswer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, _4, to_tag, transaction->getBranchId(),isEarlyMedia));
 
 	//push ICE relay candidates if necessary, and update the ICE states.
 	m->addIceCandidateInAnswer(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()),

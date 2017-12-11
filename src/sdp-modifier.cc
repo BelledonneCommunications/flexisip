@@ -433,7 +433,7 @@ void SdpModifier::changeMediaConnection(sdp_media_t *mline, const char *relay_ip
 }
 
 void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool isOffer, bool forceRelay){
+			std::function< std::tuple<std::string,int,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool isOffer, bool forceRelay){
 	char foundation[32];
 	sdp_media_t *mline=mSession->sdp_media;
 	uint64_t r;
@@ -480,7 +480,7 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 					priority = (65535 << 8) | (256 - componentID);
 					ostringstream candidate_line;
 					candidate_line << foundation << ' ' << componentID << " UDP " << priority << ' ' << relayAddr.first.c_str() << ' ' << relayAddr.second + componentID - 1
-						<< " typ relay raddr " << destAddr.first << " rport " << destAddr.second + componentID - 1;
+						<< " typ relay raddr " << std::get<0>(destAddr) << " rport " << (componentID == 1 ? std::get<1>(destAddr) : std::get<2>(destAddr));
 					addMediaAttribute(mline, "candidate", candidate_line.str().c_str());
 				}
 			}
@@ -490,16 +490,16 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 }
 
 void SdpModifier::addIceCandidateInOffer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool forceRelay){
+			std::function< std::tuple<std::string,int,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool forceRelay){
 	addIceCandidate(getRelayAddrFcn, getDestAddrFcn, getMasqueradeContexts, true, forceRelay);
 }
 
 void SdpModifier::addIceCandidateInAnswer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-	std::function< std::pair<std::string,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool forceRelay){
+	std::function< std::tuple<std::string,int,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool forceRelay){
 	addIceCandidate(getRelayAddrFcn, getDestAddrFcn, getMasqueradeContexts, false, forceRelay);
 }
 
-void SdpModifier::iterate(function<void(int, const string &, int )> fct){
+void SdpModifier::iterate(function<void(int, const string &, int, int )> fct){
 	sdp_media_t *mline=mSession->sdp_media;
 	int i;
 	string global_c_address;
@@ -509,18 +509,24 @@ void SdpModifier::iterate(function<void(int, const string &, int )> fct){
 	for(i=0;mline!=NULL;mline=mline->m_next,++i){
 		string ip=(mline->m_connections && mline->m_connections->c_address) ? mline->m_connections->c_address : global_c_address;
 		int port=mline->m_port;
+		int rtcp_port = port != 0 ? port + 1 : 0;
 		if (hasMediaAttribute(mline,mNortproxy.c_str()) ) continue;
-
-		fct(i, ip, port);
+		
+		sdp_attribute_t *a_rtcp = sdp_attribute_find(mline->m_attributes,"rtcp");
+		if (a_rtcp && a_rtcp->a_value){
+			istringstream ist(string(a_rtcp->a_value));
+			ist >> rtcp_port;
+		}
+		fct(i, ip, port, rtcp_port);
 	}
 }
 
-void SdpModifier::iterateInOffer( function<void(int, const string &, int )> fct ) {
+void SdpModifier::iterateInOffer( function<void(int, const string &, int, int )> fct ) {
 	iterate(fct);
 }
 
 
-void SdpModifier::iterateInAnswer( function<void(int, const string &, int )> fct) {
+void SdpModifier::iterateInAnswer( function<void(int, const string &, int, int )> fct) {
 	iterate(fct);
 }
 

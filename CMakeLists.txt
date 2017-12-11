@@ -40,7 +40,7 @@ include(GNUInstallDirs)
 
 option(ENABLE_STRICT "Pass strict flags to the compiler" YES)
 option(ENABLE_DATEHANDLER "Build DateHandler module" NO)
-option(ENABLE_DOC "Build documentation" NO)
+option(ENABLE_PDFDOC "Build pdf documentation" NO)
 option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" NO)
 option(ENABLE_ODBC "Build ODBC support for database connection" NO)
 option(ENABLE_PRESENCE "Build presence support" NO)
@@ -209,7 +209,7 @@ if(ENABLE_PROTOBUF)
 	endif()
 endif()
 
-if(ENABLE_DOC)
+if(ENABLE_PDFDOC)
 	FIND_PROGRAM_REQUIRED(PDFLATEX_PROG pdflatex)
 endif()
 
@@ -229,7 +229,7 @@ endif()
 
 if(ENABLE_SOCI)
 	find_package(Soci REQUIRED COMPONENTS mysql)
-	find_path(SOCI_MYSQL_INCLUDES NAMES mysql.h PATH_SUFFIXES mysql)
+	find_path(SOCI_MYSQL_INCLUDES NAMES mysql.h PATH_SUFFIXES mysql HINTS /usr/include/mariadb )
 endif()
 
 
