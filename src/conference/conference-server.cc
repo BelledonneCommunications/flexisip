@@ -167,6 +167,44 @@ void ConferenceServer::onConferenceAddressGeneration(const std::shared_ptr<linph
 	generator->generateAddress();
 }
 
+void ConferenceServer::onParticipantDeviceFetched(const std::shared_ptr<linphone::ChatRoom> & cr, const std::shared_ptr<const linphone::Address> & participantAddr) {
+	class ParticipantDevicesSearch : public ContactUpdateListener, public enable_shared_from_this<ParticipantDevicesSearch> {
+	public:
+		ParticipantDevicesSearch(const std::shared_ptr<linphone::ChatRoom> &cr, const std::shared_ptr<const linphone::Address> &uri) : mChatRoom(cr), mSipUri(uri) {}
+
+		void searchingDevices() {
+			url_t *url = url_make(mHome.home(), mSipUri->asStringUriOnly().c_str());
+			RegistrarDb::get()->fetch(url, shared_from_this(), false, false);
+		}
+	private:
+		SofiaAutoHome mHome;
+		const shared_ptr<linphone::ChatRoom> mChatRoom;
+		const std::shared_ptr<const linphone::Address> mSipUri;
+
+		void onRecordFound(Record *r) {
+			if (r) {
+				string participantStringUri = ExtendedContact::urlToString(r->getExtendedContacts().front()->mSipUri);
+				shared_ptr<linphone::Address> participantAddr = linphone::Factory::get()->createAddress(participantStringUri);
+				list<string> listDevices;
+				for (const shared_ptr<ExtendedContact> ec : r->getExtendedContacts()) {
+					string uri = ExtendedContact::urlToString(ec->mSipUri);
+					shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
+					if (addr->getUriParam("gr").length() > 0) {
+						shared_ptr<linphone::Address> gruuAddr = linphone::Factory::get()->createAddress(mSipUri->asStringUriOnly());
+						gruuAddr->setUriParam("gr", addr->getUriParam("gr"));
+						listDevices.push_back(addr->asString());
+					}
+				}
+				mChatRoom->setParticipantDevices(participantAddr, listDevices);
+			}
+		}
+		void onError() {}
+		void onInvalid() {}
+		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {}
+	};
+	shared_ptr<ParticipantDevicesSearch> search= make_shared<ParticipantDevicesSearch>(cr, participantAddr);
+	search->searchingDevices();
+}
 
 void ConferenceServer::bindConference() {
 	class fakeListener : public ContactUpdateListener {
