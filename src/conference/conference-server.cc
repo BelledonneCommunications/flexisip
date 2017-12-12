@@ -185,17 +185,17 @@ void ConferenceServer::onParticipantDeviceFetched(const std::shared_ptr<linphone
 			if (r) {
 				string participantStringUri = ExtendedContact::urlToString(r->getExtendedContacts().front()->mSipUri);
 				shared_ptr<linphone::Address> participantAddr = linphone::Factory::get()->createAddress(participantStringUri);
-				list<string> listDevices;
-				for (const shared_ptr<ExtendedContact> ec : r->getExtendedContacts()) {
+				list<shared_ptr<linphone::Address>> listDevices;
+				for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
 					string uri = ExtendedContact::urlToString(ec->mSipUri);
 					shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
-					if (addr->getUriParam("gr").length() > 0) {
+					if (!addr->getUriParam("gr").empty()) {
 						shared_ptr<linphone::Address> gruuAddr = linphone::Factory::get()->createAddress(mSipUri->asStringUriOnly());
 						gruuAddr->setUriParam("gr", addr->getUriParam("gr"));
-						listDevices.push_back(addr->asString());
+						listDevices.push_back(gruuAddr);
 					}
 				}
-				mChatRoom->setParticipantDevices(participantAddr, listDevices);
+				mChatRoom->setParticipantDevices(mSipUri, listDevices);
 			}
 		}
 		void onError() {}
