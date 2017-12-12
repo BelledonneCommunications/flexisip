@@ -48,7 +48,7 @@ static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const
 	tport_t *old_tport;
 
 	if (module->getAgent() != NULL && ec->mPath.size() == 1) {
-		if (tport_name_by_url(home.home(), &name, (url_string_t *)ec->mSipUri) == 0) {
+		if (tport_name_by_url(home.home(), &name, (url_string_t *)ec->mSipContact->m_url) == 0) {
 			old_tport = tport_by_name(nta_agent_tports(module->getSofiaAgent()), &name);
 
 			// RegId not set or different from ec
@@ -62,13 +62,13 @@ static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const
 					&& (tport_get_user_data(old_tport) == NULL
 						|| (uint64_t)tport_get_user_data(new_tport) == (uint64_t)tport_get_user_data(old_tport))
 					) {
-				SLOGD << "Removing old tport for sip uri " << ExtendedContact::urlToString(ec->mSipUri);
+				SLOGD << "Removing old tport for sip uri " << ExtendedContact::urlToString(ec->mSipContact->m_url);
 				// 0 close incoming data, 1 close outgoing data, 2 both
 				tport_shutdown(old_tport, 2);
 			}
 		} else
 			SLOGE << "ContactUpdated: tport_name_by_url() failed for sip uri "
-					<< ExtendedContact::urlToString(ec->mSipUri);
+					<< ExtendedContact::urlToString(ec->mSipContact->m_url);
 	}
 }
 

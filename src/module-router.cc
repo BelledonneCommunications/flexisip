@@ -446,11 +446,11 @@ void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, cons
 		// Find all contexts
 		contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
 		path = ec->toSofiaRoute(home.home());
-		auto rang = mForks.equal_range(ExtendedContact::urlToString(ec->mSipUri));
+		auto rang = mForks.equal_range(ExtendedContact::urlToString(ec->mSipContact->m_url));
 		for (auto ite = rang.first; ite != rang.second; ++ite) {
 			shared_ptr<ForkContext> context = ite->second;
 			if (context->onNewRegister(contact->m_url, uid)) {
-				LOGD("Found a pending context for contact %s: %p", ExtendedContact::urlToString(ec->mSipUri).c_str(), context.get());
+				LOGD("Found a pending context for contact %s: %p", ExtendedContact::urlToString(ec->mSipContact->m_url).c_str(), context.get());
 				auto stlpath = Record::route_to_stl(path);
 				dispatch(context->getEvent(), ec, context, "");
 			}
@@ -524,12 +524,12 @@ class ForkGroupSorter {
 
 			dest.mSipContact = (*it).first;
 			dest.mExtendedContact = (*it).second;
-			targetUris << "<" << dest.mExtendedContact->mSipUri << ">";
+			targetUris << "<" << dest.mExtendedContact->mSipContact->m_url << ">";
 			url_t *url = url_make(home.home(), (*it).second->mPath.back().c_str());
 			// remove it and now search for other contacts that have the same route.
 			it = mAllContacts.erase(it);
 			while ((sameDestinationIt = findDestination(url)) != mAllContacts.end()) {
-				targetUris << ", <" << (*sameDestinationIt).second->mSipUri << ">";
+				targetUris << ", <" << (*sameDestinationIt).second->mSipContact->m_url << ">";
 				mAllContacts.erase(sameDestinationIt);
 				foundGroup = true;
 			}
@@ -598,7 +598,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 		const shared_ptr<ExtendedContact> &ec = *it;
 		sip_contact_t *ct = ec->toSofiaContact(ms->getHome(), now);
 		if (!ct) {
-			SLOGE << "Can't create sip_contact of " << ec->mSipUri;
+			SLOGE << "Can't create sip_contact of " << ec->mSipContact->m_url;
 			continue;
 		}
 		if (sip->sip_request->rq_url->url_type == url_sips && ct->m_url->url_type != url_sips) {
@@ -682,7 +682,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			}
 		} else {
 			if (mFork && context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
-				sip_contact_t *temp_ctt = sip_contact_create(ms->getHome(), (url_string_t*)ec->mSipUri, NULL);
+				sip_contact_t *temp_ctt = sip_contact_create(ms->getHome(), (url_string_t*)ec->mSipContact->m_url, NULL);
 
 				if (mUseGlobalDomain) {
 					temp_ctt->m_url->url_host = "merged";

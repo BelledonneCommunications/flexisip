@@ -79,7 +79,7 @@ bool RecordSerializerMsgPack::serialize(Record *r, std::string &serialized, bool
 			c->mCallId,
 			c->mUniqueId,
 			c->mPath,
-			ExtendedContact::urlToString(c->mSipUri),
+			ExtendedContact::urlToString(c->mSipContact->m_url),
 			c->mQ,
 			c->mExpireAt,
 			c->mUpdatedTime,
