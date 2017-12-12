@@ -125,6 +125,8 @@ struct ExtendedContact {
 
 	std::string serializeAsUrlEncodedParams();
 
+	std::string getOrgLinphoneSpecs();
+
 	void transferRegId(const std::shared_ptr<ExtendedContact> &oldEc);
 
 	ExtendedContact(const ExtendedContactCommon &common, sip_contact_t *sip_contact, int global_expire, uint32_t cseq,

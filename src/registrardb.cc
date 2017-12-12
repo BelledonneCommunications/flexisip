@@ -81,6 +81,13 @@ void ExtendedContact::transferRegId(const std::shared_ptr<ExtendedContact> &oldE
 	}
 }
 
+string ExtendedContact::getOrgLinphoneSpecs() {
+	if (!mSipContact) return string();
+	const char *specs = msg_params_find(mSipContact->m_params, "+org.linphone.specs");
+	string result = specs ? string(specs) : string();
+	return result;
+}
+
 sip_contact_t *ExtendedContact::toSofiaContact(su_home_t *home, time_t now) const {
 	time_t expire = mExpireAt - now;
 	if (expire <= 0)
