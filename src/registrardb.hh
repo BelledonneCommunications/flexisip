@@ -136,7 +136,7 @@ struct ExtendedContact {
 	ExtendedContact(const ExtendedContactCommon &common, sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
 		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
-			mSipUri(), mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias),mAcceptHeader(acceptHeaders),
+			mSipUri(), mSipContact(NULL), mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias),mAcceptHeader(acceptHeaders),
 			mUsedAsRoute(false), mRegId(0), mHome() {
 
 		mSipContact = sip_contact_dup(mHome.home(), sip_contact);
@@ -157,22 +157,23 @@ struct ExtendedContact {
 	ExtendedContact(const ExtendedContactCommon &common, const char *sipuri, long expireAt, float q, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
 		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
-			mSipUri(), mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias),
+			mSipUri(), mSipContact(NULL), mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias),
 			mAcceptHeader(acceptHeaders), mUsedAsRoute(false), mRegId(0), mHome() {
 		mSipUri = url_make(mHome.home(), sipuri);
 	}
 
 	ExtendedContact(const url_t *url, const std::string &route)
-		: mContactId(), mCallId(), mUniqueId(), mPath({route}), mSipUri(), mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0),
+		: mContactId(), mCallId(), mUniqueId(), mPath({route}), mSipUri(), mSipContact(NULL), mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0),
 			mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false), mRegId(0), mHome() {
 		mSipUri = url_hdup(mHome.home(), url);
 	}
 	
 	ExtendedContact(const ExtendedContact &ec) 
-		: mContactId(ec.mContactId), mCallId(ec.mCallId), mUniqueId(ec.mUniqueId), mPath(ec.mPath), mSipUri(), mQ(ec.mQ),
+		: mContactId(ec.mContactId), mCallId(ec.mCallId), mUniqueId(ec.mUniqueId), mPath(ec.mPath), mSipUri(), mSipContact(NULL), mQ(ec.mQ),
 			mExpireAt(ec.mExpireAt), mUpdatedTime(ec.mUpdatedTime), mCSeq(ec.mCSeq), mAlias(ec.mAlias),
 			mAcceptHeader(ec.mAcceptHeader), mUsedAsRoute(ec.mUsedAsRoute), mRegId(ec.mRegId), mHome() {
 		mSipUri = url_hdup(mHome.home(), ec.mSipUri);
+		mSipContact = sip_contact_dup(mHome.home(), ec.mSipContact);
 	}
 
 	std::ostream &print(std::ostream &stream, time_t _now = getCurrentTime(), time_t offset = 0) const;
