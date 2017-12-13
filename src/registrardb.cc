@@ -50,7 +50,7 @@ ostream &ExtendedContact::print(std::ostream &stream, time_t _now, time_t _offse
 	}
 	int expireAfter = mExpireAt - now;
 
-	stream << urlToString(mSipUri) << " path=\"";
+	stream << urlToString(mSipContact->m_url) << " path=\"";
 	for (auto it = mPath.cbegin(); it != mPath.cend(); ++it) {
 		if (it != mPath.cbegin())
 			stream << " ";
@@ -68,35 +68,32 @@ void ExtendedContact::transferRegId(const std::shared_ptr<ExtendedContact> &oldE
 	// Transfert param RegId from oldEc to this
 	char strRegid[32] = {0};
 	if (oldEc->mRegId > 0 &&
-			(url_param(this->mSipUri->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0 &&
+			(url_param(this->mSipContact->m_url->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0 &&
 			std::strtoull(strRegid, NULL, 16) != oldEc->mRegId)
 		) {
 		std::ostringstream os;
-		url_t *sipUri = url_hdup(this->mHome.home(), this->mSipUri);
+		url_t *sipUri = url_hdup(this->mHome.home(), this->mSipContact->m_url);
 		os << "regid=" << std::hex << oldEc->mRegId;
-		sipUri->url_params = url_strip_param_string(su_strdup(this->mHome.home(), this->mSipUri->url_params), "regid");
+		sipUri->url_params = url_strip_param_string(su_strdup(this->mHome.home(), this->mSipContact->m_url->url_params), "regid");
 		url_param_add(this->mHome.home(), sipUri, os.str().c_str());
-		this->setSipUri(sipUri);
+		this->mSipContact = sip_contact_create(mHome.home(), (url_string_t*)sipUri, NULL);
 		this->mRegId = oldEc->mRegId;
 	}
 }
 
+string ExtendedContact::getOrgLinphoneSpecs() {
+	if (!mSipContact) return string();
+	const char *specs = msg_params_find(mSipContact->m_params, "+org.linphone.specs");
+	string result = specs ? string(specs) : string();
+	return result;
+}
+
 sip_contact_t *ExtendedContact::toSofiaContact(su_home_t *home, time_t now) const {
-	sip_contact_t *contact = NULL;
 	time_t expire = mExpireAt - now;
 	if (expire <= 0)
 		return NULL;
 
-	ostringstream oss;
-	oss << "expires=" << expire;
-	if (mQ == 0.f) {
-		oss.setf(ios::fixed, ios::floatfield);
-		oss << std::setprecision(2) << std::setw(4);
-		oss << ";q=" << mQ;
-	}
-	contact = sip_contact_create(home, (url_string_t*)mSipUri, oss.str().c_str(), NULL);
-
-	return contact;
+	return mSipContact;
 }
 
 sip_route_t *ExtendedContact::toSofiaRoute(su_home_t *home) const {
@@ -335,19 +332,20 @@ static uint64_t setAndGetRegid(url_t *url, SofiaAutoHome *home) {
 }
 
 string ExtendedContact::serializeAsUrlEncodedParams() {
-	url_t *url = url_hdup(mHome.home(), mSipUri);
+	SofiaAutoHome home;
+	sip_contact_t *contact = sip_contact_dup(home.home(), mSipContact);
 
 	// CallId
 	ostringstream oss;
 	oss << "callid=" << mCallId;
-	url_param_add(mHome.home(), url, oss.str().c_str());
+	url_param_add(home.home(), contact->m_url, oss.str().c_str());
 
 	// Q
 	/*if (mQ == 0.f) {
 		oss.str("");
 		oss.clear();
 		oss << "q=" << mQ;
-		url_param_add(mHome.home(), url, oss.str().c_str());
+		url_param_add(home.home(), contact->m_url, oss.str().c_str());
 	}*/
 
 	// Expire
@@ -355,34 +353,33 @@ string ExtendedContact::serializeAsUrlEncodedParams() {
 	oss.clear();
 	time_t expire = mExpireAt - getCurrentTime();
 	oss << "expires=" << expire;
-	url_param_add(mHome.home(), url, oss.str().c_str());
+	url_param_add(home.home(), contact->m_url, oss.str().c_str());
 
 	// CSeq
 	oss.str("");
 	oss.clear();
 	oss << "cseq=" << mCSeq;
-	url_param_add(mHome.home(), url, oss.str().c_str());
+	url_param_add(home.home(), contact->m_url, oss.str().c_str());
 
 	// Updated at
 	oss.str("");
 	oss.clear();
 	oss << "updatedAt=" << mUpdatedTime;
-	url_param_add(mHome.home(), url, oss.str().c_str());
+	url_param_add(home.home(), contact->m_url, oss.str().c_str());
 
 	// Alias
 	oss.str("");
 	oss.clear();
 	oss << "alias=" << (mAlias ? "yes" : "no");
-	url_param_add(mHome.home(), url, oss.str().c_str());
+	url_param_add(home.home(), contact->m_url, oss.str().c_str());
 
 	// Used as route
 	oss.str("");
 	oss.clear();
 	oss << "usedAsRoute=" << (mUsedAsRoute ? "yes" : "no");
-	url_param_add(mHome.home(), url, oss.str().c_str());
+	url_param_add(home.home(), contact->m_url, oss.str().c_str());
 
 	// Path
-	//sip_path_t *path = path_fromstl(mHome.home(), mPath);
 	ostringstream oss_path;
 	for (auto it = mPath.begin(); it != mPath.end(); ++it) {
 		if (it != mPath.begin()) oss_path << ",";
@@ -390,19 +387,18 @@ string ExtendedContact::serializeAsUrlEncodedParams() {
 	}
 
 	// AcceptHeaders
-	//sip_accept_t *accept = accept_fromstl(mHome.home(), mAcceptHeader);
 	ostringstream oss_accept;
 	for (auto it = mAcceptHeader.begin(); it != mAcceptHeader.end(); ++it) {
 		if (it != mAcceptHeader.begin()) oss_accept << ",";
 		oss_accept << *it;
 	}
 
-	url->url_headers = sip_headers_as_url_query(mHome.home(), 
-		/*SIPTAG_PATH(path), SIPTAG_ACCEPT(accept),*/
+	contact->m_url->url_headers = sip_headers_as_url_query(home.home(),
 		SIPTAG_PATH_STR(oss_path.str().c_str()), SIPTAG_ACCEPT_STR(oss_accept.str().c_str()), 
 		TAG_END());
 
-	return ExtendedContact::urlToString(url);
+	string contact_string(sip_header_as_string(home.home(), (sip_header_t const *)contact));
+	return contact_string;
 }
 
 static string getStringParam(url_t *url, const char *param) {
@@ -463,10 +459,17 @@ static bool getBoolParam(url_t *url, const char *param) {
 
 bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url) {
 	bool result = false;
-	su_home_t home;
-	su_home_init(&home);
+	SofiaAutoHome home;
 
-	url_t *url = url_make(&home, full_url);
+	//TODO recreate contact
+	sip_contact_t *temp_contact = sip_contact_make(home.home(), full_url);	
+	url_t *url = NULL;
+	if (temp_contact == NULL) {
+		SLOGD << "Couldn't parse " << full_url << " as contact, fallback to url instead";
+		url = url_make(home.home(), full_url);
+	} else {
+		url = temp_contact->m_url;
+	}
 
 	// CallId
 	string call_id = getStringParam(url, "callid");
@@ -491,7 +494,7 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 	// Accept headers
 	list<string> acceptHeaders;
 
-	char *headers = url_query_as_header_string(&home, url->url_headers);
+	char *headers = url_query_as_header_string(home.home(), url->url_headers);
 	char *line = NULL;
 	while ((line = strsep(&headers, "\n")) != NULL)
 	{
@@ -516,11 +519,19 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 	url_param(url[0].url_params, "transport", transport, sizeof(transport) - 1);
 
 	url->url_headers = NULL;
-	sip_contact_t *contact = sip_contact_create(&home, (url_string_t*)url, NULL);
+	sip_contact_t *contact = NULL;
+	if (temp_contact == NULL)
+		contact = sip_contact_create(home.home(), (url_string_t*)url, NULL);
+	else
+		contact = temp_contact;
+	
+	if (contact == NULL) {
+		return result;
+	}
 
 	ExtendedContactCommon ecc(key, path, call_id, uid);
 	auto exc = make_shared<ExtendedContact>(ecc, contact, globalExpire, cseq, updatedAt, alias, acceptHeaders);
-	exc->mRegId = setAndGetRegid(exc->mSipUri, &exc->mHome);
+	exc->mRegId = setAndGetRegid(exc->mSipContact->m_url, &exc->mHome);
 	exc->mUsedAsRoute = usedAsRoute;
 
 	if (getCurrentTime() < exc->mExpireAt) {
@@ -528,7 +539,6 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 		result = true;
 	}
 
-	su_home_deinit(&home);
 	return result;
 }
 
@@ -557,7 +567,7 @@ void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalE
 		defineContactId(contactId, contacts->m_url, transportPtr);
 		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr);
 		auto exc = make_shared<ExtendedContact>(ecc, contacts, globalExpire, cseq, now, alias, accept);
-		exc->mRegId = setAndGetRegid(exc->mSipUri, &exc->mHome);
+		exc->mRegId = setAndGetRegid(exc->mSipContact->m_url, &exc->mHome);
 		exc->mUsedAsRoute = usedAsRoute;
 		insertOrUpdateBinding(exc, listener);
 		contacts = contacts->m_next;
@@ -805,17 +815,17 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 				shared_ptr<ExtendedContact> ec = it;
 				// Also add alias for late forking (context in the forks map for this alias key)
 				SLOGD << "Step: " << m_step << (ec->mAlias ? "\tFound alias " : "\tFound contact ") << m_url << " -> "
-					  << ExtendedContact::urlToString(ec->mSipUri) << " usedAsRoute:" << ec->mUsedAsRoute;
+					  << ExtendedContact::urlToString(ec->mSipContact->m_url) << " usedAsRoute:" << ec->mUsedAsRoute;
 				if (!ec->mAlias && ec->mUsedAsRoute) {
 					ec = transformContactUsedAsRoute(m_url, ec);
 				}
 				m_record->pushContact(ec);
 				if (ec->mAlias && m_step > 0) {
-					sip_contact_t *contact = sip_contact_create(&m_home, (url_string_t*)ec->mSipUri, NULL);
+					sip_contact_t *contact = sip_contact_create(&m_home, (url_string_t*)ec->mSipContact->m_url, NULL);
 					if (contact) {
 						vectToRecurseOn.push_back(contact);
 					} else {
-						SLOGW << "Can't create sip_contact of " << ExtendedContact::urlToString(ec->mSipUri);
+						SLOGW << "Can't create sip_contact of " << ExtendedContact::urlToString(ec->mSipContact->m_url);
 					}
 				}
 			}
@@ -863,8 +873,8 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		 * the last request uri that was found recursed through the alias mechanism.
 		*/
 		shared_ptr<ExtendedContact> newEc = make_shared<ExtendedContact>(*ec);
-		newEc->mSipUri = url_make(newEc->mHome.home(), uri);
-		newEc->mPath.push_back(ExtendedContact::urlToString(ec->mSipUri));
+		newEc->mSipContact = sip_contact_create(newEc->mHome.home(), (url_string_t*)uri, NULL);
+		newEc->mPath.push_back(ExtendedContact::urlToString(ec->mSipContact->m_url));
 		// LOGD("transformContactUsedAsRoute(): path to %s added for %s", ec->mSipUri.c_str(), uri);
 		newEc->mUsedAsRoute = false;
 		return newEc;
@@ -943,11 +953,13 @@ void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *
 	// FIXME : get supported as header not string...
 	if (isupported && icontact->m_params) {
 		string supported(sip_header_as_string(home.home(), (sip_header_t *) isupported));
-		if(supported.find("gruu") != string::npos) {
+		if (supported.find("gruu") != string::npos) {
 			stringstream stream;
-			string instance(*(icontact->m_params));
-			if (instance.find("+sip.instance=\"<") != string::npos) {
-				instance = instance.substr(instance.find("+sip.instance=\"<") + strlen("+sip.instance=\"<"));
+			const char *token = "+sip.instance";
+			const char *instance_param = msg_params_find(icontact->m_params, token);
+			string instance(instance_param);
+			if (instance.find("\"<") != string::npos) {
+				instance = instance.substr(instance.find("\"<") + strlen("\"<"));
 				instance = instance.substr(0, instance.find(">"));
 				stream << "gr=" << instance;
 				url_param_add(home.home(), icontact->m_url, stream.str().c_str());

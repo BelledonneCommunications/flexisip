@@ -25,6 +25,7 @@
 #include "mediarelay.hh"
 #include "sdp-modifier.hh"
 #include <map>
+#include <tuple>
 
 
 
@@ -47,9 +48,9 @@ public:
 	std::pair<std::string,int> getChannelSources(int mline, const std::string & partyTag, const std::string &trId);
 
 	/* Obtain destination (previously set by setChannelDestinations()*/
-	std::pair<std::string,int> getChannelDestinations(int mline, const std::string & partyTag, const std::string &trId);
+	std::tuple<std::string,int,int> getChannelDestinations(int mline, const std::string & partyTag, const std::string &trId);
 
-	void setChannelDestinations(const std::shared_ptr<SdpModifier> &m, int mline, const std::string &ip, int port, const std::string & partyTag, const std::string &trId,
+	void setChannelDestinations(const std::shared_ptr<SdpModifier> &m, int mline, const std::string &ip, int rtp_port, int rtcp_port, const std::string & partyTag, const std::string &trId,
 		bool isEarlyMedia);
 
 	void removeBranch(const std::string &trId);

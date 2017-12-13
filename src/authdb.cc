@@ -186,7 +186,7 @@ void AuthDbBackend::getPasswordForAlgo(const std::string &user, const std::strin
                     {
                         list_algorithm.remove(algo_ref->c_str());
                         if(list_algorithm.size()==0){
-                            LOGA("There is no password for the given algorithm");
+                            LOGE("There is no password for the given algorithm");
                         }
                     }
                 }

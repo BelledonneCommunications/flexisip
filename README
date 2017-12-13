@@ -7,8 +7,8 @@ Documentation
 You will find a comprehensive documentation on how to use Flexisip online 
 here: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/
 
-Compilation on Gnu Linux
----------------------
+Compilation on GNU/Linux
+------------------------
 
 Flexisip depends on the following required externals:
 - net-snmp
@@ -21,13 +21,19 @@ Flexisip depends on the following required externals:
 
 You can issue ./prepare.py  -lf to specify these up.
 
-Rpm on Gnu Linux
----------------------
+Alternatively, provided that ortp, bctoolbox and sofia-sip dependencies are installed on the system, flexisip's cmake
+integration can be used directly, for example:
+
+cmake . -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc
+
+
+RPM generation on GNU/Linux
+---------------------------
 ./prepare.py flexisip-rpm
 make
 
 cmake/Xcode under macosx
---------------
+------------------------
 
 To compile, with cmake/Xcode, first update submodule using:
 - ./prepare.py -G Xcode flexisip \

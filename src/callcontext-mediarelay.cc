@@ -117,20 +117,20 @@ std::pair<string,int> RelayedCall::getChannelSources(int mline, const std::strin
 }
 	
 /* Obtain destination (previously set by setChannelDestinations()*/
-std::pair<string,int> RelayedCall::getChannelDestinations(int mline, const std::string & partyTag, const std::string &trId){
+std::tuple<string,int,int> RelayedCall::getChannelDestinations(int mline, const std::string & partyTag, const std::string &trId){
 	if (mline >= sMaxSessions) {
-		return make_pair("",0);
+		return make_tuple("",0,0);
 	}
 	shared_ptr<RelaySession> s = mSessions[mline];
 	if (s != NULL) {
 		shared_ptr<RelayChannel> chan=s->getChannel(partyTag,trId);
-		if (chan) return make_pair(chan->getRemoteIp(),chan->getRemotePort());
+		if (chan) return make_tuple(chan->getRemoteIp(),chan->getRemoteRtpPort(), chan->getRemoteRtcpPort());
 	}
-	return make_pair("",0);
+	return make_tuple("",0,0);
 }
 
 
-void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier> &m, int mline, const string &ip, int port, const string & partyTag, const string &trId, bool isEarlyMedia){
+void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier> &m, int mline, const string &ip, int rtp_port, int rtcp_port, const string & partyTag, const string &trId, bool isEarlyMedia){
 	if (mline >= sMaxSessions) {
 		return;
 	}
@@ -169,7 +169,7 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier> &m, int m
 				}
 			}
 			configureRelayChannel(chan,m->mSip,m->mSession,mline);
-			chan->setRemoteAddr(ip, port,dir);
+			chan->setRemoteAddr(ip, rtp_port, rtcp_port, dir);
 		}
 	}
 }

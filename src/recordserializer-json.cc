@@ -109,7 +109,7 @@ bool RecordSerializerJson::serialize(Record *r, string &serialized, bool log) {
 		cJSON_AddItemToObject(c, "acceptHeaders", acceptHeaders);
 
 		shared_ptr<ExtendedContact> ec = (*it);
-		cJSON_AddStringToObject(c, "uri", ExtendedContact::urlToString(ec->mSipUri).c_str());
+		cJSON_AddStringToObject(c, "uri", ExtendedContact::urlToString(ec->mSipContact->m_url).c_str());
 		cJSON_AddNumberToObject(c, "expires_at", ec->mExpireAt);
 		cJSON_AddNumberToObject(c, "q", ec->mQ ? ec->mQ : 0);
 		if (ec->line())

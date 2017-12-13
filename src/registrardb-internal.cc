@@ -101,11 +101,12 @@ void RegistrarDbInternal::doFetchForGruu(const url_t *url, const string &gruu, c
 	Record tmpRecord(url);
 	std::list<std::shared_ptr<ExtendedContact>> contacts = r->getExtendedContacts();
 	for (auto &contact : contacts) {
-		if(!url_has_param(contact->mSipUri, "gr")) {
+		if(!url_has_param(contact->mSipContact->m_url, "gr")) {
+			r->removeContact(contact);
 			continue;
 		}
 		char *buffer = new char[255];
-		isize_t result = url_param(contact->mSipUri->url_params, "gr", buffer, 255);
+		isize_t result = url_param(contact->mSipContact->m_url->url_params, "gr", buffer, 255);
 		if(result <= 0) {
 			continue;
 		}
