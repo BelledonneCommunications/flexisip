@@ -803,6 +803,7 @@ void PresenceServer::modifyEtag(const string &oldEtag, const string &newEtag) {
 	mPresenceInformationsByEtag[newEtag] = presenceInformationsByEtagIt->second;
 	mPresenceInformationsByEtag.erase(oldEtag);
 }
+
 void PresenceServer::addEtag(const std::shared_ptr<PresentityPresenceInformation> &info, const string &etag) {
 	auto presenceInformationsByEtagIt = mPresenceInformationsByEtag.find(etag);
 	if (presenceInformationsByEtagIt != mPresenceInformationsByEtag.end())

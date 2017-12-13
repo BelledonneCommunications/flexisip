@@ -476,7 +476,7 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 
 	for (sip_contact_t *contact = modified_contacts; contact!=NULL ; contact=contact->m_next) {
 		if(sip->sip_request->rq_method == sip_method_register && code == 200
-		   && contact) {
+		   && contact && contact->m_url) {
 			if (url_has_param(contact->m_url, "gr")) {
 				string gruu;
 				char *buffer = new char[255];

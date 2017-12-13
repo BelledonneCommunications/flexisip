@@ -560,7 +560,7 @@ ConfigBoolean::ConfigBoolean(const string &name, const string &help, const strin
 	: ConfigValue(name, Boolean, help, default_value, oid_index) {
 }
 
-bool ConfigBoolean::parse(const string &value){
+bool ConfigBoolean::parse(const string &value) {
 	if (value == "true" || value == "1")
 		return true;
 	else if (value == "false" || value == "0")
@@ -831,7 +831,7 @@ GenericManager::GenericManager()
 		{Boolean, "enable-snmp", "Enable SNMP.", "true"},
 		{String, "unique-id", "Unique ID used to identify that instance of Flexisip. It must be a randomly generated "
 			"16-sized hexadecimal number. If empty, it will be randomly generated at each start of Flexisip.", ""},
-		{Boolean, "use-maddr", "Allow flexisip to use maddr in sips connections to verify the CN of the TLS certificate", "false"},
+		{Boolean, "use-maddr", "Allow flexisip to use maddr in sips connections to verify the CN of the TLS certificate", "true"},
 		{Boolean, "debug", "Outputs very detailed logs", "false"},
 		config_item_end};
 

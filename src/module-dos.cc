@@ -360,7 +360,7 @@ class DoSProtection : public Module, ModuleToolbox {
 		}
 	}
 
-	void onResponse(std::shared_ptr<ResponseSipEvent> &ev){
+	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
 
 	};
 

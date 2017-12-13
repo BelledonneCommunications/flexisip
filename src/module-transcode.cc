@@ -419,7 +419,7 @@ void Transcoder::processAck(TranscodedCall *ctx, shared_ptr<RequestSipEvent> &ev
 	}
 }
 
-void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev){
+void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 

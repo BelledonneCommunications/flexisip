@@ -117,7 +117,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 *
 	 * @return new eTag
 	 * */
-	std::string updateTuples(Xsd::Pidf::Presence::TupleSequence &tuples, Xsd::DataModel::Person &person, std::string &eTag,
+	std::string updateTuples(pidf::Presence::TupleSequence &tuples, data_model::Person &person, std::string &eTag,
 						int expires);
 
 	/*
@@ -188,7 +188,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	/*
 	 * tuples may be null
 	 */
-	std::string setOrUpdate(Xsd::Pidf::Presence::TupleSequence *tuples, Xsd::DataModel::Person *, const std::string *eTag,
+	std::string setOrUpdate(pidf::Presence::TupleSequence *tuples, data_model::Person *, const std::string *eTag,
 					   int expires);
 	/*
 	 *Notify all listener

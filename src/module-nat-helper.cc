@@ -57,7 +57,8 @@ class NatHelper : public Module, protected ModuleToolbox {
 		// Idea for future: for the case where a natted proxy forwards a REGISTER (which can be detected , we could add
 		// a Path header corresponding to this proxy
 	}
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev){
+
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_status_t *st = ms->getSip()->sip_status;
 		sip_cseq_t *cseq = ms->getSip()->sip_cseq;

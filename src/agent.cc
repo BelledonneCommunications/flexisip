@@ -367,8 +367,17 @@ void Agent::start(const std::string &transport_override, const std::string passp
 	if (mRtpBindIp6.empty())
 		mRtpBindIp6 = "::0";
 
-	mPublicResolvedIpV4 = computeResolvedPublicIp(mPublicIpV4);
-	mPublicResolvedIpV6 = computeResolvedPublicIp(mPublicIpV6);
+	mPublicResolvedIpV4 = computeResolvedPublicIp(mPublicIpV4, AF_INET);
+	
+	if (!mPublicIpV6.empty()){
+		mPublicResolvedIpV6 = computeResolvedPublicIp(mPublicIpV6, AF_INET6);
+	}else{
+		/*attempt to resolve as ipv6, in case it is a hostname*/
+		mPublicResolvedIpV6 = computeResolvedPublicIp(mPublicIpV4, AF_INET6);
+		if (!mPublicResolvedIpV6.empty()){
+			mPublicIpV6 = mPublicIpV4;
+		}
+	}
 
 	// Generate the unique ID if it has not been specified in Flexisip's settings
 	if (mUniqueId.empty()) {
@@ -530,12 +539,12 @@ void Agent::unloadConfig() {
 	}
 }
 
-std::string Agent::computeResolvedPublicIp(const std::string &host) const {
+std::string Agent::computeResolvedPublicIp(const std::string &host, int family) const {
 	int err;
 	struct addrinfo hints;
 	string dest;
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
+	hints.ai_family = family;
 	struct addrinfo *result;
 
 	dest.clear();

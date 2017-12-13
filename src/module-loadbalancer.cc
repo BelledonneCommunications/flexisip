@@ -66,7 +66,7 @@ void LoadBalancer::onLoad(const GenericStruct *modconf) {
 	mRoutesCount = mRoutes.size();
 }
 
-void LoadBalancer::onRequest(shared_ptr<RequestSipEvent> &ev){
+void LoadBalancer::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	uint32_t call_hash;
 	sip_t *sip = ms->getSip();
@@ -87,7 +87,7 @@ void LoadBalancer::onRequest(shared_ptr<RequestSipEvent> &ev){
 	}
 }
 
-void LoadBalancer::onResponse(shared_ptr<ResponseSipEvent> &ev){
+void LoadBalancer::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	/*nothing to do*/
 }
 
