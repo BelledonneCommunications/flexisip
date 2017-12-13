@@ -142,7 +142,7 @@ void ConferenceServer::onConferenceAddressGeneration(const std::shared_ptr<linph
 				}
 			} else {
 				const shared_ptr<ExtendedContact> ec = r->getExtendedContacts().front();
-				string uri = ExtendedContact::urlToString(ec->mSipUri);
+				string uri = ExtendedContact::urlToString(ec->mSipContact->m_url);
 				shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
 				shared_ptr<linphone::Address> gruuAddr = linphone::Factory::get()->createAddress(mConferenceAddr->asStringUriOnly());
 				gruuAddr->setUriParam("gr", addr->getUriParam("gr"));
@@ -183,13 +183,13 @@ void ConferenceServer::onParticipantDeviceFetched(const std::shared_ptr<linphone
 
 		void onRecordFound(Record *r) {
 			if (r) {
-				string participantStringUri = ExtendedContact::urlToString(r->getExtendedContacts().front()->mSipUri);
+				string participantStringUri = ExtendedContact::urlToString(r->getExtendedContacts().front()->mSipContact->m_url);
 				shared_ptr<linphone::Address> participantAddr = linphone::Factory::get()->createAddress(participantStringUri);
 				list<shared_ptr<linphone::Address>> listDevices;
 				for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
-					string uri = ExtendedContact::urlToString(ec->mSipUri);
+					string uri = ExtendedContact::urlToString(ec->mSipContact->m_url);
 					shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
-					if (!addr->getUriParam("gr").empty()) {
+					if (!addr->getUriParam("gr").empty() ) {
 						shared_ptr<linphone::Address> gruuAddr = linphone::Factory::get()->createAddress(mSipUri->asStringUriOnly());
 						gruuAddr->setUriParam("gr", addr->getUriParam("gr"));
 						listDevices.push_back(gruuAddr);

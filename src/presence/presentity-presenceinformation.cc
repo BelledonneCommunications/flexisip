@@ -108,18 +108,16 @@ string PresentityPresenceInformation::putTuples(Xsd::Pidf::Presence::TupleSequen
 												Xsd::DataModel::Person &person, int expires) {
 	return setOrUpdate(&tuples, &person, NULL, expires);
 }
-
-string PresentityPresenceInformation::updateTuples(pidf::Presence::TupleSequence &tuples,
-												   data_model::Person  &person, string &eTag,
+string PresentityPresenceInformation::updateTuples(Xsd::Pidf::Presence::TupleSequence &tuples,
+												   Xsd::DataModel::Person  &person, string &eTag,
 												   int expires) {
 	return setOrUpdate(&tuples, &person, &eTag, expires);
 }
 void PresenceInformationElement::clearTuples() {
 	mTuples.clear();
 }
-
-string PresentityPresenceInformation::setOrUpdate(pidf::Presence::TupleSequence *tuples,
-												  data_model::Person  *person, const string *eTag,
+string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequence *tuples,
+												  Xsd::DataModel::Person  *person, const string *eTag,
 												  int expires) {
 	PresenceInformationElement *informationElement = NULL;
 
