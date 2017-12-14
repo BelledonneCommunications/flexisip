@@ -266,8 +266,6 @@ string Record::defineKeyFromUrl(const url_t *url) {
 }
 
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener) {
-	// Try to locate an existing contact
-	shared_ptr<ExtendedContact> olderEc;
 	time_t now = getCurrentTime();
 
 	SLOGD << "Trying to insert new contact " << *ec;
@@ -290,20 +288,26 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 			ec->transferRegId((*it));
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
-		} else if (!olderEc || olderEc->mUpdatedTime > (*it)->mUpdatedTime) {
-			olderEc = (*it);
-			++it;
 		} else {
 			++it;
 		}
 	}
+	mContacts.push_back(ec);
+}
 
+static bool compare_contact_using_last_update (shared_ptr<ExtendedContact> first, shared_ptr<ExtendedContact> second) {
+	return first->mUpdatedTime < second->mUpdatedTime;
+}
+
+void Record::applyMaxAor() {
 	// If contact doesn't exist and there is space left
-	if (mContacts.size() < (unsigned int)sMaxContacts) {
-		mContacts.push_back(ec);
-	} else if (olderEc){ // no space
-		mContacts.remove(olderEc);
-		mContacts.push_back(ec);
+	if (mContacts.size() > (unsigned int)sMaxContacts) {
+		mContacts.sort(compare_contact_using_last_update);
+		do {
+			shared_ptr<ExtendedContact> front = mContacts.front();
+			mContacts.pop_front();
+			mContactsToRemove.push_back(front);
+		} while (mContacts.size() > (unsigned int)sMaxContacts);
 	}
 }
 
@@ -461,7 +465,6 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 	bool result = false;
 	SofiaAutoHome home;
 
-	//TODO recreate contact
 	sip_contact_t *temp_contact = sip_contact_make(home.home(), full_url);	
 	url_t *url = NULL;
 	if (temp_contact == NULL) {
@@ -572,6 +575,7 @@ void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalE
 		insertOrUpdateBinding(exc, listener);
 		contacts = contacts->m_next;
 	}
+	applyMaxAor();
 
 	SLOGD << *this;
 }
@@ -584,6 +588,7 @@ void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long e
 	exct->mRegId = setAndGetRegid(sipUri, &exct->mHome);
 	exct->mUsedAsRoute = usedAsRoute;
 	insertOrUpdateBinding(exct, listener);
+	applyMaxAor();
 
 	SLOGD << *this;
 }

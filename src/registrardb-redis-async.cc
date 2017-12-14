@@ -685,6 +685,15 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 					check_redis_command(redisAsyncCommand(data->self->mContext, NULL, NULL, "HDEL fs:%s %s", key, uid), data);
 				}
 			}
+			data->record.applyMaxAor();
+
+			for (auto it = data->record.getContactsToRemove().begin(); it != data->record.getContactsToRemove().end(); ++it) {
+				// Remove from REDIS contacts removed from record
+				const char *uid = (*it)->mUniqueId.c_str();
+				LOGD("Record %s has too many contacts, removing %s from redis", key, uid);
+				check_redis_command(redisAsyncCommand(data->self->mContext, NULL, NULL, "HDEL fs:%s %s", key, uid), data);
+			}
+			data->record.cleanContactsToRemoveList();
 
 			if (data->mUpdateExpire) {
 				time_t expireat = data->record.latestExpire();

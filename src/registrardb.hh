@@ -188,8 +188,10 @@ class Record {
 	static void init();
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener);
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
+	std::list<std::shared_ptr<ExtendedContact>> mContactsToRemove;
 	std::string mKey;
 	bool mIsDomain; /*is a domain registration*/
+
   public:
 	static std::list<std::string> sLineFieldNames;
 	static int sMaxContacts;
@@ -227,6 +229,16 @@ class Record {
 	const std::list<std::shared_ptr<ExtendedContact>> &getExtendedContacts() const {
 		return mContacts;
 	}
+	const std::list<std::shared_ptr<ExtendedContact>> &getContactsToRemove() const {
+		return mContactsToRemove;
+	}
+	void cleanContactsToRemoveList() {
+		mContactsToRemove.clear();
+	}
+	/**
+	 * Check if the contacts list size is < to max aor config option and remove older contacts to match restriction if needed
+	 */
+	void applyMaxAor();
 	static int getMaxContacts() {
 		if (sMaxContacts == -1)
 			init();
