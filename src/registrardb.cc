@@ -93,6 +93,7 @@ sip_contact_t *ExtendedContact::toSofiaContact(su_home_t *home, time_t now) cons
 	if (expire <= 0)
 		return NULL;
 
+	mSipContact->m_next = NULL;
 	return mSipContact;
 }
 
