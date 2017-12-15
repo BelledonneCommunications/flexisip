@@ -179,17 +179,15 @@ void ConferenceServer::onParticipantDeviceFetched(const std::shared_ptr<linphone
 	private:
 		SofiaAutoHome mHome;
 		const shared_ptr<linphone::ChatRoom> mChatRoom;
-		const std::shared_ptr<const linphone::Address> mSipUri;
+		const shared_ptr<const linphone::Address> mSipUri;
 
 		void onRecordFound(Record *r) {
 			if (r) {
-				string participantStringUri = ExtendedContact::urlToString(r->getExtendedContacts().front()->mSipContact->m_url);
-				shared_ptr<linphone::Address> participantAddr = linphone::Factory::get()->createAddress(participantStringUri);
 				list<shared_ptr<linphone::Address>> listDevices;
 				for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
 					string uri = ExtendedContact::urlToString(ec->mSipContact->m_url);
 					shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
-					if (!addr->getUriParam("gr").empty() ) {
+					if (!addr->getUriParam("gr").empty() && ec->getOrgLinphoneSpecs().find("groupchat") != string::npos) {
 						shared_ptr<linphone::Address> gruuAddr = linphone::Factory::get()->createAddress(mSipUri->asStringUriOnly());
 						gruuAddr->setUriParam("gr", addr->getUriParam("gr"));
 						listDevices.push_back(gruuAddr);
@@ -204,6 +202,51 @@ void ConferenceServer::onParticipantDeviceFetched(const std::shared_ptr<linphone
 	};
 	shared_ptr<ParticipantDevicesSearch> search= make_shared<ParticipantDevicesSearch>(cr, participantAddr);
 	search->searchingDevices();
+}
+
+void ConferenceServer::onParticipantsCapabilitiesChecked(const shared_ptr<linphone::ChatRoom> & cr, const shared_ptr<const linphone::Address> &deviceAddr, const list<shared_ptr<linphone::Address> > & participantsAddr) {
+	class ParticipantsCapabilitiesCheck : public ContactUpdateListener, public enable_shared_from_this<ParticipantsCapabilitiesCheck> {
+	public:
+		ParticipantsCapabilitiesCheck(const shared_ptr<linphone::ChatRoom> &cr, const shared_ptr<const linphone::Address> &deviceAddr, const list<shared_ptr<linphone::Address>> &list) : mChatRoom(cr), mDeviceAddr(deviceAddr), mParticipantsList(list) {
+			mIterator = mParticipantsList.begin();
+		}
+		
+		void checkParticipantsCapabilities() {
+			url_t *url = url_make(mHome.home(), mIterator->get()->asStringUriOnly().c_str());
+			RegistrarDb::get()->fetch(url, shared_from_this(), false, false);
+		}
+	private:
+		SofiaAutoHome mHome;
+		const shared_ptr<linphone::ChatRoom> mChatRoom;
+		shared_ptr<const linphone::Address> mDeviceAddr;
+		list<shared_ptr<linphone::Address>> mParticipantsList;
+		list<shared_ptr<linphone::Address>> mParticipantsCompatibleList;
+		list<shared_ptr<linphone::Address>>::iterator mIterator;
+		
+		void onRecordFound(Record *r) {
+			if (r) {
+				for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
+					string uri = ExtendedContact::urlToString(ec->mSipContact->m_url);
+					shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
+					if (!addr->getUriParam("gr").empty() && ec->getOrgLinphoneSpecs().find("groupchat") != string::npos) {
+						mParticipantsCompatibleList.push_back(*mIterator);
+						break;
+					}
+				}
+			}
+			mIterator++;
+			if (mIterator != mParticipantsList.end()) {
+				checkParticipantsCapabilities();
+			} else {
+				mChatRoom->addCompatibleParticipants(mDeviceAddr, mParticipantsCompatibleList);
+			}
+		}
+		void onError() {}
+		void onInvalid() {}
+		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {}
+	};
+	shared_ptr<ParticipantsCapabilitiesCheck> search= make_shared<ParticipantsCapabilitiesCheck>(cr, deviceAddr, participantsAddr);
+	search->checkParticipantsCapabilities();
 }
 
 void ConferenceServer::bindConference() {
