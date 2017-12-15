@@ -132,10 +132,11 @@ struct ExtendedContact {
 	ExtendedContact(const ExtendedContactCommon &common, sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
 		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
-			mSipContact(NULL), mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias),mAcceptHeader(acceptHeaders),
+			mSipContact(NULL), mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias), mAcceptHeader(acceptHeaders),
 			mUsedAsRoute(false), mRegId(0), mHome() {
 
 		mSipContact = sip_contact_dup(mHome.home(), sip_contact);
+		mSipContact->m_next = NULL;
 
 		if (mSipContact->m_q) {
 			mQ = atof(mSipContact->m_q);
@@ -168,6 +169,7 @@ struct ExtendedContact {
 			mExpireAt(ec.mExpireAt), mUpdatedTime(ec.mUpdatedTime), mCSeq(ec.mCSeq), mAlias(ec.mAlias),
 			mAcceptHeader(ec.mAcceptHeader), mUsedAsRoute(ec.mUsedAsRoute), mRegId(ec.mRegId), mHome() {
 		mSipContact = sip_contact_dup(mHome.home(), ec.mSipContact);
+		mSipContact->m_next = NULL;
 	}
 
 	std::ostream &print(std::ostream &stream, time_t _now = getCurrentTime(), time_t offset = 0) const;
