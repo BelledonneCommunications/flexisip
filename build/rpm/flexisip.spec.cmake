@@ -136,6 +136,11 @@ make %{?_smp_mflags}
 %install
 make install DESTDIR=%{buildroot}
 
+
+#
+# Shouldn't be the role of cmake to install all the following stuff ?
+# It is surprising to let the specfile install all these things from the source tree.
+#
 mkdir -p  $RPM_BUILD_ROOT/etc/init.d
 mkdir -p  $RPM_BUILD_ROOT/etc/flexisip
 mkdir -p  $RPM_BUILD_ROOT/%{_docdir}
@@ -161,6 +166,9 @@ install -p -m 0644 scripts/flexisip\@.service $RPM_BUILD_ROOT/lib/systemd/system
 %endif
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
 install -p -m 0644 scripts/flexisip-logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
+
+install -p -m 0744 scripts/flexisip_stats.py $RPM_BUILD_ROOT%{_bindir}
+install -p -m 0744 scripts/flexisip_monitor.py $RPM_BUILD_ROOT%{_bindir}
 
 %if %{bcpkg}
 export QA_RPATHS=0x0003
