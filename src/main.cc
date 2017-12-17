@@ -782,10 +782,12 @@ int main(int argc, char *argv[]) {
 	std::string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
 	std::string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
 	bool user_errors = cfg->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
+	
+	ortp_set_log_handler(NULL); /*remove ortp's default log handler that logs to stdout*/ 
+	ortp_init();
 	// in case we don't plan to launch flexisip, don't setup the logs.
 	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs &&
 		!dumpAll) {
-		ortp_init();
 		uint64_t max_size = cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read();
 		flexisip::log::preinit(useSyslog.getValue(), debug, max_size, fName);
 	} else {
@@ -872,7 +874,6 @@ int main(int argc, char *argv[]) {
 			SnmpAgent lAgent(*a, *cfg, oset);
 		}
 	#endif
-		ortp_init();
 
 		if (!oset.empty())
 			cfg->applyOverrides(true); // using default + overrides
