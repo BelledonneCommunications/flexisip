@@ -127,6 +127,7 @@ struct ExtendedContact {
 
 	std::string getOrgLinphoneSpecs();
 
+	void setupRegid();
 	void transferRegId(const std::shared_ptr<ExtendedContact> &oldEc);
 
 	ExtendedContact(const ExtendedContactCommon &common, sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
@@ -150,14 +151,6 @@ struct ExtendedContact {
 		mExpireAt = updateTime + expire;
 	}
 
-	ExtendedContact(const ExtendedContactCommon &common, const char *sipuri, long expireAt, float q, uint32_t cseq,
-					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
-		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
-			mSipContact(NULL), mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias),
-			mAcceptHeader(acceptHeaders), mUsedAsRoute(false), mRegId(0), mHome() {
-		mSipContact = sip_contact_make(mHome.home(), sipuri);
-	}
-
 	ExtendedContact(const url_t *url, const std::string &route)
 		: mContactId(), mCallId(), mUniqueId(), mPath({route}), mSipContact(NULL), mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0),
 			mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false), mRegId(0), mHome() {
@@ -175,6 +168,7 @@ struct ExtendedContact {
 	std::ostream &print(std::ostream &stream, time_t _now = getCurrentTime(), time_t offset = 0) const;
 	sip_contact_t *toSofiaContact(su_home_t *home, time_t now) const;
 	sip_route_t *toSofiaRoute(su_home_t *home) const;
+	
 };
 
 template <typename TraitsT>
@@ -201,7 +195,7 @@ class Record {
 	Record(const url_t *aor);
 	static std::string extractUniqueId(const sip_contact_t *contact);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
-	const sip_contact_t *getContacts(su_home_t *home, time_t now);
+	sip_contact_t *getContacts(su_home_t *home, time_t now);
 	void pushContact(const std::shared_ptr<ExtendedContact> &ct) {
 		mContacts.push_back(ct);
 	}
@@ -213,6 +207,7 @@ class Record {
 	void update(sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,
 				uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute,
 				const std::shared_ptr<ContactUpdateListener> &listener);
+	//Deprecated: this one is used by protobuf serializer
 	void update(const ExtendedContactCommon &ecc, const char *sipuri, long int expireAt, float q, uint32_t cseq,
 				time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute,
 				const std::shared_ptr<ContactUpdateListener> &listener);

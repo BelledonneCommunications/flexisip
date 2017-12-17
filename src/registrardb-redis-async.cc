@@ -525,7 +525,7 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, for
 	int argc = 2; // HMSET key
 	string cmd = "HMSET";
 
-	auto contacts = data->record.getExtendedContacts();
+	const auto &contacts = data->record.getExtendedContacts();
 	argc += contacts.size() * 2;
 
 	const char** argv = new const char*[argc];

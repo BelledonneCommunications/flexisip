@@ -68,15 +68,13 @@ void ExtendedContact::transferRegId(const std::shared_ptr<ExtendedContact> &oldE
 	// Transfert param RegId from oldEc to this
 	char strRegid[32] = {0};
 	if (oldEc->mRegId > 0 &&
-			(url_param(this->mSipContact->m_url->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0 &&
+			(url_param(mSipContact->m_url->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0 &&
 			std::strtoull(strRegid, NULL, 16) != oldEc->mRegId)
 		) {
 		std::ostringstream os;
-		url_t *sipUri = url_hdup(this->mHome.home(), this->mSipContact->m_url);
 		os << "regid=" << std::hex << oldEc->mRegId;
-		sipUri->url_params = url_strip_param_string(su_strdup(this->mHome.home(), this->mSipContact->m_url->url_params), "regid");
-		url_param_add(this->mHome.home(), sipUri, os.str().c_str());
-		this->mSipContact = sip_contact_create(mHome.home(), (url_string_t*)sipUri, NULL);
+		mSipContact->m_url->url_params = url_strip_param_string(su_strdup(mHome.home(), mSipContact->m_url->url_params), "regid");
+		url_param_add(mHome.home(), mSipContact->m_url, os.str().c_str());
 		this->mRegId = oldEc->mRegId;
 	}
 }
@@ -94,7 +92,7 @@ sip_contact_t *ExtendedContact::toSofiaContact(su_home_t *home, time_t now) cons
 		return NULL;
 
 	mSipContact->m_next = NULL;
-	return mSipContact;
+	return sip_contact_dup(home, mSipContact);
 }
 
 sip_route_t *ExtendedContact::toSofiaRoute(su_home_t *home) const {
@@ -119,7 +117,7 @@ sip_route_t *ExtendedContact::toSofiaRoute(su_home_t *home) const {
 	return rbegin;
 }
 
-const sip_contact_t *Record::getContacts(su_home_t *home, time_t now) {
+sip_contact_t *Record::getContacts(su_home_t *home, time_t now) {
 	sip_contact_t *alist = NULL;
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		sip_contact_t *current = (*it)->toSofiaContact(home, now);
@@ -322,18 +320,16 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 		oss << ":" << url->url_port;
 }
 
-static uint64_t setAndGetRegid(url_t *url, SofiaAutoHome *home) {
+void ExtendedContact::setupRegid() {
 	char strRegid[32] = {0};
-	uint64_t regId;
-	if (url_param(url->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0) {
-		regId = std::strtoull(strRegid, NULL, 16);
+	if (url_param(mSipContact->m_url->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0) {
+		mRegId = std::strtoull(strRegid, NULL, 16);
 	} else {
 		ostringstream os;
-		regId = su_random64();
-		os << "regid=" << hex << regId;
-		url_param_add(home->home(), url, os.str().c_str());
+		mRegId = su_random64();
+		os << "regid=" << hex << mRegId;
+		url_param_add(mHome.home(), mSipContact->m_url, os.str().c_str());
 	}
-	return regId;
 }
 
 string ExtendedContact::serializeAsUrlEncodedParams() {
@@ -535,7 +531,7 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 
 	ExtendedContactCommon ecc(key, path, call_id, uid);
 	auto exc = make_shared<ExtendedContact>(ecc, contact, globalExpire, cseq, updatedAt, alias, acceptHeaders);
-	exc->mRegId = setAndGetRegid(exc->mSipContact->m_url, &exc->mHome);
+	exc->setupRegid();
 	exc->mUsedAsRoute = usedAsRoute;
 
 	if (getCurrentTime() < exc->mExpireAt) {
@@ -571,7 +567,7 @@ void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalE
 		defineContactId(contactId, contacts->m_url, transportPtr);
 		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr);
 		auto exc = make_shared<ExtendedContact>(ecc, contacts, globalExpire, cseq, now, alias, accept);
-		exc->mRegId = setAndGetRegid(exc->mSipContact->m_url, &exc->mHome);
+		exc->setupRegid();
 		exc->mUsedAsRoute = usedAsRoute;
 		insertOrUpdateBinding(exc, listener);
 		contacts = contacts->m_next;
@@ -584,9 +580,19 @@ void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalE
 void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long expireAt, float q, uint32_t cseq,
 					time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute,
 					const std::shared_ptr<ContactUpdateListener> &listener) {
-	auto exct = make_shared<ExtendedContact>(ecc, sipuri, expireAt, q, cseq, updated_time, alias, accept);
-	url_t *sipUri = url_make(exct->mHome.home(), sipuri);
-	exct->mRegId = setAndGetRegid(sipUri, &exct->mHome);
+	SofiaAutoHome home;
+	url_t *sipUri = url_make(home.home(), sipuri);
+	if (!sipUri){
+		LOGE("Record::update(): could not build sip uri.");
+		return;
+	}
+	sip_contact_t *contact = sip_contact_create(home.home(), (url_string_t*)sipUri, NULL);
+	if (!contact){
+		LOGE("Record::update(): could not build contact.");
+		return;
+	}
+	auto exct = make_shared<ExtendedContact>(ecc, contact, expireAt, cseq, updated_time, alias, accept);
+	exct->setupRegid();
 	exct->mUsedAsRoute = usedAsRoute;
 	insertOrUpdateBinding(exct, listener);
 	applyMaxAor();
