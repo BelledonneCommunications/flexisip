@@ -50,14 +50,14 @@ void RegistrarDbInternal::doBind(const url_t *ifrom, sip_contact_t *icontact, co
 
 	if (r->isInvalidRegister(iid, iseq)) {
 		LOGD("Invalid register");
-		listener->onInvalid();
+		if (listener) listener->onInvalid();
 		return;
 	}
 
 	r->update(icontact, ipath, expire, iid, iseq, now, alias, acceptHeaders, usedAsRoute, listener);
 
 	mLocalRegExpire->update(*r);
-	listener->onRecordFound(r);
+	if (listener) listener->onRecordFound(r);
 }
 
 void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<ContactUpdateListener> &listener) {
