@@ -462,7 +462,7 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 	bool result = false;
 	SofiaAutoHome home;
 
-	sip_contact_t *temp_contact = sip_contact_make(home.home(), full_url);	
+	sip_contact_t *temp_contact = sip_contact_make(home.home(), full_url);
 	url_t *url = NULL;
 	if (temp_contact == NULL) {
 		SLOGD << "Couldn't parse " << full_url << " as contact, fallback to url instead";

@@ -98,7 +98,7 @@ void RegistrarDbInternal::doFetchForGruu(const url_t *url, const string &gruu, c
 		return;
 	}
 
-	const std::list<std::shared_ptr<ExtendedContact>> &contacts = r->getExtendedContacts();
+	const std::list<std::shared_ptr<ExtendedContact>> contacts = r->getExtendedContacts();
 	for (auto &contact : contacts) {
 		if(!url_has_param(contact->mSipContact->m_url, "gr")) {
 			r->removeContact(contact);

@@ -52,6 +52,8 @@ namespace flexisip {
 		void onParticipantDeviceFetched(const std::shared_ptr<linphone::ChatRoom> & cr, const std::shared_ptr<const linphone::Address> & participantAddr) override;
 		void onParticipantsCapabilitiesChecked(const std::shared_ptr<linphone::ChatRoom> & cr, const std::shared_ptr<const linphone::Address> &deviceAddr, const std::list<std::shared_ptr<linphone::Address> > & participantsAddr) override;
 
+		static void bindChatRoom(const std::string &bindingUrl, const std::string &contact, const std::string &gruu, const std::shared_ptr<ContactUpdateListener>& listener);
+
 		// Used to declare the service configuration
 		class Init {
 		public:

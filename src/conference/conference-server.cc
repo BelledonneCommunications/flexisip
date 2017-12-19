@@ -82,6 +82,11 @@ void ConferenceServer::_init() {
 	proxy->enableRegister(false);
 	mCore->addProxyConfig(proxy);
 	mCore->setDefaultProxyConfig(proxy);
+
+	// Binding loaded chat room
+	for (const auto& chatRoom : mCore->getChatRooms()) {
+		bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly() , transport, chatRoom->getPeerAddress()->getUriParam("gr"), nullptr);
+	}
 }
 
 void ConferenceServer::_run() {
@@ -132,13 +137,7 @@ void ConferenceServer::onConferenceAddressGeneration(const std::shared_ptr<linph
 				} else {
 					mState = State::Binding;
 					auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
-					string transportFactory = config->get<ConfigString>("transport")->read();
-					url_t *url = url_make(mHome.home(), mConferenceAddr->asStringUriOnly().c_str());
-					sip_contact_t *sipContact = sip_contact_make(mHome.home(), transportFactory.c_str());
-					url_param_add(mHome.home(), sipContact->m_url, ("gr=urn:uuid:" + mUuid).c_str());
-					sip_supported_t *sipSupported = reinterpret_cast<sip_supported_t *>(sip_header_format(mHome.home(), sip_supported_class, "gruu"));
-					RegistrarDb::get()->bind(url, sipContact, ("\"<urn:uuid:" + mUuid + ">\"").c_str(), 0, nullptr, sipSupported,
-						nullptr, false, numeric_limits<int>::max(), false, 0, shared_from_this());
+					bindChatRoom(mConferenceAddr->asStringUriOnly(), config->get<ConfigString>("transport")->read(), mUuid, shared_from_this());
 				}
 			} else {
 				const shared_ptr<ExtendedContact> ec = r->getExtendedContacts().front();
@@ -210,7 +209,7 @@ void ConferenceServer::onParticipantsCapabilitiesChecked(const shared_ptr<linpho
 		ParticipantsCapabilitiesCheck(const shared_ptr<linphone::ChatRoom> &cr, const shared_ptr<const linphone::Address> &deviceAddr, const list<shared_ptr<linphone::Address>> &list) : mChatRoom(cr), mDeviceAddr(deviceAddr), mParticipantsList(list) {
 			mIterator = mParticipantsList.begin();
 		}
-		
+
 		void checkParticipantsCapabilities() {
 			url_t *url = url_make(mHome.home(), mIterator->get()->asStringUriOnly().c_str());
 			RegistrarDb::get()->fetch(url, shared_from_this(), false, false);
@@ -222,7 +221,7 @@ void ConferenceServer::onParticipantsCapabilitiesChecked(const shared_ptr<linpho
 		list<shared_ptr<linphone::Address>> mParticipantsList;
 		list<shared_ptr<linphone::Address>> mParticipantsCompatibleList;
 		list<shared_ptr<linphone::Address>>::iterator mIterator;
-		
+
 		void onRecordFound(Record *r) {
 			if (r) {
 				for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
@@ -267,6 +266,17 @@ void ConferenceServer::bindConference() {
 		RegistrarDb::get()->bind(url, sipContact, "CONFERENCE", 0,
 			nullptr, nullptr, nullptr, false, numeric_limits<int>::max(), false, 0, listener);
 	}
+}
+
+void ConferenceServer::bindChatRoom(const string &bindingUrl, const string &contact, const string &gruu, const std::shared_ptr< ContactUpdateListener >& listener) {
+
+	url_t *url = url_make(mHome.home(), bindingUrl.c_str());
+	sip_contact_t *sipContact = sip_contact_make(mHome.home(), contact.c_str());
+	sip_contact_add_param(mHome.home(), sipContact, su_strdup(mHome.home(), ("+sip.instance=\"<urn:uuid:" + gruu + ">\"").c_str()));
+	url_param_add(mHome.home(), sipContact->m_url, ("gr=urn:uuid:" + gruu).c_str());
+	sip_supported_t *sipSupported = reinterpret_cast<sip_supported_t *>(sip_header_format(mHome.home(), sip_supported_class, "gruu"));
+	RegistrarDb::get()->bind(url, sipContact, gruu.c_str(), 0, nullptr, sipSupported,
+							 nullptr, false, numeric_limits<int>::max(), false, 0, listener);
 }
 
 ConferenceServer::Init::Init() {
