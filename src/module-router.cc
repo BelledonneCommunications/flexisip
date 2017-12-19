@@ -524,12 +524,12 @@ class ForkGroupSorter {
 
 			dest.mSipContact = (*it).first;
 			dest.mExtendedContact = (*it).second;
-			targetUris << "<" << dest.mExtendedContact->mSipContact->m_url << ">";
+			targetUris << "<" << *dest.mExtendedContact->toSofiaUrlClean(home.home()) << ">";
 			url_t *url = url_make(home.home(), (*it).second->mPath.back().c_str());
 			// remove it and now search for other contacts that have the same route.
 			it = mAllContacts.erase(it);
 			while ((sameDestinationIt = findDestination(url)) != mAllContacts.end()) {
-				targetUris << ", <" << (*sameDestinationIt).second->mSipContact->m_url << ">";
+				targetUris << ", <" << *(*sameDestinationIt).second->toSofiaUrlClean(home.home()) << ">";
 				mAllContacts.erase(sameDestinationIt);
 				foundGroup = true;
 			}

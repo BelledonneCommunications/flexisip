@@ -79,6 +79,15 @@ void ExtendedContact::transferRegId(const std::shared_ptr<ExtendedContact> &oldE
 	}
 }
 
+url_t *ExtendedContact::toSofiaUrlClean(su_home_t *home){
+	url_t *ret = NULL;
+	if (mSipContact && mSipContact->m_url){
+		ret = url_hdup(home, mSipContact->m_url);
+		ret->url_params = url_strip_param_string((char*)ret->url_params, "regid");
+	}
+	return ret;
+}
+
 string ExtendedContact::getOrgLinphoneSpecs() {
 	if (!mSipContact) return string();
 	const char *specs = msg_params_find(mSipContact->m_params, "+org.linphone.specs");
@@ -886,7 +895,9 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		*/
 		shared_ptr<ExtendedContact> newEc = make_shared<ExtendedContact>(*ec);
 		newEc->mSipContact = sip_contact_create(newEc->mHome.home(), (url_string_t*)uri, NULL);
-		newEc->mPath.push_back(ExtendedContact::urlToString(ec->mSipContact->m_url));
+		ostringstream path;
+		path<<*ec->toSofiaUrlClean(newEc->mHome.home());
+		newEc->mPath.push_back(path.str());
 		// LOGD("transformContactUsedAsRoute(): path to %s added for %s", ec->mSipUri.c_str(), uri);
 		newEc->mUsedAsRoute = false;
 		return newEc;

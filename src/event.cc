@@ -327,3 +327,11 @@ void ResponseSipEvent::setOutgoingAgent(const shared_ptr<OutgoingAgent> &agent) 
 
 ResponseSipEvent::~ResponseSipEvent() {
 }
+
+std::ostream &operator<<(std::ostream &strm, const url_t &obj){
+	SofiaAutoHome home;
+	strm<<url_as_string(home.home(), &obj);
+	return strm;
+}
+
+

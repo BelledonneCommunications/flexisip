@@ -233,6 +233,10 @@ inline std::ostream &operator<<(std::ostream &strm, MsgSip const &obj) {
 	return strm;
 }
 
+/*
+ * Nice << operator to serialize sofia-sip 's url_t */
+std::ostream &operator<<(std::ostream &strm, const url_t &obj);
+
 /*nice wrapper of the sofia-sip su_home_t, that performs automatic destruction of the home when it leaving a code block
  * or function.*/
 class SofiaAutoHome {

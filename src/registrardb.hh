@@ -119,7 +119,7 @@ struct ExtendedContact {
 		return std::string(url);
 	}
 
-	std::string getUniqueId() {
+	const std::string &getUniqueId() {
 		return (mUniqueId.empty() ? mCallId : mUniqueId);
 	}
 
@@ -168,7 +168,8 @@ struct ExtendedContact {
 	std::ostream &print(std::ostream &stream, time_t _now = getCurrentTime(), time_t offset = 0) const;
 	sip_contact_t *toSofiaContact(su_home_t *home, time_t now) const;
 	sip_route_t *toSofiaRoute(su_home_t *home) const;
-	
+	/*returns a new url_t where regid (private flexisip parameter) is removed*/
+	url_t *toSofiaUrlClean(su_home_t *home);
 };
 
 template <typename TraitsT>
