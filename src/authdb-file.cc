@@ -129,7 +129,7 @@ void FileAuthDb::sync() {
             if(version.substr(0,8)=="version:")
                 version = version.substr(8);
             else
-                LOGA("userdb.conf must start by version:X to be used.");
+                LOGF("userdb.conf must start by version:X to be used.");
             break;
         }
         if(version=="1"){
