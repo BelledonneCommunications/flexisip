@@ -907,6 +907,8 @@ void Authentication::AuthenticationListener::finish() {
 		} else {
 			msg_auth_t *au =
 			    ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_proxy_authorization, mAs->as_realm);
+			if(au->au_next)
+				msg_header_remove(ms->getMsg(), (msg_pub_t *)sip, (msg_header_t *)au->au_next);
 			if (au)
 				msg_header_remove(ms->getMsg(), (msg_pub_t *)sip, (msg_header_t *)au);
 		}
