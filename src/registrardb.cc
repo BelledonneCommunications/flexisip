@@ -94,6 +94,18 @@ string ExtendedContact::getOrgLinphoneSpecs() {
 	string result = specs ? string(specs) : string();
 	return result;
 }
+const std::string ExtendedContact::getMessageExpires(const msg_param_t *m_params)  {
+	if(m_params) {
+		// Find message expires time in the contact parameters
+		std::string mss_expires(*m_params);
+		std::string name_expires_mss = RegistrarDb::get()->messageExpiresName();
+		if (mss_expires.find(name_expires_mss+"=") != std::string::npos){
+			mss_expires = mss_expires.substr(mss_expires.find(name_expires_mss+"=")+(strlen(name_expires_mss.c_str())+1));
+			return mss_expires;
+		}
+	}
+	return "";
+}
 
 sip_contact_t *ExtendedContact::toSofiaContact(su_home_t *home, time_t now) const {
 	time_t expire = mExpireAt - now;
@@ -758,6 +770,7 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 
 	bool useGlobalDomain = mro->get<ConfigBoolean>("use-global-domain")->read();
 	string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
+	string mMessageExpiresName = mr->get<ConfigString>("name-message-expires")->read();
 	if ("internal" == dbImplementation) {
 		LOGI("RegistrarDB implementation is internal");
 		sUnique = new RegistrarDbInternal(ag->getPreferredRoute());
@@ -788,6 +801,7 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 				"Supported implementation is 'internal'.", dbImplementation.c_str());
 #endif
 	}
+	sUnique->mMessageExpiresName = mMessageExpiresName;
 	return sUnique;
 }
 

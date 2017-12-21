@@ -601,6 +601,11 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			SLOGE << "Can't create sip_contact of " << ec->mSipContact->m_url;
 			continue;
 		}
+		// If it's not a message, verify if it's really expired
+		if (sip->sip_request->rq_method != sip_method_message && (ec->getExpireNotAtMessage() < now)) {
+			LOGD("Sip_contact of %s is expired", url_as_string(ms->getHome(),ec->mSipContact->m_url));
+			continue;
+		}
 		if (sip->sip_request->rq_url->url_type == url_sips && ct->m_url->url_type != url_sips) {
 			/* https://tools.ietf.org/html/rfc5630 */
 			nonSipsFound = true;

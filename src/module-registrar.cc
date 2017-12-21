@@ -358,6 +358,7 @@ void ModuleRegistrar::onDeclare(GenericStruct *mc) {
 			"60"},
 		{String, "service-route",
 			"Sequence of proxies (space-separated) where requests will be redirected through (RFC3608)", ""},
+		{String, "name-message-expires", "The name used for the expire time of forking message", "message-expires"},
 		{Integer, "register-expire-randomizer-max", "Maximum percentage of the REGISTER expire to randomly remove, 0 to disable", "0"},
 		config_item_end};
 	mc->addChildrenValues(configs);
