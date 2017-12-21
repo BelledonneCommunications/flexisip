@@ -402,7 +402,7 @@ string ExtendedContact::serializeAsUrlEncodedParams() {
 	return contact_string;
 }
 
-static string extractParam(url_t *url, const char *param) {
+static string extractStringParam(url_t *url, const char *param) {
 	char buffer[255] = {0};
 	if (url_has_param(url, param)) {
 		url_param(url->url_params, param, buffer, sizeof(buffer));
@@ -411,22 +411,18 @@ static string extractParam(url_t *url, const char *param) {
 	return string(buffer);
 }
 
-static string extractStringParam(url_t *url, const char *param) {
-	return extractParam(url, param);
-}
-
 static int extractIntParam(url_t *url, const char *param) {
-	string extracted_param(extractParam(url, param));
+	string extracted_param(extractStringParam(url, param));
 	return (extracted_param.empty()) ? 0 : atoi(extracted_param.c_str());
 }
 
 static int extractUnsignedLongParam(url_t *url, const char *param) {
-	string extracted_param(extractParam(url, param));
+	string extracted_param(extractStringParam(url, param));
 	return (extracted_param.empty()) ? 0 : atoll(extracted_param.c_str());
 }
 
 static bool extractBoolParam(url_t *url, const char *param) {
-	string extracted_param(extractParam(url, param));
+	string extracted_param(extractStringParam(url, param));
 	return (extracted_param.empty()) ? FALSE : (extracted_param.find("yes") != string::npos);
 }
 
