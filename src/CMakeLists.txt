@@ -20,7 +20,7 @@
 #
 ############################################################################
 
-set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIASIPUA_LIBRARIES} ${BCTOOLBOX_CORE_LIBRARIES} 
+set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIASIPUA_LIBRARIES} ${BCTOOLBOX_CORE_LIBRARIES} ) 
 
 set(FLEXISIP_INCLUDES )
 
