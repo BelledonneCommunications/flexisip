@@ -402,60 +402,32 @@ string ExtendedContact::serializeAsUrlEncodedParams() {
 	return contact_string;
 }
 
-static string getStringParam(url_t *url, const char *param) {
-	string extracted_param;
+static string extractParam(url_t *url, const char *param) {
+	char buffer[255] = {0};
 	if (url_has_param(url, param)) {
-		char *buffer = new char[255];
-		isize_t result = url_param(url->url_params, param, buffer, 255);
-		if (result > 0) {
-			extracted_param = string(buffer);
-		}
+		url_param(url->url_params, param, buffer, sizeof(buffer));
 		url->url_params = url_strip_param_string((char *)url->url_params, param);
-		delete[] buffer;
 	}
-	return extracted_param;
+	return string(buffer);
 }
 
-static int getIntParam(url_t *url, const char *param) {
-	int extracted_param = 0;
-	if (url_has_param(url, param)) {
-		char *buffer = new char[255];
-		isize_t result = url_param(url->url_params, param, buffer, 255);
-		if (result > 0) {
-			extracted_param = atoi(buffer);
-		}
-		url->url_params = url_strip_param_string((char *)url->url_params, param);
-		delete[] buffer;
-	}
-	return extracted_param;
+static string extractStringParam(url_t *url, const char *param) {
+	return extractParam(url, param);
 }
 
-static int getUnsignedLongParam(url_t *url, const char *param) {
-	unsigned long extracted_param = 0;
-	if (url_has_param(url, param)) {
-		char *buffer = new char[255];
-		isize_t result = url_param(url->url_params, param, buffer, 255);
-		if (result > 0) {
-			extracted_param = (unsigned long) atoll(buffer);
-		}
-		url->url_params = url_strip_param_string((char *)url->url_params, param);
-		delete[] buffer;
-	}
-	return extracted_param;
+static int extractIntParam(url_t *url, const char *param) {
+	string extracted_param(extractParam(url, param));
+	return (extracted_param.empty()) ? 0 : atoi(extracted_param.c_str());
 }
 
-static bool getBoolParam(url_t *url, const char *param) {
-	bool extracted_param = false;
-	if (url_has_param(url, param)) {
-		char *buffer = new char[255];
-		isize_t result = url_param(url->url_params, param, buffer, 255);
-		if (result > 0) {
-			extracted_param = strcmp(buffer, "yes") == 0;
-		}
-		url->url_params = url_strip_param_string((char *)url->url_params, param);
-		delete[] buffer;
-	}
-	return extracted_param;
+static int extractUnsignedLongParam(url_t *url, const char *param) {
+	string extracted_param(extractParam(url, param));
+	return (extracted_param.empty()) ? 0 : atoll(extracted_param.c_str());
+}
+
+static bool extractBoolParam(url_t *url, const char *param) {
+	string extracted_param(extractParam(url, param));
+	return (extracted_param.empty()) ? FALSE : (extracted_param.find("yes") != string::npos);
 }
 
 bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url) {
@@ -472,22 +444,22 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 	}
 
 	// CallId
-	string call_id = getStringParam(url, "callid");
+	string call_id = extractStringParam(url, "callid");
 
 	// Expire
-	int globalExpire = getIntParam(url, "expires");
+	int globalExpire = extractIntParam(url, "expires");
 
 	// Update time
-	unsigned long updatedAt = getUnsignedLongParam(url, "updatedAt");
+	unsigned long updatedAt = extractUnsignedLongParam(url, "updatedAt");
 
 	// CSeq
-	uint32_t cseq = getIntParam(url, "cseq");
+	uint32_t cseq = extractIntParam(url, "cseq");
 
 	// Alias
-	bool alias = getBoolParam(url, "alias");
+	bool alias = extractBoolParam(url, "alias");
 
 	// Used as route
-	bool usedAsRoute = getBoolParam(url, "usedAsRoute");
+	bool usedAsRoute = extractBoolParam(url, "usedAsRoute");
 
 	// Path
 	list<string> path;
@@ -930,10 +902,9 @@ void RegistrarDb::fetch(const url_t *url, const std::shared_ptr<ContactUpdateLis
 		return;
 	}
 	if(url_has_param(url, "gr")) {
-		stringstream gruu;
-		char *buffer = new char[255];
-		isize_t result = url_param(url->url_params, "gr", buffer, 255);
-		if (result > 0) {
+		char buffer[255] = {0};
+		if (url_param(url->url_params, "gr", buffer, sizeof(buffer)) > 0) {
+			stringstream gruu;
 			gruu << "\"<" << buffer << ">\"";
 			doFetchForGruu(url, gruu.str(), recursive
 						   ? make_shared<RecursiveRegistrarDbListener>(this, listener, url)
