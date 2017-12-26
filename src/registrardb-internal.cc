@@ -33,7 +33,8 @@ RegistrarDbInternal::RegistrarDbInternal(const string &preferredRoute) : Registr
 }
 
 void RegistrarDbInternal::doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
-					  const sip_path_t *ipath, list<string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) {
+						const sip_path_t *ipath, list<string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version,
+						const shared_ptr<ContactUpdateListener> &listener) {
 	string key = Record::defineKeyFromUrl(ifrom);
 	time_t now = getCurrentTime();
 
@@ -98,25 +99,26 @@ void RegistrarDbInternal::doFetchForGruu(const url_t *url, const string &gruu, c
 		return;
 	}
 
-	const std::list<std::shared_ptr<ExtendedContact>> contacts = r->getExtendedContacts();
+	const list<shared_ptr<ExtendedContact>> &contacts = r->getExtendedContacts();
+	Record retRecord(url);
 	for (auto &contact : contacts) {
-		if(!url_has_param(contact->mSipContact->m_url, "gr")) {
-			r->removeContact(contact);
+		if (!url_has_param(contact->mSipContact->m_url, "gr"))
 			continue;
-		}
-		char *buffer = new char[255];
-		isize_t result = url_param(contact->mSipContact->m_url->url_params, "gr", buffer, 255);
-		if(result <= 0) {
-			r->removeContact(contact);
+
+		char buffer[255] = {0};
+		isize_t result = url_param(contact->mSipContact->m_url->url_params, "gr", buffer, sizeof(buffer) - 1);
+		if (result <= 0)
 			continue;
-		}
-		stringstream stremGruu;
-		stremGruu << "\"<" << buffer << ">\"";
-		if(stremGruu.str() != gruu)
-			r->removeContact(contact);
+
+		stringstream streamGruu;
+		streamGruu << "\"<" << buffer << ">\"";
+		if (streamGruu.str() != gruu)
+			continue;
+
+		retRecord.pushContact(contact);
 	}
 
-	listener->onRecordFound(r);
+	listener->onRecordFound(&retRecord);
 }
 
 void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
@@ -156,7 +158,7 @@ void RegistrarDbInternal::clearAll() {
 	mLocalRegExpire->clearAll();
 }
 
-void RegistrarDbInternal::publish(const std::string &topic, const std::string &uid) {
+void RegistrarDbInternal::publish(const string &topic, const string &uid) {
 	LOGD("Publish topic = %s, uid = %s", topic.c_str(), uid.c_str());
 	RegistrarDb::notifyContactListener(topic, uid);
 }
