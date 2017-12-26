@@ -101,7 +101,7 @@ void RegistrarDbInternal::doFetchForGruu(const url_t *url, const string &gruu, c
 
 	const list<shared_ptr<ExtendedContact>> &contacts = r->getExtendedContacts();
 	Record retRecord(url);
-	for (auto &contact : contacts) {
+	for (const auto &contact : contacts) {
 		if (!url_has_param(contact->mSipContact->m_url, "gr"))
 			continue;
 
