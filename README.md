@@ -41,23 +41,23 @@ they are no longer the recommended way for building flexisip, and these files wi
 
 You can issue ./prepare.py -lf to see all possible build options.
 Then use the following to proceed with compilation:
-	`./prepare.py <build options>`
-	`make`
+	./prepare.py <build options>
+	make
 
 
 Alternatively, provided that ortp, bctoolbox and sofia-sip dependencies are installed on the system, flexisip's cmake
 integration can be used directly, for example:
 
-	`cmake . -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc`
-	`make`
+	cmake . -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc
+	make
 
 ## rpm and deb packages
 
 The "flexisip-rpm" ./prepare.py target can be used to generate rpm packages for flexisip and its dependencies.
 "Alien" program is used internaly to convert into debian packages, when this build is run on a debian or debian like linux OS.
 
-	`./prepare.py flexisip-rpm`
-	`make`
+	./prepare.py flexisip-rpm
+	make
 
 ## Macos X
 
