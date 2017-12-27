@@ -867,7 +867,7 @@ void Authentication::AuthenticationListener::onResult(AuthDbResult result, const
 }
 
 void Authentication::AuthenticationListener::finish_for_algorithm() {
-	if (mAlgoUsed.size() > 1) {
+	if (mAlgoUsed.size() > 1 && mAs->as_response) {
 		msg_header_t *response;
 		response = msg_header_copy(mAs->as_home, mAs->as_response);
 		msg_header_remove_param((msg_common_t *)response, "algorithm=MD5");
