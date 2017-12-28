@@ -23,6 +23,7 @@
 #include <fstream>
 #include <sstream>
 
+#define MAX_USERNAME_LENGTH  30
 using namespace std;
 
 
@@ -116,6 +117,7 @@ void FileAuthDb::sync() {
 	string version;
 	string passwd_tag;
 	int i;
+	char user_ref[MAX_USERNAME_LENGTH];
 
 	LOGD("Opening file %s", mFileString.c_str());
 	file.open(mFileString);
@@ -167,8 +169,11 @@ void FileAuthDb::sync() {
 								LOGA("In userdb.conf, the section of password must end with ';'");
 						}
 					}
-
+					
+					// if user with space, replace %20 by space
+					url_unescape(user_ref, user.c_str());
 					if (!ss.eof()) {
+						// TODO read userid with space
 						getline(ss, userid, ' ');
 						if (!ss.eof()) {
 							getline(ss, phone);
@@ -176,12 +181,12 @@ void FileAuthDb::sync() {
 							phone = "";
 						}
 					} else {
-						userid = user;
+						userid = user_ref;
 						phone = "";
 					}
 
 					cacheUserWithPhone(phone, domain, user);
-					parsePasswd(pass, user, domain, &password);
+					parsePasswd(pass, (string)user_ref, domain, &password);
 
 					if (find(domains.begin(), domains.end(), domain) != domains.end()) {
 						string key(createPasswordKey(user, userid));
