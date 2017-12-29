@@ -81,10 +81,11 @@ void ExtendedContact::transferRegId(const std::shared_ptr<ExtendedContact> &oldE
 
 url_t *ExtendedContact::toSofiaUrlClean(su_home_t *home){
 	url_t *ret = NULL;
-	if (mSipContact && mSipContact->m_url){
-		ret = url_hdup(home, mSipContact->m_url);
-		ret->url_params = url_strip_param_string((char*)ret->url_params, "regid");
-	}
+	if (!mSipContact)
+		return NULL;
+
+	ret = url_hdup(home, mSipContact->m_url);
+	ret->url_params = url_strip_param_string((char*)ret->url_params, "regid");
 	return ret;
 }
 
@@ -416,7 +417,7 @@ string ExtendedContact::serializeAsUrlEncodedParams() {
 	}
 
 	contact->m_url->url_headers = sip_headers_as_url_query(home.home(),
-		SIPTAG_PATH_STR(oss_path.str().c_str()), SIPTAG_ACCEPT_STR(oss_accept.str().c_str()), 
+		SIPTAG_PATH_STR(oss_path.str().c_str()), SIPTAG_ACCEPT_STR(oss_accept.str().c_str()),
 		TAG_END());
 
 	string contact_string(sip_header_as_string(home.home(), (sip_header_t const *)contact));
@@ -483,7 +484,7 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 	bool result = false;
 	SofiaAutoHome home;
 
-	sip_contact_t *temp_contact = sip_contact_make(home.home(), full_url);	
+	sip_contact_t *temp_contact = sip_contact_make(home.home(), full_url);
 	url_t *url = NULL;
 	if (temp_contact == NULL) {
 		SLOGD << "Couldn't parse " << full_url << " as contact, fallback to url instead";
@@ -545,7 +546,7 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 		contact = sip_contact_create(home.home(), (url_string_t*)url, NULL);
 	else
 		contact = temp_contact;
-	
+
 	if (contact == NULL) {
 		return result;
 	}
@@ -977,7 +978,7 @@ void RegistrarDb::fetchForGruu(const url_t *url, const std::string &gruu, const 
 
 void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
 					  const sip_path_t *ipath, const sip_supported_t *isupported, const sip_accept_t *iaccept, bool usedAsRoute, int expire,
-					  bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) 
+					  bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener)
 {
 	SofiaAutoHome home;
 	const sip_accept_t *accept = iaccept;
