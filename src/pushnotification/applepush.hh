@@ -32,10 +32,19 @@ protected:
 	int formatDeviceToken(const std::string &deviceToken);
 	void createPushNotification();
 protected:
+	struct Item{
+		void clear(){
+			mData.clear();
+		}
+		uint8_t mId;
+		std::vector<char> mData;
+	};
+	size_t writeItem(size_t pos, Item &item);
 	static const unsigned int MAXPAYLOAD_SIZE;
 	static const unsigned int DEVICE_BINARY_SIZE;
 	std::vector<char> mBuffer;
 	std::vector<char> mDeviceToken;
 	std::string mPayload;
-	static uint32_t Identifier;
+	unsigned int mTtl;
+	static uint32_t sIdentifier;
 };
