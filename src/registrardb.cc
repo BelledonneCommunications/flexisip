@@ -287,7 +287,7 @@ string Record::defineKeyFromUrl(const url_t *url) {
 }
 
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener) {
-	time_t now = getCurrentTime();
+	time_t now = ec->mUpdatedTime;
 
 	SLOGD << "Trying to insert new contact " << *ec;
 
@@ -299,6 +299,21 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 			SLOGD << "Cleaning expired contact " << (*it)->mContactId;
 			it = mContacts.erase(it);
 		} else if (!(*it)->mUniqueId.empty() && (*it)->mUniqueId == ec->mUniqueId) {
+			if (ec->mExpireAt == now){
+				/*case of ;expires=0 in contact header*/
+				if ((*it)->mUpdatedTime == now){
+					/*this happens when a client (like Linphone) sends this kind of very ambiguous Contact header in a REGISTER
+					 * Contact: <sip:marie_-jSau@ip1:39936;transport=tcp>;+sip.instance="<urn:uuid:bfb7514b-f793-4d85-b322-232044dc3731>"
+					 * Contact: <sip:marie_-jSau@ip1:39934;transport=tcp>;+sip.instance="<urn:uuid:bfb7514b-f793-4d85-b322-232044dc3731>";expires=0
+					 *
+					 * We don't want the second line to unregister the first one, so don't touch anything*/
+					return;
+				}else{
+					/*this contact should be removed*/
+					it = mContacts.erase(it);
+					return;
+				}
+			}
 			SLOGD << "Cleaning older line '" << ec->mUniqueId << "' for contact " << (*it)->mContactId;
 			ec->transferRegId((*it));
 			if (listener) listener->onContactUpdated(*it);
