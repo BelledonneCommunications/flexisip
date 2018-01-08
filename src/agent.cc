@@ -208,6 +208,7 @@ void Agent::start(const std::string &transport_override, const std::string passp
 
 	GenericStruct *global = GenericManager::get()->getRoot()->get<GenericStruct>("global");
 	list<string> transports = global->get<ConfigStringList>("transports")->read();
+	string ciphers = global->get<ConfigString>("tls-ciphers")->read();
 	// sofia needs a value in millseconds.
 	unsigned int tports_idle_timeout = 1000 * (unsigned int)global->get<ConfigInt>("idle-timeout")->read();
 	bool globalVerifyIn = global->get<ConfigBoolean>("require-peer-certificate")->read();
@@ -261,7 +262,8 @@ void Agent::start(const std::string &transport_override, const std::string passp
 
 			checkAllowedParams(url);
 			mPassphrase = passphrase;
-			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()), TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()),
+			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()),
+									  TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
 									  TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
 									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
 									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TAG_END());
