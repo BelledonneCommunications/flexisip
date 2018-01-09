@@ -301,7 +301,7 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 		} else if (!(*it)->mUniqueId.empty() && (*it)->mUniqueId == ec->mUniqueId) {
 			if (ec->mExpireAt == now){
 				/*case of ;expires=0 in contact header*/
-				if ((*it)->mUpdatedTime == now){
+				if ((*it)->mCSeq == ec->mCSeq && (*it)->mCallId == ec->mCallId){
 					/*this happens when a client (like Linphone) sends this kind of very ambiguous Contact header in a REGISTER
 					 * Contact: <sip:marie_-jSau@ip1:39936;transport=tcp>;+sip.instance="<urn:uuid:bfb7514b-f793-4d85-b322-232044dc3731>"
 					 * Contact: <sip:marie_-jSau@ip1:39934;transport=tcp>;+sip.instance="<urn:uuid:bfb7514b-f793-4d85-b322-232044dc3731>";expires=0
