@@ -71,6 +71,7 @@ struct ExtendedContact {
 	sip_contact_t *mSipContact; // Full contact
 	float mQ;
 	time_t mExpireAt;
+	time_t mExpireNotAtMessage;  // real expires time but not for message
 	time_t mUpdatedTime;
 	uint32_t mCSeq;
 	bool mAlias;
@@ -119,8 +120,12 @@ struct ExtendedContact {
 		return std::string(url);
 	}
 
-	std::string getUniqueId() {
+	const std::string &getUniqueId() {
 		return (mUniqueId.empty() ? mCallId : mUniqueId);
+	}
+	
+	time_t getExpireNotAtMessage() {
+		return mExpireNotAtMessage;
 	}
 
 	std::string serializeAsUrlEncodedParams();
@@ -129,6 +134,7 @@ struct ExtendedContact {
 
 	void setupRegid();
 	void transferRegId(const std::shared_ptr<ExtendedContact> &oldEc);
+	const std::string getMessageExpires(const msg_param_t *m_params);
 
 	ExtendedContact(const ExtendedContactCommon &common, sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
@@ -144,11 +150,14 @@ struct ExtendedContact {
 		}
 
 		int expire = resolveExpire(mSipContact->m_expires, global_expire);
+		mExpireNotAtMessage = updateTime + expire;
+		expire = resolveExpire(getMessageExpires(mSipContact->m_params).c_str(), expire);
 		if (expire == -1) {
 			LOGE("no global expire (%d) nor local contact expire (%s)found", global_expire, mSipContact->m_expires);
 			expire = 0;
 		}
 		mExpireAt = updateTime + expire;
+		mExpireAt = mExpireAt > mExpireNotAtMessage ? mExpireAt:mExpireNotAtMessage;
 	}
 
 	ExtendedContact(const url_t *url, const std::string &route)
@@ -168,7 +177,9 @@ struct ExtendedContact {
 	std::ostream &print(std::ostream &stream, time_t _now = getCurrentTime(), time_t offset = 0) const;
 	sip_contact_t *toSofiaContact(su_home_t *home, time_t now) const;
 	sip_route_t *toSofiaRoute(su_home_t *home) const;
-	
+
+	/*returns a new url_t where regid (private flexisip parameter) is removed*/
+	url_t *toSofiaUrlClean(su_home_t *home);
 };
 
 template <typename TraitsT>
@@ -308,6 +319,9 @@ class RegistrarDb {
 	bool useGlobalDomain()const{
 		return mUseGlobalDomain;
 	}
+	const std::string &messageExpiresName() {
+		return mMessageExpiresName;
+	}
   protected:
 	class LocalRegExpire {
 		std::map<std::string, time_t> mRegMap;
@@ -345,6 +359,7 @@ class RegistrarDb {
 	std::map<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;
 	LocalRegExpire *mLocalRegExpire;
 	bool mUseGlobalDomain;
+	std::string mMessageExpiresName;
 	static RegistrarDb *sUnique;
 };
 

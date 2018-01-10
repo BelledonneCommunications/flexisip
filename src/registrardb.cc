@@ -79,11 +79,33 @@ void ExtendedContact::transferRegId(const std::shared_ptr<ExtendedContact> &oldE
 	}
 }
 
+url_t *ExtendedContact::toSofiaUrlClean(su_home_t *home){
+	url_t *ret = NULL;
+	if (!mSipContact)
+		return NULL;
+
+	ret = url_hdup(home, mSipContact->m_url);
+	ret->url_params = url_strip_param_string((char*)ret->url_params, "regid");
+	return ret;
+}
+
 string ExtendedContact::getOrgLinphoneSpecs() {
 	if (!mSipContact) return string();
 	const char *specs = msg_params_find(mSipContact->m_params, "+org.linphone.specs");
 	string result = specs ? string(specs) : string();
 	return result;
+}
+const std::string ExtendedContact::getMessageExpires(const msg_param_t *m_params)  {
+	if(m_params) {
+		// Find message expires time in the contact parameters
+		std::string mss_expires(*m_params);
+		std::string name_expires_mss = RegistrarDb::get()->messageExpiresName();
+		if (mss_expires.find(name_expires_mss+"=") != std::string::npos){
+			mss_expires = mss_expires.substr(mss_expires.find(name_expires_mss+"=")+(strlen(name_expires_mss.c_str())+1));
+			return mss_expires;
+		}
+	}
+	return "";
 }
 
 sip_contact_t *ExtendedContact::toSofiaContact(su_home_t *home, time_t now) const {
@@ -265,7 +287,7 @@ string Record::defineKeyFromUrl(const url_t *url) {
 }
 
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener) {
-	time_t now = getCurrentTime();
+	time_t now = ec->mUpdatedTime;
 
 	SLOGD << "Trying to insert new contact " << *ec;
 
@@ -277,6 +299,21 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 			SLOGD << "Cleaning expired contact " << (*it)->mContactId;
 			it = mContacts.erase(it);
 		} else if (!(*it)->mUniqueId.empty() && (*it)->mUniqueId == ec->mUniqueId) {
+			if (ec->mExpireAt == now){
+				/*case of ;expires=0 in contact header*/
+				if ((*it)->mCSeq == ec->mCSeq && (*it)->mCallId == ec->mCallId){
+					/*this happens when a client (like Linphone) sends this kind of very ambiguous Contact header in a REGISTER
+					 * Contact: <sip:marie_-jSau@ip1:39936;transport=tcp>;+sip.instance="<urn:uuid:bfb7514b-f793-4d85-b322-232044dc3731>"
+					 * Contact: <sip:marie_-jSau@ip1:39934;transport=tcp>;+sip.instance="<urn:uuid:bfb7514b-f793-4d85-b322-232044dc3731>";expires=0
+					 *
+					 * We don't want the second line to unregister the first one, so don't touch anything*/
+					return;
+				}else{
+					/*this contact should be removed*/
+					it = mContacts.erase(it);
+					return;
+				}
+			}
 			SLOGD << "Cleaning older line '" << ec->mUniqueId << "' for contact " << (*it)->mContactId;
 			ec->transferRegId((*it));
 			if (listener) listener->onContactUpdated(*it);
@@ -395,7 +432,7 @@ string ExtendedContact::serializeAsUrlEncodedParams() {
 	}
 
 	contact->m_url->url_headers = sip_headers_as_url_query(home.home(),
-		SIPTAG_PATH_STR(oss_path.str().c_str()), SIPTAG_ACCEPT_STR(oss_accept.str().c_str()), 
+		SIPTAG_PATH_STR(oss_path.str().c_str()), SIPTAG_ACCEPT_STR(oss_accept.str().c_str()),
 		TAG_END());
 
 	string contact_string(sip_header_as_string(home.home(), (sip_header_t const *)contact));
@@ -492,7 +529,7 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 		contact = sip_contact_create(home.home(), (url_string_t*)url, NULL);
 	else
 		contact = temp_contact;
-	
+
 	if (contact == NULL) {
 		return result;
 	}
@@ -717,6 +754,7 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 
 	bool useGlobalDomain = mro->get<ConfigBoolean>("use-global-domain")->read();
 	string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
+	string mMessageExpiresName = mr->get<ConfigString>("name-message-expires")->read();
 	if ("internal" == dbImplementation) {
 		LOGI("RegistrarDB implementation is internal");
 		sUnique = new RegistrarDbInternal(ag->getPreferredRoute());
@@ -747,6 +785,7 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 				"Supported implementation is 'internal'.", dbImplementation.c_str());
 #endif
 	}
+	sUnique->mMessageExpiresName = mMessageExpiresName;
 	return sUnique;
 }
 
@@ -854,7 +893,9 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		*/
 		shared_ptr<ExtendedContact> newEc = make_shared<ExtendedContact>(*ec);
 		newEc->mSipContact = sip_contact_create(newEc->mHome.home(), (url_string_t*)uri, NULL);
-		newEc->mPath.push_back(ExtendedContact::urlToString(ec->mSipContact->m_url));
+		ostringstream path;
+		path<<*ec->toSofiaUrlClean(newEc->mHome.home());
+		newEc->mPath.push_back(path.str());
 		// LOGD("transformContactUsedAsRoute(): path to %s added for %s", ec->mSipUri.c_str(), uri);
 		newEc->mUsedAsRoute = false;
 		return newEc;
@@ -919,7 +960,7 @@ void RegistrarDb::fetchForGruu(const url_t *url, const std::string &gruu, const 
 
 void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
 					  const sip_path_t *ipath, const sip_supported_t *isupported, const sip_accept_t *iaccept, bool usedAsRoute, int expire,
-					  bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) 
+					  bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener)
 {
 	SofiaAutoHome home;
 	const sip_accept_t *accept = iaccept;

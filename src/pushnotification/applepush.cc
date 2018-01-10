@@ -7,7 +7,7 @@
 
 const unsigned int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 256;
 const unsigned int ApplePushNotificationRequest::DEVICE_BINARY_SIZE = 32;
-uint32_t ApplePushNotificationRequest::Identifier = 1;
+uint32_t ApplePushNotificationRequest::sIdentifier = 1;
 
 ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 : PushNotificationRequest(info.mAppId, "apple") {
@@ -22,11 +22,12 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	if ((ret != 0) || (mDeviceToken.size() != DEVICE_BINARY_SIZE)) {
 		throw std::runtime_error("ApplePushNotification: Invalid deviceToken");
 	}
+	mTtl = info.mTtl;
 
 	if (info.mSilent || msg_id == "IC_SIL") { 
-		// silent push: just send "content-available=1", the device will figure out what's happening
+		// silent push = pushkit.
 		// We also need msg_id and callid in case the push is received but the device cannot register
-		payload << "{\"aps\":{\"sound\":\"\", \"loc-key\":\"" << msg_id << "\", \"call-id\":\"" << callid << "\", \"content-available\":1},\"pn_ttl\":"<< info.mTtl <<"}";
+		payload << "{\"aps\":{\"sound\":\"\", \"loc-key\":\"" << msg_id << "\", \"call-id\":\"" << callid <<"\" },\"pn_ttl\":"<< info.mTtl <<"}";
 	} else {
 
 		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg
@@ -76,51 +77,74 @@ int ApplePushNotificationRequest::formatDeviceToken(const std::string &deviceTok
 	return 0;
 }
 
-const std::vector<char> &ApplePushNotificationRequest::getData() {
-	unsigned int payloadLength = mPayload.length();
+size_t ApplePushNotificationRequest::writeItem(size_t pos, Item &item){
+	size_t newSize = pos + sizeof(uint8_t) + sizeof(uint16_t) + item.mData.size();
+	uint16_t itemSize = htons((uint16_t)item.mData.size());
+	if (mBuffer.size()<newSize){
+		mBuffer.resize(newSize);
+	}
+	mBuffer[pos] = item.mId;
+	pos++;
+	memcpy(&mBuffer[pos], &itemSize, sizeof(uint16_t));
+	pos += sizeof(uint16_t);
+	memcpy(&mBuffer[pos], &item.mData[0], item.mData.size());
+	pos += item.mData.size();
+	return pos;
+}
 
+const std::vector<char> &ApplePushNotificationRequest::getData() {
+	size_t pos = 0;
+	uint32_t frameSize;
 	/* Init */
 	mBuffer.clear();
-	/* message format is, |COMMAND|ID|EXPIRY|TOKENLEN|TOKEN|PAYLOADLEN|PAYLOAD| */
-	mBuffer.resize(sizeof(uint8_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint16_t) + DEVICE_BINARY_SIZE + sizeof(uint16_t) + payloadLength);
-	char *binaryMessageBuff = &mBuffer[0];
-	char *binaryMessagePt = binaryMessageBuff;
+	mBuffer.resize(sizeof(uint8_t) + sizeof(frameSize));
 
-	/* Compute PushNotification */
-
-	uint8_t command = 1; /* command number. Use enhanced push notifs (cf http://redth.codes/the-problem-with-apples-push-notification-ser/) */
-	uint16_t networkOrderTokenLength = htons(DEVICE_BINARY_SIZE);
-	uint16_t networkOrderPayloadLength = htons(payloadLength);
-	uint32_t expiry = time(0) + 31536000; /* expires in one year */
-	uint32_t identifier = Identifier++; /* auto-increment identifier */
-
-	/* command */
-	*binaryMessagePt++ = command;
-
-	/* identifier */
-	memcpy(binaryMessagePt, &identifier, sizeof(identifier));
-	binaryMessagePt += sizeof(identifier);
-
-	/* expiry */
-	memcpy(binaryMessagePt, &expiry, sizeof(expiry));
-	binaryMessagePt += sizeof(expiry);
-
-	/* token length network order */
-	memcpy(binaryMessagePt, &networkOrderTokenLength, sizeof(networkOrderTokenLength));
-	binaryMessagePt += sizeof(networkOrderTokenLength);
-
-	/* device token */
-	memcpy(binaryMessagePt, &mDeviceToken[0], DEVICE_BINARY_SIZE);
-	binaryMessagePt += DEVICE_BINARY_SIZE;
-
-	/* payload length network order */
-	memcpy(binaryMessagePt, &networkOrderPayloadLength, sizeof(networkOrderPayloadLength));
-	binaryMessagePt += sizeof(networkOrderPayloadLength);
-
-	/* payload */
-	memcpy(binaryMessagePt, &mPayload[0], payloadLength);
-	binaryMessagePt += payloadLength;
-
+	mBuffer[pos] = 2;
+	pos += sizeof(uint8_t);
+	//the frame size will be written at the end of the processing
+	pos += sizeof(frameSize);
+	
+	//now write items
+	
+	//device token item:
+	Item item;
+	item.mId = 1;
+	item.mData = mDeviceToken;
+	pos = writeItem(pos, item);
+	
+	//payload item:
+	item.clear();
+	item.mId = 2;
+	item.mData.assign(mPayload.begin(), mPayload.end());
+	pos = writeItem(pos, item);
+	
+	//Notification identifier
+	item.clear();
+	item.mId = 3;
+	item.mData.resize(sizeof(sIdentifier));
+	memcpy(&item.mData[0], &sIdentifier, sizeof(sIdentifier));
+	pos = writeItem(pos, item);
+	
+	//Expiration date item
+	item.clear();
+	item.mId = 4;
+	uint32_t expires = htonl((uint32_t)(time(NULL) + mTtl));
+	item.mData.resize(sizeof(expires));
+	memcpy(&item.mData[0], &expires, sizeof(expires));
+	pos = writeItem(pos, item);
+	
+	//Priority item
+	item.clear();
+	item.mId = 5;
+	uint8_t priority = 10; //top priority
+	item.mData.push_back(priority);
+	pos = writeItem(pos, item);
+	
+	//now write the total length of items for this frame
+	frameSize = pos - sizeof(uint8_t) - sizeof(frameSize);
+	frameSize = htonl(frameSize);
+	memcpy(&mBuffer[1], &frameSize, sizeof(frameSize));
+	
 	return mBuffer;
 }
 

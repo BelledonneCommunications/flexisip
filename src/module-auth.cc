@@ -868,7 +868,7 @@ void Authentication::AuthenticationListener::onResult(AuthDbResult result, const
 }
 
 void Authentication::AuthenticationListener::finish_for_algorithm() {
-	if ((mAlgoUsed.size() > 1) && (mAs->as_status == 401)) {
+	if (mAlgoUsed.size() > 1 && mAs->as_response) {
 		msg_header_t *response;
 		response = msg_header_copy(mAs->as_home, mAs->as_response);
 		msg_header_remove_param((msg_common_t *)response, "algorithm=MD5");
@@ -908,6 +908,8 @@ void Authentication::AuthenticationListener::finish() {
 		} else {
 			msg_auth_t *au =
 			    ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_proxy_authorization, mAs->as_realm);
+			if(au->au_next)
+				msg_header_remove(ms->getMsg(), (msg_pub_t *)sip, (msg_header_t *)au->au_next);
 			if (au)
 				msg_header_remove(ms->getMsg(), (msg_pub_t *)sip, (msg_header_t *)au);
 		}
@@ -1137,14 +1139,18 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am, auth_status_t *
 	as->as_allow = as->as_allow || auth_allow_check(am, as) == 0;
 
 	if (as->as_realm) {
-		/* When the client answers two responses the same time, we will choose the one with algorithm MD5 for traiting. */
+		/* Workaround for old linphone client that don't check whether algorithm is MD5 or SHA256.
+		 * They then answer for both, but the first one for SHA256 is of course wrong.
+		 * We workaround by selecting the second digest response.
+		 */
 		if (au && au->au_next) {
 			auth_response_t r;
 			memset(&r, 0, sizeof(r));
 			r.ar_size = sizeof(r);
 			auth_digest_response_get(as->as_home, &r, au->au_next->au_params);
-			if (!strcmp(r.ar_algorithm, "MD5")) {
-				au->au_params = au->au_next->au_params;
+
+			if (r.ar_algorithm == NULL || (strcasecmp(r.ar_algorithm, "MD5") == 0)) {
+				au = au->au_next;
 			}
 		}
 		/* After auth_digest_credentials, there is no more au->au_next. */

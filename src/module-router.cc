@@ -524,12 +524,12 @@ class ForkGroupSorter {
 
 			dest.mSipContact = (*it).first;
 			dest.mExtendedContact = (*it).second;
-			targetUris << "<" << dest.mExtendedContact->mSipContact->m_url << ">";
+			targetUris << "<" << *dest.mExtendedContact->toSofiaUrlClean(home.home()) << ">";
 			url_t *url = url_make(home.home(), (*it).second->mPath.back().c_str());
 			// remove it and now search for other contacts that have the same route.
 			it = mAllContacts.erase(it);
 			while ((sameDestinationIt = findDestination(url)) != mAllContacts.end()) {
-				targetUris << ", <" << (*sameDestinationIt).second->mSipContact->m_url << ">";
+				targetUris << ", <" << *(*sameDestinationIt).second->toSofiaUrlClean(home.home()) << ">";
 				mAllContacts.erase(sameDestinationIt);
 				foundGroup = true;
 			}
@@ -599,6 +599,11 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 		sip_contact_t *ct = ec->toSofiaContact(ms->getHome(), now);
 		if (!ct) {
 			SLOGE << "Can't create sip_contact of " << ec->mSipContact->m_url;
+			continue;
+		}
+		// If it's not a message, verify if it's really expired
+		if (sip->sip_request->rq_method != sip_method_message && (ec->getExpireNotAtMessage() < now)) {
+			LOGD("Sip_contact of %s is expired", url_as_string(ms->getHome(),ec->mSipContact->m_url));
 			continue;
 		}
 		if (sip->sip_request->rq_url->url_type == url_sips && ct->m_url->url_type != url_sips) {

@@ -544,8 +544,7 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, for
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
 		shared_ptr<ExtendedContact> ec = (*it);
 
-		string uid = ec->getUniqueId();
-		argv[i] = strdup(uid.c_str());
+		argv[i] = strdup(ec->getUniqueId().c_str());
 		argvlen[i] = strlen(argv[i]);
 		i += 1;
 
