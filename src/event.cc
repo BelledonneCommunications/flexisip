@@ -258,8 +258,10 @@ void RequestSipEvent::unlinkTransactions() {
 void RequestSipEvent::suspendProcessing() {
 	SipEvent::suspendProcessing();
 
-	// Become stateful if not already the case.
-	createIncomingTransaction();
+	if (getSip()->sip_request->rq_method != sip_method_ack) {//Currently does not make sens to create incoming transaction in case of ACK, specialy by forward module.
+		// Become stateful if not already the case.
+		createIncomingTransaction();
+	}
 }
 
 RequestSipEvent::~RequestSipEvent() {
