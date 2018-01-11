@@ -187,6 +187,7 @@ class Agent : public IncomingAgent,
 	DomainRegistrationManager *getDRM() {
 		return mDrm;
 	}
+	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr = false);
 
   private:
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value,
