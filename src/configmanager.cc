@@ -817,8 +817,12 @@ GenericManager::GenericManager()
 		 "The setup of agent.pem, and eventually cafile.pem is required for TLS transport to work.",
 		 "/etc/flexisip/tls/"},
 		{String, "tls-ciphers",
-		 "A config parameter to limit the list of encryption algorithms proposed by Flexisip.",
-		 "ALL:!ADH:!LOW:!EXP:!MD5:!SHA256:@STRENGTH"},
+		 "Ciphers string to pass to OpenSSL in order to limit the cipher suites to use while establishing TLS sessions."
+		 " Please take a look to ciphers(1) UNIX manual to get the list of keywords supported by your current version"
+		 " of OpenSSL. You might visit https://www.openssl.org/docs/manmaster/man1/ciphers.html too. The default value"
+		 " set by Flexisip should provide a high level of security while keeping an acceptable level of interoperability"
+		 " with currenttly deployed client on the marcket.",
+		 "HIGH:!SSLv2:!SSLv3:!TLSv1:!EXP:!ADH:!RC4:!3DES:!aNULL:!eNULL"},
 		{Integer, "idle-timeout", "Time interval in seconds after which inactive connections are closed.", "3600"},
 		{Boolean, "require-peer-certificate", "Require client certificate from peer (inbound connections only).", "false"},
 		{Integer, "transaction-timeout", "SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.",
