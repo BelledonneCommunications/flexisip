@@ -443,6 +443,9 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor *items, bool hashed) 
 			case Integer:
 				val = new ConfigInt(items->name, items->help, items->default_value, cOid);
 				break;
+			case IntegerRange:
+				val = new ConfigIntRange(items->name, items->help, items->default_value, cOid);
+				break;
 			case String:
 				val = new ConfigString(items->name, items->help, items->default_value, cOid);
 				break;
@@ -603,6 +606,67 @@ void ConfigInt::write(int value) {
 	std::ostringstream oss;
 	oss << value;
 	set(oss.str());
+}
+
+ConfigIntRange::ConfigIntRange(const std::string& name, const std::string& help, const std::string& default_value, oid oid_index)
+	: ConfigValue(name, IntegerRange, help, default_value, oid_index) {
+}
+
+void ConfigIntRange::parse(const string &value) {
+	std::string::size_type n = value.find('-');
+	if (n == std::string::npos) {
+		mMin = mMax = atoi(value.c_str());
+	} else {
+		mMin = atoi(value.substr(0, n).c_str());
+		mMax = atoi(value.substr(n + 1).c_str());
+	}
+}
+
+int ConfigIntRange::readMin() {
+	try {
+		parse(get());
+		return mMin;
+	} catch(std::out_of_range &e) {
+		LOGA("%s", e.what());
+	}
+	return -1;
+}
+int ConfigIntRange::readMax() {
+	try {
+		parse(get());
+		return mMax;
+	} catch(std::out_of_range &e) {
+		LOGA("%s", e.what());
+	}
+	return -1;
+}
+int ConfigIntRange::readNextMin() {
+	try {
+		parse(getNextValue());
+		return mMin;
+	} catch(std::out_of_range &e) {
+		LOGA("%s", e.what());
+	}
+	return -1;
+}
+int ConfigIntRange::readNextMax() {
+	try {
+		parse(getNextValue());
+		return mMax;
+	} catch(std::out_of_range &e) {
+		LOGA("%s", e.what());
+	}
+	return -1;
+}
+
+void ConfigIntRange::write(int min, int max) {
+	if (min > max) {
+		LOGA("ConfigIntRange: min is superior to max");
+	} else {
+		std::ostringstream oss;
+		oss << min << "-" << max;
+		set(oss.str());
+	}
 }
 
 StatCounter64::StatCounter64(const string &name, const string &help, oid oid_index)
