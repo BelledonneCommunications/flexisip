@@ -278,8 +278,9 @@ void RelaySession::removeBranch(const std::string &trId) {
 		mBacks.erase(it);
 	}
 	mMutex.unlock();
-	if (removed)
+	if (removed) {
 		LOGD("RelaySession [%p]: branch corresponding to transaction [%s] removed.", this, trId.c_str());
+	}
 }
 
 int RelaySession::getActiveBranchesCount() {
@@ -304,8 +305,7 @@ void RelaySession::setEstablished(const std::string &tr_id) {
 		mBack = winner;
 		mBacks.clear();
 		mMutex.unlock();
-	} else
-		LOGE("RelaySession [%p] is with from an unknown branch [%s].", this, tr_id.c_str());
+	} else LOGE("RelaySession [%p] is with from an unknown branch [%s].", this, tr_id.c_str());
 }
 
 void RelaySession::fillPollFd(PollFd *pfd) {
@@ -373,10 +373,12 @@ void RelaySession::unuse() {
 	mMutex.unlock();
 
 	/*do not log while holding a mutex*/
-	if (front.port > 0)
+	if (front.port > 0) {
 		LOGD("Front on port [%i] received [%lu] and sent [%lu] packets.", front.port, front.recv, front.sent);
-	if (back.port > 0)
+	}
+	if (back.port > 0) {
 		LOGD("Back on port [%i] received [%lu] and sent [%lu] packets.", back.port, back.recv, back.sent);
+	}
 }
 
 bool RelaySession::checkChannels() {
