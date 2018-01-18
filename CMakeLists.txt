@@ -51,6 +51,7 @@ option(ENABLE_SNMP "Build with SNMP support" NO)
 option(ENABLE_SOCI "Build with SOCI support" YES)
 option(ENABLE_STATIC "Build static library (default is shared library)." NO)
 option(ENABLE_TRANSCODER "Build transcoder support" YES)
+option(ENABLE_MDNS "Build multicast DNS support" NO)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
 if(NOT CMAKE_INSTALL_RPATH AND CMAKE_INSTALL_PREFIX)
@@ -213,7 +214,7 @@ if(ENABLE_PDFDOC)
 	FIND_PROGRAM_REQUIRED(PDFLATEX_PROG pdflatex)
 endif()
 
-if(ENABLE_PRESENCE)
+if(ENABLE_PRESENCE OR ENABLE_MDNS)
 		# disable Presence on gcc < 4.7 because c++11 is not supported well before
 		if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
 				message(WARNING "Disable Presence because GCC is too old")
