@@ -626,7 +626,7 @@ int ConfigIntRange::readMin() {
 	try {
 		parse(get());
 		return mMin;
-	} catch(std::out_of_range &e) {
+	} catch(const std::out_of_range &e) {
 		LOGA("%s", e.what());
 	}
 	return -1;
@@ -635,7 +635,7 @@ int ConfigIntRange::readMax() {
 	try {
 		parse(get());
 		return mMax;
-	} catch(std::out_of_range &e) {
+	} catch(const std::out_of_range &e) {
 		LOGA("%s", e.what());
 	}
 	return -1;
@@ -644,7 +644,7 @@ int ConfigIntRange::readNextMin() {
 	try {
 		parse(getNextValue());
 		return mMin;
-	} catch(std::out_of_range &e) {
+	} catch(const std::out_of_range &e) {
 		LOGA("%s", e.what());
 	}
 	return -1;
@@ -653,7 +653,7 @@ int ConfigIntRange::readNextMax() {
 	try {
 		parse(getNextValue());
 		return mMax;
-	} catch(std::out_of_range &e) {
+	} catch(const std::out_of_range &e) {
 		LOGA("%s", e.what());
 	}
 	return -1;
