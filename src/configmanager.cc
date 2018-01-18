@@ -27,6 +27,7 @@
 #include "configdumper.hh"
 
 #include <functional>
+#include <stdexcept>
 
 #include <ctime>
 #include <sstream>
