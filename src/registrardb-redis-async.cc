@@ -773,7 +773,7 @@ void RegistrarDbRedisAsync::handleRecordMigration(redisReply *reply, RegistrarUs
 	} else {
 		if (reply->len > 0) {
 			if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
-				LOGE("Couldn't parse stored contacts for aor:%s : %u bytes", data->record.getKey().c_str(), reply->len);
+				LOGE("Couldn't parse stored contacts for aor:%s : %u bytes", data->record.getKey().c_str(), (unsigned int)reply->len);
 				if (data->listener) data->listener->onRecordFound(NULL); 
 			} else {
 				LOGD("Parsing stored contacts for aor:%s successful", data->record.getKey().c_str());
