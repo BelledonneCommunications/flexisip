@@ -16,10 +16,6 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
-#include "flexisip-config.h"
-#define FLEXISIP_INCLUDED
-#endif
 #include "agent.hh"
 #include "module.hh"
 #include "domain-registrations.hh"
@@ -198,6 +194,11 @@ bool getBoolUriParameter(const url_t *url, const char *param, bool defaultValue)
 	return defaultValue;
 }
 
+#if ENABLE_MDNS
+static void mDnsRegisterCallback(void *data, int error) {
+	if (error != 0) LOGE("Error while registering a mDNS service");
+}
+#endif
 
 void Agent::start(const std::string &transport_override, const std::string passphrase) {
 	char cCurrDir[FILENAME_MAX];
@@ -291,6 +292,48 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		LOGF("No sip transport defined.");
 	su_md5_t ctx;
 	su_md5_init(&ctx);
+
+#if ENABLE_MDNS
+	/* Get Informations about mDNS register */
+	GenericStruct *mdns = GenericManager::get()->getRoot()->get<GenericStruct>("mdns-register");
+	bool mdnsEnabled = mdns->get<ConfigBoolean>("enabled")->read();
+	if (mdnsEnabled) {
+		if (!belle_sip_mdns_register_available()) LOGF("Belle-sip does not have mDNS activated!");
+
+		string mdnsDomain = GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
+		int mdnsPrioMin = mdns->get<ConfigIntRange>("mdns-priority")->readMin();
+		int mdnsPrioMax = mdns->get<ConfigIntRange>("mdns-priority")->readMax();
+		int mdnsWeight = mdns->get<ConfigInt>("mdns-weight")->read();
+
+		/* Get hostname of the machine */
+		char hostname[HOST_NAME_MAX];
+		int err = gethostname(hostname, sizeof(hostname));
+		if (err != 0) {
+			LOGE("Cannot retrieve machine hostname.");
+		} else {
+			int prio;
+			if (mdnsPrioMin == mdnsPrioMax) {
+				prio = mdnsPrioMin;
+			} else {
+				/* Randomize the priority */
+				srand(time(NULL));
+				prio = rand() % (mdnsPrioMax - mdnsPrioMin + 1) + mdnsPrioMin;
+			}
+
+			LOGD("Registering multicast DNS services.");
+			for (tport_t *tport = primaries; tport != NULL; tport = tport_next(tport)) {
+				char registerName[512];
+				const tp_name_t *name = tport_name(tport);
+				snprintf(registerName, sizeof(registerName), "%s_%s_%s", hostname, name->tpn_proto, name->tpn_port);
+
+				belle_sip_mdns_register_t *reg = belle_sip_mdns_register("sip", name->tpn_proto, mdnsDomain.c_str(),
+																		registerName, atoi(name->tpn_port), prio, mdnsWeight,
+																		mDnsRegisterCallback, NULL);
+				mMdnsRegisterList.push_back(reg);
+			}
+		}
+	}
+#endif
 
 	/*
 	 * Iterate on all the transports enabled or implicitely configured (case of 'sip:*') in order to guess useful
@@ -476,6 +519,12 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 }
 
 Agent::~Agent() {
+#if ENABLE_MDNS
+	for(belle_sip_mdns_register_t *reg : mMdnsRegisterList) {
+		belle_sip_mdns_unregister(reg);
+	}
+#endif
+
 	mTerminating = true;
 	for_each(mModules.begin(), mModules.end(), delete_functor<Module>());
 	if (mDrm)

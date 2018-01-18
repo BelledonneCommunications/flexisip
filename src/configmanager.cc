@@ -913,6 +913,21 @@ GenericManager::GenericManager()
 		{StringList, "nodes", "List of IP addresses of all nodes present in the cluster", ""},
 		config_item_end};
 
+	static ConfigItemDescriptor mdns_conf[] = {
+		{Boolean, "enabled", "Set to 'true' to enable multicast DNS register", "false"},
+		{IntegerRange,
+			"mdns-priority", "Priority of Flexisip, lower value means more preferred.\n"
+			"'n': priority of n (example 10)\n"
+			"'n-m': random priority between n and m (example 10-50)",
+			"0"},
+		{Integer, "mdns-weight",
+			"A relative weight for Flexisips with the same priority, higher value means more preferred.\n"
+			"For example, if two Flexisips are registered on the same local domain with one at 20 and the other at 80"
+			", then 20% of Flexisip traffic will be redirected to the first Flexisip and 80% to the other one.\n"
+			"The sum of all the weights of Flexisips on the same local domain must be 100.",
+			"100"},
+		config_item_end};
+
 	GenericStruct *notifObjs = new GenericStruct("notif", "Templates for notifications.", 1);
 	notifObjs->setExportable(false);
 	mConfigRoot.addChild(notifObjs);
@@ -947,6 +962,13 @@ GenericManager::GenericManager()
 	mConfigRoot.addChild(cluster);
 	cluster->addChildrenValues(cluster_conf);
 	cluster->setReadOnly(true);
+
+	GenericStruct *mdns = new GenericStruct(
+		"mdns-register",
+		"Should the server be registered on a local domain, to be accessible via multicast DNS.", 0);
+	mConfigRoot.addChild(mdns);
+	mdns->addChildrenValues(mdns_conf);
+	mdns->setReadOnly(true);
 }
 
 bool GenericManager::doIsValidNextConfig(const ConfigValue &cv) {
