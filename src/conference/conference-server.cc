@@ -34,7 +34,7 @@ ConferenceServer::Init ConferenceServer::sStaticInit;
 
 ConferenceServer::ConferenceServer() : ServiceServer() {}
 
-ConferenceServer::ConferenceServer(bool withThread) : ServiceServer(withThread) {}
+ConferenceServer::ConferenceServer(bool withThread, su_root_t* root) : ServiceServer(withThread, root) {}
 
 ConferenceServer::~ConferenceServer() {}
 

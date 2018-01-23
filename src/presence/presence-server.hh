@@ -70,7 +70,7 @@ public:
 class PresenceServer : public PresentityManager, public ServiceServer {
 public:
 	PresenceServer();
-	PresenceServer(bool withThread);
+	PresenceServer(bool withThread, su_root_t* root = nullptr);
 	~PresenceServer();
 	void _init();
 	void _run();

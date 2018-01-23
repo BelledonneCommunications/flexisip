@@ -34,7 +34,7 @@ namespace flexisip {
 		public linphone::CoreListener, public linphone::ChatRoomListener {
 	public:
 		ConferenceServer();
-		ConferenceServer(bool withThread);
+		ConferenceServer(bool withThread, su_root_t* root = nullptr);
 		~ConferenceServer();
 
 		static void bindConference();

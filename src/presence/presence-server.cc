@@ -58,7 +58,7 @@ PresenceServer::Init::Init() {
 PresenceServer::PresenceServer() : PresenceServer(false) {
 }
 
-PresenceServer::PresenceServer(bool withThread) : ServiceServer(withThread){
+PresenceServer::PresenceServer(bool withThread, su_root_t* root) : ServiceServer(withThread, root){
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
 	/*Enabling leak detector should be done asap.*/
 	belle_sip_object_enable_leak_detector(GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("leak-detector")->read());

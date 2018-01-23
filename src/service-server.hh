@@ -24,20 +24,27 @@
 #include <thread>
 #include <csignal>
 
+#include <sofia-sip/su_wait.h>
+
 namespace flexisip {
 
 class ServiceServer {
 public:
 	ServiceServer() : ServiceServer(false) {};
-	
-	ServiceServer(bool withThread) :
+
+	ServiceServer(bool withThread, su_root_t* root = nullptr) :
 		mStarted(true),
-		mWithThread(withThread),
+		mWithThread((root != nullptr) ? false : withThread),
+		mRoot(root),
 		mIterateThread(nullptr)
 		{};
 	virtual ~ServiceServer() {};
 
 	void init() {
+		if (mRoot) {
+			mTimer = su_timer_create(su_root_task(mRoot), 5000);
+			su_timer_set_for_ever(mTimer, ((su_timer_f)ServiceServer::timerFunc), this);
+		}
 		this->_init();
 	};
 
@@ -55,6 +62,9 @@ public:
 	//Stop service server
 	void stop() {
 		mStarted = false;
+		if (mRoot && mTimer) {
+			su_timer_destroy(mTimer);
+		}
 		this->_stop();
 		if (mIterateThread) {
 			pthread_kill(mIterateThread->native_handle(), SIGINT);//because main loop is not interruptible
@@ -71,11 +81,20 @@ public:
 protected:
 	bool mStarted;
 	bool mWithThread;
+	su_root_t* mRoot;
+	su_timer_t *mTimer;
 	std::unique_ptr<std::thread> mIterateThread;
+
+	static void timerFunc(su_root_magic_t *magic, su_timer_t *t, ServiceServer* thiz) {
+		if (thiz->mStarted) {
+			thiz->_run();
+		}
+	};
 
 private:
 	void __run() {
-		while (mStarted)
+		//Do not run if we have a su_root
+		while (mStarted && !mRoot)
 			this->_run();
 	}
 };

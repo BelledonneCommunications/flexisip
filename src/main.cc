@@ -961,7 +961,7 @@ int main(int argc, char *argv[]) {
 
 	if (startConference){
 #ifdef ENABLE_CONFERENCE
-		conferenceServer = make_shared<flexisip::ConferenceServer>(startProxy);
+		conferenceServer = make_shared<flexisip::ConferenceServer>(startProxy, root);
 		try{
 			conferenceServer->init();
 			conferenceServer->run();
@@ -975,7 +975,7 @@ int main(int argc, char *argv[]) {
 #endif // ENABLE_CONFERENCE
 	}
 
-	if (startProxy){
+	if (startProxy || startConference){
 		su_timer_t *timer = su_timer_create(su_root_task(root), 5000);
 		su_timer_set_for_ever(timer, (su_timer_f)timerfunc, a.get());
 		su_root_run(root);
