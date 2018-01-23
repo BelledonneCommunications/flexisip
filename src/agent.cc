@@ -381,7 +381,7 @@ void Agent::start(const std::string &transport_override, const std::string passp
 			// LOGD("\tDetected %s preferred route to %s", isIpv6 ? "ipv6":"ipv4", prefUrl);
 		}
 		if (mNodeUri == NULL) {
-			         mNodeUri = urlFromTportName(&mHome, name);
+			mNodeUri = ModuleToolbox::urlFromTportName(&mHome, name);
 			string clusterDomain = GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
 			if (!clusterDomain.empty()) {
 				tp_name_t tmp_name = *name;

@@ -844,7 +844,7 @@ GenericManager::GenericManager()
 						"Possible values are 'proxy', 'presence', separated by whitespaces.", "proxy" },
 		{StringList, "transports",
 		 "List of white space separated SIP uris where the proxy must listen.\n"
-		 "Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' prameter is unspecified, it will "
+		 "Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' parameter is unspecified, it will "
 		 "listen "
 		 "to both udp and tcp. A local address to bind onto can be indicated in the 'maddr' parameter, while the "
 		 "domain part of the"
