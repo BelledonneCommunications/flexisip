@@ -120,12 +120,12 @@ void RelayChannel::setRemoteAddr(const string &ip, int rtp_port, int rtcp_port, 
 		struct addrinfo hints = {0};
 		char portstr[20];
 		int err;
-		
+
 		if (mDestAddrChanged){
 			LOGW("RelayChannel [%p] is being set new destination address but was fixed previously in this session, so ignoring this request.", this);
 			return;
 		}
-		
+
 		for (int i = 0; i < 2; ++i){
 			mRecvErrorCount[i] = 0;
 			snprintf(portstr, sizeof(portstr), "%i", mRemotePort[i]);
@@ -142,6 +142,7 @@ void RelayChannel::setRemoteAddr(const string &ip, int rtp_port, int rtcp_port, 
 		}
 	} else {
 		/*case where client declined the stream (0 port in SDP) or destination address is invalid*/
+		mDestAddrChanged = false;
 		mSockAddrSize[0] = 0;
 		mSockAddrSize[1] = 0;
 	}
@@ -168,7 +169,7 @@ bool RelayChannel::checkPollFd(const PollFd *pfd, int i) {
 int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 	struct sockaddr_storage ss;
 	socklen_t addrsize = sizeof(ss);
-	
+
 	int err = recvfrom(mSockets[i], buf, buflen, 0, (struct sockaddr *)&ss, &addrsize);
 	if (err > 0) {
 		mPacketsReceived++;
@@ -186,7 +187,7 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 			memcpy(&mSockAddr[i], &ss, addrsize);
 			mDestAddrChanged = true;
 		}
-		
+
 		mSockAddrSize[i] = addrsize;
 		if (mDir == SendOnly || mDir == Inactive) {
 			/*LOGD("ignored packet");*/
