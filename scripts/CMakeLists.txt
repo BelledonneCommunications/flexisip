@@ -35,9 +35,15 @@ endif()
 #systemd
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip.service)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip@.service)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-proxy.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-proxy.service)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-proxy@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-proxy@.service)
 
 if (ENABLE_PRESENCE)
 	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-presence.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-presence.service)
 	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-presence@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-presence@.service)
+endif()
+if (ENABLE_CONFERENCE)
+	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-conference.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-conference.service)
+	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-conference@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-conference@.service)
 endif()
 
