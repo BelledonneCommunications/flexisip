@@ -354,7 +354,7 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 class OnContactRegisteredListener : public ContactRegisteredListener, public ContactUpdateListener, public enable_shared_from_this<OnContactRegisteredListener> {
 	friend class ModuleRouter;
 	ModuleRouter *mModule;
-	const url_t *mSipUri;
+	url_t *mSipUri;
 	std::string mUid;
 	su_home_t mHome;
 
@@ -363,6 +363,11 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Con
 	: mModule(module), mUid("") {
 		su_home_init(&mHome);
 		mSipUri = url_hdup(&mHome, sipUri);
+		if (url_has_param(mSipUri, "gr")) {
+			LOGD("Trying to create a ContactRegistered listener using a SIP URI with a gruu, removing let's remove it");
+			mSipUri->url_params = url_strip_param_string((char*)mSipUri->url_params, "gr");
+		}
+		LOGD("Listener created for sipUri = %s", url_as_string(&mHome, mSipUri));
 	}
 
 	~OnContactRegisteredListener() {
