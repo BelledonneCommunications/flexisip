@@ -1,11 +1,11 @@
 [Unit]
-Description=Flexisip server all service - %i instance
+Description=Flexisip conference server
 Documentation=http://www.linphone.org/technical-corner/flexisip/overview
 After=syslog.target network.service network.target redis.service mysqld.service
 
 [Service]
 Type=forking
-ExecStart=/opt/belledonne-communications/bin/flexisip --server all --daemon --syslog --pidfile /var/run/flexisip/%i.pid -c /etc/flexisip/%i.conf
+ExecStart=@bindir@/flexisip --server conference --daemon --syslog --pidfile /var/run/flexisip-conference.pid
 StandardOutput=null
 StandardError=null
 
