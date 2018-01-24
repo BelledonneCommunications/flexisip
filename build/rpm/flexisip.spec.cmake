@@ -160,9 +160,15 @@ mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/log/flexisip
 mkdir -p $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip.service $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip\@.service $RPM_BUILD_ROOT/lib/systemd/system
+install -p -m 0644 scripts/flexisip-proxy.service $RPM_BUILD_ROOT/lib/systemd/system
+install -p -m 0644 scripts/flexisip-proxy\@.service $RPM_BUILD_ROOT/lib/systemd/system
 %if  %{presence}
 	install -p -m 0644 scripts/flexisip-presence.service $RPM_BUILD_ROOT/lib/systemd/system
 	install -p -m 0644 scripts/flexisip-presence\@.service $RPM_BUILD_ROOT/lib/systemd/system
+%endif
+%if  %{conference}
+	install -p -m 0644 scripts/flexisip-conference.service $RPM_BUILD_ROOT/lib/systemd/system
+	install -p -m 0644 scripts/flexisip-conference\@.service $RPM_BUILD_ROOT/lib/systemd/system
 %endif
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
 install -p -m 0644 scripts/flexisip-logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
@@ -224,11 +230,18 @@ fi
 	/lib/systemd/system/flexisip-presence@.service
 %endif
 
+%if %{conference}
+	/lib/systemd/system/flexisip-conference.service
+	/lib/systemd/system/flexisip-conference@.service
+%endif
+
 %{_sysconfdir}/init.d/flexisip
 %{_sysconfdir}/flexisip
 %{_sysconfdir}/logrotate.d/flexisip-logrotate
 /lib/systemd/system/flexisip.service
 /lib/systemd/system/flexisip@.service
+/lib/systemd/system/flexisip-proxy.service
+/lib/systemd/system/flexisip-proxy@.service
 
 %changelog
 * Tue Aug 29  2017 Jehan Monnier <jehan.monnier@linphone.org> 
