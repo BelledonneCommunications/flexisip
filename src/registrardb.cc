@@ -48,7 +48,7 @@ ostream &ExtendedContact::print(std::ostream &stream, time_t _now, time_t _offse
 	if (ptm != NULL) {
 		strftime(buffer, sizeof(buffer) - 1, "%c", ptm);
 	}
-	int expireAfter = mExpireAt - now;
+	int expireAfter = mExpireNotAtMessage - now;
 
 	stream << urlToString(mSipContact->m_url) << " path=\"";
 	for (auto it = mPath.cbegin(); it != mPath.cend(); ++it) {
@@ -96,16 +96,7 @@ string ExtendedContact::getOrgLinphoneSpecs() {
 	return result;
 }
 const std::string ExtendedContact::getMessageExpires(const msg_param_t *m_params)  {
-	if(m_params) {
-		// Find message expires time in the contact parameters
-		std::string mss_expires(*m_params);
-		std::string name_expires_mss = RegistrarDb::get()->messageExpiresName();
-		if (mss_expires.find(name_expires_mss+"=") != std::string::npos){
-			mss_expires = mss_expires.substr(mss_expires.find(name_expires_mss+"=")+(strlen(name_expires_mss.c_str())+1));
-			return mss_expires;
-		}
-	}
-	return "";
+	return RegistrarDb::get()->getMessageExpires(m_params);
 }
 
 sip_contact_t *ExtendedContact::toSofiaContact(su_home_t *home, time_t now) const {
@@ -389,7 +380,7 @@ string ExtendedContact::serializeAsUrlEncodedParams() {
 	// Expire
 	oss.str("");
 	oss.clear();
-	time_t expire = mExpireAt - getCurrentTime();
+	time_t expire = mExpireNotAtMessage - getCurrentTime();
 	oss << "expires=" << expire;
 	url_param_add(home.home(), contact->m_url, oss.str().c_str());
 
@@ -830,6 +821,19 @@ RegistrarDb *RegistrarDb::get() {
 
 void RegistrarDb::clear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
 	doClear(sip, listener);
+}
+
+const std::string RegistrarDb::getMessageExpires(const msg_param_t *m_params)  {
+	if (m_params) {
+		// Find message expires time in the contact parameters
+		std::string mss_expires(*m_params);
+		std::string name_expires_mss = RegistrarDb::get()->messageExpiresName();
+		if (mss_expires.find(name_expires_mss + "=") != std::string::npos) {
+			mss_expires = mss_expires.substr(mss_expires.find(name_expires_mss + "=") + (strlen(name_expires_mss.c_str()) + 1));
+			return mss_expires;
+		}
+	}
+	return "";
 }
 
 class RecursiveRegistrarDbListener : public ContactUpdateListener,
