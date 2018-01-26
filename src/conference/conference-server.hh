@@ -34,10 +34,13 @@ namespace flexisip {
 		public linphone::CoreListener, public linphone::ChatRoomListener {
 	public:
 		ConferenceServer();
-		ConferenceServer(bool withThread, su_root_t* root = nullptr);
+		ConferenceServer(bool withThread, const std::string &path, su_root_t* root = nullptr);
 		~ConferenceServer();
 
-		static void bindConference();
+		/** Bind conference on the registrardb
+		 * @param[in] path : (optionnal) path between the proxys
+		**/
+		static void bindConference(const std::string &path);
 
 	protected:
 		void _init() override;
@@ -46,13 +49,14 @@ namespace flexisip {
 
 	private:
 		std::shared_ptr<linphone::Core> mCore;
+		std::string mPath;
 
 		void onChatRoomStateChanged(const std::shared_ptr<linphone::Core> & lc, const std::shared_ptr<linphone::ChatRoom> & cr, linphone::ChatRoomState state) override;
 		void onConferenceAddressGeneration(const std::shared_ptr<linphone::ChatRoom> & cr) override;
 		void onParticipantDeviceFetched(const std::shared_ptr<linphone::ChatRoom> & cr, const std::shared_ptr<const linphone::Address> & participantAddr) override;
 		void onParticipantsCapabilitiesChecked(const std::shared_ptr<linphone::ChatRoom> & cr, const std::shared_ptr<const linphone::Address> &deviceAddr, const std::list<std::shared_ptr<linphone::Address> > & participantsAddr) override;
 
-		static void bindChatRoom(const std::string &bindingUrl, const std::string &contact, const std::string &gruu, const std::shared_ptr<ContactUpdateListener>& listener);
+		static void bindChatRoom(const std::string &bindingUrl, const std::string &contact, const std::string &gruu, const std::string &path, const std::shared_ptr<ContactUpdateListener>& listener);
 
 		// Used to declare the service configuration
 		class Init {

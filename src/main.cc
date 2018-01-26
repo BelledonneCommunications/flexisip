@@ -905,9 +905,6 @@ int main(int argc, char *argv[]) {
 			cfg->applyOverrides(true); // using default + overrides
 
 		a->loadConfig(cfg);
-#ifdef ENABLE_CONFERENCE
-		flexisip::ConferenceServer::bindConference();
-#endif //ENABLE_CONFERENCE
 
 		// Create cached test accounts for the Flexisip monitor if necessary
 		if (monitorEnabled) {
@@ -961,7 +958,11 @@ int main(int argc, char *argv[]) {
 
 	if (startConference){
 #ifdef ENABLE_CONFERENCE
-		conferenceServer = make_shared<flexisip::ConferenceServer>(startProxy, root);
+		if (!startProxy) {
+			a->loadConfig(cfg);
+		}
+		flexisip::ConferenceServer::bindConference(a->getPreferredRoute());
+		conferenceServer = make_shared<flexisip::ConferenceServer>(startProxy, a->getPreferredRoute(), root);
 		try{
 			conferenceServer->init();
 			conferenceServer->run();
