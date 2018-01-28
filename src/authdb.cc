@@ -91,7 +91,9 @@ void AuthDbBackend::declareConfig(GenericStruct *mc) {
 
 string AuthDbBackend::createPasswordKey(const string &user, const string &auth_username) {
 	ostringstream key;
-	key << user << "#" << auth_username;
+	char unescapedId[MAX_USERNAME_LENGTH];
+	url_unescape(unescapedId, auth_username.c_str());
+	key << user << "#" << unescapedId;
 	return key.str();
 }
 

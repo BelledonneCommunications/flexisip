@@ -23,7 +23,6 @@
 #include <fstream>
 #include <sstream>
 
-#define MAX_USERNAME_LENGTH  30
 using namespace std;
 
 
