@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2017  Belledonne Communications, Grenoble France
+# Copyright (C) 2017-2018  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -20,7 +20,7 @@
 #
 ############################################################################
 
-if (NOT CPACK_PACKAGE_NAME)
+if(NOT CPACK_PACKAGE_NAME)
 	if (ENABLE_PRESENCE)
 		set(CPACK_PACKAGE_NAME "flexisip-presence")
 	else()
@@ -38,10 +38,10 @@ set(CPACK_PACKAGE_FILE_NAME ${CPACK_PACKAGE_NAME}-${PROJECT_VERSION})
 
 set(CPACK_SOURCE_GENERATOR "TGZ")
 set(CPACK_SOURCE_IGNORE_FILES
-"${CMAKE_BINARY_DIR}"
-"^${PROJECT_SOURCE_DIR}/submodules*"
-"^${PROJECT_SOURCE_DIR}/WORK*"
-"^${PROJECT_SOURCE_DIR}/.git*"
+	"${CMAKE_BINARY_DIR}"
+	"^${PROJECT_SOURCE_DIR}/submodules*"
+	"^${PROJECT_SOURCE_DIR}/WORK*"
+	"^${PROJECT_SOURCE_DIR}/.git*"
 )
 
 bc_project_build_version(${PROJECT_VERSION} PROJECT_VERSION_BUILD)
@@ -52,7 +52,8 @@ endif()
 message("-- Package file name is ${CPACK_PACKAGE_FILE_NAME}" )
 
 set(CPACK_SOURCE_PACKAGE_FILE_NAME ${CPACK_PACKAGE_FILE_NAME})
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/rpm/flexisip.spec.cmake ${CMAKE_CURRENT_SOURCE_DIR}/../flexisip.spec)
+
+bc_generate_rpm_specfile("rpm/flexisip.spec.cmake" "${PROJECT_SOURCE_DIR}/flexisip.spec")
 
 include(CPack)
 
