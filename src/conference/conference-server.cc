@@ -265,7 +265,7 @@ void flexisip::ConferenceServer::bindConference(const string &path) {
 		sip_contact_t *sipContact = sip_contact_make(mHome.home(), transportFactory.c_str());
 		url_t *url = url_make(mHome.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
 		sip_path_t *bindingPath = nullptr;
-		bindingPath = sip_path_make(mHome.home(), path.c_str());
+		bindingPath = sip_path_format(mHome.home(), "<%s>", path.c_str());
 		RegistrarDb::get()->bind(url, sipContact, "CONFERENCE", 0, bindingPath, nullptr, nullptr,
 								 true, numeric_limits<int>::max(), false, 0, listener);
 	}
@@ -279,7 +279,7 @@ void ConferenceServer::bindChatRoom(const string &bindingUrl, const string &cont
 	url_param_add(mHome.home(), sipContact->m_url, ("gr=urn:uuid:" + gruu).c_str());
 	sip_supported_t *sipSupported = reinterpret_cast<sip_supported_t *>(sip_header_format(mHome.home(), sip_supported_class, "gruu"));
 	sip_path_t *bindingPath = nullptr;
-	bindingPath = sip_path_make(mHome.home(), path.c_str());
+	bindingPath = sip_path_format(mHome.home(), "<%s>", path.c_str());
 	RegistrarDb::get()->bind(url, sipContact, gruu.c_str(), 0, bindingPath, sipSupported,
 							 nullptr, true, numeric_limits<int>::max(), false, 0, listener);
 }

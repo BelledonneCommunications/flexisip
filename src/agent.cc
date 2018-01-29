@@ -206,15 +206,12 @@ void Agent::setupInternalTransport() {
 		}
 
 		if (err == 0) {
-			su_home_t home;
-			su_home_init(&home);
-			url_t *url = url_make(&home, internalTransport.c_str());
+			url_t *url = url_make(&mHome, internalTransport.c_str());
 
 			if (url != nullptr) {
 				mPreferredRouteV4 = url_hdup(&mHome, url);
-				LOGD("Agent's preferred IP for internal routing: v4: %s", internalTransport.c_str());
+				LOGD("Agent's preferred IP for internal routing find: v4: %s", internalTransport.c_str());
 			}
-			su_home_deinit(&home);
 		}
 	}
 }
@@ -508,6 +505,7 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 	mPreferredRouteV4 = NULL;
 	mPreferredRouteV6 = NULL;
 	mDrm = new DomainRegistrationManager(this);
+	setupInternalTransport();
 }
 
 Agent::~Agent() {
@@ -555,8 +553,6 @@ void Agent::loadConfig(GenericManager *cm, bool startModules) {
 	for (list<string>::iterator it = mAliases.begin(); it != mAliases.end(); ++it) {
 		LOGD("%s", (*it).c_str());
 	}
-
-	setupInternalTransport();
 
 	RegistrarDb::initialize(this);
 
