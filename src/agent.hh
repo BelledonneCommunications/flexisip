@@ -110,7 +110,7 @@ class Agent : public IncomingAgent,
   public:
 	Agent(su_root_t *root);
 	void start(const std::string &transport_override, const std::string passphrase);
-	virtual void loadConfig(GenericManager *cm);
+	virtual void loadConfig(GenericManager *cm, bool startModules = true);
 	virtual void unloadConfig();
 	virtual ~Agent();
 	/// Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination.

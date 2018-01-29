@@ -959,7 +959,7 @@ int main(int argc, char *argv[]) {
 	if (startConference){
 #ifdef ENABLE_CONFERENCE
 		if (!startProxy) {
-			a->loadConfig(cfg);
+			a->loadConfig(cfg, false);
 		}
 		flexisip::ConferenceServer::bindConference(a->getPreferredRoute());
 		conferenceServer = make_shared<flexisip::ConferenceServer>(startProxy, a->getPreferredRoute(), root);

@@ -286,6 +286,23 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		su_home_deinit(&home);
 	}
 
+	if (mPreferredRouteV4 != nullptr) {
+		GenericStruct *global = GenericManager::get()->getRoot()->get<GenericStruct>("global");
+		unsigned int tports_idle_timeout = 1000 * (unsigned int)global->get<ConfigInt>("idle-timeout")->read();
+		unsigned int incompleteIncomingMessageTimeout = 600 * 1000; /*milliseconds*/
+		unsigned int keepAliveInterval = 30 * 60 * 1000; /*30mn*/
+
+		if (nta_agent_add_tport(
+				mAgent, (const url_string_t *)mPreferredRouteV4, TPTAG_IDLE(tports_idle_timeout),
+				TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+				TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TAG_END()
+			) == -1) {
+			char prefRouteV4[266];
+			url_e(prefRouteV4, sizeof(prefRouteV4), mPreferredRouteV4);
+			LOGE("Could not enable transport %s: %s", prefRouteV4, strerror(errno));
+		}
+	}
+
 	tport_t *primaries = tport_primaries(nta_agent_tports(mAgent));
 	if (primaries == NULL)
 		LOGF("No sip transport defined.");
@@ -481,7 +498,7 @@ bool Agent::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 	return mBaseConfigListener->onConfigStateChanged(conf, state);
 }
 
-void Agent::loadConfig(GenericManager *cm) {
+void Agent::loadConfig(GenericManager *cm, bool startModules) {
 	cm->loadStrict(); // now that each module has declared its settings, we need to reload from the config file
 	if (!mBaseConfigListener) {
 		mBaseConfigListener = cm->getGlobal()->getConfigListener();
@@ -519,18 +536,9 @@ void Agent::loadConfig(GenericManager *cm) {
 			if (err == 0) {
 				su_home_t home;
 				su_home_init(&home);
-				GenericStruct *global = GenericManager::get()->getRoot()->get<GenericStruct>("global");
-				unsigned int tports_idle_timeout = 1000 * (unsigned int)global->get<ConfigInt>("idle-timeout")->read();
-				unsigned int incompleteIncomingMessageTimeout = 600 * 1000; /*milliseconds*/
-				unsigned int keepAliveInterval = 30 * 60 * 1000; /*30mn*/
-
 				url_t *url = url_make(&home, internalTransport.c_str());
-				err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_IDLE(tports_idle_timeout),
-										TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-										TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TAG_END());
-				if (err == -1) {
-					LOGE("Could not enable transport %s: %s", internalTransport.c_str(), strerror(errno));
-				} else {
+
+				if (url != nullptr) {
 					mPreferredRouteV4 = url_hdup(&mHome, url);
 					LOGD("Agent's preferred IP for internal routing: v4: %s", internalTransport.c_str());
 				}
@@ -541,15 +549,17 @@ void Agent::loadConfig(GenericManager *cm) {
 
 	RegistrarDb::initialize(this);
 
-	list<Module *>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		// Check in all cases, even if not enabled,
-		// to allow safe dynamic activation of the module
-		(*it)->checkConfig();
-		(*it)->load();
+	if (startModules) {
+		list<Module *>::iterator it;
+		for (it = mModules.begin(); it != mModules.end(); ++it) {
+			// Check in all cases, even if not enabled,
+			// to allow safe dynamic activation of the module
+			(*it)->checkConfig();
+			(*it)->load();
+		}
+		if (mDrm) mDrm->load(mPassphrase);
+		mPassphrase = "";
 	}
-	if (mDrm) mDrm->load(mPassphrase);
-	mPassphrase = "";
 }
 
 void Agent::unloadConfig() {
