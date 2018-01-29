@@ -17,7 +17,7 @@
 */
 
 #include "authdb.hh"
-#include "mysql/soci-mysql.h"
+#include "soci/mysql/soci-mysql.h"
 #include <thread>
 
 using namespace soci;
