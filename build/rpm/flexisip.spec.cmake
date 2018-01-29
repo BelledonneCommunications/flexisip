@@ -23,6 +23,9 @@
 %define     conference %{?_with_conference:1}%{!?_with_conference:0}
 %define     soci       %{?_without_soci:0}%{!?_without_soci:1}
 
+# This is for debian builds where debug_package has to be manually specified,
+# whereas in centos it does not
+%define     flex_debug      %{!?_enable_debug_packages:%debug_package}%{?_enable_debug_package:%{nil}}
 %define     pkg_prefix %{?_with_bc:bc-}%{!?_with_bc:}
 %{?_with_bc: %define    _prefix         /opt/belledonne-communications}
 
@@ -113,7 +116,7 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 %prep
 %setup -n %{name}-%{version}-%build_number
 
-%debug_package
+%flex_debug
 
 %build
 %{expand:%%%cmake_name} . -DCMAKE_INSTALL_LIBDIR:PATH=%{_libdir} -DCMAKE_PREFIX_PATH:PATH=%{_prefix} \
