@@ -173,6 +173,52 @@ void Agent::checkAllowedParams(const url_t *uri) {
 	}
 }
 
+void Agent::setupInternalTransport() {
+	//Adding internal transport to transport in "cluster", "conference" and "presence" case
+	GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+#ifdef ENABLE_CONFERENCE
+	GenericStruct *conference = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
+#endif
+#ifdef ENABLE_PRESENCE
+	GenericStruct *presence = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
+#endif
+	if (cluster->get<ConfigBoolean>("enabled")->read()
+#ifdef ENABLE_CONFERENCE
+		|| conference->get<ConfigBoolean>("enabled")->read()
+#endif
+#ifdef ENABLE_PRESENCE
+		|| presence->get<ConfigBoolean>("enabled")->read()
+#endif
+	) {
+		int err = 0;
+		string internalTransport = cluster->get<ConfigString>("internal-transport")->read();
+
+		size_t pos = internalTransport.find("\%auto");
+		if (pos != string::npos) {
+			char result[NI_MAXHOST] = { 0 };
+			//Currently only IpV4
+			err = bctbx_get_local_ip_for(AF_INET, nullptr, 0, result, sizeof(result));
+			if (err != 0) {
+				LOGE("Could not get local ip");
+			} else {
+				internalTransport.replace(pos, sizeof("\%auto")-1, result);
+			}
+		}
+
+		if (err == 0) {
+			su_home_t home;
+			su_home_init(&home);
+			url_t *url = url_make(&home, internalTransport.c_str());
+
+			if (url != nullptr) {
+				mPreferredRouteV4 = url_hdup(&mHome, url);
+				LOGD("Agent's preferred IP for internal routing: v4: %s", internalTransport.c_str());
+			}
+			su_home_deinit(&home);
+		}
+	}
+}
+
 bool getUriParameter(const url_t *url, const char *param, string &value){
 	if (url_has_param(url, param)) {
 		char tmp[256]={0};
@@ -510,42 +556,7 @@ void Agent::loadConfig(GenericManager *cm, bool startModules) {
 		LOGD("%s", (*it).c_str());
 	}
 
-	//Adding internal transport to transport in "cluster", "conference" and "presence" case
-	{
-		GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
-		GenericStruct *conference = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
-		GenericStruct *presence = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
-		if (cluster->get<ConfigBoolean>("enabled")->read()
-			|| conference->get<ConfigBoolean>("enabled")->read()
-			|| presence->get<ConfigBoolean>("enabled")->read()) {
-			int err = 0;
-			string internalTransport = cluster->get<ConfigString>("internal-transport")->read();
-
-			size_t pos = internalTransport.find("\%auto");
-			if (pos != string::npos) {
-				char result[NI_MAXHOST] = { 0 };
-				//Currently only IpV4
-				err = bctbx_get_local_ip_for(AF_INET, nullptr, 0, result, sizeof(result));
-				if (err != 0) {
-					LOGE("Could not get local ip");
-				} else {
-					internalTransport.replace(pos, sizeof("\%auto")-1, result);
-				}
-			}
-
-			if (err == 0) {
-				su_home_t home;
-				su_home_init(&home);
-				url_t *url = url_make(&home, internalTransport.c_str());
-
-				if (url != nullptr) {
-					mPreferredRouteV4 = url_hdup(&mHome, url);
-					LOGD("Agent's preferred IP for internal routing: v4: %s", internalTransport.c_str());
-				}
-				su_home_deinit(&home);
-			}
-		}
-	}
+	setupInternalTransport();
 
 	RegistrarDb::initialize(this);
 
