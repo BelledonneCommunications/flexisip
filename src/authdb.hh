@@ -184,7 +184,7 @@ class OdbcAuthDb : public AuthDbBackend {
 
 #if ENABLE_SOCI
 
-#include "soci.h"
+#include "soci/soci.h"
 #include "utils/threadpool.hh"
 
 class SociAuthDB : public AuthDbBackend {

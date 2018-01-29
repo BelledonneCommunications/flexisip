@@ -185,7 +185,7 @@ private:
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
-#include <soci.h>
+#include <soci/soci.h>
 #ifdef __GNUG__
 #pragma GCC diagnostic pop
 #endif
