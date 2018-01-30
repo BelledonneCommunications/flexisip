@@ -1130,7 +1130,7 @@ RecordSerializer *RecordSerializer::get() {
 
 		sInstance = create(name);
 		if (!sInstance) {
-			LOGW("Unsupported record serializer: '%s'", name.c_str());
+			LOGF("Unsupported record serializer: '%s'", name.c_str());
 		}
 	}
 
