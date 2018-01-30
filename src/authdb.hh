@@ -40,8 +40,6 @@
 #include "sofia-sip/auth_module.h"
 #include "sofia-sip/auth_plugin.h"
 
-#define MAX_USERNAME_LENGTH  30
-
 enum AuthDbResult { PENDING, PASSWORD_FOUND, PASSWORD_NOT_FOUND, AUTH_ERROR };
 
 struct passwd_algo_t {
