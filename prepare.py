@@ -45,12 +45,7 @@ class FlexisipRpmTarget(prepare.Target):
         self.required_build_platforms = ['Linux', 'Darwin']
         self.config_file = 'configs/config-flexisip-rpm.cmake'
         self.external_source_path = os.path.join(current_path, 'submodules')
-        external_builders_path = os.path.join(current_path, 'cmake_builder')
-        self.additional_args = [
-            "-DLINPHONE_BUILDER_TARGET=flexisip",
-            "-DLINPHONE_BUILDER_TOP_DIR=" + current_path,
-            "-DLINPHONE_BUILDER_EXTERNAL_BUILDERS_PATH=" + external_builders_path
-        ]
+        self.additional_args = [ '-DLINPHONE_BUILDER_TARGET=flexisip', '-DLINPHONE_BUILDER_TOP_DIR=' + current_path ]
 
 class FlexisipTarget(prepare.Target):
 
@@ -60,12 +55,7 @@ class FlexisipTarget(prepare.Target):
         self.required_build_platforms = ['Linux', 'Darwin']
         self.config_file = 'configs/config-flexisip.cmake'
         self.external_source_path = os.path.join(current_path, 'submodules')
-        external_builders_path = os.path.join(current_path, 'cmake_builder')
-        self.additional_args = [
-            "-DLINPHONE_BUILDER_TARGET=flexisip",
-            "-DLINPHONE_BUILDER_TOP_DIR=" + current_path,
-            "-DLINPHONE_BUILDER_EXTERNAL_BUILDERS_PATH=" + external_builders_path
-        ]
+        self.additional_args = [ '-DLINPHONE_BUILDER_TARGET=flexisip', '-DLINPHONE_BUILDER_TOP_DIR=' + current_path ]
 
 
 flexisip_targets = {
