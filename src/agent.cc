@@ -638,7 +638,7 @@ std::pair<std::string, std::string> Agent::getPreferredIp(const std::string &des
 		}
 		freeaddrinfo(result);
 	} else {
-		LOGE("getaddrinfo error: %s", gai_strerror(err));
+		LOGE("getPreferredIp() getaddrinfo() error while resolving '%s': %s", dest.c_str(), gai_strerror(err));
 	}
 	return strchr(dest.c_str(), ':') == NULL ? make_pair(getResolvedPublicIp(), getRtpBindIp())
 											 : make_pair(getResolvedPublicIp(true), getRtpBindIp(true));
