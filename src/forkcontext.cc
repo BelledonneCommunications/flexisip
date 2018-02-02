@@ -190,7 +190,12 @@ bool ForkContext::onNewRegister(const url_t *url, const string &uid) {
 			return false;
 		}
 	}
-	return true;
+	//check gruu
+	std::string target_gr;
+	if (ModuleToolbox::getUriParameter(mEvent->getSip()->sip_request->rq_url, "gr", target_gr)) {
+		return std::string::npos != uid.find(target_gr); //to compare regardless of < >
+	} else
+		return true;
 }
 
 void ForkContext::init() {

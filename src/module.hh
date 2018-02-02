@@ -251,6 +251,9 @@ class ModuleToolbox {
 	static void removeParamsFromUrl(su_home_t *home, url_t *u, std::list<std::string> &params);
 	static sip_unknown_t *getCustomHeaderByName(sip_t *sip, const char *name);
 	static int getCpuCount();
+	static bool getUriParameter(const url_t *url, const char *param, std::string &value);
+	static bool getBoolUriParameter(const url_t *url, const char *param, bool defaultValue);
+	
 };
 
 #endif
