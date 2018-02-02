@@ -700,3 +700,28 @@ int ModuleToolbox::getCpuCount() {
 	}
 	return count;
 }
+bool ModuleToolbox::getUriParameter(const url_t *url, const char *param, string &value){
+	if (url_has_param(url, param)) {
+		char tmp[256]={0};
+		url_param(url->url_params, param, tmp, sizeof(tmp)-1);
+		value = tmp;
+		return true;
+	}
+	return false;
+}
+
+bool ModuleToolbox::getBoolUriParameter(const url_t *url, const char *param, bool defaultValue){
+	if (url_has_param(url, param)) {
+		bool ret = false;
+		char tmp[256]={0};
+		url_param(url->url_params, param, tmp, sizeof(tmp)-1);
+		try{
+			ret = ConfigBoolean::parse(tmp);
+		}catch(FlexisipException &e){
+			LOGF("Bad value for uri parameter '%s': %s", param, e.what());
+		}
+		return ret;
+	}
+	return defaultValue;
+}
+
