@@ -68,7 +68,7 @@ void ConferenceServer::_init() {
 	configLinphone->setBool("misc", "conference_server_enabled", 1);
 	configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
 	configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
-	mCore = linphone::Factory::get()->createCoreWithConfig(nullptr, configLinphone);
+	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 	mCore->addListener(shared_from_this());
 	mCore->setConferenceFactoryUri(config->get<ConfigString>("conference-factory-uri")->read());
 	mCore->enableConferenceServer(true);
@@ -82,6 +82,8 @@ void ConferenceServer::_init() {
 	proxy->enableRegister(false);
 	mCore->addProxyConfig(proxy);
 	mCore->setDefaultProxyConfig(proxy);
+
+	mCore->start();
 
 	// Binding loaded chat room
 	for (const auto& chatRoom : mCore->getChatRooms()) {
