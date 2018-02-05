@@ -275,8 +275,8 @@ void ConferenceServer::bindChatRoom(const string &bindingUrl, const string &cont
 
 	url_t *url = url_make(mHome.home(), bindingUrl.c_str());
 	sip_contact_t *sipContact = sip_contact_make(mHome.home(), contact.c_str());
-	sip_contact_add_param(mHome.home(), sipContact, su_strdup(mHome.home(), ("+sip.instance=\"<urn:uuid:" + gruu + ">\"").c_str()));
-	url_param_add(mHome.home(), sipContact->m_url, ("gr=urn:uuid:" + gruu).c_str());
+	sip_contact_add_param(mHome.home(), sipContact, su_strdup(mHome.home(), ("+sip.instance=\"<" + gruu + ">\"").c_str()));
+	url_param_add(mHome.home(), sipContact->m_url, ("gr=" + gruu).c_str());
 	sip_supported_t *sipSupported = reinterpret_cast<sip_supported_t *>(sip_header_format(mHome.home(), sip_supported_class, "gruu"));
 	sip_path_t *bindingPath = nullptr;
 	bindingPath = sip_path_format(mHome.home(), "<%s>", path.c_str());
