@@ -42,7 +42,7 @@ public:
 
 	void init() {
 		if (mRoot) {
-			mTimer = su_timer_create(su_root_task(mRoot), 100);
+			mTimer = su_timer_create(su_root_task(mRoot), 10);
 			su_timer_set_for_ever(mTimer, ((su_timer_f)ServiceServer::timerFunc), this);
 		}
 		this->_init();
