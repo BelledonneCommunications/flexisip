@@ -92,8 +92,8 @@ void ConferenceServer::_init() {
 }
 
 void ConferenceServer::_run() {
-	bctbx_sleep_ms(100);
 	mCore->iterate();
+	if (mWithThread) bctbx_sleep_ms(10);
 }
 
 void ConferenceServer::_stop() {}
