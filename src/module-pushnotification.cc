@@ -303,7 +303,7 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mPNS->setupAndroidClient(mGoogleKeys);
 	if (firebaseEnabled)
 		mPNS->setupFirebaseClient(mFirebaseKeys);
-	if(windowsPhoneEnabled) 
+	if(windowsPhoneEnabled)
 		mPNS->setupWindowsPhoneClient(windowsPhonePackageSID, windowsPhoneApplicationSecret);
 }
 
@@ -332,13 +332,13 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			return;
 		}
 		pinfo.mDeviceToken = deviceToken;
-		
+
 		if (url_param(params, "app-id", appId, sizeof(appId)) == 0) {
 			SLOGD << "no app-id";
 			return;
 		}
 		pinfo.mAppId = appId;
-		
+
 		// check if another push notification for this device wouldn't be pending
 		snprintf(pn_key, sizeof(pn_key) - 1, "%s:%s:%s", pinfo.mCallId.c_str(), deviceToken, appId);
 		auto it = mPendingNotifications.find(pn_key);
@@ -353,16 +353,16 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				return;
 			}
 			pinfo.mType = type;
-			
+
 			if (url_param(params, "pn-timeout", tmp, sizeof(tmp)-1) != 0) {
 				time_out = std::atoi(tmp);
 			}
 			if (url_param(params, "pn-silent", tmp, sizeof(tmp)-1) != 0) {
 				pinfo.mSilent = std::atoi(tmp) != 0;
 			}
-			
+
 			//Be backward compatible with old Linphone app that don't use pn-silent.
-			//We don't want to notify an incoming call with a non-silent notification 60 seconds after 
+			//We don't want to notify an incoming call with a non-silent notification 60 seconds after
 			//the beginning of the call.
 			if (pinfo.mEvent == PushInfo::Call && pinfo.mSilent == false){
 				pinfo.mTtl = 60;
@@ -395,7 +395,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				char call_str[64];
 				char call_snd[64];
 				char msg_snd[64];
-				
+
 				if (url_param(params, "pn-msg-str", msg_str, sizeof(msg_str)) == 0) {
 					SLOGD << "no pn-msg-str";
 					return;
@@ -412,8 +412,12 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 					SLOGD << "no optional pn-msg-snd, using empty";
 					strncpy(msg_snd, "empty", sizeof(msg_snd));
 				}
-				
-				pinfo.mAlertMsgId = (sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str;
+
+				pinfo.mAlertMsgId = (sip->sip_request->rq_method == sip_method_invite)
+					? call_str
+					: (sip->sip_request->rq_method == sip_method_message)
+						? msg_str
+						: "IC_SIL";
 				pinfo.mAlertSound = (sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd;
 				pinfo.mNoBadge = mNoBadgeiOS;
 				if (!mExternalPushUri)
