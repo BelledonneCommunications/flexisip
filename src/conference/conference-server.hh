@@ -51,7 +51,7 @@ namespace flexisip {
 		std::shared_ptr<linphone::Core> mCore;
 		std::string mPath;
 
-		void onChatRoomStateChanged(const std::shared_ptr<linphone::Core> & lc, const std::shared_ptr<linphone::ChatRoom> & cr, linphone::ChatRoomState state) override;
+		void onChatRoomStateChanged(const std::shared_ptr<linphone::Core> & lc, const std::shared_ptr<linphone::ChatRoom> & cr, linphone::ChatRoom::State state) override;
 		void onConferenceAddressGeneration(const std::shared_ptr<linphone::ChatRoom> & cr) override;
 		void onParticipantDeviceFetched(const std::shared_ptr<linphone::ChatRoom> & cr, const std::shared_ptr<const linphone::Address> & participantAddr) override;
 		void onParticipantsCapabilitiesChecked(const std::shared_ptr<linphone::ChatRoom> & cr, const std::shared_ptr<const linphone::Address> &deviceAddr, const std::list<std::shared_ptr<linphone::Address> > & participantsAddr) override;

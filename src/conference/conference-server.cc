@@ -99,8 +99,8 @@ void ConferenceServer::_run() {
 void ConferenceServer::_stop() {}
 
 
-void ConferenceServer::onChatRoomStateChanged(const shared_ptr<linphone::Core> & lc, const shared_ptr<linphone::ChatRoom> & cr, linphone::ChatRoomState state) {
-	if (state == linphone::ChatRoomStateInstantiated)
+void ConferenceServer::onChatRoomStateChanged(const shared_ptr<linphone::Core> & lc, const shared_ptr<linphone::ChatRoom> & cr, linphone::ChatRoom::State state) {
+	if (state == linphone::ChatRoom::State::Instantiated)
 		cr->setListener(shared_from_this());
 }
 
