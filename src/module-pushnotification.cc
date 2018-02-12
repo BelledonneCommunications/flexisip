@@ -314,7 +314,11 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 	PushInfo pinfo;
 
 	pinfo.mCallId = ms->getSip()->sip_call_id->i_id;
-	pinfo.mEvent = sip->sip_request->rq_method == sip_method_invite ? PushInfo::Call : PushInfo::Message;
+	pinfo.mEvent = sip->sip_request->rq_method == sip_method_invite
+		? PushInfo::Call
+		: sip->sip_request->rq_method == sip_method_message
+			? PushInfo::Message
+			: PushInfo::Refer;
 	pinfo.mTtl = mTtl;
 	int time_out = mTimeout;
 
@@ -472,6 +476,9 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 bool PushNotification::needsPush(const sip_t *sip) {
 	if (sip->sip_to->a_tag)
 		return false;
+
+	if (sip->sip_request->rq_method == sip_method_refer)
+		return true;
 
 	if (sip->sip_request->rq_method == sip_method_invite)
 		return true;

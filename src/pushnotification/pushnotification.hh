@@ -24,7 +24,7 @@
 #include <sofia-sip/url.h>
 
 struct PushInfo {
-	enum Event { Call, Message };
+	enum Event { Call, Message , Refer };
 	PushInfo() : mEvent(Event::Message), mNoBadge(false), mSilent(false){};
 	Event mEvent; // Event to advertise: call or text message.
 	std::string mType; // type of push notif: apple, google, wp
