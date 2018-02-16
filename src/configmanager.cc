@@ -926,6 +926,7 @@ GenericManager::GenericManager()
 			", then 20% of Flexisip traffic will be redirected to the first Flexisip and 80% to the other one.\n"
 			"The sum of all the weights of Flexisips on the same local domain must be 100.",
 			"100"},
+		{Integer, "mdns-ttl", "Time To Live of any mDNS query that will ask for this Flexisip", "3600"},
 		config_item_end};
 
 	GenericStruct *notifObjs = new GenericStruct("notif", "Templates for notifications.", 1);

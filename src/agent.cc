@@ -287,6 +287,7 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		int mdnsPrioMin = mdns->get<ConfigIntRange>("mdns-priority")->readMin();
 		int mdnsPrioMax = mdns->get<ConfigIntRange>("mdns-priority")->readMax();
 		int mdnsWeight = mdns->get<ConfigInt>("mdns-weight")->read();
+		int mdnsTtl = mdns->get<ConfigInt>("mdns-ttl")->read();
 
 		/* Get hostname of the machine */
 		char hostname[HOST_NAME_MAX];
@@ -311,7 +312,7 @@ void Agent::start(const std::string &transport_override, const std::string passp
 
 				belle_sip_mdns_register_t *reg = belle_sip_mdns_register("sip", name->tpn_proto, mdnsDomain.c_str(),
 																		registerName, atoi(name->tpn_port), prio, mdnsWeight,
-																		mDnsRegisterCallback, NULL);
+																		mdnsTtl, mDnsRegisterCallback, NULL);
 				mMdnsRegisterList.push_back(reg);
 			}
 		}
