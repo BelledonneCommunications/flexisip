@@ -83,7 +83,7 @@ void RegistrarDbRedisAsync::onDisconnect(const redisAsyncContext *c, int status)
 	}
 
 	mContext = NULL;
-	LOGD("Disconnected %p...", c);
+	LOGD("REDIS Disconnected %p...", c);
 	if (status != REDIS_OK) {
 		LOGE("Redis disconnection message: %s", c->errstr);
 		tryReconnect();
@@ -98,17 +98,17 @@ void RegistrarDbRedisAsync::onConnect(const redisAsyncContext *c, int status) {
 		tryReconnect();
 		return;
 	}
-	LOGD("Connected... %p", c);
+	LOGD("REDIS Connected... %p", c);
 }
 
 void RegistrarDbRedisAsync::onSubscribeDisconnect(const redisAsyncContext *c, int status) {
 	if (mSubscribeContext != NULL && mSubscribeContext != c) {
-		LOGE("Redis context %p disconnected, but current context is %p", c, mSubscribeContext);
+		LOGE("Redis subscribe context %p disconnected, but current context is %p", c, mSubscribeContext);
 		return;
 	}
 
 	mSubscribeContext = NULL;
-	LOGD("Disconnected %p...", c);
+	LOGD("Disconnected subscribe context %p...", c);
 	if (status != REDIS_OK) {
 		LOGE("Redis disconnection message: %s", c->errstr);
 		tryReconnect();
@@ -123,7 +123,11 @@ void RegistrarDbRedisAsync::onSubscribeConnect(const redisAsyncContext *c, int s
 		tryReconnect();
 		return;
 	}
-	LOGD("Connected... %p", c);
+	LOGD("REDIS Connection done for subscribe channel %p", c);
+	if (!mContactListenersMap.empty()){
+		LOGD("Now re-subscribing all topics we had before being disconnected.");
+		subscribeAll();
+	}
 }
 
 bool RegistrarDbRedisAsync::isConnected() {
@@ -411,9 +415,21 @@ bool RegistrarDbRedisAsync::disconnect() {
 	return status;
 }
 
+/*this function is invoked after a redis disconnection on the subscribe channel, so that all topics we are interested in are re-subscribed.*/
+void RegistrarDbRedisAsync::subscribeAll(){
+	for(auto it = mContactListenersMap.begin(); it != mContactListenersMap.end(); ++it){
+		subscribeTopic((*it).first);
+	}
+}
+
+void RegistrarDbRedisAsync::subscribeTopic(const string &topic){
+	LOGD("Sending SUBSCRIBE command to redis for topic '%s'", topic.c_str());
+	redisAsyncCommand(mSubscribeContext, sPublishCallback, NULL, "SUBSCRIBE %s", topic.c_str());
+}
+
 void RegistrarDbRedisAsync::subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener) {
 	RegistrarDb::subscribe(topic, listener);
-	redisAsyncCommand(mSubscribeContext, sPublishCallback, NULL, "SUBSCRIBE %s", topic.c_str());
+	subscribeTopic(topic);
 }
 void RegistrarDbRedisAsync::unsubscribe(const std::string &topic) {
 	RegistrarDb::unsubscribe(topic);
