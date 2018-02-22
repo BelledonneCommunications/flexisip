@@ -142,6 +142,8 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	void serializeAndSendToRedis(RegistrarUserData *data, forwardFn *forward_fn);
 	bool handleRedisStatus(const std::string &desc, int redisStatus, RegistrarUserData *data);
 	void onErrorData(RegistrarUserData *data);
+	void subscribeTopic(const std::string &topic);
+	void subscribeAll();
 	//void dequeueNextRedisCommand();
 
 	/* callbacks */
