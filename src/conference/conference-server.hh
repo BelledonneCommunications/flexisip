@@ -50,7 +50,7 @@ namespace flexisip {
 	private:
 		std::shared_ptr<linphone::Core> mCore;
 		std::string mPath;
-		std::list<const std::shared_ptr<linphone::ChatRoom>> mChatRooms;
+		std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms;
 
 		void onChatRoomStateChanged(const std::shared_ptr<linphone::Core> & lc, const std::shared_ptr<linphone::ChatRoom> & cr, linphone::ChatRoom::State state) override;
 		void onConferenceAddressGeneration(const std::shared_ptr<linphone::ChatRoom> & cr) override;
