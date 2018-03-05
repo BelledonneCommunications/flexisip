@@ -287,7 +287,7 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	time_t now = getCurrentTime();
 	sip_contact_t *ct = contact->toSofiaContact(ms->getHome(), now);
 	url_t *dest = ct->m_url;
-	
+
 
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
 	if (dest->url_host == NULL || dest->url_host[0] == '\0') {
@@ -651,12 +651,14 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 		if (sip->sip_request->rq_method == sip_method_invite) {
 			context = make_shared<ForkCallContext>(getAgent(), ev, mForkCfg, this);
 			isInvite = true;
-		} else if ((sip->sip_request->rq_method == sip_method_message) &&
-				   !(sip->sip_content_type != NULL &&
-					 strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0)) {
+		} else if (
+			(sip->sip_request->rq_method == sip_method_message) &&
+			!(sip->sip_content_type && strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0) &&
+			!(sip->sip_expires && sip->sip_expires->ex_delta == 0)
+		) {
 			// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
 			context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this);
-		} else if (sip->sip_request->rq_method == sip_method_refer && 
+		} else if (sip->sip_request->rq_method == sip_method_refer &&
 				   (sip->sip_refer_to != NULL && msg_params_find(sip->sip_refer_to->r_params, "text") != NULL)) {
 			// Use the message fork context only for refers that are text to prevent storing useless refers
 			context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this);
