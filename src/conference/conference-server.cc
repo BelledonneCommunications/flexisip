@@ -70,16 +70,17 @@ void ConferenceServer::_init() {
 	configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
 	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 	mCore->addListener(shared_from_this());
-	mCore->setConferenceFactoryUri(config->get<ConfigString>("conference-factory-uri")->read());
 	mCore->enableConferenceServer(true);
 	mCore->setTransports(cTransport);
 
-	shared_ptr<linphone::Address> addrProxy = linphone::Factory::get()->createAddress(mCore->getConferenceFactoryUri());
+	string conferenceFactoryUri = config->get<ConfigString>("conference-factory-uri")->read();
+	shared_ptr<linphone::Address> addrProxy = linphone::Factory::get()->createAddress(conferenceFactoryUri);
 	shared_ptr<linphone::ProxyConfig> proxy = mCore->createProxyConfig();
 	proxy->setIdentityAddress(addrProxy);
 	proxy->setRoute(config->get<ConfigString>("outbound-proxy")->read());
 	proxy->setServerAddr(config->get<ConfigString>("outbound-proxy")->read());
 	proxy->enableRegister(false);
+	proxy->setConferenceFactoryUri(conferenceFactoryUri);
 	mCore->addProxyConfig(proxy);
 	mCore->setDefaultProxyConfig(proxy);
 
@@ -170,7 +171,7 @@ void ConferenceServer::onConferenceAddressGeneration(const std::shared_ptr<linph
 
 	shared_ptr<linphone::Config> config = mCore->getConfig();
 	string uuid = config->getString("misc", "uuid", "");
-	shared_ptr<linphone::Address> confAddr = linphone::Factory::get()->createAddress(mCore->getConferenceFactoryUri());
+	shared_ptr<linphone::Address> confAddr = linphone::Factory::get()->createAddress(mCore->getDefaultProxyConfig()->getConferenceFactoryUri());
 	shared_ptr<ConferenceAddressGenerator> generator = make_shared<ConferenceAddressGenerator>(cr, confAddr, uuid, mPath);
 	generator->generateAddress();
 }
