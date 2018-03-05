@@ -477,6 +477,11 @@ bool PushNotification::needsPush(const sip_t *sip) {
 	if (sip->sip_to->a_tag)
 		return false;
 
+	// Only send push notification for message without non-urgent Priority header.
+	if (sip->sip_priority && sip->sip_priority->g_string &&
+		strcasecmp(sip->sip_priority->g_string, "non-urgent") == 0)
+		return false;
+
 	if (sip->sip_request->rq_method == sip_method_refer)
 		return true;
 
@@ -484,10 +489,16 @@ bool PushNotification::needsPush(const sip_t *sip) {
 		return true;
 
 	if (sip->sip_request->rq_method == sip_method_message) {
-		/*dont send push for is-composing messages.*/
+		// Do not send push for is-composing messages.
 		if (sip->sip_content_type && sip->sip_content_type->c_type &&
 			strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0)
 			return false;
+
+		// Do not send push for is-composing messages.
+		if (sip->sip_content_type && sip->sip_content_type->c_type &&
+			strcasecmp(sip->sip_content_type->c_type, "message/imdn+xml") == 0)
+			return false;
+
 		return true;
 	}
 	return false;
