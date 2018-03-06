@@ -94,6 +94,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 			{Boolean, "remove-to-tag", "Remove to tag from 183, 180, and 101 responses to workaround buggy gateways",
 			 "false"},
 			{String, "preroute", "rewrite username with given value.", ""},
+			{Boolean, "resolve-routes", "whether or not to resolve all routes and forward the event to it if it's not us", "false"},
 			config_item_end};
 		mc->addChildrenValues(configs);
 
@@ -151,6 +152,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 										->get<ConfigBoolean>("accept-domain-registrations")
 										->read();
 		mAllowTargetFactorization = mc->get<ConfigBoolean>("allow-target-factorization")->read();
+		mResolveRoutes = mc->get<ConfigBoolean>("resolve-routes")->read();
 	}
 
 	virtual void onUnload() {
@@ -205,6 +207,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	bool mAllowDomainRegistrations;
 	bool mAllowTargetFactorization;
 	string mPreroute;
+	bool mResolveRoutes;
 };
 
 void ModuleRouter::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code,
@@ -933,15 +936,30 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		return;
 	}
 
-	if (sip->sip_route != NULL && !getAgent()->isUs(sip->sip_route->r_url)) {
+	// Don't route registers
+	if (sip->sip_request->rq_method == sip_method_register)
+		return;
+
+	if (mResolveRoutes) {
+		sip_route_t *iterator = sip->sip_route;
+		while (iterator != NULL) {
+			sip_route_t *route = iterator;
+			if (getAgent()->isUs(sip->sip_route->r_url)) {
+				SLOGD << "Route header found " << url_as_string(ms->getHome(), route->r_url) << " and is us, continuing";
+			} else {
+				SLOGD << "Route header found " << url_as_string(ms->getHome(), route->r_url) << " but not us, forwarding";
+				url_t *sipurl = sip->sip_request->rq_url;
+				auto onRoutingListener = make_shared<OnFetchForRoutingListener>(this, ev, sipurl);
+				RegistrarDb::get()->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
+				return;
+			}
+			iterator = iterator->r_next;
+		}
+	} else if (sip->sip_route != NULL && !getAgent()->isUs(sip->sip_route->r_url)) {
 		SLOGD << "Route header found " << url_as_string(ms->getHome(), sip->sip_route->r_url)
 			  << " but not us, skipping";
 		return;
 	}
-
-	// Don't route registers
-	if (sip->sip_request->rq_method == sip_method_register)
-		return;
 
 	/*see if we can route other requests */
 	/*acks shall not have their request uri rewritten:
