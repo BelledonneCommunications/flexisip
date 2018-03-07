@@ -135,7 +135,7 @@ using namespace std;
 			mBio = NULL;
 	}
 
-	void PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotificationRequest> &req) {
+	void PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotificationRequest> &req, bool hurryUp) {
 		if (mLastUse == 0 || !mBio) {
 			recreateConnection();
 		/*the client was inactive possibly for a long time. In such case, close and re-create the socket.*/
@@ -177,8 +177,10 @@ using namespace std;
 			pollfd polls = {0};
 			polls.fd = fdSocket;
 			polls.events = POLLIN;
-
-			int nRet = poll(&polls, 1, 1000);
+			
+			int timeout = hurryUp ? 10 : 1000; /*if there are many pending push notification request in our queue, we will not wait 
+						the answer from the server (we are in the case where there is an answer ONLY if the push request had an error*/
+			int nRet = poll(&polls, 1, timeout);
 			// this is specific to iOS which does not send a response in case of success
 			if (nRet == 0) {//poll timeout, we shall not expect a response.
 				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " nothing read, assuming success";
@@ -221,13 +223,14 @@ using namespace std;
 		std::unique_lock<std::mutex> lock(mMutex);
 		while (mThreadRunning) {
 			if (!mRequestQueue.empty()) {
-				SLOGD << "PushNotificationClient " << mName << " next, queue_size=" << mRequestQueue.size();
+				size_t size =  mRequestQueue.size();
+				SLOGD << "PushNotificationClient " << mName << " next, queue_size=" <<  size;
 				auto req = mRequestQueue.front();
 				mRequestQueue.pop();
 				lock.unlock();
 
 				// send push to the server and wait for its answer
-				sendPushToServer(req);
+				sendPushToServer(req, size > 2);
 
 				lock.lock();
 			} else {
