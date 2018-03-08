@@ -829,7 +829,7 @@ GenericManager::GenericManager()
 	static ConfigItemDescriptor global_conf[] = {
 		{String, "log-level", "Verbosity of logs to output. Possible values are debug, message, warning and error", "error"},
 		{String, "syslog-level", "Verbosity of logs to put in syslog. Possible values are debug, message, warning and error", "error"},
-		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file. If -1 then no max size", "100M"},
+		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file, expressed with units. For example: 10G, 100M. If -1 then there is no maximum size", "100M"},
 		{Boolean, "user-errors-logs", "Log (on a different log domain) user errors like authentication, registration, routing, etc...", "false"},
 		{Boolean, "dump-corefiles", "Generate a corefile when crashing. "
 			"Note that by default linux will generate coredumps in '/' which is not so convenient. The following shell command can be added to"
@@ -916,7 +916,7 @@ GenericManager::GenericManager()
 	static ConfigItemDescriptor mdns_conf[] = {
 		{Boolean, "enabled", "Set to 'true' to enable multicast DNS register", "false"},
 		{IntegerRange,
-			"mdns-priority", "Priority of Flexisip, lower value means more preferred.\n"
+			"mdns-priority", "Priority of this instance, lower value means more preferred.\n"
 			"'n': priority of n (example 10)\n"
 			"'n-m': random priority between n and m (example 10-50)",
 			"0"},
@@ -926,7 +926,7 @@ GenericManager::GenericManager()
 			", then 20% of Flexisip traffic will be redirected to the first Flexisip and 80% to the other one.\n"
 			"The sum of all the weights of Flexisips on the same local domain must be 100.",
 			"100"},
-		{Integer, "mdns-ttl", "Time To Live of any mDNS query that will ask for this Flexisip", "3600"},
+		{Integer, "mdns-ttl", "Time To Live of any mDNS query that will ask for this Flexisip instance", "3600"},
 		config_item_end};
 
 	GenericStruct *notifObjs = new GenericStruct("notif", "Templates for notifications.", 1);
