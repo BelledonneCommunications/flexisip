@@ -397,7 +397,7 @@ void DomainRegistration::setContact(msg_t *msg) {
 			sipInstance += mUuid;
 			sipInstance += ">\"";
 
-			sip->sip_contact = sip_contact_create(msg_home(msg), (url_string_t *)mFrom, sipInstance.c_str());
+			sip->sip_contact = sip_contact_create(msg_home(msg), (url_string_t *)mFrom, sipInstance.c_str(), NULL);
 		} else {
 			sip->sip_contact = sip_contact_create(msg_home(msg), (url_string_t *)mFrom, NULL);
 		}
