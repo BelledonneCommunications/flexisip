@@ -201,6 +201,8 @@ void Agent::start(const std::string &transport_override, const std::string passp
 	int udpmtu = global->get<ConfigInt>("udp-mtu")->read();
 	unsigned int incompleteIncomingMessageTimeout = 600 * 1000; /*milliseconds*/
 	unsigned int keepAliveInterval = 30 * 60 * 1000;			/*30mn*/
+	unsigned int queueSize = 256; /*number of SIP message that sofia can queue in a tport (a connection). It is 64 by default,
+				hardcoded in sofia-sip. This is not sufficient for IM.*/
 
 	mainTlsCertsDir = absolutePath(currDir, mainTlsCertsDir);
 
@@ -250,11 +252,13 @@ void Agent::start(const std::string &transport_override, const std::string passp
 									  TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
 									  TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
 									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TAG_END());
+									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), 
+									  TPTAG_QUEUESIZE(queueSize),	TAG_END());
 		} else {
 			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_IDLE(tports_idle_timeout),
 									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TAG_END());
+									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), 
+									  TPTAG_QUEUESIZE(queueSize), TAG_END());
 		}
 		if (err == -1) {
 			LOGE("Could not enable transport %s: %s", uri.c_str(), strerror(errno));
