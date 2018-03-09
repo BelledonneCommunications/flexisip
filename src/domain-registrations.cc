@@ -385,15 +385,10 @@ DomainRegistration::~DomainRegistration() {
 void DomainRegistration::setContact(msg_t *msg) {
 	sip_t *sip = (sip_t *)msg_object(msg);
 	if (sip->sip_contact == NULL) {
-		int error = 0;
-		string sipInstance;
-
-		if (mUuid.empty()) {
-			error = generateUuid(mManager.mAgent->getUniqueId());
-		}
+		int error = generateUuid(mManager.mAgent->getUniqueId());
 
 		if (!error) {
-			sipInstance = "+sip.instance=\"<urn:uuid:";
+			string sipInstance = "+sip.instance=\"<urn:uuid:";
 			sipInstance += mUuid;
 			sipInstance += ">\"";
 
@@ -401,34 +396,14 @@ void DomainRegistration::setContact(msg_t *msg) {
 		} else {
 			sip->sip_contact = sip_contact_create(msg_home(msg), (url_string_t *)mFrom, NULL);
 		}
-
-
-	}
-}
-
-unsigned int charToInt(char c) {
-	if (c >= '0' && c <= '9')
-		return c - '0';
-	else if (c >= 'a' && c <= 'f')
-		return c - 'a' + 10;
-	else if (c >= 'A' && c <= 'F')
-		return c - 'A' + 10;
-	else
-		return -1;
-}
-
-void generateBytesFromUniqueId(unsigned char *ret, size_t size, const string &uniqueId) {
-	unsigned int val = 0;
-	unsigned int i;
-
-	for(i = 0; i < size; ++i) {
-		if (i % 4 == 0) val = charToInt(uniqueId[i % 4]);
-		ret[i] = val & 0xff;
-		val = val >> 8;
 	}
 }
 
 int DomainRegistration::generateUuid(const string &uniqueId) {
+	/*no need to regenerate the uuid if it already exist*/
+	if (!mUuid.empty())
+		return 0;
+
 	if (uniqueId.empty() || uniqueId.length() != 16) {
 		LOGD("generateUuid(): uniqueId is either empty or not with a length of 16");
 		return -1;
@@ -436,7 +411,7 @@ int DomainRegistration::generateUuid(const string &uniqueId) {
 
 	/*create an UUID as described in RFC4122, 4.4 */
 	uuid_t uuid_struct;
-	generateBytesFromUniqueId((unsigned char *)&uuid_struct, sizeof(uuid_struct), uniqueId);
+	memcpy(&uuid_struct, uniqueId.c_str(), uniqueId.length()); /*copy the unique id into the uuid struct*/
 	uuid_struct.clock_seq_hi_and_reserved &= (unsigned char)~(1<<6);
 	uuid_struct.clock_seq_hi_and_reserved |= (unsigned char)1<<7;
 	uuid_struct.time_hi_and_version &= (unsigned char)~(0xf<<12);
@@ -462,6 +437,7 @@ int DomainRegistration::generateUuid(const string &uniqueId) {
 	uuid[len - 1] = '\0';
 
 	mUuid = uuid;
+	free(uuid);
 
 	return 0;
 }
