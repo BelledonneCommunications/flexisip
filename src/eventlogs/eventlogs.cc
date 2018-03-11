@@ -63,7 +63,10 @@ EventLog::Init::Init() {
 		config_item_end};
 	GenericStruct *ev = new GenericStruct(
 		"event-logs",
-		"Event logs contain per domain and user information about processed registrations, calls and messages.", 0);
+		"Event logs contain per domain and user information about processed registrations, calls and messages.\n"
+		"See: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Event%20logs%20and%20queries/ for architecture and queries.",
+		0
+	);
 	GenericManager::get()->getRoot()->addChild(ev);
 	ev->addChildrenValues(items);
 }
@@ -640,7 +643,7 @@ inline string createEventTypesTable(DataBaseEventLogWriter::Backend backend) {
 
 inline string createRegistrationTypesTable(DataBaseEventLogWriter::Backend backend) {
 	string str = "";
-	
+
 	switch (backend) {
 		case DataBaseEventLogWriter::Backend::Mysql:
 			str += "INSERT INTO registration_type (id, type)";
@@ -678,7 +681,7 @@ inline string createRegistrationTypesTable(DataBaseEventLogWriter::Backend backe
 
 inline string createMessageTypesTable(DataBaseEventLogWriter::Backend backend) {
 	string str = "";
-	
+
 	switch (backend) {
 		case DataBaseEventLogWriter::Backend::Mysql:
 			str += "INSERT INTO message_type (id, type)";

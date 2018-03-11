@@ -84,6 +84,7 @@ class ConfigValueListener {
 enum GenericValueType {
 	Boolean,
 	Integer,
+	IntegerRange,
 	Counter64,
 	String,
 	ByteSize,
@@ -98,8 +99,8 @@ enum GenericValueType {
 static const std::map<GenericValueType, std::string> GenericValueTypeNameMap = {
 #define TypeToName(X)                                                                                                  \
 	{ X, #X }
-	TypeToName(Boolean),	 TypeToName(Integer), TypeToName(Counter64),   TypeToName(String), TypeToName(ByteSize),
-	TypeToName(StringList),  TypeToName(Struct),  TypeToName(BooleanExpr), TypeToName(Notification),
+	TypeToName(Boolean),  TypeToName(Integer),    TypeToName(IntegerRange), TypeToName(Counter64),   TypeToName(String),
+	TypeToName(ByteSize), TypeToName(StringList), TypeToName(Struct),       TypeToName(BooleanExpr), TypeToName(Notification),
 	TypeToName(RuntimeError)
 #undef TypeToName
 };
@@ -472,6 +473,21 @@ class ConfigInt : public ConfigValue {
 	int read() const;
 	int readNext() const;
 	void write(int value);
+};
+
+class ConfigIntRange : public ConfigValue {
+  public:
+	ConfigIntRange(const std::string &name, const std::string &help, const std::string &default_value, oid oid_index);
+	int readMin();
+	int readMax();
+	int readNextMin();
+	int readNextMax();
+	void write(int min, int max);
+
+  private:
+	void parse(const std::string &value);
+	int mMin;
+	int mMax;
 };
 
 class ConfigRuntimeError : public ConfigValue {

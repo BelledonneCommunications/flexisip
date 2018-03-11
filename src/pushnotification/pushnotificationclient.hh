@@ -40,7 +40,7 @@ class PushNotificationClient {
 		void run();
 
 	protected:
-		void sendPushToServer(const std::shared_ptr<PushNotificationRequest> &req);
+		void sendPushToServer(const std::shared_ptr<PushNotificationRequest> &req, bool hurryUp);
 		void recreateConnection();
 		void onError(std::shared_ptr<PushNotificationRequest> req, const std::string &msg);
 		void onSuccess(std::shared_ptr<PushNotificationRequest> req);

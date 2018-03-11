@@ -23,7 +23,6 @@
 #include <fstream>
 #include <sstream>
 
-#define MAX_USERNAME_LENGTH  30
 using namespace std;
 
 
@@ -99,7 +98,10 @@ void FileAuthDb::sync() {
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
-
+	bool firstTime = false;
+	
+	if (mLastSync == 0) firstTime = true;
+	
 	mLastSync = getCurrentTime();
 
 	ifstream file;
@@ -117,7 +119,6 @@ void FileAuthDb::sync() {
 	string version;
 	string passwd_tag;
 	int i;
-	char user_ref[MAX_USERNAME_LENGTH];
 
 	LOGD("Opening file %s", mFileString.c_str());
 	file.open(mFileString);
@@ -131,7 +132,7 @@ void FileAuthDb::sync() {
 			if (version.substr(0, 8) == "version:")
 				version = version.substr(8);
 			else
-				LOGA("userdb.conf must start by version:X to be used.");
+				LOGF("userdb.conf must start by version:X to be used.");
 			break;
 		}
 		if (version == "1") {
@@ -160,18 +161,21 @@ void FileAuthDb::sync() {
 						else break;
 					}
 					if (passwd_tag != ";") {
-						if (ss.eof())
-							LOGA("In userdb.conf, the section of password must end with ';'");
-						else {
+						if (ss.eof()){
+							LOGF("In userdb.conf, the section of password must end with ';'");
+						}else {
 							passwd_tag.clear();
 							getline(ss, passwd_tag, ' ');
-							if ((!ss.eof()) && (passwd_tag != ";"))
-								LOGA("In userdb.conf, the section of password must end with ';'");
+							if ((!ss.eof()) && (passwd_tag != ";")){
+								LOGF("In userdb.conf, the section of password must end with ';'");
+							}
 						}
 					}
 
 					// if user with space, replace %20 by space
-					url_unescape(user_ref, user.c_str());
+					string user_ref;
+					user_ref.resize(user.size());
+					url_unescape(&user_ref[0], user.c_str());
 					if (!ss.eof()) {
 						// TODO read userid with space
 						getline(ss, userid, ' ');
@@ -186,7 +190,7 @@ void FileAuthDb::sync() {
 					}
 
 					cacheUserWithPhone(phone, domain, user);
-					parsePasswd(pass, (string)user_ref, domain, &password);
+					parsePasswd(pass, user_ref, domain, &password);
 
 					if (find(domains.begin(), domains.end(), domain) != domains.end()) {
 						string key(createPasswordKey(user, userid));
@@ -205,7 +209,11 @@ void FileAuthDb::sync() {
 			LOGE("Version %s is not supported", version.c_str());
 		}
 	} else {
-		LOGE("Can't open file %s", mFileString.c_str());
+		if (firstTime){
+			LOGF("Can't open file %s", mFileString.c_str());
+		}else{
+			LOGE("Can't open file %s", mFileString.c_str());
+		}
 	}
 	LOGD("Syncing done");
 }

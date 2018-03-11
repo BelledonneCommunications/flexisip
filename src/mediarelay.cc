@@ -120,12 +120,12 @@ void RelayChannel::setRemoteAddr(const string &ip, int rtp_port, int rtcp_port, 
 		struct addrinfo hints = {0};
 		char portstr[20];
 		int err;
-		
+
 		if (mDestAddrChanged){
 			LOGW("RelayChannel [%p] is being set new destination address but was fixed previously in this session, so ignoring this request.", this);
 			return;
 		}
-		
+
 		for (int i = 0; i < 2; ++i){
 			mRecvErrorCount[i] = 0;
 			snprintf(portstr, sizeof(portstr), "%i", mRemotePort[i]);
@@ -142,6 +142,7 @@ void RelayChannel::setRemoteAddr(const string &ip, int rtp_port, int rtcp_port, 
 		}
 	} else {
 		/*case where client declined the stream (0 port in SDP) or destination address is invalid*/
+		mDestAddrChanged = false;
 		mSockAddrSize[0] = 0;
 		mSockAddrSize[1] = 0;
 	}
@@ -168,7 +169,7 @@ bool RelayChannel::checkPollFd(const PollFd *pfd, int i) {
 int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 	struct sockaddr_storage ss;
 	socklen_t addrsize = sizeof(ss);
-	
+
 	int err = recvfrom(mSockets[i], buf, buflen, 0, (struct sockaddr *)&ss, &addrsize);
 	if (err > 0) {
 		mPacketsReceived++;
@@ -186,7 +187,7 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 			memcpy(&mSockAddr[i], &ss, addrsize);
 			mDestAddrChanged = true;
 		}
-		
+
 		mSockAddrSize[i] = addrsize;
 		if (mDir == SendOnly || mDir == Inactive) {
 			/*LOGD("ignored packet");*/
@@ -278,8 +279,9 @@ void RelaySession::removeBranch(const std::string &trId) {
 		mBacks.erase(it);
 	}
 	mMutex.unlock();
-	if (removed)
+	if (removed) {
 		LOGD("RelaySession [%p]: branch corresponding to transaction [%s] removed.", this, trId.c_str());
+	}
 }
 
 int RelaySession::getActiveBranchesCount() {
@@ -304,8 +306,7 @@ void RelaySession::setEstablished(const std::string &tr_id) {
 		mBack = winner;
 		mBacks.clear();
 		mMutex.unlock();
-	} else
-		LOGE("RelaySession [%p] is with from an unknown branch [%s].", this, tr_id.c_str());
+	} else LOGE("RelaySession [%p] is with from an unknown branch [%s].", this, tr_id.c_str());
 }
 
 void RelaySession::fillPollFd(PollFd *pfd) {
@@ -373,10 +374,12 @@ void RelaySession::unuse() {
 	mMutex.unlock();
 
 	/*do not log while holding a mutex*/
-	if (front.port > 0)
+	if (front.port > 0) {
 		LOGD("Front on port [%i] received [%lu] and sent [%lu] packets.", front.port, front.recv, front.sent);
-	if (back.port > 0)
+	}
+	if (back.port > 0) {
 		LOGD("Back on port [%i] received [%lu] and sent [%lu] packets.", back.port, back.recv, back.sent);
+	}
 }
 
 bool RelaySession::checkChannels() {

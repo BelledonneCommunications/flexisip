@@ -14,6 +14,7 @@
 #cmakedefine ENABLE_XSD 1
 #cmakedefine ENABLE_SOCI 1
 #cmakedefine ENABLE_PUSHNOTIFICATION 1
+#cmakedefine ENABLE_MDNS 1
 
 #cmakedefine HAVE_DATEHANDLER 1
 #cmakedefine HAVE_ARC4RANDOM 1

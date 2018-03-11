@@ -152,13 +152,19 @@ if(ENABLE_PROTOBUF)
 	add_definitions(-DENABLE_PROTOBUF)
 endif()
 
+if(ENABLE_PRESENCE OR ENABLE_MDNS)
+	list(APPEND FLEXISIP_LIBS ${BELLESIP_LIBRARIES})
+	list(APPEND FLEXISIP_INCLUDES ${BELLESIP_INCLUDE_DIRS})
+	add_definitions(-DBELLE_SIP_USE_STL ${BELLE_SIP_CFLAGS})
+endif()
+
 if(ENABLE_PRESENCE)
 	if(NOT LIBXSD_FOUND)
 		message(FATAL_ERROR "Presence asked but XSD not enabled! Please enable it first.")
 	endif()
 	add_definitions(-DBELLE_SIP_USE_STL ${BELLE_SIP_CFLAGS})
-	list(APPEND FLEXISIP_LIBS ${BELLESIP_LIBRARIES} ${XERCES_LIBS})
-	list(APPEND FLEXISIP_INCLUDES ${BELLESIP_INCLUDE_DIRS} presence)
+	list(APPEND FLEXISIP_LIBS ${XERCES_LIBS})
+	list(APPEND FLEXISIP_INCLUDES presence)
 	list(APPEND FLEXISIP_SOURCES
 		presence/bellesip-signaling-exception.cc
 		presence/bellesip-signaling-exception.hh

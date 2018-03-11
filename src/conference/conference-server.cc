@@ -69,6 +69,7 @@ void ConferenceServer::_init() {
 	configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
 	configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
 	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
+	mCore->setUserAgent("Flexisip-conference", VERSION);
 	mCore->addListener(shared_from_this());
 	mCore->enableConferenceServer(true);
 	mCore->setTransports(cTransport);

@@ -323,6 +323,7 @@ class RegistrarDb {
 	const std::string &messageExpiresName() {
 		return mMessageExpiresName;
 	}
+	const std::string getMessageExpires(const msg_param_t *m_params);
   protected:
 	class LocalRegExpire {
 		std::map<std::string, time_t> mRegMap;

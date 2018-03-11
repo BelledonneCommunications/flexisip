@@ -146,6 +146,7 @@ void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<ContactUpda
 
 	mRecords.erase(it);
 	mLocalRegExpire->remove(key);
+	delete r;
 	listener->onRecordFound(NULL);
 }
 

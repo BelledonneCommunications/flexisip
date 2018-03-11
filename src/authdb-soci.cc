@@ -158,7 +158,14 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 			SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
 			start = stop;
 
-			*sql << get_password_request, into(passwd.pass), use(id, "id"), use(domain, "domain"), use(authid, "authid");
+			// WARNING: it is necessary to create a temporary string here because use() function creates
+			// and returns an object that stores a reference on it. So, it must absolutely be destroyed
+			// at the end of this function.
+			string unescapedIdStr;
+			unescapedIdStr.resize(id.size());
+			url_unescape(&unescapedIdStr[0], id.c_str());
+
+			*sql << get_password_request, into(passwd.pass), use(unescapedIdStr, "id"), use(domain, "domain"), use(authid, "authid");
 			passwd.passmd5 = passwd.pass; // TODO
 			stop = steady_clock::now();
 			SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";

@@ -44,6 +44,15 @@ class DomainRegistration {
 	~DomainRegistration();
 
   private:
+	struct uuid_t {
+		unsigned int time_low;
+		unsigned short time_mid;
+		unsigned short time_hi_and_version;
+		unsigned char clock_seq_hi_and_reserved;
+		unsigned char clock_seq_low;
+		unsigned char node[6];
+	};
+
 	void setContact(msg_t *msg);
 	int getExpires(nta_outgoing_t *orq, const sip_t *response);
 	static void sOnConnectionBroken(tp_stack_t *stack, tp_client_t *client, tport_t *tport, msg_t *msg, int error);
@@ -53,6 +62,7 @@ class DomainRegistration {
 	void responseCallback(nta_outgoing_t *orq, const sip_t *resp);
 	void onConnectionBroken(tport_t *tport, msg_t *msg, int error);
 	void cleanCurrentTport();
+	int generateUuid(const std::string &uniqueId);
 	DomainRegistrationManager &mManager;
 	StatCounter64 * mRegistrationStatus; //This contains the lastest SIP response code of the REGISTER transaction.
 	su_home_t mHome;
@@ -64,6 +74,7 @@ class DomainRegistration {
 	url_t *mFrom;
 	url_t *mProxy;
 	sip_contact_t *mExternalContact;
+	std::string mUuid;
 };
 
 class DomainRegistrationManager {

@@ -65,24 +65,24 @@ if config_password is None or config_password is '':
 	sys.exit(1)
 
 
-p = subprocess.Popen(['../bc-flexisip-1.0.10/src/flexisip', '--dump-format','xwiki', '--dump-default', module], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
+p = subprocess.Popen(['../OUTPUT/bin/flexisip', '--dump-format','xwiki', '--dump-default', module], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
 
 out, err = p.communicate()
 if out is not "":
 	message = "// Documentation based on repostory git version commit "
 	d = subprocess.Popen(['git', 'describe'], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
 	gitout, giterr = d.communicate()
-	# replace all the -- in the doc with {{{--}}} to escape xwiki autoformatting -- into striken 
+	# replace all the -- in the doc with {{{--}}} to escape xwiki autoformatting -- into striken
 	out = re.sub(r"--","{{{--}}}",out)
 	#add commit version on top of the file
-	out = message +gitout + "// \n" + out 
+	out = message +gitout + "// \n" + out
 	f = open(args.outputfile, 'w')
 	f.write(out)
 	f.close()
 
 
 	host = config_host+modulename
-	connect = config_user + ":" +config_password 
+	connect = config_user + ":" +config_password
 	#necessary @ before filename it seems , refer to xwiki REST doc
 	filename = "@" + modulename + ".xwiki.txt"
 	p = subprocess.Popen(['curl', '-u', connect ,  '-X', 'PUT', '--data-binary' , \

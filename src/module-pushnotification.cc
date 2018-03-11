@@ -422,6 +422,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 					: (sip->sip_request->rq_method == sip_method_message)
 						? msg_str
 						: "IC_SIL";
+
 				pinfo.mAlertSound = (sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd;
 				pinfo.mNoBadge = mNoBadgeiOS;
 				if (!mExternalPushUri)

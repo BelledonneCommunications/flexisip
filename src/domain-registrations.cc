@@ -385,8 +385,61 @@ DomainRegistration::~DomainRegistration() {
 void DomainRegistration::setContact(msg_t *msg) {
 	sip_t *sip = (sip_t *)msg_object(msg);
 	if (sip->sip_contact == NULL) {
-		sip->sip_contact = sip_contact_create(msg_home(msg), (url_string_t *)mFrom, NULL);
+		int error = generateUuid(mManager.mAgent->getUniqueId());
+
+		if (!error) {
+			string sipInstance = "+sip.instance=\"<urn:uuid:";
+			sipInstance += mUuid;
+			sipInstance += ">\"";
+
+			sip->sip_contact = sip_contact_create(msg_home(msg), (url_string_t *)mFrom, sipInstance.c_str(), NULL);
+		} else {
+			sip->sip_contact = sip_contact_create(msg_home(msg), (url_string_t *)mFrom, NULL);
+		}
 	}
+}
+
+int DomainRegistration::generateUuid(const string &uniqueId) {
+	/*no need to regenerate the uuid if it already exist*/
+	if (!mUuid.empty())
+		return 0;
+
+	if (uniqueId.empty() || uniqueId.length() != 16) {
+		LOGD("generateUuid(): uniqueId is either empty or not with a length of 16");
+		return -1;
+	}
+
+	/*create an UUID as described in RFC4122, 4.4 */
+	uuid_t uuid_struct;
+	memcpy(&uuid_struct, uniqueId.c_str(), uniqueId.length()); /*copy the unique id into the uuid struct*/
+	uuid_struct.clock_seq_hi_and_reserved &= (unsigned char)~(1<<6);
+	uuid_struct.clock_seq_hi_and_reserved |= (unsigned char)1<<7;
+	uuid_struct.time_hi_and_version &= (unsigned char)~(0xf<<12);
+	uuid_struct.time_hi_and_version |= (unsigned char)4<<12;
+
+	char *uuid;
+	size_t len = 64;
+	uuid = (char *)malloc(len * sizeof(char));
+
+	int written;
+	written = snprintf(uuid, len, "%8.8x-%4.4x-%4.4x-%2.2x%2.2x-", uuid_struct.time_low, uuid_struct.time_mid,
+			uuid_struct.time_hi_and_version, uuid_struct.clock_seq_hi_and_reserved, uuid_struct.clock_seq_low);
+
+	if ((written < 0) || ((size_t)written > (len + 13))) {
+		LOGE("generateUuid(): buffer is too short !");
+		free(uuid);
+		return -1;
+	}
+
+	for (int i = 0; i < 6; i++)
+		written += snprintf(uuid + written, len - (unsigned long)written, "%2.2x", uuid_struct.node[i]);
+
+	uuid[len - 1] = '\0';
+
+	mUuid = uuid;
+	free(uuid);
+
+	return 0;
 }
 
 void DomainRegistration::start() {
