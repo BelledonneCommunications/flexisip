@@ -37,11 +37,14 @@
 
 class SdpMasqueradeContext{
 public:
+	enum IceState{ IceNone, IceOffered, IceCompleted} mIceState;
 	SdpMasqueradeContext();
 	bool updateIceFromOffer(sdp_session_t *session, sdp_media_t *mline, bool isOfferer);
 	bool updateIceFromAnswer(sdp_session_t *session, sdp_media_t *mline, bool isOfferer);
+	IceState getState()const{
+		return mIceState;
+	}
 private:
-	enum IceState{ IceNone, IceOffered, IceCompleted} mIceState;
 	std::string mIceUfrag, mIcePasswd;
 	static std::string getAttribute(sdp_session_t *session, sdp_media_t *mline, const std::string &name);
 	static const char *toString(IceState state);

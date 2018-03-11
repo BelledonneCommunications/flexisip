@@ -169,7 +169,14 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier> &m, int m
 				}
 			}
 			configureRelayChannel(chan,m->mSip,m->mSession,mline);
-			chan->setRemoteAddr(ip, rtp_port, rtcp_port, dir);
+			/* We don't want to update the destination address of this Channel when ICE has completed, because in this case
+			 * the destination address set by the client in the c= line and port in m= lines is the relay address itself,
+			 * because it is set like this for the other party.
+			 * Flexisip is no longer in the loop and just has to keep the relay open in case it is necessary.
+			 */
+			if (chan->getState() != SdpMasqueradeContext::IceCompleted ){
+				chan->setRemoteAddr(ip, rtp_port, rtcp_port, dir);
+			}
 		}
 	}
 }
