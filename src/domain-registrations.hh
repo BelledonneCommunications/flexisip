@@ -26,9 +26,11 @@
 
 #include "common.hh"
 #include "configmanager.hh"
+#include "registrardb.hh"
 
 #include <list>
 
+class LocalRegExpireListener;
 class DomainRegistrationManager;
 class Agent;
 
@@ -77,7 +79,7 @@ class DomainRegistration {
 	std::string mUuid;
 };
 
-class DomainRegistrationManager {
+class DomainRegistrationManager : public LocalRegExpireListener, public std::enable_shared_from_this<DomainRegistrationManager> {
 	friend class DomainRegistration;
 
   public:
@@ -94,12 +96,17 @@ class DomainRegistrationManager {
 	const url_t *getPublicUri(const tport_t *tport) const;
 	~DomainRegistrationManager();
 
+	void onRegUpdated();
+
+	void onLocalRegExpireUpdated(unsigned int count);
+
   private:
 	Agent *mAgent;
 	std::list<std::shared_ptr<DomainRegistration>> mRegistrations;
 	GenericStruct *mDomainRegistrationArea; /*this is used to place statistics values*/
 	int mKeepaliveInterval;
 	bool mVerifyServerCerts;
+	bool mDomainRegistrationsStarted;
 };
 
 #endif

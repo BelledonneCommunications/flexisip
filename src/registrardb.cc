@@ -715,10 +715,13 @@ void RegistrarDb::LocalRegExpire::update(const Record &record) {
 		if (it != mRegMap.end()) {
 			(*it).second = latest;
 		} else {
+			// Check if static record
 			mRegMap.insert(make_pair(record.getKey(), latest));
+			notifyLocalRegExpireListener(mRegMap.size());
 		}
 	} else {
 		mRegMap.erase(record.getKey());
+		notifyLocalRegExpireListener(mRegMap.size());
 	}
 }
 
@@ -734,9 +737,30 @@ void RegistrarDb::LocalRegExpire::removeExpiredBefore(time_t before) {
 			auto prevIt = it;
 			++it;
 			mRegMap.erase(prevIt);
+			notifyLocalRegExpireListener(mRegMap.size());
 		} else {
 			++it;
 		}
+	}
+}
+
+void RegistrarDb::LocalRegExpire::subscribe(const std::shared_ptr<LocalRegExpireListener> &listener) {
+	LOGD("Subscribe [%p]", listener);
+	mLocalRegListenerList.push_back(listener);
+}
+
+void RegistrarDb::LocalRegExpire::unsubscribe(const std::shared_ptr<LocalRegExpireListener> &listener) {
+	LOGD("Unsubscribe [%p]", listener);
+	auto result = find(mLocalRegListenerList.begin(), mLocalRegListenerList.end(), listener);
+	if (result != mLocalRegListenerList.end()) {
+		mLocalRegListenerList.erase(result);
+	}
+}
+
+void RegistrarDb::LocalRegExpire::notifyLocalRegExpireListener(unsigned int count) {
+	LOGD("Notify count = %d", count);
+	for(auto listener : mLocalRegListenerList) {
+		listener->onLocalRegExpireUpdated(count);
 	}
 }
 
@@ -963,6 +987,10 @@ ContactUpdateListener::~ContactUpdateListener() {
 }
 
 ContactRegisteredListener::~ContactRegisteredListener() {
+}
+
+LocalRegExpireListener::~LocalRegExpireListener() {
+
 }
 
 void RegistrarDb::fetch(const url_t *url, const shared_ptr<ContactUpdateListener> &listener, bool recursive) {

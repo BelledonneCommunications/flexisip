@@ -289,6 +289,12 @@ class ContactRegisteredListener {
 	virtual void onContactRegistered(std::string key, std::string uid) = 0;
 };
 
+class LocalRegExpireListener {
+public:
+	virtual ~LocalRegExpireListener();
+	virtual void onLocalRegExpireUpdated(unsigned int count) = 0;
+};
+
 /**
  * A singleton class which holds records contact addresses associated with a from.
  * Both local and remote storage implementations exist.
@@ -323,11 +329,19 @@ class RegistrarDb {
 		return mMessageExpiresName;
 	}
 	const std::string getMessageExpires(const msg_param_t *m_params);
+
+	void subscribeLocalRegExpire(const std::shared_ptr<LocalRegExpireListener> &listener) {
+		mLocalRegExpire->subscribe(listener);
+	}
+	void unsubscribeLocalRegExpire(const std::shared_ptr<LocalRegExpireListener> &listener) {
+		mLocalRegExpire->unsubscribe(listener);
+	}
   protected:
 	class LocalRegExpire {
 		std::map<std::string, time_t> mRegMap;
 		std::mutex mMutex;
 		std::string mPreferedRoute;
+		std::vector<std::shared_ptr<LocalRegExpireListener>> mLocalRegListenerList;
 
 	  public:
 		void remove(const std::string key) {
@@ -342,6 +356,10 @@ class RegistrarDb {
 			std::lock_guard<std::mutex> lock(mMutex);
 			mRegMap.clear();
 		}
+
+		void subscribe(const std::shared_ptr<LocalRegExpireListener> &listener);
+		void unsubscribe(const std::shared_ptr<LocalRegExpireListener> &listener);
+		void notifyLocalRegExpireListener(unsigned int count);
 	};
 	virtual void doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
 					  const sip_path_t *ipath, std::list<std::string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) = 0;

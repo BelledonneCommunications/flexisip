@@ -91,6 +91,9 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 		 "Interval in seconds for sending \\r\\n\\r\\n keepalives throug the outgoing domain registration connection."
 		 "A value of zero disables keepalives.",
 		 "30"},
+		 {Boolean, "reg-when-needed",
+		 "Whether Flexisip shall only send a domain registration when a device is registered",
+		 "false"},
 		config_item_end};
 
 	mDomainRegistrationArea->addChildrenValues(configs);
@@ -99,6 +102,12 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 }
 
 DomainRegistrationManager::~DomainRegistrationManager() {
+	GenericStruct *domainRegistrationCfg =
+		GenericManager::get()->getRoot()->get<GenericStruct>("inter-domain-connections");
+
+	if (domainRegistrationCfg->get<ConfigBoolean>("reg-when-needed")->read()) {
+		RegistrarDb::get()->unsubscribeLocalRegExpire(shared_from_this());
+	}
 }
 
 int DomainRegistrationManager::load(string passphrase) {
@@ -167,7 +176,13 @@ int DomainRegistrationManager::load(string passphrase) {
 		mRegistrations.push_back(dr);
 	} while (!ifs.eof() && !ifs.bad());
 
-	for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
+	if (domainRegistrationCfg->get<ConfigBoolean>("reg-when-needed")->read()) {
+		mDomainRegistrationsStarted = false;
+		RegistrarDb::get()->subscribeLocalRegExpire(shared_from_this());
+	} else {
+		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
+	}
+
 	return 0;
 error:
 	LOGF("Syntax error parsing domain registration configuration file '%s'", configFile.c_str());
@@ -190,6 +205,16 @@ const url_t *DomainRegistrationManager::getPublicUri(const tport_t *tport) const
 			return dr->getPublicUri();
 	}
 	return NULL;
+}
+
+void DomainRegistrationManager::onLocalRegExpireUpdated(unsigned int count) {
+	if (count > 0 && !mDomainRegistrationsStarted) {
+		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
+		mDomainRegistrationsStarted = true;
+	} else if (count == 0 && mDomainRegistrationsStarted) {
+		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::stop));
+		mDomainRegistrationsStarted = false;
+	}
 }
 
 DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const string &localDomain,
