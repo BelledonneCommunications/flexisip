@@ -279,7 +279,7 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<
 	url_t *url = NULL;
 
 	if (tport) {
-		DomainRegistrationManager *drm = ag->getDRM();
+		shared_ptr<DomainRegistrationManager> drm = ag->getDRM();
 		if (drm) { // this finds public contact information for request received via domain registration connections.
 			const url_t *reg_uri = drm->getPublicUri(tport);
 			if (reg_uri) {

@@ -192,7 +192,7 @@ class Agent : public IncomingAgent,
 	nth_engine_t *getHttpEngine() {
 		return mHttpEngine;
 	}
-	DomainRegistrationManager *getDRM() {
+	std::shared_ptr<DomainRegistrationManager> getDRM() {
 		return mDrm;
 	}
 	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr = false);
@@ -234,7 +234,7 @@ class Agent : public IncomingAgent,
 	nth_engine_t *mHttpEngine;
 	su_home_t mHome;
 	EventLogWriter *mLogWriter;
-	DomainRegistrationManager *mDrm;
+	std::shared_ptr<DomainRegistrationManager> mDrm;
 	std::string mPassphrase;
 	static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t *msg, sip_t *sip);
 	bool mTerminating;
