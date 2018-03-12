@@ -745,12 +745,12 @@ void RegistrarDb::LocalRegExpire::removeExpiredBefore(time_t before) {
 }
 
 void RegistrarDb::LocalRegExpire::subscribe(const std::shared_ptr<LocalRegExpireListener> &listener) {
-	LOGD("Subscribe [%p]", listener);
+	LOGD("Subscribe");
 	mLocalRegListenerList.push_back(listener);
 }
 
 void RegistrarDb::LocalRegExpire::unsubscribe(const std::shared_ptr<LocalRegExpireListener> &listener) {
-	LOGD("Unsubscribe [%p]", listener);
+	LOGD("Unsubscribe");
 	auto result = find(mLocalRegListenerList.begin(), mLocalRegListenerList.end(), listener);
 	if (result != mLocalRegListenerList.end()) {
 		mLocalRegListenerList.erase(result);
