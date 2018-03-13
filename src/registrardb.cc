@@ -327,6 +327,10 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 		}
 	}
 	mContacts.push_back(ec);
+
+	if (ec->mCallId.find("static-record") != string::npos) {
+		mOnlyStaticContacts = false;
+	}
 }
 
 static bool compare_contact_using_last_update (shared_ptr<ExtendedContact> first, shared_ptr<ExtendedContact> second) {
@@ -651,7 +655,7 @@ int Record::sMaxContacts = -1;
 list<string> Record::sLineFieldNames;
 bool Record::sAssumeUniqueDomains = false;
 
-Record::Record(const url_t *aor) : mKey(aor ? defineKeyFromUrl(aor) : "") {
+Record::Record(const url_t *aor) : mKey(aor ? defineKeyFromUrl(aor) : ""), mOnlyStaticContacts(true) {
 	if (sMaxContacts == -1)
 		init();
 	if (aor) mIsDomain = aor->url_user == NULL;
@@ -722,9 +726,10 @@ void RegistrarDb::LocalRegExpire::update(const Record &record) {
 		if (it != mRegMap.end()) {
 			(*it).second = latest;
 		} else {
-			// Check if static record
-			mRegMap.insert(make_pair(record.getKey(), latest));
-			notifyLocalRegExpireListener(mRegMap.size());
+			if (!record.isEmpty() && !record.haveOnlyStaticContacts()) {
+				mRegMap.insert(make_pair(record.getKey(), latest));
+				notifyLocalRegExpireListener(mRegMap.size());
+			}
 		}
 	} else {
 		mRegMap.erase(record.getKey());
@@ -752,12 +757,12 @@ void RegistrarDb::LocalRegExpire::removeExpiredBefore(time_t before) {
 }
 
 void RegistrarDb::LocalRegExpire::subscribe(const std::shared_ptr<LocalRegExpireListener> &listener) {
-	LOGD("Subscribe");
+	LOGD("Subscribe LocalRegExpire");
 	mLocalRegListenerList.push_back(listener);
 }
 
 void RegistrarDb::LocalRegExpire::unsubscribe(const std::shared_ptr<LocalRegExpireListener> &listener) {
-	LOGD("Unsubscribe");
+	LOGD("Unsubscribe LocalRegExpire");
 	auto result = find(mLocalRegListenerList.begin(), mLocalRegListenerList.end(), listener);
 	if (result != mLocalRegListenerList.end()) {
 		mLocalRegListenerList.erase(result);
@@ -765,7 +770,7 @@ void RegistrarDb::LocalRegExpire::unsubscribe(const std::shared_ptr<LocalRegExpi
 }
 
 void RegistrarDb::LocalRegExpire::notifyLocalRegExpireListener(unsigned int count) {
-	LOGD("Notify count = %d", count);
+	LOGD("Notify LocalRegExpire count = %d", count);
 	for(auto listener : mLocalRegListenerList) {
 		listener->onLocalRegExpireUpdated(count);
 	}

@@ -198,6 +198,7 @@ class Record {
 	std::list<std::shared_ptr<ExtendedContact>> mContactsToRemove;
 	std::string mKey;
 	bool mIsDomain; /*is a domain registration*/
+	bool mOnlyStaticContacts;
 
   public:
 	static std::list<std::string> sLineFieldNames;
@@ -225,7 +226,7 @@ class Record {
 	bool updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url);
 
 	void print(std::ostream &stream) const;
-	bool isEmpty() {
+	bool isEmpty() const {
 		return mContacts.empty();
 	}
 	const std::string &getKey() const {
@@ -258,6 +259,10 @@ class Record {
 	void appendContactsFrom(Record *src);
 	static std::string defineKeyFromUrl(const url_t *aor);
 	~Record();
+
+	bool haveOnlyStaticContacts() const {
+		return mOnlyStaticContacts;
+	}
 };
 
 template <typename TraitsT>
