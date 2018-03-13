@@ -61,6 +61,7 @@ class DomainRegistration {
 	static int sLegCallback(nta_leg_magic_t *ctx, nta_leg_t *leg, nta_incoming_t *incoming, const sip_t *request);
 	static int sResponseCallback(nta_outgoing_magic_t *ctx, nta_outgoing_t *orq, const sip_t *resp);
 	static void sRefreshRegistration(su_root_magic_t *magic, su_timer_t *timer, su_timer_arg_t *arg);
+	static void sRefreshUnregistration(su_root_magic_t *magic, su_timer_t *timer, su_timer_arg_t *arg);
 	void responseCallback(nta_outgoing_t *orq, const sip_t *resp);
 	void onConnectionBroken(tport_t *tport, msg_t *msg, int error);
 	void cleanCurrentTport();
@@ -103,6 +104,7 @@ class DomainRegistrationManager : public LocalRegExpireListener, public std::ena
   private:
 	Agent *mAgent;
 	std::list<std::shared_ptr<DomainRegistration>> mRegistrations;
+	int mNbRegistration = 0;
 	GenericStruct *mDomainRegistrationArea; /*this is used to place statistics values*/
 	int mKeepaliveInterval;
 	bool mVerifyServerCerts;
