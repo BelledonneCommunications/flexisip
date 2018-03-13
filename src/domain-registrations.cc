@@ -437,7 +437,6 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 			LOGD("Quiting domain registration");
 			su_timer_destroy(mTimer);
 			mTimer = NULL;
-			su_root_break(mManager.mAgent->getRoot());
 		}
 	}
 }
