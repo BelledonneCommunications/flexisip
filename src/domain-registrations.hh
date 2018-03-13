@@ -105,10 +105,17 @@ class DomainRegistrationManager : public LocalRegExpireListener, public std::ena
 	Agent *mAgent;
 	std::list<std::shared_ptr<DomainRegistration>> mRegistrations;
 	int mNbRegistration = 0;
+	su_timer_t *mTimer;
+	std::list<std::string> mRegistrationList;
 	GenericStruct *mDomainRegistrationArea; /*this is used to place statistics values*/
 	int mKeepaliveInterval;
 	bool mVerifyServerCerts;
 	bool mDomainRegistrationsStarted;
+
+	static void unregisterTimeout(su_root_magic_t *magic, su_timer_t *t, void *data) {
+		su_root_t *root = (su_root_t *) data;
+		su_root_break(root);
+	}
 };
 
 #endif

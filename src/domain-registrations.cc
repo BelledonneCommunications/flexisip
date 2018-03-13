@@ -113,6 +113,8 @@ DomainRegistrationManager::~DomainRegistrationManager() {
 		for(auto &registration : mRegistrations) {
 			registration->stop();
 		}
+		mTimer = NULL;
+		mTimer = mAgent->createTimer(5000, unregisterTimeout, mAgent->getRoot());
 		su_root_run(mAgent->getRoot()); // Correctly wait for domain un-registration
 	}
 }
@@ -398,10 +400,20 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 		}
 	} else {
 		int expire = getExpires(orq, resp);
+		const char *domain = mFrom->url_host;
 		if(expire > 0) {
-			mManager.mNbRegistration++;
+			if(!(find(mManager.mRegistrationList.begin(), mManager.mRegistrationList.end(), domain) != mManager.mRegistrationList.end())) {
+				mManager.mNbRegistration++;
+				mManager.mRegistrationList.push_back(domain);
+				LOGD("Incrementing number of domain registration to : %d.", mManager.mNbRegistration);
+
+			}
 		} else {
-			mManager.mNbRegistration--;
+			if(find(mManager.mRegistrationList.begin(), mManager.mRegistrationList.end(), domain) != mManager.mRegistrationList.end()) {
+				mManager.mNbRegistration--;
+				mManager.mRegistrationList.erase(find(mManager.mRegistrationList.begin(), mManager.mRegistrationList.end(), domain));
+				LOGD("Decrementing number of domain registration to : %d.", mManager.mNbRegistration);
+			}
 		}
 		tport_t *tport = nta_outgoing_transport(orq);
 		unsigned int keepAliveInterval = mManager.mKeepaliveInterval * 1000;
@@ -425,6 +437,8 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 		}
 		if(mManager.mNbRegistration <= 0) {
 			LOGD("Quiting domain registration");
+			su_timer_destroy(mTimer);
+			mTimer = NULL;
 			su_root_break(mManager.mAgent->getRoot());
 		}
 	}
