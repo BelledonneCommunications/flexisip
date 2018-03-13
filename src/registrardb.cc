@@ -328,7 +328,7 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 	}
 	mContacts.push_back(ec);
 
-	if (ec->mCallId.find("static-record") != string::npos) {
+	if (ec->mCallId.find("static-record") == string::npos) {
 		mOnlyStaticContacts = false;
 	}
 }
