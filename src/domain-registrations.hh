@@ -70,6 +70,7 @@ class DomainRegistration {
 	StatCounter64 * mRegistrationStatus; //This contains the lastest SIP response code of the REGISTER transaction.
 	su_home_t mHome;
 	nta_leg_t *mLeg;
+	msg_header_t *mSip = NULL;
 	tport_t *mPrimaryTport; // the tport that has the configuration
 	tport_t *mCurrentTport; // the secondary tport that has the active connection.
 	int mPendId;

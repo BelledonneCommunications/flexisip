@@ -105,14 +105,12 @@ DomainRegistrationManager::~DomainRegistrationManager() {
 	GenericStruct *domainRegistrationCfg =
 		GenericManager::get()->getRoot()->get<GenericStruct>("inter-domain-connections");
 
-	if (domainRegistrationCfg->get<ConfigBoolean>("reg-when-needed")->read()) {
+	if (domainRegistrationCfg->get<ConfigBoolean>("reg-when-needed")->read())
 		RegistrarDb::get()->unsubscribeLocalRegExpire(shared_from_this());
 
 	if(mNbRegistration > 0) {
 		LOGD("Starting domain un-registration");
-		for(auto &registration : mRegistrations) {
-			registration->stop();
-		}
+		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::stop));
 		mTimer = NULL;
 		mTimer = mAgent->createTimer(5000, unregisterTimeout, mAgent->getRoot());
 		su_root_run(mAgent->getRoot()); // Correctly wait for domain un-registration
