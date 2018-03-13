@@ -247,7 +247,14 @@ time_t Record::latestExpire(const std::string &route) const {
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		if ((*it)->mPath.empty() || (*it)->mExpireAt <= latest)
 			continue;
-		if (*(*it)->mPath.begin() == route)
+
+		/* Remove extra parameters */
+		string s = *(*it)->mPath.begin();
+		string::size_type n = s.find(";");
+		if (n != string::npos)
+			s = s.substr(0, n);
+
+		if (s == route)
 			latest = (*it)->mExpireAt;
 	}
 	return latest;
