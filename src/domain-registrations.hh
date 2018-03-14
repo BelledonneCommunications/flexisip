@@ -111,6 +111,7 @@ class DomainRegistrationManager : public LocalRegExpireListener, public std::ena
 	GenericStruct *mDomainRegistrationArea; /*this is used to place statistics values*/
 	int mKeepaliveInterval;
 	bool mVerifyServerCerts;
+	bool mRegisterWhenNeeded;
 	bool mDomainRegistrationsStarted;
 
 	static void unregisterTimeout(su_root_magic_t *magic, su_timer_t *t, void *data) {

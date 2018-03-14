@@ -102,10 +102,7 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 }
 
 DomainRegistrationManager::~DomainRegistrationManager() {
-	GenericStruct *domainRegistrationCfg =
-		GenericManager::get()->getRoot()->get<GenericStruct>("inter-domain-connections");
-
-	if (domainRegistrationCfg->get<ConfigBoolean>("reg-when-needed")->read())
+	if (mRegisterWhenNeeded)
 		RegistrarDb::get()->unsubscribeLocalRegExpire(shared_from_this());
 
 	if(mNbRegistration > 0) {
@@ -183,7 +180,9 @@ int DomainRegistrationManager::load(string passphrase) {
 		mRegistrations.push_back(dr);
 	} while (!ifs.eof() && !ifs.bad());
 
-	if (domainRegistrationCfg->get<ConfigBoolean>("reg-when-needed")->read()) {
+	mRegisterWhenNeeded = domainRegistrationCfg->get<ConfigBoolean>("reg-when-needed")->read();
+
+	if (mRegisterWhenNeeded) {
 		mDomainRegistrationsStarted = false;
 		RegistrarDb::get()->subscribeLocalRegExpire(shared_from_this());
 	} else {
