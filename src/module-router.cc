@@ -944,7 +944,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		sip_route_t *iterator = sip->sip_route;
 		while (iterator != NULL) {
 			sip_route_t *route = iterator;
-			if (getAgent()->isUs(sip->sip_route->r_url)) {
+			if (getAgent()->isUs(route->r_url)) {
 				SLOGD << "Route header found " << url_as_string(ms->getHome(), route->r_url) << " and is us, continuing";
 			} else {
 				SLOGD << "Route header found " << url_as_string(ms->getHome(), route->r_url) << " but not us, forwarding";
