@@ -19,6 +19,7 @@
 #include "forkcontext.hh"
 #include "registrardb.hh"
 #include <sofia-sip/sip_status.h>
+
 using namespace std;
 
 const int ForkContext::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603, 0};
@@ -41,7 +42,7 @@ void ForkContext::sOnFinished(su_root_magic_t *magic, su_timer_t *t, su_timer_ar
 	(static_cast<ForkContext *>(arg))->onFinished();
 }
 
-ForkContext::ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg,
+ForkContext::ForkContext(Agent *agent, const shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg,
 						 ForkContextListener *listener)
 	: mListener(listener), mAgent(agent),
 	  mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
@@ -74,7 +75,7 @@ struct dest_finder {
 };
 
 struct uid_finder {
-	uid_finder(const std::string &uid) : mUid(uid) {
+	uid_finder(const string &uid) : mUid(uid) {
 	}
 	bool operator()(const shared_ptr<BranchInfo> &br) {
 		return mUid == br->mUid;
@@ -82,14 +83,14 @@ struct uid_finder {
 	const string mUid;
 };
 
-std::shared_ptr<BranchInfo> ForkContext::findBranchByUid(const std::string &uid) {
+shared_ptr<BranchInfo> ForkContext::findBranchByUid(const string &uid) {
 	auto it = find_if(mBranches.begin(), mBranches.end(), uid_finder(uid));
 	if (it != mBranches.end())
 		return *it;
 	return shared_ptr<BranchInfo>();
 }
 
-std::shared_ptr<BranchInfo> ForkContext::findBranchByDest(const url_t *dest) {
+shared_ptr<BranchInfo> ForkContext::findBranchByDest(const url_t *dest) {
 	auto it = find_if(mBranches.begin(), mBranches.end(), dest_finder(dest));
 	if (it != mBranches.end())
 		return *it;
@@ -111,7 +112,7 @@ static bool isConsidered(int code, bool ignore503And408){
 	return ignore503And408 ? (!(code == 503 || code == 408)) : true;
 }
 
-std::shared_ptr<BranchInfo> ForkContext::_findBestBranch(const int urgentCodes[], bool ignore503And408) {
+shared_ptr<BranchInfo> ForkContext::_findBestBranch(const int urgentCodes[], bool ignore503And408) {
 	shared_ptr<BranchInfo> best;
 	
 	for (auto it = mBranches.begin(); it != mBranches.end(); ++it) {
@@ -139,8 +140,8 @@ std::shared_ptr<BranchInfo> ForkContext::_findBestBranch(const int urgentCodes[]
 	return best;
 }
 
-std::shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[], bool avoid503And408){
-	std::shared_ptr<BranchInfo> ret;
+shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[], bool avoid503And408){
+	shared_ptr<BranchInfo> ret;
 	if (avoid503And408 == false){
 		ret = _findBestBranch(urgentCodes, false);
 	}else{
@@ -167,7 +168,7 @@ void ForkContext::removeBranch(const shared_ptr<BranchInfo> &br) {
 	br->clear();
 }
 
-const std::list<std::shared_ptr<BranchInfo>> &ForkContext::getBranches() const{
+const list<shared_ptr<BranchInfo>> &ForkContext::getBranches() const{
 	return mBranches;
 }
 
@@ -191,9 +192,9 @@ bool ForkContext::onNewRegister(const url_t *url, const string &uid) {
 		}
 	}
 	//check gruu
-	std::string target_gr;
+	string target_gr;
 	if (ModuleToolbox::getUriParameter(mEvent->getSip()->sip_request->rq_url, "gr", target_gr)) {
-		return std::string::npos != uid.find(target_gr); //to compare regardless of < >
+		return string::npos != uid.find(target_gr); //to compare regardless of < >
 	} else
 		return true;
 }
@@ -231,16 +232,16 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	LOGD("ForkContext [%p] new fork branch [%p]", this, br.get());
 }
 
-std::shared_ptr<ForkContext> ForkContext::get(const std::shared_ptr<IncomingTransaction> &tr) {
+shared_ptr<ForkContext> ForkContext::get(const shared_ptr<IncomingTransaction> &tr) {
 	return tr->getProperty<ForkContext>("ForkContext");
 }
 
-std::shared_ptr<ForkContext> ForkContext::get(const std::shared_ptr<OutgoingTransaction> &tr) {
+shared_ptr<ForkContext> ForkContext::get(const shared_ptr<OutgoingTransaction> &tr) {
 	shared_ptr<BranchInfo> br = tr->getProperty<BranchInfo>("BranchInfo");
 	return br ? br->mForkCtx : shared_ptr<ForkContext>();
 }
 
-bool ForkContext::processCancel(const std::shared_ptr<RequestSipEvent> &ev) {
+bool ForkContext::processCancel(const shared_ptr<RequestSipEvent> &ev) {
 	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
 	if (transaction && ev->getMsgSip()->getSip()->sip_request->rq_method == sip_method_cancel) {
 		shared_ptr<ForkContext> ctx = ForkContext::get(transaction);
@@ -320,27 +321,35 @@ bool ForkContext::shouldFinish() {
 	return true;
 }
 
-void ForkContext::onNewBranch(const std::shared_ptr<BranchInfo> &br) {
+void ForkContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 }
 
-void ForkContext::onCancel(const std::shared_ptr<RequestSipEvent> &ev) {
+void ForkContext::onCancel(const shared_ptr<RequestSipEvent> &ev) {
 }
 
-void ForkContext::setKey(std::string key) {
+void ForkContext::setKey(string key) {
      mKey = key;
 }
 
-std::string ForkContext::getKey() {
+string ForkContext::getKey() const {
      return mKey;
 }
 
-std::shared_ptr<BranchInfo> ForkContext::createBranchInfo() {
+void ForkContext::setContactRegisteredListener (const shared_ptr<OnContactRegisteredListener> &listener) {
+	mContactRegisteredListener = listener;
+}
+
+const shared_ptr<OnContactRegisteredListener> &ForkContext::getContactRegisteredListener () const {
+	return mContactRegisteredListener;
+}
+
+shared_ptr<BranchInfo> ForkContext::createBranchInfo() {
 	return make_shared<BranchInfo>(shared_from_this());
 }
 
 // called by implementors to request the forwarding of a response from this branch, regardless of whether it was
 // retained previously or not*/
-std::shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const std::shared_ptr<BranchInfo> &br) {
+shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const shared_ptr<BranchInfo> &br) {
 	if (br->mLastResponse) {
 		if (mIncoming) {
 			int code = br->mLastResponse->getMsgSip()->getSip()->sip_status->st_status;
@@ -354,10 +363,10 @@ std::shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const std::shared
 	} else {
 		LOGE("ForkContext::forwardResponse(): no response received on this branch");
 	}
-	return std::shared_ptr<ResponseSipEvent>();
+	return shared_ptr<ResponseSipEvent>();
 }
 
-std::shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const std::shared_ptr<ResponseSipEvent> &ev) {
+shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const shared_ptr<ResponseSipEvent> &ev) {
 	if (mIncoming) {
 		int code = ev->getMsgSip()->getSip()->sip_status->st_status;
 		ev->setIncomingAgent(mIncoming);
@@ -375,7 +384,7 @@ std::shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const std::shared
 		}
 		return ev;
 	}
-	return std::shared_ptr<ResponseSipEvent>();
+	return shared_ptr<ResponseSipEvent>();
 }
 
 int ForkContext::getLastResponseCode() const {

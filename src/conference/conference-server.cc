@@ -32,9 +32,46 @@ SofiaAutoHome ConferenceServer::mHome;
 ConferenceServer::Init ConferenceServer::sStaticInit;
 
 
+void ParticipantRegistrationSubscription::onContactRegistered (const string &key, const string &uid) {
+	shared_ptr<linphone::Address> deviceAddress = mParticipantAddress->clone();
+	string gruu = uid;
+	gruu = gruu.substr(gruu.find("\"<") + strlen("\"<"));
+	gruu = gruu.substr(0, gruu.find(">"));
+	deviceAddress->setUriParam("gr", gruu);
+	mChatRoom->addParticipantDevice(mParticipantAddress, deviceAddress);
+}
+
+
+string ParticipantRegistrationSubscriptionHandler::getKey (const shared_ptr<const linphone::Address> &address) {
+	return address->getUsername() + "@" + address->getDomain();
+}
+
+void ParticipantRegistrationSubscriptionHandler::subscribe (
+	const shared_ptr<linphone::ChatRoom> &chatRoom,
+	const shared_ptr<const linphone::Address> &address
+) {
+	string key = getKey(address);
+	auto subscription = make_shared<ParticipantRegistrationSubscription>(address, chatRoom);
+	mSubscriptions[key] = subscription;
+	RegistrarDb::get()->subscribe(key, subscription);
+}
+
+void ParticipantRegistrationSubscriptionHandler::unsubscribe (
+	const shared_ptr<linphone::ChatRoom> &chatRoom,
+	const shared_ptr<const linphone::Address> &address
+) {
+	string key = getKey(address);
+	auto it = mSubscriptions.find(key);
+	if (it != mSubscriptions.end() && (it->second->getChatRoom() == chatRoom)) {
+		RegistrarDb::get()->unsubscribe(key, it->second);
+		mSubscriptions.erase(it);
+	}
+}
+
+
 ConferenceServer::ConferenceServer() : ServiceServer() {}
 
-ConferenceServer::ConferenceServer(bool withThread, const std::string &path, su_root_t* root) : ServiceServer(withThread, root), mPath(path) {}
+ConferenceServer::ConferenceServer(bool withThread, const string &path, su_root_t* root) : ServiceServer(withThread, root), mPath(path) {}
 
 ConferenceServer::~ConferenceServer() {}
 
@@ -112,7 +149,7 @@ void ConferenceServer::onChatRoomStateChanged(const shared_ptr<linphone::Core> &
 	}
 }
 
-void ConferenceServer::onConferenceAddressGeneration(const std::shared_ptr<linphone::ChatRoom> & cr) {
+void ConferenceServer::onConferenceAddressGeneration(const shared_ptr<linphone::ChatRoom> & cr) {
 	class ConferenceAddressGenerator : public ContactUpdateListener, public enable_shared_from_this<ConferenceAddressGenerator> {
 	public:
 		enum class State {
@@ -177,12 +214,12 @@ void ConferenceServer::onConferenceAddressGeneration(const std::shared_ptr<linph
 	generator->generateAddress();
 }
 
-void ConferenceServer::onParticipantDeviceFetched(const std::shared_ptr<linphone::ChatRoom> & cr, const std::shared_ptr<const linphone::Address> & participantAddr) {
+void ConferenceServer::onParticipantDeviceFetchRequested(const shared_ptr<linphone::ChatRoom> & cr, const shared_ptr<const linphone::Address> & participantAddr) {
 	class ParticipantDevicesSearch : public ContactUpdateListener, public enable_shared_from_this<ParticipantDevicesSearch> {
 	public:
-		ParticipantDevicesSearch(const std::shared_ptr<linphone::ChatRoom> &cr, const std::shared_ptr<const linphone::Address> &uri) : mChatRoom(cr), mSipUri(uri) {}
+		ParticipantDevicesSearch(const shared_ptr<linphone::ChatRoom> &cr, const shared_ptr<const linphone::Address> &uri) : mChatRoom(cr), mSipUri(uri) {}
 
-		void searchingDevices() {
+		void searchDevices() {
 			url_t *url = url_make(mHome.home(), mSipUri->asStringUriOnly().c_str());
 			RegistrarDb::get()->fetch(url, shared_from_this(), false, false);
 		}
@@ -211,7 +248,7 @@ void ConferenceServer::onParticipantDeviceFetched(const std::shared_ptr<linphone
 		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {}
 	};
 	shared_ptr<ParticipantDevicesSearch> search= make_shared<ParticipantDevicesSearch>(cr, participantAddr);
-	search->searchingDevices();
+	search->searchDevices();
 }
 
 void ConferenceServer::onParticipantsCapabilitiesChecked(const shared_ptr<linphone::ChatRoom> & cr, const shared_ptr<const linphone::Address> &deviceAddr, const list<shared_ptr<linphone::Address> > & participantsAddr) {
@@ -259,6 +296,20 @@ void ConferenceServer::onParticipantsCapabilitiesChecked(const shared_ptr<linpho
 	search->checkParticipantsCapabilities();
 }
 
+void flexisip::ConferenceServer::onParticipantRegistrationSubscriptionRequested (
+	const shared_ptr<linphone::ChatRoom> &cr,
+	const shared_ptr<const linphone::Address> &participantAddr
+) {
+	mSubscriptionHandler.subscribe(cr, participantAddr);
+}
+
+void flexisip::ConferenceServer::onParticipantRegistrationUnsubscriptionRequested (
+	const shared_ptr<linphone::ChatRoom> &cr,
+	const shared_ptr<const linphone::Address> &participantAddr
+) {
+	mSubscriptionHandler.unsubscribe(cr, participantAddr);
+}
+
 void flexisip::ConferenceServer::bindConference(const string &path) {
 	class fakeListener : public ContactUpdateListener {
 		void onRecordFound(Record *r) {}
@@ -281,7 +332,7 @@ void flexisip::ConferenceServer::bindConference(const string &path) {
 	}
 }
 
-void ConferenceServer::bindChatRoom(const string &bindingUrl, const string &contact, const string &gruu, const string &path, const std::shared_ptr< ContactUpdateListener >& listener) {
+void ConferenceServer::bindChatRoom(const string &bindingUrl, const string &contact, const string &gruu, const string &path, const shared_ptr< ContactUpdateListener >& listener) {
 
 	url_t *url = url_make(mHome.home(), bindingUrl.c_str());
 	sip_contact_t *sipContact = sip_contact_make(mHome.home(), contact.c_str());

@@ -44,7 +44,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	void sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code = 0,
 				   const char *warning = NULL);
 	void routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aorb, const url_t *sipUri);
-	void onContactRegistered(const std::string &uid, Record *aor, const url_t *sipUri);
+	void onContactRegistered(const string &uid, Record *aor, const url_t *sipUri);
 
 	ModuleRouter(Agent *ag) : Module(ag) {
 	}
@@ -358,7 +358,7 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Con
 	friend class ModuleRouter;
 	ModuleRouter *mModule;
 	url_t *mSipUri;
-	std::string mUid;
+	string mUid;
 	su_home_t mHome;
 
   public:
@@ -377,7 +377,7 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Con
 		su_home_deinit(&mHome);
 	}
 
-	void onContactRegistered(std::string key, std::string uid) {
+	void onContactRegistered(const string &key, const string &uid) {
 		LOGD("Listener found for topic = %s, uid = %s, sipUri = %s", key.c_str(), uid.c_str(), url_as_string(&mHome, mSipUri));
 		mUid = uid;
 		RegistrarDb::get()->fetch(mSipUri, this->shared_from_this(), true);
@@ -400,7 +400,7 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Con
 	}
 };
 
-void ModuleRouter::onContactRegistered(const std::string &uid, Record *aor, const url_t *sipUri) {
+void ModuleRouter::onContactRegistered(const string &uid, Record *aor, const url_t *sipUri) {
 	SofiaAutoHome home;
 	sip_path_t *path = NULL;
 	sip_contact_t *contact = NULL;
@@ -472,7 +472,7 @@ bool ModuleRouter::makeGeneratedContactRoute(shared_ptr<RequestSipEvent> &ev, Re
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();
 		const url_t *to = ms->getSip()->sip_to->a_url;
-		std::shared_ptr<ExtendedContact> gwECt = make_shared<ExtendedContact>(to, mGeneratedContactRoute.c_str());
+		shared_ptr<ExtendedContact> gwECt = make_shared<ExtendedContact>(to, mGeneratedContactRoute.c_str());
 
 		// This contact is a proxy which will challenge us with a known Realm
 		const char *nextProxyRealm = mExpectedRealm.empty() ? to->url_host : mExpectedRealm.c_str();
@@ -674,7 +674,9 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				context->setKey(key);
 				mForks.insert(make_pair(key, context));
 				if (mForks.count(key) == 1) {
-					RegistrarDb::get()->subscribe(key, make_shared<OnContactRegisteredListener>(this, sipUri));
+					auto listener = make_shared<OnContactRegisteredListener>(this, sipUri);
+					context->setContactRegisteredListener(listener);
+					RegistrarDb::get()->subscribe(key, listener);
 				}
 				SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
 			}
@@ -711,7 +713,9 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 				context->setKey(key);
 				mForks.insert(make_pair(key, context));
 				if (mForks.count(key) == 1) {
-					RegistrarDb::get()->subscribe(key, make_shared<OnContactRegisteredListener>(this, temp_ctt->m_url));
+					auto listener = make_shared<OnContactRegisteredListener>(this, temp_ctt->m_url);
+					context->setContactRegisteredListener(listener);
+					RegistrarDb::get()->subscribe(key, listener);
 				}
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
 			} else {
@@ -1040,7 +1044,7 @@ void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 	}
 
 	if (count == removed && count > 0) {
-		RegistrarDb::get()->unsubscribe(key.c_str());
+		RegistrarDb::get()->unsubscribe(key, ctx->getContactRegisteredListener());
 	}
 }
 
