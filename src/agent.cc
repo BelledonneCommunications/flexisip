@@ -503,7 +503,7 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 	su_home_init(&mHome);
 	mPreferredRouteV4 = NULL;
 	mPreferredRouteV6 = NULL;
-	mDrm = make_shared<DomainRegistrationManager>(this);
+	mDrm = new DomainRegistrationManager(this);
 }
 
 Agent::~Agent() {
@@ -515,6 +515,9 @@ Agent::~Agent() {
 
 	mTerminating = true;
 	for_each(mModules.begin(), mModules.end(), delete_functor<Module>());
+
+	if (mDrm)
+		delete mDrm;
 	if (mAgent)
 		nta_agent_destroy(mAgent);
 	if (mHttpEngine)

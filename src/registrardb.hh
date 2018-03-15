@@ -335,10 +335,10 @@ class RegistrarDb {
 	}
 	const std::string getMessageExpires(const msg_param_t *m_params);
 
-	void subscribeLocalRegExpire(const std::shared_ptr<LocalRegExpireListener> &listener) {
+	void subscribeLocalRegExpire(LocalRegExpireListener *listener) {
 		mLocalRegExpire->subscribe(listener);
 	}
-	void unsubscribeLocalRegExpire(const std::shared_ptr<LocalRegExpireListener> &listener) {
+	void unsubscribeLocalRegExpire(LocalRegExpireListener *listener) {
 		mLocalRegExpire->unsubscribe(listener);
 	}
   protected:
@@ -346,7 +346,7 @@ class RegistrarDb {
 		std::map<std::string, time_t> mRegMap;
 		std::mutex mMutex;
 		std::string mPreferedRoute;
-		std::vector<std::shared_ptr<LocalRegExpireListener>> mLocalRegListenerList;
+		std::list<LocalRegExpireListener *> mLocalRegListenerList;
 
 	  public:
 		void remove(const std::string key) {
@@ -362,8 +362,8 @@ class RegistrarDb {
 			mRegMap.clear();
 		}
 
-		void subscribe(const std::shared_ptr<LocalRegExpireListener> &listener);
-		void unsubscribe(const std::shared_ptr<LocalRegExpireListener> &listener);
+		void subscribe(LocalRegExpireListener *listener);
+		void unsubscribe(LocalRegExpireListener *listener);
 		void notifyLocalRegExpireListener(unsigned int count);
 	};
 	virtual void doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,

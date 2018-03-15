@@ -103,7 +103,7 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 
 DomainRegistrationManager::~DomainRegistrationManager() {
 	if (mRegisterWhenNeeded)
-		RegistrarDb::get()->unsubscribeLocalRegExpire(shared_from_this());
+		RegistrarDb::get()->unsubscribeLocalRegExpire(this);
 
 	if(mNbRegistration > 0) {
 		LOGD("Starting domain un-registration");
@@ -184,7 +184,7 @@ int DomainRegistrationManager::load(string passphrase) {
 
 	if (mRegisterWhenNeeded) {
 		mDomainRegistrationsStarted = false;
-		RegistrarDb::get()->subscribeLocalRegExpire(shared_from_this());
+		RegistrarDb::get()->subscribeLocalRegExpire(this);
 	} else {
 		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
 	}
