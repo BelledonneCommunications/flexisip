@@ -77,8 +77,8 @@ class FlexisipPreparator(prepare.Preparator):
             os.rmdir('WORK')
         if os.path.isdir('OUTPUT') and not os.listdir('OUTPUT'):
             os.rmdir('OUTPUT')
-	if os.path.isfile('submodules/externals/sofia-sip/configure'):
-	    os.system('cd submodules/externals/sofia-sip/ && make distclean')
+        if os.path.isfile('submodules/externals/sofia-sip/configure'):
+            os.system('cd submodules/externals/sofia-sip/ && make distclean')
 
     def generate_makefile(self, generator, project_file=''):
         targets = self.args.target
