@@ -92,6 +92,7 @@ private:
 	int mDefaultExpires;
 	std::string mBypass;
 	bool mEnabled;
+	size_t mMaxPresenceInfoNotifiedAtATime;
 
 	// belle sip cbs
 	static void processDialogTerminated(PresenceServer * thiz, const belle_sip_dialog_terminated_event_t *event);

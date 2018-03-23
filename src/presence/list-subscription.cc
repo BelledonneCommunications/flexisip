@@ -31,9 +31,9 @@ using namespace std;
 namespace flexisip {
 
 ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transaction_t *ist,
-								   belle_sip_provider_t *aProv)
+								   belle_sip_provider_t *aProv, size_t maxPresenceInfoNotifiedAtATime)
 	: Subscription("Presence", expires, belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)), aProv),
-	  mLastNotify(chrono::system_clock::time_point::min()), mMinNotifyInterval(2 /*60*/), mVersion(0), mTimer(NULL) {
+	  mLastNotify(chrono::system_clock::time_point::min()), mMinNotifyInterval(2 /*60*/), mVersion(0), mTimer(NULL), mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime) {
 	belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
 	belle_sip_header_content_type_t *contentType =
 		belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
@@ -168,8 +168,9 @@ void ListSubscription::notify(bool isFullState) {
 				Xsd::Rlmi::Resource resource(presentityUri);
 				belle_sip_free(presentityUri);
 				PendingStateType::iterator it = mPendingStates.find(resourceListener->getPresentityUri());
-				if (it != mPendingStates.end() && it->second.first->isKnown()) {
+				if (it != mPendingStates.end() && it->second.first->isKnown() && resourceList.getResource().size() < mMaxPresenceInfoNotifiedAtATime) {
 					addInstanceToResource(resource, multipartList, *it->second.first, resourceListener->extendedNotifyEnabled());
+					mPendingStates.erase(it); //might be optimized
 				} else {
 					SLOGI << "No presence info yet for uri [" << resourceListener->getPresentityUri() << "]";
 				}
@@ -178,8 +179,9 @@ void ListSubscription::notify(bool isFullState) {
 
 		} else {
 			SLOGI << "Building partial state rlmi for list name [" << mName << "]";
-			for (pair<const belle_sip_uri_t *, pair<shared_ptr<PresentityPresenceInformation>,bool>> presenceInformationPair :
-				 mPendingStates) {
+			for (PendingStateType::iterator it =  mPendingStates.begin();
+				 it != mPendingStates.end() && resourceList.getResource().size() < mMaxPresenceInfoNotifiedAtATime ; /*nop*/ ) {
+				pair<const belle_sip_uri_t *, pair<shared_ptr<PresentityPresenceInformation>,bool>> presenceInformationPair = *it;
 				if (presenceInformationPair.second.first->isKnown()) { /* only notify for entity with known state*/
 					shared_ptr<PresentityPresenceInformation> presenceInformation = presenceInformationPair.second.first;
 					char *presentityUri = belle_sip_uri_to_string(presenceInformation->getEntity());
@@ -188,6 +190,7 @@ void ListSubscription::notify(bool isFullState) {
 					addInstanceToResource(resource, multipartList, *presenceInformation, presenceInformationPair.second.second);
 					resourceList.getResource().push_back(resource);
 				}
+				it= mPendingStates.erase(it); //erase in any case
 			}
 		}
 
@@ -223,7 +226,21 @@ void ListSubscription::notify(bool isFullState) {
 		Subscription::notify(multiPartBody, "deflate");
 		mVersion++;
 		mLastNotify = chrono::system_clock::now();
-		mPendingStates.clear();
+		if (!mPendingStates.empty() && mTimer == NULL) {
+			SLOGD << "Still [" << mPendingStates.size() << "] to be notified for list [" << this << "]";
+			belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this](unsigned int events) {
+				belle_sip_source_t * curent_timer = mTimer;
+				this->mTimer = NULL;
+				this->notify(FALSE);
+				SLOGD << "defered notify sent on [" << this << "]";
+				belle_sip_object_unref(curent_timer);
+				return BELLE_SIP_STOP;
+			});
+			mTimer = belle_sip_main_loop_create_cpp_timeout( belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv))
+																, func
+																, 500
+																, "timer for list notify");
+			}
 	} catch (const Xsd::XmlSchema::Serialization &e) {
 		throw FLEXISIP_EXCEPTION << "serialization error: " << e.diagnostics();
 	} catch (exception &e) {

@@ -45,7 +45,8 @@ PresenceServer::Init::Init() {
 									{StringList, "transports",
 									 "List of white space separated SIP uris where the presence server must listen. Must not be tls.",
 									 "sip:127.0.0.1:5065;transport=tcp"},
-									 {Integer, "expires", "Publish default expires in second.  by default.", "600"},
+									{Integer, "expires", "Publish default expires in second.  by default.", "600"},
+									{Integer, "notify-limit", "Max number of presentity sent in a single NOTIFY.  by default.", "200"},
 									{Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
 									{Boolean, "long-term-enabled", "Enable long-term presence notifies", "true"},
 									{String, "bypass-condition", "If user agent contains it, can bypass extended notifiy verification.", "false"},
@@ -66,6 +67,7 @@ PresenceServer::PresenceServer(bool withThread, su_root_t* root) : ServiceServer
 	mProvider = belle_sip_stack_create_provider(mStack, NULL);
 	//bctbx_set_log_handler(_belle_sip_log);
 	//belle_sip_set_log_level(BELLE_SIP_LOG_MESSAGE);
+	mMaxPresenceInfoNotifiedAtATime = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigInt>("notify-limit")->read();
 
 	xercesc::XMLPlatformUtils::Initialize();
 
@@ -622,7 +624,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				SLOGD << "Subscribe for resource list "
 					  << "for dialog [" << BELLE_SIP_OBJECT(dialog) << "]";
 
-				shared_ptr<ListSubscription> listSubscription = make_shared<ListSubscription>(expires, server_transaction, mProvider); // will be release when last PresentityPresenceInformationListener is released
+				shared_ptr<ListSubscription> listSubscription = make_shared<ListSubscription>(expires, server_transaction, mProvider,mMaxPresenceInfoNotifiedAtATime ); // will be release when last PresentityPresenceInformationListener is released
 				if (acceptEncodingHeader) listSubscription->setAcceptEncodingHeader(acceptEncodingHeader);
 				// send 200ok late to allow deeper anylise of request
 				belle_sip_server_transaction_send_response(server_transaction, resp);
