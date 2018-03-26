@@ -503,7 +503,7 @@ public:
 			auto domain = *it;
 
 			mAuthModules[*it] = createAuthModule(domain, nonceExpires);
-			mAuthModules[*it]->am_algorithm = strdup(algorithm.c_str());
+			mAuthModules[*it]->am_algorithm = su_strdup(mAuthModules[*it]->am_home, algorithm.c_str());
 			auth_plugin_t *ap = AUTH_PLUGIN(mAuthModules[*it]);
 			ap->mModule = this;
 			LOGI("Found auth domain: %s", (*it).c_str());
