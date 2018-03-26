@@ -178,7 +178,7 @@ using namespace std;
 			polls.fd = fdSocket;
 			polls.events = POLLIN;
 			
-			int timeout = hurryUp ? 10 : 1000; /*if there are many pending push notification request in our queue, we will not wait 
+			int timeout = hurryUp ? 0 : 1000; /*if there are many pending push notification request in our queue, we will not wait 
 						the answer from the server (we are in the case where there is an answer ONLY if the push request had an error*/
 			int nRet = poll(&polls, 1, timeout);
 			// this is specific to iOS which does not send a response in case of success
