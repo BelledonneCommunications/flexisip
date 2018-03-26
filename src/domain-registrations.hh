@@ -79,6 +79,7 @@ class DomainRegistration {
 	url_t *mProxy;
 	sip_contact_t *mExternalContact;
 	std::string mUuid;
+	nta_outgoing_t *mOutgoing;
 };
 
 class DomainRegistrationManager : public LocalRegExpireListener, public std::enable_shared_from_this<DomainRegistrationManager> {
