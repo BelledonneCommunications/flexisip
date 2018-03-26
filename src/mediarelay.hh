@@ -118,6 +118,7 @@ class MediaRelayServer {
 	static void *threadFunc(void *arg);
 	Mutex mMutex;
 	std::list<std::shared_ptr<RelaySession>> mSessions;
+	size_t mSessionsCount; /* since std::list::size() is O(n), we use our own counter*/
 	MediaRelay *mModule;
 	pthread_t mThread;
 	int mCtlPipe[2];
