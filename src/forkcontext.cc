@@ -16,9 +16,11 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "agent.hh"
 #include "forkcontext.hh"
 #include "registrardb.hh"
 #include <sofia-sip/sip_status.h>
+
 using namespace std;
 
 const int ForkContext::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603, 0};
@@ -43,7 +45,7 @@ void ForkContext::sOnFinished(su_root_magic_t *magic, su_timer_t *t, su_timer_ar
 
 ForkContext::ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg,
 						 ForkContextListener *listener)
-	: mListener(listener), mAgent(agent),
+	: mListener(listener), mCurrentPriority(-1), mAgent(agent),
 	  mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
 	  mCfg(cfg), mLateTimer(NULL), mFinishTimer(NULL) {
 	init();
@@ -83,15 +85,15 @@ struct uid_finder {
 };
 
 std::shared_ptr<BranchInfo> ForkContext::findBranchByUid(const std::string &uid) {
-	auto it = find_if(mBranches.begin(), mBranches.end(), uid_finder(uid));
-	if (it != mBranches.end())
+	auto it = find_if(mWaitingBranches.begin(), mWaitingBranches.end(), uid_finder(uid));
+	if (it != mWaitingBranches.end())
 		return *it;
 	return shared_ptr<BranchInfo>();
 }
 
 std::shared_ptr<BranchInfo> ForkContext::findBranchByDest(const url_t *dest) {
-	auto it = find_if(mBranches.begin(), mBranches.end(), dest_finder(dest));
-	if (it != mBranches.end())
+	auto it = find_if(mWaitingBranches.begin(), mWaitingBranches.end(), dest_finder(dest));
+	if (it != mWaitingBranches.end())
 		return *it;
 	return shared_ptr<BranchInfo>();
 }
@@ -114,7 +116,7 @@ static bool isConsidered(int code, bool ignore503And408){
 std::shared_ptr<BranchInfo> ForkContext::_findBestBranch(const int urgentCodes[], bool ignore503And408) {
 	shared_ptr<BranchInfo> best;
 	
-	for (auto it = mBranches.begin(); it != mBranches.end(); ++it) {
+	for (auto it = mWaitingBranches.begin(); it != mWaitingBranches.end(); ++it) {
 		int code = (*it)->getStatus();
 		if (code >= 200 && isConsidered(code, ignore503And408)) {
 			if (best == NULL) {
@@ -128,7 +130,7 @@ std::shared_ptr<BranchInfo> ForkContext::_findBestBranch(const int urgentCodes[]
 	if (best == NULL)
 		return shared_ptr<BranchInfo>();
 	if (urgentCodes) {
-		for (auto it = mBranches.begin(); it != mBranches.end(); ++it) {
+		for (auto it = mWaitingBranches.begin(); it != mWaitingBranches.end(); ++it) {
 			int code = (*it)->getStatus();
 			if (code > 0  && isConsidered(code, ignore503And408) && isUrgent(code, urgentCodes)) {
 				best = (*it);
@@ -151,7 +153,18 @@ std::shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[],
 }
 
 bool ForkContext::allBranchesAnswered(bool ignore_errors_and_timeouts) const {
-	for (auto it = mBranches.begin(); it != mBranches.end(); ++it) {
+	for (auto it = mWaitingBranches.begin(); it != mWaitingBranches.end(); ++it) {
+		int code = (*it)->getStatus();
+		if (code < 200)
+			return false;
+		if ((code == 503 || code == 408) && ignore_errors_and_timeouts)
+			return false;
+	}
+	return true;
+}
+
+bool ForkContext::allCurrentBranchesAnswered(bool ignore_errors_and_timeouts) const {
+	for (auto it = mCurrentBranches.begin(); it != mCurrentBranches.end(); ++it) {
 		int code = (*it)->getStatus();
 		if (code < 200)
 			return false;
@@ -163,12 +176,13 @@ bool ForkContext::allBranchesAnswered(bool ignore_errors_and_timeouts) const {
 
 void ForkContext::removeBranch(const shared_ptr<BranchInfo> &br) {
 	LOGD("ForkContext [%p] branch [%p] removed.", this, br.get());
-	mBranches.remove(br);
+	mWaitingBranches.remove(br);
+	mCurrentBranches.remove(br);
 	br->clear();
 }
 
 const std::list<std::shared_ptr<BranchInfo>> &ForkContext::getBranches() const{
-	return mBranches;
+	return mWaitingBranches;
 }
 
 // this implementation looks for already pending or failed transactions and then rejects handling of a new one that
@@ -209,11 +223,15 @@ void ForkContext::init() {
 	}
 }
 
+bool compareGreaterBranch(const std::shared_ptr<BranchInfo> &lhs, const std::shared_ptr<BranchInfo> &rhs) {
+	return lhs->mPriority > rhs->mPriority;
+}
+
 void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact) {
 	shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
 	shared_ptr<BranchInfo> br = createBranchInfo();
 
-	if (mIncoming && mBranches.size() == 0) {
+	if (mIncoming && mWaitingBranches.size() == 0) {
 		/*for some reason shared_from_this() cannot be invoked within the ForkContext constructor, so we do this
 		 * initialization now*/
 		mIncoming->setProperty<ForkContext>("ForkContext", shared_from_this());
@@ -225,9 +243,24 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	br->mTransaction = ot;
 	br->mUid = contact->mUniqueId;
 	br->mContact = contact;
+
+	std::string q;
+	if (ModuleToolbox::getUriParameter(contact->mSipContact->m_url, "q", q)) {
+		br->mPriority = stof(q);
+	}
+
 	ot->setProperty("BranchInfo", br);
 	onNewBranch(br);
-	mBranches.push_back(br);
+
+	mWaitingBranches.push_back(br);
+	mWaitingBranches.sort(compareGreaterBranch);
+
+	if (mCurrentPriority != -1 && mCurrentPriority <= br->mPriority) {
+		mCurrentBranches.push_back(br);
+
+		mAgent->injectRequestEvent(br->mRequest);
+	}
+
 	LOGD("ForkContext [%p] new fork branch [%p]", this, br.get());
 }
 
@@ -281,6 +314,54 @@ bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent> &ev) {
 	return false;
 }
 
+bool ForkContext::hasNextBranches() {
+	if (mCurrentPriority == -1 && !mWaitingBranches.empty())
+		return true;
+
+	for(auto& br : mWaitingBranches) {
+		if (br->mPriority < mCurrentPriority)
+			return true;
+	}
+
+	return false;
+}
+
+void ForkContext::nextBranches() {
+	/* Clear all current branches is there is any */
+	for_each(mCurrentBranches.begin(), mCurrentBranches.end(), mem_fn(&BranchInfo::clear));
+	mCurrentBranches.clear();
+
+	/* Get next priority value */
+	if (mCurrentPriority == -1) {
+		mCurrentPriority = mWaitingBranches.front()->mPriority;
+	} else {
+		for(auto& br : mWaitingBranches) {
+			if (br->mPriority < mCurrentPriority) {
+				mCurrentPriority = br->mPriority;
+				break;
+			}
+		}
+	}
+
+	/* Stock all wanted branches */
+	for(auto& br : mWaitingBranches) {
+		if (br->mPriority == mCurrentPriority)
+			mCurrentBranches.push_back(br);
+	}
+}
+
+void ForkContext::start() {
+	/* Prepare branches */
+	nextBranches();
+
+	LOGD("Started forking branches with priority [%p]: %f", this, mCurrentPriority);
+
+	/* Start the processing */
+	for(auto& br : mCurrentBranches) {
+		mAgent->injectRequestEvent(br->mRequest);
+	}
+}
+
 const shared_ptr<RequestSipEvent> &ForkContext::getEvent() {
 	return mEvent;
 }
@@ -296,8 +377,9 @@ void ForkContext::onFinished() {
 	// force references to be loosed immediately, to avoid circular dependencies.
 	mEvent.reset();
 	mIncoming.reset();
-	for_each(mBranches.begin(), mBranches.end(), mem_fn(&BranchInfo::clear));
-	mBranches.clear();
+	for_each(mWaitingBranches.begin(), mWaitingBranches.end(), mem_fn(&BranchInfo::clear));
+	mWaitingBranches.clear();
+	mCurrentBranches.clear();
 	mListener->onForkContextFinished(shared_from_this());
 	mSelf.reset(); // this must be the last thing to do
 }
@@ -369,8 +451,18 @@ std::shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const std::shared
 		}
 		if (code >= 200) {
 			mIncoming.reset();
-			if (shouldFinish()) {
-				setFinished();
+
+			if (code >= 300) {
+				if (allCurrentBranchesAnswered()) {
+					if (hasNextBranches())
+						start();
+					else
+						if (shouldFinish())
+							setFinished();
+				}
+			} else {
+				if (shouldFinish())
+					setFinished();
 			}
 		}
 		return ev;

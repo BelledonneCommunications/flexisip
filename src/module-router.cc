@@ -349,8 +349,6 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 		LOGD("Dispatch to %s", contact_url_string);
 	}
 
-	/* Back to work */
-	getAgent()->injectRequestEvent(new_ev);
 	return true;
 }
 
@@ -722,6 +720,8 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			}
 		}
 	}
+
+	context->start();
 }
 
 class PreroutingFetcher : public ContactUpdateListener,
