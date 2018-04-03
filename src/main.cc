@@ -610,6 +610,7 @@ int main(int argc, char *argv[]) {
 	Stats *presence_stats = NULL;
 #endif
 	bool debug;
+	bool user_errors = false;
 	map<string, string> oset;
 
 	string versionString = version();
@@ -747,6 +748,9 @@ int main(int argc, char *argv[]) {
 		if (cfg->getGlobal()->get<ConfigBoolean>("debug")->read()){
 			debug = true;
 		}
+	}else{
+		//if --debug is given, enable user-errors logs as well.
+		user_errors = true;
 	}
 	bool dump_cores = cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
 	
@@ -781,7 +785,7 @@ int main(int argc, char *argv[]) {
 	// Initialize
 	std::string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
 	std::string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
-	bool user_errors = cfg->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
+	if (!user_errors) user_errors = cfg->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
 	
 	ortp_set_log_handler(NULL); /*remove ortp's default log handler that logs to stdout*/ 
 	ortp_init();

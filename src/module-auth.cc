@@ -35,6 +35,8 @@
 #include "authdb.hh"
 #include <assert.h>
 
+#include <regex.h>
+
 using namespace std;
 class Authentication;
 
@@ -263,17 +265,20 @@ private:
 	list<string> mDomains;
 	list<BinaryIp> mTrustedHosts;
 	list<string> mTrustedClientCertificates;
+	regex_t mRequiredSubject;
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
 	auth_scheme_t *mOdbcAuthScheme;
 	shared_ptr<BooleanExpression> mNo403Expr;
 	AuthenticationListener *mCurrentAuthOp;
+	list<string> mAlgorithm;
 	bool dbUseHashedPasswords;
 	bool mImmediateRetrievePassword;
 	bool mNewAuthOn407;
 	bool mTestAccountsEnabled;
 	bool mDisableQOPAuth;
-	list<string> mAlgorithm;
+	bool mRequiredSubjectCheckSet;
+	
 	
 	static int authPluginInit(auth_mod_t *am, auth_scheme_t *base, su_root_t *root, tag_type_t tag, tag_value_t value,
 	                          ...) {
@@ -387,6 +392,7 @@ public:
 			LOGE("Cannot register auth plugin");
 		}
 		mCurrentAuthOp = NULL;
+		mRequiredSubjectCheckSet = false;
 	}
 	
 	~Authentication() {
@@ -394,65 +400,71 @@ public:
 			auth_mod_destroy(it->second);
 		}
 		mAuthModules.clear();
-
+		if (mRequiredSubjectCheckSet){
+			regfree(&mRequiredSubject);
+		}
 		delete mOdbcAuthScheme;
 	}
 	
 	virtual void onDeclare(GenericStruct *mc) {
 		ConfigItemDescriptor items[] = {
             
-            {StringList, "auth-domains", "List of whitespace separated domain names to challenge. Others are denied.",
-                "localhost"},
-            
-            {StringList, "trusted-hosts", "List of whitespace separated IP which will not be challenged.", ""},
-            
-            {String, "db-implementation", "Database backend implementation [odbc,soci,file,fixed].", "fixed"},
-            
-            {String, "datasource",
-                "Odbc connection string to use for connecting to database. "
-                "ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. "
-                "ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. "
-                "ex3: /etc/flexisip/passwd; for a file containing user credentials in clear-text, md5 or sha256. "
-                "The file must start with 'version:1' as the first line, and then contains lines in the form of:\n"
-                "user@domain clrtxt:clear-text-password md5:md5-password sha256:sha256-password ;\n"
-                "For example: \n"
-                "bellesip@sip.linphone.org clrtxt:secret ;\n"
-                "bellesip@sip.linphone.org md5:97ffb1c6af18e5687bf26cdf35e45d30 ;\n"
-                "bellesip@sip.linphone.org clrtxt:secret md5:97ffb1c6af18e5687bf26cdf35e45d30 sha256:d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3 ;\n",
-                ""},
-            
-            {Integer, "nonce-expires", "Expiration time of nonces, in seconds.", "3600"},
-            
-            {Integer, "cache-expire", "Duration of the validity of the credentials added to the cache in seconds.",
-                "1800"},
-            
-            {Boolean, "hashed-passwords",
-                "True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).",
-                "false"},
-            
-            {BooleanExpr, "no-403", "Don't reply 403, but 401 or 407 even in case of wrong authentication.", "false"},
-            
-            {StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
-                "which will trusted. If no domain is given it is computed.",
-                ""},
-            
-            {Boolean, "new-auth-on-407",
-                "When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false"},
-            
-            {Boolean, "enable-test-accounts-creation",
-                "Enable a feature useful for automatic tests, allowing a client to create a temporary account in the "
-                "password database in memory."
-                "This MUST not be used for production as it is a real security hole.",
-                "false"},
-            
-            {Boolean, "disable-qop-auth",
-                "Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
-                "false"},
-            
-            {StringList, "available-algorithms", "List of algorithms, separated by whitespaces.",
-                ""},
-            
-            config_item_end};
+			{StringList, "auth-domains", "List of whitespace separated domain names to challenge. Others are denied.",
+			"localhost"},
+			
+			{StringList, "trusted-hosts", "List of whitespace separated IP which will not be challenged.", ""},
+			
+			{String, "db-implementation", "Database backend implementation [odbc,soci,file,fixed].", "fixed"},
+			
+			{String, "datasource",
+				"Odbc connection string to use for connecting to database. "
+				"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. "
+				"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. "
+				"ex3: /etc/flexisip/passwd; for a file containing user credentials in clear-text, md5 or sha256. "
+				"The file must start with 'version:1' as the first line, and then contains lines in the form of:\n"
+				"user@domain clrtxt:clear-text-password md5:md5-password sha256:sha256-password ;\n"
+				"For example: \n"
+				"bellesip@sip.linphone.org clrtxt:secret ;\n"
+				"bellesip@sip.linphone.org md5:97ffb1c6af18e5687bf26cdf35e45d30 ;\n"
+				"bellesip@sip.linphone.org clrtxt:secret md5:97ffb1c6af18e5687bf26cdf35e45d30 sha256:d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3 ;\n",
+			""},
+			
+			{Integer, "nonce-expires", "Expiration time of nonces, in seconds.", "3600"},
+			
+			{Integer, "cache-expire", "Duration of the validity of the credentials added to the cache in seconds.",
+			"1800"},
+			
+			{Boolean, "hashed-passwords",
+			"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).",
+			"false"},
+			
+			{BooleanExpr, "no-403", "Don't reply 403, but 401 or 407 even in case of wrong authentication.", "false"},
+			
+			{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
+			"which will trusted. If no domain is given it is computed.",
+			""},
+		
+			{String, "tls-client-certificate-required-subject", "An optional regular expression matched against subjects of presented"
+				" client certificates. If this regular expression evaluates to false, the request is rejected. "
+				"The matched subjects are, in order: subjectAltNames.DNS, subjectAltNames.URI, subjectAltNames.IP and CN.", ""},
+		
+			{Boolean, "new-auth-on-407",
+				"When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false"},
+			
+			{Boolean, "enable-test-accounts-creation",
+				"Enable a feature useful for automatic tests, allowing a client to create a temporary account in the "
+				"password database in memory."
+				"This MUST not be used for production as it is a real security hole.",
+				"false"},
+			
+			{Boolean, "disable-qop-auth",
+				"Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
+				"false"},
+			
+			{StringList, "available-algorithms", "List of algorithms, separated by whitespaces.",
+				""},
+			
+			config_item_end};
 		mc->addChildrenValues(items);
 		/* modify the default value for "enabled" */
 		mc->get<ConfigBoolean>("enabled")->setDefault("false");
@@ -510,6 +522,16 @@ public:
 			if (mAuthModules[*it] == NULL) {
 				LOGE("Cannot create auth module odbc");
 			}
+		}
+		string requiredSubject = mc->get<ConfigString>("tls-client-certificate-required-subject")->read();
+		if (!requiredSubject.empty()){
+			int res;
+			res = regcomp(&mRequiredSubject, requiredSubject.c_str(),  REG_EXTENDED|REG_NOSUB);
+			if (res != 0) {
+				string err_msg(128,0);
+				regerror(res, &mRequiredSubject, &err_msg[0], err_msg.capacity());
+				LOGF("Could not compile regex for 'tls-client-certificate-required-subject' '%s': %s", requiredSubject.c_str(), err_msg.c_str());
+			}else mRequiredSubjectCheckSet = true;
 		}
 	}
 
@@ -580,6 +602,18 @@ public:
 		}
 		return false;
 	}
+	bool tlsClientCertificatePostCheck(const shared_ptr<RequestSipEvent> &ev){
+		if (mRequiredSubjectCheckSet){
+			bool ret = ev->matchIncomingSubject(&mRequiredSubject);
+			if (ret){
+				SLOGD<<"TLS certificate postcheck successful.";
+			}else{
+				SLOGUE<<"TLS certificate postcheck failed.";
+			}
+			return ret;
+		}
+		return true;
+	}
 	
 	bool isTlsClientAuthenticated(shared_ptr<RequestSipEvent> &ev) {
 		sip_t *sip = ev->getSip();
@@ -602,22 +636,26 @@ public:
 
 			if (ev->findIncomingSubject(searched)) {
 				SLOGD << "Allowing message from matching TLS certificate";
-				return true;
+				goto postcheck;
 			} else if (sip->sip_request->rq_method != sip_method_register &&
 			           (res = findIncomingSubjectInTrusted(ev, fromDomain))) {
-				SLOGD << "Allowing message from trusted TLS certificate " << res;
-				return true;
+				SLOGD << "Found trusted TLS certificate " << res;
+				goto postcheck;
 			} else {
 				/*case where the certificate would work for the entire domain*/
 				searched_uri.url_user = NULL;
 				searched = url_as_string(home.home(), &searched_uri);
 				if (ev->findIncomingSubject(searched)) {
-					SLOGD << "Allowing message from matching TLS certificate for entire domain";
-					return true;
+					SLOGD << "Found TLS certificate for entire domain";
+					goto postcheck;
 				}
 			}
 			LOGE("Client is presenting a TLS certificate not matching its identity.");
 			SLOGUE << "Registration failure for " << url_as_string(home.home(), from) << ", TLS certificate doesn't match its identity";
+			return false;
+			
+			postcheck:
+				return tlsClientCertificatePostCheck(ev);
 		}
 		return false;
 	}
@@ -768,7 +806,8 @@ ModuleInfo<Authentication> Authentication::sInfo(
     "in [Global] section for this transport, "
     " then the From header of the request is matched with the CN claimed by the client certificate. The CN must "
     "contain sip:user@domain or alternate name with URI=sip:user@domain"
-    " corresponding to the URI in the from header for the request to be accepted.\n"
+    " corresponding to the URI in the from header for the request to be accepted. Optionnaly, the property"
+    " tls-client-certificate-required-subject may contain a regular expression for additional checks to execute on certificate subjects.\n"
     " * if no TLS client based authentication can be performed, or is failed, then a SIP digest authentication is "
     "performed. The password verification is made by querying"
     " a database or a password file on disk.",
