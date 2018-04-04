@@ -172,7 +172,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	}
 
 	// create channels if not already existing
-	c->initChannels(m, from_tag, transaction->getBranchId(), mAgent->getPreferredIp(from_host), mAgent->getPreferredIp(dest_host));
+	c->initChannels(m, from_tag, transaction->getBranchId(), from_host, dest_host);
 
 	if (!c->checkMediaValid()) {
 		LOGE("The relay media are invalid, no RTP/RTCP port remaining?");

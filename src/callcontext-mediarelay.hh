@@ -39,7 +39,7 @@ public:
 	/* Create a channel for each sdp media using defined relay ip for front and back. The transaction
 	 * allow use to identify the callee (we don't have a tag yet).
 	 */
-	void initChannels(const std::shared_ptr<SdpModifier> &m, const std::string &tag, const std::string &trid, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps);
+	void initChannels(const std::shared_ptr<SdpModifier> &m, const std::string &tag, const std::string &trid, const std::string &from_host, const std::string & destHost);
 	
 	/* Obtain the masquerade contexts for given mline. The trid is used when offeredTag is not yet defined.*/
 	MasqueradeContextPair getMasqueradeContexts(int mline, const std::string &offererTag, const std::string &offeredTag, const std::string &trid);
