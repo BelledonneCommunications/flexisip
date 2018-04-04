@@ -51,9 +51,11 @@ void ParticipantRegistrationSubscriptionHandler::subscribe (
 	const shared_ptr<const linphone::Address> &address
 ) {
 	string key = getKey(address);
-	auto subscription = make_shared<ParticipantRegistrationSubscription>(address, chatRoom);
-	mSubscriptions[key] = subscription;
-	RegistrarDb::get()->subscribe(key, subscription);
+	if (mSubscriptions.find(key) == mSubscriptions.cend()) {
+		auto subscription = make_shared<ParticipantRegistrationSubscription>(address, chatRoom);
+		mSubscriptions[key] = subscription;
+		RegistrarDb::get()->subscribe(key, subscription);
+	}
 }
 
 void ParticipantRegistrationSubscriptionHandler::unsubscribe (
