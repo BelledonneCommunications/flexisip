@@ -61,7 +61,7 @@ namespace flexisip {
 		);
 
 	private:
-		std::map<std::string, std::shared_ptr<ParticipantRegistrationSubscription>> mSubscriptions;
+		std::multimap<std::string, std::shared_ptr<ParticipantRegistrationSubscription>> mSubscriptions;
 	};
 
 	class ConferenceServer : public ServiceServer,

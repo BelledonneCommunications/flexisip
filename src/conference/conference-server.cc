@@ -50,10 +50,19 @@ void ParticipantRegistrationSubscriptionHandler::subscribe (
 	const shared_ptr<linphone::ChatRoom> &chatRoom,
 	const shared_ptr<const linphone::Address> &address
 ) {
+	bool toSubscribe = true;
 	string key = getKey(address);
-	if (mSubscriptions.find(key) == mSubscriptions.cend()) {
+	auto range = mSubscriptions.equal_range(key);
+	for (auto it = range.first; it != range.second; it++) {
+		if (it->second->getChatRoom() == chatRoom) {
+			toSubscribe = false;
+			break;
+		}
+	}
+	if (toSubscribe) {
+		SLOGI << "Subscribe to RegistrarDB for key '" << key << "' and ChatRoom '" << chatRoom->getLocalAddress()->asString() << "'";
 		auto subscription = make_shared<ParticipantRegistrationSubscription>(address, chatRoom);
-		mSubscriptions[key] = subscription;
+		mSubscriptions.insert(make_pair(key, subscription));
 		RegistrarDb::get()->subscribe(key, subscription);
 	}
 }
@@ -63,10 +72,15 @@ void ParticipantRegistrationSubscriptionHandler::unsubscribe (
 	const shared_ptr<const linphone::Address> &address
 ) {
 	string key = getKey(address);
-	auto it = mSubscriptions.find(key);
-	if (it != mSubscriptions.end() && (it->second->getChatRoom() == chatRoom)) {
-		RegistrarDb::get()->unsubscribe(key, it->second);
-		mSubscriptions.erase(it);
+	auto range = mSubscriptions.equal_range(key);
+	for (auto it = range.first; it != range.second;) {
+		if (it->second->getChatRoom() == chatRoom) {
+			SLOGI << "Unsubscribe from RegistrarDB for key '" << key << "' and ChatRoom '" << chatRoom->getLocalAddress()->asString() << "'";
+			RegistrarDb::get()->unsubscribe(key, it->second);
+			it = mSubscriptions.erase(it);
+		} else {
+			it++;
+		}
 	}
 }
 
