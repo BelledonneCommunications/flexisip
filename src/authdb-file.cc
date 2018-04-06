@@ -157,7 +157,7 @@ void FileAuthDb::sync() {
 						passwd_tag.clear();
 						getline(ss, passwd_tag, ' ');
 						if (passwd_tag != ";")
-							pass[i] = strdup(passwd_tag.c_str());
+							pass[i] = passwd_tag;
 						else break;
 					}
 					if (passwd_tag != ";") {

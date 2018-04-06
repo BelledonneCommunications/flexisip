@@ -635,8 +635,8 @@ void RegistrarDbRedisAsync::doBind(const url_t *ifrom, sip_contact_t *icontact, 
 		delete data;
 		return;
 	}
-	const char *mss_expires = RegistrarDb::get()->getMessageExpires(icontact->m_params).c_str();
-	int message_expires = mss_expires ? atoi(mss_expires) : 0;
+	string mss_expires = RegistrarDb::get()->getMessageExpires(icontact->m_params);
+	int message_expires = mss_expires.empty() ? 0 : stoi(mss_expires);
 	if (expire > 0 || message_expires > 0) {
 		serializeAndSendToRedis(data, sHandleBind);
 	} else {
