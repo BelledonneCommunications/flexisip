@@ -33,7 +33,7 @@
 
 using namespace std;
 
-DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agent) {
+DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agent), mRegisterWhenNeeded(false) {
 	GenericManager *mgr = GenericManager::get();
 	mDomainRegistrationArea = new GenericStruct(
 		"inter-domain-connections",
