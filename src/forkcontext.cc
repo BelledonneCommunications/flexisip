@@ -309,6 +309,12 @@ bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent> &ev) {
 			} else {
 				// LOGD("The response has been retained");
 			}
+
+			if (binfo->mForkCtx->allCurrentBranchesAnswered()) {
+				if (binfo->mForkCtx->hasNextBranches())
+					binfo->mForkCtx->start();
+			}
+
 			return true;
 		} else {
 			// LOGD("ForkContext: un-processed response");
