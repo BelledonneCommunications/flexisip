@@ -73,6 +73,8 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 			 "painful for the client to need to wait the end of the transaction time (32 seconds) for these error "
 			 "codes.",
 			 "5"},
+			{Integer, "call-fork-current-branches-timeout", "Maximum time before trying the next branches with lower priotiries",
+			 "10"},
 			{Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.", "0"},
 			{Boolean, "message-fork-late", "Fork messages to client registering lately. ", "true"},
 			{Integer, "message-delivery-timeout", "Maximum duration for delivering a text message. This property applies only"
@@ -132,6 +134,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 		mForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("call-fork-timeout")->read();
 		mForkCfg->mTreatDeclineAsUrgent = mc->get<ConfigBoolean>("treat-decline-as-urgent")->read();
 		mForkCfg->mRemoveToTag = mc->get<ConfigBoolean>("remove-to-tag")->read();
+		mForkCfg->mCurrentBranchesTimeout = mc->get<ConfigInt>("call-fork-current-branches-timeout")->read();
 
 		//Forking configuration for MESSAGEs
 		mMessageForkCfg = make_shared<ForkContextConfig>();

@@ -35,6 +35,7 @@ class ForkContextConfig {
 	bool mForkNoGlobalDecline;
 	bool mTreatDeclineAsUrgent; /*treat 603 declined as a urgent response, only useful is mForkNoGlobalDecline==true*/
 	bool mRemoveToTag;			/*workaround buggy OVH which wrongly terminates wrong call*/
+	int mCurrentBranchesTimeout; /*timeout for receiving response on current branches*/
 };
 
 class ForkContext;
@@ -69,7 +70,9 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
   private:
 	static void __timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	static void sOnFinished(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
+	static void sOnNextBanches(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	ForkContextListener *mListener;
+	su_timer_t *mNextBranchesTimer;
 	std::list<std::shared_ptr<BranchInfo>> mWaitingBranches;
 	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
 	float mCurrentPriority;
@@ -81,6 +84,7 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	bool hasNextBranches();
 	// Set the next branches to try and process them
 	void nextBranches();
+	void onNextBranches();
 
   protected:
 	Agent *mAgent;
@@ -123,7 +127,7 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const;
 	int getLastResponseCode() const;
 	void removeBranch(const std::shared_ptr<BranchInfo> &br);
-	const std::list<std::shared_ptr<BranchInfo>> &getBranches()const;
+	const std::list<std::shared_ptr<BranchInfo>> &getBranches() const;
 	static bool isUrgent(int code, const int urgentCodes[]);
 
   public:

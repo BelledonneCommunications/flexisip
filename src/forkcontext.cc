@@ -29,7 +29,8 @@ const int ForkContext::sAllCodesUrgent[] = {-1, 0};
 
 ForkContextConfig::ForkContextConfig()
 	: mDeliveryTimeout(0), mUrgentTimeout(5), mForkLate(false), mTreatAllErrorsAsUrgent(false),
-	  mForkNoGlobalDecline(false), mTreatDeclineAsUrgent(false), mRemoveToTag(false) {
+	  mForkNoGlobalDecline(false), mTreatDeclineAsUrgent(false), mRemoveToTag(false),
+	  mCurrentBranchesTimeout(0) {
 }
 
 ForkContextListener::~ForkContextListener() {
@@ -43,9 +44,14 @@ void ForkContext::sOnFinished(su_root_magic_t *magic, su_timer_t *t, su_timer_ar
 	(static_cast<ForkContext *>(arg))->onFinished();
 }
 
-ForkContext::ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg,
+void ForkContext::sOnNextBanches(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg) {
+	(static_cast<ForkContext *>(arg))->onNextBranches();
+}
+
+
+ForkContext::ForkContext(Agent *agent, const shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg,
 						 ForkContextListener *listener)
-	: mListener(listener), mCurrentPriority(-1), mAgent(agent),
+	: mListener(listener), mNextBranchesTimer(NULL), mCurrentPriority(-1), mAgent(agent),
 	  mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
 	  mCfg(cfg), mLateTimer(NULL), mFinishTimer(NULL) {
 	init();
@@ -236,6 +242,7 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 		 * initialization now*/
 		mIncoming->setProperty<ForkContext>("ForkContext", shared_from_this());
 	}
+
 	// unlink the incoming and outgoing transactions which is done by default, since now the forkcontext is managing
 	// them.
 	ev->unlinkTransactions();
@@ -243,11 +250,7 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	br->mTransaction = ot;
 	br->mUid = contact->mUniqueId;
 	br->mContact = contact;
-
-	std::string q;
-	if (ModuleToolbox::getUriParameter(contact->mSipContact->m_url, "q", q)) {
-		br->mPriority = stof(q);
-	}
+	br->mPriority = contact->mQ;
 
 	ot->setProperty("BranchInfo", br);
 	onNewBranch(br);
@@ -314,6 +317,11 @@ bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent> &ev) {
 	return false;
 }
 
+void ForkContext::onNextBranches() {
+	if (hasNextBranches())
+		start();
+}
+
 bool ForkContext::hasNextBranches() {
 	if (mCurrentPriority == -1 && !mWaitingBranches.empty())
 		return true;
@@ -328,7 +336,6 @@ bool ForkContext::hasNextBranches() {
 
 void ForkContext::nextBranches() {
 	/* Clear all current branches is there is any */
-	for_each(mCurrentBranches.begin(), mCurrentBranches.end(), mem_fn(&BranchInfo::clear));
 	mCurrentBranches.clear();
 
 	/* Get next priority value */
@@ -357,8 +364,17 @@ void ForkContext::start() {
 	LOGD("Started forking branches with priority [%p]: %f", this, mCurrentPriority);
 
 	/* Start the processing */
-	for(auto& br : mCurrentBranches) {
+	for(const auto& br : mCurrentBranches) {
 		mAgent->injectRequestEvent(br->mRequest);
+	}
+
+	if (mCfg->mCurrentBranchesTimeout > 0 && hasNextBranches()) {
+		/* Start/Restart the timer for next branches */
+		if (mNextBranchesTimer)
+			su_timer_destroy(mNextBranchesTimer);
+
+		mNextBranchesTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
+		su_timer_set_interval(mNextBranchesTimer, &ForkContext::sOnNextBanches, this, (su_duration_t)mCfg->mCurrentBranchesTimeout * (su_duration_t)1000);
 	}
 }
 
@@ -369,6 +385,9 @@ const shared_ptr<RequestSipEvent> &ForkContext::getEvent() {
 ForkContext::~ForkContext() {
 	if (mLateTimer)
 		su_timer_destroy(mLateTimer);
+
+	if (mNextBranchesTimer)
+		su_timer_destroy(mNextBranchesTimer);
 }
 
 void ForkContext::onFinished() {
@@ -379,6 +398,7 @@ void ForkContext::onFinished() {
 	mIncoming.reset();
 	for_each(mWaitingBranches.begin(), mWaitingBranches.end(), mem_fn(&BranchInfo::clear));
 	mWaitingBranches.clear();
+	for_each(mCurrentBranches.begin(), mCurrentBranches.end(), mem_fn(&BranchInfo::clear));
 	mCurrentBranches.clear();
 	mListener->onForkContextFinished(shared_from_this());
 	mSelf.reset(); // this must be the last thing to do
@@ -393,6 +413,12 @@ void ForkContext::setFinished() {
 		su_timer_destroy(mLateTimer);
 		mLateTimer = NULL;
 	}
+
+	if (mNextBranchesTimer) {
+		su_timer_destroy(mNextBranchesTimer);
+		mNextBranchesTimer = NULL;
+	}
+
 	mSelf = shared_from_this(); // to prevent destruction until finishTimer arrives
 	mFinishTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
 	su_timer_set_interval(mFinishTimer, &ForkContext::sOnFinished, this, (su_duration_t)0);
@@ -452,19 +478,10 @@ std::shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const std::shared
 		if (code >= 200) {
 			mIncoming.reset();
 
-			if (code >= 300) {
-				if (allCurrentBranchesAnswered()) {
-					if (hasNextBranches())
-						start();
-					else
-						if (shouldFinish())
-							setFinished();
-				}
-			} else {
-				if (shouldFinish())
-					setFinished();
-			}
+			if (shouldFinish())
+				setFinished();
 		}
+
 		return ev;
 	}
 	return std::shared_ptr<ResponseSipEvent>();
