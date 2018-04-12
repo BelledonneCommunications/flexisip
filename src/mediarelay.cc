@@ -423,6 +423,7 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &chan
 
 MediaRelayServer::MediaRelayServer(MediaRelay *module) : mModule(module) {
 	mRunning = false;
+	mSessionsCount = 0;
 	if (pipe(mCtlPipe) == -1) {
 		LOGF("Could not create MediaRelayServer control pipe.");
 	}
@@ -466,6 +467,7 @@ MediaRelayServer::~MediaRelayServer() {
 		pthread_join(mThread, NULL);
 	}
 	mSessions.clear();
+	mSessionsCount = 0;
 	close(mCtlPipe[0]);
 	close(mCtlPipe[1]);
 }
@@ -475,11 +477,12 @@ shared_ptr<RelaySession> MediaRelayServer::createSession(const std::string &fron
 	shared_ptr<RelaySession> s = make_shared<RelaySession>(this, frontId, frontRelayIps);
 	mMutex.lock();
 	mSessions.push_back(s);
+	mSessionsCount++;
 	mMutex.unlock();
 	if (!mRunning)
 		start();
 
-	LOGD("There are now %zu relay sessions running on MediaRelayServer [%p]", mSessions.size(), this);
+	LOGD("There are now %zu relay sessions running on MediaRelayServer [%p]", mSessionsCount, this);
 	/*write to the control pipe to wakeup the server thread */
 	update();
 	return s;
@@ -554,7 +557,8 @@ void MediaRelayServer::run() {
 			for (auto it = mSessions.begin(); it != mSessions.end();) {
 				if (!(*it)->isUsed()) {
 					it = mSessions.erase(it);
-					LOGD("There are now %i relay sessions running.", (int)mSessions.size());
+					mSessionsCount--;
+					LOGD("There are now %i relay sessions running.", (int)mSessionsCount);
 				} else {
 					(*it)->checkPollFd(&pfd, curtime);
 					++it;

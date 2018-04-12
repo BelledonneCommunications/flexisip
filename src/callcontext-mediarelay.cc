@@ -47,10 +47,13 @@ void RelayedCall::enableTelephoneEventDrooping(bool value){
 }
 
 
-void RelayedCall::initChannels(const shared_ptr<SdpModifier> &m, const string &tag, const string &trid, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps) {
+void RelayedCall::initChannels ( const std::shared_ptr< SdpModifier >& m, const std::string& tag, const std::string& trid, 
+				 const string &fromHost, const string &destHost) {
 	sdp_media_t *mline = m->mSession->sdp_media;
+	sdp_connection_t *global_c = m->mSession->sdp_connection;
 	int i = 0;
 	bool hasMultipleTargets = false;
+	Agent *agent = mServer->getAgent();
 	
 	int maxEarlyRelays = mServer->mModule->mMaxRelayedEarlyMedia;
 	if (maxEarlyRelays != 0){
@@ -69,12 +72,28 @@ void RelayedCall::initChannels(const shared_ptr<SdpModifier> &m, const string &t
 			return ;
 		}
 		shared_ptr<RelaySession> s = mSessions[i];
+		
 		if (s == NULL) {
+			std::pair< std::string, std::string > frontRelayIps;
+			sdp_connection_t *mline_c = mline->m_connections ? mline->m_connections : global_c;
+			
+			if (mline_c && mline_c->c_address && strcmp(mline_c->c_address, fromHost.c_str()) == 0){
+				/* The client is not natted or knows its public IP address. In this case we trust him
+				 * and propose a relay address that matches its network.*/
+				frontRelayIps = agent->getPreferredIp(mline_c->c_address);
+			}else{
+				/* The client is very likely behind a nat and doesn't know its public ip address.
+				 * In that case, we provide him with a relay address that is the public address of the proxy,
+				 * but with the same address family as the address in the c= line of the SDP*/
+				bool isIpv6 = mline_c && mline_c->c_addrtype == sdp_addr_ip6;
+				frontRelayIps = make_pair(agent->getResolvedPublicIp(isIpv6), agent->getRtpBindIp(isIpv6));
+			}
 			s = mServer->createSession(tag,frontRelayIps);
 			mSessions[i] = s;
 		}
 		shared_ptr<RelayChannel> chan = s->getChannel("",trid);
 		if (chan==NULL){
+			std::pair< std::string, std::string > backRelayIps(agent->getPreferredIp(destHost));
 			/*this is a new outgoing branch to be established*/
 			chan=s->createBranch(trid,backRelayIps, hasMultipleTargets);
 		}

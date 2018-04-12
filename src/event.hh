@@ -28,6 +28,8 @@
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nta.h>
 
+#include <regex.h>
+
 class Agent;
 class Module;
 class IncomingAgent;
@@ -194,6 +196,7 @@ class RequestSipEvent : public SipEvent {
 	/** Find if incoming tport TLS client certificate contains a given entry */
 	bool findIncomingSubject(const char *searched);
 	const char *findIncomingSubject(const std::list<std::string> &in);
+	bool matchIncomingSubject(regex_t *regex);
 	void unlinkTransactions();
 	const std::shared_ptr<tport_t> &getIncomingTport() const {
 		return mIncomingTport;

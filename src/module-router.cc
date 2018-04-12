@@ -73,6 +73,8 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 			 "painful for the client to need to wait the end of the transaction time (32 seconds) for these error "
 			 "codes.",
 			 "5"},
+			{Integer, "call-fork-current-branches-timeout", "Maximum time before trying the next branches with lower priotiries",
+			 "10"},
 			{Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.", "0"},
 			{Boolean, "message-fork-late", "Fork messages to client registering lately. ", "true"},
 			{Integer, "message-delivery-timeout", "Maximum duration for delivering a text message. This property applies only"
@@ -93,8 +95,9 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 			{Boolean, "generate-contact-even-on-filled-aor", "Generate a contact route even on filled AOR.", "false"},
 			{Boolean, "remove-to-tag", "Remove to tag from 183, 180, and 101 responses to workaround buggy gateways",
 			 "false"},
-			{String, "preroute", "rewrite username with given value.", ""},
-			{Boolean, "resolve-routes", "whether or not to resolve all routes and forward the event to it if it's not us", "false"},
+			{String, "preroute", "Rewrite username with given value.", ""},
+			{Boolean, "resolve-routes", "Whether or not to resolve all routes and forward the event to it if it's not us", "false"},
+			{String, "fallback-route", "Default route to apply when the recipient is unreachable. [sip:host:port]", ""},
 			config_item_end};
 		mc->addChildrenValues(configs);
 
@@ -132,6 +135,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 		mForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("call-fork-timeout")->read();
 		mForkCfg->mTreatDeclineAsUrgent = mc->get<ConfigBoolean>("treat-decline-as-urgent")->read();
 		mForkCfg->mRemoveToTag = mc->get<ConfigBoolean>("remove-to-tag")->read();
+		mForkCfg->mCurrentBranchesTimeout = mc->get<ConfigInt>("call-fork-current-branches-timeout")->read();
 
 		//Forking configuration for MESSAGEs
 		mMessageForkCfg = make_shared<ForkContextConfig>();
@@ -153,6 +157,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 										->read();
 		mAllowTargetFactorization = mc->get<ConfigBoolean>("allow-target-factorization")->read();
 		mResolveRoutes = mc->get<ConfigBoolean>("resolve-routes")->read();
+		mFallbackRoute = mc->get<ConfigString>("fallback-route")->read();
 	}
 
 	virtual void onUnload() {
@@ -164,6 +169,10 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 
 	virtual void onForkContextFinished(shared_ptr<ForkContext> ctx);
 	void extractContactByUniqueId(string uid);
+
+	string getFallbackRoute() const {
+		return mFallbackRoute;
+	}
 
   private:
 	bool isManagedDomain(const url_t *url) {
@@ -208,6 +217,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	bool mAllowTargetFactorization;
 	string mPreroute;
 	bool mResolveRoutes;
+	string mFallbackRoute;
 };
 
 void ModuleRouter::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code,
@@ -349,8 +359,6 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 		LOGD("Dispatch to %s", contact_url_string);
 	}
 
-	/* Back to work */
-	getAgent()->injectRequestEvent(new_ev);
 	return true;
 }
 
@@ -726,6 +734,8 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 			}
 		}
 	}
+
+	context->start();
 }
 
 class PreroutingFetcher : public ContactUpdateListener,
@@ -903,6 +913,15 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 		}
 	}
 	void onRecordFound(Record *r) {
+		string fallbackRoute = mModule->getFallbackRoute();
+
+		if (!fallbackRoute.empty()) {
+			shared_ptr<ExtendedContact> contact = make_shared<ExtendedContact>(mSipUri, fallbackRoute, 0.0);
+			r->pushContact(contact);
+
+			SLOGD << "Record [" << r << "] Fallback route '" << fallbackRoute << "' added: " << *contact;
+		}
+
 		mModule->routeRequest(mEv, r, mSipUri);
 	}
 	void onError() {
@@ -948,7 +967,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		sip_route_t *iterator = sip->sip_route;
 		while (iterator != NULL) {
 			sip_route_t *route = iterator;
-			if (getAgent()->isUs(sip->sip_route->r_url)) {
+			if (getAgent()->isUs(route->r_url)) {
 				SLOGD << "Route header found " << url_as_string(ms->getHome(), route->r_url) << " and is us, continuing";
 			} else {
 				SLOGD << "Route header found " << url_as_string(ms->getHome(), route->r_url) << " but not us, forwarding";

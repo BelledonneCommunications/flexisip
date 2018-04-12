@@ -71,6 +71,7 @@ void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<ContactUpda
 		r->clean(getCurrentTime(), listener);
 		if (r->isEmpty()) {
 			mRecords.erase(it);
+			delete r;
 			r = NULL;
 		}
 	}
@@ -94,6 +95,7 @@ void RegistrarDbInternal::doFetchForGruu(const url_t *url, const string &gruu, c
 	r->clean(getCurrentTime(), listener);
 	if (r->isEmpty()) {
 		mRecords.erase(it);
+		delete r;
 		r = NULL;
 		listener->onRecordFound(r);
 		return;

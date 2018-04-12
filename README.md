@@ -12,14 +12,13 @@ here: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/
 
 # Dependencies
 
-Flexisip depends on the following required projects:
+Flexisip depends on the following projects, added as submodule in the git repository:
 - sofia-sip
 - ortp
 - bctoolbox
+- hiredis (optionaly)
 
-These above are referenced as git submodules in Flexisip's git repository.
-The dependencies below are optional, though stronly recommended for a reliable and scalable deployment:
-- hiredis
+Thesedependencies below are optional, though stronly recommended for a reliable and scalable deployment:
 - soci
 - protobuf
 - netsnmp
@@ -56,7 +55,7 @@ integration can be used directly, for example:
 The "flexisip-rpm" ./prepare.py target can be used to generate rpm packages for flexisip and its dependencies.
 "Alien" program is used internaly to convert into debian packages, when this build is run on a debian or debian like linux OS.
 
-	./prepare.py flexisip-rpm
+	./prepare.py flexisip-rpm -DENABLE_REDIS=ON -DENABLE_BC_HIREDIS=ON
 	make
 
 ## Macos X

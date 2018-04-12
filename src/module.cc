@@ -698,3 +698,12 @@ bool ModuleToolbox::getBoolUriParameter(const url_t *url, const char *param, boo
 	return defaultValue;
 }
 
+sip_via_t *ModuleToolbox::getLastVia(sip_t *sip){
+	sip_via_t *ret;
+	ret = sip->sip_via;
+	while (ret->v_next){
+		ret = ret->v_next;
+	}
+	return ret;
+}
+

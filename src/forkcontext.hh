@@ -37,6 +37,7 @@ class ForkContextConfig {
 	bool mForkNoGlobalDecline;
 	bool mTreatDeclineAsUrgent; /*treat 603 declined as a urgent response, only useful is mForkNoGlobalDecline==true*/
 	bool mRemoveToTag;			/*workaround buggy OVH which wrongly terminates wrong call*/
+	int mCurrentBranchesTimeout; /*timeout for receiving response on current branches*/
 };
 
 class ForkContext;
@@ -49,7 +50,7 @@ class ForkContextListener {
 
 class BranchInfo {
   public:
-	BranchInfo(std::shared_ptr<ForkContext> ctx) : mForkCtx(ctx) {
+	BranchInfo(std::shared_ptr<ForkContext> ctx) : mForkCtx(ctx), mPriority(1.0) {
 	}
 	virtual ~BranchInfo();
 	virtual void clear();
@@ -64,19 +65,29 @@ class BranchInfo {
 	std::shared_ptr<OutgoingTransaction> mTransaction;
 	std::shared_ptr<ResponseSipEvent> mLastResponse;
 	std::shared_ptr<ExtendedContact> mContact;
+	float mPriority;
 };
 
 class ForkContext : public std::enable_shared_from_this<ForkContext> {
   private:
 	static void __timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	static void sOnFinished(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
+	static void sOnNextBanches(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	ForkContextListener *mListener;
-	std::list<std::shared_ptr<BranchInfo>> mBranches;
+	su_timer_t *mNextBranchesTimer;
+	std::list<std::shared_ptr<BranchInfo>> mWaitingBranches;
+	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
+	float mCurrentPriority;
 	std::string mKey;
 	void init();
 	void processLateTimeout();
 	std::shared_ptr<BranchInfo> _findBestBranch(const int urgentReplies[], bool ignore503And408);
 	std::shared_ptr<OnContactRegisteredListener> mContactRegisteredListener;
+	// Request if the fork has other branches with lower priorities to try
+	bool hasNextBranches();
+	// Set the next branches to try and process them
+	void nextBranches();
+	void onNextBranches();
 
   protected:
 	Agent *mAgent;
@@ -116,9 +127,10 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	// Get the best candidate among all branches for forwarding its responses.
 	std::shared_ptr<BranchInfo> findBestBranch(const int urgentReplies[], bool avoid503And408 = false);
 	bool allBranchesAnswered(bool ignore_errors_and_timeouts = false) const;
+	bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const;
 	int getLastResponseCode() const;
 	void removeBranch(const std::shared_ptr<BranchInfo> &br);
-	const std::list<std::shared_ptr<BranchInfo>> &getBranches()const;
+	const std::list<std::shared_ptr<BranchInfo>> &getBranches() const;
 	static bool isUrgent(int code, const int urgentCodes[]);
 
   public:
@@ -134,6 +146,8 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	// Obtain the ForkContext that manages a transaction.
 	static std::shared_ptr<ForkContext> get(const std::shared_ptr<OutgoingTransaction> &tr);
 	static std::shared_ptr<ForkContext> get(const std::shared_ptr<IncomingTransaction> &tr);
+	// Start the processing of the highest priority branches that are not completed yet
+	void start();
 	
 	void setKey(std::string key);
 	std::string getKey() const;

@@ -464,6 +464,10 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		SLOGD << "Static unique ID: " << mUniqueId;
 	}
 
+	if (mPublicResolvedIpV6.empty() && mPublicResolvedIpV4.empty()){
+		LOGF("The default public address of the server could not be resolved (%s / %s). Cannot continue.",mPublicIpV4.c_str(), mPublicIpV6.c_str());
+	}
+	
 	LOGD("Agent public hostname/ip: v4:%s v6:%s", mPublicIpV4.c_str(), mPublicIpV6.c_str());
 	LOGD("Agent public resolved hostname/ip: v4:%s v6:%s", mPublicResolvedIpV4.c_str(), mPublicResolvedIpV6.c_str());
 	LOGD("Agent's _default_ RTP bind ip address: v4:%s v6:%s", mRtpBindIp.c_str(), mRtpBindIp6.c_str());
@@ -548,6 +552,7 @@ Agent::~Agent() {
 
 	mTerminating = true;
 	for_each(mModules.begin(), mModules.end(), delete_functor<Module>());
+
 	if (mDrm)
 		delete mDrm;
 	if (mAgent)

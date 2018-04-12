@@ -37,14 +37,15 @@
 #include <sofia-sip/nta_stateless.h>
 #include <sofia-sip/nth.h>
 
-#if ENABLE_MDNS
-#include "belle-sip/belle-sip.h"
-#endif
 #include "common.hh"
 #include "configmanager.hh"
 #include "event.hh"
 #include "transaction.hh"
 #include "eventlogs/eventlogs.hh"
+
+#if ENABLE_MDNS
+#include "belle-sip/belle-sip.h"
+#endif
 
 class Module;
 class DomainRegistrationManager;

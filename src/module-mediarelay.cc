@@ -153,10 +153,11 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 
 	string from_tag = sip->sip_from->a_tag;
 	string from_host;
-	if (sip->sip_via->v_received)
-		from_host=getHost(sip->sip_via->v_received);
+	sip_via_t *last_via = getLastVia(sip); /*the last via of the message is the originator of the message.*/
+	if (last_via->v_received)
+		from_host=getHost(last_via->v_received);
 	else
-		from_host=getHost(sip->sip_via->v_host);
+		from_host=getHost(last_via->v_host);
 
 
 	string to_tag;
@@ -172,7 +173,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	}
 
 	// create channels if not already existing
-	c->initChannels(m, from_tag, transaction->getBranchId(), mAgent->getPreferredIp(from_host), mAgent->getPreferredIp(dest_host));
+	c->initChannels(m, from_tag, transaction->getBranchId(), from_host, dest_host);
 
 	if (!c->checkMediaValid()) {
 		LOGE("The relay media are invalid, no RTP/RTCP port remaining?");

@@ -247,7 +247,14 @@ time_t Record::latestExpire(const string &route) const {
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		if ((*it)->mPath.empty() || (*it)->mExpireAt <= latest)
 			continue;
-		if (*(*it)->mPath.begin() == route)
+
+		/* Remove extra parameters */
+		string s = *(*it)->mPath.begin();
+		string::size_type n = s.find(";");
+		if (n != string::npos)
+			s = s.substr(0, n);
+
+		if (s == route)
 			latest = (*it)->mExpireAt;
 	}
 	return latest;
@@ -320,6 +327,10 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 		}
 	}
 	mContacts.push_back(ec);
+
+	if (ec->mCallId.find("static-record") == string::npos) {
+		mOnlyStaticContacts = false;
+	}
 }
 
 static bool compare_contact_using_last_update (shared_ptr<ExtendedContact> first, shared_ptr<ExtendedContact> second) {
@@ -612,7 +623,7 @@ int Record::sMaxContacts = -1;
 list<string> Record::sLineFieldNames;
 bool Record::sAssumeUniqueDomains = false;
 
-Record::Record(const url_t *aor) : mKey(aor ? defineKeyFromUrl(aor) : "") {
+Record::Record(const url_t *aor) : mKey(aor ? defineKeyFromUrl(aor) : ""), mOnlyStaticContacts(true) {
 	if (sMaxContacts == -1)
 		init();
 	if (aor) mIsDomain = aor->url_user == NULL;
@@ -686,10 +697,14 @@ void RegistrarDb::LocalRegExpire::update(const Record &record) {
 		if (it != mRegMap.end()) {
 			(*it).second = latest;
 		} else {
-			mRegMap.insert(make_pair(record.getKey(), latest));
+			if (!record.isEmpty() && !record.haveOnlyStaticContacts()) {
+				mRegMap.insert(make_pair(record.getKey(), latest));
+				notifyLocalRegExpireListener(mRegMap.size());
+			}
 		}
 	} else {
 		mRegMap.erase(record.getKey());
+		notifyLocalRegExpireListener(mRegMap.size());
 	}
 }
 
@@ -705,9 +720,30 @@ void RegistrarDb::LocalRegExpire::removeExpiredBefore(time_t before) {
 			auto prevIt = it;
 			++it;
 			mRegMap.erase(prevIt);
+			notifyLocalRegExpireListener(mRegMap.size());
 		} else {
 			++it;
 		}
+	}
+}
+
+void RegistrarDb::LocalRegExpire::subscribe(LocalRegExpireListener *listener) {
+	LOGD("Subscribe LocalRegExpire");
+	mLocalRegListenerList.push_back(listener);
+}
+
+void RegistrarDb::LocalRegExpire::unsubscribe(LocalRegExpireListener *listener) {
+	LOGD("Unsubscribe LocalRegExpire");
+	auto result = find(mLocalRegListenerList.begin(), mLocalRegListenerList.end(), listener);
+	if (result != mLocalRegListenerList.end()) {
+		mLocalRegListenerList.erase(result);
+	}
+}
+
+void RegistrarDb::LocalRegExpire::notifyLocalRegExpireListener(unsigned int count) {
+	LOGD("Notify LocalRegExpire count = %d", count);
+	for(auto listener : mLocalRegListenerList) {
+		listener->onLocalRegExpireUpdated(count);
 	}
 }
 
@@ -934,6 +970,10 @@ ContactUpdateListener::~ContactUpdateListener() {
 }
 
 ContactRegisteredListener::~ContactRegisteredListener() {
+}
+
+LocalRegExpireListener::~LocalRegExpireListener() {
+
 }
 
 void RegistrarDb::fetch(const url_t *url, const shared_ptr<ContactUpdateListener> &listener, bool recursive) {

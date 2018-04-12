@@ -35,6 +35,8 @@
 #include "authdb.hh"
 #include <assert.h>
 
+#include <regex.h>
+
 using namespace std;
 class Authentication;
 
@@ -224,12 +226,13 @@ private:
 		bool mHashedPass;
 		bool mPasswordFound;
 		AuthDbResult mResult;
-		std::string mPassword;
+		string mPassword;
 
 	public:
 		bool mImmediateRetrievePass;
 		bool mNo403;
-		list<string> mAlgoUsed;
+		list<string> mUsedAlgorithms;
+		string mCurrentAlgorithm;
 		auth_response_t mAr;
 		AuthenticationListener(Authentication *, shared_ptr<RequestSipEvent>, bool);
 		virtual ~AuthenticationListener() {
@@ -239,7 +242,7 @@ private:
 		void checkPassword(const char *password);
 		int checkPasswordMd5(const char *password);
 		int checkPasswordForAlgorithm(const char *password);
-		void onResult(AuthDbResult result, const std::string &passwd);
+		void onResult(AuthDbResult result, const string &passwd);
 		void onResult(AuthDbResult result, const passwd_algo_t &passwd);
 		void onError();
 		void finish(); /*the listener is destroyed when calling this, careful*/
@@ -264,17 +267,20 @@ private:
 	list<string> mDomains;
 	list<BinaryIp> mTrustedHosts;
 	list<string> mTrustedClientCertificates;
+	regex_t mRequiredSubject;
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
 	auth_scheme_t *mOdbcAuthScheme;
 	shared_ptr<BooleanExpression> mNo403Expr;
 	AuthenticationListener *mCurrentAuthOp;
+	list<string> mAlgorithms;
 	bool dbUseHashedPasswords;
 	bool mImmediateRetrievePassword;
 	bool mNewAuthOn407;
 	bool mTestAccountsEnabled;
 	bool mDisableQOPAuth;
-	list<string> mAlgorithm;
+	bool mRequiredSubjectCheckSet;
+
 	
 	static int authPluginInit(auth_mod_t *am, auth_scheme_t *base, su_root_t *root, tag_type_t tag, tag_value_t value,
 	                          ...) {
@@ -388,6 +394,7 @@ public:
 			LOGE("Cannot register auth plugin");
 		}
 		mCurrentAuthOp = NULL;
+		mRequiredSubjectCheckSet = false;
 	}
 	
 	~Authentication() {
@@ -395,65 +402,72 @@ public:
 			auth_mod_destroy(it->second);
 		}
 		mAuthModules.clear();
-
+		if (mRequiredSubjectCheckSet){
+			regfree(&mRequiredSubject);
+		}
 		delete mOdbcAuthScheme;
 	}
 	
 	virtual void onDeclare(GenericStruct *mc) {
 		ConfigItemDescriptor items[] = {
-            
-            {StringList, "auth-domains", "List of whitespace separated domain names to challenge. Others are denied.",
-                "localhost"},
-            
-            {StringList, "trusted-hosts", "List of whitespace separated IP which will not be challenged.", ""},
-            
-            {String, "db-implementation", "Database backend implementation [odbc,soci,file,fixed].", "fixed"},
-            
-            {String, "datasource",
-                "Odbc connection string to use for connecting to database. "
-                "ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. "
-                "ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. "
-                "ex3: /etc/flexisip/passwd; for a file containing user credentials in clear-text, md5 or sha256. "
-                "The file must start with 'version:1' as the first line, and then contains lines in the form of:\n"
-                "user@domain clrtxt:clear-text-password md5:md5-password sha256:sha256-password ;\n"
-                "For example: \n"
-                "bellesip@sip.linphone.org clrtxt:secret ;\n"
-                "bellesip@sip.linphone.org md5:97ffb1c6af18e5687bf26cdf35e45d30 ;\n"
-                "bellesip@sip.linphone.org clrtxt:secret md5:97ffb1c6af18e5687bf26cdf35e45d30 sha256:d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3 ;\n",
-                ""},
-            
-            {Integer, "nonce-expires", "Expiration time of nonces, in seconds.", "3600"},
-            
-            {Integer, "cache-expire", "Duration of the validity of the credentials added to the cache in seconds.",
-                "1800"},
-            
-            {Boolean, "hashed-passwords",
-                "True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).",
-                "false"},
-            
-            {BooleanExpr, "no-403", "Don't reply 403, but 401 or 407 even in case of wrong authentication.", "false"},
-            
-            {StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
-                "which will trusted. If no domain is given it is computed.",
-                ""},
-            
-            {Boolean, "new-auth-on-407",
-                "When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false"},
-            
-            {Boolean, "enable-test-accounts-creation",
-                "Enable a feature useful for automatic tests, allowing a client to create a temporary account in the "
-                "password database in memory."
-                "This MUST not be used for production as it is a real security hole.",
-                "false"},
-            
-            {Boolean, "disable-qop-auth",
-                "Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
-                "false"},
-            
-            {StringList, "available-algorithms", "List of algorithms, separated by whitespaces.",
-                ""},
-            
-            config_item_end};
+			{StringList, "auth-domains", "List of whitespace separated domain names to challenge. Others are denied.",
+			"localhost"},
+
+			{StringList, "trusted-hosts", "List of whitespace separated IP which will not be challenged.", ""},
+
+			{String, "db-implementation", "Database backend implementation [odbc,soci,file,fixed].", "fixed"},
+
+			{String, "datasource",
+				"Odbc connection string to use for connecting to database. "
+				"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. "
+				"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. "
+				"ex3: /etc/flexisip/passwd; for a file containing user credentials in clear-text, md5 or sha256. "
+				"The file must start with 'version:1' as the first line, and then contains lines in the form of:\n"
+				"user@domain clrtxt:clear-text-password md5:md5-password sha256:sha256-password ;\n"
+				"For example: \n"
+				"bellesip@sip.linphone.org clrtxt:secret ;\n"
+				"bellesip@sip.linphone.org md5:97ffb1c6af18e5687bf26cdf35e45d30 ;\n"
+				"bellesip@sip.linphone.org clrtxt:secret md5:97ffb1c6af18e5687bf26cdf35e45d30 sha256:d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3 ;\n",
+			""},
+
+			{Integer, "nonce-expires", "Expiration time of nonces, in seconds.", "3600"},
+
+			{Integer, "cache-expire", "Duration of the validity of the credentials added to the cache in seconds.",
+			"1800"},
+
+			{Boolean, "hashed-passwords",
+			"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).",
+			"false"},
+
+			{BooleanExpr, "no-403", "Don't reply 403, but 401 or 407 even in case of wrong authentication.", "false"},
+
+			{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
+			"which will trusted. If no domain is given it is computed.",
+			""},
+
+			{String, "tls-client-certificate-required-subject", "An optional regular expression matched against subjects of presented"
+				" client certificates. If this regular expression evaluates to false, the request is rejected. "
+				"The matched subjects are, in order: subjectAltNames.DNS, subjectAltNames.URI, subjectAltNames.IP and CN.", ""},
+
+			{Boolean, "new-auth-on-407",
+				"When receiving a proxy authenticate challenge, generate a new challenge for this proxy.", "false"},
+
+			{Boolean, "enable-test-accounts-creation",
+				"Enable a feature useful for automatic tests, allowing a client to create a temporary account in the "
+				"password database in memory."
+				"This MUST not be used for production as it is a real security hole.",
+				"false"},
+
+			{Boolean, "disable-qop-auth",
+				"Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
+				"false"},
+
+			{StringList, "available-algorithms", "List of algorithms, separated by whitespaces (valid values are MD5 and SHA-256).",
+				"MD5"},
+
+			config_item_end
+		};
+
 		mc->addChildrenValues(items);
 		/* modify the default value for "enabled" */
 		mc->get<ConfigBoolean>("enabled")->setDefault("false");
@@ -468,12 +482,7 @@ public:
 	}
 
 	void onLoad(const GenericStruct *mc) {
-		list<string>::const_iterator it;
-		int nonceExpires;
-		std::string algorithm = "MD5";
 		mDomains = mc->get<ConfigStringList>("auth-domains")->read();
-		nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
-
 		loadTrustedHosts(*mc->get<ConfigStringList>("trusted-hosts"));
 		dbUseHashedPasswords = mc->get<ConfigBoolean>("hashed-passwords")->read();
 		mImmediateRetrievePassword = true;
@@ -482,35 +491,38 @@ public:
 		mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
 		mTestAccountsEnabled = mc->get<ConfigBoolean>("enable-test-accounts-creation")->read();
 		mDisableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
-		mAlgorithm = mc->get<ConfigStringList>("available-algorithms")->read();
-		mAlgorithm.unique();
+		mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
+		mAlgorithms.unique();
+		int nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
 		mNonceStore.setNonceExpires(nonceExpires);
 
-		for (auto algo = mAlgorithm.begin(); algo != mAlgorithm.end(); algo++) {
-			if ((strcmp(algo->c_str(), "MD5") != 0) && (strcmp(algo->c_str(), "SHA-256") != 0)) {
-				LOGD("Given algorithm is not valid. Must be either MD5 or SHA-256");
-				return;
+		for (auto it = mAlgorithms.begin(); it != mAlgorithms.end();) {
+			if ((*it != "MD5") && (*it != "SHA-256")) {
+				SLOGW << "Given algorithm '" << *it << "' is not valid. Must be either MD5 or SHA-256.";
+				it = mAlgorithms.erase(it);
+			} else {
+				it++;
 			}
 		}
 
-		if (mAlgorithm.size() == 1) {
-			auto algo = mAlgorithm.begin();
-			algorithm.assign(algo->c_str());
-		}
-		if (mAlgorithm.size() == 0) {
-			mAlgorithm.push_back("MD5");
-		}
-		for (it = mDomains.begin(); it != mDomains.end(); ++it) {
-			auto domain = *it;
-
-			mAuthModules[*it] = createAuthModule(domain, nonceExpires);
-			mAuthModules[*it]->am_algorithm = strdup(algorithm.c_str());
-			auth_plugin_t *ap = AUTH_PLUGIN(mAuthModules[*it]);
+		if (mAlgorithms.empty())
+			mAlgorithms.push_back("MD5");
+		for (const auto &domain : mDomains) {
+			mAuthModules[domain] = createAuthModule(domain, nonceExpires);
+			mAuthModules[domain]->am_algorithm = su_strdup(mAuthModules[domain]->am_home, mAlgorithms.front().c_str());
+			auth_plugin_t *ap = AUTH_PLUGIN(mAuthModules[domain]);
 			ap->mModule = this;
-			LOGI("Found auth domain: %s", (*it).c_str());
-			if (mAuthModules[*it] == NULL) {
-				LOGE("Cannot create auth module odbc");
-			}
+			SLOGI << "Found auth domain: " << domain;
+		}
+
+		string requiredSubject = mc->get<ConfigString>("tls-client-certificate-required-subject")->read();
+		if (!requiredSubject.empty()){
+			int res = regcomp(&mRequiredSubject, requiredSubject.c_str(),  REG_EXTENDED|REG_NOSUB);
+			if (res != 0) {
+				string err_msg(128,0);
+				regerror(res, &mRequiredSubject, &err_msg[0], err_msg.capacity());
+				LOGF("Could not compile regex for 'tls-client-certificate-required-subject' '%s': %s", requiredSubject.c_str(), err_msg.c_str());
+			}else mRequiredSubjectCheckSet = true;
 		}
 	}
 
@@ -524,7 +536,7 @@ public:
 		return it->second;
 	}
 	
-	auth_mod_t *createAuthModule(const std::string &domain, int nonceExpires) {
+	auth_mod_t *createAuthModule(const string &domain, int nonceExpires) {
 		if (mDisableQOPAuth) {
 			return auth_mod_create(NULL, AUTHTAG_METHOD("odbc"), AUTHTAG_REALM(domain.c_str()),
 			                       AUTHTAG_OPAQUE("+GNywA=="), AUTHTAG_FORBIDDEN(1), AUTHTAG_ALLOW("ACK CANCEL BYE"),
@@ -581,6 +593,18 @@ public:
 		}
 		return false;
 	}
+	bool tlsClientCertificatePostCheck(const shared_ptr<RequestSipEvent> &ev){
+		if (mRequiredSubjectCheckSet){
+			bool ret = ev->matchIncomingSubject(&mRequiredSubject);
+			if (ret){
+				SLOGD<<"TLS certificate postcheck successful.";
+			}else{
+				SLOGUE<<"TLS certificate postcheck failed.";
+			}
+			return ret;
+		}
+		return true;
+	}
 	
 	bool isTlsClientAuthenticated(shared_ptr<RequestSipEvent> &ev) {
 		sip_t *sip = ev->getSip();
@@ -603,22 +627,26 @@ public:
 
 			if (ev->findIncomingSubject(searched)) {
 				SLOGD << "Allowing message from matching TLS certificate";
-				return true;
+				goto postcheck;
 			} else if (sip->sip_request->rq_method != sip_method_register &&
 			           (res = findIncomingSubjectInTrusted(ev, fromDomain))) {
-				SLOGD << "Allowing message from trusted TLS certificate " << res;
-				return true;
+				SLOGD << "Found trusted TLS certificate " << res;
+				goto postcheck;
 			} else {
 				/*case where the certificate would work for the entire domain*/
 				searched_uri.url_user = NULL;
 				searched = url_as_string(home.home(), &searched_uri);
 				if (ev->findIncomingSubject(searched)) {
-					SLOGD << "Allowing message from matching TLS certificate for entire domain";
-					return true;
+					SLOGD << "Found TLS certificate for entire domain";
+					goto postcheck;
 				}
 			}
 			LOGE("Client is presenting a TLS certificate not matching its identity.");
 			SLOGUE << "Registration failure for " << url_as_string(home.home(), from) << ", TLS certificate doesn't match its identity";
+			return false;
+			
+			postcheck:
+				return tlsClientCertificatePostCheck(ev);
 		}
 		return false;
 	}
@@ -696,7 +724,8 @@ public:
 		AuthenticationListener *listener = new AuthenticationListener(this, ev, dbUseHashedPasswords);
 		listener->mImmediateRetrievePass = mImmediateRetrievePassword;
 		listener->mNo403 = mNo403Expr->eval(ev->getSip());
-		listener->mAlgoUsed = mAlgorithm;
+		listener->mUsedAlgorithms = mAlgorithms;
+		listener->mCurrentAlgorithm = listener->mUsedAlgorithms.front();
 		as->as_magic = mCurrentAuthOp = listener;
 
 		// Attention: the auth_mod_verify method should not send by itself any message but
@@ -769,7 +798,8 @@ ModuleInfo<Authentication> Authentication::sInfo(
     "in [Global] section for this transport, "
     " then the From header of the request is matched with the CN claimed by the client certificate. The CN must "
     "contain sip:user@domain or alternate name with URI=sip:user@domain"
-    " corresponding to the URI in the from header for the request to be accepted.\n"
+    " corresponding to the URI in the from header for the request to be accepted. Optionnaly, the property"
+    " tls-client-certificate-required-subject may contain a regular expression for additional checks to execute on certificate subjects.\n"
     " * if no TLS client based authentication can be performed, or is failed, then a SIP digest authentication is "
     "performed. The password verification is made by querying"
     " a database or a password file on disk.",
@@ -841,7 +871,7 @@ void Authentication::AuthenticationListener::onResult(AuthDbResult result, const
 	}
 }
 
-void Authentication::AuthenticationListener::onResult(AuthDbResult result, const std::string &passwd) {
+void Authentication::AuthenticationListener::onResult(AuthDbResult result, const string &passwd) {
 	// invoke callback on main thread (sofia-sip)
 	su_msg_r mamc = SU_MSG_R_INIT;
 	if (-1 == su_msg_create(mamc, su_root_task(getRoot()), su_root_task(getRoot()), main_thread_async_response_cb,
@@ -874,11 +904,15 @@ void Authentication::AuthenticationListener::onResult(AuthDbResult result, const
 }
 
 void Authentication::AuthenticationListener::finish_for_algorithm() {
-	if (mAlgoUsed.size() > 1 && mAs->as_response) {
+	auto it = find(mUsedAlgorithms.begin(), mUsedAlgorithms.end(), mCurrentAlgorithm);
+	if ((it != mUsedAlgorithms.end()) && (next(it) != mUsedAlgorithms.end()) && mAs->as_response) {
 		msg_header_t *response;
 		response = msg_header_copy(mAs->as_home, mAs->as_response);
-		msg_header_remove_param((msg_common_t *)response, "algorithm=MD5");
-		msg_header_replace_item(mAs->as_home, (msg_common_t *)response, "algorithm=SHA-256");
+		string currentParam = "algorithm=" + mCurrentAlgorithm;
+		msg_header_remove_param((msg_common_t *)response, currentParam.c_str());
+		mCurrentAlgorithm = *next(it);
+		string newParam = "algorithm=" + mCurrentAlgorithm;
+		msg_header_replace_item(mAs->as_home, (msg_common_t *)response, newParam.c_str());
 		mEv->reply(mAs->as_status, mAs->as_phrase, SIPTAG_HEADER((const sip_header_t *)mAs->as_info),
 		           SIPTAG_HEADER((const sip_header_t *)response),
 		           SIPTAG_HEADER((const sip_header_t *)mAs->as_response),
@@ -1192,7 +1226,7 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am, auth_status_t *
 			SLOGD << "Searching for " << as->as_user_uri->url_user
 			      << " password to have it when the authenticated request comes";
 			//AuthDbBackend::get()->getPassword(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL);
-			AuthDbBackend::get()->getPasswordForAlgo(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL, listener->mAlgoUsed);
+			AuthDbBackend::get()->getPasswordForAlgo(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL, listener->mUsedAlgorithms);
 		}
 		listener->finish();
 		return;

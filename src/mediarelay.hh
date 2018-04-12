@@ -118,6 +118,7 @@ class MediaRelayServer {
 	static void *threadFunc(void *arg);
 	Mutex mMutex;
 	std::list<std::shared_ptr<RelaySession>> mSessions;
+	size_t mSessionsCount; /* since std::list::size() is O(n), we use our own counter*/
 	MediaRelay *mModule;
 	pthread_t mThread;
 	int mCtlPipe[2];
@@ -188,6 +189,8 @@ class RelaySession : public std::enable_shared_from_this<RelaySession> {
 
 class MediaFilter {
   public:
+	virtual ~MediaFilter() = default;
+
 	/// Should return false if the incoming packet must not be transfered.
 	virtual bool onIncomingTransfer(uint8_t *data, size_t size, const sockaddr *addr, socklen_t addrlen) = 0;
 	/// Should return false if the packet output must not be sent.

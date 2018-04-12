@@ -253,7 +253,7 @@ class ModuleToolbox {
 	static int getCpuCount();
 	static bool getUriParameter(const url_t *url, const char *param, std::string &value);
 	static bool getBoolUriParameter(const url_t *url, const char *param, bool defaultValue);
-	
+	static sip_via_t *getLastVia(sip_t *sip);
 };
 
 #endif

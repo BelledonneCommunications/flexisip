@@ -953,13 +953,17 @@ void DataBaseEventLogWriter::initTables(Backend backend) {
 
 void DataBaseEventLogWriter::writeEventLog(const std::shared_ptr<EventLog> &evlog, int typeId, soci::session &sql) {
 	tm date;
+	string from(sipDataToString(evlog->mFrom));
+	string to(sipDataToString(evlog->mTo));
+	string ua(sipDataToString(evlog->mUA));
+	string completed(boolToSqlString(evlog->mCompleted));
 
 	sql << "INSERT INTO event_log "
 		"(type_id, sip_from, sip_to, user_agent, date, status_code, reason, completed, call_id)"
 		"VALUES (:typeId, :sipFrom, :sipTo, :userAgent, :date, :statusCode, :reason, :completed, :callId)",
-		use(typeId), use(sipDataToString(evlog->mFrom)), use(sipDataToString(evlog->mTo)),
-		use(sipDataToString(evlog->mUA)), use(*gmtime_r(&evlog->mDate, &date)), use(evlog->mStatusCode),
-		use(evlog->mReason), use(boolToSqlString(evlog->mCompleted)), use(evlog->mCallId);
+		use(typeId), use(from), use(to),
+		use(ua), use(*gmtime_r(&evlog->mDate, &date)), use(evlog->mStatusCode),
+		use(evlog->mReason), use(completed), use(evlog->mCallId);
 }
 
 // IMPORTANT
@@ -976,10 +980,11 @@ void DataBaseEventLogWriter::writeEventLog(const std::shared_ptr<EventLog> &evlo
 void DataBaseEventLogWriter::writeRegistrationLog(const std::shared_ptr<RegistrationLog> &evlog) {
 	session sql(*mConnectionPool);
 	transaction tr(sql);
+	string contact(sipDataToString(evlog->mContacts));
 
 	writeEventLog(evlog, SQL_REGISTRATION_EVENT_LOG_ID, sql);
 	sql << mInsertReq[SQL_REGISTRATION_EVENT_LOG_ID],
-		use(static_cast<int>(evlog->mType)), use(sipDataToString(evlog->mContacts));
+		use(static_cast<int>(evlog->mType)), use(contact);
 
 	tr.commit();
 }
@@ -987,10 +992,10 @@ void DataBaseEventLogWriter::writeRegistrationLog(const std::shared_ptr<Registra
 void DataBaseEventLogWriter::writeCallLog(const std::shared_ptr<CallLog> &evlog) {
 	session sql(*mConnectionPool);
 	transaction tr(sql);
+	string cancelled(boolToSqlString(evlog->mCancelled));
 
 	writeEventLog(evlog, SQL_CALL_EVENT_LOG_ID, sql);
-	sql << mInsertReq[SQL_CALL_EVENT_LOG_ID],
-		use(boolToSqlString(evlog->mCancelled));
+	sql << mInsertReq[SQL_CALL_EVENT_LOG_ID], use(cancelled);
 
 	tr.commit();
 }
@@ -998,10 +1003,11 @@ void DataBaseEventLogWriter::writeCallLog(const std::shared_ptr<CallLog> &evlog)
 void DataBaseEventLogWriter::writeMessageLog(const std::shared_ptr<MessageLog> &evlog) {
 	session sql(*mConnectionPool);
 	transaction tr(sql);
+	string uri(sipDataToString(evlog->mUri));
 
 	writeEventLog(evlog, SQL_MESSAGE_EVENT_LOG_ID, sql);
 	sql << mInsertReq[SQL_MESSAGE_EVENT_LOG_ID],
-		use(static_cast<int>(evlog->mReportType)), use(sipDataToString(evlog->mUri));
+		use(static_cast<int>(evlog->mReportType)), use(uri);
 
 	tr.commit();
 }
@@ -1009,10 +1015,11 @@ void DataBaseEventLogWriter::writeMessageLog(const std::shared_ptr<MessageLog> &
 void DataBaseEventLogWriter::writeAuthLog(const std::shared_ptr<AuthLog> &evlog) {
 	session sql(*mConnectionPool);
 	transaction tr(sql);
+	string origin(sipDataToString(evlog->mOrigin));
+	string userExists(boolToSqlString(evlog->mUserExists));
 
 	writeEventLog(evlog, SQL_AUTH_EVENT_LOG_ID, sql);
-	sql << mInsertReq[SQL_AUTH_EVENT_LOG_ID],
-		use(evlog->mMethod), use(sipDataToString(evlog->mOrigin)), use(boolToSqlString(evlog->mUserExists));
+	sql << mInsertReq[SQL_AUTH_EVENT_LOG_ID], use(evlog->mMethod), use(origin), use(userExists);
 
 	tr.commit();
 }

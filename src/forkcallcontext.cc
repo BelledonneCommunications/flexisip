@@ -27,27 +27,29 @@ template <typename T> static bool contains(const list<T> &l, T value) {
 	return find(l.cbegin(), l.cend(), value) != l.cend();
 }
 
-ForkCallContext::ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event,
+ForkCallContext::ForkCallContext(Agent *agent, const shared_ptr<RequestSipEvent> &event,
 								 shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener)
 	: ForkContext(agent, event, cfg, listener), mShortTimer(NULL), mPushTimer(NULL), mCancelled(false) {
-	LOGD("New ForkCallContext %p", this);
+	SLOGD << "New ForkCallContext " << this;
 	mLog = event->getEventLog<CallLog>();
 	mActivePushes = 0;
 }
 
 ForkCallContext::~ForkCallContext() {
-	LOGD("Destroy ForkCallContext %p", this);
+	SLOGD << "Destroy ForkCallContext " << this;
+
 	if (mShortTimer) {
 		su_timer_destroy(mShortTimer);
 		mShortTimer = NULL;
 	}
+
 	if (mPushTimer) {
 		su_timer_destroy(mPushTimer);
 		mPushTimer = NULL;
 	}
 }
 
-void ForkCallContext::onCancel(const std::shared_ptr<RequestSipEvent> &ev) {
+void ForkCallContext::onCancel(const shared_ptr<RequestSipEvent> &ev) {
 	mLog->setCancelled();
 	mLog->setCompleted();
 	mCancelled = true;
@@ -55,12 +57,14 @@ void ForkCallContext::onCancel(const std::shared_ptr<RequestSipEvent> &ev) {
 }
 
 void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> &br, sip_t *received_cancel) {
-	list<shared_ptr<BranchInfo>> branches = getBranches();
+	auto branches = getBranches();
 	for (auto it = branches.begin(); it != branches.end(); ++it) {
 		shared_ptr<BranchInfo> brit = *it;
+
 		if (brit != br) {
 			shared_ptr<OutgoingTransaction> tr = brit->mTransaction;
-			if (brit->getStatus() < 200 && tr) {
+
+			if (tr && brit->getStatus() < 200) {
 				if(received_cancel && received_cancel->sip_reason) {
 					sip_reason_t *reason = sip_reason_dup(tr->getHome(), received_cancel->sip_reason);
 					tr->cancelWithReason(reason);
@@ -68,18 +72,20 @@ void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> &br, sip_t *rece
 					tr->cancel();
 				}
 			}
+
 			removeBranch(brit);
 		}
 	}
 }
 
 void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo> &br, FlexisipForkStatus status) {
-	list<shared_ptr<BranchInfo>> branches = getBranches();
+	auto branches = getBranches();
 	for (auto it = branches.begin(); it != branches.end(); ++it) {
 		shared_ptr<BranchInfo> brit = *it;
 		if (brit != br) {
 			shared_ptr<OutgoingTransaction> tr = brit->mTransaction;
-			if (tr && brit->getStatus() < 200 ){
+
+			if (tr && brit->getStatus() < 200) {
 				if(status == FlexisipForkAcceptedElsewhere) {
 					sip_reason_t* reason = sip_reason_make(tr->getHome(), "SIP;cause=200;text=\"Call completed elsewhere\"");
 					tr->cancelWithReason(reason);
@@ -90,6 +96,7 @@ void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo> &br, F
 					tr->cancel();
 				}
 			}
+
 			removeBranch(brit);
 		}
 	}
@@ -100,8 +107,10 @@ const int ForkCallContext::sUrgentCodesWithout603[] = {401, 407, 415, 420, 484, 
 const int *ForkCallContext::getUrgentCodes() {
 	if (mCfg->mTreatAllErrorsAsUrgent)
 		return ForkContext::sAllCodesUrgent;
+
 	if (mCfg->mTreatDeclineAsUrgent)
 		return ForkContext::sUrgentCodes;
+
 	return sUrgentCodesWithout603;
 }
 
@@ -120,12 +129,14 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo> &br, const shared_
 				logResponse(forwardResponse(best));
 			return;
 		}
+
 		if (isUrgent(code, getUrgentCodes()) && mShortTimer == NULL) {
 			mShortTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
 			su_timer_set_interval(mShortTimer, &ForkCallContext::sOnShortTimer, this,
 								  (su_duration_t)mCfg->mUrgentTimeout * 1000);
 			return;
 		}
+
 		if (code >= 600) {
 			/*6xx response are normally treated as global faillures */
 			if (!mCfg->mForkNoGlobalDecline) {
@@ -145,23 +156,29 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo> &br, const shared_
 // device.
 void ForkCallContext::sendRinging() {
 	int code = getLastResponseCode();
+
 	if (code < 180 && mIncoming) {
 		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_180_RINGING));
+
 		if (msgsip) {
 			shared_ptr<ResponseSipEvent> ev(
 				new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
+
 			// add a to tag, no set by sofia here.
 			if (!mCfg->mRemoveToTag) {
 				const char *totag = nta_agent_newtag(msgsip->getHome(), "%s", mAgent->getSofiaAgent());
 				sip_to_tag(msgsip->getHome(), msgsip->getSip()->sip_to, totag);
 			}
+
 			if (mPushTimer)
 				su_timer_destroy(mPushTimer), mPushTimer = NULL;
+
 			if (mCfg->mPushResponseTimeout > 0) {
 				mPushTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
 				su_timer_set_interval(mPushTimer, &ForkCallContext::sOnPushTimer, this,
 									  (su_duration_t)mCfg->mPushResponseTimeout * 1000);
 			}
+
 			forwardResponse(ev);
 		}
 	}
@@ -171,8 +188,10 @@ void ForkCallContext::logResponse(const shared_ptr<ResponseSipEvent> &ev) {
 	if (ev) {
 		sip_t *sip = ev->getMsgSip()->getSip();
 		mLog->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
+
 		if (sip->sip_status->st_status >= 200)
 			mLog->setCompleted();
+
 		ev->setEventLog(mLog);
 	}
 }
@@ -180,43 +199,50 @@ void ForkCallContext::logResponse(const shared_ptr<ResponseSipEvent> &ev) {
 bool ForkCallContext::onNewRegister(const url_t *url, const string &uid) {
 	if (isCompleted())
 		return false;
+
 	return ForkContext::onNewRegister(url, uid);
 }
 
 bool ForkCallContext::isCompleted() const {
 	if (getLastResponseCode() >= 200 || mCancelled || mIncoming == NULL)
 		return true;
+
 	return false;
 }
 
 bool ForkCallContext::isRingingSomewhere()const{
-	const auto & branches = getBranches();
-	for (auto it = branches.begin(); it != branches.end(); ++it){
-		int status = (*it)->getStatus();
+	for (const auto& br : getBranches()){
+		int status = br->getStatus();
+
 		if (status >= 180 && status < 200)
 			return true;
 	}
+
 	return false;
 }
 
 void ForkCallContext::onShortTimer() {
-	LOGD("ForkCallContext [%p]: time to send urgent replies", this);
+	SLOGD << "ForkCallContext [" << this << "]: time to send urgent replies";
+
 	/*first stop the timer, it has to be one shot*/
 	su_timer_destroy(mShortTimer);
 	mShortTimer = NULL;
 
 	if (isRingingSomewhere())
 		return; /*it's ringing somewhere*/
+
 	auto br = findBestBranch(getUrgentCodes(), mCfg->mForkLate);
-	if (br) {
+
+	if (br)
 		logResponse(forwardResponse(br));
-	}
 }
 
 void ForkCallContext::onLateTimeout() {
 	auto br = findBestBranch(getUrgentCodes(), mCfg->mForkLate);
+
 	if (!br || br->getStatus() == 0 || br->getStatus() == 503) {
 		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
+
 		if (msgsip) {
 			shared_ptr<ResponseSipEvent> ev(
 				new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
@@ -225,6 +251,7 @@ void ForkCallContext::onLateTimeout() {
 	} else {
 		logResponse(forwardResponse(br));
 	}
+
 	/*cancel all possibly pending outgoing transactions*/
 	cancelOthers(shared_ptr<BranchInfo>(), NULL);
 }
@@ -236,8 +263,9 @@ void ForkCallContext::sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_ti
 
 void ForkCallContext::onPushTimer() {
 	if (!isCompleted() && getLastResponseCode() < 180) {
-		SLOGD << "ForkCallContext " << this << " push timer : no uac response";
+		SLOGD << "ForkCallContext [" << this << "] push timer : no uac response";
 	}
+
 	su_timer_destroy(mPushTimer);
 	mPushTimer = NULL;
 }
@@ -252,8 +280,10 @@ void ForkCallContext::onPushInitiated(const string &key) {
 
 void ForkCallContext::onPushError(const string &key, const string &errormsg) {
 	--mActivePushes;
+
 	if (mActivePushes != 0)
 		return;
+
 	SLOGD << "Early fail due to all push requests having failed";
 	onPushTimer();
 }
