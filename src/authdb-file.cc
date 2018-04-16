@@ -118,6 +118,11 @@ void FileAuthDb::sync() {
 	string pass[3];
 	string version;
 	string passwd_tag;
+	
+	if (mFileString.empty()){
+		LOGF("'file' authentication backend was requested but no path specified in datasource.");
+		return;
+	}
 
 	LOGD("Opening file %s", mFileString.c_str());
 	file.open(mFileString);
@@ -192,7 +197,7 @@ void FileAuthDb::sync() {
 				}
 			}
 		} else {
-			LOGE("Version %s is not supported", version.c_str());
+			LOGF("Version %s is not supported for file %s", version.c_str(), mFileString.c_str());
 		}
 	} else {
 		if (firstTime){

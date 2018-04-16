@@ -535,6 +535,7 @@ public:
 			}else mRequiredSubjectCheckSet = true;
 		}
 		mRejectWrongClientCertificates = mc->get<ConfigBoolean>("reject-wrong-client-certificates")->read();
+		AuthDbBackend::get();//force instanciation of the AuthDbBackend NOW, to force errors to arrive now if any.
 	}
 
 	auth_mod_t *findAuthModule(const char *name) {
