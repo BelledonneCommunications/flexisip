@@ -137,7 +137,7 @@ void FileAuthDb::sync() {
 			if (version.substr(0, 8) == "version:")
 				version = version.substr(8);
 			else
-				LOGF("userdb.conf must start by version:X to be used.");
+				LOGF("%s file must start with version:X.", mFileString.c_str());
 			break;
 		}
 		if (version == "1") {
@@ -167,12 +167,12 @@ void FileAuthDb::sync() {
 					}
 					if (passwd_tag != ";") {
 						if (ss.eof()){
-							LOGF("In userdb.conf, the section of password must end with ';'");
+							LOGF("%s: unterminated password section at line '%s'. Missing ';'.", mFileString.c_str(), line.c_str());
 						}else {
 							passwd_tag.clear();
 							getline(ss, passwd_tag, ' ');
 							if ((!ss.eof()) && (passwd_tag != ";")){
-								LOGF("In userdb.conf, the section of password must end with ';'");
+								LOGF("%s: unterminated password section at line '%s'. Missing ';'.", mFileString.c_str(), line.c_str());
 							}
 						}
 					}
@@ -204,7 +204,7 @@ void FileAuthDb::sync() {
 						string key(createPasswordKey(user, userid));
 						cachePassword(key, domain, password, mCacheExpire);
 					} else {
-						LOGW("Not handled domain: %s", domain.c_str());
+						LOGW("Domain '%s' is not handled by Authentication module", domain.c_str());
 					}
 				} catch (const stringstream::failure &e) {
 					LOGW("Incorrect line format: %s (error: %s)", line.c_str(), e.what());
