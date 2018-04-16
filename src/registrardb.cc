@@ -1016,8 +1016,10 @@ void RegistrarDb::fetch(const url_t *url, const std::shared_ptr<ContactUpdateLis
 	}
 	if(url_has_param(url, "gr")) {
 		stringstream gruu;
-		char *buffer = new char[255];
-		isize_t result = url_param(url->url_params, "gr", buffer, 255);
+		char buffer[256];
+		memset(buffer, '\0', sizeof(buffer));
+
+		isize_t result = url_param(url->url_params, "gr", buffer, sizeof(buffer) - 1);
 		if (result > 0) {
 			gruu << "\"<" << buffer << ">\"";
 			doFetchForGruu(url, gruu.str(), recursive
