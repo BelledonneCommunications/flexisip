@@ -118,7 +118,8 @@ void FileAuthDb::sync() {
 	string pass[3];
 	string version;
 	string passwd_tag;
-	
+	int i;
+
 	if (mFileString.empty()){
 		LOGF("'file' authentication backend was requested but no path specified in datasource.");
 		return;
@@ -135,14 +136,13 @@ void FileAuthDb::sync() {
 			getline(ss, version, ' ');
 			if (version.substr(0, 8) == "version:")
 				version = version.substr(8);
-			else{
-				LOGF("%s must start by version:X to be used.", mFileString.c_str());
-			}
+			else
+				LOGF("userdb.conf must start by version:X to be used.");
 			break;
 		}
 		if (version == "1") {
 			while (file.good() && getline(file, line)) {
-				if (line.empty() || line[0] == ';' || line[0] == '#') continue;
+				if (line.empty()) continue;
 				ss.clear();
 				ss.str(line);
 				user.clear();
@@ -158,10 +158,24 @@ void FileAuthDb::sync() {
 				try {
 					getline(ss, user, '@');
 					getline(ss, domain, ' ');
-					
-					ss >> pass[0];
-					if (!ss.eof()) ss>>pass[1];
-					if (!ss.eof()) ss>>pass[2];
+					for (i = 0; i < 3 && (!ss.eof()); i++) {
+						passwd_tag.clear();
+						getline(ss, passwd_tag, ' ');
+						if (passwd_tag != ";")
+							pass[i] = passwd_tag;
+						else break;
+					}
+					if (passwd_tag != ";") {
+						if (ss.eof()){
+							LOGF("In userdb.conf, the section of password must end with ';'");
+						}else {
+							passwd_tag.clear();
+							getline(ss, passwd_tag, ' ');
+							if ((!ss.eof()) && (passwd_tag != ";")){
+								LOGF("In userdb.conf, the section of password must end with ';'");
+							}
+						}
+					}
 					
 					// if user with space, replace %20 by space
 					string user_ref;
