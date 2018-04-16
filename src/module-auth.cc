@@ -278,6 +278,7 @@ private:
 	bool mTestAccountsEnabled;
 	bool mDisableQOPAuth;
 	bool mRequiredSubjectCheckSet;
+	bool mRejectWrongClientCertificates;
 	
 	
 	static int authPluginInit(auth_mod_t *am, auth_scheme_t *base, su_root_t *root, tag_type_t tag, tag_value_t value,
@@ -414,7 +415,7 @@ public:
 			
 			{StringList, "trusted-hosts", "List of whitespace separated IP which will not be challenged.", ""},
 			
-			{String, "db-implementation", "Database backend implementation [odbc,soci,file,fixed].", "fixed"},
+			{String, "db-implementation", "Database backend implementation for digest authentication [odbc,soci,file].", "file"},
 			
 			{String, "datasource",
 				"Odbc connection string to use for connecting to database. "
@@ -440,9 +441,13 @@ public:
 			
 			{BooleanExpr, "no-403", "Don't reply 403, but 401 or 407 even in case of wrong authentication.", "false"},
 			
-			{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
-			"which will trusted. If no domain is given it is computed.",
-			""},
+			{Boolean, "reject-wrong-client-certificates",
+				"If set to true, the module will simply reject with 403 forbidden any request coming from client"
+				" who presented a bad TLS certificate (regardless of reason: improper signature, unmatched subjects)."
+				" Otherwise, the module will fallback to a digest authentication.\n"
+				"This policy applies only for transports configured with 'required-peer-certificate=1' parameter; indeed"
+				" no certificate is requested to the client otherwise.",
+				"false"},
 		
 			{String, "tls-client-certificate-required-subject", "An optional regular expression matched against subjects of presented"
 				" client certificates. If this regular expression evaluates to false, the request is rejected. "
@@ -463,11 +468,16 @@ public:
 			
 			{StringList, "available-algorithms", "List of algorithms, separated by whitespaces.",
 				""},
+			{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
+			"which will trusted. If no domain is given it is computed.",
+			""},
 			
 			config_item_end};
 		mc->addChildrenValues(items);
 		/* modify the default value for "enabled" */
 		mc->get<ConfigBoolean>("enabled")->setDefault("false");
+		//we deprecate "trusted-client-certificates" because "tls-client-certificate-required-subject" can do more.
+		mc->get<ConfigStringList>("trusted-client-certificates")->setDeprecated(true);
 
 		// Call declareConfig for backends
 		AuthDbBackend::declareConfig(mc);
@@ -533,6 +543,7 @@ public:
 				LOGF("Could not compile regex for 'tls-client-certificate-required-subject' '%s': %s", requiredSubject.c_str(), err_msg.c_str());
 			}else mRequiredSubjectCheckSet = true;
 		}
+		mRejectWrongClientCertificates = mc->get<ConfigBoolean>("reject-wrong-client-certificates")->read();
 	}
 
 	auth_mod_t *findAuthModule(const char *name) {
@@ -615,48 +626,68 @@ public:
 		return true;
 	}
 	
-	bool isTlsClientAuthenticated(shared_ptr<RequestSipEvent> &ev) {
+	/* This function returns
+	 * true: if the tls authentication is handled (either successful or rejected)
+	 * false: if we have to fallback to digest
+	 */
+	bool handleTlsClientAuthentication(shared_ptr<RequestSipEvent> &ev) {
 		sip_t *sip = ev->getSip();
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
 		unsigned int policy = 0;
 
 		tport_get_params(inTport.get(), TPTAG_TLS_VERIFY_POLICY_REF(policy), NULL);
 		// Check TLS certificate
-		if ((policy & TPTLS_VERIFY_INCOMING) && tport_is_verified(inTport.get())) {
-			const url_t *from = sip->sip_from->a_url;
-			const char *fromDomain = from->url_host;
-			const char *res = NULL;
-			url_t searched_uri = URL_INIT_AS(sip);
-			SofiaAutoHome home;
-			char *searched;
+		if ((policy & TPTLS_VERIFY_INCOMING)){
+			/* tls client certificate is required for this transport*/
+			if (tport_is_verified(inTport.get())) {
+				/*the certificate looks good, now match subjects*/
+				const url_t *from = sip->sip_from->a_url;
+				const char *fromDomain = from->url_host;
+				const char *res = NULL;
+				url_t searched_uri = URL_INIT_AS(sip);
+				SofiaAutoHome home;
+				char *searched;
 
-			searched_uri.url_host = from->url_host;
-			searched_uri.url_user = from->url_user;
-			searched = url_as_string(home.home(), &searched_uri);
-
-			if (ev->findIncomingSubject(searched)) {
-				SLOGD << "Allowing message from matching TLS certificate";
-				goto postcheck;
-			} else if (sip->sip_request->rq_method != sip_method_register &&
-			           (res = findIncomingSubjectInTrusted(ev, fromDomain))) {
-				SLOGD << "Found trusted TLS certificate " << res;
-				goto postcheck;
-			} else {
-				/*case where the certificate would work for the entire domain*/
-				searched_uri.url_user = NULL;
+				searched_uri.url_host = from->url_host;
+				searched_uri.url_user = from->url_user;
 				searched = url_as_string(home.home(), &searched_uri);
+
 				if (ev->findIncomingSubject(searched)) {
-					SLOGD << "Found TLS certificate for entire domain";
+					SLOGD << "Allowing message from matching TLS certificate";
 					goto postcheck;
+				} else if (sip->sip_request->rq_method != sip_method_register &&
+					(res = findIncomingSubjectInTrusted(ev, fromDomain))) {
+					SLOGD << "Found trusted TLS certificate " << res;
+					goto postcheck;
+				} else {
+					/*case where the certificate would work for the entire domain*/
+					searched_uri.url_user = NULL;
+					searched = url_as_string(home.home(), &searched_uri);
+					if (ev->findIncomingSubject(searched)) {
+						SLOGD << "Found TLS certificate for entire domain";
+						goto postcheck;
+					}
 				}
-			}
-			LOGE("Client is presenting a TLS certificate not matching its identity.");
-			SLOGUE << "Registration failure for " << url_as_string(home.home(), from) << ", TLS certificate doesn't match its identity";
-			return false;
+				LOGE("Client is presenting a TLS certificate not matching its identity.");
+				SLOGUE << "Registration failure for " << url_as_string(home.home(), from) << ", TLS certificate doesn't match its identity";
+				goto bad_certificate;
+				
+				postcheck:
+					if (tlsClientCertificatePostCheck(ev)){
+						/*all is good, return true*/
+						return true;
+					}else goto bad_certificate;
+			}else goto bad_certificate;
 			
-			postcheck:
-				return tlsClientCertificatePostCheck(ev);
+			bad_certificate:
+			if (mRejectWrongClientCertificates){
+				ev->reply(403, "Bad tls client certificate", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+				return true; /*the request is responded, no further processing required*/
+			}
+			/*fallback to digest*/
+			return false;
 		}
+		/*no client certificate requested, go to digest auth*/
 		return false;
 	}
 
@@ -703,7 +734,7 @@ public:
 		}
 
 		// check if TLS client certificate provides sufficent authentication for this request.
-		if (isTlsClientAuthenticated(ev))
+		if (handleTlsClientAuthentication(ev))
 			return;
 
 		// Check for the existence of username, which is required for proceeding with digest authentication in flexisip.
