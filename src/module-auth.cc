@@ -427,7 +427,7 @@ public:
 				"For example: \n"
 				"bellesip@sip.linphone.org clrtxt:secret ;\n"
 				"bellesip@sip.linphone.org md5:97ffb1c6af18e5687bf26cdf35e45d30 ;\n"
-				"bellesip@sip.linphone.org clrtxt:secret md5:97ffb1c6af18e5687bf26cdf35e45d30 sha256:d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3 ;\n",
+				"bellesip@sip.linphone.org clrtxt:secret md5:97ffb1c6af18e5687bf26cdf35e45d30 sha256:d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3 ;",
 			""},
 
 			{Integer, "nonce-expires", "Expiration time of nonces, in seconds.", "3600"},
