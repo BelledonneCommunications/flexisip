@@ -233,6 +233,8 @@ void Agent::start(const std::string &transport_override, const std::string passp
 	}
 	string currDir = cCurrDir;
 
+	setupInternalTransport();
+
 	GenericStruct *global = GenericManager::get()->getRoot()->get<GenericStruct>("global");
 	list<string> transports = global->get<ConfigStringList>("transports")->read();
 	string ciphers = global->get<ConfigString>("tls-ciphers")->read();
@@ -540,7 +542,6 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 	mPreferredRouteV4 = NULL;
 	mPreferredRouteV6 = NULL;
 	mDrm = new DomainRegistrationManager(this);
-	setupInternalTransport();
 }
 
 Agent::~Agent() {
