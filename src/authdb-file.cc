@@ -93,6 +93,24 @@ void FileAuthDb::getPasswordFromBackend(const std::string &id, const std::string
 	if (listener) listener->onResult(res, passwd);
 }
 
+/*
+ * The following ABNF grammar should describe the syntax of the password file:
+token =  1*(alphanum / "-" / "." / "!" / "%" / "*" / "_" / "+" / "`" / "'" / "~" )
+user-id = token
+phone = token
+user = token
+domain = token
+algo = "clrtxt" / "md5" / "sha256"
+identity = user "@" domain
+auth-line = identity 1*WSP 1*(algo ":" token) 1*WSP ";" 1*WSP [user-id] 1*WSP [phone]
+ctext    =  %x21-27 / %x2A-5B / %x5D-7E / UTF8-NONASCII
+                  / LWS
+comment = "#" *ctext LF
+void = *WSP LF
+password-file = "version:0" LF *(comment | void | auth-line)
+
+*/
+
 void FileAuthDb::sync() {
 	LOGD("Syncing password file");
 	GenericStruct *cr = GenericManager::get()->getRoot();
