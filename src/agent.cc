@@ -169,23 +169,10 @@ void Agent::checkAllowedParams(const url_t *uri) {
 	}
 }
 
-void Agent::setupInternalTransport() {
-	//Adding internal transport to transport in "cluster", "conference" and "presence" case
+void Agent::initializePreferredRoute() {
+	//Adding internal transport to transport in "cluster" case
 	GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
-#ifdef ENABLE_CONFERENCE
-	GenericStruct *conference = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
-#endif
-#ifdef ENABLE_PRESENCE
-	GenericStruct *presence = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
-#endif
-	if (cluster->get<ConfigBoolean>("enabled")->read()
-#ifdef ENABLE_CONFERENCE
-		|| conference->get<ConfigBoolean>("enabled")->read()
-#endif
-#ifdef ENABLE_PRESENCE
-		|| presence->get<ConfigBoolean>("enabled")->read()
-#endif
-	) {
+	if (cluster->get<ConfigBoolean>("enabled")->read()) {
 		int err = 0;
 		string internalTransport = cluster->get<ConfigString>("internal-transport")->read();
 
@@ -232,8 +219,6 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		LOGA("Could not get current file path");
 	}
 	string currDir = cCurrDir;
-
-	setupInternalTransport();
 
 	GenericStruct *global = GenericManager::get()->getRoot()->get<GenericStruct>("global");
 	list<string> transports = global->get<ConfigStringList>("transports")->read();
@@ -568,6 +553,8 @@ const char *Agent::getServerString() const {
 }
 
 std::string Agent::getPreferredRoute() const {
+	if (!mPreferredRouteV4)
+		return string();
 	char prefUrl[266];
 	url_e(prefUrl, sizeof(prefUrl), mPreferredRouteV4);
 	return string(prefUrl);
@@ -598,6 +585,8 @@ void Agent::loadConfig(GenericManager *cm, bool startModules) {
 	}
 
 	RegistrarDb::initialize(this);
+
+	   initializePreferredRoute();
 
 	if (startModules) {
 		list<Module *>::iterator it;
