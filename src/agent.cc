@@ -199,6 +199,18 @@ void Agent::initializePreferredRoute() {
 	}
 }
 
+void Agent::loadModules() {
+	list<Module *>::iterator it;
+	for (it = mModules.begin(); it != mModules.end(); ++it) {
+		// Check in all cases, even if not enabled,
+		// to allow safe dynamic activation of the module
+		(*it)->checkConfig();
+		(*it)->load();
+	}
+	if (mDrm) mDrm->load(mPassphrase);
+	mPassphrase = "";
+}
+
 bool getUriParameter(const url_t *url, const char *param, string &value){
 	return ModuleToolbox::getUriParameter(url, param, value);
 }
@@ -460,6 +472,8 @@ void Agent::start(const std::string &transport_override, const std::string passp
 	LOGD("Agent's _default_ RTP bind ip address: v4:%s v6:%s", mRtpBindIp.c_str(), mRtpBindIp6.c_str());
 
 	startLogWriter();
+
+	loadModules();
 }
 
 Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
@@ -572,7 +586,7 @@ bool Agent::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 	return mBaseConfigListener->onConfigStateChanged(conf, state);
 }
 
-void Agent::loadConfig(GenericManager *cm, bool startModules) {
+void Agent::loadConfig(GenericManager *cm) {
 	cm->loadStrict(); // now that each module has declared its settings, we need to reload from the config file
 	if (!mBaseConfigListener) {
 		mBaseConfigListener = cm->getGlobal()->getConfigListener();
@@ -586,19 +600,7 @@ void Agent::loadConfig(GenericManager *cm, bool startModules) {
 
 	RegistrarDb::initialize(this);
 
-	   initializePreferredRoute();
-
-	if (startModules) {
-		list<Module *>::iterator it;
-		for (it = mModules.begin(); it != mModules.end(); ++it) {
-			// Check in all cases, even if not enabled,
-			// to allow safe dynamic activation of the module
-			(*it)->checkConfig();
-			(*it)->load();
-		}
-		if (mDrm) mDrm->load(mPassphrase);
-		mPassphrase = "";
-	}
+	initializePreferredRoute();
 }
 
 void Agent::unloadConfig() {

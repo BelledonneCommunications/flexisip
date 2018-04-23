@@ -895,7 +895,8 @@ int main(int argc, char *argv[]) {
 	//we create an Agent in all cases, because it will declare config items that are necessary for presence server to run.
 	a = make_shared<Agent>(root);
 	setOpenSSLThreadSafe();
-	
+	a->loadConfig(cfg);
+
 	if (startProxy){
 		a->start(transportsArg.getValue(), passphrase);
 	#ifdef ENABLE_SNMP
@@ -907,8 +908,6 @@ int main(int argc, char *argv[]) {
 
 		if (!oset.empty())
 			cfg->applyOverrides(true); // using default + overrides
-
-		a->loadConfig(cfg);
 
 		// Create cached test accounts for the Flexisip monitor if necessary
 		if (monitorEnabled) {
@@ -936,7 +935,6 @@ int main(int argc, char *argv[]) {
 	}
 	if (startPresence){
 #ifdef ENABLE_PRESENCE
-		if (!startProxy) cfg->loadStrict();
 		bool enableLongTermPresence = (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
 		presenceServer = make_shared<flexisip::PresenceServer>(startProxy);
 		if (enableLongTermPresence) {
@@ -962,9 +960,6 @@ int main(int argc, char *argv[]) {
 
 	if (startConference){
 #ifdef ENABLE_CONFERENCE
-		if (!startProxy) {
-			a->loadConfig(cfg, false);
-		}
 		flexisip::ConferenceServer::bindConference(a->getPreferredRoute());
 		conferenceServer = make_shared<flexisip::ConferenceServer>(startProxy, a->getPreferredRoute(), root);
 		if (daemonMode) {
