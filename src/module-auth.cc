@@ -629,7 +629,7 @@ public:
 
 		tport_get_params(inTport.get(), TPTAG_TLS_VERIFY_POLICY_REF(policy), NULL);
 		// Check TLS certificate
-		if ((policy & TPTLS_VERIFY_INCOMING)){
+		if ((policy & TPTLS_VERIFY_INCOMING) && tport_is_server(inTport.get())){
 			/* tls client certificate is required for this transport*/
 			if (tport_is_verified(inTport.get())) {
 				/*the certificate looks good, now match subjects*/
