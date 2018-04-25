@@ -174,6 +174,10 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 		return mFallbackRoute;
 	}
 
+	bool isDomainRegistrationAllowed() const {
+		return mAllowDomainRegistrations;
+	}
+
   private:
 	bool isManagedDomain(const url_t *url) {
 		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
@@ -911,14 +915,23 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 	void onRecordFound(Record *r) {
 		string fallbackRoute = mModule->getFallbackRoute();
 
+		bool ownRecord = false;
+		if (r == NULL) {
+			r = new Record(mSipUri);
+			ownRecord = true;
+		}
+
 		if (!fallbackRoute.empty()) {
 			shared_ptr<ExtendedContact> contact = make_shared<ExtendedContact>(mSipUri, fallbackRoute, 0.0);
 			r->pushContact(contact);
-
 			SLOGD << "Record [" << r << "] Fallback route '" << fallbackRoute << "' added: " << *contact;
 		}
 
 		mModule->routeRequest(mEv, r, mSipUri);
+
+		if (ownRecord) {
+			delete r;
+		}
 	}
 	void onError() {
 		mModule->sendReply(mEv, SIP_500_INTERNAL_SERVER_ERROR);
