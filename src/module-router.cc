@@ -98,6 +98,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 			{String, "preroute", "Rewrite username with given value.", ""},
 			{Boolean, "resolve-routes", "Whether or not to resolve all routes and forward the event to it if it's not us", "false"},
 			{String, "fallback-route", "Default route to apply when the recipient is unreachable. [sip:host:port]", ""},
+			{Boolean, "parent-domain-fallback", "Whether or not to fallback to the parent domain if there is no fallback route set and the recipient is unreachable", "false"},
 			config_item_end};
 		mc->addChildrenValues(configs);
 
@@ -158,6 +159,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 		mAllowTargetFactorization = mc->get<ConfigBoolean>("allow-target-factorization")->read();
 		mResolveRoutes = mc->get<ConfigBoolean>("resolve-routes")->read();
 		mFallbackRoute = mc->get<ConfigString>("fallback-route")->read();
+		mFallbackParentDomain = mc->get<ConfigBoolean>("parent-domain-fallback")->read();
 	}
 
 	virtual void onUnload() {
@@ -172,6 +174,10 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 
 	string getFallbackRoute() const {
 		return mFallbackRoute;
+	}
+
+	bool isFallbackToParentDomainEnabled() const {
+		return mFallbackParentDomain;
 	}
 
 	bool isDomainRegistrationAllowed() const {
@@ -222,6 +228,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	string mPreroute;
 	bool mResolveRoutes;
 	string mFallbackRoute;
+	bool mFallbackParentDomain;
 };
 
 void ModuleRouter::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code,
@@ -905,7 +912,7 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
   public:
 	OnFetchForRoutingListener(ModuleRouter *module, shared_ptr<RequestSipEvent> ev, const url_t *sipuri)
 		: mModule(module), mEv(ev) {
-		ev->suspendProcessing();
+		if (!ev->isSuspended()) ev->suspendProcessing();
 		mSipUri = url_hdup(mEv->getMsgSip()->getHome(), sipuri);
 		const sip_t *sip = ev->getMsgSip()->getSip();
 		if (sip->sip_request->rq_method == sip_method_invite) {
@@ -927,7 +934,26 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 			SLOGD << "Record [" << r << "] Fallback route '" << fallbackRoute << "' added: " << *contact;
 		}
 
-		mModule->routeRequest(mEv, r, mSipUri);
+		if (r->count() == 0 && mModule->isFallbackToParentDomainEnabled()) {
+			string host = mSipUri->url_host;
+			size_t pos = host.find('.');
+			size_t end = host.length();
+			if (pos == string::npos) {
+				SLOGE << "Host URL doesn't have any subdomain: " << host;
+				mModule->routeRequest(mEv, r, mSipUri);
+				return;
+			} else {
+				host = host.substr(pos + 1, end - (pos + 1)); // Gets the host without the first subdomain
+			}
+
+			url_t *url = url_format(mEv->getHome(), "sip:%s@%s", mSipUri->url_user, host.c_str());
+			SLOGD << "Record [" << r << "] empty, trying to route to parent domain: '" << url_as_string(mEv->getHome(), url);
+
+			auto onRoutingListener = make_shared<OnFetchForRoutingListener>(mModule, mEv, mSipUri);
+			RegistrarDb::get()->fetch(url, onRoutingListener, mModule->isDomainRegistrationAllowed(), true);
+		} else {
+			mModule->routeRequest(mEv, r, mSipUri);
+		}
 
 		if (ownRecord) {
 			delete r;
