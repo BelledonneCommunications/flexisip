@@ -29,6 +29,7 @@
 #include "utils/signaling-exception.hh"
 
 #include <algorithm>
+
 using namespace std;
 
 ModuleInfoBase::~ModuleInfoBase() {
@@ -340,15 +341,25 @@ bool ModuleToolbox::fromMatch(const sip_from_t *from1, const sip_from_t *from2) 
 	return false;
 }
 
-bool ModuleToolbox::matchesOneOf(const char *item, const list<string> &set) {
+bool ModuleToolbox::matchesOneOf(const string item, const list<string> &set) {
 	list<string>::const_iterator it;
 	for (it = set.begin(); it != set.end(); ++it) {
-		const char *tmp = (*it).c_str();
+		string value = (*it);
+		const char *tmp = value.c_str();
 		if (tmp[0] == '*') {
 			/*the wildcard matches everything*/
 			return true;
 		} else {
-			if (strcmp(item, tmp) == 0)
+			size_t wildcardPosition = value.find("*");
+			// if domain has a wildcard in it, try to match
+			if (wildcardPosition != string::npos) {
+				size_t beforeWildcard = item.find(value.substr(0, wildcardPosition));
+				size_t afterWildcard = item.find(value.substr(wildcardPosition + 1));
+				if (beforeWildcard != string::npos && afterWildcard != string::npos) {
+					return true;
+				}
+			}
+			if (strcmp(item.c_str(), tmp) == 0)
 				return true;
 		}
 	}

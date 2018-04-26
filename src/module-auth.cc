@@ -538,10 +538,24 @@ public:
 		AuthDbBackend::get();//force instanciation of the AuthDbBackend NOW, to force errors to arrive now if any.
 	}
 
-	auth_mod_t *findAuthModule(const char *name) {
+	auth_mod_t *findAuthModule(const string name) {
 		auto it = mAuthModules.find(name);
 		if (it == mAuthModules.end())
 			it = mAuthModules.find("*");
+		if (it == mAuthModules.end()) {
+			for (auto it2 = mAuthModules.begin(); it2 != mAuthModules.end(); ++it2) {
+				string domainName = it2->first;
+				size_t wildcardPosition = domainName.find("*");
+				// if domain has a wildcard in it, try to match
+				if (wildcardPosition != string::npos) {
+					size_t beforeWildcard = name.find(domainName.substr(0, wildcardPosition));
+					size_t afterWildcard = name.find(domainName.substr(wildcardPosition + 1));
+					if (beforeWildcard != string::npos && afterWildcard != string::npos) {
+						return it2->second;
+					}
+				}
+			}
+		}
 		if (it == mAuthModules.end()) {
 			return NULL;
 		}
@@ -560,10 +574,6 @@ public:
 			                       AUTHTAG_NEXT_EXPIRES(nonceExpires), // in seconds
 			                       AUTHTAG_FORBIDDEN(1), AUTHTAG_ALLOW("ACK CANCEL BYE"), TAG_END());
 		}
-	}
-
-	static bool containsDomain(const list<string> &d, const char *name) {
-		return find(d.cbegin(), d.cend(), "*") != d.end() || find(d.cbegin(), d.cend(), name) != d.end();
 	}
 	
 	bool handleTestAccountCreationRequests(shared_ptr<RequestSipEvent> &ev) {
