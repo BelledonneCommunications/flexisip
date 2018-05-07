@@ -230,7 +230,7 @@ endif()
 
 if(ENABLE_SOCI)
 	find_package(Soci REQUIRED COMPONENTS mysql)
-	find_path(SOCI_MYSQL_INCLUDES NAMES mysql.h PATH_SUFFIXES mysql HINTS /usr/include/mariadb )
+	find_path(SOCI_MYSQL_INCLUDES NAMES mysql.h PATH_SUFFIXES mysql HINTS /usr/include/mariadb /usr/local/include)
 endif()
 
 

@@ -189,7 +189,7 @@ class RelaySession : public std::enable_shared_from_this<RelaySession> {
 
 class MediaFilter {
   public:
-	virtual ~MediaFilter() = default;
+	virtual ~MediaFilter() {};
 
 	/// Should return false if the incoming packet must not be transfered.
 	virtual bool onIncomingTransfer(uint8_t *data, size_t size, const sockaddr *addr, socklen_t addrlen) = 0;
