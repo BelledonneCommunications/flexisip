@@ -338,8 +338,7 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		const tp_name_t *name;
 		char url[512];
 		name = tport_name(tport);
-		snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port, name->tpn_proto,
-				 name->tpn_host);
+		snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port, name->tpn_proto, name->tpn_host);
 		su_md5_strupdate(&ctx, url);
 		LOGD("\t%s", url);
 		bool isIpv6 = strchr(name->tpn_host, ':') != NULL;
@@ -401,6 +400,9 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		mRtpBindIp6 = "::0";
 
 	mPublicResolvedIpV4 = computeResolvedPublicIp(mPublicIpV4, AF_INET);
+	if (mPublicResolvedIpV4.empty()) {
+		mPublicResolvedIpV4 = mRtpBindIp;
+	}
 
 	if (!mPublicIpV6.empty()){
 		mPublicResolvedIpV6 = computeResolvedPublicIp(mPublicIpV6, AF_INET6);
@@ -410,6 +412,9 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		if (!mPublicResolvedIpV6.empty()){
 			mPublicIpV6 = mPublicIpV4;
 		}
+	}
+	if (mPublicResolvedIpV6.empty()) {
+		mPublicResolvedIpV6 = mRtpBindIp6;
 	}
 
 	// Generate the unique ID if it has not been specified in Flexisip's settings
@@ -609,7 +614,7 @@ std::string Agent::computeResolvedPublicIp(const std::string &host, int family) 
 	} else {
 		LOGE("getaddrinfo error: %s for host [%s]", gai_strerror(err), host.c_str());
 	}
-	return dest;
+	return "";
 }
 
 std::pair<std::string, std::string> Agent::getPreferredIp(const std::string &destination) const {
