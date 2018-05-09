@@ -234,14 +234,17 @@ static bool checkJwt(json_t *jwt) {
 // Plugin.
 // =============================================================================
 
-class JweAuth : public Plugin {
+class JweAuth : public Module {
 public:
-	JweAuth ();
+	JweAuth (Agent *agent);
 	~JweAuth ();
+
+private:
+	void onRequest(shared_ptr<RequestSipEvent> &ev) override;
+	void onResponse(shared_ptr<ResponseSipEvent> &ev) override;
 
 	bool isValid(const string &jwe);
 
-private:
 	list<json_t *> mJwks;
 };
 
@@ -249,7 +252,7 @@ FLEXISIP_DECLARE_PLUGIN(JweAuth, JweAuthPluginName, JweAuthPluginVersion);
 
 // -----------------------------------------------------------------------------
 
-JweAuth::JweAuth() {
+JweAuth::JweAuth(Agent *agent) : Module(agent) {
 	for (const string &file : listFiles(JwksPath, "jwk")) {
 		bool error;
 		const vector<char> buf(readFile(JwksPath + "/" + file, &error));

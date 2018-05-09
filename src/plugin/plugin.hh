@@ -20,6 +20,7 @@
 #define plugin_hh
 
 #include "flexisip_gitversion.h"
+#include "module.hh"
 
 // =============================================================================
 
@@ -33,13 +34,6 @@
 	#define FLEXISIP_PLUGIN_EXPORT
 #endif // ifdef WIN32
 
-class Plugin {
-public:
-	virtual ~Plugin() = 0;
-};
-
-Plugin::~Plugin () {}
-
 struct PluginInfo {
 	const char *className;
 	const char *name;
@@ -48,10 +42,10 @@ struct PluginInfo {
 };
 
 #define FLEXISIP_DECLARE_PLUGIN(CLASS, NAME, VERSION) \
-	static_assert(std::is_base_of<Plugin, CLASS>::value, "Flexisip plugin must be derived from Plugin class."); \
+	static_assert(std::is_base_of<Module, CLASS>::value, "Flexisip plugin must be derived from Module class."); \
 	extern "C" { \
-		FLEXISIP_PLUGIN_EXPORT CLASS *flexisipCreatePlugin() { \
-			return new CLASS(); \
+		FLEXISIP_PLUGIN_EXPORT CLASS *flexisipCreatePlugin(Agent *agent) { \
+			return new CLASS(agent); \
 		} \
 		FLEXISIP_PLUGIN_EXPORT const PluginInfo flexisipPluginInfo = { \
 			#CLASS, \
