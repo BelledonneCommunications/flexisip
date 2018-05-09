@@ -19,10 +19,11 @@
 #ifndef plugin_loader_hh
 #define plugin_loader_hh
 
-#include "plugin.hh"
+#include <string>
 
 // =============================================================================
 
+class Plugin;
 class PluginLoaderPrivate;
 
 class PluginLoader {
@@ -34,6 +35,7 @@ public:
 	const std::string &getFilename() const;
 	void setFilename();
 
+	bool isLoaded() const;
 	bool load();
 	bool unload();
 

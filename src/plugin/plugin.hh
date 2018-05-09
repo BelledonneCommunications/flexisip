@@ -19,17 +19,46 @@
 #ifndef plugin_hh
 #define plugin_hh
 
-#include "module.hh"
+#include "flexisip_gitversion.h"
 
 // =============================================================================
+
+#ifndef FLEXISIP_GIT_VERSION
+	#define FLEXISIP_GIT_VERSION "undefined"
+#endif // ifndef FLEXISIP_GIT_VERSION
+
+#ifdef WIN32
+	#define FLEXISIP_PLUGIN_EXPORT __declspec(dllexport)
+#else
+	#define FLEXISIP_PLUGIN_EXPORT
+#endif // ifdef WIN32
 
 class Plugin {
 public:
 	virtual ~Plugin() = 0;
 };
 
-class PluginInfo {
+Plugin::~Plugin () {}
 
+struct PluginInfo {
+	const char *className;
+	const char *name;
+	int version;
+	const char *apiVersion;
 };
+
+#define FLEXISIP_DECLARE_PLUGIN(CLASS, NAME, VERSION) \
+	static_assert(std::is_base_of<Plugin, CLASS>::value, "Flexisip plugin must be derived from Plugin class."); \
+	extern "C" { \
+		FLEXISIP_PLUGIN_EXPORT CLASS *flexisipCreatePlugin() { \
+			return new CLASS(); \
+		} \
+		FLEXISIP_PLUGIN_EXPORT const PluginInfo flexisipPluginInfo = { \
+			#CLASS, \
+			NAME, \
+			VERSION, \
+			FLEXISIP_GIT_VERSION \
+		}; \
+	}
 
 #endif // plugin_hh

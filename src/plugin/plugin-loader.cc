@@ -47,6 +47,10 @@ void PluginLoader::setFilename() {
 
 }
 
+bool PluginLoader::isLoaded() const {
+	return true;
+}
+
 bool PluginLoader::load() {
 	return true;
 }

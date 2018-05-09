@@ -29,13 +29,19 @@ extern "C" {
 	#include <jose/jose.h>
 }
 
+#include "module.hh"
 #include "plugin.hh"
+
+// =============================================================================
 
 using namespace std;
 
-// TODO: Remove me.
 namespace {
-	static const string JwksPath = "/home/rabhamon/jwks/";
+	constexpr int JweAuthPluginVersion = 1;
+	constexpr char JweAuthPluginName[] = "JWE Authentification plugin";
+
+	// TODO: Remove me.
+	const string JwksPath = "/home/rabhamon/jwks/";
 }
 
 // =============================================================================
@@ -228,7 +234,7 @@ static bool checkJwt(json_t *jwt) {
 // Plugin.
 // =============================================================================
 
-class JweAuth {
+class JweAuth : public Plugin {
 public:
 	JweAuth ();
 	~JweAuth ();
@@ -238,6 +244,10 @@ public:
 private:
 	list<json_t *> mJwks;
 };
+
+FLEXISIP_DECLARE_PLUGIN(JweAuth, JweAuthPluginName, JweAuthPluginVersion);
+
+// -----------------------------------------------------------------------------
 
 JweAuth::JweAuth() {
 	for (const string &file : listFiles(JwksPath, "jwk")) {
@@ -259,17 +269,9 @@ JweAuth::~JweAuth() {
 bool JweAuth::isValid(const string &text) {
 	for (const json_t *jwk : mJwks) {
 		json_auto_t *jwt = decryptJwe(text.c_str(), jwk);
-		if (jwt) {
-			cout << json_dumps(jwt, 0) << endl;
+		if (jwt)
 			return checkJwt(jwt);
-		}
 	}
 
 	return false;
-}
-
-// -----------------------------------------------------------------------------
-
-int main(int argc, char *argv[]) {
-	return argc > 1 && JweAuth().isValid(argv[1]);
 }
