@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2014  Belledonne Communications, Grenoble France
+# Copyright (C) 2014-2018  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -20,7 +20,7 @@
 #
 ############################################################################
 
-set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIASIPUA_LIBRARIES} ${BCTOOLBOX_CORE_LIBRARIES} ) 
+set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIASIPUA_LIBRARIES} ${BCTOOLBOX_CORE_LIBRARIES})
 
 set(FLEXISIP_INCLUDES )
 
@@ -101,8 +101,8 @@ function(ADD_XSD_WRAPPERS file _comment)
 
 	add_custom_command(OUTPUT ${destinations}
 		COMMAND "${XSDCXX_PROG}" "cxx-tree" "--generate-wildcard"
-  			"--generate-serialization" "--generate-ostream"
-  			"--generate-detach" "--std" "c++11" "--type-naming" "java"
+			"--generate-serialization" "--generate-ostream"
+			"--generate-detach" "--std" "c++11" "--type-naming" "java"
 			"--function-naming" "java"  "--location-regex-trace" "--show-sloc"
 			"--location-regex" "\"${regex}\""
 			"--output-dir" "${CMAKE_CURRENT_BINARY_DIR}/xml" "${source}"
@@ -166,8 +166,8 @@ if(ENABLE_PROTOBUF)
 	set(PROTOBUF_GENERATED_FILES ${CMAKE_CURRENT_BINARY_DIR}/recordserializer-protobuf.pb.cc ${CMAKE_CURRENT_BINARY_DIR}/recordserializer-protobuf.pb.h)
 	set(PROTOBUF_PROTO ${CMAKE_CURRENT_LIST_DIR}/recordserializer-protobuf.proto)
 	add_custom_command(OUTPUT ${PROTOBUF_GENERATED_FILES}
-	  COMMAND "${PROTOBUF_PROTOC_EXECUTABLE}" "--proto_path=${CMAKE_CURRENT_SOURCE_DIR}" "--cpp_out=${CMAKE_CURRENT_BINARY_DIR}" "${PROTOBUF_PROTO}"
-	  COMMENT "Generate protobuf wrappers")
+		COMMAND "${PROTOBUF_PROTOC_EXECUTABLE}" "--proto_path=${CMAKE_CURRENT_SOURCE_DIR}" "--cpp_out=${CMAKE_CURRENT_BINARY_DIR}" "${PROTOBUF_PROTO}"
+		COMMENT "Generate protobuf wrappers")
 	set_source_files_properties(${PROTOBUF_GENERATED_FILES} PROPERTIES GENERATED ON)
 
 	list(APPEND FLEXISIP_SOURCES recordserializer-protobuf.cc ${PROTOBUF_GENERATED_FILES})
@@ -260,7 +260,7 @@ install(TARGETS flexisip flexisip_server
 # expression parser tester
 if(MEDIASTREAMER2_FOUND)
 	add_executable(expr test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh utils/flexisip-exception.hh)
-    target_link_libraries(expr ${BCTOOLBOX_CORE_LIBRARIES} ${ORTP_LIBRARIES} ${MEDIASTREAMER2_LIBRARIES})
+	target_link_libraries(expr ${BCTOOLBOX_CORE_LIBRARIES} ${ORTP_LIBRARIES} ${MEDIASTREAMER2_LIBRARIES})
 	set_property(TARGET expr PROPERTY CXX_STANDARD 11)
 	set_property(TARGET expr PROPERTY CXX_STANDARD_REQUIRED ON)
 	target_compile_options(expr PUBLIC -DTEST_BOOL_EXPR -DNO_SOFIA)
@@ -291,5 +291,3 @@ install(TARGETS flexisip_serializer
 	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
-
-
