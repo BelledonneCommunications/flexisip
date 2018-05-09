@@ -119,6 +119,7 @@ void ConferenceServer::_init() {
 	// Core
 	shared_ptr<linphone::Config> configLinphone = linphone::Factory::get()->createConfig("");
 	configLinphone->setBool("misc", "conference_server_enabled", 1);
+	configLinphone->setBool("misc", "enable_one_to_one_chat_room", config->get<ConfigBoolean>("enable-one-to-one-chat-room")->read());
 	configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
 	configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
 	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
@@ -370,6 +371,7 @@ ConferenceServer::Init::Init() {
 		{String, "conference-factory-uri",
 			"uri where the client must ask to create a conference.",
 			"sip:conference-factory@sip1.linphone.org"},
+		{Boolean, "enable-one-to-one-chat-room", "Whether one-to-one chat room creation is allowed or not", "true"},
 		{String, "outbound-proxy",
 			"",
 			"sip:127.0.0.1:5060;transport=tcp"},
