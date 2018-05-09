@@ -30,9 +30,9 @@ set(FLEXISIP_SOURCES
 	agent.cc
 	authdb-file.cc
 	authdb.cc
-	cJSON.c
 	callcontext-mediarelay.cc
 	callstore.cc
+	cJSON.c
 	common.cc
 	configdumper.cc
 	configmanager.cc
@@ -68,6 +68,9 @@ set(FLEXISIP_SOURCES
 	module-transcode.cc
 	module.cc
 	monitor.cc
+	plugin/plugin-loader.cc
+	plugin/plugin-loader.hh
+	plugin/plugin.hh
 	recordserializer-c.cc
 	recordserializer-json.cc
 	registrardb-internal.cc
@@ -76,8 +79,8 @@ set(FLEXISIP_SOURCES
 	sipattrextractor.cc
 	stats.cc
 	stun.cc
-	stun/stun.c
 	stun/stun_udp.c
+	stun/stun.c
 	telephone-event-filter.cc
 	transaction.cc
 	uac-register.cc

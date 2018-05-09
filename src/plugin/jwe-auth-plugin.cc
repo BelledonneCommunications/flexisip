@@ -29,6 +29,8 @@ extern "C" {
 	#include <jose/jose.h>
 }
 
+#include "plugin.hh"
+
 using namespace std;
 
 // TODO: Remove me.
@@ -41,7 +43,7 @@ namespace {
 // =============================================================================
 
 template<typename... T>
-static constexpr auto makeArray (T &&...values) -> array<
+static constexpr auto makeArray(T &&...values) -> array<
 	typename decay<typename common_type<T...>::type>::type,
 	sizeof...(T)
 > {
@@ -51,13 +53,13 @@ static constexpr auto makeArray (T &&...values) -> array<
 	>{ forward<T>(values)... };
 }
 
-static bool endsWith (const string &str, const string &suffix) {
+static bool endsWith(const string &str, const string &suffix) {
 	const string::size_type strSize = str.size();
 	const string::size_type suffixSize = suffix.size();
 	return strSize >= suffixSize && str.compare(strSize - suffixSize, suffixSize, suffix) == 0;
 }
 
-static vector<char> readFile (const string &path, bool *error = nullptr) {
+static vector<char> readFile(const string &path, bool *error = nullptr) {
 	vector<char> buf;
 
 	fstream stream(path, ios_base::in);
@@ -85,7 +87,7 @@ static vector<char> readFile (const string &path, bool *error = nullptr) {
 	return buf;
 }
 
-static list<string> listFiles (const string &path, const string &suffix) {
+static list<string> listFiles(const string &path, const string &suffix) {
 	list<string> files;
 	dirent *dirent;
 
@@ -123,7 +125,7 @@ static list<string> listFiles (const string &path, const string &suffix) {
 // jwk => JSON Web Key
 // jwt => JSON Web Token
 
-static json_t *convertToJson (const char *text, size_t len) {
+static json_t *convertToJson(const char *text, size_t len) {
 	json_error_t error;
 	json_t *root = json_loadb(text, len, 0, &error);
 	if (root)
@@ -133,14 +135,14 @@ static json_t *convertToJson (const char *text, size_t len) {
 	return nullptr;
 }
 
-static bool isB64 (const char *text, size_t len) {
+static bool isB64(const char *text, size_t len) {
 	for (size_t i = 0; i < len; ++i)
 		if (text[i] && !strchr(JOSE_B64_MAP, text[i]))
 			return false;
 	return true;
 }
 
-static json_t *parseJwe (const char *text) {
+static json_t *parseJwe(const char *text) {
 	const auto parts = makeArray("protected", "encrypted_key", "iv", "ciphertext", "tag");
 	const size_t nParts = parts.size();
 
@@ -172,7 +174,7 @@ error:
 	return nullptr;
 }
 
-static json_t *decryptJwe (const char *text, const json_t *jwk) {
+static json_t *decryptJwe(const char *text, const json_t *jwk) {
 	json_auto_t *jwe = parseJwe(text);
 	if (!jwe)
 		return nullptr;
@@ -198,11 +200,11 @@ struct JwtAttrChecker {
 	bool (*predicate)(const char *value);
 };
 
-bool check (const char *value) {
+bool check(const char *value) {
 	return false;
 };
 
-static bool checkJwt (json_t *jwt) {
+static bool checkJwt(json_t *jwt) {
 	const auto attrs = makeArray<JwtAttrChecker>(
 		JwtAttrChecker{ "oid", check },
 		JwtAttrChecker{ "aud", check },
@@ -231,13 +233,13 @@ public:
 	JweAuth ();
 	~JweAuth ();
 
-	bool isValid (const string &jwe);
+	bool isValid(const string &jwe);
 
 private:
 	list<json_t *> mJwks;
 };
 
-JweAuth::JweAuth () {
+JweAuth::JweAuth() {
 	for (const string &file : listFiles(JwksPath, "jwk")) {
 		bool error;
 		const vector<char> buf(readFile(JwksPath + "/" + file, &error));
@@ -249,12 +251,12 @@ JweAuth::JweAuth () {
 	}
 }
 
-JweAuth::~JweAuth () {
+JweAuth::~JweAuth() {
 	for (json_t *jwk : mJwks)
 		json_decref(jwk);
 }
 
-bool JweAuth::isValid (const string &text) {
+bool JweAuth::isValid(const string &text) {
 	for (const json_t *jwk : mJwks) {
 		json_auto_t *jwt = decryptJwe(text.c_str(), jwk);
 		if (jwt) {
@@ -268,6 +270,6 @@ bool JweAuth::isValid (const string &text) {
 
 // -----------------------------------------------------------------------------
 
-int main (int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
 	return argc > 1 && JweAuth().isValid(argv[1]);
 }
