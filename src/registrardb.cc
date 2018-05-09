@@ -242,8 +242,10 @@ time_t Record::latestExpire() const {
 	return latest;
 }
 
-time_t Record::latestExpire(const std::string &route) const {
+time_t Record::latestExpire(Agent *ag) const {
 	time_t latest = 0;
+	SofiaAutoHome home;
+
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		if ((*it)->mPath.empty() || (*it)->mExpireAt <= latest)
 			continue;
@@ -253,8 +255,9 @@ time_t Record::latestExpire(const std::string &route) const {
 		string::size_type n = s.find(";");
 		if (n != string::npos)
 			s = s.substr(0, n);
+		url_t *url = url_make(home.home(), s.c_str());
 
-		if (s == route)
+		if (ag->isUs(url))
 			latest = (*it)->mExpireAt;
 	}
 	return latest;
@@ -684,12 +687,12 @@ void Record::appendContactsFrom(Record *src) {
 	}
 }
 
-RegistrarDb::LocalRegExpire::LocalRegExpire(string preferredRoute) {
-	mPreferedRoute = preferredRoute;
+RegistrarDb::LocalRegExpire::LocalRegExpire(Agent *ag) : mAgent(ag) {
+	
 }
 
-RegistrarDb::RegistrarDb(const string &preferredRoute)
-	: mLocalRegExpire(new LocalRegExpire(preferredRoute)), mUseGlobalDomain(false) {
+RegistrarDb::RegistrarDb(Agent *ag)
+	: mLocalRegExpire(new LocalRegExpire(ag)), mUseGlobalDomain(false), mAgent(ag) {
 }
 
 RegistrarDb::~RegistrarDb() {
@@ -720,7 +723,7 @@ void RegistrarDb::notifyContactListener(const std::string &key, const std::strin
 
 void RegistrarDb::LocalRegExpire::update(const Record &record) {
 	unique_lock<mutex> lock(mMutex);
-	time_t latest = record.latestExpire(mPreferedRoute);
+	time_t latest = record.latestExpire(mAgent);
 	if (latest > 0) {
 		auto it = mRegMap.find(record.getKey());
 		if (it != mRegMap.end()) {
@@ -816,7 +819,7 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 	string mMessageExpiresName = mr->get<ConfigString>("name-message-expires")->read();
 	if ("internal" == dbImplementation) {
 		LOGI("RegistrarDB implementation is internal");
-		sUnique = new RegistrarDbInternal(ag->getPreferredRoute());
+		sUnique = new RegistrarDbInternal(ag);
 		sUnique->mUseGlobalDomain = useGlobalDomain;
 	}
 #ifdef ENABLE_REDIS

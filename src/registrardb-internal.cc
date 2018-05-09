@@ -29,7 +29,7 @@
 
 using namespace std;
 
-RegistrarDbInternal::RegistrarDbInternal(const string &preferredRoute) : RegistrarDb(preferredRoute) {
+RegistrarDbInternal::RegistrarDbInternal(Agent *ag) : RegistrarDb(ag) {
 }
 
 void RegistrarDbInternal::doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,

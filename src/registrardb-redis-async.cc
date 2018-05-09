@@ -48,7 +48,7 @@ RegistrarUserData::~RegistrarUserData() {
  */
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag, RedisParameters params)
-	: RegistrarDb(ag->getPreferredRoute()), mAgent(ag), mContext(NULL), mSubscribeContext(NULL),
+	: RegistrarDb(ag), mContext(NULL), mSubscribeContext(NULL),
 	  mDomain(params.domain), mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(ag->getRoot()),
 	  mReplicationTimer(NULL), mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
 	mSerializer = RecordSerializer::get();
@@ -56,7 +56,7 @@ RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag, RedisParameters params)
 }
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(const string &preferredRoute, su_root_t *root, RecordSerializer *serializer, RedisParameters params)
-	: RegistrarDb(preferredRoute), mAgent(NULL), mContext(NULL), mSubscribeContext(NULL),
+	: RegistrarDb(NULL), mContext(NULL), mSubscribeContext(NULL),
 	  mDomain(params.domain), mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(root),
 	  mReplicationTimer(NULL), mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
 	mSerializer = serializer;
