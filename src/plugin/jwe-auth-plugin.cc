@@ -16,18 +16,15 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <array>
-#include <cstring>
 #include <dirent.h>
 #include <fstream>
-#include <iostream>
-#include <list>
-#include <string>
-#include <vector>
 
 extern "C" {
 	#include <jose/jose.h>
 }
+
+#include "agent.hh"
+#include "plugin.hh"
 
 // =============================================================================
 
@@ -80,12 +77,12 @@ static vector<char> readFile(const string &path, bool *error = nullptr) {
 			if (error) *error = false;
 			return buf;
 		} catch (const ios_base::failure &e) {
-			cerr << "Unable to read properly file (I/O error): `" << e.what() << "`." << endl;
+			SLOGW << "Unable to read properly file (I/O error): `" << e.what() << "`.";
 		} catch (const exception &e) {
-			cerr << "Unable to read properly file: `" << e.what() << "`." << endl;
+			SLOGW << "Unable to read properly file: `" << e.what() << "`.";
 		}
 	} else
-		cerr << "Unable to open: `" << path << "`." << endl;
+		SLOGW << "Unable to open: `" << path << "`.";
 
 	if (error) *error = true;
 	return buf;
@@ -97,7 +94,7 @@ static list<string> listFiles(const string &path, const string &suffix) {
 
 	DIR *dirp = opendir(path.c_str());
 	if (!dirp) {
-		cerr << "Unable to open directory: `" << path << "` (" << strerror(errno) << ")." << endl;
+		SLOGW << "Unable to open directory: `" << path << "` (" << strerror(errno) << ").";
 		return files;
 	}
 
@@ -106,7 +103,7 @@ static list<string> listFiles(const string &path, const string &suffix) {
 		errno = 0;
 		if (!(dirent = readdir(dirp))) {
 			if (errno)
-				cerr << "Unable to read directory: `" << path << "` (" << strerror(errno) << ")." << endl;
+				SLOGW << "Unable to read directory: `" << path << "` (" << strerror(errno) << ").";
 			break;
 		}
 
@@ -135,7 +132,7 @@ static json_t *convertToJson(const char *text, size_t len) {
 	if (root)
 		return root;
 
-	cerr << "Unable to convert to json, error line " << error.line << ": `" << error.text << "`." << endl;
+	SLOGW << "Unable to convert to json, error line " << error.line << ": `" << error.text << "`.";
 	return nullptr;
 }
 
@@ -174,7 +171,7 @@ static json_t *parseJwe(const char *text) {
 	return json_incref(jwe);
 
 error:
-	cerr << "Unable to parse JWE correctly." << endl;
+	SLOGW << "Unable to parse JWE correctly.";
 	return nullptr;
 }
 
@@ -186,7 +183,7 @@ static json_t *decryptJwe(const char *text, const json_t *jwk) {
 	size_t len = 0;
 	char *jwtText = static_cast<char *>(jose_jwe_dec(nullptr, jwe, nullptr, jwk, &len));
 	if (!jwtText) {
-		cerr << "Unable to decrypt JWE." << endl;
+		SLOGW << "Unable to decrypt JWE.";
 		return nullptr;
 	}
 
@@ -216,7 +213,7 @@ static T extractJsonValue (json_t *jwt, const char *attrName, bool *error = null
 	bool soFarSoGood = true;
 
 	if (json_unpack(jwt, format, attrName, &value) < 0) {
-		cerr << "Unable to unpack value: `" << attrName << "`." << endl;
+		SLOGW << "Unable to unpack value: `" << attrName << "`.";
 		soFarSoGood = false;
 	}
 
@@ -233,10 +230,10 @@ static T extractJsonOptionalValue (json_t *jwt, const char *attrName, const T &d
 
 	json_t *valueObject;
 	if (json_unpack(jwt, "{s?o}", attrName, &valueObject) < 0) {
-		cerr << "Unable to unpack optional object: `" << attrName << "`." << endl;
+		SLOGW << "Unable to unpack optional object: `" << attrName << "`.";
 		soFarSoGood = false;
 	} else if (valueObject && json_unpack(valueObject, format, &value) < 0) {
-		cerr << "Unable to unpack existing value: `" << attrName << "`." << endl;
+		SLOGW << "Unable to unpack existing value: `" << attrName << "`.";
 		soFarSoGood = false;
 	}
 
@@ -253,7 +250,7 @@ static bool checkJwtTime(json_t *jwt) {
 	if (error)
 		return false;
 	if (expValue != -1 && time_t(expValue) < currentTime) {
-		cerr << "JWT (exp) has expired." << endl;
+		SLOGW << "JWT (exp) has expired.";
 		return false;
 	}
 
@@ -264,12 +261,12 @@ static bool checkJwtTime(json_t *jwt) {
 	if (expInValue != -1) {
 		json_int_t iatValue = extractJsonValue<int>(jwt, "iat", &error);
 		if (error) {
-			cerr << "`exp_in` can be used only if `iat` exists." << endl;
+			SLOGW << "`exp_in` can be used only if `iat` exists.";
 			return false;
 		}
 
-		if (time_t(iatValue) + time_t(expInValue * 1000) < currentTime) {
-			cerr << "JWT (exp_in) has expired." << endl;
+		if (time_t(iatValue) + expInValue < currentTime) {
+			SLOGW << "JWT (exp_in) has expired.";
 			return false;
 		}
 	}
@@ -281,9 +278,6 @@ static bool checkJwtTime(json_t *jwt) {
 // Plugin.
 // =============================================================================
 
-#include "agent.hh"
-#include "plugin.hh"
-
 class JweAuth : public Module {
 public:
 	JweAuth (Agent *agent);
@@ -294,7 +288,7 @@ private:
 	bool checkJwt(json_t *jwt, const shared_ptr<const RequestSipEvent> &ev) const;
 
 	void onRequest(shared_ptr<RequestSipEvent> &ev) override;
-	void onResponse(shared_ptr<ResponseSipEvent> &ev) override;
+	void onResponse(shared_ptr<ResponseSipEvent> &ev) override {}
 
 	list<json_t *> mJwks;
 };
@@ -318,7 +312,7 @@ static bool checkJwtAttrFromSipHeader(
 	}
 
 	if (!soFarSoGood)
-		cerr << "`" << attrName << " value ` not equal to `" << sipHeaderName << "`" << endl;
+		SLOGW << "`" << attrName << "` value not equal to `" << sipHeaderName << "`.";
 
 	free(value);
 	return soFarSoGood;
@@ -360,7 +354,7 @@ bool JweAuth::checkJwt(json_t *jwt, const shared_ptr<const RequestSipEvent> &ev)
 	// 2. Find incoming subject.
 	const sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-ticked-oid");
 	if (!header || !header->un_value || !ev->findIncomingSubject(header->un_value)) {
-		cerr << "Unable to find oid incoming subject in message." << endl;
+		SLOGW << "Unable to find oid incoming subject in message.";
 		return false;
 	}
 
@@ -395,8 +389,4 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		SLOGW << "Rejecting request because: `" << error << "`.";
 		ev->reply(400, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	}
-}
-
-void JweAuth::onResponse(shared_ptr<ResponseSipEvent> &ev) {
-	// Nothing.
 }
