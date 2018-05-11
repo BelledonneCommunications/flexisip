@@ -285,7 +285,7 @@ public:
 
 private:
 	json_t *decryptJwe(const char *text) const;
-	bool checkJwt(json_t *jwt, const shared_ptr<const RequestSipEvent> &ev) const;
+	bool checkJwt(json_t *jwt, const shared_ptr<const SipEvent> &ev) const;
 
 	void onRequest(shared_ptr<RequestSipEvent> &ev) override;
 	void onResponse(shared_ptr<ResponseSipEvent> &ev) override {}
@@ -341,19 +341,12 @@ json_t *JweAuth::decryptJwe(const char *text) const {
 	return nullptr;
 };
 
-bool JweAuth::checkJwt(json_t *jwt, const shared_ptr<const RequestSipEvent> &ev) const {
+bool JweAuth::checkJwt(json_t *jwt, const shared_ptr<const SipEvent> &ev) const {
 	// 1. Check expiration time.
 	if (!checkJwtTime(jwt))
 		return false;
 
-	// 2. Find incoming subject.
-	const sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-ticked-oid");
-	if (!header || !header->un_value || !ev->findIncomingSubject(header->un_value)) {
-		SLOGW << "Unable to find oid incoming subject in message.";
-		return false;
-	}
-
-	// 3. Check attributes.
+	// 2. Check specific attributes.
 	static constexpr auto toCheck = {
 		pair<const char *, const char *>{ "oid", "X-ticked-oid" },
 		{ "aud", "X-ticked-aud" },
@@ -369,8 +362,11 @@ bool JweAuth::checkJwt(json_t *jwt, const shared_ptr<const RequestSipEvent> &ev)
 
 void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const char *error = nullptr;
-	const sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-ticked");
-	if (!header || !header->un_value)
+
+	const sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-ticked-oid");
+	if (!header || !header->un_value || !ev->findIncomingSubject(header->un_value))
+		error = "Unable to find oid incoming subject";
+	else if (!(header = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-ticked")) || !header->un_value)
 		error = "No JWE token";
 	else {
 		json_auto_t *jwt = decryptJwe(header->un_value);
