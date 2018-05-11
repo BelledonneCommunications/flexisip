@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2018  Belledonne Communications SARL, All rights reserved.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -281,6 +281,7 @@ static bool checkJwtTime(json_t *jwt) {
 // Plugin.
 // =============================================================================
 
+#include "agent.hh"
 #include "plugin.hh"
 
 class JweAuth : public Module {
@@ -289,7 +290,7 @@ public:
 	~JweAuth ();
 
 private:
-	json_t *decryptJwe(const string &text) const;
+	json_t *decryptJwe(const char *text) const;
 	bool checkJwt(json_t *jwt, const shared_ptr<const RequestSipEvent> &ev) const;
 
 	void onRequest(shared_ptr<RequestSipEvent> &ev) override;
@@ -342,9 +343,9 @@ JweAuth::~JweAuth() {
 		json_decref(jwk);
 }
 
-json_t *JweAuth::decryptJwe(const string &text) const {
+json_t *JweAuth::decryptJwe(const char *text) const {
 	for (const json_t *jwk : mJwks) {
-		json_auto_t *jwt = ::decryptJwe(text.c_str(), jwk);
+		json_auto_t *jwt = ::decryptJwe(text, jwk);
 		if (jwt)
 			return jwt;
 	}
@@ -378,8 +379,22 @@ bool JweAuth::checkJwt(json_t *jwt, const shared_ptr<const RequestSipEvent> &ev)
 }
 
 void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
+	const char *error = nullptr;
+	const sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-ticked");
+	if (!header || !header->un_value)
+		error = "No JWE token";
+	else {
+		json_auto_t *jwt = decryptJwe(header->un_value);
+		if (!jwt)
+			error = "Unable to decrypt JWE";
+		else if (!checkJwt(jwt, ev))
+			error = "JWT verification failed";
+	}
 
-
+	if (error) {
+		SLOGW << "Rejecting request because: `" << error << "`.";
+		ev->reply(400, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	}
 }
 
 void JweAuth::onResponse(shared_ptr<ResponseSipEvent> &ev) {
