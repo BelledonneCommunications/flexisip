@@ -68,7 +68,7 @@ static vector<char> readFile(const string &path, bool *error = nullptr) {
 		stream.exceptions(ios::failbit);
 		try {
 			stream.seekg(0, ios::end);
-			fstream::pos_type len(stream.tellg());
+			const fstream::pos_type len(stream.tellg());
 
 			stream.seekg(0, ios::beg);
 			buf.resize(len);
@@ -90,7 +90,6 @@ static vector<char> readFile(const string &path, bool *error = nullptr) {
 
 static list<string> listFiles(const string &path, const string &suffix) {
 	list<string> files;
-	dirent *dirent;
 
 	DIR *dirp = opendir(path.c_str());
 	if (!dirp) {
@@ -98,6 +97,7 @@ static list<string> listFiles(const string &path, const string &suffix) {
 		return files;
 	}
 
+	dirent *dirent;
 	const string dotSuffix = "." + suffix;
 	for (;;) {
 		errno = 0;
@@ -118,7 +118,7 @@ static list<string> listFiles(const string &path, const string &suffix) {
 }
 
 // =============================================================================
-// JWT parser.
+// JSON helpers.
 // =============================================================================
 
 // Note:
@@ -136,6 +136,51 @@ static json_t *convertToJson(const char *text, size_t len) {
 	return nullptr;
 }
 
+template<typename T>
+struct TypeToJsonFormat {};
+
+template<>
+struct TypeToJsonFormat<int> {
+	static constexpr char value = 'i';
+};
+
+template<>
+struct TypeToJsonFormat<json_int_t> {
+	static constexpr char value = 'I';
+};
+
+template<typename T>
+static T extractJsonValue(json_t *jwt, const char *attrName, bool *error = nullptr) {
+	constexpr char format[] = { '{', 's', ':', TypeToJsonFormat<T>::value, '}', '\0' };
+
+	T value{};
+	if (json_unpack(jwt, format, attrName, &value) < 0) {
+		SLOGW << "Unable to unpack value: `" << attrName << "`.";
+		if (error) *error = true;
+	} else if (error)
+		*error = false;
+
+	return value;
+}
+
+template<typename T>
+static T extractJsonOptionalValue(json_t *jwt, const char *attrName, const T &defaultValue, bool *error = nullptr) {
+	constexpr char format[] = { TypeToJsonFormat<T>::value, '\0' };
+
+	T value(defaultValue);
+	json_t *valueObject;
+	if (json_unpack(jwt, "{s?o}", attrName, &valueObject) < 0) {
+		SLOGW << "Unable to unpack optional object: `" << attrName << "`.";
+		if (error) *error = true;
+	} else if (valueObject && json_unpack(valueObject, format, &value) < 0) {
+		SLOGW << "Unable to unpack existing value: `" << attrName << "`.";
+		if (error) *error = true;
+	} else if (error)
+		*error = false;
+
+	return value;
+}
+
 static bool isB64(const char *text, size_t len) {
 	for (size_t i = 0; i < len; ++i)
 		if (text[i] && !strchr(JOSE_B64_MAP, text[i]))
@@ -143,12 +188,16 @@ static bool isB64(const char *text, size_t len) {
 	return true;
 }
 
+// =============================================================================
+// JWE/JWT parser.
+// =============================================================================
+
 static json_t *parseJwe(const char *text) {
 	const auto parts = makeArray("protected", "encrypted_key", "iv", "ciphertext", "tag");
 	const size_t nParts = parts.size();
 
 	json_auto_t *jwe = json_object();
-	for (size_t i = 0, j = 0; j < nParts; j++) {
+	for (size_t i = 0, j = 0; j < nParts; ++j) {
 		const char *separator = strchr(&text[i], '.');
 
 		size_t len;
@@ -192,55 +241,6 @@ static json_t *decryptJwe(const char *text, const json_t *jwk) {
 	return jwt;
 }
 
-template<typename T>
-struct TypeToJsonFormat {};
-
-template<>
-struct TypeToJsonFormat<int> {
-	static constexpr char value = 'i';
-};
-
-template<>
-struct TypeToJsonFormat<json_int_t> {
-	static constexpr char value = 'I';
-};
-
-template<typename T>
-static T extractJsonValue (json_t *jwt, const char *attrName, bool *error = nullptr) {
-	constexpr char format[] = { '{', 's', ':', TypeToJsonFormat<T>::value, '}', '\0' };
-
-	T value{};
-	bool soFarSoGood = true;
-
-	if (json_unpack(jwt, format, attrName, &value) < 0) {
-		SLOGW << "Unable to unpack value: `" << attrName << "`.";
-		soFarSoGood = false;
-	}
-
-	if (error) *error = soFarSoGood;
-	return value;
-}
-
-template<typename T>
-static T extractJsonOptionalValue (json_t *jwt, const char *attrName, const T &defaultValue, bool *error = nullptr) {
-	constexpr char format[] = { TypeToJsonFormat<T>::value, '\0' };
-
-	T value(defaultValue);
-	bool soFarSoGood = true;
-
-	json_t *valueObject;
-	if (json_unpack(jwt, "{s?o}", attrName, &valueObject) < 0) {
-		SLOGW << "Unable to unpack optional object: `" << attrName << "`.";
-		soFarSoGood = false;
-	} else if (valueObject && json_unpack(valueObject, format, &value) < 0) {
-		SLOGW << "Unable to unpack existing value: `" << attrName << "`.";
-		soFarSoGood = false;
-	}
-
-	if (error) *error = soFarSoGood;
-	return value;
-}
-
 static bool checkJwtTime(json_t *jwt) {
 	const time_t currentTime = time(nullptr);
 	bool error;
@@ -280,8 +280,8 @@ static bool checkJwtTime(json_t *jwt) {
 
 class JweAuth : public Module {
 public:
-	JweAuth (Agent *agent);
-	~JweAuth ();
+	JweAuth(Agent *agent);
+	~JweAuth();
 
 private:
 	json_t *decryptJwe(const char *text) const;
@@ -308,7 +308,7 @@ static bool checkJwtAttrFromSipHeader(
 	if (json_unpack(jwt, "{s:s}", attrName, &value) == 0) {
 		sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(ev->getSip(), sipHeaderName);
 		if (header && header->un_value)
-			soFarSoGood = !!strcmp(value, header->un_value);
+			soFarSoGood = !strcmp(value, header->un_value);
 	}
 
 	if (!soFarSoGood)
@@ -382,7 +382,7 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		if (!jwt)
 			error = "Unable to decrypt JWE";
 		else if (!checkJwt(jwt, ev))
-			error = "JWT verification failed";
+			error = "JWT check failed";
 	}
 
 	if (error) {
