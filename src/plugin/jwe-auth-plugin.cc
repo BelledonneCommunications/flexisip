@@ -29,9 +29,6 @@ extern "C" {
 	#include <jose/jose.h>
 }
 
-#include "module.hh"
-#include "plugin.hh"
-
 // =============================================================================
 
 using namespace std;
@@ -39,6 +36,7 @@ using namespace std;
 namespace {
 	constexpr int JweAuthPluginVersion = 1;
 	constexpr char JweAuthPluginName[] = "JWE Authentification plugin";
+	constexpr char JwkFileExtension[] = "jwk";
 
 	// TODO: Remove me.
 	const string JwksPath = "/home/rabhamon/jwks/";
@@ -186,7 +184,7 @@ static json_t *decryptJwe(const char *text, const json_t *jwk) {
 		return nullptr;
 
 	size_t len = 0;
-	char *jwtText = static_cast<char *>(jose_jwe_dec(NULL, jwe, NULL, jwk, &len));
+	char *jwtText = static_cast<char *>(jose_jwe_dec(nullptr, jwe, nullptr, jwk, &len));
 	if (!jwtText) {
 		cerr << "Unable to decrypt JWE." << endl;
 		return nullptr;
@@ -198,41 +196,11 @@ static json_t *decryptJwe(const char *text, const json_t *jwk) {
 }
 
 // =============================================================================
-// Check specific JWT attributes.
-// =============================================================================
-
-struct JwtAttrChecker {
-	const char *name;
-	bool (*predicate)(const char *value);
-};
-
-bool check(const char *value) {
-	return false;
-};
-
-static bool checkJwt(json_t *jwt) {
-	const auto attrs = makeArray<JwtAttrChecker>(
-		JwtAttrChecker{ "oid", check },
-		JwtAttrChecker{ "aud", check },
-		JwtAttrChecker{ "rnd", check },
-		JwtAttrChecker{ "iat", check },
-		JwtAttrChecker{ "exp_in", check }
-	);
-	for (auto &attr : attrs) {
-		char *value;
-		if (json_unpack(jwt, "{s:s}", attr.name, &value) < 0) {
-			attr.predicate(value);
-			free(value);
-		}
-		return false;
-	}
-
-	return false;
-}
-
-// =============================================================================
 // Plugin.
 // =============================================================================
+
+#include "module.hh"
+#include "plugin.hh"
 
 class JweAuth : public Module {
 public:
@@ -240,10 +208,11 @@ public:
 	~JweAuth ();
 
 private:
+	json_t *decryptJwe(const string &text) const;
+	bool checkJwt(json_t *jwt, const shared_ptr<const RequestSipEvent> &ev) const;
+
 	void onRequest(shared_ptr<RequestSipEvent> &ev) override;
 	void onResponse(shared_ptr<ResponseSipEvent> &ev) override;
-
-	bool isValid(const string &jwe);
 
 	list<json_t *> mJwks;
 };
@@ -252,8 +221,31 @@ FLEXISIP_DECLARE_PLUGIN(JweAuth, JweAuthPluginName, JweAuthPluginVersion);
 
 // -----------------------------------------------------------------------------
 
+static bool checkJwtAttr(
+	json_t *jwt,
+	const shared_ptr<const SipEvent> &ev,
+	const char *attrName,
+	const char *sipHeaderName
+) {
+	char *value = nullptr;
+	bool soFarSoGood = false;
+	if (json_unpack(jwt, "{s:s}", attrName, &value) == 0) {
+		sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(ev->getSip(), sipHeaderName);
+		if (header && header->un_value)
+			soFarSoGood = !!strcmp(value, header->un_value);
+	}
+
+	if (!soFarSoGood)
+		cerr << "`" << attrName << " value ` not equal to `" << sipHeaderName << "`" << endl;
+
+	free(value);
+	return soFarSoGood;
+}
+
+// -----------------------------------------------------------------------------
+
 JweAuth::JweAuth(Agent *agent) : Module(agent) {
-	for (const string &file : listFiles(JwksPath, "jwk")) {
+	for (const string &file : listFiles(JwksPath, JwkFileExtension)) {
 		bool error;
 		const vector<char> buf(readFile(JwksPath + "/" + file, &error));
 		if (!error) {
@@ -269,12 +261,42 @@ JweAuth::~JweAuth() {
 		json_decref(jwk);
 }
 
-bool JweAuth::isValid(const string &text) {
+json_t *JweAuth::decryptJwe(const string &text) const {
 	for (const json_t *jwk : mJwks) {
-		json_auto_t *jwt = decryptJwe(text.c_str(), jwk);
+		json_auto_t *jwt = ::decryptJwe(text.c_str(), jwk);
 		if (jwt)
-			return checkJwt(jwt);
+			return jwt;
+	}
+	return nullptr;
+};
+
+bool JweAuth::checkJwt(json_t *jwt, const shared_ptr<const RequestSipEvent> &ev) const {
+	// 1. Find incoming subject.
+	sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-ticked-oid");
+	if (!header || !header->un_value || !ev->findIncomingSubject(header->un_value)) {
+		cerr << "Unable to find oid incoming subject in message." << endl;
+		return false;
 	}
 
-	return false;
+	// 2. Check attributes.
+	static constexpr auto toCheck = {
+		pair<const char *, const char *>{ "oid", "X-ticked-oid" },
+		{ "aud", "X-ticked-aud" },
+		{ "req_act", "X-ticked-req_act" }
+	};
+	for (const auto &data : toCheck) {
+		if (!checkJwtAttr(jwt, ev, data.first, data.second))
+			return false;
+	}
+
+	return true;
+}
+
+void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
+
+
+}
+
+void JweAuth::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+	// Nothing.
 }
