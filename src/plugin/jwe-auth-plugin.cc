@@ -34,9 +34,6 @@ namespace {
 	constexpr int JweAuthPluginVersion = 1;
 	constexpr char JweAuthPluginName[] = "JWE Authentification plugin";
 	constexpr char JwkFileExtension[] = "jwk";
-
-	// TODO: Remove me.
-	const string JwksPath("/home/rabhamon/jwks/");
 }
 
 // =============================================================================
@@ -280,18 +277,36 @@ static bool checkJwtTime(json_t *jwt) {
 
 class JweAuth : public Module {
 public:
-	JweAuth(Agent *agent);
-	~JweAuth();
+	JweAuth(Agent *agent) : Module(agent) {}
 
 private:
 	json_t *decryptJwe(const char *text) const;
-	bool checkJwt(json_t *jwt, const shared_ptr<const SipEvent> &ev) const;
+	bool checkJwt(json_t *jwt, const sip_t *sip) const;
+
+	void onDeclare(GenericStruct *moduleConfig) override;
+	void onLoad(const GenericStruct *moduleConfig) override;
+	void onUnload() override;
 
 	void onRequest(shared_ptr<RequestSipEvent> &ev) override;
-	void onResponse(shared_ptr<ResponseSipEvent> &ev) override {}
+	void onResponse(shared_ptr<ResponseSipEvent> &) override {}
 
 	list<json_t *> mJwks;
+
+	string mJweCustomHeader;
+	string mOidCustomHeader;
+	string mAudCustomHeader;
+	string mReqActCustomHeader;
+
+	list<pair<const char *, const char *>> mCustomHeadersToCheck;
+
+	static ModuleInfo<JweAuth> sInfo;
 };
+
+ModuleInfo<JweAuth> JweAuth::sInfo(
+	"JweAuth",
+	"This module offers the possibility to use JSON Web Encryption tokens.",
+	ModuleInfoBase::ModuleOid::Plugin
+);
 
 FLEXISIP_DECLARE_PLUGIN(JweAuth, JweAuthPluginName, JweAuthPluginVersion);
 
@@ -315,64 +330,89 @@ static bool checkJwtAttrFromSipHeader(json_t *jwt, const sip_t *sip, const char 
 
 // -----------------------------------------------------------------------------
 
-JweAuth::JweAuth(Agent *agent) : Module(agent) {
-	for (const string &file : listFiles(JwksPath, JwkFileExtension)) {
-		bool error;
-		const vector<char> buf(readFile(JwksPath + "/" + file, &error));
-		if (!error) {
-			json_t *jwk = convertToJson(buf.data(), buf.size());
-			if (jwk)
-				mJwks.push_back(jwk);
-		}
-	}
-}
-
-JweAuth::~JweAuth() {
-	for (json_t *jwk : mJwks)
-		json_decref(jwk);
-}
-
 json_t *JweAuth::decryptJwe(const char *text) const {
 	for (const json_t *jwk : mJwks) {
-		json_auto_t *jwt = ::decryptJwe(text, jwk);
+		json_t *jwt = ::decryptJwe(text, jwk);
 		if (jwt)
 			return jwt;
 	}
 	return nullptr;
 };
 
-bool JweAuth::checkJwt(json_t *jwt, const shared_ptr<const SipEvent> &ev) const {
-	// 1. Check expiration time.
+bool JweAuth::checkJwt(json_t *jwt, const sip_t *sip) const {
 	if (!checkJwtTime(jwt))
 		return false;
 
-	// 2. Check specific attributes.
-	static constexpr auto toCheck = {
-		pair<const char *, const char *>{ "oid", "X-ticked-oid" },
-		{ "aud", "X-ticked-aud" },
-		{ "req_act", "X-ticked-req_act" }
-	};
-	for (const auto &data : toCheck) {
-		if (!checkJwtAttrFromSipHeader(jwt, ev->getSip(), data.first, data.second))
+	for (const auto &data : mCustomHeadersToCheck)
+		if (!checkJwtAttrFromSipHeader(jwt, sip, data.first, data.second))
 			return false;
-	}
 
 	return true;
 }
 
+void JweAuth::onDeclare(GenericStruct *moduleConfig) {
+	ConfigItemDescriptor configs[] = { {
+		String, "jwks-dir",
+		"Path to the directory where JSON Web Key (JWK) can be found."
+		" Any JWK must be put into a file with the `.jwk` suffix.",
+		"/etc/flexisip/jwk/"
+	}, {
+		String, "jwe-custom-header", "The name of the JWE token custom header.", "X-token"
+	}, {
+		String, "oid-custom-header", "The name of the oid custom header.", "X-token-oid"
+	}, {
+		String, "aud-custom-header", "The name of the aud custom header.", "X-token-aud"
+	}, {
+		String, "req-act-custom-header", "The name of the request action custom header.", "X-token-req_act"
+	}, {
+		config_item_end
+	} };
+	moduleConfig->addChildrenValues(configs);
+}
+
+void JweAuth::onLoad(const GenericStruct *moduleConfig) {
+	const string jwksDirectory = moduleConfig->get<ConfigString>("jwks-dir")->read();
+	for (const string &file : listFiles(jwksDirectory, JwkFileExtension)) {
+		bool error;
+		const vector<char> buf(readFile(jwksDirectory + "/" + file, &error));
+		if (!error) {
+			json_t *jwk = convertToJson(buf.data(), buf.size());
+			if (jwk)
+				mJwks.push_back(jwk);
+		}
+	}
+
+	mJweCustomHeader = moduleConfig->get<ConfigString>("jwe-custom-header")->read();
+	mOidCustomHeader = moduleConfig->get<ConfigString>("oid-custom-header")->read();
+	mAudCustomHeader = moduleConfig->get<ConfigString>("aud-custom-header")->read();
+	mReqActCustomHeader = moduleConfig->get<ConfigString>("req-act-custom-header")->read();
+
+	mCustomHeadersToCheck = {
+		{ "oid", mOidCustomHeader.c_str() },
+		{ "aud", mAudCustomHeader.c_str() },
+		{ "req_act", mReqActCustomHeader.c_str() }
+	};
+}
+
+void JweAuth::onUnload() {
+	for (json_t *jwk : mJwks)
+		json_decref(jwk);
+}
+
 void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const char *error = nullptr;
+	const sip_t *sip = ev->getSip();
 
-	const sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-ticked-oid");
+	const sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(sip, mOidCustomHeader.c_str());
 	if (!header || !header->un_value || !ev->findIncomingSubject(header->un_value))
 		error = "Unable to find oid incoming subject";
-	else if (!(header = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-ticked")) || !header->un_value)
+	else if (!(header = ModuleToolbox::getCustomHeaderByName(sip, mJweCustomHeader.c_str())) || !header->un_value)
 		error = "No JWE token";
 	else {
 		json_auto_t *jwt = decryptJwe(header->un_value);
 		if (!jwt)
 			error = "Unable to decrypt JWE";
-		else if (!checkJwt(jwt, ev))
+		else if (!checkJwt(jwt, sip))
 			error = "JWT check failed";
 	}
 

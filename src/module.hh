@@ -36,14 +36,14 @@ class Agent;
 class StatCounter64;
 
 class ModuleFactory {
-  public:
+public:
 	static ModuleFactory *get();
 	Module *createModuleInstance(Agent *ag, const std::string &modname);
 	const std::list<ModuleInfoBase *> &moduleInfos() {
 		return mModules;
 	}
 
-  private:
+private:
 	void registerModule(ModuleInfoBase *m);
 	std::list<ModuleInfoBase *> mModules;
 	static ModuleFactory *sInstance;
@@ -58,7 +58,7 @@ class ModuleInfoBase {
 	const oid mOidIndex;
 	static oid indexCount;
 
-  public:
+public:
 	Module *create(Agent *ag);
 	virtual Module *_create(Agent *ag) = 0;
 	const std::string &getModuleName() const {
@@ -95,10 +95,11 @@ class ModuleInfoBase {
 		Forward = 270,
 		Redirect = 290,
 		Presence = 300,
-		InterDomainConnections = 310
+		InterDomainConnections = 310,
+		Plugin = 320
 	};
 
-  protected:
+protected:
 	ModuleInfoBase(const char *modname, const char *help, enum ModuleOid oid, ModuleClass type)
 		: mName(modname), mHelp(help), mOidIndex(oid), mClass(type) {
 		// Oid::oidFromHashedString(modname)
@@ -108,12 +109,12 @@ class ModuleInfoBase {
 };
 
 template <typename _module_> class ModuleInfo : public ModuleInfoBase {
-  public:
+public:
 	ModuleInfo(const char *modname, const char *help, ModuleOid oid, ModuleClass type = ModuleClassProduction)
 		: ModuleInfoBase(modname, help, oid, type) {
 	}
 
-  protected:
+protected:
 	virtual Module *_create(Agent *ag);
 };
 
@@ -129,7 +130,7 @@ class EntryFilter;
 class Module : protected ConfigValueListener {
 	friend class ModuleInfoBase;
 
-  public:
+public:
 	Module(Agent *);
 	virtual ~Module();
 	Agent *getAgent() const;
@@ -154,7 +155,7 @@ class Module : protected ConfigValueListener {
 		processResponse(ev);
 	}
 
-  protected:
+protected:
 	virtual void onDeclare(GenericStruct *root) {
 	}
 	virtual void onLoad(const GenericStruct *root) {
@@ -179,12 +180,12 @@ class Module : protected ConfigValueListener {
 	}
 	Agent *mAgent;
 
-  protected:
+protected:
 	su_home_t *getHome() {
 		return &mHome;
 	}
 
-  private:
+private:
 	void setInfo(ModuleInfoBase *i);
 	ModuleInfoBase *mInfo;
 	GenericStruct *mModuleConfig;
@@ -207,12 +208,12 @@ template <typename _modtype> Module *ModuleInfo<_modtype>::_create(Agent *ag) {
  * Some useful routines any module can use by derivating from this class.
 **/
 class ModuleToolbox {
-  public:
+public:
 	static msg_auth_t *findAuthorizationForRealm(su_home_t *home, msg_auth_t *au, const char *realm);
 	static const tport_t *getIncomingTport(const std::shared_ptr<RequestSipEvent> &ev, Agent *ag);
 	static void addRecordRouteIncoming(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev);
 	static void addRecordRoute(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev,
-							   const tport_t *tport);
+								 const tport_t *tport);
 	static void cleanAndPrependRoute(Agent *ag, msg_t *msg, sip_t *sip, sip_route_t *route);
 	static bool sipPortEquals(const char *p1, const char *p2, const char *transport = NULL);
 	static int sipPortToInt(const char *port);
@@ -226,7 +227,7 @@ class ModuleToolbox {
 								const char *domain);
 	static struct sip_route_s *prependNewRoutable(msg_t *msg, sip_t *sip, sip_route_t *&sipr, sip_route_t *value);
 	static void addPathHeader(Agent *ag, const std::shared_ptr<RequestSipEvent> &ev, const tport_t *tport,
-							  const char *uniq = NULL);
+								const char *uniq = NULL);
 	/*these methods do host comparison taking into account that each one of argument can be an ipv6 address enclosed in
 	 * brakets*/
 	static bool urlHostMatch(const char *host1, const char *host2);
