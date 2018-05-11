@@ -297,16 +297,11 @@ FLEXISIP_DECLARE_PLUGIN(JweAuth, JweAuthPluginName, JweAuthPluginVersion);
 
 // -----------------------------------------------------------------------------
 
-static bool checkJwtAttrFromSipHeader(
-	json_t *jwt,
-	const shared_ptr<const SipEvent> &ev,
-	const char *attrName,
-	const char *sipHeaderName
-) {
+static bool checkJwtAttrFromSipHeader(json_t *jwt, const sip_t *sip, const char *attrName, const char *sipHeaderName) {
 	char *value = nullptr;
 	bool soFarSoGood = false;
 	if (json_unpack(jwt, "{s:s}", attrName, &value) == 0) {
-		sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(ev->getSip(), sipHeaderName);
+		sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(sip, sipHeaderName);
 		if (header && header->un_value)
 			soFarSoGood = !strcmp(value, header->un_value);
 	}
@@ -365,7 +360,7 @@ bool JweAuth::checkJwt(json_t *jwt, const shared_ptr<const RequestSipEvent> &ev)
 		{ "req_act", "X-ticked-req_act" }
 	};
 	for (const auto &data : toCheck) {
-		if (!checkJwtAttrFromSipHeader(jwt, ev, data.first, data.second))
+		if (!checkJwtAttrFromSipHeader(jwt, ev->getSip(), data.first, data.second))
 			return false;
 	}
 

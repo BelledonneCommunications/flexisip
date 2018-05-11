@@ -656,7 +656,7 @@ void ModuleToolbox::removeParamsFromUrl(su_home_t *home, url_t *u, list<string> 
 	}
 }
 
-sip_unknown_t *ModuleToolbox::getCustomHeaderByName(sip_t *sip, const char *name) {
+sip_unknown_t *ModuleToolbox::getCustomHeaderByName(const sip_t *sip, const char *name) {
 	sip_unknown_t *it;
 	for (it = sip->sip_unknown; it != NULL; it = it->un_next) {
 		if (strcasecmp(it->un_name, name) == 0) {
@@ -717,4 +717,3 @@ sip_via_t *ModuleToolbox::getLastVia(sip_t *sip){
 	}
 	return ret;
 }
-
