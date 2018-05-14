@@ -184,10 +184,11 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 		return mAllowDomainRegistrations;
 	}
 
-  private:
 	bool isManagedDomain(const url_t *url) {
 		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 	}
+
+  private:
 	bool makeGeneratedContactRoute(shared_ptr<RequestSipEvent> &ev, Record *aor,
 								   list<shared_ptr<ExtendedContact>> &ec_list);
 	bool dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact,
@@ -922,16 +923,25 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 	void onRecordFound(Record *r) {
 		string fallbackRoute = mModule->getFallbackRoute();
 
-		bool ownRecord = false;
-		if (r == NULL) {
+		bool ownRecord = r == NULL;
+		if (ownRecord)
 			r = new Record(mSipUri);
-			ownRecord = true;
+
+		if (!mModule->isManagedDomain(mSipUri)) {
+			const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
+
+			string route = url_as_string(ms->getHome(), ms->getSip()->sip_route->r_url);
+			shared_ptr<ExtendedContact> contact = make_shared<ExtendedContact>(mSipUri, route);
+			r->pushContact(contact);
+
+			SLOGD << "Record [" << r << "] Original route '" << route << "' added because domain is not managed: " << *contact;
 		}
 
 		if (!fallbackRoute.empty()) {
-			shared_ptr<ExtendedContact> contact = make_shared<ExtendedContact>(mSipUri, fallbackRoute, 0.0);
-			r->pushContact(contact);
-			SLOGD << "Record [" << r << "] Fallback route '" << fallbackRoute << "' added: " << *contact;
+			shared_ptr<ExtendedContact> fallback = make_shared<ExtendedContact>(mSipUri, fallbackRoute, 0.0);
+			r->pushContact(fallback);
+
+			SLOGD << "Record [" << r << "] Fallback route '" << fallbackRoute << "' added: " << *fallback;
 		}
 
 		if (r->count() == 0 && mModule->isFallbackToParentDomainEnabled()) {
@@ -955,9 +965,8 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 			mModule->routeRequest(mEv, r, mSipUri);
 		}
 
-		if (ownRecord) {
+		if (ownRecord)
 			delete r;
-		}
 	}
 	void onError() {
 		mModule->sendReply(mEv, SIP_500_INTERNAL_SERVER_ERROR);
@@ -1027,42 +1036,46 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	/* When we accept * as domain we need to test ip4/ipv6 */
 	if (sip->sip_request->rq_method != sip_method_ack && sip->sip_to != NULL && sip->sip_to->a_tag == NULL) {
 		url_t *sipurl = sip->sip_request->rq_url;
-		if (sipurl->url_host && isManagedDomain(sipurl)) {
+		if (sipurl->url_host) {
 			LOGD("Fetch for url %s.", url_as_string(ms->getHome(), sipurl));
 			// Go stateful to stop retransmissions
 			ev->createIncomingTransaction();
 			sendReply(ev, SIP_100_TRYING);
 			auto onRoutingListener = make_shared<OnFetchForRoutingListener>(this, ev, sipurl);
 
-			if (mPreroute.empty()) {
-				/*the unstandard X-Target-Uris header gives us a list of SIP uri to which the request is to be forked.*/
-				sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-Target-Uris");
-				if (!h) {
-					RegistrarDb::get()->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
+			if (isManagedDomain(sipurl)) {
+				if (mPreroute.empty()) {
+					/*the unstandard X-Target-Uris header gives us a list of SIP uri to which the request is to be forked.*/
+					sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-Target-Uris");
+					if (!h) {
+						RegistrarDb::get()->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
+					} else {
+						auto fetcher = make_shared<TargetUriListFetcher>(this, ev, onRoutingListener, h);
+						sip_header_remove(ms->getMsg(), sip, (sip_header_t *)h);
+						fetcher->fetch(mAllowDomainRegistrations, true);
+					}
 				} else {
-					auto fetcher = make_shared<TargetUriListFetcher>(this, ev, onRoutingListener, h);
-					sip_header_remove(ms->getMsg(), sip, (sip_header_t *)h);
-					fetcher->fetch(mAllowDomainRegistrations, true);
+					/*The preroute request uri param does more or less the same thing as the above X-Target-Uris header,
+					* but was designed in more ancient times. The domain name is deduced from the request-uri.
+					* It is kept for backward compatibility but the X-Target-Uris method is prefered*/
+					char preroute_param[20];
+					if (url_param(sipurl->url_params, "preroute", preroute_param, sizeof(preroute_param))) {
+						if (strchr(preroute_param, '@')) {
+							SLOGE << "Prerouting contains at symbol" << preroute_param;
+							return;
+						}
+						SLOGD << "Prerouting to provided " << preroute_param;
+						vector<string> tokens = split(preroute_param, ":");
+						auto prFetcher = make_shared<PreroutingFetcher>(this, ev, onRoutingListener, tokens);
+						prFetcher->fetch();
+					} else {
+						SLOGD << "Prerouting to " << mPreroute;
+						url_t *prerouteUrl = url_format(ev->getHome(), "sip:%s@%s", mPreroute.c_str(), sipurl->url_host);
+						RegistrarDb::get()->fetch(prerouteUrl, onRoutingListener, true);
+					}
 				}
 			} else {
-				/*The preroute request uri param does more or less the same thing as the above X-Target-Uris header,
-				 * but was designed in more ancient times. The domain name is deduced from the request-uri.
-				 * It is kept for backward compatibility but the X-Target-Uris method is prefered*/
-				char preroute_param[20];
-				if (url_param(sipurl->url_params, "preroute", preroute_param, sizeof(preroute_param))) {
-					if (strchr(preroute_param, '@')) {
-						SLOGE << "Prerouting contains at symbol" << preroute_param;
-						return;
-					}
-					SLOGD << "Prerouting to provided " << preroute_param;
-					vector<string> tokens = split(preroute_param, ":");
-					auto prFetcher = make_shared<PreroutingFetcher>(this, ev, onRoutingListener, tokens);
-					prFetcher->fetch();
-				} else {
-					SLOGD << "Prerouting to " << mPreroute;
-					url_t *prerouteUrl = url_format(ev->getHome(), "sip:%s@%s", mPreroute.c_str(), sipurl->url_host);
-					RegistrarDb::get()->fetch(prerouteUrl, onRoutingListener, true);
-				}
+				RegistrarDb::get()->fetch(sipurl, onRoutingListener, true);
 			}
 		}
 	}
