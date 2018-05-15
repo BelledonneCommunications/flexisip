@@ -192,6 +192,8 @@ private:
 	EntryFilter *mFilter;
 	bool mDirtyConfig;
 	su_home_t mHome;
+
+	FLEXISIP_DISABLE_COPY(Module);
 };
 
 inline std::ostringstream &operator<<(std::ostringstream &__os, const Module &m) {

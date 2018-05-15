@@ -16,26 +16,89 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <dlfcn.h>
+
 #include "plugin-loader.hh"
+#include "plugin.hh"
 
 // =============================================================================
 
 using namespace std;
 
+// -----------------------------------------------------------------------------
+
+class Library {
+public:
+	Library(void *_sysLibrary = nullptr) : sysLibrary(_sysLibrary) {}
+	~Library() {
+		if (sysLibrary)
+			dlclose(sysLibrary);
+	}
+
+	void *sysLibrary = nullptr;
+};
+typedef shared_ptr<Library> SharedLibrary;
+
+// -----------------------------------------------------------------------------
+
 class PluginLoaderPrivate {
 public:
+	Agent *agent = nullptr;
+
 	string filename;
+	string error;
+
+	shared_ptr<Library> library;
+
+	Module *module = nullptr;
+	Private::PluginPrivate *pPlugin = nullptr;
+
+	void setDlerror () {
+		const char *dlError = dlerror();
+		error = dlError ? dlError : "Unknown";
+	}
 };
 
-PluginLoader::PluginLoader() : mPrivate(new PluginLoaderPrivate) {
+// -----------------------------------------------------------------------------
 
+namespace Private {
+	class PluginPrivate {
+	public:
+		PluginLoader *loader = nullptr;
+		SharedLibrary library;
+	};
+
+	Plugin::Plugin(PluginPrivate &p) {
+		mPrivate = new PluginPrivate();
+	};
+
+	Plugin::~Plugin() {
+		// Invalid plugin instance in loader.
+		if (mPrivate->loader) {
+			PluginLoaderPrivate *pLoader = mPrivate->loader->mPrivate;
+			pLoader->module = nullptr;
+			pLoader->pPlugin = nullptr;
+		}
+
+		delete mPrivate;
+	}
 }
 
-PluginLoader::PluginLoader(const string &filename) {
+// -----------------------------------------------------------------------------
 
+PluginLoader::PluginLoader(Agent *agent) : mPrivate(new PluginLoaderPrivate) {
+	mPrivate->agent = agent;
+}
+
+PluginLoader::PluginLoader(Agent *agent, const string &filename) : PluginLoader(agent) {
+	mPrivate->filename = filename;
 }
 
 PluginLoader::~PluginLoader() {
+	// Invalid loader reference in plugin.
+	if (mPrivate->pPlugin)
+		mPrivate->pPlugin->loader = nullptr;
+
 	delete mPrivate;
 }
 
@@ -43,22 +106,78 @@ const string &PluginLoader::getFilename() const {
 	return mPrivate->filename;
 }
 
-void PluginLoader::setFilename() {
-
+void PluginLoader::setFilename(const string &filename) {
+	unload();
+	mPrivate->filename = filename;
 }
 
 bool PluginLoader::isLoaded() const {
-	return true;
+	return mPrivate->library.get();
 }
 
 bool PluginLoader::load() {
+	if (isLoaded())
+		return true;
+
+	void *sysLibrary;
+	if (!(sysLibrary = dlopen(mPrivate->filename.c_str(), RTLD_LAZY))) {
+		mPrivate->setDlerror();
+		return false;
+	}
+
+	PluginInfo *info = static_cast<PluginInfo *>(dlsym(sysLibrary, "__flexisipPluginInfo"));
+	if (!info) {
+		mPrivate->setDlerror();
+		dlclose(sysLibrary);
+		return false;
+	}
+
+	if (strcmp(info->apiVersion, FLEXISIP_PLUGIN_API_VERSION)) {
+		mPrivate->error = "Incompatible plugin API. Expected `" FLEXISIP_PLUGIN_API_VERSION "`, got `";
+		mPrivate->error.append(info->apiVersion);
+		mPrivate->error.append("`.");
+		dlclose(sysLibrary);
+		return false;
+	}
+
+	SLOGI << "Plugin loaded with success! " << info;
+
+	mPrivate->error.clear();
+	mPrivate->library = make_shared<Library>(sysLibrary);
 	return true;
 }
 
 bool PluginLoader::unload() {
+	mPrivate->library.reset();
+
+	mPrivate->module = nullptr;
+	if (mPrivate->pPlugin) {
+		mPrivate->pPlugin->loader = nullptr;
+		mPrivate->pPlugin = nullptr;
+	}
+
 	return true;
 }
 
-Plugin *PluginLoader::get() {
-	return nullptr;
+Module *PluginLoader::get() {
+	if (!mPrivate->module) {
+		if (load()) {
+			Module *(*createPlugin)(Private::PluginPrivate &p, Agent *agent);
+			*reinterpret_cast<void **>(&createPlugin) = dlsym(mPrivate->library->sysLibrary, "__flexisipCreatePlugin");
+			if (!createPlugin)
+				SLOGE << "Unable to get plugin. Create symbol not found.";
+			else {
+				Private::PluginPrivate *pPlugin = new Private::PluginPrivate;
+				pPlugin->loader = this;
+				pPlugin->library = mPrivate->library;
+				mPrivate->module = createPlugin(*pPlugin, mPrivate->agent);
+				mPrivate->pPlugin = pPlugin;
+			}
+		}
+	}
+	return mPrivate->module;
+}
+
+const string &PluginLoader::getError() const {
+	return mPrivate->error;
 }

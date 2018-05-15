@@ -416,6 +416,8 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			error = "JWT check failed";
 	}
 
+	// TODO: add insertJwt method, use it directly if token has been already checked.
+
 	if (error) {
 		SLOGW << "Rejecting request because: `" << error << "`.";
 		ev->reply(400, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());

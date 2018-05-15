@@ -63,19 +63,25 @@ typedef unsigned long oid;
 extern oid company_id;
 
 #include "expressionparser.hh"
+#include "global.hh"
 #include "utils/flexisip-exception.hh"
 
 enum class ConfigState { Check, Changed, Reset, Commited };
 class ConfigValue;
+
 class ConfigValueListener {
 	static bool sDirty;
 
-  public:
+public:
+	ConfigValueListener() = default;
 	virtual ~ConfigValueListener();
 	bool onConfigStateChanged(const ConfigValue &conf, ConfigState state);
 
-  protected:
+protected:
 	virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) = 0;
+
+private:
+	FLEXISIP_DISABLE_COPY(ConfigValueListener);
 };
 
 enum GenericValueType {
@@ -261,7 +267,7 @@ class GenericEntry {
 							   const std::string &syntax, const std::string &spacing) const;
 	GenericEntry(const std::string &name, GenericValueType type, const std::string &help, oid oid_index = 0);
 	static std::string escapeDoubleQuotes(const std::string &str);
-	
+
 	Oid *mOid;
 	const std::string mName;
 	bool mReadOnly;

@@ -21,28 +21,41 @@
 
 #include <string>
 
+#include "global.hh"
+
 // =============================================================================
 
-class Plugin;
+class Agent;
+class Module;
 class PluginLoaderPrivate;
 
+namespace Private {
+	class Plugin;
+}
+
 class PluginLoader {
+	friend class Private::Plugin;
+
 public:
-	PluginLoader();
-	PluginLoader(const std::string &filename);
+	PluginLoader(Agent *agent);
+	PluginLoader(Agent *agent, const std::string &filename);
 	~PluginLoader();
 
 	const std::string &getFilename() const;
-	void setFilename();
+	void setFilename(const std::string &filename);
 
 	bool isLoaded() const;
 	bool load();
 	bool unload();
 
-	Plugin *get();
+	Module *get();
+
+	const std::string &getError() const;
 
 private:
 	PluginLoaderPrivate *mPrivate;
+
+	FLEXISIP_DISABLE_COPY(PluginLoader);
 };
 
 #endif // plugin_loader_hh

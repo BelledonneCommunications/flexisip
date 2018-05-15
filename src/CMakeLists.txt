@@ -69,8 +69,6 @@ set(FLEXISIP_SOURCES
 	module.cc
 	monitor.cc
 	plugin/plugin-loader.cc
-	plugin/plugin-loader.hh
-	plugin/plugin.hh
 	recordserializer-c.cc
 	recordserializer-json.cc
 	registrardb-internal.cc
