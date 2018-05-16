@@ -928,13 +928,10 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 			r = new Record(mSipUri);
 
 		if (!mModule->isManagedDomain(mSipUri)) {
-			const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
-
-			string route = url_as_string(ms->getHome(), ms->getSip()->sip_route->r_url);
-			shared_ptr<ExtendedContact> contact = make_shared<ExtendedContact>(mSipUri, route);
+			shared_ptr<ExtendedContact> contact = make_shared<ExtendedContact>(mSipUri, "");
 			r->pushContact(contact);
 
-			SLOGD << "Record [" << r << "] Original route '" << route << "' added because domain is not managed: " << *contact;
+			SLOGD << "Record [" << r << "] Original request URI added because domain is not managed: " << *contact;
 		}
 
 		if (!fallbackRoute.empty()) {
