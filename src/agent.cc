@@ -242,7 +242,7 @@ void Agent::start(const std::string &transport_override, const std::string passp
 				tls_policy |= TPTLS_VERIFY_INCOMING;
 			}
 
-			if (getBoolUriParameter(url, "tls-verify-outgoing", false)){
+			if (getBoolUriParameter(url, "tls-verify-outgoing", true)){
 				tls_policy |= TPTLS_VERIFY_OUTGOING | TPTLS_VERIFY_SUBJECTS_OUT;
 			}
 
