@@ -203,8 +203,18 @@ if(ENABLE_CONFERENCE)
 	list(APPEND FLEXISIP_LIBS ${BELLESIP_LIBRARIES} ${LINPHONE_LIBRARIES})
 	list(APPEND FLEXISIP_INCLUDES ${BELLESIP_INCLUDE_DIRS} ${LINPHONE_INCLUDE_DIRS})
 	list(APPEND FLEXISIP_SOURCES
+		conference/conference-address-generator.cc
+		conference/conference-address-generator.hh
 		conference/conference-server.cc
 		conference/conference-server.hh
+		conference/participant-capabilities-check.cc
+		conference/participant-capabilities-check.hh
+		conference/participant-devices-search.cc
+		conference/participant-devices-search.hh
+		conference/participant-registration-subscription.cc
+		conference/participant-registration-subscription.hh
+		conference/participant-registration-subscription-handler.cc
+		conference/participant-registration-subscription-handler.hh
 	)
 endif()
 

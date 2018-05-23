@@ -20,7 +20,10 @@
 
 #include <belle-sip/utils.h>
 
+#include "conference-address-generator.hh"
 #include "conference-server.hh"
+#include "participant-capabilities-check.hh"
+#include "participant-devices-search.hh"
 
 #include "configmanager.hh"
 
@@ -32,67 +35,18 @@ SofiaAutoHome ConferenceServer::mHome;
 ConferenceServer::Init ConferenceServer::sStaticInit;
 
 
-void ParticipantRegistrationSubscription::onContactRegistered (const string &key, const string &uid) {
-	shared_ptr<linphone::Address> deviceAddress = mParticipantAddress->clone();
-	string gruu = uid;
-	gruu = gruu.substr(gruu.find("\"<") + strlen("\"<"));
-	gruu = gruu.substr(0, gruu.find(">"));
-	deviceAddress->setUriParam("gr", gruu);
-	mChatRoom->addParticipantDevice(mParticipantAddress, deviceAddress);
-}
+ConferenceServer::ConferenceServer () : ServiceServer() {}
+
+ConferenceServer::ConferenceServer (
+	bool withThread,
+	const string &path,
+	su_root_t *root
+) : ServiceServer(withThread, root), mPath(path) {}
+
+ConferenceServer::~ConferenceServer () {}
 
 
-string ParticipantRegistrationSubscriptionHandler::getKey (const shared_ptr<const linphone::Address> &address) {
-	return address->getUsername() + "@" + address->getDomain();
-}
-
-void ParticipantRegistrationSubscriptionHandler::subscribe (
-	const shared_ptr<linphone::ChatRoom> &chatRoom,
-	const shared_ptr<const linphone::Address> &address
-) {
-	bool toSubscribe = true;
-	string key = getKey(address);
-	auto range = mSubscriptions.equal_range(key);
-	for (auto it = range.first; it != range.second; it++) {
-		if (it->second->getChatRoom() == chatRoom) {
-			toSubscribe = false;
-			break;
-		}
-	}
-	if (toSubscribe) {
-		SLOGI << "Subscribe to RegistrarDB for key '" << key << "' and ChatRoom '" << chatRoom->getLocalAddress()->asString() << "'";
-		auto subscription = make_shared<ParticipantRegistrationSubscription>(address, chatRoom);
-		mSubscriptions.insert(make_pair(key, subscription));
-		RegistrarDb::get()->subscribe(key, subscription);
-	}
-}
-
-void ParticipantRegistrationSubscriptionHandler::unsubscribe (
-	const shared_ptr<linphone::ChatRoom> &chatRoom,
-	const shared_ptr<const linphone::Address> &address
-) {
-	string key = getKey(address);
-	auto range = mSubscriptions.equal_range(key);
-	for (auto it = range.first; it != range.second;) {
-		if (it->second->getChatRoom() == chatRoom) {
-			SLOGI << "Unsubscribe from RegistrarDB for key '" << key << "' and ChatRoom '" << chatRoom->getLocalAddress()->asString() << "'";
-			RegistrarDb::get()->unsubscribe(key, it->second);
-			it = mSubscriptions.erase(it);
-		} else {
-			it++;
-		}
-	}
-}
-
-
-ConferenceServer::ConferenceServer() : ServiceServer() {}
-
-ConferenceServer::ConferenceServer(bool withThread, const string &path, su_root_t* root) : ServiceServer(withThread, root), mPath(path) {}
-
-ConferenceServer::~ConferenceServer() {}
-
-
-void ConferenceServer::_init() {
+void ConferenceServer::_init () {
 	// Set config, transport, create core, etc
 	shared_ptr<linphone::Transports> cTransport = linphone::Factory::get()->createTransports();
 	string transport = "";
@@ -147,170 +101,61 @@ void ConferenceServer::_init() {
 	}
 }
 
-void ConferenceServer::_run() {
+void ConferenceServer::_run () {
 	mCore->iterate();
 	if (mWithThread) bctbx_sleep_ms(10);
 }
 
-void ConferenceServer::_stop() {}
+void ConferenceServer::_stop () {}
 
-
-void ConferenceServer::onChatRoomStateChanged(const shared_ptr<linphone::Core> & lc, const shared_ptr<linphone::ChatRoom> & cr, linphone::ChatRoom::State state) {
+void ConferenceServer::onChatRoomStateChanged (
+	const shared_ptr<linphone::Core> &lc,
+	const shared_ptr<linphone::ChatRoom> &cr,
+	linphone::ChatRoom::State state
+) {
 	if (state == linphone::ChatRoom::State::Instantiated) {
 		mChatRooms.push_back(cr);
 		cr->addListener(shared_from_this());
-	}
-	else if (state == linphone::ChatRoom::State::Deleted) {
+	} else if (state == linphone::ChatRoom::State::Deleted) {
 		cr->removeListener(shared_from_this());
 		mChatRooms.remove(cr);
 	}
 }
 
-void ConferenceServer::onConferenceAddressGeneration(const shared_ptr<linphone::ChatRoom> & cr) {
-	class ConferenceAddressGenerator : public ContactUpdateListener, public enable_shared_from_this<ConferenceAddressGenerator> {
-	public:
-		enum class State {
-			Fetching,
-			Binding
-		};
-
-		ConferenceAddressGenerator(const shared_ptr<linphone::ChatRoom> chatRoom,
-			shared_ptr<linphone::Address> conferenceFactoryAddr, const string &uuid, const string &path)
-		: mChatRoom(chatRoom), mConferenceAddr(conferenceFactoryAddr), mUuid(uuid), mPath(path) {}
-
-		void generateAddress() {
-			char token[17];
-			ostringstream os;
-			belle_sip_random_token(token, sizeof(token));
-			os.str("");
-			os << "chatroom-" << token;
-			mConferenceAddr->setUsername(os.str());
-			os.str("");
-			os << "\"<urn:uuid:" << mUuid << ">\"";
-			mConferenceAddr->setParam("+sip.instance", os.str());
-
-			url_t *url = url_make(mHome.home(), mConferenceAddr->asStringUriOnly().c_str());
-			RegistrarDb::get()->fetch(url, shared_from_this(), false, false);
-		}
-
-	private:
-		void onRecordFound(Record *r) {
-			if (mState == State::Fetching) {
-				if (r) {
-					generateAddress();
-				} else {
-					mState = State::Binding;
-					auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
-					bindChatRoom(mConferenceAddr->asStringUriOnly(), config->get<ConfigString>("transport")->read(), mUuid, mPath, shared_from_this());
-				}
-			} else {
-				const shared_ptr<ExtendedContact> ec = r->getExtendedContacts().front();
-				string uri = ExtendedContact::urlToString(ec->mSipContact->m_url);
-				shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
-				shared_ptr<linphone::Address> gruuAddr = linphone::Factory::get()->createAddress(mConferenceAddr->asStringUriOnly());
-				gruuAddr->setUriParam("gr", addr->getUriParam("gr"));
-				mChatRoom->setConferenceAddress(gruuAddr);
-			}
-		}
-		void onError() {}
-		void onInvalid() {}
-		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {}
-
-		const shared_ptr<linphone::ChatRoom> mChatRoom;
-		shared_ptr<linphone::Address> mConferenceAddr;
-		string mUuid;
-		SofiaAutoHome mHome;
-		State mState = State::Fetching;
-		string mPath;
-	};
-
+void ConferenceServer::onConferenceAddressGeneration (const shared_ptr<linphone::ChatRoom> & cr) {
 	shared_ptr<linphone::Config> config = mCore->getConfig();
 	string uuid = config->getString("misc", "uuid", "");
-	shared_ptr<linphone::Address> confAddr = linphone::Factory::get()->createAddress(mCore->getDefaultProxyConfig()->getConferenceFactoryUri());
-	shared_ptr<ConferenceAddressGenerator> generator = make_shared<ConferenceAddressGenerator>(cr, confAddr, uuid, mPath);
-	generator->generateAddress();
+	shared_ptr<linphone::Address> confAddr = linphone::Factory::get()->createAddress(
+		mCore->getDefaultProxyConfig()->getConferenceFactoryUri()
+	);
+	shared_ptr<ConferenceAddressGenerator> generator = make_shared<ConferenceAddressGenerator>(
+		cr,
+		confAddr,
+		uuid,
+		mPath
+	);
+	generator->run();
 }
 
-void ConferenceServer::onParticipantDeviceFetchRequested(const shared_ptr<linphone::ChatRoom> & cr, const shared_ptr<const linphone::Address> & participantAddr) {
-	class ParticipantDevicesSearch : public ContactUpdateListener, public enable_shared_from_this<ParticipantDevicesSearch> {
-	public:
-		ParticipantDevicesSearch(const shared_ptr<linphone::ChatRoom> &cr, const shared_ptr<const linphone::Address> &uri) : mChatRoom(cr), mSipUri(uri) {}
-
-		void searchDevices() {
-			url_t *url = url_make(mHome.home(), mSipUri->asStringUriOnly().c_str());
-			RegistrarDb::get()->fetch(url, shared_from_this(), false, false);
-		}
-	private:
-		SofiaAutoHome mHome;
-		const shared_ptr<linphone::ChatRoom> mChatRoom;
-		const shared_ptr<const linphone::Address> mSipUri;
-
-		void onRecordFound(Record *r) {
-			if (r) {
-				list<shared_ptr<linphone::Address>> listDevices;
-				for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
-					string uri = ExtendedContact::urlToString(ec->mSipContact->m_url);
-					shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
-					if (!addr->getUriParam("gr").empty() && ec->getOrgLinphoneSpecs().find("groupchat") != string::npos) {
-						shared_ptr<linphone::Address> gruuAddr = linphone::Factory::get()->createAddress(mSipUri->asStringUriOnly());
-						gruuAddr->setUriParam("gr", addr->getUriParam("gr"));
-						listDevices.push_back(gruuAddr);
-					}
-				}
-				mChatRoom->setParticipantDevices(mSipUri, listDevices);
-			}
-		}
-		void onError() {}
-		void onInvalid() {}
-		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {}
-	};
-	shared_ptr<ParticipantDevicesSearch> search= make_shared<ParticipantDevicesSearch>(cr, participantAddr);
-	search->searchDevices();
+void ConferenceServer::onParticipantDeviceFetchRequested (
+	const shared_ptr<linphone::ChatRoom> & cr,
+	const shared_ptr<const linphone::Address> & participantAddr
+) {
+	shared_ptr<ParticipantDevicesSearch> search = make_shared<ParticipantDevicesSearch>(cr, participantAddr);
+	search->run();
 }
 
-void ConferenceServer::onParticipantsCapabilitiesChecked(const shared_ptr<linphone::ChatRoom> & cr, const shared_ptr<const linphone::Address> &deviceAddr, const list<shared_ptr<linphone::Address> > & participantsAddr) {
-	class ParticipantsCapabilitiesCheck : public ContactUpdateListener, public enable_shared_from_this<ParticipantsCapabilitiesCheck> {
-	public:
-		ParticipantsCapabilitiesCheck(const shared_ptr<linphone::ChatRoom> &cr, const shared_ptr<const linphone::Address> &deviceAddr, const list<shared_ptr<linphone::Address>> &list) : mChatRoom(cr), mDeviceAddr(deviceAddr), mParticipantsList(list) {
-			mIterator = mParticipantsList.begin();
-		}
-
-		void checkParticipantsCapabilities() {
-			url_t *url = url_make(mHome.home(), mIterator->get()->asStringUriOnly().c_str());
-			RegistrarDb::get()->fetch(url, shared_from_this(), false, false);
-		}
-	private:
-		SofiaAutoHome mHome;
-		const shared_ptr<linphone::ChatRoom> mChatRoom;
-		shared_ptr<const linphone::Address> mDeviceAddr;
-		list<shared_ptr<linphone::Address>> mParticipantsList;
-		list<shared_ptr<linphone::Address>> mParticipantsCompatibleList;
-		list<shared_ptr<linphone::Address>>::iterator mIterator;
-
-		void onRecordFound(Record *r) {
-			if (r) {
-				for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
-					string uri = ExtendedContact::urlToString(ec->mSipContact->m_url);
-					shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
-					if (!addr->getUriParam("gr").empty() && ec->getOrgLinphoneSpecs().find("groupchat") != string::npos) {
-						mParticipantsCompatibleList.push_back(*mIterator);
-						break;
-					}
-				}
-			}
-			mIterator++;
-			if (mIterator != mParticipantsList.end()) {
-				checkParticipantsCapabilities();
-			} else {
-				mChatRoom->addCompatibleParticipants(mDeviceAddr, mParticipantsCompatibleList);
-			}
-		}
-		void onError() {}
-		void onInvalid() {}
-		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {}
-	};
-	shared_ptr<ParticipantsCapabilitiesCheck> search= make_shared<ParticipantsCapabilitiesCheck>(cr, deviceAddr, participantsAddr);
-	search->checkParticipantsCapabilities();
+void ConferenceServer::onParticipantsCapabilitiesChecked (
+	const shared_ptr<linphone::ChatRoom> & cr,
+	const shared_ptr<const linphone::Address> &deviceAddr,
+	const list<shared_ptr<linphone::Address> > & participantsAddr
+) {
+	shared_ptr<ParticipantCapabilitiesCheck> check = make_shared<ParticipantCapabilitiesCheck>(
+		cr,
+		deviceAddr,
+		participantsAddr
+	);
+	check->run();
 }
 
 void flexisip::ConferenceServer::onParticipantRegistrationSubscriptionRequested (
@@ -328,7 +173,7 @@ void flexisip::ConferenceServer::onParticipantRegistrationUnsubscriptionRequeste
 }
 
 void flexisip::ConferenceServer::bindConference(const string &path) {
-	class fakeListener : public ContactUpdateListener {
+	class FakeListener : public ContactUpdateListener {
 		void onRecordFound(Record *r) {}
 		void onError() {}
 		void onInvalid() {}
@@ -336,60 +181,114 @@ void flexisip::ConferenceServer::bindConference(const string &path) {
 			SLOGD << "ConferenceServer: ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();
 		}
 	};
-	shared_ptr<fakeListener> listener = make_shared<fakeListener>();
+	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
-	if (config != nullptr && config->get<ConfigBoolean>("enabled")->read()) {
+	if (config && config->get<ConfigBoolean>("enabled")->read()) {
 		string transportFactory = config->get<ConfigString>("transport")->read();
 		sip_contact_t *sipContact = sip_contact_make(mHome.home(), transportFactory.c_str());
 		url_t *url = url_make(mHome.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
-		sip_path_t *bindingPath = nullptr;
-		bindingPath = sip_path_format(mHome.home(), "<%s>", path.c_str());
-		RegistrarDb::get()->bind(url, sipContact, "CONFERENCE", 0, bindingPath, nullptr, nullptr,
-								 true, numeric_limits<int>::max(), false, 0, listener);
+		sip_path_t *bindingPath = sip_path_format(mHome.home(), "<%s>", path.c_str());
+		RegistrarDb::get()->bind(
+			url,
+			sipContact,
+			"CONFERENCE",
+			0,
+			bindingPath, 
+			nullptr, 
+			nullptr,
+			true,
+			numeric_limits<int>::max(),
+			false,
+			0,
+			listener
+		);
 	}
 }
 
-void ConferenceServer::bindChatRoom(const string &bindingUrl, const string &contact, const string &gruu, const string &path, const shared_ptr< ContactUpdateListener >& listener) {
-
+void ConferenceServer::bindChatRoom (
+	const string &bindingUrl,
+	const string &contact,
+	const string &gruu,
+	const string &path,
+	const shared_ptr<ContactUpdateListener> &listener
+) {
 	url_t *url = url_make(mHome.home(), bindingUrl.c_str());
 	sip_contact_t *sipContact = sip_contact_make(mHome.home(), contact.c_str());
 	sip_contact_add_param(mHome.home(), sipContact, su_strdup(mHome.home(), ("+sip.instance=\"<" + gruu + ">\"").c_str()));
 	url_param_add(mHome.home(), sipContact->m_url, ("gr=" + gruu).c_str());
 	sip_supported_t *sipSupported = reinterpret_cast<sip_supported_t *>(sip_header_format(mHome.home(), sip_supported_class, "gruu"));
-	sip_path_t *bindingPath = nullptr;
-	bindingPath = sip_path_format(mHome.home(), "<%s>", path.c_str());
-	RegistrarDb::get()->bind(url, sipContact, gruu.c_str(), 0, bindingPath, sipSupported,
-							 nullptr, true, numeric_limits<int>::max(), false, 0, listener);
+	sip_path_t *bindingPath = sip_path_format(mHome.home(), "<%s>", path.c_str());
+	RegistrarDb::get()->bind(
+		url,
+		sipContact,
+		gruu.c_str(),
+		0,
+		bindingPath,
+		sipSupported,
+		nullptr,
+		true,
+		numeric_limits<int>::max(),
+		false,
+		0,
+		listener
+	);
 }
 
 ConferenceServer::Init::Init() {
 	ConfigItemDescriptor items[] = {
-		{Boolean, "enabled", "Enable conference server", "true"},
-		{String, "transport",
+		{
+			Boolean,
+			"enabled",
+			"Enable conference server",
+			"true"
+		},
+		{
+			String,
+			"transport",
 			"uri where the conference server must listen.",
-			"<sip:127.0.0.1:6064;transport=tcp>"},
-		{String, "conference-factory-uri",
+			"<sip:127.0.0.1:6064;transport=tcp>"
+		},
+		{
+			String,
+			"conference-factory-uri",
 			"uri where the client must ask to create a conference.",
-			"sip:conference-factory@sip1.linphone.org"},
-		{Boolean, "enable-one-to-one-chat-room", "Whether one-to-one chat room creation is allowed or not", "true"},
-		{String, "outbound-proxy",
+			"sip:conference-factory@sip1.linphone.org"
+		},
+		{
+			Boolean,
+			"enable-one-to-one-chat-room", 
+			"Whether one-to-one chat room creation is allowed or not",
+			"true"
+		},
+		{
+			String,
+			"outbound-proxy",
 			"",
-			"sip:127.0.0.1:5060;transport=tcp"},
-		{String, "database-backend",
+			"sip:127.0.0.1:5060;transport=tcp"
+		},
+		{
+			String,
+			"database-backend",
 			"Choose the type of backend that linphone will use for the connection.\n"
 			"Depending on your Soci package and the modules you installed, the supported databases are:"
 			"`mysql`, `sqlite3`",
-			"mysql"},
-		{String, "database-connection-string",
+			"mysql"
+		},
+		{
+			String,
+			"database-connection-string",
 			"The configuration parameters of the backend.\n"
 			"The basic format is \"key=value key2=value2\". For a mysql backend, this "
 			"is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
 			"Please refer to the Soci documentation of your backend, for instance: "
 			"http://soci.sourceforge.net/doc/3.2/backends/mysql.html"
 			"http://soci.sourceforge.net/doc/3.2/backends/sqlite3.html",
-			"db='mydb' user='myuser' password='mypass' host='myhost.com'"},
-		config_item_end};
-		GenericStruct *s = new GenericStruct("conference-server", "Flexisip conference server parameters.", 0);
+			"db='mydb' user='myuser' password='mypass' host='myhost.com'"
+		},
+		config_item_end
+	};
+
+	GenericStruct *s = new GenericStruct("conference-server", "Flexisip conference server parameters.", 0);
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
 }
