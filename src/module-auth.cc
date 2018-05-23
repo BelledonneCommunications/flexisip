@@ -281,6 +281,7 @@ private:
 	bool mDisableQOPAuth;
 	bool mRequiredSubjectCheckSet;
 	bool mRejectWrongClientCertificates;
+	bool mTrustDomainCertificates;
 
 	
 	static int authPluginInit(auth_mod_t *am, auth_scheme_t *base, su_root_t *root, tag_type_t tag, tag_value_t value,
@@ -469,9 +470,14 @@ public:
 
 			{StringList, "available-algorithms", "List of algorithms, separated by whitespaces (valid values are MD5 and SHA-256).",
 				"MD5"},
+
 			{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
 			"which will trusted. If no domain is given it is computed.",
 			""},
+
+			{Boolean, "trust-domain-certificates",
+				"If enabled, all requests which have their request URI containing a trusted domain will be accepted.",
+				"false"},
 
 			config_item_end
 		};
@@ -498,6 +504,7 @@ public:
 		mImmediateRetrievePassword = true;
 		mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
 		mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
+		mTrustDomainCertificates = mc->get<ConfigBoolean>("trust-domain-certificates")->read();
 		mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
 		mTestAccountsEnabled = mc->get<ConfigBoolean>("enable-test-accounts-creation")->read();
 		mDisableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
@@ -670,6 +677,17 @@ public:
 						goto postcheck;
 					}
 				}
+
+				if (sip->sip_request->rq_method != sip_method_register && mTrustDomainCertificates) {
+					searched_uri.url_user = NULL;
+					searched_uri.url_host = sip->sip_request->rq_url->url_host;
+					searched = url_as_string(home.home(), &searched_uri);
+					if (ev->findIncomingSubject(searched)) {
+						SLOGD << "Found trusted TLS certificate for the request URI domain";
+						goto postcheck;
+					}
+				}
+
 				LOGE("Client is presenting a TLS certificate not matching its identity.");
 				SLOGUE << "Registration failure for " << url_as_string(home.home(), from) << ", TLS certificate doesn't match its identity";
 				goto bad_certificate;
