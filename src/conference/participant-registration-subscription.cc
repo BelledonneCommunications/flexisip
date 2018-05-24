@@ -45,6 +45,7 @@ void ParticipantRegistrationSubscription::onRecordFound (Record *r) {
 		) {
 			shared_ptr<linphone::Address> deviceAddress = mParticipantAddress->clone();
 			deviceAddress->setUriParam("gr", addr->getUriParam("gr"));
+			SLOGI << "Notify registration of " << deviceAddress->asString() << " to chatroom " << mChatRoom->getLocalAddress()->asString();
 			mChatRoom->addParticipantDevice(mParticipantAddress, deviceAddress);
 		}
 	}

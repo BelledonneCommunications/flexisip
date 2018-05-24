@@ -326,7 +326,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		char type[12];
 		char deviceToken[256];
 		char appId[256] = {0};
-		char pn_key[512] = {0};
 		char tmp[16]= {0};
 		char const *params = sip->sip_request->rq_url->url_params;
 
@@ -344,7 +343,9 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		pinfo.mAppId = appId;
 
 		// check if another push notification for this device wouldn't be pending
-		snprintf(pn_key, sizeof(pn_key) - 1, "%s:%s:%s", pinfo.mCallId.c_str(), deviceToken, appId);
+		ostringstream os;
+		os << pinfo.mCallId << ":" << pinfo.mDeviceToken << ":" << pinfo.mAppId;
+		string pn_key = os.str();
 		auto it = mPendingNotifications.find(pn_key);
 		if (it != mPendingNotifications.end()) {
 			LOGD("Another push notification is pending for this call %s and this device %s, not creating a new one",

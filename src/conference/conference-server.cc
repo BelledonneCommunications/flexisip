@@ -96,8 +96,8 @@ void ConferenceServer::_init () {
 	mCore->start();
 
 	// Binding loaded chat room
-	for (const auto& chatRoom : mCore->getChatRooms()) {
-		bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly() , transport, chatRoom->getPeerAddress()->getUriParam("gr"), mPath, nullptr);
+	for (const auto &chatRoom : mCore->getChatRooms()) {
+		bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), transport, chatRoom->getPeerAddress()->getUriParam("gr"), mPath, nullptr);
 	}
 }
 
