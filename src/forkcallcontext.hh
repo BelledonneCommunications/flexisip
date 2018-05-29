@@ -38,7 +38,7 @@ class ForkCallContext : public ForkContext {
 	ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg,
 					ForkContextListener *listener);
 	~ForkCallContext();
-	void sendRinging();
+	void sendResponse(int status, char const *phrase);
 	bool isCompleted() const;
 	void onPushInitiated(const std::string &key);
 	void onPushError(const std::string &key, const std::string &errormsg);
