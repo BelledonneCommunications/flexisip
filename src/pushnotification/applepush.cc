@@ -17,6 +17,10 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	const std::string &sound = info.mAlertSound;
 	const std::string &callid = info.mCallId;
 	std::ostringstream payload;
+	time_t t = time(NULL);
+	struct tm *tm = localtime(&t);
+	char date[20];
+	strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", tm);
 
 	int ret = formatDeviceToken(deviceToken);
 	if ((ret != 0) || (mDeviceToken.size() != DEVICE_BINARY_SIZE)) {
@@ -24,23 +28,24 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	}
 	mTtl = info.mTtl;
 
-	if (info.mSilent || msg_id == "IC_SIL") { 
+	if (info.mSilent || msg_id == "IC_SIL") {
 		// silent push = pushkit.
 		// We also need msg_id and callid in case the push is received but the device cannot register
-		payload << "{\"aps\":{\"sound\":\"\", \"loc-key\":\"" << msg_id << "\", \"call-id\":\"" << callid <<"\" },\"pn_ttl\":"<< info.mTtl <<"}";
+		payload << "{\"aps\":{\"sound\":\"\", \"loc-key\":\"" << msg_id << "\", \"call-id\":\"" << callid <<"\", \"uuid\":" << info.mUid
+			<< ", \"send-time\":\"" << date << "\"}, \"pn_ttl\":"<< info.mTtl << "}";
 	} else {
-
 		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg
 		<< "\"]},\"sound\":\"" << sound << "\"";
 		/* some apps don't want the push to update the badge - but if they do,
 		 we always put the badge value to 1 because we want to notify the user that
 		 he/she has unread messages even if we do not know the exact count */
 		payload << ",\"badge\":" << (info.mNoBadge ? 0 : 1);
-		payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":" << info.mTtl <<"}";
+		payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":" << info.mTtl << "\",\"uuid\":" << info.mUid
+			<< ",\"send-time\":\"" << date << "\"}";
 	}
-	if (payload.str().length() > MAXPAYLOAD_SIZE) {
+	if (payload.str().length() > MAXPAYLOAD_SIZE)
 		return;
-	}
+
 	mPayload = payload.str();
 	LOGD("Push notification payload is %s", mPayload.c_str());
 }
@@ -103,28 +108,28 @@ const std::vector<char> &ApplePushNotificationRequest::getData() {
 	pos += sizeof(uint8_t);
 	//the frame size will be written at the end of the processing
 	pos += sizeof(frameSize);
-	
+
 	//now write items
-	
+
 	//device token item:
 	Item item;
 	item.mId = 1;
 	item.mData = mDeviceToken;
 	pos = writeItem(pos, item);
-	
+
 	//payload item:
 	item.clear();
 	item.mId = 2;
 	item.mData.assign(mPayload.begin(), mPayload.end());
 	pos = writeItem(pos, item);
-	
+
 	//Notification identifier
 	item.clear();
 	item.mId = 3;
 	item.mData.resize(sizeof(sIdentifier));
 	memcpy(&item.mData[0], &sIdentifier, sizeof(sIdentifier));
 	pos = writeItem(pos, item);
-	
+
 	//Expiration date item
 	item.clear();
 	item.mId = 4;
@@ -132,19 +137,19 @@ const std::vector<char> &ApplePushNotificationRequest::getData() {
 	item.mData.resize(sizeof(expires));
 	memcpy(&item.mData[0], &expires, sizeof(expires));
 	pos = writeItem(pos, item);
-	
+
 	//Priority item
 	item.clear();
 	item.mId = 5;
 	uint8_t priority = 10; //top priority
 	item.mData.push_back(priority);
 	pos = writeItem(pos, item);
-	
+
 	//now write the total length of items for this frame
 	frameSize = pos - sizeof(uint8_t) - sizeof(frameSize);
 	frameSize = htonl(frameSize);
 	memcpy(&mBuffer[1], &frameSize, sizeof(frameSize));
-	
+
 	return mBuffer;
 }
 

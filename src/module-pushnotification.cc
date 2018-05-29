@@ -389,6 +389,11 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				pinfo.mText = string(payload->pl_data, payload->pl_len);
 			}
 
+			// Extract the unique id if possible - it's hacky
+			const shared_ptr<BranchInfo> &br = transaction->getProperty<BranchInfo>("BranchInfo");
+			if (br)
+				pinfo.mUid = br->mUid;
+
 			shared_ptr<PushNotificationRequest> pn;
 			if (strcmp(type, "apple") == 0) {
 				char msg_str[64];
@@ -444,14 +449,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			} else {
 				SLOGD << "Push notification type not recognized [" << type << "]";
 			}
-			if (mExternalPushUri) {
-				/*extract the unique id if possible - it's hacky*/
-				const shared_ptr<BranchInfo> &br = transaction->getProperty<BranchInfo>("BranchInfo");
-				if (br) {
-					pinfo.mUid = br->mUid;
-				}
+			if (mExternalPushUri)
 				pn = make_shared<GenericPushNotificationRequest>(pinfo, mExternalPushUri, mExternalPushMethod);
-			}
 
 			if (pn) {
 				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << time_out << "s";
