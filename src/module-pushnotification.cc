@@ -30,6 +30,7 @@
 
 #include <map>
 #include <sofia-sip/msg_mime.h>
+#include <sofia-sip/sip_status.h>
 
 using namespace std;
 
@@ -149,10 +150,12 @@ void PushNotificationContext::onTimeout() {
 	if (mForkContext) {
 		SLOGD << "PNR " << mPushNotificationRequest.get() << ": Notifying call context...";
 		mForkContext->onPushInitiated(mKey);
-		if (mSendRinging) mForkContext->sendRinging();
+		if (mSendRinging) // Send 180 Ringing
+			mForkContext->sendResponse(SIP_180_RINGING);
 	}
 
 	mModule->getService()->sendPush(mPushNotificationRequest);
+	mForkContext->sendResponse(110, "Push sent");
 }
 
 void PushNotificationContext::clear() {
