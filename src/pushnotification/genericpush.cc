@@ -109,6 +109,11 @@ string &GenericPushNotificationRequest::substituteArgs(string &input, const Push
 	keyvals.push_back(KeyVal("$sound", pinfo.mAlertSound));
 	keyvals.push_back(KeyVal("$msgid", pinfo.mAlertMsgId));
 	keyvals.push_back(KeyVal("$uid", pinfo.mUid));
+	time_t t = time(NULL);
+	struct tm *tm = localtime(&t);
+	char date[20];
+	strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", tm);
+	keyvals.push_back(KeyVal("$send-time", date));
 
 	for (auto it = keyvals.begin(); it != keyvals.end(); ++it) {
 		size_t pos = input.find((*it).mKeyword);
