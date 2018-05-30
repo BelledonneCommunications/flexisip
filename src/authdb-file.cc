@@ -196,9 +196,10 @@ void FileAuthDb::sync() {
 					}
 					
 					// if user with space, replace %20 by space
-					string user_ref=user;
-					user_ref.reserve(user.size());
+					string user_ref;
+					user_ref.resize(user.size());
 					url_unescape(&user_ref[0], user.c_str());
+                    user_ref.resize(strlen(&user_ref[0]));
 					if (!ss.eof()) {
 						// TODO read userid with space
 						getline(ss, userid, ' ');
