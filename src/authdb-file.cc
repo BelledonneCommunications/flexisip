@@ -196,7 +196,7 @@ void FileAuthDb::sync() {
 					}
 					
 					// if user with space, replace %20 by space
-					string user_ref;
+					string user_ref=user;
 					user_ref.reserve(user.size());
 					url_unescape(&user_ref[0], user.c_str());
 					if (!ss.eof()) {
