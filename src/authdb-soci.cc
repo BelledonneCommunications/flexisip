@@ -37,59 +37,59 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 	ConfigItemDescriptor items[] = {
 
 		{String, "soci-password-request",
-		 "Soci SQL request to execute to obtain the password.\n"
-		 "Named parameters are:\n -':id' : the user found in the from header,\n -':domain' : the authorization realm, "
-		 "and\n -':authid' : the authorization username.\n"
-		 "The use of the :id parameter is mandatory.",
-		 "select password from accounts where login = :id and domain = :domain"},
+		"Soci SQL request to execute to obtain the password.\n"
+		"Named parameters are:\n -':id' : the user found in the from header,\n -':domain' : the authorization realm, "
+		"and\n -':authid' : the authorization username.\n"
+		"The use of the :id parameter is mandatory.",
+		"select password from accounts where login = :id and domain = :domain"},
 		{String, "soci-password-algo-request",
 			"Soci SQL request to execute to obtain the password.\n"
 			"Named parameters are:\n -':id' : the user found in the from header,\n -':domain' : the authorization realm, "
 			"and\n -':authid' : the authorization username.\n"
 			"The use of the :id parameter is mandatory."
 			"select password,password_md5,password_sha256 from accounts_algo where id = (select id from accounts where login = :id and domain = :domain)",
-		    ""},
+			""},
 		{String, "soci-user-with-phone-request",
-		 "Soci SQL request to execute to obtain the username associated with a phone alias.\n"
-		 "Named parameters are:\n -':phone' : the phone number to search for.\n"
-		 "The use of the :phone parameter is mandatory.\n"
-		 "Example : select login from accounts where phone = :phone ",
-		 ""},
+		"Soci SQL request to execute to obtain the username associated with a phone alias.\n"
+		"Named parameters are:\n -':phone' : the phone number to search for.\n"
+		"The use of the :phone parameter is mandatory.\n"
+		"Example : select login from accounts where phone = :phone ",
+		""},
 		{String, "soci-users-with-phones-request",
-		 "Soci SQL request to execute to obtain the usernames associated with phones aliases.\n"
-		 "Named parameters are:\n -':phones' : the phones to search for.\n"
-		 "The use of the :phones parameter is mandatory.\n"
-         "If you use phone number linked accounts you'll need to select login, domain, phone in your request for flexisip to work."
-		 "Example : select login, domain, phone from accounts where phone in (:phones)",
-		 ""},
+		"Soci SQL request to execute to obtain the usernames associated with phones aliases.\n"
+		"Named parameters are:\n -':phones' : the phones to search for.\n"
+		"The use of the :phones parameter is mandatory.\n"
+		"If you use phone number linked accounts you'll need to select login, domain, phone in your request for flexisip to work."
+		"Example : select login, domain, phone from accounts where phone in (:phones)",
+		""},
 
 		{Integer, "soci-poolsize",
-		 "Size of the pool of connections that Soci will use. We open a thread for each DB query, and this pool will "
-		 "allow each thread to get a connection.\n"
-		 "The threads are blocked until a connection is released back to the pool, so increasing the pool size will "
-		 "allow more connections to occur simultaneously.\n"
-		 "On the other hand, you should not keep too many open connections to your DB at the same time.",
-		 "100"},
+		"Size of the pool of connections that Soci will use. We open a thread for each DB query, and this pool will "
+		"allow each thread to get a connection.\n"
+		"The threads are blocked until a connection is released back to the pool, so increasing the pool size will "
+		"allow more connections to occur simultaneously.\n"
+		"On the other hand, you should not keep too many open connections to your DB at the same time.",
+		"100"},
 
 		{String, "soci-backend", "Choose the type of backend that Soci will use for the connection.\n"
-								 "Depending on your Soci package and the modules you installed, this could be 'mysql', "
-								 "'oracle', 'postgresql' or something else.",
-		 "mysql"},
+								"Depending on your Soci package and the modules you installed, this could be 'mysql', "
+								"'oracle', 'postgresql' or something else.",
+		"mysql"},
 
 		{String, "soci-connection-string", "The configuration parameters of the Soci backend.\n"
-										   "The basic format is \"key=value key2=value2\". For a mysql backend, this "
-										   "is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
-										   "Please refer to the Soci documentation of your backend, for intance: "
-										   "http://soci.sourceforge.net/doc/3.2/backends/mysql.html",
-		 "db=mydb user=myuser password='mypass' host=myhost.com"},
+										"The basic format is \"key=value key2=value2\". For a mysql backend, this "
+										"is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
+										"Please refer to the Soci documentation of your backend, for intance: "
+										"http://soci.sourceforge.net/doc/3.2/backends/mysql.html",
+		"db=mydb user=myuser password='mypass' host=myhost.com"},
 		
 		{Integer, "soci-max-queue-size",
-		 "Amount of queries that will be allowed to be queued before bailing password "
-		 "requests.\n This value should be chosen accordingly with 'soci-poolsize', so "
-		 "that you have a coherent behavior.\n This limit is here mainly as a safeguard "
-		 "against out-of-control growth of the queue in the event of a flood or big "
-		 "delays in the database backend.",
-		 "1000"},
+		"Amount of queries that will be allowed to be queued before bailing password "
+		"requests.\n This value should be chosen accordingly with 'soci-poolsize', so "
+		"that you have a coherent behavior.\n This limit is here mainly as a safeguard "
+		"against out-of-control growth of the queue in the event of a flood or big "
+		"delays in the database backend.",
+		"1000"},
 		config_item_end};
 
 	mc->addChildrenValues(items);
@@ -147,7 +147,7 @@ void SociAuthDB::reconnectSession(soci::session &session) {
 #define DURATION_MS(start, stop) (unsigned long) duration_cast<milliseconds>((stop) - (start)).count()
 
 void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &domain,
-									 const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
+									const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
 	steady_clock::time_point start;
 	steady_clock::time_point stop;
 	passwd_algo_t passwd;
@@ -195,11 +195,11 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 			
 			if ((e.err_num_ == 2014 || e.err_num_ == 2006) && errorCount == 1){
 				/* 2014 is the infamous "Commands out of sync; you can't run this command now" mysql error,
-				 * which is retryable.
-				 * At this time we don't know if it is a soci or mysql bug, or bug with the sql request being executed.
-				 * 
-				 * 2006 is "MySQL server has gone away" which is also retryable.
-				 */
+				* which is retryable.
+				* At this time we don't know if it is a soci or mysql bug, or bug with the sql request being executed.
+				*
+				* 2006 is "MySQL server has gone away" which is also retryable.
+				*/
 				SLOGE << "[SOCI] retrying mysql error " << e.err_num_;
 				retry = true;
 			}
@@ -362,7 +362,7 @@ void SociAuthDB::getPasswordFromBackend(const std::string &id, const std::string
 	if (success == FALSE) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil password request for " << id << " / " << domain << " / "
-			  << authid;
+			<< authid;
 		if (listener) listener->onResult(AUTH_ERROR, "");
 	}
 }
