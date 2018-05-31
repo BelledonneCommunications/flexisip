@@ -18,6 +18,7 @@
 
 #include <dirent.h>
 #include <fstream>
+#include <unordered_map>
 
 extern "C" {
 	#include <jose/jose.h>
@@ -275,6 +276,10 @@ static bool checkJwtTime(json_t *jwt) {
 // Plugin.
 // =============================================================================
 
+struct JweInfo {
+	bool consumed = false;
+};
+
 class JweAuth : public Module {
 public:
 	JweAuth(Agent *agent) : Module(agent) {}
@@ -288,7 +293,7 @@ private:
 	void onUnload() override;
 
 	void onRequest(shared_ptr<RequestSipEvent> &ev) override;
-	void onResponse(shared_ptr<ResponseSipEvent> &) override {}
+	void onResponse(shared_ptr<ResponseSipEvent> &ev) override;
 
 	list<json_t *> mJwks;
 
@@ -298,6 +303,8 @@ private:
 	string mReqActCustomHeader;
 
 	list<pair<const char *, const char *>> mCustomHeadersToCheck;
+
+	unordered_map<string, shared_ptr<JweInfo>> mCheckedJweInfo;
 
 	static ModuleInfo<JweAuth> sInfo;
 };
@@ -402,6 +409,7 @@ void JweAuth::onUnload() {
 void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const char *error = nullptr;
 	const sip_t *sip = ev->getSip();
+	shared_ptr<JweInfo> jweInfo;
 
 	const sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(sip, mOidCustomHeader.c_str());
 	if (!header || !header->un_value || !ev->findIncomingSubject(header->un_value))
@@ -409,17 +417,39 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	else if (!(header = ModuleToolbox::getCustomHeaderByName(sip, mJweCustomHeader.c_str())) || !header->un_value)
 		error = "No JWE token";
 	else {
-		json_auto_t *jwt = decryptJwe(header->un_value);
-		if (!jwt)
-			error = "Unable to decrypt JWE";
-		else if (!checkJwt(jwt, sip))
-			error = "JWT check failed";
-	}
+		string jweKey(header->un_value);
 
-	// TODO: add insertJwt method, use it directly if token has been already checked.
+		auto it = mCheckedJweInfo.find(jweKey);
+		if (it == mCheckedJweInfo.end()) {
+			json_auto_t *jwt = decryptJwe(header->un_value);
+			if (!jwt)
+				error = "Unable to decrypt JWE";
+			else if (!checkJwt(jwt, sip))
+				error = "JWT check failed";
+			else {
+				jweInfo = make_shared<JweInfo>();
+				mCheckedJweInfo.insert({ move(jweKey), jweInfo });
+				// TODO: Cb to remove expired token.
+			}
+		} else {
+			jweInfo = it->second;
+			if (jweInfo->consumed)
+				error = "JWE already consumed";
+		}
+	}
 
 	if (error) {
 		SLOGW << "Rejecting request because: `" << error << "`.";
 		ev->reply(400, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	} else {
+		shared_ptr<IncomingTransaction> incomingTransaction = ev->createIncomingTransaction();
+		incomingTransaction->setProperty(getModuleName(), jweInfo);
 	}
+}
+
+void JweAuth::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+	if (ev->getMsgSip()->getSip()->sip_status->st_status != 407)
+		static_pointer_cast<IncomingTransaction>(
+			ev->getIncomingAgent()
+		)->getProperty<JweInfo>(getModuleName())->consumed = true;
 }
