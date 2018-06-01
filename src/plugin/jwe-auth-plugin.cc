@@ -239,9 +239,12 @@ static json_t *decryptJwe(const char *text, const json_t *jwk) {
 	return jwt;
 }
 
-static bool checkJwtTime(json_t *jwt) {
+static bool checkJwtTime(json_t *jwt, int *timeout = nullptr) {
 	const time_t currentTime = time(nullptr);
 	bool error;
+
+	if (timeout)
+		*timeout = numeric_limits<int>::max();
 
 	// Check optional "exp" attr.
 	const json_int_t expValue = extractJsonOptionalValue<json_int_t>(jwt, "exp", -1, &error);
@@ -251,6 +254,8 @@ static bool checkJwtTime(json_t *jwt) {
 		SLOGW << "JWT (exp) has expired.";
 		return false;
 	}
+	if (timeout)
+		*timeout = int(time_t(expValue) - currentTime);
 
 	// Not in the JSON Web Token RFC. Check Specific optional "exp_in" attr.
 	const int expInValue = extractJsonOptionalValue<int>(jwt, "exp_in", -1, &error);
@@ -262,11 +267,12 @@ static bool checkJwtTime(json_t *jwt) {
 			SLOGW << "`exp_in` can be used only if `iat` exists.";
 			return false;
 		}
-
 		if (time_t(iatValue) + expInValue < currentTime) {
 			SLOGW << "JWT (exp_in) has expired.";
 			return false;
 		}
+		if (timeout)
+			*timeout = min(*timeout, int(time_t(iatValue) + expInValue - currentTime));
 	}
 
 	return true;
@@ -276,7 +282,16 @@ static bool checkJwtTime(json_t *jwt) {
 // Plugin.
 // =============================================================================
 
-struct JweInfo {
+class JweAuth;
+
+struct JweContext {
+	~JweContext() {
+		su_timer_destroy(timer);
+	}
+
+	JweAuth *self = nullptr;
+	string key;
+	su_timer_t *timer = nullptr;
 	bool consumed = false;
 };
 
@@ -286,7 +301,6 @@ public:
 
 private:
 	json_t *decryptJwe(const char *text) const;
-	bool checkJwt(json_t *jwt, const sip_t *sip) const;
 
 	void onDeclare(GenericStruct *moduleConfig) override;
 	void onLoad(const GenericStruct *moduleConfig) override;
@@ -294,6 +308,9 @@ private:
 
 	void onRequest(shared_ptr<RequestSipEvent> &ev) override;
 	void onResponse(shared_ptr<ResponseSipEvent> &ev) override;
+
+	void insertJweContext(string &&jweKey, const shared_ptr<JweContext> &jweContext, int timeout);
+	static void removeJweContext(su_root_magic_t *magic, su_timer_t *timer, su_timer_arg_t *arg);
 
 	list<json_t *> mJwks;
 
@@ -304,7 +321,7 @@ private:
 
 	list<pair<const char *, const char *>> mCustomHeadersToCheck;
 
-	unordered_map<string, shared_ptr<JweInfo>> mCheckedJweInfo;
+	unordered_map<string, shared_ptr<JweContext>> mJweContexts;
 
 	static ModuleInfo<JweAuth> sInfo;
 };
@@ -345,17 +362,6 @@ json_t *JweAuth::decryptJwe(const char *text) const {
 	}
 	return nullptr;
 };
-
-bool JweAuth::checkJwt(json_t *jwt, const sip_t *sip) const {
-	if (!checkJwtTime(jwt))
-		return false;
-
-	for (const auto &data : mCustomHeadersToCheck)
-		if (!checkJwtAttrFromSipHeader(jwt, sip, data.first, data.second))
-			return false;
-
-	return true;
-}
 
 void JweAuth::onDeclare(GenericStruct *moduleConfig) {
 	ConfigItemDescriptor configs[] = { {
@@ -409,7 +415,7 @@ void JweAuth::onUnload() {
 void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const char *error = nullptr;
 	const sip_t *sip = ev->getSip();
-	shared_ptr<JweInfo> jweInfo;
+	shared_ptr<JweContext> jweContext;
 
 	const sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(sip, mOidCustomHeader.c_str());
 	if (!header || !header->un_value || !ev->findIncomingSubject(header->un_value))
@@ -419,21 +425,27 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	else {
 		string jweKey(header->un_value);
 
-		auto it = mCheckedJweInfo.find(jweKey);
-		if (it == mCheckedJweInfo.end()) {
+		auto it = mJweContexts.find(jweKey);
+		if (it == mJweContexts.end()) {
+			int timeout;
 			json_auto_t *jwt = decryptJwe(header->un_value);
 			if (!jwt)
 				error = "Unable to decrypt JWE";
-			else if (!checkJwt(jwt, sip))
-				error = "JWT check failed";
+			else if (!checkJwtTime(jwt, &timeout))
+				error = "JWT check time failed";
 			else {
-				jweInfo = make_shared<JweInfo>();
-				mCheckedJweInfo.insert({ move(jweKey), jweInfo });
-				// TODO: Cb to remove expired token.
+				for (const auto &data : mCustomHeadersToCheck)
+					if (!checkJwtAttrFromSipHeader(jwt, sip, data.first, data.second))
+						error = "JWT check attrs failed";
+
+				if (!error) {
+					jweContext = make_shared<JweContext>();
+					insertJweContext(move(jweKey), jweContext, timeout);
+				}
 			}
 		} else {
-			jweInfo = it->second;
-			if (jweInfo->consumed)
+			jweContext = it->second;
+			if (jweContext->consumed)
 				error = "JWE already consumed";
 		}
 	}
@@ -443,7 +455,7 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		ev->reply(400, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	} else {
 		shared_ptr<IncomingTransaction> incomingTransaction = ev->createIncomingTransaction();
-		incomingTransaction->setProperty(getModuleName(), jweInfo);
+		incomingTransaction->setProperty(getModuleName(), jweContext);
 	}
 }
 
@@ -451,5 +463,22 @@ void JweAuth::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	if (ev->getMsgSip()->getSip()->sip_status->st_status != 407)
 		static_pointer_cast<IncomingTransaction>(
 			ev->getIncomingAgent()
-		)->getProperty<JweInfo>(getModuleName())->consumed = true;
+		)->getProperty<JweContext>(getModuleName())->consumed = true;
+}
+
+void JweAuth::insertJweContext(string &&jweKey, const shared_ptr<JweContext> &jweContext, int timeout) {
+	su_timer_t *timer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
+	jweContext->self = this;
+	jweContext->key = jweKey;
+	jweContext->timer = timer;
+
+	mJweContexts.insert({ move(jweKey), jweContext });
+	su_timer_set_interval(timer, removeJweContext, jweContext.get(), timeout * 1000);
+}
+
+void JweAuth::removeJweContext(su_root_magic_t *, su_timer_t *timer, su_timer_arg_t *arg) {
+	JweContext *jweContext = static_cast<JweContext *>(arg);
+	su_timer_destroy(jweContext->timer);
+	jweContext->timer = nullptr;
+	jweContext->self->mJweContexts.erase(jweContext->key);
 }
