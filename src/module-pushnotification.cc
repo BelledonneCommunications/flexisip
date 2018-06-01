@@ -426,7 +426,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 					strncpy(msg_snd, "empty", sizeof(msg_snd));
 				}
 
-				pinfo.mAlertMsgId = (sip->sip_request->rq_method == sip_method_invite)
+				bool isGroupChatInvite = (sip->sip_content_type != NULL && strcasecmp(sip->sip_content_type->c_subtype, "resource-lists+xml") == 0);
+				pinfo.mAlertMsgId = (sip->sip_request->rq_method == sip_method_invite && !isGroupChatInvite)
 					? call_str
 					: (sip->sip_request->rq_method == sip_method_message)
 						? msg_str
