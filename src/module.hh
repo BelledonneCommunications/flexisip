@@ -19,63 +19,48 @@
 #ifndef module_hh
 #define module_hh
 
+#include <string>
+#include <memory>
+#include <list>
+
 #include "sofia-sip/nta_tport.h"
 #include "sofia-sip/tport.h"
 #include "sofia-sip/msg_header.h"
 
-#include <string>
-#include <memory>
-#include <list>
 #include "configmanager.hh"
 #include "event.hh"
 #include "transaction.hh"
 
-class ModuleInfoBase;
-class Module;
 class Agent;
+class Module;
+class ModuleInfoBase;
 class StatCounter64;
 
 class ModuleFactory {
+	friend class ModuleInfoBase;
+
 public:
-	static ModuleFactory *get();
 	Module *createModuleInstance(Agent *ag, const std::string &modname);
+
 	const std::list<ModuleInfoBase *> &registeredModuleInfo() {
 		return mRegisteredModuleInfo;
 	}
 
+	static ModuleFactory *get();
+
 private:
-	void registerModule(ModuleInfoBase *m);
+	void registerModuleInfo(ModuleInfoBase *moduleInfo);
+	void unregisterModuleInfo(ModuleInfoBase *moduleInfo);
+
 	std::list<ModuleInfoBase *> mRegisteredModuleInfo;
+
 	static ModuleFactory *sInstance;
-	friend class ModuleInfoBase;
 };
 
 typedef enum { ModuleClassExperimental, ModuleClassProduction } ModuleClass;
 
 class ModuleInfoBase {
-	const std::string mName;
-	const std::string mHelp;
-	const oid mOidIndex;
-	static oid indexCount;
-
 public:
-	Module *create(Agent *ag);
-	virtual Module *_create(Agent *ag) = 0;
-	const std::string &getModuleName() const {
-		return mName;
-	}
-	const std::string &getModuleHelp() const {
-		return mHelp;
-	}
-	unsigned int getOidIndex() const {
-		return mOidIndex;
-	}
-	virtual ~ModuleInfoBase();
-
-	ModuleClass getClass() const {
-		return mClass;
-	}
-
 	enum ModuleOid {
 		SanityChecker = 3,
 		DoSProtection = 4,
@@ -99,20 +84,48 @@ public:
 		Plugin = 320
 	};
 
-protected:
-	ModuleInfoBase(const char *modname, const char *help, enum ModuleOid oid, ModuleClass type)
-		: mName(modname), mHelp(help), mOidIndex(oid), mClass(type) {
-		// Oid::oidFromHashedString(modname)
-		ModuleFactory::get()->registerModule(this);
+	virtual ~ModuleInfoBase() {
+		ModuleFactory::get()->unregisterModuleInfo(this);
 	}
+
+	Module *create(Agent *ag);
+	virtual Module *_create(Agent *ag) = 0;
+
+	const std::string &getModuleName() const {
+		return mName;
+	}
+
+	const std::string &getModuleHelp() const {
+		return mHelp;
+	}
+
+	ModuleClass getClass() const {
+		return mClass;
+	}
+
+	unsigned int getOidIndex() const {
+		return mOidIndex;
+	}
+
+protected:
+	ModuleInfoBase(const char *modname, const char *help, enum ModuleOid oid, ModuleClass type) :
+		mClass(type), mName(modname), mHelp(help), mOidIndex(oid) {
+		ModuleFactory::get()->registerModuleInfo(this);
+	}
+
 	ModuleClass mClass;
+
+private:
+	const std::string mName;
+	const std::string mHelp;
+	const oid mOidIndex;
 };
 
-template <typename _module_> class ModuleInfo : public ModuleInfoBase {
+template <typename _module_>
+class ModuleInfo : public ModuleInfoBase {
 public:
-	ModuleInfo(const char *modname, const char *help, ModuleOid oid, ModuleClass type = ModuleClassProduction)
-		: ModuleInfoBase(modname, help, oid, type) {
-	}
+	ModuleInfo(const char *modname, const char *help, ModuleOid oid, ModuleClass type = ModuleClassProduction) :
+		ModuleInfoBase(modname, help, oid, type) {}
 
 protected:
 	virtual Module *_create(Agent *ag);

@@ -32,51 +32,45 @@
 
 using namespace std;
 
-ModuleInfoBase::~ModuleInfoBase() {
-}
-
 Module *ModuleInfoBase::create(Agent *ag) {
 	Module *mod = _create(ag);
 	mod->setInfo(this);
 	return mod;
 }
 
-ModuleFactory *ModuleFactory::sInstance = NULL;
+ModuleFactory *ModuleFactory::sInstance = nullptr;
 
 ModuleFactory *ModuleFactory::get() {
-	if (sInstance == NULL) {
+	if (!sInstance)
 		sInstance = new ModuleFactory();
-	}
 	return sInstance;
 }
 
-struct hasName {
-	hasName(const string &ref) : match(ref) {
-	}
-	bool operator()(ModuleInfoBase *info) {
-		return info->getModuleName() == match;
-	}
-	const string &match;
-};
-
 Module *ModuleFactory::createModuleInstance(Agent *ag, const string &modname) {
-	list<ModuleInfoBase *>::iterator it;
-	it = find_if(mRegisteredModuleInfo.begin(), mRegisteredModuleInfo.end(), hasName(modname));
+	auto it = find_if(mRegisteredModuleInfo.begin(), mRegisteredModuleInfo.end(), [&modname](const ModuleInfoBase *moduleInfo) {
+		return moduleInfo->getModuleName() == modname;
+	});
 	if (it != mRegisteredModuleInfo.end()) {
-		Module *m;
-		ModuleInfoBase *i = *it;
-		m = i->create(ag);
-		LOGI("Creating module instance for [%s]", m->getModuleName().c_str());
-		return m;
+		Module *module = (*it)->create(ag);
+		SLOGI << "Creating module instance for " << "[" << modname << "].";
+		return module;
 	}
-	LOGA("Could not find any registered module with name [%s]", modname.c_str());
-	return NULL;
+	LOGA("Could not find any registered module info with name [%s]", modname.c_str());
+	return nullptr;
 }
 
-void ModuleFactory::registerModule(ModuleInfoBase *m) {
-	// LOGI("Registering module %s", m->getModuleName().c_str());
-	// Disabled as called from static intitialization...
-	mRegisteredModuleInfo.push_back(m);
+void ModuleFactory::registerModuleInfo(ModuleInfoBase *moduleInfo) {
+	SLOGI << "Registering module info [" << moduleInfo->getModuleName() << "]...";
+	auto it = find(mRegisteredModuleInfo.cbegin(), mRegisteredModuleInfo.cend(), moduleInfo);
+	if (it != mRegisteredModuleInfo.cend())
+		SLOGE << "Unable to register existing module [" << moduleInfo->getModuleName() << "].";
+	else
+		mRegisteredModuleInfo.push_back(moduleInfo);
+}
+
+void ModuleFactory::unregisterModuleInfo(ModuleInfoBase *moduleInfo) {
+	SLOGI << "Unregistering module info [" << moduleInfo->getModuleName() << "]...";
+	mRegisteredModuleInfo.remove(moduleInfo);
 }
 
 Module::Module(Agent *ag) : mAgent(ag) {
@@ -227,7 +221,7 @@ ModuleClass Module::getClass() const {
 }
 
 msg_auth_t *ModuleToolbox::findAuthorizationForRealm(su_home_t *home, msg_auth_t *au, const char *realm) {
-	while (au != NULL) {
+	while (au) {
 		auth_response_t r;
 		memset(&r, 0, sizeof(r));
 		r.ar_size = sizeof(r);
@@ -240,7 +234,7 @@ msg_auth_t *ModuleToolbox::findAuthorizationForRealm(su_home_t *home, msg_auth_t
 		au = au->au_next;
 	}
 	LOGD("authorization with expected realm '%s' not found", realm);
-	return NULL;
+	return nullptr;
 }
 
 bool ModuleToolbox::sipPortEquals(const char *p1, const char *p2, const char *transport) {
@@ -273,8 +267,12 @@ void ModuleToolbox::cleanAndPrependRoute(Agent *ag, msg_t *msg, sip_t *sip, sip_
 		prependNewRoutable(msg, sip, sip->sip_route, r);
 }
 
-void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev,
-								   const tport_t *tport) {
+void ModuleToolbox::addRecordRoute(
+	su_home_t *home,
+	Agent *ag,
+	const shared_ptr<RequestSipEvent> &ev,
+	const tport_t *tport
+) {
 	msg_t *msg = ev->getMsgSip()->getMsg();
 	sip_t *sip = ev->getMsgSip()->getSip();
 	url_t *url = NULL;
@@ -602,8 +600,12 @@ sip_route_t *ModuleToolbox::prependNewRoutable(msg_t *msg, sip_t *sip, sip_route
 	return value;
 }
 
-void ModuleToolbox::addPathHeader(Agent *ag, const shared_ptr<RequestSipEvent> &ev, const tport_t *tport,
-								  const char *uniq) {
+void ModuleToolbox::addPathHeader(
+	Agent *ag,
+	const shared_ptr<RequestSipEvent> &ev,
+	const tport_t *tport,
+	const char *uniq
+) {
 	su_home_t *home = ev->getMsgSip()->getHome();
 	msg_t *msg = ev->getMsgSip()->getMsg();
 	sip_t *sip = ev->getMsgSip()->getSip();
