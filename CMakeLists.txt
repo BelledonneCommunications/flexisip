@@ -55,8 +55,8 @@ option(ENABLE_MDNS "Build multicast DNS support" NO)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
 if(NOT CMAKE_INSTALL_RPATH AND CMAKE_INSTALL_PREFIX)
-        set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_FULL_LIBDIR})
-        message(STATUS "Setting install rpath to ${CMAKE_INSTALL_RPATH}")
+	set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_FULL_LIBDIR})
+	message(STATUS "Setting install rpath to ${CMAKE_INSTALL_RPATH}")
 endif()
 
 if(APPLE)
@@ -249,11 +249,12 @@ find_package(OpenSSL 0.9.8 REQUIRED)
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
 
 include_directories(
-	src/
 	${CMAKE_CURRENT_BINARY_DIR}
 	${CMAKE_CURRENT_BINARY_DIR}/src/
-	${SOFIASIPUA_INCLUDE_DIRS}
 	${ORTP_INCLUDE_DIRS}
+	${SOFIASIPUA_INCLUDE_DIRS}
+	src/
+	src/plugin
 )
 
 configure_file(${PROJECT_SOURCE_DIR}/cmake/flexisip-config.h.in ${PROJECT_BINARY_DIR}/flexisip-config.h)

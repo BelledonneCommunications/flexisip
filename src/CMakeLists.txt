@@ -258,6 +258,9 @@ install(TARGETS flexisip flexisip_server
 	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
 
+# Build plugins.
+add_subdirectory(plugin/jwe-auth-plugin)
+
 # expression parser tester
 if(MEDIASTREAMER2_FOUND)
 	add_executable(expr test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh utils/flexisip-exception.hh)

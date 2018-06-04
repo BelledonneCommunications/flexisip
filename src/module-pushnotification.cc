@@ -36,7 +36,7 @@ using namespace std;
 class PushNotification;
 
 class PushNotificationContext : public enable_shared_from_this<PushNotificationContext> {
-  private:
+private:
 	su_timer_t *mTimer; // timer after which push is sent
 	su_timer_t *mEndTimer; // timer after which push is cleared from global map.
 	PushNotification *mModule;
@@ -52,9 +52,11 @@ class PushNotificationContext : public enable_shared_from_this<PushNotificationC
 	static void __timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	static void __end_timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 
-  public:
-	PushNotificationContext(const shared_ptr<OutgoingTransaction> &transaction, PushNotification *module,
-							const shared_ptr<PushNotificationRequest> &pnr, const string &pn_key);
+public:
+	PushNotificationContext(
+		const shared_ptr<OutgoingTransaction> &transaction, PushNotification *module,
+		const shared_ptr<PushNotificationRequest> &pnr, const string &pnKey
+	);
 	~PushNotificationContext();
 	void start(int seconds, bool sendRinging);
 	void cancel();
@@ -64,7 +66,7 @@ class PushNotificationContext : public enable_shared_from_this<PushNotificationC
 };
 
 class PushNotification : public Module, public ModuleToolbox {
-  public:
+public:
 	PushNotification(Agent *ag);
 	virtual ~PushNotification();
 	void onDeclare(GenericStruct *module_config);
@@ -76,7 +78,7 @@ class PushNotification : public Module, public ModuleToolbox {
 	}
 	void clearNotification(const shared_ptr<PushNotificationContext> &ctx);
 
-  private:
+private:
 	bool needsPush(const sip_t *sip);
 	void makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction);
 	map<string, shared_ptr<PushNotificationContext>> mPendingNotifications; // map of pending push notifications. Its
@@ -213,7 +215,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 " The files should be .pem format, and made of certificate followed by private key. "
 		 "This is also the path to the directory where to find Voice Over IP certificates (certicates to use PushKit)."
 		 "They should bear the appid of the application, suffixed by the release mode and .pem extension, and made of certificate followed by private key. "
-         "For example: org.linphone.voip.dev.pem org.linphone.voip.prod.pem com.somephone.voip.dev.pem etc...",
+		 "For example: org.linphone.voip.dev.pem org.linphone.voip.prod.pem com.somephone.voip.dev.pem etc...",
 		 "/etc/flexisip/apn"},
 		{Boolean, "google", "Enable push notification for android devices (for compatibility only)", "true"},
 		{StringList, "google-projects-api-keys",
@@ -322,7 +324,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		char type[12];
 		char deviceToken[256];
 		char appId[256] = {0};
-		char pn_key[512] = {0};
 		char tmp[16]= {0};
 		char const *params = sip->sip_request->rq_url->url_params;
 
@@ -340,8 +341,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		pinfo.mAppId = appId;
 
 		// check if another push notification for this device wouldn't be pending
-		snprintf(pn_key, sizeof(pn_key) - 1, "%s:%s:%s", pinfo.mCallId.c_str(), deviceToken, appId);
-		auto it = mPendingNotifications.find(pn_key);
+		string pnKey(pinfo.mCallId + ":" + deviceToken + ":" + appId);
+		auto it = mPendingNotifications.find(pnKey);
 		if (it != mPendingNotifications.end()) {
 			LOGD("Another push notification is pending for this call %s and this device %s, not creating a new one",
 				 pinfo.mCallId.c_str(), deviceToken);
@@ -455,9 +456,9 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 
 			if (pn) {
 				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << time_out << "s";
-				context = make_shared<PushNotificationContext>(transaction, this, pn, pn_key);
+				context = make_shared<PushNotificationContext>(transaction, this, pn, pnKey);
 				context->start(time_out, !pinfo.mSilent);
-				mPendingNotifications.insert(make_pair(pn_key, context));
+				mPendingNotifications.insert(make_pair(pnKey, context));
 			}
 		}
 		if (context) /*associate with transaction so that transaction can eventually cancel it if the device answers.*/
