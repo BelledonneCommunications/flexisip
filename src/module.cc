@@ -61,8 +61,8 @@ struct hasName {
 
 Module *ModuleFactory::createModuleInstance(Agent *ag, const string &modname) {
 	list<ModuleInfoBase *>::iterator it;
-	it = find_if(mModules.begin(), mModules.end(), hasName(modname));
-	if (it != mModules.end()) {
+	it = find_if(mRegisteredModuleInfo.begin(), mRegisteredModuleInfo.end(), hasName(modname));
+	if (it != mRegisteredModuleInfo.end()) {
 		Module *m;
 		ModuleInfoBase *i = *it;
 		m = i->create(ag);
@@ -76,7 +76,7 @@ Module *ModuleFactory::createModuleInstance(Agent *ag, const string &modname) {
 void ModuleFactory::registerModule(ModuleInfoBase *m) {
 	// LOGI("Registering module %s", m->getModuleName().c_str());
 	// Disabled as called from static intitialization...
-	mModules.push_back(m);
+	mRegisteredModuleInfo.push_back(m);
 }
 
 Module::Module(Agent *ag) : mAgent(ag) {

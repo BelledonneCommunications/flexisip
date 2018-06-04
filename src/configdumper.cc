@@ -65,10 +65,10 @@ bool ConfigDumper::shouldDumpModule(const string &moduleName) const {
 	if (name.find("module::") != name.npos) {
 		name = moduleName.substr(MODULE_PREFIX_LEN);
 	}
-	auto moduleInfos = ModuleFactory::get()->moduleInfos();
-	auto it = std::find_if(moduleInfos.begin(), moduleInfos.end(), matchModuleName(name));
+	auto registeredModuleInfo = ModuleFactory::get()->registeredModuleInfo();
+	auto it = std::find_if(registeredModuleInfo.begin(), registeredModuleInfo.end(), matchModuleName(name));
 
-	ModuleInfoBase *moduleInfo = (it != moduleInfos.end()) ? *it : NULL;
+	ModuleInfoBase *moduleInfo = (it != registeredModuleInfo.end()) ? *it : NULL;
 	if (moduleInfo != NULL) {
 		return moduleInfo->getClass() == ModuleClassProduction;
 	} else {

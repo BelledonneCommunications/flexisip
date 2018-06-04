@@ -39,13 +39,13 @@ class ModuleFactory {
 public:
 	static ModuleFactory *get();
 	Module *createModuleInstance(Agent *ag, const std::string &modname);
-	const std::list<ModuleInfoBase *> &moduleInfos() {
-		return mModules;
+	const std::list<ModuleInfoBase *> &registeredModuleInfo() {
+		return mRegisteredModuleInfo;
 	}
 
 private:
 	void registerModule(ModuleInfoBase *m);
-	std::list<ModuleInfoBase *> mModules;
+	std::list<ModuleInfoBase *> mRegisteredModuleInfo;
 	static ModuleFactory *sInstance;
 	friend class ModuleInfoBase;
 };
