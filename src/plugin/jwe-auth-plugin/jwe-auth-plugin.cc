@@ -298,6 +298,7 @@ struct JweContext {
 class JweAuth : public Module {
 public:
 	JweAuth(Agent *agent) : Module(agent) {}
+	~JweAuth() { onUnload(); }
 
 private:
 	json_t *decryptJwe(const char *text) const;
