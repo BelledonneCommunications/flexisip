@@ -30,7 +30,7 @@ find_package(PkgConfig QUIET)
 pkg_check_modules(PC_JOSE QUIET jose)
 
 find_path(JOSE_INCLUDE_DIR
-	NAMES jose.h
+	NAMES jose/jose.h
 	HINTS ${PC_JOSE_INCLUDE_DIRS}
 )
 find_library(JOSE_LIBRARY
