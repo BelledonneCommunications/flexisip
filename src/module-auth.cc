@@ -269,6 +269,7 @@ private:
 	list<string> mDomains;
 	list<BinaryIp> mTrustedHosts;
 	list<string> mTrustedClientCertificates;
+	list<string> mAlgorithms;
 
 	regex_t mRequiredSubject;
 	auth_challenger_t mRegistrarChallenger;
@@ -469,6 +470,13 @@ public:
 				"Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
 				"false"},
 
+			/* We need this configuration because of old client that do not support multiple Authorization.
+			 * When a user have a clear text password, it will be hashed into md5 and sha256.
+			 * This will force the use of only the algorithm supported .
+			 */
+			{StringList, "available-algorithms", "List of algorithms, separated by whitespaces (valid values are MD5 and SHA-256).",
+				"MD5"},
+
 			{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
 				"which will trusted. If no domain is given it is computed.",
 				""},
@@ -508,10 +516,26 @@ public:
 		mDisableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
 		int nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
 		mNonceStore.setNonceExpires(nonceExpires);
+		mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
+		mAlgorithms.unique();
+
+		for (auto it = mAlgorithms.begin(); it != mAlgorithms.end();) {
+			if ((*it != "MD5") && (*it != "SHA-256")) {
+				SLOGW << "Given algorithm '" << *it << "' is not valid. Must be either MD5 or SHA-256.";
+				it = mAlgorithms.erase(it);
+			} else {
+				it++;
+			}
+		}
+
+		if (mAlgorithms.empty()) {
+			mAlgorithms.push_back("MD5");
+			mAlgorithms.push_back("SHA-256");
+		}
 
 		for (const auto &domain : mDomains) {
 			mAuthModules[domain] = createAuthModule(domain, nonceExpires);
-			mAuthModules[domain]->am_algorithm = su_strdup(mAuthModules[domain]->am_home, "MD5"); /* MD5 by default */
+			mAuthModules[domain]->am_algorithm = su_strdup(mAuthModules[domain]->am_home, mAlgorithms.front().c_str()); /* MD5 by default */
 			auth_plugin_t *ap = AUTH_PLUGIN(mAuthModules[domain]);
 			ap->mModule = this;
 			SLOGI << "Found auth domain: " << domain;
@@ -775,6 +799,7 @@ public:
 		AuthenticationListener *listener = new AuthenticationListener(this, ev);
 		listener->mImmediateRetrievePass = mImmediateRetrievePassword;
 		listener->mNo403 = mNo403Expr->eval(ev->getSip());
+		listener->mAlgoUsed = mAlgorithms;
 		as->as_magic = mCurrentAuthOp = listener;
 
 		// Attention: the auth_mod_verify method should not send by itself any message but
@@ -1011,14 +1036,20 @@ void Authentication::AuthenticationListener::finish() {
 }
 
 void Authentication::AuthenticationListener::finishVerifyAlgos(const vector<passwd_algo_t> &pass) {
-		mAlgoUsed.clear();
-		for (const auto &password : pass) {
-			if (password.algo != "CLRTXT")
-				mAlgoUsed.push_back(password.algo);
-		}
-		mAlgoUsed.unique();
+	mAlgoUsed.remove_if([&pass](string algo) {
+		bool found = false;
 
-		finish();
+		for (const auto &password : pass) {
+			if (password.algo == algo) {
+				found = true;
+				break;
+			}
+		}
+
+		return !found;
+	});
+
+	finish();
 }
 
 int Authentication::AuthenticationListener::checkPasswordMd5(const char *passwd){
