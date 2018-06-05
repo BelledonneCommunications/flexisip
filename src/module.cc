@@ -184,9 +184,7 @@ void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 		SLOGD << "Exception while onRequest() on module " << getModuleName() << " because " << fe;
 		SLOGD << "Replying with error 500";
 		ev->reply(500, "Internal Error", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-
 	}
-
 }
 
 void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
@@ -203,7 +201,6 @@ void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 	} catch (FlexisipException &fe) {
 		SLOGD << "Skipping onResponse() on module" << getModuleName() << " because " << fe;
 	}
-
 }
 
 void Module::idle() {

@@ -33,9 +33,9 @@
 #endif // ifndef FLEXISIP_GIT_VERSION
 
 #ifdef WIN32
-	#define FLEXISIP_PLUGIN_EXPORT __declspec(dllexport)
+	#define FLEXISIP_PLUGIN_EXPORT extern "C" __declspec(dllexport)
 #else
-	#define FLEXISIP_PLUGIN_EXPORT
+	#define FLEXISIP_PLUGIN_EXPORT extern "C"
 #endif // ifdef WIN32
 
 namespace Private {
@@ -77,7 +77,6 @@ inline std::ostream &operator<< (std::ostream &os, const PluginInfo &info) {
 
 #define FLEXISIP_DECLARE_PLUGIN(CLASS, NAME, VERSION) \
 	static_assert(std::is_base_of<Module, CLASS>::value, "Flexisip plugin must be derived from Module class."); \
-	extern "C" { \
 		FLEXISIP_PLUGIN_EXPORT Module *__flexisipCreatePlugin(Private::PluginPrivate &p, Agent *agent) { \
 			class UserPlugin : public CLASS, public Private::Plugin { \
 			public: \
@@ -91,6 +90,5 @@ inline std::ostream &operator<< (std::ostream &os, const PluginInfo &info) {
 			VERSION, \
 			FLEXISIP_PLUGIN_API_VERSION \
 		}; \
-	}
 
 #endif // plugin_hh

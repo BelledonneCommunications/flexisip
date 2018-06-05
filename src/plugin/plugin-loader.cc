@@ -68,9 +68,7 @@ namespace Private {
 		SharedLibrary library;
 	};
 
-	Plugin::Plugin(PluginPrivate &p) {
-		mPrivate = new PluginPrivate();
-	};
+	Plugin::Plugin(PluginPrivate &p) : mPrivate(&p) {}
 
 	Plugin::~Plugin() {
 		// Invalid plugin instance in loader.
@@ -119,8 +117,8 @@ bool PluginLoader::load() {
 	if (isLoaded())
 		return true;
 
-	void *sysLibrary;
-	if (!(sysLibrary = dlopen(mPrivate->filename.c_str(), RTLD_LAZY))) {
+	void *sysLibrary = dlopen(mPrivate->filename.c_str(), RTLD_LAZY);
+	if (!sysLibrary) {
 		mPrivate->setDlerror();
 		return false;
 	}
@@ -140,7 +138,7 @@ bool PluginLoader::load() {
 		return false;
 	}
 
-	SLOGI << "Plugin loaded with success! " << info;
+	SLOGI << "Plugin loaded with success! " << *info;
 
 	mPrivate->error.clear();
 	mPrivate->library = make_shared<Library>(sysLibrary);

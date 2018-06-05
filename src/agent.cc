@@ -19,6 +19,7 @@
 #include "agent.hh"
 #include "module.hh"
 #include "domain-registrations.hh"
+#include "plugin/plugin-loader.hh"
 #include "registrardb.hh"
 
 #include "log/logmanager.hh"
@@ -490,6 +491,20 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 	#endif
 
 	modulesToInstantiate.push_back("Forward");
+
+	{
+		GenericStruct *global = cr->get<GenericStruct>("global");
+		const string &pluginDir = global->get<ConfigString>("plugins-dir")->read();
+		for (const string &pluginName : global->get<ConfigStringList>("plugins")->read()) {
+			SLOGI << "Loading [" << pluginName << "] plugin...";
+			PluginLoader pluginLoader(this, pluginDir + "/lib" + pluginName + ".so");
+			Module *plugin = pluginLoader.get();
+			if (!plugin)
+				SLOGE << "Failed to load [" << pluginName << "] plugin (" << pluginLoader.getError() << ").";
+			delete plugin;
+			// TODO: Add plugin in list.
+		}
+	}
 
 	ModuleFactory *moduleFactory = ModuleFactory::get();
 	for (const string &modname : modulesToInstantiate)
