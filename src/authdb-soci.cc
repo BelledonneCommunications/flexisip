@@ -17,7 +17,7 @@
 */
 
 #include "authdb.hh"
-#include "mysql/soci-mysql.h"
+#include "soci/mysql/soci-mysql.h"
 #include <thread>
 
 using namespace soci;
@@ -41,20 +41,15 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 		"Named parameters are:\n -':id' : the user found in the from header,\n -':domain' : the authorization realm, "
 		"and\n -':authid' : the authorization username.\n"
 		"The use of the :id parameter is mandatory.",
-		"select password from accounts where login = :id and domain = :domain"},
-		{String, "soci-password-algo-request",
-			"Soci SQL request to execute to obtain the password.\n"
-			"Named parameters are:\n -':id' : the user found in the from header,\n -':domain' : the authorization realm, "
-			"and\n -':authid' : the authorization username.\n"
-			"The use of the :id parameter is mandatory."
-			"select password,password_md5,password_sha256 from accounts_algo where id = (select id from accounts where login = :id and domain = :domain)",
-			""},
+		"select password, 'MD5' from accounts_algo where id = (select id from accounts where login = :id and domain = :domain)"},
+
 		{String, "soci-user-with-phone-request",
 		"Soci SQL request to execute to obtain the username associated with a phone alias.\n"
 		"Named parameters are:\n -':phone' : the phone number to search for.\n"
 		"The use of the :phone parameter is mandatory.\n"
 		"Example : select login from accounts where phone = :phone ",
 		""},
+
 		{String, "soci-users-with-phones-request",
 		"Soci SQL request to execute to obtain the usernames associated with phones aliases.\n"
 		"Named parameters are:\n -':phones' : the phones to search for.\n"
@@ -90,6 +85,7 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 		"against out-of-control growth of the queue in the event of a flood or big "
 		"delays in the database backend.",
 		"1000"},
+
 		config_item_end};
 
 	mc->addChildrenValues(items);
@@ -107,7 +103,6 @@ SociAuthDB::SociAuthDB() : conn_pool(NULL) {
 	get_user_with_phone_request = ma->get<ConfigString>("soci-user-with-phone-request")->read();
 	get_users_with_phones_request = ma->get<ConfigString>("soci-users-with-phones-request")->read();
 	unsigned int max_queue_size = (unsigned int)ma->get<ConfigInt>("soci-max-queue-size")->read();
-	get_password_algo_request = ma->get<ConfigString>("soci-password-algo-request")->read();
 	hashed_passwd = ma->get<ConfigBoolean>("hashed-passwords")->read();
 
 	conn_pool = new connection_pool(poolSize);
@@ -150,8 +145,9 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 									const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
 	steady_clock::time_point start;
 	steady_clock::time_point stop;
-	passwd_algo_t passwd;
+
 	session *sql = NULL;
+	vector<passwd_algo_t> passwd;
 	int errorCount = 0;
 	bool retry = false;
 	
@@ -166,25 +162,40 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 
 			SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
 			start = stop;
-			if(get_password_algo_request!=""){
-				*sql << get_password_algo_request, into(passwd.pass), into(passwd.passmd5),into(passwd.passsha256),use(id, "id"), use(domain, "domain");
-			}
-			else {
-				if(hashed_passwd){
-					*sql << get_password_request, into(passwd.passmd5), use(id, "id"), use(domain, "domain");
+
+			vector<string> passwords(10);
+			vector<string> algos(10);
+
+			*sql << get_password_request, into(passwords), into(algos), use(id, "id"), use(domain, "domain");
+
+			for (vector<string>::size_type i = 0; i < passwords.size(); ++i) {
+				passwd_algo_t pass;
+
+				/* If algos is empty then the request contained only the password column */
+				if (algos[i].empty()) {
+					pass.algo = "MD5";
+
+					if (hashed_passwd) {
+						pass.pass = passwords[i];
+					} else {
+						string input = id + ":" + domain + ":" + passwords[i];
+						pass.pass = syncMd5(input.c_str(), 16);
+					}
+				} else {
+					pass.algo = algos[i];
+					pass.pass = passwords[i];
 				}
-				else {
-					*sql << get_password_request, into(passwd.pass), use(id, "id"), use(domain, "domain");
-				}
+
+				passwd.push_back(pass);
 			}
 			
-			if(listener_ref) listener_ref->finish_verify_algos(passwd);
+			if(listener_ref) listener_ref->finishVerifyAlgos(passwd);
 			
 			stop = steady_clock::now();
 			SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
 			cachePassword(createPasswordKey(id, authid), domain, passwd, mCacheExpire);
 			if (listener){
-				listener->onResult((passwd.pass.empty() && passwd.passmd5.empty() && passwd.passsha256.empty()) ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);
+				listener->onResult(passwords.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);
 			}
 			errorCount = 0;
 		} catch (mysql_soci_error const &e) {
