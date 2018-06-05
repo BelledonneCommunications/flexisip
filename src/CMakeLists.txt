@@ -60,6 +60,7 @@ set(FLEXISIP_SOURCES
 	module-loadbalancer.cc
 	module-mediarelay.cc
 	module-nat-helper.cc
+	module-pushnotification.cc
 	module-redirect.cc module-presence.cc
 	module-registrar.cc
 	module-router.cc
@@ -69,6 +70,14 @@ set(FLEXISIP_SOURCES
 	module.cc
 	monitor.cc
 	plugin/plugin-loader.cc
+	pushnotification/applepush.cc
+	pushnotification/firebasepush.cc
+	pushnotification/genericpush.cc
+	pushnotification/googlepush.cc
+	pushnotification/microsoftpush.cc
+	pushnotification/pushnotificationclient_wp.cc
+	pushnotification/pushnotificationclient.cc
+	pushnotification/pushnotificationservice.cc
 	recordserializer-c.cc
 	recordserializer-json.cc
 	registrardb-internal.cc
@@ -206,10 +215,6 @@ if(ENABLE_PRESENCE)
 	list(APPEND FLEXISIP_DEPENDENCIES xml pidf+xml rlmi+xml resource-lists rpid data-model)
 endif()
 
-if(ENABLE_PUSHNOTIFICATION)
-	file(GLOB PUSHNOTIFICATION_SRCS pushnotification/*.cc pushnotification/*.hh)
-	list(APPEND FLEXISIP_SOURCES module-pushnotification.cc ${PUSHNOTIFICATION_SRCS})
-endif()
 list(APPEND FLEXISIP_LIBS ${OPENSSL_LIBRARIES})
 list(APPEND FLEXISIP_INCLUDES ${OPENSSL_INCLUDE_DIR})
 
@@ -258,6 +263,18 @@ install(TARGETS flexisip flexisip_server
 	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
 
+add_executable(flexisip_pusher tools/pusher.cc)
+target_link_libraries(flexisip_pusher flexisip)
+set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD 11)
+set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD_REQUIRED ON)
+
+install(TARGETS flexisip_pusher
+	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+)
+
 # Build plugins.
 add_subdirectory(plugin/jwe-auth-plugin)
 
@@ -268,20 +285,6 @@ if(MEDIASTREAMER2_FOUND)
 	set_property(TARGET expr PROPERTY CXX_STANDARD 11)
 	set_property(TARGET expr PROPERTY CXX_STANDARD_REQUIRED ON)
 	target_compile_options(expr PUBLIC -DTEST_BOOL_EXPR -DNO_SOFIA)
-endif()
-
-if (ENABLE_PUSHNOTIFICATION)
-	add_executable(flexisip_pusher tools/pusher.cc)
-	target_link_libraries(flexisip_pusher flexisip)
-	set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD 11)
-	set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD_REQUIRED ON)
-
-	install(TARGETS flexisip_pusher
-		RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-		ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-		PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-	)
 endif()
 
 add_executable(flexisip_serializer tools/serializer.cc)

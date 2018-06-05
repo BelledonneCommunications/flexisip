@@ -477,9 +477,7 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 		"StatisticsCollector",
 		"ContactRouteInserter",
 		"Router",
-		#ifdef ENABLE_PUSHNOTIFICATION
-			"PushNotification",
-		#endif
+		"PushNotification",
 		"LoadBalancer",
 		"MediaRelay"
 	};
