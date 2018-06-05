@@ -43,7 +43,7 @@ void FileAuthDb::parsePasswd(vector<string> &pass, string user, string domain, v
 			password.push_back(md5);
 
 			sha256.pass = syncSha256(input.c_str(), 32);
-			sha256.algo = "SHA256";
+			sha256.algo = "SHA-256";
 			password.push_back(sha256);
 
 			return;

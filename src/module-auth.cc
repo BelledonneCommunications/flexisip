@@ -472,9 +472,12 @@ public:
 
 			/* We need this configuration because of old client that do not support multiple Authorization.
 			 * When a user have a clear text password, it will be hashed into md5 and sha256.
-			 * This will force the use of only the algorithm supported .
+			 * This will force the use of only the algorithm supported by them.
 			 */
-			{StringList, "available-algorithms", "List of algorithms, separated by whitespaces (valid values are MD5 and SHA-256).",
+			{StringList, "available-algorithms",
+				"List of algorithms, separated by whitespaces (valid values are MD5 and SHA-256).\n"
+				"This feature allows to force the use of wanted algorithm(s).\n"
+				"If the value is empty, then it will authorize all implemented algorithms.",
 				"MD5"},
 
 			{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "

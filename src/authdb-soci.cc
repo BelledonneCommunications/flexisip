@@ -37,54 +37,62 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 	ConfigItemDescriptor items[] = {
 
 		{String, "soci-password-request",
-		"Soci SQL request to execute to obtain the password.\n"
-		"Named parameters are:\n -':id' : the user found in the from header,\n -':domain' : the authorization realm, "
-		"and\n -':authid' : the authorization username.\n"
-		"The use of the :id parameter is mandatory.",
-		"select password, 'MD5' from accounts_algo where id = (select id from accounts where login = :id and domain = :domain)"},
+			"Soci SQL request to execute to obtain the password and algorithm.\n"
+			"Named parameters are:\n -':id' : the user found in the from header,\n -':domain' : the authorization realm, "
+			"and\n -':authid' : the authorization username.\n"
+			"The use of the :id parameter is mandatory.\n"
+			"The output of this request MUST contain two columns in this order:\n"
+			"\t- the password column\n"
+			"\t- the algorithm associated column: it can be a column in the database or an explicitly specified value among these ('CLRTXT', 'MD5', 'SHA-256')\n"
+			"Examples: \n"
+			" - the password and algorithm are both available in the database\n"
+			"\tselect password, algorithm from accounts where login = :id and domain = :domain\n"
+			" - all the passwords from the database are MD5\n"
+			"\t select password, 'MD5' from accounts where login = :id and domain = :domain",
+			"select password, 'MD5' from accounts where login = :id and domain = :domain"},
 
 		{String, "soci-user-with-phone-request",
-		"Soci SQL request to execute to obtain the username associated with a phone alias.\n"
-		"Named parameters are:\n -':phone' : the phone number to search for.\n"
-		"The use of the :phone parameter is mandatory.\n"
-		"Example : select login from accounts where phone = :phone ",
-		""},
+			"Soci SQL request to execute to obtain the username associated with a phone alias.\n"
+			"Named parameters are:\n -':phone' : the phone number to search for.\n"
+			"The use of the :phone parameter is mandatory.\n"
+			"Example : select login from accounts where phone = :phone ",
+			""},
 
 		{String, "soci-users-with-phones-request",
-		"Soci SQL request to execute to obtain the usernames associated with phones aliases.\n"
-		"Named parameters are:\n -':phones' : the phones to search for.\n"
-		"The use of the :phones parameter is mandatory.\n"
-		"If you use phone number linked accounts you'll need to select login, domain, phone in your request for flexisip to work."
-		"Example : select login, domain, phone from accounts where phone in (:phones)",
-		""},
+			"Soci SQL request to execute to obtain the usernames associated with phones aliases.\n"
+			"Named parameters are:\n -':phones' : the phones to search for.\n"
+			"The use of the :phones parameter is mandatory.\n"
+			"If you use phone number linked accounts you'll need to select login, domain, phone in your request for flexisip to work."
+			"Example : select login, domain, phone from accounts where phone in (:phones)",
+			""},
 
 		{Integer, "soci-poolsize",
-		"Size of the pool of connections that Soci will use. We open a thread for each DB query, and this pool will "
-		"allow each thread to get a connection.\n"
-		"The threads are blocked until a connection is released back to the pool, so increasing the pool size will "
-		"allow more connections to occur simultaneously.\n"
-		"On the other hand, you should not keep too many open connections to your DB at the same time.",
-		"100"},
+			"Size of the pool of connections that Soci will use. We open a thread for each DB query, and this pool will "
+			"allow each thread to get a connection.\n"
+			"The threads are blocked until a connection is released back to the pool, so increasing the pool size will "
+			"allow more connections to occur simultaneously.\n"
+			"On the other hand, you should not keep too many open connections to your DB at the same time.",
+			"100"},
 
 		{String, "soci-backend", "Choose the type of backend that Soci will use for the connection.\n"
-								"Depending on your Soci package and the modules you installed, this could be 'mysql', "
-								"'oracle', 'postgresql' or something else.",
-		"mysql"},
+			"Depending on your Soci package and the modules you installed, this could be 'mysql', "
+			"'oracle', 'postgresql' or something else.",
+			"mysql"},
 
 		{String, "soci-connection-string", "The configuration parameters of the Soci backend.\n"
-										"The basic format is \"key=value key2=value2\". For a mysql backend, this "
-										"is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
-										"Please refer to the Soci documentation of your backend, for intance: "
-										"http://soci.sourceforge.net/doc/3.2/backends/mysql.html",
-		"db=mydb user=myuser password='mypass' host=myhost.com"},
+			"The basic format is \"key=value key2=value2\". For a mysql backend, this "
+			"is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
+			"Please refer to the Soci documentation of your backend, for intance: "
+			"http://soci.sourceforge.net/doc/3.2/backends/mysql.html",
+			"db=mydb user=myuser password='mypass' host=myhost.com"},
 		
 		{Integer, "soci-max-queue-size",
-		"Amount of queries that will be allowed to be queued before bailing password "
-		"requests.\n This value should be chosen accordingly with 'soci-poolsize', so "
-		"that you have a coherent behavior.\n This limit is here mainly as a safeguard "
-		"against out-of-control growth of the queue in the event of a flood or big "
-		"delays in the database backend.",
-		"1000"},
+			"Amount of queries that will be allowed to be queued before bailing password "
+			"requests.\n This value should be chosen accordingly with 'soci-poolsize', so "
+			"that you have a coherent behavior.\n This limit is here mainly as a safeguard "
+			"against out-of-control growth of the queue in the event of a flood or big "
+			"delays in the database backend.",
+			"1000"},
 
 		config_item_end};
 
@@ -187,6 +195,25 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 					} else {
 						string input = id + ":" + domain + ":" + passwords[i];
 						pass.pass = syncMd5(input.c_str(), 16);
+					}
+				} else if (algos[i] == "CLRTXT") {
+					if (passwd.empty()) {
+						pass.algo = algos[i];
+						pass.pass = passwords[i];
+						passwd.push_back(pass);
+
+						string input;
+						input = id + ":" + domain + ":" + pass.pass;
+
+						pass.pass = syncMd5(input.c_str(), 16);
+						pass.algo = "MD5";
+						passwd.push_back(pass);
+
+						pass.pass = syncSha256(input.c_str(), 32);
+						pass.algo = "SHA-256";
+						passwd.push_back(pass);
+
+						break;
 					}
 				} else {
 					pass.algo = algos[i];
