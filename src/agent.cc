@@ -248,17 +248,23 @@ void Agent::start(const std::string &transport_override, const std::string passp
 
 			checkAllowedParams(url);
 			mPassphrase = passphrase;
-			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()),
-									  TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
-									  TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
-									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), 
-									  TPTAG_QUEUESIZE(queueSize),	TAG_END());
+			err = nta_agent_add_tport(
+				mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()),
+				TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
+				TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
+				TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+				TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
+				TPTAG_QUEUESIZE(queueSize),
+				TAG_END()
+			);
 		} else {
-			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_IDLE(tports_idle_timeout),
-									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), 
-									  TPTAG_QUEUESIZE(queueSize), TAG_END());
+			err = nta_agent_add_tport(
+				mAgent, (const url_string_t *)url, TPTAG_IDLE(tports_idle_timeout),
+				TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+				TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
+				TPTAG_QUEUESIZE(queueSize),
+				TAG_END()
+			);
 		}
 		if (err == -1) {
 			LOGE("Could not enable transport %s: %s", uri.c_str(), strerror(errno));
@@ -433,7 +439,7 @@ void Agent::start(const std::string &transport_override, const std::string passp
 	if (mPublicResolvedIpV6.empty() && mPublicResolvedIpV4.empty()){
 		LOGF("The default public address of the server could not be resolved (%s / %s). Cannot continue.",mPublicIpV4.c_str(), mPublicIpV6.c_str());
 	}
-	
+
 	LOGD("Agent public hostname/ip: v4:%s v6:%s", mPublicIpV4.c_str(), mPublicIpV6.c_str());
 	LOGD("Agent public resolved hostname/ip: v4:%s v6:%s", mPublicResolvedIpV4.c_str(), mPublicResolvedIpV6.c_str());
 	LOGD("Agent's _default_ RTP bind ip address: v4:%s v6:%s", mRtpBindIp.c_str(), mRtpBindIp6.c_str());
@@ -454,41 +460,45 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 
 	EtcHostsResolver::get();
 
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "DoSProtection"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "SanityChecker"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GarbageIn"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "NatHelper"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Authentication"));
-#ifdef HAVE_DATEHANDLER
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "DateHandler"));
-#endif
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Redirect"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GatewayAdapter"));
+	std::list<string> modulesToInstantiate = {
+		"DoSProtection",
+		"SanityChecker",
+		"GarbageIn",
+		"NatHelper",
+		"Authentication",
+		#ifdef HAVE_DATEHANDLER
+			"DateHandler",
+		#endif
+		"Redirect",
+		"GatewayAdapter",
+		"Presence",
+		"Registrar",
+		"StatisticsCollector",
+		"ContactRouteInserter",
+		"Router",
+		#ifdef ENABLE_PUSHNOTIFICATION
+			"PushNotification",
+		#endif
+		"LoadBalancer",
+		"MediaRelay"
+	};
 
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Presence"));
+	#ifdef ENABLE_TRANSCODER
+		const auto &overrideMap = GenericManager::get()->getOverrideMap();
+		if (overrideMap.find("notrans") == overrideMap.end())
+			modulesToInstantiate.push_back("Transcoder");
+	#endif
 
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Registrar"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "StatisticsCollector"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "ContactRouteInserter"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Router"));
-#ifdef ENABLE_PUSHNOTIFICATION
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "PushNotification"));
-#endif
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "LoadBalancer"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "MediaRelay"));
-#ifdef ENABLE_TRANSCODER
-	const auto &overrideMap = GenericManager::get()->getOverrideMap();
-	if (overrideMap.find("notrans") == overrideMap.end()) {
-		mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Transcoder"));
-	}
-#endif
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Forward"));
+	modulesToInstantiate.push_back("Forward");
+
+	ModuleFactory *moduleFactory = ModuleFactory::get();
+	for (const string &modname : modulesToInstantiate)
+		mModules.push_back(moduleFactory->createModuleInstance(this, modname));
 
 	mServerString = "Flexisip/" VERSION " (sofia-sip-nta/" NTA_VERSION ")";
 
-	for (auto it = mModules.begin(); it != mModules.end(); ++it) {
-		(*it)->declare(cr);
-	}
+	for (Module *module : mModules)
+		module->declare(cr);
 
 	onDeclare(cr);
 
@@ -728,15 +738,13 @@ string Agent::Network::print(const struct ifaddrs *ifaddr) {
 
 	err = getnameinfo(ifaddr->ifa_addr, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	if (err != 0) {
-		ss << "\tAddress: "
-		   << "(Error)";
+		ss << "\tAddress: " << "(Error)";
 	} else {
 		ss << "\tAddress: " << result;
 	}
 	err = getnameinfo(ifaddr->ifa_netmask, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	if (err != 0) {
-		ss << "\tMask: "
-		   << "(Error)";
+		ss << "\tMask: " << "(Error)";
 	} else {
 		ss << "\tMask: " << result;
 	}
@@ -842,8 +850,9 @@ Module *Agent::findModule(const string &modname) const {
 }
 
 template <typename SipEventT>
-inline void Agent::doSendEvent(shared_ptr<SipEventT> ev, const list<Module *>::iterator &begin,
-							   const list<Module *>::iterator &end) {
+inline void Agent::doSendEvent(
+	shared_ptr<SipEventT> ev, const list<Module *>::iterator &begin, const list<Module *>::iterator &end
+) {
 #define LOG_SCOPED_EV_THREAD(ssargs, key) LOG_SCOPED_THREAD(key, ssargs->getOrEmpty(key));
 
 	auto ssargs = ev->getMsgSip()->getSipAttr();
@@ -871,8 +880,8 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	const url_t *from_url = sip->sip_from ? sip->sip_from->a_url : NULL;
 
 	SLOGD << "Receiving new Request SIP message " << req->rq_method_name << " from "
-		  << (from_url ? url_as_string(ev->getHome(), from_url) : "<invalid from>") << " :"
-		  << "\n" << *ev->getMsgSip();
+		<< (from_url ? url_as_string(ev->getHome(), from_url) : "<invalid from>") << " :"
+		<< "\n" << *ev->getMsgSip();
 	switch (req->rq_method) {
 		case sip_method_register:
 			++*mCountIncomingRegister;
@@ -918,7 +927,7 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	}
 
 	SLOGD << "Receiving new Response SIP message: " << ev->getMsgSip()->getSip()->sip_status->st_status << "\n"
-		  << *ev->getMsgSip();
+		<< *ev->getMsgSip();
 
 	sip_t *sip = ev->getMsgSip()->getSip();
 	switch (sip->sip_status->st_status) {
@@ -1137,8 +1146,7 @@ void Agent::incrReplyStat(int status) {
 			break;
 	}
 }
-void Agent::reply(const shared_ptr<MsgSip> &ms, int status, char const *phrase, tag_type_t tag, tag_value_t value,
-				  ...) {
+void Agent::reply(const shared_ptr<MsgSip> &ms, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	incrReplyStat(status);
 	ta_list ta;
 	ta_start(ta, tag, value);
