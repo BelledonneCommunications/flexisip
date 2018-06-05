@@ -479,16 +479,12 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 		"Router",
 		"PushNotification",
 		"LoadBalancer",
-		"MediaRelay"
+		"MediaRelay",
+		#ifdef ENABLE_TRANSCODER
+			"Transcoder",
+		#endif
+		"Forward"
 	};
-
-	#ifdef ENABLE_TRANSCODER
-		const auto &overrideMap = GenericManager::get()->getOverrideMap();
-		if (overrideMap.find("notrans") == overrideMap.end())
-			modulesToInstantiate.push_back("Transcoder");
-	#endif
-
-	modulesToInstantiate.push_back("Forward");
 
 	{
 		GenericStruct *global = cr->get<GenericStruct>("global");
