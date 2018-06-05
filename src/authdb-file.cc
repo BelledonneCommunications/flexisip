@@ -106,12 +106,33 @@ void FileAuthDb::getPasswordFromBackend(const std::string &id, const std::string
 	if (listener) listener->onResult(res, passwd);
 }
 
+/*
+ * The following ABNF grammar should describe the syntax of the password file:
+token =  1*(alphanum / "-" / "." / "!" / "%" / "*" / "_" / "+" / "`" / "'" / "~" )
+user-id = token
+phone = token
+user = token
+domain = token
+algo = "clrtxt" / "md5" / "sha256"
+identity = user "@" domain
+auth-line = identity 1*WSP 1*(algo ":" token) 1*WSP ";" 1*WSP [user-id] 1*WSP [phone]
+ctext    =  %x21-27 / %x2A-5B / %x5D-7E / UTF8-NONASCII
+                  / LWS
+comment = "#" *ctext LF
+void = *WSP LF
+password-file = "version:0" LF *(comment | void | auth-line)
+
+*/
+
 void FileAuthDb::sync() {
 	LOGD("Syncing password file");
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
-
+	bool firstTime = false;
+	
+	if (mLastSync == 0) firstTime = true;
+	
 	mLastSync = getCurrentTime();
 
 	ifstream file;
@@ -129,6 +150,11 @@ void FileAuthDb::sync() {
 	string version;
 	string passwd_tag;
 
+	if (mFileString.empty()){
+		LOGF("'file' authentication backend was requested but no path specified in datasource.");
+		return;
+	}
+
 	LOGD("Opening file %s", mFileString.c_str());
 	file.open(mFileString);
 	if (file.is_open()) {
@@ -138,13 +164,13 @@ void FileAuthDb::sync() {
 			ss.str(line);
 			version.clear();
 			getline(ss, version, ' ');
-			if(version.substr(0,8)=="version:")
+			if (version.substr(0, 8) == "version:")
 				version = version.substr(8);
 			else
-				LOGA("userdb.conf must start by version:X to be used.");
+				LOGF("%s file must start with version:X.", mFileString.c_str());
 			break;
 		}
-		if(version=="1"){
+		if (version == "1") {
 			while (file.good() && getline(file, line)) {
 				if (line.empty()) continue;
 				ss.clear();
@@ -166,18 +192,24 @@ void FileAuthDb::sync() {
 						else
 							break;
 					}
-					if(passwd_tag != ";"){
-						if(ss.eof())
-							LOGA("In userdb.conf, the section of password must end with ';'");
-						else {
+					if (passwd_tag != ";") {
+						if (ss.eof()) {
+							LOGF("%s: unterminated password section at line '%s'. Missing ';'.", mFileString.c_str(), line.c_str());
+						} else {
 							passwd_tag.clear();
 							getline(ss, passwd_tag, ' ');
 							if((!ss.eof()) && (passwd_tag != ";"))
-								LOGA("In userdb.conf, the section of password must end with ';'");
+								LOGF("%s: unterminated password section at line '%s'. Missing ';'.", mFileString.c_str(), line.c_str());
 						}
 					}
-
+					
+					// if user with space, replace %20 by space
+					string user_ref;
+					user_ref.resize(user.size());
+					url_unescape(&user_ref[0], user.c_str());
+                    user_ref.resize(strlen(&user_ref[0]));
 					if (!ss.eof()) {
+						// TODO read userid with space
 						getline(ss, userid, ' ');
 						if (!ss.eof()) {
 							getline(ss, phone);
@@ -185,12 +217,12 @@ void FileAuthDb::sync() {
 							phone = "";
 						}
 					} else {
-						userid = user;
+						userid = user_ref;
 						phone = "";
 					}
 
 					cacheUserWithPhone(phone, domain, user);
-					parsePasswd(pass, user, domain, passwords);
+					parsePasswd(pass, user_ref, domain, passwords);
 
 					if (find(domains.begin(), domains.end(), domain) != domains.end()) {
 						string key(createPasswordKey(user, userid));
@@ -199,17 +231,21 @@ void FileAuthDb::sync() {
 						string key(createPasswordKey(user, userid));
 						cachePassword(key, domain, passwords, mCacheExpire);
 					} else {
-						LOGW("Not handled domain: %s", domain.c_str());
+						LOGW("Domain '%s' is not handled by Authentication module", domain.c_str());
 					}
 				} catch (const stringstream::failure &e) {
 					LOGW("Incorrect line format: %s (error: %s)", line.c_str(), e.what());
 				}
 			}
 		} else {
-			LOGE("Version %s is not supported",version.c_str());
+			LOGF("Version %s is not supported for file %s", version.c_str(), mFileString.c_str());
 		}
 	} else {
-		LOGE("Can't open file %s", mFileString.c_str());
+		if (firstTime){
+			LOGF("Can't open file %s", mFileString.c_str());
+		}else{
+			LOGE("Can't open file %s", mFileString.c_str());
+		}
 	}
 	LOGD("Syncing done");
 }

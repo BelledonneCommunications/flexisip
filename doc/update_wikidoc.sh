@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FLEXISIP=$(find $(dirname $0)/.. -path '*src/*' -name flexisip -type f)
+FLEXISIP=$(find $(dirname $0)/../OUTPUT -name flexisip -type f)
 
 # you can give a message by passing it as the first argument (./update_wikidoc "my update message")
 if [ "$#" -ge 1 ]; then

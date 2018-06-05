@@ -23,6 +23,7 @@
 #include <string>
 #include <list>
 #include <memory>
+#include <tuple>
 #include "ortp/payloadtype.h"
 
 
@@ -36,11 +37,14 @@
 
 class SdpMasqueradeContext{
 public:
+	enum IceState{ IceNone, IceOffered, IceCompleted} mIceState;
 	SdpMasqueradeContext();
 	bool updateIceFromOffer(sdp_session_t *session, sdp_media_t *mline, bool isOfferer);
 	bool updateIceFromAnswer(sdp_session_t *session, sdp_media_t *mline, bool isOfferer);
+	IceState getState()const{
+		return mIceState;
+	}
 private:
-	enum IceState{ IceNone, IceOffered, IceCompleted} mIceState;
 	std::string mIceUfrag, mIcePasswd;
 	static std::string getAttribute(sdp_session_t *session, sdp_media_t *mline, const std::string &name);
 	static const char *toString(IceState state);
@@ -77,15 +81,15 @@ class SdpModifier{
 		void changeConnection(sdp_connection_t *c, const char *ip);
 		void changeMediaConnection(sdp_media_t *mline, const char *relay_ip);
 		void addIceCandidateInOffer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-			std::function< std::pair<std::string,int>(int )> getDestAddrFcn,
+			std::function< std::tuple<std::string,int,int>(int )> getDestAddrFcn,
 			std::function< MasqueradeContextPair(int )> getMasqueradeContexts,
 			bool forceRelay);
 		void addIceCandidateInAnswer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, 
+			std::function< std::tuple<std::string,int,int>(int )> getDestAddrFcn, 
 			std::function< MasqueradeContextPair(int )> getMasqueradeContexts,
 			bool forceRelay);
-		void iterateInOffer(std::function<void(int, const std::string &, int)>);
-		void iterateInAnswer(std::function<void(int, const std::string &, int)>);
+		void iterateInOffer(std::function<void(int, const std::string &, int, int)>);
+		void iterateInAnswer(std::function<void(int, const std::string &, int, int)>);
 		void masqueradeInOffer(std::function< std::pair<std::string,int>(int )> getAddrFcn);
 		void masqueradeInAnswer(std::function< std::pair<std::string,int>(int )> getAddrFcn);
 		void addAttribute(const char *name, const char *value);
@@ -101,8 +105,8 @@ class SdpModifier{
 		sip_t *mSip;
 	private:
 		void addIceCandidate(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
-			std::function< std::pair<std::string,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool isOffer, bool forceRelay);
-		void iterate(std::function<void(int, const std::string &, int)>);
+			std::function< std::tuple<std::string,int,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool isOffer, bool forceRelay);
+		void iterate(std::function<void(int, const std::string &, int, int)>);
 		void masquerade(std::function< std::pair<std::string,int>(int )> getAddrFcn);
 		void changeRtcpAttr(sdp_media_t *mline, const std::string & relayAddr, int port);
 		sdp_parser_t *mParser;

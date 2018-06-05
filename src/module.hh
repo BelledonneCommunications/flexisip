@@ -211,14 +211,13 @@ class ModuleToolbox {
 	static msg_auth_t *findAuthorizationForRealm(su_home_t *home, msg_auth_t *au, const char *realm);
 	static const tport_t *getIncomingTport(const std::shared_ptr<RequestSipEvent> &ev, Agent *ag);
 	static void addRecordRouteIncoming(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev);
-	static url_t* urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr = false);
 	static void addRecordRoute(su_home_t *home, Agent *ag, const std::shared_ptr<RequestSipEvent> &ev,
 							   const tport_t *tport);
 	static void cleanAndPrependRoute(Agent *ag, msg_t *msg, sip_t *sip, sip_route_t *route);
 	static bool sipPortEquals(const char *p1, const char *p2, const char *transport = NULL);
 	static int sipPortToInt(const char *port);
 	static bool fromMatch(const sip_from_t *from1, const sip_from_t *from2);
-	static bool matchesOneOf(const char *item, const std::list<std::string> &set);
+	static bool matchesOneOf(const std::string item, const std::list<std::string> &set);
 	static bool fixAuthChallengeForSDP(su_home_t *home, msg_t *msg, sip_t *sip);
 	static bool transportEquals(const char *tr1, const char *tr2);
 	static bool isNumeric(const char *host);
@@ -252,6 +251,9 @@ class ModuleToolbox {
 	static void removeParamsFromUrl(su_home_t *home, url_t *u, std::list<std::string> &params);
 	static sip_unknown_t *getCustomHeaderByName(sip_t *sip, const char *name);
 	static int getCpuCount();
+	static bool getUriParameter(const url_t *url, const char *param, std::string &value);
+	static bool getBoolUriParameter(const url_t *url, const char *param, bool defaultValue);
+	static sip_via_t *getLastVia(sip_t *sip);
 };
 
 #endif

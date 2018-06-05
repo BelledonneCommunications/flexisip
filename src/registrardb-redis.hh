@@ -124,7 +124,6 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	static void sPublishCallback(redisAsyncContext *c, void *r, void *privdata);
 	bool isConnected();
 	friend class RegistrarDb;
-	Agent *mAgent;
 	redisAsyncContext *mContext, *mSubscribeContext;
 	RecordSerializer *mSerializer;
 	std::string mDomain;
@@ -142,6 +141,8 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	void serializeAndSendToRedis(RegistrarUserData *data, forwardFn *forward_fn);
 	bool handleRedisStatus(const std::string &desc, int redisStatus, RegistrarUserData *data);
 	void onErrorData(RegistrarUserData *data);
+	void subscribeTopic(const std::string &topic);
+	void subscribeAll();
 	//void dequeueNextRedisCommand();
 
 	/* callbacks */

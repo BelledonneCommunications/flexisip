@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FLEXISIP=$(find $(dirname $0)/.. -path '*src/*' -name flexisip -type f)
+FLEXISIP=$(find $(dirname $0)/../OUTPUT -name flexisip -type f)
 
 
 
@@ -28,5 +28,5 @@ modules=`$FLEXISIP --list-modules`
 
 # upload for DokuWiki
 #python "xw.py" "global" "global.xwiki.txt" 
-upload_to_wiki "global" "xwiki" "xw.py" 
-upload_to_wiki "${modules[@]}" "xwiki" "xw.py" 
+upload_to_wiki "global" "xwiki" "xw.py"
+upload_to_wiki "${modules[@]}" "xwiki" "xw.py"

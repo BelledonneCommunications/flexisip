@@ -94,32 +94,32 @@ static void redisSofiaCleanup(void *privdata) {
 }
 
 static int redisSofiaAttach(redisAsyncContext *ac, su_root_t *root) {
-    redisContext *c = &(ac->c);
-    redisSofiaEvents *e;
+	redisContext *c = &(ac->c);
+	redisSofiaEvents *e;
 
-    /* Nothing should be attached when something is already attached */
-    if (ac->ev.data != NULL)
-        return REDIS_ERR;
+	/* Nothing should be attached when something is already attached */
+	if (ac->ev.data != NULL)
+		return REDIS_ERR;
 
-    /* Create container for context and r/w events */
-    e = (redisSofiaEvents*)malloc(sizeof(*e));
-    e->context = ac;
-    e->root = root;
+	/* Create container for context and r/w events */
+	e = (redisSofiaEvents *)malloc(sizeof(*e));
+	e->context = ac;
+	e->root = root;
 
-    /* Register functions to start/stop listening for events */
-    ac->ev.addRead = redisSofiaAddRead;
-    ac->ev.delRead = redisSofiaDelRead;
-    ac->ev.addWrite = redisSofiaAddWrite;
-    ac->ev.delWrite = redisSofiaDelWrite;
-    ac->ev.cleanup = redisSofiaCleanup;
-    ac->ev.data = e;
+	/* Register functions to start/stop listening for events */
+	ac->ev.addRead = redisSofiaAddRead;
+	ac->ev.delRead = redisSofiaDelRead;
+	ac->ev.addWrite = redisSofiaAddWrite;
+	ac->ev.delWrite = redisSofiaDelWrite;
+	ac->ev.cleanup = redisSofiaCleanup;
+	ac->ev.data = e;
 
-    /* Initialize and install read/write events */
-    if (0!=su_wait_create(&e->wait, c->fd,SU_WAIT_IN|SU_WAIT_OUT)){
-    	return REDIS_ERR;
-    }
-    e->index=su_root_register(root, &e->wait, redisSofiaEvent, e, su_pri_normal);
+	/* Initialize and install read/write events */
+	if (0 != su_wait_create(&e->wait, c->fd, SU_WAIT_IN | SU_WAIT_OUT)) {
+		return REDIS_ERR;
+	}
+	e->index = su_root_register(root, &e->wait, redisSofiaEvent, e, su_pri_normal);
 
-    return REDIS_OK;
+	return REDIS_OK;
 }
 #endif

@@ -21,24 +21,21 @@
 #include <ostream>
 #include <functional>
 #include "etag-manager.hh"
-#include "pidf+xml.hxx"
-#include "rpid.hxx"
-#include "data-model.hxx"
+#include "pidf+xml.hh"
+#include "rpid.hh"
+#include "data-model.hh"
 #include <memory>
 #include "presentity-manager.hh"
 #include "log/logmanager.hh"
 
 #define ETAG_SIZE 8
-using namespace pidf;
-using namespace rpid;
-using namespace data_model;
 using namespace std;
 
 namespace flexisip {
 
 static string generate_presence_id(void);
 
-FlexisipException &operator<<(FlexisipException &e, const xml_schema::Exception &val) {
+FlexisipException &operator<<(FlexisipException &e, const Xsd::XmlSchema::Exception &val) {
 	stringstream e_out;
 	e_out << val;
 	e << e_out.str();
@@ -51,16 +48,16 @@ PresenceInformationElement::PresenceInformationElement(const belle_sip_uri_t *co
 	std::time_t t;
 	std::time(&t);
 	struct tm *now = gmtime(&t);
-	Status status;
-	status.setBasic(Basic("open"));
-	unique_ptr<Tuple> tup(new Tuple(status, string(generate_presence_id())));
-	tup->setTimestamp(::xml_schema::DateTime(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour,
+	Xsd::Pidf::Status status;
+	status.setBasic(Xsd::Pidf::Basic("open"));
+	unique_ptr<Xsd::Pidf::Tuple> tup(new Xsd::Pidf::Tuple(status, string(generate_presence_id())));
+	tup->setTimestamp(Xsd::XmlSchema::DateTime(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour,
 											 now->tm_min, now->tm_sec));
-	tup->setContact(::pidf::Contact(contact_as_string));
+	tup->setContact(Xsd::Pidf::Contact(contact_as_string));
 	mTuples.clear(); // just in case
-	mTuples.push_back(std::unique_ptr<Tuple>(tup.release()));
-	Activities act = Activities();
-	act.getAway().push_back(rpid::Empty());
+	mTuples.push_back(std::unique_ptr<Xsd::Pidf::Tuple>(tup.release()));
+	Xsd::Rpid::Activities act = Xsd::Rpid::Activities();
+	act.getAway().push_back(Xsd::Rpid::Empty());
 	mPerson.setId(contact_as_string);
 	mPerson.getActivities().push_back(act);
 	belle_sip_free(contact_as_string);
@@ -107,20 +104,22 @@ bool PresentityPresenceInformation::findPresenceInfo(std::shared_ptr<PresentityP
 	}
 	return false;
 }
-string PresentityPresenceInformation::putTuples(pidf::Presence::TupleSequence &tuples,
-												data_model::Person &person, int expires) {
+string PresentityPresenceInformation::putTuples(Xsd::Pidf::Presence::TupleSequence &tuples,
+												Xsd::DataModel::Person &person, int expires) {
 	return setOrUpdate(&tuples, &person, NULL, expires);
 }
-string PresentityPresenceInformation::updateTuples(pidf::Presence::TupleSequence &tuples,
-												   data_model::Person  &person, string &eTag,
+
+string PresentityPresenceInformation::updateTuples(Xsd::Pidf::Presence::TupleSequence &tuples,
+												   Xsd::DataModel::Person  &person, string &eTag,
 												   int expires) {
 	return setOrUpdate(&tuples, &person, &eTag, expires);
 }
 void PresenceInformationElement::clearTuples() {
 	mTuples.clear();
 }
-string PresentityPresenceInformation::setOrUpdate(pidf::Presence::TupleSequence *tuples,
-												  data_model::Person  *person, const string *eTag,
+
+string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequence *tuples,
+												  Xsd::DataModel::Person  *person, const string *eTag,
 												  int expires) {
 	PresenceInformationElement *informationElement = NULL;
 
@@ -205,7 +204,7 @@ void PresentityPresenceInformation::setDefaultElement(const char *contact) {
 
 	if (contact) {
 		for (auto & tup : mDefaultInformationElement->getTuples()) {
-			tup->setContact(::pidf::Contact(contact));
+			tup->setContact(Xsd::Pidf::Contact(contact));
 		}
 	}
 
@@ -309,7 +308,7 @@ void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<Present
 	 */
 	listener->onInformationChanged(*this, listener->extendedNotifyEnabled());
 }
-	
+
 void PresentityPresenceInformation::removeListener(const shared_ptr<PresentityPresenceInformationListener> &listener) {
 	SLOGD << "removing listener [" << listener.get() << "] on [" << *this << "]";
 	// 1 cancel expiration time
@@ -323,7 +322,7 @@ void PresentityPresenceInformation::removeListener(const shared_ptr<PresentityPr
 	//			 successful unsubscription will also trigger a final NOTIFY message.
 	listener->onInformationChanged(*this, listener->extendedNotifyEnabled());
 }
-	
+
 bool PresentityPresenceInformation::hasDefaultElement() {
 	return mDefaultInformationElement != nullptr;
 }
@@ -334,14 +333,14 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 	stringstream out;
 	try {
 		char *entity = belle_sip_uri_to_string(getEntity());
-		pidf::Presence presence((string(entity)));
+		Xsd::Pidf::Presence presence((string(entity)));
 		belle_sip_free(entity);
 		list<string> tupleList;
 
 		if(extended) {
 			for (auto element : mInformationElements) {
 				// copy pidf
-				for (const unique_ptr<pidf::Tuple> &tup : element.second->getTuples()) {
+				for (const unique_ptr<Xsd::Pidf::Tuple> &tup : element.second->getTuples()) {
 					// check for multiple tupple id, may happend with buggy presence publisher
 					if (find(tupleList.begin(), tupleList.end(), tup.get()->getId()) == tupleList.end()) {
 						presence.getTuple().push_back(*tup);
@@ -351,10 +350,10 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 					}
 				}
 				// copy extensions
-				Person dm_person = element.second->getPerson();
-				for(data_model::Person::ActivitiesIterator activity = dm_person.getActivities().begin(); activity != dm_person.getActivities().end();activity++) {
+				Xsd::DataModel::Person dm_person = element.second->getPerson();
+				for(Xsd::DataModel::Person::ActivitiesIterator activity = dm_person.getActivities().begin(); activity != dm_person.getActivities().end();activity++) {
 					if(!presence.getPerson()) {
-						Person person = Person(dm_person.getId());
+						Xsd::DataModel::Person person = Xsd::DataModel::Person(dm_person.getId());
 						presence.setPerson(person);
 					}
 					presence.getPerson()->getActivities().push_back(*activity);
@@ -366,17 +365,17 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 			presence.getTuple().push_back(*mDefaultInformationElement->getTuples().begin()->get());
 
 			// copy extensions
-			Person dm_person = mDefaultInformationElement->getPerson();
-			for(data_model::Person::ActivitiesIterator activity = dm_person.getActivities().begin(); activity != dm_person.getActivities().end();activity++) {
+			Xsd::DataModel::Person dm_person = mDefaultInformationElement->getPerson();
+			for(Xsd::DataModel::Person::ActivitiesIterator activity = dm_person.getActivities().begin(); activity != dm_person.getActivities().end();activity++) {
 				if(!presence.getPerson()) {
-					Person person = Person(dm_person.getId());
+					Xsd::DataModel::Person person = Xsd::DataModel::Person(dm_person.getId());
 					presence.setPerson(person);
 				}
 				presence.getPerson()->getActivities().push_back(*activity);
 			}
 		}
 		if (presence.getTuple().size() == 0) {
-			pidf::Note value;
+			Xsd::Pidf::Note value;
 			namespace_::Lang lang("en");
 			value += "No presence information available yet";
 			value.setLang(lang);
@@ -386,12 +385,12 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 
 		// Serialize the object model to XML.
 		//
-		xml_schema::NamespaceInfomap map;
+		Xsd::XmlSchema::NamespaceInfomap map;
 		map[""].name = "urn:ietf:params:xml:ns:pidf";
 
 		serializePresence(out, presence, map);
 
-	} catch (const xml_schema::Exception &e) {
+	} catch (const Xsd::XmlSchema::Exception &e) {
 		throw FLEXISIP_EXCEPTION << "error: " << e;
 	} catch (exception &e) {
 		throw FLEXISIP_EXCEPTION << "Cannot get pidf for for [" << *this << "]error [" << e.what() << "]";
@@ -435,24 +434,24 @@ void PresentityPresenceInformationListener::setExpiresTimer(belle_sip_main_loop_
 
 // PresenceInformationElement
 
-PresenceInformationElement::PresenceInformationElement(pidf::Presence::TupleSequence *tuples,
-													   data_model::Person *person,
+PresenceInformationElement::PresenceInformationElement(Xsd::Pidf::Presence::TupleSequence *tuples,
+													   Xsd::DataModel::Person *person,
 													   belle_sip_main_loop_t *mainLoop)
 	: mDomDocument(::xsd::cxx::xml::dom::create_document<char>()), mBelleSipMainloop(mainLoop), mTimer(NULL) {
 
-	for (pidf::Presence::TupleSequence::iterator tupleIt = tuples->begin(); tupleIt != tuples->end();) {
+	for (Xsd::Pidf::Presence::TupleSequence::iterator tupleIt = tuples->begin(); tupleIt != tuples->end();) {
 		SLOGD << "Adding tuple id [" << tupleIt->getId() << "] to presence info element [" << this << "]";
-		std::unique_ptr<Tuple> r;
+		std::unique_ptr<Xsd::Pidf::Tuple> r;
 		tupleIt = tuples->detach(tupleIt, r);
-		mTuples.push_back(std::unique_ptr<Tuple>(r.release()));
+		mTuples.push_back(std::unique_ptr<Xsd::Pidf::Tuple>(r.release()));
 	}
 	if(person) {
-		for(data_model::Person::ActivitiesIterator activity = person->getActivities().begin(); activity != person->getActivities().end();activity++) {
+		for(Xsd::DataModel::Person::ActivitiesIterator activity = person->getActivities().begin(); activity != person->getActivities().end();activity++) {
 			mPerson.getActivities().push_back(*activity);
 		}
 	}
 
-	/*for (pidf::Presence::PersonType::iterator domElement = extensions->begin(); domElement != extensions->end();
+	/*for (Xsd::Pidf::Presence::PersonType::iterator domElement = extensions->begin(); domElement != extensions->end();
 		 domElement++) {
 		char * transcodedString = xercesc::XMLString::transcode(domElement->getNodeName());
 		SLOGD << "Adding extension element  [" << transcodedString
@@ -488,17 +487,17 @@ void PresenceInformationElement::setExpiresTimer(belle_sip_source_t *timer) {
 	mTimer = timer;
 
 }
-const std::unique_ptr<pidf::Tuple> &PresenceInformationElement::getTuple(const string &id) const {
-	for (const std::unique_ptr<Tuple> &tup : mTuples) {
+const std::unique_ptr<Xsd::Pidf::Tuple> &PresenceInformationElement::getTuple(const string &id) const {
+	for (const std::unique_ptr<Xsd::Pidf::Tuple> &tup : mTuples) {
 		if (tup->getId().compare(id) == 0)
 			return tup;
 	}
 	throw FLEXISIP_EXCEPTION << "No tuple found for id [" << id << "]";
 }
-const list<std::unique_ptr<pidf::Tuple>> &PresenceInformationElement::getTuples() const {
+const list<std::unique_ptr<Xsd::Pidf::Tuple>> &PresenceInformationElement::getTuples() const {
 	return mTuples;
 }
-const data_model::Person PresenceInformationElement::getPerson() const {
+const Xsd::DataModel::Person PresenceInformationElement::getPerson() const {
 	return mPerson;
 }
 /*	void PresenceInformationElement::addTuple(pidf::Tuple* tup) {

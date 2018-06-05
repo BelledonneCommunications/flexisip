@@ -38,12 +38,9 @@ class Stats {
 	static void *threadfunc(void *arg);
 	
 	std::string mName;
-	bool mRunning;
 	pthread_t mThread;
-	int local_socket, remote_socket;
-	unsigned int remote_length;
-	struct sockaddr_un local, remote;
-	int local_length;
+	int mControlFds[2];
+	bool mRunning;
 };
 
 #endif

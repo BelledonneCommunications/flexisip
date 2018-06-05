@@ -93,11 +93,11 @@ public:
 	void getPasswordForAlgo(const std::string &user, const std::string &host, const std::string &auth_username,
 							AuthDbListener *listener, AuthDbListener *listener_ref);
 	void getUserWithPhone(const std::string &phone, const std::string &domain, AuthDbListener *listener);
-	void getUsersWithPhone(std::list<std::tuple<std::string,std::string,AuthDbListener *>> & creds, AuthDbListener *listener);
+	void getUsersWithPhone(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds, AuthDbListener *listener);
 	virtual void getUserWithPhoneFromBackend(const std::string &, const std::string &, AuthDbListener *listener) = 0;
-	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
+	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds, AuthDbListener *listener);
 
-	virtual void createAccount(const std::string &user, const std::string & domain, const std::string &auth_username, const std::string &password, int expires, const std::string &phone_alias = "");
+	virtual void createAccount(const std::string &user, const std::string &domain, const std::string &auth_username, const std::string &password, int expires, const std::string &phone_alias = "");
 
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) = 0;
@@ -120,7 +120,7 @@ protected:
 
 public:
 	FileAuthDb();
-	virtual void getUserWithPhoneFromBackend(const std::string &phone, const std::string & domain, AuthDbListener *listener);
+	virtual void getUserWithPhoneFromBackend(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 										const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
 
@@ -183,7 +183,7 @@ public:
 
 #if ENABLE_SOCI
 
-#include "soci.h"
+#include "soci/soci.h"
 #include "utils/threadpool.hh"
 
 class SociAuthDB : public AuthDbBackend {

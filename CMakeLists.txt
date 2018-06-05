@@ -40,7 +40,7 @@ include(GNUInstallDirs)
 
 option(ENABLE_STRICT "Pass strict flags to the compiler" YES)
 option(ENABLE_DATEHANDLER "Build DateHandler module" NO)
-option(ENABLE_DOC "Build documentation" NO)
+option(ENABLE_PDFDOC "Build pdf documentation" NO)
 option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" NO)
 option(ENABLE_ODBC "Build ODBC support for database connection" NO)
 option(ENABLE_PRESENCE "Build presence support" NO)
@@ -51,6 +51,7 @@ option(ENABLE_SNMP "Build with SNMP support" NO)
 option(ENABLE_SOCI "Build with SOCI support" YES)
 option(ENABLE_STATIC "Build static library (default is shared library)." NO)
 option(ENABLE_TRANSCODER "Build transcoder support" YES)
+option(ENABLE_MDNS "Build multicast DNS support" NO)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
 if(NOT CMAKE_INSTALL_RPATH AND CMAKE_INSTALL_PREFIX)
@@ -58,13 +59,6 @@ if(NOT CMAKE_INSTALL_RPATH AND CMAKE_INSTALL_PREFIX)
         message(STATUS "Setting install rpath to ${CMAKE_INSTALL_RPATH}")
 endif()
 
-if(APPLE)
-set(XSDCXX_DEFAULT_ROOT_PATH "/usr/local")
-else ()
-set(XSDCXX_DEFAULT_ROOT_PATH "/usr")
-endif()
-
-set(XSDCXX_ROOT_PATH ${XSDCXX_DEFAULT_ROOT_PATH}  CACHE STRING "Path of where the bin/xsdcxx executable will be found. Comes from http://www.codesynthesis.com/products/xsd/download.xhtml. On mac use 'brew install xsd'")
 set(SYSCONF_INSTALL_DIR ${CMAKE_INSTALL_FULL_SYSCONFDIR} CACHE STRING "Config directory, the place where flexisip expects its flexisip.conf file to reside" )
 
 
@@ -91,25 +85,7 @@ endif()
 
 find_package(BcToolbox 0.0.3 REQUIRED)
 
-find_program(XSDCXX_PROG NAMES "xsdcxx" "xsd"
-	HINTS ${XSDCXX_ROOT_PATH}/bin
-)
-if(XSDCXX_PROG)
-	set(ENABLE_XSD 1)
-	message(STATUS "XSD found at ${XSDCXX_PROG}, enabling XSD")
-	# TODO: check XSD is the correct executable
-	find_library(XERCES_LIBS NAMES xerces-c)
-	if(NOT XERCES_LIBS)
-		message(FATAL_ERROR "Failed to find the Xerces library.")
-	endif()
-	find_path(XERCES_INCLUDE_DIRS NAMES xercesc/util/XercesDefs.hpp)
-	if(NOT XERCES_INCLUDE_DIRS)
-		message(FATAL_ERROR "Failed to find the Xerces includes.")
-	endif()
-else()
-	set(ENABLE_XSD 0)
-	message(STATUS "Program 'xsdcxx' could not be found in ${XSDCXX_ROOT_PATH}/bin, disabling XSD features")
-endif()
+find_package(LibXsd)
 
 check_function_exists(arc4random HAVE_ARC4RANDOM)
 find_file(HAVE_SYS_PRCTL_H NAMES sys/prctl.h)
@@ -209,11 +185,11 @@ if(ENABLE_PROTOBUF)
 	endif()
 endif()
 
-if(ENABLE_DOC)
+if(ENABLE_PDFDOC)
 	FIND_PROGRAM_REQUIRED(PDFLATEX_PROG pdflatex)
 endif()
 
-if(ENABLE_PRESENCE)
+if(ENABLE_PRESENCE OR ENABLE_MDNS)
 		# disable Presence on gcc < 4.7 because c++11 is not supported well before
 		if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
 				message(WARNING "Disable Presence because GCC is too old")
@@ -229,7 +205,7 @@ endif()
 
 if(ENABLE_SOCI)
 	find_package(Soci REQUIRED COMPONENTS mysql)
-	find_path(SOCI_MYSQL_INCLUDES NAMES mysql.h PATH_SUFFIXES mysql)
+	find_path(SOCI_MYSQL_INCLUDES NAMES mysql.h PATH_SUFFIXES mysql HINTS /usr/include/mariadb /usr/local/include)
 endif()
 
 

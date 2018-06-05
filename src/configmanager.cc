@@ -27,6 +27,7 @@
 #include "configdumper.hh"
 
 #include <functional>
+#include <stdexcept>
 
 #include <ctime>
 #include <sstream>
@@ -443,6 +444,9 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor *items, bool hashed) 
 			case Integer:
 				val = new ConfigInt(items->name, items->help, items->default_value, cOid);
 				break;
+			case IntegerRange:
+				val = new ConfigIntRange(items->name, items->help, items->default_value, cOid);
+				break;
 			case String:
 				val = new ConfigString(items->name, items->help, items->default_value, cOid);
 				break;
@@ -605,6 +609,67 @@ void ConfigInt::write(int value) {
 	set(oss.str());
 }
 
+ConfigIntRange::ConfigIntRange(const std::string& name, const std::string& help, const std::string& default_value, oid oid_index)
+	: ConfigValue(name, IntegerRange, help, default_value, oid_index) {
+}
+
+void ConfigIntRange::parse(const string &value) {
+	std::string::size_type n = value.find('-');
+	if (n == std::string::npos) {
+		mMin = mMax = atoi(value.c_str());
+	} else {
+		mMin = atoi(value.substr(0, n).c_str());
+		mMax = atoi(value.substr(n + 1).c_str());
+	}
+}
+
+int ConfigIntRange::readMin() {
+	try {
+		parse(get());
+		return mMin;
+	} catch(const std::out_of_range &e) {
+		LOGA("%s", e.what());
+	}
+	return -1;
+}
+int ConfigIntRange::readMax() {
+	try {
+		parse(get());
+		return mMax;
+	} catch(const std::out_of_range &e) {
+		LOGA("%s", e.what());
+	}
+	return -1;
+}
+int ConfigIntRange::readNextMin() {
+	try {
+		parse(getNextValue());
+		return mMin;
+	} catch(const std::out_of_range &e) {
+		LOGA("%s", e.what());
+	}
+	return -1;
+}
+int ConfigIntRange::readNextMax() {
+	try {
+		parse(getNextValue());
+		return mMax;
+	} catch(const std::out_of_range &e) {
+		LOGA("%s", e.what());
+	}
+	return -1;
+}
+
+void ConfigIntRange::write(int min, int max) {
+	if (min > max) {
+		LOGA("ConfigIntRange: min is superior to max");
+	} else {
+		std::ostringstream oss;
+		oss << min << "-" << max;
+		set(oss.str());
+	}
+}
+
 StatCounter64::StatCounter64(const string &name, const string &help, oid oid_index)
 	: GenericEntry(name, Counter64, help, oid_index) {
 	mValue = 0;
@@ -764,7 +829,7 @@ GenericManager::GenericManager()
 	static ConfigItemDescriptor global_conf[] = {
 		{String, "log-level", "Verbosity of logs to output. Possible values are debug, message, warning and error", "error"},
 		{String, "syslog-level", "Verbosity of logs to put in syslog. Possible values are debug, message, warning and error", "error"},
-		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file. If -1 then no max size", "100M"},
+		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file, expressed with units. For example: 10G, 100M. If -1 then there is no maximum size", "100M"},
 		{Boolean, "user-errors-logs", "Log (on a different log domain) user errors like authentication, registration, routing, etc...", "false"},
 		{Boolean, "dump-corefiles", "Generate a corefile when crashing. "
 			"Note that by default linux will generate coredumps in '/' which is not so convenient. The following shell command can be added to"
@@ -779,7 +844,7 @@ GenericManager::GenericManager()
 						"Possible values are 'proxy', 'presence', separated by whitespaces.", "proxy" },
 		{StringList, "transports",
 		 "List of white space separated SIP uris where the proxy must listen.\n"
-		 "Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' prameter is unspecified, it will "
+		 "Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' parameter is unspecified, it will "
 		 "listen "
 		 "to both udp and tcp. A local address to bind onto can be indicated in the 'maddr' parameter, while the "
 		 "domain part of the"
@@ -816,6 +881,13 @@ GenericManager::GenericManager()
 		 " concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'. "
 		 "The setup of agent.pem, and eventually cafile.pem is required for TLS transport to work.",
 		 "/etc/flexisip/tls/"},
+		{String, "tls-ciphers",
+		 "Ciphers string to pass to OpenSSL in order to limit the cipher suites to use while establishing TLS sessions."
+		 " Please take a look to ciphers(1) UNIX manual to get the list of keywords supported by your current version"
+		 " of OpenSSL. You might visit https://www.openssl.org/docs/manmaster/man1/ciphers.html too. The default value"
+		 " set by Flexisip should provide a high level of security while keeping an acceptable level of interoperability"
+		 " with currenttly deployed client on the marcket.",
+		 "HIGH:!SSLv2:!SSLv3:!TLSv1:!EXP:!ADH:!RC4:!3DES:!aNULL:!eNULL"},
 		{Integer, "idle-timeout", "Time interval in seconds after which inactive connections are closed.", "3600"},
 		{Boolean, "require-peer-certificate", "Require client certificate from peer (inbound connections only).", "false"},
 		{Integer, "transaction-timeout", "SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.",
@@ -830,7 +902,7 @@ GenericManager::GenericManager()
 		{Boolean, "enable-snmp", "Enable SNMP.", "true"},
 		{String, "unique-id", "Unique ID used to identify that instance of Flexisip. It must be a randomly generated "
 			"16-sized hexadecimal number. If empty, it will be randomly generated at each start of Flexisip.", ""},
-		{Boolean, "use-maddr", "Allow flexisip to use maddr in sips connections to verify the CN of the TLS certificate", "false"},
+		{Boolean, "use-maddr", "Allow flexisip to use maddr in sips connections to verify the CN of the TLS certificate", "true"},
 		{Boolean, "debug", "Outputs very detailed logs", "false"},
 		config_item_end};
 
@@ -839,6 +911,22 @@ GenericManager::GenericManager()
 		{String, "cluster-domain", "Domain name that is to be used by external proxies to connect on any node of the cluster randomly. "
 			"The round-robin can be implemented with SRV records or by declaring several A records for the that domain", ""},
 		{StringList, "nodes", "List of IP addresses of all nodes present in the cluster", ""},
+		config_item_end};
+
+	static ConfigItemDescriptor mdns_conf[] = {
+		{Boolean, "enabled", "Set to 'true' to enable multicast DNS register", "false"},
+		{IntegerRange,
+			"mdns-priority", "Priority of this instance, lower value means more preferred.\n"
+			"'n': priority of n (example 10)\n"
+			"'n-m': random priority between n and m (example 10-50)",
+			"0"},
+		{Integer, "mdns-weight",
+			"A relative weight for Flexisips with the same priority, higher value means more preferred.\n"
+			"For example, if two Flexisips are registered on the same local domain with one at 20 and the other at 80"
+			", then 20% of Flexisip traffic will be redirected to the first Flexisip and 80% to the other one.\n"
+			"The sum of all the weights of Flexisips on the same local domain must be 100.",
+			"100"},
+		{Integer, "mdns-ttl", "Time To Live of any mDNS query that will ask for this Flexisip instance", "3600"},
 		config_item_end};
 
 	GenericStruct *notifObjs = new GenericStruct("notif", "Templates for notifications.", 1);
@@ -875,6 +963,13 @@ GenericManager::GenericManager()
 	mConfigRoot.addChild(cluster);
 	cluster->addChildrenValues(cluster_conf);
 	cluster->setReadOnly(true);
+
+	GenericStruct *mdns = new GenericStruct(
+		"mdns-register",
+		"Should the server be registered on a local domain, to be accessible via multicast DNS.", 0);
+	mConfigRoot.addChild(mdns);
+	mdns->addChildrenValues(mdns_conf);
+	mdns->setReadOnly(true);
 }
 
 bool GenericManager::doIsValidNextConfig(const ConfigValue &cv) {

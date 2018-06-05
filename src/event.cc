@@ -26,6 +26,7 @@
 #include <sofia-sip/msg_addr.h>
 #include "sipattrextractor.hh"
 
+
 using namespace std;
 
 void MsgSip::assignMsg(msg_t *msg) {
@@ -258,11 +259,30 @@ void RequestSipEvent::unlinkTransactions() {
 void RequestSipEvent::suspendProcessing() {
 	SipEvent::suspendProcessing();
 
-	// Become stateful if not already the case.
-	createIncomingTransaction();
+	if (getSip()->sip_request->rq_method != sip_method_ack) {//Currently does not make sens to create incoming transaction in case of ACK, specialy by forward module.
+		// Become stateful if not already the case.
+		createIncomingTransaction();
+	}
 }
 
 RequestSipEvent::~RequestSipEvent() {
+}
+
+bool RequestSipEvent::matchIncomingSubject(regex_t *regex){
+	const su_strlst_t *strlst = tport_delivered_from_subjects(mIncomingTport.get(), mMsgSip->getMsg());
+	int count = su_strlst_len(strlst);
+
+	for (int k = 0 ; k < count ; ++k){
+		const char *subj = su_strlst_item(strlst, k);
+		LOGD("matchIncomingSubject %s", subj);
+		int res = regexec(regex, subj, 0, NULL, 0);
+		if (res == 0) {
+			return true;
+		}else if (res != REG_NOMATCH){
+			LOGE("RequestSipEvent::matchIncomingSubject() regexec() returned unexpected %i", res);
+		}
+	}
+	return false;
 }
 
 bool RequestSipEvent::findIncomingSubject(const char *searched) {
@@ -327,3 +347,11 @@ void ResponseSipEvent::setOutgoingAgent(const shared_ptr<OutgoingAgent> &agent) 
 
 ResponseSipEvent::~ResponseSipEvent() {
 }
+
+std::ostream &operator<<(std::ostream &strm, const url_t &obj){
+	SofiaAutoHome home;
+	strm<<url_as_string(home.home(), &obj);
+	return strm;
+}
+
+

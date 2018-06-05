@@ -54,7 +54,9 @@ class PushNotificationRequest {
 			Successful,
 			Failed
 		};
-		virtual ~PushNotificationRequest() = default;
+
+		virtual ~PushNotificationRequest() {};
+
 		const std::string &getAppIdentifier() {
 			return mAppId;
 		}

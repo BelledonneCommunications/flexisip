@@ -47,10 +47,13 @@ void RelayedCall::enableTelephoneEventDrooping(bool value){
 }
 
 
-void RelayedCall::initChannels(const shared_ptr<SdpModifier> &m, const string &tag, const string &trid, const std::pair<std::string,std::string> &frontRelayIps, const std::pair<std::string,std::string> &backRelayIps) {
+void RelayedCall::initChannels ( const std::shared_ptr< SdpModifier >& m, const std::string& tag, const std::string& trid, 
+				 const string &fromHost, const string &destHost) {
 	sdp_media_t *mline = m->mSession->sdp_media;
+	sdp_connection_t *global_c = m->mSession->sdp_connection;
 	int i = 0;
 	bool hasMultipleTargets = false;
+	Agent *agent = mServer->getAgent();
 	
 	int maxEarlyRelays = mServer->mModule->mMaxRelayedEarlyMedia;
 	if (maxEarlyRelays != 0){
@@ -69,12 +72,28 @@ void RelayedCall::initChannels(const shared_ptr<SdpModifier> &m, const string &t
 			return ;
 		}
 		shared_ptr<RelaySession> s = mSessions[i];
+		
 		if (s == NULL) {
+			std::pair< std::string, std::string > frontRelayIps;
+			sdp_connection_t *mline_c = mline->m_connections ? mline->m_connections : global_c;
+			
+			if (mline_c && mline_c->c_address && strcmp(mline_c->c_address, fromHost.c_str()) == 0){
+				/* The client is not natted or knows its public IP address. In this case we trust him
+				 * and propose a relay address that matches its network.*/
+				frontRelayIps = agent->getPreferredIp(mline_c->c_address);
+			}else{
+				/* The client is very likely behind a nat and doesn't know its public ip address.
+				 * In that case, we provide him with a relay address that is the public address of the proxy,
+				 * but with the same address family as the address in the c= line of the SDP*/
+				bool isIpv6 = mline_c && mline_c->c_addrtype == sdp_addr_ip6;
+				frontRelayIps = make_pair(agent->getResolvedPublicIp(isIpv6), agent->getRtpBindIp(isIpv6));
+			}
 			s = mServer->createSession(tag,frontRelayIps);
 			mSessions[i] = s;
 		}
 		shared_ptr<RelayChannel> chan = s->getChannel("",trid);
 		if (chan==NULL){
+			std::pair< std::string, std::string > backRelayIps(agent->getPreferredIp(destHost));
 			/*this is a new outgoing branch to be established*/
 			chan=s->createBranch(trid,backRelayIps, hasMultipleTargets);
 		}
@@ -117,20 +136,20 @@ std::pair<string,int> RelayedCall::getChannelSources(int mline, const std::strin
 }
 	
 /* Obtain destination (previously set by setChannelDestinations()*/
-std::pair<string,int> RelayedCall::getChannelDestinations(int mline, const std::string & partyTag, const std::string &trId){
+std::tuple<string,int,int> RelayedCall::getChannelDestinations(int mline, const std::string & partyTag, const std::string &trId){
 	if (mline >= sMaxSessions) {
-		return make_pair("",0);
+		return make_tuple("",0,0);
 	}
 	shared_ptr<RelaySession> s = mSessions[mline];
 	if (s != NULL) {
 		shared_ptr<RelayChannel> chan=s->getChannel(partyTag,trId);
-		if (chan) return make_pair(chan->getRemoteIp(),chan->getRemotePort());
+		if (chan) return make_tuple(chan->getRemoteIp(),chan->getRemoteRtpPort(), chan->getRemoteRtcpPort());
 	}
-	return make_pair("",0);
+	return make_tuple("",0,0);
 }
 
 
-void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier> &m, int mline, const string &ip, int port, const string & partyTag, const string &trId, bool isEarlyMedia){
+void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier> &m, int mline, const string &ip, int rtp_port, int rtcp_port, const string & partyTag, const string &trId, bool isEarlyMedia){
 	if (mline >= sMaxSessions) {
 		return;
 	}
@@ -169,7 +188,14 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier> &m, int m
 				}
 			}
 			configureRelayChannel(chan,m->mSip,m->mSession,mline);
-			chan->setRemoteAddr(ip, port,dir);
+			/* We don't want to update the destination address of this Channel when ICE has completed, because in this case
+			 * the destination address set by the client in the c= line and port in m= lines is the relay address itself,
+			 * because it is set like this for the other party.
+			 * Flexisip is no longer in the loop and just has to keep the relay open in case it is necessary.
+			 */
+			if (chan->getState() != SdpMasqueradeContext::IceCompleted ){
+				chan->setRemoteAddr(ip, rtp_port, rtcp_port, dir);
+			}
 		}
 	}
 }

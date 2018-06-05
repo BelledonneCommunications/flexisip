@@ -15,6 +15,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
+##  WARNING !!!
+## This is an old specfile that uses automake build of flexisip. A new spec file is available in build/rpm directory,
+## which is using cmake compilation scripts.
+
 ## rpmbuild options
 
 # redis default:    1
@@ -111,9 +116,9 @@ BuildRequires: protobuf-compiler >= 2.3.0
 
 # if we use a special redis dir, we are most likely in case where we compile hiredis ourselves.
 %if %{special_hiredis_dir}
-Requires: %{pkg_prefix}hiredis-devel >= 0.11
+Requires: %{pkg_prefix}hiredis-devel >= 0.13
 %else
-Requires: hiredis-devel >= 0.11
+Requires: hiredis-devel >= 0.13
 %endif
 
 %endif

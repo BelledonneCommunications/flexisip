@@ -26,9 +26,11 @@
 
 #include "common.hh"
 #include "configmanager.hh"
+#include "registrardb.hh"
 
 #include <list>
 
+class LocalRegExpireListener;
 class DomainRegistrationManager;
 class Agent;
 
@@ -44,19 +46,31 @@ class DomainRegistration {
 	~DomainRegistration();
 
   private:
+	struct uuid_t {
+		unsigned int time_low;
+		unsigned short time_mid;
+		unsigned short time_hi_and_version;
+		unsigned char clock_seq_hi_and_reserved;
+		unsigned char clock_seq_low;
+		unsigned char node[6];
+	};
+
 	void setContact(msg_t *msg);
 	int getExpires(nta_outgoing_t *orq, const sip_t *response);
 	static void sOnConnectionBroken(tp_stack_t *stack, tp_client_t *client, tport_t *tport, msg_t *msg, int error);
 	static int sLegCallback(nta_leg_magic_t *ctx, nta_leg_t *leg, nta_incoming_t *incoming, const sip_t *request);
 	static int sResponseCallback(nta_outgoing_magic_t *ctx, nta_outgoing_t *orq, const sip_t *resp);
 	static void sRefreshRegistration(su_root_magic_t *magic, su_timer_t *timer, su_timer_arg_t *arg);
+	static void sRefreshUnregistration(su_root_magic_t *magic, su_timer_t *timer, su_timer_arg_t *arg);
 	void responseCallback(nta_outgoing_t *orq, const sip_t *resp);
 	void onConnectionBroken(tport_t *tport, msg_t *msg, int error);
 	void cleanCurrentTport();
+	int generateUuid(const std::string &uniqueId);
 	DomainRegistrationManager &mManager;
 	StatCounter64 * mRegistrationStatus; //This contains the lastest SIP response code of the REGISTER transaction.
 	su_home_t mHome;
 	nta_leg_t *mLeg;
+	msg_header_t *mSip = NULL;
 	tport_t *mPrimaryTport; // the tport that has the configuration
 	tport_t *mCurrentTport; // the secondary tport that has the active connection.
 	int mPendId;
@@ -64,9 +78,11 @@ class DomainRegistration {
 	url_t *mFrom;
 	url_t *mProxy;
 	sip_contact_t *mExternalContact;
+	std::string mUuid;
+	nta_outgoing_t *mOutgoing;
 };
 
-class DomainRegistrationManager {
+class DomainRegistrationManager : public LocalRegExpireListener, public std::enable_shared_from_this<DomainRegistrationManager> {
 	friend class DomainRegistration;
 
   public:
@@ -83,12 +99,26 @@ class DomainRegistrationManager {
 	const url_t *getPublicUri(const tport_t *tport) const;
 	~DomainRegistrationManager();
 
+	void onRegUpdated();
+
+	void onLocalRegExpireUpdated(unsigned int count);
+
   private:
 	Agent *mAgent;
 	std::list<std::shared_ptr<DomainRegistration>> mRegistrations;
+	int mNbRegistration = 0;
+	su_timer_t *mTimer;
+	std::list<std::string> mRegistrationList;
 	GenericStruct *mDomainRegistrationArea; /*this is used to place statistics values*/
 	int mKeepaliveInterval;
 	bool mVerifyServerCerts;
+	bool mRegisterWhenNeeded;
+	bool mDomainRegistrationsStarted;
+
+	static void unregisterTimeout(su_root_magic_t *magic, su_timer_t *t, void *data) {
+		su_root_t *root = (su_root_t *) data;
+		su_root_break(root);
+	}
 };
 
 #endif

@@ -129,8 +129,6 @@ static void flexisip_stop(int signum) {
 	} else if (run != 0) {
 		// LOGD("Received quit signal...");
 		
-		signal(SIGTERM, NULL); /*removing signal handler because on BSD platform it present signal to be dispathed to other threads*/
-		signal(SIGINT, NULL);
 		run = 0;
 		if (root) {
 			su_root_break(root);
@@ -612,6 +610,7 @@ int main(int argc, char *argv[]) {
 	Stats *presence_stats = NULL;
 #endif
 	bool debug;
+	bool user_errors = false;
 	map<string, string> oset;
 
 	string versionString = version();
@@ -749,6 +748,9 @@ int main(int argc, char *argv[]) {
 		if (cfg->getGlobal()->get<ConfigBoolean>("debug")->read()){
 			debug = true;
 		}
+	}else{
+		//if --debug is given, enable user-errors logs as well.
+		user_errors = true;
 	}
 	bool dump_cores = cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
 	
@@ -783,11 +785,13 @@ int main(int argc, char *argv[]) {
 	// Initialize
 	std::string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
 	std::string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
-	bool user_errors = cfg->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
+	if (!user_errors) user_errors = cfg->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
+	
+	ortp_set_log_handler(NULL); /*remove ortp's default log handler that logs to stdout*/ 
+	ortp_init();
 	// in case we don't plan to launch flexisip, don't setup the logs.
 	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs &&
 		!dumpAll) {
-		ortp_init();
 		uint64_t max_size = cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read();
 		flexisip::log::preinit(useSyslog.getValue(), debug, max_size, fName);
 	} else {
@@ -874,7 +878,6 @@ int main(int argc, char *argv[]) {
 			SnmpAgent lAgent(*a, *cfg, oset);
 		}
 	#endif
-		ortp_init();
 
 		if (!oset.empty())
 			cfg->applyOverrides(true); // using default + overrides

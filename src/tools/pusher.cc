@@ -35,18 +35,19 @@ static const int MAX_QUEUE_SIZE = 3000;
 // static const int PRINT_STATS_TIMEOUT = 3000;	/* In milliseconds. */
 
 struct PusherArgs {
-	PusherArgs() : debug(false){
+	PusherArgs() : debug(false), isSilent(false){
 	}
 	string prefix;
 	string pntype;
 	bool debug;
+	bool isSilent;
 	string appid;
 	vector<string> pntok;
 	string apikey;
 	string packageSID;
 	void usage(const char *app) {
 		cout << app
-			 << " --pntype google|firebase|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir --debug --pntok id1 (id2 id3 ...)"
+			 << " --pntype google|firebase|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir --silent --debug --pntok id1 (id2 id3 ...)"
 			 << endl;
 	}
 
@@ -86,6 +87,8 @@ struct PusherArgs {
 				packageSID = argv[++i];
 			} else if (EQ0(i, "--debug")) {
 				debug = true;
+			}else if (EQ0(i, "--silent")) {
+				isSilent = true;
 			} else if (EQ1(i, "--pntok")) {
 				while (i+1 < argc && strncmp(argv[i+1], "--", 2) != 0) {
 					i++;
@@ -151,6 +154,7 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 			pinfo.mAppId = args.appid;
 			pinfo.mDeviceToken = pntok;
 			pinfo.mTtl = 2592000;
+			pinfo.mSilent = args.isSilent;
 			//pinfo.mTtl = 60;
 			result.push_back(make_shared<ApplePushNotificationRequest>(pinfo));
 		} else {

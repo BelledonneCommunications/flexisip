@@ -251,7 +251,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	dest = overrideDest(ev, dest);
 
-	/*gruu processing in forward module is only done if dialog is not establish. In other cases, router mnodule is involved instead*/
+	/*gruu processing in forward module is only done if dialog is established. In other cases, router mnodule is involved instead*/
 	if (url_has_param(dest,"gr") && (sip->sip_to != NULL && sip->sip_to->a_tag != NULL)) {
 		//gruu case, ask registrar db for AOR
 		ev->suspendProcessing();

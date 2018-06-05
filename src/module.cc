@@ -29,6 +29,7 @@
 #include "utils/signaling-exception.hh"
 
 #include <algorithm>
+
 using namespace std;
 
 ModuleInfoBase::~ModuleInfoBase() {
@@ -272,33 +273,6 @@ void ModuleToolbox::cleanAndPrependRoute(Agent *ag, msg_t *msg, sip_t *sip, sip_
 		prependNewRoutable(msg, sip, sip->sip_route, r);
 }
 
-url_t* ModuleToolbox::urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr)
-{
-	url_t *url = NULL;
-	url_type_e ut = url_sip;
-
-	if (strcasecmp(name->tpn_proto, "tls") == 0) {
-		ut = url_sips;
-	}
-	url = (url_t *)su_alloc(home, sizeof(url_t));
-	url_init(url, ut);
-
-	if (strcasecmp(name->tpn_proto, "tcp") == 0) {
-		url_param_add(home, url, "transport=tcp");
-	}
-
-	url->url_port = su_strdup(home, name->tpn_port);
-	url->url_host = su_strdup(home, name->tpn_canon);
-	if (ut == url_sips && !avoidMAddr) {
-		if (strcmp(name->tpn_host, name->tpn_canon) != 0) {
-			if (GenericManager::get()->getGlobal()->get<ConfigBoolean>("use-maddr")->read()) {
-				url_param_add(home, url, su_sprintf(home, "maddr=%s", name->tpn_host));
-			}
-		}
-	}
-	return url;
-}
-
 void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev,
 								   const tport_t *tport) {
 	msg_t *msg = ev->getMsgSip()->getMsg();
@@ -318,7 +292,7 @@ void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<
 			tport = tport_parent(tport); // get primary transport, to get the public (server socket) ip/port
 			const tp_name_t *name = tport_name(tport); // primary transport name
 
-			url = urlFromTportName(home, name);
+			url = ag->urlFromTportName(home, name);
 			if (!url) {
 				LOGE("ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL");
 				return;
@@ -367,15 +341,25 @@ bool ModuleToolbox::fromMatch(const sip_from_t *from1, const sip_from_t *from2) 
 	return false;
 }
 
-bool ModuleToolbox::matchesOneOf(const char *item, const list<string> &set) {
+bool ModuleToolbox::matchesOneOf(const string item, const list<string> &set) {
 	list<string>::const_iterator it;
 	for (it = set.begin(); it != set.end(); ++it) {
-		const char *tmp = (*it).c_str();
+		string value = (*it);
+		const char *tmp = value.c_str();
 		if (tmp[0] == '*') {
 			/*the wildcard matches everything*/
 			return true;
 		} else {
-			if (strcmp(item, tmp) == 0)
+			size_t wildcardPosition = value.find("*");
+			// if domain has a wildcard in it, try to match
+			if (wildcardPosition != string::npos) {
+				size_t beforeWildcard = item.find(value.substr(0, wildcardPosition));
+				size_t afterWildcard = item.find(value.substr(wildcardPosition + 1));
+				if (beforeWildcard != string::npos && afterWildcard != string::npos) {
+					return true;
+				}
+			}
+			if (strcmp(item.c_str(), tmp) == 0)
 				return true;
 		}
 	}
@@ -629,7 +613,7 @@ void ModuleToolbox::addPathHeader(Agent *ag, const shared_ptr<RequestSipEvent> &
 		tport = tport_parent(tport); // get primary transport
 		const tp_name_t *name = tport_name(tport); // primary transport name
 
-		url = urlFromTportName(home, name);
+		url = ag->urlFromTportName(home, name);
 		if (!url) {
 			LOGE("ModuleToolbox::addPathHeader(): urlFromTportName() returned NULL");
 			return;
@@ -700,3 +684,37 @@ int ModuleToolbox::getCpuCount() {
 	}
 	return count;
 }
+bool ModuleToolbox::getUriParameter(const url_t *url, const char *param, string &value){
+	if (url_has_param(url, param)) {
+		char tmp[256]={0};
+		url_param(url->url_params, param, tmp, sizeof(tmp)-1);
+		value = tmp;
+		return true;
+	}
+	return false;
+}
+
+bool ModuleToolbox::getBoolUriParameter(const url_t *url, const char *param, bool defaultValue){
+	if (url_has_param(url, param)) {
+		bool ret = false;
+		char tmp[256]={0};
+		url_param(url->url_params, param, tmp, sizeof(tmp)-1);
+		try{
+			ret = ConfigBoolean::parse(tmp);
+		}catch(FlexisipException &e){
+			LOGF("Bad value for uri parameter '%s': %s", param, e.what());
+		}
+		return ret;
+	}
+	return defaultValue;
+}
+
+sip_via_t *ModuleToolbox::getLastVia(sip_t *sip){
+	sip_via_t *ret;
+	ret = sip->sip_via;
+	while (ret->v_next){
+		ret = ret->v_next;
+	}
+	return ret;
+}
+

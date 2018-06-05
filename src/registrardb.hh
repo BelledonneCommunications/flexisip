@@ -68,9 +68,10 @@ struct ExtendedContact {
 	std::string mCallId;
 	std::string mUniqueId;
 	std::list<std::string> mPath; //list of urls as string (not enclosed with brakets)
-	url_t *mSipUri; // a single sip uri with his params (not enclosed with brakets)
+	sip_contact_t *mSipContact; // Full contact
 	float mQ;
 	time_t mExpireAt;
+	time_t mExpireNotAtMessage;  // real expires time but not for message
 	time_t mUpdatedTime;
 	uint32_t mCSeq;
 	bool mAlias;
@@ -119,63 +120,66 @@ struct ExtendedContact {
 		return std::string(url);
 	}
 
-	void setSipUri(const url_t *uri) {
-		if (mSipUri) su_free(mHome.home(), mSipUri);
-		mSipUri = url_hdup(mHome.home(), uri);
-	}
-
-	std::string getUniqueId() {
+	const std::string &getUniqueId() {
 		return (mUniqueId.empty() ? mCallId : mUniqueId);
+	}
+	
+	time_t getExpireNotAtMessage() {
+		return mExpireNotAtMessage;
 	}
 
 	std::string serializeAsUrlEncodedParams();
 
+	std::string getOrgLinphoneSpecs();
+
+	void setupRegid();
 	void transferRegId(const std::shared_ptr<ExtendedContact> &oldEc);
+	const std::string getMessageExpires(const msg_param_t *m_params);
 
 	ExtendedContact(const ExtendedContactCommon &common, sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
 		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
-			mSipUri(), mQ(0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias),mAcceptHeader(acceptHeaders),
+			mSipContact(NULL), mQ(1.0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias), mAcceptHeader(acceptHeaders),
 			mUsedAsRoute(false), mRegId(0), mHome() {
 
-		mSipUri = url_hdup(mHome.home(), sip_contact->m_url);
+		mSipContact = sip_contact_dup(mHome.home(), sip_contact);
+		mSipContact->m_next = NULL;
 
-		if (sip_contact->m_q) {
-			mQ = atof(sip_contact->m_q);
+		if (mSipContact->m_q) {
+			mQ = atof(mSipContact->m_q);
 		}
 
-		int expire = resolveExpire(sip_contact->m_expires, global_expire);
+		int expire = resolveExpire(mSipContact->m_expires, global_expire);
+		mExpireNotAtMessage = updateTime + expire;
+		expire = resolveExpire(getMessageExpires(mSipContact->m_params).c_str(), expire);
 		if (expire == -1) {
-			LOGE("no global expire (%d) nor local contact expire (%s)found", global_expire, sip_contact->m_expires);
+			LOGE("no global expire (%d) nor local contact expire (%s)found", global_expire, mSipContact->m_expires);
 			expire = 0;
 		}
 		mExpireAt = updateTime + expire;
+		mExpireAt = mExpireAt > mExpireNotAtMessage ? mExpireAt:mExpireNotAtMessage;
 	}
 
-	ExtendedContact(const ExtendedContactCommon &common, const char *sipuri, long expireAt, float q, uint32_t cseq,
-					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders)
-		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
-			mSipUri(), mQ(q), mExpireAt(expireAt), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias),
-			mAcceptHeader(acceptHeaders), mUsedAsRoute(false), mRegId(0), mHome() {
-		mSipUri = url_make(mHome.home(), sipuri);
-	}
-
-	ExtendedContact(const url_t *url, const std::string &route)
-		: mContactId(), mCallId(), mUniqueId(), mPath({route}), mSipUri(), mQ(0), mExpireAt(LONG_MAX), mUpdatedTime(0),
-			mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false), mRegId(0), mHome() {
-		mSipUri = url_hdup(mHome.home(), url);
+	ExtendedContact(const url_t *url, const std::string &route, const float q = 1.0)
+	: mContactId(), mCallId(), mUniqueId(), mPath({route}), mSipContact(NULL), mQ(q), mExpireAt(LONG_MAX),
+		mExpireNotAtMessage(LONG_MAX), mUpdatedTime(0), mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false),
+		mRegId(0), mHome() {
+		mSipContact = sip_contact_create(mHome.home(), (url_string_t*)url, NULL);
 	}
 	
-	ExtendedContact(const ExtendedContact &ec) 
-		: mContactId(ec.mContactId), mCallId(ec.mCallId), mUniqueId(ec.mUniqueId), mPath(ec.mPath), mSipUri(), mQ(ec.mQ),
-			mExpireAt(ec.mExpireAt), mUpdatedTime(ec.mUpdatedTime), mCSeq(ec.mCSeq), mAlias(ec.mAlias),
-			mAcceptHeader(ec.mAcceptHeader), mUsedAsRoute(ec.mUsedAsRoute), mRegId(ec.mRegId), mHome() {
-		mSipUri = url_hdup(mHome.home(), ec.mSipUri);
+	ExtendedContact(const ExtendedContact &ec)
+		: mContactId(ec.mContactId), mCallId(ec.mCallId), mUniqueId(ec.mUniqueId), mPath(ec.mPath), mSipContact(NULL), mQ(ec.mQ),
+		mExpireAt(ec.mExpireAt), mExpireNotAtMessage(ec.mExpireNotAtMessage), mUpdatedTime(ec.mUpdatedTime), mCSeq(ec.mCSeq),
+		mAlias(ec.mAlias), mAcceptHeader(ec.mAcceptHeader), mUsedAsRoute(ec.mUsedAsRoute), mRegId(ec.mRegId), mHome() {
+		mSipContact = sip_contact_dup(mHome.home(), ec.mSipContact);
+		mSipContact->m_next = NULL;
 	}
 
 	std::ostream &print(std::ostream &stream, time_t _now = getCurrentTime(), time_t offset = 0) const;
 	sip_contact_t *toSofiaContact(su_home_t *home, time_t now) const;
 	sip_route_t *toSofiaRoute(su_home_t *home) const;
+	/*returns a new url_t where regid (private flexisip parameter) is removed*/
+	url_t *toSofiaUrlClean(su_home_t *home);
 };
 
 template <typename TraitsT>
@@ -191,8 +195,11 @@ class Record {
 	static void init();
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener);
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
+	std::list<std::shared_ptr<ExtendedContact>> mContactsToRemove;
 	std::string mKey;
 	bool mIsDomain; /*is a domain registration*/
+	bool mOnlyStaticContacts;
+
   public:
 	static std::list<std::string> sLineFieldNames;
 	static int sMaxContacts;
@@ -200,7 +207,7 @@ class Record {
 	Record(const url_t *aor);
 	static std::string extractUniqueId(const sip_contact_t *contact);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
-	const sip_contact_t *getContacts(su_home_t *home, time_t now);
+	sip_contact_t *getContacts(su_home_t *home, time_t now);
 	void pushContact(const std::shared_ptr<ExtendedContact> &ct) {
 		mContacts.push_back(ct);
 	}
@@ -212,13 +219,14 @@ class Record {
 	void update(sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const std::string &call_id,
 				uint32_t cseq, time_t now, bool alias, const std::list<std::string> accept, bool usedAsRoute,
 				const std::shared_ptr<ContactUpdateListener> &listener);
+	//Deprecated: this one is used by protobuf serializer
 	void update(const ExtendedContactCommon &ecc, const char *sipuri, long int expireAt, float q, uint32_t cseq,
 				time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute,
 				const std::shared_ptr<ContactUpdateListener> &listener);
 	bool updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url);
 
 	void print(std::ostream &stream) const;
-	bool isEmpty() {
+	bool isEmpty() const {
 		return mContacts.empty();
 	}
 	const std::string &getKey() const {
@@ -230,17 +238,31 @@ class Record {
 	const std::list<std::shared_ptr<ExtendedContact>> &getExtendedContacts() const {
 		return mContacts;
 	}
+	const std::list<std::shared_ptr<ExtendedContact>> &getContactsToRemove() const {
+		return mContactsToRemove;
+	}
+	void cleanContactsToRemoveList() {
+		mContactsToRemove.clear();
+	}
+	/**
+	 * Check if the contacts list size is < to max aor config option and remove older contacts to match restriction if needed
+	 */
+	void applyMaxAor();
 	static int getMaxContacts() {
 		if (sMaxContacts == -1)
 			init();
 		return sMaxContacts;
 	}
 	time_t latestExpire() const;
-	time_t latestExpire(const std::string &route) const;
+	time_t latestExpire(Agent *ag) const;
 	static std::list<std::string> route_to_stl(const sip_route_s *route);
 	void appendContactsFrom(Record *src);
 	static std::string defineKeyFromUrl(const url_t *aor);
 	~Record();
+
+	bool haveOnlyStaticContacts() const {
+		return mOnlyStaticContacts;
+	}
 };
 
 template <typename TraitsT>
@@ -270,6 +292,12 @@ class ContactRegisteredListener {
   public:
 	virtual ~ContactRegisteredListener();
 	virtual void onContactRegistered(std::string key, std::string uid) = 0;
+};
+
+class LocalRegExpireListener {
+public:
+	virtual ~LocalRegExpireListener();
+	virtual void onLocalRegExpireUpdated(unsigned int count) = 0;
 };
 
 /**
@@ -302,11 +330,23 @@ class RegistrarDb {
 	bool useGlobalDomain()const{
 		return mUseGlobalDomain;
 	}
+	const std::string &messageExpiresName() {
+		return mMessageExpiresName;
+	}
+	const std::string getMessageExpires(const msg_param_t *m_params);
+
+	void subscribeLocalRegExpire(LocalRegExpireListener *listener) {
+		mLocalRegExpire->subscribe(listener);
+	}
+	void unsubscribeLocalRegExpire(LocalRegExpireListener *listener) {
+		mLocalRegExpire->unsubscribe(listener);
+	}
   protected:
 	class LocalRegExpire {
 		std::map<std::string, time_t> mRegMap;
 		std::mutex mMutex;
-		std::string mPreferedRoute;
+		std::list<LocalRegExpireListener *> mLocalRegListenerList;
+		Agent *mAgent;
 
 	  public:
 		void remove(const std::string key) {
@@ -316,11 +356,15 @@ class RegistrarDb {
 		void update(const Record &record);
 		size_t countActives();
 		void removeExpiredBefore(time_t before);
-		LocalRegExpire(std::string preferedRoute);
+		LocalRegExpire(Agent *ag);
 		void clearAll() {
 			std::lock_guard<std::mutex> lock(mMutex);
 			mRegMap.clear();
 		}
+
+		void subscribe(LocalRegExpireListener *listener);
+		void unsubscribe(LocalRegExpireListener *listener);
+		void notifyLocalRegExpireListener(unsigned int count);
 	};
 	virtual void doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
 					  const sip_path_t *ipath, std::list<std::string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
@@ -333,13 +377,15 @@ class RegistrarDb {
 	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const std::string &key,
 									 const std::shared_ptr<RegistrarDbListener> &listener);
 	void fetchWithDomain(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive);
-	RegistrarDb(const std::string &preferedRoute);
+	RegistrarDb(Agent *ag);
 	virtual ~RegistrarDb();
 	std::map<std::string, Record *> mRecords;
 	std::map<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;
 	LocalRegExpire *mLocalRegExpire;
 	bool mUseGlobalDomain;
+	std::string mMessageExpiresName;
 	static RegistrarDb *sUnique;
+	Agent *mAgent;
 };
 
 #endif

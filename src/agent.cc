@@ -16,10 +16,6 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
-#include "flexisip-config.h"
-#define FLEXISIP_INCLUDED
-#endif
 #include "agent.hh"
 #include "module.hh"
 #include "domain-registrations.hh"
@@ -174,30 +170,18 @@ void Agent::checkAllowedParams(const url_t *uri) {
 }
 
 bool getUriParameter(const url_t *url, const char *param, string &value){
-	if (url_has_param(url, param)) {
-		char tmp[256]={0};
-		url_param(url->url_params, param, tmp, sizeof(tmp)-1);
-		value = tmp;
-		return true;
-	}
-	return false;
+	return ModuleToolbox::getUriParameter(url, param, value);
 }
 
 bool getBoolUriParameter(const url_t *url, const char *param, bool defaultValue){
-	if (url_has_param(url, param)) {
-		bool ret = false;
-		char tmp[256]={0};
-		url_param(url->url_params, param, tmp, sizeof(tmp)-1);
-		try{
-			ret = ConfigBoolean::parse(tmp);
-		}catch(FlexisipException &e){
-			LOGF("Bad value for uri parameter '%s': %s", param, e.what());
-		}
-		return ret;
-	}
-	return defaultValue;
+	return ModuleToolbox::getBoolUriParameter(url, param, defaultValue);
 }
 
+#if ENABLE_MDNS
+static void mDnsRegisterCallback(void *data, int error) {
+	if (error != 0) LOGE("Error while registering a mDNS service");
+}
+#endif
 
 void Agent::start(const std::string &transport_override, const std::string passphrase) {
 	char cCurrDir[FILENAME_MAX];
@@ -208,6 +192,7 @@ void Agent::start(const std::string &transport_override, const std::string passp
 
 	GenericStruct *global = GenericManager::get()->getRoot()->get<GenericStruct>("global");
 	list<string> transports = global->get<ConfigStringList>("transports")->read();
+	string ciphers = global->get<ConfigString>("tls-ciphers")->read();
 	// sofia needs a value in millseconds.
 	unsigned int tports_idle_timeout = 1000 * (unsigned int)global->get<ConfigInt>("idle-timeout")->read();
 	bool globalVerifyIn = global->get<ConfigBoolean>("require-peer-certificate")->read();
@@ -216,6 +201,8 @@ void Agent::start(const std::string &transport_override, const std::string passp
 	int udpmtu = global->get<ConfigInt>("udp-mtu")->read();
 	unsigned int incompleteIncomingMessageTimeout = 600 * 1000; /*milliseconds*/
 	unsigned int keepAliveInterval = 30 * 60 * 1000;			/*30mn*/
+	unsigned int queueSize = 256; /*number of SIP message that sofia can queue in a tport (a connection). It is 64 by default,
+				hardcoded in sofia-sip. This is not sufficient for IM.*/
 
 	mainTlsCertsDir = absolutePath(currDir, mainTlsCertsDir);
 
@@ -255,20 +242,23 @@ void Agent::start(const std::string &transport_override, const std::string passp
 				tls_policy |= TPTLS_VERIFY_INCOMING;
 			}
 
-			if (getBoolUriParameter(url, "tls-verify-outgoing", false)){
+			if (getBoolUriParameter(url, "tls-verify-outgoing", true)){
 				tls_policy |= TPTLS_VERIFY_OUTGOING | TPTLS_VERIFY_SUBJECTS_OUT;
 			}
 
 			checkAllowedParams(url);
 			mPassphrase = passphrase;
-			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()), TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()),
+			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()),
+									  TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
 									  TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
 									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TAG_END());
+									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), 
+									  TPTAG_QUEUESIZE(queueSize),	TAG_END());
 		} else {
 			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_IDLE(tports_idle_timeout),
 									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TAG_END());
+									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), 
+									  TPTAG_QUEUESIZE(queueSize), TAG_END());
 		}
 		if (err == -1) {
 			LOGE("Could not enable transport %s: %s", uri.c_str(), strerror(errno));
@@ -290,6 +280,49 @@ void Agent::start(const std::string &transport_override, const std::string passp
 	su_md5_t ctx;
 	su_md5_init(&ctx);
 
+#if ENABLE_MDNS
+	/* Get Informations about mDNS register */
+	GenericStruct *mdns = GenericManager::get()->getRoot()->get<GenericStruct>("mdns-register");
+	bool mdnsEnabled = mdns->get<ConfigBoolean>("enabled")->read();
+	if (mdnsEnabled) {
+		if (!belle_sip_mdns_register_available()) LOGF("Belle-sip does not have mDNS activated!");
+
+		string mdnsDomain = GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
+		int mdnsPrioMin = mdns->get<ConfigIntRange>("mdns-priority")->readMin();
+		int mdnsPrioMax = mdns->get<ConfigIntRange>("mdns-priority")->readMax();
+		int mdnsWeight = mdns->get<ConfigInt>("mdns-weight")->read();
+		int mdnsTtl = mdns->get<ConfigInt>("mdns-ttl")->read();
+
+		/* Get hostname of the machine */
+		char hostname[HOST_NAME_MAX];
+		int err = gethostname(hostname, sizeof(hostname));
+		if (err != 0) {
+			LOGE("Cannot retrieve machine hostname.");
+		} else {
+			int prio;
+			if (mdnsPrioMin == mdnsPrioMax) {
+				prio = mdnsPrioMin;
+			} else {
+				/* Randomize the priority */
+				srand(time(NULL));
+				prio = rand() % (mdnsPrioMax - mdnsPrioMin + 1) + mdnsPrioMin;
+			}
+
+			LOGD("Registering multicast DNS services.");
+			for (tport_t *tport = primaries; tport != NULL; tport = tport_next(tport)) {
+				char registerName[512];
+				const tp_name_t *name = tport_name(tport);
+				snprintf(registerName, sizeof(registerName), "%s_%s_%s", hostname, name->tpn_proto, name->tpn_port);
+
+				belle_sip_mdns_register_t *reg = belle_sip_mdns_register("sip", name->tpn_proto, mdnsDomain.c_str(),
+																		registerName, atoi(name->tpn_port), prio, mdnsWeight,
+																		mdnsTtl, mDnsRegisterCallback, NULL);
+				mMdnsRegisterList.push_back(reg);
+			}
+		}
+	}
+#endif
+
 	/*
 	 * Iterate on all the transports enabled or implicitely configured (case of 'sip:*') in order to guess useful
 	 *information from an empiric manner:
@@ -305,8 +338,7 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		const tp_name_t *name;
 		char url[512];
 		name = tport_name(tport);
-		snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port, name->tpn_proto,
-				 name->tpn_host);
+		snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port, name->tpn_proto, name->tpn_host);
 		su_md5_strupdate(&ctx, url);
 		LOGD("\t%s", url);
 		bool isIpv6 = strchr(name->tpn_host, ':') != NULL;
@@ -330,23 +362,23 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		if (*preferred == NULL) {
 			tp_name_t tp_priv_name = *name;
 			tp_priv_name.tpn_canon = tp_priv_name.tpn_host;
-			*preferred = ModuleToolbox::urlFromTportName(&mHome, &tp_priv_name);
+			*preferred = urlFromTportName(&mHome, &tp_priv_name);
 			// char prefUrl[266];
 			// url_e(prefUrl,sizeof(prefUrl),*preferred);
 			// LOGD("\tDetected %s preferred route to %s", isIpv6 ? "ipv6":"ipv4", prefUrl);
 		}
 		if (mNodeUri == NULL) {
-			         mNodeUri = ModuleToolbox::urlFromTportName(&mHome, name);
+			mNodeUri = urlFromTportName(&mHome, name);
 			string clusterDomain = GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
 			if (!clusterDomain.empty()) {
 				tp_name_t tmp_name = *name;
 				tmp_name.tpn_canon = clusterDomain.c_str();
 				tmp_name.tpn_port = NULL;
-				mClusterUri = ModuleToolbox::urlFromTportName(&mHome, &tmp_name, true);
+				mClusterUri = urlFromTportName(&mHome, &tmp_name, true);
 			}
 		}
 	}
-	
+
 	bool clusterModeEnabled = GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigBoolean>("enabled")->read();
 	mDefaultUri = (clusterModeEnabled && mClusterUri) ? mClusterUri : mNodeUri;
 
@@ -368,7 +400,10 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		mRtpBindIp6 = "::0";
 
 	mPublicResolvedIpV4 = computeResolvedPublicIp(mPublicIpV4, AF_INET);
-	
+	if (mPublicResolvedIpV4.empty()) {
+		mPublicResolvedIpV4 = mRtpBindIp;
+	}
+
 	if (!mPublicIpV6.empty()){
 		mPublicResolvedIpV6 = computeResolvedPublicIp(mPublicIpV6, AF_INET6);
 	}else{
@@ -377,6 +412,9 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		if (!mPublicResolvedIpV6.empty()){
 			mPublicIpV6 = mPublicIpV4;
 		}
+	}
+	if (mPublicResolvedIpV6.empty()) {
+		mPublicResolvedIpV6 = mRtpBindIp6;
 	}
 
 	// Generate the unique ID if it has not been specified in Flexisip's settings
@@ -392,6 +430,10 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		SLOGD << "Static unique ID: " << mUniqueId;
 	}
 
+	if (mPublicResolvedIpV6.empty() && mPublicResolvedIpV4.empty()){
+		LOGF("The default public address of the server could not be resolved (%s / %s). Cannot continue.",mPublicIpV4.c_str(), mPublicIpV6.c_str());
+	}
+	
 	LOGD("Agent public hostname/ip: v4:%s v6:%s", mPublicIpV4.c_str(), mPublicIpV6.c_str());
 	LOGD("Agent public resolved hostname/ip: v4:%s v6:%s", mPublicResolvedIpV4.c_str(), mPublicResolvedIpV6.c_str());
 	LOGD("Agent's _default_ RTP bind ip address: v4:%s v6:%s", mRtpBindIp.c_str(), mRtpBindIp6.c_str());
@@ -474,8 +516,15 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 }
 
 Agent::~Agent() {
+#if ENABLE_MDNS
+	for(belle_sip_mdns_register_t *reg : mMdnsRegisterList) {
+		belle_sip_mdns_unregister(reg);
+	}
+#endif
+
 	mTerminating = true;
 	for_each(mModules.begin(), mModules.end(), delete_functor<Module>());
+
 	if (mDrm)
 		delete mDrm;
 	if (mAgent)
@@ -565,7 +614,7 @@ std::string Agent::computeResolvedPublicIp(const std::string &host, int family) 
 	} else {
 		LOGE("getaddrinfo error: %s for host [%s]", gai_strerror(err), host.c_str());
 	}
-	return dest;
+	return "";
 }
 
 std::pair<std::string, std::string> Agent::getPreferredIp(const std::string &destination) const {
@@ -587,7 +636,7 @@ std::pair<std::string, std::string> Agent::getPreferredIp(const std::string &des
 		}
 		freeaddrinfo(result);
 	} else {
-		LOGE("getaddrinfo error: %s", gai_strerror(err));
+		LOGE("getPreferredIp() getaddrinfo() error while resolving '%s': %s", dest.c_str(), gai_strerror(err));
 	}
 	return strchr(dest.c_str(), ':') == NULL ? make_pair(getResolvedPublicIp(), getRtpBindIp())
 											 : make_pair(getResolvedPublicIp(true), getRtpBindIp(true));
@@ -862,6 +911,12 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 }
 
 void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
+	if (mTerminating) {
+		// Avoid throwing a bad weak pointer on GatewayAdapter destruction
+		LOGI("Skipping incoming message on expired agent");
+		return;
+	}
+
 	SLOGD << "Receiving new Response SIP message: " << ev->getMsgSip()->getSip()->sip_status->st_status << "\n"
 		  << *ev->getMsgSip();
 
@@ -973,6 +1028,36 @@ int Agent::onIncomingMessage(msg_t *msg, const sip_t *sip) {
 	}
 	msg_destroy(msg);
 	return 0;
+}
+
+url_t* Agent::urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr) {
+	url_t *url = NULL;
+	url_type_e ut = url_sip;
+
+	if (strcasecmp(name->tpn_proto, "tls") == 0)
+		ut = url_sips;
+
+	url = (url_t *)su_alloc(home, sizeof(url_t));
+	url_init(url, ut);
+
+	if (strcasecmp(name->tpn_proto, "tcp") == 0)
+		url_param_add(home, url, "transport=tcp");
+
+	url->url_port = su_strdup(home, name->tpn_port);
+	url->url_host = su_strdup(home, name->tpn_canon);
+	if (
+		ut == url_sips
+		&& !avoidMAddr
+		&& (strcmp(name->tpn_host, name->tpn_canon) != 0)
+		&& GenericManager::get()->getGlobal()->get<ConfigBoolean>("use-maddr")->read()
+	) {
+		const string &resolvedIp = strchr(name->tpn_host, ':')
+			? mPublicResolvedIpV6
+			: mPublicResolvedIpV4;
+		url_param_add(home, url, su_sprintf(home, "maddr=%s", resolvedIp.c_str()));
+	}
+
+	return url;
 }
 
 int Agent::messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t *msg, sip_t *sip) {

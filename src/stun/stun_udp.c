@@ -239,67 +239,60 @@ getMessage( Socket fd, char* buf, int* len,
       return FALSE;
    }
 
-    if (err==0)
-    {
-        ortp_error("stun_udp: Connection timeout with stun server!");
-        *len = 0;
-        return FALSE;
-    }
+	if (err == 0) {
+		ortp_error("stun_udp: Connection timeout with stun server!");
+		*len = 0;
+		return FALSE;
+	}
 
-    if (FD_ISSET (fd, &fdSet))
-    {
-        *len = recvfrom(fd,
-                        buf,
-                        originalSize,
-                        0,
-                        (struct sockaddr *)&from,
-                        (socklen_t*)&fromLen);
-        	
-        if ( *len == SOCKET_ERROR )
-        {
-            int e = getErrno();
-        		
-            switch (e)
-            {
-                case ENOTSOCK:
-                    ortp_error("stun_udp: Error fd not a socket");
-                    break;
-                case ECONNRESET:
-                    ortp_error("stun_udp: Error connection reset - host not reachable");
-                    break;
-        				
-                default:
-                    ortp_error("stun_udp: Socket Error=%i", e);
-            }
-        		
-            return FALSE;
-        }
-        	
-        if ( *len < 0 )
-        {
-            ortp_error("stun_udp: socket closed? negative len");
-            return FALSE;
-        }
-            
-        if ( *len == 0 )
-        {
-            ortp_error("stun_udp: socket closed? zero len");
-            return FALSE;
-        }
-            
-        *srcPort = ntohs(from.sin_port);
-        *srcIp = ntohl(from.sin_addr.s_addr);
-        	
-        if ( (*len)+1 >= originalSize )
-        {
-            ortp_error("stun_udp: Received a message that was too large");
-            return FALSE;
-        }
-        buf[*len]=0;
-            
-        return TRUE;
-    }
-    return FALSE;
+	if (FD_ISSET(fd, &fdSet)) {
+		*len = recvfrom(fd,
+		                buf,
+		                originalSize,
+		                0,
+		                (struct sockaddr *)&from,
+		                (socklen_t *)&fromLen);
+
+		if (*len == SOCKET_ERROR) {
+			int e = getErrno();
+
+			switch (e) {
+				case ENOTSOCK:
+					ortp_error("stun_udp: Error fd not a socket");
+					break;
+				case ECONNRESET:
+					ortp_error("stun_udp: Error connection reset - host not reachable");
+					break;
+
+				default:
+					ortp_error("stun_udp: Socket Error=%i", e);
+			}
+
+			return FALSE;
+		}
+
+		if (*len < 0) {
+			ortp_error("stun_udp: socket closed? negative len");
+			return FALSE;
+		}
+
+		if (*len == 0) {
+			ortp_error("stun_udp: socket closed? zero len");
+			return FALSE;
+		}
+
+		*srcPort = ntohs(from.sin_port);
+		*srcIp = ntohl(from.sin_addr.s_addr);
+
+		if ((*len) + 1 >= originalSize) {
+			ortp_error("stun_udp: Received a message that was too large");
+			return FALSE;
+		}
+		buf[*len] = 0;
+
+		return TRUE;
+	}
+	return FALSE;
 }
 
 

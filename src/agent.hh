@@ -19,6 +19,11 @@
 #ifndef agent_hh
 #define agent_hh
 
+#if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
+#include "flexisip-config.h"
+#define FLEXISIP_INCLUDED
+#endif
+
 #include <string>
 #include <sstream>
 #include <memory>
@@ -37,6 +42,10 @@
 #include "event.hh"
 #include "transaction.hh"
 #include "eventlogs/eventlogs.hh"
+
+#if ENABLE_MDNS
+#include "belle-sip/belle-sip.h"
+#endif
 
 class Module;
 class DomainRegistrationManager;
@@ -187,6 +196,7 @@ class Agent : public IncomingAgent,
 	DomainRegistrationManager *getDRM() {
 		return mDrm;
 	}
+	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr = false);
 
   private:
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value,
@@ -229,6 +239,9 @@ class Agent : public IncomingAgent,
 	std::string mPassphrase;
 	static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t *msg, sip_t *sip);
 	bool mTerminating;
+#if ENABLE_MDNS
+	std::vector<belle_sip_mdns_register_t *> mMdnsRegisterList;
+#endif
 };
 
 #endif

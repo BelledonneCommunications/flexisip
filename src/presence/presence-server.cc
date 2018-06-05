@@ -18,8 +18,8 @@
 
 #include "presence-server.hh"
 #include "belle-sip/belle-sip.h"
-#include "pidf+xml.hxx"
-#include "resource-lists.hxx"
+#include "pidf+xml.hh"
+#include "resource-lists.hh"
 #include "presentity-presenceinformation.hh"
 #include "list-subscription.hh"
 #include "bellesip-signaling-exception.hh"
@@ -410,11 +410,11 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 	// At that point, we are safe
 
 	if (belle_sip_message_get_body_size(BELLE_SIP_MESSAGE(request)) > 0) {
-		::std::unique_ptr<pidf::Presence> presence_body = NULL;
+		::std::unique_ptr<Xsd::Pidf::Presence> presence_body = NULL;
 		try {
 			istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));
-			presence_body = parsePresence(data, xml_schema::Flags::dont_validate);
-		} catch (const xml_schema::Exception &e) {
+			presence_body = Xsd::Pidf::parsePresence(data, Xsd::XmlSchema::Flags::dont_validate);
+		} catch (const Xsd::XmlSchema::Exception &e) {
 			ostringstream os;
 			os << "Cannot parse body caused by [" << e << "]";
 			// todo check error code

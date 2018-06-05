@@ -20,8 +20,8 @@
 #define PRESENCETUPLE_HH_
 
 #include <map>
-#include "pidf+xml.hxx"
-//#include "data-model.hxx"
+#include "pidf+xml.hh"
+//#include "data-model.hh"
 #include <list>
 #include "utils/flexisip-exception.hh"
 
@@ -32,16 +32,16 @@ namespace flexisip {
 class PresentityManager;
 class PresenceInformationElement {
   public:
-	PresenceInformationElement(pidf::Presence::TupleSequence *tuples, data_model::Person *person,
+	PresenceInformationElement(Xsd::Pidf::Presence::TupleSequence *tuples, Xsd::DataModel::Person *person,
 							   belle_sip_main_loop_t *mainLoop);
 	// create an information element with a default tuple set to closed.
 	PresenceInformationElement(const belle_sip_uri_t *contact);
 	~PresenceInformationElement();
 	time_t getExpitationTime() const;
 	void setExpiresTimer(belle_sip_source_t *timer);
-	const std::unique_ptr<pidf::Tuple> &getTuple(const std::string &id) const;
-	const std::list<std::unique_ptr<pidf::Tuple>> &getTuples() const;
-	const data_model::Person getPerson() const;
+	const std::unique_ptr<Xsd::Pidf::Tuple> &getTuple(const std::string &id) const;
+	const std::list<std::unique_ptr<Xsd::Pidf::Tuple>> &getTuples() const;
+	const Xsd::DataModel::Person getPerson() const;
 	// void addTuple(pidf::Tuple*);
 	// void removeTuple(pidf::Tuple*);
 	void clearTuples();
@@ -49,9 +49,9 @@ class PresenceInformationElement {
 	void setEtag(const std::string &eTag);
 
   private:
-	std::list<std::unique_ptr<pidf::Tuple>> mTuples;
-	data_model::Person mPerson = data_model::Person("");
-	::xml_schema::dom::unique_ptr<xercesc::DOMDocument> mDomDocument; // needed to store extension nodes
+	std::list<std::unique_ptr<Xsd::Pidf::Tuple>> mTuples;
+	Xsd::DataModel::Person mPerson = Xsd::DataModel::Person("");
+	Xsd::XmlSchema::dom::unique_ptr<xercesc::DOMDocument> mDomDocument; // needed to store extension nodes
 	belle_sip_main_loop_t *mBelleSipMainloop;
 	belle_sip_source_t *mTimer;
 	std::string mEtag;
@@ -99,7 +99,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 * store tuples a new tupple;
 	 * @return new eTag
 	 * */
-	std::string putTuples(pidf::Presence::TupleSequence &tuples, data_model::Person &person, int expires);
+	std::string putTuples(Xsd::Pidf::Presence::TupleSequence &tuples, Xsd::DataModel::Person &person, int expires);
 
 	void setDefaultElement(const char* contact = NULL);
 
@@ -117,8 +117,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 *
 	 * @return new eTag
 	 * */
-	std::string updateTuples(pidf::Presence::TupleSequence &tuples, data_model::Person &person, std::string &eTag,
-						int expires);
+	std::string updateTuples(Xsd::Pidf::Presence::TupleSequence &tuples, Xsd::DataModel::Person &person, std::string &eTag, int expires);
 
 	/*
 	 * refresh a publish
@@ -157,12 +156,12 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 * return true if a presence info is already known from a publish
 	 */
 	bool isKnown();
-	
+
 	/*
 	 * return true if a presence info has a default presence value previously set by setDefaultElement
 	 */
 	bool hasDefaultElement();
-	
+
 	/*
 	 * return number of current listeners (I.E subscriber)
 	 */
@@ -188,8 +187,8 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	/*
 	 * tuples may be null
 	 */
-	std::string setOrUpdate(pidf::Presence::TupleSequence *tuples, data_model::Person *, const std::string *eTag,
-					   int expires);
+	std::string setOrUpdate(Xsd::Pidf::Presence::TupleSequence *tuples, Xsd::DataModel::Person *, const std::string *eTag, int expires);
+
 	/*
 	 *Notify all listener
 	 */

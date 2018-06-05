@@ -153,18 +153,28 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 
 	string from_tag = sip->sip_from->a_tag;
 	string from_host;
-	if (sip->sip_via->v_received)
-		from_host=getHost(sip->sip_via->v_received);
+	sip_via_t *last_via = getLastVia(sip); /*the last via of the message is the originator of the message.*/
+	if (last_via->v_received)
+		from_host=getHost(last_via->v_received);
 	else
-		from_host=getHost(sip->sip_via->v_host);
+		from_host=getHost(last_via->v_host);
 
 
 	string to_tag;
 	if (sip->sip_to->a_tag != NULL)
 		to_tag = sip->sip_to->a_tag;
 	string dest_host;
-	if (sip->sip_request != NULL && sip->sip_request->rq_url->url_host != NULL)
+	
+	/*get the next hop of the message to make the best guess about the local network interface to use for media relay*/
+	sip_route_t *route = sip->sip_route;
+	while (route != NULL && mAgent->isUs(route->r_url)){
+		route = route->r_next;
+	}
+	if (route){
+		dest_host = urlGetHost(route->r_url);
+	}else if (sip->sip_request != NULL && sip->sip_request->rq_url->url_host != NULL){
 		dest_host = urlGetHost(sip->sip_request->rq_url);
+	}
 
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
 		LOGD("Invite is already relayed");
@@ -172,7 +182,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	}
 
 	// create channels if not already existing
-	c->initChannels(m, from_tag, transaction->getBranchId(), mAgent->getPreferredIp(from_host), mAgent->getPreferredIp(dest_host));
+	c->initChannels(m, from_tag, transaction->getBranchId(), from_host, dest_host);
 
 	if (!c->checkMediaValid()) {
 		LOGE("The relay media are invalid, no RTP/RTCP port remaining?");
@@ -181,7 +191,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	}
 
 	// assign destination address of offerer
-	m->iterateInOffer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, from_tag, transaction->getBranchId(),false));
+	m->iterateInOffer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, _4, from_tag, transaction->getBranchId(),false));
 
 	// Masquerade using ICE
 	m->addIceCandidateInOffer(bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()),
@@ -292,7 +302,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall> &c, const 
 		return;
 	}
 	//acquire destination ip/ports from answerer
-	m->iterateInAnswer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, to_tag, transaction->getBranchId(),isEarlyMedia));
+	m->iterateInAnswer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, _4, to_tag, transaction->getBranchId(),isEarlyMedia));
 
 	//push ICE relay candidates if necessary, and update the ICE states.
 	m->addIceCandidateInAnswer(bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()),

@@ -33,7 +33,7 @@
 
 using namespace std;
 
-DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agent) {
+DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agent), mRegisterWhenNeeded(false) {
 	GenericManager *mgr = GenericManager::get();
 	mDomainRegistrationArea = new GenericStruct(
 		"inter-domain-connections",
@@ -91,6 +91,9 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 		 "Interval in seconds for sending \\r\\n\\r\\n keepalives throug the outgoing domain registration connection."
 		 "A value of zero disables keepalives.",
 		 "30"},
+		 {Boolean, "reg-when-needed",
+		 "Whether Flexisip shall only send a domain registration when a device is registered",
+		 "false"},
 		config_item_end};
 
 	mDomainRegistrationArea->addChildrenValues(configs);
@@ -99,6 +102,16 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 }
 
 DomainRegistrationManager::~DomainRegistrationManager() {
+	if (mRegisterWhenNeeded)
+		RegistrarDb::get()->unsubscribeLocalRegExpire(this);
+
+	if(mNbRegistration > 0) {
+		LOGD("Starting domain un-registration");
+		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::stop));
+		mTimer = NULL;
+		mTimer = mAgent->createTimer(5000, unregisterTimeout, mAgent->getRoot());
+		su_root_run(mAgent->getRoot()); // Correctly wait for domain un-registration
+	}
 }
 
 int DomainRegistrationManager::load(string passphrase) {
@@ -167,7 +180,15 @@ int DomainRegistrationManager::load(string passphrase) {
 		mRegistrations.push_back(dr);
 	} while (!ifs.eof() && !ifs.bad());
 
-	for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
+	mRegisterWhenNeeded = domainRegistrationCfg->get<ConfigBoolean>("reg-when-needed")->read();
+
+	if (mRegisterWhenNeeded) {
+		mDomainRegistrationsStarted = false;
+		RegistrarDb::get()->subscribeLocalRegExpire(this);
+	} else {
+		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
+	}
+
 	return 0;
 error:
 	LOGF("Syntax error parsing domain registration configuration file '%s'", configFile.c_str());
@@ -190,6 +211,16 @@ const url_t *DomainRegistrationManager::getPublicUri(const tport_t *tport) const
 			return dr->getPublicUri();
 	}
 	return NULL;
+}
+
+void DomainRegistrationManager::onLocalRegExpireUpdated(unsigned int count) {
+	if (count > 0 && !mDomainRegistrationsStarted) {
+		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
+		mDomainRegistrationsStarted = true;
+	} else if (count == 0 && mDomainRegistrationsStarted) {
+		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::stop));
+		mDomainRegistrationsStarted = false;
+	}
 }
 
 DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const string &localDomain,
@@ -216,18 +247,19 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 			LOGD("Domain registration certificates are the same as the one for existing tports, let's use them");
 			mPrimaryTport = nta_agent_tports(agent);
 		} else {
-			list<string> canons;
+			list<const tp_name_t *> tp_names;
 			tport_t *primaries = tport_primaries(nta_agent_tports(agent));
 			for (tport_t *tport = primaries; tport != NULL; tport = tport_next(tport)) {
 				const tp_name_t *name;
 				name = tport_name(tport);
 				if (strcmp(name->tpn_proto, "tls") == 0) {
-					canons.push_back(name->tpn_canon);
+					tp_names.push_back(name);
 				}
 			}
-			for (list<string>::iterator it = canons.begin(); it != canons.end(); ++it) {
+			for (list<const tp_name_t *>::iterator it = tp_names.begin(); it != tp_names.end(); ++it) {
 				url_t *tportUri = NULL;
-				tportUri = url_format(&mHome, "sips:%s:0", (*it).c_str());
+				const tp_name_t *name = (*it);
+				tportUri = url_format(&mHome, "sips:%s:0;maddr=%s", name->tpn_canon, name->tpn_host);
 				/* need to add a new tport because we want to use a specific certificate for this connection*/
 				nta_agent_add_tport(agent, (url_string_t *)tportUri, TPTAG_CERTIFICATE(clientCertdir.c_str()), TPTAG_TLS_PASSPHRASE(passphrase.c_str()),
 									TPTAG_IDENT(localDomain.c_str()),
@@ -253,6 +285,7 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 	mCurrentTport = NULL;
 	mTimer = NULL;
 	mExternalContact = NULL;
+	mOutgoing = NULL;
 
 	ostringstream domainRegistrationStatName;
 	domainRegistrationStatName<<"registration-status-"<<lineIndex;
@@ -277,6 +310,10 @@ int DomainRegistration::sLegCallback(nta_leg_magic_t *ctx, nta_leg_t *leg, nta_i
 
 void DomainRegistration::sRefreshRegistration(su_root_magic_t *magic, su_timer_t *timer, su_timer_arg_t *arg) {
 	static_cast<DomainRegistration *>(arg)->start();
+}
+
+void DomainRegistration::sRefreshUnregistration(su_root_magic_t *magic, su_timer_t *timer, su_timer_arg_t *arg) {
+	static_cast<DomainRegistration *>(arg)->stop();
 }
 
 int DomainRegistration::getExpires(nta_outgoing_t *orq, const sip_t *response) {
@@ -341,9 +378,18 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 			nextSchedule = 30;
 			SLOGUE << "Domain registration error for " << url_as_string(home.home(), mFrom) << " : " << resp->sip_status->st_status;
 		}
-		LOGD("Domain registration for %s failed, will retry in %i seconds", mFrom->url_host, nextSchedule);
-		su_timer_set_interval(mTimer, &DomainRegistration::sRefreshRegistration, this,
-							  (su_duration_t)nextSchedule * 1000);
+
+		int expire = resp ? getExpires(orq, resp) : -1;
+		if(expire > 0) {
+			LOGD("Domain registration for %s failed, will retry in %i seconds", mFrom->url_host, nextSchedule);
+			su_timer_set_interval(mTimer, &DomainRegistration::sRefreshRegistration, this,
+								  (su_duration_t)nextSchedule * 1000);
+		} else if(expire == 0) {
+			LOGD("Domain un-registration for %s failed, will retry in %i seconds", mFrom->url_host, nextSchedule);
+			su_timer_set_interval(mTimer, &DomainRegistration::sRefreshUnregistration, this,
+								  (su_duration_t)nextSchedule * 1000);
+		}
+
 		if (!resp){
 			if (mCurrentTport){
 				LOGD("No domain registration response, connection might be broken. Shutting down current connection.");
@@ -352,6 +398,22 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 			}
 		}
 	} else {
+		int expire = getExpires(orq, resp);
+		const char *domain = mFrom->url_host;
+		if(expire > 0) {
+			if(!(find(mManager.mRegistrationList.begin(), mManager.mRegistrationList.end(), domain) != mManager.mRegistrationList.end())) {
+				mManager.mNbRegistration++;
+				mManager.mRegistrationList.push_back(domain);
+				LOGD("Incrementing number of domain registration to : %d.", mManager.mNbRegistration);
+
+			}
+		} else {
+			if(find(mManager.mRegistrationList.begin(), mManager.mRegistrationList.end(), domain) != mManager.mRegistrationList.end()) {
+				mManager.mNbRegistration--;
+				mManager.mRegistrationList.erase(find(mManager.mRegistrationList.begin(), mManager.mRegistrationList.end(), domain));
+				LOGD("Decrementing number of domain registration to : %d.", mManager.mNbRegistration);
+			}
+		}
 		tport_t *tport = nta_outgoing_transport(orq);
 		unsigned int keepAliveInterval = mManager.mKeepaliveInterval * 1000;
 		
@@ -359,16 +421,23 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 		mCurrentTport = tport;
 		tport_set_params(tport, TPTAG_SDWN_ERROR(1), TPTAG_KEEPALIVE(keepAliveInterval), TAG_END());
 		mPendId = tport_pend(tport, NULL, &DomainRegistration::sOnConnectionBroken, (tp_client_t *)this);
-		nextSchedule = ((getExpires(orq, resp) * 90) / 100) + 1;
-		LOGD("Scheduling next domain register refresh for %s in %i seconds", mFrom->url_host, nextSchedule);
-		su_timer_set_interval(mTimer, &DomainRegistration::sRefreshRegistration, this,
-							  (su_duration_t)nextSchedule * 1000);
+		nextSchedule = ((expire * 90) / 100) + 1;
+		if(expire > 0) {
+			LOGD("Scheduling next domain register refresh for %s in %i seconds", mFrom->url_host, nextSchedule);
+			su_timer_set_interval(mTimer, &DomainRegistration::sRefreshRegistration, this,
+											  (su_duration_t)nextSchedule * 1000);
+		}
 		/*store contact sent in response, as it gives information about our public IP/port*/
 		if (resp->sip_contact) {
 			if (mExternalContact) {
 				su_free(&mHome, mExternalContact);
 			}
 			mExternalContact = sip_contact_dup(&mHome, resp->sip_contact);
+		}
+		if(mManager.mNbRegistration <= 0) {
+			LOGD("Quiting domain registration");
+			su_timer_destroy(mTimer);
+			mTimer = NULL;
 		}
 	}
 }
@@ -385,8 +454,61 @@ DomainRegistration::~DomainRegistration() {
 void DomainRegistration::setContact(msg_t *msg) {
 	sip_t *sip = (sip_t *)msg_object(msg);
 	if (sip->sip_contact == NULL) {
-		sip->sip_contact = sip_contact_create(msg_home(msg), (url_string_t *)mFrom, NULL);
+		int error = generateUuid(mManager.mAgent->getUniqueId());
+
+		if (!error) {
+			string sipInstance = "+sip.instance=\"<urn:uuid:";
+			sipInstance += mUuid;
+			sipInstance += ">\"";
+
+			sip->sip_contact = sip_contact_create(msg_home(msg), (url_string_t *)mFrom, sipInstance.c_str(), NULL);
+		} else {
+			sip->sip_contact = sip_contact_create(msg_home(msg), (url_string_t *)mFrom, NULL);
+		}
 	}
+}
+
+int DomainRegistration::generateUuid(const string &uniqueId) {
+	/*no need to regenerate the uuid if it already exist*/
+	if (!mUuid.empty())
+		return 0;
+
+	if (uniqueId.empty() || uniqueId.length() != 16) {
+		LOGD("generateUuid(): uniqueId is either empty or not with a length of 16");
+		return -1;
+	}
+
+	/*create an UUID as described in RFC4122, 4.4 */
+	uuid_t uuid_struct;
+	memcpy(&uuid_struct, uniqueId.c_str(), uniqueId.length()); /*copy the unique id into the uuid struct*/
+	uuid_struct.clock_seq_hi_and_reserved &= (unsigned char)~(1<<6);
+	uuid_struct.clock_seq_hi_and_reserved |= (unsigned char)1<<7;
+	uuid_struct.time_hi_and_version &= (unsigned char)~(0xf<<12);
+	uuid_struct.time_hi_and_version |= (unsigned char)4<<12;
+
+	char *uuid;
+	size_t len = 64;
+	uuid = (char *)malloc(len * sizeof(char));
+
+	int written;
+	written = snprintf(uuid, len, "%8.8x-%4.4x-%4.4x-%2.2x%2.2x-", uuid_struct.time_low, uuid_struct.time_mid,
+			uuid_struct.time_hi_and_version, uuid_struct.clock_seq_hi_and_reserved, uuid_struct.clock_seq_low);
+
+	if ((written < 0) || ((size_t)written > (len + 13))) {
+		LOGE("generateUuid(): buffer is too short !");
+		free(uuid);
+		return -1;
+	}
+
+	for (int i = 0; i < 6; i++)
+		written += snprintf(uuid + written, len - (unsigned long)written, "%2.2x", uuid_struct.node[i]);
+
+	uuid[len - 1] = '\0';
+
+	mUuid = uuid;
+	free(uuid);
+
+	return 0;
 }
 
 void DomainRegistration::start() {
@@ -395,6 +517,10 @@ void DomainRegistration::start() {
 	if (mTimer) {
 		su_timer_destroy(mTimer);
 		mTimer = NULL;
+	}
+
+	if (mOutgoing) {
+		nta_outgoing_destroy(mOutgoing);
 	}
 
 	msg = nta_msg_create(mManager.mAgent->getSofiaAgent(), 0);
@@ -410,10 +536,10 @@ void DomainRegistration::start() {
 	LOGD("Domain registration about to be sent:\n%s", msg_as_string(&home, msg, msg_object(msg), 0, NULL));
 	su_home_deinit(&home);
 
-	nta_outgoing_t *outgoing =
+	mOutgoing =
 		nta_outgoing_mcreate(mManager.mAgent->getSofiaAgent(), sResponseCallback, (nta_outgoing_magic_t *)this, NULL,
 							 msg, NTATAG_TPORT(mPrimaryTport), TAG_END());
-	if (!outgoing) {
+	if (!mOutgoing) {
 		LOGE("Could not create outgoing transaction");
 		return;
 	}
@@ -429,10 +555,36 @@ void DomainRegistration::cleanCurrentTport() {
 }
 
 void DomainRegistration::stop() {
+	msg_t *msg;
 	cleanCurrentTport();
 	if (mTimer) {
 		su_timer_destroy(mTimer);
 		mTimer = NULL;
+	}
+
+	msg = nta_msg_create(mManager.mAgent->getSofiaAgent(), 0);
+	if (nta_msg_request_complete(msg, mLeg, sip_method_register, NULL, (url_string_t *)mProxy) != 0) {
+		LOGE("nta_msg_request_complete() failed");
+	}
+	if(mSip) {
+		msg_header_insert(msg, msg_object(msg), msg_header_copy(&mHome, mSip));
+		mSip = NULL;
+	}
+	msg_header_insert(msg, msg_object(msg), (msg_header_t *)sip_expires_create(msg_home(msg), 0));
+	setContact(msg);
+	sip_complete_message(msg);
+	msg_serialize(msg, msg_object(msg));
+	su_home_t home;
+	su_home_init(&home);
+	LOGD("Domain un-registration about to be sent:\n%s", msg_as_string(&home, msg, msg_object(msg), 0, NULL));
+	su_home_deinit(&home);
+
+	nta_outgoing_t *outgoing =
+	nta_outgoing_mcreate(mManager.mAgent->getSofiaAgent(), sResponseCallback, (nta_outgoing_magic_t *)this, NULL,
+						 msg, NTATAG_TPORT(mPrimaryTport), TAG_END());
+	if (!outgoing) {
+		LOGE("Could not create outgoing transaction");
+		return;
 	}
 }
 

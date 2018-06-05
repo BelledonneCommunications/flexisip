@@ -25,9 +25,8 @@
 
 #if ENABLE_XSD
 
-#include "xml/fthttp.hxx"
+#include "xml/fthttp.h"
 #include <xercesc/util/PlatformUtils.hpp>
-using namespace fthttp;
 
 #endif
 
@@ -49,6 +48,7 @@ ForkMessageContext::ForkMessageContext(Agent *agent, const std::shared_ptr<Reque
 							  (su_duration_t)mCfg->mUrgentTimeout * 1000);
 	}
 	mDeliveredCount = 0;
+	mIsMessage = event->getMsgSip()->getSip()->sip_request->rq_method == sip_method_message;
 }
 
 ForkMessageContext::~ForkMessageContext() {
@@ -109,20 +109,23 @@ void ForkMessageContext::onResponse(const std::shared_ptr<BranchInfo> &br, const
 		if (code >= 200) {
 			mDeliveredCount++;
 			if (mAcceptanceTimer) {
-				if (mIncoming)
+				if (mIncoming && mIsMessage)
 					logReceivedFromUserEvent(event); /*in the sender's log will appear the status code from the receiver*/
 				su_timer_destroy(mAcceptanceTimer);
 				mAcceptanceTimer = NULL;
 			}
 		}
-		logDeliveredToUserEvent(br, event);
+		if (mIsMessage)
+			logDeliveredToUserEvent(br, event);
 		forwardResponse(br);
 	} else if (code >= 300 && !mCfg->mForkLate && isUrgent(code, sUrgentCodes)){
 		/*expedite back any urgent replies if late forking is disabled */
-		logDeliveredToUserEvent(br, event);
+		if (mIsMessage)
+			logDeliveredToUserEvent(br, event);
 		forwardResponse(br);
 	} else {
-		logDeliveredToUserEvent(br, event);
+		if (mIsMessage)
+			logDeliveredToUserEvent(br, event);
 	}
 	checkFinished();
 }
@@ -146,7 +149,8 @@ void ForkMessageContext::acceptMessage() {
 	shared_ptr<ResponseSipEvent> ev(
 		new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 	forwardResponse(ev);
-	logReceivedFromUserEvent(ev); /*in the sender's log will appear the 202 accepted from flexisip server*/
+	if (mIsMessage)
+		logReceivedFromUserEvent(ev); /*in the sender's log will appear the 202 accepted from flexisip server*/
 }
 
 void ForkMessageContext::onAcceptanceTimer() {
@@ -196,49 +200,51 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 		SLOGE << "No unique id found for contact";
 
 #if ENABLE_XSD
-	// Convert a RCS file transfer message to an external body url message if contact doesn't support it
-	shared_ptr<RequestSipEvent> &ev = br->mRequest;
-	if (ev && isMessageARCSFileTransferMessage(ev)) {
-		shared_ptr<ExtendedContact> &ec = br->mContact;
-		if (ec && isConversionFromRcsToExternalBodyUrlNeeded(ec)) {
-			sip_t *sip = ev->getSip();
-			if (sip) {
-				sip_payload_t *payload = sip->sip_payload;
+	if (mIsMessage) {
+		// Convert a RCS file transfer message to an external body url message if contact doesn't support it
+		shared_ptr<RequestSipEvent> &ev = br->mRequest;
+		if (ev && isMessageARCSFileTransferMessage(ev)) {
+			shared_ptr<ExtendedContact> &ec = br->mContact;
+			if (ec && isConversionFromRcsToExternalBodyUrlNeeded(ec)) {
+				sip_t *sip = ev->getSip();
+				if (sip) {
+					sip_payload_t *payload = sip->sip_payload;
 
-				xercesc::XMLPlatformUtils::Initialize();
-				if (payload) {
-					std::unique_ptr<fthttp::File> file_transfer_infos;
-					char *file_url = NULL;
+					xercesc::XMLPlatformUtils::Initialize();
+					if (payload) {
+						std::unique_ptr<Xsd::Fthttp::File> file_transfer_infos;
+						char *file_url = NULL;
 
-					try {
-						istringstream data(payload->pl_data);
-						file_transfer_infos = parseFile(data, xml_schema::Flags::dont_validate);
-					} catch (const xml_schema::Exception &e) {
-						SLOGE << "Can't parse the content of the message";
-					}
+						try {
+							istringstream data(payload->pl_data);
+							file_transfer_infos = Xsd::Fthttp::parseFile(data, Xsd::XmlSchema::Flags::dont_validate);
+						} catch (const Xsd::XmlSchema::Exception &e) {
+							SLOGE << "Can't parse the content of the message";
+						}
 
-					if (file_transfer_infos) {
-						File::File_infoSequence &infos = file_transfer_infos->getFile_info();
-						if (infos.size() >= 1) {
-							for (File::File_infoConstIterator i(infos.begin()); i != infos.end(); ++i) {
-								const File::File_infoType &info = (*i);
-								const File_info::DataType &data = info.getData();
-								const Data::UrlType &url = data.getUrl();
-								file_url = (char *)url.c_str();
-								break;
+						if (file_transfer_infos) {
+							Xsd::Fthttp::File::FileInfoSequence &infos = file_transfer_infos->getFileInfo();
+							if (infos.size() >= 1) {
+								for (Xsd::Fthttp::File::FileInfoConstIterator i(infos.begin()); i != infos.end(); ++i) {
+									const Xsd::Fthttp::File::FileInfoType &info = (*i);
+									const Xsd::Fthttp::FileInfo::DataType &data = info.getData();
+									const Xsd::Fthttp::Data::UrlType &url = data.getUrl();
+									file_url = (char *)url.c_str();
+									break;
+								}
 							}
 						}
-					}
 
-					if (file_url) {
-						char new_content_type[256];
-						sip->sip_payload = sip_payload_make(ev->getHome(), NULL);
-						sip->sip_content_length = sip_content_length_make(ev->getHome(), 0);
-						sprintf(new_content_type, "message/external-body;access-type=URL;URL=\"%s\"", file_url);
-						sip->sip_content_type = sip_content_type_make(ev->getHome(), new_content_type);
+						if (file_url) {
+							char new_content_type[256];
+							sip->sip_payload = sip_payload_make(ev->getHome(), NULL);
+							sip->sip_content_length = sip_content_length_make(ev->getHome(), 0);
+							sprintf(new_content_type, "message/external-body;access-type=URL;URL=\"%s\"", file_url);
+							sip->sip_content_type = sip_content_type_make(ev->getHome(), new_content_type);
+						}
 					}
+					xercesc::XMLPlatformUtils::Terminate();
 				}
-				xercesc::XMLPlatformUtils::Terminate();
 			}
 		}
 	}

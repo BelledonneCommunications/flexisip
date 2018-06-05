@@ -48,7 +48,7 @@ RegistrarUserData::~RegistrarUserData() {
  */
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag, RedisParameters params)
-	: RegistrarDb(ag->getPreferredRoute()), mAgent(ag), mContext(NULL), mSubscribeContext(NULL),
+	: RegistrarDb(ag), mContext(NULL), mSubscribeContext(NULL),
 	  mDomain(params.domain), mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(ag->getRoot()),
 	  mReplicationTimer(NULL), mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
 	mSerializer = RecordSerializer::get();
@@ -56,7 +56,7 @@ RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag, RedisParameters params)
 }
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(const string &preferredRoute, su_root_t *root, RecordSerializer *serializer, RedisParameters params)
-	: RegistrarDb(preferredRoute), mAgent(NULL), mContext(NULL), mSubscribeContext(NULL),
+	: RegistrarDb(NULL), mContext(NULL), mSubscribeContext(NULL),
 	  mDomain(params.domain), mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(root),
 	  mReplicationTimer(NULL), mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
 	mSerializer = serializer;
@@ -83,7 +83,7 @@ void RegistrarDbRedisAsync::onDisconnect(const redisAsyncContext *c, int status)
 	}
 
 	mContext = NULL;
-	LOGD("Disconnected %p...", c);
+	LOGD("REDIS Disconnected %p...", c);
 	if (status != REDIS_OK) {
 		LOGE("Redis disconnection message: %s", c->errstr);
 		tryReconnect();
@@ -98,17 +98,17 @@ void RegistrarDbRedisAsync::onConnect(const redisAsyncContext *c, int status) {
 		tryReconnect();
 		return;
 	}
-	LOGD("Connected... %p", c);
+	LOGD("REDIS Connected... %p", c);
 }
 
 void RegistrarDbRedisAsync::onSubscribeDisconnect(const redisAsyncContext *c, int status) {
 	if (mSubscribeContext != NULL && mSubscribeContext != c) {
-		LOGE("Redis context %p disconnected, but current context is %p", c, mSubscribeContext);
+		LOGE("Redis subscribe context %p disconnected, but current context is %p", c, mSubscribeContext);
 		return;
 	}
 
 	mSubscribeContext = NULL;
-	LOGD("Disconnected %p...", c);
+	LOGD("Disconnected subscribe context %p...", c);
 	if (status != REDIS_OK) {
 		LOGE("Redis disconnection message: %s", c->errstr);
 		tryReconnect();
@@ -123,7 +123,11 @@ void RegistrarDbRedisAsync::onSubscribeConnect(const redisAsyncContext *c, int s
 		tryReconnect();
 		return;
 	}
-	LOGD("Connected... %p", c);
+	LOGD("REDIS Connection done for subscribe channel %p", c);
+	if (!mContactListenersMap.empty()){
+		LOGD("Now re-subscribing all topics we had before being disconnected.");
+		subscribeAll();
+	}
 }
 
 bool RegistrarDbRedisAsync::isConnected() {
@@ -231,28 +235,29 @@ RedisHost RedisHost::parseSlave(const string &slave, int id) {
 }
 
 void RegistrarDbRedisAsync::updateSlavesList(const map<string, string> redisReply) {
-	int slaveCount = atoi(redisReply.at("connected_slaves").c_str());
-
 	vector<RedisHost> newSlaves;
 
-	for (int i = 0; i < slaveCount; i++) {
-		std::stringstream sstm;
-		sstm << "slave" << i;
-		string slaveName = sstm.str();
+	try {
+		int slaveCount = atoi(redisReply.at("connected_slaves").c_str());
+		for (int i = 0; i < slaveCount; i++) {
+			std::stringstream sstm;
+			sstm << "slave" << i;
+			string slaveName = sstm.str();
 
-		if (redisReply.find(slaveName) != redisReply.end()) {
+			if (redisReply.find(slaveName) != redisReply.end()) {
 
-			RedisHost host = RedisHost::parseSlave(redisReply.at(slaveName), i);
-			if (host.id != -1) {
-				// only tell if a new host was found
-				if (std::find(mSlaves.begin(), mSlaves.end(), host) == mSlaves.end()) {
-					LOGD("Replication: Adding host %d %s:%d state:%s", host.id, host.address.c_str(), host.port,
-						 host.state.c_str());
+				RedisHost host = RedisHost::parseSlave(redisReply.at(slaveName), i);
+				if (host.id != -1) {
+					// only tell if a new host was found
+					if (std::find(mSlaves.begin(), mSlaves.end(), host) == mSlaves.end()) {
+						LOGD("Replication: Adding host %d %s:%d state:%s", host.id, host.address.c_str(), host.port,
+							host.state.c_str());
+					}
+					newSlaves.push_back(host);
 				}
-				newSlaves.push_back(host);
 			}
 		}
-	}
+	} catch (const out_of_range &) {}
 
 	// replace the slaves array
 	mSlaves.clear();
@@ -411,9 +416,21 @@ bool RegistrarDbRedisAsync::disconnect() {
 	return status;
 }
 
+/*this function is invoked after a redis disconnection on the subscribe channel, so that all topics we are interested in are re-subscribed.*/
+void RegistrarDbRedisAsync::subscribeAll(){
+	for(auto it = mContactListenersMap.begin(); it != mContactListenersMap.end(); ++it){
+		subscribeTopic((*it).first);
+	}
+}
+
+void RegistrarDbRedisAsync::subscribeTopic(const string &topic){
+	LOGD("Sending SUBSCRIBE command to redis for topic '%s'", topic.c_str());
+	redisAsyncCommand(mSubscribeContext, sPublishCallback, NULL, "SUBSCRIBE %s", topic.c_str());
+}
+
 void RegistrarDbRedisAsync::subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener) {
 	RegistrarDb::subscribe(topic, listener);
-	redisAsyncCommand(mSubscribeContext, sPublishCallback, NULL, "SUBSCRIBE %s", topic.c_str());
+	subscribeTopic(topic);
 }
 void RegistrarDbRedisAsync::unsubscribe(const std::string &topic) {
 	RegistrarDb::unsubscribe(topic);
@@ -525,7 +542,7 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, for
 	int argc = 2; // HMSET key
 	string cmd = "HMSET";
 
-	auto contacts = data->record.getExtendedContacts();
+	const auto &contacts = data->record.getExtendedContacts();
 	argc += contacts.size() * 2;
 
 	const char** argv = new const char*[argc];
@@ -544,8 +561,7 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, for
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
 		shared_ptr<ExtendedContact> ec = (*it);
 
-		string uid = ec->getUniqueId();
-		argv[i] = strdup(uid.c_str());
+		argv[i] = strdup(ec->getUniqueId().c_str());
 		argvlen[i] = strlen(argv[i]);
 		i += 1;
 
@@ -613,8 +629,9 @@ void RegistrarDbRedisAsync::doBind(const url_t *ifrom, sip_contact_t *icontact, 
 		delete data;
 		return;
 	}
-
-	if (expire > 0) {
+	const char *mss_expires = RegistrarDb::get()->getMessageExpires(icontact->m_params).c_str();
+	int message_expires = mss_expires ? atoi(mss_expires) : 0;
+	if (expire > 0 || message_expires > 0) {
 		serializeAndSendToRedis(data, sHandleBind);
 	} else {
 		const char *key = data->record.getKey().c_str();
@@ -685,6 +702,15 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 					check_redis_command(redisAsyncCommand(data->self->mContext, NULL, NULL, "HDEL fs:%s %s", key, uid), data);
 				}
 			}
+			data->record.applyMaxAor();
+
+			for (auto it = data->record.getContactsToRemove().begin(); it != data->record.getContactsToRemove().end(); ++it) {
+				// Remove from REDIS contacts removed from record
+				const char *uid = (*it)->mUniqueId.c_str();
+				LOGD("Record %s has too many contacts, removing %s from redis", key, uid);
+				check_redis_command(redisAsyncCommand(data->self->mContext, NULL, NULL, "HDEL fs:%s %s", key, uid), data);
+			}
+			data->record.cleanContactsToRemoveList();
 
 			if (data->mUpdateExpire) {
 				time_t expireat = data->record.latestExpire();
@@ -765,7 +791,7 @@ void RegistrarDbRedisAsync::handleRecordMigration(redisReply *reply, RegistrarUs
 	} else {
 		if (reply->len > 0) {
 			if (!mSerializer->parse(reply->str, reply->len, &data->record)) {
-				LOGE("Couldn't parse stored contacts for aor:%s : %u bytes", data->record.getKey().c_str(), reply->len);
+				LOGE("Couldn't parse stored contacts for aor:%s : %u bytes", data->record.getKey().c_str(), (unsigned int)reply->len);
 				if (data->listener) data->listener->onRecordFound(NULL); 
 			} else {
 				LOGD("Parsing stored contacts for aor:%s successful", data->record.getKey().c_str());

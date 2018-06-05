@@ -1,9 +1,6 @@
 [submodule "submodules/belle-sip"]
 	path = submodules/belle-sip
 	url = git://git.linphone.org/belle-sip
-[submodule "submodules/externals/antlr3"]
-	path = submodules/externals/antlr3
-	url = git://git.linphone.org/antlr3.git
 [submodule "submodules/externals/polarssl"]
 	path = submodules/externals/polarssl
 	url = git://git.linphone.org/polarssl.git
@@ -28,3 +25,16 @@
 [submodule "submodules/bcunit"]
 	path = submodules/bcunit
 	url = git://git.linphone.org/bcunit.git
+[submodule "submodules/externals/zlib"]
+	path = submodules/externals/zlib
+	url = git://git.linphone.org/zlib.git
+	branch = 1.2.11
+[submodule "submodules/externals/hiredis"]
+	path = submodules/externals/hiredis
+	url = https://github.com/redis/hiredis.git
+[submodule "submodules/externals/sqlite3"]
+	path = submodules/externals/sqlite3
+	url = git://git.linphone.org/sqlite3.git
+[submodule "submodules/externals/soci"]
+	path = submodules/externals/soci
+	url = git://git.linphone.org/soci.git

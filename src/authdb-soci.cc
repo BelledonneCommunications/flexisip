@@ -166,7 +166,14 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 			vector<string> passwords(10);
 			vector<string> algos(10);
 
-			*sql << get_password_request, into(passwords), into(algos), use(id, "id"), use(domain, "domain");
+			// WARNING: it is necessary to create a temporary string here because use() function creates
+			// and returns an object that stores a reference on it. So, it must absolutely be destroyed
+			// at the end of this function.
+			string unescapedIdStr;
+			unescapedIdStr.resize(id.size());
+			url_unescape(&unescapedIdStr[0], id.c_str());
+
+			*sql << get_password_request, into(passwords), into(algos), use(unescapedIdStr, "id"), use(domain, "domain"), use(authid, "authid");
 
 			for (vector<string>::size_type i = 0; i < passwords.size(); ++i) {
 				passwd_algo_t pass;

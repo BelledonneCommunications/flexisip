@@ -48,7 +48,7 @@ static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const
 	tport_t *old_tport;
 
 	if (module->getAgent() != NULL && ec->mPath.size() == 1) {
-		if (tport_name_by_url(home.home(), &name, (url_string_t *)ec->mSipUri) == 0) {
+		if (tport_name_by_url(home.home(), &name, (url_string_t *)ec->mSipContact->m_url) == 0) {
 			old_tport = tport_by_name(nta_agent_tports(module->getSofiaAgent()), &name);
 
 			// RegId not set or different from ec
@@ -62,13 +62,13 @@ static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const
 					&& (tport_get_user_data(old_tport) == NULL
 						|| (uint64_t)tport_get_user_data(new_tport) == (uint64_t)tport_get_user_data(old_tport))
 					) {
-				SLOGD << "Removing old tport for sip uri " << ExtendedContact::urlToString(ec->mSipUri);
+				SLOGD << "Removing old tport for sip uri " << ExtendedContact::urlToString(ec->mSipContact->m_url);
 				// 0 close incoming data, 1 close outgoing data, 2 both
 				tport_shutdown(old_tport, 2);
 			}
 		} else
 			SLOGE << "ContactUpdated: tport_name_by_url() failed for sip uri "
-					<< ExtendedContact::urlToString(ec->mSipUri);
+					<< ExtendedContact::urlToString(ec->mSipContact->m_url);
 	}
 }
 
@@ -108,7 +108,7 @@ void OnRequestBindListener::onRecordFound(Record *r) {
 		}
 	} else {
 		LOGE("OnRequestBindListener::onRecordFound(): Record is null");
-		mModule->reply(mEv, SIP_480_TEMPORARILY_UNAVAILABLE);
+		mModule->reply(mEv, SIP_500_INTERNAL_SERVER_ERROR);
 	}
 }
 void OnRequestBindListener::onError() {
@@ -144,7 +144,7 @@ void OnResponseBindListener::onRecordFound(Record *r) {
 		mModule->getAgent()->injectResponseEvent(mEv);
 	} else {
 		LOGE("OnResponseBindListener::onRecordFound(): Record is null");
-		mCtx->reqSipEvent->reply(SIP_480_TEMPORARILY_UNAVAILABLE, TAG_END());
+		mCtx->reqSipEvent->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
 		mEv->terminateProcessing();
 	}
 }
@@ -358,6 +358,7 @@ void ModuleRegistrar::onDeclare(GenericStruct *mc) {
 			"60"},
 		{String, "service-route",
 			"Sequence of proxies (space-separated) where requests will be redirected through (RFC3608)", ""},
+		{String, "name-message-expires", "The name used for the expire time of forking message", "message-expires"},
 		{Integer, "register-expire-randomizer-max", "Maximum percentage of the REGISTER expire to randomly remove, 0 to disable", "0"},
 		config_item_end};
 	mc->addChildrenValues(configs);
@@ -475,21 +476,24 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 	}
 
 	for (sip_contact_t *contact = modified_contacts; contact!=NULL ; contact=contact->m_next) {
-		if(sip->sip_request->rq_method == sip_method_register && code == 200
-		   && contact && url_has_param(contact->m_url, "gr")) {
-			string gruu;
-			char *buffer = new char[255];
-			isize_t result = url_param(contact->m_url->url_params, "gr", buffer, 255);
-			if (result > 0) {
-				su_home_t *home = ev->getHome();
-				stringstream stream;
-				gruu = string(buffer);
-				contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"gr");
-				contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"regid");
-				stream << "\"" << url_as_string(home, sip->sip_from->a_url) << ";gr=" << gruu << "\"";
-				msg_header_replace_param(home, (msg_common_t *) contact, su_sprintf(home, "pub-gruu=%s", stream.str().c_str()));
+		if(sip->sip_request->rq_method == sip_method_register && code == 200 && contact) {
+			if (url_has_param(contact->m_url, "gr")) {
+				string gruu;
+				char *buffer = new char[255];
+				isize_t result = url_param(contact->m_url->url_params, "gr", buffer, 255);
+				if (result > 0) {
+					su_home_t *home = ev->getHome();
+					stringstream stream;
+					gruu = string(buffer);
+					contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"gr");
+					stream << "\"" << url_as_string(home, sip->sip_from->a_url) << ";gr=" << gruu << "\"";
+					msg_header_replace_param(home, (msg_common_t *) contact, su_sprintf(home, "pub-gruu=%s", stream.str().c_str()));
+				}
+				delete[] buffer;
 			}
-			delete[] buffer;
+			if (url_has_param(contact->m_url, "regid")) {
+				contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"regid");
+			}
 		}
 	}
 	if (modified_contacts && !mServiceRoute.empty()) {

@@ -106,7 +106,7 @@ bool RecordSerializerC::serialize(Record *r, string &serialized, bool log) {
 		shared_ptr<ExtendedContact> ec = (*it);
 		if (i != 0)
 			oss << "#";
-		oss << "#" << ec->mSipUri << "#" << ec->mExpireAt << "#" << ec->mQ;
+		oss << "#" << ec->mSipContact->m_url << "#" << ec->mExpireAt << "#" << ec->mQ;
 		oss << "#" << ec->contactId();
 		oss << "#"; // route
 		oss << "#";
