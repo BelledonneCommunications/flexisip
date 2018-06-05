@@ -26,7 +26,7 @@ AuthDbBackend *AuthDbBackend::sUnique = NULL;
 AuthDbListener::~AuthDbListener(){
 }
 
-void AuthDbListener::onResults(list<std::string> &phones, set<std::string> &users) {
+void AuthDbListener::onResults(list<string> &phones, set<string> &users) {
 
 }
 
@@ -35,11 +35,11 @@ public:
 	FixedAuthDb() {
 	}
 
-	virtual void getUserWithPhoneFromBackend(const std::string & phone, const std::string &domain, AuthDbListener *listener) {
+	virtual void getUserWithPhoneFromBackend(const string & phone, const string &domain, AuthDbListener *listener) {
 		if (listener) listener->onResult(PASSWORD_FOUND, "user@domain.com");
 	}
-	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-										const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
+	virtual void getPasswordFromBackend(const string &id, const string &domain,
+										const string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
 		if (listener) listener->onResult(PASSWORD_FOUND, "fixed");
 	}
 	static void declareConfig(GenericStruct *mc){};
@@ -95,15 +95,13 @@ string AuthDbBackend::createPasswordKey(const string &user, const string &auth_u
 	return key.str();
 }
 
-AuthDbBackend::CacheResult AuthDbBackend::getCachedPassword(const string &key, const string &domain, passwd_algo_t &pass) {
+AuthDbBackend::CacheResult AuthDbBackend::getCachedPassword(const string &key, const string &domain, vector<passwd_algo_t> &pass) {
 	time_t now = getCurrentTime();
 	auto &passwords = mCachedPasswords[domain];
 	unique_lock<mutex> lck(mCachedPasswordMutex);
 	auto it = passwords.find(key);
 	if (it != passwords.end()) {
-		pass.pass.assign(it->second.pass.pass);
-		pass.passmd5.assign(it->second.pass.passmd5);
-		pass.passsha256.assign(it->second.pass.passsha256);
+		pass = it->second.pass;
 		if (now < it->second.expire_date) {
 			return VALID_PASS_FOUND;
 		} else {
@@ -118,7 +116,7 @@ void AuthDbBackend::clearCache() {
 	mCachedPasswords.clear();
 }
 
-bool AuthDbBackend::cachePassword(const string &key, const string &domain, const passwd_algo_t &pass, int expires) {
+bool AuthDbBackend::cachePassword(const string &key, const string &domain, const vector<passwd_algo_t> &pass, int expires) {
 	time_t now = getCurrentTime();
 	map<string, CachedPassword> &passwords = mCachedPasswords[domain];
 	unique_lock<mutex> lck(mCachedPasswordMutex);
@@ -134,7 +132,7 @@ bool AuthDbBackend::cachePassword(const string &key, const string &domain, const
 	return true;
 }
 
-bool AuthDbBackend::cacheUserWithPhone(const std::string &phone, const std::string &domain, const std::string &user) {
+bool AuthDbBackend::cacheUserWithPhone(const string &phone, const string &domain, const string &user) {
 	unique_lock<mutex> lck(mCachedUserWithPhoneMutex);
 
 	if (!phone.empty()) {
@@ -148,11 +146,11 @@ bool AuthDbBackend::cacheUserWithPhone(const std::string &phone, const std::stri
 	return true;
 }
 
-void AuthDbBackend::getPassword(const std::string &user, const std::string &host, const std::string &auth_username,
+void AuthDbBackend::getPassword(const string &user, const string &host, const string &auth_username,
 								AuthDbListener *listener) {
 	// Check for usable cached password
 	string key(createPasswordKey(user, auth_username));
-	passwd_algo_t pass;
+	vector<passwd_algo_t> pass;
 	switch (getCachedPassword(key, host, pass)) {
 		case VALID_PASS_FOUND:
 			if (listener) listener->onResult(AuthDbResult::PASSWORD_FOUND, pass);
@@ -170,15 +168,16 @@ void AuthDbBackend::getPassword(const std::string &user, const std::string &host
 	getPasswordFromBackend(user, host, auth_username, listener, NULL);
 }
 
-void AuthDbBackend::getPasswordForAlgo(const std::string &user, const std::string &host, const std::string &auth_username,
+void AuthDbBackend::getPasswordForAlgo(const string &user, const string &host, const string &auth_username,
 										AuthDbListener *listener, AuthDbListener *listener_ref) {
 	// Check for usable cached password
 	string key(createPasswordKey(user, auth_username));
-	passwd_algo_t pass;
+	vector<passwd_algo_t> pass;
+
 	switch (getCachedPassword(key, host, pass)) {
 		case VALID_PASS_FOUND:
 			if (listener) listener->onResult(AuthDbResult::PASSWORD_FOUND, pass);
-			if(listener_ref) listener_ref->finish_verify_algos(pass);
+			if (listener_ref) listener_ref->finishVerifyAlgos(pass);
 			return;
 		case EXPIRED_PASS_FOUND:
 			// Might check here if connection is failing
@@ -192,8 +191,9 @@ void AuthDbBackend::getPasswordForAlgo(const std::string &user, const std::strin
 	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
 	getPasswordFromBackend(user, host, auth_username, listener, listener_ref);
 }
-void AuthDbBackend::createCachedAccount(const std::string &user, const std::string &host, const std::string &auth_username, const passwd_algo_t &password,
-										int expires, const std::string & phone_alias) {
+
+void AuthDbBackend::createCachedAccount(const string &user, const string &host, const string &auth_username, const vector<passwd_algo_t> &password,
+										int expires, const string & phone_alias) {
 	if (!user.empty() && !host.empty()) {
 		string key = createPasswordKey(user, auth_username);
 		cachePassword(key, host, password, expires);
@@ -223,28 +223,27 @@ string AuthDbBackend::syncMd5(const char* input,size_t size){
 	return out;
 }
 
-void AuthDbBackend::verifyAlgo(const passwd_algo_t &pass, std::list<std::string> &algorithms){
-	for(auto algo = algorithms.begin(); algo != algorithms.end();)
-	{
-		auto algo_ref=algo++;
-		if((!strcmp(algo_ref->c_str(),"MD5")&&(pass.passmd5==""))||(!strcmp(algo_ref->c_str(),"SHA-256")&&(pass.passsha256=="")))
-		{
-			algorithms.remove(algo_ref->c_str());
-		}
-	}
-}
-
-void AuthDbBackend::createAccount(const std::string & user, const std::string & host, const std::string &auth_username, const std::string &password,
-										int expires, const std::string & phone_alias) {
+void AuthDbBackend::createAccount(const string & user, const string & host, const string &auth_username, const string &password,
+										int expires, const string & phone_alias) {
 	// Password here is in mod clrtxt. Calcul passmd5 and passsha256 before createCachedAccount.
-	passwd_algo_t pass;
-	pass.pass = password;
-	if(pass.pass!=""){
-		string input;
-		input = user+":"+host+":"+pass.pass;
-		pass.passmd5=syncMd5(input.c_str(), 16);
-		pass.passsha256=syncSha256(input.c_str(), 32);
-	}
+	vector<passwd_algo_t> pass;
+	passwd_algo_t clrtxt, md5, sha256;
+
+	clrtxt.pass = password;
+	clrtxt.algo = "CLRTXT";
+	pass.push_back(clrtxt);
+
+	string input;
+	input = user+":"+host+":"+clrtxt.pass;
+
+	md5.pass = syncMd5(input.c_str(), 16);
+	md5.algo = "MD5";
+	pass.push_back(md5);
+
+	sha256.pass = syncSha256(input.c_str(), 32);
+	sha256.algo = "SHA-256";
+	pass.push_back(sha256);
+
 	createCachedAccount(user, host, auth_username, pass, expires, phone_alias);
 }
 
@@ -261,7 +260,7 @@ AuthDbBackend::CacheResult AuthDbBackend::getCachedUserWithPhone(const string &p
 	return NO_PASS_FOUND;
 }
 
-void AuthDbBackend::getUserWithPhone(const std::string & phone, const std::string & domain, AuthDbListener *listener) {
+void AuthDbBackend::getUserWithPhone(const string & phone, const string & domain, AuthDbListener *listener) {
 	// Check for usable cached password
 	string user;
 	switch (getCachedUserWithPhone(phone, domain, user)) {
@@ -277,9 +276,9 @@ void AuthDbBackend::getUserWithPhone(const std::string & phone, const std::strin
 	getUserWithPhoneFromBackend(phone, domain, listener);
 }
 
-void AuthDbBackend::getUsersWithPhone(list<tuple<std::string,std::string,AuthDbListener*>> & creds, AuthDbListener *listener) {
-	list<tuple<std::string,std::string,AuthDbListener*>> needed_creds;
-	for (tuple<std::string,std::string,AuthDbListener*> cred : creds) {
+void AuthDbBackend::getUsersWithPhone(list<tuple<string,string,AuthDbListener*>> & creds, AuthDbListener *listener) {
+	list<tuple<string,string,AuthDbListener*>> needed_creds;
+	for (tuple<string,string,AuthDbListener*> cred : creds) {
 		// Check for usable cached password
 		string user;
 		string phone = std::get<0>(cred);
@@ -300,8 +299,8 @@ void AuthDbBackend::getUsersWithPhone(list<tuple<std::string,std::string,AuthDbL
 	getUsersWithPhonesFromBackend(needed_creds, listener);
 }
 
-void AuthDbBackend::getUsersWithPhonesFromBackend(list<tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener) {
-	for(tuple<std::string,std::string,AuthDbListener*> cred : creds) {
+void AuthDbBackend::getUsersWithPhonesFromBackend(list<tuple<string,string,AuthDbListener*>> &creds, AuthDbListener *listener) {
+	for(tuple<string,string,AuthDbListener*> cred : creds) {
 		string phone = std::get<0>(cred);
 		string domain = std::get<1>(cred);
 		AuthDbListener* l = std::get<2>(cred);

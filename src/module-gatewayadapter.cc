@@ -123,15 +123,16 @@ class GatewayRegister {
 			delete this;
 		}
         
-        virtual void onResult(AuthDbResult result, const passwd_algo_t &passwd) {
+        virtual void onResult(AuthDbResult result, const vector<passwd_algo_t> &passwd) {
             if (result == AuthDbResult::PASSWORD_FOUND) {
-                checkPassword(passwd.pass.c_str());
+                checkPassword(passwd.front().pass.c_str());
             } else {
                 LOGE("GatewayRegister onResult(): Can't find user password, give up.");
             }
             delete this;
         }
-		virtual void finish_verify_algos(const passwd_algo_t &pass) {
+
+		virtual void finishVerifyAlgos(const vector<passwd_algo_t> &pass) {
 			return;
 		}
 	};

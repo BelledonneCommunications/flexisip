@@ -44,8 +44,7 @@ enum AuthDbResult { PENDING, PASSWORD_FOUND, PASSWORD_NOT_FOUND, AUTH_ERROR };
 
 struct passwd_algo_t {
 	std::string pass;
-	std::string passmd5;
-	std::string passsha256;
+	std::string algo;
 };
 
 // Fw declaration
@@ -54,9 +53,9 @@ struct AuthDbTimings;
 class AuthDbListener : public StatFinishListener {
 public:
 	virtual void onResult(AuthDbResult result, const std::string &passwd) = 0;
-	virtual void onResult(AuthDbResult result, const passwd_algo_t &passwd)=0;
+	virtual void onResult(AuthDbResult result, const std::vector<passwd_algo_t> &passwd)=0;
 	virtual void onResults(std::list<std::string> &phones, std::set<std::string> &users);
-	virtual void finish_verify_algos(const passwd_algo_t &pass)=0;
+	virtual void finishVerifyAlgos(const std::vector<passwd_algo_t> &pass)=0;
 	virtual ~AuthDbListener();
 };
 
@@ -64,9 +63,9 @@ class AuthDbBackend {
 	static AuthDbBackend *sUnique;
 
 	struct CachedPassword {
-		passwd_algo_t pass;
+		std::vector<passwd_algo_t> pass;
 		time_t expire_date;
-		CachedPassword(const passwd_algo_t &ipass, time_t idate) : pass(ipass), expire_date(idate) {
+		CachedPassword(const std::vector<passwd_algo_t> &ipass, time_t idate) : pass(ipass), expire_date(idate) {
 		}
 	};
 
@@ -80,11 +79,11 @@ protected:
 	AuthDbBackend();
 	enum CacheResult { VALID_PASS_FOUND, EXPIRED_PASS_FOUND, NO_PASS_FOUND };
 	std::string createPasswordKey(const std::string &user, const std::string &auth);
-	bool cachePassword(const std::string &key, const std::string &domain, const passwd_algo_t &pass, int expires);
+	bool cachePassword(const std::string &key, const std::string &domain, const std::vector<passwd_algo_t> &pass, int expires);
 	bool cacheUserWithPhone(const std::string &phone, const std::string &domain, const std::string &user);
-	CacheResult getCachedPassword(const std::string &key, const std::string &domain, passwd_algo_t &pass);
+	CacheResult getCachedPassword(const std::string &key, const std::string &domain, std::vector<passwd_algo_t> &pass);
 	CacheResult getCachedUserWithPhone(const std::string &phone, const std::string &domain, std::string &user);
-	void createCachedAccount(const std::string & user, const std::string & domain, const std::string &auth_username, const passwd_algo_t &password, int expires, const std::string & phone_alias = "");
+	void createCachedAccount(const std::string & user, const std::string & domain, const std::string &auth_username, const std::vector<passwd_algo_t> &password, int expires, const std::string & phone_alias = "");
 	void clearCache();
 	int mCacheExpire;
 public:
@@ -106,17 +105,15 @@ public:
 	static AuthDbBackend *get();
 	/* called by module_auth so that backends can declare their configuration to the ConfigurationManager */
 	static void declareConfig(GenericStruct *mc);
-	static void verifyAlgo(const passwd_algo_t &pass, std::list<std::string> &algorithms);
 	static std::string syncSha256(const char* input,size_t size);
 	static std::string syncMd5(const char* input,size_t size);
-
 };
 
 class FileAuthDb : public AuthDbBackend {
 private:
 	std::string mFileString;
 	time_t mLastSync;
-	void parsePasswd(std::string* pass, std::string user, std::string domain, passwd_algo_t* password);
+	void parsePasswd(std::vector<std::string> &pass, std::string user, std::string domain, std::vector<passwd_algo_t> &password);
 
 protected:
 	void sync();
