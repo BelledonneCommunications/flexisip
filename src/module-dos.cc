@@ -76,7 +76,7 @@ class DoSProtection : public Module, ModuleToolbox {
 		mBanTime = mc->get<ConfigInt>("ban-time")->read();
 		mFlexisipChain = mc->get<ConfigString>("iptables-chain")->read();
 		mDOSHashtableIterator = mDosContexts.begin();
-		
+
 		GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 		mWhiteList = cluster->get<ConfigStringList>("nodes")->read();
 		for (auto it = mWhiteList.begin(); it != mWhiteList.end(); ++it) {
@@ -95,7 +95,7 @@ class DoSProtection : public Module, ModuleToolbox {
 			LOGE("Flexisip not started with root privileges! iptables commands for DoS protection won't work.");
 			return;
 		}
-			
+
 		// Let's remove the Flexisip's chain in case the previous run crashed
 		char iptables_cmd[512];
 		bool skipCleanup = false;
@@ -105,26 +105,26 @@ class DoSProtection : public Module, ModuleToolbox {
 			LOGW("iptables command %s failed", iptables_cmd);
 			skipCleanup = true;
 		}
-		
+
 		if (!skipCleanup) {
 			// Then we have to remove the link to be able to remove the chain itself
 			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
 			if (system(iptables_cmd) != 0) {
 				LOGW("iptables command %s failed", iptables_cmd);
 			}
-			
+
 			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -X %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
 			if (system(iptables_cmd) != 0) {
 				LOGW("iptables command %s failed", iptables_cmd);
 			}
 		}
-		
+
 		// Now let's create it
 		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -N %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
 		if (system(iptables_cmd) != 0) {
 			LOGW("iptables command %s failed", iptables_cmd);
 		}
-		
+
 		//Finally let's add a jum from the INPUT chain to ours
 		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -t filter -A INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
 		if (system(iptables_cmd) != 0) {
@@ -140,13 +140,13 @@ class DoSProtection : public Module, ModuleToolbox {
 		if (system(iptables_cmd) != 0) {
 			LOGW("iptables command %s failed", iptables_cmd);
 		}
-		
+
 		// Then we have to remove the link to be able to remove the chain itself
 		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
 		if (system(iptables_cmd) != 0) {
 			LOGW("iptables command %s failed", iptables_cmd);
 		}
-		
+
 		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -X %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
 		if (system(iptables_cmd) != 0) {
 			LOGW("iptables command %s failed", iptables_cmd);
@@ -169,7 +169,7 @@ class DoSProtection : public Module, ModuleToolbox {
 					// iptables seems to support -w parameter required to allow concurrent usage of iptables
 					mIptablesSupportsWait = true;
 				}
-			}			
+			}
 			return true;
 #endif
 		}
@@ -206,14 +206,14 @@ class DoSProtection : public Module, ModuleToolbox {
 			}
 		}
 	}
-	
+
 	bool isIpWhiteListed(const char *ip) {
 		if (!ip) return true; // If IP is null, is useless to try to add it in iptables...
-		
+
 		if (ip && strcmp(ip, "127.0.0.1") == 0) { // Never ban localhost, used for presence
 			return true;
 		}
-		
+
 		for (auto it = mWhiteList.begin(); it != mWhiteList.end(); ++it) { // Never ban ips from cluster
 			const char *white_ip = (*it).c_str();
 			if (white_ip && strcmp(ip, white_ip) == 0) {
@@ -225,9 +225,9 @@ class DoSProtection : public Module, ModuleToolbox {
 
 	void banIP(const char *ip, const char *port, const char *protocol) {
 		char iptables_cmd[512];
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -C %s -p %s -s %s -m multiport --sports %s -j REJECT", 
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -C %s -p %s -s %s -m multiport --sports %s -j REJECT",
 				 mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol, ip, port);
-		
+
 		if (system(iptables_cmd) == 0) {
 			LOGW("IP %s port %s on protocol %s is already in the iptables banned list, skipping...", ip, port, protocol);
 		} else {
@@ -238,7 +238,7 @@ class DoSProtection : public Module, ModuleToolbox {
 			}
 		}
 	}
-	
+
 	void unbanIP(BanContext *ctx) {
 		string protocol = ctx->protocol;
 		string ip = ctx->ip;
@@ -253,14 +253,14 @@ class DoSProtection : public Module, ModuleToolbox {
 		});
 		delete ctx;
 	}
-	
+
 	static void invokeLambdaFromSofiaTimerCallback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) {
 		BanContext *ctx = (BanContext *)arg;
 		su_timer_destroy(ctx->timer);
 		ctx->timer = NULL;
 		ctx->lambda(ctx);
 	}
-	
+
 	void createBanContextAndPostInFuture(const char *ip, const char *port, const string &protocol) {
 		BanContext *ctx = new BanContext();
 		ctx->ip = ip;
@@ -376,8 +376,10 @@ class DoSProtection : public Module, ModuleToolbox {
 	}
 };
 
-ModuleInfo<DoSProtection>
-	DoSProtection::sInfo("DoSProtection",
-			    "This module bans user when they are sending too much packets within a given timeframe. "
-			    "To see the list of currently banned IPs/ports, use iptables -L. ",
-			    ModuleInfoBase::ModuleOid::DoSProtection);
+ModuleInfo<DoSProtection> DoSProtection::sInfo(
+	"DoSProtection",
+	"This module bans user when they are sending too much packets within a given timeframe. "
+	"To see the list of currently banned IPs/ports, use iptables -L. ",
+	{ "" },
+	ModuleInfoBase::ModuleOid::DoSProtection
+);

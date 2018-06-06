@@ -188,7 +188,7 @@ class Agent : public IncomingAgent,
 	void incrReplyStat(int status);
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 	void logEvent(const std::shared_ptr<SipEvent> &ev);
-	Module *findModule(const std::string &modname) const;
+	Module *findModule(const std::string &moduleName) const;
 	int onIncomingMessage(msg_t *msg, const sip_t *sip);
 	nth_engine_t *getHttpEngine() {
 		return mHttpEngine;

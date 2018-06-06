@@ -29,7 +29,7 @@
 using namespace std;
 
 class StatisticsCollector : public Module, ModuleToolbox {
-  public:
+public:
 	StatisticsCollector(Agent *ag);
 	~StatisticsCollector();
 	virtual void onDeclare(GenericStruct *module_config);
@@ -37,7 +37,7 @@ class StatisticsCollector : public Module, ModuleToolbox {
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 
-  private:
+private:
 	int managePublishContent(const shared_ptr<RequestSipEvent> ev);
 	bool containsMandatoryFields(char *data, usize_t len);
 
@@ -112,8 +112,11 @@ void StatisticsCollector::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 bool StatisticsCollector::containsMandatoryFields(char *body, usize_t len) {
 	char *remote_metrics_start = __strstr(body, "RemoteMetrics:");
 
-	if (!(__strstr(body, "VQIntervalReport\r\n") == body || __strstr(body, "VQSessionReport\r\n") == body ||
-		  __strstr(body, "VQSessionReport: CallTerm\r\n") == body))
+	if (
+		__strstr(body, "VQIntervalReport\r\n") != body &&
+		__strstr(body, "VQSessionReport\r\n") != body &&
+		__strstr(body, "VQSessionReport: CallTerm\r\n") != body
+	)
 		return false;
 
 	if (!(body = __strstr(body, "CallID:")))
@@ -189,8 +192,10 @@ int StatisticsCollector::managePublishContent(const shared_ptr<RequestSipEvent> 
 	return err;
 }
 
-ModuleInfo<StatisticsCollector>
-	StatisticsCollector::sInfo("StatisticsCollector",
-							   "The purpose of the StatisticsCollector module is to "
-							   "collect call statistics (RFC 6035) and store them on the server.",
-							   ModuleInfoBase::ModuleOid::StatisticsCollector);
+ModuleInfo<StatisticsCollector> StatisticsCollector::sInfo(
+	"StatisticsCollector",
+	"The purpose of the StatisticsCollector module is to "
+	"collect call statistics (RFC 6035) and store them on the server.",
+	{ "Registrar" },
+	ModuleInfoBase::ModuleOid::StatisticsCollector
+);

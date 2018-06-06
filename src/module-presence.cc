@@ -23,8 +23,7 @@
 using namespace std;
 
 class ModulePresence : public Module, ModuleToolbox {
-
-  private:
+private:
 	static ModuleInfo<ModulePresence> sInfo;
 	string mDestRoute;
 	su_home_t mHome;
@@ -63,7 +62,7 @@ class ModulePresence : public Module, ModuleToolbox {
 		mOnlyListSubscription = mc->get<ConfigBooleanExpression>("only-list-subscription")->read();
 		SLOGI << getModuleName() << ": presence server is [" << mDestRoute << "]";
 		SLOGI << getModuleName() << ": Non list subscription are " << (mOnlyListSubscription ? "not" : "")
-			  << " redirected by presence server";
+			<< " redirected by presence server";
 	}
 
 	void onUnload() {
@@ -86,12 +85,13 @@ class ModulePresence : public Module, ModuleToolbox {
 				}
 			}
 			return (!mOnlyListSubscription->eval(ev->getSip()) || require_recipient_list_subscribe_found) &&
-				   sip->sip_event && strcmp(sip->sip_event->o_type, "presence") == 0;
+				sip->sip_event && strcmp(sip->sip_event->o_type, "presence") == 0;
 		} else if (sip->sip_request->rq_method == sip_method_publish) {
-			return !sip->sip_content_type ||
-				   (sip->sip_content_type && sip->sip_content_type->c_type &&
-					strcasecmp(sip->sip_content_type->c_type, "application/pidf+xml") == 0 &&
-					sip->sip_content_type->c_subtype && strcasecmp(sip->sip_content_type->c_subtype, "pidf+xml") == 0);
+			return !sip->sip_content_type || (
+				sip->sip_content_type && sip->sip_content_type->c_type &&
+				strcasecmp(sip->sip_content_type->c_type, "application/pidf+xml") == 0 &&
+				sip->sip_content_type->c_subtype && strcasecmp(sip->sip_content_type->c_subtype, "pidf+xml") == 0
+			);
 		}
 		return false;
 	}
@@ -101,7 +101,7 @@ class ModulePresence : public Module, ModuleToolbox {
 	}
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) {};
 
-  public:
+public:
 	ModulePresence(Agent *ag) : Module(ag) {
 		su_home_init(&mHome);
 	}
@@ -110,6 +110,10 @@ class ModulePresence : public Module, ModuleToolbox {
 		su_home_deinit(&mHome);
 	}
 };
+
 ModuleInfo<ModulePresence> ModulePresence::sInfo(
-	"Presence", "This module transfert sip presence messages, like subscribe/notify/publish to a presence server. ",
-	ModuleInfoBase::ModuleOid::Presence, ModuleClassExperimental);
+	"Presence",
+	"This module transfert sip presence messages, like subscribe/notify/publish to a presence server.",
+	{ "GatewayAdapter" },
+	ModuleInfoBase::ModuleOid::Presence, ModuleClassExperimental
+);

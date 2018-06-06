@@ -455,36 +455,36 @@ void Agent::start(const std::string &transport_override, const std::string passp
 	startLogWriter();
 }
 
+static bool moduleIsBefore(const string &moduleName, ModuleInfoBase *next) {
+	for (const string &after : next->getAfter()) {
+		if (moduleName == after)
+			return true;
+
+		const std::list<ModuleInfoBase *> &registeredModuleInfo = ModuleFactory::get()->registeredModuleInfo();
+		auto it = find_if(registeredModuleInfo.cbegin(), registeredModuleInfo.cend(), [&after](const ModuleInfoBase *moduleInfo) {
+			return moduleInfo->getModuleName() == after;
+		});
+		if (it != registeredModuleInfo.cend())
+			return moduleIsBefore(moduleName, *it);
+	}
+
+	return false;
+}
+
 Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 	mHttpEngine = nth_engine_create(root, NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct *cr = GenericManager::get()->getRoot();
 
 	EtcHostsResolver::get();
 
-	std::list<string> modulesToInstantiate = {
-		"DoSProtection",
-		"SanityChecker",
-		"GarbageIn",
-		"NatHelper",
-		"Authentication",
-		#ifdef HAVE_DATEHANDLER
-			"DateHandler",
-		#endif
-		"Redirect",
-		"GatewayAdapter",
-		"Presence",
-		"Registrar",
-		"StatisticsCollector",
-		"ContactRouteInserter",
-		"Router",
-		"PushNotification",
-		"LoadBalancer",
-		"MediaRelay",
-		#ifdef ENABLE_TRANSCODER
-			"Transcoder",
-		#endif
-		"Forward"
-	};
+	std::list<ModuleInfoBase *> registeredModuleInfo = ModuleFactory::get()->registeredModuleInfo();
+	registeredModuleInfo.sort([](ModuleInfoBase *a, ModuleInfoBase *b) {
+		const string &moduleName = a->getModuleName();
+		if (moduleName.empty()) // Special case, root.
+			return true;
+
+		return moduleIsBefore(moduleName, b);
+	});
 
 	{
 		GenericStruct *global = cr->get<GenericStruct>("global");
@@ -501,8 +501,8 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 	}
 
 	ModuleFactory *moduleFactory = ModuleFactory::get();
-	for (const string &modname : modulesToInstantiate)
-		mModules.push_back(moduleFactory->createModuleInstance(this, modname));
+	for (const ModuleInfoBase *moduleInfo : registeredModuleInfo)
+		mModules.push_back(moduleFactory->createModuleInstance(this, moduleInfo->getModuleName()));
 
 	mServerString = "Flexisip/" VERSION " (sofia-sip-nta/" NTA_VERSION ")";
 
@@ -853,8 +853,8 @@ struct ModuleHasName {
 	}
 	const string &match;
 };
-Module *Agent::findModule(const string &modname) const {
-	auto it = find_if(mModules.begin(), mModules.end(), ModuleHasName(modname));
+Module *Agent::findModule(const string &moduleName) const {
+	auto it = find_if(mModules.begin(), mModules.end(), ModuleHasName(moduleName));
 	return (it != mModules.end()) ? *it : NULL;
 }
 

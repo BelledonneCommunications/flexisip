@@ -46,21 +46,27 @@ ModuleFactory *ModuleFactory::get() {
 	return sInstance;
 }
 
-Module *ModuleFactory::createModuleInstance(Agent *ag, const string &modname) {
-	auto it = find_if(mRegisteredModuleInfo.begin(), mRegisteredModuleInfo.end(), [&modname](const ModuleInfoBase *moduleInfo) {
-		return moduleInfo->getModuleName() == modname;
+Module *ModuleFactory::createModuleInstance(Agent *ag, const string &moduleName) {
+	auto it = find_if(mRegisteredModuleInfo.begin(), mRegisteredModuleInfo.end(), [&moduleName](const ModuleInfoBase *moduleInfo) {
+		return moduleInfo->getModuleName() == moduleName;
 	});
 	if (it != mRegisteredModuleInfo.end()) {
 		Module *module = (*it)->create(ag);
-		SLOGI << "Creating module instance for " << "[" << modname << "].";
+		SLOGI << "Creating module instance for " << "[" << moduleName << "].";
 		return module;
 	}
-	LOGA("Could not find any registered module info with name [%s]", modname.c_str());
+	LOGA("Could not find any registered module info with name [%s]", moduleName.c_str());
 	return nullptr;
 }
 
 void ModuleFactory::registerModuleInfo(ModuleInfoBase *moduleInfo) {
 	SLOGI << "Registering module info [" << moduleInfo->getModuleName() << "]...";
+
+	if (moduleInfo->getAfter().empty()) {
+		SLOGE << "Cannot register module info [" << moduleInfo->getModuleName() << "] with empty after member.";
+		return;
+	}
+
 	auto it = find(mRegisteredModuleInfo.cbegin(), mRegisteredModuleInfo.cend(), moduleInfo);
 	if (it != mRegisteredModuleInfo.cend())
 		SLOGE << "Unable to register existing module [" << moduleInfo->getModuleName() << "].";

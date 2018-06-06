@@ -330,6 +330,7 @@ private:
 ModuleInfo<JweAuth> JweAuth::sInfo(
 	"JweAuth",
 	"This module offers the possibility to use JSON Web Encryption tokens.",
+	{ "Authentication" },
 	ModuleInfoBase::ModuleOid::Plugin
 );
 

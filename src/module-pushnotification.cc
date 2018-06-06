@@ -181,14 +181,16 @@ void PushNotificationContext::__end_timer_callback(su_root_magic_t *magic, su_ti
 	context->onEnd();
 }
 
-ModuleInfo<PushNotification>
-	PushNotification::sInfo("PushNotification",
-							"This module performs push notifications to mobile phone notification systems: apple, "
-							"android, windows, as well as a generic http get/post to a custom server to which "
-							"actual sending of the notification is delegated. The push notification is sent when an "
-							"INVITE or MESSAGE request is not answered by the destination of the request "
-							"within a certain period of time, configurable hereunder as 'timeout' parameter.",
-							ModuleInfoBase::ModuleOid::PushNotification);
+ModuleInfo<PushNotification> PushNotification::sInfo(
+	"PushNotification",
+	"This module performs push notifications to mobile phone notification systems: apple, "
+	"android, windows, as well as a generic http get/post to a custom server to which "
+	"actual sending of the notification is delegated. The push notification is sent when an "
+	"INVITE or MESSAGE request is not answered by the destination of the request "
+	"within a certain period of time, configurable hereunder as 'timeout' parameter.",
+	{ "Router" },
+	ModuleInfoBase::ModuleOid::PushNotification
+);
 
 PushNotification::PushNotification(Agent *ag)
 	: Module(ag), mExternalPushUri(NULL), mPNS(NULL), mCountFailed(NULL), mCountSent(NULL), mNoBadgeiOS(false) {

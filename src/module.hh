@@ -40,7 +40,7 @@ class ModuleFactory {
 	friend class ModuleInfoBase;
 
 public:
-	Module *createModuleInstance(Agent *ag, const std::string &modname);
+	Module *createModuleInstance(Agent *ag, const std::string &moduleName);
 
 	const std::list<ModuleInfoBase *> &registeredModuleInfo() {
 		return mRegisteredModuleInfo;
@@ -99,6 +99,10 @@ public:
 		return mHelp;
 	}
 
+	const std::vector<std::string> &getAfter() const {
+		return mAfter;
+	}
+
 	ModuleClass getClass() const {
 		return mClass;
 	}
@@ -108,8 +112,10 @@ public:
 	}
 
 protected:
-	ModuleInfoBase(const char *modname, const char *help, enum ModuleOid oid, ModuleClass type) :
-		mClass(type), mName(modname), mHelp(help), mOidIndex(oid) {
+	ModuleInfoBase(
+		const std::string &moduleName, const std::string &help, const std::vector<std::string> &after,
+		ModuleOid oid, ModuleClass type
+	) : mClass(type), mName(moduleName), mHelp(help), mAfter(after), mOidIndex(oid) {
 		ModuleFactory::get()->registerModuleInfo(this);
 	}
 
@@ -118,14 +124,17 @@ protected:
 private:
 	const std::string mName;
 	const std::string mHelp;
+	const std::vector<std::string> mAfter;
 	const oid mOidIndex;
 };
 
 template <typename _module_>
 class ModuleInfo : public ModuleInfoBase {
 public:
-	ModuleInfo(const char *modname, const char *help, ModuleOid oid, ModuleClass type = ModuleClassProduction) :
-		ModuleInfoBase(modname, help, oid, type) {}
+	ModuleInfo(
+		const std::string &moduleName, const std::string &help, const std::vector<std::string> &after,
+		ModuleOid oid, ModuleClass type = ModuleClassProduction
+	) : ModuleInfoBase(moduleName, help, after, oid, type) {}
 
 protected:
 	virtual Module *_create(Agent *ag);

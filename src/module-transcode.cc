@@ -37,7 +37,7 @@ using namespace std;
 
 #ifdef ENABLE_TRANSCODER
 class TickerManager {
-  public:
+public:
 	TickerManager() : mLastTickerIndex(0), mStarted(false) {
 	}
 	MSTicker *chooseOne() {
@@ -57,7 +57,7 @@ class TickerManager {
 		for_each(mTickers.begin(), mTickers.end(), ptr_fun(ms_ticker_destroy));
 	}
 
-  private:
+private:
 	vector<MSTicker *> mTickers;
 	unsigned int mLastTickerIndex;
 	bool mStarted;
@@ -65,7 +65,7 @@ class TickerManager {
 #endif
 
 class Transcoder : public Module, protected ModuleToolbox {
-  public:
+public:
 	Transcoder(Agent *ag);
 	~Transcoder();
 	virtual void onLoad(const GenericStruct *module_config);
@@ -74,7 +74,7 @@ class Transcoder : public Module, protected ModuleToolbox {
 	virtual void onIdle();
 	virtual void onDeclare(GenericStruct *mc);
 #ifdef ENABLE_TRANSCODER
-  private:
+private:
 	TickerManager mTickerManager;
 	int handleOffer(TranscodedCall *c, shared_ptr<SipEvent> ev);
 	int handleAnswer(TranscodedCall *c, shared_ptr<SipEvent> ev);
@@ -111,7 +111,9 @@ ModuleInfo<Transcoder> Transcoder::sInfo(
 	"the possible plugins you may installed to extend mediastreamer2. "
 	"WARNING: this module can conflict with the MediaRelay module as both are changin the SDP. "
 	"Make sure to configure them with different to-domains or from-domains filter if you want to enable both of them.",
-	ModuleInfoBase::ModuleOid::Transcoder);
+	{ "MediaRelay" },
+	ModuleInfoBase::ModuleOid::Transcoder
+);
 
 #ifndef ENABLE_TRANSCODER
 Transcoder::Transcoder(Agent *ag) : Module(ag) {

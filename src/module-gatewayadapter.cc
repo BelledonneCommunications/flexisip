@@ -122,7 +122,7 @@ class GatewayRegister {
 			}
 			delete this;
 		}
-        
+
 		virtual void onResult(AuthDbResult result, const passwd_algo_t &passwd) {
 			if (result == AuthDbResult::PASSWORD_FOUND) {
 				checkPassword(passwd.pass.c_str()); /* TODO */
@@ -489,5 +489,9 @@ void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phr
 	}
 }
 
-ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter", "No documentation at the moment.",
-												 ModuleInfoBase::ModuleOid::GatewayAdapter, ModuleClassExperimental);
+ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo(
+	"GatewayAdapter",
+	"No documentation at the moment.",
+	{ "Redirect" },
+	ModuleInfoBase::ModuleOid::GatewayAdapter, ModuleClassExperimental
+);

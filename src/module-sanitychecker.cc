@@ -22,7 +22,7 @@
 using namespace std;
 
 class ModuleSanityChecker : public Module, protected ModuleToolbox {
-  public:
+public:
 	ModuleSanityChecker(Agent *ag) : Module(ag) {
 	}
 
@@ -49,7 +49,7 @@ class ModuleSanityChecker : public Module, protected ModuleToolbox {
 	void onDeclare(GenericStruct *mc) {
 	}
 
-  private:
+private:
 	const char *checkHeaders(sip_t *sip) {
 		if (sip->sip_via == NULL)
 			return "No via";
@@ -73,4 +73,5 @@ ModuleInfo<ModuleSanityChecker> ModuleSanityChecker::sInfo(
 	"The SanitCheck module checks that required fields of a SIP message are present to avoid unecessary checking while "
 	"processing message further. "
 	"If the message doesn't meet these sanity check criterias, then it is stopped and bad request response is sent.",
+	{ "DoSProtection" },
 	ModuleInfoBase::ModuleOid::SanityChecker);

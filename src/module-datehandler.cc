@@ -24,11 +24,10 @@
 using namespace std;
 
 class DateHandler : public Module, protected ModuleToolbox {
-  public:
-	DateHandler(Agent *ag) : Module(ag) {
-	}
-	~DateHandler() {
-	}
+public:
+	DateHandler(Agent *ag) : Module(ag) {}
+	~DateHandler() {}
+
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		if (mCommand.empty())
 			return;
@@ -43,10 +42,10 @@ class DateHandler : public Module, protected ModuleToolbox {
 			}
 		}
 	}
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) {
-	}
 
-  protected:
+	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) {}
+
+protected:
 	virtual void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor items[] = {{String, "assign-date-command",
 										 "Path to script to assign Date to system. The date is passed as first "
@@ -62,15 +61,20 @@ class DateHandler : public Module, protected ModuleToolbox {
 		mCommand = root->get<ConfigString>("assign-date-command")->read();
 	}
 
-  private:
+private:
 	string mCommand;
 	static ModuleInfo<DateHandler> sInfo;
 };
 
-ModuleInfo<DateHandler> DateHandler::sInfo("DateHandler", "The purpose of the DateHandler module is to catch 'Date' "
-														  "headers from sip requests, and call config-defined script "
-														  "passing it the date value. The typical use case "
-														  "is for deploying a Flexisip proxy in an embedded system "
-														  "that doesn't have time information when booting up. The "
-														  "command can be used to assign the date to the system.",
-										   ModuleInfoBase::ModuleOid::DateHandler, ModuleClassExperimental);
+ModuleInfo<DateHandler> DateHandler::sInfo(
+	"DateHandler",
+	"The purpose of the DateHandler module is to catch 'Date' "
+	"headers from sip requests, and call config-defined script "
+	"passing it the date value. The typical use case "
+	"is for deploying a Flexisip proxy in an embedded system "
+	"that doesn't have time information when booting up. The "
+	"command can be used to assign the date to the system.",
+	{ "Authentication" },
+	ModuleInfoBase::ModuleOid::DateHandler,
+	ModuleClassExperimental
+);

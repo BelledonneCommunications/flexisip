@@ -811,6 +811,9 @@ void ModuleRegistrar::sighandler(int signum, siginfo_t *info, void *ptr) {
 }
 
 ModuleInfo<ModuleRegistrar> ModuleRegistrar::sInfo(
-	"Registrar", "The ModuleRegistrar module accepts REGISTERs for domains it manages, and store the address of record "
-				 "in order to allow routing requests destinated to the client who registered.",
-	ModuleInfoBase::ModuleOid::Registrar);
+	"Registrar",
+	"The ModuleRegistrar module accepts REGISTERs for domains it manages, and store the address of record "
+	"in order to allow routing requests destinated to the client who registered.",
+	{ "Presence" },
+	ModuleInfoBase::ModuleOid::Registrar
+);
