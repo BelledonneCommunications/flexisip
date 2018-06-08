@@ -134,51 +134,6 @@ static json_t *convertToJson(const char *text, size_t len) {
 	return nullptr;
 }
 
-template<typename T>
-struct TypeToJsonFormat {};
-
-template<>
-struct TypeToJsonFormat<int> {
-	static constexpr char value = 'i';
-};
-
-template<>
-struct TypeToJsonFormat<json_int_t> {
-	static constexpr char value = 'I';
-};
-
-template<typename T>
-static T extractJsonValue(json_t *jwt, const char *attrName, bool *error = nullptr) {
-	constexpr char format[] = { '{', 's', ':', TypeToJsonFormat<T>::value, '}', '\0' };
-
-	T value{};
-	if (json_unpack(jwt, format, attrName, &value) < 0) {
-		SLOGW << "Unable to unpack value: `" << attrName << "`.";
-		if (error) *error = true;
-	} else if (error)
-		*error = false;
-
-	return value;
-}
-
-template<typename T>
-static T extractJsonOptionalValue(json_t *jwt, const char *attrName, const T &defaultValue, bool *error = nullptr) {
-	constexpr char format[] = { TypeToJsonFormat<T>::value, '\0' };
-
-	T value(defaultValue);
-	json_t *valueObject;
-	if (json_unpack(jwt, "{s?o}", attrName, &valueObject) < 0) {
-		SLOGW << "Unable to unpack optional object: `" << attrName << "`.";
-		if (error) *error = true;
-	} else if (valueObject && json_unpack(valueObject, format, &value) < 0) {
-		SLOGW << "Unable to unpack existing value: `" << attrName << "`.";
-		if (error) *error = true;
-	} else if (error)
-		*error = false;
-
-	return value;
-}
-
 static bool isB64(const char *text, size_t len) {
 	for (size_t i = 0; i < len; ++i)
 		if (text[i] && !strchr(JOSE_B64_MAP, text[i]))
@@ -229,53 +184,80 @@ static json_t *decryptJwe(const char *text, const json_t *jwk) {
 
 	size_t len = 0;
 	char *jwtText = static_cast<char *>(jose_jwe_dec(nullptr, jwe, nullptr, jwk, &len));
-	if (!jwtText) {
-		SLOGW << "Unable to decrypt JWE.";
+	if (!jwtText)
 		return nullptr;
-	}
 
 	json_t *jwt = convertToJson(jwtText, len);
 	free(jwtText);
 	return jwt;
 }
 
-static bool checkJwtTime(json_t *jwt, int *timeout = nullptr) {
+// =============================================================================
+// Checkers.
+// =============================================================================
+
+static const char *checkJwtTime(json_t *jwt, int *timeout) {
 	const time_t currentTime = time(nullptr);
-	bool error;
+	bool attrChecked = false;
+	json_t *attrValue;
 
-	if (timeout)
-		*timeout = numeric_limits<int>::max();
+	*timeout = numeric_limits<int>::max();
 
-	// Check optional "exp" attr.
-	const json_int_t expValue = extractJsonOptionalValue<json_int_t>(jwt, "exp", -1, &error);
-	if (error)
-		return false;
-	if (expValue != -1 && time_t(expValue) < currentTime) {
-		SLOGW << "JWT (exp) has expired.";
-		return false;
-	}
-	if (timeout)
+	// 1. Check optional "exp" attr.
+	if ((attrValue = json_object_get(jwt, "exp"))) {
+		json_int_t expValue;
+
+		if (json_typeof(attrValue) != JSON_INTEGER)
+			return "Invalid exp attr, must be an integer";
+
+		if (json_unpack(attrValue, "I", &expValue) < 0)
+			return "Unable to extract exp attr";
+
+		if (time_t(expValue) < currentTime)
+			return "exp has expired";
+
+		attrChecked = true;
 		*timeout = int(time_t(expValue) - currentTime);
-
-	// Not in the JSON Web Token RFC. Check Specific optional "exp_in" attr.
-	const int expInValue = extractJsonOptionalValue<int>(jwt, "exp_in", -1, &error);
-	if (error)
-		return false;
-	if (expInValue != -1) {
-		json_int_t iatValue = extractJsonValue<int>(jwt, "iat", &error);
-		if (error) {
-			SLOGW << "`exp_in` can be used only if `iat` exists.";
-			return false;
-		}
-		if (time_t(iatValue) + expInValue < currentTime) {
-			SLOGW << "JWT (exp_in) has expired.";
-			return false;
-		}
-		if (timeout)
-			*timeout = min(*timeout, int(time_t(iatValue) + expInValue - currentTime));
 	}
 
-	return true;
+	// 2. Not in the JSON Web Token RFC. Check Specific optional "exp_in" attr.
+	if ((attrValue = json_object_get(jwt, "exp_in"))) {
+		json_int_t expInValue;
+
+		if (json_typeof(attrValue) != JSON_INTEGER)
+			return "Invalid exp_in attr, must be an integer";
+
+		if (json_unpack(attrValue, "I", &expInValue) < 0)
+			return "Unable to extract exp_in attr";
+
+		json_int_t iatValue;
+		if (json_unpack(jwt, "{s:I}", "iat", &iatValue) < 0)
+			return "Unable to extract iat attr. Must be an integer and exists";
+
+		if (time_t(iatValue) + expInValue < currentTime)
+			return "exp_in has expired";
+
+		attrChecked = true;
+		*timeout = min(*timeout, int(time_t(iatValue) + expInValue - currentTime));
+	}
+
+	if (!attrChecked)
+		return "exp and/or exp_in attr must exists";
+
+	return nullptr;
+}
+
+// -----------------------------------------------------------------------------
+
+static bool checkJwtAttrFromSipHeader(json_t *jwt, const sip_t *sip, const char *attrName, const char *sipHeaderName) {
+	char *value = nullptr;
+	bool soFarSoGood = false;
+	if (json_unpack(jwt, "{s:s}", attrName, &value) == 0) {
+		sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(sip, sipHeaderName);
+		if (header && header->un_value)
+			soFarSoGood = !strcmp(value, header->un_value);
+	}
+	return soFarSoGood;
 }
 
 // =============================================================================
@@ -298,9 +280,6 @@ struct JweContext {
 class JweAuth : public Module {
 public:
 	JweAuth(Agent *agent) : Module(agent) {}
-	~JweAuth() {
-		onUnload();
-	}
 
 private:
 	json_t *decryptJwe(const char *text) const;
@@ -340,24 +319,6 @@ FLEXISIP_DECLARE_PLUGIN(JweAuthInfo, JweAuthPluginName, JweAuthPluginVersion);
 
 // -----------------------------------------------------------------------------
 
-static bool checkJwtAttrFromSipHeader(json_t *jwt, const sip_t *sip, const char *attrName, const char *sipHeaderName) {
-	char *value = nullptr;
-	bool soFarSoGood = false;
-	if (json_unpack(jwt, "{s:s}", attrName, &value) == 0) {
-		sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(sip, sipHeaderName);
-		if (header && header->un_value)
-			soFarSoGood = !strcmp(value, header->un_value);
-	}
-
-	if (!soFarSoGood)
-		SLOGW << "`" << attrName << "` value not equal to `" << sipHeaderName << "`.";
-
-	free(value);
-	return soFarSoGood;
-}
-
-// -----------------------------------------------------------------------------
-
 json_t *JweAuth::decryptJwe(const char *text) const {
 	for (const json_t *jwk : mJwks) {
 		json_t *jwt = ::decryptJwe(text, jwk);
@@ -374,7 +335,7 @@ void JweAuth::onDeclare(GenericStruct *moduleConfig) {
 		" Any JWK must be put into a file with the `.jwk` suffix.",
 		"/etc/flexisip/jwk/"
 	}, {
-		String, "jwe-custom-header", "The name of the JWE token custom header.", "X-token"
+		String, "jwe-custom-header", "The name of the JWE token custom header.", "X-token-jwe"
 	}, {
 		String, "oid-custom-header", "The name of the oid custom header.", "X-token-oid"
 	}, {
@@ -391,11 +352,14 @@ void JweAuth::onLoad(const GenericStruct *moduleConfig) {
 	const string jwksDirectory = moduleConfig->get<ConfigString>("jwks-dir")->read();
 	for (const string &file : listFiles(jwksDirectory, JwkFileExtension)) {
 		bool error;
-		const vector<char> buf(readFile(jwksDirectory + "/" + file, &error));
+		const string path(jwksDirectory + "/" + file);
+		const vector<char> buf(readFile(path, &error));
 		if (!error) {
 			json_t *jwk = convertToJson(buf.data(), buf.size());
-			if (jwk)
+			if (jwk) {
+				SLOGI << "Registering JWK `" << path << "`";
 				mJwks.push_back(jwk);
+			}
 		}
 	}
 
@@ -421,9 +385,11 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const sip_t *sip = ev->getSip();
 	shared_ptr<JweContext> jweContext;
 
-	const sip_unknown_t *header = ModuleToolbox::getCustomHeaderByName(sip, mOidCustomHeader.c_str());
-	if (!header || !header->un_value || !ev->findIncomingSubject(header->un_value))
-		error = "Unable to find oid incoming subject";
+	const sip_unknown_t *header;
+	if (!(header = ModuleToolbox::getCustomHeaderByName(sip, mOidCustomHeader.c_str())) || !header->un_value)
+		error = "Unable to find oid incoming subject header";
+	// else if (!ev->findIncomingSubject(header->un_value))
+	// 	error = "Unable to match oid";
 	else if (!(header = ModuleToolbox::getCustomHeaderByName(sip, mJweCustomHeader.c_str())) || !header->un_value)
 		error = "No JWE token";
 	else {
@@ -435,12 +401,12 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			json_auto_t *jwt = decryptJwe(header->un_value);
 			if (!jwt)
 				error = "Unable to decrypt JWE";
-			else if (!checkJwtTime(jwt, &timeout))
-				error = "JWT check time failed";
-			else {
+			else if (!(error = checkJwtTime(jwt, &timeout))) {
 				for (const auto &data : mCustomHeadersToCheck)
-					if (!checkJwtAttrFromSipHeader(jwt, sip, data.first, data.second))
+					if (!checkJwtAttrFromSipHeader(jwt, sip, data.first, data.second)) {
 						error = "JWT check attrs failed";
+						break;
+					}
 
 				if (!error) {
 					jweContext = make_shared<JweContext>();
