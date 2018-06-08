@@ -88,7 +88,7 @@ public:
 		--mRefCounter;
 	}
 
-	bool release();
+	bool unload();
 
 	void *get() const { return mLibrary; }
 
@@ -105,7 +105,7 @@ namespace {
 	unordered_map<string, SharedLibrary> LoadedLibraries;
 }
 
-bool SharedLibrary::release() {
+bool SharedLibrary::unload() {
 	if (--mRefCounter == 1) {
 		LoadedLibraries.erase(mFilename);
 		return true;
@@ -207,7 +207,7 @@ bool PluginLoader::unload() {
 		return false;
 
 	--mPrivate->libraryRefCounter;
-	bool unloaded = mPrivate->sharedLibrary->release();
+	bool unloaded = mPrivate->sharedLibrary->unload();
 	if (!mPrivate->libraryRefCounter)
 		mPrivate->sharedLibrary = nullptr;
 

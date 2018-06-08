@@ -30,13 +30,7 @@ class Module;
 class ModuleInfoBase;
 class PluginLoaderPrivate;
 
-namespace Private {
-	class Plugin;
-}
-
 class PluginLoader {
-	friend class Private::Plugin;
-
 public:
 	PluginLoader(Agent *agent);
 	PluginLoader(Agent *agent, const std::string &filename);
