@@ -535,6 +535,7 @@ void addPluginModule(Agent *agent, list<Module *> &modules, const string &plugin
 			SLOGI << "Creating plugin module instance of " << "[" << moduleName << "] after [" << after << "].";
 			modules.insert(++it, module);
 		}
+		return;
 	}
 
 	SLOGE << "Unable to find a valid ancestor for [" << pluginName << "] plugin.";
