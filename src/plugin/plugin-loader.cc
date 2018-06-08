@@ -17,6 +17,7 @@
 */
 
 #include <dlfcn.h>
+#include <unordered_map>
 
 #include "plugin-loader.hh"
 #include "plugin.hh"
@@ -26,59 +27,131 @@
 using namespace std;
 
 // -----------------------------------------------------------------------------
+// Low API to open library.
+// -----------------------------------------------------------------------------
 
-class Library {
-public:
-	Library(void *_sysLibrary = nullptr) : sysLibrary(_sysLibrary) {}
-	~Library() {
-		if (sysLibrary)
-			dlclose(sysLibrary);
+static string getDlerror () {
+	const char *dlError = dlerror();
+	return dlError ? dlError : "Unknown";
+}
+
+static void *openLibrary(const string &filename, string &error) {
+	void *library = dlopen(filename.c_str(), RTLD_LAZY);
+	if (!library) {
+		error = getDlerror();
+		return nullptr;
 	}
 
-	void *sysLibrary = nullptr;
-};
-typedef shared_ptr<Library> SharedLibrary;
+	PluginInfo *info = static_cast<PluginInfo *>(dlsym(library, "__flexisipPluginInfo"));
+	if (!info) {
+		error = getDlerror();
+		dlclose(library);
+		return nullptr;
+	}
 
+	if (strcmp(info->apiVersion, FLEXISIP_PLUGIN_API_VERSION)) {
+		error = "Incompatible plugin API. Expected `" FLEXISIP_PLUGIN_API_VERSION "`, got `";
+		error.append(info->apiVersion);
+		error.append("`.");
+		dlclose(library);
+		return nullptr;
+	}
+
+	error.clear();
+	return library;
+}
+
+// -----------------------------------------------------------------------------
+// SharedLibrary between each PluginLoader.
+// -----------------------------------------------------------------------------
+
+class SharedLibrary {
+public:
+	SharedLibrary(const string &filename, void *library) : mFilename(filename), mLibrary(library) {}
+
+	SharedLibrary(SharedLibrary &&other) : mFilename(move(other.mFilename)), mLibrary(other.mLibrary) {
+		other.mLibrary = nullptr;
+	}
+
+	~SharedLibrary() {
+		if (module)
+			delete module;
+		if (mLibrary)
+			dlclose(mLibrary);
+	}
+
+	void ref() {
+		++mRefCounter;
+	}
+
+	void unref() {
+		--mRefCounter;
+	}
+
+	bool release();
+
+	void *get() const { return mLibrary; }
+
+	Module *module = nullptr;
+
+private:
+	string mFilename;
+	void *mLibrary;
+
+	int mRefCounter = 1;
+};
+
+namespace {
+	unordered_map<string, SharedLibrary> LoadedLibraries;
+}
+
+bool SharedLibrary::release() {
+	if (--mRefCounter == 1) {
+		LoadedLibraries.erase(mFilename);
+		return true;
+	}
+	return false;
+}
+
+static SharedLibrary *getOrCreateSharedLibrary(const string &filename, string &error) {
+	SharedLibrary *sharedLibrary;
+
+	auto it = LoadedLibraries.find(filename);
+	if (it != LoadedLibraries.end()) {
+		sharedLibrary = &it->second;
+		error.clear();
+	} else {
+		void *library = openLibrary(filename, error);
+		if (library)
+			sharedLibrary = &LoadedLibraries.insert({ filename, SharedLibrary(filename, library) }).first->second;
+		else
+			return nullptr;
+	}
+
+	return sharedLibrary;
+}
+
+// -----------------------------------------------------------------------------
+// PluginLoader.
 // -----------------------------------------------------------------------------
 
 class PluginLoaderPrivate {
 public:
 	Agent *agent = nullptr;
-
 	string filename;
+
+	SharedLibrary *sharedLibrary = nullptr;
+
 	string error;
 
-	shared_ptr<Library> library;
-
-	Module *module = nullptr;
-	Private::PluginPrivate *pPlugin = nullptr;
-
-	void setDlerror () {
-		const char *dlError = dlerror();
-		error = dlError ? dlError : "Unknown";
-	}
+	int libraryRefCounter = 0;
 };
 
-// -----------------------------------------------------------------------------
-
 namespace Private {
-	class PluginPrivate {
-	public:
-		PluginLoader *loader = nullptr;
-		SharedLibrary library;
-	};
-
-	Plugin::Plugin(PluginPrivate &p) : mPrivate(&p) {}
+	Plugin::Plugin(SharedLibrary &sharedLibrary) : mSharedLibrary(&sharedLibrary) {}
 
 	Plugin::~Plugin() {
-		// Invalid plugin instance in loader.
-		if (mPrivate->loader) {
-			PluginLoaderPrivate *pLoader = mPrivate->loader->mPrivate;
-			pLoader->module = nullptr;
-			pLoader->pPlugin = nullptr;
-		}
-
-		delete mPrivate;
+		mSharedLibrary->module = nullptr;
 	}
 }
 
@@ -93,9 +166,9 @@ PluginLoader::PluginLoader(Agent *agent, const string &filename) : PluginLoader(
 }
 
 PluginLoader::~PluginLoader() {
-	// Invalid loader reference in plugin.
-	if (mPrivate->pPlugin)
-		mPrivate->pPlugin->loader = nullptr;
+	SharedLibrary *sharedLibrary = mPrivate->sharedLibrary;
+	if (sharedLibrary)
+		sharedLibrary->unref();
 
 	delete mPrivate;
 }
@@ -105,75 +178,70 @@ const string &PluginLoader::getFilename() const {
 }
 
 void PluginLoader::setFilename(const string &filename) {
-	unload();
+	if (mPrivate->sharedLibrary) {
+		mPrivate->sharedLibrary->unref();
+		mPrivate->sharedLibrary = nullptr;
+	}
 	mPrivate->filename = filename;
 }
 
 bool PluginLoader::isLoaded() const {
-	return mPrivate->library.get();
+	return mPrivate->sharedLibrary;
 }
 
 bool PluginLoader::load() {
-	if (isLoaded())
+	if (!mPrivate->sharedLibrary)
+		mPrivate->sharedLibrary = getOrCreateSharedLibrary(mPrivate->filename, mPrivate->error);
+
+	if (mPrivate->sharedLibrary) {
+		++mPrivate->libraryRefCounter;
+		mPrivate->sharedLibrary->ref();
 		return true;
-
-	void *sysLibrary = dlopen(mPrivate->filename.c_str(), RTLD_LAZY);
-	if (!sysLibrary) {
-		mPrivate->setDlerror();
-		return false;
 	}
 
-	PluginInfo *info = static_cast<PluginInfo *>(dlsym(sysLibrary, "__flexisipPluginInfo"));
-	if (!info) {
-		mPrivate->setDlerror();
-		dlclose(sysLibrary);
-		return false;
-	}
-
-	if (strcmp(info->apiVersion, FLEXISIP_PLUGIN_API_VERSION)) {
-		mPrivate->error = "Incompatible plugin API. Expected `" FLEXISIP_PLUGIN_API_VERSION "`, got `";
-		mPrivate->error.append(info->apiVersion);
-		mPrivate->error.append("`.");
-		dlclose(sysLibrary);
-		return false;
-	}
-
-	SLOGI << "Plugin loaded with success! " << *info;
-
-	mPrivate->error.clear();
-	mPrivate->library = make_shared<Library>(sysLibrary);
-	return true;
+	return false;
 }
 
 bool PluginLoader::unload() {
-	mPrivate->library.reset();
+	if (!mPrivate->sharedLibrary)
+		return false;
 
-	mPrivate->module = nullptr;
-	if (mPrivate->pPlugin) {
-		mPrivate->pPlugin->loader = nullptr;
-		mPrivate->pPlugin = nullptr;
-	}
+	--mPrivate->libraryRefCounter;
+	bool unloaded = mPrivate->sharedLibrary->release();
+	if (!mPrivate->libraryRefCounter)
+		mPrivate->sharedLibrary = nullptr;
 
-	return true;
+	return unloaded;
 }
 
 Module *PluginLoader::get() {
-	if (!mPrivate->module) {
-		if (load()) {
-			Module *(*createPlugin)(Private::PluginPrivate &p, Agent *agent);
-			*reinterpret_cast<void **>(&createPlugin) = dlsym(mPrivate->library->sysLibrary, "__flexisipCreatePlugin");
-			if (!createPlugin)
-				SLOGE << "Unable to get plugin. Create symbol not found.";
-			else {
-				Private::PluginPrivate *pPlugin = new Private::PluginPrivate;
-				pPlugin->loader = this;
-				pPlugin->library = mPrivate->library;
-				mPrivate->module = createPlugin(*pPlugin, mPrivate->agent);
-				mPrivate->pPlugin = pPlugin;
-			}
-		}
+	if (!mPrivate->sharedLibrary && !load())
+		return nullptr;
+
+	SharedLibrary *sharedLibrary = mPrivate->sharedLibrary;
+	if (sharedLibrary->module)
+		return sharedLibrary->module;
+
+	Module *(*createPlugin)(Agent *agent, SharedLibrary *sharedLibrary);
+	*reinterpret_cast<void **>(&createPlugin) = dlsym(mPrivate->sharedLibrary->get(), "__flexisipCreatePlugin");
+	if (!createPlugin)
+		mPrivate->error = "Unable to get plugin. CreatePlugin symbol not found.";
+	else
+		sharedLibrary->module = createPlugin(mPrivate->agent, sharedLibrary);
+
+	return sharedLibrary->module;
+}
+
+const ModuleInfoBase *PluginLoader::getModuleInfo() {
+	if (load()) {
+		const ModuleInfoBase *(*getPluginModuleInfo)();
+		*reinterpret_cast<void **>(&getPluginModuleInfo) = dlsym(mPrivate->sharedLibrary->get(), "__flexisipGetPluginModuleInfo");
+		if (!getPluginModuleInfo)
+			mPrivate->error = "Unable to get plugin. GetPluginModuleInfo symbol not found.";
+		else
+			return getPluginModuleInfo();
 	}
-	return mPrivate->module;
+	return nullptr;
 }
 
 const string &PluginLoader::getError() const {

@@ -298,7 +298,9 @@ struct JweContext {
 class JweAuth : public Module {
 public:
 	JweAuth(Agent *agent) : Module(agent) {}
-	~JweAuth() { onUnload(); }
+	~JweAuth() {
+		onUnload();
+	}
 
 private:
 	json_t *decryptJwe(const char *text) const;
@@ -323,18 +325,18 @@ private:
 	list<pair<const char *, const char *>> mCustomHeadersToCheck;
 
 	unordered_map<string, shared_ptr<JweContext>> mJweContexts;
-
-	static ModuleInfo<JweAuth> sInfo;
 };
 
-ModuleInfo<JweAuth> JweAuth::sInfo(
-	"JweAuth",
-	"This module offers the possibility to use JSON Web Encryption tokens.",
-	{ "Authentication" },
-	ModuleInfoBase::ModuleOid::Plugin
-);
+namespace {
+	ModuleInfo<JweAuth> JweAuthInfo(
+		"JweAuth",
+		"This module offers the possibility to use JSON Web Encryption tokens.",
+		{ "Authentication" },
+		ModuleInfoBase::ModuleOid::Plugin
+	);
+}
 
-FLEXISIP_DECLARE_PLUGIN(JweAuth, JweAuthPluginName, JweAuthPluginVersion);
+FLEXISIP_DECLARE_PLUGIN(JweAuthInfo, JweAuthPluginName, JweAuthPluginVersion);
 
 // -----------------------------------------------------------------------------
 

@@ -97,11 +97,11 @@ void Agent::onDeclare(GenericStruct *root) {
 	mCountReplyResUnknown = createCounter(global, key, help, "unknown");
 	mLogWriter = NULL;
 
-	std::string uniqueId = global->get<ConfigString>("unique-id")->read();
+	string uniqueId = global->get<ConfigString>("unique-id")->read();
 	if (!uniqueId.empty()) {
 		if (uniqueId.length() == 16) {
-			std::transform(uniqueId.begin(), uniqueId.end(), uniqueId.begin(), ::tolower);
-			if(std::find_if(uniqueId.begin(), uniqueId.end(), [](char c)->bool{return !::isxdigit(c);}) == uniqueId.end()) {
+			transform(uniqueId.begin(), uniqueId.end(), uniqueId.begin(), ::tolower);
+			if(find_if(uniqueId.begin(), uniqueId.end(), [](char c)->bool{return !::isxdigit(c);}) == uniqueId.end()) {
 				mUniqueId = uniqueId;
 			} else {
 				SLOGE << "'uniqueId' parameter must hold an hexadecimal number";
@@ -184,7 +184,7 @@ static void mDnsRegisterCallback(void *data, int error) {
 }
 #endif
 
-void Agent::start(const std::string &transport_override, const std::string passphrase) {
+void Agent::start(const string &transport_override, const string passphrase) {
 	char cCurrDir[FILENAME_MAX];
 	if (!getcwd(cCurrDir, sizeof(cCurrDir))) {
 		LOGA("Could not get current file path");
@@ -455,12 +455,16 @@ void Agent::start(const std::string &transport_override, const std::string passp
 	startLogWriter();
 }
 
+// -----------------------------------------------------------------------------
+// Helpers to build module instances.
+// -----------------------------------------------------------------------------
+
 static bool moduleIsBefore(const string &moduleName, ModuleInfoBase *next) {
 	for (const string &after : next->getAfter()) {
 		if (moduleName == after)
 			return true;
 
-		const std::list<ModuleInfoBase *> &registeredModuleInfo = ModuleFactory::get()->registeredModuleInfo();
+		const list<ModuleInfoBase *> &registeredModuleInfo = ModuleInfoManager::get()->getRegisteredModuleInfo();
 		auto it = find_if(registeredModuleInfo.cbegin(), registeredModuleInfo.cend(), [&after](const ModuleInfoBase *moduleInfo) {
 			return moduleInfo->getModuleName() == after;
 		});
@@ -471,14 +475,9 @@ static bool moduleIsBefore(const string &moduleName, ModuleInfoBase *next) {
 	return false;
 }
 
-Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
-	mHttpEngine = nth_engine_create(root, NTHTAG_ERROR_MSG(0), TAG_END());
-	GenericStruct *cr = GenericManager::get()->getRoot();
-
-	EtcHostsResolver::get();
-
-	std::list<ModuleInfoBase *> registeredModuleInfo = ModuleFactory::get()->registeredModuleInfo();
-	registeredModuleInfo.sort([](ModuleInfoBase *a, ModuleInfoBase *b) {
+static list<ModuleInfoBase *> sortModuleInfoByPriority(list<ModuleInfoBase *> moduleInfoToSort) {
+	// 1. Order each module info by priority.
+	moduleInfoToSort.sort([](ModuleInfoBase *a, ModuleInfoBase *b) {
 		const string &moduleName = a->getModuleName();
 		if (moduleName.empty()) // Special case, root.
 			return true;
@@ -486,23 +485,82 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 		return moduleIsBefore(moduleName, b);
 	});
 
-	{
-		GenericStruct *global = cr->get<GenericStruct>("global");
-		const string &pluginDir = global->get<ConfigString>("plugins-dir")->read();
-		for (const string &pluginName : global->get<ConfigStringList>("plugins")->read()) {
-			SLOGI << "Loading [" << pluginName << "] plugin...";
-			PluginLoader pluginLoader(this, pluginDir + "/lib" + pluginName + ".so");
-			Module *plugin = pluginLoader.get();
-			if (!plugin)
-				SLOGE << "Failed to load [" << pluginName << "] plugin (" << pluginLoader.getError() << ").";
-			delete plugin;
-			// TODO: Add plugin in list.
+	// 2. Check if each module info has a valid ancestor.
+	auto it = moduleInfoToSort.cbegin();
+	if ((*it)->getModuleName().empty())
+		LOGA("Unable to find the root of registered module info list.");
+
+	bool soFarSoGood = true;
+	auto prev = it;
+	for (++it; it != moduleInfoToSort.cend(); prev = it, ++it) {
+		const string &moduleName = (*prev)->getModuleName();
+		for (const string &after : (*it)->getAfter())
+			if (moduleName == after)
+				goto success;
+
+		soFarSoGood = false;
+		SLOGE << "Unable to find a valid ancestor for [" << (*it)->getModuleName() << "]. "
+			"Please to check your `after` predicate.";
+
+		success:;
+	}
+	if (!soFarSoGood)
+		LOGA("It's necessary to fix module info list to continue.");
+
+	return moduleInfoToSort;
+}
+
+void addPluginModule(Agent *agent, list<Module *> &modules, const string &pluginDir, const string &pluginName) {
+	SLOGI << "Loading [" << pluginName << "] plugin...";
+	PluginLoader pluginLoader(agent, pluginDir + "/lib" + pluginName + ".so");
+
+	const ModuleInfoBase *moduleInfo = pluginLoader.getModuleInfo();
+	if (!moduleInfo) {
+		SLOGE << "Unable to get module info of [" << pluginName << "] plugin (" << pluginLoader.getError() << ").";
+		return;
+	}
+
+	for (const string &after : moduleInfo->getAfter()) {
+		auto it = find_if(modules.cbegin(), modules.cend(), [&after](const Module *module) {
+			return module->getModuleName() == after;
+		});
+		if (it == modules.cend())
+			continue;
+
+		const string &moduleName = moduleInfo->getModuleName();
+		Module *module = pluginLoader.get();
+		if (!module)
+			SLOGE << "Failed to load [" << moduleName << "] (" << pluginLoader.getError() << ").";
+		else {
+			SLOGI << "Creating plugin module instance of " << "[" << moduleName << "] after [" << after << "].";
+			modules.insert(++it, module);
 		}
 	}
 
-	ModuleFactory *moduleFactory = ModuleFactory::get();
-	for (const ModuleInfoBase *moduleInfo : registeredModuleInfo)
-		mModules.push_back(moduleFactory->createModuleInstance(this, moduleInfo->getModuleName()));
+	SLOGE << "Unable to find a valid ancestor for [" << pluginName << "] plugin.";
+}
+
+// -----------------------------------------------------------------------------
+
+Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
+	mHttpEngine = nth_engine_create(root, NTHTAG_ERROR_MSG(0), TAG_END());
+	GenericStruct *cr = GenericManager::get()->getRoot();
+
+	EtcHostsResolver::get();
+
+	// 1. Create module instances.
+	for (ModuleInfoBase *moduleInfo : sortModuleInfoByPriority(ModuleInfoManager::get()->getRegisteredModuleInfo())) {
+		SLOGI << "Creating module instance of " << "[" << moduleInfo->getModuleName() << "].";
+		mModules.push_back(moduleInfo->create(this));
+	}
+
+	// 2. Create module instances from plugins.
+	{
+		GenericStruct *global = cr->get<GenericStruct>("global");
+		const string &pluginDir = global->get<ConfigString>("plugins-dir")->read();
+		for (const string &pluginName : global->get<ConfigStringList>("plugins")->read())
+			addPluginModule(this, mModules, pluginDir, pluginName);
+	}
 
 	mServerString = "Flexisip/" VERSION " (sofia-sip-nta/" NTA_VERSION ")";
 
@@ -542,7 +600,8 @@ Agent::~Agent() {
 #endif
 
 	mTerminating = true;
-	for_each(mModules.begin(), mModules.end(), delete_functor<Module>());
+	for (Module *module : mModules)
+		delete module;
 
 	if (mDrm)
 		delete mDrm;
@@ -557,7 +616,7 @@ const char *Agent::getServerString() const {
 	return mServerString.c_str();
 }
 
-std::string Agent::getPreferredRoute() const {
+string Agent::getPreferredRoute() const {
 	char prefUrl[266];
 	url_e(prefUrl, sizeof(prefUrl), mPreferredRouteV4);
 	return string(prefUrl);
@@ -607,7 +666,7 @@ void Agent::unloadConfig() {
 	}
 }
 
-std::string Agent::computeResolvedPublicIp(const std::string &host, int family) const {
+string Agent::computeResolvedPublicIp(const string &host, int family) const {
 	int err;
 	struct addrinfo hints;
 	string dest;
@@ -636,7 +695,7 @@ std::string Agent::computeResolvedPublicIp(const std::string &host, int family) 
 	return "";
 }
 
-std::pair<std::string, std::string> Agent::getPreferredIp(const std::string &destination) const {
+pair<string, string> Agent::getPreferredIp(const string &destination) const {
 	int err;
 	struct addrinfo hints;
 	string dest = (destination[0] == '[') ? destination.substr(1, destination.size() - 2) : destination;

@@ -32,52 +32,9 @@
 
 using namespace std;
 
-Module *ModuleInfoBase::create(Agent *ag) {
-	Module *mod = _create(ag);
-	mod->setInfo(this);
-	return mod;
-}
-
-ModuleFactory *ModuleFactory::sInstance = nullptr;
-
-ModuleFactory *ModuleFactory::get() {
-	if (!sInstance)
-		sInstance = new ModuleFactory();
-	return sInstance;
-}
-
-Module *ModuleFactory::createModuleInstance(Agent *ag, const string &moduleName) {
-	auto it = find_if(mRegisteredModuleInfo.begin(), mRegisteredModuleInfo.end(), [&moduleName](const ModuleInfoBase *moduleInfo) {
-		return moduleInfo->getModuleName() == moduleName;
-	});
-	if (it != mRegisteredModuleInfo.end()) {
-		Module *module = (*it)->create(ag);
-		SLOGI << "Creating module instance for " << "[" << moduleName << "].";
-		return module;
-	}
-	LOGA("Could not find any registered module info with name [%s]", moduleName.c_str());
-	return nullptr;
-}
-
-void ModuleFactory::registerModuleInfo(ModuleInfoBase *moduleInfo) {
-	SLOGI << "Registering module info [" << moduleInfo->getModuleName() << "]...";
-
-	if (moduleInfo->getAfter().empty()) {
-		SLOGE << "Cannot register module info [" << moduleInfo->getModuleName() << "] with empty after member.";
-		return;
-	}
-
-	auto it = find(mRegisteredModuleInfo.cbegin(), mRegisteredModuleInfo.cend(), moduleInfo);
-	if (it != mRegisteredModuleInfo.cend())
-		SLOGE << "Unable to register existing module [" << moduleInfo->getModuleName() << "].";
-	else
-		mRegisteredModuleInfo.push_back(moduleInfo);
-}
-
-void ModuleFactory::unregisterModuleInfo(ModuleInfoBase *moduleInfo) {
-	SLOGI << "Unregistering module info [" << moduleInfo->getModuleName() << "]...";
-	mRegisteredModuleInfo.remove(moduleInfo);
-}
+// -----------------------------------------------------------------------------
+// Module.
+// -----------------------------------------------------------------------------
 
 Module::Module(Agent *ag) : mAgent(ag) {
 	su_home_init(&mHome);
@@ -133,7 +90,7 @@ void Module::declare(GenericStruct *root) {
 	mModuleConfig->setConfigListener(this);
 	root->addChild(mModuleConfig);
 	mFilter->declareConfig(mModuleConfig);
-	if (getClass() == ModuleClassExperimental){
+	if (getClass() == ModuleClass::Experimental){
 		//Experimental modules are forced to be disabled by default.
 		mModuleConfig->get<ConfigBoolean>("enabled")->setDefault("false");
 	}
@@ -171,22 +128,18 @@ void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 	LOG_SCOPED_THREAD("Module", getModuleName());
 
 	try {
-
 		if (mFilter->canEnter(ms)) {
 			SLOGD << "Invoking onRequest() on module " << getModuleName();
 			onRequest(ev);
 		} else {
 			SLOGD << "Skipping onRequest() on module " << getModuleName();
 		}
-
 	} catch (SignalingException &se) {
-
 		SLOGD << "Signaling exception while onRequest() on module " << getModuleName() << ": " << se;
 		SLOGD << "Replying with message " << se.getStatusCode() << " and reason " << se.getReason();
 		ev->reply(se.getStatusCode(), se.getReason().c_str(), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 
 	} catch (FlexisipException &fe) {
-
 		SLOGD << "Exception while onRequest() on module " << getModuleName() << " because " << fe;
 		SLOGD << "Replying with error 500";
 		ev->reply(500, "Internal Error", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
@@ -222,6 +175,42 @@ const string &Module::getModuleName() const {
 ModuleClass Module::getClass() const {
 	return mInfo->getClass();
 }
+
+// -----------------------------------------------------------------------------
+// ModuleInfo.
+// -----------------------------------------------------------------------------
+
+ModuleInfoManager *ModuleInfoManager::sInstance = nullptr;
+
+ModuleInfoManager *ModuleInfoManager::get() {
+	if (!sInstance)
+		sInstance = new ModuleInfoManager();
+	return sInstance;
+}
+
+void ModuleInfoManager::registerModuleInfo(ModuleInfoBase *moduleInfo) {
+	SLOGI << "Registering module info [" << moduleInfo->getModuleName() << "]...";
+
+	if (moduleInfo->getAfter().empty()) {
+		SLOGE << "Cannot register module info [" << moduleInfo->getModuleName() << "] with empty after member.";
+		return;
+	}
+
+	auto it = find(mRegisteredModuleInfo.cbegin(), mRegisteredModuleInfo.cend(), moduleInfo);
+	if (it != mRegisteredModuleInfo.cend())
+		SLOGE << "Unable to register existing module [" << moduleInfo->getModuleName() << "].";
+	else
+		mRegisteredModuleInfo.push_back(moduleInfo);
+}
+
+void ModuleInfoManager::unregisterModuleInfo(ModuleInfoBase *moduleInfo) {
+	SLOGI << "Unregistering module info [" << moduleInfo->getModuleName() << "]...";
+	mRegisteredModuleInfo.remove(moduleInfo);
+}
+
+// -----------------------------------------------------------------------------
+// ModuleToolBox.
+// -----------------------------------------------------------------------------
 
 msg_auth_t *ModuleToolbox::findAuthorizationForRealm(su_home_t *home, msg_auth_t *au, const char *realm) {
 	while (au) {

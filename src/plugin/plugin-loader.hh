@@ -27,6 +27,7 @@
 
 class Agent;
 class Module;
+class ModuleInfoBase;
 class PluginLoaderPrivate;
 
 namespace Private {
@@ -49,6 +50,8 @@ public:
 	bool unload();
 
 	Module *get();
+
+	const ModuleInfoBase *getModuleInfo();
 
 	const std::string &getError() const;
 

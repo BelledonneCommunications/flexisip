@@ -493,5 +493,5 @@ ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo(
 	"GatewayAdapter",
 	"No documentation at the moment.",
 	{ "Redirect" },
-	ModuleInfoBase::ModuleOid::GatewayAdapter, ModuleClassExperimental
+	ModuleInfoBase::ModuleOid::GatewayAdapter, ModuleClass::Experimental
 );

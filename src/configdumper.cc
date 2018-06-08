@@ -65,12 +65,12 @@ bool ConfigDumper::shouldDumpModule(const string &moduleName) const {
 	if (name.find("module::") != name.npos) {
 		name = moduleName.substr(MODULE_PREFIX_LEN);
 	}
-	auto registeredModuleInfo = ModuleFactory::get()->registeredModuleInfo();
+	auto registeredModuleInfo = ModuleInfoManager::get()->getRegisteredModuleInfo();
 	auto it = std::find_if(registeredModuleInfo.begin(), registeredModuleInfo.end(), matchModuleName(name));
 
 	ModuleInfoBase *moduleInfo = (it != registeredModuleInfo.end()) ? *it : NULL;
 	if (moduleInfo != NULL) {
-		return moduleInfo->getClass() == ModuleClassProduction;
+		return moduleInfo->getClass() == ModuleClass::Production;
 	} else {
 		return true;
 	}
@@ -282,9 +282,9 @@ ostream &XWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValu
 		escaper(help, '\n', "\n ");
 		escaper(help, '`', "'' ");
 
-		ostr << "|=(% style=\"text-align: center;  vertical-align: middle; border: 1px solid #999\" %)" << val->getName() 
-			 << "|(% style=\"text-align: left; border: 1px solid #999\" %)" << help 
-			 << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %) ##" << val->getDefault() << "##" 
+		ostr << "|=(% style=\"text-align: center;  vertical-align: middle; border: 1px solid #999\" %)" << val->getName()
+			 << "|(% style=\"text-align: left; border: 1px solid #999\" %)" << help
+			 << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %) ##" << val->getDefault() << "##"
 			 << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %)" << val->getTypeName() << endl;
 	}
 	return ostr;

@@ -76,5 +76,5 @@ ModuleInfo<DateHandler> DateHandler::sInfo(
 	"command can be used to assign the date to the system.",
 	{ "Authentication" },
 	ModuleInfoBase::ModuleOid::DateHandler,
-	ModuleClassExperimental
+	ModuleClass::Experimental
 );

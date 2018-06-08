@@ -97,5 +97,5 @@ ModuleInfo<ContactRouteInserter> ContactRouteInserter::sInfo(
 	"to route back outgoing invites to the original address. "
 	"It is a kind of similar mechanism as Record-Route, but for REGISTER.",
 	{ "StatisticsCollector" },
-	ModuleInfoBase::ModuleOid::ContactRouteInserter, ModuleClassExperimental
+	ModuleInfoBase::ModuleOid::ContactRouteInserter, ModuleClass::Experimental
 );

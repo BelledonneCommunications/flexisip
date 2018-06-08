@@ -115,5 +115,5 @@ ModuleInfo<ModulePresence> ModulePresence::sInfo(
 	"Presence",
 	"This module transfert sip presence messages, like subscribe/notify/publish to a presence server.",
 	{ "GatewayAdapter" },
-	ModuleInfoBase::ModuleOid::Presence, ModuleClassExperimental
+	ModuleInfoBase::ModuleOid::Presence, ModuleClass::Experimental
 );

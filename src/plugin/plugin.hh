@@ -38,26 +38,24 @@
 	#define FLEXISIP_PLUGIN_EXPORT extern "C"
 #endif // ifdef WIN32
 
-namespace Private {
-	class PluginPrivate;
-
-	class Plugin {
-	public:
-		Plugin(PluginPrivate &p);
-		virtual ~Plugin();
-
-	private:
-		PluginPrivate *mPrivate;
-
-		FLEXISIP_DISABLE_COPY(Plugin);
-	};
-}
-
 // -----------------------------------------------------------------------------
 // Public API.
 // -----------------------------------------------------------------------------
 
 #define FLEXISIP_PLUGIN_API_VERSION FLEXISIP_GIT_VERSION
+
+namespace Private {
+	class Plugin {
+	public:
+		Plugin(SharedLibrary &sharedLibrary);
+		virtual ~Plugin();
+
+	private:
+		SharedLibrary *mSharedLibrary;
+
+		FLEXISIP_DISABLE_COPY(Plugin);
+	};
+}
 
 struct PluginInfo {
 	const char *className;
@@ -75,17 +73,23 @@ inline std::ostream &operator<< (std::ostream &os, const PluginInfo &info) {
 	return os;
 }
 
-#define FLEXISIP_DECLARE_PLUGIN(CLASS, NAME, VERSION) \
-	static_assert(std::is_base_of<Module, CLASS>::value, "Flexisip plugin must be derived from Module class."); \
-		FLEXISIP_PLUGIN_EXPORT Module *__flexisipCreatePlugin(Private::PluginPrivate &p, Agent *agent) { \
-			class UserPlugin : public CLASS, public Private::Plugin { \
-			public: \
-				UserPlugin(Private::PluginPrivate &p, Agent *agent) : CLASS(agent), Plugin(p) {} \
-			}; \
-			return new UserPlugin(p, agent); \
+#define FLEXISIP_DECLARE_PLUGIN(MODULE_INFO, NAME, VERSION) \
+	static_assert(std::is_base_of<ModuleInfoBase, decltype(MODULE_INFO)>::value, "Flexisip plugin must be derived from ModuleInfoBase class."); \
+		FLEXISIP_PLUGIN_EXPORT const ModuleInfoBase *__flexisipGetPluginModuleInfo() { \
+			return &MODULE_INFO; \
 		} \
+		FLEXISIP_PLUGIN_EXPORT Module *__flexisipCreatePlugin(Agent *agent, SharedLibrary *sharedLibrary) { \
+			using ModuleType = typename decltype(MODULE_INFO)::ModuleType; \
+			class UserPlugin : public ModuleType, public Private::Plugin { \
+			public: \
+				UserPlugin(Agent *agent, SharedLibrary &sharedLibrary) : ModuleType(agent), Plugin(sharedLibrary) {} \
+			}; \
+			Module *module = new UserPlugin(agent, *sharedLibrary); \
+			module->setInfo(&MODULE_INFO); \
+			return module; \
+		}\
 		FLEXISIP_PLUGIN_EXPORT const PluginInfo __flexisipPluginInfo = { \
-			#CLASS, \
+			#MODULE_INFO, \
 			NAME, \
 			VERSION, \
 			FLEXISIP_PLUGIN_API_VERSION \
