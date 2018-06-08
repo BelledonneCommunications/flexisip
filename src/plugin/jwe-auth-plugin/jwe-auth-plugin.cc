@@ -443,7 +443,13 @@ void JweAuth::insertJweContext(string &&jweKey, const shared_ptr<JweContext> &jw
 	jweContext->timer = timer;
 
 	mJweContexts.insert({ move(jweKey), jweContext });
-	su_timer_set_interval(timer, removeJweContext, jweContext.get(), timeout * 1000);
+
+	if (timeout > 0) {
+		timeout *= 1000;
+		if (timeout < 0)
+			timeout = numeric_limits<int>::max();
+	}
+	su_timer_set_interval(timer, removeJweContext, jweContext.get(), timeout);
 }
 
 void JweAuth::removeJweContext(su_root_magic_t *, su_timer_t *timer, su_timer_arg_t *arg) {
