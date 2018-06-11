@@ -438,7 +438,7 @@ void JweAuth::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	if (!incomingTransaction)
 		return;
 
-	shared_ptr<JweContext> jweContext = incomingTransaction->getProperty<JweContext>(getModuleName());
+	shared_ptr<JweContext> jweContext(incomingTransaction->getProperty<JweContext>(getModuleName()));
 	if (jweContext)
 		jweContext->consumed = true;
 }
