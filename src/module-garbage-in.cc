@@ -22,12 +22,9 @@
 using namespace std;
 
 class ModuleGarbageIn : public Module, protected ModuleToolbox {
-  public:
-	ModuleGarbageIn(Agent *ag) : Module(ag) {
-	}
-
-	~ModuleGarbageIn() {
-	}
+public:
+	ModuleGarbageIn(Agent *ag) : Module(ag) {}
+	~ModuleGarbageIn() {}
 
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		const sip_t *sip = ev->getMsgSip()->getSip();
@@ -50,11 +47,13 @@ class ModuleGarbageIn : public Module, protected ModuleToolbox {
 		mc->get<ConfigValue>("filter")->setDefault("false");
 	}
 
-  private:
+private:
 	static ModuleInfo<ModuleGarbageIn> sInfo;
 };
 
-ModuleInfo<ModuleGarbageIn>
-	ModuleGarbageIn::sInfo("GarbageIn",
-						   "The ModuleGarbageIn module collects incoming garbage and prevent any further processing.",
-						   ModuleInfoBase::ModuleOid::GarbageIn);
+ModuleInfo<ModuleGarbageIn> ModuleGarbageIn::sInfo(
+	"GarbageIn",
+	"The ModuleGarbageIn module collects incoming garbage and prevent any further processing.",
+	{ "SanityChecker" },
+	ModuleInfoBase::ModuleOid::GarbageIn
+);

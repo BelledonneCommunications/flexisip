@@ -45,18 +45,19 @@ option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registra
 option(ENABLE_ODBC "Build ODBC support for database connection" NO)
 option(ENABLE_PRESENCE "Build presence support" NO)
 option(ENABLE_PROTOBUF "Build with protobuf support" NO)
-option(ENABLE_PUSHNOTIFICATION "Build with remote push notification support" YES)
 option(ENABLE_REDIS "Build with Redis support" NO)
 option(ENABLE_SNMP "Build with SNMP support" NO)
 option(ENABLE_SOCI "Build with SOCI support" YES)
 option(ENABLE_STATIC "Build static library (default is shared library)." NO)
 option(ENABLE_TRANSCODER "Build transcoder support" YES)
 option(ENABLE_MDNS "Build multicast DNS support" NO)
+option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" NO)
+
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
 if(NOT CMAKE_INSTALL_RPATH AND CMAKE_INSTALL_PREFIX)
-        set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_FULL_LIBDIR})
-        message(STATUS "Setting install rpath to ${CMAKE_INSTALL_RPATH}")
+	set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_FULL_LIBDIR})
+	message(STATUS "Setting install rpath to ${CMAKE_INSTALL_RPATH}")
 endif()
 
 set(SYSCONF_INSTALL_DIR ${CMAKE_INSTALL_FULL_SYSCONFDIR} CACHE STRING "Config directory, the place where flexisip expects its flexisip.conf file to reside" )
@@ -224,11 +225,12 @@ find_package(OpenSSL 0.9.8 REQUIRED)
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
 
 include_directories(
-	src/
 	${CMAKE_CURRENT_BINARY_DIR}
 	${CMAKE_CURRENT_BINARY_DIR}/src/
-	${SOFIASIPUA_INCLUDE_DIRS}
 	${ORTP_INCLUDE_DIRS}
+	${SOFIASIPUA_INCLUDE_DIRS}
+	src/
+	src/plugin
 )
 
 configure_file(${PROJECT_SOURCE_DIR}/cmake/flexisip-config.h.in ${PROJECT_BINARY_DIR}/flexisip-config.h)

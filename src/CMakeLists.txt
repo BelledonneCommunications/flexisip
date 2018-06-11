@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2014  Belledonne Communications, Grenoble France
+# Copyright (C) 2014-2018  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -20,7 +20,7 @@
 #
 ############################################################################
 
-set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIASIPUA_LIBRARIES} ${BCTOOLBOX_CORE_LIBRARIES} )
+set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIASIPUA_LIBRARIES} ${BCTOOLBOX_CORE_LIBRARIES})
 
 set(FLEXISIP_INCLUDES )
 
@@ -30,9 +30,9 @@ set(FLEXISIP_SOURCES
 	agent.cc
 	authdb-file.cc
 	authdb.cc
-	cJSON.c
 	callcontext-mediarelay.cc
 	callstore.cc
+	cJSON.c
 	common.cc
 	configdumper.cc
 	configmanager.cc
@@ -60,6 +60,7 @@ set(FLEXISIP_SOURCES
 	module-loadbalancer.cc
 	module-mediarelay.cc
 	module-nat-helper.cc
+	module-pushnotification.cc
 	module-redirect.cc module-presence.cc
 	module-registrar.cc
 	module-router.cc
@@ -68,6 +69,15 @@ set(FLEXISIP_SOURCES
 	module-transcode.cc
 	module.cc
 	monitor.cc
+	plugin/plugin-loader.cc
+	pushnotification/applepush.cc
+	pushnotification/firebasepush.cc
+	pushnotification/genericpush.cc
+	pushnotification/googlepush.cc
+	pushnotification/microsoftpush.cc
+	pushnotification/pushnotificationclient_wp.cc
+	pushnotification/pushnotificationclient.cc
+	pushnotification/pushnotificationservice.cc
 	recordserializer-c.cc
 	recordserializer-json.cc
 	registrardb-internal.cc
@@ -76,8 +86,8 @@ set(FLEXISIP_SOURCES
 	sipattrextractor.cc
 	stats.cc
 	stun.cc
-	stun/stun.c
 	stun/stun_udp.c
+	stun/stun.c
 	telephone-event-filter.cc
 	transaction.cc
 	uac-register.cc
@@ -142,8 +152,8 @@ if(ENABLE_PROTOBUF)
 	set(PROTOBUF_GENERATED_FILES ${CMAKE_CURRENT_BINARY_DIR}/recordserializer-protobuf.pb.cc ${CMAKE_CURRENT_BINARY_DIR}/recordserializer-protobuf.pb.h)
 	set(PROTOBUF_PROTO ${CMAKE_CURRENT_LIST_DIR}/recordserializer-protobuf.proto)
 	add_custom_command(OUTPUT ${PROTOBUF_GENERATED_FILES}
-	  COMMAND "${PROTOBUF_PROTOC_EXECUTABLE}" "--proto_path=${CMAKE_CURRENT_SOURCE_DIR}" "--cpp_out=${CMAKE_CURRENT_BINARY_DIR}" "${PROTOBUF_PROTO}"
-	  COMMENT "Generate protobuf wrappers")
+		COMMAND "${PROTOBUF_PROTOC_EXECUTABLE}" "--proto_path=${CMAKE_CURRENT_SOURCE_DIR}" "--cpp_out=${CMAKE_CURRENT_BINARY_DIR}" "${PROTOBUF_PROTO}"
+		COMMENT "Generate protobuf wrappers")
 	set_source_files_properties(${PROTOBUF_GENERATED_FILES} PROPERTIES GENERATED ON)
 
 	list(APPEND FLEXISIP_SOURCES recordserializer-protobuf.cc ${PROTOBUF_GENERATED_FILES})
@@ -199,27 +209,6 @@ if(ENABLE_PRESENCE)
 	)
 endif()
 
-if(ENABLE_PUSHNOTIFICATION)
-	list(APPEND FLEXISIP_SOURCES
-		module-pushnotification.cc
-		pushnotification/applepush.cc
-		pushnotification/applepush.hh
-		pushnotification/firebasepush.cc
-		pushnotification/firebasepush.hh
-		pushnotification/genericpush.cc
-		pushnotification/genericpush.hh
-		pushnotification/googlepush.cc
-		pushnotification/googlepush.hh
-		pushnotification/microsoftpush.cc
-		pushnotification/microsoftpush.hh
-		pushnotification/pushnotificationclient.cc
-		pushnotification/pushnotificationclient.hh
-		pushnotification/pushnotificationclient_wp.cc
-		pushnotification/pushnotificationclient_wp.hh
-		pushnotification/pushnotificationservice.cc
-		pushnotification/pushnotificationservice.hh
-	)
-endif()
 list(APPEND FLEXISIP_LIBS ${OPENSSL_LIBRARIES})
 list(APPEND FLEXISIP_INCLUDES ${OPENSSL_INCLUDE_DIR})
 
@@ -268,27 +257,30 @@ install(TARGETS flexisip flexisip_server
 	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
 
+add_executable(flexisip_pusher tools/pusher.cc)
+target_link_libraries(flexisip_pusher flexisip)
+set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD 11)
+set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD_REQUIRED ON)
+
+install(TARGETS flexisip_pusher
+	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+)
+
+# Build plugins.
+if(ENABLE_JWE_AUTH_PLUGIN)
+	add_subdirectory(plugin/jwe-auth-plugin)
+endif()
+
 # expression parser tester
 if(MEDIASTREAMER2_FOUND)
 	add_executable(expr test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh utils/flexisip-exception.hh)
-    target_link_libraries(expr ${BCTOOLBOX_CORE_LIBRARIES} ${ORTP_LIBRARIES} ${MEDIASTREAMER2_LIBRARIES})
+	target_link_libraries(expr ${BCTOOLBOX_CORE_LIBRARIES} ${ORTP_LIBRARIES} ${MEDIASTREAMER2_LIBRARIES})
 	set_property(TARGET expr PROPERTY CXX_STANDARD 11)
 	set_property(TARGET expr PROPERTY CXX_STANDARD_REQUIRED ON)
 	target_compile_options(expr PUBLIC -DTEST_BOOL_EXPR -DNO_SOFIA)
-endif()
-
-if (ENABLE_PUSHNOTIFICATION)
-	add_executable(flexisip_pusher tools/pusher.cc)
-	target_link_libraries(flexisip_pusher flexisip)
-	set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD 11)
-	set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD_REQUIRED ON)
-
-	install(TARGETS flexisip_pusher
-		RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-		ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-		PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-	)
 endif()
 
 add_executable(flexisip_serializer tools/serializer.cc)
@@ -302,5 +294,3 @@ install(TARGETS flexisip_serializer
 	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
-
-

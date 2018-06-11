@@ -24,7 +24,7 @@
 using namespace std;
 
 class NatHelper : public Module, protected ModuleToolbox {
-  public:
+public:
 	NatHelper(Agent *ag) : Module(ag) {
 	}
 
@@ -70,19 +70,18 @@ class NatHelper : public Module, protected ModuleToolbox {
 					if (!url_has_param(ct->m_url, mContactVerifiedParam.c_str()) && !url_has_param(ct->m_url,"gr")) {
 						fixContactInResponse(ms->getHome(), ms->getMsg(), ms->getSip());
 						url_param_add(ms->getHome(), ct->m_url, mContactVerifiedParam.c_str());
-					} else if (ms->getSip()->sip_via && ms->getSip()->sip_via->v_next &&
-							   !ms->getSip()->sip_via->v_next->v_next) {
+					} else if (ms->getSip()->sip_via && ms->getSip()->sip_via->v_next && !ms->getSip()->sip_via->v_next->v_next) {
 						// Via contains client and first proxy
 						LOGD("Removing verified param from response contact");
 						ct->m_url->url_params = url_strip_param_string(su_strdup(ms->getHome(), ct->m_url->url_params),
-																	   mContactVerifiedParam.c_str());
+																		 mContactVerifiedParam.c_str());
 					}
 				}
 			}
 		}
 	}
 
-  protected:
+protected:
 	enum RecordRouteFixingPolicy { Safe, Always };
 	virtual void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor items[] = {
@@ -108,7 +107,7 @@ class NatHelper : public Module, protected ModuleToolbox {
 		}
 	}
 
-  private:
+private:
 	string mContactVerifiedParam;
 	bool empty(const char *value) {
 		return value == NULL || value[0] == '\0';
@@ -121,8 +120,7 @@ class NatHelper : public Module, protected ModuleToolbox {
 		if (ai != NULL) {
 			char ip[NI_MAXHOST];
 			char port[NI_MAXSERV];
-			int err = getnameinfo(ai->ai_addr, ai->ai_addrlen, ip, sizeof(ip), port, sizeof(port),
-								  NI_NUMERICHOST | NI_NUMERICSERV);
+			int err = getnameinfo(ai->ai_addr, ai->ai_addrlen, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV);
 			if (err != 0) {
 				LOGE("getnameinfo() error: %s", gai_strerror(err));
 			} else {
@@ -168,9 +166,8 @@ class NatHelper : public Module, protected ModuleToolbox {
 					continue;
 				};
 				url_param(ctt->m_url->url_params, "transport", ct_transport, sizeof(ct_transport) - 1);
-				/*If we have a single contact and we are the front-end proxy, or if we found a ip:port in a contact that
-				   seems incorrect
-					because the same appeared fixed in the via, then fix it*/
+				// If we have a single contact and we are the front-end proxy, or if we found a ip:port in a contact that
+				// seems incorrect because the same appeared fixed in the via, then fix it.
 				if ((is_frontend && single_contact) || (ModuleToolbox::urlHostMatch(host, via->v_host) &&
 														sipPortEquals(ctt->m_url->url_port, via->v_port) &&
 														transportEquals(via_transport, ct_transport))) {
@@ -230,13 +227,19 @@ class NatHelper : public Module, protected ModuleToolbox {
 					LOGD("Record-route and via are matching.");
 					if (sip->sip_via->v_received) {
 						LOGD("This record-route needs to be fixed for host");
-						url_param_add(ms->getHome(), sip->sip_record_route->r_url,
-									  su_sprintf(ms->getHome(), "fs-received=%s", sip->sip_via->v_received));
+						url_param_add(
+							ms->getHome(),
+							sip->sip_record_route->r_url,
+							su_sprintf(ms->getHome(), "fs-received=%s", sip->sip_via->v_received)
+						);
 					}
 					if (sip->sip_via->v_rport) {
 						LOGD("This record-route needs to be fixed for port");
-						url_param_add(ms->getHome(), sip->sip_record_route->r_url,
-									  su_sprintf(ms->getHome(), "fs-rport=%s", sip->sip_via->v_rport));
+						url_param_add(
+							ms->getHome(),
+							sip->sip_record_route->r_url,
+							su_sprintf(ms->getHome(), "fs-rport=%s", sip->sip_via->v_rport)
+						);
 					}
 					fixTransport(ms->getHome(), sip->sip_record_route->r_url, transport);
 				}
@@ -248,13 +251,17 @@ class NatHelper : public Module, protected ModuleToolbox {
 					const char *rport = sip->sip_via->v_rport ? sip->sip_via->v_rport : sip->sip_via->v_port;
 					if (!ModuleToolbox::urlHostMatch(received, host)) {
 						LOGD("This record-route needs to be fixed for host");
-						url_param_add(ms->getHome(), sip->sip_record_route->r_url,
-									  su_sprintf(ms->getHome(), "fs-received=%s", received));
+						url_param_add(
+							ms->getHome(), sip->sip_record_route->r_url,
+							su_sprintf(ms->getHome(), "fs-received=%s", received)
+						);
 					}
 					if (!sipPortEquals(rport, sip->sip_record_route->r_url->url_port, transport)) {
 						LOGD("This record-route needs to be fixed for port");
-						url_param_add(ms->getHome(), sip->sip_record_route->r_url,
-									  su_sprintf(ms->getHome(), "fs-rport=%s", rport));
+						url_param_add(
+							ms->getHome(), sip->sip_record_route->r_url,
+							su_sprintf(ms->getHome(), "fs-rport=%s", rport)
+						);
 					}
 					fixTransport(ms->getHome(), sip->sip_record_route->r_url, transport);
 				}
@@ -267,8 +274,11 @@ class NatHelper : public Module, protected ModuleToolbox {
 };
 
 ModuleInfo<NatHelper> NatHelper::sInfo(
-	"NatHelper", "The NatHelper module executes small tasks to make SIP work smoothly despite firewalls."
-				 "It corrects the Contact headers that contain obviously inconsistent addresses, and adds "
-				 "a Record-Route to ensure subsequent requests are routed also by the proxy, through the UDP or TCP "
-				 "channel each client opened to the proxy.",
-	ModuleInfoBase::ModuleOid::NatHelper);
+	"NatHelper",
+	"The NatHelper module executes small tasks to make SIP work smoothly despite firewalls."
+	"It corrects the Contact headers that contain obviously inconsistent addresses, and adds "
+	"a Record-Route to ensure subsequent requests are routed also by the proxy, through the UDP or TCP "
+	"channel each client opened to the proxy.",
+	{ "GarbageIn" },
+	ModuleInfoBase::ModuleOid::NatHelper
+);

@@ -1,17 +1,17 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
  Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
- 
+
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
  published by the Free Software Foundation, either version 3 of the
  License, or (at your option) any later version.
- 
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU Affero General Public License for more details.
- 
+
  You should have received a copy of the GNU Affero General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -237,7 +237,7 @@ private:
 		AuthenticationListener(Authentication *, shared_ptr<RequestSipEvent>, bool);
 		virtual ~AuthenticationListener() {
 		}
-		
+
 		void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
 		void checkPassword(const char *password);
 		int checkPasswordMd5(const char *password);
@@ -260,7 +260,7 @@ private:
 		void processResponse();
 		static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u);
 	};
-	
+
 private:
 	static ModuleInfo<Authentication> sInfo;
 	map<string, auth_mod_t *> mAuthModules;
@@ -283,7 +283,7 @@ private:
 	bool mRejectWrongClientCertificates;
 	bool mTrustDomainCertificates;
 
-	
+
 	static int authPluginInit(auth_mod_t *am, auth_scheme_t *base, su_root_t *root, tag_type_t tag, tag_value_t value,
 	                          ...) {
 		auth_plugin_t *ap = AUTH_PLUGIN(am);
@@ -343,7 +343,7 @@ private:
 				}
 			}
 		}
-		
+
 		const GenericStruct *presenceSection = GenericManager::get()->getRoot()->get<GenericStruct>("module::Presence");
 		bool presenceServer = presenceSection->get<ConfigBoolean>("enabled")->read();
 		if (presenceServer) {
@@ -363,7 +363,7 @@ private:
 			}
 		}
 	}
-	
+
 public:
 	StatCounter64 *mCountAsyncRetrieve;
 	StatCounter64 *mCountSyncRetrieve;
@@ -398,7 +398,7 @@ public:
 		mCurrentAuthOp = NULL;
 		mRequiredSubjectCheckSet = false;
 	}
-	
+
 	~Authentication() {
 		for (auto it = mAuthModules.begin(); it != mAuthModules.end(); ++it) {
 			auth_mod_destroy(it->second);
@@ -409,7 +409,7 @@ public:
 		}
 		delete mOdbcAuthScheme;
 	}
-	
+
 	virtual void onDeclare(GenericStruct *mc) {
 		ConfigItemDescriptor items[] = {
 			{StringList, "auth-domains", "List of whitespace separated domain names to challenge. Others are denied.",
@@ -568,7 +568,7 @@ public:
 		}
 		return it->second;
 	}
-	
+
 	auth_mod_t *createAuthModule(const string &domain, int nonceExpires) {
 		if (mDisableQOPAuth) {
 			return auth_mod_create(NULL, AUTHTAG_METHOD("odbc"), AUTHTAG_REALM(domain.c_str()),
@@ -582,7 +582,7 @@ public:
 			                       AUTHTAG_FORBIDDEN(1), AUTHTAG_ALLOW("ACK CANCEL BYE"), TAG_END());
 		}
 	}
-	
+
 	bool handleTestAccountCreationRequests(shared_ptr<RequestSipEvent> &ev) {
 		sip_t *sip = ev->getSip();
 		if (sip->sip_request->rq_method == sip_method_register) {
@@ -634,7 +634,7 @@ public:
 		}
 		return true;
 	}
-	
+
 	/* This function returns
 	 * true: if the tls authentication is handled (either successful or rejected)
 	 * false: if we have to fallback to digest
@@ -691,14 +691,14 @@ public:
 				LOGE("Client is presenting a TLS certificate not matching its identity.");
 				SLOGUE << "Registration failure for " << url_as_string(home.home(), from) << ", TLS certificate doesn't match its identity";
 				goto bad_certificate;
-				
+
 				postcheck:
 					if (tlsClientCertificatePostCheck(ev)){
 						/*all is good, return true*/
 						return true;
 					}else goto bad_certificate;
 			}else goto bad_certificate;
-			
+
 			bad_certificate:
 			if (mRejectWrongClientCertificates){
 				ev->reply(403, "Bad tls client certificate", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
@@ -805,7 +805,7 @@ public:
 			ev->suspendProcessing();
 		}
 	}
-	
+
 	void onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		if (!mNewAuthOn407)
 			return; /*nop*/
@@ -852,18 +852,20 @@ public:
 };
 
 ModuleInfo<Authentication> Authentication::sInfo(
-    "Authentication",
-    "The authentication module challenges and authenticates SIP requests using two possible methods: \n"
-    " * if the request is received via a TLS transport and 'require-peer-certificate' is set in transport definition "
-    "in [Global] section for this transport, "
-    " then the From header of the request is matched with the CN claimed by the client certificate. The CN must "
-    "contain sip:user@domain or alternate name with URI=sip:user@domain"
-    " corresponding to the URI in the from header for the request to be accepted. Optionnaly, the property"
-    " tls-client-certificate-required-subject may contain a regular expression for additional checks to execute on certificate subjects.\n"
-    " * if no TLS client based authentication can be performed, or is failed, then a SIP digest authentication is "
-    "performed. The password verification is made by querying"
-    " a database or a password file on disk.",
-    ModuleInfoBase::ModuleOid::Authentication);
+	"Authentication",
+	"The authentication module challenges and authenticates SIP requests using two possible methods: \n"
+	" * if the request is received via a TLS transport and 'require-peer-certificate' is set in transport definition "
+	"in [Global] section for this transport, "
+	" then the From header of the request is matched with the CN claimed by the client certificate. The CN must "
+	"contain sip:user@domain or alternate name with URI=sip:user@domain"
+	" corresponding to the URI in the from header for the request to be accepted. Optionnaly, the property"
+	" tls-client-certificate-required-subject may contain a regular expression for additional checks to execute on certificate subjects.\n"
+	" * if no TLS client based authentication can be performed, or is failed, then a SIP digest authentication is "
+	"performed. The password verification is made by querying"
+	" a database or a password file on disk.",
+	{ "NatHelper" },
+	ModuleInfoBase::ModuleOid::Authentication
+);
 
 Authentication::AuthenticationListener::AuthenticationListener(Authentication *module, shared_ptr<RequestSipEvent> ev,
         bool hashedPasswords)
@@ -1291,4 +1293,3 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am, auth_status_t *
 		return;
 	}
 }
-

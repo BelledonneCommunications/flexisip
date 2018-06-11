@@ -32,52 +32,9 @@
 
 using namespace std;
 
-ModuleInfoBase::~ModuleInfoBase() {
-}
-
-Module *ModuleInfoBase::create(Agent *ag) {
-	Module *mod = _create(ag);
-	mod->setInfo(this);
-	return mod;
-}
-
-ModuleFactory *ModuleFactory::sInstance = NULL;
-
-ModuleFactory *ModuleFactory::get() {
-	if (sInstance == NULL) {
-		sInstance = new ModuleFactory();
-	}
-	return sInstance;
-}
-
-struct hasName {
-	hasName(const string &ref) : match(ref) {
-	}
-	bool operator()(ModuleInfoBase *info) {
-		return info->getModuleName() == match;
-	}
-	const string &match;
-};
-
-Module *ModuleFactory::createModuleInstance(Agent *ag, const string &modname) {
-	list<ModuleInfoBase *>::iterator it;
-	it = find_if(mModules.begin(), mModules.end(), hasName(modname));
-	if (it != mModules.end()) {
-		Module *m;
-		ModuleInfoBase *i = *it;
-		m = i->create(ag);
-		LOGI("Creating module instance for [%s]", m->getModuleName().c_str());
-		return m;
-	}
-	LOGA("Could not find any registered module with name [%s]", modname.c_str());
-	return NULL;
-}
-
-void ModuleFactory::registerModule(ModuleInfoBase *m) {
-	// LOGI("Registering module %s", m->getModuleName().c_str());
-	// Disabled as called from static intitialization...
-	mModules.push_back(m);
-}
+// -----------------------------------------------------------------------------
+// Module.
+// -----------------------------------------------------------------------------
 
 Module::Module(Agent *ag) : mAgent(ag) {
 	su_home_init(&mHome);
@@ -133,7 +90,7 @@ void Module::declare(GenericStruct *root) {
 	mModuleConfig->setConfigListener(this);
 	root->addChild(mModuleConfig);
 	mFilter->declareConfig(mModuleConfig);
-	if (getClass() == ModuleClassExperimental){
+	if (getClass() == ModuleClass::Experimental){
 		//Experimental modules are forced to be disabled by default.
 		mModuleConfig->get<ConfigBoolean>("enabled")->setDefault("false");
 	}
@@ -171,28 +128,22 @@ void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 	LOG_SCOPED_THREAD("Module", getModuleName());
 
 	try {
-
 		if (mFilter->canEnter(ms)) {
 			SLOGD << "Invoking onRequest() on module " << getModuleName();
 			onRequest(ev);
 		} else {
 			SLOGD << "Skipping onRequest() on module " << getModuleName();
 		}
-
 	} catch (SignalingException &se) {
-
 		SLOGD << "Signaling exception while onRequest() on module " << getModuleName() << ": " << se;
 		SLOGD << "Replying with message " << se.getStatusCode() << " and reason " << se.getReason();
 		ev->reply(se.getStatusCode(), se.getReason().c_str(), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 
 	} catch (FlexisipException &fe) {
-
 		SLOGD << "Exception while onRequest() on module " << getModuleName() << " because " << fe;
 		SLOGD << "Replying with error 500";
 		ev->reply(500, "Internal Error", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-
 	}
-
 }
 
 void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
@@ -209,7 +160,6 @@ void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 	} catch (FlexisipException &fe) {
 		SLOGD << "Skipping onResponse() on module" << getModuleName() << " because " << fe;
 	}
-
 }
 
 void Module::idle() {
@@ -226,8 +176,44 @@ ModuleClass Module::getClass() const {
 	return mInfo->getClass();
 }
 
+// -----------------------------------------------------------------------------
+// ModuleInfo.
+// -----------------------------------------------------------------------------
+
+ModuleInfoManager *ModuleInfoManager::sInstance = nullptr;
+
+ModuleInfoManager *ModuleInfoManager::get() {
+	if (!sInstance)
+		sInstance = new ModuleInfoManager();
+	return sInstance;
+}
+
+void ModuleInfoManager::registerModuleInfo(ModuleInfoBase *moduleInfo) {
+	SLOGI << "Registering module info [" << moduleInfo->getModuleName() << "]...";
+
+	if (moduleInfo->getAfter().empty()) {
+		SLOGE << "Cannot register module info [" << moduleInfo->getModuleName() << "] with empty after member.";
+		return;
+	}
+
+	auto it = find(mRegisteredModuleInfo.cbegin(), mRegisteredModuleInfo.cend(), moduleInfo);
+	if (it != mRegisteredModuleInfo.cend())
+		SLOGE << "Unable to register existing module [" << moduleInfo->getModuleName() << "].";
+	else
+		mRegisteredModuleInfo.push_back(moduleInfo);
+}
+
+void ModuleInfoManager::unregisterModuleInfo(ModuleInfoBase *moduleInfo) {
+	SLOGI << "Unregistering module info [" << moduleInfo->getModuleName() << "]...";
+	mRegisteredModuleInfo.remove(moduleInfo);
+}
+
+// -----------------------------------------------------------------------------
+// ModuleToolBox.
+// -----------------------------------------------------------------------------
+
 msg_auth_t *ModuleToolbox::findAuthorizationForRealm(su_home_t *home, msg_auth_t *au, const char *realm) {
-	while (au != NULL) {
+	while (au) {
 		auth_response_t r;
 		memset(&r, 0, sizeof(r));
 		r.ar_size = sizeof(r);
@@ -240,7 +226,7 @@ msg_auth_t *ModuleToolbox::findAuthorizationForRealm(su_home_t *home, msg_auth_t
 		au = au->au_next;
 	}
 	LOGD("authorization with expected realm '%s' not found", realm);
-	return NULL;
+	return nullptr;
 }
 
 bool ModuleToolbox::sipPortEquals(const char *p1, const char *p2, const char *transport) {
@@ -273,8 +259,12 @@ void ModuleToolbox::cleanAndPrependRoute(Agent *ag, msg_t *msg, sip_t *sip, sip_
 		prependNewRoutable(msg, sip, sip->sip_route, r);
 }
 
-void ModuleToolbox::addRecordRoute(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev,
-								   const tport_t *tport) {
+void ModuleToolbox::addRecordRoute(
+	su_home_t *home,
+	Agent *ag,
+	const shared_ptr<RequestSipEvent> &ev,
+	const tport_t *tport
+) {
 	msg_t *msg = ev->getMsgSip()->getMsg();
 	sip_t *sip = ev->getMsgSip()->getSip();
 	url_t *url = NULL;
@@ -602,8 +592,12 @@ sip_route_t *ModuleToolbox::prependNewRoutable(msg_t *msg, sip_t *sip, sip_route
 	return value;
 }
 
-void ModuleToolbox::addPathHeader(Agent *ag, const shared_ptr<RequestSipEvent> &ev, const tport_t *tport,
-								  const char *uniq) {
+void ModuleToolbox::addPathHeader(
+	Agent *ag,
+	const shared_ptr<RequestSipEvent> &ev,
+	const tport_t *tport,
+	const char *uniq
+) {
 	su_home_t *home = ev->getMsgSip()->getHome();
 	msg_t *msg = ev->getMsgSip()->getMsg();
 	sip_t *sip = ev->getMsgSip()->getSip();
@@ -656,7 +650,7 @@ void ModuleToolbox::removeParamsFromUrl(su_home_t *home, url_t *u, list<string> 
 	}
 }
 
-sip_unknown_t *ModuleToolbox::getCustomHeaderByName(sip_t *sip, const char *name) {
+sip_unknown_t *ModuleToolbox::getCustomHeaderByName(const sip_t *sip, const char *name) {
 	sip_unknown_t *it;
 	for (it = sip->sip_unknown; it != NULL; it = it->un_next) {
 		if (strcasecmp(it->un_name, name) == 0) {
@@ -717,4 +711,3 @@ sip_via_t *ModuleToolbox::getLastVia(sip_t *sip){
 	}
 	return ret;
 }
-

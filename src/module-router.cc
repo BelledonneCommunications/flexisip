@@ -1112,6 +1112,9 @@ void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 	}
 }
 
-ModuleInfo<ModuleRouter> ModuleRouter::sInfo("Router",
-											 "The ModuleRouter module routes requests for domains it manages.",
-											 ModuleInfoBase::ModuleOid::Router);
+ModuleInfo<ModuleRouter> ModuleRouter::sInfo(
+	"Router",
+	"The ModuleRouter module routes requests for domains it manages.",
+	{ "ContactRouteInserter" },
+	ModuleInfoBase::ModuleOid::Router
+);

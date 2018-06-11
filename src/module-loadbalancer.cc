@@ -24,7 +24,7 @@
 using namespace std;
 
 class LoadBalancer : public Module, public ModuleToolbox {
-  public:
+public:
 	LoadBalancer(Agent *ag);
 	virtual ~LoadBalancer();
 	virtual void onDeclare(GenericStruct *module_config);
@@ -32,9 +32,10 @@ class LoadBalancer : public Module, public ModuleToolbox {
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
 
-  private:
+private:
 	vector<string> mRoutes;
 	int mRoutesCount;
+
 	static ModuleInfo<LoadBalancer> sInfo;
 };
 
@@ -47,10 +48,10 @@ LoadBalancer::~LoadBalancer() {
 void LoadBalancer::onDeclare(GenericStruct *module_config) {
 	/*we need to be disabled by default*/
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
-	ConfigItemDescriptor items[] = {{StringList, "routes", "Whitespace separated list of sip routes to balance the "
-														   "requests. Example: <sip:192.168.0.22> <sip:192.168.0.23>",
-									 ""},
-									config_item_end};
+	ConfigItemDescriptor items[] = { { StringList,
+		"routes",
+		"Whitespace separated list of sip routes to balance the requests. Example: <sip:192.168.0.22> <sip:192.168.0.23>",
+		"" }, config_item_end };
 	module_config->addChildrenValues(items);
 }
 
@@ -91,7 +92,9 @@ void LoadBalancer::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	/*nothing to do*/
 }
 
-ModuleInfo<LoadBalancer>
-	LoadBalancer::sInfo("LoadBalancer",
-						"This module performs load balancing between a set of configured destination proxies.",
-						ModuleInfoBase::ModuleOid::LoadBalancer, ModuleClassExperimental);
+ModuleInfo<LoadBalancer> LoadBalancer::sInfo(
+	"LoadBalancer",
+	"This module performs load balancing between a set of configured destination proxies.",
+	{ "PushNotification" },
+	ModuleInfoBase::ModuleOid::LoadBalancer, ModuleClass::Experimental
+);

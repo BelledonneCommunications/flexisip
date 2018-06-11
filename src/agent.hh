@@ -54,8 +54,6 @@ class DomainRegistrationManager;
  * The agent class represents a SIP agent.
  * It listens on a UDP and TCP port, receives request and responses,
  * and injects them into the module chain.
- * The module chain is :
- * NatHelper => Authentication => Registrar => ContactRouteInserter => MediaRelay => Transcoder => Forward
  *
  * Refer to the flexisip.conf.sample installed by "make install" for documentation about what each module does.
 **/
@@ -111,12 +109,12 @@ class Agent : public IncomingAgent,
 	void onDeclare(GenericStruct *root);
 	ConfigValueListener *mBaseConfigListener;
 
-  private:
+private:
 	template <typename SipEventT>
 	void doSendEvent(std::shared_ptr<SipEventT> ev, const std::list<Module *>::iterator &begin,
 					 const std::list<Module *>::iterator &end);
 
-  public:
+public:
 	Agent(su_root_t *root);
 	void start(const std::string &transport_override, const std::string passphrase);
 	virtual void loadConfig(GenericManager *cm);
@@ -188,7 +186,7 @@ class Agent : public IncomingAgent,
 	void incrReplyStat(int status);
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 	void logEvent(const std::shared_ptr<SipEvent> &ev);
-	Module *findModule(const std::string &modname) const;
+	Module *findModule(const std::string &moduleName) const;
 	int onIncomingMessage(msg_t *msg, const sip_t *sip);
 	nth_engine_t *getHttpEngine() {
 		return mHttpEngine;
@@ -198,11 +196,9 @@ class Agent : public IncomingAgent,
 	}
 	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr = false);
 
-  private:
-	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value,
-					  ...);
-	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag,
-					   tag_value_t value, ...);
+private:
+	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
+	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 	void discoverInterfaces();
 	void startLogWriter();
 	std::string computeResolvedPublicIp(const std::string &host, int family = AF_UNSPEC) const;
