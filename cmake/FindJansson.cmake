@@ -29,21 +29,16 @@
 find_package(PkgConfig QUIET)
 pkg_check_modules(PC_JANSSON QUIET jansson)
 
-find_path(JANSSON_INCLUDE_DIR
+find_path(JANSSON_INCLUDE_DIRS
 	NAMES jansson.h
 	HINTS ${PC_JANSSON_INCLUDE_DIRS}
 )
-find_library(JANSSON_LIBRARY
+find_library(JANSSON_LIBRARIES
 	NAMES jansson
 	HINTS ${PC_JANSSON_LIBRARY_DIRS}
 )
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Jansson REQUIRED_VARS JANSSON_INCLUDE_DIR JANSSON_LIBRARY)
+find_package_handle_standard_args(Jansson REQUIRED_VARS JANSSON_INCLUDE_DIRS JANSSON_LIBRARIES)
 
-if(JANSSON_FOUND)
-	set(JANSSON_LIBRARIES ${JANSSON_LIBRARY})
-	set(JANSSON_INCLUDE_DIRS ${JANSSON_INCLUDE_DIR})
-endif()
-
-mark_as_advanced(JANSSON_INCLUDE_DIR JANSSON_LIBRARY)
+mark_as_advanced(JANSSON_INCLUDE_DIRS JANSSON_LIBRARIES)

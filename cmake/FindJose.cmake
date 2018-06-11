@@ -29,21 +29,16 @@
 find_package(PkgConfig QUIET)
 pkg_check_modules(PC_JOSE QUIET jose)
 
-find_path(JOSE_INCLUDE_DIR
+find_path(JOSE_INCLUDE_DIRS
 	NAMES jose/jose.h
 	HINTS ${PC_JOSE_INCLUDE_DIRS}
 )
-find_library(JOSE_LIBRARY
+find_library(JANSSON_LIBRARIES
 	NAMES jose
 	HINTS ${PC_JOSE_LIBRARY_DIRS}
 )
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Jose REQUIRED_VARS JOSE_INCLUDE_DIR JOSE_LIBRARY)
+find_package_handle_standard_args(Jose REQUIRED_VARS JOSE_INCLUDE_DIRS JANSSON_LIBRARIES)
 
-if(JOSE_FOUND)
-	set(JOSE_LIBRARIES ${JOSE_LIBRARY})
-	set(JOSE_INCLUDE_DIRS ${JOSE_INCLUDE_DIR})
-endif()
-
-mark_as_advanced(JOSE_INCLUDE_DIR JOSE_LIBRARY)
+mark_as_advanced(JOSE_INCLUDE_DIRS JANSSON_LIBRARIES)

@@ -45,7 +45,7 @@ option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registra
 option(ENABLE_ODBC "Build ODBC support for database connection" NO)
 option(ENABLE_PRESENCE "Build presence support" NO)
 option(ENABLE_PROTOBUF "Build with protobuf support" NO)
-option(ENABLE_PUSHNOTIFICATION "Build with remote push notification support" YES)
+option(ENABLE_PUSH_NOTIFICATION "Build with remote push notification support" YES)
 option(ENABLE_REDIS "Build with Redis support" NO)
 option(ENABLE_SNMP "Build with SNMP support" NO)
 option(ENABLE_SOCI "Build with SOCI support" YES)

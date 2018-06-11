@@ -276,7 +276,9 @@ install(TARGETS flexisip_pusher
 )
 
 # Build plugins.
-add_subdirectory(plugin/jwe-auth-plugin)
+if(ENABLE_JWE_AUTH_PLUGIN)
+	add_subdirectory(plugin/jwe-auth-plugin)
+endif()
 
 # expression parser tester
 if(MEDIASTREAMER2_FOUND)
