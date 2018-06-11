@@ -232,7 +232,7 @@ static const char *checkJwtTime(json_t *jwt, int *timeout) {
 
 		json_int_t iatValue;
 		if (json_unpack(jwt, "{s:I}", "iat", &iatValue) < 0)
-			return "Unable to extract iat attr. Must be an integer and exists";
+			return "Unable to extract iat attr, must be an integer and exists";
 
 		if (time_t(iatValue) + expInValue < currentTime)
 			return "exp_in has expired";
@@ -388,8 +388,8 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const sip_unknown_t *header;
 	if (!(header = ModuleToolbox::getCustomHeaderByName(sip, mOidCustomHeader.c_str())) || !header->un_value)
 		error = "Unable to find oid incoming subject header";
-	// else if (!ev->findIncomingSubject(header->un_value))
-	// 	error = "Unable to match oid";
+	else if (!ev->findIncomingSubject(header->un_value))
+		error = "Unable to match oid";
 	else if (!(header = ModuleToolbox::getCustomHeaderByName(sip, mJweCustomHeader.c_str())) || !header->un_value)
 		error = "No JWE token";
 	else {
@@ -430,10 +430,17 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 }
 
 void JweAuth::onResponse(shared_ptr<ResponseSipEvent> &ev) {
-	if (ev->getMsgSip()->getSip()->sip_status->st_status != 407)
-		static_pointer_cast<IncomingTransaction>(
-			ev->getIncomingAgent()
-		)->getProperty<JweContext>(getModuleName())->consumed = true;
+	int status = ev->getMsgSip()->getSip()->sip_status->st_status;
+	if (status == 401 || status == 407)
+		return;
+
+	shared_ptr<IncomingTransaction> incomingTransaction(dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent()));
+	if (!incomingTransaction)
+		return;
+
+	shared_ptr<JweContext> jweContext = incomingTransaction->getProperty<JweContext>(getModuleName());
+	if (jweContext)
+		jweContext->consumed = true;
 }
 
 void JweAuth::insertJweContext(string &&jweKey, const shared_ptr<JweContext> &jweContext, int timeout) {
