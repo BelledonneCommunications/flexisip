@@ -52,6 +52,8 @@ option(ENABLE_SOCI "Build with SOCI support" YES)
 option(ENABLE_STATIC "Build static library (default is shared library)." NO)
 option(ENABLE_TRANSCODER "Build transcoder support" YES)
 option(ENABLE_MDNS "Build multicast DNS support" NO)
+option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" NO)
+
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
 if(NOT CMAKE_INSTALL_RPATH AND CMAKE_INSTALL_PREFIX)
