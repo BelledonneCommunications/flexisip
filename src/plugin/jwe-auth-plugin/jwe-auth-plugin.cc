@@ -381,8 +381,12 @@ void JweAuth::onUnload() {
 }
 
 void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
-	const char *error = nullptr;
 	const sip_t *sip = ev->getSip();
+	const sip_method_t method = sip->sip_request->rq_method;
+	if (method != sip_method_invite && method != sip_method_message)
+		return;
+
+	const char *error = nullptr;
 	shared_ptr<JweContext> jweContext;
 
 	const sip_unknown_t *header;
