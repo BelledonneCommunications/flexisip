@@ -33,7 +33,7 @@ find_path(JOSE_INCLUDE_DIRS
 	NAMES jose/jose.h
 	HINTS ${PC_JOSE_INCLUDE_DIRS}
 )
-find_library(JANSSON_LIBRARIES
+find_library(JOSE_LIBRARIES
 	NAMES jose
 	HINTS ${PC_JOSE_LIBRARY_DIRS}
 )
