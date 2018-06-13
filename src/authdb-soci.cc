@@ -177,9 +177,12 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 			// WARNING: it is necessary to create a temporary string here because use() function creates
 			// and returns an object that stores a reference on it. So, it must absolutely be destroyed
 			// at the end of this function.
-			string unescapedIdStr;
-			unescapedIdStr.resize(id.size());
-			url_unescape(&unescapedIdStr[0], id.c_str());
+			char *unescapedId = new char[id.size() + 1];
+			memset(unescapedId, '\0', id.size() + 1);
+			url_unescape(unescapedId, id.c_str());
+
+			string unescapedIdStr(unescapedId);
+			delete[] unescapedId;
 
 			*sql << get_password_request, into(passwords), into(algos), use(unescapedIdStr, "id"), use(domain, "domain"), use(authid, "authid");
 
@@ -193,7 +196,7 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 					if (hashed_passwd) {
 						pass.pass = passwords[i];
 					} else {
-						string input = id + ":" + domain + ":" + passwords[i];
+						string input = unescapedIdStr + ":" + domain + ":" + passwords[i];
 						pass.pass = syncMd5(input.c_str(), 16);
 					}
 				} else if (algos[i] == "CLRTXT") {
@@ -203,7 +206,7 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 						passwd.push_back(pass);
 
 						string input;
-						input = id + ":" + domain + ":" + pass.pass;
+						input = unescapedIdStr + ":" + domain + ":" + passwords[i];
 
 						pass.pass = syncMd5(input.c_str(), 16);
 						pass.algo = "MD5";

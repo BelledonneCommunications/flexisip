@@ -204,10 +204,9 @@ void FileAuthDb::sync() {
 					}
 					
 					// if user with space, replace %20 by space
-					string user_ref;
-					user_ref.resize(user.size());
-					url_unescape(&user_ref[0], user.c_str());
-                    user_ref.resize(strlen(&user_ref[0]));
+					char *user_ref = new char[user.size() + 1];
+					memset(user_ref, '\0', user.size() + 1);
+					url_unescape(user_ref, user.c_str());
 					if (!ss.eof()) {
 						// TODO read userid with space
 						getline(ss, userid, ' ');
@@ -222,7 +221,9 @@ void FileAuthDb::sync() {
 					}
 
 					cacheUserWithPhone(phone, domain, user);
-					parsePasswd(pass, user_ref, domain, passwords);
+					parsePasswd(pass, string(user_ref), domain, passwords);
+
+					delete[] user_ref;
 
 					if (find(domains.begin(), domains.end(), domain) != domains.end()) {
 						string key(createPasswordKey(user, userid));
