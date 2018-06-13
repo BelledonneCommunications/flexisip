@@ -69,9 +69,24 @@ class SharedLibrary {
 public:
 	SharedLibrary(const string &filename, void *library) : mFilename(filename), mLibrary(library) {}
 
-	SharedLibrary(SharedLibrary &&other) : mFilename(move(other.mFilename)), mLibrary(other.mLibrary) {
+	// Workaround for older gcc versions.
+	// Move ctor is not correctly supported with std::pair on older versions of gcc.
+	#if __GNUC__ < 5
+	SharedLibrary(
+		const SharedLibrary &other
+	) : module(other.module), mFilename(move(other.mFilename)), mLibrary(other.mLibrary), mRefCounter(other.mRefCounter) {
+		SharedLibrary &self = const_cast<SharedLibrary &>(other);
+		self.module = nullptr;
+		self.mLibrary = nullptr;
+	}
+	#else
+	SharedLibrary(
+		SharedLibrary &&other
+	) : module(other.module), mFilename(move(other.mFilename)), mLibrary(other.mLibrary), mRefCounter(other.mRefCounter) {
+		other.module = nullptr;
 		other.mLibrary = nullptr;
 	}
+	#endif // if __GNUC__ < 5
 
 	~SharedLibrary() {
 		if (module)
@@ -98,7 +113,7 @@ private:
 	string mFilename;
 	void *mLibrary;
 
-	int mRefCounter = 1;
+	int mRefCounter;
 };
 
 namespace {
