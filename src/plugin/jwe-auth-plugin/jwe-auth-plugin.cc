@@ -342,9 +342,7 @@ void JweAuth::onDeclare(GenericStruct *moduleConfig) {
 		String, "aud-custom-header", "The name of the aud custom header.", "X-token-aud"
 	}, {
 		String, "req-act-custom-header", "The name of the request action custom header.", "X-token-req_act"
-	}, {
-		config_item_end
-	} };
+	}, config_item_end };
 	moduleConfig->addChildrenValues(configs);
 }
 
