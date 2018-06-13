@@ -52,7 +52,7 @@ class GatewayRegister {
 	static StatCounter64 *mCountForkToGateway;
 	static StatCounter64 *mCountDomainRewrite;
 
-  public:
+public:
 	void sendRegister();
 	GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *from, sip_to_t *to, sip_contact_t *contact,
 					const sip_expires_t *global_expire);
@@ -98,13 +98,13 @@ class GatewayRegister {
 		mCountEnd = mc->createStat("count-gr-end", "Number of calls to end()");
 	}
 
-  private:
+private:
 	// Listener class NEED to copy the shared pointer
 	class OnAuthListener : public AuthDbListener {
-	  private:
+	private:
 		GatewayRegister *gw;
 
-	  public:
+	public:
 		OnAuthListener(GatewayRegister *igw) : gw(igw) {
 		}
 
@@ -123,22 +123,26 @@ class GatewayRegister {
 			delete this;
 		}
 
-		virtual void onResult(AuthDbResult result, const passwd_algo_t &passwd) {
+		virtual void onResult(AuthDbResult result, const vector<passwd_algo_t> &passwd) {
 			if (result == AuthDbResult::PASSWORD_FOUND) {
-				checkPassword(passwd.pass.c_str()); /* TODO */
+				checkPassword(passwd.front().pass.c_str());
 			} else {
 				LOGE("GatewayRegister onResult(): Can't find user password, give up.");
 			}
 			delete this;
 		}
+
+		virtual void finishVerifyAlgos(const vector<passwd_algo_t> &pass) {
+			return;
+		}
 	};
 
 	// Listener class NEED to copy the shared pointer
 	class OnFetchListener : public ContactUpdateListener {
-	  private:
+	private:
 		GatewayRegister *gw;
 
-	  public:
+	public:
 		OnFetchListener(GatewayRegister *igw) : gw(igw) {
 		}
 
@@ -183,7 +187,7 @@ StatCounter64 *GatewayRegister::mCountForkToGateway = NULL;
 StatCounter64 *GatewayRegister::mCountDomainRewrite = NULL;
 
 GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, sip_to_t *sip_to,
-								 sip_contact_t *sip_contact, const sip_expires_t *global_expire) {
+								sip_contact_t *sip_contact, const sip_expires_t *global_expire) {
 	su_home_init(&home);
 
 	url_t *domain = NULL;
@@ -204,9 +208,9 @@ GatewayRegister::GatewayRegister(Agent *ag, nua_t *nua, sip_from_t *sip_from, si
 	const char *port = url->url_port;
 	const char *user = sip_contact->m_url->url_user;
 	int expire = forcedExpireValue != -1
-					 ? forcedExpireValue
-					 : ExtendedContact::resolveExpire(sip_contact->m_expires,
-													  global_expire != NULL ? global_expire->ex_delta : -1);
+					? forcedExpireValue
+					: ExtendedContact::resolveExpire(sip_contact->m_expires,
+													global_expire != NULL ? global_expire->ex_delta : -1);
 	if (port) {
 		contact =
 			sip_contact_format(&home, "<%s:%s@%s:%s>;expires=%i", url->url_scheme, user, url->url_host, port, expire);
@@ -333,7 +337,7 @@ class GatewayAdapter : public Module {
 	StatCounter64 *mCountForkToGateway;
 	StatCounter64 *mCountDomainRewrite;
 
-  public:
+public:
 	GatewayAdapter(Agent *ag);
 
 	~GatewayAdapter();
@@ -348,9 +352,9 @@ class GatewayAdapter : public Module {
 
 	virtual bool isValidNextConfig(const ConfigValue &cv);
 
-  private:
+private:
 	static void nua_callback(nua_event_t event, int status, char const *phrase, nua_t *nua, nua_magic_t *_t,
-							 nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]);
+							nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]);
 
 	static ModuleInfo<GatewayAdapter> sInfo;
 	nua_t *nua;
@@ -376,18 +380,18 @@ void GatewayAdapter::onDeclare(GenericStruct *mc) {
 	mc->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = {
 		{Integer, "forced-expire",
-		 "Force expire of gw register to a value. -1 to use expire provided in received register.", "-1"},
+		"Force expire of gw register to a value. -1 to use expire provided in received register.", "-1"},
 		{String, "gateway", "A gateway uri where to send all requests, as a SIP url (eg 'sip:gateway.example.net')",
-		 ""},
+		""},
 		{String, "gateway-domain", "Modify the from and to domains of incoming register", ""},
 		{Boolean, "fork-to-gateway", "The gateway will be added to the incoming register contacts.", "true"},
 		{Boolean, "register-on-gateway",
-		 "Send a REGISTER to the gateway using "
-		 "this server as a contact in order to be notified on incoming calls by the gateway.",
-		 "true"},
+		"Send a REGISTER to the gateway using "
+		"this server as a contact in order to be notified on incoming calls by the gateway.",
+		"true"},
 		{String, "routing-param",
-		 "Parameter name hosting the incoming domain that will be sent in the register to the gateway.",
-		 "routing-domain"},
+		"Parameter name hosting the incoming domain that will be sent in the register to the gateway.",
+		"routing-domain"},
 		config_item_end};
 	mc->addChildrenValues(items);
 	GatewayRegister::onDeclare(mc);
@@ -418,8 +422,8 @@ void GatewayAdapter::onLoad(const GenericStruct *module_config) {
 	if (mRegisterOnGateway) {
 		char *url = su_sprintf(&home, "sip:%s:*", mAgent->getPublicIp().c_str());
 		nua = nua_create(mAgent->getRoot(), nua_callback, this, NUTAG_URL(url),
-						 NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()),
-						 TAG_END());
+						NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()),
+						TAG_END());
 	}
 }
 
@@ -432,17 +436,17 @@ void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			GatewayRegister *gr = NULL;
 			if (mRegisterOnGateway) {
 				gr = new GatewayRegister(getAgent(), nua, sip->sip_from, sip->sip_to, sip->sip_contact,
-										 sip->sip_expires);
+										sip->sip_expires);
 			}
 
 			if (mForkToGateway) {
 				sip_contact_t *contact;
 				if (gateway_url->url_port) {
 					contact = sip_contact_format(&home, "<sip:%s@%s:%s>;expires=%i", sip->sip_contact->m_url->url_user,
-												 gateway_url->url_host, gateway_url->url_port, INT_MAX);
+												gateway_url->url_host, gateway_url->url_port, INT_MAX);
 				} else {
 					contact = sip_contact_format(&home, "<sip:%s@%s>;expires=%i", sip->sip_contact->m_url->url_user,
-												 gateway_url->url_host, INT_MAX);
+												gateway_url->url_host, INT_MAX);
 				}
 				contact->m_next = sip->sip_contact;
 				sip->sip_contact = contact;
@@ -470,7 +474,7 @@ void GatewayAdapter::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 }
 
 void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phrase, nua_t *nua, nua_magic_t *ctx,
-								  nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]) {
+								nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]) {
 	GatewayRegister *gr = (GatewayRegister *)hmagic;
 
 	if (event == nua_r_shutdown && status >= 200) {

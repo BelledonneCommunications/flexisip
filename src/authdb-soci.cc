@@ -37,52 +37,63 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 	ConfigItemDescriptor items[] = {
 
 		{String, "soci-password-request",
-		 "Soci SQL request to execute to obtain the password.\n"
-		 "Named parameters are:\n -':id' : the user found in the from header,\n -':domain' : the authorization realm, "
-		 "and\n -':authid' : the authorization username.\n"
-		 "The use of the :id parameter is mandatory.",
-		 "select password from accounts where id = :id and domain = :domain and authid=:authid"},
+			"Soci SQL request to execute to obtain the password and algorithm.\n"
+			"Named parameters are:\n -':id' : the user found in the from header,\n -':domain' : the authorization realm, "
+			"and\n -':authid' : the authorization username.\n"
+			"The use of the :id parameter is mandatory.\n"
+			"The output of this request MUST contain two columns in this order:\n"
+			"\t- the password column\n"
+			"\t- the algorithm associated column: it can be a column in the database or an explicitly specified value among these ('CLRTXT', 'MD5', 'SHA-256')\n"
+			"Examples: \n"
+			" - the password and algorithm are both available in the database\n"
+			"\tselect password, algorithm from accounts where login = :id and domain = :domain\n"
+			" - all the passwords from the database are MD5\n"
+			"\t select password, 'MD5' from accounts where login = :id and domain = :domain",
+			"select password, 'MD5' from accounts where login = :id and domain = :domain"},
+
 		{String, "soci-user-with-phone-request",
-		 "Soci SQL request to execute to obtain the username associated with a phone alias.\n"
-		 "Named parameters are:\n -':phone' : the phone number to search for.\n"
-		 "The use of the :phone parameter is mandatory.\n"
-		 "Example : select login from accounts where phone = :phone ",
-		 ""},
+			"Soci SQL request to execute to obtain the username associated with a phone alias.\n"
+			"Named parameters are:\n -':phone' : the phone number to search for.\n"
+			"The use of the :phone parameter is mandatory.\n"
+			"Example : select login from accounts where phone = :phone ",
+			""},
+
 		{String, "soci-users-with-phones-request",
-		 "Soci SQL request to execute to obtain the usernames associated with phones aliases.\n"
-		 "Named parameters are:\n -':phones' : the phones to search for.\n"
-		 "The use of the :phones parameter is mandatory.\n"
-         "If you use phone number linked accounts you'll need to select login, domain, phone in your request for flexisip to work."
-		 "Example : select login, domain, phone from accounts where phone in (:phones)",
-		 ""},
+			"Soci SQL request to execute to obtain the usernames associated with phones aliases.\n"
+			"Named parameters are:\n -':phones' : the phones to search for.\n"
+			"The use of the :phones parameter is mandatory.\n"
+			"If you use phone number linked accounts you'll need to select login, domain, phone in your request for flexisip to work."
+			"Example : select login, domain, phone from accounts where phone in (:phones)",
+			""},
 
 		{Integer, "soci-poolsize",
-		 "Size of the pool of connections that Soci will use. We open a thread for each DB query, and this pool will "
-		 "allow each thread to get a connection.\n"
-		 "The threads are blocked until a connection is released back to the pool, so increasing the pool size will "
-		 "allow more connections to occur simultaneously.\n"
-		 "On the other hand, you should not keep too many open connections to your DB at the same time.",
-		 "100"},
+			"Size of the pool of connections that Soci will use. We open a thread for each DB query, and this pool will "
+			"allow each thread to get a connection.\n"
+			"The threads are blocked until a connection is released back to the pool, so increasing the pool size will "
+			"allow more connections to occur simultaneously.\n"
+			"On the other hand, you should not keep too many open connections to your DB at the same time.",
+			"100"},
 
 		{String, "soci-backend", "Choose the type of backend that Soci will use for the connection.\n"
-								 "Depending on your Soci package and the modules you installed, this could be 'mysql', "
-								 "'oracle', 'postgresql' or something else.",
-		 "mysql"},
+			"Depending on your Soci package and the modules you installed, this could be 'mysql', "
+			"'oracle', 'postgresql' or something else.",
+			"mysql"},
 
 		{String, "soci-connection-string", "The configuration parameters of the Soci backend.\n"
-										   "The basic format is \"key=value key2=value2\". For a mysql backend, this "
-										   "is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
-										   "Please refer to the Soci documentation of your backend, for intance: "
-										   "http://soci.sourceforge.net/doc/3.2/backends/mysql.html",
-		 "db=mydb user=myuser password='mypass' host=myhost.com"},
-
+			"The basic format is \"key=value key2=value2\". For a mysql backend, this "
+			"is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
+			"Please refer to the Soci documentation of your backend, for intance: "
+			"http://soci.sourceforge.net/doc/3.2/backends/mysql.html",
+			"db=mydb user=myuser password='mypass' host=myhost.com"},
+		
 		{Integer, "soci-max-queue-size",
-		 "Amount of queries that will be allowed to be queued before bailing password "
-		 "requests.\n This value should be chosen accordingly with 'soci-poolsize', so "
-		 "that you have a coherent behavior.\n This limit is here mainly as a safeguard "
-		 "against out-of-control growth of the queue in the event of a flood or big "
-		 "delays in the database backend.",
-		 "1000"},
+			"Amount of queries that will be allowed to be queued before bailing password "
+			"requests.\n This value should be chosen accordingly with 'soci-poolsize', so "
+			"that you have a coherent behavior.\n This limit is here mainly as a safeguard "
+			"against out-of-control growth of the queue in the event of a flood or big "
+			"delays in the database backend.",
+			"1000"},
+
 		config_item_end};
 
 	mc->addChildrenValues(items);
@@ -100,6 +111,7 @@ SociAuthDB::SociAuthDB() : conn_pool(NULL) {
 	get_user_with_phone_request = ma->get<ConfigString>("soci-user-with-phone-request")->read();
 	get_users_with_phones_request = ma->get<ConfigString>("soci-users-with-phones-request")->read();
 	unsigned int max_queue_size = (unsigned int)ma->get<ConfigInt>("soci-max-queue-size")->read();
+	hashed_passwd = ma->get<ConfigBoolean>("hashed-passwords")->read();
 
 	conn_pool = new connection_pool(poolSize);
 	thread_pool = new ThreadPool(poolSize, max_queue_size);
@@ -114,7 +126,7 @@ SociAuthDB::SociAuthDB() : conn_pool(NULL) {
 		SLOGE << "[SOCI] connection pool open MySQL error: " << e.err_num_ << " " << e.what() << endl;
 	} catch (exception const &e) {
 		SLOGE << "[SOCI] connection pool open error: " << e.what() << endl;
-	}
+	}	
 }
 
 SociAuthDB::~SociAuthDB() {
@@ -138,11 +150,12 @@ void SociAuthDB::reconnectSession(soci::session &session) {
 #define DURATION_MS(start, stop) (unsigned long) duration_cast<milliseconds>((stop) - (start)).count()
 
 void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &domain,
-									 const std::string &authid, AuthDbListener *listener) {
+									const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
 	steady_clock::time_point start;
 	steady_clock::time_point stop;
-	passwd_algo_t passwd;
+
 	session *sql = NULL;
+	vector<passwd_algo_t> passwd;
 	int errorCount = 0;
 	bool retry = false;
 	
@@ -158,20 +171,68 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 			SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
 			start = stop;
 
+			vector<string> passwords(10);
+			vector<string> algos(10);
+
 			// WARNING: it is necessary to create a temporary string here because use() function creates
 			// and returns an object that stores a reference on it. So, it must absolutely be destroyed
 			// at the end of this function.
-			string unescapedIdStr;
-			unescapedIdStr.resize(id.size());
-			url_unescape(&unescapedIdStr[0], id.c_str());
+			char *unescapedId = new char[id.size() + 1];
+			memset(unescapedId, '\0', id.size() + 1);
+			url_unescape(unescapedId, id.c_str());
 
-			*sql << get_password_request, into(passwd.pass), use(unescapedIdStr, "id"), use(domain, "domain"), use(authid, "authid");
-			passwd.passmd5 = passwd.pass; // TODO
+			string unescapedIdStr(unescapedId);
+			delete[] unescapedId;
+
+			*sql << get_password_request, into(passwords), into(algos), use(unescapedIdStr, "id"), use(domain, "domain"), use(authid, "authid");
+
+			for (vector<string>::size_type i = 0; i < passwords.size(); ++i) {
+				passwd_algo_t pass;
+
+				/* If algos is empty then the request contained only the password column */
+				if (algos[i].empty()) {
+					pass.algo = "MD5";
+
+					if (hashed_passwd) {
+						pass.pass = passwords[i];
+					} else {
+						string input = unescapedIdStr + ":" + domain + ":" + passwords[i];
+						pass.pass = syncMd5(input.c_str(), 16);
+					}
+				} else if (algos[i] == "CLRTXT") {
+					if (passwd.empty()) {
+						pass.algo = algos[i];
+						pass.pass = passwords[i];
+						passwd.push_back(pass);
+
+						string input;
+						input = unescapedIdStr + ":" + domain + ":" + passwords[i];
+
+						pass.pass = syncMd5(input.c_str(), 16);
+						pass.algo = "MD5";
+						passwd.push_back(pass);
+
+						pass.pass = syncSha256(input.c_str(), 32);
+						pass.algo = "SHA-256";
+						passwd.push_back(pass);
+
+						break;
+					}
+				} else {
+					pass.algo = algos[i];
+					pass.pass = passwords[i];
+				}
+
+				passwd.push_back(pass);
+			}
+			
+			if(listener_ref) listener_ref->finishVerifyAlgos(passwd);
+			
 			stop = steady_clock::now();
 			SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
 			cachePassword(createPasswordKey(id, authid), domain, passwd, mCacheExpire);
 			if (listener){
-				listener->onResult(passwd.pass.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);
+				listener->onResult(passwords.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);
 			}
 			errorCount = 0;
 		} catch (mysql_soci_error const &e) {
@@ -182,11 +243,11 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 			
 			if ((e.err_num_ == 2014 || e.err_num_ == 2006) && errorCount == 1){
 				/* 2014 is the infamous "Commands out of sync; you can't run this command now" mysql error,
-				 * which is retryable.
-				 * At this time we don't know if it is a soci or mysql bug, or bug with the sql request being executed.
-				 * 
-				 * 2006 is "MySQL server has gone away" which is also retryable.
-				 */
+				* which is retryable.
+				* At this time we don't know if it is a soci or mysql bug, or bug with the sql request being executed.
+				*
+				* 2006 is "MySQL server has gone away" which is also retryable.
+				*/
 				SLOGE << "[SOCI] retrying mysql error " << e.err_num_;
 				retry = true;
 			}
@@ -340,16 +401,16 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,A
 #endif
 
 void SociAuthDB::getPasswordFromBackend(const std::string &id, const std::string &domain,
-										const std::string &authid, AuthDbListener *listener) {
+										const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
 
 	// create a thread to grab a pool connection and use it to retrieve the auth information
-	auto func = bind(&SociAuthDB::getPasswordWithPool, this, id, domain, authid, listener);
+	auto func = bind(&SociAuthDB::getPasswordWithPool, this, id, domain, authid, listener, listener_ref);
 
 	bool success = thread_pool->Enqueue(func);
 	if (success == FALSE) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil password request for " << id << " / " << domain << " / "
-			  << authid;
+			<< authid;
 		if (listener) listener->onResult(AUTH_ERROR, "");
 	}
 }
