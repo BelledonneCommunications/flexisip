@@ -396,6 +396,12 @@ void ForkContext::nextBranches() {
 }
 
 void ForkContext::start() {
+	/* Remove existing timer */
+	if (mNextBranchesTimer) {
+		su_timer_destroy(mNextBranchesTimer);
+		mNextBranchesTimer = NULL;
+	}
+
 	/* Prepare branches */
 	nextBranches();
 
@@ -407,10 +413,7 @@ void ForkContext::start() {
 	}
 
 	if (mCfg->mCurrentBranchesTimeout > 0 && hasNextBranches()) {
-		/* Start/Restart the timer for next branches */
-		if (mNextBranchesTimer)
-			su_timer_destroy(mNextBranchesTimer);
-
+		/* Start the timer for next branches */
 		mNextBranchesTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
 		su_timer_set_interval(mNextBranchesTimer, &ForkContext::sOnNextBanches, this, (su_duration_t)mCfg->mCurrentBranchesTimeout * (su_duration_t)1000);
 	}
