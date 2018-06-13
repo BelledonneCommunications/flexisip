@@ -39,6 +39,6 @@ find_library(JOSE_LIBRARIES
 )
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Jose REQUIRED_VARS JOSE_INCLUDE_DIRS JANSSON_LIBRARIES)
+find_package_handle_standard_args(Jose REQUIRED_VARS JOSE_INCLUDE_DIRS JOSE_LIBRARIES)
 
-mark_as_advanced(JOSE_INCLUDE_DIRS JANSSON_LIBRARIES)
+mark_as_advanced(JOSE_INCLUDE_DIRS JOSE_LIBRARIES)
