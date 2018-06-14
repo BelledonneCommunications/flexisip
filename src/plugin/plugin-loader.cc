@@ -138,7 +138,7 @@ static SharedLibrary *getOrCreateSharedLibrary(const string &filename, string &e
 	} else {
 		void *library = openLibrary(filename, error);
 		if (library)
-			sharedLibrary = &LoadedLibraries.insert({ filename, SharedLibrary(filename, library) }).first->second;
+			sharedLibrary = &LoadedLibraries.insert(make_pair(filename, SharedLibrary(filename, library))).first->second;
 		else
 			return nullptr;
 	}
