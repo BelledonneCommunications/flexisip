@@ -194,6 +194,7 @@ fi
 %files jwe-auth-plugin
 %defattr(-,root,root,-)
 %{_libdir}/flexisip/plugins/libjweauth.so
+%{_libdir}/flexisip/plugins/libjweauth.so.*
 %endif
 
 %changelog
