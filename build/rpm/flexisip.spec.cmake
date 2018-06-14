@@ -125,8 +125,8 @@ mkdir -p $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip.service $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip\@.service $RPM_BUILD_ROOT/lib/systemd/system
 %if @ENABLE_PRESENCE@
-  install -p -m 0644 scripts/flexisip-presence.service $RPM_BUILD_ROOT/lib/systemd/system
-  install -p -m 0644 scripts/flexisip-presence\@.service $RPM_BUILD_ROOT/lib/systemd/system
+install -p -m 0644 scripts/flexisip-presence.service $RPM_BUILD_ROOT/lib/systemd/system
+install -p -m 0644 scripts/flexisip-presence\@.service $RPM_BUILD_ROOT/lib/systemd/system
 %endif
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
 install -p -m 0644 scripts/flexisip-logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
@@ -176,7 +176,9 @@ fi
 %docdir %{_docdir}
 %{_docdir}
 %{_bindir}/*
-%{_libdir}/*
+%{_libdir}/*.so
+%{_libdir}/*.so.*
+%{_libdir}/pkgconfig/*.pc
 
 %if @ENABLE_PRESENCE@
 %{_sysconfdir}/init.d/flexisip-presence
