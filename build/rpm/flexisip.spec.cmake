@@ -177,8 +177,6 @@ fi
 %{_docdir}
 %{_bindir}/*
 %{_libdir}/*.so
-%{_libdir}/*.so.*
-%{_libdir}/pkgconfig/*.pc
 
 %if @ENABLE_PRESENCE@
 %{_sysconfdir}/init.d/flexisip-presence
