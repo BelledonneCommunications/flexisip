@@ -521,10 +521,12 @@ void addPluginModule(Agent *agent, list<Module *> &modules, const string &plugin
 	}
 
 	for (const string &after : moduleInfo->getAfter()) {
-		auto it = find_if(modules.cbegin(), modules.cend(), [&after](const Module *module) {
+		// TODO: Replace begin() and end() with cbegin() and cend() later.
+		// gcc 4.8.2 (CentOS 7) does not support insert with const iterator.
+		auto it = find_if(modules.begin(), modules.end(), [&after](const Module *module) {
 			return module->getModuleName() == after;
 		});
-		if (it == modules.cend())
+		if (it == modules.end())
 			continue;
 
 		const string &moduleName = moduleInfo->getModuleName();
