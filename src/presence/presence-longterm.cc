@@ -29,18 +29,22 @@ public:
 		belle_sip_object_unref(timer);
 	}
 	
-	virtual void onResult(AuthDbResult result, const passwd_algo_t &passwd) {
+	virtual void onResult(AuthDbResult result, const vector<passwd_algo_t> &passwd) {
 		belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, result, passwd](unsigned int events) {
-			this->processResponse(result, passwd.pass);
+			this->processResponse(result, passwd.front().pass);
 			return BELLE_SIP_STOP;
 		});
-		belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(mMainLoop
-		                            , func
-		                            , 0
-		                            , "OnAuthListener to mainthread");
+		belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(  mMainLoop
+																		, func
+																		, 0
+																		, "OnAuthListener to mainthread");
 		belle_sip_object_unref(timer);
 	}
 	
+	virtual void finishVerifyAlgos(const vector<passwd_algo_t> &pass) {
+		return;
+	}
+
 	void onResults(list<std::string> &phones, set<std::string> &users) {
 		for(std::string phone : phones) {
 			if(users.size() == 0) {
@@ -112,8 +116,8 @@ void PresenceLongterm::onListenerEvent(const std::shared_ptr<PresentityPresenceI
 		const belle_sip_uri_t* uri = info->getEntity();
 		SLOGD << "No presence info element known yet for " << belle_sip_uri_get_user(uri) << ", checking if this user is already registered";
 		AuthDbBackend::get()->getUserWithPhone(belle_sip_uri_get_user(info->getEntity())
-											   , belle_sip_uri_get_host(info->getEntity())
-											   , new PresenceAuthListener(mMainLoop, info));
+											, belle_sip_uri_get_host(info->getEntity())
+											, new PresenceAuthListener(mMainLoop, info));
 	}
 }
 void PresenceLongterm::onListenerEvents(list<std::shared_ptr<PresentityPresenceInformation>>& infos) const {
@@ -127,5 +131,5 @@ void PresenceLongterm::onListenerEvents(list<std::shared_ptr<PresentityPresenceI
 	}
 	
 	AuthDbBackend::get()->getUsersWithPhone(creds
-										   , new PresenceAuthListener(mMainLoop, dInfo));
+										, new PresenceAuthListener(mMainLoop, dInfo));
 }

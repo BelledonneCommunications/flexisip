@@ -25,7 +25,7 @@
 
 class RegistrarDbInternal : public RegistrarDb {
   public:
-	RegistrarDbInternal(const std::string &preferredRoute);
+	RegistrarDbInternal(Agent *ag);
 	void clearAll();
 
   private:

@@ -1,3 +1,5 @@
+[![pipeline status](https://gitlab.linphone.org/BC/public/flexisip/badges/master/pipeline.svg)](https://gitlab.linphone.org/BC/public/flexisip/commits/master)
+
 Flexisip is a SIP server suite comprising:
  - Flexisip proxy server, a SIP proxy with media-relay built-in.
  - Flexisip presence server, a presence server using resource-lists contained in SUBSCRIBE.

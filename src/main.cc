@@ -135,7 +135,7 @@ static void flexisip_stop(int signum) {
 		kill(flexisip_pid, signum);
 	} else if (run != 0) {
 		// LOGD("Received quit signal...");
-		
+
 		run = 0;
 		if (root) {
 			su_root_break(root);
@@ -503,7 +503,7 @@ static int dump_config(su_root_t *root, const std::string &dump_cfg_part, bool w
 		} else if (prefix_location == 0) {
 			string moduleName = dump_cfg_part.substr(strlen("module::"));
 			Module *module = a->findModule(moduleName);
-			if (module && module->getClass() == ModuleClassExperimental && !with_experimental) {
+			if (module && module->getClass() == ModuleClass::Experimental && !with_experimental) {
 				cerr << "Module " << moduleName
 					 << " is experimental, not returning anything. To override, specify '--show-experimental'" << endl;
 				return EXIT_FAILURE;
@@ -577,9 +577,6 @@ static string version() {
 #endif
 #if ENABLE_REDIS
 	version << "- Redis\n";
-#endif
-#if ENABLE_PUSHNOTIFICATION
-	version << "- Push Notification\n";
 #endif
 #if ENABLE_ODBC
 	version << "- ODBC\n";
@@ -769,7 +766,7 @@ int main(int argc, char *argv[]) {
 		user_errors = true;
 	}
 	bool dump_cores = cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
-	
+
 	bool startProxy = false;
 	bool startPresence = false;
 	bool startConference = false;
@@ -812,8 +809,8 @@ int main(int argc, char *argv[]) {
 	std::string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
 	std::string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
 	if (!user_errors) user_errors = cfg->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
-	
-	ortp_set_log_handler(NULL); /*remove ortp's default log handler that logs to stdout*/ 
+
+	ortp_set_log_handler(NULL); /*remove ortp's default log handler that logs to stdout*/
 	ortp_init();
 	// in case we don't plan to launch flexisip, don't setup the logs.
 	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs &&
@@ -865,7 +862,7 @@ int main(int argc, char *argv[]) {
 	}
 	/*read the pkcs passphrase if any from the fifo, and keep it in memory*/
 	string passphrase = getPkcsPassphrase(pkcsFile);
-	
+
 	/*
 	 * Perform the fork of the watchdog, followed by the fork of the worker daemon, in forkAndDetach().
 	 * NEVER NEVER create pthreads before this point : threads do not survive the fork below !!!!!!!!!!
@@ -889,9 +886,9 @@ int main(int argc, char *argv[]) {
 	GenericManager::get()->sendTrap("Flexisip "+ fName + "-server starting");
 
 	root = su_root_create(NULL);
-	
+
 	increase_fd_limit();
-	
+
 	//we create an Agent in all cases, because it will declare config items that are necessary for presence server to run.
 	a = make_shared<Agent>(root);
 	setOpenSSLThreadSafe();
@@ -926,10 +923,10 @@ int main(int argc, char *argv[]) {
 			stun = new StunServer(cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigInt>("port")->read());
 			stun->start();
 		}
-		
+
 		proxy_stats = new Stats("proxy");
 		proxy_stats->start();
-		
+
 		if (trackAllocs)
 			msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
 	}
@@ -952,7 +949,7 @@ int main(int argc, char *argv[]) {
 			 * Since it prevents from starting and it is not a crash, it shall be notified to the user with LOGF*/
 			LOGF("Fail to start flexisip presence server");
 		}
-		
+
 		presence_stats = new Stats("presence");
 		presence_stats->start();
 #endif
@@ -990,7 +987,7 @@ int main(int argc, char *argv[]) {
 			a->unloadConfig();
 		}
 	}
-	
+
 	a.reset();
 #ifdef ENABLE_PRESENCE
 	if (presence_stats) {
@@ -1022,7 +1019,7 @@ int main(int argc, char *argv[]) {
 	if (trackAllocs)
 		dump_remaining_msgs();
 	GenericManager::get()->sendTrap("Flexisip "+ fName + "-server exiting normally");
-	
+
 	bctbx_uninit_logger();
 	return 0;
 }

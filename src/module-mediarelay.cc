@@ -39,10 +39,14 @@ static bool isEarlyMedia(sip_t *sip) {
 	return false;
 }
 
-ModuleInfo<MediaRelay> MediaRelay::sInfo("MediaRelay", "The MediaRelay module masquerades SDP message so that all RTP and RTCP streams go through the proxy. "
-		"The RTP and RTCP streams are then routed so that each client receives the stream of the other. "
-		"MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.",
-		ModuleInfoBase::ModuleOid::MediaRelay);
+ModuleInfo<MediaRelay> MediaRelay::sInfo(
+	"MediaRelay",
+	"The MediaRelay module masquerades SDP message so that all RTP and RTCP streams go through the proxy. "
+	"The RTP and RTCP streams are then routed so that each client receives the stream of the other. "
+	"MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.",
+	{ "LoadBalancer" },
+	ModuleInfoBase::ModuleOid::MediaRelay
+);
 
 MediaRelay::MediaRelay(Agent * ag) :
 		Module(ag), mCalls(NULL) {
@@ -164,8 +168,17 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 	if (sip->sip_to->a_tag != NULL)
 		to_tag = sip->sip_to->a_tag;
 	string dest_host;
-	if (sip->sip_request != NULL && sip->sip_request->rq_url->url_host != NULL)
+
+	/*get the next hop of the message to make the best guess about the local network interface to use for media relay*/
+	sip_route_t *route = sip->sip_route;
+	while (route != NULL && mAgent->isUs(route->r_url)){
+		route = route->r_next;
+	}
+	if (route){
+		dest_host = urlGetHost(route->r_url);
+	}else if (sip->sip_request != NULL && sip->sip_request->rq_url->url_host != NULL){
 		dest_host = urlGetHost(sip->sip_request->rq_url);
+	}
 
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
 		LOGD("Invite is already relayed");

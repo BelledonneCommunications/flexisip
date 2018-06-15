@@ -23,8 +23,7 @@
 using namespace std;
 
 class ModuleRedirect : public Module, ModuleToolbox {
-
-  private:
+private:
 	static ModuleInfo<ModuleRedirect> sInfo;
 	sip_contact_t *mContact;
 	su_home_t mHome;
@@ -44,8 +43,7 @@ class ModuleRedirect : public Module, ModuleToolbox {
 		if (cv.getName() == "contact") {
 			sip_contact_t *contact = sip_contact_make(&mHome, cv.getName().c_str());
 			if (!contact) {
-				SLOGE << this->getModuleName() << ": wrong destination contact for redirection [" << cv.getName()
-					  << "]";
+				SLOGE << this->getModuleName() << ": wrong destination contact for redirection [" << cv.getName() << "]";
 				return false;
 			}
 		}
@@ -54,20 +52,23 @@ class ModuleRedirect : public Module, ModuleToolbox {
 
 	void onLoad(const GenericStruct *mc) {
 		mContact = sip_contact_make(&mHome, mc->get<ConfigString>("contact")->read().c_str());
-		SLOGI << this->getModuleName() << ": redirect contact is [" << mc->get<ConfigString>("contact")->read().c_str()
-			  << "]";
+		SLOGI << this->getModuleName() << ": redirect contact is [" << mc->get<ConfigString>("contact")->read().c_str() << "]";
 	}
 
 	void onUnload() {
 	}
 
 	void onRequest(shared_ptr<RequestSipEvent> &ev) {
-		ev->reply(SIP_302_MOVED_TEMPORARILY, SIPTAG_CONTACT(sip_contact_dup(&mHome, mContact)),
-				  SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		ev->reply(
+			SIP_302_MOVED_TEMPORARILY,
+			SIPTAG_CONTACT(sip_contact_dup(&mHome, mContact)),
+			SIPTAG_SERVER_STR(getAgent()->getServerString()),
+			TAG_END()
+		);
 	}
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) {};
 
-  public:
+public:
 	ModuleRedirect(Agent *ag) : Module(ag) {
 		su_home_init(&mHome);
 	}
@@ -76,6 +77,10 @@ class ModuleRedirect : public Module, ModuleToolbox {
 		su_home_deinit(&mHome);
 	}
 };
-ModuleInfo<ModuleRedirect> ModuleRedirect::sInfo("Redirect",
-												 "This module redirect sip request with a 302 move temporarily.",
-												 ModuleInfoBase::ModuleOid::Redirect);
+
+ModuleInfo<ModuleRedirect> ModuleRedirect::sInfo(
+	"Redirect",
+	"This module redirect sip request with a 302 move temporarily.",
+	{ "DateHandler", "Authentication" },
+	ModuleInfoBase::ModuleOid::Redirect
+);

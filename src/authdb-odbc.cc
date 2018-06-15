@@ -137,10 +137,10 @@ struct AuthDbTimingsAnalyzer {
 
 	void display(const char *name) {
 		LOGI("%lu [%lu micro] timings (%lu errors) %lu [%lu micro] slow - %lu [%lu millis] slowest", count,
-			 (long)average, errorCount, slowCount, (long)slowAverage, slowestCount, ((long)slowestAverage) / 1000);
+			(long)average, errorCount, slowCount, (long)slowAverage, slowestCount, ((long)slowestAverage) / 1000);
 		double lDiv = ((double)maxLineWidth) / LineWidth;
 		LOGI("Displaying %s, %u steps [%lu - %lu] - max %lu - div %f", name, steps, 0l, maxDuration, maxLineWidth,
-			 lDiv);
+			lDiv);
 		if (lDiv == 0.f) {
 			LOGI("Skipping display with no maxcount");
 			return;
@@ -199,9 +199,9 @@ static vector<string> parseAndUpdateRequestConfig(string &request) {
 }
 
 /**
- * See documentation on ODBC on Microsoft pages:
- * http://msdn.microsoft.com/en-us/library/ms716319%28v=VS.85%29.aspx
- */
+* See documentation on ODBC on Microsoft pages:
+* http://msdn.microsoft.com/en-us/library/ms716319%28v=VS.85%29.aspx
+*/
 OdbcAuthDb::OdbcAuthDb() : mAsynchronousRetrieving(true), env(NULL), execDirect(false) {
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
@@ -256,9 +256,9 @@ OdbcAuthDb::OdbcAuthDb() : mAsynchronousRetrieving(true), env(NULL), execDirect(
 		LOGF("odbc error");
 	}
 /*SM: this follow code is really a crap because it blocks flexisip entirely at startup if the database is not
- *responding.
- *  However it is required because mysql client lib segfaults like a shit when used from a thread for the first.
- **/
+*responding.
+*  However it is required because mysql client lib segfaults like a shit when used from a thread for the first.
+**/
 #if 1
 	// Make sure the driver library is loaded.
 	AuthDbTimings timings;
@@ -277,18 +277,18 @@ void OdbcAuthDb::declareConfig(GenericStruct *mc) {
 							"Named parameters are :id (the user found in the from header), :domain (the authorization "
 							"realm) and :authid (the authorization username). "
 							"The use of the :id parameter is mandatory.",
-		 "select password from accounts where id = :id and domain = :domain and authid=:authid"},
+		"select password from accounts where id = :id and domain = :domain and authid=:authid"},
 
 		{Boolean, "odbc-pooling", "Use pooling in ODBC (improves performances). This is not guaranteed to succeed, "
-								  "because if you are using unixODBC, it consults the /etc/odbcinst.ini"
-								  "file in section [ODBC] to check for Pooling=yes/no option. You should make sure "
-								  "that this flag is set before expecting this option to work.",
-		 "true"},
+								"because if you are using unixODBC, it consults the /etc/odbcinst.ini"
+								"file in section [ODBC] to check for Pooling=yes/no option. You should make sure "
+								"that this flag is set before expecting this option to work.",
+		"true"},
 
 		{Integer, "odbc-display-timings-interval", "Display timing statistics after this count of seconds", "0"},
 
 		{Integer, "odbc-display-timings-after-count",
-		 "Display timing statistics once the number of samples reach this number.", "0"},
+		"Display timing statistics once the number of samples reach this number.", "0"},
 
 		config_item_end};
 
@@ -386,13 +386,13 @@ bool OdbcAuthDb::getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimin
 	// - establish an underlying connecion;
 	// Attach underlying to wrapper.
 	retcode = SQLDriverConnect(ctx.dbc, NULL, (SQLCHAR *)connectionString.c_str(), SQL_NTS, NULL, 0, NULL,
-							   SQL_DRIVER_COMPLETE);
+							SQL_DRIVER_COMPLETE);
 	if (!SQL_SUCCEEDED(retcode)) {
 		dbcError(ctx, "SQLDriverConnect");
 		return false;
 	}
 	LOGD("SQLDriverConnect %s : %lu ms", id.c_str(),
-		 (unsigned long)duration_cast<milliseconds>(steady_clock::now() - tp2).count());
+		(unsigned long)duration_cast<milliseconds>(steady_clock::now() - tp2).count());
 
 	// Set connection to be read only
 	SQLSetConnectAttr(ctx.dbc, SQL_ATTR_ACCESS_MODE, (SQLPOINTER)SQL_MODE_READ_ONLY, 0);
@@ -429,7 +429,7 @@ bool OdbcAuthDb::getConnection(const string &id, ConnectionCtx &ctx, AuthDbTimin
 			}
 			LOGD("SQLBindParameter %u -> %s", (unsigned int)i, parameters[i].c_str());
 			retcode = SQLBindParameter(ctx.stmt, i + 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, (SQLULEN)fieldLength, 0,
-									   fieldBuffer, 0, NULL);
+									fieldBuffer, 0, NULL);
 			if (!SQL_SUCCEEDED(retcode)) {
 				logSqlError("SQLBindParameter", ctx.stmt, SQL_HANDLE_STMT);
 				LOGF("couldn't bind parameter");
@@ -478,7 +478,7 @@ static unsigned long threadCount=0;
 static mutex threadCountMutex;
 */
 void OdbcAuthDb::doAsyncRetrievePassword(string id, string domain, string auth,
-										 AuthDbListener *listener) {
+										AuthDbListener *listener) {
 	/*	unsigned long localThreadCountCopy=0;
 		threadCountMutex.lock();
 		++threadCount;

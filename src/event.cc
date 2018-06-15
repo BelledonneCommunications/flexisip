@@ -285,12 +285,12 @@ bool RequestSipEvent::matchIncomingSubject(regex_t *regex){
 	return false;
 }
 
-bool RequestSipEvent::findIncomingSubject(const char *searched) {
+bool RequestSipEvent::findIncomingSubject(const char *searched) const {
 	auto strlst = tport_delivered_from_subjects(mIncomingTport.get(), mMsgSip->getMsg());
 	return !!tport_subject_search(searched, strlst);
 }
 
-const char *RequestSipEvent::findIncomingSubject(const list<string> &in) {
+const char *RequestSipEvent::findIncomingSubject(const list<string> &in) const {
 	if (in.empty())
 		return NULL;
 	auto strlst = tport_delivered_from_subjects(mIncomingTport.get(), mMsgSip->getMsg());
@@ -353,5 +353,3 @@ std::ostream &operator<<(std::ostream &strm, const url_t &obj){
 	strm<<url_as_string(home.home(), &obj);
 	return strm;
 }
-
-

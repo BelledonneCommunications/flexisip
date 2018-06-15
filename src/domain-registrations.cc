@@ -247,18 +247,19 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 			LOGD("Domain registration certificates are the same as the one for existing tports, let's use them");
 			mPrimaryTport = nta_agent_tports(agent);
 		} else {
-			list<string> canons;
+			list<const tp_name_t *> tp_names;
 			tport_t *primaries = tport_primaries(nta_agent_tports(agent));
 			for (tport_t *tport = primaries; tport != NULL; tport = tport_next(tport)) {
 				const tp_name_t *name;
 				name = tport_name(tport);
 				if (strcmp(name->tpn_proto, "tls") == 0) {
-					canons.push_back(name->tpn_canon);
+					tp_names.push_back(name);
 				}
 			}
-			for (list<string>::iterator it = canons.begin(); it != canons.end(); ++it) {
+			for (list<const tp_name_t *>::iterator it = tp_names.begin(); it != tp_names.end(); ++it) {
 				url_t *tportUri = NULL;
-				tportUri = url_format(&mHome, "sips:%s:0", (*it).c_str());
+				const tp_name_t *name = (*it);
+				tportUri = url_format(&mHome, "sips:%s:0;maddr=%s", name->tpn_canon, name->tpn_host);
 				/* need to add a new tport because we want to use a specific certificate for this connection*/
 				nta_agent_add_tport(agent, (url_string_t *)tportUri, TPTAG_CERTIFICATE(clientCertdir.c_str()), TPTAG_TLS_PASSPHRASE(passphrase.c_str()),
 									TPTAG_IDENT(localDomain.c_str()),

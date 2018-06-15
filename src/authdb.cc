@@ -31,7 +31,7 @@ void AuthDbListener::onResults(list<string> &phones, set<string> &users) {
 }
 
 class FixedAuthDb : public AuthDbBackend {
-  public:
+public:
 	FixedAuthDb() {
 	}
 
@@ -39,7 +39,7 @@ class FixedAuthDb : public AuthDbBackend {
 		if (listener) listener->onResult(PASSWORD_FOUND, "user@domain.com");
 	}
 	virtual void getPasswordFromBackend(const string &id, const string &domain,
-										const string &authid, AuthDbListener *listener) {
+										const string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
 		if (listener) listener->onResult(PASSWORD_FOUND, "fixed");
 	}
 	static void declareConfig(GenericStruct *mc){};
@@ -92,21 +92,20 @@ void AuthDbBackend::declareConfig(GenericStruct *mc) {
 string AuthDbBackend::createPasswordKey(const string &user, const string &auth_username) {
 	ostringstream key;
 	string unescapedUsername;
+
 	unescapedUsername.reserve(auth_username.size());
 	url_unescape(&unescapedUsername[0], auth_username.c_str());
 	key << user << "#" << unescapedUsername;
 	return key.str();
 }
 
-AuthDbBackend::CacheResult AuthDbBackend::getCachedPassword(const string &key, const string &domain, passwd_algo_t &pass) {
+AuthDbBackend::CacheResult AuthDbBackend::getCachedPassword(const string &key, const string &domain, vector<passwd_algo_t> &pass) {
 	time_t now = getCurrentTime();
 	auto &passwords = mCachedPasswords[domain];
 	unique_lock<mutex> lck(mCachedPasswordMutex);
 	auto it = passwords.find(key);
 	if (it != passwords.end()) {
-		pass.pass.assign(it->second.pass.pass);
-		pass.passmd5.assign(it->second.pass.passmd5);
-		pass.passsha256.assign(it->second.pass.passsha256);
+		pass = it->second.pass;
 		if (now < it->second.expire_date) {
 			return VALID_PASS_FOUND;
 		} else {
@@ -121,7 +120,7 @@ void AuthDbBackend::clearCache() {
 	mCachedPasswords.clear();
 }
 
-bool AuthDbBackend::cachePassword(const string &key, const string &domain, const passwd_algo_t &pass, int expires) {
+bool AuthDbBackend::cachePassword(const string &key, const string &domain, const vector<passwd_algo_t> &pass, int expires) {
 	time_t now = getCurrentTime();
 	map<string, CachedPassword> &passwords = mCachedPasswords[domain];
 	unique_lock<mutex> lck(mCachedPasswordMutex);
@@ -152,10 +151,10 @@ bool AuthDbBackend::cacheUserWithPhone(const string &phone, const string &domain
 }
 
 void AuthDbBackend::getPassword(const string &user, const string &host, const string &auth_username,
-                                AuthDbListener *listener) {
+								AuthDbListener *listener) {
 	// Check for usable cached password
 	string key(createPasswordKey(user, auth_username));
-	passwd_algo_t pass;
+	vector<passwd_algo_t> pass;
 	switch (getCachedPassword(key, host, pass)) {
 		case VALID_PASS_FOUND:
 			if (listener) listener->onResult(AuthDbResult::PASSWORD_FOUND, pass);
@@ -170,27 +169,19 @@ void AuthDbBackend::getPassword(const string &user, const string &host, const st
 	}
 
 	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
-	getPasswordFromBackend(user, host, auth_username, listener);
+	getPasswordFromBackend(user, host, auth_username, listener, NULL);
 }
 
 void AuthDbBackend::getPasswordForAlgo(const string &user, const string &host, const string &auth_username,
-                                       AuthDbListener *listener, list<string> &algorithms) {
+										AuthDbListener *listener, AuthDbListener *listener_ref) {
 	// Check for usable cached password
 	string key(createPasswordKey(user, auth_username));
-	passwd_algo_t pass;
+	vector<passwd_algo_t> pass;
+
 	switch (getCachedPassword(key, host, pass)) {
 		case VALID_PASS_FOUND:
 			if (listener) listener->onResult(AuthDbResult::PASSWORD_FOUND, pass);
-			else if (pass.pass == "") {
-				for (auto it = algorithms.begin(); it != algorithms.end();) {
-					if (((*it == "MD5") && (pass.passmd5 == "")) || ((*it == "SHA-256") && (pass.passsha256 == "")))
-						it = algorithms.erase(it);
-					else
-						it++;
-				}
-				if (algorithms.empty())
-					SLOGE << "There is no password for the given algorithms";
-			}
+			if (listener_ref) listener_ref->finishVerifyAlgos(pass);
 			return;
 		case EXPIRED_PASS_FOUND:
 			// Might check here if connection is failing
@@ -202,11 +193,11 @@ void AuthDbBackend::getPasswordForAlgo(const string &user, const string &host, c
 	}
 
 	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
-	getPasswordFromBackend(user, host, auth_username, listener);
+	getPasswordFromBackend(user, host, auth_username, listener, listener_ref);
 }
 
-void AuthDbBackend::createCachedAccount(const string &user, const string &host, const string &auth_username, const passwd_algo_t &password,
-                                        int expires, const string &phone_alias) {
+void AuthDbBackend::createCachedAccount(const string &user, const string &host, const string &auth_username, const vector<passwd_algo_t> &password,
+										int expires, const string & phone_alias) {
 	if (!user.empty() && !host.empty()) {
 		string key = createPasswordKey(user, auth_username);
 		cachePassword(key, host, password, expires);
@@ -214,39 +205,49 @@ void AuthDbBackend::createCachedAccount(const string &user, const string &host, 
 	}
 }
 
-string AuthDbBackend::syncSha256(const char *input, size_t size) {
+string AuthDbBackend::syncSha256(const char* input,size_t size){
 	uint8_t a1buf[size];
 	size_t di;
-	char out[size * 2 + 1];
-	bctbx_sha256((const unsigned char *)input, strlen(input), size, a1buf);
+	char out[size*2+1];
+	bctbx_sha256((const unsigned char*)input, strlen(input),size, a1buf);
 	for (di = 0; di < size; ++di)
 		sprintf(out + di * 2, "%02x", a1buf[di]);
-	out[size * 2] = '\0';
+	out[size*2]='\0';
 	return out;
 }
 
-string AuthDbBackend::syncMd5(const char *input, size_t size) {
+string AuthDbBackend::syncMd5(const char* input,size_t size){
 	uint8_t a1buf[size];
 	size_t di;
-	char out[size * 2 + 1];
-	bctbx_md5((const unsigned char *)input, strlen(input), a1buf);
+	char out[size*2+1];
+	bctbx_md5((const unsigned char*)input, strlen(input), a1buf);
 	for (di = 0; di < size; ++di)
 		sprintf(out + di * 2, "%02x", a1buf[di]);
-	out[size * 2] = '\0';
+	out[size*2]='\0';
 	return out;
 }
 
-void AuthDbBackend::createAccount(const string &user, const string &host, const string &auth_username, const string &password,
-                                  int expires, const string &phone_alias) {
+void AuthDbBackend::createAccount(const string & user, const string & host, const string &auth_username, const string &password,
+										int expires, const string & phone_alias) {
 	// Password here is in mod clrtxt. Calcul passmd5 and passsha256 before createCachedAccount.
-	passwd_algo_t pass;
-	pass.pass = password;
-	if (pass.pass != "") {
-		string input;
-		input = user + ":" + host + ":" + pass.pass;
-		pass.passmd5 = syncMd5(input.c_str(), 16);
-		pass.passsha256 = syncSha256(input.c_str(), 32);
-	}
+	vector<passwd_algo_t> pass;
+	passwd_algo_t clrtxt, md5, sha256;
+
+	clrtxt.pass = password;
+	clrtxt.algo = "CLRTXT";
+	pass.push_back(clrtxt);
+
+	string input;
+	input = user+":"+host+":"+clrtxt.pass;
+
+	md5.pass = syncMd5(input.c_str(), 16);
+	md5.algo = "MD5";
+	pass.push_back(md5);
+
+	sha256.pass = syncSha256(input.c_str(), 32);
+	sha256.algo = "SHA-256";
+	pass.push_back(sha256);
+
 	createCachedAccount(user, host, auth_username, pass, expires, phone_alias);
 }
 

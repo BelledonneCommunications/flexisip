@@ -1,17 +1,17 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
  Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
- 
+
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
  published by the Free Software Foundation, either version 3 of the
  License, or (at your option) any later version.
- 
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU Affero General Public License for more details.
- 
+
  You should have received a copy of the GNU Affero General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -48,48 +48,48 @@ struct auth_plugin_t {
 	Authentication *mModule;
 };
 /**
- * to compute auth_mod size with plugin
- */
+* to compute auth_mod size with plugin
+*/
 struct auth_mod_size {
 	auth_mod_t mod[1];
 	auth_plugin_t plug[1];
 };
 
-void flexisipSha256(char *input, size_t size, uint8_t *a1buf, char *out) {
+void flexisipSha256(char* input, size_t size, uint8_t* a1buf, char* out){
 	size_t di;
-	bctbx_sha256((const unsigned char *)input, strlen(input), size, a1buf);
+	bctbx_sha256((const unsigned char*)input, strlen(input),size, a1buf);
 	for (di = 0; di < size; ++di)
 		sprintf(out + di * 2, "%02x", a1buf[di]);
-	out[64] = '\0';
+	out[64]='\0';
 }
 
-void auth_digest_a1_for_algorithm(auth_response_t *ar, char const *secret, char *ha1) {
+void auth_digest_a1_for_algorithm(auth_response_t *ar,char const *secret,char* ha1) {
 	char input[100];
 	uint8_t a1buf[32];
 
-	snprintf(input, sizeof(input), "%s:%s:%s", ar->ar_username, ar->ar_realm, secret);
+	snprintf(input,sizeof(input),"%s:%s:%s",ar->ar_username,ar->ar_realm,secret);
 	flexisipSha256(input, 32, a1buf, ha1);
 	LOGD("auth_digest_ha1() has A1 = SHA256(%s:%s:%s) = %s\n",
-	     ar->ar_username, ar->ar_realm, "*******", ha1);
+		ar->ar_username,ar->ar_realm, "*******", ha1);
 }
 
-void auth_digest_a1sess_for_algorithm(auth_response_t *ar, char *ha1) {
+void auth_digest_a1sess_for_algorithm(auth_response_t *ar,char* ha1) {
 	char input[100];
 	uint8_t a1buf[32];
-	char *ha1_ref = ha1;
+	char* ha1_ref=ha1;
 
-	snprintf(input, sizeof(input), "%s:%s:%s", ha1, ar->ar_nonce, ar->ar_cnonce);
+	snprintf(input,sizeof(input),"%s:%s:%s",ha1,ar->ar_nonce,ar->ar_cnonce);
 	flexisipSha256(input, 32, a1buf, ha1);
 	LOGD("auth_sessionkey has A1' = SHA256(%s:%s:%s) = %s\n",
-	     ha1_ref, ar->ar_nonce, ar->ar_cnonce, ha1);
+		ha1_ref, ar->ar_nonce, ar->ar_cnonce, ha1);
 }
 
 void auth_digest_response_for_algorithm(auth_response_t *ar,
-                                        char const *method_name,
-                                        void const *data, isize_t dlen, char *response, const char *ha1) {
+										char const *method_name,
+										void const *data, isize_t dlen, char* response, const char* ha1){
 	char  input[200];
 	uint8_t a1buf[32];
-	char ha2[65], Hentity[65];
+	char ha2[65],Hentity[65];
 	if (ar->ar_auth_int)
 		ar->ar_qop = "auth-int";
 	else if (ar->ar_auth)
@@ -143,11 +143,12 @@ class NonceStore {
 	int mNonceExpires;
 
 public:
-	NonceStore() : mNonceExpires(3600) {
-	}
+	NonceStore() : mNonceExpires(3600) {}
+
 	void setNonceExpires(int value) {
 		mNonceExpires = value;
 	}
+
 	int getNc(const string &nonce) {
 		unique_lock<mutex> lck(mMutex);
 		auto it = mNc.find(nonce);
@@ -163,6 +164,7 @@ public:
 		LOGD("New nonce %s", snonce.c_str());
 		insert(snonce);
 	}
+
 	void insert(const string &nonce) {
 		unique_lock<mutex> lck(mMutex);
 		time_t expiration = getCurrentTime() + mNonceExpires;
@@ -223,7 +225,6 @@ private:
 		auth_mod_t *mAm;
 		auth_status_t *mAs;
 		auth_challenger_t const *mAch;
-		bool mHashedPass;
 		bool mPasswordFound;
 		AuthDbResult mResult;
 		string mPassword;
@@ -231,22 +232,23 @@ private:
 	public:
 		bool mImmediateRetrievePass;
 		bool mNo403;
-		list<string> mUsedAlgorithms;
-		string mCurrentAlgorithm;
+		list<string> mAlgoUsed;
 		auth_response_t mAr;
-		AuthenticationListener(Authentication *, shared_ptr<RequestSipEvent>, bool);
+		AuthenticationListener(Authentication *, shared_ptr<RequestSipEvent>);
 		virtual ~AuthenticationListener() {
 		}
-		
+
 		void setData(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach);
 		void checkPassword(const char *password);
 		int checkPasswordMd5(const char *password);
 		int checkPasswordForAlgorithm(const char *password);
 		void onResult(AuthDbResult result, const string &passwd);
-		void onResult(AuthDbResult result, const passwd_algo_t &passwd);
+		void onResult(AuthDbResult result, const vector<passwd_algo_t> &passwd);
 		void onError();
 		void finish(); /*the listener is destroyed when calling this, careful*/
-		void finish_for_algorithm();
+		void finishForAlgorithm();
+		void finishVerifyAlgos(const vector<passwd_algo_t> &pass);
+	
 		su_root_t *getRoot() {
 			return getAgent()->getRoot();
 		}
@@ -260,28 +262,30 @@ private:
 		void processResponse();
 		static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u);
 	};
-	
+
 private:
 	static ModuleInfo<Authentication> sInfo;
 	map<string, auth_mod_t *> mAuthModules;
 	list<string> mDomains;
 	list<BinaryIp> mTrustedHosts;
 	list<string> mTrustedClientCertificates;
+	list<string> mAlgorithms;
+
 	regex_t mRequiredSubject;
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
 	auth_scheme_t *mOdbcAuthScheme;
 	shared_ptr<BooleanExpression> mNo403Expr;
 	AuthenticationListener *mCurrentAuthOp;
-	list<string> mAlgorithms;
-	bool dbUseHashedPasswords;
 	bool mImmediateRetrievePassword;
 	bool mNewAuthOn407;
 	bool mTestAccountsEnabled;
 	bool mDisableQOPAuth;
 	bool mRequiredSubjectCheckSet;
+	bool mRejectWrongClientCertificates;
+	bool mTrustDomainCertificates;
 
-	
+
 	static int authPluginInit(auth_mod_t *am, auth_scheme_t *base, su_root_t *root, tag_type_t tag, tag_value_t value,
 	                          ...) {
 		auth_plugin_t *ap = AUTH_PLUGIN(am);
@@ -306,9 +310,9 @@ private:
 	}
 
 	void static flexisip_auth_method_digest(auth_mod_t *am, auth_status_t *as, msg_auth_t *au,
-	                                        auth_challenger_t const *ach);
+											auth_challenger_t const *ach);
 	void static flexisip_auth_check_digest(auth_mod_t *am, auth_status_t *as, auth_response_t *ar,
-	                                       auth_challenger_t const *ach);
+										auth_challenger_t const *ach);
 	const char *findIncomingSubjectInTrusted(shared_ptr<RequestSipEvent> &ev, const char *fromDomain) {
 		if (mTrustedClientCertificates.empty())
 			return NULL;
@@ -341,7 +345,7 @@ private:
 				}
 			}
 		}
-		
+
 		const GenericStruct *presenceSection = GenericManager::get()->getRoot()->get<GenericStruct>("module::Presence");
 		bool presenceServer = presenceSection->get<ConfigBoolean>("enabled")->read();
 		if (presenceServer) {
@@ -361,7 +365,7 @@ private:
 			}
 		}
 	}
-	
+
 public:
 	StatCounter64 *mCountAsyncRetrieve;
 	StatCounter64 *mCountSyncRetrieve;
@@ -396,7 +400,7 @@ public:
 		mCurrentAuthOp = NULL;
 		mRequiredSubjectCheckSet = false;
 	}
-	
+
 	~Authentication() {
 		for (auto it = mAuthModules.begin(); it != mAuthModules.end(); ++it) {
 			auth_mod_destroy(it->second);
@@ -407,15 +411,15 @@ public:
 		}
 		delete mOdbcAuthScheme;
 	}
-	
+
 	virtual void onDeclare(GenericStruct *mc) {
 		ConfigItemDescriptor items[] = {
 			{StringList, "auth-domains", "List of whitespace separated domain names to challenge. Others are denied.",
-			"localhost"},
+				"localhost"},
 
 			{StringList, "trusted-hosts", "List of whitespace separated IP which will not be challenged.", ""},
 
-			{String, "db-implementation", "Database backend implementation [odbc,soci,file,fixed].", "fixed"},
+			{String, "db-implementation", "Database backend implementation for digest authentication [odbc,soci,file].", "file"},
 
 			{String, "datasource",
 				"Odbc connection string to use for connecting to database. "
@@ -428,22 +432,26 @@ public:
 				"bellesip@sip.linphone.org clrtxt:secret ;\n"
 				"bellesip@sip.linphone.org md5:97ffb1c6af18e5687bf26cdf35e45d30 ;\n"
 				"bellesip@sip.linphone.org clrtxt:secret md5:97ffb1c6af18e5687bf26cdf35e45d30 sha256:d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3 ;",
-			""},
+				""},
 
 			{Integer, "nonce-expires", "Expiration time of nonces, in seconds.", "3600"},
 
 			{Integer, "cache-expire", "Duration of the validity of the credentials added to the cache in seconds.",
-			"1800"},
+				"1800"},
 
 			{Boolean, "hashed-passwords",
-			"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).",
-			"false"},
+				"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).",
+				"false"},
 
 			{BooleanExpr, "no-403", "Don't reply 403, but 401 or 407 even in case of wrong authentication.", "false"},
 
-			{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
-			"which will trusted. If no domain is given it is computed.",
-			""},
+			{Boolean, "reject-wrong-client-certificates",
+				"If set to true, the module will simply reject with 403 forbidden any request coming from client"
+				" who presented a bad TLS certificate (regardless of reason: improper signature, unmatched subjects)."
+				" Otherwise, the module will fallback to a digest authentication.\n"
+				"This policy applies only for transports configured with 'required-peer-certificate=1' parameter; indeed"
+				" no certificate is requested to the client otherwise.",
+				"false"},
 
 			{String, "tls-client-certificate-required-subject", "An optional regular expression matched against subjects of presented"
 				" client certificates. If this regular expression evaluates to false, the request is rejected. "
@@ -462,8 +470,23 @@ public:
 				"Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
 				"false"},
 
-			{StringList, "available-algorithms", "List of algorithms, separated by whitespaces (valid values are MD5 and SHA-256).",
+			/* We need this configuration because of old client that do not support multiple Authorization.
+			 * When a user have a clear text password, it will be hashed into md5 and sha256.
+			 * This will force the use of only the algorithm supported by them.
+			 */
+			{StringList, "available-algorithms",
+				"List of algorithms, separated by whitespaces (valid values are MD5 and SHA-256).\n"
+				"This feature allows to force the use of wanted algorithm(s).\n"
+				"If the value is empty, then it will authorize all implemented algorithms.",
 				"MD5"},
+
+			{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
+				"which will trusted. If no domain is given it is computed.",
+				""},
+
+			{Boolean, "trust-domain-certificates",
+				"If enabled, all requests which have their request URI containing a trusted domain will be accepted.",
+				"false"},
 
 			config_item_end
 		};
@@ -471,6 +494,9 @@ public:
 		mc->addChildrenValues(items);
 		/* modify the default value for "enabled" */
 		mc->get<ConfigBoolean>("enabled")->setDefault("false");
+		mc->get<ConfigBoolean>("hashed-passwords")->setDeprecated(true);
+		//we deprecate "trusted-client-certificates" because "tls-client-certificate-required-subject" can do more.
+		mc->get<ConfigStringList>("trusted-client-certificates")->setDeprecated(true);
 
 		// Call declareConfig for backends
 		AuthDbBackend::declareConfig(mc);
@@ -484,17 +510,17 @@ public:
 	void onLoad(const GenericStruct *mc) {
 		mDomains = mc->get<ConfigStringList>("auth-domains")->read();
 		loadTrustedHosts(*mc->get<ConfigStringList>("trusted-hosts"));
-		dbUseHashedPasswords = mc->get<ConfigBoolean>("hashed-passwords")->read();
 		mImmediateRetrievePassword = true;
 		mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
 		mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
+		mTrustDomainCertificates = mc->get<ConfigBoolean>("trust-domain-certificates")->read();
 		mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
 		mTestAccountsEnabled = mc->get<ConfigBoolean>("enable-test-accounts-creation")->read();
 		mDisableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
-		mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
-		mAlgorithms.unique();
 		int nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
 		mNonceStore.setNonceExpires(nonceExpires);
+		mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
+		mAlgorithms.unique();
 
 		for (auto it = mAlgorithms.begin(); it != mAlgorithms.end();) {
 			if ((*it != "MD5") && (*it != "SHA-256")) {
@@ -505,11 +531,14 @@ public:
 			}
 		}
 
-		if (mAlgorithms.empty())
+		if (mAlgorithms.empty()) {
 			mAlgorithms.push_back("MD5");
+			mAlgorithms.push_back("SHA-256");
+		}
+
 		for (const auto &domain : mDomains) {
 			mAuthModules[domain] = createAuthModule(domain, nonceExpires);
-			mAuthModules[domain]->am_algorithm = su_strdup(mAuthModules[domain]->am_home, mAlgorithms.front().c_str());
+			mAuthModules[domain]->am_algorithm = su_strdup(mAuthModules[domain]->am_home, mAlgorithms.front().c_str()); /* MD5 by default */
 			auth_plugin_t *ap = AUTH_PLUGIN(mAuthModules[domain]);
 			ap->mModule = this;
 			SLOGI << "Found auth domain: " << domain;
@@ -524,36 +553,52 @@ public:
 				LOGF("Could not compile regex for 'tls-client-certificate-required-subject' '%s': %s", requiredSubject.c_str(), err_msg.c_str());
 			}else mRequiredSubjectCheckSet = true;
 		}
+		mRejectWrongClientCertificates = mc->get<ConfigBoolean>("reject-wrong-client-certificates")->read();
+		AuthDbBackend::get();//force instanciation of the AuthDbBackend NOW, to force errors to arrive now if any.
 	}
 
-	auth_mod_t *findAuthModule(const char *name) {
+	auth_mod_t *findAuthModule(const string name) {
 		auto it = mAuthModules.find(name);
 		if (it == mAuthModules.end())
 			it = mAuthModules.find("*");
+		if (it == mAuthModules.end()) {
+			for (auto it2 = mAuthModules.begin(); it2 != mAuthModules.end(); ++it2) {
+				string domainName = it2->first;
+				size_t wildcardPosition = domainName.find("*");
+				// if domain has a wildcard in it, try to match
+				if (wildcardPosition != string::npos) {
+					size_t beforeWildcard = name.find(domainName.substr(0, wildcardPosition));
+					size_t afterWildcard = name.find(domainName.substr(wildcardPosition + 1));
+					if (beforeWildcard != string::npos && afterWildcard != string::npos) {
+						return it2->second;
+					}
+				}
+			}
+		}
 		if (it == mAuthModules.end()) {
 			return NULL;
 		}
 		return it->second;
 	}
-	
+
 	auth_mod_t *createAuthModule(const string &domain, int nonceExpires) {
 		if (mDisableQOPAuth) {
 			return auth_mod_create(NULL, AUTHTAG_METHOD("odbc"), AUTHTAG_REALM(domain.c_str()),
-			                       AUTHTAG_OPAQUE("+GNywA=="), AUTHTAG_FORBIDDEN(1), AUTHTAG_ALLOW("ACK CANCEL BYE"),
-			                       TAG_END());
+								AUTHTAG_OPAQUE("+GNywA=="), AUTHTAG_FORBIDDEN(1), AUTHTAG_ALLOW("ACK CANCEL BYE"),
+								TAG_END());
 		} else {
 			return auth_mod_create(NULL, AUTHTAG_METHOD("odbc"), AUTHTAG_REALM(domain.c_str()),
-			                       AUTHTAG_OPAQUE("+GNywA=="), AUTHTAG_QOP("auth"),
-			                       AUTHTAG_EXPIRES(nonceExpires),      // in seconds
-			                       AUTHTAG_NEXT_EXPIRES(nonceExpires), // in seconds
-			                       AUTHTAG_FORBIDDEN(1), AUTHTAG_ALLOW("ACK CANCEL BYE"), TAG_END());
+								AUTHTAG_OPAQUE("+GNywA=="), AUTHTAG_QOP("auth"),
+								AUTHTAG_EXPIRES(nonceExpires),      // in seconds
+								AUTHTAG_NEXT_EXPIRES(nonceExpires), // in seconds
+								AUTHTAG_FORBIDDEN(1), AUTHTAG_ALLOW("ACK CANCEL BYE"), TAG_END());
 		}
 	}
 
 	static bool containsDomain(const list<string> &d, const char *name) {
 		return find(d.cbegin(), d.cend(), "*") != d.end() || find(d.cbegin(), d.cend(), name) != d.end();
 	}
-	
+
 	bool handleTestAccountCreationRequests(shared_ptr<RequestSipEvent> &ev) {
 		sip_t *sip = ev->getSip();
 		if (sip->sip_request->rq_method == sip_method_register) {
@@ -562,12 +607,12 @@ public:
 				url_t *url = sip->sip_from->a_url;
 				if (url) {
 					sip_unknown_t *h2 = ModuleToolbox::getCustomHeaderByName(sip, "X-Phone-Alias");
-					const char *phone_alias = h2 ? h2->un_value : NULL;
+					const char* phone_alias = h2 ? h2->un_value : NULL;
 					phone_alias = phone_alias ? phone_alias : "";
 					AuthDbBackend::get()->createAccount(url->url_user, url->url_host, url->url_user, url->url_password,
-					                                    sip->sip_expires->ex_delta, phone_alias);
+														sip->sip_expires->ex_delta, phone_alias);
 					LOGD("Account created for %s@%s with password %s and expires %lu%s%s", url->url_user, url->url_host,
-					     url->url_password, sip->sip_expires->ex_delta, phone_alias ? " with phone alias " : "", phone_alias);
+						url->url_password, sip->sip_expires->ex_delta, phone_alias ? " with phone alias " : "", phone_alias);
 					return true;
 				}
 			}
@@ -593,6 +638,7 @@ public:
 		}
 		return false;
 	}
+
 	bool tlsClientCertificatePostCheck(const shared_ptr<RequestSipEvent> &ev){
 		if (mRequiredSubjectCheckSet){
 			bool ret = ev->matchIncomingSubject(&mRequiredSubject);
@@ -605,49 +651,80 @@ public:
 		}
 		return true;
 	}
-	
-	bool isTlsClientAuthenticated(shared_ptr<RequestSipEvent> &ev) {
+
+	/* This function returns
+	 * true: if the tls authentication is handled (either successful or rejected)
+	 * false: if we have to fallback to digest
+	 */
+	bool handleTlsClientAuthentication(shared_ptr<RequestSipEvent> &ev) {
 		sip_t *sip = ev->getSip();
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
 		unsigned int policy = 0;
 
 		tport_get_params(inTport.get(), TPTAG_TLS_VERIFY_POLICY_REF(policy), NULL);
 		// Check TLS certificate
-		if ((policy & TPTLS_VERIFY_INCOMING) && tport_is_verified(inTport.get())) {
-			const url_t *from = sip->sip_from->a_url;
-			const char *fromDomain = from->url_host;
-			const char *res = NULL;
-			url_t searched_uri = URL_INIT_AS(sip);
-			SofiaAutoHome home;
-			char *searched;
+		if ((policy & TPTLS_VERIFY_INCOMING) && tport_is_server(inTport.get())){
+			/* tls client certificate is required for this transport*/
+			if (tport_is_verified(inTport.get())) {
+				/*the certificate looks good, now match subjects*/
+				const url_t *from = sip->sip_from->a_url;
+				const char *fromDomain = from->url_host;
+				const char *res = NULL;
+				url_t searched_uri = URL_INIT_AS(sip);
+				SofiaAutoHome home;
+				char *searched;
 
-			searched_uri.url_host = from->url_host;
-			searched_uri.url_user = from->url_user;
-			searched = url_as_string(home.home(), &searched_uri);
-
-			if (ev->findIncomingSubject(searched)) {
-				SLOGD << "Allowing message from matching TLS certificate";
-				goto postcheck;
-			} else if (sip->sip_request->rq_method != sip_method_register &&
-			           (res = findIncomingSubjectInTrusted(ev, fromDomain))) {
-				SLOGD << "Found trusted TLS certificate " << res;
-				goto postcheck;
-			} else {
-				/*case where the certificate would work for the entire domain*/
-				searched_uri.url_user = NULL;
+				searched_uri.url_host = from->url_host;
+				searched_uri.url_user = from->url_user;
 				searched = url_as_string(home.home(), &searched_uri);
+
 				if (ev->findIncomingSubject(searched)) {
-					SLOGD << "Found TLS certificate for entire domain";
+					SLOGD << "Allowing message from matching TLS certificate";
 					goto postcheck;
+				} else if (sip->sip_request->rq_method != sip_method_register &&
+					(res = findIncomingSubjectInTrusted(ev, fromDomain))) {
+					SLOGD << "Found trusted TLS certificate " << res;
+					goto postcheck;
+				} else {
+					/*case where the certificate would work for the entire domain*/
+					searched_uri.url_user = NULL;
+					searched = url_as_string(home.home(), &searched_uri);
+					if (ev->findIncomingSubject(searched)) {
+						SLOGD << "Found TLS certificate for entire domain";
+						goto postcheck;
+					}
 				}
+
+				if (sip->sip_request->rq_method != sip_method_register && mTrustDomainCertificates) {
+					searched_uri.url_user = NULL;
+					searched_uri.url_host = sip->sip_request->rq_url->url_host;
+					searched = url_as_string(home.home(), &searched_uri);
+					if (ev->findIncomingSubject(searched)) {
+						SLOGD << "Found trusted TLS certificate for the request URI domain";
+						goto postcheck;
+					}
+				}
+
+				LOGE("Client is presenting a TLS certificate not matching its identity.");
+				SLOGUE << "Registration failure for " << url_as_string(home.home(), from) << ", TLS certificate doesn't match its identity";
+				goto bad_certificate;
+
+				postcheck:
+					if (tlsClientCertificatePostCheck(ev)){
+						/*all is good, return true*/
+						return true;
+					}else goto bad_certificate;
+			}else goto bad_certificate;
+
+			bad_certificate:
+			if (mRejectWrongClientCertificates){
+				ev->reply(403, "Bad tls client certificate", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+				return true; /*the request is responded, no further processing required*/
 			}
-			LOGE("Client is presenting a TLS certificate not matching its identity.");
-			SLOGUE << "Registration failure for " << url_as_string(home.home(), from) << ", TLS certificate doesn't match its identity";
+			/*fallback to digest*/
 			return false;
-			
-			postcheck:
-				return tlsClientCertificatePostCheck(ev);
 		}
+		/*no client certificate requested, go to digest auth*/
 		return false;
 	}
 
@@ -659,8 +736,8 @@ public:
 		// Do it first to make sure no transaction is created which
 		// would send an unappropriate 100 trying response.
 		if (sip->sip_request->rq_method == sip_method_ack || sip->sip_request->rq_method == sip_method_cancel ||
-		        sip->sip_request->rq_method == sip_method_bye // same as in the sofia auth modules
-		   ) {
+			sip->sip_request->rq_method == sip_method_bye // same as in the sofia auth modules
+			) {
 			/*ack and cancel shall never be challenged according to the RFC.*/
 			return;
 		}
@@ -685,6 +762,7 @@ public:
 			else
 				LOGD("There is no p-preferred-identity");
 		}
+
 		auth_mod_t *am = findAuthModule(fromDomain);
 		if (am == NULL) {
 			LOGI("Unknown domain [%s]", fromDomain);
@@ -694,7 +772,7 @@ public:
 		}
 
 		// check if TLS client certificate provides sufficent authentication for this request.
-		if (isTlsClientAuthenticated(ev))
+		if (handleTlsClientAuthentication(ev))
 			return;
 
 		// Check for the existence of username, which is required for proceeding with digest authentication in flexisip.
@@ -721,11 +799,10 @@ public:
 		if (sip->sip_payload)
 			as->as_body = sip->sip_payload->pl_data, as->as_bodylen = sip->sip_payload->pl_len;
 
-		AuthenticationListener *listener = new AuthenticationListener(this, ev, dbUseHashedPasswords);
+		AuthenticationListener *listener = new AuthenticationListener(this, ev);
 		listener->mImmediateRetrievePass = mImmediateRetrievePassword;
 		listener->mNo403 = mNo403Expr->eval(ev->getSip());
-		listener->mUsedAlgorithms = mAlgorithms;
-		listener->mCurrentAlgorithm = listener->mUsedAlgorithms.front();
+		listener->mAlgoUsed = mAlgorithms;
 		as->as_magic = mCurrentAuthOp = listener;
 
 		// Attention: the auth_mod_verify method should not send by itself any message but
@@ -745,7 +822,7 @@ public:
 			ev->suspendProcessing();
 		}
 	}
-	
+
 	void onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		if (!mNewAuthOn407)
 			return; /*nop*/
@@ -792,22 +869,23 @@ public:
 };
 
 ModuleInfo<Authentication> Authentication::sInfo(
-    "Authentication",
-    "The authentication module challenges and authenticates SIP requests using two possible methods: \n"
-    " * if the request is received via a TLS transport and 'require-peer-certificate' is set in transport definition "
-    "in [Global] section for this transport, "
-    " then the From header of the request is matched with the CN claimed by the client certificate. The CN must "
-    "contain sip:user@domain or alternate name with URI=sip:user@domain"
-    " corresponding to the URI in the from header for the request to be accepted. Optionnaly, the property"
-    " tls-client-certificate-required-subject may contain a regular expression for additional checks to execute on certificate subjects.\n"
-    " * if no TLS client based authentication can be performed, or is failed, then a SIP digest authentication is "
-    "performed. The password verification is made by querying"
-    " a database or a password file on disk.",
-    ModuleInfoBase::ModuleOid::Authentication);
+	"Authentication",
+	"The authentication module challenges and authenticates SIP requests using two possible methods: \n"
+	" * if the request is received via a TLS transport and 'require-peer-certificate' is set in transport definition "
+	"in [Global] section for this transport, "
+	" then the From header of the request is matched with the CN claimed by the client certificate. The CN must "
+	"contain sip:user@domain or alternate name with URI=sip:user@domain"
+	" corresponding to the URI in the from header for the request to be accepted. Optionnaly, the property"
+	" tls-client-certificate-required-subject may contain a regular expression for additional checks to execute on certificate subjects.\n"
+	" * if no TLS client based authentication can be performed, or is failed, then a SIP digest authentication is "
+	"performed. The password verification is made by querying"
+	" a database or a password file on disk.",
+	{ "NatHelper" },
+	ModuleInfoBase::ModuleOid::Authentication
+);
 
-Authentication::AuthenticationListener::AuthenticationListener(Authentication *module, shared_ptr<RequestSipEvent> ev,
-        bool hashedPasswords)
-	: mModule(module), mEv(ev), mAm(NULL), mAs(NULL), mAch(NULL), mHashedPass(hashedPasswords), mPasswordFound(false) {
+Authentication::AuthenticationListener::AuthenticationListener(Authentication *module, shared_ptr<RequestSipEvent> ev)
+	: mModule(module), mEv(ev), mAm(NULL), mAs(NULL), mAch(NULL), mPasswordFound(false) {
 	memset(&mAr, '\0', sizeof(mAr)), mAr.ar_size = sizeof(mAr);
 	mNo403 = false;
 }
@@ -824,36 +902,39 @@ void Authentication::AuthenticationListener::main_thread_async_response_cb(su_ro
 	listener->processResponse();
 }
 
-void Authentication::AuthenticationListener::onResult(AuthDbResult result, const passwd_algo_t &passwd) {
+void Authentication::AuthenticationListener::onResult(AuthDbResult result, const vector<passwd_algo_t> &passwd) {
 	// invoke callback on main thread (sofia-sip)
 	su_msg_r mamc = SU_MSG_R_INIT;
 	if (-1 == su_msg_create(mamc, su_root_task(getRoot()), su_root_task(getRoot()), main_thread_async_response_cb,
-	                        sizeof(AuthenticationListener *))) {
+							sizeof(AuthenticationListener *))) {
 		LOGF("Couldn't create auth async message");
 	}
 
+	string algo = "";
 	AuthenticationListener **listenerStorage = (AuthenticationListener **)su_msg_data(mamc);
 	*listenerStorage = this;
 
 	switch (result) {
 		case PASSWORD_FOUND:
 			mResult = AuthDbResult::PASSWORD_FOUND;
-			if (mHashedPass) {
-				if ((mAr.ar_algorithm == NULL) || (!strcmp(mAr.ar_algorithm, "MD5"))) {
-					mPassword = passwd.passmd5;
-				} else if (!strcmp(mAr.ar_algorithm, "SHA-256")) {
-					mPassword = passwd.passsha256;
-				} else {
-					mResult = AuthDbResult::AUTH_ERROR;
-					break;
-				}
-			} else {
-				mPassword = passwd.pass;
+
+			if (mAr.ar_algorithm == NULL || !strcmp(mAr.ar_algorithm, "MD5"))
+				algo = "MD5";
+			else if (!strcmp(mAr.ar_algorithm, "SHA-256"))
+				algo = "SHA-256";
+			else {
+				mResult = AuthDbResult::AUTH_ERROR;
+				break;
 			}
 
-			if (mPassword == "") {
+			for (const auto &password : passwd)
+				if (password.algo == algo)
+					mPassword = password.pass;
+
+			if(mPassword.empty()) {
 				mResult = AuthDbResult::PASSWORD_NOT_FOUND;
 			}
+
 			break;
 		case PASSWORD_NOT_FOUND:
 			mResult = AuthDbResult::PASSWORD_NOT_FOUND;
@@ -875,7 +956,7 @@ void Authentication::AuthenticationListener::onResult(AuthDbResult result, const
 	// invoke callback on main thread (sofia-sip)
 	su_msg_r mamc = SU_MSG_R_INIT;
 	if (-1 == su_msg_create(mamc, su_root_task(getRoot()), su_root_task(getRoot()), main_thread_async_response_cb,
-	                        sizeof(AuthenticationListener *))) {
+							sizeof(AuthenticationListener *))) {
 		LOGF("Couldn't create auth async message");
 	}
 
@@ -903,24 +984,20 @@ void Authentication::AuthenticationListener::onResult(AuthDbResult result, const
 	}
 }
 
-void Authentication::AuthenticationListener::finish_for_algorithm() {
-	auto it = find(mUsedAlgorithms.begin(), mUsedAlgorithms.end(), mCurrentAlgorithm);
-	if ((it != mUsedAlgorithms.end()) && (next(it) != mUsedAlgorithms.end()) && mAs->as_response) {
-		msg_header_t *response;
+void Authentication::AuthenticationListener::finishForAlgorithm () {
+	if ((mAlgoUsed.size() > 1) && (mAs->as_status == 401)) {
+		msg_header_t* response;
 		response = msg_header_copy(mAs->as_home, mAs->as_response);
-		string currentParam = "algorithm=" + mCurrentAlgorithm;
-		msg_header_remove_param((msg_common_t *)response, currentParam.c_str());
-		mCurrentAlgorithm = *next(it);
-		string newParam = "algorithm=" + mCurrentAlgorithm;
-		msg_header_replace_item(mAs->as_home, (msg_common_t *)response, newParam.c_str());
+		msg_header_remove_param((msg_common_t *)response, "algorithm=MD5");
+		msg_header_replace_item(mAs->as_home, (msg_common_t *)response, "algorithm=SHA-256");
 		mEv->reply(mAs->as_status, mAs->as_phrase, SIPTAG_HEADER((const sip_header_t *)mAs->as_info),
-		           SIPTAG_HEADER((const sip_header_t *)response),
-		           SIPTAG_HEADER((const sip_header_t *)mAs->as_response),
-		           SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+				SIPTAG_HEADER((const sip_header_t *)response),
+				SIPTAG_HEADER((const sip_header_t *)mAs->as_response),
+				SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	} else {
 		mEv->reply(mAs->as_status, mAs->as_phrase, SIPTAG_HEADER((const sip_header_t *)mAs->as_info),
-		           SIPTAG_HEADER((const sip_header_t *)mAs->as_response),
-		           SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+				SIPTAG_HEADER((const sip_header_t *)mAs->as_response),
+				SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	}
 }
 
@@ -937,17 +1014,16 @@ void Authentication::AuthenticationListener::finish() {
 			log->setCompleted();
 			mEv->setEventLog(log);
 		}
-		finish_for_algorithm();
+		finishForAlgorithm();
 	} else {
 		// Success
 		if (sip->sip_request->rq_method == sip_method_register) {
 			msg_auth_t *au =
-			    ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_authorization, mAs->as_realm);
+			ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_authorization, mAs->as_realm);
 			if (au)
 				msg_header_remove(ms->getMsg(), (msg_pub_t *)sip, (msg_header_t *)au);
 		} else {
-			msg_auth_t *au =
-			    ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_proxy_authorization, mAs->as_realm);
+			msg_auth_t *au = ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_proxy_authorization, mAs->as_realm);
 			if(au->au_next)
 				msg_header_remove(ms->getMsg(), (msg_pub_t *)sip, (msg_header_t *)au->au_next);
 			if (au)
@@ -964,7 +1040,24 @@ void Authentication::AuthenticationListener::finish() {
 	delete this;
 }
 
-int Authentication::AuthenticationListener::checkPasswordMd5(const char *passwd) {
+void Authentication::AuthenticationListener::finishVerifyAlgos(const vector<passwd_algo_t> &pass) {
+	mAlgoUsed.remove_if([&pass](string algo) {
+		bool found = false;
+
+		for (const auto &password : pass) {
+			if (password.algo == algo) {
+				found = true;
+				break;
+			}
+		}
+
+		return !found;
+	});
+
+	finish();
+}
+
+int Authentication::AuthenticationListener::checkPasswordMd5(const char *passwd){
 	char const *a1;
 	auth_hexmd5_t a1buf, response;
 
@@ -974,12 +1067,8 @@ int Authentication::AuthenticationListener::checkPasswordMd5(const char *passwd)
 	if (passwd) {
 		mPasswordFound = true;
 		++*getModule()->mCountPassFound;
-		if (mHashedPass) {
-			strncpy(a1buf, passwd, 33); // remove trailing NULL character
-			a1 = a1buf;
-		} else {
-			auth_digest_a1(&mAr, a1buf, passwd), a1 = a1buf;
-		}
+		strncpy(a1buf, passwd, 33); // remove trailing NULL character
+		a1 = a1buf;
 	} else {
 		++*getModule()->mCountPassNotFound;
 		auth_digest_a1(&mAr, a1buf, "xyzzy"), a1 = a1buf;
@@ -987,6 +1076,7 @@ int Authentication::AuthenticationListener::checkPasswordMd5(const char *passwd)
 
 	if (mAr.ar_md5sess)
 		auth_digest_a1sess(&mAr, a1buf, a1), a1 = a1buf;
+
 	auth_digest_response(&mAr, response, a1, mAs->as_method, mAs->as_body, mAs->as_bodylen);
 	return !passwd || strcmp(response, mAr.ar_response);
 }
@@ -1004,19 +1094,15 @@ int Authentication::AuthenticationListener::checkPasswordForAlgorithm(const char
 		if (passwd) {
 			mPasswordFound = true;
 			++*getModule()->mCountPassFound;
-			if (mHashedPass) {
-				strncpy(a1, passwd, 65); // remove trailing NULL character
-			} else {
-				auth_digest_a1_for_algorithm(&mAr, passwd, a1);
-			}
+			strncpy(a1, passwd, 65); // remove trailing NULL character
 		} else {
 			++*getModule()->mCountPassNotFound;
 			auth_digest_a1_for_algorithm(&mAr, "xyzzy", a1);
 		}
 
-		if (mAr.ar_md5sess) {
+		if (mAr.ar_md5sess)
 			auth_digest_a1sess_for_algorithm(&mAr, a1);
-		}
+
 		auth_digest_response_for_algorithm(&mAr, mAs->as_method, mAs->as_body, mAs->as_bodylen, response, a1);
 		return !passwd || strcmp(response, mAr.ar_response);
 	}
@@ -1092,7 +1178,7 @@ void Authentication::AuthenticationListener::onError() {
 
 /** Verify digest authentication */
 void Authentication::flexisip_auth_check_digest(auth_mod_t *am, auth_status_t *as, auth_response_t *ar,
-        auth_challenger_t const *ach) {
+												auth_challenger_t const *ach) {
 
 	AuthenticationListener *listener = (AuthenticationListener *)as->as_magic;
 
@@ -1107,28 +1193,28 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am, auth_status_t *a
 
 	char const *phrase = "Bad authorization ";
 	if ((!ar->ar_username && (phrase = PA "username")) || (!ar->ar_nonce && (phrase = PA "nonce")) ||
-	        (!listener->mModule->mDisableQOPAuth && !ar->ar_nc && (phrase = PA "nonce count")) ||
-	        (!ar->ar_uri && (phrase = PA "URI")) || (!ar->ar_response && (phrase = PA "response")) ||
-	        /* (!ar->ar_opaque && (phrase = PA "opaque")) || */
-	        /* Check for qop */
-	        (ar->ar_qop &&
-	         ((ar->ar_auth && !strcasecmp(ar->ar_qop, "auth") && !strcasecmp(ar->ar_qop, "\"auth\"")) ||
-	          (ar->ar_auth_int && !strcasecmp(ar->ar_qop, "auth-int") && !strcasecmp(ar->ar_qop, "\"auth-int\""))) &&
-	         (phrase = PA "has invalid qop"))) {
-		// assert(phrase);
-		LOGD("auth_method_digest: 400 %s", phrase);
-		as->as_status = 400, as->as_phrase = phrase;
-		as->as_response = NULL;
-		listener->finish();
-		return;
-	}
+		(!listener->mModule->mDisableQOPAuth && !ar->ar_nc && (phrase = PA "nonce count")) ||
+		(!ar->ar_uri && (phrase = PA "URI")) || (!ar->ar_response && (phrase = PA "response")) ||
+		/* (!ar->ar_opaque && (phrase = PA "opaque")) || */
+		/* Check for qop */
+		(ar->ar_qop &&
+		((ar->ar_auth && !strcasecmp(ar->ar_qop, "auth") && !strcasecmp(ar->ar_qop, "\"auth\"")) ||
+		(ar->ar_auth_int && !strcasecmp(ar->ar_qop, "auth-int") && !strcasecmp(ar->ar_qop, "\"auth-int\""))) &&
+		(phrase = PA "has invalid qop"))) {
+			// assert(phrase);
+			LOGD("auth_method_digest: 400 %s", phrase);
+			as->as_status = 400, as->as_phrase = phrase;
+			as->as_response = NULL;
+			listener->finish();
+			return;
+		}
 
 	if (!ar->ar_username || !as->as_user_uri->url_user || !ar->ar_realm || !as->as_user_uri->url_host) {
 		as->as_status = 403, as->as_phrase = "Authentication info missing";
 		SLOGUE << "Registration failure, authentication info are missing: usernames " <<
-		       ar->ar_username << "/" << as->as_user_uri->url_user << ", hosts " << ar->ar_realm << "/" << as->as_user_uri->url_host;
+		ar->ar_username << "/" << as->as_user_uri->url_user << ", hosts " << ar->ar_realm << "/" << as->as_user_uri->url_host;
 		LOGD("from and authentication usernames [%s/%s] or from and authentication hosts [%s/%s] empty",
-		     ar->ar_username, as->as_user_uri->url_user, ar->ar_realm, as->as_user_uri->url_host);
+			ar->ar_username, as->as_user_uri->url_user, ar->ar_realm, as->as_user_uri->url_host);
 		as->as_response = NULL;
 		listener->finish();
 		return;
@@ -1172,7 +1258,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am, auth_status_t *a
 /** Authenticate a request with @b Digest authentication scheme.
  */
 void Authentication::flexisip_auth_method_digest(auth_mod_t *am, auth_status_t *as, msg_auth_t *au,
-        auth_challenger_t const *ach) {
+												auth_challenger_t const *ach) {
 	AuthenticationListener *listener = (AuthenticationListener *)as->as_magic;
 	listener->setData(am, as, ach);
 
@@ -1189,7 +1275,7 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am, auth_status_t *
 			r.ar_size = sizeof(r);
 			auth_digest_response_get(as->as_home, &r, au->au_next->au_params);
 
-			if (r.ar_algorithm == NULL || (strcasecmp(r.ar_algorithm, "MD5") == 0)) {
+			if (r.ar_algorithm == NULL || !strcasecmp(r.ar_algorithm, "MD5")) {
 				au = au->au_next;
 			}
 		}
@@ -1224,12 +1310,11 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am, auth_status_t *
 		// sends back its request; this time with the expected authentication credentials.
 		if (listener->mImmediateRetrievePass) {
 			SLOGD << "Searching for " << as->as_user_uri->url_user
-			      << " password to have it when the authenticated request comes";
+			<< " password to have it when the authenticated request comes";
 			//AuthDbBackend::get()->getPassword(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL);
-			AuthDbBackend::get()->getPasswordForAlgo(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL, listener->mUsedAlgorithms);
+			AuthDbBackend::get()->getPasswordForAlgo(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL, listener);
 		}
-		listener->finish();
+		//listener->finish();
 		return;
 	}
 }
-

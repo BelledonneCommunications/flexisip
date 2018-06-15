@@ -49,7 +49,7 @@ RegistrarUserData::~RegistrarUserData() {
  */
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag, RedisParameters params)
-	: RegistrarDb(ag->getPreferredRoute()), mAgent(ag), mContext(NULL), mSubscribeContext(NULL),
+	: RegistrarDb(ag), mContext(NULL), mSubscribeContext(NULL),
 	  mDomain(params.domain), mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(ag->getRoot()),
 	  mReplicationTimer(NULL), mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
 	mSerializer = RecordSerializer::get();
@@ -57,7 +57,7 @@ RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag, RedisParameters params)
 }
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(const string &preferredRoute, su_root_t *root, RecordSerializer *serializer, RedisParameters params)
-	: RegistrarDb(preferredRoute), mAgent(NULL), mContext(NULL), mSubscribeContext(NULL),
+	: RegistrarDb(NULL), mContext(NULL), mSubscribeContext(NULL),
 	  mDomain(params.domain), mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(root),
 	  mReplicationTimer(NULL), mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
 	mSerializer = serializer;
@@ -236,28 +236,29 @@ RedisHost RedisHost::parseSlave(const string &slave, int id) {
 }
 
 void RegistrarDbRedisAsync::updateSlavesList(const map<string, string> redisReply) {
-	int slaveCount = atoi(redisReply.at("connected_slaves").c_str());
-
 	vector<RedisHost> newSlaves;
 
-	for (int i = 0; i < slaveCount; i++) {
-		stringstream sstm;
-		sstm << "slave" << i;
-		string slaveName = sstm.str();
+	try {
+		int slaveCount = atoi(redisReply.at("connected_slaves").c_str());
+		for (int i = 0; i < slaveCount; i++) {
+			std::stringstream sstm;
+			sstm << "slave" << i;
+			string slaveName = sstm.str();
 
-		if (redisReply.find(slaveName) != redisReply.end()) {
+			if (redisReply.find(slaveName) != redisReply.end()) {
 
-			RedisHost host = RedisHost::parseSlave(redisReply.at(slaveName), i);
-			if (host.id != -1) {
-				// only tell if a new host was found
-				if (find(mSlaves.begin(), mSlaves.end(), host) == mSlaves.end()) {
-					LOGD("Replication: Adding host %d %s:%d state:%s", host.id, host.address.c_str(), host.port,
-						 host.state.c_str());
+				RedisHost host = RedisHost::parseSlave(redisReply.at(slaveName), i);
+				if (host.id != -1) {
+					// only tell if a new host was found
+					if (std::find(mSlaves.begin(), mSlaves.end(), host) == mSlaves.end()) {
+						LOGD("Replication: Adding host %d %s:%d state:%s", host.id, host.address.c_str(), host.port,
+							host.state.c_str());
+					}
+					newSlaves.push_back(host);
 				}
-				newSlaves.push_back(host);
 			}
 		}
-	}
+	} catch (const out_of_range &) {}
 
 	// replace the slaves array
 	mSlaves.clear();

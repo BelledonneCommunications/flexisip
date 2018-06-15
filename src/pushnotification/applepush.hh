@@ -24,7 +24,7 @@
 class ApplePushNotificationRequest : public PushNotificationRequest {
 public:
 	ApplePushNotificationRequest(const PushInfo &pinfo);
-	~ApplePushNotificationRequest() { }
+	~ApplePushNotificationRequest() { };
 	virtual const std::vector<char> &getData();
 	virtual std::string isValidResponse(const std::string &str);
 	virtual bool isServerAlwaysResponding() { return false; }

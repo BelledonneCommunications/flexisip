@@ -57,9 +57,12 @@ class ForwardModule : public Module, ModuleToolbox {
 };
 
 ModuleInfo<ForwardModule> ForwardModule::sInfo(
-	"Forward", "This module executes the basic routing task of SIP requests and pass them to the transport layer. "
-			   "It must always be enabled.",
-	ModuleInfoBase::ModuleOid::Forward);
+	"Forward",
+	"This module executes the basic routing task of SIP requests and pass them to the transport layer. "
+	"It must always be enabled.",
+	{ "Transcoder", "MediaRelay" },
+	ModuleInfoBase::ModuleOid::Forward
+);
 
 ForwardModule::ForwardModule(Agent *ag) : Module(ag), mOutRoute(NULL), mRewriteReqUri(false), mAddPath(false) {
 	su_home_init(&mHome);
@@ -165,7 +168,7 @@ static bool isUs(Agent *ag, sip_route_t *r) {
 class RegistrarListener : public ContactUpdateListener {
 public:
 	RegistrarListener(ForwardModule *module, shared_ptr<RequestSipEvent> ev): ContactUpdateListener(), mModule(module), mEv(ev) {
-	
+
 	}
 	~RegistrarListener(){};
 	void onRecordFound(Record *r) {
@@ -175,7 +178,7 @@ public:
 				throw FLEXISIP_EXCEPTION << "Record not found for ["<< mEv<< "]";
 			if (r->count() != 1)
 				throw FLEXISIP_EXCEPTION << "Too many extended contacts ["<< r->count() <<"] found for ["<< mEv<< "]";
-			
+
 			shared_ptr<ExtendedContact> contact = *r->getExtendedContacts().begin();
 			time_t now = getCurrentTime();
 			sip_contact_t *ct = contact->toSofiaContact(ms->getHome(), now);
@@ -186,7 +189,7 @@ public:
 				mEv->getSip()->sip_request->rq_url->url_params = url_strip_param_string(su_strdup(ms->getHome(),mEv->getSip()->sip_request->rq_url->url_params) , "regid");
 			}
 			mModule->sendRequest(mEv,dest);
-			
+
 		} catch (FlexisipException &e) {
 			SLOGD << e;
 			mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
@@ -207,7 +210,7 @@ public:
 };
 
 void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
-	
+
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	url_t *dest = NULL;
 	sip_t *sip = ms->getSip();
@@ -259,7 +262,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		RegistrarDb::get()->fetch(dest, listener, false, false /*no recursivity for gruu*/);
 		return;
 	}
-	
+
 	sendRequest(ev, dest);
 }
 
@@ -268,7 +271,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
 	uint64_t destRegId = 0;
-	
+
 	string ip;
 	if (EtcHostsResolver::get()->resolve(dest->url_host, &ip)) {
 		LOGD("Found %s in /etc/hosts", dest->url_host);
@@ -276,7 +279,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 		dest = url_hdup(ms->getHome(), dest);
 		dest->url_host = ip.c_str();
 	}
-	
+
 	// Check self-forwarding
 	if (ev->getOutgoingAgent() != NULL && getAgent()->isUs(dest, true)) {
 		SLOGD << "Stopping request to us";
@@ -307,26 +310,26 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 		} else
 			LOGE("tport_name_by_url() failed for url %s", url_as_string(ms->getHome(), dest));
 	}
-	
+
 	// Eventually add second record route with different transport
 	// to bridge to networks: for example, we'll end with UDP, TCP.
 	const sip_method_t method = ms->getSip()->sip_request->rq_method;
 	if (ev->mRecordRouteAdded && (method == sip_method_invite || method == sip_method_subscribe)) {
 		addRecordRoute(ms->getHome(), getAgent(), ev, tport);
 	}
-	
+
 	// Add path
 	if (mAddPath && method == sip_method_register) {
 		addPathHeader(getAgent(), ev, tport, getAgent()->getUniqueId().c_str());
 	}
-	
+
 	// Clean push notifs params from contacts
 	if (sip->sip_contact && sip->sip_request->rq_method != sip_method_register) {
 		removeParamsFromContacts(ms->getHome(), sip->sip_contact, mParamsToRemove);
 		SLOGD << "Removed push params from contact";
 	}
 	removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, mParamsToRemove);
-	
+
 	shared_ptr<OutgoingTransaction> outTr;
 	if (ev->getOutgoingAgent() != NULL) { //== if message is to be forwarded
 		outTr = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
@@ -339,18 +342,18 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 			outTr = ev->createOutgoingTransaction();
 		}
 	}
-	
+
 	// Compute branch, output branch=XXXXX
 	char const *branchStr = compute_branch(getSofiaAgent(), msg, sip, mAgent->getUniqueId().c_str(), outTr);
-	
+
 	if (isLooping(ev, branchStr + 7)) {
 		ev->reply(SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
-	
+
 	// Finally send message
 	ev->send(ms, (url_string_t *)dest, NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());
-	
+
 }
 unsigned int ForwardModule::countVia(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();

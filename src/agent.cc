@@ -19,6 +19,7 @@
 #include "agent.hh"
 #include "module.hh"
 #include "domain-registrations.hh"
+#include "plugin/plugin-loader.hh"
 #include "registrardb.hh"
 
 #include "log/logmanager.hh"
@@ -96,11 +97,11 @@ void Agent::onDeclare(GenericStruct *root) {
 	mCountReplyResUnknown = createCounter(global, key, help, "unknown");
 	mLogWriter = NULL;
 
-	std::string uniqueId = global->get<ConfigString>("unique-id")->read();
+	string uniqueId = global->get<ConfigString>("unique-id")->read();
 	if (!uniqueId.empty()) {
 		if (uniqueId.length() == 16) {
-			std::transform(uniqueId.begin(), uniqueId.end(), uniqueId.begin(), ::tolower);
-			if(std::find_if(uniqueId.begin(), uniqueId.end(), [](char c)->bool{return !::isxdigit(c);}) == uniqueId.end()) {
+			transform(uniqueId.begin(), uniqueId.end(), uniqueId.begin(), ::tolower);
+			if(find_if(uniqueId.begin(), uniqueId.end(), [](char c)->bool{return !::isxdigit(c);}) == uniqueId.end()) {
 				mUniqueId = uniqueId;
 			} else {
 				SLOGE << "'uniqueId' parameter must hold an hexadecimal number";
@@ -225,7 +226,7 @@ static void mDnsRegisterCallback(void *data, int error) {
 }
 #endif
 
-void Agent::start(const std::string &transport_override, const std::string passphrase) {
+void Agent::start(const string &transport_override, const string passphrase) {
 	char cCurrDir[FILENAME_MAX];
 	if (!getcwd(cCurrDir, sizeof(cCurrDir))) {
 		LOGA("Could not get current file path");
@@ -284,23 +285,29 @@ void Agent::start(const std::string &transport_override, const std::string passp
 				tls_policy |= TPTLS_VERIFY_INCOMING;
 			}
 
-			if (getBoolUriParameter(url, "tls-verify-outgoing", false)){
+			if (getBoolUriParameter(url, "tls-verify-outgoing", true)){
 				tls_policy |= TPTLS_VERIFY_OUTGOING | TPTLS_VERIFY_SUBJECTS_OUT;
 			}
 
 			checkAllowedParams(url);
 			mPassphrase = passphrase;
-			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()),
-									  TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
-									  TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
-									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), 
-									  TPTAG_QUEUESIZE(queueSize),	TAG_END());
+			err = nta_agent_add_tport(
+				mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()),
+				TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
+				TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
+				TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+				TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
+				TPTAG_QUEUESIZE(queueSize),
+				TAG_END()
+			);
 		} else {
-			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_IDLE(tports_idle_timeout),
-									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), 
-									  TPTAG_QUEUESIZE(queueSize), TAG_END());
+			err = nta_agent_add_tport(
+				mAgent, (const url_string_t *)url, TPTAG_IDLE(tports_idle_timeout),
+				TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+				TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
+				TPTAG_QUEUESIZE(queueSize),
+				TAG_END()
+			);
 		}
 		if (err == -1) {
 			LOGE("Could not enable transport %s: %s", uri.c_str(), strerror(errno));
@@ -397,8 +404,7 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		const tp_name_t *name;
 		char url[512];
 		name = tport_name(tport);
-		snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port, name->tpn_proto,
-				 name->tpn_host);
+		snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port, name->tpn_proto, name->tpn_host);
 		su_md5_strupdate(&ctx, url);
 		LOGD("\t%s", url);
 		bool isIpv6 = strchr(name->tpn_host, ':') != NULL;
@@ -439,6 +445,9 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		mRtpBindIp6 = "::0";
 
 	mPublicResolvedIpV4 = computeResolvedPublicIp(mPublicIpV4, AF_INET);
+	if (mPublicResolvedIpV4.empty()) {
+		mPublicResolvedIpV4 = mRtpBindIp;
+	}
 
 	if (!mPublicIpV6.empty()){
 		mPublicResolvedIpV6 = computeResolvedPublicIp(mPublicIpV6, AF_INET6);
@@ -448,6 +457,9 @@ void Agent::start(const std::string &transport_override, const std::string passp
 		if (!mPublicResolvedIpV6.empty()){
 			mPublicIpV6 = mPublicIpV4;
 		}
+	}
+	if (mPublicResolvedIpV6.empty()) {
+		mPublicResolvedIpV6 = mRtpBindIp6;
 	}
 
 	// Generate the unique ID if it has not been specified in Flexisip's settings
@@ -466,7 +478,7 @@ void Agent::start(const std::string &transport_override, const std::string passp
 	if (mPublicResolvedIpV6.empty() && mPublicResolvedIpV4.empty()){
 		LOGF("The default public address of the server could not be resolved (%s / %s). Cannot continue.",mPublicIpV4.c_str(), mPublicIpV6.c_str());
 	}
-	
+
 	LOGD("Agent public hostname/ip: v4:%s v6:%s", mPublicIpV4.c_str(), mPublicIpV6.c_str());
 	LOGD("Agent public resolved hostname/ip: v4:%s v6:%s", mPublicResolvedIpV4.c_str(), mPublicResolvedIpV6.c_str());
 	LOGD("Agent's _default_ RTP bind ip address: v4:%s v6:%s", mRtpBindIp.c_str(), mRtpBindIp6.c_str());
@@ -476,47 +488,120 @@ void Agent::start(const std::string &transport_override, const std::string passp
 	loadModules();
 }
 
+// -----------------------------------------------------------------------------
+// Helpers to build module instances.
+// -----------------------------------------------------------------------------
+
+static bool moduleIsBefore(const string &moduleName, ModuleInfoBase *next) {
+	for (const string &after : next->getAfter()) {
+		if (moduleName == after)
+			return true;
+
+		const list<ModuleInfoBase *> &registeredModuleInfo = ModuleInfoManager::get()->getRegisteredModuleInfo();
+		auto it = find_if(registeredModuleInfo.cbegin(), registeredModuleInfo.cend(), [&after](const ModuleInfoBase *moduleInfo) {
+			return moduleInfo->getModuleName() == after;
+		});
+		if (it != registeredModuleInfo.cend())
+			return moduleIsBefore(moduleName, *it);
+	}
+
+	return false;
+}
+
+static list<ModuleInfoBase *> sortModuleInfoByPriority(list<ModuleInfoBase *> moduleInfoToSort) {
+	// 1. Order each module info by priority.
+	moduleInfoToSort.sort([](ModuleInfoBase *a, ModuleInfoBase *b) {
+		const string &moduleName = a->getModuleName();
+		if (moduleName.empty()) // Special case, root.
+			return true;
+
+		return moduleIsBefore(moduleName, b);
+	});
+
+	// 2. Check if each module info has a valid ancestor.
+	auto it = moduleInfoToSort.cbegin();
+	if ((*it)->getModuleName().empty())
+		LOGA("Unable to find the root of registered module info list.");
+
+	bool soFarSoGood = true;
+	auto prev = it;
+	for (++it; it != moduleInfoToSort.cend(); prev = it, ++it) {
+		const string &moduleName = (*prev)->getModuleName();
+		for (const string &after : (*it)->getAfter())
+			if (moduleName == after)
+				goto success;
+
+		soFarSoGood = false;
+		SLOGE << "Unable to find a valid ancestor for [" << (*it)->getModuleName() << "]. "
+			"Please to check your `after` predicate.";
+
+		success:;
+	}
+	if (!soFarSoGood)
+		LOGA("It's necessary to fix module info list to continue.");
+
+	return moduleInfoToSort;
+}
+
+void addPluginModule(Agent *agent, list<Module *> &modules, const string &pluginDir, const string &pluginName) {
+	SLOGI << "Loading [" << pluginName << "] plugin...";
+	PluginLoader pluginLoader(agent, pluginDir + "/lib" + pluginName + ".so");
+
+	const ModuleInfoBase *moduleInfo = pluginLoader.getModuleInfo();
+	if (!moduleInfo) {
+		SLOGE << "Unable to get module info of [" << pluginName << "] plugin (" << pluginLoader.getError() << ").";
+		return;
+	}
+
+	for (const string &after : moduleInfo->getAfter()) {
+		// TODO: Replace begin() and end() with cbegin() and cend() later.
+		// gcc 4.8.2 (CentOS 7) does not support insert with const iterator.
+		auto it = find_if(modules.begin(), modules.end(), [&after](const Module *module) {
+			return module->getModuleName() == after;
+		});
+		if (it == modules.end())
+			continue;
+
+		const string &moduleName = moduleInfo->getModuleName();
+		Module *module = pluginLoader.get();
+		if (!module) {
+			SLOGE << "Failed to load [" << moduleName << "] (" << pluginLoader.getError() << ").";
+		} else {
+			SLOGI << "Creating plugin module instance of " << "[" << moduleName << "] after [" << after << "].";
+			modules.insert(++it, module);
+		}
+		return;
+	}
+
+	SLOGE << "Unable to find a valid ancestor for [" << pluginName << "] plugin.";
+}
+
+// -----------------------------------------------------------------------------
+
 Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 	mHttpEngine = nth_engine_create(root, NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct *cr = GenericManager::get()->getRoot();
 
 	EtcHostsResolver::get();
 
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "DoSProtection"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "SanityChecker"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GarbageIn"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "NatHelper"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Authentication"));
-#ifdef HAVE_DATEHANDLER
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "DateHandler"));
-#endif
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Redirect"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "GatewayAdapter"));
-
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Presence"));
-
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Registrar"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "StatisticsCollector"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "ContactRouteInserter"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Router"));
-#ifdef ENABLE_PUSHNOTIFICATION
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "PushNotification"));
-#endif
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "LoadBalancer"));
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "MediaRelay"));
-#ifdef ENABLE_TRANSCODER
-	const auto &overrideMap = GenericManager::get()->getOverrideMap();
-	if (overrideMap.find("notrans") == overrideMap.end()) {
-		mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Transcoder"));
+	// 1. Create module instances.
+	for (ModuleInfoBase *moduleInfo : sortModuleInfoByPriority(ModuleInfoManager::get()->getRegisteredModuleInfo())) {
+		SLOGI << "Creating module instance of " << "[" << moduleInfo->getModuleName() << "].";
+		mModules.push_back(moduleInfo->create(this));
 	}
-#endif
-	mModules.push_back(ModuleFactory::get()->createModuleInstance(this, "Forward"));
+
+	// 2. Create module instances from plugins.
+	{
+		GenericStruct *global = cr->get<GenericStruct>("global");
+		const string &pluginDir = global->get<ConfigString>("plugins-dir")->read();
+		for (const string &pluginName : global->get<ConfigStringList>("plugins")->read())
+			addPluginModule(this, mModules, pluginDir, pluginName);
+	}
 
 	mServerString = "Flexisip/" VERSION " (sofia-sip-nta/" NTA_VERSION ")";
 
-	for (auto it = mModules.begin(); it != mModules.end(); ++it) {
-		(*it)->declare(cr);
-	}
+	for (Module *module : mModules)
+		module->declare(cr);
 
 	onDeclare(cr);
 
@@ -551,7 +636,8 @@ Agent::~Agent() {
 #endif
 
 	mTerminating = true;
-	for_each(mModules.begin(), mModules.end(), delete_functor<Module>());
+	for (Module *module : mModules)
+		delete module;
 
 	if (mDrm)
 		delete mDrm;
@@ -566,9 +652,10 @@ const char *Agent::getServerString() const {
 	return mServerString.c_str();
 }
 
-std::string Agent::getPreferredRoute() const {
+string Agent::getPreferredRoute() const {
 	if (!mPreferredRouteV4)
 		return string();
+
 	char prefUrl[266];
 	url_e(prefUrl, sizeof(prefUrl), mPreferredRouteV4);
 	return string(prefUrl);
@@ -610,7 +697,7 @@ void Agent::unloadConfig() {
 	}
 }
 
-std::string Agent::computeResolvedPublicIp(const std::string &host, int family) const {
+string Agent::computeResolvedPublicIp(const string &host, int family) const {
 	int err;
 	struct addrinfo hints;
 	string dest;
@@ -636,10 +723,10 @@ std::string Agent::computeResolvedPublicIp(const std::string &host, int family) 
 	} else {
 		LOGE("getaddrinfo error: %s for host [%s]", gai_strerror(err), host.c_str());
 	}
-	return dest;
+	return "";
 }
 
-std::pair<std::string, std::string> Agent::getPreferredIp(const std::string &destination) const {
+pair<string, string> Agent::getPreferredIp(const string &destination) const {
 	int err;
 	struct addrinfo hints;
 	string dest = (destination[0] == '[') ? destination.substr(1, destination.size() - 2) : destination;
@@ -750,15 +837,13 @@ string Agent::Network::print(const struct ifaddrs *ifaddr) {
 
 	err = getnameinfo(ifaddr->ifa_addr, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	if (err != 0) {
-		ss << "\tAddress: "
-		   << "(Error)";
+		ss << "\tAddress: " << "(Error)";
 	} else {
 		ss << "\tAddress: " << result;
 	}
 	err = getnameinfo(ifaddr->ifa_netmask, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	if (err != 0) {
-		ss << "\tMask: "
-		   << "(Error)";
+		ss << "\tMask: " << "(Error)";
 	} else {
 		ss << "\tMask: " << result;
 	}
@@ -858,14 +943,15 @@ struct ModuleHasName {
 	}
 	const string &match;
 };
-Module *Agent::findModule(const string &modname) const {
-	auto it = find_if(mModules.begin(), mModules.end(), ModuleHasName(modname));
+Module *Agent::findModule(const string &moduleName) const {
+	auto it = find_if(mModules.begin(), mModules.end(), ModuleHasName(moduleName));
 	return (it != mModules.end()) ? *it : NULL;
 }
 
 template <typename SipEventT>
-inline void Agent::doSendEvent(shared_ptr<SipEventT> ev, const list<Module *>::iterator &begin,
-							   const list<Module *>::iterator &end) {
+inline void Agent::doSendEvent(
+	shared_ptr<SipEventT> ev, const list<Module *>::iterator &begin, const list<Module *>::iterator &end
+) {
 #define LOG_SCOPED_EV_THREAD(ssargs, key) LOG_SCOPED_THREAD(key, ssargs->getOrEmpty(key));
 
 	auto ssargs = ev->getMsgSip()->getSipAttr();
@@ -893,8 +979,8 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	const url_t *from_url = sip->sip_from ? sip->sip_from->a_url : NULL;
 
 	SLOGD << "Receiving new Request SIP message " << req->rq_method_name << " from "
-		  << (from_url ? url_as_string(ev->getHome(), from_url) : "<invalid from>") << " :"
-		  << "\n" << *ev->getMsgSip();
+		<< (from_url ? url_as_string(ev->getHome(), from_url) : "<invalid from>") << " :"
+		<< "\n" << *ev->getMsgSip();
 	switch (req->rq_method) {
 		case sip_method_register:
 			++*mCountIncomingRegister;
@@ -940,7 +1026,7 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	}
 
 	SLOGD << "Receiving new Response SIP message: " << ev->getMsgSip()->getSip()->sip_status->st_status << "\n"
-		  << *ev->getMsgSip();
+		<< *ev->getMsgSip();
 
 	sip_t *sip = ev->getMsgSip()->getSip();
 	switch (sip->sip_status->st_status) {
@@ -1159,8 +1245,7 @@ void Agent::incrReplyStat(int status) {
 			break;
 	}
 }
-void Agent::reply(const shared_ptr<MsgSip> &ms, int status, char const *phrase, tag_type_t tag, tag_value_t value,
-				  ...) {
+void Agent::reply(const shared_ptr<MsgSip> &ms, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
 	incrReplyStat(status);
 	ta_list ta;
 	ta_start(ta, tag, value);

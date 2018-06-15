@@ -53,3 +53,9 @@
 [submodule "submodules/externals/hiredis"]
 	path = submodules/externals/hiredis
 	url = https://github.com/redis/hiredis.git
+[submodule "submodules/externals/jansson"]
+	path = submodules/externals/jansson
+	url = http://gitlab.linphone.org/BC/public/external/jansson.git
+[submodule "submodules/externals/jose"]
+	path = submodules/externals/jose
+	url = http://gitlab.linphone.org/BC/public/external/jose.git

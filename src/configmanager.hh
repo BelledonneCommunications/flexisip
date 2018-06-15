@@ -66,19 +66,25 @@ namespace flexisip {
 };
 
 #include "expressionparser.hh"
+#include "global.hh"
 #include "utils/flexisip-exception.hh"
 
 enum class ConfigState { Check, Changed, Reset, Commited };
 class ConfigValue;
+
 class ConfigValueListener {
 	static bool sDirty;
 
-  public:
+public:
+	ConfigValueListener() = default;
 	virtual ~ConfigValueListener();
 	bool onConfigStateChanged(const ConfigValue &conf, ConfigState state);
 
-  protected:
+protected:
 	virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) = 0;
+
+private:
+	FLEXISIP_DISABLE_COPY(ConfigValueListener);
 };
 
 enum GenericValueType {

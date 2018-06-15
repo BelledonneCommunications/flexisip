@@ -255,7 +255,7 @@ class Record {
 		return sMaxContacts;
 	}
 	time_t latestExpire() const;
-	time_t latestExpire(const std::string &route) const;
+	time_t latestExpire(Agent *ag) const;
 	static std::list<std::string> route_to_stl(const sip_route_s *route);
 	void appendContactsFrom(Record *src);
 	static std::string defineKeyFromUrl(const url_t *aor);
@@ -346,8 +346,8 @@ class RegistrarDb {
 	class LocalRegExpire {
 		std::map<std::string, time_t> mRegMap;
 		std::mutex mMutex;
-		std::string mPreferedRoute;
 		std::list<LocalRegExpireListener *> mLocalRegListenerList;
+		Agent *mAgent;
 
 	  public:
 		void remove(const std::string key) {
@@ -357,7 +357,7 @@ class RegistrarDb {
 		void update(const Record &record);
 		size_t countActives();
 		void removeExpiredBefore(time_t before);
-		LocalRegExpire(std::string preferedRoute);
+		LocalRegExpire(Agent *ag);
 		void clearAll() {
 			std::lock_guard<std::mutex> lock(mMutex);
 			mRegMap.clear();
@@ -378,7 +378,7 @@ class RegistrarDb {
 	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const std::string &key,
 									 const std::shared_ptr<RegistrarDbListener> &listener);
 	void fetchWithDomain(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive);
-	RegistrarDb(const std::string &preferedRoute);
+	RegistrarDb(Agent *ag);
 	virtual ~RegistrarDb();
 	std::map<std::string, Record *> mRecords;
 	std::multimap<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;
@@ -386,6 +386,7 @@ class RegistrarDb {
 	bool mUseGlobalDomain;
 	std::string mMessageExpiresName;
 	static RegistrarDb *sUnique;
+	Agent *mAgent;
 };
 
 #endif

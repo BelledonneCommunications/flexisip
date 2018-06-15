@@ -108,6 +108,7 @@ string PresentityPresenceInformation::putTuples(Xsd::Pidf::Presence::TupleSequen
 												Xsd::DataModel::Person &person, int expires) {
 	return setOrUpdate(&tuples, &person, NULL, expires);
 }
+
 string PresentityPresenceInformation::updateTuples(Xsd::Pidf::Presence::TupleSequence &tuples,
 												   Xsd::DataModel::Person  &person, string &eTag,
 												   int expires) {
@@ -116,6 +117,7 @@ string PresentityPresenceInformation::updateTuples(Xsd::Pidf::Presence::TupleSeq
 void PresenceInformationElement::clearTuples() {
 	mTuples.clear();
 }
+
 string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequence *tuples,
 												  Xsd::DataModel::Person  *person, const string *eTag,
 												  int expires) {
@@ -306,7 +308,7 @@ void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<Present
 	 */
 	listener->onInformationChanged(*this, listener->extendedNotifyEnabled());
 }
-	
+
 void PresentityPresenceInformation::removeListener(const shared_ptr<PresentityPresenceInformationListener> &listener) {
 	SLOGD << "removing listener [" << listener.get() << "] on [" << *this << "]";
 	// 1 cancel expiration time
@@ -320,7 +322,7 @@ void PresentityPresenceInformation::removeListener(const shared_ptr<PresentityPr
 	//			 successful unsubscription will also trigger a final NOTIFY message.
 	listener->onInformationChanged(*this, listener->extendedNotifyEnabled());
 }
-	
+
 bool PresentityPresenceInformation::hasDefaultElement() {
 	return mDefaultInformationElement != nullptr;
 }
