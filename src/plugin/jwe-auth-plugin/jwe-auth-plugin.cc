@@ -424,7 +424,7 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	if (error) {
 		SLOGW << "Rejecting request because: `" << error << "`.";
-		ev->reply(400, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		ev->reply(403, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	} else {
 		shared_ptr<IncomingTransaction> incomingTransaction = ev->createIncomingTransaction();
 		incomingTransaction->setProperty(getModuleName(), jweContext);
