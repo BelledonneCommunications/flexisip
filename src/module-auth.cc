@@ -1310,10 +1310,10 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am, auth_status_t *
 		if (listener->mImmediateRetrievePass) {
 			SLOGD << "Searching for " << as->as_user_uri->url_user
 			<< " password to have it when the authenticated request comes";
-			//AuthDbBackend::get()->getPassword(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL);
-			AuthDbBackend::get()->getPasswordForAlgo(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL, listener);
+			AuthDbBackend::get()->getPassword(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL);
+			//AuthDbBackend::get()->getPasswordForAlgo(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL, listener);
 		}
-		//listener->finish();
+		listener->finish();
 		return;
 	}
 }
