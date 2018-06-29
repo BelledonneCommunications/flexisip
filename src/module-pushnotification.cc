@@ -157,7 +157,8 @@ void PushNotificationContext::onTimeout() {
 	}
 
 	mModule->getService()->sendPush(mPushNotificationRequest);
-	mForkContext->sendResponse(110, "Push sent");
+	if (mForkContext)
+		mForkContext->sendResponse(110, "Push sent");
 }
 
 void PushNotificationContext::clear() {
