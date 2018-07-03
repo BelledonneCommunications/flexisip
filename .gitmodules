@@ -1,46 +1,46 @@
 [submodule "submodules/belle-sip"]
 	path = submodules/belle-sip
-	url = git://git.linphone.org/belle-sip
+	url = https://gitlab.linphone.org/BC/public/belle-sip.git
 [submodule "submodules/externals/polarssl"]
 	path = submodules/externals/polarssl
-	url = git://git.linphone.org/polarssl.git
+	url = https://gitlab.linphone.org/BC/public/external/polarssl.git
 [submodule "submodules/externals/sofia-sip"]
 	path = submodules/externals/sofia-sip
-	url = git://git.linphone.org/sofia-sip.git
+	url = https://gitlab.linphone.org/BC/public/external/sofia-sip.git
 [submodule "submodules/ortp"]
 	path = submodules/ortp
-	url = git://git.linphone.org/ortp.git
+	url = https://gitlab.linphone.org/BC/public/ortp.git
 [submodule "submodules/cmake-builder"]
 	path = submodules/cmake-builder
-	url = git://git.linphone.org/linphone-cmake-builder
+	url = https://gitlab.linphone.org/BC/public/linphone-cmake-builder.git
 [submodule "submodules/mediastreamer2"]
 	path = submodules/mediastreamer2
-	url = git://git.linphone.org/mediastreamer2.git
+	url = https://gitlab.linphone.org/BC/public/mediastreamer2.git
 [submodule "submodules/externals/speex"]
 	path = submodules/externals/speex
-	url = git://git.linphone.org/speex.git
+	url = https://gitlab.linphone.org/BC/public/external/speex.git
 [submodule "submodules/bctoolbox"]
 	path = submodules/bctoolbox
-	url = git://git.linphone.org/bctoolbox.git
+	url = https://gitlab.linphone.org/BC/public/bctoolbox.git
 [submodule "submodules/bcunit"]
 	path = submodules/bcunit
-	url = git://git.linphone.org/bcunit.git
+	url = https://gitlab.linphone.org/BC/public/bcunit.git
 [submodule "submodules/externals/zlib"]
 	path = submodules/externals/zlib
-	url = git://git.linphone.org/zlib.git
+	url = https://gitlab.linphone.org/BC/public/external/zlib.git
 	branch = 1.2.11
 [submodule "submodules/externals/hiredis"]
 	path = submodules/externals/hiredis
-	url = https://github.com/redis/hiredis.git
+	url = https://gitlab.linphone.org/BC/public/external/hiredis.git
 [submodule "submodules/externals/sqlite3"]
 	path = submodules/externals/sqlite3
-	url = git://git.linphone.org/sqlite3.git
+	url = https://gitlab.linphone.org/BC/public/external/sqlite3.git
 [submodule "submodules/externals/soci"]
 	path = submodules/externals/soci
-	url = git://git.linphone.org/soci.git
+	url = https://gitlab.linphone.org/BC/public/external/soci.git
 [submodule "submodules/externals/jansson"]
 	path = submodules/externals/jansson
-	url = http://gitlab.linphone.org/BC/public/external/jansson.git
+	url = https://gitlab.linphone.org/BC/public/external/jansson.git
 [submodule "submodules/externals/jose"]
 	path = submodules/externals/jose
-	url = http://gitlab.linphone.org/BC/public/external/jose.git
+	url = https://gitlab.linphone.org/BC/public/external/jose.git
