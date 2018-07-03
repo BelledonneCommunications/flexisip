@@ -350,12 +350,18 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		}
 		pinfo.mAppId = appId;
 
+		// Extract the unique id if possible - it's hacky
+		const shared_ptr<BranchInfo> &br = transaction->getProperty<BranchInfo>("BranchInfo");
+		if (br)
+			pinfo.mUid = br->mUid;
+
 		// check if another push notification for this device wouldn't be pending
-		string pnKey(pinfo.mCallId + ":" + deviceToken + ":" + appId);
+		string keyValue = pinfo.mUid.empty() ? deviceToken : pinfo.mUid;
+		string pnKey(pinfo.mCallId + ":" + keyValue + ":" + appId);
 		auto it = mPendingNotifications.find(pnKey);
 		if (it != mPendingNotifications.end()) {
 			LOGD("Another push notification is pending for this call %s and this device %s, not creating a new one",
-				 pinfo.mCallId.c_str(), deviceToken);
+				 pinfo.mCallId.c_str(), keyValue.c_str());
 			context = (*it).second;
 		}
 		if (!context) {
@@ -399,11 +405,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				sip_payload_t *payload = sip->sip_payload;
 				pinfo.mText = string(payload->pl_data, payload->pl_len);
 			}
-
-			// Extract the unique id if possible - it's hacky
-			const shared_ptr<BranchInfo> &br = transaction->getProperty<BranchInfo>("BranchInfo");
-			if (br)
-				pinfo.mUid = br->mUid;
 
 			shared_ptr<PushNotificationRequest> pn;
 			if (strcmp(type, "apple") == 0) {
