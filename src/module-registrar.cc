@@ -341,7 +341,11 @@ void ModuleRegistrar::onDeclare(GenericStruct *mc) {
 			"Timeout in seconds after which the static records file is re-read and the contacts updated.", "600"},
 
 		{String, "db-implementation",
-			"Implementation used for storing address of records contact uris. [redis, internal]", "internal"},
+			"Implementation used for storing address of records contact uris. Two backends are available:\n"
+			"- redis : contacts are stored in a redis database, which allows persistent and shared storage accross multiple flexisip nodes\n"
+			"- internal : contacts are stored in RAM. Of course, if flexisip is restarted, all contacts are lost until client update their"
+			" registration.\n"
+			"The redis backend is recommended, the internal being more adapted to very small deployments.", "internal"},
 		// Redis config support
 		{String, "redis-server-domain", "Domain of the redis server. ", "localhost"},
 		{Integer, "redis-server-port", "Port of the redis server.", "6379"},
