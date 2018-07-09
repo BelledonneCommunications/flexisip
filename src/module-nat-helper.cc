@@ -57,6 +57,7 @@ public:
 		// Idea for future: for the case where a natted proxy forwards a REGISTER (which can be detected , we could add
 		// a Path header corresponding to this proxy
 	}
+
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_status_t *st = ms->getSip()->sip_status;
@@ -67,7 +68,7 @@ public:
 			if (st->st_status >= 200 && st->st_status <= 299) {
 				sip_contact_t *ct = ms->getSip()->sip_contact;
 				if (ct) {
-					if (!url_has_param(ct->m_url, mContactVerifiedParam.c_str()) && !url_has_param(ct->m_url,"gr")) {
+					if (!url_has_param(ct->m_url, mContactVerifiedParam.c_str()) && !url_has_param(ct->m_url,"gr") && !msg_params_find(ct->m_params, "isfocus")) {
 						fixContactInResponse(ms->getHome(), ms->getMsg(), ms->getSip());
 						url_param_add(ms->getHome(), ct->m_url, mContactVerifiedParam.c_str());
 					} else if (ms->getSip()->sip_via && ms->getSip()->sip_via->v_next && !ms->getSip()->sip_via->v_next->v_next) {

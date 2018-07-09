@@ -203,6 +203,9 @@ private:
 	void startLogWriter();
 	std::string computeResolvedPublicIp(const std::string &host, int family = AF_UNSPEC) const;
 	void checkAllowedParams(const url_t *uri);
+	void initializePreferredRoute();
+	void loadModules();
+
 	std::string mServerString;
 	std::list<Module *> mModules;
 	std::list<std::string> mAliases;

@@ -197,10 +197,11 @@ void ModuleInfoManager::registerModuleInfo(ModuleInfoBase *moduleInfo) {
 	}
 
 	auto it = find(mRegisteredModuleInfo.cbegin(), mRegisteredModuleInfo.cend(), moduleInfo);
-	if (it != mRegisteredModuleInfo.cend())
+	if (it != mRegisteredModuleInfo.cend()) {
 		SLOGE << "Unable to register existing module [" << moduleInfo->getModuleName() << "].";
-	else
+	} else {
 		mRegisteredModuleInfo.push_back(moduleInfo);
+	}
 }
 
 void ModuleInfoManager::unregisterModuleInfo(ModuleInfoBase *moduleInfo) {

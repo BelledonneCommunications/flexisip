@@ -170,6 +170,48 @@ void Agent::checkAllowedParams(const url_t *uri) {
 	}
 }
 
+void Agent::initializePreferredRoute() {
+	//Adding internal transport to transport in "cluster" case
+	GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+	if (cluster->get<ConfigBoolean>("enabled")->read()) {
+		int err = 0;
+		string internalTransport = cluster->get<ConfigString>("internal-transport")->read();
+
+		size_t pos = internalTransport.find("\%auto");
+		if (pos != string::npos) {
+			char result[NI_MAXHOST] = { 0 };
+			//Currently only IpV4
+			err = bctbx_get_local_ip_for(AF_INET, nullptr, 0, result, sizeof(result));
+			if (err != 0) {
+				LOGE("Could not get local ip");
+			} else {
+				internalTransport.replace(pos, sizeof("\%auto")-1, result);
+			}
+		}
+
+		if (err == 0) {
+			url_t *url = url_make(&mHome, internalTransport.c_str());
+
+			if (url != nullptr) {
+				mPreferredRouteV4 = url_hdup(&mHome, url);
+				LOGD("Agent's preferred IP for internal routing find: v4: %s", internalTransport.c_str());
+			}
+		}
+	}
+}
+
+void Agent::loadModules() {
+	list<Module *>::iterator it;
+	for (it = mModules.begin(); it != mModules.end(); ++it) {
+		// Check in all cases, even if not enabled,
+		// to allow safe dynamic activation of the module
+		(*it)->checkConfig();
+		(*it)->load();
+	}
+	if (mDrm) mDrm->load(mPassphrase);
+	mPassphrase = "";
+}
+
 bool getUriParameter(const url_t *url, const char *param, string &value){
 	return ModuleToolbox::getUriParameter(url, param, value);
 }
@@ -281,6 +323,23 @@ void Agent::start(const string &transport_override, const string passphrase) {
 		su_home_deinit(&home);
 	}
 
+	if (mPreferredRouteV4 != nullptr) {
+		GenericStruct *global = GenericManager::get()->getRoot()->get<GenericStruct>("global");
+		unsigned int tports_idle_timeout = 1000 * (unsigned int)global->get<ConfigInt>("idle-timeout")->read();
+		unsigned int incompleteIncomingMessageTimeout = 600 * 1000; /*milliseconds*/
+		unsigned int keepAliveInterval = 30 * 60 * 1000; /*30mn*/
+
+		if (nta_agent_add_tport(
+				mAgent, (const url_string_t *)mPreferredRouteV4, TPTAG_IDLE(tports_idle_timeout),
+				TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+				TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TAG_END()
+			) == -1) {
+			char prefRouteV4[266];
+			url_e(prefRouteV4, sizeof(prefRouteV4), mPreferredRouteV4);
+			LOGE("Could not enable transport %s: %s", prefRouteV4, strerror(errno));
+		}
+	}
+
 	tport_t *primaries = tport_primaries(nta_agent_tports(mAgent));
 	if (primaries == NULL)
 		LOGF("No sip transport defined.");
@@ -349,31 +408,22 @@ void Agent::start(const string &transport_override, const string passphrase) {
 		su_md5_strupdate(&ctx, url);
 		LOGD("\t%s", url);
 		bool isIpv6 = strchr(name->tpn_host, ':') != NULL;
-		if (strcmp(name->tpn_canon, name->tpn_host) != 0) {
-			// The public and bind values are different
-			// which is the case of transport with sip:public;maddr=bind
-			// where public is the hostname or ip address publicly announced
-			// and maddr the real ip we listen on.
-			// Useful for a scenario where the flexisip is behind a router.
-			if (isIpv6 && mPublicIpV6.empty()) {
-				mPublicIpV6 = ModuleToolbox::getHost(name->tpn_canon);
-				mRtpBindIp6 = ModuleToolbox::getHost(name->tpn_host);
-				// LOGD("\tIpv6 public ip is %s", mPublicIpV6.c_str());
-			} else if (!isIpv6 && mPublicIpV4.empty()) {
-				mPublicIpV4 = name->tpn_canon;
-				mRtpBindIp = name->tpn_host;
-				// LOGD("\tIpv4 public ip %s", mPublicIpV4.c_str());
-			}
+
+		// The public and bind values are different
+		// which is the case of transport with sip:public;maddr=bind
+		// where public is the hostname or ip address publicly announced
+		// and maddr the real ip we listen on.
+		// Useful for a scenario where the flexisip is behind a router.
+		bool isBindNotPublic = strcmp(name->tpn_canon, name->tpn_host) != 0;
+
+		if (isIpv6 && mPublicIpV6.empty()) {
+			mPublicIpV6 = ModuleToolbox::getHost(name->tpn_canon);
+			if (isBindNotPublic) mRtpBindIp6 = ModuleToolbox::getHost(name->tpn_host);
+		} else if (!isIpv6 && mPublicIpV4.empty()) {
+			mPublicIpV4 = name->tpn_canon;
+			if (isBindNotPublic) mRtpBindIp = name->tpn_host;
 		}
-		url_t **preferred = isIpv6 ? &mPreferredRouteV6 : &mPreferredRouteV4;
-		if (*preferred == NULL) {
-			tp_name_t tp_priv_name = *name;
-			tp_priv_name.tpn_canon = tp_priv_name.tpn_host;
-			*preferred = urlFromTportName(&mHome, &tp_priv_name);
-			// char prefUrl[266];
-			// url_e(prefUrl,sizeof(prefUrl),*preferred);
-			// LOGD("\tDetected %s preferred route to %s", isIpv6 ? "ipv6":"ipv4", prefUrl);
-		}
+
 		if (mNodeUri == NULL) {
 			mNodeUri = urlFromTportName(&mHome, name);
 			string clusterDomain = GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
@@ -388,18 +438,6 @@ void Agent::start(const string &transport_override, const string passphrase) {
 
 	bool clusterModeEnabled = GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigBoolean>("enabled")->read();
 	mDefaultUri = (clusterModeEnabled && mClusterUri) ? mClusterUri : mNodeUri;
-
-	if (mPublicIpV4.empty() && mPreferredRouteV4)
-		mPublicIpV4 = ModuleToolbox::urlGetHost(mPreferredRouteV4);
-	if (mPublicIpV6.empty() && mPreferredRouteV6)
-		mPublicIpV6 = ModuleToolbox::urlGetHost(mPreferredRouteV6);
-
-	if (mRtpBindIp.empty() && mPreferredRouteV4) {
-		mRtpBindIp = ModuleToolbox::urlGetHost(mPreferredRouteV4);
-	}
-	if (mRtpBindIp6.empty() && mPreferredRouteV6) {
-		mRtpBindIp6 = ModuleToolbox::urlGetHost(mPreferredRouteV6);
-	}
 
 	if (mRtpBindIp.empty())
 		mRtpBindIp = "0.0.0.0";
@@ -445,14 +483,9 @@ void Agent::start(const string &transport_override, const string passphrase) {
 	LOGD("Agent public resolved hostname/ip: v4:%s v6:%s", mPublicResolvedIpV4.c_str(), mPublicResolvedIpV6.c_str());
 	LOGD("Agent's _default_ RTP bind ip address: v4:%s v6:%s", mRtpBindIp.c_str(), mRtpBindIp6.c_str());
 
-	char prefUrl4[256] = {0};
-	char prefUrl6[256] = {0};
-	if (mPreferredRouteV4)
-		url_e(prefUrl4, sizeof(prefUrl4), mPreferredRouteV4);
-	if (mPreferredRouteV6)
-		url_e(prefUrl6, sizeof(prefUrl6), mPreferredRouteV6);
-	LOGD("Agent's preferred IP for internal routing: v4: %s v6: %s", prefUrl4, prefUrl6);
 	startLogWriter();
+
+	loadModules();
 }
 
 // -----------------------------------------------------------------------------
@@ -531,9 +564,9 @@ void addPluginModule(Agent *agent, list<Module *> &modules, const string &plugin
 
 		const string &moduleName = moduleInfo->getModuleName();
 		Module *module = pluginLoader.get();
-		if (!module)
+		if (!module) {
 			SLOGE << "Failed to load [" << moduleName << "] (" << pluginLoader.getError() << ").";
-		else {
+		} else {
 			SLOGI << "Creating plugin module instance of " << "[" << moduleName << "] after [" << after << "].";
 			modules.insert(++it, module);
 		}
@@ -620,6 +653,9 @@ const char *Agent::getServerString() const {
 }
 
 string Agent::getPreferredRoute() const {
+	if (!mPreferredRouteV4)
+		return string();
+
 	char prefUrl[266];
 	url_e(prefUrl, sizeof(prefUrl), mPreferredRouteV4);
 	return string(prefUrl);
@@ -651,15 +687,7 @@ void Agent::loadConfig(GenericManager *cm) {
 
 	RegistrarDb::initialize(this);
 
-	list<Module *>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		// Check in all cases, even if not enabled,
-		// to allow safe dynamic activation of the module
-		(*it)->checkConfig();
-		(*it)->load();
-	}
-	if (mDrm) mDrm->load(mPassphrase);
-	mPassphrase = "";
+	initializePreferredRoute();
 }
 
 void Agent::unloadConfig() {

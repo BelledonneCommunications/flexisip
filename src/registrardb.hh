@@ -178,6 +178,7 @@ struct ExtendedContact {
 	std::ostream &print(std::ostream &stream, time_t _now = getCurrentTime(), time_t offset = 0) const;
 	sip_contact_t *toSofiaContact(su_home_t *home, time_t now) const;
 	sip_route_t *toSofiaRoute(su_home_t *home) const;
+
 	/*returns a new url_t where regid (private flexisip parameter) is removed*/
 	url_t *toSofiaUrlClean(su_home_t *home);
 };
@@ -291,7 +292,7 @@ class ContactUpdateListener : public RegistrarDbListener {
 class ContactRegisteredListener {
   public:
 	virtual ~ContactRegisteredListener();
-	virtual void onContactRegistered(std::string key, std::string uid) = 0;
+	virtual void onContactRegistered(const std::string &key, const std::string &uid) = 0;
 };
 
 class LocalRegExpireListener {
@@ -325,7 +326,7 @@ class RegistrarDb {
 
 	void notifyContactListener(const std::string &key, const std::string &uid);
 	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
-	virtual void unsubscribe(const std::string &topic);
+	virtual void unsubscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void publish(const std::string &topic, const std::string &uid) = 0;
 	bool useGlobalDomain()const{
 		return mUseGlobalDomain;
@@ -380,7 +381,7 @@ class RegistrarDb {
 	RegistrarDb(Agent *ag);
 	virtual ~RegistrarDb();
 	std::map<std::string, Record *> mRecords;
-	std::map<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;
+	std::multimap<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;
 	LocalRegExpire *mLocalRegExpire;
 	bool mUseGlobalDomain;
 	std::string mMessageExpiresName;

@@ -51,6 +51,14 @@ Requires: %{pkg_prefix}soci-mysql-devel
 Requires: %{pkg_prefix}mediastreamer
 %endif
 
+%if @ENABLE_PRESENCE@
+Requires: %{pkg_prefix}belle-sip
+%endif
+
+%if @ENABLE_CONFERENCE@
+Requires: %{pkg_prefix}liblinphone
+%endif
+
 Requires(post): /sbin/chkconfig coreutils
 Requires(preun): /sbin/chkconfig /sbin/chkconfig
 Requires(postun): /sbin/service
@@ -90,7 +98,7 @@ JweAuth plugin offers the possibility to use JSON Web Encryption tokens on flexi
 %setup -n %{name}-%{version}-%build_number
 
 %build
-%{expand:%%%cmake_name} . -DCMAKE_INSTALL_LIBDIR:PATH=%{_libdir} -DCMAKE_PREFIX_PATH:PATH=%{_prefix} -DSYSCONF_INSTALL_DIR:PATH=%{_sysconfdir} @RPM_ALL_CMAKE_OPTIONS@
+%{expand:%%%cmake_name} . -DCMAKE_BUILD_TYPE=@CMAKE_BUILD_TYPE@ -DCMAKE_INSTALL_LIBDIR:PATH=%{_libdir} -DCMAKE_PREFIX_PATH:PATH=%{_prefix} -DSYSCONF_INSTALL_DIR:PATH=%{_sysconfdir} @RPM_ALL_CMAKE_OPTIONS@
 
 
 make %{?_smp_mflags}
@@ -122,9 +130,15 @@ mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/log/flexisip
 mkdir -p $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip.service $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip\@.service $RPM_BUILD_ROOT/lib/systemd/system
+install -p -m 0644 scripts/flexisip-proxy.service $RPM_BUILD_ROOT/lib/systemd/system
+install -p -m 0644 scripts/flexisip-proxy\@.service $RPM_BUILD_ROOT/lib/systemd/system
 %if @ENABLE_PRESENCE@
 install -p -m 0644 scripts/flexisip-presence.service $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip-presence\@.service $RPM_BUILD_ROOT/lib/systemd/system
+%endif
+%if @ENABLE_CONFERENCE@
+	install -p -m 0644 scripts/flexisip-conference.service $RPM_BUILD_ROOT/lib/systemd/system
+	install -p -m 0644 scripts/flexisip-conference\@.service $RPM_BUILD_ROOT/lib/systemd/system
 %endif
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
 install -p -m 0644 scripts/flexisip-logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
@@ -182,11 +196,18 @@ fi
 /lib/systemd/system/flexisip-presence@.service
 %endif
 
+%if @ENABLE_CONFERENCE@
+	/lib/systemd/system/flexisip-conference.service
+	/lib/systemd/system/flexisip-conference@.service
+%endif
+
 %{_sysconfdir}/init.d/flexisip
 %{_sysconfdir}/flexisip
 %{_sysconfdir}/logrotate.d/flexisip-logrotate
 /lib/systemd/system/flexisip.service
 /lib/systemd/system/flexisip@.service
+/lib/systemd/system/flexisip-proxy.service
+/lib/systemd/system/flexisip-proxy@.service
 
 %if @ENABLE_JWE_AUTH_PLUGIN@
 %files jwe-auth-plugin

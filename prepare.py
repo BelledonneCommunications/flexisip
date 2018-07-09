@@ -68,6 +68,24 @@ class FlexisipPreparator(prepare.Preparator):
     def __init__(self, targets=flexisip_targets, default_targets=['flexisip']):
         prepare.Preparator.__init__(self, targets, default_targets)
         self.veryclean = True
+        self.argparser.add_argument('-sys', '--use-system-dependencies', help="Find dependencies on the system.", action='store_true')
+
+    def parse_args(self):
+        prepare.Preparator.parse_args(self)
+        if self.args.use_system_dependencies:
+            self.additional_args += ["-DLINPHONE_BUILDER_USE_SYSTEM_DEPENDENCIES=YES"]
+
+    def check_environment(self, submodule_directory_to_check=None):
+        ret = prepare.Preparator.check_environment(self)
+        ret |= not self.check_is_installed('doxygen', 'doxygen')
+        ret |= not self.check_is_installed('dot', 'graphviz')
+        if 'flexisip-rpm' in self.args.target: 
+            ret |= not self.check_is_installed('rpmbuild', 'rpm-build')
+            ret |= not self.check_is_installed('bison', 'bison')
+            if os.uname()[1].startswith('debian'):
+                ret |= not self.check_is_installed('alien', 'alien')
+                ret |= not self.check_is_installed('fakeroot', 'fakeroot')
+        return ret
 
     def clean(self):
         prepare.Preparator.clean(self)

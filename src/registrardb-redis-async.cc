@@ -25,6 +25,7 @@
 #include <vector>
 #include <algorithm>
 #include <iterator>
+#include <set>
 
 #include "configmanager.hh"
 
@@ -137,7 +138,7 @@ bool RegistrarDbRedisAsync::isConnected() {
 /* This method checks that a redis command was successful, and cleans up if not. You use it with the macro defined
  * below. */
 
-bool RegistrarDbRedisAsync::handleRedisStatus(const std::string &desc, int redisStatus, RegistrarUserData *data) {
+bool RegistrarDbRedisAsync::handleRedisStatus(const string &desc, int redisStatus, RegistrarUserData *data) {
 	if (redisStatus != REDIS_OK) {
 		LOGE("Redis error for %s: %d", desc.c_str(), redisStatus);
 		if (data != NULL) {
@@ -176,12 +177,12 @@ static bool is_end_line_character(char c) {
  * will be ignored.
  * @return a map<string,string> which contains the keys and values extracted (can be empty)
  */
-static map<string, string> parseKeyValue(const std::string &toParse, const char line_delim = '\n',
+static map<string, string> parseKeyValue(const string &toParse, const char line_delim = '\n',
 										 const char delimiter = ':', const char comment = '#') {
 	map<string, string> kvMap;
 	istringstream values(toParse);
 
-	for (string line; std::getline(values, line, line_delim);) {
+	for (string line; getline(values, line, line_delim);) {
 		if (line.find(comment) == 0)
 			continue; // section title
 
@@ -416,27 +417,33 @@ bool RegistrarDbRedisAsync::disconnect() {
 	return status;
 }
 
-/*this function is invoked after a redis disconnection on the subscribe channel, so that all topics we are interested in are re-subscribed.*/
-void RegistrarDbRedisAsync::subscribeAll(){
-	for(auto it = mContactListenersMap.begin(); it != mContactListenersMap.end(); ++it){
-		subscribeTopic((*it).first);
-	}
+// This function is invoked after a redis disconnection on the subscribe channel, so that all topics we are interested in are re-subscribed
+void RegistrarDbRedisAsync::subscribeAll() {
+	set<string> topics;
+	for (auto it = mContactListenersMap.begin(); it != mContactListenersMap.end(); ++it)
+		topics.insert(it->first);
+	for (const auto &topic : topics)
+		subscribeTopic(topic);
 }
 
-void RegistrarDbRedisAsync::subscribeTopic(const string &topic){
+void RegistrarDbRedisAsync::subscribeTopic(const string &topic) {
 	LOGD("Sending SUBSCRIBE command to redis for topic '%s'", topic.c_str());
 	redisAsyncCommand(mSubscribeContext, sPublishCallback, NULL, "SUBSCRIBE %s", topic.c_str());
 }
 
-void RegistrarDbRedisAsync::subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener) {
+void RegistrarDbRedisAsync::subscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {
 	RegistrarDb::subscribe(topic, listener);
-	subscribeTopic(topic);
+	if (mContactListenersMap.count(topic) == 1)
+		subscribeTopic(topic);
 }
-void RegistrarDbRedisAsync::unsubscribe(const std::string &topic) {
-	RegistrarDb::unsubscribe(topic);
-	redisAsyncCommand(mSubscribeContext, NULL, NULL, "UNSUBSCRIBE %s", topic.c_str());
+
+void RegistrarDbRedisAsync::unsubscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {
+	RegistrarDb::unsubscribe(topic, listener);
+	if (mContactListenersMap.count(topic) == 0)
+		redisAsyncCommand(mSubscribeContext, NULL, NULL, "UNSUBSCRIBE %s", topic.c_str());
 }
-void RegistrarDbRedisAsync::publish(const std::string &topic, const std::string &uid) {
+
+void RegistrarDbRedisAsync::publish(const string &topic, const string &uid) {
 	LOGD("Publish topic = %s, uid = %s", topic.c_str(), uid.c_str());
 	redisAsyncCommand(mContext, NULL, NULL, "PUBLISH %s %s", topic.c_str(), uid.c_str());
 }
@@ -629,8 +636,8 @@ void RegistrarDbRedisAsync::doBind(const url_t *ifrom, sip_contact_t *icontact, 
 		delete data;
 		return;
 	}
-	const char *mss_expires = RegistrarDb::get()->getMessageExpires(icontact->m_params).c_str();
-	int message_expires = mss_expires ? atoi(mss_expires) : 0;
+	string mss_expires = RegistrarDb::get()->getMessageExpires(icontact->m_params);
+	int message_expires = mss_expires.empty() ? 0 : stoi(mss_expires);
 	if (expire > 0 || message_expires > 0) {
 		serializeAndSendToRedis(data, sHandleBind);
 	} else {

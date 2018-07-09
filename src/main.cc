@@ -77,6 +77,10 @@
 #include "presence/presence-longterm.hh"
 #endif // ENABLE_PRESENCE
 
+#ifdef ENABLE_CONFERENCE
+#include "conference/conference-server.hh"
+#endif // ENABLE_CONFERENCE
+
 #include "monitor.hh"
 
 #include <openssl/opensslconf.h>
@@ -98,7 +102,10 @@ static su_root_t *root = NULL;
 
 #if ENABLE_PRESENCE
 static std::shared_ptr<flexisip::PresenceServer> presenceServer;
-#endif
+#endif // ENABLE_PRESENCE
+#if ENABLE_CONFERENCE
+static std::shared_ptr<flexisip::ConferenceServer> conferenceServer;
+#endif // ENABLE_CONFERENCE
 
 using namespace std;
 
@@ -134,8 +141,13 @@ static void flexisip_stop(int signum) {
 			su_root_break(root);
 		}
 #if ENABLE_PRESENCE
-		if (presenceServer){
+		if (presenceServer) {
 			presenceServer->stop();
+		}
+#endif
+#if ENABLE_CONFERENCE
+		if (conferenceServer) {
+			conferenceServer->stop();
 		}
 #endif
 	} //else nop
@@ -531,15 +543,13 @@ static void list_modules() {
 	}
 }
 
-static const char* getFunctionName(bool startProxy, bool startPresence){
-	if (startProxy && startPresence){
-		return "proxy+presence";
-	}else if (startProxy){
-		return "proxy";
-	}else if (startPresence){
-		return "presence";
-	}
-	return "none";
+static const string getFunctionName(bool startProxy, bool startPresence, bool startConference){
+	string functions;
+	if(startProxy) functions = "proxy";
+	if(startPresence) functions += ((functions.empty()) ? "" : "+") + string("presence");
+	if(startConference) functions += ((functions.empty()) ? "" : "+") + string("conference");
+
+	return (functions.empty()) ? "none" : functions;
 }
 
 static void notifyWatchDog(){
@@ -580,6 +590,9 @@ static string version() {
 #if ENABLE_PRESENCE
 	version << "- Presence\n";
 #endif
+#if ENABLE_CONFERENCE
+	version << "- Conference\n";
+#endif
 
 	return version.str();
 }
@@ -606,6 +619,9 @@ int main(int argc, char *argv[]) {
 #ifdef ENABLE_PRESENCE
 	Stats *presence_stats = NULL;
 #endif
+#ifdef ENABLE_CONFERENCE
+	Stats *conference_stats = NULL;
+#endif
 	bool debug;
 	bool user_errors = false;
 	map<string, string> oset;
@@ -613,7 +629,7 @@ int main(int argc, char *argv[]) {
 	string versionString = version();
 	// clang-format off
 	TCLAP::CmdLine cmd("", ' ', versionString);
-	TCLAP::ValueArg<string>     functionName("", "server", 		"Specify the server function to operate: 'proxy', 'presence', or 'all'.", TCLAP::ValueArgOptional, "", "server function", cmd);
+	TCLAP::ValueArg<string>     functionName("", "server", 		"Specify the server function to operate: 'proxy', 'presence', 'conference', or 'all'.", TCLAP::ValueArgOptional, "", "server function", cmd);
 	TCLAP::ValueArg<string>     configFile("c", "config", 			"Specify the location of the configuration file.", TCLAP::ValueArgOptional, CONFIG_DIR "/flexisip.conf", "file", cmd);
 	TCLAP::ValueArg<string>     pkcsFile("", "p12-passphrase-file", "Specify the location of the pkcs12 passphrase file.", TCLAP::ValueArgOptional,"", "file", cmd);
 	TCLAP::SwitchArg            daemonMode("",  "daemon", 			"Launch in daemon mode.", cmd);
@@ -753,6 +769,7 @@ int main(int argc, char *argv[]) {
 
 	bool startProxy = false;
 	bool startPresence = false;
+	bool startConference = false;
 
 	if (functionName.getValue() == "proxy"){
 		startProxy = true;
@@ -761,9 +778,15 @@ int main(int argc, char *argv[]) {
 #ifndef ENABLE_PRESENCE
 		LOGF("Flexisip was compiled without presence server extension.");
 #endif
+	}else if (functionName.getValue() == "conference"){
+		startConference = true;
+#ifndef ENABLE_CONFERENCE
+		LOGF("Flexisip was compiled without conference server extension.");
+#endif
 	}else if (functionName.getValue() == "all"){
 		startPresence = true;
 		startProxy = true;
+		startConference = true;
 	}else if (functionName.getValue().empty()){
 		auto default_servers = cfg->getGlobal()->get<ConfigStringList>("default-servers");
 		if (default_servers->contains("proxy")){
@@ -772,13 +795,16 @@ int main(int argc, char *argv[]) {
 		if (default_servers->contains("presence")){
 			startPresence = true;
 		}
-		if (!startPresence && !startProxy){
+		if (default_servers->contains("conference")){
+			startConference = true;
+		}
+		if (!startPresence && !startProxy && !startConference){
 			LOGF("Bad default-servers definition '%s'.", default_servers->get().c_str());
 		}
 	}else{
 		LOGF("There is no server function '%s'.", functionName.getValue().c_str());
 	}
-	string fName = getFunctionName(startProxy, startPresence);
+	string fName = getFunctionName(startProxy, startPresence, startConference);
 	// Initialize
 	std::string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
 	std::string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
@@ -866,6 +892,7 @@ int main(int argc, char *argv[]) {
 	//we create an Agent in all cases, because it will declare config items that are necessary for presence server to run.
 	a = make_shared<Agent>(root);
 	setOpenSSLThreadSafe();
+	a->loadConfig(cfg);
 
 	if (startProxy){
 		a->start(transportsArg.getValue(), passphrase);
@@ -878,8 +905,6 @@ int main(int argc, char *argv[]) {
 
 		if (!oset.empty())
 			cfg->applyOverrides(true); // using default + overrides
-
-		a->loadConfig(cfg);
 
 		// Create cached test accounts for the Flexisip monitor if necessary
 		if (monitorEnabled) {
@@ -907,9 +932,8 @@ int main(int argc, char *argv[]) {
 	}
 	if (startPresence){
 #ifdef ENABLE_PRESENCE
-		if (!startProxy) cfg->loadStrict();
 		bool enableLongTermPresence = (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
-		presenceServer = make_shared<flexisip::PresenceServer>();
+		presenceServer = make_shared<flexisip::PresenceServer>(startProxy);
 		if (enableLongTermPresence) {
 			auto presenceLongTerm = make_shared<flexisip::PresenceLongterm>(presenceServer->getBelleSipMainLoop());
 			presenceServer->addPresenceInfoObserver(presenceLongTerm);
@@ -918,12 +942,8 @@ int main(int argc, char *argv[]) {
 			notifyWatchDog();
 		}
 		try{
-			if (startProxy){
-				//start as a thread
-				presenceServer->start();
-			}else{
-				presenceServer->run();
-			}
+			presenceServer->init();
+			presenceServer->run();
 		}catch(FlexisipException &e){
 			/* Catch the presence server exception, which is generally caused by a failure while binding the SIP listening points.
 			 * Since it prevents from starting and it is not a crash, it shall be notified to the user with LOGF*/
@@ -935,12 +955,37 @@ int main(int argc, char *argv[]) {
 #endif
 	}
 
-	if (startProxy){
-		su_timer_t *timer = su_timer_create(su_root_task(root), 5000);
-		su_timer_set_for_ever(timer, (su_timer_f)timerfunc, a.get());
+	if (startConference){
+#ifdef ENABLE_CONFERENCE
+		flexisip::ConferenceServer::bindConference(a->getPreferredRoute());
+		conferenceServer = make_shared<flexisip::ConferenceServer>(startProxy, a->getPreferredRoute(), root);
+		if (daemonMode) {
+			notifyWatchDog();
+		}
+		try{
+			conferenceServer->init();
+			conferenceServer->run();
+		}catch(FlexisipException &e){
+			/* Catch the conference server exception, which is generally caused by a failure while binding the SIP listening points.
+			 * Since it prevents from starting and it is not a crash, it shall be notified to the user with LOGF*/
+			LOGF("Fail to start flexisip conference server");
+		}
+		conference_stats = new Stats("conference");
+		conference_stats->start();
+#endif // ENABLE_CONFERENCE
+	}
+
+	if (startProxy || startConference){
+		su_timer_t *timer;
+		if (startProxy) {
+			timer = su_timer_create(su_root_task(root), 5000);
+			su_timer_set_for_ever(timer, (su_timer_f)timerfunc, a.get());
+		}
 		su_root_run(root);
-		su_timer_destroy(timer);
-		a->unloadConfig();
+		if (startProxy) {
+			su_timer_destroy(timer);
+			a->unloadConfig();
+		}
 	}
 
 	a.reset();
@@ -950,7 +995,16 @@ int main(int argc, char *argv[]) {
 		delete presence_stats;
 	}
 	presenceServer.reset();
-#endif
+#endif // ENABLE_PRESENCE
+
+#ifdef ENABLE_CONFERENCE
+	if (conference_stats) {
+		conference_stats->stop();
+		delete conference_stats;
+	}
+	conferenceServer.reset();
+#endif // ENABLE_CONFERENCE
+
 	if (stun) {
 		stun->stop();
 		delete stun;

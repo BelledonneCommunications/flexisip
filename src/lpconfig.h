@@ -25,6 +25,7 @@
 #ifndef LPCONFIG_H
 #define LPCONFIG_H
 
+namespace flexisip {
 /**
  * The LpConfig object is used to manipulate a configuration file.
  * 
@@ -43,11 +44,7 @@
  * enabled=1
  * @endcode
 **/
-typedef struct _LpConfig LpConfig;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+struct LpConfig;
 
 LpConfig * lp_config_new(const char *filename);
 int lp_config_read_file(LpConfig *lpconfig, const char *filename);
@@ -111,9 +108,7 @@ void lp_config_for_each_unread(LpConfig *lpconfig, LpConfigUnreadCallback cb, vo
 /*tells whether uncommited (with lp_config_sync()) modifications exist*/
 int lp_config_needs_commit(const LpConfig *lpconfig);
 void lp_config_destroy(LpConfig *cfg);
-	
-#ifdef __cplusplus
-}
-#endif
+
+}; //namespace
 
 #endif

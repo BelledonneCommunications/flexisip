@@ -48,7 +48,6 @@ void ForkContext::sOnNextBanches(su_root_magic_t* magic, su_timer_t* t, su_timer
 	(static_cast<ForkContext *>(arg))->onNextBranches();
 }
 
-
 ForkContext::ForkContext(Agent *agent, const shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg,
 						 ForkContextListener *listener)
 	: mListener(listener), mNextBranchesTimer(NULL), mCurrentPriority(-1), mAgent(agent),
@@ -397,6 +396,12 @@ void ForkContext::nextBranches() {
 }
 
 void ForkContext::start() {
+	/* Remove existing timer */
+	if (mNextBranchesTimer) {
+		su_timer_destroy(mNextBranchesTimer);
+		mNextBranchesTimer = NULL;
+	}
+
 	/* Prepare branches */
 	nextBranches();
 
@@ -408,10 +413,7 @@ void ForkContext::start() {
 	}
 
 	if (mCfg->mCurrentBranchesTimeout > 0 && hasNextBranches()) {
-		/* Start/Restart the timer for next branches */
-		if (mNextBranchesTimer)
-			su_timer_destroy(mNextBranchesTimer);
-
+		/* Start the timer for next branches */
 		mNextBranchesTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
 		su_timer_set_interval(mNextBranchesTimer, &ForkContext::sOnNextBanches, this, (su_duration_t)mCfg->mCurrentBranchesTimeout * (su_duration_t)1000);
 	}
@@ -482,8 +484,16 @@ void ForkContext::setKey(string key) {
      mKey = key;
 }
 
-string ForkContext::getKey() {
+string ForkContext::getKey() const {
      return mKey;
+}
+
+void ForkContext::setContactRegisteredListener (const shared_ptr<OnContactRegisteredListener> &listener) {
+	mContactRegisteredListener = listener;
+}
+
+const shared_ptr<OnContactRegisteredListener> &ForkContext::getContactRegisteredListener () const {
+	return mContactRegisteredListener;
 }
 
 shared_ptr<BranchInfo> ForkContext::createBranchInfo() {

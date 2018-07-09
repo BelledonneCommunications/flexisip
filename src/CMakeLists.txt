@@ -20,7 +20,7 @@
 #
 ############################################################################
 
-set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIASIPUA_LIBRARIES} ${BCTOOLBOX_CORE_LIBRARIES})
+set(FLEXISIP_LIBS ${ORTP_LIBRARIES} ${SOFIASIPUA_LIBRARIES} ${LINPHONECXX_LIBRARIES} ${BCTOOLBOX_CORE_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 set(FLEXISIP_INCLUDES )
 
@@ -173,8 +173,8 @@ if(ENABLE_PRESENCE)
 		message(FATAL_ERROR "Presence asked but XSD not enabled! Please enable it first.")
 	endif()
 	add_definitions(-DBELLE_SIP_USE_STL ${BELLE_SIP_CFLAGS})
-	list(APPEND FLEXISIP_LIBS ${BELLESIP_LIBRARIES} ${XERCES_LIBS})
-	list(APPEND FLEXISIP_INCLUDES ${BELLESIP_INCLUDE_DIRS} presence)
+	list(APPEND FLEXISIP_LIBS ${XERCES_LIBS})
+	list(APPEND FLEXISIP_INCLUDES presence)
 	list(APPEND FLEXISIP_SOURCES
 		presence/bellesip-signaling-exception.cc
 		presence/bellesip-signaling-exception.hh
@@ -206,6 +206,47 @@ if(ENABLE_PRESENCE)
 		xml/rpid.hh
 		xml/xml.cc
 		xml/xml.hh
+	)
+endif()
+
+if(ENABLE_CONFERENCE)
+	list(APPEND FLEXISIP_LIBS ${BELLESIP_LIBRARIES} ${LINPHONE_LIBRARIES})
+	list(APPEND FLEXISIP_INCLUDES ${BELLESIP_INCLUDE_DIRS} ${LINPHONE_INCLUDE_DIRS})
+	list(APPEND FLEXISIP_SOURCES
+		conference/conference-address-generator.cc
+		conference/conference-address-generator.hh
+		conference/conference-server.cc
+		conference/conference-server.hh
+		conference/participant-capabilities-check.cc
+		conference/participant-capabilities-check.hh
+		conference/participant-devices-search.cc
+		conference/participant-devices-search.hh
+		conference/participant-registration-subscription.cc
+		conference/participant-registration-subscription.hh
+		conference/participant-registration-subscription-handler.cc
+		conference/participant-registration-subscription-handler.hh
+	)
+endif()
+
+if(ENABLE_PUSHNOTIFICATION)
+	list(APPEND FLEXISIP_SOURCES
+		module-pushnotification.cc
+		pushnotification/applepush.cc
+		pushnotification/applepush.hh
+		pushnotification/firebasepush.cc
+		pushnotification/firebasepush.hh
+		pushnotification/genericpush.cc
+		pushnotification/genericpush.hh
+		pushnotification/googlepush.cc
+		pushnotification/googlepush.hh
+		pushnotification/microsoftpush.cc
+		pushnotification/microsoftpush.hh
+		pushnotification/pushnotificationclient.cc
+		pushnotification/pushnotificationclient.hh
+		pushnotification/pushnotificationclient_wp.cc
+		pushnotification/pushnotificationclient_wp.hh
+		pushnotification/pushnotificationservice.cc
+		pushnotification/pushnotificationservice.hh
 	)
 endif()
 

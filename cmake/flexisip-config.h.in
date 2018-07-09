@@ -7,6 +7,7 @@
 #cmakedefine ENABLE_LIBODB_MYSQL 1
 #cmakedefine ENABLE_TRANSCODER 1
 #cmakedefine ENABLE_PRESENCE 1
+#cmakedefine ENABLE_CONFERENCE 1
 #cmakedefine ENABLE_PROTOBUF 1
 #cmakedefine ENABLE_ODBC 1
 #cmakedefine ENABLE_REDIS 1

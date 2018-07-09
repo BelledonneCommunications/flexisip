@@ -322,7 +322,11 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 	PushInfo pinfo;
 
 	pinfo.mCallId = ms->getSip()->sip_call_id->i_id;
-	pinfo.mEvent = sip->sip_request->rq_method == sip_method_invite ? PushInfo::Call : PushInfo::Message;
+	pinfo.mEvent = sip->sip_request->rq_method == sip_method_invite
+		? PushInfo::Call
+		: sip->sip_request->rq_method == sip_method_message
+			? PushInfo::Message
+			: PushInfo::Refer;
 	pinfo.mTtl = mTtl;
 	int time_out = mTimeout;
 
@@ -426,7 +430,13 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 					strncpy(msg_snd, "empty", sizeof(msg_snd));
 				}
 
-				pinfo.mAlertMsgId = (sip->sip_request->rq_method == sip_method_invite) ? call_str : msg_str;
+				bool isGroupChatInvite = (sip->sip_content_type != NULL && strcasecmp(sip->sip_content_type->c_subtype, "resource-lists+xml") == 0);
+				pinfo.mAlertMsgId = (sip->sip_request->rq_method == sip_method_invite && !isGroupChatInvite)
+					? call_str
+					: (sip->sip_request->rq_method == sip_method_message)
+						? msg_str
+						: "IC_SIL";
+
 				pinfo.mAlertSound = (sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd;
 				pinfo.mNoBadge = mNoBadgeiOS;
 				if (!mExternalPushUri)

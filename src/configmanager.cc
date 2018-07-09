@@ -36,6 +36,7 @@
 #include <sofia-sip/su_md5.h>
 
 using namespace std;
+using namespace flexisip;
 
 bool ConfigValueListener::sDirty = false;
 ConfigValueListener::~ConfigValueListener() {
@@ -913,6 +914,7 @@ GenericManager::GenericManager()
 		{String, "cluster-domain", "Domain name that is to be used by external proxies to connect on any node of the cluster randomly. "
 			"The round-robin can be implemented with SRV records or by declaring several A records for the that domain", ""},
 		{StringList, "nodes", "List of IP addresses of all nodes present in the cluster", ""},
+		{String, "internal-transport", "Internal transport used to communicate with other proxy", "sip:\%auto:5059;transport=tcp"},
 		config_item_end};
 
 	static ConfigItemDescriptor mdns_conf[] = {
@@ -961,7 +963,7 @@ GenericManager::GenericManager()
 
 	GenericStruct *cluster = new GenericStruct(
 		"cluster",
-		"Should the server be part of a cluster, this section enable to describe the topology of the cluster.", 0);
+		"Should the server be part of a cluster, this section describes the topology of the cluster.", 0);
 	mConfigRoot.addChild(cluster);
 	cluster->addChildrenValues(cluster_conf);
 	cluster->setReadOnly(true);

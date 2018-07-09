@@ -1274,6 +1274,7 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am, auth_status_t *
 			memset(&r, 0, sizeof(r));
 			r.ar_size = sizeof(r);
 			auth_digest_response_get(as->as_home, &r, au->au_next->au_params);
+
 			if (r.ar_algorithm == NULL || !strcasecmp(r.ar_algorithm, "MD5")) {
 				au = au->au_next;
 			}

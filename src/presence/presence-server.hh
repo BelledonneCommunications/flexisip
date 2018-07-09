@@ -20,7 +20,6 @@
 #define __flexisip__presence_server__
 
 #include <iostream>
-#include <thread>
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -30,6 +29,7 @@
 //#include "presence-configmanager.hh"
 //#include "presentity-presenceinformation.hh"
 #include "presentity-manager.hh"
+#include "service-server.hh"
 #include "belle-sip/sip-uri.h"
 
 typedef struct belle_sip_main_loop belle_sip_main_loop_t;
@@ -67,33 +67,32 @@ public:
 	virtual void onListenerEvents(std::list<std::shared_ptr<PresentityPresenceInformation>>& infos) const = 0;
 };
 
-class PresenceServer : public PresentityManager {
+class PresenceServer : public PresentityManager, public ServiceServer {
 public:
 	PresenceServer();
+	PresenceServer(bool withThread, su_root_t* root = nullptr);
 	~PresenceServer();
-	//Starts presence server as a thread
-	void start();
-	//Directly run the presence server (in current thread).
-	void run();
-	void stop();
+	void _init();
+	void _run();
+	void _stop();
 	belle_sip_main_loop_t* getBelleSipMainLoop();
 	void addPresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &observer);
 	void removePresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &observer);
 private:
-	class Init{
-		public:
+	// Used to declare the service configuration
+	class Init {
+	public:
 		Init();
 	};
 	static Init sStaticInit;
-	bool mStarted;
-	bool mEnabled;
 	//PresenceConfigManager mConfigManager;
 	belle_sip_stack_t *mStack;
 	belle_sip_provider_t *mProvider;
 	belle_sip_listener_t *mListener;
-	std::unique_ptr<std::thread> mIterateThread;
 	int mDefaultExpires;
 	std::string mBypass;
+	bool mEnabled;
+	size_t mMaxPresenceInfoNotifiedAtATime;
 
 	// belle sip cbs
 	static void processDialogTerminated(PresenceServer * thiz, const belle_sip_dialog_terminated_event_t *event);
@@ -135,7 +134,7 @@ private:
 	void addOrUpdateListeners(std::list<std::shared_ptr<PresentityPresenceInformationListener>>& listerner);
 	void removeListener(const std::shared_ptr<PresentityPresenceInformationListener>& listerner);
 
-	void removeSubscription(std::shared_ptr<Subscription> &identity) throw();
+	void removeSubscription(std::shared_ptr<Subscription> &identity);
 	//void notify(Subscription& subscription,PresentityPresenceInformation& presenceInformation);
 	std::unordered_map<const belle_sip_uri_t*,std::list<std::shared_ptr<Subscription>>,std::hash<const belle_sip_uri_t*>,bellesip::UriComparator> mSubscriptionsByEntity;
 	/**/

@@ -202,11 +202,12 @@ void FileAuthDb::sync() {
 								LOGF("%s: unterminated password section at line '%s'. Missing ';'.", mFileString.c_str(), line.c_str());
 						}
 					}
-					
+
 					// if user with space, replace %20 by space
 					char *user_ref = new char[user.size() + 1];
 					memset(user_ref, '\0', user.size() + 1);
 					url_unescape(user_ref, user.c_str());
+
 					if (!ss.eof()) {
 						// TODO read userid with space
 						getline(ss, userid, ' ');

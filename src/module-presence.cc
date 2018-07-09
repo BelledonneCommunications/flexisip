@@ -95,6 +95,7 @@ private:
 		}
 		return false;
 	}
+
 	void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		if (isMessageAPresenceMessage(ev))
 			route(ev);

@@ -24,6 +24,8 @@
 #include "transaction.hh"
 #include "registrardb.hh"
 
+class OnContactRegisteredListener;
+
 class ForkContextConfig {
   public:
 	ForkContextConfig();
@@ -80,6 +82,7 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	void init();
 	void processLateTimeout();
 	std::shared_ptr<BranchInfo> _findBestBranch(const int urgentReplies[], bool ignore503And408);
+	std::shared_ptr<OnContactRegisteredListener> mContactRegisteredListener;
 	// Request if the fork has other branches with lower priorities to try
 	bool hasNextBranches();
 	// Set the next branches to try and process them
@@ -147,7 +150,10 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	void start();
 	
 	void setKey(std::string key);
-	std::string getKey();
+	std::string getKey() const;
+
+	void setContactRegisteredListener (const std::shared_ptr<OnContactRegisteredListener> &listener);
+	const std::shared_ptr<OnContactRegisteredListener> &getContactRegisteredListener () const;
 
 	/*
 	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.

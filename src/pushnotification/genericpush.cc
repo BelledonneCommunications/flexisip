@@ -101,7 +101,11 @@ string &GenericPushNotificationRequest::substituteArgs(string &input, const Push
 	keyvals.push_back(KeyVal("$from-tag", pinfo.mFromTag));
 	keyvals.push_back(KeyVal("$to-uri", pinfo.mToUri));
 	keyvals.push_back(KeyVal("$call-id", pinfo.mCallId));
-	keyvals.push_back(KeyVal("$event", pinfo.mEvent == PushInfo::Call ? "call" : "message"));
+	keyvals.push_back(KeyVal("$event", pinfo.mEvent == PushInfo::Call
+		? "call"
+		: pinfo.mEvent == PushInfo::Message
+			? "message"
+			: "refer"));
 	keyvals.push_back(KeyVal("$sound", pinfo.mAlertSound));
 	keyvals.push_back(KeyVal("$msgid", pinfo.mAlertMsgId));
 	keyvals.push_back(KeyVal("$uid", pinfo.mUid));

@@ -73,6 +73,7 @@ public:
 			}
 		}
 	}
+
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();

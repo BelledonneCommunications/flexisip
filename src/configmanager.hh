@@ -61,6 +61,9 @@ typedef unsigned long oid;
 #endif /* ENABLE_SNMP */
 
 extern oid company_id;
+namespace flexisip {
+	struct LpConfig;
+};
 
 #include "expressionparser.hh"
 #include "global.hh"
@@ -600,7 +603,7 @@ class FileConfigReader {
 	static void onUnreadItem(void *p, const char *secname, const char *key, int lineno);
 	void onUnreadItem(const char *secname, const char *key, int lineno);
 	GenericStruct *mRoot;
-	struct _LpConfig *mCfg;
+	flexisip::LpConfig *mCfg;
 	bool mHaveUnreads;
 };
 

@@ -45,7 +45,8 @@ PresenceServer::Init::Init() {
 									{StringList, "transports",
 									 "List of white space separated SIP uris where the presence server must listen. Must not be tls.",
 									 "sip:127.0.0.1:5065;transport=tcp"},
-									 {Integer, "expires", "Publish default expires in second.  by default.", "600"},
+									{Integer, "expires", "Publish default expires in second.  by default.", "600"},
+									{Integer, "notify-limit", "Max number of presentity sent in a single NOTIFY.  by default.", "200"},
 									{Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
 									{Boolean, "long-term-enabled", "Enable long-term presence notifies", "true"},
 									{String, "bypass-condition", "If user agent contains it, can bypass extended notifiy verification.", "false"},
@@ -55,10 +56,10 @@ PresenceServer::Init::Init() {
 	s->addChildrenValues(items);
 }
 
-PresenceServer::PresenceServer()
-	: mStarted(true)
-	, mIterateThread(nullptr) {
-	
+PresenceServer::PresenceServer() : PresenceServer(false) {
+}
+
+PresenceServer::PresenceServer(bool withThread, su_root_t* root) : ServiceServer(withThread, root){
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
 	/*Enabling leak detector should be done asap.*/
 	belle_sip_object_enable_leak_detector(GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("leak-detector")->read());
@@ -66,6 +67,7 @@ PresenceServer::PresenceServer()
 	mProvider = belle_sip_stack_create_provider(mStack, NULL);
 	//bctbx_set_log_handler(_belle_sip_log);
 	//belle_sip_set_log_level(BELLE_SIP_LOG_MESSAGE);
+	mMaxPresenceInfoNotifiedAtATime = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigInt>("notify-limit")->read();
 
 	xercesc::XMLPlatformUtils::Initialize();
 
@@ -77,30 +79,30 @@ PresenceServer::PresenceServer()
 
 	memset(&listener_callbacks, 0, sizeof(listener_callbacks));
 	listener_callbacks.process_dialog_terminated =
-		(void (*)(void *, const belle_sip_dialog_terminated_event_t *))PresenceServer::processDialogTerminated;
+	(void (*)(void *, const belle_sip_dialog_terminated_event_t *))PresenceServer::processDialogTerminated;
 	listener_callbacks.process_io_error =
-		(void (*)(void *, const belle_sip_io_error_event_t *))PresenceServer::processIoError;
+	(void (*)(void *, const belle_sip_io_error_event_t *))PresenceServer::processIoError;
 	listener_callbacks.process_request_event =
-		(void (*)(void *, const belle_sip_request_event_t *))PresenceServer::processRequestEvent;
+	(void (*)(void *, const belle_sip_request_event_t *))PresenceServer::processRequestEvent;
 	listener_callbacks.process_response_event =
-		(void (*)(void *, const belle_sip_response_event_t *))PresenceServer::processResponseEvent;
+	(void (*)(void *, const belle_sip_response_event_t *))PresenceServer::processResponseEvent;
 	listener_callbacks.process_timeout =
-		(void (*)(void *, const belle_sip_timeout_event_t *))PresenceServer::processTimeout;
+	(void (*)(void *, const belle_sip_timeout_event_t *))PresenceServer::processTimeout;
 	listener_callbacks.process_transaction_terminated =
-		(void (*)(void *,
-				  const belle_sip_transaction_terminated_event_t *))PresenceServer::processTransactionTerminated;
-	mListener = belle_sip_listener_create_from_callbacks(&listener_callbacks, this);
-	belle_sip_provider_add_sip_listener(mProvider, mListener);
-	mDefaultExpires = config->get<ConfigInt>("expires")->read();
-	mBypass = config->get<ConfigString>("bypass-condition")->read();
-	mEnabled = config->get<ConfigBoolean>("enabled")->read();
+	(void (*)(void *,
+			  const belle_sip_transaction_terminated_event_t *))PresenceServer::processTransactionTerminated;
+			  mListener = belle_sip_listener_create_from_callbacks(&listener_callbacks, this);
+			  belle_sip_provider_add_sip_listener(mProvider, mListener);
+			  mDefaultExpires = config->get<ConfigInt>("expires")->read();
+			  mBypass = config->get<ConfigString>("bypass-condition")->read();
+			  mEnabled = config->get<ConfigBoolean>("enabled")->read();
 }
 
 static void remove_listening_point(belle_sip_listening_point_t* lp,belle_sip_provider_t* prov) {
 	belle_sip_provider_remove_listening_point(prov,lp);
 }
 
-PresenceServer::~PresenceServer() {
+PresenceServer::~PresenceServer(){
 	belle_sip_provider_clean_channels(mProvider);
 	const belle_sip_list_t * lps = belle_sip_provider_get_listening_points(mProvider);
 	belle_sip_list_t * tmp_list = belle_sip_list_copy(lps);
@@ -122,20 +124,20 @@ PresenceServer::~PresenceServer() {
 	SLOGD << "Presence server destroyed";
 }
 
-void PresenceServer::_start(bool withThread) {
+void PresenceServer::_init() {
 	if (!mEnabled) return;
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	std::string get_users_with_phones_request = cr->get<GenericStruct>("module::Authentication")
-												  ->get<ConfigString>("soci-users-with-phones-request")
-												  ->read();
+	->get<ConfigString>("soci-users-with-phones-request")
+	->read();
 	if(get_users_with_phones_request == "") {
 		LOGF("Unable to start presence server : soci-users-with-phones-request is not precised in flexisip.conf, please fix it.");
 	}
-
+	
 	list<string> transports = cr->get<GenericStruct>("presence-server")
-								->get<ConfigStringList>("transports")
-								->read();
-
+	->get<ConfigStringList>("transports")
+	->read();
+	
 	for (auto it = transports.begin(); it != transports.end(); ++it) {
 		string transport = *it;
 		if(transport.find("sips") != string::npos || transport.find("transport=tls") != string::npos) {
@@ -151,33 +153,14 @@ void PresenceServer::_start(bool withThread) {
 				throw FLEXISIP_EXCEPTION << "Cannot add lp for [" << *it << "]";
 		}
 	}
-	if (withThread){
-		mIterateThread.reset (new thread([this]() {
-			while (mStarted)
-				belle_sip_main_loop_run(belle_sip_stack_get_main_loop(this->mStack)); // is not interrupted by add source
-		}));
-	}
 }
 
-void PresenceServer::start() {
-	_start(true);
+void PresenceServer::_run() {
+	belle_sip_main_loop_run(belle_sip_stack_get_main_loop(mStack));
 }
 
-void PresenceServer::run() {
-	_start(false);
-	while (mStarted){
-		belle_sip_main_loop_run(belle_sip_stack_get_main_loop(mStack));
-	}
-}
-
-void PresenceServer::stop() {
-	mStarted = false;
+void PresenceServer::_stop() {
 	belle_sip_main_loop_quit(belle_sip_stack_get_main_loop(mStack));
-	if (mIterateThread) {
-		pthread_kill(mIterateThread->native_handle(), SIGINT);//because main loop is not interruptible
-		mIterateThread->join();
-		mIterateThread.reset();
-	}
 }
 
 
@@ -641,7 +624,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				SLOGD << "Subscribe for resource list "
 					  << "for dialog [" << BELLE_SIP_OBJECT(dialog) << "]";
 
-				shared_ptr<ListSubscription> listSubscription = make_shared<ListSubscription>(expires, server_transaction, mProvider); // will be release when last PresentityPresenceInformationListener is released
+				shared_ptr<ListSubscription> listSubscription = make_shared<ListSubscription>(expires, server_transaction, mProvider,mMaxPresenceInfoNotifiedAtATime ); // will be release when last PresentityPresenceInformationListener is released
 				if (acceptEncodingHeader) listSubscription->setAcceptEncodingHeader(acceptEncodingHeader);
 				// send 200ok late to allow deeper anylise of request
 				belle_sip_server_transaction_send_response(server_transaction, resp);
@@ -822,8 +805,8 @@ void PresenceServer::modifyEtag(const string &oldEtag, const string &newEtag) {
 	mPresenceInformationsByEtag[newEtag] = presenceInformationsByEtagIt->second;
 	mPresenceInformationsByEtag.erase(oldEtag);
 }
-void PresenceServer::addEtag(const std::shared_ptr<PresentityPresenceInformation> &info,
-							 const string &etag) {
+
+void PresenceServer::addEtag(const std::shared_ptr<PresentityPresenceInformation> &info, const string &etag) {
 	auto presenceInformationsByEtagIt = mPresenceInformationsByEtag.find(etag);
 	if (presenceInformationsByEtagIt != mPresenceInformationsByEtag.end())
 		throw FLEXISIP_EXCEPTION << "Already existing etag [" << etag << "] use PresenceServer::modifyEtag instead ";
@@ -906,7 +889,7 @@ void PresenceServer::removeListener(const shared_ptr<PresentityPresenceInformati
 			  << (long)&listener << "]";
 }
 
-void PresenceServer::removeSubscription(shared_ptr<Subscription> &subscription) throw() {
+void PresenceServer::removeSubscription(shared_ptr<Subscription> &subscription) {
 	subscription->setState(Subscription::State::terminated);
 	if (dynamic_pointer_cast<PresenceSubscription>(subscription)) {
 		shared_ptr<PresentityPresenceInformationListener> listener =

@@ -25,6 +25,21 @@
 [submodule "submodules/bcunit"]
 	path = submodules/bcunit
 	url = https://gitlab.linphone.org/BC/public/bcunit.git
+[submodule "submodules/linphone"]
+	path = submodules/linphone
+	url = https://gitlab.linphone.org/BC/public/linphone.git
+[submodule "submodules/externals/xerces-c"]
+	path = submodules/externals/xerces-c
+	url = https://gitlab.linphone.org/BC/public/external/xerces-c.git
+[submodule "submodules/externals/libxsd"]
+	path = submodules/externals/libxsd
+	url = https://gitlab.linphone.org/BC/public/external/libxsd.git
+[submodule "submodules/belr"]
+	path = submodules/belr
+	url = https://gitlab.linphone.org/BC/public/belr.git
+[submodule "submodules/externals/libxml2"]
+	path = submodules/externals/libxml2
+	url = https://gitlab.linphone.org/BC/public/external/libxml2.git
 [submodule "submodules/externals/zlib"]
 	path = submodules/externals/zlib
 	url = https://gitlab.linphone.org/BC/public/external/zlib.git
