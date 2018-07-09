@@ -1052,19 +1052,18 @@ void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *
 		accept = accept->ac_next;
 	}
 
-	// FIXME : get supported as header not string...
 	if (isupported && icontact->m_params) {
-		string supported(sip_header_as_string(home.home(), (sip_header_t *) isupported));
-		if (supported.find("gruu") != string::npos) {
-			stringstream stream;
-			const char *token = "+sip.instance";
-			const char *instance_param = msg_params_find(icontact->m_params, token);
-			string instance(instance_param);
-			if (instance.find("\"<") != string::npos) {
-				instance = instance.substr(instance.find("\"<") + strlen("\"<"));
-				instance = instance.substr(0, instance.find(">"));
-				stream << "gr=" << instance;
-				url_param_add(home.home(), icontact->m_url, stream.str().c_str());
+		if (msg_params_find(isupported->k_items, "gruu") != NULL){
+			const char *instance_param = msg_params_find(icontact->m_params, "+sip.instance");
+			if (instance_param){
+				string instance(instance_param);
+				if (instance.find("\"<") != string::npos) {
+					ostringstream stream;
+					instance = instance.substr(instance.find("\"<") + strlen("\"<"));
+					instance = instance.substr(0, instance.find(">"));
+					stream << "gr=" << instance;
+					url_param_add(home.home(), icontact->m_url, stream.str().c_str());
+				}
 			}
 		}
 	}
