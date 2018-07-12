@@ -332,10 +332,10 @@ bool ModuleToolbox::fromMatch(const sip_from_t *from1, const sip_from_t *from2) 
 	return false;
 }
 
-bool ModuleToolbox::matchesOneOf(const string item, const list<string> &set) {
+bool ModuleToolbox::matchesOneOf(const string &item, const list<string> &set) {
 	list<string>::const_iterator it;
 	for (it = set.begin(); it != set.end(); ++it) {
-		string value = (*it);
+		const string &value = (*it);
 		const char *tmp = value.c_str();
 		if (tmp[0] == '*') {
 			/*the wildcard matches everything*/
