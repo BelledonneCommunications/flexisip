@@ -16,6 +16,8 @@ Name:          @CPACK_PACKAGE_NAME@
 Version:       @PROJECT_VERSION@
 Release:       %build_number%{?dist}
 
+#to be alined with redhat which changed epoc to 1 for an unknown reason
+Epoch:         1
 License:       AGPLv3
 Group:         Applications/Communications
 URL:           http://flexisip.org
