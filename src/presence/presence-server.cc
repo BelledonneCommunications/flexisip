@@ -128,9 +128,14 @@ void PresenceServer::_init() {
 	if (!mEnabled) return;
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	std::string get_users_with_phones_request = cr->get<GenericStruct>("module::Authentication")
-	->get<ConfigString>("soci-users-with-phones-request")
-	->read();
-	if(get_users_with_phones_request == "") {
+												  ->get<ConfigString>("soci-users-with-phones-request")
+												  ->read();
+	std::string db_implementation = cr->get<GenericStruct>("module::Authentication")
+													->get<ConfigString>("db-implementation")
+													->read();
+	
+	
+	if(get_users_with_phones_request == "" && db_implementation != "file") {
 		LOGF("Unable to start presence server : soci-users-with-phones-request is not precised in flexisip.conf, please fix it.");
 	}
 	
