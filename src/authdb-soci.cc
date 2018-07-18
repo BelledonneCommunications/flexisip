@@ -190,7 +190,7 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 				passwd_algo_t pass;
 
 				/* If algos is empty then the request contained only the password column */
-				if (algos[i].empty()) {
+				if (algos[i].empty() || (algos[i] != "CLRTXT" && algos[i] != "MD5" && algos[i] != "SHA-256")) {
 					pass.algo = "MD5";
 
 					if (hashed_passwd) {
