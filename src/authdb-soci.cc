@@ -171,9 +171,6 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 			SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
 			start = stop;
 
-			vector<string> passwords(10);
-			vector<string> algos(10);
-
 			// WARNING: it is necessary to create a temporary string here because use() function creates
 			// and returns an object that stores a reference on it. So, it must absolutely be destroyed
 			// at the end of this function.
@@ -184,43 +181,49 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 			string unescapedIdStr(unescapedId);
 			delete[] unescapedId;
 
-			*sql << get_password_request, into(passwords), into(algos), use(unescapedIdStr, "id"), use(domain, "domain"), use(authid, "authid");
+			rowset<row> results = (sql->prepare << get_password_request, use(unescapedIdStr, "id"), use(domain, "domain"), use(authid, "authid"));
 
-			for (vector<string>::size_type i = 0; i < passwords.size(); ++i) {
+			for (rowset<row>::const_iterator it = results.begin(); it != results.end(); it++) {
+				row const& r = *it;
 				passwd_algo_t pass;
 
-				/* If algos is empty then the request contained only the password column */
-				if (algos[i].empty() || (algos[i] != "CLRTXT" && algos[i] != "MD5" && algos[i] != "SHA-256")) {
+				/* If size == 1 then we only have the password so we assume MD5 */
+				if (r.size() == 1) {
 					pass.algo = "MD5";
 
 					if (hashed_passwd) {
-						pass.pass = passwords[i];
+						pass.pass = r.get<string>(0);
 					} else {
-						string input = unescapedIdStr + ":" + domain + ":" + passwords[i];
+						string input = unescapedIdStr + ":" + domain + ":" + r.get<string>(0);
 						pass.pass = syncMd5(input.c_str(), 16);
 					}
-				} else if (algos[i] == "CLRTXT") {
-					if (passwd.empty()) {
-						pass.algo = algos[i];
-						pass.pass = passwords[i];
-						passwd.push_back(pass);
+				} else if (r.size() > 1) {
+					string password = r.get<string>(0);
+					string algo = r.get<string>(1);
 
-						string input;
-						input = unescapedIdStr + ":" + domain + ":" + passwords[i];
+					if (algo == "CLRTXT") {
+						if (passwd.empty()) {
+							pass.algo = algo;
+							pass.pass = password;
+							passwd.push_back(pass);
 
-						pass.pass = syncMd5(input.c_str(), 16);
-						pass.algo = "MD5";
-						passwd.push_back(pass);
+							string input;
+							input = unescapedIdStr + ":" + domain + ":" + password;
 
-						pass.pass = syncSha256(input.c_str(), 32);
-						pass.algo = "SHA-256";
-						passwd.push_back(pass);
+							pass.pass = syncMd5(input.c_str(), 16);
+							pass.algo = "MD5";
+							passwd.push_back(pass);
 
-						break;
+							pass.pass = syncSha256(input.c_str(), 32);
+							pass.algo = "SHA-256";
+							passwd.push_back(pass);
+
+							break;
+						}
+					} else {
+						pass.algo = algo;
+						pass.pass = password;
 					}
-				} else {
-					pass.algo = algos[i];
-					pass.pass = passwords[i];
 				}
 
 				passwd.push_back(pass);
@@ -232,7 +235,7 @@ void SociAuthDB::getPasswordWithPool(const std::string &id, const std::string &d
 			SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
 			cachePassword(createPasswordKey(id, authid), domain, passwd, mCacheExpire);
 			if (listener){
-				listener->onResult(passwords.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);
+				listener->onResult(passwd.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);
 			}
 			errorCount = 0;
 		} catch (mysql_soci_error const &e) {
