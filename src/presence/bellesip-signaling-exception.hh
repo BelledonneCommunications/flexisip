@@ -19,8 +19,10 @@
 #ifndef BELLESIPSIGNALINGEXCEPTION_HH_
 #define BELLESIPSIGNALINGEXCEPTION_HH_
 
-#include "utils/signaling-exception.hh"
 #include <list>
+
+#include "utils/signaling-exception.hh"
+
 typedef struct _belle_sip_header belle_sip_header_t;
 
 namespace flexisip {

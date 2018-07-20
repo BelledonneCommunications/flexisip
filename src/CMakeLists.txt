@@ -182,8 +182,10 @@ if(ENABLE_PRESENCE)
 		presence/etag-manager.hh
 		presence/file-resource-list-manager.cc
 		presence/file-resource-list-manager.hh
-		presence/list-subscription.cc
-		presence/list-subscription.hh
+		presence/list-subscription/body-list-subscription.cc
+		presence/list-subscription/body-list-subscription.hh
+		presence/list-subscription/list-subscription.cc
+		presence/list-subscription/list-subscription.hh
 		presence/presence-configmanager.cc
 		presence/presence-configmanager.hh
 		presence/presence-longterm.cc
@@ -208,6 +210,12 @@ if(ENABLE_PRESENCE)
 		xml/xml.cc
 		xml/xml.hh
 	)
+	if(ENABLE_SOCI)
+		list(APPEND FLEXISIP_SOURCES
+			presence/list-subscription/external-list-subscription.cc
+			presence/list-subscription/external-list-subscription.hh
+		)
+	endif()
 endif()
 
 if(ENABLE_CONFERENCE)

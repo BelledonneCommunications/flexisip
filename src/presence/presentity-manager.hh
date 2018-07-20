@@ -18,9 +18,10 @@
 
 #ifndef PRESENTITY_MANAGER_HH_
 #define PRESENTITY_MANAGER_HH_
+
+#include "etag-manager.hh"
 #include "string"
 #include "utils/flexisip-exception.hh"
-#include "etag-manager.hh"
 
 namespace flexisip {
 class PresentityPresenceInformationListener;
