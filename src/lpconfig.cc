@@ -22,7 +22,7 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#define MAX_LEN 1024
+#define MAX_LEN 2048
 
 #include <sys/stat.h>
 

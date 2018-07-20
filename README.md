@@ -60,6 +60,11 @@ The "flexisip-rpm" ./prepare.py target can be used to generate rpm packages for 
 	./prepare.py flexisip-rpm -DENABLE_REDIS=ON -DENABLE_BC_HIREDIS=ON
 	make
 
+## Docker
+
+A docker image can be build from sources with command:
+	docker build -f docker/flex-from-src -t flexisip .	
+
 ## Macos X
 
 The cmake scripts of flexisip can be used to develop with Flexisip in Xcode.

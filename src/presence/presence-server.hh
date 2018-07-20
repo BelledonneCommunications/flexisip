@@ -21,16 +21,17 @@
 
 #include <iostream>
 #include <map>
+#include <memory>
 #include <unordered_map>
 #include <vector>
-#include <memory>
+
+#include "belle-sip/sip-uri.h"
+
 #include "bellesip-signaling-exception.hh"
 #include "etag-manager.hh"
-//#include "presence-configmanager.hh"
-//#include "presentity-presenceinformation.hh"
 #include "presentity-manager.hh"
 #include "service-server.hh"
-#include "belle-sip/sip-uri.h"
+#include "utils/threadpool.hh"
 
 typedef struct belle_sip_main_loop belle_sip_main_loop_t;
 typedef struct belle_sip_stack belle_sip_stack_t;
@@ -59,8 +60,6 @@ class PresenceInfoObserver {
 public:
 	PresenceInfoObserver(){};
 	virtual ~PresenceInfoObserver(){};
-	//notified when a presenceinformation element is added
-	virtual void onNewPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& info) const = 0;
 	//notified when a listener is added or refreshed
 	virtual void onListenerEvent(const std::shared_ptr<PresentityPresenceInformation>& info) const = 0;
 	//notified when a listener is added or refreshed
@@ -72,9 +71,9 @@ public:
 	PresenceServer();
 	PresenceServer(bool withThread, su_root_t* root = nullptr);
 	~PresenceServer();
-	void _init();
-	void _run();
-	void _stop();
+	void _init() override;
+	void _run() override;
+	void _stop() override;
 	belle_sip_main_loop_t* getBelleSipMainLoop();
 	void addPresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &observer);
 	void removePresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &observer);
@@ -91,6 +90,11 @@ private:
 	belle_sip_listener_t *mListener;
 	int mDefaultExpires;
 	std::string mBypass;
+	std::string mRequest;
+#if ENABLE_SOCI
+	soci::connection_pool *mConnPool;
+#endif
+	ThreadPool *mThreadPool;
 	bool mEnabled;
 	size_t mMaxPresenceInfoNotifiedAtATime;
 
@@ -117,9 +121,9 @@ private:
 	std::shared_ptr<PresentityPresenceInformation> getPresenceInfo(const belle_sip_uri_t* identity) const ;
 	void addPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& );
 
-	void invalidateETag(const std::string& eTag) ;
-	void modifyEtag(const std::string& oldEtag, const std::string& newEtag);
-	void addEtag(const std::shared_ptr<PresentityPresenceInformation>& info,const std::string& etag);
+	void invalidateETag(const std::string& eTag) override;
+	void modifyEtag(const std::string& oldEtag, const std::string& newEtag) override;
+	void addEtag(const std::shared_ptr<PresentityPresenceInformation>& info,const std::string& etag) override;
 	std::map<std::string,std::shared_ptr<PresentityPresenceInformation>> mPresenceInformationsByEtag;
 	std::unordered_map<const belle_sip_uri_t*,std::shared_ptr<PresentityPresenceInformation>,std::hash<const belle_sip_uri_t*>,bellesip::UriComparator> mPresenceInformations;
 
@@ -128,18 +132,17 @@ private:
 	 *
 	 */
 
-	void addOrUpdateListener(std::shared_ptr<PresentityPresenceInformationListener>& listerner,int expires);
-	void addOrUpdateListener(std::shared_ptr<PresentityPresenceInformationListener>& listerner);
+	void addOrUpdateListener(std::shared_ptr<PresentityPresenceInformationListener>& listerner,int expires) override;
+	void addOrUpdateListener(std::shared_ptr<PresentityPresenceInformationListener>& listerner) override;
 	void addOrUpdateListeners(std::list<std::shared_ptr<PresentityPresenceInformationListener>>& listerner,int expires);
 	void addOrUpdateListeners(std::list<std::shared_ptr<PresentityPresenceInformationListener>>& listerner);
-	void removeListener(const std::shared_ptr<PresentityPresenceInformationListener>& listerner);
+	void removeListener(const std::shared_ptr<PresentityPresenceInformationListener>& listerner) override;
 
 	void removeSubscription(std::shared_ptr<Subscription> &identity);
 	//void notify(Subscription& subscription,PresentityPresenceInformation& presenceInformation);
 	std::unordered_map<const belle_sip_uri_t*,std::list<std::shared_ptr<Subscription>>,std::hash<const belle_sip_uri_t*>,bellesip::UriComparator> mSubscriptionsByEntity;
 	/**/
 	std::vector<std::shared_ptr<PresenceInfoObserver> > mPresenceInfoObservers;
-
 };
 
 }
