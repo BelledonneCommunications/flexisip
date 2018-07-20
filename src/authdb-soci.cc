@@ -328,7 +328,8 @@ void SociAuthDB::getUserWithPhoneWithPool(const std::string &phone, const std::s
 void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener) {
 	steady_clock::time_point start;
 	steady_clock::time_point stop;
-	set<std::string> users;
+	set<pair<string, string>> presences;
+
 	std::ostringstream in;
 	session *sql = NULL;
 	list<std::string> phones;
@@ -371,29 +372,29 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<std::string,std::string,A
 			if(phone != "") {
 				string domain = row.get<string>(1);
 				cacheUserWithPhone(phone, domain, user);
-				users.insert(phone);
+				presences.insert(make_pair(user, phone));
 			} else {
-				users.insert(user);
+				presences.insert(make_pair(user, user));
 			}
 		}
 
 		if (listener){
-			listener->onResults(phones, users);
+			listener->onResults(phones, presences);
 		}
 	} catch (mysql_soci_error const &e) {
 		stop = steady_clock::now();
 		SLOGE << "[SOCI] getUsersWithPhonesWithPool MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
 		SLOGE << "[SOCI] MySQL request causing the error was : " << s;
-		users.clear();
-		if (listener) listener->onResults(phones, users);
+		presences.clear();
+		if (listener) listener->onResults(phones, presences);
 		
 		if (sql) reconnectSession(*sql);
 		
 	} catch (exception const &e) {
 		stop = steady_clock::now();
 		SLOGE << "[SOCI] getUsersWithPhonesWithPool error after " << DURATION_MS(start, stop) << "ms : " << e.what();
-		users.clear();
-		if (listener) listener->onResults(phones, users);
+		presences.clear();
+		if (listener) listener->onResults(phones, presences);
 		if (sql) reconnectSession(*sql);
 	}
 	if (sql) delete sql;

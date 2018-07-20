@@ -54,7 +54,7 @@ class AuthDbListener : public StatFinishListener {
 public:
 	virtual void onResult(AuthDbResult result, const std::string &passwd) = 0;
 	virtual void onResult(AuthDbResult result, const std::vector<passwd_algo_t> &passwd)=0;
-	virtual void onResults(std::list<std::string> &phones, std::set<std::string> &users);
+	virtual void onResults(const std::list<std::string> &phones, const std::set<std::pair<std::string, std::string>> &presences);
 	virtual void finishVerifyAlgos(const std::vector<passwd_algo_t> &pass)=0;
 	virtual ~AuthDbListener();
 };
@@ -206,7 +206,7 @@ private:
 							const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
 
 	void reconnectSession( soci::session &session );
-	
+
 
 	size_t poolSize;
 	soci::connection_pool *conn_pool;
