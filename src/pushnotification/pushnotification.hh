@@ -39,7 +39,7 @@ struct PushInfo {
 	std::string mToUri;   // To SIP uri
 	std::string mCallId;  // CallID
 	std::string mText;	// Text of the chat message.
-	std::string mUid; // The unique id as used in the ExtendedContact, if available
+	std::string mUid; // The unique id as used in the ExtendedContact, if available.
 	std::string mAccessToken; // access token required by Microsoft to authenticate our server
 	int mTtl; //Time to live of the push notification.
 	bool mNoBadge; // Whether to display a badge on the application (ios specific).
@@ -57,10 +57,10 @@ class PushNotificationRequest {
 
 		virtual ~PushNotificationRequest() {};
 
-		const std::string &getAppIdentifier() {
+		const std::string &getAppIdentifier() const {
 			return mAppId;
 		}
-		const std::string &getType() {
+		const std::string &getType() const {
 			return mType;
 		}
 		virtual const std::vector<char> &getData() = 0;
@@ -73,9 +73,9 @@ class PushNotificationRequest {
 			mState = state;
 		}
 	protected:
-		PushNotificationRequest(const std::string &appid, const std::string &type)
-			: mState( NotSubmitted), mAppId(appid), mType(type) {
-		}
+		PushNotificationRequest(const std::string &appid, const std::string &type);
+		std::string quoteStringIfNeeded(const std::string &str) const;
+		std::string getPushTimeStamp() const;
 	private:
 		State mState;
 		const std::string mAppId;

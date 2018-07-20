@@ -32,6 +32,7 @@ set(FLEXISIP_SOURCES
 	authdb.cc
 	callcontext-mediarelay.cc
 	callstore.cc
+	cli.cc
 	cJSON.c
 	common.cc
 	configdumper.cc
@@ -70,6 +71,7 @@ set(FLEXISIP_SOURCES
 	module.cc
 	monitor.cc
 	plugin/plugin-loader.cc
+	pushnotification/pushnotification.cc
 	pushnotification/applepush.cc
 	pushnotification/firebasepush.cc
 	pushnotification/genericpush.cc
@@ -84,7 +86,6 @@ set(FLEXISIP_SOURCES
 	registrardb.cc
 	sdp-modifier.cc
 	sipattrextractor.cc
-	stats.cc
 	stun.cc
 	stun/stun_udp.c
 	stun/stun.c
@@ -181,8 +182,10 @@ if(ENABLE_PRESENCE)
 		presence/etag-manager.hh
 		presence/file-resource-list-manager.cc
 		presence/file-resource-list-manager.hh
-		presence/list-subscription.cc
-		presence/list-subscription.hh
+		presence/list-subscription/body-list-subscription.cc
+		presence/list-subscription/body-list-subscription.hh
+		presence/list-subscription/list-subscription.cc
+		presence/list-subscription/list-subscription.hh
 		presence/presence-configmanager.cc
 		presence/presence-configmanager.hh
 		presence/presence-longterm.cc
@@ -207,6 +210,12 @@ if(ENABLE_PRESENCE)
 		xml/xml.cc
 		xml/xml.hh
 	)
+	if(ENABLE_SOCI)
+		list(APPEND FLEXISIP_SOURCES
+			presence/list-subscription/external-list-subscription.cc
+			presence/list-subscription/external-list-subscription.hh
+		)
+	endif()
 endif()
 
 if(ENABLE_CONFERENCE)

@@ -30,8 +30,9 @@ ConferenceAddressGenerator::ConferenceAddressGenerator (
 	const shared_ptr<linphone::ChatRoom> chatRoom,
 	shared_ptr<linphone::Address> conferenceFactoryAddr,
 	const string &uuid,
-	const string &path
-) : mChatRoom(chatRoom), mConferenceAddr(conferenceFactoryAddr), mUuid(uuid), mPath(path) {}
+	const string &path,
+	ConferenceServer *conferenceServer
+) : mChatRoom(chatRoom), mConferenceAddr(conferenceFactoryAddr), mUuid(uuid), mPath(path), mConferenceServer(conferenceServer) {}
 
 void ConferenceAddressGenerator::run () {
 	char token[17];
@@ -55,7 +56,7 @@ void ConferenceAddressGenerator::onRecordFound (Record *r) {
 		} else {
 			mState = State::Binding;
 			auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
-			ConferenceServer::bindChatRoom(
+			mConferenceServer->bindChatRoom(
 				mConferenceAddr->asStringUriOnly(),
 				config->get<ConfigString>("transport")->read(),
 				mUuid,
@@ -73,4 +74,8 @@ void ConferenceAddressGenerator::onRecordFound (Record *r) {
 		gruuAddr->setUriParam("gr", addr->getUriParam("gr"));
 		mChatRoom->setConferenceAddress(gruuAddr);
 	}
+}
+
+void ConferenceAddressGenerator::onError () {
+	mChatRoom->setConferenceAddress(nullptr);
 }

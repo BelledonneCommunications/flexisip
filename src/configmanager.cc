@@ -859,6 +859,8 @@ GenericManager::GenericManager()
 		 "\t- 'tls-verify-outgoing' taking for value '0' or '1', whether flexisip should check the peer certificate"
 		 " when it make an outgoing TLS connection to another server. Default value is 1.\n"
 		 "\t- 'require-peer-certificate' (deprecated) same as tls-verify-incoming\n"
+		 "It is highly recommended to specify a canonical name for 'sips' transport, so that the proxy can advertise "
+		 "this information in Record-Route headers, which allows TLS cname check to be performed by clients.\n"
 		 "Specifying a sip uri with transport=tls is not allowed: the 'sips' scheme must be used. As requested by SIP RFC, "
 		 "IPv6 address must be enclosed within brakets.\n"
 		 "Here are some examples to understand:\n"

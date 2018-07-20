@@ -1,7 +1,7 @@
+#include <belle-sip/belle-sip.h>
+
 #include "presence-longterm.hh"
 #include "presentity-presenceinformation.hh"
-
-#include <belle-sip/belle-sip.h>
 
 using namespace flexisip;
 using namespace std;
@@ -19,7 +19,7 @@ public:
 
 	virtual void onResult(AuthDbResult result, const std::string &passwd) {
 		belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, result, passwd](unsigned int events) {
-			this->processResponse(result, passwd);
+			processResponse(result, passwd);
 			return BELLE_SIP_STOP;
 		});
 		belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(  mMainLoop
@@ -31,7 +31,7 @@ public:
 
 	virtual void onResult(AuthDbResult result, const vector<passwd_algo_t> &passwd) {
 		belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, result, passwd](unsigned int events) {
-			this->processResponse(result, passwd.front().pass);
+			processResponse(result, passwd.front().pass);
 			return BELLE_SIP_STOP;
 		});
 		belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(  mMainLoop
@@ -66,10 +66,8 @@ public:
 	}
 
 private:
-
 	void processResponse(AuthDbResult result, const std::string &user) {
-		const auto &it = mDInfo.find(user);
-		std::shared_ptr<PresentityPresenceInformation> info = mInfo ? mInfo : it->second;
+		shared_ptr<PresentityPresenceInformation> info = mInfo ? mInfo : mDInfo.find(user)->second;
 		bool must_delete = !!mInfo;
 
 		const char *cuser = belle_sip_uri_get_user(info->getEntity());
@@ -100,20 +98,12 @@ private:
 		}
 	}
 
-private:
 	belle_sip_main_loop_t *mMainLoop;
-	const std::shared_ptr<PresentityPresenceInformation> mInfo;
-	std::map<std::string,std::shared_ptr<PresentityPresenceInformation>> mDInfo;
+	const shared_ptr<PresentityPresenceInformation> mInfo;
+	map<string, shared_ptr<PresentityPresenceInformation>> mDInfo;
 };
 
-void PresenceLongterm::onNewPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& info) const {
-	//no longuer used because long term presence is check at each subscription in case not known yet
-
-	//const belle_sip_uri_t* uri = info->getEntity();
-	//SLOGD << __FILE__ << ": " << "New presence info for " << belle_sip_uri_get_user(uri) << ", checking if this user is already registered";
-	//AuthDbBackend::get()->getUserWithPhone(belle_sip_uri_get_user(info->getEntity()), belle_sip_uri_get_host(info->getEntity()), new PresenceAuthListener(mMainLoop, info));
-}
-void PresenceLongterm::onListenerEvent(const std::shared_ptr<PresentityPresenceInformation>& info) const {
+void PresenceLongterm::onListenerEvent(const shared_ptr<PresentityPresenceInformation>& info) const {
 	if (!info->hasDefaultElement()) {
 		//no presence information know yet, so ask again to the db.
 		const belle_sip_uri_t* uri = info->getEntity();
@@ -123,16 +113,14 @@ void PresenceLongterm::onListenerEvent(const std::shared_ptr<PresentityPresenceI
 											, new PresenceAuthListener(mMainLoop, info));
 	}
 }
-void PresenceLongterm::onListenerEvents(list<std::shared_ptr<PresentityPresenceInformation>>& infos) const {
-	list<tuple<std::string,std::string,AuthDbListener*>> creds;
-	std::map<std::string,std::shared_ptr<PresentityPresenceInformation>> dInfo;
-	for (shared_ptr<PresentityPresenceInformation> &info : infos) {
+void PresenceLongterm::onListenerEvents(list<shared_ptr<PresentityPresenceInformation>>& infos) const {
+	list<tuple<string, string,AuthDbListener*>> creds;
+	map<string, shared_ptr<PresentityPresenceInformation>> dInfo;
+	for (const shared_ptr<PresentityPresenceInformation> &info : infos) {
 		if (!info->hasDefaultElement()) {
 			creds.push_back(make_tuple(belle_sip_uri_get_user(info->getEntity()), belle_sip_uri_get_host(info->getEntity()), new PresenceAuthListener(mMainLoop, info)));
 		}
-		dInfo.insert(std::pair<std::string,std::shared_ptr<PresentityPresenceInformation>>(belle_sip_uri_get_user(info->getEntity()), info));
+		dInfo.insert(pair<string, shared_ptr<PresentityPresenceInformation>>(belle_sip_uri_get_user(info->getEntity()), info));
 	}
-
-	AuthDbBackend::get()->getUsersWithPhone(creds
-										, new PresenceAuthListener(mMainLoop, dInfo));
+	AuthDbBackend::get()->getUsersWithPhone(creds, new PresenceAuthListener(mMainLoop, dInfo));
 }

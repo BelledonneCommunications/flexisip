@@ -33,6 +33,7 @@ namespace flexisip {
 
 	class ConferenceServer
 		: public ServiceServer
+		, public RegistrarDbStateListener
 		, public std::enable_shared_from_this<ConferenceServer>
 		, public linphone::CoreListener
 		, public linphone::ChatRoomListener
@@ -42,7 +43,9 @@ namespace flexisip {
 		ConferenceServer (bool withThread, const std::string &path, su_root_t *root = nullptr);
 		~ConferenceServer ();
 
-		static void bindChatRoom (
+		void bindAddresses ();
+
+		void bindChatRoom (
 			const std::string &bindingUrl,
 			const std::string &contact,
 			const std::string &gruu,
@@ -52,9 +55,8 @@ namespace flexisip {
 
 		/**
 		 * Bind conference on the registrardb
-		 * @param[in] path : (optional) path between the proxies
 		**/
-		static void bindConference (const std::string &path);
+		void bindConference ();
 
 	protected:
 		void _init () override;
@@ -62,6 +64,9 @@ namespace flexisip {
 		void _stop () override;
 
 	private:
+		// RegistrarDbStateListener implementation
+		void onRegistrarDbWritable (bool writable) override;
+
 		// CoreListener implementation
 		void onChatRoomStateChanged (
 			const std::shared_ptr<linphone::Core> &lc,
@@ -91,6 +96,8 @@ namespace flexisip {
 
 		std::shared_ptr<linphone::Core> mCore;
 		std::string mPath;
+		std::string mTransport;
+		bool mAddressesBound = false;
 		std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms;
 		ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
 

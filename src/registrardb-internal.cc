@@ -30,6 +30,7 @@
 using namespace std;
 
 RegistrarDbInternal::RegistrarDbInternal(Agent *ag) : RegistrarDb(ag) {
+	mWritable = true;
 }
 
 void RegistrarDbInternal::doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,

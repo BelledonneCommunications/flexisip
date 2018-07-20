@@ -16,83 +16,33 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "list-subscription.hh"
-#include "belle-sip/belle-sip.h"
-#include "bellesip-signaling-exception.hh"
-#include "log/logmanager.hh"
-#include "resource-lists.hh"
-#include <chrono>
-#include "rlmi+xml.hh"
-#include "belle-sip/bodyhandler.h"
 #include <algorithm>
+#include <chrono>
+
+#include "belle-sip/belle-sip.h"
+#include "belle-sip/bodyhandler.h"
+
+#include "bellesip-signaling-exception.hh"
+#include "list-subscription.hh"
+#include "log/logmanager.hh"
 
 using namespace std;
 
 namespace flexisip {
 
-ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transaction_t *ist,
-								   belle_sip_provider_t *aProv, size_t maxPresenceInfoNotifiedAtATime)
-	: Subscription("Presence", expires, belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)), aProv),
-	  mLastNotify(chrono::system_clock::time_point::min()), mMinNotifyInterval(2 /*60*/), mVersion(0), mTimer(NULL), mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime) {
-	belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
-	belle_sip_header_content_type_t *contentType =
-		belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
-	// check content type
-	if (!contentType || strcasecmp(belle_sip_header_content_type_get_type(contentType), "application") != 0 ||
-		strcasecmp(belle_sip_header_content_type_get_subtype(contentType), "resource-lists+xml") != 0) {
-
-		throw BELLESIP_SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/resource-lists+xml"))
-			<< "Unsupported media type ["
-			<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
-			<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
-	}
-	if (!belle_sip_message_get_body(BELLE_SIP_MESSAGE(request))) {
-		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "Empty body")) << "Empty body";
-	}
-	::std::unique_ptr<Xsd::ResourceLists::ResourceLists> resource_list_body = NULL;
-	try {
-		istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));
-		resource_list_body = Xsd::ResourceLists::parseResourceLists(data, Xsd::XmlSchema::Flags::dont_validate);
-	} catch (const Xsd::XmlSchema::Exception &e) {
-		ostringstream os;
-		os << "Cannot parse body caused by [" << e << "]";
-		// todo check error code
-		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
-	}
-
-	for (Xsd::ResourceLists::List::ListConstIterator listIt = resource_list_body->getList().begin();
-		 listIt != resource_list_body->getList().end(); listIt++) {
-		for (Xsd::ResourceLists::List::EntryConstIterator entryIt = listIt->getEntry().begin();
-			 entryIt != listIt->getEntry().end(); entryIt++) {
-			//fixme until we have a fast uri parser
-			//belle_sip_uri_t *uri = belle_sip_uri_parse(entryIt->getUri().c_str());
-			int username_begin = entryIt->getUri().find(':')+1;
-			int username_end = entryIt->getUri().find('@');
-			int domain_end = entryIt->getUri().find(';');
-			string username = entryIt->getUri().substr(username_begin,username_end-username_begin);
-			string domain = entryIt->getUri().substr(username_end+1,domain_end - (username_end+1));
-			belle_sip_uri_t *uri = belle_sip_uri_create(username.c_str(), domain.c_str());
-			if (!uri || !belle_sip_uri_get_host(uri) || !belle_sip_uri_get_user(uri)) {
-				ostringstream os;
-				os << "Cannot parse list entry [" << entryIt->getUri() << "]";
-				throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
-			}
-			if (entryIt->getUri().find(";user=phone") != string::npos) {
-				belle_sip_uri_set_user_param(uri,"phone");
-			}
-			mListeners.push_back(make_shared<PresentityResourceListener>(*this, uri));
-			belle_sip_object_unref(uri);
-		}
-	}
-	if (mListeners.size() == 0) {
-		ostringstream os;
-		os << "Empty list entry for dialog id[" << belle_sip_header_call_id_get_call_id(belle_sip_dialog_get_call_id(mDialog)) << "]";
-		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
-	}
-
-	mName = (belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(belle_sip_request_get_uri(request)));
-	belle_sip_object_ref((void *)mName);
-}
+ListSubscription::ListSubscription(
+	unsigned int expires,
+	belle_sip_server_transaction_t *ist,
+	belle_sip_provider_t *aProv,
+	size_t maxPresenceInfoNotifiedAtATime,
+	function<void(shared_ptr<ListSubscription>)> listAvailable
+) : Subscription("Presence", expires, belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)), aProv),
+	mLastNotify(chrono::system_clock::time_point::min()),
+	mMinNotifyInterval(2 /*60*/),
+	mVersion(0),
+	mTimer(nullptr),
+	mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime),
+	mListAvailable(listAvailable) {}
 
 list<shared_ptr<PresentityPresenceInformationListener>> &ListSubscription::getListeners() {
 	return mListeners;
@@ -103,7 +53,7 @@ ListSubscription::~ListSubscription() {
 		belle_sip_object_unref(mTimer);
 	}
 	belle_sip_object_unref((void *)mName);
-	SLOGD << "List souscription ["<< this <<"] deleted";
+	SLOGD << "List subscription ["<< this <<"] deleted";
 };
 
 void ListSubscription::addInstanceToResource(Xsd::Rlmi::Resource &resource, list<belle_sip_body_handler_t *> &multipartList,
@@ -119,7 +69,7 @@ void ListSubscription::addInstanceToResource(Xsd::Rlmi::Resource &resource, list
 	instance.setCid(cid.str());
 	string pidf = presentityInformation.getPidf(extended);
 	belle_sip_memory_body_handler_t *bodyPart =
-		belle_sip_memory_body_handler_new_copy_from_buffer((void *)pidf.c_str(), pidf.length(), NULL, NULL);
+		belle_sip_memory_body_handler_new_copy_from_buffer((void *)pidf.c_str(), pidf.length(), nullptr, nullptr);
 	belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(bodyPart),
 									  belle_sip_header_create("Content-Transfer-Encoding", "binary"));
 	ostringstream content_id;
@@ -148,7 +98,7 @@ void ListSubscription::notify(bool isFullState) {
 		 * subscription.
 		 *
 		 */
-		if (mVersion == 0 && isFullState == false) {
+		if (mVersion == 0 && !isFullState) {
 			/*
 			 The
 			 first NOTIFY sent in a subscription MUST contain full state, as must
@@ -167,6 +117,9 @@ void ListSubscription::notify(bool isFullState) {
 				char *presentityUri = belle_sip_uri_to_string(resourceListener->getPresentityUri());
 				Xsd::Rlmi::Resource resource(presentityUri);
 				belle_sip_free(presentityUri);
+				if (!resourceListener->getName().empty())
+					resource.getName().push_back(resourceListener->getName());
+
 				PendingStateType::iterator it = mPendingStates.find(resourceListener->getPresentityUri());
 				if (it != mPendingStates.end() && it->second.first->isKnown() && resourceList.getResource().size() < mMaxPresenceInfoNotifiedAtATime) {
 					addInstanceToResource(resource, multipartList, *it->second.first, resourceListener->extendedNotifyEnabled());
@@ -176,7 +129,6 @@ void ListSubscription::notify(bool isFullState) {
 				}
 				resourceList.getResource().push_back(resource);
 			}
-
 		} else {
 			SLOGI << "Building partial state rlmi for list name [" << mName << "]";
 			for (PendingStateType::iterator it =  mPendingStates.begin();
@@ -187,10 +139,12 @@ void ListSubscription::notify(bool isFullState) {
 					char *presentityUri = belle_sip_uri_to_string(presenceInformation->getEntity());
 					Xsd::Rlmi::Resource resource(presentityUri);
 					belle_sip_free(presentityUri);
+					if (!presenceInformation->getName().empty())
+						resource.getName().push_back(presenceInformation->getName());
 					addInstanceToResource(resource, multipartList, *presenceInformation, presenceInformationPair.second.second);
 					resourceList.getResource().push_back(resource);
 				}
-				it= mPendingStates.erase(it); //erase in any case
+				it = mPendingStates.erase(it); //erase in any case
 			}
 		}
 
@@ -208,17 +162,16 @@ void ListSubscription::notify(bool isFullState) {
 		Xsd::Rlmi::serializeList(out, resourceList, map);
 
 		belle_sip_memory_body_handler_t *firstBodyPart = belle_sip_memory_body_handler_new_copy_from_buffer(
-			(void *)out.str().c_str(), out.str().length(), NULL, NULL);
-		belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(firstBodyPart),
-										  belle_sip_header_create("Content-Transfer-Encoding", "binary"));
+			(void *)out.str().c_str(), out.str().length(), nullptr, nullptr);
+		belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(firstBodyPart), belle_sip_header_create("Content-Transfer-Encoding", "binary"));
 		ostringstream content_id;
 		content_id << "<" << cid.str() << ">";
-		belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(firstBodyPart),
-										  belle_sip_header_create("Content-Id", cid.str().c_str()));
+		belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(firstBodyPart), belle_sip_header_create("Content-Id", cid.str().c_str()));
 		belle_sip_body_handler_add_header(
 			BELLE_SIP_BODY_HANDLER(firstBodyPart),
-			belle_sip_header_create("Content-Type", "application/rlmi+xml;charset=\"UTF-8\""));
-		multiPartBody = belle_sip_multipart_body_handler_new(NULL, NULL, BELLE_SIP_BODY_HANDLER(firstBodyPart), NULL);
+			belle_sip_header_create("Content-Type", "application/rlmi+xml;charset=\"UTF-8\"")
+		);
+		multiPartBody = belle_sip_multipart_body_handler_new(nullptr, nullptr, BELLE_SIP_BODY_HANDLER(firstBodyPart), nullptr);
 		for (belle_sip_body_handler_t *additionalPart : multipartList) {
 			belle_sip_multipart_body_handler_add_part(multiPartBody, additionalPart);
 		}
@@ -226,21 +179,23 @@ void ListSubscription::notify(bool isFullState) {
 		Subscription::notify(multiPartBody, "deflate");
 		mVersion++;
 		mLastNotify = chrono::system_clock::now();
-		if (!mPendingStates.empty() && mTimer == NULL) {
+		if (!mPendingStates.empty() && !mTimer) {
 			SLOGD << "Still [" << mPendingStates.size() << "] to be notified for list [" << this << "]";
 			belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this](unsigned int events) {
 				belle_sip_source_t * curent_timer = mTimer;
-				this->mTimer = NULL;
-				this->notify(FALSE);
+				mTimer = nullptr;
+				notify(false);
 				SLOGD << "defered notify sent on [" << this << "]";
 				belle_sip_object_unref(curent_timer);
 				return BELLE_SIP_STOP;
 			});
-			mTimer = belle_sip_main_loop_create_cpp_timeout( belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv))
-																, func
-																, 500
-																, "timer for list notify");
-			}
+			mTimer = belle_sip_main_loop_create_cpp_timeout(
+				belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)),
+				func,
+				500,
+				"timer for list notify"
+			);
+		}
 	} catch (const Xsd::XmlSchema::Serialization &e) {
 		throw FLEXISIP_EXCEPTION << "serialization error: " << e.diagnostics();
 	} catch (exception &e) {
@@ -250,18 +205,18 @@ void ListSubscription::notify(bool isFullState) {
 void ListSubscription::onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) {
 	// store state, erase previous one if any
 	if (getState() == active) {
-		mPendingStates[presenceInformation.getEntity()] = std::make_pair(presenceInformation.shared_from_this(), extended);
+		mPendingStates[presenceInformation.getEntity()] = make_pair(presenceInformation.shared_from_this(), extended);
 
 		if (isTimeToNotify()) {
-			notify(FALSE);
+			notify(false);
 		} else {
-			if (mVersion > 0 /*special case for first notify */ && mTimer == NULL) {
+			if (mVersion > 0 /*special case for first notify */ && mTimer == nullptr) {
 				// cb function to invalidate an unrefreshed etag;
 				belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this](unsigned int events) {
-					this->notify(FALSE);
+					notify(false);
 					SLOGD << "defered notify sent on [" << this << "]";
-					belle_sip_object_unref(this->mTimer);
-					this->mTimer = NULL;
+					belle_sip_object_unref(mTimer);
+					mTimer = nullptr;
 					return BELLE_SIP_STOP;
 				});
 				// create timer
@@ -276,41 +231,64 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation &prese
 
 			if (mVersion > 0) {
 				SLOGI << "Defering presence information notify for entity [" << presenceInformation.getEntity()
-					  << "/"<<this<<"] to [" << (belle_sip_source_get_timeout(mTimer)) << " ms]";
+					  << "/" << this << "] to [" << (belle_sip_source_get_timeout(mTimer)) << " ms]";
 			} else {
 				SLOGI << "First notify, defering presence information for entity [" << presenceInformation.getEntity()
-					   << "/"<<this<<"]";
-				
-				
+					   << "/" << this << "]";
+
+
 			}
 		}
 	} // else for list subscription final notify is handled separatly
 }
 
 bool ListSubscription::isTimeToNotify() {
-	if (mVersion == 0) {
-		return FALSE; // initial notify not sent yet
-	}
-	return (chrono::system_clock::now() - mLastNotify) > mMinNotifyInterval;
+	return mVersion == 0 ? false : (chrono::system_clock::now() - mLastNotify) > mMinNotifyInterval;
+}
+
+void ListSubscription::finishCreation(belle_sip_server_transaction_t *ist) {
+	belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, ist](unsigned int){
+		if (mListeners.empty()) {
+			ostringstream os;
+			os << "Empty list entry for dialog id[" << belle_sip_header_call_id_get_call_id(belle_sip_dialog_get_call_id(mDialog)) << "]";
+			setState(Subscription::State::terminated);
+		}
+
+		belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
+		mName = (belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(belle_sip_request_get_uri(request)));
+		belle_sip_object_ref((void *)mName);
+		mListAvailable(static_pointer_cast<ListSubscription>(shared_from_this()));
+		return BELLE_SIP_STOP;
+	});
+	belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(
+		belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)),
+		func,
+		0,
+		"timer for external list subscription"
+	);
+	belle_sip_object_unref(timer);
 }
 
 /// PresentityResourceListener//
 
-PresentityResourceListener::PresentityResourceListener(ListSubscription &aListSubscription,
-													   const belle_sip_uri_t *presentity)
+PresentityResourceListener::PresentityResourceListener(ListSubscription &aListSubscription, const belle_sip_uri_t *presentity, const string &name)
 	: mListSubscription(aListSubscription),
-	  mPresentity((belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(presentity))) {
+		mPresentity((belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(presentity))),
+		mName(name)
+{
 	belle_sip_object_ref(mPresentity);
 }
 PresentityResourceListener::~PresentityResourceListener() {
 	belle_sip_object_unref(mPresentity);
 }
 PresentityResourceListener::PresentityResourceListener(const PresentityResourceListener &source)
-	: mListSubscription(source.mListSubscription) {
+	: mListSubscription(source.mListSubscription),
+		mName(source.mName)
+{
 	mPresentity = ((belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(source.getPresentityUri())));
 	belle_sip_object_ref(mPresentity);
 }
-const belle_sip_uri_t *PresentityResourceListener::getPresentityUri(void) const {
+const belle_sip_uri_t *PresentityResourceListener::getPresentityUri() const {
 	return mPresentity;
 }
 /*
@@ -318,6 +296,8 @@ const belle_sip_uri_t *PresentityResourceListener::getPresentityUri(void) const 
  */
 void PresentityResourceListener::onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) {
 	// Notification is handled globaly for the list
+	if (!mName.empty())
+		presenceInformation.setName(mName);
 	mListSubscription.onInformationChanged(presenceInformation, extended);
 }
 void PresentityResourceListener::onExpired(PresentityPresenceInformation &presenceInformation) {
@@ -330,4 +310,5 @@ const belle_sip_uri_t* PresentityResourceListener::getFrom() {
 const belle_sip_uri_t* PresentityResourceListener::getTo() {
 	return mListSubscription.getTo();
 }
-}
+
+} // namespace flexisip

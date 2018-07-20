@@ -283,6 +283,11 @@ class RegistrarDbListener : public StatFinishListener {
 	virtual void onInvalid() = 0;
 };
 
+class RegistrarDbStateListener {
+public:
+	virtual void onRegistrarDbWritable (bool writable) = 0;
+};
+
 class ContactUpdateListener : public RegistrarDbListener {
 	public:
 	virtual ~ContactUpdateListener();
@@ -292,7 +297,7 @@ class ContactUpdateListener : public RegistrarDbListener {
 class ContactRegisteredListener {
   public:
 	virtual ~ContactRegisteredListener();
-	virtual void onContactRegistered(const std::string &key, const std::string &uid) = 0;
+	virtual void onContactRegistered(Record *r, const std::string &uid) = 0;
 };
 
 class LocalRegExpireListener {
@@ -319,12 +324,15 @@ class RegistrarDb {
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
 	void fetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener);
+	void notifyContactListener (Record *r, const std::string &uid);
 	void updateRemoteExpireTime(const std::string &key, time_t expireat);
 	unsigned long countLocalActiveRecords() {
 		return mLocalRegExpire->countActives();
 	}
 
-	void notifyContactListener(const std::string &key, const std::string &uid);
+	void addStateListener (const std::shared_ptr<RegistrarDbStateListener> &listener);
+	void removeStateListener (const std::shared_ptr<RegistrarDbStateListener> &listener);
+	bool isWritable () const { return mWritable; }
 	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void unsubscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void publish(const std::string &topic, const std::string &uid) = 0;
@@ -378,15 +386,20 @@ class RegistrarDb {
 	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const std::string &key,
 									 const std::shared_ptr<RegistrarDbListener> &listener);
 	void fetchWithDomain(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive);
+	void notifyContactListener(const std::string &key, const std::string &uid);
+	void notifyStateListener () const;
+
 	RegistrarDb(Agent *ag);
 	virtual ~RegistrarDb();
 	std::map<std::string, Record *> mRecords;
 	std::multimap<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;
+	std::list<std::shared_ptr<RegistrarDbStateListener>> mStateListeners;
 	LocalRegExpire *mLocalRegExpire;
 	bool mUseGlobalDomain;
 	std::string mMessageExpiresName;
 	static RegistrarDb *sUnique;
 	Agent *mAgent;
+	bool mWritable = false;
 };
 
 #endif

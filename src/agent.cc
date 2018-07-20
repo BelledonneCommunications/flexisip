@@ -226,6 +226,52 @@ static void mDnsRegisterCallback(void *data, int error) {
 }
 #endif
 
+
+void Agent::startMdns(){
+#if ENABLE_MDNS
+	/* Get Informations about mDNS register */
+	GenericStruct *mdns = GenericManager::get()->getRoot()->get<GenericStruct>("mdns-register");
+	bool mdnsEnabled = mdns->get<ConfigBoolean>("enabled")->read();
+	if (mdnsEnabled) {
+		if (!belle_sip_mdns_register_available()) LOGF("Belle-sip does not have mDNS activated!");
+
+		string mdnsDomain = GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
+		int mdnsPrioMin = mdns->get<ConfigIntRange>("mdns-priority")->readMin();
+		int mdnsPrioMax = mdns->get<ConfigIntRange>("mdns-priority")->readMax();
+		int mdnsWeight = mdns->get<ConfigInt>("mdns-weight")->read();
+		int mdnsTtl = mdns->get<ConfigInt>("mdns-ttl")->read();
+
+		/* Get hostname of the machine */
+		char hostname[HOST_NAME_MAX];
+		int err = gethostname(hostname, sizeof(hostname));
+		if (err != 0) {
+			LOGE("Cannot retrieve machine hostname.");
+		} else {
+			int prio;
+			if (mdnsPrioMin == mdnsPrioMax) {
+				prio = mdnsPrioMin;
+			} else {
+				/* Randomize the priority */
+				prio = belle_sip_random() % (mdnsPrioMax - mdnsPrioMin + 1) + mdnsPrioMin;
+				LOGD("Multicast DNS services will be started with priority: %d", prio);
+			}
+
+			LOGD("Registering multicast DNS services.");
+			for (tport_t *tport = tport_primaries(nta_agent_tports(mAgent)); tport != NULL; tport = tport_next(tport)) {
+				char registerName[512];
+				const tp_name_t *name = tport_name(tport);
+				snprintf(registerName, sizeof(registerName), "%s_%s_%s", hostname, name->tpn_proto, name->tpn_port);
+
+				belle_sip_mdns_register_t *reg = belle_sip_mdns_register("sip", name->tpn_proto, mdnsDomain.c_str(),
+																		registerName, atoi(name->tpn_port), prio, mdnsWeight,
+																		mdnsTtl, mDnsRegisterCallback, NULL);
+				mMdnsRegisterList.push_back(reg);
+			}
+		}
+	}
+#endif
+}
+
 void Agent::start(const string &transport_override, const string passphrase) {
 	char cCurrDir[FILENAME_MAX];
 	if (!getcwd(cCurrDir, sizeof(cCurrDir))) {
@@ -343,51 +389,8 @@ void Agent::start(const string &transport_override, const string passphrase) {
 	tport_t *primaries = tport_primaries(nta_agent_tports(mAgent));
 	if (primaries == NULL)
 		LOGF("No sip transport defined.");
-	su_md5_t ctx;
-	su_md5_init(&ctx);
-
-#if ENABLE_MDNS
-	/* Get Informations about mDNS register */
-	GenericStruct *mdns = GenericManager::get()->getRoot()->get<GenericStruct>("mdns-register");
-	bool mdnsEnabled = mdns->get<ConfigBoolean>("enabled")->read();
-	if (mdnsEnabled) {
-		if (!belle_sip_mdns_register_available()) LOGF("Belle-sip does not have mDNS activated!");
-
-		string mdnsDomain = GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
-		int mdnsPrioMin = mdns->get<ConfigIntRange>("mdns-priority")->readMin();
-		int mdnsPrioMax = mdns->get<ConfigIntRange>("mdns-priority")->readMax();
-		int mdnsWeight = mdns->get<ConfigInt>("mdns-weight")->read();
-		int mdnsTtl = mdns->get<ConfigInt>("mdns-ttl")->read();
-
-		/* Get hostname of the machine */
-		char hostname[HOST_NAME_MAX];
-		int err = gethostname(hostname, sizeof(hostname));
-		if (err != 0) {
-			LOGE("Cannot retrieve machine hostname.");
-		} else {
-			int prio;
-			if (mdnsPrioMin == mdnsPrioMax) {
-				prio = mdnsPrioMin;
-			} else {
-				/* Randomize the priority */
-				srand(time(NULL));
-				prio = rand() % (mdnsPrioMax - mdnsPrioMin + 1) + mdnsPrioMin;
-			}
-
-			LOGD("Registering multicast DNS services.");
-			for (tport_t *tport = primaries; tport != NULL; tport = tport_next(tport)) {
-				char registerName[512];
-				const tp_name_t *name = tport_name(tport);
-				snprintf(registerName, sizeof(registerName), "%s_%s_%s", hostname, name->tpn_proto, name->tpn_port);
-
-				belle_sip_mdns_register_t *reg = belle_sip_mdns_register("sip", name->tpn_proto, mdnsDomain.c_str(),
-																		registerName, atoi(name->tpn_port), prio, mdnsWeight,
-																		mdnsTtl, mDnsRegisterCallback, NULL);
-				mMdnsRegisterList.push_back(reg);
-			}
-		}
-	}
-#endif
+	
+	startMdns();
 
 	/*
 	 * Iterate on all the transports enabled or implicitely configured (case of 'sip:*') in order to guess useful
@@ -399,6 +402,9 @@ void Agent::start(const string &transport_override, const string passphrase) {
 	 *transport of the proxy.
 	 * This algo is really empiric and aims at satisfy most common needs but cannot satisfy all of them.
 	**/
+	su_md5_t ctx;
+	su_md5_init(&ctx);
+
 	LOGD("Agent 's primaries are:");
 	for (tport_t *tport = primaries; tport != NULL; tport = tport_next(tport)) {
 		const tp_name_t *name;
@@ -483,6 +489,7 @@ void Agent::start(const string &transport_override, const string passphrase) {
 	LOGD("Agent public resolved hostname/ip: v4:%s v6:%s", mPublicResolvedIpV4.c_str(), mPublicResolvedIpV6.c_str());
 	LOGD("Agent's _default_ RTP bind ip address: v4:%s v6:%s", mRtpBindIp.c_str(), mRtpBindIp6.c_str());
 
+	mUseMaddr = GenericManager::get()->getGlobal()->get<ConfigBoolean>("use-maddr")->read();
 	startLogWriter();
 
 	loadModules();
@@ -721,7 +728,7 @@ string Agent::computeResolvedPublicIp(const string &host, int family) const {
 			LOGE("getnameinfo error: %s for host [%s]", gai_strerror(err), host.c_str());
 		}
 	} else {
-		LOGE("getaddrinfo error: %s for host [%s]", gai_strerror(err), host.c_str());
+		LOGW("getaddrinfo error: %s for host [%s] and family=[%i]", gai_strerror(err), host.c_str(), family);
 	}
 	return "";
 }
@@ -920,9 +927,8 @@ bool Agent::isUs(const url_t *url, bool check_aliases) const {
 		return true;
 	if (url_param(url->url_params, "maddr", maddr, sizeof(maddr))) {
 		return isUs(maddr, url->url_port, check_aliases);
-	} else {
-		return isUs(url->url_host, url->url_port, check_aliases);
 	}
+	return isUs(url->url_host, url->url_port, check_aliases);
 }
 
 void Agent::logEvent(const shared_ptr<SipEvent> &ev) {
@@ -1157,7 +1163,7 @@ url_t* Agent::urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoi
 		ut == url_sips
 		&& !avoidMAddr
 		&& (strcmp(name->tpn_host, name->tpn_canon) != 0)
-		&& GenericManager::get()->getGlobal()->get<ConfigBoolean>("use-maddr")->read()
+		&& mUseMaddr
 	) {
 		const string &resolvedIp = strchr(name->tpn_host, ':')
 			? mPublicResolvedIpV6
@@ -1184,9 +1190,10 @@ const string &Agent::getUniqueId() const {
 	return mUniqueId;
 }
 
-su_timer_t *Agent::createTimer(int milliseconds, timerCallback cb, void *data) {
+su_timer_t *Agent::createTimer(int milliseconds, timerCallback cb, void *data, bool repeating) {
 	su_timer_t *timer = su_timer_create(su_root_task(mRoot), milliseconds);
-	su_timer_set_for_ever(timer, (su_timer_f)cb, data);
+	if (repeating) su_timer_set_for_ever(timer, (su_timer_f)cb, data);
+	else su_timer_set(timer, (su_timer_f)cb, data);
 	return timer;
 }
 

@@ -34,10 +34,14 @@
 #include "registrardb-redis-sofia-event.h"
 #include <sofia-sip/sip_protos.h>
 
+
+/* The timeout to retry a bind request after encountering a failure. It gives us a chance to reconnect to a new master.*/
+static const int redisRetryTimeoutMs = 5000;
+
 using namespace std;
 
 RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<ContactUpdateListener> listener)
-	: self(s), listener(listener), record(url), token(0), mUpdateExpire(false), mRetryCount(0), mGruu(""), mIsUnregister(false) {
+	: self(s), listener(listener), record(url), token(0), mRetryTimer(nullptr), mRetryCount(0), mGruu(""), mUpdateExpire(false), mIsUnregister(false) {
 	
 }
 RegistrarUserData::~RegistrarUserData() {
@@ -129,10 +133,16 @@ void RegistrarDbRedisAsync::onSubscribeConnect(const redisAsyncContext *c, int s
 		LOGD("Now re-subscribing all topics we had before being disconnected.");
 		subscribeAll();
 	}
+	subscribeToKeyExpiration();
 }
 
 bool RegistrarDbRedisAsync::isConnected() {
 	return mContext != NULL;
+}
+
+void RegistrarDbRedisAsync::setWritable (bool value) {
+	mWritable = value;
+	notifyStateListener();
 }
 
 /* This method checks that a redis command was successful, and cleans up if not. You use it with the macro defined
@@ -294,7 +304,8 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char *reply) {
 	if (replyMap.find("role") != replyMap.end()) {
 		string role = replyMap["role"];
 		if (role == "master") {
-			// we are speaking to the master, nothing to do but update the list of slaves
+			// We are speaking to the master, set the DB as writable and update the list of slaves
+			setWritable(true);
 			updateSlavesList(replyMap);
 
 		} else if (role == "slave") {
@@ -403,6 +414,7 @@ bool RegistrarDbRedisAsync::connect() {
 bool RegistrarDbRedisAsync::disconnect() {
 	LOGD("disconnect(%p)", mContext);
 	bool status = false;
+	setWritable(false);
 	if (mContext) {
 		redisAsyncDisconnect(mContext);
 		mContext = NULL;
@@ -424,6 +436,11 @@ void RegistrarDbRedisAsync::subscribeAll() {
 		topics.insert(it->first);
 	for (const auto &topic : topics)
 		subscribeTopic(topic);
+}
+
+void RegistrarDbRedisAsync::subscribeToKeyExpiration() {
+	SLOGD << "Subscribing to key expiration";
+	redisAsyncCommand(mSubscribeContext, sKeyExpirationPublishCallback, nullptr, "SUBSCRIBE __keyevent@0__:expired");
 }
 
 void RegistrarDbRedisAsync::subscribeTopic(const string &topic) {
@@ -490,6 +507,25 @@ void RegistrarDbRedisAsync::sPublishCallback(redisAsyncContext *c, void *r, void
 			RegistrarDbRedisAsync *zis = (RegistrarDbRedisAsync *)c->data;
 			if (zis) {
 				zis->notifyContactListener(reply->element[1]->str, reply->element[2]->str);
+			}
+		}
+	}
+}
+
+void RegistrarDbRedisAsync::sKeyExpirationPublishCallback(redisAsyncContext *c, void *r, void *data) {
+	redisReply *reply = reinterpret_cast<redisReply *>(r);
+	if (!reply)
+		return;
+
+	if (reply->type == REDIS_REPLY_ARRAY) {
+		if (reply->element[2]->str != nullptr) {
+			RegistrarDbRedisAsync *zis = reinterpret_cast<RegistrarDbRedisAsync *>(c->data);
+			if (zis) {
+				string prefix = "fs:";
+				string key = reply->element[2]->str;
+				if (key.substr(0, prefix.size()) == prefix)
+					key = key.substr(prefix.size());
+				zis->notifyContactListener(key, "");
 			}
 		}
 	}
@@ -592,13 +628,33 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, for
 
 /* Methods called by the callbacks */
 
+void RegistrarDbRedisAsync::sBindRetry(void *unused, su_timer_t *t, void *ud){
+	RegistrarUserData *data = (RegistrarUserData *)ud;
+	su_timer_destroy(data->mRetryTimer);
+	data->mRetryTimer = NULL;
+	RegistrarDbRedisAsync *self = data->self;
+	if (self->isConnected()){
+		self->serializeAndSendToRedis(data, sHandleBind);
+	}else{
+		LOGE("Unrecoverable error while updating record fs:%s : no connection", data->record.getKey().c_str());
+		if (data->listener) data->listener->onError();
+		delete data;
+	}
+}
+
 void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *data) {
 	const char *key = data->record.getKey().c_str();
 
-	if ((!reply || reply->type == REDIS_REPLY_ERROR) && (data->mRetryCount < 2)) {
-		LOGE("Error while updating record fs:%s [%lu] hashmap in redis, trying again", key, data->token);
-		data->mRetryCount += 1;
-		serializeAndSendToRedis(data, sHandleBind);
+	if (!reply || reply->type == REDIS_REPLY_ERROR){
+		if ((data->mRetryCount < 2)) {
+			LOGE("Error while updating record fs:%s [%lu] hashmap in redis, trying again", key, data->token);
+			data->mRetryCount += 1;
+			data->mRetryTimer = mAgent->createTimer(redisRetryTimeoutMs, sBindRetry, data, false); 
+		}else{
+			LOGE("Unrecoverable error while updating record fs:%s.", key);
+			if (data->listener) data->listener->onError();
+			delete data;
+		}
 	} else {
 		data->mRetryCount = 0;
 		LOGD("Binding ok, fetching fs:%s [%lu]", key, data->token);
