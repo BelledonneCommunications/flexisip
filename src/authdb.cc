@@ -26,7 +26,7 @@ AuthDbBackend *AuthDbBackend::sUnique = NULL;
 AuthDbListener::~AuthDbListener(){
 }
 
-void AuthDbListener::onResults(list<string> &phones, set<string> &users) {
+void AuthDbListener::onResults(const list<string> &phones, const set<pair<string, string>> &presences) {
 
 }
 
