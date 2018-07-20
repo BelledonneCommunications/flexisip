@@ -11,13 +11,7 @@ FirebasePushNotificationRequest::FirebasePushNotificationRequest(const PushInfo 
 	const string &deviceToken = pinfo.mDeviceToken;
 	const string &apiKey = pinfo.mApiKey;
 	ostringstream httpBody;
-	time_t t = time(NULL);
-	struct tm *tm = localtime(&t);
-	char date[20];
-	strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", tm);
-
-	httpBody << "{\"to\":\"" << deviceToken << "\", \"priority\":\"high\"" << ", \"uuid\":" << pinfo.mUid
-		<< ", \"send-time\":\"" << date << "\"}";
+	httpBody << "{\"to\":\"" << deviceToken << "\", \"priority\":\"high\"}";
 	mHttpBody = httpBody.str();
 	LOGD("Push notification https post body is %s", mHttpBody.c_str());
 
