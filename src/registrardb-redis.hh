@@ -85,9 +85,10 @@ struct RegistrarUserData {
 	std::shared_ptr<ContactUpdateListener> listener;
 	Record record;
 	unsigned long token;
-	bool mUpdateExpire;
-	uint8_t mRetryCount;
+	su_timer_t *mRetryTimer;
+	int mRetryCount;
 	std::string mGruu;
+	bool mUpdateExpire;
 	bool mIsUnregister;
 
 	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, std::shared_ptr<ContactUpdateListener> listener);
@@ -99,10 +100,10 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	RegistrarDbRedisAsync(const std::string &preferredRoute, su_root_t *root, RecordSerializer *serializer,
 						  RedisParameters params);
 
-  protected:
 	bool connect();
 	bool disconnect();
 
+  protected:
 	virtual void doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
 					  const sip_path_t *ipath, std::list<std::string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version, 
 					  const std::shared_ptr<ContactUpdateListener> &listener);
@@ -122,7 +123,10 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	static void sSubscribeConnectCallback(const redisAsyncContext *c, int status);
 	static void sSubscribeDisconnectCallback(const redisAsyncContext *c, int status);
 	static void sPublishCallback(redisAsyncContext *c, void *r, void *privdata);
+	static void sKeyExpirationPublishCallback(redisAsyncContext *c, void *r, void *data);
+	static void sBindRetry(void *unused, su_timer_t *t, void *ud);
 	bool isConnected();
+	void setWritable (bool value);
 	friend class RegistrarDb;
 	redisAsyncContext *mContext, *mSubscribeContext;
 	RecordSerializer *mSerializer;
@@ -143,6 +147,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	void onErrorData(RegistrarUserData *data);
 	void subscribeTopic(const std::string &topic);
 	void subscribeAll();
+	void subscribeToKeyExpiration();
 	//void dequeueNextRedisCommand();
 
 	/* callbacks */

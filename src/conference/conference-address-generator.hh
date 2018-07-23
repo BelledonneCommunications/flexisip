@@ -25,6 +25,8 @@
 
 namespace flexisip {
 
+	class ConferenceServer;
+
 	class ConferenceAddressGenerator
 		: public ContactUpdateListener
 		, public std::enable_shared_from_this<ConferenceAddressGenerator>
@@ -39,14 +41,15 @@ namespace flexisip {
 			const std::shared_ptr<linphone::ChatRoom> chatRoom,
 			std::shared_ptr<linphone::Address> conferenceFactoryAddr,
 			const std::string &uuid,
-			const std::string &path
+			const std::string &path,
+			ConferenceServer *conferenceServer
 		);
 
 		void run ();
 
 	private:
 		void onRecordFound (Record *r) override;
-		void onError () override {}
+		void onError () override;
 		void onInvalid () override {}
 		void onContactUpdated (const std::shared_ptr<ExtendedContact> &ec) override {}
 
@@ -55,6 +58,7 @@ namespace flexisip {
 		std::shared_ptr<linphone::Address> mConferenceAddr;
 		std::string mUuid;
 		std::string mPath;
+		ConferenceServer *mConferenceServer = nullptr;
 		State mState = State::Fetching;
 	};
 

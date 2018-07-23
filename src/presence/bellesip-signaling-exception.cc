@@ -15,8 +15,11 @@
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include "bellesip-signaling-exception.hh"
+
 #include "belle-sip/belle-sip.h"
+
+#include "bellesip-signaling-exception.hh"
+
 namespace flexisip {
 
 BelleSipSignalingException::BelleSipSignalingException(int code, std::list<belle_sip_header_t *> headers)

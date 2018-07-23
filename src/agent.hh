@@ -177,7 +177,7 @@ public:
 	sip_via_t *getNextVia(sip_t *response);
 	const char *getServerString() const;
 	typedef void (*timerCallback)(void *unused, su_timer_t *t, void *data);
-	su_timer_t *createTimer(int milliseconds, timerCallback cb, void *data);
+	su_timer_t *createTimer(int milliseconds, timerCallback cb, void *data, bool repeating=true);
 	void stopTimer(su_timer_t *t);
 	void injectRequestEvent(std::shared_ptr<RequestSipEvent> ev);
 	void injectResponseEvent(std::shared_ptr<ResponseSipEvent> ev);
@@ -205,6 +205,7 @@ private:
 	void checkAllowedParams(const url_t *uri);
 	void initializePreferredRoute();
 	void loadModules();
+	void startMdns();
 
 	std::string mServerString;
 	std::list<Module *> mModules;
@@ -238,6 +239,7 @@ private:
 	std::string mPassphrase;
 	static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t *msg, sip_t *sip);
 	bool mTerminating;
+	bool mUseMaddr;
 #if ENABLE_MDNS
 	std::vector<belle_sip_mdns_register_t *> mMdnsRegisterList;
 #endif

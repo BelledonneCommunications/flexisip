@@ -13,17 +13,14 @@ GooglePushNotificationRequest::GooglePushNotificationRequest(const PushInfo &pin
 	const string &arg = pinfo.mFromName.empty() ? pinfo.mFromUri : pinfo.mFromName;
 	const string &callid = pinfo.mCallId;
 	ostringstream httpBody;
-	time_t t = time(NULL);
-	struct tm *tm = localtime(&t);
-	char date[20];
-	strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", tm);
+	string date = getPushTimeStamp();
 
 	httpBody << "{\"registration_ids\":[\"" << deviceToken << "\"],\"data\":{\"loc-args\":\"" << arg
 	<< "\"}"
 	",\"priority\":\"high\""
 	",\"call-id\":\"" << callid
-	<< "\",\"uuid\":" << pinfo.mUid
-	<< ",\"send-time\":\"" << date << "\"}";
+	<< "\", \"uuid\":" << quoteStringIfNeeded(pinfo.mUid)
+	<< ", \"send-time\":\"" << date << "\"}";
 	mHttpBody = httpBody.str();
 	LOGD("Push notification https post body is %s", mHttpBody.c_str());
 

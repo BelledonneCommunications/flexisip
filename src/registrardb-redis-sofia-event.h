@@ -34,38 +34,33 @@ typedef struct redisSofiaEvents redisSofiaEvents;
 #endif
 
 typedef struct redisSofiaEvents {
-    redisAsyncContext *context;
-    su_root_t *root;
-    su_wait_t wait;
-    int index;
+	redisAsyncContext *context;
+	su_root_t *root;
+	su_wait_t wait;
+	int index;
+	int eventmask;
 } redisSofiaEvents;
 
 static int redisSofiaEvent(su_root_magic_t *magic, su_wait_t *wait, su_wakeup_arg_t *e) {
-    //redisSofiaEvents *e = (redisSofiaEvents*)arg;
-    if (wait->revents & SU_WAIT_IN){
-    	redisAsyncHandleRead(((redisSofiaEvents*)e)->context);
-    } if (wait->revents & SU_WAIT_OUT) {
-        redisAsyncHandleWrite(((redisSofiaEvents*)e)->context);
-    } else {
-    	return 0; // ???
-    }
-    return 0; // ???
+	if (wait->revents & SU_WAIT_IN)
+		redisAsyncHandleRead(((redisSofiaEvents*)e)->context);
+	if (wait->revents & SU_WAIT_OUT)
+		redisAsyncHandleWrite(((redisSofiaEvents*)e)->context);
+	return 0;
 }
-
 
 static void addWaitMask(void *privdata, int mask) {
-    redisSofiaEvents *e = (redisSofiaEvents*)privdata;
+	redisSofiaEvents *e = (redisSofiaEvents*)privdata;
 	redisContext *c = &(e->context->c);
-	int events=su_wait_events(&e->wait, c->fd);
-	events |= mask;
-	su_root_eventmask(e->root, e->index, c->fd, events);
+	e->eventmask |= mask;
+	su_root_eventmask(e->root, e->index, c->fd, e->eventmask);
 }
+
 static void delWaitMask(void *privdata, int mask) {
-    redisSofiaEvents *e = (redisSofiaEvents*)privdata;
+	redisSofiaEvents *e = (redisSofiaEvents*)privdata;
 	redisContext *c = &(e->context->c);
-	int events=su_wait_events(&e->wait, c->fd);
-	events &= ~mask;
-	su_root_eventmask(e->root, e->index, c->fd, events);
+	e->eventmask &= ~mask;
+	su_root_eventmask(e->root, e->index, c->fd, e->eventmask);
 }
 
 static void redisSofiaAddRead(void *privdata) {
@@ -82,15 +77,14 @@ static void redisSofiaAddWrite(void *privdata) {
 
 static void redisSofiaDelWrite(void *privdata) {
 	delWaitMask(privdata, SU_WAIT_OUT);
-
 }
 
 // Note: async.h requires this method to be idempotent; it is not the case.
 static void redisSofiaCleanup(void *privdata) {
-    redisSofiaEvents *e = (redisSofiaEvents*)privdata;
-    su_root_deregister(e->root, e->index);
-    LOGI("Redis sofia event cleaned %p", e->context);
-    free(e);
+	redisSofiaEvents *e = (redisSofiaEvents*)privdata;
+	su_root_deregister(e->root, e->index);
+	LOGI("Redis sofia event cleaned %p", e->context);
+	free(e);
 }
 
 static int redisSofiaAttach(redisAsyncContext *ac, su_root_t *root) {
@@ -105,6 +99,7 @@ static int redisSofiaAttach(redisAsyncContext *ac, su_root_t *root) {
 	e = (redisSofiaEvents *)malloc(sizeof(*e));
 	e->context = ac;
 	e->root = root;
+	e->eventmask = 0;
 
 	/* Register functions to start/stop listening for events */
 	ac->ev.addRead = redisSofiaAddRead;

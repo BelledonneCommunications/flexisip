@@ -4,7 +4,7 @@
 import sys
 
 def print_usage():
-	print 'Usage: ./flexisip_stats.py [-p/--pid <pid>] [-s/--server "proxy"/"presence"] <GET/SET/LIST> <"all"/path_to_value> [value_to_set]'
+	print 'Usage: ./flexisip_cli.py [-p/--pid <pid>] [-s/--server "proxy"/"presence"] <CONFIG_GET/CONFIG_LIST/CONFIG_SET/REGISTRAR_CLEAR> <"all"/path_to_value> [value_to_set]'
 
 def getpid(serverType):
 	from subprocess import check_output, CalledProcessError
@@ -27,13 +27,13 @@ def getpid(serverType):
 
 def sendMessage(remote_socket, message):
 	import socket
+	import time
 	s = socket.socket(socket.AF_UNIX)
 	s.settimeout(1)
 	try:
 		s.connect(remote_socket)
 		s.send(message)
-		
-		print s.recv(8192)
+		print(s.recv(8192))
 	except socket.error:
 		print 'Error: could not connect to the socket.'
 	s.close()
@@ -57,12 +57,12 @@ def main():
 		print_usage()
 		sys.exit(2)
 		
-	if not args[0] in ['GET', 'SET', 'LIST']:
-		print 'Error: command must be either GET, SET or LIST'
+	if not args[0] in ['CONFIG_GET', 'CONFIG_LIST', 'CONFIG_SET', 'REGISTRAR_CLEAR']:
+		print 'Error: command must be either CONFIG_GET, CONFIG_LIST, CONFIG_SET or REGISTRAR_CLEAR'
 		print_usage()
 		sys.exit(2)
 		
-	if args[0] == "SET" and len(args) < 3:
+	if args[0] == "CONFIG_SET" and len(args) < 3:
 		print_usage()
 		sys.exit(2)
 

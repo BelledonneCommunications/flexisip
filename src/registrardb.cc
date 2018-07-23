@@ -667,6 +667,21 @@ RegistrarDb::~RegistrarDb() {
 	delete mLocalRegExpire;
 }
 
+void RegistrarDb::addStateListener (const std::shared_ptr<RegistrarDbStateListener> &listener) {
+	auto it = find(mStateListeners.cbegin(), mStateListeners.cend(), listener);
+	if (it == mStateListeners.cend())
+		mStateListeners.push_back(listener);
+}
+
+void RegistrarDb::removeStateListener (const std::shared_ptr<RegistrarDbStateListener> &listener) {
+	mStateListeners.remove(listener);
+}
+
+void RegistrarDb::notifyStateListener () const {
+	for (auto &listener : mStateListeners)
+		listener->onRegistrarDbWritable(mWritable);
+}
+
 void RegistrarDb::subscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {
 	LOGD("Subscribe topic = %s", topic.c_str());
 	mContactListenersMap.insert(make_pair(topic, listener));
@@ -683,12 +698,42 @@ void RegistrarDb::unsubscribe(const string &topic, const shared_ptr<ContactRegis
 	}
 }
 
+class ContactNotificationListener
+	: public ContactUpdateListener,
+	public std::enable_shared_from_this<ContactNotificationListener>
+{
+public:
+	ContactNotificationListener (const string &uid, RegistrarDb *db)
+		: mUid(uid), mDb(db) {
+	}
+
+private:
+	// ContactUpdateListener implementation
+	void onRecordFound (Record *r) override {
+		if (r)
+			mDb->notifyContactListener(r, mUid);
+	}
+	void onError () override {}
+	void onInvalid () override {}
+	void onContactUpdated (const std::shared_ptr<ExtendedContact> &ec) override {}
+
+	string mUid;
+	RegistrarDb *mDb = nullptr;
+};
+
 void RegistrarDb::notifyContactListener(const string &key, const string &uid) {
+	SofiaAutoHome home;
+	url_t *sipUri = url_make(home.home(), key.c_str());
+	auto listener = make_shared<ContactNotificationListener>(uid, this);
 	LOGD("Notify topic = %s, uid = %s", key.c_str(), uid.c_str());
-	auto range = mContactListenersMap.equal_range(key);
+	RegistrarDb::get()->fetch(sipUri, listener, true);
+}
+
+void RegistrarDb::notifyContactListener (Record *r, const string &uid) {
+	auto range = mContactListenersMap.equal_range(r->getKey());
 	for (auto it = range.first; it != range.second; it++) {
 		shared_ptr<ContactRegisteredListener> listener = it->second;
-		listener->onContactRegistered(key, uid);
+		listener->onContactRegistered(r, uid);
 	}
 }
 
@@ -808,6 +853,7 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 
 		sUnique = new RegistrarDbRedisAsync(ag, params);
 		sUnique->mUseGlobalDomain = useGlobalDomain;
+		static_cast<RegistrarDbRedisAsync *>(sUnique)->connect();
 	}
 #endif
 	else {

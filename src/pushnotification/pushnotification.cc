@@ -16,22 +16,36 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef ETAG_MANAGER_HH_
-#define ETAG_MANAGER_HH_
+#include <ctime>
+#include <sstream>
 
-#include "string"
-#include "utils/flexisip-exception.hh"
+#include "log/logmanager.hh"
+#include "pushnotification.hh"
 
-namespace flexisip {
-class PresentityPresenceInformation;
-class EtagManager {
+using namespace std;
 
-public:
-	virtual void invalidateETag(const std::string &eTag) = 0;
-	virtual void modifyEtag(const std::string &oldEtag, const std::string &newEtag) = 0;
-	virtual void addEtag(const std::shared_ptr<PresentityPresenceInformation> &info,
-						 const std::string &etag) = 0;
-};
-
+PushNotificationRequest::PushNotificationRequest(const string &appid, const string &type)
+			: mState( NotSubmitted), mAppId(appid), mType(type) {
 }
-#endif /* ETAG_MANAGER_HH_ */
+
+string PushNotificationRequest::quoteStringIfNeeded(const string &str) const {
+	if (str[0] == '"'){
+		return str;
+	}else{
+		ostringstream ostr;
+		ostr << "\"" << str << "\"";
+		return ostr.str();
+	}
+}
+
+string PushNotificationRequest::getPushTimeStamp() const {
+	time_t t = time(NULL);
+	struct tm time;
+	gmtime_r(&t, &time);
+	char date[20] = {0};
+	size_t ret = strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", &time);
+	if (ret == 0)
+		SLOGE << "Invalid time stamp for push notification PNR: " << this;
+
+	return string(date);
+}

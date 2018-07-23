@@ -28,25 +28,22 @@ ParticipantRegistrationSubscription::ParticipantRegistrationSubscription (
 	const shared_ptr<linphone::ChatRoom> &chatRoom
 ) : mParticipantAddress(address), mChatRoom(chatRoom) {}
 
-void ParticipantRegistrationSubscription::onContactRegistered (const string &key, const string &uid) {
-	url_t *url = url_make(mHome.home(), mParticipantAddress->asStringUriOnly().c_str());
-	RegistrarDb::get()->fetchForGruu(url, uid, shared_from_this());
-}
-
-void ParticipantRegistrationSubscription::onRecordFound (Record *r) {
-	if (!r)
-		return;
-
-	for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
-		string uri = ExtendedContact::urlToString(ec->mSipContact->m_url);
-		shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
-		if (!addr->getUriParam("gr").empty()
-			&& (ec->getOrgLinphoneSpecs().find("groupchat") != string::npos)
-		) {
-			shared_ptr<linphone::Address> deviceAddress = mParticipantAddress->clone();
-			deviceAddress->setUriParam("gr", addr->getUriParam("gr"));
-			SLOGI << "Notify registration of " << deviceAddress->asString() << " to chatroom " << mChatRoom->getLocalAddress()->asString();
-			mChatRoom->addParticipantDevice(mParticipantAddress, deviceAddress);
+void ParticipantRegistrationSubscription::onContactRegistered (Record *r, const string &uid) {
+	list<shared_ptr<linphone::Address>> listDevices;
+	if (r) {
+		for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
+			string uri = ExtendedContact::urlToString(ec->mSipContact->m_url);
+			shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
+			if (!addr->getUriParam("gr").empty()
+				&& (ec->getOrgLinphoneSpecs().find("groupchat") != string::npos)
+			) {
+				shared_ptr<linphone::Address> deviceAddress = mParticipantAddress->clone();
+				deviceAddress->setUriParam("gr", addr->getUriParam("gr"));
+				listDevices.push_back(deviceAddress);
+				SLOGI << "Notify registration of " << deviceAddress->asString() << " to chatroom " << mChatRoom->getLocalAddress()->asString();
+			}
 		}
 	}
+
+	mChatRoom->setParticipantDevices(mParticipantAddress, listDevices);
 }
