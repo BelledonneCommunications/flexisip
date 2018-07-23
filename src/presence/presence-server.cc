@@ -63,8 +63,8 @@ PresenceServer::PresenceServer(bool withThread, su_root_t* root) : ServiceServer
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
 	/*Enabling leak detector should be done asap.*/
 	belle_sip_object_enable_leak_detector(GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("leak-detector")->read());
-	mStack = belle_sip_stack_new(NULL);
-	mProvider = belle_sip_stack_create_provider(mStack, NULL);
+	mStack = belle_sip_stack_new(nullptr);
+	mProvider = belle_sip_stack_create_provider(mStack, nullptr);
 	//bctbx_set_log_handler(_belle_sip_log);
 	//belle_sip_set_log_level(BELLE_SIP_LOG_MESSAGE);
 	mMaxPresenceInfoNotifiedAtATime = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigInt>("notify-limit")->read();
@@ -524,12 +524,12 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	 */
 	belle_sip_header_event_t *header_event = belle_sip_message_get_header_by_type(request, belle_sip_header_event_t);
 	belle_sip_header_user_agent_t *user_agent = belle_sip_message_get_header_by_type(request, belle_sip_header_user_agent_t);
-	bool bypass = FALSE;
+	bool bypass = false;
 	if(user_agent) {
 		char cchar[100];
 		belle_sip_header_user_agent_get_products_as_string(user_agent, cchar, sizeof(cchar));
 		if(strcasestr(cchar, mBypass.c_str()) && strcmp(mBypass.c_str(), "false") != 0) {
-			bypass = TRUE;
+			bypass = true;
 		}
 	}
 	if (!header_event)
@@ -639,7 +639,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					listener->enableBypass(bypass); //expiration is handled by dialog
 				}
 				addOrUpdateListeners(listSubscription->getListeners());
-				listSubscription->notify(TRUE);
+				listSubscription->notify(true);
 			} else {
 				shared_ptr<PresentityPresenceInformationListener> subscription =
 					make_shared<PresenceSubscription>(expires, belle_sip_request_get_uri(request), dialog, mProvider);
@@ -720,13 +720,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners()) {
 						listener->enableBypass(bypass); //expiration is handled by dialog
 					}
-#if 0
-					for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners()) {
-						addOrUpdateListener(listener, expires); //expiration is handled by dialog
-					}
-#else
 					addOrUpdateListeners(listSubscription->getListeners(), expires);
-#endif
 				}
 			}
 			break;
@@ -743,7 +737,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 const std::shared_ptr<PresentityPresenceInformation> PresenceServer::getPresenceInfo(const string &eTag) const {
 	auto presenceInformationsByEtagIt = mPresenceInformationsByEtag.find(eTag);
 	if (presenceInformationsByEtagIt == mPresenceInformationsByEtag.end())
-		return NULL;
+		return nullptr;
 	else
 		return presenceInformationsByEtagIt->second;
 }
@@ -777,7 +771,7 @@ void PresenceServer::removePresenceInfoObserver(const std::shared_ptr<PresenceIn
 std::shared_ptr<PresentityPresenceInformation> PresenceServer::getPresenceInfo(const belle_sip_uri_t *identity) const {
 	auto presenceEntityInformationIt = mPresenceInformations.find(identity);
 	if (presenceEntityInformationIt == mPresenceInformations.end())
-		return NULL;
+		return nullptr;
 	else
 		return presenceEntityInformationIt->second;
 }
@@ -817,7 +811,7 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> &listener, int expires) {
 	std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
 
-	if (presenceInfo == NULL) {
+	if (!presenceInfo) {
 		/*no information available yet, but creating entry to be able to register subscribers*/
 		presenceInfo = make_shared<PresentityPresenceInformation>(listener->getPresentityUri(), *this,
 															 belle_sip_stack_get_main_loop(mStack));
@@ -848,7 +842,7 @@ void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInfo
 	list<std::shared_ptr<PresentityPresenceInformation>> presenceInfos;
 	for (shared_ptr<PresentityPresenceInformationListener> &listener : listeners) {
 		std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
-		if (presenceInfo == NULL) {
+		if (!presenceInfo) {
 			/*no information available yet, but creating entry to be able to register subscribers*/
 			presenceInfo = make_shared<PresentityPresenceInformation>(listener->getPresentityUri(), *this,
 																  belle_sip_stack_get_main_loop(mStack));
@@ -856,7 +850,7 @@ void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInfo
 			addPresenceInfo(presenceInfo);
 		}
 
-		std::shared_ptr<PresentityPresenceInformation> toPresenceInfo = getPresenceInfo(listener->getTo());
+		shared_ptr<PresentityPresenceInformation> toPresenceInfo = getPresenceInfo(listener->getTo());
 		presenceInfo->addListenerIfNecessary(listener);
 		listener->enableExtendedNotify(toPresenceInfo && toPresenceInfo->findPresenceInfo(presenceInfo));
 
@@ -874,7 +868,7 @@ void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInfo
 	}
 }
 void PresenceServer::removeListener(const shared_ptr<PresentityPresenceInformationListener> &listener) {
-	const std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
+	const shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
 	if (presenceInfo) {
 		presenceInfo->removeListener(listener);
 		if (presenceInfo->getNumberOfListeners() == 0  && presenceInfo->getNumberOfInformationElements() == 0) {
@@ -882,7 +876,7 @@ void PresenceServer::removeListener(const shared_ptr<PresentityPresenceInformati
 			mPresenceInformations.erase(presenceInfo->getEntity());
 		}
 	} else
-		SLOGI << "No presence info for this entity [" << listener->getPresentityUri() << "]/[" << std::hex
+		SLOGI << "No presence info for this entity [" << listener->getPresentityUri() << "]/[" << hex
 			  << (long)&listener << "]";
 }
 
