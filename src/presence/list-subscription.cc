@@ -33,10 +33,10 @@ namespace flexisip {
 ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transaction_t *ist,
 								   belle_sip_provider_t *aProv, size_t maxPresenceInfoNotifiedAtATime)
 	: Subscription("Presence", expires, belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)), aProv),
-	  mLastNotify(chrono::system_clock::time_point::min()), mMinNotifyInterval(2 /*60*/), mVersion(0), mTimer(NULL), mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime) {
+	  mLastNotify(chrono::system_clock::time_point::min()), mMinNotifyInterval(2 /*60*/), mVersion(0), mTimer(NULL),
+	  mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime) {
 	belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
-	belle_sip_header_content_type_t *contentType =
-		belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
+	belle_sip_header_content_type_t *contentType = belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
 	// check content type
 	if (!contentType || strcasecmp(belle_sip_header_content_type_get_type(contentType), "application") != 0 ||
 		strcasecmp(belle_sip_header_content_type_get_subtype(contentType), "resource-lists+xml") != 0) {
@@ -60,10 +60,8 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
 	}
 
-	for (Xsd::ResourceLists::List::ListConstIterator listIt = resource_list_body->getList().begin();
-		 listIt != resource_list_body->getList().end(); listIt++) {
-		for (Xsd::ResourceLists::List::EntryConstIterator entryIt = listIt->getEntry().begin();
-			 entryIt != listIt->getEntry().end(); entryIt++) {
+	for (auto listIt = resource_list_body->getList().begin(); listIt != resource_list_body->getList().end(); listIt++) {
+		for (auto entryIt = listIt->getEntry().begin(); entryIt != listIt->getEntry().end(); entryIt++) {
 			//fixme until we have a fast uri parser
 			//belle_sip_uri_t *uri = belle_sip_uri_parse(entryIt->getUri().c_str());
 			int username_begin = entryIt->getUri().find(':')+1;
@@ -280,8 +278,8 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation &prese
 			} else {
 				SLOGI << "First notify, defering presence information for entity [" << presenceInformation.getEntity()
 					   << "/"<<this<<"]";
-				
-				
+
+
 			}
 		}
 	} // else for list subscription final notify is handled separatly

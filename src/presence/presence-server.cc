@@ -133,16 +133,16 @@ void PresenceServer::_init() {
 	std::string db_implementation = cr->get<GenericStruct>("module::Authentication")
 													->get<ConfigString>("db-implementation")
 													->read();
-	
-	
+
+
 	if(get_users_with_phones_request == "" && db_implementation != "file") {
 		LOGF("Unable to start presence server : soci-users-with-phones-request is not precised in flexisip.conf, please fix it.");
 	}
-	
+
 	list<string> transports = cr->get<GenericStruct>("presence-server")
 	->get<ConfigStringList>("transports")
 	->read();
-	
+
 	for (auto it = transports.begin(); it != transports.end(); ++it) {
 		string transport = *it;
 		if(transport.find("sips") != string::npos || transport.find("transport=tls") != string::npos) {
@@ -420,8 +420,8 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		if (!belle_sip_uri_equals(entity, belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(from))))
 			throw BELLESIP_SIGNALING_EXCEPTION_1(400,belle_sip_header_create("Warning", "Entity must be same as From")) << "Invalid presence entity [" << presence_body->getEntity()
 			<< "] for request [" << request << "] must be same as From";
-			
-		
+
+
 		if (!(presenceInfo = getPresenceInfo(entity))) {
 			presenceInfo = make_shared<PresentityPresenceInformation>(entity, *this, belle_sip_stack_get_main_loop(mStack));
 			SLOGD << "New Presentity [" << *presenceInfo << "] created from PUBLISH";
@@ -638,17 +638,9 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners()) {
 					listener->enableBypass(bypass); //expiration is handled by dialog
 				}
-#if 0
-				for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners()) {
-					addOrUpdateListener(listener); //expiration is handled by dialog
-				}
-#else
 				addOrUpdateListeners(listSubscription->getListeners());
-#endif
 				listSubscription->notify(TRUE);
-
 			} else {
-
 				shared_ptr<PresentityPresenceInformationListener> subscription =
 					make_shared<PresenceSubscription>(expires, belle_sip_request_get_uri(request), dialog, mProvider);
 				belle_sip_dialog_set_application_data(dialog, new shared_ptr<Subscription>(dynamic_pointer_cast<Subscription>(subscription)));
@@ -768,7 +760,7 @@ void PresenceServer::addPresenceInfo(const std::shared_ptr<PresentityPresenceInf
 }
 
 void PresenceServer::addPresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &observer) {
-	mPresenceInfoObservers.push_back(observer); 
+	mPresenceInfoObservers.push_back(observer);
 }
 
 void PresenceServer::removePresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &listener) {
@@ -824,7 +816,7 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 }
 void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> &listener, int expires) {
 	std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
-	
+
 	if (presenceInfo == NULL) {
 		/*no information available yet, but creating entry to be able to register subscribers*/
 		presenceInfo = make_shared<PresentityPresenceInformation>(listener->getPresentityUri(), *this,
@@ -832,7 +824,7 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 		SLOGD << "New Presentity [" << *presenceInfo << "] created from SUBSCRIBE";
 		addPresenceInfo(presenceInfo);
 	}
-	
+
 	//notify observers that a listener is added or updated
 	for (auto& listener : mPresenceInfoObservers) {
 		listener->onListenerEvent(presenceInfo);
@@ -875,7 +867,7 @@ void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInfo
 
 		presenceInfos.push_back(presenceInfo);
 	}
-	
+
 	//notify observers that a listener is added or updated
 	for (auto& listener : mPresenceInfoObservers) {
 			listener->onListenerEvents(presenceInfos);
