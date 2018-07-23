@@ -117,7 +117,7 @@ void ListSubscription::addInstanceToResource(Xsd::Rlmi::Resource &resource, list
 	instance.setCid(cid.str());
 	string pidf = presentityInformation.getPidf(extended);
 	belle_sip_memory_body_handler_t *bodyPart =
-		belle_sip_memory_body_handler_new_copy_from_buffer((void *)pidf.c_str(), pidf.length(), NULL, NULL);
+		belle_sip_memory_body_handler_new_copy_from_buffer((void *)pidf.c_str(), pidf.length(), nullptr, nullptr);
 	belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(bodyPart),
 									  belle_sip_header_create("Content-Transfer-Encoding", "binary"));
 	ostringstream content_id;
@@ -206,7 +206,7 @@ void ListSubscription::notify(bool isFullState) {
 		Xsd::Rlmi::serializeList(out, resourceList, map);
 
 		belle_sip_memory_body_handler_t *firstBodyPart = belle_sip_memory_body_handler_new_copy_from_buffer(
-			(void *)out.str().c_str(), out.str().length(), NULL, NULL);
+			(void *)out.str().c_str(), out.str().length(), nullptr, nullptr);
 		belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(firstBodyPart),
 										  belle_sip_header_create("Content-Transfer-Encoding", "binary"));
 		ostringstream content_id;
@@ -216,7 +216,7 @@ void ListSubscription::notify(bool isFullState) {
 		belle_sip_body_handler_add_header(
 			BELLE_SIP_BODY_HANDLER(firstBodyPart),
 			belle_sip_header_create("Content-Type", "application/rlmi+xml;charset=\"UTF-8\""));
-		multiPartBody = belle_sip_multipart_body_handler_new(NULL, NULL, BELLE_SIP_BODY_HANDLER(firstBodyPart), NULL);
+		multiPartBody = belle_sip_multipart_body_handler_new(nullptr, nullptr, BELLE_SIP_BODY_HANDLER(firstBodyPart), nullptr);
 		for (belle_sip_body_handler_t *additionalPart : multipartList) {
 			belle_sip_multipart_body_handler_add_part(multiPartBody, additionalPart);
 		}
@@ -224,12 +224,12 @@ void ListSubscription::notify(bool isFullState) {
 		Subscription::notify(multiPartBody, "deflate");
 		mVersion++;
 		mLastNotify = chrono::system_clock::now();
-		if (!mPendingStates.empty() && mTimer == NULL) {
+		if (!mPendingStates.empty() && mTimer == nullptr) {
 			SLOGD << "Still [" << mPendingStates.size() << "] to be notified for list [" << this << "]";
 			belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this](unsigned int events) {
 				belle_sip_source_t * curent_timer = mTimer;
-				this->mTimer = NULL;
-				this->notify(FALSE);
+				this->mTimer = nullptr;
+				this->notify(false);
 				SLOGD << "defered notify sent on [" << this << "]";
 				belle_sip_object_unref(curent_timer);
 				return BELLE_SIP_STOP;
@@ -251,15 +251,15 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation &prese
 		mPendingStates[presenceInformation.getEntity()] = std::make_pair(presenceInformation.shared_from_this(), extended);
 
 		if (isTimeToNotify()) {
-			notify(FALSE);
+			notify(false);
 		} else {
-			if (mVersion > 0 /*special case for first notify */ && mTimer == NULL) {
+			if (mVersion > 0 /*special case for first notify */ && mTimer == nullptr) {
 				// cb function to invalidate an unrefreshed etag;
 				belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this](unsigned int events) {
-					this->notify(FALSE);
+					this->notify(false);
 					SLOGD << "defered notify sent on [" << this << "]";
 					belle_sip_object_unref(this->mTimer);
-					this->mTimer = NULL;
+					this->mTimer = nullptr;
 					return BELLE_SIP_STOP;
 				});
 				// create timer
@@ -287,7 +287,7 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation &prese
 
 bool ListSubscription::isTimeToNotify() {
 	if (mVersion == 0) {
-		return FALSE; // initial notify not sent yet
+		return false; // initial notify not sent yet
 	}
 	return (chrono::system_clock::now() - mLastNotify) > mMinNotifyInterval;
 }
