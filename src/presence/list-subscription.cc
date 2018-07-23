@@ -33,7 +33,7 @@ namespace flexisip {
 ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transaction_t *ist,
 								   belle_sip_provider_t *aProv, size_t maxPresenceInfoNotifiedAtATime)
 	: Subscription("Presence", expires, belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)), aProv),
-	  mLastNotify(chrono::system_clock::time_point::min()), mMinNotifyInterval(2 /*60*/), mVersion(0), mTimer(NULL),
+	  mLastNotify(chrono::system_clock::time_point::min()), mMinNotifyInterval(2 /*60*/), mVersion(0), mTimer(nullptr),
 	  mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime) {
 	belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
 	belle_sip_header_content_type_t *contentType = belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
@@ -49,7 +49,7 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 	if (!belle_sip_message_get_body(BELLE_SIP_MESSAGE(request))) {
 		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "Empty body")) << "Empty body";
 	}
-	::std::unique_ptr<Xsd::ResourceLists::ResourceLists> resource_list_body = NULL;
+	::std::unique_ptr<Xsd::ResourceLists::ResourceLists> resource_list_body = nullptr;
 	try {
 		istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));
 		resource_list_body = Xsd::ResourceLists::parseResourceLists(data, Xsd::XmlSchema::Flags::dont_validate);
@@ -64,11 +64,11 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 		for (const auto &entry : list.getEntry()) {
 			//fixme until we have a fast uri parser
 			//belle_sip_uri_t *uri = belle_sip_uri_parse(entryIt->getUri().c_str());
-			int username_begin = entry.getUri().find(':')+1;
+			int username_begin = entry.getUri().find(':') + 1;
 			int username_end = entry.getUri().find('@');
 			int domain_end = entry.getUri().find(';');
-			string username = entry.getUri().substr(username_begin,username_end-username_begin);
-			string domain = entry.getUri().substr(username_end+1,domain_end - (username_end+1));
+			string username = entry.getUri().substr(username_begin, username_end-username_begin);
+			string domain = entry.getUri().substr(username_end + 1, domain_end - (username_end + 1));
 			belle_sip_uri_t *uri = belle_sip_uri_create(username.c_str(), domain.c_str());
 			if (!uri || !belle_sip_uri_get_host(uri) || !belle_sip_uri_get_user(uri)) {
 				ostringstream os;
