@@ -116,7 +116,7 @@ void PresenceLongterm::onListenerEvent(const shared_ptr<PresentityPresenceInform
 void PresenceLongterm::onListenerEvents(list<shared_ptr<PresentityPresenceInformation>>& infos) const {
 	list<tuple<string, string,AuthDbListener*>> creds;
 	map<string, shared_ptr<PresentityPresenceInformation>> dInfo;
-	for (shared_ptr<PresentityPresenceInformation> &info : infos) {
+	for (const shared_ptr<PresentityPresenceInformation> &info : infos) {
 		if (!info->hasDefaultElement()) {
 			creds.push_back(make_tuple(belle_sip_uri_get_user(info->getEntity()), belle_sip_uri_get_host(info->getEntity()), new PresenceAuthListener(mMainLoop, info)));
 		}

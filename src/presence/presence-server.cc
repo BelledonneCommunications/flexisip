@@ -603,8 +603,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				(strcasecmp(belle_sip_header_content_disposition_get_content_disposition(content_disposition),
 							"recipient-list") == 0)) {
 
-				SLOGD << "Subscribe for resource list "
-					  << "for dialog [" << BELLE_SIP_OBJECT(dialog) << "]";
+				SLOGD << "Subscribe for resource list " << "for dialog [" << BELLE_SIP_OBJECT(dialog) << "]";
 
 				// will be release when last PresentityPresenceInformationListener is released
 				shared_ptr<ListSubscription> listSubscription =
@@ -635,7 +634,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 		case BELLE_SIP_DIALOG_CONFIRMED: {
 			shared_ptr<Subscription> subscription;
 			if (belle_sip_dialog_get_application_data(dialog)) {
-				subscription= *static_cast<shared_ptr<Subscription>*>(belle_sip_dialog_get_application_data(dialog));
+				subscription = *static_cast<shared_ptr<Subscription>*>(belle_sip_dialog_get_application_data(dialog));
 			}
 
 			//			RFC 3265
@@ -689,8 +688,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				// update expires
 				subscription->increaseExpirationTime(expires);
 				if (dynamic_pointer_cast<PresentityPresenceInformationListener>(subscription)) {
-					shared_ptr<PresentityPresenceInformationListener> listener =
-						dynamic_pointer_cast<PresentityPresenceInformationListener>(subscription);
+					shared_ptr<PresentityPresenceInformationListener> listener = dynamic_pointer_cast<PresentityPresenceInformationListener>(subscription);
 					addOrUpdateListener(listener, expires);
 				} else {
 					// list subscription case
@@ -706,8 +704,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 
 		default: {
 			throw BELLESIP_SIGNALING_EXCEPTION(400) << "Unexpected request [" << hex << (long)request << "for dialog ["
-										   << hex << (long)dialog << "in state ["
-										   << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog));
+										   << hex << (long)dialog << "in state [" << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog));
 		}
 	}
 }
@@ -789,7 +786,7 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 	}
 
 	//notify observers that a listener is added or updated
-	for (auto& listener : mPresenceInfoObservers) {
+	for (auto &listener : mPresenceInfoObservers) {
 		listener->onListenerEvent(presenceInfo);
 	}
 
