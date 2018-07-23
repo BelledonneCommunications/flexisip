@@ -66,7 +66,6 @@ public:
 	}
 
 private:
-
 	void processResponse(AuthDbResult result, const std::string &user) {
 		shared_ptr<PresentityPresenceInformation> info = mInfo ? mInfo : mDInfo.find(user)->second;
 		bool must_delete = !!mInfo;
@@ -99,19 +98,11 @@ private:
 		}
 	}
 
-private:
 	belle_sip_main_loop_t *mMainLoop;
 	const shared_ptr<PresentityPresenceInformation> mInfo;
 	map<string, shared_ptr<PresentityPresenceInformation>> mDInfo;
 };
 
-void PresenceLongterm::onNewPresenceInfo(const shared_ptr<PresentityPresenceInformation>& info) const {
-	//no longuer used because long term presence is check at each subscription in case not known yet
-
-	//const belle_sip_uri_t* uri = info->getEntity();
-	//SLOGD << __FILE__ << ": " << "New presence info for " << belle_sip_uri_get_user(uri) << ", checking if this user is already registered";
-	//AuthDbBackend::get()->getUserWithPhone(belle_sip_uri_get_user(info->getEntity()), belle_sip_uri_get_host(info->getEntity()), new PresenceAuthListener(mMainLoop, info));
-}
 void PresenceLongterm::onListenerEvent(const shared_ptr<PresentityPresenceInformation>& info) const {
 	if (!info->hasDefaultElement()) {
 		//no presence information know yet, so ask again to the db.
@@ -131,7 +122,5 @@ void PresenceLongterm::onListenerEvents(list<shared_ptr<PresentityPresenceInform
 		}
 		dInfo.insert(pair<string, shared_ptr<PresentityPresenceInformation>>(belle_sip_uri_get_user(info->getEntity()), info));
 	}
-
-	AuthDbBackend::get()->getUsersWithPhone(creds
-										, new PresenceAuthListener(mMainLoop, dInfo));
+	AuthDbBackend::get()->getUsersWithPhone(creds, new PresenceAuthListener(mMainLoop, dInfo));
 }

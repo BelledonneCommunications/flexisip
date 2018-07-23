@@ -741,9 +741,6 @@ void PresenceServer::addPresenceInfo(const std::shared_ptr<PresentityPresenceInf
 		throw FLEXISIP_EXCEPTION << "Presence information element already exist for" << presenceInfo;
 
 	mPresenceInformations[presenceInfo->getEntity()] = presenceInfo;
-	for (auto& listener : mPresenceInfoObservers) {
-		listener->onNewPresenceInfo(presenceInfo);
-	}
 }
 
 void PresenceServer::addPresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &observer) {

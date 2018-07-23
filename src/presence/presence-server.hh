@@ -60,7 +60,7 @@ public:
 	PresenceInfoObserver(){};
 	virtual ~PresenceInfoObserver(){};
 	//notified when a presenceinformation element is added
-	virtual void onNewPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& info) const = 0;
+	virtual void onNewPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& info) const {};
 	//notified when a listener is added or refreshed
 	virtual void onListenerEvent(const std::shared_ptr<PresentityPresenceInformation>& info) const = 0;
 	//notified when a listener is added or refreshed
