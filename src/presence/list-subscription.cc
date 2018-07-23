@@ -41,15 +41,14 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 	if (!contentType || strcasecmp(belle_sip_header_content_type_get_type(contentType), "application") != 0 ||
 		strcasecmp(belle_sip_header_content_type_get_subtype(contentType), "resource-lists+xml") != 0) {
 
-		throw BELLESIP_SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/resource-lists+xml"))
-			<< "Unsupported media type ["
+		throw BELLESIP_SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/resource-lists+xml")) << "Unsupported media type ["
 			<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
 			<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
 	}
 	if (!belle_sip_message_get_body(BELLE_SIP_MESSAGE(request))) {
 		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "Empty body")) << "Empty body";
 	}
-	::std::unique_ptr<Xsd::ResourceLists::ResourceLists> resource_list_body = nullptr;
+	unique_ptr<Xsd::ResourceLists::ResourceLists> resource_list_body = nullptr;
 	try {
 		istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));
 		resource_list_body = Xsd::ResourceLists::parseResourceLists(data, Xsd::XmlSchema::Flags::dont_validate);
@@ -62,14 +61,7 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 
 	for (const auto &list : resource_list_body->getList()) {
 		for (const auto &entry : list.getEntry()) {
-			//fixme until we have a fast uri parser
-			//belle_sip_uri_t *uri = belle_sip_uri_parse(entryIt->getUri().c_str());
-			int username_begin = entry.getUri().find(':') + 1;
-			int username_end = entry.getUri().find('@');
-			int domain_end = entry.getUri().find(';');
-			string username = entry.getUri().substr(username_begin, username_end-username_begin);
-			string domain = entry.getUri().substr(username_end + 1, domain_end - (username_end + 1));
-			belle_sip_uri_t *uri = belle_sip_uri_create(username.c_str(), domain.c_str());
+			belle_sip_uri_t *uri = belle_sip_uri_parse(entry.getUri().c_str());
 			if (!uri || !belle_sip_uri_get_host(uri) || !belle_sip_uri_get_user(uri)) {
 				ostringstream os;
 				os << "Cannot parse list entry [" << entry.getUri() << "]";
@@ -247,7 +239,7 @@ void ListSubscription::notify(bool isFullState) {
 void ListSubscription::onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) {
 	// store state, erase previous one if any
 	if (getState() == active) {
-		mPendingStates[presenceInformation.getEntity()] = std::make_pair(presenceInformation.shared_from_this(), extended);
+		mPendingStates[presenceInformation.getEntity()] = make_pair(presenceInformation.shared_from_this(), extended);
 
 		if (isTimeToNotify()) {
 			notify(false);
