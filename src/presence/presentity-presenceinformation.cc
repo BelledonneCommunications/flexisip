@@ -414,7 +414,7 @@ bool PresentityPresenceInformationListener::extendedNotifyEnabled() {
 	return mExtendedNotify;
 }
 void PresentityPresenceInformationListener::enableExtendedNotify(bool enable) {
-	mExtendedNotify = this->bypassEnabled() || enable;
+	mExtendedNotify = bypassEnabled() || enable;
 }
 bool PresentityPresenceInformationListener::bypassEnabled() {
 	return mBypassEnabled;

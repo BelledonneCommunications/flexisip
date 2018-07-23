@@ -888,5 +888,5 @@ void PresenceServer::removeSubscription(shared_ptr<Subscription> &subscription) 
 }
 
 belle_sip_main_loop_t* PresenceServer::getBelleSipMainLoop() {
-	return belle_sip_stack_get_main_loop(this->mStack);
+	return belle_sip_stack_get_main_loop(mStack);
 }
