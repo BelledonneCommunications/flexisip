@@ -296,7 +296,7 @@ void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<Present
 		// set expiration timer
 		listener->setExpiresTimer(mBelleSipMainloop, timer);
 	} else {
-		listener->setExpiresTimer(mBelleSipMainloop,nullptr);
+		listener->setExpiresTimer(mBelleSipMainloop, nullptr);
 	}
 	/*
 	 *rfc 3265

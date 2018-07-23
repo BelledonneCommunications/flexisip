@@ -592,21 +592,17 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	 The other response codes defined in SIP [1] may be used in response
 	 to SUBSCRIBE requests, as appropriate.
 	 */
-	belle_sip_server_transaction_t *server_transaction =
-		belle_sip_provider_create_server_transaction(mProvider, request);
+	belle_sip_server_transaction_t *server_transaction = belle_sip_provider_create_server_transaction(mProvider, request);
 	belle_sip_dialog_t *dialog = belle_sip_request_event_get_dialog(event);
 	if (!dialog)
 		dialog = belle_sip_provider_create_dialog(mProvider, BELLE_SIP_TRANSACTION(server_transaction));
+
 	if (!dialog)
 		throw BELLESIP_SIGNALING_EXCEPTION(481) << "Cannot create dialog from request ["<< request << "]";
 
 	belle_sip_header_expires_t *headerExpires =
 		belle_sip_message_get_header_by_type(request, belle_sip_header_expires_t);
-	int expires;
-	if (headerExpires)
-		expires = belle_sip_header_expires_get_expires(headerExpires);
-	else
-		expires = 3600; // rfc3856, default value
+	int expires = headerExpires ? belle_sip_header_expires_get_expires(headerExpires) : 3600; // rfc3856, default value
 	belle_sip_header_t *acceptEncodingHeader = belle_sip_message_get_header(BELLE_SIP_MESSAGE(request), "Accept-Encoding");
 	switch (belle_sip_dialog_get_state(dialog)) {
 		case BELLE_SIP_DIALOG_NULL: {
@@ -616,8 +612,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				BELLE_SIP_MESSAGE(request), belle_sip_header_content_disposition_t);
 			// first create the dialog
 			belle_sip_response_t *resp = belle_sip_response_create_from_request(request, 200);
-			belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp),
-										 BELLE_SIP_HEADER(belle_sip_header_expires_create(expires)));
+			belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp), BELLE_SIP_HEADER(belle_sip_header_expires_create(expires)));
 
 			// case of rfc5367 (list subscription with resource list in body
 			if (supported && belle_sip_list_find_custom(belle_sip_header_supported_get_supported(supported),
@@ -629,7 +624,9 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				SLOGD << "Subscribe for resource list "
 					  << "for dialog [" << BELLE_SIP_OBJECT(dialog) << "]";
 
-				shared_ptr<ListSubscription> listSubscription = make_shared<ListSubscription>(expires, server_transaction, mProvider,mMaxPresenceInfoNotifiedAtATime ); // will be release when last PresentityPresenceInformationListener is released
+				// will be release when last PresentityPresenceInformationListener is released
+				shared_ptr<ListSubscription> listSubscription =
+					make_shared<ListSubscription>(expires, server_transaction, mProvider,mMaxPresenceInfoNotifiedAtATime );
 				if (acceptEncodingHeader) listSubscription->setAcceptEncodingHeader(acceptEncodingHeader);
 				// send 200ok late to allow deeper anylise of request
 				belle_sip_server_transaction_send_response(server_transaction, resp);
@@ -644,8 +641,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				shared_ptr<PresentityPresenceInformationListener> subscription =
 					make_shared<PresenceSubscription>(expires, belle_sip_request_get_uri(request), dialog, mProvider);
 				belle_sip_dialog_set_application_data(dialog, new shared_ptr<Subscription>(dynamic_pointer_cast<Subscription>(subscription)));
-				SLOGD << " setting sub pointer [" << belle_sip_dialog_get_application_data(dialog) << "] to dialog ["
-					  << dialog << "]";
+				SLOGD << " setting sub pointer [" << belle_sip_dialog_get_application_data(dialog) << "] to dialog [" << dialog << "]";
 				// send 200ok late to allow deeper anylise of request
 				belle_sip_server_transaction_send_response(server_transaction, resp);
 				subscription->enableBypass(bypass);
@@ -736,17 +732,14 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 
 const std::shared_ptr<PresentityPresenceInformation> PresenceServer::getPresenceInfo(const string &eTag) const {
 	auto presenceInformationsByEtagIt = mPresenceInformationsByEtag.find(eTag);
-	if (presenceInformationsByEtagIt == mPresenceInformationsByEtag.end())
-		return nullptr;
-	else
-		return presenceInformationsByEtagIt->second;
+	return (presenceInformationsByEtagIt == mPresenceInformationsByEtag.end()) ? nullptr : presenceInformationsByEtagIt->second;
+
 }
 
 void PresenceServer::addPresenceInfo(const std::shared_ptr<PresentityPresenceInformation> &presenceInfo) {
-
-	if (getPresenceInfo(presenceInfo->getEntity())) {
+	if (getPresenceInfo(presenceInfo->getEntity()))
 		throw FLEXISIP_EXCEPTION << "Presence information element already exist for" << presenceInfo;
-	}
+
 	mPresenceInformations[presenceInfo->getEntity()] = presenceInfo;
 	for (auto& listener : mPresenceInfoObservers) {
 		listener->onNewPresenceInfo(presenceInfo);
@@ -770,10 +763,7 @@ void PresenceServer::removePresenceInfoObserver(const std::shared_ptr<PresenceIn
 
 std::shared_ptr<PresentityPresenceInformation> PresenceServer::getPresenceInfo(const belle_sip_uri_t *identity) const {
 	auto presenceEntityInformationIt = mPresenceInformations.find(identity);
-	if (presenceEntityInformationIt == mPresenceInformations.end())
-		return nullptr;
-	else
-		return presenceEntityInformationIt->second;
+	return (presenceEntityInformationIt == mPresenceInformations.end()) ? nullptr : presenceEntityInformationIt->second;
 }
 
 void PresenceServer::invalidateETag(const string &eTag) {
