@@ -16,21 +16,25 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "presence-server.hh"
-#include "belle-sip/belle-sip.h"
-#include "pidf+xml.hh"
-#include "resource-lists.hh"
-#include "presentity-presenceinformation.hh"
-#include "list-subscription.hh"
-#include "bellesip-signaling-exception.hh"
-#include "subscription.hh"
-#include "configmanager.hh"
+#include <algorithm>
 #include <string.h>
 #include <signal.h>
-#include <algorithm>
 
-using namespace pidf;
+#include "belle-sip/belle-sip.h"
+
+#include "configmanager.hh"
+#include "bellesip-signaling-exception.hh"
+#include "list-subscription/body-list-subscription.hh"
+#include "list-subscription/external-list-subscription.hh"
+#include "list-subscription/list-subscription.hh"
+#include "pidf+xml.hh"
+#include "presence-server.hh"
+#include "presentity-presenceinformation.hh"
+#include "resource-lists.hh"
+#include "subscription.hh"
+
 using namespace flexisip;
+using namespace pidf;
 using namespace std;
 
 void _belle_sip_log(const char *domain, BctbxLogLevel lev, const char *fmt, va_list args){
@@ -606,8 +610,21 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				SLOGD << "Subscribe for resource list " << "for dialog [" << BELLE_SIP_OBJECT(dialog) << "]";
 
 				// will be release when last PresentityPresenceInformationListener is released
-				shared_ptr<ListSubscription> listSubscription =
-					make_shared<ListSubscription>(expires, server_transaction, mProvider,mMaxPresenceInfoNotifiedAtATime );
+				shared_ptr<ListSubscription> listSubscription;
+				belle_sip_header_content_type_t *contentType = belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
+				if (!contentType)
+					listSubscription = make_shared<ExternalListSubscription>(expires, server_transaction, mProvider, mMaxPresenceInfoNotifiedAtATime);
+				else if (
+					strcasecmp(belle_sip_header_content_type_get_type(contentType), "application") == 0 &&
+					strcasecmp(belle_sip_header_content_type_get_subtype(contentType), "resource-lists+xml") == 0
+				)
+					listSubscription = make_shared<BodyListSubscription>(expires, server_transaction, mProvider, mMaxPresenceInfoNotifiedAtATime);
+				else { // Unsuported
+					throw BELLESIP_SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/resource-lists+xml")) << "Unsupported media type ["
+						<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
+						<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
+				}
+
 				if (acceptEncodingHeader) listSubscription->setAcceptEncodingHeader(acceptEncodingHeader);
 				// send 200ok late to allow deeper anylise of request
 				belle_sip_server_transaction_send_response(server_transaction, resp);

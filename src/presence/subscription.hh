@@ -18,8 +18,11 @@
 
 #ifndef flexisip_subscription_hh
 #define flexisip_subscription_hh
+
 #include <string>
+
 #include "belle-sip/belle-sip.h"
+
 #include "presentity-presenceinformation.hh"
 
 namespace flexisip {

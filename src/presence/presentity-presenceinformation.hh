@@ -19,10 +19,10 @@
 #ifndef PRESENCETUPLE_HH_
 #define PRESENCETUPLE_HH_
 
-#include <map>
-#include "pidf+xml.hh"
-//#include "data-model.hh"
 #include <list>
+#include <map>
+
+#include "pidf+xml.hh"
 #include "utils/flexisip-exception.hh"
 
 typedef struct _belle_sip_uri belle_sip_uri_t;

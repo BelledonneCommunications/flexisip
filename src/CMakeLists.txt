@@ -181,8 +181,12 @@ if(ENABLE_PRESENCE)
 		presence/etag-manager.hh
 		presence/file-resource-list-manager.cc
 		presence/file-resource-list-manager.hh
-		presence/list-subscription.cc
-		presence/list-subscription.hh
+		presence/list-subscription/body-list-subscription.cc
+		presence/list-subscription/body-list-subscription.hh
+		presence/list-subscription/external-list-subscription.cc
+		presence/list-subscription/external-list-subscription.hh
+		presence/list-subscription/list-subscription.cc
+		presence/list-subscription/list-subscription.hh
 		presence/presence-configmanager.cc
 		presence/presence-configmanager.hh
 		presence/presence-longterm.cc

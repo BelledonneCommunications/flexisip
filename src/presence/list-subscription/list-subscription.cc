@@ -16,15 +16,15 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "list-subscription.hh"
-#include "belle-sip/belle-sip.h"
-#include "bellesip-signaling-exception.hh"
-#include "log/logmanager.hh"
-#include "resource-lists.hh"
-#include <chrono>
-#include "rlmi+xml.hh"
-#include "belle-sip/bodyhandler.h"
 #include <algorithm>
+#include <chrono>
+
+#include "belle-sip/belle-sip.h"
+#include "belle-sip/bodyhandler.h"
+
+#include "bellesip-signaling-exception.hh"
+#include "list-subscription.hh"
+#include "log/logmanager.hh"
 
 using namespace std;
 
@@ -34,55 +34,7 @@ ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transa
 								   belle_sip_provider_t *aProv, size_t maxPresenceInfoNotifiedAtATime)
 	: Subscription("Presence", expires, belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)), aProv),
 	  mLastNotify(chrono::system_clock::time_point::min()), mMinNotifyInterval(2 /*60*/), mVersion(0), mTimer(nullptr),
-	  mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime) {
-	belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
-	belle_sip_header_content_type_t *contentType = belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
-	// check content type
-	if (!contentType || strcasecmp(belle_sip_header_content_type_get_type(contentType), "application") != 0 ||
-		strcasecmp(belle_sip_header_content_type_get_subtype(contentType), "resource-lists+xml") != 0) {
-
-		throw BELLESIP_SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/resource-lists+xml")) << "Unsupported media type ["
-			<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
-			<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
-	}
-	if (!belle_sip_message_get_body(BELLE_SIP_MESSAGE(request))) {
-		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "Empty body")) << "Empty body";
-	}
-	unique_ptr<Xsd::ResourceLists::ResourceLists> resource_list_body = nullptr;
-	try {
-		istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));
-		resource_list_body = Xsd::ResourceLists::parseResourceLists(data, Xsd::XmlSchema::Flags::dont_validate);
-	} catch (const Xsd::XmlSchema::Exception &e) {
-		ostringstream os;
-		os << "Cannot parse body caused by [" << e << "]";
-		// todo check error code
-		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
-	}
-
-	for (const auto &list : resource_list_body->getList()) {
-		for (const auto &entry : list.getEntry()) {
-			belle_sip_uri_t *uri = belle_sip_uri_parse(entry.getUri().c_str());
-			if (!uri || !belle_sip_uri_get_host(uri) || !belle_sip_uri_get_user(uri)) {
-				ostringstream os;
-				os << "Cannot parse list entry [" << entry.getUri() << "]";
-				throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
-			}
-			if (entry.getUri().find(";user=phone") != string::npos) {
-				belle_sip_uri_set_user_param(uri,"phone");
-			}
-			mListeners.push_back(make_shared<PresentityResourceListener>(*this, uri));
-			belle_sip_object_unref(uri);
-		}
-	}
-	if (mListeners.size() == 0) {
-		ostringstream os;
-		os << "Empty list entry for dialog id[" << belle_sip_header_call_id_get_call_id(belle_sip_dialog_get_call_id(mDialog)) << "]";
-		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
-	}
-
-	mName = (belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(belle_sip_request_get_uri(request)));
-	belle_sip_object_ref((void *)mName);
-}
+	  mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime) {}
 
 list<shared_ptr<PresentityPresenceInformationListener>> &ListSubscription::getListeners() {
 	return mListeners;
@@ -280,6 +232,18 @@ bool ListSubscription::isTimeToNotify() {
 	return mVersion == 0 ? false : (chrono::system_clock::now() - mLastNotify) > mMinNotifyInterval;
 }
 
+void ListSubscription::finishCreation(belle_sip_server_transaction_t *ist) {
+	if (mListeners.empty()) {
+		ostringstream os;
+		os << "Empty list entry for dialog id[" << belle_sip_header_call_id_get_call_id(belle_sip_dialog_get_call_id(mDialog)) << "]";
+		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
+	}
+
+	belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
+	mName = (belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(belle_sip_request_get_uri(request)));
+	belle_sip_object_ref((void *)mName);
+}
+
 /// PresentityResourceListener//
 
 PresentityResourceListener::PresentityResourceListener(ListSubscription &aListSubscription, const belle_sip_uri_t *presentity)
@@ -313,4 +277,5 @@ const belle_sip_uri_t* PresentityResourceListener::getFrom() {
 const belle_sip_uri_t* PresentityResourceListener::getTo() {
 	return mListSubscription.getTo();
 }
-}
+
+} // namespace flexisip

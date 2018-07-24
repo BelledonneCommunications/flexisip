@@ -1,7 +1,7 @@
+#include <belle-sip/belle-sip.h>
+
 #include "presence-longterm.hh"
 #include "presentity-presenceinformation.hh"
-
-#include <belle-sip/belle-sip.h>
 
 using namespace flexisip;
 using namespace std;

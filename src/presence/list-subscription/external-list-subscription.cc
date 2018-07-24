@@ -16,22 +16,21 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef ETAG_MANAGER_HH_
-#define ETAG_MANAGER_HH_
+#include "bellesip-signaling-exception.hh"
+#include "external-list-subscription.hh"
 
-#include "string"
-#include "utils/flexisip-exception.hh"
+using namespace std;
 
 namespace flexisip {
-class PresentityPresenceInformation;
-class EtagManager {
 
-public:
-	virtual void invalidateETag(const std::string &eTag) = 0;
-	virtual void modifyEtag(const std::string &oldEtag, const std::string &newEtag) = 0;
-	virtual void addEtag(const std::shared_ptr<PresentityPresenceInformation> &info,
-						 const std::string &etag) = 0;
-};
-
+ExternalListSubscription::ExternalListSubscription(
+		unsigned int expires,
+		belle_sip_server_transaction_t *ist,
+		belle_sip_provider_t *aProv,
+		size_t maxPresenceInfoNotifiedAtATime
+) : ListSubscription(expires, ist, aProv, maxPresenceInfoNotifiedAtATime) {
+	// TODO
+	finishCreation(ist);
 }
-#endif /* ETAG_MANAGER_HH_ */
+
+} // namespace flexisip

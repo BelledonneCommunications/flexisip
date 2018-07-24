@@ -21,16 +21,16 @@
 
 #include <iostream>
 #include <map>
+#include <memory>
 #include <unordered_map>
 #include <vector>
-#include <memory>
+
+#include "belle-sip/sip-uri.h"
+
 #include "bellesip-signaling-exception.hh"
 #include "etag-manager.hh"
-//#include "presence-configmanager.hh"
-//#include "presentity-presenceinformation.hh"
 #include "presentity-manager.hh"
 #include "service-server.hh"
-#include "belle-sip/sip-uri.h"
 
 typedef struct belle_sip_main_loop belle_sip_main_loop_t;
 typedef struct belle_sip_stack belle_sip_stack_t;

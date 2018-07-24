@@ -15,18 +15,21 @@
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include "presentity-presenceinformation.hh"
-#include "belle-sip/belle-sip.h"
-#include "utils/flexisip-exception.hh"
-#include <ostream>
+
 #include <functional>
-#include "etag-manager.hh"
-#include "pidf+xml.hh"
-#include "rpid.hh"
-#include "data-model.hh"
 #include <memory>
-#include "presentity-manager.hh"
+#include <ostream>
+
+#include "belle-sip/belle-sip.h"
+
+#include "data-model.hh"
+#include "etag-manager.hh"
 #include "log/logmanager.hh"
+#include "pidf+xml.hh"
+#include "presentity-manager.hh"
+#include "presentity-presenceinformation.hh"
+#include "rpid.hh"
+#include "utils/flexisip-exception.hh"
 
 #define ETAG_SIZE 8
 using namespace std;
