@@ -41,7 +41,8 @@ public:
 		size_t maxPresenceInfoNotifiedAtATime,
 		const std::string &sqlRequest,
 		soci::connection_pool *connPool,
-		ThreadPool *threadPool
+		ThreadPool *threadPool,
+		std::function<void(ListSubscription *)> listAvailable
 	);
 
 private:
@@ -49,7 +50,6 @@ private:
 	void reconnectSession(soci::session &session);
 
 	soci::connection_pool *mConnPool;
-	bool finished;
 };
 
 } // namespace flexisip

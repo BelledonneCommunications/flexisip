@@ -19,6 +19,7 @@
 #include <chrono>
 #include <thread>
 
+#include "belle-sip/message.h"
 #include "soci/mysql/soci-mysql.h"
 
 #include "bellesip-signaling-exception.hh"
@@ -38,19 +39,15 @@ ExternalListSubscription::ExternalListSubscription(
 		size_t maxPresenceInfoNotifiedAtATime,
 		const string &sqlRequest,
 		connection_pool *connPool,
-		ThreadPool *threadPool
-) : ListSubscription(expires, ist, aProv, maxPresenceInfoNotifiedAtATime), mConnPool(connPool) {
+		ThreadPool *threadPool,
+		function<void(ListSubscription *)> listAvailable
+) : ListSubscription(expires, ist, aProv, maxPresenceInfoNotifiedAtATime, listAvailable), mConnPool(connPool) {
 	// create a thread to grab a pool connection and use it to retrieve the auth information
 	auto func = bind(&ExternalListSubscription::getUsersList, this, sqlRequest, ist);
 
 	bool success = threadPool->Enqueue(func);
 	if (!success) // Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil user request for list subscription";
-
-	finished = false;
-	for(;;)
-		if (finished)
-			return;
 }
 
 #define DURATION_MS(start, stop) (unsigned long) duration_cast<milliseconds>((stop) - (start)).count()
@@ -82,6 +79,13 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 
 		SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
 		start = stop;
+
+		belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
+		char *uri_as_string = belle_sip_uri_to_string(belle_sip_request_get_uri(request));
+		char *origin_uri_as_string = belle_sip_uri_to_string(belle_sip_request_extract_origin(request));
+
+		if (uri_as_string && origin_uri_as_string)
+			SLOGI << "from: " << origin_uri_as_string << ", to: " << uri_as_string << endl;
 
 		rowset<row> ret = (sql->prepare << sqlRequest);
 		string uriStr;
@@ -119,7 +123,6 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 		delete sql;
 
 	finishCreation(ist);
-	finished = true;
 }
 
 } // namespace flexisip

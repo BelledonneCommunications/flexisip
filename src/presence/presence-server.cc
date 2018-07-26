@@ -646,7 +646,14 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				// will be release when last PresentityPresenceInformationListener is released
 				shared_ptr<ListSubscription> listSubscription;
 				belle_sip_header_content_type_t *contentType = belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
-				if (!contentType) { // case of rfc4662 (list subscription without resource list in body
+				auto listAvailableLambda = [this, bypass] (ListSubscription *listSubscription) {
+					for (auto &listener : listSubscription->getListeners())
+						listener->enableBypass(bypass); //expiration is handled by dialog
+
+					addOrUpdateListeners(listSubscription->getListeners());
+					listSubscription->notify(true);
+				};
+				if (false /*!contentType*/) { // case of rfc4662 (list subscription without resource list in body)
 #if ENABLE_SOCI
 					listSubscription = make_shared<ExternalListSubscription>(
 						expires,
@@ -655,12 +662,13 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 						mMaxPresenceInfoNotifiedAtATime,
 						mRequest,
 						mConnPool,
-						mThreadPool
+						mThreadPool,
+						listAvailableLambda
 					);
 #else
 					goto error;
 #endif
-				} else if ( // case of rfc5367 (list subscription with resource list in body
+				} else if ( // case of rfc5367 (list subscription with resource list in body)
 					content_disposition &&
 					(strcasecmp(belle_sip_header_content_disposition_get_content_disposition(content_disposition), "recipient-list") == 0) &&
 					strcasecmp(belle_sip_header_content_type_get_type(contentType), "application") == 0 &&
@@ -670,7 +678,8 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 						expires,
 						server_transaction,
 						mProvider,
-						mMaxPresenceInfoNotifiedAtATime
+						mMaxPresenceInfoNotifiedAtATime,
+						listAvailableLambda
 					);
 				} else { // Unsuported
 #if !ENABLE_SOCI
@@ -686,12 +695,6 @@ error:
 				// send 200ok late to allow deeper analysis of request
 				belle_sip_server_transaction_send_response(server_transaction, resp);
 				belle_sip_dialog_set_application_data(dialog, new shared_ptr<Subscription>(listSubscription));
-
-				for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners())
-					listener->enableBypass(bypass); //expiration is handled by dialog
-
-				addOrUpdateListeners(listSubscription->getListeners());
-				listSubscription->notify(true);
 			} else { // Simple subscription
 				shared_ptr<PresentityPresenceInformationListener> subscription =
 					make_shared<PresenceSubscription>(expires, belle_sip_request_get_uri(request), dialog, mProvider);

@@ -66,7 +66,8 @@ public:
 		unsigned int expires,
 		belle_sip_server_transaction_t *ist,
 		belle_sip_provider_t *aProv,
-		size_t maxPresenceInfoNotifiedAtATime
+		size_t maxPresenceInfoNotifiedAtATime,
+		std::function<void(ListSubscription *)> listAvailable
 	);
 
 	virtual ~ListSubscription();
@@ -116,6 +117,7 @@ private:
 	uint32_t mVersion;
 	belle_sip_source_t *mTimer;
 	size_t mMaxPresenceInfoNotifiedAtATime; //maximum number of presentity available in a sigle notify
+	std::function<void(ListSubscription *)> mListAvailable;
 };
 
 } // namespace flexisip

@@ -35,7 +35,8 @@ public:
 		unsigned int expires,
 		belle_sip_server_transaction_t *ist,
 		belle_sip_provider_t *aProv,
-		size_t maxPresenceInfoNotifiedAtATime
+		size_t maxPresenceInfoNotifiedAtATime,
+		std::function<void(ListSubscription *)> listAvailable
 	);
 };
 
