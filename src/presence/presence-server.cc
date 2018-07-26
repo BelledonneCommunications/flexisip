@@ -21,12 +21,16 @@
 #include <signal.h>
 
 #include "belle-sip/belle-sip.h"
+#if ENABLE_SOCI
+	#include "soci/mysql/soci-mysql.h"
+#endif
 
 #include "configmanager.hh"
 #include "bellesip-signaling-exception.hh"
 #include "list-subscription/body-list-subscription.hh"
-#include "list-subscription/external-list-subscription.hh"
-#include "list-subscription/list-subscription.hh"
+#if ENABLE_SOCI
+	#include "list-subscription/external-list-subscription.hh"
+#endif
 #include "pidf+xml.hh"
 #include "presence-server.hh"
 #include "presentity-presenceinformation.hh"
@@ -54,6 +58,15 @@ PresenceServer::Init::Init() {
 									{Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
 									{Boolean, "long-term-enabled", "Enable long-term presence notifies", "true"},
 									{String, "bypass-condition", "If user agent contains it, can bypass extended notifiy verification.", "false"},
+									{String, "external-list-subscription-request",
+										"Soci SQL request to execute to obtain the list of users corresponding to an external subscription.\n"
+										"Named parameters are:\n"
+											"-':from' : the uri of the sender of the SUBSCRIBE.\n"
+											"-':to' : the uri of the users list the sender want to subscribe to.\n"
+										"The use of the :from & :to parameters are mandatory.\n", ""},
+									{String, "soci-connection-string", "Connection string to SOCI.", ""},
+									{Integer, "max-thread", "Max number threads.", "200"},
+									{Integer, "max-thread-queue-size", "Max legnth of threads queue.", "200"},
 									config_item_end};
 	GenericStruct *s = new GenericStruct("presence-server", "Flexisip presence server parameters.", 0);
 	GenericManager::get()->getRoot()->addChild(s);
@@ -80,7 +93,6 @@ PresenceServer::PresenceServer(bool withThread, su_root_t* root) : ServiceServer
 	//configuration file." ;
 	//	}
 	belle_sip_listener_callbacks_t listener_callbacks;
-
 	memset(&listener_callbacks, 0, sizeof(listener_callbacks));
 	listener_callbacks.process_dialog_terminated =
 	(void (*)(void *, const belle_sip_dialog_terminated_event_t *))PresenceServer::processDialogTerminated;
@@ -93,13 +105,33 @@ PresenceServer::PresenceServer(bool withThread, su_root_t* root) : ServiceServer
 	listener_callbacks.process_timeout =
 	(void (*)(void *, const belle_sip_timeout_event_t *))PresenceServer::processTimeout;
 	listener_callbacks.process_transaction_terminated =
-	(void (*)(void *,
-			  const belle_sip_transaction_terminated_event_t *))PresenceServer::processTransactionTerminated;
-			  mListener = belle_sip_listener_create_from_callbacks(&listener_callbacks, this);
-			  belle_sip_provider_add_sip_listener(mProvider, mListener);
-			  mDefaultExpires = config->get<ConfigInt>("expires")->read();
-			  mBypass = config->get<ConfigString>("bypass-condition")->read();
-			  mEnabled = config->get<ConfigBoolean>("enabled")->read();
+	(void (*)(void *, const belle_sip_transaction_terminated_event_t *))PresenceServer::processTransactionTerminated;
+	mListener = belle_sip_listener_create_from_callbacks(&listener_callbacks, this);
+	belle_sip_provider_add_sip_listener(mProvider, mListener);
+
+	mDefaultExpires = config->get<ConfigInt>("expires")->read();
+	mBypass = config->get<ConfigString>("bypass-condition")->read();
+	mEnabled = config->get<ConfigBoolean>("enabled")->read();
+	mRequest = config->get<ConfigString>("external-list-subscription-request")->read();
+
+	int maxThreads = config->get<ConfigInt>("max-thread")->read();
+	int maxQueueSize = config->get<ConfigInt>("max-thread-queue-size")->read();
+	const string &connectionString = config->get<ConfigString>("soci-connection-string")->read();
+
+	mThreadPool = new ThreadPool(maxThreads, maxQueueSize);
+#if ENABLE_SOCI
+	mConnPool = new soci::connection_pool(maxThreads);
+
+	try {
+		for (size_t i = 0; i < size_t(maxThreads); i++) {
+			mConnPool->at(i).open("mysql", connectionString);
+		}
+	} catch (soci::mysql_soci_error const & e) {
+		SLOGE << "[SOCI] connection pool open MySQL error: " << e.err_num_ << " " << e.what() << endl;
+	} catch (exception const &e) {
+		SLOGE << "[SOCI] connection pool open error: " << e.what() << endl;
+	}
+#endif
 }
 
 static void remove_listening_point(belle_sip_listening_point_t* lp,belle_sip_provider_t* prov) {
@@ -118,13 +150,22 @@ PresenceServer::~PresenceServer(){
 	belle_sip_object_unref(mStack);
 	belle_sip_object_unref(mListener);
 	// must be done before cleaning xerces
-	if (mPresenceInformations.size()) SLOGD << "Still ["<<mPresenceInformations.size()<<"] PresenceInformations referenced, clearing";
+	if (mPresenceInformations.size())
+		SLOGD << "Still ["<<mPresenceInformations.size()<<"] PresenceInformations referenced, clearing";
 	mPresenceInformations.clear();
-	if (mPresenceInformationsByEtag.size()) SLOGD << "Still ["<<mPresenceInformationsByEtag.size()<<"] PresenceInformationsByEtag referenced, clearing";
+
+	if (mPresenceInformationsByEtag.size())
+		SLOGD << "Still ["<<mPresenceInformationsByEtag.size()<<"] PresenceInformationsByEtag referenced, clearing";
 	mPresenceInformationsByEtag.clear();
+
 	xercesc::XMLPlatformUtils::Terminate();
 	belle_sip_object_dump_active_objects();
 	belle_sip_object_flush_active_objects();
+
+	delete mThreadPool; // will automatically shut it down, clearing threads
+#if ENABLE_SOCI
+	delete mConnPool;
+#endif
 	SLOGD << "Presence server destroyed";
 }
 
@@ -176,7 +217,7 @@ void PresenceServer::processDialogTerminated(PresenceServer *thiz, const belle_s
 			sub->setState(Subscription::State::terminated);
 			thiz->removeSubscription(sub);
 		} //else  nothing to be done for now because expire is performed at SubscriptionLevel
-		delete static_cast<shared_ptr<Subscription>*>(belle_sip_dialog_get_application_data(dialog));
+		//delete static_cast<shared_ptr<Subscription>*>(belle_sip_dialog_get_application_data(dialog));
 	}
 }
 void PresenceServer::processIoError(PresenceServer *thiz, const belle_sip_io_error_event_t *event) {
@@ -586,8 +627,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	if (!dialog)
 		throw BELLESIP_SIGNALING_EXCEPTION(481) << "Cannot create dialog from request ["<< request << "]";
 
-	belle_sip_header_expires_t *headerExpires =
-		belle_sip_message_get_header_by_type(request, belle_sip_header_expires_t);
+	belle_sip_header_expires_t *headerExpires = belle_sip_message_get_header_by_type(request, belle_sip_header_expires_t);
 	int expires = headerExpires ? belle_sip_header_expires_get_expires(headerExpires) : 3600; // rfc3856, default value
 	belle_sip_header_t *acceptEncodingHeader = belle_sip_message_get_header(BELLE_SIP_MESSAGE(request), "Accept-Encoding");
 	switch (belle_sip_dialog_get_state(dialog)) {
@@ -600,42 +640,59 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 			belle_sip_response_t *resp = belle_sip_response_create_from_request(request, 200);
 			belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp), BELLE_SIP_HEADER(belle_sip_header_expires_create(expires)));
 
-			// case of rfc5367 (list subscription with resource list in body
-			if (supported && belle_sip_list_find_custom(belle_sip_header_supported_get_supported(supported),
-														(belle_sip_compare_func)strcasecmp, "eventlist") &&
-				content_disposition &&
-				(strcasecmp(belle_sip_header_content_disposition_get_content_disposition(content_disposition),
-							"recipient-list") == 0)) {
-
+			// List subscription
+			if (supported && belle_sip_list_find_custom(belle_sip_header_supported_get_supported(supported), (belle_sip_compare_func)strcasecmp, "eventlist")) {
 				SLOGD << "Subscribe for resource list " << "for dialog [" << BELLE_SIP_OBJECT(dialog) << "]";
-
 				// will be release when last PresentityPresenceInformationListener is released
-				shared_ptr<ListSubscription> listSubscription;
+				ListSubscription *listSubscription;
 				belle_sip_header_content_type_t *contentType = belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
-				if (!contentType)
-					listSubscription = make_shared<ExternalListSubscription>(expires, server_transaction, mProvider, mMaxPresenceInfoNotifiedAtATime);
-				else if (
+				if (!contentType) { // case of rfc4662 (list subscription without resource list in body
+#if ENABLE_SOCI
+					listSubscription = new ExternalListSubscription(
+						expires,
+						server_transaction,
+						mProvider,
+						mMaxPresenceInfoNotifiedAtATime,
+						mRequest,
+						mConnPool,
+						mThreadPool
+					);
+#else
+						goto error;
+#endif
+				} else if ( // case of rfc5367 (list subscription with resource list in body
+					content_disposition &&
+					(strcasecmp(belle_sip_header_content_disposition_get_content_disposition(content_disposition), "recipient-list") == 0) &&
 					strcasecmp(belle_sip_header_content_type_get_type(contentType), "application") == 0 &&
 					strcasecmp(belle_sip_header_content_type_get_subtype(contentType), "resource-lists+xml") == 0
-				)
-					listSubscription = make_shared<BodyListSubscription>(expires, server_transaction, mProvider, mMaxPresenceInfoNotifiedAtATime);
-				else { // Unsuported
+				) {
+					listSubscription = new BodyListSubscription(
+						expires,
+						server_transaction,
+						mProvider,
+						mMaxPresenceInfoNotifiedAtATime
+					);
+				} else { // Unsuported
+#if !ENABLE_SOCI
+error:
+#endif
 					throw BELLESIP_SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/resource-lists+xml")) << "Unsupported media type ["
 						<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
 						<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
 				}
+				if (acceptEncodingHeader)
+					listSubscription->setAcceptEncodingHeader(acceptEncodingHeader);
 
-				if (acceptEncodingHeader) listSubscription->setAcceptEncodingHeader(acceptEncodingHeader);
-				// send 200ok late to allow deeper anylise of request
+				// send 200ok late to allow deeper analysis of request
 				belle_sip_server_transaction_send_response(server_transaction, resp);
+				belle_sip_dialog_set_application_data(dialog, new shared_ptr<Subscription>(listSubscription));
 
-				belle_sip_dialog_set_application_data(dialog, new shared_ptr<Subscription> (listSubscription));
-				for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners()) {
+				for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners())
 					listener->enableBypass(bypass); //expiration is handled by dialog
-				}
+
 				addOrUpdateListeners(listSubscription->getListeners());
 				listSubscription->notify(true);
-			} else {
+			} else { // Simple subscription
 				shared_ptr<PresentityPresenceInformationListener> subscription =
 					make_shared<PresenceSubscription>(expires, belle_sip_request_get_uri(request), dialog, mProvider);
 				belle_sip_dialog_set_application_data(dialog, new shared_ptr<Subscription>(dynamic_pointer_cast<Subscription>(subscription)));

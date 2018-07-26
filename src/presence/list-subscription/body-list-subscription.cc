@@ -31,18 +31,10 @@ BodyListSubscription::BodyListSubscription (
 		size_t maxPresenceInfoNotifiedAtATime
 ) : ListSubscription(expires, ist, aProv, maxPresenceInfoNotifiedAtATime) {
 	belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
-	belle_sip_header_content_type_t *contentType = belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
-	// check content type
-	if (!contentType || strcasecmp(belle_sip_header_content_type_get_type(contentType), "application") != 0 ||
-		strcasecmp(belle_sip_header_content_type_get_subtype(contentType), "resource-lists+xml") != 0) {
-
-		throw BELLESIP_SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/resource-lists+xml")) << "Unsupported media type ["
-			<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
-			<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
-	}
 	if (!belle_sip_message_get_body(BELLE_SIP_MESSAGE(request))) {
 		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "Empty body")) << "Empty body";
 	}
+
 	unique_ptr<Xsd::ResourceLists::ResourceLists> resource_list_body;
 	try {
 		istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));

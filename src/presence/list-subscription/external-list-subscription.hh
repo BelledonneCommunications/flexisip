@@ -19,7 +19,10 @@
 #ifndef flexisip_rls_external_subscription_hh
 #define flexisip_rls_external_subscription_hh
 
+#include "soci/soci.h"
+
 #include "list-subscription.hh"
+#include "utils/threadpool.hh"
 
 typedef struct _belle_sip_uri belle_sip_uri_t;
 typedef struct belle_sip_server_transaction belle_sip_server_transaction_t;
@@ -35,8 +38,18 @@ public:
 		unsigned int expires,
 		belle_sip_server_transaction_t *ist,
 		belle_sip_provider_t *aProv,
-		size_t maxPresenceInfoNotifiedAtATime
+		size_t maxPresenceInfoNotifiedAtATime,
+		const std::string &sqlRequest,
+		soci::connection_pool *connPool,
+		ThreadPool *threadPool
 	);
+
+private:
+	void getUsersList(const std::string &sqlRequest, belle_sip_server_transaction_t *ist);
+	void reconnectSession(soci::session &session);
+
+	soci::connection_pool *mConnPool;
+	bool finished;
 };
 
 } // namespace flexisip

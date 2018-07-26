@@ -27,7 +27,9 @@
 
 typedef struct _belle_sip_uri belle_sip_uri_t;
 typedef struct belle_sip_server_transaction belle_sip_server_transaction_t;
+
 namespace flexisip {
+
 class ListSubscription;
 
 /*
@@ -60,9 +62,12 @@ class ListSubscription : public Subscription {
 public:
 	// ListSubscription(unsigned int expires,list<const belle_sip_uri_t *> resources,belle_sip_dialog_t*
 	// aDialog,belle_sip_provider_t* aProv);
-	ListSubscription(unsigned int expires, belle_sip_server_transaction_t *ist,
-					 belle_sip_provider_t *aProv,
-					 size_t maxPresenceInfoNotifiedAtATime);
+	ListSubscription(
+		unsigned int expires,
+		belle_sip_server_transaction_t *ist,
+		belle_sip_provider_t *aProv,
+		size_t maxPresenceInfoNotifiedAtATime
+	);
 
 	virtual ~ListSubscription();
 	std::list<std::shared_ptr<PresentityPresenceInformationListener>> &getListeners();
@@ -109,11 +114,10 @@ private:
 	 * exactly one for each subsequent NOTIFY sent within a subscription.
 	 */
 	uint32_t mVersion;
-
 	belle_sip_source_t *mTimer;
-
 	size_t mMaxPresenceInfoNotifiedAtATime; //maximum number of presentity available in a sigle notify
 };
-}
+
+} // namespace flexisip
 
 #endif

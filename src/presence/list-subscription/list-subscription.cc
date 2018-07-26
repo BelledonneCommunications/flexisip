@@ -30,11 +30,14 @@ using namespace std;
 
 namespace flexisip {
 
-ListSubscription::ListSubscription(unsigned int expires, belle_sip_server_transaction_t *ist,
-								   belle_sip_provider_t *aProv, size_t maxPresenceInfoNotifiedAtATime)
-	: Subscription("Presence", expires, belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)), aProv),
-	  mLastNotify(chrono::system_clock::time_point::min()), mMinNotifyInterval(2 /*60*/), mVersion(0), mTimer(nullptr),
-	  mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime) {}
+ListSubscription::ListSubscription(
+	unsigned int expires,
+	belle_sip_server_transaction_t *ist,
+	belle_sip_provider_t *aProv,
+	size_t maxPresenceInfoNotifiedAtATime
+) : Subscription("Presence", expires, belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)), aProv),
+	mLastNotify(chrono::system_clock::time_point::min()), mMinNotifyInterval(2 /*60*/), mVersion(0), mTimer(nullptr),
+	mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime) {}
 
 list<shared_ptr<PresentityPresenceInformationListener>> &ListSubscription::getListeners() {
 	return mListeners;
