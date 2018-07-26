@@ -37,10 +37,10 @@ ExternalListSubscription::ExternalListSubscription(
 		belle_sip_server_transaction_t *ist,
 		belle_sip_provider_t *aProv,
 		size_t maxPresenceInfoNotifiedAtATime,
+		function<void(ListSubscription *)> listAvailable,
 		const string &sqlRequest,
 		connection_pool *connPool,
-		ThreadPool *threadPool,
-		function<void(ListSubscription *)> listAvailable
+		ThreadPool *threadPool
 ) : ListSubscription(expires, ist, aProv, maxPresenceInfoNotifiedAtATime, listAvailable), mConnPool(connPool) {
 	// create a thread to grab a pool connection and use it to retrieve the auth information
 	auto func = bind(&ExternalListSubscription::getUsersList, this, sqlRequest, ist);

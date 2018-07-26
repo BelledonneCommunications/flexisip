@@ -653,17 +653,17 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					addOrUpdateListeners(listSubscription->getListeners());
 					listSubscription->notify(true);
 				};
-				if (false /*!contentType*/) { // case of rfc4662 (list subscription without resource list in body)
+				if (!contentType) { // case of rfc4662 (list subscription without resource list in body)
 #if ENABLE_SOCI
 					listSubscription = make_shared<ExternalListSubscription>(
 						expires,
 						server_transaction,
 						mProvider,
 						mMaxPresenceInfoNotifiedAtATime,
+						listAvailableLambda,
 						mRequest,
 						mConnPool,
-						mThreadPool,
-						listAvailableLambda
+						mThreadPool
 					);
 #else
 					goto error;
