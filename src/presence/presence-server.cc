@@ -217,7 +217,7 @@ void PresenceServer::processDialogTerminated(PresenceServer *thiz, const belle_s
 			sub->setState(Subscription::State::terminated);
 			thiz->removeSubscription(sub);
 		} //else  nothing to be done for now because expire is performed at SubscriptionLevel
-		//delete static_cast<shared_ptr<Subscription>*>(belle_sip_dialog_get_application_data(dialog));
+		delete static_cast<shared_ptr<Subscription>*>(belle_sip_dialog_get_application_data(dialog));
 	}
 }
 void PresenceServer::processIoError(PresenceServer *thiz, const belle_sip_io_error_event_t *event) {
@@ -644,11 +644,11 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 			if (supported && belle_sip_list_find_custom(belle_sip_header_supported_get_supported(supported), (belle_sip_compare_func)strcasecmp, "eventlist")) {
 				SLOGD << "Subscribe for resource list " << "for dialog [" << BELLE_SIP_OBJECT(dialog) << "]";
 				// will be release when last PresentityPresenceInformationListener is released
-				ListSubscription *listSubscription;
+				shared_ptr<ListSubscription> listSubscription;
 				belle_sip_header_content_type_t *contentType = belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
 				if (!contentType) { // case of rfc4662 (list subscription without resource list in body
 #if ENABLE_SOCI
-					listSubscription = new ExternalListSubscription(
+					listSubscription = make_shared<ExternalListSubscription>(
 						expires,
 						server_transaction,
 						mProvider,
@@ -658,7 +658,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 						mThreadPool
 					);
 #else
-						goto error;
+					goto error;
 #endif
 				} else if ( // case of rfc5367 (list subscription with resource list in body
 					content_disposition &&
@@ -666,7 +666,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					strcasecmp(belle_sip_header_content_type_get_type(contentType), "application") == 0 &&
 					strcasecmp(belle_sip_header_content_type_get_subtype(contentType), "resource-lists+xml") == 0
 				) {
-					listSubscription = new BodyListSubscription(
+					listSubscription = make_shared<BodyListSubscription>(
 						expires,
 						server_transaction,
 						mProvider,
