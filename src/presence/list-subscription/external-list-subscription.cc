@@ -82,17 +82,27 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 
 		belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
 		belle_sip_header_to_t *toHeader = belle_sip_message_get_header_by_type(BELLE_SIP_MESSAGE(request), belle_sip_header_to_t);
-		if (belle_sip_header_to_get_tag(toHeader))
-			belle_sip_header_to_set_tag(toHeader, NULL);
 		belle_sip_header_from_t *fromHeader = belle_sip_message_get_header_by_type(BELLE_SIP_MESSAGE(request), belle_sip_header_from_t);
-		if (belle_sip_header_from_get_tag(fromHeader))
-			belle_sip_header_from_set_tag(fromHeader, NULL);
-		char *toUri = belle_sip_object_to_string(toHeader);
-		char *fromUri = belle_sip_object_to_string(fromHeader);
-		if (toUri && fromUri)
-			SLOGI << "from: " << fromUri << ", to: " << toUri << endl;
+		char *toUri = belle_sip_uri_to_string(belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(toHeader)));
+		char *fromUri = belle_sip_uri_to_string(belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(fromHeader)));
 
-		rowset<row> ret = (sql->prepare << sqlRequest);
+		SLOGI << "from: " << fromUri << ", to: " << toUri << endl;
+
+		string modifiedRequest = sqlRequest;
+		int index = modifiedRequest.find(":from");
+		while(index > -1) {
+			modifiedRequest = modifiedRequest.replace(index, 5, fromUri);
+			index = modifiedRequest.find(":from");
+		}
+		index = modifiedRequest.find(":to");
+		while(index > -1) {
+			modifiedRequest = modifiedRequest.replace(index, 3, toUri);
+			index = modifiedRequest.find(":to");
+		}
+
+		SLOGI << "SQL request: " << modifiedRequest << endl;
+
+		rowset<row> ret = (sql->prepare << modifiedRequest);
 		string uriStr;
 		for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
 			const row &row = *it;
