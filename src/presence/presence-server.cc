@@ -638,6 +638,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				BELLE_SIP_MESSAGE(request), belle_sip_header_content_disposition_t);
 			// first create the dialog
 			belle_sip_response_t *resp = belle_sip_response_create_from_request(request, 200);
+			belle_sip_object_ref(resp);
 			belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp), BELLE_SIP_HEADER(belle_sip_header_expires_create(expires)));
 
 			// List subscription
@@ -646,12 +647,20 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				// will be release when last PresentityPresenceInformationListener is released
 				shared_ptr<ListSubscription> listSubscription;
 				belle_sip_header_content_type_t *contentType = belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
-				auto listAvailableLambda = [this, bypass] (ListSubscription *listSubscription) {
+				auto listAvailableLambda = [this, bypass, acceptEncodingHeader, server_transaction, resp, dialog] (ListSubscription *listSubscription) {
+					if (acceptEncodingHeader)
+						listSubscription->setAcceptEncodingHeader(acceptEncodingHeader);
+
+					if (!belle_sip_dialog_get_application_data(dialog))
+						belle_sip_dialog_set_application_data(dialog, new shared_ptr<Subscription>(listSubscription));
+					// send 200ok late to allow deeper analysis of request
+					belle_sip_server_transaction_send_response(server_transaction, resp);
 					for (auto &listener : listSubscription->getListeners())
 						listener->enableBypass(bypass); //expiration is handled by dialog
 
 					addOrUpdateListeners(listSubscription->getListeners());
 					listSubscription->notify(true);
+					belle_sip_object_unref(resp);
 				};
 				if (!contentType) { // case of rfc4662 (list subscription without resource list in body)
 #if ENABLE_SOCI
@@ -685,15 +694,11 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 #if !ENABLE_SOCI
 error:
 #endif
+					belle_sip_object_unref(resp);
 					throw BELLESIP_SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/resource-lists+xml")) << "Unsupported media type ["
 						<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
 						<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
 				}
-				if (acceptEncodingHeader)
-					listSubscription->setAcceptEncodingHeader(acceptEncodingHeader);
-
-				// send 200ok late to allow deeper analysis of request
-				belle_sip_server_transaction_send_response(server_transaction, resp);
 				belle_sip_dialog_set_application_data(dialog, new shared_ptr<Subscription>(listSubscription));
 			} else { // Simple subscription
 				shared_ptr<PresentityPresenceInformationListener> subscription =
