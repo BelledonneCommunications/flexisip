@@ -81,11 +81,16 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 		start = stop;
 
 		belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
-		char *uri_as_string = belle_sip_uri_to_string(belle_sip_request_get_uri(request));
-		char *origin_uri_as_string = belle_sip_uri_to_string(belle_sip_request_extract_origin(request));
-
-		if (uri_as_string && origin_uri_as_string)
-			SLOGI << "from: " << origin_uri_as_string << ", to: " << uri_as_string << endl;
+		belle_sip_header_to_t *toHeader = belle_sip_message_get_header_by_type(BELLE_SIP_MESSAGE(request), belle_sip_header_to_t);
+		if (belle_sip_header_to_get_tag(toHeader))
+			belle_sip_header_to_set_tag(toHeader, NULL);
+		belle_sip_header_from_t *fromHeader = belle_sip_message_get_header_by_type(BELLE_SIP_MESSAGE(request), belle_sip_header_from_t);
+		if (belle_sip_header_from_get_tag(fromHeader))
+			belle_sip_header_from_set_tag(fromHeader, NULL);
+		char *toUri = belle_sip_object_to_string(toHeader);
+		char *fromUri = belle_sip_object_to_string(fromHeader);
+		if (toUri && fromUri)
+			SLOGI << "from: " << fromUri << ", to: " << toUri << endl;
 
 		rowset<row> ret = (sql->prepare << sqlRequest);
 		string uriStr;
