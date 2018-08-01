@@ -163,9 +163,9 @@ private:
 				const char *host = ctt->m_url->url_host;
 				char ct_transport[20] = {0};
 				if (url_has_param(ctt->m_url,"gr")) {
-					SLOGD << "Gruu found in contact header ["<<ctt<<"] for message ["<< msg << "] skeeping nat fixing process for contact";
+					SLOGD << "Gruu found in contact header ["<<ctt<<"] for message ["<< msg << "] skipping nat fixing process for contact";
 					continue;
-				};
+				}
 				url_param(ctt->m_url->url_params, "transport", ct_transport, sizeof(ct_transport) - 1);
 				// If we have a single contact and we are the front-end proxy, or if we found a ip:port in a contact that
 				// seems incorrect because the same appeared fixed in the via, then fix it.
