@@ -22,8 +22,8 @@ GooglePushNotificationRequest::GooglePushNotificationRequest(const PushInfo &pin
 	<< "\"}"
 	",\"priority\":\"high\""
 	",\"call-id\":\"" << callid
-	<< "\",\"uuid\":" << pinfo.mUid
-	<< ",\"send-time\":\"" << date << "\"}";
+	<< "\", \"uuid\":\"" << pinfo.mUid
+	<< "\", \"send-time\":\"" << date << "\"}";
 	mHttpBody = httpBody.str();
 	LOGD("Push notification https post body is %s", mHttpBody.c_str());
 
