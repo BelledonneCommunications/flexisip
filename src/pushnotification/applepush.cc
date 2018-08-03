@@ -31,7 +31,7 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	if (info.mSilent || msg_id == "IC_SIL") {
 		// silent push = pushkit.
 		// We also need msg_id and callid in case the push is received but the device cannot register
-		payload << "{\"aps\":{\"sound\":\"\", \"loc-key\":\"" << msg_id << "\", \"call-id\":\"" << callid <<"\", \"uuid\":" << info.mUid
+		payload << "{\"aps\":{\"sound\":\"\", \"loc-key\":\"" << msg_id << "\", \"call-id\":\"" << callid <<"\", \"uuid\":" << quoteStringIfNeeded(info.mUid)
 			<< ", \"send-time\":\"" << date << "\"}, \"pn_ttl\":"<< info.mTtl << "}";
 	} else {
 		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg

@@ -70,6 +70,7 @@ set(FLEXISIP_SOURCES
 	module.cc
 	monitor.cc
 	plugin/plugin-loader.cc
+	pushnotification/pushnotification.cc
 	pushnotification/applepush.cc
 	pushnotification/firebasepush.cc
 	pushnotification/genericpush.cc
