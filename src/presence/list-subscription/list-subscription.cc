@@ -126,7 +126,6 @@ void ListSubscription::notify(bool isFullState) {
 				}
 				resourceList.getResource().push_back(resource);
 			}
-
 		} else {
 			SLOGI << "Building partial state rlmi for list name [" << mName << "]";
 			for (PendingStateType::iterator it =  mPendingStates.begin();
@@ -175,7 +174,7 @@ void ListSubscription::notify(bool isFullState) {
 		Subscription::notify(multiPartBody, "deflate");
 		mVersion++;
 		mLastNotify = chrono::system_clock::now();
-		if (!mPendingStates.empty() && mTimer == nullptr) {
+		if (!mPendingStates.empty() && !mTimer) {
 			SLOGD << "Still [" << mPendingStates.size() << "] to be notified for list [" << this << "]";
 			belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this](unsigned int events) {
 				belle_sip_source_t * curent_timer = mTimer;
@@ -185,11 +184,13 @@ void ListSubscription::notify(bool isFullState) {
 				belle_sip_object_unref(curent_timer);
 				return BELLE_SIP_STOP;
 			});
-			mTimer = belle_sip_main_loop_create_cpp_timeout( belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv))
-																, func
-																, 500
-																, "timer for list notify");
-			}
+			mTimer = belle_sip_main_loop_create_cpp_timeout(
+				belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)),
+				func,
+				500,
+				"timer for list notify"
+			);
+		}
 	} catch (const Xsd::XmlSchema::Serialization &e) {
 		throw FLEXISIP_EXCEPTION << "serialization error: " << e.diagnostics();
 	} catch (exception &e) {

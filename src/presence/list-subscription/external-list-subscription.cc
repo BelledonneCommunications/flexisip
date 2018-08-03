@@ -106,7 +106,7 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 		string uriStr;
 		for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
 			const row &row = *it;
-			uriStr = "sip:" + row.get<string>(1) + "@" + row.get<string>(2);
+			uriStr = row.get<string>(0);
 			belle_sip_uri_t *uri = belle_sip_fast_uri_parse(uriStr.c_str());
 			if (!uri || !belle_sip_uri_get_host(uri) || !belle_sip_uri_get_user(uri)) {
 				ostringstream os;
