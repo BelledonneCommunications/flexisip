@@ -16,21 +16,36 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <ctime>
 #include <sstream>
+
+#include "log/logmanager.hh"
 #include "pushnotification.hh"
 
+using namespace std;
 
-
-PushNotificationRequest::PushNotificationRequest(const std::string &appid, const std::string &type)
+PushNotificationRequest::PushNotificationRequest(const string &appid, const string &type)
 			: mState( NotSubmitted), mAppId(appid), mType(type) {
 }
 
-std::string PushNotificationRequest::quoteStringIfNeeded(const std::string &str){
+string PushNotificationRequest::quoteStringIfNeeded(const string &str) const {
 	if (str[0] == '"'){
 		return str;
 	}else{
-		std::ostringstream ostr;
+		ostringstream ostr;
 		ostr << "\"" << str << "\"";
 		return ostr.str();
 	}
+}
+
+string PushNotificationRequest::getPushTimeStamp() const {
+	time_t t = time(NULL);
+	struct tm time;
+	gmtime_r(&t, &time);
+	char date[20] = {0};
+	size_t ret = strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", &time);
+	if (ret == 0)
+		SLOGE << "Invalid time stamp for push notification PNR: " << this;
+
+	return string(date);
 }

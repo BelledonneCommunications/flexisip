@@ -57,10 +57,10 @@ class PushNotificationRequest {
 
 		virtual ~PushNotificationRequest() {};
 
-		const std::string &getAppIdentifier() {
+		const std::string &getAppIdentifier() const {
 			return mAppId;
 		}
-		const std::string &getType() {
+		const std::string &getType() const {
 			return mType;
 		}
 		virtual const std::vector<char> &getData() = 0;
@@ -74,7 +74,8 @@ class PushNotificationRequest {
 		}
 	protected:
 		PushNotificationRequest(const std::string &appid, const std::string &type);
-		std::string quoteStringIfNeeded(const std::string &str);
+		std::string quoteStringIfNeeded(const std::string &str) const;
+		std::string getPushTimeStamp() const;
 	private:
 		State mState;
 		const std::string mAppId;

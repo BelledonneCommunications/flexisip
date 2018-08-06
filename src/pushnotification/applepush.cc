@@ -5,26 +5,25 @@
 #include <string>
 #include <stdexcept>
 
+using namespace std;
+
 const unsigned int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 256;
 const unsigned int ApplePushNotificationRequest::DEVICE_BINARY_SIZE = 32;
 uint32_t ApplePushNotificationRequest::sIdentifier = 1;
 
 ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 : PushNotificationRequest(info.mAppId, "apple") {
-	const std::string &deviceToken = info.mDeviceToken;
-	const std::string &msg_id = info.mAlertMsgId;
-	const std::string &arg = info.mFromName.empty() ? info.mFromUri : info.mFromName;
-	const std::string &sound = info.mAlertSound;
-	const std::string &callid = info.mCallId;
-	std::ostringstream payload;
-	time_t t = time(NULL);
-	struct tm *tm = localtime(&t);
-	char date[20];
-	strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", tm);
+	const string &deviceToken = info.mDeviceToken;
+	const string &msg_id = info.mAlertMsgId;
+	const string &arg = info.mFromName.empty() ? info.mFromUri : info.mFromName;
+	const string &sound = info.mAlertSound;
+	const string &callid = info.mCallId;
+	ostringstream payload;
+	string date = getPushTimeStamp();
 
 	int ret = formatDeviceToken(deviceToken);
 	if ((ret != 0) || (mDeviceToken.size() != DEVICE_BINARY_SIZE)) {
-		throw std::runtime_error("ApplePushNotification: Invalid deviceToken");
+		throw runtime_error("ApplePushNotification: Invalid deviceToken");
 	}
 	mTtl = info.mTtl;
 
@@ -50,7 +49,7 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	LOGD("Push notification payload is %s", mPayload.c_str());
 }
 
-int ApplePushNotificationRequest::formatDeviceToken(const std::string &deviceToken) {
+int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
 	char car = 0;
 	char oct = 0;
 	char val;
@@ -97,7 +96,7 @@ size_t ApplePushNotificationRequest::writeItem(size_t pos, Item &item){
 	return pos;
 }
 
-const std::vector<char> &ApplePushNotificationRequest::getData() {
+const vector<char> &ApplePushNotificationRequest::getData() {
 	size_t pos = 0;
 	uint32_t frameSize;
 	/* Init */
@@ -153,7 +152,7 @@ const std::vector<char> &ApplePushNotificationRequest::getData() {
 	return mBuffer;
 }
 
-std::string ApplePushNotificationRequest::isValidResponse(const std::string &str) {
+string ApplePushNotificationRequest::isValidResponse(const string &str) {
 	// error response is COMMAND(1)|STATUS(1)|ID(4) in bytes
 	if (str.length() >= 6) {
 		uint8_t error = str[1];
@@ -169,7 +168,7 @@ std::string ApplePushNotificationRequest::isValidResponse(const std::string &str
 			"Invalid payload size",
 			"Invalid token",
 		};
-		std::stringstream ss;
+		stringstream ss;
 		ss << "PNR " << this << " with identifier " << identifier << " failed with error "
 		<< (int)error << " (" << (error>8 ? "unknown" : errorToString[error]) << ")";
 		return ss.str();
