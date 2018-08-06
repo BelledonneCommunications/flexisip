@@ -53,7 +53,7 @@ ListSubscription::~ListSubscription() {
 		belle_sip_object_unref(mTimer);
 	}
 	belle_sip_object_unref((void *)mName);
-	SLOGD << "List souscription ["<< this <<"] deleted";
+	SLOGD << "List subscription ["<< this <<"] deleted";
 };
 
 void ListSubscription::addInstanceToResource(Xsd::Rlmi::Resource &resource, list<belle_sip_body_handler_t *> &multipartList,
