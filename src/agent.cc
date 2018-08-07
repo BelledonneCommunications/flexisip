@@ -304,8 +304,8 @@ void Agent::start(const std::string &transport_override, const std::string passp
 				prio = mdnsPrioMin;
 			} else {
 				/* Randomize the priority */
-				srand(time(NULL));
-				prio = rand() % (mdnsPrioMax - mdnsPrioMin + 1) + mdnsPrioMin;
+				prio = belle_sip_random() % (mdnsPrioMax - mdnsPrioMin + 1) + mdnsPrioMin;
+				LOGD("Multicast DNS services priority will be: %d", prio);
 			}
 
 			LOGD("Registering multicast DNS services.");
