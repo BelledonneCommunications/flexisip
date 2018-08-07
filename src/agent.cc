@@ -252,8 +252,8 @@ void Agent::startMdns(){
 				prio = mdnsPrioMin;
 			} else {
 				/* Randomize the priority */
-				srand(time(NULL));
-				prio = rand() % (mdnsPrioMax - mdnsPrioMin + 1) + mdnsPrioMin;
+				prio = belle_sip_random() % (mdnsPrioMax - mdnsPrioMin + 1) + mdnsPrioMin;
+				LOGD("Multicast DNS services will be started with priority: %d", prio);
 			}
 
 			LOGD("Registering multicast DNS services.");
