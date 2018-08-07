@@ -137,7 +137,17 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 	if (sql)
 		delete sql;
 
-	finishCreation(ist);
+	belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, ist](unsigned int){
+		this->finishCreation(ist);
+		return BELLE_SIP_STOP;
+	});
+	belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(
+		belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)),
+		func,
+		0,
+		"timer for external list subscription"
+	);
+	belle_sip_object_unref(timer);
 }
 
 } // namespace flexisip
