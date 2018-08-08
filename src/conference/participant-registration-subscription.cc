@@ -30,13 +30,14 @@ ParticipantRegistrationSubscription::ParticipantRegistrationSubscription (
 
 void ParticipantRegistrationSubscription::onContactRegistered (const string &key, const string &uid) {
 	url_t *url = url_make(mHome.home(), mParticipantAddress->asStringUriOnly().c_str());
-	RegistrarDb::get()->fetchForGruu(url, uid, shared_from_this());
+	RegistrarDb::get()->fetch(url, shared_from_this());
 }
 
 void ParticipantRegistrationSubscription::onRecordFound (Record *r) {
 	if (!r)
 		return;
 
+	list<shared_ptr<linphone::Address>> listDevices;
 	for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
 		string uri = ExtendedContact::urlToString(ec->mSipContact->m_url);
 		shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
@@ -45,8 +46,10 @@ void ParticipantRegistrationSubscription::onRecordFound (Record *r) {
 		) {
 			shared_ptr<linphone::Address> deviceAddress = mParticipantAddress->clone();
 			deviceAddress->setUriParam("gr", addr->getUriParam("gr"));
+			listDevices.push_back(deviceAddress);
 			SLOGI << "Notify registration of " << deviceAddress->asString() << " to chatroom " << mChatRoom->getLocalAddress()->asString();
-			mChatRoom->addParticipantDevice(mParticipantAddress, deviceAddress);
 		}
 	}
+
+	mChatRoom->setParticipantDevices(mParticipantAddress, listDevices);
 }
