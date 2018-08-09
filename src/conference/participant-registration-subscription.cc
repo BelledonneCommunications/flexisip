@@ -34,20 +34,19 @@ void ParticipantRegistrationSubscription::onContactRegistered (const string &key
 }
 
 void ParticipantRegistrationSubscription::onRecordFound (Record *r) {
-	if (!r)
-		return;
-
 	list<shared_ptr<linphone::Address>> listDevices;
-	for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
-		string uri = ExtendedContact::urlToString(ec->mSipContact->m_url);
-		shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
-		if (!addr->getUriParam("gr").empty()
-			&& (ec->getOrgLinphoneSpecs().find("groupchat") != string::npos)
-		) {
-			shared_ptr<linphone::Address> deviceAddress = mParticipantAddress->clone();
-			deviceAddress->setUriParam("gr", addr->getUriParam("gr"));
-			listDevices.push_back(deviceAddress);
-			SLOGI << "Notify registration of " << deviceAddress->asString() << " to chatroom " << mChatRoom->getLocalAddress()->asString();
+	if (r) {
+		for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
+			string uri = ExtendedContact::urlToString(ec->mSipContact->m_url);
+			shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
+			if (!addr->getUriParam("gr").empty()
+				&& (ec->getOrgLinphoneSpecs().find("groupchat") != string::npos)
+			) {
+				shared_ptr<linphone::Address> deviceAddress = mParticipantAddress->clone();
+				deviceAddress->setUriParam("gr", addr->getUriParam("gr"));
+				listDevices.push_back(deviceAddress);
+				SLOGI << "Notify registration of " << deviceAddress->asString() << " to chatroom " << mChatRoom->getLocalAddress()->asString();
+			}
 		}
 	}
 

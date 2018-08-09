@@ -129,6 +129,7 @@ void RegistrarDbRedisAsync::onSubscribeConnect(const redisAsyncContext *c, int s
 		LOGD("Now re-subscribing all topics we had before being disconnected.");
 		subscribeAll();
 	}
+	subscribeToKeyExpiration();
 }
 
 bool RegistrarDbRedisAsync::isConnected() {
@@ -426,6 +427,11 @@ void RegistrarDbRedisAsync::subscribeAll() {
 		subscribeTopic(topic);
 }
 
+void RegistrarDbRedisAsync::subscribeToKeyExpiration() {
+	SLOGD << "Subscribing to key expiration";
+	redisAsyncCommand(mSubscribeContext, sKeyExpirationPublishCallback, nullptr, "SUBSCRIBE __keyevent@0__:expired");
+}
+
 void RegistrarDbRedisAsync::subscribeTopic(const string &topic) {
 	LOGD("Sending SUBSCRIBE command to redis for topic '%s'", topic.c_str());
 	redisAsyncCommand(mSubscribeContext, sPublishCallback, NULL, "SUBSCRIBE %s", topic.c_str());
@@ -490,6 +496,25 @@ void RegistrarDbRedisAsync::sPublishCallback(redisAsyncContext *c, void *r, void
 			RegistrarDbRedisAsync *zis = (RegistrarDbRedisAsync *)c->data;
 			if (zis) {
 				zis->notifyContactListener(reply->element[1]->str, reply->element[2]->str);
+			}
+		}
+	}
+}
+
+void RegistrarDbRedisAsync::sKeyExpirationPublishCallback(redisAsyncContext *c, void *r, void *data) {
+	redisReply *reply = reinterpret_cast<redisReply *>(r);
+	if (!reply)
+		return;
+
+	if (reply->type == REDIS_REPLY_ARRAY) {
+		if (reply->element[2]->str != nullptr) {
+			RegistrarDbRedisAsync *zis = reinterpret_cast<RegistrarDbRedisAsync *>(c->data);
+			if (zis) {
+				string prefix = "fs:";
+				string key = reply->element[2]->str;
+				if (key.substr(0, prefix.size()) == prefix)
+					key = key.substr(prefix.size());
+				zis->notifyContactListener(key, "");
 			}
 		}
 	}

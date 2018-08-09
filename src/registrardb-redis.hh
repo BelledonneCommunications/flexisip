@@ -122,6 +122,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	static void sSubscribeConnectCallback(const redisAsyncContext *c, int status);
 	static void sSubscribeDisconnectCallback(const redisAsyncContext *c, int status);
 	static void sPublishCallback(redisAsyncContext *c, void *r, void *privdata);
+	static void sKeyExpirationPublishCallback(redisAsyncContext *c, void *r, void *data);
 	bool isConnected();
 	friend class RegistrarDb;
 	redisAsyncContext *mContext, *mSubscribeContext;
@@ -143,6 +144,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	void onErrorData(RegistrarUserData *data);
 	void subscribeTopic(const std::string &topic);
 	void subscribeAll();
+	void subscribeToKeyExpiration();
 	//void dequeueNextRedisCommand();
 
 	/* callbacks */
