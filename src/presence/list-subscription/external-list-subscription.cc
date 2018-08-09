@@ -37,7 +37,7 @@ ExternalListSubscription::ExternalListSubscription(
 		belle_sip_server_transaction_t *ist,
 		belle_sip_provider_t *aProv,
 		size_t maxPresenceInfoNotifiedAtATime,
-		function<void(ListSubscription *)> listAvailable,
+		function<void(shared_ptr<ListSubscription>)> listAvailable,
 		const string &sqlRequest,
 		connection_pool *connPool,
 		ThreadPool *threadPool

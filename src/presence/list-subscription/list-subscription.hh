@@ -67,7 +67,7 @@ public:
 		belle_sip_server_transaction_t *ist,
 		belle_sip_provider_t *aProv,
 		size_t maxPresenceInfoNotifiedAtATime,
-		std::function<void(ListSubscription *)> listAvailable
+		std::function<void(std::shared_ptr<ListSubscription>)> listAvailable
 	);
 
 	virtual ~ListSubscription();
@@ -117,7 +117,7 @@ private:
 	uint32_t mVersion;
 	belle_sip_source_t *mTimer;
 	size_t mMaxPresenceInfoNotifiedAtATime; //maximum number of presentity available in a sigle notify
-	std::function<void(ListSubscription *)> mListAvailable;
+	std::function<void(std::shared_ptr<ListSubscription>)> mListAvailable;
 };
 
 } // namespace flexisip

@@ -39,7 +39,7 @@ public:
 		belle_sip_server_transaction_t *ist,
 		belle_sip_provider_t *aProv,
 		size_t maxPresenceInfoNotifiedAtATime,
-		std::function<void(ListSubscription *)> listAvailable,
+		std::function<void(std::shared_ptr<ListSubscription>)> listAvailable,
 		const std::string &sqlRequest,
 		soci::connection_pool *connPool,
 		ThreadPool *threadPool

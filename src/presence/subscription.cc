@@ -132,7 +132,8 @@ void Subscription::notify(belle_sip_header_content_type_t *content_type, const s
 	}
 
 	belle_sip_client_transaction_t *client_transaction = belle_sip_provider_create_client_transaction(mProv, notify);
-	belle_sip_transaction_set_application_data(BELLE_SIP_TRANSACTION(client_transaction), new shared_ptr<Subscription>(shared_from_this()));
+	mTransactionRef = shared_from_this();
+	belle_sip_transaction_set_application_data(BELLE_SIP_TRANSACTION(client_transaction), this);
 	if (belle_sip_client_transaction_send_request(client_transaction)) {
 		SLOGE << "Cannot send notify information change for [" << std::hex << (long)this << "]";
 	}

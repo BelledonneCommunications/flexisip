@@ -29,7 +29,7 @@ BodyListSubscription::BodyListSubscription (
 		belle_sip_server_transaction_t *ist,
 		belle_sip_provider_t *aProv,
 		size_t maxPresenceInfoNotifiedAtATime,
-		function<void(ListSubscription *)> listAvailable
+		function<void(shared_ptr<ListSubscription>)> listAvailable
 ) : ListSubscription(expires, ist, aProv, maxPresenceInfoNotifiedAtATime, listAvailable) {
 	belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
 	if (!belle_sip_message_get_body(BELLE_SIP_MESSAGE(request))) {

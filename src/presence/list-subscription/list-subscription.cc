@@ -35,7 +35,7 @@ ListSubscription::ListSubscription(
 	belle_sip_server_transaction_t *ist,
 	belle_sip_provider_t *aProv,
 	size_t maxPresenceInfoNotifiedAtATime,
-	function<void(ListSubscription *)> listAvailable
+	function<void(shared_ptr<ListSubscription>)> listAvailable
 ) : Subscription("Presence", expires, belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)), aProv),
 	mLastNotify(chrono::system_clock::time_point::min()),
 	mMinNotifyInterval(2 /*60*/),
@@ -251,7 +251,7 @@ void ListSubscription::finishCreation(belle_sip_server_transaction_t *ist) {
 	belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
 	mName = (belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(belle_sip_request_get_uri(request)));
 	belle_sip_object_ref((void *)mName);
-	mListAvailable(this);
+	mListAvailable(static_pointer_cast<ListSubscription>(shared_from_this()));
 }
 
 /// PresentityResourceListener//
