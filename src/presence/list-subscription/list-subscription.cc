@@ -242,16 +242,26 @@ bool ListSubscription::isTimeToNotify() {
 }
 
 void ListSubscription::finishCreation(belle_sip_server_transaction_t *ist) {
-	if (mListeners.empty()) {
-		ostringstream os;
-		os << "Empty list entry for dialog id[" << belle_sip_header_call_id_get_call_id(belle_sip_dialog_get_call_id(mDialog)) << "]";
-		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
-	}
+	belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, ist](unsigned int){
+		if (mListeners.empty()) {
+			ostringstream os;
+			os << "Empty list entry for dialog id[" << belle_sip_header_call_id_get_call_id(belle_sip_dialog_get_call_id(mDialog)) << "]";
+			throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
+		}
 
-	belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
-	mName = (belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(belle_sip_request_get_uri(request)));
-	belle_sip_object_ref((void *)mName);
-	mListAvailable(static_pointer_cast<ListSubscription>(shared_from_this()));
+		belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
+		mName = (belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(belle_sip_request_get_uri(request)));
+		belle_sip_object_ref((void *)mName);
+		mListAvailable(static_pointer_cast<ListSubscription>(shared_from_this()));
+		return BELLE_SIP_STOP;
+	});
+	belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(
+		belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)),
+		func,
+		0,
+		"timer for external list subscription"
+	);
+	belle_sip_object_unref(timer);
 }
 
 /// PresentityResourceListener//

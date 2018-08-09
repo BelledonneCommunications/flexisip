@@ -62,7 +62,6 @@ BodyListSubscription::BodyListSubscription (
 			belle_sip_object_unref(uri);
 		}
 	}
-
 	finishCreation(ist);
 }
 
