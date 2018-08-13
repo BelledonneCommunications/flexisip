@@ -205,6 +205,7 @@ private:
 	void checkAllowedParams(const url_t *uri);
 	void initializePreferredRoute();
 	void loadModules();
+	void startMdns();
 
 	std::string mServerString;
 	std::list<Module *> mModules;
@@ -238,6 +239,7 @@ private:
 	std::string mPassphrase;
 	static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t *msg, sip_t *sip);
 	bool mTerminating;
+	bool mUseMaddr;
 #if ENABLE_MDNS
 	std::vector<belle_sip_mdns_register_t *> mMdnsRegisterList;
 #endif
