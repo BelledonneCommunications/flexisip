@@ -32,6 +32,7 @@ set(FLEXISIP_SOURCES
 	authdb.cc
 	callcontext-mediarelay.cc
 	callstore.cc
+	cli.cc
 	cJSON.c
 	common.cc
 	configdumper.cc
@@ -85,7 +86,6 @@ set(FLEXISIP_SOURCES
 	registrardb.cc
 	sdp-modifier.cc
 	sipattrextractor.cc
-	stats.cc
 	stun.cc
 	stun/stun_udp.c
 	stun/stun.c

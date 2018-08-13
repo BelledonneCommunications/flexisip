@@ -154,3 +154,13 @@ BinaryIp::BinaryIp(const char *hostname, bool onlyIpString) {
 	if (node != hostname)
 		free(node);
 }
+
+
+std::vector<std::string> split (const std::string &str, const std::string &delimiter) {
+	std::vector<std::string> out;
+	size_t pos = 0, oldPos = 0;
+	for (; (pos = str.find(delimiter, pos)) != std::string::npos; oldPos = pos + 1, pos = oldPos)
+		out.push_back(str.substr(oldPos, pos - oldPos));
+	out.push_back(str.substr(oldPos));
+	return out;
+}
