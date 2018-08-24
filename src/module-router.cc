@@ -397,10 +397,10 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Con
 		su_home_deinit(&mHome);
 	}
 
-	void onContactRegistered(const string &key, const string &uid) {
-		LOGD("Listener found for topic = %s, uid = %s, sipUri = %s", key.c_str(), uid.c_str(), url_as_string(&mHome, mSipUri));
+	void onContactRegistered(Record *r, const string &uid) {
+		LOGD("Listener found for topic = %s, uid = %s, sipUri = %s", r->getKey().c_str(), uid.c_str(), url_as_string(&mHome, mSipUri));
 		mUid = uid;
-		RegistrarDb::get()->fetch(mSipUri, this->shared_from_this(), true);
+		onRecordFound(r);
 	}
 
 	void onRecordFound(Record *r) {

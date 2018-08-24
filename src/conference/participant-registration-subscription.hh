@@ -27,7 +27,6 @@ namespace flexisip {
 
 	class ParticipantRegistrationSubscription
 		: public ContactRegisteredListener
-		, public ContactUpdateListener
 		, public std::enable_shared_from_this<ParticipantRegistrationSubscription>
 	{
 	public:
@@ -40,15 +39,8 @@ namespace flexisip {
 
 	private:
 		// ContactRegisteredListener implementation
-		void onContactRegistered (const std::string &key, const std::string &uid) override;
+		void onContactRegistered (Record *r, const std::string &uid) override;
 
-		// ContactUpdateListener implementation
-		void onRecordFound (Record *r) override;
-		void onError () override {}
-		void onInvalid () override {}
-		void onContactUpdated (const std::shared_ptr<ExtendedContact> &ec) override {}
-
-		SofiaAutoHome mHome;
 		const std::shared_ptr<const linphone::Address> mParticipantAddress;
 		std::shared_ptr<linphone::ChatRoom> mChatRoom;
 	};

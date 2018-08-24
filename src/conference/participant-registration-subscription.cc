@@ -28,12 +28,7 @@ ParticipantRegistrationSubscription::ParticipantRegistrationSubscription (
 	const shared_ptr<linphone::ChatRoom> &chatRoom
 ) : mParticipantAddress(address), mChatRoom(chatRoom) {}
 
-void ParticipantRegistrationSubscription::onContactRegistered (const string &key, const string &uid) {
-	url_t *url = url_make(mHome.home(), mParticipantAddress->asStringUriOnly().c_str());
-	RegistrarDb::get()->fetch(url, shared_from_this());
-}
-
-void ParticipantRegistrationSubscription::onRecordFound (Record *r) {
+void ParticipantRegistrationSubscription::onContactRegistered (Record *r, const string &uid) {
 	list<shared_ptr<linphone::Address>> listDevices;
 	if (r) {
 		for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
