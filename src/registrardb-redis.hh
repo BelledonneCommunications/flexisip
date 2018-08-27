@@ -99,10 +99,10 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	RegistrarDbRedisAsync(const std::string &preferredRoute, su_root_t *root, RecordSerializer *serializer,
 						  RedisParameters params);
 
-  protected:
 	bool connect();
 	bool disconnect();
 
+  protected:
 	virtual void doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
 					  const sip_path_t *ipath, std::list<std::string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version, 
 					  const std::shared_ptr<ContactUpdateListener> &listener);
@@ -124,6 +124,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	static void sPublishCallback(redisAsyncContext *c, void *r, void *privdata);
 	static void sKeyExpirationPublishCallback(redisAsyncContext *c, void *r, void *data);
 	bool isConnected();
+	void setWritable (bool value);
 	friend class RegistrarDb;
 	redisAsyncContext *mContext, *mSubscribeContext;
 	RecordSerializer *mSerializer;

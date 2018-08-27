@@ -667,6 +667,21 @@ RegistrarDb::~RegistrarDb() {
 	delete mLocalRegExpire;
 }
 
+void RegistrarDb::addStateListener (const std::shared_ptr<RegistrarDbStateListener> &listener) {
+	auto it = find(mStateListeners.cbegin(), mStateListeners.cend(), listener);
+	if (it == mStateListeners.cend())
+		mStateListeners.push_back(listener);
+}
+
+void RegistrarDb::removeStateListener (const std::shared_ptr<RegistrarDbStateListener> &listener) {
+	mStateListeners.remove(listener);
+}
+
+void RegistrarDb::notifyStateListener () const {
+	for (auto &listener : mStateListeners)
+		listener->onRegistrarDbWritable(mWritable);
+}
+
 void RegistrarDb::subscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {
 	LOGD("Subscribe topic = %s", topic.c_str());
 	mContactListenersMap.insert(make_pair(topic, listener));
@@ -838,6 +853,7 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 
 		sUnique = new RegistrarDbRedisAsync(ag, params);
 		sUnique->mUseGlobalDomain = useGlobalDomain;
+		static_cast<RegistrarDbRedisAsync *>(sUnique)->connect();
 	}
 #endif
 	else {

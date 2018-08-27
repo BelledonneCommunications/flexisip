@@ -136,6 +136,11 @@ bool RegistrarDbRedisAsync::isConnected() {
 	return mContext != NULL;
 }
 
+void RegistrarDbRedisAsync::setWritable (bool value) {
+	mWritable = value;
+	notifyStateListener();
+}
+
 /* This method checks that a redis command was successful, and cleans up if not. You use it with the macro defined
  * below. */
 
@@ -295,7 +300,8 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char *reply) {
 	if (replyMap.find("role") != replyMap.end()) {
 		string role = replyMap["role"];
 		if (role == "master") {
-			// we are speaking to the master, nothing to do but update the list of slaves
+			// We are speaking to the master, set the DB as writable and update the list of slaves
+			setWritable(true);
 			updateSlavesList(replyMap);
 
 		} else if (role == "slave") {
@@ -404,6 +410,7 @@ bool RegistrarDbRedisAsync::connect() {
 bool RegistrarDbRedisAsync::disconnect() {
 	LOGD("disconnect(%p)", mContext);
 	bool status = false;
+	setWritable(false);
 	if (mContext) {
 		redisAsyncDisconnect(mContext);
 		mContext = NULL;

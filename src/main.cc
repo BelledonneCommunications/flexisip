@@ -954,7 +954,6 @@ int main(int argc, char *argv[]) {
 
 	if (startConference){
 #ifdef ENABLE_CONFERENCE
-		flexisip::ConferenceServer::bindConference(a->getPreferredRoute());
 		conferenceServer = make_shared<flexisip::ConferenceServer>(startProxy, a->getPreferredRoute(), root);
 		if (daemonMode) {
 			notifyWatchDog();
