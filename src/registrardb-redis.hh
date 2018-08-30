@@ -85,9 +85,10 @@ struct RegistrarUserData {
 	std::shared_ptr<ContactUpdateListener> listener;
 	Record record;
 	unsigned long token;
-	bool mUpdateExpire;
-	uint8_t mRetryCount;
+	su_timer_t *mRetryTimer;
+	int mRetryCount;
 	std::string mGruu;
+	bool mUpdateExpire;
 	bool mIsUnregister;
 
 	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, std::shared_ptr<ContactUpdateListener> listener);
@@ -123,6 +124,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	static void sSubscribeDisconnectCallback(const redisAsyncContext *c, int status);
 	static void sPublishCallback(redisAsyncContext *c, void *r, void *privdata);
 	static void sKeyExpirationPublishCallback(redisAsyncContext *c, void *r, void *data);
+	static void sBindRetry(void *unused, su_timer_t *t, void *ud);
 	bool isConnected();
 	void setWritable (bool value);
 	friend class RegistrarDb;

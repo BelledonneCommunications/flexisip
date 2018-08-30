@@ -34,10 +34,14 @@
 #include "registrardb-redis-sofia-event.h"
 #include <sofia-sip/sip_protos.h>
 
+
+/* The timeout to retry a bind request after encountering a failure. It gives us a chance to reconnect to a new master.*/
+static const int redisRetryTimeoutMs = 5000;
+
 using namespace std;
 
 RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<ContactUpdateListener> listener)
-	: self(s), listener(listener), record(url), token(0), mUpdateExpire(false), mRetryCount(0), mGruu(""), mIsUnregister(false) {
+	: self(s), listener(listener), record(url), token(0), mRetryTimer(nullptr), mRetryCount(0), mGruu(""), mUpdateExpire(false), mIsUnregister(false) {
 	
 }
 RegistrarUserData::~RegistrarUserData() {
@@ -624,13 +628,33 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, for
 
 /* Methods called by the callbacks */
 
+void RegistrarDbRedisAsync::sBindRetry(void *unused, su_timer_t *t, void *ud){
+	RegistrarUserData *data = (RegistrarUserData *)ud;
+	su_timer_destroy(data->mRetryTimer);
+	data->mRetryTimer = NULL;
+	RegistrarDbRedisAsync *self = data->self;
+	if (self->isConnected()){
+		self->serializeAndSendToRedis(data, sHandleBind);
+	}else{
+		LOGE("Unrecoverable error while updating record fs:%s : no connection", data->record.getKey().c_str());
+		if (data->listener) data->listener->onError();
+		delete data;
+	}
+}
+
 void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *data) {
 	const char *key = data->record.getKey().c_str();
 
-	if ((!reply || reply->type == REDIS_REPLY_ERROR) && (data->mRetryCount < 2)) {
-		LOGE("Error while updating record fs:%s [%lu] hashmap in redis, trying again", key, data->token);
-		data->mRetryCount += 1;
-		serializeAndSendToRedis(data, sHandleBind);
+	if (!reply || reply->type == REDIS_REPLY_ERROR){
+		if ((data->mRetryCount < 2)) {
+			LOGE("Error while updating record fs:%s [%lu] hashmap in redis, trying again", key, data->token);
+			data->mRetryCount += 1;
+			data->mRetryTimer = mAgent->createTimer(redisRetryTimeoutMs, sBindRetry, data, false); 
+		}else{
+			LOGE("Unrecoverable error while updating record fs:%s.", key);
+			if (data->listener) data->listener->onError();
+			delete data;
+		}
 	} else {
 		data->mRetryCount = 0;
 		LOGD("Binding ok, fetching fs:%s [%lu]", key, data->token);
