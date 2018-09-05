@@ -133,16 +133,16 @@ void PresenceServer::_init() {
 	std::string db_implementation = cr->get<GenericStruct>("module::Authentication")
 													->get<ConfigString>("db-implementation")
 													->read();
-	
-	
+
+
 	if(get_users_with_phones_request == "" && db_implementation != "file") {
 		LOGF("Unable to start presence server : soci-users-with-phones-request is not precised in flexisip.conf, please fix it.");
 	}
-	
+
 	list<string> transports = cr->get<GenericStruct>("presence-server")
 	->get<ConfigStringList>("transports")
 	->read();
-	
+
 	for (auto it = transports.begin(); it != transports.end(); ++it) {
 		string transport = *it;
 		if(transport.find("sips") != string::npos || transport.find("transport=tls") != string::npos) {
@@ -417,11 +417,12 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		belle_sip_object_ref(entity); // initial ref = 0;
 
 		belle_sip_header_from_t * from = belle_sip_message_get_header_by_type(request, belle_sip_header_from_t);
-		if (!belle_sip_uri_equals(entity, belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(from))))
+		if (!belle_sip_uri_equals(entity, belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(from)))) {
+			belle_sip_object_unref(entity);
 			throw BELLESIP_SIGNALING_EXCEPTION_1(400,belle_sip_header_create("Warning", "Entity must be same as From")) << "Invalid presence entity [" << presence_body->getEntity()
 			<< "] for request [" << request << "] must be same as From";
-			
-		
+		}
+
 		if (!(presenceInfo = getPresenceInfo(entity))) {
 			presenceInfo = make_shared<PresentityPresenceInformation>(entity, *this, belle_sip_stack_get_main_loop(mStack));
 			SLOGD << "New Presentity [" << *presenceInfo << "] created from PUBLISH";
@@ -768,7 +769,7 @@ void PresenceServer::addPresenceInfo(const std::shared_ptr<PresentityPresenceInf
 }
 
 void PresenceServer::addPresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &observer) {
-	mPresenceInfoObservers.push_back(observer); 
+	mPresenceInfoObservers.push_back(observer);
 }
 
 void PresenceServer::removePresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &listener) {
@@ -824,7 +825,7 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 }
 void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> &listener, int expires) {
 	std::shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
-	
+
 	if (presenceInfo == NULL) {
 		/*no information available yet, but creating entry to be able to register subscribers*/
 		presenceInfo = make_shared<PresentityPresenceInformation>(listener->getPresentityUri(), *this,
@@ -832,7 +833,7 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 		SLOGD << "New Presentity [" << *presenceInfo << "] created from SUBSCRIBE";
 		addPresenceInfo(presenceInfo);
 	}
-	
+
 	//notify observers that a listener is added or updated
 	for (auto& listener : mPresenceInfoObservers) {
 		listener->onListenerEvent(presenceInfo);
@@ -875,7 +876,7 @@ void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInfo
 
 		presenceInfos.push_back(presenceInfo);
 	}
-	
+
 	//notify observers that a listener is added or updated
 	for (auto& listener : mPresenceInfoObservers) {
 			listener->onListenerEvents(presenceInfos);
