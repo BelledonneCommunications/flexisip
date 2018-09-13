@@ -130,6 +130,8 @@ mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/log/flexisip
 %endif
 
 mkdir -p $RPM_BUILD_ROOT/lib/systemd/system
+install -p -m 0644 scripts/flexisip.service $RPM_BUILD_ROOT/lib/systemd/system
+install -p -m 0644 scripts/flexisip\@.service $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip-proxy.service $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip-proxy\@.service $RPM_BUILD_ROOT/lib/systemd/system
 %if @ENABLE_PRESENCE@
