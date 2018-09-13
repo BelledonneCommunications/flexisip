@@ -37,8 +37,8 @@
 #endif
 
 #include "agent.hh"
+#include "cli.hh"
 #include "stun.hh"
-#include "stats.hh"
 #include "module.hh"
 
 #include <cstdlib>
@@ -615,12 +615,9 @@ static string getPkcsPassphrase(TCLAP::ValueArg<string> &pkcsFile){
 int main(int argc, char *argv[]) {
 	shared_ptr<Agent> a;
 	StunServer *stun = NULL;
-	Stats *proxy_stats = NULL;
+	unique_ptr<CommandLineInterface> proxy_cli;
 #ifdef ENABLE_PRESENCE
-	Stats *presence_stats = NULL;
-#endif
-#ifdef ENABLE_CONFERENCE
-	Stats *conference_stats = NULL;
+	unique_ptr<CommandLineInterface> presence_cli;
 #endif
 	bool debug;
 	bool user_errors = false;
@@ -924,8 +921,8 @@ int main(int argc, char *argv[]) {
 			stun->start();
 		}
 
-		proxy_stats = new Stats("proxy");
-		proxy_stats->start();
+		proxy_cli = unique_ptr<CommandLineInterface>(new ProxyCommandLineInterface(a));
+		proxy_cli->start();
 
 		if (trackAllocs)
 			msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
@@ -950,14 +947,13 @@ int main(int argc, char *argv[]) {
 			LOGF("Fail to start flexisip presence server");
 		}
 
-		presence_stats = new Stats("presence");
-		presence_stats->start();
+		presence_cli = unique_ptr<CommandLineInterface>(new CommandLineInterface("presence"));
+		presence_cli->start();
 #endif
 	}
 
 	if (startConference){
 #ifdef ENABLE_CONFERENCE
-		flexisip::ConferenceServer::bindConference(a->getPreferredRoute());
 		conferenceServer = make_shared<flexisip::ConferenceServer>(startProxy, a->getPreferredRoute(), root);
 		if (daemonMode) {
 			notifyWatchDog();
@@ -970,8 +966,6 @@ int main(int argc, char *argv[]) {
 			 * Since it prevents from starting and it is not a crash, it shall be notified to the user with LOGF*/
 			LOGF("Fail to start flexisip conference server");
 		}
-		conference_stats = new Stats("conference");
-		conference_stats->start();
 #endif // ENABLE_CONFERENCE
 	}
 
@@ -990,18 +984,11 @@ int main(int argc, char *argv[]) {
 
 	a.reset();
 #ifdef ENABLE_PRESENCE
-	if (presence_stats) {
-		presence_stats->stop();
-		delete presence_stats;
-	}
+	presence_cli = nullptr;
 	presenceServer.reset();
 #endif // ENABLE_PRESENCE
 
 #ifdef ENABLE_CONFERENCE
-	if (conference_stats) {
-		conference_stats->stop();
-		delete conference_stats;
-	}
 	conferenceServer.reset();
 #endif // ENABLE_CONFERENCE
 
@@ -1009,10 +996,7 @@ int main(int argc, char *argv[]) {
 		stun->stop();
 		delete stun;
 	}
-	if (proxy_stats) {
-		proxy_stats->stop();
-		delete proxy_stats;
-	}
+	proxy_cli = nullptr;
 	su_root_destroy(root);
 
 	LOGN("Flexisip %s-server exiting normally.", fName.c_str());

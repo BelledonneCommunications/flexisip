@@ -49,7 +49,6 @@ ConferenceServer::~ConferenceServer () {}
 void ConferenceServer::_init () {
 	// Set config, transport, create core, etc
 	shared_ptr<linphone::Transports> cTransport = linphone::Factory::get()->createTransports();
-	string transport = "";
 	cTransport->setTcpPort(0);
 	cTransport->setUdpPort(0);
 	cTransport->setTlsPort(0);
@@ -57,10 +56,10 @@ void ConferenceServer::_init () {
 
 	// Flexisip config
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
-	transport = config->get<ConfigString>("transport")->read();
-	if (transport.length() > 0) {
+	mTransport = config->get<ConfigString>("transport")->read();
+	if (mTransport.length() > 0) {
 		SofiaAutoHome mHome;
-		sip_contact_t *sipContact = sip_contact_make(mHome.home(), transport.c_str());
+		sip_contact_t *sipContact = sip_contact_make(mHome.home(), mTransport.c_str());
 		if (sipContact->m_url->url_port != nullptr) {
 			int port;
 			istringstream istr;
@@ -95,10 +94,9 @@ void ConferenceServer::_init () {
 
 	mCore->start();
 
-	// Binding loaded chat room
-	for (const auto &chatRoom : mCore->getChatRooms()) {
-		bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), transport, chatRoom->getPeerAddress()->getUriParam("gr"), mPath, nullptr);
-	}
+	RegistrarDb::get()->addStateListener(shared_from_this());
+	if (RegistrarDb::get()->isWritable())
+		bindAddresses();
 }
 
 void ConferenceServer::_run () {
@@ -106,7 +104,14 @@ void ConferenceServer::_run () {
 	if (mWithThread) bctbx_sleep_ms(10);
 }
 
-void ConferenceServer::_stop () {}
+void ConferenceServer::_stop () {
+	RegistrarDb::get()->removeStateListener(shared_from_this());
+}
+
+void ConferenceServer::onRegistrarDbWritable (bool writable) {
+	if (writable)
+		bindAddresses();
+}
 
 void ConferenceServer::onChatRoomStateChanged (
 	const shared_ptr<linphone::Core> &lc,
@@ -132,7 +137,8 @@ void ConferenceServer::onConferenceAddressGeneration (const shared_ptr<linphone:
 		cr,
 		confAddr,
 		uuid,
-		mPath
+		mPath,
+		this
 	);
 	generator->run();
 }
@@ -172,7 +178,22 @@ void flexisip::ConferenceServer::onParticipantRegistrationUnsubscriptionRequeste
 	mSubscriptionHandler.unsubscribe(cr, participantAddr);
 }
 
-void flexisip::ConferenceServer::bindConference(const string &path) {
+void flexisip::ConferenceServer::bindAddresses () {
+	if (mAddressesBound)
+		return;
+
+	// Bind the conference factory address in the registrar DB
+	bindConference();
+
+	// Binding loaded chat room
+	for (const auto &chatRoom : mCore->getChatRooms()) {
+		bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), mTransport, chatRoom->getPeerAddress()->getUriParam("gr"), mPath, nullptr);
+	}
+
+	mAddressesBound = true;
+}
+
+void flexisip::ConferenceServer::bindConference() {
 	class FakeListener : public ContactUpdateListener {
 		void onRecordFound(Record *r) {}
 		void onError() {}
@@ -184,10 +205,9 @@ void flexisip::ConferenceServer::bindConference(const string &path) {
 	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	if (config && config->get<ConfigBoolean>("enabled")->read()) {
-		string transportFactory = config->get<ConfigString>("transport")->read();
-		sip_contact_t *sipContact = sip_contact_make(mHome.home(), transportFactory.c_str());
+		sip_contact_t *sipContact = sip_contact_make(mHome.home(), mTransport.c_str());
 		url_t *url = url_make(mHome.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
-		sip_path_t *bindingPath = sip_path_format(mHome.home(), "<%s>", path.c_str());
+		sip_path_t *bindingPath = sip_path_format(mHome.home(), "<%s>", mPath.c_str());
 		RegistrarDb::get()->bind(
 			url,
 			sipContact,
@@ -217,7 +237,7 @@ void ConferenceServer::bindChatRoom (
 	sip_contact_add_param(mHome.home(), sipContact, su_strdup(mHome.home(), ("+sip.instance=\"<" + gruu + ">\"").c_str()));
 	url_param_add(mHome.home(), sipContact->m_url, ("gr=" + gruu).c_str());
 	sip_supported_t *sipSupported = reinterpret_cast<sip_supported_t *>(sip_header_format(mHome.home(), sip_supported_class, "gruu"));
-	sip_path_t *bindingPath = sip_path_format(mHome.home(), "<%s>", path.c_str());
+	sip_path_t *bindingPath = sip_path_format(mHome.home(), "<%s>", mPath.c_str());
 	RegistrarDb::get()->bind(
 		url,
 		sipContact,

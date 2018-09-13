@@ -23,6 +23,8 @@
 #include <cstdlib>
 #include <cstdarg>
 #include <map>
+#include <string>
+#include <vector>
 #include <sys/timeb.h>
 
 #include "log/logmanager.hh"
@@ -78,5 +80,12 @@ public:
 private:
 	struct in6_addr mAddr;
 };
+
+
+std::vector<std::string> split (const std::string &str, const std::string &delimiter);
+
+inline std::vector<std::string> split (const std::string &str, char delimiter) {
+	return split(str, std::string(1, delimiter));
+}
 
 #endif

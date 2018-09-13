@@ -276,7 +276,7 @@ void PresenceServer::processTransactionTerminated(PresenceServer *thiz, const be
 	belle_sip_client_transaction_t *client = belle_sip_transaction_terminated_event_get_client_transaction(event);
 	if(!client)
 		return;
-	
+
 	Subscription *sub = (Subscription *)belle_sip_transaction_get_application_data(BELLE_SIP_TRANSACTION(client));
 	if(sub)
 		sub->mTransactionRef.reset();
@@ -446,10 +446,11 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		belle_sip_object_ref(entity); // initial ref = 0;
 
 		belle_sip_header_from_t * from = belle_sip_message_get_header_by_type(request, belle_sip_header_from_t);
-		if (!belle_sip_uri_equals(entity, belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(from))))
+		if (!belle_sip_uri_equals(entity, belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(from)))) {
+			belle_sip_object_unref(entity);
 			throw BELLESIP_SIGNALING_EXCEPTION_1(400,belle_sip_header_create("Warning", "Entity must be same as From")) << "Invalid presence entity [" << presence_body->getEntity()
 			<< "] for request [" << request << "] must be same as From";
-
+		}
 
 		if (!(presenceInfo = getPresenceInfo(entity))) {
 			presenceInfo = make_shared<PresentityPresenceInformation>(entity, *this, belle_sip_stack_get_main_loop(mStack));
