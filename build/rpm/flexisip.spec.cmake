@@ -145,7 +145,7 @@ install -p -m 0644 scripts/flexisip-presence\@.service $RPM_BUILD_ROOT/lib/syste
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
 install -p -m 0644 scripts/flexisip-logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
 
-install -p -m 0744 scripts/flexisip_stats.py $RPM_BUILD_ROOT%{_bindir}
+install -p -m 0744 scripts/flexisip_cli.py $RPM_BUILD_ROOT%{_bindir}
 install -p -m 0744 scripts/flexisip_monitor.py $RPM_BUILD_ROOT%{_bindir}
 
 %check
@@ -156,24 +156,33 @@ rm -rf $RPM_BUILD_ROOT
 
 %post
 if [ $1 = 1 ]; then
-  /sbin/chkconfig --add flexisip
-  /sbin/chkconfig flexisip on
-  service flexisip start
+  /sbin/chkconfig --add flexisip-proxy
+  /sbin/chkconfig flexisip-proxy on
+  service flexisip-proxy start
 
   %if @ENABLE_PRESENCE@
   /sbin/chkconfig --add flexisip-presence
   /sbin/chkconfig flexisip-presence on
   service flexisip-presence start
   %endif
+  %if @ENABLE_CONFERENCE@
+  /sbin/chkconfig --add flexisip-conference
+  /sbin/chkconfig flexisip-conference on
+  service flexisip-conference start
+  %endif
 fi
 
 %preun
 if [ $1 = 0 ]; then
-  service flexisip stop >/dev/null 2>&1 ||:
-  /sbin/chkconfig --del flexisip
+  service flexisip-proxy stop >/dev/null 2>&1 ||:
+  /sbin/chkconfig --del flexisip-proxy
 %if @ENABLE_PRESENCE@
   service flexisip-presence stop >/dev/null 2>&1 ||:
   /sbin/chkconfig --del flexisip-presence
+%endif
+%if @ENABLE_CONFERENCE@
+  service flexisip-conference stop >/dev/null 2>&1 ||:
+  /sbin/chkconfig --del flexisip-conference
 %endif
 fi
 
@@ -182,6 +191,9 @@ if [ "$1" -ge "1" ]; then
   service flexisip condrestart > /dev/null 2>&1 ||:
 %if @ENABLE_PRESENCE@
   service flexisip-presence condrestart > /dev/null 2>&1 ||:
+%endif
+%if @ENABLE_CONFERENCE@
+  service flexisip-conference condrestart > /dev/null 2>&1 ||:
 %endif
 fi
 
