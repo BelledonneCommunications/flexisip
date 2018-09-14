@@ -445,9 +445,15 @@ void RegistrarDbRedisAsync::subscribeToKeyExpiration() {
 
 void RegistrarDbRedisAsync::subscribeTopic(const string &topic) {
 	LOGD("Sending SUBSCRIBE command to redis for topic '%s'", topic.c_str());
-	redisAsyncCommand(mSubscribeContext, sPublishCallback, NULL, "SUBSCRIBE %s", topic.c_str());
+	if (mSubscribeContext){
+		redisAsyncCommand(mSubscribeContext, sPublishCallback, NULL, "SUBSCRIBE %s", topic.c_str());
+	}else LOGE("RegistrarDbRedisAsync::subscribeTopic(): no context !");
 }
 
+/*TODO: the listener should be also used to report when the subscription is active.
+ * Indeed if we send a push notification to a device while REDIS has not yet confirmed the subscription, we will not do anything
+ * when receiving the REGISTER from the device. The router module should wait confirmation that subscription is active before injecting the forked request
+ * to the module chain.*/
 void RegistrarDbRedisAsync::subscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {
 	RegistrarDb::subscribe(topic, listener);
 	if (mContactListenersMap.count(topic) == 1)
@@ -462,8 +468,10 @@ void RegistrarDbRedisAsync::unsubscribe(const string &topic, const shared_ptr<Co
 
 void RegistrarDbRedisAsync::publish(const string &topic, const string &uid) {
 	LOGD("Publish topic = %s, uid = %s", topic.c_str(), uid.c_str());
-	redisAsyncCommand(mContext, NULL, NULL, "PUBLISH %s %s", topic.c_str(), uid.c_str());
-}
+	if (mContext){
+		redisAsyncCommand(mContext, NULL, NULL, "PUBLISH %s %s", topic.c_str(), uid.c_str());
+	}else LOGE("RegistrarDbRedisAsync::publish(): no context !");
+}	
 
 /* Static functions that are used as callbacks to redisAsync API */
 
