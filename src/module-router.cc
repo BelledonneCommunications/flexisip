@@ -691,7 +691,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 		if (context) {
 			if (context->getConfig()->mForkLate) {
 				const string key(routingKey(sipUri));
-				context->setKey(key);
+				context->addKey(key);
 				mForks.insert(make_pair(key, context));
 				if (mForks.count(key) == 1) {
 					auto listener = make_shared<OnContactRegisteredListener>(this, sipUri);
@@ -730,7 +730,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, co
 					temp_ctt->m_url->url_port = NULL;
 				}
 				const string key(routingKey(temp_ctt->m_url));
-				context->setKey(key);
+				context->addKey(key);
 				mForks.insert(make_pair(key, context));
 				if (mForks.count(key) == 1) {
 					auto listener = make_shared<OnContactRegisteredListener>(this, temp_ctt->m_url);
@@ -1086,30 +1086,32 @@ void ModuleRouter::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 	if (!ctx->getConfig()->mForkLate) return;
 
-	string key = ctx->getKey();
-	LOGD("Looking at fork contexts with key %s", key.c_str());
+	list<string> keys = ctx->getKeys();
+	for (list<string>::iterator it=keys.begin(); it != keys.end(); ++it) {
+		string key = *it;
+		LOGD("Looking at fork contexts with key %s", key.c_str());
 
-	auto range = mForks.equal_range(key.c_str());
-	int count = 0;
-	int removed = 0;
-	for (auto it = range.first; it != range.second;) {
-		count++;
-		if (it->second == ctx) {
-			LOGD("Remove fork %s from store", it->first.c_str());
-			mStats.mCountForks->incrFinish();
-			auto cur_it = it;
-			++it;
-			// for some reason the multimap erase does not return the next iterator !
-			mForks.erase(cur_it);
-			removed++;
-			// do not break, because a single fork context might appear several time in the map because of aliases.
-		} else {
-			++it;
+		int count = 0;
+		int removed = 0;
+		auto range = mForks.equal_range(key.c_str());
+		for (auto it = range.first; it != range.second;) {
+			count++;
+			if (it->second == ctx) {
+				LOGD("Remove fork %s from store", it->first.c_str());
+				mStats.mCountForks->incrFinish();
+				auto cur_it = it;
+				++it;
+				// for some reason the multimap erase does not return the next iterator !
+				mForks.erase(cur_it);
+				removed++;
+				// do not break, because a single fork context might appear several time in the map because of aliases.
+			} else {
+				++it;
+			}
 		}
-	}
-
-	if (count == removed && count > 0) {
-		RegistrarDb::get()->unsubscribe(key, ctx->getContactRegisteredListener());
+		if (count == removed && count > 0) {
+			RegistrarDb::get(getAgent())->unsubscribe(key, ctx->getContactRegisteredListener());
+		}
 	}
 }
 

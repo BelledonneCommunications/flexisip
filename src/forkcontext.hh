@@ -78,7 +78,7 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	std::list<std::shared_ptr<BranchInfo>> mWaitingBranches;
 	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
 	float mCurrentPriority;
-	std::string mKey;
+	std::list<std::string> mKeys;
 	void init();
 	void processLateTimeout();
 	std::shared_ptr<BranchInfo> _findBestBranch(const int urgentReplies[], bool ignore503And408);
@@ -149,12 +149,11 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	// Start the processing of the highest priority branches that are not completed yet
 	void start();
 	
-	void setKey(std::string key);
-	std::string getKey() const;
+	void addKey(std::string key);
+	std::list<std::string> getKeys();
 
 	void setContactRegisteredListener (const std::shared_ptr<OnContactRegisteredListener> &listener);
 	const std::shared_ptr<OnContactRegisteredListener> &getContactRegisteredListener () const;
-
 	/*
 	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.
 	 * If the fork context is interested in handling this new destination, then it should return true, false otherwise.

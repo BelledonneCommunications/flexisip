@@ -480,12 +480,12 @@ void ForkContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 void ForkContext::onCancel(const shared_ptr<RequestSipEvent> &ev) {
 }
 
-void ForkContext::setKey(string key) {
-     mKey = key;
+void ForkContext::addKey(string key) {
+     mKeys.push_back(key);
 }
 
-string ForkContext::getKey() const {
-     return mKey;
+list<string> ForkContext::getKeys() {
+     return mKeys;
 }
 
 void ForkContext::setContactRegisteredListener (const shared_ptr<OnContactRegisteredListener> &listener) {
