@@ -1110,7 +1110,7 @@ void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 			}
 		}
 		if (count == removed && count > 0) {
-			RegistrarDb::get(getAgent())->unsubscribe(key, ctx->getContactRegisteredListener());
+			RegistrarDb::get()->unsubscribe(key, ctx->getContactRegisteredListener());
 		}
 	}
 }
