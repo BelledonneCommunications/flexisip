@@ -246,7 +246,7 @@ void ListSubscription::finishCreation(belle_sip_server_transaction_t *ist) {
 		if (mListeners.empty()) {
 			ostringstream os;
 			os << "Empty list entry for dialog id[" << belle_sip_header_call_id_get_call_id(belle_sip_dialog_get_call_id(mDialog)) << "]";
-			throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
+			setState(Subscription::State::terminated);
 		}
 
 		belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
