@@ -859,9 +859,9 @@ GenericManager::GenericManager()
 		 "\t- 'tls-verify-outgoing' taking for value '0' or '1', whether flexisip should check the peer certificate"
 		 " when it make an outgoing TLS connection to another server. Default value is 1.\n"
 		 "\t- 'require-peer-certificate' (deprecated) same as tls-verify-incoming\n"
-		 "It is highly recommended to specify a canonical name for 'sips' transport, so that the proxy can advertise "
+		 "It is HIGHLY RECOMMENDED to specify a canonical name for 'sips' transport, so that the proxy can advertise "
 		 "this information in Record-Route headers, which allows TLS cname check to be performed by clients.\n"
-		 "Specifying a sip uri with transport=tls is not allowed: the 'sips' scheme must be used. As requested by SIP RFC, "
+		 "Specifying a sip uri with transport=tls is not allowed: the 'sips' scheme must be used instead. As requested by SIP RFC, "
 		 "IPv6 address must be enclosed within brakets.\n"
 		 "Here are some examples to understand:\n"
 		 "- listen on all local interfaces for udp and tcp, on standard port:\n"
@@ -905,7 +905,7 @@ GenericManager::GenericManager()
 		{Boolean, "enable-snmp", "Enable SNMP.", "true"},
 		{String, "unique-id", "Unique ID used to identify that instance of Flexisip. It must be a randomly generated "
 			"16-sized hexadecimal number. If empty, it will be randomly generated at each start of Flexisip.", ""},
-		{Boolean, "use-maddr", "Allow flexisip to use maddr in sips connections to verify the CN of the TLS certificate.", "true"},
+		{Boolean, "use-maddr", "Allow flexisip to use maddr in sips connections to verify the CN of the TLS certificate.", "false"},
 		{Boolean, "debug", "Outputs very detailed logs.", "false"},
 		{String, "plugins-dir", "Path to the directory where plugins can be found.", "/usr/lib/flexisip/plugins/"},
 		{StringList, "plugins", "Plugins to use.", ""},
@@ -951,6 +951,7 @@ GenericManager::GenericManager()
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
 	global->get<ConfigBoolean>("debug")->setDeprecated(true);
+	global->get<ConfigBoolean>("use-maddr")->setDeprecated(true); /*Deprecate use-maddr parameter. Using canonical names is preferred as it allows IPv6/IPv4 transitions during calls*/
 	global->setConfigListener(this);
 
 	ConfigString *version = new ConfigString("version-number", "Flexisip version.", PACKAGE_VERSION, 999);
