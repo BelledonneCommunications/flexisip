@@ -37,11 +37,12 @@ class ListSubscription;
  */
 class PresentityResourceListener : public PresentityPresenceInformationListener {
   public:
-	PresentityResourceListener(ListSubscription &aListSubscription, const belle_sip_uri_t *presentity);
+	PresentityResourceListener(ListSubscription &aListSubscription, const belle_sip_uri_t *presentity, const std::string &name = "");
 	PresentityResourceListener(const PresentityResourceListener &);
 	~PresentityResourceListener();
 
-	const belle_sip_uri_t *getPresentityUri(void) const;
+	const belle_sip_uri_t *getPresentityUri() const;
+	std::string getName() const {return mName;}
 	/*
 	 * This function is call every time Presentity information need to be notified to a UA
 	 */
@@ -53,6 +54,7 @@ class PresentityResourceListener : public PresentityPresenceInformationListener 
   private:
 	ListSubscription &mListSubscription;
 	belle_sip_uri_t *mPresentity;
+	std::string mName;
 };
 
 /*

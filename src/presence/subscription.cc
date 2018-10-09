@@ -131,10 +131,13 @@ void Subscription::notify(belle_sip_header_content_type_t *content_type, const s
 		belle_sip_header_subscription_state_set_expires(sub_state, (int)(mExpirationTime - current_time));
 	}
 
-	belle_sip_client_transaction_t *client_transaction = belle_sip_provider_create_client_transaction(mProv, notify);
+	if (mCurrentTransaction)
+		belle_sip_transaction_set_application_data(BELLE_SIP_TRANSACTION(mCurrentTransaction), NULL);
+
+	mCurrentTransaction = belle_sip_provider_create_client_transaction(mProv, notify);
 	mTransactionRef = shared_from_this();
-	belle_sip_transaction_set_application_data(BELLE_SIP_TRANSACTION(client_transaction), this);
-	if (belle_sip_client_transaction_send_request(client_transaction)) {
+	belle_sip_transaction_set_application_data(BELLE_SIP_TRANSACTION(mCurrentTransaction), this);
+	if (belle_sip_client_transaction_send_request(mCurrentTransaction)) {
 		SLOGE << "Cannot send notify information change for [" << std::hex << (long)this << "]";
 	}
 }

@@ -76,6 +76,7 @@ class PresentityPresenceInformationListener  {
 	bool bypassEnabled();
 	/*returns prsentity uri associated to this Listener*/
 	virtual const belle_sip_uri_t *getPresentityUri() const = 0;
+	virtual std::string getName() const {return "";}
 	/*invoked on changes*/
 	virtual void onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) = 0;
 	/*invoked on expiration*/
@@ -132,6 +133,9 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	void removeTuplesForEtag(const std::string &eTag);
 
 	const belle_sip_uri_t *getEntity() const;
+
+	std::string getName() {return mName;}
+	void setName(std::string name) {mName = name;}
 
 	/**
 	 *add notity listener for an entity
@@ -207,6 +211,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	std::shared_ptr<PresenceInformationElement> mDefaultInformationElement; // purpose of this element is to have a
 																			// default presence status (I.E closed) when
 																			// all publish have expired.
+	std::string mName = "";
 };
 
 std::ostream &operator<<(std::ostream &__os, const PresentityPresenceInformation &);

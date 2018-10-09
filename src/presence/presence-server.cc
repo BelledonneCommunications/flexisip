@@ -213,7 +213,6 @@ void PresenceServer::processDialogTerminated(PresenceServer *thiz, const belle_s
 		Subscription *sub = (Subscription *)belle_sip_dialog_get_application_data(dialog);
 		if (dynamic_cast<ListSubscription *>(sub)) {
 			SLOGD << "Subscription [" << sub << "] has expired";
-			sub->setState(Subscription::State::terminated);
 			thiz->removeSubscription(sub->mDialogRef);
 		} //else  nothing to be done for now because expire is performed at SubscriptionLevel
 		sub->mDialogRef.reset();
@@ -278,8 +277,10 @@ void PresenceServer::processTransactionTerminated(PresenceServer *thiz, const be
 		return;
 
 	Subscription *sub = (Subscription *)belle_sip_transaction_get_application_data(BELLE_SIP_TRANSACTION(client));
-	if(sub)
+	if (sub) {
 		sub->mTransactionRef.reset();
+		sub->mCurrentTransaction = NULL;
+	}
 }
 
 void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t *event) {

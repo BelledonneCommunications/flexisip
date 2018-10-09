@@ -103,20 +103,27 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 		SLOGI << "SQL request: " << modifiedRequest << endl;
 
 		rowset<row> ret = (sql->prepare << modifiedRequest);
-		string uriStr;
+		string addrStr;
 		for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
 			const row &row = *it;
-			uriStr = row.get<string>(0);
-			belle_sip_uri_t *uri = belle_sip_fast_uri_parse(uriStr.c_str());
+			addrStr = row.get<string>(0);
+			belle_sip_header_address_t *addr = belle_sip_header_address_parse(addrStr.c_str());
+			if (!addr) {
+				ostringstream os;
+				os << "Cannot parse list entry [" << addrStr << "]";
+				continue;
+			}
+			belle_sip_uri_t *uri = belle_sip_header_address_get_uri(addr);
 			if (!uri || !belle_sip_uri_get_host(uri) || !belle_sip_uri_get_user(uri)) {
 				ostringstream os;
-				os << "Cannot parse list entry [" << uriStr << "]";
-				throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
+				os << "Cannot parse list entry [" << addrStr << "]";
+				continue;
 			}
-			if (uriStr.find(";user=phone") != string::npos) {
+			if (addrStr.find(";user=phone") != string::npos) {
 				belle_sip_uri_set_user_param(uri,"phone");
 			}
-			mListeners.push_back(make_shared<PresentityResourceListener>(*this, uri));
+			const char *name = belle_sip_header_address_get_displayname(addr);
+			mListeners.push_back(make_shared<PresentityResourceListener>(*this, uri, name ? name : ""));
 			belle_sip_object_unref(uri);
 		}
 

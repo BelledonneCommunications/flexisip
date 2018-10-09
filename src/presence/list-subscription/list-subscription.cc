@@ -117,6 +117,9 @@ void ListSubscription::notify(bool isFullState) {
 				char *presentityUri = belle_sip_uri_to_string(resourceListener->getPresentityUri());
 				Xsd::Rlmi::Resource resource(presentityUri);
 				belle_sip_free(presentityUri);
+				if (!resourceListener->getName().empty())
+					resource.getName().push_back(resourceListener->getName());
+
 				PendingStateType::iterator it = mPendingStates.find(resourceListener->getPresentityUri());
 				if (it != mPendingStates.end() && it->second.first->isKnown() && resourceList.getResource().size() < mMaxPresenceInfoNotifiedAtATime) {
 					addInstanceToResource(resource, multipartList, *it->second.first, resourceListener->extendedNotifyEnabled());
@@ -136,6 +139,8 @@ void ListSubscription::notify(bool isFullState) {
 					char *presentityUri = belle_sip_uri_to_string(presenceInformation->getEntity());
 					Xsd::Rlmi::Resource resource(presentityUri);
 					belle_sip_free(presentityUri);
+					if (!presenceInformation->getName().empty())
+						resource.getName().push_back(presenceInformation->getName());
 					addInstanceToResource(resource, multipartList, *presenceInformation, presenceInformationPair.second.second);
 					resourceList.getResource().push_back(resource);
 				}
@@ -266,18 +271,24 @@ void ListSubscription::finishCreation(belle_sip_server_transaction_t *ist) {
 
 /// PresentityResourceListener//
 
-PresentityResourceListener::PresentityResourceListener(ListSubscription &aListSubscription, const belle_sip_uri_t *presentity)
-	: mListSubscription(aListSubscription), mPresentity((belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(presentity))) {
+PresentityResourceListener::PresentityResourceListener(ListSubscription &aListSubscription, const belle_sip_uri_t *presentity, const string &name)
+	: mListSubscription(aListSubscription),
+		mPresentity((belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(presentity))),
+		mName(name)
+{
 	belle_sip_object_ref(mPresentity);
 }
 PresentityResourceListener::~PresentityResourceListener() {
 	belle_sip_object_unref(mPresentity);
 }
-PresentityResourceListener::PresentityResourceListener(const PresentityResourceListener &source) : mListSubscription(source.mListSubscription) {
+PresentityResourceListener::PresentityResourceListener(const PresentityResourceListener &source)
+	: mListSubscription(source.mListSubscription),
+		mName(source.mName)
+{
 	mPresentity = ((belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(source.getPresentityUri())));
 	belle_sip_object_ref(mPresentity);
 }
-const belle_sip_uri_t *PresentityResourceListener::getPresentityUri(void) const {
+const belle_sip_uri_t *PresentityResourceListener::getPresentityUri() const {
 	return mPresentity;
 }
 /*
@@ -285,6 +296,8 @@ const belle_sip_uri_t *PresentityResourceListener::getPresentityUri(void) const 
  */
 void PresentityResourceListener::onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) {
 	// Notification is handled globaly for the list
+	if (!mName.empty())
+		presenceInformation.setName(mName);
 	mListSubscription.onInformationChanged(presenceInformation, extended);
 }
 void PresentityResourceListener::onExpired(PresentityPresenceInformation &presenceInformation) {
