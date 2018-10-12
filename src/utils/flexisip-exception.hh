@@ -30,11 +30,11 @@
  */
 class FlexisipException : public BctbxException {
 public:
-	FlexisipException() {mOffset++;};
-	FlexisipException(const std::string &message):BctbxException(message){mOffset++;};
-	FlexisipException(const char *message):BctbxException(message){mOffset++;};
-	virtual ~FlexisipException() throw(){};
-	FlexisipException(const FlexisipException &other):BctbxException(other){};
+	FlexisipException() = default;
+	FlexisipException(const std::string &message): BctbxException(message) {}
+	FlexisipException(const char *message): BctbxException(message) {}
+	virtual ~FlexisipException() throw() {}
+	FlexisipException(const FlexisipException &other): BctbxException(other) {}
 	
 	template <typename T2> FlexisipException &operator<<(const T2 &val) {
 		BctbxException::operator<<(val);

@@ -21,7 +21,6 @@ namespace flexisip {
 
 BelleSipSignalingException::BelleSipSignalingException(int code, std::list<belle_sip_header_t *> headers)
 	: SignalingException(code), mHeaders(headers) {
-	mOffset++;
 	for (belle_sip_header_t *header : mHeaders) {
 		belle_sip_object_ref(header);
 	}
@@ -31,7 +30,6 @@ BelleSipSignalingException::BelleSipSignalingException(int code, belle_sip_heade
 		mHeaders.push_back(header);
 		belle_sip_object_ref(header);
 	}
-	mOffset++;
 }
 BelleSipSignalingException::~BelleSipSignalingException() throw() {
 	for (belle_sip_header_t *header : mHeaders) {
