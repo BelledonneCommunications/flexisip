@@ -315,7 +315,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	// to bridge to networks: for example, we'll end with UDP, TCP.
 	const sip_method_t method = ms->getSip()->sip_request->rq_method;
 	if (ev->mRecordRouteAdded && (method == sip_method_invite || method == sip_method_subscribe)) {
-		addRecordRoute(ms->getHome(), getAgent(), ev, tport);
+		addRecordRoute(getAgent(), ev, tport);
 	}
 
 	// Add path

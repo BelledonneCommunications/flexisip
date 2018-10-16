@@ -892,6 +892,13 @@ GenericManager::GenericManager()
 		 " with currenttly deployed client on the marcket.",
 		 "HIGH:!SSLv2:!SSLv3:!TLSv1:!EXP:!ADH:!RC4:!3DES:!aNULL:!eNULL"},
 		{Integer, "idle-timeout", "Time interval in seconds after which inactive connections are closed.", "3600"},
+		{Integer, "keepalive-interval", "Time interval in seconds for sending \"\\r\\n\\r\\n\" keepalives packets on inbound and outbound connections. "
+			"A value of zero stands for no keepalive. The main purpose of sending keepalives is to keep connection alive accross NATs, but it also" 
+			" helps in detecting silently broken connections which can reduce the number socket descriptors used by flexisip.", "1800"},
+		{Integer, "proxy-to-proxy-keepalive-interval", "Time interval in seconds for sending \"\\r\\n\\r\\n\" keepalives packets specifically for proxy "
+			"to proxy connections. Indeed, while it is undesirable to send frequent keepalives to mobile clients because it drains their battery,"
+			" sending frequent keepalives has proven to be helpful to keep connections up between proxy nodes in a very popular US virtualized datacenter."
+			" A value of zero stands for no keepalive.", "0"},
 		{Boolean, "require-peer-certificate", "Require client certificate from peer (inbound connections only).", "false"},
 		{Integer, "transaction-timeout", "SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.",
 		 "32000"},

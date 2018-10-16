@@ -289,9 +289,11 @@ void Agent::start(const string &transport_override, const string passphrase) {
 	unsigned int t1x64 = (unsigned int)global->get<ConfigInt>("transaction-timeout")->read();
 	int udpmtu = global->get<ConfigInt>("udp-mtu")->read();
 	unsigned int incompleteIncomingMessageTimeout = 600 * 1000; /*milliseconds*/
-	unsigned int keepAliveInterval = 30 * 60 * 1000;			/*30mn*/
+	unsigned int keepAliveInterval = global->get<ConfigInt>("keepalive-interval")->read() * 1000;
 	unsigned int queueSize = 256; /*number of SIP message that sofia can queue in a tport (a connection). It is 64 by default,
 				hardcoded in sofia-sip. This is not sufficient for IM.*/
+				
+	mProxyToProxyKeepAliveInterval = global->get<ConfigInt>("proxy-to-proxy-keepalive-interval")->read() * 1000;
 
 	mainTlsCertsDir = absolutePath(currDir, mainTlsCertsDir);
 
@@ -369,16 +371,12 @@ void Agent::start(const string &transport_override, const string passphrase) {
 		su_home_deinit(&home);
 	}
 
+	/* Setup the internal transport*/
 	if (mPreferredRouteV4 != nullptr) {
-		GenericStruct *global = GenericManager::get()->getRoot()->get<GenericStruct>("global");
-		unsigned int tports_idle_timeout = 1000 * (unsigned int)global->get<ConfigInt>("idle-timeout")->read();
-		unsigned int incompleteIncomingMessageTimeout = 600 * 1000; /*milliseconds*/
-		unsigned int keepAliveInterval = 30 * 60 * 1000; /*30mn*/
-
 		if (nta_agent_add_tport(
 				mAgent, (const url_string_t *)mPreferredRouteV4, TPTAG_IDLE(tports_idle_timeout),
 				TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-				TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TAG_END()
+				TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_QUEUESIZE(queueSize), TPTAG_SDWN_ERROR(1), TAG_END()
 			) == -1) {
 			char prefRouteV4[266];
 			url_e(prefRouteV4, sizeof(prefRouteV4), mPreferredRouteV4);
@@ -633,6 +631,7 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 	mPreferredRouteV4 = NULL;
 	mPreferredRouteV6 = NULL;
 	mDrm = new DomainRegistrationManager(this);
+	mProxyToProxyKeepAliveInterval = 0;
 }
 
 Agent::~Agent() {
@@ -1260,3 +1259,15 @@ void Agent::reply(const shared_ptr<MsgSip> &ms, int status, char const *phrase, 
 	nta_msg_treply(mAgent, msg, status, phrase, ta_tags(ta));
 	ta_end(ta);
 }
+
+void Agent::applyProxyToProxyTransportSettings(tport_t *tp){
+	if (mProxyToProxyKeepAliveInterval > 0){
+		unsigned int currentKeepAliveInterval = 0;
+		tport_get_params(tp, TPTAG_KEEPALIVE_REF(currentKeepAliveInterval), TAG_END());
+		if (currentKeepAliveInterval != mProxyToProxyKeepAliveInterval){
+			LOGD("Applying proxy to proxy keepalive interval for tport [%p]", tp);
+			tport_set_params(tp, TPTAG_KEEPALIVE(mProxyToProxyKeepAliveInterval), TAG_END());
+		}
+	}
+}
+
