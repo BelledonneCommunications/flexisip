@@ -45,7 +45,7 @@ public:
 				// fix potential record-route from a natted proxy added before us
 				if (mFixRecordRoutes)
 					fixRecordRouteInRequest(ms);
-				addRecordRouteIncoming(ms->getHome(), getAgent(), ev);
+				addRecordRouteIncoming(getAgent(), ev);
 			}
 		}
 		// fix potential Path header inserted before us by a flexisip natted proxy

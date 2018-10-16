@@ -63,8 +63,6 @@ class Agent : public IncomingAgent,
 			  public ConfigValueListener {
 	friend class IncomingTransaction;
 	friend class OutgoingTransaction;
-	friend class StatelessSipEvent;
-	friend class StatefulSipEvent;
 	friend class Module;
 
 	StatCounter64 *mCountIncomingRegister;
@@ -187,7 +185,6 @@ public:
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 	void logEvent(const std::shared_ptr<SipEvent> &ev);
 	Module *findModule(const std::string &moduleName) const;
-	int onIncomingMessage(msg_t *msg, const sip_t *sip);
 	nth_engine_t *getHttpEngine() {
 		return mHttpEngine;
 	}
@@ -195,8 +192,9 @@ public:
 		return mDrm;
 	}
 	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr = false);
-
+	void applyProxyToProxyTransportSettings(tport_t *tp);
 private:
+	int onIncomingMessage(msg_t *msg, const sip_t *sip);
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
 	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
 	void discoverInterfaces();
@@ -234,6 +232,7 @@ private:
 	su_root_t *mRoot;
 	nth_engine_t *mHttpEngine;
 	su_home_t mHome;
+	unsigned int mProxyToProxyKeepAliveInterval;
 	EventLogWriter *mLogWriter;
 	DomainRegistrationManager *mDrm;
 	std::string mPassphrase;

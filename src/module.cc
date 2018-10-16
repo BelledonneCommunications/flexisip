@@ -261,13 +261,13 @@ void ModuleToolbox::cleanAndPrependRoute(Agent *ag, msg_t *msg, sip_t *sip, sip_
 }
 
 void ModuleToolbox::addRecordRoute(
-	su_home_t *home,
 	Agent *ag,
 	const shared_ptr<RequestSipEvent> &ev,
 	const tport_t *tport
 ) {
 	msg_t *msg = ev->getMsgSip()->getMsg();
 	sip_t *sip = ev->getMsgSip()->getSip();
+	su_home_t *home = ev->getMsgSip()->getHome();
 	url_t *url = NULL;
 
 	if (tport) {
@@ -310,7 +310,8 @@ void ModuleToolbox::addRecordRoute(
 	ev->mRecordRouteAdded = true;
 }
 
-void ModuleToolbox::addRecordRouteIncoming(su_home_t *home, Agent *ag, const shared_ptr<RequestSipEvent> &ev) {
+
+void ModuleToolbox::addRecordRouteIncoming(Agent *ag, const shared_ptr<RequestSipEvent> &ev) {
 	if (ev->mRecordRouteAdded)
 		return;
 
@@ -318,8 +319,13 @@ void ModuleToolbox::addRecordRouteIncoming(su_home_t *home, Agent *ag, const sha
 	if (!tport) {
 		LOGE("Cannot find incoming tport, cannot add a Record-Route.");
 		return;
+	}else{
+		/*we have a tport, check if we are in a case of proxy to proxy communication*/
+		if (ev->getMsgSip()->getSip()->sip_record_route != NULL){ //there is already a record route
+			ag->applyProxyToProxyTransportSettings(tport.get());
+		}
 	}
-	addRecordRoute(home, ag, ev, tport.get());
+	addRecordRoute(ag, ev, tport.get());
 }
 
 bool ModuleToolbox::fromMatch(const sip_from_t *from1, const sip_from_t *from2) {
@@ -596,17 +602,22 @@ sip_route_t *ModuleToolbox::prependNewRoutable(msg_t *msg, sip_t *sip, sip_route
 void ModuleToolbox::addPathHeader(
 	Agent *ag,
 	const shared_ptr<RequestSipEvent> &ev,
-	const tport_t *tport,
+	tport_t *tport,
 	const char *uniq
 ) {
 	su_home_t *home = ev->getMsgSip()->getHome();
 	msg_t *msg = ev->getMsgSip()->getMsg();
 	sip_t *sip = ev->getMsgSip()->getSip();
 	url_t *url;
+	bool proxyToProxy = false;
 
 	if (tport) {
-		tport = tport_parent(tport); // get primary transport
-		const tp_name_t *name = tport_name(tport); // primary transport name
+		// check for proxy to proxy communication
+		if (sip->sip_path != NULL){ //there was already a path
+			proxyToProxy = true;
+		}
+		tport_t *primary_tport = tport_parent(tport); // get primary transport
+		const tp_name_t *name = tport_name(primary_tport); // primary transport name
 
 		url = ag->urlFromTportName(home, name);
 		if (!url) {
@@ -631,6 +642,9 @@ void ModuleToolbox::addPathHeader(
 		SLOGD << "Identical path already existing: " << url_as_string(home, url);
 	} else {
 		SLOGD << "Path added to: " << url_as_string(home, url);
+		if (tport && proxyToProxy){
+			ag->applyProxyToProxyTransportSettings(tport);
+		}
 	}
 }
 

@@ -255,7 +255,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		}
 		if (processNewInvite(c, ot, ev)) {
 			//be in the record-route
-			addRecordRouteIncoming(ev->getMsgSip()->getHome(), getAgent(),ev);
+			addRecordRouteIncoming(getAgent(),ev);
 			if (newContext) mCalls->store(c);
 			ot->setProperty(getModuleName(), c);
 		}
