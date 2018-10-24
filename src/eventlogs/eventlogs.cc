@@ -20,8 +20,9 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
-#include "eventlogs.hh"
 #include "configmanager.hh"
+#include "db/db-transaction.hh"
+#include "eventlogs.hh"
 
 #include <iostream>
 #include <iomanip>
@@ -47,8 +48,7 @@ EventLog::Init::Init() {
 		 "The basic format is \"key=value key2=value2\". For a mysql backend, this "
 		 "is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
 		 "Please refer to the Soci documentation of your backend, for instance: "
-		 "http://soci.sourceforge.net/doc/3.2/backends/mysql.html"
-		 "http://soci.sourceforge.net/doc/3.2/backends/sqlite3.html",
+		 "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
 		 "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
 		{Integer, "database-max-queue-size",
 		 "Amount of queries that will be allowed to be queued before bailing password "
@@ -478,31 +478,71 @@ void FilesystemEventLogWriter::write(const std::shared_ptr<EventLog> &evlog) {
 
 #if ENABLE_SOCI
 
-#define BUFFER_SIZE 256
+namespace {
+	constexpr int SqlRegistrationEventLogId = 0;
+	constexpr int SqlCallEventLogId = 1;
+	constexpr int SqlMessageEventLogId = 2;
+	constexpr int SqlAuthEventLogId = 3;
+	constexpr int SqlCallQualityEventLogId = 4;
+}
 
-#define SQL_REGISTRATION_EVENT_LOG_ID 0
-#define SQL_CALL_EVENT_LOG_ID 1
-#define SQL_MESSAGE_EVENT_LOG_ID 2
-#define SQL_AUTH_EVENT_LOG_ID 3
-#define SQL_CALL_QUALITY_EVENT_LOG_ID 4
+static inline const char *getLastIdFunction (DataBaseEventLogWriter::Backend backend) {
+	switch (backend) {
+		case DataBaseEventLogWriter::Backend::Mysql:
+			return "LAST_INSERT_ID()";
+		case DataBaseEventLogWriter::Backend::Sqlite3:
+			return "last_insert_rowid()";
+		case DataBaseEventLogWriter::Backend::Postgresql:
+			return "lastval()";
+	}
+	return nullptr;
+}
 
-#define SQL_MYSQL_LAST_ID_FUN "LAST_INSERT_ID()"
-#define SQL_SQLITE3_LAST_ID_FUN "last_insert_rowid()"
-#define SQL_POSTGRESQL_LAST_ID_FUN "lastval()"
+static inline const char *getPrimaryKeyIncrementType (DataBaseEventLogWriter::Backend backend) {
+	switch (backend) {
+		case DataBaseEventLogWriter::Backend::Mysql:
+			return "BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT";
+		case DataBaseEventLogWriter::Backend::Sqlite3:
+			return "INTEGER PRIMARY KEY ASC";
+		case DataBaseEventLogWriter::Backend::Postgresql:
+			return "SERIAL PRIMARY KEY";
+	}
+	return nullptr;
+}
 
-using namespace soci;
+static inline const char *getInsertPrefix (DataBaseEventLogWriter::Backend backend) {
+	switch (backend) {
+		case DataBaseEventLogWriter::Backend::Mysql:
+			return "INSERT INTO";
+		case DataBaseEventLogWriter::Backend::Sqlite3:
+			return "INSERT OR IGNORE INTO";
+		case DataBaseEventLogWriter::Backend::Postgresql:
+			return "INSERT INTO";
+	}
+	return nullptr;
+}
 
-inline string sipDataToString(const url_t *url) {
+static inline DataBaseEventLogWriter::Backend getBackendFromString (const string &str) {
+	if (str == "mysql") return DataBaseEventLogWriter::Backend::Mysql;
+	if (str == "sqlite3") return DataBaseEventLogWriter::Backend::Sqlite3;
+	if (str == "postgresql") return DataBaseEventLogWriter::Backend::Postgresql;
+	LOGF("Unable to get backend from string.");
+
+	// Unreachable.
+	return Backend::Mysql;
+}
+
+static inline string sipDataToString(const url_t *url) {
 	if (!url) {
 		return string();
 	}
 
-	char tmp[BUFFER_SIZE] = {0};
+	char tmp[256] = {};
 	url_e(tmp, sizeof(tmp) - 1, url);
 	return string(tmp);
 }
 
-inline string sipDataToString(const sip_from_t *from) {
+static inline string sipDataToString(const sip_from_t *from) {
 	string str;
 
 	if (!from) {
@@ -519,17 +559,17 @@ inline string sipDataToString(const sip_from_t *from) {
 	return str;
 }
 
-inline string sipDataToString(const sip_user_agent_t *ua) {
+static inline string sipDataToString(const sip_user_agent_t *ua) {
 	if (!ua) {
 		return string();
 	}
 
-	char tmp[BUFFER_SIZE] = {0};
+	char tmp[256] = {};
 	sip_user_agent_e(tmp, sizeof(tmp) - 1, (msg_header_t *)ua, 0);
 	return string(tmp);
 }
 
-inline string sipDataToString(const sip_contact_t *contact) {
+static inline string sipDataToString(const sip_contact_t *contact) {
 	if (!contact) {
 		return string();
 	}
@@ -541,183 +581,16 @@ inline string sipDataToString(const sip_contact_t *contact) {
 // Also, for future uses, no sql column is a bool type in this code.
 // A Oracle database doesn't support this type. It's better to use
 // a `CHAR(1)` instead with a `Y`/`N` value.
-inline string boolToSqlString(bool value) {
-	return string(value ? "Y" : "N");
-}
-
-inline string createEventsTable(DataBaseEventLogWriter::Backend backend) {
-	string str = "CREATE TABLE IF NOT EXISTS event_log (";
-
-	// Damn it... This function exists only because `AUTOINCREMENT`
-	// has one `_` in MySQL and none in SQlite3...
-	//
-	// Also in SQlite3, AUTOINCREMENT is only allowed on an INTEGER PRIMARY KEY.
-	switch (backend) {
-		case DataBaseEventLogWriter::Backend::Mysql:
-			str += "  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,";
-			break;
-		case DataBaseEventLogWriter::Backend::Sqlite3:
-			str += "  id INTEGER PRIMARY KEY AUTOINCREMENT,";
-			break;
-		case DataBaseEventLogWriter::Backend::Postgresql:
-			str += "  id SERIAL PRIMARY KEY,";
-			break;
-	}
-
-	if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
-		str +=
-			"  type_id SMALLINT NOT NULL,"
-			"  sip_from VARCHAR(255) NOT NULL,"
-			"  sip_to VARCHAR(255) NOT NULL,"
-			"  user_agent VARCHAR(255) NOT NULL,"
-			"  date TIMESTAMP NOT NULL,"
-			"  status_code SMALLINT NOT NULL,"
-			"  reason VARCHAR(255) NOT NULL,"
-			"  completed CHAR(1) NOT NULL,"
-			"  call_id VARCHAR(255) NOT NULL,"
-
-			"  FOREIGN KEY (type_id)"
-			"    REFERENCES event_type(id)"
-			")";
-	} else {
-		str +=
-			"  type_id TINYINT UNSIGNED NOT NULL,"
-			"  sip_from VARCHAR(255) NOT NULL,"
-			"  sip_to VARCHAR(255) NOT NULL,"
-			"  user_agent VARCHAR(255) NOT NULL,"
-			"  date DATETIME NOT NULL,"
-			"  status_code TINYINT UNSIGNED NOT NULL,"
-			"  reason VARCHAR(255) NOT NULL,"
-			"  completed CHAR(1) NOT NULL,"
-			"  call_id VARCHAR(255) NOT NULL,"
-
-			"  FOREIGN KEY (type_id)"
-			"    REFERENCES event_type(id)"
-			")";
-	}
-
-	return str;
-}
-
-inline string createEventTypesTable(DataBaseEventLogWriter::Backend backend) {
-	string str = "";
-
-	switch (backend) {
-		case DataBaseEventLogWriter::Backend::Mysql:
-			str += "INSERT INTO event_type (id, type)";
-			break;
-		case DataBaseEventLogWriter::Backend::Sqlite3:
-			str += "INSERT OR IGNORE INTO event_type (id, type)";
-			break;
-		case DataBaseEventLogWriter::Backend::Postgresql:
-			str += "INSERT INTO event_type (id, type)";
-			break;
-	}
-
-	if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
-		str +=
-			"VALUES"
-			"(0, 'Registration'),"
-			"(1, 'Call'),"
-			"(2, 'Message'),"
-			"(3, 'Auth'),"
-			"(4, 'QualityStatistics')";
-	} else {
-		str +=
-			"VALUES"
-			"(0, \"Registration\"),"
-			"(1, \"Call\"),"
-			"(2, \"Message\"),"
-			"(3, \"Auth\"),"
-			"(4, \"QualityStatistics\")";
-	}
-
-	if (backend == DataBaseEventLogWriter::Backend::Mysql) {
-		str += "ON DUPLICATE KEY UPDATE type = VALUES(type)";
-	} else if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
-		str += "ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type";
-	}
-
-	return str;
-}
-
-inline string createRegistrationTypesTable(DataBaseEventLogWriter::Backend backend) {
-	string str = "";
-
-	switch (backend) {
-		case DataBaseEventLogWriter::Backend::Mysql:
-			str += "INSERT INTO registration_type (id, type)";
-			break;
-		case DataBaseEventLogWriter::Backend::Sqlite3:
-			str += "INSERT OR IGNORE INTO registration_type (id, type)";
-			break;
-		case DataBaseEventLogWriter::Backend::Postgresql:
-			str += "INSERT INTO registration_type (id, type)";
-			break;
-	}
-
-	if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
-		str +=
-			"VALUES"
-			"(0, 'Register'),"
-			"(1, 'Unregister'),"
-			"(2, 'Expired')";
-	} else {
-		str +=
-			"VALUES"
-			"(0, \"Register\"),"
-			"(1, \"Unregister\"),"
-			"(2, \"Expired\")";
-	}
-
-	if (backend == DataBaseEventLogWriter::Backend::Mysql) {
-		str += "ON DUPLICATE KEY UPDATE type = VALUES(type)";
-	} else if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
-		str += "ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type";
-	}
-
-	return str;
-}
-
-inline string createMessageTypesTable(DataBaseEventLogWriter::Backend backend) {
-	string str = "";
-
-	switch (backend) {
-		case DataBaseEventLogWriter::Backend::Mysql:
-			str += "INSERT INTO message_type (id, type)";
-			break;
-		case DataBaseEventLogWriter::Backend::Sqlite3:
-			str += "INSERT OR IGNORE INTO message_type (id, type)";
-			break;
-		case DataBaseEventLogWriter::Backend::Postgresql:
-			str += "INSERT INTO message_type (id, type)";
-			break;
-	}
-
-	if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
-		str +=
-			"VALUES"
-			"(0, 'Received'),"
-			"(1, 'Delivered')";
-	} else {
-		str +=
-			"VALUES"
-			"(0, \"Received\"),"
-			"(1, \"Delivered\")";
-	}
-
-	if (backend == DataBaseEventLogWriter::Backend::Mysql) {
-		str += "ON DUPLICATE KEY UPDATE type = VALUES(type)";
-	} else if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
-		str += "ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type";
-	}
-
-	return str;
+static inline string boolToSqlString(bool value) {
+	return value ? "Y" : "N";
 }
 
 DataBaseEventLogWriter::DataBaseEventLogWriter(
-	const std::string &backendString, const std::string &connectionString,
-	int maxQueueSize, int nbThreadsMax) {
+	const std::string &backendString,
+	const std::string &connectionString,
+	int maxQueueSize,
+	int nbThreadsMax
+) {
 	mConnectionPool = nullptr;
 	mThreadPool = nullptr;
 	mIsReady = false;
@@ -728,7 +601,7 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(
 			return;
 		}
 
-		mConnectionPool = new connection_pool(nbThreadsMax);
+		mConnectionPool = new soci::connection_pool(nbThreadsMax);
 		mThreadPool = new ThreadPool(nbThreadsMax, maxQueueSize);
 
 		for (int i = 0; i < nbThreadsMax; i++) {
@@ -736,27 +609,31 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(
 		}
 
 		// Init tables.
-		Backend backend = backendString == "mysql" ? Backend::Mysql : (backendString == "sqlite3" ? Backend::Sqlite3 : Backend::Postgresql);
-		initTables(backend);
+		Backend backend(getBackendFromString(backendString));
+		{
+			soci::session session(*mConnectionPool);
+			DB_TRANSACTION(&session) {
+				initTables(&session, backend);
+				tr.commit();
+			};
+		}
 
 		// Build insert requests.
-		string lastIdFun =
-			(backend == Backend::Mysql) ? SQL_MYSQL_LAST_ID_FUN : (backend == Backend::Sqlite3 ? SQL_SQLITE3_LAST_ID_FUN : SQL_POSTGRESQL_LAST_ID_FUN);
+		string lastIdFunction(getLastIdFunction(backend));
+		mInsertReq[SqlRegistrationEventLogId] =
+			"INSERT INTO event_registration_log VALUES (" + lastIdFunction + ", :typeId, :contacts)";
 
-		mInsertReq[SQL_REGISTRATION_EVENT_LOG_ID] =
-			"INSERT INTO event_registration_log VALUES (" + lastIdFun + ", :typeId, :contacts)";
+		mInsertReq[SqlCallEventLogId] =
+			"INSERT INTO event_call_log VALUES (" + lastIdFunction + ", :cancelled)";
 
-		mInsertReq[SQL_CALL_EVENT_LOG_ID] =
-			"INSERT INTO event_call_log VALUES (" + lastIdFun + ", :cancelled)";
+		mInsertReq[SqlMessageEventLogId] =
+			"INSERT INTO event_message_log VALUES (" + lastIdFunction + ", :typeId, :uri)";
 
-		mInsertReq[SQL_MESSAGE_EVENT_LOG_ID] =
-			"INSERT INTO event_message_log VALUES (" + lastIdFun + ", :typeId, :uri)";
+		mInsertReq[SqlAuthEventLogId] =
+			"INSERT INTO event_auth_log VALUES (" +	lastIdFunction + ", :method, :origin, :userExists)";
 
-		mInsertReq[SQL_AUTH_EVENT_LOG_ID] =
-			"INSERT INTO event_auth_log VALUES (" +	lastIdFun + ", :method, :origin, :userExists)";
-
-		mInsertReq[SQL_CALL_QUALITY_EVENT_LOG_ID] =
-			"INSERT INTO event_call_quality_log VALUES (" + lastIdFun + ", :report)";
+		mInsertReq[SqlCallQualityEventLogId] =
+			"INSERT INTO event_call_quality_log VALUES (" + lastIdFunction + ", :report)";
 
 		mIsReady = true;
 	} catch (exception const &e) {
@@ -773,197 +650,151 @@ bool DataBaseEventLogWriter::DataBaseEventLogWriter::isReady() const {
 	return mIsReady;
 }
 
-void DataBaseEventLogWriter::initTables(Backend backend) {
-	// Get a connection from pool.
-	// It's free at end of the function.
-	session sql(*mConnectionPool);
+void DataBaseEventLogWriter::initTables(soci::session *session, Backend backend) {
+	const string tableOptions(backend == Backend::Mysql ? "ENGINE=INNODB DEFAULT CHARSET=utf8" : "");
+	const string smallUnsignedInt(backend == Backend::Postgresql ? "SMALLINT" : "TINYINT UNSIGNED");
+	const string bigUnsignedInt(backend == Backend::Postgresql ? "BIGINT" : "BIGINT UNSIGNED");
+	const string timestamp(backend == Backend::Postgresql ? "TIMESTAMP" : "DATETIME");
 
 	// Create types (event, registration, message).
-	if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
-		sql <<
-			"CREATE TABLE IF NOT EXISTS event_type ("
-			"  id SMALLINT PRIMARY KEY,"
-			"  type VARCHAR(255) NOT NULL UNIQUE"
-			")";
+	*session <<
+		"CREATE TABLE IF NOT EXISTS event_type ("
+		"  id " + smallUnsignedInt + " PRIMARY KEY,"
+		"  type VARCHAR(255) NOT NULL UNIQUE"
+		")" + tableOptions;
 
-		sql <<
-			"CREATE TABLE IF NOT EXISTS registration_type ("
-			"  id SMALLINT PRIMARY KEY,"
-			"  type VARCHAR(255) NOT NULL UNIQUE"
-			")";
+	*session <<
+		"CREATE TABLE IF NOT EXISTS registration_type ("
+		"  id " + smallUnsignedInt + " PRIMARY KEY,"
+		"  type VARCHAR(255) NOT NULL UNIQUE"
+		")" + tableOptions;
 
-		sql <<
-			"CREATE TABLE IF NOT EXISTS message_type ("
-			"  id SMALLINT PRIMARY KEY,"
-			"  type VARCHAR(255) NOT NULL UNIQUE"
-			")";
-	} else {
-		sql <<
-			"CREATE TABLE IF NOT EXISTS event_type ("
-			"  id TINYINT UNSIGNED PRIMARY KEY,"
-			"  type VARCHAR(255) NOT NULL UNIQUE"
-			")";
-
-		sql <<
-			"CREATE TABLE IF NOT EXISTS registration_type ("
-			"  id TINYINT UNSIGNED PRIMARY KEY,"
-			"  type VARCHAR(255) NOT NULL UNIQUE"
-			")";
-
-		sql <<
-			"CREATE TABLE IF NOT EXISTS message_type ("
-			"  id TINYINT UNSIGNED PRIMARY KEY,"
-			"  type VARCHAR(255) NOT NULL UNIQUE"
-			")";
-	}
+	*session <<
+		"CREATE TABLE IF NOT EXISTS message_type ("
+		"  id " + smallUnsignedInt + " PRIMARY KEY,"
+		"  type VARCHAR(255) NOT NULL UNIQUE"
+		")" + tableOptions;
 
 	// Main events table.
-	sql << createEventsTable(backend);
+	*session <<
+		"CREATE TABLE IF NOT EXISTS event_log ( id " + string(getPrimaryKeyIncrementType(backend)) + ", "
+		"  type_id " + smallUnsignedInt + " NOT NULL,"
+		"  sip_from VARCHAR(255) NOT NULL,"
+		"  sip_to VARCHAR(255) NOT NULL,"
+		"  user_agent VARCHAR(255) NOT NULL,"
+		"  date " + timestamp + " NOT NULL,"
+		"  status_code " + smallUnsignedInt + " NOT NULL,"
+		"  reason VARCHAR(255) NOT NULL,"
+		"  completed CHAR(1) NOT NULL,"
+		"  call_id VARCHAR(255) NOT NULL,"
+
+		"  FOREIGN KEY (type_id)"
+		"    REFERENCES event_type(id)"
+		")" + tableOptions;
 
 	// Specialized events table.
-	if (backend == DataBaseEventLogWriter::Backend::Postgresql) {
-		sql <<
-			"CREATE TABLE IF NOT EXISTS event_registration_log ("
-			"  id BIGINT PRIMARY KEY,"
-			"  type_id SMALLINT NOT NULL,"
-			"  contacts VARCHAR(255) NOT NULL,"
+	*session <<
+		"CREATE TABLE IF NOT EXISTS event_registration_log ("
+		"  id " + bigUnsignedInt + " PRIMARY KEY,"
+		"  type_id " + smallUnsignedInt + " NOT NULL,"
+		"  contacts VARCHAR(255) NOT NULL,"
 
-			"  FOREIGN KEY (id)"
-			"    REFERENCES event_log(id)"
-			"    ON DELETE CASCADE,"
+		"  FOREIGN KEY (id)"
+		"    REFERENCES event_log(id)"
+		"    ON DELETE CASCADE,"
 
-			"  FOREIGN KEY (type_id)"
-			"    REFERENCES registration_type(id)"
-			")";
+		"  FOREIGN KEY (type_id)"
+		"    REFERENCES registration_type(id)"
+		")" + tableOptions;
 
-		sql <<
-			"CREATE TABLE IF NOT EXISTS event_call_log ("
-			"  id BIGINT PRIMARY KEY,"
-			"  cancelled CHAR(1) NOT NULL,"
+	*session <<
+		"CREATE TABLE IF NOT EXISTS event_call_log ("
+		"  id " + bigUnsignedInt + " PRIMARY KEY,"
+		"  cancelled CHAR(1) NOT NULL,"
 
-			"  FOREIGN KEY (id)"
-			"    REFERENCES event_log(id)"
-			"    ON DELETE CASCADE"
-			")";
+		"  FOREIGN KEY (id)"
+		"    REFERENCES event_log(id)"
+		"    ON DELETE CASCADE"
+		")" + tableOptions;
 
-		sql <<
-			"CREATE TABLE IF NOT EXISTS event_message_log ("
-			"  id BIGINT PRIMARY KEY,"
-			"  type_id SMALLINT NOT NULL,"
-			"  uri VARCHAR(255) NOT NULL,"
+	*session <<
+		"CREATE TABLE IF NOT EXISTS event_message_log ("
+		"  id " + bigUnsignedInt + " PRIMARY KEY,"
+		"  type_id " + smallUnsignedInt + " NOT NULL,"
+		"  uri VARCHAR(255) NOT NULL,"
 
-			"  FOREIGN KEY (id)"
-			"    REFERENCES event_log(id)"
-			"    ON DELETE CASCADE,"
+		"  FOREIGN KEY (id)"
+		"    REFERENCES event_log(id)"
+		"    ON DELETE CASCADE,"
 
-			"  FOREIGN KEY (type_id)"
-			"    REFERENCES message_type(id)"
-			"    ON DELETE CASCADE"
-			")";
+		"  FOREIGN KEY (type_id)"
+		"    REFERENCES message_type(id)"
+		"    ON DELETE CASCADE"
+		")" + tableOptions;
 
-		sql <<
-			"CREATE TABLE IF NOT EXISTS event_auth_log ("
-			"  id BIGINT PRIMARY KEY,"
-			"  method VARCHAR(255) NOT NULL,"
-			"  origin VARCHAR(255) NOT NULL,"
-			"  user_exists CHAR(1) NOT NULL,"
+	*session <<
+		"CREATE TABLE IF NOT EXISTS event_auth_log ("
+		"  id " + bigUnsignedInt + " PRIMARY KEY,"
+		"  method VARCHAR(255) NOT NULL,"
+		"  origin VARCHAR(255) NOT NULL,"
+		"  user_exists CHAR(1) NOT NULL,"
 
-			"  FOREIGN KEY (id)"
-			"    REFERENCES event_log(id)"
-			"    ON DELETE CASCADE"
-			")";
+		"  FOREIGN KEY (id)"
+		"    REFERENCES event_log(id)"
+		"    ON DELETE CASCADE"
+		")" + tableOptions;
 
-		sql <<
-			"CREATE TABLE IF NOT EXISTS event_call_quality_statistics_log ("
-			"  id BIGINT PRIMARY KEY,"
-			"  report TEXT NOT NULL,"
+	*session <<
+		"CREATE TABLE IF NOT EXISTS event_call_quality_statistics_log ("
+		"  id " + bigUnsignedInt + " PRIMARY KEY,"
+		"  report TEXT NOT NULL,"
 
-			"  FOREIGN KEY (id)"
-			"    REFERENCES event_log(id)"
-			"    ON DELETE CASCADE"
-			")";
-	} else {
-		sql <<
-			"CREATE TABLE IF NOT EXISTS event_registration_log ("
-			"  id BIGINT UNSIGNED PRIMARY KEY,"
-			"  type_id TINYINT UNSIGNED NOT NULL,"
-			"  contacts VARCHAR(255) NOT NULL,"
-
-			"  FOREIGN KEY (id)"
-			"    REFERENCES event_log(id)"
-			"    ON DELETE CASCADE,"
-
-			"  FOREIGN KEY (type_id)"
-			"    REFERENCES registration_type(id)"
-			")";
-
-		sql <<
-			"CREATE TABLE IF NOT EXISTS event_call_log ("
-			"  id BIGINT UNSIGNED PRIMARY KEY,"
-			"  cancelled CHAR(1) NOT NULL,"
-
-			"  FOREIGN KEY (id)"
-			"    REFERENCES event_log(id)"
-			"    ON DELETE CASCADE"
-			")";
-
-		sql <<
-			"CREATE TABLE IF NOT EXISTS event_message_log ("
-			"  id BIGINT UNSIGNED PRIMARY KEY,"
-			"  type_id TINYINT UNSIGNED NOT NULL,"
-			"  uri VARCHAR(255) NOT NULL,"
-
-			"  FOREIGN KEY (id)"
-			"    REFERENCES event_log(id)"
-			"    ON DELETE CASCADE,"
-
-			"  FOREIGN KEY (type_id)"
-			"    REFERENCES message_type(id)"
-			"    ON DELETE CASCADE"
-			")";
-
-		sql <<
-			"CREATE TABLE IF NOT EXISTS event_auth_log ("
-			"  id BIGINT UNSIGNED PRIMARY KEY,"
-			"  method VARCHAR(255) NOT NULL,"
-			"  origin VARCHAR(255) NOT NULL,"
-			"  user_exists CHAR(1) NOT NULL,"
-
-			"  FOREIGN KEY (id)"
-			"    REFERENCES event_log(id)"
-			"    ON DELETE CASCADE"
-			")";
-
-		sql <<
-			"CREATE TABLE IF NOT EXISTS event_call_quality_statistics_log ("
-			"  id BIGINT UNSIGNED PRIMARY KEY,"
-			"  report TEXT NOT NULL,"
-
-			"  FOREIGN KEY (id)"
-			"    REFERENCES event_log(id)"
-			"    ON DELETE CASCADE"
-			")";
-	}
+		"  FOREIGN KEY (id)"
+		"    REFERENCES event_log(id)"
+		"    ON DELETE CASCADE"
+		")" + tableOptions;
 
 	// Set types values if necessary.
-	sql << createEventTypesTable(backend);
-	sql << createRegistrationTypesTable(backend);
-	sql << createMessageTypesTable(backend);
+	const string insertPrefix(getInsertPrefix(backend));
+	const string onConflictType(
+		backend == Backend::Postgresql
+			? "ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type"
+			: (backend == Backend::Mysql ? "ON DUPLICATE KEY UPDATE type = VALUES(type)" : "")
+	);
+
+	*session << insertPrefix + " event_type (id, type)" +
+		"  VALUES"
+		"  (0, 'Registration'),"
+		"  (1, 'Call'),"
+		"  (2, 'Message'),"
+		"  (3, 'Auth'),"
+		"  (4, 'QualityStatistics')" + onConflictType;
+
+	*session << insertPrefix + " registration_type (id, type)" +
+		"  VALUES"
+		"  (0, 'Register'),"
+		"  (1, 'Unregister'),"
+		"  (2, 'Expired')" + onConflictType;
+
+	*session << insertPrefix + " message_type (id, type)" +
+		"  VALUES"
+		"  (0, 'Received'),"
+		"  (1, 'Delivered')" + onConflictType;
 }
 
-void DataBaseEventLogWriter::writeEventLog(const std::shared_ptr<EventLog> &evlog, int typeId, soci::session &sql) {
+void DataBaseEventLogWriter::writeEventLog(soci::session *session, const std::shared_ptr<EventLog> &evlog, int typeId) {
 	tm date;
 	string from(sipDataToString(evlog->mFrom));
 	string to(sipDataToString(evlog->mTo));
 	string ua(sipDataToString(evlog->mUA));
 	string completed(boolToSqlString(evlog->mCompleted));
 
-	sql << "INSERT INTO event_log "
+	*session << "INSERT INTO event_log "
 		"(type_id, sip_from, sip_to, user_agent, date, status_code, reason, completed, call_id)"
 		"VALUES (:typeId, :sipFrom, :sipTo, :userAgent, :date, :statusCode, :reason, :completed, :callId)",
-		use(typeId), use(from), use(to),
-		use(ua), use(*gmtime_r(&evlog->mDate, &date)), use(evlog->mStatusCode),
-		use(evlog->mReason), use(completed), use(evlog->mCallId);
+		soci::use(typeId), soci::use(from), soci::use(to),
+		soci::use(ua), soci::use(*gmtime_r(&evlog->mDate, &date)), soci::use(evlog->mStatusCode),
+		soci::use(evlog->mReason), soci::use(completed), soci::use(evlog->mCallId);
 }
 
 // IMPORTANT
@@ -977,62 +808,41 @@ void DataBaseEventLogWriter::writeEventLog(const std::shared_ptr<EventLog> &evlo
 // So the choice here is to use the `LAST_INSERT_ID()` and `last_insert_rowid()`
 // from MySQL and SQlite3 directly in SQL.
 
-void DataBaseEventLogWriter::writeRegistrationLog(const std::shared_ptr<RegistrationLog> &evlog) {
-	session sql(*mConnectionPool);
-	transaction tr(sql);
+void DataBaseEventLogWriter::writeRegistrationLog(soci::session *session, const std::shared_ptr<RegistrationLog> &evlog) {
 	string contact(sipDataToString(evlog->mContacts));
 
-	writeEventLog(evlog, SQL_REGISTRATION_EVENT_LOG_ID, sql);
-	sql << mInsertReq[SQL_REGISTRATION_EVENT_LOG_ID],
-		use(static_cast<int>(evlog->mType)), use(contact);
-
-	tr.commit();
+	writeEventLog(session, evlog, SqlRegistrationEventLogId);
+	*session << mInsertReq[SqlRegistrationEventLogId], soci::use(int(evlog->mType)), soci::use(contact);
 }
 
-void DataBaseEventLogWriter::writeCallLog(const std::shared_ptr<CallLog> &evlog) {
-	session sql(*mConnectionPool);
-	transaction tr(sql);
+void DataBaseEventLogWriter::writeCallLog(soci::session *session, const std::shared_ptr<CallLog> &evlog) {
 	string cancelled(boolToSqlString(evlog->mCancelled));
 
-	writeEventLog(evlog, SQL_CALL_EVENT_LOG_ID, sql);
-	sql << mInsertReq[SQL_CALL_EVENT_LOG_ID], use(cancelled);
-
-	tr.commit();
+	writeEventLog(session, evlog, SqlCallEventLogId);
+	*session << mInsertReq[SqlCallEventLogId], soci::use(cancelled);
 }
 
-void DataBaseEventLogWriter::writeMessageLog(const std::shared_ptr<MessageLog> &evlog) {
-	session sql(*mConnectionPool);
-	transaction tr(sql);
+void DataBaseEventLogWriter::writeMessageLog(soci::session *session, const std::shared_ptr<MessageLog> &evlog) {
 	string uri(sipDataToString(evlog->mUri));
 
-	writeEventLog(evlog, SQL_MESSAGE_EVENT_LOG_ID, sql);
-	sql << mInsertReq[SQL_MESSAGE_EVENT_LOG_ID],
-		use(static_cast<int>(evlog->mReportType)), use(uri);
-
-	tr.commit();
+	writeEventLog(session, evlog, SqlMessageEventLogId);
+	*session << mInsertReq[SqlMessageEventLogId], soci::use(int(evlog->mReportType)), soci::use(uri);
 }
 
-void DataBaseEventLogWriter::writeAuthLog(const std::shared_ptr<AuthLog> &evlog) {
-	session sql(*mConnectionPool);
-	transaction tr(sql);
+void DataBaseEventLogWriter::writeAuthLog(soci::session *session, const std::shared_ptr<AuthLog> &evlog) {
 	string origin(sipDataToString(evlog->mOrigin));
 	string userExists(boolToSqlString(evlog->mUserExists));
 
-	writeEventLog(evlog, SQL_AUTH_EVENT_LOG_ID, sql);
-	sql << mInsertReq[SQL_AUTH_EVENT_LOG_ID], use(evlog->mMethod), use(origin), use(userExists);
-
-	tr.commit();
+	writeEventLog(session, evlog, SqlAuthEventLogId);
+	*session << mInsertReq[SqlAuthEventLogId], soci::use(evlog->mMethod), soci::use(origin), soci::use(userExists);
 }
 
-void DataBaseEventLogWriter::writeCallQualityStatisticsLog(const std::shared_ptr<CallQualityStatisticsLog> &evlog) {
-	session sql(*mConnectionPool);
-	transaction tr(sql);
-
-	writeEventLog(evlog, SQL_CALL_QUALITY_EVENT_LOG_ID, sql);
-	sql << mInsertReq[SQL_CALL_QUALITY_EVENT_LOG_ID],
-		use(evlog->mReport);
-
-	tr.commit();
+void DataBaseEventLogWriter::writeCallQualityStatisticsLog(
+	soci::session *session,
+	const std::shared_ptr<CallQualityStatisticsLog> &evlog
+) {
+	writeEventLog(session, evlog, SqlCallQualityEventLogId);
+	*session << mInsertReq[SqlCallQualityEventLogId], soci::use(evlog->mReport);
 }
 
 void DataBaseEventLogWriter::writeEventFromQueue() {
@@ -1044,22 +854,22 @@ void DataBaseEventLogWriter::writeEventFromQueue() {
 	mMutex.unlock();
 
 	EventLog *ev = evlog.get();
-
-	try {
+	soci::session session(*mConnectionPool);
+	DB_TRANSACTION(&session) {
+		// TODO: Avoid usage of the digusting typeid helper. Use a visitor pattern instead.
 		if (typeid(*ev) == typeid(RegistrationLog)) {
-			writeRegistrationLog(static_pointer_cast<RegistrationLog>(evlog));
+			writeRegistrationLog(&session, static_pointer_cast<RegistrationLog>(evlog));
 		} else if (typeid(*ev) == typeid(CallLog)) {
-			writeCallLog(static_pointer_cast<CallLog>(evlog));
+			writeCallLog(&session, static_pointer_cast<CallLog>(evlog));
 		} else if (typeid(*ev) == typeid(MessageLog)) {
-			writeMessageLog(static_pointer_cast<MessageLog>(evlog));
+			writeMessageLog(&session, static_pointer_cast<MessageLog>(evlog));
 		} else if (typeid(*ev) == typeid(AuthLog)) {
-			writeAuthLog(static_pointer_cast<AuthLog>(evlog));
+			writeAuthLog(&session, static_pointer_cast<AuthLog>(evlog));
 		} else if (typeid(*ev) == typeid(CallQualityStatisticsLog)) {
-			writeCallQualityStatisticsLog(static_pointer_cast<CallQualityStatisticsLog>(evlog));
+			writeCallQualityStatisticsLog(&session, static_pointer_cast<CallQualityStatisticsLog>(evlog));
 		}
-	} catch (exception const &e) {
-		LOGE("DataBaseEventLogWriter: event write error: %s", e.what());
-	}
+		tr.commit();
+	};
 }
 
 void DataBaseEventLogWriter::write(const std::shared_ptr<EventLog> &evlog) {
