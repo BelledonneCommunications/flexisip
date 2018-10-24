@@ -194,8 +194,7 @@ private:
 
 class DataBaseEventLogWriter: public EventLogWriter {
 public:
-
-	enum Backend {
+	enum class Backend {
 		Mysql = 0,
 		Sqlite3 = 1,
 		Postgresql = 2
@@ -211,16 +210,15 @@ public:
 	bool isReady() const;
 
 private:
+	void initTables(soci::session *session, Backend backend);
 
-	void initTables(Backend backend);
+	static void writeEventLog(soci::session *session, const std::shared_ptr<EventLog> &evlog, int typeId);
 
-	static void writeEventLog(const std::shared_ptr<EventLog> &evlog, int typeId, soci::session &sql);
-
-	void writeRegistrationLog(const std::shared_ptr<RegistrationLog> &evlog);
-	void writeCallLog(const std::shared_ptr<CallLog> &evlog);
-	void writeMessageLog(const std::shared_ptr<MessageLog> &evlog);
-	void writeAuthLog(const std::shared_ptr<AuthLog> &evlog);
-	void writeCallQualityStatisticsLog(const std::shared_ptr<CallQualityStatisticsLog> &evlog);
+	void writeRegistrationLog(soci::session *session, const std::shared_ptr<RegistrationLog> &evlog);
+	void writeCallLog(soci::session *session, const std::shared_ptr<CallLog> &evlog);
+	void writeMessageLog(soci::session *session, const std::shared_ptr<MessageLog> &evlog);
+	void writeAuthLog(soci::session *session, const std::shared_ptr<AuthLog> &evlog);
+	void writeCallQualityStatisticsLog(soci::session *session, const std::shared_ptr<CallQualityStatisticsLog> &evlog);
 
 	void writeEventFromQueue();
 
