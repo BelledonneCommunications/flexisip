@@ -529,7 +529,7 @@ static inline DataBaseEventLogWriter::Backend getBackendFromString (const string
 	LOGF("Unable to get backend from string.");
 
 	// Unreachable.
-	return Backend::Mysql;
+	return DataBaseEventLogWriter::Backend::Mysql;
 }
 
 static inline string sipDataToString(const url_t *url) {
