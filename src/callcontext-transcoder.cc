@@ -25,6 +25,10 @@
 
 using namespace std;
 
+static void rtpSessionResync (RtpSession *session, void *, void *, void *) {
+	rtp_session_resync(session);
+}
+
 CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCallCtx(ctx) {
 	MSFactory *factory = ctx->getFactory();
 	mSession = rtp_session_new(RTP_SESSION_SENDRECV);
@@ -56,11 +60,11 @@ CallSide::CallSide(TranscodedCall *ctx, const CallContextParams &params) : mCall
 	LOGD("Jitter buffer nominal size: %i", params.mJbNomSize);
 	rtp_session_set_symmetric_rtp(mSession, TRUE);
 	rtp_session_set_data(mSession, this);
-	rtp_session_signal_connect(mSession, "payload_type_changed", (RtpCallback)&CallSide::payloadTypeChanged,
+	rtp_session_signal_connect(mSession, "payload_type_changed", &CallSide::payloadTypeChanged,
 							   reinterpret_cast<void *>(ctx));
-	rtp_session_signal_connect(mSession, "timestamp_jump", (RtpCallback)rtp_session_resync, NULL);
-	rtp_session_signal_connect(mSession, "ssrc_changed", (RtpCallback)rtp_session_resync, NULL);
-	rtp_session_signal_connect(mSession, "telephone-event", (RtpCallback)&CallSide::onTelephoneEvent,
+	rtp_session_signal_connect(mSession, "timestamp_jump", rtpSessionResync, nullptr);
+	rtp_session_signal_connect(mSession, "ssrc_changed", rtpSessionResync, nullptr);
+	rtp_session_signal_connect(mSession, "telephone-event", &CallSide::onTelephoneEvent,
 							   reinterpret_cast<void *>(ctx));
 	mRtpEvq = NULL;
 	mLastCheck = 0;
@@ -274,8 +278,8 @@ void CallSide::disconnect(CallSide *recvSide) {
 	ms_connection_helper_unlink(&h, mSender, 0, -1);
 }
 
-void CallSide::payloadTypeChanged(RtpSession *session, unsigned long data) {
-	TranscodedCall *ctx = reinterpret_cast<TranscodedCall *>(data);
+void CallSide::payloadTypeChanged(RtpSession *session, void *data, void *, void *) {
+	TranscodedCall *ctx = static_cast<TranscodedCall *>(data);
 	CallSide *side = static_cast<CallSide *>(rtp_session_get_data(session));
 	int num = rtp_session_get_recv_payload_type(session);
 	RtpProfile *prof = rtp_session_get_profile(session);
@@ -287,17 +291,22 @@ void CallSide::payloadTypeChanged(RtpSession *session, unsigned long data) {
 	}
 }
 
-static int dtmf_tab[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#', 'A', 'B', 'C', 'D', '!'};
-void CallSide::onTelephoneEvent(RtpSession *s, int dtmf_index, void *data) {
-	TranscodedCall *ctx = reinterpret_cast<TranscodedCall *>(data);
+void CallSide::onTelephoneEvent(RtpSession *s, void *dtmfIndex, void *userData, void *) {
+	static constexpr int dtmfs[] = {
+		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#', 'A', 'B', 'C', 'D', '!'
+	};
+	TranscodedCall *ctx = static_cast<TranscodedCall *>(userData);
 	CallSide *side = static_cast<CallSide *>(rtp_session_get_data(s));
-	if (dtmf_index > 16) {
-		ms_warning("Unsupported telephone-event type %d.", dtmf_index);
+
+	const uintptr_t i = reinterpret_cast<intptr_t>(dtmfIndex);
+	if (i > sizeof dtmfs / sizeof dtmfs[0]) {
+		SLOGE << "Unsupported telephone-event type: " << i;
 		return;
 	}
 
-	LOGD("Receiving telephone event %c", dtmf_tab[dtmf_index]);
-	ctx->playTone(side, dtmf_tab[dtmf_index]);
+	const int dtmf = dtmfs[i];
+	SLOGD << "Receiving telephone event: " << dtmf;
+	ctx->playTone(side, dtmf);
 }
 
 void CallSide::playTone(char tone_name) {
@@ -469,4 +478,3 @@ TranscodedCall::~TranscodedCall() {
 		mInitialOffer.clear();
 	}
 }
-
