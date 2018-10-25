@@ -403,7 +403,7 @@ int Transcoder::processInvite(TranscodedCall *c, shared_ptr<RequestSipEvent> &ev
 	}
 	if (ret == 0) {
 		// be in the record-route
-		addRecordRouteIncoming(ms->getHome(), getAgent(), ev);
+		addRecordRouteIncoming(getAgent(), ev);
 		c->storeNewInvite(ms->getMsg());
 	} else {
 		ev->reply(415, "Unsupported codecs", TAG_END());

@@ -55,8 +55,8 @@ class CallSide {
 	void doBgTasks();
 
   private:
-	static void payloadTypeChanged(RtpSession *s, unsigned long data);
-	static void onTelephoneEvent(RtpSession *s, int dtmf, void *user_data);
+	static void payloadTypeChanged(RtpSession *s, void *data, void *, void *);
+	static void onTelephoneEvent(RtpSession *s, void *dtmfIndex, void *userData, void *);
 	TranscodedCall *mCallCtx;
 	RtpSession *mSession;
 	RtpProfile *mProfile;
