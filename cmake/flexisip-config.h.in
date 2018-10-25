@@ -39,3 +39,5 @@
 
 /* Default log directory */
 #define DEFAULT_LOG_DIR "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/log/flexisip"
+
+#define BELR_GRAMMARS_DIR "${BELR_GRAMMARS_DIR}"
