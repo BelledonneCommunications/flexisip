@@ -89,7 +89,8 @@ void AuthDbBackend::declareConfig(GenericStruct *mc) {
 #endif
 }
 
-//
+//c++ style wrapper around sofia-sip 'url_unescape'
+//Avoids creating a temporary buffer for the unescaped string
 string AuthDbBackend::urlUnescape(const std::string &str) {
 	string unescapedStr;
 	char *unescaped = new char[str.size() + 1];
