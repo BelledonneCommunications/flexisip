@@ -18,50 +18,55 @@
 
 #define SU_MSG_ARG_T struct auth_splugin_t
 
+#ifdef HAVE_CONFIG_H
+#include "flexisip-config.h"
+#endif
+
 #include "authdb.hh"
+#include "belr/grammarbuilder.h"
+#include "belr/abnf.h"
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
 
+using namespace::belr;
 using namespace std;
 
-void FileAuthDb::parsePasswd(vector<string> &pass, string user, string domain, vector<passwd_algo_t> &password){
-	// parse password and calcul passmd5, passsha256 if there is clrtxt pass.
-	for (const auto &passwd : pass) {
-		if (passwd.substr(0, 7) == "clrtxt:") {
+void FileAuthDb::parsePasswd(const vector<passwd_algo_t> &srcPasswords, const string &user, const string &domain, vector<passwd_algo_t> &destPasswords) {
+	// Creates pass-md5, pass-sha256 if there is clrtxt pass
+	for (const auto &passwd : srcPasswords) {
+		if (passwd.algo == "clrtxt") {
 			passwd_algo_t clrtxt, md5, sha256;
-
-			clrtxt.pass = passwd.substr(7);
+			clrtxt.pass = passwd.pass;
 			clrtxt.algo = "CLRTXT";
-			password.push_back(clrtxt);
+			destPasswords.push_back(clrtxt);
 
 			string input;
 			input = user+":"+domain+":"+clrtxt.pass;
 
 			md5.pass = syncMd5(input.c_str(), 16);
 			md5.algo = "MD5";
-			password.push_back(md5);
+			destPasswords.push_back(md5);
 
 			sha256.pass = syncSha256(input.c_str(), 32);
 			sha256.algo = "SHA-256";
-			password.push_back(sha256);
-
+			destPasswords.push_back(sha256);
 			return;
 		}
 	}
-
-	for (const auto &passwd : pass) {
-		if (passwd.substr(0, 4) == "md5:") {
+	for (const auto &passwd : srcPasswords) {
+		if (passwd.algo == "md5") {
 			passwd_algo_t md5;
-			md5.pass = passwd.substr(4);
+			md5.pass = passwd.pass;
 			md5.algo = "MD5";
-			password.push_back(md5);
+			destPasswords.push_back(md5);
 		}
-		if (passwd.substr(0, 7) == "sha256:") {
+		if (passwd.algo == "sha256") {
 			passwd_algo_t sha256;
-			sha256.pass = passwd.substr(7);
+			sha256.pass = passwd.pass;
 			sha256.algo = "SHA-256";
-			password.push_back(sha256);
+			destPasswords.push_back(sha256);
 		}
 	}
 }
@@ -88,7 +93,7 @@ void FileAuthDb::getUserWithPhoneFromBackend(const std::string &phone, const std
 }
 
 void FileAuthDb::getPasswordFromBackend(const std::string &id, const std::string &domain,
-										const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
+					const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
 	AuthDbResult res = AuthDbResult::PASSWORD_NOT_FOUND;
 	time_t now = getCurrentTime();
 
@@ -106,147 +111,112 @@ void FileAuthDb::getPasswordFromBackend(const std::string &id, const std::string
 	if (listener) listener->onResult(res, passwd);
 }
 
-/*
- * The following ABNF grammar should describe the syntax of the password file:
-token =  1*(alphanum / "-" / "." / "!" / "%" / "*" / "_" / "+" / "`" / "'" / "~" )
-user-id = token
-phone = token
-user = token
-domain = token
-algo = "clrtxt" / "md5" / "sha256"
-identity = user "@" domain
-auth-line = identity 1*WSP 1*(algo ":" token) 1*WSP ";" 1*WSP [user-id] 1*WSP [phone]
-ctext    =  %x21-27 / %x2A-5B / %x5D-7E / UTF8-NONASCII
-                  / LWS
-comment = "#" *ctext LF
-void = *WSP LF
-password-file = "version:0" LF *(comment | void | auth-line)
+shared_ptr<belr::Parser<shared_ptr<FileAuthDbParserElem>>> FileAuthDb::setupParser() {
+	ABNFGrammarBuilder builder;
+	string grammarFile = string(BELR_GRAMMARS_DIR) + "/authdb-file-grammar.txt";
+	shared_ptr<Grammar> grammar = builder.createFromAbnfFile(grammarFile, make_shared<CoreRules>());
 
+	if (!grammar) {
+		LOGF("Could not build grammar for authdb-file from '%s'", grammarFile.c_str());
+		return nullptr;
+	}
+
+	Parser<shared_ptr<FileAuthDbParserElem>> *parser = new Parser<shared_ptr<FileAuthDbParserElem>>(grammar);
+
+	std::function<shared_ptr<FileAuthDbParserRoot>()> rootHandlerFunc = std::bind(&make_shared<FileAuthDbParserRoot>);
+	parser->setHandler("password-file", rootHandlerFunc)
+		->setCollector("version-number", make_sfn(&FileAuthDbParserRoot::setVersion))
+		->setCollector("auth-line", make_sfn(&FileAuthDbParserRoot::addAuthLine));
+
+	std::function<shared_ptr<FileAuthDbParserUserLine>()> authLineHandlerFunc = std::bind(&make_shared<FileAuthDbParserUserLine>);
+	parser->setHandler("auth-line", authLineHandlerFunc)
+		->setCollector("user", make_sfn(&FileAuthDbParserUserLine::setUser))
+		->setCollector("domain", make_sfn(&FileAuthDbParserUserLine::setDomain))
+		->setCollector("pass-algo", make_sfn(&FileAuthDbParserUserLine::addPassword))
+		->setCollector("user-id", make_sfn(&FileAuthDbParserUserLine::setUserId))
+		->setCollector("phone", make_sfn(&FileAuthDbParserUserLine::setPhone));
+	std::function<shared_ptr<FileAuthDbParserPassword>()> passwordHandlerFunc = std::bind(&make_shared<FileAuthDbParserPassword>);
+	parser->setHandler("pass-algo", passwordHandlerFunc)
+		->setCollector("algo", make_sfn(&FileAuthDbParserPassword::setAlgo))
+		->setCollector("password", make_sfn(&FileAuthDbParserPassword::setPassword));
+	return shared_ptr<Parser<shared_ptr<FileAuthDbParserElem>>>(parser);
+}
+
+/* 
+   File parsing using belr with custom grammar for authdb file
 */
-
 void FileAuthDb::sync() {
 	LOGD("Syncing password file");
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
-	bool firstTime = false;
-	
-	if (mLastSync == 0) firstTime = true;
-	
+
 	mLastSync = getCurrentTime();
 
-	ifstream file;
-
-	stringstream ss;
-	ss.exceptions(ifstream::failbit | ifstream::badbit);
-
-	string line;
-	string user;
-	string domain;
-	vector<passwd_algo_t> passwords;
-	string userid;
-	string phone;
-	vector<string> pass;
-	string version;
-	string passwd_tag;
-
-	if (mFileString.empty()){
+	if (mFileString.empty()) {
 		LOGF("'file' authentication backend was requested but no path specified in datasource.");
 		return;
 	}
 
+	auto parser = setupParser();
+	if (!parser) {
+		LOGF("Failed to create authdb file parser.");
+		return;
+	}
 	LOGD("Opening file %s", mFileString.c_str());
-	file.open(mFileString);
-	if (file.is_open()) {
-		while (file.good() && getline(file, line)) {
-			if (line.empty()) continue;
-			ss.clear();
-			ss.str(line);
-			version.clear();
-			getline(ss, version, ' ');
-			if (version.substr(0, 8) == "version:")
-				version = version.substr(8);
-			else
-				LOGF("%s file must start with version:X.", mFileString.c_str());
-			break;
+
+	std::ifstream ifs(mFileString);
+	if (!ifs.is_open()) {
+		LOGF("Failed to open authdb file %s", mFileString.c_str());
+		return;
+	}
+	stringstream sstr;
+	sstr << ifs.rdbuf();
+	string fileContent = sstr.str();
+
+	if (sstr.bad() || sstr.fail()) {
+		LOGF("Failed to read from authdb file '%s'", mFileString.c_str());
+		return;
+	}
+
+	size_t parsedSize = 0;
+	shared_ptr<FileAuthDbParserElem> ret = parser->parseInput("password-file", fileContent, &parsedSize);
+
+	if (parsedSize < fileContent.size()) {
+		LOGF("Failed to parse authdb file. Parsing unexpectedly stopped at char: %d", (int)parsedSize);
+		return;
+	}
+	shared_ptr<FileAuthDbParserRoot> pwdFile = dynamic_pointer_cast<FileAuthDbParserRoot>(ret);
+
+	//Only version == 1 is supported
+	if (pwdFile->getVersion() != "1") {
+		LOGF("Version '%s' is not supported for file %s", pwdFile->getVersion().c_str(), mFileString.c_str());
+		return;
+	}
+
+	auto authLines = pwdFile->getAuthLines();
+	for (auto it = authLines.begin(); it != authLines.end(); ++it) {
+		vector<passwd_algo_t> destPasswords;
+		shared_ptr<FileAuthDbParserUserLine> userLine = *it;
+
+		//Handle spaces in user name (encoded as %20 in authdb-file). See also 'createPasswordkey'
+		string unescapedUser = urlUnescape(userLine->getUser());
+
+		//user-id defaults to user name if unspecified
+		if (userLine->getUserId().empty()) {
+			userLine->setUserId(userLine->getUser());
 		}
-		if (version == "1") {
-			while (file.good() && getline(file, line)) {
-				if (line.empty()) continue;
-				ss.clear();
-				ss.str(line);
-				user.clear();
-				domain.clear();
-				pass.clear();
-				passwords.clear();
-				userid.clear();
-				phone.clear();
-				try {
-					getline(ss, user, '@');
-					getline(ss, domain, ' ');
-					while (!ss.eof()) {
-						passwd_tag.clear();
-						getline(ss, passwd_tag, ' ');
-						if (passwd_tag != ";")
-							pass.push_back(passwd_tag);
-						else
-							break;
-					}
-					if (passwd_tag != ";") {
-						if (ss.eof()) {
-							LOGF("%s: unterminated password section at line '%s'. Missing ';'.", mFileString.c_str(), line.c_str());
-						} else {
-							passwd_tag.clear();
-							getline(ss, passwd_tag, ' ');
-							if((!ss.eof()) && (passwd_tag != ";"))
-								LOGF("%s: unterminated password section at line '%s'. Missing ';'.", mFileString.c_str(), line.c_str());
-						}
-					}
+		cacheUserWithPhone(userLine->getPhone(), userLine->getDomain(), userLine->getUser());
+		parsePasswd(userLine->getPasswords(), unescapedUser, userLine->getDomain(), destPasswords);
 
-					// if user with space, replace %20 by space
-					char *user_ref = new char[user.size() + 1];
-					memset(user_ref, '\0', user.size() + 1);
-					url_unescape(user_ref, user.c_str());
-
-					if (!ss.eof()) {
-						// TODO read userid with space
-						getline(ss, userid, ' ');
-						if (!ss.eof()) {
-							getline(ss, phone);
-						} else {
-							phone = "";
-						}
-					} else {
-						userid = user_ref;
-						phone = "";
-					}
-
-					cacheUserWithPhone(phone, domain, user);
-					parsePasswd(pass, string(user_ref), domain, passwords);
-
-					delete[] user_ref;
-
-					if (find(domains.begin(), domains.end(), domain) != domains.end()) {
-						string key(createPasswordKey(user, userid));
-						cachePassword(key, domain, passwords, mCacheExpire);
-					} else if (find(domains.begin(), domains.end(), "*") != domains.end()) {
-						string key(createPasswordKey(user, userid));
-						cachePassword(key, domain, passwords, mCacheExpire);
-					} else {
-						LOGW("Domain '%s' is not handled by Authentication module", domain.c_str());
-					}
-				} catch (const stringstream::failure &e) {
-					LOGW("Incorrect line format: %s (error: %s)", line.c_str(), e.what());
-				}
-			}
+		if (find(domains.begin(), domains.end(), userLine->getDomain()) != domains.end()) {
+			string key(createPasswordKey(userLine->getUser(), userLine->getUserId()));
+			cachePassword(key, userLine->getDomain(), destPasswords, mCacheExpire);
+		} else if (find(domains.begin(), domains.end(), "*") != domains.end()) {
+			string key(createPasswordKey(userLine->getUser(), userLine->getUserId()));
+			cachePassword(key, userLine->getDomain(), destPasswords, mCacheExpire);
 		} else {
-			LOGF("Version %s is not supported for file %s", version.c_str(), mFileString.c_str());
-		}
-	} else {
-		if (firstTime){
-			LOGF("Can't open file %s", mFileString.c_str());
-		}else{
-			LOGE("Can't open file %s", mFileString.c_str());
+			LOGW("Domain '%s' is not handled by Authentication module", userLine->getDomain().c_str());
 		}
 	}
 	LOGD("Syncing done");
