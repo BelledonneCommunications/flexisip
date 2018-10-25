@@ -40,6 +40,9 @@
 #include "sofia-sip/auth_module.h"
 #include "sofia-sip/auth_plugin.h"
 
+#include "belr/grammarbuilder.h"
+#include "belr/parser.h"
+
 enum AuthDbResult { PENDING, PASSWORD_FOUND, PASSWORD_NOT_FOUND, AUTH_ERROR };
 
 struct passwd_algo_t {
@@ -69,7 +72,7 @@ class AuthDbBackend {
 		}
 	};
 
-	private:
+private:
 	std::map<std::string, std::map<std::string, CachedPassword>> mCachedPasswords;
 	std::mutex mCachedPasswordMutex;
 	std::mutex mCachedUserWithPhoneMutex;
@@ -91,7 +94,7 @@ public:
 	// warning: listener may be invoked on authdb backend thread, so listener must be threadsafe somehow!
 	void getPassword(const std::string & user, const std::string & domain, const std::string &auth_username, AuthDbListener *listener);
 	void getPasswordForAlgo(const std::string &user, const std::string &host, const std::string &auth_username,
-							AuthDbListener *listener, AuthDbListener *listener_ref);
+				AuthDbListener *listener, AuthDbListener *listener_ref);
 	void getUserWithPhone(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	void getUsersWithPhone(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds, AuthDbListener *listener);
 	virtual void getUserWithPhoneFromBackend(const std::string &, const std::string &, AuthDbListener *listener) = 0;
@@ -100,20 +103,114 @@ public:
 	virtual void createAccount(const std::string &user, const std::string &domain, const std::string &auth_username, const std::string &password, int expires, const std::string &phone_alias = "");
 
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-										const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) = 0;
+					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) = 0;
 
 	static AuthDbBackend *get();
 	/* called by module_auth so that backends can declare their configuration to the ConfigurationManager */
 	static void declareConfig(GenericStruct *mc);
 	static std::string syncSha256(const char* input,size_t size);
 	static std::string syncMd5(const char* input,size_t size);
+	static std::string urlUnescape(const std::string &str);
+};
+
+//Base root type needed by belr
+class FileAuthDbParserElem {
+public:
+	virtual ~FileAuthDbParserElem () = default;
+};
+
+class FileAuthDbParserPassword : public FileAuthDbParserElem {
+public:
+	void setAlgo(const std::string &algo) {
+		mPass.algo = algo;
+	}
+	void setPassword(const std::string &pass) {
+		mPass.pass = pass;
+	}
+	const passwd_algo_t &getPassAlgo() const {
+		return mPass;
+	}
+
+private:
+	passwd_algo_t mPass;
+};
+
+class FileAuthDbParserUserLine : public FileAuthDbParserElem {
+public:
+	void setUser(const std::string &user) {
+		mUser = user;
+	}
+	const std::string & getUser() const {
+		return mUser;
+	}
+	void setDomain(const std::string &domain) {
+		mDomain = domain;
+	}
+	const std::string & getDomain() const {
+		return mDomain;
+	}
+	void addPassword(const std::shared_ptr<FileAuthDbParserPassword> &password) {
+		mParserPasswords.push_back(password);
+	}
+	//Automatically transform for convenience from parser format to passwd_algo_t
+	const std::vector<passwd_algo_t> & getPasswords() {
+		if (mPasswords.empty()) {
+			for (const auto &parserPasswd : mParserPasswords) {
+				mPasswords.push_back(parserPasswd->getPassAlgo());
+			}
+		}
+		return mPasswords;
+	}
+	void setUserId(const std::string &userId) {
+		mUserId = userId;
+	}
+	const std::string & getUserId() const {
+		return mUserId;
+	}
+	void setPhone(const std::string &phone) {
+		mPhone = phone;
+	}
+	const std::string & getPhone() const {
+		return mPhone;
+	}
+
+private:
+	std::string mUser;
+	std::string mDomain;
+	std::vector<std::shared_ptr<FileAuthDbParserPassword>> mParserPasswords;
+	std::vector<passwd_algo_t> mPasswords;
+	std::string mUserId;
+	std::string mPhone;
+};
+
+class FileAuthDbParserRoot : public FileAuthDbParserElem {
+public:
+	void setVersion(const std::string &version) {
+		mVersion = version;
+	}
+	const std::string & getVersion() const {
+		return mVersion;
+	}
+
+	void addAuthLine(const std::shared_ptr<FileAuthDbParserUserLine> &authLine) {
+		mAuthLines.push_back(authLine);
+	}
+
+	const std::list<std::shared_ptr<FileAuthDbParserUserLine>> &getAuthLines() const {
+		return mAuthLines;
+	}
+
+private:
+	std::string mVersion;
+	std::list<std::shared_ptr<FileAuthDbParserUserLine>> mAuthLines;
 };
 
 class FileAuthDb : public AuthDbBackend {
 private:
 	std::string mFileString;
 	time_t mLastSync;
-	void parsePasswd(std::vector<std::string> &pass, std::string user, std::string domain, std::vector<passwd_algo_t> &password);
+	void parsePasswd(const std::vector<passwd_algo_t> &srcPasswords, const std::string &user, const std::string &domain, std::vector<passwd_algo_t> &destPasswords);
+	std::shared_ptr<belr::Parser<std::shared_ptr<FileAuthDbParserElem>>> setupParser();
 
 protected:
 	void sync();
@@ -122,7 +219,7 @@ public:
 	FileAuthDb();
 	virtual void getUserWithPhoneFromBackend(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-										const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
+					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
 
 	static void declareConfig(GenericStruct *mc){};
 };
@@ -163,14 +260,14 @@ class OdbcAuthDb : public AuthDbBackend {
 	bool execDirect;
 	bool getConnection(const std::string &id, ConnectionCtx &ctx, AuthDbTimings &timings);
 	AuthDbResult doRetrievePassword(ConnectionCtx &ctx, const std::string &user, const std::string &domain,
-									const std::string &auth, std::string &foundPassword, AuthDbTimings &timings);
+					const std::string &auth, std::string &foundPassword, AuthDbTimings &timings);
 	void doAsyncRetrievePassword(std::string id, std::string domain, std::string auth,
-								AuthDbListener *listener);
+				     AuthDbListener *listener);
 
 public:
 	virtual void getUserWithPhoneFromBackend(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-										const std::string &authid, AuthDbListener *listener);
+					    const std::string &authid, AuthDbListener *listener);
 	std::map<std::string, std::string> cachedPasswords;
 	void setExecuteDirect(const bool value);
 	bool checkConnection();
@@ -195,7 +292,7 @@ public:
 	virtual void getUserWithPhoneFromBackend(const std::string & , const std::string &, AuthDbListener *listener);
 	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-										const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
+					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
 
 	static void declareConfig(GenericStruct *mc);
 
@@ -203,7 +300,7 @@ private:
 	void getUserWithPhoneWithPool(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	void getUsersWithPhonesWithPool(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
 	void getPasswordWithPool(const std::string &id, const std::string &domain,
-							const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
+				 const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
 
 	void reconnectSession( soci::session &session );
 

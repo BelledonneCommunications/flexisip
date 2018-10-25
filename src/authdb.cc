@@ -89,13 +89,23 @@ void AuthDbBackend::declareConfig(GenericStruct *mc) {
 #endif
 }
 
+//
+string AuthDbBackend::urlUnescape(const std::string &str) {
+	string unescapedStr;
+	char *unescaped = new char[str.size() + 1];
+
+	memset(unescaped, '\0', str.size() + 1);
+	url_unescape(unescaped, str.c_str());
+	unescapedStr = unescaped;
+	return unescapedStr;
+}
+
 string AuthDbBackend::createPasswordKey(const string &user, const string &auth_username) {
 	ostringstream key;
-	string unescapedUsername;
+	string unescapedUser = urlUnescape(user);
+	string unescapedUsername = urlUnescape(auth_username);
 
-	unescapedUsername.reserve(auth_username.size());
-	url_unescape(&unescapedUsername[0], auth_username.c_str());
-	key << user << "#" << unescapedUsername;
+	key << unescapedUser << "#" << unescapedUsername;
 	return key.str();
 }
 
