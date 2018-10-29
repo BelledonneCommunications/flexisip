@@ -72,3 +72,4 @@ test/massregister/users.csv
 test/massregister/users.sql
 WORK
 **/*.kate*
+**/.vscode
