@@ -172,30 +172,14 @@ PresenceServer::~PresenceServer(){
 void PresenceServer::_init() {
 	if (!mEnabled) return;
 	GenericStruct *cr = GenericManager::get()->getRoot();
-<<<<<<< HEAD
-	std::string get_users_with_phones_request = cr->get<GenericStruct>("module::Authentication")
-												  ->get<ConfigString>("soci-users-with-phones-request")
-												  ->read();
-	std::string db_implementation = cr->get<GenericStruct>("module::Authentication")
-													->get<ConfigString>("db-implementation")
-													->read();
-
-=======
 	string get_users_with_phones_request = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("soci-users-with-phones-request")->read();
 	string db_implementation = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("db-implementation")->read();
->>>>>>> clean presence code of some usless std::
 
 	if(get_users_with_phones_request == "" && db_implementation != "file") {
 		LOGF("Unable to start presence server : soci-users-with-phones-request is not precised in flexisip.conf, please fix it.");
 	}
 
-<<<<<<< HEAD
-	list<string> transports = cr->get<GenericStruct>("presence-server")
-	->get<ConfigStringList>("transports")
-	->read();
-=======
 	list<string> transports = cr->get<GenericStruct>("presence-server")->get<ConfigStringList>("transports")->read();
->>>>>>> clean presence code of some usless std::
 
 	for (auto it = transports.begin(); it != transports.end(); ++it) {
 		string transport = *it;
