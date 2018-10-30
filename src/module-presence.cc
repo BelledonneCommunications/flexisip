@@ -33,6 +33,9 @@ private:
 		ConfigItemDescriptor configs[] = {
 			{String, "presence-server", "A sip uri where to send all presence related requests.", "sip:127.0.0.1:5065"},
 			{BooleanExpr, "only-list-subscription", "If true, only manage list subscription.", "false"},
+			{Boolean, "check-domain-in-presence-results",
+				"When getting the list of users with phones, if this setting is enabled, it will limit the results to the ones that have the same domain",
+				"false"},
 			config_item_end};
 		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 		module_config->get<ConfigBooleanExpression>("filter")

@@ -66,10 +66,6 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 			"Example : select login, domain, phone from accounts where phone in (:phones)",
 			""},
 
-		{Boolean, "check-domain-in-presence-results",
-			"When getting the list of users with phones, if this setting is enabled, it will limit the results to the ones that have the same domain",
-			"false"},
-
 		{Integer, "soci-poolsize",
 			"Size of the pool of connections that Soci will use. We open a thread for each DB query, and this pool will "
 			"allow each thread to get a connection.\n"
@@ -107,6 +103,7 @@ SociAuthDB::SociAuthDB() : conn_pool(NULL) {
 
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
+	GenericStruct *mp = cr->get<GenericStruct>("module::Presence");
 
 	poolSize = ma->get<ConfigInt>("soci-poolsize")->read();
 	connection_string = ma->get<ConfigString>("soci-connection-string")->read();
@@ -116,7 +113,7 @@ SociAuthDB::SociAuthDB() : conn_pool(NULL) {
 	get_users_with_phones_request = ma->get<ConfigString>("soci-users-with-phones-request")->read();
 	unsigned int max_queue_size = (unsigned int)ma->get<ConfigInt>("soci-max-queue-size")->read();
 	hashed_passwd = ma->get<ConfigBoolean>("hashed-passwords")->read();
-	check_domain_in_presence_results = ma->get<ConfigBoolean>("check-domain-in-presence-results")->read();
+	check_domain_in_presence_results = mp->get<ConfigBoolean>("check-domain-in-presence-results")->read();
 
 	conn_pool = new connection_pool(poolSize);
 	thread_pool = new ThreadPool(poolSize, max_queue_size);
