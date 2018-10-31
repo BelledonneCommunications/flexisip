@@ -9,6 +9,8 @@
 %define _datadir           %{_datarootdir}
 %define _docdir            %{_datadir}/doc
 
+%define epoch     1
+
 %define build_number @PROJECT_VERSION_BUILD@
 
 Summary:       SIP proxy with media capabilities
@@ -17,7 +19,7 @@ Version:       @PROJECT_VERSION@
 Release:       %build_number%{?dist}
 
 #to be alined with redhat which changed epoc to 1 for an unknown reason
-Epoch:         1
+Epoch:         %{epoch}
 License:       AGPLv3
 Group:         Applications/Communications
 URL:           http://flexisip.org
@@ -83,7 +85,7 @@ Extensible SIP proxy with media capabilities. Designed for robustness and easy o
 Summary:       JweAuth plugin offers the possibility to use JSON Web Encryption tokens on flexisip
 Group:         Security
 
-Requires:      %{name} = %{version}-%{release}
+Requires:      %{name} = %{epoch}:%{version}-%{release}
 Requires:      %{pkg_prefix}jose
 Requires:      jansson
 
@@ -231,6 +233,8 @@ fi
 %endif
 
 %changelog
+* Wed Oct 31 2018 ronan.abhamon <ronan.abhamon@belledonne-communications.com>
+- Use epoch in JweAuth plugin requires
 * Wed Jun 13 2018 ronan.abhamon <ronan.abhamon@belledonne-communications.com>
 - Add JweAuth plugin
 * Tue Aug 29  2017 Jehan Monnier <jehan.monnier@linphone.org>
