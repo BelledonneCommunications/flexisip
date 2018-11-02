@@ -221,6 +221,9 @@ install -p -m 0644 scripts/flexisip-presence\@.service ${RPM_BUILD_ROOT}/lib/sys
 mkdir -p ${RPM_BUILD_ROOT}%{_sysconfdir}/logrotate.d
 install -p -m 0644 scripts/flexisip-logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
 
+mkdir -p ${RPM_BUILD_ROOT}%{_datarootdir}/belr/grammars
+install -p -m 0644 share/authdb-file-grammar.txt ${RPM_BUILD_ROOT}%{_datarootdir}/belr/grammars
+
 %if %{bcpkg}
 export QA_RPATHS=0x0003
 %endif
