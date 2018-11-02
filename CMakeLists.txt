@@ -244,7 +244,7 @@ bc_init_compilation_flags(CPP_BUILD_FLAGS C_BUILD_FLAGS CXX_BUILD_FLAGS ENABLE_S
 
 add_subdirectory(src)
 add_subdirectory(scripts)
-add_subdirectory(share)
+#add_subdirectory(share)
 
 # Packaging
 add_subdirectory(build)
