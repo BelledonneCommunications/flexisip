@@ -205,6 +205,7 @@ fi
 %{_docdir}
 %{_bindir}/*
 %{_libdir}/*.so
+%{_datarootdir}/*
 
 %if @ENABLE_PRESENCE@
 %{_sysconfdir}/init.d/flexisip-presence
@@ -233,6 +234,8 @@ fi
 %endif
 
 %changelog
+* Mon Nov 05 2018 Nicolas Michon <nicolas.michon@belledonne-communications.com>
+- Add share directory
 * Wed Oct 31 2018 ronan.abhamon <ronan.abhamon@belledonne-communications.com>
 - Use epoch in JweAuth plugin requires
 * Wed Jun 13 2018 ronan.abhamon <ronan.abhamon@belledonne-communications.com>
