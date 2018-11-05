@@ -1,6 +1,6 @@
 
 set(GRAMMAR_FILES
-	authdb-file-grammar.txt
+	authdb-file-grammar
 )
 
 install(FILES ${GRAMMAR_FILES}

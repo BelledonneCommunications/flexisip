@@ -112,37 +112,34 @@ void FileAuthDb::getPasswordFromBackend(const std::string &id, const std::string
 }
 
 shared_ptr<belr::Parser<shared_ptr<FileAuthDbParserElem>>> FileAuthDb::setupParser() {
-	ABNFGrammarBuilder builder;
-	string grammarFile = string(BELR_GRAMMARS_DIR) + "/authdb-file-grammar.txt";
-	shared_ptr<Grammar> grammar = builder.createFromAbnfFile(grammarFile, make_shared<CoreRules>());
+	string grammarFile = string(BELR_GRAMMARS_DIR) + "/authdb-file-grammar";
+	shared_ptr<Grammar> grammar = make_shared<Grammar>(grammarFile);
 
-	if (!grammar) {
-		LOGF("Could not build grammar for authdb-file from '%s'", grammarFile.c_str());
+	if (grammar->load(grammarFile) == -1) {
+		LOGF("Could not load grammar for authdb-file from '%s'", grammarFile.c_str());
 		return nullptr;
 	}
 
 	Parser<shared_ptr<FileAuthDbParserElem>> *parser = new Parser<shared_ptr<FileAuthDbParserElem>>(grammar);
 
-	std::function<shared_ptr<FileAuthDbParserRoot>()> rootHandlerFunc = std::bind(&make_shared<FileAuthDbParserRoot>);
-	parser->setHandler("password-file", rootHandlerFunc)
+	parser->setHandler("password-file", make_fn<FileAuthDbParserRoot>())
 		->setCollector("version-number", make_sfn(&FileAuthDbParserRoot::setVersion))
 		->setCollector("auth-line", make_sfn(&FileAuthDbParserRoot::addAuthLine));
 
-	std::function<shared_ptr<FileAuthDbParserUserLine>()> authLineHandlerFunc = std::bind(&make_shared<FileAuthDbParserUserLine>);
-	parser->setHandler("auth-line", authLineHandlerFunc)
+	parser->setHandler("auth-line", make_fn<FileAuthDbParserUserLine>())
 		->setCollector("user", make_sfn(&FileAuthDbParserUserLine::setUser))
 		->setCollector("domain", make_sfn(&FileAuthDbParserUserLine::setDomain))
 		->setCollector("pass-algo", make_sfn(&FileAuthDbParserUserLine::addPassword))
 		->setCollector("user-id", make_sfn(&FileAuthDbParserUserLine::setUserId))
 		->setCollector("phone", make_sfn(&FileAuthDbParserUserLine::setPhone));
-	std::function<shared_ptr<FileAuthDbParserPassword>()> passwordHandlerFunc = std::bind(&make_shared<FileAuthDbParserPassword>);
-	parser->setHandler("pass-algo", passwordHandlerFunc)
+
+	parser->setHandler("pass-algo", make_fn<FileAuthDbParserPassword>())
 		->setCollector("algo", make_sfn(&FileAuthDbParserPassword::setAlgo))
 		->setCollector("password", make_sfn(&FileAuthDbParserPassword::setPassword));
 	return shared_ptr<Parser<shared_ptr<FileAuthDbParserElem>>>(parser);
 }
 
-/* 
+/*
    File parsing using belr with custom grammar for authdb file
 */
 void FileAuthDb::sync() {
