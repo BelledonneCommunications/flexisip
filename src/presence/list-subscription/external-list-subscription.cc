@@ -86,8 +86,6 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 		char *toUri = belle_sip_uri_to_string(belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(toHeader)));
 		char *fromUri = belle_sip_uri_to_string(belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(fromHeader)));
 
-		SLOGI << "from: " << fromUri << ", to: " << toUri << endl;
-
 		string modifiedRequest = sqlRequest;
 		int index = modifiedRequest.find(":from");
 		while(index > -1) {
@@ -100,7 +98,8 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 			index = modifiedRequest.find(":to");
 		}
 
-		SLOGI << "SQL request: " << modifiedRequest << endl;
+		belle_sip_free(toUri);
+		belle_sip_free(fromUri);
 
 		rowset<row> ret = (sql->prepare << modifiedRequest);
 		string addrStr;
