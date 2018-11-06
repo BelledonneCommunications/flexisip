@@ -134,8 +134,8 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 
 	const belle_sip_uri_t *getEntity() const;
 
-	std::string getName() {return mName;}
-	void setName(std::string name) {mName = name;}
+	const std::string &getName() { return mName; }
+	void setName(const std::string &name) { mName = name; }
 
 	/**
 	 *add notity listener for an entity
@@ -211,7 +211,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	std::shared_ptr<PresenceInformationElement> mDefaultInformationElement; // purpose of this element is to have a
 																			// default presence status (I.E closed) when
 																			// all publish have expired.
-	std::string mName = "";
+	std::string mName;
 };
 
 std::ostream &operator<<(std::ostream &__os, const PresentityPresenceInformation &);
