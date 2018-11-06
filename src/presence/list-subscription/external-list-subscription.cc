@@ -118,12 +118,13 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 				os << "Cannot parse list entry [" << addrStr << "]";
 				continue;
 			}
-			if (addrStr.find(";user=phone") != string::npos) {
+			const char *user_param = belle_sip_uri_get_user_param(uri);
+			if (user_param && strcasecmp(user_param, "phone") == 0) {
 				belle_sip_uri_set_user_param(uri,"phone");
 			}
 			const char *name = belle_sip_header_address_get_displayname(addr);
 			mListeners.push_back(make_shared<PresentityResourceListener>(*this, uri, name ? name : ""));
-			belle_sip_object_unref(uri);
+			belle_sip_object_unref(uri); // Because PresentityResourceListener takes its own ref
 		}
 
 		stop = steady_clock::now();
