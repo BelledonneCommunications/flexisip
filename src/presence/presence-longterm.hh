@@ -18,8 +18,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
-#include "presence-server.hh"
 #include "authdb.hh"
+#include "presence-server.hh"
 
 typedef struct belle_sip_main_loop belle_sip_main_loop_t;
 
@@ -27,7 +27,6 @@ namespace flexisip {
 	class PresenceLongterm : public PresenceInfoObserver {
 	public:
 		PresenceLongterm(belle_sip_main_loop_t *mainLoop) : mMainLoop(mainLoop) {};
-		virtual void onNewPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>& info) const override;
 		virtual void onListenerEvent(const std::shared_ptr<PresentityPresenceInformation>& info) const override;
 		virtual void onListenerEvents(std::list<std::shared_ptr<PresentityPresenceInformation>>& info) const override;
 	private:

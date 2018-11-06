@@ -18,8 +18,11 @@
 
 #ifndef flexisip_subscription_hh
 #define flexisip_subscription_hh
+
 #include <string>
+
 #include "belle-sip/belle-sip.h"
+
 #include "presentity-presenceinformation.hh"
 
 namespace flexisip {
@@ -46,6 +49,10 @@ namespace flexisip {
 	void increaseExpirationTime(unsigned int expires);
 	const belle_sip_uri_t* getFrom();
 	const belle_sip_uri_t* getTo();
+
+	std::shared_ptr<Subscription> mDialogRef; // Keep ref of c++ shared_ptr in belle_sip_dialog
+	std::shared_ptr<Subscription> mTransactionRef; // Keep ref of c++ shared_ptr in belle_sip_transaction
+	belle_sip_client_transaction_t *mCurrentTransaction = NULL;
 
   protected:
 	belle_sip_dialog_t *mDialog;

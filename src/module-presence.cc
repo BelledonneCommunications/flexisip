@@ -79,15 +79,15 @@ private:
 	bool isMessageAPresenceMessage(shared_ptr<RequestSipEvent> &ev) {
 		sip_t *sip = ev->getSip();
 		if (sip->sip_request->rq_method == sip_method_subscribe) {
-			sip_require_t *require;
-			bool require_recipient_list_subscribe_found = false;
-			for (require = (sip_require_t *)sip->sip_require; require != NULL;
-				 require = (sip_require_t *)require->k_next) {
-				if (*require->k_items && strcasecmp((const char *)*require->k_items, "recipient-list-subscribe") == 0) {
-					require_recipient_list_subscribe_found = true;
+			sip_supported_t *supported;
+			bool support_list_subscription = false;
+			for (supported = (sip_supported_t *)sip->sip_supported; supported != NULL;
+				 supported = (sip_supported_t *)supported->k_next) {
+				if (*supported->k_items && strcasecmp((const char *)*supported->k_items, "eventlist") == 0) {
+					support_list_subscription = true;
 				}
 			}
-			return (!mOnlyListSubscription->eval(ev->getSip()) || require_recipient_list_subscribe_found) &&
+			return (!mOnlyListSubscription->eval(ev->getSip()) || support_list_subscription) &&
 				sip->sip_event && strcmp(sip->sip_event->o_type, "presence") == 0;
 		} else if (sip->sip_request->rq_method == sip_method_publish) {
 			return !sip->sip_content_type || (
