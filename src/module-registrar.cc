@@ -602,7 +602,11 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 
 	// Use path as a contact route in all cases
-	addPathHeader(getAgent(), ev, ev->getIncomingTport().get());
+	sip_path_t *path = sip_path_format(ms->getHome(), "<%s>", getAgent()->getPreferredRoute().c_str()); //format a Path
+	msg_t *msg = ev->getMsgSip()->getMsg();
+	if (!prependNewRoutable(msg, sip, sip->sip_path, path)) {
+		SLOGD << "Identical path already existing: " << getAgent()->getPreferredRoute();
+	}
 
 	// Set RegId if not set in MsgSip
 	if (tport_get_user_data(ev->getIncomingTport().get()) && !sip->sip_user)
