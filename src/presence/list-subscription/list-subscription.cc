@@ -52,7 +52,7 @@ ListSubscription::~ListSubscription() {
 		belle_sip_source_cancel(mTimer);
 		belle_sip_object_unref(mTimer);
 	}
-	belle_sip_object_unref((void *)mName);
+	if (mName) belle_sip_object_unref((void *)mName);
 	SLOGD << "List subscription ["<< this <<"] deleted";
 };
 

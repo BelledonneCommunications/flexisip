@@ -92,7 +92,7 @@ protected:
 	 * that corresponds to the list.  Typically, this is the URI to which
 	 * the SUBSCRIBE request was sent.
 	 **/
-	const belle_sip_uri_t *mName;
+	const belle_sip_uri_t * = nullptr;;
 
 private:
 	ListSubscription(const ListSubscription &);
