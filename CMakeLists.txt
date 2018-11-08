@@ -88,6 +88,7 @@ else()
 endif()
 
 find_package(BcToolbox 0.0.3 REQUIRED)
+find_package(Belr REQUIRED)
 
 find_package(LibXsd)
 
