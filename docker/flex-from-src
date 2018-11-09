@@ -1,8 +1,6 @@
 FROM debian
 MAINTAINER  Jehan Monnier <jehan.monnier@linphone.org>
 
-USER root
-
 # Prepare dependencies
 RUN apt-get update
 RUN apt-get install -y  xsdcxx gdb
@@ -41,5 +39,3 @@ RUN apt-get clean all
 
 ENTRYPOINT ["/flexisip-entrypoint.sh"]
 CMD flexisip
-
-USER default
