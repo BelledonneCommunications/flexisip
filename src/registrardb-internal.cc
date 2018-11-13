@@ -33,16 +33,13 @@ RegistrarDbInternal::RegistrarDbInternal(Agent *ag) : RegistrarDb(ag) {
 	mWritable = true;
 }
 
-void RegistrarDbInternal::doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
-						const sip_path_t *ipath, list<string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version,
-						const shared_ptr<ContactUpdateListener> &listener) {
-	string key = Record::defineKeyFromUrl(ifrom);
-	time_t now = getCurrentTime();
+void RegistrarDbInternal::doBind(const sip_t *sip, int globalExpire, bool alias, int version, const shared_ptr<ContactUpdateListener> &listener) {
+	string key = Record::defineKeyFromUrl(sip->sip_from->a_url);
 
 	map<string, Record *>::iterator it = mRecords.find(key);
 	Record *r;
-	if (it == mRecords.end()) {
-		r = new Record(ifrom);
+	if (sip->sip_from && it == mRecords.end()) {
+		r = new Record(sip->sip_from->a_url);
 		mRecords.insert(make_pair(key, r));
 		LOGD("Creating AOR %s association", key.c_str());
 	} else {
@@ -50,13 +47,13 @@ void RegistrarDbInternal::doBind(const url_t *ifrom, sip_contact_t *icontact, co
 		r = (*it).second;
 	}
 
-	if (r->isInvalidRegister(iid, iseq)) {
+	if (sip->sip_call_id && sip->sip_cseq && r->isInvalidRegister(sip->sip_call_id->i_id, sip->sip_cseq->cs_seq)) {
 		LOGD("Invalid register");
 		if (listener) listener->onInvalid();
 		return;
 	}
 
-	r->update(icontact, ipath, expire, iid, iseq, now, alias, acceptHeaders, usedAsRoute, listener);
+	r->update(sip, globalExpire, alias, version, listener);
 
 	mLocalRegExpire->update(*r);
 	if (listener) listener->onRecordFound(r);

@@ -104,9 +104,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	bool disconnect();
 
   protected:
-	virtual void doBind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
-					  const sip_path_t *ipath, std::list<std::string> acceptHeaders, bool usedAsRoute, int expire, int alias, int version, 
-					  const std::shared_ptr<ContactUpdateListener> &listener);
+	virtual void doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void doFetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener);
