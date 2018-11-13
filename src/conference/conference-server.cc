@@ -1,17 +1,17 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
  Copyright (C) 2017  Belledonne Communications SARL.
- 
+
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
  published by the Free Software Foundation, either version 3 of the
  License, or (at your option) any later version.
- 
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU Affero General Public License for more details.
- 
+
  You should have received a copy of the GNU Affero General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -205,23 +205,27 @@ void flexisip::ConferenceServer::bindConference() {
 	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	if (config && config->get<ConfigBoolean>("enabled")->read()) {
-		sip_contact_t *sipContact = sip_contact_make(mHome.home(), mTransport.c_str());
-		url_t *url = url_make(mHome.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
-		sip_path_t *bindingPath = sip_path_format(mHome.home(), "<%s>", mPath.c_str());
+		msg_t *msg = msg_create(sip_default_mclass(), 0);
+		su_home_t *homeSip = msg_home(msg);
+		sip_t *sip = sip_object(msg);
+
+		sip->sip_contact = sip_contact_make(homeSip, mTransport.c_str());
+		sip->sip_from = sip_from_create(homeSip, reinterpret_cast<url_string_t*>(
+				url_make(mHome.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str())
+			));
+		sip->sip_path = sip_path_format(homeSip, "<%s>", mPath.c_str());
+		sip->sip_call_id = sip_call_id_make(homeSip, "CONFERENCE");
+		sip->sip_expires = sip_expires_create(homeSip, 0);
+
 		RegistrarDb::get()->bind(
-			url,
-			sipContact,
-			"CONFERENCE",
-			0,
-			bindingPath, 
-			nullptr, 
-			nullptr,
-			true,
+			sip,
 			numeric_limits<int>::max(),
 			false,
 			0,
 			listener
 		);
+
+		msg_unref(msg);
 	}
 }
 
@@ -232,26 +236,27 @@ void ConferenceServer::bindChatRoom (
 	const string &path,
 	const shared_ptr<ContactUpdateListener> &listener
 ) {
-	url_t *url = url_make(mHome.home(), bindingUrl.c_str());
-	sip_contact_t *sipContact = sip_contact_make(mHome.home(), contact.c_str());
-	sip_contact_add_param(mHome.home(), sipContact, su_strdup(mHome.home(), ("+sip.instance=\"<" + gruu + ">\"").c_str()));
-	url_param_add(mHome.home(), sipContact->m_url, ("gr=" + gruu).c_str());
-	sip_supported_t *sipSupported = reinterpret_cast<sip_supported_t *>(sip_header_format(mHome.home(), sip_supported_class, "gruu"));
-	sip_path_t *bindingPath = sip_path_format(mHome.home(), "<%s>", mPath.c_str());
+	msg_t *msg = msg_create(sip_default_mclass(), 0);
+	su_home_t *homeSip = msg_home(msg);
+	sip_t *sip = sip_object(msg);
+
+	sip->sip_contact = sip_contact_make(homeSip, contact.c_str());
+	sip_contact_add_param(homeSip, sip->sip_contact, su_strdup(mHome.home(), ("+sip.instance=\"<" + gruu + ">\"").c_str()));
+	url_param_add(homeSip, sip->sip_contact->m_url, ("gr=" + gruu).c_str());
+	sip->sip_from = sip_from_create(homeSip, reinterpret_cast<url_string_t*>(url_make(homeSip, bindingUrl.c_str())));
+	sip->sip_path = sip_path_format(homeSip, "<%s>", mPath.c_str());
+	sip->sip_supported = reinterpret_cast<sip_supported_t *>(sip_header_format(homeSip, sip_supported_class, "gruu"));
+	sip->sip_call_id = sip_call_id_make(homeSip, gruu.c_str());
+	sip->sip_expires = sip_expires_create(homeSip, 0);
+
 	RegistrarDb::get()->bind(
-		url,
-		sipContact,
-		gruu.c_str(),
-		0,
-		bindingPath,
-		sipSupported,
-		nullptr,
-		true,
+		sip,
 		numeric_limits<int>::max(),
 		false,
 		0,
 		listener
 	);
+	msg_unref(msg);
 }
 
 ConferenceServer::Init::Init() {
@@ -276,7 +281,7 @@ ConferenceServer::Init::Init() {
 		},
 		{
 			Boolean,
-			"enable-one-to-one-chat-room", 
+			"enable-one-to-one-chat-room",
 			"Whether one-to-one chat room creation is allowed or not",
 			"true"
 		},

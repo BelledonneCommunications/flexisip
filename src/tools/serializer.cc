@@ -62,13 +62,23 @@ int test_bind_without_ecc(ExtendedContactCommon &ecc, const unique_ptr<RecordSer
 						  sip_accept_t *accept) {
 	Record initial(NULL);
 
-	list<string> acceptHeaders;
-	while (accept != NULL) {
-		acceptHeaders.push_back(accept->ac_type);
-		accept = accept->ac_next;
-	}
+	msg_t *msg = msg_create(sip_default_mclass(), 0);
+	su_home_t *homeSip = msg_home(msg);
+	sip_t *sip = sip_object(msg);
 
-	initial.update(contacts, path, globalexpire, callid, cseq, now, alias, acceptHeaders, false, NULL);
+	sip->sip_contact = sip_contact_dup(homeSip, contacts);
+	sip->sip_contact->m_next = nullptr;
+	sip->sip_accept = sip_accept_dup(homeSip, accept);
+	sip->sip_from = sip_from_create(homeSip, reinterpret_cast<url_string_t*>(contacts->m_url));
+	sip->sip_path = sip_path_dup(homeSip, path);
+	sip->sip_call_id = sip_call_id_make(homeSip, callid);
+	sip->sip_expires = sip_expires_create(homeSip, now);
+	sip->sip_cseq = sip_cseq_create(homeSip, cseq, sip_method_unknown, nullptr);
+
+	initial.update(sip, globalexpire, alias, 0, nullptr);
+
+	msg_unref(msg);
+
 	if (!compare(firstContact(initial), alias, ecc, cseq, expireat, quality, contact, now)) {
 		cerr << "Initial and parameters differ" << endl;
 		return -1;
