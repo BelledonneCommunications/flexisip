@@ -49,7 +49,6 @@ namespace flexisip {
 			const std::string &bindingUrl,
 			const std::string &contact,
 			const std::string &gruu,
-			const std::string &path,
 			const std::shared_ptr<ContactUpdateListener> &listener
 		);
 

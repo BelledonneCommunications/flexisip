@@ -1103,7 +1103,7 @@ void RegistrarDb::fetchForGruu(const url_t *url, const string &gruu, const share
 	doFetchForGruu(url, gruu, listener);
 }
 
-void RegistrarDb::bind(const sip_t *sip, int globalExpire, bool alias, int version, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDb::bind(const sip_t *sip, BindingParameter &parameter, const shared_ptr<ContactUpdateListener> &listener) {
 	SofiaAutoHome home;
 
 	if (sip->sip_supported && sip->sip_contact->m_params) {
@@ -1129,7 +1129,27 @@ void RegistrarDb::bind(const sip_t *sip, int globalExpire, bool alias, int versi
 		return;
 	}
 
-	doBind(sip, globalExpire, alias, version, listener);
+	doBind(sip, parameter.globalExpire, parameter.alias, parameter.version, listener);
+}
+
+void RegistrarDb::bind(const url_t *from, const sip_contact_t *contact, BindingParameter &parameter, const shared_ptr<ContactUpdateListener> &listener) {
+	msg_t *msg = msg_create(sip_default_mclass(), 0);
+	su_home_t *homeSip = msg_home(msg);
+	sip_t *sip = sip_object(msg);
+
+	sip->sip_contact = sip_contact_dup(homeSip, contact);
+
+	sip->sip_from = sip_from_create(homeSip, reinterpret_cast<const url_string_t*>(from));
+	if (!parameter.path.empty()) sip->sip_path = sip_path_format(homeSip, "<%s>", parameter.path.c_str());
+
+	if (parameter.withGruu) sip->sip_supported = reinterpret_cast<sip_supported_t *>(sip_header_format(homeSip, sip_supported_class, "gruu"));
+
+	if (!parameter.callId.empty()) sip->sip_call_id = sip_call_id_make(homeSip, parameter.callId.c_str());
+	sip->sip_expires = sip_expires_create(homeSip, 0);
+
+	bind(sip, parameter, listener);
+
+	msg_unref(msg);
 }
 
 class AgregatorRegistrarDbListener : public ContactUpdateListener {

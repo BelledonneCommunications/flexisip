@@ -187,7 +187,7 @@ void flexisip::ConferenceServer::bindAddresses () {
 
 	// Binding loaded chat room
 	for (const auto &chatRoom : mCore->getChatRooms()) {
-		bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), mTransport, chatRoom->getPeerAddress()->getUriParam("gr"), mPath, nullptr);
+		bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), mTransport, chatRoom->getPeerAddress()->getUriParam("gr"), nullptr);
 	}
 
 	mAddressesBound = true;
@@ -205,27 +205,24 @@ void flexisip::ConferenceServer::bindConference() {
 	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	if (config && config->get<ConfigBoolean>("enabled")->read()) {
-		msg_t *msg = msg_create(sip_default_mclass(), 0);
-		su_home_t *homeSip = msg_home(msg);
-		sip_t *sip = sip_object(msg);
+		SofiaAutoHome home;
+		BindingParameter parameter;
 
-		sip->sip_contact = sip_contact_make(homeSip, mTransport.c_str());
-		sip->sip_from = sip_from_create(homeSip, reinterpret_cast<url_string_t*>(
-				url_make(mHome.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str())
-			));
-		sip->sip_path = sip_path_format(homeSip, "<%s>", mPath.c_str());
-		sip->sip_call_id = sip_call_id_make(homeSip, "CONFERENCE");
-		sip->sip_expires = sip_expires_create(homeSip, 0);
+		sip_contact_t* sipContact = sip_contact_create(home.home(), reinterpret_cast<url_string_t*>(url_make(home.home(), mTransport.c_str())), nullptr);
+		url_t *from = url_make(home.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
+
+		parameter.callId = "CONFERENCE";
+		parameter.path = mPath;
+		parameter.globalExpire = numeric_limits<int>::max();
+		parameter.alias = false;
+		parameter.version = 0;
 
 		RegistrarDb::get()->bind(
-			sip,
-			numeric_limits<int>::max(),
-			false,
-			0,
+			from,
+			sipContact,
+			parameter,
 			listener
 		);
-
-		msg_unref(msg);
 	}
 }
 
@@ -233,30 +230,28 @@ void ConferenceServer::bindChatRoom (
 	const string &bindingUrl,
 	const string &contact,
 	const string &gruu,
-	const string &path,
 	const shared_ptr<ContactUpdateListener> &listener
 ) {
-	msg_t *msg = msg_create(sip_default_mclass(), 0);
-	su_home_t *homeSip = msg_home(msg);
-	sip_t *sip = sip_object(msg);
+	SofiaAutoHome home;
+	BindingParameter parameter;
 
-	sip->sip_contact = sip_contact_make(homeSip, contact.c_str());
-	sip_contact_add_param(homeSip, sip->sip_contact, su_strdup(mHome.home(), ("+sip.instance=\"<" + gruu + ">\"").c_str()));
-	url_param_add(homeSip, sip->sip_contact->m_url, ("gr=" + gruu).c_str());
-	sip->sip_from = sip_from_create(homeSip, reinterpret_cast<url_string_t*>(url_make(homeSip, bindingUrl.c_str())));
-	sip->sip_path = sip_path_format(homeSip, "<%s>", mPath.c_str());
-	sip->sip_supported = reinterpret_cast<sip_supported_t *>(sip_header_format(homeSip, sip_supported_class, "gruu"));
-	sip->sip_call_id = sip_call_id_make(homeSip, gruu.c_str());
-	sip->sip_expires = sip_expires_create(homeSip, 0);
+	sip_contact_t* sipContact = sip_contact_create(home.home(), reinterpret_cast<url_string_t*>(url_make(home.home(), contact.c_str())), ("+sip.instance=\"<" + gruu + ">\"").c_str());
+	url_t *from = url_make(home.home(), bindingUrl.c_str());
+	url_param_add(home.home(), from, ("gr=" + gruu).c_str());
+
+	parameter.callId = gruu;
+	parameter.path = mPath;
+	parameter.globalExpire = numeric_limits<int>::max();
+	parameter.alias = false;
+	parameter.version = 0;
+	parameter.withGruu = true;
 
 	RegistrarDb::get()->bind(
-		sip,
-		numeric_limits<int>::max(),
-		false,
-		0,
+		from,
+		sipContact,
+		parameter,
 		listener
 	);
-	msg_unref(msg);
 }
 
 ConferenceServer::Init::Init() {
