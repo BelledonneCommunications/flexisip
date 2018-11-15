@@ -307,6 +307,24 @@ public:
 	virtual void onLocalRegExpireUpdated(unsigned int count) = 0;
 };
 
+struct BindingParameter {
+	int globalExpire;
+	bool alias;
+	int version;
+	std::string callId;
+	std::string path;
+	bool withGruu;
+
+	BindingParameter() {
+		globalExpire = 0;
+		alias = false;
+		version = 0;
+		callId = "";
+		path = "";
+		withGruu = false;
+	}
+};
+
 /**
  * A singleton class which holds records contact addresses associated with a from.
  * Both local and remote storage implementations exist.
@@ -318,7 +336,8 @@ class RegistrarDb {
   public:
 	static RegistrarDb *initialize(Agent *ag);
 	static RegistrarDb *get();
-	void bind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener);
+	void bind(const sip_t *sip, BindingParameter &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
+	void bind(const url_t *from, const sip_contact_t *contact, BindingParameter &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
 	void clear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);

@@ -640,12 +640,16 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 				/*first clear to make sure that there is only one record*/
 				RegistrarDb::get()->clear(sip, make_shared<FakeFetchListener>());
 			}
+			BindingParameter parameter;
 			auto listener =
 				make_shared<OnRequestBindListener>(this, ev, sip->sip_from, sip->sip_contact, sip->sip_path);
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
 			listener->addStatCounter(mStats.mCountBind->finish);
-			RegistrarDb::get()->bind(sip, maindelta, false, 0, listener);
+			parameter.alias = false;
+			parameter.globalExpire = maindelta;
+			parameter.version = 0;
+			RegistrarDb::get()->bind(sip, parameter, listener);
 			return;
 		}
 	} else {
@@ -721,10 +725,14 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			listener->addStatCounter(mStats.mCountClear->finish);
 			RegistrarDb::get()->clear(reSip, listener);
 		} else {
+			BindingParameter parameter;
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
+			parameter.alias = false;
+			parameter.globalExpire = maindelta;
+			parameter.version = 0;
 			listener->addStatCounter(mStats.mCountBind->finish);
-			RegistrarDb::get()->bind(reSip, maindelta, false, 0, listener);
+			RegistrarDb::get()->bind(reSip, parameter, listener);
 		}
 	}
 	if (reSip->sip_status->st_status >= 200) {
@@ -737,7 +745,7 @@ void ModuleRegistrar::readStaticRecords() {
 	if (mStaticRecordsFile.empty()) return;
 	LOGD("Reading static records file");
 
-	su_home_t home;
+	SofiaAutoHome home;
 
 	stringstream ss;
 	ss.exceptions(ifstream::failbit | ifstream::badbit);
@@ -749,8 +757,7 @@ void ModuleRegistrar::readStaticRecords() {
 	ifstream file;
 	file.open(mStaticRecordsFile);
 	if (file.is_open()) {
-		su_home_init(&home);
-		sip_path_t *path = sip_path_format(&home, "%s", getAgent()->getPreferredRoute().c_str());
+		string path = getAgent()->getPreferredRoute();
 		mStaticRecordsVersion++;
 		while (file.good() && !file.eof()) {
 			getline(file, line);
@@ -769,6 +776,7 @@ void ModuleRegistrar::readStaticRecords() {
 			if (i == line.size()) continue; // blank line
 			size_t cttpos = line.find_first_of(' ', i);
 			if (cttpos != string::npos && cttpos < line.size()) {
+
 				// Read uri
 				from = line.substr(0, cttpos);
 
@@ -776,8 +784,8 @@ void ModuleRegistrar::readStaticRecords() {
 				contact_header = line.substr(cttpos + 1, line.length() - cttpos + 1);
 
 				// Create
-				sip_contact_t *url = sip_contact_make(&home, from.c_str());
-				sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
+				sip_contact_t *url = sip_contact_make(home.home(), from.c_str());
+				sip_contact_t *contact = sip_contact_make(home.home(), contact_header.c_str());
 				int expire = mStaticRecordsTimeout + 5; // 5s to avoid race conditions
 
 				if (!url || !contact) {
@@ -786,32 +794,29 @@ void ModuleRegistrar::readStaticRecords() {
 				}
 
 				while (contact != nullptr) {
+					BindingParameter parameter;
 					shared_ptr<OnStaticBindListener> listener;
-					msg_t *msg = msg_create(sip_default_mclass(), 0);
-					su_home_t *homeSip = msg_home(msg);
-					sip_t *sip = sip_object(msg);
-
+					string fakeCallId = "static-record-v" + su_random();
 					bool alias = isManagedDomain(contact->m_url);
-					const char *fakeCallId = su_sprintf(&home, "static-record-v%x", su_random());
+					sip_contact_t *sipContact = sip_contact_dup(home.home(), contact);
+					url_t *urlFrom = sip_url_dup(home.home(), contact->m_url);
 
-					sip->sip_contact = sip_contact_dup(homeSip, contact);
-					sip->sip_contact->m_next = nullptr;
-					listener = make_shared<OnStaticBindListener>(url->m_url, sip->sip_contact);
-					sip->sip_from = sip_from_create(homeSip, reinterpret_cast<url_string_t*>(contact->m_url));
-					sip->sip_path = sip_path_dup(homeSip, path);
-					sip->sip_call_id = sip_call_id_make(homeSip, fakeCallId);
-					sip->sip_expires = sip_expires_create(homeSip, expire);
+					sipContact->m_next = nullptr;
+					listener = make_shared<OnStaticBindListener>(url->m_url, contact);
 
+					parameter.callId = fakeCallId;
+					parameter.path = path;
+					parameter.globalExpire = expire;
+					parameter.alias = alias;
+					parameter.version = mStaticRecordsVersion;
 
-					RegistrarDb::get()->bind(sip, expire, alias, mStaticRecordsVersion, listener);
+					RegistrarDb::get()->bind(urlFrom, sipContact, parameter, listener);
 					contact = contact->m_next;
-					msg_unref(msg);
 				}
 				continue;
 			}
 			LOGW("Incorrect line format: %s", line.c_str());
 		}
-		su_home_deinit(&home);
 	} else {
 		LOGE("Can't open file %s", mStaticRecordsFile.c_str());
 	}
