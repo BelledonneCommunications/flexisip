@@ -27,12 +27,12 @@ import platform
 import sys
 from logging import error, warning, info
 sys.dont_write_bytecode = True
-sys.path.insert(0, 'submodules/cmake-builder')
+sys.path.insert(0, 'linphone-sdk/cmake-builder')
 try:
     import prepare
 except Exception as e:
     error(
-        "Could not find prepare module: {}, probably missing submodules/cmake-builder? Try running:\n"
+        "Could not find prepare module: {}, probably missing linphone-sdk/cmake-builder? Try running:\n"
         "git submodule sync && git submodule update --init --recursive".format(e))
     exit(1)
 
@@ -44,7 +44,8 @@ class FlexisipRpmTarget(prepare.Target):
         current_path = os.path.dirname(os.path.realpath(__file__))
         self.required_build_platforms = ['Linux', 'Darwin']
         self.config_file = 'configs/config-flexisip-rpm.cmake'
-        self.external_source_path = os.path.join(current_path, 'submodules')
+        self.external_source_path = os.path.join(current_path, 'linphone-sdk')
+        self.alternate_external_source_path = os.path.join(current_path, 'submodules')
         self.additional_args = [ '-DLINPHONE_BUILDER_TARGET=flexisip', '-DLINPHONE_BUILDER_TOP_DIR=' + current_path ]
 
 class FlexisipTarget(prepare.Target):
@@ -54,7 +55,8 @@ class FlexisipTarget(prepare.Target):
         current_path = os.path.dirname(os.path.realpath(__file__))
         self.required_build_platforms = ['Linux', 'Darwin']
         self.config_file = 'configs/config-flexisip.cmake'
-        self.external_source_path = os.path.join(current_path, 'submodules')
+        self.external_source_path = os.path.join(current_path, 'linphone-sdk')
+        self.alternate_external_source_path = os.path.join(current_path, 'submodules')
         self.additional_args = [ '-DLINPHONE_BUILDER_TARGET=flexisip', '-DLINPHONE_BUILDER_TOP_DIR=' + current_path ]
 
 
@@ -78,7 +80,6 @@ class FlexisipPreparator(prepare.Preparator):
     def check_environment(self, submodule_directory_to_check=None):
         ret = prepare.Preparator.check_environment(self)
         ret |= not self.check_is_installed('doxygen', 'doxygen')
-        ret |= not self.check_is_installed('dot', 'graphviz')
         if 'flexisip-rpm' in self.args.target: 
             ret |= not self.check_is_installed('rpmbuild', 'rpm-build')
             ret |= not self.check_is_installed('bison', 'bison')
@@ -140,7 +141,7 @@ help: help-prepare-options
 def main(argv=None):
     preparator = FlexisipPreparator()
     preparator.parse_args()
-    if preparator.check_environment(submodule_directory_to_check="submodules/belle-sip/src") != 0:
+    if preparator.check_environment(submodule_directory_to_check="linphone-sdk/belle-sip/src") != 0:
         preparator.show_environment_errors()
         return 1
     return preparator.run()
