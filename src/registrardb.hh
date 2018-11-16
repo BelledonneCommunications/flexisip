@@ -307,21 +307,21 @@ public:
 	virtual void onLocalRegExpireUpdated(unsigned int count) = 0;
 };
 
-struct BindingParameter {
-	int globalExpire;
+struct BindingParameters {
 	bool alias;
+	bool withGruu;
+	int globalExpire;
 	int version;
 	std::string callId;
 	std::string path;
-	bool withGruu;
 
-	BindingParameter() {
-		globalExpire = 0;
+	BindingParameters() {
 		alias = false;
+		withGruu = false;
+		globalExpire = 0;
 		version = 0;
 		callId = "";
 		path = "";
-		withGruu = false;
 	}
 };
 
@@ -336,8 +336,8 @@ class RegistrarDb {
   public:
 	static RegistrarDb *initialize(Agent *ag);
 	static RegistrarDb *get();
-	void bind(const sip_t *sip, BindingParameter &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
-	void bind(const url_t *from, const sip_contact_t *contact, BindingParameter &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
+	void bind(const sip_t *sip, const BindingParameters &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
+	void bind(const url_t *from, const sip_contact_t *contact, const BindingParameters &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
 	void clear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);

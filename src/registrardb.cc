@@ -1103,7 +1103,7 @@ void RegistrarDb::fetchForGruu(const url_t *url, const string &gruu, const share
 	doFetchForGruu(url, gruu, listener);
 }
 
-void RegistrarDb::bind(const sip_t *sip, BindingParameter &parameter, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDb::bind(const sip_t *sip, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {
 	SofiaAutoHome home;
 
 	if (sip->sip_supported && sip->sip_contact->m_params) {
@@ -1132,7 +1132,7 @@ void RegistrarDb::bind(const sip_t *sip, BindingParameter &parameter, const shar
 	doBind(sip, parameter.globalExpire, parameter.alias, parameter.version, listener);
 }
 
-void RegistrarDb::bind(const url_t *from, const sip_contact_t *contact, BindingParameter &parameter, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDb::bind(const url_t *from, const sip_contact_t *contact, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {
 	msg_t *msg = msg_create(sip_default_mclass(), 0);
 	su_home_t *homeSip = msg_home(msg);
 	sip_t *sip = sip_object(msg);

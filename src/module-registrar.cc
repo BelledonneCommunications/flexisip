@@ -640,7 +640,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 				/*first clear to make sure that there is only one record*/
 				RegistrarDb::get()->clear(sip, make_shared<FakeFetchListener>());
 			}
-			BindingParameter parameter;
+			BindingParameters parameter;
 			auto listener =
 				make_shared<OnRequestBindListener>(this, ev, sip->sip_from, sip->sip_contact, sip->sip_path);
 			mStats.mCountBind->incrStart();
@@ -725,7 +725,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			listener->addStatCounter(mStats.mCountClear->finish);
 			RegistrarDb::get()->clear(reSip, listener);
 		} else {
-			BindingParameter parameter;
+			BindingParameters parameter;
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
 			parameter.alias = false;
@@ -794,12 +794,11 @@ void ModuleRegistrar::readStaticRecords() {
 				}
 
 				while (contact != nullptr) {
-					BindingParameter parameter;
+					BindingParameters parameter;
 					shared_ptr<OnStaticBindListener> listener;
 					string fakeCallId = "static-record-v" + su_random();
 					bool alias = isManagedDomain(contact->m_url);
 					sip_contact_t *sipContact = sip_contact_dup(home.home(), contact);
-					url_t *urlFrom = sip_url_dup(home.home(), contact->m_url);
 
 					sipContact->m_next = nullptr;
 					listener = make_shared<OnStaticBindListener>(url->m_url, contact);
@@ -810,7 +809,7 @@ void ModuleRegistrar::readStaticRecords() {
 					parameter.alias = alias;
 					parameter.version = mStaticRecordsVersion;
 
-					RegistrarDb::get()->bind(urlFrom, sipContact, parameter, listener);
+					RegistrarDb::get()->bind(url->m_url, sipContact, parameter, listener);
 					contact = contact->m_next;
 				}
 				continue;
