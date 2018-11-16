@@ -1,0 +1,260 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  DEFAULT_CMAKE_OPTIONS: -DENABLE_CONFERENCE=ON -DENABLE_JWE_AUTH_PLUGIN=ON -DENABLE_PRESENCE=ON -DENABLE_PROTOBUF=ON -DENABLE_SNMP=ON -DENABLE_SOCI=ON -DENABLE_TRANSCODER=ON
+  DEFAULT_MACOS_CMAKE_OPTIONS: -DENABLE_CONFERENCE=ON -DENABLE_JWE_AUTH_PLUGIN=ON -DENABLE_PRESENCE=ON -DENABLE_PROTOBUF=ON -DENABLE_SNMP=OFF -DENABLE_SOCI=ON -DENABLE_TRANSCODER=ON
+
+
+.linux-ccache:
+  cache:
+    key: $CI_JOB_NAME
+    paths:
+      - ccache/
+
+  before_script:
+    - mkdir -p ccache
+    - export CCACHE_BASEDIR=${PWD}
+    - export CCACHE_DIR=${PWD}/ccache
+
+
+.job-linux:
+
+  tags: [ "docker" ]
+
+  extends: .linux-ccache
+
+  script:
+    - export CC=$CC
+    - export CXX=$CXX
+    - ccache -s
+    - ./prepare.py -G "$CMAKE_GENERATOR" -cc $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
+    - cmake --build WORK/flexisip/cmake -- $ADDITIONAL_BUILD_OPTIONS
+    - ccache -s
+
+
+.job-linux-rpm:
+
+  tags: [ "docker" ]
+
+  script:
+    - sudo rpm -e `rpm -qa | grep "^bc-[^0-9]"` || true
+    - ./prepare.py flexisip-rpm $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
+    - cmake --build WORK/flexisip-rpm/cmake -- $ADDITIONAL_BUILD_OPTIONS
+
+  artifacts:
+    paths:
+      - WORK/flexisip-rpm/rpmbuild/RPMS/x86_64/*.rpm
+    when: always
+    expire_in: 1 week
+
+
+.job-linux-deb:
+
+  tags: [ "docker" ]
+
+  script:
+    - sudo apt-get -y remove `dpkg-query -f '${binary:Package}\n' -W | grep "^bc-"` || true
+    - ./prepare.py flexisip-rpm $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
+    - cmake --build WORK/flexisip-rpm/cmake -- $ADDITIONAL_BUILD_OPTIONS
+
+  artifacts:
+    paths:
+      - WORK/flexisip-rpm/rpmbuild/DEBS/*.deb
+    when: always
+    expire_in: 1 week
+
+
+.scheduled-job-linux:
+
+  extends: .job-linux
+  only:
+    - schedules
+
+
+job-centos7-makefile-gcc:
+
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: gcc
+    CXX: g++
+    ADDITIONAL_BUILD_OPTIONS: -j4
+  extends: .job-linux
+
+
+job-centos7-makefile-clang:
+
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: clang
+    CXX: clang++
+    ADDITIONAL_BUILD_OPTIONS: -j4
+  extends: .job-linux
+
+
+#job-centos7-ninja-gcc:
+#
+#  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+#  variables:
+#    CMAKE_GENERATOR: Ninja
+#    CC: gcc
+#    CXX: g++
+#  extends: .job-linux
+
+
+#job-centos7-ninja-clang:
+#
+#  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+#  variables:
+#    CMAKE_GENERATOR: Ninja
+#    CC: clang
+#    CXX: clang++
+#  extends: .job-linux
+
+
+job-centos7-rpm:
+
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+  extends: .job-linux-rpm
+
+
+job-debian8-makefile-gcc:
+
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: gcc
+    CXX: g++
+    ADDITIONAL_BUILD_OPTIONS: -j4
+  extends: .scheduled-job-linux
+
+
+job-debian8-makefile-clang:
+
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: clang
+    CXX: clang++
+    ADDITIONAL_BUILD_OPTIONS: -j4
+  extends: .scheduled-job-linux
+
+
+job-debian8-ninja-gcc:
+
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: gcc
+    CXX: g++
+  extends: .job-linux
+
+
+job-debian8-ninja-clang:
+
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: clang
+    CXX: clang++
+  extends: .job-linux
+
+
+job-debian8-deb:
+
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  extends: .job-linux-deb
+
+
+job-debian9-makefile-gcc:
+
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: gcc
+    CXX: g++
+    ADDITIONAL_BUILD_OPTIONS: -j4
+  extends: .scheduled-job-linux
+
+
+job-debian9-makefile-clang:
+
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: clang
+    CXX: clang++
+    ADDITIONAL_BUILD_OPTIONS: -j4
+  extends: .scheduled-job-linux
+
+
+job-debian9-ninja-gcc:
+
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: gcc
+    CXX: g++
+  extends: .job-linux
+
+
+job-debian9-ninja-clang:
+
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: clang
+    CXX: clang++
+  extends: .job-linux
+
+
+job-debian9-deb:
+
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  extends: .job-linux-deb
+
+
+.job-macosx:
+
+  tags: [ "macosx" ]
+
+  script:
+    - ccache -s
+    - export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
+    - export MYSQL_DIR=/usr/local/opt/mysql-client
+    - ./prepare.py -G "$CMAKE_GENERATOR" -cc $DEFAULT_MACOS_CMAKE_OPTIONS $CMAKE_OPTIONS
+    - cmake --build WORK/flexisip/cmake -- $ADDITIONAL_BUILD_OPTIONS
+    - ccache -s
+
+
+.scheduled-job-macosx:
+
+  extends: .job-macosx
+  only:
+    - schedules
+
+
+job-macosx-makefile:
+
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    ADDITIONAL_BUILD_OPTIONS: -j4
+  extends: .scheduled-job-macosx
+
+
+job-macosx-ninja:
+
+  variables:
+    CMAKE_GENERATOR: Ninja
+  extends: .job-macosx
+
+
+job-macosx-xcode:
+
+  tags: [ "macosx" ]
+
+  only:
+    - schedules
+  script:
+    - python prepare.py -G Xcode -cc $DEFAULT_MACOS_CMAKE_OPTIONS $CMAKE_OPTIONS
+    - cmake --build WORK/flexisip/cmake -- -IDEBuildOperationMaxNumberOfConcurrentCompileTasks=`sysctl -n hw.ncpu`

@@ -1067,7 +1067,7 @@ int Authentication::AuthenticationListener::checkPasswordMd5(const char *passwd)
 	if (passwd) {
 		mPasswordFound = true;
 		++*getModule()->mCountPassFound;
-		strncpy(a1buf, passwd, 33); // remove trailing NULL character
+		strncpy(a1buf, passwd, sizeof(a1buf) - 1); // remove trailing NULL character
 		a1 = a1buf;
 	} else {
 		++*getModule()->mCountPassNotFound;
@@ -1094,7 +1094,7 @@ int Authentication::AuthenticationListener::checkPasswordForAlgorithm(const char
 		if (passwd) {
 			mPasswordFound = true;
 			++*getModule()->mCountPassFound;
-			strncpy(a1, passwd, 65); // remove trailing NULL character
+			strncpy(a1, passwd, sizeof(a1) - 1); // remove trailing NULL character
 		} else {
 			++*getModule()->mCountPassNotFound;
 			auth_digest_a1_for_algorithm(&mAr, "xyzzy", a1);
