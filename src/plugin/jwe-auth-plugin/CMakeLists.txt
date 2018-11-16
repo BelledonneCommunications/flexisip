@@ -30,7 +30,7 @@ find_package(Jansson REQUIRED)
 find_package(Jose REQUIRED)
 
 set(JWE_AUTH_LIBRARIES
-	${FLEXISIP_LIBS}
+	flexisip
 	${JANSSON_LIBRARIES}
 	${JOSE_LIBRARIES}
 )
