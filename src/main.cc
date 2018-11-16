@@ -140,16 +140,6 @@ static void flexisip_stop(int signum) {
 		if (root) {
 			su_root_break(root);
 		}
-#if ENABLE_PRESENCE
-		if (presenceServer) {
-			presenceServer->stop();
-		}
-#endif
-#if ENABLE_CONFERENCE
-		if (conferenceServer) {
-			conferenceServer->stop();
-		}
-#endif
 	} //else nop
 }
 
@@ -985,10 +975,12 @@ int main(int argc, char *argv[]) {
 	a.reset();
 #ifdef ENABLE_PRESENCE
 	presence_cli = nullptr;
+	presenceServer->stop();
 	presenceServer.reset();
 #endif // ENABLE_PRESENCE
 
 #ifdef ENABLE_CONFERENCE
+	conferenceServer->stop();
 	conferenceServer.reset();
 #endif // ENABLE_CONFERENCE
 
