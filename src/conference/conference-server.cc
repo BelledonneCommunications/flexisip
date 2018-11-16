@@ -59,13 +59,15 @@ void ConferenceServer::_init () {
 	mTransport = config->get<ConfigString>("transport")->read();
 	if (mTransport.length() > 0) {
 		SofiaAutoHome mHome;
-		sip_contact_t *sipContact = sip_contact_make(mHome.home(), mTransport.c_str());
-		if (sipContact->m_url->url_port != nullptr) {
+		url_t *urlTransport = url_make(mHome.home(), mTransport.c_str());
+		if (urlTransport != nullptr && mTransport.at(0) != '<') {
 			int port;
 			istringstream istr;
-			istr.str(sipContact->m_url->url_port);
+			istr.str(urlTransport->url_port);
 			istr >> port;
 			cTransport->setTcpPort(port);
+		} else {
+			LOGF("ConferenceServer: Your configured conference transport(\"%s\") is not an URI.\nIf you have \"<>\" in your transport, remove them.", mTransport.c_str());
 		}
 	}
 
@@ -205,11 +207,11 @@ void flexisip::ConferenceServer::bindConference() {
 	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	if (config && config->get<ConfigBoolean>("enabled")->read()) {
-		SofiaAutoHome home;
 		BindingParameters parameter;
 
-		sip_contact_t* sipContact = sip_contact_create(home.home(), reinterpret_cast<url_string_t*>(url_make(home.home(), mTransport.c_str())), nullptr);
-		url_t *from = url_make(home.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
+		sip_contact_t* sipContact = sip_contact_create(mHome.home(),
+			reinterpret_cast<const url_string_t*>(url_make(mHome.home(), mTransport.c_str())), nullptr);
+		url_t *from = url_make(mHome.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
 
 		parameter.callId = "CONFERENCE";
 		parameter.path = mPath;
@@ -232,12 +234,13 @@ void ConferenceServer::bindChatRoom (
 	const string &gruu,
 	const shared_ptr<ContactUpdateListener> &listener
 ) {
-	SofiaAutoHome home;
 	BindingParameters parameter;
 
-	sip_contact_t* sipContact = sip_contact_create(home.home(), reinterpret_cast<url_string_t*>(url_make(home.home(), contact.c_str())), ("+sip.instance=\"<" + gruu + ">\"").c_str());
-	url_t *from = url_make(home.home(), bindingUrl.c_str());
-	url_param_add(home.home(), from, ("gr=" + gruu).c_str());
+	sip_contact_t* sipContact = sip_contact_create(mHome.home(),
+		reinterpret_cast<const url_string_t*>(url_make(mHome.home(), contact.c_str())),
+		su_strdup(mHome.home(), ("+sip.instance=\"<" + gruu + ">\"").c_str()));
+	url_t *from = url_make(mHome.home(), bindingUrl.c_str());
+	url_param_add(mHome.home(), from, ("gr=" + gruu).c_str());
 
 	parameter.callId = gruu;
 	parameter.path = mPath;
@@ -266,7 +269,7 @@ ConferenceServer::Init::Init() {
 			String,
 			"transport",
 			"uri where the conference server must listen.",
-			"<sip:127.0.0.1:6064;transport=tcp>"
+			"sip:127.0.0.1:6064;transport=tcp"
 		},
 		{
 			String,
