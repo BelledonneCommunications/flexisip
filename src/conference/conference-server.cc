@@ -206,7 +206,7 @@ void flexisip::ConferenceServer::bindConference() {
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	if (config && config->get<ConfigBoolean>("enabled")->read()) {
 		SofiaAutoHome home;
-		BindingParameter parameter;
+		BindingParameters parameter;
 
 		sip_contact_t* sipContact = sip_contact_create(home.home(), reinterpret_cast<url_string_t*>(url_make(home.home(), mTransport.c_str())), nullptr);
 		url_t *from = url_make(home.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
@@ -233,7 +233,7 @@ void ConferenceServer::bindChatRoom (
 	const shared_ptr<ContactUpdateListener> &listener
 ) {
 	SofiaAutoHome home;
-	BindingParameter parameter;
+	BindingParameters parameter;
 
 	sip_contact_t* sipContact = sip_contact_create(home.home(), reinterpret_cast<url_string_t*>(url_make(home.home(), contact.c_str())), ("+sip.instance=\"<" + gruu + ">\"").c_str());
 	url_t *from = url_make(home.home(), bindingUrl.c_str());
