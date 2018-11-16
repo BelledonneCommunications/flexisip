@@ -54,8 +54,7 @@ std::ostream &operator<<(std::ostream &stream, const std::list<std::string> &str
 }
 
 template <typename CompT> inline void check(const std::string &name, const CompT &v1, const CompT &v2) {
-	if (v1 != v2)
-		BAD(name << " X" << v1 << "X / X" << v2 << "X");
+	if (v1 != v2) std::cout << name << " X" << v1 << "X / X" << v2 << "X" << std::endl;
 }
 
 bool compare(const ExtendedContact &ec1, bool alias, const ExtendedContactCommon &common, uint32_t cseq,
@@ -83,8 +82,7 @@ bool compare(const ExtendedContact &ec1, const ExtendedContact &ec2) {
 bool compare(const Record &r1, const Record &r2) {
 	auto ec1 = r1.getExtendedContacts();
 	auto ec2 = r2.getExtendedContacts();
-	if (ec1.size() != ec2.size())
-		BAD("ecc size :" << ec1.size() << " / " << ec2.size());
+	if (ec1.size() != ec2.size()) BAD("ecc size :" << ec1.size() << " / " << ec2.size());
 
 	return compare(firstContact(r1), firstContact(r2));
 }

@@ -1,17 +1,17 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
  Copyright (C) 2017  Belledonne Communications SARL.
- 
+
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
  published by the Free Software Foundation, either version 3 of the
  License, or (at your option) any later version.
- 
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU Affero General Public License for more details.
- 
+
  You should have received a copy of the GNU Affero General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -187,7 +187,7 @@ void flexisip::ConferenceServer::bindAddresses () {
 
 	// Binding loaded chat room
 	for (const auto &chatRoom : mCore->getChatRooms()) {
-		bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), mTransport, chatRoom->getPeerAddress()->getUriParam("gr"), mPath, nullptr);
+		bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), mTransport, chatRoom->getPeerAddress()->getUriParam("gr"), nullptr);
 	}
 
 	mAddressesBound = true;
@@ -205,21 +205,22 @@ void flexisip::ConferenceServer::bindConference() {
 	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	if (config && config->get<ConfigBoolean>("enabled")->read()) {
-		sip_contact_t *sipContact = sip_contact_make(mHome.home(), mTransport.c_str());
-		url_t *url = url_make(mHome.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
-		sip_path_t *bindingPath = sip_path_format(mHome.home(), "<%s>", mPath.c_str());
+		SofiaAutoHome home;
+		BindingParameters parameter;
+
+		sip_contact_t* sipContact = sip_contact_create(home.home(), reinterpret_cast<url_string_t*>(url_make(home.home(), mTransport.c_str())), nullptr);
+		url_t *from = url_make(home.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
+
+		parameter.callId = "CONFERENCE";
+		parameter.path = mPath;
+		parameter.globalExpire = numeric_limits<int>::max();
+		parameter.alias = false;
+		parameter.version = 0;
+
 		RegistrarDb::get()->bind(
-			url,
+			from,
 			sipContact,
-			"CONFERENCE",
-			0,
-			bindingPath, 
-			nullptr, 
-			nullptr,
-			true,
-			numeric_limits<int>::max(),
-			false,
-			0,
+			parameter,
 			listener
 		);
 	}
@@ -229,27 +230,26 @@ void ConferenceServer::bindChatRoom (
 	const string &bindingUrl,
 	const string &contact,
 	const string &gruu,
-	const string &path,
 	const shared_ptr<ContactUpdateListener> &listener
 ) {
-	url_t *url = url_make(mHome.home(), bindingUrl.c_str());
-	sip_contact_t *sipContact = sip_contact_make(mHome.home(), contact.c_str());
-	sip_contact_add_param(mHome.home(), sipContact, su_strdup(mHome.home(), ("+sip.instance=\"<" + gruu + ">\"").c_str()));
-	url_param_add(mHome.home(), sipContact->m_url, ("gr=" + gruu).c_str());
-	sip_supported_t *sipSupported = reinterpret_cast<sip_supported_t *>(sip_header_format(mHome.home(), sip_supported_class, "gruu"));
-	sip_path_t *bindingPath = sip_path_format(mHome.home(), "<%s>", mPath.c_str());
+	SofiaAutoHome home;
+	BindingParameters parameter;
+
+	sip_contact_t* sipContact = sip_contact_create(home.home(), reinterpret_cast<url_string_t*>(url_make(home.home(), contact.c_str())), ("+sip.instance=\"<" + gruu + ">\"").c_str());
+	url_t *from = url_make(home.home(), bindingUrl.c_str());
+	url_param_add(home.home(), from, ("gr=" + gruu).c_str());
+
+	parameter.callId = gruu;
+	parameter.path = mPath;
+	parameter.globalExpire = numeric_limits<int>::max();
+	parameter.alias = false;
+	parameter.version = 0;
+	parameter.withGruu = true;
+
 	RegistrarDb::get()->bind(
-		url,
+		from,
 		sipContact,
-		gruu.c_str(),
-		0,
-		bindingPath,
-		sipSupported,
-		nullptr,
-		true,
-		numeric_limits<int>::max(),
-		false,
-		0,
+		parameter,
 		listener
 	);
 }
@@ -276,7 +276,7 @@ ConferenceServer::Init::Init() {
 		},
 		{
 			Boolean,
-			"enable-one-to-one-chat-room", 
+			"enable-one-to-one-chat-room",
 			"Whether one-to-one chat room creation is allowed or not",
 			"true"
 		},

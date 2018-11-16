@@ -29,7 +29,7 @@
 
 using namespace std;
 
-static ModuleRegistrar *sRegistrarInstanceForSigAction = NULL;
+static ModuleRegistrar *sRegistrarInstanceForSigAction = nullptr;
 
 template <typename SipEventT>
 static void addEventLogRecordFound(shared_ptr<SipEventT> ev, const sip_contact_t *contacts) {
@@ -47,19 +47,19 @@ static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const
 	tp_name_t name = {0, 0, 0, 0, 0, 0};
 	tport_t *old_tport;
 
-	if (module->getAgent() != NULL && ec->mPath.size() == 1) {
+	if (module->getAgent() != nullptr && ec->mPath.size() == 1) {
 		if (tport_name_by_url(home.home(), &name, (url_string_t *)ec->mSipContact->m_url) == 0) {
 			old_tport = tport_by_name(nta_agent_tports(module->getSofiaAgent()), &name);
 
 			// RegId not set or different from ec
-			if (tport_get_user_data(new_tport) == NULL || (uint64_t)tport_get_user_data(new_tport) != ec->mRegId) {
+			if (tport_get_user_data(new_tport) == nullptr || (uint64_t)tport_get_user_data(new_tport) != ec->mRegId) {
 				tport_set_user_data(new_tport, (void*)ec->mRegId);
 				SLOGD << "Adding reg id to new tport: " << hex << ec->mRegId;
 			}
 
 			// Not the same tport but had the same regid
 			if (old_tport && new_tport != old_tport
-					&& (tport_get_user_data(old_tport) == NULL
+					&& (tport_get_user_data(old_tport) == nullptr
 						|| (uint64_t)tport_get_user_data(new_tport) == (uint64_t)tport_get_user_data(old_tport))
 					) {
 				SLOGD << "Removing old tport for sip uri " << ExtendedContact::urlToString(ec->mSipContact->m_url);
@@ -74,7 +74,7 @@ static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const
 
 OnRequestBindListener::OnRequestBindListener(ModuleRegistrar *module, std::shared_ptr<RequestSipEvent> ev, const sip_from_t *sipuri,
 						sip_contact_t *contact, sip_path_t *path)
-	: mModule(module), mEv(ev), mSipFrom(NULL), mContact(NULL), mPath(NULL) {
+	: mModule(module), mEv(ev), mSipFrom(nullptr), mContact(nullptr), mPath(nullptr) {
 	ev->suspendProcessing();
 	su_home_init(&mHome);
 	if (contact)
@@ -184,7 +184,7 @@ FakeFetchListener::FakeFetchListener() {
 }
 
 void FakeFetchListener::onRecordFound(Record *r) {
-	if (r != NULL) {
+	if (r != nullptr) {
 		SLOGD << r;
 	} else {
 		LOGD("No record found");
@@ -258,7 +258,7 @@ static bool checkStarUse(const sip_contact_t *contact, int expires) {
 				return false;
 			starFound = true;
 		}
-	} while (NULL != (contact = contact->m_next));
+	} while (nullptr != (contact = contact->m_next));
 	return true;
 }
 
@@ -302,7 +302,7 @@ static void staticRoutesRereadTimerfunc(su_root_magic_t *magic, su_timer_t *t, v
 	r->readStaticRecords();
 }
 
-ModuleRegistrar::ModuleRegistrar(Agent *ag) : Module(ag), mStaticRecordsTimer(NULL) {
+ModuleRegistrar::ModuleRegistrar(Agent *ag) : Module(ag), mStaticRecordsTimer(nullptr) {
 	sRegistrarInstanceForSigAction = this;
 	memset(&mSigaction, 0, sizeof(mSigaction));
 	mStaticRecordsVersion = 0;
@@ -414,8 +414,8 @@ void ModuleRegistrar::onLoad(const GenericStruct *mc) {
 	mUseGlobalDomain = GenericManager::get()->getRoot()->get<GenericStruct>("module::Router")->get<ConfigBoolean>("use-global-domain")->read();
 	mSigaction.sa_sigaction = ModuleRegistrar::sighandler;
 	mSigaction.sa_flags = SA_SIGINFO;
-	sigaction(SIGUSR1, &mSigaction, NULL);
-	sigaction(SIGUSR2, &mSigaction, NULL);
+	sigaction(SIGUSR1, &mSigaction, nullptr);
+	sigaction(SIGUSR2, &mSigaction, nullptr);
 
 	mParamsToRemove = GenericManager::get()->getRoot()->get<GenericStruct>("module::Forward")->get<ConfigStringList>("params-to-remove")->read();
 }
@@ -454,7 +454,7 @@ string ModuleRegistrar::routingKey(const url_t *sipUri) {
 
 void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason,
 							const sip_contact_t *contacts) {
-	sip_contact_t *modified_contacts = NULL;
+	sip_contact_t *modified_contacts = nullptr;
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	int expire = sip->sip_expires ? sip->sip_expires->ex_delta : 0;
@@ -479,7 +479,7 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 			}
 	}
 
-	for (sip_contact_t *contact = modified_contacts; contact!=NULL ; contact=contact->m_next) {
+	for (sip_contact_t *contact = modified_contacts; contact!=nullptr ; contact=contact->m_next) {
 		if(sip->sip_request->rq_method == sip_method_register && code == 200 && contact) {
 			if (url_has_param(contact->m_url, "gr")) {
 				string gruu;
@@ -535,7 +535,7 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 
 inline static bool containsNonZeroExpire(const sip_expires_t *main, const sip_contact_t *c) {
 	bool nonZeroMain = main && main->ex_delta > 0;
-	while (c != NULL) {
+	while (c != nullptr) {
 		if (c->m_expires) {
 			if (atoi(c->m_expires) > 0)
 				return true;
@@ -563,7 +563,8 @@ void ModuleRegistrar::processUpdateRequest(shared_ptr<SipEventT> &ev, const sip_
 		mStats.mCountBind->incrStart();
 		LOGD("Updating binding");
 		listener->addStatCounter(mStats.mCountBind->finish);
-		RegistrarDb::get()->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, false, listener); //FIXME ?
+		//RegistrarDb::get()->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, false, listener); //FIXME ?
+		RegistrarDb::get()->bind(sip, maindelta, false, 0, listener);
 		return;
 	}
 }
@@ -580,7 +581,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		return;
 
 	// Handle fetching
-	if (sip->sip_contact == NULL) {
+	if (sip->sip_contact == nullptr) {
 		LOGD("No sip contact, it is a fetch only request for %s.", url_as_string(ms->getHome(), sipurl));
 		auto listener = make_shared<OnRequestBindListener>(this, ev);
 		RegistrarDb::get()->fetch(sipurl, listener);
@@ -602,10 +603,15 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 
 	// Use path as a contact route in all cases
-	sip_path_t *path = sip_path_format(ms->getHome(), "<%s>", getAgent()->getPreferredRoute().c_str()); //format a Path
-	msg_t *msg = ev->getMsgSip()->getMsg();
-	if (!prependNewRoutable(msg, sip, sip->sip_path, path)) {
-		SLOGD << "Identical path already existing: " << getAgent()->getPreferredRoute();
+	// Preferred Route is only set if cluster mode is enabled
+	if (!getAgent()->getPreferredRoute().empty()) {
+		sip_path_t *path = sip_path_format(ms->getHome(), "<%s>", getAgent()->getPreferredRoute().c_str()); //format a Path
+		msg_t *msg = ev->getMsgSip()->getMsg();
+		if (!prependNewRoutable(msg, sip, sip->sip_path, path)) {
+			SLOGD << "Identical path already existing: " << getAgent()->getPreferredRoute();
+		}
+	} else {
+		addPathHeader(getAgent(), ev, ev->getIncomingTport().get());
 	}
 
 	// Set RegId if not set in MsgSip
@@ -613,10 +619,10 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		sip->sip_user = tport_get_user_data(ev->getIncomingTport().get());
 
 	// domain registration case, does nothing for the moment
-	if (sipurl->url_user == NULL && !mAllowDomainRegistrations) {
+	if (sipurl->url_user == nullptr && !mAllowDomainRegistrations) {
 		LOGE("Not accepting domain registration");
 		SLOGUE << "Not accepting domain registration:  " << url_as_string(ms->getHome(), sipurl);
-		reply(ev, 403, "Domain registration forbidden", NULL);
+		reply(ev, 403, "Domain registration forbidden", nullptr);
 		return;
 	}
 
@@ -630,16 +636,20 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			RegistrarDb::get()->clear(sip, listener);
 			return;
 		} else {
-			if (sipurl->url_user == NULL && mAssumeUniqueDomains) {
+			if (sipurl->url_user == nullptr && mAssumeUniqueDomains) {
 				/*first clear to make sure that there is only one record*/
 				RegistrarDb::get()->clear(sip, make_shared<FakeFetchListener>());
 			}
+			BindingParameters parameter;
 			auto listener =
 				make_shared<OnRequestBindListener>(this, ev, sip->sip_from, sip->sip_contact, sip->sip_path);
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
 			listener->addStatCounter(mStats.mCountBind->finish);
-			RegistrarDb::get()->bind(sip, maindelta, false, 0, listener);
+			parameter.alias = false;
+			parameter.globalExpire = maindelta;
+			parameter.version = 0;
+			RegistrarDb::get()->bind(sip, parameter, listener);
 			return;
 		}
 	} else {
@@ -660,7 +670,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		SLOGD << "Removed instance and push params: \n" << sip->sip_contact;
 
 		if (sip->sip_path) {
-			sip->sip_path = NULL;
+			sip->sip_path = nullptr;
 			SLOGD << "Removed paths";
 		}
 		// Let the modified initial event flow (will not be forked).
@@ -682,7 +692,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		return;
 
 	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-	if (transaction == NULL) {
+	if (transaction == nullptr) {
 		/*not a response we want to manage*/
 		return;
 	}
@@ -715,10 +725,14 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			listener->addStatCounter(mStats.mCountClear->finish);
 			RegistrarDb::get()->clear(reSip, listener);
 		} else {
+			BindingParameters parameter;
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
+			parameter.alias = false;
+			parameter.globalExpire = maindelta;
+			parameter.version = 0;
 			listener->addStatCounter(mStats.mCountBind->finish);
-			RegistrarDb::get()->bind(reSip, maindelta, false, 0, listener);
+			RegistrarDb::get()->bind(reSip, parameter, listener);
 		}
 	}
 	if (reSip->sip_status->st_status >= 200) {
@@ -728,11 +742,10 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 }
 
 void ModuleRegistrar::readStaticRecords() {
-	if (mStaticRecordsFile.empty())
-		return;
+	if (mStaticRecordsFile.empty()) return;
 	LOGD("Reading static records file");
 
-	su_home_t home;
+	SofiaAutoHome home;
 
 	stringstream ss;
 	ss.exceptions(ifstream::failbit | ifstream::badbit);
@@ -744,8 +757,7 @@ void ModuleRegistrar::readStaticRecords() {
 	ifstream file;
 	file.open(mStaticRecordsFile);
 	if (file.is_open()) {
-		su_home_init(&home);
-		sip_path_t *path = sip_path_format(&home, "%s", getAgent()->getPreferredRoute().c_str());
+		string path = getAgent()->getPreferredRoute();
 		mStaticRecordsVersion++;
 		while (file.good() && !file.eof()) {
 			getline(file, line);
@@ -753,19 +765,18 @@ void ModuleRegistrar::readStaticRecords() {
 			bool is_a_comment = false;
 			for (i = 0; i < line.size(); ++i) {
 				// skip spaces or comments
-				if (isblank(line[i]))
-					continue;
-				if (line[i] == '#')
+				if (isblank(line[i])) continue;
+				if (line[i] == '#') {
 					is_a_comment = true;
-				else
+				} else {
 					break;
+				}
 			}
-			if (is_a_comment)
-				continue;
-			if (i == line.size())
-				continue; // blank line
+			if (is_a_comment) continue;
+			if (i == line.size()) continue; // blank line
 			size_t cttpos = line.find_first_of(' ', i);
 			if (cttpos != string::npos && cttpos < line.size()) {
+
 				// Read uri
 				from = line.substr(0, cttpos);
 
@@ -773,8 +784,8 @@ void ModuleRegistrar::readStaticRecords() {
 				contact_header = line.substr(cttpos + 1, line.length() - cttpos + 1);
 
 				// Create
-				sip_contact_t *url = sip_contact_make(&home, from.c_str());
-				sip_contact_t *contact = sip_contact_make(&home, contact_header.c_str());
+				sip_contact_t *url = sip_contact_make(home.home(), from.c_str());
+				sip_contact_t *contact = sip_contact_make(home.home(), contact_header.c_str());
 				int expire = mStaticRecordsTimeout + 5; // 5s to avoid race conditions
 
 				if (!url || !contact) {
@@ -782,22 +793,29 @@ void ModuleRegistrar::readStaticRecords() {
 					continue;
 				}
 
-				while (contact != NULL) {
-					sip_contact_t single = *contact;
-					single.m_next = NULL;
-					auto listener = make_shared<OnStaticBindListener>(url->m_url, &single);
+				while (contact != nullptr) {
+					BindingParameters parameter;
+					shared_ptr<OnStaticBindListener> listener;
+					string fakeCallId = "static-record-v" + su_random();
 					bool alias = isManagedDomain(contact->m_url);
-					const char *fakeCallId = su_sprintf(&home, "static-record-v%x", su_random());
+					sip_contact_t *sipContact = sip_contact_dup(home.home(), contact);
 
-					RegistrarDb::get()->bind(url->m_url, &single, fakeCallId, 0, path, NULL, NULL,
-						single.m_url->url_user == NULL, expire, alias, mStaticRecordsVersion, listener);
+					sipContact->m_next = nullptr;
+					listener = make_shared<OnStaticBindListener>(url->m_url, contact);
+
+					parameter.callId = fakeCallId;
+					parameter.path = path;
+					parameter.globalExpire = expire;
+					parameter.alias = alias;
+					parameter.version = mStaticRecordsVersion;
+
+					RegistrarDb::get()->bind(url->m_url, sipContact, parameter, listener);
 					contact = contact->m_next;
 				}
 				continue;
 			}
 			LOGW("Incorrect line format: %s", line.c_str());
 		}
-		su_home_deinit(&home);
 	} else {
 		LOGE("Can't open file %s", mStaticRecordsFile.c_str());
 	}
