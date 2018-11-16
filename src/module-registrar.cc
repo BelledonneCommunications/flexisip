@@ -793,10 +793,10 @@ void ModuleRegistrar::readStaticRecords() {
 					continue;
 				}
 
-				while (contact != nullptr) {
+				while (contact) {
 					BindingParameters parameter;
 					shared_ptr<OnStaticBindListener> listener;
-					string fakeCallId = "static-record-v" + su_random();
+					string fakeCallId = "static-record-v" + to_string(su_random());
 					bool alias = isManagedDomain(contact->m_url);
 					sip_contact_t *sipContact = sip_contact_dup(home.home(), contact);
 
