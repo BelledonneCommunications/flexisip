@@ -8,7 +8,7 @@ RUN apt-get install -y  nasm patch python-pip python-pystache graphviz intltool 
 
 #get source code
 RUN git clone https://gitlab.linphone.org/BC/public/flexisip.git -b feature/server_encrypted_chatrooms --recursive --depth 1
-RUN cd flexisip && ./prepare.py flexisip -DENABLE_TRANSCODER=ON -DCMAKE_PREFIX_PATH=/opt/belledonne-communications -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc && make
+RUN cd flexisip && ./prepare.py flexisip -DENABLE_TRANSCODER=ON -DENABLE_CONFERENCE=ON -DCMAKE_PREFIX_PATH=/opt/belledonne-communications -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc && make
 RUN mkdir -p /etc/opt/belledonne-communications/flexisip
 RUN mkdir -p /var/opt/belledonne-communications/log/flexisip
 RUN ln -s /etc/opt/belledonne-communications/flexisip /etc/flexisip
