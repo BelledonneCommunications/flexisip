@@ -45,7 +45,7 @@ ostream &ExtendedContact::print(ostream &stream, time_t _now, time_t _offset) co
 	time_t expire = mExpireAt;
 	expire += offset;
 	struct tm *ptm = localtime(&expire);
-	if (ptm != NULL) {
+	if (ptm != nullptr) {
 		strftime(buffer, sizeof(buffer) - 1, "%c", ptm);
 	}
 	int expireAfter = mExpireNotAtMessage - now;
@@ -57,6 +57,7 @@ ostream &ExtendedContact::print(ostream &stream, time_t _now, time_t _offset) co
 		stream << *it;
 	}
 	stream << "\"";
+	stream << " user-agent=\"" << mUserAgent << "\"";
 	stream << " alias=" << (mAlias ? "yes" : "no");
 	if (!mAlias)
 		stream << " uid=" << mUniqueId;
@@ -69,7 +70,7 @@ void ExtendedContact::transferRegId(const shared_ptr<ExtendedContact> &oldEc) {
 	char strRegid[32] = {0};
 	if (oldEc->mRegId > 0 &&
 			(url_param(mSipContact->m_url->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0 &&
-			strtoull(strRegid, NULL, 16) != oldEc->mRegId)
+			strtoull(strRegid, nullptr, 16) != oldEc->mRegId)
 		) {
 		ostringstream os;
 		os << "regid=" << hex << oldEc->mRegId;
@@ -80,9 +81,9 @@ void ExtendedContact::transferRegId(const shared_ptr<ExtendedContact> &oldEc) {
 }
 
 url_t *ExtendedContact::toSofiaUrlClean(su_home_t *home){
-	url_t *ret = NULL;
+	url_t *ret = nullptr;
 	if (!mSipContact)
-		return NULL;
+		return nullptr;
 
 	ret = url_hdup(home, mSipContact->m_url);
 	ret->url_params = url_strip_param_string((char*)ret->url_params, "regid");
@@ -102,15 +103,15 @@ const string ExtendedContact::getMessageExpires(const msg_param_t *m_params)  {
 sip_contact_t *ExtendedContact::toSofiaContact(su_home_t *home, time_t now) const {
 	time_t expire = mExpireAt - now;
 	if (expire <= 0)
-		return NULL;
+		return nullptr;
 
-	mSipContact->m_next = NULL;
+	mSipContact->m_next = nullptr;
 	return sip_contact_dup(home, mSipContact);
 }
 
 sip_route_t *ExtendedContact::toSofiaRoute(su_home_t *home) const {
-	sip_route_t *rbegin = NULL;
-	sip_route_t *r = NULL;
+	sip_route_t *rbegin = nullptr;
+	sip_route_t *r = nullptr;
 	for (auto it = mPath.begin(); it != mPath.end(); ++it) {
 		sip_route_t *newr = sip_route_format(home, "<%s>", (*it).c_str());
 		if (!newr) {
@@ -120,7 +121,7 @@ sip_route_t *ExtendedContact::toSofiaRoute(su_home_t *home) const {
 		if (!url_has_param(newr->r_url, "lr")) {
 			url_param_add(home, newr->r_url, "lr");
 		}
-		if (rbegin == NULL) {
+		if (rbegin == nullptr) {
 			rbegin = newr;
 		} else {
 			r->r_next = newr;
@@ -131,7 +132,7 @@ sip_route_t *ExtendedContact::toSofiaRoute(su_home_t *home) const {
 }
 
 sip_contact_t *Record::getContacts(su_home_t *home, time_t now) {
-	sip_contact_t *alist = NULL;
+	sip_contact_t *alist = nullptr;
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
 		sip_contact_t *current = (*it)->toSofiaContact(home, now);
 		if (current && alist) {
@@ -266,7 +267,7 @@ time_t Record::latestExpire(Agent *ag) const {
 list<string> Record::route_to_stl(const sip_route_s *route) {
 	list<string> res;
 	SofiaAutoHome home;
-	while (route != NULL) {
+	while (route != nullptr) {
 		res.push_back(string(url_as_string(home.home(), route->r_url)));
 		route = route->r_next;
 	}
@@ -336,6 +337,37 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 	}
 }
 
+shared_ptr< multimap<string, string> > Record::extractInfoFromHeader(const char *urlHeaders, const list<string> paramName) {
+	shared_ptr< multimap<string, string> > result = make_shared< multimap<string, string> >();
+	if (urlHeaders) {
+		SofiaAutoHome home;
+		string headers = url_query_as_header_string(home.home(), urlHeaders);
+		size_t indexKey = 0;
+
+		while (headers.find('\n', indexKey) != string::npos || indexKey < headers.length()) {
+			size_t indexParam = headers.find(':', indexKey);
+			indexKey = headers.find('\n', indexKey);
+			if (indexParam != string::npos) {
+				string key = headers.substr(indexKey, indexParam - indexKey);
+				indexParam = indexKey + key.length() + 1;
+
+				// Check if param not empty and key is wanted
+				if (indexParam != indexKey && indexParam < headers.length() && std::find(paramName.begin(), paramName.end(), key) != paramName.end()) {
+					do {
+						size_t indexEnd = headers.find(',', indexParam);
+						if (indexEnd == string::npos || indexEnd > indexKey) indexEnd = indexKey;
+						string value = headers.substr(indexParam, indexEnd);
+						result->insert(pair<string, string>(key, value));
+					} while (headers.find(',', indexParam) != string::npos);
+				}
+			}
+			if (indexKey != string::npos) indexKey++;
+		}
+	}
+
+	return result;
+}
+
 static bool compare_contact_using_last_update (shared_ptr<ExtendedContact> first, shared_ptr<ExtendedContact> second) {
 	return first->mUpdatedTime < second->mUpdatedTime;
 }
@@ -353,9 +385,9 @@ void Record::applyMaxAor() {
 }
 
 static void defineContactId(ostringstream &oss, const url_t *url, const char *transport) {
-	if (transport != NULL)
+	if (transport != nullptr)
 		oss << transport << ":";
-	if (url->url_user != NULL)
+	if (url->url_user != nullptr)
 		oss << url->url_user << ":";
 	oss << url->url_host;
 	if (url->url_port)
@@ -365,7 +397,7 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 void ExtendedContact::setupRegid() {
 	char strRegid[32] = {0};
 	if (url_param(mSipContact->m_url->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0) {
-		mRegId = strtoull(strRegid, NULL, 16);
+		mRegId = strtoull(strRegid, nullptr, 16);
 	} else {
 		ostringstream os;
 		mRegId = su_random64();
@@ -422,6 +454,12 @@ string ExtendedContact::serializeAsUrlEncodedParams() {
 	oss << "usedAsRoute=" << (mUsedAsRoute ? "yes" : "no");
 	url_param_add(home.home(), contact->m_url, oss.str().c_str());
 
+	// User-agent
+	oss.str("");
+	oss.clear();
+	oss << "user-agent=" << mUserAgent;
+	url_param_add(home.home(), contact->m_url, oss.str().c_str());
+
 	// Path
 	ostringstream oss_path;
 	for (auto it = mPath.begin(); it != mPath.end(); ++it) {
@@ -471,10 +509,17 @@ static bool extractBoolParam(url_t *url, const char *param) {
 bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url) {
 	bool result = false;
 	SofiaAutoHome home;
+	list<string> paramName;
+	shared_ptr< multimap<string, string> > resultHeader;
+
+	// Path
+	list<string> path;
+	// Accept headers
+	list<string> acceptHeaders;
 
 	sip_contact_t *temp_contact = sip_contact_make(home.home(), full_url);
-	url_t *url = NULL;
-	if (temp_contact == NULL) {
+	url_t *url = nullptr;
+	if (temp_contact == nullptr) {
 		SLOGD << "Couldn't parse " << full_url << " as contact, fallback to url instead";
 		url = url_make(home.home(), full_url);
 	} else {
@@ -499,48 +544,39 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 	// Used as route
 	bool usedAsRoute = extractBoolParam(url, "usedAsRoute");
 
-	// Path
-	list<string> path;
-	// Accept headers
-	list<string> acceptHeaders;
+	// User-agent
+	string userAgent = extractStringParam(url, "user-agent");
 
-	char *headers = url_query_as_header_string(home.home(), url->url_headers);
-	char *line = NULL;
-	while ((line = strsep(&headers, "\n")) != NULL)
-	{
-		char *ptr;
-		strtok_r(line, ":", &ptr);
-		if (line) {
-			if (strcmp(line, "path") == 0 && ptr) {
-				char *item = NULL;
-				while ((item = strsep(&ptr, ",")) != NULL) {
-					path.push_back(item);
-				}
-			} else if (strcmp(line, "accept") == 0 && ptr) {
-				char *item = NULL;
-				while ((item = strsep(&ptr, ",")) != NULL) {
-					acceptHeaders.push_back(item);
-				}
-			}
+	paramName.push_back("path");
+	paramName.push_back("accept");
+
+	resultHeader = extractInfoFromHeader(url->url_headers, paramName);
+
+	for (auto pair : *resultHeader) {
+		if (pair.first == "path") {
+			path.push_back(pair.second);
+		} else if (pair.first == "accept") {
+			acceptHeaders.push_back(pair.second);
 		}
 	}
 
 	char transport[20] = {0};
 	url_param(url[0].url_params, "transport", transport, sizeof(transport) - 1);
 
-	url->url_headers = NULL;
-	sip_contact_t *contact = NULL;
-	if (temp_contact == NULL)
-		contact = sip_contact_create(home.home(), (url_string_t*)url, NULL);
-	else
+	url->url_headers = nullptr;
+	sip_contact_t *contact = nullptr;
+	if (temp_contact == nullptr) {
+		contact = sip_contact_create(home.home(), (url_string_t*)url, nullptr);
+	} else {
 		contact = temp_contact;
+	}
 
-	if (contact == NULL) {
+	if (contact == nullptr) {
 		return result;
 	}
 
 	ExtendedContactCommon ecc(key, path, call_id, uid);
-	auto exc = make_shared<ExtendedContact>(ecc, contact, globalExpire, cseq, updatedAt, alias, acceptHeaders);
+	auto exc = make_shared<ExtendedContact>(ecc, contact, globalExpire, cseq, updatedAt, alias, acceptHeaders, userAgent);
 	exc->setupRegid();
 	exc->mUsedAsRoute = usedAsRoute;
 
@@ -552,33 +588,44 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 	return result;
 }
 
-void Record::update(sip_contact_t *contacts, const sip_path_t *path, int globalExpire, const string &call_id,
-					uint32_t cseq, time_t now, bool alias, const list<string> accept, bool usedAsRoute,
-					const shared_ptr<ContactUpdateListener> &listener) {
+void Record::update(const sip_t *sip, int globalExpire, bool alias, int version, const shared_ptr<ContactUpdateListener> &listener) {
 	list<string> stlPath;
-
-	if (path != NULL) {
-		stlPath = route_to_stl(path);
+	SofiaAutoHome home;
+	string userAgent;
+	const sip_contact_t* contacts = sip->sip_contact;
+	const sip_accept_t *accept = sip->sip_accept;
+	list<string> acceptHeaders;
+	while (accept != nullptr) {
+		acceptHeaders.push_back(accept->ac_type);
+		accept = accept->ac_next;
 	}
 
-	while (contacts) {
-		const char *lineValuePtr = NULL;
-		string lineValue = extractUniqueId(contacts);
-		if (!lineValue.empty())
-			lineValuePtr = lineValue.c_str();
+	if (sip->sip_path != nullptr) {
+		stlPath = route_to_stl(sip->sip_path);
+	}
 
-		char transport[20];
-		char *transportPtr = transport;
-		if (!url_param(contacts->m_url[0].url_params, "transport", transport, sizeof(transport) - 1)) {
-			transportPtr = NULL;
+	userAgent = (sip->sip_user_agent) ? sip->sip_user_agent->g_string : "";
+
+	while (contacts) {
+		char buffer[20];
+		list<string> paramName;
+		char *transportPtr;
+		ostringstream contactId;
+		const char *lineValuePtr = nullptr;
+		string lineValue = extractUniqueId(contacts);
+
+		if (!lineValue.empty()) lineValuePtr = lineValue.c_str();
+
+		transportPtr = buffer;
+		if (!url_param(contacts->m_url[0].url_params, "transport", buffer, sizeof(buffer) - 1)) {
+			transportPtr = nullptr;
 		}
 
-		ostringstream contactId;
 		defineContactId(contactId, contacts->m_url, transportPtr);
-		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, call_id, lineValuePtr);
-		auto exc = make_shared<ExtendedContact>(ecc, contacts, globalExpire, cseq, now, alias, accept);
+		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, sip->sip_call_id->i_id, lineValuePtr);
+		auto exc = make_shared<ExtendedContact>(ecc, contacts, globalExpire, (sip->sip_cseq) ? sip->sip_cseq->cs_seq : 0, getCurrentTime(), alias, acceptHeaders, userAgent);
 		exc->setupRegid();
-		exc->mUsedAsRoute = usedAsRoute;
+		exc->mUsedAsRoute = sip->sip_from->a_url->url_user == nullptr;
 		insertOrUpdateBinding(exc, listener);
 		contacts = contacts->m_next;
 	}
@@ -592,16 +639,18 @@ void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long e
 					const shared_ptr<ContactUpdateListener> &listener) {
 	SofiaAutoHome home;
 	url_t *sipUri = url_make(home.home(), sipuri);
-	if (!sipUri){
+
+	if (!sipUri) {
 		LOGE("Record::update(): could not build sip uri.");
 		return;
 	}
-	sip_contact_t *contact = sip_contact_create(home.home(), (url_string_t*)sipUri, NULL);
-	if (!contact){
+	sip_contact_t *contact = sip_contact_create(home.home(), (url_string_t*)sipUri, nullptr);
+	if (!contact) {
 		LOGE("Record::update(): could not build contact.");
 		return;
 	}
-	auto exct = make_shared<ExtendedContact>(ecc, contact, expireAt, cseq, updated_time, alias, accept);
+
+	auto exct = make_shared<ExtendedContact>(ecc, contact, expireAt, cseq, updated_time, alias, accept, "");
 	exct->setupRegid();
 	exct->mUsedAsRoute = usedAsRoute;
 	insertOrUpdateBinding(exct, listener);
@@ -629,7 +678,7 @@ bool Record::sAssumeUniqueDomains = false;
 Record::Record(const url_t *aor) : mKey(aor ? defineKeyFromUrl(aor) : ""), mOnlyStaticContacts(true) {
 	if (sMaxContacts == -1)
 		init();
-	if (aor) mIsDomain = aor->url_user == NULL;
+	if (aor) mIsDomain = aor->url_user == nullptr;
 }
 
 Record::~Record() {
@@ -656,7 +705,7 @@ void Record::appendContactsFrom(Record *src) {
 }
 
 RegistrarDb::LocalRegExpire::LocalRegExpire(Agent *ag) : mAgent(ag) {
-	
+
 }
 
 RegistrarDb::RegistrarDb(Agent *ag)
@@ -820,10 +869,10 @@ bool RegistrarDb::errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, 
 	return false;
 }
 
-RegistrarDb *RegistrarDb::sUnique = NULL;
+RegistrarDb *RegistrarDb::sUnique = nullptr;
 
 RegistrarDb *RegistrarDb::initialize(Agent *ag){
-	if (sUnique != NULL){
+	if (sUnique != nullptr){
 		LOGF("RegistrarDb already initialized");
 	}
 	GenericStruct *cr = GenericManager::get()->getRoot();
@@ -869,7 +918,7 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 }
 
 RegistrarDb *RegistrarDb::get() {
-	if (sUnique == NULL) {
+	if (sUnique == nullptr) {
 		LOGF("RegistrarDb not initialized.");
 	}
 	return sUnique;
@@ -919,7 +968,7 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 	}
 
 	void onRecordFound(Record *r) {
-		if (r != NULL) {
+		if (r != nullptr) {
 			auto &extlist = r->getExtendedContacts();
 			list<sip_contact_t *> vectToRecurseOn;
 			for (auto it : extlist) {
@@ -932,7 +981,7 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 				}
 				m_record->pushContact(ec);
 				if (ec->mAlias && m_step > 0) {
-					sip_contact_t *contact = sip_contact_create(&m_home, (url_string_t*)ec->mSipContact->m_url, NULL);
+					sip_contact_t *contact = sip_contact_create(&m_home, (url_string_t*)ec->mSipContact->m_url, nullptr);
 					if (contact) {
 						vectToRecurseOn.push_back(contact);
 					} else {
@@ -951,7 +1000,7 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 
 		if (waitPullUpOrFail()) {
 			SLOGD << "Step: " << m_step << "\tNo contact found for " << m_url;
-			mOriginalListener->onRecordFound(NULL);
+			mOriginalListener->onRecordFound(nullptr);
 		}
 	}
 
@@ -984,7 +1033,7 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		 * the last request uri that was found recursed through the alias mechanism.
 		*/
 		shared_ptr<ExtendedContact> newEc = make_shared<ExtendedContact>(*ec);
-		newEc->mSipContact = sip_contact_create(newEc->mHome.home(), (url_string_t*)uri, NULL);
+		newEc->mSipContact = sip_contact_create(newEc->mHome.home(), (url_string_t*)uri, nullptr);
 		ostringstream path;
 		path<<*ec->toSofiaUrlClean(newEc->mHome.home());
 		newEc->mPath.push_back(path.str());
@@ -1054,47 +1103,53 @@ void RegistrarDb::fetchForGruu(const url_t *url, const string &gruu, const share
 	doFetchForGruu(url, gruu, listener);
 }
 
-void RegistrarDb::bind(const url_t *ifrom, sip_contact_t *icontact, const char *iid, uint32_t iseq,
-					  const sip_path_t *ipath, const sip_supported_t *isupported, const sip_accept_t *iaccept, bool usedAsRoute, int expire,
-					  bool alias, int version, const shared_ptr<ContactUpdateListener> &listener)
-{
+void RegistrarDb::bind(const sip_t *sip, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {
 	SofiaAutoHome home;
-	const sip_accept_t *accept = iaccept;
-	list<string> acceptHeaders;
-	while (accept != NULL) {
-		acceptHeaders.push_back(accept->ac_type);
-		accept = accept->ac_next;
-	}
 
-	if (isupported && icontact->m_params) {
-		if (msg_params_find(isupported->k_items, "gruu") != NULL){
-			const char *instance_param = msg_params_find(icontact->m_params, "+sip.instance");
-			if (instance_param){
+	if (sip->sip_supported && sip->sip_contact->m_params) {
+		if (msg_params_find(sip->sip_supported->k_items, "gruu") != nullptr){
+			const char *instance_param = msg_params_find(sip->sip_contact->m_params, "+sip.instance");
+			if (instance_param) {
 				string instance(instance_param);
 				if (instance.find("\"<") != string::npos) {
 					ostringstream stream;
 					instance = instance.substr(instance.find("\"<") + strlen("\"<"));
 					instance = instance.substr(0, instance.find(">"));
 					stream << "gr=" << instance;
-					url_param_add(home.home(), icontact->m_url, stream.str().c_str());
+					url_param_add(home.home(), sip->sip_contact->m_url, stream.str().c_str());
 				}
 			}
 		}
 	}
 
-	int countSipContacts = count_sip_contacts(icontact);
+	int countSipContacts = count_sip_contacts(sip->sip_contact);
 	if (countSipContacts > Record::getMaxContacts()) {
-		LOGD("Too many contacts in register %s %i > %i", Record::defineKeyFromUrl(ifrom).c_str(), countSipContacts, Record::getMaxContacts());
+		LOGD("Too many contacts in register %s %i > %i", Record::defineKeyFromUrl(sip->sip_from->a_url).c_str(), countSipContacts, Record::getMaxContacts());
 		listener->onError();
 		return;
 	}
 
-	doBind(ifrom, icontact, iid, iseq, ipath, acceptHeaders, usedAsRoute, expire, alias, version, listener);
+	doBind(sip, parameter.globalExpire, parameter.alias, parameter.version, listener);
 }
-void RegistrarDb::bind(const sip_t *sip, int globalExpire, bool alias, int version, const shared_ptr<ContactUpdateListener> &listener) {
-	bind(sip->sip_from->a_url, sip->sip_contact, sip->sip_call_id->i_id, sip->sip_cseq->cs_seq,
-		sip->sip_path, sip->sip_supported, sip->sip_accept, sip->sip_from->a_url->url_user == NULL,
-		globalExpire, alias, version, listener);
+
+void RegistrarDb::bind(const url_t *from, const sip_contact_t *contact, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {
+	msg_t *msg = msg_create(sip_default_mclass(), 0);
+	su_home_t *homeSip = msg_home(msg);
+	sip_t *sip = sip_object(msg);
+
+	sip->sip_contact = sip_contact_dup(homeSip, contact);
+
+	sip->sip_from = sip_from_create(homeSip, reinterpret_cast<const url_string_t*>(from));
+	if (!parameter.path.empty()) sip->sip_path = sip_path_format(homeSip, "<%s>", parameter.path.c_str());
+
+	if (parameter.withGruu) sip->sip_supported = reinterpret_cast<sip_supported_t *>(sip_header_format(homeSip, sip_supported_class, "gruu"));
+
+	if (!parameter.callId.empty()) sip->sip_call_id = sip_call_id_make(homeSip, parameter.callId.c_str());
+	sip->sip_expires = sip_expires_create(homeSip, 0);
+
+	bind(sip, parameter, listener);
+
+	msg_unref(msg);
 }
 
 class AgregatorRegistrarDbListener : public ContactUpdateListener {
@@ -1105,14 +1160,14 @@ class AgregatorRegistrarDbListener : public ContactUpdateListener {
 	Record *mRecord;
 	bool mError;
 	Record *getRecord() {
-		if (mRecord == NULL)
-			mRecord = new Record(NULL);
+		if (mRecord == nullptr)
+			mRecord = new Record(nullptr);
 		return mRecord;
 	}
 	void checkFinished() {
 		mNumResponseObtained++;
 		if (mNumResponseObtained == mNumRespExpected) {
-			if (mError && mRecord == NULL) {
+			if (mError && mRecord == nullptr) {
 				mOriginalListener->onError();
 			} else {
 				mOriginalListener->onRecordFound(mRecord);
@@ -1151,7 +1206,7 @@ class AgregatorRegistrarDbListener : public ContactUpdateListener {
 void RegistrarDb::fetchWithDomain(const url_t *url, const shared_ptr<ContactUpdateListener> &listener,
 								  bool recursive) {
 	url_t domainOnlyUrl = *url;
-	domainOnlyUrl.url_user = NULL;
+	domainOnlyUrl.url_user = nullptr;
 
 	auto agregator = make_shared<AgregatorRegistrarDbListener>(listener, 2);
 	fetch(url, agregator, recursive);
@@ -1175,11 +1230,11 @@ RecordSerializer *RecordSerializer::create(const string &name) {
 	}
 #endif
 	else {
-		return NULL;
+		return nullptr;
 	}
 }
 
-RecordSerializer *RecordSerializer::sInstance = NULL;
+RecordSerializer *RecordSerializer::sInstance = nullptr;
 
 RecordSerializer *RecordSerializer::get() {
 	if (!sInstance) {

@@ -7,7 +7,7 @@
 
 using namespace std;
 
-const unsigned int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 256;
+const unsigned int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 2048;
 const unsigned int ApplePushNotificationRequest::DEVICE_BINARY_SIZE = 32;
 uint32_t ApplePushNotificationRequest::sIdentifier = 1;
 
@@ -42,11 +42,14 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 		payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":" << info.mTtl << "\",\"uuid\":" << info.mUid
 			<< ",\"send-time\":\"" << date << "\"}";
 	}
-	if (payload.str().length() > MAXPAYLOAD_SIZE)
+
+	SLOGD << "PNR " << this << " payload is " << payload.str();
+	if (payload.str().length() > MAXPAYLOAD_SIZE) {
+		SLOGE << "PNR " << this << " cannot be sent because the payload size is higher than " << MAXPAYLOAD_SIZE;
 		return;
+	}
 
 	mPayload = payload.str();
-	LOGD("Push notification payload is %s", mPayload.c_str());
 }
 
 int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
