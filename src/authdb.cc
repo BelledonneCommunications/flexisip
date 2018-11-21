@@ -98,6 +98,7 @@ string AuthDbBackend::urlUnescape(const std::string &str) {
 	memset(unescaped, '\0', str.size() + 1);
 	url_unescape(unescaped, str.c_str());
 	unescapedStr = unescaped;
+	delete[] unescaped;
 	return unescapedStr;
 }
 
@@ -309,7 +310,7 @@ void AuthDbBackend::getUsersWithPhone(list<tuple<string,string,AuthDbListener*>>
 				break;
 		}
 	}
-	
+
 	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
 	getUsersWithPhonesFromBackend(needed_creds, listener);
 }
