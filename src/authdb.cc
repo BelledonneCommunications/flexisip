@@ -92,13 +92,9 @@ void AuthDbBackend::declareConfig(GenericStruct *mc) {
 //c++ style wrapper around sofia-sip 'url_unescape'
 //Avoids creating a temporary buffer for the unescaped string
 string AuthDbBackend::urlUnescape(const std::string &str) {
-	string unescapedStr;
-	char *unescaped = new char[str.size() + 1];
-
-	memset(unescaped, '\0', str.size() + 1);
-	url_unescape(unescaped, str.c_str());
-	unescapedStr = unescaped;
-	return unescapedStr;
+	vector<char> unescaped(str.size() + 1);
+	url_unescape(unescaped.data(), str.c_str());
+	return unescaped.data();
 }
 
 string AuthDbBackend::createPasswordKey(const string &user, const string &auth_username) {
@@ -309,7 +305,7 @@ void AuthDbBackend::getUsersWithPhone(list<tuple<string,string,AuthDbListener*>>
 				break;
 		}
 	}
-	
+
 	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
 	getUsersWithPhonesFromBackend(needed_creds, listener);
 }
