@@ -125,7 +125,7 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 												  Xsd::DataModel::Person  *person, const string *eTag,
 												  int expires) {
 	PresenceInformationElement *informationElement = nullptr;
-	constexpr unsigned int valMax = numeric_limits<unsigned int>::max() / 1000;
+	constexpr unsigned int valMax = numeric_limits<unsigned int>::max() / 1000U;
 	unsigned int expiresMs;
 
 	// etag ?
@@ -176,7 +176,7 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 		});
 
 
-	expiresMs = (static_cast<unsigned int>(expires) > valMax) ? numeric_limits<unsigned int>::max() : static_cast<unsigned int>(expires) * 1000;
+	expiresMs = (static_cast<unsigned int>(expires) > valMax) ? numeric_limits<unsigned int>::max() : static_cast<unsigned int>(expires) * 1000U;
 
 	// create timer
 	belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(  mBelleSipMainloop
@@ -288,8 +288,8 @@ void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<Present
 	SLOGD << op << " listener [" << listener.get() << "] on [" << *this << "] for [" << expires << "] seconds";
 
 	if (expires > 0) {
-		constexpr unsigned int valMax = numeric_limits<unsigned int>::max() / 1000;
-		unsigned int expiresMs = (static_cast<unsigned int>(expires) > valMax) ? numeric_limits<unsigned int>::max() : static_cast<unsigned int>(expires) * 1000;
+		constexpr unsigned int valMax = numeric_limits<unsigned int>::max() / 1000U;
+		unsigned int expiresMs = (static_cast<unsigned int>(expires) > valMax) ? numeric_limits<unsigned int>::max() : static_cast<unsigned int>(expires) * 1000U;
 
 		// PresentityPresenceInformationListener* listener_ptr=listener.get();
 		// cb function to invalidate an unrefreshed etag;
