@@ -51,13 +51,13 @@ static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const
 		if (tport_name_by_url(home.home(), &name, (url_string_t *)ec->mSipContact->m_url) == 0) {
 			old_tport = tport_by_name(nta_agent_tports(module->getSofiaAgent()), &name);
 
-			// RegId not set or different from ec
-			if (tport_get_user_data(new_tport) == nullptr || (uint64_t)tport_get_user_data(new_tport) != ec->mRegId) {
-				tport_set_user_data(new_tport, (void*)ec->mRegId);
-				SLOGD << "Adding reg id to new tport: " << hex << ec->mRegId;
+			// ConnId not set or different from ec
+			if (tport_get_user_data(new_tport) == nullptr || (uint64_t)tport_get_user_data(new_tport) != ec->mConnId) {
+				tport_set_user_data(new_tport, (void*)ec->mConnId);
+				SLOGD << "Adding reg id to new tport: " << hex << ec->mConnId;
 			}
 
-			// Not the same tport but had the same regid
+			// Not the same tport but had the same ConnId
 			if (old_tport && new_tport != old_tport
 					&& (tport_get_user_data(old_tport) == nullptr
 						|| (uint64_t)tport_get_user_data(new_tport) == (uint64_t)tport_get_user_data(old_tport))
@@ -495,8 +495,8 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 				}
 				delete[] buffer;
 			}
-			if (url_has_param(contact->m_url, "regid")) {
-				contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"regid");
+			if (url_has_param(contact->m_url, "fs-conn-id")) {
+				contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"fs-conn-id");
 			}
 		}
 	}
@@ -614,7 +614,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		addPathHeader(getAgent(), ev, ev->getIncomingTport().get());
 	}
 
-	// Set RegId if not set in MsgSip
+	// Set ConnId if not set in MsgSip
 	if (tport_get_user_data(ev->getIncomingTport().get()) && !sip->sip_user)
 		sip->sip_user = tport_get_user_data(ev->getIncomingTport().get());
 
