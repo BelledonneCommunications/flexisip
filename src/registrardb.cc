@@ -65,18 +65,18 @@ ostream &ExtendedContact::print(ostream &stream, time_t _now, time_t _offset) co
 	return stream;
 }
 
-void ExtendedContact::transferRegId(const shared_ptr<ExtendedContact> &oldEc) {
-	// Transfert param RegId from oldEc to this
-	char strRegid[32] = {0};
-	if (oldEc->mRegId > 0 &&
-			(url_param(mSipContact->m_url->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0 &&
-			strtoull(strRegid, nullptr, 16) != oldEc->mRegId)
+void ExtendedContact::transferConnId(const shared_ptr<ExtendedContact> &oldEc) {
+	// Transfert param ConnId from oldEc to this
+	char strConnId[32] = {0};
+	if (oldEc->mConnId > 0 &&
+			(url_param(mSipContact->m_url->url_params, "fs-conn-id", strConnId, sizeof(strConnId) - 1) > 0 &&
+			strtoull(strConnId, nullptr, 16) != oldEc->mConnId)
 		) {
 		ostringstream os;
-		os << "regid=" << hex << oldEc->mRegId;
-		mSipContact->m_url->url_params = url_strip_param_string(su_strdup(mHome.home(), mSipContact->m_url->url_params), "regid");
+		os << "fs-conn-id=" << hex << oldEc->mConnId;
+		mSipContact->m_url->url_params = url_strip_param_string(su_strdup(mHome.home(), mSipContact->m_url->url_params), "fs-conn-id");
 		url_param_add(mHome.home(), mSipContact->m_url, os.str().c_str());
-		this->mRegId = oldEc->mRegId;
+		this->mConnId = oldEc->mConnId;
 	}
 }
 
@@ -86,7 +86,7 @@ url_t *ExtendedContact::toSofiaUrlClean(su_home_t *home){
 		return nullptr;
 
 	ret = url_hdup(home, mSipContact->m_url);
-	ret->url_params = url_strip_param_string((char*)ret->url_params, "regid");
+	ret->url_params = url_strip_param_string((char*)ret->url_params, "fs-conn-id");
 	return ret;
 }
 
@@ -317,13 +317,13 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 				}
 			}
 			SLOGD << "Cleaning older line '" << ec->mUniqueId << "' for contact " << (*it)->mContactId;
-			ec->transferRegId((*it));
+			ec->transferConnId((*it));
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
 		} else if ((*it)->mUniqueId.empty() && (*it)->callId() && (*it)->mCallId == ec->mCallId) {
 			/*we don't accept to clean a contact from call-id if the unique id was set previously*/
 			SLOGD << "Cleaning same call id contact " << (*it)->mContactId << "(" << ec->mCallId << ")";
-			ec->transferRegId((*it));
+			ec->transferConnId((*it));
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
 		} else {
@@ -410,14 +410,14 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 		oss << ":" << url->url_port;
 }
 
-void ExtendedContact::setupRegid() {
-	char strRegid[32] = {0};
-	if (url_param(mSipContact->m_url->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0) {
-		mRegId = strtoull(strRegid, nullptr, 16);
+void ExtendedContact::setupConnId() {
+	char strConnId[32] = {0};
+	if (url_param(mSipContact->m_url->url_params, "fs-conn-id", strConnId, sizeof(strConnId) - 1) > 0) {
+		mConnId = strtoull(strConnId, nullptr, 16);
 	} else {
 		ostringstream os;
-		mRegId = su_random64();
-		os << "regid=" << hex << mRegId;
+		mConnId = su_random64();
+		os << "fs-conn-id=" << hex << mConnId;
 		url_param_add(mHome.home(), mSipContact->m_url, os.str().c_str());
 	}
 }
@@ -575,7 +575,7 @@ void ExtendedContact::extractInfoFromUrl(const char* full_url) {
 		mSipContact = temp_contact;
 	}
 
-	if (mSipContact) setupRegid();
+	if (mSipContact) setupConnId();
 }
 
 bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url) {
@@ -625,7 +625,7 @@ void Record::update(const sip_t *sip, int globalExpire, bool alias, int version,
 		defineContactId(contactId, contacts->m_url, transportPtr);
 		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, sip->sip_call_id->i_id, lineValuePtr);
 		auto exc = make_shared<ExtendedContact>(ecc, contacts, globalExpire, (sip->sip_cseq) ? sip->sip_cseq->cs_seq : 0, getCurrentTime(), alias, acceptHeaders, userAgent);
-		exc->setupRegid();
+		exc->setupConnId();
 		exc->mUsedAsRoute = sip->sip_from->a_url->url_user == nullptr;
 		insertOrUpdateBinding(exc, listener);
 		contacts = contacts->m_next;
@@ -652,7 +652,7 @@ void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long e
 	}
 
 	auto exct = make_shared<ExtendedContact>(ecc, contact, expireAt, cseq, updated_time, alias, accept, "");
-	exct->setupRegid();
+	exct->setupConnId();
 	exct->mUsedAsRoute = usedAsRoute;
 	insertOrUpdateBinding(exct, listener);
 	applyMaxAor();
