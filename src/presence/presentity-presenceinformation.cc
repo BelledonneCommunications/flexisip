@@ -125,6 +125,8 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 												  Xsd::DataModel::Person  *person, const string *eTag,
 												  int expires) {
 	PresenceInformationElement *informationElement = nullptr;
+	constexpr unsigned int valMax = numeric_limits<unsigned int>::max() / 1000;
+	unsigned int expiresMs;
 
 	// etag ?
 	if (eTag && eTag->size() > 0) {
@@ -172,10 +174,14 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 			SLOGD << "eTag [" << generatedETag << "] has expired";
 			return BELLE_SIP_STOP;
 		});
+
+
+	expiresMs = (static_cast<unsigned int>(expires) > valMax) ? numeric_limits<unsigned int>::max() : static_cast<unsigned int>(expires) * 1000;
+
 	// create timer
 	belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(  mBelleSipMainloop
 																	   , func
-																	   , expires * 1000
+																	   , expiresMs
 																	   , "timer for presence Info");
 
 	// set expiration timer
@@ -282,6 +288,9 @@ void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<Present
 	SLOGD << op << " listener [" << listener.get() << "] on [" << *this << "] for [" << expires << "] seconds";
 
 	if (expires > 0) {
+		constexpr unsigned int valMax = numeric_limits<unsigned int>::max() / 1000;
+		unsigned int expiresMs = (static_cast<unsigned int>(expires) > valMax) ? numeric_limits<unsigned int>::max() : static_cast<unsigned int>(expires) * 1000;
+
 		// PresentityPresenceInformationListener* listener_ptr=listener.get();
 		// cb function to invalidate an unrefreshed etag;
 		belle_sip_source_cpp_func_t *func =
@@ -291,10 +300,12 @@ void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<Present
 			this->mPresentityManager.removeListener(listener);
 			return BELLE_SIP_STOP;
 		});
+
+
 		// create timer
 		belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(mBelleSipMainloop
 																		   , func
-																		   , expires * 1000, "timer for presence info listener");
+																		   , expiresMs, "timer for presence info listener");
 
 		// set expiration timer
 		listener->setExpiresTimer(mBelleSipMainloop, timer);
