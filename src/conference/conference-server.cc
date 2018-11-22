@@ -236,12 +236,13 @@ void ConferenceServer::bindChatRoom (
 ) {
 	BindingParameters parameter;
 
-	string sipInstance = "+sip.instance=\"<" + gruu + ">\"";
-	sip_contact_t* sipContact = sip_contact_create(mHome.home(),
-		reinterpret_cast<const url_string_t*>(url_make(mHome.home(), contact.c_str())),
-		su_strdup(mHome.home(), sipInstance.c_str()));
-	url_t *from = url_make(mHome.home(), bindingUrl.c_str());
-	url_param_add(mHome.home(), from, ("gr=" + gruu).c_str());
+	SofiaAutoHome home;
+
+	sip_contact_t* sipContact = sip_contact_create(nullptr,
+		reinterpret_cast<const url_string_t*>(url_make(nullptr, contact.c_str())),
+		su_strdup(nullptr, ("+sip.instance=\"<" + gruu + ">\"").c_str()));
+	url_t *from = url_make(nullptr, bindingUrl.c_str());
+	url_param_add(nullptr, from, ("gr=" + gruu).c_str());
 
 	parameter.callId = gruu;
 	parameter.path = mPath;
