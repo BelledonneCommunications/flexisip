@@ -39,7 +39,7 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 		 we always put the badge value to 1 because we want to notify the user that
 		 he/she has unread messages even if we do not know the exact count */
 		payload << ",\"badge\":" << (info.mNoBadge ? 0 : 1);
-		payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":" << info.mTtl << "\",\"uuid\":" << info.mUid
+		payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":" << info.mTtl << ",\"uuid\":" << quoteStringIfNeeded(info.mUid)
 			<< ",\"send-time\":\"" << date << "\"}";
 	}
 
