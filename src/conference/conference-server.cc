@@ -238,9 +238,10 @@ void ConferenceServer::bindChatRoom (
 
 	SofiaAutoHome home;
 
+	string instance = "+sip.instance=\"<" + gruu + ">\"";
 	sip_contact_t* sipContact = sip_contact_create(nullptr,
-		reinterpret_cast<const url_string_t*>(url_make(nullptr, contact.c_str())),
-		su_strdup(nullptr, ("+sip.instance=\"<" + gruu + ">\"").c_str()));
+						       reinterpret_cast<const url_string_t*>(url_make(nullptr, contact.c_str())),
+						       strdup(instance.c_str()));
 	url_t *from = url_make(nullptr, bindingUrl.c_str());
 	url_param_add(nullptr, from, ("gr=" + gruu).c_str());
 
