@@ -58,8 +58,8 @@ void ConferenceServer::_init () {
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	mTransport = config->get<ConfigString>("transport")->read();
 	if (mTransport.length() > 0) {
-		SofiaAutoHome mHome;
-		url_t *urlTransport = url_make(mHome.home(), mTransport.c_str());
+		SofiaAutoHome home;
+		url_t *urlTransport = url_make(home.home(), mTransport.c_str());
 		if (urlTransport != nullptr && mTransport.at(0) != '<') {
 			int port;
 			istringstream istr;
@@ -208,10 +208,11 @@ void flexisip::ConferenceServer::bindConference() {
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	if (config && config->get<ConfigBoolean>("enabled")->read()) {
 		BindingParameters parameter;
+		SofiaAutoHome home;
 
-		sip_contact_t* sipContact = sip_contact_create(mHome.home(),
-			reinterpret_cast<const url_string_t*>(url_make(mHome.home(), mTransport.c_str())), nullptr);
-		url_t *from = url_make(mHome.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
+		sip_contact_t* sipContact = sip_contact_create(home.home(),
+			reinterpret_cast<const url_string_t*>(url_make(home.home(), mTransport.c_str())), nullptr);
+		url_t *from = url_make(home.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
 
 		parameter.callId = "CONFERENCE";
 		parameter.path = mPath;
@@ -235,14 +236,13 @@ void ConferenceServer::bindChatRoom (
 	const shared_ptr<ContactUpdateListener> &listener
 ) {
 	BindingParameters parameter;
-
 	SofiaAutoHome home;
 
-	sip_contact_t* sipContact = sip_contact_create(nullptr,
-		reinterpret_cast<const url_string_t*>(url_make(nullptr, contact.c_str())),
-		su_strdup(nullptr, ("+sip.instance=\"<" + gruu + ">\"").c_str()));
-	url_t *from = url_make(nullptr, bindingUrl.c_str());
-	url_param_add(nullptr, from, ("gr=" + gruu).c_str());
+	sip_contact_t* sipContact = sip_contact_create(home.home(),
+		reinterpret_cast<const url_string_t*>(url_make(home.home(), contact.c_str())),
+		su_strdup(home.home(), ("+sip.instance=\"<" + gruu + ">\"").c_str()));
+	url_t *from = url_make(home.home(), bindingUrl.c_str());
+	url_param_add(home.home(), from, ("gr=" + gruu).c_str());
 
 	parameter.callId = gruu;
 	parameter.path = mPath;
