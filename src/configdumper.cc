@@ -79,19 +79,17 @@ bool ConfigDumper::shouldDumpModule(const string &moduleName) const {
 /* FILE CONFIG DUMPER */
 
 ostream &FileConfigDumper::printHelp(ostream &os, const string &help, const string &comment_prefix) const {
-	const char *p = help.c_str();
-	const char *begin = p;
-	const char *origin = help.c_str();
+    auto it = help.cbegin();
+    auto begin = it;
 
-	for (; *p != 0; ++p) {
-		if ((p - begin > 60 && *p == ' ') || *p == '\n') {
-			os << comment_prefix << " " << help.substr(begin - origin, p - begin) << endl;
-			p++;
-			begin = p;
-		}
-	}
-	os << comment_prefix << " " << help.substr(begin - origin, p - origin) << endl;
-	return os;
+    for (; it != help.cend(); it++) {
+        if (((it - begin) > 60 && *it == ' ') || *it == '\n') {
+            os << comment_prefix << " " << string(begin, it) << endl;
+            begin = it + 1;
+        }
+    }
+    os << comment_prefix << " " << string(begin, it) << endl;
+    return os;
 }
 
 ostream &FileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, int level) const {
