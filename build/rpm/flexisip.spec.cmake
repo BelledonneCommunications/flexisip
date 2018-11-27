@@ -102,7 +102,7 @@ JweAuth plugin offers the possibility to use JSON Web Encryption tokens on flexi
 %setup -n %{name}-%{version}-%build_number
 
 %build
-%{expand:%%%cmake_name} . -DCMAKE_BUILD_TYPE=@CMAKE_BUILD_TYPE@ -DCMAKE_INSTALL_LIBDIR:PATH=%{_libdir} -DCMAKE_PREFIX_PATH:PATH=%{_prefix} -DSYSCONF_INSTALL_DIR:PATH=%{_sysconfdir} @RPM_ALL_CMAKE_OPTIONS@
+%{expand:%%%cmake_name} . -DCMAKE_BUILD_TYPE=@CMAKE_BUILD_TYPE@ -DCMAKE_PREFIX_PATH:PATH=%{_prefix} -DSYSCONF_INSTALL_DIR:PATH=%{_sysconfdir} @RPM_ALL_CMAKE_OPTIONS@
 
 
 make %{?_smp_mflags}
@@ -233,25 +233,39 @@ fi
 %endif
 
 %changelog
+
+* Tue Nov 27 2018 ronan.abhamon <ronan.abhamon@belledonne-communications.com>
+- Do not set CMAKE_INSTALL_LIBDIR and never with _libdir!
+
 * Mon Nov 05 2018 Nicolas Michon <nicolas.michon@belledonne-communications.com>
 - Add share directory
+
 * Wed Oct 31 2018 ronan.abhamon <ronan.abhamon@belledonne-communications.com>
 - Use epoch in JweAuth plugin requires
+
 * Wed Jun 13 2018 ronan.abhamon <ronan.abhamon@belledonne-communications.com>
 - Add JweAuth plugin
+
 * Tue Aug 29  2017 Jehan Monnier <jehan.monnier@linphone.org>
 - cmake port
+
 * Fri Dec 02 2016 Simon Morlat <simon.morlat@linphone.org>
 - Add init scripts for flexisip-presence
+
 * Thu Jul 28 2016 François Grisez <francois.grisez@belledonne-communications.com>
 - Add systemd unit files
+
 * Mon Feb 08 2016 Guillaume Bienkowski <gbi@linphone.org>
 - Add soci option
+
 * Wed Nov 04 2015 Sylvain Berfini <sylvain.berfini@linphone.org>
 - Add option to disable odb
+
 * Tue Oct 14 2014 Guillaume Bienkowski <gbi@linphone.org>
 - Add /opt packaging possibility
+
 * Wed Feb 15 2012 Guillaume Beraudo <guillaume.beraudo@belledonne-communications.com>
 - Force use of redhat init script
+
 * Tue Oct 19 2010 Simon Morlat <simon.morlat@belledonne-communications.com>
 - Initial specfile for first prototype release
