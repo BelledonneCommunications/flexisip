@@ -163,6 +163,7 @@ public:
 		GarbageIn = 5,
 		NatHelper = 30,
 		Authentication = 60,
+		CustomAuthentication = 61,
 		DateHandler = 75,
 		GatewayAdapter = 90,
 		Registrar = 120,
