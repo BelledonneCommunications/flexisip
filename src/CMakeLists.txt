@@ -35,6 +35,10 @@ set(FLEXISIP_DEPENDENCIES)
 
 set(FLEXISIP_SOURCES
 	agent.cc
+	auth/auth-module.cc
+	auth/flexisip-auth-module.cc
+	auth/flexisip-auth-module-base.cc
+	auth/nonce-store.cc
 	authdb-file.cc
 	authdb.cc
 	callcontext-mediarelay.cc
