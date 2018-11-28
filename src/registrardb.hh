@@ -197,7 +197,6 @@ class Record {
   private:
 	static void init();
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener);
-	std::shared_ptr< std::multimap<std::string, std::string> > extractInfoFromHeader(const char *url_headers, const std::list<std::string> paramName);
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
 	std::list<std::shared_ptr<ExtendedContact>> mContactsToRemove;
 	std::string mKey;
@@ -209,6 +208,7 @@ class Record {
 	static int sMaxContacts;
 	static bool sAssumeUniqueDomains;
 	Record(const url_t *aor);
+	std::shared_ptr< std::multimap<std::string, std::string> > extractInfoFromHeader(const char *url_headers);
 	static std::string extractUniqueId(const sip_contact_t *contact);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
 	sip_contact_t *getContacts(su_home_t *home, time_t now);

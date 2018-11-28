@@ -699,7 +699,7 @@ void RegistrarDbRedisAsync::doBind(const sip_t *sip, int globalExpire, bool alia
 	}
 	string mss_expires = RegistrarDb::get()->getMessageExpires(sip->sip_contact->m_params);
 	int message_expires = mss_expires.empty() ? 0 : stoi(mss_expires);
-	if (sip->sip_expires->ex_date > 0 || message_expires > 0) {
+	if (globalExpire > 0 || message_expires > 0) {
 		serializeAndSendToRedis(data, sHandleBind);
 	} else {
 		const char *key = data->record.getKey().c_str();

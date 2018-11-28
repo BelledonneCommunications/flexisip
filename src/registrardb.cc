@@ -25,12 +25,12 @@
 
 #include "configmanager.hh"
 
-#include <sstream>
-#include <ostream>
+#include <algorithm>
 #include <ctime>
 #include <cstdio>
-#include <algorithm>
 #include <iomanip>
+#include <ostream>
+#include <sstream>
 
 #include <sofia-sip/sip_protos.h>
 #include "recordserializer.hh"
@@ -337,34 +337,44 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 	}
 }
 
-shared_ptr< multimap<string, string> > Record::extractInfoFromHeader(const char *urlHeaders, const list<string> paramName) {
+shared_ptr< multimap<string, string> > Record::extractInfoFromHeader(const char *urlHeaders) {
 	shared_ptr< multimap<string, string> > result = make_shared< multimap<string, string> >();
 	if (urlHeaders) {
 		SofiaAutoHome home;
-		string headers = url_query_as_header_string(home.home(), urlHeaders);
-		size_t indexKey = 0;
+		msg_header_t *headers;
+		char *stringHeaders = url_query_as_header_string(home.home(), urlHeaders);
+		msg_t *msg = msg_create(sip_default_mclass(), 0);
 
-		while (headers.find('\n', indexKey) != string::npos || indexKey < headers.length()) {
-			size_t indexParam = headers.find(':', indexKey);
-			indexKey = headers.find('\n', indexKey);
-			if (indexParam != string::npos) {
-				string key = headers.substr(indexKey, indexParam - indexKey);
-				indexParam = indexKey + key.length() + 1;
+		if (msg_header_parse_str(msg, nullptr, stringHeaders) != 0) goto end;
+		// We need to add a sip_request to validate msg_serialize() contidition
+		if (msg_header_add_dup(msg, nullptr,
+			reinterpret_cast<msg_header_t*>(sip_request_make(home.home(), "MESSAGE sip:abcd SIP/2.0\r\n"))) != 0) goto end;
+		if (msg_serialize(msg, nullptr) != 0) goto end;
+		msg_prepare(msg);
 
-				// Check if param not empty and key is wanted
-				if (indexParam != indexKey && indexParam < headers.length() && std::find(paramName.begin(), paramName.end(), key) != paramName.end()) {
-					do {
-						size_t indexEnd = headers.find(',', indexParam);
-						if (indexEnd == string::npos || indexEnd > indexKey) indexEnd = indexKey;
-						string value = headers.substr(indexParam, indexEnd);
-						result->insert(pair<string, string>(key, value));
-					} while (headers.find(',', indexParam) != string::npos);
-				}
+		headers = *msg_chain_head(msg);
+
+		while(headers) {
+			if (reinterpret_cast<msg_common_t*>(headers)->h_len > 0 &&
+				reinterpret_cast<msg_common_t*>(headers)->h_class->hc_name) {
+				string valueStr;
+				string keyStr = reinterpret_cast<msg_common_t*>(headers)->h_class->hc_name;
+				char *value = new char[reinterpret_cast<msg_common_t*>(headers)->h_len];
+
+				msg_header_field_e(value, reinterpret_cast<msg_common_t*>(headers)->h_len, headers, 0);
+				valueStr = value;
+
+				transform(valueStr.begin(), valueStr.end(), valueStr.begin(), [](unsigned char c){ return std::tolower(c); });
+				transform(keyStr.begin(), keyStr.end(), keyStr.begin(), [](unsigned char c){ return std::tolower(c); });
+
+				result->insert(pair<string, string>(keyStr, value));
+				delete[] value;
 			}
-			if (indexKey != string::npos) indexKey++;
+			headers = reinterpret_cast<msg_common_t*>(headers)->h_succ;
 		}
 	}
 
+	end:
 	return result;
 }
 
@@ -509,7 +519,6 @@ static bool extractBoolParam(url_t *url, const char *param) {
 bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url) {
 	bool result = false;
 	SofiaAutoHome home;
-	list<string> paramName;
 	shared_ptr< multimap<string, string> > resultHeader;
 
 	// Path
@@ -547,10 +556,7 @@ bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const 
 	// User-agent
 	string userAgent = extractStringParam(url, "user-agent");
 
-	paramName.push_back("path");
-	paramName.push_back("accept");
-
-	resultHeader = extractInfoFromHeader(url->url_headers, paramName);
+	resultHeader = extractInfoFromHeader(url->url_headers);
 
 	for (auto pair : *resultHeader) {
 		if (pair.first == "path") {
