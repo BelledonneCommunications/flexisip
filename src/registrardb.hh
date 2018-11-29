@@ -134,9 +134,16 @@ struct ExtendedContact {
 
 	std::string getOrgLinphoneSpecs();
 
+	void extractInfoFromHeader(const char *urlHeaders);
+
 	void setupRegid();
 	void transferRegId(const std::shared_ptr<ExtendedContact> &oldEc);
 	const std::string getMessageExpires(const msg_param_t *m_params);
+	void extractInfoFromUrl(const char *contactId, const char *uniqueId, const char* full_url);
+
+	ExtendedContact(const char *contactId, const char *uniqueId, const char* fullUrl) {
+		extractInfoFromUrl(contactId, uniqueId, fullUrl);
+	}
 
 	ExtendedContact(const ExtendedContactCommon &common, const sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders, const std::string &userAgent)
@@ -208,7 +215,6 @@ class Record {
 	static int sMaxContacts;
 	static bool sAssumeUniqueDomains;
 	Record(const url_t *aor);
-	std::shared_ptr< std::multimap<std::string, std::string> > extractInfoFromHeader(const char *url_headers);
 	static std::string extractUniqueId(const sip_contact_t *contact);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
 	sip_contact_t *getContacts(su_home_t *home, time_t now);

@@ -337,19 +337,18 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 	}
 }
 
-shared_ptr< multimap<string, string> > Record::extractInfoFromHeader(const char *urlHeaders) {
-	shared_ptr< multimap<string, string> > result = make_shared< multimap<string, string> >();
+void ExtendedContact::extractInfoFromHeader(const char *urlHeaders) {
 	if (urlHeaders) {
 		SofiaAutoHome home;
 		msg_header_t *headers;
 		char *stringHeaders = url_query_as_header_string(home.home(), urlHeaders);
 		msg_t *msg = msg_create(sip_default_mclass(), 0);
 
-		if (msg_header_parse_str(msg, nullptr, stringHeaders) != 0) goto end;
+		if (msg_header_parse_str(msg, nullptr, stringHeaders) != 0) return;
 		// We need to add a sip_request to validate msg_serialize() contidition
 		if (msg_header_add_dup(msg, nullptr,
-			reinterpret_cast<msg_header_t*>(sip_request_make(home.home(), "MESSAGE sip:abcd SIP/2.0\r\n"))) != 0) goto end;
-		if (msg_serialize(msg, nullptr) != 0) goto end;
+			reinterpret_cast<msg_header_t*>(sip_request_make(home.home(), "MESSAGE sip:abcd SIP/2.0\r\n"))) != 0) return;
+		if (msg_serialize(msg, nullptr) != 0) return;
 		msg_prepare(msg);
 
 		headers = *msg_chain_head(msg);
@@ -363,19 +362,23 @@ shared_ptr< multimap<string, string> > Record::extractInfoFromHeader(const char 
 
 				msg_header_field_e(value, reinterpret_cast<msg_common_t*>(headers)->h_len, headers, 0);
 				valueStr = value;
-
-				transform(valueStr.begin(), valueStr.end(), valueStr.begin(), [](unsigned char c){ return std::tolower(c); });
-				transform(keyStr.begin(), keyStr.end(), keyStr.begin(), [](unsigned char c){ return std::tolower(c); });
-
-				result->insert(pair<string, string>(keyStr, value));
 				delete[] value;
+
+				if (keyStr == "Path") {
+					size_t bracket = valueStr.find('<');
+					if (bracket != string::npos) valueStr.erase(bracket, static_cast<size_t>(1));
+					bracket = valueStr.find('>');
+					if (bracket != string::npos) valueStr.erase(bracket, static_cast<size_t>(1));
+					mPath.push_back(valueStr);
+				} else if (keyStr == "Accept") {
+					mAcceptHeader.push_back(valueStr);
+				} else if (keyStr == "User-Agent") {
+					mUserAgent = valueStr;
+				}
 			}
 			headers = reinterpret_cast<msg_common_t*>(headers)->h_succ;
 		}
 	}
-
-	end:
-	return result;
 }
 
 static bool compare_contact_using_last_update (shared_ptr<ExtendedContact> first, shared_ptr<ExtendedContact> second) {
@@ -464,17 +467,11 @@ string ExtendedContact::serializeAsUrlEncodedParams() {
 	oss << "usedAsRoute=" << (mUsedAsRoute ? "yes" : "no");
 	url_param_add(home.home(), contact->m_url, oss.str().c_str());
 
-	// User-agent
-	oss.str("");
-	oss.clear();
-	oss << "user-agent=" << mUserAgent;
-	url_param_add(home.home(), contact->m_url, oss.str().c_str());
-
 	// Path
 	ostringstream oss_path;
 	for (auto it = mPath.begin(); it != mPath.end(); ++it) {
 		if (it != mPath.begin()) oss_path << ",";
-		oss_path << *it;
+		oss_path << "<" << *it << ">";
 	}
 
 	// AcceptHeaders
@@ -486,7 +483,7 @@ string ExtendedContact::serializeAsUrlEncodedParams() {
 
 	contact->m_url->url_headers = sip_headers_as_url_query(home.home(),
 		SIPTAG_PATH_STR(oss_path.str().c_str()), SIPTAG_ACCEPT_STR(oss_accept.str().c_str()),
-		TAG_END());
+		SIPTAG_USER_AGENT_STR(mUserAgent.c_str()) , TAG_END());
 
 	string contact_string(sip_header_as_string(home.home(), (sip_header_t const *)contact));
 	return contact_string;
@@ -516,82 +513,59 @@ static bool extractBoolParam(url_t *url, const char *param) {
 	return (extracted_param.empty()) ? FALSE : (extracted_param.find("yes") != string::npos);
 }
 
-bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url) {
-	bool result = false;
-	SofiaAutoHome home;
-	shared_ptr< multimap<string, string> > resultHeader;
-
-	// Path
-	list<string> path;
-	// Accept headers
-	list<string> acceptHeaders;
-
-	sip_contact_t *temp_contact = sip_contact_make(home.home(), full_url);
+void ExtendedContact::extractInfoFromUrl(const char *contactId, const char *uniqueId, const char* full_url) {
+	sip_contact_t *temp_contact = sip_contact_make(mHome.home(), full_url);
 	url_t *url = nullptr;
 	if (temp_contact == nullptr) {
 		SLOGD << "Couldn't parse " << full_url << " as contact, fallback to url instead";
-		url = url_make(home.home(), full_url);
+		url = url_make(mHome.home(), full_url);
 	} else {
 		url = temp_contact->m_url;
 	}
 
 	// CallId
-	string call_id = extractStringParam(url, "callid");
+	mCallId = extractStringParam(url, "callid");
 
 	// Expire
-	int globalExpire = extractIntParam(url, "expires");
+	mExpireAt = extractIntParam(url, "expires");
 
 	// Update time
-	unsigned long updatedAt = extractUnsignedLongParam(url, "updatedAt");
+	mUpdatedTime = extractUnsignedLongParam(url, "updatedAt");
 
 	// CSeq
-	uint32_t cseq = extractIntParam(url, "cseq");
+	mCSeq = extractIntParam(url, "cseq");
 
 	// Alias
-	bool alias = extractBoolParam(url, "alias");
+	mAlias = extractBoolParam(url, "alias");
 
 	// Used as route
-	bool usedAsRoute = extractBoolParam(url, "usedAsRoute");
+	mUsedAsRoute = extractBoolParam(url, "usedAsRoute");
 
-	// User-agent
-	string userAgent = extractStringParam(url, "user-agent");
-
-	resultHeader = extractInfoFromHeader(url->url_headers);
-
-	for (auto pair : *resultHeader) {
-		if (pair.first == "path") {
-			path.push_back(pair.second);
-		} else if (pair.first == "accept") {
-			acceptHeaders.push_back(pair.second);
-		}
-	}
+	extractInfoFromHeader(url->url_headers);
 
 	char transport[20] = {0};
 	url_param(url[0].url_params, "transport", transport, sizeof(transport) - 1);
 
 	url->url_headers = nullptr;
-	sip_contact_t *contact = nullptr;
+
 	if (temp_contact == nullptr) {
-		contact = sip_contact_create(home.home(), (url_string_t*)url, nullptr);
+		mSipContact = sip_contact_create(mHome.home(), (url_string_t*)url, nullptr);
 	} else {
-		contact = temp_contact;
+		mSipContact = temp_contact;
 	}
 
-	if (contact == nullptr) {
-		return result;
-	}
+	if (mSipContact) setupRegid();
+}
 
-	ExtendedContactCommon ecc(key, path, call_id, uid);
-	auto exc = make_shared<ExtendedContact>(ecc, contact, globalExpire, cseq, updatedAt, alias, acceptHeaders, userAgent);
-	exc->setupRegid();
-	exc->mUsedAsRoute = usedAsRoute;
+bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url) {
+	auto exc = make_shared<ExtendedContact>(key, uid, full_url);
 
-	if (getCurrentTime() < exc->mExpireAt) {
+	if (exc->mSipContact && getCurrentTime() < exc->mExpireAt) {
 		insertOrUpdateBinding(exc, nullptr);
-		result = true;
+		return true;
 	}
 
-	return result;
+	return false;
 }
 
 void Record::update(const sip_t *sip, int globalExpire, bool alias, int version, const shared_ptr<ContactUpdateListener> &listener) {
