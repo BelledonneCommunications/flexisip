@@ -513,7 +513,7 @@ static bool extractBoolParam(url_t *url, const char *param) {
 	return (extracted_param.empty()) ? FALSE : (extracted_param.find("yes") != string::npos);
 }
 
-void ExtendedContact::extractInfoFromUrl(const char *contactId, const char *uniqueId, const char* full_url) {
+void ExtendedContact::extractInfoFromUrl(const char* full_url) {
 	sip_contact_t *temp_contact = sip_contact_make(mHome.home(), full_url);
 	url_t *url = nullptr;
 	if (temp_contact == nullptr) {
