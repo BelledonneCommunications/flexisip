@@ -139,10 +139,12 @@ struct ExtendedContact {
 	void setupRegid();
 	void transferRegId(const std::shared_ptr<ExtendedContact> &oldEc);
 	const std::string getMessageExpires(const msg_param_t *m_params);
-	void extractInfoFromUrl(const char *contactId, const char *uniqueId, const char* full_url);
+	void extractInfoFromUrl(const char* full_url);
 
 	ExtendedContact(const char *contactId, const char *uniqueId, const char* fullUrl) {
-		extractInfoFromUrl(contactId, uniqueId, fullUrl);
+		if (contactId) mContactId = contactId;
+		if (uniqueId) mUniqueId = uniqueId;
+		extractInfoFromUrl(fullUrl);
 	}
 
 	ExtendedContact(const ExtendedContactCommon &common, const sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
