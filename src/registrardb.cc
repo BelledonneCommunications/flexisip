@@ -364,15 +364,18 @@ void ExtendedContact::extractInfoFromHeader(const char *urlHeaders) {
 				valueStr = value;
 				delete[] value;
 
-				if (keyStr == "Path") {
+				transform(valueStr.begin(), valueStr.end(), valueStr.begin(), [](unsigned char c){ return std::tolower(c); });
+				transform(keyStr.begin(), keyStr.end(), keyStr.begin(), [](unsigned char c){ return std::tolower(c); });
+
+				if (keyStr == "path") {
 					size_t bracket = valueStr.find('<');
 					if (bracket != string::npos) valueStr.erase(bracket, static_cast<size_t>(1));
 					bracket = valueStr.find('>');
 					if (bracket != string::npos) valueStr.erase(bracket, static_cast<size_t>(1));
 					mPath.push_back(valueStr);
-				} else if (keyStr == "Accept") {
+				} else if (keyStr == "accept") {
 					mAcceptHeader.push_back(valueStr);
-				} else if (keyStr == "User-Agent") {
+				} else if (keyStr == "user-agent") {
 					mUserAgent = valueStr;
 				}
 			}
@@ -511,6 +514,24 @@ static int extractUnsignedLongParam(url_t *url, const char *param) {
 static bool extractBoolParam(url_t *url, const char *param) {
 	string extracted_param(extractStringParam(url, param));
 	return (extracted_param.empty()) ? FALSE : (extracted_param.find("yes") != string::npos);
+}
+
+void ExtendedContact::init() {
+	if (mSipContact) {
+		if (mSipContact->m_q) {
+			mQ = atof(mSipContact->m_q);
+		}
+
+		int expire = resolveExpire(mSipContact->m_expires, mExpireAt);
+		mExpireNotAtMessage = mUpdatedTime + expire;
+		expire = resolveExpire(getMessageExpires(mSipContact->m_params).c_str(), expire);
+		if (expire == -1) {
+			LOGE("no global expire (%li) nor local contact expire (%s)found", mExpireAt, mSipContact->m_expires);
+			expire = 0;
+		}
+		mExpireAt = mUpdatedTime + expire;
+		mExpireAt = mExpireAt > mExpireNotAtMessage ? mExpireAt:mExpireNotAtMessage;
+	}
 }
 
 void ExtendedContact::extractInfoFromUrl(const char* full_url) {
