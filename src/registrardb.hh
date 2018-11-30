@@ -139,36 +139,25 @@ struct ExtendedContact {
 	void setupRegid();
 	void transferRegId(const std::shared_ptr<ExtendedContact> &oldEc);
 	const std::string getMessageExpires(const msg_param_t *m_params);
+	void init();
 	void extractInfoFromUrl(const char* full_url);
 
 	ExtendedContact(const char *contactId, const char *uniqueId, const char* fullUrl) {
 		if (contactId) mContactId = contactId;
 		if (uniqueId) mUniqueId = uniqueId;
 		extractInfoFromUrl(fullUrl);
+		init();
 	}
 
 	ExtendedContact(const ExtendedContactCommon &common, const sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders, const std::string &userAgent)
 		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
-			mUserAgent(userAgent), mSipContact(nullptr), mQ(1.0), mUpdatedTime(updateTime), mCSeq(cseq), mAlias(alias),
-			mAcceptHeader(acceptHeaders), mUsedAsRoute(false), mRegId(0), mHome() {
+			mUserAgent(userAgent), mSipContact(nullptr), mQ(1.0),mExpireAt(global_expire), mUpdatedTime(updateTime), mCSeq(cseq),
+			mAlias(alias), mAcceptHeader(acceptHeaders), mUsedAsRoute(false), mRegId(0), mHome() {
 
 		mSipContact = sip_contact_dup(mHome.home(), sip_contact);
 		mSipContact->m_next = nullptr;
-
-		if (mSipContact->m_q) {
-			mQ = atof(mSipContact->m_q);
-		}
-
-		int expire = resolveExpire(mSipContact->m_expires, global_expire);
-		mExpireNotAtMessage = updateTime + expire;
-		expire = resolveExpire(getMessageExpires(mSipContact->m_params).c_str(), expire);
-		if (expire == -1) {
-			LOGE("no global expire (%d) nor local contact expire (%s)found", global_expire, mSipContact->m_expires);
-			expire = 0;
-		}
-		mExpireAt = updateTime + expire;
-		mExpireAt = mExpireAt > mExpireNotAtMessage ? mExpireAt:mExpireNotAtMessage;
+		init();
 	}
 
 	ExtendedContact(const url_t *url, const std::string &route, const float q = 1.0)
