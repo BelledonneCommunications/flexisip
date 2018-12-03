@@ -152,8 +152,8 @@ struct ExtendedContact {
 	ExtendedContact(const ExtendedContactCommon &common, const sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders, const std::string &userAgent)
 		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
-			mUserAgent(userAgent), mSipContact(nullptr), mQ(1.0),mExpireAt(global_expire), mUpdatedTime(updateTime), mCSeq(cseq),
-			mAlias(alias), mAcceptHeader(acceptHeaders), mUsedAsRoute(false), mRegId(0), mHome() {
+			mUserAgent(userAgent), mSipContact(nullptr), mQ(1.0),mExpireNotAtMessage(global_expire), mUpdatedTime(updateTime),
+			mCSeq(cseq), mAlias(alias), mAcceptHeader(acceptHeaders), mUsedAsRoute(false), mRegId(0), mHome() {
 
 		mSipContact = sip_contact_dup(mHome.home(), sip_contact);
 		mSipContact->m_next = nullptr;
