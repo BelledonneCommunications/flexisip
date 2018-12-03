@@ -293,7 +293,7 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 
 	SLOGD << "Trying to insert new contact " << *ec;
 
-	if (sAssumeUniqueDomains && mIsDomain){
+	if (sAssumeUniqueDomains && mIsDomain) {
 		mContacts.clear();
 	}
 	for (auto it = mContacts.begin(); it != mContacts.end();) {
@@ -303,14 +303,14 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 		} else if (!(*it)->mUniqueId.empty() && (*it)->mUniqueId == ec->mUniqueId) {
 			if (ec->mExpireAt == now){
 				/*case of ;expires=0 in contact header*/
-				if ((*it)->mCSeq == ec->mCSeq && (*it)->mCallId == ec->mCallId){
+				if ((*it)->mCSeq == ec->mCSeq && (*it)->mCallId == ec->mCallId) {
 					/*this happens when a client (like Linphone) sends this kind of very ambiguous Contact header in a REGISTER
 					 * Contact: <sip:marie_-jSau@ip1:39936;transport=tcp>;+sip.instance="<urn:uuid:bfb7514b-f793-4d85-b322-232044dc3731>"
 					 * Contact: <sip:marie_-jSau@ip1:39934;transport=tcp>;+sip.instance="<urn:uuid:bfb7514b-f793-4d85-b322-232044dc3731>";expires=0
 					 *
 					 * We don't want the second line to unregister the first one, so don't touch anything*/
 					return;
-				}else{
+				} else {
 					/*this contact should be removed*/
 					it = mContacts.erase(it);
 					return;
@@ -522,15 +522,15 @@ void ExtendedContact::init() {
 			mQ = atof(mSipContact->m_q);
 		}
 
-		int expire = resolveExpire(mSipContact->m_expires, mExpireAt);
+		int expire = resolveExpire(mSipContact->m_expires, mExpireNotAtMessage);
 		mExpireNotAtMessage = mUpdatedTime + expire;
 		expire = resolveExpire(getMessageExpires(mSipContact->m_params).c_str(), expire);
 		if (expire == -1) {
-			LOGE("no global expire (%li) nor local contact expire (%s)found", mExpireAt, mSipContact->m_expires);
+			LOGE("no global expire (%li) nor local contact expire (%s)found", mExpireNotAtMessage, mSipContact->m_expires);
 			expire = 0;
 		}
 		mExpireAt = mUpdatedTime + expire;
-		mExpireAt = mExpireAt > mExpireNotAtMessage ? mExpireAt:mExpireNotAtMessage;
+		mExpireAt = mExpireAt > mExpireNotAtMessage ? mExpireAt : mExpireNotAtMessage;
 	}
 }
 
@@ -548,7 +548,7 @@ void ExtendedContact::extractInfoFromUrl(const char* full_url) {
 	mCallId = extractStringParam(url, "callid");
 
 	// Expire
-	mExpireAt = extractIntParam(url, "expires");
+	mExpireNotAtMessage = extractIntParam(url, "expires");
 
 	// Update time
 	mUpdatedTime = extractUnsignedLongParam(url, "updatedAt");
