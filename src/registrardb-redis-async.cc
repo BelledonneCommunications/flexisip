@@ -670,17 +670,6 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 	}
 }
 
-static string extractUniqueId(Record r, sip_contact_t *contact) {
-	while (contact) {
-		string lineValue = r.extractUniqueId(contact);
-		if (!lineValue.empty()) {
-			return lineValue;
-		}
-		contact = contact->m_next;
-	}
-	return "";
-}
-
 void RegistrarDbRedisAsync::doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) {
 	// Update the AOR Hashmap using HSET
 	// If there is an error, try again
@@ -703,7 +692,12 @@ void RegistrarDbRedisAsync::doBind(const sip_t *sip, int globalExpire, bool alia
 		serializeAndSendToRedis(data, sHandleBind);
 	} else {
 		const char *key = data->record.getKey().c_str();
-		string uid = extractUniqueId(data->record, sip->sip_contact);
+		string uid = "";
+		if (data->record.getExtendedContacts().empty()) {
+			LOGW("No extended contact found for %s, can't remove it from REDIS.", key);
+		} else {
+			uid = data->record.getExtendedContacts().front()->getUniqueId();
+		}
 		data->mIsUnregister = true;
 		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleBind,
 			data, "HDEL fs:%s %s", key, uid.c_str()), data);
