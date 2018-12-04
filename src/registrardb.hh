@@ -142,7 +142,9 @@ struct ExtendedContact {
 	void init();
 	void extractInfoFromUrl(const char* full_url);
 
-	ExtendedContact(const char *contactId, const char *uniqueId, const char* fullUrl) {
+	ExtendedContact(const char *contactId, const char *uniqueId, const char* fullUrl)
+		: mCallId(), mUserAgent(), mSipContact(nullptr), mQ(1.0), mExpireAt(LONG_MAX), mExpireNotAtMessage(LONG_MAX),
+			mUpdatedTime(0), mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false), mRegId(0), mHome() {
 		if (contactId) mContactId = contactId;
 		if (uniqueId) mUniqueId = uniqueId;
 		extractInfoFromUrl(fullUrl);
