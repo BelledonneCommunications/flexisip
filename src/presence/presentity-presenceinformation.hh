@@ -74,6 +74,7 @@ class PresentityPresenceInformationListener  {
 	bool extendedNotifyEnabled();
 	void enableBypass(bool enable);
 	bool bypassEnabled();
+	void updateCapabilities(const std::string &capabilites) {}
 	/*returns prsentity uri associated to this Listener*/
 	virtual const belle_sip_uri_t *getPresentityUri() const = 0;
 	virtual std::string getName() const {return "";}
