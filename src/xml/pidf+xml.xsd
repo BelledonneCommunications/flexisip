@@ -11,7 +11,8 @@
    <xs:schema targetNamespace="urn:ietf:params:xml:ns:pidf"
         xmlns:tns="urn:ietf:params:xml:ns:pidf"
         xmlns:xs="http://www.w3.org/2001/XMLSchema"
-		xmlns:dm="urn:ietf:params:xml:ns:pidf:data-model"
+		    xmlns:dm="urn:ietf:params:xml:ns:pidf:data-model"
+        xmlns:oma-pres="urn:oma:xml:prs:pidf:oma-pres"
         elementFormDefault="qualified"
         attributeFormDefault="unqualified">
 
@@ -21,7 +22,10 @@
 
 	 <xs:import namespace="urn:ietf:params:xml:ns:pidf:data-model"
 	 schemaLocation="data-model.xsd"/>
-	   
+
+   <xs:import namespace="urn:oma:xml:prs:pidf:oma-pres"
+   schemaLocation="pidf-oma-pres.xsd"/>
+
      <xs:element name="presence" type="tns:presence"/>
 
      <xs:complexType name="presence">
@@ -33,7 +37,7 @@
 		 <xs:element ref="dm:person" minOccurs="0"
 			maxOccurs="1"/>
 		 <!--xs:any namespace="##other" processContents="lax" minOccurs="0"
-            maxOccurs="unbounded"/ Avoid unique particle violation --> 
+            maxOccurs="unbounded"/ Avoid unique particle violation -->
        </xs:sequence>
        <xs:attribute name="entity" type="xs:anyURI" use="required"/>
      </xs:complexType>
@@ -41,12 +45,11 @@
      <xs:complexType name="tuple">
        <xs:sequence>
          <xs:element name="status" type="tns:status"/>
-         <xs:any namespace="##other" processContents="lax" minOccurs="0"
-            maxOccurs="unbounded"/>
          <xs:element name="contact" type="tns:contact" minOccurs="0"/>
          <xs:element name="note" type="tns:note" minOccurs="0"
             maxOccurs="unbounded"/>
          <xs:element name="timestamp" type="xs:dateTime" minOccurs="0"/>
+         <xs:element ref="oma-pres:service-description" minOccurs="0" maxOccurs="unbounded"/>
        </xs:sequence>
        <xs:attribute name="id" type="xs:ID" use="required"/>
      </xs:complexType>

@@ -185,24 +185,6 @@ namespace Xsd
       return this->status_.detach ();
     }
 
-    const Tuple::AnySequence& Tuple::
-    getAny () const
-    {
-      return this->any_;
-    }
-
-    Tuple::AnySequence& Tuple::
-    getAny ()
-    {
-      return this->any_;
-    }
-
-    void Tuple::
-    setAny (const AnySequence& s)
-    {
-      this->any_ = s;
-    }
-
     const Tuple::ContactOptional& Tuple::
     getContact () const
     {
@@ -281,6 +263,24 @@ namespace Xsd
       this->timestamp_.set (std::move (x));
     }
 
+    const Tuple::ServiceDescriptionSequence& Tuple::
+    getServiceDescription () const
+    {
+      return this->service_description_;
+    }
+
+    Tuple::ServiceDescriptionSequence& Tuple::
+    getServiceDescription ()
+    {
+      return this->service_description_;
+    }
+
+    void Tuple::
+    setServiceDescription (const ServiceDescriptionSequence& s)
+    {
+      this->service_description_ = s;
+    }
+
     const Tuple::IdType& Tuple::
     getId () const
     {
@@ -309,18 +309,6 @@ namespace Xsd
     setDetachId ()
     {
       return this->id_.detach ();
-    }
-
-    const ::xercesc::DOMDocument& Tuple::
-    getDomDocument () const
-    {
-      return *this->dom_document_;
-    }
-
-    ::xercesc::DOMDocument& Tuple::
-    getDomDocument ()
-    {
-      return *this->dom_document_;
     }
 
 
@@ -660,12 +648,11 @@ namespace Xsd
     Tuple (const StatusType& status,
            const IdType& id)
     : ::Xsd::XmlSchema::Type (),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
       status_ (status, this),
-      any_ (this->getDomDocument ()),
       contact_ (this),
       note_ (this),
       timestamp_ (this),
+      service_description_ (this),
       id_ (id, this)
     {
     }
@@ -674,12 +661,11 @@ namespace Xsd
     Tuple (::std::unique_ptr< StatusType > status,
            const IdType& id)
     : ::Xsd::XmlSchema::Type (),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
       status_ (std::move (status), this),
-      any_ (this->getDomDocument ()),
       contact_ (this),
       note_ (this),
       timestamp_ (this),
+      service_description_ (this),
       id_ (id, this)
     {
     }
@@ -689,12 +675,11 @@ namespace Xsd
            ::Xsd::XmlSchema::Flags f,
            ::Xsd::XmlSchema::Container* c)
     : ::Xsd::XmlSchema::Type (x, f, c),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
       status_ (x.status_, f, this),
-      any_ (x.any_, this->getDomDocument ()),
       contact_ (x.contact_, f, this),
       note_ (x.note_, f, this),
       timestamp_ (x.timestamp_, f, this),
+      service_description_ (x.service_description_, f, this),
       id_ (x.id_, f, this)
     {
     }
@@ -704,12 +689,11 @@ namespace Xsd
            ::Xsd::XmlSchema::Flags f,
            ::Xsd::XmlSchema::Container* c)
     : ::Xsd::XmlSchema::Type (e, f | ::Xsd::XmlSchema::Flags::base, c),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
       status_ (this),
-      any_ (this->getDomDocument ()),
       contact_ (this),
       note_ (this),
       timestamp_ (this),
+      service_description_ (this),
       id_ (this)
     {
       if ((f & ::Xsd::XmlSchema::Flags::base) == 0)
@@ -741,18 +725,6 @@ namespace Xsd
             this->status_.set (::std::move (r));
             continue;
           }
-        }
-
-        // any
-        //
-        if ((!n.namespace_ ().empty () && n.namespace_ () != "urn:ietf:params:xml:ns:pidf"))
-        {
-          ::xercesc::DOMElement* r (
-            static_cast< ::xercesc::DOMElement* > (
-              this->getDomDocument ().importNode (
-                const_cast< ::xercesc::DOMElement* > (&i), true)));
-          this->any_.push_back (r);
-          continue;
         }
 
         // contact
@@ -792,6 +764,17 @@ namespace Xsd
             this->timestamp_.set (::std::move (r));
             continue;
           }
+        }
+
+        // service-description
+        //
+        if (n.name () == "service-description" && n.namespace_ () == "urn:oma:xml:prs:pidf:oma-pres")
+        {
+          ::std::unique_ptr< ServiceDescriptionType > r (
+            ServiceDescriptionTraits::create (i, f, this));
+
+          this->service_description_.push_back (::std::move (r));
+          continue;
         }
 
         break;
@@ -839,10 +822,10 @@ namespace Xsd
       {
         static_cast< ::Xsd::XmlSchema::Type& > (*this) = x;
         this->status_ = x.status_;
-        this->any_ = x.any_;
         this->contact_ = x.contact_;
         this->note_ = x.note_;
         this->timestamp_ = x.timestamp_;
+        this->service_description_ = x.service_description_;
         this->id_ = x.id_;
       }
 
@@ -1306,6 +1289,13 @@ namespace Xsd
       if (i.getTimestamp ())
       {
         o << ::std::endl << "timestamp: " << *i.getTimestamp ();
+      }
+
+      for (Tuple::ServiceDescriptionConstIterator
+           b (i.getServiceDescription ().begin ()), e (i.getServiceDescription ().end ());
+           b != e; ++b)
+      {
+        o << ::std::endl << "service-description: " << *b;
       }
 
       o << ::std::endl << "id: " << i.getId ();
@@ -1880,17 +1870,6 @@ namespace Xsd
         s << i.getStatus ();
       }
 
-      // any
-      //
-      for (Tuple::AnyConstIterator
-           b (i.getAny ().begin ()), n (i.getAny ().end ());
-           b != n; ++b)
-      {
-        e.appendChild (
-          e.getOwnerDocument ()->importNode (
-            const_cast< ::xercesc::DOMElement* > (&(*b)), true));
-      }
-
       // contact
       //
       if (i.getContact ())
@@ -1930,6 +1909,21 @@ namespace Xsd
             e));
 
         s << *i.getTimestamp ();
+      }
+
+      // service-description
+      //
+      for (Tuple::ServiceDescriptionConstIterator
+           b (i.getServiceDescription ().begin ()), n (i.getServiceDescription ().end ());
+           b != n; ++b)
+      {
+        ::xercesc::DOMElement& s (
+          ::xsd::cxx::xml::dom::create_element (
+            "service-description",
+            "urn:oma:xml:prs:pidf:oma-pres",
+            e));
+
+        s << *b;
       }
 
       // id

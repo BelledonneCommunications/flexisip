@@ -122,7 +122,9 @@ void ListSubscription::notify(bool isFullState) {
 
 				PendingStateType::iterator it = mPendingStates.find(resourceListener->getPresentityUri());
 				if (it != mPendingStates.end() && it->second.first->isKnown() && resourceList.getResource().size() < mMaxPresenceInfoNotifiedAtATime) {
-					addInstanceToResource(resource, multipartList, *it->second.first, resourceListener->extendedNotifyEnabled());
+					PresentityPresenceInformation &presentityInformation = *it->second.first;
+					presentityInformation.setCapabilities(resourceListener->getCapabilities());
+					addInstanceToResource(resource, multipartList, presentityInformation, resourceListener->extendedNotifyEnabled());
 					mPendingStates.erase(it); //might be optimized
 				} else {
 					SLOGI << "No presence info yet for uri [" << resourceListener->getPresentityUri() << "]";
@@ -136,7 +138,13 @@ void ListSubscription::notify(bool isFullState) {
 				pair<const belle_sip_uri_t *, pair<shared_ptr<PresentityPresenceInformation>,bool>> presenceInformationPair = *it;
 				if (presenceInformationPair.second.first->isKnown()) { /* only notify for entity with known state*/
 					shared_ptr<PresentityPresenceInformation> presenceInformation = presenceInformationPair.second.first;
-					char *presentityUri = belle_sip_uri_to_string(presenceInformation->getEntity());
+					const belle_sip_uri_t *entity = presenceInformation->getEntity();
+					auto predicate = [entity](const shared_ptr<const PresentityPresenceInformationListener> &listener) {
+						return belle_sip_uri_equals(entity, listener->getPresentityUri());
+					};
+					auto foundListener = std::find_if(mListeners.cbegin(), mListeners.cend(), predicate);
+					presenceInformation->setCapabilities(foundListener->get()->getCapabilities());
+					char *presentityUri = belle_sip_uri_to_string(entity);
 					Xsd::Rlmi::Resource resource(presentityUri);
 					belle_sip_free(presentityUri);
 					if (!presenceInformation->getName().empty())

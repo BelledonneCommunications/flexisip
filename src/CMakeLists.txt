@@ -100,6 +100,7 @@ set(FLEXISIP_SOURCES
 	transaction.cc
 	uac-register.cc
 	utils/httputils.cc
+	utils/string-utils.cc
 	utils/threadpool.cc
 )
 
@@ -208,6 +209,8 @@ if(ENABLE_PRESENCE)
 		xml/data-model.hh
 		xml/pidf+xml.cc
 		xml/pidf+xml.hh
+		xml/pidf-oma-pres.cc
+		xml/pidf-oma-pres.hh
 		xml/resource-lists.cc
 		xml/resource-lists.hh
 		xml/rlmi+xml.cc
