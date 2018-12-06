@@ -80,20 +80,23 @@ struct ExtendedContact {
 	uint64_t mRegId; // a unique id shared with associate t_port
 	SofiaAutoHome mHome;
 
-	inline const char *callId() {
+	const char *callId() const {
 		return mCallId.c_str();
 	}
-	inline const char *line() {
+	const char *line() const {
 		return mUniqueId.c_str();
 	}
-	inline const char *contactId() {
+	const char *contactId() const {
 		return mContactId.c_str();
 	}
-	inline const char *route() {
+	const char *route() const {
 		return (mPath.empty() ? nullptr : mPath.cbegin()->c_str());
 	}
-	inline const char *userAgent() {
+	const char *userAgent() const {
 		return mUserAgent.c_str();
+	}
+	const std::string &getUserAgent() const {
+		return mUserAgent;
 	}
 
 	static int resolveExpire(const char *contact_expire, int global_expire) {
@@ -115,24 +118,24 @@ struct ExtendedContact {
 		return std::string(tmp ? tmp : "");
 	}
 	//This function ensures compatibility with old redis record where url was stored with brakets.
-	static std::string compatUrlToString(const char *url){
+	static std::string compatUrlToString(const char *url) {
 		if (url[0] == '<' && url[1] != '\0'){
 			return std::string(url, 1, strlen(url)-2);
 		}
 		return std::string(url);
 	}
 
-	const std::string &getUniqueId() {
+	const std::string &getUniqueId() const {
 		return (mUniqueId.empty() ? mCallId : mUniqueId);
 	}
 
-	time_t getExpireNotAtMessage() {
+	time_t getExpireNotAtMessage() const {
 		return mExpireNotAtMessage;
 	}
 
 	std::string serializeAsUrlEncodedParams();
 
-	std::string getOrgLinphoneSpecs();
+	std::string getOrgLinphoneSpecs() const;
 
 	void extractInfoFromHeader(const char *urlHeaders);
 
@@ -294,6 +297,14 @@ class ContactUpdateListener : public RegistrarDbListener {
 	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) = 0;
 };
 
+class ListContactUpdateListener {
+	public:
+	virtual ~ListContactUpdateListener() = default;
+	virtual void onContactsUpdated() = 0;
+
+	std::vector<Record *> records;
+};
+
 class ContactRegisteredListener {
   public:
 	virtual ~ContactRegisteredListener();
@@ -341,6 +352,7 @@ class RegistrarDb {
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
 	void fetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener);
+	void fetchList(const std::vector<url_t *> urls, const std::shared_ptr<ListContactUpdateListener> &listener);
 	void notifyContactListener (Record *r, const std::string &uid);
 	void updateRemoteExpireTime(const std::string &key, time_t expireat);
 	unsigned long countLocalActiveRecords() {

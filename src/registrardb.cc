@@ -90,7 +90,7 @@ url_t *ExtendedContact::toSofiaUrlClean(su_home_t *home){
 	return ret;
 }
 
-string ExtendedContact::getOrgLinphoneSpecs() {
+string ExtendedContact::getOrgLinphoneSpecs() const {
 	if (!mSipContact) return string();
 	const char *specs = msg_params_find(mSipContact->m_params, "+org.linphone.specs");
 	string result = specs ? string(specs) : string();
@@ -1102,6 +1102,42 @@ void RegistrarDb::fetch(const url_t *url, const shared_ptr<ContactUpdateListener
 
 void RegistrarDb::fetchForGruu(const url_t *url, const string &gruu, const shared_ptr<ContactUpdateListener> &listener) {
 	doFetchForGruu(url, gruu, listener);
+}
+
+void RegistrarDb::fetchList(const vector<url_t *> urls, const shared_ptr<ListContactUpdateListener> &listener) {
+	class InternalContactUpdateListener : public ContactUpdateListener {
+	public:
+		InternalContactUpdateListener(shared_ptr<ListContactUpdateListener> listener, size_t size) : listListener(listener), count(size) {}
+
+	private:
+		void onError() {
+			SLOGE << "Error while fetching contact";
+			updateCount();
+		}
+		void onInvalid() {
+			SLOGE << "Invalid fetch of contact";
+			updateCount();
+		}
+		void onRecordFound(Record *r) {
+			SLOGI << "Contact fetched";
+			listListener->records.push_back(r);
+			updateCount();
+		}
+		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {}
+		void updateCount() {
+			count--;
+			if (count == 0)
+				listListener->onContactsUpdated();
+		}
+
+		shared_ptr<ListContactUpdateListener> listListener;
+		size_t count;
+	};
+
+	shared_ptr<InternalContactUpdateListener> urlListener = make_shared<InternalContactUpdateListener>(listener, urls.size());
+	for (const auto &url : urls) {
+		fetch(url, urlListener);
+	}
 }
 
 void RegistrarDb::bind(const sip_t *sip, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {

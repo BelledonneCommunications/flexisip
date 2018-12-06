@@ -35,6 +35,7 @@
 #include "presence-server.hh"
 #include "presentity-presenceinformation.hh"
 #include "resource-lists.hh"
+#include "registrardb.hh"
 #include "subscription.hh"
 
 using namespace flexisip;
@@ -278,8 +279,8 @@ void PresenceServer::processTransactionTerminated(PresenceServer *thiz, const be
 
 	Subscription *sub = (Subscription *)belle_sip_transaction_get_application_data(BELLE_SIP_TRANSACTION(client));
 	if (sub) {
+		sub->mCurrentTransaction = nullptr;
 		sub->mTransactionRef.reset();
-		sub->mCurrentTransaction = NULL;
 	}
 }
 
@@ -659,12 +660,59 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					}
 					// send 200ok late to allow deeper analysis of request
 					belle_sip_server_transaction_send_response(server_transaction, resp);
-					for (auto &listener : listSubscription->getListeners())
+					vector<url_t *> listenersUrl;
+					for (auto &listener : listSubscription->getListeners()) {
 						listener->enableBypass(bypass); //expiration is handled by dialog
+						url_t *url = url_make(listSubscription->getHome(), belle_sip_uri_to_string(listener->getPresentityUri()));
+						listenersUrl.push_back(url);
+					}
 
-					addOrUpdateListeners(listSubscription->getListeners());
-					listSubscription->notify(true);
-					belle_sip_object_unref(resp);
+					class InternalListListener : public ListContactUpdateListener {
+					public:
+						InternalListListener(
+							shared_ptr<ListSubscription> listSubscription,
+							belle_sip_response_t *resp,
+							PresenceServer *presenceServer
+						) : mListSubscription(listSubscription), mResp(resp), mPresenceServer(presenceServer) {}
+						void onContactsUpdated() {
+							for (const auto &record : records) {
+								if (!record) continue;
+
+								bool groupChatSupported = false;
+								bool limeSupported = false;
+								auto &listeners = mListSubscription->getListeners();
+								for (const auto &extendedContact : record->getExtendedContacts()) {
+									const string specs = extendedContact->getOrgLinphoneSpecs();
+									groupChatSupported |= (specs.find("groupchat") != specs.npos);
+									limeSupported |= (specs.find("lime") != specs.npos);
+									if (groupChatSupported || limeSupported) {
+										const string &key = record->getKey();
+										auto predicate = [key](const shared_ptr<const PresentityPresenceInformationListener> &listener) {
+											SofiaAutoHome home;
+											url_t *url = url_make(home.home(), belle_sip_uri_to_string(listener->getPresentityUri()));
+											return key == Record::defineKeyFromUrl(url);
+										};
+										auto foundListener = std::find_if(listeners.cbegin(), listeners.cend(), predicate);
+										foundListener->get()->addCapability(specs);
+									}
+									if (limeSupported && groupChatSupported) break;
+								}
+							}
+
+							mPresenceServer->addOrUpdateListeners(mListSubscription->getListeners());
+							mListSubscription->notify(true);
+							belle_sip_object_unref(mResp);
+						}
+
+					private:
+						shared_ptr<ListSubscription> mListSubscription;
+						belle_sip_response_t *mResp;
+						PresenceServer *mPresenceServer;
+					};
+
+					// Fetch Redis info.
+					shared_ptr<InternalListListener> listener = make_shared<InternalListListener>(listSubscription, resp, this);
+					RegistrarDb::get()->fetchList(listenersUrl, listener);
 				};
 				if (!contentType) { // case of rfc4662 (list subscription without resource list in body)
 #if ENABLE_SOCI
