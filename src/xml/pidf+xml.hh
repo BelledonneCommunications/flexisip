@@ -300,6 +300,8 @@ namespace Xsd
 
 #include "data-model.hh"
 
+#include "pidf-oma-pres.hh"
+
 namespace Xsd
 {
   namespace Pidf
@@ -441,21 +443,6 @@ namespace Xsd
       ::std::unique_ptr< StatusType >
       setDetachStatus ();
 
-      // any
-      //
-      typedef ::xsd::cxx::tree::element_sequence AnySequence;
-      typedef AnySequence::iterator AnyIterator;
-      typedef AnySequence::const_iterator AnyConstIterator;
-
-      const AnySequence&
-      getAny () const;
-
-      AnySequence&
-      getAny ();
-
-      void
-      setAny (const AnySequence& s);
-
       // contact
       //
       typedef ::Xsd::Pidf::Contact ContactType;
@@ -515,6 +502,23 @@ namespace Xsd
       void
       setTimestamp (::std::unique_ptr< TimestampType > p);
 
+      // service-description
+      //
+      typedef ::oma_pres::ServiceDescription ServiceDescriptionType;
+      typedef ::xsd::cxx::tree::sequence< ServiceDescriptionType > ServiceDescriptionSequence;
+      typedef ServiceDescriptionSequence::iterator ServiceDescriptionIterator;
+      typedef ServiceDescriptionSequence::const_iterator ServiceDescriptionConstIterator;
+      typedef ::xsd::cxx::tree::traits< ServiceDescriptionType, char > ServiceDescriptionTraits;
+
+      const ServiceDescriptionSequence&
+      getServiceDescription () const;
+
+      ServiceDescriptionSequence&
+      getServiceDescription ();
+
+      void
+      setServiceDescription (const ServiceDescriptionSequence& s);
+
       // id
       //
       typedef ::Xsd::XmlSchema::Id IdType;
@@ -534,14 +538,6 @@ namespace Xsd
 
       ::std::unique_ptr< IdType >
       setDetachId ();
-
-      // DOMDocument for wildcard content.
-      //
-      const ::xercesc::DOMDocument&
-      getDomDocument () const;
-
-      ::xercesc::DOMDocument&
-      getDomDocument ();
 
       // Constructors.
       //
@@ -577,13 +573,11 @@ namespace Xsd
              ::Xsd::XmlSchema::Flags);
 
       protected:
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
-
       ::xsd::cxx::tree::one< StatusType > status_;
-      AnySequence any_;
       ContactOptional contact_;
       NoteSequence note_;
       TimestampOptional timestamp_;
+      ServiceDescriptionSequence service_description_;
       ::xsd::cxx::tree::one< IdType > id_;
     };
 

@@ -433,6 +433,9 @@ void PresentityPresenceInformationListener::enableExtendedNotify(bool enable) {
 bool PresentityPresenceInformationListener::bypassEnabled() {
 	return mBypassEnabled;
 }
+void PresentityPresenceInformationListener::updateCapabilities(const string &capabilites) {
+
+}
 void PresentityPresenceInformationListener::enableBypass(bool enable) {
 	mBypassEnabled = enable;
 }
