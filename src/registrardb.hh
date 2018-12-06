@@ -95,6 +95,9 @@ struct ExtendedContact {
 	inline const char *userAgent() {
 		return mUserAgent.c_str();
 	}
+	inline const std::string getUserAgent() {
+		return mUserAgent;
+	}
 
 	static int resolveExpire(const char *contact_expire, int global_expire) {
 		if (contact_expire) {
@@ -294,6 +297,14 @@ class ContactUpdateListener : public RegistrarDbListener {
 	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) = 0;
 };
 
+class ListContactUpdateListener {
+	public:
+	virtual ~ListContactUpdateListener() = default;
+	virtual void onContactsUpdated() = 0;
+
+	std::vector<Record *> records;
+};
+
 class ContactRegisteredListener {
   public:
 	virtual ~ContactRegisteredListener();
@@ -341,6 +352,7 @@ class RegistrarDb {
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
 	void fetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener);
+	void fetchList(const std::vector<url_t *> urls, const std::shared_ptr<ListContactUpdateListener> &listener);
 	void notifyContactListener (Record *r, const std::string &uid);
 	void updateRemoteExpireTime(const std::string &key, time_t expireat);
 	unsigned long countLocalActiveRecords() {

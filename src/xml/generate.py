@@ -110,6 +110,7 @@ def main(argv = None):
 	generate("resource-lists")
 	generate("rlmi+xml")
 	generate("rpid")
+	generate("pidf-oma-pres")
 
 if __name__ == "__main__":
 	sys.exit(main())

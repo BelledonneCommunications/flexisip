@@ -22,6 +22,7 @@
 #include <chrono>
 #include <unordered_map>
 
+#include "event.hh"
 #include "rlmi+xml.hh"
 #include "subscription.hh"
 
@@ -42,7 +43,7 @@ class PresentityResourceListener : public PresentityPresenceInformationListener 
 	~PresentityResourceListener();
 
 	const belle_sip_uri_t *getPresentityUri() const;
-	std::string getName() const {return mName;}
+	std::string getName() const { return mName; }
 	/*
 	 * This function is call every time Presentity information need to be notified to a UA
 	 */
@@ -74,6 +75,7 @@ public:
 
 	virtual ~ListSubscription();
 	std::list<std::shared_ptr<PresentityPresenceInformationListener>> &getListeners();
+	su_home_t *getHome() { return home.home(); }
 	/* Notify taking state from all pending Presentity listener*/
 	void notify(bool isFullState);
 
@@ -120,6 +122,7 @@ private:
 	belle_sip_source_t *mTimer;
 	size_t mMaxPresenceInfoNotifiedAtATime; //maximum number of presentity available in a sigle notify
 	std::function<void(std::shared_ptr<ListSubscription>)> mListAvailable;
+	SofiaAutoHome home;
 };
 
 } // namespace flexisip
