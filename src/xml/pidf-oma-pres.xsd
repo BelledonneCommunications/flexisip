@@ -78,7 +78,11 @@
 	terms set forth above.
 -->
 
-<xs:schema targetNamespace="urn:oma:xml:prs:pidf:oma-pres" elementFormDefault="qualified" attributeFormDefault="unqualified">
+<xs:schema targetNamespace="urn:oma:xml:prs:pidf:oma-pres"
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+ 	xmlns:oma-pres="urn:oma:xml:prs:pidf:oma-pres"
+	elementFormDefault="qualified"
+	attributeFormDefault="unqualified">
 	<!--
 	 This import brings in the XML language attribute xml:lang
 	-->
@@ -129,7 +133,7 @@
 	<xs:element name="willingness">
 		<xs:complexType>
 			<xs:sequence>
-				<xs:element name="basic" type="basicType" minOccurs="0"/>
+				<xs:element name="basic" type="oma-pres:basicType" minOccurs="0"/>
 				<xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
 			</xs:sequence>
 			<xs:anyAttribute processContents="lax"/>
@@ -139,7 +143,7 @@
 	<xs:element name="session-participation">
 		<xs:complexType>
 			<xs:sequence>
-				<xs:element name="basic" type="basicType" minOccurs="0"/>
+				<xs:element name="basic" type="oma-pres:basicType" minOccurs="0"/>
 				<xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
 			</xs:sequence>
 			<xs:anyAttribute processContents="lax"/>
@@ -149,7 +153,7 @@
 	<xs:element name="registration-state">
 		<xs:complexType>
 			<xs:simpleContent>
-				<xs:extension base="registrationType">
+				<xs:extension base="oma-pres:registrationType">
 					<xs:anyAttribute processContents="lax"/>
 				</xs:extension>
 			</xs:simpleContent>
@@ -159,7 +163,7 @@
 	<xs:element name="barring-state">
 		<xs:complexType>
 			<xs:simpleContent>
-				<xs:extension base="barringType">
+				<xs:extension base="oma-pres:barringType">
 					<xs:anyAttribute processContents="lax"/>
 				</xs:extension>
 			</xs:simpleContent>
@@ -170,7 +174,7 @@
 	<xs:element name="overriding-willingness">
 		<xs:complexType>
 			<xs:sequence>
-				<xs:element name="basic" type="basicType" minOccurs="0"/>
+				<xs:element name="basic" type="oma-pres:basicType" minOccurs="0"/>
 				<xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
 			</xs:sequence>
 			<xs:anyAttribute processContents="lax"/>
@@ -185,8 +189,8 @@
 					<xs:complexType>
 						<xs:sequence>
 							<xs:choice minOccurs="0">
-								<xs:element name="active" type="emptyType"/>
-								<xs:element name="terminated" type="emptyType"/>
+								<xs:element name="active" type="oma-pres:emptyType"/>
+								<xs:element name="terminated" type="oma-pres:emptyType"/>
 							</xs:choice>
 							<xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
 						</xs:sequence>
