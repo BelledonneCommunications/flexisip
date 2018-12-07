@@ -100,6 +100,7 @@ set(FLEXISIP_SOURCES
 	transaction.cc
 	uac-register.cc
 	utils/httputils.cc
+	utils/string-utils.cc
 	utils/threadpool.cc
 )
 

@@ -30,6 +30,7 @@
 #include "presentity-presenceinformation.hh"
 #include "rpid.hh"
 #include "utils/flexisip-exception.hh"
+#include "utils/string-utils.hh"
 
 #define ETAG_SIZE 8
 using namespace std;
@@ -357,6 +358,14 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 				for (const unique_ptr<Xsd::Pidf::Tuple> &tup : element.second->getTuples()) {
 					// check for multiple tupple id, may happend with buggy presence publisher
 					if (find(tupleList.begin(), tupleList.end(), tup.get()->getId()) == tupleList.end()) {
+						mCapabilities.erase(remove_if(mCapabilities.begin(), mCapabilities.end(), ::isspace), mCapabilities.end());
+						vector<string> capabilityVector = StringUtils::split(mCapabilities, ",");
+						for (const auto &capability : capabilityVector) {
+							if (capability.empty()) continue;
+
+							Xsd::Pidf::Tuple::ServiceDescriptionType service(capability, "4.2");
+							tup->getServiceDescription().push_back(service);
+						}
 						presence.getTuple().push_back(*tup);
 						tupleList.push_back(tup.get()->getId());
 					} else {
@@ -376,7 +385,16 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 		}
 		if ((mInformationElements.size() == 0 || !extended) && mDefaultInformationElement) {
 			// insering default tuple
-			presence.getTuple().push_back(*mDefaultInformationElement->getTuples().begin()->get());
+			Xsd::Pidf::Tuple *tup = mDefaultInformationElement->getTuples().begin()->get();
+			mCapabilities.erase(remove_if(mCapabilities.begin(), mCapabilities.end(), ::isspace), mCapabilities.end());
+			vector<string> capabilityVector = StringUtils::split(mCapabilities, ",");
+			for (const auto &capability : capabilityVector) {
+				if (capability.empty()) continue;
+				
+				Xsd::Pidf::Tuple::ServiceDescriptionType service(capability, "4.2");
+				tup->getServiceDescription().push_back(service);
+			}
+			presence.getTuple().push_back(*tup);
 
 			// copy extensions
 			Xsd::DataModel::Person dm_person = mDefaultInformationElement->getPerson();
@@ -432,9 +450,6 @@ void PresentityPresenceInformationListener::enableExtendedNotify(bool enable) {
 }
 bool PresentityPresenceInformationListener::bypassEnabled() {
 	return mBypassEnabled;
-}
-void PresentityPresenceInformationListener::updateCapabilities(const string &capabilites) {
-
 }
 void PresentityPresenceInformationListener::enableBypass(bool enable) {
 	mBypassEnabled = enable;

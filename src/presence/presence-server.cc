@@ -692,7 +692,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 											return key == Record::defineKeyFromUrl(url);
 										};
 										auto foundListener = std::find_if(listeners.cbegin(), listeners.cend(), predicate);
-										foundListener->get()->updateCapabilities(specs);
+										foundListener->get()->setCapabilities(specs);
 									}
 									if (limeSupported && groupChatSupported) break;
 								}
