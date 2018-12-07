@@ -238,7 +238,7 @@ void ConferenceServer::bindChatRoom (
 
 	sip_contact_t* sipContact = sip_contact_create(mHome.home(),
 		reinterpret_cast<const url_string_t*>(url_make(mHome.home(), contact.c_str())),
-		su_strdup(mHome.home(), ("+sip.instance=\"<" + gruu + ">\"").c_str()));
+		su_strdup(mHome.home(), ("+sip.instance=\"<" + gruu + ">\"").c_str()), nullptr);
 	url_t *from = url_make(mHome.home(), bindingUrl.c_str());
 	url_param_add(mHome.home(), from, ("gr=" + gruu).c_str());
 
