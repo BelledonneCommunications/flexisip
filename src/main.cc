@@ -975,12 +975,12 @@ int main(int argc, char *argv[]) {
 	a.reset();
 #ifdef ENABLE_PRESENCE
 	presence_cli = nullptr;
-	presenceServer->stop();
+	if (presenceServer) presenceServer->stop();
 	presenceServer.reset();
 #endif // ENABLE_PRESENCE
 
 #ifdef ENABLE_CONFERENCE
-	conferenceServer->stop();
+	if (conferenceServer) conferenceServer->stop();
 	conferenceServer.reset();
 #endif // ENABLE_CONFERENCE
 
