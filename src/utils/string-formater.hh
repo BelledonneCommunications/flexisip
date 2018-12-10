@@ -26,7 +26,7 @@ public:
 	StringFormater(const std::string &_template = "") : mTemplate(_template) {}
 
 	void setTemplate(const std::string &_template) {mTemplate = _template;}
-	std::string getTemplate() const {return mTemplate;}
+	const std::string &getTemplate() const {return mTemplate;}
 
 	std::string format(const std::map<std::string, std::string> &values) const;
 
