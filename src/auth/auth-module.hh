@@ -24,14 +24,35 @@
 
 #include "auth-status.hh"
 
+/**
+ * @brief Interface for authentication modules.
+ * @note This class is a plain C++ wrapper of SofiaSip's auth_mod_t
+ * object. Please look at http://sofia-sip.sourceforge.net/refdocs/iptsec/auth__module_8h.html
+ * for a complete documentation.
+ */
 class AuthModule {
 public:
 	AuthModule(su_root_t *root, tag_type_t, tag_value_t, ...);
 	virtual ~AuthModule() {auth_mod_destroy(mAm);}
 
+	/**
+	 * Return a pointer on the underlying SofiaSip's authentication module.
+	 * This method is useful if you mean to call a SofiaSip function that needs
+	 * an auth_mod_t object as parameter.
+	 */
 	auth_mod_t *getPtr() const {return mAm;}
+
+	/**
+	 * Event loop which the authentication module is working on.
+	 * This has been define on module construction.
+	 */
 	su_root_t *getRoot() const {return mRoot;}
 
+
+	/**
+	 * These methods are C++ version of public method of auth_mod_t API. To find the associated
+	 * SofiaSip function, just prefix the name of the method by "auth_mod_" e.g. verify() -> auth_mod_verify().
+	 */
 	void verify(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) {auth_mod_verify(mAm, as.getPtr(), credentials, ach);}
 	void challenge(AuthStatus &as, auth_challenger_t const *ach) {auth_mod_challenge(mAm, as.getPtr(), ach);}
 	void authorize(AuthStatus &as, auth_challenger_t const *ach) {auth_mod_challenge(mAm, as.getPtr(), ach);}

@@ -25,8 +25,16 @@
 #include "flexisip-auth-module-base.hh"
 #include "utils/string-formater.hh"
 
+
+/**
+ * Authentication module that delegates the Authorization header validation to
+ * an external HTTP server.
+ */
 class ExternalAuthModule : public FlexisipAuthModuleBase {
 public:
+	/**
+	 * Specialization of FlexisipAuthStatus dedicated to ExternalAuthModule.
+	 */
 	class Status : public FlexisipAuthStatus {
 	public:
 		const std::string &reason() const {return mReasonHeader;}
@@ -48,11 +56,11 @@ public:
 		void sipInstance(std::string &&val) {mSipInstance = val;}
 
 	private:
-		std::string mReasonHeader;
-		std::string mPAssertedIdentity;
-		std::string mFromHeader;
-		std::string mDomain;
-		std::string mSipInstance;
+		std::string mReasonHeader;      /**< [out] Reason header returned by the HTTP server on authentication failure. */
+		std::string mPAssertedIdentity; /**< [out] PAssertIdentity header returned by the HTTP server on authentication success. */
+		std::string mFromHeader;        /**< [in]  Value of From header of the request. */
+		std::string mDomain;            /**< [in]  Domain of the From header. */
+		std::string mSipInstance;       /**< [in]  Value of the +sip.instance parameter from Contact header. */
 	};
 
 	ExternalAuthModule(su_root_t *root, const std::string &domain, const std::string &algo);
