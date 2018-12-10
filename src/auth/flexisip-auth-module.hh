@@ -32,6 +32,10 @@
 #include "flexisip-auth-status.hh"
 #include "nonce-store.hh"
 
+
+/**
+ * Authentication module using a user database to validate the Authorization header.
+ */
 class FlexisipAuthModule : public FlexisipAuthModuleBase {
 public:
 	FlexisipAuthModule(su_root_t *root, const std::string &domain, const std::string &algo): FlexisipAuthModuleBase(root, domain, algo) {}

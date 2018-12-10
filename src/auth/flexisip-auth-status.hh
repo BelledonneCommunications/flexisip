@@ -25,16 +25,40 @@
 #include "auth-status.hh"
 #include "event.hh"
 
+/**
+ * Specialization of AuthStatus dedicated to be used
+ * with FlexisipAuthModule class.
+ */
 class FlexisipAuthStatus : public AuthStatus {
 public:
 	FlexisipAuthStatus(): AuthStatus() {}
 
+	/**
+	 * This property is to be set by the user of FlexisipAuthModule
+	 * before calling verify(). If true, the module will not return 403
+	 * status code on authentication denied but will submit a new challenge.
+	 */
 	bool no403() const {return mNo403;}
 	void no403(bool no403) {mNo403 = no403;}
 
+	/**
+	 * This property is set by FlexisipAuthModule and can
+	 * be read on each time while the authentication is running.
+	 * A 'true' value means that the module has already tried to fetch
+	 * the password from database and has succeeded.
+	 */
 	bool passwordFound() const {return mPasswordFound;}
 	void passwordFound(bool val) {mPasswordFound = val;}
 
+	/**
+	 * List of digest algorithms to use for authentication. If there
+	 * are several algorithms, FlexisipAuthModule will generate
+	 * one challenge per algorithm when the Authorization header is missing
+	 * from the request.
+	 *
+	 * This property must be set before calling verify() and must
+	 * contain one element at least.
+	 */
 	std::list<std::string> &usedAlgo() {return mAlgoUsed;}
 
 private:
