@@ -22,6 +22,17 @@
 
 #include <sofia-sip/auth_module.h>
 
+/**
+ * @brief Plain C++ wrapper for SofiaSip's auth_status_t structure.
+ * @warning Like auth_status_t, this classe doesn't take ownership
+ * on strings that have been set by setters. That means you must
+ * guarantees the life of such strings while the authentication is processing.
+ * If you cannot, you may copy the string by using the AuthStatus' internal
+ * home_t object before giving it to the setter method. This one can be
+ * got thanks to home() method.
+ * @see See http://sofia-sip.sourceforge.net/refdocs/iptsec/structauth__status__t.html
+ * for more documentation.
+ */
 class AuthStatus {
 public:
 	using ResponseCb = std::function<void(AuthStatus &as)>;
@@ -55,6 +66,10 @@ public:
 	const char *display() const {return mPriv.as_display;}
 	void display(const char *val) {mPriv.as_display = val;}
 
+	/**
+	 * Internal home_t, which will be destroyed on destruction
+	 * of the AuthStatus.
+	 */
 	su_home_t *home() {return &mHome;}
 
 	msg_header_t *info() const {return mPriv.as_info;}
@@ -96,6 +111,9 @@ public:
 	const url_t *userUri() const {return mPriv.as_user_uri;}
 	void userUri(const url_t *val) {mPriv.as_user_uri = val;}
 
+	/**
+	 * Return the underlying SofiaSip's auth_status_t object.
+	 */
 	auth_status_t *getPtr() {return &mPriv;}
 
 private:
