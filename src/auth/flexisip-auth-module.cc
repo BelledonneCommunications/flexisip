@@ -29,9 +29,9 @@ using namespace std;
 // ====================================================================================================================
 
 void FlexisipAuthModule::AuthenticationListener::main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u) {
-	AuthenticationListener &listener = **reinterpret_cast<AuthenticationListener **>(su_msg_data(msg));
-	listener.mAm.processResponse(listener);
-	delete &listener;
+	AuthenticationListener *listener = *reinterpret_cast<AuthenticationListener **>(su_msg_data(msg));
+	listener->mAm.processResponse(*listener);
+	delete listener;
 }
 
 void FlexisipAuthModule::AuthenticationListener::onResult(AuthDbResult result, const vector<passwd_algo_t> &passwd) {
