@@ -35,15 +35,15 @@ public:
 		const std::string &pAssertedIdentity() const {return mPAssertedIdentity;}
 		void pAssertedIdentity(const std::string &val) {mPAssertedIdentity = val;}
 
-		std::string fromHeader() const {return mFromHeader;}
+		const std::string &fromHeader() const {return mFromHeader;}
 		void fromHeader(const std::string &val) {mFromHeader = val;}
 		void fromHeader(std::string &&val) {mFromHeader = val;}
 
-		std::string domain() const {return mDomain;}
+		const std::string &domain() const {return mDomain;}
 		void domain(const std::string &val) {mDomain = val;}
 		void domain(std::string &&val) {mDomain = val;}
 
-		std::string sipInstance() const {return mSipInstance;}
+		const std::string &sipInstance() const {return mSipInstance;}
 		void sipInstance(const std::string &val) {mSipInstance = val;}
 		void sipInstance(std::string &&val) {mSipInstance = val;}
 
