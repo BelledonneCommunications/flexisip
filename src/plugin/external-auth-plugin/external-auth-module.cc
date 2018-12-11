@@ -21,7 +21,6 @@
 #include <stdexcept>
 
 #include "log/logmanager.hh"
-#include "utils/httputils.hh"
 
 #include "external-auth-module.hh"
 
@@ -91,9 +90,9 @@ std::map<std::string, std::string> ExternalAuthModule::extractParameters(const S
 		throw runtime_error(os.str());
 	}
 	params["method"] = as.method();
-	params["from"] = HttpUtils::escapeReservedCharacters(as.fromHeader());
-	params["sip-instance"] = HttpUtils::escapeReservedCharacters(as.sipInstance());
-	params["domain"] = HttpUtils::escapeReservedCharacters(as.domain());
+	params["from"] = as.fromHeader();
+	params["sip-instance"] = as.sipInstance();
+	params["domain"] = as.domain();
 	return params;
 }
 

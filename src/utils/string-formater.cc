@@ -20,10 +20,15 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "httputils.hh"
+
 #include "string-formater.hh"
 
 using namespace std;
 
+//=====================================================================================================================
+// StringFormater class
+//=====================================================================================================================
 std::string StringFormater::format(const std::map<std::string, std::string> &values) const {
 	string result;
 	auto it1 = mTemplate.cbegin();
@@ -50,3 +55,21 @@ std::string StringFormater::format(const std::map<std::string, std::string> &val
 bool StringFormater::isKeywordChar(char c) {
 	return ((c >= 'A' && c <= 'z') || c == '-');
 }
+//=====================================================================================================================
+
+
+//=====================================================================================================================
+// HttpUriFormater class
+//=====================================================================================================================
+std::string HttpUriFormater::format(const std::map<std::string, std::string> &values) const {
+	return StringFormater::format(escape(values));
+}
+
+std::map<std::string, std::string> HttpUriFormater::escape(const std::map<std::string, std::string> &values) {
+	std::map<std::string, std::string> out;
+	for(const auto &item : values) {
+		out[item.first] = HttpUtils::escapeReservedCharacters(item.second);
+	}
+	return out;
+}
+//=====================================================================================================================
