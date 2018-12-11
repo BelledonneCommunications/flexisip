@@ -680,12 +680,12 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 
 								bool groupChatSupported = false;
 								bool limeSupported = false;
+								auto &listeners = mListSubscription->getListeners();
 								for (const auto &extendedContact : record->getExtendedContacts()) {
 									const string specs = extendedContact->getOrgLinphoneSpecs();
-									groupChatSupported = (specs.find("groupchat") != specs.npos);
-									limeSupported = (specs.find("lime") != specs.npos);
+									groupChatSupported |= (specs.find("groupchat") != specs.npos);
+									limeSupported |= (specs.find("lime") != specs.npos);
 									if (groupChatSupported || limeSupported) {
-										auto &listeners = mListSubscription->getListeners();
 										const string &key = record->getKey();
 										auto predicate = [key](const shared_ptr<const PresentityPresenceInformationListener> &listener) {
 											SofiaAutoHome home;
@@ -693,7 +693,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 											return key == Record::defineKeyFromUrl(url);
 										};
 										auto foundListener = std::find_if(listeners.cbegin(), listeners.cend(), predicate);
-										foundListener->get()->setCapabilities(specs);
+										foundListener->get()->addCapability(specs);
 									}
 									if (limeSupported && groupChatSupported) break;
 								}

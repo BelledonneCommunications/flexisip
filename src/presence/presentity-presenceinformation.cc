@@ -456,6 +456,13 @@ bool PresentityPresenceInformationListener::bypassEnabled() {
 void PresentityPresenceInformationListener::enableBypass(bool enable) {
 	mBypassEnabled = enable;
 }
+void PresentityPresenceInformationListener::addCapability(const std::string &capability) {
+	if (mCapabilities.empty()) {
+		mCapabilities = capability;
+	} else if (mCapabilities.find(capability) == mCapabilities.npos) {
+		mCapabilities += ", " + capability;
+	}
+}
 void PresentityPresenceInformationListener::setExpiresTimer(belle_sip_main_loop_t *ml, belle_sip_source_t *timer) {
 	if (mTimer) {
 		// canceling previous timer
