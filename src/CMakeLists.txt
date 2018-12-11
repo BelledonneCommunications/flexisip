@@ -38,7 +38,6 @@ set(FLEXISIP_SOURCES
 	auth/auth-module.cc
 	auth/flexisip-auth-module.cc
 	auth/flexisip-auth-module-base.cc
-	auth/external-auth-module.cc
 	auth/nonce-store.cc
 	authdb-file.cc
 	authdb.cc
