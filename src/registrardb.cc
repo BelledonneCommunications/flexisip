@@ -1108,8 +1108,8 @@ void RegistrarDb::fetchList(const vector<url_t *> urls, const shared_ptr<ListCon
 	class InternalContactUpdateListener : public ContactUpdateListener {
 	public:
 		InternalContactUpdateListener(shared_ptr<ListContactUpdateListener> listener, size_t size) : listListener(listener), count(size) {}
-		shared_ptr<ListContactUpdateListener> listListener;
-		size_t count;
+
+	private:
 		void onError() {
 			SLOGE << "Error while fetching contact";
 			updateCount();
@@ -1129,6 +1129,9 @@ void RegistrarDb::fetchList(const vector<url_t *> urls, const shared_ptr<ListCon
 			if (count == 0)
 				listListener->onContactsUpdated();
 		}
+
+		shared_ptr<ListContactUpdateListener> listListener;
+		size_t count;
 	};
 
 	shared_ptr<InternalContactUpdateListener> urlListener = make_shared<InternalContactUpdateListener>(listener, urls.size());
