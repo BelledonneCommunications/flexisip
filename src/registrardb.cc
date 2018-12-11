@@ -90,7 +90,7 @@ url_t *ExtendedContact::toSofiaUrlClean(su_home_t *home){
 	return ret;
 }
 
-string ExtendedContact::getOrgLinphoneSpecs() {
+string ExtendedContact::getOrgLinphoneSpecs() const {
 	if (!mSipContact) return string();
 	const char *specs = msg_params_find(mSipContact->m_params, "+org.linphone.specs");
 	string result = specs ? string(specs) : string();
