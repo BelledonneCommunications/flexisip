@@ -1107,6 +1107,7 @@ void RegistrarDb::fetchForGruu(const url_t *url, const string &gruu, const share
 void RegistrarDb::fetchList(const vector<url_t *> urls, const shared_ptr<ListContactUpdateListener> &listener) {
 	class InternalContactUpdateListener : public ContactUpdateListener {
 	public:
+		InternalContactUpdateListener(shared_ptr<ListContactUpdateListener> listener, size_t size) : listListener(listener), count(size) {}
 		shared_ptr<ListContactUpdateListener> listListener;
 		size_t count;
 		void onError() {
@@ -1130,9 +1131,7 @@ void RegistrarDb::fetchList(const vector<url_t *> urls, const shared_ptr<ListCon
 		}
 	};
 
-	shared_ptr<InternalContactUpdateListener> urlListener = make_shared<InternalContactUpdateListener>();
-	urlListener->listListener = listener;
-	urlListener->count = urls.size();
+	shared_ptr<InternalContactUpdateListener> urlListener = make_shared<InternalContactUpdateListener>(listener, urls.size());
 	for (const auto &url : urls) {
 		fetch(url, urlListener);
 	}
