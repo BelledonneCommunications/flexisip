@@ -358,7 +358,8 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 				for (const unique_ptr<Xsd::Pidf::Tuple> &tup : element.second->getTuples()) {
 					// check for multiple tupple id, may happend with buggy presence publisher
 					if (find(tupleList.begin(), tupleList.end(), tup.get()->getId()) == tupleList.end()) {
-						mCapabilities.erase(remove_if(mCapabilities.begin(), mCapabilities.end(), ::isspace), mCapabilities.end());
+						auto predicate = [](char c){ return ::isspace(c) || c == '"'; };
+						mCapabilities.erase(remove_if(mCapabilities.begin(), mCapabilities.end(), predicate), mCapabilities.end());
 						vector<string> capabilityVector = StringUtils::split(mCapabilities, ",");
 						for (const auto &capability : capabilityVector) {
 							if (capability.empty()) continue;
@@ -386,7 +387,8 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 		if ((mInformationElements.size() == 0 || !extended) && mDefaultInformationElement) {
 			// insering default tuple
 			Xsd::Pidf::Tuple *tup = mDefaultInformationElement->getTuples().begin()->get();
-			mCapabilities.erase(remove_if(mCapabilities.begin(), mCapabilities.end(), ::isspace), mCapabilities.end());
+			auto predicate = [](char c){ return ::isspace(c) || c == '"'; };
+			mCapabilities.erase(remove_if(mCapabilities.begin(), mCapabilities.end(), predicate), mCapabilities.end());
 			vector<string> capabilityVector = StringUtils::split(mCapabilities, ",");
 			for (const auto &capability : capabilityVector) {
 				if (capability.empty()) continue;
