@@ -21,7 +21,7 @@
 #include <array>
 
 #include "agent.hh"
-#include "auth/external-auth-module.hh"
+#include "external-auth-module.hh"
 #include "module.hh"
 
 class ModuleExternalAuthentication : public Module {

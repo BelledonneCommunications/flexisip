@@ -22,7 +22,11 @@
 
 project(external-auth-plugin VERSION 1.0.0)
 
-add_library(external-auth SHARED module-external-authentication.cc)
+add_library(external-auth SHARED
+	external-auth-module.cc
+	module-external-authentication.cc
+)
+
 set_property(TARGET external-auth PROPERTY VERSION ${PROJECT_VERSION})
 set_property(TARGET external-auth PROPERTY CXX_STANDARD 11)
 set_property(TARGET external-auth PROPERTY CXX_STANDARD_REQUIRED ON)
