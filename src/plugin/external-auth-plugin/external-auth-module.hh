@@ -88,7 +88,7 @@ private:
 	static bool validSipCode(int sipCode);
 
 	nth_engine_t *mEngine = nullptr;
-	StringFormater mUriFormater;
+	HttpUriFormater mUriFormater;
 
 	static std::array<int, 4> sValidSipCodes;
 };
