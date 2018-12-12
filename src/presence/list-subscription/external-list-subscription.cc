@@ -26,7 +26,6 @@
 #include "external-list-subscription.hh"
 #include "log/logmanager.hh"
 
-using namespace soci;
 using namespace std;
 using namespace chrono;
 
@@ -39,7 +38,7 @@ ExternalListSubscription::ExternalListSubscription(
 		size_t maxPresenceInfoNotifiedAtATime,
 		function<void(shared_ptr<ListSubscription>)> listAvailable,
 		const string &sqlRequest,
-		connection_pool *connPool,
+		soci::connection_pool *connPool,
 		ThreadPool *threadPool
 ) : ListSubscription(expires, ist, aProv, maxPresenceInfoNotifiedAtATime, listAvailable), mConnPool(connPool) {
 	// create a thread to grab a pool connection and use it to retrieve the auth information
@@ -52,13 +51,13 @@ ExternalListSubscription::ExternalListSubscription(
 
 #define DURATION_MS(start, stop) (unsigned long) duration_cast<milliseconds>((stop) - (start)).count()
 
-void ExternalListSubscription::reconnectSession(session &session) {
+void ExternalListSubscription::reconnectSession(soci::session &session) {
 	try {
 		SLOGE << "[SOCI] Trying close/reconnect session";
 		session.close();
 		session.reconnect();
 		SLOGD << "[SOCI] Session " << session.get_backend_name() << " successfully reconnected";
-	} catch (mysql_soci_error const & e) {
+	} catch (soci::mysql_soci_error const & e) {
 		SLOGE << "[SOCI] reconnectSession MySQL error: " << e.err_num_ << " " << e.what() << endl;
 	} catch (exception const &e) {
 		SLOGE << "[SOCI] reconnectSession error: " << e.what() << endl;
@@ -68,12 +67,12 @@ void ExternalListSubscription::reconnectSession(session &session) {
 void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_server_transaction_t *ist) {
 	steady_clock::time_point start;
 	steady_clock::time_point stop;
-	session *sql = nullptr;
+	soci::session *sql = nullptr;
 
 	try {
 		start = steady_clock::now();
 		// will grab a connection from the pool. This is thread safe
-		sql = new session(*mConnPool); //this may raise a soci_error exception, so keep it in the try block.
+		sql = new soci::session(*mConnPool); //this may raise a soci_error exception, so keep it in the try block.
 
 		stop = steady_clock::now();
 
@@ -85,26 +84,12 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 		belle_sip_header_from_t *fromHeader = belle_sip_message_get_header_by_type(BELLE_SIP_MESSAGE(request), belle_sip_header_from_t);
 		char *toUri = belle_sip_uri_to_string(belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(toHeader)));
 		char *fromUri = belle_sip_uri_to_string(belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(fromHeader)));
-
-		string modifiedRequest = sqlRequest;
-		int index = modifiedRequest.find(":from");
-		while(index > -1) {
-			modifiedRequest = modifiedRequest.replace(index, 5, fromUri);
-			index = modifiedRequest.find(":from");
-		}
-		index = modifiedRequest.find(":to");
-		while(index > -1) {
-			modifiedRequest = modifiedRequest.replace(index, 3, toUri);
-			index = modifiedRequest.find(":to");
-		}
-
+		soci::rowset<soci::row> ret = (sql->prepare << sqlRequest, soci::use(string(fromUri), "from"), soci::use(string(toUri), "to"));
 		belle_sip_free(toUri);
 		belle_sip_free(fromUri);
 
-		rowset<row> ret = (sql->prepare << modifiedRequest);
 		string addrStr;
-		for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
-			const row &row = *it;
+		for (const auto &row : ret) {
 			addrStr = row.get<string>(0);
 			belle_sip_header_address_t *addr = belle_sip_header_address_parse(addrStr.c_str());
 			if (!addr) {
@@ -128,7 +113,7 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 		}
 
 		stop = steady_clock::now();
-	} catch (mysql_soci_error const &e) {
+	} catch (soci::mysql_soci_error const &e) {
 		stop = steady_clock::now();
 
 		SLOGE << "[SOCI] getUsersList MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
