@@ -375,7 +375,6 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbList
 	} catch (mysql_soci_error const &e) {
 		stop = steady_clock::now();
 		SLOGE << "[SOCI] getUsersWithPhonesWithPool MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
-		SLOGE << "[SOCI] MySQL request causing the error was : " << s;
 		presences.clear();
 		if (listener) listener->onResults(phones, presences);
 
