@@ -211,7 +211,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 	ConfigItemDescriptor items[] = {
 		{Integer, "timeout",
 		 "Number of seconds to wait before sending a push notification to device. A value lesser or equal to zero will make "
-		 "the push notification to be sent immediately on received INVITE", "5"},
+		 "the push notification to be sent immediately.", "5"},
 		{Integer, "max-queue-size", "Maximum number of notifications queued for each client", "100"},
 		{Integer, "time-to-live", "Default time to live for the push notifications, in seconds. This parameter shall be set according to mDeliveryTimeout parameter in ForkContext.cc", "2592000"},
 		{Boolean, "apple", "Enable push notification for apple devices", "true"},
