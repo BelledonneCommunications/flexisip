@@ -273,13 +273,14 @@ void PresenceServer::processTimeout(PresenceServer *thiz, const belle_sip_timeou
 }
 void PresenceServer::processTransactionTerminated(PresenceServer *thiz, const belle_sip_transaction_terminated_event_t *event) {
 	belle_sip_client_transaction_t *client = belle_sip_transaction_terminated_event_get_client_transaction(event);
-	if(!client)
-		return;
+	if(!client) return;
 
-	Subscription *sub = (Subscription *)belle_sip_transaction_get_application_data(BELLE_SIP_TRANSACTION(client));
+	auto *sub = static_cast<Subscription *>(belle_sip_transaction_get_application_data(BELLE_SIP_TRANSACTION(client)));
 	if (sub) {
+		// WARNING: the next line MUST be placed before sub->mTransactionRef.reset() since
+		// the latter could delete 'sub' object.
+		sub->mCurrentTransaction = nullptr;
 		sub->mTransactionRef.reset();
-		sub->mCurrentTransaction = NULL;
 	}
 }
 
