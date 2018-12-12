@@ -282,13 +282,7 @@ void SociAuthDB::getUserWithPhoneWithPool(const string &phone, const string &dom
 		if(get_user_with_phone_request != "") {
 			*sql << get_user_with_phone_request, into(user), use(phone, "phone");
 		} else {
-			string s = get_users_with_phones_request;
-			int index = s.find(":phones");
-			while(index > -1) {
-				s = s.replace(index, 7, phone);
-				index = s.find(":phones");
-			}
-			rowset<row> ret = (sql->prepare << s);
+			rowset<row> ret = (sql->prepare << get_users_with_phones_request, use(phone, "phones"));
 			for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
 				row const& row = *it;
 				user = row.get<string>(0);
@@ -341,13 +335,6 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbList
 		}
 	}
 
-	string s = get_users_with_phones_request;
-	int index = s.find(":phones");
-	while(index > -1) {
-		s = s.replace(index, 7, in.str());
-		index = s.find(":phones");
-	}
-
 	try {
 		start = steady_clock::now();
 		// will grab a connection from the pool. This is thread safe
@@ -357,7 +344,7 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbList
 
 		SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
 		start = stop;
-		rowset<row> ret = (sql->prepare << s);
+		rowset<row> ret = (sql->prepare << get_users_with_phones_request, use(in.str(), "phones"));
 		stop = steady_clock::now();
 
 		SLOGD << "[SOCI] Got users in " << DURATION_MS(start, stop) << "ms";
