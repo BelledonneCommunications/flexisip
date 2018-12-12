@@ -84,20 +84,6 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 		belle_sip_header_from_t *fromHeader = belle_sip_message_get_header_by_type(BELLE_SIP_MESSAGE(request), belle_sip_header_from_t);
 		char *toUri = belle_sip_uri_to_string(belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(toHeader)));
 		char *fromUri = belle_sip_uri_to_string(belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(fromHeader)));
-
-		class my_log_impl : public soci::logger_impl {
-		public:
-			virtual void start_query(std::string const & query) {
-				SLOGD << "[SOCI] Log: " << query;
-			}
-
-		private:
-			virtual logger_impl* do_clone() const {
-				return new my_log_impl();
-			}
-		};
-		sql->set_logger(new my_log_impl());
-
 		soci::rowset<soci::row> ret = (sql->prepare << sqlRequest, soci::use(string(fromUri), "from"), soci::use(string(toUri), "to"));
 		belle_sip_free(toUri);
 		belle_sip_free(fromUri);
