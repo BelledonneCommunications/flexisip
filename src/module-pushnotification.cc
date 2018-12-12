@@ -210,7 +210,8 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = {
 		{Integer, "timeout",
-		 "Number of second to wait before sending a push notification to device(if <=0 then disabled)", "5"},
+		 "Number of seconds to wait before sending a push notification to device. A value lesser or equal to zero will make "
+		 "the push notification to be sent immediately.", "5"},
 		{Integer, "max-queue-size", "Maximum number of notifications queued for each client", "100"},
 		{Integer, "time-to-live", "Default time to live for the push notifications, in seconds. This parameter shall be set according to mDeliveryTimeout parameter in ForkContext.cc", "2592000"},
 		{Boolean, "apple", "Enable push notification for apple devices", "true"},
@@ -471,6 +472,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				pn = make_shared<GenericPushNotificationRequest>(pinfo, mExternalPushUri, mExternalPushMethod);
 
 			if (pn) {
+				if (time_out < 0) time_out = 0;
 				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << time_out << "s";
 				context = make_shared<PushNotificationContext>(transaction, this, pn, pnKey);
 				context->start(time_out, !pinfo.mSilent);
