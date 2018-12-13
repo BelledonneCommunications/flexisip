@@ -63,7 +63,7 @@ public:
 };
 
 class AuthDbBackend {
-	static AuthDbBackend *sUnique;
+	static std::unique_ptr<AuthDbBackend> sUnique;
 
 	struct CachedPassword {
 		std::vector<passwd_algo_t> pass;
@@ -105,7 +105,7 @@ public:
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) = 0;
 
-	static AuthDbBackend *get();
+	static AuthDbBackend &get();
 	/* called by module_auth so that backends can declare their configuration to the ConfigurationManager */
 	static void declareConfig(GenericStruct *mc);
 	static std::string syncSha256(const char* input,size_t size);
