@@ -214,13 +214,13 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 		}
 
 		AuthenticationListener *listener = new AuthenticationListener(*this, as, *ach, ar);
-		AuthDbBackend::get()->getPassword(as.userUri()->url_user, as.userUri()->url_host, ar.ar_username, listener);
+		AuthDbBackend::get().getPassword(as.userUri()->url_user, as.userUri()->url_host, ar.ar_username, listener);
 		as.status(100);
 }
 
 void FlexisipAuthModule::loadPassword(const FlexisipAuthStatus &as) {
 	SLOGD << "Searching for " << as.userUri()->url_user << " password to have it when the authenticated request comes";
-	AuthDbBackend::get()->getPassword(as.userUri()->url_user, as.userUri()->url_host, as.userUri()->url_user, nullptr);
+	AuthDbBackend::get().getPassword(as.userUri()->url_user, as.userUri()->url_host, as.userUri()->url_user, nullptr);
 }
 
 void FlexisipAuthModule::processResponse(AuthenticationListener &l) {
