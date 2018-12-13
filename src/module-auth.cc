@@ -609,7 +609,7 @@ public:
 					sip_unknown_t *h2 = ModuleToolbox::getCustomHeaderByName(sip, "X-Phone-Alias");
 					const char* phone_alias = h2 ? h2->un_value : NULL;
 					phone_alias = phone_alias ? phone_alias : "";
-					AuthDbBackend::get()->createAccount(url->url_user, url->url_host, url->url_user, url->url_password,
+					AuthDbBackend::get().createAccount(url->url_user, url->url_host, url->url_user, url->url_password,
 														sip->sip_expires->ex_delta, phone_alias);
 					LOGD("Account created for %s@%s with password %s and expires %lu%s%s", url->url_user, url->url_host,
 						url->url_password, sip->sip_expires->ex_delta, phone_alias ? " with phone alias " : "", phone_alias);
@@ -1254,7 +1254,7 @@ void Authentication::flexisip_auth_check_digest(auth_mod_t *am, auth_status_t *a
 		}
 	}
 
-	AuthDbBackend::get()->getPassword(as->as_user_uri->url_user, as->as_user_uri->url_host, ar->ar_username, listener);
+	AuthDbBackend::get().getPassword(as->as_user_uri->url_user, as->as_user_uri->url_host, ar->ar_username, listener);
 }
 
 /** Authenticate a request with @b Digest authentication scheme.
@@ -1313,7 +1313,7 @@ void Authentication::flexisip_auth_method_digest(auth_mod_t *am, auth_status_t *
 		if (listener->mImmediateRetrievePass) {
 			SLOGD << "Searching for " << as->as_user_uri->url_user
 			<< " password to have it when the authenticated request comes";
-			AuthDbBackend::get()->getPassword(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL);
+			AuthDbBackend::get().getPassword(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL);
 			//AuthDbBackend::get()->getPasswordForAlgo(as->as_user_uri->url_user, as->as_user_uri->url_host, as->as_user_uri->url_user, NULL, listener);
 		}
 		listener->finish();

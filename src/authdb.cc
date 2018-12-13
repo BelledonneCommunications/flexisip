@@ -21,7 +21,7 @@
 
 using namespace std;
 
-AuthDbBackend *AuthDbBackend::sUnique = NULL;
+unique_ptr<AuthDbBackend> AuthDbBackend::sUnique;
 
 AuthDbListener::~AuthDbListener(){
 }
@@ -45,27 +45,27 @@ public:
 	static void declareConfig(GenericStruct *mc){};
 };
 
-AuthDbBackend *AuthDbBackend::get() {
-	if (sUnique == NULL) {
+AuthDbBackend &AuthDbBackend::get() {
+	if (sUnique == nullptr) {
 		GenericStruct *cr = GenericManager::get()->getRoot();
 		GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 		const string &impl = ma->get<ConfigString>("db-implementation")->read();
 		if (impl == "fixed") {
-			sUnique = new FixedAuthDb();
+			sUnique.reset(new FixedAuthDb());
 		} else if (impl == "file") {
-			sUnique = new FileAuthDb();
+			sUnique.reset(new FileAuthDb());
 #if ENABLE_ODBC
 		} else if (impl == "odbc") {
-			sUnique = new OdbcAuthDb();
+			sUnique.reset(new OdbcAuthDb());
 #endif
 #if ENABLE_SOCI
 		} else if (impl == "soci") {
-			sUnique = new SociAuthDB();
+			sUnique.reset(new SociAuthDB());
 #endif
 		}
 	}
 
-	return sUnique;
+	return *sUnique;
 }
 
 AuthDbBackend::AuthDbBackend() {

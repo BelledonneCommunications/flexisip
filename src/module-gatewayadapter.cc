@@ -156,9 +156,8 @@ private:
 		void onRecordFound(Record *r) {
 			if (r == NULL) {
 				LOGD("Record doesn't exist. Fork");
-				AuthDbBackend *mAuthDb = AuthDbBackend::get();
 				url_t *url = gw->getFrom()->a_url;
-				mAuthDb->getPassword(url->url_user, url->url_host, url->url_user, new OnAuthListener(gw));
+				AuthDbBackend::get().getPassword(url->url_user, url->url_host, url->url_user, new OnAuthListener(gw));
 			} else {
 				LOGD("Record already exists. Not forked");
 			}
