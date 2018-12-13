@@ -35,6 +35,10 @@ set(FLEXISIP_DEPENDENCIES)
 
 set(FLEXISIP_SOURCES
 	agent.cc
+	auth/auth-module.cc
+	auth/flexisip-auth-module.cc
+	auth/flexisip-auth-module-base.cc
+	auth/nonce-store.cc
 	authdb-file.cc
 	authdb.cc
 	callcontext-mediarelay.cc
@@ -100,6 +104,7 @@ set(FLEXISIP_SOURCES
 	transaction.cc
 	uac-register.cc
 	utils/httputils.cc
+	utils/string-formater.cc
 	utils/string-utils.cc
 	utils/threadpool.cc
 )
@@ -330,6 +335,10 @@ install(TARGETS flexisip_pusher
 )
 
 # Build plugins.
+if(ENABLE_EXTERNAL_AUTH_PLUGIN)
+    add_subdirectory(plugin/external-auth-plugin)
+endif()
+
 if(ENABLE_JWE_AUTH_PLUGIN)
 	add_subdirectory(plugin/jwe-auth-plugin)
 endif()

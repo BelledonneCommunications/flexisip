@@ -94,6 +94,20 @@ JweAuth plugin offers the possibility to use JSON Web Encryption tokens on flexi
 
 %endif
 
+%if @ENABLE_EXTERNAL_AUTH_PLUGIN@
+
+%package external-auth-plugin
+Summary:       Add the ability to delegate authentication process to an external HTTP server
+Group:         Security
+
+Requires:      %{name} = %{version}-%{release}
+
+%description external-auth-plugin
+Add the ability to delegate authentication process to an external HTTP server.
+
+%endif
+
+
 # This is for debian builds where debug_package has to be manually specified, whereas in centos it does not
 %define custom_debug_package %{!?_enable_debug_packages:%debug_package}%{?_enable_debug_package:%{nil}}
 %custom_debug_package
@@ -231,6 +245,14 @@ fi
 %{_libdir}/flexisip/plugins/libjweauth.so
 %{_libdir}/flexisip/plugins/libjweauth.so.*
 %endif
+
+%if @ENABLE_EXTERNAL_AUTH_PLUGIN@
+%files external-auth-plugin
+%defattr(-,root,root,-)
+%{_libdir}/flexisip/plugins/libexternal-auth.so
+%{_libdir}/flexisip/plugins/libexternal-auth.so.*
+%endif
+
 
 %changelog
 
