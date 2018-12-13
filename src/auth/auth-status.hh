@@ -38,83 +38,83 @@ public:
 	using ResponseCb = std::function<void(AuthStatus &as)>;
 
 	AuthStatus() {
-		su_home_init(&mHome),
-		auth_status_init(&mPriv, sizeof(auth_status_t));
-		mPriv.as_plugin = reinterpret_cast<auth_splugin_t *>(this);
-		mPriv.as_callback = responseCb;
+		su_home_init(&mHome);
+		mPriv = auth_status_new(&mHome);
+		mPriv->as_plugin = reinterpret_cast<auth_splugin_t *>(this);
+		mPriv->as_callback = responseCb;
 	}
 	virtual ~AuthStatus() {su_home_deinit(&mHome);}
 
-	bool allow() const {return mPriv.as_allow;}
-	void allow(bool val) {mPriv.as_allow = val;}
+	bool allow() const {return mPriv->as_allow;}
+	void allow(bool val) {mPriv->as_allow = val;}
 
-	bool anonymous() const {return mPriv.as_anonymous;}
-	void anonymous(bool val) {mPriv.as_anonymous = val;}
+	bool anonymous() const {return mPriv->as_anonymous;}
+	void anonymous(bool val) {mPriv->as_anonymous = val;}
 
-	const void *body() const {return mPriv.as_body;}
-	void body(const void *val) {mPriv.as_body = val;}
+	const void *body() const {return mPriv->as_body;}
+	void body(const void *val) {mPriv->as_body = val;}
 
-	isize_t bodyLen() const {return mPriv.as_bodylen;}
-	void bodyLen(isize_t val) {mPriv.as_bodylen = val;}
+	isize_t bodyLen() const {return mPriv->as_bodylen;}
+	void bodyLen(isize_t val) {mPriv->as_bodylen = val;}
 
-	bool blacklist() const {return mPriv.as_blacklist;}
-	void blacklist(bool val) {mPriv.as_blacklist = val;}
+	bool blacklist() const {return mPriv->as_blacklist;}
+	void blacklist(bool val) {mPriv->as_blacklist = val;}
 
 	const ResponseCb &callback() const {return mResponseCb;}
 	void callback(const ResponseCb &cb) {mResponseCb = cb;}
 
-	const char *display() const {return mPriv.as_display;}
-	void display(const char *val) {mPriv.as_display = val;}
+	const char *display() const {return mPriv->as_display;}
+	void display(const char *val) {mPriv->as_display = val;}
 
 	/**
 	 * Internal home_t, which will be destroyed on destruction
 	 * of the AuthStatus.
 	 */
-	su_home_t *home() {return &mHome;}
+	su_home_t *home() {return mPriv->as_home;}
 
-	msg_header_t *info() const {return mPriv.as_info;}
-	void info(msg_header_t *val) {mPriv.as_info = val;}
+	msg_header_t *info() const {return mPriv->as_info;}
+	void info(msg_header_t *val) {mPriv->as_info = val;}
 
-	auth_magic_t *magic() const {return mPriv.as_magic;}
-	void magic(auth_magic_t *val) {mPriv.as_magic = val;}
+	auth_magic_t *magic() const {return mPriv->as_magic;}
+	void magic(auth_magic_t *val) {mPriv->as_magic = val;}
 
-	msg_header_t *match() const {return mPriv.as_match;}
-	void match(msg_header_t *val) {mPriv.as_match = val;}
+	msg_header_t *match() const {return mPriv->as_match;}
+	void match(msg_header_t *val) {mPriv->as_match = val;}
 
-	const char *method() const {return mPriv.as_method;}
-	void method(const char *val) {mPriv.as_method = val;}
+	const char *method() const {return mPriv->as_method;}
+	void method(const char *val) {mPriv->as_method = val;}
 
-	msg_time_t nonceIssued() const {return mPriv.as_nonce_issued;}
-	void nonceIssued(msg_time_t val) {mPriv.as_nonce_issued = val;}
+	msg_time_t nonceIssued() const {return mPriv->as_nonce_issued;}
+	void nonceIssued(msg_time_t val) {mPriv->as_nonce_issued = val;}
 
-	const char *phrase() const {return mPriv.as_phrase;}
-	void phrase(const char *val) {mPriv.as_phrase = val;}
+	const char *phrase() const {return mPriv->as_phrase;}
+	void phrase(const char *val) {mPriv->as_phrase = val;}
 
-	const char *realm() const {return mPriv.as_realm;}
-	void realm(const char *val) {mPriv.as_realm = val;}
+	const char *realm() const {return mPriv->as_realm;}
+	void realm(const char *val) {mPriv->as_realm = val;}
 
-	msg_header_t *response() const {return mPriv.as_response;}
-	void response(msg_header_t *val) {mPriv.as_response = val;}
+	msg_header_t *response() const {return mPriv->as_response;}
+	void response(msg_header_t *val) {mPriv->as_response = val;}
 
-	su_addrinfo_t  *source() const {return mPriv.as_source;}
-	void source(su_addrinfo_t  *val) {mPriv.as_source = val;}
+	su_addrinfo_t  *source() const {return mPriv->as_source;}
+	void source(su_addrinfo_t  *val) {mPriv->as_source = val;}
 
-	bool stale() const {return mPriv.as_stale;}
-	void stale(bool val) {mPriv.as_stale = val;}
+	bool stale() const {return mPriv->as_stale;}
+	void stale(bool val) {mPriv->as_stale = val;}
 
-	int status() const {return mPriv.as_status;}
-	void status(int val) {mPriv.as_status = val;}
+	int status() const {return mPriv->as_status;}
+	void status(int val) {mPriv->as_status = val;}
 
-	const char *user() const {return mPriv.as_user;}
-	void user(const char *val) {mPriv.as_user = val;}
+	const char *user() const {return mPriv->as_user;}
+	void user(const char *val) {mPriv->as_user = val;}
 
-	const url_t *userUri() const {return mPriv.as_user_uri;}
-	void userUri(const url_t *val) {mPriv.as_user_uri = val;}
+	const url_t *userUri() const {return mPriv->as_user_uri;}
+	void userUri(const url_t *val) {mPriv->as_user_uri = val;}
 
 	/**
 	 * Return the underlying SofiaSip's auth_status_t object.
 	 */
-	auth_status_t *getPtr() {return &mPriv;}
+	auth_status_t *getPtr() {return mPriv;}
 
 private:
 	static void responseCb(auth_magic_t *magic, auth_status_t *as) {
@@ -123,6 +123,6 @@ private:
 	}
 
 	su_home_t mHome;
-	auth_status_t mPriv;
+	auth_status_t *mPriv = nullptr;
 	ResponseCb mResponseCb;
 };
