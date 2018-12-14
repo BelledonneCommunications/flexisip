@@ -1,0 +1,39 @@
+; This is the reference grammar for the flexisip authdb file parsing
+; This file has to be compiled with belr-compiler and the compiled file archived into git (current location: flexisip:share/authdb-file-grammar)
+
+LWS  =  [*WSP CRLF] 1*WSP ; linear whitespace
+
+ILF =  [CR] LF ; Linefeed, optional CR
+
+UTF8-CONT       =  %x80-BF
+UTF8-NONASCII   =  %xC0-DF 1UTF8-CONT
+		/  %xE0-EF 2UTF8-CONT
+		/  %xF0-F7 3UTF8-CONT
+		/  %xF8-Fb 4UTF8-CONT
+		/  %xFC-FD 5UTF8-CONT
+
+alphanum  =  ALPHA / DIGIT
+
+token	  = 1*( alphanum / "-" / "." / "!" / "%" / "*" / "_" / "+" / "`" / "'" / "~" / ":")
+user-id	  = token
+phone 	  = token
+user 	  = token
+domain 	  = token
+password  = token
+
+ctext 	  = %x21-27 / %x2A-5B / %x5D-7E / UTF8-NONASCII / LWS
+comment	  = "#" *ctext ILF
+void	  = *WSP ILF
+
+version-str 	 = "version:"
+version-number 	 = DIGIT
+version	  	 = version-str version-number ILF
+
+algo 	  	 = "clrtxt" / "md5" / "sha256"
+pass-algo	 = algo ":" password
+identity  	 = user "@" domain
+other-userinfo 	 = [*WSP user-id] [*WSP phone] *WSP ILF
+
+auth-line = identity 1*WSP 1*pass-algo 1*WSP ";" *WSP ( ILF / other-userinfo )
+
+password-file = version *(comment / void / auth-line)
