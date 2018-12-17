@@ -342,16 +342,16 @@ void ExtendedContact::extractInfoFromHeader(const char *urlHeaders) {
 		SofiaAutoHome home;
 		msg_header_t *headers;
 		char *stringHeaders = url_query_as_header_string(home.home(), urlHeaders);
-		msg_t *msg = msg_create(sip_default_mclass(), 0);
+		unique_ptr<msg_t, void(*)(msg_t *)> msg(msg_create(sip_default_mclass(), 0), msg_destroy);
 
-		if (msg_header_parse_str(msg, nullptr, stringHeaders) != 0) return;
+		if (msg_header_parse_str(msg.get(), nullptr, stringHeaders) != 0) return;
 		// We need to add a sip_request to validate msg_serialize() contidition
-		if (msg_header_add_dup(msg, nullptr,
+		if (msg_header_add_dup(msg.get(), nullptr,
 			reinterpret_cast<msg_header_t*>(sip_request_make(home.home(), "MESSAGE sip:abcd SIP/2.0\r\n"))) != 0) return;
-		if (msg_serialize(msg, nullptr) != 0) return;
-		msg_prepare(msg);
+		if (msg_serialize(msg.get(), nullptr) != 0) return;
+		msg_prepare(msg.get());
 
-		headers = *msg_chain_head(msg);
+		headers = *msg_chain_head(msg.get());
 
 		while(headers) {
 			if (reinterpret_cast<msg_common_t*>(headers)->h_len > 0 &&
