@@ -100,7 +100,7 @@ JweAuth plugin offers the possibility to use JSON Web Encryption tokens on flexi
 Summary:       Add the ability to delegate authentication process to an external HTTP server
 Group:         Security
 
-Requires:      %{name} = %{version}-%{release}
+Requires:      %{name} = %{epoch}:%{version}-%{release}
 
 %description external-auth-plugin
 Add the ability to delegate authentication process to an external HTTP server.
