@@ -329,6 +329,21 @@ job-debian9-deb-deploy:
   dependencies:
     - job-debian9-deb
 
+job-deploy-docker-image:
+
+  image: docker
+  stage: deploy
+  tags: [ "deploy" ]
+
+  dependencies:
+    - build
+
+  script:
+    - docker build -f docker/flex-from-src -t flexisip .
+    - DOCKER_TAG="gitlab.linphone.org:4567/bc/public/flexisip:$(git describe)"
+    - docker login -p $DOCKER_DEPLOY_USER_PASSWORD -u $DOCKER_DEPLOY_USER_NAME gitlab.linphone.org:4567
+    - docker tag flexisip $DOCKER_TAG
+    - docker push $DOCKER_TAG
 
 job-ubuntu-rolling-makefile-gcc:
 
