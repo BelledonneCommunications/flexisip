@@ -1120,7 +1120,7 @@ void RegistrarDb::fetchList(const vector<url_t *> urls, const shared_ptr<ListCon
 		}
 		void onRecordFound(Record *r) {
 			SLOGI << "Contact fetched";
-			listListener->records.push_back(r);
+			listListener->records.push_back(*r);
 			updateCount();
 		}
 		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {}

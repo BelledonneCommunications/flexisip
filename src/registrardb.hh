@@ -302,7 +302,7 @@ class ListContactUpdateListener {
 	virtual ~ListContactUpdateListener() = default;
 	virtual void onContactsUpdated() = 0;
 
-	std::vector<Record *> records;
+	std::vector<Record> records;
 };
 
 class ContactRegisteredListener {
