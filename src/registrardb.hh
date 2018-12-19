@@ -276,11 +276,20 @@ inline std::basic_ostream<char, TraitsT> &operator<<(std::basic_ostream<char, Tr
 }
 
 /**
- * A pure virtual class that is used by the registrarDB to notify the
+ * @brief Interface for RegistrarDB listeners.
  */
 class RegistrarDbListener : public StatFinishListener {
   public:
 	virtual ~RegistrarDbListener();
+
+	/**
+	 * @brief Method called when searching for
+	 * a record matching a given SIP identity is completed.
+	 * @param[in] r The found record or nullptr if no record
+	 * could be found. If not null, the ownership on the object
+	 * is held by the implementation and the object might be
+	 * destroyed immediately after onRecordFound() has returned.
+	 */
 	virtual void onRecordFound(Record *r) = 0;
 	virtual void onError() = 0;
 	virtual void onInvalid() = 0;
