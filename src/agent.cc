@@ -16,37 +16,41 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "agent.hh"
-#include "module.hh"
-#include "domain-registrations.hh"
-#include "plugin/plugin-loader.hh"
-#include "registrardb.hh"
-
-#include "log/logmanager.hh"
-#include "sipattrextractor.hh"
-
-#include "etchosts.hh"
 #include <algorithm>
 #include <sstream>
-#include <sofia-sip/tport_tag.h>
-#include <sofia-sip/su_tagarg.h>
+#include <stdexcept>
+
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+
 #include <sofia-sip/sip.h>
 #include <sofia-sip/su_md5.h>
+#include <sofia-sip/su_tagarg.h>
 #include <sofia-sip/tport.h>
+#include <sofia-sip/tport_tag.h>
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
+#include "domain-registrations.hh"
+#include "etchosts.hh"
+#include "log/logmanager.hh"
+#include "module.hh"
+#include "plugin/plugin-loader.hh"
+#include "registrardb.hh"
+#include "sipattrextractor.hh"
 
-#include <net/if.h>
-#include <ifaddrs.h>
+#include "agent.hh"
 
 #define IPADDR_SIZE 64
 
 using namespace std;
 
-static StatCounter64 *createCounter(GenericStruct *global, string keyprefix, string helpprefix, string value) {
-	return global->createStat(keyprefix + value, helpprefix + value + ".");
+static StatCounter64 *createCounter(GenericStruct *global, const string &keyprefix, const string &helpprefix, const string &value) {
+	ostringstream statName, statHelp;
+	statName << keyprefix << value;
+	statHelp << helpprefix << value << '.';
+	return global->createStat(statName.str(), statHelp.str());
 }
 void Agent::onDeclare(GenericStruct *root) {
 	GenericStruct *global = root->get<GenericStruct>("global");
@@ -95,7 +99,6 @@ void Agent::onDeclare(GenericStruct *root) {
 	mCountReply487 = createCounter(global, key, help, "487"); // Request canceled
 	mCountReply488 = createCounter(global, key, help, "488");
 	mCountReplyResUnknown = createCounter(global, key, help, "unknown");
-	mLogWriter = NULL;
 
 	string uniqueId = global->get<ConfigString>("unique-id")->read();
 	if (!uniqueId.empty()) {
@@ -202,11 +205,11 @@ void Agent::initializePreferredRoute() {
 
 void Agent::loadModules() {
 	list<Module *>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
+	for (auto &module : mModules) {
 		// Check in all cases, even if not enabled,
 		// to allow safe dynamic activation of the module
-		(*it)->checkConfig();
-		(*it)->load();
+		module->checkConfig();
+		module->load();
 	}
 	if (mDrm) mDrm->load(mPassphrase);
 	mPassphrase = "";
@@ -583,7 +586,7 @@ void addPluginModule(Agent *agent, list<Module *> &modules, const string &plugin
 
 // -----------------------------------------------------------------------------
 
-Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
+Agent::Agent(su_root_t *root) {
 	mHttpEngine = nth_engine_create(root, NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct *cr = GenericManager::get()->getRoot();
 
@@ -592,20 +595,25 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 	// 1. Create module instances.
 	for (ModuleInfoBase *moduleInfo : sortModuleInfoByPriority(ModuleInfoManager::get()->getRegisteredModuleInfo())) {
 		SLOGI << "Creating module instance of " << "[" << moduleInfo->getModuleName() << "].";
-		mModules.push_back(moduleInfo->create(this));
+		mModules.emplace_back(moduleInfo->create(this));
 	}
 
 	// 2. Create module instances from plugins.
 	{
 		GenericStruct *global = cr->get<GenericStruct>("global");
 		const string &pluginDir = global->get<ConfigString>("plugins-dir")->read();
-		for (const string &pluginName : global->get<ConfigStringList>("plugins")->read())
-			addPluginModule(this, mModules, pluginDir, pluginName);
+		for (const string &pluginName : global->get<ConfigStringList>("plugins")->read()) {
+			std::list<Module *> modules;
+			for (const auto &module : mModules) {
+				modules.push_back(module.get());
+			}
+			addPluginModule(this, modules, pluginDir, pluginName);
+		}
 	}
 
 	mServerString = "Flexisip/" VERSION " (sofia-sip-nta/" NTA_VERSION ")";
 
-	for (Module *module : mModules)
+	for (auto &module : mModules)
 		module->declare(cr);
 
 	onDeclare(cr);
@@ -628,10 +636,7 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 	mRoot = root;
 	mAgent = nta_agent_create(root, (url_string_t *)-1, &Agent::messageCallback, (nta_agent_magic_t *)this, TAG_END());
 	su_home_init(&mHome);
-	mPreferredRouteV4 = NULL;
-	mPreferredRouteV6 = NULL;
-	mDrm = new DomainRegistrationManager(this);
-	mProxyToProxyKeepAliveInterval = 0;
+	mDrm.reset(new DomainRegistrationManager(this));
 }
 
 Agent::~Agent() {
@@ -641,12 +646,6 @@ Agent::~Agent() {
 	}
 #endif
 
-	mTerminating = true;
-	for (Module *module : mModules)
-		delete module;
-
-	if (mDrm)
-		delete mDrm;
 	if (mAgent)
 		nta_agent_destroy(mAgent);
 	if (mHttpEngine)
@@ -686,9 +685,9 @@ void Agent::loadConfig(GenericManager *cm) {
 	}
 	cm->getRoot()->get<GenericStruct>("global")->setConfigListener(this);
 	mAliases = cm->getGlobal()->get<ConfigStringList>("aliases")->read();
-	LOGD("List of host aliases:");
-	for (list<string>::iterator it = mAliases.begin(); it != mAliases.end(); ++it) {
-		LOGD("%s", (*it).c_str());
+	SLOGD << "List of host aliases:";
+	for (const auto &alias : mAliases) {
+		SLOGD << alias;
 	}
 
 	RegistrarDb::initialize(this);
@@ -697,9 +696,8 @@ void Agent::loadConfig(GenericManager *cm) {
 }
 
 void Agent::unloadConfig() {
-	list<Module *>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		(*it)->unload();
+	for (auto &module : mModules) {
+		module->unload();
 	}
 }
 
@@ -746,7 +744,7 @@ pair<string, string> Agent::getPreferredIp(const string &destination) const {
 		for (auto it = mNetworks.begin(); it != mNetworks.end(); ++it) {
 			if (it->isInNetwork(result->ai_addr)) {
 				freeaddrinfo(result);
-				return make_pair(it->getIP(), it->getIP());
+				return make_pair(it->getIp(), it->getIp());
 			}
 		}
 		freeaddrinfo(result);
@@ -757,7 +755,7 @@ pair<string, string> Agent::getPreferredIp(const string &destination) const {
 											 : make_pair(getResolvedPublicIp(true), getRtpBindIp(true));
 }
 
-Agent::Network::Network(const Network &net) : mIP(net.mIP) {
+Agent::Network::Network(const Network &net) : mIp(net.mIp) {
 	memcpy(&mPrefix, &net.mPrefix, sizeof(mPrefix));
 	memcpy(&mMask, &net.mMask, sizeof(mMask));
 }
@@ -793,14 +791,10 @@ Agent::Network::Network(const struct ifaddrs *ifaddr) {
 		err = getnameinfo(ifaddr->ifa_addr, sizeof(sockt), ipAddress, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	}
 	if (err == 0) {
-		mIP = string(ipAddress);
+		mIp = string(ipAddress);
 	} else {
 		LOGE("getnameinfo error: %s", strerror(errno));
 	}
-}
-
-const string Agent::Network::getIP() const {
-	return mIP;
 }
 
 bool Agent::Network::isInNetwork(const struct sockaddr *addr) const {
@@ -940,22 +934,14 @@ void Agent::logEvent(const shared_ptr<SipEvent> &ev) {
 	}
 }
 
-struct ModuleHasName {
-	ModuleHasName(const string &ref) : match(ref) {
-	}
-	bool operator()(Module *module) {
-		return module->getModuleName() == match;
-	}
-	const string &match;
-};
 Module *Agent::findModule(const string &moduleName) const {
-	auto it = find_if(mModules.begin(), mModules.end(), ModuleHasName(moduleName));
-	return (it != mModules.end()) ? *it : NULL;
+	auto it = find_if(mModules.begin(), mModules.end(), [&moduleName](const unique_ptr<Module> &m){return m->getModuleName() == moduleName;});
+	return (it != mModules.end()) ? it->get() : nullptr;
 }
 
 template <typename SipEventT>
 inline void Agent::doSendEvent(
-	shared_ptr<SipEventT> ev, const list<Module *>::iterator &begin, const list<Module *>::iterator &end
+	shared_ptr<SipEventT> ev, const list<std::unique_ptr<Module>>::iterator &begin, const list<std::unique_ptr<Module>>::iterator &end
 ) {
 #define LOG_SCOPED_EV_THREAD(ssargs, key) LOG_SCOPED_THREAD(key, ssargs->getOrEmpty(key));
 
@@ -968,7 +954,7 @@ inline void Agent::doSendEvent(
 	LOG_SCOPED_EV_THREAD(ssargs, "callid");
 
 	for (auto it = begin; it != end; ++it) {
-		ev->mCurrModule = (*it);
+		ev->mCurrModule = it->get();
 		(*it)->process(ev);
 		if (ev->isTerminated() || ev->isSuspended())
 			break;
@@ -1086,9 +1072,9 @@ void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	SLOGD << "Inject Request SIP message:\n" << *ev->getMsgSip();
 	ev->restartProcessing();
 	SLOGD << "Injecting request event after " << ev->mCurrModule->getModuleName();
-	list<Module *>::iterator it;
+	list<unique_ptr<Module>>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		if (ev->mCurrModule == *it) {
+		if (ev->mCurrModule == it->get()) {
 			++it;
 			break;
 		}
@@ -1098,11 +1084,11 @@ void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 
 void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	SLOGD << "Inject Response SIP message:\n" << *ev->getMsgSip();
-	list<Module *>::iterator it;
+	list<unique_ptr<Module>>::iterator it;
 	ev->restartProcessing();
 	SLOGD << "Injecting response event after " << ev->mCurrModule->getModuleName();
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		if (ev->mCurrModule == *it) {
+		if (ev->mCurrModule == it->get()) {
 			++it;
 			break;
 		}
@@ -1179,7 +1165,9 @@ int Agent::messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t
 }
 
 void Agent::idle() {
-	for_each(mModules.begin(), mModules.end(), mem_fun(&Module::idle));
+	for (auto &module : mModules) {
+		module->idle();
+	}
 	if (GenericManager::get()->mNeedRestart) {
 		exit(RESTART_EXIT_CODE);
 	}

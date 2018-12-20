@@ -65,52 +65,52 @@ class Agent : public IncomingAgent,
 	friend class OutgoingTransaction;
 	friend class Module;
 
-	StatCounter64 *mCountIncomingRegister;
-	StatCounter64 *mCountIncomingInvite;
-	StatCounter64 *mCountIncomingAck;
-	StatCounter64 *mCountIncomingInfo;
-	StatCounter64 *mCountIncomingBye;
-	StatCounter64 *mCountIncomingCancel;
-	StatCounter64 *mCountIncomingMessage;
-	StatCounter64 *mCountIncomingOptions;
-	StatCounter64 *mCountIncomingDecline;
-	StatCounter64 *mCountIncomingReqUnknown;
+	StatCounter64 *mCountIncomingRegister = nullptr;
+	StatCounter64 *mCountIncomingInvite = nullptr;
+	StatCounter64 *mCountIncomingAck = nullptr;
+	StatCounter64 *mCountIncomingInfo = nullptr;
+	StatCounter64 *mCountIncomingBye = nullptr;
+	StatCounter64 *mCountIncomingCancel = nullptr;
+	StatCounter64 *mCountIncomingMessage = nullptr;
+	StatCounter64 *mCountIncomingOptions = nullptr;
+	StatCounter64 *mCountIncomingDecline = nullptr;
+	StatCounter64 *mCountIncomingReqUnknown = nullptr;
 
-	StatCounter64 *mCountIncoming100; // trying
-	StatCounter64 *mCountIncoming101;
-	StatCounter64 *mCountIncoming180; // ringing
-	StatCounter64 *mCountIncoming200; // ok
-	StatCounter64 *mCountIncoming202;
-	StatCounter64 *mCountIncoming401; // user auth.
-	StatCounter64 *mCountIncoming404; // not found
-	StatCounter64 *mCountIncoming486; // busy
-	StatCounter64 *mCountIncoming487; // request canceled
-	StatCounter64 *mCountIncoming488;
-	StatCounter64 *mCountIncoming407; // proxy auth
-	StatCounter64 *mCountIncoming408; // request timeout
-	StatCounter64 *mCountIncoming603; // decline
-	StatCounter64 *mCountIncomingResUnknown;
+	StatCounter64 *mCountIncoming100 = nullptr; // trying
+	StatCounter64 *mCountIncoming101 = nullptr;
+	StatCounter64 *mCountIncoming180 = nullptr; // ringing
+	StatCounter64 *mCountIncoming200 = nullptr; // ok
+	StatCounter64 *mCountIncoming202 = nullptr;
+	StatCounter64 *mCountIncoming401 = nullptr; // user auth.
+	StatCounter64 *mCountIncoming404 = nullptr; // not found
+	StatCounter64 *mCountIncoming486 = nullptr; // busy
+	StatCounter64 *mCountIncoming487 = nullptr; // request canceled
+	StatCounter64 *mCountIncoming488 = nullptr;
+	StatCounter64 *mCountIncoming407 = nullptr; // proxy auth
+	StatCounter64 *mCountIncoming408 = nullptr; // request timeout
+	StatCounter64 *mCountIncoming603 = nullptr; // decline
+	StatCounter64 *mCountIncomingResUnknown = nullptr;
 
-	StatCounter64 *mCountReply100; // trying
-	StatCounter64 *mCountReply101;
-	StatCounter64 *mCountReply180; // ringing
-	StatCounter64 *mCountReply200; // ok
-	StatCounter64 *mCountReply202;
-	StatCounter64 *mCountReply401; // user auth.
-	StatCounter64 *mCountReply404; // not found
-	StatCounter64 *mCountReply486; // busy
-	StatCounter64 *mCountReply487; // request canceled
-	StatCounter64 *mCountReply488;
-	StatCounter64 *mCountReply407; // proxy auth
-	StatCounter64 *mCountReply408; // request timeout
-	StatCounter64 *mCountReplyResUnknown;
+	StatCounter64 *mCountReply100 = nullptr; // trying
+	StatCounter64 *mCountReply101 = nullptr;
+	StatCounter64 *mCountReply180 = nullptr; // ringing
+	StatCounter64 *mCountReply200 = nullptr; // ok
+	StatCounter64 *mCountReply202 = nullptr;
+	StatCounter64 *mCountReply401 = nullptr; // user auth.
+	StatCounter64 *mCountReply404 = nullptr; // not found
+	StatCounter64 *mCountReply486 = nullptr; // busy
+	StatCounter64 *mCountReply487 = nullptr; // request canceled
+	StatCounter64 *mCountReply488 = nullptr;
+	StatCounter64 *mCountReply407 = nullptr; // proxy auth
+	StatCounter64 *mCountReply408 = nullptr; // request timeout
+	StatCounter64 *mCountReplyResUnknown = nullptr;
 	void onDeclare(GenericStruct *root);
-	ConfigValueListener *mBaseConfigListener;
+	ConfigValueListener *mBaseConfigListener = nullptr;
 
 private:
 	template <typename SipEventT>
-	void doSendEvent(std::shared_ptr<SipEventT> ev, const std::list<Module *>::iterator &begin,
-					 const std::list<Module *>::iterator &end);
+	void doSendEvent(std::shared_ptr<SipEventT> ev, const std::list<std::unique_ptr<Module>>::iterator &begin,
+					 const std::list<std::unique_ptr<Module>>::iterator &end);
 
 public:
 	Agent(su_root_t *root);
@@ -188,9 +188,7 @@ public:
 	nth_engine_t *getHttpEngine() {
 		return mHttpEngine;
 	}
-	DomainRegistrationManager *getDRM() {
-		return mDrm;
-	}
+	DomainRegistrationManager *getDRM() {return mDrm.get();}
 	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr = false);
 	void applyProxyToProxyTransportSettings(tport_t *tp);
 private:
@@ -206,39 +204,43 @@ private:
 	void startMdns();
 
 	std::string mServerString;
-	std::list<Module *> mModules;
+	std::list<std::unique_ptr<Module>> mModules;
 	std::list<std::string> mAliases;
-	url_t *mPreferredRouteV4;
-	url_t *mPreferredRouteV6;
-	const url_t *mNodeUri = NULL;
-	const url_t *mClusterUri = NULL;
-	const url_t *mDefaultUri = NULL;
+	url_t *mPreferredRouteV4 = nullptr;
+	url_t *mPreferredRouteV6 = nullptr;
+	const url_t *mNodeUri = nullptr;
+	const url_t *mClusterUri = nullptr;
+	const url_t *mDefaultUri = nullptr;
 	class Network {
-		struct sockaddr_storage mPrefix;
-		struct sockaddr_storage mMask;
-		std::string mIP;
-
-	  public:
+	public:
 		Network(const Network &net);
 		Network(const struct ifaddrs *ifaddr);
+
+		const std::string &getIp() const {return mIp;}
+
 		bool isInNetwork(const struct sockaddr *addr) const;
-		const std::string getIP() const;
+
 		static std::string print(const struct ifaddrs *ifaddr);
+
+	private:
+		struct sockaddr_storage mPrefix;
+		struct sockaddr_storage mMask;
+		std::string mIp;
 	};
 	std::list<Network> mNetworks;
 	std::string mUniqueId;
 	std::string mRtpBindIp, mRtpBindIp6, mPublicIpV4, mPublicIpV6, mPublicResolvedIpV4, mPublicResolvedIpV6;
-	nta_agent_t *mAgent;
-	su_root_t *mRoot;
-	nth_engine_t *mHttpEngine;
+	nta_agent_t *mAgent = nullptr;
+	su_root_t *mRoot = nullptr;
+	nth_engine_t *mHttpEngine = nullptr;
 	su_home_t mHome;
-	unsigned int mProxyToProxyKeepAliveInterval;
-	EventLogWriter *mLogWriter;
-	DomainRegistrationManager *mDrm;
+	unsigned int mProxyToProxyKeepAliveInterval = 0;
+	EventLogWriter *mLogWriter = nullptr;
+	std::unique_ptr<DomainRegistrationManager> mDrm;
 	std::string mPassphrase;
 	static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t *msg, sip_t *sip);
-	bool mTerminating;
-	bool mUseMaddr;
+	bool mTerminating = false;
+	bool mUseMaddr = false;
 #if ENABLE_MDNS
 	std::vector<belle_sip_mdns_register_t *> mMdnsRegisterList;
 #endif
