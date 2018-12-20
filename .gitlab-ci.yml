@@ -329,10 +329,13 @@ job-debian9-deb-deploy:
   dependencies:
     - job-debian9-deb
 
-job-deploy-docker-image:
+job-deploy-image:
 
   stage: deploy
   tags: [ "linux-deploy" ]
+  only:
+    - master
+    - tags
 
   script:
     - cd docker
