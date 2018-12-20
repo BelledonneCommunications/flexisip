@@ -9,7 +9,7 @@ It is released under the AGPLv3 or later. Please understand the terms of AGPLv3 
 
 # Documentation
 
-You will find a comprehensive documentation on how to use Flexisip online 
+You will find a comprehensive documentation on how to use Flexisip online
 here: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/
 
 # Dependencies
@@ -26,7 +26,7 @@ Thesedependencies below are optional, though stronly recommended for a reliable 
 - netsnmp
 
 Specifically for presence server:
-- xsd (>= 4, for old OS on which this version isn't packaged, rpm and deb 
+- xsd (>= 4, for old OS on which this version isn't packaged, rpm and deb
   are available here: http://www.codesynthesis.com/products/xsd/download.xhtml)
 - pdflatex to generate the documentation in PDF format.
 - xercesc3
@@ -63,7 +63,7 @@ The "flexisip-rpm" ./prepare.py target can be used to generate rpm packages for 
 ## Docker
 
 A docker image can be build from sources with command:
-	docker build -f docker/flex-from-src -t flexisip .	
+	cd docker && make flexisip-build
 
 ## Macos X
 
@@ -71,8 +71,8 @@ The cmake scripts of flexisip can be used to develop with Flexisip in Xcode.
 You need to run:
 - `./prepare.py -G Xcode flexisip \
 	-DENABLE_REDIS=NO \
-	-DEP_sofiasip_CONFIGURE_OPTIONS=PKG_CONFIG_PATH=/opt/local/lib/pkgconfig/ ` 
-- `xcodebuild -project WORK/flexisip/cmake/Project.xcodeproj/ ` 
+	-DEP_sofiasip_CONFIGURE_OPTIONS=PKG_CONFIG_PATH=/opt/local/lib/pkgconfig/ `
+- `xcodebuild -project WORK/flexisip/cmake/Project.xcodeproj/ `
 - `open WORK/flexisip/Build/flexisip/flexisip.xcodeproj`
 
 The soci dependency is not easy to install on MacOS. If you need it, you can use these tips, based on "brew" system:
@@ -93,7 +93,7 @@ You can now use -DENABLE_SOCI=ON in your prepare options.
 Flexisip needs a configuration file for running correctly.
 You can either:
 - copy and modify file flexisip.conf.sample to flexisip.conf in directory <prefix>/etc/flexisip
-- or issue `flexisip --dump-default all > flexisip.conf` in a terminal 
+- or issue `flexisip --dump-default all > flexisip.conf` in a terminal
   to generate a configuration file with the default values.
 
 # Developer notes
