@@ -329,6 +329,21 @@ job-debian9-deb-deploy:
   dependencies:
     - job-debian9-deb
 
+job-flexisip-deb-image-deploy:
+
+  stage: deploy
+  tags: [ "linux-deploy" ]
+  only:
+    - schedules
+  dependencies:
+    - job-debian9-deb
+
+  script:
+    - mv WORK/flexisip-rpm/rpmbuild/DEBS docker/DEBS
+    - cd docker
+    - make flexisip-deb-build
+    - make flexisip-deb-push
+
 
 job-ubuntu-rolling-makefile-gcc:
 

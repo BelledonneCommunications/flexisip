@@ -23,8 +23,8 @@ RUN flexisip --dump-default all > /etc/flexisip/flexisip.conf
 
 VOLUME /etc/opt/belledonne-communications/flexisip
 VOLUME /var/opt/belledonne-communications/log/flexisip
-COPY docker/flexisip-entrypoint.sh /
-COPY docker/backtrace.gdb /
+COPY flexisip-entrypoint.sh /
+COPY backtrace.gdb /
 RUN chmod a+x /flexisip-entrypoint.sh
 
 # Script to wait db before launch flexisip [Licence Apache2]

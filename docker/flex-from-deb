@@ -1,0 +1,32 @@
+FROM debian
+MAINTAINER  Jehan Monnier <jehan.monnier@linphone.org>
+
+# Prepare dependencies
+RUN apt-get update
+RUN apt-get install -y  xsdcxx gdb
+
+# Get flexisip package
+COPY DEBS/*.deb /deb-packages/
+RUN apt-get install -y /deb-packages/bc-*.deb
+RUN rm -rf /deb-packages
+
+# Add it to the default path
+ENV PATH=$PATH:/opt/belledonne-communications/bin
+
+WORKDIR /opt/belledonne-communications
+
+# Generate a default configuration
+RUN flexisip --dump-default all > /etc/flexisip/flexisip.conf
+
+VOLUME /etc/opt/belledonne-communications/flexisip
+VOLUME /var/opt/belledonne-communications/log/flexisip
+COPY flexisip-entrypoint.sh /
+COPY backtrace.gdb /
+RUN chmod a+x /flexisip-entrypoint.sh
+
+# Script to wait db before launch flexisip [Licence Apache2]
+ADD https://github.com/ufoscout/docker-compose-wait/releases/download/2.2.1/wait /wait
+RUN chmod +x /wait
+
+ENTRYPOINT ["/flexisip-entrypoint.sh"]
+CMD flexisip
