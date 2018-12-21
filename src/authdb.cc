@@ -26,7 +26,7 @@ unique_ptr<AuthDbBackend> AuthDbBackend::sUnique;
 AuthDbListener::~AuthDbListener(){
 }
 
-void AuthDbListener::onResults(const list<string> &phones, const set<pair<string, string>> &presences) {
+void AuthDbListener::onResults(const vector<string> &phones, const set<pair<string, string>> &presences) {
 
 }
 

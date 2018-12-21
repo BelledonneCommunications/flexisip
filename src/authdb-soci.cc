@@ -318,21 +318,13 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbList
 	steady_clock::time_point stop;
 	set<pair<string, string>> presences;
 
-	ostringstream in;
 	session *sql = NULL;
-	list<string> phones;
+	vector<string> phones;
 	list<string> domains;
 	bool first = true;
 	for(const auto &cred : creds) {
-		const auto &phone = std::get<0>(cred);
-		phones.push_back(phone);
+		phones.push_back(std::get<0>(cred));
 		domains.push_back(std::get<1>(cred));
-		if(first) {
-			first = false;
-			in << "'" << phone << "'";
-		} else {
-			in << ",'" << phone << "'";
-		}
 	}
 
 	try {
@@ -344,7 +336,7 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbList
 
 		SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
 		start = stop;
-		rowset<row> ret = (sql->prepare << get_users_with_phones_request, use(in.str(), "phones"));
+		rowset<row> ret = (sql->prepare << get_users_with_phones_request, use(phones, "phones"));
 		stop = steady_clock::now();
 
 		SLOGD << "[SOCI] Got users in " << DURATION_MS(start, stop) << "ms";
