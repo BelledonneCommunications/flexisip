@@ -57,7 +57,7 @@ class AuthDbListener : public StatFinishListener {
 public:
 	virtual void onResult(AuthDbResult result, const std::string &passwd) = 0;
 	virtual void onResult(AuthDbResult result, const std::vector<passwd_algo_t> &passwd)=0;
-	virtual void onResults(const std::list<std::string> &phones, const std::set<std::pair<std::string, std::string>> &presences);
+	virtual void onResults(const std::vector<std::string> &phones, const std::set<std::pair<std::string, std::string>> &presences);
 	virtual void finishVerifyAlgos(const std::vector<passwd_algo_t> &pass)=0;
 	virtual ~AuthDbListener();
 };

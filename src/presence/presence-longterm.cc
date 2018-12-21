@@ -45,7 +45,7 @@ public:
 		return;
 	}
 
-	void onResults(const list<string> &phones, const set<pair<string, string>> &presences) {
+	void onResults(const vector<string> &phones, const set<pair<string, string>> &presences) {
 		for(const string &phone : phones) {
 			if(presences.empty()) {
 				onResult(PASSWORD_NOT_FOUND, phone);
