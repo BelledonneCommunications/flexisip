@@ -321,7 +321,6 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbList
 	session *sql = NULL;
 	vector<string> phones;
 	list<string> domains;
-	bool first = true;
 	for(const auto &cred : creds) {
 		phones.push_back(std::get<0>(cred));
 		domains.push_back(std::get<1>(cred));
