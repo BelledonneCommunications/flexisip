@@ -1,0 +1,77 @@
+include:
+  - 'job-linux.yml'
+
+#################################################
+# Makefile
+#################################################
+
+job-centos7-makefile-gcc:
+
+  tags: [ "docker-centos7" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: gcc
+    CXX: g++
+    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
+  extends: .job-linux
+
+
+job-centos7-makefile-clang:
+
+  tags: [ "docker-centos7" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: clang
+    CXX: clang++
+    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
+  extends: .job-linux
+
+#################################################
+# Ninja
+#################################################
+
+#job-centos7-ninja-gcc:
+#
+#  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+#  variables:
+#    CMAKE_GENERATOR: Ninja
+#    CC: gcc
+#    CXX: g++
+#  extends: .job-linux
+
+
+#job-centos7-ninja-clang:
+#
+#  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+#  variables:
+#    CMAKE_GENERATOR: Ninja
+#    CC: clang
+#    CXX: clang++
+#  extends: .job-linux
+
+#################################################
+# RPM
+#################################################
+
+job-centos7-rpm:
+
+  tags: [ "docker-centos7" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+  extends: .job-linux-rpm
+
+
+job-centos7-rpm-deploy:
+
+  stage: deploy
+  tags: [ "deploy" ]
+
+  only:
+    - schedules
+  dependencies:
+    - job-centos7-rpm
+
+  script:
+   - cd WORK/flexisip-rpm/rpmbuild/RPMS/x86_64/ && rsync -pr . $DEPLOY_SERVER:$CENTOS7_DEPLOY_DIRECTORY
+   - ssh $DEPLOY_SERVER "chmod a+r $CENTOS7_DEPLOY_DIRECTORY/*.rpm && createrepo_c --update $CENTOS7_DEPLOY_DIRECTORY/."

@@ -1,0 +1,107 @@
+.linux-ccache:
+
+  cache:
+    key: $CI_JOB_NAME
+    paths:
+      - ccache/
+
+  before_script:
+    - mkdir -p ccache
+    - echo "max_size = $CCACHE_SIZE" > ccache/ccache.conf
+    - export CCACHE_BASEDIR=${PWD}
+    - export CCACHE_DIR=${PWD}/ccache
+    - ccache -s
+
+  after_script:
+    - export CCACHE_DIR=${PWD}/ccache
+    - ccache -s
+
+.job-linux:
+
+  stage: build
+  extends: .linux-ccache
+
+  script:
+    - export CC=$CC
+    - export CXX=$CXX
+    - ./prepare.py -G "$CMAKE_GENERATOR" -cc $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
+    - cmake --build WORK/flexisip/cmake -- $ADDITIONAL_BUILD_OPTIONS
+
+#################################################
+# RPM
+#################################################
+
+.job-linux-rpm:
+
+  stage: package
+
+  script:
+    - sudo rpm -e `rpm -qa | grep "^bc-[^0-9]"` || true
+    - ./prepare.py flexisip-rpm $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
+    - cmake --build WORK/flexisip-rpm/cmake -- $ADDITIONAL_BUILD_OPTIONS
+
+  artifacts:
+    paths:
+      - WORK/flexisip-rpm/rpmbuild/RPMS/x86_64/*.rpm
+    when: always
+    expire_in: 1 week
+
+#################################################
+# DEB
+#################################################
+
+.job-linux-deb:
+
+  stage: package
+
+  script:
+    - sudo apt-get -y remove `dpkg-query -f '${binary:Package}\n' -W | grep "^bc-"` || true
+    - ./prepare.py flexisip-rpm $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
+    - cmake --build WORK/flexisip-rpm/cmake -- $ADDITIONAL_BUILD_OPTIONS
+
+  artifacts:
+    paths:
+      - WORK/flexisip-rpm/rpmbuild/DEBS/*.deb
+    when: always
+    expire_in: 1 week
+
+.job-debian-deb-deploy:
+
+  stage: deploy
+  tags: [ "deploy" ]
+
+  only:
+    - schedules
+
+  script:
+   - cd WORK/flexisip-rpm/rpmbuild/DEBS/ && rsync -pr . $DEPLOY_SERVER:$DEBIAN_DEPLOY_DIRECTORY/$DEBIAN_RELEASE
+   - ssh $DEPLOY_SERVER "cd $DEBIAN_DEPLOY_DIRECTORY/$DEBIAN_RELEASE && freight add --conf=/etc/freight.conf *.deb apt/$DEBIAN_RELEASE && freight cache --conf=/etc/freight.conf apt/$DEBIAN_RELEASE"
+
+#################################################
+# DOCKER
+#################################################
+
+job-flexisip-deb-image-deploy:
+
+  stage: image
+  tags: [ "linux-deploy" ]
+  only:
+    - schedules
+  dependencies:
+    - job-debian9-deb
+
+  script:
+    - mv WORK/flexisip-rpm/rpmbuild/DEBS docker/DEBS
+    - cd docker
+    - make flexisip-deb-build
+    - make flexisip-deb-push
+
+#################################################
+# Schedule
+#################################################
+
+.scheduled-job-linux:
+
+  extends: .job-linux
+  only:
+    - schedules
