@@ -333,8 +333,8 @@ job-flexisip-deb-image-deploy:
 
   stage: deploy
   tags: [ "linux-deploy" ]
-#  only:
-#    - schedules
+  only:
+    - schedules
   dependencies:
     - job-debian9-deb
 
