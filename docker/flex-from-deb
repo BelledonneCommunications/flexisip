@@ -6,8 +6,9 @@ RUN apt-get update
 RUN apt-get install -y  xsdcxx gdb
 
 # Get flexisip package
-COPY ../WORK/flexisip-rpm/rpmbuild/DEBS/*.deb /deb-package
-RUN apt-get install -y /deb-package/bc-*.deb
+COPY DEBS/*.deb /deb-packages/
+RUN apt-get install -y /deb-packages/bc-*.deb
+RUN rm -rf /deb-packages
 
 # Add it to the default path
 ENV PATH=$PATH:/opt/belledonne-communications/bin
