@@ -14,6 +14,7 @@ variables:
 #################################################
 
 include:
+  - '.gitlab-ci-files/job-linux.yml'
   - '.gitlab-ci-files/job-linux-archlinux.yml'
   - '.gitlab-ci-files/job-linux-centos7.yml'
   - '.gitlab-ci-files/job-linux-debian8.yml'
