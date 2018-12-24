@@ -196,7 +196,7 @@ void PresenceServer::_init() {
 }
 
 void PresenceServer::_run() {
-	belle_sip_main_loop_iterate(belle_sip_stack_get_main_loop(mStack));
+	//belle_sip_main_loop_iterate(belle_sip_stack_get_main_loop(mStack));
 }
 
 void PresenceServer::_stop() {

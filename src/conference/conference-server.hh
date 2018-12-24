@@ -39,7 +39,6 @@ namespace flexisip {
 		, public linphone::ChatRoomListener
 	{
 	public:
-		ConferenceServer ();
 		ConferenceServer (const std::string &path, su_root_t *root);
 		~ConferenceServer ();
 

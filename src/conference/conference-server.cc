@@ -34,9 +34,6 @@ using namespace std;
 SofiaAutoHome ConferenceServer::mHome;
 ConferenceServer::Init ConferenceServer::sStaticInit;
 
-
-ConferenceServer::ConferenceServer () : ServiceServer() {}
-
 ConferenceServer::ConferenceServer (
 	const string &path,
 	su_root_t *root

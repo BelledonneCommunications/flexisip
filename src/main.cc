@@ -930,7 +930,6 @@ int main(int argc, char *argv[]) {
 		}
 		try{
 			presenceServer->init();
-			presenceServer->run();
 		}catch(FlexisipException &e){
 			/* Catch the presence server exception, which is generally caused by a failure while binding the SIP listening points.
 			 * Since it prevents from starting and it is not a crash, it shall be notified to the user with LOGF*/
@@ -950,7 +949,6 @@ int main(int argc, char *argv[]) {
 		}
 		try{
 			conferenceServer->init();
-			conferenceServer->run();
 		}catch(FlexisipException &e){
 			/* Catch the conference server exception, which is generally caused by a failure while binding the SIP listening points.
 			 * Since it prevents from starting and it is not a crash, it shall be notified to the user with LOGF*/
@@ -961,15 +959,11 @@ int main(int argc, char *argv[]) {
 
 	if (startProxy || startConference || startPresence){
 		su_timer_t *timer;
-		if (startProxy) {
-			timer = su_timer_create(su_root_task(root), 5000);
-			su_timer_set_for_ever(timer, (su_timer_f)timerfunc, a.get());
-		}
+		timer = su_timer_create(su_root_task(root), 5000);
+		su_timer_set_for_ever(timer, (su_timer_f)timerfunc, a.get());
 		su_root_run(root);
-		if (startProxy) {
-			su_timer_destroy(timer);
-			a->unloadConfig();
-		}
+		su_timer_destroy(timer);
+		a->unloadConfig();
 	}
 
 	a.reset();

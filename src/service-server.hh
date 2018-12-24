@@ -30,7 +30,7 @@ namespace flexisip {
 
 class ServiceServer {
 public:
-	ServiceServer(su_root_t* root = nullptr) :
+	ServiceServer(su_root_t* root) :
 		mStarted(true),
 		mRoot(root)
 		{};
@@ -42,11 +42,6 @@ public:
 			su_timer_set_for_ever(mTimer, ((su_timer_f)ServiceServer::timerFunc), this);
 		}
 		this->_init();
-	};
-
-	//Run service server
-	void run() {
-		this->__run();
 	};
 
 	//Stop service server
@@ -71,13 +66,6 @@ protected:
 			thiz->_run();
 		}
 	};
-
-private:
-	void __run() {
-		//Do not run if we have a su_root
-		while (mStarted && !mRoot)
-			this->_run();
-	}
 };
 
 } //namespace flexisip
