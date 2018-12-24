@@ -196,12 +196,10 @@ void PresenceServer::_init() {
 }
 
 void PresenceServer::_run() {
-	//belle_sip_main_loop_iterate(belle_sip_stack_get_main_loop(mStack));
+	belle_sip_main_loop_iterate(belle_sip_stack_get_main_loop(mStack));
 }
 
-void PresenceServer::_stop() {
-	//belle_sip_main_loop_quit(belle_sip_stack_get_main_loop(mStack));
-}
+void PresenceServer::_stop() {}
 
 
 void PresenceServer::processDialogTerminated(PresenceServer *thiz, const belle_sip_dialog_terminated_event_t *event) {

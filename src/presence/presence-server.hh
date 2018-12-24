@@ -104,7 +104,6 @@ private:
 	static void processResponseEvent(PresenceServer * thiz, const belle_sip_response_event_t *event);
 	static void processTimeout(PresenceServer * thiz, const belle_sip_timeout_event_t *event) ;
 	static void processTransactionTerminated(PresenceServer * thiz, const belle_sip_transaction_terminated_event_t *event);
-	void _start(bool withThread);
 	void processPublishRequestEvent(const belle_sip_request_event_t *event);
 	void processSubscribeRequestEvent(const belle_sip_request_event_t *event);
 
