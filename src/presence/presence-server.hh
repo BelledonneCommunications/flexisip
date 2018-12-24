@@ -68,8 +68,7 @@ public:
 
 class PresenceServer : public PresentityManager, public ServiceServer {
 public:
-	PresenceServer();
-	PresenceServer(bool withThread, su_root_t* root = nullptr);
+	PresenceServer(su_root_t* root);
 	~PresenceServer();
 	void _init() override;
 	void _run() override;

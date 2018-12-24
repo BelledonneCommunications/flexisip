@@ -30,13 +30,9 @@ namespace flexisip {
 
 class ServiceServer {
 public:
-	ServiceServer() : ServiceServer(false) {};
-
-	ServiceServer(bool withThread, su_root_t* root = nullptr) :
+	ServiceServer(su_root_t* root = nullptr) :
 		mStarted(true),
-		mWithThread((root != nullptr) ? false : withThread),
-		mRoot(root),
-		mIterateThread(nullptr)
+		mRoot(root)
 		{};
 	virtual ~ServiceServer() {};
 
@@ -50,13 +46,7 @@ public:
 
 	//Run service server
 	void run() {
-		if (mWithThread) {
-			mIterateThread.reset (new std::thread([this]() {
-				this->__run();
-			}));
-		} else {
-			this->__run();
-		}
+		this->__run();
 	};
 
 	//Stop service server
@@ -66,24 +56,15 @@ public:
 			su_timer_destroy(mTimer);
 		}
 		this->_stop();
-		if (mIterateThread) {
-			pthread_kill(mIterateThread->native_handle(), SIGINT);//because main loop is not interruptible
-			mIterateThread->join();
-			mIterateThread.reset();
-		}
 	};
-
-	void setWithThread(bool withThread) { this->mWithThread = withThread;};
 
 	virtual void _init() = 0;
 	virtual void _run() = 0;
 	virtual void _stop() = 0;
 protected:
 	bool mStarted;
-	bool mWithThread;
 	su_root_t* mRoot;
 	su_timer_t *mTimer;
-	std::unique_ptr<std::thread> mIterateThread;
 
 	static void timerFunc(su_root_magic_t *magic, su_timer_t *t, ServiceServer* thiz) {
 		if (thiz->mStarted) {

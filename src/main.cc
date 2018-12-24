@@ -920,7 +920,7 @@ int main(int argc, char *argv[]) {
 	if (startPresence){
 #ifdef ENABLE_PRESENCE
 		bool enableLongTermPresence = (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
-		presenceServer = make_shared<flexisip::PresenceServer>(startProxy);
+		presenceServer = make_shared<flexisip::PresenceServer>(root);
 		if (enableLongTermPresence) {
 			auto presenceLongTerm = make_shared<flexisip::PresenceLongterm>(presenceServer->getBelleSipMainLoop());
 			presenceServer->addPresenceInfoObserver(presenceLongTerm);
@@ -944,7 +944,7 @@ int main(int argc, char *argv[]) {
 
 	if (startConference){
 #ifdef ENABLE_CONFERENCE
-		conferenceServer = make_shared<flexisip::ConferenceServer>(startProxy, a->getPreferredRoute(), root);
+		conferenceServer = make_shared<flexisip::ConferenceServer>(a->getPreferredRoute(), root);
 		if (daemonMode) {
 			notifyWatchDog();
 		}
@@ -959,7 +959,7 @@ int main(int argc, char *argv[]) {
 #endif // ENABLE_CONFERENCE
 	}
 
-	if (startProxy || startConference){
+	if (startProxy || startConference || startPresence){
 		su_timer_t *timer;
 		if (startProxy) {
 			timer = su_timer_create(su_root_task(root), 5000);

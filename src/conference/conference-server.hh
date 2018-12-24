@@ -40,7 +40,7 @@ namespace flexisip {
 	{
 	public:
 		ConferenceServer ();
-		ConferenceServer (bool withThread, const std::string &path, su_root_t *root = nullptr);
+		ConferenceServer (const std::string &path, su_root_t *root);
 		~ConferenceServer ();
 
 		void bindAddresses ();
