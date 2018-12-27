@@ -210,9 +210,9 @@ private:
 	std::list<std::string> mAliases;
 	url_t *mPreferredRouteV4;
 	url_t *mPreferredRouteV6;
-	const url_t *mNodeUri = NULL;
-	const url_t *mClusterUri = NULL;
-	const url_t *mDefaultUri = NULL;
+	const url_t *mNodeUri = nullptr;
+	const url_t *mClusterUri = nullptr;
+	const url_t *mDefaultUri = nullptr;
 	class Network {
 		struct sockaddr_storage mPrefix;
 		struct sockaddr_storage mMask;
@@ -232,6 +232,7 @@ private:
 	su_root_t *mRoot;
 	nth_engine_t *mHttpEngine;
 	su_home_t mHome;
+	su_timer_t *mTimer = nullptr;
 	unsigned int mProxyToProxyKeepAliveInterval;
 	EventLogWriter *mLogWriter;
 	DomainRegistrationManager *mDrm;

@@ -156,10 +156,6 @@ static void sofiaLogHandler(void *, const char *fmt, va_list ap) {
 	}
 }
 
-static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *a) {
-	a->idle();
-}
-
 static std::map<msg_t *, string> msg_map;
 
 static void flexisip_msg_create(msg_t *msg) {
@@ -957,15 +953,9 @@ int main(int argc, char *argv[]) {
 #endif // ENABLE_CONFERENCE
 	}
 
-	if (startProxy || startConference || startPresence){
-		su_timer_t *timer;
-		timer = su_timer_create(su_root_task(root), 5000);
-		su_timer_set_for_ever(timer, (su_timer_f)timerfunc, a.get());
-		su_root_run(root);
-		su_timer_destroy(timer);
-		a->unloadConfig();
-	}
+	su_root_run(root);
 
+	a->unloadConfig();
 	a.reset();
 #ifdef ENABLE_PRESENCE
 	presence_cli = nullptr;

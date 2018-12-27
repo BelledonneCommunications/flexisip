@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2017  Belledonne Communications SARL.
+	Copyright (C) 2018  Belledonne Communications SARL.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -16,38 +16,29 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __flexisip__service_server__
-#define __flexisip__service_server__
+#include "service-server.hh"
 
-#include <sofia-sip/su_wait.h>
+using namespace flexisip;
 
-namespace flexisip {
+ServiceServer::ServiceServer(su_root_t* root) :
+	mStarted(true),
+	mRoot(root)
+	{};
 
-class ServiceServer {
-public:
-	ServiceServer(su_root_t* root);
-	virtual ~ServiceServer() = default;
-
-	void init();
-
-	//Stop service server
-	void stop();
-
-	virtual void _init() = 0;
-	virtual void _run() = 0;
-	virtual void _stop() = 0;
-protected:
-	bool mStarted;
-	su_root_t* mRoot;
-	su_timer_t *mTimer;
-
-	static void timerFunc(su_root_magic_t *magic, su_timer_t *t, ServiceServer* thiz) {
-		if (thiz->mStarted) {
-			thiz->_run();
-		}
-	};
+void ServiceServer::init() {
+	if (mRoot) {
+		mTimer = su_timer_create(su_root_task(mRoot), 10);
+		su_timer_set_for_ever(mTimer, ((su_timer_f)ServiceServer::timerFunc), this);
+	}
+	this->_init();
 };
 
-} //namespace flexisip
 
-#endif //__flexisip__service_server__
+void ServiceServer::stop() {
+	mStarted = false;
+	if (mRoot && mTimer) {
+		su_timer_destroy(mTimer);
+	}
+	this->_stop();
+};
+
