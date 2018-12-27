@@ -203,6 +203,31 @@ void Agent::initializePreferredRoute() {
 	}
 }
 
+void Agent::setNetworkGateways(GenericManager *cm) {
+	struct addrinfo hints;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_flags = AI_NUMERICHOST;
+
+	list<string> gateways = cm->getGlobal()->get<ConfigStringList>("nat-gateways")->read();
+	for (const auto &gw : gateways) {
+		int err;
+		struct addrinfo *result;
+		if((err = getaddrinfo(gw.c_str(), nullptr, &hints, &result))) {
+			SLOGE << "cannot create an addrinfo structure for '" << gw << "' address: " << gai_strerror(err);
+			continue;
+		}
+		for (auto &network : mNetworks) {
+			if (network.isInNetwork(result->ai_addr)) {
+				SLOGD << "adding '" << gw << "' address to '" << network.toString() << "' network";
+				network.setGateway(gw);
+				break;
+			}
+		}
+		freeaddrinfo(result);
+	}
+}
+
 void Agent::loadModules() {
 	list<Module *>::iterator it;
 	for (auto &module : mModules) {
@@ -618,21 +643,7 @@ Agent::Agent(su_root_t *root) {
 
 	onDeclare(cr);
 
-	struct ifaddrs *net_addrs;
-	int err = getifaddrs(&net_addrs);
-	if (err == 0) {
-		struct ifaddrs *ifa = net_addrs;
-		while (ifa != NULL) {
-			if (ifa->ifa_netmask != NULL && ifa->ifa_addr != NULL) {
-				LOGD("New network: %s", Network::print(ifa).c_str());
-				mNetworks.push_front(Network(ifa));
-			}
-			ifa = ifa->ifa_next;
-		}
-		freeifaddrs(net_addrs);
-	} else {
-		LOGE("Can't find interface addresses: %s", strerror(err));
-	}
+	mNetworks = Network::scan();
 	mRoot = root;
 	mAgent = nta_agent_create(root, (url_string_t *)-1, &Agent::messageCallback, (nta_agent_magic_t *)this, TAG_END());
 	su_home_init(&mHome);
@@ -693,6 +704,7 @@ void Agent::loadConfig(GenericManager *cm) {
 	RegistrarDb::initialize(this);
 
 	initializePreferredRoute();
+	setNetworkGateways(cm);
 }
 
 void Agent::unloadConfig() {
@@ -731,31 +743,42 @@ string Agent::computeResolvedPublicIp(const string &host, int family) const {
 }
 
 pair<string, string> Agent::getPreferredIp(const string &destination) const {
-	int err;
-	struct addrinfo hints;
 	string dest = (destination[0] == '[') ? destination.substr(1, destination.size() - 2) : destination;
-	memset(&hints, 0, sizeof(hints));
+	bool ipv6 = dest.find(':') != string::npos;
+
+	struct addrinfo hints = {0};
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_flags = AI_NUMERICHOST;
 
 	struct addrinfo *result;
-	err = getaddrinfo(dest.c_str(), NULL, &hints, &result);
+	int err = getaddrinfo(dest.c_str(), nullptr, &hints, &result);
 	if (err == 0) {
-		for (auto it = mNetworks.begin(); it != mNetworks.end(); ++it) {
-			if (it->isInNetwork(result->ai_addr)) {
+		for (const auto &network : mNetworks) {
+			if (network.isInNetwork(result->ai_addr)) {
+				// The destination and Flexisip are both placed on the
+				// same subnetwork and can communicate directly.
 				freeaddrinfo(result);
-				return make_pair(it->getIp(), it->getIp());
+				if (dest == network.getGateway()) {
+					// 'dest' isn't the real address of the destination but the
+					// address of a two-side NAT router (or a TCP proxy). Then,
+					// Flexisip must bind to its local IP address to send packets to
+					// the destination but the last must use the pulbic address of
+					// Flexisip for replies.
+					return make_pair(getResolvedPublicIp(ipv6), network.getIp());
+				} else {
+					return make_pair(network.getIp(), network.getIp());
+				}
 			}
 		}
 		freeaddrinfo(result);
 	} else {
 		LOGE("getPreferredIp() getaddrinfo() error while resolving '%s': %s", dest.c_str(), gai_strerror(err));
 	}
-	return strchr(dest.c_str(), ':') == NULL ? make_pair(getResolvedPublicIp(), getRtpBindIp())
-											 : make_pair(getResolvedPublicIp(true), getRtpBindIp(true));
+	// The destrination isn't on the same subnetwork than us.
+	return make_pair(getResolvedPublicIp(ipv6), getRtpBindIp(ipv6));
 }
 
-Agent::Network::Network(const Network &net) : mIp(net.mIp) {
+Agent::Network::Network(const Network &net) : mIp(net.mIp), mGateway(net.mGateway) {
 	memcpy(&mPrefix, &net.mPrefix, sizeof(mPrefix));
 	memcpy(&mMask, &net.mMask, sizeof(mMask));
 }
@@ -827,28 +850,84 @@ bool Agent::Network::isInNetwork(const struct sockaddr *addr) const {
 	}
 }
 
-string Agent::Network::print(const struct ifaddrs *ifaddr) {
-	stringstream ss;
+std::string Agent::Network::toString() const {
+	string prefix;
+	string netmask;
+
+	try {
+		prefix = toString(reinterpret_cast<const struct sockaddr *>(&mPrefix));
+		netmask = toString(reinterpret_cast<const struct sockaddr *>(&mMask));
+	} catch (const invalid_argument &) {}
+
+	ostringstream os;
+	os << prefix << '/' << netmask;
+	return os.str();
+}
+
+std::string Agent::Network::toString(const struct sockaddr *addr) {
 	int err;
-	unsigned int size =
-		(ifaddr->ifa_addr->sa_family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
 	char result[IPADDR_SIZE];
+	socklen_t size = findSockAddrStructLen(addr);
+	if ((err = getnameinfo(addr, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST))) {
+		throw invalid_argument(gai_strerror(err));
+	}
+	return result;
+}
+
+string Agent::Network::print(const struct ifaddrs *ifaddr) {
+	string address;
+	string mask;
+
+	try {
+		address = toString(ifaddr->ifa_addr);
+	} catch (const invalid_argument &) {
+		address = "(Error)";
+	}
+
+	try {
+		mask = toString(ifaddr->ifa_netmask);
+	} catch (const invalid_argument &) {
+		mask = "(Error)";
+	}
+
+	ostringstream ss;
 	ss << "Name: " << ifaddr->ifa_name;
-
-	err = getnameinfo(ifaddr->ifa_addr, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
-	if (err != 0) {
-		ss << "\tAddress: " << "(Error)";
-	} else {
-		ss << "\tAddress: " << result;
-	}
-	err = getnameinfo(ifaddr->ifa_netmask, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
-	if (err != 0) {
-		ss << "\tMask: " << "(Error)";
-	} else {
-		ss << "\tMask: " << result;
-	}
-
+	ss << "\tAddress: " << address;
+	ss << "\tMask: " << mask;
 	return ss.str();
+}
+
+std::list<Agent::Network> Agent::Network::scan() {
+	list<Network> networks;
+	struct ifaddrs *net_addrs;
+	int err = getifaddrs(&net_addrs);
+	if (err == 0) {
+		struct ifaddrs *ifa = net_addrs;
+		while (ifa != NULL) {
+			if (ifa->ifa_netmask != NULL && ifa->ifa_addr != NULL) {
+				LOGD("New network: %s", Network::print(ifa).c_str());
+				networks.emplace_back(ifa);
+			}
+			ifa = ifa->ifa_next;
+		}
+		freeifaddrs(net_addrs);
+	} else {
+		LOGE("Can't find interface addresses: %s", strerror(err));
+	}
+	return networks;
+}
+
+socklen_t Agent::Network::findSockAddrStructLen(const struct sockaddr *addr) {
+	switch (addr->sa_family) {
+		case AF_INET:
+			return sizeof(struct sockaddr_in);
+		case AF_INET6:
+			return sizeof(struct sockaddr_in6);
+		default:
+			ostringstream msg;
+			msg << "unsupported address family (" << addr->sa_family << ")";
+			throw invalid_argument(msg.str());
+	}
 }
 
 int Agent::countUsInVia(sip_via_t *via) const {
