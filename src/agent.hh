@@ -200,6 +200,7 @@ private:
 	std::string computeResolvedPublicIp(const std::string &host, int family = AF_UNSPEC) const;
 	void checkAllowedParams(const url_t *uri);
 	void initializePreferredRoute();
+	void setNetworkGateways(GenericManager *cm);
 	void loadModules();
 	void startMdns();
 
@@ -218,16 +219,26 @@ private:
 
 		const std::string &getIp() const {return mIp;}
 
-		bool isInNetwork(const struct sockaddr *addr) const;
+		std::string getGateway() const {return mGateway;}
+		void setGateway(const std::string &gw) {mGateway = gw;}
 
+		bool isInNetwork(const struct sockaddr *addr) const;
+		std::string toString() const;
+
+		static std::string toString(const struct sockaddr *addr);
 		static std::string print(const struct ifaddrs *ifaddr);
+		static std::list<Network> scan();
 
 	private:
+		static socklen_t findSockAddrStructLen(const struct sockaddr *addr);
+
 		struct sockaddr_storage mPrefix;
 		struct sockaddr_storage mMask;
 		std::string mIp;
+		std::string mGateway;
 	};
 	std::list<Network> mNetworks;
+	std::list<std::string> mGateways;
 	std::string mUniqueId;
 	std::string mRtpBindIp, mRtpBindIp6, mPublicIpV4, mPublicIpV6, mPublicResolvedIpV4, mPublicResolvedIpV6;
 	nta_agent_t *mAgent = nullptr;
