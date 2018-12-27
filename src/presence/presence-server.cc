@@ -74,10 +74,7 @@ PresenceServer::Init::Init() {
 	s->addChildrenValues(items);
 }
 
-PresenceServer::PresenceServer() : PresenceServer(false) {
-}
-
-PresenceServer::PresenceServer(bool withThread, su_root_t* root) : ServiceServer(withThread, root){
+PresenceServer::PresenceServer(su_root_t* root) : ServiceServer( root){
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
 	/*Enabling leak detector should be done asap.*/
 	belle_sip_object_enable_leak_detector(GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("leak-detector")->read());
@@ -146,7 +143,6 @@ PresenceServer::~PresenceServer(){
 	belle_sip_list_for_each2 (tmp_list,(void (*)(void*,void*))remove_listening_point,mProvider);
 	belle_sip_list_free(tmp_list);
 
-	stop();
 	belle_sip_object_unref(mProvider);
 	belle_sip_object_unref(mStack);
 	belle_sip_object_unref(mListener);
@@ -200,12 +196,10 @@ void PresenceServer::_init() {
 }
 
 void PresenceServer::_run() {
-	belle_sip_main_loop_run(belle_sip_stack_get_main_loop(mStack));
+	belle_sip_main_loop_sleep(belle_sip_stack_get_main_loop(mStack), 0);
 }
 
-void PresenceServer::_stop() {
-	belle_sip_main_loop_quit(belle_sip_stack_get_main_loop(mStack));
-}
+void PresenceServer::_stop() {}
 
 
 void PresenceServer::processDialogTerminated(PresenceServer *thiz, const belle_sip_dialog_terminated_event_t *event) {

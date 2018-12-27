@@ -34,14 +34,10 @@ using namespace std;
 SofiaAutoHome ConferenceServer::mHome;
 ConferenceServer::Init ConferenceServer::sStaticInit;
 
-
-ConferenceServer::ConferenceServer () : ServiceServer() {}
-
 ConferenceServer::ConferenceServer (
-	bool withThread,
 	const string &path,
 	su_root_t *root
-) : ServiceServer(withThread, root), mPath(path) {}
+) : ServiceServer(root), mPath(path) {}
 
 ConferenceServer::~ConferenceServer () {}
 
@@ -103,7 +99,6 @@ void ConferenceServer::_init () {
 
 void ConferenceServer::_run () {
 	mCore->iterate();
-	if (mWithThread) bctbx_sleep_ms(10);
 }
 
 void ConferenceServer::_stop () {

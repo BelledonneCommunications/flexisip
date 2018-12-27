@@ -272,6 +272,10 @@ void Agent::startMdns(){
 #endif
 }
 
+static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *a) {
+	a->idle();
+}
+
 void Agent::start(const string &transport_override, const string passphrase) {
 	char cCurrDir[FILENAME_MAX];
 	if (!getcwd(cCurrDir, sizeof(cCurrDir))) {
@@ -292,8 +296,11 @@ void Agent::start(const string &transport_override, const string passphrase) {
 	unsigned int keepAliveInterval = global->get<ConfigInt>("keepalive-interval")->read() * 1000;
 	unsigned int queueSize = 256; /*number of SIP message that sofia can queue in a tport (a connection). It is 64 by default,
 				hardcoded in sofia-sip. This is not sufficient for IM.*/
-				
+
 	mProxyToProxyKeepAliveInterval = global->get<ConfigInt>("proxy-to-proxy-keepalive-interval")->read() * 1000;
+
+	mTimer = su_timer_create(su_root_task(mRoot), 5000);
+	su_timer_set_for_ever(mTimer, reinterpret_cast<su_timer_f>(timerfunc), this);
 
 	mainTlsCertsDir = absolutePath(currDir, mainTlsCertsDir);
 
@@ -387,7 +394,7 @@ void Agent::start(const string &transport_override, const string passphrase) {
 	tport_t *primaries = tport_primaries(nta_agent_tports(mAgent));
 	if (primaries == NULL)
 		LOGF("No sip transport defined.");
-	
+
 	startMdns();
 
 	/*
@@ -645,6 +652,8 @@ Agent::~Agent() {
 	for (Module *module : mModules)
 		delete module;
 
+	if (mTimer)
+		su_timer_destroy(mTimer);
 	if (mDrm)
 		delete mDrm;
 	if (mAgent)

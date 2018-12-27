@@ -97,6 +97,7 @@ set(FLEXISIP_SOURCES
 	registrardb.cc
 	sdp-modifier.cc
 	sipattrextractor.cc
+	service-server.cc
 	stun.cc
 	stun/stun_udp.c
 	stun/stun.c
