@@ -261,7 +261,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
 	uint64_t destConnId = 0;
-	bool_t tport_error = 0;
+	bool tport_error = false;
 
 	string ip;
 	if (EtcHostsResolver::get()->resolve(dest->url_host, &ip)) {
@@ -304,7 +304,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 				<<" ) is different than tport ConnId("
 				<< (uint64_t)tport_get_user_data(tport)
 				<<")";
-				tport_error = 1;
+				tport_error = true;
 				tport = nullptr;
 			}
 		} else LOGE("tport_name_by_url() failed for url %s", url_as_string(ms->getHome(), dest));
