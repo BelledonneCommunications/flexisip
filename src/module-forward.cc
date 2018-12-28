@@ -185,9 +185,6 @@ public:
 			url_t *dest = ct->m_url;
 			mEv->getSip()->sip_request->rq_url[0] = *url_hdup(msg_home(ms->getHome()), dest);
 			mEv->getSip()->sip_request->rq_url->url_params = url_strip_param_string(su_strdup(ms->getHome(),mEv->getSip()->sip_request->rq_url->url_params) , "gr");
-			if (url_has_param(mEv->getSip()->sip_request->rq_url, "fs-conn-id")) {
-				mEv->getSip()->sip_request->rq_url->url_params = url_strip_param_string(su_strdup(ms->getHome(),mEv->getSip()->sip_request->rq_url->url_params) , "fs-conn-id");
-			}
 			mModule->sendRequest(mEv,dest);
 
 		} catch (FlexisipException &e) {
@@ -260,7 +257,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
-	uint64_t destConnId = 0;
+	uintptr_t destConnId = 0;
 	bool tport_error = false;
 
 	string ip;
@@ -297,12 +294,12 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 			if (!tport) {
 				LOGE("Could not find tport to set proper outgoing Record-Route to %s", dest->url_host);
 			} else if (tport_get_user_data(tport) != nullptr && destConnId != 0
-						&& (uint64_t)tport_get_user_data(tport) != destConnId) {
+						&& (uintptr_t)tport_get_user_data(tport) != destConnId) {
 				SLOGD << "Stopping request ConnId("
 				<< hex
 				<< destConnId
 				<<" ) is different than tport ConnId("
-				<< (uint64_t)tport_get_user_data(tport)
+				<< (uintptr_t)tport_get_user_data(tport)
 				<<")";
 				tport_error = true;
 				tport = nullptr;

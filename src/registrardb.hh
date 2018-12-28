@@ -75,7 +75,7 @@ struct ExtendedContact {
 	std::list<std::string> mAcceptHeader;
 	bool mUsedAsRoute; /*whether the contact information shall be used as a route when forming a request, instead of
 						  replacing the request-uri*/
-	uint64_t mConnId; // a unique id shared with associate t_port
+	uintptr_t mConnId; // a unique id shared with associate t_port
 	SofiaAutoHome mHome;
 
 	const char *callId() const {
