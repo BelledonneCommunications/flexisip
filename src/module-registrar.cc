@@ -53,7 +53,7 @@ static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const
 
 			// Not the same tport but had the same ConnId
 			if (old_tport && new_tport != old_tport &&
-				(tport_get_user_data(old_tport) == nullptr || ec->mConnId == (uint64_t)tport_get_user_data(old_tport))) {
+				(tport_get_user_data(old_tport) == nullptr || ec->mConnId == (uintptr_t)tport_get_user_data(old_tport))) {
 				SLOGD << "Removing old tport for sip uri " << ExtendedContact::urlToString(ec->mSipContact->m_url);
 				// 0 close incoming data, 1 close outgoing data, 2 both
 				tport_shutdown(old_tport, 2);
@@ -609,8 +609,8 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	// Init conn id in tport
 	{
 		ostringstream os;
-		uint64_t connId = (tport_get_user_data(ev->getIncomingTport().get())) ?
-			reinterpret_cast<uint64_t>(tport_get_user_data(ev->getIncomingTport().get())) : su_random64();
+		uintptr_t connId = (tport_get_user_data(ev->getIncomingTport().get())) ?
+			reinterpret_cast<uintptr_t>(tport_get_user_data(ev->getIncomingTport().get())) : static_cast<uintptr_t>(su_random64());
 		os << "fs-conn-id=" << hex << connId;
 		url_param_add(ms->getHome(), sip->sip_contact->m_url, os.str().c_str());
 		tport_set_user_data(ev->getIncomingTport().get(), reinterpret_cast<void*>(connId));
