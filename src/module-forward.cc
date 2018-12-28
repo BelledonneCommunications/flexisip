@@ -261,6 +261,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
 	uint64_t destConnId = 0;
+	bool_t tport_error = 0;
 
 	string ip;
 	if (EtcHostsResolver::get()->resolve(dest->url_host, &ip)) {
@@ -274,7 +275,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 		char strConnId[32] = {0};
 		if (url_param(dest->url_params, "fs-conn-id", strConnId, sizeof(strConnId) - 1) > 0) {
 			destConnId = std::strtoull(strConnId, nullptr, 16);
-			/*strip out com-id that shall not go out to the network*/
+			//strip out fs-conn-id that shall not go out to the network
 			dest->url_params = url_strip_param_string(su_strdup(ms->getHome(), dest->url_params), "fs-conn-id");
 		}
 	}
@@ -291,7 +292,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	tport_t *tport = nullptr;
 	if (ev->getOutgoingAgent() != nullptr) {
 		// tport_by_name can only work for IPs
-		if (tport_name_by_url(ms->getHome(), &name, (url_string_t *)dest) == 0) {
+		if (tport_name_by_url(ms->getHome(), &name, reinterpret_cast<url_string_t*>(dest)) == 0) {
 			tport = tport_by_name(nta_agent_tports(getSofiaAgent()), &name);
 			if (!tport) {
 				LOGE("Could not find tport to set proper outgoing Record-Route to %s", dest->url_host);
@@ -303,9 +304,8 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 				<<" ) is different than tport ConnId("
 				<< (uint64_t)tport_get_user_data(tport)
 				<<")";
-				// TODO let sofia sip cancel this request
-				//ev->terminateProcessing();
-				//return;
+				tport_error = 1;
+				tport = nullptr;
 			}
 		} else LOGE("tport_name_by_url() failed for url %s", url_as_string(ms->getHome(), dest));
 	}
@@ -349,6 +349,9 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 		ev->reply(SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
+
+	// Set tport at -1 for sofia
+	if (tport_error) tport = (tport_t*)-1;
 
 	// Finally send message
 	ev->send(ms, (url_string_t *)dest, NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());

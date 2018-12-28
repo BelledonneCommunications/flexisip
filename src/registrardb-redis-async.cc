@@ -36,7 +36,7 @@
 
 
 /* The timeout to retry a bind request after encountering a failure. It gives us a chance to reconnect to a new master.*/
-static const int redisRetryTimeoutMs = 5000;
+constexpr int redisRetryTimeoutMs = 5000;
 
 using namespace std;
 
@@ -539,7 +539,21 @@ void RegistrarDbRedisAsync::sKeyExpirationPublishCallback(redisAsyncContext *c, 
 	}
 }
 
-void RegistrarDbRedisAsync::sHandleBind(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data) {
+void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data) {
+	Record actualRecord(data->record);
+
+	data->self->parseAndClean(reply, data);
+
+	for (auto ec : actualRecord.getExtendedContacts()) {
+		data->record.insertOrUpdateBinding(ec, data->listener);
+	}
+
+	data->record = actualRecord;
+
+	data->self->serializeAndSendToRedis(data, sHandleBindFinish);
+}
+
+void RegistrarDbRedisAsync::sHandleBindFinish(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data) {
 	data->self->handleBind(reply, data);
 }
 
@@ -642,7 +656,7 @@ void RegistrarDbRedisAsync::sBindRetry(void *unused, su_timer_t *t, void *ud){
 	data->mRetryTimer = nullptr;
 	RegistrarDbRedisAsync *self = data->self;
 	if (self->isConnected()){
-		self->serializeAndSendToRedis(data, sHandleBind);
+		self->serializeAndSendToRedis(data, sHandleBindFinish);
 	}else{
 		LOGE("Unrecoverable error while updating record fs:%s : no connection", data->record.getKey().c_str());
 		if (data->listener) data->listener->onError();
@@ -665,8 +679,8 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 		}
 	} else {
 		data->mRetryCount = 0;
-		LOGD("Binding ok, fetching fs:%s [%lu]", key, data->token);
-		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleFetch, data, "HGETALL fs:%s", key), data);
+		if (data->listener) data->listener->onRecordFound(&data->record);
+		delete data;
 	}
 }
 
@@ -688,18 +702,19 @@ void RegistrarDbRedisAsync::doBind(const sip_t *sip, int globalExpire, bool alia
 	}
 	string mss_expires = RegistrarDb::get()->getMessageExpires(sip->sip_contact->m_params);
 	int message_expires = mss_expires.empty() ? 0 : stoi(mss_expires);
-	if (globalExpire > 0 || message_expires > 0) {
-		serializeAndSendToRedis(data, sHandleBind);
+	const char *key = data->record.getKey().c_str();
+	string uid = "";
+	if (data->record.getExtendedContacts().empty()) {
+		LOGW("No extended contact found for %s, can't remove it from REDIS.", key);
 	} else {
-		const char *key = data->record.getKey().c_str();
-		string uid = "";
-		if (data->record.getExtendedContacts().empty()) {
-			LOGW("No extended contact found for %s, can't remove it from REDIS.", key);
-		} else {
-			uid = data->record.getExtendedContacts().front()->getUniqueId();
-		}
+		uid = data->record.getExtendedContacts().front()->getUniqueId();
+	}
+	if (globalExpire > 0 || message_expires > 0) {
+		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleBindStart,
+			data, "HGETALL fs:%s", key), data);
+	} else {
 		data->mIsUnregister = true;
-		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleBind,
+		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleBindFinish,
 			data, "HDEL fs:%s %s", key, uid.c_str()), data);
 	}
 }
@@ -720,6 +735,39 @@ void RegistrarDbRedisAsync::handleClear(redisReply *reply, RegistrarUserData *da
 		if (data->listener) data->listener->onRecordFound(&data->record);
 	}
 	delete data;
+}
+
+void RegistrarDbRedisAsync::parseAndClean(redisReply *reply, RegistrarUserData *data) {
+	const char *key = data->record.getKey().c_str();
+	for (size_t i = 0; i < reply->elements; i+=2) {
+			// Elements list is twice the size of the contacts list because the key is an element of the list itself
+		redisReply *element = reply->element[i];
+		const char *uid = element->str;
+		element = reply->element[i+1];
+		const char *contact = element->str;
+		LOGD("Parsing contact %s => %s", uid, contact);
+		if (!data->record.updateFromUrlEncodedParams(key, uid, contact, data->listener)) {
+			LOGD("Record %s seems to have an outdated contact %s, remove it from redis", key, uid);
+			check_redis_command(redisAsyncCommand(data->self->mContext, nullptr, nullptr, "HDEL fs:%s %s", key, uid), data);
+		}
+	}
+	data->record.applyMaxAor();
+
+	for (auto it = data->record.getContactsToRemove().begin(); it != data->record.getContactsToRemove().end(); ++it) {
+		// Remove from REDIS contacts removed from record
+		const char *uid = (*it)->mUniqueId.c_str();
+		LOGD("Record %s has too many contacts, removing %s from redis", key, uid);
+		check_redis_command(redisAsyncCommand(data->self->mContext, nullptr, nullptr, "HDEL fs:%s %s", key, uid), data);
+	}
+	data->record.cleanContactsToRemoveList();
+
+	if (data->mUpdateExpire) {
+		time_t expireat = data->record.latestExpire();
+		check_redis_command(redisAsyncCommand(data->self->mContext, nullptr, nullptr, "EXPIREAT fs:%s %lu", key, expireat), data);
+	}
+
+	time_t now = getCurrentTime();
+	data->record.clean(now, data->listener);
 }
 
 void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
@@ -752,35 +800,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 		// This is the most common scenario: we want all contacts inside the record
 		LOGD("GOT fs:%s [%lu] --> %lu contacts", key, data->token, (reply->elements / 2));
 		if (reply->elements > 0) {
-			for (size_t i = 0; i < reply->elements; i+=2) {
-				// Elements list is twice the size of the contacts list because the key is an element of the list itself
-				redisReply *element = reply->element[i];
-				const char *uid = element->str;
-				element = reply->element[i+1];
-				const char *contact = element->str;
-				LOGD("Parsing contact %s => %s", uid, contact);
-				if (!data->record.updateFromUrlEncodedParams(key, uid, contact)) {
-					LOGD("Record %s seems to have an outdated contact %s, remove it from redis", key, uid);
-					check_redis_command(redisAsyncCommand(data->self->mContext, nullptr, nullptr, "HDEL fs:%s %s", key, uid), data);
-				}
-			}
-			data->record.applyMaxAor();
-
-			for (auto it = data->record.getContactsToRemove().begin(); it != data->record.getContactsToRemove().end(); ++it) {
-				// Remove from REDIS contacts removed from record
-				const char *uid = (*it)->mUniqueId.c_str();
-				LOGD("Record %s has too many contacts, removing %s from redis", key, uid);
-				check_redis_command(redisAsyncCommand(data->self->mContext, nullptr, nullptr, "HDEL fs:%s %s", key, uid), data);
-			}
-			data->record.cleanContactsToRemoveList();
-
-			if (data->mUpdateExpire) {
-				time_t expireat = data->record.latestExpire();
-				check_redis_command(redisAsyncCommand(data->self->mContext, nullptr, nullptr, "EXPIREAT fs:%s %lu", key, expireat), data);
-			}
-
-			time_t now = getCurrentTime();
-			data->record.clean(now, data->listener);
+			parseAndClean(reply, data);
 			if (data->listener) data->listener->onRecordFound(&data->record);
 			delete data;
 		} else {
@@ -794,7 +814,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 		const char *gruu = data->mGruu.c_str();
 		if (reply->len > 0) {
 			LOGD("GOT fs:%s [%lu] for gruu %s --> %s", key, data->token, gruu, reply->str);
-			data->record.updateFromUrlEncodedParams(key, gruu, reply->str);
+			data->record.updateFromUrlEncodedParams(key, gruu, reply->str, data->listener);
 			time_t now = getCurrentTime();
 			data->record.clean(now, data->listener);
 			if (data->listener) data->listener->onRecordFound(&data->record);

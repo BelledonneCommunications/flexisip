@@ -65,22 +65,7 @@ ostream &ExtendedContact::print(ostream &stream, time_t _now, time_t _offset) co
 	return stream;
 }
 
-void ExtendedContact::transferConnId(const shared_ptr<ExtendedContact> &oldEc) {
-	// Transfert param ConnId from oldEc to this
-	char strConnId[32] = {0};
-	if (oldEc->mConnId > 0 &&
-			(url_param(mSipContact->m_url->url_params, "fs-conn-id", strConnId, sizeof(strConnId) - 1) > 0 &&
-			strtoull(strConnId, nullptr, 16) != oldEc->mConnId)
-		) {
-		ostringstream os;
-		os << "fs-conn-id=" << hex << oldEc->mConnId;
-		mSipContact->m_url->url_params = url_strip_param_string(su_strdup(mHome.home(), mSipContact->m_url->url_params), "fs-conn-id");
-		url_param_add(mHome.home(), mSipContact->m_url, os.str().c_str());
-		this->mConnId = oldEc->mConnId;
-	}
-}
-
-url_t *ExtendedContact::toSofiaUrlClean(su_home_t *home){
+url_t *ExtendedContact::toSofiaUrlClean(su_home_t *home) {
 	url_t *ret = nullptr;
 	if (!mSipContact)
 		return nullptr;
@@ -96,6 +81,7 @@ string ExtendedContact::getOrgLinphoneSpecs() const {
 	string result = specs ? string(specs) : string();
 	return result;
 }
+
 const string ExtendedContact::getMessageExpires(const msg_param_t *m_params)  {
 	return RegistrarDb::get()->getMessageExpires(m_params);
 }
@@ -181,41 +167,6 @@ const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(string uid) {
 	shared_ptr<ExtendedContact> noContact;
 	return noContact;
 }
-
-/*
- static int countContacts(const sip_contact_t *contacts) {
- sip_contact_t *c=(sip_contact_t *)contacts;
- int count=0;
- for(;c;c=c->m_next) {
- ++count;
- }
-
- return count;
- }
-
-
- static bool ec_sort(ExtendedContact *ec1, ExtendedContact *ec2) {
- return ec1->mUpdatedTime < ec2->mUpdatedTime;
- }
-
- void Record::makeSpace(int slots) {
- int spaceNeeded=countContacts(contacts);
-
- int spaceLeft=sMaxContacts - mContacts.size() - count;
- if (spaceLeft >=0) return;
-
- LOGD("Need to make space for received contacts (need %i slots)", -spaceLeft);
- sort (mContacts.begin(), mContacts.end(), ec_sort);
- print();
-
- list<ExtendedContact *>::iterator it;
- for (it=mContacts.begin(); spaceLeft == 0; ++it) {
- it=mContacts.erase(it);
- ++spaceLeft;
- }
- print();
- }
- */
 
 /**
  * Should first have checked the validity of the register with isValidRegister.
@@ -317,13 +268,11 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 				}
 			}
 			SLOGD << "Cleaning older line '" << ec->mUniqueId << "' for contact " << (*it)->mContactId;
-			ec->transferConnId((*it));
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
 		} else if ((*it)->mUniqueId.empty() && (*it)->callId() && (*it)->mCallId == ec->mCallId) {
 			/*we don't accept to clean a contact from call-id if the unique id was set previously*/
 			SLOGD << "Cleaning same call id contact " << (*it)->mContactId << "(" << ec->mCallId << ")";
-			ec->transferConnId((*it));
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
 		} else {
@@ -410,18 +359,6 @@ static void defineContactId(ostringstream &oss, const url_t *url, const char *tr
 		oss << ":" << url->url_port;
 }
 
-void ExtendedContact::setupConnId() {
-	char strConnId[32] = {0};
-	if (url_param(mSipContact->m_url->url_params, "fs-conn-id", strConnId, sizeof(strConnId) - 1) > 0) {
-		mConnId = strtoull(strConnId, nullptr, 16);
-	} else {
-		ostringstream os;
-		mConnId = su_random64();
-		os << "fs-conn-id=" << hex << mConnId;
-		url_param_add(mHome.home(), mSipContact->m_url, os.str().c_str());
-	}
-}
-
 string ExtendedContact::serializeAsUrlEncodedParams() {
 	SofiaAutoHome home;
 	sip_contact_t *contact = sip_contact_dup(home.home(), mSipContact);
@@ -430,14 +367,6 @@ string ExtendedContact::serializeAsUrlEncodedParams() {
 	ostringstream oss;
 	oss << "callid=" << mCallId;
 	url_param_add(home.home(), contact->m_url, oss.str().c_str());
-
-	// Q
-	/*if (mQ == 0.f) {
-		oss.str("");
-		oss.clear();
-		oss << "q=" << mQ;
-		url_param_add(home.home(), contact->m_url, oss.str().c_str());
-	}*/
 
 	// Expire
 	oss.str("");
@@ -522,6 +451,13 @@ void ExtendedContact::init() {
 			mQ = atof(mSipContact->m_q);
 		}
 
+		if (url_has_param(mSipContact->m_url, "fs-conn-id")) {
+			char strConnId[32] = {0};
+			if (url_param(mSipContact->m_url->url_params, "fs-conn-id", strConnId, sizeof(strConnId) - 1) > 0) {
+				mConnId = std::strtoull(strConnId, nullptr, 16);
+			}
+		}
+
 		int expire = resolveExpire(mSipContact->m_expires, mExpireNotAtMessage);
 		mExpireNotAtMessage = mUpdatedTime + expire;
 		expire = resolveExpire(getMessageExpires(mSipContact->m_params).c_str(), expire);
@@ -574,15 +510,13 @@ void ExtendedContact::extractInfoFromUrl(const char* full_url) {
 	} else {
 		mSipContact = temp_contact;
 	}
-
-	if (mSipContact) setupConnId();
 }
 
-bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url) {
+bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url, const shared_ptr<ContactUpdateListener> &listener) {
 	auto exc = make_shared<ExtendedContact>(key, uid, full_url);
 
 	if (exc->mSipContact && getCurrentTime() < exc->mExpireAt) {
-		insertOrUpdateBinding(exc, nullptr);
+		insertOrUpdateBinding(exc, listener);
 		return true;
 	}
 
@@ -625,7 +559,6 @@ void Record::update(const sip_t *sip, int globalExpire, bool alias, int version,
 		defineContactId(contactId, contacts->m_url, transportPtr);
 		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, sip->sip_call_id->i_id, lineValuePtr);
 		auto exc = make_shared<ExtendedContact>(ecc, contacts, globalExpire, (sip->sip_cseq) ? sip->sip_cseq->cs_seq : 0, getCurrentTime(), alias, acceptHeaders, userAgent);
-		exc->setupConnId();
 		exc->mUsedAsRoute = sip->sip_from->a_url->url_user == nullptr;
 		insertOrUpdateBinding(exc, listener);
 		contacts = contacts->m_next;
@@ -652,7 +585,6 @@ void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long e
 	}
 
 	auto exct = make_shared<ExtendedContact>(ecc, contact, expireAt, cseq, updated_time, alias, accept, "");
-	exct->setupConnId();
 	exct->mUsedAsRoute = usedAsRoute;
 	insertOrUpdateBinding(exct, listener);
 	applyMaxAor();
@@ -929,7 +861,7 @@ void RegistrarDb::clear(const sip_t *sip, const shared_ptr<ContactUpdateListener
 	doClear(sip, listener);
 }
 
-const string RegistrarDb::getMessageExpires(const msg_param_t *m_params)  {
+const string RegistrarDb::getMessageExpires(const msg_param_t *m_params) {
 	if (m_params) {
 		// Find message expires time in the contact parameters
 		string mss_expires(*m_params);

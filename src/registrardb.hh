@@ -37,8 +37,6 @@
 #include "agent.hh"
 #include "module.hh"
 
-#define AOR_KEY_SIZE 128
-
 class ContactUpdateListener;
 
 struct ExtendedContactCommon {
@@ -138,9 +136,6 @@ struct ExtendedContact {
 	std::string getOrgLinphoneSpecs() const;
 
 	void extractInfoFromHeader(const char *urlHeaders);
-
-	void setupConnId();
-	void transferConnId(const std::shared_ptr<ExtendedContact> &oldEc);
 	const std::string getMessageExpires(const msg_param_t *m_params);
 	void init();
 	void extractInfoFromUrl(const char* full_url);
@@ -199,7 +194,6 @@ class Record {
 
   private:
 	static void init();
-	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener);
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
 	std::list<std::shared_ptr<ExtendedContact>> mContactsToRemove;
 	std::string mKey;
@@ -212,6 +206,7 @@ class Record {
 	static bool sAssumeUniqueDomains;
 	Record(const url_t *aor);
 	static std::string extractUniqueId(const sip_contact_t *contact);
+	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
 	sip_contact_t *getContacts(su_home_t *home, time_t now);
 	void pushContact(const std::shared_ptr<ExtendedContact> &ct) {
@@ -227,7 +222,7 @@ class Record {
 	void update(const ExtendedContactCommon &ecc, const char *sipuri, long int expireAt, float q, uint32_t cseq,
 				time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute,
 				const std::shared_ptr<ContactUpdateListener> &listener);
-	bool updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url);
+	bool updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url, const std::shared_ptr<ContactUpdateListener> &listener);
 
 	void print(std::ostream &stream) const;
 	bool isEmpty() const {
