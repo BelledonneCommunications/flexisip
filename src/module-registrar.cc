@@ -51,24 +51,17 @@ static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const
 		if (tport_name_by_url(home.home(), &name, (url_string_t *)ec->mSipContact->m_url) == 0) {
 			old_tport = tport_by_name(nta_agent_tports(module->getSofiaAgent()), &name);
 
-			// RegId not set or different from ec
-			if (tport_get_user_data(new_tport) == nullptr || (uint64_t)tport_get_user_data(new_tport) != ec->mRegId) {
-				tport_set_user_data(new_tport, (void*)ec->mRegId);
-				SLOGD << "Adding reg id to new tport: " << hex << ec->mRegId;
-			}
-
-			// Not the same tport but had the same regid
-			if (old_tport && new_tport != old_tport
-					&& (tport_get_user_data(old_tport) == nullptr
-						|| (uint64_t)tport_get_user_data(new_tport) == (uint64_t)tport_get_user_data(old_tport))
-					) {
+			// Not the same tport but had the same ConnId
+			if (old_tport && new_tport != old_tport &&
+				(tport_get_user_data(old_tport) == nullptr || ec->mConnId == (uintptr_t)tport_get_user_data(old_tport))) {
 				SLOGD << "Removing old tport for sip uri " << ExtendedContact::urlToString(ec->mSipContact->m_url);
 				// 0 close incoming data, 1 close outgoing data, 2 both
 				tport_shutdown(old_tport, 2);
 			}
-		} else
+		} else {
 			SLOGE << "ContactUpdated: tport_name_by_url() failed for sip uri "
-					<< ExtendedContact::urlToString(ec->mSipContact->m_url);
+				<< ExtendedContact::urlToString(ec->mSipContact->m_url);
+		}
 	}
 }
 
@@ -495,8 +488,8 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 				}
 				delete[] buffer;
 			}
-			if (url_has_param(contact->m_url, "regid")) {
-				contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"regid");
+			if (url_has_param(contact->m_url, "fs-conn-id")) {
+				contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"fs-conn-id");
 			}
 		}
 	}
@@ -563,7 +556,6 @@ void ModuleRegistrar::processUpdateRequest(shared_ptr<SipEventT> &ev, const sip_
 		mStats.mCountBind->incrStart();
 		LOGD("Updating binding");
 		listener->addStatCounter(mStats.mCountBind->finish);
-		//RegistrarDb::get()->bind(sip, mAgent->getPreferredRoute().c_str(), maindelta, false, listener); //FIXME ?
 		RegistrarDb::get()->bind(sip, maindelta, false, 0, listener);
 		return;
 	}
@@ -614,9 +606,15 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		addPathHeader(getAgent(), ev, ev->getIncomingTport().get());
 	}
 
-	// Set RegId if not set in MsgSip
-	if (tport_get_user_data(ev->getIncomingTport().get()) && !sip->sip_user)
-		sip->sip_user = tport_get_user_data(ev->getIncomingTport().get());
+	// Init conn id in tport
+	{
+		ostringstream os;
+		uintptr_t connId = (tport_get_user_data(ev->getIncomingTport().get())) ?
+			reinterpret_cast<uintptr_t>(tport_get_user_data(ev->getIncomingTport().get())) : static_cast<uintptr_t>(su_random64());
+		os << "fs-conn-id=" << hex << connId;
+		url_param_add(ms->getHome(), sip->sip_contact->m_url, os.str().c_str());
+		tport_set_user_data(ev->getIncomingTport().get(), reinterpret_cast<void*>(connId));
+	}
 
 	// domain registration case, does nothing for the moment
 	if (sipurl->url_user == nullptr && !mAllowDomainRegistrations) {

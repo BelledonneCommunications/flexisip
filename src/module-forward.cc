@@ -64,7 +64,7 @@ ModuleInfo<ForwardModule> ForwardModule::sInfo(
 	ModuleInfoBase::ModuleOid::Forward
 );
 
-ForwardModule::ForwardModule(Agent *ag) : Module(ag), mOutRoute(NULL), mRewriteReqUri(false), mAddPath(false) {
+ForwardModule::ForwardModule(Agent *ag) : Module(ag), mOutRoute(nullptr), mRewriteReqUri(false), mAddPath(false) {
 	su_home_init(&mHome);
 }
 
@@ -92,7 +92,7 @@ void ForwardModule::onLoad(const GenericStruct *mc) {
 	mRewriteReqUri = mc->get<ConfigBoolean>("rewrite-req-uri")->read();
 	if (route.size() > 0) {
 		mOutRoute = sip_route_make(&mHome, route.c_str());
-		if (mOutRoute == NULL || mOutRoute->r_url->url_host == NULL) {
+		if (mOutRoute == nullptr || mOutRoute->r_url->url_host == nullptr) {
 			LOGF("Bad route parameter '%s' in configuration of Forward module", route.c_str());
 		}
 	}
@@ -109,7 +109,7 @@ url_t *ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest)
 	if (mOutRoute) {
 		sip_t *sip = ms->getSip();
 		url_t *req_url = sip->sip_request->rq_url;
-		for (sip_via_t *via = sip->sip_via; via != NULL; via = via->v_next) {
+		for (sip_via_t *via = sip->sip_via; via != nullptr; via = via->v_next) {
 			if (urlViaMatch(mOutRoute->r_url, sip->sip_via, false)) {
 				SLOGD << "Found forced outgoing route in via, skipping";
 				return dest;
@@ -148,7 +148,7 @@ url_t *ForwardModule::getDestinationFromRoute(su_home_t *home, sip_t *sip) {
 		}
 		return ret;
 	}
-	return NULL;
+	return nullptr;
 }
 
 static bool isUs(Agent *ag, sip_route_t *r) {
@@ -185,9 +185,6 @@ public:
 			url_t *dest = ct->m_url;
 			mEv->getSip()->sip_request->rq_url[0] = *url_hdup(msg_home(ms->getHome()), dest);
 			mEv->getSip()->sip_request->rq_url->url_params = url_strip_param_string(su_strdup(ms->getHome(),mEv->getSip()->sip_request->rq_url->url_params) , "gr");
-			if (url_has_param(mEv->getSip()->sip_request->rq_url, "regid")) {
-				mEv->getSip()->sip_request->rq_url->url_params = url_strip_param_string(su_strdup(ms->getHome(),mEv->getSip()->sip_request->rq_url->url_params) , "regid");
-			}
 			mModule->sendRequest(mEv,dest);
 
 		} catch (FlexisipException &e) {
@@ -210,14 +207,13 @@ public:
 };
 
 void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
-
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	url_t *dest = NULL;
+	url_t *dest = nullptr;
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
 
 	// Check max forwards
-	if (sip->sip_max_forwards != NULL && sip->sip_max_forwards->mf_count <= countVia(ev)) {
+	if (sip->sip_max_forwards != nullptr && sip->sip_max_forwards->mf_count <= countVia(ev)) {
 		LOGD("Too Many Hops");
 		ev->reply(SIP_483_TOO_MANY_HOPS, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
@@ -228,34 +224,25 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	dest = sip->sip_request->rq_url;
 	// removes top route headers if they matches us
-	while (sip->sip_route != NULL && isUs(getAgent(), sip->sip_route)) {
+	while (sip->sip_route != nullptr && isUs(getAgent(), sip->sip_route)) {
 		LOGD("Removing top route %s", url_as_string(ms->getHome(), sip->sip_route->r_url));
 		sip_route_remove(msg, sip);
 	}
-	if (sip->sip_route != NULL) {
+	if (sip->sip_route != nullptr) {
 		dest = getDestinationFromRoute(ms->getHome(), sip);
 	}
 
 	/* workaround bad sip uris with two @ that results in host part being "something@somewhere" */
-	if ((dest->url_type != url_sip && dest->url_type != url_sips) || dest->url_host == NULL ||
+	if ((dest->url_type != url_sip && dest->url_type != url_sips) || dest->url_host == nullptr ||
 		strchr(dest->url_host, '@') != 0) {
 		ev->reply(SIP_400_BAD_REQUEST, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
 
-	if (dest->url_params != NULL) {
-		char strRegid[32] = {0};
-		if (url_param(dest->url_params, "regid", strRegid, sizeof(strRegid) - 1) > 0) {
-			//destRegId = std::strtoull(strRegid, NULL, 16);
-			/*strip out reg-id that shall not go out to the network*/
-			dest->url_params = url_strip_param_string(su_strdup(ms->getHome(), dest->url_params), "regid");
-		}
-	}
-
 	dest = overrideDest(ev, dest);
 
 	/*gruu processing in forward module is only done if dialog is established. In other cases, router mnodule is involved instead*/
-	if (url_has_param(dest,"gr") && (sip->sip_to != NULL && sip->sip_to->a_tag != NULL)) {
+	if (url_has_param(dest,"gr") && (sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr)) {
 		//gruu case, ask registrar db for AOR
 		ev->suspendProcessing();
 		auto listener = make_shared<RegistrarListener>(this,ev);
@@ -270,7 +257,8 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	msg_t *msg = ms->getMsg();
-	uint64_t destRegId = 0;
+	uintptr_t destConnId = 0;
+	bool tport_error = false;
 
 	string ip;
 	if (EtcHostsResolver::get()->resolve(dest->url_host, &ip)) {
@@ -280,8 +268,17 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 		dest->url_host = ip.c_str();
 	}
 
+	if (dest->url_params != nullptr) {
+		char strConnId[32] = {0};
+		if (url_param(dest->url_params, "fs-conn-id", strConnId, sizeof(strConnId) - 1) > 0) {
+			destConnId = std::strtoull(strConnId, nullptr, 16);
+			//strip out fs-conn-id that shall not go out to the network
+			dest->url_params = url_strip_param_string(su_strdup(ms->getHome(), dest->url_params), "fs-conn-id");
+		}
+	}
+
 	// Check self-forwarding
-	if (ev->getOutgoingAgent() != NULL && getAgent()->isUs(dest, true)) {
+	if (ev->getOutgoingAgent() != nullptr && getAgent()->isUs(dest, true)) {
 		SLOGD << "Stopping request to us";
 		ev->terminateProcessing();
 		return;
@@ -289,26 +286,25 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 
 	// tport is the transport which will be used by sofia to send message
 	tp_name_t name = {0, 0, 0, 0, 0, 0};
-	tport_t *tport = NULL;
-	if (ev->getOutgoingAgent() != NULL) {
+	tport_t *tport = nullptr;
+	if (ev->getOutgoingAgent() != nullptr) {
 		// tport_by_name can only work for IPs
-		if (tport_name_by_url(ms->getHome(), &name, (url_string_t *)dest) == 0) {
+		if (tport_name_by_url(ms->getHome(), &name, reinterpret_cast<url_string_t*>(dest)) == 0) {
 			tport = tport_by_name(nta_agent_tports(getSofiaAgent()), &name);
 			if (!tport) {
 				LOGE("Could not find tport to set proper outgoing Record-Route to %s", dest->url_host);
-			} else if (tport_get_user_data(tport) != NULL && destRegId != 0
-					   && (uint64_t)tport_get_user_data(tport) != destRegId) {
-				SLOGD << "Stopping request regId("
+			} else if (tport_get_user_data(tport) != nullptr && destConnId != 0
+						&& (uintptr_t)tport_get_user_data(tport) != destConnId) {
+				SLOGD << "Stopping request ConnId("
 				<< hex
-				<< destRegId
-				<<" ) is different than tport regId("
-				<< (uint64_t)tport_get_user_data(tport)
+				<< destConnId
+				<<" ) is different than tport ConnId("
+				<< (uintptr_t)tport_get_user_data(tport)
 				<<")";
-				ev->terminateProcessing();
-				return;
+				tport_error = true;
+				tport = nullptr;
 			}
-		} else
-			LOGE("tport_name_by_url() failed for url %s", url_as_string(ms->getHome(), dest));
+		} else LOGE("tport_name_by_url() failed for url %s", url_as_string(ms->getHome(), dest));
 	}
 
 	// Eventually add second record route with different transport
@@ -331,9 +327,9 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, mParamsToRemove);
 
 	shared_ptr<OutgoingTransaction> outTr;
-	if (ev->getOutgoingAgent() != NULL) { //== if message is to be forwarded
+	if (ev->getOutgoingAgent() != nullptr) { //== if message is to be forwarded
 		outTr = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-		if (outTr == NULL && dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent()) != NULL) {
+		if (outTr == nullptr && dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent()) != nullptr) {
 			// if an incoming transaction has been created, then create automatically an outgoing transaction to forward
 			// the message.
 			// This is required because otherwise, any response to the message will not be routed back through the
@@ -351,6 +347,9 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 		return;
 	}
 
+	// Set tport at -1 for sofia
+	if (tport_error) tport = (tport_t*)-1;
+
 	// Finally send message
 	ev->send(ms, (url_string_t *)dest, NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());
 
@@ -358,7 +357,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 unsigned int ForwardModule::countVia(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	uint32_t via_count = 0;
-	for (sip_via_t *via = ms->getSip()->sip_via; via != NULL; via = via->v_next)
+	for (sip_via_t *via = ms->getSip()->sip_via; via != nullptr; via = via->v_next)
 		++via_count;
 	return via_count;
 }
@@ -366,8 +365,8 @@ unsigned int ForwardModule::countVia(shared_ptr<RequestSipEvent> &ev) {
 /*function that detects loops, does not work for requests forwarded through transaction*/
 bool ForwardModule::isLooping(shared_ptr<RequestSipEvent> &ev, const char *branch) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	for (sip_via_t *via = ms->getSip()->sip_via; via != NULL; via = via->v_next) {
-		if (via->v_branch != NULL && strcmp(via->v_branch, branch) == 0) {
+	for (sip_via_t *via = ms->getSip()->sip_via; via != nullptr; via = via->v_next) {
+		if (via->v_branch != nullptr && strcmp(via->v_branch, branch) == 0) {
 			LOGD("Loop detected: %s", via->v_branch);
 			return true;
 		}

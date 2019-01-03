@@ -146,6 +146,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	void subscribeTopic(const std::string &topic);
 	void subscribeAll();
 	void subscribeToKeyExpiration();
+	void parseAndClean(redisReply *reply, RegistrarUserData *data);
 	//void dequeueNextRedisCommand();
 
 	/* callbacks */
@@ -170,7 +171,8 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	/* static handlers */
 	//static void sHandleAorGetReply(struct redisAsyncContext *, void *r, void *privdata);
 	static void shandleAuthReply(redisAsyncContext *ac, void *r, void *privdata);
-	static void sHandleBind(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
+	static void sHandleBindStart(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
+	static void sHandleBindFinish(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 	static void sHandleClear(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 	static void sHandleFetch(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 	static void sHandleInfoTimer(void *unused, su_timer_t *t, void *data);
