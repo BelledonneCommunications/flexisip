@@ -56,7 +56,6 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 
 	virtual void onForkContextFinished(std::shared_ptr<ForkContext> ctx) override;
 
-	void extractContactByUniqueId(std::string uid);
 	void sendReply(std::shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code = 0, const char *warning = nullptr);
 	void routeRequest(std::shared_ptr<RequestSipEvent> &ev, Record *aor, const url_t *sipUri);
 	void onContactRegistered(const std::string &uid, Record *aor, const url_t *sipUri);
