@@ -28,8 +28,8 @@
 struct RouterStats {
 	std::unique_ptr<StatPair> mCountForks;
 	std::unique_ptr<StatPair> mCountForkTransactions;
-	StatCounter64 *mCountNonForks;
-	StatCounter64 *mCountLocalActives;
+	StatCounter64 *mCountNonForks = nullptr;
+	StatCounter64 *mCountLocalActives = nullptr;
 };
 
 class ModuleRouter : public Module, public ModuleToolbox, public ForkContextListener {
@@ -83,7 +83,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	std::string routingKey(const url_t *sipUri);
 
 	std::list<std::string> mDomains;
-	bool mFork;
+	bool mFork = false;
 	std::shared_ptr<ForkContextConfig> mForkCfg;
 	std::shared_ptr<ForkContextConfig> mMessageForkCfg;
 	std::shared_ptr<ForkContextConfig> mOtherForkCfg;
@@ -91,16 +91,16 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	ForkMap mForks;
 	std::string mGeneratedContactRoute;
 	std::string mExpectedRealm;
-	bool mUseGlobalDomain;
-	bool mStateful;
+	bool mUseGlobalDomain = false;
+	bool mStateful = false;
 
-	bool mGenerateContactEvenOnFilledAor;
-	bool mAllowDomainRegistrations;
-	bool mAllowTargetFactorization;
+	bool mGenerateContactEvenOnFilledAor = false;
+	bool mAllowDomainRegistrations = false;
+	bool mAllowTargetFactorization = false;
 	std::string mPreroute;
-	bool mResolveRoutes;
+	bool mResolveRoutes = false;
 	std::string mFallbackRoute;
-	bool mFallbackParentDomain;
+	bool mFallbackParentDomain = false;
 
   private:
 	static ModuleInfo<ModuleRouter> sInfo;
