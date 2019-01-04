@@ -672,7 +672,6 @@ class PreroutingFetcher : public ContactUpdateListener,
 						  public enable_shared_from_this<PreroutingFetcher>,
 						  private ModuleToolbox {
 	friend class ModuleRouter;
-	ModuleRouter *mModule;
 	shared_ptr<RequestSipEvent> mEv;
 	shared_ptr<ContactUpdateListener> mListener;
 	vector<string> mPreroutes;
@@ -683,7 +682,7 @@ class PreroutingFetcher : public ContactUpdateListener,
   public:
 	PreroutingFetcher(ModuleRouter *module, shared_ptr<RequestSipEvent> ev,
 					  const shared_ptr<ContactUpdateListener> &listener, const vector<string> &preroutes)
-		: mModule(module), mEv(ev), mListener(listener), mPreroutes(preroutes) {
+		: mEv(ev), mListener(listener), mPreroutes(preroutes) {
 		pending = 0;
 		error = false;
 		m_record = new Record(NULL);
@@ -743,7 +742,6 @@ class TargetUriListFetcher : public ContactUpdateListener,
 							 public enable_shared_from_this<TargetUriListFetcher>,
 							 private ModuleToolbox {
 	friend class ModuleRouter;
-	ModuleRouter *mModule;
 	shared_ptr<RequestSipEvent> mEv;
 	shared_ptr<ContactUpdateListener> mListener;
 	sip_route_t *mUriList; /*it is parsed as a route but is not a route*/
@@ -754,7 +752,7 @@ class TargetUriListFetcher : public ContactUpdateListener,
   public:
 	TargetUriListFetcher(ModuleRouter *module, const shared_ptr<RequestSipEvent> &ev,
 						 const shared_ptr<ContactUpdateListener> &listener, sip_unknown_t *target_uris)
-		: mModule(module), mEv(ev), mListener(listener) {
+		: mEv(ev), mListener(listener) {
 		mPending = 0;
 		mError = false;
 		mRecord = new Record(NULL);
