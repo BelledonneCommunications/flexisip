@@ -44,15 +44,15 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	~ModuleRouter() {
 	}
 
-	virtual void onDeclare(GenericStruct *mc);
+	virtual void onDeclare(GenericStruct *mc) override;
 
-	virtual void onLoad(const GenericStruct *mc);
+	virtual void onLoad(const GenericStruct *mc) override;
 
-	virtual void onUnload() {}
+	virtual void onUnload() override {}
 
-	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev);
+	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev) override;
 
-	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev);
+	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override;
 
 	virtual void onForkContextFinished(std::shared_ptr<ForkContext> ctx) override;
 
