@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef MODULE_ROUTER_HH_
-#define MODULE_ROUTER_HH_
+#pragma once
 
 #include "module.hh"
 #include "agent.hh"
@@ -106,5 +105,3 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
   private:
 	static ModuleInfo<ModuleRouter> sInfo;
 };
-
-#endif /* MODULE_ROUTER_HH_ */
