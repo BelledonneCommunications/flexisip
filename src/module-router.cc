@@ -16,221 +16,121 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module.hh"
-#include "agent.hh"
-#include "registrardb.hh"
-#include "forkcallcontext.hh"
-#include "forkmessagecontext.hh"
-#include "forkbasiccontext.hh"
+#include "module-router.hh"
 #include "log/logmanager.hh"
 #include <sofia-sip/sip_status.h>
 
 using namespace std;
 
-class ModuleRouter;
+void ModuleRouter::onDeclare(GenericStruct *mc) {
+	ConfigItemDescriptor configs[] = {
+		{Boolean, "use-global-domain", "Store and retrieve contacts without using the domain.", "false"},
+		{Boolean, "fork", "Fork messages to all registered devices", "true"},
+		{Boolean, "stateful",
+			"Force forking and thus the creation of an outgoing transaction even when only one contact found", "true"},
+		{Boolean, "fork-late", "Fork invites to late registers", "false"},
+		{Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite",
+			"false"},
+		{Boolean, "treat-decline-as-urgent",
+			"Treat 603 Declined answers as urgent. Only relevant if fork-no-global-decline is set to true.", "false"},
+		{Boolean, "treat-all-as-urgent", "During a fork procedure, treat all failure response as urgent", "false"},
+		{Integer, "call-fork-timeout", "Maximum time for a call fork to try to reach a callee, in seconds.", "90"},
+		{Integer, "call-fork-urgent-timeout",
+			"Maximum time before delivering urgent responses during a call fork, in seconds. "
+			"The typical fork process requires to wait the best response from all branches before transmitting it to "
+			"the client. "
+			"However some error responses are retryable immediately (like 415 unsupported media, 401, 407) thus it is "
+			"painful for the client to need to wait the end of the transaction time (32 seconds) for these error "
+			"codes.",
+			"5"},
+		{Integer, "call-fork-current-branches-timeout", "Maximum time before trying the next branches with lower priotiries",
+			"10"},
+		{Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.", "0"},
+		{Boolean, "message-fork-late", "Fork messages to client registering lately. ", "true"},
+		{Integer, "message-delivery-timeout", "Maximum duration for delivering a text message. This property applies only"
+			" if message-fork-late if set to true, otherwise the duration can't exceed the normal transaction duration.", "3600"},
+		{Integer, "message-accept-timeout",
+			"Maximum duration for accepting a text message if no response is received from any recipients."
+			" This property is meaningful when message-fork-late is set to true.", "15"},
+		{Boolean, "allow-target-factorization",
+			"During a call forking, allow several INVITEs going to the same next hop to be grouped into "
+			"a single one. A proprietary custom header 'X-target-uris' is added to the INVITE to indicate the final "
+			"targets of the "
+			"INVITE.",
+			"false"},
+		{String, "generated-contact-route",
+			"Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
+		{String, "generated-contact-expected-realm",
+			"Require presence of authorization header for specified realm. [Realm]", ""},
+		{Boolean, "generate-contact-even-on-filled-aor", "Generate a contact route even on filled AOR.", "false"},
+		{Boolean, "remove-to-tag", "Remove to tag from 183, 180, and 101 responses to workaround buggy gateways",
+			"false"},
+		{String, "preroute", "Rewrite username with given value.", ""},
+		{Boolean, "resolve-routes", "Whether or not to resolve all routes and forward the event to it if it's not us", "false"},
+		{String, "fallback-route", "Default route to apply when the recipient is unreachable. [sip:host:port]", ""},
+		{Boolean, "parent-domain-fallback", "Whether or not to fallback to the parent domain if there is no fallback route set and the recipient is unreachable", "false"},
+		config_item_end};
+	mc->addChildrenValues(configs);
 
-struct RouterStats {
-	unique_ptr<StatPair> mCountForks;
-	unique_ptr<StatPair> mCountForkTransactions;
-	StatCounter64 *mCountNonForks;
-	StatCounter64 *mCountLocalActives;
-};
+	mStats.mCountForks = mc->createStats("count-forks", "Number of forks");
+	mStats.mCountForkTransactions =
+		mc->createStats("count-fork-transactions", "Number of outgoing transaction created for forking");
 
-class ModuleRouter : public Module, public ModuleToolbox, public ForkContextListener {
-	RouterStats mStats;
-	bool rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *ct_url, const char *route);
+	mStats.mCountNonForks = mc->createStat("count-non-forked", "Number of non forked invites.");
+	mStats.mCountLocalActives =
+		mc->createStat("count-local-registered-users", "Number of users currently registered through this server.");
+}
 
-  public:
-	void sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code = 0,
-				   const char *warning = NULL);
-	void routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aorb, const url_t *sipUri);
-	void onContactRegistered(const string &uid, Record *aor, const url_t *sipUri);
+void ModuleRouter::onLoad(const GenericStruct *mc) {
+	GenericStruct *cr = GenericManager::get()->getRoot();
+	const GenericStruct *mReg = cr->get<GenericStruct>("module::Registrar");
 
-	ModuleRouter(Agent *ag) : Module(ag) {
+	mDomains = mReg->get<ConfigStringList>("reg-domains")->read();
+	mStateful = mc->get<ConfigBoolean>("stateful");
+	mFork = mc->get<ConfigBoolean>("fork")->read();
+	if (mStateful && !mFork) {
+		LOGI("Stateful router implies fork=true");
+		mFork = true;
 	}
+	mGeneratedContactRoute = mc->get<ConfigString>("generated-contact-route")->read();
+	mExpectedRealm = mc->get<ConfigString>("generated-contact-expected-realm")->read();
+	mGenerateContactEvenOnFilledAor = mc->get<ConfigBoolean>("generate-contact-even-on-filled-aor")->read();
 
-	~ModuleRouter() {
-	}
+	//Forking configuration for INVITEs
+	mForkCfg = make_shared<ForkContextConfig>();
+	mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
+	mForkCfg->mTreatAllErrorsAsUrgent = mc->get<ConfigBoolean>("treat-all-as-urgent")->read();
+	mForkCfg->mForkNoGlobalDecline = mc->get<ConfigBoolean>("fork-no-global-decline")->read();
+	mForkCfg->mUrgentTimeout = mc->get<ConfigInt>("call-fork-urgent-timeout")->read();
+	mForkCfg->mPushResponseTimeout = mc->get<ConfigInt>("call-push-response-timeout")->read();
+	mForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("call-fork-timeout")->read();
+	mForkCfg->mTreatDeclineAsUrgent = mc->get<ConfigBoolean>("treat-decline-as-urgent")->read();
+	mForkCfg->mRemoveToTag = mc->get<ConfigBoolean>("remove-to-tag")->read();
+	mForkCfg->mCurrentBranchesTimeout = mc->get<ConfigInt>("call-fork-current-branches-timeout")->read();
 
-	virtual void onDeclare(GenericStruct *mc) {
-		ConfigItemDescriptor configs[] = {
-			{Boolean, "use-global-domain", "Store and retrieve contacts without using the domain.", "false"},
-			{Boolean, "fork", "Fork messages to all registered devices", "true"},
-			{Boolean, "stateful",
-			 "Force forking and thus the creation of an outgoing transaction even when only one contact found", "true"},
-			{Boolean, "fork-late", "Fork invites to late registers", "false"},
-			{Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite",
-			 "false"},
-			{Boolean, "treat-decline-as-urgent",
-			 "Treat 603 Declined answers as urgent. Only relevant if fork-no-global-decline is set to true.", "false"},
-			{Boolean, "treat-all-as-urgent", "During a fork procedure, treat all failure response as urgent", "false"},
-			{Integer, "call-fork-timeout", "Maximum time for a call fork to try to reach a callee, in seconds.", "90"},
-			{Integer, "call-fork-urgent-timeout",
-			 "Maximum time before delivering urgent responses during a call fork, in seconds. "
-			 "The typical fork process requires to wait the best response from all branches before transmitting it to "
-			 "the client. "
-			 "However some error responses are retryable immediately (like 415 unsupported media, 401, 407) thus it is "
-			 "painful for the client to need to wait the end of the transaction time (32 seconds) for these error "
-			 "codes.",
-			 "5"},
-			{Integer, "call-fork-current-branches-timeout", "Maximum time before trying the next branches with lower priotiries",
-			 "10"},
-			{Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.", "0"},
-			{Boolean, "message-fork-late", "Fork messages to client registering lately. ", "true"},
-			{Integer, "message-delivery-timeout", "Maximum duration for delivering a text message. This property applies only"
-				" if message-fork-late if set to true, otherwise the duration can't exceed the normal transaction duration.", "3600"},
-			{Integer, "message-accept-timeout",
-			 "Maximum duration for accepting a text message if no response is received from any recipients."
-			 " This property is meaningful when message-fork-late is set to true.", "15"},
-			{Boolean, "allow-target-factorization",
-			 "During a call forking, allow several INVITEs going to the same next hop to be grouped into "
-			 "a single one. A proprietary custom header 'X-target-uris' is added to the INVITE to indicate the final "
-			 "targets of the "
-			 "INVITE.",
-			 "false"},
-			{String, "generated-contact-route",
-			 "Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
-			{String, "generated-contact-expected-realm",
-			 "Require presence of authorization header for specified realm. [Realm]", ""},
-			{Boolean, "generate-contact-even-on-filled-aor", "Generate a contact route even on filled AOR.", "false"},
-			{Boolean, "remove-to-tag", "Remove to tag from 183, 180, and 101 responses to workaround buggy gateways",
-			 "false"},
-			{String, "preroute", "Rewrite username with given value.", ""},
-			{Boolean, "resolve-routes", "Whether or not to resolve all routes and forward the event to it if it's not us", "false"},
-			{String, "fallback-route", "Default route to apply when the recipient is unreachable. [sip:host:port]", ""},
-			{Boolean, "parent-domain-fallback", "Whether or not to fallback to the parent domain if there is no fallback route set and the recipient is unreachable", "false"},
-			config_item_end};
-		mc->addChildrenValues(configs);
+	//Forking configuration for MESSAGEs
+	mMessageForkCfg = make_shared<ForkContextConfig>();
+	mMessageForkCfg->mForkLate = mc->get<ConfigBoolean>("message-fork-late")->read();
+	mMessageForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("message-delivery-timeout")->read();
+	mMessageForkCfg->mUrgentTimeout = mc->get<ConfigInt>("message-accept-timeout")->read();
 
-		mStats.mCountForks = mc->createStats("count-forks", "Number of forks");
-		mStats.mCountForkTransactions =
-			mc->createStats("count-fork-transactions", "Number of outgoing transaction created for forking");
+	//Forking configuration for other kind of requests.
+	mOtherForkCfg = make_shared<ForkContextConfig>();
+	mOtherForkCfg->mTreatAllErrorsAsUrgent = false;
+	mOtherForkCfg->mForkLate = false;
+	mOtherForkCfg->mDeliveryTimeout = 30;
 
-		mStats.mCountNonForks = mc->createStat("count-non-forked", "Number of non forked invites.");
-		mStats.mCountLocalActives =
-			mc->createStat("count-local-registered-users", "Number of users currently registered through this server.");
-	}
+	mUseGlobalDomain = mc->get<ConfigBoolean>("use-global-domain")->read();
 
-	virtual void onLoad(const GenericStruct *mc) {
-		GenericStruct *cr = GenericManager::get()->getRoot();
-		const GenericStruct *mReg = cr->get<GenericStruct>("module::Registrar");
-
-		mDomains = mReg->get<ConfigStringList>("reg-domains")->read();
-		mStateful = mc->get<ConfigBoolean>("stateful");
-		mFork = mc->get<ConfigBoolean>("fork")->read();
-		if (mStateful && !mFork) {
-			LOGI("Stateful router implies fork=true");
-			mFork = true;
-		}
-		mGeneratedContactRoute = mc->get<ConfigString>("generated-contact-route")->read();
-		mExpectedRealm = mc->get<ConfigString>("generated-contact-expected-realm")->read();
-		mGenerateContactEvenOnFilledAor = mc->get<ConfigBoolean>("generate-contact-even-on-filled-aor")->read();
-
-		//Forking configuration for INVITEs
-		mForkCfg = make_shared<ForkContextConfig>();
-		mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
-		mForkCfg->mTreatAllErrorsAsUrgent = mc->get<ConfigBoolean>("treat-all-as-urgent")->read();
-		mForkCfg->mForkNoGlobalDecline = mc->get<ConfigBoolean>("fork-no-global-decline")->read();
-		mForkCfg->mUrgentTimeout = mc->get<ConfigInt>("call-fork-urgent-timeout")->read();
-		mForkCfg->mPushResponseTimeout = mc->get<ConfigInt>("call-push-response-timeout")->read();
-		mForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("call-fork-timeout")->read();
-		mForkCfg->mTreatDeclineAsUrgent = mc->get<ConfigBoolean>("treat-decline-as-urgent")->read();
-		mForkCfg->mRemoveToTag = mc->get<ConfigBoolean>("remove-to-tag")->read();
-		mForkCfg->mCurrentBranchesTimeout = mc->get<ConfigInt>("call-fork-current-branches-timeout")->read();
-
-		//Forking configuration for MESSAGEs
-		mMessageForkCfg = make_shared<ForkContextConfig>();
-		mMessageForkCfg->mForkLate = mc->get<ConfigBoolean>("message-fork-late")->read();
-		mMessageForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("message-delivery-timeout")->read();
-		mMessageForkCfg->mUrgentTimeout = mc->get<ConfigInt>("message-accept-timeout")->read();
-
-		//Forking configuration for other kind of requests.
-		mOtherForkCfg = make_shared<ForkContextConfig>();
-		mOtherForkCfg->mTreatAllErrorsAsUrgent = false;
-		mOtherForkCfg->mForkLate = false;
-		mOtherForkCfg->mDeliveryTimeout = 30;
-
-		mUseGlobalDomain = mc->get<ConfigBoolean>("use-global-domain")->read();
-
-		mPreroute = mc->get<ConfigString>("preroute")->read();
-		mAllowDomainRegistrations = cr->get<GenericStruct>("inter-domain-connections")
-										->get<ConfigBoolean>("accept-domain-registrations")
-										->read();
-		mAllowTargetFactorization = mc->get<ConfigBoolean>("allow-target-factorization")->read();
-		mResolveRoutes = mc->get<ConfigBoolean>("resolve-routes")->read();
-		mFallbackRoute = mc->get<ConfigString>("fallback-route")->read();
-		mFallbackParentDomain = mc->get<ConfigBoolean>("parent-domain-fallback")->read();
-	}
-
-	virtual void onUnload() {
-	}
-
-	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
-
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
-
-	virtual void onForkContextFinished(shared_ptr<ForkContext> ctx);
-	void extractContactByUniqueId(string uid);
-
-	const string &getFallbackRoute() const {
-		return mFallbackRoute;
-	}
-
-	bool isFallbackToParentDomainEnabled() const {
-		return mFallbackParentDomain;
-	}
-
-	bool isDomainRegistrationAllowed() const {
-		return mAllowDomainRegistrations;
-	}
-
-	bool isManagedDomain(const url_t *url) {
-		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
-	}
-
-  private:
-	bool makeGeneratedContactRoute(shared_ptr<RequestSipEvent> &ev, Record *aor,
-								   list<shared_ptr<ExtendedContact>> &ec_list);
-	bool dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact,
-				  shared_ptr<ForkContext> context, const string &targetUris);
-	string routingKey(const url_t *sipUri) {
-		ostringstream oss;
-		if (sipUri->url_user) {
-			if (!mPreroute.empty() && strcmp(sipUri->url_user, mPreroute.c_str()) != 0) {
-				oss << "merged"
-					<< "@"; // all users but preroute are merged
-			} else {
-				oss << sipUri->url_user << "@";
-			}
-		}
-		if (mUseGlobalDomain) {
-			oss << "merged";
-		} else {
-			oss << sipUri->url_host;
-		}
-		return oss.str();
-	}
-	list<string> mDomains;
-	bool mFork;
-	shared_ptr<ForkContextConfig> mForkCfg;
-	shared_ptr<ForkContextConfig> mMessageForkCfg;
-	shared_ptr<ForkContextConfig> mOtherForkCfg;
-	typedef multimap<string, shared_ptr<ForkContext>> ForkMap;
-	ForkMap mForks;
-	string mGeneratedContactRoute;
-	string mExpectedRealm;
-	bool mUseGlobalDomain;
-	bool mStateful;
-
-	static ModuleInfo<ModuleRouter> sInfo;
-	bool mGenerateContactEvenOnFilledAor;
-	bool mAllowDomainRegistrations;
-	bool mAllowTargetFactorization;
-	string mPreroute;
-	bool mResolveRoutes;
-	string mFallbackRoute;
-	bool mFallbackParentDomain;
-};
+	mPreroute = mc->get<ConfigString>("preroute")->read();
+	mAllowDomainRegistrations = cr->get<GenericStruct>("inter-domain-connections")
+									->get<ConfigBoolean>("accept-domain-registrations")
+									->read();
+	mAllowTargetFactorization = mc->get<ConfigBoolean>("allow-target-factorization")->read();
+	mResolveRoutes = mc->get<ConfigBoolean>("resolve-routes")->read();
+	mFallbackRoute = mc->get<ConfigString>("fallback-route")->read();
+	mFallbackParentDomain = mc->get<ConfigBoolean>("parent-domain-fallback")->read();
+}
 
 void ModuleRouter::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code,
 							 const char *warning) {
@@ -259,6 +159,24 @@ void ModuleRouter::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const ch
 	} else {
 		ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	}
+}
+
+string ModuleRouter::routingKey(const url_t *sipUri) {
+	ostringstream oss;
+	if (sipUri->url_user) {
+		if (!mPreroute.empty() && strcmp(sipUri->url_user, mPreroute.c_str()) != 0) {
+			oss << "merged"
+				<< "@"; // all users but preroute are merged
+		} else {
+			oss << sipUri->url_user << "@";
+		}
+	}
+	if (mUseGlobalDomain) {
+		oss << "merged";
+	} else {
+		oss << sipUri->url_host;
+	}
+	return oss.str();
 }
 
 /**
@@ -754,7 +672,6 @@ class PreroutingFetcher : public ContactUpdateListener,
 						  public enable_shared_from_this<PreroutingFetcher>,
 						  private ModuleToolbox {
 	friend class ModuleRouter;
-	ModuleRouter *mModule;
 	shared_ptr<RequestSipEvent> mEv;
 	shared_ptr<ContactUpdateListener> mListener;
 	vector<string> mPreroutes;
@@ -765,7 +682,7 @@ class PreroutingFetcher : public ContactUpdateListener,
   public:
 	PreroutingFetcher(ModuleRouter *module, shared_ptr<RequestSipEvent> ev,
 					  const shared_ptr<ContactUpdateListener> &listener, const vector<string> &preroutes)
-		: mModule(module), mEv(ev), mListener(listener), mPreroutes(preroutes) {
+		: mEv(ev), mListener(listener), mPreroutes(preroutes) {
 		pending = 0;
 		error = false;
 		m_record = new Record(NULL);
@@ -825,7 +742,6 @@ class TargetUriListFetcher : public ContactUpdateListener,
 							 public enable_shared_from_this<TargetUriListFetcher>,
 							 private ModuleToolbox {
 	friend class ModuleRouter;
-	ModuleRouter *mModule;
 	shared_ptr<RequestSipEvent> mEv;
 	shared_ptr<ContactUpdateListener> mListener;
 	sip_route_t *mUriList; /*it is parsed as a route but is not a route*/
@@ -836,7 +752,7 @@ class TargetUriListFetcher : public ContactUpdateListener,
   public:
 	TargetUriListFetcher(ModuleRouter *module, const shared_ptr<RequestSipEvent> &ev,
 						 const shared_ptr<ContactUpdateListener> &listener, sip_unknown_t *target_uris)
-		: mModule(module), mEv(ev), mListener(listener) {
+		: mEv(ev), mListener(listener) {
 		mPending = 0;
 		mError = false;
 		mRecord = new Record(NULL);
