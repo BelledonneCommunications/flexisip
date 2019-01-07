@@ -67,6 +67,7 @@ public:
 	Agent *getAgent() const;
 	nta_agent_t *getSofiaAgent() const;
 	const std::string &getModuleName() const;
+	const std::string &getModuleConfigName() const;
 	void declare(GenericStruct *root);
 	void checkConfig();
 	void load();

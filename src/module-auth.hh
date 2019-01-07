@@ -38,7 +38,7 @@ public:
 	bool handleTestAccountCreationRequests(std::shared_ptr<RequestSipEvent> &ev);
 	bool isTrustedPeer(std::shared_ptr<RequestSipEvent> &ev);
 	bool tlsClientCertificatePostCheck(const std::shared_ptr<RequestSipEvent> &ev);
-	bool handleTlsClientAuthentication(std::shared_ptr<RequestSipEvent> &ev);
+	virtual bool handleTlsClientAuthentication(std::shared_ptr<RequestSipEvent> &ev);
 	void onRequest(std::shared_ptr<RequestSipEvent> &ev) override;
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override;
 	void onIdle() override;

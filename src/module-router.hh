@@ -80,6 +80,8 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 								   std::list<std::shared_ptr<ExtendedContact>> &ec_list);
 	virtual bool dispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact,
 				  std::shared_ptr<ForkContext> context, const std::string &targetUris);
+	virtual bool lateDispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact,
+				  std::shared_ptr<ForkContext> context, const std::string &targetUris);
 	std::string routingKey(const url_t *sipUri);
 
 	std::list<std::string> mDomains;

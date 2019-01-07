@@ -377,7 +377,7 @@ void ForkContext::nextBranches() {
 	mCurrentBranches.clear();
 
 	/* Get next priority value */
-	if (mCurrentPriority == -1) {
+	if (mCurrentPriority == -1 && !mWaitingBranches.empty()) {
 		mCurrentPriority = mWaitingBranches.front()->mPriority;
 	} else {
 		for(const auto& br : mWaitingBranches) {

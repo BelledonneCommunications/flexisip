@@ -224,6 +224,11 @@ bool ModuleRouter::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *
 	return false;
 }
 
+bool ModuleRouter::lateDispatch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact,
+							shared_ptr<ForkContext> context, const string &targetUris) {
+	return dispatch(ev, contact, context, targetUris);
+}
+
 bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact,
 							shared_ptr<ForkContext> context, const string &targetUris) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
@@ -376,7 +381,7 @@ void ModuleRouter::onContactRegistered(const string &uid, Record *aor, const url
 			shared_ptr<ForkContext> context = it->second;
 			if (context->onNewRegister(contact->m_url, uid)) {
 				SLOGD << "Found a pending context for key " << key << ": " << context.get();
-				dispatch(context->getEvent(), ec, context, "");
+				lateDispatch(context->getEvent(), ec, context, "");
 			} else
 				LOGD("Found a pending context but not interested in this new register.");
 		}
@@ -398,7 +403,7 @@ void ModuleRouter::onContactRegistered(const string &uid, Record *aor, const url
 			if (context->onNewRegister(contact->m_url, uid)) {
 				LOGD("Found a pending context for contact %s: %p", ExtendedContact::urlToString(ec->mSipContact->m_url).c_str(), context.get());
 				auto stlpath = Record::route_to_stl(path);
-				dispatch(context->getEvent(), ec, context, "");
+				lateDispatch(context->getEvent(), ec, context, "");
 			}
 		}
 	}

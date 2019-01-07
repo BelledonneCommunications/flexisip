@@ -578,8 +578,6 @@ void addPluginModule(Agent *agent, list<Module *> &modules, const string &plugin
 		}
 		
 		SLOGW << "Creating plugin module " << "[" << moduleName << "]'s instance that will replace module [" << replace << "]'s instance.";
-		 // This must be done so the configuration of this module doesn't trigger an abort for unknown section / unsupported parameter
-		(*it)->declare(GenericManager::get()->getRoot());
 		// Replace the previous module by the new one in the chain
 		it = modules.erase(it);
 		modules.insert(it, module);

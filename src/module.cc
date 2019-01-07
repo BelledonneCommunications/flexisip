@@ -86,7 +86,7 @@ nta_agent_t *Module::getSofiaAgent() const {
 }
 
 void Module::declare(GenericStruct *root) {
-	mModuleConfig = new GenericStruct("module::" + getModuleName(), mInfo->getModuleHelp(), mInfo->getOidIndex());
+	mModuleConfig = new GenericStruct("module::" + getModuleConfigName(), mInfo->getModuleHelp(), mInfo->getOidIndex());
 	mModuleConfig->setConfigListener(this);
 	root->addChild(mModuleConfig);
 	mFilter->declareConfig(mModuleConfig);
@@ -169,6 +169,13 @@ void Module::idle() {
 }
 
 const string &Module::getModuleName() const {
+	return mInfo->getModuleName();
+}
+
+const string &Module::getModuleConfigName() const {
+	if (!mInfo->getReplace().empty()) {
+		return mInfo->getReplace();
+	}
 	return mInfo->getModuleName();
 }
 
