@@ -425,14 +425,10 @@ void Agent::start(const string &transport_override, const string passphrase) {
 		// where public is the hostname or ip address publicly announced
 		// and maddr the real ip we listen on.
 		// Useful for a scenario where the flexisip is behind a router.
-		bool isBindNotPublic = strcmp(name->tpn_canon, name->tpn_host) != 0;
-
 		if (isIpv6 && mPublicIpV6.empty()) {
 			mPublicIpV6 = ModuleToolbox::getHost(name->tpn_canon);
-			if (isBindNotPublic) mRtpBindIp6 = ModuleToolbox::getHost(name->tpn_host);
 		} else if (!isIpv6 && mPublicIpV4.empty()) {
 			mPublicIpV4 = name->tpn_canon;
-			if (isBindNotPublic) mRtpBindIp = name->tpn_host;
 		}
 
 		if (mNodeUri == NULL) {
@@ -449,11 +445,6 @@ void Agent::start(const string &transport_override, const string passphrase) {
 
 	bool clusterModeEnabled = GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigBoolean>("enabled")->read();
 	mDefaultUri = (clusterModeEnabled && mClusterUri) ? mClusterUri : mNodeUri;
-
-	if (mRtpBindIp.empty())
-		mRtpBindIp = "0.0.0.0";
-	if (mRtpBindIp6.empty())
-		mRtpBindIp6 = "::0";
 
 	mPublicResolvedIpV4 = computeResolvedPublicIp(mPublicIpV4, AF_INET);
 	if (mPublicResolvedIpV4.empty()) {

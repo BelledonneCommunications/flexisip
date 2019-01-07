@@ -227,7 +227,9 @@ private:
 	};
 	std::list<Network> mNetworks;
 	std::string mUniqueId;
-	std::string mRtpBindIp, mRtpBindIp6, mPublicIpV4, mPublicIpV6, mPublicResolvedIpV4, mPublicResolvedIpV6;
+	std::string mRtpBindIp = "0.0.0.0";
+	std::string mRtpBindIp6 = "::0";
+	std::string mPublicIpV4, mPublicIpV6, mPublicResolvedIpV4, mPublicResolvedIpV6;
 	nta_agent_t *mAgent;
 	su_root_t *mRoot;
 	nth_engine_t *mHttpEngine;
