@@ -205,11 +205,15 @@ public:
 		return mClass;
 	}
 
+	const std::string &getReplace() const {
+		return mReplace;
+	}
+
 protected:
 	ModuleInfoBase(
 		const std::string &moduleName, const std::string &help, const std::vector<std::string> &after,
-		ModuleOid oid, ModuleClass moduleClass
-	) : mName(moduleName), mHelp(help), mAfter(after), mOidIndex(oid), mClass(moduleClass) {
+		ModuleOid oid, ModuleClass moduleClass, const std::string &replace
+	) : mName(moduleName), mHelp(help), mAfter(after), mOidIndex(oid), mClass(moduleClass), mReplace(replace) {
 		ModuleInfoManager::get()->registerModuleInfo(this);
 	}
 
@@ -221,6 +225,7 @@ private:
 	const std::vector<std::string> mAfter;
 	const oid mOidIndex;
 	ModuleClass mClass;
+	const std::string mReplace;
 };
 
 template<typename T>
@@ -230,8 +235,8 @@ public:
 
 	ModuleInfo(
 		const std::string &moduleName, const std::string &help, const std::vector<std::string> &after,
-		ModuleOid oid, ModuleClass moduleClass = ModuleClass::Production
-	) : ModuleInfoBase(moduleName, help, after, oid, moduleClass) {}
+		ModuleOid oid, ModuleClass moduleClass = ModuleClass::Production, const std::string &replace = ""
+	) : ModuleInfoBase(moduleName, help, after, oid, moduleClass, replace) {}
 
 private:
 	Module *create(Agent *agent) override {

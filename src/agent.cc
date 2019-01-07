@@ -564,6 +564,27 @@ void addPluginModule(Agent *agent, list<Module *> &modules, const string &plugin
 		SLOGE << "Unable to get module info of [" << pluginName << "] plugin (" << pluginLoader.getError() << ").";
 		return;
 	}
+	const string &moduleName = moduleInfo->getModuleName();
+	Module *module = pluginLoader.get();
+
+	const string &replace = moduleInfo->getReplace();
+	if (!replace.empty()) {
+		auto it = find_if(modules.begin(), modules.end(), [&replace](const Module *module) {
+			return module->getModuleName() == replace;
+		});
+		if (it == modules.end()) {
+			SLOGE << "Unable to find module [" << replace << "]'s instance to be replaced by module [" << moduleName << "]'s instance";
+			return;
+		}
+		
+		SLOGW << "Creating plugin module " << "[" << moduleName << "]'s instance that will replace module [" << replace << "]'s instance.";
+		 // This must be done so the configuration of this module doesn't trigger an abort for unknown section / unsupported parameter
+		(*it)->declare(GenericManager::get()->getRoot());
+		// Replace the previous module by the new one in the chain
+		it = modules.erase(it);
+		modules.insert(it, module);
+		return;
+	}
 
 	for (const string &after : moduleInfo->getAfter()) {
 		// TODO: Replace begin() and end() with cbegin() and cend() later.
@@ -574,8 +595,6 @@ void addPluginModule(Agent *agent, list<Module *> &modules, const string &plugin
 		if (it == modules.end())
 			continue;
 
-		const string &moduleName = moduleInfo->getModuleName();
-		Module *module = pluginLoader.get();
 		if (!module) {
 			SLOGE << "Failed to load [" << moduleName << "] (" << pluginLoader.getError() << ").";
 		} else {
