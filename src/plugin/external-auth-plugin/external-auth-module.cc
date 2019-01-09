@@ -17,6 +17,7 @@
  */
 
 #include <algorithm>
+#include <cstring>
 #include <sstream>
 #include <stdexcept>
 
@@ -80,15 +81,8 @@ void ExternalAuthModule::loadPassword(const FlexisipAuthStatus &as) {
 }
 
 std::map<std::string, std::string> ExternalAuthModule::extractParameters(const Status &as, const msg_auth_t &credentials) const {
-	map<string, string> params;
-	try {
-		params = splitCommaSeparatedKeyValuesList(*credentials.au_params);
-		params["scheme"] = credentials.au_scheme;
-	} catch (const invalid_argument &e) { // thrown by splitCommaSeparatedKeyValuesList()
-		ostringstream os;
-		os << "failed to extract parameters from '" << *credentials.au_params << "': " << e.what();
-		throw runtime_error(os.str());
-	}
+	map<string, string> params = extractCredentialParameters(credentials.au_params);
+	params["scheme"] = credentials.au_scheme;
 	params["method"] = as.method();
 	params["from"] = as.fromHeader();
 	params["sip-instance"] = as.sipInstance();
@@ -96,28 +90,16 @@ std::map<std::string, std::string> ExternalAuthModule::extractParameters(const S
 	return params;
 }
 
-std::map<std::string, std::string> ExternalAuthModule::splitCommaSeparatedKeyValuesList(const std::string &kvList) const {
-	map<string, string> keyValues;
-	string::const_iterator keyPos = kvList.cbegin();
-	while (keyPos != kvList.cend()) {
-		auto commaPos = find(keyPos, kvList.cend(), ',');
-		auto eqPos = find(keyPos, commaPos, '=');
-		if (eqPos == commaPos) {
-			ostringstream os;
-			os << "invalid key-value: '" << string(keyPos, commaPos) << "'";
-			throw invalid_argument(os.str());
-		}
-		string key(keyPos, eqPos);
-		string value(eqPos+1, commaPos);
-		if (key.empty() || value.empty()) {
-			ostringstream os;
-			os << "empty key or value: '" << string(keyPos, commaPos) << "'";
-			throw invalid_argument(os.str());
-		}
-		keyValues[move(key)] = move(value);
-		keyPos = commaPos != kvList.cend() ? commaPos+1 : kvList.cend();
+std::map<std::string, std::string> ExternalAuthModule::extractCredentialParameters(const msg_param_t *params) const {
+	std::map<std::string, std::string> res;
+	for (const msg_param_t *it = params; *it; it++) {
+		const char *param = *it;
+		const char *equal = strchr(const_cast<char *>(param), '=');
+		string key(param, equal-param);
+		string value = equal+1;
+		res[move(key)] = move(value);
 	}
-	return keyValues;
+	return res;
 }
 
 void ExternalAuthModule::onHttpResponse(FlexisipAuthStatus &as, nth_client_t *request, const http_t *http) {
