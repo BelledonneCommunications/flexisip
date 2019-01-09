@@ -172,7 +172,11 @@ void ExternalAuthModule::onHttpResponse(FlexisipAuthStatus &as, nth_client_t *re
 	} catch (const runtime_error &e) {
 		SLOGE << "HTTP request [" << request << "]: " << e.what();
 		onError(as);
+	} catch (...) {
+		if (request) nth_client_destroy(request);
+		throw;
 	}
+	if (request) nth_client_destroy(request);
 }
 
 std::map<std::string, std::string> ExternalAuthModule::parseHttpBody(const std::string &body) const {
