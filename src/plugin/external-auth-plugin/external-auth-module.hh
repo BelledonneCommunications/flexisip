@@ -79,7 +79,6 @@ private:
 	void loadPassword(const FlexisipAuthStatus &as) override;
 
 	std::map<std::string, std::string> extractParameters(const Status &as, const msg_auth_t &credentials) const;
-	std::map<std::string, std::string> extractCredentialParameters(const msg_param_t *params) const;
 	void onHttpResponse(FlexisipAuthStatus &as, nth_client_t *request, const http_t *http);
 	std::map<std::string, std::string> parseHttpBody(const std::string &body) const;
 

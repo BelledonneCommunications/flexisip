@@ -81,25 +81,22 @@ void ExternalAuthModule::loadPassword(const FlexisipAuthStatus &as) {
 }
 
 std::map<std::string, std::string> ExternalAuthModule::extractParameters(const Status &as, const msg_auth_t &credentials) const {
-	map<string, string> params = extractCredentialParameters(credentials.au_params);
+	map<string, string> params;
+
+	for (int i = 0; credentials.au_params[i] != nullptr; i++) {
+		const char *param = credentials.au_params[i];
+		const char *equal = strchr(const_cast<char *>(param), '=');
+		string key(param, equal-param);
+		string value = equal+1;
+		params[move(key)] = move(value);
+	}
+
 	params["scheme"] = credentials.au_scheme;
 	params["method"] = as.method();
 	params["from"] = as.fromHeader();
 	params["sip-instance"] = as.sipInstance();
 	params["domain"] = as.domain();
 	return params;
-}
-
-std::map<std::string, std::string> ExternalAuthModule::extractCredentialParameters(const msg_param_t *params) const {
-	std::map<std::string, std::string> res;
-	for (const msg_param_t *it = params; *it; it++) {
-		const char *param = *it;
-		const char *equal = strchr(const_cast<char *>(param), '=');
-		string key(param, equal-param);
-		string value = equal+1;
-		res[move(key)] = move(value);
-	}
-	return res;
 }
 
 void ExternalAuthModule::onHttpResponse(FlexisipAuthStatus &as, nth_client_t *request, const http_t *http) {
