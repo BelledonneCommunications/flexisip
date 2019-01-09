@@ -605,6 +605,9 @@ int main(int argc, char *argv[]) {
 #ifdef ENABLE_PRESENCE
 	unique_ptr<CommandLineInterface> presence_cli;
 #endif
+#ifdef ENABLE_SNMP
+	unique_ptr<SnmpAgent> snmpAgent;
+#endif
 	bool debug;
 	bool user_errors = false;
 	map<string, string> oset;
@@ -882,7 +885,7 @@ int main(int argc, char *argv[]) {
 	#ifdef ENABLE_SNMP
 		bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();
 		if (snmpEnabled) {
-			SnmpAgent lAgent(*a, *cfg, oset);
+			snmpAgent.reset(new SnmpAgent(*a, *cfg, oset));
 		}
 	#endif
 
