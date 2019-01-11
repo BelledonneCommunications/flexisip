@@ -392,7 +392,7 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 			vector<string> capabilityVector = StringUtils::split(mCapabilities, ",");
 			for (const auto &capability : capabilityVector) {
 				if (capability.empty()) continue;
-				
+
 				Xsd::Pidf::Tuple::ServiceDescriptionType service(capability, "4.2");
 				tup->getServiceDescription().push_back(service);
 			}
@@ -456,7 +456,9 @@ bool PresentityPresenceInformationListener::bypassEnabled() {
 void PresentityPresenceInformationListener::enableBypass(bool enable) {
 	mBypassEnabled = enable;
 }
-void PresentityPresenceInformationListener::addCapability(const std::string &capability) {
+void PresentityPresenceInformationListener::addCapability(const string &capability) {
+	if (mCapabilities.find(capability) != string::npos) return;
+
 	if (mCapabilities.empty()) {
 		mCapabilities = capability;
 	} else if (mCapabilities.find(capability) == mCapabilities.npos) {
