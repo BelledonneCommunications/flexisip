@@ -137,8 +137,8 @@ void ExternalAuthModule::onHttpResponse(FlexisipAuthStatus &as, nth_client_t *re
 			throw runtime_error(os.str());
 		}
 
-		if (!validSipCode(sipCode) || reasonHeaderValue.empty()) {
-			os << "invalid SIP code or reason";
+		if (!validSipCode(sipCode)) {
+			os << "invalid SIP code";
 			throw runtime_error(os.str());
 		}
 
