@@ -53,7 +53,7 @@ void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *cre
 			throw runtime_error(os.str());
 		}
 
-		auto *ctx = new HttpRequestCtx({*this, as});
+		auto *ctx = new HttpRequestCtx({*this, as, *ach});
 
 		nth_client_t *request = nth_client_tcreate(mEngine,
 			onHttpResponseCb,
@@ -99,7 +99,7 @@ std::map<std::string, std::string> ExternalAuthModule::extractParameters(const S
 	return params;
 }
 
-void ExternalAuthModule::onHttpResponse(FlexisipAuthStatus &as, nth_client_t *request, const http_t *http) {
+void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *request, const http_t *http) {
 	shared_ptr<RequestSipEvent> ev;
 	try {
 		int sipCode = 0;
@@ -142,15 +142,16 @@ void ExternalAuthModule::onHttpResponse(FlexisipAuthStatus &as, nth_client_t *re
 			throw runtime_error(os.str());
 		}
 
-		auto &httpAuthStatus = dynamic_cast<ExternalAuthModule::Status &>(as);
+		auto &httpAuthStatus = dynamic_cast<ExternalAuthModule::Status &>(ctx.as);
 		httpAuthStatus.status(sipCode == 200 ? 0 : sipCode);
-		httpAuthStatus.phrase(su_strdup(as.home(), phrase.c_str()));
+		httpAuthStatus.phrase(su_strdup(ctx.as.home(), phrase.c_str()));
 		httpAuthStatus.reason(reasonHeaderValue);
 		httpAuthStatus.pAssertedIdentity(pAssertedIdentity);
-		finish(as);
+		if (sipCode == 401 || sipCode == 407) challenge(ctx.as, &ctx.ach);
+		finish(ctx.as);
 	} catch (const runtime_error &e) {
 		SLOGE << "HTTP request [" << request << "]: " << e.what();
-		onError(as);
+		onError(ctx.as);
 	} catch (...) {
 		if (request) nth_client_destroy(request);
 		throw;
@@ -188,7 +189,7 @@ std::map<std::string, std::string> ExternalAuthModule::parseHttpBody(const std::
 
 int ExternalAuthModule::onHttpResponseCb(nth_client_magic_t *magic, nth_client_t *request, const http_t *http) noexcept {
 	auto *ctx = reinterpret_cast<HttpRequestCtx *>(magic);
-	ctx->am.onHttpResponse(ctx->as, request, http);
+	ctx->am.onHttpResponse(*ctx, request, http);
 	delete ctx;
 	return 0;
 }

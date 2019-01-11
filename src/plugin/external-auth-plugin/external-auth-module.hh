@@ -73,13 +73,14 @@ private:
 	struct HttpRequestCtx {
 		ExternalAuthModule &am;
 		FlexisipAuthStatus &as;
+		const auth_challenger_t &ach;
 	};
 
 	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
 	void loadPassword(const FlexisipAuthStatus &as) override;
 
 	std::map<std::string, std::string> extractParameters(const Status &as, const msg_auth_t &credentials) const;
-	void onHttpResponse(FlexisipAuthStatus &as, nth_client_t *request, const http_t *http);
+	void onHttpResponse(HttpRequestCtx &ctx, nth_client_t *request, const http_t *http);
 	std::map<std::string, std::string> parseHttpBody(const std::string &body) const;
 
 	static int onHttpResponseCb(nth_client_magic_t *magic, nth_client_t *request, const http_t *http) noexcept;
