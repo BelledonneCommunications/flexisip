@@ -4,7 +4,7 @@ DOCKER_TAG=$(BASE_NAME):$(GIT_DESCRIBE)
 DOCKER_FILE=flex-from-src
 
 flexisip-build:
-	docker build -f $(DOCKER_FILE) -t $(DOCKER_TAG) --rm .
+	docker build -f $(DOCKER_FILE) --no-cache -t $(DOCKER_TAG) --rm .
 
 flexisip-push:
 	docker push $(DOCKER_TAG)
