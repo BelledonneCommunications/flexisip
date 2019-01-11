@@ -7,11 +7,10 @@ RUN apt-get install -y  xsdcxx gdb
 RUN apt-get install -y  nasm patch python-pip python-pystache graphviz intltool libtool python-dev doxygen g++ make cmake git pkg-config libpulse-dev libssl-dev default-libmysqlclient-dev build-essential
 
 #get source code
-RUN git clone https://gitlab.linphone.org/BC/public/flexisip.git --recursive --depth 1
-RUN cd flexisip && ./prepare.py flexisip -DENABLE_TRANSCODER=ON -DCMAKE_PREFIX_PATH=/opt/belledonne-communications -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc && make
-RUN mkdir -p /etc/opt/belledonne-communications/flexisip
+RUN git clone https://gitlab.linphone.org/BC/public/flexisip.git --recursive --depth 1 
+RUN cd flexisip && ./prepare.py -d flexisip -DENABLE_TRANSCODER=ON -DCMAKE_PREFIX_PATH=/opt/belledonne-communications -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc && make
+RUN mkdir -p /etc/flexisip
 RUN mkdir -p /var/opt/belledonne-communications/log/flexisip
-RUN ln -s /etc/opt/belledonne-communications/flexisip /etc/flexisip
 
 # Add it to the default path
 ENV PATH=$PATH:/opt/belledonne-communications/bin
@@ -21,8 +20,6 @@ WORKDIR /opt/belledonne-communications
 # Generate a default configuration
 RUN flexisip --dump-default all > /etc/flexisip/flexisip.conf
 
-VOLUME /etc/opt/belledonne-communications/flexisip
-VOLUME /var/opt/belledonne-communications/log/flexisip
 COPY flexisip-entrypoint.sh /
 COPY backtrace.gdb /
 RUN chmod a+x /flexisip-entrypoint.sh
@@ -31,10 +28,11 @@ RUN chmod a+x /flexisip-entrypoint.sh
 ADD https://github.com/ufoscout/docker-compose-wait/releases/download/2.2.1/wait /wait
 RUN chmod +x /wait
 
+#keep sources for debug purpose
 #cleanup
-RUN apt-get remove -y  nasm patch python-pip python-pystache graphviz intltool libtool python-dev doxygen g++ make cmake git pkg-config libpulse-dev libssl-dev default-libmysqlclient-dev build-essential
-RUN rm -rf flexisip
-RUN apt-get clean all
+#RUN apt-get remove -y  nasm patch python-pip python-pystache graphviz intltool libtool python-dev doxygen g++ make cmake git pkg-config libpulse-dev libssl-dev default-libmysqlclient-dev build-essential
+#RUN rm -rf flexisip
+#RUN apt-get clean all
 
 
 ENTRYPOINT ["/flexisip-entrypoint.sh"]
