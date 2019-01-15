@@ -22,6 +22,7 @@
 #include <stdexcept>
 
 #include "log/logmanager.hh"
+#include "utils/string-utils.hh"
 
 #include "external-auth-module.hh"
 
@@ -87,15 +88,15 @@ std::map<std::string, std::string> ExternalAuthModule::extractParameters(const S
 		const char *param = credentials.au_params[i];
 		const char *equal = strchr(const_cast<char *>(param), '=');
 		string key(param, equal-param);
-		string value = equal+1;
+		string value = StringUtils::strip(equal+1, '"');
 		params[move(key)] = move(value);
 	}
 
-	params["scheme"] = credentials.au_scheme;
-	params["method"] = as.method();
-	params["from"] = as.fromHeader();
-	params["sip-instance"] = as.sipInstance();
-	params["domain"] = as.domain();
+	params["scheme"] = StringUtils::strip(credentials.au_scheme, '"');
+	params["method"] = StringUtils::strip(as.method(), '"');
+	params["from"] = StringUtils::strip(as.fromHeader(), '"');
+	params["sip-instance"] = StringUtils::strip(as.sipInstance(), '"');
+	params["domain"] = StringUtils::strip(as.domain(), '"');
 	return params;
 }
 
