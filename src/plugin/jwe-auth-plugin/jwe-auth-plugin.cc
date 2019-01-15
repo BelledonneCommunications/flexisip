@@ -26,6 +26,7 @@ extern "C" {
 }
 
 #include "agent.hh"
+#include "module-auth.hh"
 #include "plugin.hh"
 
 // =============================================================================
@@ -305,6 +306,7 @@ private:
 	list<pair<const char *, const char *>> mCustomHeadersToCheck;
 
 	unordered_map<string, shared_ptr<JweContext>> mJweContexts;
+	Authentication *mAuthModule;
 };
 
 namespace {
@@ -372,6 +374,7 @@ void JweAuth::onLoad(const GenericStruct *moduleConfig) {
 		{ "aud", mAudCustomHeader.c_str() },
 		{ "req_act", mReqActCustomHeader.c_str() }
 	};
+	mAuthModule = dynamic_cast<Authentication*>(getAgent()->findModule("Authentication"));
 }
 
 void JweAuth::onUnload() {
@@ -385,10 +388,17 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	if (method != sip_method_invite && method != sip_method_message)
 		return;
 
+	if (mAuthModule){
+		// Allow requests coming from trusted peers.
+		if (mAuthModule->isTrustedPeer(ev)) return;
+	}else{
+		LOGE("Authentication module not found, trusted peers are unknown.");
+	}
+	
 	const char *error = nullptr;
 	shared_ptr<JweContext> jweContext;
-
 	const sip_unknown_t *header;
+	
 	if (!(header = ModuleToolbox::getCustomHeaderByName(sip, mOidCustomHeader.c_str())) || !header->un_value)
 		error = "Unable to find oid incoming subject header";
 	else if (!ev->findIncomingSubject(header->un_value))
