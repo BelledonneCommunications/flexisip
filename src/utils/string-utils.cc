@@ -16,6 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <cstring>
 
 #include "string-utils.hh"
 
@@ -30,4 +31,25 @@ vector<string> StringUtils::split (const string &str, const string &delimiter) {
 	out.push_back(str.substr(oldPos));
 
 	return out;
+}
+
+std::string StringUtils::strip(const char *str, char c) {
+	size_t len = strlen(str);
+	if (len < 2) return str;
+	if (str[0] != c || str[len-1] != c) return str;
+	return string(str+1, len-2);
+}
+
+std::string StringUtils::strip(const std::string &str, char c) {
+	auto start = str.cbegin();
+	auto end = str.cend();
+	strip(start, end, c);
+	return string(start, end);
+}
+
+void StringUtils::strip(std::string::const_iterator &start, std::string::const_iterator &end, char c) {
+	if (end - start < 2) return;
+	if (*start != c || *(end-1) != c) return;
+	start++;
+	end--;
 }
