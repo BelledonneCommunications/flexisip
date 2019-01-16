@@ -814,7 +814,7 @@ class TargetUriListFetcher : public ContactUpdateListener,
 			if (mRecord->count() > 0){
 				/*
 				 * When contacts are found, we then remove the X-target-uris.
-				 * If no contacts are found, the X-target-uris is left as it is, so that the if a fallback route is specified,
+				 * If no contacts are found, the X-target-uris is left as it is, so that if a fallback route is specified,
 				 * the proxy pointed by this fallback route will process it.
 				 */
 				sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(mEv->getMsgSip()->getSip(), "X-Target-Uris");
