@@ -24,4 +24,8 @@
 class StringUtils {
 public:
 	static std::vector<std::string> split (const std::string &str, const std::string &delimiter);
+
+	static std::string strip(const char *str, char c);
+	static std::string strip(const std::string &str, char c);
+	static void strip(std::string::const_iterator &start, std::string::const_iterator &end, char c);
 };

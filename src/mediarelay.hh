@@ -51,6 +51,7 @@ class MediaRelay : public Module, protected ModuleToolbox {
 	void processResponseWithSDP(const std::shared_ptr<RelayedCall> &c, const std::shared_ptr<OutgoingTransaction> &transaction,
 								const std::shared_ptr<MsgSip> &msgSip);
 	void configureContext(std::shared_ptr<RelayedCall> &c);
+
 	CallStore *mCalls;
 	std::vector<std::shared_ptr<MediaRelayServer>> mServers;
 	size_t mCurServer;
@@ -70,6 +71,7 @@ class MediaRelay : public Module, protected ModuleToolbox {
 	bool mEarlyMediaRelaySingle;
 	bool mPreventLoop;
 	bool mForceRelayForNonIceTargets;
+	bool mUsePublicIpForSdpMasquerading = false;
 	static ModuleInfo<MediaRelay> sInfo;
 };
 

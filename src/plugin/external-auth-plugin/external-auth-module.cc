@@ -17,10 +17,12 @@
  */
 
 #include <algorithm>
+#include <cstring>
 #include <sstream>
 #include <stdexcept>
 
 #include <flexisip/logmanager.hh>
+#include "utils/string-utils.hh"
 
 #include "external-auth-module.hh"
 
@@ -52,7 +54,7 @@ void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *cre
 			throw runtime_error(os.str());
 		}
 
-		auto *ctx = new HttpRequestCtx({*this, as});
+		auto *ctx = new HttpRequestCtx({*this, as, *ach});
 
 		nth_client_t *request = nth_client_tcreate(mEngine,
 			onHttpResponseCb,
@@ -81,46 +83,24 @@ void ExternalAuthModule::loadPassword(const FlexisipAuthStatus &as) {
 
 std::map<std::string, std::string> ExternalAuthModule::extractParameters(const Status &as, const msg_auth_t &credentials) const {
 	map<string, string> params;
-	try {
-		params = splitCommaSeparatedKeyValuesList(*credentials.au_params);
-		params["scheme"] = credentials.au_scheme;
-	} catch (const invalid_argument &e) { // thrown by splitCommaSeparatedKeyValuesList()
-		ostringstream os;
-		os << "failed to extract parameters from '" << *credentials.au_params << "': " << e.what();
-		throw runtime_error(os.str());
+
+	for (int i = 0; credentials.au_params[i] != nullptr; i++) {
+		const char *param = credentials.au_params[i];
+		const char *equal = strchr(const_cast<char *>(param), '=');
+		string key(param, equal-param);
+		string value = StringUtils::strip(equal+1, '"');
+		params[move(key)] = move(value);
 	}
-	params["method"] = as.method();
-	params["from"] = as.fromHeader();
-	params["sip-instance"] = as.sipInstance();
-	params["domain"] = as.domain();
+
+	params["scheme"] = StringUtils::strip(credentials.au_scheme, '"');
+	params["method"] = StringUtils::strip(as.method(), '"');
+	params["from"] = StringUtils::strip(as.fromHeader(), '"');
+	params["sip-instance"] = StringUtils::strip(as.sipInstance(), '"');
+	params["domain"] = StringUtils::strip(as.domain(), '"');
 	return params;
 }
 
-std::map<std::string, std::string> ExternalAuthModule::splitCommaSeparatedKeyValuesList(const std::string &kvList) const {
-	map<string, string> keyValues;
-	string::const_iterator keyPos = kvList.cbegin();
-	while (keyPos != kvList.cend()) {
-		auto commaPos = find(keyPos, kvList.cend(), ',');
-		auto eqPos = find(keyPos, commaPos, '=');
-		if (eqPos == commaPos) {
-			ostringstream os;
-			os << "invalid key-value: '" << string(keyPos, commaPos) << "'";
-			throw invalid_argument(os.str());
-		}
-		string key(keyPos, eqPos);
-		string value(eqPos+1, commaPos);
-		if (key.empty() || value.empty()) {
-			ostringstream os;
-			os << "empty key or value: '" << string(keyPos, commaPos) << "'";
-			throw invalid_argument(os.str());
-		}
-		keyValues[move(key)] = move(value);
-		keyPos = commaPos != kvList.cend() ? commaPos+1 : kvList.cend();
-	}
-	return keyValues;
-}
-
-void ExternalAuthModule::onHttpResponse(FlexisipAuthStatus &as, nth_client_t *request, const http_t *http) {
+void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *request, const http_t *http) {
 	shared_ptr<RequestSipEvent> ev;
 	try {
 		int sipCode = 0;
@@ -158,21 +138,26 @@ void ExternalAuthModule::onHttpResponse(FlexisipAuthStatus &as, nth_client_t *re
 			throw runtime_error(os.str());
 		}
 
-		if (!validSipCode(sipCode) || reasonHeaderValue.empty()) {
-			os << "invalid SIP code or reason";
+		if (!validSipCode(sipCode)) {
+			os << "invalid SIP code";
 			throw runtime_error(os.str());
 		}
 
-		auto &httpAuthStatus = dynamic_cast<ExternalAuthModule::Status &>(as);
+		auto &httpAuthStatus = dynamic_cast<ExternalAuthModule::Status &>(ctx.as);
 		httpAuthStatus.status(sipCode == 200 ? 0 : sipCode);
-		httpAuthStatus.phrase(su_strdup(as.home(), phrase.c_str()));
+		httpAuthStatus.phrase(su_strdup(ctx.as.home(), phrase.c_str()));
 		httpAuthStatus.reason(reasonHeaderValue);
 		httpAuthStatus.pAssertedIdentity(pAssertedIdentity);
-		finish(as);
+		if (sipCode == 401 || sipCode == 407) challenge(ctx.as, &ctx.ach);
+		finish(ctx.as);
 	} catch (const runtime_error &e) {
 		SLOGE << "HTTP request [" << request << "]: " << e.what();
-		onError(as);
+		onError(ctx.as);
+	} catch (...) {
+		if (request) nth_client_destroy(request);
+		throw;
 	}
+	if (request) nth_client_destroy(request);
 }
 
 std::map<std::string, std::string> ExternalAuthModule::parseHttpBody(const std::string &body) const {
@@ -205,7 +190,7 @@ std::map<std::string, std::string> ExternalAuthModule::parseHttpBody(const std::
 
 int ExternalAuthModule::onHttpResponseCb(nth_client_magic_t *magic, nth_client_t *request, const http_t *http) noexcept {
 	auto *ctx = reinterpret_cast<HttpRequestCtx *>(magic);
-	ctx->am.onHttpResponse(ctx->as, request, http);
+	ctx->am.onHttpResponse(*ctx, request, http);
 	delete ctx;
 	return 0;
 }

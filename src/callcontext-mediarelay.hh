@@ -36,6 +36,8 @@ public:
 	static const int sMaxSessions = 4;
 	RelayedCall(const std::shared_ptr<MediaRelayServer> &server, sip_t *sip);
 
+	void forcePublicAddress(bool force) {mForcePublicAddressEnabled = force;}
+
 	/* Create a channel for each sdp media using defined relay ip for front and back. The transaction
 	 * allow use to identify the callee (we don't have a tag yet).
 	 */
@@ -81,6 +83,7 @@ private:
 	bool mDropTelephoneEvents;
 	bool mHasSendRecvBack;
 	bool mIsEstablished;
+	bool mForcePublicAddressEnabled = false;
 };
 
 

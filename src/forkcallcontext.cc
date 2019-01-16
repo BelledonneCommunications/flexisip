@@ -54,6 +54,8 @@ void ForkCallContext::onCancel(const shared_ptr<RequestSipEvent> &ev) {
 	mLog->setCompleted();
 	mCancelled = true;
 	cancelOthers(shared_ptr<BranchInfo>(), ev->getSip());
+	// The event log must be placed in a sip event in order to be written into DB.
+	ev->setEventLog(mLog);
 }
 
 void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> &br, sip_t *received_cancel) {

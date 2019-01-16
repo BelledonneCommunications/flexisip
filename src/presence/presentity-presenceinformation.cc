@@ -351,7 +351,6 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 		Xsd::Pidf::Presence presence((string(entity)));
 		belle_sip_free(entity);
 		list<string> tupleList;
-
 		if(extended) {
 			for (const auto &element : mInformationElements) {
 				// copy pidf
@@ -364,6 +363,13 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 						for (const auto &capability : capabilityVector) {
 							if (capability.empty()) continue;
 
+							if (mAddedCapabilities.empty()) {
+								mAddedCapabilities = capability;
+							} else if (mAddedCapabilities.find(capability) != string::npos) {
+								continue;
+							}
+
+							mAddedCapabilities += ", " + capability;
 							Xsd::Pidf::Tuple::ServiceDescriptionType service(capability, "4.2");
 							tup->getServiceDescription().push_back(service);
 						}
@@ -392,7 +398,14 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 			vector<string> capabilityVector = StringUtils::split(mCapabilities, ",");
 			for (const auto &capability : capabilityVector) {
 				if (capability.empty()) continue;
-				
+
+				if (mAddedCapabilities.empty()) {
+					mAddedCapabilities = capability;
+				} else if (mAddedCapabilities.find(capability) != string::npos) {
+					continue;
+				}
+
+				mAddedCapabilities += ", " + capability;
 				Xsd::Pidf::Tuple::ServiceDescriptionType service(capability, "4.2");
 				tup->getServiceDescription().push_back(service);
 			}

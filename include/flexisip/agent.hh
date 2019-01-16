@@ -226,14 +226,16 @@ private:
 	};
 	std::list<Network> mNetworks;
 	std::string mUniqueId;
-	std::string mRtpBindIp, mRtpBindIp6, mPublicIpV4, mPublicIpV6, mPublicResolvedIpV4, mPublicResolvedIpV6;
+	std::string mRtpBindIp = "0.0.0.0";
+	std::string mRtpBindIp6 = "::0";
+	std::string mPublicIpV4, mPublicIpV6, mPublicResolvedIpV4, mPublicResolvedIpV6;
 	nta_agent_t *mAgent;
 	su_root_t *mRoot;
 	nth_engine_t *mHttpEngine;
 	su_home_t mHome;
 	su_timer_t *mTimer = nullptr;
 	unsigned int mProxyToProxyKeepAliveInterval;
-	EventLogWriter *mLogWriter;
+	std::unique_ptr<EventLogWriter> mLogWriter;
 	DomainRegistrationManager *mDrm;
 	std::string mPassphrase;
 	static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t *msg, sip_t *sip);
