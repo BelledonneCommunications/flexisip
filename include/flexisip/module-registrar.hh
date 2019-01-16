@@ -20,7 +20,7 @@
 
 #include "module.hh"
 #include "agent.hh"
-#include "registrardb.hH"
+#include "registrardb.hh"
 
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/su_random.h>
