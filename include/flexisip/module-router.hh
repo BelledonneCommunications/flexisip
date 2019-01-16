@@ -18,12 +18,12 @@
 
 #pragma once
 
-#include <flexisip/module.hh>
-#include <flexisip/agent.hh>
-#include <flexisip/registrardb.hh>
-#include <flexisip/forkcallcontext.hh>
-#include <flexisip/forkmessagecontext.hh>
-#include <flexisip/forkbasiccontext.hh>
+#include "module.hh"
+#include "agent.hh"
+#include "registrardb.hh"
+#include "forkcallcontext.hh"
+#include "forkmessagecontext.hh"
+#include "forkbasiccontext.hh"
 
 struct RouterStats {
 	std::unique_ptr<StatPair> mCountForks;

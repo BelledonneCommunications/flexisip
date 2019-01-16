@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include <flexisip/module.hh>
-#include <flexisip/agent.hh>
-#include <flexisip/registrardb.hh>
+#include "module.hh"
+#include "agent.hh"
+#include "registrardb.hH"
 
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/su_random.h>

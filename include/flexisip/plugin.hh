@@ -20,7 +20,7 @@
 #define plugin_hh
 
 #include "flexisip_gitversion.h"
-#include <flexisip/module.hh>
+#include "module.hh"
 
 // =============================================================================
 

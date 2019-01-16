@@ -18,10 +18,10 @@
 
 #pragma once
 
-#include <flexisip/agent.hh>
-#include <flexisip/event.hh>
-#include <flexisip/transaction.hh>
-#include <flexisip/registrardb.hh>
+#include "agent.hh"
+#include "event.hh"
+#include "transaction.hh"
+#include "registrardb.hh"
 
 class OnContactRegisteredListener;
 
