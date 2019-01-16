@@ -53,8 +53,8 @@ void ParticipantDevicesSearch::onRecordFound (Record *r) {
 			const string &userAgent = ec->getUserAgent();
 			size_t begin = userAgent.find("(");
 			if (begin != string::npos) {
-				size_t end = userAgent.find("(", begin);
-				const string &deviceName = userAgent.substr(begin, end - begin);
+				size_t end = userAgent.find(")", begin);
+				const string &deviceName = userAgent.substr(begin + 1, end - (begin + 1));
 				deviceAddr->setDisplayName(deviceName);
 			}
 
