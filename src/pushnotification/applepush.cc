@@ -1,6 +1,6 @@
 
 #include "applepush.hh"
-#include "common.hh"
+#include <flexisip/common.hh>
 #include <sstream>
 #include <string>
 #include <stdexcept>

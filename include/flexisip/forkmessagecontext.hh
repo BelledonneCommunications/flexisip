@@ -16,13 +16,13 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef forkmessagecontext_hh
-#define forkmessagecontext_hh
+#pragma once
 
-#include "agent.hh"
-#include "event.hh"
-#include "transaction.hh"
-#include "forkcontext.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/event.hh>
+#include <flexisip/transaction.hh>
+#include <flexisip/forkcontext.hh>
+
 #include <list>
 #include <map>
 
@@ -54,5 +54,3 @@ class ForkMessageContext : public ForkContext {
 	void checkFinished();
 	void logDeliveredToUserEvent(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event);
 };
-
-#endif /* forkmessagecontext_hh */

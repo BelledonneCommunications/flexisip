@@ -65,7 +65,6 @@ src/flexisip_binder
 src/flexisip_ctdumper
 src/flexisip_pusher
 src/flexisip_serializer
-flexisip
 flexisip-config.h.in
 OUTPUT/
 test/massregister/users.csv

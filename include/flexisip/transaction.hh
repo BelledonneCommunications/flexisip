@@ -16,13 +16,14 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef transaction_hh
-#define transaction_hh
+#pragma once
 
 #include "event.hh"
+
 #include <sofia-sip/msg.h>
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nta.h>
+
 #include <string>
 #include <map>
 
@@ -165,5 +166,3 @@ class IncomingTransaction : public Transaction,
 	void destroy();
 	static int _callback(nta_incoming_magic_t *magic, nta_incoming_t *irq, const sip_t *sip);
 };
-
-#endif // transaction_hh

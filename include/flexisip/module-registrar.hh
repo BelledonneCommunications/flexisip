@@ -16,16 +16,16 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef MODULE_REGISTRAR_HH_
-#define MODULE_REGISTRAR_HH_
+#pragma once
+
+#include <flexisip/module.hh>
+#include <flexisip/agent.hh>
+#include <flexisip/registrardb.hh>
 
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/su_random.h>
-#include <signal.h> 
 
-#include "module.hh"
-#include "agent.hh"
-#include "registrardb.hh"
+#include <signal.h> 
 
 struct RegistrarStats {
 	std::unique_ptr<StatPair> mCountBind;
@@ -179,4 +179,3 @@ class RegistrarMgt {
 	virtual unsigned long long int getTotalNumberOfAddedRecords() = 0;
 	virtual unsigned long long int getTotalNumberOfExpiredRecords() = 0;
 };
-#endif /* MODULE_REGISTRAR_HH_ */

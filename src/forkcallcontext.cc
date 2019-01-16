@@ -16,8 +16,8 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "forkcallcontext.hh"
-#include "common.hh"
+#include <flexisip/forkcallcontext.hh>
+#include <flexisip/common.hh>
 #include <algorithm>
 #include <sofia-sip/sip_status.h>
 

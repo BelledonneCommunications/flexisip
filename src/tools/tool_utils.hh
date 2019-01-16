@@ -18,7 +18,7 @@
 #ifndef _TEST_UTILS
 #define _TEST_UTILS
 #include "../recordserializer.hh"
-#include "../log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 #include <memory>
 #include <map>
 #include <iostream>

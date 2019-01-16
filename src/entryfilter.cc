@@ -17,7 +17,7 @@
 */
 
 #include "entryfilter.hh"
-#include "module.hh"
+#include <flexisip/module.hh>
 #include <stdexcept>
 
 using namespace std;

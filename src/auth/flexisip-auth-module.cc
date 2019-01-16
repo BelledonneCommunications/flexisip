@@ -18,7 +18,7 @@
 
 #include <bctoolbox/crypto.h>
 
-#include "module.hh"
+#include <flexisip/module.hh>
 
 #include "flexisip-auth-module.hh"
 

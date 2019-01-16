@@ -16,11 +16,11 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "agent.hh"
-#include "event.hh"
-#include "transaction.hh"
-#include "common.hh"
-#include "module.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/event.hh>
+#include <flexisip/transaction.hh>
+#include <flexisip/common.hh>
+#include <flexisip/module.hh>
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/su_tagarg.h>
 #include <sofia-sip/msg_addr.h>

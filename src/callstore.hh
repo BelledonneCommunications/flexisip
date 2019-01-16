@@ -19,7 +19,7 @@
 #ifndef callstore_hh
 #define callstore_hh
 
-#include "agent.hh"
+#include <flexisip/agent.hh>
 #include <list>
 
 class CallContextBase {

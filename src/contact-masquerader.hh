@@ -20,8 +20,8 @@
 #define Contact_Masquerader_hh
 
 #include <memory>
-#include "event.hh"
-#include "agent.hh"
+#include <flexisip/event.hh>
+#include <flexisip/agent.hh>
 #include <string>
 
 class ContactMasquerader {

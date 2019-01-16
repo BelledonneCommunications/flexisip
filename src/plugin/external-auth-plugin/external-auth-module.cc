@@ -20,7 +20,7 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 
 #include "external-auth-module.hh"
 

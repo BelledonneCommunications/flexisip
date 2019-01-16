@@ -23,7 +23,7 @@
 #include <string>
 
 #include "auth-status.hh"
-#include "event.hh"
+#include <flexisip/event.hh>
 
 /**
  * Specialization of AuthStatus dedicated to be used

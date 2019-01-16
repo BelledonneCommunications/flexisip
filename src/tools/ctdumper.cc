@@ -18,11 +18,11 @@
 
 #include "recordserializer.hh"
 #include "registrardb-redis.hh"
-#include "common.hh"
+#include <flexisip/common.hh>
 
 #include <algorithm>
 
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 
 #include <hiredis/hiredis.h>
 

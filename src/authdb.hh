@@ -22,8 +22,8 @@
 #include <string>
 #include <mutex>
 
-#include "common.hh"
-#include "agent.hh"
+#include <flexisip/common.hh>
+#include <flexisip/agent.hh>
 
 #include <vector>
 #include <stdio.h>

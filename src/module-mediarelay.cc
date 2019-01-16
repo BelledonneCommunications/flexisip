@@ -18,7 +18,7 @@
 
 #include "mediarelay.hh"
 #include "sdp-modifier.hh"
-#include "transaction.hh"
+#include <flexisip/transaction.hh>
 #include "h264iframefilter.hh"
 #include "callcontext-mediarelay.hh"
 

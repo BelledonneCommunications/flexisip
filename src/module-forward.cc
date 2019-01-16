@@ -16,16 +16,16 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module.hh"
-#include "agent.hh"
-#include "transaction.hh"
+#include <flexisip/module.hh>
+#include <flexisip/agent.hh>
+#include <flexisip/transaction.hh>
 #include "etchosts.hh"
 #include <sstream>
 
 #include <sofia-sip/su_md5.h>
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/tport.h>
-#include "registrardb.hh"
+#include <flexisip/registrardb.hh>
 
 using namespace std;
 

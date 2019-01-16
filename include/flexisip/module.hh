@@ -16,15 +16,14 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef module_hh
-#define module_hh
-
-#include "sofia-sip/nta_tport.h"
-#include "sofia-sip/tport.h"
-#include "sofia-sip/msg_header.h"
+#pragma once
 
 #include "configmanager.hh"
 #include "event.hh"
+
+#include <sofia-sip/nta_tport.h>
+#include <sofia-sip/tport.h>
+#include <sofia-sip/msg_header.h>
 
 // =============================================================================
 
@@ -316,5 +315,3 @@ public:
 	static bool getBoolUriParameter(const url_t *url, const char *param, bool defaultValue);
 	static sip_via_t *getLastVia(sip_t *sip);
 };
-
-#endif

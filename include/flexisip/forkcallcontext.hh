@@ -16,13 +16,13 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef forkcallcontext_hh
-#define forkcallcontext_hh
+#pragma once
 
-#include "agent.hh"
-#include "event.hh"
-#include "transaction.hh"
-#include "forkcontext.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/event.hh>
+#include <flexisip/transaction.hh>
+#include <flexisip/forkcontext.hh>
+
 #include <list>
 
 enum FlexisipForkStatus {FlexisipForkAcceptedElsewhere, FlexisipForkDeclineElsewhere, FlexisipForkStandard};
@@ -62,5 +62,3 @@ class ForkCallContext : public ForkContext {
 	int mActivePushes;
 	static const int sUrgentCodesWithout603[];
 };
-
-#endif // forkcallcontext_hh

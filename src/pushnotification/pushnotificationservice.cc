@@ -21,7 +21,7 @@
 #include "pushnotificationservice.hh"
 #include "pushnotificationclient.hh"
 #include "pushnotificationclient_wp.hh"
-#include "common.hh"
+#include <flexisip/common.hh>
 
 #include <sstream>
 #include <openssl/x509.h>

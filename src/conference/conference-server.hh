@@ -23,7 +23,7 @@
 
 #include <linphone++/linphone.hh>
 
-#include "registrardb.hh"
+#include <flexisip/registrardb.hh>
 #include "service-server.hh"
 
 #include "participant-registration-subscription-handler.hh"

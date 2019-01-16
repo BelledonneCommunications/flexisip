@@ -24,9 +24,9 @@
 #include <sofia-sip/tport.h>
 #include <sofia-sip/su_wait.h>
 
-#include "common.hh"
-#include "configmanager.hh"
-#include "registrardb.hh"
+#include <flexisip/common.hh>
+#include <flexisip/configmanager.hh>
+#include <flexisip/registrardb.hh>
 
 #include <list>
 

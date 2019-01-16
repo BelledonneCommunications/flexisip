@@ -17,7 +17,7 @@
 */
 
 #include "monitor.hh"
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 #include "authdb.hh"
 #include <sofia-sip/su_md5.h>
 #include <ortp/rtpsession.h>

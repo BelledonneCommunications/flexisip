@@ -19,7 +19,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <time.h>
-#include "common.hh"
+#include <flexisip/common.hh>
 #include "flexisip-config.h"
 #include <cstring>
 

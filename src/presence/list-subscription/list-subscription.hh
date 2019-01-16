@@ -22,7 +22,7 @@
 #include <chrono>
 #include <unordered_map>
 
-#include "event.hh"
+#include <flexisip/event.hh>
 #include "rlmi+xml.hh"
 #include "subscription.hh"
 

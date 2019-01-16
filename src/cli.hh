@@ -22,7 +22,7 @@
 #include <sys/un.h>
 #include <pthread.h>
 #include <string>
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 
 class Agent;
 

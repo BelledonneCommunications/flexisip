@@ -25,7 +25,7 @@
 	#include "soci/mysql/soci-mysql.h"
 #endif
 
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 #include "bellesip-signaling-exception.hh"
 #include "list-subscription/body-list-subscription.hh"
 #if ENABLE_SOCI
@@ -35,7 +35,7 @@
 #include "presence-server.hh"
 #include "presentity-presenceinformation.hh"
 #include "resource-lists.hh"
-#include "registrardb.hh"
+#include <flexisip/registrardb.hh>
 #include "subscription.hh"
 
 using namespace flexisip;

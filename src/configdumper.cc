@@ -17,7 +17,7 @@
 */
 
 #include "configdumper.hh"
-#include "module.hh"
+#include <flexisip/module.hh>
 
 using namespace std;
 

@@ -18,8 +18,8 @@
 */
 
 #include <sstream>
-#include "common.hh"
-#include "registrardb.hh"
+#include <flexisip/common.hh>
+#include <flexisip/registrardb.hh>
 #include "recordserializer.hh"
 #include <sofia-sip/sip_protos.h>
 

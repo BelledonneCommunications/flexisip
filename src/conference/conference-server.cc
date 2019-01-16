@@ -25,7 +25,7 @@
 #include "participant-capabilities-check.hh"
 #include "participant-devices-search.hh"
 
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 
 using namespace flexisip;
 using namespace std;

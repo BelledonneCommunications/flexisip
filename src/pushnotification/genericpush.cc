@@ -21,7 +21,7 @@
 #include <stdexcept>
 #include <string.h>
 
-#include "common.hh"
+#include <flexisip/common.hh>
 #include "utils/httputils.hh"
 
 #include "genericpush.hh"

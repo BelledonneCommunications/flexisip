@@ -17,8 +17,9 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef PROXY_COMMON_H
-#define PROXY_COMMON_H
+#pragma once
+
+#include "logmanager.hh"
 
 #include <cstdlib>
 #include <cstdarg>
@@ -26,8 +27,6 @@
 #include <string>
 #include <vector>
 #include <sys/timeb.h>
-
-#include "log/logmanager.hh"
 
 #ifndef MAX
 #define MAX(a, b) (a) > (b) ? (a) : (b)
@@ -87,5 +86,3 @@ std::vector<std::string> split (const std::string &str, const std::string &delim
 inline std::vector<std::string> split (const std::string &str, char delimiter) {
 	return split(str, std::string(1, delimiter));
 }
-
-#endif

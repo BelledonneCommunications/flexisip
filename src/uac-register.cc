@@ -17,13 +17,13 @@
 */
 
 #include "uac-register.hh"
-#include "module.hh"
+#include <flexisip/module.hh>
 #include <sofia-sip/nua.h>
 #include <sofia-sip/sip_header.h>
-#include "common.hh"
-#include "agent.hh"
-#include "registrardb.hh"
-#include "log/logmanager.hh"
+#include <flexisip/common.hh>
+#include <flexisip/agent.hh>
+#include <flexisip/registrardb.hh>
+#include <flexisip/logmanager.hh>
 
 using namespace std;
 

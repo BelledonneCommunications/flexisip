@@ -24,7 +24,7 @@
 #include <memory>
 #include "expressionparser.hh"
 
-#include "agent.hh"
+#include <flexisip/agent.hh>
 
 /**
  * The goal of this object is to filter SIP message that enter into a module.

@@ -17,7 +17,7 @@
 */
 
 #include "flexisip-config.h"
-#include "agent.hh"
+#include <flexisip/agent.hh>
 #include "mediarelay.hh"
 
 #include <poll.h>

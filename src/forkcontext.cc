@@ -16,9 +16,9 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "agent.hh"
-#include "forkcontext.hh"
-#include "registrardb.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/forkcontext.hh>
+#include <flexisip/registrardb.hh>
 #include <sofia-sip/sip_status.h>
 
 using namespace std;

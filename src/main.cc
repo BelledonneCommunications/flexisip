@@ -36,10 +36,10 @@
 #include <mediastreamer2/msfactory.h>
 #endif
 
-#include "agent.hh"
+#include <flexisip/agent.hh>
 #include "cli.hh"
 #include "stun.hh"
-#include "module.hh"
+#include <flexisip/module.hh>
 
 #include <cstdlib>
 #include <cstdio>
@@ -63,7 +63,7 @@
 #define FLEXISIP_GIT_VERSION "undefined"
 #endif
 
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 #include <ortp/ortp.h>
 #include <functional>
 #include <list>

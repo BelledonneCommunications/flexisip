@@ -20,9 +20,9 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 #include "db/db-transaction.hh"
-#include "eventlogs.hh"
+#include <flexisip/eventlogs.hh>
 
 #include <iostream>
 #include <iomanip>

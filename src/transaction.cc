@@ -16,10 +16,10 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "transaction.hh"
-#include "event.hh"
-#include "common.hh"
-#include "agent.hh"
+#include <flexisip/transaction.hh>
+#include <flexisip/event.hh>
+#include <flexisip/common.hh>
+#include <flexisip/agent.hh>
 #include <algorithm>
 #include <sofia-sip/su_tagarg.h>
 #include <sofia-sip/su_random.h>

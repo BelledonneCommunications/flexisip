@@ -16,8 +16,8 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module-registrar.hh"
-#include "log/logmanager.hh"
+#include <flexisip/module-registrar.hh>
+#include <flexisip/logmanager.hh>
 
 #include <fstream>
 #include <sstream>

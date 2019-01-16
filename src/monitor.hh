@@ -20,7 +20,7 @@
 #define monitor_hh
 
 #include <string>
-#include "agent.hh"
+#include <flexisip/agent.hh>
 
 class Monitor {
   public:

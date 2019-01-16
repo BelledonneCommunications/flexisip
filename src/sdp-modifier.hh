@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "common.hh"
+#include <flexisip/common.hh>
 #include <sofia-sip/sdp.h>
 #include <sofia-sip/sip.h>
 #include <functional>

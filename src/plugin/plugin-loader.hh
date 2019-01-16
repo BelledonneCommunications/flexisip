@@ -21,7 +21,7 @@
 
 #include <string>
 
-#include "global.hh"
+#include <flexisip/global.hh>
 
 // =============================================================================
 

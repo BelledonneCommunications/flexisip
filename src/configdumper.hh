@@ -19,7 +19,7 @@
 #ifndef CONFIG_DUMPER_H
 #define CONFIG_DUMPER_H
 
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 #include <iostream>
 
 class ConfigDumper {

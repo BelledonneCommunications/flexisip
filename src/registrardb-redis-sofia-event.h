@@ -19,7 +19,7 @@
 #ifndef sofia_redis_event_h
 #define sofia_redis_event_h
 
-#include "common.hh"
+#include <flexisip/common.hh>
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
 

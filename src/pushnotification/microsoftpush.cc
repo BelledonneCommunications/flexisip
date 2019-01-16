@@ -18,7 +18,7 @@
 
 
 #include "microsoftpush.hh"
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 #include "sofia-sip/base64.h"
 #include <string.h>
 #include <iostream>

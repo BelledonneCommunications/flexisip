@@ -7,8 +7,8 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include "flexisipMIB.h"
-#include "configmanager.hh"
-#include "agent.hh"
+#include <flexisip/configmanager.hh>
+#include <flexisip/agent.hh>
 /** Initializes the flexisipMIB module */
 void
 init_flexisipMIB(Agent& agent, ConfigManager& aCm)

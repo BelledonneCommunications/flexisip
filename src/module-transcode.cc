@@ -20,8 +20,8 @@
 #include "flexisip-config.h"
 #endif
 
-#include "module.hh"
-#include "agent.hh"
+#include <flexisip/module.hh>
+#include <flexisip/agent.hh>
 
 #ifdef ENABLE_TRANSCODER
 #include "callcontext-transcoder.hh"

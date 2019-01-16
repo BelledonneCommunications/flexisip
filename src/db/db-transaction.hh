@@ -21,7 +21,7 @@
 
 #include <soci/soci.h>
 
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 
 // =============================================================================
 

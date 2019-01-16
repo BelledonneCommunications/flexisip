@@ -18,7 +18,7 @@
 
 #pragma once
 #include "pushnotification.hh"
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 
 #include <list>
 

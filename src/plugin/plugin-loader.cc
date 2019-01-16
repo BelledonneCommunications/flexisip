@@ -20,7 +20,7 @@
 #include <unordered_map>
 
 #include "plugin-loader.hh"
-#include "plugin.hh"
+#include <flexisip/plugin.hh>
 
 // =============================================================================
 

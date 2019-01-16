@@ -20,7 +20,7 @@
 #ifndef registrardb_internal_hh
 #define registrardb_internal_hh
 
-#include "registrardb.hh"
+#include <flexisip/registrardb.hh>
 #include <sofia-sip/sip.h>
 
 class RegistrarDbInternal : public RegistrarDb {

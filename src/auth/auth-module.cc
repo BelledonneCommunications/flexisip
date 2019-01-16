@@ -22,7 +22,7 @@
 #include <sofia-sip/auth_plugin.h>
 #include <sofia-sip/su_tagarg.h>
 
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 
 #include "auth-module.hh"
 

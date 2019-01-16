@@ -20,9 +20,9 @@
 
 #include <array>
 
-#include "agent.hh"
+#include <flexisip/agent.hh>
 #include "external-auth-module.hh"
-#include "module.hh"
+#include <flexisip/module.hh>
 
 class ModuleExternalAuthentication : public Module {
 public:

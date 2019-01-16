@@ -16,9 +16,9 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module.hh"
-#include "agent.hh"
-#include "log/logmanager.hh"
+#include <flexisip/module.hh>
+#include <flexisip/agent.hh>
+#include <flexisip/logmanager.hh>
 #include "utils/threadpool.hh"
 #include <sofia-sip/tport.h>
 #include <sofia-sip/msg_addr.h>

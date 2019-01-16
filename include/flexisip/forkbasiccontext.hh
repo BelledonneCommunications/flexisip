@@ -16,13 +16,13 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef forkbasiccontext_hh
-#define forkbasiccontext_hh
+#pragma once
 
-#include "agent.hh"
-#include "event.hh"
-#include "transaction.hh"
-#include "forkcontext.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/event.hh>
+#include <flexisip/transaction.hh>
+#include <flexisip/forkcontext.hh>
+
 #include <list>
 #include <map>
 
@@ -45,5 +45,3 @@ class ForkBasicContext : public ForkContext {
 	static void sOnDecisionTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	void onDecisionTimer();
 };
-
-#endif /* forkbasiccontext_hh */

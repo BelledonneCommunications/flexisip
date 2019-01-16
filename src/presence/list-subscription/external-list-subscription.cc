@@ -24,7 +24,7 @@
 
 #include "bellesip-signaling-exception.hh"
 #include "external-list-subscription.hh"
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 
 using namespace std;
 using namespace chrono;

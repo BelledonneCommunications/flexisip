@@ -2,7 +2,7 @@
 #include "googlepush.hh"
 #include <iostream>
 #include <string.h>
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 
 using namespace std;
 

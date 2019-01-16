@@ -19,8 +19,8 @@
 #ifndef mediarelay_hh
 #define mediarelay_hh
 
-#include "module.hh"
-#include "agent.hh"
+#include <flexisip/module.hh>
+#include <flexisip/agent.hh>
 #include "callstore.hh"
 #include "sdp-modifier.hh"
 #include <ortp/rtpsession.h>

@@ -21,7 +21,7 @@
 #include <signal.h>
 #include <functional>
 #include "snmp-agent.h"
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 
 using namespace std;
 

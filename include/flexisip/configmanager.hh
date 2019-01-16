@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef configmanager_hh
-#define configmanager_hh
+#pragma once
 
 #if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
 
@@ -30,6 +29,8 @@
 #define FLEXISIP_INCLUDED
 
 #endif
+
+#include "common.hh"
 
 #include <string>
 #include <sstream>
@@ -44,8 +45,6 @@
 #include <typeinfo>
 #include <cxxabi.h>
 #include <memory>
-
-#include "common.hh"
 
 #ifdef ENABLE_SNMP
 
@@ -686,5 +685,3 @@ class GenericManager : protected ConfigValueListener {
 	std::unordered_set<std::string> mStatOids;
 	NotificationEntry *mNotifier;
 };
-
-#endif

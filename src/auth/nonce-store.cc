@@ -18,8 +18,8 @@
 
 #include <sofia-sip/msg_header.h>
 
-#include "common.hh"
-#include "log/logmanager.hh"
+#include <flexisip/common.hh>
+#include <flexisip/logmanager.hh>
 
 #include "nonce-store.hh"
 

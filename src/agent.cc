@@ -16,13 +16,14 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "agent.hh"
-#include "module.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/module.hh>
+
 #include "domain-registrations.hh"
 #include "plugin/plugin-loader.hh"
-#include "registrardb.hh"
+#include <flexisip/registrardb.hh>
 
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 #include "sipattrextractor.hh"
 
 #include "etchosts.hh"

@@ -19,7 +19,7 @@
 #include <ctime>
 #include <sstream>
 
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 #include "pushnotification.hh"
 
 using namespace std;

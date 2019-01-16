@@ -17,7 +17,7 @@
  */
 
 #include "flexisip-config.h"
-#include "logmanager.hh"
+#include <flexisip/logmanager.hh>
 #include <string>
 #include "bctoolbox/logging.h"
 #include <syslog.h>

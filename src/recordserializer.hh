@@ -20,7 +20,7 @@
 #ifndef recordserializer_hh
 #define recordserializer_hh
 
-#include "registrardb.hh"
+#include <flexisip/registrardb.hh>
 
 class RecordSerializer {
 	static RecordSerializer *sInstance;

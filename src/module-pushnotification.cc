@@ -16,17 +16,18 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module.hh"
-#include "agent.hh"
-#include "event.hh"
-#include "transaction.hh"
+#include <flexisip/module.hh>
+#include <flexisip/agent.hh>
+#include <flexisip/event.hh>
+#include <flexisip/transaction.hh>
+
 #include "pushnotification/pushnotificationservice.hh"
 #include "pushnotification/applepush.hh"
 #include "pushnotification/genericpush.hh"
 #include "pushnotification/googlepush.hh"
 #include "pushnotification/microsoftpush.hh"
 #include "pushnotification/firebasepush.hh"
-#include "forkcallcontext.hh"
+#include <flexisip/forkcallcontext.hh>
 
 #include <map>
 #include <sofia-sip/msg_mime.h>
