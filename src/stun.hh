@@ -20,6 +20,8 @@
 
 #include <pthread.h>
 
+namespace flexisip {
+
 class StunServer {
   public:
 	StunServer(int port = 3478);
@@ -40,3 +42,5 @@ class StunServer {
 	};
 	static Init sStaticInit;
 };
+
+}

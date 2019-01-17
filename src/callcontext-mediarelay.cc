@@ -24,7 +24,7 @@
 #include "telephone-event-filter.hh"
 
 using namespace std;
-
+using namespace flexisip;
 
 RelayedCall::RelayedCall(const shared_ptr<MediaRelayServer> &server, sip_t *sip) :
 					CallContextBase(sip), mServer(server), mBandwidthThres(0) {

@@ -26,8 +26,8 @@
 #include <sofia-sip/msg_addr.h>
 #include "sipattrextractor.hh"
 
-
 using namespace std;
+using namespace flexisip;
 
 void MsgSip::assignMsg(msg_t *msg) {
 	mMsg = msg_ref_create(msg);
@@ -348,7 +348,7 @@ void ResponseSipEvent::setOutgoingAgent(const shared_ptr<OutgoingAgent> &agent) 
 ResponseSipEvent::~ResponseSipEvent() {
 }
 
-std::ostream &operator<<(std::ostream &strm, const url_t &obj){
+std::ostream &flexisip::operator<<(std::ostream &strm, const url_t &obj){
 	SofiaAutoHome home;
 	strm<<url_as_string(home.home(), &obj);
 	return strm;

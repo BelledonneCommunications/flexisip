@@ -30,6 +30,7 @@
 #include <openssl/pem.h>
 
 using namespace std;
+using namespace flexisip;
 
 static const char *APN_DEV_ADDRESS = "gateway.sandbox.push.apple.com";
 static const char *APN_PROD_ADDRESS = "gateway.push.apple.com";

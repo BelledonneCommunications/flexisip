@@ -20,7 +20,9 @@
 #include <flexisip/agent.hh>
 #include <flexisip/logmanager.hh>
 #include "sofia-sip/sip_status.h"
+
 using namespace std;
+using namespace flexisip;
 
 class ModuleRedirect : public Module, ModuleToolbox {
 private:

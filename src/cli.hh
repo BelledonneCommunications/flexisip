@@ -23,6 +23,8 @@
 #include <string>
 #include <flexisip/configmanager.hh>
 
+namespace flexisip {
+
 class Agent;
 
 class CommandLineInterface {
@@ -67,3 +69,5 @@ private:
 
 	std::shared_ptr<Agent> mAgent;
 };
+
+}

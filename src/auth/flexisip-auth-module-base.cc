@@ -25,7 +25,7 @@
 #include "flexisip-auth-module-base.hh"
 
 using namespace std;
-
+using namespace flexisip;
 
 // ====================================================================================================================
 //  FlexisipAuthModuleBase class

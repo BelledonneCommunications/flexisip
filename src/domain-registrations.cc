@@ -32,6 +32,7 @@
 #include <sstream>
 
 using namespace std;
+using namespace flexisip;
 
 DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agent), mRegisterWhenNeeded(false) {
 	GenericManager *mgr = GenericManager::get();

@@ -30,6 +30,8 @@ static inline uint8_t nal_header_get_type(const uint8_t *h) {
 	return (*h) & ((1 << 5) - 1);
 }
 
+using namespace flexisip;
+
 H264IFrameFilter::H264IFrameFilter(int skipcount) : mSkipCount(skipcount), mLastIframeTimestamp(0), mIframeCount(0) {
 }
 

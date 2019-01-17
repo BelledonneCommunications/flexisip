@@ -24,6 +24,7 @@
 #include <flexisip/configmanager.hh>
 
 using namespace std;
+using namespace flexisip;
 
 SnmpAgent::~SnmpAgent() {
 	mTask.mKeepRunning = false;

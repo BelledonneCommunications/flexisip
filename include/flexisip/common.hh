@@ -32,6 +32,11 @@
 #define MAX(a, b) (a) > (b) ? (a) : (b)
 #endif
 
+time_t getCurrentTime();
+time_t getTimeOffset(time_t current_time);
+
+namespace flexisip {
+
 class Mutex {
   public:
 	Mutex(bool reentrant = false);
@@ -63,9 +68,6 @@ template <typename _first, typename _last> class map_delete_functor {
 
 #define RESTART_EXIT_CODE 5
 
-time_t getCurrentTime();
-time_t getTimeOffset(time_t current_time);
-
 // Helper to get ip from host in a portable binary format.
 class BinaryIp {
 public:
@@ -85,4 +87,6 @@ std::vector<std::string> split (const std::string &str, const std::string &delim
 
 inline std::vector<std::string> split (const std::string &str, char delimiter) {
 	return split(str, std::string(1, delimiter));
+}
+
 }

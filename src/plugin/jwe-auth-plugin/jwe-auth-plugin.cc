@@ -32,6 +32,7 @@ extern "C" {
 // =============================================================================
 
 using namespace std;
+using namespace flexisip;
 
 namespace {
 	constexpr int JweAuthPluginVersion = 1;

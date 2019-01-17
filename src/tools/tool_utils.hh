@@ -31,6 +31,8 @@
 		exit(-1);                                                                                                      \
 	} while (0)
 
+namespace flexisip {
+
 void init_tests() {
 	flexisip_sUseSyslog = false;
 	flexisip::log::preinit(flexisip_sUseSyslog, flexisip::log::debug, 0, "test");
@@ -110,3 +112,5 @@ struct SofiaHome {
 		delete (h);
 	}
 };
+
+}

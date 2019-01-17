@@ -22,6 +22,7 @@
 #include "callstore.hh"
 
 using namespace std;
+using namespace flexisip;
 
 CallContextBase::CallContextBase(sip_t *sip) {
 	su_home_init(&mHome);

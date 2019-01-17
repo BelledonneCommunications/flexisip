@@ -23,7 +23,7 @@
 #include <flexisip/module-auth.hh>
 
 using namespace std;
-
+using namespace flexisip;
 
 // ====================================================================================================================
 //  Authentication class

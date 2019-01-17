@@ -25,6 +25,7 @@
 #include <unordered_map>
 
 using namespace std;
+using namespace flexisip;
 
 typedef struct DosContext {
 	uint64_t recv_msg_count_since_last_check;

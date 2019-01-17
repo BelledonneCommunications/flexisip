@@ -23,6 +23,8 @@
 #include <map>
 #include <string>
 
+namespace flexisip {
+
 class EtcHostsResolver {
   public:
 	static EtcHostsResolver *get();
@@ -36,3 +38,5 @@ class EtcHostsResolver {
 	std::map<std::string, std::string> mOverrideMap;
 	static EtcHostsResolver *sInstance;
 };
+
+}

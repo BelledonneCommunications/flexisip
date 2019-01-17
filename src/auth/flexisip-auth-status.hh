@@ -25,6 +25,8 @@
 #include "auth-status.hh"
 #include <flexisip/event.hh>
 
+namespace flexisip {
+
 /**
  * Specialization of AuthStatus dedicated to be used
  * with FlexisipAuthModule class.
@@ -66,3 +68,5 @@ private:
 	bool mNo403 = false;
 	bool mPasswordFound = false;
 };
+
+}

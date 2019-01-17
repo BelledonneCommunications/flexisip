@@ -23,6 +23,8 @@
 
 #include <sofia-sip/url.h>
 
+namespace flexisip {
+
 struct PushInfo {
 	enum Event { Call, Message , Refer };
 	PushInfo() : mEvent(Event::Message), mNoBadge(false), mSilent(false){};
@@ -82,3 +84,5 @@ class PushNotificationRequest {
 		const std::string mType;
 
 };
+
+}

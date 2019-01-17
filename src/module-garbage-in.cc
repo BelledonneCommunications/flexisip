@@ -20,6 +20,7 @@
 #include <flexisip/agent.hh>
 
 using namespace std;
+using namespace flexisip;
 
 class ModuleGarbageIn : public Module, protected ModuleToolbox {
 public:

@@ -27,6 +27,7 @@
 #include "external-auth-module.hh"
 
 using namespace std;
+using namespace flexisip;
 
 ExternalAuthModule::ExternalAuthModule(su_root_t *root, const std::string &domain, const std::string &algo) : FlexisipAuthModuleBase(root, domain, algo) {
 	mEngine = nth_engine_create(root, TAG_END());

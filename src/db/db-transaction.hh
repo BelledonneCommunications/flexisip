@@ -27,6 +27,8 @@
 #define DB_TRANSACTION(SESSION) \
 	DbTransactionInfo().set(__func__, SESSION) * [&](SmartTransaction &tr)
 
+namespace flexisip {
+
 class SmartTransaction {
 public:
 	SmartTransaction (soci::session *session, const char *name) : mSession(session), mName(name), mIsCommitted(false) {
@@ -192,4 +194,6 @@ private:
 template<typename Function>
 typename DbTransaction<Function>::ReturnType operator* (DbTransactionInfo &info, Function &&function) {
 	return DbTransaction<Function>(info, std::forward<Function>(function));
+}
+
 }

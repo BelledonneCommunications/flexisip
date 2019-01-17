@@ -21,6 +21,8 @@
 #include "auth/flexisip-auth-module.hh"
 #include "module.hh"
 
+namespace flexisip {
+
 class Authentication : public Module {
 public:
 	StatCounter64 *mCountAsyncRetrieve = nullptr;
@@ -78,3 +80,5 @@ private:
 	bool mRejectWrongClientCertificates = false;
 	bool mTrustDomainCertificates = false;
 };
+
+}

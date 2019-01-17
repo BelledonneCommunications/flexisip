@@ -21,6 +21,7 @@
 #include <flexisip/logmanager.hh>
 
 using namespace std;
+using namespace flexisip;
 
 class ModulePresence : public Module, ModuleToolbox {
 private:

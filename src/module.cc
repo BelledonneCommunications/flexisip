@@ -31,6 +31,7 @@
 #include <algorithm>
 
 using namespace std;
+using namespace flexisip;
 
 // -----------------------------------------------------------------------------
 // Module.

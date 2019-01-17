@@ -32,6 +32,7 @@
 #include <memory>
 
 using namespace std;
+using namespace flexisip;
 
 struct DumpListener : public ContactUpdateListener {
 

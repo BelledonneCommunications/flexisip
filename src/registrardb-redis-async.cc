@@ -39,6 +39,7 @@
 constexpr int redisRetryTimeoutMs = 5000;
 
 using namespace std;
+using namespace flexisip;
 
 RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<ContactUpdateListener> listener)
 	: self(s), listener(listener), record(url), token(0), mRetryTimer(nullptr), mRetryCount(0), mGruu(""), mUpdateExpire(false), mIsUnregister(false) {

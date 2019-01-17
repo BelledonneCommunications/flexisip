@@ -28,6 +28,8 @@
 #include <queue>
 #include <mutex>
 
+namespace flexisip {
+
 class EventLog {
 	friend class FilesystemEventLogWriter;
 	friend class DataBaseEventLogWriter;
@@ -179,6 +181,8 @@ private:
 	bool mIsReady;
 };
 
+}
+
 #if ENABLE_SOCI
 
 #ifdef __GNUG__
@@ -191,6 +195,8 @@ private:
 #endif
 
 #include "utils/threadpool.hh"
+
+namespace flexisip {
 
 class DataBaseEventLogWriter: public EventLogWriter {
 public:
@@ -233,5 +239,7 @@ private:
 
 	std::string mInsertReq[5];
 };
+
+}
 
 #endif

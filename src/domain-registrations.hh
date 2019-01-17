@@ -29,6 +29,8 @@
 
 #include <list>
 
+namespace flexisip {
+
 class LocalRegExpireListener;
 class DomainRegistrationManager;
 class Agent;
@@ -119,3 +121,5 @@ class DomainRegistrationManager : public LocalRegExpireListener, public std::ena
 		su_root_break(root);
 	}
 };
+
+}

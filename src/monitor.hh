@@ -21,6 +21,8 @@
 #include <string>
 #include <flexisip/agent.hh>
 
+namespace flexisip {
+
 class Monitor {
   public:
 	static void exec(int socket);
@@ -46,3 +48,5 @@ class Monitor {
 	static const std::string CALLEE_PREFIX;
 	static const int PASSWORD_CACHE_EXPIRE;
 };
+
+}

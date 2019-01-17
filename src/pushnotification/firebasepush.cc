@@ -5,6 +5,7 @@
 #include <flexisip/logmanager.hh>
 
 using namespace std;
+using namespace flexisip;
 
 FirebasePushNotificationRequest::FirebasePushNotificationRequest(const PushInfo &pinfo)
 : PushNotificationRequest(pinfo.mAppId, "firebase") {

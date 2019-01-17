@@ -26,6 +26,7 @@
 #include <sofia-sip/su_md5.h>
 
 using namespace std;
+using namespace flexisip;
 
 IncomingAgent::~IncomingAgent() {
 }

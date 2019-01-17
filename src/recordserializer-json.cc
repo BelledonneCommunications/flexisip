@@ -24,6 +24,8 @@
 #include "cJSON.h"
 
 using namespace std;
+using namespace flexisip;
+
 #define CHECK(msg, test)                                                                                               \
 	if (test) {                                                                                                        \
 		SLOGE << "Invalid serialized contact " << i << "\n" << str << msg;                                             \

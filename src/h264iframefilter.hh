@@ -20,6 +20,8 @@
 
 #include "mediarelay.hh"
 
+namespace flexisip {
+
 class H264IFrameFilter : public MediaFilter {
   public:
 	H264IFrameFilter(int skipcount);
@@ -33,3 +35,5 @@ class H264IFrameFilter : public MediaFilter {
 	uint32_t mLastIframeTimestamp;
 	int mIframeCount;
 };
+
+}

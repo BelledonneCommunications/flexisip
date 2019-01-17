@@ -23,6 +23,8 @@
 #include "transaction.hh"
 #include "registrardb.hh"
 
+namespace flexisip {
+
 class OnContactRegisteredListener;
 
 class ForkContextConfig {
@@ -166,3 +168,5 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	static const int sUrgentCodes[];
 	static const int sAllCodesUrgent[];
 };
+
+}

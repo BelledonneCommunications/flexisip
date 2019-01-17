@@ -43,18 +43,18 @@
 
 #define FLEXISIP_PLUGIN_API_VERSION FLEXISIP_GIT_VERSION
 
-namespace Private {
-	class Plugin {
-	public:
-		Plugin(SharedLibrary &sharedLibrary);
-		virtual ~Plugin();
+namespace flexisip {
 
-	private:
-		SharedLibrary *mSharedLibrary;
+class Plugin {
+public:
+	Plugin(SharedLibrary &sharedLibrary);
+	virtual ~Plugin();
 
-		FLEXISIP_DISABLE_COPY(Plugin);
-	};
-}
+private:
+	SharedLibrary *mSharedLibrary;
+
+	FLEXISIP_DISABLE_COPY(Plugin);
+};
 
 struct PluginInfo {
 	const char *className;
@@ -93,3 +93,5 @@ inline std::ostream &operator<< (std::ostream &os, const PluginInfo &info) {
 			VERSION, \
 			FLEXISIP_PLUGIN_API_VERSION \
 		}; \
+
+}

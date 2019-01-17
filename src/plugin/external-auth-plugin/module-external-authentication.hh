@@ -24,6 +24,8 @@
 #include "external-auth-module.hh"
 #include <flexisip/module.hh>
 
+namespace flexisip {
+
 class ModuleExternalAuthentication : public Module {
 public:
 	ModuleExternalAuthentication(Agent *agent);
@@ -54,3 +56,5 @@ private:
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
 };
+
+}

@@ -21,6 +21,7 @@
 #include <cstdio>
 
 using namespace std;
+using namespace flexisip;
 
 EtcHostsResolver *EtcHostsResolver::sInstance = NULL;
 

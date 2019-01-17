@@ -32,8 +32,8 @@
 #include <functional>
 #include <algorithm>
 
-
 using namespace std;
+using namespace flexisip;
 
 #ifdef ENABLE_TRANSCODER
 class TickerManager {

@@ -28,6 +28,7 @@
 #include <algorithm>
 
 using namespace std;
+using namespace flexisip;
 
 static ModuleRegistrar *sRegistrarInstanceForSigAction = nullptr;
 

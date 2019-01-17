@@ -29,7 +29,9 @@
 #include <ortp/ortp.h>
 #include <sofia-sip/url.h>
 #include <sofia-sip/base64.h>
+
 using namespace std;
+using namespace flexisip;
 
 static const int MAX_QUEUE_SIZE = 3000;
 // static const int PRINT_STATS_TIMEOUT = 3000;	/* In milliseconds. */

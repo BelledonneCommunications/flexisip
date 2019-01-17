@@ -28,6 +28,8 @@
 
 #include "pushnotificationservice.hh"
 
+namespace flexisip {
+
 class PushNotificationClient {
 	public:
 		PushNotificationClient(const std::string &name, PushNotificationService *service,
@@ -63,3 +65,5 @@ class PushNotificationClient {
 		bool mThreadRunning;
 		bool mThreadWaiting;
 };
+
+}

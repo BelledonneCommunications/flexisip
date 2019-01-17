@@ -42,6 +42,8 @@
 #include "belr/grammarbuilder.h"
 #include "belr/parser.h"
 
+namespace flexisip {
+
 enum AuthDbResult { PENDING, PASSWORD_FOUND, PASSWORD_NOT_FOUND, AUTH_ERROR };
 
 struct passwd_algo_t {
@@ -223,7 +225,11 @@ public:
 	static void declareConfig(GenericStruct *mc){};
 };
 
+}
+
 #if ENABLE_ODBC
+
+namespace flexisip {
 
 class OdbcAuthDb : public AuthDbBackend {
 	~OdbcAuthDb();
@@ -275,12 +281,16 @@ public:
 	static void declareConfig(GenericStruct *mc);
 };
 
+}
+
 #endif /* ENABLE_ODBC */
 
 #if ENABLE_SOCI
 
 #include "soci/soci.h"
 #include "utils/threadpool.hh"
+
+namespace flexisip {
 
 class SociAuthDB : public AuthDbBackend {
 	virtual ~SociAuthDB();
@@ -316,5 +326,7 @@ private:
 	bool check_domain_in_presence_results = false;
 	bool hashed_passwd;
 };
+
+}
 
 #endif /* ENABLE_SOCI */

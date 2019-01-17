@@ -26,7 +26,7 @@
 #include <map>
 #include <tuple>
 
-
+namespace flexisip {
 
 class TranscodedCall;
 
@@ -85,3 +85,4 @@ private:
 	bool mForcePublicAddressEnabled = false;
 };
 
+}

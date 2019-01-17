@@ -20,6 +20,7 @@
 
 #include "pushnotification.hh"
 
+namespace flexisip {
 
 class ApplePushNotificationRequest : public PushNotificationRequest {
 public:
@@ -48,3 +49,5 @@ protected:
 	unsigned int mTtl;
 	static uint32_t sIdentifier;
 };
+
+}

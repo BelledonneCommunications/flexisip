@@ -41,10 +41,13 @@
 #include <string>
 #include <sstream>
 #include <memory>
+#include <ifaddrs.h>
 
 #if ENABLE_MDNS
 #include "belle-sip/belle-sip.h"
 #endif
+
+namespace flexisip {
 
 class Module;
 class DomainRegistrationManager;
@@ -245,3 +248,5 @@ private:
 	std::vector<belle_sip_mdns_register_t *> mMdnsRegisterList;
 #endif
 };
+
+}

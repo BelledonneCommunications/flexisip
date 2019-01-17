@@ -22,6 +22,8 @@
 #include <flexisip/registrardb.hh>
 #include <sofia-sip/sip.h>
 
+namespace flexisip {
+
 class RegistrarDbInternal : public RegistrarDb {
   public:
 	RegistrarDbInternal(Agent *ag);
@@ -35,3 +37,5 @@ class RegistrarDbInternal : public RegistrarDb {
 	virtual void doMigration();
 	virtual void publish(const std::string &topic, const std::string &uid);
 };
+
+}

@@ -37,6 +37,7 @@
 #include <flexisip/module.hh>
 
 using namespace std;
+using namespace flexisip;
 
 ostream &ExtendedContact::print(ostream &stream, time_t _now, time_t _offset) const {
 	time_t now = _now;

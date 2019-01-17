@@ -25,6 +25,7 @@
 #include <vector>
 
 using namespace std;
+using namespace flexisip;
 
 WindowsPhonePushNotificationRequest::WindowsPhonePushNotificationRequest ( const PushInfo &pinfo )
 	: PushNotificationRequest ( pinfo.mAppId, pinfo.mType ), mPushInfo ( pinfo ) {

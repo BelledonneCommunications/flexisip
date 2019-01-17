@@ -23,6 +23,8 @@
 #include <flexisip/agent.hh>
 #include <string>
 
+namespace flexisip {
+
 class ContactMasquerader {
 	Agent *mAgent;
 	std::string mCtRtParamName;
@@ -46,3 +48,5 @@ class ContactMasquerader {
 
 	void restore(su_home_t *home, url_t *dest, char ctrt_param[64], const char *new_param = NULL);
 };
+
+}

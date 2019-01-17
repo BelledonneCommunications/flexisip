@@ -23,6 +23,9 @@
 #include <sofia-sip/msg.h>
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nua.h>
+
+namespace flexisip {
+
 class Agent;
 
 struct UacRegister {
@@ -46,3 +49,5 @@ struct UacRegister {
   private:
 	void authenticate(const msg_param_t *au_params);
 };
+
+}

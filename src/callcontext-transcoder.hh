@@ -26,7 +26,8 @@
 #include <mediastreamer2/msrtp.h>
 #include <mediastreamer2/bitratecontrol.h>
 
-
+namespace flexisip {
+	
 class Transcoder;
 class TranscodedCall;
 class CallContextParams {
@@ -115,3 +116,5 @@ class TranscodedCall : public CallContextBase {
 	std::string mBindAddress;
 	time_t mCreateTime;
 };
+
+}

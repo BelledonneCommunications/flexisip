@@ -21,6 +21,7 @@
 #include "contact-masquerader.hh"
 
 using namespace std;
+using namespace flexisip;
 
 class ContactRouteInserter : public Module {
 public:

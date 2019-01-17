@@ -26,6 +26,8 @@
 #include <hiredis/async.h>
 #include <flexisip/agent.hh>
 
+namespace flexisip {
+
 struct RedisParameters {
 	RedisParameters() : port(0), timeout(0) {
 	}
@@ -180,3 +182,5 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	static void sHandleMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 	static void sHandleRecordMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 };
+
+}

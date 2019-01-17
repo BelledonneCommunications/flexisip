@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 using namespace std;
+using namespace flexisip;
 
 const unsigned int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 2048;
 const unsigned int ApplePushNotificationRequest::DEVICE_BINARY_SIZE = 32;

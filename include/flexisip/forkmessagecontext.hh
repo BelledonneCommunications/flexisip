@@ -26,6 +26,8 @@
 #include <list>
 #include <map>
 
+namespace flexisip {
+
 class ForkMessageContext : public ForkContext {
   private:
 	su_timer_t
@@ -54,3 +56,5 @@ class ForkMessageContext : public ForkContext {
 	void checkFinished();
 	void logDeliveredToUserEvent(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event);
 };
+
+}

@@ -30,6 +30,7 @@
 #include <typeinfo>
 
 using namespace std;
+using namespace flexisip;
 
 EventLog::Init EventLog::evStaticInit;
 

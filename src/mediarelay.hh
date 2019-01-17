@@ -24,6 +24,8 @@
 #include "sdp-modifier.hh"
 #include <ortp/rtpsession.h>
 
+namespace flexisip {
+
 class RelayedCall;
 class MediaRelayServer;
 
@@ -259,3 +261,5 @@ class RelayChannel : public SdpMasqueradeContext{
 	bool mHasMultipleTargets;
 	bool mDestAddrChanged;
 };
+
+}

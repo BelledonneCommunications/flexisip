@@ -26,6 +26,8 @@
 #include <list>
 #include <map>
 
+namespace flexisip {
+
 class ForkBasicContext : public ForkContext {
   private:
 	su_timer_t
@@ -45,3 +47,5 @@ class ForkBasicContext : public ForkContext {
 	static void sOnDecisionTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	void onDecisionTimer();
 };
+
+}

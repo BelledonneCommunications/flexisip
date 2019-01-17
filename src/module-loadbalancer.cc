@@ -22,6 +22,7 @@
 #include <vector>
 
 using namespace std;
+using namespace flexisip;
 
 class LoadBalancer : public Module, public ModuleToolbox {
 public:

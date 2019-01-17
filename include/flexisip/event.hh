@@ -30,6 +30,8 @@
 #include <functional>
 #include <regex.h>
 
+namespace flexisip {
+
 class Agent;
 class Module;
 class IncomingAgent;
@@ -257,3 +259,5 @@ public:
 private:
 	su_home_t mHome;
 };
+
+}

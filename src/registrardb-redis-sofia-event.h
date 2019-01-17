@@ -22,15 +22,16 @@
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
 
-
-struct redisSofiaEvents;
-typedef struct redisSofiaEvents redisSofiaEvents;
-
 #ifndef SU_WAIT_H
 #define SU_WAKEUP_ARG_T redisSofiaEvents
 #define SU_ROOT_MAGIC_T redisAsyncContext
 #include <sofia-sip/su_wait.h>
 #endif
+
+namespace flexisip {
+
+struct redisSofiaEvents;
+typedef struct redisSofiaEvents redisSofiaEvents;
 
 typedef struct redisSofiaEvents {
 	redisAsyncContext *context;
@@ -115,4 +116,6 @@ static int redisSofiaAttach(redisAsyncContext *ac, su_root_t *root) {
 	e->index = su_root_register(root, &e->wait, redisSofiaEvent, e, su_pri_normal);
 
 	return REDIS_OK;
+}
+
 }

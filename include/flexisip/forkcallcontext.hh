@@ -25,6 +25,8 @@
 
 #include <list>
 
+namespace flexisip {
+
 enum FlexisipForkStatus {FlexisipForkAcceptedElsewhere, FlexisipForkDeclineElsewhere, FlexisipForkStandard};
 
 class ForkCallContext : public ForkContext {
@@ -62,3 +64,5 @@ class ForkCallContext : public ForkContext {
 	int mActivePushes;
 	static const int sUrgentCodesWithout603[];
 };
+
+}

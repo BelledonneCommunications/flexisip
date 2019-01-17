@@ -23,6 +23,8 @@
 #include "flexisip-config.h"
 #include <cstring>
 
+using namespace flexisip;
+
 Mutex::Mutex(bool reentrant) : mReentrant(reentrant), mCount(0) {
 	int err;
 	if ((err = pthread_mutex_init(&mMutex, NULL)) != 0) {
@@ -155,8 +157,7 @@ BinaryIp::BinaryIp(const char *hostname, bool onlyIpString) {
 		free(node);
 }
 
-
-std::vector<std::string> split (const std::string &str, const std::string &delimiter) {
+std::vector<std::string> flexisip::split (const std::string &str, const std::string &delimiter) {
 	std::vector<std::string> out;
 	size_t pos = 0, oldPos = 0;
 	for (; (pos = str.find(delimiter, pos)) != std::string::npos; oldPos = pos + 1, pos = oldPos)

@@ -30,6 +30,7 @@
 #include "module-external-authentication.hh"
 
 using namespace std;
+using namespace flexisip;
 
 std::ostream &operator<<(std::ostream &os, const http_payload_t *httpPayload) {
 	const http_payload_t *httpPayloadBase = reinterpret_cast<const http_payload_t *>(httpPayload);

@@ -26,6 +26,7 @@
 #include <flexisip/logmanager.hh>
 
 using namespace std;
+using namespace flexisip;
 
 UacRegister::UacRegister(const sip_from_t *ifrom, const sip_to_t *ito, int iexpire, nua_t *nua, nua_hmagic_t *userptr) {
 	su_home_init(&home);

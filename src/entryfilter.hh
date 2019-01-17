@@ -25,6 +25,8 @@
 
 #include <flexisip/agent.hh>
 
+namespace flexisip {
+
 /**
  * The goal of this object is to filter SIP message that enter into a module.
  **/
@@ -57,3 +59,5 @@ class ConfigEntryFilter : public EntryFilter {
 	std::shared_ptr<BooleanExpression> mBooleanExprFilter;
 	std::string mEntryName;
 };
+
+}

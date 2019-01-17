@@ -27,6 +27,8 @@
 #include <string>
 #include <map>
 
+namespace flexisip {
+
 class OutgoingTransaction;
 class IncomingTransaction;
 class Agent;
@@ -166,3 +168,5 @@ class IncomingTransaction : public Transaction,
 	void destroy();
 	static int _callback(nta_incoming_magic_t *magic, nta_incoming_t *irq, const sip_t *sip);
 };
+
+}

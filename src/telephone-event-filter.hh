@@ -20,6 +20,8 @@
 
 #include "mediarelay.hh"
 
+namespace flexisip {
+
 class TelephoneEventFilter : public MediaFilter {
   public:
 	TelephoneEventFilter(int telephone_event_pt);
@@ -29,3 +31,5 @@ class TelephoneEventFilter : public MediaFilter {
   private:
 	int mTelephoneEventPt;
 };
+
+}

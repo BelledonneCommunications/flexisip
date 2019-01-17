@@ -24,9 +24,12 @@
 #include <cstring>
 
 using namespace std;
+using namespace flexisip;
 
 static size_t count = 0;
 static bool error_occured = false;
+
+namespace flexisip {
 
 class SipAttributes {
 	map<string, string> mStringArgs;
@@ -86,6 +89,8 @@ class SipAttributes {
 		throw new runtime_error("unknown argument " + id);
 	}
 };
+
+}
 
 static void print_test_value(size_t nb, const char *expr, const char *args, bool expected, bool actual) {
 	bool success = expected == actual;

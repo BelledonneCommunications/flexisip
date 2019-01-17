@@ -21,6 +21,7 @@
 #include <stdexcept>
 
 using namespace std;
+using namespace flexisip;
 
 ConfigEntryFilter::ConfigEntryFilter() {
 }

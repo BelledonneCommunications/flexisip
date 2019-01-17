@@ -25,6 +25,8 @@
 #include <sofia-sip/sip.h>
 #endif
 
+namespace flexisip {
+
 class SipAttributes {
   public:
 #ifdef NO_SOFIA
@@ -58,3 +60,5 @@ class SipAttributes {
 	}
 	bool isTrue(const std::string &arg) const;
 };
+
+}

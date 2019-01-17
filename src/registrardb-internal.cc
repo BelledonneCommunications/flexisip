@@ -28,6 +28,7 @@
 #include <sofia-sip/sip_protos.h>
 
 using namespace std;
+using namespace flexisip;
 
 RegistrarDbInternal::RegistrarDbInternal(Agent *ag) : RegistrarDb(ag) {
 	mWritable = true;

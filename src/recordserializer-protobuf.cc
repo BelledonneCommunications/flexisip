@@ -24,6 +24,7 @@
 #include <sofia-sip/sip_protos.h>
 
 using namespace std;
+using namespace flexisip;
 
 // See .proto file for description of the format.
 

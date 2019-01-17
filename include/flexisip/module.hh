@@ -25,6 +25,8 @@
 #include <sofia-sip/tport.h>
 #include <sofia-sip/msg_header.h>
 
+namespace flexisip {
+
 // =============================================================================
 
 // -----------------------------------------------------------------------------
@@ -315,3 +317,5 @@ public:
 	static bool getBoolUriParameter(const url_t *url, const char *param, bool defaultValue);
 	static sip_via_t *getLastVia(sip_t *sip);
 };
+
+}

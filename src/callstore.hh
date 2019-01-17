@@ -21,6 +21,8 @@
 #include <flexisip/agent.hh>
 #include <list>
 
+namespace flexisip {
+
 class CallContextBase {
   public:
 	CallContextBase(sip_t *sip);
@@ -89,3 +91,5 @@ class CallStore {
 	StatCounter64 *mCountCalls;
 	StatCounter64 *mCountCallsFinished;
 };
+
+}

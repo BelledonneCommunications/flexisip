@@ -21,6 +21,8 @@
 #include <flexisip/configmanager.hh>
 #include <iostream>
 
+namespace flexisip {
+
 class ConfigDumper {
   protected:
 	GenericEntry *mRoot;
@@ -177,3 +179,5 @@ class MibDumper : public ConfigDumper {
 		return ostr;
 	}
 };
+
+}

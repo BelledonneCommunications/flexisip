@@ -25,10 +25,9 @@
 #include <vector>
 #include <algorithm>
 
-
 using namespace std;
 using namespace ::std::placeholders;
-
+using namespace flexisip;
 
 static bool isEarlyMedia(sip_t *sip) {
 	if (sip->sip_status->st_status == 180 || sip->sip_status->st_status == 183) {

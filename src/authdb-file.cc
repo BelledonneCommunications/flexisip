@@ -32,6 +32,7 @@
 
 using namespace::belr;
 using namespace std;
+using namespace flexisip;
 
 void FileAuthDb::parsePasswd(const vector<passwd_algo_t> &srcPasswords, const string &user, const string &domain, vector<passwd_algo_t> &destPasswords) {
 	// Creates pass-md5, pass-sha256 if there is clrtxt pass

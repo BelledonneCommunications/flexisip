@@ -22,6 +22,7 @@
 #include <sofia-sip/sip_status.h>
 
 using namespace std;
+using namespace flexisip;
 
 const int ForkContext::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603, 0};
 

@@ -16,7 +16,6 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <dlfcn.h>
 #include <unordered_map>
 
 #include "plugin-loader.hh"
@@ -25,6 +24,7 @@
 // =============================================================================
 
 using namespace std;
+using namespace flexisip;
 
 // -----------------------------------------------------------------------------
 // Low API to open library.
@@ -65,60 +65,7 @@ static void *openLibrary(const string &filename, string &error) {
 // SharedLibrary between each PluginLoader.
 // -----------------------------------------------------------------------------
 
-class SharedLibrary {
-public:
-	SharedLibrary(const string &filename, void *library) : mFilename(filename), mLibrary(library) {}
-
-	// Workaround for older gcc versions.
-	// Move ctor is not correctly supported with std::pair on older versions of gcc.
-	#if __GNUC__ < 5
-	SharedLibrary(
-		const SharedLibrary &other
-	) : module(other.module), mFilename(move(other.mFilename)), mLibrary(other.mLibrary), mRefCounter(other.mRefCounter) {
-		SharedLibrary &self = const_cast<SharedLibrary &>(other);
-		self.module = nullptr;
-		self.mLibrary = nullptr;
-	}
-	#else
-	SharedLibrary(
-		SharedLibrary &&other
-	) : module(other.module), mFilename(move(other.mFilename)), mLibrary(other.mLibrary), mRefCounter(other.mRefCounter) {
-		other.module = nullptr;
-		other.mLibrary = nullptr;
-	}
-	#endif // if __GNUC__ < 5
-
-	~SharedLibrary() {
-		if (module)
-			delete module;
-		if (mLibrary)
-			dlclose(mLibrary);
-	}
-
-	void ref() {
-		++mRefCounter;
-	}
-
-	void unref() {
-		--mRefCounter;
-	}
-
-	bool unload();
-
-	void *get() const { return mLibrary; }
-
-	Module *module = nullptr;
-
-private:
-	string mFilename;
-	void *mLibrary;
-
-	int mRefCounter;
-};
-
-namespace {
-	unordered_map<string, SharedLibrary> LoadedLibraries;
-}
+unordered_map<string, SharedLibrary> LoadedLibraries;
 
 bool SharedLibrary::unload() {
 	if (--mRefCounter == 1) {
@@ -150,24 +97,10 @@ static SharedLibrary *getOrCreateSharedLibrary(const string &filename, string &e
 // PluginLoader.
 // -----------------------------------------------------------------------------
 
-class PluginLoaderPrivate {
-public:
-	Agent *agent = nullptr;
-	string filename;
+Plugin::Plugin(SharedLibrary &sharedLibrary) : mSharedLibrary(&sharedLibrary) {}
 
-	SharedLibrary *sharedLibrary = nullptr;
-
-	string error;
-
-	int libraryRefCounter = 0;
-};
-
-namespace Private {
-	Plugin::Plugin(SharedLibrary &sharedLibrary) : mSharedLibrary(&sharedLibrary) {}
-
-	Plugin::~Plugin() {
-		mSharedLibrary->module = nullptr;
-	}
+Plugin::~Plugin() {
+	mSharedLibrary->module = nullptr;
 }
 
 // -----------------------------------------------------------------------------

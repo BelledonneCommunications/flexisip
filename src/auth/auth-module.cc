@@ -27,6 +27,7 @@
 #include "auth-module.hh"
 
 using namespace std;
+using namespace flexisip;
 
 struct auth_plugin_t {
 	AuthModule *backPtr;

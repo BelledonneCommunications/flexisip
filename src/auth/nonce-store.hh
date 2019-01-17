@@ -25,6 +25,7 @@
 
 #include <sofia-sip/msg_types.h>
 
+namespace flexisip {
 
 class NonceStore {
 public:
@@ -48,3 +49,5 @@ private:
 	std::mutex mMutex;
 	int mNonceExpires = 3600;
 };
+
+}

@@ -26,11 +26,12 @@
 #include <memory>
 #include "utils/flexisip-exception.hh"
 
-class SipAttributes;
-
-
 void log_boolean_expression_evaluation(bool value);
 void log_boolean_expression_parsing(bool value);
+
+namespace flexisip {
+
+class SipAttributes;
 
 class BooleanExpression {
   protected:
@@ -46,3 +47,5 @@ class BooleanExpression {
 	static std::shared_ptr<BooleanExpression> parse(const std::string &str);
 	long ptr();
 };
+
+}

@@ -22,6 +22,8 @@
 #include <map>
 #include "common.hh"
 
+namespace flexisip {
+
 class GenericManager;
 class Agent;
 
@@ -46,3 +48,5 @@ private:
 	SnmpAgentTask mTask;
 	std::thread mThread;
 };
+
+}

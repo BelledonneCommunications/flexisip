@@ -32,6 +32,7 @@
 #include "flexisip-auth-status.hh"
 #include "nonce-store.hh"
 
+namespace flexisip {
 
 /**
  * Authentication module using a user database to validate the Authorization header.
@@ -86,3 +87,5 @@ private:
 	static std::string sha256(const void *data, size_t len);
 	static std::string toString(const std::vector<uint8_t> &data);
 };
+
+}

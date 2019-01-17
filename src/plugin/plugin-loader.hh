@@ -19,14 +19,16 @@
 #pragma once
 
 #include <string>
+#include <dlfcn.h>
 
+#include <flexisip/agent.hh>
+#include <flexisip/module.hh>
 #include <flexisip/global.hh>
 
 // =============================================================================
 
-class Agent;
-class Module;
-class ModuleInfoBase;
+namespace flexisip {
+
 class PluginLoaderPrivate;
 
 class PluginLoader {
@@ -53,3 +55,68 @@ private:
 
 	FLEXISIP_DISABLE_COPY(PluginLoader);
 };
+
+class SharedLibrary {
+public:
+	SharedLibrary(const std::string &filename, void *library) : mFilename(filename), mLibrary(library) {}
+
+	// Workaround for older gcc versions.
+	// Move ctor is not correctly supported with std::pair on older versions of gcc.
+	#if __GNUC__ < 5
+	SharedLibrary(
+		const SharedLibrary &other
+	) : module(other.module), mFilename(move(other.mFilename)), mLibrary(other.mLibrary), mRefCounter(other.mRefCounter) {
+		SharedLibrary &self = const_cast<SharedLibrary &>(other);
+		self.module = nullptr;
+		self.mLibrary = nullptr;
+	}
+	#else
+	SharedLibrary(
+		SharedLibrary &&other
+	) : module(other.module), mFilename(move(other.mFilename)), mLibrary(other.mLibrary), mRefCounter(other.mRefCounter) {
+		other.module = nullptr;
+		other.mLibrary = nullptr;
+	}
+	#endif // if __GNUC__ < 5
+
+	~SharedLibrary() {
+		if (module)
+			delete module;
+		if (mLibrary)
+			dlclose(mLibrary);
+	}
+
+	void ref() {
+		++mRefCounter;
+	}
+
+	void unref() {
+		--mRefCounter;
+	}
+
+	bool unload();
+
+	void *get() const { return mLibrary; }
+
+	Module *module = nullptr;
+
+private:
+	std::string mFilename;
+	void *mLibrary;
+
+	int mRefCounter;
+};
+
+class PluginLoaderPrivate {
+public:
+	Agent *agent = nullptr;
+	std::string filename;
+
+	SharedLibrary *sharedLibrary = nullptr;
+
+	std::string error;
+
+	int libraryRefCounter = 0;
+};
+
+}

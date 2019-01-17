@@ -108,6 +108,7 @@ static std::shared_ptr<flexisip::ConferenceServer> conferenceServer;
 #endif // ENABLE_CONFERENCE
 
 using namespace std;
+using namespace flexisip;
 
 static unsigned long threadid_cb(){
 	return (unsigned long)pthread_self();

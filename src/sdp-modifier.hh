@@ -31,6 +31,7 @@
 #define payload_type_set_number(pt,n)	(pt)->user_data=(void*)(long)n
 #define payload_type_get_number(pt)	(int)(long)(pt)->user_data
 
+namespace flexisip {
 
 class SdpMasqueradeContext{
 public:
@@ -110,3 +111,5 @@ class SdpModifier{
 		su_home_t *mHome;
 		std::string mNortproxy;
 };
+
+}

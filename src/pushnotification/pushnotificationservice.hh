@@ -27,6 +27,8 @@
 #include <thread>
 #include <string>
 
+namespace flexisip {
+
 class PushNotificationClient;
 
 class PushNotificationService {
@@ -64,3 +66,5 @@ class PushNotificationService {
 	StatCounter64 *mCountFailed;
 	StatCounter64 *mCountSent;
 };
+
+}

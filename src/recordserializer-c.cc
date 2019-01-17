@@ -24,6 +24,7 @@
 #include <sofia-sip/sip_protos.h>
 
 using namespace std;
+using namespace flexisip;
 
 #define CHECK(msg, test)                                                                                               \
 	if (test) {                                                                                                        \

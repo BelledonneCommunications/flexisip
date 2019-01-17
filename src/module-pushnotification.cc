@@ -34,6 +34,7 @@
 #include <sofia-sip/sip_status.h>
 
 using namespace std;
+using namespace flexisip;
 
 class PushNotification;
 

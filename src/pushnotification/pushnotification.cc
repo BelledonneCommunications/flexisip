@@ -23,6 +23,7 @@
 #include "pushnotification.hh"
 
 using namespace std;
+using namespace flexisip;
 
 PushNotificationRequest::PushNotificationRequest(const string &appid, const string &type)
 			: mState( NotSubmitted), mAppId(appid), mType(type) {

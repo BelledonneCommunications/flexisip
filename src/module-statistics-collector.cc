@@ -27,6 +27,7 @@
 #include <sofia-sip/tport.h>
 
 using namespace std;
+using namespace flexisip;
 
 class StatisticsCollector : public Module, ModuleToolbox {
 public:

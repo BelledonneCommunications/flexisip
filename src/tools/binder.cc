@@ -20,6 +20,7 @@
 #include <flexisip/registrardb.hh>
 
 using namespace std;
+using namespace flexisip;
 
 struct MyListener : public ContactUpdateListener {
 	virtual void onRecordFound(Record *r) {

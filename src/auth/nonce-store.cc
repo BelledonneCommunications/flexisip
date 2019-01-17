@@ -24,6 +24,7 @@
 #include "nonce-store.hh"
 
 using namespace std;
+using namespace flexisip;
 
 // ====================================================================================================================
 //  NonceStore class

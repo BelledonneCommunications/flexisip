@@ -37,6 +37,8 @@
 #include <mutex>
 #include <iosfwd>
 
+namespace flexisip {
+
 class ContactUpdateListener;
 
 struct ExtendedContactCommon {
@@ -433,3 +435,5 @@ class RegistrarDb {
 	Agent *mAgent;
 	bool mWritable = false;
 };
+
+}

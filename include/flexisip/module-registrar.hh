@@ -27,6 +27,8 @@
 
 #include <signal.h> 
 
+namespace flexisip {
+
 struct RegistrarStats {
 	std::unique_ptr<StatPair> mCountBind;
 	std::unique_ptr<StatPair> mCountClear;
@@ -179,3 +181,5 @@ class RegistrarMgt {
 	virtual unsigned long long int getTotalNumberOfAddedRecords() = 0;
 	virtual unsigned long long int getTotalNumberOfExpiredRecords() = 0;
 };
+
+}

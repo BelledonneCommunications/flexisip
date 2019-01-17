@@ -21,6 +21,8 @@
 
 #include <flexisip/registrardb.hh>
 
+namespace flexisip {
+
 class RecordSerializer {
 	static RecordSerializer *sInstance;
 
@@ -70,3 +72,5 @@ public:
 	virtual bool serialize(Record *r, std::string &serialized, bool log);
 };
 #endif
+
+}

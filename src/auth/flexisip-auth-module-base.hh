@@ -30,6 +30,8 @@
 #include "flexisip-auth-status.hh"
 #include "nonce-store.hh"
 
+namespace flexisip {
+
 /**
  * @brief Base class for all authentication modules used by Flexisip.
  *
@@ -83,3 +85,5 @@ private:
 	void onChallenge(AuthStatus &as, auth_challenger_t const *ach) override;
 	void onCancel(AuthStatus &as) override;
 };
+
+}

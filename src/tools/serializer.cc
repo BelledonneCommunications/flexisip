@@ -18,6 +18,7 @@
 #include "tool_utils.hh"
 
 using namespace std;
+using namespace flexisip;
 
 int test_bind_with_ecc(ExtendedContactCommon &ecc, const unique_ptr<RecordSerializer> &serializer, string contact,
 					   time_t expireat, float quality, long cseq, time_t now, bool alias, sip_accept_t *accept) {

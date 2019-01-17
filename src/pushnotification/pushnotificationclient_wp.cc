@@ -25,6 +25,7 @@
 #include "pushnotificationclient_wp.hh"
 
 using namespace std;
+using namespace flexisip;
 
 PushNotificationClientWp::PushNotificationClientWp(const std::string &name, PushNotificationService *service,
 	 				   SSL_CTX * ctx,

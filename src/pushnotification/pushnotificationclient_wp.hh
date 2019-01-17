@@ -20,6 +20,8 @@
 
 #include "pushnotificationclient.hh"
 
+namespace flexisip {
+
 class PushNotificationClientWp : public PushNotificationClient {
 	public:
 		PushNotificationClientWp(const std::string &name, PushNotificationService *service,
@@ -40,3 +42,5 @@ class PushNotificationClientWp : public PushNotificationClient {
 		std::string mAccessToken;
 		time_t mTokenExpiring;
 };
+
+}

@@ -28,6 +28,7 @@
 #include <list>
 
 using namespace std;
+using namespace flexisip;
 
 PollFd::PollFd(int init_size) : mCurSize(init_size) {
 	mPfd = (struct pollfd *)malloc(mCurSize * sizeof(struct pollfd));

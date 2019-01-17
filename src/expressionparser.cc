@@ -34,6 +34,7 @@
 #include "utils/flexisip-exception.hh"
 
 using namespace std;
+using namespace flexisip;
 
 static string tf(bool value) {
 	return value ? "true" : "false";

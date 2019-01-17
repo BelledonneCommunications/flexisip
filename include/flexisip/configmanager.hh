@@ -60,13 +60,14 @@ typedef unsigned long oid;
 #endif /* ENABLE_SNMP */
 
 extern oid company_id;
-namespace flexisip {
-	struct LpConfig;
-};
 
 #include "expressionparser.hh"
 #include "global.hh"
 #include "utils/flexisip-exception.hh"
+
+namespace flexisip {
+
+struct LpConfig;
 
 enum class ConfigState { Check, Changed, Reset, Commited };
 class ConfigValue;
@@ -685,3 +686,5 @@ class GenericManager : protected ConfigValueListener {
 	std::unordered_set<std::string> mStatOids;
 	NotificationEntry *mNotifier;
 };
+
+}

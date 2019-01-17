@@ -26,6 +26,8 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+using namespace flexisip;
+
 StunServer::Init StunServer::sStaticInit;
 
 StunServer::Init::Init() {

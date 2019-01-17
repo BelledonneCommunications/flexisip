@@ -31,6 +31,7 @@
 #include <flexisip/logmanager.hh>
 #include <flexisip/registrardb.hh>
 
+using namespace flexisip;
 
 CommandLineInterface::CommandLineInterface(const std::string &name) : mName(name) {
 	if (pipe(mControlFds) == -1)

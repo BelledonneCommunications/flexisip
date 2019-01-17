@@ -27,6 +27,7 @@
 #include "genericpush.hh"
 
 using namespace std;
+using namespace flexisip;
 
 GenericPushNotificationRequest::GenericPushNotificationRequest(const PushInfo &pinfo, const url_t *url,
 															   const string &method)
