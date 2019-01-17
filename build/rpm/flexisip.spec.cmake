@@ -174,6 +174,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_datarootdir}/*
 %dir %{_includedir}/flexisip
 %{_includedir}/flexisip/*.hh
+%{_localstatedir}/*
 
 %if @ENABLE_PRESENCE@
 /lib/systemd/system/flexisip-presence.service
