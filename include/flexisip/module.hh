@@ -88,6 +88,7 @@ public:
 	inline void process(std::shared_ptr<ResponseSipEvent> &ev) {
 		processResponse(ev);
 	}
+	void setInfo(ModuleInfoBase *moduleInfo);
 
 protected:
 	virtual void onDeclare(GenericStruct *root) {}
@@ -119,8 +120,6 @@ protected:
 	Agent *mAgent;
 
 private:
-	void setInfo(ModuleInfoBase *moduleInfo);
-
 	ModuleInfoBase *mInfo;
 	GenericStruct *mModuleConfig;
 	EntryFilter *mFilter;
