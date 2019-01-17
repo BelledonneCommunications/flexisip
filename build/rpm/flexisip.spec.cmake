@@ -6,7 +6,6 @@
 # re-define some directories for older RPMBuild versions which don't. This messes up the doc/ dir
 # taken from https://fedoraproject.org/wiki/Packaging:RPMMacros?rd=Packaging/RPMMacros
 %define _datarootdir       %{_prefix}/share
-%define _includedir        %{_prefix}/include
 %define _datadir           %{_datarootdir}
 %define _docdir            %{_datadir}/doc
 
@@ -220,7 +219,8 @@ fi
 %{_bindir}/*
 %{_libdir}/*.so
 %{_datarootdir}/*
-%{_includedir}
+%dir %{_includedir}/flexisip
+%{_includedir}/flexisip/*.hh
 
 %if @ENABLE_PRESENCE@
 %{_sysconfdir}/init.d/flexisip-presence
