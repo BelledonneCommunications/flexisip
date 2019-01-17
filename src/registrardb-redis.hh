@@ -16,16 +16,17 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef registrardb_redis_hh
-#define registrardb_redis_hh
+#pragma once
 
-#include "registrardb.hh"
+#include <flexisip/registrardb.hh>
 #include "recordserializer.hh"
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nta.h>
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
-#include "agent.hh"
+#include <flexisip/agent.hh>
+
+namespace flexisip {
 
 struct RedisParameters {
 	RedisParameters() : port(0), timeout(0) {
@@ -182,4 +183,4 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	static void sHandleRecordMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 };
 
-#endif
+}

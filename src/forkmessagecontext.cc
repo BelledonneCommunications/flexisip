@@ -16,9 +16,9 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "forkmessagecontext.hh"
-#include "registrardb.hh"
-#include "common.hh"
+#include <flexisip/forkmessagecontext.hh>
+#include <flexisip/registrardb.hh>
+#include <flexisip/common.hh>
 #include <algorithm>
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/msg_types.h>
@@ -31,6 +31,7 @@
 #endif
 
 using namespace std;
+using namespace flexisip;
 
 static bool needsDelivery(int code) {
 	return code < 200 || code == 503 || code == 408;

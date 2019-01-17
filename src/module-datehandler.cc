@@ -16,12 +16,13 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module.hh"
-#include "agent.hh"
+#include <flexisip/module.hh>
+#include <flexisip/agent.hh>
 
 #include <sofia-sip/msg_addr.h>
 
 using namespace std;
+using namespace flexisip;
 
 class DateHandler : public Module, protected ModuleToolbox {
 public:

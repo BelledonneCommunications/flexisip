@@ -23,6 +23,7 @@
 #include "recordserializer.hh"
 
 using namespace msgpack;
+using namespace flexisip;
 
 RecordSerializerMsgPack::RecordSerializerMsgPack() {
 

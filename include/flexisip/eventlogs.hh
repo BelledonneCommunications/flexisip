@@ -16,17 +16,19 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef eventlogs_hh
-#define eventlogs_hh
+#pragma once
+
+#include "common.hh"
 
 #include <sofia-sip/sip.h>
 #include <sofia-sip/sip_protos.h>
 
-#include "../common.hh"
 #include <string>
 #include <memory>
 #include <queue>
 #include <mutex>
+
+namespace flexisip {
 
 class EventLog {
 	friend class FilesystemEventLogWriter;
@@ -179,6 +181,8 @@ private:
 	bool mIsReady;
 };
 
+}
+
 #if ENABLE_SOCI
 
 #ifdef __GNUG__
@@ -191,6 +195,8 @@ private:
 #endif
 
 #include "utils/threadpool.hh"
+
+namespace flexisip {
 
 class DataBaseEventLogWriter: public EventLogWriter {
 public:
@@ -234,6 +240,6 @@ private:
 	std::string mInsertReq[5];
 };
 
-#endif
+}
 
 #endif

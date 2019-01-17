@@ -22,8 +22,7 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
  
-#ifndef LPCONFIG_H
-#define LPCONFIG_H
+#pragma once
 
 namespace flexisip {
 /**
@@ -110,5 +109,3 @@ int lp_config_needs_commit(const LpConfig *lpconfig);
 void lp_config_destroy(LpConfig *cfg);
 
 }; //namespace
-
-#endif

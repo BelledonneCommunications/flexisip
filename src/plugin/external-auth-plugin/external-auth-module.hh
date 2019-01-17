@@ -25,6 +25,7 @@
 #include "auth/flexisip-auth-module-base.hh"
 #include "utils/string-formater.hh"
 
+namespace flexisip {
 
 /**
  * Authentication module that delegates the Authorization header validation to
@@ -92,3 +93,5 @@ private:
 
 	static std::array<int, 4> sValidSipCodes;
 };
+
+}

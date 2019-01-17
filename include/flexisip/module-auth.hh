@@ -21,6 +21,8 @@
 #include "auth/flexisip-auth-module.hh"
 #include "module.hh"
 
+namespace flexisip {
+
 class Authentication : public Module {
 public:
 	StatCounter64 *mCountAsyncRetrieve = nullptr;
@@ -38,7 +40,7 @@ public:
 	bool handleTestAccountCreationRequests(std::shared_ptr<RequestSipEvent> &ev);
 	bool isTrustedPeer(std::shared_ptr<RequestSipEvent> &ev);
 	bool tlsClientCertificatePostCheck(const std::shared_ptr<RequestSipEvent> &ev);
-	bool handleTlsClientAuthentication(std::shared_ptr<RequestSipEvent> &ev);
+	virtual bool handleTlsClientAuthentication(std::shared_ptr<RequestSipEvent> &ev);
 	void onRequest(std::shared_ptr<RequestSipEvent> &ev) override;
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override;
 	void onIdle() override;
@@ -78,3 +80,5 @@ private:
 	bool mRejectWrongClientCertificates = false;
 	bool mTrustDomainCertificates = false;
 };
+
+}

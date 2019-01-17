@@ -16,13 +16,13 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module.hh"
-#include "agent.hh"
+#include <flexisip/module.hh>
+#include <flexisip/agent.hh>
 #include "entryfilter.hh"
 #include "sofia-sip/auth_digest.h"
 #include "sofia-sip/nta.h"
-#include "log/logmanager.hh"
-#include "configmanager.hh"
+#include <flexisip/logmanager.hh>
+#include <flexisip/configmanager.hh>
 
 #include "expressionparser.hh"
 #include "domain-registrations.hh"
@@ -31,6 +31,7 @@
 #include <algorithm>
 
 using namespace std;
+using namespace flexisip;
 
 // -----------------------------------------------------------------------------
 // Module.
@@ -86,7 +87,7 @@ nta_agent_t *Module::getSofiaAgent() const {
 }
 
 void Module::declare(GenericStruct *root) {
-	mModuleConfig = new GenericStruct("module::" + getModuleName(), mInfo->getModuleHelp(), mInfo->getOidIndex());
+	mModuleConfig = new GenericStruct("module::" + getModuleConfigName(), mInfo->getModuleHelp(), mInfo->getOidIndex());
 	mModuleConfig->setConfigListener(this);
 	root->addChild(mModuleConfig);
 	mFilter->declareConfig(mModuleConfig);
@@ -169,6 +170,13 @@ void Module::idle() {
 }
 
 const string &Module::getModuleName() const {
+	return mInfo->getModuleName();
+}
+
+const string &Module::getModuleConfigName() const {
+	if (!mInfo->getReplace().empty()) {
+		return mInfo->getReplace();
+	}
 	return mInfo->getModuleName();
 }
 

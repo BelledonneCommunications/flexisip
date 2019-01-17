@@ -18,13 +18,14 @@
 
 
 #include "microsoftpush.hh"
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 #include "sofia-sip/base64.h"
 #include <string.h>
 #include <iostream>
 #include <vector>
 
 using namespace std;
+using namespace flexisip;
 
 WindowsPhonePushNotificationRequest::WindowsPhonePushNotificationRequest ( const PushInfo &pinfo )
 	: PushNotificationRequest ( pinfo.mAppId, pinfo.mType ), mPushInfo ( pinfo ) {

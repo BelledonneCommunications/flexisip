@@ -16,11 +16,13 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module.hh"
-#include "agent.hh"
-#include "log/logmanager.hh"
+#include <flexisip/module.hh>
+#include <flexisip/agent.hh>
+#include <flexisip/logmanager.hh>
 #include "sofia-sip/sip_status.h"
+
 using namespace std;
+using namespace flexisip;
 
 class ModuleRedirect : public Module, ModuleToolbox {
 private:

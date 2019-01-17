@@ -16,13 +16,14 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef etchosts_hh
-#define etchosts_hh
+#pragma once
 
-#include "common.hh"
+#include <flexisip/common.hh>
 
 #include <map>
 #include <string>
+
+namespace flexisip {
 
 class EtcHostsResolver {
   public:
@@ -38,4 +39,4 @@ class EtcHostsResolver {
 	static EtcHostsResolver *sInstance;
 };
 
-#endif
+}

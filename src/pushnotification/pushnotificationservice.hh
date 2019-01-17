@@ -18,7 +18,7 @@
 
 #pragma once
 #include "pushnotification.hh"
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 
 #include <list>
 
@@ -26,6 +26,8 @@
 #include <mutex>
 #include <thread>
 #include <string>
+
+namespace flexisip {
 
 class PushNotificationClient;
 
@@ -64,3 +66,5 @@ class PushNotificationService {
 	StatCounter64 *mCountFailed;
 	StatCounter64 *mCountSent;
 };
+
+}

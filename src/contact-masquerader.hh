@@ -16,13 +16,14 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef Contact_Masquerader_hh
-#define Contact_Masquerader_hh
+#pragma once
 
 #include <memory>
-#include "event.hh"
-#include "agent.hh"
+#include <flexisip/event.hh>
+#include <flexisip/agent.hh>
 #include <string>
+
+namespace flexisip {
 
 class ContactMasquerader {
 	Agent *mAgent;
@@ -48,4 +49,4 @@ class ContactMasquerader {
 	void restore(su_home_t *home, url_t *dest, char ctrt_param[64], const char *new_param = NULL);
 };
 
-#endif
+}

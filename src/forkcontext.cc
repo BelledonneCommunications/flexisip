@@ -16,12 +16,13 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "agent.hh"
-#include "forkcontext.hh"
-#include "registrardb.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/forkcontext.hh>
+#include <flexisip/registrardb.hh>
 #include <sofia-sip/sip_status.h>
 
 using namespace std;
+using namespace flexisip;
 
 const int ForkContext::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603, 0};
 
@@ -377,7 +378,7 @@ void ForkContext::nextBranches() {
 	mCurrentBranches.clear();
 
 	/* Get next priority value */
-	if (mCurrentPriority == -1) {
+	if (mCurrentPriority == -1 && !mWaitingBranches.empty()) {
 		mCurrentPriority = mWaitingBranches.front()->mPriority;
 	} else {
 		for(const auto& br : mWaitingBranches) {

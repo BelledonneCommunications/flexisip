@@ -21,9 +21,9 @@
 #include <iostream>
 
 #include "lpconfig.h"
-#include "configmanager.hh"
-#include "common.hh"
-#include "log/logmanager.hh"
+#include <flexisip/configmanager.hh>
+#include <flexisip/common.hh>
+#include <flexisip/logmanager.hh>
 #include "configdumper.hh"
 
 #include <functional>

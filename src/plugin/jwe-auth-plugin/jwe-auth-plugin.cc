@@ -25,13 +25,14 @@ extern "C" {
 	#include <jose/jose.h>
 }
 
-#include "agent.hh"
-#include "module-auth.hh"
-#include "plugin.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/module-auth.hh>
+#include <flexisip/plugin.hh>
 
 // =============================================================================
 
 using namespace std;
+using namespace flexisip;
 
 namespace {
 	constexpr int JweAuthPluginVersion = 1;

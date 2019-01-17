@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __flexisip__presence_server__
-#define __flexisip__presence_server__
+#pragma once
 
 #include <iostream>
 #include <map>
@@ -144,4 +143,3 @@ private:
 };
 
 }
-#endif /* defined(__flexisip__presence_server__) */

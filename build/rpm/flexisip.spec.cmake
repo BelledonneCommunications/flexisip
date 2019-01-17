@@ -219,6 +219,8 @@ fi
 %{_bindir}/*
 %{_libdir}/*.so
 %{_datarootdir}/*
+%dir %{_includedir}/flexisip
+%{_includedir}/flexisip/*.hh
 
 %if @ENABLE_PRESENCE@
 %{_sysconfdir}/init.d/flexisip-presence
@@ -255,6 +257,9 @@ fi
 
 
 %changelog
+
+* Wed Jan 16 2019 Sylvain Berfini <sylvain.berfini@belledonne-communications.com>
+- Added include directory with flexisip header files
 
 * Tue Nov 27 2018 ronan.abhamon <ronan.abhamon@belledonne-communications.com>
 - Do not set CMAKE_INSTALL_LIBDIR and never with _libdir!

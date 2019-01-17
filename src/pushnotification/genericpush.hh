@@ -20,6 +20,8 @@
 
 #include "pushnotification.hh"
 
+namespace flexisip {
+
 class GenericPushNotificationRequest : public PushNotificationRequest {
   public:
 
@@ -35,3 +37,5 @@ class GenericPushNotificationRequest : public PushNotificationRequest {
 	std::vector<char> mBuffer;
 	std::string mHttpMessage;
 };
+
+}

@@ -15,20 +15,22 @@
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef event_hh
-#define event_hh
+
+#pragma once
+
+#include <sofia-sip/tport.h>
+#include <sofia-sip/msg.h>
+#include <sofia-sip/sip.h>
+#include <sofia-sip/nta.h>
 
 #include <memory>
 #include <list>
 #include <string>
 #include <ostream>
 #include <functional>
-#include <sofia-sip/tport.h>
-#include <sofia-sip/msg.h>
-#include <sofia-sip/sip.h>
-#include <sofia-sip/nta.h>
-
 #include <regex.h>
+
+namespace flexisip {
 
 class Agent;
 class Module;
@@ -258,4 +260,4 @@ private:
 	su_home_t mHome;
 };
 
-#endif // event_hh
+}

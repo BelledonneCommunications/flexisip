@@ -19,6 +19,8 @@
 #include "telephone-event-filter.hh"
 #include <ortp/rtp.h>
 
+using namespace flexisip;
+
 TelephoneEventFilter::TelephoneEventFilter(int telephone_event_pt) : mTelephoneEventPt(telephone_event_pt) {
 }
 

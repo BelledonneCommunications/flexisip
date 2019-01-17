@@ -18,6 +18,8 @@
 
 #include "proxy-configmanager.hh"
 
+using namespace flexisip;
+
 ProxyConfigManager::ProxyConfigManager()
 	: GenericManager("flexisip", "This is the default Flexisip configuration file", {1, 3, 6, 1, 4, 1, company_id}) {
 

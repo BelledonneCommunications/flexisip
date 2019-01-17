@@ -22,6 +22,8 @@
 
 #include <sofia-sip/auth_module.h>
 
+namespace flexisip {
+
 /**
  * @brief Plain C++ wrapper for SofiaSip's auth_status_t structure.
  * @warning Like auth_status_t, this classe doesn't take ownership
@@ -126,3 +128,5 @@ private:
 	auth_status_t *mPriv = nullptr;
 	ResponseCb mResponseCb;
 };
+
+}

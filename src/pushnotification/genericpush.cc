@@ -21,12 +21,13 @@
 #include <stdexcept>
 #include <string.h>
 
-#include "common.hh"
+#include <flexisip/common.hh>
 #include "utils/httputils.hh"
 
 #include "genericpush.hh"
 
 using namespace std;
+using namespace flexisip;
 
 GenericPushNotificationRequest::GenericPushNotificationRequest(const PushInfo &pinfo, const url_t *url,
 															   const string &method)

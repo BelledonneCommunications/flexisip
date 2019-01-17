@@ -16,11 +16,12 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef callstore_hh
-#define callstore_hh
+#pragma once
 
-#include "agent.hh"
+#include <flexisip/agent.hh>
 #include <list>
+
+namespace flexisip {
 
 class CallContextBase {
   public:
@@ -91,4 +92,4 @@ class CallStore {
 	StatCounter64 *mCountCallsFinished;
 };
 
-#endif
+}

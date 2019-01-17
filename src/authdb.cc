@@ -20,6 +20,7 @@
 #include "bctoolbox/crypto.h"
 
 using namespace std;
+using namespace flexisip;
 
 unique_ptr<AuthDbBackend> AuthDbBackend::sUnique;
 

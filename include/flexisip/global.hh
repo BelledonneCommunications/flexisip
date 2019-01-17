@@ -16,13 +16,10 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef global_hh
-#define global_hh
+#pragma once
 
 // =============================================================================
 
 #define FLEXISIP_DISABLE_COPY(CLASS) \
 	CLASS(const CLASS &) = delete; \
 	CLASS &operator=(const CLASS &) = delete
-
-#endif // ifndef global_hh

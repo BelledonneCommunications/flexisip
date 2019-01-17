@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FLEXISIP_EXCEPTION_HH_
-#define FLEXISIP_EXCEPTION_HH_
+#pragma once
 
 #include "bctoolbox/exception.hh"
 #include <string.h>
@@ -43,5 +42,3 @@ public:
 };
 
 #define FLEXISIP_EXCEPTION FlexisipException() << " " << __FILE__ << ":" << __LINE__ << " "
-
-#endif /* FLEXISIP_EXCEPTION_HH_ */

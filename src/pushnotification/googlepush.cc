@@ -2,9 +2,10 @@
 #include "googlepush.hh"
 #include <iostream>
 #include <string.h>
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 
 using namespace std;
+using namespace flexisip;
 
 GooglePushNotificationRequest::GooglePushNotificationRequest(const PushInfo &pinfo)
 : PushNotificationRequest(pinfo.mAppId, "google") {

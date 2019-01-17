@@ -17,8 +17,8 @@
 */
 
 #include "domain-registrations.hh"
-#include "agent.hh"
-#include "module.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/module.hh>
 
 #include <sofia-sip/nta_stateless.h>
 #include <sofia-sip/nth.h>
@@ -32,6 +32,7 @@
 #include <sstream>
 
 using namespace std;
+using namespace flexisip;
 
 DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agent), mRegisterWhenNeeded(false) {
 	GenericManager *mgr = GenericManager::get();

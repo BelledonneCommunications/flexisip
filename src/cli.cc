@@ -27,10 +27,11 @@
 #include <poll.h>
 
 #include "cli.hh"
-#include "common.hh"
-#include "log/logmanager.hh"
-#include "registrardb.hh"
+#include <flexisip/common.hh>
+#include <flexisip/logmanager.hh>
+#include <flexisip/registrardb.hh>
 
+using namespace flexisip;
 
 CommandLineInterface::CommandLineInterface(const std::string &name) : mName(name) {
 	if (pipe(mControlFds) == -1)

@@ -24,6 +24,7 @@
 #include <stdexcept>
 
 using namespace std;
+using namespace flexisip;
 
 static string subKey(const string &key, size_t *pos) {
 	size_t dot = key.find('.', *pos) - *pos;

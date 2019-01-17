@@ -20,7 +20,7 @@
 
 #include <linphone++/linphone.hh>
 
-#include "registrardb.hh"
+#include <flexisip/registrardb.hh>
 
 
 namespace flexisip {

@@ -16,8 +16,15 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef registrardb_hh
-#define registrardb_hh
+#pragma once
+
+#include "logmanager.hh"
+#include "agent.hh"
+#include "module.hh"
+
+#include <sofia-sip/sip.h>
+#include <sofia-sip/url.h>
+#include <sofia-sip/su_random.h>
 
 #include <map>
 #include <list>
@@ -30,12 +37,7 @@
 #include <mutex>
 #include <iosfwd>
 
-#include <sofia-sip/sip.h>
-#include <sofia-sip/url.h>
-#include <sofia-sip/su_random.h>
-#include "log/logmanager.hh"
-#include "agent.hh"
-#include "module.hh"
+namespace flexisip {
 
 class ContactUpdateListener;
 
@@ -434,4 +436,4 @@ class RegistrarDb {
 	bool mWritable = false;
 };
 
-#endif
+}

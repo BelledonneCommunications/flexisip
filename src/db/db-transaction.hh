@@ -16,17 +16,18 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef db_transaction_hh
-#define db_transaction_hh
+#pragma once
 
 #include <soci/soci.h>
 
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 
 // =============================================================================
 
 #define DB_TRANSACTION(SESSION) \
 	DbTransactionInfo().set(__func__, SESSION) * [&](SmartTransaction &tr)
+
+namespace flexisip {
 
 class SmartTransaction {
 public:
@@ -195,4 +196,4 @@ typename DbTransaction<Function>::ReturnType operator* (DbTransactionInfo &info,
 	return DbTransaction<Function>(info, std::forward<Function>(function));
 }
 
-#endif // ifndef db_transaction_hh
+}

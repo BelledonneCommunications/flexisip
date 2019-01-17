@@ -16,12 +16,13 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "forkcallcontext.hh"
-#include "common.hh"
+#include <flexisip/forkcallcontext.hh>
+#include <flexisip/common.hh>
 #include <algorithm>
 #include <sofia-sip/sip_status.h>
 
 using namespace std;
+using namespace flexisip;
 
 template <typename T> static bool contains(const list<T> &l, T value) {
 	return find(l.cbegin(), l.cend(), value) != l.cend();

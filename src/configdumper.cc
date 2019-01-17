@@ -17,9 +17,10 @@
 */
 
 #include "configdumper.hh"
-#include "module.hh"
+#include <flexisip/module.hh>
 
 using namespace std;
+using namespace flexisip;
 
 ostream &ConfigDumper::dump(ostream &ostr) const {
 	return dump_recursive(ostr, mRoot, 0);

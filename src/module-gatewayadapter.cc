@@ -16,15 +16,16 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module.hh"
-#include "agent.hh"
+#include <flexisip/module.hh>
+#include <flexisip/agent.hh>
 #include "authdb.hh"
-#include "registrardb.hh"
+#include <flexisip/registrardb.hh>
 #include <sofia-sip/nua.h>
 #include <sofia-sip/sip_status.h>
 #include <limits.h>
 
 using namespace std;
+using namespace flexisip;
 
 class GatewayAdapter;
 

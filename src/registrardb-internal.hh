@@ -17,11 +17,12 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef registrardb_internal_hh
-#define registrardb_internal_hh
+#pragma once
 
-#include "registrardb.hh"
+#include <flexisip/registrardb.hh>
 #include <sofia-sip/sip.h>
+
+namespace flexisip {
 
 class RegistrarDbInternal : public RegistrarDb {
   public:
@@ -37,4 +38,4 @@ class RegistrarDbInternal : public RegistrarDb {
 	virtual void publish(const std::string &topic, const std::string &uid);
 };
 
-#endif
+}

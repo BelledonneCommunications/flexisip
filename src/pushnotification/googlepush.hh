@@ -20,6 +20,7 @@
 
 #include "pushnotification.hh"
 
+namespace flexisip {
 
 class GooglePushNotificationRequest : public PushNotificationRequest {
 public:
@@ -38,3 +39,5 @@ protected:
 	std::string mHttpHeader;
 	std::string mHttpBody;
 };
+
+}

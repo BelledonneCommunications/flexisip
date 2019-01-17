@@ -16,15 +16,17 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef forkbasiccontext_hh
-#define forkbasiccontext_hh
+#pragma once
 
 #include "agent.hh"
 #include "event.hh"
 #include "transaction.hh"
 #include "forkcontext.hh"
+
 #include <list>
 #include <map>
+
+namespace flexisip {
 
 class ForkBasicContext : public ForkContext {
   private:
@@ -46,4 +48,4 @@ class ForkBasicContext : public ForkContext {
 	void onDecisionTimer();
 };
 
-#endif /* forkbasiccontext_hh */
+}

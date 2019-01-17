@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef callcontext_hh
-#define callcontext_hh
+#pragma once
 
 #include "callstore.hh"
 #include <list>
@@ -27,7 +26,8 @@
 #include <mediastreamer2/msrtp.h>
 #include <mediastreamer2/bitratecontrol.h>
 
-
+namespace flexisip {
+	
 class Transcoder;
 class TranscodedCall;
 class CallContextParams {
@@ -117,4 +117,4 @@ class TranscodedCall : public CallContextBase {
 	time_t mCreateTime;
 };
 
-#endif
+}

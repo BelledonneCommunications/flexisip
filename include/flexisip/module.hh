@@ -16,15 +16,16 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef module_hh
-#define module_hh
-
-#include "sofia-sip/nta_tport.h"
-#include "sofia-sip/tport.h"
-#include "sofia-sip/msg_header.h"
+#pragma once
 
 #include "configmanager.hh"
 #include "event.hh"
+
+#include <sofia-sip/nta_tport.h>
+#include <sofia-sip/tport.h>
+#include <sofia-sip/msg_header.h>
+
+namespace flexisip {
 
 // =============================================================================
 
@@ -67,6 +68,7 @@ public:
 	Agent *getAgent() const;
 	nta_agent_t *getSofiaAgent() const;
 	const std::string &getModuleName() const;
+	const std::string &getModuleConfigName() const;
 	void declare(GenericStruct *root);
 	void checkConfig();
 	void load();
@@ -86,6 +88,7 @@ public:
 	inline void process(std::shared_ptr<ResponseSipEvent> &ev) {
 		processResponse(ev);
 	}
+	void setInfo(ModuleInfoBase *moduleInfo);
 
 protected:
 	virtual void onDeclare(GenericStruct *root) {}
@@ -117,8 +120,6 @@ protected:
 	Agent *mAgent;
 
 private:
-	void setInfo(ModuleInfoBase *moduleInfo);
-
 	ModuleInfoBase *mInfo;
 	GenericStruct *mModuleConfig;
 	EntryFilter *mFilter;
@@ -205,11 +206,15 @@ public:
 		return mClass;
 	}
 
+	const std::string &getReplace() const {
+		return mReplace;
+	}
+
 protected:
 	ModuleInfoBase(
 		const std::string &moduleName, const std::string &help, const std::vector<std::string> &after,
-		ModuleOid oid, ModuleClass moduleClass
-	) : mName(moduleName), mHelp(help), mAfter(after), mOidIndex(oid), mClass(moduleClass) {
+		ModuleOid oid, ModuleClass moduleClass, const std::string &replace
+	) : mName(moduleName), mHelp(help), mAfter(after), mOidIndex(oid), mClass(moduleClass), mReplace(replace) {
 		ModuleInfoManager::get()->registerModuleInfo(this);
 	}
 
@@ -221,6 +226,7 @@ private:
 	const std::vector<std::string> mAfter;
 	const oid mOidIndex;
 	ModuleClass mClass;
+	const std::string mReplace;
 };
 
 template<typename T>
@@ -230,8 +236,8 @@ public:
 
 	ModuleInfo(
 		const std::string &moduleName, const std::string &help, const std::vector<std::string> &after,
-		ModuleOid oid, ModuleClass moduleClass = ModuleClass::Production
-	) : ModuleInfoBase(moduleName, help, after, oid, moduleClass) {}
+		ModuleOid oid, ModuleClass moduleClass = ModuleClass::Production, const std::string &replace = ""
+	) : ModuleInfoBase(moduleName, help, after, oid, moduleClass, replace) {}
 
 private:
 	Module *create(Agent *agent) override {
@@ -311,4 +317,4 @@ public:
 	static sip_via_t *getLastVia(sip_t *sip);
 };
 
-#endif
+}

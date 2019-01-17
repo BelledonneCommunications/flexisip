@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef configmanager_hh
-#define configmanager_hh
+#pragma once
 
 #if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
 
@@ -30,6 +29,8 @@
 #define FLEXISIP_INCLUDED
 
 #endif
+
+#include "common.hh"
 
 #include <string>
 #include <sstream>
@@ -45,8 +46,6 @@
 #include <cxxabi.h>
 #include <memory>
 
-#include "common.hh"
-
 #ifdef ENABLE_SNMP
 
 #include <net-snmp/net-snmp-config.h>
@@ -61,13 +60,14 @@ typedef unsigned long oid;
 #endif /* ENABLE_SNMP */
 
 extern oid company_id;
-namespace flexisip {
-	struct LpConfig;
-};
 
 #include "expressionparser.hh"
 #include "global.hh"
 #include "utils/flexisip-exception.hh"
+
+namespace flexisip {
+
+struct LpConfig;
 
 enum class ConfigState { Check, Changed, Reset, Commited };
 class ConfigValue;
@@ -687,4 +687,4 @@ class GenericManager : protected ConfigValueListener {
 	NotificationEntry *mNotifier;
 };
 
-#endif
+}

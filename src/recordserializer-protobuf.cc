@@ -17,13 +17,14 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "common.hh"
-#include "registrardb.hh"
+#include <flexisip/common.hh>
+#include <flexisip/registrardb.hh>
 #include "recordserializer.hh"
 #include "recordserializer-protobuf.pb.h"
 #include <sofia-sip/sip_protos.h>
 
 using namespace std;
+using namespace flexisip;
 
 // See .proto file for description of the format.
 

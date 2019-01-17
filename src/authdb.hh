@@ -16,14 +16,13 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef _AUTHDB_HH_
-#define _AUTHDB_HH_
+#pragma once
 
 #include <string>
 #include <mutex>
 
-#include "common.hh"
-#include "agent.hh"
+#include <flexisip/common.hh>
+#include <flexisip/agent.hh>
 
 #include <vector>
 #include <stdio.h>
@@ -42,6 +41,8 @@
 
 #include "belr/grammarbuilder.h"
 #include "belr/parser.h"
+
+namespace flexisip {
 
 enum AuthDbResult { PENDING, PASSWORD_FOUND, PASSWORD_NOT_FOUND, AUTH_ERROR };
 
@@ -224,7 +225,11 @@ public:
 	static void declareConfig(GenericStruct *mc){};
 };
 
+}
+
 #if ENABLE_ODBC
+
+namespace flexisip {
 
 class OdbcAuthDb : public AuthDbBackend {
 	~OdbcAuthDb();
@@ -276,12 +281,16 @@ public:
 	static void declareConfig(GenericStruct *mc);
 };
 
+}
+
 #endif /* ENABLE_ODBC */
 
 #if ENABLE_SOCI
 
 #include "soci/soci.h"
 #include "utils/threadpool.hh"
+
+namespace flexisip {
 
 class SociAuthDB : public AuthDbBackend {
 	virtual ~SociAuthDB();
@@ -318,6 +327,6 @@ private:
 	bool hashed_passwd;
 };
 
-#endif /* ENABLE_SOCI */
+}
 
-#endif
+#endif /* ENABLE_SOCI */

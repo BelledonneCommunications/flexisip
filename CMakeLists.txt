@@ -232,6 +232,7 @@ include_directories(
 	${CMAKE_CURRENT_BINARY_DIR}/src/
 	${ORTP_INCLUDE_DIRS}
 	${SOFIASIPUA_INCLUDE_DIRS}
+	include/
 	src/
 	src/plugin
 )
@@ -244,6 +245,7 @@ add_definitions("-DHAVE_CONFIG_H")
 
 bc_init_compilation_flags(CPP_BUILD_FLAGS C_BUILD_FLAGS CXX_BUILD_FLAGS ENABLE_STRICT)
 
+add_subdirectory(include)
 add_subdirectory(src)
 add_subdirectory(scripts)
 add_subdirectory(share)

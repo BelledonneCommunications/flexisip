@@ -22,10 +22,8 @@
 #include <sstream>
 #include <ortp/payloadtype.h>
 
-
-
 using namespace std;
-
+using namespace flexisip;
 
 SdpMasqueradeContext::SdpMasqueradeContext(){
 	mIceState = IceNone;

@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 
 #if 0
 class PresenceConfigManager : public GenericManager {

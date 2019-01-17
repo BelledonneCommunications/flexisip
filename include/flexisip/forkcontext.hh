@@ -16,13 +16,14 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef forkcontext_hh
-#define forkcontext_hh
+#pragma once
 
 #include "agent.hh"
 #include "event.hh"
 #include "transaction.hh"
 #include "registrardb.hh"
+
+namespace flexisip {
 
 class OnContactRegisteredListener;
 
@@ -168,4 +169,4 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	static const int sAllCodesUrgent[];
 };
 
-#endif /* forkcontext_hh */
+}

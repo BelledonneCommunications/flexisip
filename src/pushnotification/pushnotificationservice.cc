@@ -21,7 +21,7 @@
 #include "pushnotificationservice.hh"
 #include "pushnotificationclient.hh"
 #include "pushnotificationclient_wp.hh"
-#include "common.hh"
+#include <flexisip/common.hh>
 
 #include <sstream>
 #include <openssl/x509.h>
@@ -30,6 +30,7 @@
 #include <openssl/pem.h>
 
 using namespace std;
+using namespace flexisip;
 
 static const char *APN_DEV_ADDRESS = "gateway.sandbox.push.apple.com";
 static const char *APN_PROD_ADDRESS = "gateway.push.apple.com";

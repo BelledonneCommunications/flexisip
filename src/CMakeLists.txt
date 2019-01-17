@@ -116,7 +116,7 @@ add_custom_target(flexisip-git-version
 	BYPRODUCTS "${CMAKE_CURRENT_BINARY_DIR}/flexisip_gitversion.h"
 )
 
-list(APPEND FLEXISIP_INCLUDES ${BCTOOLBOX_INCLUDE_DIRS} ${BELR_INCLUDE_DIRS})
+list(APPEND FLEXISIP_INCLUDES ${FLEXISIP_HEADER_DIR} ${BCTOOLBOX_INCLUDE_DIRS} ${BELR_INCLUDE_DIRS})
 
 if(LIBXSD_FOUND)
 	list(APPEND FLEXISIP_LIBS ${LIBXSD_LIBRARIES})
@@ -297,7 +297,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_FLAGS "-Wno-error=sign-compare")
 endif()
 
-add_library(flexisip SHARED ${FLEXISIP_SOURCES})
+add_library(flexisip SHARED ${FLEXISIP_INCLUDES} ${FLEXISIP_SOURCES})
 set_property(TARGET flexisip PROPERTY CXX_STANDARD 11)
 set_property(TARGET flexisip PROPERTY CXX_STANDARD_REQUIRED ON)
 

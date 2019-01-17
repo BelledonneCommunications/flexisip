@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef expressionparser_hh
-#define expressionparser_hh
+#pragma once
 
 #ifndef NO_SOFIA
 #include "sofia-sip/sip.h"
@@ -27,11 +26,12 @@
 #include <memory>
 #include "utils/flexisip-exception.hh"
 
-class SipAttributes;
-
-
 void log_boolean_expression_evaluation(bool value);
 void log_boolean_expression_parsing(bool value);
+
+namespace flexisip {
+
+class SipAttributes;
 
 class BooleanExpression {
   protected:
@@ -48,4 +48,4 @@ class BooleanExpression {
 	long ptr();
 };
 
-#endif
+}

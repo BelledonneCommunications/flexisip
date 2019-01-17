@@ -16,10 +16,11 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef tevfilter_hh
-#define tevfilter_hh
+#pragma once
 
 #include "mediarelay.hh"
+
+namespace flexisip {
 
 class TelephoneEventFilter : public MediaFilter {
   public:
@@ -31,4 +32,4 @@ class TelephoneEventFilter : public MediaFilter {
 	int mTelephoneEventPt;
 };
 
-#endif
+}

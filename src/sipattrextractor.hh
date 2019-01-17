@@ -16,8 +16,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef SIPATTREXTRACTOR_HH
-#define SIPATTREXTRACTOR_HH
+#pragma once
 
 #include <string>
 #include <memory>
@@ -25,6 +24,8 @@
 #ifndef NO_SOFIA
 #include <sofia-sip/sip.h>
 #endif
+
+namespace flexisip {
 
 class SipAttributes {
   public:
@@ -60,4 +61,4 @@ class SipAttributes {
 	bool isTrue(const std::string &arg) const;
 };
 
-#endif
+}

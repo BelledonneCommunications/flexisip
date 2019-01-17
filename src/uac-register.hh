@@ -16,14 +16,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef uac_register_hh
-#define uac_register_hh
+#pragma once
 
 #include <string>
 #include <sofia-sip/su_alloc.h>
 #include <sofia-sip/msg.h>
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nua.h>
+
+namespace flexisip {
+
 class Agent;
 
 struct UacRegister {
@@ -48,4 +50,4 @@ struct UacRegister {
 	void authenticate(const msg_param_t *au_params);
 };
 
-#endif
+}

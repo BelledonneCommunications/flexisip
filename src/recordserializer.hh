@@ -17,10 +17,11 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef recordserializer_hh
-#define recordserializer_hh
+#pragma once
 
-#include "registrardb.hh"
+#include <flexisip/registrardb.hh>
+
+namespace flexisip {
 
 class RecordSerializer {
 	static RecordSerializer *sInstance;
@@ -72,4 +73,4 @@ public:
 };
 #endif
 
-#endif
+}

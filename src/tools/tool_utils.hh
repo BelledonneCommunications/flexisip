@@ -15,10 +15,11 @@
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef _TEST_UTILS
-#define _TEST_UTILS
+
+#pragma once
+
 #include "../recordserializer.hh"
-#include "../log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 #include <memory>
 #include <map>
 #include <iostream>
@@ -29,6 +30,8 @@
 		std::cout << reason << std::endl;                                                                              \
 		exit(-1);                                                                                                      \
 	} while (0)
+
+namespace flexisip {
 
 void init_tests() {
 	flexisip_sUseSyslog = false;
@@ -109,4 +112,5 @@ struct SofiaHome {
 		delete (h);
 	}
 };
-#endif
+
+}

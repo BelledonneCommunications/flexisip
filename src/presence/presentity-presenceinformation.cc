@@ -24,7 +24,7 @@
 
 #include "data-model.hh"
 #include "etag-manager.hh"
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 #include "pidf+xml.hh"
 #include "presentity-manager.hh"
 #include "presentity-presenceinformation.hh"

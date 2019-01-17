@@ -16,9 +16,9 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module.hh"
-#include "agent.hh"
-#include "transaction.hh"
+#include <flexisip/module.hh>
+#include <flexisip/agent.hh>
+#include <flexisip/transaction.hh>
 #include "etchosts.hh"
 #include <sstream>
 
@@ -27,6 +27,7 @@
 #include <sofia-sip/tport.h>
 
 using namespace std;
+using namespace flexisip;
 
 class StatisticsCollector : public Module, ModuleToolbox {
 public:

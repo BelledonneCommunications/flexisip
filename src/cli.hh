@@ -16,13 +16,14 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef cli_hh
-#define cli_hh
+#pragma once
 
 #include <sys/un.h>
 #include <pthread.h>
 #include <string>
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
+
+namespace flexisip {
 
 class Agent;
 
@@ -69,4 +70,4 @@ private:
 	std::shared_ptr<Agent> mAgent;
 };
 
-#endif
+}

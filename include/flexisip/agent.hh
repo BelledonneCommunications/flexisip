@@ -16,17 +16,18 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef agent_hh
-#define agent_hh
+#pragma once
 
 #if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
 #include "flexisip-config.h"
 #define FLEXISIP_INCLUDED
 #endif
 
-#include <string>
-#include <sstream>
-#include <memory>
+#include "common.hh"
+#include "configmanager.hh"
+#include "event.hh"
+#include "transaction.hh"
+#include "eventlogs.hh"
 
 #include <sofia-sip/sip.h>
 #include <sofia-sip/sip_protos.h>
@@ -37,15 +38,16 @@
 #include <sofia-sip/nta_stateless.h>
 #include <sofia-sip/nth.h>
 
-#include "common.hh"
-#include "configmanager.hh"
-#include "event.hh"
-#include "transaction.hh"
-#include "eventlogs/eventlogs.hh"
+#include <string>
+#include <sstream>
+#include <memory>
+#include <ifaddrs.h>
 
 #if ENABLE_MDNS
 #include "belle-sip/belle-sip.h"
 #endif
+
+namespace flexisip {
 
 class Module;
 class DomainRegistrationManager;
@@ -247,4 +249,4 @@ private:
 #endif
 };
 
-#endif
+}

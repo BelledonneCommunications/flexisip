@@ -16,10 +16,11 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef h264filter_hh
-#define h264filter_hh
+#pragma once
 
 #include "mediarelay.hh"
+
+namespace flexisip {
 
 class H264IFrameFilter : public MediaFilter {
   public:
@@ -35,4 +36,4 @@ class H264IFrameFilter : public MediaFilter {
 	int mIframeCount;
 };
 
-#endif
+}

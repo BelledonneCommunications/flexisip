@@ -17,14 +17,16 @@
 */
 
 #include "stun.hh"
-#include "common.hh"
-#include "configmanager.hh"
+#include <flexisip/common.hh>
+#include <flexisip/configmanager.hh>
 #include "stun/flexisip_stun.h"
 
 #include <arpa/inet.h>
 #include <poll.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+
+using namespace flexisip;
 
 StunServer::Init StunServer::sStaticInit;
 

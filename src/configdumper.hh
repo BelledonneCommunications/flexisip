@@ -16,11 +16,12 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CONFIG_DUMPER_H
-#define CONFIG_DUMPER_H
+#pragma once
 
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 #include <iostream>
+
+namespace flexisip {
 
 class ConfigDumper {
   protected:
@@ -179,4 +180,4 @@ class MibDumper : public ConfigDumper {
 	}
 };
 
-#endif /* CONFIG_DUMPER_H */
+}

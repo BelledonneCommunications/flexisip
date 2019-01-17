@@ -24,6 +24,7 @@
 
 using namespace std;
 using namespace chrono;
+using namespace flexisip;
 
 #ifdef USE_MONOTONIC_CLOCK
 namespace std {

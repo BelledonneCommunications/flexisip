@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef LOGMANAGER_HH
-#define LOGMANAGER_HH
+#pragma once
 
 #include <string>
 #include <iostream>
@@ -165,5 +164,3 @@ do {                                                                            
 
 } // end log
 } // end flexisip
-
-#endif // LOGMANAGER_HH

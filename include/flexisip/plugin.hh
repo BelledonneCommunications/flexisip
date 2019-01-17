@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef plugin_hh
-#define plugin_hh
+#pragma once
 
 #include "flexisip_gitversion.h"
 #include "module.hh"
@@ -44,18 +43,18 @@
 
 #define FLEXISIP_PLUGIN_API_VERSION FLEXISIP_GIT_VERSION
 
-namespace Private {
-	class Plugin {
-	public:
-		Plugin(SharedLibrary &sharedLibrary);
-		virtual ~Plugin();
+namespace flexisip {
 
-	private:
-		SharedLibrary *mSharedLibrary;
+class Plugin {
+public:
+	Plugin(SharedLibrary &sharedLibrary);
+	virtual ~Plugin();
 
-		FLEXISIP_DISABLE_COPY(Plugin);
-	};
-}
+private:
+	SharedLibrary *mSharedLibrary;
+
+	FLEXISIP_DISABLE_COPY(Plugin);
+};
 
 struct PluginInfo {
 	const char *className;
@@ -80,7 +79,7 @@ inline std::ostream &operator<< (std::ostream &os, const PluginInfo &info) {
 		} \
 		FLEXISIP_PLUGIN_EXPORT Module *__flexisipCreatePlugin(Agent *agent, SharedLibrary *sharedLibrary) { \
 			using ModuleType = typename decltype(MODULE_INFO)::ModuleType; \
-			class UserPlugin : public ModuleType, public Private::Plugin { \
+			class UserPlugin : public ModuleType, public Plugin { \
 			public: \
 				UserPlugin(Agent *agent, SharedLibrary &sharedLibrary) : ModuleType(agent), Plugin(sharedLibrary) {} \
 			}; \
@@ -95,4 +94,4 @@ inline std::ostream &operator<< (std::ostream &os, const PluginInfo &info) {
 			FLEXISIP_PLUGIN_API_VERSION \
 		}; \
 
-#endif // plugin_hh
+}

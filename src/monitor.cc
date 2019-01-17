@@ -17,12 +17,13 @@
 */
 
 #include "monitor.hh"
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 #include "authdb.hh"
 #include <sofia-sip/su_md5.h>
 #include <ortp/rtpsession.h>
 
 using namespace std;
+using namespace flexisip;
 
 Monitor::Init Monitor::sInit;
 const string Monitor::SCRIPT_PATH = "./flexisip_monitor.py";

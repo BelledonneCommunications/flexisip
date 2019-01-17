@@ -16,14 +16,14 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "registrardb.hh"
+#include <flexisip/registrardb.hh>
 #include "registrardb-internal.hh"
 #ifdef ENABLE_REDIS
 #include "registrardb-redis.hh"
 #endif
-#include "common.hh"
+#include <flexisip/common.hh>
 
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 
 #include <algorithm>
 #include <ctime>
@@ -34,9 +34,10 @@
 
 #include <sofia-sip/sip_protos.h>
 #include "recordserializer.hh"
-#include "module.hh"
+#include <flexisip/module.hh>
 
 using namespace std;
+using namespace flexisip;
 
 ostream &ExtendedContact::print(ostream &stream, time_t _now, time_t _offset) const {
 	time_t now = _now;

@@ -20,7 +20,7 @@
 
 #include "belle-sip/belle-sip.h"
 
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 #include "subscription.hh"
 
 using namespace std;

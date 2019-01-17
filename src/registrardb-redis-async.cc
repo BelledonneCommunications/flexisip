@@ -18,7 +18,7 @@
 
 #include "recordserializer.hh"
 #include "registrardb-redis.hh"
-#include "common.hh"
+#include <flexisip/common.hh>
 
 #include <ctime>
 #include <cstdio>
@@ -27,7 +27,7 @@
 #include <iterator>
 #include <set>
 
-#include "configmanager.hh"
+#include <flexisip/configmanager.hh>
 
 #include <hiredis/hiredis.h>
 
@@ -39,6 +39,7 @@
 constexpr int redisRetryTimeoutMs = 5000;
 
 using namespace std;
+using namespace flexisip;
 
 RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<ContactUpdateListener> listener)
 	: self(s), listener(listener), record(url), token(0), mRetryTimer(nullptr), mRetryCount(0), mGruu(""), mUpdateExpire(false), mIsUnregister(false) {

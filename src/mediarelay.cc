@@ -17,7 +17,7 @@
 */
 
 #include "flexisip-config.h"
-#include "agent.hh"
+#include <flexisip/agent.hh>
 #include "mediarelay.hh"
 
 #include <poll.h>
@@ -28,6 +28,7 @@
 #include <list>
 
 using namespace std;
+using namespace flexisip;
 
 PollFd::PollFd(int init_size) : mCurSize(init_size) {
 	mPfd = (struct pollfd *)malloc(mCurSize * sizeof(struct pollfd));

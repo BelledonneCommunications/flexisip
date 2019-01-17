@@ -16,18 +16,18 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "agent.hh"
-#include "event.hh"
-#include "transaction.hh"
-#include "common.hh"
-#include "module.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/event.hh>
+#include <flexisip/transaction.hh>
+#include <flexisip/common.hh>
+#include <flexisip/module.hh>
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/su_tagarg.h>
 #include <sofia-sip/msg_addr.h>
 #include "sipattrextractor.hh"
 
-
 using namespace std;
+using namespace flexisip;
 
 void MsgSip::assignMsg(msg_t *msg) {
 	mMsg = msg_ref_create(msg);
@@ -348,7 +348,7 @@ void ResponseSipEvent::setOutgoingAgent(const shared_ptr<OutgoingAgent> &agent) 
 ResponseSipEvent::~ResponseSipEvent() {
 }
 
-std::ostream &operator<<(std::ostream &strm, const url_t &obj){
+std::ostream &flexisip::operator<<(std::ostream &strm, const url_t &obj){
 	SofiaAutoHome home;
 	strm<<url_as_string(home.home(), &obj);
 	return strm;

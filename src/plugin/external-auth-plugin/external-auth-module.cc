@@ -21,12 +21,13 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 #include "utils/string-utils.hh"
 
 #include "external-auth-module.hh"
 
 using namespace std;
+using namespace flexisip;
 
 ExternalAuthModule::ExternalAuthModule(su_root_t *root, const std::string &domain, const std::string &algo) : FlexisipAuthModuleBase(root, domain, algo) {
 	mEngine = nth_engine_create(root, TAG_END());

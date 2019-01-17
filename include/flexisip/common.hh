@@ -17,8 +17,9 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef PROXY_COMMON_H
-#define PROXY_COMMON_H
+#pragma once
+
+#include "logmanager.hh"
 
 #include <cstdlib>
 #include <cstdarg>
@@ -27,11 +28,14 @@
 #include <vector>
 #include <sys/timeb.h>
 
-#include "log/logmanager.hh"
-
 #ifndef MAX
 #define MAX(a, b) (a) > (b) ? (a) : (b)
 #endif
+
+time_t getCurrentTime();
+time_t getTimeOffset(time_t current_time);
+
+namespace flexisip {
 
 class Mutex {
   public:
@@ -64,9 +68,6 @@ template <typename _first, typename _last> class map_delete_functor {
 
 #define RESTART_EXIT_CODE 5
 
-time_t getCurrentTime();
-time_t getTimeOffset(time_t current_time);
-
 // Helper to get ip from host in a portable binary format.
 class BinaryIp {
 public:
@@ -88,4 +89,4 @@ inline std::vector<std::string> split (const std::string &str, char delimiter) {
 	return split(str, std::string(1, delimiter));
 }
 
-#endif
+}

@@ -31,6 +31,7 @@ namespace std {
 typedef monotonic_clock steady_clock;
 }
 #endif
+using namespace flexisip;
 
 void SociAuthDB::declareConfig(GenericStruct *mc) {
 	// ODBC-specific configuration keys

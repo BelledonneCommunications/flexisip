@@ -16,15 +16,16 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef entryfilter_hh
-#define entryfilter_hh
+#pragma once
 
 #include <list>
 #include <string>
 #include <memory>
 #include "expressionparser.hh"
 
-#include "agent.hh"
+#include <flexisip/agent.hh>
+
+namespace flexisip {
 
 /**
  * The goal of this object is to filter SIP message that enter into a module.
@@ -59,4 +60,4 @@ class ConfigEntryFilter : public EntryFilter {
 	std::string mEntryName;
 };
 
-#endif
+}

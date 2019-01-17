@@ -24,6 +24,7 @@
 #include "sdp-modifier.hh"
 
 using namespace std;
+using namespace flexisip;
 
 static void rtpSessionResync (RtpSession *session, void *, void *, void *) {
 	rtp_session_resync(session);

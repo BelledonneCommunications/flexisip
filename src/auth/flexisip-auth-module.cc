@@ -18,11 +18,12 @@
 
 #include <bctoolbox/crypto.h>
 
-#include "module.hh"
+#include <flexisip/module.hh>
 
 #include "flexisip-auth-module.hh"
 
 using namespace std;
+using namespace flexisip;
 
 // ====================================================================================================================
 //  FlexisipAuthModule::AuthenticationListener class

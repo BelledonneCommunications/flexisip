@@ -16,7 +16,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "common.hh"
+#pragma once
+
+#include <flexisip/common.hh>
 #include <sofia-sip/sdp.h>
 #include <sofia-sip/sip.h>
 #include <functional>
@@ -26,14 +28,10 @@
 #include <tuple>
 #include "ortp/payloadtype.h"
 
-
-#ifndef _SDP_MODIFIER_HH_
-#define _SDP_MODIFIER_HH_
-
-
 #define payload_type_set_number(pt,n)	(pt)->user_data=(void*)(long)n
 #define payload_type_get_number(pt)	(int)(long)(pt)->user_data
 
+namespace flexisip {
 
 class SdpMasqueradeContext{
 public:
@@ -114,4 +112,4 @@ class SdpModifier{
 		std::string mNortproxy;
 };
 
-#endif // _SDP_MODIFIER_HH_
+}

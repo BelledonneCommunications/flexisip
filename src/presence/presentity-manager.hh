@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef PRESENTITY_MANAGER_HH_
-#define PRESENTITY_MANAGER_HH_
+#pragma once
 
 #include "etag-manager.hh"
 #include "string"
@@ -37,4 +36,3 @@ class PresentityManager : public EtagManager {
 };
 
 }
-#endif /* PRESENTITY_MANAGER_HH_ */

@@ -17,9 +17,10 @@
 */
 #include "tool_utils.hh"
 #include "../registrardb-internal.hh"
-#include "../registrardb.hh"
+#include <flexisip/registrardb.hh>
 
 using namespace std;
+using namespace flexisip;
 
 struct MyListener : public ContactUpdateListener {
 	virtual void onRecordFound(Record *r) {

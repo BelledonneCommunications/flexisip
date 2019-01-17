@@ -16,19 +16,20 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef domainregistrations_hh
-#define domainregistrations_hh
+#pragma once
 
 #include <sofia-sip/msg.h>
 #include <sofia-sip/nta.h>
 #include <sofia-sip/tport.h>
 #include <sofia-sip/su_wait.h>
 
-#include "common.hh"
-#include "configmanager.hh"
-#include "registrardb.hh"
+#include <flexisip/common.hh>
+#include <flexisip/configmanager.hh>
+#include <flexisip/registrardb.hh>
 
 #include <list>
+
+namespace flexisip {
 
 class LocalRegExpireListener;
 class DomainRegistrationManager;
@@ -121,4 +122,4 @@ class DomainRegistrationManager : public LocalRegExpireListener, public std::ena
 	}
 };
 
-#endif
+}

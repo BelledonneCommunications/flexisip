@@ -24,6 +24,8 @@
 
 #include "auth-status.hh"
 
+namespace flexisip {
+
 /**
  * @brief Interface for authentication modules.
  * @note This class is a plain C++ wrapper of SofiaSip's auth_mod_t
@@ -77,3 +79,5 @@ private:
 	static auth_scheme_t sAuthScheme;
 	static bool sSchemeRegistered;
 };
+
+}

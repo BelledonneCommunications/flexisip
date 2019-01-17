@@ -16,11 +16,12 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module-router.hh"
-#include "log/logmanager.hh"
+#include <flexisip/module-router.hh>
+#include <flexisip/logmanager.hh>
 #include <sofia-sip/sip_status.h>
 
 using namespace std;
+using namespace flexisip;
 
 void ModuleRouter::onDeclare(GenericStruct *mc) {
 	ConfigItemDescriptor configs[] = {
@@ -226,6 +227,11 @@ bool ModuleRouter::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *
 	return false;
 }
 
+bool ModuleRouter::lateDispatch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact,
+							shared_ptr<ForkContext> context, const string &targetUris) {
+	return dispatch(ev, contact, context, targetUris);
+}
+
 bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact,
 							shared_ptr<ForkContext> context, const string &targetUris) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
@@ -294,52 +300,6 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	return true;
 }
 
-class OnContactRegisteredListener : public ContactRegisteredListener, public ContactUpdateListener, public enable_shared_from_this<OnContactRegisteredListener> {
-	friend class ModuleRouter;
-	ModuleRouter *mModule;
-	url_t *mSipUri;
-	string mUid;
-	su_home_t mHome;
-
-  public:
-	OnContactRegisteredListener(ModuleRouter *module, const url_t *sipUri)
-	: mModule(module), mUid("") {
-		su_home_init(&mHome);
-		mSipUri = url_hdup(&mHome, sipUri);
-		if (url_has_param(mSipUri, "gr")) {
-			LOGD("Trying to create a ContactRegistered listener using a SIP URI with a gruu, removing let's remove it");
-			mSipUri->url_params = url_strip_param_string((char*)mSipUri->url_params, "gr");
-		}
-		LOGD("Listener created for sipUri = %s", url_as_string(&mHome, mSipUri));
-	}
-
-	~OnContactRegisteredListener() {
-		su_home_deinit(&mHome);
-	}
-
-	void onContactRegistered(Record *r, const string &uid) {
-		LOGD("Listener found for topic = %s, uid = %s, sipUri = %s", r->getKey().c_str(), uid.c_str(), url_as_string(&mHome, mSipUri));
-		mUid = uid;
-		onRecordFound(r);
-	}
-
-	void onRecordFound(Record *r) {
-		if (r) {
-			LOGD("Record found for uid = %s", mUid.c_str());
-			mModule->onContactRegistered(mUid, r, mSipUri);
-		} else {
-			LOGW("No record found for uid = %s", mUid.c_str());
-		}
-	}
-	void onError() {
-	}
-	void onInvalid() {
-	}
-
-	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
-	}
-};
-
 void ModuleRouter::onContactRegistered(const string &uid, Record *aor, const url_t *sipUri) {
 	SofiaAutoHome home;
 	sip_path_t *path = NULL;
@@ -378,7 +338,7 @@ void ModuleRouter::onContactRegistered(const string &uid, Record *aor, const url
 			shared_ptr<ForkContext> context = it->second;
 			if (context->onNewRegister(contact->m_url, uid)) {
 				SLOGD << "Found a pending context for key " << key << ": " << context.get();
-				dispatch(context->getEvent(), ec, context, "");
+				lateDispatch(context->getEvent(), ec, context, "");
 			} else
 				LOGD("Found a pending context but not interested in this new register.");
 		}
@@ -400,7 +360,7 @@ void ModuleRouter::onContactRegistered(const string &uid, Record *aor, const url
 			if (context->onNewRegister(contact->m_url, uid)) {
 				LOGD("Found a pending context for contact %s: %p", ExtendedContact::urlToString(ec->mSipContact->m_url).c_str(), context.get());
 				auto stlpath = Record::route_to_stl(path);
-				dispatch(context->getEvent(), ec, context, "");
+				lateDispatch(context->getEvent(), ec, context, "");
 			}
 		}
 	}
@@ -908,7 +868,7 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 	}
 };
 
-static vector<string> split(const char *data, const char *delim) {
+vector<string> ModuleRouter::split(const char *data, const char *delim) {
 	const char *p;
 	vector<string> res;
 	char *s = strdup(data);

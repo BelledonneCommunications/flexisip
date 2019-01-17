@@ -22,11 +22,12 @@
 #include <sofia-sip/auth_plugin.h>
 #include <sofia-sip/su_tagarg.h>
 
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
 
 #include "auth-module.hh"
 
 using namespace std;
+using namespace flexisip;
 
 struct auth_plugin_t {
 	AuthModule *backPtr;
