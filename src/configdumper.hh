@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CONFIG_DUMPER_H
-#define CONFIG_DUMPER_H
+#pragma once
 
 #include <flexisip/configmanager.hh>
 #include <iostream>
@@ -178,5 +177,3 @@ class MibDumper : public ConfigDumper {
 		return ostr;
 	}
 };
-
-#endif /* CONFIG_DUMPER_H */

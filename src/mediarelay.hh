@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef mediarelay_hh
-#define mediarelay_hh
+#pragma once
 
 #include <flexisip/module.hh>
 #include <flexisip/agent.hh>
@@ -260,5 +259,3 @@ class RelayChannel : public SdpMasqueradeContext{
 	bool mHasMultipleTargets;
 	bool mDestAddrChanged;
 };
-
-#endif

@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef db_transaction_hh
-#define db_transaction_hh
+#pragma once
 
 #include <soci/soci.h>
 
@@ -194,5 +193,3 @@ template<typename Function>
 typename DbTransaction<Function>::ReturnType operator* (DbTransactionInfo &info, Function &&function) {
 	return DbTransaction<Function>(info, std::forward<Function>(function));
 }
-
-#endif // ifndef db_transaction_hh

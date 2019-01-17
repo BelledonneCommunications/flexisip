@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef plugin_loader_hh
-#define plugin_loader_hh
+#pragma once
 
 #include <string>
 
@@ -54,5 +53,3 @@ private:
 
 	FLEXISIP_DISABLE_COPY(PluginLoader);
 };
-
-#endif // plugin_loader_hh

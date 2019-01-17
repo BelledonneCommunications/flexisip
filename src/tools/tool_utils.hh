@@ -15,8 +15,9 @@
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef _TEST_UTILS
-#define _TEST_UTILS
+
+#pragma once
+
 #include "../recordserializer.hh"
 #include <flexisip/logmanager.hh>
 #include <memory>
@@ -109,4 +110,3 @@ struct SofiaHome {
 		delete (h);
 	}
 };
-#endif

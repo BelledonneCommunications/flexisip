@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __flexisip__service_server__
-#define __flexisip__service_server__
+#pragma once
 
 #include <sofia-sip/su_wait.h>
 
@@ -49,5 +48,3 @@ protected:
 };
 
 } //namespace flexisip
-
-#endif //__flexisip__service_server__

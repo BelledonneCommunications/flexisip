@@ -16,8 +16,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef tevfilter_hh
-#define tevfilter_hh
+#pragma once
 
 #include "mediarelay.hh"
 
@@ -30,5 +29,3 @@ class TelephoneEventFilter : public MediaFilter {
   private:
 	int mTelephoneEventPt;
 };
-
-#endif

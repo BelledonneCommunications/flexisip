@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef flexisip_subscription_hh
-#define flexisip_subscription_hh
+#pragma once
 
 #include <string>
 
@@ -93,5 +92,3 @@ class PresenceSubscription : public Subscription, public PresentityPresenceInfor
 	const belle_sip_uri_t *mPresentity;
 };
 }
-
-#endif

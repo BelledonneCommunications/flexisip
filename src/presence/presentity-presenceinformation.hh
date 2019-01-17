@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef PRESENCETUPLE_HH_
-#define PRESENCETUPLE_HH_
+#pragma once
 
 #include <list>
 #include <map>
@@ -224,5 +223,3 @@ std::ostream &operator<<(std::ostream &__os, const PresentityPresenceInformation
 FlexisipException &operator<<(FlexisipException &ex, const PresentityPresenceInformation &);
 
 } /* namespace flexisip */
-
-#endif /* PRESENCETUPLE_HH_ */

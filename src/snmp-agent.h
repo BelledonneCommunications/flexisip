@@ -16,8 +16,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef SNMP_AGENT_H_
-#define SNMP_AGENT_H_
+#pragma once
+
 #include <thread>
 #include <map>
 #include "common.hh"
@@ -46,5 +46,3 @@ private:
 	SnmpAgentTask mTask;
 	std::thread mThread;
 };
-
-#endif /* SNMP_AGENT_H_ */

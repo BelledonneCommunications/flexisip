@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef cli_hh
-#define cli_hh
+#pragma once
 
 #include <sys/un.h>
 #include <pthread.h>
@@ -68,5 +67,3 @@ private:
 
 	std::shared_ptr<Agent> mAgent;
 };
-
-#endif

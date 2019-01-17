@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef domainregistrations_hh
-#define domainregistrations_hh
+#pragma once
 
 #include <sofia-sip/msg.h>
 #include <sofia-sip/nta.h>
@@ -120,5 +119,3 @@ class DomainRegistrationManager : public LocalRegExpireListener, public std::ena
 		su_root_break(root);
 	}
 };
-
-#endif

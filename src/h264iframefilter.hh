@@ -16,8 +16,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef h264filter_hh
-#define h264filter_hh
+#pragma once
 
 #include "mediarelay.hh"
 
@@ -34,5 +33,3 @@ class H264IFrameFilter : public MediaFilter {
 	uint32_t mLastIframeTimestamp;
 	int mIframeCount;
 };
-
-#endif

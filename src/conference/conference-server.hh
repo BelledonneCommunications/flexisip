@@ -16,8 +16,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __flexisip__conference_server__
-#define __flexisip__conference_server__
+#pragma once
 
 #include <memory>
 
@@ -108,5 +107,3 @@ namespace flexisip {
 		static SofiaAutoHome mHome;
 	};
 } // namespace flexisip
-
-#endif //__flexisip__conference_server__

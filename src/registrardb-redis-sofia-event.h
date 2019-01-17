@@ -16,8 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef sofia_redis_event_h
-#define sofia_redis_event_h
+#pragma once
 
 #include <flexisip/common.hh>
 #include <hiredis/hiredis.h>
@@ -117,4 +116,3 @@ static int redisSofiaAttach(redisAsyncContext *ac, su_root_t *root) {
 
 	return REDIS_OK;
 }
-#endif

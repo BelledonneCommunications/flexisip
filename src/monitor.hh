@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef monitor_hh
-#define monitor_hh
+#pragma once
 
 #include <string>
 #include <flexisip/agent.hh>
@@ -47,5 +46,3 @@ class Monitor {
 	static const std::string CALLEE_PREFIX;
 	static const int PASSWORD_CACHE_EXPIRE;
 };
-
-#endif

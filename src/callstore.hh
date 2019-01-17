@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef callstore_hh
-#define callstore_hh
+#pragma once
 
 #include <flexisip/agent.hh>
 #include <list>
@@ -90,5 +89,3 @@ class CallStore {
 	StatCounter64 *mCountCalls;
 	StatCounter64 *mCountCallsFinished;
 };
-
-#endif

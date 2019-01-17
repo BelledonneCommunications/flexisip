@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef plugin_hh
-#define plugin_hh
+#pragma once
 
 #include "flexisip_gitversion.h"
 #include "module.hh"
@@ -94,5 +93,3 @@ inline std::ostream &operator<< (std::ostream &os, const PluginInfo &info) {
 			VERSION, \
 			FLEXISIP_PLUGIN_API_VERSION \
 		}; \
-
-#endif // plugin_hh

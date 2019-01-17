@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef etchosts_hh
-#define etchosts_hh
+#pragma once
 
 #include <flexisip/common.hh>
 
@@ -37,5 +36,3 @@ class EtcHostsResolver {
 	std::map<std::string, std::string> mOverrideMap;
 	static EtcHostsResolver *sInstance;
 };
-
-#endif

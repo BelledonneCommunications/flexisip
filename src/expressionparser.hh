@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef expressionparser_hh
-#define expressionparser_hh
+#pragma once
 
 #ifndef NO_SOFIA
 #include "sofia-sip/sip.h"
@@ -47,5 +46,3 @@ class BooleanExpression {
 	static std::shared_ptr<BooleanExpression> parse(const std::string &str);
 	long ptr();
 };
-
-#endif

@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef stun_hh
-#define stun_hh
+#pragma once
 
 #include <pthread.h>
 
@@ -41,5 +40,3 @@ class StunServer {
 	};
 	static Init sStaticInit;
 };
-
-#endif

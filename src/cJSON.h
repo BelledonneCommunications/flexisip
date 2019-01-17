@@ -20,8 +20,7 @@
   THE SOFTWARE.
 */
 
-#ifndef cJSON__h
-#define cJSON__h
+#pragma once
 
 #ifdef __cplusplus
 extern "C"
@@ -122,6 +121,4 @@ extern void cJSON_ReplaceItemInObject(cJSON *object,const char *string,cJSON *ne
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

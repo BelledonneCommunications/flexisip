@@ -16,6 +16,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#pragma once
+
 #include <flexisip/common.hh>
 #include <sofia-sip/sdp.h>
 #include <sofia-sip/sip.h>
@@ -25,11 +27,6 @@
 #include <memory>
 #include <tuple>
 #include "ortp/payloadtype.h"
-
-
-#ifndef _SDP_MODIFIER_HH_
-#define _SDP_MODIFIER_HH_
-
 
 #define payload_type_set_number(pt,n)	(pt)->user_data=(void*)(long)n
 #define payload_type_get_number(pt)	(int)(long)(pt)->user_data
@@ -113,5 +110,3 @@ class SdpModifier{
 		su_home_t *mHome;
 		std::string mNortproxy;
 };
-
-#endif // _SDP_MODIFIER_HH_

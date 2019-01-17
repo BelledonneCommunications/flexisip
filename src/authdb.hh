@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef _AUTHDB_HH_
-#define _AUTHDB_HH_
+#pragma once
 
 #include <string>
 #include <mutex>
@@ -319,5 +318,3 @@ private:
 };
 
 #endif /* ENABLE_SOCI */
-
-#endif

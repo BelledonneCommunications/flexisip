@@ -16,8 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef callcontext_mediarelay_hh
-#define callcontext_mediarelay_hh
+#pragma once
 
 #include "callstore.hh"
 #include <memory>
@@ -85,8 +84,4 @@ private:
 	bool mIsEstablished;
 	bool mForcePublicAddressEnabled = false;
 };
-
-
-#endif
-
 

@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef ETAG_MANAGER_HH_
-#define ETAG_MANAGER_HH_
+#pragma once
 
 #include "string"
 #include "utils/flexisip-exception.hh"
@@ -34,4 +33,3 @@ public:
 };
 
 }
-#endif /* ETAG_MANAGER_HH_ */

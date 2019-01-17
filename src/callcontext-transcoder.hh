@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef callcontext_hh
-#define callcontext_hh
+#pragma once
 
 #include "callstore.hh"
 #include <list>
@@ -116,5 +115,3 @@ class TranscodedCall : public CallContextBase {
 	std::string mBindAddress;
 	time_t mCreateTime;
 };
-
-#endif

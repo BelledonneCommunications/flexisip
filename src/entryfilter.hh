@@ -16,8 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef entryfilter_hh
-#define entryfilter_hh
+#pragma once
 
 #include <list>
 #include <string>
@@ -58,5 +57,3 @@ class ConfigEntryFilter : public EntryFilter {
 	std::shared_ptr<BooleanExpression> mBooleanExprFilter;
 	std::string mEntryName;
 };
-
-#endif

@@ -17,8 +17,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef recordserializer_hh
-#define recordserializer_hh
+#pragma once
 
 #include <flexisip/registrardb.hh>
 
@@ -70,6 +69,4 @@ public:
 	virtual bool parse(const char *str, int len, Record *r);
 	virtual bool serialize(Record *r, std::string &serialized, bool log);
 };
-#endif
-
 #endif

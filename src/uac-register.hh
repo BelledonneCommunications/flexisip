@@ -16,8 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef uac_register_hh
-#define uac_register_hh
+#pragma once
 
 #include <string>
 #include <sofia-sip/su_alloc.h>
@@ -47,5 +46,3 @@ struct UacRegister {
   private:
 	void authenticate(const msg_param_t *au_params);
 };
-
-#endif
