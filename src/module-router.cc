@@ -52,6 +52,7 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		{Integer, "message-accept-timeout",
 			"Maximum duration for accepting a text message if no response is received from any recipients."
 			" This property is meaningful when message-fork-late is set to true.", "15"},
+		{String, "fallback-route", "Default route to apply when the recipient is unreachable. [sip:host:port]", ""},
 		{Boolean, "allow-target-factorization",
 			"During a call forking, allow several INVITEs going to the same next hop to be grouped into "
 			"a single one. A proprietary custom header 'X-target-uris' is added to the INVITE to indicate the final "
@@ -66,8 +67,9 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		{Boolean, "remove-to-tag", "Remove to tag from 183, 180, and 101 responses to workaround buggy gateways",
 			"false"},
 		{String, "preroute", "Rewrite username with given value.", ""},
-		{Boolean, "resolve-routes", "Whether or not to resolve all routes and forward the event to it if it's not us", "false"},
-		{String, "fallback-route", "Default route to apply when the recipient is unreachable. [sip:host:port]", ""},
+		{Boolean, "resolve-routes", "Whether or not to resolve next hope in route header against registrar database."
+			" This is an extension to RFC3261, and should not be used unless in some specific deployment cases."
+			" A next hope in route header is otherwise resolved through standard DNS procedure by the Forward module.", "false"},
 		{Boolean, "parent-domain-fallback", "Whether or not to fallback to the parent domain if there is no fallback route set and the recipient is unreachable", "false"},
 		config_item_end};
 	mc->addChildrenValues(configs);
@@ -815,6 +817,14 @@ class TargetUriListFetcher : public ContactUpdateListener,
 			mListener->onError();
 		}else{
 			if (mRecord->count() > 0){
+				/*
+				 * When contacts are found, we then remove the X-target-uris.
+				 * If no contacts are found, the X-target-uris is left as it is, so that if a fallback route is specified,
+				 * the proxy pointed by this fallback route will process it.
+				 */
+				sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(mEv->getMsgSip()->getSip(), "X-Target-Uris");
+				if (h) sip_header_remove(mEv->getMsgSip()->getMsg(), mEv->getMsgSip()->getSip(), (sip_header_t *)h);
+				
 				/*also add aliases in the ExtendedContact list for the searched AORs, so that they are added to the ForkMap.*/
 				sip_route_t *iter;
 				for (iter = mUriList; iter != NULL; iter = iter->r_next) {
@@ -973,7 +983,6 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 					RegistrarDb::get()->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
 				} else {
 					auto fetcher = make_shared<TargetUriListFetcher>(this, ev, onRoutingListener, h);
-					sip_header_remove(ms->getMsg(), sip, (sip_header_t *)h);
 					fetcher->fetch(mAllowDomainRegistrations, true);
 				}
 			} else {
