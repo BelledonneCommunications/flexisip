@@ -128,21 +128,9 @@ make install DESTDIR=%{buildroot}
 # Shouldn't be the role of cmake to install all the following stuff ?
 # It is surprising to let the specfile install all these things from the source tree.
 #
-mkdir -p  $RPM_BUILD_ROOT/etc/init.d
 mkdir -p  $RPM_BUILD_ROOT/etc/flexisip
 mkdir -p  $RPM_BUILD_ROOT/%{_docdir}
 mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/log/flexisip
-%if "0%{?dist}" == "0.deb"
-  install -p -m 0744 scripts/debian/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
-  %if @ENABLE_PRESENCE@
-    install -p -m 0744 scripts/debian/flexisip-presence $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip-presence
-  %endif
-%else
-  install -p -m 0744 scripts/redhat/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
-  %if @ENABLE_PRESENCE@
-    install -p -m 0744 scripts/redhat/flexisip-presence $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip-presence
-  %endif
-%endif
 
 mkdir -p $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip.service $RPM_BUILD_ROOT/lib/systemd/system
@@ -186,7 +174,6 @@ rm -rf $RPM_BUILD_ROOT
 %{_datarootdir}/*
 
 %if @ENABLE_PRESENCE@
-%{_sysconfdir}/init.d/flexisip-presence
 /lib/systemd/system/flexisip-presence.service
 /lib/systemd/system/flexisip-presence@.service
 %endif
@@ -196,7 +183,6 @@ rm -rf $RPM_BUILD_ROOT
 	/lib/systemd/system/flexisip-conference@.service
 %endif
 
-%{_sysconfdir}/init.d/flexisip
 %{_sysconfdir}/flexisip
 %{_sysconfdir}/logrotate.d/flexisip-logrotate
 /lib/systemd/system/flexisip.service
