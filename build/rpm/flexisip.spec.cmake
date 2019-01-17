@@ -172,6 +172,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/*
 %{_libdir}/*.so
 %{_datarootdir}/*
+%{_localstatedir}/*
 
 %if @ENABLE_PRESENCE@
 /lib/systemd/system/flexisip-presence.service
