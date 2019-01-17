@@ -129,8 +129,8 @@ make install DESTDIR=%{buildroot}
 # It is surprising to let the specfile install all these things from the source tree.
 #
 mkdir -p  $RPM_BUILD_ROOT/etc/flexisip
-mkdir -p  $RPM_BUILD_ROOT/%{_docdir}
-mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/log/flexisip
+mkdir -p  $RPM_BUILD_ROOT%{_docdir}
+mkdir -p  $RPM_BUILD_ROOT%{_localstatedir}/log/flexisip
 
 mkdir -p $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip.service $RPM_BUILD_ROOT/lib/systemd/system
