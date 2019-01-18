@@ -16,7 +16,8 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "log/logmanager.hh"
+#include <flexisip/logmanager.hh>
+
 #include "bellesip-signaling-exception.hh"
 #include "body-list-subscription.hh"
 #include "resource-lists.hh"
