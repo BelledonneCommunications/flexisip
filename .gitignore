@@ -43,7 +43,7 @@ flexisip-config.h
 ltmain.sh
 scripts/flexisip.conf.sample
 stamp-h1
-/src/flexisip_gitversion.h
+/include/flexisip/flexisip-version.h
 /src/test/expr
 src/libhack.a
 build-debian/

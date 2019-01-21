@@ -27,7 +27,6 @@ extern "C" {
 
 #include <flexisip/agent.hh>
 #include "module-auth.hh"
-#include "flexisip_gitversion.h"
 #include <flexisip/plugin.hh>
 
 // =============================================================================
