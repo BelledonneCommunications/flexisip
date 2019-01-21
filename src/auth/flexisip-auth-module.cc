@@ -228,6 +228,7 @@ void FlexisipAuthModule::processResponse(AuthenticationListener &l) {
 	switch (l.result()) {
 		case PASSWORD_FOUND:
 		case PASSWORD_NOT_FOUND:
+			if (mPassworFetchResultCb) mPassworFetchResultCb(l.result() == PASSWORD_FOUND);
 			l.authStatus().passwordFound(l.result() == PASSWORD_FOUND);
 			checkPassword(l.authStatus(), l.challenger(), *l.response(), l.password().c_str());
 			finish(l.authStatus());
@@ -292,10 +293,8 @@ int FlexisipAuthModule::checkPasswordForAlgorithm(FlexisipAuthStatus &as, auth_r
 
 		string a1;
 		if (passwd) {
-			// 			++*getModule()->mCountPassFound;
 			a1 = passwd;
 		} else {
-			// 			++*getModule()->mCountPassNotFound;
 			a1 = auth_digest_a1_for_algorithm(&ar, "xyzzy");
 		}
 
@@ -316,12 +315,10 @@ int FlexisipAuthModule::checkPasswordMd5(FlexisipAuthStatus &as, auth_response_t
 		passwd = NULL;
 
 	if (passwd) {
-		// 		++*getModule()->mCountPassFound;
 		strncpy(a1buf, passwd, sizeof(a1buf)-1); // remove trailing NULL character
 		a1buf[sizeof(a1buf)-1] = '\0';
 		a1 = a1buf;
 	} else {
-		// 		++*getModule()->mCountPassNotFound;
 		auth_digest_a1(&ar, a1buf, "xyzzy"), a1 = a1buf;
 	}
 
