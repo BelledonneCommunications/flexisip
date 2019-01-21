@@ -543,6 +543,12 @@ void RegistrarDbRedisAsync::sKeyExpirationPublishCallback(redisAsyncContext *c, 
 void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data) {
 	Record actualRecord(data->record);
 
+	if (reply == nullptr) {
+		if (data->listener) data->listener->onError();
+		delete data;
+		return;
+	}
+
 	data->self->parseAndClean(reply, data);
 
 	for (auto ec : actualRecord.getExtendedContacts()) {
