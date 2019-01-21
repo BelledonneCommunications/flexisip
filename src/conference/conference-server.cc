@@ -39,7 +39,7 @@ ConferenceServer::ConferenceServer (
 	su_root_t *root
 ) : ServiceServer(root), mPath(path) {}
 
-ConferenceServer::~ConferenceServer () {}
+ConferenceServer::~ConferenceServer () {cout << "destroying ConferenceServer()" << endl;}
 
 
 void ConferenceServer::_init () {
@@ -102,6 +102,7 @@ void ConferenceServer::_run () {
 }
 
 void ConferenceServer::_stop () {
+	mCore->removeListener(shared_from_this());
 	RegistrarDb::get()->removeStateListener(shared_from_this());
 }
 
