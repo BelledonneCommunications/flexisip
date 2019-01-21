@@ -25,6 +25,7 @@
 #include <sofia-sip/sip_header.h>
 #include <sofia-sip/sip_status.h>
 
+#include "flexisip_gitversion.h"
 #include <flexisip/plugin.hh>
 
 #include "module-external-authentication.hh"

@@ -26,12 +26,14 @@ set(HEADER_FILES
 	configmanager.hh
 	event.hh
 	eventlogs.hh
+	expressionparser.hh
+	flexisip-exception.hh
 	forkbasiccontext.hh
 	forkcallcontext.hh
+	forkcontext.hh
 	forkmessagecontext.hh
 	global.hh
 	logmanager.hh
-	module-auth.hh
 	module-registrar.hh
 	module-router.hh
 	module.hh

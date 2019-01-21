@@ -20,7 +20,7 @@
 #include <sofia-sip/sip_extra.h>
 #include <sofia-sip/sip_status.h>
 
-#include <flexisip/module-auth.hh>
+#include "module-auth.hh"
 
 using namespace std;
 using namespace flexisip;

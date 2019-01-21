@@ -21,6 +21,7 @@
 #include "bctoolbox/exception.hh"
 #include <string.h>
 
+namespace flexisip {
 
 /**
  * @brief This exception inherits \ref BctoolboxException.
@@ -42,3 +43,5 @@ public:
 };
 
 #define FLEXISIP_EXCEPTION FlexisipException() << " " << __FILE__ << ":" << __LINE__ << " "
+
+}

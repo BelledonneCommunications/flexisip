@@ -45,7 +45,7 @@
 #include <cstdio>
 #include <csignal>
 
-#include "expressionparser.hh"
+#include <flexisip/expressionparser.hh>
 #include "configdumper.hh"
 
 #include <sofia-sip/su_log.h>

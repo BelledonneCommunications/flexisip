@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include "configmanager.hh"
-#include "event.hh"
+#include <flexisip/configmanager.hh>
+#include <flexisip/event.hh>
 
 #include <sofia-sip/nta_tport.h>
 #include <sofia-sip/tport.h>

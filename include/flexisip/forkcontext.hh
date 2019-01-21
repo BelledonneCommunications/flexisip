@@ -18,10 +18,10 @@
 
 #pragma once
 
-#include "agent.hh"
-#include "event.hh"
-#include "transaction.hh"
-#include "registrardb.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/event.hh>
+#include <flexisip/transaction.hh>
+#include <flexisip/registrardb.hh>
 
 namespace flexisip {
 

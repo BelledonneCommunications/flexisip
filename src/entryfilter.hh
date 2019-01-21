@@ -21,7 +21,7 @@
 #include <list>
 #include <string>
 #include <memory>
-#include "expressionparser.hh"
+#include <flexisip/expressionparser.hh>
 
 #include <flexisip/agent.hh>
 

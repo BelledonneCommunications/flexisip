@@ -24,7 +24,7 @@
 #include <flexisip/logmanager.hh>
 #include <flexisip/configmanager.hh>
 
-#include "expressionparser.hh"
+#include <flexisip/expressionparser.hh>
 #include "domain-registrations.hh"
 #include "utils/signaling-exception.hh"
 

@@ -346,7 +346,7 @@ endif()
 
 # expression parser tester
 if(MEDIASTREAMER2_FOUND)
-	add_executable(expr test/expr.cc expressionparser.cc expressionparser.hh sipattrextractor.hh utils/flexisip-exception.hh)
+	add_executable(expr test/expr.cc expressionparser.cc sipattrextractor.hh)
 	target_link_libraries(expr ${BCTOOLBOX_CORE_LIBRARIES} ${ORTP_LIBRARIES} ${MEDIASTREAMER2_LIBRARIES})
 	set_property(TARGET expr PROPERTY CXX_STANDARD 11)
 	set_property(TARGET expr PROPERTY CXX_STANDARD_REQUIRED ON)

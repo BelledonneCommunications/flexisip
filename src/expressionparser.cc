@@ -25,13 +25,13 @@
 #include <tuple>
 #include <stdexcept>
 #include <algorithm>
-#include "expressionparser.hh"
 #include "sipattrextractor.hh"
 
 #include <regex.h>
 
+#include <flexisip/expressionparser.hh>
 #include <flexisip/logmanager.hh>
-#include "utils/flexisip-exception.hh"
+#include <flexisip/flexisip-exception.hh>
 
 using namespace std;
 using namespace flexisip;

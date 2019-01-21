@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "event.hh"
+#include <flexisip/event.hh>
 
 #include <sofia-sip/msg.h>
 #include <sofia-sip/sip.h>

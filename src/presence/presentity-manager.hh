@@ -20,7 +20,7 @@
 
 #include "etag-manager.hh"
 #include "string"
-#include "utils/flexisip-exception.hh"
+#include <flexisip/flexisip-exception.hh>
 
 namespace flexisip {
 class PresentityPresenceInformationListener;

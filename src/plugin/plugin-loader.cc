@@ -19,6 +19,7 @@
 #include <unordered_map>
 
 #include "plugin-loader.hh"
+#include "flexisip_gitversion.h"
 #include <flexisip/plugin.hh>
 
 // =============================================================================
