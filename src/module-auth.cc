@@ -182,6 +182,9 @@ void Authentication::onLoad(const GenericStruct *mc) {
 				nonceExpires)
 			);
 		}
+		mAuthModules[domain]->setOnPasswordFetchResultCb(
+			[this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;}
+		);
 		SLOGI << "Found auth domain: " << domain;
 	}
 

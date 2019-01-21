@@ -39,9 +39,13 @@ namespace flexisip {
  */
 class FlexisipAuthModule : public FlexisipAuthModuleBase {
 public:
+	using PasswordFetchResultCb = std::function<void(bool)>;
+
 	FlexisipAuthModule(su_root_t *root, const std::string &domain, const std::string &algo): FlexisipAuthModuleBase(root, domain, algo) {}
 	FlexisipAuthModule(su_root_t *root, const std::string &domain, const std::string &algo, int nonceExpire): FlexisipAuthModuleBase(root, domain, algo, nonceExpire) {}
 	~FlexisipAuthModule() override = default;
+
+	void setOnPasswordFetchResultCb(const PasswordFetchResultCb &cb) {mPassworFetchResultCb = cb;}
 
 private:
 	class AuthenticationListener : public AuthDbListener {
@@ -86,6 +90,8 @@ private:
 	static std::string sha256(const std::string &data);
 	static std::string sha256(const void *data, size_t len);
 	static std::string toString(const std::vector<uint8_t> &data);
+
+	PasswordFetchResultCb mPassworFetchResultCb;
 };
 
 }
