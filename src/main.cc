@@ -58,7 +58,7 @@
 #define VERSION "DEVEL"
 #endif // VERSION
 
-#include "flexisip_gitversion.h"
+#include <flexisip/flexisip-version.h>
 #ifndef FLEXISIP_GIT_VERSION
 #define FLEXISIP_GIT_VERSION "undefined"
 #endif

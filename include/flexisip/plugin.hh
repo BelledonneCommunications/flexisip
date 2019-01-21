@@ -19,6 +19,7 @@
 #pragma once
 
 #include <flexisip/module.hh>
+#include <flexisip/flexisip-version.h>
 
 #ifndef FLEXISIP_GIT_VERSION
 	#define FLEXISIP_GIT_VERSION "undefined"
