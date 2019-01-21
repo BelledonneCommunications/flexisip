@@ -28,6 +28,7 @@ set(HEADER_FILES
 	eventlogs.hh
 	expressionparser.hh
 	flexisip-exception.hh
+	flexisip-version.h
 	forkbasiccontext.hh
 	forkcallcontext.hh
 	forkcontext.hh
@@ -40,6 +41,12 @@ set(HEADER_FILES
 	plugin.hh
 	registrardb.hh
 	transaction.hh
+)
+
+find_package(Git)
+add_custom_target(flexisip-git-version
+	COMMAND ${CMAKE_COMMAND} -DGIT_EXECUTABLE=${GIT_EXECUTABLE} -DFLEXISIP_VERSION=${FLEXISIP_VERSION} -DWORK_DIR=${CMAKE_CURRENT_SOURCE_DIR} -DOUTPUT_DIR=${CMAKE_CURRENT_LIST_DIR}/flexisip -P ${CMAKE_CURRENT_SOURCE_DIR}/gitversion.cmake
+	BYPRODUCTS "${CMAKE_CURRENT_LIST_DIR}/flexisip/flexisip-version.h"
 )
 
 set(FLEXISIP_HEADER_FILES )
