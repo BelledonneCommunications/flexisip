@@ -184,20 +184,15 @@ void Authentication::onLoad(const GenericStruct *mc) {
 	}
 
 	for (const string &domain : mDomains) {
-		if (mDisableQOPAuth) {
-			mAuthModules[domain].reset(
-				new FlexisipAuthModule(getAgent()->getRoot(),
-				domain,
-				mAlgorithms.front())
-			);
-		} else {
-			mAuthModules[domain].reset(
-				new FlexisipAuthModule(getAgent()->getRoot(),
-				domain,
-				mAlgorithms.front(),
-				nonceExpires)
-			);
-		}
+		FlexisipAuthModule *authModule =
+			mDisableQOPAuth ?
+			new FlexisipAuthModule(getAgent()->getRoot(), domain, mAlgorithms.front()) :
+			new FlexisipAuthModule(getAgent()->getRoot(), domain, mAlgorithms.front(), nonceExpires);
+
+		authModule->setOnPasswordFetchResultCb(
+			[this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;}
+		);
+		mAuthModules[domain].reset(authModule);
 		SLOGI << "Found auth domain: " << domain;
 	}
 
