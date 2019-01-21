@@ -18,14 +18,14 @@
 
 #pragma once
 
-#include "module.hh"
-#include "agent.hh"
-#include "registrardb.hh"
+#include <flexisip/module.hh>
+#include <flexisip/agent.hh>
+#include <flexisip/registrardb.hh>
 
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/su_random.h>
 
-#include <signal.h> 
+#include <signal.h>
 
 namespace flexisip {
 
@@ -93,7 +93,7 @@ class FakeFetchListener : public ContactUpdateListener {
 
 public:
 	FakeFetchListener();
-	
+
 	void onRecordFound(Record *r);
 	void onError();
 	void onInvalid();

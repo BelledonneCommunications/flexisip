@@ -19,7 +19,7 @@
 #pragma once
 
 #include "flexisip_gitversion.h"
-#include "module.hh"
+#include <flexisip/module.hh>
 
 // =============================================================================
 

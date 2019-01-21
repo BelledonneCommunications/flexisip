@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "logmanager.hh"
+#include <flexisip/logmanager.hh>
 
 #include <cstdlib>
 #include <cstdarg>

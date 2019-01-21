@@ -23,11 +23,11 @@
 #define FLEXISIP_INCLUDED
 #endif
 
-#include "common.hh"
-#include "configmanager.hh"
-#include "event.hh"
-#include "transaction.hh"
-#include "eventlogs.hh"
+#include <flexisip/common.hh>
+#include <flexisip/configmanager.hh>
+#include <flexisip/event.hh>
+#include <flexisip/transaction.hh>
+#include <flexisip/eventlogs.hh>
 
 #include <sofia-sip/sip.h>
 #include <sofia-sip/sip_protos.h>

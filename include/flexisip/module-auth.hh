@@ -19,7 +19,7 @@
 #pragma once
 
 #include "auth/flexisip-auth-module.hh"
-#include "module.hh"
+#include <flexisip/module.hh>
 
 namespace flexisip {
 

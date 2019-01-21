@@ -18,10 +18,10 @@
 
 #pragma once
 
-#include "agent.hh"
-#include "event.hh"
-#include "transaction.hh"
-#include "forkcontext.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/event.hh>
+#include <flexisip/transaction.hh>
+#include <flexisip/forkcontext.hh>
 
 #include <list>
 #include <map>

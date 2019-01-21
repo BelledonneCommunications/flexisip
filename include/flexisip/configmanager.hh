@@ -30,7 +30,7 @@
 
 #endif
 
-#include "common.hh"
+#include <flexisip/common.hh>
 
 #include <string>
 #include <sstream>
