@@ -2,10 +2,10 @@
 # Makefile
 #################################################
 
-job-debian9-makefile-gcc:
+job-ubuntu-18.04-makefile-gcc:
 
-  tags: [ "docker-debian9" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  tags: [ "docker-ubuntu-18.04" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: gcc
@@ -14,10 +14,10 @@ job-debian9-makefile-gcc:
   extends: .scheduled-job-linux
 
 
-job-debian9-makefile-clang:
+job-ubuntu-18.04-makefile-clang:
 
-  tags: [ "docker-debian9" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  tags: [ "docker-ubuntu-18.04" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: clang
@@ -29,10 +29,10 @@ job-debian9-makefile-clang:
 # Ninja
 #################################################
 
-job-debian9-ninja-gcc:
+job-ubuntu-18.04-ninja-gcc:
 
-  tags: [ "docker-debian9" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  tags: [ "docker-ubuntu-18.04" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
   variables:
     CMAKE_GENERATOR: Ninja
     CC: gcc
@@ -40,42 +40,41 @@ job-debian9-ninja-gcc:
   extends: .job-linux
 
 
-job-debian9-ninja-clang:
+job-ubuntu-18.04-ninja-clang:
 
-  tags: [ "docker-debian9" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  tags: [ "docker-ubuntu-18.04" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
   variables:
     CMAKE_GENERATOR: Ninja
     CC: clang
     CXX: clang++
   extends: .job-linux
-
+  
 #################################################
 # DEB
 #################################################
 
-job-debian9-deb:
+job-ubuntu-18.04-deb:
 
-  tags: [ "docker-debian9" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  tags: [ "docker-ubuntu-18.04" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
   extends: .job-linux-deb
 
 
-job-debian9-deb-deploy:
+job-ubuntu-18.04-deb-deploy:
 
   variables:
     DEBIAN_RELEASE: stretch
   extends: .job-debian-deb-deploy
   dependencies:
-    - job-debian9-deb
-    
-    
+    - job-ubuntu-18.04-deb
+  
 #################################################
 # Docker
 #################################################
 
-job-flexisip-deb-image-deploy:
+job-flexisip-ubuntu-image-deploy:
 
   dependencies:
-    - job-debian9-deb
+    - job-ubuntu-18.04-deb
   extends: .job-flexisip-image-deploy

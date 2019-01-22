@@ -81,15 +81,13 @@
 # DOCKER
 #################################################
 
-job-flexisip-deb-image-deploy:
+.job-flexisip-image-deploy:
 
   stage: image
   tags: [ "linux-deploy" ]
   only:
     - schedules
-  dependencies:
-    - job-debian9-deb
-
+    
   script:
     - mv WORK/flexisip-rpm/rpmbuild/DEBS docker/DEBS
     - cd docker
