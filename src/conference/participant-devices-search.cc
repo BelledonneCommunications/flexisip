@@ -34,10 +34,9 @@ void ParticipantDevicesSearch::run () {
 }
 
 void ParticipantDevicesSearch::onRecordFound (Record *r) {
-	if (!r)
-		return;
+	if (!r) return;
 
-	list<shared_ptr<linphone::Address>> listDevices;
+	list<shared_ptr<linphone::ParticipantDeviceIdentity>> listDeviceIdentities;
 	for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
 		string uri = ExtendedContact::urlToString(ec->mSipContact->m_url);
 		shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
@@ -52,15 +51,16 @@ void ParticipantDevicesSearch::onRecordFound (Record *r) {
 
 			const string &userAgent = ec->getUserAgent();
 			size_t begin = userAgent.find("(");
+			string deviceName = "";
 			if (begin != string::npos) {
 				size_t end = userAgent.find(")", begin);
-				const string &deviceName = userAgent.substr(begin + 1, end - (begin + 1));
-				deviceAddr->setDisplayName(deviceName);
+				deviceName = userAgent.substr(begin + 1, end - (begin + 1));
 			}
 
-			listDevices.push_back(deviceAddr);
+			shared_ptr<linphone::ParticipantDeviceIdentity> identity = linphone::Factory::get()->createParticipantDeviceIdentity(deviceAddr, deviceName);
+			listDeviceIdentities.push_back(identity);
 		}
 	}
 
-	mChatRoom->setParticipantDevices(mSipUri, listDevices);
+	mChatRoom->setParticipantDevices(mSipUri, listDeviceIdentities);
 }
