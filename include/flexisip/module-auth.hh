@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "auth/flexisip-auth-module.hh"
+#include <flexisip/auth-module.hh>
 #include <flexisip/module.hh>
 
 namespace flexisip {
@@ -35,7 +35,7 @@ public:
 
 	void onDeclare(GenericStruct *mc) override;
 	void onLoad(const GenericStruct *mc) override;
-	FlexisipAuthModule *findAuthModule(const std::string name);
+	AuthModule *findAuthModule(const std::string name);
 	static bool containsDomain(const std::list<std::string> &d, const char *name);
 	bool handleTestAccountCreationRequests(std::shared_ptr<RequestSipEvent> &ev);
 	bool isTrustedPeer(std::shared_ptr<RequestSipEvent> &ev);
@@ -47,24 +47,13 @@ public:
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) override;
 
 private:
-	class RequestAuthStatus : public FlexisipAuthStatus {
-	public:
-		RequestAuthStatus(const std::shared_ptr<RequestSipEvent> &ev): FlexisipAuthStatus(), mEv(ev) {}
-		~RequestAuthStatus() override = default;
-
-		const std::shared_ptr<RequestSipEvent> &getRequestEvent() const {return mEv;}
-
-	private:
-		std::shared_ptr<RequestSipEvent> mEv;
-	};
-
 	void processAuthModuleResponse(AuthStatus &as);
 	bool empty(const char *value) {return value == NULL || value[0] == '\0';}
 	const char *findIncomingSubjectInTrusted(std::shared_ptr<RequestSipEvent> &ev, const char *fromDomain);
 	void loadTrustedHosts(const ConfigStringList &trustedHosts);
 
 	static ModuleInfo<Authentication> sInfo;
-	std::map<std::string, std::unique_ptr<FlexisipAuthModule>> mAuthModules;
+	std::map<std::string, std::unique_ptr<AuthModule>> mAuthModules;
 	std::list<std::string> mDomains;
 	std::list<BinaryIp> mTrustedHosts;
 	std::list<std::string> mTrustedClientCertificates;

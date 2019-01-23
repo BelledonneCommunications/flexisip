@@ -22,6 +22,8 @@
 
 set(HEADER_FILES
 	agent.hh
+	auth-module.hh
+	auth-status.hh
 	common.hh
 	configmanager.hh
 	event.hh
@@ -35,6 +37,7 @@ set(HEADER_FILES
 	forkmessagecontext.hh
 	global.hh
 	logmanager.hh
+	module-auth.hh
 	module-registrar.hh
 	module-router.hh
 	module.hh
