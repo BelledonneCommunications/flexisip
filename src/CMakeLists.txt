@@ -291,7 +291,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_FLAGS "-Wno-error=sign-compare")
 endif()
 
-add_library(flexisip SHARED ${FLEXISIP_INCLUDES} ${FLEXISIP_SOURCES})
+add_library(flexisip SHARED ${FLEXISIP_SOURCES})
 set_property(TARGET flexisip PROPERTY CXX_STANDARD 11)
 set_property(TARGET flexisip PROPERTY CXX_STANDARD_REQUIRED ON)
 
