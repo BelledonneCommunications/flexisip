@@ -502,6 +502,15 @@ bool ModuleToolbox::viaContainsUrl(const sip_via_t *vias, const url_t *url) {
 	return false;
 }
 
+bool ModuleToolbox::viaContainsUrlHost(const sip_via_t *vias, const url_t *url) {
+	const sip_via_t *via;
+	for (via = vias; via != NULL; via = via->v_next) {
+		if (strcasecmp(via->v_host, url->url_host)==0)
+			return true;
+	}
+	return false;
+}
+
 static const char *get_transport_name_sip(const char *transport) {
 	if (transport == NULL || transport[0] == '\0')
 		return "UDP";
