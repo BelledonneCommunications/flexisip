@@ -58,7 +58,6 @@ class AuthDbListener : public StatFinishListener {
 public:
 	virtual void onResult(AuthDbResult result, const std::string &passwd) = 0;
 	virtual void onResult(AuthDbResult result, const std::vector<passwd_algo_t> &passwd)=0;
-	virtual void onResults(const std::list<std::string> &phones, const std::set<std::pair<std::string, std::string>> &presences);
 	virtual void finishVerifyAlgos(const std::vector<passwd_algo_t> &pass)=0;
 	virtual ~AuthDbListener();
 };
@@ -97,9 +96,9 @@ public:
 	void getPasswordForAlgo(const std::string &user, const std::string &host, const std::string &auth_username,
 				AuthDbListener *listener, AuthDbListener *listener_ref);
 	void getUserWithPhone(const std::string &phone, const std::string &domain, AuthDbListener *listener);
-	void getUsersWithPhone(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds, AuthDbListener *listener);
+	void getUsersWithPhone(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds);
 	virtual void getUserWithPhoneFromBackend(const std::string &, const std::string &, AuthDbListener *listener) = 0;
-	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds, AuthDbListener *listener);
+	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds);
 
 	virtual void createAccount(const std::string &user, const std::string &domain, const std::string &auth_username, const std::string &password, int expires, const std::string &phone_alias = "");
 
@@ -299,7 +298,7 @@ public:
 	SociAuthDB();
 	void setConnectionParameters(const std::string &domain, const std::string &request);
 	virtual void getUserWithPhoneFromBackend(const std::string & , const std::string &, AuthDbListener *listener);
-	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
+	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds);
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
 					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
 
@@ -307,11 +306,12 @@ public:
 
 private:
 	void getUserWithPhoneWithPool(const std::string &phone, const std::string &domain, AuthDbListener *listener);
-	void getUsersWithPhonesWithPool(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds, AuthDbListener *listener);
+	void getUsersWithPhonesWithPool(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds);
 	void getPasswordWithPool(const std::string &id, const std::string &domain,
 				 const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
 
 	void reconnectSession( soci::session &session );
+	void notifyAllListeners(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds, const std::set<std::pair<std::string, std::string>> &presences);
 
 
 	size_t poolSize;

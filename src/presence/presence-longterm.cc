@@ -17,7 +17,7 @@ public:
 		AuthDbBackend::get(); /*this will initialize the database backend, which is good to know that it works at startup*/
 	}
 
-	virtual void onResult(AuthDbResult result, const std::string &passwd) {
+	void onResult(AuthDbResult result, const std::string &passwd) override {
 		belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, result, passwd](unsigned int events) {
 			processResponse(result, passwd);
 			return BELLE_SIP_STOP;
@@ -29,7 +29,7 @@ public:
 		belle_sip_object_unref(timer);
 	}
 
-	virtual void onResult(AuthDbResult result, const vector<passwd_algo_t> &passwd) {
+	void onResult(AuthDbResult result, const vector<passwd_algo_t> &passwd) override {
 		belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, result, passwd](unsigned int events) {
 			processResponse(result, passwd.front().pass);
 			return BELLE_SIP_STOP;
@@ -41,34 +41,11 @@ public:
 		belle_sip_object_unref(timer);
 	}
 
-	virtual void finishVerifyAlgos(const vector<passwd_algo_t> &pass) {
-		return;
-	}
-
-	void onResults(const list<string> &phones, const set<pair<string, string>> &presences) {
-		for(const string &phone : phones) {
-			if(presences.empty()) {
-				onResult(PASSWORD_NOT_FOUND, phone);
-				continue;
-			}
-			bool found = false;
-			for (const auto &presence : presences) {
-				if (presence.second == phone) {
-					mDInfo[presence.first] = mDInfo[phone];
-					onResult(PASSWORD_FOUND, presence.first);
-					found = true;
-					break;
-				}
-			}
-			if (!found)
-				onResult(PASSWORD_NOT_FOUND, phone);
-		}
-	}
+	void finishVerifyAlgos(const vector<passwd_algo_t> &pass) override {}
 
 private:
 	void processResponse(AuthDbResult result, const std::string &user) {
 		shared_ptr<PresentityPresenceInformation> info = mInfo ? mInfo : mDInfo.find(user)->second;
-		bool must_delete = !!mInfo;
 
 		const char *cuser = belle_sip_uri_get_user(info->getEntity());
 		if (result == AuthDbResult::PASSWORD_FOUND) {
@@ -93,9 +70,7 @@ private:
 		} else {
 			SLOGD << __FILE__ << ": " << "Could not find user " << cuser << ".";
 		}
-		if(must_delete) {
-			delete this;
-		}
+		delete this;
 	}
 
 	belle_sip_main_loop_t *mMainLoop;
@@ -122,5 +97,5 @@ void PresenceLongterm::onListenerEvents(list<shared_ptr<PresentityPresenceInform
 		}
 		dInfo.insert(pair<string, shared_ptr<PresentityPresenceInformation>>(belle_sip_uri_get_user(info->getEntity()), info));
 	}
-	AuthDbBackend::get().getUsersWithPhone(creds, new PresenceAuthListener(mMainLoop, dInfo));
+	AuthDbBackend::get().getUsersWithPhone(creds);
 }
