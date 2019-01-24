@@ -137,7 +137,7 @@ void ModuleRouter::onLoad(const GenericStruct *mc) {
 
 	if (!mFallbackRoute.empty()){
 		mFallbackRouteParsed = sip_route_make(getHome(), mFallbackRoute.c_str());
-		if (mFallbackRouteParsed) LOGF("Bad value [%s] for fallback-route in module::Router.", mFallbackRoute.c_str());
+		if (!mFallbackRouteParsed) LOGF("Bad value [%s] for fallback-route in module::Router.", mFallbackRoute.c_str());
 	}
 }
 
