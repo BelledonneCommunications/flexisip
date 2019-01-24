@@ -64,7 +64,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	const std::string &getFallbackRoute() const {
 		return mFallbackRoute;
 	}
-	const sip_route_t *getFallbackRouteParsed() const{
+	const url_t *getFallbackRouteParsed() const{
 		return mFallbackRouteParsed;
 	}
 
@@ -108,7 +108,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	std::string mPreroute;
 	bool mResolveRoutes = false;
 	std::string mFallbackRoute;
-	sip_route_t *mFallbackRouteParsed = nullptr;
+	url_t *mFallbackRouteParsed = nullptr;
 	bool mFallbackParentDomain = false;
 
   private:

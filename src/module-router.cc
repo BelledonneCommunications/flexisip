@@ -53,8 +53,8 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		{Integer, "message-accept-timeout",
 			"Maximum duration for accepting a text message if no response is received from any recipients."
 			" This property is meaningful when message-fork-late is set to true.", "15"},
-		{String, "fallback-route", "Default route to apply when the recipient is unreachable, given as a SIP route header value, for"
-			" example: <sip:example.org;transport=tcp>", ""},
+		{String, "fallback-route", "Default route to apply when the recipient is unreachable, given as a SIP URI, for"
+			" example: sip:example.org;transport=tcp (without surrounding brakets)", ""},
 		{Boolean, "allow-target-factorization",
 			"During a call forking, allow several INVITEs going to the same next hop to be grouped into "
 			"a single one. A proprietary custom header 'X-target-uris' is added to the INVITE to indicate the final "
@@ -136,7 +136,7 @@ void ModuleRouter::onLoad(const GenericStruct *mc) {
 	mFallbackParentDomain = mc->get<ConfigBoolean>("parent-domain-fallback")->read();
 
 	if (!mFallbackRoute.empty()){
-		mFallbackRouteParsed = sip_route_make(getHome(), mFallbackRoute.c_str());
+		mFallbackRouteParsed = url_make(getHome(), mFallbackRoute.c_str());
 		if (!mFallbackRouteParsed) LOGF("Bad value [%s] for fallback-route in module::Router.", mFallbackRoute.c_str());
 	}
 }
@@ -831,7 +831,7 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 		}
 
 		if (!fallbackRoute.empty()) {
-			if (!ModuleToolbox::viaContainsUrlHost(mEv->getMsgSip()->getSip()->sip_via, mModule->getFallbackRouteParsed()->r_url)) {
+			if (!ModuleToolbox::viaContainsUrlHost(mEv->getMsgSip()->getSip()->sip_via, mModule->getFallbackRouteParsed())) {
 				shared_ptr<ExtendedContact> fallback = make_shared<ExtendedContact>(mSipUri, fallbackRoute, 0.0);
 				r->pushContact(fallback);
 				SLOGD << "Record [" << r << "] Fallback route '" << fallbackRoute << "' added: " << *fallback;
