@@ -743,3 +743,15 @@ sip_via_t *ModuleToolbox::getLastVia(sip_t *sip){
 	}
 	return ret;
 }
+
+url_t *ModuleToolbox::sipUrlMake(su_home_t *home, const char *value){
+	url_t *ret = url_make(home, value);
+	if (ret){
+		if (ret->url_type != url_sip && ret->url_type != url_sips){
+			su_free(home, ret);
+			ret = NULL;
+		}
+	}
+	return ret;
+}
+

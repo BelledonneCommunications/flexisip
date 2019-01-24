@@ -136,7 +136,7 @@ void ModuleRouter::onLoad(const GenericStruct *mc) {
 	mFallbackParentDomain = mc->get<ConfigBoolean>("parent-domain-fallback")->read();
 
 	if (!mFallbackRoute.empty()){
-		mFallbackRouteParsed = url_make(getHome(), mFallbackRoute.c_str());
+		mFallbackRouteParsed = sipUrlMake(getHome(), mFallbackRoute.c_str());
 		if (!mFallbackRouteParsed) LOGF("Bad value [%s] for fallback-route in module::Router.", mFallbackRoute.c_str());
 	}
 }

@@ -317,6 +317,8 @@ public:
 	static bool getUriParameter(const url_t *url, const char *param, std::string &value);
 	static bool getBoolUriParameter(const url_t *url, const char *param, bool defaultValue);
 	static sip_via_t *getLastVia(sip_t *sip);
+	/* same as url_make() from sofia, but unsure that the url is sip or sips; otherwise return NULL*/
+	static url_t *sipUrlMake(su_home_t *home, const char *value);
 };
 
 }
