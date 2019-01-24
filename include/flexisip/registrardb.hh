@@ -195,10 +195,12 @@ class Record {
 	friend class RegistrarDb;
 
   private:
+	SofiaAutoHome mHome;
 	static void init();
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
 	std::list<std::shared_ptr<ExtendedContact>> mContactsToRemove;
 	std::string mKey;
+	url_t *mAor;
 	bool mIsDomain; /*is a domain registration*/
 	bool mOnlyStaticContacts;
 
@@ -207,7 +209,9 @@ class Record {
 	static int sMaxContacts;
 	static bool sAssumeUniqueDomains;
 	Record(const url_t *aor);
-	static std::string extractUniqueId(const sip_contact_t *contact);
+	//Get address of record
+	const url_t *getAor()const;
+	
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
 	sip_contact_t *getContacts(su_home_t *home, time_t now);
@@ -245,6 +249,12 @@ class Record {
 	void cleanContactsToRemoveList() {
 		mContactsToRemove.clear();
 	}
+	/*
+	 * Synthetise the pub-gruu address from an extended contact belonging to this Record.
+	 * FIXME: Unfortunately this function is not widely used in Flexisip, instead there are several
+	 * places where pub-gruu address is synthesized.
+	 */
+	url_t *getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t *home);
 	/**
 	 * Check if the contacts list size is < to max aor config option and remove older contacts to match restriction if needed
 	 */
@@ -259,6 +269,7 @@ class Record {
 	static std::list<std::string> route_to_stl(const sip_route_s *route);
 	void appendContactsFrom(Record *src);
 	static std::string defineKeyFromUrl(const url_t *aor);
+	static std::string extractUniqueId(const sip_contact_t *contact);
 	~Record();
 
 	bool haveOnlyStaticContacts() const {
@@ -425,7 +436,6 @@ class RegistrarDb {
 
 	RegistrarDb(Agent *ag);
 	virtual ~RegistrarDb();
-	std::map<std::string, Record *> mRecords;
 	std::multimap<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;
 	std::list<std::shared_ptr<RegistrarDbStateListener>> mStateListeners;
 	LocalRegExpire *mLocalRegExpire;

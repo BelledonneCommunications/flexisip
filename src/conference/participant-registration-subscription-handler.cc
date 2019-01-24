@@ -18,13 +18,14 @@
 
 #include "participant-registration-subscription-handler.hh"
 
-
 using namespace flexisip;
 using namespace std;
 
 
 string ParticipantRegistrationSubscriptionHandler::getKey (const shared_ptr<const linphone::Address> &address) {
-	return address->getUsername() + "@" + address->getDomain();
+	ostringstream ostr;
+	ostr << address->getUsername() << "@" << address->getDomain();
+	return ostr.str();
 }
 
 void ParticipantRegistrationSubscriptionHandler::subscribe (
@@ -41,11 +42,9 @@ void ParticipantRegistrationSubscriptionHandler::subscribe (
 		}
 	}
 	if (toSubscribe) {
-		SLOGI << "Subscribe to RegistrarDB for key '" << key << "' and ChatRoom '"
-			<< chatRoom->getLocalAddress()->asString() << "'";
-		auto subscription = make_shared<ParticipantRegistrationSubscription>(address, chatRoom);
+		auto subscription = make_shared<OwnRegistrationSubscription>(chatRoom, address);
 		mSubscriptions.insert(make_pair(key, subscription));
-		RegistrarDb::get()->subscribe(key, subscription);
+		subscription->start();
 	}
 }
 
@@ -57,9 +56,7 @@ void ParticipantRegistrationSubscriptionHandler::unsubscribe (
 	auto range = mSubscriptions.equal_range(key);
 	for (auto it = range.first; it != range.second;) {
 		if (it->second->getChatRoom() == chatRoom) {
-			SLOGI << "Unsubscribe from RegistrarDB for key '" << key << "' and ChatRoom '"
-				<< chatRoom->getLocalAddress()->asString() << "'";
-			RegistrarDb::get()->unsubscribe(key, it->second);
+			it->second->stop();
 			it = mSubscriptions.erase(it);
 		} else {
 			it++;

@@ -242,14 +242,18 @@ if(ENABLE_CONFERENCE)
 		conference/conference-address-generator.hh
 		conference/conference-server.cc
 		conference/conference-server.hh
-		conference/participant-capabilities-check.cc
-		conference/participant-capabilities-check.hh
-		conference/participant-devices-search.cc
-		conference/participant-devices-search.hh
-		conference/participant-registration-subscription.cc
-		conference/participant-registration-subscription.hh
+		conference/registration-subscription.cc
+		conference/registration-subscription.hh
 		conference/participant-registration-subscription-handler.cc
 		conference/participant-registration-subscription-handler.hh
+		
+#		conference/participant-capabilities-check.cc
+#		conference/participant-capabilities-check.hh
+#		conference/participant-devices-search.cc
+#		conference/participant-devices-search.hh
+#		conference/participant-registration-subscription.cc
+#		conference/participant-registration-subscription.hh
+
 	)
 endif()
 
@@ -297,7 +301,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_FLAGS "-Wno-error=sign-compare")
 endif()
 
-add_library(flexisip SHARED ${FLEXISIP_INCLUDES} ${FLEXISIP_SOURCES})
+add_library(flexisip SHARED ${FLEXISIP_SOURCES})
 set_property(TARGET flexisip PROPERTY CXX_STANDARD 11)
 set_property(TARGET flexisip PROPERTY CXX_STANDARD_REQUIRED ON)
 

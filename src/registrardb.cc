@@ -610,9 +610,29 @@ list<string> Record::sLineFieldNames;
 bool Record::sAssumeUniqueDomains = false;
 
 Record::Record(const url_t *aor) : mKey(aor ? defineKeyFromUrl(aor) : ""), mOnlyStaticContacts(true) {
+	mAor = aor ? url_hdup(mHome.home(), aor) : NULL;
 	if (sMaxContacts == -1)
 		init();
 	if (aor) mIsDomain = aor->url_user == nullptr;
+}
+
+const url_t *Record::getAor()const{
+	return mAor;
+}
+
+url_t *Record::getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t *home){
+	char gr_value[256] = {0};
+	url_t *gruu_addr = NULL;
+	
+	if (!ec->mSipContact->m_url ||!ec->mSipContact->m_url->url_params) return NULL;
+	
+	isize_t result = url_param(ec->mSipContact->m_url->url_params, "gr", gr_value, sizeof(gr_value)-1);
+	
+	if (result > 0) {
+		gruu_addr = url_hdup(home, mAor);
+		url_param_add(home, gruu_addr, su_sprintf(home, "gr=%s", gr_value));
+	}
+	return gruu_addr;
 }
 
 Record::~Record() {

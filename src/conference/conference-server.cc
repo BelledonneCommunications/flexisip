@@ -22,8 +22,7 @@
 
 #include "conference-address-generator.hh"
 #include "conference-server.hh"
-#include "participant-capabilities-check.hh"
-#include "participant-devices-search.hh"
+
 
 #include <flexisip/configmanager.hh>
 
@@ -140,6 +139,9 @@ void ConferenceServer::onConferenceAddressGeneration (const shared_ptr<linphone:
 	generator->run();
 }
 
+
+#if 0
+
 void ConferenceServer::onParticipantDeviceFetchRequested (
 	const shared_ptr<linphone::ChatRoom> & cr,
 	const shared_ptr<const linphone::Address> & participantAddr
@@ -160,6 +162,8 @@ void ConferenceServer::onParticipantsCapabilitiesChecked (
 	);
 	check->run();
 }
+
+#endif
 
 void flexisip::ConferenceServer::onParticipantRegistrationSubscriptionRequested (
 	const shared_ptr<linphone::ChatRoom> &cr,
