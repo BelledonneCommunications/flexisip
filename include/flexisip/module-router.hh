@@ -64,6 +64,9 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	const std::string &getFallbackRoute() const {
 		return mFallbackRoute;
 	}
+	const url_t *getFallbackRouteParsed() const{
+		return mFallbackRouteParsed;
+	}
 
 	bool isFallbackToParentDomainEnabled() const {
 		return mFallbackParentDomain;
@@ -105,6 +108,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	std::string mPreroute;
 	bool mResolveRoutes = false;
 	std::string mFallbackRoute;
+	url_t *mFallbackRouteParsed = nullptr;
 	bool mFallbackParentDomain = false;
 
   private:

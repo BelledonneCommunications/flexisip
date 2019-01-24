@@ -304,6 +304,8 @@ public:
 
 	// Returns true if the destination represented by url is present in the via chain.
 	static bool viaContainsUrl(const sip_via_t *vias, const url_t *url);
+	// Returns true if the destination host contained in 'url' is present in via headers. This helps loop detection.
+	static bool viaContainsUrlHost(const sip_via_t *vias, const url_t *url);
 
 	// Returns true if the two url represent the same transport channel (IP, port and protocol).
 	static bool urlTransportMatch(const url_t *url1, const url_t *url2);
@@ -315,6 +317,8 @@ public:
 	static bool getUriParameter(const url_t *url, const char *param, std::string &value);
 	static bool getBoolUriParameter(const url_t *url, const char *param, bool defaultValue);
 	static sip_via_t *getLastVia(sip_t *sip);
+	/* same as url_make() from sofia, but unsure that the url is sip or sips; otherwise return NULL*/
+	static url_t *sipUrlMake(su_home_t *home, const char *value);
 };
 
 }
