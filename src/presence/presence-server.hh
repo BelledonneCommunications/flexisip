@@ -90,9 +90,9 @@ private:
 	std::string mBypass;
 	std::string mRequest;
 #if ENABLE_SOCI
-	soci::connection_pool *mConnPool;
+	soci::connection_pool *mConnPool = nullptr;
 #endif
-	ThreadPool *mThreadPool;
+	ThreadPool *mThreadPool = nullptr;
 	bool mEnabled;
 	size_t mMaxPresenceInfoNotifiedAtATime;
 

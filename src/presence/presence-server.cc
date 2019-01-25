@@ -66,8 +66,8 @@ PresenceServer::Init::Init() {
 											"-':to' : the uri of the users list the sender want to subscribe to.\n"
 										"The use of the :from & :to parameters are mandatory.\n", ""},
 									{String, "soci-connection-string", "Connection string to SOCI.", ""},
-									{Integer, "max-thread", "Max number threads.", "200"},
-									{Integer, "max-thread-queue-size", "Max legnth of threads queue.", "200"},
+									{Integer, "max-thread", "Max number threads.", "50"},
+									{Integer, "max-thread-queue-size", "Max legnth of threads queue.", "50"},
 									config_item_end};
 	GenericStruct *s = new GenericStruct("presence-server", "Flexisip presence server parameters.", 0);
 	GenericManager::get()->getRoot()->addChild(s);
@@ -111,6 +111,8 @@ PresenceServer::PresenceServer(su_root_t* root) : ServiceServer( root){
 	mBypass = config->get<ConfigString>("bypass-condition")->read();
 	mEnabled = config->get<ConfigBoolean>("enabled")->read();
 	mRequest = config->get<ConfigString>("external-list-subscription-request")->read();
+
+	if (mRequest.empty()) return;
 
 	int maxThreads = config->get<ConfigInt>("max-thread")->read();
 	int maxQueueSize = config->get<ConfigInt>("max-thread-queue-size")->read();
@@ -159,9 +161,9 @@ PresenceServer::~PresenceServer(){
 	belle_sip_object_dump_active_objects();
 	belle_sip_object_flush_active_objects();
 
-	delete mThreadPool; // will automatically shut it down, clearing threads
+	if (mThreadPool) delete mThreadPool; // will automatically shut it down, clearing threads
 #if ENABLE_SOCI
-	delete mConnPool;
+	if (mConnPool) delete mConnPool;
 #endif
 	SLOGD << "Presence server destroyed";
 }
@@ -709,6 +711,11 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				};
 				if (!contentType) { // case of rfc4662 (list subscription without resource list in body)
 #if ENABLE_SOCI
+					if (!mThreadPool || !mConnPool) {
+						SLOGE << "Can't answer a bodyless subscription: no pool available.";
+						goto error;
+					}
+
 					listSubscription = make_shared<ExternalListSubscription>(
 						expires,
 						server_transaction,
@@ -719,9 +726,8 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 						mConnPool,
 						mThreadPool
 					);
-#else
-					goto error;
 #endif
+					goto error;
 				} else if ( // case of rfc5367 (list subscription with resource list in body)
 					content_disposition &&
 					(strcasecmp(belle_sip_header_content_disposition_get_content_disposition(content_disposition), "recipient-list") == 0) &&
@@ -736,9 +742,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 						listAvailableLambda
 					);
 				} else { // Unsuported
-#if !ENABLE_SOCI
 error:
-#endif
 					belle_sip_object_unref(resp);
 					throw BELLESIP_SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/resource-lists+xml")) << "Unsupported media type ["
 						<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
