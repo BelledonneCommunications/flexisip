@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include "flexisip-exception.hh"
-#include <string.h>
+#include <flexisip/flexisip-exception.hh>
 
+namespace flexisip {
 
 /**
  * @brief This exception inherits \ref FlexisipException and allows a SIP error code to be carried along.
@@ -49,3 +49,5 @@ class SignalingException : public FlexisipException {
 };
 
 #define SIGNALING_EXCEPTION(code) SignalingException(code) << " " << __FILE__ << ":" << __LINE__ << " "
+
+}

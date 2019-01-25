@@ -16,6 +16,8 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <flexisip/logmanager.hh>
+
 #include "bellesip-signaling-exception.hh"
 #include "body-list-subscription.hh"
 #include "resource-lists.hh"
@@ -51,9 +53,8 @@ BodyListSubscription::BodyListSubscription (
 		for (const auto &entry : list.getEntry()) {
 			belle_sip_uri_t *uri = belle_sip_fast_uri_parse(entry.getUri().c_str());
 			if (!uri || !belle_sip_uri_get_host(uri) || !belle_sip_uri_get_user(uri)) {
-				ostringstream os;
-				os << "Cannot parse list entry [" << entry.getUri() << "]";
-				throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
+				SLOGE << "Cannot parse list entry [" << entry.getUri() << "]";
+				continue;
 			}
 			if (entry.getUri().find(";user=phone") != string::npos) {
 				belle_sip_uri_set_user_param(uri,"phone");

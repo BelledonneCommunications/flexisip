@@ -61,9 +61,9 @@ typedef unsigned long oid;
 
 extern oid company_id;
 
-#include "expressionparser.hh"
-#include "global.hh"
-#include "utils/flexisip-exception.hh"
+#include <flexisip/expressionparser.hh>
+#include <flexisip/global.hh>
+#include <flexisip/flexisip-exception.hh>
 
 namespace flexisip {
 

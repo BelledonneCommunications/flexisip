@@ -22,7 +22,7 @@
 #include <memory>
 #include <string>
 
-#include "auth-status.hh"
+#include <flexisip/auth-status.hh>
 #include <flexisip/event.hh>
 
 namespace flexisip {

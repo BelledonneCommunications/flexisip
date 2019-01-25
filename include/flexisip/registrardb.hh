@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include "logmanager.hh"
-#include "agent.hh"
-#include "module.hh"
+#include <flexisip/logmanager.hh>
+#include <flexisip/agent.hh>
+#include <flexisip/module.hh>
 
 #include <sofia-sip/sip.h>
 #include <sofia-sip/url.h>

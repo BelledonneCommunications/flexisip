@@ -19,7 +19,7 @@
 #pragma once
 
 #include "string"
-#include "utils/flexisip-exception.hh"
+#include <flexisip/flexisip-exception.hh>
 
 namespace flexisip {
 class PresentityPresenceInformation;

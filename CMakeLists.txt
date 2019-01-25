@@ -228,13 +228,13 @@ find_package(OpenSSL 0.9.8 REQUIRED)
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
 
 include_directories(
+	include/
+	src/
+	src/plugin
 	${CMAKE_CURRENT_BINARY_DIR}
 	${CMAKE_CURRENT_BINARY_DIR}/src/
 	${ORTP_INCLUDE_DIRS}
 	${SOFIASIPUA_INCLUDE_DIRS}
-	include/
-	src/
-	src/plugin
 )
 
 set(BELR_GRAMMARS_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/belr/grammars")

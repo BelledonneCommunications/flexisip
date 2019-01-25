@@ -19,12 +19,12 @@
 #pragma once
 
 #ifndef NO_SOFIA
-#include "sofia-sip/sip.h"
+#include <sofia-sip/sip.h>
 #endif
 
 #include <string>
 #include <memory>
-#include "utils/flexisip-exception.hh"
+#include <flexisip/flexisip-exception.hh>
 
 void log_boolean_expression_evaluation(bool value);
 void log_boolean_expression_parsing(bool value);

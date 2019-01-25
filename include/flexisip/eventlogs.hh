@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "common.hh"
+#include <flexisip/common.hh>
 
 #include <sofia-sip/sip.h>
 #include <sofia-sip/sip_protos.h>

@@ -20,10 +20,26 @@
 #include <sofia-sip/sip_extra.h>
 #include <sofia-sip/sip_status.h>
 
-#include <flexisip/module-auth.hh>
+#include "module-auth.hh"
+#include "auth/flexisip-auth-module.hh"
 
 using namespace std;
 using namespace flexisip;
+
+namespace flexisip {
+
+class RequestAuthStatus : public FlexisipAuthStatus {
+public:
+	RequestAuthStatus(const std::shared_ptr<RequestSipEvent> &ev): FlexisipAuthStatus(), mEv(ev) {}
+	~RequestAuthStatus() override = default;
+
+	const std::shared_ptr<RequestSipEvent> &getRequestEvent() const {return mEv;}
+
+private:
+	std::shared_ptr<RequestSipEvent> mEv;
+};
+
+}
 
 // ====================================================================================================================
 //  Authentication class
@@ -201,7 +217,7 @@ void Authentication::onLoad(const GenericStruct *mc) {
 	AuthDbBackend::get();//force instanciation of the AuthDbBackend NOW, to force errors to arrive now if any.
 }
 
-FlexisipAuthModule *Authentication::findAuthModule(const string name) {
+AuthModule *Authentication::findAuthModule(const string name) {
 	auto it = mAuthModules.find(name);
 	if (it == mAuthModules.end())
 		it = mAuthModules.find("*");
@@ -405,7 +421,7 @@ void Authentication::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			LOGD("There is no p-preferred-identity");
 	}
 
-	FlexisipAuthModule *am = findAuthModule(fromDomain);
+	AuthModule *am = findAuthModule(fromDomain);
 	if (am == NULL) {
 		LOGI("Unknown domain [%s]", fromDomain);
 		SLOGUE << "Registration failure, domain is forbidden: " << fromDomain;
@@ -470,10 +486,11 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		auto *as = new FlexisipAuthStatus();
 		as->realm(proxyRealm.get()->c_str());
 		as->userUri(sip->sip_from->a_url);
-		FlexisipAuthModule *am = findAuthModule(as->realm());
-		if (am) {
-			am->challenge(*as, &mProxyChallenger);
-			am->nonceStore().insert(as->response());
+		AuthModule *am = findAuthModule(as->realm());
+		FlexisipAuthModule *fam = dynamic_cast<FlexisipAuthModule *>(am);
+		if (fam) {
+			fam->challenge(*as, &mProxyChallenger);
+			fam->nonceStore().insert(as->response());
 			msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t *)sip, (msg_header_t *)as->response());
 		} else {
 			LOGD("Authentication module for %s not found", as->realm());
@@ -486,7 +503,9 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 
 void Authentication::onIdle() {
 	for (auto &it : mAuthModules) {
-		it.second->nonceStore().cleanExpired();
+		AuthModule *am = it.second.get();
+		FlexisipAuthModule *fam = dynamic_cast<FlexisipAuthModule *>(am);
+		fam->nonceStore().cleanExpired();
 	}
 }
 

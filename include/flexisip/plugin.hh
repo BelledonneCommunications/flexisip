@@ -18,30 +18,20 @@
 
 #pragma once
 
-#include "flexisip_gitversion.h"
-#include "module.hh"
-
-// =============================================================================
-
-// -----------------------------------------------------------------------------
-// Private API.
-// -----------------------------------------------------------------------------
+#include <flexisip/module.hh>
+#include <flexisip/flexisip-version.h>
 
 #ifndef FLEXISIP_GIT_VERSION
 	#define FLEXISIP_GIT_VERSION "undefined"
 #endif // ifndef FLEXISIP_GIT_VERSION
+
+#define FLEXISIP_PLUGIN_API_VERSION FLEXISIP_GIT_VERSION
 
 #ifdef WIN32
 	#define FLEXISIP_PLUGIN_EXPORT extern "C" __declspec(dllexport)
 #else
 	#define FLEXISIP_PLUGIN_EXPORT extern "C"
 #endif // ifdef WIN32
-
-// -----------------------------------------------------------------------------
-// Public API.
-// -----------------------------------------------------------------------------
-
-#define FLEXISIP_PLUGIN_API_VERSION FLEXISIP_GIT_VERSION
 
 namespace flexisip {
 
@@ -92,6 +82,6 @@ inline std::ostream &operator<< (std::ostream &os, const PluginInfo &info) {
 			NAME, \
 			VERSION, \
 			FLEXISIP_PLUGIN_API_VERSION \
-		}; \
+		};
 
 }

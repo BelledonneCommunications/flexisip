@@ -26,7 +26,7 @@
 #include <sofia-sip/msg_types.h>
 #include <sofia-sip/su_wait.h>
 
-#include "auth-module.hh"
+#include <flexisip/auth-module.hh>
 #include "flexisip-auth-status.hh"
 #include "nonce-store.hh"
 

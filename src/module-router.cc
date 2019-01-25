@@ -44,7 +44,7 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 			"painful for the client to need to wait the end of the transaction time (32 seconds) for these error "
 			"codes.",
 			"5"},
-		{Integer, "call-fork-current-branches-timeout", "Maximum time before trying the next branches with lower priotiries",
+		{Integer, "call-fork-current-branches-timeout", "Maximum time in seconds before trying the next branches with lower priorities",
 			"10"},
 		{Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.", "0"},
 		{Boolean, "message-fork-late", "Fork messages to client registering lately. ", "true"},
@@ -53,7 +53,8 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		{Integer, "message-accept-timeout",
 			"Maximum duration for accepting a text message if no response is received from any recipients."
 			" This property is meaningful when message-fork-late is set to true.", "15"},
-		{String, "fallback-route", "Default route to apply when the recipient is unreachable. [sip:host:port]", ""},
+		{String, "fallback-route", "Default route to apply when the recipient is unreachable, given as a SIP URI, for"
+			" example: sip:example.org;transport=tcp (without surrounding brakets)", ""},
 		{Boolean, "allow-target-factorization",
 			"During a call forking, allow several INVITEs going to the same next hop to be grouped into "
 			"a single one. A proprietary custom header 'X-target-uris' is added to the INVITE to indicate the final "
@@ -133,6 +134,11 @@ void ModuleRouter::onLoad(const GenericStruct *mc) {
 	mResolveRoutes = mc->get<ConfigBoolean>("resolve-routes")->read();
 	mFallbackRoute = mc->get<ConfigString>("fallback-route")->read();
 	mFallbackParentDomain = mc->get<ConfigBoolean>("parent-domain-fallback")->read();
+
+	if (!mFallbackRoute.empty()){
+		mFallbackRouteParsed = sipUrlMake(getHome(), mFallbackRoute.c_str());
+		if (!mFallbackRouteParsed) LOGF("Bad value [%s] for fallback-route in module::Router.", mFallbackRoute.c_str());
+	}
 }
 
 void ModuleRouter::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code,
@@ -825,10 +831,13 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 		}
 
 		if (!fallbackRoute.empty()) {
-			shared_ptr<ExtendedContact> fallback = make_shared<ExtendedContact>(mSipUri, fallbackRoute, 0.0);
-			r->pushContact(fallback);
-
-			SLOGD << "Record [" << r << "] Fallback route '" << fallbackRoute << "' added: " << *fallback;
+			if (!ModuleToolbox::viaContainsUrlHost(mEv->getMsgSip()->getSip()->sip_via, mModule->getFallbackRouteParsed())) {
+				shared_ptr<ExtendedContact> fallback = make_shared<ExtendedContact>(mSipUri, fallbackRoute, 0.0);
+				r->pushContact(fallback);
+				SLOGD << "Record [" << r << "] Fallback route '" << fallbackRoute << "' added: " << *fallback;
+			}else{
+				SLOGD << "Not adding fallback route '" << fallbackRoute << "' to avoid loop because request is coming from there already.";
+			}
 		}
 
 		if (r->count() == 0 && mModule->isFallbackToParentDomainEnabled()) {

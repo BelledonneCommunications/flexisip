@@ -18,12 +18,12 @@
 
 #pragma once
 
-#include "module.hh"
-#include "agent.hh"
-#include "registrardb.hh"
-#include "forkcallcontext.hh"
-#include "forkmessagecontext.hh"
-#include "forkbasiccontext.hh"
+#include <flexisip/module.hh>
+#include <flexisip/agent.hh>
+#include <flexisip/registrardb.hh>
+#include <flexisip/forkcallcontext.hh>
+#include <flexisip/forkmessagecontext.hh>
+#include <flexisip/forkbasiccontext.hh>
 
 namespace flexisip {
 
@@ -63,6 +63,9 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 
 	const std::string &getFallbackRoute() const {
 		return mFallbackRoute;
+	}
+	const url_t *getFallbackRouteParsed() const{
+		return mFallbackRouteParsed;
 	}
 
 	bool isFallbackToParentDomainEnabled() const {
@@ -105,6 +108,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	std::string mPreroute;
 	bool mResolveRoutes = false;
 	std::string mFallbackRoute;
+	url_t *mFallbackRouteParsed = nullptr;
 	bool mFallbackParentDomain = false;
 
   private:

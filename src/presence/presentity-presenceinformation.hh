@@ -22,7 +22,7 @@
 #include <map>
 
 #include "pidf+xml.hh"
-#include "utils/flexisip-exception.hh"
+#include <flexisip/flexisip-exception.hh>
 
 typedef struct _belle_sip_uri belle_sip_uri_t;
 typedef struct belle_sip_source belle_sip_source_t;

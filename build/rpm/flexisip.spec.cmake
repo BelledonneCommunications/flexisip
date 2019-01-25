@@ -63,10 +63,7 @@ Requires: %{pkg_prefix}belle-sip
 Requires: %{pkg_prefix}liblinphone
 %endif
 
-Requires(post): /sbin/chkconfig coreutils
-Requires(preun): /sbin/chkconfig /sbin/chkconfig
-Requires(postun): /sbin/service
-
+%{systemd_requires}
 
 %if 0%{?rhel} && 0%{?rhel} <= 7
 %global cmake_name cmake3
@@ -75,6 +72,8 @@ Requires(postun): /sbin/service
 %global cmake_name cmake
 %define ctest_name ctest
 %endif
+
+%global flexisip_services %(printf 'flexisip.service flexisip-proxy.service'; if [ @ENABLE_PRESENCE@ -eq 1 ]; then printf ' flexisip-presence.service'; fi; if [ @ENABLE_CONFERENCE@ -eq 1 ]; then printf ' flexisip-conference.service\n'; fi)
 
 %description
 Extensible SIP proxy with media capabilities. Designed for robustness and easy of use.
@@ -129,21 +128,9 @@ make install DESTDIR=%{buildroot}
 # Shouldn't be the role of cmake to install all the following stuff ?
 # It is surprising to let the specfile install all these things from the source tree.
 #
-mkdir -p  $RPM_BUILD_ROOT/etc/init.d
 mkdir -p  $RPM_BUILD_ROOT/etc/flexisip
 mkdir -p  $RPM_BUILD_ROOT/%{_docdir}
 mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/log/flexisip
-%if "0%{?dist}" == "0.deb"
-  install -p -m 0744 scripts/debian/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
-  %if @ENABLE_PRESENCE@
-    install -p -m 0744 scripts/debian/flexisip-presence $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip-presence
-  %endif
-%else
-  install -p -m 0744 scripts/redhat/flexisip $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip
-  %if @ENABLE_PRESENCE@
-    install -p -m 0744 scripts/redhat/flexisip-presence $RPM_BUILD_ROOT%{_sysconfdir}/init.d/flexisip-presence
-  %endif
-%endif
 
 mkdir -p $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip.service $RPM_BUILD_ROOT/lib/systemd/system
@@ -171,47 +158,13 @@ install -p -m 0744 scripts/flexisip_monitor.py $RPM_BUILD_ROOT%{_bindir}
 rm -rf $RPM_BUILD_ROOT
 
 %post
-if [ $1 = 1 ]; then
-  /sbin/chkconfig --add flexisip-proxy
-  /sbin/chkconfig flexisip-proxy on
-  service flexisip-proxy start
-
-  %if @ENABLE_PRESENCE@
-  /sbin/chkconfig --add flexisip-presence
-  /sbin/chkconfig flexisip-presence on
-  service flexisip-presence start
-  %endif
-  %if @ENABLE_CONFERENCE@
-  /sbin/chkconfig --add flexisip-conference
-  /sbin/chkconfig flexisip-conference on
-  service flexisip-conference start
-  %endif
-fi
+%systemd_post %flexisip_services
 
 %preun
-if [ $1 = 0 ]; then
-  service flexisip-proxy stop >/dev/null 2>&1 ||:
-  /sbin/chkconfig --del flexisip-proxy
-%if @ENABLE_PRESENCE@
-  service flexisip-presence stop >/dev/null 2>&1 ||:
-  /sbin/chkconfig --del flexisip-presence
-%endif
-%if @ENABLE_CONFERENCE@
-  service flexisip-conference stop >/dev/null 2>&1 ||:
-  /sbin/chkconfig --del flexisip-conference
-%endif
-fi
+%systemd_preun %flexisip_services
 
 %postun
-if [ "$1" -ge "1" ]; then
-  service flexisip condrestart > /dev/null 2>&1 ||:
-%if @ENABLE_PRESENCE@
-  service flexisip-presence condrestart > /dev/null 2>&1 ||:
-%endif
-%if @ENABLE_CONFERENCE@
-  service flexisip-conference condrestart > /dev/null 2>&1 ||:
-%endif
-fi
+%systemd_postun %flexisip_services
 
 %files
 %defattr(-,root,root,-)
@@ -221,9 +174,10 @@ fi
 %{_datarootdir}/*
 %dir %{_includedir}/flexisip
 %{_includedir}/flexisip/*.hh
+%{_includedir}/flexisip/*.h
+%{_localstatedir}/*
 
 %if @ENABLE_PRESENCE@
-%{_sysconfdir}/init.d/flexisip-presence
 /lib/systemd/system/flexisip-presence.service
 /lib/systemd/system/flexisip-presence@.service
 %endif
@@ -233,7 +187,6 @@ fi
 	/lib/systemd/system/flexisip-conference@.service
 %endif
 
-%{_sysconfdir}/init.d/flexisip
 %{_sysconfdir}/flexisip
 %{_sysconfdir}/logrotate.d/flexisip-logrotate
 /lib/systemd/system/flexisip.service

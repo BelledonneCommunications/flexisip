@@ -29,7 +29,7 @@
 #include "presentity-manager.hh"
 #include "presentity-presenceinformation.hh"
 #include "rpid.hh"
-#include "utils/flexisip-exception.hh"
+#include <flexisip/flexisip-exception.hh>
 #include "utils/string-utils.hh"
 
 #define ETAG_SIZE 8

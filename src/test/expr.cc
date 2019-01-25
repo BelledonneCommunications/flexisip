@@ -16,7 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "../expressionparser.hh"
+#include <flexisip/expressionparser.hh>
 #include <memory>
 #include <map>
 #include <stdexcept>
