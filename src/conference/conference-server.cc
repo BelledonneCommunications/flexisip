@@ -196,10 +196,10 @@ void flexisip::ConferenceServer::bindAddresses () {
 
 void flexisip::ConferenceServer::bindConference() {
 	class FakeListener : public ContactUpdateListener {
-		void onRecordFound(Record *r) {}
-		void onError() {}
-		void onInvalid() {}
-		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+		void onRecordFound(const std::shared_ptr<Record> &r) override{}
+		void onError()override {}
+		void onInvalid()override {}
+		void onContactUpdated(const shared_ptr<ExtendedContact> &ec)override {
 			SLOGD << "ConferenceServer: ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();
 		}
 	};

@@ -58,8 +58,8 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	virtual void onForkContextFinished(std::shared_ptr<ForkContext> ctx) override;
 
 	void sendReply(std::shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code = 0, const char *warning = nullptr);
-	void routeRequest(std::shared_ptr<RequestSipEvent> &ev, Record *aor, const url_t *sipUri);
-	void onContactRegistered(const std::string &uid, Record *aor, const url_t *sipUri);
+	void routeRequest(std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<Record> &aor, const url_t *sipUri);
+	void onContactRegistered(const std::string &uid, const std::shared_ptr<Record> &aor, const url_t *sipUri);
 
 	const std::string &getFallbackRoute() const {
 		return mFallbackRoute;
@@ -81,7 +81,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	}
 
   protected:
-	bool makeGeneratedContactRoute(std::shared_ptr<RequestSipEvent> &ev, Record *aor,
+	bool makeGeneratedContactRoute(std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<Record> &aor,
 								   std::list<std::shared_ptr<ExtendedContact>> &ec_list);
 	virtual bool dispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact,
 				  std::shared_ptr<ForkContext> context, const std::string &targetUris);
@@ -138,13 +138,13 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Con
 		su_home_deinit(&mHome);
 	}
 
-	void onContactRegistered(Record *r, const std::string &uid) {
+	void onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid) override{
 		LOGD("Listener found for topic = %s, uid = %s, sipUri = %s", r->getKey().c_str(), uid.c_str(), url_as_string(&mHome, mSipUri));
 		mUid = uid;
 		onRecordFound(r);
 	}
 
-	void onRecordFound(Record *r) {
+	void onRecordFound(const std::shared_ptr<Record> &r)override{
 		if (r) {
 			LOGD("Record found for uid = %s", mUid.c_str());
 			mModule->onContactRegistered(mUid, r, mSipUri);
@@ -152,12 +152,12 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Con
 			LOGW("No record found for uid = %s", mUid.c_str());
 		}
 	}
-	void onError() {
+	void onError() override{
 	}
-	void onInvalid() {
+	void onInvalid() override{
 	}
 
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) {
+	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override{
 	}
 };
 

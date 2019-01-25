@@ -42,7 +42,7 @@ void ParticipantRegistrationSubscriptionHandler::subscribe (
 		}
 	}
 	if (toSubscribe) {
-		auto subscription = make_shared<OwnRegistrationSubscription>(chatRoom, address);
+		shared_ptr<OwnRegistrationSubscription> subscription(new OwnRegistrationSubscription(chatRoom, address));
 		mSubscriptions.insert(make_pair(key, subscription));
 		subscription->start();
 	}

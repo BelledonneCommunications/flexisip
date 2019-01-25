@@ -172,7 +172,7 @@ public:
 
 	}
 	~RegistrarListener(){};
-	void onRecordFound(Record *r) {
+	void onRecordFound(const shared_ptr<Record> &r) override {
 		const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
 		try {
 			if (!r)

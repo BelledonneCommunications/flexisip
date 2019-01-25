@@ -48,7 +48,7 @@ namespace flexisip {
 		void run ();
 
 	private:
-		void onRecordFound (Record *r) override;
+		void onRecordFound (const std::shared_ptr<Record> &r) override;
 		void onError () override;
 		void onInvalid () override {}
 		void onContactUpdated (const std::shared_ptr<ExtendedContact> &ec) override {}

@@ -28,7 +28,7 @@ RegistrationSubscription::RegistrationSubscription( const std::shared_ptr<linpho
 	: mChatRoom(cr), mParticipant(participant->clone()) {
 	LOGD("RegistrationSubscription [%p] for chatroom [%p] and participant [%s] initialized.", this, cr.get(), 
 	     participant->asStringUriOnly().c_str());
-	
+	mChatroomRequestedCapabilities = cr->getCapabilities() & ~(int)ChatRoomCapabilities::OneToOne;
 }
 
 shared_ptr<ChatRoom> RegistrationSubscription::getChatRoom()const{
@@ -98,7 +98,7 @@ unsigned int OwnRegistrationSubscription::getContactCapabilities(const std::shar
 	return mask;
 }
 
-shared_ptr<Address> OwnRegistrationSubscription::getPubGruu(Record *r, const shared_ptr<ExtendedContact> &ec){
+shared_ptr<Address> OwnRegistrationSubscription::getPubGruu(const shared_ptr<Record> &r, const shared_ptr<ExtendedContact> &ec){
 	SofiaAutoHome home;
 	url_t *pub_gruu = r->getPubGruu(ec, home.home());
 	if (pub_gruu){
@@ -108,21 +108,22 @@ shared_ptr<Address> OwnRegistrationSubscription::getPubGruu(Record *r, const sha
 	return nullptr;
 }
 
-void OwnRegistrationSubscription::processRecord(Record *r){
+void OwnRegistrationSubscription::processRecord(const std::shared_ptr<Record> &r){
 	if (!mActive) return;
 	list<shared_ptr<Address>> compatibleParticipantDevices;
 	if (r){
 		for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
+			auto addr = getPubGruu(r, ec);
+			if (!addr) continue;
 			if ((getContactCapabilities(ec) & mChatroomRequestedCapabilities) == mChatroomRequestedCapabilities){
-				auto addr = getPubGruu(r, ec);
-				if (addr) compatibleParticipantDevices.push_back(addr);
-			}
+				compatibleParticipantDevices.push_back(addr);
+			}else LOGD("OwnRegistrationSubscription::processRecord(): %s does not have the required capabilities.", addr->asStringUriOnly().c_str());
 		}
 	}
 	notify(compatibleParticipantDevices);
 }
 
-void OwnRegistrationSubscription::onRecordFound (Record *r) {
+void OwnRegistrationSubscription::onRecordFound (const std::shared_ptr<Record> &r) {
 	processRecord(r);
 }
 
@@ -132,7 +133,7 @@ void OwnRegistrationSubscription::onError (){
 void OwnRegistrationSubscription::onInvalid (){
 }
 
-void OwnRegistrationSubscription::onContactRegistered(Record *r, const std::string &uid){
+void OwnRegistrationSubscription::onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid){
 	if (!mActive) return;
 	processRecord(r);
 	

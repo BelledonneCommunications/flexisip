@@ -24,9 +24,24 @@
 
 
 namespace flexisip {
+
+
+struct virtual_enable_shared_from_this_base:
+   std::enable_shared_from_this<virtual_enable_shared_from_this_base> {
+   virtual ~virtual_enable_shared_from_this_base() {}
+};
+
+template<typename T>
+struct virtual_enable_shared_from_this:
+virtual virtual_enable_shared_from_this_base {
+   std::shared_ptr<T> shared_from_this() {
+      return std::dynamic_pointer_cast<T>(
+         virtual_enable_shared_from_this_base::shared_from_this());
+   }
+};
 	
 /*Base for a class that manages registration information subscription for the server group chatroom*/
-class RegistrationSubscription : public std::enable_shared_from_this<RegistrationSubscription>{
+class RegistrationSubscription : public virtual_enable_shared_from_this<RegistrationSubscription>{
 	public:
 		RegistrationSubscription(const std::shared_ptr<linphone::ChatRoom> &cr, const std::shared_ptr<const linphone::Address> &participant);
 		virtual void start() = 0;
@@ -43,12 +58,12 @@ class RegistrationSubscription : public std::enable_shared_from_this<Registratio
 		unsigned int mChatroomRequestedCapabilities;
 };
 
-class RegistrationSubscriptionFetchListener : public ContactUpdateListener, public std::enable_shared_from_this<RegistrationSubscriptionFetchListener>{
+class RegistrationSubscriptionFetchListener : public virtual_enable_shared_from_this<RegistrationSubscriptionFetchListener>, public ContactUpdateListener{
 	public:
 		virtual ~RegistrationSubscriptionFetchListener() = default;
 };
 
-class RegistrationSubscriptionListener : public ContactRegisteredListener, public std::enable_shared_from_this<RegistrationSubscriptionListener>{
+class RegistrationSubscriptionListener : public virtual_enable_shared_from_this<RegistrationSubscriptionListener>, public ContactRegisteredListener{
 	public:
 		virtual ~RegistrationSubscriptionListener() = default;
 };
@@ -66,15 +81,15 @@ class OwnRegistrationSubscription
 
 	private:
 		unsigned int getContactCapabilities(const std::shared_ptr<ExtendedContact> &ct);
-		std::shared_ptr<linphone::Address> getPubGruu(Record *r, const std::shared_ptr<ExtendedContact> &ec);
-		void processRecord(Record *r);
+		std::shared_ptr<linphone::Address> getPubGruu(const std::shared_ptr<Record> &r, const std::shared_ptr<ExtendedContact> &ec);
+		void processRecord(const std::shared_ptr<Record> &r);
 		/*ContactUpdateListener virtual functions to override*/
-		virtual void onRecordFound (Record *r) override;
+		virtual void onRecordFound (const std::shared_ptr<Record> &r) override;
 		virtual void onError () override;
 		virtual void onInvalid () override;
 		virtual void onContactUpdated (const std::shared_ptr<ExtendedContact> &ec) override {}
 		/*ContactRegisteredListener overrides*/
-		virtual void onContactRegistered(Record *r, const std::string &uid) override;
+		virtual void onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid) override;
 
 		SofiaAutoHome mHome;
 		const url_t *mParticipantAor;
@@ -83,3 +98,4 @@ class OwnRegistrationSubscription
 };
 
 } // namespace flexisip
+

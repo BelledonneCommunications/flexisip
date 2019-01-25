@@ -195,6 +195,8 @@ class Record {
 	friend class RegistrarDb;
 
   private:
+	Record(const Record &other); //disable copy constructor, this is unsafe due to su_home_t here.
+	void operator=(const Record &other); //disable assignement operator too
 	SofiaAutoHome mHome;
 	static void init();
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
@@ -267,7 +269,7 @@ class Record {
 	time_t latestExpire() const;
 	time_t latestExpire(Agent *ag) const;
 	static std::list<std::string> route_to_stl(const sip_route_s *route);
-	void appendContactsFrom(Record *src);
+	void appendContactsFrom(const std::shared_ptr<Record> &src);
 	static std::string defineKeyFromUrl(const url_t *aor);
 	static std::string extractUniqueId(const sip_contact_t *contact);
 	~Record();
@@ -298,7 +300,7 @@ class RegistrarDbListener : public StatFinishListener {
 	 * is held by the implementation and the object might be
 	 * destroyed immediately after onRecordFound() has returned.
 	 */
-	virtual void onRecordFound(Record *r) = 0;
+	virtual void onRecordFound(const std::shared_ptr<Record> &r) = 0;
 	virtual void onError() = 0;
 	virtual void onInvalid() = 0;
 };
@@ -319,13 +321,13 @@ class ListContactUpdateListener {
 	virtual ~ListContactUpdateListener() = default;
 	virtual void onContactsUpdated() = 0;
 
-	std::vector<Record> records;
+	std::vector<std::shared_ptr<Record>> records;
 };
 
 class ContactRegisteredListener {
   public:
 	virtual ~ContactRegisteredListener();
-	virtual void onContactRegistered(Record *r, const std::string &uid) = 0;
+	virtual void onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid) = 0;
 };
 
 class LocalRegExpireListener {
@@ -370,7 +372,7 @@ class RegistrarDb {
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
 	void fetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener);
 	void fetchList(const std::vector<url_t *> urls, const std::shared_ptr<ListContactUpdateListener> &listener);
-	void notifyContactListener (Record *r, const std::string &uid);
+	void notifyContactListener (const std::shared_ptr<Record> &r, const std::string &uid);
 	void updateRemoteExpireTime(const std::string &key, time_t expireat);
 	unsigned long countLocalActiveRecords() {
 		return mLocalRegExpire->countActives();
@@ -408,7 +410,7 @@ class RegistrarDb {
 			std::lock_guard<std::mutex> lock(mMutex);
 			mRegMap.erase(key);
 		}
-		void update(const Record &record);
+		void update(const std::shared_ptr<Record> &record);
 		size_t countActives();
 		void removeExpiredBefore(time_t before);
 		LocalRegExpire(Agent *ag);

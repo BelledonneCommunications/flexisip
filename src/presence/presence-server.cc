@@ -674,12 +674,12 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 								bool groupChatSupported = false;
 								bool limeSupported = false;
 								auto &listeners = mListSubscription->getListeners();
-								for (const auto &extendedContact : record.getExtendedContacts()) {
+								for (const auto extendedContact : record->getExtendedContacts()) {
 									const string specs = extendedContact->getOrgLinphoneSpecs();
 									groupChatSupported |= (specs.find("groupchat") != specs.npos);
 									limeSupported |= (specs.find("lime") != specs.npos);
 									if (groupChatSupported || limeSupported) {
-										const string &key = record.getKey();
+										const string &key = record->getKey();
 										auto predicate = [key](const shared_ptr<const PresentityPresenceInformationListener> &listener) {
 											SofiaAutoHome home;
 											url_t *url = url_make(home.home(), belle_sip_uri_to_string(listener->getPresentityUri()));

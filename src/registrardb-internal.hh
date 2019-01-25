@@ -36,7 +36,7 @@ class RegistrarDbInternal : public RegistrarDb {
 	virtual void doFetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener);
 	virtual void doMigration();
 	virtual void publish(const std::string &topic, const std::string &uid);
-	std::map<std::string, Record *> mRecords;
+	std::map<std::string, std::shared_ptr<Record>> mRecords;
 };
 
 }
