@@ -131,10 +131,9 @@ void Subscription::notify(belle_sip_header_content_type_t *content_type, const s
 		belle_sip_header_subscription_state_set_expires(sub_state, (int)(mExpirationTime - current_time));
 	}
 
-	if (mCurrentTransaction) belle_sip_client_transaction_set_subscription(mCurrentTransaction, nullptr);
-	mCurrentTransaction = belle_sip_provider_create_client_transaction(mProv, notify);
-	belle_sip_client_transaction_set_subscription(mCurrentTransaction, shared_from_this());
-	if (belle_sip_client_transaction_send_request(mCurrentTransaction)) {
+	belle_sip_client_transaction_t *transaction = belle_sip_provider_create_client_transaction(mProv, notify);
+	belle_sip_client_transaction_set_subscription(transaction, shared_from_this());
+	if (belle_sip_client_transaction_send_request(transaction)) {
 		SLOGE << "Cannot send notify information change for [" << std::hex << (long)this << "]";
 	}
 }
@@ -165,29 +164,33 @@ const belle_sip_uri_t* Subscription::getTo() {
 }
 
 bool Subscription::belle_sip_client_transaction_has_subscription_data(const belle_sip_client_transaction_t *transaction) {
-	auto *data = static_cast<shared_ptr<Subscription> *>(belle_sip_object_data_get(BELLE_SIP_OBJECT(transaction), sSubscriptionDataTag));
+	auto *data = belle_sip_object_get_subscription_data(BELLE_SIP_OBJECT(transaction));
 	return data != nullptr;
 }
 
 const std::shared_ptr<Subscription> &Subscription::belle_sip_client_transaction_get_subscription(const belle_sip_client_transaction_t *transaction) {
-	return *static_cast<shared_ptr<Subscription> *>(belle_sip_object_data_get(BELLE_SIP_OBJECT(transaction), sSubscriptionDataTag));
+	return *belle_sip_object_get_subscription_data(BELLE_SIP_OBJECT(transaction));
 }
 
 void Subscription::belle_sip_client_transaction_set_subscription(belle_sip_client_transaction_t *transaction, const std::shared_ptr<Subscription> &subscription) {
-	*static_cast<shared_ptr<Subscription> *>(belle_sip_object_data_get(BELLE_SIP_OBJECT(transaction), sSubscriptionDataTag)) = subscription;
+	*belle_sip_object_get_subscription_data(BELLE_SIP_OBJECT(transaction)) = subscription;
 }
 
 bool Subscription::belle_sip_dialog_has_subscription_data(const belle_sip_dialog_t *dialog) {
-	auto *data = static_cast<shared_ptr<Subscription> *>(belle_sip_object_data_get(BELLE_SIP_OBJECT(dialog), sSubscriptionDataTag));
+	auto *data = belle_sip_object_get_subscription_data(BELLE_SIP_OBJECT(dialog));
 	return data != nullptr;
 }
 
 const std::shared_ptr<Subscription> &Subscription::belle_sip_dialog_get_subscription(const belle_sip_dialog_t *dialog) {
-	return *static_cast<shared_ptr<Subscription> *>(belle_sip_object_data_get(BELLE_SIP_OBJECT(dialog), sSubscriptionDataTag));
+	return *belle_sip_object_get_subscription_data(BELLE_SIP_OBJECT(dialog));
 }
 
 void Subscription::belle_sip_dialog_set_subscription(belle_sip_dialog_t *dialog, const std::shared_ptr<Subscription> &subscription) {
-	*static_cast<shared_ptr<Subscription> *>(belle_sip_object_data_get(BELLE_SIP_OBJECT(dialog), sSubscriptionDataTag)) = subscription;
+	*belle_sip_object_get_subscription_data(BELLE_SIP_OBJECT(dialog)) = subscription;
+}
+
+std::shared_ptr<Subscription> *Subscription::belle_sip_object_get_subscription_data(::belle_sip_object_t *obj) {
+	return static_cast<shared_ptr<Subscription> *>(belle_sip_object_data_get(obj, sSubscriptionDataTag));
 }
 
 belle_sip_client_transaction_t *Subscription::belle_sip_provider_create_client_transaction(belle_sip_provider_t *prov, belle_sip_request_t *request) {

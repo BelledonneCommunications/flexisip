@@ -60,8 +60,6 @@ namespace flexisip {
 	const belle_sip_uri_t* getFrom();
 	const belle_sip_uri_t* getTo();
 
-	belle_sip_client_transaction_t *mCurrentTransaction = nullptr;
-
   protected:
 	belle_sip_dialog_t *mDialog;
 	belle_sip_provider_t *mProv;
@@ -72,6 +70,7 @@ namespace flexisip {
 				belle_sip_multipart_body_handler_t *multiPartBody, const std::string *content_encoding);
 
 	static void deleteSubscription(std::shared_ptr<Subscription> *sub) {delete sub;}
+	static std::shared_ptr<Subscription> *belle_sip_object_get_subscription_data(::belle_sip_object_t *obj);
 
 	std::string mEventName;
 	belle_sip_header_t *mAcceptHeader;

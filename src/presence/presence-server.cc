@@ -266,13 +266,7 @@ void PresenceServer::processTimeout(PresenceServer *thiz, const belle_sip_timeou
 		SLOGD << "Removing subscription [" << subscription << "] because no response received";
 	}
 }
-void PresenceServer::processTransactionTerminated(PresenceServer *thiz, const belle_sip_transaction_terminated_event_t *event) {
-	belle_sip_client_transaction_t *client = belle_sip_transaction_terminated_event_get_client_transaction(event);
-	if(!client) return;
-
-	const shared_ptr<Subscription> &sub = Subscription::belle_sip_client_transaction_get_subscription(client);
-	if (sub) sub->mCurrentTransaction = nullptr;
-}
+void PresenceServer::processTransactionTerminated(PresenceServer *thiz, const belle_sip_transaction_terminated_event_t *event) {}
 
 void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t *event) {
 	belle_sip_request_t *request = belle_sip_request_event_get_request(event);
