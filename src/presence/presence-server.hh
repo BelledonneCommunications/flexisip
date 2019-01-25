@@ -135,7 +135,7 @@ private:
 	void addOrUpdateListeners(std::list<std::shared_ptr<PresentityPresenceInformationListener>>& listerner);
 	void removeListener(const std::shared_ptr<PresentityPresenceInformationListener>& listerner) override;
 
-	void removeSubscription(std::shared_ptr<Subscription> &identity);
+	void removeSubscription(const std::shared_ptr<Subscription> &identity);
 	//void notify(Subscription& subscription,PresentityPresenceInformation& presenceInformation);
 	std::unordered_map<const belle_sip_uri_t*,std::list<std::shared_ptr<Subscription>>,std::hash<const belle_sip_uri_t*>,bellesip::UriComparator> mSubscriptionsByEntity;
 	/**/

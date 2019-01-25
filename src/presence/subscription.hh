@@ -40,6 +40,17 @@ namespace flexisip {
 	static const char *stateToString(State aState);
 	State getState() const;
 	void setState(Subscription::State state);
+
+	static belle_sip_client_transaction_t *belle_sip_provider_create_client_transaction(belle_sip_provider_t *prov, belle_sip_request_t *request);
+	static bool belle_sip_client_transaction_has_subscription_data(const belle_sip_client_transaction_t *transaction);
+	static const std::shared_ptr<Subscription> &belle_sip_client_transaction_get_subscription(const belle_sip_client_transaction_t *transaction);
+	static void belle_sip_client_transaction_set_subscription(belle_sip_client_transaction_t *transaction, const std::shared_ptr<Subscription> &subscription);
+
+	static belle_sip_dialog_t *belle_sip_provider_create_dialog(belle_sip_provider_t *prov, belle_sip_transaction_t *t);
+	static bool belle_sip_dialog_has_subscription_data(const belle_sip_dialog_t *dialog);
+	static const std::shared_ptr<Subscription> &belle_sip_dialog_get_subscription(const belle_sip_dialog_t *dialog);
+	static void belle_sip_dialog_set_subscription(belle_sip_dialog_t *dialog, const std::shared_ptr<Subscription> &subscription);
+
 	/*
 	 * used to set expiration value
 	 */
@@ -49,9 +60,7 @@ namespace flexisip {
 	const belle_sip_uri_t* getFrom();
 	const belle_sip_uri_t* getTo();
 
-	std::shared_ptr<Subscription> mDialogRef; // Keep ref of c++ shared_ptr in belle_sip_dialog
-	std::shared_ptr<Subscription> mTransactionRef; // Keep ref of c++ shared_ptr in belle_sip_transaction
-	belle_sip_client_transaction_t *mCurrentTransaction = NULL;
+	belle_sip_client_transaction_t *mCurrentTransaction = nullptr;
 
   protected:
 	belle_sip_dialog_t *mDialog;
@@ -61,6 +70,9 @@ namespace flexisip {
 	Subscription(const Subscription &);
 	void notify(belle_sip_header_content_type_t *content_type, const std::string *body,
 				belle_sip_multipart_body_handler_t *multiPartBody, const std::string *content_encoding);
+
+	static void deleteSubscription(std::shared_ptr<Subscription> *sub) {delete sub;}
+
 	std::string mEventName;
 	belle_sip_header_t *mAcceptHeader;
 	belle_sip_header_t *mAcceptEncodingHeader;
@@ -68,6 +80,8 @@ namespace flexisip {
 	State mState;
 	time_t mCreationTime;
 	time_t mExpirationTime;
+
+	static const char *sSubscriptionDataTag;
 };
 
 /**

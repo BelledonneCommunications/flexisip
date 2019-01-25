@@ -204,13 +204,13 @@ void PresenceServer::_stop() {}
 
 void PresenceServer::processDialogTerminated(PresenceServer *thiz, const belle_sip_dialog_terminated_event_t *event) {
 	belle_sip_dialog_t *dialog = belle_sip_dialog_terminated_event_get_dialog(event);
-	if (belle_sip_dialog_get_application_data(dialog)) {
-		Subscription *sub = (Subscription *)belle_sip_dialog_get_application_data(dialog);
-		if (dynamic_cast<ListSubscription *>(sub)) {
+	if (Subscription::belle_sip_dialog_has_subscription_data(dialog)) {
+		const shared_ptr<Subscription> &sub = Subscription::belle_sip_dialog_get_subscription(dialog);
+		if (dynamic_pointer_cast<ListSubscription>(sub)) {
 			SLOGD << "Subscription [" << sub << "] has expired";
-			thiz->removeSubscription(sub->mDialogRef);
+			thiz->removeSubscription(sub);
 		} //else  nothing to be done for now because expire is performed at SubscriptionLevel
-		sub->mDialogRef.reset();
+		Subscription::belle_sip_dialog_set_subscription(dialog, nullptr);
 	}
 }
 void PresenceServer::processIoError(PresenceServer *thiz, const belle_sip_io_error_event_t *event) {
@@ -260,9 +260,9 @@ void PresenceServer::processResponseEvent(PresenceServer *thiz, const belle_sip_
 }
 void PresenceServer::processTimeout(PresenceServer *thiz, const belle_sip_timeout_event_t *event) {
 	belle_sip_client_transaction_t *client = belle_sip_timeout_event_get_client_transaction(event);
-	if (client && belle_sip_transaction_get_application_data(BELLE_SIP_TRANSACTION(client))) {
-		Subscription *subscription = (Subscription *)belle_sip_transaction_get_application_data(BELLE_SIP_TRANSACTION(client));
-		thiz->removeSubscription(subscription->mTransactionRef);
+	if (client && Subscription::belle_sip_client_transaction_has_subscription_data(client)) {
+		const shared_ptr<Subscription> &subscription = Subscription::belle_sip_client_transaction_get_subscription(client);
+		thiz->removeSubscription(subscription);
 		SLOGD << "Removing subscription [" << subscription << "] because no response received";
 	}
 }
@@ -270,13 +270,8 @@ void PresenceServer::processTransactionTerminated(PresenceServer *thiz, const be
 	belle_sip_client_transaction_t *client = belle_sip_transaction_terminated_event_get_client_transaction(event);
 	if(!client) return;
 
-	auto *sub = static_cast<Subscription *>(belle_sip_transaction_get_application_data(BELLE_SIP_TRANSACTION(client)));
-	if (sub) {
-		// WARNING: the next line MUST be placed before sub->mTransactionRef.reset() since
-		// the latter could delete 'sub' object.
-		sub->mCurrentTransaction = nullptr;
-		sub->mTransactionRef.reset();
-	}
+	const shared_ptr<Subscription> &sub = Subscription::belle_sip_client_transaction_get_subscription(client);
+	if (sub) sub->mCurrentTransaction = nullptr;
 }
 
 void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t *event) {
@@ -620,7 +615,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	belle_sip_server_transaction_t *server_transaction = belle_sip_provider_create_server_transaction(mProvider, request);
 	belle_sip_dialog_t *dialog = belle_sip_request_event_get_dialog(event);
 	if (!dialog)
-		dialog = belle_sip_provider_create_dialog(mProvider, BELLE_SIP_TRANSACTION(server_transaction));
+		dialog = Subscription::belle_sip_provider_create_dialog(mProvider, BELLE_SIP_TRANSACTION(server_transaction));
 
 	if (!dialog)
 		throw BELLESIP_SIGNALING_EXCEPTION(481) << "Cannot create dialog from request ["<< request << "]";
@@ -636,7 +631,6 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				BELLE_SIP_MESSAGE(request), belle_sip_header_content_disposition_t);
 			// first create the dialog
 			belle_sip_response_t *resp = belle_sip_response_create_from_request(request, 200);
-			belle_sip_object_ref(resp);
 			belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp), BELLE_SIP_HEADER(belle_sip_header_expires_create(expires)));
 
 			// List subscription
@@ -649,16 +643,15 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					if (acceptEncodingHeader)
 						listSubscription->setAcceptEncodingHeader(acceptEncodingHeader);
 
-					if (!belle_sip_dialog_get_application_data(dialog)) {
-						listSubscription->mDialogRef = listSubscription;
-						belle_sip_dialog_set_application_data(dialog, listSubscription.get());
-					}
+					Subscription::belle_sip_dialog_set_subscription(dialog, listSubscription);
 					// send 200ok late to allow deeper analysis of request
 					belle_sip_server_transaction_send_response(server_transaction, resp);
 					vector<url_t *> listenersUrl;
 					for (auto &listener : listSubscription->getListeners()) {
 						listener->enableBypass(bypass); //expiration is handled by dialog
-						url_t *url = url_make(listSubscription->getHome(), belle_sip_uri_to_string(listener->getPresentityUri()));
+						char *presentityUriStr = belle_sip_uri_to_string(listener->getPresentityUri());
+						url_t *url = url_make(listSubscription->getHome(), presentityUriStr);
+						bctbx_free(presentityUriStr);
 						listenersUrl.push_back(url);
 					}
 
@@ -744,15 +737,13 @@ error:
 						<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
 						<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
 				}
-				listSubscription->mDialogRef = listSubscription;
-				belle_sip_dialog_set_application_data(dialog, listSubscription.get());
+				Subscription::belle_sip_dialog_set_subscription(dialog, listSubscription);
 			} else { // Simple subscription
 				shared_ptr<PresentityPresenceInformationListener> subscription =
 					make_shared<PresenceSubscription>(expires, belle_sip_request_get_uri(request), dialog, mProvider);
 				shared_ptr<Subscription> sub = dynamic_pointer_cast<Subscription>(subscription);
-				sub->mDialogRef = sub;
-				belle_sip_dialog_set_application_data(dialog, sub.get());
-				SLOGD << " setting sub pointer [" << belle_sip_dialog_get_application_data(dialog) << "] to dialog [" << dialog << "]";
+				Subscription::belle_sip_dialog_set_subscription(dialog, sub);
+				SLOGD << " setting sub pointer [" << Subscription::belle_sip_dialog_get_subscription(dialog).get() << "] to dialog [" << dialog << "]";
 				// send 200ok late to allow deeper anylise of request
 				belle_sip_server_transaction_send_response(server_transaction, resp);
 				subscription->enableBypass(bypass);
@@ -762,10 +753,7 @@ error:
 			break;
 		}
 		case BELLE_SIP_DIALOG_CONFIRMED: {
-			Subscription *subscription = nullptr;
-			if (belle_sip_dialog_get_application_data(dialog)) {
-				subscription = (Subscription *) belle_sip_dialog_get_application_data(dialog);
-			}
+			const shared_ptr<Subscription> &subscription = Subscription::belle_sip_dialog_get_subscription(dialog);
 
 			//			RFC 3265
 			//			3.1.4.2. Refreshing of Subscriptions
@@ -813,16 +801,16 @@ error:
 			belle_sip_server_transaction_send_response(server_transaction, resp);
 
 			if (expires == 0) {
-				removeSubscription(subscription->mDialogRef);
+				removeSubscription(subscription);
 			} else {
 				// update expires
 				subscription->increaseExpirationTime(expires);
-				if (dynamic_pointer_cast<PresentityPresenceInformationListener>(subscription->mDialogRef)) {
-					shared_ptr<PresentityPresenceInformationListener> listener = dynamic_pointer_cast<PresentityPresenceInformationListener>(subscription->mDialogRef);
+				if (dynamic_pointer_cast<PresentityPresenceInformationListener>(subscription)) {
+					shared_ptr<PresentityPresenceInformationListener> listener = dynamic_pointer_cast<PresentityPresenceInformationListener>(subscription);
 					addOrUpdateListener(listener, expires);
 				} else {
 					// list subscription case
-					shared_ptr<ListSubscription> listSubscription = dynamic_pointer_cast<ListSubscription>(subscription->mDialogRef);
+					shared_ptr<ListSubscription> listSubscription = dynamic_pointer_cast<ListSubscription>(subscription);
 					for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners()) {
 						listener->enableBypass(bypass); //expiration is handled by dialog
 					}
@@ -976,7 +964,7 @@ void PresenceServer::removeListener(const shared_ptr<PresentityPresenceInformati
 			  << (long)&listener << "]";
 }
 
-void PresenceServer::removeSubscription(shared_ptr<Subscription> &subscription) {
+void PresenceServer::removeSubscription(const shared_ptr<Subscription> &subscription) {
 	subscription->setState(Subscription::State::terminated);
 	if (dynamic_pointer_cast<PresenceSubscription>(subscription)) {
 		shared_ptr<PresentityPresenceInformationListener> listener =
