@@ -68,13 +68,3 @@ job-ubuntu-18.04-deb-deploy:
   extends: .job-debian-deb-deploy
   dependencies:
     - job-ubuntu-18.04-deb
-  
-#################################################
-# Docker
-#################################################
-
-job-flexisip-ubuntu-image-deploy:
-
-  dependencies:
-    - job-ubuntu-18.04-deb
-  extends: .job-flexisip-image-deploy
