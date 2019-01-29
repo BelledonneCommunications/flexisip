@@ -93,8 +93,8 @@ unsigned int OwnRegistrationSubscription::getContactCapabilities(const std::shar
 	}
 	string specs = ec->getOrgLinphoneSpecs();
 	//Please excuse the following code that is a bit too basic in terms of parsing:
-	if (specs.find("groupchat")) mask |= (unsigned int)ChatRoomCapabilities::Conference;
-	if (specs.find("lime")) mask |= (unsigned int)ChatRoomCapabilities::Encrypted;
+	if (specs.find("groupchat") != string::npos) mask |= (unsigned int)ChatRoomCapabilities::Conference;
+	if (specs.find("lime") != string::npos) mask |= (unsigned int)ChatRoomCapabilities::Encrypted;
 	return mask;
 }
 

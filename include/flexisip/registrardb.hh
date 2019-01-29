@@ -271,6 +271,7 @@ class Record {
 	static std::list<std::string> route_to_stl(const sip_route_s *route);
 	void appendContactsFrom(const std::shared_ptr<Record> &src);
 	static std::string defineKeyFromUrl(const url_t *aor);
+	static url_t *makeUrlFromKey(su_home_t *home, const std::string &key);
 	static std::string extractUniqueId(const sip_contact_t *contact);
 	~Record();
 

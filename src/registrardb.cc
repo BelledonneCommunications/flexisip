@@ -240,6 +240,11 @@ string Record::defineKeyFromUrl(const url_t *url) {
 	return ostr.str();
 }
 
+url_t *Record::makeUrlFromKey(su_home_t *home, const string &key){
+	url_t *ret = url_format(home, "sip:%s", key.c_str());
+	return ret;
+}
+
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const shared_ptr<ContactUpdateListener> &listener) {
 	time_t now = ec->mUpdatedTime;
 
@@ -610,6 +615,10 @@ list<string> Record::sLineFieldNames;
 bool Record::sAssumeUniqueDomains = false;
 
 Record::Record(const url_t *aor) : mKey(aor ? defineKeyFromUrl(aor) : ""), mOnlyStaticContacts(true) {
+	if (aor && aor->url_type != url_sip && aor->url_type != url_sips){
+		LOGA("Record with invalid aor!");
+		aor = nullptr;
+	}
 	mAor = aor ? url_hdup(mHome.home(), aor) : NULL;
 	if (sMaxContacts == -1)
 		init();
@@ -726,7 +735,7 @@ private:
 
 void RegistrarDb::notifyContactListener(const string &key, const string &uid) {
 	SofiaAutoHome home;
-	url_t *sipUri = url_make(home.home(), key.c_str());
+	url_t *sipUri = Record::makeUrlFromKey(home.home(), key);
 	auto listener = make_shared<ContactNotificationListener>(uid, this);
 	LOGD("Notify topic = %s, uid = %s", key.c_str(), uid.c_str());
 	RegistrarDb::get()->fetch(sipUri, listener, true);
