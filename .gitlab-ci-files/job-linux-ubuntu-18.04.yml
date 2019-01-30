@@ -64,7 +64,8 @@ job-ubuntu-18.04-deb:
 job-ubuntu-18.04-deb-deploy:
 
   variables:
-    DEBIAN_RELEASE: stretch
+    RELEASE: bionic
+    DEPLOY_DIRECTORY: $UBUNTU_DEPLOY_DIRECTORY
   extends: .job-debian-deb-deploy
   dependencies:
     - job-ubuntu-18.04-deb
