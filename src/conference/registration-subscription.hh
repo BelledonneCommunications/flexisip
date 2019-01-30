@@ -50,7 +50,7 @@ class RegistrationSubscription : public virtual_enable_shared_from_this<Registra
 		std::shared_ptr<linphone::ChatRoom> getChatRoom()const;
 	protected:
 		/*call this to notify the current list of participant devices for the requested participant*/
-		void notify(const std::list< std::shared_ptr<linphone::Address> > & participantDevices);
+		void notify(const std::list< std::shared_ptr<linphone::ParticipantDeviceIdentity> > & participantDevices);
 		/*call this to notify that a device has just registered*/
 		void notifyRegistration(const std::shared_ptr<linphone::Address>  & participantDevices);
 		const std::shared_ptr<linphone::ChatRoom> mChatRoom;
@@ -82,6 +82,7 @@ class OwnRegistrationSubscription
 	private:
 		unsigned int getContactCapabilities(const std::shared_ptr<ExtendedContact> &ct);
 		std::shared_ptr<linphone::Address> getPubGruu(const std::shared_ptr<Record> &r, const std::shared_ptr<ExtendedContact> &ec);
+		std::string getDeviceName(const std::shared_ptr<ExtendedContact> &ec);
 		void processRecord(const std::shared_ptr<Record> &r);
 		/*ContactUpdateListener virtual functions to override*/
 		virtual void onRecordFound (const std::shared_ptr<Record> &r) override;

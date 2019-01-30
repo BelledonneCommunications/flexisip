@@ -39,13 +39,13 @@ RegistrationSubscription::~RegistrationSubscription(){
 	LOGD("RegistrationSubscription [%p] destroyed.", this);
 }
 
-void RegistrationSubscription::notify(const std::list< shared_ptr<linphone::Address> > & participantDevices){
+void RegistrationSubscription::notify(const std::list< shared_ptr<ParticipantDeviceIdentity> > & participantDevices){
 	LOGD("RegistrationSubscription: notifying chatroom [%p] of participant device list of [%i] elements for participant [%s].",
 	     mChatRoom.get(), (int)participantDevices.size(), mParticipant->asStringUriOnly().c_str());
 	mChatRoom->setParticipantDevices(mParticipant, participantDevices);
 }
 
-void RegistrationSubscription::notifyRegistration(const shared_ptr<linphone::Address> &participantDevice){
+void RegistrationSubscription::notifyRegistration(const shared_ptr<Address> &participantDevice){
 	LOGD("RegistrationSubscription: notifying chatroom [%p] that participant-device [%s] has just registered.",
 	     mChatRoom.get(), participantDevice->asStringUriOnly().c_str());
 	mChatRoom->notifyParticipantDeviceRegistration(participantDevice);
@@ -108,15 +108,30 @@ shared_ptr<Address> OwnRegistrationSubscription::getPubGruu(const shared_ptr<Rec
 	return nullptr;
 }
 
+string OwnRegistrationSubscription::getDeviceName(const shared_ptr<ExtendedContact> &ec){
+	const string &userAgent = ec->getUserAgent();
+	size_t begin = userAgent.find("(");
+	string deviceName;
+	if (begin != string::npos) {
+		size_t end = userAgent.find(")", begin);
+		if (end != string::npos){
+			deviceName = userAgent.substr(begin + 1, end - (begin + 1));
+		}
+	}
+	return deviceName;
+}
+
 void OwnRegistrationSubscription::processRecord(const std::shared_ptr<Record> &r){
 	if (!mActive) return;
-	list<shared_ptr<Address>> compatibleParticipantDevices;
+	list<shared_ptr<ParticipantDeviceIdentity>> compatibleParticipantDevices;
 	if (r){
 		for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
 			auto addr = getPubGruu(r, ec);
 			if (!addr) continue;
 			if ((getContactCapabilities(ec) & mChatroomRequestedCapabilities) == mChatroomRequestedCapabilities){
-				compatibleParticipantDevices.push_back(addr);
+				shared_ptr<ParticipantDeviceIdentity> identity = linphone::Factory::get()->createParticipantDeviceIdentity(
+					addr, getDeviceName(ec));
+				compatibleParticipantDevices.push_back(identity);
 			}else LOGD("OwnRegistrationSubscription::processRecord(): %s does not have the required capabilities.", addr->asStringUriOnly().c_str());
 		}
 	}

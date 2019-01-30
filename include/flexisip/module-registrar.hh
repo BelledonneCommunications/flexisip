@@ -25,7 +25,7 @@
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/su_random.h>
 
-#include <signal.h> 
+#include <signal.h>
 
 namespace flexisip {
 
@@ -93,7 +93,6 @@ class FakeFetchListener : public ContactUpdateListener {
 
 public:
 	FakeFetchListener();
-	
 	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec)override;
 	void onRecordFound(const std::shared_ptr<Record> &r)override;
 	void onError()override;
