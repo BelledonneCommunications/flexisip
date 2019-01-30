@@ -64,7 +64,7 @@ job-debian8-deb:
 job-debian8-deb-deploy:
 
   variables:
-    DEBIAN_RELEASE: jessie
+    RELEASE: jessie
   extends: .job-debian-deb-deploy
   dependencies:
     - job-debian8-deb
