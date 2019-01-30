@@ -65,6 +65,7 @@ job-debian8-deb-deploy:
 
   variables:
     RELEASE: jessie
+    DEPLOY_DIRECTORY: $DEBIAN_DEPLOY_DIRECTORY
   extends: .job-debian-deb-deploy
   dependencies:
     - job-debian8-deb
