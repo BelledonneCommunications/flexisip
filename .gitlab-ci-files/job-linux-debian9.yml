@@ -64,7 +64,7 @@ job-debian9-deb:
 job-debian9-deb-deploy:
 
   variables:
-    DEBIAN_RELEASE: stretch
+    RELEASE: stretch
   extends: .job-debian-deb-deploy
   dependencies:
     - job-debian9-deb
