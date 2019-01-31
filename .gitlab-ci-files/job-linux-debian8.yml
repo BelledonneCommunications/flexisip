@@ -66,7 +66,7 @@ job-debian8-deb-deploy:
   variables:
     RELEASE: jessie
     DEPLOY_DIRECTORY: $DEBIAN_DEPLOY_DIRECTORY
-	FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
+    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
   extends: .job-debian-deb-deploy
   dependencies:
     - job-debian8-deb
