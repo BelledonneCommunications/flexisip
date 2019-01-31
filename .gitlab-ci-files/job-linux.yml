@@ -75,7 +75,7 @@
 
   script:
    - cd WORK/flexisip-rpm/rpmbuild/DEBS/ && rsync -pr . $DEPLOY_SERVER:$DEPLOY_DIRECTORY/$RELEASE
-   - ssh $DEPLOY_SERVER "cd $DEPLOY_DIRECTORY/$RELEASE && freight add --conf=/etc/freight.conf *.deb apt/$RELEASE && freight cache --conf=/etc/freight.conf apt/$RELEASE"
+   - ssh $DEPLOY_SERVER "cd $DEPLOY_DIRECTORY/$RELEASE && freight add --conf=$FREIGHT_PATH *.deb apt/$RELEASE && freight cache --conf=$FREIGHT_PATH apt/$RELEASE"
 
 #################################################
 # DOCKER
