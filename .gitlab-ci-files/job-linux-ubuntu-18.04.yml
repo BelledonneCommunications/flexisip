@@ -67,6 +67,7 @@ job-ubuntu-18.04-deb-deploy:
     RELEASE: bionic
     DEPLOY_DIRECTORY: $UBUNTU_DEPLOY_DIRECTORY
     FREIGHT_PATH: $UBUNTU_FREIGHT_CONF_PATH
+    DEPLOY_SERVER: $NEW_DEPLOY_SERVER
   extends: .job-debian-deb-deploy
   dependencies:
     - job-ubuntu-18.04-deb
