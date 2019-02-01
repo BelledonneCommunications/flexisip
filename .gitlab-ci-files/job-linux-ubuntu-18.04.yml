@@ -11,7 +11,7 @@ job-ubuntu-18.04-makefile-gcc:
     CC: gcc
     CXX: g++
     ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
-  extends: .scheduled-job-linux
+  extends: .job-linux
 
 
 job-ubuntu-18.04-makefile-clang:
@@ -37,7 +37,7 @@ job-ubuntu-18.04-ninja-gcc:
     CMAKE_GENERATOR: Ninja
     CC: gcc
     CXX: g++
-  extends: .job-linux
+  extends: .scheduled-job-linux
 
 
 job-ubuntu-18.04-ninja-clang:
@@ -48,7 +48,7 @@ job-ubuntu-18.04-ninja-clang:
     CMAKE_GENERATOR: Ninja
     CC: clang
     CXX: clang++
-  extends: .job-linux
+  extends: .scheduled-job-linux
   
 #################################################
 # DEB
@@ -59,6 +59,9 @@ job-ubuntu-18.04-deb:
   tags: [ "docker-ubuntu-18.04" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
   extends: .job-linux-deb
+  only:
+    - schedules
+
 
 
 job-ubuntu-18.04-deb-deploy:
