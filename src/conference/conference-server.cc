@@ -139,32 +139,6 @@ void ConferenceServer::onConferenceAddressGeneration (const shared_ptr<linphone:
 	generator->run();
 }
 
-
-#if 0
-
-void ConferenceServer::onParticipantDeviceFetchRequested (
-	const shared_ptr<linphone::ChatRoom> & cr,
-	const shared_ptr<const linphone::Address> & participantAddr
-) {
-	shared_ptr<ParticipantDevicesSearch> search = make_shared<ParticipantDevicesSearch>(cr, participantAddr);
-	search->run();
-}
-
-void ConferenceServer::onParticipantsCapabilitiesChecked (
-	const shared_ptr<linphone::ChatRoom> & cr,
-	const shared_ptr<const linphone::Address> &deviceAddr,
-	const list<shared_ptr<linphone::Address> > & participantsAddr
-) {
-	shared_ptr<ParticipantCapabilitiesCheck> check = make_shared<ParticipantCapabilitiesCheck>(
-		cr,
-		deviceAddr,
-		participantsAddr
-	);
-	check->run();
-}
-
-#endif
-
 void flexisip::ConferenceServer::onParticipantRegistrationSubscriptionRequested (
 	const shared_ptr<linphone::ChatRoom> &cr,
 	const shared_ptr<const linphone::Address> &participantAddr

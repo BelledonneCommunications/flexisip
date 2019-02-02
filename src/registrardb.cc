@@ -313,13 +313,10 @@ void ExtendedContact::extractInfoFromHeader(const char *urlHeaders) {
 				reinterpret_cast<msg_common_t*>(headers)->h_class->hc_name) {
 				string valueStr;
 				string keyStr = reinterpret_cast<msg_common_t*>(headers)->h_class->hc_name;
-				char *value = new char[reinterpret_cast<msg_common_t*>(headers)->h_len];
+				
+				valueStr.resize(reinterpret_cast<msg_common_t*>(headers)->h_len);
+				msg_header_field_e(&valueStr[0], reinterpret_cast<msg_common_t*>(headers)->h_len, headers, 0);
 
-				msg_header_field_e(value, reinterpret_cast<msg_common_t*>(headers)->h_len, headers, 0);
-				valueStr = value;
-				delete[] value;
-
-				transform(valueStr.begin(), valueStr.end(), valueStr.begin(), [](unsigned char c){ return std::tolower(c); });
 				transform(keyStr.begin(), keyStr.end(), keyStr.begin(), [](unsigned char c){ return std::tolower(c); });
 
 				if (keyStr == "path") {
