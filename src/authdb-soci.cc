@@ -320,7 +320,7 @@ void SociAuthDB::getUserWithPhoneWithPool(const string &phone, const string &dom
 	if (sql) delete sql;
 }
 
-void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbListener*>> &creds, AuthDbListener *listener) {
+void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbListener*>> &creds) {
 	steady_clock::time_point start;
 	steady_clock::time_point stop;
 	set<pair<string, string>> presences;
@@ -384,14 +384,14 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbList
 			}
 		}
 
-		if (listener)
-			listener->onResults(phones, presences);
+		notifyAllListeners(creds, presences);
+
 	} catch (mysql_soci_error const &e) {
 		stop = steady_clock::now();
 		SLOGE << "[SOCI] getUsersWithPhonesWithPool MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
 		SLOGE << "[SOCI] MySQL request causing the error was : " << s;
 		presences.clear();
-		if (listener) listener->onResults(phones, presences);
+		notifyAllListeners(creds, presences);
 
 		if (sql) reconnectSession(*sql);
 
@@ -399,10 +399,26 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbList
 		stop = steady_clock::now();
 		SLOGE << "[SOCI] getUsersWithPhonesWithPool error after " << DURATION_MS(start, stop) << "ms : " << e.what();
 		presences.clear();
-		if (listener) listener->onResults(phones, presences);
+		notifyAllListeners(creds, presences);
 		if (sql) reconnectSession(*sql);
 	}
 	if (sql) delete sql;
+}
+
+void SociAuthDB::notifyAllListeners(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds, const std::set<std::pair<std::string, std::string>> &presences) {
+	for(const auto &cred : creds) {
+		const string &phone = std::get<0>(cred);
+		AuthDbListener *listener = std::get<2>(cred);
+		auto presence = find_if(presences.cbegin(), presences.cend(),
+							 [&phone](const pair<string, string> &p){return p.second == phone;}
+		);
+		if (presence != presences.cend()) {
+			// 				mDInfo[presence->first] = mDInfo[phone];
+			if (listener) listener->onResult(PASSWORD_FOUND, presence->first);
+		} else {
+			if (listener) listener->onResult(PASSWORD_NOT_FOUND, phone);
+		}
+	}
 }
 
 #ifdef __clang__
@@ -437,15 +453,18 @@ void SociAuthDB::getUserWithPhoneFromBackend(const string &phone, const string &
 	}
 }
 
-void SociAuthDB::getUsersWithPhonesFromBackend(list<tuple<string, string, AuthDbListener*>> &creds, AuthDbListener *listener) {
+void SociAuthDB::getUsersWithPhonesFromBackend(list<tuple<string, string, AuthDbListener*>> &creds) {
 
 	// create a thread to grab a pool connection and use it to retrieve the auth information
-	auto func = bind(&SociAuthDB::getUsersWithPhonesWithPool, this, creds, listener);
+	auto func = bind(&SociAuthDB::getUsersWithPhonesWithPool, this, creds);
 
 	bool success = thread_pool->Enqueue(func);
 	if (success == FALSE) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil user request for " << &creds;
-		if (listener) listener->onResult(AUTH_ERROR, "");
+		for (const auto &cred : creds) {
+			AuthDbListener *listener = std::get<2>(cred);
+			if (listener) listener->onResult(AUTH_ERROR, "");
+		}
 	}
 }

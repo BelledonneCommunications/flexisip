@@ -543,6 +543,11 @@ void RegistrarDbRedisAsync::sKeyExpirationPublishCallback(redisAsyncContext *c, 
 void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data) {
 	shared_ptr<Record> recordToStore = data->mRecord;
 
+	if (reply == nullptr) {
+		if (data->listener) data->listener->onError();
+		delete data;
+		return;
+	}
 	data->mRecord = make_shared<Record>(recordToStore->getAor());
 	data->self->parseAndClean(reply, data); //received data will be parsed into data->mRecord
 

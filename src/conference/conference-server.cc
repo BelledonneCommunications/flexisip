@@ -101,6 +101,7 @@ void ConferenceServer::_run () {
 }
 
 void ConferenceServer::_stop () {
+	mCore->removeListener(shared_from_this());
 	RegistrarDb::get()->removeStateListener(shared_from_this());
 }
 
