@@ -150,7 +150,7 @@ private:
 		~OnFetchListener() {
 		}
 
-		void onInvalid() {
+		void onInvalid() override{
 			LOGD("GATEWAY: invalid");
 		}
 
