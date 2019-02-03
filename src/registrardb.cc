@@ -630,7 +630,7 @@ url_t *Record::getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t 
 	char gr_value[256] = {0};
 	url_t *gruu_addr = NULL;
 	
-	if (!ec->mSipContact->m_url ||!ec->mSipContact->m_url->url_params) return NULL;
+	if (!ec->mSipContact->m_url->url_params) return NULL;
 	
 	isize_t result = url_param(ec->mSipContact->m_url->url_params, "gr", gr_value, sizeof(gr_value)-1);
 	
