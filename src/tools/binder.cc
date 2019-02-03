@@ -23,7 +23,7 @@ using namespace std;
 using namespace flexisip;
 
 struct MyListener : public ContactUpdateListener {
-	virtual void onRecordFound(Record *r) {
+	virtual void onRecordFound(Record *r) override{
 		// 		cout << "record found : ";
 		// 		r->print(cout);
 		// 		cout << endl;
@@ -31,13 +31,13 @@ struct MyListener : public ContactUpdateListener {
 		long rExpire = ecc.mExpireAt - ecc.mUpdatedTime;
 		check("expire", atol(params.sip.contact->m_expires), rExpire);
 	}
-	virtual void onError() {
+	virtual void onError() override{
 		BAD("RegistrarDbListener:error");
 	}
-	virtual void onInvalid() {
+	virtual void onInvalid() override{
 		BAD("RegistrarDbListener:invalid");
 	}
-	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) {
+	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override{
 	}
 };
 

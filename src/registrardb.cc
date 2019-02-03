@@ -963,21 +963,21 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		}
 	}
 
-	void onError() {
+	void onError() override{
 		SLOGW << "Step: " << m_step << "\tError during recursive fetch of " << m_url;
 		if (waitPullUpOrFail()) {
 			mOriginalListener->onError();
 		}
 	}
 
-	void onInvalid() {
+	void onInvalid() override{
 		SLOGW << "Step: " << m_step << "\tInvalid during recursive fetch of " << m_url;
 		if (waitPullUpOrFail()) {
 			mOriginalListener->onInvalid();
 		}
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
 	}
 
   private:
@@ -1068,20 +1068,20 @@ void RegistrarDb::fetchList(const vector<url_t *> urls, const shared_ptr<ListCon
 		InternalContactUpdateListener(shared_ptr<ListContactUpdateListener> listener, size_t size) : listListener(listener), count(size) {}
 
 	private:
-		void onError() {
+		void onError() override{
 			SLOGE << "Error while fetching contact";
 			updateCount();
 		}
-		void onInvalid() {
+		void onInvalid() override{
 			SLOGE << "Invalid fetch of contact";
 			updateCount();
 		}
-		void onRecordFound(const shared_ptr<Record> &r) {
+		void onRecordFound(const shared_ptr<Record> &r) override{
 			SLOGI << "Contact fetched";
 			if (r) listListener->records.push_back(r);
 			updateCount();
 		}
-		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {}
+		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{}
 		void updateCount() {
 			count--;
 			if (count == 0)

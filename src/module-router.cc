@@ -680,19 +680,19 @@ class PreroutingFetcher : public ContactUpdateListener,
 		}
 		checkFinished();
 	}
-	void onError() {
+	void onError() override{
 		--pending;
 		error = true;
 		checkFinished();
 	}
 
-	void onInvalid() {
+	void onInvalid() override{
 		--pending;
 		error = true;
 		checkFinished();
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
 	}
 
 	void checkFinished() {
@@ -754,19 +754,19 @@ class TargetUriListFetcher : public ContactUpdateListener,
 		}
 		checkFinished();
 	}
-	void onError() {
+	void onError() override{
 		--mPending;
 		mError = true;
 		checkFinished();
 	}
 
-	void onInvalid() {
+	void onInvalid() override{
 		--mPending;
 		mError = true;
 		checkFinished();
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
 	}
 
 	void checkFinished() {
