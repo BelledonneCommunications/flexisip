@@ -860,16 +860,16 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 			mModule->routeRequest(mEv, r, mSipUri);
 		}
 	}
-	void onError() {
+	void onError() override{
 		mModule->sendReply(mEv, SIP_500_INTERNAL_SERVER_ERROR);
 	}
 
-	void onInvalid() {
+	void onInvalid() override{
 		LOGD("OnFetchForRoutingListener::onInvalid : 400 - Replayed CSeq");
 		mModule->sendReply(mEv, 400, "Replayed CSeq");
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
 	}
 };
 
