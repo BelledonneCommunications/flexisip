@@ -74,18 +74,7 @@ namespace flexisip {
 
 		// ChatRoomListener implementation
 		void onConferenceAddressGeneration (const std::shared_ptr<linphone::ChatRoom> &cr) override;
-#if 0
-		void onParticipantDeviceFetchRequested (
-			const std::shared_ptr<linphone::ChatRoom> &cr,
-			const std::list<std::shared_ptr<linphone::Address> > & participantAddrs
-		) override;
 
-		void onParticipantsCapabilitiesChecked (
-			const std::shared_ptr<linphone::ChatRoom> &cr,
-			const std::shared_ptr<const linphone::Address> &deviceAddr,
-			const std::list<std::shared_ptr<linphone::Address> > & participantsAddr
-		) override;
-#endif
 		void onParticipantRegistrationSubscriptionRequested (
 			const std::shared_ptr<linphone::ChatRoom> &cr,
 			const std::shared_ptr<const linphone::Address> & participantAddr

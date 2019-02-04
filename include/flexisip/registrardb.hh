@@ -195,8 +195,8 @@ class Record {
 	friend class RegistrarDb;
 
   private:
-	Record(const Record &other); //disable copy constructor, this is unsafe due to su_home_t here.
-	void operator=(const Record &other); //disable assignement operator too
+	Record(const Record &other) = delete; //disable copy constructor, this is unsafe due to su_home_t here.
+	void operator=(const Record &other) = delete; //disable assignement operator too
 	SofiaAutoHome mHome;
 	static void init();
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
