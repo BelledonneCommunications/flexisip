@@ -6,6 +6,9 @@ job-centos7-makefile-gcc:
 
   tags: [ "docker-centos7" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+  except:
+    variables:
+      $DEPLOY_RUN
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: gcc

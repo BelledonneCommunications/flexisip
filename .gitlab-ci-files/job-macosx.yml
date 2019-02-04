@@ -2,6 +2,9 @@
 
   stage: build
   tags: [ "macosx" ]
+  except:
+    variables:
+      $DEPLOY_RUN
 
   script:
     - ccache -s
@@ -48,6 +51,9 @@ job-macosx-xcode:
   stage: build
   tags: [ "macosx" ]
 
+  except:
+    variables:
+      $DEPLOY_RUN
   only:
     - schedules
   script:
