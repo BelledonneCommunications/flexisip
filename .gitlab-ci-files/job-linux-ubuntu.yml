@@ -6,6 +6,9 @@ job-ubuntu-rolling-makefile-gcc:
 
   tags: [ "docker-ubuntu-rolling" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:rolling
+  except:
+    variables:
+      $DEPLOY_RUN
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: gcc
@@ -18,6 +21,9 @@ job-ubuntu-rolling-makefile-clang:
 
   tags: [ "docker-ubuntu-rolling" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:rolling
+  except:
+    variables:
+      $DEPLOY_RUN
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: clang
@@ -33,6 +39,9 @@ job-ubuntu-rolling-ninja-gcc:
 
   tags: [ "docker-ubuntu-rolling" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:rolling
+  except:
+    variables:
+      $DEPLOY_RUN
   variables:
     CMAKE_GENERATOR: Ninja
     CC: gcc
