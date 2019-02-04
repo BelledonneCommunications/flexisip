@@ -240,6 +240,11 @@ string Record::defineKeyFromUrl(const url_t *url) {
 	return ostr.str();
 }
 
+url_t *Record::makeUrlFromKey(su_home_t *home, const string &key){
+	url_t *ret = url_format(home, "sip:%s", key.c_str());
+	return ret;
+}
+
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const shared_ptr<ContactUpdateListener> &listener) {
 	time_t now = ec->mUpdatedTime;
 
@@ -308,13 +313,10 @@ void ExtendedContact::extractInfoFromHeader(const char *urlHeaders) {
 				reinterpret_cast<msg_common_t*>(headers)->h_class->hc_name) {
 				string valueStr;
 				string keyStr = reinterpret_cast<msg_common_t*>(headers)->h_class->hc_name;
-				char *value = new char[reinterpret_cast<msg_common_t*>(headers)->h_len];
+				
+				valueStr.resize(reinterpret_cast<msg_common_t*>(headers)->h_len);
+				msg_header_field_e(&valueStr[0], reinterpret_cast<msg_common_t*>(headers)->h_len, headers, 0);
 
-				msg_header_field_e(value, reinterpret_cast<msg_common_t*>(headers)->h_len, headers, 0);
-				valueStr = value;
-				delete[] value;
-
-				transform(valueStr.begin(), valueStr.end(), valueStr.begin(), [](unsigned char c){ return std::tolower(c); });
 				transform(keyStr.begin(), keyStr.end(), keyStr.begin(), [](unsigned char c){ return std::tolower(c); });
 
 				if (keyStr == "path") {
@@ -610,9 +612,33 @@ list<string> Record::sLineFieldNames;
 bool Record::sAssumeUniqueDomains = false;
 
 Record::Record(const url_t *aor) : mKey(aor ? defineKeyFromUrl(aor) : ""), mOnlyStaticContacts(true) {
+	if (aor && aor->url_type != url_sip && aor->url_type != url_sips){
+		LOGA("Record with invalid aor!");
+		aor = nullptr;
+	}
+	mAor = aor ? url_hdup(mHome.home(), aor) : NULL;
 	if (sMaxContacts == -1)
 		init();
 	if (aor) mIsDomain = aor->url_user == nullptr;
+}
+
+const url_t *Record::getAor()const{
+	return mAor;
+}
+
+url_t *Record::getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t *home){
+	char gr_value[256] = {0};
+	url_t *gruu_addr = NULL;
+	
+	if (!ec->mSipContact->m_url->url_params) return NULL;
+	
+	isize_t result = url_param(ec->mSipContact->m_url->url_params, "gr", gr_value, sizeof(gr_value)-1);
+	
+	if (result > 0) {
+		gruu_addr = url_hdup(home, mAor);
+		url_param_add(home, gruu_addr, su_sprintf(home, "gr=%s", gr_value));
+	}
+	return gruu_addr;
 }
 
 Record::~Record() {
@@ -629,7 +655,7 @@ void Record::init() {
 								   ->read();
 }
 
-void Record::appendContactsFrom(Record *src) {
+void Record::appendContactsFrom(const shared_ptr<Record> &src) {
 	if (!src)
 		return;
 
@@ -692,7 +718,7 @@ public:
 
 private:
 	// ContactUpdateListener implementation
-	void onRecordFound (Record *r) override {
+	void onRecordFound (const shared_ptr<Record> &r) override {
 		if (r)
 			mDb->notifyContactListener(r, mUid);
 	}
@@ -706,13 +732,13 @@ private:
 
 void RegistrarDb::notifyContactListener(const string &key, const string &uid) {
 	SofiaAutoHome home;
-	url_t *sipUri = url_make(home.home(), key.c_str());
+	url_t *sipUri = Record::makeUrlFromKey(home.home(), key);
 	auto listener = make_shared<ContactNotificationListener>(uid, this);
 	LOGD("Notify topic = %s, uid = %s", key.c_str(), uid.c_str());
 	RegistrarDb::get()->fetch(sipUri, listener, true);
 }
 
-void RegistrarDb::notifyContactListener (Record *r, const string &uid) {
+void RegistrarDb::notifyContactListener (const shared_ptr<Record> &r, const string &uid) {
 	auto range = mContactListenersMap.equal_range(r->getKey());
 	for (auto it = range.first; it != range.second; it++) {
 		shared_ptr<ContactRegisteredListener> listener = it->second;
@@ -720,21 +746,21 @@ void RegistrarDb::notifyContactListener (Record *r, const string &uid) {
 	}
 }
 
-void RegistrarDb::LocalRegExpire::update(const Record &record) {
+void RegistrarDb::LocalRegExpire::update(const shared_ptr<Record> &record) {
 	unique_lock<mutex> lock(mMutex);
-	time_t latest = record.latestExpire(mAgent);
+	time_t latest = record->latestExpire(mAgent);
 	if (latest > 0) {
-		auto it = mRegMap.find(record.getKey());
+		auto it = mRegMap.find(record->getKey());
 		if (it != mRegMap.end()) {
 			(*it).second = latest;
 		} else {
-			if (!record.isEmpty() && !record.haveOnlyStaticContacts()) {
-				mRegMap.insert(make_pair(record.getKey(), latest));
+			if (!record->isEmpty() && !record->haveOnlyStaticContacts()) {
+				mRegMap.insert(make_pair(record->getKey(), latest));
 				notifyLocalRegExpireListener(mRegMap.size());
 			}
 		}
 	} else {
-		mRegMap.erase(record.getKey());
+		mRegMap.erase(record->getKey());
 		notifyLocalRegExpireListener(mRegMap.size());
 	}
 }
@@ -880,7 +906,7 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
   private:
 	RegistrarDb *m_database;
 	shared_ptr<ContactUpdateListener> mOriginalListener;
-	Record *m_record;
+	shared_ptr<Record> m_record;
 	su_home_t m_home;
 	int m_request;
 	int m_step;
@@ -891,17 +917,16 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 	RecursiveRegistrarDbListener(RegistrarDb *database, const shared_ptr<ContactUpdateListener> &original_listerner,
 								 const url_t *url, int step = sMaxStep)
 		: m_database(database), mOriginalListener(original_listerner), m_request(1), m_step(step) {
-		m_record = new Record(url);
+		m_record = make_shared<Record>(url);
 		su_home_init(&m_home);
 		m_url = url_as_string(&m_home, url);
 	}
 
 	~RecursiveRegistrarDbListener() {
 		su_home_deinit(&m_home);
-		delete m_record;
 	}
 
-	void onRecordFound(Record *r) {
+	void onRecordFound(const shared_ptr<Record> &r) override{
 		if (r != nullptr) {
 			auto &extlist = r->getExtendedContacts();
 			list<sip_contact_t *> vectToRecurseOn;
@@ -938,21 +963,21 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		}
 	}
 
-	void onError() {
+	void onError() override{
 		SLOGW << "Step: " << m_step << "\tError during recursive fetch of " << m_url;
 		if (waitPullUpOrFail()) {
 			mOriginalListener->onError();
 		}
 	}
 
-	void onInvalid() {
+	void onInvalid() override{
 		SLOGW << "Step: " << m_step << "\tInvalid during recursive fetch of " << m_url;
 		if (waitPullUpOrFail()) {
 			mOriginalListener->onInvalid();
 		}
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
 	}
 
   private:
@@ -1043,20 +1068,20 @@ void RegistrarDb::fetchList(const vector<url_t *> urls, const shared_ptr<ListCon
 		InternalContactUpdateListener(shared_ptr<ListContactUpdateListener> listener, size_t size) : listListener(listener), count(size) {}
 
 	private:
-		void onError() {
+		void onError() override{
 			SLOGE << "Error while fetching contact";
 			updateCount();
 		}
-		void onInvalid() {
+		void onInvalid() override{
 			SLOGE << "Invalid fetch of contact";
 			updateCount();
 		}
-		void onRecordFound(Record *r) {
+		void onRecordFound(const shared_ptr<Record> &r) override{
 			SLOGI << "Contact fetched";
-			if (r) listListener->records.push_back(*r);
+			if (r) listListener->records.push_back(r);
 			updateCount();
 		}
-		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {}
+		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{}
 		void updateCount() {
 			count--;
 			if (count == 0)
@@ -1127,11 +1152,11 @@ class AgregatorRegistrarDbListener : public ContactUpdateListener {
 	shared_ptr<ContactUpdateListener> mOriginalListener;
 	int mNumRespExpected;
 	int mNumResponseObtained;
-	Record *mRecord;
+	shared_ptr<Record> mRecord;
 	bool mError;
-	Record *getRecord() {
+	shared_ptr<Record> getRecord() {
 		if (mRecord == nullptr)
-			mRecord = new Record(nullptr);
+			mRecord = make_shared<Record>(nullptr);
 		return mRecord;
 	}
 	void checkFinished() {
@@ -1151,25 +1176,23 @@ class AgregatorRegistrarDbListener : public ContactUpdateListener {
 		mError = false;
 	}
 	virtual ~AgregatorRegistrarDbListener() {
-		if (mRecord)
-			delete mRecord;
 	}
-	virtual void onRecordFound(Record *r) {
+	virtual void onRecordFound(const shared_ptr<Record> &r) override{
 		if (r) {
 			getRecord()->appendContactsFrom(r);
 		}
 		checkFinished();
 	}
-	virtual void onError() {
+	virtual void onError() override{
 		mError = true;
 		checkFinished();
 	}
-	virtual void onInvalid() {
+	virtual void onInvalid() override{
 		// onInvalid() will normally never be called for a fetch request
 		checkFinished();
 	}
 
-	virtual void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+	virtual void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
 	}
 };
 

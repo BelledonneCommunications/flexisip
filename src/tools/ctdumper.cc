@@ -53,26 +53,26 @@ struct DumpListener : public ContactUpdateListener {
 	DumpListener(su_root_t *_root) : ContactUpdateListener(), root(_root), listenerError(false) {
 	}
 
-	virtual void onRecordFound(Record *record) {
+	virtual void onRecordFound(Record *record) override{
 		if (record)
 			cout << *record << endl;
 		else
 			cout << "No record found" << endl;
 		su_break();
 	}
-	virtual void onError() {
+	virtual void onError() override{
 		SLOGE << "Connection error, aborting" << endl;
 		listenerError = true;
 		su_break();
 	}
-	virtual void onInvalid() {
+	virtual void onInvalid() override{
 		SLOGW << "Invalid" << endl;
 		listenerError = true;
 		su_break();
 	}
 
-  virtual void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) {
-  }
+	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override{
+	}
 };
 
 struct CTArgs {

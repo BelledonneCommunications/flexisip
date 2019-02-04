@@ -49,7 +49,7 @@ void ConferenceAddressGenerator::run () {
 	RegistrarDb::get()->fetch(url, shared_from_this(), false, false);
 }
 
-void ConferenceAddressGenerator::onRecordFound (Record *r) {
+void ConferenceAddressGenerator::onRecordFound(const std::shared_ptr<Record> &r) {
 	if (mState == State::Fetching) {
 		if (r) {
 			run();

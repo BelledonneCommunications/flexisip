@@ -21,8 +21,7 @@
 #include <map>
 
 #include <linphone++/linphone.hh>
-
-#include "participant-registration-subscription.hh"
+#include "registration-subscription.hh"
 
 
 namespace flexisip {
@@ -32,8 +31,6 @@ namespace flexisip {
 	{
 	public:
 		ParticipantRegistrationSubscriptionHandler () = default;
-
-		static std::string getKey (const std::shared_ptr<const linphone::Address> &address);
 
 		void subscribe (
 			const std::shared_ptr<linphone::ChatRoom> &chatRoom,
@@ -45,7 +42,8 @@ namespace flexisip {
 		);
 
 	private:
-		std::multimap<std::string, std::shared_ptr<ParticipantRegistrationSubscription>> mSubscriptions;
+		std::string getKey (const std::shared_ptr<const linphone::Address> &address);
+		std::multimap<std::string, std::shared_ptr<RegistrationSubscription>> mSubscriptions;
 	};
 
 } // namespace flexisip

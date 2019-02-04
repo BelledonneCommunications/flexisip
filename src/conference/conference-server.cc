@@ -22,8 +22,7 @@
 
 #include "conference-address-generator.hh"
 #include "conference-server.hh"
-#include "participant-capabilities-check.hh"
-#include "participant-devices-search.hh"
+
 
 #include <flexisip/configmanager.hh>
 
@@ -141,27 +140,6 @@ void ConferenceServer::onConferenceAddressGeneration (const shared_ptr<linphone:
 	generator->run();
 }
 
-void ConferenceServer::onParticipantDeviceFetchRequested (
-	const shared_ptr<linphone::ChatRoom> & cr,
-	const shared_ptr<const linphone::Address> & participantAddr
-) {
-	shared_ptr<ParticipantDevicesSearch> search = make_shared<ParticipantDevicesSearch>(cr, participantAddr);
-	search->run();
-}
-
-void ConferenceServer::onParticipantsCapabilitiesChecked (
-	const shared_ptr<linphone::ChatRoom> & cr,
-	const shared_ptr<const linphone::Address> &deviceAddr,
-	const list<shared_ptr<linphone::Address> > & participantsAddr
-) {
-	shared_ptr<ParticipantCapabilitiesCheck> check = make_shared<ParticipantCapabilitiesCheck>(
-		cr,
-		deviceAddr,
-		participantsAddr
-	);
-	check->run();
-}
-
 void flexisip::ConferenceServer::onParticipantRegistrationSubscriptionRequested (
 	const shared_ptr<linphone::ChatRoom> &cr,
 	const shared_ptr<const linphone::Address> &participantAddr
@@ -193,10 +171,10 @@ void flexisip::ConferenceServer::bindAddresses () {
 
 void flexisip::ConferenceServer::bindConference() {
 	class FakeListener : public ContactUpdateListener {
-		void onRecordFound(Record *r) {}
-		void onError() {}
-		void onInvalid() {}
-		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+		void onRecordFound(const std::shared_ptr<Record> &r) override{}
+		void onError()override {}
+		void onInvalid()override {}
+		void onContactUpdated(const shared_ptr<ExtendedContact> &ec)override {
 			SLOGD << "ConferenceServer: ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();
 		}
 	};

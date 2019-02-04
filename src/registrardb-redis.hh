@@ -84,7 +84,7 @@ typedef void(forwardFn)(redisAsyncContext *, redisReply *, RegistrarUserData *);
 struct RegistrarUserData {
 	RegistrarDbRedisAsync *self;
 	std::shared_ptr<ContactUpdateListener> listener;
-	Record record;
+	std::shared_ptr<Record> mRecord;
 	unsigned long token;
 	su_timer_t *mRetryTimer;
 	int mRetryCount;

@@ -150,11 +150,11 @@ private:
 		~OnFetchListener() {
 		}
 
-		void onInvalid() {
+		void onInvalid() override{
 			LOGD("GATEWAY: invalid");
 		}
 
-		void onRecordFound(Record *r) {
+		void onRecordFound(const shared_ptr<Record> &r) override {
 			if (r == NULL) {
 				LOGD("Record doesn't exist. Fork");
 				url_t *url = gw->getFrom()->a_url;
@@ -164,11 +164,11 @@ private:
 			}
 		}
 
-		void onError() {
+		void onError() override{
 			gw->onError("Fetch error.");
 		}
 
-		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
 		}
 	};
 };

@@ -195,10 +195,14 @@ class Record {
 	friend class RegistrarDb;
 
   private:
+	Record(const Record &other) = delete; //disable copy constructor, this is unsafe due to su_home_t here.
+	void operator=(const Record &other) = delete; //disable assignement operator too
+	SofiaAutoHome mHome;
 	static void init();
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
 	std::list<std::shared_ptr<ExtendedContact>> mContactsToRemove;
 	std::string mKey;
+	url_t *mAor;
 	bool mIsDomain; /*is a domain registration*/
 	bool mOnlyStaticContacts;
 
@@ -207,7 +211,9 @@ class Record {
 	static int sMaxContacts;
 	static bool sAssumeUniqueDomains;
 	Record(const url_t *aor);
-	static std::string extractUniqueId(const sip_contact_t *contact);
+	//Get address of record
+	const url_t *getAor()const;
+	
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
 	sip_contact_t *getContacts(su_home_t *home, time_t now);
@@ -245,6 +251,12 @@ class Record {
 	void cleanContactsToRemoveList() {
 		mContactsToRemove.clear();
 	}
+	/*
+	 * Synthetise the pub-gruu address from an extended contact belonging to this Record.
+	 * FIXME: Unfortunately this function is not widely used in Flexisip, instead there are several
+	 * places where pub-gruu address is synthesized.
+	 */
+	url_t *getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t *home);
 	/**
 	 * Check if the contacts list size is < to max aor config option and remove older contacts to match restriction if needed
 	 */
@@ -257,8 +269,10 @@ class Record {
 	time_t latestExpire() const;
 	time_t latestExpire(Agent *ag) const;
 	static std::list<std::string> route_to_stl(const sip_route_s *route);
-	void appendContactsFrom(Record *src);
+	void appendContactsFrom(const std::shared_ptr<Record> &src);
 	static std::string defineKeyFromUrl(const url_t *aor);
+	static url_t *makeUrlFromKey(su_home_t *home, const std::string &key);
+	static std::string extractUniqueId(const sip_contact_t *contact);
 	~Record();
 
 	bool haveOnlyStaticContacts() const {
@@ -287,7 +301,7 @@ class RegistrarDbListener : public StatFinishListener {
 	 * is held by the implementation and the object might be
 	 * destroyed immediately after onRecordFound() has returned.
 	 */
-	virtual void onRecordFound(Record *r) = 0;
+	virtual void onRecordFound(const std::shared_ptr<Record> &r) = 0;
 	virtual void onError() = 0;
 	virtual void onInvalid() = 0;
 };
@@ -308,13 +322,13 @@ class ListContactUpdateListener {
 	virtual ~ListContactUpdateListener() = default;
 	virtual void onContactsUpdated() = 0;
 
-	std::vector<Record> records;
+	std::vector<std::shared_ptr<Record>> records;
 };
 
 class ContactRegisteredListener {
   public:
 	virtual ~ContactRegisteredListener();
-	virtual void onContactRegistered(Record *r, const std::string &uid) = 0;
+	virtual void onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid) = 0;
 };
 
 class LocalRegExpireListener {
@@ -359,7 +373,7 @@ class RegistrarDb {
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
 	void fetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener);
 	void fetchList(const std::vector<url_t *> urls, const std::shared_ptr<ListContactUpdateListener> &listener);
-	void notifyContactListener (Record *r, const std::string &uid);
+	void notifyContactListener (const std::shared_ptr<Record> &r, const std::string &uid);
 	void updateRemoteExpireTime(const std::string &key, time_t expireat);
 	unsigned long countLocalActiveRecords() {
 		return mLocalRegExpire->countActives();
@@ -397,7 +411,7 @@ class RegistrarDb {
 			std::lock_guard<std::mutex> lock(mMutex);
 			mRegMap.erase(key);
 		}
-		void update(const Record &record);
+		void update(const std::shared_ptr<Record> &record);
 		size_t countActives();
 		void removeExpiredBefore(time_t before);
 		LocalRegExpire(Agent *ag);
@@ -425,7 +439,6 @@ class RegistrarDb {
 
 	RegistrarDb(Agent *ag);
 	virtual ~RegistrarDb();
-	std::map<std::string, Record *> mRecords;
 	std::multimap<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;
 	std::list<std::shared_ptr<RegistrarDbStateListener>> mStateListeners;
 	LocalRegExpire *mLocalRegExpire;

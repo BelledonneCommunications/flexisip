@@ -87,7 +87,7 @@ void OnRequestBindListener::onContactUpdated(const std::shared_ptr<ExtendedConta
 	_onContactUpdated(this->mModule, this->mEv->getIncomingTport().get(), ec);
 }
 
-void OnRequestBindListener::onRecordFound(Record *r) {
+void OnRequestBindListener::onRecordFound(const shared_ptr<Record> &r) {
 	const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
 	time_t now = getCurrentTime();
 	if (r) {
@@ -120,7 +120,7 @@ OnResponseBindListener::OnResponseBindListener(ModuleRegistrar *module, shared_p
 	ev->suspendProcessing();
 }
 
-void OnResponseBindListener::onRecordFound(Record *r) {
+void OnResponseBindListener::onRecordFound(const shared_ptr<Record> &r) {
 	const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
 	time_t now = getCurrentTime();
 	if (r) {
@@ -162,7 +162,7 @@ OnStaticBindListener::OnStaticBindListener(const url_t *from, const sip_contact_
 	mFrom = url_as_string(mHome.home(), from);
 	mContact = url_as_string(mHome.home(), ct->m_url);
 }
-void OnStaticBindListener::onRecordFound(Record *r) {
+void OnStaticBindListener::onRecordFound(const shared_ptr<Record> &r) {
 	LOGD("Static route added for %s: %s", mFrom.c_str(), mContact.c_str());
 }
 void OnStaticBindListener::onError() {
@@ -177,7 +177,7 @@ void OnStaticBindListener::onContactUpdated(const shared_ptr<ExtendedContact> &e
 FakeFetchListener::FakeFetchListener() {
 }
 
-void FakeFetchListener::onRecordFound(Record *r) {
+void FakeFetchListener::onRecordFound(const shared_ptr<Record> &r) {
 	if (r != nullptr) {
 		SLOGD << r;
 	} else {

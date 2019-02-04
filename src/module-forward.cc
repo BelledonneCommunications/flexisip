@@ -172,7 +172,7 @@ public:
 
 	}
 	~RegistrarListener(){};
-	void onRecordFound(Record *r) {
+	void onRecordFound(const shared_ptr<Record> &r) override {
 		const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
 		try {
 			if (!r)
@@ -193,15 +193,15 @@ public:
 			mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
 		}
 	}
-	virtual void onError() {
+	virtual void onError() override{
 		SLOGE << "RegistrarListener error";
 		mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
 	};
-	virtual void onInvalid(){
+	virtual void onInvalid()override{
 		SLOGE << "RegistrarListener invalid";
 		mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
 	}
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) {};
+	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override{};
 	private :
 	ForwardModule *mModule;
 	shared_ptr<RequestSipEvent> mEv;

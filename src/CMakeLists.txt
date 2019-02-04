@@ -236,14 +236,18 @@ if(ENABLE_CONFERENCE)
 		conference/conference-address-generator.hh
 		conference/conference-server.cc
 		conference/conference-server.hh
-		conference/participant-capabilities-check.cc
-		conference/participant-capabilities-check.hh
-		conference/participant-devices-search.cc
-		conference/participant-devices-search.hh
-		conference/participant-registration-subscription.cc
-		conference/participant-registration-subscription.hh
+		conference/registration-subscription.cc
+		conference/registration-subscription.hh
 		conference/participant-registration-subscription-handler.cc
 		conference/participant-registration-subscription-handler.hh
+		
+#		conference/participant-capabilities-check.cc
+#		conference/participant-capabilities-check.hh
+#		conference/participant-devices-search.cc
+#		conference/participant-devices-search.hh
+#		conference/participant-registration-subscription.cc
+#		conference/participant-registration-subscription.hh
+
 	)
 endif()
 

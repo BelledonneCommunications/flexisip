@@ -25,6 +25,7 @@
 #include <flexisip/registrardb.hh>
 #include "service-server.hh"
 
+#include "registration-subscription.hh"
 #include "participant-registration-subscription-handler.hh"
 
 
@@ -73,15 +74,7 @@ namespace flexisip {
 
 		// ChatRoomListener implementation
 		void onConferenceAddressGeneration (const std::shared_ptr<linphone::ChatRoom> &cr) override;
-		void onParticipantDeviceFetchRequested (
-			const std::shared_ptr<linphone::ChatRoom> &cr,
-			const std::shared_ptr<const linphone::Address> & participantAddr
-		) override;
-		void onParticipantsCapabilitiesChecked (
-			const std::shared_ptr<linphone::ChatRoom> &cr,
-			const std::shared_ptr<const linphone::Address> &deviceAddr,
-			const std::list<std::shared_ptr<linphone::Address> > & participantsAddr
-		) override;
+
 		void onParticipantRegistrationSubscriptionRequested (
 			const std::shared_ptr<linphone::ChatRoom> &cr,
 			const std::shared_ptr<const linphone::Address> & participantAddr

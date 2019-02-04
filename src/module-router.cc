@@ -306,7 +306,7 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	return true;
 }
 
-void ModuleRouter::onContactRegistered(const string &uid, Record *aor, const url_t *sipUri) {
+void ModuleRouter::onContactRegistered(const string &uid, const shared_ptr<Record> &aor, const url_t *sipUri) {
 	SofiaAutoHome home;
 	sip_path_t *path = NULL;
 	sip_contact_t *contact = NULL;
@@ -372,7 +372,7 @@ void ModuleRouter::onContactRegistered(const string &uid, Record *aor, const url
 	}
 }
 
-bool ModuleRouter::makeGeneratedContactRoute(shared_ptr<RequestSipEvent> &ev, Record *aor,
+bool ModuleRouter::makeGeneratedContactRoute(shared_ptr<RequestSipEvent> &ev, const shared_ptr<Record> &aor,
 											 list<shared_ptr<ExtendedContact>> &ec_list) {
 	if (!mGeneratedContactRoute.empty() && (!aor || mGenerateContactEvenOnFilledAor)) {
 		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
@@ -482,7 +482,7 @@ class ForkGroupSorter {
 	list<pair<sip_contact_t *, shared_ptr<ExtendedContact>>> mAllContacts;
 };
 
-void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, Record *aor, const url_t *sipUri) {
+void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_ptr<Record> &aor, const url_t *sipUri) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	list<shared_ptr<ExtendedContact>> contacts;
@@ -645,7 +645,7 @@ class PreroutingFetcher : public ContactUpdateListener,
 	vector<string> mPreroutes;
 	int pending;
 	bool error;
-	Record *m_record;
+	shared_ptr<Record> m_record;
 
   public:
 	PreroutingFetcher(ModuleRouter *module, shared_ptr<RequestSipEvent> ev,
@@ -653,11 +653,10 @@ class PreroutingFetcher : public ContactUpdateListener,
 		: mEv(ev), mListener(listener), mPreroutes(preroutes) {
 		pending = 0;
 		error = false;
-		m_record = new Record(NULL);
+		m_record = make_shared<Record>(nullptr);
 	}
 
 	~PreroutingFetcher() {
-		delete (m_record);
 	}
 
 	void fetch() {
@@ -672,7 +671,7 @@ class PreroutingFetcher : public ContactUpdateListener,
 		}
 	}
 
-	void onRecordFound(Record *r) {
+	void onRecordFound(const shared_ptr<Record> &r) override{
 		--pending;
 		if (r != NULL) {
 			const auto &ctlist = r->getExtendedContacts();
@@ -681,19 +680,19 @@ class PreroutingFetcher : public ContactUpdateListener,
 		}
 		checkFinished();
 	}
-	void onError() {
+	void onError() override{
 		--pending;
 		error = true;
 		checkFinished();
 	}
 
-	void onInvalid() {
+	void onInvalid() override{
 		--pending;
 		error = true;
 		checkFinished();
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
 	}
 
 	void checkFinished() {
@@ -714,7 +713,7 @@ class TargetUriListFetcher : public ContactUpdateListener,
 	shared_ptr<ContactUpdateListener> mListener;
 	sip_route_t *mUriList; /*it is parsed as a route but is not a route*/
 	int mPending;
-	Record *mRecord;
+	shared_ptr<Record> mRecord;
 	bool mError;
 
   public:
@@ -723,7 +722,7 @@ class TargetUriListFetcher : public ContactUpdateListener,
 		: mEv(ev), mListener(listener) {
 		mPending = 0;
 		mError = false;
-		mRecord = new Record(NULL);
+		mRecord = make_shared<Record>(nullptr);
 		if (target_uris && target_uris->un_value) {
 			/*the X-target-uris header is parsed like a route, as it is a list of URIs*/
 			mUriList = sip_route_make(mEv->getHome(), target_uris->un_value);
@@ -731,7 +730,6 @@ class TargetUriListFetcher : public ContactUpdateListener,
 	}
 
 	~TargetUriListFetcher() {
-		delete mRecord;
 	}
 
 	void fetch(bool allowDomainRegistrations, bool recursive) {
@@ -747,7 +745,7 @@ class TargetUriListFetcher : public ContactUpdateListener,
 		}
 	}
 
-	void onRecordFound(Record *r) {
+	void onRecordFound(const shared_ptr<Record> &r) override{
 		--mPending;
 		if (r != NULL) {
 			const auto &ctlist = r->getExtendedContacts();
@@ -756,19 +754,19 @@ class TargetUriListFetcher : public ContactUpdateListener,
 		}
 		checkFinished();
 	}
-	void onError() {
+	void onError() override{
 		--mPending;
 		mError = true;
 		checkFinished();
 	}
 
-	void onInvalid() {
+	void onInvalid() override{
 		--mPending;
 		mError = true;
 		checkFinished();
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
 	}
 
 	void checkFinished() {
@@ -816,12 +814,13 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 			ev->setEventLog(make_shared<CallLog>(sip));
 		}
 	}
-	void onRecordFound(Record *r) {
+	void onRecordFound(const shared_ptr<Record> &arg) override{
+		shared_ptr<Record> r = arg;
 		const string &fallbackRoute = mModule->getFallbackRoute();
 
-		bool ownRecord = r == NULL;
-		if (ownRecord)
-			r = new Record(mSipUri);
+		if (r == nullptr){
+			r = make_shared<Record>(mSipUri);
+		}
 
 		if (!mModule->isManagedDomain(mSipUri)) {
 			shared_ptr<ExtendedContact> contact = make_shared<ExtendedContact>(mSipUri, "");
@@ -860,20 +859,17 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 		} else {
 			mModule->routeRequest(mEv, r, mSipUri);
 		}
-
-		if (ownRecord)
-			delete r;
 	}
-	void onError() {
+	void onError() override{
 		mModule->sendReply(mEv, SIP_500_INTERNAL_SERVER_ERROR);
 	}
 
-	void onInvalid() {
+	void onInvalid() override{
 		LOGD("OnFetchForRoutingListener::onInvalid : 400 - Replayed CSeq");
 		mModule->sendReply(mEv, 400, "Replayed CSeq");
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
 	}
 };
 
