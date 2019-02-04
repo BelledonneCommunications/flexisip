@@ -11,7 +11,7 @@ job-centos7-makefile-gcc:
     CC: gcc
     CXX: g++
     ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
-  extends: .job-linux
+  extends: .scheduled-job-linux
 
 
 job-centos7-makefile-clang:

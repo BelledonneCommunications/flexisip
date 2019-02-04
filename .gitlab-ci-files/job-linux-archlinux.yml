@@ -48,4 +48,4 @@ job-archlinux-latest-ninja-clang:
     CMAKE_GENERATOR: Ninja
     CC: clang
     CXX: clang++
-  extends: .job-linux
+  extends: .scheduled-job-linux

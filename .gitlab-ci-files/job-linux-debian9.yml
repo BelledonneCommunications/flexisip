@@ -37,7 +37,7 @@ job-debian9-ninja-gcc:
     CMAKE_GENERATOR: Ninja
     CC: gcc
     CXX: g++
-  extends: .job-linux
+  extends: .scheduled-job-linux
 
 
 job-debian9-ninja-clang:
