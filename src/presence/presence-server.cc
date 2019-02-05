@@ -726,8 +726,9 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 						mConnPool,
 						mThreadPool
 					);
-#endif
+#else
 					goto error;
+#endif
 				} else if ( // case of rfc5367 (list subscription with resource list in body)
 					content_disposition &&
 					(strcasecmp(belle_sip_header_content_disposition_get_content_disposition(content_disposition), "recipient-list") == 0) &&
