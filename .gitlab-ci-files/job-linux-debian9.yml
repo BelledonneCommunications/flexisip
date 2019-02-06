@@ -6,6 +6,9 @@ job-debian9-makefile-gcc:
 
   tags: [ "docker-debian9" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  except:
+    variables:
+      - $DEPLOY_RUN
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: gcc
@@ -18,6 +21,9 @@ job-debian9-makefile-clang:
 
   tags: [ "docker-debian9" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  except:
+    variables:
+      - $DEPLOY_RUN
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: clang
@@ -33,6 +39,9 @@ job-debian9-ninja-gcc:
 
   tags: [ "docker-debian9" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  except:
+    variables:
+      - $DEPLOY_RUN
   variables:
     CMAKE_GENERATOR: Ninja
     CC: gcc
