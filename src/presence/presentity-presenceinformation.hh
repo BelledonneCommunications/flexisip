@@ -216,7 +216,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 																			// all publish have expired.
 	std::string mName;
 	std::string mCapabilities;
-	std::string mAddedCapabilities = "";
+	std::map<std::string, std::string> mAddedCapabilities;
 };
 
 std::ostream &operator<<(std::ostream &__os, const PresentityPresenceInformation &);

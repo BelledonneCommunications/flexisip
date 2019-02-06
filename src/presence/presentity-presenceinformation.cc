@@ -363,14 +363,15 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 						for (const auto &capability : capabilityVector) {
 							if (capability.empty()) continue;
 
-							if (mAddedCapabilities.empty()) {
-								mAddedCapabilities = capability;
-							} else if (mAddedCapabilities.find(capability) != string::npos) {
+							size_t pos = capability.find("/");
+							const string &capabilityName = (pos == string::npos) ? capability : capability.substr(0, pos);
+							const string &capabilityVersion = (pos == string::npos) ? "1.0" : capability.substr(pos + 1);
+							const auto &it = mAddedCapabilities.find(capabilityName);
+							if(it != mAddedCapabilities.cend() && std::stof(it->second) >= std::stof(capabilityVersion))
 								continue;
-							}
 
-							mAddedCapabilities += ", " + capability;
-							Xsd::Pidf::Tuple::ServiceDescriptionType service(capability, "4.2");
+							mAddedCapabilities.insert(make_pair(capabilityName, capabilityVersion));
+							Xsd::Pidf::Tuple::ServiceDescriptionType service(capabilityName, capabilityVersion);
 							tup->getServiceDescription().push_back(service);
 						}
 						presence.getTuple().push_back(*tup);
@@ -399,14 +400,15 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 			for (const auto &capability : capabilityVector) {
 				if (capability.empty()) continue;
 
-				if (mAddedCapabilities.empty()) {
-					mAddedCapabilities = capability;
-				} else if (mAddedCapabilities.find(capability) != string::npos) {
+				size_t pos = capability.find("/");
+				const string &capabilityName = (pos == string::npos) ? capability : capability.substr(0, pos);
+				const string &capabilityVersion = (pos == string::npos) ? "1.0" : capability.substr(pos + 1);
+				const auto &it = mAddedCapabilities.find(capabilityName);
+				if(it != mAddedCapabilities.cend() && std::stof(it->second) >= std::stof(capabilityVersion))
 					continue;
-				}
 
-				mAddedCapabilities += ", " + capability;
-				Xsd::Pidf::Tuple::ServiceDescriptionType service(capability, "4.2");
+				mAddedCapabilities.insert(make_pair(capabilityName, capabilityVersion));
+				Xsd::Pidf::Tuple::ServiceDescriptionType service(capabilityName, capabilityVersion);
 				tup->getServiceDescription().push_back(service);
 			}
 			presence.getTuple().push_back(*tup);
