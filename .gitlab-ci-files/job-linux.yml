@@ -85,6 +85,9 @@ job-flexisip-deb-image-deploy:
 
   stage: image
   tags: [ "linux-deploy" ]
+  except:
+    variables:
+      - $DEPLOY_RUN
   only:
     - schedules
   dependencies:

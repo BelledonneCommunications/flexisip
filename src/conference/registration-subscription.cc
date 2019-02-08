@@ -156,7 +156,7 @@ void OwnRegistrationSubscription::onContactRegistered(const std::shared_ptr<Reco
 	
 	shared_ptr<ExtendedContact> ct = r->extractContactByUniqueId(uid);
 	if (!ct){
-		LOGE("OwnRegistrationSubscription::onContactRegistered(): no contact with uuid %s", uid.c_str());
+		LOGI("OwnRegistrationSubscription::onContactRegistered(): no contact with uuid %s, it has unregistered.", uid.c_str());
 		return;
 	}
 	shared_ptr<Address> pubGruu = getPubGruu(r, ct);
