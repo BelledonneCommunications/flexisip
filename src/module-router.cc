@@ -289,6 +289,14 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 			r->r_next = final_route;
 		}
 	}
+	if (!contact->mIsFallback){
+		/* If the original request received contained a X-Target-Uris, it shall be removed now, except
+		 * in the case where we send to a fallback route, because in this case the actual resolution of the X-Target-Uris is 
+		 * actually not done at all. */
+		sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(new_ev->getMsgSip()->getSip(), "X-Target-Uris");
+		if (h) sip_header_remove(new_ev->getMsgSip()->getMsg(), new_ev->getMsgSip()->getSip(), (sip_header_t *)h);
+	}
+	
 	if (!targetUris.empty()) {
 		sip_header_insert(new_msg, new_sip, (sip_header_t *)sip_unknown_format(msg_home(new_msg), "X-Target-Uris: %s",
 																			   targetUris.c_str()));
@@ -776,14 +784,6 @@ class TargetUriListFetcher : public ContactUpdateListener,
 			mListener->onError();
 		}else{
 			if (mRecord->count() > 0){
-				/*
-				 * When contacts are found, we then remove the X-target-uris.
-				 * If no contacts are found, the X-target-uris is left as it is, so that if a fallback route is specified,
-				 * the proxy pointed by this fallback route will process it.
-				 */
-				sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(mEv->getMsgSip()->getSip(), "X-Target-Uris");
-				if (h) sip_header_remove(mEv->getMsgSip()->getMsg(), mEv->getMsgSip()->getSip(), (sip_header_t *)h);
-				
 				/*also add aliases in the ExtendedContact list for the searched AORs, so that they are added to the ForkMap.*/
 				sip_route_t *iter;
 				for (iter = mUriList; iter != NULL; iter = iter->r_next) {
@@ -832,6 +832,7 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 		if (!fallbackRoute.empty()) {
 			if (!ModuleToolbox::viaContainsUrlHost(mEv->getMsgSip()->getSip()->sip_via, mModule->getFallbackRouteParsed())) {
 				shared_ptr<ExtendedContact> fallback = make_shared<ExtendedContact>(mSipUri, fallbackRoute, 0.0);
+				fallback->mIsFallback = true;
 				r->pushContact(fallback);
 				SLOGD << "Record [" << r << "] Fallback route '" << fallbackRoute << "' added: " << *fallback;
 			}else{

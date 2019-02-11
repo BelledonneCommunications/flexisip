@@ -73,12 +73,14 @@ struct ExtendedContact {
 	time_t mExpireNotAtMessage;  // real expires time but not for message
 	time_t mUpdatedTime;
 	uint32_t mCSeq;
-	bool mAlias;
 	std::list<std::string> mAcceptHeader;
-	bool mUsedAsRoute; /*whether the contact information shall be used as a route when forming a request, instead of
-						  replacing the request-uri*/
 	uintptr_t mConnId; // a unique id shared with associate t_port
 	SofiaAutoHome mHome;
+	bool mAlias;
+	bool mUsedAsRoute; /*whether the contact information shall be used as a route when forming a request, instead of
+						  replacing the request-uri*/
+	
+	bool mIsFallback = false; // boolean indicating whether this ExtendedContact is a fallback route or not. There is no need for it to be serialized to database.
 
 	const char *callId() const {
 		return mCallId.c_str();
@@ -144,7 +146,7 @@ struct ExtendedContact {
 
 	ExtendedContact(const char *contactId, const char *uniqueId, const char* fullUrl)
 		: mCallId(), mUserAgent(), mSipContact(nullptr), mQ(1.0), mExpireAt(LONG_MAX), mExpireNotAtMessage(LONG_MAX),
-			mUpdatedTime(0), mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false), mConnId(0), mHome() {
+			mUpdatedTime(0), mCSeq(0), mAcceptHeader({}), mConnId(0), mHome(), mAlias(false), mUsedAsRoute(false) {
 		if (contactId) mContactId = contactId;
 		if (uniqueId) mUniqueId = uniqueId;
 		extractInfoFromUrl(fullUrl);
@@ -155,7 +157,7 @@ struct ExtendedContact {
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders, const std::string &userAgent)
 		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
 			mUserAgent(userAgent), mSipContact(nullptr), mQ(1.0),mExpireNotAtMessage(global_expire), mUpdatedTime(updateTime),
-			mCSeq(cseq), mAlias(alias), mAcceptHeader(acceptHeaders), mUsedAsRoute(false), mConnId(0), mHome() {
+			mCSeq(cseq), mAcceptHeader(acceptHeaders), mConnId(0), mHome(), mAlias(alias), mUsedAsRoute(false) {
 
 		mSipContact = sip_contact_dup(mHome.home(), sip_contact);
 		mSipContact->m_next = nullptr;
@@ -164,15 +166,15 @@ struct ExtendedContact {
 
 	ExtendedContact(const url_t *url, const std::string &route, const float q = 1.0)
 	: mContactId(), mCallId(), mUniqueId(), mPath({route}), mUserAgent(), mSipContact(nullptr), mQ(q), mExpireAt(LONG_MAX),
-		mExpireNotAtMessage(LONG_MAX), mUpdatedTime(0), mCSeq(0), mAlias(false), mAcceptHeader({}), mUsedAsRoute(false),
-		mConnId(0), mHome() {
+		mExpireNotAtMessage(LONG_MAX), mUpdatedTime(0), mCSeq(0), mAcceptHeader({}),
+		mConnId(0), mHome(), mAlias(false), mUsedAsRoute(false) {
 		mSipContact = sip_contact_create(mHome.home(), (url_string_t*)url, nullptr);
 	}
 
 	ExtendedContact(const ExtendedContact &ec)
 		: mContactId(ec.mContactId), mCallId(ec.mCallId), mUniqueId(ec.mUniqueId), mPath(ec.mPath), mUserAgent(ec.mUserAgent),
 		mSipContact(nullptr), mQ(ec.mQ), mExpireAt(ec.mExpireAt), mExpireNotAtMessage(ec.mExpireNotAtMessage), mUpdatedTime(ec.mUpdatedTime),
-		mCSeq(ec.mCSeq), mAlias(ec.mAlias), mAcceptHeader(ec.mAcceptHeader), mUsedAsRoute(ec.mUsedAsRoute), mConnId(ec.mConnId), mHome() {
+		mCSeq(ec.mCSeq), mAcceptHeader(ec.mAcceptHeader), mConnId(ec.mConnId), mHome(), mAlias(ec.mAlias), mUsedAsRoute(ec.mUsedAsRoute), mIsFallback(ec.mIsFallback){
 		mSipContact = sip_contact_dup(mHome.home(), ec.mSipContact);
 		mSipContact->m_next = nullptr;
 	}
