@@ -57,7 +57,7 @@
   script:
     - sudo apt-get -y remove `dpkg-query -f '${binary:Package}\n' -W | grep "^bc-"` || true
     - ./prepare.py flexisip-rpm $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
-    - cmake --build WORK/flexisip-rpm/cmake -- $ADDITIONAL_BUILD_OPTIONS
+    - make
 
   artifacts:
     paths:
