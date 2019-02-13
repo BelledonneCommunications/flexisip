@@ -8,7 +8,7 @@ job-debian8-makefile-gcc:
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
   except:
     variables:
-      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: gcc
@@ -23,7 +23,7 @@ job-debian8-makefile-clang:
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
   except:
     variables:
-      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: clang
@@ -41,7 +41,7 @@ job-debian8-ninja-gcc:
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
   except:
     variables:
-      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CC: gcc
@@ -65,6 +65,9 @@ job-debian8-ninja-clang:
 
 job-debian8-deb:
 
+  except:
+    variables:
+      - $DEPLOY_UBUNTU
   tags: [ "docker-debian8" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
   extends: .job-linux-deb
@@ -72,6 +75,9 @@ job-debian8-deb:
 
 job-debian8-deb-deploy:
 
+  except:
+    variables:
+      - $DEPLOY_UBUNTU
   variables:
     RELEASE: jessie
     DEPLOY_DIRECTORY: $DEBIAN_DEPLOY_DIRECTORY

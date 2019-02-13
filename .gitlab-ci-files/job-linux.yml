@@ -20,6 +20,9 @@
 
   stage: build
   extends: .linux-ccache
+  except:
+    variables:
+      - $DEPLOY_UBUNTU
 
   script:
     - export CC=$CC
@@ -34,6 +37,9 @@
 .job-linux-rpm:
 
   stage: package
+  except:
+  variables:
+    - $DEPLOY_UBUNTU
 
   script:
     - sudo rpm -e `rpm -qa | grep "^bc-[^0-9]"` || true
@@ -91,7 +97,7 @@
   tags: [ "linux-deploy" ]
   except:
     variables:
-      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   only:
     - schedules
     
