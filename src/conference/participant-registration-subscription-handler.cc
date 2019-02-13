@@ -21,6 +21,8 @@
 using namespace flexisip;
 using namespace std;
 
+ParticipantRegistrationSubscriptionHandler::ParticipantRegistrationSubscriptionHandler(const ConferenceServer & server) : mServer(server){
+}
 
 string ParticipantRegistrationSubscriptionHandler::getKey (const shared_ptr<const linphone::Address> &address) {
 	ostringstream ostr;
@@ -42,7 +44,7 @@ void ParticipantRegistrationSubscriptionHandler::subscribe (
 		}
 	}
 	if (toSubscribe) {
-		shared_ptr<OwnRegistrationSubscription> subscription(new OwnRegistrationSubscription(chatRoom, address));
+		shared_ptr<OwnRegistrationSubscription> subscription(new OwnRegistrationSubscription(mServer, chatRoom, address));
 		mSubscriptions.insert(make_pair(key, subscription));
 		subscription->start();
 	}

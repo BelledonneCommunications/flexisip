@@ -30,7 +30,7 @@ namespace flexisip {
 		: public std::enable_shared_from_this<ParticipantRegistrationSubscriptionHandler>
 	{
 	public:
-		ParticipantRegistrationSubscriptionHandler () = default;
+		ParticipantRegistrationSubscriptionHandler(const ConferenceServer &server);
 
 		void subscribe (
 			const std::shared_ptr<linphone::ChatRoom> &chatRoom,
@@ -42,6 +42,7 @@ namespace flexisip {
 		);
 
 	private:
+		const ConferenceServer &mServer;
 		std::string getKey (const std::shared_ptr<const linphone::Address> &address);
 		std::multimap<std::string, std::shared_ptr<RegistrationSubscription>> mSubscriptions;
 	};

@@ -39,11 +39,13 @@ virtual virtual_enable_shared_from_this_base {
          virtual_enable_shared_from_this_base::shared_from_this());
    }
 };
+
+class ConferenceServer;
 	
 /*Base for a class that manages registration information subscription for the server group chatroom*/
 class RegistrationSubscription : public virtual_enable_shared_from_this<RegistrationSubscription>{
 	public:
-		RegistrationSubscription(const std::shared_ptr<linphone::ChatRoom> &cr, const std::shared_ptr<const linphone::Address> &participant);
+		RegistrationSubscription(const ConferenceServer & server, const std::shared_ptr<linphone::ChatRoom> &cr, const std::shared_ptr<const linphone::Address> &participant);
 		virtual void start() = 0;
 		virtual void stop() = 0;
 		virtual ~RegistrationSubscription();
@@ -53,6 +55,7 @@ class RegistrationSubscription : public virtual_enable_shared_from_this<Registra
 		void notify(const std::list< std::shared_ptr<linphone::ParticipantDeviceIdentity> > & participantDevices);
 		/*call this to notify that a device has just registered*/
 		void notifyRegistration(const std::shared_ptr<linphone::Address>  & participantDevices);
+		const ConferenceServer & mServer;
 		const std::shared_ptr<linphone::ChatRoom> mChatRoom;
 		const std::shared_ptr<linphone::Address> mParticipant;
 		unsigned int mChatroomRequestedCapabilities;
@@ -75,7 +78,7 @@ class OwnRegistrationSubscription
 	: public RegistrationSubscription, protected RegistrationSubscriptionFetchListener, protected RegistrationSubscriptionListener
 {
 	public:
-		OwnRegistrationSubscription(const std::shared_ptr<linphone::ChatRoom> &cr, const std::shared_ptr<const linphone::Address> &participant);
+		OwnRegistrationSubscription(const ConferenceServer & server, const std::shared_ptr<linphone::ChatRoom> &cr, const std::shared_ptr<const linphone::Address> &participant);
 		virtual void start() override;
 		virtual void stop() override;
 

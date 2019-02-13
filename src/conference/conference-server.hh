@@ -55,6 +55,10 @@ namespace flexisip {
 		 * Bind conference on the registrardb
 		**/
 		void bindConference ();
+		
+		bool capabilityCheckEnabled()const{
+			return mCheckCapabilities;
+		}
 
 	protected:
 		void _init () override;
@@ -87,9 +91,11 @@ namespace flexisip {
 		std::shared_ptr<linphone::Core> mCore;
 		std::string mPath;
 		std::string mTransport;
-		bool mAddressesBound = false;
 		std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms;
 		ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
+		bool mAddressesBound = false;
+		bool mCheckCapabilities;
+		
 
 		// Used to declare the service configuration
 		class Init {

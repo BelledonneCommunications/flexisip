@@ -17,15 +17,15 @@
  */
 
 #include "registration-subscription.hh"
-
+#include "conference-server.hh"
 
 using namespace flexisip;
 using namespace std;
 using namespace linphone;
 
-RegistrationSubscription::RegistrationSubscription( const std::shared_ptr<linphone::ChatRoom> &cr, 
+RegistrationSubscription::RegistrationSubscription(const ConferenceServer & server, const std::shared_ptr<linphone::ChatRoom> &cr, 
 						    const std::shared_ptr<const linphone::Address> &participant)
-	: mChatRoom(cr), mParticipant(participant->clone()) {
+	: mServer(server), mChatRoom(cr), mParticipant(participant->clone()) {
 	LOGD("RegistrationSubscription [%p] for chatroom [%p] and participant [%s] initialized.", this, cr.get(), 
 	     participant->asStringUriOnly().c_str());
 	mChatroomRequestedCapabilities = cr->getCapabilities() & ~(int)ChatRoomCapabilities::OneToOne;
@@ -56,9 +56,9 @@ void RegistrationSubscription::notifyRegistration(const shared_ptr<Address> &par
  * Redis implementation of RegistrationSubscription.
  */
 
-OwnRegistrationSubscription::OwnRegistrationSubscription( const std::shared_ptr<linphone::ChatRoom> &cr, 
+OwnRegistrationSubscription::OwnRegistrationSubscription(const ConferenceServer & server, const std::shared_ptr<linphone::ChatRoom> &cr, 
 						    const std::shared_ptr<const linphone::Address> &participant)
-	: RegistrationSubscription(cr, participant), mActive(false){
+	: RegistrationSubscription(server, cr, participant), mActive(false){
 	mParticipantAor = url_make(mHome.home(), participant->asStringUriOnly().c_str());
 	if (mParticipantAor == nullptr){
 		LOGE("RegistrationSubscription(): invalid participant aor %s", participant->asStringUriOnly().c_str());
@@ -128,7 +128,8 @@ void OwnRegistrationSubscription::processRecord(const std::shared_ptr<Record> &r
 		for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
 			auto addr = getPubGruu(r, ec);
 			if (!addr) continue;
-			if ((getContactCapabilities(ec) & mChatroomRequestedCapabilities) == mChatroomRequestedCapabilities){
+			
+			if (!mServer.capabilityCheckEnabled() || (getContactCapabilities(ec) & mChatroomRequestedCapabilities) == mChatroomRequestedCapabilities){
 				shared_ptr<ParticipantDeviceIdentity> identity = linphone::Factory::get()->createParticipantDeviceIdentity(
 					addr, getDeviceName(ec));
 				compatibleParticipantDevices.push_back(identity);
