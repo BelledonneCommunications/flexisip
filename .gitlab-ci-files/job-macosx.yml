@@ -4,7 +4,7 @@
   tags: [ "macosx" ]
   except:
     variables:
-      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
 
   script:
     - ccache -s
@@ -53,7 +53,7 @@ job-macosx-xcode:
 
   except:
     variables:
-      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   only:
     - schedules
   script:
