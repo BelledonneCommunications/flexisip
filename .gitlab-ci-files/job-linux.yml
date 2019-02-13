@@ -38,8 +38,8 @@
 
   stage: package
   except:
-  variables:
-    - $DEPLOY_UBUNTU
+    variables:
+      - $DEPLOY_UBUNTU
 
   script:
     - sudo rpm -e `rpm -qa | grep "^bc-[^0-9]"` || true
