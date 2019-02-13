@@ -53,6 +53,9 @@ job-debian9-ninja-clang:
 
   tags: [ "docker-debian9" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  except:
+    variables:
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CC: clang
