@@ -20,6 +20,9 @@
 
   stage: build
   extends: .linux-ccache
+  except:
+  variables:
+    - $DEPLOY_UBUNTU
 
   script:
     - export CC=$CC
