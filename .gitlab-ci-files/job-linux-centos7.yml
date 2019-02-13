@@ -21,6 +21,9 @@ job-centos7-makefile-clang:
 
   tags: [ "docker-centos7" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+  except:
+    variables:
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: clang
