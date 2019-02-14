@@ -67,8 +67,8 @@ job-centos7-rpm-deploy:
   stage: deploy
   tags: [ "deploy" ]
 
-  only:
-    - schedules
+  extends: .job-deploy
+
   dependencies:
     - job-centos7-rpm
 
