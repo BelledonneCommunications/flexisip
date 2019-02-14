@@ -65,13 +65,18 @@
     when: always
     expire_in: 1 week
 
+.job-deploy:
+  only:
+    refs:
+      - master
+      - release/*
+
 .job-debian-deb-deploy:
 
   stage: deploy
   tags: [ "deploy" ]
 
-  only:
-    - schedules
+  extends: .job-deploy
 
   script:
    - cd WORK/flexisip-rpm/rpmbuild/DEBS/ && rsync -pr . $DEPLOY_SERVER:$DEBIAN_DEPLOY_DIRECTORY/$DEBIAN_RELEASE
