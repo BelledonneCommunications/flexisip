@@ -68,7 +68,7 @@
 .job-deploy:
   only:
     refs: ['master', 'release/*']
-    variables: $SCHEDULE_RUN
+    variables: [$SCHEDULE_RUN]
 
 .job-debian-deb-deploy:
 
