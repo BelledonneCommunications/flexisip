@@ -76,9 +76,6 @@
   stage: deploy
   tags: [ "deploy" ]
 
-  only:
-    - schedules
-
   extends: .job-deploy
 
   script:

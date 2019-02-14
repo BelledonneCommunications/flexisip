@@ -69,9 +69,6 @@ job-centos7-rpm-deploy:
 
   extends: .job-deploy
 
-  only:
-    - schedules
-
   dependencies:
     - job-centos7-rpm
 
