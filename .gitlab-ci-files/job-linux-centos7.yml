@@ -8,6 +8,7 @@ job-centos7-makefile-gcc:
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
   except:
     variables:
+      - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
@@ -23,6 +24,7 @@ job-centos7-makefile-clang:
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
   except:
     variables:
+      - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
@@ -78,5 +80,5 @@ job-centos7-rpm-deploy:
     variables:
       - $DEPLOY_UBUNTU
   script:
-   - cd WORK/flexisip-rpm/rpmbuild/RPMS/x86_64/ && rsync -pr . $OLD_DEPLOY_SERVER:$CENTOS7_DEPLOY_DIRECTORY
-   - ssh $OLD_DEPLOY_SERVER "chmod a+r $CENTOS7_DEPLOY_DIRECTORY/*.rpm && createrepo_c --update $CENTOS7_DEPLOY_DIRECTORY/."
+   - cd WORK/flexisip-rpm/rpmbuild/RPMS/x86_64/ && rsync -pr . $DEPLOY_SERVER:$CENTOS7_DEPLOY_DIRECTORY
+   - ssh $DEPLOY_SERVER "chmod a+r $CENTOS7_DEPLOY_DIRECTORY/*.rpm && createrepo_c --update $CENTOS7_DEPLOY_DIRECTORY/."

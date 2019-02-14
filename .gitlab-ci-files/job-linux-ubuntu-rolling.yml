@@ -8,6 +8,7 @@ job-ubuntu-rolling-makefile-gcc:
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:rolling
   except:
     variables:
+      - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
@@ -23,6 +24,7 @@ job-ubuntu-rolling-makefile-clang:
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:rolling
   except:
     variables:
+      - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
@@ -41,6 +43,7 @@ job-ubuntu-rolling-ninja-gcc:
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:rolling
   except:
     variables:
+      - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
@@ -60,4 +63,4 @@ job-ubuntu-rolling-ninja-clang:
     CMAKE_GENERATOR: Ninja
     CC: clang
     CXX: clang++
-  extends: .job-linux
+  extends: .scheduled-job-linux
