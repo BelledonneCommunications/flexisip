@@ -66,10 +66,7 @@
     expire_in: 1 week
 
 .job-deploy:
-  only:
-    refs:
-      - master
-      - release/*
+  only: ['master', 'release/*', 'schedules']
 
 .job-debian-deb-deploy:
 
