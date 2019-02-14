@@ -67,9 +67,10 @@
 
 .job-deploy:
    only:
-    - master
-    - release/*
-    - schedules
+    refs:
+      - master
+      - release/*
+      - schedules
 
 .job-debian-deb-deploy:
 
