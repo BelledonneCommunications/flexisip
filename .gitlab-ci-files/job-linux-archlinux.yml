@@ -8,6 +8,7 @@ job-archlinux-latest-makefile-gcc:
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-archlinux:latest
   except:
     variables:
+      - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
@@ -23,6 +24,7 @@ job-archlinux-latest-makefile-clang:
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-archlinux:latest
   except:
     variables:
+      - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
@@ -41,6 +43,7 @@ job-archlinux-latest-ninja-gcc:
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-archlinux:latest
   except:
     variables:
+      - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
@@ -55,6 +58,7 @@ job-archlinux-latest-ninja-clang:
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-archlinux:latest
   except:
     variables:
+      - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
