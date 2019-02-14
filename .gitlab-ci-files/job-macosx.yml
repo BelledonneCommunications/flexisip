@@ -4,6 +4,7 @@
   tags: [ "macosx" ]
   except:
     variables:
+      - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
 
   script:
@@ -53,6 +54,7 @@ job-macosx-xcode:
 
   except:
     variables:
+      - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   only:
     - schedules
