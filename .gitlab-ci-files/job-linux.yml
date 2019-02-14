@@ -20,6 +20,9 @@
 
   stage: build
   extends: .linux-ccache
+  except:
+  variables:
+    - $DEPLOY_UBUNTU
 
   script:
     - export CC=$CC
@@ -34,6 +37,9 @@
 .job-linux-rpm:
 
   stage: package
+  except:
+    variables:
+      - $DEPLOY_UBUNTU
 
   script:
     - sudo rpm -e `rpm -qa | grep "^bc-[^0-9]"` || true
@@ -57,7 +63,7 @@
   script:
     - sudo apt-get -y remove `dpkg-query -f '${binary:Package}\n' -W | grep "^bc-"` || true
     - ./prepare.py flexisip-rpm $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
-    - cmake --build WORK/flexisip-rpm/cmake -- $ADDITIONAL_BUILD_OPTIONS
+    - make
 
   artifacts:
     paths:
@@ -78,25 +84,23 @@
   extends: .job-deploy
 
   script:
-   - cd WORK/flexisip-rpm/rpmbuild/DEBS/ && rsync -pr . $DEPLOY_SERVER:$DEBIAN_DEPLOY_DIRECTORY/$DEBIAN_RELEASE
-   - ssh $DEPLOY_SERVER "cd $DEBIAN_DEPLOY_DIRECTORY/$DEBIAN_RELEASE && freight add --conf=/etc/freight.conf *.deb apt/$DEBIAN_RELEASE && freight cache --conf=/etc/freight.conf apt/$DEBIAN_RELEASE"
+   - cd WORK/flexisip-rpm/rpmbuild/DEBS/ && rsync -pr . $DEPLOY_SERVER:$DEPLOY_DIRECTORY/$RELEASE
+   - ssh $DEPLOY_SERVER "cd $DEPLOY_DIRECTORY/$RELEASE && freight add --conf=$FREIGHT_PATH *.deb apt/$RELEASE && freight cache --conf=$FREIGHT_PATH apt/$RELEASE"
 
 #################################################
 # DOCKER
 #################################################
 
-job-flexisip-deb-image-deploy:
+.job-flexisip-image-deploy:
 
   stage: image
   tags: [ "linux-deploy" ]
   except:
     variables:
-      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   only:
     - schedules
-  dependencies:
-    - job-debian9-deb
-
+    
   script:
     - mv WORK/flexisip-rpm/rpmbuild/DEBS docker/DEBS
     - cd docker
