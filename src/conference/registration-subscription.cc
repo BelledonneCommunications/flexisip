@@ -1,17 +1,17 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
  Copyright (C) 2018 Belledonne Communications SARL.
- 
+
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
  published by the Free Software Foundation, either version 3 of the
  License, or (at your option) any later version.
- 
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU Affero General Public License for more details.
- 
+
  You should have received a copy of the GNU Affero General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -23,10 +23,10 @@ using namespace flexisip;
 using namespace std;
 using namespace linphone;
 
-RegistrationSubscription::RegistrationSubscription(const ConferenceServer & server, const std::shared_ptr<linphone::ChatRoom> &cr, 
+RegistrationSubscription::RegistrationSubscription(const ConferenceServer & server, const std::shared_ptr<linphone::ChatRoom> &cr,
 						    const std::shared_ptr<const linphone::Address> &participant)
 	: mServer(server), mChatRoom(cr), mParticipant(participant->clone()) {
-	LOGD("RegistrationSubscription [%p] for chatroom [%p] and participant [%s] initialized.", this, cr.get(), 
+	LOGD("RegistrationSubscription [%p] for chatroom [%p] and participant [%s] initialized.", this, cr.get(),
 	     participant->asStringUriOnly().c_str());
 	mChatroomRequestedCapabilities = cr->getCapabilities() & ~(int)ChatRoomCapabilities::OneToOne;
 }
@@ -56,7 +56,7 @@ void RegistrationSubscription::notifyRegistration(const shared_ptr<Address> &par
  * Redis implementation of RegistrationSubscription.
  */
 
-OwnRegistrationSubscription::OwnRegistrationSubscription(const ConferenceServer & server, const std::shared_ptr<linphone::ChatRoom> &cr, 
+OwnRegistrationSubscription::OwnRegistrationSubscription(const ConferenceServer & server, const std::shared_ptr<linphone::ChatRoom> &cr,
 						    const std::shared_ptr<const linphone::Address> &participant)
 	: RegistrationSubscription(server, cr, participant), mActive(false){
 	mParticipantAor = url_make(mHome.home(), participant->asStringUriOnly().c_str());
@@ -67,16 +67,16 @@ OwnRegistrationSubscription::OwnRegistrationSubscription(const ConferenceServer 
 
 void OwnRegistrationSubscription::start(){
 	if (!mParticipantAor) return;
-	
+
 	mActive = true;
 	/*First organise the fetch of the contacts belonging to this AOR, so that we can notify immediately*/
 	RegistrarDb::get()->fetch(mParticipantAor, RegistrationSubscriptionFetchListener::shared_from_this(), true);
-	
+
 	/*Secondly subscribe for changes in the registration info of this participant*/
 	string key = Record::defineKeyFromUrl(mParticipantAor);
-	
+
 	RegistrarDb::get()->subscribe(key, RegistrationSubscriptionListener::shared_from_this());
-	
+
 }
 
 void OwnRegistrationSubscription::stop(){
@@ -114,6 +114,11 @@ string OwnRegistrationSubscription::getDeviceName(const shared_ptr<ExtendedConta
 	string deviceName;
 	if (begin != string::npos) {
 		size_t end = userAgent.find(")", begin);
+		size_t openingParenthesis = userAgent.find("(", begin + 1);
+		while (openingParenthesis != string::npos && openingParenthesis < end) {
+			openingParenthesis = userAgent.find("(", openingParenthesis + 1);
+			end = userAgent.find(")", end + 1);
+		}
 		if (end != string::npos){
 			deviceName = userAgent.substr(begin + 1, end - (begin + 1));
 		}
@@ -128,7 +133,7 @@ void OwnRegistrationSubscription::processRecord(const std::shared_ptr<Record> &r
 		for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
 			auto addr = getPubGruu(r, ec);
 			if (!addr) continue;
-			
+
 			if (!mServer.capabilityCheckEnabled() || (getContactCapabilities(ec) & mChatroomRequestedCapabilities) == mChatroomRequestedCapabilities){
 				shared_ptr<ParticipantDeviceIdentity> identity = linphone::Factory::get()->createParticipantDeviceIdentity(
 					addr, getDeviceName(ec));
@@ -152,9 +157,9 @@ void OwnRegistrationSubscription::onInvalid (){
 void OwnRegistrationSubscription::onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid){
 	if (!mActive) return;
 	processRecord(r);
-	
+
 	if (uid.empty()) return;
-	
+
 	shared_ptr<ExtendedContact> ct = r->extractContactByUniqueId(uid);
 	if (!ct){
 		LOGI("OwnRegistrationSubscription::onContactRegistered(): no contact with uuid %s, it has unregistered.", uid.c_str());
