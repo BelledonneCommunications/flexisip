@@ -404,11 +404,17 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 				const string &capabilityName = (pos == string::npos) ? capability : capability.substr(0, pos);
 				const string &capabilityVersion = (pos == string::npos) ? "1.0" : capability.substr(pos + 1);
 				const auto &it = mAddedCapabilities.find(capabilityName);
-				if(it != mAddedCapabilities.cend() && std::stof(it->second) >= std::stof(capabilityVersion))
-					continue;
+				if(it != mAddedCapabilities.cend()) {
+					if (std::stof(it->second) >= std::stof(capabilityVersion))
+						continue;
+
+					mAddedCapabilities.erase(it);
+				}
 
 				mAddedCapabilities.insert(make_pair(capabilityName, capabilityVersion));
-				Xsd::Pidf::Tuple::ServiceDescriptionType service(capabilityName, capabilityVersion);
+			}
+			for (const auto &cap : mAddedCapabilities) {
+				Xsd::Pidf::Tuple::ServiceDescriptionType service(cap.first, cap.second);
 				tup->getServiceDescription().push_back(service);
 			}
 			presence.getTuple().push_back(*tup);
