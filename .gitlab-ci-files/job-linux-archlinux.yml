@@ -9,6 +9,7 @@ job-archlinux-latest-makefile-gcc:
   except:
     variables:
       - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: gcc
@@ -24,6 +25,7 @@ job-archlinux-latest-makefile-clang:
   except:
     variables:
       - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: clang
@@ -42,6 +44,7 @@ job-archlinux-latest-ninja-gcc:
   except:
     variables:
       - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CC: gcc
@@ -56,6 +59,7 @@ job-archlinux-latest-ninja-clang:
   except:
     variables:
       - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CC: clang

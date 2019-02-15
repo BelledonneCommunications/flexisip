@@ -9,6 +9,7 @@ job-debian9-makefile-gcc:
   except:
     variables:
       - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: gcc
@@ -24,6 +25,7 @@ job-debian9-makefile-clang:
   except:
     variables:
       - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: clang
@@ -42,6 +44,7 @@ job-debian9-ninja-gcc:
   except:
     variables:
       - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CC: gcc
@@ -53,6 +56,9 @@ job-debian9-ninja-clang:
 
   tags: [ "docker-debian9" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  except:
+    variables:
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CC: clang
@@ -68,12 +74,32 @@ job-debian9-deb:
   tags: [ "docker-debian9" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
   extends: .job-linux-deb
+  except:
+    variables:
+      - $DEPLOY_UBUNTU
 
 
 job-debian9-deb-deploy:
 
+  except:
+    variables:
+      - $DEPLOY_UBUNTU
   variables:
-    DEBIAN_RELEASE: stretch
+    RELEASE: stretch
+    DEPLOY_DIRECTORY: $DEBIAN_DEPLOY_DIRECTORY
+    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
+    DEPLOY_SERVER: $NEW_DEPLOY_SERVER
   extends: .job-debian-deb-deploy
   dependencies:
     - job-debian9-deb
+    
+    
+#################################################
+# Docker
+#################################################
+
+job-flexisip-debian9-image-deploy:
+
+  dependencies:
+    - job-debian9-deb
+  extends: .job-flexisip-image-deploy

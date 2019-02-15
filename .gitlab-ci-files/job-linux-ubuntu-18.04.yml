@@ -2,10 +2,10 @@
 # Makefile
 #################################################
 
-job-debian8-makefile-gcc:
+job-ubuntu-18.04-makefile-gcc:
 
-  tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  tags: [ "docker-ubuntu-18.04" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
   except:
     variables:
       - $DEPLOY_RUN
@@ -15,17 +15,17 @@ job-debian8-makefile-gcc:
     CC: gcc
     CXX: g++
     ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
-  extends: .scheduled-job-linux
+  extends: .job-linux
 
 
-job-debian8-makefile-clang:
+job-ubuntu-18.04-makefile-clang:
 
-  tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  tags: [ "docker-ubuntu-18.04" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
   except:
-  variables:
-    - $DEPLOY_RUN
-    - $DEPLOY_UBUNTU
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: clang
@@ -37,10 +37,10 @@ job-debian8-makefile-clang:
 # Ninja
 #################################################
 
-job-debian8-ninja-gcc:
+job-ubuntu-18.04-ninja-gcc:
 
-  tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  tags: [ "docker-ubuntu-18.04" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
   except:
     variables:
       - $DEPLOY_RUN
@@ -49,13 +49,13 @@ job-debian8-ninja-gcc:
     CMAKE_GENERATOR: Ninja
     CC: gcc
     CXX: g++
-  extends: .job-linux
+  extends: .scheduled-job-linux
 
 
-job-debian8-ninja-clang:
+job-ubuntu-18.04-ninja-clang:
 
-  tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  tags: [ "docker-ubuntu-18.04" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
   except:
     variables:
       - $DEPLOY_UBUNTU
@@ -64,31 +64,28 @@ job-debian8-ninja-clang:
     CC: clang
     CXX: clang++
   extends: .scheduled-job-linux
-
+  
 #################################################
 # DEB
 #################################################
 
-job-debian8-deb:
+job-ubuntu-18.04-deb:
 
-  except:
-    variables:
-      - $DEPLOY_UBUNTU
-  tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  tags: [ "docker-ubuntu-18.04" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
   extends: .job-linux-deb
+  only:
+    - schedules
 
 
-job-debian8-deb-deploy:
 
-  except:
-    variables:
-      - $DEPLOY_UBUNTU
+job-ubuntu-18.04-deb-deploy:
+
   variables:
-    RELEASE: jessie
-    DEPLOY_DIRECTORY: $DEBIAN_DEPLOY_DIRECTORY
-    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
+    RELEASE: bionic
+    DEPLOY_DIRECTORY: $UBUNTU_DEPLOY_DIRECTORY
+    FREIGHT_PATH: $UBUNTU_FREIGHT_CONF_PATH
     DEPLOY_SERVER: $NEW_DEPLOY_SERVER
   extends: .job-debian-deb-deploy
   dependencies:
-    - job-debian8-deb
+    - job-ubuntu-18.04-deb
