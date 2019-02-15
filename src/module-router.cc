@@ -66,8 +66,6 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		{String, "generated-contact-expected-realm",
 			"Require presence of authorization header for specified realm. [Realm]", ""},
 		{Boolean, "generate-contact-even-on-filled-aor", "Generate a contact route even on filled AOR.", "false"},
-		{Boolean, "remove-to-tag", "Remove to tag from 183, 180, and 101 responses to workaround buggy gateways",
-			"false"},
 		{String, "preroute", "Rewrite username with given value.", ""},
 		{Boolean, "resolve-routes", "Whether or not to resolve next hope in route header against registrar database."
 			" This is an extension to RFC3261, and should not be used unless in some specific deployment cases."
@@ -109,7 +107,6 @@ void ModuleRouter::onLoad(const GenericStruct *mc) {
 	mForkCfg->mPushResponseTimeout = mc->get<ConfigInt>("call-push-response-timeout")->read();
 	mForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("call-fork-timeout")->read();
 	mForkCfg->mTreatDeclineAsUrgent = mc->get<ConfigBoolean>("treat-decline-as-urgent")->read();
-	mForkCfg->mRemoveToTag = mc->get<ConfigBoolean>("remove-to-tag")->read();
 	mForkCfg->mCurrentBranchesTimeout = mc->get<ConfigInt>("call-fork-current-branches-timeout")->read();
 
 	//Forking configuration for MESSAGEs

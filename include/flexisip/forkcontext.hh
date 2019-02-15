@@ -37,7 +37,6 @@ class ForkContextConfig {
 	bool mTreatAllErrorsAsUrgent; /*treat all SIP response code as urgent replies in the fork mechanism.*/
 	bool mForkNoGlobalDecline;
 	bool mTreatDeclineAsUrgent; /*treat 603 declined as a urgent response, only useful is mForkNoGlobalDecline==true*/
-	bool mRemoveToTag;			/*workaround buggy OVH which wrongly terminates wrong call*/
 	int mCurrentBranchesTimeout; /*timeout for receiving response on current branches*/
 };
 

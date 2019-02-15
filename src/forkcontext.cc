@@ -30,7 +30,7 @@ const int ForkContext::sAllCodesUrgent[] = {-1, 0};
 
 ForkContextConfig::ForkContextConfig()
 	: mDeliveryTimeout(0), mUrgentTimeout(5), mForkLate(false), mTreatAllErrorsAsUrgent(false),
-	  mForkNoGlobalDecline(false), mTreatDeclineAsUrgent(false), mRemoveToTag(false),
+	  mForkNoGlobalDecline(false), mTreatDeclineAsUrgent(false),
 	  mCurrentBranchesTimeout(0) {
 }
 

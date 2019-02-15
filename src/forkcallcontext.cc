@@ -155,8 +155,8 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo> &br, const shared_
 	}
 }
 
-// This is actually called when we want to simulate a ringing event, for example when a push notification is sent to a
-// device.
+// This is actually called when we want to simulate a ringing event by sending a 180, or for example to signal the caller that we've sent
+// a push notification.
 void ForkCallContext::sendResponse(int code, char const *phrase) {
 	if (code == 180) {
 		int previousCode = getLastResponseCode();
@@ -171,12 +171,6 @@ void ForkCallContext::sendResponse(int code, char const *phrase) {
 	shared_ptr<ResponseSipEvent> ev(
 		new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 
-	// add a to tag, no set by sofia here.
-	if (!mCfg->mRemoveToTag) {
-		const char *totag = nta_agent_newtag(msgsip->getHome(), "%s", mAgent->getSofiaAgent());
-		sip_to_tag(msgsip->getHome(), msgsip->getSip()->sip_to, totag);
-	}
-
 	if (mPushTimer)
 		su_timer_destroy(mPushTimer), mPushTimer = NULL;
 
@@ -184,7 +178,6 @@ void ForkCallContext::sendResponse(int code, char const *phrase) {
 		mPushTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
 		su_timer_set_interval(mPushTimer, &ForkCallContext::sOnPushTimer, this, (su_duration_t)mCfg->mPushResponseTimeout * 1000);
 	}
-
 	forwardResponse(ev);
 }
 
