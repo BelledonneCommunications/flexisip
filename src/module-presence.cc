@@ -32,7 +32,7 @@ private:
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
-			{String, "presence-server", "A sip uri where to send all presence related requests.", "sip:127.0.0.1:5065"},
+			{String, "presence-server", "A sip uri where to send all presence related requests.", "sip:127.0.0.1:5065;transport=tcp"},
 			{BooleanExpr, "only-list-subscription", "If true, only manage list subscription.", "false"},
 			{Boolean, "check-domain-in-presence-results",
 				"When getting the list of users with phones, if this setting is enabled, it will limit the results to the ones that have the same domain",
@@ -120,5 +120,5 @@ ModuleInfo<ModulePresence> ModulePresence::sInfo(
 	"Presence",
 	"This module transfert sip presence messages, like subscribe/notify/publish to a presence server.",
 	{ "GatewayAdapter" },
-	ModuleInfoBase::ModuleOid::Presence, ModuleClass::Experimental
+	ModuleInfoBase::ModuleOid::Presence
 );
