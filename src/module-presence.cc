@@ -16,9 +16,11 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <flexisip/module.hh>
-#include <flexisip/agent.hh>
-#include <flexisip/logmanager.hh>
+#include "flexisip/agent.hh"
+#include "flexisip/logmanager.hh"
+#include "flexisip/module.hh"
+
+#include "utils/sip-uri.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -26,7 +28,7 @@ using namespace flexisip;
 class ModulePresence : public Module, ModuleToolbox {
 private:
 	static ModuleInfo<ModulePresence> sInfo;
-	string mDestRoute;
+	unique_ptr<SipUri> mDestRoute;
 	su_home_t mHome;
 	shared_ptr<BooleanExpression> mOnlyListSubscription;
 
@@ -62,9 +64,14 @@ private:
 	}
 
 	void onLoad(const GenericStruct *mc) {
-		mDestRoute = mc->get<ConfigString>("presence-server")->read();
+		try {
+			mDestRoute.reset(new SipUri(mc->get<ConfigString>("presence-server")->read()));
+		} catch (const invalid_argument &e) {
+			LOGA("invalid SIP URI  (%s) in 'presence-server' parameter of 'Presence' module", mDestRoute->str().c_str());
+		}
+
 		mOnlyListSubscription = mc->get<ConfigBooleanExpression>("only-list-subscription")->read();
-		SLOGI << getModuleName() << ": presence server is [" << mDestRoute << "]";
+		SLOGI << getModuleName() << ": presence server is [" << mDestRoute->str() << "]";
 		SLOGI << getModuleName() << ": Non list subscription are " << (mOnlyListSubscription ? "not" : "")
 			<< " redirected by presence server";
 	}
@@ -73,9 +80,9 @@ private:
 	}
 
 	void route(shared_ptr<RequestSipEvent> &ev) {
-		SLOGI << getModuleName() << " routing to [" << mDestRoute << "]";
+		SLOGI << getModuleName() << " routing to [" << mDestRoute->str() << "]";
 		cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
-							 sip_route_make(&mHome, mDestRoute.c_str()));
+							 sip_route_create(&mHome, mDestRoute->get(), nullptr));
 	}
 	bool isMessageAPresenceMessage(shared_ptr<RequestSipEvent> &ev) {
 		sip_t *sip = ev->getSip();
