@@ -9,7 +9,7 @@ namespace flexisip {
 
 SipUri::SipUri(const std::string &str) {
 	su_home_init(&_home);
-	_url = url_make(&_home, _urlAsStr.c_str());
+	_url = url_make(&_home, str.c_str());
 	if (_url == nullptr) {
 		su_home_deinit(&_home);
 		ostringstream os;
