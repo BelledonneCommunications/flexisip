@@ -64,10 +64,11 @@ private:
 	}
 
 	void onLoad(const GenericStruct *mc) {
+		string destRouteStr = mc->get<ConfigString>("presence-server")->read();
 		try {
-			mDestRoute.reset(new SipUri(mc->get<ConfigString>("presence-server")->read()));
+			mDestRoute.reset(new SipUri(destRouteStr));
 		} catch (const invalid_argument &e) {
-			LOGA("invalid SIP URI  (%s) in 'presence-server' parameter of 'Presence' module", mDestRoute->str().c_str());
+			LOGA("invalid SIP URI  (%s) in 'presence-server' parameter of 'Presence' module", destRouteStr.c_str());
 		}
 
 		mOnlyListSubscription = mc->get<ConfigBooleanExpression>("only-list-subscription")->read();
