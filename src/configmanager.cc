@@ -914,7 +914,7 @@ GenericManager::GenericManager()
 			"16-sized hexadecimal number. If empty, it will be randomly generated at each start of Flexisip.", ""},
 		{Boolean, "use-maddr", "Allow flexisip to use maddr in sips connections to verify the CN of the TLS certificate.", "false"},
 		{Boolean, "debug", "Outputs very detailed logs.", "false"},
-		{String, "plugins-dir", "Path to the directory where plugins can be found.", "/usr/lib/flexisip/plugins/"},
+		{String, "plugins-dir", "Path to the directory where plugins can be found.", DEFAULT_PLUGINS_DIR},
 		{StringList, "plugins", "Plugins to use.", ""},
 		config_item_end};
 

@@ -40,4 +40,7 @@
 /* Default log directory */
 #define DEFAULT_LOG_DIR "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/log/flexisip"
 
+/* Default directory for Flexisip's plugins */
+#define DEFAULT_PLUGINS_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/flexisip/plugins"
+
 #define BELR_GRAMMARS_DIR "${BELR_GRAMMARS_DIR}"
