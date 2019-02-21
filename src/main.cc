@@ -468,8 +468,7 @@ static void depthFirstSearch(string &path, GenericEntry *config, list<string> &a
 	}
 }
 
-static int dump_config(su_root_t *root, const std::string &dump_cfg_part, bool with_experimental,
-					   const string &format) {
+static int dump_config(su_root_t *root, const std::string &dump_cfg_part, bool with_experimental, bool dumpDefault, const string &format) {
 	shared_ptr<Agent> a = make_shared<Agent>(root);
 	GenericStruct *rootStruct = GenericManager::get()->getRoot();
 
@@ -503,7 +502,10 @@ static int dump_config(su_root_t *root, const std::string &dump_cfg_part, bool w
 	} else if (format == "doku") {
 		dumper = new DokuwikiConfigDumper(rootStruct);
 	} else if (format == "file") {
-		dumper = new FileConfigDumper(rootStruct);
+		FileConfigDumper *fileDumper = new FileConfigDumper(rootStruct);
+		fileDumper->setMode(dumpDefault ? FileConfigDumper::Mode::DefaultValue : FileConfigDumper::Mode::DefaultIfUnset);
+		dumper = fileDumper;
+
 	} else if (format == "media") {
 		dumper = new MediaWikiConfigDumper(rootStruct);
 	} else if (format == "xwiki") {
@@ -632,12 +634,15 @@ int main(int argc, char *argv[]) {
 
 	TCLAP::SwitchArg              dumpMibs("",  "dump-mibs", 		"Will dump the MIB files for Flexisip performance counters and other related SNMP items.", cmd);
 	TCLAP::ValueArg<string>    dumpDefault("",  "dump-default",		"Dump default config, with specifier for the module to dump. Use 'all' to dump all modules, or 'MODULENAME' to dump "
-										   							"a specific module. For instance, to dump the Router module default config, issue 'flexisip --dump-default module::Router.",
-										   TCLAP::ValueArgOptional, "", "all", cmd);
+										   							"a specific module. For instance, to dump the Router module default config, "
+																	"issue 'flexisip --dump-default module::Router.", TCLAP::ValueArgOptional, "", "all", cmd);
 
 	TCLAP::SwitchArg               dumpAll("",  "dump-all-default", "Will dump all the configuration. This is equivalent to '--dump-default all'.", cmd);
-	TCLAP::ValueArg<string>     dumpFormat("",  "dump-format",		"Select the format in which the dump-default will print. The default is 'file'. Possible values are: file, tex, doku, media.",
-										   TCLAP::ValueArgOptional, "file", "file", cmd);
+	TCLAP::ValueArg<string>     dumpFormat("",  "dump-format",		"Select the format in which the dump-default will print. The default is 'file'. Possible values are: "
+																	"file, tex, doku, media.", TCLAP::ValueArgOptional, "file", "file", cmd);
+
+	TCLAP::SwitchArg           rewriteConf("",  "rewrite-config",   "Load the configuration file and dump a new one on stdout, adding the new settings and updating documentations. "
+	                                                                "All the existing settings are kept even if they are equal to the default value and the default value has changed.", cmd);
 
 	TCLAP::SwitchArg           listModules("",  "list-modules", 	"Will print a list of available modules. This is useful if you want to combine with --dump-default "
 										   							"to have specific documentation for a module.", cmd);
@@ -693,7 +698,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (module.length() != 0) {
-		int status = dump_config(root, module, displayExperimental, dumpFormat.getValue());
+		int status = dump_config(root, module, displayExperimental, true, dumpFormat.getValue());
 		return status;
 	}
 
@@ -742,6 +747,10 @@ int main(int argc, char *argv[]) {
 						"'--dump-default all' option.\n",
 				versionString.c_str(), configFile.getValue().c_str());
 		return -1;
+	}
+
+	if (rewriteConf) {
+		return dump_config(root, "all", displayExperimental, false, "file");
 	}
 
 	if (!debug){

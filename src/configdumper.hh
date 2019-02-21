@@ -101,19 +101,26 @@ inline std::ostream &operator<<(std::ostream &ostr, const ConfigDumper &dumper) 
 /* File config dumper, used to rewrite the configuration file when needed. */
 
 class FileConfigDumper : public ConfigDumper {
-  public:
-	FileConfigDumper(GenericEntry *root) : ConfigDumper(root) {
-		mDumpDefault = true;
-	}
-	void setDumpDefaultValues(bool value) {
-		mDumpDefault = value;
-	}
+public:
 
-  private:
-	bool mDumpDefault;
+	enum class Mode {
+		CurrentValue, /** The value of the parameter will be dump as is, even if it is empty */
+		DefaultValue, /** The value of the parameter will be systematically overridden by the default value */
+		DefaultIfUnset /** The value of the parameter will be overridden by the default value, should the value be empty */
+	};
+
+	FileConfigDumper(GenericEntry *root) : ConfigDumper(root) {}
+
+	/**
+	 * Set the policy to use for generating the value of each parameter in the file.
+	 */
+	void setMode(Mode mode) {mDumpMode = mode;}
+
+private:
+	Mode mDumpMode = Mode::DefaultValue;
 	std::ostream &printHelp(std::ostream &os, const std::string &help, const std::string &comment_prefix) const;
 
-  protected:
+protected:
 	virtual std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const;
 	virtual std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const;
 };

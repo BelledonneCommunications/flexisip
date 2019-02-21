@@ -50,7 +50,7 @@ bool ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigSt
 				ofstream cfgfile;
 				cfgfile.open(GenericManager::get()->getConfigFile());
 				FileConfigDumper dumper(rootStruct);
-				dumper.setDumpDefaultValues(false);
+				dumper.setMode(FileConfigDumper::Mode::CurrentValue);
 				cfgfile << dumper;
 				cfgfile.close();
 				LOGI("New configuration wrote to %s .", GenericManager::get()->getConfigFile().c_str());

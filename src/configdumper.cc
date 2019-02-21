@@ -101,7 +101,7 @@ ostream &FileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue
 		printHelp(ostr, val->getHelp(), "#");
 		ostr << "#  Default value: " << val->getDefault() << endl;
 
-		if (mDumpDefault) {
+		if (mDumpMode == Mode::DefaultValue || (mDumpMode == Mode::DefaultIfUnset && val->get().empty())) {
 			ostr << val->getName() << "=" << val->getDefault() << endl;
 		} else {
 			ostr << val->getName() << "=" << val->get() << endl;
