@@ -469,9 +469,14 @@ static void depthFirstSearch(string &path, GenericEntry *config, list<string> &a
 }
 
 static int dump_config(su_root_t *root, const std::string &dump_cfg_part, bool with_experimental, bool dumpDefault, const string &format) {
+	GenericManager::get()->applyOverrides(true);
+	ConfigString *pluginsDirEntry = GenericManager::get()->getGlobal()->get<ConfigString>("plugins-dir");
+	if (pluginsDirEntry->get().empty()) {
+		pluginsDirEntry->set(DEFAULT_PLUGINS_DIR);
+	}
 	shared_ptr<Agent> a = make_shared<Agent>(root);
-	GenericStruct *rootStruct = GenericManager::get()->getRoot();
 
+	GenericStruct *rootStruct = GenericManager::get()->getRoot();
 	if (dump_cfg_part != "all") {
 
 		size_t prefix_location = dump_cfg_part.find("module::");
@@ -613,7 +618,6 @@ int main(int argc, char *argv[]) {
 #endif
 	bool debug;
 	bool user_errors = false;
-	map<string, string> oset;
 
 	string versionString = version();
 	// clang-format off
@@ -637,7 +641,8 @@ int main(int argc, char *argv[]) {
 										   							"a specific module. For instance, to dump the Router module default config, "
 																	"issue 'flexisip --dump-default module::Router.", TCLAP::ValueArgOptional, "", "all", cmd);
 
-	TCLAP::SwitchArg               dumpAll("",  "dump-all-default", "Will dump all the configuration. This is equivalent to '--dump-default all'.", cmd);
+	TCLAP::SwitchArg               dumpAll("",  "dump-all-default", "Will dump all the configuration. This is equivalent to '--dump-default all'. This option may be combined with "
+																	"'--set global/plugins=<plugin_list>' to also generate the settings of listed plugins.", cmd);
 	TCLAP::ValueArg<string>     dumpFormat("",  "dump-format",		"Select the format in which the dump-default will print. The default is 'file'. Possible values are: "
 																	"file, tex, doku, media.", TCLAP::ValueArgOptional, "file", "file", cmd);
 
@@ -677,19 +682,17 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	if (overrideConfig.getValue().size() != 0) {
-		auto values = overrideConfig.getValue();
-		for (auto it = values.begin(); it != values.end(); ++it) {
-			auto pair = *it;
-			size_t eq = pair.find("=");
-			if (eq != pair.npos) {
-				oset[pair.substr(0, eq)] = pair.substr(eq + 1);
-			}
+	map<string, string> oset;
+	for (const string &kv : overrideConfig.getValue()) {
+		auto equal = find(kv.cbegin(), kv.cend(), '=');
+		if (equal != kv.cend()) {
+			oset[string(kv.cbegin(), equal)] = string(equal+1, kv.cend());
 		}
 	}
 
 	// Instanciate the Generic manager
 	GenericManager *cfg = GenericManager::get();
+	cfg->setOverrideMap(oset);
 
 	// list default config and exit
 	std::string module = dumpDefault.getValue();
@@ -735,8 +738,6 @@ int main(int argc, char *argv[]) {
 		}
 		return EXIT_SUCCESS;
 	}
-
-	GenericManager::get()->setOverrideMap(oset);
 
 	if (cfg->load(configFile.getValue().c_str()) == -1) {
 		fprintf(stderr, "Flexisip version %s\n"
@@ -899,8 +900,7 @@ int main(int argc, char *argv[]) {
 		}
 	#endif
 
-		if (!oset.empty())
-			cfg->applyOverrides(true); // using default + overrides
+		cfg->applyOverrides(true); // using default + overrides
 
 		// Create cached test accounts for the Flexisip monitor if necessary
 		if (monitorEnabled) {

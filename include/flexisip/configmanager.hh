@@ -411,6 +411,8 @@ class ConfigValue : public GenericEntry {
 	ConfigValue(const std::string &name, GenericValueType vt, const std::string &help, const std::string &default_value,
 				oid oid_index);
 	void set(const std::string &value);
+	void set(std::string &&value);
+
 	void setNextValue(const std::string &value);
 	virtual const std::string &get() const;
 	const std::string &getNextValue() const {
@@ -632,9 +634,9 @@ class GenericManager : protected ConfigValueListener {
 		return mConfigFile;
 	}
 
-	void setOverrideMap(const std::map<std::string, std::string> overrides) {
-		mOverrides = overrides;
-	}
+	void setOverrideMap(const std::map<std::string, std::string> &overrides) {mOverrides = overrides;}
+	void setOverrideMap(std::map<std::string, std::string> &&overrides) {mOverrides = move(overrides);}
+
 	std::map<std::string, std::string> &getOverrideMap() {
 		return mOverrides;
 	}

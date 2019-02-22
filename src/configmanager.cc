@@ -254,12 +254,16 @@ ConfigValue::ConfigValue(const string &name, GenericValueType vt, const string &
 }
 
 void ConfigValue::set(const string &value) {
+	set(string(value));
+}
+
+void ConfigValue::set(std::string &&value) {
 	if (getType() == Boolean) {
 		if (value != "true" && value != "false" && value != "1" && value != "0") {
 			LOGF("Not a boolean: \"%s\" for key \"%s\" ", value.c_str(), getName().c_str());
 		}
 	}
-	mValue = value;
+	mValue = move(value);
 }
 
 void ConfigValue::setNextValue(const string &value) {
