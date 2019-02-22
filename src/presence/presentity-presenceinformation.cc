@@ -424,7 +424,6 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 				mAddedCapabilities.insert(make_pair(capabilityName, capabilityVersion));
 			}
 			if (addService) {
-				//tup->getServiceDescription().clear();
 				for (const auto &cap : mAddedCapabilities) {
 					Xsd::Pidf::Tuple::ServiceDescriptionType service(cap.first, cap.second);
 					auto predicate= [cap](Xsd::Pidf::Tuple::ServiceDescriptionType serviceDescription) {
