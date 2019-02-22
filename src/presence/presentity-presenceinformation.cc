@@ -360,6 +360,7 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 						auto predicate = [](char c){ return ::isspace(c) || c == '"'; };
 						mCapabilities.erase(remove_if(mCapabilities.begin(), mCapabilities.end(), predicate), mCapabilities.end());
 						vector<string> capabilityVector = StringUtils::split(mCapabilities, ",");
+						bool addService = false;
 						for (const auto &capability : capabilityVector) {
 							if (capability.empty()) continue;
 
@@ -367,12 +368,20 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 							const string &capabilityName = (pos == string::npos) ? capability : capability.substr(0, pos);
 							const string &capabilityVersion = (pos == string::npos) ? "1.0" : capability.substr(pos + 1);
 							const auto &it = mAddedCapabilities.find(capabilityName);
-							if(it != mAddedCapabilities.cend() && std::stof(it->second) >= std::stof(capabilityVersion))
-								continue;
+							if(it != mAddedCapabilities.cend()) {
+								if (std::stof(it->second) >= std::stof(capabilityVersion))
+									continue;
 
+								mAddedCapabilities.erase(it);
+							}
+							addService = true;
 							mAddedCapabilities.insert(make_pair(capabilityName, capabilityVersion));
-							Xsd::Pidf::Tuple::ServiceDescriptionType service(capabilityName, capabilityVersion);
-							tup->getServiceDescription().push_back(service);
+						}
+						if (addService) {
+							for (const auto &cap : mAddedCapabilities) {
+								Xsd::Pidf::Tuple::ServiceDescriptionType service(cap.first, cap.second);
+								tup->getServiceDescription().push_back(service);
+							}
 						}
 						presence.getTuple().push_back(*tup);
 						tupleList.push_back(tup.get()->getId());
@@ -397,6 +406,7 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 			auto predicate = [](char c){ return ::isspace(c) || c == '"'; };
 			mCapabilities.erase(remove_if(mCapabilities.begin(), mCapabilities.end(), predicate), mCapabilities.end());
 			vector<string> capabilityVector = StringUtils::split(mCapabilities, ",");
+			bool addService = false;
 			for (const auto &capability : capabilityVector) {
 				if (capability.empty()) continue;
 
@@ -410,12 +420,19 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 
 					mAddedCapabilities.erase(it);
 				}
-
+				addService = true;
 				mAddedCapabilities.insert(make_pair(capabilityName, capabilityVersion));
 			}
-			for (const auto &cap : mAddedCapabilities) {
-				Xsd::Pidf::Tuple::ServiceDescriptionType service(cap.first, cap.second);
-				tup->getServiceDescription().push_back(service);
+			if (addService) {
+				for (const auto &cap : mAddedCapabilities) {
+					Xsd::Pidf::Tuple::ServiceDescriptionType service(cap.first, cap.second);
+					auto predicate= [cap](Xsd::Pidf::Tuple::ServiceDescriptionType serviceDescription) {
+						return (cap.first == serviceDescription.getServiceId()) && (cap.second == serviceDescription.getVersion());
+					};
+					const auto &it = std::find_if(tup->getServiceDescription().begin(), tup->getServiceDescription().end(), predicate);
+					if (it == tup->getServiceDescription().end())
+						tup->getServiceDescription().push_back(service);
+				}
 			}
 			presence.getTuple().push_back(*tup);
 
