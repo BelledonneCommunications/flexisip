@@ -1,5 +1,7 @@
 #include <belle-sip/belle-sip.h>
 
+#include <flexisip/registrardb.hh>
+
 #include "presence-longterm.hh"
 #include "presentity-presenceinformation.hh"
 
@@ -62,7 +64,52 @@ private:
 				SLOGD << __FILE__ << ": " << "Found user " << user << " for phone "
 					<< belle_sip_uri_get_user(info->getEntity()) << ", adding contact " << contact_as_string << " presence information";
 				info->setDefaultElement(contact_as_string);
+
+				class InternalListListener : public ContactUpdateListener {
+				public:
+					InternalListListener(shared_ptr<PresentityPresenceInformation> info, const char *user) : mInfo(info), mUser(user) {}
+
+					void onRecordFound(const std::shared_ptr<Record> &record) {
+						if (!record)
+							return;
+						
+						bool groupChatSupported = false;
+						bool limeSupported = false;
+						auto listeners = mInfo->getListeners();
+						for (const auto extendedContact : record->getExtendedContacts()) {
+							const string specs = extendedContact->getOrgLinphoneSpecs();
+							groupChatSupported |= (specs.find("groupchat") != specs.npos);
+							limeSupported |= (specs.find("lime") != specs.npos);
+							if (groupChatSupported || limeSupported) {
+								auto predicate = [this] (const shared_ptr<const PresentityPresenceInformationListener> &listener) {
+									const char *listenerUri = belle_sip_uri_get_user(listener->getPresentityUri());
+									return listenerUri ? string(this->mUser) == string(listenerUri): false;
+								};
+								auto foundListener = std::find_if(listeners.cbegin(), listeners.cend(), predicate);
+								if (foundListener != listeners.cend())
+									foundListener->get()->addCapability(specs);
+							}
+						}
+						for (const auto &listener : listeners)
+								mInfo->addOrUpdateListener(listener);
+					}
+					void onError() {}
+					void onInvalid() {}
+					void onContactUpdated(const std::shared_ptr<ExtendedContact> &) {}
+
+					su_home_t *getHome() { return mHome.home(); }
+
+				private:
+					SofiaAutoHome mHome;
+					shared_ptr<PresentityPresenceInformation> mInfo;
+					const char *mUser;
+				};
+
+				// Fetch Redis info.
+				shared_ptr<InternalListListener> listener = make_shared<InternalListListener>(info, cuser);
+				url_t *url = url_make(listener->getHome(), contact_as_string);
 				belle_sip_free(contact_as_string);
+				RegistrarDb::get()->fetch(url, listener);
 			} else {
 				SLOGD << __FILE__ << ": " << "Found user " << user << ", adding presence information";
 				info->setDefaultElement();

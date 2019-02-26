@@ -688,7 +688,8 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 											return key == Record::defineKeyFromUrl(url);
 										};
 										auto foundListener = std::find_if(listeners.cbegin(), listeners.cend(), predicate);
-										foundListener->get()->addCapability(specs);
+										if (foundListener != listeners.cend())
+											foundListener->get()->addCapability(specs);
 									}
 								}
 							}
