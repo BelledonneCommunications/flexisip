@@ -98,7 +98,7 @@ void ModuleExternalAuthentication::onDeclare(GenericStruct *mc) {
 void ModuleExternalAuthentication::onLoad(const GenericStruct *mc) {
 	list<string> authDomains = mc->get<ConfigStringList>("auth-domains")->read();
 
-	list<string> mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
+	mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
 	if (mAlgorithms.empty()) mAlgorithms = {"MD5", "SHA-256"};
 	mAlgorithms.unique();
 

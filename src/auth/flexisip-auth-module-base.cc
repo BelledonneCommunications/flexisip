@@ -100,7 +100,7 @@ void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challe
 	} else {
 		/* There was no realm or credentials, send challenge */
 		SLOGD << __func__ << ": no credentials matched realm or no realm";
-		auth_challenge_digest(mAm, as.getPtr(), ach);
+		challenge(as, ach);
 		mNonceStore.insert(as.response());
 
 		// Retrieve the password in the hope it will be in cache when the remote UAC
@@ -115,22 +115,35 @@ void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challe
 
 void FlexisipAuthModuleBase::onChallenge(AuthStatus &as, auth_challenger_t const *ach) {
 	auth_challenge_digest(mAm, as.getPtr(), ach);
+
+	msg_header_t *response = as.response();
+	as.response(nullptr);
+
+	auto &flexisipAs = dynamic_cast<FlexisipAuthStatus &>(as);
+	for (const std::string &algo : flexisipAs.usedAlgo()) {
+		msg_header_t *challenge;
+		const char *algoValue = msg_header_find_param(reinterpret_cast<msg_common_t *>(response), "algorithm");
+		if (algo == &algoValue[1]) {
+			challenge = response;
+		} else {
+			const char *param = su_sprintf(as.home(), "algorithm=%s", algo.c_str());
+			challenge = msg_header_copy(as.home(), response);
+			msg_header_replace_param(as.home(), reinterpret_cast<msg_common_t *>(challenge), param);
+		}
+
+		if (as.response()) {
+			reinterpret_cast<msg_auth_t *>(as.response())->au_next = reinterpret_cast<msg_auth_t *>(challenge);
+		} else {
+			as.response(challenge);
+		}
+	}
 }
 
 void FlexisipAuthModuleBase::onCancel(AuthStatus &as) {
 	auth_cancel_default(mAm, as.getPtr());
 }
 
-/**
- * return true if the event is terminated
- */
 void FlexisipAuthModuleBase::finish(FlexisipAuthStatus &as) {
-	if ((as.usedAlgo().size() > 1) && (as.status() == 401)) {
-		auto *response = reinterpret_cast<msg_auth_t *>(msg_header_copy(as.home(), as.response()));
-		msg_header_remove_param(reinterpret_cast<msg_common_t *>(as.response()), "algorithm=MD5");
-		msg_header_replace_item(as.home(), reinterpret_cast<msg_common_t *>(as.response()), "algorithm=SHA-256");
-		reinterpret_cast<msg_auth_t *>(as.response())->au_next = response;
-	}
 	as.getPtr()->as_callback(as.magic(), as.getPtr());
 }
 
