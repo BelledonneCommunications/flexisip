@@ -675,21 +675,21 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 							for (const auto &record : records) {
 								bool groupChatSupported = false;
 								bool limeSupported = false;
-								auto &listeners = mListSubscription->getListeners();
 								for (const auto extendedContact : record->getExtendedContacts()) {
 									const string specs = extendedContact->getOrgLinphoneSpecs();
 									groupChatSupported |= (specs.find("groupchat") != specs.npos);
 									limeSupported |= (specs.find("lime") != specs.npos);
 									if (groupChatSupported || limeSupported) {
-										const string &key = record->getKey();
-										auto predicate = [key](const shared_ptr<const PresentityPresenceInformationListener> &listener) {
-											SofiaAutoHome home;
-											url_t *url = url_make(home.home(), belle_sip_uri_to_string(listener->getPresentityUri()));
-											return key == Record::defineKeyFromUrl(url);
-										};
-										auto foundListener = std::find_if(listeners.cbegin(), listeners.cend(), predicate);
-										if (foundListener != listeners.cend())
-											foundListener->get()->addCapability(specs);
+										const string &uriStr = "sip:" + record->getKey();
+										belle_sip_uri_t *uri = belle_sip_uri_parse(uriStr.c_str());
+										if (!uri) {
+											SLOGE << "Couldn't add capability to: " << uriStr << ", because uri couldn't be parsed";
+											continue;
+										}
+
+										shared_ptr<PresentityPresenceInformation> info = mPresenceServer->getPresenceInfo(uri);
+										if (info)
+												info->addCapability(specs);
 									}
 								}
 							}
