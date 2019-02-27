@@ -657,57 +657,12 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					}
 					// send 200ok late to allow deeper analysis of request
 					belle_sip_server_transaction_send_response(server_transaction, resp);
-					vector<url_t *> listenersUrl;
-					for (auto &listener : listSubscription->getListeners()) {
+					for (auto &listener : listSubscription->getListeners())
 						listener->enableBypass(bypass); //expiration is handled by dialog
-						url_t *url = url_make(listSubscription->getHome(), belle_sip_uri_to_string(listener->getPresentityUri()));
-						listenersUrl.push_back(url);
-					}
 
-					class InternalListListener : public ListContactUpdateListener {
-					public:
-						InternalListListener(
-							shared_ptr<ListSubscription> listSubscription,
-							belle_sip_response_t *resp,
-							PresenceServer *presenceServer
-						) : mListSubscription(listSubscription), mResp(resp), mPresenceServer(presenceServer) {}
-						void onContactsUpdated() {
-							for (const auto &record : records) {
-								bool groupChatSupported = false;
-								bool limeSupported = false;
-								for (const auto extendedContact : record->getExtendedContacts()) {
-									const string specs = extendedContact->getOrgLinphoneSpecs();
-									groupChatSupported |= (specs.find("groupchat") != specs.npos);
-									limeSupported |= (specs.find("lime") != specs.npos);
-									if (groupChatSupported || limeSupported) {
-										const string &uriStr = "sip:" + record->getKey();
-										belle_sip_uri_t *uri = belle_sip_uri_parse(uriStr.c_str());
-										if (!uri) {
-											SLOGE << "Couldn't add capability to: " << uriStr << ", because uri couldn't be parsed";
-											continue;
-										}
-
-										shared_ptr<PresentityPresenceInformation> info = mPresenceServer->getPresenceInfo(uri);
-										if (info)
-												info->addCapability(specs);
-									}
-								}
-							}
-
-							mPresenceServer->addOrUpdateListeners(mListSubscription->getListeners());
-							mListSubscription->notify(true);
-							belle_sip_object_unref(mResp);
-						}
-
-					private:
-						shared_ptr<ListSubscription> mListSubscription;
-						belle_sip_response_t *mResp;
-						PresenceServer *mPresenceServer;
-					};
-
-					// Fetch Redis info.
-					shared_ptr<InternalListListener> listener = make_shared<InternalListListener>(listSubscription, resp, this);
-					RegistrarDb::get()->fetchList(listenersUrl, listener);
+					addOrUpdateListeners(listSubscription->getListeners());
+					listSubscription->notify(true);
+					belle_sip_object_unref(resp);
 				};
 				if (!contentType) { // case of rfc4662 (list subscription without resource list in body)
 #if ENABLE_SOCI
