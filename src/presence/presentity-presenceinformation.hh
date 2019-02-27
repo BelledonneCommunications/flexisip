@@ -73,8 +73,6 @@ class PresentityPresenceInformationListener  {
 	bool extendedNotifyEnabled();
 	void enableBypass(bool enable);
 	bool bypassEnabled();
-	void addCapability(const std::string &capability);
-	std::string getCapabilities() { return mCapabilities; }
 	/*returns prsentity uri associated to this Listener*/
 	virtual const belle_sip_uri_t *getPresentityUri() const = 0;
 	virtual std::string getName() const {return "";}
@@ -89,7 +87,6 @@ class PresentityPresenceInformationListener  {
 	belle_sip_source_t *mTimer;
 	bool mExtendedNotify;
 	bool mBypassEnabled;
-	std::string mCapabilities;
 };
 
 class PresentityPresenceInformation : public std::enable_shared_from_this<PresentityPresenceInformation> {
@@ -138,7 +135,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 
 	const std::string &getName() { return mName; }
 	void setName(const std::string &name) { mName = name; }
-	void setCapabilities(const std::string &capabilites) { mCapabilities = capabilites; }
+	void addCapability(const std::string &capability);
 
 	/**
 	 *add notity listener for an entity

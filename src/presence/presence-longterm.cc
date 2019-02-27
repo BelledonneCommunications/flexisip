@@ -67,31 +67,22 @@ private:
 
 				class InternalListListener : public ContactUpdateListener {
 				public:
-					InternalListListener(shared_ptr<PresentityPresenceInformation> info, const char *user) : mInfo(info), mUser(user) {}
+					InternalListListener(shared_ptr<PresentityPresenceInformation> info) : mInfo(info) {}
 
 					void onRecordFound(const std::shared_ptr<Record> &record) {
 						if (!record)
 							return;
-						
+
 						bool groupChatSupported = false;
 						bool limeSupported = false;
-						auto listeners = mInfo->getListeners();
 						for (const auto extendedContact : record->getExtendedContacts()) {
 							const string specs = extendedContact->getOrgLinphoneSpecs();
 							groupChatSupported |= (specs.find("groupchat") != specs.npos);
 							limeSupported |= (specs.find("lime") != specs.npos);
 							if (groupChatSupported || limeSupported) {
-								auto predicate = [this] (const shared_ptr<const PresentityPresenceInformationListener> &listener) {
-									const char *listenerUri = belle_sip_uri_get_user(listener->getPresentityUri());
-									return listenerUri ? string(this->mUser) == string(listenerUri): false;
-								};
-								auto foundListener = std::find_if(listeners.cbegin(), listeners.cend(), predicate);
-								if (foundListener != listeners.cend())
-									foundListener->get()->addCapability(specs);
+								mInfo->addCapability(specs);
 							}
 						}
-						for (const auto &listener : listeners)
-								mInfo->addOrUpdateListener(listener);
 					}
 					void onError() {}
 					void onInvalid() {}
@@ -102,11 +93,10 @@ private:
 				private:
 					SofiaAutoHome mHome;
 					shared_ptr<PresentityPresenceInformation> mInfo;
-					const char *mUser;
 				};
 
 				// Fetch Redis info.
-				shared_ptr<InternalListListener> listener = make_shared<InternalListListener>(info, cuser);
+				shared_ptr<InternalListListener> listener = make_shared<InternalListListener>(info);
 				url_t *url = url_make(listener->getHome(), contact_as_string);
 				belle_sip_free(contact_as_string);
 				RegistrarDb::get()->fetch(url, listener);
