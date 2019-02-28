@@ -338,6 +338,15 @@ void PresentityPresenceInformation::removeListener(const shared_ptr<PresentityPr
 	listener->onInformationChanged(*this, listener->extendedNotifyEnabled());
 }
 
+void PresentityPresenceInformation::addCapability(const std::string &capability) {
+	if (mCapabilities.empty()) {
+		mCapabilities = capability;
+	} else if (mCapabilities.find(capability) == mCapabilities.npos) {
+		mCapabilities += ", " + capability;
+	}
+	notifyAll();
+}
+
 bool PresentityPresenceInformation::hasDefaultElement() {
 	return !!mDefaultInformationElement;
 }
@@ -493,13 +502,6 @@ bool PresentityPresenceInformationListener::bypassEnabled() {
 }
 void PresentityPresenceInformationListener::enableBypass(bool enable) {
 	mBypassEnabled = enable;
-}
-void PresentityPresenceInformationListener::addCapability(const std::string &capability) {
-	if (mCapabilities.empty()) {
-		mCapabilities = capability;
-	} else if (mCapabilities.find(capability) == mCapabilities.npos) {
-		mCapabilities += ", " + capability;
-	}
 }
 void PresentityPresenceInformationListener::setExpiresTimer(belle_sip_main_loop_t *ml, belle_sip_source_t *timer) {
 	if (mTimer) {

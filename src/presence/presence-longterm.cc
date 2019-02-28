@@ -1,5 +1,7 @@
 #include <belle-sip/belle-sip.h>
 
+#include <flexisip/registrardb.hh>
+
 #include "presence-longterm.hh"
 #include "presentity-presenceinformation.hh"
 
@@ -51,22 +53,53 @@ private:
 		if (result == AuthDbResult::PASSWORD_FOUND) {
 			// result is a phone alias if (and only if) user is not the same as the entity user
 			bool isPhone = (strcmp(user.c_str(), cuser) != 0);
+			belle_sip_uri_t *uri = BELLE_SIP_URI(belle_sip_object_clone(BELLE_SIP_OBJECT(info->getEntity())));
+			char *contact_as_string = belle_sip_uri_to_string(uri);
 			if (isPhone) {
 				// change contact accordingly
-				belle_sip_uri_t *uri = BELLE_SIP_URI(belle_sip_object_clone(BELLE_SIP_OBJECT(info->getEntity())));
-				belle_sip_parameters_t* params=BELLE_SIP_PARAMETERS(uri);
+				belle_sip_free(contact_as_string);
+				belle_sip_parameters_t *params = BELLE_SIP_PARAMETERS(uri);
 				belle_sip_parameters_remove_parameter(params, "user");
 				belle_sip_uri_set_user(uri, user.c_str());
-				char *contact_as_string = belle_sip_uri_to_string(uri);
-				belle_sip_object_unref(uri);
+				contact_as_string = belle_sip_uri_to_string(uri);
 				SLOGD << __FILE__ << ": " << "Found user " << user << " for phone "
 					<< belle_sip_uri_get_user(info->getEntity()) << ", adding contact " << contact_as_string << " presence information";
 				info->setDefaultElement(contact_as_string);
-				belle_sip_free(contact_as_string);
 			} else {
 				SLOGD << __FILE__ << ": " << "Found user " << user << ", adding presence information";
 				info->setDefaultElement();
 			}
+			belle_sip_object_unref(uri);
+
+			class InternalListListener : public ContactUpdateListener {
+			public:
+				InternalListListener(shared_ptr<PresentityPresenceInformation> info) : mInfo(info) {}
+
+				void onRecordFound(const std::shared_ptr<Record> &record) {
+					if (!record) return;
+
+					for (const auto extendedContact : record->getExtendedContacts()) {
+						const string specs = extendedContact->getOrgLinphoneSpecs();
+						if (!specs.empty())
+							mInfo->addCapability(specs);
+					}
+				}
+				void onError() {}
+				void onInvalid() {}
+				void onContactUpdated(const std::shared_ptr<ExtendedContact> &) {}
+
+				su_home_t *getHome() { return mHome.home(); }
+
+			private:
+				SofiaAutoHome mHome;
+				shared_ptr<PresentityPresenceInformation> mInfo;
+			};
+
+			// Fetch Redis info.
+			shared_ptr<InternalListListener> listener = make_shared<InternalListListener>(info);
+			url_t *url = url_make(listener->getHome(), contact_as_string);
+			RegistrarDb::get()->fetch(url, listener);
+			belle_sip_free(contact_as_string);
 		} else {
 			SLOGD << __FILE__ << ": " << "Could not find user " << cuser << ".";
 		}
