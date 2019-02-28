@@ -47,6 +47,7 @@ private:
 	shared_ptr<ForkCallContext> mForkContext;
 	string mKey; // unique key for the push notification, identifiying the device and the call.
 	bool mSendRinging;
+	bool mPushSentResponseSent = false; // whether the 110 Push sent was sent already
 	void onTimeout();
 	void onError(const string &errormsg);
 	void onEnd();
@@ -159,8 +160,10 @@ void PushNotificationContext::onTimeout() {
 	}
 
 	mModule->getService()->sendPush(mPushNotificationRequest);
-	if (mForkContext)
+	if (mForkContext && !mPushSentResponseSent){
 		mForkContext->sendResponse(110, "Push sent");
+		mPushSentResponseSent = true;
+	}
 }
 
 void PushNotificationContext::clear() {
