@@ -577,12 +577,17 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		reply(ev, 400, "Invalid Request");
 		return;
 	}
+	if (sip->sip_contact->m_url[0].url_scheme == nullptr){
+		reply(ev, 400, "Invalid contact");
+		return;
+	}
 	if (!checkStarUse(sip->sip_contact, maindelta)) {
 		LOGD("The star rules are not respected.");
 		reply(ev, 400, "Invalid Request");
 		return;
 	}
-
+	
+	
 	// Use path as a contact route in all cases
 	// Preferred Route is only set if cluster mode is enabled
 	if (!getAgent()->getPreferredRoute().empty()) {
