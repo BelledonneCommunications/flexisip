@@ -126,6 +126,10 @@ string OwnRegistrationSubscription::getDeviceName(const shared_ptr<ExtendedConta
 	return deviceName;
 }
 
+bool OwnRegistrationSubscription::isContactCompatible(const shared_ptr<ExtendedContact> &ec){
+	return !mServer.capabilityCheckEnabled() || (getContactCapabilities(ec) & mChatroomRequestedCapabilities) == mChatroomRequestedCapabilities;
+}
+
 void OwnRegistrationSubscription::processRecord(const std::shared_ptr<Record> &r){
 	if (!mActive) return;
 	list<shared_ptr<ParticipantDeviceIdentity>> compatibleParticipantDevices;
@@ -134,7 +138,7 @@ void OwnRegistrationSubscription::processRecord(const std::shared_ptr<Record> &r
 			auto addr = getPubGruu(r, ec);
 			if (!addr) continue;
 
-			if (!mServer.capabilityCheckEnabled() || (getContactCapabilities(ec) & mChatroomRequestedCapabilities) == mChatroomRequestedCapabilities){
+			if (isContactCompatible(ec)){
 				shared_ptr<ParticipantDeviceIdentity> identity = linphone::Factory::get()->createParticipantDeviceIdentity(
 					addr, getDeviceName(ec));
 				compatibleParticipantDevices.push_back(identity);
@@ -166,7 +170,7 @@ void OwnRegistrationSubscription::onContactRegistered(const std::shared_ptr<Reco
 		return;
 	}
 	shared_ptr<Address> pubGruu = getPubGruu(r, ct);
-	if (pubGruu) notifyRegistration(pubGruu);
+	if (pubGruu && isContactCompatible(ct)) notifyRegistration(pubGruu);
 }
 
 
