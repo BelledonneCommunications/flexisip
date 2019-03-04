@@ -86,6 +86,7 @@ class OwnRegistrationSubscription
 		unsigned int getContactCapabilities(const std::shared_ptr<ExtendedContact> &ct);
 		std::shared_ptr<linphone::Address> getPubGruu(const std::shared_ptr<Record> &r, const std::shared_ptr<ExtendedContact> &ec);
 		std::string getDeviceName(const std::shared_ptr<ExtendedContact> &ec);
+		bool isContactCompatible(const std::shared_ptr<ExtendedContact> &ec);
 		void processRecord(const std::shared_ptr<Record> &r);
 		/*ContactUpdateListener virtual functions to override*/
 		virtual void onRecordFound (const std::shared_ptr<Record> &r) override;
