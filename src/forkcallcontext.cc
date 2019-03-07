@@ -158,10 +158,10 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo> &br, const shared_
 // This is actually called when we want to simulate a ringing event by sending a 180, or for example to signal the caller that we've sent
 // a push notification.
 void ForkCallContext::sendResponse(int code, char const *phrase) {
-	if (code == 180) {
-		int previousCode = getLastResponseCode();
-		if (previousCode > 180 || !mIncoming)
-			return;
+	int previousCode = getLastResponseCode();
+	if (previousCode > code || !mIncoming){
+		/* Don't send a response with status code lesser than last transmitted response. */
+		return;
 	}
 
 	shared_ptr<MsgSip> msgsip(mIncoming->createResponse(code, phrase));
