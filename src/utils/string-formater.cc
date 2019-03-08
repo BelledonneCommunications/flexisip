@@ -20,7 +20,7 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "httputils.hh"
+#include "uri-utils.hh"
 
 #include "string-formater.hh"
 
@@ -68,7 +68,7 @@ std::string HttpUriFormater::format(const std::map<std::string, std::string> &va
 std::map<std::string, std::string> HttpUriFormater::escape(const std::map<std::string, std::string> &values) {
 	std::map<std::string, std::string> out;
 	for(const auto &item : values) {
-		out[item.first] = HttpUtils::escapeReservedCharacters(item.second);
+		out[item.first] = UriUtils::escape(item.second, UriUtils::httpReserved);
 	}
 	return out;
 }

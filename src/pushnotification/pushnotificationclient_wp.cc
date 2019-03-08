@@ -20,7 +20,7 @@
 
 #include "cJSON.h"
 #include "microsoftpush.hh"
-#include "utils/httputils.hh"
+#include "utils/uri-utils.hh"
 
 #include "pushnotificationclient_wp.hh"
 
@@ -73,8 +73,8 @@ void PushNotificationClientWp::retrieveAccessToken() {
 
 	// we must retrieve our access token
 	httpBody << "grant_type=client_credentials";
-	httpBody << "&client_id=" << HttpUtils::escapeReservedCharacters(mPackageSID);
-	httpBody << "&client_secret=" << HttpUtils::escapeReservedCharacters(mApplicationSecret);
+	httpBody << "&client_id=" << UriUtils::escape(mPackageSID, UriUtils::httpQueryKeyValReserved);
+	httpBody << "&client_secret=" << UriUtils::escape(mApplicationSecret, UriUtils::httpQueryKeyValReserved);
 	httpBody << "&scope=" << "notify.windows.com";
 
 	httpHeader << "POST /accesstoken.srf HTTP/1.1\r\nContent-Type: application/x-www-form-urlencoded\r\nHost: " << hostname << "\r\nContent-Length: " << httpBody.str().size() << "\r\n\r\n";

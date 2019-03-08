@@ -16,15 +16,28 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include <vector>
 
-#include <string>
+#include <sofia-sip/url.h>
 
-class HttpUtils {
-public:
-	static std::string escapeReservedCharacters(const char *str);
-	static std::string escapeReservedCharacters(const std::string &str) {return escapeReservedCharacters(str.c_str());}
+#include "uri-utils.hh"
 
-private:
-	static const char *mReservedChars;
-};
+using namespace std;
+
+std::string UriUtils::escape(const char *str, const char *reserved) {
+	string escapedStr;
+	if (url_reserved_p(str)) {
+		escapedStr.resize(url_esclen(str, reserved));
+		url_escape(&escapedStr.at(0), str, reserved);
+	} else {
+		escapedStr = str;
+	}
+	return escapedStr;
+}
+
+std::string UriUtils::unescape(const char *str, size_t n) {
+	string unescapedStr(n, '\0');
+	n = url_unescape_to(&unescapedStr[0], str, n);
+	unescapedStr.resize(n);
+	return unescapedStr;
+}
