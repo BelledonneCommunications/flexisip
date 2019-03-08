@@ -18,7 +18,9 @@
 
 #include <bctoolbox/crypto.h>
 
-#include <flexisip/module.hh>
+#include "flexisip/module.hh"
+
+#include "utils/uri-utils.hh"
 
 #include "flexisip-auth-module.hh"
 
@@ -215,13 +217,15 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 		}
 
 		AuthenticationListener *listener = new AuthenticationListener(*this, as, *ach, ar);
-		AuthDbBackend::get().getPassword(as.userUri()->url_user, as.userUri()->url_host, ar.ar_username, listener);
+		string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user);
+		AuthDbBackend::get().getPassword(unescpapedUrlUser, as.userUri()->url_host, ar.ar_username, listener);
 		as.status(100);
 }
 
 void FlexisipAuthModule::loadPassword(const FlexisipAuthStatus &as) {
 	SLOGD << "Searching for " << as.userUri()->url_user << " password to have it when the authenticated request comes";
-	AuthDbBackend::get().getPassword(as.userUri()->url_user, as.userUri()->url_host, as.userUri()->url_user, nullptr);
+	string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user);
+	AuthDbBackend::get().getPassword(unescpapedUrlUser, as.userUri()->url_host, unescpapedUrlUser, nullptr);
 }
 
 void FlexisipAuthModule::processResponse(AuthenticationListener &l) {
