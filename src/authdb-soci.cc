@@ -228,7 +228,7 @@ void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
 
 			stop = steady_clock::now();
 			SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
-			cachePassword(createPasswordKey(id, authid), domain, passwd, mCacheExpire);
+			if (!passwd.empty()) cachePassword(createPasswordKey(id, authid), domain, passwd, mCacheExpire);
 			if (listener){
 				listener->onResult(passwd.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);
 			}
@@ -249,7 +249,7 @@ void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
 				SLOGE << "[SOCI] retrying mysql error " << e.err_num_;
 				retry = true;
 			}
-		} catch (exception const &e) {
+		} catch (const runtime_error &e) {
 			errorCount++;
 			stop = steady_clock::now();
 			SLOGE << "[SOCI] getPasswordWithPool error after " << DURATION_MS(start, stop) << "ms : " << e.what();
