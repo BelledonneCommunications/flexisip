@@ -21,8 +21,9 @@
 #include <stdexcept>
 #include <string.h>
 
-#include <flexisip/common.hh>
-#include "utils/httputils.hh"
+#include "flexisip/common.hh"
+
+#include "utils/uri-utils.hh"
 
 #include "genericpush.hh"
 
@@ -115,7 +116,7 @@ string &GenericPushNotificationRequest::substituteArgs(string &input, const Push
 	for (auto it = keyvals.begin(); it != keyvals.end(); ++it) {
 		size_t pos = input.find((*it).mKeyword);
 		if (pos != string::npos) {
-			string value = HttpUtils::escapeReservedCharacters(it->mValue);
+			string value = UriUtils::escape(it->mValue, UriUtils::uriReserved);
 			input.replace(pos, strlen((*it).mKeyword), value);
 		}
 	}
