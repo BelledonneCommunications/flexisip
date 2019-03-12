@@ -125,6 +125,7 @@ void AuthDbBackend::clearCache() {
 }
 
 bool AuthDbBackend::cachePassword(const string &key, const string &domain, const vector<passwd_algo_t> &pass, int expires) {
+	if (pass.empty()) throw invalid_argument("empty password list");
 	time_t now = getCurrentTime();
 	map<string, CachedPassword> &passwords = mCachedPasswords[domain];
 	unique_lock<mutex> lck(mCachedPasswordMutex);
