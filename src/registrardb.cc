@@ -740,9 +740,14 @@ void RegistrarDb::notifyContactListener(const string &key, const string &uid) {
 
 void RegistrarDb::notifyContactListener (const shared_ptr<Record> &r, const string &uid) {
 	auto range = mContactListenersMap.equal_range(r->getKey());
+	list<shared_ptr<ContactRegisteredListener>> listeners;
+	/* Because invoking the listener might indirectly unregister listeners from the RegistrarDb, it is required
+	 * to first create a local copy of the list of listeners we are going to invoke. */
 	for (auto it = range.first; it != range.second; it++) {
-		shared_ptr<ContactRegisteredListener> listener = it->second;
-		listener->onContactRegistered(r, uid);
+		listeners.push_back(it->second);
+	}
+	for (auto l : listeners){
+		l->onContactRegistered(r, uid);
 	}
 }
 
