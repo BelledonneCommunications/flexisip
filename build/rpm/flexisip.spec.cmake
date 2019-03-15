@@ -164,7 +164,7 @@ rm -rf $RPM_BUILD_ROOT
 %systemd_preun %flexisip_services
 
 %postun
-%systemd_postun %flexisip_services
+%systemd_postun_with_restart %flexisip_services
 
 %files
 %defattr(-,root,root,-)
