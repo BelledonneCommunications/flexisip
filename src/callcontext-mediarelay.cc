@@ -77,6 +77,8 @@ void RelayedCall::initChannels ( const std::shared_ptr< SdpModifier >& m, const 
 		bool isIpv6 = mline_c && mline_c->c_addrtype == sdp_addr_ip6;
 		
 		if (s == NULL) {
+			/* We initialize here the RelaySession for the current mline, passing the IP addresses we have to use
+			 * to exchange with the caller. */
 			std::pair< std::string, std::string > frontRelayIps;
 			
 			if ((mline_c && mline_c->c_address && strcmp(mline_c->c_address, fromHost.c_str()) == 0) && !mForcePublicAddressEnabled) {
@@ -94,6 +96,12 @@ void RelayedCall::initChannels ( const std::shared_ptr< SdpModifier >& m, const 
 		}
 		shared_ptr<RelayChannel> chan = s->getChannel("",trid);
 		if (chan==NULL){
+			/* We complete the RelaySession by adding a branch (to a callee instance). However we have no information about which IP family it will use, as
+			 * we don't have yet its SDP answer at this stage.
+			 * As fallback solution, we examine the host part of the request uri of the caller to "guess" whether it is under an IPv6 network or not.
+			 * This is clearly not reliable, however remember that trick is useful and necessary only for clients that don't use ICE.
+			 * In a general way, ICE is the only way to solve media connectivity issues between two clients. */
+			isIpv6 = (strchr(destHost.c_str(), ':') != nullptr);
 			pair<string, string> backRelayIps = mForcePublicAddressEnabled ? make_pair(agent->getResolvedPublicIp(isIpv6), agent->getRtpBindIp(isIpv6)) : agent->getPreferredIp(destHost);
 			/*this is a new outgoing branch to be established*/
 			chan=s->createBranch(trid,backRelayIps, hasMultipleTargets);
