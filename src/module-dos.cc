@@ -70,7 +70,7 @@ class DoSProtection : public Module, ModuleToolbox {
 			LOGE("DoSProtection: popen() failed: %s", strerror(errno));
 			return -1;
 		}
-		(void)fread(output, 1, sizeof(output)-1, f);
+		size_t readCount = fread(output, 1, sizeof(output)-1, f);
 		int ret = pclose(f);
 		if (WIFEXITED(ret))
 			ret = WEXITSTATUS(ret);
@@ -80,7 +80,7 @@ class DoSProtection : public Module, ModuleToolbox {
 			}
 		}
 		if (ret == 0 || !dumpErrors) LOGD("DoSProtection: '%s' executed.", command.str().c_str());
-		
+		(void)readCount; // This variable is useless here, I know.
 		return ret;
 	}
 	
