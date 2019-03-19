@@ -58,6 +58,32 @@ class DoSProtection : public Module, ModuleToolbox {
 	ThreadPool *mThreadPool;
 	string mFlexisipChain;
 
+	int runIptables(const string & arguments, bool ipv6=false, bool dumpErrors=true){
+		ostringstream command;
+		char output[512] = { 0 };
+		
+		command << (ipv6 ? "/sbin/ip6tables" : "/sbin/iptables");
+		command << " " << arguments;
+		command << " 2>&1";
+		FILE *f = popen(command.str().c_str(), "r");
+		if (f == nullptr){
+			LOGE("DoSProtection: popen() failed: %s", strerror(errno));
+			return -1;
+		}
+		size_t readCount = fread(output, 1, sizeof(output)-1, f);
+		int ret = pclose(f);
+		if (WIFEXITED(ret))
+			ret = WEXITSTATUS(ret);
+		if (ret != 0){
+			if (dumpErrors){
+				LOGE("DoSProtection: '%s' failed with output '%s'.", command.str().c_str(), output);
+			}
+		}
+		if (ret == 0 || !dumpErrors) LOGD("DoSProtection: '%s' executed.", command.str().c_str());
+		(void)readCount; // This variable is useless here, I know.
+		return ret;
+	}
+	
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
 			{Integer, "time-period", "Number of milliseconds to consider to compute the packet rate", "3000"},
@@ -99,59 +125,54 @@ class DoSProtection : public Module, ModuleToolbox {
 
 		// Let's remove the Flexisip's chain in case the previous run crashed
 		char iptables_cmd[512];
-		bool skipCleanup = false;
-		// First we have to empty the chain
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -F %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
-		if (system(iptables_cmd) != 0) {
-			LOGW("iptables command %s failed", iptables_cmd);
-			skipCleanup = true;
-		}
-
-		if (!skipCleanup) {
+		
+		// First we have to empty the chain, for ipv4
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -F %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		if (runIptables(iptables_cmd) == 0) {
 			// Then we have to remove the link to be able to remove the chain itself
-			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
-			if (system(iptables_cmd) != 0) {
-				LOGW("iptables command %s failed", iptables_cmd);
-			}
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+			runIptables(iptables_cmd);
 
-			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -X %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
-			if (system(iptables_cmd) != 0) {
-				LOGW("iptables command %s failed", iptables_cmd);
-			}
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -X %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+			runIptables(iptables_cmd);
+		}
+		// Same thing for IPv6
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -F %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		if (runIptables(iptables_cmd, true) == 0) {
+			// Then we have to remove the link to be able to remove the chain itself
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+			runIptables(iptables_cmd, true);
+
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -X %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+			runIptables(iptables_cmd, true);
 		}
 
 		// Now let's create it
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -N %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
-		if (system(iptables_cmd) != 0) {
-			LOGW("iptables command %s failed", iptables_cmd);
-		}
-
-		//Finally let's add a jum from the INPUT chain to ours
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -t filter -A INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
-		if (system(iptables_cmd) != 0) {
-			LOGW("iptables command %s failed", iptables_cmd);
-		}
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -N %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		runIptables(iptables_cmd);
+		runIptables(iptables_cmd, true);
+		//Finally let's add a jump from the INPUT chain to ours
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -t filter -A INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		runIptables(iptables_cmd);
+		runIptables(iptables_cmd, true);
 	}
 
 	void onUnload() {
 		// Let's remove the Flexisip's chain
 		char iptables_cmd[512];
 		// First we have to empty the chain
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -F %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
-		if (system(iptables_cmd) != 0) {
-			LOGW("iptables command %s failed", iptables_cmd);
-		}
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -F %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		runIptables(iptables_cmd);
+		runIptables(iptables_cmd, true);
 
 		// Then we have to remove the link to be able to remove the chain itself
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
-		if (system(iptables_cmd) != 0) {
-			LOGW("iptables command %s failed", iptables_cmd);
-		}
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		runIptables(iptables_cmd);
+		runIptables(iptables_cmd, true);
 
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -X %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
-		if (system(iptables_cmd) != 0) {
-			LOGW("iptables command %s failed", iptables_cmd);
-		}
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -X %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		runIptables(iptables_cmd);
+		runIptables(iptables_cmd, true);
 	}
 
 	virtual bool isValidNextConfig( const ConfigValue &value ) {
@@ -165,10 +186,12 @@ class DoSProtection : public Module, ModuleToolbox {
 #else
 			if (!mIptablesVersionChecked) {
 				mIptablesVersionChecked = true;
-				int iptables_command = system("iptables -w -V > /dev/null");
-				if (WIFEXITED(iptables_command) && WEXITSTATUS(iptables_command) == 0) {
+				if (runIptables("-w -V > /dev/null") == 0) {
 					// iptables seems to support -w parameter required to allow concurrent usage of iptables
 					mIptablesSupportsWait = true;
+				}
+				if (runIptables("-L > /dev/null", true) != 0) {
+					LOGEN("ip6tables command is not installed. DoS protection is inactive for IPv6.");
 				}
 			}
 			return true;
@@ -226,17 +249,15 @@ class DoSProtection : public Module, ModuleToolbox {
 
 	void banIP(const char *ip, const char *port, const char *protocol) {
 		char iptables_cmd[512];
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -C %s -p %s -s %s -m multiport --sports %s -j REJECT",
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -C %s -p %s -s %s -m multiport --sports %s -j REJECT",
 				 mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol, ip, port);
-
-		if (system(iptables_cmd) == 0) {
+		bool is_ipv6 = strchr(ip, ':') != nullptr;
+		if (runIptables(iptables_cmd, is_ipv6, false) == 0) {
 			LOGW("IP %s port %s on protocol %s is already in the iptables banned list, skipping...", ip, port, protocol);
 		} else {
-			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -A %s -p %s -s %s -m multiport --sports %s -j REJECT",
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -A %s -p %s -s %s -m multiport --sports %s -j REJECT",
 				mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol, ip, port);
-			if (system(iptables_cmd) != 0) {
-				LOGW("iptables command %s failed: %s", iptables_cmd, strerror(errno));
-			}
+			runIptables(iptables_cmd, is_ipv6);
 		}
 	}
 
@@ -244,13 +265,13 @@ class DoSProtection : public Module, ModuleToolbox {
 		string protocol = ctx->protocol;
 		string ip = ctx->ip;
 		string port = ctx->port;
+		
 		mThreadPool->Enqueue([&, protocol, ip, port] {
 			char iptables_cmd[512];
-			snprintf(iptables_cmd, sizeof(iptables_cmd), "iptables %s -D %s -p %s -s %s -m multiport --sports %s -j REJECT",
+			bool is_ipv6 = strchr(ip.c_str(), ':') != nullptr;
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -D %s -p %s -s %s -m multiport --sports %s -j REJECT",
 				mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol.c_str(), ip.c_str(), port.c_str());
-			if (system(iptables_cmd) != 0) {
-				LOGW("iptables command %s failed: %s", iptables_cmd, strerror(errno));
-			}
+			runIptables(iptables_cmd, is_ipv6);
 		});
 		delete ctx;
 	}
