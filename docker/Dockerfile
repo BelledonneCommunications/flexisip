@@ -7,7 +7,7 @@ RUN yum -y install epel-release  yum-downloadonly gdb
 RUN yum update -y
 
 # Download rpm to be able to skip systemd's scripts
-RUN yum install -y --downloadonly --downloaddir=/opt bc-flexisip bc-flexisip-debuginfo
+RUN yum install -y --downloadonly --downloaddir=/opt bc-flexisip bc-flexisip-debuginfo bc-flexisip-jwe-auth-plugin
 RUN mv /opt/bc-flexisip*.rpm /tmp
 RUN rpm -i /opt/*.rpm
 RUN rpm -i --noscripts /tmp/bc-flexisip*.rpm
