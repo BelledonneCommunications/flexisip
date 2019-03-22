@@ -18,6 +18,7 @@
 
 #include <sofia-sip/msg_addr.h>
 #include <sofia-sip/sip_extra.h>
+#include <sofia-sip/sip_status.h>
 
 #include "agent.hh"
 #include "module-authentication-base.hh"
@@ -26,30 +27,24 @@ using namespace std;
 
 namespace flexisip {
 
+ModuleAuthenticationBase::ModuleAuthenticationBase(Agent *agent) : Module(agent) {
+	mProxyChallenger.ach_status = 407; /*SIP_407_PROXY_AUTH_REQUIRED*/
+	mProxyChallenger.ach_phrase = sip_407_Proxy_auth_required;
+	mProxyChallenger.ach_header = sip_proxy_authenticate_class;
+	mProxyChallenger.ach_info = sip_proxy_authentication_info_class;
+
+	mRegistrarChallenger.ach_status = 401; /*SIP_401_UNAUTHORIZED*/
+	mRegistrarChallenger.ach_phrase = sip_401_Unauthorized;
+	mRegistrarChallenger.ach_header = sip_www_authenticate_class;
+	mRegistrarChallenger.ach_info = sip_authentication_info_class;
+}
+
 void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
 	ConfigItemDescriptor items[] = {{
 		StringList,
 		"auth-domains",
 		"List of whitespace separated domain names to challenge. Others are denied.",
 		"localhost"
-	}, {
-		String,
-		"remote-auth-uri",
-		"URI to use to connect on the external HTTP server on each request. Each token preceded by "
-		"'$' character will be replaced before sending the HTTP request. The available tokens are:\n"
-		"\t* $method: the method of the SIP request that is being challenged. Ex: REGISTER, INVITE, ...\n"
-		"\t* $sip-instance: the value of +sip.instance parameter.\n"
-		"\t* $from: the value of the request's 'From:' header\n"
-		"\t* $domain: the domain name extracted from the From header's URI\n"
-		"\t* all the parameters available in the Authorization header. Ex: $realm, $nonce, $username, ...\n"
-		"\n"
-		"Ex: https://$realm.example.com/auth?from=$from&cnonce=$cnonce&username=$username",
-		""
-	}, {
-		String,
-		"realm-regex",
-		"",
-		""
 	}, {
 		StringList,
 		"available-algorithms",
@@ -67,6 +62,11 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
 		"nonce-expires",
 		"Expiration time of nonces, in seconds.",
 		"3600"
+	}, {
+		String,
+		"realm-regex",
+		"",
+		""
 	},
 	config_item_end
 	};
@@ -161,29 +161,8 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus &as) {
 	auto &fAs = dynamic_cast<FlexisipAuthStatus &>(as);
 	const shared_ptr<RequestSipEvent> &ev = fAs.event();
-// 	auto &authStatus = dynamic_cast<_AuthStatus &>(as);
 	if (as.status() == 0) {
-		const std::shared_ptr<MsgSip> &ms = ev->getMsgSip();
-		sip_t *sip = ms->getSip();
-		if (sip->sip_request->rq_method == sip_method_register) {
-			msg_auth_t *au = ModuleToolbox::findAuthorizationForRealm(
-				ms->getHome(),
-				sip->sip_authorization,
-				as.realm()
-			);
-			if (au) msg_header_remove(ms->getMsg(), (msg_pub_t *)sip, (msg_header_t *)au);
-		} else {
-			msg_auth_t *au = ModuleToolbox::findAuthorizationForRealm(
-				ms->getHome(),
-				sip->sip_proxy_authorization,
-				as.realm()
-			);
-			if (au->au_next) msg_header_remove(ms->getMsg(), (msg_pub_t *)sip, (msg_header_t *)au->au_next);
-					 if (au) msg_header_remove(ms->getMsg(), (msg_pub_t *)sip, (msg_header_t *)au);
-		}
-// 		if (!authStatus.pAssertedIdentity().empty()) {
-// 			msg_header_add_str(ms->getMsg(), reinterpret_cast<msg_pub_t *>(sip), authStatus.pAssertedIdentity().c_str());
-// 		}
+		onSuccess(fAs);
 		if (ev->isSuspended()) {
 			// The event is re-injected
 			getAgent()->injectRequestEvent(ev);
@@ -200,17 +179,35 @@ void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus &as) {
 			log->setCompleted();
 			ev->setEventLog(log);
 		}
-		ev->reply(as.status(), as.phrase(),
-				  SIPTAG_HEADER((const sip_header_t *)as.info()),
-				  SIPTAG_HEADER((const sip_header_t *)as.response()),
-// 				  SIPTAG_REASON_STR(authStatus.reason().empty() ? nullptr : authStatus.reason().c_str()),
-				  SIPTAG_SERVER_STR(getAgent()->getServerString()),
-				  TAG_END()
-		);
+		errorReply(fAs);
 	} else {
 		ev->reply(500, "Internal error", TAG_END());
 	}
 	delete &as;
+}
+
+void ModuleAuthenticationBase::onSuccess(const FlexisipAuthStatus &as) {
+	msg_auth_t *au;
+	const shared_ptr<MsgSip> &ms = as.event()->getMsgSip();
+	sip_t *sip = ms->getSip();
+	if (sip->sip_request->rq_method == sip_method_register) {
+		au = ModuleToolbox::findAuthorizationForRealm(
+			ms->getHome(),
+			sip->sip_authorization,
+			as.realm()
+		);
+	} else {
+		au = ModuleToolbox::findAuthorizationForRealm(
+			ms->getHome(),
+			sip->sip_proxy_authorization,
+			as.realm()
+		);
+	}
+	while (au) {
+		msg_auth_t *nextAu = au->au_next;
+		msg_header_remove(ms->getMsg(), (msg_pub_t *)sip, (msg_header_t *)au);
+		au = nextAu;
+	}
 }
 
 FlexisipAuthModuleBase *ModuleAuthenticationBase::findAuthModule(const std::string name) {
@@ -263,14 +260,6 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const
 		as.body(sip->sip_payload->pl_data);
 		as.bodyLen(sip->sip_payload->pl_len);
 	}
-// 	as.usedAlgo() = mAlgorithms;
-// 	as.domain(sip->sip_from->a_url->url_host);
-// 	as.fromHeader(sip_header_as_string(as.home(), reinterpret_cast<sip_header_t *>(sip->sip_from)));
-
-// 	if (sip->sip_contact) {
-// 		const char *sipInstance = msg_header_find_param(reinterpret_cast<msg_common_t *>(sip->sip_contact), "+sip.instance");
-// 		as.sipInstance(sipInstance ? sipInstance : "");
-// 	}
 }
 
 }

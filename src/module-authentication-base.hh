@@ -32,19 +32,22 @@ namespace flexisip {
 
 class ModuleAuthenticationBase : public Module {
 public:
-	ModuleAuthenticationBase(Agent *agent) : Module(agent) {}
+	ModuleAuthenticationBase(Agent *agent);
 	~ModuleAuthenticationBase() = default;
 
 protected:
 	void onDeclare(GenericStruct *root) override;
 	void onLoad(const GenericStruct *root) override;
 	void onRequest(std::shared_ptr<RequestSipEvent> &ev) override;
+	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override {}
 
 	virtual FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm) = 0;
 	virtual FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) = 0;
 	virtual FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev, const url_t *userUri) = 0;
 
-	virtual void processAuthModuleResponse(AuthStatus &as);
+	void processAuthModuleResponse(AuthStatus &as);
+	virtual void onSuccess(const FlexisipAuthStatus &as);
+	virtual void errorReply(const FlexisipAuthStatus &as) = 0;
 
 	FlexisipAuthModuleBase *findAuthModule(const std::string name);
 	void configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev, const url_t *userUri);
