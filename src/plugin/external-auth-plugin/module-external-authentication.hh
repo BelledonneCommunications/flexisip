@@ -19,10 +19,12 @@
 #pragma once
 
 #include <array>
+#include <regex>
 
 #include <flexisip/agent.hh>
-#include "external-auth-module.hh"
 #include <flexisip/module.hh>
+
+#include "external-auth-module.hh"
 
 namespace flexisip {
 
@@ -55,6 +57,8 @@ private:
 	std::map<nth_client_t *, std::shared_ptr<RequestSipEvent>> mPendingEvent;
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
+	std::string mRealmRegexStr;
+	std::regex mRealmRegex;
 };
 
 }

@@ -72,6 +72,11 @@ void ModuleExternalAuthentication::onDeclare(GenericStruct *mc) {
 			"Ex: https://$realm.example.com/auth?from=$from&cnonce=$cnonce&username=$username",
 			""
 		}, {
+			String,
+			"realm-regex",
+			"",
+			""
+		}, {
 			StringList,
 			"available-algorithms",
 			"List of algorithms, separated by whitespaces (valid values are MD5 and SHA-256).\n"
@@ -115,6 +120,15 @@ void ModuleExternalAuthentication::onLoad(const GenericStruct *mc) {
 		am->getFormater().setTemplate(mc->get<ConfigString>("remote-auth-uri")->read());
 		mAuthModules[domain] = move(am);
 	}
+
+	mRealmRegexStr = mc->get<ConfigString>("realm-regex")->get();
+	if (!mRealmRegexStr.empty()) {
+		try {
+			mRealmRegex.assign(mRealmRegexStr);
+		} catch (const regex_error &e) {
+			LOGF("invalid regex in 'realm-regex': %s", e.what());
+		}
+	}
 }
 
 void ModuleExternalAuthentication::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
@@ -149,11 +163,25 @@ void ModuleExternalAuthentication::onRequest(std::shared_ptr<RequestSipEvent> &e
 			return;
 		}
 
+		const url_t *userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
+		const char *realm = userUri->url_host;
+		if (!mRealmRegexStr.empty()) {
+			cmatch m;
+			const char *userUriStr = url_as_string(ev->getHome(), userUri);
+			if (!regex_search(userUriStr, m, mRealmRegex)) {
+				SLOGE << "no realm found in '" << userUriStr << "'. Search regex: '" << mRealmRegexStr << "'";
+				ev->reply(500, "Internal error", TAG_END());
+				return;
+			}
+			int index = m.size() == 1 ? 0 : 1;
+			realm = su_strndup(ev->getHome(), userUriStr + m.position(index), m.length(index));
+		}
+
 		auto *as = new _AuthStatus(ev);
 		as->method(sip->sip_request->rq_method_name);
 		as->source(msg_addrinfo(ms->getMsg()));
-		as->userUri(ppi ? ppi->ppid_url : sip->sip_from->a_url);
-		as->realm(as->userUri()->url_host);
+		as->userUri(userUri);
+		as->realm(realm);
 		as->display(sip->sip_from->a_display);
 		if (sip->sip_payload) {
 			as->body(sip->sip_payload->pl_data);
