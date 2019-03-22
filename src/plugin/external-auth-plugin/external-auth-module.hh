@@ -46,15 +46,15 @@ public:
 
 		const std::string &fromHeader() const {return mFromHeader;}
 		void fromHeader(const std::string &val) {mFromHeader = val;}
-		void fromHeader(std::string &&val) {mFromHeader = val;}
+		void fromHeader(std::string &&val) {mFromHeader = std::move(val);}
 
 		const std::string &domain() const {return mDomain;}
 		void domain(const std::string &val) {mDomain = val;}
-		void domain(std::string &&val) {mDomain = val;}
+		void domain(std::string &&val) {mDomain = std::move(val);}
 
 		const std::string &sipInstance() const {return mSipInstance;}
 		void sipInstance(const std::string &val) {mSipInstance = val;}
-		void sipInstance(std::string &&val) {mSipInstance = val;}
+		void sipInstance(std::string &&val) {mSipInstance = std::move(val);}
 
 	private:
 		std::string mReasonHeader;      /**< [out] Reason header returned by the HTTP server on authentication failure. */
