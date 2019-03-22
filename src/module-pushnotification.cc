@@ -287,7 +287,7 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 
 	mExternalPushMethod = mc->get<ConfigString>("external-push-method")->read();
 	if (!externalUri.empty()) {
-		mExternalPushUri = url_make(getHome(), externalUri.c_str());
+		mExternalPushUri = url_make(mHome.home(), externalUri.c_str());
 		if (mExternalPushUri == NULL || mExternalPushUri->url_host == NULL) {
 			LOGF("Invalid value for external-push-uri in module PushNotification");
 			return;

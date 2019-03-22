@@ -34,16 +34,6 @@ public:
 	~ModuleExternalAuthentication() override = default;
 
 private:
-	class _AuthStatus : public ExternalAuthModule::Status {
-	public:
-		_AuthStatus(const std::shared_ptr<RequestSipEvent> &event): ExternalAuthModule::Status(), mEvent(event) {}
-
-		const std::shared_ptr<RequestSipEvent> &event() const {return mEvent;}
-
-	private:
-		std::shared_ptr<RequestSipEvent> mEvent;
-	};
-
 	void onDeclare(GenericStruct *mc) override;
 	void onLoad(const GenericStruct *root) override;
 	void onRequest(std::shared_ptr<RequestSipEvent> &ev) override;

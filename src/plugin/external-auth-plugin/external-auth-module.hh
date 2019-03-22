@@ -38,6 +38,8 @@ public:
 	 */
 	class Status : public FlexisipAuthStatus {
 	public:
+		Status(const std::shared_ptr<RequestSipEvent> &ev) : FlexisipAuthStatus(ev) {}
+
 		const std::string &reason() const {return mReasonHeader;}
 		void reason(const std::string &val) {mReasonHeader = val;}
 
