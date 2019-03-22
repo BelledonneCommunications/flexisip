@@ -18,12 +18,14 @@
 
 #pragma once
 
-#include <flexisip/auth-module.hh>
-#include <flexisip/module.hh>
+#include "flexisip/auth-module.hh"
+
+#include "module-authentication-base.hh"
+
 
 namespace flexisip {
 
-class Authentication : public Module {
+class Authentication : public ModuleAuthenticationBase {
 public:
 	StatCounter64 *mCountAsyncRetrieve = nullptr;
 	StatCounter64 *mCountSyncRetrieve = nullptr;
@@ -53,18 +55,12 @@ private:
 	void loadTrustedHosts(const ConfigStringList &trustedHosts);
 
 	static ModuleInfo<Authentication> sInfo;
-	std::map<std::string, std::unique_ptr<AuthModule>> mAuthModules;
-	std::list<std::string> mDomains;
 	std::list<BinaryIp> mTrustedHosts;
 	std::list<std::string> mTrustedClientCertificates;
-	std::list<std::string> mAlgorithms;
 	regex_t mRequiredSubject;
-	auth_challenger_t mRegistrarChallenger;
-	auth_challenger_t mProxyChallenger;
 	std::shared_ptr<BooleanExpression> mNo403Expr;
 	bool mNewAuthOn407 = false;
 	bool mTestAccountsEnabled = false;
-	bool mDisableQOPAuth = false;
 	bool mRequiredSubjectCheckSet = false;
 	bool mRejectWrongClientCertificates = false;
 	bool mTrustDomainCertificates = false;

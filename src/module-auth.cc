@@ -30,17 +30,7 @@ using namespace flexisip;
 //  Authentication class
 // ====================================================================================================================
 
-Authentication::Authentication(Agent *ag) : Module(ag) {
-	mProxyChallenger.ach_status = 407; /*SIP_407_PROXY_AUTH_REQUIRED*/
-	mProxyChallenger.ach_phrase = sip_407_Proxy_auth_required;
-	mProxyChallenger.ach_header = sip_proxy_authenticate_class;
-	mProxyChallenger.ach_info = sip_proxy_authentication_info_class;
-
-	mRegistrarChallenger.ach_status = 401; /*SIP_401_UNAUTHORIZED*/
-	mRegistrarChallenger.ach_phrase = sip_401_Unauthorized;
-	mRegistrarChallenger.ach_header = sip_www_authenticate_class;
-	mRegistrarChallenger.ach_info = sip_authentication_info_class;
-}
+Authentication::Authentication(Agent *ag) : ModuleAuthenticationBase(ag) {}
 
 Authentication::~Authentication() {
 	if (mRequiredSubjectCheckSet){
@@ -49,11 +39,8 @@ Authentication::~Authentication() {
 }
 
 void Authentication::onDeclare(GenericStruct *mc) {
+	ModuleAuthenticationBase::onDeclare(mc);
 	ConfigItemDescriptor items[] = {
-		{StringList, "auth-domains",
-			"List of whitespace separated domain names to challenge. Others are denied.",
-			"localhost"
-		},
 		{StringList, "trusted-hosts", "List of whitespace separated IP which will not be challenged.", ""},
 		{String, "db-implementation",
 			"Database backend implementation for digest authentication [odbc,soci,file].",
@@ -72,7 +59,6 @@ void Authentication::onDeclare(GenericStruct *mc) {
 			"bellesip@sip.linphone.org clrtxt:secret md5:97ffb1c6af18e5687bf26cdf35e45d30 sha256:d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3 ;",
 			""
 		},
-		{Integer, "nonce-expires", "Expiration time of nonces, in seconds.", "3600"},
 		{Integer, "cache-expire", "Duration of the validity of the credentials added to the cache in seconds.", "1800"},
 		{Boolean, "hashed-passwords",
 			"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).",
@@ -100,20 +86,6 @@ void Authentication::onDeclare(GenericStruct *mc) {
 			"This MUST not be used for production as it is a real security hole.",
 			"false"
 		},
-		{Boolean, "disable-qop-auth",
-			"Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
-			"false"
-		},
-		/* We need this configuration because of old client that do not support multiple Authorization.
-			* When a user have a clear text password, it will be hashed into md5 and sha256.
-			* This will force the use of only the algorithm supported by them.
-			*/
-		{StringList, "available-algorithms",
-			"List of algorithms, separated by whitespaces (valid values are MD5 and SHA-256).\n"
-			"This feature allows to force the use of wanted algorithm(s).\n"
-			"If the value is empty, then it will authorize all implemented algorithms.",
-			"MD5"
-		},
 		{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
 			"which will trusted. If no domain is given it is computed.",
 			""
@@ -126,8 +98,6 @@ void Authentication::onDeclare(GenericStruct *mc) {
 	};
 
 	mc->addChildrenValues(items);
-	/* modify the default value for "enabled" */
-	mc->get<ConfigBoolean>("enabled")->setDefault("false");
 	mc->get<ConfigBoolean>("hashed-passwords")->setDeprecated(true);
 	//we deprecate "trusted-client-certificates" because "tls-client-certificate-required-subject" can do more.
 	mc->get<ConfigStringList>("trusted-client-certificates")->setDeprecated(true);
@@ -142,14 +112,15 @@ void Authentication::onDeclare(GenericStruct *mc) {
 }
 
 void Authentication::onLoad(const GenericStruct *mc) {
-	mDomains = mc->get<ConfigStringList>("auth-domains")->read();
+	ModuleAuthenticationBase::onLoad(mc);
+// 	mDomains = mc->get<ConfigStringList>("auth-domains")->read();
 	loadTrustedHosts(*mc->get<ConfigStringList>("trusted-hosts"));
 	mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
 	mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
 	mTrustDomainCertificates = mc->get<ConfigBoolean>("trust-domain-certificates")->read();
 	mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
 	mTestAccountsEnabled = mc->get<ConfigBoolean>("enable-test-accounts-creation")->read();
-	mDisableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
+// 	mDisableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
 	int nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
 	mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
 	mAlgorithms.unique();

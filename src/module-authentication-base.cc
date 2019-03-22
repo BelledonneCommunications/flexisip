@@ -78,6 +78,10 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	list<string> authDomains = mc->get<ConfigStringList>("auth-domains")->read();
 
 	mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
+	auto it = find_if(mAlgorithms.cbegin(), mAlgorithms.cend(), [](const string &algo){return !validAlgo(algo);});
+	if (it != mAlgorithms.cend()) {
+		LOGF("invalid algorithm (%s) set in '%s/available-algorithms'. Only 'MD5' or 'SHA-256' are valid", it->c_str(), mc->getName().c_str());
+	}
 	if (mAlgorithms.empty()) mAlgorithms = {"MD5", "SHA-256"};
 	mAlgorithms.unique();
 
@@ -261,5 +265,12 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const
 		as.bodyLen(sip->sip_payload->pl_len);
 	}
 }
+
+bool ModuleAuthenticationBase::validAlgo(const std::string &algo) {
+	auto it = find(sValidAlgos.cbegin(), sValidAlgos.cend(), algo);
+	return it == sValidAlgos.cend();
+}
+
+const std::array<std::string, 2> ModuleAuthenticationBase::sValidAlgos = {{ "MD5", "SHA-256" }};
 
 }

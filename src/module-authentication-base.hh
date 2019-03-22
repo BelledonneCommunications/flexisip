@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <array>
 #include <list>
 #include <map>
 #include <memory>
@@ -52,6 +53,8 @@ protected:
 	FlexisipAuthModuleBase *findAuthModule(const std::string name);
 	void configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev, const url_t *userUri);
 
+	static bool validAlgo(const std::string &algo);
+
 protected:
 	std::map<std::string, std::unique_ptr<FlexisipAuthModuleBase>> mAuthModules;
 	std::list<std::string> mAlgorithms;
@@ -59,6 +62,8 @@ protected:
 	auth_challenger_t mProxyChallenger;
 	std::string mRealmRegexStr;
 	std::regex mRealmRegex;
+
+	static const std::array<std::string, 2> sValidAlgos;
 };
 
 }
