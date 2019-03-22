@@ -26,21 +26,6 @@
 using namespace std;
 using namespace flexisip;
 
-namespace flexisip {
-
-class RequestAuthStatus : public FlexisipAuthStatus {
-public:
-	RequestAuthStatus(const std::shared_ptr<RequestSipEvent> &ev): FlexisipAuthStatus(), mEv(ev) {}
-	~RequestAuthStatus() override = default;
-
-	const std::shared_ptr<RequestSipEvent> &getRequestEvent() const {return mEv;}
-
-private:
-	std::shared_ptr<RequestSipEvent> mEv;
-};
-
-}
-
 // ====================================================================================================================
 //  Authentication class
 // ====================================================================================================================
@@ -442,7 +427,7 @@ void Authentication::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	// with retransmissions.
 	ev->createIncomingTransaction();
 
-	auto *as = new RequestAuthStatus(ev);
+	auto *as = new FlexisipAuthStatus(ev);
 	as->method(sip->sip_request->rq_method_name);
 	as->source(msg_addrinfo(ms->getMsg()));
 	as->userUri(ppi ? ppi->ppid_url : sip->sip_from->a_url);
@@ -478,7 +463,7 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 
 	sip_t *sip = ev->getMsgSip()->getSip();
 	if (sip->sip_status->st_status == 407 && sip->sip_proxy_authenticate) {
-		auto *as = new FlexisipAuthStatus();
+		auto *as = new FlexisipAuthStatus(nullptr);
 		as->realm(proxyRealm.get()->c_str());
 		as->userUri(sip->sip_from->a_url);
 		AuthModule *am = findAuthModule(as->realm());
@@ -515,8 +500,8 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 }
 
 void Authentication::processAuthModuleResponse(AuthStatus &as) {
-	const shared_ptr<RequestSipEvent> &ev = dynamic_cast<const RequestAuthStatus &>(as).getRequestEvent();
 	auto &authStatus = dynamic_cast<FlexisipAuthStatus &>(as);
+	const shared_ptr<RequestSipEvent> &ev = authStatus.event();
 	if (as.status() == 0) {
 		const std::shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();

@@ -177,7 +177,7 @@ void ModuleExternalAuthentication::onRequest(std::shared_ptr<RequestSipEvent> &e
 			realm = su_strndup(ev->getHome(), userUriStr + m.position(index), m.length(index));
 		}
 
-		auto *as = new _AuthStatus(ev);
+		auto *as = new ExternalAuthModule::Status(ev);
 		as->method(sip->sip_request->rq_method_name);
 		as->source(msg_addrinfo(ms->getMsg()));
 		as->userUri(userUri);
@@ -237,8 +237,8 @@ ExternalAuthModule *ModuleExternalAuthentication::findAuthModule(const std::stri
 }
 
 void ModuleExternalAuthentication::processAuthModuleResponse(AuthStatus &as) {
-	const shared_ptr<RequestSipEvent> &ev = dynamic_cast<const _AuthStatus &>(as).event();
-	auto &authStatus = dynamic_cast<_AuthStatus &>(as);
+	auto &authStatus = dynamic_cast<ExternalAuthModule::Status &>(as);
+	const shared_ptr<RequestSipEvent> &ev = authStatus.event();
 	if (as.status() == 0) {
 		const std::shared_ptr<MsgSip> &ms = ev->getMsgSip();
 		sip_t *sip = ms->getSip();

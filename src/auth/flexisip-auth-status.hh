@@ -33,7 +33,12 @@ namespace flexisip {
  */
 class FlexisipAuthStatus : public AuthStatus {
 public:
-	FlexisipAuthStatus(): AuthStatus() {}
+	FlexisipAuthStatus(const std::shared_ptr<RequestSipEvent> &ev): AuthStatus(), mEvent(ev) {}
+
+	/**
+	 * Request that has been used while construction.
+	 */
+	const std::shared_ptr<RequestSipEvent> &event() const {return mEvent;}
 
 	/**
 	 * This property is to be set by the user of FlexisipAuthModule
@@ -64,6 +69,7 @@ public:
 	std::list<std::string> &usedAlgo() {return mAlgoUsed;}
 
 private:
+	std::shared_ptr<RequestSipEvent> mEvent;
 	std::list<std::string> mAlgoUsed;
 	bool mNo403 = false;
 	bool mPasswordFound = false;
