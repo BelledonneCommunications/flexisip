@@ -37,37 +37,30 @@ using namespace flexisip;
 // Module.
 // -----------------------------------------------------------------------------
 
-Module::Module(Agent *ag) : mAgent(ag) {
-	su_home_init(&mHome);
-	mFilter = new ConfigEntryFilter();
-}
+Module::Module(Agent *ag) : mAgent(ag), mFilter(new ConfigEntryFilter()) {}
 
 bool Module::isEnabled() const {
 	return mFilter->isEnabled();
 }
 
-Module::~Module() {
-	delete mFilter;
-	su_home_deinit(&mHome);
-}
-
 bool Module::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
+	bool dirtyConfig = false;
 	LOGD("Configuration of module %s changed for key %s to %s", mInfo->getModuleName().c_str(), conf.getName().c_str(),
 		 conf.get().c_str());
 	switch (state) {
 		case ConfigState::Check:
 			return isValidNextConfig(conf);
 		case ConfigState::Changed:
-			mDirtyConfig = true;
+			dirtyConfig = true;
 			break;
 		case ConfigState::Reset:
-			mDirtyConfig = false;
+			dirtyConfig = false;
 			break;
 		case ConfigState::Commited:
-			if (mDirtyConfig) {
+			if (dirtyConfig) {
 				LOGI("Reloading config of module %s", mInfo->getModuleName().c_str());
 				reload();
-				mDirtyConfig = false;
+				dirtyConfig = false;
 			}
 			break;
 	}
@@ -76,10 +69,6 @@ bool Module::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) 
 
 void Module::setInfo(ModuleInfoBase *i) {
 	mInfo = i;
-}
-
-Agent *Module::getAgent() const {
-	return mAgent;
 }
 
 nta_agent_t *Module::getSofiaAgent() const {
