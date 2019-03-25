@@ -30,17 +30,7 @@ using namespace flexisip;
 //  Authentication class
 // ====================================================================================================================
 
-Authentication::Authentication(Agent *ag) : Module(ag) {
-	mProxyChallenger.ach_status = 407; /*SIP_407_PROXY_AUTH_REQUIRED*/
-	mProxyChallenger.ach_phrase = sip_407_Proxy_auth_required;
-	mProxyChallenger.ach_header = sip_proxy_authenticate_class;
-	mProxyChallenger.ach_info = sip_proxy_authentication_info_class;
-
-	mRegistrarChallenger.ach_status = 401; /*SIP_401_UNAUTHORIZED*/
-	mRegistrarChallenger.ach_phrase = sip_401_Unauthorized;
-	mRegistrarChallenger.ach_header = sip_www_authenticate_class;
-	mRegistrarChallenger.ach_info = sip_authentication_info_class;
-}
+Authentication::Authentication(Agent *ag) : ModuleAuthenticationBase(ag) {}
 
 Authentication::~Authentication() {
 	if (mRequiredSubjectCheckSet){
@@ -49,11 +39,8 @@ Authentication::~Authentication() {
 }
 
 void Authentication::onDeclare(GenericStruct *mc) {
+	ModuleAuthenticationBase::onDeclare(mc);
 	ConfigItemDescriptor items[] = {
-		{StringList, "auth-domains",
-			"List of whitespace separated domain names to challenge. Others are denied.",
-			"localhost"
-		},
 		{StringList, "trusted-hosts", "List of whitespace separated IP which will not be challenged.", ""},
 		{String, "db-implementation",
 			"Database backend implementation for digest authentication [odbc,soci,file].",
@@ -72,13 +59,11 @@ void Authentication::onDeclare(GenericStruct *mc) {
 			"bellesip@sip.linphone.org clrtxt:secret md5:97ffb1c6af18e5687bf26cdf35e45d30 sha256:d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3 ;",
 			""
 		},
-		{Integer, "nonce-expires", "Expiration time of nonces, in seconds.", "3600"},
 		{Integer, "cache-expire", "Duration of the validity of the credentials added to the cache in seconds.", "1800"},
 		{Boolean, "hashed-passwords",
 			"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).",
 			"false"
 		},
-		{BooleanExpr, "no-403", "Don't reply 403, but 401 or 407 even in case of wrong authentication.", "false"},
 		{Boolean, "reject-wrong-client-certificates",
 			"If set to true, the module will simply reject with 403 forbidden any request coming from client"
 			" who presented a bad TLS certificate (regardless of reason: improper signature, unmatched subjects)."
@@ -100,20 +85,6 @@ void Authentication::onDeclare(GenericStruct *mc) {
 			"This MUST not be used for production as it is a real security hole.",
 			"false"
 		},
-		{Boolean, "disable-qop-auth",
-			"Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
-			"false"
-		},
-		/* We need this configuration because of old client that do not support multiple Authorization.
-			* When a user have a clear text password, it will be hashed into md5 and sha256.
-			* This will force the use of only the algorithm supported by them.
-			*/
-		{StringList, "available-algorithms",
-			"List of algorithms, separated by whitespaces (valid values are MD5 and SHA-256).\n"
-			"This feature allows to force the use of wanted algorithm(s).\n"
-			"If the value is empty, then it will authorize all implemented algorithms.",
-			"MD5"
-		},
 		{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
 			"which will trusted. If no domain is given it is computed.",
 			""
@@ -126,8 +97,6 @@ void Authentication::onDeclare(GenericStruct *mc) {
 	};
 
 	mc->addChildrenValues(items);
-	/* modify the default value for "enabled" */
-	mc->get<ConfigBoolean>("enabled")->setDefault("false");
 	mc->get<ConfigBoolean>("hashed-passwords")->setDeprecated(true);
 	//we deprecate "trusted-client-certificates" because "tls-client-certificate-required-subject" can do more.
 	mc->get<ConfigStringList>("trusted-client-certificates")->setDeprecated(true);
@@ -142,90 +111,31 @@ void Authentication::onDeclare(GenericStruct *mc) {
 }
 
 void Authentication::onLoad(const GenericStruct *mc) {
-	mDomains = mc->get<ConfigStringList>("auth-domains")->read();
+	ModuleAuthenticationBase::onLoad(mc);
+
 	loadTrustedHosts(*mc->get<ConfigStringList>("trusted-hosts"));
 	mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
 	mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
 	mTrustDomainCertificates = mc->get<ConfigBoolean>("trust-domain-certificates")->read();
-	mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
 	mTestAccountsEnabled = mc->get<ConfigBoolean>("enable-test-accounts-creation")->read();
-	mDisableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
-	int nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
-	mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
-	mAlgorithms.unique();
-
-	for (auto it = mAlgorithms.begin(); it != mAlgorithms.end();) {
-		if ((*it != "MD5") && (*it != "SHA-256")) {
-			SLOGW << "Given algorithm '" << *it << "' is not valid. Must be either MD5 or SHA-256.";
-			it = mAlgorithms.erase(it);
-		} else {
-			it++;
-		}
-	}
-
-	if (mAlgorithms.empty()) {
-		mAlgorithms.push_back("MD5");
-		mAlgorithms.push_back("SHA-256");
-	}
-
-	for (const string &domain : mDomains) {
-		FlexisipAuthModule *authModule =
-			mDisableQOPAuth ?
-			new FlexisipAuthModule(getAgent()->getRoot(), domain, mAlgorithms.front()) :
-			new FlexisipAuthModule(getAgent()->getRoot(), domain, mAlgorithms.front(), nonceExpires);
-
-		authModule->setOnPasswordFetchResultCb(
-			[this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;}
-		);
-		mAuthModules[domain].reset(authModule);
-		SLOGI << "Found auth domain: " << domain;
-	}
 
 	string requiredSubject = mc->get<ConfigString>("tls-client-certificate-required-subject")->read();
 	if (!requiredSubject.empty()){
 		int res = regcomp(&mRequiredSubject, requiredSubject.c_str(),  REG_EXTENDED|REG_NOSUB);
 		if (res != 0) {
-			string err_msg(128,0);
-			regerror(res, &mRequiredSubject, &err_msg[0], err_msg.capacity());
+			string err_msg(128, '\0');
+			regerror(res, &mRequiredSubject, &err_msg[0], err_msg.size());
 			LOGF("Could not compile regex for 'tls-client-certificate-required-subject' '%s': %s",
 				 requiredSubject.c_str(),
 				 err_msg.c_str()
 			);
-		}else mRequiredSubjectCheckSet = true;
+		} else mRequiredSubjectCheckSet = true;
 	}
 	mRejectWrongClientCertificates = mc->get<ConfigBoolean>("reject-wrong-client-certificates")->read();
-	AuthDbBackend::get();//force instanciation of the AuthDbBackend NOW, to force errors to arrive now if any.
+	AuthDbBackend::get(); // force instanciation of the AuthDbBackend NOW, to force errors to arrive now if any.
 }
 
-AuthModule *Authentication::findAuthModule(const string name) {
-	auto it = mAuthModules.find(name);
-	if (it == mAuthModules.end())
-		it = mAuthModules.find("*");
-	if (it == mAuthModules.end()) {
-		for (auto it2 = mAuthModules.begin(); it2 != mAuthModules.end(); ++it2) {
-			string domainName = it2->first;
-			size_t wildcardPosition = domainName.find("*");
-			// if domain has a wildcard in it, try to match
-			if (wildcardPosition != string::npos) {
-				size_t beforeWildcard = name.find(domainName.substr(0, wildcardPosition));
-				size_t afterWildcard = name.find(domainName.substr(wildcardPosition + 1));
-				if (beforeWildcard != string::npos && afterWildcard != string::npos) {
-					return it2->second.get();
-				}
-			}
-		}
-	}
-	if (it == mAuthModules.end()) {
-		return nullptr;
-	}
-	return it->second.get();
-}
-
-bool Authentication::containsDomain(const list<string> &d, const char *name) {
-	return find(d.cbegin(), d.cend(), "*") != d.end() || find(d.cbegin(), d.cend(), name) != d.end();
-}
-
-bool Authentication::handleTestAccountCreationRequests(shared_ptr<RequestSipEvent> &ev) {
+bool Authentication::handleTestAccountCreationRequests(const shared_ptr<RequestSipEvent> &ev) {
 	sip_t *sip = ev->getSip();
 	if (sip->sip_request->rq_method == sip_method_register) {
 		sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(sip, "X-Create-Account");
@@ -250,7 +160,7 @@ bool Authentication::handleTestAccountCreationRequests(shared_ptr<RequestSipEven
 	return false;
 }
 
-bool Authentication::isTrustedPeer(shared_ptr<RequestSipEvent> &ev) {
+bool Authentication::isTrustedPeer(const shared_ptr<RequestSipEvent> &ev) {
 	sip_t *sip = ev->getSip();
 
 	// Check for trusted host
@@ -286,7 +196,7 @@ bool Authentication::tlsClientCertificatePostCheck(const shared_ptr<RequestSipEv
  * true: if the tls authentication is handled (either successful or rejected)
  * false: if we have to fallback to digest
  */
-bool Authentication::handleTlsClientAuthentication(shared_ptr<RequestSipEvent> &ev) {
+bool Authentication::handleTlsClientAuthentication(const shared_ptr<RequestSipEvent> &ev) {
 	sip_t *sip = ev->getSip();
 	shared_ptr<tport_t> inTport = ev->getIncomingTport();
 	unsigned int policy = 0;
@@ -359,99 +269,6 @@ bool Authentication::handleTlsClientAuthentication(shared_ptr<RequestSipEvent> &
 	return false;
 }
 
-void Authentication::onRequest(shared_ptr<RequestSipEvent> &ev) {
-	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	sip_t *sip = ms->getSip();
-	sip_p_preferred_identity_t *ppi = NULL;
-
-	// Do it first to make sure no transaction is created which
-	// would send an unappropriate 100 trying response.
-	if (sip->sip_request->rq_method == sip_method_ack || sip->sip_request->rq_method == sip_method_cancel ||
-		sip->sip_request->rq_method == sip_method_bye // same as in the sofia auth modules
-	) {
-		/*ack and cancel shall never be challenged according to the RFC.*/
-		return;
-	}
-
-	// handle account creation request (test feature only)
-	if (mTestAccountsEnabled && handleTestAccountCreationRequests(ev)) {
-		ev->reply(
-			200,
-			"Test account created",
-			SIPTAG_SERVER_STR(getAgent()->getServerString()),
-			SIPTAG_CONTACT(sip->sip_contact),
-			SIPTAG_EXPIRES_STR("0"),
-			TAG_END()
-		);
-		return;
-	}
-
-	// Check trusted peer
-	if (isTrustedPeer(ev))
-		return;
-
-	// Check for auth module for this domain, this will also tell us if this domain is allowed (auth-domains config
-	// item)
-	const char *fromDomain = sip->sip_from->a_url[0].url_host;
-	if (fromDomain && strcmp(fromDomain, "anonymous.invalid") == 0) {
-		ppi = sip_p_preferred_identity(sip);
-		if (ppi)
-			fromDomain = ppi->ppid_url->url_host;
-		else
-			LOGD("There is no p-preferred-identity");
-	}
-
-	AuthModule *am = findAuthModule(fromDomain);
-	if (am == NULL) {
-		LOGI("Unknown domain [%s]", fromDomain);
-		SLOGUE << "Registration failure, domain is forbidden: " << fromDomain;
-		ev->reply(403, "Domain forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		return;
-	}
-
-	// check if TLS client certificate provides sufficent authentication for this request.
-	if (handleTlsClientAuthentication(ev))
-		return;
-
-	// Check for the existence of username, which is required for proceeding with digest authentication in flexisip.
-	// Reject if absent.
-	if (sip->sip_from->a_url->url_user == NULL) {
-		LOGI("From has no username, cannot authenticate.");
-		SLOGUE << "Registration failure, username not found: " << url_as_string(ms->getHome(), sip->sip_from->a_url);
-		ev->reply(403, "Username must be provided", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		return;
-	}
-
-	// Create incoming transaction if not already exists
-	// Necessary in qop=auth to prevent nonce count chaos
-	// with retransmissions.
-	ev->createIncomingTransaction();
-
-	auto *as = new FlexisipAuthStatus(ev);
-	as->method(sip->sip_request->rq_method_name);
-	as->source(msg_addrinfo(ms->getMsg()));
-	as->userUri(ppi ? ppi->ppid_url : sip->sip_from->a_url);
-	as->realm(as->userUri()->url_host);
-	as->display(sip->sip_from->a_display);
-	if (sip->sip_payload) {
-		as->body(sip->sip_payload->pl_data);
-		as->bodyLen(sip->sip_payload->pl_len);
-	}
-	as->no403(mNo403Expr->eval(ev->getSip()));
-	as->usedAlgo() = mAlgorithms;
-
-	// Attention: the auth_mod_verify method should not send by itself any message but
-	// return after having set the as status and phrase.
-	// Another point in asynchronous mode is that the asynchronous callbacks MUST be called
-	// AFTER the nta_msg_treply bellow. Otherwise the as would be already destroyed.
-	if (sip->sip_request->rq_method == sip_method_register) {
-		am->verify(*as, sip->sip_authorization, &mRegistrarChallenger);
-	} else {
-		am->verify(*as, sip->sip_proxy_authorization, &mProxyChallenger);
-	}
-	processAuthModuleResponse(*as);
-}
-
 void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	if (!mNewAuthOn407) return; /*nop*/
 
@@ -499,57 +316,61 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 	}
 }
 
-void Authentication::processAuthModuleResponse(AuthStatus &as) {
-	auto &authStatus = dynamic_cast<FlexisipAuthStatus &>(as);
-	const shared_ptr<RequestSipEvent> &ev = authStatus.event();
-	if (as.status() == 0) {
-		const std::shared_ptr<MsgSip> &ms = ev->getMsgSip();
-		sip_t *sip = ms->getSip();
-		if (sip->sip_request->rq_method == sip_method_register) {
-			msg_auth_t *au = ModuleToolbox::findAuthorizationForRealm(
-				ms->getHome(),
-				sip->sip_authorization,
-				as.realm()
-			);
-			if (au) msg_header_remove(ms->getMsg(), (msg_pub_t *)sip, (msg_header_t *)au);
-		} else {
-			msg_auth_t *au = ModuleToolbox::findAuthorizationForRealm(
-				ms->getHome(),
-				sip->sip_proxy_authorization,
-				as.realm()
-			);
-			if (au->au_next) msg_header_remove(ms->getMsg(), (msg_pub_t *)sip, (msg_header_t *)au->au_next);
-			if (au) msg_header_remove(ms->getMsg(), (msg_pub_t *)sip, (msg_header_t *)au);
-		}
-		if (ev->isSuspended()) {
-			// The event is re-injected
-			getAgent()->injectRequestEvent(ev);
-		}
-	} else if (as.status() == 100) {
-		using std::placeholders::_1;
-		ev->suspendProcessing();
-		as.callback(std::bind(&Authentication::processAuthModuleResponse, this, _1 ));
-		return;
-	} else if (as.status() >= 400) {
-		if (as.status() == 401 || as.status() == 407) {
-			auto log = make_shared<AuthLog>(ev->getMsgSip()->getSip(), authStatus.passwordFound());
-			log->setStatusCode(as.status(), as.phrase());
-			log->setCompleted();
-			ev->setEventLog(log);
-		}
-		ev->reply(as.status(), as.phrase(),
-			SIPTAG_HEADER((const sip_header_t *)as.info()),
-			SIPTAG_HEADER((const sip_header_t *)as.response()),
-			SIPTAG_SERVER_STR(getAgent()->getServerString()),
-			TAG_END()
-		);
-	} else {
-		ev->reply(500, "Internal error", TAG_END());
-	}
-	delete &as;
+// ================================================================================================================= //
+// Private methods                                                                                                   //
+// ================================================================================================================= //
+
+FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &domain, const std::string &algorithm) {
+	FlexisipAuthModule *authModule = new FlexisipAuthModule(getAgent()->getRoot(), domain, mAlgorithms.front());
+	authModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
+	SLOGI << "Found auth domain: " << domain;
+	return authModule;
 }
 
-const char *Authentication::findIncomingSubjectInTrusted(shared_ptr<RequestSipEvent> &ev, const char *fromDomain) {
+FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) {
+	FlexisipAuthModule *authModule = new FlexisipAuthModule(getAgent()->getRoot(), domain, mAlgorithms.front(), nonceExpire);
+	authModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
+	SLOGI << "Found auth domain: " << domain;
+	return authModule;
+}
+
+void Authentication::validateRequest(const std::shared_ptr<RequestSipEvent> &request) {
+	sip_t *sip = request->getMsgSip()->getSip();
+
+	ModuleAuthenticationBase::validateRequest(request);
+
+	// handle account creation request (test feature only)
+	if (mTestAccountsEnabled && handleTestAccountCreationRequests(request)) {
+		request->reply(
+			200,
+			"Test account created",
+			SIPTAG_SERVER_STR(getAgent()->getServerString()),
+			SIPTAG_CONTACT(sip->sip_contact),
+			SIPTAG_EXPIRES_STR("0"),
+			TAG_END()
+		);
+		throw StopRequestProcessing();
+	}
+
+	// Check trusted peer
+	if (isTrustedPeer(request))
+		throw StopRequestProcessing();
+}
+
+void Authentication::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) {
+	// check if TLS client certificate provides sufficent authentication for this request.
+	if (handleTlsClientAuthentication(request))
+		throw StopRequestProcessing();
+
+	// Create incoming transaction if not already exists
+	// Necessary in qop=auth to prevent nonce count chaos
+	// with retransmissions.
+	request->createIncomingTransaction();
+
+	ModuleAuthenticationBase::processAuthentication(request, am);
+}
+
+const char *Authentication::findIncomingSubjectInTrusted(const shared_ptr<RequestSipEvent> &ev, const char *fromDomain) {
 	if (mTrustedClientCertificates.empty())
 		return NULL;
 	list<string> toCheck;
