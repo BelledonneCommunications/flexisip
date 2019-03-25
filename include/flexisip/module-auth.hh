@@ -48,10 +48,10 @@ public:
 private:
 	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm) override;
 	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) override;
-	FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev, const url_t *userUri) override;
+	FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) override;
 
 	void validateRequest(const std::shared_ptr<RequestSipEvent> &request) override;
-	void processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am, const sip_p_preferred_identity_t *ppi) override;
+	void processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) override;
 
 	bool empty(const char *value) {return value == NULL || value[0] == '\0';}
 	const char *findIncomingSubjectInTrusted(const std::shared_ptr<RequestSipEvent> &ev, const char *fromDomain);

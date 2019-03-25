@@ -334,9 +334,9 @@ FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &doma
 	return authModule;
 }
 
-FlexisipAuthStatus *Authentication::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev, const url_t *userUri) {
+FlexisipAuthStatus *Authentication::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
 	auto *as = new FlexisipAuthStatus(ev);
-	ModuleAuthenticationBase::configureAuthStatus(*as, ev, userUri);
+	ModuleAuthenticationBase::configureAuthStatus(*as, ev);
 	return as;
 }
 
@@ -363,7 +363,7 @@ void Authentication::validateRequest(const std::shared_ptr<RequestSipEvent> &req
 		throw StopRequestProcessing();
 }
 
-void Authentication::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am, const sip_p_preferred_identity_t *ppi) {
+void Authentication::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) {
 	// check if TLS client certificate provides sufficent authentication for this request.
 	if (handleTlsClientAuthentication(request))
 		throw StopRequestProcessing();
@@ -373,7 +373,7 @@ void Authentication::processAuthentication(const std::shared_ptr<RequestSipEvent
 	// with retransmissions.
 	request->createIncomingTransaction();
 
-	ModuleAuthenticationBase::processAuthentication(request, am, ppi);
+	ModuleAuthenticationBase::processAuthentication(request, am);
 }
 
 const char *Authentication::findIncomingSubjectInTrusted(const shared_ptr<RequestSipEvent> &ev, const char *fromDomain) {
