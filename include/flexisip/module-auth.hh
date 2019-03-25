@@ -18,12 +18,14 @@
 
 #pragma once
 
-#include <flexisip/auth-module.hh>
-#include <flexisip/module.hh>
+#include "flexisip/auth-module.hh"
+
+#include "module-authentication-base.hh"
+
 
 namespace flexisip {
 
-class Authentication : public Module {
+class Authentication : public ModuleAuthenticationBase {
 public:
 	StatCounter64 *mCountAsyncRetrieve = nullptr;
 	StatCounter64 *mCountSyncRetrieve = nullptr;
@@ -35,36 +37,32 @@ public:
 
 	void onDeclare(GenericStruct *mc) override;
 	void onLoad(const GenericStruct *mc) override;
-	AuthModule *findAuthModule(const std::string name);
-	static bool containsDomain(const std::list<std::string> &d, const char *name);
-	bool handleTestAccountCreationRequests(std::shared_ptr<RequestSipEvent> &ev);
-	bool isTrustedPeer(std::shared_ptr<RequestSipEvent> &ev);
+	bool handleTestAccountCreationRequests(const std::shared_ptr<RequestSipEvent> &ev);
+	bool isTrustedPeer(const std::shared_ptr<RequestSipEvent> &ev);
 	bool tlsClientCertificatePostCheck(const std::shared_ptr<RequestSipEvent> &ev);
-	virtual bool handleTlsClientAuthentication(std::shared_ptr<RequestSipEvent> &ev);
-	void onRequest(std::shared_ptr<RequestSipEvent> &ev) override;
+	virtual bool handleTlsClientAuthentication(const std::shared_ptr<RequestSipEvent> &ev);
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override;
 	void onIdle() override;
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) override;
 
 private:
-	void processAuthModuleResponse(AuthStatus &as);
+	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm) override;
+	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) override;
+	FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) override;
+
+	void validateRequest(const std::shared_ptr<RequestSipEvent> &request) override;
+	void processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) override;
+
 	bool empty(const char *value) {return value == NULL || value[0] == '\0';}
-	const char *findIncomingSubjectInTrusted(std::shared_ptr<RequestSipEvent> &ev, const char *fromDomain);
+	const char *findIncomingSubjectInTrusted(const std::shared_ptr<RequestSipEvent> &ev, const char *fromDomain);
 	void loadTrustedHosts(const ConfigStringList &trustedHosts);
 
 	static ModuleInfo<Authentication> sInfo;
-	std::map<std::string, std::unique_ptr<AuthModule>> mAuthModules;
-	std::list<std::string> mDomains;
 	std::list<BinaryIp> mTrustedHosts;
 	std::list<std::string> mTrustedClientCertificates;
-	std::list<std::string> mAlgorithms;
 	regex_t mRequiredSubject;
-	auth_challenger_t mRegistrarChallenger;
-	auth_challenger_t mProxyChallenger;
-	std::shared_ptr<BooleanExpression> mNo403Expr;
 	bool mNewAuthOn407 = false;
 	bool mTestAccountsEnabled = false;
-	bool mDisableQOPAuth = false;
 	bool mRequiredSubjectCheckSet = false;
 	bool mRejectWrongClientCertificates = false;
 	bool mTrustDomainCertificates = false;
