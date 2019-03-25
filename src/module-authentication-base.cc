@@ -21,6 +21,8 @@
 #include <sofia-sip/sip_status.h>
 
 #include "agent.hh"
+#include "utils/string-utils.hh"
+
 #include "module-authentication-base.hh"
 
 using namespace std;
@@ -58,6 +60,11 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
 		"Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
 		"false"
 	}, {
+		BooleanExpr,
+		"no-403",
+		"Don't reply 403, but 401 or 407 even in case of wrong authentication.",
+		"false"
+	}, {
 		Integer,
 		"nonce-expires",
 		"Expiration time of nonces, in seconds.",
@@ -78,8 +85,15 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	list<string> authDomains = mc->get<ConfigStringList>("auth-domains")->read();
 
 	mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
-	if (mAlgorithms.empty()) mAlgorithms = {"MD5", "SHA-256"};
 	mAlgorithms.unique();
+	auto it = find_if(mAlgorithms.cbegin(), mAlgorithms.cend(), [](const string &algo){return !validAlgo(algo);});
+	if (it != mAlgorithms.cend()) {
+		ostringstream os;
+		os << "invalid algorithm (" << *it << ") set in '" << mc->getName() << "/available-algorithms'. ";
+		os << "Available algorithms are " << StringUtils::toString(sValidAlgos);
+		LOGF("%s", os.str().c_str());
+	}
+	if (mAlgorithms.empty()) mAlgorithms.assign(sValidAlgos.cbegin(), sValidAlgos.cend());
 
 	bool disableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
 	int nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
@@ -102,21 +116,15 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 			LOGF("invalid regex in 'realm-regex': %s", e.what());
 		}
 	}
+
+	mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
 }
 
 void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
-	try {
-		const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-		sip_t *sip = ms->getSip();
+	sip_t *sip = ev->getMsgSip()->getSip();
 
-		// Do it first to make sure no transaction is created which
-		// would send an inappropriate 100 trying response.
-		if (sip->sip_request->rq_method == sip_method_ack || sip->sip_request->rq_method == sip_method_cancel ||
-			sip->sip_request->rq_method == sip_method_bye // same as in the sofia auth modules
-		) {
-			/*ack and cancel shall never be challenged according to the RFC.*/
-			return;
-		}
+	try {
+		validateRequest(ev);
 
 		sip_p_preferred_identity_t *ppi = nullptr;
 		const char *fromDomain = sip->sip_from->a_url[0].url_host;
@@ -136,26 +144,45 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 			return;
 		}
 
-		const url_t *userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
-		const char *realm = userUri->url_host;
-		if (!mRealmRegexStr.empty()) {
-			cmatch m;
-			const char *userUriStr = url_as_string(ev->getHome(), userUri);
-			if (!regex_search(userUriStr, m, mRealmRegex)) {
-				SLOGE << "no realm found in '" << userUriStr << "'. Search regex: '" << mRealmRegexStr << "'";
-				ev->reply(500, "Internal error", TAG_END());
-				return;
-			}
-			int index = m.size() == 1 ? 0 : 1;
-			realm = su_strndup(ev->getHome(), userUriStr + m.position(index), m.length(index));
-		}
-
-		FlexisipAuthStatus *as = createAuthStatus(ev, userUri);
-		processAuthModuleResponse(*as);
+		processAuthentication(ev, *am, ppi);
 	} catch (const runtime_error &e) {
 		SLOGE << e.what();
 		ev->reply(500, "Internal error", TAG_END());
+	} catch (const StopRequestProcessing &) {}
+}
+
+void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipEvent> &request) {
+	sip_t *sip = request->getMsgSip()->getSip();
+
+	// Do it first to make sure no transaction is created which
+	// would send an inappropriate 100 trying response.
+	if (sip->sip_request->rq_method == sip_method_ack || sip->sip_request->rq_method == sip_method_cancel ||
+		sip->sip_request->rq_method == sip_method_bye // same as in the sofia auth modules
+	) {
+		/*ack and cancel shall never be challenged according to the RFC.*/
+		throw StopRequestProcessing();
 	}
+}
+
+void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am, const sip_p_preferred_identity_t *ppi) {
+	sip_t *sip = request->getMsgSip()->getSip();
+
+	const url_t *userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
+	const char *realm = userUri->url_host;
+	if (!mRealmRegexStr.empty()) {
+		cmatch m;
+		const char *userUriStr = url_as_string(request->getHome(), userUri);
+		if (!regex_search(userUriStr, m, mRealmRegex)) {
+			SLOGE << "no realm found in '" << userUriStr << "'. Search regex: '" << mRealmRegexStr << "'";
+			request->reply(500, "Internal error", TAG_END());
+			throw StopRequestProcessing();
+		}
+		int index = m.size() == 1 ? 0 : 1;
+		realm = su_strndup(request->getHome(), userUriStr + m.position(index), m.length(index));
+	}
+
+	FlexisipAuthStatus *as = createAuthStatus(request, userUri);
+	processAuthModuleResponse(*as);
 }
 
 void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus &as) {
@@ -210,6 +237,16 @@ void ModuleAuthenticationBase::onSuccess(const FlexisipAuthStatus &as) {
 	}
 }
 
+void ModuleAuthenticationBase::errorReply(const FlexisipAuthStatus &as) {
+	const std::shared_ptr<RequestSipEvent> &ev = as.event();
+	ev->reply(as.status(), as.phrase(),
+			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.info())),
+			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.response())),
+			  SIPTAG_SERVER_STR(getAgent()->getServerString()),
+			  TAG_END()
+	);
+}
+
 FlexisipAuthModuleBase *ModuleAuthenticationBase::findAuthModule(const std::string name) {
 	auto it = mAuthModules.find(name);
 	if (it == mAuthModules.end())
@@ -260,6 +297,15 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const
 		as.body(sip->sip_payload->pl_data);
 		as.bodyLen(sip->sip_payload->pl_len);
 	}
+	as.usedAlgo() = mAlgorithms;
+	as.no403(mNo403Expr->eval(ev->getSip()));
 }
+
+bool ModuleAuthenticationBase::validAlgo(const std::string &algo) {
+	auto it = find(sValidAlgos.cbegin(), sValidAlgos.cend(), algo);
+	return it == sValidAlgos.cend();
+}
+
+const std::array<std::string, 2> ModuleAuthenticationBase::sValidAlgos = {{ "MD5", "SHA-256" }};
 
 }

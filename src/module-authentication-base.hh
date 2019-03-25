@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <array>
 #include <list>
 #include <map>
 #include <memory>
@@ -36,6 +37,8 @@ public:
 	~ModuleAuthenticationBase() = default;
 
 protected:
+	class StopRequestProcessing : public std::exception {};
+
 	void onDeclare(GenericStruct *root) override;
 	void onLoad(const GenericStruct *root) override;
 	void onRequest(std::shared_ptr<RequestSipEvent> &ev) override;
@@ -45,12 +48,17 @@ protected:
 	virtual FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) = 0;
 	virtual FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev, const url_t *userUri) = 0;
 
+	virtual void validateRequest(const std::shared_ptr<RequestSipEvent> &request);
+	virtual void processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am, const sip_p_preferred_identity_t *ppi);
+
 	void processAuthModuleResponse(AuthStatus &as);
 	virtual void onSuccess(const FlexisipAuthStatus &as);
-	virtual void errorReply(const FlexisipAuthStatus &as) = 0;
+	virtual void errorReply(const FlexisipAuthStatus &as);
 
 	FlexisipAuthModuleBase *findAuthModule(const std::string name);
 	void configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev, const url_t *userUri);
+
+	static bool validAlgo(const std::string &algo);
 
 protected:
 	std::map<std::string, std::unique_ptr<FlexisipAuthModuleBase>> mAuthModules;
@@ -59,6 +67,9 @@ protected:
 	auth_challenger_t mProxyChallenger;
 	std::string mRealmRegexStr;
 	std::regex mRealmRegex;
+	std::shared_ptr<BooleanExpression> mNo403Expr;
+
+	static const std::array<std::string, 2> sValidAlgos;
 };
 
 }
