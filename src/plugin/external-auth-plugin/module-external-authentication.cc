@@ -84,7 +84,6 @@ FlexisipAuthStatus *ModuleExternalAuthentication::createAuthStatus(const std::sh
 	auto *as = new ExternalAuthModule::Status(ev);
 	configureAuthStatus(*as, ev, userUri);
 
-	as->usedAlgo() = mAlgorithms;
 	as->domain(sip->sip_from->a_url->url_host);
 	as->fromHeader(sip_header_as_string(as->home(), reinterpret_cast<sip_header_t *>(sip->sip_from)));
 
