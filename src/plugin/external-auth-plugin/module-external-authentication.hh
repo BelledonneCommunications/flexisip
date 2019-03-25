@@ -40,7 +40,7 @@ private:
 
 	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm) override;
 	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) override;
-	FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev, const url_t *userUri) override;
+	FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) override;
 
 	void onSuccess(const FlexisipAuthStatus &as) override;
 	void errorReply(const FlexisipAuthStatus &as) override;
