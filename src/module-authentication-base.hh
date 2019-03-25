@@ -46,17 +46,17 @@ protected:
 
 	virtual FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm) = 0;
 	virtual FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) = 0;
-	virtual FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev, const url_t *userUri) = 0;
+	virtual FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) = 0;
 
 	virtual void validateRequest(const std::shared_ptr<RequestSipEvent> &request);
-	virtual void processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am, const sip_p_preferred_identity_t *ppi);
+	virtual void processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am);
 
 	void processAuthModuleResponse(AuthStatus &as);
 	virtual void onSuccess(const FlexisipAuthStatus &as);
 	virtual void errorReply(const FlexisipAuthStatus &as);
 
 	FlexisipAuthModuleBase *findAuthModule(const std::string name);
-	void configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev, const url_t *userUri);
+	void configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev);
 
 	static bool validAlgo(const std::string &algo);
 

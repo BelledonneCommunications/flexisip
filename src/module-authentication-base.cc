@@ -144,7 +144,7 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 			return;
 		}
 
-		processAuthentication(ev, *am, ppi);
+		processAuthentication(ev, *am);
 	} catch (const runtime_error &e) {
 		SLOGE << e.what();
 		ev->reply(500, "Internal error", TAG_END());
@@ -164,24 +164,21 @@ void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipE
 	}
 }
 
-void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am, const sip_p_preferred_identity_t *ppi) {
+void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) {
 	sip_t *sip = request->getMsgSip()->getSip();
 
-	const url_t *userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
-	const char *realm = userUri->url_host;
-	if (!mRealmRegexStr.empty()) {
-		cmatch m;
-		const char *userUriStr = url_as_string(request->getHome(), userUri);
-		if (!regex_search(userUriStr, m, mRealmRegex)) {
-			SLOGE << "no realm found in '" << userUriStr << "'. Search regex: '" << mRealmRegexStr << "'";
-			request->reply(500, "Internal error", TAG_END());
-			throw StopRequestProcessing();
-		}
-		int index = m.size() == 1 ? 0 : 1;
-		realm = su_strndup(request->getHome(), userUriStr + m.position(index), m.length(index));
+	FlexisipAuthStatus *as = createAuthStatus(request);
+
+	// Attention: the auth_mod_verify method should not send by itself any message but
+	// return after having set the as status and phrase.
+	// Another point in asynchronous mode is that the asynchronous callbacks MUST be called
+	// AFTER the nta_msg_treply bellow. Otherwise the as would be already destroyed.
+	if (sip->sip_request->rq_method == sip_method_register) {
+		am.verify(*as, sip->sip_authorization, &mRegistrarChallenger);
+	} else {
+		am.verify(*as, sip->sip_proxy_authorization, &mProxyChallenger);
 	}
 
-	FlexisipAuthStatus *as = createAuthStatus(request, userUri);
 	processAuthModuleResponse(*as);
 }
 
@@ -271,9 +268,11 @@ FlexisipAuthModuleBase *ModuleAuthenticationBase::findAuthModule(const std::stri
 	return it->second.get();
 }
 
-void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev, const url_t *userUri) {
+void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
+	const sip_p_preferred_identity_t *ppi = sip_p_preferred_identity(sip);
+	const url_t *userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
 
 	const char *realm = userUri->url_host;
 	if (!mRealmRegexStr.empty()) {
@@ -303,7 +302,7 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const
 
 bool ModuleAuthenticationBase::validAlgo(const std::string &algo) {
 	auto it = find(sValidAlgos.cbegin(), sValidAlgos.cend(), algo);
-	return it == sValidAlgos.cend();
+	return it != sValidAlgos.cend();
 }
 
 const std::array<std::string, 2> ModuleAuthenticationBase::sValidAlgos = {{ "MD5", "SHA-256" }};
