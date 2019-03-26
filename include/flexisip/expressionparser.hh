@@ -29,11 +29,16 @@
 namespace flexisip {
 
 
+class ExpressionElement{
+public:
+	virtual ~ExpressionElement() = default;
+};
+	
 /* 
  * Variable represents a text field which is evaluated at run-time using the _valuesT argument.
  */
 template <typename _valuesT>
-class Variable{
+class Variable : public ExpressionElement{
 public:
 	Variable(const std::function< string (const _valuesT &)> &func) : mFunc(func){
 	}
@@ -112,7 +117,7 @@ protected:
  * true or false.
  */
 template <typename _valuesT>
-class NamedOperator : public BooleanExpression<_valuesT>{
+class NamedOperator : public BooleanExpression<_valuesT>, public ExpressionElement{
 public:
 	NamedOperator(const std::function< bool (const _valuesT &) func) : mFunc(func){
 	}
@@ -147,9 +152,15 @@ class BooleanExpressionBuilder{
 public:
 	using Var = Variable<_valuesT>;
 	using Expr = BooleanExpression<_valuesT>;
-	BooleanExpressionBuilder(const ExpressionRules<_valuesT> &rules) : mRules(rules){};
+	BooleanExpressionBuilder(const ExpressionRules<_valuesT> &rules);
 	std::shared_ptr<BooleanExpression<_valuesT>> parse(const std::string &expression);
 private:
+	void checkRulesOverlap();
+	size_t findFirstNonWord(const std::string &expr, size_t offset);
+	size_t findMatchingClosingParenthesis(const std::string &expr, size_t offset);
+	bool isKeyword(const std::string &expr, size_t *newpos, const string &keyword)
+	std::shared_ptr<Var> buildVariable(const std::string &expr, size_t *newpos);
+	std::shared_ptr<ExpressionElement> buildElement(const std::string &expr, size_t *newpos);
 	std::shared_ptr<Expr> parseExpression(const std::string &expr, size_t *newpos);
 	size_t findMatchingClosingParenthesis(const std::string &expr, size_t offset) {
 	const ExpressionRules<_valuesT> mRules;
