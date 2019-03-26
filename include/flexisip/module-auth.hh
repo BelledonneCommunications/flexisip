@@ -48,7 +48,6 @@ public:
 private:
 	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm) override;
 	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) override;
-	FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) override;
 
 	void validateRequest(const std::shared_ptr<RequestSipEvent> &request) override;
 	void processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) override;

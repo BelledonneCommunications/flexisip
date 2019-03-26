@@ -334,12 +334,6 @@ FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &doma
 	return authModule;
 }
 
-FlexisipAuthStatus *Authentication::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
-	auto *as = new FlexisipAuthStatus(ev);
-	ModuleAuthenticationBase::configureAuthStatus(*as, ev);
-	return as;
-}
-
 void Authentication::validateRequest(const std::shared_ptr<RequestSipEvent> &request) {
 	sip_t *sip = request->getMsgSip()->getSip();
 
