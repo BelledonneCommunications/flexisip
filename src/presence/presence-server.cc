@@ -459,10 +459,6 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		} else {
 			SLOGD << "Presentity [" << *presenceInfo << "] found";
 		}
-		for (shared_ptr<PresentityPresenceInformationListener> listener : presenceInfo->getListeners()) {
-			shared_ptr<PresentityPresenceInformation> toPresenceInfo = getPresenceInfo(listener->getTo());
-			listener->enableExtendedNotify(toPresenceInfo && toPresenceInfo->findPresenceInfo(presenceInfo));
-		}
 		eTag = eTag.empty()
 			? presenceInfo->putTuples(presence_body->getTuple(), presence_body->getPerson().get(), expires)
 			: presenceInfo->updateTuples(presence_body->getTuple(), presence_body->getPerson().get(), eTag, expires);
@@ -480,10 +476,6 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		 a result of such a request.
 		 */
 		presenceInfo = getPresenceInfo(eTag);
-		for (shared_ptr<PresentityPresenceInformationListener> listener : presenceInfo->getListeners()) {
-			shared_ptr<PresentityPresenceInformation> toPresenceInfo = getPresenceInfo(listener->getTo());
-			listener->enableExtendedNotify(toPresenceInfo && toPresenceInfo->findPresenceInfo(presenceInfo));
-		}
 		if (expires == 0) {
 			if (presenceInfo)
 				presenceInfo->removeTuplesForEtag(eTag);
@@ -880,9 +872,20 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 		listener->onListenerEvent(presenceInfo);
 	}
 
-	shared_ptr<PresentityPresenceInformation> toPresenceInfo = getPresenceInfo(listener->getTo());
 	presenceInfo->addListenerIfNecessary(listener);
-	listener->enableExtendedNotify(toPresenceInfo && toPresenceInfo->findPresenceInfo(presenceInfo));
+	if (!listener->extendedNotifyEnabled()) {
+		shared_ptr<PresentityPresenceInformation> toPresenceInfo = getPresenceInfo(listener->getTo());
+		if (toPresenceInfo) {
+			shared_ptr<PresentityPresenceInformationListener> toListener = toPresenceInfo->findPresenceInfoListener(presenceInfo);
+			if (toListener != nullptr) {
+				SLOGD << " listener [" << toListener.get() << "] on [" << *toPresenceInfo << "] already exist, enabling extended notification";
+				//both listener->getPresentityUri() and listener->getTo() are subscribed each other
+				listener->enableExtendedNotify(true); //allow listener to received extended notification
+				toListener->enableExtendedNotify(true); //but also toListener
+				toListener->onInformationChanged(*toPresenceInfo, true); //to triger notify
+			}
+		}
+	}
 
 	if (expires > 0)
 		presenceInfo->addOrUpdateListener(listener, expires);
@@ -906,10 +909,20 @@ void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInfo
 			addPresenceInfo(presenceInfo);
 		}
 
-		shared_ptr<PresentityPresenceInformation> toPresenceInfo = getPresenceInfo(listener->getTo());
 		presenceInfo->addListenerIfNecessary(listener);
-		listener->enableExtendedNotify(toPresenceInfo && toPresenceInfo->findPresenceInfo(presenceInfo));
-
+		if (!listener->extendedNotifyEnabled()) {
+			shared_ptr<PresentityPresenceInformation> toPresenceInfo = getPresenceInfo(listener->getTo());
+			if (toPresenceInfo) {
+				shared_ptr<PresentityPresenceInformationListener> toListener = toPresenceInfo->findPresenceInfoListener(presenceInfo);
+				if (toListener != nullptr) {
+					//both listener->getPresentityUri() and listener->getTo() are subscribed each other
+					SLOGD << " listener [" << toListener.get() << "] on [" << *toPresenceInfo << "] already exist, enabling extended notification";
+					listener->enableExtendedNotify(true); //allow listener to received extended notification
+					toListener->enableExtendedNotify(true); //but also toListener
+					toListener->onInformationChanged(*toPresenceInfo, true); //to triger notify
+				}
+			}
+		}
 		if (expires > 0)
 			presenceInfo->addOrUpdateListener(listener, expires);
 		else
