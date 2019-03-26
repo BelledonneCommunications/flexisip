@@ -19,42 +19,34 @@
 #pragma once
 
 #include <array>
+#include <regex>
 
 #include <flexisip/agent.hh>
-#include "external-auth-module.hh"
 #include <flexisip/module.hh>
+
+#include "external-auth-module.hh"
+#include "module-authentication-base.hh"
 
 namespace flexisip {
 
-class ModuleExternalAuthentication : public Module {
+class ModuleExternalAuthentication : public ModuleAuthenticationBase {
 public:
-	ModuleExternalAuthentication(Agent *agent);
+	ModuleExternalAuthentication(Agent *agent) : ModuleAuthenticationBase(agent) {}
 	~ModuleExternalAuthentication() override = default;
 
 private:
-	class _AuthStatus : public ExternalAuthModule::Status {
-	public:
-		_AuthStatus(const std::shared_ptr<RequestSipEvent> &event): ExternalAuthModule::Status(), mEvent(event) {}
-
-		const std::shared_ptr<RequestSipEvent> &event() const {return mEvent;}
-
-	private:
-		std::shared_ptr<RequestSipEvent> mEvent;
-	};
-
 	void onDeclare(GenericStruct *mc) override;
 	void onLoad(const GenericStruct *root) override;
-	void onRequest(std::shared_ptr<RequestSipEvent> &ev) override;
-	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override {}
 
-	ExternalAuthModule *findAuthModule(const std::string name);
-	void processAuthModuleResponse(AuthStatus &as);
+	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm) override;
+	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) override;
+	FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) override;
 
-	std::map<std::string, std::unique_ptr<ExternalAuthModule>> mAuthModules;
-	std::list<std::string> mAlgorithms;
+	void onSuccess(const FlexisipAuthStatus &as) override;
+	void errorReply(const FlexisipAuthStatus &as) override;
+
 	std::map<nth_client_t *, std::shared_ptr<RequestSipEvent>> mPendingEvent;
-	auth_challenger_t mRegistrarChallenger;
-	auth_challenger_t mProxyChallenger;
+	std::string mRemoteUri;
 };
 
 }

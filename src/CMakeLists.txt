@@ -64,6 +64,7 @@ set(FLEXISIP_SOURCES
 	lpconfig.cc
 	mediarelay.cc
 	module-auth.cc
+	module-authentication-base.cc
 	module-contact-route-inserter.cc
 	module-dos.cc
 	module-forward.cc
