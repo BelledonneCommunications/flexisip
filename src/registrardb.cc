@@ -35,6 +35,7 @@
 #include <sofia-sip/sip_protos.h>
 #include "recordserializer.hh"
 #include <flexisip/module.hh>
+#include "utils/string-utils.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -314,17 +315,20 @@ void ExtendedContact::extractInfoFromHeader(const char *urlHeaders) {
 				string valueStr;
 				string keyStr = reinterpret_cast<msg_common_t*>(headers)->h_class->hc_name;
 				
-				valueStr.resize(reinterpret_cast<msg_common_t*>(headers)->h_len);
-				msg_header_field_e(&valueStr[0], reinterpret_cast<msg_common_t*>(headers)->h_len, headers, 0);
+				valueStr.resize(reinterpret_cast<msg_common_t*>(headers)->h_len + 1);
+				size_t written = msg_header_field_e(&valueStr[0], reinterpret_cast<msg_common_t*>(headers)->h_len, headers, 0);
+				valueStr.resize(written);
 
 				transform(keyStr.begin(), keyStr.end(), keyStr.begin(), [](unsigned char c){ return std::tolower(c); });
 
 				if (keyStr == "path") {
-					size_t bracket = valueStr.find('<');
-					if (bracket != string::npos) valueStr.erase(bracket, static_cast<size_t>(1));
-					bracket = valueStr.find('>');
-					if (bracket != string::npos) valueStr.erase(bracket, static_cast<size_t>(1));
-					mPath.push_back(valueStr);
+					// We want to keep only the uri part of the paths.
+					sip_path_t *path = sip_path_format(home.home(), "%s", valueStr.c_str());
+					if (path){
+						mPath.push_back(url_as_string(home.home(), path->r_url));
+					}else{
+						LOGE("ExtendedContact::extractInfoFromHeader(): bad path [%s]", valueStr.c_str()); 
+					}
 				} else if (keyStr == "accept") {
 					mAcceptHeader.push_back(valueStr);
 				} else if (keyStr == "user-agent") {
@@ -352,8 +356,8 @@ void Record::applyMaxAor() {
 	}
 }
 
-static void defineContactId(ostringstream &oss, const url_t *url, const char *transport) {
-	if (transport != nullptr)
+static void defineContactId(ostringstream &oss, const url_t *url, const string &transport) {
+	if (!transport.empty())
 		oss << transport << ":";
 	if (url->url_user != nullptr)
 		oss << url->url_user << ":";
@@ -482,6 +486,11 @@ void ExtendedContact::extractInfoFromUrl(const char* full_url) {
 	} else {
 		url = temp_contact->m_url;
 	}
+	
+	if (url == nullptr) {
+		LOGE("ExtendedContact::extractInfoFromUrl() url is null.");
+		return;
+	}
 
 	// CallId
 	mCallId = extractStringParam(url, "callid");
@@ -545,22 +554,18 @@ void Record::update(const sip_t *sip, int globalExpire, bool alias, int version,
 	userAgent = (sip->sip_user_agent) ? sip->sip_user_agent->g_string : "";
 
 	while (contacts) {
-		char buffer[20];
+		char buffer[20]={0};
 		list<string> paramName;
-		char *transportPtr;
 		ostringstream contactId;
-		const char *lineValuePtr = nullptr;
-		string lineValue = extractUniqueId(contacts);
-
-		if (!lineValue.empty()) lineValuePtr = lineValue.c_str();
-
-		transportPtr = buffer;
-		if (!url_param(contacts->m_url[0].url_params, "transport", buffer, sizeof(buffer) - 1)) {
-			transportPtr = nullptr;
+		string transport;
+		string uniqueId = extractUniqueId(contacts);
+		
+		if (url_param(contacts->m_url[0].url_params, "transport", buffer, sizeof(buffer) - 1) > 0) {
+			transport = buffer;
 		}
 
-		defineContactId(contactId, contacts->m_url, transportPtr);
-		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, sip->sip_call_id->i_id, lineValuePtr);
+		defineContactId(contactId, contacts->m_url, transport);
+		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, sip->sip_call_id->i_id, uniqueId);
 		auto exc = make_shared<ExtendedContact>(ecc, contacts, globalExpire, (sip->sip_cseq) ? sip->sip_cseq->cs_seq : 0, getCurrentTime(), alias, acceptHeaders, userAgent);
 		exc->mUsedAsRoute = sip->sip_from->a_url->url_user == nullptr;
 		insertOrUpdateBinding(exc, listener);
@@ -629,9 +634,27 @@ const url_t *Record::getAor()const{
 url_t *Record::getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t *home){
 	char gr_value[256] = {0};
 	url_t *gruu_addr = NULL;
+	const char *pub_gruu_value = msg_header_find_param((msg_common_t*)ec->mSipContact, "pub-gruu");
+	
+	if (pub_gruu_value){
+		if (pub_gruu_value[0] == '\0'){
+			/*
+			 * To preserve compatibility with previous storage of pub-gruu (where only a gr parameter was set in URI),
+			 * a client that didn't requested a gruu address has now a "pub-gruu" contact parameter which is empty.
+			 * This means that this client has no pub-gruu assigned by this server.
+			 */
+			return nullptr;
+		}
+		gruu_addr = url_make(home, StringUtils::unquote(pub_gruu_value).c_str());
+		return gruu_addr;
+	}
+	
+	/*
+	 * Compatibility code, when pub-gruu wasn't stored in RegistrarDb. 
+	 * In such case, we have to synthetize the gruu address from the address of record and the gr uri parameter.
+	 */
 	
 	if (!ec->mSipContact->m_url->url_params) return NULL;
-	
 	isize_t result = url_param(ec->mSipContact->m_url->url_params, "gr", gr_value, sizeof(gr_value)-1);
 	
 	if (result > 0) {
@@ -1049,10 +1072,8 @@ void RegistrarDb::fetch(const url_t *url, const shared_ptr<ContactUpdateListener
 	}
 	if(url_has_param(url, "gr")) {
 		char buffer[255] = {0};
-		if (url_param(url->url_params, "gr", buffer, sizeof(buffer)) > 0) {
-			stringstream gruu;
-			gruu << "\"<" << buffer << ">\"";
-			doFetchForGruu(url, gruu.str(), recursive
+		if (url_param(url->url_params, "gr", buffer, sizeof(buffer)-1) > 0) {
+			doFetchInstance(url, grToUniqueId(buffer), recursive
 						   ? make_shared<RecursiveRegistrarDbListener>(this, listener, url)
 						   : listener);
 			return;
@@ -1061,10 +1082,6 @@ void RegistrarDb::fetch(const url_t *url, const shared_ptr<ContactUpdateListener
 	doFetch(url, recursive
 			? make_shared<RecursiveRegistrarDbListener>(this, listener, url)
 			: listener);
-}
-
-void RegistrarDb::fetchForGruu(const url_t *url, const string &gruu, const shared_ptr<ContactUpdateListener> &listener) {
-	doFetchForGruu(url, gruu, listener);
 }
 
 void RegistrarDb::fetchList(const vector<url_t *> urls, const shared_ptr<ListContactUpdateListener> &listener) {
@@ -1105,21 +1122,27 @@ void RegistrarDb::fetchList(const vector<url_t *> urls, const shared_ptr<ListCon
 
 void RegistrarDb::bind(const sip_t *sip, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {
 	SofiaAutoHome home;
+	bool gruu_assigned = false;
 
 	if (sip->sip_supported && sip->sip_contact->m_params) {
 		if (msg_params_find(sip->sip_supported->k_items, "gruu") != nullptr){
 			const char *instance_param = msg_params_find(sip->sip_contact->m_params, "+sip.instance");
 			if (instance_param) {
-				string instance(instance_param);
-				if (instance.find("\"<") != string::npos) {
-					ostringstream stream;
-					instance = instance.substr(instance.find("\"<") + strlen("\"<"));
-					instance = instance.substr(0, instance.find(">"));
-					stream << "gr=" << instance;
-					url_param_add(home.home(), sip->sip_contact->m_url, stream.str().c_str());
+				string gr = uniqueIdToGr(instance_param);
+				if (!gr.empty()){/* assign a public gruu address to this contact */
+					msg_header_replace_param(home.home(), (msg_common_t *) sip->sip_contact, 
+						su_sprintf(home.home(), "pub-gruu=\"%s;gr=%s\"", url_as_string(home.home(), sip->sip_from->a_url), gr.c_str() ) );
+					gruu_assigned = true;
 				}
 			}
 		}
+	}
+	if (!gruu_assigned){
+		/* Set an empty pub-gruu meaning that this client hasn't requested any pub-gruu from this server.
+		 * This is to preserve compatibility with previous RegistrarDb storage, where only gr parameter was stored.
+		 * This couldn't work because a client can use a "gr" parameter in its contact uri.*/
+		msg_header_replace_param(home.home(), (msg_common_t *) sip->sip_contact, 
+					su_sprintf(home.home(), "pub-gruu"));
 	}
 
 	int countSipContacts = count_sip_contacts(sip->sip_contact);
@@ -1150,6 +1173,28 @@ void RegistrarDb::bind(const url_t *from, const sip_contact_t *contact, const Bi
 	bind(sip, parameter, listener);
 
 	msg_unref(msg);
+}
+
+/* Transforms the unique id to a "gr" parameter value. */
+string RegistrarDb::uniqueIdToGr(const string &uid){
+	string instance(uid);
+	string ret;
+	
+	size_t begin = instance.find('<');
+	if (begin != string::npos){
+		size_t end = instance.find('>');
+		if (end != string::npos && begin < end){
+			begin++; //skip '<'
+			ret = instance.substr(begin, end - begin);
+		}
+	}
+	return ret;
+}
+
+string RegistrarDb::grToUniqueId(const string &gr){
+	ostringstream uid;
+	uid << "\"<" << gr << ">\"";
+	return uid.str();
 }
 
 class AgregatorRegistrarDbListener : public ContactUpdateListener {

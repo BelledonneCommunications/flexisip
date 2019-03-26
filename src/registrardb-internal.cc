@@ -77,7 +77,7 @@ void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<ContactUpda
 	listener->onRecordFound(r);
 }
 
-void RegistrarDbInternal::doFetchForGruu(const url_t *url, const string &gruu, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDbInternal::doFetchInstance(const url_t *url, const string &uniqueId, const shared_ptr<ContactUpdateListener> &listener) {
 	string key(Record::defineKeyFromUrl(url));
 	SofiaAutoHome home;
 
@@ -101,22 +101,11 @@ void RegistrarDbInternal::doFetchForGruu(const url_t *url, const string &gruu, c
 	const list<shared_ptr<ExtendedContact>> &contacts = r->getExtendedContacts();
 	shared_ptr<Record> retRecord = make_shared<Record>(url);
 	for (const auto &contact : contacts) {
-		if (!url_has_param(contact->mSipContact->m_url, "gr"))
-			continue;
-
-		char buffer[255] = {0};
-		isize_t result = url_param(contact->mSipContact->m_url->url_params, "gr", buffer, sizeof(buffer) - 1);
-		if (result <= 0)
-			continue;
-
-		stringstream streamGruu;
-		streamGruu << "\"<" << buffer << ">\"";
-		if (streamGruu.str() != gruu)
-			continue;
-
-		retRecord->pushContact(contact);
+		if (contact->mUniqueId == uniqueId){
+			retRecord->pushContact(contact);
+			break;
+		}
 	}
-
 	listener->onRecordFound(retRecord);
 }
 

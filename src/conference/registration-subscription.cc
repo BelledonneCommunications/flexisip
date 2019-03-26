@@ -88,9 +88,6 @@ void OwnRegistrationSubscription::stop(){
 
 unsigned int OwnRegistrationSubscription::getContactCapabilities(const std::shared_ptr<ExtendedContact> &ec){
 	unsigned int mask = 0;
-	if (!url_has_param(ec->mSipContact->m_url, "gr")){
-		return 0; //eliminate contacts without gruu, there is nothing we can do with them
-	}
 	string specs = ec->getOrgLinphoneSpecs();
 	//Please excuse the following code that is a bit too basic in terms of parsing:
 	if (specs.find("groupchat") != string::npos) mask |= (unsigned int)ChatRoomCapabilities::Conference;
