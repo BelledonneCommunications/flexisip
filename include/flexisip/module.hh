@@ -18,12 +18,14 @@
 
 #pragma once
 
-#include <flexisip/configmanager.hh>
-#include <flexisip/event.hh>
-
+#include <sofia-sip/msg_header.h>
 #include <sofia-sip/nta_tport.h>
 #include <sofia-sip/tport.h>
-#include <sofia-sip/msg_header.h>
+
+#include "flexisip/configmanager.hh"
+#include "flexisip/event.hh"
+
+#include "entryfilter.hh"
 
 namespace flexisip {
 
@@ -33,7 +35,6 @@ namespace flexisip {
 // Module.
 // -----------------------------------------------------------------------------
 
-class EntryFilter;
 class ModuleInfoBase;
 
 template<typename T>
@@ -63,9 +64,9 @@ class Module : protected ConfigValueListener {
 
 public:
 	Module(Agent *agent);
-	virtual ~Module();
+	virtual ~Module() = default;
 
-	Agent *getAgent() const;
+	Agent *getAgent() const {return mAgent;}
 	nta_agent_t *getSofiaAgent() const;
 	const std::string &getModuleName() const;
 	const std::string &getModuleConfigName() const;
@@ -74,20 +75,16 @@ public:
 	void load();
 	void unload();
 	void reload();
-	void processRequest(std::shared_ptr<RequestSipEvent> &ev);
-	void processResponse(std::shared_ptr<ResponseSipEvent> &ev);
 	StatCounter64 &findStat(const std::string &statName) const;
 	void idle();
 	bool isEnabled() const;
 	ModuleClass getClass() const;
 
-	inline void process(std::shared_ptr<RequestSipEvent> &ev) {
-		processRequest(ev);
-	}
+	void processRequest(std::shared_ptr<RequestSipEvent> &ev);
+	void processResponse(std::shared_ptr<ResponseSipEvent> &ev);
+	void process(std::shared_ptr<RequestSipEvent> &ev) {processRequest(ev);}
+	void process(std::shared_ptr<ResponseSipEvent> &ev) {processResponse(ev);}
 
-	inline void process(std::shared_ptr<ResponseSipEvent> &ev) {
-		processResponse(ev);
-	}
 	void setInfo(ModuleInfoBase *moduleInfo);
 
 protected:
@@ -101,32 +98,18 @@ protected:
 	virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 	virtual void onIdle() {}
 
-	virtual bool onCheckValidNextConfig() {
-		return true;
-	}
+	virtual bool onCheckValidNextConfig() {return true;}
 
-	virtual bool isValidNextConfig(const ConfigValue &cv) {
-		return true;
-	}
+	virtual bool isValidNextConfig(const ConfigValue &cv) {return true;}
 
-	void sendTrap(const std::string &msg) {
-		GenericManager::get()->sendTrap(mModuleConfig, msg);
-	}
+	void sendTrap(const std::string &msg) {GenericManager::get()->sendTrap(mModuleConfig, msg);}
 
-	su_home_t *getHome() {
-		return &mHome;
-	}
-
-	Agent *mAgent;
-
-private:
-	ModuleInfoBase *mInfo;
-	GenericStruct *mModuleConfig;
-	EntryFilter *mFilter;
-	bool mDirtyConfig;
-	su_home_t mHome;
-
-	FLEXISIP_DISABLE_COPY(Module);
+protected:
+	SofiaAutoHome mHome;
+	Agent *mAgent = nullptr;
+	ModuleInfoBase *mInfo = nullptr;
+	GenericStruct *mModuleConfig = nullptr;
+	std::unique_ptr<EntryFilter> mFilter;
 };
 
 // -----------------------------------------------------------------------------
