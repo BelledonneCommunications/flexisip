@@ -31,12 +31,21 @@
 
 namespace flexisip {
 
+/**
+ * Base class for Flexisip authentication modules.
+ */
 class ModuleAuthenticationBase : public Module {
 public:
 	ModuleAuthenticationBase(Agent *agent);
 	~ModuleAuthenticationBase() = default;
 
 protected:
+	/**
+	 * This exception is globally caught by ModuleAuthenticationBase::onRequest()
+	 * causing onRequest() return. It is to used in any sub-functions
+	 * of onRequest() in order to stop the request event processing
+	 * and pass to the next Flexisip module.
+	 */
 	class StopRequestProcessing : public std::exception {};
 
 	void onDeclare(GenericStruct *root) override;
@@ -44,20 +53,46 @@ protected:
 	void onRequest(std::shared_ptr<RequestSipEvent> &ev) override;
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override {}
 
+	/**
+	 * Override this method to specify the specialization of #FlexisipAuthModuleBase to instantiate.
+	 */
 	virtual FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm) = 0;
 	virtual FlexisipAuthModuleBase *createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) = 0;
-	virtual FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) = 0;
+	/**
+	 * @brief Create and configure a #FlexisipAuthStatus according the information extracted from ev.
+	 *
+	 * This method may be overridden in order to instantiate a specialization of #FlexisipAuthStatus. Should it be,
+	 * the overriding method might call #configureAuthStatus() for configuring the base of the returned object.
+	 */
+	virtual FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev);
+	/**
+	 * Called by createAuthStatus() for setting #FlexisipAuthStatus attribute for the event request information.
+	 */
+	void configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev);
 
+
+	/**
+	 * These two methods might be overridden to customize onRequest().
+	 */
 	virtual void validateRequest(const std::shared_ptr<RequestSipEvent> &request);
 	virtual void processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am);
 
+	/**
+	 * Called by onRequest() for getting a #FlexisipAuthModuleBase instance from a domain name.
+	 */
+	FlexisipAuthModuleBase *findAuthModule(const std::string name);
+
+	/**
+	 * This method is called synchronously or asynchronously on result of AuthModule::verify() method.
+	 * It calls onSuccess() and errorReply() according the authentication result.
+	 */
 	void processAuthModuleResponse(AuthStatus &as);
 	virtual void onSuccess(const FlexisipAuthStatus &as);
 	virtual void errorReply(const FlexisipAuthStatus &as);
 
-	FlexisipAuthModuleBase *findAuthModule(const std::string name);
-	void configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev);
-
+	/**
+	 * Test whether a string match a valid algorithm in specified by sValidAlgos.
+	 */
 	static bool validAlgo(const std::string &algo);
 
 protected:

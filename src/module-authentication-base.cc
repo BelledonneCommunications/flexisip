@@ -72,7 +72,10 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
 	}, {
 		String,
 		"realm-regex",
-		"",
+		"Extraction regex applied on the URI of the from header in order to extract the realm. The realm "
+		"is found out by getting the first slice of the URI that matchs the regular expression. If it "
+		"has one or more capturing parentheses, then the content of the first one is used as realm.\n"
+		"If no regex is specified, then the realm will be the domain part of the URI.",
 		""
 	},
 	config_item_end
@@ -151,6 +154,44 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 	} catch (const StopRequestProcessing &) {}
 }
 
+FlexisipAuthStatus *ModuleAuthenticationBase::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
+	auto *as = new FlexisipAuthStatus(ev);
+	ModuleAuthenticationBase::configureAuthStatus(*as, ev);
+	return as;
+}
+
+void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev) {
+	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
+	sip_t *sip = ms->getSip();
+	const sip_p_preferred_identity_t *ppi = sip_p_preferred_identity(sip);
+	const url_t *userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
+
+	const char *realm = userUri->url_host;
+	if (!mRealmRegexStr.empty()) {
+		cmatch m;
+		const char *userUriStr = url_as_string(ev->getHome(), userUri);
+		if (!regex_search(userUriStr, m, mRealmRegex)) {
+			SLOGE << "no realm found in '" << userUriStr << "'. Search regex: '" << mRealmRegexStr << "'";
+			ev->reply(500, "Internal error", TAG_END());
+			return;
+		}
+		int index = m.size() == 1 ? 0 : 1;
+		realm = su_strndup(ev->getHome(), userUriStr + m.position(index), m.length(index));
+	}
+
+	as.method(sip->sip_request->rq_method_name);
+	as.source(msg_addrinfo(ms->getMsg()));
+	as.userUri(userUri);
+	as.realm(realm);
+	as.display(sip->sip_from->a_display);
+	if (sip->sip_payload) {
+		as.body(sip->sip_payload->pl_data);
+		as.bodyLen(sip->sip_payload->pl_len);
+	}
+	as.usedAlgo() = mAlgorithms;
+	as.no403(mNo403Expr->eval(ev->getSip()));
+}
+
 void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipEvent> &request) {
 	sip_t *sip = request->getMsgSip()->getSip();
 
@@ -180,6 +221,30 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 	}
 
 	processAuthModuleResponse(*as);
+}
+
+FlexisipAuthModuleBase *ModuleAuthenticationBase::findAuthModule(const std::string name) {
+	auto it = mAuthModules.find(name);
+	if (it == mAuthModules.end())
+		it = mAuthModules.find("*");
+	if (it == mAuthModules.end()) {
+		for (auto it2 = mAuthModules.begin(); it2 != mAuthModules.end(); ++it2) {
+			string domainName = it2->first;
+			size_t wildcardPosition = domainName.find("*");
+			// if domain has a wildcard in it, try to match
+			if (wildcardPosition != string::npos) {
+				size_t beforeWildcard = name.find(domainName.substr(0, wildcardPosition));
+				size_t afterWildcard = name.find(domainName.substr(wildcardPosition + 1));
+				if (beforeWildcard != string::npos && afterWildcard != string::npos) {
+					return it2->second.get();
+				}
+			}
+		}
+	}
+	if (it == mAuthModules.end()) {
+		return nullptr;
+	}
+	return it->second.get();
 }
 
 void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus &as) {
@@ -242,62 +307,6 @@ void ModuleAuthenticationBase::errorReply(const FlexisipAuthStatus &as) {
 			  SIPTAG_SERVER_STR(getAgent()->getServerString()),
 			  TAG_END()
 	);
-}
-
-FlexisipAuthModuleBase *ModuleAuthenticationBase::findAuthModule(const std::string name) {
-	auto it = mAuthModules.find(name);
-	if (it == mAuthModules.end())
-		it = mAuthModules.find("*");
-	if (it == mAuthModules.end()) {
-		for (auto it2 = mAuthModules.begin(); it2 != mAuthModules.end(); ++it2) {
-			string domainName = it2->first;
-			size_t wildcardPosition = domainName.find("*");
-			// if domain has a wildcard in it, try to match
-			if (wildcardPosition != string::npos) {
-				size_t beforeWildcard = name.find(domainName.substr(0, wildcardPosition));
-				size_t afterWildcard = name.find(domainName.substr(wildcardPosition + 1));
-				if (beforeWildcard != string::npos && afterWildcard != string::npos) {
-					return it2->second.get();
-				}
-			}
-		}
-	}
-	if (it == mAuthModules.end()) {
-		return nullptr;
-	}
-	return it->second.get();
-}
-
-void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev) {
-	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	sip_t *sip = ms->getSip();
-	const sip_p_preferred_identity_t *ppi = sip_p_preferred_identity(sip);
-	const url_t *userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
-
-	const char *realm = userUri->url_host;
-	if (!mRealmRegexStr.empty()) {
-		cmatch m;
-		const char *userUriStr = url_as_string(ev->getHome(), userUri);
-		if (!regex_search(userUriStr, m, mRealmRegex)) {
-			SLOGE << "no realm found in '" << userUriStr << "'. Search regex: '" << mRealmRegexStr << "'";
-			ev->reply(500, "Internal error", TAG_END());
-			return;
-		}
-		int index = m.size() == 1 ? 0 : 1;
-		realm = su_strndup(ev->getHome(), userUriStr + m.position(index), m.length(index));
-	}
-
-	as.method(sip->sip_request->rq_method_name);
-	as.source(msg_addrinfo(ms->getMsg()));
-	as.userUri(userUri);
-	as.realm(realm);
-	as.display(sip->sip_from->a_display);
-	if (sip->sip_payload) {
-		as.body(sip->sip_payload->pl_data);
-		as.bodyLen(sip->sip_payload->pl_len);
-	}
-	as.usedAlgo() = mAlgorithms;
-	as.no403(mNo403Expr->eval(ev->getSip()));
 }
 
 bool ModuleAuthenticationBase::validAlgo(const std::string &algo) {
