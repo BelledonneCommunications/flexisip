@@ -185,7 +185,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	/*
 	 * return if one of the subscribers subscribed for a presence information
 	 */
-	bool findPresenceInfo(std::shared_ptr<PresentityPresenceInformation> &info);
+	std::shared_ptr<PresentityPresenceInformationListener> findPresenceInfoListener(std::shared_ptr<PresentityPresenceInformation> &info);
 
   private:
 	PresentityPresenceInformation(const PresentityPresenceInformation& other);
