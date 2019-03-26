@@ -1,3 +1,0 @@
-AUTOMAKE_OPTIONS = subdir-objects
-
-

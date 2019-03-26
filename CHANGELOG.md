@@ -14,3 +14,11 @@ Group changes to describe their impact on the project, as follows:
 
 ### [Added]
  - [Presence server] Support of bodyless subscription.
+ - [Proxy] Add contextual logs settings
+ 
+### [Changed]
+ - [Proxy] log files are now named flexisip-proxy.log, flexisip-conference.log flexisip-presence.log
+ - [Proxy] boolean expression engine is faster
+
+### [Fixed]
+ - Memory leak (of SIP transactions) in presence server

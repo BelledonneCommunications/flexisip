@@ -16,7 +16,13 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/*
+ * Implementation file for the BooleanExpression and BooleanExpressionBuilder templates.
+ * This file must be included from the compilation unit where the template is instanciated.
+ */
+
 #include "flexisip/expressionparser.hh"
+#include "flexisip/logmanager.hh"
 
 #include <cstring>
 #include <sstream>
@@ -34,7 +40,7 @@ namespace flexisip{
 template <typename _valuesT>
 class ConstantBooleanExpression : public BooleanExpression<_valuesT> {
   public:
-	EmptyBooleanExpression(bool ret) : mRet(ret){};
+	ConstantBooleanExpression(bool ret) : mRet(ret){};
 	virtual bool eval(const _valuesT &args) override{
 		return mRet;
 	}
@@ -77,7 +83,7 @@ class LogicalNot : public BooleanExpression<_valuesT> {
 	}
 
   private:
-	shared_ptr<BooleanExpression> mExp;
+	shared_ptr<Expr> mExp;
 };
 
 template <typename _valuesT>
@@ -144,7 +150,7 @@ public:
 		return mVar->defined(args);
 	}
 private:
-	shared_ptr<VariableOrConstant> mVar;
+	shared_ptr<Var> mVar;
 };
 
 template <typename _valuesT>
@@ -187,7 +193,7 @@ private:
 };
 
 template <typename _valuesT>
-class ContainsOp : public BooleanExpression {
+class ContainsOp : public BooleanExpression<_valuesT> {
 public:
 	using Var = Variable<_valuesT>;
 	ContainsOp(const shared_ptr<Var> &var1, const shared_ptr<Var> &var2) : mVar1(var1), mVar2(var2) {
@@ -205,7 +211,7 @@ private:
  * Evaluates whether a variable has its value equal to an element of a list of other variables.
  */
 template <typename _valuesT>
-class InOp : public BooleanExpression {
+class InOp : public BooleanExpression<_valuesT> {
 public:
 	using Var = Variable<_valuesT>;
 	InOp(const shared_ptr<Var> &var1, const shared_ptr<Var> &var2) : mVar1(var1), mVar2(var2) {
@@ -224,68 +230,73 @@ public:
 		return res;
 	}
 private:
-	shared_ptr<VariableOrConstant> mVar1, mVar2;
+	shared_ptr<Var> mVar1, mVar2;
 };
 
-static size_t find_first_non_word(const string &expr, size_t offset) {
+template< typename _valuesT>
+size_t BooleanExpressionBuilder<_valuesT>::findFirstNonWord(const string &expr, size_t offset) {
 	size_t i;
 	for (i = offset; i < expr.size(); ++i) {
 		char c = expr[i];
-		if (c != '-' && c != '.' && !isalnum(c))
+		if (c != '-' && c != '_' && c != '.' && !isalnum(c))
 			return i;
 	}
 	return i;
 }
 
-static shared_ptr<Variable> buildVariable(const string &expr, size_t *newpos) {
-	LOGPARSE << "buildVariable working on XX" << expr << "XX";
-	while (expr[*newpos] == ' ')
-		*newpos += 1;
-
-	size_t eow = find_first_non_word(expr, *newpos);
-	if (eow <= *newpos && expr.size() > eow) {
-		throw invalid_argument("no variable recognized in X" + expr.substr(*newpos, string::npos) + "XX");
+template< typename _valuesT>
+shared_ptr<Variable<_valuesT>> BooleanExpressionBuilder<_valuesT>::buildVariable(const string &expr, size_t *newpos) {
+	shared_ptr<Var> ret = dynamic_pointer_cast<Var>(buildElement(expr,newpos));
+	if (ret == nullptr){
+		throw invalid_argument("Expected variable at " + expr.substr(*newpos, string::npos));
 	}
-	size_t len = eow - *newpos;
-	auto var = expr.substr(*newpos, len);
-	*newpos += len;
-	return make_shared<Variable>(var);
+	return ret;
 }
 
-static shared_ptr<Constant> buildConstant(const string &expr, size_t *newpos) {
-	LOGPARSE << "buildConstant working on XX" << expr << "XX";
-	while (expr[*newpos] == ' ')
+template< typename _valuesT>
+shared_ptr<Constant<_valuesT>> BooleanExpressionBuilder<_valuesT>::buildConstant(const string &expr, size_t *newpos) {
+	shared_ptr<Constant<_valuesT>> ret = dynamic_pointer_cast<Constant<_valuesT>>(buildElement(expr,newpos));
+	if (ret == nullptr){
+		throw invalid_argument("Expected constant at " + expr.substr(*newpos, string::npos));
+	}
+	return ret;
+}
+
+template< typename _valuesT>
+std::shared_ptr<ExpressionElement> BooleanExpressionBuilder<_valuesT>::buildElement(const std::string &expr, size_t *newpos){
+	while (expr[*newpos] == ' '){
 		*newpos += 1;
-
-	if (expr[*newpos] != '\'')
-		throw invalid_argument("Missing quote at start of " + expr);
-
-	size_t end = expr.find_first_of('\'', *newpos + 1);
-	if (end != string::npos) {
+	}
+	if (expr[*newpos] == '\'') {
+		size_t end = expr.find_first_of('\'', *newpos + 1);
+		if (end == string::npos) throw invalid_argument("Missing quote around " + expr);
 		size_t len = end - *newpos - 1;
 		auto cons = expr.substr(*newpos + 1, len);
 		*newpos += len + 2; // remove the two '
-		return make_shared<Constant>(cons);
-	} else {
-		throw invalid_argument("Missing quote around " + expr);
+		return make_shared<Constant<_valuesT>>(cons);
+	}else{
+		// Can be a variable or a named operator
+		size_t eow = findFirstNonWord(expr, *newpos);
+		if (eow <= *newpos && expr.size() > eow) {
+			throw invalid_argument("no variable recognized in X" + expr.substr(*newpos, string::npos) + "XX");
+		}
+		size_t len = eow - *newpos;
+		auto word = expr.substr(*newpos, len);
+		*newpos += len;
+		auto varIt = mRules.variables.find(word);
+		auto opIt = mRules.operators.find(word);
+		if (varIt != mRules.variables.end()){
+			return make_shared<Variable<_valuesT>>((*varIt).second);
+		}else if (opIt != mRules.operators.end()){
+			return make_shared<NamedOperator<_valuesT>>((*opIt).second);
+		}else{
+			throw invalid_argument("Element '" + word + "' is not a variable nor operator name");
+		}
 	}
 }
 
-static shared_ptr<VariableOrConstant> buildVariableOrConstant(const string &expr, size_t *newpos) {
-	LOGPARSE << "buildVariableOrConstant working on XX" << expr << "XX";
-	while (expr[*newpos] == ' ')
-		*newpos += 1;
-
-	if (expr[*newpos] == '\'') {
-		auto constant = buildConstant(expr, newpos);
-		return dynamic_pointer_cast<VariableOrConstant>(constant);
-	} else {
-		auto variable = buildVariable(expr, newpos);
-		return dynamic_pointer_cast<VariableOrConstant>(variable);
-	}
-}
-
-static size_t findMatchingClosingParenthesis(const string &expr, size_t offset) {
+template< typename _valuesT>
+size_t BooleanExpressionBuilder<_valuesT>::findMatchingClosingParenthesis(const string &expr, size_t offset) {
 	size_t i;
 	int match = 1;
 	for (i = offset; i < expr.size(); ++i) {
@@ -299,7 +310,8 @@ static size_t findMatchingClosingParenthesis(const string &expr, size_t offset) 
 	return string::npos;
 }
 
-static bool isKeyword(const string &expr, size_t *newpos, const string &keyword) {
+template< typename _valuesT>
+bool BooleanExpressionBuilder<_valuesT>::isKeyword(const string &expr, size_t *newpos, const string &keyword) {
 	size_t pos = *newpos;
 	size_t keyLen = keyword.size();
 	size_t availableLen = expr.size() - pos;
@@ -315,27 +327,47 @@ static bool isKeyword(const string &expr, size_t *newpos, const string &keyword)
 		return false;
 
 	*newpos += keyLen;
-	LOGPARSE << "Recognized keyword '" << keyword << "'";
 	return true;
 }
 
 template< typename _valuesT>
-std::shared_ptr<BooleanExpression<_valuesT>> BooleanExpressionBuilder::parse(const std::string &expression){
+void BooleanExpressionBuilder<_valuesT>::checkRulesOverlap(){
+	for(const string & builtin :  sBuiltinOperators){
+		if (mRules.variables.find(builtin) != mRules.variables.end()){
+			LOGF("BooleanExpressionBuilder: variable name '%s' conflicts with builtin operator name.", builtin.c_str());
+		}
+		if (mRules.operators.find(builtin) != mRules.operators.end()){
+			LOGF("BooleanExpressionBuilder: variable name '%s' conflicts with builtin operator name.", builtin.c_str());
+		}
+	}
+	for (auto p : mRules.operators){
+		if (mRules.variables.find(p.first) != mRules.variables.end()){
+			LOGF("BooleanExpressionBuilder: variable name '%s' conflicts with operator name.", p.first.c_str());
+		}
+	}
+}
+
+template< typename _valuesT>
+BooleanExpressionBuilder<_valuesT>::BooleanExpressionBuilder(const ExpressionRules<_valuesT> &rules) : mRules(rules){
+	checkRulesOverlap();
+}
+
+template< typename _valuesT>
+std::shared_ptr<BooleanExpression<_valuesT>> BooleanExpressionBuilder<_valuesT>::parse(const std::string &expression){
 	if (expression.empty())
 		return make_shared<ConstantBooleanExpression<_valuesT>>(true); /* By arbitrary decision, we evaluate void to true.*/
 	size_t pos = 0;
-	auto expr = parseExpression(str, &pos);
-	return expr;
+	return parseExpression(expression, &pos);
 }
 
 template< typename _valuesT>
 const std::list<std::string> BooleanExpressionBuilder<_valuesT>::sBuiltinOperators = {
-	"&&", "||", "!", "==", "contains", "in", "notin", "nin", "defined", "regexp", "regex", "numeric",
+	"&&", "||", "!", "==", "!=", "contains", "in", "notin", "nin", "defined", "regexp", "regex", "numeric",
 	"true", "false"
 };
 
 template< typename _valuesT>
-shared_ptr<Expr> BooleanExpressionBuilder::parseExpression(const string &expr, size_t *newpos) {
+shared_ptr<BooleanExpression<_valuesT>> BooleanExpressionBuilder<_valuesT>::parseExpression(const string &expr, size_t *newpos, bool immediateNeighbour) {
 	size_t i;
 	shared_ptr<Expr> cur_exp;
 	shared_ptr<Var> cur_var;
@@ -383,13 +415,13 @@ shared_ptr<Expr> BooleanExpressionBuilder::parseExpression(const string &expr, s
 						throw invalid_argument("!= operator expects first variable or const operand.");
 					}
 					i += 2;
-					cur_exp = make_shared<UnEqualsOp<_valuesT>>(cur_var, buildVariableOrConstant(expr.substr(i), &j));
+					cur_exp = make_shared<UnEqualsOp<_valuesT>>(cur_var, buildVariable(expr.substr(i), &j));
 				} else {
 					if (cur_exp) {
 						throw invalid_argument("Parsing error around '!'");
 					}
 					i++;
-					cur_exp = make_shared<LogicalNot<_valuesT>>(parseExpression(expr.substr(i), &j);
+					cur_exp = make_shared<LogicalNot<_valuesT>>(parseExpression(expr.substr(i), &j, true));
 				}
 				i += j;
 				break;
@@ -399,7 +431,7 @@ shared_ptr<Expr> BooleanExpressionBuilder::parseExpression(const string &expr, s
 						throw invalid_argument("== operator expects first variable or const operand.");
 					}
 					i += 2;
-					cur_exp = make_shared<EqualsOp<_valuesT>>(cur_var, buildVariableOrConstant(expr.substr(i), &j));
+					cur_exp = make_shared<EqualsOp<_valuesT>>(cur_var, buildVariable(expr.substr(i), &j));
 					i += j;
 				} else {
 					throw invalid_argument("Bad operator =");
@@ -412,7 +444,7 @@ shared_ptr<Expr> BooleanExpressionBuilder::parseExpression(const string &expr, s
 				if (isKeyword(expr.substr(i), &j, "contains")) {
 					i += j;
 					j = 0;
-					auto rightVar = buildVariableOrConstant(expr.substr(i), &j);
+					auto rightVar = buildVariable(expr.substr(i), &j);
 					cur_exp = make_shared<ContainsOp<_valuesT>>(cur_var, rightVar);
 					i += j;
 				}
@@ -421,8 +453,8 @@ shared_ptr<Expr> BooleanExpressionBuilder::parseExpression(const string &expr, s
 				if (isKeyword(expr.substr(i), &j, "defined")) {
 					i += j;
 					j = 0;
-					auto rightVar = buildVariableOrConstant(expr.substr(i), &j);
-					cur_exp = make_shared<DefinedOp>(expr.substr(i, j), rightVar);
+					auto rightVar = buildVariable(expr.substr(i), &j);
+					cur_exp = make_shared<DefinedOp<_valuesT>>(rightVar);
 					i += j;
 				}
 				break;
@@ -439,8 +471,8 @@ shared_ptr<Expr> BooleanExpressionBuilder::parseExpression(const string &expr, s
 				if (isKeyword(expr.substr(i), &j, "in")) {
 					i += j;
 					j = 0;
-					auto rightVar = buildVariableOrConstant(expr.substr(i), &j);
-					cur_exp = make_shared<InOp>(cur_var, rightVar);
+					auto rightVar = buildVariable(expr.substr(i), &j);
+					cur_exp = make_shared<InOp<_valuesT>>(cur_var, rightVar);
 					i += j;
 				}
 				break;
@@ -451,14 +483,14 @@ shared_ptr<Expr> BooleanExpressionBuilder::parseExpression(const string &expr, s
 					}
 					i += j;
 					j = 0;
-					auto var = buildVariableOrConstant(expr.substr(i), &j);
+					auto var = buildVariable(expr.substr(i), &j);
 					cur_exp = make_shared<NumericOp<_valuesT>>(var);
 					i += j;
 					j = 0;
 				} else if (isKeyword(expr.substr(i), &j, "nin") || isKeyword(expr.substr(i), &j, "notin")) {
 					i += j;
 					j = 0;
-					auto rightVar = buildVariableOrConstant(expr.substr(i), &j);
+					auto rightVar = buildVariable(expr.substr(i), &j);
 					auto in = make_shared<InOp<_valuesT>>(cur_var, rightVar);
 					cur_exp = make_shared<LogicalNot<_valuesT>>(in);
 					i += j;
@@ -480,52 +512,21 @@ shared_ptr<Expr> BooleanExpressionBuilder::parseExpression(const string &expr, s
 				break;
 		}
 		if (prev_i == i){ /*nothing was handled*/
-			cur_var = buildVariableOrConstant(expr.substr(i), &j);
+			shared_ptr<ExpressionElement> element = buildElement(expr.substr(i), &j);
 			i += j;
+			if (dynamic_pointer_cast<Var>(element)){
+				cur_var = dynamic_pointer_cast<Var>(element);
+			}else if (dynamic_pointer_cast<NamedOperator<_valuesT>>(element)){
+				cur_exp = dynamic_pointer_cast<NamedOperator<_valuesT>>(element);
+			}
 		}
+		if (immediateNeighbour && cur_exp) break;
 	}
 	*newpos += i;
 	return cur_exp;
 };
 
-rajouter  is_resquest, is_response
-
-if (isKeyword(expr.substr(i), &(j = 0), "true")) {
-						i += j;
-						j = 0;
-						cur_exp = make_shared<TrueFalseExpression>("true");
-					} else if (isKeyword(expr.substr(i), &(j = 0), "false")) {
-						i += j;
-						j = 0;
-						cur_exp = make_shared<TrueFalseExpression>("false");
-					} else if (isKeyword(expr.substr(i), &(j = 0), "numeric")) {
-						i += j;
-						j = 0;
-						auto var = buildVariableOrConstant(expr.substr(i), &j);
-						cur_exp = make_shared<NumericOp>(var);
-					} else if (isKeyword(expr.substr(i), &j, "defined")) {
-						i += j;
-						j = 0;
-						auto var = buildVariableOrConstant(expr.substr(i), &j);
-						cur_exp = make_shared<DefinedOp>(expr.substr(i, j), var);
-					} else if (expr[i] == '(') {
-						size_t end = find_matching_closing_parenthesis(expr, i + 1);
-						if (end != string::npos) {
-							cur_exp = parseExpression(expr.substr((i + 1), end - (i + 1)), &j);
-							i = end + 1;
-							j = 0; // no use
-						} else {
-							throw invalid_argument("Missing parenthesis around " + expr);
-						}
-					} else {
-						ostringstream oss;
-						oss << expr[i];
-						LOGPARSE << ">" << oss.str();
-						throw invalid_argument("! operator expects boolean value or () expression.");
-					}
-
-std::shared_ptr<BooleanExpression> BooleanExpression::parse(const std::string &str) {
-	
-}
+ // rajouter  is_request, is_response
 
 
+} //end of namespace

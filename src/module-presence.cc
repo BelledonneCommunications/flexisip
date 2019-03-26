@@ -30,7 +30,7 @@ private:
 	static ModuleInfo<ModulePresence> sInfo;
 	unique_ptr<SipUri> mDestRoute;
 	su_home_t mHome;
-	shared_ptr<BooleanExpression> mOnlyListSubscription;
+	shared_ptr<SipBooleanExpression> mOnlyListSubscription;
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
@@ -96,7 +96,7 @@ private:
 					support_list_subscription = true;
 				}
 			}
-			return (!mOnlyListSubscription->eval(ev->getSip()) || support_list_subscription) &&
+			return (!mOnlyListSubscription->eval(*ev->getSip()) || support_list_subscription) &&
 				sip->sip_event && strcmp(sip->sip_event->o_type, "presence") == 0;
 		} else if (sip->sip_request->rq_method == sip_method_publish) {
 			return !sip->sip_content_type || (

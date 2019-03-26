@@ -54,6 +54,7 @@ option(ENABLE_TRANSCODER "Build transcoder support" YES)
 option(ENABLE_MDNS "Build multicast DNS support" NO)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" NO)
 option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" NO)
+option(ENABLE_UNIT_TESTS "Enable flexisip unit tests (low level tests)" ON)
 
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
@@ -249,6 +250,10 @@ add_subdirectory(include)
 add_subdirectory(src)
 add_subdirectory(scripts)
 add_subdirectory(share)
+
+if(ENABLE_UNIT_TESTS)
+	add_subdirectory(tester)
+endif()
 
 # Packaging
 add_subdirectory(build)

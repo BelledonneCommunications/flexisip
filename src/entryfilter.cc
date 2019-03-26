@@ -17,7 +17,8 @@
 */
 
 #include "entryfilter.hh"
-#include <flexisip/module.hh>
+#include "flexisip/module.hh"
+#include "flexisip/sip-boolean-expressions.hh"
 #include <stdexcept>
 
 using namespace std;
@@ -65,28 +66,24 @@ void ConfigEntryFilter::loadConfig(const GenericStruct *mc) {
 		}
 	}
 	mEnabled = mc->get<ConfigBoolean>("enabled")->read();
-	mBooleanExprFilter = BooleanExpression::parse(filter);
+	try{
+		mBooleanExprFilter = SipBooleanExpressionBuilder::get().parse(filter);
+	} catch (exception &e){
+		LOGF("Could not parse entry filter for module '%s': %s", mc->getName().c_str(), e.what()); 
+	}
 	mEntryName = mc->getName();
 }
 
 bool ConfigEntryFilter::canEnter(const shared_ptr<MsgSip> &ms) {
 	if (!mEnabled)
 		return false;
-
-	auto attr = ms->getSipAttr();
-	try {
-		bool e = mBooleanExprFilter->eval(attr.get());
-		if (e)
-			++*mCountEvalTrue;
-		else
-			++*mCountEvalFalse;
-		return e;
-	} catch (FlexisipException &e) {
-		SLOGD << "Cannot evaluate entry filter [" << mEntryName << "] filter: " << e.what() << "returning false";
-		return false;
-	} catch (invalid_argument &e) {
-		throw FLEXISIP_EXCEPTION << "Fix your " << mEntryName << " filter: " << e.what();
-	}
+	
+	bool e = mBooleanExprFilter->eval(*ms->getSip());
+	if (e)
+		++*mCountEvalTrue;
+	else
+		++*mCountEvalFalse;
+	return e;
 }
 
 bool ConfigEntryFilter::isEnabled() {

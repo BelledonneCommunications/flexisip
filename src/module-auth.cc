@@ -452,7 +452,7 @@ void Authentication::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		as->body(sip->sip_payload->pl_data);
 		as->bodyLen(sip->sip_payload->pl_len);
 	}
-	as->no403(mNo403Expr->eval(ev->getSip()));
+	as->no403(mNo403Expr->eval(*ev->getSip()));
 	as->usedAlgo() = mAlgorithms;
 
 	// Attention: the auth_mod_verify method should not send by itself any message but

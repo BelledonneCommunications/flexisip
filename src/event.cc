@@ -24,14 +24,12 @@
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/su_tagarg.h>
 #include <sofia-sip/msg_addr.h>
-#include "sipattrextractor.hh"
 
 using namespace std;
 using namespace flexisip;
 
 void MsgSip::assignMsg(msg_t *msg) {
 	mMsg = msg_ref_create(msg);
-	mSipAttr = make_shared<SipAttributes>(getSip());
 }
 
 MsgSip::MsgSip(msg_t *msg) {
