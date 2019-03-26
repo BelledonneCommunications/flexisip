@@ -88,7 +88,7 @@ struct RegistrarUserData {
 	unsigned long token;
 	su_timer_t *mRetryTimer;
 	int mRetryCount;
-	std::string mGruu;
+	std::string mUniqueId;
 	bool mUpdateExpire;
 	bool mIsUnregister;
 
@@ -105,14 +105,14 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	bool disconnect();
 
   protected:
-	virtual void doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener);
-	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
-	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener);
-	virtual void doFetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener);
-	virtual void doMigration();
-	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
-	virtual void unsubscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
-	virtual void publish(const std::string &topic, const std::string &uid);
+	virtual void doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) override;
+	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener)override;
+	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener)override;
+	virtual void doFetchInstance(const url_t *url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener)override;
+	virtual void doMigration()override;
+	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener)override;
+	virtual void unsubscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener)override;
+	virtual void publish(const std::string &topic, const std::string &uid)override;
 
   private:
 	RegistrarDbRedisAsync(Agent *agent, RedisParameters params);

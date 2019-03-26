@@ -463,20 +463,6 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 
 	for (sip_contact_t *contact = modified_contacts; contact!=nullptr ; contact=contact->m_next) {
 		if(sip->sip_request->rq_method == sip_method_register && code == 200 && contact) {
-			if (url_has_param(contact->m_url, "gr")) {
-				string gruu;
-				char *buffer = new char[255];
-				isize_t result = url_param(contact->m_url->url_params, "gr", buffer, 255);
-				if (result > 0) {
-					su_home_t *home = ev->getHome();
-					stringstream stream;
-					gruu = string(buffer);
-					contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"gr");
-					stream << "\"" << url_as_string(home, sip->sip_from->a_url) << ";gr=" << gruu << "\"";
-					msg_header_replace_param(home, (msg_common_t *) contact, su_sprintf(home, "pub-gruu=%s", stream.str().c_str()));
-				}
-				delete[] buffer;
-			}
 			if (url_has_param(contact->m_url, "fs-conn-id")) {
 				contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"fs-conn-id");
 			}
