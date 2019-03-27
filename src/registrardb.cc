@@ -1177,15 +1177,14 @@ void RegistrarDb::bind(const url_t *from, const sip_contact_t *contact, const Bi
 
 /* Transforms the unique id to a "gr" parameter value. */
 string RegistrarDb::uniqueIdToGr(const string &uid){
-	string instance(uid);
 	string ret;
 	
-	size_t begin = instance.find('<');
+	size_t begin = uid.find('<');
 	if (begin != string::npos){
-		size_t end = instance.find('>');
-		if (end != string::npos && begin < end){
+		size_t end = uid.find('>', begin + 1);
+		if (end != string::npos){
 			begin++; //skip '<'
-			ret = instance.substr(begin, end - begin);
+			ret = uid.substr(begin, end - begin);
 		}
 	}
 	return ret;
