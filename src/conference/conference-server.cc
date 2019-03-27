@@ -164,6 +164,10 @@ void flexisip::ConferenceServer::bindAddresses () {
 
 	// Binding loaded chat room
 	for (const auto &chatRoom : mCore->getChatRooms()) {
+		if (chatRoom->getPeerAddress()->getUriParam("gr").empty()){
+			LOGE("Skipping chatroom %s with no gruu parameter.", chatRoom->getPeerAddress()->asString().c_str());
+			continue;
+		}
 		bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), mTransport, chatRoom->getPeerAddress()->getUriParam("gr"), nullptr);
 	}
 
@@ -213,9 +217,8 @@ void ConferenceServer::bindChatRoom (
 
 	sip_contact_t* sipContact = sip_contact_create(mHome.home(),
 		reinterpret_cast<const url_string_t*>(url_make(mHome.home(), contact.c_str())),
-		su_strdup(mHome.home(), ("+sip.instance=\"<" + gruu + ">\"").c_str()), nullptr);
+		su_strdup(mHome.home(), ("+sip.instance=" + RegistrarDb::grToUniqueId(gruu) ).c_str()), nullptr);
 	url_t *from = url_make(mHome.home(), bindingUrl.c_str());
-	url_param_add(mHome.home(), from, ("gr=" + gruu).c_str());
 
 	parameter.callId = gruu;
 	parameter.path = mPath;

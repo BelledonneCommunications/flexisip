@@ -48,10 +48,10 @@ struct ExtendedContactCommon {
 	std::list<std::string> mPath;
 
 	ExtendedContactCommon(const char *contactId, const std::list<std::string> &path, const std::string &callId,
-			const char *lineValue) {
-		if (!callId.empty()) mCallId = callId;
+			const std::string &uniqueId) {
+		mCallId = callId;
 		mPath = path;
-		if (lineValue) mUniqueId = lineValue;
+		mUniqueId = uniqueId;
 		mContactId = contactId;
 	}
 	ExtendedContactCommon(const std::string &route) : mContactId(), mCallId(), mUniqueId(), mPath({route}) {
@@ -255,8 +255,8 @@ class Record {
 	}
 	/*
 	 * Synthetise the pub-gruu address from an extended contact belonging to this Record.
-	 * FIXME: Unfortunately this function is not widely used in Flexisip, instead there are several
-	 * places where pub-gruu address is synthesized.
+	 * FIXME: of course this method should be directly attached to ExtendedContact.
+	 * Unfortunately, because pub-gruu were not contained in the ExtendedContact, it shall remain in Record for compatibility.
 	 */
 	url_t *getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t *home);
 	/**
@@ -373,7 +373,6 @@ class RegistrarDb {
 	void clear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
 	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
-	void fetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener);
 	void fetchList(const std::vector<url_t *> urls, const std::shared_ptr<ListContactUpdateListener> &listener);
 	void notifyContactListener (const std::shared_ptr<Record> &r, const std::string &uid);
 	void updateRemoteExpireTime(const std::string &key, time_t expireat);
@@ -401,6 +400,8 @@ class RegistrarDb {
 	void unsubscribeLocalRegExpire(LocalRegExpireListener *listener) {
 		mLocalRegExpire->unsubscribe(listener);
 	}
+	static std::string uniqueIdToGr(const std::string &uid);
+	static std::string grToUniqueId(const std::string &gr);
   protected:
 	class LocalRegExpire {
 		std::map<std::string, time_t> mRegMap;
@@ -429,7 +430,7 @@ class RegistrarDb {
 	virtual void doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
-	virtual void doFetchForGruu(const url_t *url, const std::string &gruu, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
+	virtual void doFetchInstance(const url_t *url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 	virtual void doMigration() = 0;
 
 	int count_sip_contacts(const sip_contact_t *contact);
@@ -438,7 +439,7 @@ class RegistrarDb {
 	void fetchWithDomain(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive);
 	void notifyContactListener(const std::string &key, const std::string &uid);
 	void notifyStateListener () const;
-
+	
 	RegistrarDb(Agent *ag);
 	virtual ~RegistrarDb();
 	std::multimap<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;

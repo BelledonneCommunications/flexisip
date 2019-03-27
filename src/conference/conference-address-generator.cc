@@ -37,13 +37,10 @@ ConferenceAddressGenerator::ConferenceAddressGenerator (
 void ConferenceAddressGenerator::run () {
 	char token[17];
 	ostringstream os;
+	
 	belle_sip_random_token(token, sizeof(token));
-	os.str("");
 	os << "chatroom-" << token;
 	mConferenceAddr->setUsername(os.str());
-	os.str("");
-	os << "\"<urn:uuid:" << mUuid << ">\"";
-	mConferenceAddr->setParam("+sip.instance", os.str());
 
 	url_t *url = url_make(mHome.home(), mConferenceAddr->asStringUriOnly().c_str());
 	RegistrarDb::get()->fetch(url, shared_from_this(), false, false);
@@ -64,13 +61,20 @@ void ConferenceAddressGenerator::onRecordFound(const std::shared_ptr<Record> &r)
 			);
 		}
 	} else {
+		if (r->getExtendedContacts().empty()) {
+			LOGF("Conference address bind failed.");
+			return;
+		}
 		const shared_ptr<ExtendedContact> ec = r->getExtendedContacts().front();
-		string uri = ExtendedContact::urlToString(ec->mSipContact->m_url);
-		shared_ptr<linphone::Address> addr = linphone::Factory::get()->createAddress(uri);
+		url_t *pub_gruu = r->getPubGruu(ec, mHome.home());
+		if (!pub_gruu) {
+			LOGF("Conference does not have gruu address.");
+			return;
+		}
+		
 		shared_ptr<linphone::Address> gruuAddr = linphone::Factory::get()->createAddress(
-			mConferenceAddr->asStringUriOnly()
-		);
-		gruuAddr->setUriParam("gr", addr->getUriParam("gr"));
+			url_as_string(mHome.home(), pub_gruu));
+		
 		mChatRoom->setConferenceAddress(gruuAddr);
 	}
 }
