@@ -220,6 +220,7 @@ void PresenceServer::processIoError(PresenceServer *thiz, const belle_sip_io_err
 }
 void PresenceServer::processRequestEvent(PresenceServer *thiz, const belle_sip_request_event_t *event) {
 	belle_sip_request_t *request = belle_sip_request_event_get_request(event);
+	belle_sip_response_t *resp = nullptr;
 	try {
 		if (strcmp(belle_sip_request_get_method(request), "PUBLISH") == 0) {
 			thiz->processPublishRequestEvent(event);
@@ -233,21 +234,23 @@ void PresenceServer::processRequestEvent(PresenceServer *thiz, const belle_sip_r
 		}
 	} catch (BelleSipSignalingException &e) {
 		SLOGE << e.what();
-		belle_sip_response_t *resp = belle_sip_response_create_from_request(request, e.getStatusCode());
+		resp = belle_sip_response_create_from_request(request, e.getStatusCode());
 		for (belle_sip_header_t *header : e.getHeaders())
 			belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp), header);
-		belle_sip_provider_send_response(thiz->mProvider, resp);
-		return;
 	} catch (FlexisipException &e2) {
 		SLOGE << e2;
-		belle_sip_response_t *resp = belle_sip_response_create_from_request(request, 500);
-		belle_sip_provider_send_response(thiz->mProvider, resp);
-		return;
+		resp = belle_sip_response_create_from_request(request, 500);
 	} catch (exception &e3) {
 		SLOGE << "Unknown exception [" << e3.what() <<" << use FlexisipException instead";
-		belle_sip_response_t *resp = belle_sip_response_create_from_request(request, 500);
-		belle_sip_provider_send_response(thiz->mProvider, resp);
-		return;
+		resp = belle_sip_response_create_from_request(request, 500);
+	}
+	if (resp){
+		belle_sip_server_transaction_t *tr = (belle_sip_server_transaction_t*)belle_sip_object_data_get((belle_sip_object_t*)request, "my-transaction");
+		if (tr){
+			belle_sip_server_transaction_send_response(tr, resp);
+		}else{
+			belle_sip_provider_send_response(thiz->mProvider, resp);
+		}
 	}
 }
 void PresenceServer::processResponseEvent(PresenceServer *thiz, const belle_sip_response_event_t *event) {
@@ -612,6 +615,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	 to SUBSCRIBE requests, as appropriate.
 	 */
 	belle_sip_server_transaction_t *server_transaction = belle_sip_provider_create_server_transaction(mProvider, request);
+	belle_sip_object_data_set((belle_sip_object_t*)request, "my-transaction", server_transaction, nullptr);
 	belle_sip_dialog_t *dialog = belle_sip_request_event_get_dialog(event);
 	if (!dialog)
 		dialog = belle_sip_provider_create_dialog(mProvider, BELLE_SIP_TRANSACTION(server_transaction));
