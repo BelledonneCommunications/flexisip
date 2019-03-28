@@ -365,7 +365,6 @@ void Agent::start(const string &transport_override, const string passphrase) {
 			);
 		}
 		if (err == -1) {
-			LOGE("Could not enable transport %s: %s", uri.c_str(), strerror(errno));
 			if (url_has_param(url, "transport")) {
 				char transport[64] = {0};
 				url_param(url->url_params, "transport", transport, sizeof(transport));
@@ -374,6 +373,7 @@ void Agent::start(const string &transport_override, const string passphrase) {
 						 "instead.");
 				}
 			}
+			LOGF("Could not enable transport %s: %s", uri.c_str(), strerror(errno));
 		}
 		su_home_deinit(&home);
 	}
@@ -387,7 +387,7 @@ void Agent::start(const string &transport_override, const string passphrase) {
 			) == -1) {
 			char prefRouteV4[266];
 			url_e(prefRouteV4, sizeof(prefRouteV4), mPreferredRouteV4);
-			LOGE("Could not enable transport %s: %s", prefRouteV4, strerror(errno));
+			LOGF("Could not enable internal transport %s: %s", prefRouteV4, strerror(errno));
 		}
 	}
 
