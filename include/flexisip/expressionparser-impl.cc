@@ -17,6 +17,7 @@
 */
 
 #include "flexisip/expressionparser.hh"
+#include "flexisip/logmanager.hh"
 
 #include <cstring>
 #include <sstream>
@@ -34,7 +35,7 @@ namespace flexisip{
 template <typename _valuesT>
 class ConstantBooleanExpression : public BooleanExpression<_valuesT> {
   public:
-	EmptyBooleanExpression(bool ret) : mRet(ret){};
+	ConstantBooleanExpression(bool ret) : mRet(ret){};
 	virtual bool eval(const _valuesT &args) override{
 		return mRet;
 	}
@@ -77,7 +78,7 @@ class LogicalNot : public BooleanExpression<_valuesT> {
 	}
 
   private:
-	shared_ptr<BooleanExpression> mExp;
+	shared_ptr<Expr> mExp;
 };
 
 template <typename _valuesT>
@@ -144,7 +145,7 @@ public:
 		return mVar->defined(args);
 	}
 private:
-	shared_ptr<VariableOrConstant> mVar;
+	shared_ptr<Var> mVar;
 };
 
 template <typename _valuesT>
@@ -187,7 +188,7 @@ private:
 };
 
 template <typename _valuesT>
-class ContainsOp : public BooleanExpression {
+class ContainsOp : public BooleanExpression<_valuesT> {
 public:
 	using Var = Variable<_valuesT>;
 	ContainsOp(const shared_ptr<Var> &var1, const shared_ptr<Var> &var2) : mVar1(var1), mVar2(var2) {
@@ -205,7 +206,7 @@ private:
  * Evaluates whether a variable has its value equal to an element of a list of other variables.
  */
 template <typename _valuesT>
-class InOp : public BooleanExpression {
+class InOp : public BooleanExpression<_valuesT> {
 public:
 	using Var = Variable<_valuesT>;
 	InOp(const shared_ptr<Var> &var1, const shared_ptr<Var> &var2) : mVar1(var1), mVar2(var2) {
@@ -224,11 +225,11 @@ public:
 		return res;
 	}
 private:
-	shared_ptr<VariableOrConstant> mVar1, mVar2;
+	shared_ptr<Var> mVar1, mVar2;
 };
 
 template< typename _valuesT>
-size_t BooleanExpressionBuilder::findFirstNonWord(const string &expr, size_t offset) {
+size_t BooleanExpressionBuilder<_valuesT>::findFirstNonWord(const string &expr, size_t offset) {
 	size_t i;
 	for (i = offset; i < expr.size(); ++i) {
 		char c = expr[i];
@@ -239,7 +240,7 @@ size_t BooleanExpressionBuilder::findFirstNonWord(const string &expr, size_t off
 }
 
 template< typename _valuesT>
-shared_ptr<Var> BooleanExpressionBuilder::buildVariable(const string &expr, size_t *newpos) {
+shared_ptr<Variable<_valuesT>> BooleanExpressionBuilder<_valuesT>::buildVariable(const string &expr, size_t *newpos) {
 	shared_ptr<Var> ret = dynamic_pointer_cast<Var>(buildElement(expr,newpos));
 	if (ret == nullptr){
 		throw invalid_argument("Expected variable at " + expr.substr(*newpos, string::npos));
@@ -248,7 +249,7 @@ shared_ptr<Var> BooleanExpressionBuilder::buildVariable(const string &expr, size
 }
 
 template< typename _valuesT>
-static shared_ptr<Constant> BooleanExpressionBuilder::buildConstant(const string &expr, size_t *newpos) {
+shared_ptr<Constant<_valuesT>> BooleanExpressionBuilder<_valuesT>::buildConstant(const string &expr, size_t *newpos) {
 	shared_ptr<Constant<_valuesT>> ret = dynamic_pointer_cast<Constant<_valuesT>>(buildElement(expr,newpos));
 	if (ret == nullptr){
 		throw invalid_argument("Expected constant at " + expr.substr(*newpos, string::npos));
@@ -257,7 +258,7 @@ static shared_ptr<Constant> BooleanExpressionBuilder::buildConstant(const string
 }
 
 template< typename _valuesT>
-std::shared_ptr<ExpressionElement> BooleanExpressionBuilder::buildElement(const std::string &expr, size_t *newpos){
+std::shared_ptr<ExpressionElement> BooleanExpressionBuilder<_valuesT>::buildElement(const std::string &expr, size_t *newpos){
 	while (expr[*newpos] == ' '){
 		*newpos += 1;
 	}
@@ -284,13 +285,13 @@ std::shared_ptr<ExpressionElement> BooleanExpressionBuilder::buildElement(const 
 		}else if (opIt != mRules.operators.end()){
 			return make_shared<NamedOperator<_valuesT>>((*opIt).second);
 		}else{
-			throw invalid_argument("Element '" + word + "' is not a variable or operator name");
+			throw invalid_argument("Element '" + word + "' is not a variable nor operator name");
 		}
 	}
 }
 
 template< typename _valuesT>
-size_t BooleanExpressionBuilder::findMatchingClosingParenthesis(const string &expr, size_t offset) {
+size_t BooleanExpressionBuilder<_valuesT>::findMatchingClosingParenthesis(const string &expr, size_t offset) {
 	size_t i;
 	int match = 1;
 	for (i = offset; i < expr.size(); ++i) {
@@ -305,7 +306,7 @@ size_t BooleanExpressionBuilder::findMatchingClosingParenthesis(const string &ex
 }
 
 template< typename _valuesT>
-bool BooleanExpressionBuilder::isKeyword(const string &expr, size_t *newpos, const string &keyword) {
+bool BooleanExpressionBuilder<_valuesT>::isKeyword(const string &expr, size_t *newpos, const string &keyword) {
 	size_t pos = *newpos;
 	size_t keyLen = keyword.size();
 	size_t availableLen = expr.size() - pos;
@@ -325,44 +326,43 @@ bool BooleanExpressionBuilder::isKeyword(const string &expr, size_t *newpos, con
 }
 
 template< typename _valuesT>
-void BooleanExpressionBuilder::checkRulesOverlap(){
+void BooleanExpressionBuilder<_valuesT>::checkRulesOverlap(){
 	for(const string & builtin :  sBuiltinOperators){
 		if (mRules.variables.find(builtin) != mRules.variables.end()){
-			LOGF("BooleanExpressionBuilder: variable name '%s' conflicts with builtin operator name.");
+			LOGF("BooleanExpressionBuilder: variable name '%s' conflicts with builtin operator name.", builtin.c_str());
 		}
-		if (mRules.operators.find(builtin) != mRules.variables.end()){
-			LOGF("BooleanExpressionBuilder: variable name '%s' conflicts with builtin operator name.");
+		if (mRules.operators.find(builtin) != mRules.operators.end()){
+			LOGF("BooleanExpressionBuilder: variable name '%s' conflicts with builtin operator name.", builtin.c_str());
 		}
 	}
 	for (auto p : mRules.operators){
-		if (mRules.variables.find(p.first) !: mRules.variables.end()){
-			LOGF("BooleanExpressionBuilder: variable name '%s' conflicts with operator name.");
+		if (mRules.variables.find(p.first) != mRules.variables.end()){
+			LOGF("BooleanExpressionBuilder: variable name '%s' conflicts with operator name.", p.first.c_str());
 		}
 	}
 }
 
 template< typename _valuesT>
-BooleanExpressionBuilder::BooleanExpressionBuilder(const ExpressionRules<_valuesT> &rules) : mRules(rules){
+BooleanExpressionBuilder<_valuesT>::BooleanExpressionBuilder(const ExpressionRules<_valuesT> &rules) : mRules(rules){
 	checkRulesOverlap();
 }
 
 template< typename _valuesT>
-std::shared_ptr<BooleanExpression<_valuesT>> BooleanExpressionBuilder::parse(const std::string &expression){
+std::shared_ptr<BooleanExpression<_valuesT>> BooleanExpressionBuilder<_valuesT>::parse(const std::string &expression){
 	if (expression.empty())
 		return make_shared<ConstantBooleanExpression<_valuesT>>(true); /* By arbitrary decision, we evaluate void to true.*/
 	size_t pos = 0;
-	auto expr = parseExpression(str, &pos);
-	return expr;
+	return parseExpression(expression, &pos);
 }
 
 template< typename _valuesT>
 const std::list<std::string> BooleanExpressionBuilder<_valuesT>::sBuiltinOperators = {
-	"&&", "||", "!", "==", "contains", "in", "notin", "nin", "defined", "regexp", "regex", "numeric",
+	"&&", "||", "!", "==", "!=", "contains", "in", "notin", "nin", "defined", "regexp", "regex", "numeric",
 	"true", "false"
 };
 
 template< typename _valuesT>
-shared_ptr<Expr> BooleanExpressionBuilder::parseExpression(const string &expr, size_t *newpos) {
+shared_ptr<BooleanExpression<_valuesT>> BooleanExpressionBuilder<_valuesT>::parseExpression(const string &expr, size_t *newpos) {
 	size_t i;
 	shared_ptr<Expr> cur_exp;
 	shared_ptr<Var> cur_var;
@@ -416,7 +416,7 @@ shared_ptr<Expr> BooleanExpressionBuilder::parseExpression(const string &expr, s
 						throw invalid_argument("Parsing error around '!'");
 					}
 					i++;
-					cur_exp = make_shared<LogicalNot<_valuesT>>(parseExpression(expr.substr(i), &j);
+					cur_exp = make_shared<LogicalNot<_valuesT>>(parseExpression(expr.substr(i), &j));
 				}
 				i += j;
 				break;
@@ -449,7 +449,7 @@ shared_ptr<Expr> BooleanExpressionBuilder::parseExpression(const string &expr, s
 					i += j;
 					j = 0;
 					auto rightVar = buildVariable(expr.substr(i), &j);
-					cur_exp = make_shared<DefinedOp>(expr.substr(i, j), rightVar);
+					cur_exp = make_shared<DefinedOp<_valuesT>>(rightVar);
 					i += j;
 				}
 				break;
@@ -467,7 +467,7 @@ shared_ptr<Expr> BooleanExpressionBuilder::parseExpression(const string &expr, s
 					i += j;
 					j = 0;
 					auto rightVar = buildVariable(expr.substr(i), &j);
-					cur_exp = make_shared<InOp>(cur_var, rightVar);
+					cur_exp = make_shared<InOp<_valuesT>>(cur_var, rightVar);
 					i += j;
 				}
 				break;
@@ -507,8 +507,13 @@ shared_ptr<Expr> BooleanExpressionBuilder::parseExpression(const string &expr, s
 				break;
 		}
 		if (prev_i == i){ /*nothing was handled*/
-			cur_var = buildVariableOrConstant(expr.substr(i), &j);
+			shared_ptr<ExpressionElement> element = buildElement(expr.substr(i), &j);
 			i += j;
+			if (dynamic_pointer_cast<Var>(element)){
+				cur_var = dynamic_pointer_cast<Var>(element);
+			}else if (dynamic_pointer_cast<NamedOperator<_valuesT>>(element)){
+				cur_exp = dynamic_pointer_cast<NamedOperator<_valuesT>>(element);
+			}
 		}
 	}
 	*newpos += i;

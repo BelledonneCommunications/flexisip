@@ -40,15 +40,17 @@ public:
 template <typename _valuesT>
 class Variable : public ExpressionElement{
 public:
-	Variable(const std::function< string (const _valuesT &)> &func) : mFunc(func){
+	Variable(const std::function< std::string (const _valuesT &)> &func) : mFunc(func){
 	}
 	~Variable() = default;
-	virtual std::string get(const _valuesT &args) = 0;
+	virtual std::string get(const _valuesT &args){
+		return mFunc(args);
+	}
 	virtual bool defined(const _valuesT &args){
 		if (get(args).empty()) return false;
 		return true;
 	}
-	virtual list<string> getAsList(const _valuesT &args) {
+	virtual std::list<std::string> getAsList(const _valuesT &args) {
 		std::list<std::string> valueList;
 		std::string s = get(args);
 		
@@ -74,7 +76,9 @@ public:
 		return valueList;
 	}
 private:
-	std::function< string (const _valuesT &)> mFunc;
+	std::function< std::string (const _valuesT &)> mFunc;
+protected:
+	Variable() = default;
 };
 
 /*
@@ -83,9 +87,9 @@ private:
  */
 template <typename _valuesT>
 class Constant : public Variable<_valuesT>{
-	string mVal;
+	std::string mVal;
   public:
-	Constant(const std::string &val) : mVal(val) {
+	Constant(const std::string &val) : Variable<_valuesT>(), mVal(val) {
 	}
 	virtual std::string get(const _valuesT &arg) override{
 		return mVal;
@@ -119,13 +123,13 @@ protected:
 template <typename _valuesT>
 class NamedOperator : public BooleanExpression<_valuesT>, public ExpressionElement{
 public:
-	NamedOperator(const std::function< bool (const _valuesT &) func) : mFunc(func){
+	NamedOperator(const std::function< bool (const _valuesT &)> func) : mFunc(func){
 	}
 	virtual bool eval(const _valuesT &args) override{
 		return mFunc(args);
 	}
 private:
-	std::function< bool (const _valuesT &) mFunc;
+	std::function< bool (const _valuesT &)> mFunc;
 };
 
 /*
@@ -138,8 +142,8 @@ private:
 template <typename _valuesT>
 struct ExpressionRules{
 public:
-	std::map<std::string, std::function< string (const _valuesT &)> variables; // the map of variables with their function to evaluate
-	std::map<std::string, std::function< bool (const _valuesT &)> operators; // the named operators, with their function to evaluate.
+	std::map<std::string, std::function< std::string (const _valuesT &)>> variables; // the map of variables with their function to evaluate
+	std::map<std::string, std::function< bool (const _valuesT &)>> operators; // the named operators, with their function to evaluate.
 };
 
 /*
@@ -151,6 +155,7 @@ template <typename _valuesT>
 class BooleanExpressionBuilder{
 public:
 	using Var = Variable<_valuesT>;
+	using Const = Constant<_valuesT>;
 	using Expr = BooleanExpression<_valuesT>;
 	BooleanExpressionBuilder(const ExpressionRules<_valuesT> &rules);
 	std::shared_ptr<BooleanExpression<_valuesT>> parse(const std::string &expression);
@@ -158,11 +163,11 @@ private:
 	void checkRulesOverlap();
 	size_t findFirstNonWord(const std::string &expr, size_t offset);
 	size_t findMatchingClosingParenthesis(const std::string &expr, size_t offset);
-	bool isKeyword(const std::string &expr, size_t *newpos, const string &keyword)
+	bool isKeyword(const std::string &expr, size_t *newpos, const std::string &keyword);
 	std::shared_ptr<Var> buildVariable(const std::string &expr, size_t *newpos);
+	std::shared_ptr<Const> buildConstant(const std::string &expr, size_t *newpos);
 	std::shared_ptr<ExpressionElement> buildElement(const std::string &expr, size_t *newpos);
 	std::shared_ptr<Expr> parseExpression(const std::string &expr, size_t *newpos);
-	size_t findMatchingClosingParenthesis(const std::string &expr, size_t offset) {
 	const ExpressionRules<_valuesT> mRules;
 	static const std::list<std::string> sBuiltinOperators;
 };

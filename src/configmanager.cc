@@ -24,6 +24,7 @@
 #include <flexisip/configmanager.hh>
 #include <flexisip/common.hh>
 #include <flexisip/logmanager.hh>
+#include "flexisip/sip-boolean-expressions.hh"
 #include "configdumper.hh"
 
 #include <functional>
@@ -769,8 +770,8 @@ ConfigBooleanExpression::ConfigBooleanExpression(const string &name, const strin
 	: ConfigValue(name, BooleanExpr, help, default_value, oid_index) {
 }
 
-shared_ptr<BooleanExpression> ConfigBooleanExpression::read() const {
-	return BooleanExpression::parse(get());
+shared_ptr<SipBooleanExpression> ConfigBooleanExpression::read() const {
+	return SipBooleanExpressionBuilder::get().parse(get());
 }
 
 GenericManager *GenericManager::sInstance = 0;

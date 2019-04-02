@@ -46,6 +46,7 @@ set(FLEXISIP_SOURCES
 	cli.cc
 	cJSON.c
 	common.cc
+	sip-boolean-expressions.cc
 	configdumper.cc
 	configmanager.cc
 	contact-masquerader.cc
@@ -54,7 +55,6 @@ set(FLEXISIP_SOURCES
 	etchosts.cc
 	event.cc
 	eventlogs/eventlogs.cc
-	expressionparser.cc
 	forkbasiccontext.cc
 	forkcallcontext.cc
 	forkcontext.cc
@@ -343,14 +343,6 @@ if(ENABLE_JWE_AUTH_PLUGIN)
 	add_subdirectory(plugin/jwe-auth-plugin)
 endif()
 
-# expression parser tester
-if(MEDIASTREAMER2_FOUND)
-	add_executable(expr test/expr.cc expressionparser.cc sipattrextractor.hh)
-	target_link_libraries(expr ${BCTOOLBOX_CORE_LIBRARIES} ${ORTP_LIBRARIES} ${MEDIASTREAMER2_LIBRARIES})
-	set_property(TARGET expr PROPERTY CXX_STANDARD 11)
-	set_property(TARGET expr PROPERTY CXX_STANDARD_REQUIRED ON)
-	target_compile_options(expr PUBLIC -DTEST_BOOL_EXPR -DNO_SOFIA)
-endif()
 
 add_executable(flexisip_serializer tools/serializer.cc)
 target_link_libraries(flexisip_serializer flexisip)

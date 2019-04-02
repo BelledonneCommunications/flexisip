@@ -56,7 +56,7 @@ class ConfigEntryFilter : public EntryFilter {
 
   private:
 	bool mEnabled;
-	std::shared_ptr<BooleanExpression> mBooleanExprFilter;
+	std::shared_ptr<SipBooleanExpression> mBooleanExprFilter;
 	std::string mEntryName;
 };
 

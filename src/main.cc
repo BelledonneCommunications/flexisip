@@ -838,9 +838,6 @@ int main(int argc, char *argv[]) {
 	/*tell parser to support extra headers */
 	sip_update_default_mclass(sip_extend_mclass(NULL));
 
-	log_boolean_expression_evaluation(boolExprEval.getValue());
-	log_boolean_expression_parsing(boolParseEval.getValue());
-
 	if (hostsOverride.getValue().size() != 0) {
 		auto hosts = hostsOverride.getValue();
 		auto etcResolver = EtcHostsResolver::get();

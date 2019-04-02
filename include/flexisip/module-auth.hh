@@ -61,7 +61,7 @@ private:
 	regex_t mRequiredSubject;
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
-	std::shared_ptr<BooleanExpression> mNo403Expr;
+	std::shared_ptr<SipBooleanExpression> mNo403Expr;
 	bool mNewAuthOn407 = false;
 	bool mTestAccountsEnabled = false;
 	bool mDisableQOPAuth = false;

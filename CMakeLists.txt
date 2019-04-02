@@ -249,6 +249,7 @@ add_subdirectory(include)
 add_subdirectory(src)
 add_subdirectory(scripts)
 add_subdirectory(share)
+add_subdirectory(tester)
 
 # Packaging
 add_subdirectory(build)
