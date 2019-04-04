@@ -24,7 +24,6 @@
 #include <flexisip/registrardb.hh>
 
 #include <flexisip/logmanager.hh>
-#include "sipattrextractor.hh"
 
 #include "etchosts.hh"
 #include <algorithm>
@@ -974,16 +973,6 @@ template <typename SipEventT>
 inline void Agent::doSendEvent(
 	shared_ptr<SipEventT> ev, const list<Module *>::iterator &begin, const list<Module *>::iterator &end
 ) {
-#define LOG_SCOPED_EV_THREAD(ssargs, key) LOG_SCOPED_THREAD(key, ssargs->getOrEmpty(key));
-
-	auto ssargs = ev->getMsgSip()->getSipAttr();
-	LOG_SCOPED_EV_THREAD(ssargs, "from.uri.user");
-	LOG_SCOPED_EV_THREAD(ssargs, "from.uri.domain");
-	LOG_SCOPED_EV_THREAD(ssargs, "to.uri.user");
-	LOG_SCOPED_EV_THREAD(ssargs, "to.uri.domain");
-	LOG_SCOPED_EV_THREAD(ssargs, "method_or_status");
-	LOG_SCOPED_EV_THREAD(ssargs, "callid");
-
 	for (auto it = begin; it != end; ++it) {
 		ev->mCurrModule = (*it);
 		(*it)->process(ev);

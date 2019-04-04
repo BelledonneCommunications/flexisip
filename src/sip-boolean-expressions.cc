@@ -26,9 +26,53 @@ namespace flexisip{
 
 shared_ptr<SipBooleanExpressionBuilder> SipBooleanExpressionBuilder::sInstance;
 
+static inline string stringFromC(const char *s){
+	return s ? string(s) : string();
+}
+
 static ExpressionRules<sip_t> rules = {
-	{},
-	{}
+	{
+		{"direction", [](const sip_t &sip)->string {return sip.sip_request != nullptr ? "request" : "response";} },
+		
+		{"request.method-name", [](const sip_t &sip)->string {
+			return stringFromC((sip.sip_request && sip.sip_request->rq_method_name) ? sip.sip_request->rq_method_name : nullptr);} },
+		{"request.method", [](const sip_t &sip)->string {
+			return stringFromC((sip.sip_request && sip.sip_request->rq_method_name) ? sip.sip_request->rq_method_name : nullptr);} },
+		{"request.uri.domain", [](const sip_t &sip)->string {
+			return stringFromC((sip.sip_request && sip.sip_request->rq_url) ? sip.sip_request->rq_url->url_host : nullptr);} },
+		{"request.uri.user", [](const sip_t &sip)->string {
+			return stringFromC((sip.sip_request && sip.sip_request->rq_url) ? sip.sip_request->rq_url->url_user : nullptr);} },
+		{"request.uri.params", [](const sip_t &sip)->string {
+			return stringFromC((sip.sip_request && sip.sip_request->rq_url) ? sip.sip_request->rq_url->url_params : nullptr);} },
+		
+		{"from.uri.domain", [](const sip_t &sip)->string {return stringFromC(sip.sip_from->a_url ? sip.sip_from->a_url->url_host : nullptr);} },
+		{"from.uri.user", [](const sip_t &sip)->string {return stringFromC(sip.sip_from->a_url ? sip.sip_from->a_url->url_user : nullptr);} },
+		{"from.uri.params", [](const sip_t &sip)->string {return stringFromC(sip.sip_from->a_url ? sip.sip_from->a_url->url_params : nullptr);} },
+		
+		{"to.uri.domain", [](const sip_t &sip)->string {return stringFromC(sip.sip_to->a_url ? sip.sip_to->a_url->url_host : nullptr);} },
+		{"to.uri.user", [](const sip_t &sip)->string {return stringFromC(sip.sip_to->a_url ? sip.sip_to->a_url->url_user : nullptr);} },
+		{"to.uri.params", [](const sip_t &sip)->string {return stringFromC(sip.sip_to->a_url ? sip.sip_to->a_url->url_params : nullptr);} },
+		
+		{"user-agent", [](const sip_t &sip)->string {return stringFromC(sip.sip_user_agent ? sip.sip_user_agent->g_string : nullptr);} },
+		
+		{"call-id", [](const sip_t &sip)->string {return stringFromC(sip.sip_call_id ? sip.sip_call_id->i_id : nullptr);} },
+		{"call-id.hash", [](const sip_t &sip)->string {
+			ostringstream ostr;
+			if (sip.sip_call_id) ostr << sip.sip_call_id->i_hash;
+			return ostr.str();
+		} },
+		
+		{"status.phrase", [](const sip_t &sip)->string {return stringFromC(sip.sip_status ? sip.sip_status->st_phrase : nullptr);} },
+		{"status.code", [](const sip_t &sip)->string {
+			ostringstream ostr;
+			if (sip.sip_status) ostr << sip.sip_status->st_status;
+			return ostr.str();
+		} }
+	},
+	{
+		{"is_request", [](const sip_t & sip)->bool {return sip.sip_request != nullptr;} },
+		{"is_response", [](const sip_t & sip)->bool {return sip.sip_request == nullptr;} }
+	}
 };
 
 SipBooleanExpressionBuilder::SipBooleanExpressionBuilder() : BooleanExpressionBuilder<sip_t>(rules){

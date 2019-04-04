@@ -49,7 +49,6 @@ private:
 	static GenericEntry* find(GenericStruct *root, std::vector<std::string> &path);
 	static std::string printEntry(GenericEntry *entry, bool printHelpInsteadOfValue);
 	static std::string printSection(GenericStruct *gstruct, bool printHelpInsteadOfValue);
-	static void updateLogsVerbosity();
 
 	static void *threadfunc(void *arg);
 	

@@ -17,6 +17,7 @@
  */
 
 #include "tester.hh"
+#include "bctoolbox/logging.h"
 
 std::string bcTesterFile(const std::string &name){
 	char *file = bc_tester_file(name.c_str());
@@ -38,14 +39,6 @@ int main(int argc, char *argv[]) {
 	int ret;
 
 	flexisip_tester_init(NULL);
-
-	if (strstr(argv[0], ".libs")) {
-		int prefix_length = (int)(strstr(argv[0], ".libs") - argv[0]) + 1;
-		char prefix[200];
-		sprintf(prefix, "%s%.*s", argv[0][0] == '/' ? "" : "./", prefix_length, argv[0]);
-		bc_tester_set_resource_dir_prefix(prefix);
-		bc_tester_set_writable_dir_prefix(prefix);
-	}
 
 	for(i = 1; i < argc; ++i) {
 		int ret = bc_tester_parse_args(argc, argv, i);
@@ -77,16 +70,16 @@ static void log_handler(int lev, const char *fmt, va_list args) {
 #endif
 }
 
-void belr_tester_init(void(*ftester_printf)(int level, const char *fmt, va_list args)) {
+void flexisip_tester_init(void(*ftester_printf)(int level, const char *fmt, va_list args)) {
 	if (ftester_printf == NULL) ftester_printf = log_handler;
 	bc_tester_init(ftester_printf, BCTBX_LOG_MESSAGE, BCTBX_LOG_ERROR, ".");
 
-	bc_tester_add_suite(&boolean_expression_suite);
+	bc_tester_add_suite(&boolean_expressions_suite);
 
 
 }
 
-void belr_tester_uninit(void) {
+void flexisip_tester_uninit(void) {
 	bc_tester_uninit();
 }
 

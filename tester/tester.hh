@@ -19,7 +19,7 @@
 #ifndef flexisip_tester_hpp
 #define flexisip_tester_hpp
 
-#include <bctoolbox/tester.h>
+#include "bctoolbox/tester.h"
 
 
 #include <fstream>
@@ -38,7 +38,7 @@ std::string bcTesterRes(const std::string &name);
 extern "C" {
 #endif
 
-extern test_suite_t boolean_expression_suite;
+extern test_suite_t boolean_expressions_suite;
 
 
 void flexisip_tester_init(void(*ftester_printf)(int level, const char *fmt, va_list args));

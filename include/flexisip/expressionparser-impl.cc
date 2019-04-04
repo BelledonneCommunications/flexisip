@@ -16,6 +16,11 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/*
+ * Implementation file for the BooleanExpression and BooleanExpressionBuilder templates.
+ * This file must be included where the template is instanciated.
+ */
+
 #include "flexisip/expressionparser.hh"
 #include "flexisip/logmanager.hh"
 
@@ -233,7 +238,7 @@ size_t BooleanExpressionBuilder<_valuesT>::findFirstNonWord(const string &expr, 
 	size_t i;
 	for (i = offset; i < expr.size(); ++i) {
 		char c = expr[i];
-		if (c != '-' && c != '.' && !isalnum(c))
+		if (c != '-' && c != '_' && c != '.' && !isalnum(c))
 			return i;
 	}
 	return i;

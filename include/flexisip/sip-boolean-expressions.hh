@@ -20,7 +20,8 @@
 #pragma once
 
 #include "flexisip/expressionparser.hh"
-#include "sofia-sip/sip.h"
+
+typedef struct sip_s sip_t;
 
 namespace flexisip{
 

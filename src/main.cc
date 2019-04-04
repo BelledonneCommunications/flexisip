@@ -107,6 +107,11 @@ static std::shared_ptr<flexisip::PresenceServer> presenceServer;
 static std::shared_ptr<flexisip::ConferenceServer> conferenceServer;
 #endif // ENABLE_CONFERENCE
 
+
+#ifndef DEFAULT_LOG_DIR
+#define DEFAULT_LOG_DIR "/var/opt/belledonne-communications/log/flexisip"
+#endif
+
 using namespace std;
 using namespace flexisip;
 
@@ -807,18 +812,24 @@ int main(int argc, char *argv[]) {
 	std::string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
 	if (!user_errors) user_errors = cfg->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
 
-	ortp_set_log_handler(NULL); /*remove ortp's default log handler that logs to stdout*/
 	ortp_init();
 	// in case we don't plan to launch flexisip, don't setup the logs.
 	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs &&
 		!dumpAll) {
-		uint64_t max_size = cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read();
-		flexisip::log::preinit(useSyslog.getValue(), debug, max_size, fName);
+		LogManager::Parameters logParams;
+		logParams.logDirectory = cfg->getGlobal()->get<ConfigString>("log-directory")->read();
+		logParams.logFileName = fname + ".log";
+		logParams.fileMaxSize = cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read();
+		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::get().logLevelFromName(log_level);
+		logParams.enableSyslog = useSyslog;
+		logParams.syslogLevel = LogManager::get().logLevelFromName(syslog_level);
+		logParams.enableStdout = debug;
+		logParams.enableUserErrors = user_errors;
+		LogManager::get().initialize(logParams);
 	} else {
-		flexisip::log::disableGlobally();
+		LogManager::get().disable();
 	}
-	flexisip::log::initLogs(useSyslog, debug ? "debug" : log_level, syslog_level, user_errors, useDebug.getValue());
-	//flexisip::log::updateFilter(cfg->getGlobal()->get<ConfigString>("log-filter")->read());
+	
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGTERM, flexisip_stop);
 	signal(SIGINT, flexisip_stop);

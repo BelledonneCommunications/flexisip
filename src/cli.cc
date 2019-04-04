@@ -145,14 +145,15 @@ void CommandLineInterface::handle_config_set_command(unsigned int socket, const 
 	if (config_value && (arg == "global/debug")) {
 		config_value->set(value);
 		updateLogsVerbosity();
+		LogManager::get().setLogLevel(BCTBX_LOG_DEBUG);
 		answer(socket, "debug : " + value);
 	} else if (config_value && (arg == "global/log-level")) {
 		config_value->set(value);
-		updateLogsVerbosity();
+		LogManager::get().setLogLevel(LogManager::get().logLevelFromName(value));
 		answer(socket, "log-level : " + value);
 	} else if (config_value && (arg == "global/syslog-level")) {
 		config_value->set(value);
-		updateLogsVerbosity();
+		LogManager::get().setSyslogLevel(LogManager::get().logLevelFromName(value));
 		answer(socket, "syslog-level : " + value);
 	} else {
 		answer(socket, "Only debug, log-level and syslog-level from global can be updated while flexisip is running");
@@ -292,14 +293,6 @@ std::string CommandLineInterface::printSection(GenericStruct *gstruct, bool prin
 			answer += printEntry(child, printHelpInsteadOfValue) + "\r\n";
 	}
 	return answer;
-}
-
-void CommandLineInterface::updateLogsVerbosity() {
-	GenericManager *manager = GenericManager::get();
-	std::string loglevel = manager->getGlobal()->get<ConfigString>("log-level")->read();
-	std::string sysloglevel = manager->getGlobal()->get<ConfigString>("syslog-level")->read();
-	bool user_errors = manager->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
-	flexisip::log::initLogs(flexisip_sUseSyslog, loglevel, sysloglevel, user_errors, false);
 }
 
 void *CommandLineInterface::threadfunc(void *arg) {

@@ -3,10 +3,21 @@ set(SOURCE_FILES_CXX 	tester.cc tester.hh
 			boolean-expressions.cc
 )
 
+set(FLEXISIP_INCLUDEDIRS)
+
+list(APPEND FLEXISIP_INCLUDEDIRS ${FLEXISIP_HEADER_DIR} ${BCTOOLBOX_INCLUDE_DIRS} ${BELR_INCLUDE_DIRS})
+
+bc_apply_compile_flags(SOURCE_FILES_CXX CPP_BUILD_FLAGS CXX_BUILD_FLAGS)
 
 add_executable(flexisip_tester ${SOURCE_FILES_CXX})
-set_target_properties(flexisip_tester PROPERTIES LINKER_LANGUAGE CXX)
+set_target_properties(flexisip_tester PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
 
-target_include_directories(flexisip_tester PUBLIC ${BCTOOLBOX_TESTER_INCLUDE_DIRS})
+target_include_directories(flexisip_tester PUBLIC ${FLEXISIP_INCLUDEDIRS})
+target_link_libraries(flexisip_tester flexisip bctoolbox-tester)
 
-target_link_libraries(flexisip_tester ${FLEXISIP_LIBRARIES_FOR_TESTER} ${BCTOOLBOX_LIBRARIES})
+install(TARGETS flexisip_tester
+	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+)
