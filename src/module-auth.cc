@@ -362,11 +362,6 @@ void Authentication::processAuthentication(const std::shared_ptr<RequestSipEvent
 	if (handleTlsClientAuthentication(request))
 		throw StopRequestProcessing();
 
-	// Create incoming transaction if not already exists
-	// Necessary in qop=auth to prevent nonce count chaos
-	// with retransmissions.
-	request->createIncomingTransaction();
-
 	ModuleAuthenticationBase::processAuthentication(request, am);
 }
 

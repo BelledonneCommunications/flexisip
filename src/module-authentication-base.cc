@@ -206,7 +206,22 @@ void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipE
 }
 
 void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) {
+	const shared_ptr<MsgSip> &ms = request->getMsgSip();
 	sip_t *sip = request->getMsgSip()->getSip();
+
+	// Check for the existence of username, which is required for proceeding with digest authentication in flexisip.
+	// Reject if absent.
+	if (sip->sip_from->a_url->url_user == NULL) {
+		LOGI("From has no username, cannot authenticate.");
+		SLOGUE << "Registration failure, username not found: " << url_as_string(ms->getHome(), sip->sip_from->a_url);
+		request->reply(403, "Username must be provided", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		throw StopRequestProcessing();
+	}
+
+	// Create incoming transaction if not already exists
+	// Necessary in qop=auth to prevent nonce count chaos
+	// with retransmissions.
+	request->createIncomingTransaction();
 
 	FlexisipAuthStatus *as = createAuthStatus(request);
 
