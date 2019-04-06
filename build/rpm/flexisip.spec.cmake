@@ -176,6 +176,7 @@ rm -rf $RPM_BUILD_ROOT
 %dir %{_includedir}/flexisip
 %{_includedir}/flexisip/*.hh
 %{_includedir}/flexisip/*.h
+%{_includedir}/flexisip/*.cc
 %{_localstatedir}/*
 
 %if @ENABLE_PRESENCE@

@@ -56,6 +56,8 @@ integration can be used directly, for example:
 
 The "flexisip-rpm" ./prepare.py target can be used to generate rpm packages for flexisip and its dependencies.
 "Alien" program is used internaly to convert into debian packages, when this build is run on a debian or debian like linux OS.
+The following dependency packages are required (as rpm package name): 
+ mbedtls-devel sqlite-devel postgresql-devel rpm-build bison speex-devel
 
 	./prepare.py flexisip-rpm -DENABLE_REDIS=ON -DENABLE_BC_HIREDIS=ON
 	make
