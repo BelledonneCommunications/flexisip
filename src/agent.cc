@@ -985,6 +985,7 @@ inline void Agent::doSendEvent(
 }
 
 void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
+	SipLogContext ctx(ev->getMsgSip());
 	sip_t *sip = ev->getMsgSip()->getSip();
 	const sip_request_t *req = sip->sip_request;
 	const url_t *from_url = sip->sip_from ? sip->sip_from->a_url : NULL;
@@ -1035,7 +1036,7 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 		LOGI("Skipping incoming message on expired agent");
 		return;
 	}
-
+	SipLogContext ctx(ev->getMsgSip());
 	SLOGD << "Receiving new Response SIP message: " << ev->getMsgSip()->getSip()->sip_status->st_status << "\n"
 		<< *ev->getMsgSip();
 
@@ -1089,6 +1090,7 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 }
 
 void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
+	SipLogContext ctx(ev->getMsgSip());
 	SLOGD << "Inject Request SIP message:\n" << *ev->getMsgSip();
 	ev->restartProcessing();
 	SLOGD << "Injecting request event after " << ev->mCurrModule->getModuleName();
@@ -1103,6 +1105,7 @@ void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 }
 
 void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
+	SipLogContext ctx(ev->getMsgSip());
 	SLOGD << "Inject Response SIP message:\n" << *ev->getMsgSip();
 	list<Module *>::iterator it;
 	ev->restartProcessing();
@@ -1113,7 +1116,6 @@ void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 			break;
 		}
 	}
-
 	doSendEvent(ev, it, mModules.end());
 }
 

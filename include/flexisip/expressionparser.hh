@@ -167,7 +167,7 @@ private:
 	std::shared_ptr<Var> buildVariable(const std::string &expr, size_t *newpos);
 	std::shared_ptr<Const> buildConstant(const std::string &expr, size_t *newpos);
 	std::shared_ptr<ExpressionElement> buildElement(const std::string &expr, size_t *newpos);
-	std::shared_ptr<Expr> parseExpression(const std::string &expr, size_t *newpos);
+	std::shared_ptr<Expr> parseExpression(const std::string &expr, size_t *newpos, bool immediateNeighbour = false);
 	const ExpressionRules<_valuesT> mRules;
 	static const std::list<std::string> sBuiltinOperators;
 };

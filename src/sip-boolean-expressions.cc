@@ -19,6 +19,7 @@
 
 #include "flexisip/sip-boolean-expressions.hh"
 #include "flexisip/expressionparser-impl.cc"
+#include "sofia-sip/sip.h"
 
 using namespace std;
 

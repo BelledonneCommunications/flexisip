@@ -20,6 +20,7 @@
 
 #include <string>
 #include <memory>
+#include <mutex>
 
 #define BCTBX_DEBUG_MODE 1 // Flexisip extensively use SLOD
 #ifndef FLEXISIP_USER_ERRORS_LOG_DOMAIN
@@ -82,7 +83,7 @@ do {                                                                            
  */
 #define LOGN(args...)\
 do {\
-	bctbx_set_thread_log_level(NULL, BCTBX_LOG_MESSAGE)\
+	bctbx_set_thread_log_level(NULL, BCTBX_LOG_MESSAGE);\
 	bctbx_message(args); \
 	bctbx_clear_thread_log_level(NULL);\
 	fprintf(stdout, args);\
@@ -98,7 +99,7 @@ do {\
  	fprintf(stderr, args);\
  	fprintf(stderr, "\n");\
  	bctbx_set_thread_log_level(NULL, BCTBX_LOG_MESSAGE);\
- 	bctbx_log(BCTBX_LOG_DOMAIN, BCTBX_LOG_MESSAGE, args);\
+ 	bctbx_log(BCTBX_LOG_DOMAIN, BCTBX_LOG_ERROR, args);\
  	bctbx_clear_thread_log_level(NULL);\
  } while (0);
 
@@ -143,18 +144,28 @@ public:
 	 * Set a contextual filter based on sip message contents, and associated log level to use when the filter matches.
 	 * Returns -1 if the filter is not valid.
 	 */
-	int setContextualFilter(BctbxLogLevel level, const std::string &expression);
+	int setContextualFilter(const std::string &expression);
+	/*
+	 * Set the log level when the contextual filter is matched.
+	 */
+	void setContextualLevel(BctbxLogLevel level);
 	
 	// Disable all logs.
 	void disable();
+	~LogManager();
 private:
 	void setCurrentContext(const SipLogContext &ctx);
 	void clearCurrentContext();
-	LogManager();
+	LogManager() = default;
+	LogManager(const LogManager &) = delete;
+	std::mutex mMutex;
 	std::shared_ptr<SipBooleanExpression> mCurrentFilter;
-	BctbxLogLevel mLevel; // The normal log level.
-	BctbxLogLevel mContextLevel; // The log level when log context matches the condition.
+	BctbxLogLevel mLevel = BCTBX_LOG_ERROR; // The normal log level.
+	BctbxLogLevel mContextLevel = BCTBX_LOG_ERROR; // The log level when log context matches the condition.
+	bctbx_log_handler_t *mLogHandler = nullptr;
+	bctbx_log_handler_t *mSysLogHandler = nullptr;
 	bool mInitialized = false;
+	static LogManager *sInstance;
 };
 
 class LogContext{
@@ -170,8 +181,12 @@ public:
  * When it goes out of scope, it automatically clears the context with the LogManager.
  */
 class SipLogContext : public LogContext{
+friend class LogManager;
 public:
 	SipLogContext(const MsgSip &msg);
+	SipLogContext(const std::shared_ptr<MsgSip> &msg);
+private:
+	const MsgSip &mMsgSip;
 };
 
 } // end of namespace flexisip

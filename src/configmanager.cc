@@ -827,16 +827,27 @@ RootConfigStruct::~RootConfigStruct() {
 }
 
 oid company_id = SNMP_COMPANY_OID;
+
+#ifndef DEFAULT_LOG_DIR
+#define DEFAULT_LOG_DIR "/var/opt/belledonne-communications/log/flexisip"
+#endif
+
 GenericManager::GenericManager()
 	: mNeedRestart(false), mDirtyConfig(false),
 	  mConfigRoot("flexisip", "This is the default Flexisip configuration file", {1, 3, 6, 1, 4, 1, company_id}),
 	  mReader(&mConfigRoot), mNotifier(NULL) {
 	// to make sure global_conf is instanciated first
 	static ConfigItemDescriptor global_conf[] = {
+		{String, "log-directory", "Directory where to create log files.", DEFAULT_LOG_DIR },
 		{String, "log-level", "Verbosity of logs to output. Possible values are debug, message, warning and error", "error"},
 		{String, "syslog-level", "Verbosity of logs to put in syslog. Possible values are debug, message, warning and error", "error"},
 		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file, expressed with units. For example: 10G, 100M. If -1 then there is no maximum size", "100M"},
 		{Boolean, "user-errors-logs", "Log (on a different log domain) user errors like authentication, registration, routing, etc...", "false"},
+		{String, "contextual-log-filter", "A boolean expression applied to current SIP message being processed. When matched, logs are output"
+			" provided that there level is greater than the value defined in contextual-log-level."
+			" The definition of the SIP boolean expression is the same as for entry filters of modules, which is "
+			"documented here: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/", ""},
+		{String, "contextual-log-level", "Verbosity of contextual logs to output when the condition defined in 'contextual-log-filter' is met.", "debug"},
 		{Boolean, "dump-corefiles", "Generate a corefile when crashing. "
 			"Note that by default linux will generate coredumps in '/' which is not so convenient. The following shell command can be added to"
 			" /etc/rc.local in order to write core dumps a in specific directory, for example /home/cores:\n"
@@ -992,9 +1003,6 @@ GenericManager::GenericManager()
 }
 
 bool GenericManager::doIsValidNextConfig(const ConfigValue &cv) {
-	if (cv.getName() == "log-filter") {
-		return flexisip::log::validateFilter(cv.getNextValue());
-	}
 	return true;
 }
 
@@ -1009,9 +1017,7 @@ bool GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 			mDirtyConfig = false;
 			break;
 		case ConfigState::Commited:
-			if (conf.getName() == "log-filter") {
-				flexisip::log::updateFilter(conf.getNextValue());
-			} else if (mDirtyConfig) {
+			if (mDirtyConfig) {
 				LOGI("Scheduling server restart to apply new config.");
 				mDirtyConfig = false;
 				mNeedRestart = true;

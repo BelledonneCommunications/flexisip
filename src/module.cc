@@ -126,7 +126,6 @@ void Module::reload() {
 
 void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	LOG_SCOPED_THREAD("Module", getModuleName());
 
 	try {
 		if (mFilter->canEnter(ms)) {
@@ -149,7 +148,6 @@ void Module::processRequest(shared_ptr<RequestSipEvent> &ev) {
 
 void Module::processResponse(shared_ptr<ResponseSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	LOG_SCOPED_THREAD("Module", getModuleName());
 
 	try {
 		if (mFilter->canEnter(ms)) {

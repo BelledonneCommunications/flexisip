@@ -18,7 +18,7 @@
 
 /*
  * Implementation file for the BooleanExpression and BooleanExpressionBuilder templates.
- * This file must be included where the template is instanciated.
+ * This file must be included from the compilation unit where the template is instanciated.
  */
 
 #include "flexisip/expressionparser.hh"
@@ -367,7 +367,7 @@ const std::list<std::string> BooleanExpressionBuilder<_valuesT>::sBuiltinOperato
 };
 
 template< typename _valuesT>
-shared_ptr<BooleanExpression<_valuesT>> BooleanExpressionBuilder<_valuesT>::parseExpression(const string &expr, size_t *newpos) {
+shared_ptr<BooleanExpression<_valuesT>> BooleanExpressionBuilder<_valuesT>::parseExpression(const string &expr, size_t *newpos, bool immediateNeighbour) {
 	size_t i;
 	shared_ptr<Expr> cur_exp;
 	shared_ptr<Var> cur_var;
@@ -421,7 +421,7 @@ shared_ptr<BooleanExpression<_valuesT>> BooleanExpressionBuilder<_valuesT>::pars
 						throw invalid_argument("Parsing error around '!'");
 					}
 					i++;
-					cur_exp = make_shared<LogicalNot<_valuesT>>(parseExpression(expr.substr(i), &j));
+					cur_exp = make_shared<LogicalNot<_valuesT>>(parseExpression(expr.substr(i), &j, true));
 				}
 				i += j;
 				break;
@@ -520,6 +520,7 @@ shared_ptr<BooleanExpression<_valuesT>> BooleanExpressionBuilder<_valuesT>::pars
 				cur_exp = dynamic_pointer_cast<NamedOperator<_valuesT>>(element);
 			}
 		}
+		if (immediateNeighbour && cur_exp) break;
 	}
 	*newpos += i;
 	return cur_exp;

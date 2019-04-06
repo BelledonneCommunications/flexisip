@@ -18,9 +18,13 @@
 
 #include "flexisip-config.h"
 #include "flexisip/logmanager.hh"
+#include "flexisip/event.hh"
 
 
 #include <syslog.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 
 
@@ -56,6 +60,8 @@ static void syslogHandler(void *info, const char *domain, BctbxLogLevel log_leve
 	}
 }
 
+LogManager *LogManager::sInstance = nullptr;
+
 LogManager & LogManager::get(){
 	if (!sInstance) sInstance = new LogManager();
 	return *sInstance;
@@ -63,13 +69,13 @@ LogManager & LogManager::get(){
 
 BctbxLogLevel LogManager::logLevelFromName(const std::string & name) const{
 	BctbxLogLevel log_level;
-	if (level == "debug") {
+	if (name == "debug") {
 		log_level = BCTBX_LOG_DEBUG;
-	} else if (level == "message") {
+	} else if (name == "message") {
 		log_level = BCTBX_LOG_MESSAGE;
-	} else if (level == "warning") {
+	} else if (name == "warning") {
 		log_level = BCTBX_LOG_WARNING;
-	} else if (level == "error") {
+	} else if (name == "error") {
 		log_level = BCTBX_LOG_ERROR;
 	} else {
 		LOGE("Invalid log level name '%s'", name.c_str());
@@ -77,6 +83,7 @@ BctbxLogLevel LogManager::logLevelFromName(const std::string & name) const{
 	}
 	return log_level;
 }
+
 
 void LogManager::initialize(const Parameters& params){
 	if (mInitialized){
@@ -87,38 +94,59 @@ void LogManager::initialize(const Parameters& params){
 	if (params.enableSyslog) {
 		openlog("flexisip", 0, LOG_USER);
 		setlogmask(~0);
-		bctbx_log_handler_t *syshandler = bctbx_create_log_handler(syslogHandler, bctbx_logv_out_destroy, NULL);
-		if (syshandler) bctbx_add_log_handler(syshandler);
+		mSysLogHandler = bctbx_create_log_handler(syslogHandler, bctbx_logv_out_destroy, NULL);
+		if (mSysLogHandler) bctbx_add_log_handler(mSysLogHandler);
 		else ::syslog(LOG_ERR, "Could not create syslog handler");
 		flexisip_sysLevelMin = params.syslogLevel;
 	}
-	if (flexisip_sysLevelMin < params.level) params.level = flexisip_sysLevelMin;
-	bctbx_set_log_level(NULL /*any domain*/, params.level);
+	mLevel = params.level;
+	if (flexisip_sysLevelMin < params.level) mLevel = flexisip_sysLevelMin;
+	setLogLevel(mLevel);
+	
+	if (!params.logFilename.empty()){
+		ostringstream pathStream;
+		struct ::stat st;
+		/* Handle the case where the log directory is not created.
+		 * This is for convenience, because our rpm and deb packages create it already.
+		 * However, in other case (like developper environnement) this is painful to create it all the time manually.*/
+		if (stat(params.logDirectory.c_str(),&st) != 0 && errno == ENOENT){
+			printf("Creating log directory %s.\n", params.logDirectory.c_str());
+			string command("mkdir -p");
+			command += " \"" + params.logDirectory + "\"";
+			int status = system(command.c_str());
+			if (status == -1 || WEXITSTATUS(status) != 0){
+				if (params.enableSyslog) ::syslog(LOG_ERR, "Could not create log directory.");
+				LOGF("Directory %s doesn't exist and could not be created (insufficient permissions ?). Please create it manually.",
+					params.logDirectory.c_str());
+			}
+		}
+		pathStream << params.logDirectory << "/" << params.logFilename;
+		FILE *f = fopen(pathStream.str().c_str() , "a");
+		if (f) {
+			string msg = "Writing logs in : " + pathStream.str();
+			if (params.enableSyslog) ::syslog(LOG_INFO, msg.c_str(), msg.size());
+			else printf("%s\n", msg.c_str());
 			
-	ostringstream pathStream;
-	pathStream << params.logDirectory << "/" << params.fileName;
-	FILE *f = fopen(pathStream.str().c_str() , "a");
-	if (f) {
-		string msg = "Writing logs in : " + pathStream.str();
-		if (params.enableSyslog) ::syslog(LOG_INFO, msg.c_str(), msg.size());
-		else printf("%s\n", msg.c_str());
-		
-		bctbx_log_handler_t *handler = bctbx_create_file_log_handler(params.fileMaxSize, params.logDirectory.c_str(), params.fileName.c_str(), f);
-		if (handler) bctbx_add_log_handler(handler);
-		else if (params.enableSyslog) ::syslog(LOG_ERR, "Could not create log file handler.");
-		else printf("ERROR : Could not create log file handler.\n");
-	} else {
-		string msg = "Could not open/create log file '" + pathStream.str() + "' : " + string(strerror(errno));
-		if (params.enableSyslog) ::syslog(LOG_INFO, msg.c_str(), msg.size());
-		else printf("%s\n", msg.c_str());
+			mLogHandler = bctbx_create_file_log_handler(params.fileMaxSize, params.logDirectory.c_str(), params.logFilename.c_str(), f);
+			if (mLogHandler) bctbx_add_log_handler(mLogHandler);
+			else {
+				if (params.enableSyslog) ::syslog(LOG_ERR, "Could not create log file handler.");
+				LOGF("Could not create log file handler."); 
+			}
+		} else {
+			string msg = "Could not open/create log file '" + pathStream.str() + "' : " + string(strerror(errno));
+			if (params.enableSyslog) ::syslog(LOG_INFO, msg.c_str(), msg.size());
+			LOGF("%s",msg.c_str());
+		}
 	}
 	enableUserErrorsLogs(params.enableUserErrors);
 	if (params.enableStdout) {
-		bctbx_set_log_handler_for_domain(bctbx_logv_out, NULL);
+		bctbx_set_log_handler(bctbx_logv_out);
 	}
 }
 
 void LogManager::setLogLevel(BctbxLogLevel level){
+	mLevel = level;
 	bctbx_set_log_level(NULL /*any domain*/, level);
 }
 
@@ -130,20 +158,25 @@ void LogManager::enableUserErrorsLogs(bool val){
 	bctbx_set_log_level(FLEXISIP_USER_ERRORS_LOG_DOMAIN, val ? BCTBX_LOG_WARNING : BCTBX_LOG_FATAL);
 }
 
-int LogManager::setContextualFilter(BctbxLogLevel level, const std::string &expression){
+int LogManager::setContextualFilter(const std::string &expression){
 	shared_ptr<SipBooleanExpression> expr;
 	if (!expression.empty()){
 		try{
 			expr = SipBooleanExpressionBuilder::get().parse(expression);
 		}catch(...){
+			LOGE("Invalid contextual expression filter '%s'", expression.c_str());
 			return -1;
 		}
 	}
-	mContextLevel = level;
 	mMutex.lock();
 	mCurrentFilter = expr;
 	mMutex.unlock();
+	LOGD("Contextual log filter set: %s\n", expression.c_str());
 	return 0;
+}
+
+void LogManager::setContextualLevel(BctbxLogLevel level){
+	mContextLevel = level;
 }
 
 void LogManager::disable(){
@@ -156,24 +189,36 @@ void LogManager::setCurrentContext(const SipLogContext &ctx){
 	expr = mCurrentFilter;
 	mMutex.unlock();
 	
-	if (!expr) return; // Nothing to do.
+	if (!expr) {
+		return;
+	}
 	
 	/* 
 	 * Now evaluate the boolean expression to know whether logs should be output or not.
 	 * If not, the default (normal) log level is used.
 	 */
-	if (expr->eval(*ctx->mMsgSip.getSip())){
-		bctbx_set_thread_log_level(mContextLevel);
+	if (expr->eval(*ctx.mMsgSip.getSip())){
+		bctbx_set_thread_log_level(NULL, mContextLevel);
 	}else{
-		bctbx_set_thread_log_level(mLevel);
+		bctbx_clear_thread_log_level(NULL);
 	}
 }
 
 void LogManager::clearCurrentContext(){
-	bctbx_set_thread_log_level(mLevel);
+	bctbx_clear_thread_log_level(NULL);
 }
 
-SipLogContext::SipLogContext(const MsgSip & msg){
+LogManager::~LogManager(){
+	if (mLogHandler) bctbx_remove_log_handler(mLogHandler);
+	if (mSysLogHandler) bctbx_remove_log_handler(mSysLogHandler);
+	sInstance = nullptr;
+}
+
+SipLogContext::SipLogContext(const MsgSip & msg) : mMsgSip(msg){
+	LogManager::get().setCurrentContext(*this);
+}
+
+SipLogContext::SipLogContext(const shared_ptr<MsgSip> & msg) : mMsgSip(*msg){
 	LogManager::get().setCurrentContext(*this);
 }
 

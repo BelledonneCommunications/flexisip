@@ -127,6 +127,14 @@ void CommandLineInterface::handle_config_list_command(unsigned int socket, const
 		answer(socket, printEntry(entry, true));
 }
 
+string CommandLineInterface::agregate(const std::vector<std::string> &args, size_t from_pos){
+	ostringstream ostr;
+	for (size_t i = from_pos; i < args.size(); ++i){
+		ostr << args[i] << " ";
+	}
+	return ostr.str();
+}
+
 void CommandLineInterface::handle_config_set_command(unsigned int socket, const std::vector<std::string> &args) {
 	if (args.size() < 2) {
 		answer(socket, "Error: at least 2 arguments are expected for the CONFIG_SET command");
@@ -144,7 +152,6 @@ void CommandLineInterface::handle_config_set_command(unsigned int socket, const 
 	ConfigValue *config_value = dynamic_cast<ConfigValue *>(entry);
 	if (config_value && (arg == "global/debug")) {
 		config_value->set(value);
-		updateLogsVerbosity();
 		LogManager::get().setLogLevel(BCTBX_LOG_DEBUG);
 		answer(socket, "debug : " + value);
 	} else if (config_value && (arg == "global/log-level")) {
@@ -155,6 +162,15 @@ void CommandLineInterface::handle_config_set_command(unsigned int socket, const 
 		config_value->set(value);
 		LogManager::get().setSyslogLevel(LogManager::get().logLevelFromName(value));
 		answer(socket, "syslog-level : " + value);
+	} else if (config_value && (arg == "global/contextual-log-level")) {
+		config_value->set(value);
+		LogManager::get().setContextualLevel(LogManager::get().logLevelFromName(value));
+		answer(socket, "contextual-log-level : " + value);
+	}else if (config_value && (arg == "global/contextual-log-filter")) {
+		value = agregate(args, 1);
+		config_value->set(value);
+		LogManager::get().setContextualFilter(value);
+		answer(socket, "contextual-log-filter : " + value);
 	} else {
 		answer(socket, "Only debug, log-level and syslog-level from global can be updated while flexisip is running");
 	}

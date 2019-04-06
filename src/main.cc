@@ -108,10 +108,6 @@ static std::shared_ptr<flexisip::ConferenceServer> conferenceServer;
 #endif // ENABLE_CONFERENCE
 
 
-#ifndef DEFAULT_LOG_DIR
-#define DEFAULT_LOG_DIR "/var/opt/belledonne-communications/log/flexisip"
-#endif
-
 using namespace std;
 using namespace flexisip;
 
@@ -818,7 +814,7 @@ int main(int argc, char *argv[]) {
 		!dumpAll) {
 		LogManager::Parameters logParams;
 		logParams.logDirectory = cfg->getGlobal()->get<ConfigString>("log-directory")->read();
-		logParams.logFileName = fname + ".log";
+		logParams.logFilename = "flexisip-" + fName + ".log";
 		logParams.fileMaxSize = cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read();
 		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::get().logLevelFromName(log_level);
 		logParams.enableSyslog = useSyslog;
@@ -826,6 +822,8 @@ int main(int argc, char *argv[]) {
 		logParams.enableStdout = debug;
 		logParams.enableUserErrors = user_errors;
 		LogManager::get().initialize(logParams);
+		LogManager::get().setContextualFilter(cfg->getGlobal()->get<ConfigString>("contextual-log-filter")->read());
+		LogManager::get().setContextualLevel(LogManager::get().logLevelFromName(cfg->getGlobal()->get<ConfigString>("contextual-log-level")->read()));
 	} else {
 		LogManager::get().disable();
 	}

@@ -176,6 +176,12 @@ static void complex_expressions(void){
 	BC_ASSERT_TRUE(expr!=nullptr);
 	BC_ASSERT_TRUE(expr->eval(getRequest()));
 	
+	expr = SipBooleanExpressionBuilder::get().parse(
+		"!(from.uri.user in 'jehan-kevin jehan-patrick') && request.method != 'REGISTER'"
+	);
+	BC_ASSERT_TRUE(expr!=nullptr);
+	BC_ASSERT_FALSE(expr->eval(getRequest()));
+	
 }
 
 static void invalid_expressions(void){
