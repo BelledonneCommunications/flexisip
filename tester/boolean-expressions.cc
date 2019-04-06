@@ -16,10 +16,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#include "tester.hh"
-#include "flexisip/sip-boolean-expressions.hh"
+
 #include "sofia-sip/sip.h"
 #include "sofia-sip/sip_parser.h"
+#include "tester.hh"
+#include "flexisip/sip-boolean-expressions.hh"
+
 
 using namespace flexisip;
 using namespace std;
