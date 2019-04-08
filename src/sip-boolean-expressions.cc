@@ -40,19 +40,19 @@ static ExpressionRules<sip_t> rules = {
 		{"request.method", [](const sip_t &sip)->string {
 			return stringFromC((sip.sip_request && sip.sip_request->rq_method_name) ? sip.sip_request->rq_method_name : nullptr);} },
 		{"request.uri.domain", [](const sip_t &sip)->string {
-			return stringFromC((sip.sip_request && sip.sip_request->rq_url) ? sip.sip_request->rq_url->url_host : nullptr);} },
+			return stringFromC(sip.sip_request ? sip.sip_request->rq_url->url_host : nullptr);} },
 		{"request.uri.user", [](const sip_t &sip)->string {
-			return stringFromC((sip.sip_request && sip.sip_request->rq_url) ? sip.sip_request->rq_url->url_user : nullptr);} },
+			return stringFromC(sip.sip_request ? sip.sip_request->rq_url->url_user : nullptr);} },
 		{"request.uri.params", [](const sip_t &sip)->string {
-			return stringFromC((sip.sip_request && sip.sip_request->rq_url) ? sip.sip_request->rq_url->url_params : nullptr);} },
+			return stringFromC(sip.sip_request ? sip.sip_request->rq_url->url_params : nullptr);} },
 		
-		{"from.uri.domain", [](const sip_t &sip)->string {return stringFromC(sip.sip_from->a_url ? sip.sip_from->a_url->url_host : nullptr);} },
-		{"from.uri.user", [](const sip_t &sip)->string {return stringFromC(sip.sip_from->a_url ? sip.sip_from->a_url->url_user : nullptr);} },
-		{"from.uri.params", [](const sip_t &sip)->string {return stringFromC(sip.sip_from->a_url ? sip.sip_from->a_url->url_params : nullptr);} },
+		{"from.uri.domain", [](const sip_t &sip)->string {return stringFromC(sip.sip_from ? sip.sip_from->a_url->url_host : nullptr);} },
+		{"from.uri.user", [](const sip_t &sip)->string {return stringFromC(sip.sip_from ? sip.sip_from->a_url->url_user : nullptr);} },
+		{"from.uri.params", [](const sip_t &sip)->string {return stringFromC(sip.sip_from ? sip.sip_from->a_url->url_params : nullptr);} },
 		
-		{"to.uri.domain", [](const sip_t &sip)->string {return stringFromC(sip.sip_to->a_url ? sip.sip_to->a_url->url_host : nullptr);} },
-		{"to.uri.user", [](const sip_t &sip)->string {return stringFromC(sip.sip_to->a_url ? sip.sip_to->a_url->url_user : nullptr);} },
-		{"to.uri.params", [](const sip_t &sip)->string {return stringFromC(sip.sip_to->a_url ? sip.sip_to->a_url->url_params : nullptr);} },
+		{"to.uri.domain", [](const sip_t &sip)->string {return stringFromC(sip.sip_to ? sip.sip_to->a_url->url_host : nullptr);} },
+		{"to.uri.user", [](const sip_t &sip)->string {return stringFromC(sip.sip_to ? sip.sip_to->a_url->url_user : nullptr);} },
+		{"to.uri.params", [](const sip_t &sip)->string {return stringFromC(sip.sip_to ? sip.sip_to->a_url->url_params : nullptr);} },
 		
 		{"user-agent", [](const sip_t &sip)->string {return stringFromC(sip.sip_user_agent ? sip.sip_user_agent->g_string : nullptr);} },
 		
