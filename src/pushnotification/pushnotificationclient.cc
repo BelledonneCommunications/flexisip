@@ -137,7 +137,7 @@ void PushNotificationClient::recreateConnection() {
 		mBio = NULL;
 }
 
-void PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotificationRequest> &req, bool hurryUp) {
+int PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotificationRequest> &req, bool hurryUp) {
 	if (mLastUse == 0 || !mBio) {
 		recreateConnection();
 	/*the client was inactive possibly for a long time. In such case, close and re-create the socket.*/
@@ -149,7 +149,7 @@ void PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotifica
 
 	if (!mBio) {
 		onError(req, "Cannot create connection to server");
-		return;
+		return -1;
 	}
 
 	/* send push to the server */
@@ -161,9 +161,8 @@ void PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotifica
 	if (wcount <= 0) {
 		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " failed to send to server.";
 		onError(req, "Cannot send to server");
-		BIO_free_all(mBio);
-		mBio = NULL;
-		return;
+		recreateConnection();
+		return -2;
 	}
 
 	/* wait for server response */
@@ -174,7 +173,7 @@ void PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotifica
 		if (BIO_get_fd(mBio, &fdSocket) < 0) {
 			SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " could not retrieve the socket";
 			onError(req, "Broken socket");
-			return;
+			return -2;
 		}
 		pollfd polls = {0};
 		polls.fd = fdSocket;
@@ -187,38 +186,40 @@ void PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotifica
 		if (nRet == 0) {//poll timeout, we shall not expect a response.
 			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " nothing read, assuming success";
 			onSuccess(req);
-			return;
-		}else if (nRet == -1){
+			return 0;
+		} else if (nRet == -1) {
 			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " poll error ("<<strerror(errno)<<"), assuming success";
 			onSuccess(req);
 			recreateConnection();//our socket is not going so well if we go here.
-			return;
+			return 0;
 		} else if ((polls.revents & POLLIN) == 0) {
 			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << "error reading response, closing connection";
 			recreateConnection();
-			return;
+			return -2;
 		}
 	}
+
 	char r[1024];
 	int p = BIO_read(mBio, r, sizeof(r)-1);
-	if (p > 0) {
-		r[p] = 0;
-		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " read " << p << " data:\n" << r;
-		string responsestr(r, p);
-		string error = req->isValidResponse(responsestr);
-		if (!error.empty()) {
-			onError(req, "Invalid server response: " + error);
-			// on iOS at least, when an error happens, the socket is semibroken (server ignore all future requests),
-			// so we force to recreate the connection
-			recreateConnection();
-		}else{
-			onSuccess(req);
-		}
-	}else{
-		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << "error reading mandatory response: "<< p;
-		BIO_free_all(mBio);
-		mBio = NULL;
+	if (p <= 0) {
+		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << "error reading mandatory response: " << p;
+		recreateConnection();
+		return -2;
 	}
+
+	r[p] = '\0';
+	SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " read " << p << " data:\n" << r;
+	string responsestr(r, p);
+	string error = req->isValidResponse(responsestr);
+	if (!error.empty()) {
+		onError(req, "Invalid server response: " + error);
+		// on iOS at least, when an error happens, the socket is semibroken (server ignore all future requests),
+		// so we force to recreate the connection
+		recreateConnection();
+		return -1;
+	}
+	onSuccess(req);
+	return 0;
 }
 
 void PushNotificationClient::run() {
@@ -232,7 +233,11 @@ void PushNotificationClient::run() {
 			lock.unlock();
 
 			// send push to the server and wait for its answer
-			sendPushToServer(req, size > 2);
+			bool hurryUp = size > 2;
+			if (sendPushToServer(req, hurryUp) == -2) {
+				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << ": try to send again";
+				sendPushToServer(req, hurryUp);
+			}
 
 			lock.lock();
 		} else {
