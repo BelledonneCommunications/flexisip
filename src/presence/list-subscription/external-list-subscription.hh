@@ -47,7 +47,6 @@ public:
 
 private:
 	void getUsersList(const std::string &sqlRequest, belle_sip_server_transaction_t *ist);
-	void reconnectSession(soci::session &session);
 
 	soci::connection_pool *mConnPool;
 };

@@ -20,8 +20,8 @@
 #include <thread>
 
 #include "belle-sip/message.h"
-#include "soci/mysql/soci-mysql.h"
 
+#include "soci-helper.hh"
 #include "bellesip-signaling-exception.hh"
 #include "external-list-subscription.hh"
 #include <flexisip/logmanager.hh>
@@ -49,44 +49,25 @@ ExternalListSubscription::ExternalListSubscription(
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil user request for list subscription";
 }
 
-#define DURATION_MS(start, stop) (unsigned long) duration_cast<milliseconds>((stop) - (start)).count()
-
-void ExternalListSubscription::reconnectSession(soci::session &session) {
-	try {
-		SLOGE << "[SOCI] Trying close/reconnect session";
-		session.close();
-		session.reconnect();
-		SLOGD << "[SOCI] Session " << session.get_backend_name() << " successfully reconnected";
-	} catch (soci::mysql_soci_error const & e) {
-		SLOGE << "[SOCI] reconnectSession MySQL error: " << e.err_num_ << " " << e.what() << endl;
-	} catch (exception const &e) {
-		SLOGE << "[SOCI] reconnectSession error: " << e.what() << endl;
-	}
-}
-
 void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_server_transaction_t *ist) {
-	steady_clock::time_point start;
-	steady_clock::time_point stop;
-	soci::session *sql = nullptr;
-
 	try {
-		start = steady_clock::now();
-		// will grab a connection from the pool. This is thread safe
-		sql = new soci::session(*mConnPool); //this may raise a soci_error exception, so keep it in the try block.
-
-		stop = steady_clock::now();
-
-		SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
-		start = stop;
-
+		SociHelper sociHelper(*mConnPool);
+		
 		belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
 		belle_sip_header_to_t *toHeader = belle_sip_message_get_header_by_type(BELLE_SIP_MESSAGE(request), belle_sip_header_to_t);
 		belle_sip_header_from_t *fromHeader = belle_sip_message_get_header_by_type(BELLE_SIP_MESSAGE(request), belle_sip_header_from_t);
-		char *toUri = belle_sip_uri_to_string(belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(toHeader)));
-		char *fromUri = belle_sip_uri_to_string(belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(fromHeader)));
-		soci::rowset<soci::row> ret = (sql->prepare << sqlRequest, soci::use(string(fromUri), "from"), soci::use(string(toUri), "to"));
-		belle_sip_free(toUri);
-		belle_sip_free(fromUri);
+		char *c_toUri = belle_sip_uri_to_string(belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(toHeader)));
+		char *c_fromUri = belle_sip_uri_to_string(belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(fromHeader)));
+		
+		string fromUri(c_fromUri);
+		string toUri(c_toUri);
+		belle_sip_free(c_fromUri);
+		belle_sip_free(c_toUri);
+		
+		soci::rowset<soci::row> ret = sociHelper.execute([&](soci::session &sql){
+			return (sql.prepare << sqlRequest, soci::use(fromUri, "from"), soci::use(toUri, "to"));
+		});
+		
 
 		string addrStr;
 		for (const auto &row : ret) {
@@ -111,24 +92,9 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 			mListeners.push_back(make_shared<PresentityResourceListener>(*this, uri, name ? name : ""));
 			belle_sip_object_unref(uri); // Because PresentityResourceListener takes its own ref
 		}
-
-		stop = steady_clock::now();
-	} catch (soci::mysql_soci_error const &e) {
-		stop = steady_clock::now();
-
-		SLOGE << "[SOCI] getUsersList MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
-		if (sql)
-			reconnectSession(*sql);
-	} catch (exception const &e) {
-		stop = steady_clock::now();
-
-		SLOGE << "[SOCI] getUsersList error after " << DURATION_MS(start, stop) << "ms : " << e.what();
-		if (sql)
-			reconnectSession(*sql);
+	} catch (SociHelper::DatabaseException &e) {
+		
 	}
-	if (sql)
-		delete sql;
-
 	finishCreation(ist);
 }
 

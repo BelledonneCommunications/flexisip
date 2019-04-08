@@ -310,7 +310,6 @@ private:
 	void getPasswordWithPool(const std::string &id, const std::string &domain,
 				 const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
 
-	void reconnectSession( soci::session &session );
 	void notifyAllListeners(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds, const std::set<std::pair<std::string, std::string>> &presences);
 
 

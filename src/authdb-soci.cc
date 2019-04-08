@@ -18,6 +18,7 @@
 
 #include "authdb.hh"
 #include "soci/mysql/soci-mysql.h"
+#include "soci-helper.hh"
 #include <thread>
 
 using namespace soci;
@@ -137,151 +138,84 @@ SociAuthDB::~SociAuthDB() {
 	delete conn_pool;
 }
 
-void SociAuthDB::reconnectSession(soci::session &session) {
-	try {
-		SLOGE << "[SOCI] Trying close/reconnect session";
-		session.close();
-		session.reconnect();
-		SLOGD << "[SOCI] Session " << session.get_backend_name() << " successfully reconnected";
-	} catch (soci::mysql_soci_error const & e) {
-		SLOGE << "[SOCI] reconnectSession MySQL error: " << e.err_num_ << " " << e.what() << endl;
-	} catch (exception const &e) {
-		SLOGE << "[SOCI] reconnectSession error: " << e.what() << endl;
-	}
-}
-
-#define DURATION_MS(start, stop) (unsigned long) duration_cast<milliseconds>((stop) - (start)).count()
-
 void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
 									const string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
-	steady_clock::time_point start;
-	steady_clock::time_point stop;
-
-	session *sql = NULL;
 	vector<passwd_algo_t> passwd;
-	int errorCount = 0;
-	bool retry = false;
+	string unescapedIdStr = urlUnescape(id);
 
-	while (errorCount < 2) {
-		retry = false;
-		try {
-			start = steady_clock::now();
-			// will grab a connection from the pool. This is thread safe
-			sql = new session(*conn_pool); //this may raise a soci_error exception, so keep it in the try block.
+	SociHelper sociHelper(*conn_pool);
+	
+	try{
+		rowset<row> results = sociHelper.execute([&](session &sql){
+			return (sql.prepare << get_password_request, use(unescapedIdStr, "id"), use(domain, "domain"), use(authid, "authid"));
+		});
 
-			stop = steady_clock::now();
+		for (rowset<row>::const_iterator it = results.begin(); it != results.end(); it++) {
+			row const& r = *it;
+			passwd_algo_t pass;
 
-			SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
-			start = stop;
+			/* If size == 1 then we only have the password so we assume MD5 */
+			if (r.size() == 1) {
+				pass.algo = "MD5";
 
-			string unescapedIdStr = urlUnescape(id);
+				if (hashed_passwd) {
+					pass.pass = r.get<string>(0);
+				} else {
+					string input = unescapedIdStr + ":" + domain + ":" + r.get<string>(0);
+					pass.pass = syncMd5(input.c_str(), 16);
+				}
+			} else if (r.size() > 1) {
+				string password = r.get<string>(0);
+				string algo = r.get<string>(1);
 
-			rowset<row> results = (sql->prepare << get_password_request, use(unescapedIdStr, "id"), use(domain, "domain"), use(authid, "authid"));
-
-			for (rowset<row>::const_iterator it = results.begin(); it != results.end(); it++) {
-				row const& r = *it;
-				passwd_algo_t pass;
-
-				/* If size == 1 then we only have the password so we assume MD5 */
-				if (r.size() == 1) {
-					pass.algo = "MD5";
-
-					if (hashed_passwd) {
-						pass.pass = r.get<string>(0);
-					} else {
-						string input = unescapedIdStr + ":" + domain + ":" + r.get<string>(0);
-						pass.pass = syncMd5(input.c_str(), 16);
-					}
-				} else if (r.size() > 1) {
-					string password = r.get<string>(0);
-					string algo = r.get<string>(1);
-
-					if (algo == "CLRTXT") {
-						if (passwd.empty()) {
-							pass.algo = algo;
-							pass.pass = password;
-							passwd.push_back(pass);
-
-							string input;
-							input = unescapedIdStr + ":" + domain + ":" + password;
-
-							pass.pass = syncMd5(input.c_str(), 16);
-							pass.algo = "MD5";
-							passwd.push_back(pass);
-
-							pass.pass = syncSha256(input.c_str(), 32);
-							pass.algo = "SHA-256";
-							passwd.push_back(pass);
-
-							break;
-						}
-					} else {
+				if (algo == "CLRTXT") {
+					if (passwd.empty()) {
 						pass.algo = algo;
 						pass.pass = password;
+						passwd.push_back(pass);
+
+						string input;
+						input = unescapedIdStr + ":" + domain + ":" + password;
+
+						pass.pass = syncMd5(input.c_str(), 16);
+						pass.algo = "MD5";
+						passwd.push_back(pass);
+
+						pass.pass = syncSha256(input.c_str(), 32);
+						pass.algo = "SHA-256";
+						passwd.push_back(pass);
+
+						break;
 					}
+				} else {
+					pass.algo = algo;
+					pass.pass = password;
 				}
-
-				passwd.push_back(pass);
 			}
 
-			if(listener_ref) listener_ref->finishVerifyAlgos(passwd);
-
-			stop = steady_clock::now();
-			SLOGD << "[SOCI] Got pass for " << id << " in " << DURATION_MS(start, stop) << "ms";
-			if (!passwd.empty()) cachePassword(createPasswordKey(id, authid), domain, passwd, mCacheExpire);
-			if (listener){
-				listener->onResult(passwd.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);
-			}
-			errorCount = 0;
-		} catch (mysql_soci_error const &e) {
-			errorCount++;
-			stop = steady_clock::now();
-			SLOGE << "[SOCI] getPasswordWithPool MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
-			if (sql) reconnectSession(*sql);
-
-			if ((e.err_num_ == 2014 || e.err_num_ == 2006) && errorCount == 1){
-				/* 2014 is the infamous "Commands out of sync; you can't run this command now" mysql error,
-				* which is retryable.
-				* At this time we don't know if it is a soci or mysql bug, or bug with the sql request being executed.
-				*
-				* 2006 is "MySQL server has gone away" which is also retryable.
-				*/
-				SLOGE << "[SOCI] retrying mysql error " << e.err_num_;
-				retry = true;
-			}
-		} catch (const runtime_error &e) {
-			errorCount++;
-			stop = steady_clock::now();
-			SLOGE << "[SOCI] getPasswordWithPool error after " << DURATION_MS(start, stop) << "ms : " << e.what();
-			if (sql) reconnectSession(*sql);
+			passwd.push_back(pass);
 		}
-		if (sql) delete sql;
-		if (!retry){
-			if (errorCount){
-				if (listener) listener->onResult(AUTH_ERROR, passwd);
-			}
-			break;
+
+		if (listener_ref) listener_ref->finishVerifyAlgos(passwd);
+		if (!passwd.empty()) cachePassword(createPasswordKey(id, authid), domain, passwd, mCacheExpire);
+		if (listener){
+			listener->onResult(passwd.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);
 		}
+	}catch(SociHelper::DatabaseException &e){
+		if (listener) listener->onResult(AUTH_ERROR, passwd);
 	}
 }
 
 void SociAuthDB::getUserWithPhoneWithPool(const string &phone, const string &domain, AuthDbListener *listener) {
-	steady_clock::time_point start;
-	steady_clock::time_point stop;
 	string user;
-	session *sql = NULL;
 
 	try {
-		start = steady_clock::now();
-		// will grab a connection from the pool. This is thread safe
-		sql = new session(*conn_pool); //this may raise a soci_error exception, so keep it in the try block.
-
-		stop = steady_clock::now();
-
-		SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
-		start = stop;
+		SociHelper sociHelper(*conn_pool);
+		
 		if(get_user_with_phone_request != "") {
-			*sql << get_user_with_phone_request, into(user), use(phone, "phone");
+			sociHelper.executeNoReturn([&](session &sql){
+				sql << get_user_with_phone_request, into(user), use(phone, "phone");
+			});
 		} else {
 			string s = get_users_with_phones_request;
 			int index = s.find(":phones");
@@ -289,47 +223,34 @@ void SociAuthDB::getUserWithPhoneWithPool(const string &phone, const string &dom
 				s = s.replace(index, 7, phone);
 				index = s.find(":phones");
 			}
-			rowset<row> ret = (sql->prepare << s);
+			rowset<row> ret = sociHelper.execute([&](session &sql){
+				return (sql.prepare << s);
+			});
 			for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
 				row const& row = *it;
 				user = row.get<string>(0);
 			}
 		}
-		stop = steady_clock::now();
 		if (!user.empty())  {
-			SLOGD << "[SOCI] Got user for " << phone << " in " << DURATION_MS(start, stop) << "ms";
 			cacheUserWithPhone(phone, domain, user);
 		}
 		if (listener){
 			listener->onResult(user.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, user);
 		}
-	} catch (mysql_soci_error const &e) {
-
-		stop = steady_clock::now();
-		SLOGE << "[SOCI] getUserWithPhoneWithPool MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
+	} catch (SociHelper::DatabaseException &e) {
 		if (listener) listener->onResult(PASSWORD_NOT_FOUND, user);
-
-		if (sql) reconnectSession(*sql);
-
-	} catch (exception const &e) {
-		stop = steady_clock::now();
-		SLOGE << "[SOCI] getUserWithPhoneWithPool error after " << DURATION_MS(start, stop) << "ms : " << e.what();
-		if (listener) listener->onResult(PASSWORD_NOT_FOUND, user);
-		if (sql) reconnectSession(*sql);
 	}
-	if (sql) delete sql;
 }
 
 void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbListener*>> &creds) {
 	steady_clock::time_point start;
 	steady_clock::time_point stop;
 	set<pair<string, string>> presences;
-
 	ostringstream in;
-	session *sql = NULL;
 	list<string> phones;
 	list<string> domains;
 	bool first = true;
+	
 	for(const auto &cred : creds) {
 		const auto &phone = std::get<0>(cred);
 		phones.push_back(phone);
@@ -350,18 +271,10 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbList
 	}
 
 	try {
-		start = steady_clock::now();
-		// will grab a connection from the pool. This is thread safe
-		sql = new session(*conn_pool); //this may raise a soci_error exception, so keep it in the try block.
-
-		stop = steady_clock::now();
-
-		SLOGD << "[SOCI] Pool acquired in " << DURATION_MS(start, stop) << "ms";
-		start = stop;
-		rowset<row> ret = (sql->prepare << s);
-		stop = steady_clock::now();
-
-		SLOGD << "[SOCI] Got users in " << DURATION_MS(start, stop) << "ms";
+		SociHelper sociHelper(*conn_pool);
+		rowset<row> ret = sociHelper.execute([&](session &sql){
+			return (sql.prepare << s);
+		});
 
 		for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
 			row const& row = *it;
@@ -383,26 +296,12 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbList
 				}
 			}
 		}
-
 		notifyAllListeners(creds, presences);
-
-	} catch (mysql_soci_error const &e) {
-		stop = steady_clock::now();
-		SLOGE << "[SOCI] getUsersWithPhonesWithPool MySQL error after " << DURATION_MS(start, stop) << "ms : " << e.err_num_ << " " << e.what();
+	} catch (SociHelper::DatabaseException &e) {
 		SLOGE << "[SOCI] MySQL request causing the error was : " << s;
 		presences.clear();
 		notifyAllListeners(creds, presences);
-
-		if (sql) reconnectSession(*sql);
-
-	} catch (exception const &e) {
-		stop = steady_clock::now();
-		SLOGE << "[SOCI] getUsersWithPhonesWithPool error after " << DURATION_MS(start, stop) << "ms : " << e.what();
-		presences.clear();
-		notifyAllListeners(creds, presences);
-		if (sql) reconnectSession(*sql);
 	}
-	if (sql) delete sql;
 }
 
 void SociAuthDB::notifyAllListeners(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds, const std::set<std::pair<std::string, std::string>> &presences) {
