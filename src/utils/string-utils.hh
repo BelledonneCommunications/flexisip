@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -25,7 +26,22 @@ class StringUtils {
 public:
 	static std::vector<std::string> split (const std::string &str, const std::string &delimiter);
 
+	static std::string unquote(const std::string & str){
+		return strip(str, '"');
+	}
 	static std::string strip(const char *str, char c);
 	static std::string strip(const std::string &str, char c);
 	static void strip(std::string::const_iterator &start, std::string::const_iterator &end, char c);
+
+	template <class Iterable>
+	static std::string toString(const Iterable &iterable) {
+		std::ostringstream os;
+		os << "{ ";
+		for (auto it = iterable.cbegin(); it != iterable.cend(); it++) {
+			if (it != iterable.cbegin()) os << ", ";
+			os << "'" << *it << "'";
+		}
+		os << " }";
+		return os.str();
+	}
 };

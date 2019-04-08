@@ -303,9 +303,10 @@ void AuthDbBackend::getUsersWithPhone(list<tuple<string,string,AuthDbListener*>>
 				break;
 		}
 	}
-
-	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
-	getUsersWithPhonesFromBackend(needed_creds);
+	if (!needed_creds.empty()){
+		// if we reach here, password wasn't cached: we have to grab the password from the actual backend
+		getUsersWithPhonesFromBackend(needed_creds);
+	}
 }
 
 void AuthDbBackend::getUsersWithPhonesFromBackend(list<tuple<string,string,AuthDbListener*>> &creds) {

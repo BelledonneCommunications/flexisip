@@ -19,6 +19,7 @@
 #include <flexisip/module.hh>
 #include <flexisip/agent.hh>
 #include <flexisip/transaction.hh>
+#include "flexisip/module-router.hh"
 #include "etchosts.hh"
 #include <sstream>
 
@@ -44,6 +45,7 @@ class ForwardModule : public Module, ModuleToolbox {
 	void sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest);
 
   private:
+	ModuleRouter *mRouterModule;
 	url_t *overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest);
 	url_t *getDestinationFromRoute(su_home_t *home, sip_t *sip);
 	bool isLooping(shared_ptr<RequestSipEvent> &ev, const char *branch);
@@ -102,6 +104,10 @@ void ForwardModule::onLoad(const GenericStruct *mc) {
 	mDefaultTransport =  mc->get<ConfigString>("default-transport")->read();
 	if (mDefaultTransport == "udp") mDefaultTransport.clear();
 	else mDefaultTransport = "transport=" + mDefaultTransport;
+	/* The forward module needs the help of the router module to determine whether
+	 * a gruu request uri is under control of this domain or not. */
+	mRouterModule = dynamic_cast<ModuleRouter*>(getAgent()->findModule("Router"));
+	if (!mRouterModule) LOGA("Could not find router module.");
 }
 
 url_t *ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
@@ -243,7 +249,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	dest = overrideDest(ev, dest);
 
 	/*gruu processing in forward module is only done if dialog is established. In other cases, router mnodule is involved instead*/
-	if (url_has_param(dest,"gr") && (sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr)) {
+	if (url_has_param(dest,"gr") && (sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr) && mRouterModule->isManagedDomain(dest)) {
 		//gruu case, ask registrar db for AOR
 		ev->suspendProcessing();
 		auto listener = make_shared<RegistrarListener>(this,ev);

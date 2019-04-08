@@ -42,7 +42,7 @@ using namespace std;
 using namespace flexisip;
 
 RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<ContactUpdateListener> listener)
-	: self(s), listener(listener), token(0), mRetryTimer(nullptr), mRetryCount(0), mGruu(""), mUpdateExpire(false), mIsUnregister(false) {
+	: self(s), listener(listener), token(0), mRetryTimer(nullptr), mRetryCount(0), mUniqueId(""), mUpdateExpire(false), mIsUnregister(false) {
 	mRecord = make_shared<Record>(url);
 }
 RegistrarUserData::~RegistrarUserData() {
@@ -819,7 +819,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 		}
 	} else {
 		// This is only when we want a contact matching a given gruu
-		const char *gruu = data->mGruu.c_str();
+		const char *gruu = data->mUniqueId.c_str();
 		if (reply->len > 0) {
 			LOGD("GOT fs:%s [%lu] for gruu %s --> %s", key, data->token, gruu, reply->str);
 			data->mRecord->updateFromUrlEncodedParams(key, gruu, reply->str, data->listener);
@@ -851,10 +851,10 @@ void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<ContactUp
 		data, "HGETALL fs:%s", key), data);
 }
 
-void RegistrarDbRedisAsync::doFetchForGruu(const url_t *url, const string &gruu, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDbRedisAsync::doFetchInstance(const url_t *url, const string &uniqueId, const shared_ptr<ContactUpdateListener> &listener) {
 	// fetch only the contact in the AOR (HGET) and call the onRecordFound of the listener
 	RegistrarUserData *data = new RegistrarUserData(this, url, listener);
-	data->mGruu = gruu;
+	data->mUniqueId = uniqueId;
 
 	if (!isConnected() && !connect()) {
 		LOGE("Not connected to redis server");
@@ -864,8 +864,8 @@ void RegistrarDbRedisAsync::doFetchForGruu(const url_t *url, const string &gruu,
 	}
 
 	const char *key = data->mRecord->getKey().c_str();
-	const char *field = gruu.c_str();
-	LOGD("Fetching fs:%s [%lu] contact matching gruu %s", key, data->token, field);
+	const char *field = uniqueId.c_str();
+	LOGD("Fetching fs:%s [%lu] contact matching unique id %s", key, data->token, field);
 	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleFetch,
 		data, "HGET fs:%s %s", key, field), data);
 }

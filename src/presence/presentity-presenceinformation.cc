@@ -62,7 +62,7 @@ PresenceInformationElement::PresenceInformationElement(const belle_sip_uri_t *co
 	mTuples.push_back(unique_ptr<Xsd::Pidf::Tuple>(tup.release()));
 	Xsd::Rpid::Activities act = Xsd::Rpid::Activities();
 	act.getAway().push_back(Xsd::Rpid::Empty());
-	mPerson.setId(contact_as_string);
+	mPerson.setId(generate_presence_id());
 	mPerson.getActivities().push_back(act);
 	belle_sip_free(contact_as_string);
 }
@@ -100,13 +100,13 @@ list<shared_ptr<PresentityPresenceInformationListener>> PresentityPresenceInform
 size_t PresentityPresenceInformation::getNumberOfInformationElements() const {
 	return mInformationElements.size();
 }
-bool PresentityPresenceInformation::findPresenceInfo(shared_ptr<PresentityPresenceInformation> &info) {
+shared_ptr<PresentityPresenceInformationListener> PresentityPresenceInformation::findPresenceInfoListener(shared_ptr<PresentityPresenceInformation> &info) {
 	for (shared_ptr<PresentityPresenceInformationListener> listener : mSubscribers) {
 		if(belle_sip_uri_equals(listener->getTo(), info->getEntity())) {
-			return true;
+			return listener;
 		}
 	}
-	return false;
+	return nullptr;
 }
 string PresentityPresenceInformation::putTuples(Xsd::Pidf::Presence::TupleSequence &tuples,
 												Xsd::DataModel::Person &person, int expires) {
@@ -264,6 +264,7 @@ void PresentityPresenceInformation::addListenerIfNecessary(const shared_ptr<Pres
 		mSubscribers.push_back(listener);
 		op = "Adding";
 	}
+	SLOGD << op << " listener [" << listener.get() << "] on [" << *this << "]";
 }
 
 void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<PresentityPresenceInformationListener> &listener,
@@ -343,8 +344,8 @@ void PresentityPresenceInformation::addCapability(const std::string &capability)
 		mCapabilities = capability;
 	} else if (mCapabilities.find(capability) == mCapabilities.npos) {
 		mCapabilities += ", " + capability;
+		notifyAll();
 	}
-	notifyAll();
 }
 
 bool PresentityPresenceInformation::hasDefaultElement() {
@@ -492,10 +493,10 @@ PresentityPresenceInformationListener::~PresentityPresenceInformationListener() 
 	setExpiresTimer(mBelleSipMainloop, nullptr);
 }
 bool PresentityPresenceInformationListener::extendedNotifyEnabled() {
-	return mExtendedNotify;
+	return mExtendedNotify || bypassEnabled();
 }
 void PresentityPresenceInformationListener::enableExtendedNotify(bool enable) {
-	mExtendedNotify = bypassEnabled() || enable;
+	mExtendedNotify = enable;
 }
 bool PresentityPresenceInformationListener::bypassEnabled() {
 	return mBypassEnabled;
@@ -547,7 +548,7 @@ static string generate_presence_id(void) {
 	/*defined in http://www.w3.org/TR/REC-xml/*/
 	static char presence_id_valid_characters[] = "0123456789abcdefghijklmnopqrstuvwxyz-.";
 	/*NameStartChar (NameChar)**/
-	static char presence_id_valid_start_characters[] = ":_abcdefghijklmnopqrstuvwxyz";
+	static char presence_id_valid_start_characters[] = "_abcdefghijklmnopqrstuvwxyz";
 	char id[7];
 	int i;
 	id[0] = presence_id_valid_start_characters[belle_sip_random() % (sizeof(presence_id_valid_start_characters) - 1)];

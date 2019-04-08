@@ -453,32 +453,24 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 	}
 	// This ensures not all REGISTERs arrive at the same time on the flexisip
 	if (sip->sip_request->rq_method == sip_method_register && code == 200 && mExpireRandomizer > 0 && expire > 0) {
-			expire = (int) expire - (expire * su_randint(0, mExpireRandomizer) / 100);
-			expire_str = std::to_string(expire);
-			if (contacts) {
-				su_home_t *home = ev->getHome();
-				msg_header_replace_param(home, (msg_common_t *)modified_contacts, su_sprintf(home, "expires=%i", expire));
-			}
+		expire = (int) expire - (expire * su_randint(0, mExpireRandomizer) / 100);
+		expire_str = std::to_string(expire);
+		if (contacts) {
+			su_home_t *home = ev->getHome();
+			msg_header_replace_param(home, (msg_common_t *)modified_contacts, su_sprintf(home, "expires=%i", expire));
+		}
 	}
 
 	for (sip_contact_t *contact = modified_contacts; contact!=nullptr ; contact=contact->m_next) {
-		if(sip->sip_request->rq_method == sip_method_register && code == 200 && contact) {
-			if (url_has_param(contact->m_url, "gr")) {
-				string gruu;
-				char *buffer = new char[255];
-				isize_t result = url_param(contact->m_url->url_params, "gr", buffer, 255);
-				if (result > 0) {
-					su_home_t *home = ev->getHome();
-					stringstream stream;
-					gruu = string(buffer);
-					contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"gr");
-					stream << "\"" << url_as_string(home, sip->sip_from->a_url) << ";gr=" << gruu << "\"";
-					msg_header_replace_param(home, (msg_common_t *) contact, su_sprintf(home, "pub-gruu=%s", stream.str().c_str()));
-				}
-				delete[] buffer;
-			}
+		if (sip->sip_request->rq_method == sip_method_register && code == 200 && contact) {
 			if (url_has_param(contact->m_url, "fs-conn-id")) {
 				contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"fs-conn-id");
+			}
+			const char *pub_gruu_value = msg_header_find_param((msg_common_t*)contact, "pub-gruu");
+			if (pub_gruu_value && pub_gruu_value[0] == '\0'){
+				/* Remove empty pub-gruu parameter, which is set internally  
+				 * for compatibility with previous gruu implementation.*/
+				msg_header_remove_param((msg_common_t*)contact, "pub-gruu");
 			}
 		}
 	}
