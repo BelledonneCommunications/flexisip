@@ -73,9 +73,12 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
 		String,
 		"realm-regex",
 		"Extraction regex applied on the URI of the from header in order to extract the realm. The realm "
-		"is found out by getting the first slice of the URI that matchs the regular expression. If it "
+		"is found out by getting the first slice of the URI that matches the regular expression. If it "
 		"has one or more capturing parentheses, then the content of the first one is used as realm.\n"
-		"If no regex is specified, then the realm will be the domain part of the URI.",
+		"If no regex is specified, then the realm will be the domain part of the URI.\n"
+		"\n"
+		"For instance, given auth-domains=sip.example.com, you might use 'sip:.*@sip\\.(.*)\\.com' in order to "
+		"use 'example' as realm.",
 		""
 	},
 	config_item_end
