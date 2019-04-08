@@ -61,9 +61,11 @@ typedef unsigned long oid;
 
 extern oid company_id;
 
-#include <flexisip/expressionparser.hh>
+#include <flexisip/sip-boolean-expressions.hh>
 #include <flexisip/global.hh>
 #include <flexisip/flexisip-exception.hh>
+
+typedef struct sip_s sip_t;
 
 namespace flexisip {
 
@@ -538,7 +540,7 @@ class ConfigBooleanExpression : public ConfigValue {
   public:
 	ConfigBooleanExpression(const std::string &name, const std::string &help, const std::string &default_value,
 							oid oid_index);
-	std::shared_ptr<BooleanExpression> read() const;
+	std::shared_ptr<SipBooleanExpression> read() const;
 };
 
 template <typename _retType> _retType *GenericStruct::get(const char *name) const {

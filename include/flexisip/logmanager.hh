@@ -19,69 +19,46 @@
 #pragma once
 
 #include <string>
-#include <iostream>
-#include <sstream>
-#include <syslog.h>
-
-extern bool flexisip_sUseSyslog;
-
-namespace flexisip {
-namespace log {
-
-// Here we define our application severity levels.
-enum level { normal, trace, debug, info, warning, error, fatal };
-
-// The formatting logic for the severity level
-template <typename CharT, typename TraitsT>
-inline std::basic_ostream<CharT, TraitsT> &operator<<(std::basic_ostream<CharT, TraitsT> &strm,
-	const flexisip::log::level &lvl) {
-	static const char *const str[] = {"normal", "trace", "debug", "info", "warning", "error", "fatal"};
-	if (static_cast<std::size_t>(lvl) < (sizeof(str) / sizeof(*str)))
-		strm << str[lvl];
-	else
-		strm << static_cast<int>(lvl);
-	return strm;
-}
-
-template <typename CharT, typename TraitsT>
-inline std::basic_istream<CharT, TraitsT> &operator>>(std::basic_istream<CharT, TraitsT> &strm,
-	flexisip::log::level &lvl) {
-	static const char *const str[] = {"normal", "trace", "debug", "info", "warning", "error", "fatal"};
-
-	std::string s;
-	strm >> s;
-	for (unsigned int n = 0; n < (sizeof(str) / sizeof(*str)); ++n) {
-		if (s == str[n]) {
-			lvl = static_cast<flexisip::log::level>(n);
-			return strm;
-		}
-	}
-// Parse error
-	strm.setstate(std::ios_base::failbit);
-	return strm;
-}
-
-} //end of namespace log
-} //end of namespace flexisip
+#include <memory>
+#include <mutex>
 
 #define BCTBX_DEBUG_MODE 1 // Flexisip extensively use SLOD
-
-#ifdef BCTBX_LOG_DOMAIN
-#undef BCTBX_LOG_DOMAIN
-#endif
-#ifndef FLEXISIP_LOG_DOMAIN
-#define FLEXISIP_LOG_DOMAIN "flexisip"
-#endif
 #ifndef FLEXISIP_USER_ERRORS_LOG_DOMAIN
 #define FLEXISIP_USER_ERRORS_LOG_DOMAIN "flexisip-users"
 #endif
 
-#define BCTBX_LOG_DOMAIN FLEXISIP_LOG_DOMAIN
-#include <syslog.h>
-#include "bctoolbox/logging.h"
-#include <ostream>
+#define FLEXISIP_LOG_DOMAIN "flexisip"
 
-typedef std::ostream flexisip_record_type;
+#ifndef BCTBX_LOG_DOMAIN
+#define BCTBX_LOG_DOMAIN FLEXISIP_LOG_DOMAIN
+#endif
+
+#include "bctoolbox/logging.h"
+#include "flexisip/sip-boolean-expressions.hh"
+
+/*
+ * These are the classic C-style logging macros.
+ * When performance matters, they must be prefered over C++ style logging macros.
+ * Indeed, the C macros first check whether log must be output, then format the log.
+ * The C++ macros first format an ostringstream, and then check whether the log must be output.
+ * In a running system in production where debug logs are disabled, this means that all debug messages
+ * will be formatted throug an ostringstream for nothing.
+ */
+
+#define LOGD bctbx_debug
+#define LOGI bctbx_message
+#define LOGW bctbx_warning
+#define LOGE bctbx_error
+#define LOGA bctbx_fatal
+
+#define LOGV(thelevel, thefmt, theargs) bctbx_logv(FLEXISIP_LOG_DOMAIN, thelevel, (thefmt), (theargs))
+#define LOGDV(thefmt, theargs) LOGV(BCTBX_LOG_DEBUG, thefmt, theargs)
+
+/*
+ * These are the C++ logging macros, that can be used with << operator.
+ * Though they are convenient, they are not performant, see comment above.
+ */
+
 
 #define SLOGA_FL(file, line) throw FlexisipException() << " " << file << ":" << line << " "
 
@@ -92,19 +69,6 @@ typedef std::ostream flexisip_record_type;
 #define SLOGE SLOG(BCTBX_LOG_ERROR)
 #define SLOGUE BCTBX_SLOG(FLEXISIP_USER_ERRORS_LOG_DOMAIN, BCTBX_LOG_ERROR)
 
-#define LOGV(thelevel, thefmt, theargs) bctbx_logv(FLEXISIP_LOG_DOMAIN, thelevel, (thefmt), (theargs))
-#define LOGDV(thefmt, theargs) LOGV(BCTBX_LOG_DEBUG, thefmt, theargs)
-
-#define LOGD bctbx_debug
-#define LOGI bctbx_message
-#define LOGW bctbx_warning
-#define LOGE bctbx_error
-#define LOGA bctbx_fatal
-
-#define LOG_SCOPED_THREAD(key, value)
-
-
-
 #define LOGDFN(boolFn, streamFn)                                                                                       \
 do {                                                                                                               \
 	if (bctbx_get_log_level_mask(FLEXISIP_LOG_DOMAIN, (BCTBX_LOG_DEBUG)) && (boolFn())) {                                     \
@@ -113,54 +77,116 @@ do {                                                                            
 	}                                                                                                              \
 } while (0)
 
-//#define LOG_SCOPED_THREAD(key, value) ortp_debug("Scoped attr %s %s", (key), (value).c_str())
-#define LOG_SCOPED_THREAD(key, value)
 
 /*
  * We want LOGN to output all the time: this is for startup notice.
  */
-#define LOGN(args...)                                                                                                  \
- do {                                                                                                               \
- 	bctbx_message(args);                                                                                            \
- 	if (flexisip_sUseSyslog) {                                                                                              \
- 		syslog(LOG_NOTICE, args);                                                                                  \
- 	} else {                                                                                                       \
- 		fprintf(stdout, args);                                                                                     \
- 		fprintf(stdout, "\n");                                                                                     \
- 	}                                                                                                              \
- } while (0);
+#define LOGN(args...)\
+do {\
+	bctbx_set_thread_log_level(NULL, BCTBX_LOG_MESSAGE);\
+	bctbx_message(args); \
+	bctbx_clear_thread_log_level(NULL);\
+	fprintf(stdout, args);\
+	fprintf(stdout, "\n");\
+} while (0);
 
 /** LOGEN and LOGF must be used to report any startup or configuration fatal error that needs to be seen by the
  *operator.
  * This is why it goes to syslog (if syslog is used) and standart output.
  **/
-#define LOGEN(args...)                                                                                                 \
- do {                                                                                                               \
- 	fprintf(stderr, args);                                                                                         \
- 	fprintf(stderr, "\n");                                                                                         \
- 	if (flexisip_sUseSyslog) {                                                                                              \
- 		syslog(LOG_ERR, args);                                                                                     \
- 	}                                                                                                              \
+#define LOGEN(args...)\
+ do {\
+ 	fprintf(stderr, args);\
+ 	fprintf(stderr, "\n");\
+ 	bctbx_set_thread_log_level(NULL, BCTBX_LOG_MESSAGE);\
+ 	bctbx_log(BCTBX_LOG_DOMAIN, BCTBX_LOG_ERROR, args);\
+ 	bctbx_clear_thread_log_level(NULL);\
  } while (0);
 
-#define LOGF(args...)                                                                                                  \
- do {                                                                                                               \
- 	LOGEN(args);                                                                                                   \
- 	exit(-1);                                                                                                      \
+#define LOGF(args...)\
+ do {\
+ 	LOGEN(args);\
+ 	exit(-1);\
  } while (0);
 
- namespace flexisip {
- 	namespace log {
+namespace flexisip {
 
- 		void initLogs(bool syslog, std::string level, std::string syslevel, bool user_errors, bool enable_stdout);
+class SipLogContext;
+class MsgSip;
+/*
+ * The LogManager is the main entry point to configure logs in flexisip.
+ */
+class LogManager{
+public:
+	friend class SipLogContext;
+	friend class LogContext;
+	static LogManager & get();
+	struct Parameters{
+		std::string logDirectory;
+		std::string logFilename;
+		size_t fileMaxSize = -1;
+		BctbxLogLevel level = BCTBX_LOG_ERROR;
+		BctbxLogLevel syslogLevel = BCTBX_LOG_ERROR;
+		bool enableSyslog = true;
+		bool enableUserErrors = false;
+		bool enableStdout = false;
+	};
+	
+	BctbxLogLevel logLevelFromName(const std::string & name)const;
+	// Initialize logging system
+	void initialize(const Parameters& params);
+	// Change log level
+	void setLogLevel(BctbxLogLevel level);
+	// Change log level
+	void setSyslogLevel(BctbxLogLevel level);
+	void enableUserErrorsLogs(bool val);
+	/*
+	 * Set a contextual filter based on sip message contents, and associated log level to use when the filter matches.
+	 * Returns -1 if the filter is not valid.
+	 */
+	int setContextualFilter(const std::string &expression);
+	/*
+	 * Set the log level when the contextual filter is matched.
+	 */
+	void setContextualLevel(BctbxLogLevel level);
+	
+	// Disable all logs.
+	void disable();
+	~LogManager();
+private:
+	void setCurrentContext(const SipLogContext &ctx);
+	void clearCurrentContext();
+	LogManager() = default;
+	LogManager(const LogManager &) = delete;
+	std::mutex mMutex;
+	std::shared_ptr<SipBooleanExpression> mCurrentFilter;
+	BctbxLogLevel mLevel = BCTBX_LOG_ERROR; // The normal log level.
+	BctbxLogLevel mContextLevel = BCTBX_LOG_ERROR; // The log level when log context matches the condition.
+	bctbx_log_handler_t *mLogHandler = nullptr;
+	bctbx_log_handler_t *mSysLogHandler = nullptr;
+	bool mInitialized = false;
+	static LogManager *sInstance;
+};
 
- 		bool validateFilter(const std::string &filterstr);
+class LogContext{
+public:
+	LogContext() = default;
+	~LogContext();
+};
+	
+/*
+ * Class for contextual logs.
+ * For now it just uses the MsgSip being processed by flexisip.
+ * This class should typically be instanciated on stack (not with new).
+ * When it goes out of scope, it automatically clears the context with the LogManager.
+ */
+class SipLogContext : public LogContext{
+friend class LogManager;
+public:
+	SipLogContext(const MsgSip &msg);
+	SipLogContext(const std::shared_ptr<MsgSip> &msg);
+private:
+	const MsgSip &mMsgSip;
+};
 
- 		bool updateFilter(const std::string &filterstr);
-
- 		void preinit(bool syslog, bool debug, uint64_t max_size, std::string fName);
-
- 		void disableGlobally();
-
-} // end log
-} // end flexisip
+} // end of namespace flexisip

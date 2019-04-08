@@ -39,7 +39,6 @@ class OutgoingAgent;
 class IncomingTransaction;
 class OutgoingTransaction;
 class EventLog;
-class SipAttributes;
 
 class MsgSip {
 	friend class Agent;
@@ -68,15 +67,11 @@ class MsgSip {
 	void serialize() const {
 		msg_serialize(mMsg, (msg_pub_t *)getSip());
 	}
-	inline std::shared_ptr<SipAttributes> getSipAttr() {
-		return mSipAttr;
-	}
 	const char *print();
 
   private:
 	void assignMsg(msg_t *msg);
 	msg_t *mMsg;
-	std::shared_ptr<SipAttributes> mSipAttr;
 };
 
 class SipEvent : public std::enable_shared_from_this<SipEvent> {

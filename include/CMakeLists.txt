@@ -44,6 +44,9 @@ set(HEADER_FILES
 	plugin.hh
 	registrardb.hh
 	transaction.hh
+	sip-boolean-expressions.hh
+	expressionparser.hh
+	expressionparser-impl.cc
 )
 
 find_package(Git)

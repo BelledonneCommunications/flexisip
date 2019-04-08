@@ -34,10 +34,12 @@
 namespace flexisip {
 
 void init_tests() {
-	flexisip_sUseSyslog = false;
-	flexisip::log::preinit(flexisip_sUseSyslog, flexisip::log::debug, 0, "test");
-	flexisip::log::initLogs(flexisip_sUseSyslog, "debug", "error", false, false);
-	flexisip::log::updateFilter("%Severity% >= debug");
+	LogManager::Parameters logParams;
+	
+	logParams.level = BCTBX_LOG_DEBUG;
+	logParams.enableSyslog = false;
+	logParams.enableStdout = true;
+	LogManager::get().initialize(logParams);
 
 	Record::sLineFieldNames = {"+sip.instance", "pn-tok", "line"};
 	Record::sMaxContacts = 10;

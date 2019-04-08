@@ -172,9 +172,14 @@ int main(int argc, char *argv[]) {
 	PusherArgs args;
 	args.parse(argc, argv);
 
-	flexisip::log::preinit(flexisip_sUseSyslog, args.debug, 0, "pusher");
-	flexisip::log::initLogs(flexisip_sUseSyslog, args.debug ? "debug" : "error", "error", false, true);
-	flexisip::log::updateFilter("%Severity% >= debug");
+	LogManager::Parameters logParams;
+	
+	logParams.logDirectory = "/var/opt/belledonne-communications/log/flexisip"; //Sorry but ConfigManager is not accessible in this tool.
+	logParams.logFilename = "flexisip-pusher.log";
+	logParams.level = args.debug ? BCTBX_LOG_DEBUG : BCTBX_LOG_ERROR;
+	logParams.enableSyslog = false;
+	logParams.enableStdout = true;
+	LogManager::get().initialize(logParams);
 
 	{
 		PushNotificationService service(MAX_QUEUE_SIZE);

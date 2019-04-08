@@ -24,7 +24,6 @@
 #include <flexisip/registrardb.hh>
 
 #include <flexisip/logmanager.hh>
-#include "sipattrextractor.hh"
 
 #include "etchosts.hh"
 #include <algorithm>
@@ -974,16 +973,6 @@ template <typename SipEventT>
 inline void Agent::doSendEvent(
 	shared_ptr<SipEventT> ev, const list<Module *>::iterator &begin, const list<Module *>::iterator &end
 ) {
-#define LOG_SCOPED_EV_THREAD(ssargs, key) LOG_SCOPED_THREAD(key, ssargs->getOrEmpty(key));
-
-	auto ssargs = ev->getMsgSip()->getSipAttr();
-	LOG_SCOPED_EV_THREAD(ssargs, "from.uri.user");
-	LOG_SCOPED_EV_THREAD(ssargs, "from.uri.domain");
-	LOG_SCOPED_EV_THREAD(ssargs, "to.uri.user");
-	LOG_SCOPED_EV_THREAD(ssargs, "to.uri.domain");
-	LOG_SCOPED_EV_THREAD(ssargs, "method_or_status");
-	LOG_SCOPED_EV_THREAD(ssargs, "callid");
-
 	for (auto it = begin; it != end; ++it) {
 		ev->mCurrModule = (*it);
 		(*it)->process(ev);
@@ -996,6 +985,7 @@ inline void Agent::doSendEvent(
 }
 
 void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
+	SipLogContext ctx(ev->getMsgSip());
 	sip_t *sip = ev->getMsgSip()->getSip();
 	const sip_request_t *req = sip->sip_request;
 	const url_t *from_url = sip->sip_from ? sip->sip_from->a_url : NULL;
@@ -1046,7 +1036,7 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 		LOGI("Skipping incoming message on expired agent");
 		return;
 	}
-
+	SipLogContext ctx(ev->getMsgSip());
 	SLOGD << "Receiving new Response SIP message: " << ev->getMsgSip()->getSip()->sip_status->st_status << "\n"
 		<< *ev->getMsgSip();
 
@@ -1100,6 +1090,7 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 }
 
 void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
+	SipLogContext ctx(ev->getMsgSip());
 	SLOGD << "Inject Request SIP message:\n" << *ev->getMsgSip();
 	ev->restartProcessing();
 	SLOGD << "Injecting request event after " << ev->mCurrModule->getModuleName();
@@ -1114,6 +1105,7 @@ void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 }
 
 void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
+	SipLogContext ctx(ev->getMsgSip());
 	SLOGD << "Inject Response SIP message:\n" << *ev->getMsgSip();
 	list<Module *>::iterator it;
 	ev->restartProcessing();
@@ -1124,7 +1116,6 @@ void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 			break;
 		}
 	}
-
 	doSendEvent(ev, it, mModules.end());
 }
 

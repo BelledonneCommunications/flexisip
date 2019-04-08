@@ -131,6 +131,7 @@ make install DESTDIR=%{buildroot}
 mkdir -p  $RPM_BUILD_ROOT/etc/flexisip
 mkdir -p  $RPM_BUILD_ROOT/%{_docdir}
 mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/log/flexisip
+mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/%{_prefix}/log/flexisip
 
 mkdir -p $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip.service $RPM_BUILD_ROOT/lib/systemd/system
@@ -175,6 +176,7 @@ rm -rf $RPM_BUILD_ROOT
 %dir %{_includedir}/flexisip
 %{_includedir}/flexisip/*.hh
 %{_includedir}/flexisip/*.h
+%{_includedir}/flexisip/*.cc
 %{_localstatedir}/*
 
 %if @ENABLE_PRESENCE@

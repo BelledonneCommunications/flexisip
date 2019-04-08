@@ -192,7 +192,7 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const
 		as.bodyLen(sip->sip_payload->pl_len);
 	}
 	as.usedAlgo() = mAlgorithms;
-	as.no403(mNo403Expr->eval(ev->getSip()));
+	as.no403(mNo403Expr->eval(*ev->getSip()));
 }
 
 void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipEvent> &request) {

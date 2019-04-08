@@ -102,7 +102,7 @@ protected:
 	auth_challenger_t mProxyChallenger;
 	std::string mRealmRegexStr;
 	std::regex mRealmRegex;
-	std::shared_ptr<BooleanExpression> mNo403Expr;
+	std::shared_ptr<SipBooleanExpression> mNo403Expr;
 
 	static const std::array<std::string, 2> sValidAlgos;
 };
