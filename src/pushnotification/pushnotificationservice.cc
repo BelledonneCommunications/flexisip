@@ -58,8 +58,8 @@ PushNotificationService::~PushNotificationService() {
 int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequest> &pn){	
 	std::shared_ptr<PushNotificationClient> client = mClients[pn->getAppIdentifier()];
 	if (client == 0) {
-		bool isW10 = (pn->getType().compare(string("w10")) == 0);
-		bool isWP = (pn->getType().compare(string("wp")) == 0);
+		bool isW10 = (pn->getType() == "w10");
+		bool isWP = (pn->getType() == "wp");
 		if(isW10 || isWP) {
 			// In Windows case we can't create all push notification clients at start up since we need to wait the registration of all AppID
 			// Therefore we create the push notification client just before sending the push.
