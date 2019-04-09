@@ -64,6 +64,7 @@ public:
 				auto ret = requestLambda(*sql);
 				stop = std::chrono::steady_clock::now();
 				LOGD("[SOCI] statement successfully executed in %lu ms", durationMs(start, stop));
+				if (sql) delete sql;
 				return ret;
 			} catch (soci::mysql_soci_error const &e) {
 				errorCount++;
