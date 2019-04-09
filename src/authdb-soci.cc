@@ -146,55 +146,55 @@ void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
 	SociHelper sociHelper(*conn_pool);
 	
 	try{
-		rowset<row> results = sociHelper.execute([&](session &sql){
-			return (sql.prepare << get_password_request, use(unescapedIdStr, "id"), use(domain, "domain"), use(authid, "authid"));
-		});
+		sociHelper.execute([&](session &sql){
+			rowset<row> results =  (sql.prepare << get_password_request, use(unescapedIdStr, "id"), use(domain, "domain"), use(authid, "authid"));
+			for (rowset<row>::const_iterator it = results.begin(); it != results.end(); it++) {
+				row const& r = *it;
+				passwd_algo_t pass;
 
-		for (rowset<row>::const_iterator it = results.begin(); it != results.end(); it++) {
-			row const& r = *it;
-			passwd_algo_t pass;
+				/* If size == 1 then we only have the password so we assume MD5 */
+				if (r.size() == 1) {
+					pass.algo = "MD5";
 
-			/* If size == 1 then we only have the password so we assume MD5 */
-			if (r.size() == 1) {
-				pass.algo = "MD5";
+					if (hashed_passwd) {
+						pass.pass = r.get<string>(0);
+					} else {
+						string input = unescapedIdStr + ":" + domain + ":" + r.get<string>(0);
+						pass.pass = syncMd5(input.c_str(), 16);
+					}
+				} else if (r.size() > 1) {
+					string password = r.get<string>(0);
+					string algo = r.get<string>(1);
 
-				if (hashed_passwd) {
-					pass.pass = r.get<string>(0);
-				} else {
-					string input = unescapedIdStr + ":" + domain + ":" + r.get<string>(0);
-					pass.pass = syncMd5(input.c_str(), 16);
-				}
-			} else if (r.size() > 1) {
-				string password = r.get<string>(0);
-				string algo = r.get<string>(1);
+					if (algo == "CLRTXT") {
+						if (passwd.empty()) {
+							pass.algo = algo;
+							pass.pass = password;
+							passwd.push_back(pass);
 
-				if (algo == "CLRTXT") {
-					if (passwd.empty()) {
+							string input;
+							input = unescapedIdStr + ":" + domain + ":" + password;
+
+							pass.pass = syncMd5(input.c_str(), 16);
+							pass.algo = "MD5";
+							passwd.push_back(pass);
+
+							pass.pass = syncSha256(input.c_str(), 32);
+							pass.algo = "SHA-256";
+							passwd.push_back(pass);
+
+							break;
+						}
+					} else {
 						pass.algo = algo;
 						pass.pass = password;
-						passwd.push_back(pass);
-
-						string input;
-						input = unescapedIdStr + ":" + domain + ":" + password;
-
-						pass.pass = syncMd5(input.c_str(), 16);
-						pass.algo = "MD5";
-						passwd.push_back(pass);
-
-						pass.pass = syncSha256(input.c_str(), 32);
-						pass.algo = "SHA-256";
-						passwd.push_back(pass);
-
-						break;
 					}
-				} else {
-					pass.algo = algo;
-					pass.pass = password;
 				}
+				passwd.push_back(pass);
 			}
+		});
 
-			passwd.push_back(pass);
-		}
+		
 
 		if (listener_ref) listener_ref->finishVerifyAlgos(passwd);
 		if (!passwd.empty()) cachePassword(createPasswordKey(id, authid), domain, passwd, mCacheExpire);
@@ -213,7 +213,7 @@ void SociAuthDB::getUserWithPhoneWithPool(const string &phone, const string &dom
 		SociHelper sociHelper(*conn_pool);
 		
 		if(get_user_with_phone_request != "") {
-			sociHelper.executeNoReturn([&](session &sql){
+			sociHelper.execute([&](session &sql){
 				sql << get_user_with_phone_request, into(user), use(phone, "phone");
 			});
 		} else {
@@ -223,13 +223,14 @@ void SociAuthDB::getUserWithPhoneWithPool(const string &phone, const string &dom
 				s = s.replace(index, 7, phone);
 				index = s.find(":phones");
 			}
-			rowset<row> ret = sociHelper.execute([&](session &sql){
-				return (sql.prepare << s);
+			sociHelper.execute([&](session &sql){
+				rowset<row> ret = (sql.prepare << s);
+				for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
+					row const& row = *it;
+					user = row.get<string>(0);
+				}
 			});
-			for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
-				row const& row = *it;
-				user = row.get<string>(0);
-			}
+			
 		}
 		if (!user.empty())  {
 			cacheUserWithPhone(phone, domain, user);
@@ -272,30 +273,30 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbList
 
 	try {
 		SociHelper sociHelper(*conn_pool);
-		rowset<row> ret = sociHelper.execute([&](session &sql){
-			return (sql.prepare << s);
-		});
+		sociHelper.execute([&](session &sql){
+			rowset<row> ret = (sql.prepare << s);
 
-		for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
-			row const& row = *it;
-			string user = row.get<string>(0);
-			string domain = row.get<string>(1);
-			string phone = (row.size() > 2) ? row.get<string>(2) : "";
+			for (rowset<row>::const_iterator it = ret.begin(); it != ret.end(); ++it) {
+				row const& row = *it;
+				string user = row.get<string>(0);
+				string domain = row.get<string>(1);
+				string phone = (row.size() > 2) ? row.get<string>(2) : "";
 
-			bool domain_match = false;
-			if (check_domain_in_presence_results) {
-				domain_match = find(domains.begin(), domains.end(), domain) != domains.end();
-			}
+				bool domain_match = false;
+				if (check_domain_in_presence_results) {
+					domain_match = find(domains.begin(), domains.end(), domain) != domains.end();
+				}
 
-			if (!check_domain_in_presence_results || domain_match) {
-				if (!phone.empty()) {
-					cacheUserWithPhone(phone, domain, user);
-					presences.insert(make_pair(user, phone));
-				} else {
-					presences.insert(make_pair(user, user));
+				if (!check_domain_in_presence_results || domain_match) {
+					if (!phone.empty()) {
+						cacheUserWithPhone(phone, domain, user);
+						presences.insert(make_pair(user, phone));
+					} else {
+						presences.insert(make_pair(user, user));
+					}
 				}
 			}
-		}
+		});
 		notifyAllListeners(creds, presences);
 	} catch (SociHelper::DatabaseException &e) {
 		SLOGE << "[SOCI] MySQL request causing the error was : " << s;

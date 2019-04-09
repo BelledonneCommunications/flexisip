@@ -44,6 +44,7 @@ public:
 	SociHelper(soci::connection_pool &pool) : mPool(pool){};
 	
 	// Execute the database query safely. The code to execute the query shall be provided in the lambda argument.
+#if 0
 	template <typename _lambda>
 	soci::rowset<soci::row> execute(_lambda requestLambda){
 		std::chrono::steady_clock::time_point start;
@@ -92,34 +93,31 @@ public:
 		if (sql) delete sql;
 		throw DatabaseException();
 	}
+#endif
 	// Variant of the previous method for the case where no rowset is needed as return value.
 	// Probably it is possible to merge the two methods thanks std::enable_if (TODO later).
 	template <typename _lambda>
-	void executeNoReturn(_lambda requestLambda){
+	void execute(_lambda requestLambda){
 		std::chrono::steady_clock::time_point start;
 		std::chrono::steady_clock::time_point stop;
 		soci::session *sql = nullptr;
 		int errorCount = 0;
 		bool retry;
+		bool good = false;
 		
 		do{
 			retry = false;
 			try{
 				// will grab a connection from the pool. This is thread safe.
-				if (!sql) {
-					start = std::chrono::steady_clock::now();
-					sql = new soci::session(mPool);
-					stop = std::chrono::steady_clock::now();
-					LOGD("[SOCI] Session acquired from pool in %lu ms", durationMs(start, stop));
-					start = stop;
-				}else{
-					start = std::chrono::steady_clock::now();
-				}
+				start = std::chrono::steady_clock::now();
+				sql = new soci::session(mPool);
+				stop = std::chrono::steady_clock::now();
+				LOGD("[SOCI] Session acquired from pool in %lu ms", durationMs(start, stop));
+				start = stop;
 				requestLambda(*sql);
 				stop = std::chrono::steady_clock::now();
 				LOGD("[SOCI] statement successfully executed in %lu ms", durationMs(start, stop));
-				if (sql) delete sql;
-				return;
+				good = true;
 			} catch (soci::mysql_soci_error const &e) {
 				errorCount++;
 				stop = std::chrono::steady_clock::now();
@@ -142,9 +140,9 @@ public:
 				SLOGE << "[SOCI] error after " << durationMs(start, stop) << " ms : " << e.what();
 				if (sql) reconnectSession(*sql);
 			}
+			if (sql) delete sql;
 		} while (retry);
-		if (sql) delete sql;
-		throw DatabaseException();
+		if (!good) throw DatabaseException();
 	}
 private:
 	void reconnectSession(soci::session &session);

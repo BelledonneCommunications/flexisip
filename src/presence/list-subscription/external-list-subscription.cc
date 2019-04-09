@@ -64,34 +64,29 @@ void ExternalListSubscription::getUsersList(const string &sqlRequest, belle_sip_
 		belle_sip_free(c_fromUri);
 		belle_sip_free(c_toUri);
 		
-		soci::rowset<soci::row> ret = sociHelper.execute([&](soci::session &sql){
-			return (sql.prepare << sqlRequest, soci::use(fromUri, "from"), soci::use(toUri, "to"));
+		sociHelper.execute([&](soci::session &sql){
+			soci::rowset<soci::row> ret = (sql.prepare << sqlRequest, soci::use(fromUri, "from"), soci::use(toUri, "to"));
+			string addrStr;
+			for (const auto &row : ret) {
+				addrStr = row.get<string>(0);
+				belle_sip_header_address_t *addr = belle_sip_header_address_parse(addrStr.c_str());
+				if (!addr) {
+					ostringstream os;
+					os << "Cannot parse list entry [" << addrStr << "]";
+					continue;
+				}
+				belle_sip_uri_t *uri = belle_sip_header_address_get_uri(addr);
+				if (!uri || !belle_sip_uri_get_host(uri) || !belle_sip_uri_get_user(uri)) {
+					ostringstream os;
+					os << "Cannot parse list entry [" << addrStr << "]";
+					continue;
+				}
+				const char *name = belle_sip_header_address_get_displayname(addr);
+				mListeners.push_back(make_shared<PresentityResourceListener>(*this, uri, name ? name : ""));
+				belle_sip_object_unref(uri); // Because PresentityResourceListener takes its own ref
+			}
+			
 		});
-		
-
-		string addrStr;
-		for (const auto &row : ret) {
-			addrStr = row.get<string>(0);
-			belle_sip_header_address_t *addr = belle_sip_header_address_parse(addrStr.c_str());
-			if (!addr) {
-				ostringstream os;
-				os << "Cannot parse list entry [" << addrStr << "]";
-				continue;
-			}
-			belle_sip_uri_t *uri = belle_sip_header_address_get_uri(addr);
-			if (!uri || !belle_sip_uri_get_host(uri) || !belle_sip_uri_get_user(uri)) {
-				ostringstream os;
-				os << "Cannot parse list entry [" << addrStr << "]";
-				continue;
-			}
-			const char *user_param = belle_sip_uri_get_user_param(uri);
-			if (user_param && strcasecmp(user_param, "phone") == 0) {
-				belle_sip_uri_set_user_param(uri,"phone");
-			}
-			const char *name = belle_sip_header_address_get_displayname(addr);
-			mListeners.push_back(make_shared<PresentityResourceListener>(*this, uri, name ? name : ""));
-			belle_sip_object_unref(uri); // Because PresentityResourceListener takes its own ref
-		}
 	} catch (SociHelper::DatabaseException &e) {
 		
 	}
