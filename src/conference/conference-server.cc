@@ -26,6 +26,8 @@
 
 #include <flexisip/configmanager.hh>
 
+#include "utils/uri-utils.hh"
+
 using namespace flexisip;
 using namespace std;
 
@@ -217,7 +219,7 @@ void ConferenceServer::bindChatRoom (
 
 	sip_contact_t* sipContact = sip_contact_create(mHome.home(),
 		reinterpret_cast<const url_string_t*>(url_make(mHome.home(), contact.c_str())),
-		su_strdup(mHome.home(), ("+sip.instance=" + RegistrarDb::grToUniqueId(gruu) ).c_str()), nullptr);
+		su_strdup(mHome.home(), ("+sip.instance=" + UriUtils::grToUniqueId(gruu) ).c_str()), nullptr);
 	url_t *from = url_make(mHome.home(), bindingUrl.c_str());
 
 	parameter.callId = gruu;
