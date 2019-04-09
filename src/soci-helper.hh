@@ -104,7 +104,6 @@ public:
 		do{
 			retry = false;
 			try{
-				
 				// will grab a connection from the pool. This is thread safe.
 				if (!sql) {
 					start = std::chrono::steady_clock::now();
@@ -118,6 +117,7 @@ public:
 				requestLambda(*sql);
 				stop = std::chrono::steady_clock::now();
 				LOGD("[SOCI] statement successfully executed in %lu ms", durationMs(start, stop));
+				if (sql) delete sql;
 				return;
 			} catch (soci::mysql_soci_error const &e) {
 				errorCount++;
