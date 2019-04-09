@@ -36,6 +36,7 @@
 #include "recordserializer.hh"
 #include <flexisip/module.hh>
 #include "utils/string-utils.hh"
+#include "utils/uri-utils.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -1071,11 +1072,11 @@ void RegistrarDb::fetch(const url_t *url, const shared_ptr<ContactUpdateListener
 		return;
 	}
 	if(url_has_param(url, "gr")) {
-		char buffer[255] = {0};
-		if (url_param(url->url_params, "gr", buffer, sizeof(buffer)-1) > 0) {
-			doFetchInstance(url, grToUniqueId(buffer), recursive
-						   ? make_shared<RecursiveRegistrarDbListener>(this, listener, url)
-						   : listener);
+		string gr = UriUtils::getParamValue(url->url_params, "gr");
+		if (!gr.empty()) {
+			doFetchInstance(url, UriUtils::grToUniqueId(gr), recursive
+							? make_shared<RecursiveRegistrarDbListener>(this, listener, url)
+							: listener);
 			return;
 		}
 	}
@@ -1128,7 +1129,7 @@ void RegistrarDb::bind(const sip_t *sip, const BindingParameters &parameter, con
 		if (msg_params_find(sip->sip_supported->k_items, "gruu") != nullptr){
 			const char *instance_param = msg_params_find(sip->sip_contact->m_params, "+sip.instance");
 			if (instance_param) {
-				string gr = uniqueIdToGr(instance_param);
+				string gr = UriUtils::uniqueIdToGr(instance_param);
 				if (!gr.empty()){/* assign a public gruu address to this contact */
 					msg_header_replace_param(home.home(), (msg_common_t *) sip->sip_contact, 
 						su_sprintf(home.home(), "pub-gruu=\"%s;gr=%s\"", url_as_string(home.home(), sip->sip_from->a_url), gr.c_str() ) );
@@ -1173,27 +1174,6 @@ void RegistrarDb::bind(const url_t *from, const sip_contact_t *contact, const Bi
 	bind(sip, parameter, listener);
 
 	msg_unref(msg);
-}
-
-/* Transforms the unique id to a "gr" parameter value. */
-string RegistrarDb::uniqueIdToGr(const string &uid){
-	string ret;
-	
-	size_t begin = uid.find('<');
-	if (begin != string::npos){
-		size_t end = uid.find('>', begin + 1);
-		if (end != string::npos){
-			begin++; //skip '<'
-			ret = uid.substr(begin, end - begin);
-		}
-	}
-	return ret;
-}
-
-string RegistrarDb::grToUniqueId(const string &gr){
-	ostringstream uid;
-	uid << "\"<" << gr << ">\"";
-	return uid.str();
 }
 
 class AgregatorRegistrarDbListener : public ContactUpdateListener {

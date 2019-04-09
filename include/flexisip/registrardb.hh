@@ -400,8 +400,7 @@ class RegistrarDb {
 	void unsubscribeLocalRegExpire(LocalRegExpireListener *listener) {
 		mLocalRegExpire->unsubscribe(listener);
 	}
-	static std::string uniqueIdToGr(const std::string &uid);
-	static std::string grToUniqueId(const std::string &gr);
+
   protected:
 	class LocalRegExpire {
 		std::map<std::string, time_t> mRegMap;
