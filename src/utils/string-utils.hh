@@ -33,6 +33,13 @@ public:
 	static std::string strip(const std::string &str, char c);
 	static void strip(std::string::const_iterator &start, std::string::const_iterator &end, char c);
 
+	/**
+	 * @brief Check whether the string 'str' starts with 'prefix' and returned the subsequent
+	 * part of the string.
+	 * @throw invalid_argument when 'str' doesn't start with 'prefix'.
+	 */
+	static std::string removePrefix(const std::string &str, const std::string &prefix);
+
 	template <class Iterable>
 	static std::string toString(const Iterable &iterable) {
 		std::ostringstream os;

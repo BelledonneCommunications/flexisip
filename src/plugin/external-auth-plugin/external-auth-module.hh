@@ -58,12 +58,17 @@ public:
 		void sipInstance(const std::string &val) {mSipInstance = val;}
 		void sipInstance(std::string &&val) {mSipInstance = std::move(val);}
 
+		const std::string &uuid() const {return mUUID;}
+		void uuid(const std::string &uuid) {mUUID = uuid;}
+		void uuid(std::string &uuid) {mUUID = std::move(uuid);}
+
 	private:
 		std::string mReasonHeader;      /**< [out] Reason header returned by the HTTP server on authentication failure. */
 		std::string mPAssertedIdentity; /**< [out] PAssertIdentity header returned by the HTTP server on authentication success. */
 		std::string mFromHeader;        /**< [in]  Value of From header of the request. */
 		std::string mDomain;            /**< [in]  Domain of the From header. */
 		std::string mSipInstance;       /**< [in]  Value of the +sip.instance parameter from Contact header. */
+		std::string mUUID;              /**< [in]  UUID of the application that is trying to authenticate. */
 	};
 
 	ExternalAuthModule(su_root_t *root, const std::string &domain, const std::string &algo);

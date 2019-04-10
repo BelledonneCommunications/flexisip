@@ -97,6 +97,7 @@ std::map<std::string, std::string> ExternalAuthModule::extractParameters(const S
 	params["method"] = StringUtils::strip(as.method(), '"');
 	params["from"] = StringUtils::strip(as.fromHeader(), '"');
 	params["sip-instance"] = StringUtils::strip(as.sipInstance(), '"');
+	params["uuid"] = as.uuid();
 	params["domain"] = StringUtils::strip(as.domain(), '"');
 	return params;
 }
