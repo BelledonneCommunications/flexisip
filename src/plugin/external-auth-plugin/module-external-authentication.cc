@@ -27,6 +27,9 @@
 
 #include <flexisip/plugin.hh>
 
+#include "utils/string-utils.hh"
+#include "utils/uri-utils.hh"
+
 #include "module-external-authentication.hh"
 
 using namespace std;
@@ -52,6 +55,9 @@ void ModuleExternalAuthentication::onDeclare(GenericStruct *mc) {
 			"\t* $from: the value of the request's 'From:' header\n"
 			"\t* $domain: the domain name extracted from the From header's URI\n"
 			"\t* all the parameters available in the Authorization header. Ex: $realm, $nonce, $username, ...\n"
+			"\t* $uuid: the UUID of the user agent whose request is being challenged. The UUID is gotten from "
+			"the 'gr' parameter of the contact URI or, if not present, from the '+sip.instance' parameter. "
+			"If neither 'gr' nor '+sip.instance' parameters are present, then $uuid is be replaced by an empty string."
 			"\n"
 			"Ex: https://$realm.example.com/auth?from=$from&cnonce=$cnonce&username=$username",
 			""
@@ -90,6 +96,19 @@ FlexisipAuthStatus *ModuleExternalAuthentication::createAuthStatus(const std::sh
 	if (sip->sip_contact) {
 		const char *sipInstance = msg_header_find_param(reinterpret_cast<msg_common_t *>(sip->sip_contact), "+sip.instance");
 		as->sipInstance(sipInstance ? sipInstance : "");
+
+		string uuid;
+		if (url_has_param(sip->sip_contact->m_url, "gr")) {
+			uuid = UriUtils::getParamValue(sip->sip_contact->m_url->url_params, "gr");
+		} else {
+			uuid = UriUtils::uniqueIdToGr(as->sipInstance());
+		}
+		try {
+			uuid = StringUtils::removePrefix(uuid, "urn:uuid:");
+			as->uuid(move(uuid));
+		} catch (const invalid_argument &e) {
+			SLOGE << "ExernalAuthentication: error while getting UUID: " << e.what();
+		}
 	}
 
 	return as;
