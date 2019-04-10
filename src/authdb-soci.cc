@@ -244,8 +244,6 @@ void SociAuthDB::getUserWithPhoneWithPool(const string &phone, const string &dom
 }
 
 void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string,AuthDbListener*>> &creds) {
-	steady_clock::time_point start;
-	steady_clock::time_point stop;
 	set<pair<string, string>> presences;
 	ostringstream in;
 	list<string> phones;
