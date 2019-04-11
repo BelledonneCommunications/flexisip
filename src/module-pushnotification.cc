@@ -16,22 +16,24 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/module.hh>
-#include <flexisip/agent.hh>
-#include <flexisip/event.hh>
-#include <flexisip/transaction.hh>
+#include <map>
 
-#include "pushnotification/pushnotificationservice.hh"
+#include <sofia-sip/msg_mime.h>
+#include <sofia-sip/sip_status.h>
+
+#include "flexisip/agent.hh"
+#include "flexisip/event.hh"
+#include "flexisip/forkcallcontext.hh"
+#include "flexisip/module.hh"
+#include "flexisip/transaction.hh"
+
 #include "pushnotification/applepush.hh"
+#include "pushnotification/firebasepush.hh"
 #include "pushnotification/genericpush.hh"
 #include "pushnotification/googlepush.hh"
 #include "pushnotification/microsoftpush.hh"
-#include "pushnotification/firebasepush.hh"
-#include <flexisip/forkcallcontext.hh>
-
-#include <map>
-#include <sofia-sip/msg_mime.h>
-#include <sofia-sip/sip_status.h>
+#include "pushnotification/pushnotificationservice.hh"
+#include "utils/uri-utils.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -337,24 +339,28 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 	int time_out = mTimeout;
 
 	if (sip->sip_request->rq_url->url_params != NULL) {
-		char type[12];
-		char deviceToken[256];
-		char appId[256] = {0};
-		char tmp[16]= {0};
-		char const *params = sip->sip_request->rq_url->url_params;
+		string type;
+		string deviceToken;
+		string appId;
+		const url_t *url = sip->sip_request->rq_url;
+		char const *params = url->url_params;
 
 		/*extract all parameters required to make the push notification */
-		if (url_param(params, "pn-tok", deviceToken, sizeof(deviceToken)) == 0) {
+		try {
+			deviceToken = UriUtils::getParamValue(params, "pn-tok");
+			pinfo.mDeviceToken = deviceToken;
+		} catch (const out_of_range &) {
 			SLOGD << "no pn-tok";
 			return;
 		}
-		pinfo.mDeviceToken = deviceToken;
 
-		if (url_param(params, "app-id", appId, sizeof(appId)) == 0) {
+		try {
+			appId = UriUtils::getParamValue(params, "app-id");
+			pinfo.mAppId = appId;
+		} catch (const out_of_range &) {
 			SLOGD << "no app-id";
 			return;
 		}
-		pinfo.mAppId = appId;
 
 		// Extract the unique id if possible - it's hacky
 		const shared_ptr<BranchInfo> &br = transaction->getProperty<BranchInfo>("BranchInfo");
@@ -371,17 +377,32 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			context = (*it).second;
 		}
 		if (!context) {
-			if (url_param(params, "pn-type", type, sizeof(type)) == 0) {
+			try {
+				type = UriUtils::getParamValue(params, "pn-type");
+				pinfo.mType = type;
+			} catch (const out_of_range &) {
 				SLOGD << "no pn-type";
 				return;
 			}
-			pinfo.mType = type;
 
-			if (url_param(params, "pn-timeout", tmp, sizeof(tmp)-1) != 0) {
-				time_out = std::atoi(tmp);
+			if (url_has_param(url, "pn-timeout")) {
+				string pnTimeoutStr;
+				try {
+					pnTimeoutStr = UriUtils::getParamValue(params, "pn-timeout");
+					time_out = stoi(pnTimeoutStr);
+				} catch (const logic_error &) {
+					SLOGE << "invalid 'pn-timeout' value: " << pnTimeoutStr;
+				}
 			}
-			if (url_param(params, "pn-silent", tmp, sizeof(tmp)-1) != 0) {
-				pinfo.mSilent = std::atoi(tmp) != 0;
+
+			if (url_has_param(url, "pn-silent")) {
+				string pnSilentStr;
+				try {
+					pnSilentStr = UriUtils::getParamValue(params, "pn-silent");
+					pinfo.mSilent = bool(stoi(pnSilentStr));
+				} catch (const logic_error &) {
+					SLOGE << "invalid 'pn-silent' value: " << pnSilentStr;
+				}
 			}
 
 			//Be backward compatible with old Linphone app that don't use pn-silent.
@@ -413,27 +434,35 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			}
 
 			shared_ptr<PushNotificationRequest> pn;
-			if (strcmp(type, "apple") == 0) {
-				char msg_str[64];
-				char call_str[64];
-				char call_snd[64];
-				char msg_snd[64];
+			if (type == "apple") {
+				string msg_str;
+				string call_str;
+				string call_snd;
+				string msg_snd;
 
-				if (url_param(params, "pn-msg-str", msg_str, sizeof(msg_str)) == 0) {
+				try {
+					msg_str = UriUtils::getParamValue(params, "pn-msg-str");
+				} catch (const out_of_range &) {
 					SLOGD << "no pn-msg-str";
 					return;
 				}
-				if (url_param(params, "pn-call-str", call_str, sizeof(call_str)) == 0) {
+				try {
+					call_str = UriUtils::getParamValue(params, "pn-call-str");
+				} catch (const out_of_range &) {
 					SLOGD << "no pn-call-str";
 					return;
 				}
-				if (url_param(params, "pn-call-snd", call_snd, sizeof(call_snd)) == 0) {
+				try {
+					call_snd = UriUtils::getParamValue(params, "pn-call-snd");
+				} catch (const out_of_range &) {
 					SLOGD << "no optional pn-call-snd, using empty";
-					strncpy(call_snd, "empty", sizeof(call_snd));
+					call_snd = "empty";
 				}
-				if (url_param(params, "pn-msg-snd", msg_snd, sizeof(msg_snd)) == 0) {
+				try {
+					msg_snd = UriUtils::getParamValue(params, "pn-msg-snd");
+				} catch (const out_of_range &) {
 					SLOGD << "no optional pn-msg-snd, using empty";
-					strncpy(msg_snd, "empty", sizeof(msg_snd));
+					msg_snd = "empty";
 				}
 
 				bool isGroupChatInvite = (sip->sip_content_type != NULL && strcasecmp(sip->sip_content_type->c_subtype, "resource-lists+xml") == 0);
@@ -447,10 +476,10 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				pinfo.mNoBadge = mNoBadgeiOS;
 				if (!mExternalPushUri)
 					pn = make_shared<ApplePushNotificationRequest>(pinfo);
-			} else if (strcmp(type, "wp") == 0 || strcmp(type, "w10") == 0) {
+			} else if ((type == "wp") || (type == "w10")) {
 				if (!mExternalPushUri)
 					pn = make_shared<WindowsPhonePushNotificationRequest>(pinfo);
-			} else if (strcmp(type, "google") == 0) {
+			} else if (type == "google") {
 				auto apiKeyIt = mGoogleKeys.find(appId);
 				if (apiKeyIt != mGoogleKeys.end()) {
 					pinfo.mApiKey = apiKeyIt->second;
@@ -460,7 +489,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				} else {
 					SLOGD << "No Key matching appId " << appId;
 				}
-			} else if (strcmp(type, "firebase") == 0) {
+			} else if (type == "firebase") {
 				auto apiKeyIt = mFirebaseKeys.find(appId);
 				if (apiKeyIt != mFirebaseKeys.end()) {
 					pinfo.mApiKey = apiKeyIt->second;
