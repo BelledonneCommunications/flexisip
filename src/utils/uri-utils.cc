@@ -16,6 +16,8 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <sstream>
+#include <stdexcept>
 #include <vector>
 
 #include <sofia-sip/url.h>
@@ -40,4 +42,31 @@ std::string UriUtils::unescape(const char *str, size_t n) {
 	n = url_unescape_to(&unescapedStr[0], str, n);
 	unescapedStr.resize(n);
 	return unescapedStr;
+}
+
+std::string UriUtils::getParamValue(const char *paramList, const char *paramName) {
+	string value(_bufferSize, '\0');
+	isize_t valueSize = url_param(paramList, paramName, &value[0], value.size());
+	if (valueSize == 0) throw out_of_range(string("\'") + paramName + "\' not found");
+	value.resize(valueSize-1);
+	return value;
+}
+
+std::string UriUtils::uniqueIdToGr(const std::string &uid) {
+	string ret;
+	size_t begin = uid.find('<');
+	if (begin != string::npos) {
+		size_t end = uid.find('>', begin + 1);
+		if (end != string::npos) {
+			begin++; //skip '<'
+			ret = uid.substr(begin, end - begin);
+		}
+	}
+	return ret;
+}
+
+std::string UriUtils::grToUniqueId(const std::string &gr) {
+	ostringstream uid;
+	uid << "\"<" << gr << ">\"";
+	return uid.str();
 }

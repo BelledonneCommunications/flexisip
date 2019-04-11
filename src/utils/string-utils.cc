@@ -17,6 +17,7 @@
 */
 
 #include <cstring>
+#include <stdexcept>
 
 #include "string-utils.hh"
 
@@ -52,4 +53,13 @@ void StringUtils::strip(std::string::const_iterator &start, std::string::const_i
 	if (*start != c || *(end-1) != c) return;
 	start++;
 	end--;
+}
+
+std::string StringUtils::removePrefix(const std::string &str, const std::string &prefix) {
+	if (str.compare(0, prefix.size(), prefix) != 0) {
+		ostringstream os;
+		os << "'" << prefix << "' is not a prefix of '" << str << "'";
+		throw invalid_argument(os.str());
+	}
+	return str.substr(prefix.size());
 }
