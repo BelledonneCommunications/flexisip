@@ -33,115 +33,105 @@
 #include "pushnotification/googlepush.hh"
 #include "pushnotification/microsoftpush.hh"
 #include "pushnotification/pushnotificationservice.hh"
+#include "utils/timer.hh"
 #include "utils/uri-utils.hh"
+
+class PushNotification;
 
 using namespace std;
 using namespace flexisip;
 
-class PushNotification;
-
-class PushNotificationContext : public enable_shared_from_this<PushNotificationContext> {
-private:
-	su_timer_t *mTimer; // timer after which push is sent
-	su_timer_t *mEndTimer; // timer after which push is cleared from global map.
-	PushNotification *mModule;
-	shared_ptr<PushNotificationRequest> mPushNotificationRequest;
-	shared_ptr<ForkCallContext> mForkContext;
-	string mKey; // unique key for the push notification, identifiying the device and the call.
-	bool mSendRinging;
-	bool mPushSentResponseSent = false; // whether the 110 Push sent was sent already
-	void onTimeout();
-	void onError(const string &errormsg);
-	void onEnd();
-	void clear();
-
-	static void __timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
-	static void __end_timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
-
+class PushNotificationContext {
 public:
 	PushNotificationContext(
 		const shared_ptr<OutgoingTransaction> &transaction, PushNotification *module,
-		const shared_ptr<PushNotificationRequest> &pnr, const string &pnKey
+		const shared_ptr<PushNotificationRequest> &pnr, const string &pnKey, unsigned retryCount, unsigned retryInterval
 	);
-	~PushNotificationContext();
+	PushNotificationContext(const PushNotificationContext &) = delete;
+	~PushNotificationContext() = default;
+
+	const string &getKey() const {return mKey;}
+	const shared_ptr<PushNotificationRequest> &getPushRequest() const {return mPushNotificationRequest;}
+
 	void start(int seconds, bool sendRinging);
 	void cancel();
-	const string &getKey() const {
-		return mKey;
-	}
+
+private:
+	void onTimeout();
+
+	string mKey; // unique key for the push notification, identifiying the device and the call.
+	PushNotification *mModule = nullptr;
+	shared_ptr<PushNotificationRequest> mPushNotificationRequest;
+	shared_ptr<ForkCallContext> mForkContext;
+	sofiasip::Timer mTimer; // timer after which push is sent
+	sofiasip::Timer mEndTimer; // timer to automatically remove the PN 30 seconds after starting
+	int mRetryCounter = 0;
+	unsigned mRetryInterval = 0;
+	bool mSendRinging = true;
+	bool mPushSentResponseSent = false; // whether the 110 Push sent was sent already
 };
 
 class PushNotification : public Module, public ModuleToolbox {
 public:
 	PushNotification(Agent *ag);
-	virtual ~PushNotification();
-	void onDeclare(GenericStruct *module_config);
-	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev);
-	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev);
-	virtual void onLoad(const GenericStruct *mc);
-	PushNotificationService *getService() const {
-		return mPNS;
-	}
-	void clearNotification(const shared_ptr<PushNotificationContext> &ctx);
+	~PushNotification() override = default;
+	void onDeclare(GenericStruct *module_config) override;
+	void onRequest(std::shared_ptr<RequestSipEvent> &ev) override;
+	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override;
+	void onLoad(const GenericStruct *mc) override;
+	PushNotificationService &getService() const {return *mPNS;}
 
 private:
 	bool needsPush(const sip_t *sip);
 	void makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction);
-	map<string, shared_ptr<PushNotificationContext>> mPendingNotifications; // map of pending push notifications. Its
+	void removePushNotification(PushNotificationContext *pn);
+
+	std::map<std::string, std::shared_ptr<PushNotificationContext>> mPendingNotifications; // map of pending push notifications. Its
 																			// purpose is to avoid sending multiples
 																			// notifications for the same call attempt
 																			// to a given device.
 	static ModuleInfo<PushNotification> sInfo;
-	url_t *mExternalPushUri;
+	url_t *mExternalPushUri = nullptr;
 	string mExternalPushMethod;
-	int mTimeout;
-	int mTtl;
+	int mTimeout = 0;
+	int mTtl = 0;
+	unsigned mRetransmissionCount = 0;
+	unsigned mRetransmissionInterval = 0;
 	map<string, string> mGoogleKeys;
 	map<string, string> mFirebaseKeys;
-	PushNotificationService *mPNS;
-	StatCounter64 *mCountFailed;
-	StatCounter64 *mCountSent;
-	bool mNoBadgeiOS;
+	std::unique_ptr<PushNotificationService> mPNS;
+	StatCounter64 *mCountFailed = nullptr;
+	StatCounter64 *mCountSent = nullptr;
+	bool mNoBadgeiOS = false;
+
+	friend class PushNotificationContext;
 };
 
 PushNotificationContext::PushNotificationContext(const shared_ptr<OutgoingTransaction> &transaction,
-												 PushNotification *module,
-												 const shared_ptr<PushNotificationRequest> &pnr, const string &key)
-	: mModule(module), mPushNotificationRequest(pnr), mKey(key) {
-	mTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
-	mEndTimer = su_timer_create(su_root_task(mModule->getAgent()->getRoot()), 0);
+		PushNotification *module,
+		const shared_ptr<PushNotificationRequest> &pnr,
+		const string &key,
+		unsigned retryCount, unsigned retryInterval) :
+	mKey(key),
+	mModule(module),
+	mPushNotificationRequest(pnr),
+	mTimer(module->getAgent()->getRoot()),
+	mEndTimer(module->getAgent()->getRoot()),
+	mRetryCounter(retryCount),
+	mRetryInterval(retryInterval) {
 	mForkContext = dynamic_pointer_cast<ForkCallContext>(ForkContext::get(transaction));
-	mSendRinging = true;
-}
-
-PushNotificationContext::~PushNotificationContext() {
-	if (mTimer)
-		su_timer_destroy(mTimer);
-	if (mEndTimer)
-		su_timer_destroy(mEndTimer);
 }
 
 void PushNotificationContext::start(int seconds, bool sendRinging) {
-	if (!mTimer)
-		return;
+	SLOGD << "PNR " << mPushNotificationRequest.get() << ": set timer to " << seconds <<"s";
 	mSendRinging = sendRinging;
-	su_timer_set_interval(mTimer, &PushNotificationContext::__timer_callback, this, seconds * 1000);
-	su_timer_set_interval(mEndTimer, &PushNotificationContext::__end_timer_callback, this, 30 * 1000);
+	mTimer.set(bind(&PushNotificationContext::onTimeout, this), seconds * 1000);
+	mEndTimer.set(bind(&PushNotification::removePushNotification, mModule, this), 30000);
 }
 
 void PushNotificationContext::cancel() {
-	if (mTimer) {
-		su_timer_destroy(mTimer);
-		mTimer = NULL;
-	}
-}
-
-void PushNotificationContext::onError(const string &errormsg) {
-	SLOGD << "PNR " << mPushNotificationRequest.get() << ": error " << errormsg;
-	if (mForkContext) {
-		LOGD("Notifying call context...");
-		mForkContext->onPushError(mKey, errormsg);
-	}
+	SLOGD << "PNR " << mPushNotificationRequest.get() << ": canceling push request";
+	mTimer.reset();
 }
 
 void PushNotificationContext::onTimeout() {
@@ -149,47 +139,27 @@ void PushNotificationContext::onTimeout() {
 	if (mForkContext) {
 		if (mForkContext->isCompleted()) {
 			LOGD("Call is already established or canceled, so push notification is not sent but cleared.");
-			clear();
 			return;
 		}
 	}
 
 	if (mForkContext) {
-		SLOGD << "PNR " << mPushNotificationRequest.get() << ": Notifying call context...";
+		SLOGD << "PNR " << mPushNotificationRequest.get() << ": notifying call context...";
 		mForkContext->onPushInitiated(mKey);
-		if (mSendRinging) // Send 180 Ringing
-			mForkContext->sendResponse(SIP_180_RINGING);
 	}
 
-	mModule->getService()->sendPush(mPushNotificationRequest);
+	mModule->getService().sendPush(mPushNotificationRequest);
 	if (mForkContext && !mPushSentResponseSent){
+		if (mSendRinging) mForkContext->sendResponse(SIP_180_RINGING);
 		mForkContext->sendResponse(110, "Push sent");
 		mPushSentResponseSent = true;
 	}
-}
 
-void PushNotificationContext::clear() {
-	SLOGD << "PNR " << mPushNotificationRequest.get() << ": PushNotificationContext clear";
-	if (mEndTimer) {
-		su_timer_destroy(mEndTimer);
-		mEndTimer = NULL;
+	if (mRetryCounter > 0) {
+		SLOGD << "PNR " << mPushNotificationRequest.get() << ": setting retry timer to " << mRetryInterval << "s";
+		mRetryCounter--;
+		mTimer.set(bind(&PushNotificationContext::onTimeout, this), mRetryInterval * 1000);
 	}
-	mModule->clearNotification(shared_from_this());
-}
-
-void PushNotificationContext::onEnd() {
-	SLOGD << "PNR " << mPushNotificationRequest.get() << ": PushNotificationContext end";
-	mModule->clearNotification(shared_from_this());
-}
-
-void PushNotificationContext::__timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) {
-	PushNotificationContext *context = (PushNotificationContext *)arg;
-	context->onTimeout();
-}
-
-void PushNotificationContext::__end_timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) {
-	PushNotificationContext *context = (PushNotificationContext *)arg;
-	context->onEnd();
 }
 
 ModuleInfo<PushNotification> PushNotification::sInfo(
@@ -203,15 +173,7 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	ModuleInfoBase::ModuleOid::PushNotification
 );
 
-PushNotification::PushNotification(Agent *ag)
-	: Module(ag), mExternalPushUri(NULL), mPNS(NULL), mCountFailed(NULL), mCountSent(NULL), mNoBadgeiOS(false) {
-}
-
-PushNotification::~PushNotification() {
-	if (mPNS != NULL) {
-		delete mPNS;
-	}
-}
+PushNotification::PushNotification(Agent *ag): Module(ag) {}
 
 void PushNotification::onDeclare(GenericStruct *module_config) {
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
@@ -221,6 +183,9 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "the push notification to be sent immediately.", "5"},
 		{Integer, "max-queue-size", "Maximum number of notifications queued for each client", "100"},
 		{Integer, "time-to-live", "Default time to live for the push notifications, in seconds. This parameter shall be set according to mDeliveryTimeout parameter in ForkContext.cc", "2592000"},
+		{Integer, "retransmission-count", "Number of push notification request retransmissions sent to a client for a same event (call or message). Retransmissions cease when a response "
+			"is received from the client. Setting a value of zero disables retransmissions.", "0"},
+		{Integer, "retransmission-interval", "Retransmission interval in seconds for push notification requests, when a retransmission-count has been specified above.", "5"},
 		{Boolean, "apple", "Enable push notification for apple devices", "true"},
 		{String, "apple-certificate-dir",
 		 "Path to directory where to find Apple Push Notification service certificates. They should bear the appid of "
@@ -287,6 +252,17 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	string windowsPhonePackageSID = windowsPhoneEnabled ? mc->get<ConfigString>("windowsphone-package-sid")->read() : "";
 	string windowsPhoneApplicationSecret = windowsPhoneEnabled ? mc->get<ConfigString>("windowsphone-application-secret")->read() : "";
 
+	int retransmissionCount = mModuleConfig->get<ConfigInt>("retransmission-count")->read();
+	int retransmissionInterval = mModuleConfig->get<ConfigInt>("retransmission-interval")->read();
+	if (retransmissionCount < 0) {
+		LOGF("module::PushNotification/retransmission-count must be positive");
+	}
+	if (retransmissionInterval <= 0) {
+		LOGF("module::PushNotification/retransmission-interval must be strictly positive");
+	}
+	mRetransmissionCount = retransmissionCount;
+	mRetransmissionInterval = retransmissionInterval;
+
 	mExternalPushMethod = mc->get<ConfigString>("external-push-method")->read();
 	if (!externalUri.empty()) {
 		mExternalPushUri = url_make(mHome.home(), externalUri.c_str());
@@ -309,7 +285,7 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mFirebaseKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep + 1)));
 	}
 
-	mPNS = new PushNotificationService(maxQueueSize);
+	mPNS.reset(new PushNotificationService(maxQueueSize));
 	mPNS->setStatCounters(mCountFailed, mCountSent);
 	if (mExternalPushUri)
 		mPNS->setupGenericClient(mExternalPushUri);
@@ -374,7 +350,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		if (it != mPendingNotifications.end()) {
 			LOGD("Another push notification is pending for this call %s and this device %s, not creating a new one",
 				 pinfo.mCallId.c_str(), keyValue.c_str());
-			context = (*it).second;
+			context = it->second;
 		}
 		if (!context) {
 			try {
@@ -508,13 +484,24 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			if (pn) {
 				if (time_out < 0) time_out = 0;
 				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << time_out << "s";
-				context = make_shared<PushNotificationContext>(transaction, this, pn, pnKey);
+				context = make_shared<PushNotificationContext>(transaction, this, pn, pnKey, mRetransmissionCount, mRetransmissionInterval);
 				context->start(time_out, !pinfo.mSilent);
 				mPendingNotifications.insert(make_pair(pnKey, context));
 			}
 		}
 		if (context) /*associate with transaction so that transaction can eventually cancel it if the device answers.*/
-			transaction->setProperty(getModuleName(), context);
+			transaction->setProperty<weak_ptr<PushNotificationContext>>(getModuleName(), make_shared<weak_ptr<PushNotificationContext>>(context));
+	}
+}
+
+void PushNotification::removePushNotification(PushNotificationContext *pn) {
+	auto it = find_if(
+		mPendingNotifications.cbegin(), mPendingNotifications.cend(),
+		[pn](const pair<string, shared_ptr<PushNotificationContext>> &elem){return elem.second.get() == pn;}
+	);
+	if (it != mPendingNotifications.cend()) {
+		SLOGD << "PNR " << pn->getPushRequest().get() << ": removing context from pending push notifications list";
+		mPendingNotifications.erase(it);
 	}
 }
 
@@ -558,7 +545,7 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 			if (sip->sip_request->rq_url->url_params != NULL) {
 				try {
 					makePushNotification(ms, transaction);
-				} catch (exception &e) {
+				} catch (const runtime_error &e) {
 					LOGE("Could not create push notification: %s.", e.what());
 				}
 			}
@@ -572,21 +559,13 @@ void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
 	if (transaction != NULL && code >= 180 && code != 503) {
 		/*any response >=180 except 503 (which is sofia's internal response for broken transports) should cancel the
 		 * push*/
-		shared_ptr<PushNotificationContext> ctx = transaction->getProperty<PushNotificationContext>(getModuleName());
-		if (ctx)
-			ctx->cancel();
-	}
-}
-
-void PushNotification::clearNotification(const shared_ptr<PushNotificationContext> &ctx) {
-	LOGD("Push notification to %s cleared.", ctx->getKey().c_str());
-	auto it = mPendingNotifications.find(ctx->getKey());
-	if (it != mPendingNotifications.end()) {
-		if ((*it).second != ctx) {
-			LOGA("PushNotification::clearNotification(): should not happen.");
+		shared_ptr<weak_ptr<PushNotificationContext>> value = transaction->getProperty<weak_ptr<PushNotificationContext>>(getModuleName());
+		if (value && !value->expired()) {
+			shared_ptr<PushNotificationContext> ctx = value->lock();
+			if (ctx) {
+				ctx->cancel();
+				removePushNotification(ctx.get());
+			}
 		}
-		mPendingNotifications.erase(it);
-	} else {
-		LOGA("PushNotification::clearNotification(): should not happen 2.");
 	}
 }
