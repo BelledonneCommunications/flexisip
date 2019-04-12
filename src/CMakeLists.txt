@@ -108,6 +108,7 @@ set(FLEXISIP_SOURCES
 	utils/string-formater.cc
 	utils/string-utils.cc
 	utils/threadpool.cc
+	utils/timer.cc
 	utils/uri-utils.cc
 )
 
