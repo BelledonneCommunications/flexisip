@@ -367,32 +367,6 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 				for (const unique_ptr<Xsd::Pidf::Tuple> &tup : element.second->getTuples()) {
 					// check for multiple tupple id, may happend with buggy presence publisher
 					if (find(tupleList.begin(), tupleList.end(), tup.get()->getId()) == tupleList.end()) {
-						auto predicate = [](char c){ return ::isspace(c) || c == '"'; };
-						mCapabilities.erase(remove_if(mCapabilities.begin(), mCapabilities.end(), predicate), mCapabilities.end());
-						vector<string> capabilityVector = StringUtils::split(mCapabilities, ",");
-						bool addService = false;
-						for (const auto &capability : capabilityVector) {
-							if (capability.empty()) continue;
-
-							size_t pos = capability.find("/");
-							const string &capabilityName = (pos == string::npos) ? capability : capability.substr(0, pos);
-							const string &capabilityVersion = (pos == string::npos) ? "1.0" : capability.substr(pos + 1);
-							const auto &it = mAddedCapabilities.find(capabilityName);
-							if(it != mAddedCapabilities.cend()) {
-								if (std::stof(it->second) >= std::stof(capabilityVersion))
-									continue;
-
-								mAddedCapabilities.erase(it);
-							}
-							addService = true;
-							mAddedCapabilities.insert(make_pair(capabilityName, capabilityVersion));
-						}
-						if (addService) {
-							for (const auto &cap : mAddedCapabilities) {
-								Xsd::Pidf::Tuple::ServiceDescriptionType service(cap.first, cap.second);
-								tup->getServiceDescription().push_back(service);
-							}
-						}
 						presence.getTuple().push_back(*tup);
 						tupleList.push_back(tup.get()->getId());
 					} else {
@@ -410,13 +384,13 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 				}
 			}
 		}
-		if ((mInformationElements.size() == 0 || !extended) && mDefaultInformationElement) {
-			// insering default tuple
+		if (mDefaultInformationElement) {
+			// inserting default tuple
 			Xsd::Pidf::Tuple *tup = mDefaultInformationElement->getTuples().begin()->get();
 			auto predicate = [](char c){ return ::isspace(c) || c == '"'; };
 			mCapabilities.erase(remove_if(mCapabilities.begin(), mCapabilities.end(), predicate), mCapabilities.end());
 			vector<string> capabilityVector = StringUtils::split(mCapabilities, ",");
-			bool addService = false;
+	
 			for (const auto &capability : capabilityVector) {
 				if (capability.empty()) continue;
 
@@ -430,31 +404,31 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 
 					mAddedCapabilities.erase(it);
 				}
-				addService = true;
 				mAddedCapabilities.insert(make_pair(capabilityName, capabilityVersion));
 			}
-			if (addService) {
-				for (const auto &cap : mAddedCapabilities) {
-					Xsd::Pidf::Tuple::ServiceDescriptionType service(cap.first, cap.second);
-					auto predicate= [cap](Xsd::Pidf::Tuple::ServiceDescriptionType serviceDescription) {
-						return (cap.first == serviceDescription.getServiceId()) && (cap.second == serviceDescription.getVersion());
-					};
-					const auto &it = std::find_if(tup->getServiceDescription().begin(), tup->getServiceDescription().end(), predicate);
-					if (it == tup->getServiceDescription().end())
-						tup->getServiceDescription().push_back(service);
-				}
+			for (const auto &cap : mAddedCapabilities) {
+				Xsd::Pidf::Tuple::ServiceDescriptionType service(cap.first, cap.second);
+				auto predicate= [cap](Xsd::Pidf::Tuple::ServiceDescriptionType serviceDescription) {
+					return (cap.first == serviceDescription.getServiceId()) && (cap.second == serviceDescription.getVersion());
+				};
+				const auto &it = std::find_if(tup->getServiceDescription().begin(), tup->getServiceDescription().end(), predicate);
+				if (it == tup->getServiceDescription().end())
+					tup->getServiceDescription().push_back(service);
 			}
 			presence.getTuple().push_back(*tup);
 
-			// copy extensions
-			Xsd::DataModel::Person dm_person = mDefaultInformationElement->getPerson();
-			for(Xsd::DataModel::Person::ActivitiesIterator activity = dm_person.getActivities().begin(); activity != dm_person.getActivities().end();activity++) {
-				if(!presence.getPerson()) {
-					Xsd::DataModel::Person person = Xsd::DataModel::Person(dm_person.getId());
-					presence.setPerson(person);
+			// copy extensions of default element, only if no elements were given previously.
+			if (mInformationElements.empty()) {
+				Xsd::DataModel::Person dm_person = mDefaultInformationElement->getPerson();
+				for(Xsd::DataModel::Person::ActivitiesIterator activity = dm_person.getActivities().begin(); activity != dm_person.getActivities().end();activity++) {
+					if (!presence.getPerson()) {
+						Xsd::DataModel::Person person = Xsd::DataModel::Person(dm_person.getId());
+						presence.setPerson(person);
+					}
+					presence.getPerson()->getActivities().push_back(*activity);
 				}
-				presence.getPerson()->getActivities().push_back(*activity);
 			}
+			
 		}
 		if (presence.getTuple().size() == 0) {
 			Xsd::Pidf::Note value;
