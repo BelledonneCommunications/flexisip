@@ -183,8 +183,9 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "the push notification to be sent immediately.", "5"},
 		{Integer, "max-queue-size", "Maximum number of notifications queued for each client", "100"},
 		{Integer, "time-to-live", "Default time to live for the push notifications, in seconds. This parameter shall be set according to mDeliveryTimeout parameter in ForkContext.cc", "2592000"},
-		{Integer, "retransmission-count", "Number of allowed push request retransmissions. Set zero if you won't have any retransmission.", "0"},
-		{Integer, "retransmission-interval", "Interval between two successive retransmissions in seconds.", "5"},
+		{Integer, "retransmission-count", "Number of push notification request retransmissions sent to a client for a same event (call or message). Retransmissions cease when a response "
+			"is received from the client. Setting a value of zero disables retransmissions.", "0"},
+		{Integer, "retransmission-interval", "Retransmission interval in seconds for push notification requests, when a retransmission-count has been specified above.", "5"},
 		{Boolean, "apple", "Enable push notification for apple devices", "true"},
 		{String, "apple-certificate-dir",
 		 "Path to directory where to find Apple Push Notification service certificates. They should bear the appid of "
