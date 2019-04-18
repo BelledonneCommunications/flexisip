@@ -45,13 +45,17 @@ public:
 
 	/**
 	 * @brief Start the timer with the default expiration time.
-	 * @param[in] func The funciton to call when the timer expires.
+	 * @param[in] func The funciton to call when the timer expires. The
+	 * context of the function is copied and automatically destroyed on
+	 * timer expration.
 	 * @throw std::logic_error if the time couldn't be set.
 	 */
 	void set(const Func &func);
 	/**
 	 * @brief Start the timer with a specific expiration time.
-	 * @param[in] func The funciton to call when the timer expires.
+	 * @param[in] func The funciton to call when the timer expires. The
+	 * context of the function is copied and automatically destroyed on
+	 * timer expration.
 	 * @param[in] intervalMs The expiration time in ms.
 	 * @throw std::logic_error if the timer couldn't been set.
 	 */

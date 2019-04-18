@@ -62,6 +62,10 @@ bool Timer::isRunning() const {
 
 void Timer::_internalCb(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) noexcept {
 	auto *timer = static_cast<Timer *>(arg);
+
+	// timer->_func must be emptied before calling the function to avoid
+	// invalid Timer state should the function call Timer::set() again.
+	// That would result to have the C timer set without C++ function set.
 	Func func;
 	func.swap(timer->_func);
 	func();
