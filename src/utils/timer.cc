@@ -27,44 +27,44 @@ using namespace std;
 namespace sofiasip {
 
 Timer::Timer(su_root_t *root, unsigned intervalMs) {
-    _timer = su_timer_create(su_root_task(root), intervalMs);
-    if (_timer == nullptr) throw logic_error("fail to instantiate the timer");
+	_timer = su_timer_create(su_root_task(root), intervalMs);
+	if (_timer == nullptr) throw logic_error("fail to instantiate the timer");
 }
 
 Timer::~Timer() {
-    su_timer_destroy(_timer);
+	su_timer_destroy(_timer);
 }
 
 void Timer::set(const Func &func) {
-    if (su_timer_set(_timer, _internalCb, this) != 0) {
-        throw logic_error("fail to set timer");
-    }
-    _func = func;
+	if (su_timer_set(_timer, _internalCb, this) != 0) {
+		throw logic_error("fail to set timer");
+	}
+	_func = func;
 }
 
 void Timer::set(const Func &func, unsigned intervalMs) {
-    if (su_timer_set_interval(_timer, _internalCb, this, intervalMs) != 0) {
-        throw logic_error("fail to set timer");
-    }
-    _func = func;
+	if (su_timer_set_interval(_timer, _internalCb, this, intervalMs) != 0) {
+		throw logic_error("fail to set timer");
+	}
+	_func = func;
 }
 
 void Timer::reset() {
-    if (su_timer_reset(_timer) != 0) {
-        throw logic_error("fail to reset timer");
-    }
-    _func = nullptr;
+	if (su_timer_reset(_timer) != 0) {
+		throw logic_error("fail to reset timer");
+	}
+	_func = nullptr;
 }
 
 bool Timer::isRunning() const {
-    return su_timer_is_running(_timer) != 0;
+	return su_timer_is_running(_timer) != 0;
 }
 
 void Timer::_internalCb(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) noexcept {
-    auto *timer = static_cast<Timer *>(arg);
+	auto *timer = static_cast<Timer *>(arg);
 	Func func;
 	func.swap(timer->_func);
-    func();
+	func();
 }
 
 }
