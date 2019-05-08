@@ -85,7 +85,7 @@ void ForwardModule::onDeclare(GenericStruct *module_config) {
 			 " Possible values are udp, tcp or tls.", "udp"},
 		{StringList, "params-to-remove",
 			 "List of URL and contact params to remove",
-			 "pn-tok pn-type app-id pn-msg-str pn-call-str pn-call-snd pn-msg-snd pn-timeout"},
+			 "pn-tok pn-type app-id pn-msg-str pn-call-str pn-call-snd pn-msg-snd pn-timeout pn-silent"},
 		config_item_end};
 	module_config->addChildrenValues(items);
 }

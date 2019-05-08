@@ -212,32 +212,51 @@ const list<shared_ptr<BranchInfo>> &ForkContext::getBranches() const {
 // this implementation looks for already pending or failed transactions and then rejects handling of a new one that
 // would already been tried.
 bool ForkContext::onNewRegister(const url_t *url, const string &uid) {
-	shared_ptr<BranchInfo> br = findBranchByDest(url);
-
-	if (br) {
-		LOGD("ForkContext %p: onNewRegister(): destination already handled.", this);
-		return false;
-	}
-
-	br = findBranchByUid(uid);
-
-	if (br) {
-		int code = br->getStatus();
-		if (code >= 300 && code != 503 && code != 408) {
-			/* This instance has already declined the call, but has reconnected using another transport address.
-			 * We should not send it the message again.
-			 */
-			LOGD("ForkContext %p: onNewRegister(): instance has already declined the request.", this);
+	shared_ptr<BranchInfo> br, br_by_url;
+	
+	/*
+	 * Check gruu. If the request was targeting a gruu address, the uid of the contact who has just registered shall match.
+	 */
+	string target_gr;
+	if (ModuleToolbox::getUriParameter(mEvent->getSip()->sip_request->rq_url, "gr", target_gr)) {
+		if (uid.find(target_gr) == string::npos){ //to compare regardless of < >
+			/* This request was targetting a gruu address, but this REGISTER is not coming from our target contact.*/
 			return false;
 		}
 	}
-
-	//check gruu
-	string target_gr;
-	if (ModuleToolbox::getUriParameter(mEvent->getSip()->sip_request->rq_url, "gr", target_gr)) {
-		return string::npos != uid.find(target_gr); //to compare regardless of < >
-	} else
-		return true;
+	
+	br = findBranchByUid(uid);
+	br_by_url = findBranchByDest(url);
+	if (br) {
+		int code = br->getStatus();
+		if (code == 503 || code == 408){
+			LOGD("ForkContext %p: onNewRegister(): instance failed to receive the request previously.", this);
+			return true;
+		} else if (code >= 200) {
+			/* 
+			 * This instance has already accepted or declined the request.
+			 * We should not send it the request again.
+			 */
+			LOGD("ForkContext %p: onNewRegister(): instance has already answered the request.", this);
+			return false;
+		} else {
+			/* 
+			 * No response, or a provisional response is received. We can cannot conclude on what to do.
+			 * The transaction might succeeed in near future, or it might be dead. 
+			 * However, if the contact's uri is new, there is a high probability that the client reconnected 
+			 * from a new socket, in which case the current branch will receive no response. 
+			 */
+			if (br_by_url == nullptr){
+				LOGD("ForkContext %p: onNewRegister(): instance reconnected.", this);
+				return true;
+			}
+		}
+	}
+	if (br_by_url) {
+		LOGD("ForkContext %p: onNewRegister(): pending transaction for this destination.", this);
+		return false;
+	}
+	return true;
 }
 
 void ForkContext::init() {
@@ -276,6 +295,14 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	br->mPriority = contact->mQ;
 
 	ot->setProperty("BranchInfo", br);
+	
+	// Clear answered branches with same uid.
+	shared_ptr<BranchInfo> oldBr = findBranchByUid(br->mUid);
+	if (oldBr){
+		LOGD("ForkContext [%p]: new fork branch [%p] clears out old branch [%p]", this, br.get(), oldBr.get());
+		removeBranch(oldBr);
+	}
+	
 	onNewBranch(br);
 
 	mWaitingBranches.push_back(br);
@@ -283,11 +310,10 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 
 	if (mCurrentPriority != -1 && mCurrentPriority <= br->mPriority) {
 		mCurrentBranches.push_back(br);
-
 		mAgent->injectRequestEvent(br->mRequest);
 	}
 
-	LOGD("ForkContext [%p] new fork branch [%p]", this, br.get());
+	LOGD("ForkContext [%p]: new fork branch [%p]", this, br.get());
 }
 
 shared_ptr<ForkContext> ForkContext::get(const shared_ptr<IncomingTransaction> &tr) {
@@ -481,20 +507,12 @@ void ForkContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 void ForkContext::onCancel(const shared_ptr<RequestSipEvent> &ev) {
 }
 
-void ForkContext::addKey(string key) {
+void ForkContext::addKey(const string &key) {
      mKeys.push_back(key);
 }
 
-list<string> ForkContext::getKeys() {
+const list<string> &ForkContext::getKeys() const{
      return mKeys;
-}
-
-void ForkContext::setContactRegisteredListener (const shared_ptr<OnContactRegisteredListener> &listener) {
-	mContactRegisteredListener = listener;
-}
-
-const shared_ptr<OnContactRegisteredListener> &ForkContext::getContactRegisteredListener () const {
-	return mContactRegisteredListener;
 }
 
 shared_ptr<BranchInfo> ForkContext::createBranchInfo() {

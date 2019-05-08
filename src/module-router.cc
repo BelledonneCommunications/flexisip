@@ -311,13 +311,14 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	return true;
 }
 
-void ModuleRouter::onContactRegistered(const string &uid, const shared_ptr<Record> &aor, const url_t *sipUri) {
+void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListener> &listener, const string &uid, const shared_ptr<Record> &record, const url_t *sipUri) {
 	SofiaAutoHome home;
 	sip_path_t *path = NULL;
 	sip_contact_t *contact = NULL;
+	bool forksFound = false;
 
-	if (aor == NULL) {
-		SLOGE << "aor was null...";
+	if (record == NULL) {
+		SLOGE << "record was null...";
 		return;
 	}
 
@@ -339,24 +340,27 @@ void ModuleRouter::onContactRegistered(const string &uid, const shared_ptr<Recor
 	auto range = mForks.equal_range(key.c_str());
 	SLOGD << "Searching for fork context with key " << key;
 
-	const shared_ptr<ExtendedContact> ec = aor->extractContactByUniqueId(uid);
-	if (ec) {
-		contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
-		path = ec->toSofiaRoute(home.home());
+	if (range.first != range.second){
+		forksFound = true;
+		const shared_ptr<ExtendedContact> ec = record->extractContactByUniqueId(uid);
+		if (ec) {
+			contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
+			path = ec->toSofiaRoute(home.home());
 
-		// First use sipURI
-		for (auto it = range.first; it != range.second; ++it) {
-			shared_ptr<ForkContext> context = it->second;
-			if (context->onNewRegister(contact->m_url, uid)) {
-				SLOGD << "Found a pending context for key " << key << ": " << context.get();
-				lateDispatch(context->getEvent(), ec, context, "");
-			} else
-				LOGD("Found a pending context but not interested in this new register.");
+			// First use sipURI
+			for (auto it = range.first; it != range.second; ++it) {
+				shared_ptr<ForkContext> context = it->second;
+				if (context->onNewRegister(contact->m_url, uid)) {
+					SLOGD << "Found a pending context for key " << key << ": " << context.get();
+					lateDispatch(context->getEvent(), ec, context, "");
+				} else
+					LOGD("Found a pending context but not interested in this new register.");
+			}
 		}
 	}
 
-	// If not found find in aliases
-	const auto contacts = aor->getExtendedContacts();
+	// If not found, search in aliases
+	const auto contacts = record->getExtendedContacts();
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
 		const shared_ptr<ExtendedContact> ec = *it;
 		if (!ec || !ec->mAlias)
@@ -368,12 +372,24 @@ void ModuleRouter::onContactRegistered(const string &uid, const shared_ptr<Recor
 		auto rang = mForks.equal_range(ExtendedContact::urlToString(ec->mSipContact->m_url));
 		for (auto ite = rang.first; ite != rang.second; ++ite) {
 			shared_ptr<ForkContext> context = ite->second;
+			forksFound = true;
 			if (context->onNewRegister(contact->m_url, uid)) {
 				LOGD("Found a pending context for contact %s: %p", ExtendedContact::urlToString(ec->mSipContact->m_url).c_str(), context.get());
 				auto stlpath = Record::route_to_stl(path);
 				lateDispatch(context->getEvent(), ec, context, "");
 			}
 		}
+	}
+	if (!forksFound){
+		/*
+		 * REVISIT: late cleanup. This is really not the best option. I did this change because previous way of cleaning was not working.
+		 * A better option would be to get rid of the mForks totally, and instead rely only on RegistrarDb::subscribe()/unsubscribe().
+		 * Another option would be to keep mForks, but make it a simple map of structure containing the OnContactRegisteredListener handling
+		 * the topic + a list of ForkContext. When the list becomes empty, we know that we can clear the structure from mForks.
+		 * --SM
+		 */
+		LOGD("Router module no longer interested in contact registered notification for topic = %s.", key.c_str());
+		RegistrarDb::get()->unsubscribe(key, listener);
 	}
 }
 
@@ -586,7 +602,6 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 				mForks.insert(make_pair(key, context));
 				if (mForks.count(key) == 1) {
 					auto listener = make_shared<OnContactRegisteredListener>(this, sipUri);
-					context->setContactRegisteredListener(listener);
 					RegistrarDb::get()->subscribe(key, listener);
 				}
 				SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
@@ -625,7 +640,6 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 				mForks.insert(make_pair(key, context));
 				if (mForks.count(key) == 1) {
 					auto listener = make_shared<OnContactRegisteredListener>(this, temp_ctt->m_url);
-					context->setContactRegisteredListener(listener);
 					RegistrarDb::get()->subscribe(key, listener);
 				}
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
@@ -974,16 +988,13 @@ void ModuleRouter::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 	if (!ctx->getConfig()->mForkLate) return;
 
-	list<string> keys = ctx->getKeys();
-	for (list<string>::iterator it=keys.begin(); it != keys.end(); ++it) {
+	const list<string> & keys = ctx->getKeys();
+	for (auto it = keys.begin(); it != keys.end(); ++it) {
 		string key = *it;
 		LOGD("Looking at fork contexts with key %s", key.c_str());
 
-		int count = 0;
-		int removed = 0;
 		auto range = mForks.equal_range(key.c_str());
 		for (auto it = range.first; it != range.second;) {
-			count++;
 			if (it->second == ctx) {
 				LOGD("Remove fork %s from store", it->first.c_str());
 				mStats.mCountForks->incrFinish();
@@ -991,14 +1002,10 @@ void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 				++it;
 				// for some reason the multimap erase does not return the next iterator !
 				mForks.erase(cur_it);
-				removed++;
 				// do not break, because a single fork context might appear several time in the map because of aliases.
 			} else {
 				++it;
 			}
-		}
-		if (count == removed && count > 0) {
-			RegistrarDb::get()->unsubscribe(key, ctx->getContactRegisteredListener());
 		}
 	}
 }

@@ -716,18 +716,23 @@ void RegistrarDb::notifyStateListener () const {
 }
 
 void RegistrarDb::subscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {
-	LOGD("Subscribe topic = %s", topic.c_str());
+	LOGD("Subscribe topic = %s with listener %p", topic.c_str(), listener.get());
 	mContactListenersMap.insert(make_pair(topic, listener));
 }
 
 void RegistrarDb::unsubscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {
-	LOGD("Unsubscribe topic = %s", topic.c_str());
+	LOGD("Unsubscribe topic = %s with listener %p", topic.c_str(), listener.get());
+	bool found = false;
 	auto range = mContactListenersMap.equal_range(topic);
 	for (auto it = range.first; it != range.second;) {
-		if (it->second == listener)
+		if (it->second == listener){
+			found = true;
 			it = mContactListenersMap.erase(it);
-		else
+		}else
 			it++;
+	}
+	if (!found){
+		LOGE("RegistrarDb::unsubscribe() for topic %s and listener = %p is invalid.", topic.c_str(), listener.get());
 	}
 }
 
@@ -771,6 +776,7 @@ void RegistrarDb::notifyContactListener (const shared_ptr<Record> &r, const stri
 		listeners.push_back(it->second);
 	}
 	for (auto l : listeners){
+		LOGD("Notify topic = %s to listener %p", r->getKey().c_str(), l.get());
 		l->onContactRegistered(r, uid);
 	}
 }

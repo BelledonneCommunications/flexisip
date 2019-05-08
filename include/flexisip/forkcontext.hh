@@ -149,11 +149,9 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	// Start the processing of the highest priority branches that are not completed yet
 	void start();
 
-	void addKey(std::string key);
-	std::list<std::string> getKeys();
+	void addKey(const std::string &key);
+	const std::list<std::string> &getKeys()const;
 
-	void setContactRegisteredListener (const std::shared_ptr<OnContactRegisteredListener> &listener);
-	const std::shared_ptr<OnContactRegisteredListener> &getContactRegisteredListener () const;
 	/*
 	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.
 	 * If the fork context is interested in handling this new destination, then it should return true, false otherwise.

@@ -59,7 +59,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 
 	void sendReply(std::shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code = 0, const char *warning = nullptr);
 	void routeRequest(std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<Record> &aor, const url_t *sipUri);
-	void onContactRegistered(const std::string &uid, const std::shared_ptr<Record> &aor, const url_t *sipUri);
+	void onContactRegistered(const std::shared_ptr<OnContactRegisteredListener> &listener, const std::string &uid, const std::shared_ptr<Record> &aor, const url_t *sipUri);
 
 	const std::string &getFallbackRoute() const {
 		return mFallbackRoute;
@@ -119,44 +119,33 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Con
 	friend class ModuleRouter;
 	ModuleRouter *mModule;
 	url_t *mSipUri;
-	std::string mUid;
-	su_home_t mHome;
+	std::string mSipUriAsString;
+	SofiaAutoHome mHome;
 
   public:
 	OnContactRegisteredListener(ModuleRouter *module, const url_t *sipUri)
-	: mModule(module), mUid("") {
-		su_home_init(&mHome);
-		mSipUri = url_hdup(&mHome, sipUri);
+	: mModule(module) {
+		mSipUri = url_hdup(mHome.home(), sipUri);
 		if (url_has_param(mSipUri, "gr")) {
-			LOGD("Trying to create a ContactRegistered listener using a SIP URI with a gruu, removing let's remove it");
+			LOGD("Trying to create a ContactRegistered listener using a SIP URI with a gruu, let's remove it");
 			mSipUri->url_params = url_strip_param_string((char*)mSipUri->url_params, "gr");
 		}
-		LOGD("Listener created for sipUri = %s", url_as_string(&mHome, mSipUri));
+		mSipUriAsString = url_as_string(mHome.home(), mSipUri);
+		LOGD("Listener created for sipUri = %s", mSipUriAsString.c_str());
 	}
 
-	~OnContactRegisteredListener() {
-		su_home_deinit(&mHome);
-	}
+	~OnContactRegisteredListener() = default;
 
 	void onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid) override{
-		LOGD("Listener found for topic = %s, uid = %s, sipUri = %s", r->getKey().c_str(), uid.c_str(), url_as_string(&mHome, mSipUri));
-		mUid = uid;
-		onRecordFound(r);
+		LOGD("Listener invoked for topic = %s, uid = %s, sipUri = %s", r->getKey().c_str(), uid.c_str(), mSipUriAsString.c_str());
+		if (r) mModule->onContactRegistered(shared_from_this(), uid, r, mSipUri);
 	}
-
-	void onRecordFound(const std::shared_ptr<Record> &r)override{
-		if (r) {
-			LOGD("Record found for uid = %s", mUid.c_str());
-			mModule->onContactRegistered(mUid, r, mSipUri);
-		} else {
-			LOGW("No record found for uid = %s", mUid.c_str());
-		}
+	void onRecordFound(const std::shared_ptr<Record> &r) override{
 	}
 	void onError() override{
 	}
 	void onInvalid() override{
 	}
-
 	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override{
 	}
 };
