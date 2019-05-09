@@ -298,7 +298,7 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	
 	// Clear answered branches with same uid.
 	shared_ptr<BranchInfo> oldBr = findBranchByUid(br->mUid);
-	if (oldBr){
+	if (oldBr && oldBr->getStatus() >= 200){
 		LOGD("ForkContext [%p]: new fork branch [%p] clears out old branch [%p]", this, br.get(), oldBr.get());
 		removeBranch(oldBr);
 	}
