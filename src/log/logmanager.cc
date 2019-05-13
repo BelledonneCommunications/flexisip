@@ -121,22 +121,16 @@ void LogManager::initialize(const Parameters& params){
 			}
 		}
 		pathStream << params.logDirectory << "/" << params.logFilename;
-		FILE *f = fopen(pathStream.str().c_str() , "a");
-		if (f) {
-			string msg = "Writing logs in : " + pathStream.str();
-			if (params.enableSyslog) ::syslog(LOG_INFO, msg.c_str(), msg.size());
-			else printf("%s\n", msg.c_str());
-			
-			mLogHandler = bctbx_create_file_log_handler(params.fileMaxSize, params.logDirectory.c_str(), params.logFilename.c_str(), f);
-			if (mLogHandler) bctbx_add_log_handler(mLogHandler);
-			else {
-				if (params.enableSyslog) ::syslog(LOG_ERR, "Could not create log file handler.");
-				LOGF("Could not create log file handler."); 
-			}
-		} else {
-			string msg = "Could not open/create log file '" + pathStream.str() + "' : " + string(strerror(errno));
-			if (params.enableSyslog) ::syslog(LOG_INFO, msg.c_str(), msg.size());
-			LOGF("%s",msg.c_str());
+
+		string msg = "Writing logs in : " + pathStream.str();
+		if (params.enableSyslog) ::syslog(LOG_INFO, msg.c_str(), msg.size());
+		else printf("%s\n", msg.c_str());
+
+		mLogHandler = bctbx_create_file_log_handler(params.fileMaxSize, params.logDirectory.c_str(), params.logFilename.c_str());
+		if (mLogHandler) bctbx_add_log_handler(mLogHandler);
+		else {
+			if (params.enableSyslog) ::syslog(LOG_ERR, "Could not create log file handler.");
+			LOGF("Could not create log file handler.");
 		}
 	}
 	enableUserErrorsLogs(params.enableUserErrors);
