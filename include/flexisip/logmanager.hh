@@ -172,6 +172,8 @@ public:
 
 	~LogManager();
 private:
+
+	static void logStub(const char *domain, BctbxLogLevel level, const char *msg, va_list args);
 	LogManager() = default;
 	LogManager(const LogManager &) = delete;
 	void setCurrentContext(const SipLogContext &ctx);
