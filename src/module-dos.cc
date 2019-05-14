@@ -190,7 +190,7 @@ class DoSProtection : public Module, ModuleToolbox {
 					// iptables seems to support -w parameter required to allow concurrent usage of iptables
 					mIptablesSupportsWait = true;
 				}
-				if (runIptables("-L > /dev/null", true) != 0) {
+				if (runIptables("-V > /dev/null", true) != 0) {
 					LOGEN("ip6tables command is not installed. DoS protection is inactive for IPv6.");
 				}
 			}
