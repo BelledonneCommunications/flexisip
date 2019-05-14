@@ -258,30 +258,29 @@ void ConfigValue::set(const string &value) {
 	set(string(value));
 }
 
-void ConfigValue::set(std::string &&value) {
+void ConfigValue::checkType(const string & value, bool isDefault){
 	if (getType() == Boolean) {
 		if (value != "true" && value != "false" && value != "1" && value != "0") {
-			LOGF("Not a boolean: \"%s\" for key \"%s\" ", value.c_str(), getName().c_str());
+			ostringstream ostr;
+			ostr << "invalid " << (isDefault ? "default" : "" ) << "value '" << value << "' for key '" << getName() << "' in section '" <<
+				getParent()->getName() << "'";
+			throw ostr.str();
 		}
 	}
+}
+
+void ConfigValue::set(std::string &&value) {
+	checkType(value, false);
 	mValue = move(value);
 }
 
 void ConfigValue::setNextValue(const string &value) {
-	if (getType() == Boolean) {
-		if (value != "true" && value != "false" && value != "1" && value != "0") {
-			LOGF("Not a boolean: \"%s\" for key \"%s\" ", value.c_str(), getName().c_str());
-		}
-	}
+	checkType(value, false);
 	mNextValue = value;
 }
 
 void ConfigValue::setDefault(const string &value) {
-	if (getType() == Boolean) {
-		if (value != "true" && value != "false" && value != "1" && value != "0") {
-			LOGF("Not a boolean: \"%s\" for key \"%s\" ", value.c_str(), getName().c_str());
-		}
-	}
+	checkType(value, true);
 	mDefaultValue = value;
 }
 
@@ -1051,6 +1050,7 @@ const GenericStruct *GenericManager::getGlobal() {
 int FileConfigReader::read(const char *filename) {
 	int err;
 	mCfg = lp_config_new(NULL);
+	mFilename = filename;
 	err = lp_config_read_file(mCfg, filename);
 	read2(mRoot, 0);
 	return err;
@@ -1111,10 +1111,13 @@ int FileConfigReader::read2(GenericEntry *entry, int level) {
 		if (level < 2) {
 			LOGF("ConfigValues at root is disallowed.");
 		} else if (level == 2) {
-			const char *val = lp_config_get_string(mCfg, cv->getParent()->getName().c_str(), cv->getName().c_str(),
-												   cv->getDefault().c_str());
-			cv->set(val);
-			cv->setNextValue(val);
+			const char *val = lp_config_get_string(mCfg, cv->getParent()->getName().c_str(), cv->getName().c_str(), cv->getDefault().c_str());
+			try{
+				cv->set(val);
+				cv->setNextValue(val);
+			}catch(const string &message){
+				LOGF("While reading '%s', %s.", mFilename.c_str(), message.c_str());
+			}
 		} else {
 			LOGF("The current file format doesn't support recursive subsections.");
 		}

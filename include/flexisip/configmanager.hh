@@ -450,6 +450,7 @@ class ConfigValue : public GenericEntry {
 		}
 		return true;
 	}
+	void checkType(const std::string & value, bool isDefault);
 	std::string mNextValue;
 
   private:
@@ -608,6 +609,7 @@ class FileConfigReader {
 	void onUnreadItem(const char *secname, const char *key, int lineno);
 	GenericStruct *mRoot;
 	flexisip::LpConfig *mCfg;
+	std::string mFilename;
 	bool mHaveUnreads;
 };
 
