@@ -180,8 +180,10 @@ RequestSipEvent::RequestSipEvent(const shared_ptr<RequestSipEvent> &sipEvent)
 void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value,
 						   ...) {
 	if (mOutgoingAgent != NULL) {
-		SLOGD << "Sending Request SIP message to " << (u ? url_as_string(msg->getHome(), (url_t const *)u) : "NULL")
+		if (LOGD_ENABLED()){
+			SLOGD << "Sending Request SIP message to " << (u ? url_as_string(msg->getHome(), (url_t const *)u) : "NULL")
 			  << "\n" << *msg;
+		}
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mOutgoingAgent->send(msg, u, ta_tags(ta));
@@ -328,7 +330,9 @@ void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u
 		}
 		if (msg->getSip()->sip_via)
 			checkContentLength(msg, msg->getSip()->sip_via);
-		SLOGD << "Sending response:" << (via_popped ? " (via popped) " : "") << endl << *msg;
+		if (LOGD_ENABLED()){
+			SLOGD << "Sending response:" << (via_popped ? " (via popped) " : "") << endl << *msg;
+		}
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mIncomingAgent->send(msg, u, ta_tags(ta));

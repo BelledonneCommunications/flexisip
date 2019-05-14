@@ -58,6 +58,13 @@
 #define LOGDV(thefmt, theargs) LOGV(BCTBX_LOG_DEBUG, thefmt, theargs)
 
 /*
+ * These are test macros, useful to avoid doing anything when the log is not needed and the formating of the log arguments is costly,
+ * for example when logging a SIP message.
+ */
+#define LOGD_ENABLED() (bctbx_log_level_enabled(BCTBX_LOG_DOMAIN, BCTBX_LOG_DEBUG))
+#define LOGI_ENABLED() (bctbx_log_level_enabled(BCTBX_LOG_DOMAIN, BCTBX_LOG_MESSAGE))
+
+/*
  * These are the C++ logging macros, that can be used with << operator.
  * Though they are convenient, they are not performant, see comment above.
  */
