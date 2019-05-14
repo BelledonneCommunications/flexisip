@@ -627,7 +627,7 @@ int main(int argc, char *argv[]) {
 	TCLAP::ValueArg<string>     configFile("c", "config", 			"Specify the location of the configuration file.", TCLAP::ValueArgOptional, CONFIG_DIR "/flexisip.conf", "file", cmd);
 	TCLAP::ValueArg<string>     pkcsFile("", "p12-passphrase-file", "Specify the location of the pkcs12 passphrase file.", TCLAP::ValueArgOptional,"", "file", cmd);
 	TCLAP::SwitchArg            daemonMode("",  "daemon", 			"Launch in daemon mode.", cmd);
-	TCLAP::SwitchArg              useDebug("d", "debug", 			"Force debug mode (overrides the configuration).", cmd);
+	TCLAP::SwitchArg              useDebug("d", "debug", 			"Force output of all logs, including debug logs, to the terminal (does not affect the log level applied to log files).", cmd);
 	TCLAP::ValueArg<string>        pidFile("p", "pidfile", 			"PID file location, used when running in daemon mode.", TCLAP::ValueArgOptional, "", "file", cmd);
 	TCLAP::SwitchArg             useSyslog("",  "syslog", 			"Use syslog for logging.", cmd);
 	TCLAP::SwitchArg           trackAllocs("",  "track-allocations","Tracks allocations of SIP messages, only use with caution.", cmd);
@@ -819,7 +819,7 @@ int main(int argc, char *argv[]) {
 		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::get().logLevelFromName(log_level);
 		logParams.enableSyslog = useSyslog;
 		logParams.syslogLevel = LogManager::get().logLevelFromName(syslog_level);
-		logParams.enableStdout = debug;
+		logParams.enableStdout = debug && !daemonMode; // No need to log to stdout in daemon mode.
 		logParams.enableUserErrors = user_errors;
 		LogManager::get().initialize(logParams);
 		LogManager::get().setContextualFilter(cfg->getGlobal()->get<ConfigString>("contextual-log-filter")->read());

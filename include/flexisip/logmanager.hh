@@ -161,6 +161,7 @@ public:
 	void disable();
 	~LogManager();
 private:
+	static void logStub(const char *domain, BctbxLogLevel level, const char *msg, va_list args);
 	void setCurrentContext(const SipLogContext &ctx);
 	void clearCurrentContext();
 	LogManager() = default;

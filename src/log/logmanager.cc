@@ -142,7 +142,17 @@ void LogManager::initialize(const Parameters& params){
 	enableUserErrorsLogs(params.enableUserErrors);
 	if (params.enableStdout) {
 		bctbx_set_log_handler(bctbx_logv_out);
+	}else{
+		bctbx_set_log_handler(logStub);
 	}
+}
+
+void LogManager::logStub(const char *domain, BctbxLogLevel level, const char *msg, va_list args){
+	/*
+	 * The default log handler of bctoolbox (bctbx_logv_out) outputs to stdout/stderr.
+	 * In order to prevent logs to be output, we need to setup a stub function.
+	 * This of course has no effect on the file log handler.
+	 */
 }
 
 void LogManager::setLogLevel(BctbxLogLevel level){
