@@ -556,7 +556,8 @@ void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext *ac, redisReply *
 		data->mRecord->insertOrUpdateBinding(ec, data->listener);
 	}
 	/*But at the end all we want is to submit the ExtendedContacts in the original record to Redis*/
-	data->mRecord = recordToStore;
+	data->mRecordToSend = recordToStore;
+	/*data->mRecord is needed to notify the listener of the full Record. We must keep it.*/
 
 	data->self->serializeAndSendToRedis(data, sHandleBindFinish);
 }
@@ -610,12 +611,12 @@ void RegistrarDbRedisAsync::shandleAuthReply(redisAsyncContext *ac, void *r, voi
 }
 
 void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, forwardFn *forward_fn) {
-	const char *key = data->mRecord->getKey().c_str();
+	const char *key = data->mRecordToSend->getKey().c_str();
 
 	int argc = 2; // HMSET key
 	string cmd = "HMSET";
 
-	const auto &contacts = data->mRecord->getExtendedContacts();
+	const auto &contacts = data->mRecordToSend->getExtendedContacts();
 	argc += contacts.size() * 2;
 
 	const char** argv = new const char*[argc];
@@ -885,6 +886,7 @@ void RegistrarDbRedisAsync::handleRecordMigration(redisReply *reply, RegistrarUs
 				if (data->listener) data->listener->onRecordFound(nullptr);
 			} else {
 				LOGD("Parsing stored contacts for aor:%s successful", data->mRecord->getKey().c_str());
+				data->mRecordToSend = data->mRecord;
 				serializeAndSendToRedis(data, sHandleMigration);
 				return;
 			}
