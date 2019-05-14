@@ -990,9 +990,11 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	const sip_request_t *req = sip->sip_request;
 	const url_t *from_url = sip->sip_from ? sip->sip_from->a_url : NULL;
 
-	SLOGD << "Receiving new Request SIP message " << req->rq_method_name << " from "
-		<< (from_url ? url_as_string(ev->getHome(), from_url) : "<invalid from>") << " :"
-		<< "\n" << *ev->getMsgSip();
+	if (LOGD_ENABLED()){
+		SLOGD << "Receiving new Request SIP message " << req->rq_method_name << " from "
+			<< (from_url ? url_as_string(ev->getHome(), from_url) : "<invalid from>") << " :"
+			<< "\n" << *ev->getMsgSip();
+	}
 	switch (req->rq_method) {
 		case sip_method_register:
 			++*mCountIncomingRegister;
@@ -1037,8 +1039,11 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 		return;
 	}
 	SipLogContext ctx(ev->getMsgSip());
-	SLOGD << "Receiving new Response SIP message: " << ev->getMsgSip()->getSip()->sip_status->st_status << "\n"
+	
+	if (LOGD_ENABLED()){
+		SLOGD << "Receiving new Response SIP message: " << ev->getMsgSip()->getSip()->sip_status->st_status << "\n"
 		<< *ev->getMsgSip();
+	}
 
 	sip_t *sip = ev->getMsgSip()->getSip();
 	switch (sip->sip_status->st_status) {
@@ -1091,9 +1096,10 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 
 void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	SipLogContext ctx(ev->getMsgSip());
-	SLOGD << "Inject Request SIP message:\n" << *ev->getMsgSip();
+	if (LOGD_ENABLED()){
+		SLOGD << "Inject request SIP event after " << ev->mCurrModule->getModuleName() << ":\n" << *ev->getMsgSip();
+	}
 	ev->restartProcessing();
-	SLOGD << "Injecting request event after " << ev->mCurrModule->getModuleName();
 	list<Module *>::iterator it;
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		if (ev->mCurrModule == *it) {
@@ -1106,10 +1112,12 @@ void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 
 void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	SipLogContext ctx(ev->getMsgSip());
-	SLOGD << "Inject Response SIP message:\n" << *ev->getMsgSip();
+	
+	if (LOGD_ENABLED()){
+		SLOGD << "Injecting response SIP event after " << ev->mCurrModule->getModuleName() << ":\n" << *ev->getMsgSip();
+	}
 	list<Module *>::iterator it;
 	ev->restartProcessing();
-	SLOGD << "Injecting response event after " << ev->mCurrModule->getModuleName();
 	for (it = mModules.begin(); it != mModules.end(); ++it) {
 		if (ev->mCurrModule == *it) {
 			++it;
