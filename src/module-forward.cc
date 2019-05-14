@@ -299,7 +299,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 		if (tport_name_by_url(ms->getHome(), &name, reinterpret_cast<url_string_t*>(dest)) == 0) {
 			tport = tport_by_name(nta_agent_tports(getSofiaAgent()), &name);
 			if (!tport) {
-				LOGE("Could not find tport to set proper outgoing Record-Route to %s", dest->url_host);
+				LOGD("Could not existing tport to send message to %s", url_as_string(ms->getHome(), dest));
 			} else if (tport_get_user_data(tport) != nullptr && destConnId != 0
 						&& (uintptr_t)tport_get_user_data(tport) != destConnId) {
 				SLOGD << "Stopping request ConnId("
