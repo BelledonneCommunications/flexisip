@@ -84,7 +84,8 @@ typedef void(forwardFn)(redisAsyncContext *, redisReply *, RegistrarUserData *);
 struct RegistrarUserData {
 	RegistrarDbRedisAsync *self;
 	std::shared_ptr<ContactUpdateListener> listener;
-	std::shared_ptr<Record> mRecord;
+	std::shared_ptr<Record> mRecord; // The record contaning all fetched contacts.
+	std::shared_ptr<Record> mRecordToSend; // The record contaning the contacts to SET into redis.
 	unsigned long token;
 	su_timer_t *mRetryTimer;
 	int mRetryCount;
