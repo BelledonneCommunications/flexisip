@@ -36,15 +36,22 @@ Timer::~Timer() {
 }
 
 void Timer::set(const Func &func) {
-	if (su_timer_set(_timer, _internalCb, this) != 0) {
+	if (su_timer_set(_timer, _oneShotTimerCb, this) != 0) {
 		throw logic_error("fail to set timer");
 	}
 	_func = func;
 }
 
 void Timer::set(const Func &func, unsigned intervalMs) {
-	if (su_timer_set_interval(_timer, _internalCb, this, intervalMs) != 0) {
+	if (su_timer_set_interval(_timer, _oneShotTimerCb, this, intervalMs) != 0) {
 		throw logic_error("fail to set timer");
+	}
+	_func = func;
+}
+
+void Timer::run(const Func &func) {
+	if (su_timer_run(_timer, _regularTimerCb, this) != 0) {
+		throw logic_error("fail to run timer");
 	}
 	_func = func;
 }
@@ -60,7 +67,7 @@ bool Timer::isRunning() const {
 	return su_timer_is_running(_timer) != 0;
 }
 
-void Timer::_internalCb(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) noexcept {
+void Timer::_oneShotTimerCb(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) noexcept {
 	auto *timer = static_cast<Timer *>(arg);
 
 	// timer->_func must be emptied before calling the function to avoid
@@ -69,6 +76,11 @@ void Timer::_internalCb(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *a
 	Func func;
 	func.swap(timer->_func);
 	func();
+}
+
+void Timer::_regularTimerCb(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) noexcept {
+	auto *timer = static_cast<Timer *>(arg);
+	timer->_func();
 }
 
 }

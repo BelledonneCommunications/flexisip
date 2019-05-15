@@ -137,6 +137,10 @@ void LogManager::initialize(const Parameters& params){
 	if (params.enableStdout) {
 		bctbx_set_log_handler(bctbx_logv_out);
 	}
+	if (params.root) {
+		mTimer.reset(new sofiasip::Timer(params.root, 1000));
+		mTimer->run(bind(&LogManager::checkForReopening, this));
+	}
 }
 
 void LogManager::setLogLevel(BctbxLogLevel level){
@@ -200,6 +204,13 @@ void LogManager::setCurrentContext(const SipLogContext &ctx){
 
 void LogManager::clearCurrentContext(){
 	bctbx_clear_thread_log_level(NULL);
+}
+
+void LogManager::checkForReopening() {
+	if (mReopenRequired) {
+		bctbx_file_log_handler_reopen(mLogHandler);
+		mReopenRequired = false;
+	}
 }
 
 LogManager::~LogManager(){
