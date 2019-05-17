@@ -817,13 +817,17 @@ int main(int argc, char *argv[]) {
 	root = su_root_create(NULL);
 
 	// in case we don't plan to launch flexisip, don't setup the logs.
-	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs &&
-		!dumpAll) {
+	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs && !dumpAll) {
+		if (cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read() != -1) {
+			LOGF("Setting 'global/max-log-size' parameter has been forbbiden since log size control was delegated to logrotate. Please "
+				"edit /etc/logrotate.d/flexisip-logrotate for log rotation customization."
+			);
+		}
+
 		LogManager::Parameters logParams;
 		logParams.root = root;
 		logParams.logDirectory = cfg->getGlobal()->get<ConfigString>("log-directory")->read();
 		logParams.logFilename = "flexisip-" + fName + ".log";
-		logParams.fileMaxSize = cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read();
 		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::get().logLevelFromName(log_level);
 		logParams.enableSyslog = useSyslog;
 		logParams.syslogLevel = LogManager::get().logLevelFromName(syslog_level);

@@ -838,10 +838,13 @@ GenericManager::GenericManager()
 	  mReader(&mConfigRoot), mNotifier(NULL) {
 	// to make sure global_conf is instanciated first
 	static ConfigItemDescriptor global_conf[] = {
-		{String, "log-directory", "Directory where to create log files.", DEFAULT_LOG_DIR },
+		{String, "log-directory", "Directory where to create log files.\n"
+			"WARNING: Flexisip has no embedded log rotation system but provides a configuration file for logrotate. Please ensure "
+			"that logrotate is installed and running on your system if you want to have Flexisip's logs rotated. Log rotation can be customized by "
+			"editing /etc/logrotate.d/flexisip-logrotate.", DEFAULT_LOG_DIR },
 		{String, "log-level", "Verbosity of logs to output. Possible values are debug, message, warning and error", "error"},
 		{String, "syslog-level", "Verbosity of logs to put in syslog. Possible values are debug, message, warning and error", "error"},
-		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file, expressed with units. For example: 10G, 100M. If -1 then there is no maximum size", "100M"},
+		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file, expressed with units. For example: 10G, 100M. If -1 then there is no maximum size", "-1"},
 		{Boolean, "user-errors-logs", "Log (on a different log domain) user errors like authentication, registration, routing, etc...", "false"},
 		{String, "contextual-log-filter", "A boolean expression applied to current SIP message being processed. When matched, logs are output"
 			" provided that there level is greater than the value defined in contextual-log-level."
@@ -975,6 +978,7 @@ GenericManager::GenericManager()
 	global->addChildrenValues(global_conf);
 	global->get<ConfigBoolean>("debug")->setDeprecated(true);
 	global->get<ConfigBoolean>("use-maddr")->setDeprecated(true); /*Deprecate use-maddr parameter. Using canonical names is preferred as it allows IPv6/IPv4 transitions during calls*/
+	global->get<ConfigByteSize>("max-log-size")->setDeprecated(true);
 	global->setConfigListener(this);
 
 	ConfigString *version = new ConfigString("version-number", "Flexisip version.", PACKAGE_VERSION, 999);
