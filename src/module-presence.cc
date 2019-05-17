@@ -68,7 +68,7 @@ private:
 		try {
 			mDestRoute.reset(new SipUri(destRouteStr));
 		} catch (const invalid_argument &e) {
-			LOGA("invalid SIP URI (%s) in 'presence-server' parameter of 'Presence' module: %s", destRouteStr.c_str(), e.what());
+			LOGF("Invalid SIP URI (%s) in 'presence-server' parameter of 'Presence' module: %s", destRouteStr.c_str(), e.what());
 		}
 
 		mOnlyListSubscription = mc->get<ConfigBooleanExpression>("only-list-subscription")->read();
