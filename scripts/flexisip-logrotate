@@ -1,15 +1,14 @@
-/var/opt/belledonne-communications/log/flexisip/*_*_*.log {
-        daily
-        compress
-        missingok
-        notifempty
-        nocreate
-	    maxage 1
+/var/opt/belledonne-communications/log/flexisip/*.log {
+	size 100M
+	compress
+	delaycompress
+	nocreate
+	missingok
+	maxage 7
+	postrotate
+		for procname in flexisip-{proxy,presence,conference}; do
+			killall -HUP $procname
+		done
+    endscript
 }
-/var/opt/belledonne-communications/log/flexisip/*.gz {
-        daily
-        missingok
-        notifempty
-        nocreate
-        maxage 5
-}
+

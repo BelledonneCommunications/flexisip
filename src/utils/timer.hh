@@ -61,6 +61,14 @@ public:
 	 */
 	void set(const Func &func, unsigned intervalMs);
 	/**
+	 * @brief Start the timer to be executed regularly.
+	 * @param[in] func The function to call on each interval
+	 * of time. The context of the funciton is copied and is
+	 * only destroyed on reset() call.
+	 * @throw std::logic_error if the timer couldn't be stated.
+	 */
+	void run(const Func &func);
+	/**
 	 * @brief Stop the timer and delete the internal function.
 	 * @throw std::logic_error if the timer couldn't been reset.
 	 */
@@ -71,7 +79,8 @@ public:
 	bool isRunning() const;
 
 private:
-	static void _internalCb(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) noexcept;
+	static void _oneShotTimerCb(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) noexcept;
+	static void _regularTimerCb(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) noexcept;
 
 	::su_timer_t *_timer = nullptr;
 	Func _func;

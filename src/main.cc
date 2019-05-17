@@ -145,7 +145,8 @@ static void flexisip_stop(int signum) {
 	} //else nop
 }
 
-static void flexisip_stat(int signum) {
+static void flexisip_reopen_log_files(int signum) {
+	LogManager::get().reopenFiles();
 }
 
 static void sofiaLogHandler(void *, const char *fmt, va_list ap) {
@@ -809,13 +810,24 @@ int main(int argc, char *argv[]) {
 	if (!user_errors) user_errors = cfg->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
 
 	ortp_init();
+	su_init();
+	/*tell parser to support extra headers */
+	sip_update_default_mclass(sip_extend_mclass(NULL));
+
+	root = su_root_create(NULL);
+
 	// in case we don't plan to launch flexisip, don't setup the logs.
-	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs &&
-		!dumpAll) {
+	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs && !dumpAll) {
+		if (cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read() != -1) {
+			LOGF("Setting 'global/max-log-size' parameter has been forbbiden since log size control was delegated to logrotate. Please "
+				"edit /etc/logrotate.d/flexisip-logrotate for log rotation customization."
+			);
+		}
+
 		LogManager::Parameters logParams;
+		logParams.root = root;
 		logParams.logDirectory = cfg->getGlobal()->get<ConfigString>("log-directory")->read();
 		logParams.logFilename = "flexisip-" + fName + ".log";
-		logParams.fileMaxSize = cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read();
 		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::get().logLevelFromName(log_level);
 		logParams.enableSyslog = useSyslog;
 		logParams.syslogLevel = LogManager::get().logLevelFromName(syslog_level);
@@ -831,7 +843,7 @@ int main(int argc, char *argv[]) {
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGTERM, flexisip_stop);
 	signal(SIGINT, flexisip_stop);
-	signal(SIGUSR1, flexisip_stat);
+	signal(SIGHUP, flexisip_reopen_log_files);
 
 	if (dump_cores) {
 		/*enable core dumps*/
@@ -842,10 +854,6 @@ int main(int argc, char *argv[]) {
 			LOGE("Cannot enable core dump, setrlimit() failed: %s", strerror(errno));
 		}
 	}
-
-	su_init();
-	/*tell parser to support extra headers */
-	sip_update_default_mclass(sip_extend_mclass(NULL));
 
 	if (hostsOverride.getValue().size() != 0) {
 		auto hosts = hostsOverride.getValue();
@@ -887,8 +895,6 @@ int main(int argc, char *argv[]) {
 	 */
 	LOGN("Starting flexisip %s-server version %s (git %s)", fName.c_str(), VERSION, FLEXISIP_GIT_VERSION);
 	GenericManager::get()->sendTrap("Flexisip "+ fName + "-server starting");
-
-	root = su_root_create(NULL);
 
 	increase_fd_limit();
 
@@ -992,7 +998,7 @@ int main(int argc, char *argv[]) {
 		delete stun;
 	}
 	proxy_cli = nullptr;
-	su_root_destroy(root);
+	if (root) su_root_destroy(root);
 
 	LOGN("Flexisip %s-server exiting normally.", fName.c_str());
 	if (trackAllocs)
