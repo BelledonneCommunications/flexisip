@@ -20,5 +20,9 @@ Group changes to describe their impact on the project, as follows:
  - [Proxy] log files are now named flexisip-proxy.log, flexisip-conference.log flexisip-presence.log
  - [Proxy] boolean expression engine is faster
 
+### [Removed]
+ - 'max-log-size' parameter cannot be used anymore and will prevent Flexisip from starting if so.
+   Log rotation and size control is now fully managed by 'logrotate' script.
+
 ### [Fixed]
  - Memory leak (of SIP transactions) in presence server

@@ -7,8 +7,11 @@
 	maxage 7
 	postrotate
 		for procname in flexisip-{proxy,presence,conference}; do
-			killall -HUP $procname
+			pidfile="/var/run/${procname}.pid"
+			if [ -f ${pidfile} ]; then
+				kill -HUP $(cat ${pidfile})
+			fi
 		done
-    endscript
+	endscript
 }
 
