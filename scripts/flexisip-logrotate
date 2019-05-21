@@ -5,6 +5,7 @@
 	nocreate
 	missingok
 	maxage 7
+	nodateext
 	postrotate
 		for procname in flexisip-{proxy,presence,conference}; do
 			pidfile="/var/run/${procname}.pid"
