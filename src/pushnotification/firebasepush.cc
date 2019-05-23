@@ -7,15 +7,22 @@
 using namespace std;
 using namespace flexisip;
 
+/*
+ * This supports the legacy http Firebase protocol:
+ * https://firebase.google.com/docs/cloud-messaging/http-server-ref
+ */
+
 FirebasePushNotificationRequest::FirebasePushNotificationRequest(const PushInfo &pinfo)
 : PushNotificationRequest(pinfo.mAppId, "firebase") {
 	const string &deviceToken = pinfo.mDeviceToken;
 	const string &apiKey = pinfo.mApiKey;
+	const string &from = pinfo.mFromName.empty() ? pinfo.mFromUri : pinfo.mFromName;
 	ostringstream httpBody;
 	string date = getPushTimeStamp();
 
 	httpBody << "{\"to\":\"" << deviceToken << "\", \"priority\":\"high\"" << ", \"uuid\":" << quoteStringIfNeeded(pinfo.mUid)
 		<< ", \"call-id\":" << quoteStringIfNeeded(pinfo.mCallId)
+		<< ", \"from\":" << quoteStringIfNeeded(from)
 		<< ", \"send-time\":\"" << date << "\"}";
 	mHttpBody = httpBody.str();
 	LOGD("Push notification https post body is %s", mHttpBody.c_str());
