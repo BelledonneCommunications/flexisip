@@ -264,7 +264,7 @@ void ConfigValue::checkType(const string & value, bool isDefault){
 			ostringstream ostr;
 			ostr << "invalid " << (isDefault ? "default" : "" ) << "value '" << value << "' for key '" << getName() << "' in section '" <<
 				getParent()->getName() << "'";
-			throw ostr.str();
+			throw std::runtime_error(ostr.str());
 		}
 	}
 }
@@ -1119,8 +1119,8 @@ int FileConfigReader::read2(GenericEntry *entry, int level) {
 			try{
 				cv->set(val);
 				cv->setNextValue(val);
-			}catch(const string &message){
-				LOGF("While reading '%s', %s.", mFilename.c_str(), message.c_str());
+			}catch(std::exception & e){
+				LOGF("While reading '%s', %s.", mFilename.c_str(), e.what());
 			}
 		} else {
 			LOGF("The current file format doesn't support recursive subsections.");
