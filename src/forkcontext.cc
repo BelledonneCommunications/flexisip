@@ -28,12 +28,6 @@ const int ForkContext::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603,
 
 const int ForkContext::sAllCodesUrgent[] = {-1, 0};
 
-ForkContextConfig::ForkContextConfig()
-	: mDeliveryTimeout(0), mUrgentTimeout(5), mForkLate(false), mTreatAllErrorsAsUrgent(false),
-	  mForkNoGlobalDecline(false), mTreatDeclineAsUrgent(false),
-	  mCurrentBranchesTimeout(0) {
-}
-
 ForkContextListener::~ForkContextListener() {
 }
 

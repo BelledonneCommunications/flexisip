@@ -27,17 +27,16 @@ namespace flexisip {
 
 class OnContactRegisteredListener;
 
-class ForkContextConfig {
-  public:
-	ForkContextConfig();
-	int mDeliveryTimeout;	 /* in seconds, used for "late" forking*/
-	int mUrgentTimeout;		  /*timeout for sending buffered urgent or retryable reponses (like 415).*/
-	int mPushResponseTimeout; /*timeout for receiving response to push */
-	bool mForkLate;
-	bool mTreatAllErrorsAsUrgent; /*treat all SIP response code as urgent replies in the fork mechanism.*/
-	bool mForkNoGlobalDecline;
-	bool mTreatDeclineAsUrgent; /*treat 603 declined as a urgent response, only useful is mForkNoGlobalDecline==true*/
-	int mCurrentBranchesTimeout; /*timeout for receiving response on current branches*/
+struct ForkContextConfig {
+	int mDeliveryTimeout = 0;	 /* in seconds, used for "late" forking*/
+	int mUrgentTimeout = 5;		  /*timeout for sending buffered urgent or retryable reponses (like 415).*/
+	int mPushResponseTimeout = 0; /*timeout for receiving response to push */
+	int mCurrentBranchesTimeout = 0; /*timeout for receiving response on current branches*/
+	bool mForkLate = false;
+	bool mTreatAllErrorsAsUrgent = false; /*treat all SIP response code as urgent replies in the fork mechanism.*/
+	bool mForkNoGlobalDecline = false;
+	bool mTreatDeclineAsUrgent = false; /*treat 603 declined as a urgent response, only useful is mForkNoGlobalDecline==true*/
+	bool mPermitSelfGeneratedProvisionalResponse = true; /* Self explicit. Ex: 110 Push sent, 180 Ringing*/
 };
 
 class ForkContext;

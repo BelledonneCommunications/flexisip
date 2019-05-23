@@ -61,6 +61,13 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 			"targets of the "
 			"INVITE.",
 			"false"},
+		{Boolean, "permit-self-generated-provisional-response",
+			"Whether the proxy is allowed to generate and send provisional responses during a call forking process. "
+			"A typical example for this is the '110 Push sent' emitted by the proxy when at least one push notification has "
+			"been sent to a target UA while routing an INVITE. "
+			"Some old versions of Linphone (below linphone-sdk 4.2) suffer from an issue when receiving such kind of provisional "
+			"responses that don't come from a remote client. This setting is mainly intended to temporarily workaround this situation.",
+			"true"},
 		{String, "generated-contact-route",
 			"Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
 		{String, "generated-contact-expected-realm",
@@ -108,6 +115,7 @@ void ModuleRouter::onLoad(const GenericStruct *mc) {
 	mForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("call-fork-timeout")->read();
 	mForkCfg->mTreatDeclineAsUrgent = mc->get<ConfigBoolean>("treat-decline-as-urgent")->read();
 	mForkCfg->mCurrentBranchesTimeout = mc->get<ConfigInt>("call-fork-current-branches-timeout")->read();
+	mForkCfg->mPermitSelfGeneratedProvisionalResponse = mc->get<ConfigBoolean>("permit-self-generated-provisional-response")->read();
 
 	//Forking configuration for MESSAGEs
 	mMessageForkCfg = make_shared<ForkContextConfig>();

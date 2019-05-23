@@ -158,6 +158,11 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo> &br, const shared_
 // This is actually called when we want to simulate a ringing event by sending a 180, or for example to signal the caller that we've sent
 // a push notification.
 void ForkCallContext::sendResponse(int code, char const *phrase) {
+	if (!mCfg->mPermitSelfGeneratedProvisionalResponse){
+		LOGD("ForkCallContext::sendResponse(): self-generated provisional response are disabled by configuration.");
+		return;
+	}
+	
 	int previousCode = getLastResponseCode();
 	if (previousCode > code || !mIncoming){
 		/* Don't send a response with status code lesser than last transmitted response. */
