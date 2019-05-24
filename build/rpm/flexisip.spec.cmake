@@ -190,7 +190,7 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %{_sysconfdir}/flexisip
-%config %{_sysconfdir}/logrotate.d/flexisip-logrotate
+%config(noreplace) %{_sysconfdir}/logrotate.d/flexisip-logrotate
 
 /lib/systemd/system/flexisip.service
 /lib/systemd/system/flexisip@.service
