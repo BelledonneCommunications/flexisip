@@ -7,12 +7,10 @@
 	maxage 7
 	nodateext
 	postrotate
-		for procname in flexisip-{proxy,presence,conference}; do
-			pidfile="/var/run/${procname}.pid"
-			if [ -f ${pidfile} ]; then
-				kill -HUP $(cat ${pidfile})
-			fi
-		done
+		logfilename="$(basename $1)"
+		pidfile="/var/run/${logfilename%.log}.pid"
+		if [ -f "${pidfile}" ]; then
+			kill -HUP $(cat ${pidfile})
+		fi
 	endscript
 }
-
