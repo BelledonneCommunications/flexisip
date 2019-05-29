@@ -1,10 +1,12 @@
 /var/opt/belledonne-communications/log/flexisip/*.log {
-	size 100M
+	size 500M
+	rotate 7
+
 	compress
 	delaycompress
+
 	nocreate
 	missingok
-	maxage 7
 	nodateext
 	postrotate
 		logfilename="$(basename $1)"
