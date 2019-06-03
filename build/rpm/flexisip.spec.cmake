@@ -73,7 +73,7 @@ Requires: %{pkg_prefix}liblinphone
 %define ctest_name ctest
 %endif
 
-%global flexisip_services %(printf 'flexisip.service flexisip-proxy.service'; if [ @ENABLE_PRESENCE@ -eq 1 ]; then printf ' flexisip-presence.service'; fi; if [ @ENABLE_CONFERENCE@ -eq 1 ]; then printf ' flexisip-conference.service\n'; fi)
+%global flexisip_services %(printf 'flexisip-proxy.service'; if [ @ENABLE_PRESENCE@ -eq 1 ]; then printf ' flexisip-presence.service'; fi; if [ @ENABLE_CONFERENCE@ -eq 1 ]; then printf ' flexisip-conference.service\n'; fi)
 
 %description
 Extensible SIP proxy with media capabilities. Designed for robustness and easy of use.
@@ -134,8 +134,6 @@ mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/log/flexisip
 mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/%{_prefix}/log/flexisip
 
 mkdir -p $RPM_BUILD_ROOT/lib/systemd/system
-install -p -m 0644 scripts/flexisip.service $RPM_BUILD_ROOT/lib/systemd/system
-install -p -m 0644 scripts/flexisip\@.service $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip-proxy.service $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip-proxy\@.service $RPM_BUILD_ROOT/lib/systemd/system
 %if @ENABLE_PRESENCE@
@@ -179,6 +177,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_includedir}/flexisip/*.cc
 %{_localstatedir}/*
 
+/lib/systemd/system/flexisip-proxy.service
+/lib/systemd/system/flexisip-proxy@.service
+
 %if @ENABLE_PRESENCE@
 /lib/systemd/system/flexisip-presence.service
 /lib/systemd/system/flexisip-presence@.service
@@ -191,11 +192,6 @@ rm -rf $RPM_BUILD_ROOT
 
 %{_sysconfdir}/flexisip
 %config(noreplace) %{_sysconfdir}/logrotate.d/flexisip-logrotate
-
-/lib/systemd/system/flexisip.service
-/lib/systemd/system/flexisip@.service
-/lib/systemd/system/flexisip-proxy.service
-/lib/systemd/system/flexisip-proxy@.service
 
 %if @ENABLE_JWE_AUTH_PLUGIN@
 %files jwe-auth-plugin

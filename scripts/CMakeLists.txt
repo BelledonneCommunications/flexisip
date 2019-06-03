@@ -33,8 +33,6 @@ endif()
 
 
 #systemd
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip.service)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip@.service)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-proxy.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-proxy.service)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-proxy@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-proxy@.service)
 
