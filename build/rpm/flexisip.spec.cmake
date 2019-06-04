@@ -177,17 +177,17 @@ rm -rf $RPM_BUILD_ROOT
 %{_includedir}/flexisip/*.cc
 %{_localstatedir}/*
 
-/lib/systemd/system/flexisip-proxy.service
-/lib/systemd/system/flexisip-proxy@.service
+%config(noreplace) /lib/systemd/system/flexisip-proxy.service
+%config(noreplace) /lib/systemd/system/flexisip-proxy@.service
 
 %if @ENABLE_PRESENCE@
-/lib/systemd/system/flexisip-presence.service
-/lib/systemd/system/flexisip-presence@.service
+	%config(noreplace) /lib/systemd/system/flexisip-presence.service
+	%config(noreplace) /lib/systemd/system/flexisip-presence@.service
 %endif
 
 %if @ENABLE_CONFERENCE@
-	/lib/systemd/system/flexisip-conference.service
-	/lib/systemd/system/flexisip-conference@.service
+	%config(noreplace) /lib/systemd/system/flexisip-conference.service
+	%config(noreplace) /lib/systemd/system/flexisip-conference@.service
 %endif
 
 %{_sysconfdir}/flexisip

@@ -6,8 +6,6 @@ After=syslog.target network.service network.target redis.service mysqld.service
 [Service]
 Type=forking
 ExecStart=@bindir@/flexisip --server proxy --daemon --syslog --pidfile /var/run/flexisip-proxy.pid
-StandardOutput=null
-StandardError=null
 
 [Install]
 WantedBy=multi-user.target
