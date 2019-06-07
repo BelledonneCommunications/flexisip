@@ -120,7 +120,8 @@ void ModuleExternalAuthentication::onSuccess(const FlexisipAuthStatus &as) {
 	const auto &authStatus = dynamic_cast<const ExternalAuthModule::Status &>(as);
 	ModuleAuthenticationBase::onSuccess(as);
 	if (!authStatus.pAssertedIdentity().empty()) {
-		msg_header_add_str(ms->getMsg(), reinterpret_cast<msg_pub_t *>(sip), authStatus.pAssertedIdentity().c_str());
+		string header = "P-Asserted-Identity: " + authStatus.pAssertedIdentity();
+		sip_add_make(ms->getMsg(), sip, sip_unknown_class, header.c_str());
 	}
 }
 
