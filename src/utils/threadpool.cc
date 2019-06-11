@@ -16,113 +16,103 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+
+#include "flexisip/logmanager.hh"
+
 #include "threadpool.hh"
-#include <flexisip/logmanager.hh>
 
 using namespace std;
 
-// Constructor.
-ThreadPool::ThreadPool(unsigned int threads, unsigned int max_queue_size)
-	: max_queue_size(max_queue_size), terminate(false), stopped(false) {
-	SLOGD << "[POOL] Init with " << threads << " threads and queue size " << max_queue_size;
+namespace flexisip {
+
+ThreadPool::ThreadPool(unsigned int nThreads, unsigned int maxQueueSize) : mMaxQueueSize(maxQueueSize) {
+	SLOGD << "ThreadPool [" << this << "]: init with " << nThreads << " threads and queue size " << maxQueueSize;
 
 	// Create number of required threads and add them to the thread pool vector.
-	for (unsigned int i = 0; i < threads; i++) {
-		threadPool.emplace_back(thread(&ThreadPool::Invoke, this));
+	for (unsigned int i = 0; i < nThreads; i++) {
+		mThreadPool.emplace_back(&ThreadPool::_run, this);
 	}
 }
 
-bool ThreadPool::Enqueue(function<void()> f) {
+ThreadPool::~ThreadPool() {
+	if (mState != Stopped) stop();
+}
+
+bool ThreadPool::run(Task t) {
 	bool enqueued = false;
 	// Scope based locking.
 	{
 		// Put unique lock on task mutex.
-		unique_lock<mutex> lock(tasksMutex);
+		unique_lock<mutex> lock(mTasksMutex);
 
 		// Push task into queue.
-		if (tasks.size() < max_queue_size) {
-
-			//SLOGE << "[POOL] Enqueue(" << tasks.size() << ")";
-
-			tasks.push(f);
+		if (mTasks.size() < mMaxQueueSize) {
+			mTasks.push(t);
 			enqueued = true;
 		}
 	}
 
 	// Wake up one thread if the task was successfully queued
 	if (enqueued)
-		condition.notify_one();
+		mCondition.notify_one();
 
 	return enqueued;
 }
 
-bool ThreadPool::conditionCheck() const {
-	return !tasks.empty() || terminate;
+void ThreadPool::stop() {
+	SLOGD << "ThreadPool [" << this << "]: shutdown";
+	// Scope based locking.
+	{
+		// Put unique lock on task mutex.
+		unique_lock<mutex> lock(mTasksMutex);
+
+		// Set termination flag to true.
+		mState = Shutdown;
+	}
+
+	// Wake up all threads.
+	mCondition.notify_all();
+
+	// Join all threads.
+	for (auto &thread : mThreadPool) {
+		thread.join();
+	}
+
+	// Empty workers vector.
+	mThreadPool.empty();
+
+	// Indicate that the pool has been shut down.
+	mState = Stopped;
 }
 
-void ThreadPool::Invoke() {
-
-	function<void()> task;
+void ThreadPool::_run() {
+	Task task;
 	while (true) {
 		// Scope based locking.
 		{
 			// Put unique lock on task mutex.
-			unique_lock<mutex> lock(tasksMutex);
-
-			auto predicate = std::bind(&ThreadPool::conditionCheck, this);
+			unique_lock<mutex> lock(mTasksMutex);
 
 			// Wait until queue is not empty or termination signal is sent.
-			condition.wait(lock, predicate);
+			ThreadPool *thiz = this;
+			mCondition.wait(lock, [thiz](){return !thiz->mTasks.empty() || thiz->mState == Shutdown;});
 
 			// If termination signal received and queue is empty then exit else continue clearing the queue.
-			if (terminate && tasks.empty()) {
-				SLOGD << "[POOL] Terminate thread";
+			if (mState == Shutdown && mTasks.empty()) {
+				SLOGD << "ThreadPool [" << this << "]: terminate thread";
 				return;
 			}
 
 			// Get next task in the queue.
-			task = tasks.front();
+			task = mTasks.front();
 
 			// Remove it from the queue.
-			tasks.pop();
-			//SLOGE << "[POOL] Pop task " << tasks.size();
+			mTasks.pop();
 		}
 
 		// Execute the task.
-		//SLOGE << "[POOL] Task()";
 		task();
 	}
 }
 
-void ThreadPool::ShutDown() {
-	SLOGD << "[POOL] Shutdown";
-	// Scope based locking.
-	{
-		// Put unique lock on task mutex.
-		unique_lock<mutex> lock(tasksMutex);
-
-		// Set termination flag to true.
-		terminate = true;
-	}
-
-	// Wake up all threads.
-	condition.notify_all();
-
-	// Join all threads.
-	for (auto it = threadPool.begin(); it != threadPool.end(); ++it) {
-		it->join();
-	}
-
-	// Empty workers vector.
-	threadPool.empty();
-
-	// Indicate that the pool has been shut down.
-	stopped = true;
-}
-
-// Destructor.
-ThreadPool::~ThreadPool() {
-	if (!stopped) {
-		ShutDown();
-	}
-}
+} // namespace flexisip

@@ -881,7 +881,7 @@ void DataBaseEventLogWriter::write(const std::shared_ptr<EventLog> &evlog) {
 		mMutex.unlock();
 
 		// Save event in database.
-		if (!mThreadPool->Enqueue(bind(&DataBaseEventLogWriter::writeEventFromQueue, this))) {
+		if (!mThreadPool->run(bind(&DataBaseEventLogWriter::writeEventFromQueue, this))) {
 			LOGE("DataBaseEventLogWriter: unable to enqueue event!");
 		}
 	} else {

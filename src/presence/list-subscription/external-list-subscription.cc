@@ -44,7 +44,7 @@ ExternalListSubscription::ExternalListSubscription(
 	// create a thread to grab a pool connection and use it to retrieve the auth information
 	auto func = bind(&ExternalListSubscription::getUsersList, this, sqlRequest, ist);
 
-	bool success = threadPool->Enqueue(func);
+	bool success = threadPool->run(func);
 	if (!success) // Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil user request for list subscription";
 }
