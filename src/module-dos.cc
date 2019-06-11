@@ -266,7 +266,7 @@ class DoSProtection : public Module, ModuleToolbox {
 		string ip = ctx->ip;
 		string port = ctx->port;
 		
-		mThreadPool->Enqueue([&, protocol, ip, port] {
+		mThreadPool->run([&, protocol, ip, port] {
 			char iptables_cmd[512];
 			bool is_ipv6 = strchr(ip.c_str(), ':') != nullptr;
 			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -D %s -p %s -s %s -m multiport --sports %s -j REJECT",
@@ -344,7 +344,7 @@ class DoSProtection : public Module, ModuleToolbox {
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol udp for %i minutes",
 						 dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					if (!isIpWhiteListed(ip)) {
-						mThreadPool->Enqueue([&, ip, port] { banIP(ip, port, "udp"); });
+						mThreadPool->run([&, ip, port] { banIP(ip, port, "udp"); });
 						createBanContextAndPostInFuture(ip, port, "udp");
 						ev->terminateProcessing(); // the event is discarded
 					} else {
@@ -368,7 +368,7 @@ class DoSProtection : public Module, ModuleToolbox {
 					LOGW("Packet count rate (%lu) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes",
 						 packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					if (!isIpWhiteListed(ip)) {
-						mThreadPool->Enqueue([&, ip, port] { banIP(ip, port, "tcp"); });
+						mThreadPool->run([&, ip, port] { banIP(ip, port, "tcp"); });
 						createBanContextAndPostInFuture(ip, port, "tcp");
 						ev->terminateProcessing(); // the event is discarded
 					} else {

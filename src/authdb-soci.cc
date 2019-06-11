@@ -329,7 +329,7 @@ void SociAuthDB::getPasswordFromBackend(const string &id, const string &domain,
 	// create a thread to grab a pool connection and use it to retrieve the auth information
 	auto func = bind(&SociAuthDB::getPasswordWithPool, this, id, domain, authid, listener, listener_ref);
 
-	bool success = thread_pool->Enqueue(func);
+	bool success = thread_pool->run(func);
 	if (success == FALSE) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil password request for " << id << " / " << domain << " / "
@@ -343,7 +343,7 @@ void SociAuthDB::getUserWithPhoneFromBackend(const string &phone, const string &
 	// create a thread to grab a pool connection and use it to retrieve the auth information
 	auto func = bind(&SociAuthDB::getUserWithPhoneWithPool, this, phone, domain, listener);
 
-	bool success = thread_pool->Enqueue(func);
+	bool success = thread_pool->run(func);
 	if (success == FALSE) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil user request for " << phone;
@@ -356,7 +356,7 @@ void SociAuthDB::getUsersWithPhonesFromBackend(list<tuple<string, string, AuthDb
 	// create a thread to grab a pool connection and use it to retrieve the auth information
 	auto func = bind(&SociAuthDB::getUsersWithPhonesWithPool, this, creds);
 
-	bool success = thread_pool->Enqueue(func);
+	bool success = thread_pool->run(func);
 	if (success == FALSE) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil user request for " << &creds;

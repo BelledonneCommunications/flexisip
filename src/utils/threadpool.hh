@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2016  Belledonne Communications SARL.
+	Copyright (C) 2010  Belledonne Communications SARL.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -16,60 +16,70 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// From http://alexagafonov.com/2015/05/05/thread-pool-implementation-in-c-11/ and modified for queue size handling
 
 #pragma once
 
-#include <vector>
+
+#include <condition_variable>
+#include <functional>
+#include <mutex>
 #include <queue>
 #include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <iostream>
-#include <functional>
-#include <unistd.h>
+#include <vector>
 
+
+namespace flexisip {
+
+/**
+ * Provide a pool of threads for executing custom tasks.
+ */
 class ThreadPool {
-  public:
-	// Constructor.
-	ThreadPool(unsigned int threads, unsigned int max_queue_size);
+public:
+	using Task = std::function<void()>;
 
-	// Destructor.
+	/**
+	 * Constructor.
+	 * @param[in] nThreads number of threads in the pool.
+	 * @param[in] maxQueueSize maximum number of task that can be queued.
+	 */
+	ThreadPool(unsigned int nThreads, unsigned int maxQueueSize);
 	~ThreadPool();
 
-	// Adds task to a task queue.
-	bool Enqueue(std::function<void()> f);
+	/**
+	 * Assign a task to a thread for execution. If no thread is available
+	 * while this method is called, then the task is queued until a thread
+	 * has completed its task.
+	 * @param[in] t the task to run.
+	 * @return True on success or false when the queue is full.
+	 */
+	bool run(Task t);
 
-	// set pool size (only allowed if not yet populated)
-	void setPoolSize(int threads);
+	/**
+	 * Stop all the threads.
+	 * After calling this method, no more task will be
+	 * executed and the threads cannot be started again.
+	 */
+	void stop();
 
-	// Shut down the pool.
-	void ShutDown();
+private:
+	enum State {
+		Running,
+		Shutdown,
+		Stopped
+	};
 
-  private:
-	// Thread pool storage.
-	std::vector<std::thread> threadPool;
+	/**
+	 * This methed is called by each thread.
+	 */
+	void _run();
 
-	// Queue to keep track of incoming tasks.
-	std::queue<std::function<void()>> tasks;
-
-	// Task queue mutex.
-	std::mutex tasksMutex;
-
-	// Condition variable.
-	std::condition_variable condition;
-
-	// Maximum amount of tasks to be enqueued
-	unsigned int max_queue_size;
-
-	// Indicates that pool needs to be shut down.
-	bool terminate;
-
-	// Indicates that pool has been terminated.
-	bool stopped;
-
-	// Function that will be invoked by our threads.
-	void Invoke();
-
-	bool conditionCheck() const;
+	std::vector<std::thread> mThreadPool;
+	std::queue<Task> mTasks;
+	std::mutex mTasksMutex;
+	std::condition_variable mCondition;
+	unsigned mMaxQueueSize;
+	State mState = Running;
 };
+
+
+} // namespace flexisip
