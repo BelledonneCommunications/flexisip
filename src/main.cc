@@ -476,7 +476,9 @@ static int dump_config(su_root_t *root, const std::string &dump_cfg_part, bool w
 	if (pluginsDirEntry->get().empty()) {
 		pluginsDirEntry->set(DEFAULT_PLUGINS_DIR);
 	}
+
 	shared_ptr<Agent> a = make_shared<Agent>(root);
+	if (!dumpDefault) a->loadConfig(GenericManager::get());
 
 	GenericStruct *rootStruct = GenericManager::get()->getRoot();
 	if (dump_cfg_part != "all") {
@@ -503,27 +505,25 @@ static int dump_config(su_root_t *root, const std::string &dump_cfg_part, bool w
 			}
 		}
 	}
-	ConfigDumper *dumper = NULL;
+	unique_ptr<ConfigDumper> dumper;
 	if (format == "tex") {
-		dumper = new TexFileConfigDumper(rootStruct);
+		dumper.reset(new TexFileConfigDumper(rootStruct));
 	} else if (format == "doku") {
-		dumper = new DokuwikiConfigDumper(rootStruct);
+		dumper.reset(new DokuwikiConfigDumper(rootStruct));
 	} else if (format == "file") {
 		FileConfigDumper *fileDumper = new FileConfigDumper(rootStruct);
 		fileDumper->setMode(dumpDefault ? FileConfigDumper::Mode::DefaultValue : FileConfigDumper::Mode::DefaultIfUnset);
-		dumper = fileDumper;
-
+		dumper.reset(fileDumper);
 	} else if (format == "media") {
-		dumper = new MediaWikiConfigDumper(rootStruct);
+		dumper.reset(new MediaWikiConfigDumper(rootStruct));
 	} else if (format == "xwiki") {
-		dumper = new XWikiConfigDumper(rootStruct);
+		dumper.reset(new XWikiConfigDumper(rootStruct));
 	} else {
 		cerr << "Invalid output format '" << format << "'" << endl;
 		return EXIT_FAILURE;
 	}
 	dumper->setDumpExperimentalEnabled(with_experimental);
 	dumper->dump(cout);
-	delete dumper;
 	return EXIT_SUCCESS;
 }
 

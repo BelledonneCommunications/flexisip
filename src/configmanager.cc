@@ -1043,6 +1043,19 @@ void GenericManager::loadStrict() {
 	applyOverrides(true);
 }
 
+void GenericManager::applyOverrides(bool strict) {
+	for (auto &it : mOverrides) {
+		const std::string &key = it.first;
+		const std::string &value = it.second;
+		if (value.empty()) continue;
+		ConfigValue *val = mConfigRoot.getDeep<ConfigValue>(key.c_str(), strict);
+		if (val) val->set(value);
+		else {
+			SLOGUE << "Skipping config override " << key << ":" << value;
+		}
+	}
+}
+
 GenericStruct *GenericManager::getRoot() {
 	return &mConfigRoot;
 }
@@ -1108,8 +1121,8 @@ int FileConfigReader::read2(GenericEntry *entry, int level) {
 	ConfigValue *cv;
 	if (cs) {
 		auto &entries = cs->getChildren();
-		for (auto it = entries.begin(); it != entries.end(); ++it) {
-			read2(*it, level + 1);
+		for (auto &entry : entries) {
+			read2(entry, level + 1);
 		}
 	} else if ((cv = dynamic_cast<ConfigValue *>(entry))) {
 		if (level < 2) {

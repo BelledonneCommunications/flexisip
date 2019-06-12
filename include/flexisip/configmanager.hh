@@ -658,23 +658,11 @@ class GenericManager : protected ConfigValueListener {
 	void sendTrap(const std::string &msg) {
 		mNotifier->send(&mConfigRoot, msg);
 	}
+	void applyOverrides(bool strict);
+
 	bool mNeedRestart;
 	bool mDirtyConfig;
-	void applyOverrides(bool strict) {
-		for (auto it = mOverrides.begin(); it != mOverrides.end(); ++it) {
-			const std::string &key((*it).first);
-			const std::string &value((*it).second);
-			if (value.empty())
-				continue;
-			ConfigValue *val = mConfigRoot.getDeep<ConfigValue>(key.c_str(), strict);
-			if (val) {
-				std::cout << "Overriding config with " << key << ":" << value << std::endl;
-				val->set(value);
-			} else {
-				std::cout << "Skipping config override " << key << ":" << value << std::endl;
-			}
-		}
-	}
+
 	protected:
 	GenericManager();
 	virtual ~GenericManager() {

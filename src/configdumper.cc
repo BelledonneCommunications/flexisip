@@ -116,18 +116,15 @@ ostream &FileConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruc
 		return ostr;
 
 	ostr << "##" << endl;
-
 	printHelp(ostr, moduleHead->getHelp(), "##");
-
 	ostr << "##" << endl;
 
-	if (level > 0) {
+	if (moduleHead->getParent()) {  // if moduleHead is not the root
 		ostr << "[" << moduleHead->getName() << "]" << endl;
 	} else
 		ostr << endl;
 
 	ostr << endl << endl << endl;
-
 	return ostr;
 }
 
