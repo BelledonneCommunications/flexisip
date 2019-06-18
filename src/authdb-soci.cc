@@ -101,8 +101,7 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 	mc->addChildrenValues(items);
 }
 
-SociAuthDB::SociAuthDB() : conn_pool(NULL) {
-
+SociAuthDB::SociAuthDB() {
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 	GenericStruct *mp = cr->get<GenericStruct>("module::Presence");
@@ -117,25 +116,20 @@ SociAuthDB::SociAuthDB() : conn_pool(NULL) {
 	hashed_passwd = ma->get<ConfigBoolean>("hashed-passwords")->read();
 	check_domain_in_presence_results = mp->get<ConfigBoolean>("check-domain-in-presence-results")->read();
 
-	conn_pool = new connection_pool(poolSize);
-	thread_pool = new ThreadPool(poolSize, max_queue_size);
+	conn_pool.reset(new connection_pool(poolSize));
+	thread_pool.reset(new ThreadPool(poolSize, max_queue_size));
 
-	LOGD("[SOCI] Authentication provider for backend %s created. Pooled for %d connections", backend.c_str(), (int)poolSize);
+	LOGD("[SOCI] Authentication provider for backend %s created. Pooled for %zu connections", backend.c_str(), poolSize);
 
 	try {
 		for (size_t i = 0; i < poolSize; i++) {
 			conn_pool->at(i).open(backend, connection_string);
 		}
-	} catch (soci::mysql_soci_error const & e) {
+	} catch (const soci::mysql_soci_error &e) {
 		SLOGE << "[SOCI] connection pool open MySQL error: " << e.err_num_ << " " << e.what() << endl;
 	} catch (exception const &e) {
 		SLOGE << "[SOCI] connection pool open error: " << e.what() << endl;
 	}
-}
-
-SociAuthDB::~SociAuthDB() {
-	delete thread_pool; // will automatically shut it down, clearing threads
-	delete conn_pool;
 }
 
 void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
