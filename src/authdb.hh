@@ -303,6 +303,9 @@ public:
 private:
 	SociAuthDB();
 
+	void connectDatabase();
+	void closeOpenedSessions();
+
 	void getUserWithPhoneWithPool(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	void getUsersWithPhonesWithPool(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds);
 	void getPasswordWithPool(const std::string &id, const std::string &domain,
@@ -322,6 +325,7 @@ private:
 	std::string get_password_algo_request;
 	bool check_domain_in_presence_results = false;
 	bool hashed_passwd;
+	bool _connected = false;
 
 	friend AuthDbBackend;
 };
