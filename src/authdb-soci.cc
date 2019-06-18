@@ -127,7 +127,13 @@ SociAuthDB::SociAuthDB() {
 		}
 	} catch (const soci::mysql_soci_error &e) {
 		SLOGE << "[SOCI] connection pool open MySQL error: " << e.err_num_ << " " << e.what() << endl;
-	} catch (exception const &e) {
+	}
+	/*
+	   std::runtime_error includes all soci exceptions. Furthermore, std::exception isn't catch here to avoid
+	   catching std::logical_error because this kind of exceptons are for programing errors and should make the application
+	   aborts.
+	*/
+	catch (const runtime_error &e) {
 		SLOGE << "[SOCI] connection pool open error: " << e.what() << endl;
 	}
 }
