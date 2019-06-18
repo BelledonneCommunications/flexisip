@@ -330,7 +330,7 @@ void SociAuthDB::getPasswordFromBackend(const string &id, const string &domain,
 	auto func = bind(&SociAuthDB::getPasswordWithPool, this, id, domain, authid, listener, listener_ref);
 
 	bool success = thread_pool->run(func);
-	if (success == FALSE) {
+	if (!success) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil password request for " << id << " / " << domain << " / "
 			<< authid;

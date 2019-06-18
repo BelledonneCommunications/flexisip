@@ -35,11 +35,11 @@ namespace flexisip{
  */
 class SociHelper{
 public:
-	class DatabaseException : std::exception{
-		virtual const char* what() const noexcept override{
-			return "Database failure"; //The great thing about exception.
-		}
+	class DatabaseException : public std::runtime_error {
+	public:
+		DatabaseException() : std::runtime_error("Database failure") {}
 	};
+
 	// Initialize the SociHelper by giving the connection pool.
 	SociHelper(soci::connection_pool &pool) : mPool(pool){};
 	
@@ -100,7 +100,7 @@ public:
 	void execute(_lambda requestLambda){
 		std::chrono::steady_clock::time_point start;
 		std::chrono::steady_clock::time_point stop;
-		soci::session *sql = nullptr;
+		std::unique_ptr<soci::session> sql;
 		int errorCount = 0;
 		bool retry;
 		bool good = false;
@@ -110,7 +110,7 @@ public:
 			try{
 				// will grab a connection from the pool. This is thread safe.
 				start = std::chrono::steady_clock::now();
-				sql = new soci::session(mPool);
+				sql.reset(new soci::session(mPool));
 				stop = std::chrono::steady_clock::now();
 				LOGD("[SOCI] Session acquired from pool in %lu ms", durationMs(start, stop));
 				start = stop;
@@ -118,29 +118,30 @@ public:
 				stop = std::chrono::steady_clock::now();
 				LOGD("[SOCI] statement successfully executed in %lu ms", durationMs(start, stop));
 				good = true;
-			} catch (soci::mysql_soci_error const &e) {
+			} catch (const std::runtime_error &e) { // soci::mysql_soci_error is a subclass of std::runtime_error
 				errorCount++;
 				stop = std::chrono::steady_clock::now();
-				SLOGE << "[SOCI] MySQL error after " << durationMs(start, stop) << " ms : " << e.err_num_ << " " << e.what();
+				const auto *sqlErr = dynamic_cast<const soci::mysql_soci_error *>(&e);
+
+				std::ostringstream os;
+				os << "[SOCI] " << (sqlErr ? "MySQL " : "") << "error after " << durationMs(start, stop) << "ms: ";
+				if (sqlErr) os << sqlErr->err_num_ << " ";
+				os << e.what();
+				LOGE("%s", os.str().c_str());
+
 				if (sql) reconnectSession(*sql);
 
-				if ((e.err_num_ == 2014 || e.err_num_ == 2006) && errorCount == 1){
+				if (sqlErr && (sqlErr->err_num_ == 2014 || sqlErr->err_num_ == 2006) && errorCount == 1) {
 					/* 2014 is the infamous "Commands out of sync; you can't run this command now" mysql error,
 					* which is retryable.
 					* At this time we don't know if it is a soci or mysql bug, or bug with the sql request being executed.
 					*
 					* 2006 is "MySQL server has gone away" which is also retryable.
 					*/
-					SLOGE << "[SOCI] retryable mysql error ["<< e.err_num_<<"], so trying statement execution again...";
+					SLOGE << "[SOCI] retryable mysql error ["<< sqlErr->err_num_<<"], so trying statement execution again...";
 					retry = true;
 				}
-			} catch (const std::runtime_error &e) {
-				errorCount++;
-				stop = std::chrono::steady_clock::now();
-				SLOGE << "[SOCI] error after " << durationMs(start, stop) << " ms : " << e.what();
-				if (sql) reconnectSession(*sql);
 			}
-			if (sql) delete sql;
 		} while (retry);
 		if (!good) throw DatabaseException();
 	}
