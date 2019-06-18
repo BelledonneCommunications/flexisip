@@ -22,6 +22,55 @@
 
 namespace flexisip{
 
+void SociHelper::execute(const std::function<void (soci::session &)> &requestLambda) {
+	std::chrono::steady_clock::time_point start;
+	std::chrono::steady_clock::time_point stop;
+	std::unique_ptr<soci::session> sql;
+	int errorCount = 0;
+	bool retry;
+	bool good = false;
+
+	do {
+		retry = false;
+		try {
+			// will grab a connection from the pool. This is thread safe.
+			start = std::chrono::steady_clock::now();
+			sql.reset(new soci::session(mPool));
+			stop = std::chrono::steady_clock::now();
+			LOGD("[SOCI] Session acquired from pool in %lu ms", durationMs(start, stop));
+			start = stop;
+			requestLambda(*sql);
+			stop = std::chrono::steady_clock::now();
+			LOGD("[SOCI] statement successfully executed in %lu ms", durationMs(start, stop));
+			good = true;
+		} catch (const std::runtime_error &e) { // soci::mysql_soci_error is a subclass of std::runtime_error
+			errorCount++;
+			stop = std::chrono::steady_clock::now();
+			const auto *sqlErr = dynamic_cast<const soci::mysql_soci_error *>(&e);
+
+			std::ostringstream os;
+			os << "[SOCI] " << (sqlErr ? "MySQL " : "") << "error after " << durationMs(start, stop) << "ms: ";
+			if (sqlErr) os << sqlErr->err_num_ << " ";
+			os << e.what();
+			LOGE("%s", os.str().c_str());
+
+			if (sql) reconnectSession(*sql);
+
+			if (sqlErr && (sqlErr->err_num_ == 2014 || sqlErr->err_num_ == 2006) && errorCount == 1) {
+				/* 2014 is the infamous "Commands out of sync; you can't run this command now" mysql error,
+				* which is retryable.
+				* At this time we don't know if it is a soci or mysql bug, or bug with the sql request being executed.
+				*
+				* 2006 is "MySQL server has gone away" which is also retryable.
+				*/
+				SLOGE << "[SOCI] retryable mysql error [" << sqlErr->err_num_ << "], so trying statement execution again...";
+				retry = true;
+			}
+		}
+	} while (retry);
+	if (!good) throw DatabaseException();
+}
+
 void SociHelper::reconnectSession(soci::session &session) {
 	try {
 		SLOGE << "[SOCI] Trying close/reconnect session";
