@@ -160,10 +160,27 @@ int OutgoingTransaction::_callback(nta_outgoing_magic_t *magic, nta_outgoing_t *
 	return 0;
 }
 
+static void destroy_transaction(su_root_magic_t *rm, su_msg_r msg, void *u){
+	nta_outgoing_t *tr = *static_cast<nta_outgoing_t **>(su_msg_data(msg));
+	nta_outgoing_destroy(tr);
+}
+
 void OutgoingTransaction::destroy() {
 	if (mSofiaRef != NULL) {
 		nta_outgoing_bind(mOutgoing, NULL, NULL); // avoid callbacks
-		nta_outgoing_destroy(mOutgoing);
+		{
+			// invoke nta_outgoing_destroy() at a later time.
+			su_msg_r mamc = SU_MSG_R_INIT;
+			if (-1 == su_msg_create(mamc, su_root_task(mAgent->getRoot()), su_root_task(mAgent->getRoot()), destroy_transaction,
+				sizeof(nta_outgoing_t *))) {
+				LOGF("Couldn't create async message to destroy transaction.");
+			}
+			nta_outgoing_t **outgoingStorage = (nta_outgoing_t **)su_msg_data(mamc);
+			*outgoingStorage = mOutgoing;
+			if (-1 == su_msg_send(mamc)) {
+				LOGF("Couldn't send async message to destroy transaction.");
+			}
+		}
 		mOutgoing = NULL;
 		looseProperties();
 		mIncoming.reset();
