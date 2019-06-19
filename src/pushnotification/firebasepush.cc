@@ -20,10 +20,13 @@ FirebasePushNotificationRequest::FirebasePushNotificationRequest(const PushInfo 
 	ostringstream httpBody;
 	string date = getPushTimeStamp();
 
-	httpBody << "{\"to\":\"" << deviceToken << "\", \"priority\":\"high\"" << ", \"uuid\":" << quoteStringIfNeeded(pinfo.mUid)
-		<< ", \"call-id\":" << quoteStringIfNeeded(pinfo.mCallId)
-		<< ", \"from\":" << quoteStringIfNeeded(from)
-		<< ", \"send-time\":\"" << date << "\"}";
+	httpBody << "{\"to\":\"" << deviceToken << "\", \"priority\":\"high\""
+		<< ", \"data\":{"
+			<< "\"uuid\":" << quoteStringIfNeeded(pinfo.mUid)
+			<< ", \"call-id\":" << quoteStringIfNeeded(pinfo.mCallId)
+			<< ", \"from\":" << quoteStringIfNeeded(from)
+			<< ", \"send-time\":" << quoteStringIfNeeded(date) << "}"
+		<< "}";
 	mHttpBody = httpBody.str();
 	LOGD("Push notification https post body is %s", mHttpBody.c_str());
 
