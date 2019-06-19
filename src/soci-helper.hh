@@ -35,115 +35,17 @@ namespace flexisip{
  */
 class SociHelper{
 public:
-	class DatabaseException : std::exception{
-		virtual const char* what() const noexcept override{
-			return "Database failure"; //The great thing about exception.
-		}
+	class DatabaseException : public std::runtime_error {
+	public:
+		DatabaseException() : std::runtime_error("Database failure") {}
 	};
+
 	// Initialize the SociHelper by giving the connection pool.
 	SociHelper(soci::connection_pool &pool) : mPool(pool){};
 	
 	// Execute the database query safely. The code to execute the query shall be provided in the lambda argument.
-#if 0
-	template <typename _lambda>
-	soci::rowset<soci::row> execute(_lambda requestLambda){
-		std::chrono::steady_clock::time_point start;
-		std::chrono::steady_clock::time_point stop;
-		soci::session *sql = nullptr;
-		int errorCount = 0;
-		bool retry;
-		
-		do{
-			retry = false;
-			try{
-				start = std::chrono::steady_clock::now();
-				// will grab a connection from the pool. This is thread safe.
-				sql = new soci::session(mPool);
-				stop = std::chrono::steady_clock::now();
-				LOGD("[SOCI] Session acquired from pool in %lu ms", durationMs(start, stop));
-				start = stop;
-				auto ret = requestLambda(*sql);
-				stop = std::chrono::steady_clock::now();
-				LOGD("[SOCI] statement successfully executed in %lu ms", durationMs(start, stop));
-				if (sql) delete sql;
-				return ret;
-			} catch (soci::mysql_soci_error const &e) {
-				errorCount++;
-				stop = std::chrono::steady_clock::now();
-				SLOGE << "[SOCI] MySQL error after " << durationMs(start, stop) << " ms : " << e.err_num_ << " " << e.what();
-				if (sql) reconnectSession(*sql);
+	void execute(const std::function<void (soci::session &)> &requestLambda);
 
-				if ((e.err_num_ == 2014 || e.err_num_ == 2006) && errorCount == 1){
-					/* 2014 is the infamous "Commands out of sync; you can't run this command now" mysql error,
-					* which is retryable.
-					* At this time we don't know if it is a soci or mysql bug, or bug with the sql request being executed.
-					*
-					* 2006 is "MySQL server has gone away" which is also retryable.
-					*/
-					SLOGE << "[SOCI] retryable mysql error ["<< e.err_num_<<"], so trying statement execution again...";
-					retry = true;
-				}
-			} catch (const std::runtime_error &e) {
-				errorCount++;
-				stop = std::chrono::steady_clock::now();
-				SLOGE << "[SOCI] error after " << durationMs(start, stop) << " ms : " << e.what();
-				if (sql) reconnectSession(*sql);
-			}
-		} while (retry);
-		if (sql) delete sql;
-		throw DatabaseException();
-	}
-#endif
-	// Variant of the previous method for the case where no rowset is needed as return value.
-	// Probably it is possible to merge the two methods thanks std::enable_if (TODO later).
-	template <typename _lambda>
-	void execute(_lambda requestLambda){
-		std::chrono::steady_clock::time_point start;
-		std::chrono::steady_clock::time_point stop;
-		soci::session *sql = nullptr;
-		int errorCount = 0;
-		bool retry;
-		bool good = false;
-		
-		do{
-			retry = false;
-			try{
-				// will grab a connection from the pool. This is thread safe.
-				start = std::chrono::steady_clock::now();
-				sql = new soci::session(mPool);
-				stop = std::chrono::steady_clock::now();
-				LOGD("[SOCI] Session acquired from pool in %lu ms", durationMs(start, stop));
-				start = stop;
-				requestLambda(*sql);
-				stop = std::chrono::steady_clock::now();
-				LOGD("[SOCI] statement successfully executed in %lu ms", durationMs(start, stop));
-				good = true;
-			} catch (soci::mysql_soci_error const &e) {
-				errorCount++;
-				stop = std::chrono::steady_clock::now();
-				SLOGE << "[SOCI] MySQL error after " << durationMs(start, stop) << " ms : " << e.err_num_ << " " << e.what();
-				if (sql) reconnectSession(*sql);
-
-				if ((e.err_num_ == 2014 || e.err_num_ == 2006) && errorCount == 1){
-					/* 2014 is the infamous "Commands out of sync; you can't run this command now" mysql error,
-					* which is retryable.
-					* At this time we don't know if it is a soci or mysql bug, or bug with the sql request being executed.
-					*
-					* 2006 is "MySQL server has gone away" which is also retryable.
-					*/
-					SLOGE << "[SOCI] retryable mysql error ["<< e.err_num_<<"], so trying statement execution again...";
-					retry = true;
-				}
-			} catch (const std::runtime_error &e) {
-				errorCount++;
-				stop = std::chrono::steady_clock::now();
-				SLOGE << "[SOCI] error after " << durationMs(start, stop) << " ms : " << e.what();
-				if (sql) reconnectSession(*sql);
-			}
-			if (sql) delete sql;
-		} while (retry);
-		if (!good) throw DatabaseException();
-	}
 private:
 	void reconnectSession(soci::session &session);
 	unsigned long durationMs(std::chrono::steady_clock::time_point start, std::chrono::steady_clock::time_point stop){

@@ -101,8 +101,7 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 	mc->addChildrenValues(items);
 }
 
-SociAuthDB::SociAuthDB() : conn_pool(NULL) {
-
+SociAuthDB::SociAuthDB() {
 	GenericStruct *cr = GenericManager::get()->getRoot();
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 	GenericStruct *mp = cr->get<GenericStruct>("module::Presence");
@@ -117,25 +116,37 @@ SociAuthDB::SociAuthDB() : conn_pool(NULL) {
 	hashed_passwd = ma->get<ConfigBoolean>("hashed-passwords")->read();
 	check_domain_in_presence_results = mp->get<ConfigBoolean>("check-domain-in-presence-results")->read();
 
-	conn_pool = new connection_pool(poolSize);
-	thread_pool = new ThreadPool(poolSize, max_queue_size);
+	conn_pool.reset(new connection_pool(poolSize));
+	thread_pool.reset(new ThreadPool(poolSize, max_queue_size));
 
-	LOGD("[SOCI] Authentication provider for backend %s created. Pooled for %d connections", backend.c_str(), (int)poolSize);
+	LOGD("[SOCI] Authentication provider for backend %s created. Pooled for %zu connections", backend.c_str(), poolSize);
+	connectDatabase();
+}
 
+void SociAuthDB::connectDatabase() {
+	SLOGD << "[SOCI] Connecting to database (" << poolSize << " pooled connections)";
 	try {
 		for (size_t i = 0; i < poolSize; i++) {
 			conn_pool->at(i).open(backend, connection_string);
 		}
-	} catch (soci::mysql_soci_error const & e) {
+		_connected = true;
+	} catch (const soci::mysql_soci_error &e) {
 		SLOGE << "[SOCI] connection pool open MySQL error: " << e.err_num_ << " " << e.what() << endl;
-	} catch (exception const &e) {
+		closeOpenedSessions();
+	} catch (const runtime_error &e) { // std::runtime_error includes all soci exceptions
 		SLOGE << "[SOCI] connection pool open error: " << e.what() << endl;
+		closeOpenedSessions();
 	}
 }
 
-SociAuthDB::~SociAuthDB() {
-	delete thread_pool; // will automatically shut it down, clearing threads
-	delete conn_pool;
+void SociAuthDB::closeOpenedSessions() {
+	for (size_t i = 0; i < poolSize; i++) {
+		soci::session &conn = conn_pool->at(i);
+		if (conn.get_backend()) { // if the session is open
+			conn.close();
+		}
+	}
+	_connected = false;
 }
 
 void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
@@ -326,11 +337,17 @@ void SociAuthDB::notifyAllListeners(std::list<std::tuple<std::string, std::strin
 void SociAuthDB::getPasswordFromBackend(const string &id, const string &domain,
 										const string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
 
+	if (!_connected) connectDatabase();
+	if (!_connected) {
+		if (listener) listener->onResult(AUTH_ERROR , "");
+		return;
+	}
+
 	// create a thread to grab a pool connection and use it to retrieve the auth information
 	auto func = bind(&SociAuthDB::getPasswordWithPool, this, id, domain, authid, listener, listener_ref);
 
 	bool success = thread_pool->run(func);
-	if (success == FALSE) {
+	if (!success) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil password request for " << id << " / " << domain << " / "
 			<< authid;
@@ -339,6 +356,11 @@ void SociAuthDB::getPasswordFromBackend(const string &id, const string &domain,
 }
 
 void SociAuthDB::getUserWithPhoneFromBackend(const string &phone, const string &domain, AuthDbListener *listener) {
+	if (!_connected) connectDatabase();
+	if (!_connected) {
+		if (listener) listener->onResult(AUTH_ERROR , "");
+		return;
+	}
 
 	// create a thread to grab a pool connection and use it to retrieve the auth information
 	auto func = bind(&SociAuthDB::getUserWithPhoneWithPool, this, phone, domain, listener);
@@ -352,6 +374,14 @@ void SociAuthDB::getUserWithPhoneFromBackend(const string &phone, const string &
 }
 
 void SociAuthDB::getUsersWithPhonesFromBackend(list<tuple<string, string, AuthDbListener*>> &creds) {
+	if (!_connected) connectDatabase();
+	if (!_connected) {
+		for (const auto &cred : creds) {
+			AuthDbListener *listener = std::get<2>(cred);
+			if (listener) listener->onResult(AUTH_ERROR, "");
+		}
+		return;
+	}
 
 	// create a thread to grab a pool connection and use it to retrieve the auth information
 	auto func = bind(&SociAuthDB::getUsersWithPhonesWithPool, this, creds);

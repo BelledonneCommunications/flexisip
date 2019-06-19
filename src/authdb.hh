@@ -292,19 +292,20 @@ public:
 namespace flexisip {
 
 class SociAuthDB : public AuthDbBackend {
-	virtual ~SociAuthDB();
-
 public:
-	SociAuthDB();
-	void setConnectionParameters(const std::string &domain, const std::string &request);
-	virtual void getUserWithPhoneFromBackend(const std::string & , const std::string &, AuthDbListener *listener);
-	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds);
-	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
+	void getUserWithPhoneFromBackend(const std::string & , const std::string &, AuthDbListener *listener) override;
+	void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds) override;
+	void getPasswordFromBackend(const std::string &id, const std::string &domain,
+					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) override;
 
 	static void declareConfig(GenericStruct *mc);
 
 private:
+	SociAuthDB();
+
+	void connectDatabase();
+	void closeOpenedSessions();
+
 	void getUserWithPhoneWithPool(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	void getUsersWithPhonesWithPool(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds);
 	void getPasswordWithPool(const std::string &id, const std::string &domain,
@@ -313,9 +314,9 @@ private:
 	void notifyAllListeners(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds, const std::set<std::pair<std::string, std::string>> &presences);
 
 
-	size_t poolSize;
-	soci::connection_pool *conn_pool;
-	ThreadPool *thread_pool;
+	std::size_t poolSize;
+	std::unique_ptr<soci::connection_pool> conn_pool;
+	std::unique_ptr<ThreadPool> thread_pool;
 	std::string connection_string;
 	std::string backend;
 	std::string get_password_request;
@@ -324,6 +325,9 @@ private:
 	std::string get_password_algo_request;
 	bool check_domain_in_presence_results = false;
 	bool hashed_passwd;
+	bool _connected = false;
+
+	friend AuthDbBackend;
 };
 
 }
