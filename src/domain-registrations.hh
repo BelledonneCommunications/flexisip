@@ -44,6 +44,12 @@ class DomainRegistration {
 	bool isUs(const url_t *url);
 	bool hasTport(const tport_t *tport) const;
 	const url_t *getPublicUri() const;
+	const url_t *getProxy()const{
+		return mProxy;
+	}
+	tport_t *getTport()const{
+		return mCurrentTport;
+	}
 	~DomainRegistration();
 
   private:
@@ -103,6 +109,11 @@ class DomainRegistrationManager : public LocalRegExpireListener, public std::ena
 	void onRegUpdated();
 
 	void onLocalRegExpireUpdated(unsigned int count);
+	
+	/**
+	 * Search for a DomainRegistration whose remote proxy matches destUrl, and return the tport_t it uses.
+	 */
+	tport_t *lookupTport(const url_t *destUrl);
 
   private:
 	Agent *mAgent;

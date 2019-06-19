@@ -20,7 +20,9 @@
 #include <flexisip/agent.hh>
 #include <flexisip/transaction.hh>
 #include "flexisip/module-router.hh"
+
 #include "etchosts.hh"
+#include "domain-registrations.hh"
 #include <sstream>
 
 #include <sofia-sip/su_md5.h>
@@ -295,8 +297,10 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	tp_name_t name = {0, 0, 0, 0, 0, 0};
 	tport_t *tport = nullptr;
 	if (ev->getOutgoingAgent() != nullptr) {
-		// tport_by_name can only work for IPs
-		if (tport_name_by_url(ms->getHome(), &name, reinterpret_cast<url_string_t*>(dest)) == 0) {
+		if ((tport = getAgent()->getDRM()->lookupTport(dest)) != nullptr){
+			LOGD("Found outgoing tport from domain registration manager.");
+		} else if (tport_name_by_url(ms->getHome(), &name, reinterpret_cast<url_string_t*>(dest)) == 0) {
+			// tport_by_name can only work for IPs
 			tport = tport_by_name(nta_agent_tports(getSofiaAgent()), &name);
 			if (!tport) {
 				LOGD("Could not existing tport to send message to %s", url_as_string(ms->getHome(), dest));

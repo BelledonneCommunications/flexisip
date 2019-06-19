@@ -214,6 +214,17 @@ const url_t *DomainRegistrationManager::getPublicUri(const tport_t *tport) const
 	return NULL;
 }
 
+
+tport_t *DomainRegistrationManager::lookupTport(const url_t *destUrl){
+	for (auto it = mRegistrations.begin(); it != mRegistrations.end(); ++it) {
+		const shared_ptr<DomainRegistration> &dr = *it;
+		if (url_cmp(dr->getProxy(), destUrl) == 0){
+			return dr->getTport();
+		}
+	}
+	return nullptr;
+}
+
 void DomainRegistrationManager::onLocalRegExpireUpdated(unsigned int count) {
 	if (count > 0 && !mDomainRegistrationsStarted) {
 		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
