@@ -122,22 +122,34 @@ OnResponseBindListener::OnResponseBindListener(ModuleRegistrar *module, shared_p
 void OnResponseBindListener::onRecordFound(const shared_ptr<Record> &r) {
 	const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
 	time_t now = getCurrentTime();
-	if (r) {
-		string uid = Record::extractUniqueId(mCtx->mContacts);
-		string topic = mModule->routingKey(mCtx->mFrom->a_url);
-		RegistrarDb::get()->publish(topic, uid);
 
-		const sip_contact_t *dbContacts = r->getContacts(ms->getHome(), now);
-		// Replace received contacts by our ones
-		auto &reMs = mEv->getMsgSip();
-		reMs->getSip()->sip_contact = sip_contact_dup(reMs->getHome(), dbContacts);
-		addEventLogRecordFound(mEv, dbContacts);
-		mModule->getAgent()->injectResponseEvent(mEv);
-	} else {
+	if (r == nullptr) {
 		LOGE("OnResponseBindListener::onRecordFound(): Record is null");
 		mCtx->reqSipEvent->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
 		mEv->terminateProcessing();
+		return;
 	}
+
+	string uid = Record::extractUniqueId(mCtx->mContacts);
+	string topic = mModule->routingKey(mCtx->mFrom->a_url);
+	RegistrarDb::get()->publish(topic, uid);
+
+	const sip_contact_t *dbContacts = r->getContacts(ms->getHome(), now);
+
+	// Replace received contacts by our ones
+	auto &reMs = mEv->getMsgSip();
+	reMs->getSip()->sip_contact = sip_contact_dup(reMs->getHome(), dbContacts);
+
+	// Remove empty 'pub-gruu' params from each contact header
+	for (sip_contact_t *contact = reMs->getSip()->sip_contact; contact; contact = contact->m_next) {
+		const char *pubGruuValue = msg_header_find_param((msg_common_t *)contact, "pub-gruu");
+		if (pubGruuValue == nullptr || pubGruuValue[0] == '\0') {
+			msg_header_remove_param((msg_common_t *)contact, "pub-gruu");
+		}
+	}
+
+	addEventLogRecordFound(mEv, dbContacts);
+	mModule->getAgent()->injectResponseEvent(mEv);
 }
 void OnResponseBindListener::onError() {
 	LOGE("OnResponseBindListener::onError(): 500");
