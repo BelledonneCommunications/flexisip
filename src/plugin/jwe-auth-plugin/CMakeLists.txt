@@ -48,6 +48,7 @@ set_property(TARGET jweauth PROPERTY CXX_STANDARD_REQUIRED ON)
 
 target_link_libraries(jweauth ${JWE_AUTH_LIBRARIES})
 target_include_directories(jweauth PUBLIC ${JWE_AUTH_INCLUDES})
+add_dependencies(jweauth flexisip-git-version)
 
 install(TARGETS jweauth
 	RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}/flexisip/plugins"

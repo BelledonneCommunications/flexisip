@@ -34,6 +34,7 @@ set_property(TARGET external-auth PROPERTY CXX_STANDARD_REQUIRED ON)
 target_link_libraries(external-auth ${FLEXISIP_LIBS})
 target_include_directories(external-auth PUBLIC ${FLEXISIP_INCLUDES})
 target_compile_options(external-auth PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
+add_dependencies(external-auth flexisip-git-version)
 
 install(TARGETS external-auth
 	RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}/flexisip/plugins"
