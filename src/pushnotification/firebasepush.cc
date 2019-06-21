@@ -24,7 +24,7 @@ FirebasePushNotificationRequest::FirebasePushNotificationRequest(const PushInfo 
 		<< ", \"data\":{"
 			<< "\"uuid\":" << quoteStringIfNeeded(pinfo.mUid)
 			<< ", \"call-id\":" << quoteStringIfNeeded(pinfo.mCallId)
-			<< ", \"from\":" << quoteStringIfNeeded(from)
+			<< ", \"sip-from\":" << quoteStringIfNeeded(from)
 			<< ", \"send-time\":" << quoteStringIfNeeded(date) << "}"
 		<< "}";
 	mHttpBody = httpBody.str();
