@@ -302,6 +302,7 @@ public:
 
 private:
 	SociAuthDB();
+	~SociAuthDB() override = default;
 
 	void connectDatabase();
 	void closeOpenedSessions();
