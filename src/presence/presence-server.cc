@@ -633,9 +633,11 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 			belle_sip_header_content_disposition_t *content_disposition = belle_sip_message_get_header_by_type(
 				BELLE_SIP_MESSAGE(request), belle_sip_header_content_disposition_t);
 			// first create the dialog
-			belle_sip_response_t *resp = belle_sip_response_create_from_request(request, 200);
-			belle_sip_object_ref(resp);
-			belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp), BELLE_SIP_HEADER(belle_sip_header_expires_create(expires)));
+			shared_ptr<belle_sip_response_t> resp(
+				BELLE_SIP_RESPONSE(belle_sip_object_ref(belle_sip_response_create_from_request(request, 200))),
+				belle_sip_object_unref
+			);
+			belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp.get()), BELLE_SIP_HEADER(belle_sip_header_expires_create(expires)));
 
 			// List subscription
 			if (supported && belle_sip_list_find_custom(belle_sip_header_supported_get_supported(supported), (belle_sip_compare_func)strcasecmp, "eventlist")) {
@@ -652,13 +654,12 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 						belle_sip_dialog_set_application_data(dialog, listSubscription.get());
 					}
 					// send 200ok late to allow deeper analysis of request
-					belle_sip_server_transaction_send_response(server_transaction, resp);
+					belle_sip_server_transaction_send_response(server_transaction, resp.get());
 					for (auto &listener : listSubscription->getListeners())
 						listener->enableBypass(bypass); //expiration is handled by dialog
 
 					addOrUpdateListeners(listSubscription->getListeners());
 					listSubscription->notify(true);
-					belle_sip_object_unref(resp);
 				};
 				if (!contentType) { // case of rfc4662 (list subscription without resource list in body)
 #if ENABLE_SOCI
@@ -695,7 +696,6 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					);
 				} else { // Unsuported
 error:
-					belle_sip_object_unref(resp);
 					throw BELLESIP_SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/resource-lists+xml")) << "Unsupported media type ["
 						<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
 						<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
@@ -710,7 +710,7 @@ error:
 				belle_sip_dialog_set_application_data(dialog, sub.get());
 				SLOGD << " setting sub pointer [" << belle_sip_dialog_get_application_data(dialog) << "] to dialog [" << dialog << "]";
 				// send 200ok late to allow deeper anylise of request
-				belle_sip_server_transaction_send_response(server_transaction, resp);
+				belle_sip_server_transaction_send_response(server_transaction, resp.get());
 				subscription->enableBypass(bypass);
 				addOrUpdateListener(subscription, expires);
 			}
