@@ -22,8 +22,7 @@ include:
   - '.gitlab-ci-files/job-linux-ubuntu-rolling.yml'
   - '.gitlab-ci-files/job-linux-ubuntu-18.04.yml'
   - '.gitlab-ci-files/job-macosx.yml'
-
-
+  - '.gitlab-ci-files/job-yocto.yml'
 
 stages:
  - build

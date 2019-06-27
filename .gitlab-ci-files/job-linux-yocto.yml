@@ -1,0 +1,32 @@
+
+job-debian9-yocto-sumo:
+  stage: build
+  tags: [ "docker-debian9" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-flexisip-yocto:latest
+#  only:
+#    variables:
+#      - $NIGHTLY_MASTER
+  cache:
+    key: $CI_JOB_NAME
+    paths:
+      - /home/build/poky/build/tmp/
+      - /home/build/poky/build/deploy/
+      - /home/build/poky/build/work
+      - /home/build/poky/build/work-shared
+      - /home/build/poky/build/sstate-cache/
+      - /home/build/poky/build/downloads/
+  before_script:
+    - mkdir -p /home/build/poky/build/tmp/
+    - mkdir -p /home/build/poky/build/deploy/
+    - mkdir -p /home/build/poky/build/sstate-cache/
+    - mkdir -p /home/build/poky/build/downloads/
+    - mkdir -p /home/build/poky/build/work/
+    - mkdir -p /home/build/poky/build/work-shared/
+  script:
+    - cd /home/build/poky
+    - source oe-init-build-env
+    - bitbake -f flexisip 2>&1 | tee bitbake_build.log
+  artifacts:
+    paths:
+      - /home/build/poky/build/bitbake_build.log
+      - /home/build/poky/build/tmp/deploy/ipk/**/flexisip*.ipk
