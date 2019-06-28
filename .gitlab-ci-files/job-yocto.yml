@@ -7,26 +7,23 @@ job-debian9-yocto-sumo:
 #    variables:
 #      - $NIGHTLY_MASTER
   cache:
-    key: $CI_JOB_NAME
+    key: yocto-cache-key
     paths:
-      - /home/build/poky/build/tmp/
-      - /home/build/poky/build/deploy/
-      - /home/build/poky/build/work
-      - /home/build/poky/build/work-shared
-      - /home/build/poky/build/sstate-cache/
-      - /home/build/poky/build/downloads/
-  before_script:
-    - mkdir -p /home/build/poky/build/tmp/
-    - mkdir -p /home/build/poky/build/deploy/
-    - mkdir -p /home/build/poky/build/sstate-cache/
-    - mkdir -p /home/build/poky/build/downloads/
-    - mkdir -p /home/build/poky/build/work/
-    - mkdir -p /home/build/poky/build/work-shared/
+      - build/tmp/
+      - build/deploy/
+      - build/work/
+      - build/work-shared/
+      - build/sstate-cache/
+      - build/downloads/
   script:
+    - export ORIGIN_PATH="$(pwd)"
     - cd /home/build/poky
     - source oe-init-build-env
     - bitbake -f flexisip 2>&1 | tee bitbake_build.log
+    - cd $ORIGIN_PATH
+    - ln -s /home/build/poky/build ./
+#Gitlab doesn't handle cache and artifacts paths
   artifacts:
     paths:
-      - /home/build/poky/build/bitbake_build.log
-      - /home/build/poky/build/tmp/deploy/ipk/**/flexisip*.ipk
+      - build/bitbake_build.log
+      - build/tmp/deploy/ipk/**/flexisip*.ipk
