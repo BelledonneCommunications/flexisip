@@ -72,7 +72,7 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
 	}, {
 		String,
 		"realm-regex",
-		"Extraction regex applied on the URI of the from header in order to extract the realm. The realm "
+		"Extraction regex applied on the URI of the from header (or P-Prefered-Identity header if present) in order to extract the realm. The realm "
 		"is found out by getting the first slice of the URI that matches the regular expression. If it "
 		"has one or more capturing parentheses, then the content of the first one is used as realm.\n"
 		"If no regex is specified, then the realm will be the domain part of the URI.\n"
@@ -173,14 +173,20 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const
 	if (!mRealmRegexStr.empty()) {
 		cmatch m;
 		const char *userUriStr = url_as_string(ev->getHome(), userUri);
+		LOGD("Searching for realm in %s URI (%s) with '%s' as extracting regex",
+			ppi ? "P-Prefered-Identity" : "From",
+			userUriStr, mRealmRegexStr.c_str()
+		);
 		if (!regex_search(userUriStr, m, mRealmRegex)) {
-			SLOGE << "no realm found in '" << userUriStr << "'. Search regex: '" << mRealmRegexStr << "'";
+			SLOGE << "no realm found";
 			ev->reply(500, "Internal error", TAG_END());
 			return;
 		}
 		int index = m.size() == 1 ? 0 : 1;
 		realm = su_strndup(ev->getHome(), userUriStr + m.position(index), m.length(index));
 	}
+
+	LOGI("'%s' will be used as realm", realm);
 
 	as.method(sip->sip_request->rq_method_name);
 	as.source(msg_addrinfo(ms->getMsg()));
