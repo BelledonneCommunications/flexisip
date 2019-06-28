@@ -92,9 +92,7 @@ void ConferenceServer::_init () {
 	mCore->addProxyConfig(proxy);
 	mCore->setDefaultProxyConfig(proxy);
 
-	linphone::Status err = mCore->start();
-	if (err == -2) LOGF("Linphone Core couldn't start because the connection to the database has failed");
-	if (err < 0) LOGF("Linphone Core starting failed");
+	mCore->start();
 
 	RegistrarDb::get()->addStateListener(shared_from_this());
 	if (RegistrarDb::get()->isWritable())
