@@ -20,9 +20,12 @@
 #
 ############################################################################
 
-#legacy script
-set(bindir ${CMAKE_INSTALL_FULL_BINDIR})
-message ("-- Startup scripts configured with bindir=${bindir}")
+#Directory of target install flexisip binary
+set(bindir "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}")
+set(SYSTEMD_CONFIGURATIONS_FILES_DIR "/lib/systemd/system")
+
+message("-- Startup scripts configured with bindir=${bindir}")
+
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/redhat/flexisip.in ${CMAKE_CURRENT_BINARY_DIR}/redhat/flexisip)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/debian/flexisip.in ${CMAKE_CURRENT_BINARY_DIR}/debian/flexisip)
 
@@ -31,17 +34,19 @@ if (ENABLE_PRESENCE)
 	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/debian/flexisip-presence.in ${CMAKE_CURRENT_BINARY_DIR}/debian/flexisip-presence)
 endif()
 
-
 #systemd
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-proxy.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-proxy.service)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-proxy@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-proxy@.service)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/flexisip-proxy.service" "${CMAKE_CURRENT_BINARY_DIR}/flexisip-proxy@.service" DESTINATION "${SYSTEMD_CONFIGURATIONS_FILES_DIR}")
 
 if (ENABLE_PRESENCE)
 	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-presence.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-presence.service)
 	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-presence@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-presence@.service)
+	install(FILES "${CMAKE_CURRENT_BINARY_DIR}/flexisip-presence.service" "${CMAKE_CURRENT_BINARY_DIR}/flexisip-presence@.service" DESTINATION "${SYSTEMD_CONFIGURATIONS_FILES_DIR}")
 endif()
+
 if (ENABLE_CONFERENCE)
 	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-conference.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-conference.service)
 	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-conference@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-conference@.service)
+	install(FILES "${CMAKE_CURRENT_BINARY_DIR}/flexisip-conference.service" "${CMAKE_CURRENT_BINARY_DIR}/flexisip-conference@.service" DESTINATION "${SYSTEMD_CONFIGURATIONS_FILES_DIR}")
 endif()
-

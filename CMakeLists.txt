@@ -83,14 +83,10 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Required packages
 find_package(SofiaSipUa 1.13.11 REQUIRED) #find_package only allow numbers
-if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
-	include("${EP_ortp_CONFIG_DIR}/ORTPConfig.cmake")
-else()
-	find_package(ORTP 0.21 REQUIRED)
-endif()
+find_package(ortp 0.21 REQUIRED CONFIG)
 
-find_package(BcToolbox 0.0.3 REQUIRED)
-find_package(Belr REQUIRED)
+find_package(bctoolbox 0.0.3 REQUIRED CONFIG)
+find_package(belr REQUIRED)
 
 find_package(LibXsd)
 
@@ -145,7 +141,7 @@ if(ENABLE_ODBC)
 endif()
 
 if(ENABLE_TRANSCODER)
-	find_package(Mediastreamer2 2.9.0 REQUIRED)
+	find_package(Mediastreamer2 2.9.0 REQUIRED CONFIG)
 endif()
 
 if(ENABLE_SPECIFIC_FEATURES)
@@ -183,29 +179,18 @@ if(ENABLE_PDFDOC)
 endif()
 
 if(ENABLE_PRESENCE OR ENABLE_MDNS)
-		# disable Presence on gcc < 4.7 because c++11 is not supported well before
-		if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
-				message(WARNING "Disable Presence because GCC is too old")
-				set(ENABLE_PRESENCE OFF)
-		endif()
-
-	if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
-		include("${EP_bellesip_CONFIG_DIR}/BelleSIPConfig.cmake")
-	else()
-		find_package(BelleSIP 1.2.4 REQUIRED)
+	# disable Presence on gcc < 4.7 because c++11 is not supported well before
+	if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
+		message(WARNING "Disable Presence because GCC is too old")
+		set(ENABLE_PRESENCE OFF)
 	endif()
+	find_package(BelleSIP 1.2.4 REQUIRED CONFIG)
 endif()
 
 if(ENABLE_CONFERENCE)
-	if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
-		include("${EP_bellesip_CONFIG_DIR}/BelleSIPConfig.cmake")
-		include("${EP_linphone_CONFIG_DIR}/LinphoneConfig.cmake")
-		include("${EP_linphone_CONFIG_DIR}/wrappers/cpp/LinphoneCxxConfig.cmake")
-	else ()
-		find_package(BelleSIP 1.2.4 REQUIRED)
-		find_package(Linphone REQUIRED)
-		find_package(LinphoneCxx REQUIRED)
-	endif()
+	find_package(BelleSIP 1.2.4 REQUIRED CONFIG)
+	find_package(Linphone REQUIRED CONFIG)
+	find_package(LinphoneCxx REQUIRED)
 endif()
 
 if(ENABLE_SOCI)
@@ -238,7 +223,7 @@ include_directories(
 	${SOFIASIPUA_INCLUDE_DIRS}
 )
 
-set(BELR_GRAMMARS_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/belr/grammars")
+set(BELR_GRAMMARS_DIR "${CMAKE_INSTALL_DATADIR}/belr/grammars")
 
 configure_file(${PROJECT_SOURCE_DIR}/cmake/flexisip-config.h.in ${PROJECT_BINARY_DIR}/flexisip-config.h)
 set_source_files_properties(${PROJECT_BINARY_DIR}/flexisip-config.h PROPERTIES GENERATED ON)
