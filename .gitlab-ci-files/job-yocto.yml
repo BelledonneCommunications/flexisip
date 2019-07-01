@@ -16,14 +16,19 @@ job-debian9-yocto-sumo:
       - yocto_build/sstate-cache/
       - yocto_build/downloads/
   before_script:
+    - pwd
+    - ls -la
     - ln -sf ./yocto_build /home/build/poky/build
   script:
+    - pwd
+    - ls -la
     - export ORIGIN_PATH="$(pwd)"
     - cd /home/build/poky
     - source oe-init-build-env
     - bitbake -f flexisip 2>&1 | tee bitbake_build.log
     - cd $ORIGIN_PATH
     - pwd
+    - ls -la
     - ln -sf /home/build/poky/build ./yoto_build
 #Gitlab doesn't handle cache and artifacts paths
   artifacts:
