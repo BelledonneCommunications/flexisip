@@ -256,7 +256,8 @@ static bool checkStarUse(const sip_contact_t *contact, int expires) {
 		}
 
 		++count;
-		if ('*' == contact->m_url[0].url_scheme[0]) {
+		const char *scheme = contact->m_url[0].url_scheme;
+		if (scheme && '*' == scheme[0]) {
 			if (count > 1 || 0 != expires)
 				return false;
 			starFound = true;
