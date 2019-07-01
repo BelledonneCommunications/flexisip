@@ -9,21 +9,24 @@ job-debian9-yocto-sumo:
   cache:
     key: yocto-cache-key
     paths:
-      - build/tmp/
-      - build/deploy/
-      - build/work/
-      - build/work-shared/
-      - build/sstate-cache/
-      - build/downloads/
+      - yocto_build/tmp/
+      - yocto_build/deploy/
+      - yocto_build/work/
+      - yocto_build/work-shared/
+      - yocto_build/sstate-cache/
+      - yocto_build/downloads/
+  before_script:
+    - ln -sf ./yocto_build /home/build/poky/build
   script:
     - export ORIGIN_PATH="$(pwd)"
     - cd /home/build/poky
     - source oe-init-build-env
     - bitbake -f flexisip 2>&1 | tee bitbake_build.log
     - cd $ORIGIN_PATH
-    - ln -s /home/build/poky/build ./
+    - pwd
+    - ln -sf /home/build/poky/build ./yoto_build
 #Gitlab doesn't handle cache and artifacts paths
   artifacts:
     paths:
-      - build/bitbake_build.log
-      - build/tmp/deploy/ipk/**/flexisip*.ipk
+      - yocto_build/bitbake_build.log
+      - yocto_build/tmp/deploy/ipk/**/flexisip*.ipk
