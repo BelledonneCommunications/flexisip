@@ -25,7 +25,7 @@ FirebasePushNotificationRequest::FirebasePushNotificationRequest(const PushInfo 
 			<< "\"uuid\":" << quoteStringIfNeeded(pinfo.mUid)
 			<< ", \"call-id\":" << quoteStringIfNeeded(pinfo.mCallId)
 			<< ", \"sip-from\":" << quoteStringIfNeeded(from)
-			<< ", \"loc-key\":\"" << quoteStringIfNeeded(pinfo.mAlertMsgId)
+			<< ", \"loc-key\":" << quoteStringIfNeeded(pinfo.mAlertMsgId)
 			<< ", \"loc-args\":" << quoteStringIfNeeded(from)
 			<< ", \"send-time\":" << quoteStringIfNeeded(date) << "}"
 		<< "}";
