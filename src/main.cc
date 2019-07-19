@@ -815,30 +815,6 @@ int main(int argc, char *argv[]) {
 	sip_update_default_mclass(sip_extend_mclass(NULL));
 
 	root = su_root_create(NULL);
-
-	// in case we don't plan to launch flexisip, don't setup the logs.
-	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs && !dumpAll) {
-		if (cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read() != -1) {
-			LOGF("Setting 'global/max-log-size' parameter has been forbbiden since log size control was delegated to logrotate. Please "
-				"edit /etc/logrotate.d/flexisip-logrotate for log rotation customization."
-			);
-		}
-
-		LogManager::Parameters logParams;
-		logParams.root = root;
-		logParams.logDirectory = cfg->getGlobal()->get<ConfigString>("log-directory")->read();
-		logParams.logFilename = "flexisip-" + fName + ".log";
-		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::get().logLevelFromName(log_level);
-		logParams.enableSyslog = useSyslog;
-		logParams.syslogLevel = LogManager::get().logLevelFromName(syslog_level);
-		logParams.enableStdout = debug && !daemonMode; // No need to log to stdout in daemon mode.
-		logParams.enableUserErrors = user_errors;
-		LogManager::get().initialize(logParams);
-		LogManager::get().setContextualFilter(cfg->getGlobal()->get<ConfigString>("contextual-log-filter")->read());
-		LogManager::get().setContextualLevel(LogManager::get().logLevelFromName(cfg->getGlobal()->get<ConfigString>("contextual-log-level")->read()));
-	} else {
-		LogManager::get().disable();
-	}
 	
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGTERM, flexisip_stop);
@@ -888,6 +864,33 @@ int main(int argc, char *argv[]) {
 	} else if (pidFile.getValue().length() != 0) {
 		// not daemon but we want a pidfile anyway
 		makePidFile(pidFile.getValue());
+	}
+
+	/* Log initialisation.
+	 * This must be done after forking in order the log file be reopen after respawn should Flexisip crash.
+	 * The condition intent to avoid log initialization should the user have passed command line options that doesn't
+	 * require to start the server e.g. dumping default configuration file. */
+	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs && !dumpAll) {
+		if (cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read() != -1) {
+			LOGF("Setting 'global/max-log-size' parameter has been forbbiden since log size control was delegated to logrotate. Please "
+				"edit /etc/logrotate.d/flexisip-logrotate for log rotation customization."
+			);
+		}
+
+		LogManager::Parameters logParams;
+		logParams.root = root;
+		logParams.logDirectory = cfg->getGlobal()->get<ConfigString>("log-directory")->read();
+		logParams.logFilename = "flexisip-" + fName + ".log";
+		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::get().logLevelFromName(log_level);
+		logParams.enableSyslog = useSyslog;
+		logParams.syslogLevel = LogManager::get().logLevelFromName(syslog_level);
+		logParams.enableStdout = debug && !daemonMode; // No need to log to stdout in daemon mode.
+		logParams.enableUserErrors = user_errors;
+		LogManager::get().initialize(logParams);
+		LogManager::get().setContextualFilter(cfg->getGlobal()->get<ConfigString>("contextual-log-filter")->read());
+		LogManager::get().setContextualLevel(LogManager::get().logLevelFromName(cfg->getGlobal()->get<ConfigString>("contextual-log-level")->read()));
+	} else {
+		LogManager::get().disable();
 	}
 
 	/*
