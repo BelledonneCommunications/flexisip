@@ -20,7 +20,7 @@ FirebasePushNotificationRequest::FirebasePushNotificationRequest(const PushInfo 
 	ostringstream httpBody;
 	string date = getPushTimeStamp();
 
-	httpBody << "{\"to\":\"" << deviceToken << "\", \"priority\":\"high\""
+	httpBody << "{\"to\":\"" << deviceToken << "\", \"time_to_live\":0, \"priority\":\"high\""
 		<< ", \"data\":{"
 			<< "\"uuid\":" << quoteStringIfNeeded(pinfo.mUid)
 			<< ", \"call-id\":" << quoteStringIfNeeded(pinfo.mCallId)
