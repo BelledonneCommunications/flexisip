@@ -227,8 +227,7 @@ void PushNotificationService::setupiOSClient(const std::string &certdir, const s
 			(cert.compare(cert.length() - suffix.length(), suffix.length(), suffix) != 0)) {
 			continue;
 		}
-		/*March 2016: Yes Apple production push server doesn't support TLS > 1.0*/
-		SSL_CTX* ctx = SSL_CTX_new(TLSv1_client_method());
+		SSL_CTX* ctx = SSL_CTX_new(TLSv1_2_method());
 		if (!ctx) {
 			SLOGE << "Could not create ctx!";
 			ERR_print_errors_fp(stderr);
