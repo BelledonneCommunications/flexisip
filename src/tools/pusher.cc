@@ -174,8 +174,8 @@ int main(int argc, char *argv[]) {
 
 	LogManager::Parameters logParams;
 	
-	logParams.logDirectory = "/var/opt/belledonne-communications/log/flexisip"; //Sorry but ConfigManager is not accessible in this tool.
-	logParams.logFilename = "flexisip-pusher.log";
+	//logParams.logDirectory = "/var/opt/belledonne-communications/log/flexisip"; //Sorry but ConfigManager is not accessible in this tool.
+	//logParams.logFilename = "flexisip-pusher.log";
 	logParams.level = args.debug ? BCTBX_LOG_DEBUG : BCTBX_LOG_ERROR;
 	logParams.enableSyslog = false;
 	logParams.enableStdout = true;
