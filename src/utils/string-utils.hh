@@ -57,6 +57,10 @@ public:
 		end = rbegin.base();
 	}
 
+	static std::string stripAll(const char *str, char c = ' ');
+	static std::string stripAll(const std::string &str, char c = ' ');
+	static void stripAll(std::string::const_iterator &start, std::string::const_iterator &end, char c = ' ');
+
 	/**
 	 * @brief Check whether the string 'str' starts with 'prefix' and returned the subsequent
 	 * part of the string.
