@@ -29,6 +29,8 @@
 #include <sstream>
 #include <typeinfo>
 
+#include "utils/string-utils.hh"
+
 using namespace std;
 using namespace flexisip;
 
@@ -87,9 +89,6 @@ EventLog::EventLog(const sip_t *sip) {
 
 	mUA = sip->sip_user_agent ? sip_user_agent_dup(&mHome, sip->sip_user_agent) : NULL;
 	mCallId = sip->sip_call_id->i_id;
-	mStatusCode = 0;
-
-	mCompleted = false;
 }
 
 EventLog::~EventLog() {
@@ -696,10 +695,22 @@ void DataBaseEventLogWriter::initTables(soci::session *session, Backend backend)
 		"  reason VARCHAR(255) NOT NULL,"
 		"  completed CHAR(1) NOT NULL,"
 		"  call_id VARCHAR(255) NOT NULL,"
-
 		"  FOREIGN KEY (type_id)"
 		"    REFERENCES event_type(id)"
 		")" + tableOptions;
+
+	// Schema migration #1: add 'priority' column to event_log
+	*session << "DROP PROCEDURE IF EXISTS add_priority_column_to_event_log_table";
+	*session <<
+		"CREATE PROCEDURE add_priority_column_to_event_log_table()"
+		"BEGIN"
+		"  IF NOT EXISTS ((SELECT * FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='event_log' AND column_name='priority')) THEN"
+		"    ALTER TABLE event_log ADD COLUMN priority VARCHAR(255) NOT NULL DEFAULT 'normal';"
+		"  END IF;"
+		"END";
+	*session << "CALL add_priority_column_to_event_log_table()";
+	*session << "DROP PROCEDURE IF EXISTS add_priority_column_to_event_log_table";
+
 
 	// Specialized events table.
 	*session <<
@@ -799,11 +810,11 @@ void DataBaseEventLogWriter::writeEventLog(soci::session *session, const std::sh
 	string completed(boolToSqlString(evlog->mCompleted));
 
 	*session << "INSERT INTO event_log "
-		"(type_id, sip_from, sip_to, user_agent, date, status_code, reason, completed, call_id)"
-		"VALUES (:typeId, :sipFrom, :sipTo, :userAgent, :date, :statusCode, :reason, :completed, :callId)",
+		"(type_id, sip_from, sip_to, user_agent, date, status_code, reason, completed, call_id, priority)"
+		"VALUES (:typeId, :sipFrom, :sipTo, :userAgent, :date, :statusCode, :reason, :completed, :callId, :priority)",
 		soci::use(typeId), soci::use(from), soci::use(to),
 		soci::use(ua), soci::use(*gmtime_r(&evlog->mDate, &date)), soci::use(evlog->mStatusCode),
-		soci::use(evlog->mReason), soci::use(completed), soci::use(evlog->mCallId);
+		soci::use(evlog->mReason), soci::use(completed), soci::use(evlog->mCallId), soci::use(evlog->mPriority);
 }
 
 // IMPORTANT
