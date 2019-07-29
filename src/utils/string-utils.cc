@@ -55,6 +55,26 @@ void StringUtils::strip(std::string::const_iterator &start, std::string::const_i
 	end--;
 }
 
+std::string StringUtils::stripAll(const char *str, char c) {
+	const char *start = str;
+	const char *end = index(str, '\0');
+	while (end > start && *end == c) end--;
+	while (end > start && *start == c) start++;
+	return string(start, end-start);
+}
+
+std::string StringUtils::stripAll(const std::string &str, char c) {
+	auto start = str.cbegin();
+	auto end = str.cend();
+	stripAll(start, end, c);
+	return string(start, end);
+}
+
+void StringUtils::stripAll(std::string::const_iterator &start, std::string::const_iterator &end, char c) {
+	while (end > start && *(end-1) == c) end--;
+	while (end > start && *start == c) start++;
+}
+
 std::string StringUtils::removePrefix(const std::string &str, const std::string &prefix) {
 	if (str.compare(0, prefix.size(), prefix) != 0) {
 		ostringstream os;
