@@ -41,7 +41,6 @@ public:
 	virtual ~EventLog();
 	void setCompleted();
 	void setStatusCode(int sip_status, const char *reason);
-	void setPriority(const std::string &priority) {mPriority = priority;}
 	bool isCompleted() const {
 		return mCompleted;
 	}
@@ -49,16 +48,14 @@ public:
 protected:
 
 	su_home_t mHome;
-	sip_from_t *mFrom = nullptr;
-	sip_to_t *mTo = nullptr;
-	sip_user_agent_t *mUA = nullptr;
+	sip_from_t *mFrom;
+	sip_to_t *mTo;
+	sip_user_agent_t *mUA;
 	time_t mDate;
-	int mStatusCode = 0;
+	int mStatusCode;
 	std::string mReason;
-	bool mCompleted = false;
+	bool mCompleted;
 	std::string mCallId;
-	std::string mPriority = "normal";
-
 	class Init {
 	public:
 		Init();
