@@ -697,7 +697,7 @@ void DataBaseEventLogWriter::initTables(soci::session *session, Backend backend)
 		"CREATE PROCEDURE add_priority_column_to_event_log_table()"
 		"BEGIN"
 		"  IF NOT EXISTS ((SELECT * FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='event_log' AND column_name='priority')) THEN"
-		"    ALTER TABLE event_log ADD COLUMN priority VARCHAR(255) NOT NULL DEFAULT 'normal';"
+		"    ALTER TABLE event_log ADD COLUMN priority VARCHAR(255) NOT NULL;"
 		"  END IF;"
 		"END";
 	*session << "CALL add_priority_column_to_event_log_table()";
