@@ -87,10 +87,10 @@ private:
 	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
 	void loadPassword(const FlexisipAuthStatus &as) override;
 
-	std::map<std::string, std::string> extractParameters(const Status &as, const msg_auth_t &credentials) const;
 	void onHttpResponse(HttpRequestCtx &ctx, nth_client_t *request, const http_t *http);
 	std::map<std::string, std::string> parseHttpBody(const std::string &body) const;
 
+	static std::string extractParameter(const Status &as, const msg_auth_t &credentials, const std::string &paramName);
 	static int onHttpResponseCb(nth_client_magic_t *magic, nth_client_t *request, const http_t *http) noexcept;
 	static std::string toString(const http_payload_t *httpPayload);
 	static bool validSipCode(int sipCode);

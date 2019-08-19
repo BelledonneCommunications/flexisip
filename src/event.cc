@@ -26,7 +26,8 @@
 #include <sofia-sip/msg_addr.h>
 
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
 
 void MsgSip::assignMsg(msg_t *msg) {
 	mMsg = msg_ref_create(msg);
@@ -43,6 +44,19 @@ MsgSip::MsgSip(const MsgSip &msgSip) {
 	assignMsg(freshCopy);
 	msg_destroy(freshCopy);
 	LOGD("New MsgSip %p copied from MsgSip %p", this, &msgSip);
+}
+
+msg_header_t *MsgSip::findHeader(const std::string &name) {
+	const sip_t *sip = getSip();
+	auto begin = reinterpret_cast<msg_header_t * const *>(&sip->sip_via);
+	auto end = reinterpret_cast<msg_header_t * const *>(&sip->sip_unknown);
+	for (auto it = begin; it < end; it++) {
+		msg_header_t *header = *it;
+		if (header && strcasecmp(header->sh_common->h_class->hc_name, name.c_str()) == 0) {
+			return header;
+		}
+	}
+	return nullptr;
 }
 
 const char *MsgSip::print() {
@@ -350,8 +364,10 @@ void ResponseSipEvent::setOutgoingAgent(const shared_ptr<OutgoingAgent> &agent) 
 ResponseSipEvent::~ResponseSipEvent() {
 }
 
-std::ostream &flexisip::operator<<(std::ostream &strm, const url_t &obj){
+std::ostream &operator<<(std::ostream &strm, const url_t &obj){
 	SofiaAutoHome home;
 	strm<<url_as_string(home.home(), &obj);
 	return strm;
 }
+
+} // namespace flexisip

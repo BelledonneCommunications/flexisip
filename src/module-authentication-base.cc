@@ -178,9 +178,7 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const
 			userUriStr, mRealmRegexStr.c_str()
 		);
 		if (!regex_search(userUriStr, m, mRealmRegex)) {
-			SLOGE << "no realm found";
-			ev->reply(500, "Internal error", TAG_END());
-			return;
+			throw runtime_error("no realm found");
 		}
 		int index = m.size() == 1 ? 0 : 1;
 		realm = su_strndup(ev->getHome(), userUriStr + m.position(index), m.length(index));

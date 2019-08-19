@@ -18,41 +18,53 @@
 
 #pragma once
 
+#include <functional>
 #include <map>
 #include <string>
 
 /**
- * @brief Factor new strings basing on a template and a map of key-value.
+ * @brief Factor new strings basing on a template.
  *
  * The template is a string that contains substitution variables, which
  * will be replaced on string creation. Each substitution variable is composed
- * by a '$' character followed by the name of the variable. Only alphanumeric
- * character and '-' are valid in variable names.
+ * by a name surrounded by '{' and '}' brackets e.g. '{example}'. The name of the variable can
+ * be composed by any printable ASCII characters, excepted left brace, which mark
+ * the end of the variable.
  *
- * @warning All the characters after a '$' will be taken as variable name until a character
- * not suitable for name is encountered.
+ * While forging the string, each variable is replaced by a string value basing on
+ * a given key-value map or a translation function.
  */
 class StringFormater {
 public:
-	StringFormater(const std::string &_template = "") : mTemplate(_template) {}
+	/**
+	 * @brief Prototype for translation fuctions.
+	 */
+	using TranslationFunc = std::function<std::string(const std::string &)>;
 
-	void setTemplate(const std::string &_template) {mTemplate = _template;}
+	StringFormater(const std::string &_template = "") {setTemplate(_template);}
+
+	void setTemplate(const std::string &_template);
 	const std::string &getTemplate() const {return mTemplate;}
 
 	/**
-	 * @brief Create a new string.
+	 * @brief Forge a new string from a map.
 	 *
 	 * @param values A map associating a variable name with the value by which
 	 * the variable will be replaced.
 	 * @return The new string.
 	 *
-	 * An std::invalid_argument exception it thrown if a value couldn't be found in
-	 * the map for a variable.
+	 * @throw std::invalid_argument some variable value couldn't be found
+	 * in values map.
 	 */
 	std::string format(const std::map<std::string, std::string> &values) const;
 
+	/**
+	 * @brief Forge a new string by using a function.
+	 */
+	std::string format(TranslationFunc &func) const;
+
 private:
-	static bool isKeywordChar(char c);
+	static std::pair<bool, std::string> checkTemplateSyntax(const std::string &_template);
 
 	std::string mTemplate;
 };
@@ -65,6 +77,7 @@ private:
 class HttpUriFormater: public StringFormater {
 public:
 	std::string format(const std::map<std::string, std::string> &values) const;
+	std::string format(TranslationFunc &func) const;
 
 private:
 	static std::map<std::string, std::string> escape(const std::map<std::string, std::string> &values);

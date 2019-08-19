@@ -45,6 +45,7 @@ public:
 		mPriv->as_plugin = reinterpret_cast<auth_splugin_t *>(this);
 		mPriv->as_callback = responseCb;
 	}
+	AuthStatus(const AuthStatus &other) = delete;
 	virtual ~AuthStatus() {su_home_deinit(&mHome);}
 
 	bool allow() const {return mPriv->as_allow;}

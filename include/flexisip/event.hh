@@ -18,17 +18,18 @@
 
 #pragma once
 
-#include <sofia-sip/tport.h>
-#include <sofia-sip/msg.h>
-#include <sofia-sip/sip.h>
-#include <sofia-sip/nta.h>
-
-#include <memory>
-#include <list>
-#include <string>
-#include <ostream>
 #include <functional>
+#include <list>
+#include <map>
+#include <memory>
+#include <ostream>
 #include <regex.h>
+#include <string>
+
+#include <sofia-sip/msg.h>
+#include <sofia-sip/nta.h>
+#include <sofia-sip/sip.h>
+#include <sofia-sip/tport.h>
 
 namespace flexisip {
 
@@ -53,20 +54,14 @@ class MsgSip {
 	MsgSip(const MsgSip &msgSip);
 	~MsgSip();
 
-	inline msg_t *getMsg() const {
-		return mMsg;
-	}
+	msg_t *getMsg() const {return mMsg;}
+	sip_t *getSip() const {return (sip_t *)msg_object(mMsg);}
+	su_home_t *getHome() const {return msg_home(mMsg);}
 
-	inline sip_t *getSip() const {
-		return (sip_t *)msg_object(mMsg);
-	}
+	msg_header_t *findHeader(const std::string &name);
+	const msg_header_t *findHeader(const std::string &name) const {return const_cast<MsgSip *>(this)->findHeader(name);}
 
-	inline su_home_t *getHome() const {
-		return msg_home(mMsg);
-	}
-	void serialize() const {
-		msg_serialize(mMsg, (msg_pub_t *)getSip());
-	}
+	void serialize() const {msg_serialize(mMsg, (msg_pub_t *)getSip());}
 	const char *print();
 
   private:

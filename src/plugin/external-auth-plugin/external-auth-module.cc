@@ -18,8 +18,12 @@
 
 #include <algorithm>
 #include <cstring>
+#include <functional>
+#include <regex>
 #include <sstream>
 #include <stdexcept>
+
+#include <sofia-sip/sip_header.h>
 
 #include <flexisip/logmanager.hh>
 #include "utils/string-utils.hh"
@@ -27,7 +31,8 @@
 #include "external-auth-module.hh"
 
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
 
 ExternalAuthModule::ExternalAuthModule(su_root_t *root, const std::string &domain, const std::string &algo) : FlexisipAuthModuleBase(root, domain, algo) {
 	mEngine = nth_engine_create(root, TAG_END());
@@ -44,16 +49,9 @@ ExternalAuthModule::~ExternalAuthModule() {
 void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) {
 	try {
 		auto &externalAs = dynamic_cast<ExternalAuthModule::Status &>(as);
-		map<string, string> params = extractParameters(externalAs, *credentials);
 
-		string uri;
-		try {
-			uri = mUriFormater.format(params);
-		} catch (const invalid_argument &e) {
-			ostringstream os;
-			os << "cannot format HTTP URI: " << e.what();
-			throw runtime_error(os.str());
-		}
+		HttpUriFormater::TranslationFunc func = [&externalAs, credentials](const string &key){return extractParameter(externalAs, *credentials, key);};
+		string uri = mUriFormater.format(func);
 
 		auto *ctx = new HttpRequestCtx({*this, as, *ach});
 
@@ -80,26 +78,6 @@ void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *cre
 }
 
 void ExternalAuthModule::loadPassword(const FlexisipAuthStatus &as) {
-}
-
-std::map<std::string, std::string> ExternalAuthModule::extractParameters(const Status &as, const msg_auth_t &credentials) const {
-	map<string, string> params;
-
-	for (int i = 0; credentials.au_params[i] != nullptr; i++) {
-		const char *param = credentials.au_params[i];
-		const char *equal = strchr(const_cast<char *>(param), '=');
-		string key(param, equal-param);
-		string value = StringUtils::strip(equal+1, '"');
-		params[move(key)] = move(value);
-	}
-
-	params["scheme"] = StringUtils::strip(credentials.au_scheme, '"');
-	params["method"] = StringUtils::strip(as.method(), '"');
-	params["from"] = StringUtils::strip(as.fromHeader(), '"');
-	params["sip-instance"] = StringUtils::strip(as.sipInstance(), '"');
-	params["uuid"] = as.uuid();
-	params["domain"] = StringUtils::strip(as.domain(), '"');
-	return params;
 }
 
 void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *request, const http_t *http) {
@@ -190,6 +168,40 @@ std::map<std::string, std::string> ExternalAuthModule::parseHttpBody(const std::
 	return result;
 }
 
+std::string ExternalAuthModule::extractParameter(const Status &as, const msg_auth_t &credentials, const std::string &paramName) {
+	if (paramName.compare(0, 7, "header:") == 0) {
+		string headerName(paramName, 7);
+		if (!headerName.empty()) {
+			char encodedHeader[255];
+			msg_header_t *header = as.event()->getMsgSip()->findHeader(headerName);
+			if (header) {
+				cmatch m;
+				sip_header_e(encodedHeader, sizeof(encodedHeader), reinterpret_cast<sip_header_t *>(header), 0);
+				if (regex_match(encodedHeader, m, regex(".*:\\s*(.*)\r\n"))) {
+					return m.str(1);
+				}
+			}
+		}
+	}
+
+	for (int i = 0; credentials.au_params[i] != nullptr; i++) {
+		const char *param = credentials.au_params[i];
+		const char *equal = strchr(const_cast<char *>(param), '=');
+		if (paramName.compare(0, paramName.size(), param, equal-param) == 0) {
+			return StringUtils::strip(equal+1, '"');
+		}
+	}
+
+	if (paramName == "scheme") return StringUtils::strip(credentials.au_scheme, '"');
+	if (paramName == "method") return StringUtils::strip(as.method(), '"');
+	if (paramName == "from") return StringUtils::strip(as.fromHeader(), '"');
+	if (paramName == "sip-instance") return StringUtils::strip(as.sipInstance(), '"');
+	if (paramName == "uuid") return as.uuid();
+	if (paramName == "domain") return StringUtils::strip(as.domain(), '"');
+
+	return "null";
+}
+
 int ExternalAuthModule::onHttpResponseCb(nth_client_magic_t *magic, nth_client_t *request, const http_t *http) noexcept {
 	auto *ctx = reinterpret_cast<HttpRequestCtx *>(magic);
 	ctx->am.onHttpResponse(*ctx, request, http);
@@ -210,3 +222,5 @@ bool ExternalAuthModule::validSipCode(int sipCode) {
 }
 
 std::array<int, 4> ExternalAuthModule::sValidSipCodes{{200, 401, 407, 403}};
+
+} // namespace flexisip
