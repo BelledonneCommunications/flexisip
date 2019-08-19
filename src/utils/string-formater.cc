@@ -29,32 +29,59 @@ using namespace std;
 //=====================================================================================================================
 // StringFormater class
 //=====================================================================================================================
+
+void StringFormater::setTemplate(const std::string &_template) {
+	pair<bool, string> syntaxCheckResult = checkTemplateSyntax(_template);
+	if (!syntaxCheckResult.first) {
+		throw invalid_argument("invalid syntax: " + syntaxCheckResult.second);
+	}
+	mTemplate = _template;
+}
+
 std::string StringFormater::format(const std::map<std::string, std::string> &values) const {
+	TranslationFunc func = [&values](const std::string &key) {
+		try {
+			return values.at(key);
+		} catch (const out_of_range &){
+			throw invalid_argument("invalid substitution variable {" + key + "}");
+		}
+	};
+	return format(func);
+}
+
+std::string StringFormater::format(TranslationFunc &func) const {
 	string result;
 	auto it1 = mTemplate.cbegin();
 	do {
-		auto it2 = find(it1, mTemplate.cend(), '$');
+		auto it2 = find(it1, mTemplate.cend(), '{');
 		result.insert(result.end(), it1, it2);
 		it1 = it2;
 		if (it1 != mTemplate.cend()) {
-			it2 = find_if_not(++it1, mTemplate.cend(), isKeywordChar);
+			it2 = find(++it1, mTemplate.cend(), '}');
 			string key(it1, it2);
-			try {
-				result += values.at(key);
-			} catch (const out_of_range &){
-				ostringstream os;
-				os << "invalid substitution variable '$" << key << "'";
-				throw invalid_argument(os.str());
-			}
-			it1 = it2;
+			result += func(key);
+			it1 = ++it2;
 		}
 	} while (it1 != mTemplate.cend());
 	return result;
 }
 
-bool StringFormater::isKeywordChar(char c) {
-	return ((c >= 'A' && c <= 'z') || c == '-');
+std::pair<bool, std::string> StringFormater::checkTemplateSyntax(const std::string &_template) {
+	pair<bool, string> result(true, "");
+	for (auto it = _template.cbegin(); it != _template.cend(); ) {
+		it = find(it, _template.cend(), '{');
+		if (it != _template.cend()) {
+			it = find(it, _template.cend(), '}');
+			if (it == _template.cend()) {
+				result.first = false;
+				result.second = "missing closing bracket";
+				break;
+			}
+		}
+	}
+	return result;
 }
+
 //=====================================================================================================================
 
 
@@ -63,6 +90,11 @@ bool StringFormater::isKeywordChar(char c) {
 //=====================================================================================================================
 std::string HttpUriFormater::format(const std::map<std::string, std::string> &values) const {
 	return StringFormater::format(escape(values));
+}
+
+std::string HttpUriFormater::format(TranslationFunc &func) const {
+	TranslationFunc func2 = [&func](const string &paramName){return UriUtils::escape(func(paramName), UriUtils::httpReserved);};
+	return StringFormater::format(func2);
 }
 
 std::map<std::string, std::string> HttpUriFormater::escape(const std::map<std::string, std::string> &values) {

@@ -27,6 +27,7 @@
 
 #include <flexisip/plugin.hh>
 
+#include "logmanager.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 
@@ -48,18 +49,20 @@ void ModuleExternalAuthentication::onDeclare(GenericStruct *mc) {
 	ConfigItemDescriptor items[] = {{
 			String,
 			"remote-auth-uri",
-			"URI to use to connect on the external HTTP server on each request. Each token preceded by "
-			"'$' character will be replaced before sending the HTTP request. The available tokens are:\n"
-			"\t* $method: the method of the SIP request that is being challenged. Ex: REGISTER, INVITE, ...\n"
-			"\t* $sip-instance: the value of +sip.instance parameter.\n"
-			"\t* $from: the value of the request's 'From:' header\n"
-			"\t* $domain: the domain name extracted from the From header's URI\n"
-			"\t* all the parameters available in the Authorization header. Ex: $realm, $nonce, $username, ...\n"
-			"\t* $uuid: the UUID of the user agent whose request is being challenged. The UUID is gotten from "
+			"URI to use to connect on the external HTTP server on each request. Each token preceded enclosed "
+			"by '{' and '}' bracket will be replaced before sending the HTTP request. The available tokens are:\n"
+			"\t* {method}: the method of the SIP request that is being challenged. Ex: REGISTER, INVITE, ...\n"
+			"\t* {sip-instance}: the value of +sip.instance parameter.\n"
+			"\t* {from}: the value of the request's 'From:' header\n"
+			"\t* {domain}: the domain name extracted from the From header's URI\n"
+			"\t* all the parameters available in the Authorization header. Ex: {realm}, {nonce}, {username}, ...\n"
+			"\t* {uuid}: the UUID of the user agent whose request is being challenged. The UUID is gotten from "
 			"the 'gr' parameter of the contact URI or, if not present, from the '+sip.instance' parameter. "
 			"If neither 'gr' nor '+sip.instance' parameters are present, then $uuid is be replaced by an empty string."
+			"\t* {header:<name>}: the value of <name> header of the request to authenticate. Replaced by 'null' if the "
+			"header is missing. Note: name matching isn't case-sensitive."
 			"\n"
-			"Ex: https://$realm.example.com/auth?from=$from&cnonce=$cnonce&username=$username",
+			"Ex: https://{realm}.example.com/auth?from={from}&cnonce={cnonce}&username={username}&cseq={header:cseq}",
 			""
 		},
 		config_item_end
@@ -73,15 +76,23 @@ void ModuleExternalAuthentication::onLoad(const GenericStruct *mc) {
 }
 
 FlexisipAuthModuleBase *ModuleExternalAuthentication::createAuthModule(const std::string &domain, const std::string &algorithm) {
-	auto *am = new ExternalAuthModule(getAgent()->getRoot(), domain, algorithm);
-	am->getFormater().setTemplate(mRemoteUri);
-	return am;
+	try {
+		auto *am = new ExternalAuthModule(getAgent()->getRoot(), domain, algorithm);
+		am->getFormater().setTemplate(mRemoteUri);
+		return am;
+	} catch (const invalid_argument &e) {
+		LOGF("error while parsing 'module::ExternalAuthentication/remote-auth-uri': %s", e.what());
+	}
 }
 
 FlexisipAuthModuleBase *ModuleExternalAuthentication::createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) {
-	auto *am = new ExternalAuthModule(getAgent()->getRoot(), domain, algorithm, nonceExpire);
-	am->getFormater().setTemplate(mRemoteUri);
-	return am;
+	try {
+		auto *am = new ExternalAuthModule(getAgent()->getRoot(), domain, algorithm, nonceExpire);
+		am->getFormater().setTemplate(mRemoteUri);
+		return am;
+	} catch (const invalid_argument &e) {
+		LOGF("error while parsing 'module::ExternalAuthentication/remote-auth-uri': %s", e.what());
+	}
 }
 
 FlexisipAuthStatus *ModuleExternalAuthentication::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
@@ -107,7 +118,7 @@ FlexisipAuthStatus *ModuleExternalAuthentication::createAuthStatus(const std::sh
 			uuid = StringUtils::removePrefix(uuid, "urn:uuid:");
 			as->uuid(move(uuid));
 		} catch (const invalid_argument &e) {
-			SLOGE << "ExernalAuthentication: error while getting UUID: " << e.what();
+			LOGF("ExernalAuthentication: error while getting UUID: %s", e.what());
 		}
 	}
 
