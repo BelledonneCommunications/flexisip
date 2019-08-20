@@ -184,6 +184,22 @@ if(ENABLE_PRESENCE)
 		message(FATAL_ERROR "Presence asked but XSD not enabled! Please enable it first.")
 	endif()
 	add_definitions(-DBELLE_SIP_USE_STL ${BELLE_SIP_CFLAGS})
+	set(XML_SOURCES
+		xml/data-model.cc
+		xml/data-model.hh
+		xml/pidf+xml.cc
+		xml/pidf+xml.hh
+		xml/pidf-oma-pres.cc
+		xml/pidf-oma-pres.hh
+		xml/resource-lists.cc
+		xml/resource-lists.hh
+		xml/rlmi+xml.cc
+		xml/rlmi+xml.hh
+		xml/rpid.cc
+		xml/rpid.hh
+		xml/xml.cc
+		xml/xml.hh
+	)
 	list(APPEND FLEXISIP_LIBS ${XERCES_LIBS})
 	list(APPEND FLEXISIP_INCLUDES presence)
 	list(APPEND FLEXISIP_SOURCES
@@ -207,20 +223,7 @@ if(ENABLE_PRESENCE)
 		presence/presentity-presenceinformation.hh
 		presence/subscription.cc
 		presence/subscription.hh
-		xml/data-model.cc
-		xml/data-model.hh
-		xml/pidf+xml.cc
-		xml/pidf+xml.hh
-		xml/pidf-oma-pres.cc
-		xml/pidf-oma-pres.hh
-		xml/resource-lists.cc
-		xml/resource-lists.hh
-		xml/rlmi+xml.cc
-		xml/rlmi+xml.hh
-		xml/rpid.cc
-		xml/rpid.hh
-		xml/xml.cc
-		xml/xml.hh
+		${XML_SOURCES}
 	)
 	if(ENABLE_SOCI)
 		list(APPEND FLEXISIP_SOURCES
@@ -242,14 +245,6 @@ if(ENABLE_CONFERENCE)
 		conference/registration-subscription.hh
 		conference/participant-registration-subscription-handler.cc
 		conference/participant-registration-subscription-handler.hh
-		
-#		conference/participant-capabilities-check.cc
-#		conference/participant-capabilities-check.hh
-#		conference/participant-devices-search.cc
-#		conference/participant-devices-search.hh
-#		conference/participant-registration-subscription.cc
-#		conference/participant-registration-subscription.hh
-
 	)
 endif()
 
@@ -295,6 +290,9 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 		set_source_files_properties(cJSON.c PROPERTIES COMPILE_FLAGS "-Wno-error=misleading-indentation")
 	endif()
 	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_FLAGS "-Wno-error=sign-compare")
+	if (ENABLE_PRESENCE)
+		set_source_files_properties(${XML_SOURCES} PROPERTIES COMPILE_FLAGS "-Wno-error=deprecated-copy")
+	endif()
 endif()
 
 add_library(flexisip SHARED ${FLEXISIP_SOURCES})
