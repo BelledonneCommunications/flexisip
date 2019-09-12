@@ -118,7 +118,7 @@ FlexisipAuthStatus *ModuleExternalAuthentication::createAuthStatus(const std::sh
 			uuid = StringUtils::removePrefix(uuid, "urn:uuid:");
 			as->uuid(move(uuid));
 		} catch (const invalid_argument &e) {
-			LOGF("ExernalAuthentication: error while getting UUID: %s", e.what());
+			SLOGE << "ExernalAuthentication: error while getting UUID: " << e.what();
 		}
 	}
 
