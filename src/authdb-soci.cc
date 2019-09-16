@@ -150,7 +150,7 @@ void SociAuthDB::closeOpenedSessions() {
 }
 
 void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
-									const string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
+									const string &authid, AuthDbListener *listener) {
 	vector<passwd_algo_t> passwd;
 	string unescapedIdStr = urlUnescape(id);
 
@@ -332,7 +332,7 @@ void SociAuthDB::notifyAllListeners(std::list<std::tuple<std::string, std::strin
 #endif
 
 void SociAuthDB::getPasswordFromBackend(const string &id, const string &domain,
-										const string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
+										const string &authid, AuthDbListener *listener) {
 
 	if (!_connected) connectDatabase();
 	if (!_connected) {
@@ -341,7 +341,7 @@ void SociAuthDB::getPasswordFromBackend(const string &id, const string &domain,
 	}
 
 	// create a thread to grab a pool connection and use it to retrieve the auth information
-	auto func = bind(&SociAuthDB::getPasswordWithPool, this, id, domain, authid, listener, listener_ref);
+	auto func = bind(&SociAuthDB::getPasswordWithPool, this, id, domain, authid, listener);
 
 	bool success = thread_pool->run(func);
 	if (!success) {

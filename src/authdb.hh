@@ -61,8 +61,7 @@ public:
 	virtual ~AuthDbBackend();
 	// warning: listener may be invoked on authdb backend thread, so listener must be threadsafe somehow!
 	void getPassword(const std::string & user, const std::string & domain, const std::string &auth_username, AuthDbListener *listener);
-	void getPasswordForAlgo(const std::string &user, const std::string &host, const std::string &auth_username,
-				AuthDbListener *listener, AuthDbListener *listener_ref);
+	void getPasswordForAlgo(const std::string &user, const std::string &host, const std::string &auth_username, AuthDbListener *listener);
 	void getUserWithPhone(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	void getUsersWithPhone(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds);
 
@@ -84,7 +83,7 @@ protected:
 	virtual void getUserWithPhoneFromBackend(const std::string &, const std::string &, AuthDbListener *listener) = 0;
 	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds);
 	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) = 0;
+					    const std::string &authid, AuthDbListener *listener) = 0;
 
 	std::string createPasswordKey(const std::string &user, const std::string &auth);
 	bool cachePassword(const std::string &key, const std::string &domain, const std::vector<passwd_algo_t> &pass, int expires);
@@ -220,9 +219,8 @@ protected:
 
 public:
 	FileAuthDb();
-	virtual void getUserWithPhoneFromBackend(const std::string &phone, const std::string &domain, AuthDbListener *listener);
-	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
+	void getUserWithPhoneFromBackend(const std::string &phone, const std::string &domain, AuthDbListener *listener) override;
+	void getPasswordFromBackend(const std::string &id, const std::string &domain, const std::string &authid, AuthDbListener *listener) override;
 
 	static void declareConfig(GenericStruct *mc){};
 };
@@ -241,7 +239,7 @@ public:
 	void getUserWithPhoneFromBackend(const std::string & , const std::string &, AuthDbListener *listener) override;
 	void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds) override;
 	void getPasswordFromBackend(const std::string &id, const std::string &domain,
-					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) override;
+					    const std::string &authid, AuthDbListener *listener) override;
 
 	static void declareConfig(GenericStruct *mc);
 
@@ -254,7 +252,7 @@ private:
 	void getUserWithPhoneWithPool(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	void getUsersWithPhonesWithPool(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds);
 	void getPasswordWithPool(const std::string &id, const std::string &domain,
-				 const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
+				 const std::string &authid, AuthDbListener *listener);
 
 	void notifyAllListeners(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds, const std::set<std::pair<std::string, std::string>> &presences);
 

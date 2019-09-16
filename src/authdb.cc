@@ -32,11 +32,11 @@ public:
 	FixedAuthDb() {
 	}
 
-	virtual void getUserWithPhoneFromBackend(const string & phone, const string &domain, AuthDbListener *listener) {
+	void getUserWithPhoneFromBackend(const string & phone, const string &domain, AuthDbListener *listener) override {
 		if (listener) listener->onResult(PASSWORD_FOUND, "user@domain.com");
 	}
-	virtual void getPasswordFromBackend(const string &id, const string &domain,
-										const string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
+	void getPasswordFromBackend(const string &id, const string &domain,
+										const string &authid, AuthDbListener *listener) override {
 		if (listener) listener->onResult(PASSWORD_FOUND, "fixed");
 	}
 	static void declareConfig(GenericStruct *mc){};
@@ -166,11 +166,11 @@ void AuthDbBackend::getPassword(const string &user, const string &host, const st
 	}
 
 	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
-	getPasswordFromBackend(user, host, auth_username, listener, NULL);
+	getPasswordFromBackend(user, host, auth_username, listener);
 }
 
 void AuthDbBackend::getPasswordForAlgo(const string &user, const string &host, const string &auth_username,
-										AuthDbListener *listener, AuthDbListener *listener_ref) {
+										AuthDbListener *listener) {
 	// Check for usable cached password
 	string key = createPasswordKey(user, auth_username);
 	vector<passwd_algo_t> pass;
@@ -189,7 +189,7 @@ void AuthDbBackend::getPasswordForAlgo(const string &user, const string &host, c
 	}
 
 	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
-	getPasswordFromBackend(user, host, auth_username, listener, listener_ref);
+	getPasswordFromBackend(user, host, auth_username, listener);
 }
 
 void AuthDbBackend::createCachedAccount(const string &user, const string &host, const string &auth_username, const vector<passwd_algo_t> &password,

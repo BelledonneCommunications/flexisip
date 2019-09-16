@@ -94,7 +94,7 @@ void FileAuthDb::getUserWithPhoneFromBackend(const std::string &phone, const std
 }
 
 void FileAuthDb::getPasswordFromBackend(const std::string &id, const std::string &domain,
-					const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
+					const std::string &authid, AuthDbListener *listener) {
 	AuthDbResult res = AuthDbResult::PASSWORD_NOT_FOUND;
 	time_t now = getCurrentTime();
 
