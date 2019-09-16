@@ -38,52 +38,21 @@ void FlexisipAuthModule::AuthenticationListener::main_thread_async_response_cb(s
 }
 
 void FlexisipAuthModule::AuthenticationListener::onResult(AuthDbResult result, const vector<passwd_algo_t> &passwd) {
-	// invoke callback on main thread (sofia-sip)
-	su_msg_r mamc = SU_MSG_R_INIT;
-	if (-1 == su_msg_create(mamc, su_root_task(mAm.getRoot()), su_root_task(mAm.getRoot()), main_thread_async_response_cb,
-		sizeof(AuthenticationListener *))) {
-		LOGF("Couldn't create auth async message");
+	if (result == PASSWORD_FOUND) {
+		string algo = mAr.ar_algorithm ? mAr.ar_algorithm : "MD5";
+		if (find(mAs.usedAlgo().cbegin(), mAs.usedAlgo().cend(), algo) == mAs.usedAlgo().cend()) {
+			AuthenticationListener::onResult(AUTH_ERROR, "");
+			return;
 		}
 
-		string algo = "";
-	AuthenticationListener **listenerStorage = (AuthenticationListener **)su_msg_data(mamc);
-	*listenerStorage = this;
-
-	switch (result) {
-		case PASSWORD_FOUND:
-			mResult = AuthDbResult::PASSWORD_FOUND;
-
-			if (mAr.ar_algorithm == NULL || !strcmp(mAr.ar_algorithm, "MD5")) {
-				algo = "MD5";
-			} else if (!strcmp(mAr.ar_algorithm, "SHA-256")) {
-				algo = "SHA-256";
-			} else {
-				mResult = AuthDbResult::AUTH_ERROR;
-				break;
-			}
-
-			for (const auto &password : passwd) {
-				if (password.algo == algo) mPassword = password.pass;
-			}
-
-			if (mPassword.empty()) {
-				mResult = AuthDbResult::PASSWORD_NOT_FOUND;
-			}
-
-			break;
-		case PASSWORD_NOT_FOUND:
-			mResult = AuthDbResult::PASSWORD_NOT_FOUND;
-			mPassword = "";
-			break;
-		case AUTH_ERROR:
-			/*in that case we can fallback to the cached password previously set*/
-			break;
-		case PENDING:
-			LOGF("unhandled case PENDING");
-			break;
-	}
-	if (-1 == su_msg_send(mamc)) {
-		LOGF("Couldn't send auth async message to main thread.");
+		auto pw = find_if(passwd.cbegin(), passwd.cend(), [&algo](const passwd_algo_t &pw){return pw.algo == algo;});
+		if (pw != passwd.cend()) {
+			AuthenticationListener::onResult(PASSWORD_FOUND, pw->pass);
+		} else {
+			AuthenticationListener::onResult(PASSWORD_NOT_FOUND, "");
+		}
+	} else {
+		AuthenticationListener::onResult(result, "");
 	}
 }
 
@@ -120,19 +89,11 @@ void FlexisipAuthModule::AuthenticationListener::onResult(AuthDbResult result, c
 }
 
 void FlexisipAuthModule::AuthenticationListener::finishVerifyAlgos(const vector<passwd_algo_t> &pass) {
-	mAs.usedAlgo().remove_if([&pass](string algo) {
-		bool found = false;
-
-		for (const auto &password : pass) {
-			if (password.algo == algo) {
-				found = true;
-				break;
-			}
+	mAs.usedAlgo().remove_if(
+		[&pass](string algo) {
+			return find_if(pass.cbegin(), pass.cend(), [&algo](const passwd_algo_t &pw){return pw.algo == algo;}) != pass.cend();
 		}
-
-		return !found;
-	});
-
+	);
 	mAm.finish(mAs);
 }
 
