@@ -64,7 +64,6 @@ private:
 
 		void onResult(AuthDbResult result, const std::string &passwd) override;
 		void onResult(AuthDbResult result, const std::vector<passwd_algo_t> &passwd) override;
-		void finishVerifyAlgos(const std::vector<passwd_algo_t> &pass) override;
 
 	private:
 		static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u);

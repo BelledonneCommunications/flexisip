@@ -108,7 +108,6 @@ void FileAuthDb::getPasswordFromBackend(const std::string &id, const std::string
 	if (getCachedPassword(key, domain, passwd) == VALID_PASS_FOUND) {
 		res = AuthDbResult::PASSWORD_FOUND;
 	}
-	if (listener_ref) listener_ref->finishVerifyAlgos(passwd);
 	if (listener) listener->onResult(res, passwd);
 }
 

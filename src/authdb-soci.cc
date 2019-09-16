@@ -205,9 +205,6 @@ void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
 			}
 		});
 
-		
-
-		if (listener_ref) listener_ref->finishVerifyAlgos(passwd);
 		if (!passwd.empty()) cachePassword(createPasswordKey(id, authid), domain, passwd, mCacheExpire);
 		if (listener){
 			listener->onResult(passwd.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);

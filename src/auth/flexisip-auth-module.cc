@@ -88,15 +88,6 @@ void FlexisipAuthModule::AuthenticationListener::onResult(AuthDbResult result, c
 	}
 }
 
-void FlexisipAuthModule::AuthenticationListener::finishVerifyAlgos(const vector<passwd_algo_t> &pass) {
-	mAs.usedAlgo().remove_if(
-		[&pass](string algo) {
-			return find_if(pass.cbegin(), pass.cend(), [&algo](const passwd_algo_t &pw){return pw.algo == algo;}) != pass.cend();
-		}
-	);
-	mAm.finish(mAs);
-}
-
 // ====================================================================================================================
 
 // ====================================================================================================================

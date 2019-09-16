@@ -158,7 +158,7 @@ bool AuthDbBackend::cacheUserWithPhone(const string &phone, const string &domain
 void AuthDbBackend::getPassword(const string &user, const string &host, const string &auth_username,
 								AuthDbListener *listener) {
 	// Check for usable cached password
-	string key(createPasswordKey(user, auth_username));
+	string key = createPasswordKey(user, auth_username);
 	vector<passwd_algo_t> pass;
 	switch (getCachedPassword(key, host, pass)) {
 		case VALID_PASS_FOUND:
@@ -180,13 +180,12 @@ void AuthDbBackend::getPassword(const string &user, const string &host, const st
 void AuthDbBackend::getPasswordForAlgo(const string &user, const string &host, const string &auth_username,
 										AuthDbListener *listener, AuthDbListener *listener_ref) {
 	// Check for usable cached password
-	string key(createPasswordKey(user, auth_username));
+	string key = createPasswordKey(user, auth_username);
 	vector<passwd_algo_t> pass;
 
 	switch (getCachedPassword(key, host, pass)) {
 		case VALID_PASS_FOUND:
 			if (listener) listener->onResult(AuthDbResult::PASSWORD_FOUND, pass);
-			if (listener_ref) listener_ref->finishVerifyAlgos(pass);
 			return;
 		case EXPIRED_PASS_FOUND:
 			// Might check here if connection is failing

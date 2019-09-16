@@ -57,8 +57,7 @@ struct AuthDbTimings;
 class AuthDbListener : public StatFinishListener {
 public:
 	virtual void onResult(AuthDbResult result, const std::string &passwd) = 0;
-	virtual void onResult(AuthDbResult result, const std::vector<passwd_algo_t> &passwd)=0;
-	virtual void finishVerifyAlgos(const std::vector<passwd_algo_t> &pass)=0;
+	virtual void onResult(AuthDbResult result, const std::vector<passwd_algo_t> &passwd) = 0;
 	virtual ~AuthDbListener();
 };
 
