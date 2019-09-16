@@ -289,67 +289,51 @@ void FlexisipAuthModule::checkPassword(FlexisipAuthStatus &as, const auth_challe
 }
 
 int FlexisipAuthModule::checkPasswordForAlgorithm(FlexisipAuthStatus &as, auth_response_t &ar, const char *passwd) {
-	if ((ar.ar_algorithm == NULL) || (!strcmp(ar.ar_algorithm, "MD5"))) {
-		return checkPasswordMd5(as, ar, passwd);
-	} else if (!strcmp(ar.ar_algorithm, "SHA-256")) {
-		if (passwd && passwd[0] == '\0')
-			passwd = NULL;
+	unique_ptr<Digest> algo;
+	string algoName = ar.ar_algorithm ? ar.ar_algorithm : "MD5";
 
-		string a1;
-		if (passwd) {
-			a1 = passwd;
-		} else {
-			a1 = auth_digest_a1_for_algorithm(&ar, "xyzzy");
-		}
-
-		if (ar.ar_md5sess)
-			a1 = auth_digest_a1sess_for_algorithm(&ar, a1);
-
-		string response = auth_digest_response_for_algorithm(&ar, as.method(), as.body(), as.bodyLen(), a1);
-		return (passwd && response == ar.ar_response ? 0 : -1);
+	try {
+		algo.reset(Digest::create(algoName));
+	} catch (const invalid_argument &e) {
+		SLOGE << e.what();
+		return -1;
 	}
-	return -1;
-}
-
-int FlexisipAuthModule::checkPasswordMd5(FlexisipAuthStatus &as, auth_response_t &ar, const char *passwd){
-	char const *a1;
-	auth_hexmd5_t a1buf, response;
 
 	if (passwd && passwd[0] == '\0')
 		passwd = NULL;
 
+	string a1;
 	if (passwd) {
-		strncpy(a1buf, passwd, sizeof(a1buf)-1); // remove trailing NULL character
-		a1buf[sizeof(a1buf)-1] = '\0';
-		a1 = a1buf;
+		a1 = passwd;
 	} else {
-		auth_digest_a1(&ar, a1buf, "xyzzy"), a1 = a1buf;
+		a1 = auth_digest_a1_for_algorithm(*algo, &ar, "xyzzy");
 	}
 
 	if (ar.ar_md5sess)
-		auth_digest_a1sess(&ar, a1buf, a1), a1 = a1buf;
+		a1 = auth_digest_a1sess_for_algorithm(*algo, &ar, a1);
 
-	auth_digest_response(&ar, response, a1, as.method(), as.body(), as.bodyLen());
-	return !passwd || strcmp(response, ar.ar_response);
+	string response = auth_digest_response_for_algorithm(*algo, &ar, as.method(), as.body(), as.bodyLen(), a1);
+	return (passwd && response == ar.ar_response ? 0 : -1);
 }
 
-std::string FlexisipAuthModule::auth_digest_a1_for_algorithm(const ::auth_response_t *ar, const std::string &secret) {
+std::string FlexisipAuthModule::auth_digest_a1_for_algorithm(Digest &algo, const ::auth_response_t *ar, const std::string &secret) {
 	ostringstream data;
 	data << ar->ar_username << ':' << ar->ar_realm << ':' << secret;
-	string ha1 = sha256(data.str());
-	SLOGD << "auth_digest_ha1() has A1 = SHA256(" << ar->ar_username << ':' << ar->ar_realm << ":*******) = " << ha1 << endl;
+	string ha1 = algo.compute<string>(data.str());
+	SLOGD << "auth_digest_ha1() has A1 = " << algo.name() << "(" << ar->ar_username << ':' << ar->ar_realm << ":*******) = " << ha1 << endl;
 	return ha1;
 }
 
-std::string FlexisipAuthModule::auth_digest_a1sess_for_algorithm(const ::auth_response_t *ar, const std::string &ha1) {
+std::string FlexisipAuthModule::auth_digest_a1sess_for_algorithm(Digest &algo, const ::auth_response_t *ar, const std::string &ha1) {
 	ostringstream data;
 	data << ha1 << ':' << ar->ar_nonce << ':' << ar->ar_cnonce;
-	string newHa1 = sha256(data.str());
-	SLOGD << "auth_sessionkey has A1' = SHA256(" << data.str() << ") = " << newHa1 << endl;
+	string newHa1 = algo.compute<string>(data.str());
+	SLOGD << "auth_sessionkey has A1' = " << algo.name() << "(" << data.str() << ") = " << newHa1 << endl;
 	return newHa1;
 }
 
 std::string FlexisipAuthModule::auth_digest_response_for_algorithm(
+	Digest &algo,
 	::auth_response_t *ar,
 	char const *method_name,
 	void const *data,
@@ -364,14 +348,7 @@ std::string FlexisipAuthModule::auth_digest_response_for_algorithm(
 		ar->ar_qop = NULL;
 
 	/* Calculate Hentity */
-	string Hentity;
-	if (ar->ar_auth_int) {
-		if (data && dlen) {
-			Hentity = sha256(data, dlen);
-		} else {
-			Hentity = "d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3";
-		}
-	}
+	string Hentity = ar->ar_auth_int ? algo.compute<string>(data, dlen) : "";
 
 	/* Calculate A2 */
 	ostringstream input;
@@ -379,8 +356,8 @@ std::string FlexisipAuthModule::auth_digest_response_for_algorithm(
 		input << method_name << ':' << ar->ar_uri << ':' << Hentity;
 	} else
 		input << method_name << ':' << ar->ar_uri;
-	string ha2 = sha256(input.str());
-	SLOGD << "A2 = SHA256(" << input.str() << ")" << endl;
+	string ha2 = algo.compute<string>(input.str());
+	SLOGD << "A2 = " << algo.name() << "(" << input.str() << ")" << endl;
 
 	/* Calculate response */
 	ostringstream input2;
@@ -389,35 +366,11 @@ std::string FlexisipAuthModule::auth_digest_response_for_algorithm(
 		input2 << ':' << ar->ar_nc << ':' << ar->ar_cnonce << ':' << ar->ar_qop;
 	}
 	input2 << ':' << ha2;
-	string response = sha256(input2.str());
+	string response = algo.compute<string>(input2.str());
 	const char *qop = ar->ar_qop ? ar->ar_qop : "NONE";
-	SLOGD << "auth_response: " << response << " = SHA256(" << input2.str() << ") (qop=" << qop << ")" << endl;
+	SLOGD << "auth_response: " << response << " = " << algo.name() << "(" << input2.str() << ") (qop=" << qop << ")" << endl;
 
 	return response;
-}
-
-std::string FlexisipAuthModule::sha256(const std::string &data) {
-	vector<uint8_t> hash(32);
-	bctbx_sha256(reinterpret_cast<const uint8_t *>(data.c_str()), data.size(), hash.size(), hash.data());
-	return toString(hash);
-}
-
-std::string FlexisipAuthModule::sha256(const void *data, size_t len) {
-	vector<uint8_t> hash(32);
-	bctbx_sha256(reinterpret_cast<const uint8_t *>(data), len, hash.size(), hash.data());
-	return toString(hash);
-}
-
-std::string FlexisipAuthModule::toString(const std::vector<uint8_t> &data) {
-	char formatedByte[3];
-	string res;
-
-	res.reserve(data.size() * 2);
-	for (const uint8_t &byte : data) {
-		snprintf(formatedByte, sizeof(formatedByte), "%02hhx", byte);
-		res += formatedByte;
-	}
-	return res;
 }
 
 // ====================================================================================================================

@@ -27,10 +27,12 @@
 #include <sofia-sip/su_wait.h>
 
 #include <flexisip/auth-module.hh>
+
 #include "authdb.hh"
 #include "flexisip-auth-module-base.hh"
 #include "flexisip-auth-status.hh"
 #include "nonce-store.hh"
+#include "utils/digest.hh"
 
 namespace flexisip {
 
@@ -82,14 +84,10 @@ private:
 	void processResponse(AuthenticationListener &listener);
 	void checkPassword(FlexisipAuthStatus &as, const auth_challenger_t &ach, auth_response_t &ar, const char *password);
 	int checkPasswordForAlgorithm(FlexisipAuthStatus &as, auth_response_t &ar, const char *password);
-	int checkPasswordMd5(FlexisipAuthStatus &as, auth_response_t &ar, const char *passwd);
 
-	static std::string auth_digest_a1_for_algorithm(const auth_response_t *ar, const std::string &secret);
-	static std::string auth_digest_a1sess_for_algorithm(const auth_response_t *ar, const std::string &ha1);
-	static std::string auth_digest_response_for_algorithm(::auth_response_t *ar, char const *method_name, void const *data, isize_t dlen, const std::string &ha1);
-	static std::string sha256(const std::string &data);
-	static std::string sha256(const void *data, size_t len);
-	static std::string toString(const std::vector<uint8_t> &data);
+	static std::string auth_digest_a1_for_algorithm(Digest &algo, const auth_response_t *ar, const std::string &secret);
+	static std::string auth_digest_a1sess_for_algorithm(Digest &algo, const auth_response_t *ar, const std::string &ha1);
+	static std::string auth_digest_response_for_algorithm(Digest &algo, ::auth_response_t *ar, char const *method_name, void const *data, isize_t dlen, const std::string &ha1);
 
 	PasswordFetchResultCb mPassworFetchResultCb;
 };

@@ -104,6 +104,7 @@ set(FLEXISIP_SOURCES
 	telephone-event-filter.cc
 	transaction.cc
 	uac-register.cc
+	utils/digest.cc utils/digest.hh
 	utils/sip-uri.cc
 	utils/string-formater.cc
 	utils/string-utils.cc
