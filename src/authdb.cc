@@ -20,7 +20,8 @@
 #include "bctoolbox/crypto.h"
 
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
 
 unique_ptr<AuthDbBackend> AuthDbBackend::sUnique;
 
@@ -147,12 +148,11 @@ bool AuthDbBackend::cacheUserWithPhone(const string &phone, const string &domain
 	return true;
 }
 
-void AuthDbBackend::getPassword(const string &user, const string &host, const string &auth_username,
-								AuthDbListener *listener) {
+void AuthDbBackend::getPassword(const std::string &user, const std::string &domain, const std::string &auth_username, AuthDbListener *listener) {
 	// Check for usable cached password
 	string key = createPasswordKey(user, auth_username);
 	vector<passwd_algo_t> pass;
-	switch (getCachedPassword(key, host, pass)) {
+	switch (getCachedPassword(key, domain, pass)) {
 		case VALID_PASS_FOUND:
 			if (listener) listener->onResult(AuthDbResult::PASSWORD_FOUND, pass);
 			return;
@@ -166,30 +166,7 @@ void AuthDbBackend::getPassword(const string &user, const string &host, const st
 	}
 
 	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
-	getPasswordFromBackend(user, host, auth_username, listener);
-}
-
-void AuthDbBackend::getPasswordForAlgo(const string &user, const string &host, const string &auth_username,
-										AuthDbListener *listener) {
-	// Check for usable cached password
-	string key = createPasswordKey(user, auth_username);
-	vector<passwd_algo_t> pass;
-
-	switch (getCachedPassword(key, host, pass)) {
-		case VALID_PASS_FOUND:
-			if (listener) listener->onResult(AuthDbResult::PASSWORD_FOUND, pass);
-			return;
-		case EXPIRED_PASS_FOUND:
-			// Might check here if connection is failing
-			// If it is the case use fallback password and
-			// return AuthDbResult::PASSWORD_FOUND;
-			break;
-		case NO_PASS_FOUND:
-			break;
-	}
-
-	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
-	getPasswordFromBackend(user, host, auth_username, listener);
+	getPasswordFromBackend(user, domain, auth_username, listener);
 }
 
 void AuthDbBackend::createCachedAccount(const string &user, const string &host, const string &auth_username, const vector<passwd_algo_t> &password,
@@ -308,3 +285,5 @@ void AuthDbBackend::getUsersWithPhonesFromBackend(list<tuple<string,string,AuthD
 		getUserWithPhoneFromBackend(phone,domain, l);
 	}
 }
+
+} // namespace flexisip

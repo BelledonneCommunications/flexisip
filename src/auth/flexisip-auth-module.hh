@@ -68,7 +68,6 @@ private:
 	private:
 		static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u);
 
-		friend class Authentication;
 		FlexisipAuthModule &mAm;
 		FlexisipAuthStatus &mAs;
 		const auth_challenger_t &mAch;

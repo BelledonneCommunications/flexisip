@@ -60,8 +60,7 @@ class AuthDbBackend {
 public:
 	virtual ~AuthDbBackend();
 	// warning: listener may be invoked on authdb backend thread, so listener must be threadsafe somehow!
-	void getPassword(const std::string & user, const std::string & domain, const std::string &auth_username, AuthDbListener *listener);
-	void getPasswordForAlgo(const std::string &user, const std::string &host, const std::string &auth_username, AuthDbListener *listener);
+	void getPassword(const std::string &user, const std::string &domain, const std::string &auth_username, AuthDbListener *listener);
 	void getUserWithPhone(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	void getUsersWithPhone(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds);
 
