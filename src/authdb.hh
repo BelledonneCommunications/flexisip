@@ -63,32 +63,6 @@ public:
 };
 
 class AuthDbBackend {
-	static std::unique_ptr<AuthDbBackend> sUnique;
-
-	struct CachedPassword {
-		std::vector<passwd_algo_t> pass;
-		time_t expire_date;
-		CachedPassword(const std::vector<passwd_algo_t> &ipass, time_t idate) : pass(ipass), expire_date(idate) {
-		}
-	};
-
-private:
-	std::map<std::string, std::map<std::string, CachedPassword>> mCachedPasswords;
-	std::mutex mCachedPasswordMutex;
-	std::mutex mCachedUserWithPhoneMutex;
-	std::map<std::string, std::string> mPhone2User;
-
-protected:
-	AuthDbBackend();
-	enum CacheResult { VALID_PASS_FOUND, EXPIRED_PASS_FOUND, NO_PASS_FOUND };
-	std::string createPasswordKey(const std::string &user, const std::string &auth);
-	bool cachePassword(const std::string &key, const std::string &domain, const std::vector<passwd_algo_t> &pass, int expires);
-	bool cacheUserWithPhone(const std::string &phone, const std::string &domain, const std::string &user);
-	CacheResult getCachedPassword(const std::string &key, const std::string &domain, std::vector<passwd_algo_t> &pass);
-	CacheResult getCachedUserWithPhone(const std::string &phone, const std::string &domain, std::string &user);
-	void createCachedAccount(const std::string & user, const std::string & domain, const std::string &auth_username, const std::vector<passwd_algo_t> &password, int expires, const std::string & phone_alias = "");
-	void clearCache();
-	int mCacheExpire;
 public:
 	virtual ~AuthDbBackend();
 	// warning: listener may be invoked on authdb backend thread, so listener must be threadsafe somehow!
@@ -97,20 +71,55 @@ public:
 				AuthDbListener *listener, AuthDbListener *listener_ref);
 	void getUserWithPhone(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	void getUsersWithPhone(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds);
-	virtual void getUserWithPhoneFromBackend(const std::string &, const std::string &, AuthDbListener *listener) = 0;
-	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds);
 
 	virtual void createAccount(const std::string &user, const std::string &domain, const std::string &auth_username, const std::string &password, int expires, const std::string &phone_alias = "");
-
-	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) = 0;
 
 	static AuthDbBackend &get();
 	/* called by module_auth so that backends can declare their configuration to the ConfigurationManager */
 	static void declareConfig(GenericStruct *mc);
+
+protected:
+	enum CacheResult {
+		VALID_PASS_FOUND,
+		EXPIRED_PASS_FOUND,
+		NO_PASS_FOUND
+	};
+
+	AuthDbBackend();
+
+	virtual void getUserWithPhoneFromBackend(const std::string &, const std::string &, AuthDbListener *listener) = 0;
+	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds);
+	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
+					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) = 0;
+
+	std::string createPasswordKey(const std::string &user, const std::string &auth);
+	bool cachePassword(const std::string &key, const std::string &domain, const std::vector<passwd_algo_t> &pass, int expires);
+	bool cacheUserWithPhone(const std::string &phone, const std::string &domain, const std::string &user);
+	CacheResult getCachedPassword(const std::string &key, const std::string &domain, std::vector<passwd_algo_t> &pass);
+	CacheResult getCachedUserWithPhone(const std::string &phone, const std::string &domain, std::string &user);
+	void createCachedAccount(const std::string & user, const std::string & domain, const std::string &auth_username, const std::vector<passwd_algo_t> &password, int expires, const std::string & phone_alias = "");
+	void clearCache();
+
 	static std::string syncSha256(const char* input,size_t size);
 	static std::string syncMd5(const char* input,size_t size);
 	static std::string urlUnescape(const std::string &str);
+
+	int mCacheExpire;
+
+private:
+	struct CachedPassword {
+		std::vector<passwd_algo_t> pass;
+		time_t expire_date;
+		CachedPassword(const std::vector<passwd_algo_t> &ipass, time_t idate) : pass(ipass), expire_date(idate) {
+		}
+	};
+
+	static std::unique_ptr<AuthDbBackend> sUnique;
+
+	std::map<std::string, std::map<std::string, CachedPassword>> mCachedPasswords;
+	std::mutex mCachedPasswordMutex;
+	std::mutex mCachedUserWithPhoneMutex;
+	std::map<std::string, std::string> mPhone2User;
 };
 
 //Base root type needed by belr
