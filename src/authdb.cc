@@ -51,10 +51,6 @@ AuthDbBackend &AuthDbBackend::get() {
 			sUnique.reset(new FixedAuthDb());
 		} else if (impl == "file") {
 			sUnique.reset(new FileAuthDb());
-#if ENABLE_ODBC
-		} else if (impl == "odbc") {
-			sUnique.reset(new OdbcAuthDb());
-#endif
 #if ENABLE_SOCI
 		} else if (impl == "soci") {
 			sUnique.reset(new SociAuthDB());
@@ -76,11 +72,7 @@ AuthDbBackend::~AuthDbBackend() {
 }
 
 void AuthDbBackend::declareConfig(GenericStruct *mc) {
-
 	FileAuthDb::declareConfig(mc);
-#if ENABLE_ODBC
-	OdbcAuthDb::declareConfig(mc);
-#endif
 #if ENABLE_SOCI
 	SociAuthDB::declareConfig(mc);
 #endif

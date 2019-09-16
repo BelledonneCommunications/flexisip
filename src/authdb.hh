@@ -27,11 +27,6 @@
 #include <vector>
 #include <stdio.h>
 
-#if ENABLE_ODBC
-#include <sql.h>
-#include <sqlext.h>
-#endif
-
 #include <map>
 #include <set>
 #include <thread>
@@ -233,64 +228,6 @@ public:
 };
 
 }
-
-#if ENABLE_ODBC
-
-namespace flexisip {
-
-class OdbcAuthDb : public AuthDbBackend {
-	~OdbcAuthDb();
-	const static int fieldLength = 500;
-	bool mAsynchronousRetrieving;
-	struct ConnectionCtx {
-		char idCBuffer[fieldLength + 1];
-		char domainCBuffer[fieldLength + 1];
-		char authIdCBuffer[fieldLength + 1];
-		SQLHANDLE stmt;
-		SQLHDBC dbc;
-		ConnectionCtx() : stmt(NULL), dbc(NULL) {
-		}
-		~ConnectionCtx() {
-			if (stmt)
-				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-
-			if (dbc) {
-				SQLDisconnect(dbc);
-				SQLFreeHandle(SQL_HANDLE_DBC, dbc);
-			}
-		}
-	};
-	std::string connectionString;
-	std::string request;
-	int maxPassLength;
-	std::vector<std::string> parameters;
-	bool asPooling;
-	SQLHENV env;
-	void dbcError(ConnectionCtx &, const char *doing);
-	void stmtError(ConnectionCtx &ctx, const char *doing);
-	void envError(const char *doing);
-	bool execDirect;
-	bool getConnection(const std::string &id, ConnectionCtx &ctx, AuthDbTimings &timings);
-	AuthDbResult doRetrievePassword(ConnectionCtx &ctx, const std::string &user, const std::string &domain,
-					const std::string &auth, std::string &foundPassword, AuthDbTimings &timings);
-	void doAsyncRetrievePassword(std::string id, std::string domain, std::string auth,
-				     AuthDbListener *listener);
-
-public:
-	virtual void getUserWithPhoneFromBackend(const std::string &phone, const std::string &domain, AuthDbListener *listener);
-	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-					    const std::string &authid, AuthDbListener *listener);
-	std::map<std::string, std::string> cachedPasswords;
-	void setExecuteDirect(const bool value);
-	bool checkConnection();
-	OdbcAuthDb();
-
-	static void declareConfig(GenericStruct *mc);
-};
-
-}
-
-#endif /* ENABLE_ODBC */
 
 #if ENABLE_SOCI
 
