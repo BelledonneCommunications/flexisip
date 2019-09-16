@@ -16,10 +16,14 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "authdb.hh"
-#include "soci/mysql/soci-mysql.h"
-#include "soci-helper.hh"
 #include <thread>
+
+#include <soci/mysql/soci-mysql.h>
+
+#include "soci-helper.hh"
+#include "utils/digest.hh"
+
+#include "authdb.hh"
 
 using namespace soci;
 
@@ -171,7 +175,7 @@ void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
 						pass.pass = r.get<string>(0);
 					} else {
 						string input = unescapedIdStr + ":" + domain + ":" + r.get<string>(0);
-						pass.pass = syncMd5(input.c_str(), 16);
+						pass.pass = Md5().compute<string>(input);
 					}
 				} else if (r.size() > 1) {
 					string password = r.get<string>(0);
@@ -186,11 +190,11 @@ void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
 							string input;
 							input = unescapedIdStr + ":" + domain + ":" + password;
 
-							pass.pass = syncMd5(input.c_str(), 16);
+							pass.pass = Md5().compute<string>(input);
 							pass.algo = "MD5";
 							passwd.push_back(pass);
 
-							pass.pass = syncSha256(input.c_str(), 32);
+							pass.pass = Sha256().compute<string>(input);
 							pass.algo = "SHA-256";
 							passwd.push_back(pass);
 
@@ -336,7 +340,7 @@ void SociAuthDB::getPasswordFromBackend(const string &id, const string &domain,
 
 	if (!_connected) connectDatabase();
 	if (!_connected) {
-		if (listener) listener->onResult(AUTH_ERROR , "");
+		if (listener) listener->onResult(AUTH_ERROR , PwList());
 		return;
 	}
 
@@ -348,7 +352,7 @@ void SociAuthDB::getPasswordFromBackend(const string &id, const string &domain,
 		// Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil password request for " << id << " / " << domain << " / "
 			<< authid;
-		if (listener) listener->onResult(AUTH_ERROR, "");
+		if (listener) listener->onResult(AUTH_ERROR, PwList());
 	}
 }
 

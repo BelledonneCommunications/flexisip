@@ -58,9 +58,13 @@ public:
 
 class AuthDbBackend {
 public:
+	using PwList = std::vector<passwd_algo_t>;
+	using ResultCb = std::function<void(AuthDbResult, const PwList &)>;
+
 	virtual ~AuthDbBackend();
 	// warning: listener may be invoked on authdb backend thread, so listener must be threadsafe somehow!
 	void getPassword(const std::string &user, const std::string &domain, const std::string &auth_username, AuthDbListener *listener);
+	void getPassword(const std::string &user, const std::string &domain, const std::string &auth_username, const ResultCb &cb);
 	void getUserWithPhone(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	void getUsersWithPhone(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds);
 
@@ -92,8 +96,6 @@ protected:
 	void createCachedAccount(const std::string & user, const std::string & domain, const std::string &auth_username, const std::vector<passwd_algo_t> &password, int expires, const std::string & phone_alias = "");
 	void clearCache();
 
-	static std::string syncSha256(const char* input,size_t size);
-	static std::string syncMd5(const char* input,size_t size);
 	static std::string urlUnescape(const std::string &str);
 
 	int mCacheExpire;
@@ -104,6 +106,18 @@ private:
 		time_t expire_date;
 		CachedPassword(const std::vector<passwd_algo_t> &ipass, time_t idate) : pass(ipass), expire_date(idate) {
 		}
+	};
+
+	struct ListenerToFunctionWrapper : public AuthDbListener {
+	public:
+		ListenerToFunctionWrapper() = default;
+		ListenerToFunctionWrapper(const ListenerToFunctionWrapper &src) = default;
+		ListenerToFunctionWrapper(const ResultCb &cb) : mCb(cb) {}
+
+		void onResult(AuthDbResult result, const std::string &passwd) override;
+		void onResult(AuthDbResult result, const std::vector<passwd_algo_t> &passwd) override;
+
+		ResultCb mCb;
 	};
 
 	static std::unique_ptr<AuthDbBackend> sUnique;

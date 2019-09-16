@@ -17,11 +17,20 @@
 */
 
 #include "authdb.hh"
-#include "bctoolbox/crypto.h"
+#include "utils/digest.hh"
 
 using namespace std;
 
 namespace flexisip {
+
+void AuthDbBackend::ListenerToFunctionWrapper::onResult(AuthDbResult result, const std::string &passwd) {
+	delete this;
+}
+
+void AuthDbBackend::ListenerToFunctionWrapper::onResult(AuthDbResult result, const std::vector<passwd_algo_t> &passwd) {
+	if (mCb) mCb(result, passwd);
+	delete this;
+}
 
 unique_ptr<AuthDbBackend> AuthDbBackend::sUnique;
 
@@ -38,7 +47,9 @@ public:
 	}
 	void getPasswordFromBackend(const string &id, const string &domain,
 										const string &authid, AuthDbListener *listener) override {
-		if (listener) listener->onResult(PASSWORD_FOUND, "fixed");
+		if (listener) {
+			listener->onResult(PASSWORD_FOUND, {{"fixed", "CLRTXT"}});
+		}
 	}
 	static void declareConfig(GenericStruct *mc){};
 };
@@ -169,6 +180,11 @@ void AuthDbBackend::getPassword(const std::string &user, const std::string &doma
 	getPasswordFromBackend(user, domain, auth_username, listener);
 }
 
+void AuthDbBackend::getPassword(const std::string &user, const std::string &domain, const std::string &auth_username, const ResultCb &cb) {
+	auto *listener = new ListenerToFunctionWrapper(cb);
+	getPassword(user, domain, auth_username, listener);
+}
+
 void AuthDbBackend::createCachedAccount(const string &user, const string &host, const string &auth_username, const vector<passwd_algo_t> &password,
 										int expires, const string & phone_alias) {
 	if (!user.empty() && !host.empty()) {
@@ -176,28 +192,6 @@ void AuthDbBackend::createCachedAccount(const string &user, const string &host, 
 		cachePassword(key, host, password, expires);
 		cacheUserWithPhone(phone_alias, host, user);
 	}
-}
-
-string AuthDbBackend::syncSha256(const char* input,size_t size){
-	uint8_t a1buf[size];
-	size_t di;
-	char out[size*2+1];
-	bctbx_sha256((const unsigned char*)input, strlen(input),size, a1buf);
-	for (di = 0; di < size; ++di)
-		sprintf(out + di * 2, "%02x", a1buf[di]);
-	out[size*2]='\0';
-	return out;
-}
-
-string AuthDbBackend::syncMd5(const char* input,size_t size){
-	uint8_t a1buf[size];
-	size_t di;
-	char out[size*2+1];
-	bctbx_md5((const unsigned char*)input, strlen(input), a1buf);
-	for (di = 0; di < size; ++di)
-		sprintf(out + di * 2, "%02x", a1buf[di]);
-	out[size*2]='\0';
-	return out;
 }
 
 void AuthDbBackend::createAccount(const string & user, const string & host, const string &auth_username, const string &password,
@@ -213,11 +207,11 @@ void AuthDbBackend::createAccount(const string & user, const string & host, cons
 	string input;
 	input = user+":"+host+":"+clrtxt.pass;
 
-	md5.pass = syncMd5(input.c_str(), 16);
+	md5.pass = Md5().compute<string>(input);
 	md5.algo = "MD5";
 	pass.push_back(md5);
 
-	sha256.pass = syncSha256(input.c_str(), 32);
+	sha256.pass = Sha256().compute<string>(input);
 	sha256.algo = "SHA-256";
 	pass.push_back(sha256);
 
