@@ -50,42 +50,35 @@ public:
 	void setOnPasswordFetchResultCb(const PasswordFetchResultCb &cb) {mPassworFetchResultCb = cb;}
 
 private:
-	class AuthenticationListener : public AuthDbListener {
+	class GenericAuthListener : public AuthDbListener {
 	public:
-		AuthenticationListener(FlexisipAuthModule &am, FlexisipAuthStatus &as, const auth_challenger_t &ach, const auth_response_t &ar): mAm(am), mAs(as), mAch(ach), mAr(ar) {}
-		~AuthenticationListener() override = default;
-
-		FlexisipAuthStatus &authStatus() const {return mAs;}
-		const auth_challenger_t &challenger() const {return mAch;}
-		auth_response_t *response() {return &mAr;}
-
-		std::string password() const {return mPassword;}
-		AuthDbResult result() const {return mResult;}
+		GenericAuthListener(su_root_t *root, const AuthDbBackend::ResultCb &func): mRoot(root), mFunc(func) {}
+		GenericAuthListener(const GenericAuthListener &) = default;
 
 		void onResult(AuthDbResult result, const std::string &passwd) override;
-		void onResult(AuthDbResult result, const std::vector<passwd_algo_t> &passwd) override;
+		void onResult(AuthDbResult result, const AuthDbBackend::PwList &passwd) override;
 
 	private:
 		static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u);
 
-		FlexisipAuthModule &mAm;
-		FlexisipAuthStatus &mAs;
-		const auth_challenger_t &mAch;
-		auth_response_t mAr;
-		AuthDbResult mResult;
-		std::string mPassword;
+		su_root_t *mRoot = nullptr;
+		AuthDbBackend::ResultCb mFunc;
+		AuthDbResult mResult = PENDING;
+		AuthDbBackend::PwList mPasswords;
 	};
+
+	void onChallenge(AuthStatus &as, auth_challenger_t const *ach) override;
 
 	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
 	void loadPassword(const FlexisipAuthStatus &as) override;
 
-	void processResponse(AuthenticationListener &listener);
-	void checkPassword(FlexisipAuthStatus &as, const auth_challenger_t &ach, auth_response_t &ar, const char *password);
-	int checkPasswordForAlgorithm(FlexisipAuthStatus &as, auth_response_t &ar, const char *password);
+	void processResponse(FlexisipAuthStatus &as, const auth_response_t &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords);
+	void checkPassword(FlexisipAuthStatus &as, const auth_challenger_t &ach, const auth_response_t &ar, const std::string &password);
+	int checkPasswordForAlgorithm(FlexisipAuthStatus &as, const auth_response_t &ar, const std::string &password);
 
-	static std::string auth_digest_a1_for_algorithm(Digest &algo, const auth_response_t *ar, const std::string &secret);
-	static std::string auth_digest_a1sess_for_algorithm(Digest &algo, const auth_response_t *ar, const std::string &ha1);
-	static std::string auth_digest_response_for_algorithm(Digest &algo, ::auth_response_t *ar, char const *method_name, void const *data, isize_t dlen, const std::string &ha1);
+	static std::string auth_digest_a1_for_algorithm(Digest &algo, const auth_response_t &ar, const std::string &secret);
+	static std::string auth_digest_a1sess_for_algorithm(Digest &algo, const auth_response_t &ar, const std::string &ha1);
+	static std::string auth_digest_response_for_algorithm(Digest &algo, const ::auth_response_t &ar, const std::string &method_name, const void *body, size_t bodyLen, const std::string &ha1);
 
 	PasswordFetchResultCb mPassworFetchResultCb;
 };
