@@ -101,7 +101,6 @@ void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challe
 		/* There was no realm or credentials, send challenge */
 		SLOGD << __func__ << ": no credentials matched realm or no realm";
 		challenge(as, ach);
-		mNonceStore.insert(as.response());
 
 		// Retrieve the password in the hope it will be in cache when the remote UAC
 		// sends back its request; this time with the expected authentication credentials.

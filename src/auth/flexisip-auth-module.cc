@@ -45,7 +45,7 @@ void FlexisipAuthModule::GenericAuthListener::onResult(AuthDbResult result, cons
 	}
 
 	auto **listenerStorage = reinterpret_cast<GenericAuthListener **>(su_msg_data(mamc));
-	*listenerStorage = new GenericAuthListener(*this);
+	*listenerStorage = this;
 	(*listenerStorage)->mResult = result;
 	(*listenerStorage)->mPasswords = passwd;
 
@@ -105,6 +105,7 @@ void FlexisipAuthModule::returnChallenge(FlexisipAuthStatus &as, const auth_chal
 		auth_challenge_digest(mAm, as.getPtr(), &ach);
 		if (as.status() == 500) continue;
 		auto *newChallenge = reinterpret_cast<msg_auth_t *>(as.response());
+		mNonceStore.insert(newChallenge);
 		newChallenge->au_next = challenge;
 		challenge = newChallenge;
 		as.response(nullptr);
@@ -165,15 +166,13 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 		msg_time_t now = msg_now();
 		if (as.nonceIssued() == 0 /* Already validated nonce */ && auth_validate_digest_nonce(mAm, as.getPtr(), ar, now) < 0) {
 			as.blacklist(mAm->am_blacklist);
-			challenge(as, ach);
-			mNonceStore.insert(as.response());
+			challenge(as, ach);;
 			finish(as);
 			return;
 		}
 
 		if (as.stale()) {
 			challenge(as, ach);
-			mNonceStore.insert(as.response());
 			finish(as);
 			return;
 		}
@@ -185,7 +184,6 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 				LOGE("Bad nonce count %d -> %d for %s", pnc, nnc, ar->ar_nonce);
 				as.blacklist(mAm->am_blacklist);
 				challenge(as, ach);
-				mNonceStore.insert(as.response());
 				finish(as);
 				return;
 			} else {
@@ -234,6 +232,7 @@ void FlexisipAuthModule::processResponse(FlexisipAuthStatus &as, const auth_resp
 			as.status(403);
 			as.phrase("Forbidden");
 			as.response(nullptr);
+			finish(as);
 			break;
 		case AUTH_ERROR:
 			onError(as);
@@ -256,7 +255,6 @@ void FlexisipAuthModule::checkPassword(FlexisipAuthStatus &as, const auth_challe
 			as.blacklist(getPtr()->am_blacklist);
 		} else {
 			challenge(as, &ach);
-			nonceStore().insert(as.response());
 			as.blacklist(getPtr()->am_blacklist);
 		}
 		if (!password.empty()) {

@@ -287,7 +287,6 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		FlexisipAuthModule *fam = dynamic_cast<FlexisipAuthModule *>(am);
 		if (fam) {
 			fam->challenge(*as, &mProxyChallenger);
-			fam->nonceStore().insert(as->response());
 			msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t *)sip, (msg_header_t *)as->response());
 		} else {
 			LOGD("Authentication module for %s not found", as->realm());
