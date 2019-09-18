@@ -59,7 +59,7 @@ private:
 		void onResult(AuthDbResult result, const AuthDbBackend::PwList &passwd) override;
 
 	private:
-		static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u);
+		static void main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u) noexcept;
 
 		su_root_t *mRoot = nullptr;
 		AuthDbBackend::ResultCb mFunc;
@@ -68,6 +68,7 @@ private:
 	};
 
 	void onChallenge(AuthStatus &as, auth_challenger_t const *ach) override;
+	void returnChallenge(FlexisipAuthStatus &as, const auth_challenger_t &ach, const std::list<std::string> &algos);
 
 	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
 	void loadPassword(const FlexisipAuthStatus &as) override;

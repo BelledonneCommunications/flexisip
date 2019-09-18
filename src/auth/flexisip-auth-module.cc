@@ -54,7 +54,7 @@ void FlexisipAuthModule::GenericAuthListener::onResult(AuthDbResult result, cons
 	}
 }
 
-void FlexisipAuthModule::GenericAuthListener::main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u) {
+void FlexisipAuthModule::GenericAuthListener::main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u) noexcept {
 	auto *listener = *reinterpret_cast<GenericAuthListener **>(su_msg_data(msg));
 	if (listener->mFunc) listener->mFunc(listener->mResult, listener->mPasswords);
 	delete listener;
@@ -69,25 +69,55 @@ void FlexisipAuthModule::GenericAuthListener::main_thread_async_response_cb(su_r
 
 void FlexisipAuthModule::onChallenge(AuthStatus &as, auth_challenger_t const *ach) {
 	auto &authStatus = dynamic_cast<FlexisipAuthStatus &>(as);
-	auto cleanUsedAlgo = [&authStatus](AuthDbResult r, const AuthDbBackend::PwList &passwords) {
-		if (r == PASSWORD_FOUND) {
-			authStatus.usedAlgo().remove_if([&passwords](const std::string &algo){
-				return find_if(
-					passwords.cbegin(),
-					passwords.cend(),
-					[&algo](const passwd_algo_t &p){return p.algo == algo;}
-				) == passwords.cend();
-			});
+	auto cleanUsedAlgo = [this, &authStatus, ach](AuthDbResult r, const AuthDbBackend::PwList &passwords) {
+		switch (r) {
+			case PASSWORD_FOUND: {
+				list<string> algos;
+				for (const string &algo : authStatus.usedAlgo()) {
+					if (passwords.cend() != find_if(passwords.cbegin(), passwords.cend(), [&algo](const passwd_algo_t &pw){return pw.algo == algo;})) {
+						algos.push_back(algo);
+					}
+				}
+				this->returnChallenge(authStatus, *ach, algos);
+				break;
+			}
+			case PASSWORD_NOT_FOUND:
+				this->returnChallenge(authStatus, *ach, authStatus.usedAlgo());
+				break;
+			case AUTH_ERROR:
+				this->onError(authStatus);
+				break;
+			case PENDING:
+				throw logic_error("unexpected AuthDbResult (PENDING)");
+				break;
 		}
 	};
+	auto *listener = new GenericAuthListener(getRoot(), cleanUsedAlgo);
 	string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user);
-	AuthDbBackend::get().getPassword(
-		unescpapedUrlUser,
-		as.userUri()->url_host,
-		unescpapedUrlUser,
-		cleanUsedAlgo
-	);
+	AuthDbBackend::get().getPassword(unescpapedUrlUser, as.userUri()->url_host, unescpapedUrlUser, listener);
+	as.status(100);
+}
 
+void FlexisipAuthModule::returnChallenge(FlexisipAuthStatus &as, const auth_challenger_t &ach, const std::list<std::string> &algos) {
+	msg_auth_t *challenge = nullptr;
+	for (auto algo = algos.crbegin(); algo != algos.crend(); algo++) {
+		mAm->am_algorithm = algo->c_str();
+		auth_challenge_digest(mAm, as.getPtr(), &ach);
+		if (as.status() == 500) continue;
+		auto *newChallenge = reinterpret_cast<msg_auth_t *>(as.response());
+		newChallenge->au_next = challenge;
+		challenge = newChallenge;
+		as.response(nullptr);
+	}
+	if (challenge == nullptr) {
+		as.status(500);
+		as.phrase("Internal error");
+	} else {
+		as.status(ach.ach_status);
+		as.phrase(ach.ach_phrase);
+	}
+	as.response(reinterpret_cast<msg_header_t *>(challenge));
+	finish(as);
 }
 
 #define PA "Authorization missing "
@@ -135,14 +165,14 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 		msg_time_t now = msg_now();
 		if (as.nonceIssued() == 0 /* Already validated nonce */ && auth_validate_digest_nonce(mAm, as.getPtr(), ar, now) < 0) {
 			as.blacklist(mAm->am_blacklist);
-			auth_challenge_digest(mAm, as.getPtr(), ach);
+			challenge(as, ach);
 			mNonceStore.insert(as.response());
 			finish(as);
 			return;
 		}
 
 		if (as.stale()) {
-			auth_challenge_digest(mAm, as.getPtr(), ach);
+			challenge(as, ach);
 			mNonceStore.insert(as.response());
 			finish(as);
 			return;
@@ -154,7 +184,7 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 			if (pnc == -1 || pnc >= nnc) {
 				LOGE("Bad nonce count %d -> %d for %s", pnc, nnc, ar->ar_nonce);
 				as.blacklist(mAm->am_blacklist);
-				auth_challenge_digest(mAm, as.getPtr(), ach);
+				challenge(as, ach);
 				mNonceStore.insert(as.response());
 				finish(as);
 				return;
@@ -225,7 +255,7 @@ void FlexisipAuthModule::checkPassword(FlexisipAuthStatus &as, const auth_challe
 			as.response(nullptr);
 			as.blacklist(getPtr()->am_blacklist);
 		} else {
-			auth_challenge_digest(getPtr(), as.getPtr(), &ach);
+			challenge(as, &ach);
 			nonceStore().insert(as.response());
 			as.blacklist(getPtr()->am_blacklist);
 		}
