@@ -43,8 +43,8 @@ class FlexisipAuthModule : public FlexisipAuthModuleBase {
 public:
 	using PasswordFetchResultCb = std::function<void(bool)>;
 
-	FlexisipAuthModule(su_root_t *root, const std::string &domain, const std::string &algo): FlexisipAuthModuleBase(root, domain, algo) {}
-	FlexisipAuthModule(su_root_t *root, const std::string &domain, const std::string &algo, int nonceExpire): FlexisipAuthModuleBase(root, domain, algo, nonceExpire) {}
+	FlexisipAuthModule(su_root_t *root, const std::string &domain): FlexisipAuthModuleBase(root, domain) {}
+	FlexisipAuthModule(su_root_t *root, const std::string &domain, int nonceExpire): FlexisipAuthModuleBase(root, domain, nonceExpire) {}
 	~FlexisipAuthModule() override = default;
 
 	void setOnPasswordFetchResultCb(const PasswordFetchResultCb &cb) {mPassworFetchResultCb = cb;}
@@ -68,7 +68,7 @@ private:
 	};
 
 	void onChallenge(AuthStatus &as, auth_challenger_t const *ach) override;
-	void returnChallenge(FlexisipAuthStatus &as, const auth_challenger_t &ach, const std::list<std::string> &algos);
+	void returnChallenge(FlexisipAuthStatus &as, const auth_challenger_t &ach);
 
 	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
 	void loadPassword(const FlexisipAuthStatus &as) override;

@@ -319,15 +319,15 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 // Private methods                                                                                                   //
 // ================================================================================================================= //
 
-FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &domain, const std::string &algorithm) {
-	FlexisipAuthModule *authModule = new FlexisipAuthModule(getAgent()->getRoot(), domain, mAlgorithms.front());
+FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &domain) {
+	FlexisipAuthModule *authModule = new FlexisipAuthModule(getAgent()->getRoot(), domain);
 	authModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
 	SLOGI << "Found auth domain: " << domain;
 	return authModule;
 }
 
-FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) {
-	FlexisipAuthModule *authModule = new FlexisipAuthModule(getAgent()->getRoot(), domain, mAlgorithms.front(), nonceExpire);
+FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &domain, int nonceExpire) {
+	FlexisipAuthModule *authModule = new FlexisipAuthModule(getAgent()->getRoot(), domain, nonceExpire);
 	authModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
 	SLOGI << "Found auth domain: " << domain;
 	return authModule;

@@ -46,17 +46,21 @@ public:
 	 * @param[in] domain The domain name which the module is in charge of.
 	 * @param[in] algo The digest algorithm to use. Only "MD5" and "SHA-256" are supported.
 	 */
-	FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, const std::string &algo);
+	FlexisipAuthModuleBase(su_root_t *root, const std::string &domain);
 	/**
 	 * @brief Instantiate a new authentication module with QOP authentication feature enabled.
 	 * @param[in] nonceExpire Validity period for a nonce in seconds.
 	 */
-	FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, const std::string &algo, int nonceExpire);
+	FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, int nonceExpire);
 	~FlexisipAuthModuleBase() override = default;
 
 	NonceStore &nonceStore() {return mNonceStore;}
 
 protected:
+	void onCheck(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
+	void onChallenge(AuthStatus &as, auth_challenger_t const *ach) override;
+	void onCancel(AuthStatus &as) override;
+
 	/**
 	 * This method is called each time the module want to authenticate an Authorization header.
 	 * The result of the authentication must be store in 'status' attribute of 'as' parameter as
@@ -79,11 +83,6 @@ protected:
 	NonceStore mNonceStore;
 	bool mDisableQOPAuth = false;
 	bool mImmediateRetrievePass = true;
-
-private:
-	void onCheck(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
-	void onChallenge(AuthStatus &as, auth_challenger_t const *ach) override;
-	void onCancel(AuthStatus &as) override;
 };
 
 }

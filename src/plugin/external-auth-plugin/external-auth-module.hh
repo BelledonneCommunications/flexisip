@@ -71,8 +71,8 @@ public:
 		std::string mUUID;              /**< [in]  UUID of the application that is trying to authenticate. */
 	};
 
-	ExternalAuthModule(su_root_t *root, const std::string &domain, const std::string &algo);
-	ExternalAuthModule(su_root_t *root, const std::string &domain, const std::string &algo, int nonceExpire);
+	ExternalAuthModule(su_root_t *root, const std::string &domain);
+	ExternalAuthModule(su_root_t *root, const std::string &domain, int nonceExpire);
 	~ExternalAuthModule() override;
 
 	StringFormater &getFormater() {return mUriFormater;}

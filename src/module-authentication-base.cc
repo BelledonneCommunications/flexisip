@@ -107,9 +107,9 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	for (const string &domain : authDomains) {
 		unique_ptr<FlexisipAuthModuleBase> am;
 		if (disableQOPAuth) {
-			am.reset(createAuthModule(domain, mAlgorithms.front()));
+			am.reset(createAuthModule(domain));
 		} else {
-			am.reset(createAuthModule(domain, mAlgorithms.front(), nonceExpires));
+			am.reset(createAuthModule(domain, nonceExpires));
 		}
 		mAuthModules[domain] = move(am);
 	}

@@ -34,11 +34,11 @@ using namespace std;
 
 namespace flexisip {
 
-ExternalAuthModule::ExternalAuthModule(su_root_t *root, const std::string &domain, const std::string &algo) : FlexisipAuthModuleBase(root, domain, algo) {
+ExternalAuthModule::ExternalAuthModule(su_root_t *root, const std::string &domain) : FlexisipAuthModuleBase(root, domain) {
 	mEngine = nth_engine_create(root, TAG_END());
 }
 
-ExternalAuthModule::ExternalAuthModule(su_root_t *root, const std::string &domain, const std::string &algo, int nonceExpire) : FlexisipAuthModuleBase(root, domain, algo, nonceExpire) {
+ExternalAuthModule::ExternalAuthModule(su_root_t *root, const std::string &domain, int nonceExpire) : FlexisipAuthModuleBase(root, domain, nonceExpire) {
 	mEngine = nth_engine_create(root, TAG_END());
 }
 

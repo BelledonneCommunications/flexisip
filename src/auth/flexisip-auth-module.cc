@@ -71,18 +71,16 @@ void FlexisipAuthModule::onChallenge(AuthStatus &as, auth_challenger_t const *ac
 	auto &authStatus = dynamic_cast<FlexisipAuthStatus &>(as);
 	auto cleanUsedAlgo = [this, &authStatus, ach](AuthDbResult r, const AuthDbBackend::PwList &passwords) {
 		switch (r) {
-			case PASSWORD_FOUND: {
-				list<string> algos;
-				for (const string &algo : authStatus.usedAlgo()) {
-					if (passwords.cend() != find_if(passwords.cbegin(), passwords.cend(), [&algo](const passwd_algo_t &pw){return pw.algo == algo;})) {
-						algos.push_back(algo);
-					}
-				}
-				this->returnChallenge(authStatus, *ach, algos);
+			case PASSWORD_FOUND:
+				authStatus.usedAlgo().remove_if([&passwords](const std::string &algo){
+					return passwords.cend() == find_if(passwords.cbegin(), passwords.cend(), [&algo](const passwd_algo_t &pw) {
+						return algo == pw.algo;
+					});
+				});
+				this->returnChallenge(authStatus, *ach);
 				break;
-			}
 			case PASSWORD_NOT_FOUND:
-				this->returnChallenge(authStatus, *ach, authStatus.usedAlgo());
+				this->returnChallenge(authStatus, *ach);
 				break;
 			case AUTH_ERROR:
 				this->onError(authStatus);
@@ -98,26 +96,8 @@ void FlexisipAuthModule::onChallenge(AuthStatus &as, auth_challenger_t const *ac
 	as.status(100);
 }
 
-void FlexisipAuthModule::returnChallenge(FlexisipAuthStatus &as, const auth_challenger_t &ach, const std::list<std::string> &algos) {
-	msg_auth_t *challenge = nullptr;
-	for (auto algo = algos.crbegin(); algo != algos.crend(); algo++) {
-		mAm->am_algorithm = algo->c_str();
-		auth_challenge_digest(mAm, as.getPtr(), &ach);
-		if (as.status() == 500) continue;
-		auto *newChallenge = reinterpret_cast<msg_auth_t *>(as.response());
-		mNonceStore.insert(newChallenge);
-		newChallenge->au_next = challenge;
-		challenge = newChallenge;
-		as.response(nullptr);
-	}
-	if (challenge == nullptr) {
-		as.status(500);
-		as.phrase("Internal error");
-	} else {
-		as.status(ach.ach_status);
-		as.phrase(ach.ach_phrase);
-	}
-	as.response(reinterpret_cast<msg_header_t *>(challenge));
+void FlexisipAuthModule::returnChallenge(FlexisipAuthStatus &as, const auth_challenger_t &ach) {
+	FlexisipAuthModuleBase::onChallenge(as, &ach);
 	finish(as);
 }
 

@@ -75,9 +75,9 @@ void ModuleExternalAuthentication::onLoad(const GenericStruct *mc) {
 	ModuleAuthenticationBase::onLoad(mc);
 }
 
-FlexisipAuthModuleBase *ModuleExternalAuthentication::createAuthModule(const std::string &domain, const std::string &algorithm) {
+FlexisipAuthModuleBase *ModuleExternalAuthentication::createAuthModule(const std::string &domain) {
 	try {
-		auto *am = new ExternalAuthModule(getAgent()->getRoot(), domain, algorithm);
+		auto *am = new ExternalAuthModule(getAgent()->getRoot(), domain);
 		am->getFormater().setTemplate(mRemoteUri);
 		return am;
 	} catch (const invalid_argument &e) {
@@ -85,9 +85,9 @@ FlexisipAuthModuleBase *ModuleExternalAuthentication::createAuthModule(const std
 	}
 }
 
-FlexisipAuthModuleBase *ModuleExternalAuthentication::createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) {
+FlexisipAuthModuleBase *ModuleExternalAuthentication::createAuthModule(const std::string &domain, int nonceExpire) {
 	try {
-		auto *am = new ExternalAuthModule(getAgent()->getRoot(), domain, algorithm, nonceExpire);
+		auto *am = new ExternalAuthModule(getAgent()->getRoot(), domain, nonceExpire);
 		am->getFormater().setTemplate(mRemoteUri);
 		return am;
 	} catch (const invalid_argument &e) {

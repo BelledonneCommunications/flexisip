@@ -31,26 +31,24 @@ using namespace flexisip;
 //  FlexisipAuthModuleBase class
 // ====================================================================================================================
 
-FlexisipAuthModuleBase::FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, const std::string &algo):
+FlexisipAuthModuleBase::FlexisipAuthModuleBase(su_root_t *root, const std::string &domain):
 AuthModule(root,
 		   AUTHTAG_REALM(domain.c_str()),
 		   AUTHTAG_OPAQUE("+GNywA=="),
 		   AUTHTAG_FORBIDDEN(1),
 		   AUTHTAG_ALLOW("ACK CANCEL BYE"),
-		   AUTHTAG_ALGORITHM(algo.c_str()),
 		   TAG_END()
 ),
 mDisableQOPAuth(true) {
 }
 
-FlexisipAuthModuleBase::FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, const std::string &algo, int nonceExpire):
+FlexisipAuthModuleBase::FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, int nonceExpire):
 AuthModule(root,
 		   AUTHTAG_REALM(domain.c_str()),
 		   AUTHTAG_OPAQUE("+GNywA=="),
 		   AUTHTAG_QOP("auth"),
 		   AUTHTAG_FORBIDDEN(1),
 		   AUTHTAG_ALLOW("ACK CANCEL BYE"),
-		   AUTHTAG_ALGORITHM(algo.c_str()),
 		   AUTHTAG_EXPIRES(nonceExpire),
 		   AUTHTAG_NEXT_EXPIRES(nonceExpire),
 		   TAG_END()
@@ -113,28 +111,37 @@ void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challe
 }
 
 void FlexisipAuthModuleBase::onChallenge(AuthStatus &as, auth_challenger_t const *ach) {
+	auto &flexisipAs = dynamic_cast<FlexisipAuthStatus &>(as);
+
 	auth_challenge_digest(mAm, as.getPtr(), ach);
 
 	msg_header_t *response = as.response();
 	as.response(nullptr);
 
-	auto &flexisipAs = dynamic_cast<FlexisipAuthStatus &>(as);
+	msg_header_t *lastChallenge = nullptr;
 	for (const std::string &algo : flexisipAs.usedAlgo()) {
 		msg_header_t *challenge;
-		const char *algoValue = msg_header_find_param(reinterpret_cast<msg_common_t *>(response), "algorithm");
+		const char *algoValue = msg_header_find_param(response->sh_common, "algorithm");
 		if (algo == &algoValue[1]) {
 			challenge = response;
 		} else {
 			const char *param = su_sprintf(as.home(), "algorithm=%s", algo.c_str());
 			challenge = msg_header_copy(as.home(), response);
-			msg_header_replace_param(as.home(), reinterpret_cast<msg_common_t *>(challenge), param);
+			msg_header_replace_param(as.home(), challenge->sh_common, param);
 		}
 
-		if (as.response()) {
-			reinterpret_cast<msg_auth_t *>(as.response())->au_next = reinterpret_cast<msg_auth_t *>(challenge);
-		} else {
+		if (lastChallenge == nullptr) {
 			as.response(challenge);
+		} else {
+			lastChallenge->sh_auth->au_next = challenge->sh_auth;
 		}
+		lastChallenge = challenge;
+	}
+	if (as.response() == nullptr) {
+		as.status(500);
+		as.phrase("Internal error");
+	} else {
+		mNonceStore.insert(as.response()->sh_auth);
 	}
 }
 
