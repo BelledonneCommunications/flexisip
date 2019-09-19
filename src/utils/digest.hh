@@ -27,6 +27,8 @@ namespace flexisip {
 
 class Digest {
 public:
+	virtual ~Digest() = default;
+
 	virtual const std::string &name() const = 0;
 
 	template <class ResultT, class DataT>
