@@ -31,28 +31,18 @@ using namespace flexisip;
 //  FlexisipAuthModuleBase class
 // ====================================================================================================================
 
-FlexisipAuthModuleBase::FlexisipAuthModuleBase(su_root_t *root, const std::string &domain):
+FlexisipAuthModuleBase::FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, int nonceExpire, bool qopAuth):
 AuthModule(root,
 		   AUTHTAG_REALM(domain.c_str()),
 		   AUTHTAG_OPAQUE("+GNywA=="),
-		   AUTHTAG_FORBIDDEN(1),
-		   AUTHTAG_ALLOW("ACK CANCEL BYE"),
-		   TAG_END()
-),
-mDisableQOPAuth(true) {
-}
-
-FlexisipAuthModuleBase::FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, int nonceExpire):
-AuthModule(root,
-		   AUTHTAG_REALM(domain.c_str()),
-		   AUTHTAG_OPAQUE("+GNywA=="),
-		   AUTHTAG_QOP("auth"),
 		   AUTHTAG_FORBIDDEN(1),
 		   AUTHTAG_ALLOW("ACK CANCEL BYE"),
 		   AUTHTAG_EXPIRES(nonceExpire),
 		   AUTHTAG_NEXT_EXPIRES(nonceExpire),
+		   AUTHTAG_QOP(qopAuth ? "auth" : nullptr),
 		   TAG_END()
-) {
+),
+	mQOPAuth(qopAuth) {
 	mNonceStore.setNonceExpires(nonceExpire);
 }
 
@@ -99,12 +89,6 @@ void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challe
 		/* There was no realm or credentials, send challenge */
 		SLOGD << __func__ << ": no credentials matched realm or no realm";
 		challenge(as, ach);
-
-		// Retrieve the password in the hope it will be in cache when the remote UAC
-		// sends back its request; this time with the expected authentication credentials.
-		if (mImmediateRetrievePass) {
-			loadPassword(authStatus);
-		}
 		finish(authStatus);
 		return;
 	}

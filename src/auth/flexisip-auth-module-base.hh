@@ -44,14 +44,10 @@ public:
 	 * @brief Instantiate a new authentication module without QOP authentication feature.
 	 * @param[in] root Event loop which the module will be working on.
 	 * @param[in] domain The domain name which the module is in charge of.
-	 * @param[in] algo The digest algorithm to use. Only "MD5" and "SHA-256" are supported.
-	 */
-	FlexisipAuthModuleBase(su_root_t *root, const std::string &domain);
-	/**
-	 * @brief Instantiate a new authentication module with QOP authentication feature enabled.
 	 * @param[in] nonceExpire Validity period for a nonce in seconds.
+	 * @param[in] qopAuth Setting true allows clients to use the same nonce for successive authentication.
 	 */
-	FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, int nonceExpire);
+	FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, int nonceExpire, bool qopAuth);
 	~FlexisipAuthModuleBase() override = default;
 
 	NonceStore &nonceStore() {return mNonceStore;}
@@ -70,19 +66,12 @@ protected:
 	 * @param[in] credentials The authorization header to validate.
 	 */
 	virtual void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) = 0;
-	/**
-	 * This function is called when the module is validating a request that doesn't have any authorization header.
-	 * It allows implementations based on password database to load the password in cache in order to be already fetched
-	 * once the user send a request containing the Authorization header. The default implementation of this method does nothing.
-	 */
-	virtual void loadPassword(const FlexisipAuthStatus &as) = 0;
 
 	void finish(FlexisipAuthStatus &as);
 	void onError(FlexisipAuthStatus &as);
 
 	NonceStore mNonceStore;
-	bool mDisableQOPAuth = false;
-	bool mImmediateRetrievePass = true;
+	bool mQOPAuth = false;
 };
 
 }

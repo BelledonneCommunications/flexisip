@@ -34,11 +34,7 @@ using namespace std;
 
 namespace flexisip {
 
-ExternalAuthModule::ExternalAuthModule(su_root_t *root, const std::string &domain) : FlexisipAuthModuleBase(root, domain) {
-	mEngine = nth_engine_create(root, TAG_END());
-}
-
-ExternalAuthModule::ExternalAuthModule(su_root_t *root, const std::string &domain, int nonceExpire) : FlexisipAuthModuleBase(root, domain, nonceExpire) {
+ExternalAuthModule::ExternalAuthModule(su_root_t *root, const std::string &domain, int nonceExpire, bool qopAuth) : FlexisipAuthModuleBase(root, domain, nonceExpire, qopAuth) {
 	mEngine = nth_engine_create(root, TAG_END());
 }
 
@@ -75,9 +71,6 @@ void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *cre
 		SLOGE << e.what();
 		onError(as);
 	}
-}
-
-void ExternalAuthModule::loadPassword(const FlexisipAuthStatus &as) {
 }
 
 void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *request, const http_t *http) {

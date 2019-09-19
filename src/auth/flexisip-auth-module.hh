@@ -43,8 +43,7 @@ class FlexisipAuthModule : public FlexisipAuthModuleBase {
 public:
 	using PasswordFetchResultCb = std::function<void(bool)>;
 
-	FlexisipAuthModule(su_root_t *root, const std::string &domain): FlexisipAuthModuleBase(root, domain) {}
-	FlexisipAuthModule(su_root_t *root, const std::string &domain, int nonceExpire): FlexisipAuthModuleBase(root, domain, nonceExpire) {}
+	FlexisipAuthModule(su_root_t *root, const std::string &domain, int nonceExpire, bool qopAuth): FlexisipAuthModuleBase(root, domain, nonceExpire, qopAuth) {}
 	~FlexisipAuthModule() override = default;
 
 	void setOnPasswordFetchResultCb(const PasswordFetchResultCb &cb) {mPassworFetchResultCb = cb;}
@@ -71,7 +70,6 @@ private:
 	void returnChallenge(FlexisipAuthStatus &as, const auth_challenger_t &ach);
 
 	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
-	void loadPassword(const FlexisipAuthStatus &as) override;
 
 	void processResponse(FlexisipAuthStatus &as, const auth_response_t &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords);
 	void checkPassword(FlexisipAuthStatus &as, const auth_challenger_t &ach, const auth_response_t &ar, const std::string &password);

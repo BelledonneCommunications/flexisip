@@ -38,8 +38,7 @@ private:
 	void onDeclare(GenericStruct *mc) override;
 	void onLoad(const GenericStruct *root) override;
 
-	FlexisipAuthModuleBase *createAuthModule(const std::string &domain) override;
-	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, int nonceExpire) override;
+	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) override;
 	FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) override;
 
 	void onSuccess(const FlexisipAuthStatus &as) override;

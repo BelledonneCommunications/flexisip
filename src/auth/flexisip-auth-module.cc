@@ -113,7 +113,7 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 
 	char const *phrase = "Bad authorization ";
 	if ((!ar->ar_username && (phrase = PA "username")) || (!ar->ar_nonce && (phrase = PA "nonce")) ||
-		(!mDisableQOPAuth && !ar->ar_nc && (phrase = PA "nonce count")) ||
+		(mQOPAuth && !ar->ar_nc && (phrase = PA "nonce count")) ||
 		(!ar->ar_uri && (phrase = PA "URI")) || (!ar->ar_response && (phrase = PA "response")) ||
 		/* (!ar->ar_opaque && (phrase = PA "opaque")) || */
 		/* Check for qop */
@@ -157,7 +157,7 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 			return;
 		}
 
-		if (!mDisableQOPAuth) {
+		if (mQOPAuth) {
 			int pnc = mNonceStore.getNc(ar->ar_nonce);
 			int nnc = (int)strtoul(ar->ar_nc, NULL, 16);
 			if (pnc == -1 || pnc >= nnc) {
@@ -180,12 +180,6 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 		string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user);
 		AuthDbBackend::get().getPassword(unescpapedUrlUser, as.userUri()->url_host, ar->ar_username, listener);
 		as.status(100);
-}
-
-void FlexisipAuthModule::loadPassword(const FlexisipAuthStatus &as) {
-	SLOGD << "Searching for " << as.userUri()->url_user << " password to have it when the authenticated request comes";
-	string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user);
-	AuthDbBackend::get().getPassword(unescpapedUrlUser, as.userUri()->url_host, unescpapedUrlUser, nullptr);
 }
 
 void FlexisipAuthModule::processResponse(FlexisipAuthStatus &as, const auth_response_t &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords) {
