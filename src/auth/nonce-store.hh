@@ -31,7 +31,7 @@ class NonceStore {
 public:
 	void setNonceExpires(int value) {mNonceExpires = value;}
 	int getNc(const std::string &nonce);
-	void insert(const msg_auth_t *response);
+	void insert(msg_header_t *response);
 	void insert(const std::string &nonce);
 	void updateNc(const std::string &nonce, int newnc);
 	void erase(const std::string &nonce);

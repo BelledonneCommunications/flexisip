@@ -104,7 +104,6 @@ set(FLEXISIP_SOURCES
 	telephone-event-filter.cc
 	transaction.cc
 	uac-register.cc
-	utils/digest.cc utils/digest.hh
 	utils/sip-uri.cc
 	utils/string-formater.cc
 	utils/string-utils.cc
@@ -132,6 +131,13 @@ if(ENABLE_SNMP)
 	list(APPEND FLEXISIP_SOURCES snmp-agent.cc snmp-agent.h)
 	list(APPEND FLEXISIP_LIBS ${NET_SNMP_LIBRARIES})
 	list(APPEND FLEXISIP_INCLUDES ${NET_SNMP_INCLUDE_DIRS} ${CMAKE_CURRENT_LIST_DIR}/mib)
+endif()
+
+if(ENABLE_ODBC)
+	add_definitions(-DENABLE_ODBC)
+	list(APPEND FLEXISIP_SOURCES authdb-odbc.cc)
+	list(APPEND FLEXISIP_LIBS ${ODBC_LIBRARIES})
+	list(APPEND FLEXISIP_INCLUDES ${ODBC_INCLUDE_DIRS})
 endif()
 
 if(ENABLE_TRANSCODER)

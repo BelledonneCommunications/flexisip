@@ -16,24 +16,23 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <fstream>
-#include <iostream>
-#include <sstream>
-
-#include <belr/abnf.h>
-#include <belr/grammarbuilder.h>
+#define SU_MSG_ARG_T struct auth_splugin_t
 
 #ifdef HAVE_CONFIG_H
 #include "flexisip-config.h"
 #endif
 
 #include "authdb.hh"
-#include "utils/digest.hh"
+#include "belr/grammarbuilder.h"
+#include "belr/abnf.h"
+
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
 using namespace::belr;
 using namespace std;
-
-namespace flexisip {
+using namespace flexisip;
 
 void FileAuthDb::parsePasswd(const vector<passwd_algo_t> &srcPasswords, const string &user, const string &domain, vector<passwd_algo_t> &destPasswords) {
 	// Creates pass-md5, pass-sha256 if there is clrtxt pass
@@ -47,11 +46,11 @@ void FileAuthDb::parsePasswd(const vector<passwd_algo_t> &srcPasswords, const st
 			string input;
 			input = user+":"+domain+":"+clrtxt.pass;
 
-			md5.pass = Md5().compute<string>(input);
+			md5.pass = syncMd5(input.c_str(), 16);
 			md5.algo = "MD5";
 			destPasswords.push_back(md5);
 
-			sha256.pass = Sha256().compute<string>(input);
+			sha256.pass = syncSha256(input.c_str(), 32);
 			sha256.algo = "SHA-256";
 			destPasswords.push_back(sha256);
 			return;
@@ -95,7 +94,7 @@ void FileAuthDb::getUserWithPhoneFromBackend(const std::string &phone, const std
 }
 
 void FileAuthDb::getPasswordFromBackend(const std::string &id, const std::string &domain,
-					const std::string &authid, AuthDbListener *listener) {
+					const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
 	AuthDbResult res = AuthDbResult::PASSWORD_NOT_FOUND;
 	time_t now = getCurrentTime();
 
@@ -109,6 +108,7 @@ void FileAuthDb::getPasswordFromBackend(const std::string &id, const std::string
 	if (getCachedPassword(key, domain, passwd) == VALID_PASS_FOUND) {
 		res = AuthDbResult::PASSWORD_FOUND;
 	}
+	if (listener_ref) listener_ref->finishVerifyAlgos(passwd);
 	if (listener) listener->onResult(res, passwd);
 }
 
@@ -219,5 +219,3 @@ void FileAuthDb::sync() {
 	}
 	LOGD("Syncing done");
 }
-
-} // namespace flexisip

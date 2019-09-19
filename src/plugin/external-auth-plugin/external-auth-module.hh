@@ -71,7 +71,8 @@ public:
 		std::string mUUID;              /**< [in]  UUID of the application that is trying to authenticate. */
 	};
 
-	ExternalAuthModule(su_root_t *root, const std::string &domain, int nonceExpire, bool qopAuth);
+	ExternalAuthModule(su_root_t *root, const std::string &domain, const std::string &algo);
+	ExternalAuthModule(su_root_t *root, const std::string &domain, const std::string &algo, int nonceExpire);
 	~ExternalAuthModule() override;
 
 	StringFormater &getFormater() {return mUriFormater;}
@@ -84,6 +85,7 @@ private:
 	};
 
 	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
+	void loadPassword(const FlexisipAuthStatus &as) override;
 
 	void onHttpResponse(HttpRequestCtx &ctx, nth_client_t *request, const http_t *http);
 	std::map<std::string, std::string> parseHttpBody(const std::string &body) const;

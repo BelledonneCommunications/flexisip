@@ -287,6 +287,7 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		FlexisipAuthModule *fam = dynamic_cast<FlexisipAuthModule *>(am);
 		if (fam) {
 			fam->challenge(*as, &mProxyChallenger);
+			fam->nonceStore().insert(as->response());
 			msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t *)sip, (msg_header_t *)as->response());
 		} else {
 			LOGD("Authentication module for %s not found", as->realm());
@@ -319,8 +320,15 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 // Private methods                                                                                                   //
 // ================================================================================================================= //
 
-FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) {
-	FlexisipAuthModule *authModule = new FlexisipAuthModule(getAgent()->getRoot(), domain, nonceExpire, qopAuth);
+FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &domain, const std::string &algorithm) {
+	FlexisipAuthModule *authModule = new FlexisipAuthModule(getAgent()->getRoot(), domain, mAlgorithms.front());
+	authModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
+	SLOGI << "Found auth domain: " << domain;
+	return authModule;
+}
+
+FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) {
+	FlexisipAuthModule *authModule = new FlexisipAuthModule(getAgent()->getRoot(), domain, mAlgorithms.front(), nonceExpire);
 	authModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
 	SLOGI << "Found auth domain: " << domain;
 	return authModule;

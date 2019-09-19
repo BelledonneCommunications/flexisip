@@ -75,9 +75,19 @@ void ModuleExternalAuthentication::onLoad(const GenericStruct *mc) {
 	ModuleAuthenticationBase::onLoad(mc);
 }
 
-FlexisipAuthModuleBase *ModuleExternalAuthentication::createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) {
+FlexisipAuthModuleBase *ModuleExternalAuthentication::createAuthModule(const std::string &domain, const std::string &algorithm) {
 	try {
-		auto *am = new ExternalAuthModule(getAgent()->getRoot(), domain, nonceExpire, qopAuth);
+		auto *am = new ExternalAuthModule(getAgent()->getRoot(), domain, algorithm);
+		am->getFormater().setTemplate(mRemoteUri);
+		return am;
+	} catch (const invalid_argument &e) {
+		LOGF("error while parsing 'module::ExternalAuthentication/remote-auth-uri': %s", e.what());
+	}
+}
+
+FlexisipAuthModuleBase *ModuleExternalAuthentication::createAuthModule(const std::string &domain, const std::string &algorithm, int nonceExpire) {
+	try {
+		auto *am = new ExternalAuthModule(getAgent()->getRoot(), domain, algorithm, nonceExpire);
 		am->getFormater().setTemplate(mRemoteUri);
 		return am;
 	} catch (const invalid_argument &e) {
