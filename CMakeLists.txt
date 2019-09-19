@@ -42,7 +42,6 @@ option(ENABLE_STRICT "Pass strict flags to the compiler" YES)
 option(ENABLE_DATEHANDLER "Build DateHandler module" NO)
 option(ENABLE_PDFDOC "Build pdf documentation" NO)
 option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" NO)
-option(ENABLE_ODBC "Build ODBC support for database connection" NO)
 option(ENABLE_PRESENCE "Build presence support" NO)
 option(ENABLE_CONFERENCE "Build conference support" NO)
 option(ENABLE_PROTOBUF "Build with protobuf support" NO)
@@ -118,30 +117,6 @@ if(ENABLE_SNMP)
 	endif()
 
 	execute_process(COMMAND "${NET_SNMP_PROG}" "--agent-libs" OUTPUT_VARIABLE NET_SNMP_LIBRARIES OUTPUT_STRIP_TRAILING_WHITESPACE)
-endif()
-
-if(ENABLE_ODBC)
-	FIND_PROGRAM_REQUIRED(ODBC_PROG odbc_config)
-	execute_process(COMMAND "${ODBC_PROG}" "--libs" OUTPUT_VARIABLE ODBC_LIBRARIES OUTPUT_STRIP_TRAILING_WHITESPACE)
-	execute_process(COMMAND "${ODBC_PROG}" "--cflags" OUTPUT_VARIABLE ODBC_CFLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
-	execute_process(COMMAND "${ODBC_PROG}" "--include-prefix" OUTPUT_VARIABLE ODBC_INCLUDE_DIRS OUTPUT_STRIP_TRAILING_WHITESPACE)
-	execute_process(COMMAND "${ODBC_PROG}" "--lib-prefix" OUTPUT_VARIABLE ODBC_LIBRARY_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
-	message(STATUS "ODBC libraries: ${ODBC_LIBRARIES}")
-	message(STATUS "ODBC headers: ${ODBC_CFLAGS}")
-
-	# check SQL headers
-	find_path(ODBC_SQL_HEADERS NAMES sql.h sqlext.h sqltypes.h mysql/mysql.h PATHS ODBC_INCLUDE_DIRS)
-	if(NOT ODBC_SQL_HEADERS)
-		message(FATAL_ERROR "ODBC Mysql headers not found.")
-	else()
-		message(STATUS "ODBC Mysql ${ODBC_SQL_HEADERS}")
-	endif()
-
-	# check that odbc_config gives us a correct library path
-	find_library(ODBC_LIB_FOUND NAMES odbc PATHS ODBC_LIBRARY_DIR)
-	if(NOT ODBC_LIB_FOUND)
-		message(FATAL_ERROR "ODBC library not found.")
-	endif()
 endif()
 
 if(ENABLE_TRANSCODER)

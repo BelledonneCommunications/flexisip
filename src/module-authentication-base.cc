@@ -105,12 +105,7 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	int nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
 
 	for (const string &domain : authDomains) {
-		unique_ptr<FlexisipAuthModuleBase> am;
-		if (disableQOPAuth) {
-			am.reset(createAuthModule(domain, mAlgorithms.front()));
-		} else {
-			am.reset(createAuthModule(domain, mAlgorithms.front(), nonceExpires));
-		}
+		unique_ptr<FlexisipAuthModuleBase> am(createAuthModule(domain, nonceExpires, !disableQOPAuth));
 		mAuthModules[domain] = move(am);
 	}
 

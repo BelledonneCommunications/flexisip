@@ -17,10 +17,20 @@
 */
 
 #include "authdb.hh"
-#include "bctoolbox/crypto.h"
+#include "utils/digest.hh"
 
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
+
+void AuthDbBackend::ListenerToFunctionWrapper::onResult(AuthDbResult result, const std::string &passwd) {
+	delete this;
+}
+
+void AuthDbBackend::ListenerToFunctionWrapper::onResult(AuthDbResult result, const std::vector<passwd_algo_t> &passwd) {
+	if (mCb) mCb(result, passwd);
+	delete this;
+}
 
 unique_ptr<AuthDbBackend> AuthDbBackend::sUnique;
 
@@ -32,12 +42,14 @@ public:
 	FixedAuthDb() {
 	}
 
-	virtual void getUserWithPhoneFromBackend(const string & phone, const string &domain, AuthDbListener *listener) {
+	void getUserWithPhoneFromBackend(const string & phone, const string &domain, AuthDbListener *listener) override {
 		if (listener) listener->onResult(PASSWORD_FOUND, "user@domain.com");
 	}
-	virtual void getPasswordFromBackend(const string &id, const string &domain,
-										const string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
-		if (listener) listener->onResult(PASSWORD_FOUND, "fixed");
+	void getPasswordFromBackend(const string &id, const string &domain,
+										const string &authid, AuthDbListener *listener) override {
+		if (listener) {
+			listener->onResult(PASSWORD_FOUND, {{"fixed", "CLRTXT"}});
+		}
 	}
 	static void declareConfig(GenericStruct *mc){};
 };
@@ -51,10 +63,6 @@ AuthDbBackend &AuthDbBackend::get() {
 			sUnique.reset(new FixedAuthDb());
 		} else if (impl == "file") {
 			sUnique.reset(new FileAuthDb());
-#if ENABLE_ODBC
-		} else if (impl == "odbc") {
-			sUnique.reset(new OdbcAuthDb());
-#endif
 #if ENABLE_SOCI
 		} else if (impl == "soci") {
 			sUnique.reset(new SociAuthDB());
@@ -76,11 +84,7 @@ AuthDbBackend::~AuthDbBackend() {
 }
 
 void AuthDbBackend::declareConfig(GenericStruct *mc) {
-
 	FileAuthDb::declareConfig(mc);
-#if ENABLE_ODBC
-	OdbcAuthDb::declareConfig(mc);
-#endif
 #if ENABLE_SOCI
 	SociAuthDB::declareConfig(mc);
 #endif
@@ -155,12 +159,11 @@ bool AuthDbBackend::cacheUserWithPhone(const string &phone, const string &domain
 	return true;
 }
 
-void AuthDbBackend::getPassword(const string &user, const string &host, const string &auth_username,
-								AuthDbListener *listener) {
+void AuthDbBackend::getPassword(const std::string &user, const std::string &domain, const std::string &auth_username, AuthDbListener *listener) {
 	// Check for usable cached password
-	string key(createPasswordKey(user, auth_username));
+	string key = createPasswordKey(user, auth_username);
 	vector<passwd_algo_t> pass;
-	switch (getCachedPassword(key, host, pass)) {
+	switch (getCachedPassword(key, domain, pass)) {
 		case VALID_PASS_FOUND:
 			if (listener) listener->onResult(AuthDbResult::PASSWORD_FOUND, pass);
 			return;
@@ -174,31 +177,12 @@ void AuthDbBackend::getPassword(const string &user, const string &host, const st
 	}
 
 	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
-	getPasswordFromBackend(user, host, auth_username, listener, NULL);
+	getPasswordFromBackend(user, domain, auth_username, listener);
 }
 
-void AuthDbBackend::getPasswordForAlgo(const string &user, const string &host, const string &auth_username,
-										AuthDbListener *listener, AuthDbListener *listener_ref) {
-	// Check for usable cached password
-	string key(createPasswordKey(user, auth_username));
-	vector<passwd_algo_t> pass;
-
-	switch (getCachedPassword(key, host, pass)) {
-		case VALID_PASS_FOUND:
-			if (listener) listener->onResult(AuthDbResult::PASSWORD_FOUND, pass);
-			if (listener_ref) listener_ref->finishVerifyAlgos(pass);
-			return;
-		case EXPIRED_PASS_FOUND:
-			// Might check here if connection is failing
-			// If it is the case use fallback password and
-			// return AuthDbResult::PASSWORD_FOUND;
-			break;
-		case NO_PASS_FOUND:
-			break;
-	}
-
-	// if we reach here, password wasn't cached: we have to grab the password from the actual backend
-	getPasswordFromBackend(user, host, auth_username, listener, listener_ref);
+void AuthDbBackend::getPassword(const std::string &user, const std::string &domain, const std::string &auth_username, const ResultCb &cb) {
+	auto *listener = new ListenerToFunctionWrapper(cb);
+	getPassword(user, domain, auth_username, listener);
 }
 
 void AuthDbBackend::createCachedAccount(const string &user, const string &host, const string &auth_username, const vector<passwd_algo_t> &password,
@@ -208,28 +192,6 @@ void AuthDbBackend::createCachedAccount(const string &user, const string &host, 
 		cachePassword(key, host, password, expires);
 		cacheUserWithPhone(phone_alias, host, user);
 	}
-}
-
-string AuthDbBackend::syncSha256(const char* input,size_t size){
-	uint8_t a1buf[size];
-	size_t di;
-	char out[size*2+1];
-	bctbx_sha256((const unsigned char*)input, strlen(input),size, a1buf);
-	for (di = 0; di < size; ++di)
-		sprintf(out + di * 2, "%02x", a1buf[di]);
-	out[size*2]='\0';
-	return out;
-}
-
-string AuthDbBackend::syncMd5(const char* input,size_t size){
-	uint8_t a1buf[size];
-	size_t di;
-	char out[size*2+1];
-	bctbx_md5((const unsigned char*)input, strlen(input), a1buf);
-	for (di = 0; di < size; ++di)
-		sprintf(out + di * 2, "%02x", a1buf[di]);
-	out[size*2]='\0';
-	return out;
 }
 
 void AuthDbBackend::createAccount(const string & user, const string & host, const string &auth_username, const string &password,
@@ -245,11 +207,11 @@ void AuthDbBackend::createAccount(const string & user, const string & host, cons
 	string input;
 	input = user+":"+host+":"+clrtxt.pass;
 
-	md5.pass = syncMd5(input.c_str(), 16);
+	md5.pass = Md5().compute<string>(input);
 	md5.algo = "MD5";
 	pass.push_back(md5);
 
-	sha256.pass = syncSha256(input.c_str(), 32);
+	sha256.pass = Sha256().compute<string>(input);
 	sha256.algo = "SHA-256";
 	pass.push_back(sha256);
 
@@ -317,3 +279,5 @@ void AuthDbBackend::getUsersWithPhonesFromBackend(list<tuple<string,string,AuthD
 		getUserWithPhoneFromBackend(phone,domain, l);
 	}
 }
+
+} // namespace flexisip
