@@ -105,12 +105,7 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	int nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
 
 	for (const string &domain : authDomains) {
-		unique_ptr<FlexisipAuthModuleBase> am;
-		if (disableQOPAuth) {
-			am.reset(createAuthModule(domain, mAlgorithms.front()));
-		} else {
-			am.reset(createAuthModule(domain, mAlgorithms.front(), nonceExpires));
-		}
+		unique_ptr<FlexisipAuthModuleBase> am(createAuthModule(domain, nonceExpires, !disableQOPAuth));
 		mAuthModules[domain] = move(am);
 	}
 
@@ -279,9 +274,8 @@ void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus &as) {
 			getAgent()->injectRequestEvent(ev);
 		}
 	} else if (as.status() == 100) {
-		using std::placeholders::_1;
-		ev->suspendProcessing();
-		as.callback(std::bind(&ModuleAuthenticationBase::processAuthModuleResponse, this, _1));
+		if (!ev->isSuspended()) ev->suspendProcessing();
+		as.callback(std::bind(&ModuleAuthenticationBase::processAuthModuleResponse, this, placeholders::_1));
 		return;
 	} else if (as.status() >= 400) {
 		if (as.status() == 401 || as.status() == 407) {

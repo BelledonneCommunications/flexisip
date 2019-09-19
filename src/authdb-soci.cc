@@ -16,10 +16,14 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "authdb.hh"
-#include "soci/mysql/soci-mysql.h"
-#include "soci-helper.hh"
 #include <thread>
+
+#include <soci/mysql/soci-mysql.h>
+
+#include "soci-helper.hh"
+#include "utils/digest.hh"
+
+#include "authdb.hh"
 
 using namespace soci;
 
@@ -150,7 +154,7 @@ void SociAuthDB::closeOpenedSessions() {
 }
 
 void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
-									const string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
+									const string &authid, AuthDbListener *listener) {
 	vector<passwd_algo_t> passwd;
 	string unescapedIdStr = urlUnescape(id);
 
@@ -171,7 +175,7 @@ void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
 						pass.pass = r.get<string>(0);
 					} else {
 						string input = unescapedIdStr + ":" + domain + ":" + r.get<string>(0);
-						pass.pass = syncMd5(input.c_str(), 16);
+						pass.pass = Md5().compute<string>(input);
 					}
 				} else if (r.size() > 1) {
 					string password = r.get<string>(0);
@@ -186,11 +190,11 @@ void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
 							string input;
 							input = unescapedIdStr + ":" + domain + ":" + password;
 
-							pass.pass = syncMd5(input.c_str(), 16);
+							pass.pass = Md5().compute<string>(input);
 							pass.algo = "MD5";
 							passwd.push_back(pass);
 
-							pass.pass = syncSha256(input.c_str(), 32);
+							pass.pass = Sha256().compute<string>(input);
 							pass.algo = "SHA-256";
 							passwd.push_back(pass);
 
@@ -205,9 +209,6 @@ void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
 			}
 		});
 
-		
-
-		if (listener_ref) listener_ref->finishVerifyAlgos(passwd);
 		if (!passwd.empty()) cachePassword(createPasswordKey(id, authid), domain, passwd, mCacheExpire);
 		if (listener){
 			listener->onResult(passwd.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);
@@ -335,23 +336,23 @@ void SociAuthDB::notifyAllListeners(std::list<std::tuple<std::string, std::strin
 #endif
 
 void SociAuthDB::getPasswordFromBackend(const string &id, const string &domain,
-										const string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) {
+										const string &authid, AuthDbListener *listener) {
 
 	if (!_connected) connectDatabase();
 	if (!_connected) {
-		if (listener) listener->onResult(AUTH_ERROR , "");
+		if (listener) listener->onResult(AUTH_ERROR , PwList());
 		return;
 	}
 
 	// create a thread to grab a pool connection and use it to retrieve the auth information
-	auto func = bind(&SociAuthDB::getPasswordWithPool, this, id, domain, authid, listener, listener_ref);
+	auto func = bind(&SociAuthDB::getPasswordWithPool, this, id, domain, authid, listener);
 
 	bool success = thread_pool->run(func);
 	if (!success) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
 		SLOGE << "[SOCI] Auth queue is full, cannot fullfil password request for " << id << " / " << domain << " / "
 			<< authid;
-		if (listener) listener->onResult(AUTH_ERROR, "");
+		if (listener) listener->onResult(AUTH_ERROR, PwList());
 	}
 }
 

@@ -27,11 +27,6 @@
 #include <vector>
 #include <stdio.h>
 
-#if ENABLE_ODBC
-#include <sql.h>
-#include <sqlext.h>
-#endif
-
 #include <map>
 #include <set>
 #include <thread>
@@ -57,30 +52,42 @@ struct AuthDbTimings;
 class AuthDbListener : public StatFinishListener {
 public:
 	virtual void onResult(AuthDbResult result, const std::string &passwd) = 0;
-	virtual void onResult(AuthDbResult result, const std::vector<passwd_algo_t> &passwd)=0;
-	virtual void finishVerifyAlgos(const std::vector<passwd_algo_t> &pass)=0;
+	virtual void onResult(AuthDbResult result, const std::vector<passwd_algo_t> &passwd) = 0;
 	virtual ~AuthDbListener();
 };
 
 class AuthDbBackend {
-	static std::unique_ptr<AuthDbBackend> sUnique;
+public:
+	using PwList = std::vector<passwd_algo_t>;
+	using ResultCb = std::function<void(AuthDbResult, const PwList &)>;
 
-	struct CachedPassword {
-		std::vector<passwd_algo_t> pass;
-		time_t expire_date;
-		CachedPassword(const std::vector<passwd_algo_t> &ipass, time_t idate) : pass(ipass), expire_date(idate) {
-		}
-	};
+	virtual ~AuthDbBackend();
+	// warning: listener may be invoked on authdb backend thread, so listener must be threadsafe somehow!
+	void getPassword(const std::string &user, const std::string &domain, const std::string &auth_username, AuthDbListener *listener);
+	void getPassword(const std::string &user, const std::string &domain, const std::string &auth_username, const ResultCb &cb);
+	void getUserWithPhone(const std::string &phone, const std::string &domain, AuthDbListener *listener);
+	void getUsersWithPhone(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds);
 
-private:
-	std::map<std::string, std::map<std::string, CachedPassword>> mCachedPasswords;
-	std::mutex mCachedPasswordMutex;
-	std::mutex mCachedUserWithPhoneMutex;
-	std::map<std::string, std::string> mPhone2User;
+	virtual void createAccount(const std::string &user, const std::string &domain, const std::string &auth_username, const std::string &password, int expires, const std::string &phone_alias = "");
+
+	static AuthDbBackend &get();
+	/* called by module_auth so that backends can declare their configuration to the ConfigurationManager */
+	static void declareConfig(GenericStruct *mc);
 
 protected:
+	enum CacheResult {
+		VALID_PASS_FOUND,
+		EXPIRED_PASS_FOUND,
+		NO_PASS_FOUND
+	};
+
 	AuthDbBackend();
-	enum CacheResult { VALID_PASS_FOUND, EXPIRED_PASS_FOUND, NO_PASS_FOUND };
+
+	virtual void getUserWithPhoneFromBackend(const std::string &, const std::string &, AuthDbListener *listener) = 0;
+	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds);
+	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
+					    const std::string &authid, AuthDbListener *listener) = 0;
+
 	std::string createPasswordKey(const std::string &user, const std::string &auth);
 	bool cachePassword(const std::string &key, const std::string &domain, const std::vector<passwd_algo_t> &pass, int expires);
 	bool cacheUserWithPhone(const std::string &phone, const std::string &domain, const std::string &user);
@@ -88,29 +95,37 @@ protected:
 	CacheResult getCachedUserWithPhone(const std::string &phone, const std::string &domain, std::string &user);
 	void createCachedAccount(const std::string & user, const std::string & domain, const std::string &auth_username, const std::vector<passwd_algo_t> &password, int expires, const std::string & phone_alias = "");
 	void clearCache();
-	int mCacheExpire;
-public:
-	virtual ~AuthDbBackend();
-	// warning: listener may be invoked on authdb backend thread, so listener must be threadsafe somehow!
-	void getPassword(const std::string & user, const std::string & domain, const std::string &auth_username, AuthDbListener *listener);
-	void getPasswordForAlgo(const std::string &user, const std::string &host, const std::string &auth_username,
-				AuthDbListener *listener, AuthDbListener *listener_ref);
-	void getUserWithPhone(const std::string &phone, const std::string &domain, AuthDbListener *listener);
-	void getUsersWithPhone(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds);
-	virtual void getUserWithPhoneFromBackend(const std::string &, const std::string &, AuthDbListener *listener) = 0;
-	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds);
 
-	virtual void createAccount(const std::string &user, const std::string &domain, const std::string &auth_username, const std::string &password, int expires, const std::string &phone_alias = "");
-
-	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) = 0;
-
-	static AuthDbBackend &get();
-	/* called by module_auth so that backends can declare their configuration to the ConfigurationManager */
-	static void declareConfig(GenericStruct *mc);
-	static std::string syncSha256(const char* input,size_t size);
-	static std::string syncMd5(const char* input,size_t size);
 	static std::string urlUnescape(const std::string &str);
+
+	int mCacheExpire;
+
+private:
+	struct CachedPassword {
+		std::vector<passwd_algo_t> pass;
+		time_t expire_date;
+		CachedPassword(const std::vector<passwd_algo_t> &ipass, time_t idate) : pass(ipass), expire_date(idate) {
+		}
+	};
+
+	struct ListenerToFunctionWrapper : public AuthDbListener {
+	public:
+		ListenerToFunctionWrapper() = default;
+		ListenerToFunctionWrapper(const ListenerToFunctionWrapper &src) = default;
+		ListenerToFunctionWrapper(const ResultCb &cb) : mCb(cb) {}
+
+		void onResult(AuthDbResult result, const std::string &passwd) override;
+		void onResult(AuthDbResult result, const std::vector<passwd_algo_t> &passwd) override;
+
+		ResultCb mCb;
+	};
+
+	static std::unique_ptr<AuthDbBackend> sUnique;
+
+	std::map<std::string, std::map<std::string, CachedPassword>> mCachedPasswords;
+	std::mutex mCachedPasswordMutex;
+	std::mutex mCachedUserWithPhoneMutex;
+	std::map<std::string, std::string> mPhone2User;
 };
 
 //Base root type needed by belr
@@ -217,72 +232,13 @@ protected:
 
 public:
 	FileAuthDb();
-	virtual void getUserWithPhoneFromBackend(const std::string &phone, const std::string &domain, AuthDbListener *listener);
-	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
+	void getUserWithPhoneFromBackend(const std::string &phone, const std::string &domain, AuthDbListener *listener) override;
+	void getPasswordFromBackend(const std::string &id, const std::string &domain, const std::string &authid, AuthDbListener *listener) override;
 
 	static void declareConfig(GenericStruct *mc){};
 };
 
 }
-
-#if ENABLE_ODBC
-
-namespace flexisip {
-
-class OdbcAuthDb : public AuthDbBackend {
-	~OdbcAuthDb();
-	const static int fieldLength = 500;
-	bool mAsynchronousRetrieving;
-	struct ConnectionCtx {
-		char idCBuffer[fieldLength + 1];
-		char domainCBuffer[fieldLength + 1];
-		char authIdCBuffer[fieldLength + 1];
-		SQLHANDLE stmt;
-		SQLHDBC dbc;
-		ConnectionCtx() : stmt(NULL), dbc(NULL) {
-		}
-		~ConnectionCtx() {
-			if (stmt)
-				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-
-			if (dbc) {
-				SQLDisconnect(dbc);
-				SQLFreeHandle(SQL_HANDLE_DBC, dbc);
-			}
-		}
-	};
-	std::string connectionString;
-	std::string request;
-	int maxPassLength;
-	std::vector<std::string> parameters;
-	bool asPooling;
-	SQLHENV env;
-	void dbcError(ConnectionCtx &, const char *doing);
-	void stmtError(ConnectionCtx &ctx, const char *doing);
-	void envError(const char *doing);
-	bool execDirect;
-	bool getConnection(const std::string &id, ConnectionCtx &ctx, AuthDbTimings &timings);
-	AuthDbResult doRetrievePassword(ConnectionCtx &ctx, const std::string &user, const std::string &domain,
-					const std::string &auth, std::string &foundPassword, AuthDbTimings &timings);
-	void doAsyncRetrievePassword(std::string id, std::string domain, std::string auth,
-				     AuthDbListener *listener);
-
-public:
-	virtual void getUserWithPhoneFromBackend(const std::string &phone, const std::string &domain, AuthDbListener *listener);
-	virtual void getPasswordFromBackend(const std::string &id, const std::string &domain,
-					    const std::string &authid, AuthDbListener *listener);
-	std::map<std::string, std::string> cachedPasswords;
-	void setExecuteDirect(const bool value);
-	bool checkConnection();
-	OdbcAuthDb();
-
-	static void declareConfig(GenericStruct *mc);
-};
-
-}
-
-#endif /* ENABLE_ODBC */
 
 #if ENABLE_SOCI
 
@@ -296,7 +252,7 @@ public:
 	void getUserWithPhoneFromBackend(const std::string & , const std::string &, AuthDbListener *listener) override;
 	void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds) override;
 	void getPasswordFromBackend(const std::string &id, const std::string &domain,
-					    const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref) override;
+					    const std::string &authid, AuthDbListener *listener) override;
 
 	static void declareConfig(GenericStruct *mc);
 
@@ -309,7 +265,7 @@ private:
 	void getUserWithPhoneWithPool(const std::string &phone, const std::string &domain, AuthDbListener *listener);
 	void getUsersWithPhonesWithPool(std::list<std::tuple<std::string,std::string,AuthDbListener*>> &creds);
 	void getPasswordWithPool(const std::string &id, const std::string &domain,
-				 const std::string &authid, AuthDbListener *listener, AuthDbListener *listener_ref);
+				 const std::string &authid, AuthDbListener *listener);
 
 	void notifyAllListeners(std::list<std::tuple<std::string, std::string, AuthDbListener *>> &creds, const std::set<std::pair<std::string, std::string>> &presences);
 

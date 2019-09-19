@@ -43,8 +43,6 @@ public:
 		belle_sip_object_unref(timer);
 	}
 
-	void finishVerifyAlgos(const vector<passwd_algo_t> &pass) override {}
-
 private:
 	void processResponse(AuthDbResult result, const std::string &user) {
 		shared_ptr<PresentityPresenceInformation> info = mInfo ? mInfo : mDInfo.find(user)->second;

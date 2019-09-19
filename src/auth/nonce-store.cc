@@ -38,8 +38,8 @@ int NonceStore::getNc(const string &nonce) {
 	return -1;
 }
 
-void NonceStore::insert(msg_header_t *response) {
-	const char *nonce = msg_header_find_param((msg_common_t const *)response, "nonce");
+void NonceStore::insert(const msg_auth_t *response) {
+	const char *nonce = msg_header_find_param(response->au_common, "nonce");
 	string snonce(nonce);
 	snonce = snonce.substr(1, snonce.length() - 2);
 	LOGD("New nonce %s", snonce.c_str());

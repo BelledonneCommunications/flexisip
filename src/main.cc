@@ -574,9 +574,6 @@ static string version() {
 #if ENABLE_REDIS
 	version << "- Redis\n";
 #endif
-#if ENABLE_ODBC
-	version << "- ODBC\n";
-#endif
 #if ENABLE_SOCI
 	version << "- Soci\n";
 #endif
