@@ -80,7 +80,7 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 		 " <local domain name> is a domain name managed locally by this proxy\n"
 		 " <SIP URI of proxy/registrar> is the SIP URI where the domain registration will be sent. The special uri "
 		 "parameter"
-		 " 'tls-certificate-dir' is understood in order to specify a TLS client certificate to present to the remote "
+		 " 'tls-certificates-dir' is understood in order to specify a TLS client certificate to present to the remote "
 		 "proxy.\n"
 		 " If the file is absent or empty, no registrations are done.",
 		 "/etc/flexisip/domain-registrations.conf"},
