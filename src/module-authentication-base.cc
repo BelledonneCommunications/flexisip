@@ -274,9 +274,8 @@ void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus &as) {
 			getAgent()->injectRequestEvent(ev);
 		}
 	} else if (as.status() == 100) {
-		using std::placeholders::_1;
-		ev->suspendProcessing();
-		as.callback(std::bind(&ModuleAuthenticationBase::processAuthModuleResponse, this, _1));
+		if (!ev->isSuspended()) ev->suspendProcessing();
+		as.callback(std::bind(&ModuleAuthenticationBase::processAuthModuleResponse, this, placeholders::_1));
 		return;
 	} else if (as.status() >= 400) {
 		if (as.status() == 401 || as.status() == 407) {
