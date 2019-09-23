@@ -1,18 +1,18 @@
 /var/opt/belledonne-communications/log/flexisip/*.log {
-	size 500M
-	rotate 7
+    size 500M
+    rotate 7
 
-	compress
-	delaycompress
+    compress
+    delaycompress
 
-	nocreate
-	missingok
-	nodateext
-	postrotate
-		logfilename="$(basename $1)"
-		pidfile="/var/run/${logfilename%.log}.pid"
-		if [ -f "${pidfile}" ]; then
-			kill -HUP $(cat ${pidfile})
-		fi
-	endscript
+    nocreate
+    missingok
+    nodateext
+    postrotate
+        logfilename="$(basename $1)"
+        pidfile="/var/run/${logfilename%.log}.pid"
+        if [ -f "${pidfile}" ]; then
+            kill -HUP $(cat ${pidfile})
+        fi
+    endscript
 }
