@@ -189,6 +189,7 @@ void FlexisipAuthModule::processResponse(FlexisipAuthStatus &as, const auth_resp
 	}
 	switch (result) {
 		case PASSWORD_FOUND: {
+			LOGD("password found for '%s' user, realm=%s", as.user(), as.realm());
 			string algo = ar.ar_algorithm ? ar.ar_algorithm : "MD5";
 			if (find(as.usedAlgo().cbegin(), as.usedAlgo().cend(), algo) == as.usedAlgo().cend()) {
 				onError(as);
@@ -203,12 +204,14 @@ void FlexisipAuthModule::processResponse(FlexisipAuthStatus &as, const auth_resp
 			break;
 		}
 		case PASSWORD_NOT_FOUND:
+			LOGD("password not found for '%s' user, realm=%s", as.user(), as.realm());
 			as.status(403);
 			as.phrase("Forbidden");
 			as.response(nullptr);
 			finish(as);
 			break;
 		case AUTH_ERROR:
+			LOGD("password fetching has failed for '%s' user, realm=%s", as.user(), as.realm());
 			onError(as);
 			break;
 		case PENDING:
