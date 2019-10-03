@@ -1,0 +1,66 @@
+#################################################
+# RPM
+#################################################
+
+test-linux-docker-compose:
+
+  stage: test
+  tags: [ "linux-deploy" ]
+  except:
+    variables:
+      - $DEPLOY_UBUNTU
+
+  script:
+    - git clone --single-branch --branch release/4.2 git@gitlab.linphone.org:BC/public/linphone-sdk.git --recursive linphone-sdk-stable
+    - git clone --single-branch --branch conf/standalone-flexisip git@gitlab.linphone.org:BC/private/flexisip-tester.git --recursive
+    - docker build $docker_build_options .
+    - sourcedir=$PWD/linphone-sdk-stable
+    - |
+        if [ "$REBUILD_SDK" = "true" ]; then
+          docker build --no-cache --force-rm -t liblinphone_tester:4.2 --build-arg='branch=release/4.2' -f "$sourcedir/docker-files/liblinphone-tester" .
+        fi;
+
+    - docker_compose_options=''
+    - |
+        for name in 'flexisip-tester/docker/docker-compose.yaml' 'flexisip-tester/docker/docker-compose-standalone.yaml'; do
+          docker_compose_options="$docker_compose_options -f $PWD/flexisip-tester/docker/$name"
+        done
+
+    - liblinphone_tester="liblinphone_tester:4.2"
+
+    - liblinphone_tester_options='--dns-hosts none --log-file liblinphone_tester.log --xml --verbose --show-account-manager-logs'
+    - | 
+        if [ "$PARALLEL_MODE" = "true" ]; then
+          liblinphone_tester_options="$liblinphone_tester_options --parallel"
+        fi
+
+    - workspace="$PWD/liblinphone_tester_workspace"
+    - export FLEXISIP_LOGS="$workspace"
+
+    - docker_run_options="--volume=$workspace:/home/bc/linphone-sdk-build/linphone-sdk/desktop/work --network=docker_default"
+    - docker_run_options="$docker_run_options --device=/dev/snd --user 1000:29"
+
+    - mkdir -p $workspace
+    - rm -rf $workspace/*
+    - cd $workspace
+
+    - docker-compose $docker_compose_options down
+    - docker-compose $docker_compose_options up -d
+
+    - sleep 10
+
+    - docker run $docker_run_options $liblinphone_tester $liblinphone_tester_options || echo 'Tests have failed'
+    - docker-compose $docker_compose_options stop
+
+  variables:
+    docker_build_options: '--no-cache --force-rm -t flexisip:latest -f docker/Dockerfile'
+    PARALLEL_MODE: 'false'
+    REBUILD_SDK: 'true'
+
+  artifacts:
+    paths:
+      - liblinphone_tester_workspace/BCUnitAutomated-Results.xml
+      - liblinphone_tester_workspace/liblinphone_tester*.log
+      - liblinphone_tester_workspace/flexisip-proxy+presence+conference.log
+    when: always
+    expire_in: 1 week
