@@ -664,13 +664,18 @@ void RegistrarDbRedisAsync::sBindRetry(void *unused, su_timer_t *t, void *ud){
 	su_timer_destroy(data->mRetryTimer);
 	data->mRetryTimer = nullptr;
 	RegistrarDbRedisAsync *self = data->self;
-	if (self->isConnected()){
-		self->serializeAndSendToRedis(data, sHandleBindFinish);
-	}else{
+	if (!self->isConnected()){
+		goto fail;
+	}
+	if (data->mIsUnregister) goto fail; /* Re-submitting the HDEL is not implemented.*/
+	
+	self->serializeAndSendToRedis(data, sHandleBindFinish);
+	return;
+	
+	fail:
 		LOGE("Unrecoverable error while updating record fs:%s : no connection", data->mRecord->getKey().c_str());
 		if (data->listener) data->listener->onError();
 		delete data;
-	}
 }
 
 void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *data) {
