@@ -182,24 +182,23 @@ public:
 	~RegistrarListener(){};
 	void onRecordFound(const shared_ptr<Record> &r) override {
 		const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
-		try {
-			if (!r)
-				throw FLEXISIP_EXCEPTION << "Record not found for ["<< mEv<< "]";
-			if (r->count() != 1)
-				throw FLEXISIP_EXCEPTION << "Too many extended contacts ["<< r->count() <<"] found for ["<< mEv<< "]";
 
-			shared_ptr<ExtendedContact> contact = *r->getExtendedContacts().begin();
-			time_t now = getCurrentTime();
-			sip_contact_t *ct = contact->toSofiaContact(ms->getHome(), now);
-			url_t *dest = ct->m_url;
-			mEv->getSip()->sip_request->rq_url[0] = *url_hdup(msg_home(ms->getHome()), dest);
-			mEv->getSip()->sip_request->rq_url->url_params = url_strip_param_string(su_strdup(ms->getHome(),mEv->getSip()->sip_request->rq_url->url_params) , "gr");
-			mModule->sendRequest(mEv,dest);
-
-		} catch (FlexisipException &e) {
-			SLOGD << e;
-			mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
+		if (!r || r->count()==0){
+			mEv->reply(404, "Not found", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
+			return;
 		}
+		if (r->count() > 1){
+			mEv->reply(485, "Ambiguous", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
+			return;
+		}
+
+		shared_ptr<ExtendedContact> contact = *r->getExtendedContacts().begin();
+		time_t now = getCurrentTime();
+		sip_contact_t *ct = contact->toSofiaContact(ms->getHome(), now);
+		url_t *dest = ct->m_url;
+		mEv->getSip()->sip_request->rq_url[0] = *url_hdup(msg_home(ms->getHome()), dest);
+		mEv->getSip()->sip_request->rq_url->url_params = url_strip_param_string(su_strdup(ms->getHome(),mEv->getSip()->sip_request->rq_url->url_params) , "gr");
+		mModule->sendRequest(mEv,dest);
 	}
 	virtual void onError() override{
 		SLOGE << "RegistrarListener error";
