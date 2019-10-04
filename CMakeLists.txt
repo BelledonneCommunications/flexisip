@@ -85,11 +85,11 @@ find_package(SofiaSipUa 1.13.11 REQUIRED) #find_package only allow numbers
 if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
 	include("${EP_ortp_CONFIG_DIR}/ORTPConfig.cmake")
 else()
-	find_package(ORTP 0.21 REQUIRED)
+	find_package(ortp 0.21 REQUIRED)
 endif()
 
-find_package(BcToolbox 0.0.3 REQUIRED)
-find_package(Belr REQUIRED)
+find_package(bctoolbox 0.0.3 REQUIRED)
+find_package(belr REQUIRED)
 
 find_package(LibXsd)
 

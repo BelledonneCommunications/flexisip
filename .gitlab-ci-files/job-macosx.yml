@@ -38,7 +38,7 @@ job-macosx-makefile:
 #################################################
 
 job-macosx-ninja:
-
+  allow_failure: true
   variables:
     CMAKE_GENERATOR: Ninja
   extends: .job-macosx
