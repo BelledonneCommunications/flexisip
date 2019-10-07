@@ -3,7 +3,7 @@ MAINTAINER  Jehan Monnier <jehan.monnier@linphone.org>
 
 # Prepare dependencies
 RUN apt-get update
-RUN apt-get install -y  xsdcxx gdb libmariadb2
+RUN apt-get install -y  xsdcxx gdb libmariadbclient18
 
 # Get flexisip package
 COPY DEBS/*.deb /deb-packages/
