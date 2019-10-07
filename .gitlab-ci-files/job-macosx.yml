@@ -50,6 +50,7 @@ job-macosx-ninja:
 job-macosx-xcode:
 
   stage: build
+  allow_failure: true
   tags: [ "macosx" ]
 
   except:
