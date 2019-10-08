@@ -1,4 +1,4 @@
-FROM centos
+FROM centos:7
 MAINTAINER  Jehan Monnier <jehan.monnier@linphone.org>
 
 # Prepare the Belledonne's repository
