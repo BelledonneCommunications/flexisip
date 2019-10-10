@@ -50,6 +50,7 @@ job-macosx-xcode:
 
   stage: build
   tags: [ "macosx" ]
+  allow_failure: true
 
   except:
     variables:
