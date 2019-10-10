@@ -1,16 +1,26 @@
-[![pipeline status](https://gitlab.linphone.org/BC/public/flexisip/badges/master/pipeline.svg)](https://gitlab.linphone.org/BC/public/flexisip/commits/master)
+Flexisip is a complete, modular and scalable SIP server suite written in C++11, comprising proxy, presence and group chat functions.
+It also includes a push gateway, to deliver SIP incoming calls or text messages on mobile device platforms where push notifications are required to receive information when the app is not active in the foreground.
 
-Flexisip is a SIP server suite comprising:
- - Flexisip proxy server, a SIP proxy with media-relay built-in.
- - Flexisip presence server, a presence server using resource-lists contained in SUBSCRIBE.
+Flexisip instances can be deployed on server machines to run a SIP VoIP service. 
+The free linphone.org SIP service has run on Flexisip since 2011, and enables Linphone users to create SIP addresses in order to connect with each other.
 
-It bests runs on GNU/Linux, but can also be used on MacOS X.
-It is released under the AGPLv3 or later. Please understand the terms of AGPLv3 in COPYING before deploying it.
+It can also be embedded and run perfectly on small hardware systems.
+
+To see all supported features and RFCs: http://www.linphone.org/technical-corner/flexisip/features
+To read the documentation: http://www.linphone.org/technical-corner/flexisip/documentation
+
+# License
+
+Copyright © Belledonne Communications
+
+Flexisip is dual licensed, and can be licensed and distributed:
+- under a GNU Affero GPLv3 license for free (see COPYING file for details)
+- under a proprietary license, for closed source projects. Contact sales@belledonne-communications.com for costs and other service information.
 
 # Documentation
 
-You will find a comprehensive documentation on how to use Flexisip online
-here: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/
+- Supported features and RFCs : https://www.linphone.org/technical-corner/flexisip/features
+- Flexisip documentation : https://www.linphone.org/technical-corner/flexisip/documentation
 
 # Dependencies
 
