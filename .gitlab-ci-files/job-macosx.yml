@@ -11,7 +11,7 @@
     - ccache -s
     - export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
     - export MYSQL_DIR=/usr/local/opt/mysql-client
-    - ./prepare.py -G "$CMAKE_GENERATOR" -cc $DEFAULT_MACOS_CMAKE_OPTIONS $CMAKE_OPTIONS
+    - python prepare.py -G "$CMAKE_GENERATOR" -cc $DEFAULT_MACOS_CMAKE_OPTIONS $CMAKE_OPTIONS
     - cmake --build WORK/flexisip/cmake -- $ADDITIONAL_BUILD_OPTIONS
     - ccache -s
 
@@ -47,18 +47,7 @@ job-macosx-ninja:
 #################################################
 
 job-macosx-xcode:
-
-  stage: build
-  tags: [ "macosx" ]
-
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
-  only:
-    - schedules
-  script:
-    - export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
-    - export MYSQL_DIR=/usr/local/opt/mysql-client
-    - python prepare.py -G Xcode -cc $DEFAULT_MACOS_CMAKE_OPTIONS $CMAKE_OPTIONS
-    - cmake --build WORK/flexisip/cmake -- -IDEBuildOperationMaxNumberOfConcurrentCompileTasks=`sysctl -n hw.ncpu`
+  variables:
+    CMAKE_GENERATOR: Xcode
+    ADDITIONAL_BUILD_OPTIONS: -IDEBuildOperationMaxNumberOfConcurrentCompileTasks=`sysctl -n hw.ncpu`
+  extends: .job-macosx
