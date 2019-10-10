@@ -140,6 +140,9 @@ public:
 	const url_t *getPreferredRouteUrl() const {
 		return mPreferredRouteV4;
 	}
+	tport_t *getInternalTport()const{
+		return mInternalTport;
+	}
 	/**
 	 * URI associated to this server specifically.
 	 */
@@ -206,6 +209,7 @@ private:
 	void initializePreferredRoute();
 	void loadModules();
 	void startMdns();
+	static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t *msg, sip_t *sip);
 
 	std::string mServerString;
 	std::list<Module *> mModules;
@@ -241,7 +245,8 @@ private:
 	std::unique_ptr<EventLogWriter> mLogWriter;
 	DomainRegistrationManager *mDrm;
 	std::string mPassphrase;
-	static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t *msg, sip_t *sip);
+	tport_t *mInternalTport = nullptr;
+	static constexpr const char* sInternalTransportIdent = "internal-transport";
 	bool mTerminating;
 	bool mUseMaddr;
 #if ENABLE_MDNS
