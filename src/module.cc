@@ -432,7 +432,7 @@ bool ModuleToolbox::urlHostMatch(const char *host1, const char *host2) {
 	return strncasecmp(host1, host2, MAX(len1, len2)) == 0;
 }
 
-bool ModuleToolbox::urlHostMatch(url_t *url, const char *host) {
+bool ModuleToolbox::urlHostMatch(const url_t *url, const char *host) {
 	return urlHostMatch(url->url_host, host);
 }
 

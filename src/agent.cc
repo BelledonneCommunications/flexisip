@@ -382,11 +382,18 @@ void Agent::start(const string &transport_override, const string passphrase) {
 		if (nta_agent_add_tport(
 				mAgent, (const url_string_t *)mPreferredRouteV4, TPTAG_IDLE(tports_idle_timeout),
 				TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+				TPTAG_IDENT(sInternalTransportIdent),
 				TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_QUEUESIZE(queueSize), TPTAG_SDWN_ERROR(1), TAG_END()
 			) == -1) {
 			char prefRouteV4[266];
 			url_e(prefRouteV4, sizeof(prefRouteV4), mPreferredRouteV4);
 			LOGF("Could not enable internal transport %s: %s", prefRouteV4, strerror(errno));
+		}
+		tp_name_t tn = {0};
+		tn.tpn_ident = (char*)sInternalTransportIdent;
+		mInternalTport = tport_by_name(nta_agent_tports(mAgent), &tn);
+		if (!mInternalTport){
+			LOGF("Could not obtain pointer to internal tport. Bug somewhere.");
 		}
 	}
 

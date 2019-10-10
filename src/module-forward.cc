@@ -39,11 +39,11 @@ static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip,
 class ForwardModule : public Module, ModuleToolbox {
   public:
 	ForwardModule(Agent *ag);
+	virtual ~ForwardModule();
 	virtual void onDeclare(GenericStruct *module_config);
 	virtual void onLoad(const GenericStruct *root);
 	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
 	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
-	~ForwardModule();
 	void sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest);
 
   private:
@@ -52,12 +52,14 @@ class ForwardModule : public Module, ModuleToolbox {
 	url_t *getDestinationFromRoute(su_home_t *home, sip_t *sip);
 	bool isLooping(shared_ptr<RequestSipEvent> &ev, const char *branch);
 	unsigned int countVia(shared_ptr<RequestSipEvent> &ev);
+	bool isAClusterNode(const url_t *url);
 	su_home_t mHome;
 	sip_route_t *mOutRoute;
-	bool mRewriteReqUri;
-	bool mAddPath;
 	string mDefaultTransport;
 	std::list<std::string> mParamsToRemove;
+	list<string> mClusterNodes;
+	bool mRewriteReqUri;
+	bool mAddPath;
 	static ModuleInfo<ForwardModule> sInfo;
 };
 
@@ -110,6 +112,19 @@ void ForwardModule::onLoad(const GenericStruct *mc) {
 	 * a gruu request uri is under control of this domain or not. */
 	mRouterModule = dynamic_cast<ModuleRouter*>(getAgent()->findModule("Router"));
 	if (!mRouterModule) LOGA("Could not find router module.");
+	
+	const GenericStruct *clusterSection = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+	bool clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
+	if (clusterEnabled) {
+		 mClusterNodes = clusterSection->get<ConfigStringList>("nodes")->read();
+	}
+}
+
+bool ForwardModule::isAClusterNode(const url_t *url){
+	for(const string& node : mClusterNodes){
+		if (ModuleToolbox::urlHostMatch(url, node.c_str())) return true;
+	}
+	return false;
 }
 
 url_t *ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
@@ -296,7 +311,9 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	tp_name_t name = {0, 0, 0, 0, 0, 0};
 	tport_t *tport = nullptr;
 	if (ev->getOutgoingAgent() != nullptr) {
-		if ((tport = getAgent()->getDRM()->lookupTport(dest)) != nullptr){
+		if (isAClusterNode(dest) && (tport = getAgent()->getInternalTport()) != NULL){
+			LOGD("Using internal transport to route message to a node of the cluster.");
+		}else if ((tport = getAgent()->getDRM()->lookupTport(dest)) != nullptr){
 			LOGD("Found outgoing tport from domain registration manager.");
 		} else if (tport_name_by_url(ms->getHome(), &name, reinterpret_cast<url_string_t*>(dest)) == 0) {
 			// tport_by_name can only work for IPs
