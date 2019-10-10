@@ -49,5 +49,5 @@ job-macosx-ninja:
 job-macosx-xcode:
   variables:
     CMAKE_GENERATOR: Xcode
-    ADDITIONAL_BUILD_OPTIONS: -IDEBuildOperationMaxNumberOfConcurrentCompileTasks=`sysctl -n hw.ncpu`
+    ADDITIONAL_BUILD_OPTIONS: -IDEBuildOperationMaxNumberOfConcurrentCompileTasks=$MAX_NUMBER_TASK_XCODE
   extends: .job-macosx
