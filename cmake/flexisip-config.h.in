@@ -31,12 +31,6 @@
 /* oRTP rtp_session_set_reuseaddr availabled */
 #define ORTP_HAS_REUSEADDR 1
 
-/* Define to the version of this package. */
-#define PACKAGE_VERSION "${FLEXISIP_VERSION}"
-
-/* Version number of package */
-#define VERSION "${FLEXISIP_VERSION}"
-
 /* Default log directory */
 #define DEFAULT_LOG_DIR "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/log/flexisip"
 
