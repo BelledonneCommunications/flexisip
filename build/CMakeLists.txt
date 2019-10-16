@@ -20,41 +20,16 @@
 #
 ############################################################################
 
-if(NOT CPACK_PACKAGE_NAME)
-	if (ENABLE_PRESENCE)
-		set(CPACK_PACKAGE_NAME "flexisip-presence")
-	else()
-		set(CPACK_PACKAGE_NAME "flexisip")
-	endif()
-ENDIF()
-
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/../COPYING")
-
-set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
-
-set(CPACK_PACKAGE_FILE_NAME ${CPACK_PACKAGE_NAME}-${PROJECT_VERSION})
-
-set(CPACK_SOURCE_GENERATOR "TGZ")
-set(CPACK_SOURCE_IGNORE_FILES
-	"${CMAKE_BINARY_DIR}"
-	"^${PROJECT_SOURCE_DIR}/linphone-sdk"
-	"^${PROJECT_SOURCE_DIR}/submodules*"
-	"^${PROJECT_SOURCE_DIR}/WORK*"
-	"^${PROJECT_SOURCE_DIR}/.git*"
-)
-
-bc_project_build_version(${PROJECT_VERSION} PROJECT_VERSION_BUILD)
-if(PROJECT_VERSION_BUILD)
-	set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}-${PROJECT_VERSION_BUILD}")
+if (NOT CPACK_PACKAGE_NAME)
+	set(CPACK_PACKAGE_NAME "flexisip")
 endif()
 
-message("-- Package file name is ${CPACK_PACKAGE_FILE_NAME}" )
+set(CPACK_SOURCE_IGNORE_FILES
+	"./linphone-sdk"
+	"./submodules*"
+	"./WORK*"
+	"./OUTPUT*"
+	"./.*"
+)
 
-set(CPACK_SOURCE_PACKAGE_FILE_NAME ${CPACK_PACKAGE_FILE_NAME})
-
-bc_generate_rpm_specfile("rpm/flexisip.spec.cmake" "${PROJECT_SOURCE_DIR}/flexisip.spec")
-
-include(CPack)
-
+bc_make_package_source_target()

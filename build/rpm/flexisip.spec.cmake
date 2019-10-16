@@ -2,6 +2,7 @@
 
 %define _prefix    @CMAKE_INSTALL_PREFIX@
 %define pkg_prefix @BC_PACKAGE_NAME_PREFIX@
+%define package_name @CPACK_PACKAGE_NAME@-${FULL_VERSION}
 
 # re-define some directories for older RPMBuild versions which don't. This messes up the doc/ dir
 # taken from https://fedoraproject.org/wiki/Packaging:RPMMacros?rd=Packaging/RPMMacros
@@ -11,19 +12,17 @@
 
 %define epoch     1
 
-%define build_number @PROJECT_VERSION_BUILD@
-
 Summary:       SIP proxy with media capabilities
 Name:          @CPACK_PACKAGE_NAME@
-Version:       @PROJECT_VERSION@
-Release:       %build_number%{?dist}
+Version:       ${RPM_VERSION}
+Release:       ${RPM_RELEASE}%{?dist}
 
 #to be alined with redhat which changed epoc to 1 for an unknown reason
 Epoch:         %{epoch}
 License:       AGPLv3
 Group:         Applications/Communications
 URL:           http://flexisip.org
-Source0:       %{name}-%{version}-%build_number.tar.gz
+Source0:       %{package_name}.tar.gz
 BuildRoot:     %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 Requires:      bash >= 2.0
@@ -112,7 +111,7 @@ Add the ability to delegate authentication process to an external HTTP server.
 %custom_debug_package
 
 %prep
-%setup -n %{name}-%{version}-%build_number
+%setup -n %{package_name}
 
 %build
 %{expand:%%%cmake_name} . -DCMAKE_BUILD_TYPE=@CMAKE_BUILD_TYPE@ -DCMAKE_PREFIX_PATH:PATH=%{_prefix} -DSYSCONF_INSTALL_DIR:PATH=%{_sysconfdir} @RPM_ALL_CMAKE_OPTIONS@

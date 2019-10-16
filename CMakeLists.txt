@@ -22,13 +22,7 @@
 
 cmake_minimum_required(VERSION 3.2.0 FATAL_ERROR) # 3.2.0 required for target_compile_features support on gcc 4.4+ (centos6)
 
-project(flexisip C CXX)
-
-set(FLEXISIP_MAJOR_VERSION "1")
-set(FLEXISIP_MINOR_VERSION "0")
-set(FLEXISIP_MICRO_VERSION "13")
-set(FLEXISIP_VERSION "${FLEXISIP_MAJOR_VERSION}.${FLEXISIP_MINOR_VERSION}.${FLEXISIP_MICRO_VERSION}")
-set(PROJECT_VERSION ${FLEXISIP_VERSION})
+project(flexisip LANGUAGES C CXX)
 
 include(CMakePushCheckState)
 include(CMakeDependentOption)
