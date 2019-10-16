@@ -20,11 +20,6 @@
 
 #if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
 
-#undef PACKAGE_BUGREPORT
-#undef PACKAGE_NAME
-#undef PACKAGE_STRING
-#undef PACKAGE_TARNAME
-#undef PACKAGE_VERSION
 #include "flexisip-config.h"
 #define FLEXISIP_INCLUDED
 
@@ -59,8 +54,6 @@ typedef unsigned long oid;
 
 #endif /* ENABLE_SNMP */
 
-extern oid company_id;
-
 #include <flexisip/sip-boolean-expressions.hh>
 #include <flexisip/global.hh>
 #include <flexisip/flexisip-exception.hh>
@@ -68,6 +61,8 @@ extern oid company_id;
 typedef struct sip_s sip_t;
 
 namespace flexisip {
+
+const ::oid company_id = SNMP_COMPANY_OID;
 
 struct LpConfig;
 

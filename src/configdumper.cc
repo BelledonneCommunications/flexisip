@@ -16,11 +16,14 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "configdumper.hh"
+#include <flexisip/flexisip-version.h>
 #include <flexisip/module.hh>
 
+#include "configdumper.hh"
+
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
 
 ostream &ConfigDumper::dump(ostream &ostr) const {
 	return dump_recursive(ostr, mRoot, 0);
@@ -310,7 +313,7 @@ ostream &MibDumper::dump(ostream &ostr) const {
 		 << "		email:    contact@belledonne-communications.com\"" << endl
 		 << "	DESCRIPTION  \"A Flexisip management tree.\"" << endl
 		 << "	REVISION     \"" << mbstr << "\"" << endl
-		 << "    DESCRIPTION  \"" PACKAGE_VERSION << "\"" << endl
+		 << "    DESCRIPTION  \"" FLEXISIP_GIT_VERSION << "\"" << endl
 		 << "::={ enterprises " << company_id << " }" << endl
 		 << endl;
 
@@ -346,3 +349,5 @@ ostream &MibDumper::dump2(ostream &ostr, GenericEntry *entry, int level) const {
 	}
 	return ostr;
 }
+
+} // namespace flexisip

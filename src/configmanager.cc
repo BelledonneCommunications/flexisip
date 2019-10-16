@@ -16,28 +16,29 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <cstring>
 #include <algorithm>
-#include <iostream>
-
-#include "lpconfig.h"
-#include <flexisip/configmanager.hh>
-#include <flexisip/common.hh>
-#include <flexisip/logmanager.hh>
-#include "flexisip/sip-boolean-expressions.hh"
-#include "configdumper.hh"
-
-#include <functional>
-#include <stdexcept>
-
+#include <cstring>
 #include <ctime>
-#include <sstream>
 #include <fstream>
+#include <functional>
+#include <iostream>
+#include <sstream>
+#include <stdexcept>
 
 #include <sofia-sip/su_md5.h>
 
+#include <flexisip/common.hh>
+#include <flexisip/configmanager.hh>
+#include <flexisip/flexisip-version.h>
+#include <flexisip/logmanager.hh>
+#include <flexisip/sip-boolean-expressions.hh>
+
+#include "configdumper.hh"
+#include "lpconfig.h"
+
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
 
 bool ConfigValueListener::sDirty = false;
 ConfigValueListener::~ConfigValueListener() {
@@ -825,8 +826,6 @@ RootConfigStruct::RootConfigStruct(const string &name, const string &help, vecto
 RootConfigStruct::~RootConfigStruct() {
 }
 
-oid company_id = SNMP_COMPANY_OID;
-
 #ifndef DEFAULT_LOG_DIR
 #define DEFAULT_LOG_DIR "/var/opt/belledonne-communications/log/flexisip"
 #endif
@@ -980,7 +979,7 @@ GenericManager::GenericManager()
 	global->get<ConfigByteSize>("max-log-size")->setDeprecated(true);
 	global->setConfigListener(this);
 
-	ConfigString *version = new ConfigString("version-number", "Flexisip version.", PACKAGE_VERSION, 999);
+	ConfigString *version = new ConfigString("version-number", "Flexisip version.", FLEXISIP_GIT_VERSION, 999);
 	version->setReadOnly(true);
 	version->setExportable(false);
 	global->addChild(version);
@@ -1356,3 +1355,5 @@ int StatCounter64::handleSnmpRequest(netsnmp_mib_handler *handler, netsnmp_handl
 	return SNMP_ERR_NOERROR;
 }
 #endif /* enable_snmp */
+
+} // namespace flexisip
