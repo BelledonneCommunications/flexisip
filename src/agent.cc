@@ -16,34 +16,35 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/agent.hh>
-#include <flexisip/module.hh>
-
-#include "domain-registrations.hh"
-#include "plugin/plugin-loader.hh"
-#include <flexisip/registrardb.hh>
-
-#include <flexisip/logmanager.hh>
-
-#include "etchosts.hh"
 #include <algorithm>
 #include <sstream>
-#include <sofia-sip/tport_tag.h>
-#include <sofia-sip/su_tagarg.h>
-#include <sofia-sip/sip.h>
-#include <sofia-sip/su_md5.h>
-#include <sofia-sip/tport.h>
-
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
 
 #include <net/if.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+
+#include <sofia-sip/sip.h>
+#include <sofia-sip/su_tagarg.h>
+#include <sofia-sip/su_md5.h>
+#include <sofia-sip/tport.h>
+#include <sofia-sip/tport_tag.h>
+
+#include <flexisip/agent.hh>
+#include <flexisip/flexisip-version.h>
+#include <flexisip/logmanager.hh>
+#include <flexisip/module.hh>
+#include <flexisip/registrardb.hh>
+
+#include "etchosts.hh"
+#include "domain-registrations.hh"
+#include "plugin/plugin-loader.hh"
 
 #define IPADDR_SIZE 64
 
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
 
 static StatCounter64 *createCounter(GenericStruct *global, string keyprefix, string helpprefix, string value) {
 	return global->createStat(keyprefix + value, helpprefix + value + ".");
@@ -617,7 +618,7 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 			addPluginModule(this, mModules, pluginDir, pluginName);
 	}
 
-	mServerString = "Flexisip/" VERSION " (sofia-sip-nta/" NTA_VERSION ")";
+	mServerString = "Flexisip/" FLEXISIP_GIT_VERSION " (sofia-sip-nta/" NTA_VERSION ")";
 
 	for (Module *module : mModules)
 		module->declare(cr);
@@ -1286,4 +1287,6 @@ void Agent::applyProxyToProxyTransportSettings(tport_t *tp){
 		}
 	}
 }
+
+} // namespace flexisip
 

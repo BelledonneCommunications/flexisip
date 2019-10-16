@@ -54,9 +54,6 @@
 #ifdef ENABLE_SNMP
 #include "snmp-agent.h"
 #endif
-#ifndef VERSION
-#define VERSION "DEVEL"
-#endif // VERSION
 
 #include <flexisip/flexisip-version.h>
 #ifndef FLEXISIP_GIT_VERSION
@@ -561,7 +558,7 @@ static void notifyWatchDog(){
 
 static string version() {
 	ostringstream version;
-	version << VERSION " (git: " FLEXISIP_GIT_VERSION ")\n";
+	version <<  FLEXISIP_GIT_VERSION "\n";
 
 	version << "sofia-sip version " SOFIA_SIP_VERSION "\n";
 	version << "\nCompiled with:\n";
@@ -893,7 +890,7 @@ int main(int argc, char *argv[]) {
 	/*
 	 * From now on, we are a flexisip daemon, that is a process that will run proxy, presence, or conference server.
 	 */
-	LOGN("Starting flexisip %s-server version %s (git %s)", fName.c_str(), VERSION, FLEXISIP_GIT_VERSION);
+	LOGN("Starting flexisip %s-server version %s", fName.c_str(), FLEXISIP_GIT_VERSION);
 	GenericManager::get()->sendTrap("Flexisip "+ fName + "-server starting");
 
 	increase_fd_limit();

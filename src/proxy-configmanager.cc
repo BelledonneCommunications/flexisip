@@ -69,7 +69,7 @@ ProxyConfigManager::ProxyConfigManager()
 	global->addChildrenValues(global_conf);
 	global->setConfigListener(this);
 
-	ConfigString *version = new ConfigString("version-number", "Flexisip version.", PACKAGE_VERSION, 999);
+	ConfigString *version = new ConfigString("version-number", "Flexisip version.", VERSION, 999);
 	version->setReadOnly(true);
 	version->setExportToConfigFile(false);
 	global->addChild(version);

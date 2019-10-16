@@ -20,17 +20,16 @@
 
 #include <belle-sip/utils.h>
 
+#include <flexisip/configmanager.hh>
+#include <flexisip/flexisip-version.h>
+
 #include "conference-address-generator.hh"
 #include "conference-server.hh"
-
-
-#include <flexisip/configmanager.hh>
-
 #include "utils/uri-utils.hh"
 
-using namespace flexisip;
 using namespace std;
 
+namespace flexisip {
 
 SofiaAutoHome ConferenceServer::mHome;
 ConferenceServer::Init ConferenceServer::sStaticInit;
@@ -76,7 +75,7 @@ void ConferenceServer::_init () {
 	configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
 	configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
 	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
-	mCore->setUserAgent("Flexisip-conference", VERSION);
+	mCore->setUserAgent("Flexisip-conference", FLEXISIP_GIT_VERSION);
 	mCore->addListener(shared_from_this());
 	mCore->enableConferenceServer(true);
 	mCore->setTransports(cTransport);
@@ -310,3 +309,5 @@ ConferenceServer::Init::Init() {
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
 }
+
+} // namespace flexisip
