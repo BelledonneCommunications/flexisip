@@ -20,22 +20,11 @@
 #
 ############################################################################
 
-if(NOT CPACK_PACKAGE_NAME)
-	if (ENABLE_PRESENCE)
-		set(CPACK_PACKAGE_NAME "flexisip-presence")
-	else()
-		set(CPACK_PACKAGE_NAME "flexisip")
-	endif()
-ENDIF()
+if (NOT CPACK_PACKAGE_NAME)
+	set(CPACK_PACKAGE_NAME "flexisip")
+endif()
 
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/../COPYING")
-
-set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
-
-set(CPACK_PACKAGE_FILE_NAME ${CPACK_PACKAGE_NAME}-${PROJECT_VERSION})
-
+set(CPACK_SOURCE_PACKAGE_FILE_NAME ${CPACK_PACKAGE_NAME}-${PROJECT_VERSION})
 set(CPACK_SOURCE_GENERATOR "TGZ")
 set(CPACK_SOURCE_IGNORE_FILES
 	"${CMAKE_BINARY_DIR}"
@@ -45,14 +34,24 @@ set(CPACK_SOURCE_IGNORE_FILES
 	"^${PROJECT_SOURCE_DIR}/.git*"
 )
 
-bc_project_build_version(${PROJECT_VERSION} PROJECT_VERSION_BUILD)
-if(PROJECT_VERSION_BUILD)
-	set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}-${PROJECT_VERSION_BUILD}")
+# In case we need to decompose the version
+if (FLEXISIP_VERSION MATCHES "^(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)(-[.0-9A-Za-z-]+)?([+][.0-9A-Za-z-]+)?$")
+	set( version_major "${CMAKE_MATCH_1}" )
+	set( version_minor "${CMAKE_MATCH_2}" )
+	set( version_patch "${CMAKE_MATCH_3}" )
+	set( identifiers   "${CMAKE_MATCH_4}" )
+	set( metadata      "${CMAKE_MATCH_5}" )
+endif()
+
+set(RPM_VERSION ${version_major}.${version_minor}.${version_patch})
+if (NOT identifiers)
+	set(RPM_RELEASE 1)
+else()
+	string(SUBSTRING "${identifiers}" 1 -1 identifiers)
+	set(RPM_RELEASE "0.${identifiers}${metadata}")
 endif()
 
 message("-- Package file name is ${CPACK_PACKAGE_FILE_NAME}" )
-
-set(CPACK_SOURCE_PACKAGE_FILE_NAME ${CPACK_PACKAGE_FILE_NAME})
 
 bc_generate_rpm_specfile("rpm/flexisip.spec.cmake" "${PROJECT_SOURCE_DIR}/flexisip.spec")
 
