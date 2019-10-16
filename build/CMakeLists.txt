@@ -34,26 +34,12 @@ set(CPACK_SOURCE_IGNORE_FILES
 	"^${PROJECT_SOURCE_DIR}/.git*"
 )
 
-# In case we need to decompose the version
-if (FLEXISIP_VERSION MATCHES "^(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)(-[.0-9A-Za-z-]+)?([+][.0-9A-Za-z-]+)?$")
-	set( version_major "${CMAKE_MATCH_1}" )
-	set( version_minor "${CMAKE_MATCH_2}" )
-	set( version_patch "${CMAKE_MATCH_3}" )
-	set( identifiers   "${CMAKE_MATCH_4}" )
-	set( metadata      "${CMAKE_MATCH_5}" )
-endif()
-
-set(RPM_VERSION ${version_major}.${version_minor}.${version_patch})
-if (NOT identifiers)
-	set(RPM_RELEASE 1)
-else()
-	string(SUBSTRING "${identifiers}" 1 -1 identifiers)
-	set(RPM_RELEASE "0.${identifiers}${metadata}")
-endif()
+add_custom_target(flexisip-spec ALL
+	COMMAND ${CMAKE_COMMAND} -DPROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}" -P "${CMAKE_CURRENT_SOURCE_DIR}/rpm/gen-flexisip-spec.cmake"
+	BYPRODUCTS "${PROJECT_SOURCE_DIR}/flexisip.spec"
+)
 
 message("-- Package file name is ${CPACK_PACKAGE_FILE_NAME}" )
-
-bc_generate_rpm_specfile("rpm/flexisip.spec.cmake" "${PROJECT_SOURCE_DIR}/flexisip.spec")
 
 include(CPack)
 

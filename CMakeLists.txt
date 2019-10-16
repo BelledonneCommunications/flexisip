@@ -32,12 +32,6 @@ include(FeatureSummary)
 include(CheckCXXSourceCompiles)
 include(GNUInstallDirs)
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/linphone-sdk")
-	include(linphone-sdk/cmake/LinphoneSdkUtils.cmake)
-	linphone_sdk_compute_full_version(FLEXISIP_VERSION)
-	set(PROJECT_VERSION ${FLEXISIP_VERSION})
-endif()
-
 option(ENABLE_STRICT "Pass strict flags to the compiler" YES)
 option(ENABLE_DATEHANDLER "Build DateHandler module" NO)
 option(ENABLE_PDFDOC "Build pdf documentation" NO)
