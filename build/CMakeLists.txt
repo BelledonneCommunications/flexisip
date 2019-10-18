@@ -24,22 +24,30 @@ if (NOT CPACK_PACKAGE_NAME)
 	set(CPACK_PACKAGE_NAME "flexisip")
 endif()
 
-set(CPACK_SOURCE_PACKAGE_FILE_NAME ${CPACK_PACKAGE_NAME}-${PROJECT_VERSION})
-set(CPACK_SOURCE_GENERATOR "TGZ")
 set(CPACK_SOURCE_IGNORE_FILES
-	"${CMAKE_BINARY_DIR}"
-	"^${PROJECT_SOURCE_DIR}/linphone-sdk"
-	"^${PROJECT_SOURCE_DIR}/submodules*"
-	"^${PROJECT_SOURCE_DIR}/WORK*"
-	"^${PROJECT_SOURCE_DIR}/.git*"
+	"./linphone-sdk"
+	"./submodules*"
+	"./WORK*"
+	"./OUTPUT*"
+	"./.*"
 )
 
-add_custom_target(flexisip-spec ALL
-	COMMAND ${CMAKE_COMMAND} -DPROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}" -P "${CMAKE_CURRENT_SOURCE_DIR}/rpm/gen-flexisip-spec.cmake"
+bc_generate_rpm_specfile(rpm/flexisip.spec.cmake rpm/flexisip.spec.cmake)
+
+add_custom_target(flexisip-spec
+	COMMAND ${CMAKE_COMMAND}
+		"-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+		"-DCMAKE_CURRENT_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+		-P "${CMAKE_CURRENT_SOURCE_DIR}/rpm/gen-flexisip-spec.cmake"
 	BYPRODUCTS "${PROJECT_SOURCE_DIR}/flexisip.spec"
 )
 
-message("-- Package file name is ${CPACK_PACKAGE_FILE_NAME}" )
-
-include(CPack)
-
+add_custom_target(package_source
+	COMMAND ${CMAKE_COMMAND}
+		"-Dflexisip_SOURCE_DIR='${flexisip_SOURCE_DIR}'"
+		"-Dflexisip_BINARY_DIR='${flexisip_BINARY_DIR}'"
+		"-DCPACK_PACKAGE_NAME='${CPACK_PACKAGE_NAME}'"
+		"-DEXCLUDE_PATTERNS='${CPACK_SOURCE_IGNORE_FILES}'"
+		-P "${CMAKE_CURRENT_SOURCE_DIR}/MakeArchive.cmake"
+	DEPENDS flexisip-spec
+)
