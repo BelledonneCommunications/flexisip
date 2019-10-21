@@ -36,6 +36,7 @@ bc_generate_rpm_specfile(rpm/flexisip.spec.cmake rpm/flexisip.spec.cmake)
 
 add_custom_target(flexisip-spec
 	COMMAND ${CMAKE_COMMAND}
+		"-DBCTOOLBOX_CMAKE_UTILS=${BCTOOLBOX_CMAKE_UTILS}"
 		"-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
 		"-DCMAKE_CURRENT_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}"
 		-P "${CMAKE_CURRENT_SOURCE_DIR}/rpm/gen-flexisip-spec.cmake"
@@ -44,6 +45,7 @@ add_custom_target(flexisip-spec
 
 add_custom_target(package_source
 	COMMAND ${CMAKE_COMMAND}
+		"-DBCTOOLBOX_CMAKE_UTILS=${BCTOOLBOX_CMAKE_UTILS}"
 		"-Dflexisip_SOURCE_DIR='${flexisip_SOURCE_DIR}'"
 		"-Dflexisip_BINARY_DIR='${flexisip_BINARY_DIR}'"
 		"-DCPACK_PACKAGE_NAME='${CPACK_PACKAGE_NAME}'"

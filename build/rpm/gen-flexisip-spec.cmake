@@ -20,28 +20,24 @@
 #
 ############################################################################
 
-set(LINPHONESDK_SOURCE_DIR "${PROJECT_SOURCE_DIR}/linphone-sdk")
-if (EXISTS ${LINPHONESDK_SOURCE_DIR})
-	include(${LINPHONESDK_SOURCE_DIR}/cmake/LinphoneSdkUtils.cmake)
+include("${BCTOOLBOX_CMAKE_UTILS}")
+bc_compute_full_version(FLEXISIP_VERSION)
 
-	linphone_sdk_compute_full_version(FLEXISIP_VERSION)
-
-	# In case we need to decompose the version
-	if (FLEXISIP_VERSION MATCHES "^(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)(-[.0-9A-Za-z-]+)?([+][.0-9A-Za-z-]+)?$")
-	    set( version_major "${CMAKE_MATCH_1}" )
-	    set( version_minor "${CMAKE_MATCH_2}" )
-	    set( version_patch "${CMAKE_MATCH_3}" )
-	    set( identifiers   "${CMAKE_MATCH_4}" )
-	    set( metadata      "${CMAKE_MATCH_5}" )
-	endif()
-
-	set(RPM_VERSION ${version_major}.${version_minor}.${version_patch})
-	if (NOT identifiers)
-	    set(RPM_RELEASE 1)
-	else()
-	    string(SUBSTRING "${identifiers}" 1 -1 identifiers)
-	    set(RPM_RELEASE "0.${identifiers}${metadata}")
-	endif()
-
-	configure_file(${CMAKE_CURRENT_BINARY_DIR}/rpm/flexisip.spec.cmake ${PROJECT_SOURCE_DIR}/flexisip.spec)
+# In case we need to decompose the version
+if (FLEXISIP_VERSION MATCHES "^(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)(-[.0-9A-Za-z-]+)?([+][.0-9A-Za-z-]+)?$")
+	set( version_major "${CMAKE_MATCH_1}" )
+	set( version_minor "${CMAKE_MATCH_2}" )
+	set( version_patch "${CMAKE_MATCH_3}" )
+	set( identifiers   "${CMAKE_MATCH_4}" )
+	set( metadata      "${CMAKE_MATCH_5}" )
 endif()
+
+set(RPM_VERSION ${version_major}.${version_minor}.${version_patch})
+if (NOT identifiers)
+	set(RPM_RELEASE 1)
+else()
+	string(SUBSTRING "${identifiers}" 1 -1 identifiers)
+	set(RPM_RELEASE "0.${identifiers}${metadata}")
+endif()
+
+configure_file(${CMAKE_CURRENT_BINARY_DIR}/rpm/flexisip.spec.cmake ${PROJECT_SOURCE_DIR}/flexisip.spec)
