@@ -20,9 +20,8 @@
 #
 ############################################################################
 
-include(${flexisip_SOURCE_DIR}/linphone-sdk/cmake/LinphoneSdkUtils.cmake)
-
-linphone_sdk_compute_full_version(version)
+include("${BCTOOLBOX_CMAKE_UTILS}")
+bc_compute_full_version(version)
 set(archive_name "${CPACK_PACKAGE_NAME}-${version}")
 set(archive_path "${flexisip_BINARY_DIR}/${archive_name}.tar.gz")
 
