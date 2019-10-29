@@ -45,9 +45,9 @@ add_custom_target(flexisip-spec
 
 add_custom_target(package_source
 	COMMAND ${CMAKE_COMMAND}
+		"-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+		"-DPROJECT_BINARY_DIR=${PROJECT_BINARY_DIR}"
 		"-DBCTOOLBOX_CMAKE_UTILS=${BCTOOLBOX_CMAKE_UTILS}"
-		"-Dflexisip_SOURCE_DIR='${flexisip_SOURCE_DIR}'"
-		"-Dflexisip_BINARY_DIR='${flexisip_BINARY_DIR}'"
 		"-DCPACK_PACKAGE_NAME='${CPACK_PACKAGE_NAME}'"
 		"-DEXCLUDE_PATTERNS='${CPACK_SOURCE_IGNORE_FILES}'"
 		-P "${CMAKE_CURRENT_SOURCE_DIR}/MakeArchive.cmake"
