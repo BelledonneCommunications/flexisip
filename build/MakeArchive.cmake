@@ -23,7 +23,7 @@
 include("${BCTOOLBOX_CMAKE_UTILS}")
 bc_compute_full_version(version)
 set(archive_name "${CPACK_PACKAGE_NAME}-${version}")
-set(archive_path "${flexisip_BINARY_DIR}/${archive_name}.tar.gz")
+set(archive_path "${PROJECT_BINARY_DIR}/${archive_name}.tar.gz")
 
 find_program(TAR tar)
 
@@ -32,4 +32,4 @@ foreach (pattern ${EXCLUDE_PATTERNS})
 	list(APPEND EXCLUDE_ARGS "--exclude=${pattern}")
 endforeach()
 
-execute_process(COMMAND ${TAR} -C "${flexisip_SOURCE_DIR}" -cz -f "${archive_path}" "--transform" "s,^\\.,${archive_name}," ${EXCLUDE_ARGS} .)
+execute_process(COMMAND ${TAR} -C "${PROJECT_SOURCE_DIR}" -cz -f "${archive_path}" "--transform" "s,^\\.,${archive_name}," ${EXCLUDE_ARGS} .)
