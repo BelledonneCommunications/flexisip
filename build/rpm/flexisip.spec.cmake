@@ -2,7 +2,7 @@
 
 %define _prefix    @CMAKE_INSTALL_PREFIX@
 %define pkg_prefix @BC_PACKAGE_NAME_PREFIX@
-%define package_name @CPACK_PACKAGE_NAME@-${FLEXISIP_VERSION}
+%define package_name @CPACK_PACKAGE_NAME@-${FULL_VERSION}
 
 # re-define some directories for older RPMBuild versions which don't. This messes up the doc/ dir
 # taken from https://fedoraproject.org/wiki/Packaging:RPMMacros?rd=Packaging/RPMMacros
