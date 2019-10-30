@@ -32,24 +32,4 @@ set(CPACK_SOURCE_IGNORE_FILES
 	"./.*"
 )
 
-bc_generate_rpm_specfile(rpm/flexisip.spec.cmake rpm/flexisip.spec.cmake)
-
-add_custom_target(flexisip-spec
-	COMMAND ${CMAKE_COMMAND}
-		"-DBCTOOLBOX_CMAKE_UTILS=${BCTOOLBOX_CMAKE_UTILS}"
-		"-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
-		"-DCMAKE_CURRENT_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}"
-		-P "${CMAKE_CURRENT_SOURCE_DIR}/rpm/gen-flexisip-spec.cmake"
-	BYPRODUCTS "${PROJECT_SOURCE_DIR}/flexisip.spec"
-)
-
-add_custom_target(package_source
-	COMMAND ${CMAKE_COMMAND}
-		"-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
-		"-DPROJECT_BINARY_DIR=${PROJECT_BINARY_DIR}"
-		"-DBCTOOLBOX_CMAKE_UTILS=${BCTOOLBOX_CMAKE_UTILS}"
-		"-DCPACK_PACKAGE_NAME='${CPACK_PACKAGE_NAME}'"
-		"-DEXCLUDE_PATTERNS='${CPACK_SOURCE_IGNORE_FILES}'"
-		-P "${CMAKE_CURRENT_SOURCE_DIR}/MakeArchive.cmake"
-	DEPENDS flexisip-spec
-)
+bc_make_package_source_target()
