@@ -15,7 +15,7 @@ Copyright © Belledonne Communications
 
 Flexisip is dual licensed, and can be licensed and distributed:
 - under a GNU Affero GPLv3 license for free (see COPYING file for details)
-- under a proprietary license, for closed source projects. Contact sales@belledonne-communications.com for costs and other service information.
+- under a proprietary license, for closed source projects. Contact Belledonne Communications for any question about costs and services.
 
 # Documentation
 
