@@ -70,26 +70,26 @@ job-debian8-ninja-clang:
 # DEB
 #################################################
 
-job-debian8-deb:
-
-  except:
-    variables:
-      - $DEPLOY_UBUNTU
-  tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
-  extends: .job-linux-deb
-
-
-job-debian8-deb-deploy:
-
-  except:
-    variables:
-      - $DEPLOY_UBUNTU
-  variables:
-    RELEASE: jessie
-    DEPLOY_DIRECTORY: $DEBIAN_DEPLOY_DIRECTORY
-    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
-    DEPLOY_SERVER: $NEW_DEPLOY_SERVER
-  extends: .job-debian-deb-deploy
-  dependencies:
-    - job-debian8-deb
+#job-debian8-deb:
+#
+#  except:
+#    variables:
+#      - $DEPLOY_UBUNTU
+#  tags: [ "docker-debian8" ]
+#  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+#  extends: .job-linux-deb
+#
+#
+#job-debian8-deb-deploy:
+#
+#  except:
+#    variables:
+#      - $DEPLOY_UBUNTU
+#  variables:
+#    RELEASE: jessie
+#    DEPLOY_DIRECTORY: $DEBIAN_DEPLOY_DIRECTORY
+#    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
+#    DEPLOY_SERVER: $NEW_DEPLOY_SERVER
+#  extends: .job-debian-deb-deploy
+#  dependencies:
+#    - job-debian8-deb
