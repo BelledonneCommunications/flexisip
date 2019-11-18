@@ -6,6 +6,10 @@ job-ubuntu-18.04-makefile-gcc:
 
   tags: [ "docker-ubuntu-18.04" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: gcc
