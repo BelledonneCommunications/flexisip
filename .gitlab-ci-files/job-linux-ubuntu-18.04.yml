@@ -6,6 +6,10 @@ job-ubuntu-18.04-makefile-gcc:
 
   tags: [ "docker-ubuntu-18.04" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: gcc
@@ -80,9 +84,7 @@ job-ubuntu-18.04-deb-deploy:
 
   variables:
     RELEASE: bionic
-    DEPLOY_DIRECTORY: $UBUNTU_DEPLOY_DIRECTORY
     FREIGHT_PATH: $UBUNTU_FREIGHT_CONF_PATH
-    DEPLOY_SERVER: $NEW_DEPLOY_SERVER
   extends: .job-debian-deb-deploy
   dependencies:
     - job-ubuntu-18.04-deb
