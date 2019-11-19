@@ -79,7 +79,4 @@ job-centos7-rpm-deploy:
   except:
     variables:
       - $DEPLOY_UBUNTU
-  script:
-    - /bin/bash .gitlab-ci-files/deploy.sh
-#   - cd WORK/flexisip-rpm/rpmbuild/RPMS/x86_64/ && rsync -pr . $DEPLOY_SERVER:$CENTOS7_DEPLOY_DIRECTORY
-#   - ssh $DEPLOY_SERVER "chmod a+r $CENTOS7_DEPLOY_DIRECTORY/*.rpm && createrepo_c --update $CENTOS7_DEPLOY_DIRECTORY/."
+  script: ./.gitlab-ci-files/deploy.sh centos
