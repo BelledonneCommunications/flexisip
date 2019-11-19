@@ -71,7 +71,7 @@
 
 .job-deploy:
   only:
-    refs: ['master', 'release/*']
+    #refs: ['master', 'release/*']
     variables: [$SCHEDULE_RUN]
 
 .job-debian-deb-deploy:
