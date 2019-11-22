@@ -106,10 +106,6 @@ Add the ability to delegate authentication process to an external HTTP server.
 %endif
 
 
-# This is for debian builds where debug_package has to be manually specified, whereas in centos it does not
-%define custom_debug_package %{!?_enable_debug_packages:%debug_package}%{?_enable_debug_package:%{nil}}
-%custom_debug_package
-
 %prep
 %setup -n %{package_name}
 
@@ -122,6 +118,10 @@ make %{?_smp_mflags}
 %install
 make install DESTDIR=%{buildroot}
 
+# Mark all libraries as executable because CMake doesn't on
+# Debian to be complient with Debian policy. But rpmbuild
+# won't strip libraries that aren't marked as executable.
+chmod +x `find %{buildroot} *.so.*`
 
 #
 # Shouldn't be the role of cmake to install all the following stuff ?
@@ -206,6 +206,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/flexisip/plugins/libexternal-auth.so.*
 %endif
 
+# This is for Debian build where debug_package has to be manually specified whereas it mustn't on Centos
+%define custom_debug_package %{!?_enable_debug_packages:%debug_package}%{?_enable_debug_package:%{nil}}
+%custom_debug_package
 
 %changelog
 
