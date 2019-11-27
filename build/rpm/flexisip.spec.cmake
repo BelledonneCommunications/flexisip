@@ -156,13 +156,27 @@ install -p -m 0744 scripts/flexisip_monitor.py $RPM_BUILD_ROOT%{_bindir}
 rm -rf $RPM_BUILD_ROOT
 
 %post
-%systemd_post %flexisip_services
+if [ "$1" != "configure" ]; then
+	%systemd_post %flexisip_services
+fi
 
 %preun
-%systemd_preun %flexisip_services
+function systemd_preun {
+	%systemd_preun %flexisip_services
+}
+case "$1" in
+	0 | remove) systemd_preun 0 ;;
+	1 | upgrade) systemd_preun 1 ;;
+esac
 
 %postun
-%systemd_postun_with_restart %flexisip_services
+function systemd_postun {
+	%systemd_postun_with_restart %flexisip_services
+}
+case "$1" in
+	0 | remove) systemd_postun 0 ;;
+	1 | upgrade) systemd_postun 1 ;;
+esac
 
 %files
 %defattr(-,root,root,-)
