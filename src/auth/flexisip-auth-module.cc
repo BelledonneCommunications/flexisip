@@ -20,6 +20,7 @@
 
 #include "flexisip/module.hh"
 
+#include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 
 #include "flexisip-auth-module.hh"
@@ -72,6 +73,7 @@ void FlexisipAuthModule::onChallenge(AuthStatus &as, auth_challenger_t const *ac
 	auto cleanUsedAlgo = [this, &authStatus, ach](AuthDbResult r, const AuthDbBackend::PwList &passwords) {
 		switch (r) {
 			case PASSWORD_FOUND:
+				SLOGD << "Password found with the following algorithms: " << StringUtils::toString(passwords, [](const passwd_algo_t &pw){return pw.algo;});
 				authStatus.usedAlgo().remove_if([&passwords](const std::string &algo){
 					return passwords.cend() == find_if(passwords.cbegin(), passwords.cend(), [&algo](const passwd_algo_t &pw) {
 						return algo == pw.algo;

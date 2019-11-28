@@ -105,6 +105,7 @@ void FlexisipAuthModuleBase::onChallenge(AuthStatus &as, auth_challenger_t const
 	msg_header_t *lastChallenge = nullptr;
 	for (const std::string &algo : flexisipAs.usedAlgo()) {
 		msg_header_t *challenge;
+		LOGD("Making challenge for %s algorithm", algo.c_str());
 		const char *algoValue = msg_header_find_param(response->sh_common, "algorithm");
 		if (algo == &algoValue[1]) {
 			challenge = response;
@@ -122,6 +123,7 @@ void FlexisipAuthModuleBase::onChallenge(AuthStatus &as, auth_challenger_t const
 		lastChallenge = challenge;
 	}
 	if (as.response() == nullptr) {
+		SLOGE << "No available algorithm while challenge making";
 		as.status(500);
 		as.phrase("Internal error");
 	} else {

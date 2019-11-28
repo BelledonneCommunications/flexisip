@@ -40,13 +40,25 @@ public:
 	 */
 	static std::string removePrefix(const std::string &str, const std::string &prefix);
 
-	template <class Iterable>
+	template <typename Iterable>
 	static std::string toString(const Iterable &iterable) {
 		std::ostringstream os;
 		os << "{ ";
 		for (auto it = iterable.cbegin(); it != iterable.cend(); it++) {
 			if (it != iterable.cbegin()) os << ", ";
 			os << "'" << *it << "'";
+		}
+		os << " }";
+		return os.str();
+	}
+
+	template <typename Iterable, typename Callable>
+	static std::string toString(const Iterable &iterable, const Callable &format) {
+		std::ostringstream os;
+		os << "{ ";
+		for (auto it = iterable.cbegin(); it != iterable.cend(); it++) {
+			if (it != iterable.cbegin()) os << ", ";
+			os << "'" << format(*it) << "'";
 		}
 		os << " }";
 		return os.str();
