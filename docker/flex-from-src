@@ -1,14 +1,18 @@
-FROM debian
+FROM debian:10
 MAINTAINER  Jehan Monnier <jehan.monnier@linphone.org>
 
+ARG branch=master
+ARG njobs=1
+
 # Prepare dependencies
-RUN apt-get update
-RUN apt-get install -y  xsdcxx gdb
-RUN apt-get install -y  nasm patch python-pip python-pystache graphviz intltool libtool python-dev doxygen g++ make cmake git pkg-config libpulse-dev libssl-dev default-libmysqlclient-dev build-essential
+RUN apt-get update && apt-get upgrade -y
+RUN apt-get install -y  xsdcxx libxerces-c-dev gdb \
+	nasm patch python-pip python-pystache graphviz intltool libtool python-dev doxygen g++ make cmake git \
+	pkg-config libpulse-dev libssl-dev default-libmysqlclient-dev build-essential
 
 #get source code
-RUN git clone https://gitlab.linphone.org/BC/public/flexisip.git --recursive --depth 1
-RUN cd flexisip && ./prepare.py flexisip -DENABLE_TRANSCODER=ON -DCMAKE_PREFIX_PATH=/opt/belledonne-communications -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc && make
+RUN git clone https://gitlab.linphone.org/BC/public/flexisip.git --recursive --depth 1 --branch ${branch}
+RUN cd flexisip && ./prepare.py flexisip -d -DENABLE_TRANSCODER=ON -DCMAKE_PREFIX_PATH=/opt/belledonne-communications -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc && make -j ${njobs}
 RUN mkdir -p /etc/opt/belledonne-communications/flexisip
 RUN mkdir -p /var/opt/belledonne-communications/log/flexisip
 RUN ln -s /etc/opt/belledonne-communications/flexisip /etc/flexisip
@@ -21,7 +25,7 @@ WORKDIR /opt/belledonne-communications
 # Generate a default configuration
 RUN flexisip --dump-default all > /etc/flexisip/flexisip.conf
 
-VOLUME /etc/opt/belledonne-communications/flexisip
+VOLUME /etc/flexisip
 VOLUME /var/opt/belledonne-communications/log/flexisip
 COPY flexisip-entrypoint.sh /
 COPY backtrace.gdb /
