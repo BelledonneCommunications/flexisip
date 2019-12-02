@@ -87,13 +87,13 @@ void FlexisipAuthModule::onChallenge(AuthStatus &as, auth_challenger_t const *ac
 				} else {
 					authStatus.usedAlgo() = move(usedAlgo);
 				}
-				FlexisipAuthModuleBase::onChallenge(authStatus, ach);
+				makeChallenge(authStatus, *ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
 				finish(authStatus);
 				break;
 			}
 			case PASSWORD_NOT_FOUND:
 				// Make a challenge for each algorithm allowed by Flexisip settings.
-				FlexisipAuthModuleBase::onChallenge(authStatus, ach);
+				makeChallenge(authStatus, *ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
 				finish(authStatus);
 				break;
 			case AUTH_ERROR:
@@ -108,6 +108,10 @@ void FlexisipAuthModule::onChallenge(AuthStatus &as, auth_challenger_t const *ac
 	string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user);
 	AuthDbBackend::get().getPassword(unescpapedUrlUser, as.userUri()->url_host, unescpapedUrlUser, listener);
 	as.status(100);
+}
+
+void FlexisipAuthModule::makeChallenge(AuthStatus &as, const auth_challenger_t &ach) {
+	FlexisipAuthModuleBase::onChallenge(as, &ach);
 }
 
 #define PA "Authorization missing "
