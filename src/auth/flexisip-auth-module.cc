@@ -88,13 +88,11 @@ void FlexisipAuthModule::onChallenge(AuthStatus &as, auth_challenger_t const *ac
 					authStatus.usedAlgo() = move(usedAlgo);
 				}
 				makeChallenge(authStatus, *ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
-				finish(authStatus);
 				break;
 			}
 			case PASSWORD_NOT_FOUND:
 				// Make a challenge for each algorithm allowed by Flexisip settings.
 				makeChallenge(authStatus, *ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
-				finish(authStatus);
 				break;
 			case AUTH_ERROR:
 				this->onError(authStatus);
@@ -103,6 +101,7 @@ void FlexisipAuthModule::onChallenge(AuthStatus &as, auth_challenger_t const *ac
 				throw logic_error("unexpected AuthDbResult (PENDING)");
 				break;
 		}
+		finish(authStatus);
 	};
 	auto *listener = new GenericAuthListener(getRoot(), cleanUsedAlgo);
 	string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user);
@@ -150,6 +149,7 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 			LOGD("from and authentication usernames [%s/%s] or from and authentication hosts [%s/%s] empty",
 				 ar->ar_username, as.userUri()->url_user, ar->ar_realm, as.userUri()->url_host);
 			onAccessForbidden(as, *ach, "Authentication info missing");
+			finish(as);
 			return;
 		}
 
@@ -203,6 +203,7 @@ void FlexisipAuthModule::processResponse(FlexisipAuthStatus &as, const auth_resp
 			string algo = ar.ar_algorithm ? ar.ar_algorithm : "MD5";
 			if (find(as.usedAlgo().cbegin(), as.usedAlgo().cend(), algo) == as.usedAlgo().cend()) {
 				onAccessForbidden(as, ach);
+				finish(as);
 				return;
 			}
 			auto pw = find_if(passwords.cbegin(), passwords.cend(), [&algo](const passwd_algo_t &pw) {
@@ -210,7 +211,6 @@ void FlexisipAuthModule::processResponse(FlexisipAuthStatus &as, const auth_resp
 			});
 			string password = pw != passwords.cend() ? pw->pass : "";
 			checkPassword(as, ach, ar, password);
-			finish(as);
 			break;
 		}
 		case PASSWORD_NOT_FOUND:
@@ -226,6 +226,7 @@ void FlexisipAuthModule::processResponse(FlexisipAuthStatus &as, const auth_resp
 			onError(as);
 			break;
 	}
+	finish(as);
 }
 
 /**
@@ -292,7 +293,6 @@ void FlexisipAuthModule::onAccessForbidden(FlexisipAuthStatus &as, const auth_ch
 		challenge(as, &ach);
 	}
 	as.blacklist(getPtr()->am_blacklist);
-	finish(as);
 }
 
 std::string FlexisipAuthModule::auth_digest_a1_for_algorithm(Digest &algo, const auth_response_t &ar, const std::string &secret) {

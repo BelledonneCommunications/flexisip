@@ -70,6 +70,7 @@ void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *cre
 	} catch (const runtime_error &e) {
 		SLOGE << e.what();
 		onError(as);
+		finish(as);
 	}
 }
 
@@ -122,7 +123,6 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *reque
 		httpAuthStatus.reason(reasonHeaderValue);
 		httpAuthStatus.pAssertedIdentity(pAssertedIdentity);
 		if (sipCode == 401 || sipCode == 407) challenge(ctx.as, &ctx.ach);
-		finish(ctx.as);
 	} catch (const runtime_error &e) {
 		SLOGE << "HTTP request [" << request << "]: " << e.what();
 		onError(ctx.as);
@@ -130,6 +130,7 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *reque
 		if (request) nth_client_destroy(request);
 		throw;
 	}
+	finish(ctx.as);
 	if (request) nth_client_destroy(request);
 }
 

@@ -145,7 +145,6 @@ void FlexisipAuthModuleBase::onError(FlexisipAuthStatus &as) {
 		as.phrase("Internal error");
 		as.response(nullptr);
 	}
-	finish(as);
 }
 
 // ====================================================================================================================
