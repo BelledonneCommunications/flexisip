@@ -9,15 +9,61 @@
 %define _datarootdir       %{_prefix}/share
 %define _datadir           %{_datarootdir}
 %define _docdir            %{_datadir}/doc
+%define flexisip_logdir    %{_localstatedir}/log/flexisip
 
+# to be compliant with RedHat which changed epoch to 1 for an unknown reason
 %define epoch     1
+
+%if 0%{?debian_platform}
+	%global debian_platform 1
+	%global centos_platform 0
+%else
+	%global debian_platform 0
+	%global centos_platform 1
+%endif
+
+
+
+# Redefiniton of SystemD preun and postun macro for Debian
+%if %{debian_platform}
+
+%global systemd_preun() \
+if [ "$1" = 'remove' ] ; then \
+	systemctl --no-reload disable %*  > /dev/null 2>&1 || : \
+	systemctl stop %* > /dev/null 2>&1 || : \
+fi
+
+%global systemd_postun \
+systemctl daemon-reload >/dev/null 2>&1 || :
+
+%global systemd_postun_with_restart() \
+%systemd_postun \
+if [ "$1" = 'upgrade' ] ; then \
+	systemctl try-restart %*  >/dev/null 2>&1 || : \
+fi
+
+%endif # %if %{debian_platform}
+
+
+
+# Macro to set SELinux permission on log directory
+# It is needed in order logrotate be able to manipulate
+# Flexisip's logs
+%if %centos_platform
+
+%global selinux_logdir_permissions \
+if [ $1 -eq 1 ]; then \
+	/usr/bin/chcon -t chcon -t var_log_t %{flexisip_logdir} || true \
+fi
+
+%endif
+
+
 
 Summary:       SIP proxy with media capabilities
 Name:          @CPACK_PACKAGE_NAME@
 Version:       ${RPM_VERSION}
 Release:       ${RPM_RELEASE}%{?dist}
-
-#to be alined with redhat which changed epoc to 1 for an unknown reason
 Epoch:         %{epoch}
 License:       AGPLv3
 Group:         Applications/Communications
@@ -129,8 +175,7 @@ chmod +x `find %{buildroot} *.so.*`
 #
 mkdir -p  $RPM_BUILD_ROOT/etc/flexisip
 mkdir -p  $RPM_BUILD_ROOT/%{_docdir}
-mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/log/flexisip
-mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/%{_prefix}/log/flexisip
+mkdir -p  $RPM_BUILD_ROOT/%{flexisip_logdir}
 
 mkdir -p $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip-proxy.service $RPM_BUILD_ROOT/lib/systemd/system
@@ -155,8 +200,11 @@ install -p -m 0744 scripts/flexisip_monitor.py $RPM_BUILD_ROOT%{_bindir}
 %clean
 rm -rf $RPM_BUILD_ROOT
 
+%if %centos_platform
 %post
 %systemd_post %flexisip_services
+%selinux_logdir_permissions
+%endif
 
 %preun
 %systemd_preun %flexisip_services
