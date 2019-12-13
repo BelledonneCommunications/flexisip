@@ -9,6 +9,7 @@
 %define _datarootdir       %{_prefix}/share
 %define _datadir           %{_datarootdir}
 %define _docdir            %{_datadir}/doc
+%define flexisip_logdir    %{_localstatedir}/log/flexisip
 
 %define epoch     1
 
@@ -129,8 +130,7 @@ chmod +x `find %{buildroot} *.so.*`
 #
 mkdir -p  $RPM_BUILD_ROOT/etc/flexisip
 mkdir -p  $RPM_BUILD_ROOT/%{_docdir}
-mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/log/flexisip
-mkdir -p  $RPM_BUILD_ROOT/%{_localstatedir}/%{_prefix}/log/flexisip
+mkdir -p  $RPM_BUILD_ROOT/%{flexisip_logdir}
 
 mkdir -p $RPM_BUILD_ROOT/lib/systemd/system
 install -p -m 0644 scripts/flexisip-proxy.service $RPM_BUILD_ROOT/lib/systemd/system
@@ -158,6 +158,9 @@ rm -rf $RPM_BUILD_ROOT
 %post
 if [ "$1" != "configure" ]; then
 	%systemd_post %flexisip_services
+fi
+if [ -x /usr/bin/chcon ]; then
+	/usr/bin/chcon -t chcon -t var_log_t %{flexisip_logdir}
 fi
 
 %preun
