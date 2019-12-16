@@ -146,8 +146,7 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 
 		FlexisipAuthModuleBase *am = findAuthModule(fromDomain);
 		if (am == nullptr) {
-			SLOGI << "Unknown domain [" << fromDomain << "]";
-			SLOGUE << "Registration failure, domain is forbidden: " << fromDomain;
+			SLOGI << "Registration failure, domain is forbidden: " << fromDomain;
 			ev->reply(403, "Domain forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 			return;
 		}
@@ -161,6 +160,7 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 
 FlexisipAuthStatus *ModuleAuthenticationBase::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
 	auto *as = new FlexisipAuthStatus(ev);
+	LOGD("New FlexisipAuthStatus [%p]", as);
 	ModuleAuthenticationBase::configureAuthStatus(*as, ev);
 	return as;
 }
@@ -175,18 +175,20 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const
 	if (!mRealmRegexStr.empty()) {
 		cmatch m;
 		const char *userUriStr = url_as_string(ev->getHome(), userUri);
-		LOGD("Searching for realm in %s URI (%s) with '%s' as extracting regex",
+		LOGD("AuthStatus[%p]: searching for realm in %s URI (%s) with '%s' as extracting regex",
+			&as,
 			ppi ? "P-Prefered-Identity" : "From",
 			userUriStr, mRealmRegexStr.c_str()
 		);
 		if (!regex_search(userUriStr, m, mRealmRegex)) {
+			LOGD("AuthStauts[%p]: regex didn't match", &as);
 			throw runtime_error("no realm found");
 		}
 		int index = m.size() == 1 ? 0 : 1;
 		realm = su_strndup(ev->getHome(), userUriStr + m.position(index), m.length(index));
 	}
 
-	LOGI("'%s' will be used as realm", realm);
+	LOGD("AuthStatus[%p]: '%s' will be used as realm", &as, realm);
 
 	as.method(sip->sip_request->rq_method_name);
 	as.source(msg_addrinfo(ms->getMsg()));
@@ -221,8 +223,7 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 	// Check for the existence of username, which is required for proceeding with digest authentication in flexisip.
 	// Reject if absent.
 	if (sip->sip_from->a_url->url_user == NULL) {
-		LOGI("From has no username, cannot authenticate.");
-		SLOGUE << "Registration failure, username not found: " << url_as_string(ms->getHome(), sip->sip_from->a_url);
+		SLOGI << "Registration failure, no username in From header: " << url_as_string(ms->getHome(), sip->sip_from->a_url);
 		request->reply(403, "Username must be provided", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		throw StopRequestProcessing();
 	}
@@ -231,6 +232,8 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 	// Necessary in qop=auth to prevent nonce count chaos
 	// with retransmissions.
 	request->createIncomingTransaction();
+
+	LOGD("start digest authentication");
 
 	FlexisipAuthStatus *as = createAuthStatus(request);
 

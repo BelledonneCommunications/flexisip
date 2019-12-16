@@ -56,8 +56,7 @@ void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challe
 		 * We workaround by selecting the second digest response.
 		 */
 		if (au && au->au_next) {
-			auth_response_t r;
-			memset(&r, 0, sizeof(r));
+			auth_response_t r = {0};
 			r.ar_size = sizeof(r);
 			auth_digest_response_get(as.home(), &r, au->au_next->au_params);
 
@@ -71,14 +70,14 @@ void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challe
 		au = NULL;
 
 	if (as.allow()) {
-		LOGD("%s: allow unauthenticated %s", __func__, as.method());
+		LOGD("AuthStatus[%p]: allow unauthenticated %s", &as, as.method());
 		as.status(0), as.phrase(nullptr);
 		as.match(reinterpret_cast<msg_header_t *>(au));
 		return;
 	}
 
 	if (au) {
-		SLOGD << "Searching for auth digest response for this proxy";
+		LOGD("AuthStatus[%p]: searching for auth digest response for this proxy", &as);
 		msg_auth_t *matched_au = ModuleToolbox::findAuthorizationForRealm(as.home(), au, as.realm());
 		if (matched_au)
 			au = matched_au;
@@ -88,7 +87,7 @@ void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challe
 		/* There was no realm or credentials, send challenge */
 		SLOGD << __func__ << ": no credentials matched realm or no realm";
 		challenge(as, ach);
-		finish(authStatus);
+		notify(authStatus);
 		return;
 	}
 }
@@ -134,7 +133,7 @@ void FlexisipAuthModuleBase::onCancel(AuthStatus &as) {
 	auth_cancel_default(mAm, as.getPtr());
 }
 
-void FlexisipAuthModuleBase::finish(FlexisipAuthStatus &as) {
+void FlexisipAuthModuleBase::notify(FlexisipAuthStatus &as) {
 	as.getPtr()->as_callback(as.magic(), as.getPtr());
 }
 

@@ -77,9 +77,9 @@ private:
 
 	void onAccessForbidden(FlexisipAuthStatus& as, const auth_challenger_t &ach, const char* phrase = "Forbidden");
 
-	static std::string auth_digest_a1_for_algorithm(Digest &algo, const auth_response_t &ar, const std::string &secret);
-	static std::string auth_digest_a1sess_for_algorithm(Digest &algo, const auth_response_t &ar, const std::string &ha1);
-	static std::string auth_digest_response_for_algorithm(Digest &algo, const ::auth_response_t &ar, const std::string &method_name, const void *body, size_t bodyLen, const std::string &ha1);
+	static std::string computeA1(Digest &algo, const auth_response_t &ar, const std::string &secret);
+	static std::string computeA1SESS(Digest &algo, const auth_response_t &ar, const std::string &ha1);
+	static std::string computeDigestResponse(Digest &algo, const ::auth_response_t &ar, const std::string &method_name, const void *body, size_t bodyLen, const std::string &ha1);
 
 	PasswordFetchResultCb mPassworFetchResultCb;
 };

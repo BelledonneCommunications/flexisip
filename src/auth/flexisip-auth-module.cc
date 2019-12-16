@@ -101,10 +101,12 @@ void FlexisipAuthModule::onChallenge(AuthStatus &as, auth_challenger_t const *ac
 				throw logic_error("unexpected AuthDbResult (PENDING)");
 				break;
 		}
-		finish(authStatus);
+		notify(authStatus);
 	};
+
 	auto *listener = new GenericAuthListener(getRoot(), cleanUsedAlgo);
 	string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user);
+	LOGD("Searching for available digest algorithms for user '%s@%s'", unescpapedUrlUser.c_str(), as.userUri()->url_host);
 	AuthDbBackend::get().getPassword(unescpapedUrlUser, as.userUri()->url_host, unescpapedUrlUser, listener);
 	as.status(100);
 }
@@ -139,7 +141,7 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 		as.status(400);
 		as.phrase(phrase);
 		as.response(nullptr);
-		finish(as);
+		notify(as);
 		return;
 		}
 
@@ -149,7 +151,7 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 			LOGD("from and authentication usernames [%s/%s] or from and authentication hosts [%s/%s] empty",
 				 ar->ar_username, as.userUri()->url_user, ar->ar_realm, as.userUri()->url_host);
 			onAccessForbidden(as, *ach, "Authentication info missing");
-			finish(as);
+			notify(as);
 			return;
 		}
 
@@ -157,13 +159,13 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 		if (as.nonceIssued() == 0 /* Already validated nonce */ && auth_validate_digest_nonce(mAm, as.getPtr(), ar, now) < 0) {
 			as.blacklist(mAm->am_blacklist);
 			challenge(as, ach);;
-			finish(as);
+			notify(as);
 			return;
 		}
 
 		if (as.stale()) {
 			challenge(as, ach);
-			finish(as);
+			notify(as);
 			return;
 		}
 
@@ -174,7 +176,7 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 				LOGE("Bad nonce count %d -> %d for %s", pnc, nnc, ar->ar_nonce);
 				as.blacklist(mAm->am_blacklist);
 				challenge(as, ach);
-				finish(as);
+				notify(as);
 				return;
 			} else {
 				mNonceStore.updateNc(ar->ar_nonce, nnc);
@@ -203,7 +205,7 @@ void FlexisipAuthModule::processResponse(FlexisipAuthStatus &as, const auth_resp
 			string algo = ar.ar_algorithm ? ar.ar_algorithm : "MD5";
 			if (find(as.usedAlgo().cbegin(), as.usedAlgo().cend(), algo) == as.usedAlgo().cend()) {
 				onAccessForbidden(as, ach);
-				finish(as);
+				notify(as);
 				return;
 			}
 			auto pw = find_if(passwords.cbegin(), passwords.cend(), [&algo](const passwd_algo_t &pw) {
@@ -226,7 +228,7 @@ void FlexisipAuthModule::processResponse(FlexisipAuthStatus &as, const auth_resp
 			onError(as);
 			break;
 	}
-	finish(as);
+	notify(as);
 }
 
 /**
@@ -274,13 +276,13 @@ int FlexisipAuthModule::checkPasswordForAlgorithm(FlexisipAuthStatus &as, const 
 	if (!passwd.empty()) {
 		a1 = passwd;
 	} else {
-		a1 = auth_digest_a1_for_algorithm(*algo, ar, "xyzzy");
+		a1 = computeA1(*algo, ar, "xyzzy");
 	}
 
 	if (ar.ar_md5sess)
-		a1 = auth_digest_a1sess_for_algorithm(*algo, ar, a1);
+		a1 = computeA1SESS(*algo, ar, a1);
 
-	string response = auth_digest_response_for_algorithm(*algo, ar, as.method(), as.body(), as.bodyLen(), a1);
+	string response = computeDigestResponse(*algo, ar, as.method(), as.body(), as.bodyLen(), a1);
 	return (!passwd.empty() && response == ar.ar_response ? 0 : -1);
 }
 
@@ -295,7 +297,7 @@ void FlexisipAuthModule::onAccessForbidden(FlexisipAuthStatus &as, const auth_ch
 	as.blacklist(getPtr()->am_blacklist);
 }
 
-std::string FlexisipAuthModule::auth_digest_a1_for_algorithm(Digest &algo, const auth_response_t &ar, const std::string &secret) {
+std::string FlexisipAuthModule::computeA1(Digest &algo, const auth_response_t &ar, const std::string &secret) {
 	ostringstream data;
 	data << ar.ar_username << ':' << ar.ar_realm << ':' << secret;
 	string ha1 = algo.compute<string>(data.str());
@@ -303,7 +305,7 @@ std::string FlexisipAuthModule::auth_digest_a1_for_algorithm(Digest &algo, const
 	return ha1;
 }
 
-std::string FlexisipAuthModule::auth_digest_a1sess_for_algorithm(Digest &algo, const ::auth_response_t &ar, const std::string &ha1) {
+std::string FlexisipAuthModule::computeA1SESS(Digest &algo, const ::auth_response_t &ar, const std::string &ha1) {
 	ostringstream data;
 	data << ha1 << ':' << ar.ar_nonce << ':' << ar.ar_cnonce;
 	string newHa1 = algo.compute<string>(data.str());
@@ -311,7 +313,7 @@ std::string FlexisipAuthModule::auth_digest_a1sess_for_algorithm(Digest &algo, c
 	return newHa1;
 }
 
-std::string FlexisipAuthModule::auth_digest_response_for_algorithm(
+std::string FlexisipAuthModule::computeDigestResponse(
 	Digest &algo,
 	const ::auth_response_t &ar,
 	const std::string &method_name,
