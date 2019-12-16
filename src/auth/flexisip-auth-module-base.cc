@@ -56,8 +56,7 @@ void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challe
 		 * We workaround by selecting the second digest response.
 		 */
 		if (au && au->au_next) {
-			auth_response_t r;
-			memset(&r, 0, sizeof(r));
+			auth_response_t r = {0};
 			r.ar_size = sizeof(r);
 			auth_digest_response_get(as.home(), &r, au->au_next->au_params);
 
@@ -71,14 +70,14 @@ void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challe
 		au = NULL;
 
 	if (as.allow()) {
-		LOGD("%s: allow unauthenticated %s", __func__, as.method());
+		LOGD("AuthStatus[%p]: allow unauthenticated %s", &as, as.method());
 		as.status(0), as.phrase(nullptr);
 		as.match(reinterpret_cast<msg_header_t *>(au));
 		return;
 	}
 
 	if (au) {
-		SLOGD << "Searching for auth digest response for this proxy";
+		LOGD("AuthStatus[%p]: searching for auth digest response for this proxy", &as);
 		msg_auth_t *matched_au = ModuleToolbox::findAuthorizationForRealm(as.home(), au, as.realm());
 		if (matched_au)
 			au = matched_au;
@@ -86,9 +85,9 @@ void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challe
 		checkAuthHeader(authStatus, au, ach);
 	} else {
 		/* There was no realm or credentials, send challenge */
-		SLOGD << __func__ << ": no credentials matched realm or no realm";
+		LOGD("AuthStatus[%p]: no credential found for realm '%s'", &as, as.realm());
 		challenge(as, ach);
-		finish(authStatus);
+		notify(authStatus);
 		return;
 	}
 }
@@ -104,7 +103,7 @@ void FlexisipAuthModuleBase::onChallenge(AuthStatus &as, auth_challenger_t const
 	msg_header_t *lastChallenge = nullptr;
 	for (const std::string &algo : flexisipAs.usedAlgo()) {
 		msg_header_t *challenge;
-		LOGD("Making challenge for %s algorithm", algo.c_str());
+		LOGD("AuthStatus[%p]: making challenge header for '%s' algorithm", &as, algo.c_str());
 		const char *algoValue = msg_header_find_param(response->sh_common, "algorithm");
 		if (algo == &algoValue[1]) {
 			challenge = response;
@@ -122,7 +121,7 @@ void FlexisipAuthModuleBase::onChallenge(AuthStatus &as, auth_challenger_t const
 		lastChallenge = challenge;
 	}
 	if (as.response() == nullptr) {
-		SLOGE << "No available algorithm while challenge making";
+		SLOGE << "AuthStatus[" << &as << "]: no available algorithm while challenge making";
 		as.status(500);
 		as.phrase("Internal error");
 	} else {
@@ -134,7 +133,7 @@ void FlexisipAuthModuleBase::onCancel(AuthStatus &as) {
 	auth_cancel_default(mAm, as.getPtr());
 }
 
-void FlexisipAuthModuleBase::finish(FlexisipAuthStatus &as) {
+void FlexisipAuthModuleBase::notify(FlexisipAuthStatus &as) {
 	as.getPtr()->as_callback(as.magic(), as.getPtr());
 }
 

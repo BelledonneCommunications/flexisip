@@ -67,7 +67,7 @@ protected:
 	 */
 	virtual void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) = 0;
 
-	void finish(FlexisipAuthStatus &as);
+	void notify(FlexisipAuthStatus &as);
 	void onError(FlexisipAuthStatus &as);
 
 	NonceStore mNonceStore;
