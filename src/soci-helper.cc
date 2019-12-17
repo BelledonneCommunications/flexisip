@@ -20,43 +20,43 @@
 #include "flexisip/logmanager.hh"
 #include "soci-helper.hh"
 
+using namespace std;
+
 namespace flexisip{
 
 void SociHelper::execute(const std::function<void (soci::session &)> &requestLambda) {
-	std::chrono::steady_clock::time_point start;
-	std::chrono::steady_clock::time_point stop;
-	std::unique_ptr<soci::session> sql;
-	int errorCount = 0;
-	bool retry;
-	bool good = false;
+	const int N_TRIES = 1;
+	chrono::steady_clock::time_point start, stop;
+	unique_ptr<soci::session> sql;
 
-	do {
-		retry = false;
+	// will grab a connection from the pool. This is thread safe.
+	try {
+		start = chrono::steady_clock::now();
+		sql.reset(new soci::session(mPool));
+		stop = chrono::steady_clock::now();
+		LOGD("[SOCI] Session acquired from pool in %lu ms", durationMs(start, stop));
+	} catch (const runtime_error &e) {
+		SLOGE << "[SOCI] " << e.what();
+		throw DatabaseException();
+	}
+
+	for(int errorCount = 0;; errorCount++) {
 		try {
-			// will grab a connection from the pool. This is thread safe.
-			start = std::chrono::steady_clock::now();
-			sql.reset(new soci::session(mPool));
-			stop = std::chrono::steady_clock::now();
-			LOGD("[SOCI] Session acquired from pool in %lu ms", durationMs(start, stop));
 			start = stop;
 			requestLambda(*sql);
-			stop = std::chrono::steady_clock::now();
+			stop = chrono::steady_clock::now();
 			LOGD("[SOCI] statement successfully executed in %lu ms", durationMs(start, stop));
-			good = true;
-		} catch (const std::runtime_error &e) { // soci::mysql_soci_error is a subclass of std::runtime_error
-			errorCount++;
-			stop = std::chrono::steady_clock::now();
+			return;
+		} catch (const runtime_error &e) { // soci::mysql_soci_error is a subclass of std::runtime_error
+			stop = chrono::steady_clock::now();
 			const auto *sqlErr = dynamic_cast<const soci::mysql_soci_error *>(&e);
 
-			std::ostringstream os;
-			os << "[SOCI] " << (sqlErr ? "MySQL " : "") << "error after " << durationMs(start, stop) << "ms: ";
-			if (sqlErr) os << sqlErr->err_num_ << " ";
-			os << e.what();
-			LOGE("%s", os.str().c_str());
+			SLOGE << "[SOCI] " << (sqlErr ? "MySQL " : "") << "error after " << durationMs(start, stop) << "ms: "
+			      << (sqlErr ? to_string(sqlErr->err_num_) : "") << " " << e.what();
 
-			if (sql) reconnectSession(*sql);
+			reconnectSession(*sql);
 
-			if (sqlErr && (sqlErr->err_num_ == 2014 || sqlErr->err_num_ == 2006) && errorCount == 1) {
+			if (sqlErr && (sqlErr->err_num_ == 2014 || sqlErr->err_num_ == 2006) && errorCount < N_TRIES) {
 				/* 2014 is the infamous "Commands out of sync; you can't run this command now" mysql error,
 				* which is retryable.
 				* At this time we don't know if it is a soci or mysql bug, or bug with the sql request being executed.
@@ -64,11 +64,11 @@ void SociHelper::execute(const std::function<void (soci::session &)> &requestLam
 				* 2006 is "MySQL server has gone away" which is also retryable.
 				*/
 				SLOGE << "[SOCI] retryable mysql error [" << sqlErr->err_num_ << "], so trying statement execution again...";
-				retry = true;
+				continue;
 			}
+			throw DatabaseException();
 		}
-	} while (retry);
-	if (!good) throw DatabaseException();
+	}
 }
 
 void SociHelper::reconnectSession(soci::session &session) {
