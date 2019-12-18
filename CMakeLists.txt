@@ -48,6 +48,7 @@ option(ENABLE_MDNS "Build multicast DNS support" NO)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" NO)
 option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" NO)
 option(ENABLE_UNIT_TESTS "Enable flexisip unit tests (low level tests)" ON)
+option(ENABLE_PACKAGE_SOURCE "Create 'package_source' target for source archive making (CMake >= 3.11)" OFF)
 
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
@@ -225,4 +226,6 @@ if(ENABLE_UNIT_TESTS)
 endif()
 
 # Packaging
-add_subdirectory(build)
+if (ENABLE_PACKAGE_SOURCE)
+	add_subdirectory(build)
+endif()
