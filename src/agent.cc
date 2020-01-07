@@ -164,6 +164,7 @@ void Agent::checkAllowedParams(const url_t *uri) {
 	params = url_strip_param_string(params, "maddr");
 	params = url_strip_param_string(params, "tls-verify-incoming");
 	params = url_strip_param_string(params, "tls-verify-outgoing");
+	params = url_strip_param_string(params, "client");
 	// make sure that there is no misstyped params in the url:
 	if (params && strlen(params) > 0) {
 		LOGF("Bad parameters '%s' given in transports definition.", params);
@@ -323,6 +324,9 @@ void Agent::start(const string &transport_override, const string passphrase) {
 		su_home_init(&home);
 		url = url_make(&home, uri.c_str());
 		LOGD("Enabling transport %s", uri.c_str());
+
+		unsigned server = !getBoolUriParameter(url, "client", false);
+
 		if (uri.find("sips") == 0) {
 			string keys;
 			string value;
@@ -347,7 +351,7 @@ void Agent::start(const string &transport_override, const string passphrase) {
 			checkAllowedParams(url);
 			mPassphrase = passphrase;
 			err = nta_agent_add_tport(
-				mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()),
+				mAgent, (const url_string_t *)url, TPTAG_SERVER(server), TPTAG_CERTIFICATE(keys.c_str()),
 				TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
 				TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
 				TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
@@ -357,7 +361,7 @@ void Agent::start(const string &transport_override, const string passphrase) {
 			);
 		} else {
 			err = nta_agent_add_tport(
-				mAgent, (const url_string_t *)url, TPTAG_IDLE(tports_idle_timeout),
+				mAgent, (const url_string_t *)url, TPTAG_SERVER(server), TPTAG_IDLE(tports_idle_timeout),
 				TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
 				TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
 				TPTAG_QUEUESIZE(queueSize),
