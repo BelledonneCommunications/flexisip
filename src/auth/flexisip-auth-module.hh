@@ -26,12 +26,12 @@
 #include <sofia-sip/msg_types.h>
 #include <sofia-sip/su_wait.h>
 
-#include <flexisip/auth-module.hh>
+#include "flexisip/auth-module.hh"
+#include "flexisip/auth/nonce-store.hh"
+#include "flexisip/auth/flexisip-auth-module-base.hh"
+#include "flexisip/auth/flexisip-auth-status.hh"
 
 #include "authdb.hh"
-#include "flexisip-auth-module-base.hh"
-#include "flexisip-auth-status.hh"
-#include "nonce-store.hh"
 #include "utils/digest.hh"
 
 namespace flexisip {

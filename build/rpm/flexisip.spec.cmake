@@ -219,10 +219,12 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/*.so
 %{_datarootdir}/*
 %dir %{_includedir}/flexisip
-%{_includedir}/flexisip/*.hh
 %{_includedir}/flexisip/*.h
-%{_includedir}/flexisip/*.cc
-%{_localstatedir}/*
+%{_includedir}/flexisip/*.hh
+%{_includedir}/flexisip/auth/*.hh
+%{_includedir}/flexisip/utils/*.hh
+%{_includedir}/flexisip/expressionparser-impl.cc
+%{_localstatedir}//*
 
 %config(noreplace) /lib/systemd/system/flexisip-proxy.service
 %config(noreplace) /lib/systemd/system/flexisip-proxy@.service

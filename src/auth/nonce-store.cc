@@ -18,10 +18,9 @@
 
 #include <sofia-sip/msg_header.h>
 
-#include <flexisip/common.hh>
-#include <flexisip/logmanager.hh>
-
-#include "nonce-store.hh"
+#include "flexisip/auth/nonce-store.hh"
+#include "flexisip/common.hh"
+#include "flexisip/logmanager.hh"
 
 using namespace std;
 using namespace flexisip;
