@@ -314,7 +314,7 @@ ostream &MibDumper::dump(ostream &ostr) const {
 		 << "	DESCRIPTION  \"A Flexisip management tree.\"" << endl
 		 << "	REVISION     \"" << mbstr << "\"" << endl
 		 << "    DESCRIPTION  \"" FLEXISIP_GIT_VERSION << "\"" << endl
-		 << "::={ enterprises " << company_id << " }" << endl
+		 << "::={ enterprises " << SNMP_COMPANY_OID << " }" << endl
 		 << endl;
 
 	dump2(ostr, mRoot, 0);

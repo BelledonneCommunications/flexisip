@@ -19,10 +19,9 @@
 #include <sofia-sip/auth_plugin.h>
 #include <sofia-sip/msg_header.h>
 
-#include <flexisip/logmanager.hh>
-#include <flexisip/module.hh>
-
-#include "flexisip-auth-module-base.hh"
+#include "flexisip/auth/flexisip-auth-module-base.hh"
+#include "flexisip/logmanager.hh"
+#include "flexisip/module.hh"
 
 using namespace std;
 using namespace flexisip;
