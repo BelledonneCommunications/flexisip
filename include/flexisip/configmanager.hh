@@ -62,8 +62,6 @@ typedef struct sip_s sip_t;
 
 namespace flexisip {
 
-const ::oid company_id = SNMP_COMPANY_OID;
-
 struct LpConfig;
 
 enum class ConfigState { Check, Changed, Reset, Commited };

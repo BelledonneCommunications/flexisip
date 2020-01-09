@@ -33,11 +33,10 @@
 #define BCTBX_LOG_DOMAIN FLEXISIP_LOG_DOMAIN
 #endif
 
-#include "bctoolbox/logging.h"
+#include <bctoolbox/logging.h>
 
 #include "flexisip/sip-boolean-expressions.hh"
-
-#include "utils/timer.hh"
+#include "flexisip/utils/timer.hh"
 
 /*
  * These are the classic C-style logging macros.
