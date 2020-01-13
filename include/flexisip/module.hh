@@ -23,9 +23,8 @@
 #include <sofia-sip/tport.h>
 
 #include "flexisip/configmanager.hh"
+#include "flexisip/entryfilter.hh"
 #include "flexisip/event.hh"
-
-#include "entryfilter.hh"
 
 namespace flexisip {
 

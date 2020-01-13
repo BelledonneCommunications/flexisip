@@ -832,7 +832,7 @@ RootConfigStruct::~RootConfigStruct() {
 
 GenericManager::GenericManager()
 	: mNeedRestart(false), mDirtyConfig(false),
-	  mConfigRoot("flexisip", "This is the default Flexisip configuration file", {1, 3, 6, 1, 4, 1, company_id}),
+	  mConfigRoot("flexisip", "This is the default Flexisip configuration file", {1, 3, 6, 1, 4, 1, SNMP_COMPANY_OID}),
 	  mReader(&mConfigRoot), mNotifier(NULL) {
 	// to make sure global_conf is instanciated first
 	static ConfigItemDescriptor global_conf[] = {

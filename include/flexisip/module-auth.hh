@@ -18,10 +18,8 @@
 
 #pragma once
 
-#include "flexisip/auth-module.hh"
-
+#include "auth-module.hh"
 #include "module-authentication-base.hh"
-
 
 namespace flexisip {
 

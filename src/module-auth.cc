@@ -196,7 +196,7 @@ bool Authentication::tlsClientCertificatePostCheck(const shared_ptr<RequestSipEv
  * true: if the tls authentication is handled (either successful or rejected)
  * false: if we have to fallback to digest
  */
-bool Authentication::handleTlsClientAuthentication(const shared_ptr<RequestSipEvent> &ev) {
+bool Authentication::handleTlsClientAuthentication(const std::shared_ptr<RequestSipEvent> &ev) {
 	sip_t *sip = ev->getSip();
 	shared_ptr<tport_t> inTport = ev->getIncomingTport();
 	unsigned int policy = 0;

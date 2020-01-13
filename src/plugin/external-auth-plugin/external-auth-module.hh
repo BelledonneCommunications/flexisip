@@ -22,7 +22,8 @@
 
 #include <sofia-sip/nth.h>
 
-#include "auth/flexisip-auth-module-base.hh"
+#include "flexisip/auth/flexisip-auth-module-base.hh"
+
 #include "utils/string-formater.hh"
 
 namespace flexisip {
