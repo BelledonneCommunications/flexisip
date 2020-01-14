@@ -167,7 +167,7 @@ make install DESTDIR=%{buildroot}
 # Mark all libraries as executable because CMake doesn't on
 # Debian to be complient with Debian policy. But rpmbuild
 # won't strip libraries that aren't marked as executable.
-chmod +x `find %{buildroot} *.so.*`
+find %{buildroot} -type f -name '*.so.*' -exec chmod -v +x {} \;
 
 #
 # Shouldn't be the role of cmake to install all the following stuff ?
@@ -218,7 +218,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/*
 %{_libdir}/*.so
 %{_datarootdir}/*
-%dir %{_includedir}/flexisip
+#%dir %{_includedir}/flexisip
 %{_includedir}/flexisip/*.h
 %{_includedir}/flexisip/*.hh
 %{_includedir}/flexisip/auth/*.hh
