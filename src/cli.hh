@@ -65,7 +65,8 @@ public:
 
 private:
 	void handle_registrar_clear_command(unsigned int socket, const std::vector<std::string> &args);
-	void handle_registrar_raw_command(unsigned int socket, const std::vector<std::string> &args);
+	void handle_registrar_delete_command(unsigned int socket, const std::vector<std::string> &args);
+	void handle_registrar_get_command(unsigned int socket, const std::vector<std::string> &args);
 	void parseAndAnswer(unsigned int socket, const std::string &command, const std::vector<std::string> &args) override;
 
 	std::shared_ptr<Agent> mAgent;
