@@ -52,7 +52,7 @@ private:
 	std::string agregate(const std::vector<std::string> &args, size_t from_pos);
 
 	static void *threadfunc(void *arg);
-	
+
 	std::string mName;
 	pthread_t mThread = 0;
 	int mControlFds[2] = { 0, 0 };
@@ -65,6 +65,8 @@ public:
 
 private:
 	void handle_registrar_clear_command(unsigned int socket, const std::vector<std::string> &args);
+	void handle_registrar_delete_command(unsigned int socket, const std::vector<std::string> &args);
+	void handle_registrar_get_command(unsigned int socket, const std::vector<std::string> &args);
 	void parseAndAnswer(unsigned int socket, const std::string &command, const std::vector<std::string> &args) override;
 
 	std::shared_ptr<Agent> mAgent;

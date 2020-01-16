@@ -315,7 +315,7 @@ void ExtendedContact::extractInfoFromHeader(const char *urlHeaders) {
 				reinterpret_cast<msg_common_t*>(headers)->h_class->hc_name) {
 				string valueStr;
 				string keyStr = reinterpret_cast<msg_common_t*>(headers)->h_class->hc_name;
-				
+
 				valueStr.resize(reinterpret_cast<msg_common_t*>(headers)->h_len + 1);
 				size_t written = msg_header_field_e(&valueStr[0], reinterpret_cast<msg_common_t*>(headers)->h_len, headers, 0);
 				valueStr.resize(written);
@@ -328,7 +328,7 @@ void ExtendedContact::extractInfoFromHeader(const char *urlHeaders) {
 					if (path){
 						mPath.push_back(url_as_string(home.home(), path->r_url));
 					}else{
-						LOGE("ExtendedContact::extractInfoFromHeader(): bad path [%s]", valueStr.c_str()); 
+						LOGE("ExtendedContact::extractInfoFromHeader(): bad path [%s]", valueStr.c_str());
 					}
 				} else if (keyStr == "accept") {
 					mAcceptHeader.push_back(valueStr);
@@ -487,7 +487,7 @@ void ExtendedContact::extractInfoFromUrl(const char* full_url) {
 	} else {
 		url = temp_contact->m_url;
 	}
-	
+
 	if (url == nullptr) {
 		LOGE("ExtendedContact::extractInfoFromUrl() url is null.");
 		return;
@@ -560,7 +560,7 @@ void Record::update(const sip_t *sip, int globalExpire, bool alias, int version,
 		ostringstream contactId;
 		string transport;
 		string uniqueId = extractUniqueId(contacts);
-		
+
 		if (url_param(contacts->m_url[0].url_params, "transport", buffer, sizeof(buffer) - 1) > 0) {
 			transport = buffer;
 		}
@@ -570,6 +570,7 @@ void Record::update(const sip_t *sip, int globalExpire, bool alias, int version,
 		auto exc = make_shared<ExtendedContact>(ecc, contacts, globalExpire, (sip->sip_cseq) ? sip->sip_cseq->cs_seq : 0, getCurrentTime(), alias, acceptHeaders, userAgent);
 		exc->mUsedAsRoute = sip->sip_from->a_url->url_user == nullptr;
 		insertOrUpdateBinding(exc, listener);
+
 		contacts = contacts->m_next;
 	}
 	applyMaxAor();
@@ -636,7 +637,7 @@ url_t *Record::getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t 
 	char gr_value[256] = {0};
 	url_t *gruu_addr = NULL;
 	const char *pub_gruu_value = msg_header_find_param((msg_common_t*)ec->mSipContact, "pub-gruu");
-	
+
 	if (pub_gruu_value){
 		if (pub_gruu_value[0] == '\0'){
 			/*
@@ -649,15 +650,15 @@ url_t *Record::getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t 
 		gruu_addr = url_make(home, StringUtils::unquote(pub_gruu_value).c_str());
 		return gruu_addr;
 	}
-	
+
 	/*
-	 * Compatibility code, when pub-gruu wasn't stored in RegistrarDb. 
+	 * Compatibility code, when pub-gruu wasn't stored in RegistrarDb.
 	 * In such case, we have to synthetize the gruu address from the address of record and the gr uri parameter.
 	 */
-	
+
 	if (!ec->mSipContact->m_url->url_params) return NULL;
 	isize_t result = url_param(ec->mSipContact->m_url->url_params, "gr", gr_value, sizeof(gr_value)-1);
-	
+
 	if (result > 0) {
 		gruu_addr = url_hdup(home, mAor);
 		url_param_add(home, gruu_addr, su_sprintf(home, "gr=%s", gr_value));
@@ -1137,7 +1138,7 @@ void RegistrarDb::bind(const sip_t *sip, const BindingParameters &parameter, con
 			if (instance_param) {
 				string gr = UriUtils::uniqueIdToGr(instance_param);
 				if (!gr.empty()){/* assign a public gruu address to this contact */
-					msg_header_replace_param(home.home(), (msg_common_t *) sip->sip_contact, 
+					msg_header_replace_param(home.home(), (msg_common_t *) sip->sip_contact,
 						su_sprintf(home.home(), "pub-gruu=\"%s;gr=%s\"", url_as_string(home.home(), sip->sip_from->a_url), gr.c_str() ) );
 					gruu_assigned = true;
 				}
@@ -1148,7 +1149,7 @@ void RegistrarDb::bind(const sip_t *sip, const BindingParameters &parameter, con
 		/* Set an empty pub-gruu meaning that this client hasn't requested any pub-gruu from this server.
 		 * This is to preserve compatibility with previous RegistrarDb storage, where only gr parameter was stored.
 		 * This couldn't work because a client can use a "gr" parameter in its contact uri.*/
-		msg_header_replace_param(home.home(), (msg_common_t *) sip->sip_contact, 
+		msg_header_replace_param(home.home(), (msg_common_t *) sip->sip_contact,
 					su_sprintf(home.home(), "pub-gruu"));
 	}
 

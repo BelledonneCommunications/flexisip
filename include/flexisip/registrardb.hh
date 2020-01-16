@@ -79,7 +79,7 @@ struct ExtendedContact {
 	bool mAlias;
 	bool mUsedAsRoute; /*whether the contact information shall be used as a route when forming a request, instead of
 						  replacing the request-uri*/
-	
+
 	bool mIsFallback = false; // boolean indicating whether this ExtendedContact is a fallback route or not. There is no need for it to be serialized to database.
 
 	const char *callId() const {
@@ -215,7 +215,7 @@ class Record {
 	Record(const url_t *aor);
 	//Get address of record
 	const url_t *getAor()const;
-	
+
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
 	sip_contact_t *getContacts(su_home_t *home, time_t now);
@@ -438,7 +438,7 @@ class RegistrarDb {
 	void fetchWithDomain(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive);
 	void notifyContactListener(const std::string &key, const std::string &uid);
 	void notifyStateListener () const;
-	
+
 	RegistrarDb(Agent *ag);
 	virtual ~RegistrarDb();
 	std::multimap<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;
