@@ -27,6 +27,7 @@
 #include <poll.h>
 
 #include "cli.hh"
+#include "recordserializer.hh"
 #include <flexisip/common.hh>
 #include <flexisip/logmanager.hh>
 #include <flexisip/registrardb.hh>
@@ -208,7 +209,7 @@ void CommandLineInterface::run() {
 		pfd[0].events = POLLIN;
 		pfd[1].fd = mControlFds[0];
 		pfd[1].events = POLLIN;
-		
+
 		int ret = poll(pfd, 2, -1);
 		if (ret == -1) {
 			if (errno != EINTR)
@@ -277,7 +278,7 @@ std::string CommandLineInterface::printEntry(GenericEntry *entry, bool printHelp
 	auto gstruct = dynamic_cast<GenericStruct *>(entry);
 	bool isNode = (gstruct != nullptr);
 	std::string answer;
-	
+
 	if (printHelpInsteadOfValue) {
 		if (isNode)
 			answer += "[";
@@ -320,6 +321,45 @@ void *CommandLineInterface::threadfunc(void *arg) {
 
 ProxyCommandLineInterface::ProxyCommandLineInterface(const std::shared_ptr<Agent> &agent) : CommandLineInterface("proxy"), mAgent(agent) {}
 
+void ProxyCommandLineInterface::handle_registrar_raw_command(unsigned int socket, const std::vector<std::string> &args) {
+	if (args.size() < 1) {
+		answer(socket, "Error: a SIP address argument is expected for the RAW command");
+		return;
+	}
+
+	class RawListener : public ContactUpdateListener {
+		public:
+			RawListener(ProxyCommandLineInterface *cli, unsigned int socket)
+				: mCli(cli), mSocket(socket) {}
+
+			void onRecordFound(const shared_ptr<Record> &r) override {
+				std::string serialized;
+				RecordSerializerJson::get()->serialize(r.get(), serialized);
+				mCli->answer(mSocket, serialized);
+			}
+			void onError() override {
+				mCli->answer(mSocket, "ERROR");
+			}
+			void onInvalid() override {
+				mCli->answer(mSocket, "INVALID");
+			}
+			// Mandatory since we inherit from ContactUpdateListener
+			void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
+
+		private:
+			ProxyCommandLineInterface *mCli = nullptr;
+			unsigned int mSocket = 0;
+	};
+
+	auto listener = std::make_shared<RawListener>(this, socket);
+	std::string arg = args.front();
+
+	SofiaAutoHome home;
+	url_t *url = url_make(home.home(), arg.data());
+
+	RegistrarDb::get()->fetch(url, listener, false);
+}
+
 void ProxyCommandLineInterface::handle_registrar_clear_command(unsigned int socket, const std::vector<std::string> &args) {
 	if (args.size() < 1) {
 		answer(socket, "Error: a SIP address argument is expected for the REGISTRAR_CLEAR command");
@@ -354,12 +394,15 @@ void ProxyCommandLineInterface::handle_registrar_clear_command(unsigned int sock
 	auto sip = sip_object(msg);
 	sip->sip_from = sip_from_create(msg_home(msg), (url_string_t *)arg.c_str());
 	auto listener = std::make_shared<ClearListener>(this, socket, arg);
+
 	RegistrarDb::get()->clear(sip, listener);
 }
 
 void ProxyCommandLineInterface::parseAndAnswer(unsigned int socket, const std::string &command, const std::vector<std::string> &args) {
 	if (command == "REGISTRAR_CLEAR")
 		handle_registrar_clear_command(socket, args);
+	else if (command == "REGISTRAR_RAW")
+		handle_registrar_raw_command(socket, args);
 	else
 		CommandLineInterface::parseAndAnswer(socket, command, args);
 }

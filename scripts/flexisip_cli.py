@@ -20,6 +20,7 @@ def parse_args():
 		'CONFIG_GET': {'help': 'Get the value of an internal variable of Flexisip.'},
 		'CONFIG_SET': {'help': 'Set the value of an internal variable of Flexisip.'},
 		'CONFIG_LIST': {'help': 'List all the available parameters of a section.'},
+		'REGISTRAR_RAW': {'help': 'Return a JSON serialized object from the registrar database.'},
 		'REGISTRAR_CLEAR': {'help': 'Remove a user from the registrar database.'}
 	}
 
@@ -45,13 +46,14 @@ def parse_args():
 		help='The name of the section. The list of all available sections is returned if no section name is given.'
 	)
 	commands['REGISTRAR_CLEAR']['parser'].add_argument('uri', help='SIP URI of the user.')
+	commands['REGISTRAR_RAW']['parser'].add_argument('uri', help='SIP URI of the user.')
 
 	return parser.parse_args()
 
 
 def getpid(serverType):
 	from subprocess import check_output, CalledProcessError
-	
+
 	procName = 'flexisip-' + serverType
 	pidFile = '/var/run/{procName}.pid'.format(procName=procName)
 
@@ -59,7 +61,7 @@ def getpid(serverType):
 		return int(check_output(['cat', pidFile]))
 	except CalledProcessError:
 		pass
-	
+
 	try:
 		return int(check_output(['pidof', '-s', procName]))
 	except CalledProcessError:
@@ -76,6 +78,8 @@ def formatMessage(args):
 	elif args.command == 'CONFIG_LIST':
 		messageArgs.append(args.section_name)
 	elif args.command == 'REGISTRAR_CLEAR':
+		messageArgs.append(args.uri)
+	elif args.command == 'REGISTRAR_RAW':
 		messageArgs.append(args.uri)
 	return ' '.join(messageArgs)
 
@@ -101,11 +105,11 @@ def main():
 	socket_path_server = 'proxy-'
 	serverType = args.server
 	pid = args.pid
-		
+
 	if pid == 0:
 		pid = getpid(serverType)
 	socket = socket_path_base + socket_path_server + str(pid)
-	
+
 	message = formatMessage(args)
 	sendMessage(socket, message)
 

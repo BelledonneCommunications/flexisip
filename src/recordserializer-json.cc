@@ -117,6 +117,7 @@ bool RecordSerializerJson::serialize(Record *r, string &serialized, bool log) {
 		if (ec->line())
 			cJSON_AddStringToObject(c, "line_value_copy", ec->line());
 		cJSON_AddStringToObject(c, "contact_id", ec->contactId());
+		cJSON_AddStringToObject(c, "user_agent", ec->getUserAgent().c_str());
 		cJSON_AddNumberToObject(c, "update_time", ec->mUpdatedTime);
 		cJSON_AddStringToObject(c, "call_id", ec->callId());
 		cJSON_AddNumberToObject(c, "cseq", ec->mCSeq);
