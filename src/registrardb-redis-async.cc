@@ -668,10 +668,10 @@ void RegistrarDbRedisAsync::sBindRetry(void *unused, su_timer_t *t, void *ud){
 		goto fail;
 	}
 	if (data->mIsUnregister) goto fail; /* Re-submitting the HDEL is not implemented.*/
-	
+
 	self->serializeAndSendToRedis(data, sHandleBindFinish);
 	return;
-	
+
 	fail:
 		LOGE("Unrecoverable error while updating record fs:%s : no connection", data->mRecord->getKey().c_str());
 		if (data->listener) data->listener->onError();

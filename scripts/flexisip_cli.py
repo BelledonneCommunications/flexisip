@@ -20,7 +20,8 @@ def parse_args():
 		'CONFIG_GET': {'help': 'Get the value of an internal variable of Flexisip.'},
 		'CONFIG_SET': {'help': 'Set the value of an internal variable of Flexisip.'},
 		'CONFIG_LIST': {'help': 'List all the available parameters of a section.'},
-		'REGISTRAR_RAW': {'help': 'Return a JSON serialized object from the registrar database.'},
+		'REGISTRAR_GET': {'help': 'Return a JSON serialized object from the registrar database.'},
+		'REGISTRAR_DELETE': {'help': 'Remove a user client from the registrar database.'},
 		'REGISTRAR_CLEAR': {'help': 'Remove a user from the registrar database.'}
 	}
 
@@ -46,7 +47,9 @@ def parse_args():
 		help='The name of the section. The list of all available sections is returned if no section name is given.'
 	)
 	commands['REGISTRAR_CLEAR']['parser'].add_argument('uri', help='SIP URI of the user.')
-	commands['REGISTRAR_RAW']['parser'].add_argument('uri', help='SIP URI of the user.')
+	commands['REGISTRAR_GET']['parser'].add_argument('uri', help='SIP URI of the user.')
+	commands['REGISTRAR_DELETE']['parser'].add_argument('uri', help='SIP URI of the user.')
+	commands['REGISTRAR_DELETE']['parser'].add_argument('uuid', help='Client identifier.')
 
 	return parser.parse_args()
 
@@ -79,8 +82,11 @@ def formatMessage(args):
 		messageArgs.append(args.section_name)
 	elif args.command == 'REGISTRAR_CLEAR':
 		messageArgs.append(args.uri)
-	elif args.command == 'REGISTRAR_RAW':
+	elif args.command == 'REGISTRAR_GET':
 		messageArgs.append(args.uri)
+	elif args.command == 'REGISTRAR_DELETE':
+		messageArgs.append(args.uri)
+		messageArgs.append(args.uuid)
 	return ' '.join(messageArgs)
 
 

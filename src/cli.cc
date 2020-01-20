@@ -321,34 +321,34 @@ void *CommandLineInterface::threadfunc(void *arg) {
 
 ProxyCommandLineInterface::ProxyCommandLineInterface(const std::shared_ptr<Agent> &agent) : CommandLineInterface("proxy"), mAgent(agent) {}
 
-void ProxyCommandLineInterface::handle_registrar_raw_command(unsigned int socket, const std::vector<std::string> &args) {
+void ProxyCommandLineInterface::handle_registrar_get_command(unsigned int socket, const std::vector<std::string> &args) {
 	if (args.size() < 1) {
-		answer(socket, "Error: a SIP address argument is expected for the RAW command");
+		answer(socket, "Error: a SIP address argument is expected for the REGISTRAR_GET command");
 		return;
 	}
 
 	class RawListener : public ContactUpdateListener {
-		public:
-			RawListener(ProxyCommandLineInterface *cli, unsigned int socket)
-				: mCli(cli), mSocket(socket) {}
+	public:
+		RawListener(ProxyCommandLineInterface *cli, unsigned int socket)
+			: mCli(cli), mSocket(socket) {}
 
-			void onRecordFound(const shared_ptr<Record> &r) override {
-				std::string serialized;
-				RecordSerializerJson::get()->serialize(r.get(), serialized);
-				mCli->answer(mSocket, serialized);
-			}
-			void onError() override {
-				mCli->answer(mSocket, "ERROR");
-			}
-			void onInvalid() override {
-				mCli->answer(mSocket, "INVALID");
-			}
-			// Mandatory since we inherit from ContactUpdateListener
-			void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
+		void onRecordFound(const shared_ptr<Record> &r) override {
+			std::string serialized;
+			RecordSerializerJson::get()->serialize(r.get(), serialized);
+			mCli->answer(mSocket, serialized);
+		}
+		void onError() override {
+			mCli->answer(mSocket, "ERROR");
+		}
+		void onInvalid() override {
+			mCli->answer(mSocket, "INVALID");
+		}
+		// Mandatory since we inherit from ContactUpdateListener
+		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
 
-		private:
-			ProxyCommandLineInterface *mCli = nullptr;
-			unsigned int mSocket = 0;
+	private:
+		ProxyCommandLineInterface *mCli = nullptr;
+		unsigned int mSocket = 0;
 	};
 
 	auto listener = std::make_shared<RawListener>(this, socket);
@@ -358,6 +358,64 @@ void ProxyCommandLineInterface::handle_registrar_raw_command(unsigned int socket
 	url_t *url = url_make(home.home(), arg.data());
 
 	RegistrarDb::get()->fetch(url, listener, false);
+}
+
+void ProxyCommandLineInterface::handle_registrar_delete_command(unsigned int socket, const std::vector<std::string> &args) {
+	if (args.size() < 2) {
+		answer(socket, "Error: an URI arguments is expected for the REGISTRAR_DELETE command");
+		return;
+	}
+
+	class DeleteListener : public ContactUpdateListener {
+	public:
+		DeleteListener(ProxyCommandLineInterface *cli, unsigned int socket)
+			: mCli(cli), mSocket(socket) {}
+
+		void onRecordFound(const shared_ptr<Record> &r) override {
+			std::string serialized;
+			RecordSerializerJson::get()->serialize(r.get(), serialized);
+			mCli->answer(mSocket, serialized);
+		}
+		void onError() override {
+			mCli->answer(mSocket, "ERROR");
+		}
+		void onInvalid() override {
+			mCli->answer(mSocket, "INVALID");
+		}
+		// Mandatory since we inherit from ContactUpdateListener
+		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
+
+	private:
+		ProxyCommandLineInterface *mCli = nullptr;
+		unsigned int mSocket = 0;
+	};
+
+	std::string from = args.at(0);
+	std::string uuid = args.at(1);
+
+	auto msg = nta_msg_create(mAgent->getSofiaAgent(), 0);
+	msg_header_add_dup(
+		msg,
+		nullptr,
+		reinterpret_cast<msg_header_t*>(sip_request_make(msg_home(msg), "MESSAGE sip:abcd SIP/2.0\r\n"))
+	);
+
+	BindingParameters parameter;
+	parameter.globalExpire = 0;
+
+	// We forge a fake SIP message
+	auto sip = sip_object(msg);
+	sip->sip_from = sip_from_create(msg_home(msg), (url_string_t *)from.c_str());
+	sip->sip_contact = sip_contact_create(
+		msg_home(msg),
+		(url_string_t *)from.c_str(), string("+sip.instance=").append(uuid).c_str(),
+		nullptr
+	);
+	sip->sip_call_id = sip_call_id_make(msg_home(msg), "foobar");
+
+	auto listener = std::make_shared<DeleteListener>(this, socket);
+
+	RegistrarDb::get()->bind(sip, parameter, listener);
 }
 
 void ProxyCommandLineInterface::handle_registrar_clear_command(unsigned int socket, const std::vector<std::string> &args) {
@@ -401,8 +459,10 @@ void ProxyCommandLineInterface::handle_registrar_clear_command(unsigned int sock
 void ProxyCommandLineInterface::parseAndAnswer(unsigned int socket, const std::string &command, const std::vector<std::string> &args) {
 	if (command == "REGISTRAR_CLEAR")
 		handle_registrar_clear_command(socket, args);
-	else if (command == "REGISTRAR_RAW")
-		handle_registrar_raw_command(socket, args);
+	else if (command == "REGISTRAR_DELETE")
+		handle_registrar_delete_command(socket, args);
+	else if (command == "REGISTRAR_GET")
+		handle_registrar_get_command(socket, args);
 	else
 		CommandLineInterface::parseAndAnswer(socket, command, args);
 }
