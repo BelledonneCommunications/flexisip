@@ -190,6 +190,7 @@ public:
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
 	void logEvent(const std::shared_ptr<SipEvent> &ev);
 	Module *findModule(const std::string &moduleName) const;
+	Module *findModuleByFunction(const std::string &moduleFunction) const;
 	nth_engine_t *getHttpEngine() {
 		return mHttpEngine;
 	}
