@@ -964,17 +964,20 @@ void Agent::logEvent(const shared_ptr<SipEvent> &ev) {
 	}
 }
 
-struct ModuleHasName {
-	ModuleHasName(const string &ref) : match(ref) {
-	}
-	bool operator()(Module *module) {
-		return module->getModuleName() == match;
-	}
-	const string &match;
-};
 Module *Agent::findModule(const string &moduleName) const {
-	auto it = find_if(mModules.begin(), mModules.end(), ModuleHasName(moduleName));
-	return (it != mModules.end()) ? *it : NULL;
+	auto it = find_if(
+		mModules.cbegin(), mModules.cend(),
+		[&moduleName](const Module *m){return m->getModuleName() == moduleName;}
+	);
+	return (it != mModules.cend()) ? *it : nullptr;
+}
+
+Module *Agent::findModuleByFunction(const std::string &moduleFunction) const {
+	auto it = find_if(
+		mModules.cbegin(), mModules.cend(),
+		[&moduleFunction](const Module *m){return m->getInfo()->getFunction() == moduleFunction;}
+	);
+	return (it != mModules.cend()) ? *it : nullptr;
 }
 
 template <typename SipEventT>

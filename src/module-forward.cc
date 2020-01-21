@@ -110,8 +110,8 @@ void ForwardModule::onLoad(const GenericStruct *mc) {
 	else mDefaultTransport = "transport=" + mDefaultTransport;
 	/* The forward module needs the help of the router module to determine whether
 	 * a gruu request uri is under control of this domain or not. */
-	mRouterModule = dynamic_cast<ModuleRouter*>(getAgent()->findModule("Router"));
-	if (!mRouterModule) LOGA("Could not find router module.");
+	mRouterModule = dynamic_cast<ModuleRouter*>(getAgent()->findModuleByFunction("Router"));
+	if (!mRouterModule) LOGA("Could not find 'Router' module.");
 	
 	const GenericStruct *clusterSection = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 	bool clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
