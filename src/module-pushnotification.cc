@@ -102,6 +102,7 @@ private:
 	std::unique_ptr<PushNotificationService> mPNS;
 	StatCounter64 *mCountFailed = nullptr;
 	StatCounter64 *mCountSent = nullptr;
+	PushInfo::ApplePushType mAppleSilentPushType;
 	bool mNoBadgeiOS = false;
 
 	friend class PushNotificationContext;
@@ -196,6 +197,11 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "They should bear the appid of the application, suffixed by the release mode and .pem extension, and made of certificate followed by private key. "
 		 "For example: org.linphone.voip.dev.pem org.linphone.voip.prod.pem com.somephone.voip.dev.pem etc...",
 		 "/etc/flexisip/apn"},
+		{String, "apple-silent-push-type", "Specify the way of formatting push notification sent to apple servers when the client requests to use silent push notifications"
+			" with pn-silent=1 parameter in its contact uri parameter. Several options are available:\n"
+			" - 'pushkit' : format a push notification suitable for usage with pushkit. This is the default value."
+			" - 'normal' : format a push notification suitable for normal push notifications, with 'content-available' attribute set to 1."
+			, "pushkit"},
 		{Boolean, "google", "Enable push notification for android devices (for compatibility only)", "true"},
 		{StringList, "google-projects-api-keys",
 		 "List of couples projectId:ApiKey for each android project that supports push notifications (for compatibility only)", ""},
@@ -262,6 +268,15 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	}
 	mRetransmissionCount = retransmissionCount;
 	mRetransmissionInterval = retransmissionInterval;
+	
+	string applePushType = mc->get<ConfigString>("apple-silent-push-type")->read();
+	if (applePushType == "pushkit"){
+		mAppleSilentPushType = PushInfo::Pushkit;
+	}else if (applePushType == "normal"){
+		mAppleSilentPushType = PushInfo::Normal;
+	}else{
+		LOGF("Bad value '%s' for module::PushNotification/apple-silent-push-type property.", applePushType.c_str());
+	}
 
 	mExternalPushMethod = mc->get<ConfigString>("external-push-method")->read();
 	if (!externalUri.empty()) {
@@ -376,6 +391,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				try {
 					pnSilentStr = UriUtils::getParamValue(params, "pn-silent");
 					pinfo.mSilent = bool(stoi(pnSilentStr));
+					if (pinfo.mSilent && pinfo.mType == "apple") pinfo.mApplePushType = mAppleSilentPushType;
 				} catch (const logic_error &) {
 					SLOGE << "invalid 'pn-silent' value: " << pnSilentStr;
 				}

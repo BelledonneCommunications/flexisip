@@ -29,10 +29,15 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	mTtl = info.mTtl;
 
 	if (info.mSilent || msg_id == "IC_SIL") {
-		// silent push = pushkit.
-		// We also need msg_id and callid in case the push is received but the device cannot register
-		payload << "{\"aps\":{\"sound\":\"\", \"loc-key\":\"" << msg_id << "\", \"call-id\":\"" << callid <<"\", \"uuid\":" << quoteStringIfNeeded(info.mUid)
-			<< ", \"send-time\":\"" << date << "\"}, \"pn_ttl\":"<< info.mTtl << "}";
+		if (info.mApplePushType == PushInfo::Pushkit){
+			// We also need msg_id and callid in case the push is received but the device cannot register
+			payload << "{\"aps\":{\"sound\":\"\", \"loc-key\":\"" << msg_id << "\", \"call-id\":\"" << callid <<"\", \"uuid\":" << quoteStringIfNeeded(info.mUid)
+				<< ", \"send-time\":\"" << date << "\"}, \"pn_ttl\":"<< info.mTtl << "}";
+		}else{
+			// Use a normal push notification with content-available set to 1, no alert, no sound.
+			payload << "{\"aps\": { \"badge\" : 0, \"content-available\" : 1, \"call-id\":\"" << callid <<"\", \"uuid\":" << quoteStringIfNeeded(info.mUid)
+				<< ", \"send-time\":\"" << date << "\"}, \"pn_ttl\":"<< info.mTtl << "}";
+		}
 	} else {
 		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg
 		<< "\"]},\"sound\":\"" << sound << "\"";

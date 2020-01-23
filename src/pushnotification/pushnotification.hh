@@ -44,6 +44,9 @@ struct PushInfo {
 	std::string mUid; // The unique id as used in the ExtendedContact, if available.
 	std::string mAccessToken; // access token required by Microsoft to authenticate our server
 	int mTtl; //Time to live of the push notification.
+	enum ApplePushType{
+		Pushkit, Normal
+	} mApplePushType;
 	bool mNoBadge; // Whether to display a badge on the application (ios specific).
 	bool mSilent;
 };
