@@ -43,7 +43,7 @@ void Authentication::onDeclare(GenericStruct *mc) {
 	ConfigItemDescriptor items[] = {
 		{StringList, "trusted-hosts", "List of whitespace separated IP which will not be challenged.", ""},
 		{String, "db-implementation",
-			"Database backend implementation for digest authentication [odbc,soci,file].",
+			"Database backend implementation for digest authentication [soci,file].",
 			"file"
 		},
 		{String, "datasource",
