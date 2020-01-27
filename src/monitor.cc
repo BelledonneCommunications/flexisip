@@ -41,8 +41,10 @@ Monitor::Init::Init() {
 		config_item_end};
 
 	GenericStruct *s = new GenericStruct("monitor", "Flexisip monitor parameters", 0);
-	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
+	s->setDeprecated(true);
+
+	GenericManager::get()->getRoot()->addChild(s);
 }
 
 void Monitor::exec(int socket) {
