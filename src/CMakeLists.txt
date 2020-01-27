@@ -206,8 +206,6 @@ if(ENABLE_PRESENCE)
 		presence/list-subscription/body-list-subscription.hh
 		presence/list-subscription/list-subscription.cc
 		presence/list-subscription/list-subscription.hh
-		presence/presence-configmanager.cc
-		presence/presence-configmanager.hh
 		presence/presence-longterm.cc
 		presence/presence-longterm.hh
 		presence/presence-server.cc
