@@ -197,7 +197,7 @@ public:
 	DomainRegistrationManager *getDRM() {
 		return mDrm;
 	}
-	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr = false);
+	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name);
 	void applyProxyToProxyTransportSettings(tport_t *tp);
 private:
 	// Private types
