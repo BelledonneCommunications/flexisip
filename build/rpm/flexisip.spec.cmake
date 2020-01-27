@@ -51,20 +51,6 @@ fi
 
 
 
-# Macro to set SELinux permission on log directory
-# It is needed in order logrotate be able to manipulate
-# Flexisip's logs
-%if %centos_platform
-
-%global selinux_logdir_permissions \
-if [ $1 -eq 1 ]; then \
-	/usr/bin/chcon -t chcon -t var_log_t %{flexisip_logdir} || true \
-fi
-
-%endif
-
-
-
 Summary:       SIP proxy with media capabilities
 Name:          @CPACK_PACKAGE_NAME@
 Version:       ${RPM_VERSION}
@@ -208,7 +194,7 @@ rm -rf $RPM_BUILD_ROOT
 %if %centos_platform
 %post
 %systemd_post %flexisip_services
-%selinux_logdir_permissions
+/usr/bin/chcon -t chcon -t var_log_t %{flexisip_logdir} || true
 %endif
 
 %preun
