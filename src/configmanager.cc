@@ -852,6 +852,20 @@ GenericManager::GenericManager()
 	  mReader(&mConfigRoot), mNotifier(NULL) {
 	// to make sure global_conf is instanciated first
 	static ConfigItemDescriptor global_conf[] = {
+		// processus settings
+		{StringList, "default-servers", "Servers started by default when no --server option is specified on command line. "
+			"Possible values are 'proxy', 'presence', separated by whitespaces.", "proxy" },
+		{Boolean, "auto-respawn", "Automatically respawn flexisip in case of abnormal termination (crashes)", "true"},
+		{String, "plugins-dir", "Path to the directory where plugins can be found.", DEFAULT_PLUGINS_DIR},
+		{StringList, "plugins", "Plugins to use.", ""},
+		{Boolean, "dump-corefiles", "Generate a corefile when crashing. "
+			"Note that by default linux will generate coredumps in '/' which is not so convenient. The following shell command can be added to"
+			" /etc/rc.local in order to write core dumps a in specific directory, for example /home/cores:\n"
+			"\techo \"/home/cores/core.\%e.\%t.\%p\" >/proc/sys/kernel/core_pattern"
+			, "true"},
+		{Boolean, "enable-snmp", "Enable SNMP.", "false"},
+
+		// log settings
 		{String, "log-directory", "Directory where to create log files.\n"
 			"WARNING: Flexisip has no embedded log rotation system but provides a configuration file for logrotate. Please ensure "
 			"that logrotate is installed and running on your system if you want to have Flexisip's logs rotated. Log rotation can be customized by "
@@ -865,17 +879,8 @@ GenericManager::GenericManager()
 			" The definition of the SIP boolean expression is the same as for entry filters of modules, which is "
 			"documented here: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/", ""},
 		{String, "contextual-log-level", "Verbosity of contextual logs to output when the condition defined in 'contextual-log-filter' is met.", "debug"},
-		{Boolean, "dump-corefiles", "Generate a corefile when crashing. "
-			"Note that by default linux will generate coredumps in '/' which is not so convenient. The following shell command can be added to"
-			" /etc/rc.local in order to write core dumps a in specific directory, for example /home/cores:\n"
-			"\techo \"/home/cores/core.\%e.\%t.\%p\" >/proc/sys/kernel/core_pattern"
-			, "true"},
-		{Boolean, "auto-respawn", "Automatically respawn flexisip in case of abnormal termination (crashes)", "true"},
-		{StringList, "aliases", "List of white space separated host names pointing to this machine. This is to prevent "
-								"loops while routing SIP messages.",
-		 "localhost"},
-		{StringList, "default-servers", "Servers started by default when no --server option is specified on command line. "
-						"Possible values are 'proxy', 'presence', separated by whitespaces.", "proxy" },
+
+		// network settings
 		{StringList, "transports",
 		 "List of white space separated SIP uris where the proxy must listen.\n"
 		 "Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' parameter is unspecified, it will "
@@ -912,6 +917,27 @@ GenericManager::GenericManager()
 		 "Bind address won't appear in messages:\n"
 		 "\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29",
 		 "sip:*"},
+		{StringList, "aliases", "List of white space separated host names pointing to this machine. This is to prevent "
+								"loops while routing SIP messages.", "localhost"},
+		{Integer, "idle-timeout", "Time interval in seconds after which inactive connections are closed.", "3600"},
+		{Integer, "keepalive-interval", "Time interval in seconds for sending \"\\r\\n\\r\\n\" keepalives packets on inbound and outbound connections. "
+			"A value of zero stands for no keepalive. The main purpose of sending keepalives is to keep connection alive accross NATs, but it also"
+			" helps in detecting silently broken connections which can reduce the number socket descriptors used by flexisip.", "1800"},
+		{Integer, "proxy-to-proxy-keepalive-interval", "Time interval in seconds for sending \"\\r\\n\\r\\n\" keepalives packets specifically for proxy "
+			"to proxy connections. Indeed, while it is undesirable to send frequent keepalives to mobile clients because it drains their battery,"
+			" sending frequent keepalives has proven to be helpful to keep connections up between proxy nodes in a very popular US virtualized datacenter."
+			" A value of zero stands for no keepalive.", "0"},
+		{Integer, "transaction-timeout", "SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.",
+		 "32000"},
+		{Integer, "udp-mtu",
+		 "The UDP MTU. Flexisip will fallback to TCP when sending a message whose size exceeds the UDP MTU."
+		 " Please read http://sofia-sip.sourceforge.net/refdocs/nta/nta__tag_8h.html#a6f51c1ff713ed4b285e95235c4cc999a "
+		 "for more "
+		 "details. If sending large packets over UDP is not a problem, then set a big value such as 65535. "
+		 "Unlike the recommandation of the RFC, the default value of UDP MTU is 1460 in Flexisip (instead of 1300).",
+		 "1460"},
+
+		// TLS settings
 		{String, "tls-certificates-dir",
 		 "Path to the directory where TLS server certificate and private key can be found,"
 		 " concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'. "
@@ -924,31 +950,12 @@ GenericManager::GenericManager()
 		 " set by Flexisip should provide a high level of security while keeping an acceptable level of interoperability"
 		 " with currenttly deployed client on the marcket.",
 		 "HIGH:!SSLv2:!SSLv3:!TLSv1:!EXP:!ADH:!RC4:!3DES:!aNULL:!eNULL"},
-		{Integer, "idle-timeout", "Time interval in seconds after which inactive connections are closed.", "3600"},
-		{Integer, "keepalive-interval", "Time interval in seconds for sending \"\\r\\n\\r\\n\" keepalives packets on inbound and outbound connections. "
-			"A value of zero stands for no keepalive. The main purpose of sending keepalives is to keep connection alive accross NATs, but it also"
-			" helps in detecting silently broken connections which can reduce the number socket descriptors used by flexisip.", "1800"},
-		{Integer, "proxy-to-proxy-keepalive-interval", "Time interval in seconds for sending \"\\r\\n\\r\\n\" keepalives packets specifically for proxy "
-			"to proxy connections. Indeed, while it is undesirable to send frequent keepalives to mobile clients because it drains their battery,"
-			" sending frequent keepalives has proven to be helpful to keep connections up between proxy nodes in a very popular US virtualized datacenter."
-			" A value of zero stands for no keepalive.", "0"},
 		{Boolean, "require-peer-certificate", "Require client certificate from peer (inbound connections only).", "false"},
-		{Integer, "transaction-timeout", "SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.",
-		 "32000"},
-		{Integer, "udp-mtu",
-		 "The UDP MTU. Flexisip will fallback to TCP when sending a message whose size exceeds the UDP MTU."
-		 " Please read http://sofia-sip.sourceforge.net/refdocs/nta/nta__tag_8h.html#a6f51c1ff713ed4b285e95235c4cc999a "
-		 "for more "
-		 "details. If sending large packets over UDP is not a problem, then set a big value such as 65535. "
-		 "Unlike the recommandation of the RFC, the default value of UDP MTU is 1460 in Flexisip (instead of 1300).",
-		 "1460"},
-		{Boolean, "enable-snmp", "Enable SNMP.", "true"},
+
+		// other settings
 		{String, "unique-id", "Unique ID used to identify that instance of Flexisip. It must be a randomly generated "
 			"16-sized hexadecimal number. If empty, it will be randomly generated at each start of Flexisip.", ""},
-		{Boolean, "use-maddr", "Allow flexisip to use maddr in sips connections to verify the CN of the TLS certificate.", "false"},
-		{Boolean, "debug", "Outputs very detailed logs.", "false"},
-		{String, "plugins-dir", "Path to the directory where plugins can be found.", DEFAULT_PLUGINS_DIR},
-		{StringList, "plugins", "Plugins to use.", ""},
+
 		config_item_end};
 
 	static ConfigItemDescriptor cluster_conf[] = {
@@ -990,8 +997,6 @@ GenericManager::GenericManager()
 	GenericStruct *global = new GenericStruct("global", "Some global settings of the flexisip proxy.", 2);
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
-	global->get<ConfigBoolean>("debug")->setDeprecated(true);
-	global->get<ConfigBoolean>("use-maddr")->setDeprecated(true); /*Deprecate use-maddr parameter. Using canonical names is preferred as it allows IPv6/IPv4 transitions during calls*/
 	global->get<ConfigByteSize>("max-log-size")->setDeprecated(true);
 	global->setConfigListener(this);
 

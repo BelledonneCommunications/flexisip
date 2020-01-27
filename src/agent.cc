@@ -445,7 +445,7 @@ void Agent::start(const string &transport_override, const string passphrase) {
 				tp_name_t tmp_name = *name;
 				tmp_name.tpn_canon = clusterDomain.c_str();
 				tmp_name.tpn_port = NULL;
-				mClusterUri = urlFromTportName(&mHome, &tmp_name, true);
+				mClusterUri = urlFromTportName(&mHome, &tmp_name);
 			}
 		}
 	}
@@ -492,7 +492,6 @@ void Agent::start(const string &transport_override, const string passphrase) {
 	LOGD("Agent public resolved hostname/ip: v4:%s v6:%s", mPublicResolvedIpV4.c_str(), mPublicResolvedIpV6.c_str());
 	LOGD("Agent's _default_ RTP bind ip address: v4:%s v6:%s", mRtpBindIp.c_str(), mRtpBindIp6.c_str());
 
-	mUseMaddr = GenericManager::get()->getGlobal()->get<ConfigBoolean>("use-maddr")->read();
 	startLogWriter();
 
 	loadModules();
@@ -1170,7 +1169,7 @@ int Agent::onIncomingMessage(msg_t *msg, const sip_t *sip) {
 	return 0;
 }
 
-url_t* Agent::urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr) {
+url_t* Agent::urlFromTportName(su_home_t* home, const tp_name_t* name) {
 	url_t *url = NULL;
 	url_type_e ut = url_sip;
 
@@ -1185,18 +1184,6 @@ url_t* Agent::urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoi
 
 	url->url_port = su_strdup(home, name->tpn_port);
 	url->url_host = su_strdup(home, name->tpn_canon);
-	if (
-		ut == url_sips
-		&& !avoidMAddr
-		&& (strcmp(name->tpn_host, name->tpn_canon) != 0)
-		&& mUseMaddr
-	) {
-		const string &resolvedIp = strchr(name->tpn_host, ':')
-			? mPublicResolvedIpV6
-			: mPublicResolvedIpV4;
-		url_param_add(home, url, su_sprintf(home, "maddr=%s", resolvedIp.c_str()));
-	}
-
 	return url;
 }
 
