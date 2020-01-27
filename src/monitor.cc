@@ -43,6 +43,7 @@ Monitor::Init::Init() {
 	GenericStruct *s = new GenericStruct("monitor", "Flexisip monitor parameters", 0);
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
+	s->setExportable(false);
 }
 
 void Monitor::exec(int socket) {
