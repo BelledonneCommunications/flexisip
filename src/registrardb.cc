@@ -882,7 +882,7 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 
 	bool useGlobalDomain = mro->get<ConfigBoolean>("use-global-domain")->read();
 	string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
-	string mMessageExpiresName = mr->get<ConfigString>("name-message-expires")->read();
+	string mMessageExpiresName = mr->get<ConfigString>("message-expires-param-name")->read();
 	if ("internal" == dbImplementation) {
 		LOGI("RegistrarDB implementation is internal");
 		sUnique = new RegistrarDbInternal(ag);
@@ -1272,14 +1272,11 @@ RecordSerializer *RecordSerializer::sInstance = nullptr;
 
 RecordSerializer *RecordSerializer::get() {
 	if (!sInstance) {
-		GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
-		string name = registrar->get<ConfigString>("redis-record-serializer")->read();
-
+		string name = "protobuf";
 		sInstance = create(name);
 		if (!sInstance) {
 			LOGF("Unsupported record serializer: '%s'", name.c_str());
 		}
 	}
-
 	return sInstance;
 }

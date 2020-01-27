@@ -197,7 +197,7 @@ public:
 	DomainRegistrationManager *getDRM() {
 		return mDrm;
 	}
-	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr = false);
+	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name);
 	void applyProxyToProxyTransportSettings(tport_t *tp);
 private:
 	// Private types
@@ -252,7 +252,6 @@ private:
 	std::string mPassphrase;
 	tport_t *mInternalTport = nullptr;
 	static constexpr const char* sInternalTransportIdent = "internal-transport";
-	bool mUseMaddr = false;
 	bool mTerminating = false;
 #if ENABLE_MDNS
 	std::vector<belle_sip_mdns_register_t *> mMdnsRegisterList;

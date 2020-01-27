@@ -750,14 +750,9 @@ int main(int argc, char *argv[]) {
 		return dump_config(root, "all", displayExperimental, false, "file");
 	}
 
-	if (!debug){
-		if (cfg->getGlobal()->get<ConfigBoolean>("debug")->read()){
-			debug = true;
-		}
-	}else{
-		//if --debug is given, enable user-errors logs as well.
-		user_errors = true;
-	}
+	//if --debug is given, enable user-errors logs as well.
+	if (debug) user_errors = true;
+
 	bool dump_cores = cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
 
 	bool startProxy = false;

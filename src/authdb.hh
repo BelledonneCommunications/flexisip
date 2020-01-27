@@ -235,7 +235,7 @@ public:
 	void getUserWithPhoneFromBackend(const std::string &phone, const std::string &domain, AuthDbListener *listener) override;
 	void getPasswordFromBackend(const std::string &id, const std::string &domain, const std::string &authid, AuthDbListener *listener) override;
 
-	static void declareConfig(GenericStruct *mc){};
+	static void declareConfig(GenericStruct *mc);
 };
 
 }
@@ -280,7 +280,6 @@ private:
 	std::string get_users_with_phones_request;
 	std::string get_password_algo_request;
 	bool check_domain_in_presence_results = false;
-	bool hashed_passwd;
 	bool _connected = false;
 
 	friend AuthDbBackend;

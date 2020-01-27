@@ -81,12 +81,12 @@ ForwardModule::~ForwardModule() {
 
 void ForwardModule::onDeclare(GenericStruct *module_config) {
 	ConfigItemDescriptor items[] = {
-		{String, "route", "A sip uri representing a default where to send all requests not already resolved. "
-		"This is the typical way to setup a Flexisip proxy server acting as a front-end for backend SIP server.", ""},
+		{String, "route", "A SIP URI representing a default where to send all requests not already resolved. This is "
+			"the typical way to setup a Flexisip proxy server acting as a front-end for backend SIP server.", ""},
 		{Boolean, "add-path", "Add a path header of this proxy", "true"},
 		{Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to above route", "false"},
-		{String, "default-transport", "For sip uris, in asbsence of transport parameter, assume the given transport is to be is to be used."
-			 " Possible values are udp, tcp or tls.", "udp"},
+		{String, "default-transport", "For SIP URIs, in asbsence of transport parameter, assume the given transport "
+			"is to be used. Possible values are udp, tcp or tls.", "udp"},
 		{StringList, "params-to-remove",
 			 "List of URL and contact params to remove",
 			 "pn-tok pn-type app-id pn-msg-str pn-call-str pn-call-snd pn-msg-snd pn-timeout pn-silent pn-provider pn-prid pn-param"},

@@ -101,7 +101,6 @@ private:
 	int mTtl = 0;
 	unsigned mRetransmissionCount = 0;
 	unsigned mRetransmissionInterval = 0;
-	map<string, string> mGoogleKeys;
 	map<string, string> mFirebaseKeys;
 	std::unique_ptr<PushNotificationService> mPNS;
 	StatCounter64 *mCountFailed = nullptr;
@@ -177,7 +176,7 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	"android, windows, as well as a generic http get/post to a custom server to which "
 	"actual sending of the notification is delegated. The push notification is sent when an "
 	"INVITE or MESSAGE request is not answered by the destination of the request "
-	"within a certain period of time, configurable hereunder as 'timeout' parameter.",
+	"within a certain period of time, configurable hereunder by 'timeout' parameter.",
 	{ "Router" },
 	ModuleInfoBase::ModuleOid::PushNotification
 );
@@ -188,39 +187,40 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = {
 		{Integer, "timeout",
-		 "Number of seconds to wait before sending a push notification to device. A value lesser or equal to zero will make "
-		 "the push notification to be sent immediately.", "5"},
-		{Integer, "max-queue-size", "Maximum number of notifications queued for each client", "100"},
-		{Integer, "time-to-live", "Default time to live for the push notifications, in seconds. This parameter shall be set according to mDeliveryTimeout parameter in ForkContext.cc", "2592000"},
-		{Integer, "retransmission-count", "Number of push notification request retransmissions sent to a client for a same event (call or message). Retransmissions cease when a response "
-			"is received from the client. Setting a value of zero disables retransmissions.", "0"},
-		{Integer, "retransmission-interval", "Retransmission interval in seconds for push notification requests, when a retransmission-count has been specified above.", "5"},
+		 "Number of seconds to wait before sending a push notification to device. A value lesser or equal to zero will "
+		 "make the push notification to be sent immediately.", "0"},
+		{Integer, "max-queue-size", "Maximum number of notifications queued for each push notification service", "100"},
+		{Integer, "time-to-live", "Default time to live for the push notifications, in seconds. This parameter shall be "
+			"set according to mDeliveryTimeout parameter in ForkContext.cc", "2592000"},
+		{Integer, "retransmission-count", "Number of push notification request retransmissions sent to a client for a "
+			"same event (call or message). Retransmissions cease when a response is received from the client. Setting "
+			"a value of zero disables retransmissions.", "0"},
+		{Integer, "retransmission-interval", "Retransmission interval in seconds for push notification requests, when "
+			"a retransmission-count has been specified above.", "5"},
 		{Boolean, "apple", "Enable push notification for apple devices", "true"},
 		{String, "apple-certificate-dir",
 		 "Path to directory where to find Apple Push Notification service certificates. They should bear the appid of "
 		 "the application, suffixed by the release mode and .pem extension. For example: org.linphone.dev.pem "
-		 "org.linphone.prod.pem com.somephone.dev.pem etc..."
-		 " The files should be .pem format, and made of certificate followed by private key. "
-		 "This is also the path to the directory where to find Voice Over IP certificates (certicates to use PushKit)."
-		 "They should bear the appid of the application, suffixed by the release mode and .pem extension, and made of certificate followed by private key. "
-		 "For example: org.linphone.voip.dev.pem org.linphone.voip.prod.pem com.somephone.voip.dev.pem etc...",
-		 "/etc/flexisip/apn"},
-		{Boolean, "google", "Enable push notification for android devices (for compatibility only)", "true"},
-		{StringList, "google-projects-api-keys",
-		 "List of couples projectId:ApiKey for each android project that supports push notifications (for compatibility only)", ""},
-		{Boolean, "firebase", "Enable push notification for android devices (new method for android)", "true"},
+		 "org.linphone.prod.pem com.somephone.dev.pem etc... The files should be .pem format, and made of certificate "
+		 "followed by private key.\n"
+		 "This is also the path to the directory where to find Voice Over IP certificates (certicates to use PushKit). "
+		 "They should bear the appid of the application, suffixed by the release mode and .pem extension, and made of "
+		 "certificate followed by private key. For example: org.linphone.voip.dev.pem org.linphone.voip.prod.pem "
+		 "com.somephone.voip.dev.pem etc...", "/etc/flexisip/apn"},
+		{Boolean, "no-badge", "Set the badge value to 0 for Apple push", "false"},
+		{Boolean, "firebase", "Enable push notification for Android devices (new method for Android)", "true"},
 		{StringList, "firebase-projects-api-keys",
-		 "List of couples projectId:ApiKey for each android project that supports push notifications (new method for android)", ""},
-		{Boolean, "windowsphone", "Enable push notification for windows phone 8 devices", "true"},
-		{String, "windowsphone-package-sid", "Unique identifier for your Windows Store app. For example: ms-app://s-1-15-2-2345030743-3098444494-743537440-5853975885-5950300305-5348553438-505324794", ""},
+		 "List of couples projectId:ApiKey for each Android project that supports push notifications (new method for "
+		 "Android)", ""},
+		{Boolean, "windowsphone", "Enable push notification for Windows Phone 8 devices", "true"},
+		{String, "windowsphone-package-sid", "Unique identifier for your Windows Store app.\n"
+			"For example: ms-app://s-1-15-2-2345030743-3098444494-743537440-5853975885-5950300305-5348553438-505324794", ""},
 		{String, "windowsphone-application-secret", "Client secret. For example: Jrp1UoVt4C6CYpVVJHUPdcXLB1pEdRoB", ""},
-		{Boolean, "no-badge", "Set the badge value to 0 for apple push", "false"},
 		{String, "external-push-uri",
-		 "Instead of having Flexisip sending the push notification directly to the Google/Apple/Microsoft push servers,"
-		 " send an http request to an http server with all required information encoded in URL, to which the actual "
-		 "sending of the push notification"
-		 " is delegated. The following arguments can be substitued in the http request uri, with the following "
-		 "values:\n"
+		 "Instead of having Flexisip sending the push notification directly to the Google/Apple/Microsoft push "
+		 "servers, send an http request to a server with all required information encoded in the URL, to which the "
+		 "actual sending of the push notification is delegated. The following arguments can be substitued in the http "
+		 "request uri, with the following values:\n"
 		 " - $type      : apple, google, wp, firebase\n"
 		 " - $token     : device token\n"
 		 " - $api-key   : the api key to use (google and firebase only)\n"
@@ -239,8 +239,24 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "Example: http://292.168.0.2/$type/$event?from-uri=$from-uri&tag=$from-tag&callid=$callid&to=$to-uri",
 		 ""},
 		{String, "external-push-method", "Method for reaching external-push-uri, typically GET or POST", "GET"},
+
+		// deprecated parameters
+		{Boolean, "google", "Enable push notification for android devices (for compatibility only)", "true"},
+		{StringList, "google-projects-api-keys",
+		 "List of couples projectId:ApiKey for each android project that supports push notifications (for compatibility "
+		 "only)", ""},
 		config_item_end};
 	module_config->addChildrenValues(items);
+
+	module_config->get<ConfigBoolean>("google")->setDeprecated({
+		"2020-01-28", "2.0.0",
+		"'google' push notification backend has been removed. Please use 'firebase' instead."
+	});
+	module_config->get<ConfigStringList>("google-projects-api-keys")->setDeprecated({
+		"2020-01-28", "2.0.0",
+		"This setting has no effect anymore."
+	});
+
 	mCountFailed = module_config->createStat("count-pn-failed", "Number of push notifications failed to be sent");
 	mCountSent = module_config->createStat("count-pn-sent", "Number of push notifications successfully sent");
 }
@@ -251,11 +267,9 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	mTtl = mc->get<ConfigInt>("time-to-live")->read();
 	int maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
 	string certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
-	auto googleKeys = mc->get<ConfigStringList>("google-projects-api-keys")->read();
 	auto firebaseKeys = mc->get<ConfigStringList>("firebase-projects-api-keys")->read();
 	string externalUri = mc->get<ConfigString>("external-push-uri")->read();
 	bool appleEnabled = mc->get<ConfigBoolean>("apple")->read();
-	bool googleEnabled = mc->get<ConfigBoolean>("google")->read();
 	bool firebaseEnabled = mc->get<ConfigBoolean>("firebase")->read();
 	bool windowsPhoneEnabled = mc->get<ConfigBoolean>("windowsphone")->read();
 	string windowsPhonePackageSID = windowsPhoneEnabled ? mc->get<ConfigString>("windowsphone-package-sid")->read() : "";
@@ -281,12 +295,6 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		}
 	}
 
-	mGoogleKeys.clear();
-	for (auto it = googleKeys.cbegin(); it != googleKeys.cend(); ++it) {
-		const string &keyval = *it;
-		size_t sep = keyval.find(":");
-		mGoogleKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep + 1)));
-	}
 	mFirebaseKeys.clear();
 	for (auto it = firebaseKeys.cbegin(); it != firebaseKeys.cend(); ++it) {
 		const string &keyval = *it;
@@ -300,8 +308,6 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mPNS->setupGenericClient(mExternalPushUri);
 	if (appleEnabled)
 		mPNS->setupiOSClient(certdir, "");
-	if (googleEnabled)
-		mPNS->setupAndroidClient(mGoogleKeys);
 	if (firebaseEnabled)
 		mPNS->setupFirebaseClient(mFirebaseKeys);
 	if(windowsPhoneEnabled)
@@ -581,16 +587,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			} else if ((type == "wp") || (type == "w10")) {
 				if (!mExternalPushUri)
 					pn = make_shared<WindowsPhonePushNotificationRequest>(pinfo);
-			} else if (type == "google") {
-				auto apiKeyIt = mGoogleKeys.find(pinfo.mAppId);
-				if (apiKeyIt != mGoogleKeys.end()) {
-					pinfo.mApiKey = apiKeyIt->second;
-					SLOGD << "Creating Google push notif request";
-					if (!mExternalPushUri)
-						pn = make_shared<GooglePushNotificationRequest>(pinfo);
-				} else {
-					SLOGD << "No Key matching appId " << pinfo.mAppId;
-				}
 			} else if (type == "firebase") {
 				auto apiKeyIt = mFirebaseKeys.find(pinfo.mAppId);
 				if (apiKeyIt != mFirebaseKeys.end()) {

@@ -50,28 +50,33 @@ PresenceServer::Init PresenceServer::sStaticInit;
 
 PresenceServer::Init::Init() {
 	ConfigItemDescriptor items[] = {
-									{Boolean, "enabled", "Enable presence server", "true"},
-									{StringList, "transports",
-									 "List of white space separated SIP uris where the presence server must listen. Must not be tls.",
-									 "sip:127.0.0.1:5065;transport=tcp"},
-									{Integer, "expires", "Publish default expires in second.  by default.", "600"},
-									{Integer, "notify-limit", "Max number of presentity sent in a single NOTIFY.  by default.", "200"},
-									{Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
-									{Boolean, "long-term-enabled", "Enable long-term presence notifies", "true"},
-									{String, "bypass-condition", "If user agent contains it, can bypass extended notifiy verification.", "false"},
-									{String, "external-list-subscription-request",
-										"Soci SQL request to execute to obtain the list of users corresponding to an external subscription.\n"
-										"Named parameters are:\n"
-											"-':from' : the uri of the sender of the SUBSCRIBE.\n"
-											"-':to' : the uri of the users list the sender want to subscribe to.\n"
-										"The use of the :from & :to parameters are mandatory.\n", ""},
-									{String, "soci-connection-string", "Connection string to SOCI.", ""},
-									{Integer, "max-thread", "Max number threads.", "50"},
-									{Integer, "max-thread-queue-size", "Max legnth of threads queue.", "50"},
-									config_item_end};
+		{Boolean, "enabled", "Enable presence server", "true"},
+		{StringList, "transports",
+			"List of white space separated SIP URIs where the presence server must listen. Must not be tls.",
+			"sip:127.0.0.1:5065;transport=tcp"},
+		{Integer, "expires", "Default expires of PUBLISH request in second.", "600"},
+		{Integer, "notify-limit", "Max number of presentity sent in a single NOTIFY by default.", "200"},
+		{Boolean, "long-term-enabled", "Enable long-term presence notifies", "true"},
+		{String, "soci-connection-string", "Connection string to SOCI.", ""},
+		{String, "external-list-subscription-request",
+			"Soci SQL request to execute to obtain the list of the users corresponding to an external subscription.\n"
+			"Named parameters are:\n"
+				"-':from' : the URI of the sender of the SUBSCRIBE.\n"
+				"-':to' : the URI of the users list which the sender want to subscribe to.\n"
+			"The use of the :from & :to parameters are mandatory.\n", ""},
+		{Integer, "max-thread", "Max number of threads.", "50"},
+		{Integer, "max-thread-queue-size", "Max legnth of threads queue.", "50"},
+
+		// Hidden parameters
+		{String, "bypass-condition", "If user agent contains it, can bypass extended notifiy verification.", "false"},
+		{Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
+		config_item_end};
+
 	GenericStruct *s = new GenericStruct("presence-server", "Flexisip presence server parameters.", 0);
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
+	s->get<ConfigString>("bypass-condition")->setExportable(false);
+	s->get<ConfigBoolean>("leak-detector")->setExportable(false);
 }
 
 PresenceServer::PresenceServer(su_root_t* root) : ServiceServer( root){
