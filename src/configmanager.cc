@@ -846,7 +846,7 @@ GenericManager::GenericManager()
 			"Note that by default linux will generate coredumps in '/' which is not so convenient. The following shell command can be added to"
 			" /etc/rc.local in order to write core dumps a in specific directory, for example /home/cores:\n"
 			"\techo \"/home/cores/core.\%e.\%t.\%p\" >/proc/sys/kernel/core_pattern"
-			, "true"},
+			, "false"},
 		{Boolean, "enable-snmp", "Enable SNMP.", "false"},
 
 		// log settings
