@@ -81,8 +81,6 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	}
 
   protected:
-	bool makeGeneratedContactRoute(std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<Record> &aor,
-								   std::list<std::shared_ptr<ExtendedContact>> &ec_list);
 	virtual bool dispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact,
 				  std::shared_ptr<ForkContext> context, const std::string &targetUris);
 	virtual bool lateDispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact,
@@ -96,14 +94,10 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	std::shared_ptr<ForkContextConfig> mOtherForkCfg;
 	typedef std::multimap<std::string, std::shared_ptr<ForkContext>> ForkMap;
 	ForkMap mForks;
-	std::string mGeneratedContactRoute;
-	std::string mExpectedRealm;
 	bool mUseGlobalDomain = false;
 
-	bool mGenerateContactEvenOnFilledAor = false;
 	bool mAllowDomainRegistrations = false;
 	bool mAllowTargetFactorization = false;
-	std::string mPreroute;
 	bool mResolveRoutes = false;
 	std::string mFallbackRoute;
 	url_t *mFallbackRouteParsed = nullptr;
