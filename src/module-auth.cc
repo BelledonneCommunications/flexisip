@@ -42,6 +42,29 @@ void Authentication::onDeclare(GenericStruct *mc) {
 	ModuleAuthenticationBase::onDeclare(mc);
 	ConfigItemDescriptor items[] = {
 		{StringList, "trusted-hosts", "List of whitespace separated IP which will not be challenged.", ""},
+		{Boolean, "reject-wrong-client-certificates",
+			"If set to true, the module will simply reject with 403 forbidden any request coming from client"
+			" who presented a bad TLS certificate (regardless of reason: improper signature, unmatched subjects)."
+			" Otherwise, the module will fallback to a digest authentication.\n"
+			"This policy applies only for transports configured with 'required-peer-certificate=1' parameter; indeed"
+			" no certificate is requested to the client otherwise.",
+			"false"
+		},
+		{String, "tls-client-certificate-required-subject", "An optional regular expression matched against subjects "
+			"of presented client certificates. If this regular expression evaluates to false, the request is rejected. "
+			"The matched subjects are, in order: subjectAltNames.DNS, subjectAltNames.URI, subjectAltNames.IP and CN.",
+			""
+		},
+		{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
+			"which will trusted. If no domain is given it is computed.",
+			""
+		},
+		{Boolean, "trust-domain-certificates",
+			"If enabled, all requests which have their request URI containing a trusted domain will be accepted.",
+			"false"
+		},
+		{Boolean, "new-auth-on-407", "When receiving a proxy authenticate challenge, generate a new challenge for "
+			"this proxy.", "false"},
 		{String, "db-implementation",
 			"Database backend implementation for digest authentication [soci,file].",
 			"file"
@@ -64,33 +87,10 @@ void Authentication::onDeclare(GenericStruct *mc) {
 			"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).",
 			"false"
 		},
-		{Boolean, "reject-wrong-client-certificates",
-			"If set to true, the module will simply reject with 403 forbidden any request coming from client"
-			" who presented a bad TLS certificate (regardless of reason: improper signature, unmatched subjects)."
-			" Otherwise, the module will fallback to a digest authentication.\n"
-			"This policy applies only for transports configured with 'required-peer-certificate=1' parameter; indeed"
-			" no certificate is requested to the client otherwise.",
-			"false"
-		},
-		{String, "tls-client-certificate-required-subject", "An optional regular expression matched against subjects "
-			"of presented client certificates. If this regular expression evaluates to false, the request is rejected. "
-			"The matched subjects are, in order: subjectAltNames.DNS, subjectAltNames.URI, subjectAltNames.IP and CN.",
-			""
-		},
-		{Boolean, "new-auth-on-407", "When receiving a proxy authenticate challenge, generate a new challenge for "
-			"this proxy.", "false"},
 		{Boolean, "enable-test-accounts-creation",
 			"Enable a feature useful for automatic tests, allowing a client to create a temporary account in the "
 			"password database in memory."
 			"This MUST not be used for production as it is a real security hole.",
-			"false"
-		},
-		{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
-			"which will trusted. If no domain is given it is computed.",
-			""
-		},
-		{Boolean, "trust-domain-certificates",
-			"If enabled, all requests which have their request URI containing a trusted domain will be accepted.",
 			"false"
 		},
 		config_item_end
