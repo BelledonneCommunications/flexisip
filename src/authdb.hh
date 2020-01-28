@@ -280,7 +280,6 @@ private:
 	std::string get_users_with_phones_request;
 	std::string get_password_algo_request;
 	bool check_domain_in_presence_results = false;
-	bool hashed_passwd;
 	bool _connected = false;
 
 	friend AuthDbBackend;
