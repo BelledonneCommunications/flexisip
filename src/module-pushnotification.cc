@@ -97,7 +97,6 @@ private:
 	int mTtl = 0;
 	unsigned mRetransmissionCount = 0;
 	unsigned mRetransmissionInterval = 0;
-	map<string, string> mGoogleKeys;
 	map<string, string> mFirebaseKeys;
 	std::unique_ptr<PushNotificationService> mPNS;
 	StatCounter64 *mCountFailed = nullptr;
@@ -181,7 +180,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 	ConfigItemDescriptor items[] = {
 		{Integer, "timeout",
 		 "Number of seconds to wait before sending a push notification to device. A value lesser or equal to zero will make "
-		 "the push notification to be sent immediately.", "5"},
+		 "the push notification to be sent immediately.", "0"},
 		{Integer, "max-queue-size", "Maximum number of notifications queued for each client", "100"},
 		{Integer, "time-to-live", "Default time to live for the push notifications, in seconds. This parameter shall be set according to mDeliveryTimeout parameter in ForkContext.cc", "2592000"},
 		{Integer, "retransmission-count", "Number of push notification request retransmissions sent to a client for a same event (call or message). Retransmissions cease when a response "
@@ -202,16 +201,13 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 			" - 'pushkit' : format a push notification suitable for usage with pushkit. This is the default value.\n"
 			" - 'normal' : format a push notification suitable for normal push notifications, with 'content-available' attribute set to 1."
 			, "pushkit"},
-		{Boolean, "google", "Enable push notification for android devices (for compatibility only)", "true"},
-		{StringList, "google-projects-api-keys",
-		 "List of couples projectId:ApiKey for each android project that supports push notifications (for compatibility only)", ""},
+		{Boolean, "no-badge", "Set the badge value to 0 for apple push", "false"},
 		{Boolean, "firebase", "Enable push notification for android devices (new method for android)", "true"},
 		{StringList, "firebase-projects-api-keys",
 		 "List of couples projectId:ApiKey for each android project that supports push notifications (new method for android)", ""},
 		{Boolean, "windowsphone", "Enable push notification for windows phone 8 devices", "true"},
 		{String, "windowsphone-package-sid", "Unique identifier for your Windows Store app. For example: ms-app://s-1-15-2-2345030743-3098444494-743537440-5853975885-5950300305-5348553438-505324794", ""},
 		{String, "windowsphone-application-secret", "Client secret. For example: Jrp1UoVt4C6CYpVVJHUPdcXLB1pEdRoB", ""},
-		{Boolean, "no-badge", "Set the badge value to 0 for apple push", "false"},
 		{String, "external-push-uri",
 		 "Instead of having Flexisip sending the push notification directly to the Google/Apple/Microsoft push servers,"
 		 " send an http request to an http server with all required information encoded in URL, to which the actual "
@@ -236,8 +232,18 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "Example: http://292.168.0.2/$type/$event?from-uri=$from-uri&tag=$from-tag&callid=$callid&to=$to-uri",
 		 ""},
 		{String, "external-push-method", "Method for reaching external-push-uri, typically GET or POST", "GET"},
+
+		// deprecated parameters
+		{Boolean, "google", "Enable push notification for android devices (for compatibility only)", "true"},
+		{StringList, "google-projects-api-keys",
+		 "List of couples projectId:ApiKey for each android project that supports push notifications (for compatibility only)", ""},
 		config_item_end};
 	module_config->addChildrenValues(items);
+
+	// deprecated since 2020-01-28 (2.0.0)
+	module_config->get<ConfigBoolean>("google")->setDeprecated(true);
+	module_config->get<ConfigStringList>("google-projects-api-keys")->setDeprecated(true);
+
 	mCountFailed = module_config->createStat("count-pn-failed", "Number of push notifications failed to be sent");
 	mCountSent = module_config->createStat("count-pn-sent", "Number of push notifications successfully sent");
 }
@@ -248,11 +254,9 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	mTtl = mc->get<ConfigInt>("time-to-live")->read();
 	int maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
 	string certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
-	auto googleKeys = mc->get<ConfigStringList>("google-projects-api-keys")->read();
 	auto firebaseKeys = mc->get<ConfigStringList>("firebase-projects-api-keys")->read();
 	string externalUri = mc->get<ConfigString>("external-push-uri")->read();
 	bool appleEnabled = mc->get<ConfigBoolean>("apple")->read();
-	bool googleEnabled = mc->get<ConfigBoolean>("google")->read();
 	bool firebaseEnabled = mc->get<ConfigBoolean>("firebase")->read();
 	bool windowsPhoneEnabled = mc->get<ConfigBoolean>("windowsphone")->read();
 	string windowsPhonePackageSID = windowsPhoneEnabled ? mc->get<ConfigString>("windowsphone-package-sid")->read() : "";
@@ -287,12 +291,6 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		}
 	}
 
-	mGoogleKeys.clear();
-	for (auto it = googleKeys.cbegin(); it != googleKeys.cend(); ++it) {
-		const string &keyval = *it;
-		size_t sep = keyval.find(":");
-		mGoogleKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep + 1)));
-	}
 	mFirebaseKeys.clear();
 	for (auto it = firebaseKeys.cbegin(); it != firebaseKeys.cend(); ++it) {
 		const string &keyval = *it;
@@ -306,8 +304,6 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mPNS->setupGenericClient(mExternalPushUri);
 	if (appleEnabled)
 		mPNS->setupiOSClient(certdir, "");
-	if (googleEnabled)
-		mPNS->setupAndroidClient(mGoogleKeys);
 	if (firebaseEnabled)
 		mPNS->setupFirebaseClient(mFirebaseKeys);
 	if(windowsPhoneEnabled)
@@ -471,16 +467,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			} else if ((type == "wp") || (type == "w10")) {
 				if (!mExternalPushUri)
 					pn = make_shared<WindowsPhonePushNotificationRequest>(pinfo);
-			} else if (type == "google") {
-				auto apiKeyIt = mGoogleKeys.find(appId);
-				if (apiKeyIt != mGoogleKeys.end()) {
-					pinfo.mApiKey = apiKeyIt->second;
-					SLOGD << "Creating Google push notif request";
-					if (!mExternalPushUri)
-						pn = make_shared<GooglePushNotificationRequest>(pinfo);
-				} else {
-					SLOGD << "No Key matching appId " << appId;
-				}
 			} else if (type == "firebase") {
 				auto apiKeyIt = mFirebaseKeys.find(appId);
 				if (apiKeyIt != mFirebaseKeys.end()) {
